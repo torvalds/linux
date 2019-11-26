@@ -12,14 +12,12 @@ struct unwind_libunwind_ops __weak *local_unwind_libunwind_ops;
 struct unwind_libunwind_ops __weak *x86_32_unwind_libunwind_ops;
 struct unwind_libunwind_ops __weak *arm64_unwind_libunwind_ops;
 
-static void unwind__register_ops(struct map_groups *mg,
-			  struct unwind_libunwind_ops *ops)
+static void unwind__register_ops(struct maps *mg, struct unwind_libunwind_ops *ops)
 {
 	mg->unwind_libunwind_ops = ops;
 }
 
-int unwind__prepare_access(struct map_groups *mg, struct map *map,
-			   bool *initialized)
+int unwind__prepare_access(struct maps *mg, struct map *map, bool *initialized)
 {
 	const char *arch;
 	enum dso_type dso_type;
@@ -68,13 +66,13 @@ out_register:
 	return err;
 }
 
-void unwind__flush_access(struct map_groups *mg)
+void unwind__flush_access(struct maps *mg)
 {
 	if (mg->unwind_libunwind_ops)
 		mg->unwind_libunwind_ops->flush_access(mg);
 }
 
-void unwind__finish_access(struct map_groups *mg)
+void unwind__finish_access(struct maps *mg)
 {
 	if (mg->unwind_libunwind_ops)
 		mg->unwind_libunwind_ops->finish_access(mg);

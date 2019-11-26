@@ -616,7 +616,7 @@ static unw_accessors_t accessors = {
 	.get_proc_name		= get_proc_name,
 };
 
-static int _unwind__prepare_access(struct map_groups *mg)
+static int _unwind__prepare_access(struct maps *mg)
 {
 	mg->addr_space = unw_create_addr_space(&accessors, 0);
 	if (!mg->addr_space) {
@@ -628,12 +628,12 @@ static int _unwind__prepare_access(struct map_groups *mg)
 	return 0;
 }
 
-static void _unwind__flush_access(struct map_groups *mg)
+static void _unwind__flush_access(struct maps *mg)
 {
 	unw_flush_cache(mg->addr_space, 0, 0);
 }
 
-static void _unwind__finish_access(struct map_groups *mg)
+static void _unwind__finish_access(struct maps *mg)
 {
 	unw_destroy_addr_space(mg->addr_space);
 }

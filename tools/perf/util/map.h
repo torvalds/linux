@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 struct dso;
-struct map_groups;
+struct maps;
 struct machine;
 
 struct map {
@@ -42,7 +42,7 @@ struct kmap;
 
 struct kmap *__map__kmap(struct map *map);
 struct kmap *map__kmap(struct map *map);
-struct map_groups *map__kmaps(struct map *map);
+struct maps *map__kmaps(struct map *map);
 
 static inline u64 map__map_ip(struct map *map, u64 ip)
 {

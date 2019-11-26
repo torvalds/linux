@@ -19,16 +19,16 @@
 
 #include <api/fs/fs.h>
 
-int thread__init_map_groups(struct thread *thread, struct machine *machine)
+int thread__init_maps(struct thread *thread, struct machine *machine)
 {
 	pid_t pid = thread->pid_;
 
 	if (pid == thread->tid || pid == -1) {
-		thread->mg = map_groups__new(machine);
+		thread->mg = maps__new(machine);
 	} else {
 		struct thread *leader = __machine__findnew_thread(machine, pid, pid);
 		if (leader) {
-			thread->mg = map_groups__get(leader->mg);
+			thread->mg = maps__get(leader->mg);
 			thread__put(leader);
 		}
 	}
@@ -87,7 +87,7 @@ void thread__delete(struct thread *thread)
 	thread_stack__free(thread);
 
 	if (thread->mg) {
-		map_groups__put(thread->mg);
+		maps__put(thread->mg);
 		thread->mg = NULL;
 	}
 	down_write(&thread->namespaces_lock);
@@ -324,7 +324,7 @@ int thread__comm_len(struct thread *thread)
 size_t thread__fprintf(struct thread *thread, FILE *fp)
 {
 	return fprintf(fp, "Thread %d %s\n", thread->tid, thread__comm_str(thread)) +
-	       map_groups__fprintf(thread->mg, fp);
+	       maps__fprintf(thread->mg, fp);
 }
 
 int thread__insert_map(struct thread *thread, struct map *map)
@@ -335,8 +335,8 @@ int thread__insert_map(struct thread *thread, struct map *map)
 	if (ret)
 		return ret;
 
-	map_groups__fixup_overlappings(thread->mg, map, stderr);
-	map_groups__insert(thread->mg, map);
+	maps__fixup_overlappings(thread->mg, map, stderr);
+	maps__insert(thread->mg, map);
 
 	return 0;
 }
@@ -345,7 +345,7 @@ static int __thread__prepare_access(struct thread *thread)
 {
 	bool initialized = false;
 	int err = 0;
-	struct maps *maps = &thread->mg->maps;
+	struct maps *maps = thread->mg;
 	struct map *map;
 
 	down_read(&maps->lock);
@@ -371,9 +371,7 @@ static int thread__prepare_access(struct thread *thread)
 	return err;
 }
 
-static int thread__clone_map_groups(struct thread *thread,
-				    struct thread *parent,
-				    bool do_maps_clone)
+static int thread__clone_maps(struct thread *thread, struct thread *parent, bool do_maps_clone)
 {
 	/* This is new thread, we share map groups for process. */
 	if (thread->pid_ == parent->pid_)
@@ -385,7 +383,7 @@ static int thread__clone_map_groups(struct thread *thread,
 		return 0;
 	}
 	/* But this one is new process, copy maps. */
-	return do_maps_clone ? map_groups__clone(thread, parent->mg) : 0;
+	return do_maps_clone ? maps__clone(thread, parent->mg) : 0;
 }
 
 int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp, bool do_maps_clone)
@@ -401,7 +399,7 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp, bo
 	}
 
 	thread->ppid = parent->tid;
-	return thread__clone_map_groups(thread, parent, do_maps_clone);
+	return thread__clone_maps(thread, parent, do_maps_clone);
 }
 
 void thread__find_cpumode_addr_location(struct thread *thread, u64 addr,

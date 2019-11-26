@@ -239,9 +239,9 @@ void symbols__fixup_end(struct rb_root_cached *symbols)
 		curr->end = roundup(curr->start, 4096) + 4096;
 }
 
-void map_groups__fixup_end(struct map_groups *mg)
+void maps__fixup_end(struct maps *mg)
 {
-	struct maps *maps = &mg->maps;
+	struct maps *maps = mg;
 	struct map *prev = NULL, *curr;
 
 	down_write(&maps->lock);
@@ -698,7 +698,7 @@ static int dso__load_all_kallsyms(struct dso *dso, const char *filename)
 	return kallsyms__parse(filename, dso, map__process_kallsym_symbol);
 }
 
-static int map_groups__split_kallsyms_for_kcore(struct map_groups *kmaps, struct dso *dso)
+static int maps__split_kallsyms_for_kcore(struct maps *kmaps, struct dso *dso)
 {
 	struct map *curr_map;
 	struct symbol *pos;
@@ -724,7 +724,7 @@ static int map_groups__split_kallsyms_for_kcore(struct map_groups *kmaps, struct
 		if (module)
 			*module = '\0';
 
-		curr_map = map_groups__find(kmaps, pos->start);
+		curr_map = maps__find(kmaps, pos->start);
 
 		if (!curr_map) {
 			symbol__delete(pos);
@@ -751,8 +751,8 @@ static int map_groups__split_kallsyms_for_kcore(struct map_groups *kmaps, struct
  * kernel range is broken in several maps, named [kernel].N, as we don't have
  * the original ELF section names vmlinux have.
  */
-static int map_groups__split_kallsyms(struct map_groups *kmaps, struct dso *dso, u64 delta,
-				      struct map *initial_map)
+static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
+				struct map *initial_map)
 {
 	struct machine *machine;
 	struct map *curr_map = initial_map;
@@ -797,7 +797,7 @@ static int map_groups__split_kallsyms(struct map_groups *kmaps, struct dso *dso,
 					dso__set_loaded(curr_map->dso);
 				}
 
-				curr_map = map_groups__find_by_name(kmaps, module);
+				curr_map = maps__find_by_name(kmaps, module);
 				if (curr_map == NULL) {
 					pr_debug("%s/proc/{kallsyms,modules} "
 					         "inconsistency while looking "
@@ -864,7 +864,7 @@ static int map_groups__split_kallsyms(struct map_groups *kmaps, struct dso *dso,
 			}
 
 			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
-			map_groups__insert(kmaps, curr_map);
+			maps__insert(kmaps, curr_map);
 			++kernel_range;
 		} else if (delta) {
 			/* Kernel was relocated at boot time */
@@ -1049,8 +1049,7 @@ out_delete_from:
 	return ret;
 }
 
-static int do_validate_kcore_modules(const char *filename,
-				  struct map_groups *kmaps)
+static int do_validate_kcore_modules(const char *filename, struct maps *kmaps)
 {
 	struct rb_root modules = RB_ROOT;
 	struct map *old_map;
@@ -1060,7 +1059,7 @@ static int do_validate_kcore_modules(const char *filename,
 	if (err)
 		return err;
 
-	map_groups__for_each_entry(kmaps, old_map) {
+	maps__for_each_entry(kmaps, old_map) {
 		struct module_info *mi;
 
 		if (!__map__is_kmodule(old_map)) {
@@ -1107,7 +1106,7 @@ static bool filename_from_kallsyms_filename(char *filename,
 static int validate_kcore_modules(const char *kallsyms_filename,
 				  struct map *map)
 {
-	struct map_groups *kmaps = map__kmaps(map);
+	struct maps *kmaps = map__kmaps(map);
 	char modules_filename[PATH_MAX];
 
 	if (!kmaps)
@@ -1167,15 +1166,15 @@ static int kcore_mapfn(u64 start, u64 len, u64 pgoff, void *data)
 }
 
 /*
- * Merges map into map_groups by splitting the new map
- * within the existing map regions.
+ * Merges map into maps by splitting the new map within the existing map
+ * regions.
  */
-int map_groups__merge_in(struct map_groups *kmaps, struct map *new_map)
+int maps__merge_in(struct maps *kmaps, struct map *new_map)
 {
 	struct map *old_map;
 	LIST_HEAD(merged);
 
-	map_groups__for_each_entry(kmaps, old_map) {
+	maps__for_each_entry(kmaps, old_map) {
 		/* no overload with this one */
 		if (new_map->end < old_map->start ||
 		    new_map->start >= old_map->end)
@@ -1232,12 +1231,12 @@ int map_groups__merge_in(struct map_groups *kmaps, struct map *new_map)
 	while (!list_empty(&merged)) {
 		old_map = list_entry(merged.next, struct map, node);
 		list_del_init(&old_map->node);
-		map_groups__insert(kmaps, old_map);
+		maps__insert(kmaps, old_map);
 		map__put(old_map);
 	}
 
 	if (new_map) {
-		map_groups__insert(kmaps, new_map);
+		maps__insert(kmaps, new_map);
 		map__put(new_map);
 	}
 	return 0;
@@ -1246,7 +1245,7 @@ int map_groups__merge_in(struct map_groups *kmaps, struct map *new_map)
 static int dso__load_kcore(struct dso *dso, struct map *map,
 			   const char *kallsyms_filename)
 {
-	struct map_groups *kmaps = map__kmaps(map);
+	struct maps *kmaps = map__kmaps(map);
 	struct kcore_mapfn_data md;
 	struct map *old_map, *new_map, *replacement_map = NULL, *next;
 	struct machine *machine;
@@ -1295,14 +1294,14 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	}
 
 	/* Remove old maps */
-	map_groups__for_each_entry_safe(kmaps, old_map, next) {
+	maps__for_each_entry_safe(kmaps, old_map, next) {
 		/*
 		 * We need to preserve eBPF maps even if they are
 		 * covered by kcore, because we need to access
 		 * eBPF dso for source data.
 		 */
 		if (old_map != map && !__map__is_bpf_prog(old_map))
-			map_groups__remove(kmaps, old_map);
+			maps__remove(kmaps, old_map);
 	}
 	machine->trampolines_mapped = false;
 
@@ -1331,8 +1330,8 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 			map->unmap_ip	= new_map->unmap_ip;
 			/* Ensure maps are correctly ordered */
 			map__get(map);
-			map_groups__remove(kmaps, map);
-			map_groups__insert(kmaps, map);
+			maps__remove(kmaps, map);
+			maps__insert(kmaps, map);
 			map__put(map);
 			map__put(new_map);
 		} else {
@@ -1341,7 +1340,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 			 * and ensure that current maps (eBPF)
 			 * stay intact.
 			 */
-			if (map_groups__merge_in(kmaps, new_map))
+			if (maps__merge_in(kmaps, new_map))
 				goto out_err;
 		}
 	}
@@ -1433,9 +1432,9 @@ int __dso__load_kallsyms(struct dso *dso, const char *filename,
 		dso->symtab_type = DSO_BINARY_TYPE__KALLSYMS;
 
 	if (!no_kcore && !dso__load_kcore(dso, map, filename))
-		return map_groups__split_kallsyms_for_kcore(kmap->kmaps, dso);
+		return maps__split_kallsyms_for_kcore(kmap->kmaps, dso);
 	else
-		return map_groups__split_kallsyms(kmap->kmaps, dso, delta, map);
+		return maps__split_kallsyms(kmap->kmaps, dso, delta, map);
 }
 
 int dso__load_kallsyms(struct dso *dso, const char *filename,
@@ -1772,12 +1771,12 @@ static int map__strcmp_name(const void *name, const void *b)
 	return strcmp(name, map->dso->short_name);
 }
 
-void __map_groups__sort_by_name(struct map_groups *mg)
+void __maps__sort_by_name(struct maps *mg)
 {
 	qsort(mg->maps_by_name, mg->nr_maps, sizeof(struct map *), map__strcmp);
 }
 
-static int map__groups__sort_by_name_from_rbtree(struct map_groups *mg)
+static int map__groups__sort_by_name_from_rbtree(struct maps *mg)
 {
 	struct map *map;
 	struct map **maps_by_name = realloc(mg->maps_by_name, mg->nr_maps * sizeof(map));
@@ -1789,14 +1788,14 @@ static int map__groups__sort_by_name_from_rbtree(struct map_groups *mg)
 	mg->maps_by_name = maps_by_name;
 	mg->nr_maps_allocated = mg->nr_maps;
 
-	maps__for_each_entry(&mg->maps, map)
+	maps__for_each_entry(mg, map)
 		maps_by_name[i++] = map;
 
-	__map_groups__sort_by_name(mg);
+	__maps__sort_by_name(mg);
 	return 0;
 }
 
-static struct map *__map_groups__find_by_name(struct map_groups *mg, const char *name)
+static struct map *__maps__find_by_name(struct maps *mg, const char *name)
 {
 	struct map **mapp;
 
@@ -1810,9 +1809,9 @@ static struct map *__map_groups__find_by_name(struct map_groups *mg, const char 
 	return NULL;
 }
 
-struct map *map_groups__find_by_name(struct map_groups *mg, const char *name)
+struct map *maps__find_by_name(struct maps *mg, const char *name)
 {
-	struct maps *maps = &mg->maps;
+	struct maps *maps = mg;
 	struct map *map;
 
 	down_read(&maps->lock);
@@ -1826,7 +1825,7 @@ struct map *map_groups__find_by_name(struct map_groups *mg, const char *name)
 	 * as mg->maps_by_name mirrors the rbtree when lookups by name are
 	 * made.
 	 */
-	map = __map_groups__find_by_name(mg, name);
+	map = __maps__find_by_name(mg, name);
 	if (map || mg->maps_by_name != NULL)
 		goto out_unlock;
 

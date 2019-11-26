@@ -12,16 +12,16 @@ int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_
 	/* thread group */
 	struct thread *leader;
 	struct thread *t1, *t2, *t3;
-	struct map_groups *mg;
+	struct maps *mg;
 
 	/* other process */
 	struct thread *other, *other_leader;
-	struct map_groups *other_mg;
+	struct maps *other_mg;
 
 	/*
 	 * This test create 2 processes abstractions (struct thread)
 	 * with several threads and checks they properly share and
-	 * maintain map groups info (struct map_groups).
+	 * maintain maps info (struct maps).
 	 *
 	 * thread group (pid: 0, tids: 0, 1, 2, 3)
 	 * other  group (pid: 4, tids: 4, 5)

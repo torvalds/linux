@@ -4,12 +4,12 @@
 
 #include <linux/types.h>
 
-struct map_groups;
+struct maps;
 struct map;
 struct symbol;
 
 struct map_symbol {
-	struct map_groups *mg;
+	struct maps   *mg;
 	struct map    *map;
 	struct symbol *sym;
 };

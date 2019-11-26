@@ -457,7 +457,7 @@ int perf_event__process(struct perf_tool *tool __maybe_unused,
 struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 			     struct addr_location *al)
 {
-	struct map_groups *mg = thread->mg;
+	struct maps *mg = thread->mg;
 	struct machine *machine = mg->machine;
 	bool load_map = false;
 
@@ -500,7 +500,7 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 		return NULL;
 	}
 
-	al->map = map_groups__find(mg, al->addr);
+	al->map = maps__find(mg, al->addr);
 	if (al->map != NULL) {
 		/*
 		 * Kernel maps might be changed when loading symbols so loading
