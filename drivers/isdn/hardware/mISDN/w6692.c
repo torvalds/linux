@@ -466,8 +466,8 @@ W6692_empty_Bfifo(struct w6692_ch *wch, int count)
 		WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK | W_B_CMDR_RACT);
 		if (wch->bch.rx_skb)
 			skb_trim(wch->bch.rx_skb, 0);
-		pr_warning("%s.B%d: No bufferspace for %d bytes\n",
-			   card->name, wch->bch.nr, count);
+		pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+			card->name, wch->bch.nr, count);
 		return;
 	}
 	ptr = skb_put(wch->bch.rx_skb, count);
@@ -729,8 +729,8 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 				 wch->bch.nr, star);
 		}
 		if (star & W_B_STAR_XDOW) {
-			pr_warning("%s: B%d XDOW proto=%x\n", card->name,
-				   wch->bch.nr, wch->bch.state);
+			pr_warn("%s: B%d XDOW proto=%x\n", card->name,
+				wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 			wch->bch.err_xdu++;
 #endif
@@ -747,8 +747,8 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 			return; /* handle XDOW only once */
 	}
 	if (stat & W_B_EXI_XDUN) {
-		pr_warning("%s: B%d XDUN proto=%x\n", card->name,
-			   wch->bch.nr, wch->bch.state);
+		pr_warn("%s: B%d XDUN proto=%x\n", card->name,
+			wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 		wch->bch.err_xdu++;
 #endif

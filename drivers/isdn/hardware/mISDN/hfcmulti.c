@@ -2248,8 +2248,8 @@ next_frame:
 	if (bch) {
 		maxlen = bchannel_get_rxbuf(bch, Zsize);
 		if (maxlen < 0) {
-			pr_warning("card%d.B%d: No bufferspace for %d bytes\n",
-				   hc->id + 1, bch->nr, Zsize);
+			pr_warn("card%d.B%d: No bufferspace for %d bytes\n",
+				hc->id + 1, bch->nr, Zsize);
 			return;
 		}
 		sp = &bch->rx_skb;
@@ -2260,8 +2260,8 @@ next_frame:
 		if (*sp == NULL) {
 			*sp = mI_alloc_skb(maxlen, GFP_ATOMIC);
 			if (*sp == NULL) {
-				pr_warning("card%d: No mem for dch rx_skb\n",
-					   hc->id + 1);
+				pr_warn("card%d: No mem for dch rx_skb\n",
+					hc->id + 1);
 				return;
 			}
 		}

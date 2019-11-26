@@ -57,7 +57,7 @@ void __init tboot_probe(void)
 	 */
 	if (!e820__mapped_any(boot_params.tboot_addr,
 			     boot_params.tboot_addr, E820_TYPE_RESERVED)) {
-		pr_warning("non-0 tboot_addr but it is not of type E820_TYPE_RESERVED\n");
+		pr_warn("non-0 tboot_addr but it is not of type E820_TYPE_RESERVED\n");
 		return;
 	}
 
@@ -65,13 +65,12 @@ void __init tboot_probe(void)
 	set_fixmap(FIX_TBOOT_BASE, boot_params.tboot_addr);
 	tboot = (struct tboot *)fix_to_virt(FIX_TBOOT_BASE);
 	if (memcmp(&tboot_uuid, &tboot->uuid, sizeof(tboot->uuid))) {
-		pr_warning("tboot at 0x%llx is invalid\n",
-			   boot_params.tboot_addr);
+		pr_warn("tboot at 0x%llx is invalid\n", boot_params.tboot_addr);
 		tboot = NULL;
 		return;
 	}
 	if (tboot->version < 5) {
-		pr_warning("tboot version is invalid: %u\n", tboot->version);
+		pr_warn("tboot version is invalid: %u\n", tboot->version);
 		tboot = NULL;
 		return;
 	}
@@ -289,7 +288,7 @@ static int tboot_sleep(u8 sleep_state, u32 pm1a_control, u32 pm1b_control)
 
 	if (sleep_state >= ACPI_S_STATE_COUNT ||
 	    acpi_shutdown_map[sleep_state] == -1) {
-		pr_warning("unsupported sleep state 0x%x\n", sleep_state);
+		pr_warn("unsupported sleep state 0x%x\n", sleep_state);
 		return -1;
 	}
 
@@ -302,7 +301,7 @@ static int tboot_extended_sleep(u8 sleep_state, u32 val_a, u32 val_b)
 	if (!tboot_enabled())
 		return 0;
 
-	pr_warning("tboot is not able to suspend on platforms with reduced hardware sleep (ACPIv5)");
+	pr_warn("tboot is not able to suspend on platforms with reduced hardware sleep (ACPIv5)");
 	return -ENODEV;
 }
 
@@ -320,7 +319,7 @@ static int tboot_wait_for_aps(int num_aps)
 	}
 
 	if (timeout)
-		pr_warning("tboot wait for APs timeout\n");
+		pr_warn("tboot wait for APs timeout\n");
 
 	return !(atomic_read((atomic_t *)&tboot->num_in_wfs) == num_aps);
 }
@@ -516,7 +515,7 @@ int tboot_force_iommu(void)
 		return 1;
 
 	if (no_iommu || swiotlb || dmar_disabled)
-		pr_warning("Forcing Intel-IOMMU to enabled\n");
+		pr_warn("Forcing Intel-IOMMU to enabled\n");
 
 	dmar_disabled = 0;
 #ifdef CONFIG_SWIOTLB

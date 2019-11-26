@@ -92,15 +92,15 @@ int apei_hest_parse(apei_hest_func_t func, void *data)
 	for (i = 0; i < hest_tab->error_source_count; i++) {
 		len = hest_esrc_len(hest_hdr);
 		if (!len) {
-			pr_warning(FW_WARN HEST_PFX
-				   "Unknown or unused hardware error source "
-				   "type: %d for hardware error source: %d.\n",
-				   hest_hdr->type, hest_hdr->source_id);
+			pr_warn(FW_WARN HEST_PFX
+				"Unknown or unused hardware error source "
+				"type: %d for hardware error source: %d.\n",
+				hest_hdr->type, hest_hdr->source_id);
 			return -EINVAL;
 		}
 		if ((void *)hest_hdr + len >
 		    (void *)hest_tab + hest_tab->header.length) {
-			pr_warning(FW_BUG HEST_PFX
+			pr_warn(FW_BUG HEST_PFX
 		"Table contents overflow for hardware error source: %d.\n",
 				hest_hdr->source_id);
 			return -EINVAL;
@@ -164,8 +164,8 @@ static int __init hest_parse_ghes(struct acpi_hest_header *hest_hdr, void *data)
 		ghes_dev = ghes_arr->ghes_devs[i];
 		hdr = *(struct acpi_hest_header **)ghes_dev->dev.platform_data;
 		if (hdr->source_id == hest_hdr->source_id) {
-			pr_warning(FW_WARN HEST_PFX "Duplicated hardware error source ID: %d.\n",
-				   hdr->source_id);
+			pr_warn(FW_WARN HEST_PFX "Duplicated hardware error source ID: %d.\n",
+				hdr->source_id);
 			return -EIO;
 		}
 	}

@@ -354,7 +354,7 @@ void __init setup_arch(char **cmdline_p)
 /* processor boot mode configuration */
 int generic_mode_pins(void)
 {
-	pr_warning("generic_mode_pins(): missing mode pin configuration\n");
+	pr_warn("generic_mode_pins(): missing mode pin configuration\n");
 	return 0;
 }
 

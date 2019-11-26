@@ -91,7 +91,7 @@ const char * const umip_insns[5] = {
 
 #define umip_pr_err(regs, fmt, ...) \
 	umip_printk(regs, KERN_ERR, fmt, ##__VA_ARGS__)
-#define umip_pr_warning(regs, fmt, ...) \
+#define umip_pr_warn(regs, fmt, ...) \
 	umip_printk(regs, KERN_WARNING, fmt,  ##__VA_ARGS__)
 
 /**
@@ -380,14 +380,14 @@ bool fixup_umip_exception(struct pt_regs *regs)
 	if (umip_inst < 0)
 		return false;
 
-	umip_pr_warning(regs, "%s instruction cannot be used by applications.\n",
+	umip_pr_warn(regs, "%s instruction cannot be used by applications.\n",
 			umip_insns[umip_inst]);
 
 	/* Do not emulate (spoof) SLDT or STR. */
 	if (umip_inst == UMIP_INST_STR || umip_inst == UMIP_INST_SLDT)
 		return false;
 
-	umip_pr_warning(regs, "For now, expensive software emulation returns the result.\n");
+	umip_pr_warn(regs, "For now, expensive software emulation returns the result.\n");
 
 	if (emulate_umip_insn(&insn, umip_inst, dummy_data, &dummy_data_size,
 			      user_64bit_mode(regs)))

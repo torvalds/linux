@@ -222,7 +222,7 @@ load_firmware(struct isar_hw *isar, const u8 *buf, int size)
 			goto reterror;
 		}
 		if (!poll_mbox(isar, 1000)) {
-			pr_warning("ISAR poll_mbox dkey failed\n");
+			pr_warn("ISAR poll_mbox dkey failed\n");
 			ret = -ETIME;
 			goto reterror;
 		}
@@ -432,8 +432,8 @@ isar_rcv_frame(struct isar_ch *ch)
 	case ISDN_P_B_MODEM_ASYNC:
 		maxlen = bchannel_get_rxbuf(&ch->bch, ch->is->clsb);
 		if (maxlen < 0) {
-			pr_warning("%s.B%d: No bufferspace for %d bytes\n",
-				   ch->is->name, ch->bch.nr, ch->is->clsb);
+			pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+				ch->is->name, ch->bch.nr, ch->is->clsb);
 			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 			break;
 		}
@@ -443,8 +443,8 @@ isar_rcv_frame(struct isar_ch *ch)
 	case ISDN_P_B_HDLC:
 		maxlen = bchannel_get_rxbuf(&ch->bch, ch->is->clsb);
 		if (maxlen < 0) {
-			pr_warning("%s.B%d: No bufferspace for %d bytes\n",
-				   ch->is->name, ch->bch.nr, ch->is->clsb);
+			pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+				ch->is->name, ch->bch.nr, ch->is->clsb);
 			ch->is->write_reg(ch->is->hw, ISAR_IIA, 0);
 			break;
 		}

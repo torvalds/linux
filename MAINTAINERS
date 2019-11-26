@@ -17474,6 +17474,18 @@ S:	Maintained
 F:	drivers/net/vrf.c
 F:	Documentation/networking/vrf.txt
 
+VSPRINTF
+M:	Petr Mladek <pmladek@suse.com>
+M:	Steven Rostedt <rostedt@goodmis.org>
+M:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+R:	Rasmus Villemoes <linux@rasmusvillemoes.dk>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pmladek/printk.git
+S:	Maintained
+F:	lib/vsprintf.c
+F:	lib/test_printf.c
+F:	Documentation/core-api/printk-formats.rst
+
 VT1211 HARDWARE MONITOR DRIVER
 M:	Juerg Haefliger <juergh@gmail.com>
 L:	linux-hwmon@vger.kernel.org
