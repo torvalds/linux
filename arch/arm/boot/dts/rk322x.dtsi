@@ -750,8 +750,9 @@
 	};
 
 	gpu: gpu@20000000 {
-		compatible = "rockchip,rk3228-mali", "arm,mali-400";
+		compatible = "arm,mali400";
 		reg = <0x20000000 0x10000>;
+
 		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
@@ -759,16 +760,15 @@
 			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 
-		interrupt-names = "gp",
-				  "gpmmu",
-				  "pp0",
-				  "ppmmu0",
-				  "pp1",
-				  "ppmmu1";
-		clocks = <&cru ACLK_GPU>, <&cru ACLK_GPU>;
-		clock-names = "core", "bus";
-		resets = <&cru SRST_GPU_A>;
+		interrupt-names = "Mali_GP_IRQ",
+				  "Mali_GP_MMU_IRQ",
+				  "Mali_PP0_IRQ",
+				  "Mali_PP0_MMU_IRQ",
+				  "Mali_PP1_IRQ",
+				  "Mali_PP1_MMU_IRQ";
+		clocks = <&cru ACLK_GPU>;
 		#cooling-cells = <2>; /* min followed by max */
+		clock-names = "clk_mali";
 		operating-points-v2 = <&gpu_opp_table>;
 		status = "disabled";
 
