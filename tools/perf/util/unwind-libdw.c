@@ -81,7 +81,7 @@ static int entry(u64 ip, struct unwind_info *ui)
 		return -1;
 
 	e->ip	  = ip;
-	e->ms.mg  = al.mg;
+	e->ms.mg  = al.maps;
 	e->ms.map = al.map;
 	e->ms.sym = al.sym;
 
