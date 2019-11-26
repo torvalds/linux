@@ -364,8 +364,10 @@ static struct fixed31_32 translate_from_linear_space(
 			scratch_2 = dc_fixpt_mul(gamma_of_2,
 					pow_buffer[pow_buffer_ptr%16]);
 
-		pow_buffer[pow_buffer_ptr%16] = scratch_2;
-		pow_buffer_ptr++;
+		if (pow_buffer_ptr != -1) {
+			pow_buffer[pow_buffer_ptr%16] = scratch_2;
+			pow_buffer_ptr++;
+		}
 
 		scratch_1 = dc_fixpt_mul(scratch_1, scratch_2);
 		scratch_1 = dc_fixpt_sub(scratch_1, args->a2);
