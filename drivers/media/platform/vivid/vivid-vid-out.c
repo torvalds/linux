@@ -161,9 +161,6 @@ static int vid_out_start_streaming(struct vb2_queue *vq, unsigned count)
 	if (vb2_is_streaming(&dev->vb_vid_cap_q))
 		dev->can_loop_video = vivid_vid_can_loop(dev);
 
-	if (dev->kthread_vid_out)
-		return 0;
-
 	dev->vid_out_seq_count = 0;
 	dprintk(dev, 1, "%s\n", __func__);
 	if (dev->start_streaming_error) {
@@ -1082,7 +1079,9 @@ int vidioc_s_output(struct file *file, void *priv, unsigned o)
 	if (o == dev->output)
 		return 0;
 
-	if (vb2_is_busy(&dev->vb_vid_out_q) || vb2_is_busy(&dev->vb_vbi_out_q))
+	if (vb2_is_busy(&dev->vb_vid_out_q) ||
+	    vb2_is_busy(&dev->vb_vbi_out_q) ||
+	    vb2_is_busy(&dev->vb_meta_out_q))
 		return -EBUSY;
 
 	dev->output = o;
@@ -1093,6 +1092,7 @@ int vidioc_s_output(struct file *file, void *priv, unsigned o)
 		dev->vid_out_dev.tvnorms = 0;
 
 	dev->vbi_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
+	dev->meta_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
 	vivid_update_format_out(dev);
 
 	v4l2_ctrl_activate(dev->ctrl_display_present, vivid_is_hdmi_out(dev));

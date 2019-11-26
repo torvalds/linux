@@ -29,6 +29,8 @@
 #define call_op(master, op) \
 	(has_op(master, op) ? master->ops->op(master) : 0)
 
+static const union v4l2_ctrl_ptr ptr_null;
+
 /* Internal temporary helper struct, one for each v4l2_ext_control */
 struct v4l2_ctrl_helper {
 	/* Pointer to the control reference of the master control */
@@ -566,6 +568,16 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Disabled at slice boundary",
 		"NULL",
 	};
+	static const char * const hevc_decode_mode[] = {
+		"Slice-Based",
+		"Frame-Based",
+		NULL,
+	};
+	static const char * const hevc_start_code[] = {
+		"No Start Code",
+		"Annex B Start Code",
+		NULL,
+	};
 
 	switch (id) {
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
@@ -687,7 +699,10 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		return hevc_tier;
 	case V4L2_CID_MPEG_VIDEO_HEVC_LOOP_FILTER_MODE:
 		return hevc_loop_filter_mode;
-
+	case V4L2_CID_MPEG_VIDEO_HEVC_DECODE_MODE:
+		return hevc_decode_mode;
+	case V4L2_CID_MPEG_VIDEO_HEVC_START_CODE:
+		return hevc_start_code;
 	default:
 		return NULL;
 	}
@@ -957,6 +972,11 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_HEVC_SIZE_OF_LENGTH_FIELD:	return "HEVC Size of Length Field";
 	case V4L2_CID_MPEG_VIDEO_REF_NUMBER_FOR_PFRAMES:	return "Reference Frames for a P-Frame";
 	case V4L2_CID_MPEG_VIDEO_PREPEND_SPSPPS_TO_IDR:		return "Prepend SPS and PPS to IDR";
+	case V4L2_CID_MPEG_VIDEO_HEVC_SPS:			return "HEVC Sequence Parameter Set";
+	case V4L2_CID_MPEG_VIDEO_HEVC_PPS:			return "HEVC Picture Parameter Set";
+	case V4L2_CID_MPEG_VIDEO_HEVC_SLICE_PARAMS:		return "HEVC Slice Parameters";
+	case V4L2_CID_MPEG_VIDEO_HEVC_DECODE_MODE:		return "HEVC Decode Mode";
+	case V4L2_CID_MPEG_VIDEO_HEVC_START_CODE:		return "HEVC Start Code";
 
 	/* CAMERA controls */
 	/* Keep the order of the 'case's the same as in v4l2-controls.h! */
@@ -994,6 +1014,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_AUTO_FOCUS_RANGE:		return "Auto Focus, Range";
 	case V4L2_CID_PAN_SPEED:		return "Pan, Speed";
 	case V4L2_CID_TILT_SPEED:		return "Tilt, Speed";
+	case V4L2_CID_UNIT_CELL_SIZE:		return "Unit Cell Size";
 
 	/* FM Radio Modulator controls */
 	/* Keep the order of the 'case's the same as in v4l2-controls.h! */
@@ -1265,6 +1286,8 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_VIDEO_HEVC_SIZE_OF_LENGTH_FIELD:
 	case V4L2_CID_MPEG_VIDEO_HEVC_TIER:
 	case V4L2_CID_MPEG_VIDEO_HEVC_LOOP_FILTER_MODE:
+	case V4L2_CID_MPEG_VIDEO_HEVC_DECODE_MODE:
+	case V4L2_CID_MPEG_VIDEO_HEVC_START_CODE:
 		*type = V4L2_CTRL_TYPE_MENU;
 		break;
 	case V4L2_CID_LINK_FREQ:
@@ -1374,6 +1397,19 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		break;
 	case V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER:
 		*type = V4L2_CTRL_TYPE_VP8_FRAME_HEADER;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_SPS:
+		*type = V4L2_CTRL_TYPE_HEVC_SPS;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_PPS:
+		*type = V4L2_CTRL_TYPE_HEVC_PPS;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_SLICE_PARAMS:
+		*type = V4L2_CTRL_TYPE_HEVC_SLICE_PARAMS;
+		break;
+	case V4L2_CID_UNIT_CELL_SIZE:
+		*type = V4L2_CTRL_TYPE_AREA;
+		*flags |= V4L2_CTRL_FLAG_READ_ONLY;
 		break;
 	default:
 		*type = V4L2_CTRL_TYPE_INTEGER;
@@ -1520,7 +1556,8 @@ static bool std_equal(const struct v4l2_ctrl *ctrl, u32 idx,
 		if (ctrl->is_int)
 			return ptr1.p_s32[idx] == ptr2.p_s32[idx];
 		idx *= ctrl->elem_size;
-		return !memcmp(ptr1.p + idx, ptr2.p + idx, ctrl->elem_size);
+		return !memcmp(ptr1.p_const + idx, ptr2.p_const + idx,
+			       ctrl->elem_size);
 	}
 }
 
@@ -1530,7 +1567,10 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 	struct v4l2_ctrl_mpeg2_slice_params *p_mpeg2_slice_params;
 	void *p = ptr.p + idx * ctrl->elem_size;
 
-	memset(p, 0, ctrl->elem_size);
+	if (ctrl->p_def.p_const)
+		memcpy(p, ctrl->p_def.p_const, ctrl->elem_size);
+	else
+		memset(p, 0, ctrl->elem_size);
 
 	/*
 	 * The cast is needed to get rid of a gcc warning complaining that
@@ -1672,7 +1712,12 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 {
 	struct v4l2_ctrl_mpeg2_slice_params *p_mpeg2_slice_params;
 	struct v4l2_ctrl_vp8_frame_header *p_vp8_frame_header;
+	struct v4l2_ctrl_hevc_sps *p_hevc_sps;
+	struct v4l2_ctrl_hevc_pps *p_hevc_pps;
+	struct v4l2_ctrl_hevc_slice_params *p_hevc_slice_params;
+	struct v4l2_area *area;
 	void *p = ptr.p + idx * ctrl->elem_size;
+	unsigned int i;
 
 	switch ((u32)ctrl->type) {
 	case V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS:
@@ -1748,6 +1793,76 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 		zero_padding(p_vp8_frame_header->entropy_header);
 		zero_padding(p_vp8_frame_header->coder_state);
 		break;
+
+	case V4L2_CTRL_TYPE_HEVC_SPS:
+		p_hevc_sps = p;
+
+		if (!(p_hevc_sps->flags & V4L2_HEVC_SPS_FLAG_PCM_ENABLED)) {
+			p_hevc_sps->pcm_sample_bit_depth_luma_minus1 = 0;
+			p_hevc_sps->pcm_sample_bit_depth_chroma_minus1 = 0;
+			p_hevc_sps->log2_min_pcm_luma_coding_block_size_minus3 = 0;
+			p_hevc_sps->log2_diff_max_min_pcm_luma_coding_block_size = 0;
+		}
+
+		if (!(p_hevc_sps->flags &
+		      V4L2_HEVC_SPS_FLAG_LONG_TERM_REF_PICS_PRESENT))
+			p_hevc_sps->num_long_term_ref_pics_sps = 0;
+		break;
+
+	case V4L2_CTRL_TYPE_HEVC_PPS:
+		p_hevc_pps = p;
+
+		if (!(p_hevc_pps->flags &
+		      V4L2_HEVC_PPS_FLAG_CU_QP_DELTA_ENABLED))
+			p_hevc_pps->diff_cu_qp_delta_depth = 0;
+
+		if (!(p_hevc_pps->flags & V4L2_HEVC_PPS_FLAG_TILES_ENABLED)) {
+			p_hevc_pps->num_tile_columns_minus1 = 0;
+			p_hevc_pps->num_tile_rows_minus1 = 0;
+			memset(&p_hevc_pps->column_width_minus1, 0,
+			       sizeof(p_hevc_pps->column_width_minus1));
+			memset(&p_hevc_pps->row_height_minus1, 0,
+			       sizeof(p_hevc_pps->row_height_minus1));
+
+			p_hevc_pps->flags &=
+				~V4L2_HEVC_PPS_FLAG_PPS_LOOP_FILTER_ACROSS_SLICES_ENABLED;
+		}
+
+		if (p_hevc_pps->flags &
+		    V4L2_HEVC_PPS_FLAG_PPS_DISABLE_DEBLOCKING_FILTER) {
+			p_hevc_pps->pps_beta_offset_div2 = 0;
+			p_hevc_pps->pps_tc_offset_div2 = 0;
+		}
+
+		zero_padding(*p_hevc_pps);
+		break;
+
+	case V4L2_CTRL_TYPE_HEVC_SLICE_PARAMS:
+		p_hevc_slice_params = p;
+
+		if (p_hevc_slice_params->num_active_dpb_entries >
+		    V4L2_HEVC_DPB_ENTRIES_NUM_MAX)
+			return -EINVAL;
+
+		zero_padding(p_hevc_slice_params->pred_weight_table);
+
+		for (i = 0; i < p_hevc_slice_params->num_active_dpb_entries;
+		     i++) {
+			struct v4l2_hevc_dpb_entry *dpb_entry =
+				&p_hevc_slice_params->dpb[i];
+
+			zero_padding(*dpb_entry);
+		}
+
+		zero_padding(*p_hevc_slice_params);
+		break;
+
+	case V4L2_CTRL_TYPE_AREA:
+		area = p;
+		if (!area->width || !area->height)
+			return -EINVAL;
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -1840,7 +1955,7 @@ static int ptr_to_user(struct v4l2_ext_control *c,
 	u32 len;
 
 	if (ctrl->is_ptr && !ctrl->is_string)
-		return copy_to_user(c->ptr, ptr.p, c->size) ?
+		return copy_to_user(c->ptr, ptr.p_const, c->size) ?
 		       -EFAULT : 0;
 
 	switch (ctrl->type) {
@@ -1955,7 +2070,7 @@ static void ptr_to_ptr(struct v4l2_ctrl *ctrl,
 {
 	if (ctrl == NULL)
 		return;
-	memcpy(to.p, from.p, ctrl->elems * ctrl->elem_size);
+	memcpy(to.p, from.p_const, ctrl->elems * ctrl->elem_size);
 }
 
 /* Copy the new value to the current value. */
@@ -2354,7 +2469,8 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 			s64 min, s64 max, u64 step, s64 def,
 			const u32 dims[V4L2_CTRL_MAX_DIMS], u32 elem_size,
 			u32 flags, const char * const *qmenu,
-			const s64 *qmenu_int, void *priv)
+			const s64 *qmenu_int, const union v4l2_ctrl_ptr p_def,
+			void *priv)
 {
 	struct v4l2_ctrl *ctrl;
 	unsigned sz_extra;
@@ -2421,6 +2537,18 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 	case V4L2_CTRL_TYPE_VP8_FRAME_HEADER:
 		elem_size = sizeof(struct v4l2_ctrl_vp8_frame_header);
 		break;
+	case V4L2_CTRL_TYPE_HEVC_SPS:
+		elem_size = sizeof(struct v4l2_ctrl_hevc_sps);
+		break;
+	case V4L2_CTRL_TYPE_HEVC_PPS:
+		elem_size = sizeof(struct v4l2_ctrl_hevc_pps);
+		break;
+	case V4L2_CTRL_TYPE_HEVC_SLICE_PARAMS:
+		elem_size = sizeof(struct v4l2_ctrl_hevc_slice_params);
+		break;
+	case V4L2_CTRL_TYPE_AREA:
+		elem_size = sizeof(struct v4l2_area);
+		break;
 	default:
 		if (type < V4L2_CTRL_COMPOUND_TYPES)
 			elem_size = sizeof(s32);
@@ -2459,6 +2587,9 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		 type >= V4L2_CTRL_COMPOUND_TYPES ||
 		 is_array)
 		sz_extra += 2 * tot_ctrl_size;
+
+	if (type >= V4L2_CTRL_COMPOUND_TYPES && p_def.p_const)
+		sz_extra += elem_size;
 
 	ctrl = kvzalloc(sizeof(*ctrl) + sz_extra, GFP_KERNEL);
 	if (ctrl == NULL) {
@@ -2503,6 +2634,12 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		ctrl->p_new.p = &ctrl->val;
 		ctrl->p_cur.p = &ctrl->cur.val;
 	}
+
+	if (type >= V4L2_CTRL_COMPOUND_TYPES && p_def.p_const) {
+		ctrl->p_def.p = ctrl->p_cur.p + tot_ctrl_size;
+		memcpy(ctrl->p_def.p, p_def.p_const, elem_size);
+	}
+
 	for (idx = 0; idx < elems; idx++) {
 		ctrl->type_ops->init(ctrl, idx, ctrl->p_cur);
 		ctrl->type_ops->init(ctrl, idx, ctrl->p_new);
@@ -2554,7 +2691,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 			type, min, max,
 			is_menu ? cfg->menu_skip_mask : step, def,
 			cfg->dims, cfg->elem_size,
-			flags, qmenu, qmenu_int, priv);
+			flags, qmenu, qmenu_int, cfg->p_def, priv);
 	if (ctrl)
 		ctrl->is_private = cfg->is_private;
 	return ctrl;
@@ -2579,7 +2716,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_std(struct v4l2_ctrl_handler *hdl,
 	}
 	return v4l2_ctrl_new(hdl, ops, NULL, id, name, type,
 			     min, max, step, def, NULL, 0,
-			     flags, NULL, NULL, NULL);
+			     flags, NULL, NULL, ptr_null, NULL);
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_std);
 
@@ -2612,7 +2749,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 	}
 	return v4l2_ctrl_new(hdl, ops, NULL, id, name, type,
 			     0, max, mask, def, NULL, 0,
-			     flags, qmenu, qmenu_int, NULL);
+			     flags, qmenu, qmenu_int, ptr_null, NULL);
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_std_menu);
 
@@ -2644,10 +2781,31 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(struct v4l2_ctrl_handler *hdl,
 	}
 	return v4l2_ctrl_new(hdl, ops, NULL, id, name, type,
 			     0, max, mask, def, NULL, 0,
-			     flags, qmenu, NULL, NULL);
+			     flags, qmenu, NULL, ptr_null, NULL);
 
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_std_menu_items);
+
+/* Helper function for standard compound controls */
+struct v4l2_ctrl *v4l2_ctrl_new_std_compound(struct v4l2_ctrl_handler *hdl,
+				const struct v4l2_ctrl_ops *ops, u32 id,
+				const union v4l2_ctrl_ptr p_def)
+{
+	const char *name;
+	enum v4l2_ctrl_type type;
+	u32 flags;
+	s64 min, max, step, def;
+
+	v4l2_ctrl_fill(id, &name, &type, &min, &max, &step, &def, &flags);
+	if (type < V4L2_CTRL_COMPOUND_TYPES) {
+		handler_set_err(hdl, -EINVAL);
+		return NULL;
+	}
+	return v4l2_ctrl_new(hdl, ops, NULL, id, name, type,
+			     min, max, step, def, NULL, 0,
+			     flags, NULL, NULL, p_def, NULL);
+}
+EXPORT_SYMBOL(v4l2_ctrl_new_std_compound);
 
 /* Helper function for standard integer menu controls */
 struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
@@ -2669,7 +2827,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 	}
 	return v4l2_ctrl_new(hdl, ops, NULL, id, name, type,
 			     0, max, 0, def, NULL, 0,
-			     flags, NULL, qmenu_int, NULL);
+			     flags, NULL, qmenu_int, ptr_null, NULL);
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_int_menu);
 
@@ -3144,6 +3302,7 @@ static void v4l2_ctrl_request_queue(struct media_request_object *obj)
 	struct v4l2_ctrl_handler *prev_hdl = NULL;
 	struct v4l2_ctrl_ref *ref_ctrl, *ref_ctrl_prev = NULL;
 
+	mutex_lock(main_hdl->lock);
 	if (list_empty(&main_hdl->requests_queued))
 		goto queue;
 
@@ -3175,18 +3334,22 @@ static void v4l2_ctrl_request_queue(struct media_request_object *obj)
 queue:
 	list_add_tail(&hdl->requests_queued, &main_hdl->requests_queued);
 	hdl->request_is_queued = true;
+	mutex_unlock(main_hdl->lock);
 }
 
 static void v4l2_ctrl_request_unbind(struct media_request_object *obj)
 {
 	struct v4l2_ctrl_handler *hdl =
 		container_of(obj, struct v4l2_ctrl_handler, req_obj);
+	struct v4l2_ctrl_handler *main_hdl = obj->priv;
 
 	list_del_init(&hdl->requests);
+	mutex_lock(main_hdl->lock);
 	if (hdl->request_is_queued) {
 		list_del_init(&hdl->requests_queued);
 		hdl->request_is_queued = false;
 	}
+	mutex_unlock(main_hdl->lock);
 }
 
 static void v4l2_ctrl_request_release(struct media_request_object *obj)
@@ -4080,6 +4243,18 @@ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
 }
 EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_string);
 
+int __v4l2_ctrl_s_ctrl_area(struct v4l2_ctrl *ctrl,
+			    const struct v4l2_area *area)
+{
+	lockdep_assert_held(ctrl->handler->lock);
+
+	/* It's a driver bug if this happens. */
+	WARN_ON(ctrl->type != V4L2_CTRL_TYPE_AREA);
+	*ctrl->p_new.p_area = *area;
+	return set_ctrl(NULL, ctrl, 0);
+}
+EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_area);
+
 void v4l2_ctrl_request_complete(struct media_request *req,
 				struct v4l2_ctrl_handler *main_hdl)
 {
@@ -4128,9 +4303,11 @@ void v4l2_ctrl_request_complete(struct media_request *req,
 		v4l2_ctrl_unlock(ctrl);
 	}
 
+	mutex_lock(main_hdl->lock);
 	WARN_ON(!hdl->request_is_queued);
 	list_del_init(&hdl->requests_queued);
 	hdl->request_is_queued = false;
+	mutex_unlock(main_hdl->lock);
 	media_request_object_complete(obj);
 	media_request_object_put(obj);
 }

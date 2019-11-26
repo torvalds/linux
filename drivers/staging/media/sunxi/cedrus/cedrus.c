@@ -95,6 +95,45 @@ static const struct cedrus_control cedrus_controls[] = {
 		.codec		= CEDRUS_CODEC_H264,
 		.required	= false,
 	},
+	{
+		.cfg = {
+			.id	= V4L2_CID_MPEG_VIDEO_HEVC_SPS,
+		},
+		.codec		= CEDRUS_CODEC_H265,
+		.required	= true,
+	},
+	{
+		.cfg = {
+			.id	= V4L2_CID_MPEG_VIDEO_HEVC_PPS,
+		},
+		.codec		= CEDRUS_CODEC_H265,
+		.required	= true,
+	},
+	{
+		.cfg = {
+			.id	= V4L2_CID_MPEG_VIDEO_HEVC_SLICE_PARAMS,
+		},
+		.codec		= CEDRUS_CODEC_H265,
+		.required	= true,
+	},
+	{
+		.cfg = {
+			.id	= V4L2_CID_MPEG_VIDEO_HEVC_DECODE_MODE,
+			.max	= V4L2_MPEG_VIDEO_HEVC_DECODE_MODE_SLICE_BASED,
+			.def	= V4L2_MPEG_VIDEO_HEVC_DECODE_MODE_SLICE_BASED,
+		},
+		.codec		= CEDRUS_CODEC_H265,
+		.required	= false,
+	},
+	{
+		.cfg = {
+			.id	= V4L2_CID_MPEG_VIDEO_HEVC_START_CODE,
+			.max	= V4L2_MPEG_VIDEO_HEVC_START_CODE_NONE,
+			.def	= V4L2_MPEG_VIDEO_HEVC_START_CODE_NONE,
+		},
+		.codec		= CEDRUS_CODEC_H265,
+		.required	= false,
+	},
 };
 
 #define CEDRUS_CONTROLS_COUNT	ARRAY_SIZE(cedrus_controls)
@@ -241,6 +280,16 @@ static int cedrus_open(struct file *file)
 		ret = PTR_ERR(ctx->fh.m2m_ctx);
 		goto err_ctrls;
 	}
+	ctx->dst_fmt.pixelformat = V4L2_PIX_FMT_SUNXI_TILED_NV12;
+	cedrus_prepare_format(&ctx->dst_fmt);
+	ctx->src_fmt.pixelformat = V4L2_PIX_FMT_MPEG2_SLICE;
+	/*
+	 * TILED_NV12 has more strict requirements, so copy the width and
+	 * height to src_fmt to ensure that is matches the dst_fmt resolution.
+	 */
+	ctx->src_fmt.width = ctx->dst_fmt.width;
+	ctx->src_fmt.height = ctx->dst_fmt.height;
+	cedrus_prepare_format(&ctx->src_fmt);
 
 	v4l2_fh_add(&ctx->fh);
 
@@ -330,6 +379,7 @@ static int cedrus_probe(struct platform_device *pdev)
 
 	dev->dec_ops[CEDRUS_CODEC_MPEG2] = &cedrus_dec_ops_mpeg2;
 	dev->dec_ops[CEDRUS_CODEC_H264] = &cedrus_dec_ops_h264;
+	dev->dec_ops[CEDRUS_CODEC_H265] = &cedrus_dec_ops_h265;
 
 	mutex_init(&dev->dev_mutex);
 
@@ -357,6 +407,8 @@ static int cedrus_probe(struct platform_device *pdev)
 
 	dev->mdev.dev = &pdev->dev;
 	strscpy(dev->mdev.model, CEDRUS_NAME, sizeof(dev->mdev.model));
+	strscpy(dev->mdev.bus_info, "platform:" CEDRUS_NAME,
+		sizeof(dev->mdev.bus_info));
 
 	media_device_init(&dev->mdev);
 	dev->mdev.ops = &cedrus_m2m_media_ops;
@@ -438,22 +490,26 @@ static const struct cedrus_variant sun8i_a33_cedrus_variant = {
 };
 
 static const struct cedrus_variant sun8i_h3_cedrus_variant = {
-	.capabilities	= CEDRUS_CAPABILITY_UNTILED,
+	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
+			  CEDRUS_CAPABILITY_H265_DEC,
 	.mod_rate	= 402000000,
 };
 
 static const struct cedrus_variant sun50i_a64_cedrus_variant = {
-	.capabilities	= CEDRUS_CAPABILITY_UNTILED,
+	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
+			  CEDRUS_CAPABILITY_H265_DEC,
 	.mod_rate	= 402000000,
 };
 
 static const struct cedrus_variant sun50i_h5_cedrus_variant = {
-	.capabilities	= CEDRUS_CAPABILITY_UNTILED,
+	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
+			  CEDRUS_CAPABILITY_H265_DEC,
 	.mod_rate	= 402000000,
 };
 
 static const struct cedrus_variant sun50i_h6_cedrus_variant = {
-	.capabilities	= CEDRUS_CAPABILITY_UNTILED,
+	.capabilities	= CEDRUS_CAPABILITY_UNTILED |
+			  CEDRUS_CAPABILITY_H265_DEC,
 	.quirks		= CEDRUS_QUIRK_NO_DMA_OFFSET,
 	.mod_rate	= 600000000,
 };

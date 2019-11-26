@@ -72,7 +72,7 @@ static inline void v4l2_device_get(struct v4l2_device *v4l2_dev)
 }
 
 /**
- * v4l2_device_put - putss a V4L2 device reference
+ * v4l2_device_put - puts a V4L2 device reference
  *
  * @v4l2_dev: pointer to struct &v4l2_device
  *

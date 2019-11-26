@@ -223,9 +223,6 @@ static int vid_cap_start_streaming(struct vb2_queue *vq, unsigned count)
 	if (vb2_is_streaming(&dev->vb_vid_out_q))
 		dev->can_loop_video = vivid_vid_can_loop(dev);
 
-	if (dev->kthread_vid_cap)
-		return 0;
-
 	dev->vid_cap_seq_count = 0;
 	dprintk(dev, 1, "%s\n", __func__);
 	for (i = 0; i < VIDEO_MAX_FRAME; i++)
@@ -1359,7 +1356,9 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 	if (i == dev->input)
 		return 0;
 
-	if (vb2_is_busy(&dev->vb_vid_cap_q) || vb2_is_busy(&dev->vb_vbi_cap_q))
+	if (vb2_is_busy(&dev->vb_vid_cap_q) ||
+	    vb2_is_busy(&dev->vb_vbi_cap_q) ||
+	    vb2_is_busy(&dev->vb_meta_cap_q))
 		return -EBUSY;
 
 	dev->input = i;
@@ -1369,6 +1368,7 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 		dev->vid_cap_dev.tvnorms = V4L2_STD_ALL;
 	}
 	dev->vbi_cap_dev.tvnorms = dev->vid_cap_dev.tvnorms;
+	dev->meta_cap_dev.tvnorms = dev->vid_cap_dev.tvnorms;
 	vivid_update_format_cap(dev, false);
 
 	if (dev->colorspace) {

@@ -319,6 +319,8 @@ static void cec_post_state_event(struct cec_adapter *adap)
 
 	ev.state_change.phys_addr = adap->phys_addr;
 	ev.state_change.log_addr_mask = adap->log_addrs.log_addr_mask;
+	ev.state_change.have_conn_info =
+		adap->conn_info.type != CEC_CONNECTOR_TYPE_NO_CONNECTOR;
 	cec_queue_event(adap, &ev);
 }
 
@@ -1976,7 +1978,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 * Play function, this message can have variable length
 		 * depending on the specific play function that is used.
 		 */
-		case 0x60:
+		case CEC_OP_UI_CMD_PLAY_FUNCTION:
 			if (msg->len == 2)
 				rc_keydown(adap->rc, RC_PROTO_CEC,
 					   msg->msg[2], 0);
@@ -1993,8 +1995,12 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 * For the time being these messages are not processed by the
 		 * framework and are simply forwarded to the user space.
 		 */
-		case 0x56: case 0x57:
-		case 0x67: case 0x68: case 0x69: case 0x6a:
+		case CEC_OP_UI_CMD_SELECT_BROADCAST_TYPE:
+		case CEC_OP_UI_CMD_SELECT_SOUND_PRESENTATION:
+		case CEC_OP_UI_CMD_TUNE_FUNCTION:
+		case CEC_OP_UI_CMD_SELECT_MEDIA_FUNCTION:
+		case CEC_OP_UI_CMD_SELECT_AV_INPUT_FUNCTION:
+		case CEC_OP_UI_CMD_SELECT_AUDIO_INPUT_FUNCTION:
 			break;
 		default:
 			rc_keydown(adap->rc, RC_PROTO_CEC, msg->msg[2], 0);

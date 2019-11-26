@@ -20,7 +20,6 @@
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
-#include <linux/proc_fs.h>
 #include <linux/highmem.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -556,14 +555,12 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 {
 	unsigned char *pdest;
 	unsigned char *psrc;
-	s32 idx = -1;
-	struct zr364xx_framei *frm;
+	s32 idx = cam->cur_frame;
+	struct zr364xx_framei *frm = &cam->buffer.frame[idx];
 	int i = 0;
 	unsigned char *ptr = NULL;
 
 	_DBG("buffer to user\n");
-	idx = cam->cur_frame;
-	frm = &cam->buffer.frame[idx];
 
 	/* swap bytes if camera needs it */
 	if (cam->method == METHOD0) {

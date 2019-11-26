@@ -1240,7 +1240,7 @@ int cx231xx_init_ctrl_pin_status(struct cx231xx *dev)
 int cx231xx_set_agc_analog_digital_mux_select(struct cx231xx *dev,
 					      u8 analog_or_digital)
 {
-	int status = 0;
+	int status;
 
 	/* first set the direction to output */
 	status = cx231xx_set_gpio_direction(dev,
