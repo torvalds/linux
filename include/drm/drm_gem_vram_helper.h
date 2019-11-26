@@ -16,7 +16,6 @@ struct drm_mode_create_dumb;
 struct drm_plane;
 struct drm_plane_state;
 struct drm_simple_display_pipe;
-struct drm_vram_mm_funcs;
 struct filp;
 struct vm_area_struct;
 
