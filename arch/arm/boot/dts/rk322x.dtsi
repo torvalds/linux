@@ -937,7 +937,7 @@
 	};
 
 	vop: vop@20050000 {
-		compatible = "rockchip,rk322x-vop";
+		compatible = "rockchip,rk3228-vop", "rockchip,rk322x-vop";
 		reg = <0x20050000 0x1ffc>;
 		reg-names = "regs";
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
