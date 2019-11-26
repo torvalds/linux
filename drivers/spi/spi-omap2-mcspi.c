@@ -397,30 +397,26 @@ static void omap2_mcspi_tx_dma(struct spi_device *spi,
 {
 	struct omap2_mcspi	*mcspi;
 	struct omap2_mcspi_dma  *mcspi_dma;
+	struct dma_async_tx_descriptor *tx;
 
 	mcspi = spi_master_get_devdata(spi->master);
 	mcspi_dma = &mcspi->dma_channels[spi->chip_select];
 
-	if (mcspi_dma->dma_tx) {
-		struct dma_async_tx_descriptor *tx;
+	dmaengine_slave_config(mcspi_dma->dma_tx, &cfg);
 
-		dmaengine_slave_config(mcspi_dma->dma_tx, &cfg);
-
-		tx = dmaengine_prep_slave_sg(mcspi_dma->dma_tx, xfer->tx_sg.sgl,
-					     xfer->tx_sg.nents,
-					     DMA_MEM_TO_DEV,
-					     DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (tx) {
-			tx->callback = omap2_mcspi_tx_callback;
-			tx->callback_param = spi;
-			dmaengine_submit(tx);
-		} else {
-			/* FIXME: fall back to PIO? */
-		}
+	tx = dmaengine_prep_slave_sg(mcspi_dma->dma_tx, xfer->tx_sg.sgl,
+				     xfer->tx_sg.nents,
+				     DMA_MEM_TO_DEV,
+				     DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (tx) {
+		tx->callback = omap2_mcspi_tx_callback;
+		tx->callback_param = spi;
+		dmaengine_submit(tx);
+	} else {
+		/* FIXME: fall back to PIO? */
 	}
 	dma_async_issue_pending(mcspi_dma->dma_tx);
 	omap2_mcspi_set_dma_req(spi, 0, 1);
-
 }
 
 static unsigned
@@ -439,6 +435,7 @@ omap2_mcspi_rx_dma(struct spi_device *spi, struct spi_transfer *xfer,
 	int			word_len, element_count;
 	struct omap2_mcspi_cs	*cs = spi->controller_state;
 	void __iomem		*chstat_reg = cs->base + OMAP2_MCSPI_CHSTAT0;
+	struct dma_async_tx_descriptor *tx;
 
 	mcspi = spi_master_get_devdata(spi->master);
 	mcspi_dma = &mcspi->dma_channels[spi->chip_select];
@@ -462,55 +459,47 @@ omap2_mcspi_rx_dma(struct spi_device *spi, struct spi_transfer *xfer,
 	else /* word_len <= 32 */
 		element_count = count >> 2;
 
-	if (mcspi_dma->dma_rx) {
-		struct dma_async_tx_descriptor *tx;
 
-		dmaengine_slave_config(mcspi_dma->dma_rx, &cfg);
+	dmaengine_slave_config(mcspi_dma->dma_rx, &cfg);
 
+	/*
+	 *  Reduce DMA transfer length by one more if McSPI is
+	 *  configured in turbo mode.
+	 */
+	if ((l & OMAP2_MCSPI_CHCONF_TURBO) && mcspi->fifo_depth == 0)
+		transfer_reduction += es;
+
+	if (transfer_reduction) {
+		/* Split sgl into two. The second sgl won't be used. */
+		sizes[0] = count - transfer_reduction;
+		sizes[1] = transfer_reduction;
+		nb_sizes = 2;
+	} else {
 		/*
-		 *  Reduce DMA transfer length by one more if McSPI is
-		 *  configured in turbo mode.
+		 * Don't bother splitting the sgl. This essentially
+		 * clones the original sgl.
 		 */
-		if ((l & OMAP2_MCSPI_CHCONF_TURBO) && mcspi->fifo_depth == 0)
-			transfer_reduction += es;
+		sizes[0] = count;
+		nb_sizes = 1;
+	}
 
-		if (transfer_reduction) {
-			/* Split sgl into two. The second sgl won't be used. */
-			sizes[0] = count - transfer_reduction;
-			sizes[1] = transfer_reduction;
-			nb_sizes = 2;
-		} else {
-			/*
-			 * Don't bother splitting the sgl. This essentially
-			 * clones the original sgl.
-			 */
-			sizes[0] = count;
-			nb_sizes = 1;
-		}
+	ret = sg_split(xfer->rx_sg.sgl, xfer->rx_sg.nents, 0, nb_sizes,
+		       sizes, sg_out, out_mapped_nents, GFP_KERNEL);
 
-		ret = sg_split(xfer->rx_sg.sgl, xfer->rx_sg.nents,
-			       0, nb_sizes,
-			       sizes,
-			       sg_out, out_mapped_nents,
-			       GFP_KERNEL);
+	if (ret < 0) {
+		dev_err(&spi->dev, "sg_split failed\n");
+		return 0;
+	}
 
-		if (ret < 0) {
-			dev_err(&spi->dev, "sg_split failed\n");
-			return 0;
-		}
-
-		tx = dmaengine_prep_slave_sg(mcspi_dma->dma_rx,
-					     sg_out[0],
-					     out_mapped_nents[0],
-					     DMA_DEV_TO_MEM,
-					     DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (tx) {
-			tx->callback = omap2_mcspi_rx_callback;
-			tx->callback_param = spi;
-			dmaengine_submit(tx);
-		} else {
-				/* FIXME: fall back to PIO? */
-		}
+	tx = dmaengine_prep_slave_sg(mcspi_dma->dma_rx, sg_out[0],
+				     out_mapped_nents[0], DMA_DEV_TO_MEM,
+				     DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (tx) {
+		tx->callback = omap2_mcspi_rx_callback;
+		tx->callback_param = spi;
+		dmaengine_submit(tx);
+	} else {
+		/* FIXME: fall back to PIO? */
 	}
 
 	dma_async_issue_pending(mcspi_dma->dma_rx);
