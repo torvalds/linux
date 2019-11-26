@@ -1768,22 +1768,6 @@ static int gfx_v10_0_init_csb(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int gfx_v10_0_init_pg(struct amdgpu_device *adev)
-{
-	int i;
-	int r;
-
-	r = gfx_v10_0_init_csb(adev);
-	if (r)
-		return r;
-
-	for (i = 0; i < adev->num_vmhubs; i++)
-		amdgpu_gmc_flush_gpu_tlb(adev, 0, i, 0);
-
-	/* TODO: init power gating */
-	return 0;
-}
-
 void gfx_v10_0_rlc_stop(struct amdgpu_device *adev)
 {
 	u32 tmp = RREG32_SOC15(GC, 0, mmRLC_CNTL);
@@ -1876,21 +1860,16 @@ static int gfx_v10_0_rlc_resume(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (amdgpu_sriov_vf(adev))
-		return 0;
-
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+
 		r = gfx_v10_0_wait_for_rlc_autoload_complete(adev);
 		if (r)
 			return r;
 
-		r = gfx_v10_0_init_pg(adev);
-		if (r)
-			return r;
+		gfx_v10_0_init_csb(adev);
 
-		/* enable RLC SRM */
-		gfx_v10_0_rlc_enable_srm(adev);
-
+		if (!amdgpu_sriov_vf(adev)) /* enable RLC SRM */
+			gfx_v10_0_rlc_enable_srm(adev);
 	} else {
 		adev->gfx.rlc.funcs->stop(adev);
 
@@ -1912,9 +1891,7 @@ static int gfx_v10_0_rlc_resume(struct amdgpu_device *adev)
 				return r;
 		}
 
-		r = gfx_v10_0_init_pg(adev);
-		if (r)
-			return r;
+		gfx_v10_0_init_csb(adev);
 
 		adev->gfx.rlc.funcs->start(adev);
 
