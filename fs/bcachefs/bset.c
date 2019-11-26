@@ -241,10 +241,9 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 		bch2_bkey_to_text(&PBUF(buf2), &k2);
 
 		panic("prev > insert:\n"
-		      "prev    key %5u %s\n"
-		      "insert  key %5u %s\n",
-		       __btree_node_key_to_offset(b, prev), buf1,
-		       __btree_node_key_to_offset(b, insert), buf2);
+		      "prev    key %s\n"
+		      "insert  key %s\n",
+		      buf1, buf2);
 	}
 #endif
 #if 0
@@ -263,10 +262,9 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 		bch2_bkey_to_text(&PBUF(buf2), &k2);
 
 		panic("insert > next:\n"
-		      "insert  key %5u %s\n"
-		      "next    key %5u %s\n",
-		       __btree_node_key_to_offset(b, insert), buf1,
-		       __btree_node_key_to_offset(b, next), buf2);
+		      "insert  key %s\n"
+		      "next    key %s\n",
+		      buf1, buf2);
 	}
 #endif
 }
