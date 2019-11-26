@@ -175,7 +175,7 @@
 	bswapq				RAB0; \
 	movq RAB0,			4*2(RIO);
 
-ENTRY(__camellia_enc_blk)
+SYM_FUNC_START(__camellia_enc_blk)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -220,9 +220,9 @@ ENTRY(__camellia_enc_blk)
 
 	movq RR12, %r12;
 	ret;
-ENDPROC(__camellia_enc_blk)
+SYM_FUNC_END(__camellia_enc_blk)
 
-ENTRY(camellia_dec_blk)
+SYM_FUNC_START(camellia_dec_blk)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -258,7 +258,7 @@ ENTRY(camellia_dec_blk)
 
 	movq RR12, %r12;
 	ret;
-ENDPROC(camellia_dec_blk)
+SYM_FUNC_END(camellia_dec_blk)
 
 /**********************************************************************
   2-way camellia
@@ -409,7 +409,7 @@ ENDPROC(camellia_dec_blk)
 		bswapq				RAB1; \
 		movq RAB1,			12*2(RIO);
 
-ENTRY(__camellia_enc_blk_2way)
+SYM_FUNC_START(__camellia_enc_blk_2way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -456,9 +456,9 @@ ENTRY(__camellia_enc_blk_2way)
 	movq RR12, %r12;
 	popq %rbx;
 	ret;
-ENDPROC(__camellia_enc_blk_2way)
+SYM_FUNC_END(__camellia_enc_blk_2way)
 
-ENTRY(camellia_dec_blk_2way)
+SYM_FUNC_START(camellia_dec_blk_2way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -496,4 +496,4 @@ ENTRY(camellia_dec_blk_2way)
 	movq RR12, %r12;
 	movq RXOR, %rbx;
 	ret;
-ENDPROC(camellia_dec_blk_2way)
+SYM_FUNC_END(camellia_dec_blk_2way)

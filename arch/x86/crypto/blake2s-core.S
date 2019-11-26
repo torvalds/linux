@@ -47,7 +47,7 @@ SIGMA2:
 
 .text
 #ifdef CONFIG_AS_SSSE3
-ENTRY(blake2s_compress_ssse3)
+SYM_FUNC_START(blake2s_compress_ssse3)
 	testq		%rdx,%rdx
 	je		.Lendofloop
 	movdqu		(%rdi),%xmm0
@@ -173,11 +173,11 @@ ENTRY(blake2s_compress_ssse3)
 	movdqu		%xmm14,0x20(%rdi)
 .Lendofloop:
 	ret
-ENDPROC(blake2s_compress_ssse3)
+SYM_FUNC_END(blake2s_compress_ssse3)
 #endif /* CONFIG_AS_SSSE3 */
 
 #ifdef CONFIG_AS_AVX512
-ENTRY(blake2s_compress_avx512)
+SYM_FUNC_START(blake2s_compress_avx512)
 	vmovdqu		(%rdi),%xmm0
 	vmovdqu		0x10(%rdi),%xmm1
 	vmovdqu		0x20(%rdi),%xmm4
@@ -254,5 +254,5 @@ ENTRY(blake2s_compress_avx512)
 	vmovdqu		%xmm4,0x20(%rdi)
 	vzeroupper
 	retq
-ENDPROC(blake2s_compress_avx512)
+SYM_FUNC_END(blake2s_compress_avx512)
 #endif /* CONFIG_AS_AVX512 */

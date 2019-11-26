@@ -69,7 +69,7 @@
  *
  * It's guaranteed that message_len % 16 == 0.
  */
-ENTRY(nh_avx2)
+SYM_FUNC_START(nh_avx2)
 
 	vmovdqu		0x00(KEY), K0
 	vmovdqu		0x10(KEY), K1
@@ -154,4 +154,4 @@ ENTRY(nh_avx2)
 	vpaddq		T4, T0, T0
 	vmovdqu		T0, (HASH)
 	ret
-ENDPROC(nh_avx2)
+SYM_FUNC_END(nh_avx2)
