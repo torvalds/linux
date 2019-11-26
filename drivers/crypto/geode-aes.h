@@ -46,21 +46,10 @@
 
 #define AES_OP_TIMEOUT    0x50000
 
-struct geode_aes_op {
-
-	void *src;
-	void *dst;
-
-	u32 mode;
-	u32 dir;
-	u32 flags;
-	int len;
-
+struct geode_aes_tfm_ctx {
 	u8 key[AES_KEYSIZE_128];
-	u8 *iv;
-
 	union {
-		struct crypto_blkcipher *blk;
+		struct crypto_skcipher *skcipher;
 		struct crypto_cipher *cip;
 	} fallback;
 	u32 keylen;

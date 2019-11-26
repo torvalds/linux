@@ -112,7 +112,7 @@ struct omap_aes_reqctx {
 #define OMAP_AES_CACHE_SIZE	0
 
 struct omap_aes_algs_info {
-	struct crypto_alg	*algs_list;
+	struct skcipher_alg	*algs_list;
 	unsigned int		size;
 	unsigned int		registered;
 };
@@ -162,7 +162,7 @@ struct omap_aes_dev {
 	struct aead_queue	aead_queue;
 	spinlock_t		lock;
 
-	struct ablkcipher_request	*req;
+	struct skcipher_request		*req;
 	struct aead_request		*aead_req;
 	struct crypto_engine		*engine;
 

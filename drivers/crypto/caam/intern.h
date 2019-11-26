@@ -81,9 +81,6 @@ struct caam_drv_private {
 	 */
 	u8 total_jobrs;		/* Total Job Rings in device */
 	u8 qi_present;		/* Nonzero if QI present in device */
-#ifdef CONFIG_CAAM_QI
-	u8 qi_init;		/* Nonzero if QI has been initialized */
-#endif
 	u8 mc_en;		/* Nonzero if MC f/w is active */
 	int secvio_irq;		/* Security violation interrupt number */
 	int virt_en;		/* Virtualization enabled in CAAM */
@@ -102,7 +99,6 @@ struct caam_drv_private {
 	 * variables at runtime.
 	 */
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *dfs_root;
 	struct dentry *ctl; /* controller dir */
 	struct debugfs_blob_wrapper ctl_kek_wrap, ctl_tkek_wrap, ctl_tdsk_wrap;
 #endif

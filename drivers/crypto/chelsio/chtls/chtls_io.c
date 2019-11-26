@@ -97,7 +97,7 @@ static struct sk_buff *create_flowc_wr_skb(struct sock *sk,
 	if (!skb)
 		return NULL;
 
-	memcpy(__skb_put(skb, flowclen), flowc, flowclen);
+	__skb_put_data(skb, flowc, flowclen);
 	skb_set_queue_mapping(skb, (csk->txq_idx << 1) | CPL_PRIORITY_DATA);
 
 	return skb;
@@ -1841,8 +1841,7 @@ skip_copy:
 			tp->urg_data = 0;
 
 		if (avail + offset >= skb->len) {
-			if (likely(skb))
-				chtls_free_skb(sk, skb);
+			chtls_free_skb(sk, skb);
 			buffers_freed++;
 
 			if  (copied >= target &&

@@ -14,7 +14,7 @@ int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 				   struct safexcel_desc_ring *cdr,
 				   struct safexcel_desc_ring *rdr)
 {
-	cdr->offset = sizeof(u32) * priv->config.cd_offset;
+	cdr->offset = priv->config.cd_offset;
 	cdr->base = dmam_alloc_coherent(priv->dev,
 					cdr->offset * EIP197_DEFAULT_RING_SIZE,
 					&cdr->base_dma, GFP_KERNEL);
@@ -24,7 +24,7 @@ int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 	cdr->base_end = cdr->base + cdr->offset * (EIP197_DEFAULT_RING_SIZE - 1);
 	cdr->read = cdr->base;
 
-	rdr->offset = sizeof(u32) * priv->config.rd_offset;
+	rdr->offset = priv->config.rd_offset;
 	rdr->base = dmam_alloc_coherent(priv->dev,
 					rdr->offset * EIP197_DEFAULT_RING_SIZE,
 					&rdr->base_dma, GFP_KERNEL);
@@ -180,6 +180,7 @@ struct safexcel_result_desc *safexcel_add_rdesc(struct safexcel_crypto_priv *pri
 
 	rdesc->first_seg = first;
 	rdesc->last_seg = last;
+	rdesc->result_size = EIP197_RD64_RESULT_SIZE;
 	rdesc->particle_size = len;
 	rdesc->data_lo = lower_32_bits(data);
 	rdesc->data_hi = upper_32_bits(data);

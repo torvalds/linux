@@ -555,7 +555,7 @@ static int tgr192_final(struct shash_desc *desc, u8 * out)
 	__le32 *le32p;
 	u32 t, msb, lsb;
 
-	tgr192_update(desc, NULL, 0); /* flush */ ;
+	tgr192_update(desc, NULL, 0); /* flush */
 
 	msb = 0;
 	t = tctx->nblocks;
@@ -583,7 +583,7 @@ static int tgr192_final(struct shash_desc *desc, u8 * out)
 		while (tctx->count < 64) {
 			tctx->hash[tctx->count++] = 0;
 		}
-		tgr192_update(desc, NULL, 0); /* flush */ ;
+		tgr192_update(desc, NULL, 0); /* flush */
 		memset(tctx->hash, 0, 56);    /* fill next block with zeroes */
 	}
 	/* append the 64 bit count */

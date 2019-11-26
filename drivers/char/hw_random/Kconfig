@@ -308,6 +308,19 @@ config HW_RANDOM_HISI
 
 	  If unsure, say Y.
 
+config HW_RANDOM_HISI_V2
+	tristate "HiSilicon True Random Number Generator V2 support"
+	depends on HW_RANDOM && ARM64 && ACPI
+	default HW_RANDOM
+	help
+	  This driver provides kernel-side support for the True Random Number
+	  Generator V2 hardware found on HiSilicon Hi1620 SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hisi-trng-v2.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_ST
 	tristate "ST Microelectronics HW Random Number Generator support"
 	depends on HW_RANDOM && ARCH_STI
@@ -440,6 +453,19 @@ config HW_RANDOM_OPTEE
 
 	  If unsure, say Y.
 
+config HW_RANDOM_NPCM
+	tristate "NPCM Random Number Generator support"
+	depends on ARCH_NPCM || COMPILE_TEST
+	default HW_RANDOM
+	help
+ 	  This driver provides support for the Random Number
+	  Generator hardware available in Nuvoton NPCM SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called npcm-rng.
+
+ 	  If unsure, say Y.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
@@ -458,7 +484,7 @@ config UML_RANDOM
 	  /dev/hwrng and injects the entropy into /dev/random.
 
 config HW_RANDOM_KEYSTONE
-	depends on ARCH_KEYSTONE
+	depends on ARCH_KEYSTONE || COMPILE_TEST
 	default HW_RANDOM
 	tristate "TI Keystone NETCP SA Hardware random number generator"
 	help
