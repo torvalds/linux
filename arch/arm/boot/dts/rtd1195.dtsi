@@ -100,28 +100,22 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x18000000 0x70000>;
 
-			wdt: watchdog@7680 {
-				compatible = "realtek,rtd1295-watchdog";
-				reg = <0x7680 0x100>;
-				clocks = <&osc27M>;
+			iso: syscon@7000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x7000 0x1000>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x7000 0x1000>;
 			};
 
-			uart0: serial@7800 {
-				compatible = "snps,dw-apb-uart";
-				reg = <0x7800 0x400>;
-				reg-shift = <2>;
+			misc: syscon@1b000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x1b000 0x1000>;
 				reg-io-width = <4>;
-				clock-frequency = <27000000>;
-				status = "disabled";
-			};
-
-			uart1: serial@1b200 {
-				compatible = "snps,dw-apb-uart";
-				reg = <0x1b200 0x100>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
-				clock-frequency = <27000000>;
-				status = "disabled";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1b000 0x1000>;
 			};
 		};
 
@@ -135,5 +129,33 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 		};
+	};
+};
+
+&iso {
+	wdt: watchdog@680 {
+		compatible = "realtek,rtd1295-watchdog";
+		reg = <0x680 0x100>;
+		clocks = <&osc27M>;
+	};
+
+	uart0: serial@800 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x800 0x400>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <27000000>;
+		status = "disabled";
+	};
+};
+
+&misc {
+	uart1: serial@200 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x200 0x100>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <27000000>;
+		status = "disabled";
 	};
 };
