@@ -1925,27 +1925,51 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 	return vbt;
 }
 
-static const struct vbt_header *find_vbt(void __iomem *oprom, size_t size)
+static struct vbt_header *copy_vbt(void __iomem *oprom, size_t size)
 {
+	void __iomem *p = NULL;
+	struct vbt_header *vbt;
+	u16 vbt_size;
 	size_t i;
 
 	/* Scour memory looking for the VBT signature. */
 	for (i = 0; i + 4 < size; i++) {
-		void *vbt;
-
 		if (ioread32(oprom + i) != *((const u32 *)"$VBT"))
 			continue;
 
-		/*
-		 * This is the one place where we explicitly discard the address
-		 * space (__iomem) of the BIOS/VBT.
-		 */
-		vbt = (void __force *)oprom + i;
-		if (intel_bios_is_valid_vbt(vbt, size - i))
-			return vbt;
-
+		p = oprom + i;
+		size -= i;
 		break;
 	}
+
+	if (!p)
+		return NULL;
+
+	if (sizeof(struct vbt_header) > size) {
+		DRM_DEBUG_DRIVER("VBT header incomplete\n");
+		return NULL;
+	}
+
+	vbt_size = ioread16(p + offsetof(struct vbt_header, vbt_size));
+	if (vbt_size > size) {
+		DRM_DEBUG_DRIVER("VBT incomplete (vbt_size overflows)\n");
+		return NULL;
+	}
+
+	/* The rest will be validated by intel_bios_is_valid_vbt() */
+	vbt = kmalloc(vbt_size, GFP_KERNEL);
+	if (!vbt)
+		return NULL;
+
+	memcpy_fromio(vbt, p, vbt_size);
+
+	if (!intel_bios_is_valid_vbt(vbt, vbt_size))
+		goto err_free_vbt;
+
+	return vbt;
+
+err_free_vbt:
+	kfree(vbt);
 
 	return NULL;
 }
@@ -1982,7 +2006,7 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 		if (!oprom)
 			goto out;
 
-		vbt = find_vbt(oprom, size);
+		vbt = copy_vbt(oprom, size);
 		if (!vbt)
 			goto out;
 
@@ -2020,6 +2044,9 @@ out:
 
 	if (oprom)
 		pci_unmap_rom(pdev, oprom);
+
+	if (vbt != dev_priv->opregion.vbt)
+		kfree(vbt);
 }
 
 /**
