@@ -54,7 +54,7 @@ struct x86_hw_tss doublefault_tss __cacheline_aligned = {
 	.sp0		= STACK_START,
 	.ss0		= __KERNEL_DS,
 	.ldt		= 0,
-	.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,
+	.io_bitmap_base	= IO_BITMAP_OFFSET_INVALID,
 
 	.ip		= (unsigned long) doublefault_fn,
 	/* 0x2 bit is always set */

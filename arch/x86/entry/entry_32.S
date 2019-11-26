@@ -739,6 +739,11 @@ SYM_CODE_START(__switch_to_asm)
 	pushl	%ebx
 	pushl	%edi
 	pushl	%esi
+	/*
+	 * Flags are saved to prevent AC leakage. This could go
+	 * away if objtool would have 32bit support to verify
+	 * the STAC/CLAC correctness.
+	 */
 	pushfl
 
 	/* switch stack */
@@ -761,8 +766,9 @@ SYM_CODE_START(__switch_to_asm)
 	FILL_RETURN_BUFFER %ebx, RSB_CLEAR_LOOPS, X86_FEATURE_RSB_CTXSW
 #endif
 
-	/* restore callee-saved registers */
+	/* Restore flags or the incoming task to restore AC state. */
 	popfl
+	/* restore callee-saved registers */
 	popl	%esi
 	popl	%edi
 	popl	%ebx

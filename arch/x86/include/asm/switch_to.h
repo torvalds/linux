@@ -103,7 +103,17 @@ static inline void update_task_stack(struct task_struct *task)
 	if (static_cpu_has(X86_FEATURE_XENPV))
 		load_sp0(task_top_of_stack(task));
 #endif
+}
 
+static inline void kthread_frame_init(struct inactive_task_frame *frame,
+				      unsigned long fun, unsigned long arg)
+{
+	frame->bx = fun;
+#ifdef CONFIG_X86_32
+	frame->di = arg;
+#else
+	frame->r12 = arg;
+#endif
 }
 
 #endif /* _ASM_X86_SWITCH_TO_H */
