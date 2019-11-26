@@ -1938,7 +1938,7 @@ static struct vbt_header *oprom_get_vbt(struct drm_i915_private *dev_priv)
 		return NULL;
 
 	/* Scour memory looking for the VBT signature. */
-	for (i = 0; i + 4 < size; i++) {
+	for (i = 0; i + 4 < size; i += 4) {
 		if (ioread32(oprom + i) != *((const u32 *)"$VBT"))
 			continue;
 
