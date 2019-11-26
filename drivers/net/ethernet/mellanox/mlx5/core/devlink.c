@@ -85,6 +85,22 @@ mlx5_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	return 0;
 }
 
+static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
+				    struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	return mlx5_unload_one(dev, false);
+}
+
+static int mlx5_devlink_reload_up(struct devlink *devlink,
+				  struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	return mlx5_load_one(dev, false);
+}
+
 static const struct devlink_ops mlx5_devlink_ops = {
 #ifdef CONFIG_MLX5_ESWITCH
 	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
@@ -96,6 +112,8 @@ static const struct devlink_ops mlx5_devlink_ops = {
 #endif
 	.flash_update = mlx5_devlink_flash_update,
 	.info_get = mlx5_devlink_info_get,
+	.reload_down = mlx5_devlink_reload_down,
+	.reload_up = mlx5_devlink_reload_up,
 };
 
 struct devlink *mlx5_devlink_alloc(void)
@@ -177,12 +195,29 @@ enum mlx5_devlink_param_id {
 	MLX5_DEVLINK_PARAM_FLOW_STEERING_MODE,
 };
 
+static int mlx5_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
+					     union devlink_param_value val,
+					     struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	bool new_state = val.vbool;
+
+	if (new_state && !MLX5_CAP_GEN(dev, roce)) {
+		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support RoCE");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static const struct devlink_param mlx5_devlink_params[] = {
 	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_FLOW_STEERING_MODE,
 			     "flow_steering_mode", DEVLINK_PARAM_TYPE_STRING,
 			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
 			     mlx5_devlink_fs_mode_get, mlx5_devlink_fs_mode_set,
 			     mlx5_devlink_fs_mode_validate),
+	DEVLINK_PARAM_GENERIC(ENABLE_ROCE, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, mlx5_devlink_enable_roce_validate),
 };
 
 static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
@@ -196,6 +231,11 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 		strcpy(value.vstr, "smfs");
 	devlink_param_driverinit_value_set(devlink,
 					   MLX5_DEVLINK_PARAM_FLOW_STEERING_MODE,
+					   value);
+
+	value.vbool = MLX5_CAP_GEN(dev, roce);
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
 					   value);
 }
 
@@ -213,6 +253,7 @@ int mlx5_devlink_register(struct devlink *devlink, struct device *dev)
 		goto params_reg_err;
 	mlx5_devlink_set_params_init_values(devlink);
 	devlink_params_publish(devlink);
+	devlink_reload_enable(devlink);
 	return 0;
 
 params_reg_err:
@@ -222,6 +263,7 @@ params_reg_err:
 
 void mlx5_devlink_unregister(struct devlink *devlink)
 {
+	devlink_reload_disable(devlink);
 	devlink_params_unregister(devlink, mlx5_devlink_params,
 				  ARRAY_SIZE(mlx5_devlink_params));
 	devlink_unregister(devlink);

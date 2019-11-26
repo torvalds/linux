@@ -46,4 +46,18 @@ extern void				icmpv6_flow_init(struct sock *sk,
 							 const struct in6_addr *saddr,
 							 const struct in6_addr *daddr,
 							 int oif);
+
+static inline bool icmpv6_is_err(int type)
+{
+	switch (type) {
+	case ICMPV6_DEST_UNREACH:
+	case ICMPV6_PKT_TOOBIG:
+	case ICMPV6_TIME_EXCEED:
+	case ICMPV6_PARAMPROB:
+		return true;
+	}
+
+	return false;
+}
+
 #endif

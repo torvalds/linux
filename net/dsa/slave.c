@@ -789,6 +789,22 @@ static int dsa_slave_set_link_ksettings(struct net_device *dev,
 	return phylink_ethtool_ksettings_set(dp->pl, cmd);
 }
 
+static void dsa_slave_get_pauseparam(struct net_device *dev,
+				     struct ethtool_pauseparam *pause)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+
+	phylink_ethtool_get_pauseparam(dp->pl, pause);
+}
+
+static int dsa_slave_set_pauseparam(struct net_device *dev,
+				    struct ethtool_pauseparam *pause)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+
+	return phylink_ethtool_set_pauseparam(dp->pl, pause);
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static int dsa_slave_netpoll_setup(struct net_device *dev,
 				   struct netpoll_info *ni)
@@ -1192,6 +1208,8 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_eee		= dsa_slave_get_eee,
 	.get_link_ksettings	= dsa_slave_get_link_ksettings,
 	.set_link_ksettings	= dsa_slave_set_link_ksettings,
+	.get_pauseparam		= dsa_slave_get_pauseparam,
+	.set_pauseparam		= dsa_slave_set_pauseparam,
 	.get_rxnfc		= dsa_slave_get_rxnfc,
 	.set_rxnfc		= dsa_slave_set_rxnfc,
 	.get_ts_info		= dsa_slave_get_ts_info,
@@ -1295,11 +1313,12 @@ static int dsa_slave_phy_setup(struct net_device *slave_dev)
 	struct dsa_port *dp = dsa_slave_to_port(slave_dev);
 	struct device_node *port_dn = dp->dn;
 	struct dsa_switch *ds = dp->ds;
+	phy_interface_t mode;
 	u32 phy_flags = 0;
-	int mode, ret;
+	int ret;
 
-	mode = of_get_phy_mode(port_dn);
-	if (mode < 0)
+	ret = of_get_phy_mode(port_dn, &mode);
+	if (ret)
 		mode = PHY_INTERFACE_MODE_NA;
 
 	dp->pl_config.dev = &slave_dev->dev;

@@ -209,6 +209,7 @@ static void rxrpc_assess_MTU_size(struct rxrpc_sock *rx,
  */
 struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 {
+	const void *here = __builtin_return_address(0);
 	struct rxrpc_peer *peer;
 
 	_enter("");
@@ -230,6 +231,7 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 			peer->cong_cwnd = 3;
 		else
 			peer->cong_cwnd = 4;
+		trace_rxrpc_peer(peer->debug_id, rxrpc_peer_new, 1, here);
 	}
 
 	_leave(" = %p", peer);

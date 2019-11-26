@@ -49,4 +49,3 @@ int handle_uprobe_return(struct pt_regs *ctx)
 }
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1;

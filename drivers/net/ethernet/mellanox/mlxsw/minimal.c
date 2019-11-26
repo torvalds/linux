@@ -16,6 +16,14 @@
 
 static const char mlxsw_m_driver_name[] = "mlxsw_minimal";
 
+#define MLXSW_M_FWREV_MINOR	2000
+#define MLXSW_M_FWREV_SUBMINOR	1886
+
+static const struct mlxsw_fw_rev mlxsw_m_fw_rev = {
+	.minor = MLXSW_M_FWREV_MINOR,
+	.subminor = MLXSW_M_FWREV_SUBMINOR,
+};
+
 struct mlxsw_m_port;
 
 struct mlxsw_m {
@@ -172,6 +180,7 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
 	}
 
 	SET_NETDEV_DEV(dev, mlxsw_m->bus_info->dev);
+	dev_net_set(dev, mlxsw_core_net(mlxsw_m->core));
 	mlxsw_m_port = netdev_priv(dev);
 	mlxsw_m_port->dev = dev;
 	mlxsw_m_port->mlxsw_m = mlxsw_m;
@@ -325,14 +334,37 @@ static void mlxsw_m_ports_remove(struct mlxsw_m *mlxsw_m)
 	kfree(mlxsw_m->ports);
 }
 
+static int mlxsw_m_fw_rev_validate(struct mlxsw_m *mlxsw_m)
+{
+	const struct mlxsw_fw_rev *rev = &mlxsw_m->bus_info->fw_rev;
+
+	/* Validate driver and FW are compatible.
+	 * Do not check major version, since it defines chip type, while
+	 * driver is supposed to support any type.
+	 */
+	if (mlxsw_core_fw_rev_minor_subminor_validate(rev, &mlxsw_m_fw_rev))
+		return 0;
+
+	dev_err(mlxsw_m->bus_info->dev, "The firmware version %d.%d.%d is incompatible with the driver (required >= %d.%d.%d)\n",
+		rev->major, rev->minor, rev->subminor, rev->major,
+		mlxsw_m_fw_rev.minor, mlxsw_m_fw_rev.subminor);
+
+	return -EINVAL;
+}
+
 static int mlxsw_m_init(struct mlxsw_core *mlxsw_core,
-			const struct mlxsw_bus_info *mlxsw_bus_info)
+			const struct mlxsw_bus_info *mlxsw_bus_info,
+			struct netlink_ext_ack *extack)
 {
 	struct mlxsw_m *mlxsw_m = mlxsw_core_driver_priv(mlxsw_core);
 	int err;
 
 	mlxsw_m->core = mlxsw_core;
 	mlxsw_m->bus_info = mlxsw_bus_info;
+
+	err = mlxsw_m_fw_rev_validate(mlxsw_m);
+	if (err)
+		return err;
 
 	err = mlxsw_m_base_mac_get(mlxsw_m);
 	if (err) {

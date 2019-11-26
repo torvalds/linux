@@ -2,6 +2,7 @@
 /* Copyright (c) 2019 Mellanox Technologies. */
 
 #include <linux/types.h>
+#include <linux/crc32.h>
 #include "dr_types.h"
 
 #define DR_STE_CRC_POLY 0xEDB88320L
@@ -107,6 +108,13 @@ struct dr_hw_ste_format {
 	u8 mask[DR_STE_SIZE_MASK];
 };
 
+static u32 dr_ste_crc32_calc(const void *input_data, size_t length)
+{
+	u32 crc = crc32(0, input_data, length);
+
+	return htonl(crc);
+}
+
 u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 {
 	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)hw_ste_p;
@@ -128,7 +136,7 @@ u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 		bit = bit >> 1;
 	}
 
-	crc32 = mlx5dr_crc32_slice8_calc(masked, DR_STE_SIZE_TAG);
+	crc32 = dr_ste_crc32_calc(masked, DR_STE_SIZE_TAG);
 	index = crc32 & (htbl->chunk->num_of_entries - 1);
 
 	return index;
@@ -2075,68 +2083,110 @@ void mlx5dr_ste_build_eth_l4_misc(struct mlx5dr_ste_build *sb,
 	sb->ste_build_tag_func = &dr_ste_build_eth_l4_misc_tag;
 }
 
-static void dr_ste_build_flex_parser_tnl_bit_mask(struct mlx5dr_match_param *value,
-						  bool inner, u8 *bit_mask)
+static void
+dr_ste_build_flex_parser_tnl_vxlan_gpe_bit_mask(struct mlx5dr_match_param *value,
+						bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_misc3 *misc_3_mask = &value->misc3;
 
-	if (misc_3_mask->outer_vxlan_gpe_flags ||
-	    misc_3_mask->outer_vxlan_gpe_next_protocol) {
-		MLX5_SET(ste_flex_parser_tnl, bit_mask,
-			 flex_parser_tunneling_header_63_32,
-			 (misc_3_mask->outer_vxlan_gpe_flags << 24) |
-			 (misc_3_mask->outer_vxlan_gpe_next_protocol));
-		misc_3_mask->outer_vxlan_gpe_flags = 0;
-		misc_3_mask->outer_vxlan_gpe_next_protocol = 0;
-	}
-
-	if (misc_3_mask->outer_vxlan_gpe_vni) {
-		MLX5_SET(ste_flex_parser_tnl, bit_mask,
-			 flex_parser_tunneling_header_31_0,
-			 misc_3_mask->outer_vxlan_gpe_vni << 8);
-		misc_3_mask->outer_vxlan_gpe_vni = 0;
-	}
+	DR_STE_SET_MASK_V(flex_parser_tnl_vxlan_gpe, bit_mask,
+			  outer_vxlan_gpe_flags,
+			  misc_3_mask, outer_vxlan_gpe_flags);
+	DR_STE_SET_MASK_V(flex_parser_tnl_vxlan_gpe, bit_mask,
+			  outer_vxlan_gpe_next_protocol,
+			  misc_3_mask, outer_vxlan_gpe_next_protocol);
+	DR_STE_SET_MASK_V(flex_parser_tnl_vxlan_gpe, bit_mask,
+			  outer_vxlan_gpe_vni,
+			  misc_3_mask, outer_vxlan_gpe_vni);
 }
 
-static int dr_ste_build_flex_parser_tnl_tag(struct mlx5dr_match_param *value,
-					    struct mlx5dr_ste_build *sb,
-					    u8 *hw_ste_p)
+static int
+dr_ste_build_flex_parser_tnl_vxlan_gpe_tag(struct mlx5dr_match_param *value,
+					   struct mlx5dr_ste_build *sb,
+					   u8 *hw_ste_p)
 {
 	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)hw_ste_p;
 	struct mlx5dr_match_misc3 *misc3 = &value->misc3;
 	u8 *tag = hw_ste->tag;
 
-	if (misc3->outer_vxlan_gpe_flags ||
-	    misc3->outer_vxlan_gpe_next_protocol) {
-		MLX5_SET(ste_flex_parser_tnl, tag,
-			 flex_parser_tunneling_header_63_32,
-			 (misc3->outer_vxlan_gpe_flags << 24) |
-			 (misc3->outer_vxlan_gpe_next_protocol));
-		misc3->outer_vxlan_gpe_flags = 0;
-		misc3->outer_vxlan_gpe_next_protocol = 0;
-	}
-
-	if (misc3->outer_vxlan_gpe_vni) {
-		MLX5_SET(ste_flex_parser_tnl, tag,
-			 flex_parser_tunneling_header_31_0,
-			 misc3->outer_vxlan_gpe_vni << 8);
-		misc3->outer_vxlan_gpe_vni = 0;
-	}
+	DR_STE_SET_TAG(flex_parser_tnl_vxlan_gpe, tag,
+		       outer_vxlan_gpe_flags, misc3,
+		       outer_vxlan_gpe_flags);
+	DR_STE_SET_TAG(flex_parser_tnl_vxlan_gpe, tag,
+		       outer_vxlan_gpe_next_protocol, misc3,
+		       outer_vxlan_gpe_next_protocol);
+	DR_STE_SET_TAG(flex_parser_tnl_vxlan_gpe, tag,
+		       outer_vxlan_gpe_vni, misc3,
+		       outer_vxlan_gpe_vni);
 
 	return 0;
 }
 
-void mlx5dr_ste_build_flex_parser_tnl(struct mlx5dr_ste_build *sb,
-				      struct mlx5dr_match_param *mask,
-				      bool inner, bool rx)
+void mlx5dr_ste_build_flex_parser_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
+						struct mlx5dr_match_param *mask,
+						bool inner, bool rx)
 {
-	dr_ste_build_flex_parser_tnl_bit_mask(mask, inner, sb->bit_mask);
+	dr_ste_build_flex_parser_tnl_vxlan_gpe_bit_mask(mask, inner,
+							sb->bit_mask);
 
 	sb->rx = rx;
 	sb->inner = inner;
 	sb->lu_type = MLX5DR_STE_LU_TYPE_FLEX_PARSER_TNL_HEADER;
 	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_flex_parser_tnl_tag;
+	sb->ste_build_tag_func = &dr_ste_build_flex_parser_tnl_vxlan_gpe_tag;
+}
+
+static void
+dr_ste_build_flex_parser_tnl_geneve_bit_mask(struct mlx5dr_match_param *value,
+					     u8 *bit_mask)
+{
+	struct mlx5dr_match_misc *misc_mask = &value->misc;
+
+	DR_STE_SET_MASK_V(flex_parser_tnl_geneve, bit_mask,
+			  geneve_protocol_type,
+			  misc_mask, geneve_protocol_type);
+	DR_STE_SET_MASK_V(flex_parser_tnl_geneve, bit_mask,
+			  geneve_oam,
+			  misc_mask, geneve_oam);
+	DR_STE_SET_MASK_V(flex_parser_tnl_geneve, bit_mask,
+			  geneve_opt_len,
+			  misc_mask, geneve_opt_len);
+	DR_STE_SET_MASK_V(flex_parser_tnl_geneve, bit_mask,
+			  geneve_vni,
+			  misc_mask, geneve_vni);
+}
+
+static int
+dr_ste_build_flex_parser_tnl_geneve_tag(struct mlx5dr_match_param *value,
+					struct mlx5dr_ste_build *sb,
+					u8 *hw_ste_p)
+{
+	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)hw_ste_p;
+	struct mlx5dr_match_misc *misc = &value->misc;
+	u8 *tag = hw_ste->tag;
+
+	DR_STE_SET_TAG(flex_parser_tnl_geneve, tag,
+		       geneve_protocol_type, misc, geneve_protocol_type);
+	DR_STE_SET_TAG(flex_parser_tnl_geneve, tag,
+		       geneve_oam, misc, geneve_oam);
+	DR_STE_SET_TAG(flex_parser_tnl_geneve, tag,
+		       geneve_opt_len, misc, geneve_opt_len);
+	DR_STE_SET_TAG(flex_parser_tnl_geneve, tag,
+		       geneve_vni, misc, geneve_vni);
+
+	return 0;
+}
+
+void mlx5dr_ste_build_flex_parser_tnl_geneve(struct mlx5dr_ste_build *sb,
+					     struct mlx5dr_match_param *mask,
+					     bool inner, bool rx)
+{
+	dr_ste_build_flex_parser_tnl_geneve_bit_mask(mask, sb->bit_mask);
+	sb->rx = rx;
+	sb->inner = inner;
+	sb->lu_type = MLX5DR_STE_LU_TYPE_FLEX_PARSER_TNL_HEADER;
+	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_build_flex_parser_tnl_geneve_tag;
 }
 
 static void dr_ste_build_register_0_bit_mask(struct mlx5dr_match_param *value,

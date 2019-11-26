@@ -60,8 +60,8 @@ struct btf_ext_header {
 	__u32	line_info_len;
 
 	/* optional part of .BTF.ext header */
-	__u32	offset_reloc_off;
-	__u32	offset_reloc_len;
+	__u32	field_reloc_off;
+	__u32	field_reloc_len;
 };
 
 LIBBPF_API void btf__free(struct btf *btf);
@@ -72,6 +72,8 @@ LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
 LIBBPF_API int btf__load(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 				   const char *type_name);
+LIBBPF_API __s32 btf__find_by_name_kind(const struct btf *btf,
+					const char *type_name, __u32 kind);
 LIBBPF_API __u32 btf__get_nr_types(const struct btf *btf);
 LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 						  __u32 id);

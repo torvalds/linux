@@ -149,8 +149,9 @@ static void advance_nextseg(struct ipv6_sr_hdr *srh, struct in6_addr *daddr)
 	*daddr = *addr;
 }
 
-int seg6_lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
-			u32 tbl_id)
+static int
+seg6_lookup_any_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
+			u32 tbl_id, bool local_delivery)
 {
 	struct net *net = dev_net(skb->dev);
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
@@ -158,6 +159,7 @@ int seg6_lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
 	struct dst_entry *dst = NULL;
 	struct rt6_info *rt;
 	struct flowi6 fl6;
+	int dev_flags = 0;
 
 	fl6.flowi6_iif = skb->dev->ifindex;
 	fl6.daddr = nhaddr ? *nhaddr : hdr->daddr;
@@ -182,7 +184,13 @@ int seg6_lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
 		dst = &rt->dst;
 	}
 
-	if (dst && dst->dev->flags & IFF_LOOPBACK && !dst->error) {
+	/* we want to discard traffic destined for local packet processing,
+	 * if @local_delivery is set to false.
+	 */
+	if (!local_delivery)
+		dev_flags |= IFF_LOOPBACK;
+
+	if (dst && (dst->dev->flags & dev_flags) && !dst->error) {
 		dst_release(dst);
 		dst = NULL;
 	}
@@ -197,6 +205,12 @@ out:
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
 	return dst->error;
+}
+
+int seg6_lookup_nexthop(struct sk_buff *skb,
+			struct in6_addr *nhaddr, u32 tbl_id)
+{
+	return seg6_lookup_any_nexthop(skb, nhaddr, tbl_id, false);
 }
 
 /* regular endpoint function */
@@ -396,7 +410,7 @@ static int input_action_end_dt6(struct sk_buff *skb,
 
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
 
-	seg6_lookup_nexthop(skb, NULL, slwt->table);
+	seg6_lookup_any_nexthop(skb, NULL, slwt->table, true);
 
 	return dst_input(skb);
 

@@ -134,6 +134,18 @@ enum nsim_resource_id {
 	NSIM_RESOURCE_IPV6_FIB_RULES,
 };
 
+struct nsim_dev_health {
+	struct devlink_health_reporter *empty_reporter;
+	struct devlink_health_reporter *dummy_reporter;
+	struct dentry *ddir;
+	char *recovered_break_msg;
+	u32 binary_len;
+	bool fail_recover;
+};
+
+int nsim_dev_health_init(struct nsim_dev *nsim_dev, struct devlink *devlink);
+void nsim_dev_health_exit(struct nsim_dev *nsim_dev);
+
 struct nsim_dev_port {
 	struct list_head list;
 	struct devlink_port devlink_port;
@@ -161,8 +173,16 @@ struct nsim_dev {
 	bool fw_update_status;
 	u32 max_macs;
 	bool test1;
+	bool dont_allow_reload;
+	bool fail_reload;
 	struct devlink_region *dummy_region;
+	struct nsim_dev_health health;
 };
+
+static inline struct net *nsim_dev_net(struct nsim_dev *nsim_dev)
+{
+	return devlink_net(priv_to_devlink(nsim_dev));
+}
 
 int nsim_dev_init(void);
 void nsim_dev_exit(void);
@@ -173,11 +193,11 @@ int nsim_dev_port_add(struct nsim_bus_dev *nsim_bus_dev,
 int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
 		      unsigned int port_index);
 
-int nsim_fib_init(void);
-void nsim_fib_exit(void);
-u64 nsim_fib_get_val(struct net *net, enum nsim_resource_id res_id, bool max);
-int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val,
-		     struct netlink_ext_ack *extack);
+struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
+				      struct netlink_ext_ack *extack);
+void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *fib_data);
+u64 nsim_fib_get_val(struct nsim_fib_data *fib_data,
+		     enum nsim_resource_id res_id, bool max);
 
 #if IS_ENABLED(CONFIG_XFRM_OFFLOAD)
 void nsim_ipsec_init(struct netdevsim *ns);
@@ -215,6 +235,9 @@ struct nsim_bus_dev {
 	struct device dev;
 	struct list_head list;
 	unsigned int port_count;
+	struct net *initial_net; /* Purpose of this is to carry net pointer
+				  * during the probe time only.
+				  */
 	unsigned int num_vfs;
 	struct nsim_vf_config *vfconfigs;
 };

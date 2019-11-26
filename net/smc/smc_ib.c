@@ -15,6 +15,7 @@
 #include <linux/random.h>
 #include <linux/workqueue.h>
 #include <linux/scatterlist.h>
+#include <linux/wait.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
 
@@ -242,8 +243,12 @@ static void smc_ib_port_event_work(struct work_struct *work)
 	for_each_set_bit(port_idx, &smcibdev->port_event_mask, SMC_MAX_PORTS) {
 		smc_ib_remember_port_attr(smcibdev, port_idx + 1);
 		clear_bit(port_idx, &smcibdev->port_event_mask);
-		if (!smc_ib_port_active(smcibdev, port_idx + 1))
+		if (!smc_ib_port_active(smcibdev, port_idx + 1)) {
+			set_bit(port_idx, smcibdev->ports_going_away);
 			smc_port_terminate(smcibdev, port_idx + 1);
+		} else {
+			clear_bit(port_idx, smcibdev->ports_going_away);
+		}
 	}
 }
 
@@ -259,8 +264,10 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 	switch (ibevent->event) {
 	case IB_EVENT_DEVICE_FATAL:
 		/* terminate all ports on device */
-		for (port_idx = 0; port_idx < SMC_MAX_PORTS; port_idx++)
+		for (port_idx = 0; port_idx < SMC_MAX_PORTS; port_idx++) {
 			set_bit(port_idx, &smcibdev->port_event_mask);
+			set_bit(port_idx, smcibdev->ports_going_away);
+		}
 		schedule_work(&smcibdev->port_event_work);
 		break;
 	case IB_EVENT_PORT_ERR:
@@ -269,6 +276,10 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 		port_idx = ibevent->element.port_num - 1;
 		if (port_idx < SMC_MAX_PORTS) {
 			set_bit(port_idx, &smcibdev->port_event_mask);
+			if (ibevent->event == IB_EVENT_PORT_ERR)
+				set_bit(port_idx, smcibdev->ports_going_away);
+			else if (ibevent->event == IB_EVENT_PORT_ACTIVE)
+				clear_bit(port_idx, smcibdev->ports_going_away);
 			schedule_work(&smcibdev->port_event_work);
 		}
 		break;
@@ -307,6 +318,7 @@ static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
 		port_idx = ibevent->element.qp->port - 1;
 		if (port_idx < SMC_MAX_PORTS) {
 			set_bit(port_idx, &smcibdev->port_event_mask);
+			set_bit(port_idx, smcibdev->ports_going_away);
 			schedule_work(&smcibdev->port_event_work);
 		}
 		break;
@@ -509,9 +521,9 @@ static void smc_ib_cleanup_per_ibdev(struct smc_ib_device *smcibdev)
 	if (!smcibdev->initialized)
 		return;
 	smcibdev->initialized = 0;
-	smc_wr_remove_dev(smcibdev);
 	ib_destroy_cq(smcibdev->roce_cq_recv);
 	ib_destroy_cq(smcibdev->roce_cq_send);
+	smc_wr_remove_dev(smcibdev);
 }
 
 static struct ib_client smc_ib_client;
@@ -532,7 +544,8 @@ static void smc_ib_add_dev(struct ib_device *ibdev)
 
 	smcibdev->ibdev = ibdev;
 	INIT_WORK(&smcibdev->port_event_work, smc_ib_port_event_work);
-
+	atomic_set(&smcibdev->lnk_cnt, 0);
+	init_waitqueue_head(&smcibdev->lnks_deleted);
 	spin_lock(&smc_ib_devices.lock);
 	list_add_tail(&smcibdev->list, &smc_ib_devices.list);
 	spin_unlock(&smc_ib_devices.lock);
@@ -554,7 +567,7 @@ static void smc_ib_add_dev(struct ib_device *ibdev)
 	schedule_work(&smcibdev->port_event_work);
 }
 
-/* callback function for ib_register_client() */
+/* callback function for ib_unregister_client() */
 static void smc_ib_remove_dev(struct ib_device *ibdev, void *client_data)
 {
 	struct smc_ib_device *smcibdev;
@@ -564,6 +577,7 @@ static void smc_ib_remove_dev(struct ib_device *ibdev, void *client_data)
 	spin_lock(&smc_ib_devices.lock);
 	list_del_init(&smcibdev->list); /* remove from smc_ib_devices */
 	spin_unlock(&smc_ib_devices.lock);
+	smc_smcr_terminate_all(smcibdev);
 	smc_ib_cleanup_per_ibdev(smcibdev);
 	ib_unregister_event_handler(&smcibdev->event_handler);
 	kfree(smcibdev);

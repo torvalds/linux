@@ -946,8 +946,10 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 		/* Extra channels, even those with TXQs (PTP), do not require
 		 * PIO resources.
 		 */
-		if (!channel->type->want_pio)
+		if (!channel->type->want_pio ||
+		    channel->channel >= efx->xdp_channel_offset)
 			continue;
+
 		efx_for_each_channel_tx_queue(tx_queue, channel) {
 			/* We assign the PIO buffers to queues in
 			 * reverse order to allow for the following
@@ -1296,8 +1298,9 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	int rc;
 
 	channel_vis = max(efx->n_channels,
-			  (efx->n_tx_channels + efx->n_extra_tx_channels) *
-			  EFX_TXQ_TYPES);
+			  ((efx->n_tx_channels + efx->n_extra_tx_channels) *
+			   EFX_TXQ_TYPES) +
+			   efx->n_xdp_channels * efx->xdp_tx_per_channel);
 
 #ifdef EFX_USE_PIO
 	/* Try to allocate PIO buffers if wanted and if the full
@@ -2434,11 +2437,12 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	/* TSOv2 is a limited resource that can only be configured on a limited
 	 * number of queues. TSO without checksum offload is not really a thing,
 	 * so we only enable it for those queues.
-	 * TSOv2 cannot be used with Hardware timestamping.
+	 * TSOv2 cannot be used with Hardware timestamping, and is never needed
+	 * for XDP tx.
 	 */
 	if (csum_offload && (nic_data->datapath_caps2 &
 			(1 << MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_LBN)) &&
-	    !tx_queue->timestamping) {
+	    !tx_queue->timestamping && !tx_queue->xdp_tx) {
 		tso_v2 = true;
 		netif_dbg(efx, hw, efx->net_dev, "Using TSOv2 for channel %u\n",
 				channel->channel);
@@ -4198,11 +4202,15 @@ static int efx_ef10_filter_push(struct efx_nic *efx,
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_EXT_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_FILTER_OP_EXT_OUT_LEN);
+	size_t outlen;
 	int rc;
 
 	efx_ef10_filter_push_prep(efx, spec, inbuf, *handle, ctx, replacing);
-	rc = efx_mcdi_rpc(efx, MC_CMD_FILTER_OP, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), NULL);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FILTER_OP, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), &outlen);
+	if (rc && spec->priority != EFX_FILTER_PRI_HINT)
+		efx_mcdi_display_error(efx, MC_CMD_FILTER_OP, sizeof(inbuf),
+				       outbuf, outlen, rc);
 	if (rc == 0)
 		*handle = MCDI_QWORD(outbuf, FILTER_OP_OUT_HANDLE);
 	if (rc == -ENOSPC)

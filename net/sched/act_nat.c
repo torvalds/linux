@@ -36,7 +36,7 @@ static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
 static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 			struct tc_action **a, int ovr, int bind,
 			bool rtnl_held,	struct tcf_proto *tp,
-			struct netlink_ext_ack *extack)
+			u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, nat_net_id);
 	struct nlattr *tb[TCA_NAT_MAX + 1];
@@ -61,7 +61,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!err) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_nat_ops, bind, false);
+				     &act_nat_ops, bind, false, 0);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
@@ -206,9 +206,7 @@ static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
 
 		icmph = (void *)(skb_network_header(skb) + ihl);
 
-		if ((icmph->type != ICMP_DEST_UNREACH) &&
-		    (icmph->type != ICMP_TIME_EXCEEDED) &&
-		    (icmph->type != ICMP_PARAMETERPROB))
+		if (!icmp_is_err(icmph->type))
 			break;
 
 		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + sizeof(*iph) +

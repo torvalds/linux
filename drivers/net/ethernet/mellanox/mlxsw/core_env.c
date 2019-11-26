@@ -50,6 +50,7 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 	char eeprom_tmp[MLXSW_REG_MCIA_EEPROM_SIZE];
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
 	u16 i2c_addr;
+	u8 page = 0;
 	int status;
 	int err;
 
@@ -62,11 +63,21 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 
 	i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_LOW;
 	if (offset >= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH) {
-		i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_HIGH;
-		offset -= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH;
+		page = MLXSW_REG_MCIA_PAGE_GET(offset);
+		offset -= MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH * page;
+		/* When reading upper pages 1, 2 and 3 the offset starts at
+		 * 128. Please refer to "QSFP+ Memory Map" figure in SFF-8436
+		 * specification for graphical depiction.
+		 * MCIA register accepts buffer size <= 48. Page of size 128
+		 * should be read by chunks of size 48, 48, 32. Align the size
+		 * of the last chunk to avoid reading after the end of the
+		 * page.
+		 */
+		if (offset + size > MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH)
+			size = MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH - offset;
 	}
 
-	mlxsw_reg_mcia_pack(mcia_pl, module, 0, 0, offset, size, i2c_addr);
+	mlxsw_reg_mcia_pack(mcia_pl, module, 0, page, offset, size, i2c_addr);
 
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcia), mcia_pl);
 	if (err)
@@ -168,7 +179,7 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 	switch (module_id) {
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP:
 		modinfo->type       = ETH_MODULE_SFF_8436;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS: /* fall-through */
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28:
@@ -176,10 +187,10 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 		    module_rev_id >=
 		    MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID_8636) {
 			modinfo->type       = ETH_MODULE_SFF_8636;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
 		} else {
 			modinfo->type       = ETH_MODULE_SFF_8436;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
 		}
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:

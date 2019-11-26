@@ -310,18 +310,19 @@ static inline int qdio_siga_sync_q(struct qdio_q *q)
 		return qdio_siga_sync(q, q->mask, 0);
 }
 
-static int qdio_siga_output(struct qdio_q *q, unsigned int *busy_bit,
-	unsigned long aob)
+static int qdio_siga_output(struct qdio_q *q, unsigned int count,
+			    unsigned int *busy_bit, unsigned long aob)
 {
 	unsigned long schid = *((u32 *) &q->irq_ptr->schid);
 	unsigned int fc = QDIO_SIGA_WRITE;
 	u64 start_time = 0;
 	int retries = 0, cc;
-	unsigned long laob = 0;
 
-	if (aob) {
-		fc = QDIO_SIGA_WRITEQ;
-		laob = aob;
+	if (queue_type(q) == QDIO_IQDIO_QFMT && !multicast_outbound(q)) {
+		if (count > 1)
+			fc = QDIO_SIGA_WRITEM;
+		else if (aob)
+			fc = QDIO_SIGA_WRITEQ;
 	}
 
 	if (is_qebsm(q)) {
@@ -329,7 +330,7 @@ static int qdio_siga_output(struct qdio_q *q, unsigned int *busy_bit,
 		fc |= QDIO_SIGA_QEBSM_FLAG;
 	}
 again:
-	cc = do_siga_output(schid, q->mask, busy_bit, fc, laob);
+	cc = do_siga_output(schid, q->mask, busy_bit, fc, aob);
 
 	/* hipersocket busy condition */
 	if (unlikely(*busy_bit)) {
@@ -776,7 +777,8 @@ static inline int qdio_outbound_q_moved(struct qdio_q *q, unsigned int start)
 	return count;
 }
 
-static int qdio_kick_outbound_q(struct qdio_q *q, unsigned long aob)
+static int qdio_kick_outbound_q(struct qdio_q *q, unsigned int count,
+				unsigned long aob)
 {
 	int retries = 0, cc;
 	unsigned int busy_bit;
@@ -788,7 +790,7 @@ static int qdio_kick_outbound_q(struct qdio_q *q, unsigned long aob)
 retry:
 	qperf_inc(q, siga_write);
 
-	cc = qdio_siga_output(q, &busy_bit, aob);
+	cc = qdio_siga_output(q, count, &busy_bit, aob);
 	switch (cc) {
 	case 0:
 		break;
@@ -1522,7 +1524,7 @@ set:
  * @count: how many buffers are filled
  */
 static int handle_outbound(struct qdio_q *q, unsigned int callflags,
-			   int bufnr, int count)
+			   unsigned int bufnr, unsigned int count)
 {
 	const unsigned int scan_threshold = q->irq_ptr->scan_threshold;
 	unsigned char state = 0;
@@ -1545,13 +1547,10 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 	if (queue_type(q) == QDIO_IQDIO_QFMT) {
 		unsigned long phys_aob = 0;
 
-		/* One SIGA-W per buffer required for unicast HSI */
-		WARN_ON_ONCE(count > 1 && !multicast_outbound(q));
-
-		if (q->u.out.use_cq)
+		if (q->u.out.use_cq && count == 1)
 			phys_aob = qdio_aob_for_buffer(&q->u.out, bufnr);
 
-		rc = qdio_kick_outbound_q(q, phys_aob);
+		rc = qdio_kick_outbound_q(q, count, phys_aob);
 	} else if (need_siga_sync(q)) {
 		rc = qdio_siga_sync_q(q);
 	} else if (count < QDIO_MAX_BUFFERS_PER_Q &&
@@ -1560,7 +1559,7 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 		/* The previous buffer is not processed yet, tack on. */
 		qperf_inc(q, fast_requeue);
 	} else {
-		rc = qdio_kick_outbound_q(q, 0);
+		rc = qdio_kick_outbound_q(q, count, 0);
 	}
 
 	/* Let drivers implement their own completion scanning: */

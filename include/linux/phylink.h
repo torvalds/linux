@@ -72,7 +72,7 @@ struct phylink_config {
 /**
  * struct phylink_mac_ops - MAC operations structure.
  * @validate: Validate and update the link configuration.
- * @mac_link_state: Read the current link state from the hardware.
+ * @mac_pcs_get_state: Read the current link state from the hardware.
  * @mac_config: configure the MAC for the selected mode and state.
  * @mac_an_restart: restart 802.3z BaseX autonegotiation.
  * @mac_link_down: take the link down.
@@ -84,8 +84,8 @@ struct phylink_mac_ops {
 	void (*validate)(struct phylink_config *config,
 			 unsigned long *supported,
 			 struct phylink_link_state *state);
-	int (*mac_link_state)(struct phylink_config *config,
-			      struct phylink_link_state *state);
+	void (*mac_pcs_get_state)(struct phylink_config *config,
+				  struct phylink_link_state *state);
 	void (*mac_config)(struct phylink_config *config, unsigned int mode,
 			   const struct phylink_link_state *state);
 	void (*mac_an_restart)(struct phylink_config *config);
@@ -127,18 +127,19 @@ void validate(struct phylink_config *config, unsigned long *supported,
 	      struct phylink_link_state *state);
 
 /**
- * mac_link_state() - Read the current link state from the hardware
+ * mac_pcs_get_state() - Read the current inband link state from the hardware
  * @config: a pointer to a &struct phylink_config.
  * @state: a pointer to a &struct phylink_link_state.
  *
- * Read the current link state from the MAC, reporting the current
- * speed in @state->speed, duplex mode in @state->duplex, pause mode
- * in @state->pause using the %MLO_PAUSE_RX and %MLO_PAUSE_TX bits,
- * negotiation completion state in @state->an_complete, and link
- * up state in @state->link.
+ * Read the current inband link state from the MAC PCS, reporting the
+ * current speed in @state->speed, duplex mode in @state->duplex, pause
+ * mode in @state->pause using the %MLO_PAUSE_RX and %MLO_PAUSE_TX bits,
+ * negotiation completion state in @state->an_complete, and link up state
+ * in @state->link. If possible, @state->lp_advertising should also be
+ * populated.
  */
-int mac_link_state(struct phylink_config *config,
-		   struct phylink_link_state *state);
+void mac_pcs_get_state(struct phylink_config *config,
+		       struct phylink_link_state *state);
 
 /**
  * mac_config() - configure the MAC for the selected mode and state
@@ -166,7 +167,7 @@ int mac_link_state(struct phylink_config *config,
  *   1000base-X or Cisco SGMII mode depending on the @state->interface
  *   mode). In both cases, link state management (whether the link
  *   is up or not) is performed by the MAC, and reported via the
- *   mac_link_state() callback. Changes in link state must be made
+ *   mac_pcs_get_state() callback. Changes in link state must be made
  *   by calling phylink_mac_change().
  *
  *   If in 802.3z mode, the link speed is fixed, dependent on the

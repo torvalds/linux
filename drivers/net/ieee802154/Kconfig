@@ -74,9 +74,9 @@ config IEEE802154_ATUSB
 	  The module will be called 'atusb'.
 
 config IEEE802154_ADF7242
-       tristate "ADF7242 transceiver driver"
-       depends on IEEE802154_DRIVERS && MAC802154
-       depends on SPI
+	tristate "ADF7242 transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154
+	depends on SPI
 	---help---
 	  Say Y here to enable the ADF7242 SPI 802.15.4 wireless
 	  controller.
@@ -107,9 +107,9 @@ config IEEE802154_CA8210_DEBUGFS
 	  management entities.
 
 config IEEE802154_MCR20A
-       tristate "MCR20A transceiver driver"
-       depends on IEEE802154_DRIVERS && MAC802154
-       depends on SPI
+	tristate "MCR20A transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154
+	depends on SPI
 	---help---
 	  Say Y here to enable the MCR20A SPI 802.15.4 wireless
 	  controller.

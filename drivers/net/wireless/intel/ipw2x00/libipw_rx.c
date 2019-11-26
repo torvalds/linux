@@ -999,13 +999,12 @@ static int libipw_read_qos_info_element(struct
 /*
  * Write QoS parameters from the ac parameters.
  */
-static int libipw_qos_convert_ac_to_parameters(struct
+static void libipw_qos_convert_ac_to_parameters(struct
 						  libipw_qos_parameter_info
 						  *param_elm, struct
 						  libipw_qos_parameters
 						  *qos_param)
 {
-	int rc = 0;
 	int i;
 	struct libipw_qos_ac_parameter *ac_params;
 	u32 txop;
@@ -1030,7 +1029,6 @@ static int libipw_qos_convert_ac_to_parameters(struct
 		txop = le16_to_cpu(ac_params->tx_op_limit) * 32;
 		qos_param->tx_op_limit[i] = cpu_to_le16(txop);
 	}
-	return rc;
 }
 
 /*

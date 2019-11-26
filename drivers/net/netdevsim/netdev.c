@@ -290,6 +290,7 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
+	dev_net_set(dev, nsim_dev_net(nsim_dev));
 	ns = netdev_priv(dev);
 	ns->netdev = dev;
 	ns->nsim_dev = nsim_dev;
@@ -357,18 +358,12 @@ static int __init nsim_module_init(void)
 	if (err)
 		goto err_dev_exit;
 
-	err = nsim_fib_init();
+	err = rtnl_link_register(&nsim_link_ops);
 	if (err)
 		goto err_bus_exit;
 
-	err = rtnl_link_register(&nsim_link_ops);
-	if (err)
-		goto err_fib_exit;
-
 	return 0;
 
-err_fib_exit:
-	nsim_fib_exit();
 err_bus_exit:
 	nsim_bus_exit();
 err_dev_exit:
@@ -379,7 +374,6 @@ err_dev_exit:
 static void __exit nsim_module_exit(void)
 {
 	rtnl_link_unregister(&nsim_link_ops);
-	nsim_fib_exit();
 	nsim_bus_exit();
 	nsim_dev_exit();
 }

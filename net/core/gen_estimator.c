@@ -48,7 +48,7 @@ struct net_rate_estimator {
 	u8			intvl_log; /* period : (250ms << intvl_log) */
 
 	seqcount_t		seq;
-	u32			last_packets;
+	u64			last_packets;
 	u64			last_bytes;
 
 	u64			avpps;
@@ -83,7 +83,7 @@ static void est_timer(struct timer_list *t)
 	brate = (b.bytes - est->last_bytes) << (10 - est->ewma_log - est->intvl_log);
 	brate -= (est->avbps >> est->ewma_log);
 
-	rate = (u64)(b.packets - est->last_packets) << (10 - est->ewma_log - est->intvl_log);
+	rate = (b.packets - est->last_packets) << (10 - est->ewma_log - est->intvl_log);
 	rate -= (est->avpps >> est->ewma_log);
 
 	write_seqcount_begin(&est->seq);

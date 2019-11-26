@@ -36,6 +36,7 @@
 #include <net/tc_act/tc_mirred.h>
 
 #include "cxgb4.h"
+#include "cxgb4_filter.h"
 #include "cxgb4_tc_u32_parse.h"
 #include "cxgb4_tc_u32.h"
 
@@ -148,6 +149,7 @@ static int fill_action_fields(struct adapter *adap,
 int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 {
 	const struct cxgb4_match_field *start, *link_start = NULL;
+	struct netlink_ext_ack *extack = cls->common.extack;
 	struct adapter *adapter = netdev2adap(dev);
 	__be16 protocol = cls->common.protocol;
 	struct ch_filter_specification fs;
@@ -164,14 +166,21 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 	if (protocol != htons(ETH_P_IP) && protocol != htons(ETH_P_IPV6))
 		return -EOPNOTSUPP;
 
-	/* Fetch the location to insert the filter. */
-	filter_id = cls->knode.handle & 0xFFFFF;
+	/* Note that TC uses prio 0 to indicate stack to generate
+	 * automatic prio and hence doesn't pass prio 0 to driver.
+	 * However, the hardware TCAM index starts from 0. Hence, the
+	 * -1 here.
+	 */
+	filter_id = TC_U32_NODE(cls->knode.handle) - 1;
 
-	if (filter_id > adapter->tids.nftids) {
-		dev_err(adapter->pdev_dev,
-			"Location %d out of range for insertion. Max: %d\n",
-			filter_id, adapter->tids.nftids);
-		return -ERANGE;
+	/* Only insert U32 rule if its priority doesn't conflict with
+	 * existing rules in the LETCAM.
+	 */
+	if (filter_id >= adapter->tids.nftids ||
+	    !cxgb4_filter_prio_in_range(dev, filter_id, cls->common.prio)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "No free LETCAM index available");
+		return -ENOMEM;
 	}
 
 	t = adapter->tc_u32;
@@ -189,6 +198,9 @@ int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 		return -EINVAL;
 
 	memset(&fs, 0, sizeof(fs));
+
+	fs.tc_prio = cls->common.prio;
+	fs.tc_cookie = cls->knode.handle;
 
 	if (protocol == htons(ETH_P_IPV6)) {
 		start = cxgb4_ipv6_fields;
@@ -350,14 +362,10 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 		return -EOPNOTSUPP;
 
 	/* Fetch the location to delete the filter. */
-	filter_id = cls->knode.handle & 0xFFFFF;
-
-	if (filter_id > adapter->tids.nftids) {
-		dev_err(adapter->pdev_dev,
-			"Location %d out of range for deletion. Max: %d\n",
-			filter_id, adapter->tids.nftids);
+	filter_id = TC_U32_NODE(cls->knode.handle) - 1;
+	if (filter_id >= adapter->tids.nftids ||
+	    cls->knode.handle != adapter->tids.ftid_tab[filter_id].fs.tc_cookie)
 		return -ERANGE;
-	}
 
 	t = adapter->tc_u32;
 	handle = cls->knode.handle;

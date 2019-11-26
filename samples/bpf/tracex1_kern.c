@@ -9,6 +9,7 @@
 #include <uapi/linux/bpf.h>
 #include <linux/version.h>
 #include "bpf_helpers.h"
+#include "bpf_tracing.h"
 
 #define _(P) ({typeof(P) val = 0; bpf_probe_read(&val, sizeof(val), &P); val;})
 

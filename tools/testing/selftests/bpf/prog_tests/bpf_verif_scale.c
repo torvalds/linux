@@ -15,6 +15,8 @@ static int libbpf_debug_print(enum libbpf_print_level level,
 	return 0;
 }
 
+extern int extra_prog_load_log_flags;
+
 static int check_load(const char *file, enum bpf_prog_type type)
 {
 	struct bpf_prog_load_attr attr;
@@ -24,7 +26,7 @@ static int check_load(const char *file, enum bpf_prog_type type)
 	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
 	attr.file = file;
 	attr.prog_type = type;
-	attr.log_level = 4;
+	attr.log_level = 4 | extra_prog_load_log_flags;
 	attr.prog_flags = BPF_F_TEST_RND_HI32;
 	err = bpf_prog_load_xattr(&attr, &obj, &prog_fd);
 	bpf_object__close(obj);

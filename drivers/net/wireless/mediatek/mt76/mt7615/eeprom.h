@@ -24,6 +24,9 @@ enum mt7615_eeprom_field {
 	__MT_EE_MAX =				0x3bf
 };
 
+#define MT_EE_NIC_CONF_TX_MASK			GENMASK(7, 4)
+#define MT_EE_NIC_CONF_RX_MASK			GENMASK(3, 0)
+
 #define MT_EE_NIC_CONF_TSSI_2G			BIT(5)
 #define MT_EE_NIC_CONF_TSSI_5G			BIT(6)
 

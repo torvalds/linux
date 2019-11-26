@@ -352,7 +352,8 @@ Fills the phydev structure with up-to-date information about the current
 settings in the PHY.
 ::
 
- int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
+ int phy_ethtool_ksettings_set(struct phy_device *phydev,
+                               const struct ethtool_link_ksettings *cmd);
 
 Ethtool convenience functions.
 ::

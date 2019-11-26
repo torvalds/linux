@@ -114,9 +114,8 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    bool monitor_only, unsigned int delay);
 int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 			     enum iwl_fw_dbg_trigger trig_type);
-int _iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
-			    enum iwl_fw_ini_trigger_id id);
-int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt, u32 legacy_trigger_id);
+int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
+			   struct iwl_fwrt_dump_data *dump_data);
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		       enum iwl_fw_dbg_trigger trig, const char *str,
 		       size_t len, struct iwl_fw_dbg_trigger_tlv *trigger);
@@ -222,29 +221,6 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 	_iwl_fw_dbg_trigger_on((fwrt), (wdev), (id));		\
 })
 
-static inline bool
-iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
-		      enum iwl_fw_ini_trigger_id id)
-{
-	struct iwl_fw_ini_trigger *trig;
-	u32 usec;
-
-	if (!iwl_trans_dbg_ini_valid(fwrt->trans) ||
-	    id == IWL_FW_TRIGGER_ID_INVALID || id >= IWL_FW_TRIGGER_ID_NUM ||
-	    !fwrt->dump.active_trigs[id].active)
-		return false;
-
-	trig = fwrt->dump.active_trigs[id].trig;
-	usec = le32_to_cpu(trig->ignore_consec);
-
-	if (iwl_fw_dbg_no_trig_window(fwrt, id, usec)) {
-		IWL_WARN(fwrt, "Trigger %d fired in no-collect window\n", id);
-		return false;
-	}
-
-	return true;
-}
-
 static inline void
 _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 				struct wireless_dev *wdev,
@@ -315,10 +291,8 @@ static inline void iwl_fw_flush_dumps(struct iwl_fw_runtime *fwrt)
 	int i;
 
 	iwl_dbg_tlv_del_timers(fwrt->trans);
-	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++) {
+	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++)
 		flush_delayed_work(&fwrt->dump.wks[i].wk);
-		fwrt->dump.wks[i].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
-	}
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -381,12 +355,21 @@ static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
 
 static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
 {
-	if (iwl_trans_dbg_ini_valid(fwrt->trans) && fwrt->trans->dbg.hw_error) {
-		_iwl_fw_dbg_ini_collect(fwrt, IWL_FW_TRIGGER_ID_FW_HW_ERROR);
+	enum iwl_fw_ini_time_point tp_id;
+
+	if (!iwl_trans_dbg_ini_valid(fwrt->trans)) {
+		iwl_fw_dbg_collect_desc(fwrt, &iwl_dump_desc_assert, false, 0);
+		return;
+	}
+
+	if (fwrt->trans->dbg.hw_error) {
+		tp_id = IWL_FW_INI_TIME_POINT_FW_HW_ERROR;
 		fwrt->trans->dbg.hw_error = false;
 	} else {
-		iwl_fw_dbg_collect_desc(fwrt, &iwl_dump_desc_assert, false, 0);
+		tp_id = IWL_FW_INI_TIME_POINT_FW_ASSERT;
 	}
+
+	iwl_dbg_tlv_time_point(fwrt, tp_id, NULL);
 }
 
 void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt);

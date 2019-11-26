@@ -61,6 +61,12 @@
 #define __iwl_fw_acpi__
 
 #include <linux/acpi.h>
+#include "fw/api/commands.h"
+#include "fw/api/power.h"
+#include "fw/api/phy.h"
+#include "fw/img.h"
+#include "iwl-trans.h"
+
 
 #define ACPI_WRDS_METHOD	"WRDS"
 #define ACPI_EWRD_METHOD	"EWRD"
@@ -104,9 +110,21 @@
 #define ACPI_PPAG_MIN_HB -16
 #define ACPI_PPAG_MAX_HB 40
 
+struct iwl_sar_profile {
+	bool enabled;
+	u8 table[ACPI_SAR_TABLE_SIZE];
+};
+
+struct iwl_geo_profile {
+	u8 values[ACPI_GEO_TABLE_SIZE];
+};
+
 #ifdef CONFIG_ACPI
 
+struct iwl_fw_runtime;
+
 void *iwl_acpi_get_object(struct device *dev, acpi_string method);
+
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
 					 int data_size, int *tbl_rev);
@@ -134,6 +152,27 @@ u64 iwl_acpi_get_pwr_limit(struct device *dev);
  */
 int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk);
 
+int iwl_sar_set_profile(union acpi_object *table,
+			struct iwl_sar_profile *profile,
+			bool enabled);
+
+int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
+			   __le16 per_chain_restriction[][IWL_NUM_SUB_BANDS],
+			   int prof_a, int prof_b);
+
+int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt);
+
+bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt);
+
+int iwl_validate_sar_geo_profile(struct iwl_fw_runtime *fwrt,
+				 struct iwl_host_cmd *cmd);
+
+void iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
+		      struct iwl_per_chain_offset_group *table);
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
@@ -162,6 +201,51 @@ static inline u64 iwl_acpi_get_pwr_limit(struct device *dev)
 static inline int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
 {
 	return -ENOENT;
+}
+
+static inline int iwl_sar_set_profile(union acpi_object *table,
+				      struct iwl_sar_profile *profile,
+				      bool enabled)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
+			   __le16 per_chain_restriction[][IWL_NUM_SUB_BANDS],
+			   int prof_a, int prof_b)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
+{
+	return false;
+}
+
+static inline int iwl_validate_sar_geo_profile(struct iwl_fw_runtime *fwrt,
+					       struct iwl_host_cmd *cmd)
+{
+	return -ENOENT;
+}
+
+static inline void iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
+				    struct iwl_per_chain_offset_group *table)
+{
 }
 
 #endif /* CONFIG_ACPI */

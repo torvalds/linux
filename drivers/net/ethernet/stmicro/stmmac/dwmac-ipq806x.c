@@ -189,9 +189,10 @@ static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, unsigned int speed)
 static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 {
 	struct device *dev = &gmac->pdev->dev;
+	int ret;
 
-	gmac->phy_mode = of_get_phy_mode(dev->of_node);
-	if ((int)gmac->phy_mode < 0) {
+	ret = of_get_phy_mode(dev->of_node, &gmac->phy_mode);
+	if (ret) {
 		dev_err(dev, "missing phy mode property\n");
 		return -EINVAL;
 	}

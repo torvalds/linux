@@ -390,7 +390,8 @@ static void print_health_info(struct mlx5_core_dev *dev)
 
 static int
 mlx5_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
-			  struct devlink_fmsg *fmsg)
+			  struct devlink_fmsg *fmsg,
+			  struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
 	struct mlx5_core_health *health = &dev->priv.health;
@@ -491,7 +492,8 @@ mlx5_fw_reporter_heath_buffer_data_put(struct mlx5_core_dev *dev,
 
 static int
 mlx5_fw_reporter_dump(struct devlink_health_reporter *reporter,
-		      struct devlink_fmsg *fmsg, void *priv_ctx)
+		      struct devlink_fmsg *fmsg, void *priv_ctx,
+		      struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
 	int err;
@@ -545,23 +547,22 @@ static const struct devlink_health_reporter_ops mlx5_fw_reporter_ops = {
 
 static int
 mlx5_fw_fatal_reporter_recover(struct devlink_health_reporter *reporter,
-			       void *priv_ctx)
+			       void *priv_ctx,
+			       struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
 
 	return mlx5_health_try_recover(dev);
 }
 
-#define MLX5_CR_DUMP_CHUNK_SIZE 256
 static int
 mlx5_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
-			    struct devlink_fmsg *fmsg, void *priv_ctx)
+			    struct devlink_fmsg *fmsg, void *priv_ctx,
+			    struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
 	u32 crdump_size = dev->priv.health.crdump_size;
 	u32 *cr_data;
-	u32 data_size;
-	u32 offset;
 	int err;
 
 	if (!mlx5_core_is_pf(dev))
@@ -582,20 +583,7 @@ mlx5_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
 			goto free_data;
 	}
 
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, "crdump_data");
-	if (err)
-		goto free_data;
-	for (offset = 0; offset < crdump_size; offset += data_size) {
-		if (crdump_size - offset < MLX5_CR_DUMP_CHUNK_SIZE)
-			data_size = crdump_size - offset;
-		else
-			data_size = MLX5_CR_DUMP_CHUNK_SIZE;
-		err = devlink_fmsg_binary_put(fmsg, (char *)cr_data + offset,
-					      data_size);
-		if (err)
-			goto free_data;
-	}
-	err = devlink_fmsg_arr_pair_nest_end(fmsg);
+	err = devlink_fmsg_binary_pair_put(fmsg, "crdump_data", cr_data, crdump_size);
 
 free_data:
 	kvfree(cr_data);

@@ -531,9 +531,16 @@ static void del_hw_fte(struct fs_node *node)
 	}
 }
 
+static void del_sw_fte_rcu(struct rcu_head *head)
+{
+	struct fs_fte *fte = container_of(head, struct fs_fte, rcu);
+	struct mlx5_flow_steering *steering = get_steering(&fte->node);
+
+	kmem_cache_free(steering->ftes_cache, fte);
+}
+
 static void del_sw_fte(struct fs_node *node)
 {
-	struct mlx5_flow_steering *steering = get_steering(node);
 	struct mlx5_flow_group *fg;
 	struct fs_fte *fte;
 	int err;
@@ -546,7 +553,8 @@ static void del_sw_fte(struct fs_node *node)
 				     rhash_fte);
 	WARN_ON(err);
 	ida_simple_remove(&fg->fte_allocator, fte->index - fg->start_index);
-	kmem_cache_free(steering->ftes_cache, fte);
+
+	call_rcu(&fte->rcu, del_sw_fte_rcu);
 }
 
 static void del_hw_flow_group(struct fs_node *node)
@@ -1625,22 +1633,47 @@ static u64 matched_fgs_get_version(struct list_head *match_head)
 }
 
 static struct fs_fte *
-lookup_fte_locked(struct mlx5_flow_group *g,
-		  const u32 *match_value,
-		  bool take_write)
+lookup_fte_for_write_locked(struct mlx5_flow_group *g, const u32 *match_value)
 {
 	struct fs_fte *fte_tmp;
 
-	if (take_write)
-		nested_down_write_ref_node(&g->node, FS_LOCK_PARENT);
-	else
-		nested_down_read_ref_node(&g->node, FS_LOCK_PARENT);
-	fte_tmp = rhashtable_lookup_fast(&g->ftes_hash, match_value,
-					 rhash_fte);
+	nested_down_write_ref_node(&g->node, FS_LOCK_PARENT);
+
+	fte_tmp = rhashtable_lookup_fast(&g->ftes_hash, match_value, rhash_fte);
 	if (!fte_tmp || !tree_get_node(&fte_tmp->node)) {
 		fte_tmp = NULL;
 		goto out;
 	}
+
+	if (!fte_tmp->node.active) {
+		tree_put_node(&fte_tmp->node, false);
+		fte_tmp = NULL;
+		goto out;
+	}
+	nested_down_write_ref_node(&fte_tmp->node, FS_LOCK_CHILD);
+
+out:
+	up_write_ref_node(&g->node, false);
+	return fte_tmp;
+}
+
+static struct fs_fte *
+lookup_fte_for_read_locked(struct mlx5_flow_group *g, const u32 *match_value)
+{
+	struct fs_fte *fte_tmp;
+
+	if (!tree_get_node(&g->node))
+		return NULL;
+
+	rcu_read_lock();
+	fte_tmp = rhashtable_lookup(&g->ftes_hash, match_value, rhash_fte);
+	if (!fte_tmp || !tree_get_node(&fte_tmp->node)) {
+		rcu_read_unlock();
+		fte_tmp = NULL;
+		goto out;
+	}
+	rcu_read_unlock();
+
 	if (!fte_tmp->node.active) {
 		tree_put_node(&fte_tmp->node, false);
 		fte_tmp = NULL;
@@ -1648,12 +1681,19 @@ lookup_fte_locked(struct mlx5_flow_group *g,
 	}
 
 	nested_down_write_ref_node(&fte_tmp->node, FS_LOCK_CHILD);
+
 out:
-	if (take_write)
-		up_write_ref_node(&g->node, false);
-	else
-		up_read_ref_node(&g->node);
+	tree_put_node(&g->node, false);
 	return fte_tmp;
+}
+
+static struct fs_fte *
+lookup_fte_locked(struct mlx5_flow_group *g, const u32 *match_value, bool write)
+{
+	if (write)
+		return lookup_fte_for_write_locked(g, match_value);
+	else
+		return lookup_fte_for_read_locked(g, match_value);
 }
 
 static struct mlx5_flow_handle *
@@ -1816,6 +1856,13 @@ search_again_locked:
 		return rule;
 	}
 
+	fte = alloc_fte(ft, spec, flow_act);
+	if (IS_ERR(fte)) {
+		up_write_ref_node(&ft->node, false);
+		err = PTR_ERR(fte);
+		goto err_alloc_fte;
+	}
+
 	nested_down_write_ref_node(&g->node, FS_LOCK_PARENT);
 	up_write_ref_node(&ft->node, false);
 
@@ -1823,17 +1870,9 @@ search_again_locked:
 	if (err)
 		goto err_release_fg;
 
-	fte = alloc_fte(ft, spec, flow_act);
-	if (IS_ERR(fte)) {
-		err = PTR_ERR(fte);
-		goto err_release_fg;
-	}
-
 	err = insert_fte(g, fte);
-	if (err) {
-		kmem_cache_free(steering->ftes_cache, fte);
+	if (err)
 		goto err_release_fg;
-	}
 
 	nested_down_write_ref_node(&fte->node, FS_LOCK_CHILD);
 	up_write_ref_node(&g->node, false);
@@ -1845,6 +1884,8 @@ search_again_locked:
 
 err_release_fg:
 	up_write_ref_node(&g->node, false);
+	kmem_cache_free(steering->ftes_cache, fte);
+err_alloc_fte:
 	tree_put_node(&g->node, false);
 	return ERR_PTR(err);
 }
@@ -2361,9 +2402,17 @@ static void set_prio_attrs_in_prio(struct fs_prio *prio, int acc_level)
 	int acc_level_ns = acc_level;
 
 	prio->start_level = acc_level;
-	fs_for_each_ns(ns, prio)
+	fs_for_each_ns(ns, prio) {
 		/* This updates start_level and num_levels of ns's priority descendants */
 		acc_level_ns = set_prio_attrs_in_ns(ns, acc_level);
+
+		/* If this a prio with chains, and we can jump from one chain
+		 * (namepsace) to another, so we accumulate the levels
+		 */
+		if (prio->node.type == FS_TYPE_PRIO_CHAINS)
+			acc_level = acc_level_ns;
+	}
+
 	if (!prio->num_levels)
 		prio->num_levels = acc_level_ns - prio->start_level;
 	WARN_ON(prio->num_levels < acc_level_ns - prio->start_level);
@@ -2552,23 +2601,98 @@ out_err:
 	steering->rdma_rx_root_ns = NULL;
 	return err;
 }
-static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
+
+/* FT and tc chains are stored in the same array so we can re-use the
+ * mlx5_get_fdb_sub_ns() and tc api for FT chains.
+ * When creating a new ns for each chain store it in the first available slot.
+ * Assume tc chains are created and stored first and only then the FT chain.
+ */
+static void store_fdb_sub_ns_prio_chain(struct mlx5_flow_steering *steering,
+					struct mlx5_flow_namespace *ns)
+{
+	int chain = 0;
+
+	while (steering->fdb_sub_ns[chain])
+		++chain;
+
+	steering->fdb_sub_ns[chain] = ns;
+}
+
+static int create_fdb_sub_ns_prio_chain(struct mlx5_flow_steering *steering,
+					struct fs_prio *maj_prio)
 {
 	struct mlx5_flow_namespace *ns;
-	struct fs_prio *maj_prio;
 	struct fs_prio *min_prio;
+	int prio;
+
+	ns = fs_create_namespace(maj_prio, MLX5_FLOW_TABLE_MISS_ACTION_DEF);
+	if (IS_ERR(ns))
+		return PTR_ERR(ns);
+
+	for (prio = 0; prio < FDB_TC_MAX_PRIO; prio++) {
+		min_prio = fs_create_prio(ns, prio, FDB_TC_LEVELS_PER_PRIO);
+		if (IS_ERR(min_prio))
+			return PTR_ERR(min_prio);
+	}
+
+	store_fdb_sub_ns_prio_chain(steering, ns);
+
+	return 0;
+}
+
+static int create_fdb_chains(struct mlx5_flow_steering *steering,
+			     int fs_prio,
+			     int chains)
+{
+	struct fs_prio *maj_prio;
 	int levels;
 	int chain;
-	int prio;
+	int err;
+
+	levels = FDB_TC_LEVELS_PER_PRIO * FDB_TC_MAX_PRIO * chains;
+	maj_prio = fs_create_prio_chained(&steering->fdb_root_ns->ns,
+					  fs_prio,
+					  levels);
+	if (IS_ERR(maj_prio))
+		return PTR_ERR(maj_prio);
+
+	for (chain = 0; chain < chains; chain++) {
+		err = create_fdb_sub_ns_prio_chain(steering, maj_prio);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int create_fdb_fast_path(struct mlx5_flow_steering *steering)
+{
+	int err;
+
+	steering->fdb_sub_ns = kcalloc(FDB_NUM_CHAINS,
+				       sizeof(*steering->fdb_sub_ns),
+				       GFP_KERNEL);
+	if (!steering->fdb_sub_ns)
+		return -ENOMEM;
+
+	err = create_fdb_chains(steering, FDB_TC_OFFLOAD, FDB_TC_MAX_CHAIN + 1);
+	if (err)
+		return err;
+
+	err = create_fdb_chains(steering, FDB_FT_OFFLOAD, 1);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
+{
+	struct fs_prio *maj_prio;
 	int err;
 
 	steering->fdb_root_ns = create_root_ns(steering, FS_FT_FDB);
 	if (!steering->fdb_root_ns)
-		return -ENOMEM;
-
-	steering->fdb_sub_ns = kzalloc(sizeof(steering->fdb_sub_ns) *
-				       (FDB_MAX_CHAIN + 1), GFP_KERNEL);
-	if (!steering->fdb_sub_ns)
 		return -ENOMEM;
 
 	maj_prio = fs_create_prio(&steering->fdb_root_ns->ns, FDB_BYPASS_PATH,
@@ -2577,33 +2701,9 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 		err = PTR_ERR(maj_prio);
 		goto out_err;
 	}
-
-	levels = 2 * FDB_MAX_PRIO * (FDB_MAX_CHAIN + 1);
-	maj_prio = fs_create_prio_chained(&steering->fdb_root_ns->ns,
-					  FDB_FAST_PATH,
-					  levels);
-	if (IS_ERR(maj_prio)) {
-		err = PTR_ERR(maj_prio);
+	err = create_fdb_fast_path(steering);
+	if (err)
 		goto out_err;
-	}
-
-	for (chain = 0; chain <= FDB_MAX_CHAIN; chain++) {
-		ns = fs_create_namespace(maj_prio, MLX5_FLOW_TABLE_MISS_ACTION_DEF);
-		if (IS_ERR(ns)) {
-			err = PTR_ERR(ns);
-			goto out_err;
-		}
-
-		for (prio = 0; prio < FDB_MAX_PRIO * (chain + 1); prio++) {
-			min_prio = fs_create_prio(ns, prio, 2);
-			if (IS_ERR(min_prio)) {
-				err = PTR_ERR(min_prio);
-				goto out_err;
-			}
-		}
-
-		steering->fdb_sub_ns[chain] = ns;
-	}
 
 	maj_prio = fs_create_prio(&steering->fdb_root_ns->ns, FDB_SLOW_PATH, 1);
 	if (IS_ERR(maj_prio)) {

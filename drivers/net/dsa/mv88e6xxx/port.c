@@ -1181,6 +1181,43 @@ int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
 }
 
+int mv88e6xxx_port_set_mirror(struct mv88e6xxx_chip *chip, int port,
+			      enum mv88e6xxx_egress_direction direction,
+			      bool mirror)
+{
+	bool *mirror_port;
+	u16 reg;
+	u16 bit;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL2, &reg);
+	if (err)
+		return err;
+
+	switch (direction) {
+	case MV88E6XXX_EGRESS_DIR_INGRESS:
+		bit = MV88E6XXX_PORT_CTL2_INGRESS_MONITOR;
+		mirror_port = &chip->ports[port].mirror_ingress;
+		break;
+	case MV88E6XXX_EGRESS_DIR_EGRESS:
+		bit = MV88E6XXX_PORT_CTL2_EGRESS_MONITOR;
+		mirror_port = &chip->ports[port].mirror_egress;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	reg &= ~bit;
+	if (mirror)
+		reg |= bit;
+
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
+	if (!err)
+		*mirror_port = mirror;
+
+	return err;
+}
+
 int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 				  u16 mode)
 {

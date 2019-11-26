@@ -1,0 +1,46 @@
+* NXP Semiconductors PN532 NFC Controller
+
+Required properties:
+- compatible: Should be
+    - "nxp,pn532" Place a node with this inside the devicetree node of the bus
+                  where the NFC chip is connected to.
+                  Currently the kernel has phy bindings for uart and i2c.
+    - "nxp,pn532-i2c" (DEPRECATED) only works for the i2c binding.
+    - "nxp,pn533-i2c" (DEPRECATED) only works for the i2c binding.
+
+Required properties if connected on i2c:
+- clock-frequency: I²C work frequency.
+- reg: for the I²C bus address. This is fixed at 0x24 for the PN532.
+- interrupts: GPIO interrupt to which the chip is connected
+
+Optional SoC Specific Properties:
+- pinctrl-names: Contains only one value - "default".
+- pintctrl-0: Specifies the pin control groups used for this controller.
+
+Example (for ARM-based BeagleBone with PN532 on I2C2):
+
+&i2c2 {
+
+
+	pn532: nfc@24 {
+
+		compatible = "nxp,pn532";
+
+		reg = <0x24>;
+		clock-frequency = <400000>;
+
+		interrupt-parent = <&gpio1>;
+		interrupts = <17 IRQ_TYPE_EDGE_FALLING>;
+
+	};
+};
+
+Example (for PN532 connected via uart):
+
+uart4: serial@49042000 {
+        compatible = "ti,omap3-uart";
+
+        pn532: nfc {
+                compatible = "nxp,pn532";
+        };
+};

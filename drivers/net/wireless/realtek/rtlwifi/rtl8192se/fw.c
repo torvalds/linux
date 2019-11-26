@@ -442,17 +442,20 @@ static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
 		memset((ph2c_buffer + totallen + tx_desclen), 0, len);
 
 		/* CMD len */
-		SET_BITS_TO_LE_4BYTE((ph2c_buffer + totallen + tx_desclen),
-				      0, 16, pcmd_len[i]);
+		le32p_replace_bits((__le32 *)(ph2c_buffer + totallen +
+					      tx_desclen), pcmd_len[i],
+				   GENMASK(15, 0));
 
 		/* CMD ID */
-		SET_BITS_TO_LE_4BYTE((ph2c_buffer + totallen + tx_desclen),
-				      16, 8, pelement_id[i]);
+		le32p_replace_bits((__le32 *)(ph2c_buffer + totallen +
+					      tx_desclen), pelement_id[i],
+				   GENMASK(23, 16));
 
 		/* CMD Sequence */
 		*cmd_start_seq = *cmd_start_seq % 0x80;
-		SET_BITS_TO_LE_4BYTE((ph2c_buffer + totallen + tx_desclen),
-				      24, 7, *cmd_start_seq);
+		le32p_replace_bits((__le32 *)(ph2c_buffer + totallen +
+					      tx_desclen), *cmd_start_seq,
+				   GENMASK(30, 24));
 		++*cmd_start_seq;
 
 		/* Copy memory */
@@ -462,8 +465,9 @@ static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
 		/* CMD continue */
 		/* set the continue in prevoius cmd. */
 		if (i < cmd_num - 1)
-			SET_BITS_TO_LE_4BYTE((ph2c_buffer + pre_continueoffset),
-					      31, 1, 1);
+			le32p_replace_bits((__le32 *)(ph2c_buffer +
+						      pre_continueoffset),
+					   1, BIT(31));
 
 		pre_continueoffset = totallen;
 
@@ -559,8 +563,8 @@ void rtl92s_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 	pwrmode.flag_dps_en = 0;
 	pwrmode.bcn_rx_en = 0;
 	pwrmode.bcn_to = 0;
-	SET_BITS_TO_LE_2BYTE((u8 *)(&pwrmode) + 8, 0, 16,
-			mac->vif->bss_conf.beacon_int);
+	le16p_replace_bits((__le16 *)(((u8 *)(&pwrmode) + 8)),
+			   mac->vif->bss_conf.beacon_int, GENMASK(15, 0));
 	pwrmode.app_itv = 0;
 	pwrmode.awake_bcn_itvl = ppsc->reg_max_lps_awakeintvl;
 	pwrmode.smart_ps = 1;
@@ -602,9 +606,10 @@ void rtl92s_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw,
 	joinbss_rpt.bssid[3] = mac->bssid[3];
 	joinbss_rpt.bssid[4] = mac->bssid[4];
 	joinbss_rpt.bssid[5] = mac->bssid[5];
-	SET_BITS_TO_LE_2BYTE((u8 *)(&joinbss_rpt) + 8, 0, 16,
-			mac->vif->bss_conf.beacon_int);
-	SET_BITS_TO_LE_2BYTE((u8 *)(&joinbss_rpt) + 10, 0, 16, mac->assoc_id);
+	le16p_replace_bits((__le16 *)(((u8 *)(&joinbss_rpt) + 8)),
+			   mac->vif->bss_conf.beacon_int, GENMASK(15, 0));
+	le16p_replace_bits((__le16 *)(((u8 *)(&joinbss_rpt) + 10)),
+			   mac->assoc_id, GENMASK(15, 0));
 
 	_rtl92s_firmware_set_h2c_cmd(hw, FW_H2C_JOINBSSRPT, (u8 *)&joinbss_rpt);
 }

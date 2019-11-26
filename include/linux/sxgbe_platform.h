@@ -10,6 +10,8 @@
 #ifndef __SXGBE_PLATFORM_H__
 #define __SXGBE_PLATFORM_H__
 
+#include <linux/phy.h>
+
 /* MDC Clock Selection define*/
 #define SXGBE_CSR_100_150M	0x0	/* MDC = clk_scr_i/62 */
 #define SXGBE_CSR_150_250M	0x1	/* MDC = clk_scr_i/102 */
@@ -38,7 +40,7 @@ struct sxgbe_plat_data {
 	char *phy_bus_name;
 	int bus_id;
 	int phy_addr;
-	int interface;
+	phy_interface_t interface;
 	struct sxgbe_mdio_bus_data *mdio_bus_data;
 	struct sxgbe_dma_cfg *dma_cfg;
 	int clk_csr;

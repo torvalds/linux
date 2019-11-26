@@ -31,16 +31,8 @@ extract_icmp4_fields(const struct sk_buff *skb, u8 *protocol,
 	if (icmph == NULL)
 		return 1;
 
-	switch (icmph->type) {
-	case ICMP_DEST_UNREACH:
-	case ICMP_SOURCE_QUENCH:
-	case ICMP_REDIRECT:
-	case ICMP_TIME_EXCEEDED:
-	case ICMP_PARAMETERPROB:
-		break;
-	default:
+	if (!icmp_is_err(icmph->type))
 		return 1;
-	}
 
 	inside_iph = skb_header_pointer(skb, outside_hdrlen +
 					sizeof(struct icmphdr),

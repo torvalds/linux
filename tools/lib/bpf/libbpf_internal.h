@@ -59,9 +59,41 @@ do {				\
 	libbpf_print(level, "libbpf: " fmt, ##__VA_ARGS__);	\
 } while (0)
 
-#define pr_warning(fmt, ...)	__pr(LIBBPF_WARN, fmt, ##__VA_ARGS__)
+#define pr_warn(fmt, ...)	__pr(LIBBPF_WARN, fmt, ##__VA_ARGS__)
 #define pr_info(fmt, ...)	__pr(LIBBPF_INFO, fmt, ##__VA_ARGS__)
 #define pr_debug(fmt, ...)	__pr(LIBBPF_DEBUG, fmt, ##__VA_ARGS__)
+
+static inline bool libbpf_validate_opts(const char *opts,
+					size_t opts_sz, size_t user_sz,
+					const char *type_name)
+{
+	if (user_sz < sizeof(size_t)) {
+		pr_warn("%s size (%zu) is too small\n", type_name, user_sz);
+		return false;
+	}
+	if (user_sz > opts_sz) {
+		size_t i;
+
+		for (i = opts_sz; i < user_sz; i++) {
+			if (opts[i]) {
+				pr_warn("%s has non-zero extra bytes",
+					type_name);
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+#define OPTS_VALID(opts, type)						      \
+	(!(opts) || libbpf_validate_opts((const char *)opts,		      \
+					 offsetofend(struct type,	      \
+						     type##__last_field),     \
+					 (opts)->sz, #type))
+#define OPTS_HAS(opts, field) \
+	((opts) && opts->sz >= offsetofend(typeof(*(opts)), field))
+#define OPTS_GET(opts, field, fallback_value) \
+	(OPTS_HAS(opts, field) ? (opts)->field : fallback_value)
 
 int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
 			 const char *str_sec, size_t str_len);
@@ -94,7 +126,7 @@ struct btf_ext {
 	};
 	struct btf_ext_info func_info;
 	struct btf_ext_info line_info;
-	struct btf_ext_info offset_reloc_info;
+	struct btf_ext_info field_reloc_info;
 	__u32 data_size;
 };
 
@@ -119,13 +151,27 @@ struct bpf_line_info_min {
 	__u32	line_col;
 };
 
-/* The minimum bpf_offset_reloc checked by the loader
+/* bpf_field_info_kind encodes which aspect of captured field has to be
+ * adjusted by relocations. Currently supported values are:
+ *   - BPF_FIELD_BYTE_OFFSET: field offset (in bytes);
+ *   - BPF_FIELD_EXISTS: field existence (1, if field exists; 0, otherwise);
+ */
+enum bpf_field_info_kind {
+	BPF_FIELD_BYTE_OFFSET = 0,	/* field byte offset */
+	BPF_FIELD_BYTE_SIZE = 1,
+	BPF_FIELD_EXISTS = 2,		/* field existence in target kernel */
+	BPF_FIELD_SIGNED = 3,
+	BPF_FIELD_LSHIFT_U64 = 4,
+	BPF_FIELD_RSHIFT_U64 = 5,
+};
+
+/* The minimum bpf_field_reloc checked by the loader
  *
- * Offset relocation captures the following data:
+ * Field relocation captures the following data:
  * - insn_off - instruction offset (in bytes) within a BPF program that needs
- *   its insn->imm field to be relocated with actual offset;
+ *   its insn->imm field to be relocated with actual field info;
  * - type_id - BTF type ID of the "root" (containing) entity of a relocatable
- *   offset;
+ *   field;
  * - access_str_off - offset into corresponding .BTF string section. String
  *   itself encodes an accessed field using a sequence of field and array
  *   indicies, separated by colon (:). It's conceptually very close to LLVM's
@@ -156,15 +202,16 @@ struct bpf_line_info_min {
  * bpf_probe_read(&dst, sizeof(dst),
  *		  __builtin_preserve_access_index(&src->a.b.c));
  *
- * In this case Clang will emit offset relocation recording necessary data to
+ * In this case Clang will emit field relocation recording necessary data to
  * be able to find offset of embedded `a.b.c` field within `src` struct.
  *
  *   [0] https://llvm.org/docs/LangRef.html#getelementptr-instruction
  */
-struct bpf_offset_reloc {
+struct bpf_field_reloc {
 	__u32   insn_off;
 	__u32   type_id;
 	__u32   access_str_off;
+	enum bpf_field_info_kind kind;
 };
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

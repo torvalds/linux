@@ -8,6 +8,7 @@
 
 #include "mt76x02.h"
 
+int mt76x02u_mac_start(struct mt76x02_dev *dev);
 void mt76x02u_init_mcu(struct mt76_dev *dev);
 void mt76x02u_mcu_fw_reset(struct mt76x02_dev *dev);
 int mt76x02u_mcu_fw_send_data(struct mt76x02_dev *dev, const void *data,

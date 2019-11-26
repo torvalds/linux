@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include "progs/core_reloc_types.h"
+#include <sys/mman.h>
+#include <sys/syscall.h>
 
 #define STRUCT_TO_CHAR_PTR(struct_name) (const char *)&(struct struct_name)
 
@@ -174,6 +176,82 @@
 	.fails = true,							\
 }
 
+#define EXISTENCE_CASE_COMMON(name)					\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_existence.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o",			\
+	.relaxed_core_relocs = true
+
+#define EXISTENCE_ERR_CASE(name) {					\
+	EXISTENCE_CASE_COMMON(name),					\
+	.fails = true,							\
+}
+
+#define BITFIELDS_CASE_COMMON(objfile, test_name_prefix,  name)		\
+	.case_name = test_name_prefix#name,				\
+	.bpf_obj_file = objfile,					\
+	.btf_src_file = "btf__core_reloc_" #name ".o"
+
+#define BITFIELDS_CASE(name, ...) {					\
+	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_probed.o",	\
+			      "direct:", name),				\
+	.input = STRUCT_TO_CHAR_PTR(core_reloc_##name) __VA_ARGS__,	\
+	.input_len = sizeof(struct core_reloc_##name),			\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_bitfields_output)	\
+		__VA_ARGS__,						\
+	.output_len = sizeof(struct core_reloc_bitfields_output),	\
+}, {									\
+	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_direct.o",	\
+			      "probed:", name),				\
+	.input = STRUCT_TO_CHAR_PTR(core_reloc_##name) __VA_ARGS__,	\
+	.input_len = sizeof(struct core_reloc_##name),			\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_bitfields_output)	\
+		__VA_ARGS__,						\
+	.output_len = sizeof(struct core_reloc_bitfields_output),	\
+	.direct_raw_tp = true,						\
+}
+
+
+#define BITFIELDS_ERR_CASE(name) {					\
+	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_probed.o",	\
+			      "probed:", name),				\
+	.fails = true,							\
+}, {									\
+	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_direct.o",	\
+			      "direct:", name),				\
+	.direct_raw_tp = true,						\
+	.fails = true,							\
+}
+
+#define SIZE_CASE_COMMON(name)						\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_size.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o",			\
+	.relaxed_core_relocs = true
+
+#define SIZE_OUTPUT_DATA(type)						\
+	STRUCT_TO_CHAR_PTR(core_reloc_size_output) {			\
+		.int_sz = sizeof(((type *)0)->int_field),		\
+		.struct_sz = sizeof(((type *)0)->struct_field),		\
+		.union_sz = sizeof(((type *)0)->union_field),		\
+		.arr_sz = sizeof(((type *)0)->arr_field),		\
+		.arr_elem_sz = sizeof(((type *)0)->arr_field[0]),	\
+		.ptr_sz = sizeof(((type *)0)->ptr_field),		\
+		.enum_sz = sizeof(((type *)0)->enum_field),	\
+	}
+
+#define SIZE_CASE(name) {						\
+	SIZE_CASE_COMMON(name),						\
+	.input_len = 0,							\
+	.output = SIZE_OUTPUT_DATA(struct core_reloc_##name),		\
+	.output_len = sizeof(struct core_reloc_size_output),		\
+}
+
+#define SIZE_ERR_CASE(name) {						\
+	SIZE_CASE_COMMON(name),						\
+	.fails = true,							\
+}
+
 struct core_reloc_test_case {
 	const char *case_name;
 	const char *bpf_obj_file;
@@ -183,6 +261,8 @@ struct core_reloc_test_case {
 	const char *output;
 	int output_len;
 	bool fails;
+	bool relaxed_core_relocs;
+	bool direct_raw_tp;
 };
 
 static struct core_reloc_test_case test_cases[] = {
@@ -193,8 +273,12 @@ static struct core_reloc_test_case test_cases[] = {
 		.btf_src_file = NULL, /* load from /lib/modules/$(uname -r) */
 		.input = "",
 		.input_len = 0,
-		.output = "\1", /* true */
-		.output_len = 1,
+		.output = STRUCT_TO_CHAR_PTR(core_reloc_kernel_output) {
+			.valid = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
+			.comm = "test_progs",
+			.comm_len = sizeof("test_progs"),
+		},
+		.output_len = sizeof(struct core_reloc_kernel_output),
 	},
 
 	/* validate BPF program can use multiple flavors to match against
@@ -255,12 +339,6 @@ static struct core_reloc_test_case test_cases[] = {
 	INTS_CASE(ints___bool),
 	INTS_CASE(ints___reverse_sign),
 
-	INTS_ERR_CASE(ints___err_bitfield),
-	INTS_ERR_CASE(ints___err_wrong_sz_8),
-	INTS_ERR_CASE(ints___err_wrong_sz_16),
-	INTS_ERR_CASE(ints___err_wrong_sz_32),
-	INTS_ERR_CASE(ints___err_wrong_sz_64),
-	
 	/* validate edge cases of capturing relocations */
 	{
 		.case_name = "misc",
@@ -279,43 +357,155 @@ static struct core_reloc_test_case test_cases[] = {
 		},
 		.output_len = sizeof(struct core_reloc_misc_output),
 	},
+
+	/* validate field existence checks */
+	{
+		EXISTENCE_CASE_COMMON(existence),
+		.input = STRUCT_TO_CHAR_PTR(core_reloc_existence) {
+			.a = 1,
+			.b = 2,
+			.c = 3,
+			.arr = { 4 },
+			.s = { .x = 5 },
+		},
+		.input_len = sizeof(struct core_reloc_existence),
+		.output = STRUCT_TO_CHAR_PTR(core_reloc_existence_output) {
+			.a_exists = 1,
+			.b_exists = 1,
+			.c_exists = 1,
+			.arr_exists = 1,
+			.s_exists = 1,
+			.a_value = 1,
+			.b_value = 2,
+			.c_value = 3,
+			.arr_value = 4,
+			.s_value = 5,
+		},
+		.output_len = sizeof(struct core_reloc_existence_output),
+	},
+	{
+		EXISTENCE_CASE_COMMON(existence___minimal),
+		.input = STRUCT_TO_CHAR_PTR(core_reloc_existence___minimal) {
+			.a = 42,
+		},
+		.input_len = sizeof(struct core_reloc_existence),
+		.output = STRUCT_TO_CHAR_PTR(core_reloc_existence_output) {
+			.a_exists = 1,
+			.b_exists = 0,
+			.c_exists = 0,
+			.arr_exists = 0,
+			.s_exists = 0,
+			.a_value = 42,
+			.b_value = 0xff000002u,
+			.c_value = 0xff000003u,
+			.arr_value = 0xff000004u,
+			.s_value = 0xff000005u,
+		},
+		.output_len = sizeof(struct core_reloc_existence_output),
+	},
+
+	EXISTENCE_ERR_CASE(existence__err_int_sz),
+	EXISTENCE_ERR_CASE(existence__err_int_type),
+	EXISTENCE_ERR_CASE(existence__err_int_kind),
+	EXISTENCE_ERR_CASE(existence__err_arr_kind),
+	EXISTENCE_ERR_CASE(existence__err_arr_value_type),
+	EXISTENCE_ERR_CASE(existence__err_struct_type),
+
+	/* bitfield relocation checks */
+	BITFIELDS_CASE(bitfields, {
+		.ub1 = 1,
+		.ub2 = 2,
+		.ub7 = 96,
+		.sb4 = -7,
+		.sb20 = -0x76543,
+		.u32 = 0x80000000,
+		.s32 = -0x76543210,
+	}),
+	BITFIELDS_CASE(bitfields___bit_sz_change, {
+		.ub1 = 6,
+		.ub2 = 0xABCDE,
+		.ub7 = 1,
+		.sb4 = -1,
+		.sb20 = -0x17654321,
+		.u32 = 0xBEEF,
+		.s32 = -0x3FEDCBA987654321,
+	}),
+	BITFIELDS_CASE(bitfields___bitfield_vs_int, {
+		.ub1 = 0xFEDCBA9876543210,
+		.ub2 = 0xA6,
+		.ub7 = -0x7EDCBA987654321,
+		.sb4 = -0x6123456789ABCDE,
+		.sb20 = 0xD00D,
+		.u32 = -0x76543,
+		.s32 = 0x0ADEADBEEFBADB0B,
+	}),
+	BITFIELDS_CASE(bitfields___just_big_enough, {
+		.ub1 = 0xF,
+		.ub2 = 0x0812345678FEDCBA,
+	}),
+	BITFIELDS_ERR_CASE(bitfields___err_too_big_bitfield),
+
+	/* size relocation checks */
+	SIZE_CASE(size),
+	SIZE_CASE(size___diff_sz),
 };
 
 struct data {
 	char in[256];
 	char out[256];
+	uint64_t my_pid_tgid;
 };
+
+static size_t roundup_page(size_t sz)
+{
+	long page_size = sysconf(_SC_PAGE_SIZE);
+	return (sz + page_size - 1) / page_size * page_size;
+}
 
 void test_core_reloc(void)
 {
-	const char *probe_name = "raw_tracepoint/sys_enter";
+	const size_t mmap_sz = roundup_page(sizeof(struct data));
 	struct bpf_object_load_attr load_attr = {};
 	struct core_reloc_test_case *test_case;
+	const char *tp_name, *probe_name;
 	int err, duration = 0, i, equal;
 	struct bpf_link *link = NULL;
 	struct bpf_map *data_map;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
-	const int zero = 0;
-	struct data data;
+	uint64_t my_pid_tgid;
+	struct data *data;
+	void *mmap_data = NULL;
+
+	my_pid_tgid = getpid() | ((uint64_t)syscall(SYS_gettid) << 32);
 
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
 		test_case = &test_cases[i];
-
 		if (!test__start_subtest(test_case->case_name))
 			continue;
 
-		obj = bpf_object__open(test_case->bpf_obj_file);
-		if (CHECK(IS_ERR_OR_NULL(obj), "obj_open",
-			  "failed to open '%s': %ld\n",
+		DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
+			.relaxed_core_relocs = test_case->relaxed_core_relocs,
+		);
+
+		obj = bpf_object__open_file(test_case->bpf_obj_file, &opts);
+		if (CHECK(IS_ERR(obj), "obj_open", "failed to open '%s': %ld\n",
 			  test_case->bpf_obj_file, PTR_ERR(obj)))
 			continue;
+
+		/* for typed raw tracepoints, NULL should be specified */
+		if (test_case->direct_raw_tp) {
+			probe_name = "tp_btf/sys_enter";
+			tp_name = NULL;
+		} else {
+			probe_name = "raw_tracepoint/sys_enter";
+			tp_name = "sys_enter";
+		}
 
 		prog = bpf_object__find_program_by_title(obj, probe_name);
 		if (CHECK(!prog, "find_probe",
 			  "prog '%s' not found\n", probe_name))
 			goto cleanup;
-		bpf_program__set_type(prog, BPF_PROG_TYPE_RAW_TRACEPOINT);
 
 		load_attr.obj = obj;
 		load_attr.log_level = 0;
@@ -332,33 +522,32 @@ void test_core_reloc(void)
 				goto cleanup;
 		}
 
-		link = bpf_program__attach_raw_tracepoint(prog, "sys_enter");
-		if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n",
-			  PTR_ERR(link)))
-			goto cleanup;
-
 		data_map = bpf_object__find_map_by_name(obj, "test_cor.bss");
 		if (CHECK(!data_map, "find_data_map", "data map not found\n"))
 			goto cleanup;
 
-		memset(&data, 0, sizeof(data));
-		memcpy(data.in, test_case->input, test_case->input_len);
+		mmap_data = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
+				 MAP_SHARED, bpf_map__fd(data_map), 0);
+		if (CHECK(mmap_data == MAP_FAILED, "mmap",
+			  ".bss mmap failed: %d", errno)) {
+			mmap_data = NULL;
+			goto cleanup;
+		}
+		data = mmap_data;
 
-		err = bpf_map_update_elem(bpf_map__fd(data_map),
-					  &zero, &data, 0);
-		if (CHECK(err, "update_data_map",
-			  "failed to update .data map: %d\n", err))
+		memset(mmap_data, 0, sizeof(*data));
+		memcpy(data->in, test_case->input, test_case->input_len);
+		data->my_pid_tgid = my_pid_tgid;
+
+		link = bpf_program__attach_raw_tracepoint(prog, tp_name);
+		if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n",
+			  PTR_ERR(link)))
 			goto cleanup;
 
 		/* trigger test run */
 		usleep(1);
 
-		err = bpf_map_lookup_elem(bpf_map__fd(data_map), &zero, &data);
-		if (CHECK(err, "get_result",
-			  "failed to get output data: %d\n", err))
-			goto cleanup;
-
-		equal = memcmp(data.out, test_case->output,
+		equal = memcmp(data->out, test_case->output,
 			       test_case->output_len) == 0;
 		if (CHECK(!equal, "check_result",
 			  "input/output data don't match\n")) {
@@ -370,12 +559,16 @@ void test_core_reloc(void)
 			}
 			for (j = 0; j < test_case->output_len; j++) {
 				printf("output byte #%d: EXP 0x%02hhx GOT 0x%02hhx\n",
-				       j, test_case->output[j], data.out[j]);
+				       j, test_case->output[j], data->out[j]);
 			}
 			goto cleanup;
 		}
 
 cleanup:
+		if (mmap_data) {
+			CHECK_FAIL(munmap(mmap_data, mmap_sz));
+			mmap_data = NULL;
+		}
 		if (!IS_ERR_OR_NULL(link)) {
 			bpf_link__destroy(link);
 			link = NULL;

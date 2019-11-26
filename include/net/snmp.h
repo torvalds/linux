@@ -111,6 +111,12 @@ struct linux_xfrm_mib {
 	unsigned long	mibs[LINUX_MIB_XFRMMAX];
 };
 
+/* Linux TLS */
+#define LINUX_MIB_TLSMAX	__LINUX_MIB_TLSMAX
+struct linux_tls_mib {
+	unsigned long	mibs[LINUX_MIB_TLSMAX];
+};
+
 #define DEFINE_SNMP_STAT(type, name)	\
 	__typeof__(type) __percpu *name
 #define DEFINE_SNMP_STAT_ATOMIC(type, name)	\

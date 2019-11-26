@@ -23,6 +23,27 @@ void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_complete_skb);
 
+int mt76x02u_mac_start(struct mt76x02_dev *dev)
+{
+	mt76x02_mac_reset_counters(dev);
+
+	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
+	if (!mt76x02_wait_for_wpdma(&dev->mt76, 200000))
+		return -ETIMEDOUT;
+
+	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
+
+	mt76_wr(dev, MT_MAC_SYS_CTRL,
+		MT_MAC_SYS_CTRL_ENABLE_TX |
+		MT_MAC_SYS_CTRL_ENABLE_RX);
+
+	if (!mt76x02_wait_for_wpdma(&dev->mt76, 50))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76x02u_mac_start);
+
 int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 {
 	struct sk_buff *iter, *last = skb;
@@ -83,7 +104,9 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 	/* encode packet rate for no-skb packet id to fix up status reporting */
 	if (pid == MT_PACKET_ID_NO_SKB)
 		pid = MT_PACKET_ID_HAS_RATE |
-		      (le16_to_cpu(txwi->rate) & MT_RXWI_RATE_INDEX);
+		      (le16_to_cpu(txwi->rate) & MT_PKTID_RATE) |
+		      FIELD_PREP(MT_PKTID_AC,
+				 skb_get_queue_mapping(tx_info->skb));
 
 	txwi->pktid = pid;
 
@@ -96,6 +119,12 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 		MT_TXD_INFO_80211;
 	if (!wcid || wcid->hw_key_idx == 0xff || wcid->sw_iv)
 		flags |= MT_TXD_INFO_WIV;
+
+	if (sta) {
+		struct mt76x02_sta *msta = (struct mt76x02_sta *)sta->drv_priv;
+
+		ewma_pktlen_add(&msta->pktlen, tx_info->skb->len);
+	}
 
 	return mt76x02u_skb_dma_info(tx_info->skb, WLAN_PORT, flags);
 }
