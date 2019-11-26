@@ -179,14 +179,14 @@ static int sec_create_qp_ctx(struct hisi_qm *qm, struct sec_ctx *ctx,
 
 	qp_ctx->c_in_pool = hisi_acc_create_sgl_pool(dev, QM_Q_DEPTH,
 						     SEC_SGL_SGE_NR);
-	if (!qp_ctx->c_in_pool) {
+	if (IS_ERR(qp_ctx->c_in_pool)) {
 		dev_err(dev, "fail to create sgl pool for input!\n");
 		goto err_free_req_list;
 	}
 
 	qp_ctx->c_out_pool = hisi_acc_create_sgl_pool(dev, QM_Q_DEPTH,
 						      SEC_SGL_SGE_NR);
-	if (!qp_ctx->c_out_pool) {
+	if (IS_ERR(qp_ctx->c_out_pool)) {
 		dev_err(dev, "fail to create sgl pool for output!\n");
 		goto err_free_c_in_pool;
 	}
