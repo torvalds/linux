@@ -97,3 +97,14 @@ config SECURITY_SELINUX_SIDTAB_HASH_BITS
 	  collisions may be viewed at /sys/fs/selinux/ss/sidtab_hash_stats. If
 	  chain lengths are high (e.g. > 20) then selecting a higher value here
 	  will ensure that lookups times are short and stable.
+
+config SECURITY_SELINUX_SID2STR_CACHE_SIZE
+	int "NSA SELinux SID to context string translation cache size"
+	depends on SECURITY_SELINUX
+	default 256
+	help
+	  This option defines the size of the internal SID -> context string
+	  cache, which improves the performance of context to string
+	  conversion.  Setting this option to 0 disables the cache completely.
+
+	  If unsure, keep the default value.
