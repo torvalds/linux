@@ -569,7 +569,7 @@ void bpf_cgroup_storage_link(struct bpf_cgroup_storage *storage,
 		return;
 
 	storage->key.attach_type = type;
-	storage->key.cgroup_inode_id = cgroup->kn->id.id;
+	storage->key.cgroup_inode_id = cgroup_id(cgroup);
 
 	map = storage->map;
 

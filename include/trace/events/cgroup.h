@@ -66,7 +66,7 @@ DECLARE_EVENT_CLASS(cgroup,
 
 	TP_fast_assign(
 		__entry->root = cgrp->root->hierarchy_id;
-		__entry->id = cgrp->id;
+		__entry->id = cgroup_id(cgrp);
 		__entry->level = cgrp->level;
 		__assign_str(path, path);
 	),
@@ -135,7 +135,7 @@ DECLARE_EVENT_CLASS(cgroup_migrate,
 
 	TP_fast_assign(
 		__entry->dst_root = dst_cgrp->root->hierarchy_id;
-		__entry->dst_id = dst_cgrp->id;
+		__entry->dst_id = cgroup_id(dst_cgrp);
 		__entry->dst_level = dst_cgrp->level;
 		__assign_str(dst_path, path);
 		__entry->pid = task->pid;
@@ -179,7 +179,7 @@ DECLARE_EVENT_CLASS(cgroup_event,
 
 	TP_fast_assign(
 		__entry->root = cgrp->root->hierarchy_id;
-		__entry->id = cgrp->id;
+		__entry->id = cgroup_id(cgrp);
 		__entry->level = cgrp->level;
 		__assign_str(path, path);
 		__entry->val = val;

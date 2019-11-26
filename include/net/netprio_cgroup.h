@@ -26,7 +26,7 @@ static inline u32 task_netprioidx(struct task_struct *p)
 
 	rcu_read_lock();
 	css = task_css(p, net_prio_cgrp_id);
-	idx = css->cgroup->id;
+	idx = css->id;
 	rcu_read_unlock();
 	return idx;
 }
