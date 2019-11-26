@@ -55,7 +55,7 @@ static int orangefs_writepage_locked(struct page *page,
 	iov_iter_bvec(&iter, WRITE, &bv, 1, wlen);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, wlen,
-	    len, wr, NULL);
+	    len, wr, NULL, NULL);
 	if (ret < 0) {
 		SetPageError(page);
 		mapping_set_error(page->mapping, ret);
@@ -126,7 +126,7 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	wr.uid = ow->uid;
 	wr.gid = ow->gid;
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, ow->len,
-	    0, &wr, NULL);
+	    0, &wr, NULL, NULL);
 	if (ret < 0) {
 		for (i = 0; i < ow->npages; i++) {
 			SetPageError(ow->pages[i]);
@@ -311,7 +311,7 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	iov_iter_bvec(&iter, READ, &bv, 1, PAGE_SIZE);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
-	    read_size, inode->i_size, NULL, &buffer_index);
+	    read_size, inode->i_size, NULL, &buffer_index, file);
 	remaining = ret;
 	/* this will only zero remaining unread portions of the page data */
 	iov_iter_zero(~0U, &iter);
@@ -651,7 +651,7 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 			     (int)*offset);
 
 		ret = wait_for_direct_io(type, inode, offset, iter,
-				each_count, 0, NULL, NULL);
+				each_count, 0, NULL, NULL, file);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): return from wait_for_io:%d\n",
 			     __func__,
