@@ -247,6 +247,18 @@
 		#clock-cells = <0>;
 	};
 
+	rng: rng@100a0000 {
+		compatible = "rockchip,cryptov1-rng";
+		reg = <0x100a0000 0x4000>;
+		clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_S_CRYPTO>;
+		clock-names = "clk_crypto", "hclk_crypto";
+		assigned-clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_S_CRYPTO>;
+		assigned-clock-rates = <150000000>, <100000000>;
+		resets = <&cru SRST_CRYPTO>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
 	i2s1: i2s1@100b0000 {
 		compatible = "rockchip,rk3228-i2s", "rockchip,rk3066-i2s";
 		reg = <0x100b0000 0x4000>;
