@@ -30,6 +30,12 @@ Optional properties:
    - "lpo": external low power 32.768 kHz clock
  - vbat-supply: phandle to regulator supply for VBAT
  - vddio-supply: phandle to regulator supply for VDDIO
+ - brcm,bt-pcm-int-params: configure PCM parameters via a 5-byte array
+    - sco-routing: 0 = PCM, 1 = Transport, 2 = Codec, 3 = I2S
+    - pcm-interface-rate: 128KBps, 256KBps, 512KBps, 1024KBps, 2048KBps
+    - pcm-frame-type: short, long
+    - pcm-sync-mode: slave, master
+    - pcm-clock-mode: slave, master
 
 
 Example:
@@ -41,5 +47,6 @@ Example:
        bluetooth {
                compatible = "brcm,bcm43438-bt";
                max-speed = <921600>;
+               brcm,bt-pcm-int-params = [1 2 0 1 1];
        };
 };
