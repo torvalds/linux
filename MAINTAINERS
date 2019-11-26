@@ -13000,6 +13000,15 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/pm8001/
 
+PM-GRAPH UTILITY
+M:	"Todd E Brandt" <todd.e.brandt@linux.intel.com>
+L:	linux-pm@vger.kernel.org
+W:	https://01.org/pm-graph
+B:	https://bugzilla.kernel.org/buglist.cgi?component=pm-graph&product=Tools
+T:	git git://github.com/intel/pm-graph
+S:	Supported
+F:	tools/power/pm-graph
+
 PNP SUPPORT
 M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 S:	Maintained

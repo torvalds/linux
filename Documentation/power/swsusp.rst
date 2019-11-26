@@ -118,7 +118,8 @@ In a really perfect world::
 
   echo 1 > /proc/acpi/sleep       # for standby
   echo 2 > /proc/acpi/sleep       # for suspend to ram
-  echo 3 > /proc/acpi/sleep       # for suspend to ram, but with more power conservative
+  echo 3 > /proc/acpi/sleep       # for suspend to ram, but with more power
+                                  # conservative
   echo 4 > /proc/acpi/sleep       # for suspend to disk
   echo 5 > /proc/acpi/sleep       # for shutdown unfriendly the system
 
@@ -192,8 +193,8 @@ Q:
 
 A:
   The freezing of tasks is a mechanism by which user space processes and some
-  kernel threads are controlled during hibernation or system-wide suspend (on some
-  architectures).  See freezing-of-tasks.txt for details.
+  kernel threads are controlled during hibernation or system-wide suspend (on
+  some architectures).  See freezing-of-tasks.txt for details.
 
 Q:
   What is the difference between "platform" and "shutdown"?
@@ -282,7 +283,8 @@ A:
       suspend(PMSG_FREEZE): devices are frozen so that they don't interfere
       with state snapshot
 
-      state snapshot: copy of whole used memory is taken with interrupts disabled
+      state snapshot: copy of whole used memory is taken with interrupts
+      disabled
 
       resume(): devices are woken up so that we can write image to swap
 
@@ -353,8 +355,8 @@ Q:
 
 A:
   Generally, yes, you can.  However, it requires you to use the "resume=" and
-  "resume_offset=" kernel command line parameters, so the resume from a swap file
-  cannot be initiated from an initrd or initramfs image.  See
+  "resume_offset=" kernel command line parameters, so the resume from a swap
+  file cannot be initiated from an initrd or initramfs image.  See
   swsusp-and-swap-files.txt for details.
 
 Q:

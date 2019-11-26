@@ -192,7 +192,7 @@ struct cpuidle_monitor intel_snb_monitor = {
 	.stop			= snb_stop,
 	.do_register		= snb_register,
 	.unregister		= snb_unregister,
-	.needs_root		= 1,
+	.flags.needs_root	= 1,
 	.overflow_s		= 922000000 /* 922337203 seconds TSC overflow
 					       at 20GHz */
 };

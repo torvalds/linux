@@ -426,12 +426,12 @@ pm->runtime_idle() callback.
 2.4. System-Wide Power Transitions
 ----------------------------------
 There are a few different types of system-wide power transitions, described in
-Documentation/driver-api/pm/devices.rst.  Each of them requires devices to be handled
-in a specific way and the PM core executes subsystem-level power management
-callbacks for this purpose.  They are executed in phases such that each phase
-involves executing the same subsystem-level callback for every device belonging
-to the given subsystem before the next phase begins.  These phases always run
-after tasks have been frozen.
+Documentation/driver-api/pm/devices.rst.  Each of them requires devices to be
+handled in a specific way and the PM core executes subsystem-level power
+management callbacks for this purpose.  They are executed in phases such that
+each phase involves executing the same subsystem-level callback for every device
+belonging to the given subsystem before the next phase begins.  These phases
+always run after tasks have been frozen.
 
 2.4.1. System Suspend
 ^^^^^^^^^^^^^^^^^^^^^
@@ -636,12 +636,12 @@ System restore requires a hibernation image to be loaded into memory and the
 pre-hibernation memory contents to be restored before the pre-hibernation system
 activity can be resumed.
 
-As described in Documentation/driver-api/pm/devices.rst, the hibernation image is loaded
-into memory by a fresh instance of the kernel, called the boot kernel, which in
-turn is loaded and run by a boot loader in the usual way.  After the boot kernel
-has loaded the image, it needs to replace its own code and data with the code
-and data of the "hibernated" kernel stored within the image, called the image
-kernel.  For this purpose all devices are frozen just like before creating
+As described in Documentation/driver-api/pm/devices.rst, the hibernation image
+is loaded into memory by a fresh instance of the kernel, called the boot kernel,
+which in turn is loaded and run by a boot loader in the usual way.  After the
+boot kernel has loaded the image, it needs to replace its own code and data with
+the code and data of the "hibernated" kernel stored within the image, called the
+image kernel.  For this purpose all devices are frozen just like before creating
 the image during hibernation, in the
 
 	prepare, freeze, freeze_noirq
@@ -691,8 +691,8 @@ controlling the runtime power management of their devices.
 
 At the time of this writing there are two ways to define power management
 callbacks for a PCI device driver, the recommended one, based on using a
-dev_pm_ops structure described in Documentation/driver-api/pm/devices.rst, and the
-"legacy" one, in which the .suspend(), .suspend_late(), .resume_early(), and
+dev_pm_ops structure described in Documentation/driver-api/pm/devices.rst, and
+the "legacy" one, in which the .suspend(), .suspend_late(), .resume_early(), and
 .resume() callbacks from struct pci_driver are used.  The legacy approach,
 however, doesn't allow one to define runtime power management callbacks and is
 not really suitable for any new drivers.  Therefore it is not covered by this
