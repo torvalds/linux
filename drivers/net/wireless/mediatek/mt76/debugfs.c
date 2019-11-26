@@ -25,8 +25,7 @@ mt76_reg_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_regval, mt76_reg_get, mt76_reg_set,
 			 "0x%08llx\n");
 
-static int
-mt76_queues_read(struct seq_file *s, void *data)
+int mt76_queues_read(struct seq_file *s, void *data)
 {
 	struct mt76_dev *dev = dev_get_drvdata(s->private);
 	int i;
@@ -45,6 +44,7 @@ mt76_queues_read(struct seq_file *s, void *data)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt76_queues_read);
 
 void mt76_seq_puts_array(struct seq_file *file, const char *str,
 			 s8 *val, int len)
@@ -90,7 +90,6 @@ struct dentry *mt76_register_debugfs(struct mt76_dev *dev)
 	debugfs_create_blob("eeprom", 0400, dir, &dev->eeprom);
 	if (dev->otp.data)
 		debugfs_create_blob("otp", 0400, dir, &dev->otp);
-	debugfs_create_devm_seqfile(dev->dev, "queues", dir, mt76_queues_read);
 	debugfs_create_devm_seqfile(dev->dev, "rate_txpower", dir,
 				    mt76_read_rate_txpower);
 

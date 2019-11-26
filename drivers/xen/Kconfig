@@ -106,27 +106,27 @@ config XENFS
 	  If in doubt, say yes.
 
 config XEN_COMPAT_XENFS
-       bool "Create compatibility mount point /proc/xen"
-       depends on XENFS
-       default y
-       help
-         The old xenstore userspace tools expect to find "xenbus"
-         under /proc/xen, but "xenbus" is now found at the root of the
-         xenfs filesystem.  Selecting this causes the kernel to create
-         the compatibility mount point /proc/xen if it is running on
-         a xen platform.
-         If in doubt, say yes.
+	bool "Create compatibility mount point /proc/xen"
+	depends on XENFS
+	default y
+	help
+	  The old xenstore userspace tools expect to find "xenbus"
+	  under /proc/xen, but "xenbus" is now found at the root of the
+	  xenfs filesystem.  Selecting this causes the kernel to create
+	  the compatibility mount point /proc/xen if it is running on
+	  a xen platform.
+	  If in doubt, say yes.
 
 config XEN_SYS_HYPERVISOR
-       bool "Create xen entries under /sys/hypervisor"
-       depends on SYSFS
-       select SYS_HYPERVISOR
-       default y
-       help
-         Create entries under /sys/hypervisor describing the Xen
-	 hypervisor environment.  When running native or in another
-	 virtual environment, /sys/hypervisor will still be present,
-	 but will have no xen contents.
+	bool "Create xen entries under /sys/hypervisor"
+	depends on SYSFS
+	select SYS_HYPERVISOR
+	default y
+	help
+	  Create entries under /sys/hypervisor describing the Xen
+	  hypervisor environment.  When running native or in another
+	  virtual environment, /sys/hypervisor will still be present,
+	  but will have no xen contents.
 
 config XEN_XENBUS_FRONTEND
 	tristate
@@ -141,7 +141,8 @@ config XEN_GNTDEV
 
 config XEN_GNTDEV_DMABUF
 	bool "Add support for dma-buf grant access device driver extension"
-	depends on XEN_GNTDEV && XEN_GRANT_DMA_ALLOC && DMA_SHARED_BUFFER
+	depends on XEN_GNTDEV && XEN_GRANT_DMA_ALLOC
+	select DMA_SHARED_BUFFER
 	help
 	  Allows userspace processes and kernel modules to use Xen backed
 	  dma-buf implementation. With this extension grant references to
@@ -270,7 +271,7 @@ config XEN_ACPI_PROCESSOR
 	depends on XEN && XEN_DOM0 && X86 && ACPI_PROCESSOR && CPU_FREQ
 	default m
 	help
-          This ACPI processor uploads Power Management information to the Xen
+	  This ACPI processor uploads Power Management information to the Xen
 	  hypervisor.
 
 	  To do that the driver parses the Power Management data and uploads
@@ -279,19 +280,19 @@ config XEN_ACPI_PROCESSOR
 	  SMM so that other drivers (such as ACPI cpufreq scaling driver) will
 	  not load.
 
-          To compile this driver as a module, choose M here: the module will be
+	  To compile this driver as a module, choose M here: the module will be
 	  called xen_acpi_processor  If you do not know what to choose, select
 	  M here. If the CPUFREQ drivers are built in, select Y here.
 
 config XEN_MCE_LOG
 	bool "Xen platform mcelog"
-	depends on XEN_DOM0 && X86_64 && X86_MCE
+	depends on XEN_DOM0 && X86_MCE
 	help
 	  Allow kernel fetching MCE error from Xen platform and
 	  converting it into Linux mcelog format for mcelog tools
 
 config XEN_HAVE_PVMMU
-       bool
+	bool
 
 config XEN_EFI
 	def_bool y
@@ -308,15 +309,15 @@ config XEN_ACPI
 	depends on X86 && ACPI
 
 config XEN_SYMS
-       bool "Xen symbols"
-       depends on X86 && XEN_DOM0 && XENFS
-       default y if KALLSYMS
-       help
-          Exports hypervisor symbols (along with their types and addresses) via
-          /proc/xen/xensyms file, similar to /proc/kallsyms
+	bool "Xen symbols"
+	depends on X86 && XEN_DOM0 && XENFS
+	default y if KALLSYMS
+	help
+	  Exports hypervisor symbols (along with their types and addresses) via
+	  /proc/xen/xensyms file, similar to /proc/kallsyms
 
 config XEN_HAVE_VPMU
-       bool
+	bool
 
 config XEN_FRONT_PGDIR_SHBUF
 	tristate

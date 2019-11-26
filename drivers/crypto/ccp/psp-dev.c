@@ -21,6 +21,8 @@
 #include <linux/ccp.h>
 #include <linux/firmware.h>
 
+#include <asm/smp.h>
+
 #include "sp-dev.h"
 #include "psp-dev.h"
 
@@ -235,6 +237,13 @@ static int __sev_platform_init_locked(int *error)
 		return rc;
 
 	psp->sev_state = SEV_STATE_INIT;
+
+	/* Prepare for first SEV guest launch after INIT */
+	wbinvd_on_all_cpus();
+	rc = __sev_do_cmd_locked(SEV_CMD_DF_FLUSH, NULL, error);
+	if (rc)
+		return rc;
+
 	dev_dbg(psp->dev, "SEV firmware initialized\n");
 
 	return rc;
@@ -294,6 +303,9 @@ static int sev_ioctl_do_reset(struct sev_issue_cmd *argp)
 {
 	int state, rc;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	/*
 	 * The SEV spec requires that FACTORY_RESET must be issued in
 	 * UNINIT state. Before we go further lets check if any guest is
@@ -338,6 +350,9 @@ static int sev_ioctl_do_pek_pdh_gen(int cmd, struct sev_issue_cmd *argp)
 {
 	int rc;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	if (psp_master->sev_state == SEV_STATE_UNINIT) {
 		rc = __sev_platform_init_locked(&argp->error);
 		if (rc)
@@ -353,6 +368,9 @@ static int sev_ioctl_do_pek_csr(struct sev_issue_cmd *argp)
 	struct sev_data_pek_csr *data;
 	void *blob = NULL;
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
 		return -EFAULT;
@@ -540,6 +558,9 @@ static int sev_ioctl_do_pek_import(struct sev_issue_cmd *argp)
 	void *pek_blob, *oca_blob;
 	int ret;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
 		return -EFAULT;
 
@@ -695,6 +716,16 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp)
 	struct sev_data_pdh_cert_export *data;
 	int ret;
 
+	/* If platform is not in INIT state then transition it to INIT. */
+	if (psp_master->sev_state != SEV_STATE_INIT) {
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		ret = __sev_platform_init_locked(&argp->error);
+		if (ret)
+			return ret;
+	}
+
 	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
 		return -EFAULT;
 
@@ -741,13 +772,6 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp)
 	data->cert_chain_len = input.cert_chain_len;
 
 cmd:
-	/* If platform is not in INIT state then transition it to INIT. */
-	if (psp_master->sev_state != SEV_STATE_INIT) {
-		ret = __sev_platform_init_locked(&argp->error);
-		if (ret)
-			goto e_free_cert;
-	}
-
 	ret = __sev_do_cmd_locked(SEV_CMD_PDH_CERT_EXPORT, data, &argp->error);
 
 	/* If we query the length, FW responded with expected data. */
@@ -929,8 +953,22 @@ static int sev_misc_init(struct psp_device *psp)
 
 static int psp_check_sev_support(struct psp_device *psp)
 {
-	/* Check if device supports SEV feature */
-	if (!(ioread32(psp->io_regs + psp->vdata->feature_reg) & 1)) {
+	unsigned int val = ioread32(psp->io_regs + psp->vdata->feature_reg);
+
+	/*
+	 * Check for a access to the registers.  If this read returns
+	 * 0xffffffff, it's likely that the system is running a broken
+	 * BIOS which disallows access to the device. Stop here and
+	 * fail the PSP initialization (but not the load, as the CCP
+	 * could get properly initialized).
+	 */
+	if (val == 0xffffffff) {
+		dev_notice(psp->dev, "psp: unable to access the device: you might be running a broken BIOS.\n");
+		return -ENODEV;
+	}
+
+	if (!(val & 1)) {
+		/* Device does not support the SEV feature */
 		dev_dbg(psp->dev, "psp does not support SEV\n");
 		return -ENODEV;
 	}
@@ -1064,6 +1102,18 @@ void psp_pci_init(void)
 
 	/* Initialize the platform */
 	rc = sev_platform_init(&error);
+	if (rc && (error == SEV_RET_SECURE_DATA_INVALID)) {
+		/*
+		 * INIT command returned an integrity check failure
+		 * status code, meaning that firmware load and
+		 * validation of SEV related persistent data has
+		 * failed and persistent state has been erased.
+		 * Retrying INIT command here should succeed.
+		 */
+		dev_dbg(sp->dev, "SEV: retrying INIT command");
+		rc = sev_platform_init(&error);
+	}
+
 	if (rc) {
 		dev_err(sp->dev, "SEV: failed to INIT error %#x\n", error);
 		return;

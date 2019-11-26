@@ -33,7 +33,7 @@
 #define SLOT_PFNSHIFT		(SLOT_SHIFT - PAGE_SHIFT)
 #define PFN_NASIDSHFT		(NASID_SHFT - PAGE_SHIFT)
 
-struct node_data *__node_data[MAX_COMPACT_NODES];
+struct node_data *__node_data[MAX_NUMNODES];
 
 EXPORT_SYMBOL(__node_data);
 
@@ -44,23 +44,23 @@ static int is_fine_dirmode(void)
 	return ((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_REGIONSIZE_MASK) >> NSRI_REGIONSIZE_SHFT) & REGIONSIZE_FINE;
 }
 
-static u64 get_region(cnodeid_t cnode)
+static u64 get_region(nasid_t nasid)
 {
 	if (fine_mode)
-		return COMPACT_TO_NASID_NODEID(cnode) >> NASID_TO_FINEREG_SHFT;
+		return nasid >> NASID_TO_FINEREG_SHFT;
 	else
-		return COMPACT_TO_NASID_NODEID(cnode) >> NASID_TO_COARSEREG_SHFT;
+		return nasid >> NASID_TO_COARSEREG_SHFT;
 }
 
 static u64 region_mask;
 
 static void gen_region_mask(u64 *region_mask)
 {
-	cnodeid_t cnode;
+	nasid_t nasid;
 
 	(*region_mask) = 0;
-	for_each_online_node(cnode) {
-		(*region_mask) |= 1ULL << get_region(cnode);
+	for_each_online_node(nasid) {
+		(*region_mask) |= 1ULL << get_region(nasid);
 	}
 }
 
@@ -104,23 +104,18 @@ static void router_recurse(klrou_t *router_a, klrou_t *router_b, int depth)
 	router_a->rou_rflag = 0;
 }
 
-unsigned char __node_distances[MAX_COMPACT_NODES][MAX_COMPACT_NODES];
+unsigned char __node_distances[MAX_NUMNODES][MAX_NUMNODES];
 EXPORT_SYMBOL(__node_distances);
 
 static int __init compute_node_distance(nasid_t nasid_a, nasid_t nasid_b)
 {
 	klrou_t *router, *router_a = NULL, *router_b = NULL;
 	lboard_t *brd, *dest_brd;
-	cnodeid_t cnode;
 	nasid_t nasid;
 	int port;
 
 	/* Figure out which routers nodes in question are connected to */
-	for_each_online_node(cnode) {
-		nasid = COMPACT_TO_NASID_NODEID(cnode);
-
-		if (nasid == -1) continue;
-
+	for_each_online_node(nasid) {
 		brd = find_lboard_class((lboard_t *)KL_CONFIG_INFO(nasid),
 					KLTYPE_ROUTER);
 
@@ -176,19 +171,16 @@ static int __init compute_node_distance(nasid_t nasid_a, nasid_t nasid_b)
 
 static void __init init_topology_matrix(void)
 {
-	nasid_t nasid, nasid2;
-	cnodeid_t row, col;
+	nasid_t row, col;
 
-	for (row = 0; row < MAX_COMPACT_NODES; row++)
-		for (col = 0; col < MAX_COMPACT_NODES; col++)
+	for (row = 0; row < MAX_NUMNODES; row++)
+		for (col = 0; col < MAX_NUMNODES; col++)
 			__node_distances[row][col] = -1;
 
 	for_each_online_node(row) {
-		nasid = COMPACT_TO_NASID_NODEID(row);
 		for_each_online_node(col) {
-			nasid2 = COMPACT_TO_NASID_NODEID(col);
 			__node_distances[row][col] =
-				compute_node_distance(nasid, nasid2);
+				compute_node_distance(row, col);
 		}
 	}
 }
@@ -196,12 +188,11 @@ static void __init init_topology_matrix(void)
 static void __init dump_topology(void)
 {
 	nasid_t nasid;
-	cnodeid_t cnode;
 	lboard_t *brd, *dest_brd;
 	int port;
 	int router_num = 0;
 	klrou_t *router;
-	cnodeid_t row, col;
+	nasid_t row, col;
 
 	pr_info("************** Topology ********************\n");
 
@@ -216,11 +207,7 @@ static void __init dump_topology(void)
 		pr_cont("\n");
 	}
 
-	for_each_online_node(cnode) {
-		nasid = COMPACT_TO_NASID_NODEID(cnode);
-
-		if (nasid == -1) continue;
-
+	for_each_online_node(nasid) {
 		brd = find_lboard_class((lboard_t *)KL_CONFIG_INFO(nasid),
 					KLTYPE_ROUTER);
 
@@ -254,21 +241,17 @@ static void __init dump_topology(void)
 	}
 }
 
-static unsigned long __init slot_getbasepfn(cnodeid_t cnode, int slot)
+static unsigned long __init slot_getbasepfn(nasid_t nasid, int slot)
 {
-	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
-
 	return ((unsigned long)nasid << PFN_NASIDSHFT) | (slot << SLOT_PFNSHIFT);
 }
 
-static unsigned long __init slot_psize_compute(cnodeid_t node, int slot)
+static unsigned long __init slot_psize_compute(nasid_t nasid, int slot)
 {
-	nasid_t nasid;
 	lboard_t *brd;
 	klmembnk_t *banks;
 	unsigned long size;
 
-	nasid = COMPACT_TO_NASID_NODEID(node);
 	/* Find the node board */
 	brd = find_lboard((lboard_t *)KL_CONFIG_INFO(nasid), KLTYPE_IP27);
 	if (!brd)
@@ -298,7 +281,7 @@ static unsigned long __init slot_psize_compute(cnodeid_t node, int slot)
 
 static void __init mlreset(void)
 {
-	int i;
+	nasid_t nasid;
 
 	master_nasid = get_nasid();
 	fine_mode = is_fine_dirmode();
@@ -321,11 +304,7 @@ static void __init mlreset(void)
 	/*
 	 * Set all nodes' calias sizes to 8k
 	 */
-	for_each_online_node(i) {
-		nasid_t nasid;
-
-		nasid = COMPACT_TO_NASID_NODEID(i);
-
+	for_each_online_node(nasid) {
 		/*
 		 * Always have node 0 in the region mask, otherwise
 		 * CALIAS accesses get exceptions since the hub
@@ -350,7 +329,7 @@ static void __init szmem(void)
 {
 	unsigned long slot_psize, slot0sz = 0, nodebytes;	/* Hack to detect problem configs */
 	int slot;
-	cnodeid_t node;
+	nasid_t node;
 
 	for_each_online_node(node) {
 		nodebytes = 0;
@@ -380,7 +359,7 @@ static void __init szmem(void)
 	}
 }
 
-static void __init node_mem_init(cnodeid_t node)
+static void __init node_mem_init(nasid_t node)
 {
 	unsigned long slot_firstpfn = slot_getbasepfn(node, 0);
 	unsigned long slot_freepfn = node_getfirstfree(node);
@@ -402,12 +381,8 @@ static void __init node_mem_init(cnodeid_t node)
 	slot_freepfn += PFN_UP(sizeof(struct pglist_data) +
 			       sizeof(struct hub_data));
 
-	free_bootmem_with_active_regions(node, end_pfn);
-
 	memblock_reserve(slot_firstpfn << PAGE_SHIFT,
 			 ((slot_freepfn - slot_firstpfn) << PAGE_SHIFT));
-
-	sparse_memory_present_with_active_regions(node);
 }
 
 /*
@@ -427,19 +402,21 @@ static struct node_data null_node = {
  */
 void __init prom_meminit(void)
 {
-	cnodeid_t node;
+	nasid_t node;
 
 	mlreset();
 	szmem();
 	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
 
-	for (node = 0; node < MAX_COMPACT_NODES; node++) {
+	for (node = 0; node < MAX_NUMNODES; node++) {
 		if (node_online(node)) {
 			node_mem_init(node);
 			continue;
 		}
 		__node_data[node] = &null_node;
 	}
+
+	memblocks_present();
 }
 
 void __init prom_free_prom_memory(void)

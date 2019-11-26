@@ -14,3 +14,14 @@ tc_check_packets()
 	              select(.options.actions[0].stats.packets == $count)" \
 	       &> /dev/null
 }
+
+tc_check_packets_hitting()
+{
+	local id=$1
+	local handle=$2
+
+	cmd_jq "tc -j -s filter show $id" \
+	       ".[] | select(.options.handle == $handle) | \
+		      select(.options.actions[0].stats.packets > 0)" \
+	       &> /dev/null
+}

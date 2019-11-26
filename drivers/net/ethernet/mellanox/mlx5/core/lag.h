@@ -8,6 +8,11 @@
 #include "lag_mp.h"
 
 enum {
+	MLX5_LAG_P1,
+	MLX5_LAG_P2,
+};
+
+enum {
 	MLX5_LAG_FLAG_ROCE   = 1 << 0,
 	MLX5_LAG_FLAG_SRIOV  = 1 << 1,
 	MLX5_LAG_FLAG_MULTIPATH = 1 << 2,

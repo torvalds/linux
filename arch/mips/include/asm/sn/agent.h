@@ -26,7 +26,7 @@
 
 #if defined(CONFIG_SGI_IP27)
 #define HUB_NIC_ADDR(_cpuid)						   \
-	REMOTE_HUB_ADDR(COMPACT_TO_NASID_NODEID(cpu_to_node(_cpuid)),	    \
+	REMOTE_HUB_ADDR(cpu_to_node(_cpuid),				   \
 		MD_MLAN_CTL)
 #endif
 

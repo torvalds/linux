@@ -495,7 +495,7 @@ static int qce_ahash_register_one(const struct qce_ahash_def *def,
 	base = &alg->halg.base;
 	base->cra_blocksize = def->blocksize;
 	base->cra_priority = 300;
-	base->cra_flags = CRYPTO_ALG_ASYNC;
+	base->cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY;
 	base->cra_ctxsize = sizeof(struct qce_sha_ctx);
 	base->cra_alignmask = 0;
 	base->cra_module = THIS_MODULE;

@@ -333,7 +333,6 @@ EXPORT_SYMBOL(__sk_backlog_rcv);
 static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 {
 	struct __kernel_sock_timeval tv;
-	int size;
 
 	if (timeo == MAX_SCHEDULE_TIMEOUT) {
 		tv.tv_sec = 0;
@@ -354,13 +353,11 @@ static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 		old_tv.tv_sec = tv.tv_sec;
 		old_tv.tv_usec = tv.tv_usec;
 		*(struct __kernel_old_timeval *)optval = old_tv;
-		size = sizeof(old_tv);
-	} else {
-		*(struct __kernel_sock_timeval *)optval = tv;
-		size = sizeof(tv);
+		return sizeof(old_tv);
 	}
 
-	return size;
+	*(struct __kernel_sock_timeval *)optval = tv;
+	return sizeof(tv);
 }
 
 static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen, bool old_timeval)
@@ -687,7 +684,8 @@ out:
 	return ret;
 }
 
-static inline void sock_valbool_flag(struct sock *sk, int bit, int valbool)
+static inline void sock_valbool_flag(struct sock *sk, enum sock_flags bit,
+				     int valbool)
 {
 	if (valbool)
 		sock_set_flag(sk, bit);
@@ -3015,7 +3013,7 @@ int sock_gettstamp(struct socket *sock, void __user *userstamp,
 		return -ENOENT;
 	if (ts.tv_sec == 0) {
 		ktime_t kt = ktime_get_real();
-		sock_write_timestamp(sk, kt);;
+		sock_write_timestamp(sk, kt);
 		ts = ktime_to_timespec64(kt);
 	}
 
@@ -3042,7 +3040,7 @@ int sock_gettstamp(struct socket *sock, void __user *userstamp,
 }
 EXPORT_SYMBOL(sock_gettstamp);
 
-void sock_enable_timestamp(struct sock *sk, int flag)
+void sock_enable_timestamp(struct sock *sk, enum sock_flags flag)
 {
 	if (!sock_flag(sk, flag)) {
 		unsigned long previous_flags = sk->sk_flags;

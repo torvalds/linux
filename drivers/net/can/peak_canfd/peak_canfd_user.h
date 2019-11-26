@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * CAN driver for PEAK System micro-CAN based adapters
+/* CAN driver for PEAK System micro-CAN based adapters
  *
  * Copyright (C) 2003-2011 PEAK System-Technik GmbH
  * Copyright (C) 2011-2013 Stephane Grosjean <s.grosjean@peak-system.com>

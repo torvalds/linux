@@ -450,7 +450,6 @@ static void virt_wifi_net_device_destructor(struct net_device *dev)
 	 */
 	kfree(dev->ieee80211_ptr);
 	dev->ieee80211_ptr = NULL;
-	free_netdev(dev);
 }
 
 /* No lock interaction. */
@@ -458,7 +457,7 @@ static void virt_wifi_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 	dev->netdev_ops = &virt_wifi_ops;
-	dev->priv_destructor = virt_wifi_net_device_destructor;
+	dev->needs_free_netdev  = true;
 }
 
 /* Called in a RCU read critical section from netif_receive_skb */
@@ -544,6 +543,7 @@ static int virt_wifi_newlink(struct net *src_net, struct net_device *dev,
 		goto unregister_netdev;
 	}
 
+	dev->priv_destructor = virt_wifi_net_device_destructor;
 	priv->being_deleted = false;
 	priv->is_connected = false;
 	priv->is_up = false;

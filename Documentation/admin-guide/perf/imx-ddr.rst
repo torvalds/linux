@@ -17,7 +17,8 @@ The "format" directory describes format of the config (event ID) and config1
 (AXI filtering) fields of the perf_event_attr structure, see /sys/bus/event_source/
 devices/imx8_ddr0/format/. The "events" directory describes the events types
 hardware supported that can be used with perf tool, see /sys/bus/event_source/
-devices/imx8_ddr0/events/.
+devices/imx8_ddr0/events/. The "caps" directory describes filter features implemented
+in DDR PMU, see /sys/bus/events_source/devices/imx8_ddr0/caps/.
   e.g.::
         perf stat -a -e imx8_ddr0/cycles/ cmd
         perf stat -a -e imx8_ddr0/read/,imx8_ddr0/write/ cmd
@@ -25,9 +26,12 @@ devices/imx8_ddr0/events/.
 AXI filtering is only used by CSV modes 0x41 (axid-read) and 0x42 (axid-write)
 to count reading or writing matches filter setting. Filter setting is various
 from different DRAM controller implementations, which is distinguished by quirks
-in the driver.
+in the driver. You also can dump info from userspace, filter in "caps" directory
+indicates whether PMU supports AXI ID filter or not; enhanced_filter indicates
+whether PMU supports enhanced AXI ID filter or not. Value 0 for un-supported, and
+value 1 for supported.
 
-* With DDR_CAP_AXI_ID_FILTER quirk.
+* With DDR_CAP_AXI_ID_FILTER quirk(filter: 1, enhanced_filter: 0).
   Filter is defined with two configuration parts:
   --AXI_ID defines AxID matching value.
   --AXI_MASKING defines which bits of AxID are meaningful for the matching.
@@ -50,3 +54,8 @@ in the driver.
   axi_id to monitor a specific id, rather than having to specify axi_mask.
   e.g.::
         perf stat -a -e imx8_ddr0/axid-read,axi_id=0x12/ cmd, which will monitor ARID=0x12
+
+* With DDR_CAP_AXI_ID_FILTER_ENHANCED quirk(filter: 1, enhanced_filter: 1).
+  This is an extension to the DDR_CAP_AXI_ID_FILTER quirk which permits
+  counting the number of bytes (as opposed to the number of bursts) from DDR
+  read and write transactions concurrently with another set of data counters.

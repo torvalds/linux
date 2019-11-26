@@ -17,6 +17,7 @@
 
 #include "dpaa2-eth-trace.h"
 #include "dpaa2-eth-debugfs.h"
+#include "dpaa2-mac.h"
 
 #define DPAA2_WRIOP_VERSION(x, y, z) ((x) << 10 | (y) << 5 | (z) << 0)
 
@@ -245,6 +246,14 @@ static inline struct dpaa2_faead *dpaa2_get_faead(void *buf_addr, bool swa)
  */
 #define DPAA2_ETH_ENQUEUE_RETRIES	10
 
+/* Number of times to retry DPIO portal operations while waiting
+ * for portal to finish executing current command and become
+ * available. We want to avoid being stuck in a while loop in case
+ * hardware becomes unresponsive, but not give up too easily if
+ * the portal really is busy for valid reasons
+ */
+#define DPAA2_ETH_SWP_BUSY_RETRIES	1000
+
 /* Driver statistics, other than those in struct rtnl_link_stats64.
  * These are usually collected per-CPU and aggregated by ethtool.
  */
@@ -407,6 +416,8 @@ struct dpaa2_eth_priv {
 #ifdef CONFIG_DEBUG_FS
 	struct dpaa2_debugfs dbg;
 #endif
+
+	struct dpaa2_mac *mac;
 };
 
 #define DPAA2_RXH_SUPPORTED	(RXH_L2DA | RXH_VLAN | RXH_L3_PROTO \

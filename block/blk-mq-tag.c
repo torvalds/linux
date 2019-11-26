@@ -15,14 +15,6 @@
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
 
-bool blk_mq_has_free_tags(struct blk_mq_tags *tags)
-{
-	if (!tags)
-		return true;
-
-	return sbitmap_any_bit_clear(&tags->bitmap_tags.sb);
-}
-
 /*
  * If a previously inactive queue goes active, bump the active user count.
  * We need to do this before try to allocate driver tag, then even if fail

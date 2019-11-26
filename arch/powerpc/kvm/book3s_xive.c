@@ -1211,6 +1211,45 @@ void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu)
 	vcpu->arch.xive_vcpu = NULL;
 }
 
+static bool kvmppc_xive_vcpu_id_valid(struct kvmppc_xive *xive, u32 cpu)
+{
+	/* We have a block of xive->nr_servers VPs. We just need to check
+	 * raw vCPU ids are below the expected limit for this guest's
+	 * core stride ; kvmppc_pack_vcpu_id() will pack them down to an
+	 * index that can be safely used to compute a VP id that belongs
+	 * to the VP block.
+	 */
+	return cpu < xive->nr_servers * xive->kvm->arch.emul_smt_mode;
+}
+
+int kvmppc_xive_compute_vp_id(struct kvmppc_xive *xive, u32 cpu, u32 *vp)
+{
+	u32 vp_id;
+
+	if (!kvmppc_xive_vcpu_id_valid(xive, cpu)) {
+		pr_devel("Out of bounds !\n");
+		return -EINVAL;
+	}
+
+	if (xive->vp_base == XIVE_INVALID_VP) {
+		xive->vp_base = xive_native_alloc_vp_block(xive->nr_servers);
+		pr_devel("VP_Base=%x nr_servers=%d\n", xive->vp_base, xive->nr_servers);
+
+		if (xive->vp_base == XIVE_INVALID_VP)
+			return -ENOSPC;
+	}
+
+	vp_id = kvmppc_xive_vp(xive, cpu);
+	if (kvmppc_xive_vp_in_use(xive->kvm, vp_id)) {
+		pr_devel("Duplicate !\n");
+		return -EEXIST;
+	}
+
+	*vp = vp_id;
+
+	return 0;
+}
+
 int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 			     struct kvm_vcpu *vcpu, u32 cpu)
 {
@@ -1229,20 +1268,13 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		return -EPERM;
 	if (vcpu->arch.irq_type != KVMPPC_IRQ_DEFAULT)
 		return -EBUSY;
-	if (cpu >= (KVM_MAX_VCPUS * vcpu->kvm->arch.emul_smt_mode)) {
-		pr_devel("Out of bounds !\n");
-		return -EINVAL;
-	}
 
 	/* We need to synchronize with queue provisioning */
 	mutex_lock(&xive->lock);
 
-	vp_id = kvmppc_xive_vp(xive, cpu);
-	if (kvmppc_xive_vp_in_use(xive->kvm, vp_id)) {
-		pr_devel("Duplicate !\n");
-		r = -EEXIST;
+	r = kvmppc_xive_compute_vp_id(xive, cpu, &vp_id);
+	if (r)
 		goto bail;
-	}
 
 	xc = kzalloc(sizeof(*xc), GFP_KERNEL);
 	if (!xc) {
@@ -1834,6 +1866,43 @@ int kvmppc_xive_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 	return 0;
 }
 
+int kvmppc_xive_set_nr_servers(struct kvmppc_xive *xive, u64 addr)
+{
+	u32 __user *ubufp = (u32 __user *) addr;
+	u32 nr_servers;
+	int rc = 0;
+
+	if (get_user(nr_servers, ubufp))
+		return -EFAULT;
+
+	pr_devel("%s nr_servers=%u\n", __func__, nr_servers);
+
+	if (!nr_servers || nr_servers > KVM_MAX_VCPU_ID)
+		return -EINVAL;
+
+	mutex_lock(&xive->lock);
+	if (xive->vp_base != XIVE_INVALID_VP)
+		/* The VP block is allocated once and freed when the device
+		 * is released. Better not allow to change its size since its
+		 * used by connect_vcpu to validate vCPU ids are valid (eg,
+		 * setting it back to a higher value could allow connect_vcpu
+		 * to come up with a VP id that goes beyond the VP block, which
+		 * is likely to cause a crash in OPAL).
+		 */
+		rc = -EBUSY;
+	else if (nr_servers > KVM_MAX_VCPUS)
+		/* We don't need more servers. Higher vCPU ids get packed
+		 * down below KVM_MAX_VCPUS by kvmppc_pack_vcpu_id().
+		 */
+		xive->nr_servers = KVM_MAX_VCPUS;
+	else
+		xive->nr_servers = nr_servers;
+
+	mutex_unlock(&xive->lock);
+
+	return rc;
+}
+
 static int xive_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	struct kvmppc_xive *xive = dev->private;
@@ -1842,6 +1911,11 @@ static int xive_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	switch (attr->group) {
 	case KVM_DEV_XICS_GRP_SOURCES:
 		return xive_set_source(xive, attr->attr, attr->addr);
+	case KVM_DEV_XICS_GRP_CTRL:
+		switch (attr->attr) {
+		case KVM_DEV_XICS_NR_SERVERS:
+			return kvmppc_xive_set_nr_servers(xive, attr->addr);
+		}
 	}
 	return -ENXIO;
 }
@@ -1867,6 +1941,11 @@ static int xive_has_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 		    attr->attr < KVMPPC_XICS_NR_IRQS)
 			return 0;
 		break;
+	case KVM_DEV_XICS_GRP_CTRL:
+		switch (attr->attr) {
+		case KVM_DEV_XICS_NR_SERVERS:
+			return 0;
+		}
 	}
 	return -ENXIO;
 }
@@ -2001,9 +2080,12 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 {
 	struct kvmppc_xive *xive;
 	struct kvm *kvm = dev->kvm;
-	int ret = 0;
 
 	pr_devel("Creating xive for partition\n");
+
+	/* Already there ? */
+	if (kvm->arch.xive)
+		return -EEXIST;
 
 	xive = kvmppc_xive_get_device(kvm, type);
 	if (!xive)
@@ -2014,12 +2096,6 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 	xive->kvm = kvm;
 	mutex_init(&xive->lock);
 
-	/* Already there ? */
-	if (kvm->arch.xive)
-		ret = -EEXIST;
-	else
-		kvm->arch.xive = xive;
-
 	/* We use the default queue size set by the host */
 	xive->q_order = xive_native_default_eq_shift();
 	if (xive->q_order < PAGE_SHIFT)
@@ -2027,18 +2103,16 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 	else
 		xive->q_page_order = xive->q_order - PAGE_SHIFT;
 
-	/* Allocate a bunch of VPs */
-	xive->vp_base = xive_native_alloc_vp_block(KVM_MAX_VCPUS);
-	pr_devel("VP_Base=%x\n", xive->vp_base);
-
-	if (xive->vp_base == XIVE_INVALID_VP)
-		ret = -ENOMEM;
+	/* VP allocation is delayed to the first call to connect_vcpu */
+	xive->vp_base = XIVE_INVALID_VP;
+	/* KVM_MAX_VCPUS limits the number of VMs to roughly 64 per sockets
+	 * on a POWER9 system.
+	 */
+	xive->nr_servers = KVM_MAX_VCPUS;
 
 	xive->single_escalation = xive_native_has_single_escalation();
 
-	if (ret)
-		return ret;
-
+	kvm->arch.xive = xive;
 	return 0;
 }
 
@@ -2108,9 +2182,9 @@ static int xive_debug_show(struct seq_file *m, void *private)
 		if (!xc)
 			continue;
 
-		seq_printf(m, "cpu server %#x CPPR:%#x HWCPPR:%#x"
+		seq_printf(m, "cpu server %#x VP:%#x CPPR:%#x HWCPPR:%#x"
 			   " MFRR:%#x PEND:%#x h_xirr: R=%lld V=%lld\n",
-			   xc->server_num, xc->cppr, xc->hw_cppr,
+			   xc->server_num, xc->vp_id, xc->cppr, xc->hw_cppr,
 			   xc->mfrr, xc->pending,
 			   xc->stat_rm_h_xirr, xc->stat_vm_h_xirr);
 

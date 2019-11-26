@@ -323,4 +323,21 @@ enum
 	__LINUX_MIB_XFRMMAX
 };
 
+/* linux TLS mib definitions */
+enum
+{
+	LINUX_MIB_TLSNUM = 0,
+	LINUX_MIB_TLSCURRTXSW,			/* TlsCurrTxSw */
+	LINUX_MIB_TLSCURRRXSW,			/* TlsCurrRxSw */
+	LINUX_MIB_TLSCURRTXDEVICE,		/* TlsCurrTxDevice */
+	LINUX_MIB_TLSCURRRXDEVICE,		/* TlsCurrRxDevice */
+	LINUX_MIB_TLSTXSW,			/* TlsTxSw */
+	LINUX_MIB_TLSRXSW,			/* TlsRxSw */
+	LINUX_MIB_TLSTXDEVICE,			/* TlsTxDevice */
+	LINUX_MIB_TLSRXDEVICE,			/* TlsRxDevice */
+	LINUX_MIB_TLSDECRYPTERROR,		/* TlsDecryptError */
+	LINUX_MIB_TLSRXDEVICERESYNC,		/* TlsRxDeviceResync */
+	__LINUX_MIB_TLSMAX
+};
+
 #endif	/* _LINUX_SNMP_H */

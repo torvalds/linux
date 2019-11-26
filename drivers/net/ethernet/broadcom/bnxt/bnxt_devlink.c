@@ -14,9 +14,29 @@
 #include "bnxt.h"
 #include "bnxt_vfr.h"
 #include "bnxt_devlink.h"
+#include "bnxt_ethtool.h"
+
+static int
+bnxt_dl_flash_update(struct devlink *dl, const char *filename,
+		     const char *region, struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+
+	if (region)
+		return -EOPNOTSUPP;
+
+	if (!BNXT_PF(bp)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "flash update not supported from a VF");
+		return -EPERM;
+	}
+
+	return bnxt_flash_package_from_file(bp->dev, filename, 0);
+}
 
 static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
-				     struct devlink_fmsg *fmsg)
+				     struct devlink_fmsg *fmsg,
+				     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = devlink_health_reporter_priv(reporter);
 	struct bnxt_fw_health *health = bp->fw_health;
@@ -61,7 +81,8 @@ static const struct devlink_health_reporter_ops bnxt_dl_fw_reporter_ops = {
 };
 
 static int bnxt_fw_reset_recover(struct devlink_health_reporter *reporter,
-				 void *priv_ctx)
+				 void *priv_ctx,
+				 struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = devlink_health_reporter_priv(reporter);
 
@@ -79,7 +100,8 @@ struct devlink_health_reporter_ops bnxt_dl_fw_reset_reporter_ops = {
 };
 
 static int bnxt_fw_fatal_recover(struct devlink_health_reporter *reporter,
-				 void *priv_ctx)
+				 void *priv_ctx,
+				 struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = devlink_health_reporter_priv(reporter);
 	struct bnxt_fw_reporter_ctx *fw_reporter_ctx = priv_ctx;
@@ -88,6 +110,7 @@ static int bnxt_fw_fatal_recover(struct devlink_health_reporter *reporter,
 	if (!priv_ctx)
 		return -EOPNOTSUPP;
 
+	bp->fw_health->fatal = true;
 	event = fw_reporter_ctx->sp_event;
 	if (event == BNXT_FW_RESET_NOTIFY_SP_EVENT)
 		bnxt_fw_reset(bp);
@@ -196,11 +219,32 @@ void bnxt_devlink_health_report(struct bnxt *bp, unsigned long event)
 	}
 }
 
+void bnxt_dl_health_status_update(struct bnxt *bp, bool healthy)
+{
+	struct bnxt_fw_health *health = bp->fw_health;
+	u8 state;
+
+	if (healthy)
+		state = DEVLINK_HEALTH_REPORTER_STATE_HEALTHY;
+	else
+		state = DEVLINK_HEALTH_REPORTER_STATE_ERROR;
+
+	if (health->fatal)
+		devlink_health_reporter_state_update(health->fw_fatal_reporter,
+						     state);
+	else
+		devlink_health_reporter_state_update(health->fw_reset_reporter,
+						     state);
+
+	health->fatal = false;
+}
+
 static const struct devlink_ops bnxt_dl_ops = {
 #ifdef CONFIG_BNXT_SRIOV
 	.eswitch_mode_set = bnxt_dl_eswitch_mode_set,
 	.eswitch_mode_get = bnxt_dl_eswitch_mode_get,
 #endif /* CONFIG_BNXT_SRIOV */
+	.flash_update	  = bnxt_dl_flash_update,
 };
 
 enum bnxt_dl_param_id {
@@ -311,10 +355,17 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	} else {
 		rc = hwrm_send_message_silent(bp, msg, msg_len,
 					      HWRM_CMD_TIMEOUT);
-		if (!rc)
+		if (!rc) {
 			bnxt_copy_from_nvm_data(val, data,
 						nvm_param.nvm_num_bits,
 						nvm_param.dl_num_bytes);
+		} else {
+			struct hwrm_err_output *resp = bp->hwrm_cmd_resp_addr;
+
+			if (resp->cmd_err ==
+				NVM_GET_VARIABLE_CMD_ERR_CODE_VAR_NOT_EXIST)
+				rc = -EOPNOTSUPP;
+		}
 	}
 	dma_free_coherent(&bp->pdev->dev, sizeof(*data), data, data_dma_addr);
 	if (rc == -EACCES)

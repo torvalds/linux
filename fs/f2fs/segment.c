@@ -1771,7 +1771,8 @@ static int __f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
 			return -EIO;
 		}
 		trace_f2fs_issue_reset_zone(bdev, blkstart);
-		return blkdev_reset_zones(bdev, sector, nr_sects, GFP_NOFS);
+		return blkdev_zone_mgmt(bdev, REQ_OP_ZONE_RESET,
+					sector, nr_sects, GFP_NOFS);
 	}
 
 	/* For conventional zones, use regular discard if supported */

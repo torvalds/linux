@@ -461,8 +461,14 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 		if (unlikely(get_cqe_opcode(cqe) == MLX5_CQE_REQ_ERR)) {
 			if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING,
 					      &sq->state)) {
+				struct mlx5e_tx_wqe_info *wi;
+				u16 ci;
+
+				ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
+				wi = &sq->db.wqe_info[ci];
 				mlx5e_dump_error_cqe(sq,
 						     (struct mlx5_err_cqe *)cqe);
+				mlx5_wq_cyc_wqe_dump(&sq->wq, ci, wi->num_wqebbs);
 				queue_work(cq->channel->priv->wq,
 					   &sq->recover_work);
 			}

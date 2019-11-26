@@ -35,6 +35,21 @@ config TIPC_MEDIA_UDP
 	  Saying Y here will enable support for running TIPC over IP/UDP
 	bool
 	default y
+config TIPC_CRYPTO
+	bool "TIPC encryption support"
+	depends on TIPC
+	select CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_GCM
+	help
+	  Saying Y here will enable support for TIPC encryption.
+	  All TIPC messages will be encrypted/decrypted by using the currently most
+	  advanced algorithm: AEAD AES-GCM (like IPSec or TLS) before leaving/
+	  entering the TIPC stack.
+	  Key setting from user-space is performed via netlink by a user program
+	  (e.g. the iproute2 'tipc' tool).
+	bool
+	default y
 
 config TIPC_DIAG
 	tristate "TIPC: socket monitoring interface"

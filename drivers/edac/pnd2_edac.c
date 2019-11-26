@@ -1231,7 +1231,7 @@ static void apl_get_dimm_config(struct mem_ctl_info *mci)
 		if (!(chan_mask & BIT(i)))
 			continue;
 
-		dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers, i, 0, 0);
+		dimm = edac_get_dimm(mci, i, 0, 0);
 		if (!dimm) {
 			edac_dbg(0, "No allocated DIMM for channel %d\n", i);
 			continue;
@@ -1311,7 +1311,7 @@ static void dnv_get_dimm_config(struct mem_ctl_info *mci)
 			if (!ranks_of_dimm[j])
 				continue;
 
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers, i, j, 0);
+			dimm = edac_get_dimm(mci, i, j, 0);
 			if (!dimm) {
 				edac_dbg(0, "No allocated DIMM for channel %d DIMM %d\n", i, j);
 				continue;

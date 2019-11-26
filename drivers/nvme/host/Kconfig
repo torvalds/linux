@@ -23,6 +23,16 @@ config NVME_MULTIPATH
 	   /dev/nvmeXnY device will show up for each NVMe namespaces,
 	   even if it is accessible through multiple controllers.
 
+config NVME_HWMON
+	bool "NVMe hardware monitoring"
+	depends on (NVME_CORE=y && HWMON=y) || (NVME_CORE=m && HWMON)
+	help
+	  This provides support for NVMe hardware monitoring. If enabled,
+	  a hardware monitoring device will be created for each NVMe drive
+	  in the system.
+
+	  If unsure, say N.
+
 config NVME_FABRICS
 	tristate
 

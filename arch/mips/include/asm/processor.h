@@ -385,7 +385,7 @@ unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk) (task_pt_regs(tsk)->regs[29])
 #define KSTK_STATUS(tsk) (task_pt_regs(tsk)->cp0_status)
 
-#ifdef CONFIG_CPU_LOONGSON3
+#ifdef CONFIG_CPU_LOONGSON64
 /*
  * Loongson-3's SFB (Store-Fill-Buffer) may buffer writes indefinitely when a
  * tight read loop is executed, because reads take priority over writes & the

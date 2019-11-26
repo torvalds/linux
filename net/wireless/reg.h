@@ -114,7 +114,7 @@ void regulatory_hint_country_ie(struct wiphy *wiphy,
 			 u8 country_ie_len);
 
 /**
- * regulatory_hint_disconnect - informs all devices have been disconneted
+ * regulatory_hint_disconnect - informs all devices have been disconnected
  *
  * Regulotory rules can be enhanced further upon scanning and upon
  * connection to an AP. These rules become stale if we disconnect

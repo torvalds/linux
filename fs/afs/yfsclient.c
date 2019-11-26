@@ -152,8 +152,8 @@ static void yfs_check_req(struct afs_call *call, __be32 *bp)
 		pr_err("kAFS: %s: Request buffer overflow (%zu>%u)\n",
 		       call->type->name, len, call->request_size);
 	else if (len < call->request_size)
-		pr_warning("kAFS: %s: Request buffer underflow (%zu<%u)\n",
-			   call->type->name, len, call->request_size);
+		pr_warn("kAFS: %s: Request buffer underflow (%zu<%u)\n",
+			call->type->name, len, call->request_size);
 }
 
 /*

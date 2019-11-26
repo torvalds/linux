@@ -263,6 +263,37 @@ static void br_getinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
 }
 
+static int br_get_link_ksettings(struct net_device *dev,
+				 struct ethtool_link_ksettings *cmd)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_port *p;
+
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->base.port = PORT_OTHER;
+	cmd->base.speed = SPEED_UNKNOWN;
+
+	list_for_each_entry(p, &br->port_list, list) {
+		struct ethtool_link_ksettings ecmd;
+		struct net_device *pdev = p->dev;
+
+		if (!netif_running(pdev) || !netif_oper_up(pdev))
+			continue;
+
+		if (__ethtool_get_link_ksettings(pdev, &ecmd))
+			continue;
+
+		if (ecmd.base.speed == (__u32)SPEED_UNKNOWN)
+			continue;
+
+		if (cmd->base.speed == (__u32)SPEED_UNKNOWN ||
+		    cmd->base.speed < ecmd.base.speed)
+			cmd->base.speed = ecmd.base.speed;
+	}
+
+	return 0;
+}
+
 static netdev_features_t br_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
@@ -365,8 +396,9 @@ static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
 }
 
 static const struct ethtool_ops br_ethtool_ops = {
-	.get_drvinfo    = br_getinfo,
-	.get_link	= ethtool_op_get_link,
+	.get_drvinfo		 = br_getinfo,
+	.get_link		 = ethtool_op_get_link,
+	.get_link_ksettings	 = br_get_link_ksettings,
 };
 
 static const struct net_device_ops br_netdev_ops = {

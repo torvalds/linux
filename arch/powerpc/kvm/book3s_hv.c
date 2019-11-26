@@ -133,7 +133,6 @@ static inline bool nesting_enabled(struct kvm *kvm)
 /* If set, the threads on each CPU core have to be in the same MMU mode */
 static bool no_mixing_hpt_and_radix;
 
-static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
 /*
@@ -336,18 +335,6 @@ static void kvmppc_core_vcpu_put_hv(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.state == KVMPPC_VCPU_BUSY_IN_HOST)
 		vcpu->arch.busy_preempt = mftb();
 	spin_unlock_irqrestore(&vcpu->arch.tbacct_lock, flags);
-}
-
-static void kvmppc_set_msr_hv(struct kvm_vcpu *vcpu, u64 msr)
-{
-	/*
-	 * Check for illegal transactional state bit combination
-	 * and if we find it, force the TS field to a safe state.
-	 */
-	if ((msr & MSR_TS_MASK) == MSR_TS_MASK)
-		msr &= ~MSR_TS_MASK;
-	vcpu->arch.shregs.msr = msr;
-	kvmppc_end_cede(vcpu);
 }
 
 static void kvmppc_set_pvr_hv(struct kvm_vcpu *vcpu, u32 pvr)
@@ -792,6 +779,11 @@ static int kvmppc_h_set_mode(struct kvm_vcpu *vcpu, unsigned long mflags,
 		vcpu->arch.dawr  = value1;
 		vcpu->arch.dawrx = value2;
 		return H_SUCCESS;
+	case H_SET_MODE_RESOURCE_ADDR_TRANS_MODE:
+		/* KVM does not support mflags=2 (AIL=2) */
+		if (mflags != 0 && mflags != 3)
+			return H_UNSUPPORTED_FLAG_START;
+		return H_TOO_HARD;
 	default:
 		return H_TOO_HARD;
 	}
@@ -2452,15 +2444,6 @@ static void kvmppc_set_timer(struct kvm_vcpu *vcpu)
 	dec_nsec = tb_to_ns(vcpu->arch.dec_expires - now);
 	hrtimer_start(&vcpu->arch.dec_timer, dec_nsec, HRTIMER_MODE_REL);
 	vcpu->arch.timer_running = 1;
-}
-
-static void kvmppc_end_cede(struct kvm_vcpu *vcpu)
-{
-	vcpu->arch.ceded = 0;
-	if (vcpu->arch.timer_running) {
-		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
-		vcpu->arch.timer_running = 0;
-	}
 }
 
 extern int __kvmppc_vcore_entry(void);
@@ -5401,6 +5384,7 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.set_one_reg = kvmppc_set_one_reg_hv,
 	.vcpu_load   = kvmppc_core_vcpu_load_hv,
 	.vcpu_put    = kvmppc_core_vcpu_put_hv,
+	.inject_interrupt = kvmppc_inject_interrupt_hv,
 	.set_msr     = kvmppc_set_msr_hv,
 	.vcpu_run    = kvmppc_vcpu_run_hv,
 	.vcpu_create = kvmppc_core_vcpu_create_hv,

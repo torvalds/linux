@@ -202,8 +202,11 @@ struct smc_link_group {
 
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
+	struct work_struct	terminate_work;	/* abnormal lgr termination */
 	u8			sync_err : 1;	/* lgr no longer fits to peer */
 	u8			terminating : 1;/* lgr is terminating */
+	u8			freefast : 1;	/* free worker scheduled fast */
+	u8			freeing : 1;	/* lgr is being freed */
 
 	bool			is_smcd;	/* SMC-R or SMC-D */
 	union {
@@ -225,6 +228,8 @@ struct smc_link_group {
 						/* Peer GID (remote) */
 			struct smcd_dev		*smcd;
 						/* ISM device for VLAN reg. */
+			u8			peer_shutdown : 1;
+						/* peer triggered shutdownn */
 		};
 	};
 };
@@ -280,15 +285,23 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	return res;
 }
 
+static inline void smc_lgr_terminate_sched(struct smc_link_group *lgr)
+{
+	if (!lgr->terminating && !lgr->freeing)
+		schedule_work(&lgr->terminate_work);
+}
+
 struct smc_sock;
 struct smc_clc_msg_accept_confirm;
 struct smc_clc_msg_local;
 
 void smc_lgr_forget(struct smc_link_group *lgr);
-void smc_lgr_terminate(struct smc_link_group *lgr);
+void smc_lgr_terminate(struct smc_link_group *lgr, bool soft);
 void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);
 void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid,
 			unsigned short vlan);
+void smc_smcd_terminate_all(struct smcd_dev *dev);
+void smc_smcr_terminate_all(struct smc_ib_device *smcibdev);
 int smc_buf_create(struct smc_sock *smc, bool is_smcd);
 int smc_uncompress_bufsize(u8 compressed);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
@@ -305,6 +318,7 @@ void smc_conn_free(struct smc_connection *conn);
 int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini);
 void smcd_conn_free(struct smc_connection *conn);
 void smc_lgr_schedule_free_work_fast(struct smc_link_group *lgr);
+int smc_core_init(void);
 void smc_core_exit(void);
 
 static inline struct smc_link_group *smc_get_lgr(struct smc_link *link)

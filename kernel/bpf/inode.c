@@ -31,10 +31,10 @@ static void *bpf_any_get(void *raw, enum bpf_type type)
 {
 	switch (type) {
 	case BPF_TYPE_PROG:
-		raw = bpf_prog_inc(raw);
+		bpf_prog_inc(raw);
 		break;
 	case BPF_TYPE_MAP:
-		raw = bpf_map_inc(raw, true);
+		bpf_map_inc_with_uref(raw);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -534,7 +534,8 @@ static struct bpf_prog *__get_prog_inode(struct inode *inode, enum bpf_prog_type
 	if (!bpf_prog_get_ok(prog, &type, false))
 		return ERR_PTR(-EINVAL);
 
-	return bpf_prog_inc(prog);
+	bpf_prog_inc(prog);
+	return prog;
 }
 
 struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type)

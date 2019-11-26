@@ -22,7 +22,7 @@
 #define QCE_QUEUE_LENGTH	1
 
 static const struct qce_algo_ops *qce_ops[] = {
-	&ablkcipher_ops,
+	&skcipher_ops,
 	&ahash_ops,
 };
 

@@ -936,8 +936,8 @@ hscx_empty_fifo(struct hscx_hw *hscx, u8 count)
 		hscx_cmdr(hscx, 0x80); /* RMC */
 		if (hscx->bch.rx_skb)
 			skb_trim(hscx->bch.rx_skb, 0);
-		pr_warning("%s.B%d: No bufferspace for %d bytes\n",
-			   hscx->ip->name, hscx->bch.nr, count);
+		pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+			hscx->ip->name, hscx->bch.nr, count);
 		return;
 	}
 	p = skb_put(hscx->bch.rx_skb, count);

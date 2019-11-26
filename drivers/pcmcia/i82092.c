@@ -431,27 +431,25 @@ static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 		
 	/* IO cards have a different meaning of bits 0,1 */
 	/* Also notice the inverse-logic on the bits */
-	 if (indirect_read(sock, I365_INTCTL) & I365_PC_IOCARD)	{
-	 	/* IO card */
-	 	if (!(status & I365_CS_STSCHG))
-	 		*value |= SS_STSCHG;
-	 } else { /* non I/O card */
-	 	if (!(status & I365_CS_BVD1))
-	 		*value |= SS_BATDEAD;
-	 	if (!(status & I365_CS_BVD2))
-	 		*value |= SS_BATWARN;
-	 		
-	 }
+	if (indirect_read(sock, I365_INTCTL) & I365_PC_IOCARD)	{
+		/* IO card */
+		if (!(status & I365_CS_STSCHG))
+			*value |= SS_STSCHG;
+	} else { /* non I/O card */
+		if (!(status & I365_CS_BVD1))
+			*value |= SS_BATDEAD;
+		if (!(status & I365_CS_BVD2))
+			*value |= SS_BATWARN;
+	}
 	 
-	 if (status & I365_CS_WRPROT)
-	 	(*value) |= SS_WRPROT;	/* card is write protected */
+	if (status & I365_CS_WRPROT)
+		(*value) |= SS_WRPROT;	/* card is write protected */
 	 
-	 if (status & I365_CS_READY)
-	 	(*value) |= SS_READY;    /* card is not busy */
+	if (status & I365_CS_READY)
+		(*value) |= SS_READY;    /* card is not busy */
 	 	
-	 if (status & I365_CS_POWERON)
-	 	(*value) |= SS_POWERON;  /* power is applied to the card */
-
+	if (status & I365_CS_POWERON)
+		(*value) |= SS_POWERON;  /* power is applied to the card */
 
 	leave("i82092aa_get_status");
 	return 0;

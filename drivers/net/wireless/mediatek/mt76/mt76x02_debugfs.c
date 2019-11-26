@@ -19,7 +19,8 @@ mt76x02_ampdu_stat_read(struct seq_file *file, void *data)
 		seq_puts(file, "\n");
 		seq_puts(file, "Count:  ");
 		for (j = 0; j < 8; j++)
-			seq_printf(file, "%8d | ", dev->aggr_stats[i * 8 + j]);
+			seq_printf(file, "%8d | ",
+				   dev->mt76.aggr_stats[i * 8 + j]);
 		seq_puts(file, "\n");
 		seq_puts(file, "--------");
 		for (j = 0; j < 8; j++)
@@ -143,6 +144,8 @@ void mt76x02_init_debugfs(struct mt76x02_dev *dev)
 	if (!dir)
 		return;
 
+	debugfs_create_devm_seqfile(dev->mt76.dev, "queues", dir,
+				    mt76_queues_read);
 	debugfs_create_u8("temperature", 0400, dir, &dev->cal.temp);
 	debugfs_create_bool("tpc", 0600, dir, &dev->enable_tpc);
 

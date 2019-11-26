@@ -8,7 +8,6 @@
 
 #include <linux/list.h>
 #include "../qm.h"
-#include "../sgl.h"
 
 /* hisi_zip_sqe dw3 */
 #define HZIP_BD_STATUS_M			GENMASK(7, 0)

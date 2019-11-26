@@ -3952,7 +3952,7 @@ static void nfp_bpf_opt_neg_add_sub(struct nfp_prog *nfp_prog)
 static void nfp_bpf_opt_ld_mask(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta1, *meta2;
-	const s32 exp_mask[] = {
+	static const s32 exp_mask[] = {
 		[BPF_B] = 0x000000ffU,
 		[BPF_H] = 0x0000ffffU,
 		[BPF_W] = 0xffffffffU,

@@ -17,8 +17,6 @@
 #define NODE_NUM_CPUS(n)	CPUS_PER_NODE
 #endif
 
-#define CNODEID_NONE (cnodeid_t)-1
-
 typedef unsigned long machreg_t;
 
 static arch_spinlock_t nmi_lock = __ARCH_SPIN_LOCK_UNLOCKED;
@@ -152,16 +150,10 @@ void nmi_dump_hub_irq(nasid_t nasid, int slice)
  * Copy the cpu registers which have been saved in the IP27prom format
  * into the eframe format for the node under consideration.
  */
-void nmi_node_eframe_save(cnodeid_t  cnode)
+void nmi_node_eframe_save(nasid_t nasid)
 {
-	nasid_t nasid;
 	int slice;
 
-	/* Make sure that we have a valid node */
-	if (cnode == CNODEID_NONE)
-		return;
-
-	nasid = COMPACT_TO_NASID_NODEID(cnode);
 	if (nasid == INVALID_NASID)
 		return;
 
@@ -178,10 +170,10 @@ void nmi_node_eframe_save(cnodeid_t  cnode)
 void
 nmi_eframes_save(void)
 {
-	cnodeid_t	cnode;
+	nasid_t nasid;
 
-	for_each_online_node(cnode)
-		nmi_node_eframe_save(cnode);
+	for_each_online_node(nasid)
+		nmi_node_eframe_save(nasid);
 }
 
 void

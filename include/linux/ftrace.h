@@ -499,7 +499,7 @@ static inline int ftrace_disable_ftrace_graph_caller(void) { return 0; }
 /**
  * ftrace_make_nop - convert code into nop
  * @mod: module structure if called by module load initialization
- * @rec: the mcount call site record
+ * @rec: the call site record (e.g. mcount/fentry)
  * @addr: the address that the call site should be calling
  *
  * This is a very sensitive operation and great care needs
@@ -520,9 +520,38 @@ static inline int ftrace_disable_ftrace_graph_caller(void) { return 0; }
 extern int ftrace_make_nop(struct module *mod,
 			   struct dyn_ftrace *rec, unsigned long addr);
 
+
+/**
+ * ftrace_init_nop - initialize a nop call site
+ * @mod: module structure if called by module load initialization
+ * @rec: the call site record (e.g. mcount/fentry)
+ *
+ * This is a very sensitive operation and great care needs
+ * to be taken by the arch.  The operation should carefully
+ * read the location, check to see if what is read is indeed
+ * what we expect it to be, and then on success of the compare,
+ * it should write to the location.
+ *
+ * The code segment at @rec->ip should contain the contents created by
+ * the compiler
+ *
+ * Return must be:
+ *  0 on success
+ *  -EFAULT on error reading the location
+ *  -EINVAL on a failed compare of the contents
+ *  -EPERM  on error writing to the location
+ * Any other value will be considered a failure.
+ */
+#ifndef ftrace_init_nop
+static inline int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+{
+	return ftrace_make_nop(mod, rec, MCOUNT_ADDR);
+}
+#endif
+
 /**
  * ftrace_make_call - convert a nop call site into a call to addr
- * @rec: the mcount call site record
+ * @rec: the call site record (e.g. mcount/fentry)
  * @addr: the address that the call site should call
  *
  * This is a very sensitive operation and great care needs
@@ -545,7 +574,7 @@ extern int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr);
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 /**
  * ftrace_modify_call - convert from one addr to another (no nop)
- * @rec: the mcount call site record
+ * @rec: the call site record (e.g. mcount/fentry)
  * @old_addr: the address expected to be currently called to
  * @addr: the address to change to
  *
@@ -709,6 +738,11 @@ static inline unsigned long get_lock_parent_ip(void)
 
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 extern void ftrace_init(void);
+#ifdef CC_USING_PATCHABLE_FUNCTION_ENTRY
+#define FTRACE_CALLSITE_SECTION	"__patchable_function_entries"
+#else
+#define FTRACE_CALLSITE_SECTION	"__mcount_loc"
+#endif
 #else
 static inline void ftrace_init(void) { }
 #endif

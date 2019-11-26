@@ -3,14 +3,11 @@
  * Copyright (c) 2011 Zhang, Keguang <keguang.zhang@gmail.com>
  */
 
+#include <linux/io.h>
+#include <linux/init.h>
+#include <linux/smp.h>
+#include <asm/cpu-info.h>
 #include <asm/bootinfo.h>
-
-#include <prom.h>
-
-void __init plat_mem_setup(void)
-{
-	add_memory_region(0x0, (memsize << 20), BOOT_MEM_RAM);
-}
 
 const char *get_system_type(void)
 {

@@ -4,13 +4,14 @@
 #include <linux/bpf.h>
 #include <stdint.h>
 #include "bpf_helpers.h"
+#include "bpf_core_read.h"
 
 char _license[] SEC("license") = "GPL";
 
-static volatile struct data {
+struct {
 	char in[256];
 	char out[256];
-} data;
+} data = {};
 
 struct core_reloc_mods_output {
 	int a, b, c, d, e, f, g, h;
@@ -41,20 +42,22 @@ struct core_reloc_mods {
 	core_reloc_mods_substruct_t h;
 };
 
+#define CORE_READ(dst, src) bpf_core_read(dst, sizeof(*(dst)), src)
+
 SEC("raw_tracepoint/sys_enter")
 int test_core_mods(void *ctx)
 {
 	struct core_reloc_mods *in = (void *)&data.in;
 	struct core_reloc_mods_output *out = (void *)&data.out;
 
-	if (BPF_CORE_READ(&out->a, &in->a) ||
-	    BPF_CORE_READ(&out->b, &in->b) ||
-	    BPF_CORE_READ(&out->c, &in->c) ||
-	    BPF_CORE_READ(&out->d, &in->d) ||
-	    BPF_CORE_READ(&out->e, &in->e[2]) ||
-	    BPF_CORE_READ(&out->f, &in->f[1]) ||
-	    BPF_CORE_READ(&out->g, &in->g.x) ||
-	    BPF_CORE_READ(&out->h, &in->h.y))
+	if (CORE_READ(&out->a, &in->a) ||
+	    CORE_READ(&out->b, &in->b) ||
+	    CORE_READ(&out->c, &in->c) ||
+	    CORE_READ(&out->d, &in->d) ||
+	    CORE_READ(&out->e, &in->e[2]) ||
+	    CORE_READ(&out->f, &in->f[1]) ||
+	    CORE_READ(&out->g, &in->g.x) ||
+	    CORE_READ(&out->h, &in->h.y))
 		return 1;
 
 	return 0;

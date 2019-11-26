@@ -21,6 +21,7 @@
 #include <linux/build_bug.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/errname.h>
 #include <linux/module.h>	/* for KSYM_SYMBOL_LEN */
 #include <linux/types.h>
 #include <linux/string.h>
@@ -611,6 +612,25 @@ static char *string_nocheck(char *buf, char *end, const char *s,
 		++len;
 	}
 	return widen_string(buf, len, end, spec);
+}
+
+static char *err_ptr(char *buf, char *end, void *ptr,
+		     struct printf_spec spec)
+{
+	int err = PTR_ERR(ptr);
+	const char *sym = errname(err);
+
+	if (sym)
+		return string_nocheck(buf, end, sym, spec);
+
+	/*
+	 * Somebody passed ERR_PTR(-1234) or some other non-existing
+	 * Efoo - or perhaps CONFIG_SYMBOLIC_ERRNAME=n. Fall back to
+	 * printing it as its decimal representation.
+	 */
+	spec.flags |= SIGN;
+	spec.base = 10;
+	return number(buf, end, err, spec);
 }
 
 /* Be careful: error messages must fit into the given buffer. */
@@ -2187,6 +2207,11 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		return kobject_string(buf, end, ptr, spec, fmt);
 	case 'x':
 		return pointer_string(buf, end, ptr, spec);
+	case 'e':
+		/* %pe with a non-ERR_PTR gets treated as plain %p */
+		if (!IS_ERR(ptr))
+			break;
+		return err_ptr(buf, end, ptr, spec);
 	}
 
 	/* default is to _not_ leak addresses, hash before printing */
@@ -2823,6 +2848,7 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 			case 'f':
 			case 'x':
 			case 'K':
+			case 'e':
 				save_arg(void *);
 				break;
 			default:
@@ -2999,6 +3025,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 			case 'f':
 			case 'x':
 			case 'K':
+			case 'e':
 				process = true;
 				break;
 			default:

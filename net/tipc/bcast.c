@@ -84,12 +84,12 @@ static struct tipc_bc_base *tipc_bc_base(struct net *net)
  */
 int tipc_bcast_get_mtu(struct net *net)
 {
-	return tipc_link_mtu(tipc_bc_sndlink(net)) - INT_H_SIZE;
+	return tipc_link_mss(tipc_bc_sndlink(net));
 }
 
-void tipc_bcast_disable_rcast(struct net *net)
+void tipc_bcast_toggle_rcast(struct net *net, bool supp)
 {
-	tipc_bc_base(net)->rcast_support = false;
+	tipc_bc_base(net)->rcast_support = supp;
 }
 
 static void tipc_bcbase_calc_bc_threshold(struct net *net)

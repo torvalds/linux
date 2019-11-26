@@ -16,7 +16,9 @@
 #include <net/tc_act/tc_skbedit.h>
 #include <net/tc_act/tc_mirred.h>
 #include <net/tc_act/tc_vlan.h>
+#include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_tunnel_key.h>
+#include <net/vxlan.h>
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
@@ -36,6 +38,8 @@
 #define is_vid_exactmatch(vlan_tci_mask)	\
 	((ntohs(vlan_tci_mask) & VLAN_VID_MASK) == VLAN_VID_MASK)
 
+static bool is_wildcard(void *mask, int len);
+static bool is_exactmatch(void *mask, int len);
 /* Return the dst fid of the func for flow forwarding
  * For PFs: src_fid is the fid of the PF
  * For VF-reps: src_fid the fid of the VF
@@ -111,10 +115,182 @@ static int bnxt_tc_parse_tunnel_set(struct bnxt *bp,
 	return 0;
 }
 
+/* Key & Mask from the stack comes unaligned in multiple iterations of 4 bytes
+ * each(u32).
+ * This routine consolidates such multiple unaligned values into one
+ * field each for Key & Mask (for src and dst macs separately)
+ * For example,
+ *			Mask/Key	Offset	Iteration
+ *			==========	======	=========
+ *	dst mac		0xffffffff	0	1
+ *	dst mac		0x0000ffff	4	2
+ *
+ *	src mac		0xffff0000	4	1
+ *	src mac		0xffffffff	8	2
+ *
+ * The above combination coming from the stack will be consolidated as
+ *			Mask/Key
+ *			==============
+ *	src mac:	0xffffffffffff
+ *	dst mac:	0xffffffffffff
+ */
+static void bnxt_set_l2_key_mask(u32 part_key, u32 part_mask,
+				 u8 *actual_key, u8 *actual_mask)
+{
+	u32 key = get_unaligned((u32 *)actual_key);
+	u32 mask = get_unaligned((u32 *)actual_mask);
+
+	part_key &= part_mask;
+	part_key |= key & ~part_mask;
+
+	put_unaligned(mask | part_mask, (u32 *)actual_mask);
+	put_unaligned(part_key, (u32 *)actual_key);
+}
+
+static int
+bnxt_fill_l2_rewrite_fields(struct bnxt_tc_actions *actions,
+			    u16 *eth_addr, u16 *eth_addr_mask)
+{
+	u16 *p;
+	int j;
+
+	if (unlikely(bnxt_eth_addr_key_mask_invalid(eth_addr, eth_addr_mask)))
+		return -EINVAL;
+
+	if (!is_wildcard(&eth_addr_mask[0], ETH_ALEN)) {
+		if (!is_exactmatch(&eth_addr_mask[0], ETH_ALEN))
+			return -EINVAL;
+		/* FW expects dmac to be in u16 array format */
+		p = eth_addr;
+		for (j = 0; j < 3; j++)
+			actions->l2_rewrite_dmac[j] = cpu_to_be16(*(p + j));
+	}
+
+	if (!is_wildcard(&eth_addr_mask[ETH_ALEN / 2], ETH_ALEN)) {
+		if (!is_exactmatch(&eth_addr_mask[ETH_ALEN / 2], ETH_ALEN))
+			return -EINVAL;
+		/* FW expects smac to be in u16 array format */
+		p = &eth_addr[ETH_ALEN / 2];
+		for (j = 0; j < 3; j++)
+			actions->l2_rewrite_smac[j] = cpu_to_be16(*(p + j));
+	}
+
+	return 0;
+}
+
+static int
+bnxt_tc_parse_pedit(struct bnxt *bp, struct bnxt_tc_actions *actions,
+		    struct flow_action_entry *act, int act_idx, u8 *eth_addr,
+		    u8 *eth_addr_mask)
+{
+	size_t offset_of_ip6_daddr = offsetof(struct ipv6hdr, daddr);
+	size_t offset_of_ip6_saddr = offsetof(struct ipv6hdr, saddr);
+	u32 mask, val, offset, idx;
+	u8 htype;
+
+	offset = act->mangle.offset;
+	htype = act->mangle.htype;
+	mask = ~act->mangle.mask;
+	val = act->mangle.val;
+
+	switch (htype) {
+	case FLOW_ACT_MANGLE_HDR_TYPE_ETH:
+		if (offset > PEDIT_OFFSET_SMAC_LAST_4_BYTES) {
+			netdev_err(bp->dev,
+				   "%s: eth_hdr: Invalid pedit field\n",
+				   __func__);
+			return -EINVAL;
+		}
+		actions->flags |= BNXT_TC_ACTION_FLAG_L2_REWRITE;
+
+		bnxt_set_l2_key_mask(val, mask, &eth_addr[offset],
+				     &eth_addr_mask[offset]);
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
+		actions->flags |= BNXT_TC_ACTION_FLAG_NAT_XLATE;
+		actions->nat.l3_is_ipv4 = true;
+		if (offset ==  offsetof(struct iphdr, saddr)) {
+			actions->nat.src_xlate = true;
+			actions->nat.l3.ipv4.saddr.s_addr = htonl(val);
+		} else if (offset ==  offsetof(struct iphdr, daddr)) {
+			actions->nat.src_xlate = false;
+			actions->nat.l3.ipv4.daddr.s_addr = htonl(val);
+		} else {
+			netdev_err(bp->dev,
+				   "%s: IPv4_hdr: Invalid pedit field\n",
+				   __func__);
+			return -EINVAL;
+		}
+
+		netdev_dbg(bp->dev, "nat.src_xlate = %d src IP: %pI4 dst ip : %pI4\n",
+			   actions->nat.src_xlate, &actions->nat.l3.ipv4.saddr,
+			   &actions->nat.l3.ipv4.daddr);
+		break;
+
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
+		actions->flags |= BNXT_TC_ACTION_FLAG_NAT_XLATE;
+		actions->nat.l3_is_ipv4 = false;
+		if (offset >= offsetof(struct ipv6hdr, saddr) &&
+		    offset < offset_of_ip6_daddr) {
+			/* 16 byte IPv6 address comes in 4 iterations of
+			 * 4byte chunks each
+			 */
+			actions->nat.src_xlate = true;
+			idx = (offset - offset_of_ip6_saddr) / 4;
+			/* First 4bytes will be copied to idx 0 and so on */
+			actions->nat.l3.ipv6.saddr.s6_addr32[idx] = htonl(val);
+		} else if (offset >= offset_of_ip6_daddr &&
+			   offset < offset_of_ip6_daddr + 16) {
+			actions->nat.src_xlate = false;
+			idx = (offset - offset_of_ip6_daddr) / 4;
+			actions->nat.l3.ipv6.saddr.s6_addr32[idx] = htonl(val);
+		} else {
+			netdev_err(bp->dev,
+				   "%s: IPv6_hdr: Invalid pedit field\n",
+				   __func__);
+			return -EINVAL;
+		}
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
+	case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
+		/* HW does not support L4 rewrite alone without L3
+		 * rewrite
+		 */
+		if (!(actions->flags & BNXT_TC_ACTION_FLAG_NAT_XLATE)) {
+			netdev_err(bp->dev,
+				   "Need to specify L3 rewrite as well\n");
+			return -EINVAL;
+		}
+		if (actions->nat.src_xlate)
+			actions->nat.l4.ports.sport = htons(val);
+		else
+			actions->nat.l4.ports.dport = htons(val);
+		netdev_dbg(bp->dev, "actions->nat.sport = %d dport = %d\n",
+			   actions->nat.l4.ports.sport,
+			   actions->nat.l4.ports.dport);
+		break;
+	default:
+		netdev_err(bp->dev, "%s: Unsupported pedit hdr type\n",
+			   __func__);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int bnxt_tc_parse_actions(struct bnxt *bp,
 				 struct bnxt_tc_actions *actions,
 				 struct flow_action *flow_action)
 {
+	/* Used to store the L2 rewrite mask for dmac (6 bytes) followed by
+	 * smac (6 bytes) if rewrite of both is specified, otherwise either
+	 * dmac or smac
+	 */
+	u16 eth_addr_mask[ETH_ALEN] = { 0 };
+	/* Used to store the L2 rewrite key for dmac (6 bytes) followed by
+	 * smac (6 bytes) if rewrite of both is specified, otherwise either
+	 * dmac or smac
+	 */
+	u16 eth_addr[ETH_ALEN] = { 0 };
 	struct flow_action_entry *act;
 	int i, rc;
 
@@ -148,9 +324,24 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 		case FLOW_ACTION_TUNNEL_DECAP:
 			actions->flags |= BNXT_TC_ACTION_FLAG_TUNNEL_DECAP;
 			break;
+		/* Packet edit: L2 rewrite, NAT, NAPT */
+		case FLOW_ACTION_MANGLE:
+			rc = bnxt_tc_parse_pedit(bp, actions, act, i,
+						 (u8 *)eth_addr,
+						 (u8 *)eth_addr_mask);
+			if (rc)
+				return rc;
+			break;
 		default:
 			break;
 		}
+	}
+
+	if (actions->flags & BNXT_TC_ACTION_FLAG_L2_REWRITE) {
+		rc = bnxt_fill_l2_rewrite_fields(actions, eth_addr,
+						 eth_addr_mask);
+		if (rc)
+			return rc;
 	}
 
 	if (actions->flags & BNXT_TC_ACTION_FLAG_FWD) {
@@ -400,6 +591,76 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 
 	req.src_fid = cpu_to_le16(flow->src_fid);
 	req.ref_flow_handle = ref_flow_handle;
+
+	if (actions->flags & BNXT_TC_ACTION_FLAG_L2_REWRITE) {
+		memcpy(req.l2_rewrite_dmac, actions->l2_rewrite_dmac,
+		       ETH_ALEN);
+		memcpy(req.l2_rewrite_smac, actions->l2_rewrite_smac,
+		       ETH_ALEN);
+		action_flags |=
+			CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_L2_HEADER_REWRITE;
+	}
+
+	if (actions->flags & BNXT_TC_ACTION_FLAG_NAT_XLATE) {
+		if (actions->nat.l3_is_ipv4) {
+			action_flags |=
+				CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_IPV4_ADDRESS;
+
+			if (actions->nat.src_xlate) {
+				action_flags |=
+					CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_SRC;
+				/* L3 source rewrite */
+				req.nat_ip_address[0] =
+					actions->nat.l3.ipv4.saddr.s_addr;
+				/* L4 source port */
+				if (actions->nat.l4.ports.sport)
+					req.nat_port =
+						actions->nat.l4.ports.sport;
+			} else {
+				action_flags |=
+					CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_DEST;
+				/* L3 destination rewrite */
+				req.nat_ip_address[0] =
+					actions->nat.l3.ipv4.daddr.s_addr;
+				/* L4 destination port */
+				if (actions->nat.l4.ports.dport)
+					req.nat_port =
+						actions->nat.l4.ports.dport;
+			}
+			netdev_dbg(bp->dev,
+				   "req.nat_ip_address: %pI4 src_xlate: %d req.nat_port: %x\n",
+				   req.nat_ip_address, actions->nat.src_xlate,
+				   req.nat_port);
+		} else {
+			if (actions->nat.src_xlate) {
+				action_flags |=
+					CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_SRC;
+				/* L3 source rewrite */
+				memcpy(req.nat_ip_address,
+				       actions->nat.l3.ipv6.saddr.s6_addr32,
+				       sizeof(req.nat_ip_address));
+				/* L4 source port */
+				if (actions->nat.l4.ports.sport)
+					req.nat_port =
+						actions->nat.l4.ports.sport;
+			} else {
+				action_flags |=
+					CFA_FLOW_ALLOC_REQ_ACTION_FLAGS_NAT_DEST;
+				/* L3 destination rewrite */
+				memcpy(req.nat_ip_address,
+				       actions->nat.l3.ipv6.daddr.s6_addr32,
+				       sizeof(req.nat_ip_address));
+				/* L4 destination port */
+				if (actions->nat.l4.ports.dport)
+					req.nat_port =
+						actions->nat.l4.ports.dport;
+			}
+			netdev_dbg(bp->dev,
+				   "req.nat_ip_address: %pI6 src_xlate: %d req.nat_port: %x\n",
+				   req.nat_ip_address, actions->nat.src_xlate,
+				   req.nat_port);
+		}
+	}
 
 	if (actions->flags & BNXT_TC_ACTION_FLAG_TUNNEL_DECAP ||
 	    actions->flags & BNXT_TC_ACTION_FLAG_TUNNEL_ENCAP) {
@@ -1274,7 +1535,8 @@ static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 
 	if (!bnxt_tc_can_offload(bp, flow)) {
 		rc = -EOPNOTSUPP;
-		goto free_node;
+		kfree_rcu(new_node, rcu);
+		return rc;
 	}
 
 	/* If a flow exists with the same cookie, delete it */
@@ -1580,6 +1842,147 @@ int bnxt_tc_setup_flower(struct bnxt *bp, u16 src_fid,
 	}
 }
 
+static int bnxt_tc_setup_indr_block_cb(enum tc_setup_type type,
+				       void *type_data, void *cb_priv)
+{
+	struct bnxt_flower_indr_block_cb_priv *priv = cb_priv;
+	struct flow_cls_offload *flower = type_data;
+	struct bnxt *bp = priv->bp;
+
+	if (flower->common.chain_index)
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return bnxt_tc_setup_flower(bp, bp->pf.fw_fid, flower);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static struct bnxt_flower_indr_block_cb_priv *
+bnxt_tc_indr_block_cb_lookup(struct bnxt *bp, struct net_device *netdev)
+{
+	struct bnxt_flower_indr_block_cb_priv *cb_priv;
+
+	/* All callback list access should be protected by RTNL. */
+	ASSERT_RTNL();
+
+	list_for_each_entry(cb_priv, &bp->tc_indr_block_list, list)
+		if (cb_priv->tunnel_netdev == netdev)
+			return cb_priv;
+
+	return NULL;
+}
+
+static void bnxt_tc_setup_indr_rel(void *cb_priv)
+{
+	struct bnxt_flower_indr_block_cb_priv *priv = cb_priv;
+
+	list_del(&priv->list);
+	kfree(priv);
+}
+
+static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
+				    struct flow_block_offload *f)
+{
+	struct bnxt_flower_indr_block_cb_priv *cb_priv;
+	struct flow_block_cb *block_cb;
+
+	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case FLOW_BLOCK_BIND:
+		cb_priv = kmalloc(sizeof(*cb_priv), GFP_KERNEL);
+		if (!cb_priv)
+			return -ENOMEM;
+
+		cb_priv->tunnel_netdev = netdev;
+		cb_priv->bp = bp;
+		list_add(&cb_priv->list, &bp->tc_indr_block_list);
+
+		block_cb = flow_block_cb_alloc(bnxt_tc_setup_indr_block_cb,
+					       cb_priv, cb_priv,
+					       bnxt_tc_setup_indr_rel);
+		if (IS_ERR(block_cb)) {
+			list_del(&cb_priv->list);
+			kfree(cb_priv);
+			return PTR_ERR(block_cb);
+		}
+
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list, &bnxt_block_cb_list);
+		break;
+	case FLOW_BLOCK_UNBIND:
+		cb_priv = bnxt_tc_indr_block_cb_lookup(bp, netdev);
+		if (!cb_priv)
+			return -ENOENT;
+
+		block_cb = flow_block_cb_lookup(f->block,
+						bnxt_tc_setup_indr_block_cb,
+						cb_priv);
+		if (!block_cb)
+			return -ENOENT;
+
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int bnxt_tc_setup_indr_cb(struct net_device *netdev, void *cb_priv,
+				 enum tc_setup_type type, void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return bnxt_tc_setup_indr_block(netdev, cb_priv, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static bool bnxt_is_netdev_indr_offload(struct net_device *netdev)
+{
+	return netif_is_vxlan(netdev);
+}
+
+static int bnxt_tc_indr_block_event(struct notifier_block *nb,
+				    unsigned long event, void *ptr)
+{
+	struct net_device *netdev;
+	struct bnxt *bp;
+	int rc;
+
+	netdev = netdev_notifier_info_to_dev(ptr);
+	if (!bnxt_is_netdev_indr_offload(netdev))
+		return NOTIFY_OK;
+
+	bp = container_of(nb, struct bnxt, tc_netdev_nb);
+
+	switch (event) {
+	case NETDEV_REGISTER:
+		rc = __flow_indr_block_cb_register(netdev, bp,
+						   bnxt_tc_setup_indr_cb,
+						   bp);
+		if (rc)
+			netdev_info(bp->dev,
+				    "Failed to register indirect blk: dev: %s",
+				    netdev->name);
+		break;
+	case NETDEV_UNREGISTER:
+		__flow_indr_block_cb_unregister(netdev,
+						bnxt_tc_setup_indr_cb,
+						bp);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static const struct rhashtable_params bnxt_tc_flow_ht_params = {
 	.head_offset = offsetof(struct bnxt_tc_flow_node, node),
 	.key_offset = offsetof(struct bnxt_tc_flow_node, cookie),
@@ -1663,7 +2066,15 @@ int bnxt_init_tc(struct bnxt *bp)
 	bp->dev->hw_features |= NETIF_F_HW_TC;
 	bp->dev->features |= NETIF_F_HW_TC;
 	bp->tc_info = tc_info;
-	return 0;
+
+	/* init indirect block notifications */
+	INIT_LIST_HEAD(&bp->tc_indr_block_list);
+	bp->tc_netdev_nb.notifier_call = bnxt_tc_indr_block_event;
+	rc = register_netdevice_notifier(&bp->tc_netdev_nb);
+	if (!rc)
+		return 0;
+
+	rhashtable_destroy(&tc_info->encap_table);
 
 destroy_decap_table:
 	rhashtable_destroy(&tc_info->decap_table);
@@ -1685,6 +2096,7 @@ void bnxt_shutdown_tc(struct bnxt *bp)
 	if (!bnxt_tc_flower_enabled(bp))
 		return;
 
+	unregister_netdevice_notifier(&bp->tc_netdev_nb);
 	rhashtable_destroy(&tc_info->flow_table);
 	rhashtable_destroy(&tc_info->l2_table);
 	rhashtable_destroy(&tc_info->decap_l2_table);

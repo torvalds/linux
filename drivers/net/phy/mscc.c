@@ -252,13 +252,21 @@ enum rgmii_rx_clock_delay {
 #define MSCC_PHY_TR_LSB			  17
 #define MSCC_PHY_TR_MSB			  18
 
-/* Microsemi PHY ID's */
+/* Microsemi PHY ID's
+ *   Code assumes lowest nibble is 0
+ */
+#define PHY_ID_VSC8504			  0x000704c0
 #define PHY_ID_VSC8514			  0x00070670
 #define PHY_ID_VSC8530			  0x00070560
 #define PHY_ID_VSC8531			  0x00070570
 #define PHY_ID_VSC8540			  0x00070760
 #define PHY_ID_VSC8541			  0x00070770
+#define PHY_ID_VSC8552			  0x000704e0
+#define PHY_ID_VSC856X			  0x000707e0
+#define PHY_ID_VSC8572			  0x000704d0
 #define PHY_ID_VSC8574			  0x000704a0
+#define PHY_ID_VSC8575			  0x000707d0
+#define PHY_ID_VSC8582			  0x000707b0
 #define PHY_ID_VSC8584			  0x000707c0
 
 #define MSCC_VDDMAC_1500		  1500
@@ -895,7 +903,7 @@ static void vsc85xx_tr_write(struct phy_device *phydev, u16 addr, u32 val)
 static int vsc8531_pre_init_seq_set(struct phy_device *phydev)
 {
 	int rc;
-	const struct reg_val init_seq[] = {
+	static const struct reg_val init_seq[] = {
 		{0x0f90, 0x00688980},
 		{0x0696, 0x00000003},
 		{0x07fa, 0x0050100f},
@@ -939,7 +947,7 @@ out_unlock:
 
 static int vsc85xx_eee_init_seq_set(struct phy_device *phydev)
 {
-	const struct reg_val init_eee[] = {
+	static const struct reg_val init_eee[] = {
 		{0x0f82, 0x0012b00a},
 		{0x1686, 0x00000004},
 		{0x168c, 0x00d2c46f},
@@ -1224,7 +1232,7 @@ out:
 /* bus->mdio_lock should be locked when using this function */
 static int vsc8574_config_pre_init(struct phy_device *phydev)
 {
-	const struct reg_val pre_init1[] = {
+	static const struct reg_val pre_init1[] = {
 		{0x0fae, 0x000401bd},
 		{0x0fac, 0x000f000f},
 		{0x17a0, 0x00a0f147},
@@ -1272,7 +1280,7 @@ static int vsc8574_config_pre_init(struct phy_device *phydev)
 		{0x0fee, 0x0004a6a1},
 		{0x0ffe, 0x00b01807},
 	};
-	const struct reg_val pre_init2[] = {
+	static const struct reg_val pre_init2[] = {
 		{0x0486, 0x0008a518},
 		{0x0488, 0x006dc696},
 		{0x048a, 0x00000912},
@@ -1427,7 +1435,7 @@ out:
 /* bus->mdio_lock should be locked when using this function */
 static int vsc8584_config_pre_init(struct phy_device *phydev)
 {
-	const struct reg_val pre_init1[] = {
+	static const struct reg_val pre_init1[] = {
 		{0x07fa, 0x0050100f},
 		{0x1688, 0x00049f81},
 		{0x0f90, 0x00688980},
@@ -1451,7 +1459,7 @@ static int vsc8584_config_pre_init(struct phy_device *phydev)
 		{0x16b2, 0x00007000},
 		{0x16b4, 0x00000814},
 	};
-	const struct reg_val pre_init2[] = {
+	static const struct reg_val pre_init2[] = {
 		{0x0486, 0x0008a518},
 		{0x0488, 0x006dc696},
 		{0x048a, 0x00000912},
@@ -1595,6 +1603,9 @@ static bool vsc8584_is_pkg_init(struct phy_device *phydev, bool reversed)
 		else
 			addr = vsc8531->base_addr + i;
 
+		if (!map[addr])
+			continue;
+
 		phy = container_of(map[addr], struct phy_device, mdio);
 
 		if ((phy->phy_id & phydev->drv->phy_id_mask) !=
@@ -1647,14 +1658,29 @@ static int vsc8584_config_init(struct phy_device *phydev)
 	 * in this pre-init function.
 	 */
 	if (!vsc8584_is_pkg_init(phydev, val & PHY_ADDR_REVERSED ? 1 : 0)) {
-		if ((phydev->phy_id & phydev->drv->phy_id_mask) ==
-		    (PHY_ID_VSC8574 & phydev->drv->phy_id_mask))
+		/* The following switch statement assumes that the lowest
+		 * nibble of the phy_id_mask is always 0. This works because
+		 * the lowest nibble of the PHY_ID's below are also 0.
+		 */
+		WARN_ON(phydev->drv->phy_id_mask & 0xf);
+
+		switch (phydev->phy_id & phydev->drv->phy_id_mask) {
+		case PHY_ID_VSC8504:
+		case PHY_ID_VSC8552:
+		case PHY_ID_VSC8572:
+		case PHY_ID_VSC8574:
 			ret = vsc8574_config_pre_init(phydev);
-		else if ((phydev->phy_id & phydev->drv->phy_id_mask) ==
-			 (PHY_ID_VSC8584 & phydev->drv->phy_id_mask))
+			break;
+		case PHY_ID_VSC856X:
+		case PHY_ID_VSC8575:
+		case PHY_ID_VSC8582:
+		case PHY_ID_VSC8584:
 			ret = vsc8584_config_pre_init(phydev);
-		else
+			break;
+		default:
 			ret = -EINVAL;
+			break;
+		}
 
 		if (ret)
 			goto err;
@@ -1786,7 +1812,7 @@ static int vsc8514_config_pre_init(struct phy_device *phydev)
 	 * values to handle hardware performance of PHY. They
 	 * are set at Power-On state and remain until PHY Reset.
 	 */
-	const struct reg_val pre_init1[] = {
+	static const struct reg_val pre_init1[] = {
 		{0x0f90, 0x00688980},
 		{0x0786, 0x00000003},
 		{0x07fa, 0x0050100f},
@@ -2322,6 +2348,32 @@ static int vsc85xx_probe(struct phy_device *phydev)
 /* Microsemi VSC85xx PHYs */
 static struct phy_driver vsc85xx_driver[] = {
 {
+	.phy_id		= PHY_ID_VSC8504,
+	.name		= "Microsemi GE VSC8504 SyncE",
+	.phy_id_mask	= 0xfffffff0,
+	/* PHY_GBIT_FEATURES */
+	.soft_reset	= &genphy_soft_reset,
+	.config_init    = &vsc8584_config_init,
+	.config_aneg    = &vsc85xx_config_aneg,
+	.aneg_done	= &genphy_aneg_done,
+	.read_status	= &vsc85xx_read_status,
+	.ack_interrupt  = &vsc85xx_ack_interrupt,
+	.config_intr    = &vsc85xx_config_intr,
+	.did_interrupt  = &vsc8584_did_interrupt,
+	.suspend	= &genphy_suspend,
+	.resume		= &genphy_resume,
+	.probe		= &vsc8574_probe,
+	.set_wol	= &vsc85xx_wol_set,
+	.get_wol	= &vsc85xx_wol_get,
+	.get_tunable	= &vsc85xx_get_tunable,
+	.set_tunable	= &vsc85xx_set_tunable,
+	.read_page	= &vsc85xx_phy_read_page,
+	.write_page	= &vsc85xx_phy_write_page,
+	.get_sset_count = &vsc85xx_get_sset_count,
+	.get_strings    = &vsc85xx_get_strings,
+	.get_stats      = &vsc85xx_get_stats,
+},
+{
 	.phy_id		= PHY_ID_VSC8514,
 	.name		= "Microsemi GE VSC8514 SyncE",
 	.phy_id_mask	= 0xfffffff0,
@@ -2445,6 +2497,82 @@ static struct phy_driver vsc85xx_driver[] = {
 	.get_stats      = &vsc85xx_get_stats,
 },
 {
+	.phy_id		= PHY_ID_VSC8552,
+	.name		= "Microsemi GE VSC8552 SyncE",
+	.phy_id_mask	= 0xfffffff0,
+	/* PHY_GBIT_FEATURES */
+	.soft_reset	= &genphy_soft_reset,
+	.config_init    = &vsc8584_config_init,
+	.config_aneg    = &vsc85xx_config_aneg,
+	.aneg_done	= &genphy_aneg_done,
+	.read_status	= &vsc85xx_read_status,
+	.ack_interrupt  = &vsc85xx_ack_interrupt,
+	.config_intr    = &vsc85xx_config_intr,
+	.did_interrupt  = &vsc8584_did_interrupt,
+	.suspend	= &genphy_suspend,
+	.resume		= &genphy_resume,
+	.probe		= &vsc8574_probe,
+	.set_wol	= &vsc85xx_wol_set,
+	.get_wol	= &vsc85xx_wol_get,
+	.get_tunable	= &vsc85xx_get_tunable,
+	.set_tunable	= &vsc85xx_set_tunable,
+	.read_page	= &vsc85xx_phy_read_page,
+	.write_page	= &vsc85xx_phy_write_page,
+	.get_sset_count = &vsc85xx_get_sset_count,
+	.get_strings    = &vsc85xx_get_strings,
+	.get_stats      = &vsc85xx_get_stats,
+},
+{
+	.phy_id		= PHY_ID_VSC856X,
+	.name		= "Microsemi GE VSC856X SyncE",
+	.phy_id_mask	= 0xfffffff0,
+	/* PHY_GBIT_FEATURES */
+	.soft_reset	= &genphy_soft_reset,
+	.config_init    = &vsc8584_config_init,
+	.config_aneg    = &vsc85xx_config_aneg,
+	.aneg_done	= &genphy_aneg_done,
+	.read_status	= &vsc85xx_read_status,
+	.ack_interrupt  = &vsc85xx_ack_interrupt,
+	.config_intr    = &vsc85xx_config_intr,
+	.did_interrupt  = &vsc8584_did_interrupt,
+	.suspend	= &genphy_suspend,
+	.resume		= &genphy_resume,
+	.probe		= &vsc8584_probe,
+	.get_tunable	= &vsc85xx_get_tunable,
+	.set_tunable	= &vsc85xx_set_tunable,
+	.read_page	= &vsc85xx_phy_read_page,
+	.write_page	= &vsc85xx_phy_write_page,
+	.get_sset_count = &vsc85xx_get_sset_count,
+	.get_strings    = &vsc85xx_get_strings,
+	.get_stats      = &vsc85xx_get_stats,
+},
+{
+	.phy_id		= PHY_ID_VSC8572,
+	.name		= "Microsemi GE VSC8572 SyncE",
+	.phy_id_mask	= 0xfffffff0,
+	/* PHY_GBIT_FEATURES */
+	.soft_reset	= &genphy_soft_reset,
+	.config_init    = &vsc8584_config_init,
+	.config_aneg    = &vsc85xx_config_aneg,
+	.aneg_done	= &genphy_aneg_done,
+	.read_status	= &vsc85xx_read_status,
+	.ack_interrupt  = &vsc85xx_ack_interrupt,
+	.config_intr    = &vsc85xx_config_intr,
+	.did_interrupt  = &vsc8584_did_interrupt,
+	.suspend	= &genphy_suspend,
+	.resume		= &genphy_resume,
+	.probe		= &vsc8574_probe,
+	.set_wol	= &vsc85xx_wol_set,
+	.get_wol	= &vsc85xx_wol_get,
+	.get_tunable	= &vsc85xx_get_tunable,
+	.set_tunable	= &vsc85xx_set_tunable,
+	.read_page	= &vsc85xx_phy_read_page,
+	.write_page	= &vsc85xx_phy_write_page,
+	.get_sset_count = &vsc85xx_get_sset_count,
+	.get_strings    = &vsc85xx_get_strings,
+	.get_stats      = &vsc85xx_get_stats,
+},
+{
 	.phy_id		= PHY_ID_VSC8574,
 	.name		= "Microsemi GE VSC8574 SyncE",
 	.phy_id_mask	= 0xfffffff0,
@@ -2462,6 +2590,54 @@ static struct phy_driver vsc85xx_driver[] = {
 	.probe		= &vsc8574_probe,
 	.set_wol	= &vsc85xx_wol_set,
 	.get_wol	= &vsc85xx_wol_get,
+	.get_tunable	= &vsc85xx_get_tunable,
+	.set_tunable	= &vsc85xx_set_tunable,
+	.read_page	= &vsc85xx_phy_read_page,
+	.write_page	= &vsc85xx_phy_write_page,
+	.get_sset_count = &vsc85xx_get_sset_count,
+	.get_strings    = &vsc85xx_get_strings,
+	.get_stats      = &vsc85xx_get_stats,
+},
+{
+	.phy_id		= PHY_ID_VSC8575,
+	.name		= "Microsemi GE VSC8575 SyncE",
+	.phy_id_mask	= 0xfffffff0,
+	/* PHY_GBIT_FEATURES */
+	.soft_reset	= &genphy_soft_reset,
+	.config_init    = &vsc8584_config_init,
+	.config_aneg    = &vsc85xx_config_aneg,
+	.aneg_done	= &genphy_aneg_done,
+	.read_status	= &vsc85xx_read_status,
+	.ack_interrupt  = &vsc85xx_ack_interrupt,
+	.config_intr    = &vsc85xx_config_intr,
+	.did_interrupt  = &vsc8584_did_interrupt,
+	.suspend	= &genphy_suspend,
+	.resume		= &genphy_resume,
+	.probe		= &vsc8584_probe,
+	.get_tunable	= &vsc85xx_get_tunable,
+	.set_tunable	= &vsc85xx_set_tunable,
+	.read_page	= &vsc85xx_phy_read_page,
+	.write_page	= &vsc85xx_phy_write_page,
+	.get_sset_count = &vsc85xx_get_sset_count,
+	.get_strings    = &vsc85xx_get_strings,
+	.get_stats      = &vsc85xx_get_stats,
+},
+{
+	.phy_id		= PHY_ID_VSC8582,
+	.name		= "Microsemi GE VSC8582 SyncE",
+	.phy_id_mask	= 0xfffffff0,
+	/* PHY_GBIT_FEATURES */
+	.soft_reset	= &genphy_soft_reset,
+	.config_init    = &vsc8584_config_init,
+	.config_aneg    = &vsc85xx_config_aneg,
+	.aneg_done	= &genphy_aneg_done,
+	.read_status	= &vsc85xx_read_status,
+	.ack_interrupt  = &vsc85xx_ack_interrupt,
+	.config_intr    = &vsc85xx_config_intr,
+	.did_interrupt  = &vsc8584_did_interrupt,
+	.suspend	= &genphy_suspend,
+	.resume		= &genphy_resume,
+	.probe		= &vsc8584_probe,
 	.get_tunable	= &vsc85xx_get_tunable,
 	.set_tunable	= &vsc85xx_set_tunable,
 	.read_page	= &vsc85xx_phy_read_page,
@@ -2500,12 +2676,18 @@ static struct phy_driver vsc85xx_driver[] = {
 module_phy_driver(vsc85xx_driver);
 
 static struct mdio_device_id __maybe_unused vsc85xx_tbl[] = {
+	{ PHY_ID_VSC8504, 0xfffffff0, },
 	{ PHY_ID_VSC8514, 0xfffffff0, },
 	{ PHY_ID_VSC8530, 0xfffffff0, },
 	{ PHY_ID_VSC8531, 0xfffffff0, },
 	{ PHY_ID_VSC8540, 0xfffffff0, },
 	{ PHY_ID_VSC8541, 0xfffffff0, },
+	{ PHY_ID_VSC8552, 0xfffffff0, },
+	{ PHY_ID_VSC856X, 0xfffffff0, },
+	{ PHY_ID_VSC8572, 0xfffffff0, },
 	{ PHY_ID_VSC8574, 0xfffffff0, },
+	{ PHY_ID_VSC8575, 0xfffffff0, },
+	{ PHY_ID_VSC8582, 0xfffffff0, },
 	{ PHY_ID_VSC8584, 0xfffffff0, },
 	{ }
 };

@@ -23,6 +23,7 @@
 #include "disk-io.h"
 #include "compression.h"
 #include "volumes.h"
+#include "misc.h"
 
 /*
  * Error message should follow the following format:
@@ -124,6 +125,74 @@ static u64 file_extent_end(struct extent_buffer *leaf,
 	return end;
 }
 
+/*
+ * Customized report for dir_item, the only new important information is
+ * key->objectid, which represents inode number
+ */
+__printf(3, 4)
+__cold
+static void dir_item_err(const struct extent_buffer *eb, int slot,
+			 const char *fmt, ...)
+{
+	const struct btrfs_fs_info *fs_info = eb->fs_info;
+	struct btrfs_key key;
+	struct va_format vaf;
+	va_list args;
+
+	btrfs_item_key_to_cpu(eb, &key, slot);
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	btrfs_crit(fs_info,
+		"corrupt %s: root=%llu block=%llu slot=%d ino=%llu, %pV",
+		btrfs_header_level(eb) == 0 ? "leaf" : "node",
+		btrfs_header_owner(eb), btrfs_header_bytenr(eb), slot,
+		key.objectid, &vaf);
+	va_end(args);
+}
+
+/*
+ * This functions checks prev_key->objectid, to ensure current key and prev_key
+ * share the same objectid as inode number.
+ *
+ * This is to detect missing INODE_ITEM in subvolume trees.
+ *
+ * Return true if everything is OK or we don't need to check.
+ * Return false if anything is wrong.
+ */
+static bool check_prev_ino(struct extent_buffer *leaf,
+			   struct btrfs_key *key, int slot,
+			   struct btrfs_key *prev_key)
+{
+	/* No prev key, skip check */
+	if (slot == 0)
+		return true;
+
+	/* Only these key->types needs to be checked */
+	ASSERT(key->type == BTRFS_XATTR_ITEM_KEY ||
+	       key->type == BTRFS_INODE_REF_KEY ||
+	       key->type == BTRFS_DIR_INDEX_KEY ||
+	       key->type == BTRFS_DIR_ITEM_KEY ||
+	       key->type == BTRFS_EXTENT_DATA_KEY);
+
+	/*
+	 * Only subvolume trees along with their reloc trees need this check.
+	 * Things like log tree doesn't follow this ino requirement.
+	 */
+	if (!is_fstree(btrfs_header_owner(leaf)))
+		return true;
+
+	if (key->objectid == prev_key->objectid)
+		return true;
+
+	/* Error found */
+	dir_item_err(leaf, slot,
+		"invalid previous key objectid, have %llu expect %llu",
+		prev_key->objectid, key->objectid);
+	return false;
+}
 static int check_extent_data_item(struct extent_buffer *leaf,
 				  struct btrfs_key *key, int slot,
 				  struct btrfs_key *prev_key)
@@ -141,13 +210,33 @@ static int check_extent_data_item(struct extent_buffer *leaf,
 		return -EUCLEAN;
 	}
 
+	/*
+	 * Previous key must have the same key->objectid (ino).
+	 * It can be XATTR_ITEM, INODE_ITEM or just another EXTENT_DATA.
+	 * But if objectids mismatch, it means we have a missing
+	 * INODE_ITEM.
+	 */
+	if (!check_prev_ino(leaf, key, slot, prev_key))
+		return -EUCLEAN;
+
 	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 
-	if (btrfs_file_extent_type(leaf, fi) > BTRFS_FILE_EXTENT_TYPES) {
+	/*
+	 * Make sure the item contains at least inline header, so the file
+	 * extent type is not some garbage.
+	 */
+	if (item_size < BTRFS_FILE_EXTENT_INLINE_DATA_START) {
+		file_extent_err(leaf, slot,
+				"invalid item size, have %u expect [%lu, %u)",
+				item_size, BTRFS_FILE_EXTENT_INLINE_DATA_START,
+				SZ_4K);
+		return -EUCLEAN;
+	}
+	if (btrfs_file_extent_type(leaf, fi) >= BTRFS_NR_FILE_EXTENT_TYPES) {
 		file_extent_err(leaf, slot,
 		"invalid type for file extent, have %u expect range [0, %u]",
 			btrfs_file_extent_type(leaf, fi),
-			BTRFS_FILE_EXTENT_TYPES);
+			BTRFS_NR_FILE_EXTENT_TYPES - 1);
 		return -EUCLEAN;
 	}
 
@@ -155,11 +244,11 @@ static int check_extent_data_item(struct extent_buffer *leaf,
 	 * Support for new compression/encryption must introduce incompat flag,
 	 * and must be caught in open_ctree().
 	 */
-	if (btrfs_file_extent_compression(leaf, fi) > BTRFS_COMPRESS_TYPES) {
+	if (btrfs_file_extent_compression(leaf, fi) >= BTRFS_NR_COMPRESS_TYPES) {
 		file_extent_err(leaf, slot,
 	"invalid compression for file extent, have %u expect range [0, %u]",
 			btrfs_file_extent_compression(leaf, fi),
-			BTRFS_COMPRESS_TYPES);
+			BTRFS_NR_COMPRESS_TYPES - 1);
 		return -EUCLEAN;
 	}
 	if (btrfs_file_extent_encryption(leaf, fi)) {
@@ -270,42 +359,17 @@ static int check_csum_item(struct extent_buffer *leaf, struct btrfs_key *key,
 	return 0;
 }
 
-/*
- * Customized reported for dir_item, only important new info is key->objectid,
- * which represents inode number
- */
-__printf(3, 4)
-__cold
-static void dir_item_err(const struct extent_buffer *eb, int slot,
-			 const char *fmt, ...)
-{
-	const struct btrfs_fs_info *fs_info = eb->fs_info;
-	struct btrfs_key key;
-	struct va_format vaf;
-	va_list args;
-
-	btrfs_item_key_to_cpu(eb, &key, slot);
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	btrfs_crit(fs_info,
-	"corrupt %s: root=%llu block=%llu slot=%d ino=%llu, %pV",
-		btrfs_header_level(eb) == 0 ? "leaf" : "node",
-		btrfs_header_owner(eb), btrfs_header_bytenr(eb), slot,
-		key.objectid, &vaf);
-	va_end(args);
-}
-
 static int check_dir_item(struct extent_buffer *leaf,
-			  struct btrfs_key *key, int slot)
+			  struct btrfs_key *key, struct btrfs_key *prev_key,
+			  int slot)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_dir_item *di;
 	u32 item_size = btrfs_item_size_nr(leaf, slot);
 	u32 cur = 0;
 
+	if (!check_prev_ino(leaf, key, slot, prev_key))
+		return -EUCLEAN;
 	di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 	while (cur < item_size) {
 		u32 name_len;
@@ -459,23 +523,23 @@ static int check_block_group_item(struct extent_buffer *leaf,
 
 	read_extent_buffer(leaf, &bgi, btrfs_item_ptr_offset(leaf, slot),
 			   sizeof(bgi));
-	if (btrfs_block_group_chunk_objectid(&bgi) !=
+	if (btrfs_stack_block_group_chunk_objectid(&bgi) !=
 	    BTRFS_FIRST_CHUNK_TREE_OBJECTID) {
 		block_group_err(leaf, slot,
 		"invalid block group chunk objectid, have %llu expect %llu",
-				btrfs_block_group_chunk_objectid(&bgi),
+				btrfs_stack_block_group_chunk_objectid(&bgi),
 				BTRFS_FIRST_CHUNK_TREE_OBJECTID);
 		return -EUCLEAN;
 	}
 
-	if (btrfs_block_group_used(&bgi) > key->offset) {
+	if (btrfs_stack_block_group_used(&bgi) > key->offset) {
 		block_group_err(leaf, slot,
 			"invalid block group used, have %llu expect [0, %llu)",
-				btrfs_block_group_used(&bgi), key->offset);
+				btrfs_stack_block_group_used(&bgi), key->offset);
 		return -EUCLEAN;
 	}
 
-	flags = btrfs_block_group_flags(&bgi);
+	flags = btrfs_stack_block_group_flags(&bgi);
 	if (hweight64(flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) > 1) {
 		block_group_err(leaf, slot,
 "invalid profile flags, have 0x%llx (%lu bits set) expect no more than 1 bit set",
@@ -609,7 +673,7 @@ int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 		return -EUCLEAN;
 	}
 
-	if (!is_power_of_2(type & BTRFS_BLOCK_GROUP_PROFILE_MASK) &&
+	if (!has_single_bit_set(type & BTRFS_BLOCK_GROUP_PROFILE_MASK) &&
 	    (type & BTRFS_BLOCK_GROUP_PROFILE_MASK) != 0) {
 		chunk_err(leaf, chunk, logical,
 		"invalid chunk profile flag: 0x%llx, expect 0 or 1 bit set",
@@ -785,11 +849,11 @@ static int check_inode_item(struct extent_buffer *leaf,
 	}
 
 	/*
-	 * S_IFMT is not bit mapped so we can't completely rely on is_power_of_2,
-	 * but is_power_of_2() can save us from checking FIFO/CHR/DIR/REG.
-	 * Only needs to check BLK, LNK and SOCKS
+	 * S_IFMT is not bit mapped so we can't completely rely on
+	 * is_power_of_2/has_single_bit_set, but it can save us from checking
+	 * FIFO/CHR/DIR/REG.  Only needs to check BLK, LNK and SOCKS
 	 */
-	if (!is_power_of_2(mode & S_IFMT)) {
+	if (!has_single_bit_set(mode & S_IFMT)) {
 		if (!S_ISLNK(mode) && !S_ISBLK(mode) && !S_ISSOCK(mode)) {
 			inode_item_err(fs_info, leaf, slot,
 			"invalid mode: has 0%o expect valid S_IF* bit(s)",
@@ -1010,8 +1074,8 @@ static int check_extent_item(struct extent_buffer *leaf,
 			   btrfs_super_generation(fs_info->super_copy) + 1);
 		return -EUCLEAN;
 	}
-	if (!is_power_of_2(flags & (BTRFS_EXTENT_FLAG_DATA |
-				    BTRFS_EXTENT_FLAG_TREE_BLOCK))) {
+	if (!has_single_bit_set(flags & (BTRFS_EXTENT_FLAG_DATA |
+					 BTRFS_EXTENT_FLAG_TREE_BLOCK))) {
 		extent_err(leaf, slot,
 		"invalid extent flag, have 0x%llx expect 1 bit set in 0x%llx",
 			flags, BTRFS_EXTENT_FLAG_DATA |
@@ -1224,6 +1288,58 @@ static int check_extent_data_ref(struct extent_buffer *leaf,
 	return 0;
 }
 
+#define inode_ref_err(fs_info, eb, slot, fmt, args...)			\
+	inode_item_err(fs_info, eb, slot, fmt, ##args)
+static int check_inode_ref(struct extent_buffer *leaf,
+			   struct btrfs_key *key, struct btrfs_key *prev_key,
+			   int slot)
+{
+	struct btrfs_inode_ref *iref;
+	unsigned long ptr;
+	unsigned long end;
+
+	if (!check_prev_ino(leaf, key, slot, prev_key))
+		return -EUCLEAN;
+	/* namelen can't be 0, so item_size == sizeof() is also invalid */
+	if (btrfs_item_size_nr(leaf, slot) <= sizeof(*iref)) {
+		inode_ref_err(fs_info, leaf, slot,
+			"invalid item size, have %u expect (%zu, %u)",
+			btrfs_item_size_nr(leaf, slot),
+			sizeof(*iref), BTRFS_LEAF_DATA_SIZE(leaf->fs_info));
+		return -EUCLEAN;
+	}
+
+	ptr = btrfs_item_ptr_offset(leaf, slot);
+	end = ptr + btrfs_item_size_nr(leaf, slot);
+	while (ptr < end) {
+		u16 namelen;
+
+		if (ptr + sizeof(iref) > end) {
+			inode_ref_err(fs_info, leaf, slot,
+			"inode ref overflow, ptr %lu end %lu inode_ref_size %zu",
+				ptr, end, sizeof(iref));
+			return -EUCLEAN;
+		}
+
+		iref = (struct btrfs_inode_ref *)ptr;
+		namelen = btrfs_inode_ref_name_len(leaf, iref);
+		if (ptr + sizeof(*iref) + namelen > end) {
+			inode_ref_err(fs_info, leaf, slot,
+				"inode ref overflow, ptr %lu end %lu namelen %u",
+				ptr, end, namelen);
+			return -EUCLEAN;
+		}
+
+		/*
+		 * NOTE: In theory we should record all found index numbers
+		 * to find any duplicated indexes, but that will be too time
+		 * consuming for inodes with too many hard links.
+		 */
+		ptr += sizeof(*iref) + namelen;
+	}
+	return 0;
+}
+
 /*
  * Common point to switch the item-specific validation.
  */
@@ -1244,7 +1360,10 @@ static int check_leaf_item(struct extent_buffer *leaf,
 	case BTRFS_DIR_ITEM_KEY:
 	case BTRFS_DIR_INDEX_KEY:
 	case BTRFS_XATTR_ITEM_KEY:
-		ret = check_dir_item(leaf, key, slot);
+		ret = check_dir_item(leaf, key, prev_key, slot);
+		break;
+	case BTRFS_INODE_REF_KEY:
+		ret = check_inode_ref(leaf, key, prev_key, slot);
 		break;
 	case BTRFS_BLOCK_GROUP_ITEM_KEY:
 		ret = check_block_group_item(leaf, key, slot);

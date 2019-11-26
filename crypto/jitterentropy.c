@@ -103,12 +103,7 @@ struct rand_data {
  * Helper functions
  ***************************************************************************/
 
-void jent_get_nstime(__u64 *out);
-void *jent_zalloc(unsigned int len);
-void jent_zfree(void *ptr);
-int jent_fips_enabled(void);
-void jent_panic(char *s);
-void jent_memcpy(void *dest, const void *src, unsigned int n);
+#include "jitterentropy.h"
 
 /**
  * Update of the loop count used for the next round of
@@ -172,7 +167,7 @@ static __u64 jent_loop_shuffle(struct rand_data *ec,
  * implies that careful retesting must be done.
  *
  * Input:
- * @ec entropy collector struct -- may be NULL
+ * @ec entropy collector struct
  * @time time stamp to be injected
  * @loop_cnt if a value not equal to 0 is set, use the given value as number of
  *	     loops to perform the folding
@@ -400,8 +395,8 @@ static void jent_gen_entropy(struct rand_data *ec)
  * primes the test if needed.
  *
  * Return:
- * 0 if FIPS test passed
- * < 0 if FIPS test failed
+ * returns normally if FIPS test passed
+ * panics the kernel if FIPS test failed
  */
 static void jent_fips_test(struct rand_data *ec)
 {

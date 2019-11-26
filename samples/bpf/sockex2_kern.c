@@ -1,5 +1,6 @@
 #include <uapi/linux/bpf.h>
 #include "bpf_helpers.h"
+#include "bpf_legacy.h"
 #include <uapi/linux/in.h>
 #include <uapi/linux/if.h>
 #include <uapi/linux/if_ether.h>
@@ -189,12 +190,12 @@ struct pair {
 	long bytes;
 };
 
-struct bpf_map_def SEC("maps") hash_map = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(__be32),
-	.value_size = sizeof(struct pair),
-	.max_entries = 1024,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, __be32);
+	__type(value, struct pair);
+	__uint(max_entries, 1024);
+} hash_map SEC(".maps");
 
 SEC("socket2")
 int bpf_prog2(struct __sk_buff *skb)

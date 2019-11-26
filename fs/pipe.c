@@ -793,6 +793,8 @@ int create_pipe_files(struct file **res, int flags)
 	}
 	res[0]->private_data = inode->i_pipe;
 	res[1] = f;
+	stream_open(inode, res[0]);
+	stream_open(inode, res[1]);
 	return 0;
 }
 
@@ -931,9 +933,9 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	__pipe_lock(pipe);
 
 	/* We can only do regular read/write on fifos */
-	filp->f_mode &= (FMODE_READ | FMODE_WRITE);
+	stream_open(inode, filp);
 
-	switch (filp->f_mode) {
+	switch (filp->f_mode & (FMODE_READ | FMODE_WRITE)) {
 	case FMODE_READ:
 	/*
 	 *  O_RDONLY

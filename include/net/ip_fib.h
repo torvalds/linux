@@ -219,7 +219,7 @@ struct fib_nh_notifier_info {
 	struct fib_nh *fib_nh;
 };
 
-int call_fib4_notifier(struct notifier_block *nb, struct net *net,
+int call_fib4_notifier(struct notifier_block *nb,
 		       enum fib_event_type event_type,
 		       struct fib_notifier_info *info);
 int call_fib4_notifiers(struct net *net, enum fib_event_type event_type,
@@ -229,7 +229,8 @@ int __net_init fib4_notifier_init(struct net *net);
 void __net_exit fib4_notifier_exit(struct net *net);
 
 void fib_info_notify_update(struct net *net, struct nl_info *info);
-void fib_notify(struct net *net, struct notifier_block *nb);
+int fib_notify(struct net *net, struct notifier_block *nb,
+	       struct netlink_ext_ack *extack);
 
 struct fib_table {
 	struct hlist_node	tb_hlist;
@@ -310,12 +311,18 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 	return err;
 }
 
+static inline bool fib4_has_custom_rules(const struct net *net)
+{
+	return false;
+}
+
 static inline bool fib4_rule_default(const struct fib_rule *rule)
 {
 	return true;
 }
 
-static inline int fib4_rules_dump(struct net *net, struct notifier_block *nb)
+static inline int fib4_rules_dump(struct net *net, struct notifier_block *nb,
+				  struct netlink_ext_ack *extack)
 {
 	return 0;
 }
@@ -376,8 +383,14 @@ out:
 	return err;
 }
 
+static inline bool fib4_has_custom_rules(const struct net *net)
+{
+	return net->ipv4.fib_has_custom_rules;
+}
+
 bool fib4_rule_default(const struct fib_rule *rule);
-int fib4_rules_dump(struct net *net, struct notifier_block *nb);
+int fib4_rules_dump(struct net *net, struct notifier_block *nb,
+		    struct netlink_ext_ack *extack);
 unsigned int fib4_rules_seq_read(struct net *net);
 
 static inline bool fib4_rules_early_flow_dissect(struct net *net,

@@ -1914,10 +1914,10 @@ static struct platform_driver xgmac_driver = {
 	.driver = {
 		.name = "calxedaxgmac",
 		.of_match_table = xgmac_of_match,
+		.pm = &xgmac_pm_ops,
 	},
 	.probe = xgmac_probe,
 	.remove = xgmac_remove,
-	.driver.pm = &xgmac_pm_ops,
 };
 
 module_platform_driver(xgmac_driver);

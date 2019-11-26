@@ -65,7 +65,7 @@ static int mode;
 static u32 num_mb = 8;
 static char *tvmem[TVMEMSIZE];
 
-static char *check[] = {
+static const char *check[] = {
 	"des", "md5", "des3_ede", "rot13", "sha1", "sha224", "sha256", "sm3",
 	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
@@ -1634,7 +1634,7 @@ static void test_cipher_speed(const char *algo, int enc, unsigned int secs,
 
 static void test_available(void)
 {
-	char **name = check;
+	const char **name = check;
 
 	while (*name) {
 		printk("alg %s ", *name);

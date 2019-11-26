@@ -165,6 +165,7 @@ struct tipc_bearer {
 	struct tipc_discoverer *disc;
 	char net_plane;
 	unsigned long up;
+	refcount_t refcnt;
 };
 
 struct tipc_bearer_names {
@@ -210,6 +211,8 @@ int tipc_media_set_window(const char *name, u32 new_value);
 int tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a);
 int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 			 struct nlattr *attrs[]);
+bool tipc_bearer_hold(struct tipc_bearer *b);
+void tipc_bearer_put(struct tipc_bearer *b);
 void tipc_disable_l2_media(struct tipc_bearer *b);
 int tipc_l2_send_msg(struct net *net, struct sk_buff *buf,
 		     struct tipc_bearer *b, struct tipc_media_addr *dest);
@@ -229,7 +232,8 @@ void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
 			  struct tipc_media_addr *dest);
 void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		      struct sk_buff_head *xmitq,
-		      struct tipc_media_addr *dst);
+		      struct tipc_media_addr *dst,
+		      struct tipc_node *__dnode);
 void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 			 struct sk_buff_head *xmitq);
 void tipc_clone_to_loopback(struct net *net, struct sk_buff_head *pkts);

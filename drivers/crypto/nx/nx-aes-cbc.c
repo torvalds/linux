@@ -18,11 +18,11 @@
 #include "nx.h"
 
 
-static int cbc_aes_nx_set_key(struct crypto_tfm *tfm,
-			      const u8          *in_key,
-			      unsigned int       key_len)
+static int cbc_aes_nx_set_key(struct crypto_skcipher *tfm,
+			      const u8               *in_key,
+			      unsigned int            key_len)
 {
-	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(tfm);
+	struct nx_crypto_ctx *nx_ctx = crypto_skcipher_ctx(tfm);
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 
 	nx_ctx_init(nx_ctx, HCOP_FC_AES);
@@ -50,13 +50,11 @@ static int cbc_aes_nx_set_key(struct crypto_tfm *tfm,
 	return 0;
 }
 
-static int cbc_aes_nx_crypt(struct blkcipher_desc *desc,
-			    struct scatterlist    *dst,
-			    struct scatterlist    *src,
-			    unsigned int           nbytes,
-			    int                    enc)
+static int cbc_aes_nx_crypt(struct skcipher_request *req,
+			    int                      enc)
 {
-	struct nx_crypto_ctx *nx_ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct nx_crypto_ctx *nx_ctx = crypto_skcipher_ctx(tfm);
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 	unsigned long irq_flags;
 	unsigned int processed = 0, to_process;
@@ -70,10 +68,11 @@ static int cbc_aes_nx_crypt(struct blkcipher_desc *desc,
 		NX_CPB_FDM(csbcpb) &= ~NX_FDM_ENDE_ENCRYPT;
 
 	do {
-		to_process = nbytes - processed;
+		to_process = req->cryptlen - processed;
 
-		rc = nx_build_sg_lists(nx_ctx, desc, dst, src, &to_process,
-				       processed, csbcpb->cpb.aes_cbc.iv);
+		rc = nx_build_sg_lists(nx_ctx, req->iv, req->dst, req->src,
+				       &to_process, processed,
+				       csbcpb->cpb.aes_cbc.iv);
 		if (rc)
 			goto out;
 
@@ -83,56 +82,46 @@ static int cbc_aes_nx_crypt(struct blkcipher_desc *desc,
 		}
 
 		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-				   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+				   req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
 		if (rc)
 			goto out;
 
-		memcpy(desc->info, csbcpb->cpb.aes_cbc.cv, AES_BLOCK_SIZE);
+		memcpy(req->iv, csbcpb->cpb.aes_cbc.cv, AES_BLOCK_SIZE);
 		atomic_inc(&(nx_ctx->stats->aes_ops));
 		atomic64_add(csbcpb->csb.processed_byte_count,
 			     &(nx_ctx->stats->aes_bytes));
 
 		processed += to_process;
-	} while (processed < nbytes);
+	} while (processed < req->cryptlen);
 out:
 	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return rc;
 }
 
-static int cbc_aes_nx_encrypt(struct blkcipher_desc *desc,
-			      struct scatterlist    *dst,
-			      struct scatterlist    *src,
-			      unsigned int           nbytes)
+static int cbc_aes_nx_encrypt(struct skcipher_request *req)
 {
-	return cbc_aes_nx_crypt(desc, dst, src, nbytes, 1);
+	return cbc_aes_nx_crypt(req, 1);
 }
 
-static int cbc_aes_nx_decrypt(struct blkcipher_desc *desc,
-			      struct scatterlist    *dst,
-			      struct scatterlist    *src,
-			      unsigned int           nbytes)
+static int cbc_aes_nx_decrypt(struct skcipher_request *req)
 {
-	return cbc_aes_nx_crypt(desc, dst, src, nbytes, 0);
+	return cbc_aes_nx_crypt(req, 0);
 }
 
-struct crypto_alg nx_cbc_aes_alg = {
-	.cra_name        = "cbc(aes)",
-	.cra_driver_name = "cbc-aes-nx",
-	.cra_priority    = 300,
-	.cra_flags       = CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize   = AES_BLOCK_SIZE,
-	.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
-	.cra_type        = &crypto_blkcipher_type,
-	.cra_alignmask   = 0xf,
-	.cra_module      = THIS_MODULE,
-	.cra_init        = nx_crypto_ctx_aes_cbc_init,
-	.cra_exit        = nx_crypto_ctx_exit,
-	.cra_blkcipher = {
-		.min_keysize = AES_MIN_KEY_SIZE,
-		.max_keysize = AES_MAX_KEY_SIZE,
-		.ivsize      = AES_BLOCK_SIZE,
-		.setkey      = cbc_aes_nx_set_key,
-		.encrypt     = cbc_aes_nx_encrypt,
-		.decrypt     = cbc_aes_nx_decrypt,
-	}
+struct skcipher_alg nx_cbc_aes_alg = {
+	.base.cra_name		= "cbc(aes)",
+	.base.cra_driver_name	= "cbc-aes-nx",
+	.base.cra_priority	= 300,
+	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_ctxsize	= sizeof(struct nx_crypto_ctx),
+	.base.cra_alignmask	= 0xf,
+	.base.cra_module	= THIS_MODULE,
+	.init			= nx_crypto_ctx_aes_cbc_init,
+	.exit			= nx_crypto_ctx_skcipher_exit,
+	.min_keysize		= AES_MIN_KEY_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE,
+	.ivsize			= AES_BLOCK_SIZE,
+	.setkey			= cbc_aes_nx_set_key,
+	.encrypt		= cbc_aes_nx_encrypt,
+	.decrypt		= cbc_aes_nx_decrypt,
 };

@@ -255,7 +255,7 @@ irq_cpu_rmap_notify(struct irq_affinity_notify *notify, const cpumask_t *mask)
 
 	rc = cpu_rmap_update(glue->rmap, glue->index, mask);
 	if (rc)
-		pr_warning("irq_cpu_rmap_notify: update failed: %d\n", rc);
+		pr_warn("irq_cpu_rmap_notify: update failed: %d\n", rc);
 }
 
 /**

@@ -103,8 +103,8 @@ err_exit:
 struct aq_vec_s *aq_vec_alloc(struct aq_nic_s *aq_nic, unsigned int idx,
 			      struct aq_nic_cfg_s *aq_nic_cfg)
 {
-	struct aq_vec_s *self = NULL;
 	struct aq_ring_s *ring = NULL;
+	struct aq_vec_s *self = NULL;
 	unsigned int i = 0U;
 	int err = 0;
 
@@ -159,6 +159,7 @@ err_exit:
 		aq_vec_free(self);
 		self = NULL;
 	}
+
 	return self;
 }
 
@@ -263,6 +264,7 @@ void aq_vec_deinit(struct aq_vec_s *self)
 		aq_ring_tx_clean(&ring[AQ_VEC_TX_ID]);
 		aq_ring_rx_deinit(&ring[AQ_VEC_RX_ID]);
 	}
+
 err_exit:;
 }
 
@@ -361,9 +363,9 @@ void aq_vec_add_stats(struct aq_vec_s *self,
 
 int aq_vec_get_sw_stats(struct aq_vec_s *self, u64 *data, unsigned int *p_count)
 {
-	unsigned int count = 0U;
 	struct aq_ring_stats_rx_s stats_rx;
 	struct aq_ring_stats_tx_s stats_tx;
+	unsigned int count = 0U;
 
 	memset(&stats_rx, 0U, sizeof(struct aq_ring_stats_rx_s));
 	memset(&stats_tx, 0U, sizeof(struct aq_ring_stats_tx_s));

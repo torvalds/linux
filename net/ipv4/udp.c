@@ -1297,6 +1297,27 @@ out:
 
 #define UDP_SKB_IS_STATELESS 0x80000000
 
+/* all head states (dst, sk, nf conntrack) except skb extensions are
+ * cleared by udp_rcv().
+ *
+ * We need to preserve secpath, if present, to eventually process
+ * IP_CMSG_PASSSEC at recvmsg() time.
+ *
+ * Other extensions can be cleared.
+ */
+static bool udp_try_make_stateless(struct sk_buff *skb)
+{
+	if (!skb_has_extensions(skb))
+		return true;
+
+	if (!secpath_exists(skb)) {
+		skb_ext_reset(skb);
+		return true;
+	}
+
+	return false;
+}
+
 static void udp_set_dev_scratch(struct sk_buff *skb)
 {
 	struct udp_dev_scratch *scratch = udp_skb_scratch(skb);
@@ -1308,11 +1329,7 @@ static void udp_set_dev_scratch(struct sk_buff *skb)
 	scratch->csum_unnecessary = !!skb_csum_unnecessary(skb);
 	scratch->is_linear = !skb_is_nonlinear(skb);
 #endif
-	/* all head states execept sp (dst, sk, nf) are always cleared by
-	 * udp_rcv() and we need to preserve secpath, if present, to eventually
-	 * process IP_CMSG_PASSSEC at recvmsg() time
-	 */
-	if (likely(!skb_sec_path(skb)))
+	if (udp_try_make_stateless(skb))
 		scratch->_tsize_state |= UDP_SKB_IS_STATELESS;
 }
 
@@ -2534,9 +2551,11 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 	case UDP_ENCAP:
 		switch (val) {
 		case 0:
+#ifdef CONFIG_XFRM
 		case UDP_ENCAP_ESPINUDP:
 		case UDP_ENCAP_ESPINUDP_NON_IKE:
 			up->encap_rcv = xfrm4_udp_encap_rcv;
+#endif
 			/* FALLTHROUGH */
 		case UDP_ENCAP_L2TPINUDP:
 			up->encap_type = val;

@@ -270,10 +270,12 @@ static int mv88e6060_probe(struct mdio_device *mdiodev)
 
 	dev_info(dev, "switch %s detected\n", name);
 
-	ds = dsa_switch_alloc(dev, MV88E6060_PORTS);
+	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
 		return -ENOMEM;
 
+	ds->dev = dev;
+	ds->num_ports = MV88E6060_PORTS;
 	ds->priv = priv;
 	ds->dev = dev;
 	ds->ops = &mv88e6060_switch_ops;

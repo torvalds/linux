@@ -18,7 +18,7 @@
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 #include <net/fib_rules.h>
-#include <net/netns/generic.h>
+#include <net/net_namespace.h>
 
 #include "netdevsim.h"
 
@@ -33,15 +33,14 @@ struct nsim_per_fib_data {
 };
 
 struct nsim_fib_data {
+	struct notifier_block fib_nb;
 	struct nsim_per_fib_data ipv4;
 	struct nsim_per_fib_data ipv6;
 };
 
-static unsigned int nsim_fib_net_id;
-
-u64 nsim_fib_get_val(struct net *net, enum nsim_resource_id res_id, bool max)
+u64 nsim_fib_get_val(struct nsim_fib_data *fib_data,
+		     enum nsim_resource_id res_id, bool max)
 {
-	struct nsim_fib_data *fib_data = net_generic(net, nsim_fib_net_id);
 	struct nsim_fib_entry *entry;
 
 	switch (res_id) {
@@ -64,12 +63,10 @@ u64 nsim_fib_get_val(struct net *net, enum nsim_resource_id res_id, bool max)
 	return max ? entry->max : entry->num;
 }
 
-int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val,
-		     struct netlink_ext_ack *extack)
+static void nsim_fib_set_max(struct nsim_fib_data *fib_data,
+			     enum nsim_resource_id res_id, u64 val)
 {
-	struct nsim_fib_data *fib_data = net_generic(net, nsim_fib_net_id);
 	struct nsim_fib_entry *entry;
-	int err = 0;
 
 	switch (res_id) {
 	case NSIM_RESOURCE_IPV4_FIB:
@@ -85,20 +82,10 @@ int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val,
 		entry = &fib_data->ipv6.rules;
 		break;
 	default:
-		return 0;
+		WARN_ON(1);
+		return;
 	}
-
-	/* not allowing a new max to be less than curren occupancy
-	 * --> no means of evicting entries
-	 */
-	if (val < entry->num) {
-		NL_SET_ERR_MSG_MOD(extack, "New size is less than current occupancy");
-		err = -EINVAL;
-	} else {
-		entry->max = val;
-	}
-
-	return err;
+	entry->max = val;
 }
 
 static int nsim_fib_rule_account(struct nsim_fib_entry *entry, bool add,
@@ -120,9 +107,9 @@ static int nsim_fib_rule_account(struct nsim_fib_entry *entry, bool add,
 	return err;
 }
 
-static int nsim_fib_rule_event(struct fib_notifier_info *info, bool add)
+static int nsim_fib_rule_event(struct nsim_fib_data *data,
+			       struct fib_notifier_info *info, bool add)
 {
-	struct nsim_fib_data *data = net_generic(info->net, nsim_fib_net_id);
 	struct netlink_ext_ack *extack = info->extack;
 	int err = 0;
 
@@ -157,9 +144,9 @@ static int nsim_fib_account(struct nsim_fib_entry *entry, bool add,
 	return err;
 }
 
-static int nsim_fib_event(struct fib_notifier_info *info, bool add)
+static int nsim_fib_event(struct nsim_fib_data *data,
+			  struct fib_notifier_info *info, bool add)
 {
-	struct nsim_fib_data *data = net_generic(info->net, nsim_fib_net_id);
 	struct netlink_ext_ack *extack = info->extack;
 	int err = 0;
 
@@ -178,18 +165,22 @@ static int nsim_fib_event(struct fib_notifier_info *info, bool add)
 static int nsim_fib_event_nb(struct notifier_block *nb, unsigned long event,
 			     void *ptr)
 {
+	struct nsim_fib_data *data = container_of(nb, struct nsim_fib_data,
+						  fib_nb);
 	struct fib_notifier_info *info = ptr;
 	int err = 0;
 
 	switch (event) {
 	case FIB_EVENT_RULE_ADD: /* fall through */
 	case FIB_EVENT_RULE_DEL:
-		err = nsim_fib_rule_event(info, event == FIB_EVENT_RULE_ADD);
+		err = nsim_fib_rule_event(data, info,
+					  event == FIB_EVENT_RULE_ADD);
 		break;
 
 	case FIB_EVENT_ENTRY_ADD:  /* fall through */
 	case FIB_EVENT_ENTRY_DEL:
-		err = nsim_fib_event(info, event == FIB_EVENT_ENTRY_ADD);
+		err = nsim_fib_event(data, info,
+				     event == FIB_EVENT_ENTRY_ADD);
 		break;
 	}
 
@@ -199,69 +190,116 @@ static int nsim_fib_event_nb(struct notifier_block *nb, unsigned long event,
 /* inconsistent dump, trying again */
 static void nsim_fib_dump_inconsistent(struct notifier_block *nb)
 {
-	struct nsim_fib_data *data;
-	struct net *net;
+	struct nsim_fib_data *data = container_of(nb, struct nsim_fib_data,
+						  fib_nb);
 
-	rcu_read_lock();
-	for_each_net_rcu(net) {
-		data = net_generic(net, nsim_fib_net_id);
+	data->ipv4.fib.num = 0ULL;
+	data->ipv4.rules.num = 0ULL;
+	data->ipv6.fib.num = 0ULL;
+	data->ipv6.rules.num = 0ULL;
+}
 
-		data->ipv4.fib.num = 0ULL;
-		data->ipv4.rules.num = 0ULL;
+static u64 nsim_fib_ipv4_resource_occ_get(void *priv)
+{
+	struct nsim_fib_data *data = priv;
 
-		data->ipv6.fib.num = 0ULL;
-		data->ipv6.rules.num = 0ULL;
+	return nsim_fib_get_val(data, NSIM_RESOURCE_IPV4_FIB, false);
+}
+
+static u64 nsim_fib_ipv4_rules_res_occ_get(void *priv)
+{
+	struct nsim_fib_data *data = priv;
+
+	return nsim_fib_get_val(data, NSIM_RESOURCE_IPV4_FIB_RULES, false);
+}
+
+static u64 nsim_fib_ipv6_resource_occ_get(void *priv)
+{
+	struct nsim_fib_data *data = priv;
+
+	return nsim_fib_get_val(data, NSIM_RESOURCE_IPV6_FIB, false);
+}
+
+static u64 nsim_fib_ipv6_rules_res_occ_get(void *priv)
+{
+	struct nsim_fib_data *data = priv;
+
+	return nsim_fib_get_val(data, NSIM_RESOURCE_IPV6_FIB_RULES, false);
+}
+
+static void nsim_fib_set_max_all(struct nsim_fib_data *data,
+				 struct devlink *devlink)
+{
+	enum nsim_resource_id res_ids[] = {
+		NSIM_RESOURCE_IPV4_FIB, NSIM_RESOURCE_IPV4_FIB_RULES,
+		NSIM_RESOURCE_IPV6_FIB, NSIM_RESOURCE_IPV6_FIB_RULES
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(res_ids); i++) {
+		int err;
+		u64 val;
+
+		err = devlink_resource_size_get(devlink, res_ids[i], &val);
+		if (err)
+			val = (u64) -1;
+		nsim_fib_set_max(data, res_ids[i], val);
 	}
-	rcu_read_unlock();
 }
 
-static struct notifier_block nsim_fib_nb = {
-	.notifier_call = nsim_fib_event_nb,
-};
-
-/* Initialize per network namespace state */
-static int __net_init nsim_fib_netns_init(struct net *net)
+struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
+				      struct netlink_ext_ack *extack)
 {
-	struct nsim_fib_data *data = net_generic(net, nsim_fib_net_id);
-
-	data->ipv4.fib.max = (u64)-1;
-	data->ipv4.rules.max = (u64)-1;
-
-	data->ipv6.fib.max = (u64)-1;
-	data->ipv6.rules.max = (u64)-1;
-
-	return 0;
-}
-
-static struct pernet_operations nsim_fib_net_ops = {
-	.init = nsim_fib_netns_init,
-	.id   = &nsim_fib_net_id,
-	.size = sizeof(struct nsim_fib_data),
-};
-
-void nsim_fib_exit(void)
-{
-	unregister_fib_notifier(&nsim_fib_nb);
-	unregister_pernet_subsys(&nsim_fib_net_ops);
-}
-
-int nsim_fib_init(void)
-{
+	struct nsim_fib_data *data;
 	int err;
 
-	err = register_pernet_subsys(&nsim_fib_net_ops);
-	if (err < 0) {
-		pr_err("Failed to register pernet subsystem\n");
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+
+	nsim_fib_set_max_all(data, devlink);
+
+	data->fib_nb.notifier_call = nsim_fib_event_nb;
+	err = register_fib_notifier(devlink_net(devlink), &data->fib_nb,
+				    nsim_fib_dump_inconsistent, extack);
+	if (err) {
+		pr_err("Failed to register fib notifier\n");
 		goto err_out;
 	}
 
-	err = register_fib_notifier(&nsim_fib_nb, nsim_fib_dump_inconsistent);
-	if (err < 0) {
-		pr_err("Failed to register fib notifier\n");
-		unregister_pernet_subsys(&nsim_fib_net_ops);
-		goto err_out;
-	}
+	devlink_resource_occ_get_register(devlink,
+					  NSIM_RESOURCE_IPV4_FIB,
+					  nsim_fib_ipv4_resource_occ_get,
+					  data);
+	devlink_resource_occ_get_register(devlink,
+					  NSIM_RESOURCE_IPV4_FIB_RULES,
+					  nsim_fib_ipv4_rules_res_occ_get,
+					  data);
+	devlink_resource_occ_get_register(devlink,
+					  NSIM_RESOURCE_IPV6_FIB,
+					  nsim_fib_ipv6_resource_occ_get,
+					  data);
+	devlink_resource_occ_get_register(devlink,
+					  NSIM_RESOURCE_IPV6_FIB_RULES,
+					  nsim_fib_ipv6_rules_res_occ_get,
+					  data);
+	return data;
 
 err_out:
-	return err;
+	kfree(data);
+	return ERR_PTR(err);
+}
+
+void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *data)
+{
+	devlink_resource_occ_get_unregister(devlink,
+					    NSIM_RESOURCE_IPV6_FIB_RULES);
+	devlink_resource_occ_get_unregister(devlink,
+					    NSIM_RESOURCE_IPV6_FIB);
+	devlink_resource_occ_get_unregister(devlink,
+					    NSIM_RESOURCE_IPV4_FIB_RULES);
+	devlink_resource_occ_get_unregister(devlink,
+					    NSIM_RESOURCE_IPV4_FIB);
+	unregister_fib_notifier(devlink_net(devlink), &data->fib_nb);
+	kfree(data);
 }

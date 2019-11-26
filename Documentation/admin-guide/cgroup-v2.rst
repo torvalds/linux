@@ -1334,7 +1334,7 @@ PAGE_SIZE multiple when read back.
 
 	  pgdeactivate
 
-		Amount of pages moved to the inactive LRU lis
+		Amount of pages moved to the inactive LRU list
 
 	  pglazyfree
 

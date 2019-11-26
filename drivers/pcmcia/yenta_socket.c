@@ -173,8 +173,7 @@ static void exca_writew(struct yenta_socket *socket, unsigned reg, u16 val)
 
 static ssize_t show_yenta_registers(struct device *yentadev, struct device_attribute *attr, char *buf)
 {
-	struct pci_dev *dev = to_pci_dev(yentadev);
-	struct yenta_socket *socket = pci_get_drvdata(dev);
+	struct yenta_socket *socket = dev_get_drvdata(yentadev);
 	int offset = 0, i;
 
 	offset = snprintf(buf, PAGE_SIZE, "CB registers:");

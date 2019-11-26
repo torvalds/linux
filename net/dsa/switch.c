@@ -20,7 +20,7 @@ static unsigned int dsa_switch_fastest_ageing_time(struct dsa_switch *ds,
 	int i;
 
 	for (i = 0; i < ds->num_ports; ++i) {
-		struct dsa_port *dp = &ds->ports[i];
+		struct dsa_port *dp = dsa_to_port(ds, i);
 
 		if (dp->ageing_time && dp->ageing_time < ageing_time)
 			ageing_time = dp->ageing_time;
@@ -98,7 +98,7 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	if (unset_vlan_filtering) {
 		struct switchdev_trans trans = {0};
 
-		err = dsa_port_vlan_filtering(&ds->ports[info->port],
+		err = dsa_port_vlan_filtering(dsa_to_port(ds, info->port),
 					      false, &trans);
 		if (err && err != EOPNOTSUPP)
 			return err;

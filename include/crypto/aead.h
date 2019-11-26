@@ -321,7 +321,7 @@ int crypto_aead_encrypt(struct aead_request *req);
 
 /**
  * crypto_aead_decrypt() - decrypt ciphertext
- * @req: reference to the ablkcipher_request handle that holds all information
+ * @req: reference to the aead_request handle that holds all information
  *	 needed to perform the cipher operation
  *
  * Decrypt ciphertext data using the aead_request handle. That data structure

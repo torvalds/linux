@@ -153,22 +153,22 @@ config IPVLAN_L3S
 	select NET_L3_MASTER_DEV
 
 config IPVLAN
-    tristate "IP-VLAN support"
-    depends on INET
-    depends on IPV6 || !IPV6
-    ---help---
-      This allows one to create virtual devices off of a main interface
-      and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
-      on packets. All interfaces (including the main interface) share L2
-      making it transparent to the connected L2 switch.
+	tristate "IP-VLAN support"
+	depends on INET
+	depends on IPV6 || !IPV6
+	---help---
+	  This allows one to create virtual devices off of a main interface
+	  and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
+	  on packets. All interfaces (including the main interface) share L2
+	  making it transparent to the connected L2 switch.
 
-      Ipvlan devices can be added using the "ip" command from the
-      iproute2 package starting with the iproute2-3.19 release:
+	  Ipvlan devices can be added using the "ip" command from the
+	  iproute2 package starting with the iproute2-3.19 release:
 
-      "ip link add link <main-dev> [ NAME ] type ipvlan"
+	  "ip link add link <main-dev> [ NAME ] type ipvlan"
 
-      To compile this driver as a module, choose M here: the module
-      will be called ipvlan.
+	  To compile this driver as a module, choose M here: the module
+	  will be called ipvlan.
 
 config IPVTAP
 	tristate "IP-VLAN based tap driver"
@@ -185,11 +185,11 @@ config IPVTAP
 	  will be called ipvtap.
 
 config VXLAN
-       tristate "Virtual eXtensible Local Area Network (VXLAN)"
-       depends on INET
-       select NET_UDP_TUNNEL
-       select GRO_CELLS
-       ---help---
+	tristate "Virtual eXtensible Local Area Network (VXLAN)"
+	depends on INET
+	select NET_UDP_TUNNEL
+	select GRO_CELLS
+	---help---
 	  This allows one to create vxlan virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
 	  to tunnel virtual network infrastructure in virtualized environments.
@@ -200,12 +200,12 @@ config VXLAN
 	  will be called vxlan.
 
 config GENEVE
-       tristate "Generic Network Virtualization Encapsulation"
-       depends on INET
-       depends on IPV6 || !IPV6
-       select NET_UDP_TUNNEL
-       select GRO_CELLS
-       ---help---
+	tristate "Generic Network Virtualization Encapsulation"
+	depends on INET
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	select GRO_CELLS
+	---help---
 	  This allows one to create geneve virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
 	  to tunnel virtual network infrastructure in virtualized environments.
@@ -244,8 +244,8 @@ config MACSEC
 config NETCONSOLE
 	tristate "Network console logging support"
 	---help---
-	If you want to log kernel messages over the network, enable this.
-	See <file:Documentation/networking/netconsole.txt> for details.
+	  If you want to log kernel messages over the network, enable this.
+	  See <file:Documentation/networking/netconsole.txt> for details.
 
 config NETCONSOLE_DYNAMIC
 	bool "Dynamic reconfiguration of logging targets"
@@ -362,12 +362,12 @@ config NET_VRF
 	  support enables VRF devices.
 
 config VSOCKMON
-    tristate "Virtual vsock monitoring device"
-    depends on VHOST_VSOCK
-    ---help---
-     This option enables a monitoring net device for vsock sockets. It is
-     mostly intended for developers or support to debug vsock issues. If
-     unsure, say N.
+	tristate "Virtual vsock monitoring device"
+	depends on VHOST_VSOCK
+	---help---
+	  This option enables a monitoring net device for vsock sockets. It is
+	  mostly intended for developers or support to debug vsock issues. If
+	  unsure, say N.
 
 endif # NET_CORE
 

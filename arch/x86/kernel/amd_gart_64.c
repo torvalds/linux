@@ -510,10 +510,9 @@ static __init unsigned long check_iommu_size(unsigned long aper, u64 aper_size)
 	iommu_size -= round_up(a, PMD_PAGE_SIZE) - a;
 
 	if (iommu_size < 64*1024*1024) {
-		pr_warning(
-			"PCI-DMA: Warning: Small IOMMU %luMB."
+		pr_warn("PCI-DMA: Warning: Small IOMMU %luMB."
 			" Consider increasing the AGP aperture in BIOS\n",
-				iommu_size >> 20);
+			iommu_size >> 20);
 	}
 
 	return iommu_size;
@@ -665,8 +664,7 @@ static __init int init_amd_gatt(struct agp_kern_info *info)
 
  nommu:
 	/* Should not happen anymore */
-	pr_warning("PCI-DMA: More than 4GB of RAM and no IOMMU\n"
-	       "falling back to iommu=soft.\n");
+	pr_warn("PCI-DMA: More than 4GB of RAM and no IOMMU - falling back to iommu=soft.\n");
 	return -1;
 }
 
@@ -733,8 +731,8 @@ int __init gart_iommu_init(void)
 	    !gart_iommu_aperture ||
 	    (no_agp && init_amd_gatt(&info) < 0)) {
 		if (max_pfn > MAX_DMA32_PFN) {
-			pr_warning("More than 4GB of memory but GART IOMMU not available.\n");
-			pr_warning("falling back to iommu=soft.\n");
+			pr_warn("More than 4GB of memory but GART IOMMU not available.\n");
+			pr_warn("falling back to iommu=soft.\n");
 		}
 		return 0;
 	}

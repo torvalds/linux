@@ -24,9 +24,79 @@
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
+/*
+ * Transaction states and transitions
+ *
+ * No running transaction (fs tree blocks are not modified)
+ * |
+ * | To next stage:
+ * |  Call start_transaction() variants. Except btrfs_join_transaction_nostart().
+ * V
+ * Transaction N [[TRANS_STATE_RUNNING]]
+ * |
+ * | New trans handles can be attached to transaction N by calling all
+ * | start_transaction() variants.
+ * |
+ * | To next stage:
+ * |  Call btrfs_commit_transaction() on any trans handle attached to
+ * |  transaction N
+ * V
+ * Transaction N [[TRANS_STATE_COMMIT_START]]
+ * |
+ * | Will wait for previous running transaction to completely finish if there
+ * | is one
+ * |
+ * | Then one of the following happes:
+ * | - Wait for all other trans handle holders to release.
+ * |   The btrfs_commit_transaction() caller will do the commit work.
+ * | - Wait for current transaction to be committed by others.
+ * |   Other btrfs_commit_transaction() caller will do the commit work.
+ * |
+ * | At this stage, only btrfs_join_transaction*() variants can attach
+ * | to this running transaction.
+ * | All other variants will wait for current one to finish and attach to
+ * | transaction N+1.
+ * |
+ * | To next stage:
+ * |  Caller is chosen to commit transaction N, and all other trans handle
+ * |  haven been released.
+ * V
+ * Transaction N [[TRANS_STATE_COMMIT_DOING]]
+ * |
+ * | The heavy lifting transaction work is started.
+ * | From running delayed refs (modifying extent tree) to creating pending
+ * | snapshots, running qgroups.
+ * | In short, modify supporting trees to reflect modifications of subvolume
+ * | trees.
+ * |
+ * | At this stage, all start_transaction() calls will wait for this
+ * | transaction to finish and attach to transaction N+1.
+ * |
+ * | To next stage:
+ * |  Until all supporting trees are updated.
+ * V
+ * Transaction N [[TRANS_STATE_UNBLOCKED]]
+ * |						    Transaction N+1
+ * | All needed trees are modified, thus we only    [[TRANS_STATE_RUNNING]]
+ * | need to write them back to disk and update	    |
+ * | super blocks.				    |
+ * |						    |
+ * | At this stage, new transaction is allowed to   |
+ * | start.					    |
+ * | All new start_transaction() calls will be	    |
+ * | attached to transid N+1.			    |
+ * |						    |
+ * | To next stage:				    |
+ * |  Until all tree blocks are super blocks are    |
+ * |  written to block devices			    |
+ * V						    |
+ * Transaction N [[TRANS_STATE_COMPLETED]]	    V
+ *   All tree blocks and super blocks are written.  Transaction N+1
+ *   This transaction is finished and all its	    [[TRANS_STATE_COMMIT_START]]
+ *   data structures will be cleaned up.	    | Life goes on
+ */
 static const unsigned int btrfs_blocked_trans_types[TRANS_STATE_MAX] = {
 	[TRANS_STATE_RUNNING]		= 0U,
-	[TRANS_STATE_BLOCKED]		=  __TRANS_START,
 	[TRANS_STATE_COMMIT_START]	= (__TRANS_START | __TRANS_ATTACH),
 	[TRANS_STATE_COMMIT_DOING]	= (__TRANS_START |
 					   __TRANS_ATTACH |
@@ -63,10 +133,10 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 		 * discard the physical locations of the block groups.
 		 */
 		while (!list_empty(&transaction->deleted_bgs)) {
-			struct btrfs_block_group_cache *cache;
+			struct btrfs_block_group *cache;
 
 			cache = list_first_entry(&transaction->deleted_bgs,
-						 struct btrfs_block_group_cache,
+						 struct btrfs_block_group,
 						 bg_list);
 			list_del_init(&cache->bg_list);
 			btrfs_put_block_group_trimming(cache);
@@ -383,7 +453,7 @@ int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
 
 static inline int is_transaction_blocked(struct btrfs_transaction *trans)
 {
-	return (trans->state >= TRANS_STATE_BLOCKED &&
+	return (trans->state >= TRANS_STATE_COMMIT_START &&
 		trans->state < TRANS_STATE_UNBLOCKED &&
 		!trans->aborted);
 }
@@ -570,7 +640,7 @@ again:
 	INIT_LIST_HEAD(&h->new_bgs);
 
 	smp_mb();
-	if (cur_trans->state >= TRANS_STATE_BLOCKED &&
+	if (cur_trans->state >= TRANS_STATE_COMMIT_START &&
 	    may_wait_transaction(fs_info, type)) {
 		current->journal_info = h;
 		btrfs_commit_transaction(h);
@@ -659,7 +729,7 @@ struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root)
 				 true);
 }
 
-struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root)
+struct btrfs_trans_handle *btrfs_join_transaction_spacecache(struct btrfs_root *root)
 {
 	return start_transaction(root, 0, TRANS_JOIN_NOLOCK,
 				 BTRFS_RESERVE_NO_FLUSH, true);
@@ -798,7 +868,7 @@ int btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
 	struct btrfs_transaction *cur_trans = trans->transaction;
 
 	smp_mb();
-	if (cur_trans->state >= TRANS_STATE_BLOCKED ||
+	if (cur_trans->state >= TRANS_STATE_COMMIT_START ||
 	    cur_trans->delayed_refs.flushing)
 		return 1;
 
@@ -831,7 +901,6 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *info = trans->fs_info;
 	struct btrfs_transaction *cur_trans = trans->transaction;
-	int lock = (trans->type != TRANS_JOIN_NOLOCK);
 	int err = 0;
 
 	if (refcount_read(&trans->use_count) > 1) {
@@ -846,13 +915,6 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	btrfs_create_pending_block_groups(trans);
 
 	btrfs_trans_release_chunk_metadata(trans);
-
-	if (lock && READ_ONCE(cur_trans->state) == TRANS_STATE_BLOCKED) {
-		if (throttle)
-			return btrfs_commit_transaction(trans);
-		else
-			wake_up_process(info->transaction_kthread);
-	}
 
 	if (trans->type & __TRANS_FREEZABLE)
 		sb_end_intwrite(info->sb);
@@ -990,7 +1052,7 @@ static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 	return werr;
 }
 
-int btrfs_wait_extents(struct btrfs_fs_info *fs_info,
+static int btrfs_wait_extents(struct btrfs_fs_info *fs_info,
 		       struct extent_io_tree *dirty_pages)
 {
 	bool errors = false;
@@ -1875,7 +1937,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 static void btrfs_cleanup_pending_block_groups(struct btrfs_trans_handle *trans)
 {
        struct btrfs_fs_info *fs_info = trans->fs_info;
-       struct btrfs_block_group_cache *block_group, *tmp;
+       struct btrfs_block_group *block_group, *tmp;
 
        list_for_each_entry_safe(block_group, tmp, &trans->new_bgs, bg_list) {
                btrfs_delayed_refs_rsv_release(fs_info, 1);
@@ -1948,6 +2010,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_transaction *prev_trans = NULL;
 	int ret;
+
+	ASSERT(refcount_read(&trans->use_count) == 1);
 
 	/* Stop the commit early if ->aborted is set */
 	if (unlikely(READ_ONCE(cur_trans->aborted))) {

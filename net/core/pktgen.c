@@ -3404,7 +3404,6 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	HARD_TX_LOCK(odev, txq, smp_processor_id());
 
 	if (unlikely(netif_xmit_frozen_or_drv_stopped(txq))) {
-		ret = NETDEV_TX_BUSY;
 		pkt_dev->last_ok = 0;
 		goto unlock;
 	}

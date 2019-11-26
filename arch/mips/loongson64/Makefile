@@ -1,24 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Common code for all Loongson based systems
+# Makefile for Loongson-3 family machines
 #
+obj-$(CONFIG_MACH_LOONGSON64) += irq.o cop2-ex.o platform.o acpi_init.o dma.o \
+				setup.o init.o env.o time.o reset.o \
 
-obj-$(CONFIG_MACH_LOONGSON64) += common/
-
-#
-# Lemote Fuloong mini-PC (Loongson 2E-based)
-#
-
-obj-$(CONFIG_LEMOTE_FULOONG2E)	+= fuloong-2e/
-
-#
-# Lemote loongson2f family machines
-#
-
-obj-$(CONFIG_LEMOTE_MACH2F)  += lemote-2f/
-
-#
-# All Loongson-3 family machines
-#
-
-obj-$(CONFIG_CPU_LOONGSON3)  += loongson-3/
+obj-$(CONFIG_SMP)	+= smp.o
+obj-$(CONFIG_NUMA)	+= numa.o
+obj-$(CONFIG_RS780_HPET) += hpet.o
+obj-$(CONFIG_PCI) += pci.o
+obj-$(CONFIG_LOONGSON_MC146818) += rtc.o
+obj-$(CONFIG_SUSPEND) += pm.o

@@ -14,9 +14,9 @@ struct ocelot_policer {
 	u32 burst; /* bytes */
 };
 
-int ocelot_port_policer_add(struct ocelot_port *port,
+int ocelot_port_policer_add(struct ocelot *ocelot, int port,
 			    struct ocelot_policer *pol);
 
-int ocelot_port_policer_del(struct ocelot_port *port);
+int ocelot_port_policer_del(struct ocelot *ocelot, int port);
 
 #endif /* _MSCC_OCELOT_POLICE_H_ */

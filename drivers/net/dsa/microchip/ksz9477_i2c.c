@@ -87,7 +87,6 @@ MODULE_DEVICE_TABLE(of, ksz9477_dt_ids);
 static struct i2c_driver ksz9477_i2c_driver = {
 	.driver = {
 		.name	= "ksz9477-switch",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(ksz9477_dt_ids),
 	},
 	.probe	= ksz9477_i2c_probe,

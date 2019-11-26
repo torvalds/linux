@@ -198,7 +198,7 @@ static u32 hns3_lb_check_rx_ring(struct hns3_nic_priv *priv, u32 budget)
 
 	kinfo = &h->kinfo;
 	for (i = kinfo->num_tqps; i < kinfo->num_tqps * 2; i++) {
-		struct hns3_enet_ring *ring = priv->ring_data[i].ring;
+		struct hns3_enet_ring *ring = &priv->ring[i];
 		struct hns3_enet_ring_group *rx_group;
 		u64 pre_rx_pkt;
 
@@ -221,7 +221,7 @@ static void hns3_lb_clear_tx_ring(struct hns3_nic_priv *priv, u32 start_ringid,
 	u32 i;
 
 	for (i = start_ringid; i <= end_ringid; i++) {
-		struct hns3_enet_ring *ring = priv->ring_data[i].ring;
+		struct hns3_enet_ring *ring = &priv->ring[i];
 
 		hns3_clean_tx_ring(ring);
 	}
@@ -486,7 +486,7 @@ static u64 *hns3_get_stats_tqps(struct hnae3_handle *handle, u64 *data)
 
 	/* get stats for Tx */
 	for (i = 0; i < kinfo->num_tqps; i++) {
-		ring = nic_priv->ring_data[i].ring;
+		ring = &nic_priv->ring[i];
 		for (j = 0; j < HNS3_TXQ_STATS_COUNT; j++) {
 			stat = (u8 *)ring + hns3_txq_stats[j].stats_offset;
 			*data++ = *(u64 *)stat;
@@ -495,7 +495,7 @@ static u64 *hns3_get_stats_tqps(struct hnae3_handle *handle, u64 *data)
 
 	/* get stats for Rx */
 	for (i = 0; i < kinfo->num_tqps; i++) {
-		ring = nic_priv->ring_data[i + kinfo->num_tqps].ring;
+		ring = &nic_priv->ring[i + kinfo->num_tqps];
 		for (j = 0; j < HNS3_RXQ_STATS_COUNT; j++) {
 			stat = (u8 *)ring + hns3_rxq_stats[j].stats_offset;
 			*data++ = *(u64 *)stat;
@@ -598,8 +598,8 @@ static void hns3_get_ringparam(struct net_device *netdev,
 	param->tx_max_pending = HNS3_RING_MAX_PENDING;
 	param->rx_max_pending = HNS3_RING_MAX_PENDING;
 
-	param->tx_pending = priv->ring_data[0].ring->desc_num;
-	param->rx_pending = priv->ring_data[queue_num].ring->desc_num;
+	param->tx_pending = priv->ring[0].desc_num;
+	param->rx_pending = priv->ring[queue_num].desc_num;
 }
 
 static void hns3_get_pauseparam(struct net_device *netdev,
@@ -901,9 +901,8 @@ static void hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
 	h->kinfo.num_rx_desc = rx_desc_num;
 
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
-		priv->ring_data[i].ring->desc_num = tx_desc_num;
-		priv->ring_data[i + h->kinfo.num_tqps].ring->desc_num =
-			rx_desc_num;
+		priv->ring[i].desc_num = tx_desc_num;
+		priv->ring[i + h->kinfo.num_tqps].desc_num = rx_desc_num;
 	}
 }
 
@@ -919,7 +918,7 @@ static struct hns3_enet_ring *hns3_backup_ringparam(struct hns3_nic_priv *priv)
 		return NULL;
 
 	for (i = 0; i < handle->kinfo.num_tqps * 2; i++) {
-		memcpy(&tmp_rings[i], priv->ring_data[i].ring,
+		memcpy(&tmp_rings[i], &priv->ring[i],
 		       sizeof(struct hns3_enet_ring));
 		tmp_rings[i].skb = NULL;
 	}
@@ -967,8 +966,8 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	/* Hardware requires that its descriptors must be multiple of eight */
 	new_tx_desc_num = ALIGN(param->tx_pending, HNS3_RING_BD_MULTIPLE);
 	new_rx_desc_num = ALIGN(param->rx_pending, HNS3_RING_BD_MULTIPLE);
-	old_tx_desc_num = priv->ring_data[0].ring->desc_num;
-	old_rx_desc_num = priv->ring_data[queue_num].ring->desc_num;
+	old_tx_desc_num = priv->ring[0].desc_num;
+	old_rx_desc_num = priv->ring[queue_num].desc_num;
 	if (old_tx_desc_num == new_tx_desc_num &&
 	    old_rx_desc_num == new_rx_desc_num)
 		return 0;
@@ -981,7 +980,7 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	}
 
 	netdev_info(ndev,
-		    "Changing Tx/Rx ring depth from %d/%d to %d/%d\n",
+		    "Changing Tx/Rx ring depth from %u/%u to %u/%u\n",
 		    old_tx_desc_num, old_rx_desc_num,
 		    new_tx_desc_num, new_rx_desc_num);
 
@@ -997,7 +996,7 @@ static int hns3_set_ringparam(struct net_device *ndev,
 		hns3_change_all_ring_bd_num(priv, old_tx_desc_num,
 					    old_rx_desc_num);
 		for (i = 0; i < h->kinfo.num_tqps * 2; i++)
-			memcpy(priv->ring_data[i].ring, &tmp_rings[i],
+			memcpy(&priv->ring[i], &tmp_rings[i],
 			       sizeof(struct hns3_enet_ring));
 	} else {
 		for (i = 0; i < h->kinfo.num_tqps * 2; i++)
@@ -1093,13 +1092,13 @@ static int hns3_get_coalesce_per_queue(struct net_device *netdev, u32 queue,
 
 	if (queue >= queue_num) {
 		netdev_err(netdev,
-			   "Invalid queue value %d! Queue max id=%d\n",
+			   "Invalid queue value %u! Queue max id=%u\n",
 			   queue, queue_num - 1);
 		return -EINVAL;
 	}
 
-	tx_vector = priv->ring_data[queue].ring->tqp_vector;
-	rx_vector = priv->ring_data[queue_num + queue].ring->tqp_vector;
+	tx_vector = priv->ring[queue].tqp_vector;
+	rx_vector = priv->ring[queue_num + queue].tqp_vector;
 
 	cmd->use_adaptive_tx_coalesce =
 			tx_vector->tx_group.coal.gl_adapt_enable;
@@ -1143,14 +1142,14 @@ static int hns3_check_gl_coalesce_para(struct net_device *netdev,
 	rx_gl = hns3_gl_round_down(cmd->rx_coalesce_usecs);
 	if (rx_gl != cmd->rx_coalesce_usecs) {
 		netdev_info(netdev,
-			    "rx_usecs(%d) rounded down to %d, because it must be multiple of 2.\n",
+			    "rx_usecs(%u) rounded down to %u, because it must be multiple of 2.\n",
 			    cmd->rx_coalesce_usecs, rx_gl);
 	}
 
 	tx_gl = hns3_gl_round_down(cmd->tx_coalesce_usecs);
 	if (tx_gl != cmd->tx_coalesce_usecs) {
 		netdev_info(netdev,
-			    "tx_usecs(%d) rounded down to %d, because it must be multiple of 2.\n",
+			    "tx_usecs(%u) rounded down to %u, because it must be multiple of 2.\n",
 			    cmd->tx_coalesce_usecs, tx_gl);
 	}
 
@@ -1178,7 +1177,7 @@ static int hns3_check_rl_coalesce_para(struct net_device *netdev,
 	rl = hns3_rl_round_down(cmd->rx_coalesce_usecs_high);
 	if (rl != cmd->rx_coalesce_usecs_high) {
 		netdev_info(netdev,
-			    "usecs_high(%d) rounded down to %d, because it must be multiple of 4.\n",
+			    "usecs_high(%u) rounded down to %u, because it must be multiple of 4.\n",
 			    cmd->rx_coalesce_usecs_high, rl);
 	}
 
@@ -1207,7 +1206,7 @@ static int hns3_check_coalesce_para(struct net_device *netdev,
 	if (cmd->use_adaptive_tx_coalesce == 1 ||
 	    cmd->use_adaptive_rx_coalesce == 1) {
 		netdev_info(netdev,
-			    "adaptive-tx=%d and adaptive-rx=%d, tx_usecs or rx_usecs will changed dynamically.\n",
+			    "adaptive-tx=%u and adaptive-rx=%u, tx_usecs or rx_usecs will changed dynamically.\n",
 			    cmd->use_adaptive_tx_coalesce,
 			    cmd->use_adaptive_rx_coalesce);
 	}
@@ -1224,8 +1223,8 @@ static void hns3_set_coalesce_per_queue(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int queue_num = h->kinfo.num_tqps;
 
-	tx_vector = priv->ring_data[queue].ring->tqp_vector;
-	rx_vector = priv->ring_data[queue_num + queue].ring->tqp_vector;
+	tx_vector = priv->ring[queue].tqp_vector;
+	rx_vector = priv->ring[queue_num + queue].tqp_vector;
 
 	tx_vector->tx_group.coal.gl_adapt_enable =
 				cmd->use_adaptive_tx_coalesce;

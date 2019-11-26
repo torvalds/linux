@@ -72,6 +72,7 @@ static int cg_prepare_for_wait(const char *cgroup)
 	if (ret == -1) {
 		debug("Error: inotify_add_watch() failed\n");
 		close(fd);
+		fd = -1;
 	}
 
 	return fd;
@@ -701,7 +702,7 @@ static int proc_check_stopped(int pid)
 	char buf[PAGE_SIZE];
 	int len;
 
-	len = proc_read_text(pid, "stat", buf, sizeof(buf));
+	len = proc_read_text(pid, 0, "stat", buf, sizeof(buf));
 	if (len == -1) {
 		debug("Can't get %d stat\n", pid);
 		return -1;

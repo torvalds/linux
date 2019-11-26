@@ -46,8 +46,8 @@ static void op_overflow_handler(struct perf_event *event,
 	if (id != num_counters)
 		oprofile_add_sample(regs, id);
 	else
-		pr_warning("oprofile: ignoring spurious overflow "
-				"on cpu %u\n", cpu);
+		pr_warn("oprofile: ignoring spurious overflow on cpu %u\n",
+			cpu);
 }
 
 /*
@@ -88,8 +88,8 @@ static int op_create_counter(int cpu, int event)
 
 	if (pevent->state != PERF_EVENT_STATE_ACTIVE) {
 		perf_event_release_kernel(pevent);
-		pr_warning("oprofile: failed to enable event %d "
-				"on CPU %d\n", event, cpu);
+		pr_warn("oprofile: failed to enable event %d on CPU %d\n",
+			event, cpu);
 		return -EBUSY;
 	}
 

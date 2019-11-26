@@ -372,6 +372,7 @@ static int tipc_udp_recv(struct sock *sk, struct sk_buff *skb)
 		goto out;
 
 	if (b && test_bit(0, &b->up)) {
+		TIPC_SKB_CB(skb)->flags = 0;
 		tipc_rcv(sock_net(sk), skb, b);
 		return 0;
 	}
@@ -448,14 +449,10 @@ int tipc_udp_nl_dump_remoteip(struct sk_buff *skb, struct netlink_callback *cb)
 	int i;
 
 	if (!bid && !skip_cnt) {
+		struct nlattr **attrs = genl_dumpit_info(cb)->attrs;
 		struct net *net = sock_net(skb->sk);
 		struct nlattr *battrs[TIPC_NLA_BEARER_MAX + 1];
-		struct nlattr **attrs;
 		char *bname;
-
-		err = tipc_nlmsg_parse(cb->nlh, &attrs);
-		if (err)
-			return err;
 
 		if (!attrs[TIPC_NLA_BEARER])
 			return -EINVAL;

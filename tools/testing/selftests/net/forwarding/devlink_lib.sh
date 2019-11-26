@@ -355,3 +355,58 @@ devlink_trap_group_stats_idle_test()
 		return 1
 	fi
 }
+
+devlink_trap_exception_test()
+{
+	local trap_name=$1; shift
+	local group_name=$1; shift
+
+	devlink_trap_stats_idle_test $trap_name
+	check_fail $? "Trap stats idle when packets should have been trapped"
+
+	devlink_trap_group_stats_idle_test $group_name
+	check_fail $? "Trap group idle when packets should have been trapped"
+}
+
+devlink_trap_drop_test()
+{
+	local trap_name=$1; shift
+	local group_name=$1; shift
+	local dev=$1; shift
+
+	# This is the common part of all the tests. It checks that stats are
+	# initially idle, then non-idle after changing the trap action and
+	# finally idle again. It also makes sure the packets are dropped and
+	# never forwarded.
+	devlink_trap_stats_idle_test $trap_name
+	check_err $? "Trap stats not idle with initial drop action"
+	devlink_trap_group_stats_idle_test $group_name
+	check_err $? "Trap group stats not idle with initial drop action"
+
+
+	devlink_trap_action_set $trap_name "trap"
+	devlink_trap_stats_idle_test $trap_name
+	check_fail $? "Trap stats idle after setting action to trap"
+	devlink_trap_group_stats_idle_test $group_name
+	check_fail $? "Trap group stats idle after setting action to trap"
+
+	devlink_trap_action_set $trap_name "drop"
+
+	devlink_trap_stats_idle_test $trap_name
+	check_err $? "Trap stats not idle after setting action to drop"
+	devlink_trap_group_stats_idle_test $group_name
+	check_err $? "Trap group stats not idle after setting action to drop"
+
+	tc_check_packets "dev $dev egress" 101 0
+	check_err $? "Packets were not dropped"
+}
+
+devlink_trap_drop_cleanup()
+{
+	local mz_pid=$1; shift
+	local dev=$1; shift
+	local proto=$1; shift
+
+	kill $mz_pid && wait $mz_pid &> /dev/null
+	tc filter del dev $dev egress protocol $proto pref 1 handle 101 flower
+}

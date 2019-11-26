@@ -170,6 +170,7 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 	int exec = vma->vm_flags & VM_EXEC;
 	struct mm_struct *mm = vma->vm_mm;
 	pgd_t *pgdp;
+	p4d_t *p4dp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
@@ -183,7 +184,8 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 
 	page &= PAGE_MASK;
 	pgdp = pgd_offset(mm, page);
-	pudp = pud_offset(pgdp, page);
+	p4dp = p4d_offset(pgdp, page);
+	pudp = pud_offset(p4dp, page);
 	pmdp = pmd_offset(pudp, page);
 	ptep = pte_offset(pmdp, page);
 

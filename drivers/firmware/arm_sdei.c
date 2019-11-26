@@ -967,29 +967,29 @@ static int sdei_get_conduit(struct platform_device *pdev)
 	if (np) {
 		if (of_property_read_string(np, "method", &method)) {
 			pr_warn("missing \"method\" property\n");
-			return CONDUIT_INVALID;
+			return SMCCC_CONDUIT_NONE;
 		}
 
 		if (!strcmp("hvc", method)) {
 			sdei_firmware_call = &sdei_smccc_hvc;
-			return CONDUIT_HVC;
+			return SMCCC_CONDUIT_HVC;
 		} else if (!strcmp("smc", method)) {
 			sdei_firmware_call = &sdei_smccc_smc;
-			return CONDUIT_SMC;
+			return SMCCC_CONDUIT_SMC;
 		}
 
 		pr_warn("invalid \"method\" property: %s\n", method);
 	} else if (IS_ENABLED(CONFIG_ACPI) && !acpi_disabled) {
 		if (acpi_psci_use_hvc()) {
 			sdei_firmware_call = &sdei_smccc_hvc;
-			return CONDUIT_HVC;
+			return SMCCC_CONDUIT_HVC;
 		} else {
 			sdei_firmware_call = &sdei_smccc_smc;
-			return CONDUIT_SMC;
+			return SMCCC_CONDUIT_SMC;
 		}
 	}
 
-	return CONDUIT_INVALID;
+	return SMCCC_CONDUIT_NONE;
 }
 
 static int sdei_probe(struct platform_device *pdev)

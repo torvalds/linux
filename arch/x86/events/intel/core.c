@@ -3324,8 +3324,19 @@ static int intel_pmu_hw_config(struct perf_event *event)
 	return 0;
 }
 
+#ifdef CONFIG_RETPOLINE
+static struct perf_guest_switch_msr *core_guest_get_msrs(int *nr);
+static struct perf_guest_switch_msr *intel_guest_get_msrs(int *nr);
+#endif
+
 struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr)
 {
+#ifdef CONFIG_RETPOLINE
+	if (x86_pmu.guest_get_msrs == intel_guest_get_msrs)
+		return intel_guest_get_msrs(nr);
+	else if (x86_pmu.guest_get_msrs == core_guest_get_msrs)
+		return core_guest_get_msrs(nr);
+#endif
 	if (x86_pmu.guest_get_msrs)
 		return x86_pmu.guest_get_msrs(nr);
 	*nr = 0;

@@ -759,6 +759,12 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 	case SMU_UCLK:
 	case SMU_DCEFCLK:
 	case SMU_FCLK:
+		/* There is only 2 levels for fine grained DPM */
+		if (navi10_is_support_fine_grained_dpm(smu, clk_type)) {
+			soft_max_level = (soft_max_level >= 1 ? 1 : 0);
+			soft_min_level = (soft_min_level >= 1 ? 1 : 0);
+		}
+
 		ret = smu_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
 		if (ret)
 			return size;

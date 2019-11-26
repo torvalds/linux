@@ -17,11 +17,12 @@
 #include <asm/cachectl.h>
 #include <asm/fixmap.h>
 
-#define __ARCH_USE_5LEVEL_HACK
-#if defined(CONFIG_PAGE_SIZE_64KB) && !defined(CONFIG_MIPS_VA_BITS_48)
+#if CONFIG_PGTABLE_LEVELS == 2
 #include <asm-generic/pgtable-nopmd.h>
-#elif !(defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_MIPS_VA_BITS_48))
+#elif CONFIG_PGTABLE_LEVELS == 3
 #include <asm-generic/pgtable-nopud.h>
+#else
+#include <asm-generic/pgtable-nop4d.h>
 #endif
 
 /*
@@ -186,44 +187,49 @@ extern pud_t invalid_pud_table[PTRS_PER_PUD];
 /*
  * Empty pgd entries point to the invalid_pud_table.
  */
-static inline int pgd_none(pgd_t pgd)
+static inline int p4d_none(p4d_t p4d)
 {
-	return pgd_val(pgd) == (unsigned long)invalid_pud_table;
+	return p4d_val(p4d) == (unsigned long)invalid_pud_table;
 }
 
-static inline int pgd_bad(pgd_t pgd)
+static inline int p4d_bad(p4d_t p4d)
 {
-	if (unlikely(pgd_val(pgd) & ~PAGE_MASK))
+	if (unlikely(p4d_val(p4d) & ~PAGE_MASK))
 		return 1;
 
 	return 0;
 }
 
-static inline int pgd_present(pgd_t pgd)
+static inline int p4d_present(p4d_t p4d)
 {
-	return pgd_val(pgd) != (unsigned long)invalid_pud_table;
+	return p4d_val(p4d) != (unsigned long)invalid_pud_table;
 }
 
-static inline void pgd_clear(pgd_t *pgdp)
+static inline void p4d_clear(p4d_t *p4dp)
 {
-	pgd_val(*pgdp) = (unsigned long)invalid_pud_table;
+	p4d_val(*p4dp) = (unsigned long)invalid_pud_table;
 }
 
 #define pud_index(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
 
-static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+static inline unsigned long p4d_page_vaddr(p4d_t p4d)
 {
-	return pgd_val(pgd);
+	return p4d_val(p4d);
 }
 
-static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
+#define p4d_phys(p4d)		virt_to_phys((void *)p4d_val(p4d))
+#define p4d_page(p4d)		(pfn_to_page(p4d_phys(p4d) >> PAGE_SHIFT))
+
+#define p4d_index(address)	(((address) >> P4D_SHIFT) & (PTRS_PER_P4D - 1))
+
+static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
 {
-	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(address);
+	return (pud_t *)p4d_page_vaddr(*p4d) + pud_index(address);
 }
 
-static inline void set_pgd(pgd_t *pgd, pgd_t pgdval)
+static inline void set_p4d(p4d_t *p4d, p4d_t p4dval)
 {
-	*pgd = pgdval;
+	*p4d = p4dval;
 }
 
 #endif
@@ -313,10 +319,6 @@ static inline void pud_clear(pud_t *pudp)
 #define pfn_pte(pfn, prot)	__pte(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #define pfn_pmd(pfn, prot)	__pmd(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #endif
-
-#define __pgd_offset(address)	pgd_index(address)
-#define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
-#define __pmd_offset(address)	pmd_index(address)
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)

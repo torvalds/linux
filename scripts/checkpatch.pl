@@ -6022,7 +6022,7 @@ sub process {
 				while ($fmt =~ /(\%[\*\d\.]*p(\w))/g) {
 					$specifier = $1;
 					$extension = $2;
-					if ($extension !~ /[SsBKRraEhMmIiUDdgVCbGNOxt]/) {
+					if ($extension !~ /[SsBKRraEehMmIiUDdgVCbGNOxt]/) {
 						$bad_specifier = $specifier;
 						last;
 					}

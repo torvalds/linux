@@ -637,6 +637,8 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 		  vmci_dev->iobase + VMCI_CONTROL_ADDR);
 
 	pci_set_drvdata(pdev, vmci_dev);
+
+	vmci_call_vsock_callback(false);
 	return 0;
 
 err_free_irq:

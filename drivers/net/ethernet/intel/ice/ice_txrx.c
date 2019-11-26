@@ -5,8 +5,13 @@
 
 #include <linux/prefetch.h>
 #include <linux/mm.h>
+#include <linux/bpf_trace.h>
+#include <net/xdp.h>
+#include "ice_txrx_lib.h"
+#include "ice_lib.h"
 #include "ice.h"
 #include "ice_dcb_lib.h"
+#include "ice_xsk.h"
 
 #define ICE_RX_HDR_SIZE		256
 
@@ -19,7 +24,10 @@ static void
 ice_unmap_and_free_tx_buf(struct ice_ring *ring, struct ice_tx_buf *tx_buf)
 {
 	if (tx_buf->skb) {
-		dev_kfree_skb_any(tx_buf->skb);
+		if (ice_ring_is_xdp(ring))
+			page_frag_free(tx_buf->raw_buf);
+		else
+			dev_kfree_skb_any(tx_buf->skb);
 		if (dma_unmap_len(tx_buf, len))
 			dma_unmap_single(ring->dev,
 					 dma_unmap_addr(tx_buf, dma),
@@ -51,6 +59,11 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 {
 	u16 i;
 
+	if (ice_ring_is_xdp(tx_ring) && tx_ring->xsk_umem) {
+		ice_xsk_clean_xdp_ring(tx_ring);
+		goto tx_skip_free;
+	}
+
 	/* ring already cleared, nothing to do */
 	if (!tx_ring->tx_buf)
 		return;
@@ -59,6 +72,7 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 	for (i = 0; i < tx_ring->count; i++)
 		ice_unmap_and_free_tx_buf(tx_ring, &tx_ring->tx_buf[i]);
 
+tx_skip_free:
 	memset(tx_ring->tx_buf, 0, sizeof(*tx_ring->tx_buf) * tx_ring->count);
 
 	/* Zero out the descriptor ring */
@@ -136,8 +150,11 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 		total_bytes += tx_buf->bytecount;
 		total_pkts += tx_buf->gso_segs;
 
-		/* free the skb */
-		napi_consume_skb(tx_buf->skb, napi_budget);
+		if (ice_ring_is_xdp(tx_ring))
+			page_frag_free(tx_buf->raw_buf);
+		else
+			/* free the skb */
+			napi_consume_skb(tx_buf->skb, napi_budget);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -188,12 +205,11 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 
 	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
-	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->stats.bytes += total_bytes;
-	tx_ring->stats.pkts += total_pkts;
-	u64_stats_update_end(&tx_ring->syncp);
-	tx_ring->q_vector->tx.total_bytes += total_bytes;
-	tx_ring->q_vector->tx.total_pkts += total_pkts;
+
+	ice_update_tx_ring_stats(tx_ring, total_pkts, total_bytes);
+
+	if (ice_ring_is_xdp(tx_ring))
+		return !!budget;
 
 	netdev_tx_completed_queue(txring_txq(tx_ring), total_pkts,
 				  total_bytes);
@@ -273,6 +289,11 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 	if (!rx_ring->rx_buf)
 		return;
 
+	if (rx_ring->xsk_umem) {
+		ice_xsk_clean_rx_ring(rx_ring);
+		goto rx_skip_free;
+	}
+
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
 		struct ice_rx_buf *rx_buf = &rx_ring->rx_buf[i];
@@ -289,10 +310,11 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 		 */
 		dma_sync_single_range_for_cpu(dev, rx_buf->dma,
 					      rx_buf->page_offset,
-					      ICE_RXBUF_2048, DMA_FROM_DEVICE);
+					      rx_ring->rx_buf_len,
+					      DMA_FROM_DEVICE);
 
 		/* free resources associated with mapping */
-		dma_unmap_page_attrs(dev, rx_buf->dma, PAGE_SIZE,
+		dma_unmap_page_attrs(dev, rx_buf->dma, ice_rx_pg_size(rx_ring),
 				     DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
 		__page_frag_cache_drain(rx_buf->page, rx_buf->pagecnt_bias);
 
@@ -300,6 +322,7 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 		rx_buf->page_offset = 0;
 	}
 
+rx_skip_free:
 	memset(rx_ring->rx_buf, 0, sizeof(*rx_ring->rx_buf) * rx_ring->count);
 
 	/* Zero out the descriptor ring */
@@ -319,6 +342,10 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 void ice_free_rx_ring(struct ice_ring *rx_ring)
 {
 	ice_clean_rx_ring(rx_ring);
+	if (rx_ring->vsi->type == ICE_VSI_PF)
+		if (xdp_rxq_info_is_reg(&rx_ring->xdp_rxq))
+			xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
+	rx_ring->xdp_prog = NULL;
 	devm_kfree(rx_ring->dev, rx_ring->rx_buf);
 	rx_ring->rx_buf = NULL;
 
@@ -363,6 +390,15 @@ int ice_setup_rx_ring(struct ice_ring *rx_ring)
 
 	rx_ring->next_to_use = 0;
 	rx_ring->next_to_clean = 0;
+
+	if (ice_is_xdp_ena_vsi(rx_ring->vsi))
+		WRITE_ONCE(rx_ring->xdp_prog, rx_ring->vsi->xdp_prog);
+
+	if (rx_ring->vsi->type == ICE_VSI_PF &&
+	    !xdp_rxq_info_is_reg(&rx_ring->xdp_rxq))
+		if (xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev,
+				     rx_ring->q_index))
+			goto err;
 	return 0;
 
 err:
@@ -372,34 +408,110 @@ err:
 }
 
 /**
- * ice_release_rx_desc - Store the new tail and head values
- * @rx_ring: ring to bump
- * @val: new head index
+ * ice_rx_offset - Return expected offset into page to access data
+ * @rx_ring: Ring we are requesting offset of
+ *
+ * Returns the offset value for ring into the data buffer.
  */
-static void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val)
+static unsigned int ice_rx_offset(struct ice_ring *rx_ring)
 {
-	u16 prev_ntu = rx_ring->next_to_use;
+	if (ice_ring_uses_build_skb(rx_ring))
+		return ICE_SKB_PAD;
+	else if (ice_is_xdp_ena_vsi(rx_ring->vsi))
+		return XDP_PACKET_HEADROOM;
 
-	rx_ring->next_to_use = val;
+	return 0;
+}
 
-	/* update next to alloc since we have filled the ring */
-	rx_ring->next_to_alloc = val;
+/**
+ * ice_run_xdp - Executes an XDP program on initialized xdp_buff
+ * @rx_ring: Rx ring
+ * @xdp: xdp_buff used as input to the XDP program
+ * @xdp_prog: XDP program to run
+ *
+ * Returns any of ICE_XDP_{PASS, CONSUMED, TX, REDIR}
+ */
+static int
+ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
+	    struct bpf_prog *xdp_prog)
+{
+	int err, result = ICE_XDP_PASS;
+	struct ice_ring *xdp_ring;
+	u32 act;
 
-	/* QRX_TAIL will be updated with any tail value, but hardware ignores
-	 * the lower 3 bits. This makes it so we only bump tail on meaningful
-	 * boundaries. Also, this allows us to bump tail on intervals of 8 up to
-	 * the budget depending on the current traffic load.
-	 */
-	val &= ~0x7;
-	if (prev_ntu != val) {
-		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch. (Only
-		 * applicable for weak-ordered memory model archs,
-		 * such as IA-64).
-		 */
-		wmb();
-		writel(val, rx_ring->tail);
+	act = bpf_prog_run_xdp(xdp_prog, xdp);
+	switch (act) {
+	case XDP_PASS:
+		break;
+	case XDP_TX:
+		xdp_ring = rx_ring->vsi->xdp_rings[smp_processor_id()];
+		result = ice_xmit_xdp_buff(xdp, xdp_ring);
+		break;
+	case XDP_REDIRECT:
+		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
+		result = !err ? ICE_XDP_REDIR : ICE_XDP_CONSUMED;
+		break;
+	default:
+		bpf_warn_invalid_xdp_action(act);
+		/* fallthrough -- not supported action */
+	case XDP_ABORTED:
+		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
+		/* fallthrough -- handle aborts by dropping frame */
+	case XDP_DROP:
+		result = ICE_XDP_CONSUMED;
+		break;
 	}
+
+	return result;
+}
+
+/**
+ * ice_xdp_xmit - submit packets to XDP ring for transmission
+ * @dev: netdev
+ * @n: number of XDP frames to be transmitted
+ * @frames: XDP frames to be transmitted
+ * @flags: transmit flags
+ *
+ * Returns number of frames successfully sent. Frames that fail are
+ * free'ed via XDP return API.
+ * For error cases, a negative errno code is returned and no-frames
+ * are transmitted (caller must handle freeing frames).
+ */
+int
+ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
+	     u32 flags)
+{
+	struct ice_netdev_priv *np = netdev_priv(dev);
+	unsigned int queue_index = smp_processor_id();
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_ring *xdp_ring;
+	int drops = 0, i;
+
+	if (test_bit(__ICE_DOWN, vsi->state))
+		return -ENETDOWN;
+
+	if (!ice_is_xdp_ena_vsi(vsi) || queue_index >= vsi->num_xdp_txq)
+		return -ENXIO;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	xdp_ring = vsi->xdp_rings[queue_index];
+	for (i = 0; i < n; i++) {
+		struct xdp_frame *xdpf = frames[i];
+		int err;
+
+		err = ice_xmit_xdp_ring(xdpf->data, xdpf->len, xdp_ring);
+		if (err != ICE_XDP_TX) {
+			xdp_return_frame_rx_napi(xdpf);
+			drops++;
+		}
+	}
+
+	if (unlikely(flags & XDP_XMIT_FLUSH))
+		ice_xdp_ring_update_tail(xdp_ring);
+
+	return n - drops;
 }
 
 /**
@@ -423,28 +535,28 @@ ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
 	}
 
 	/* alloc new page for storage */
-	page = alloc_page(GFP_ATOMIC | __GFP_NOWARN);
+	page = dev_alloc_pages(ice_rx_pg_order(rx_ring));
 	if (unlikely(!page)) {
 		rx_ring->rx_stats.alloc_page_failed++;
 		return false;
 	}
 
 	/* map page for use */
-	dma = dma_map_page_attrs(rx_ring->dev, page, 0, PAGE_SIZE,
+	dma = dma_map_page_attrs(rx_ring->dev, page, 0, ice_rx_pg_size(rx_ring),
 				 DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
 
 	/* if mapping failed free memory back to system since
 	 * there isn't much point in holding memory we can't use
 	 */
 	if (dma_mapping_error(rx_ring->dev, dma)) {
-		__free_pages(page, 0);
+		__free_pages(page, ice_rx_pg_order(rx_ring));
 		rx_ring->rx_stats.alloc_page_failed++;
 		return false;
 	}
 
 	bi->dma = dma;
 	bi->page = page;
-	bi->page_offset = 0;
+	bi->page_offset = ice_rx_offset(rx_ring);
 	page_ref_add(page, USHRT_MAX - 1);
 	bi->pagecnt_bias = USHRT_MAX;
 
@@ -486,7 +598,7 @@ bool ice_alloc_rx_bufs(struct ice_ring *rx_ring, u16 cleaned_count)
 		/* sync the buffer for use by the device */
 		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
 						 bi->page_offset,
-						 ICE_RXBUF_2048,
+						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
 
 		/* Refresh the desc even if buffer_addrs didn't change
@@ -557,9 +669,6 @@ ice_rx_buf_adjust_pg_offset(struct ice_rx_buf *rx_buf, unsigned int size)
  */
 static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
 {
-#if (PAGE_SIZE >= 8192)
-	unsigned int last_offset = PAGE_SIZE - ICE_RXBUF_2048;
-#endif
 	unsigned int pagecnt_bias = rx_buf->pagecnt_bias;
 	struct page *page = rx_buf->page;
 
@@ -572,7 +681,9 @@ static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
 	if (unlikely((page_count(page) - pagecnt_bias) > 1))
 		return false;
 #else
-	if (rx_buf->page_offset > last_offset)
+#define ICE_LAST_OFFSET \
+	(SKB_WITH_OVERHEAD(PAGE_SIZE) - ICE_RXBUF_2048)
+	if (rx_buf->page_offset > ICE_LAST_OFFSET)
 		return false;
 #endif /* PAGE_SIZE < 8192) */
 
@@ -590,6 +701,7 @@ static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
 
 /**
  * ice_add_rx_frag - Add contents of Rx buffer to sk_buff as a frag
+ * @rx_ring: Rx descriptor ring to transact packets on
  * @rx_buf: buffer containing page to add
  * @skb: sk_buff to place the data into
  * @size: packet length from rx_desc
@@ -599,13 +711,13 @@ static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
  * The function will then update the page offset.
  */
 static void
-ice_add_rx_frag(struct ice_rx_buf *rx_buf, struct sk_buff *skb,
-		unsigned int size)
+ice_add_rx_frag(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
+		struct sk_buff *skb, unsigned int size)
 {
 #if (PAGE_SIZE >= 8192)
-	unsigned int truesize = SKB_DATA_ALIGN(size);
+	unsigned int truesize = SKB_DATA_ALIGN(size + ice_rx_offset(rx_ring));
 #else
-	unsigned int truesize = ICE_RXBUF_2048;
+	unsigned int truesize = ice_rx_pg_size(rx_ring) / 2;
 #endif
 
 	if (!size)
@@ -679,10 +791,64 @@ ice_get_rx_buf(struct ice_ring *rx_ring, struct sk_buff **skb,
 }
 
 /**
+ * ice_build_skb - Build skb around an existing buffer
+ * @rx_ring: Rx descriptor ring to transact packets on
+ * @rx_buf: Rx buffer to pull data from
+ * @xdp: xdp_buff pointing to the data
+ *
+ * This function builds an skb around an existing Rx buffer, taking care
+ * to set up the skb correctly and avoid any memcpy overhead.
+ */
+static struct sk_buff *
+ice_build_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
+	      struct xdp_buff *xdp)
+{
+	unsigned int metasize = xdp->data - xdp->data_meta;
+#if (PAGE_SIZE < 8192)
+	unsigned int truesize = ice_rx_pg_size(rx_ring) / 2;
+#else
+	unsigned int truesize = SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) +
+				SKB_DATA_ALIGN(xdp->data_end -
+					       xdp->data_hard_start);
+#endif
+	struct sk_buff *skb;
+
+	/* Prefetch first cache line of first page. If xdp->data_meta
+	 * is unused, this points exactly as xdp->data, otherwise we
+	 * likely have a consumer accessing first few bytes of meta
+	 * data, and then actual data.
+	 */
+	prefetch(xdp->data_meta);
+#if L1_CACHE_BYTES < 128
+	prefetch((void *)(xdp->data + L1_CACHE_BYTES));
+#endif
+	/* build an skb around the page buffer */
+	skb = build_skb(xdp->data_hard_start, truesize);
+	if (unlikely(!skb))
+		return NULL;
+
+	/* must to record Rx queue, otherwise OS features such as
+	 * symmetric queue won't work
+	 */
+	skb_record_rx_queue(skb, rx_ring->q_index);
+
+	/* update pointers within the skb to store the data */
+	skb_reserve(skb, xdp->data - xdp->data_hard_start);
+	__skb_put(skb, xdp->data_end - xdp->data);
+	if (metasize)
+		skb_metadata_set(skb, metasize);
+
+	/* buffer is used by skb, update page_offset */
+	ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
+
+	return skb;
+}
+
+/**
  * ice_construct_skb - Allocate skb and populate it
  * @rx_ring: Rx descriptor ring to transact packets on
  * @rx_buf: Rx buffer to pull data from
- * @size: the length of the packet
+ * @xdp: xdp_buff pointing to the data
  *
  * This function allocates an skb. It then populates it with the page
  * data from the current receive descriptor, taking care to set up the
@@ -690,16 +856,16 @@ ice_get_rx_buf(struct ice_ring *rx_ring, struct sk_buff **skb,
  */
 static struct sk_buff *
 ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
-		  unsigned int size)
+		  struct xdp_buff *xdp)
 {
-	void *va = page_address(rx_buf->page) + rx_buf->page_offset;
+	unsigned int size = xdp->data_end - xdp->data;
 	unsigned int headlen;
 	struct sk_buff *skb;
 
 	/* prefetch first cache line of first page */
-	prefetch(va);
+	prefetch(xdp->data);
 #if L1_CACHE_BYTES < 128
-	prefetch((u8 *)va + L1_CACHE_BYTES);
+	prefetch((void *)(xdp->data + L1_CACHE_BYTES));
 #endif /* L1_CACHE_BYTES */
 
 	/* allocate a skb to store the frags */
@@ -712,10 +878,11 @@ ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	/* Determine available headroom for copy */
 	headlen = size;
 	if (headlen > ICE_RX_HDR_SIZE)
-		headlen = eth_get_headlen(skb->dev, va, ICE_RX_HDR_SIZE);
+		headlen = eth_get_headlen(skb->dev, xdp->data, ICE_RX_HDR_SIZE);
 
 	/* align pull length to size of long to optimize memcpy performance */
-	memcpy(__skb_put(skb, headlen), va, ALIGN(headlen, sizeof(long)));
+	memcpy(__skb_put(skb, headlen), xdp->data, ALIGN(headlen,
+							 sizeof(long)));
 
 	/* if we exhaust the linear part then add what is left as a frag */
 	size -= headlen;
@@ -723,7 +890,7 @@ ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 #if (PAGE_SIZE >= 8192)
 		unsigned int truesize = SKB_DATA_ALIGN(size);
 #else
-		unsigned int truesize = ICE_RXBUF_2048;
+		unsigned int truesize = ice_rx_pg_size(rx_ring) / 2;
 #endif
 		skb_add_rx_frag(skb, 0, rx_buf->page,
 				rx_buf->page_offset + headlen, size, truesize);
@@ -745,11 +912,18 @@ ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
  * @rx_ring: Rx descriptor ring to transact packets on
  * @rx_buf: Rx buffer to pull data from
  *
- * This function will  clean up the contents of the rx_buf. It will
- * either recycle the buffer or unmap it and free the associated resources.
+ * This function will update next_to_clean and then clean up the contents
+ * of the rx_buf. It will either recycle the buffer or unmap it and free
+ * the associated resources.
  */
 static void ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 {
+	u32 ntc = rx_ring->next_to_clean + 1;
+
+	/* fetch, update, and store next to clean */
+	ntc = (ntc < rx_ring->count) ? ntc : 0;
+	rx_ring->next_to_clean = ntc;
+
 	if (!rx_buf)
 		return;
 
@@ -759,8 +933,9 @@ static void ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 		rx_ring->rx_stats.page_reuse_count++;
 	} else {
 		/* we are not reusing the buffer so unmap it */
-		dma_unmap_page_attrs(rx_ring->dev, rx_buf->dma, PAGE_SIZE,
-				     DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
+		dma_unmap_page_attrs(rx_ring->dev, rx_buf->dma,
+				     ice_rx_pg_size(rx_ring), DMA_FROM_DEVICE,
+				     ICE_RX_DMA_ATTR);
 		__page_frag_cache_drain(rx_buf->page, rx_buf->pagecnt_bias);
 	}
 
@@ -770,224 +945,28 @@ static void ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 }
 
 /**
- * ice_cleanup_headers - Correct empty headers
- * @skb: pointer to current skb being fixed
- *
- * Also address the case where we are pulling data in on pages only
- * and as such no data is present in the skb header.
- *
- * In addition if skb is not at least 60 bytes we need to pad it so that
- * it is large enough to qualify as a valid Ethernet frame.
- *
- * Returns true if an error was encountered and skb was freed.
- */
-static bool ice_cleanup_headers(struct sk_buff *skb)
-{
-	/* if eth_skb_pad returns an error the skb was freed */
-	if (eth_skb_pad(skb))
-		return true;
-
-	return false;
-}
-
-/**
- * ice_test_staterr - tests bits in Rx descriptor status and error fields
- * @rx_desc: pointer to receive descriptor (in le64 format)
- * @stat_err_bits: value to mask
- *
- * This function does some fast chicanery in order to return the
- * value of the mask which is really only used for boolean tests.
- * The status_error_len doesn't need to be shifted because it begins
- * at offset zero.
- */
-static bool
-ice_test_staterr(union ice_32b_rx_flex_desc *rx_desc, const u16 stat_err_bits)
-{
-	return !!(rx_desc->wb.status_error0 &
-		  cpu_to_le16(stat_err_bits));
-}
-
-/**
  * ice_is_non_eop - process handling of non-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
  * @skb: Current socket buffer containing buffer in progress
  *
- * This function updates next to clean. If the buffer is an EOP buffer
- * this function exits returning false, otherwise it will place the
- * sk_buff in the next buffer to be chained and return true indicating
- * that this is in fact a non-EOP buffer.
+ * If the buffer is an EOP buffer, this function exits returning false,
+ * otherwise return true indicating that this is in fact a non-EOP buffer.
  */
 static bool
 ice_is_non_eop(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
 	       struct sk_buff *skb)
 {
-	u32 ntc = rx_ring->next_to_clean + 1;
-
-	/* fetch, update, and store next to clean */
-	ntc = (ntc < rx_ring->count) ? ntc : 0;
-	rx_ring->next_to_clean = ntc;
-
-	prefetch(ICE_RX_DESC(rx_ring, ntc));
-
 	/* if we are the last buffer then there is nothing else to do */
 #define ICE_RXD_EOF BIT(ICE_RX_FLEX_DESC_STATUS0_EOF_S)
 	if (likely(ice_test_staterr(rx_desc, ICE_RXD_EOF)))
 		return false;
 
 	/* place skb in next buffer to be received */
-	rx_ring->rx_buf[ntc].skb = skb;
+	rx_ring->rx_buf[rx_ring->next_to_clean].skb = skb;
 	rx_ring->rx_stats.non_eop_descs++;
 
 	return true;
-}
-
-/**
- * ice_ptype_to_htype - get a hash type
- * @ptype: the ptype value from the descriptor
- *
- * Returns a hash type to be used by skb_set_hash
- */
-static enum pkt_hash_types ice_ptype_to_htype(u8 __always_unused ptype)
-{
-	return PKT_HASH_TYPE_NONE;
-}
-
-/**
- * ice_rx_hash - set the hash value in the skb
- * @rx_ring: descriptor ring
- * @rx_desc: specific descriptor
- * @skb: pointer to current skb
- * @rx_ptype: the ptype value from the descriptor
- */
-static void
-ice_rx_hash(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
-	    struct sk_buff *skb, u8 rx_ptype)
-{
-	struct ice_32b_rx_flex_desc_nic *nic_mdid;
-	u32 hash;
-
-	if (!(rx_ring->netdev->features & NETIF_F_RXHASH))
-		return;
-
-	if (rx_desc->wb.rxdid != ICE_RXDID_FLEX_NIC)
-		return;
-
-	nic_mdid = (struct ice_32b_rx_flex_desc_nic *)rx_desc;
-	hash = le32_to_cpu(nic_mdid->rss_hash);
-	skb_set_hash(skb, hash, ice_ptype_to_htype(rx_ptype));
-}
-
-/**
- * ice_rx_csum - Indicate in skb if checksum is good
- * @ring: the ring we care about
- * @skb: skb currently being received and modified
- * @rx_desc: the receive descriptor
- * @ptype: the packet type decoded by hardware
- *
- * skb->protocol must be set before this function is called
- */
-static void
-ice_rx_csum(struct ice_ring *ring, struct sk_buff *skb,
-	    union ice_32b_rx_flex_desc *rx_desc, u8 ptype)
-{
-	struct ice_rx_ptype_decoded decoded;
-	u32 rx_error, rx_status;
-	bool ipv4, ipv6;
-
-	rx_status = le16_to_cpu(rx_desc->wb.status_error0);
-	rx_error = rx_status;
-
-	decoded = ice_decode_rx_desc_ptype(ptype);
-
-	/* Start with CHECKSUM_NONE and by default csum_level = 0 */
-	skb->ip_summed = CHECKSUM_NONE;
-	skb_checksum_none_assert(skb);
-
-	/* check if Rx checksum is enabled */
-	if (!(ring->netdev->features & NETIF_F_RXCSUM))
-		return;
-
-	/* check if HW has decoded the packet and checksum */
-	if (!(rx_status & BIT(ICE_RX_FLEX_DESC_STATUS0_L3L4P_S)))
-		return;
-
-	if (!(decoded.known && decoded.outer_ip))
-		return;
-
-	ipv4 = (decoded.outer_ip == ICE_RX_PTYPE_OUTER_IP) &&
-	       (decoded.outer_ip_ver == ICE_RX_PTYPE_OUTER_IPV4);
-	ipv6 = (decoded.outer_ip == ICE_RX_PTYPE_OUTER_IP) &&
-	       (decoded.outer_ip_ver == ICE_RX_PTYPE_OUTER_IPV6);
-
-	if (ipv4 && (rx_error & (BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_IPE_S) |
-				 BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_EIPE_S))))
-		goto checksum_fail;
-	else if (ipv6 && (rx_status &
-		 (BIT(ICE_RX_FLEX_DESC_STATUS0_IPV6EXADD_S))))
-		goto checksum_fail;
-
-	/* check for L4 errors and handle packets that were not able to be
-	 * checksummed due to arrival speed
-	 */
-	if (rx_error & BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_L4E_S))
-		goto checksum_fail;
-
-	/* Only report checksum unnecessary for TCP, UDP, or SCTP */
-	switch (decoded.inner_prot) {
-	case ICE_RX_PTYPE_INNER_PROT_TCP:
-	case ICE_RX_PTYPE_INNER_PROT_UDP:
-	case ICE_RX_PTYPE_INNER_PROT_SCTP:
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	default:
-		break;
-	}
-	return;
-
-checksum_fail:
-	ring->vsi->back->hw_csum_rx_error++;
-}
-
-/**
- * ice_process_skb_fields - Populate skb header fields from Rx descriptor
- * @rx_ring: Rx descriptor ring packet is being transacted on
- * @rx_desc: pointer to the EOP Rx descriptor
- * @skb: pointer to current skb being populated
- * @ptype: the packet type decoded by hardware
- *
- * This function checks the ring, descriptor, and packet information in
- * order to populate the hash, checksum, VLAN, protocol, and
- * other fields within the skb.
- */
-static void
-ice_process_skb_fields(struct ice_ring *rx_ring,
-		       union ice_32b_rx_flex_desc *rx_desc,
-		       struct sk_buff *skb, u8 ptype)
-{
-	ice_rx_hash(rx_ring, rx_desc, skb, ptype);
-
-	/* modifies the skb - consumes the enet header */
-	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
-
-	ice_rx_csum(rx_ring, skb, rx_desc, ptype);
-}
-
-/**
- * ice_receive_skb - Send a completed packet up the stack
- * @rx_ring: Rx ring in play
- * @skb: packet to send up
- * @vlan_tag: VLAN tag for packet
- *
- * This function sends the completed packet (via. skb) up the stack using
- * gro receive functions (with/without VLAN tag)
- */
-static void
-ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag)
-{
-	if ((rx_ring->netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
-	    (vlan_tag & VLAN_VID_MASK))
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
-	napi_gro_receive(&rx_ring->q_vector->napi, skb);
 }
 
 /**
@@ -1006,7 +985,12 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_pkts = 0;
 	u16 cleaned_count = ICE_DESC_UNUSED(rx_ring);
+	unsigned int xdp_res, xdp_xmit = 0;
+	struct bpf_prog *xdp_prog = NULL;
+	struct xdp_buff xdp;
 	bool failure;
+
+	xdp.rxq = &rx_ring->xdp_rxq;
 
 	/* start the loop to process Rx packets bounded by 'budget' */
 	while (likely(total_rx_pkts < (unsigned int)budget)) {
@@ -1042,10 +1026,57 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		/* retrieve a buffer from the ring */
 		rx_buf = ice_get_rx_buf(rx_ring, &skb, size);
 
+		if (!size) {
+			xdp.data = NULL;
+			xdp.data_end = NULL;
+			xdp.data_hard_start = NULL;
+			xdp.data_meta = NULL;
+			goto construct_skb;
+		}
+
+		xdp.data = page_address(rx_buf->page) + rx_buf->page_offset;
+		xdp.data_hard_start = xdp.data - ice_rx_offset(rx_ring);
+		xdp.data_meta = xdp.data;
+		xdp.data_end = xdp.data + size;
+
+		rcu_read_lock();
+		xdp_prog = READ_ONCE(rx_ring->xdp_prog);
+		if (!xdp_prog) {
+			rcu_read_unlock();
+			goto construct_skb;
+		}
+
+		xdp_res = ice_run_xdp(rx_ring, &xdp, xdp_prog);
+		rcu_read_unlock();
+		if (!xdp_res)
+			goto construct_skb;
+		if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR)) {
+			unsigned int truesize;
+
+#if (PAGE_SIZE < 8192)
+			truesize = ice_rx_pg_size(rx_ring) / 2;
+#else
+			truesize = SKB_DATA_ALIGN(ice_rx_offset(rx_ring) +
+						  size);
+#endif
+			xdp_xmit |= xdp_res;
+			ice_rx_buf_adjust_pg_offset(rx_buf, truesize);
+		} else {
+			rx_buf->pagecnt_bias++;
+		}
+		total_rx_bytes += size;
+		total_rx_pkts++;
+
+		cleaned_count++;
+		ice_put_rx_buf(rx_ring, rx_buf);
+		continue;
+construct_skb:
 		if (skb)
-			ice_add_rx_frag(rx_buf, skb, size);
+			ice_add_rx_frag(rx_ring, rx_buf, skb, size);
+		else if (ice_ring_uses_build_skb(rx_ring))
+			skb = ice_build_skb(rx_ring, rx_buf, &xdp);
 		else
-			skb = ice_construct_skb(rx_ring, rx_buf, size);
+			skb = ice_construct_skb(rx_ring, rx_buf, &xdp);
 
 		/* exit if we failed to retrieve a buffer */
 		if (!skb) {
@@ -1072,10 +1103,8 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		if (ice_test_staterr(rx_desc, stat_err_bits))
 			vlan_tag = le16_to_cpu(rx_desc->wb.l2tag1);
 
-		/* correct empty headers and pad skb if needed (to make valid
-		 * ethernet frame
-		 */
-		if (ice_cleanup_headers(skb)) {
+		/* pad the skb if needed, to make a valid ethernet frame */
+		if (eth_skb_pad(skb)) {
 			skb = NULL;
 			continue;
 		}
@@ -1099,13 +1128,10 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 	/* return up to cleaned_count buffers to hardware */
 	failure = ice_alloc_rx_bufs(rx_ring, cleaned_count);
 
-	/* update queue and vector specific stats */
-	u64_stats_update_begin(&rx_ring->syncp);
-	rx_ring->stats.pkts += total_rx_pkts;
-	rx_ring->stats.bytes += total_rx_bytes;
-	u64_stats_update_end(&rx_ring->syncp);
-	rx_ring->q_vector->rx.total_pkts += total_rx_pkts;
-	rx_ring->q_vector->rx.total_bytes += total_rx_bytes;
+	if (xdp_prog)
+		ice_finalize_xdp_rx(rx_ring, xdp_xmit);
+
+	ice_update_rx_ring_stats(rx_ring, total_rx_pkts, total_rx_bytes);
 
 	/* guarantee a trip back through this routine if there was a failure */
 	return failure ? budget : (int)total_rx_pkts;
@@ -1483,9 +1509,14 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
-	ice_for_each_ring(ring, q_vector->tx)
-		if (!ice_clean_tx_irq(ring, budget))
+	ice_for_each_ring(ring, q_vector->tx) {
+		bool wd = ring->xsk_umem ?
+			  ice_clean_tx_irq_zc(ring, budget) :
+			  ice_clean_tx_irq(ring, budget);
+
+		if (!wd)
 			clean_complete = false;
+	}
 
 	/* Handle case where we are called by netpoll with a budget of 0 */
 	if (unlikely(budget <= 0))
@@ -1505,7 +1536,13 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	ice_for_each_ring(ring, q_vector->rx) {
 		int cleaned;
 
-		cleaned = ice_clean_rx_irq(ring, budget_per_ring);
+		/* A dedicated path for zero-copy allows making a single
+		 * comparison in the irq context instead of many inside the
+		 * ice_clean_rx_irq function and makes the codebase cleaner.
+		 */
+		cleaned = ring->xsk_umem ?
+			  ice_clean_rx_irq_zc(ring, budget_per_ring) :
+			  ice_clean_rx_irq(ring, budget_per_ring);
 		work_done += cleaned;
 		/* if we clean as many as budgeted, we must not be done */
 		if (cleaned >= budget_per_ring)
@@ -1525,17 +1562,6 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 		ice_set_wb_on_itr(q_vector);
 
 	return min_t(int, work_done, budget - 1);
-}
-
-/* helper function for building cmd/type/offset */
-static __le64
-build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
-{
-	return cpu_to_le64(ICE_TX_DESC_DTYPE_DATA |
-			   (td_cmd    << ICE_TXD_QW1_CMD_S) |
-			   (td_offset << ICE_TXD_QW1_OFFSET_S) |
-			   ((u64)size << ICE_TXD_QW1_TX_BUF_SZ_S) |
-			   (td_tag    << ICE_TXD_QW1_L2TAG1_S));
 }
 
 /**
@@ -1689,9 +1715,9 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 		i = 0;
 
 	/* write last descriptor with RS and EOP bits */
-	td_cmd |= (u64)(ICE_TX_DESC_CMD_EOP | ICE_TX_DESC_CMD_RS);
-	tx_desc->cmd_type_offset_bsz =
-			build_ctob(td_cmd, td_offset, size, td_tag);
+	td_cmd |= (u64)ICE_TXD_LAST_DESC_CMD;
+	tx_desc->cmd_type_offset_bsz = build_ctob(td_cmd, td_offset, size,
+						  td_tag);
 
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.

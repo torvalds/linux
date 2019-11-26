@@ -133,9 +133,6 @@ static ssize_t ipmb_write(struct file *file, const char __user *buf,
 	rq_sa = GET_7BIT_ADDR(msg[RQ_SA_8BIT_IDX]);
 	netf_rq_lun = msg[NETFN_LUN_IDX];
 
-	if (!(netf_rq_lun & NETFN_RSP_BIT_MASK))
-		return -EINVAL;
-
 	/*
 	 * subtract rq_sa and netf_rq_lun from the length of the msg passed to
 	 * i2c_smbus_xfer
@@ -154,16 +151,16 @@ static ssize_t ipmb_write(struct file *file, const char __user *buf,
 	return ret ? : count;
 }
 
-static unsigned int ipmb_poll(struct file *file, poll_table *wait)
+static __poll_t ipmb_poll(struct file *file, poll_table *wait)
 {
 	struct ipmb_dev *ipmb_dev = to_ipmb_dev(file);
-	unsigned int mask = POLLOUT;
+	__poll_t mask = EPOLLOUT;
 
 	mutex_lock(&ipmb_dev->file_mutex);
 	poll_wait(file, &ipmb_dev->wait_queue, wait);
 
 	if (atomic_read(&ipmb_dev->request_queue_len))
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 	mutex_unlock(&ipmb_dev->file_mutex);
 
 	return mask;
@@ -203,25 +200,16 @@ static u8 ipmb_verify_checksum1(struct ipmb_dev *ipmb_dev, u8 rs_sa)
 		ipmb_dev->request.checksum1);
 }
 
-static bool is_ipmb_request(struct ipmb_dev *ipmb_dev, u8 rs_sa)
+/*
+ * Verify if message has proper ipmb header with minimum length
+ * and correct checksum byte.
+ */
+static bool is_ipmb_msg(struct ipmb_dev *ipmb_dev, u8 rs_sa)
 {
-	if (ipmb_dev->msg_idx >= IPMB_REQUEST_LEN_MIN) {
-		if (ipmb_verify_checksum1(ipmb_dev, rs_sa))
-			return false;
+	if ((ipmb_dev->msg_idx >= IPMB_REQUEST_LEN_MIN) &&
+	   (!ipmb_verify_checksum1(ipmb_dev, rs_sa)))
+		return true;
 
-		/*
-		 * Check whether this is an IPMB request or
-		 * response.
-		 * The 6 MSB of netfn_rs_lun are dedicated to the netfn
-		 * while the remaining bits are dedicated to the lun.
-		 * If the LSB of the netfn is cleared, it is associated
-		 * with an IPMB request.
-		 * If the LSB of the netfn is set, it is associated with
-		 * an IPMB response.
-		 */
-		if (!(ipmb_dev->request.netfn_rs_lun & NETFN_RSP_BIT_MASK))
-			return true;
-	}
 	return false;
 }
 
@@ -273,8 +261,7 @@ static int ipmb_slave_cb(struct i2c_client *client,
 
 	case I2C_SLAVE_STOP:
 		ipmb_dev->request.len = ipmb_dev->msg_idx;
-
-		if (is_ipmb_request(ipmb_dev, GET_8BIT_ADDR(client->addr)))
+		if (is_ipmb_msg(ipmb_dev, GET_8BIT_ADDR(client->addr)))
 			ipmb_handle_request(ipmb_dev);
 		break;
 

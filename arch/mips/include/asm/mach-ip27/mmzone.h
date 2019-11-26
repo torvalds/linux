@@ -6,7 +6,7 @@
 #include <asm/sn/arch.h>
 #include <asm/sn/hub.h>
 
-#define pa_to_nid(addr)		NASID_TO_COMPACT_NODEID(NASID_GET(addr))
+#define pa_to_nid(addr)		NASID_GET(addr)
 
 struct hub_data {
 	kern_vars_t	kern_vars;

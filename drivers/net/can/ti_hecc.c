@@ -535,15 +535,28 @@ struct ti_hecc_priv *rx_offload_to_priv(struct can_rx_offload *offload)
 	return container_of(offload, struct ti_hecc_priv, offload);
 }
 
-static unsigned int ti_hecc_mailbox_read(struct can_rx_offload *offload,
-					 struct can_frame *cf,
-					 u32 *timestamp, unsigned int mbxno)
+static struct sk_buff *ti_hecc_mailbox_read(struct can_rx_offload *offload,
+					    unsigned int mbxno, u32 *timestamp,
+					    bool drop)
 {
 	struct ti_hecc_priv *priv = rx_offload_to_priv(offload);
+	struct sk_buff *skb;
+	struct can_frame *cf;
 	u32 data, mbx_mask;
-	int ret = 1;
 
 	mbx_mask = BIT(mbxno);
+
+	if (unlikely(drop)) {
+		skb = ERR_PTR(-ENOBUFS);
+		goto mark_as_read;
+	}
+
+	skb = alloc_can_skb(offload->dev, &cf);
+	if (unlikely(!skb)) {
+		skb = ERR_PTR(-ENOMEM);
+		goto mark_as_read;
+	}
+
 	data = hecc_read_mbx(priv, mbxno, HECC_CANMID);
 	if (data & HECC_CANMID_IDE)
 		cf->can_id = (data & CAN_EFF_MASK) | CAN_EFF_FLAG;
@@ -578,11 +591,12 @@ static unsigned int ti_hecc_mailbox_read(struct can_rx_offload *offload,
 	 */
 	if (unlikely(mbxno == HECC_RX_LAST_MBOX &&
 		     hecc_read(priv, HECC_CANRML) & mbx_mask))
-		ret = -ENOBUFS;
+		skb = ERR_PTR(-ENOBUFS);
 
+ mark_as_read:
 	hecc_write(priv, HECC_CANRMP, mbx_mask);
 
-	return ret;
+	return skb;
 }
 
 static int ti_hecc_error(struct net_device *ndev, int int_status,

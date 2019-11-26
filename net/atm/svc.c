@@ -381,7 +381,7 @@ static int svc_accept(struct socket *sock, struct socket *newsock, int flags,
 				    msg->pvc.sap_addr.vpi,
 				    msg->pvc.sap_addr.vci);
 		dev_kfree_skb(skb);
-		sk->sk_ack_backlog--;
+		sk_acceptq_removed(sk);
 		if (error) {
 			sigd_enq2(NULL, as_reject, old_vcc, NULL, NULL,
 				  &old_vcc->qos, error);

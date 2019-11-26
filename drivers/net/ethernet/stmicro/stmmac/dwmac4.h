@@ -14,6 +14,7 @@
 
 /*  MAC registers */
 #define GMAC_CONFIG			0x00000000
+#define GMAC_EXT_CONFIG			0x00000004
 #define GMAC_PACKET_FILTER		0x00000008
 #define GMAC_HASH_TAB(x)		(0x10 + (x) * 4)
 #define GMAC_VLAN_TAG			0x00000050
@@ -43,6 +44,10 @@
 #define GMAC_ARP_ADDR			0x00000210
 #define GMAC_ADDR_HIGH(reg)		(0x300 + reg * 8)
 #define GMAC_ADDR_LOW(reg)		(0x304 + reg * 8)
+#define GMAC_L3L4_CTRL(reg)		(0x900 + (reg) * 0x30)
+#define GMAC_L4_ADDR(reg)		(0x904 + (reg) * 0x30)
+#define GMAC_L3_ADDR0(reg)		(0x910 + (reg) * 0x30)
+#define GMAC_L3_ADDR1(reg)		(0x914 + (reg) * 0x30)
 
 /* RX Queues Routing */
 #define GMAC_RXQCTRL_AVCPQ_MASK		GENMASK(2, 0)
@@ -67,6 +72,7 @@
 #define GMAC_PACKET_FILTER_PCF		BIT(7)
 #define GMAC_PACKET_FILTER_HPF		BIT(10)
 #define GMAC_PACKET_FILTER_VTFE		BIT(16)
+#define GMAC_PACKET_FILTER_IPFE		BIT(20)
 
 #define GMAC_MAX_PERFECT_ADDRESSES	128
 
@@ -183,6 +189,11 @@ enum power_event {
 #define GMAC_CONFIG_TE			BIT(1)
 #define GMAC_CONFIG_RE			BIT(0)
 
+/* MAC extended config */
+#define GMAC_CONFIG_HDSMS		GENMASK(22, 20)
+#define GMAC_CONFIG_HDSMS_SHIFT		20
+#define GMAC_CONFIG_HDSMS_256		(0x2 << GMAC_CONFIG_HDSMS_SHIFT)
+
 /* MAC HW features0 bitmap */
 #define GMAC_HW_FEAT_SAVLANINS		BIT(27)
 #define GMAC_HW_FEAT_ADDMAC		BIT(18)
@@ -202,9 +213,12 @@ enum power_event {
 #define GMAC_HW_FEAT_MIISEL		BIT(0)
 
 /* MAC HW features1 bitmap */
+#define GMAC_HW_FEAT_L3L4FNUM		GENMASK(30, 27)
 #define GMAC_HW_HASH_TB_SZ		GENMASK(25, 24)
 #define GMAC_HW_FEAT_AVSEL		BIT(20)
 #define GMAC_HW_TSOEN			BIT(18)
+#define GMAC_HW_FEAT_SPHEN		BIT(17)
+#define GMAC_HW_ADDR64			GENMASK(15, 14)
 #define GMAC_HW_TXFIFOSIZE		GENMASK(10, 6)
 #define GMAC_HW_RXFIFOSIZE		GENMASK(4, 0)
 
@@ -226,6 +240,21 @@ enum power_event {
 #define GMAC_HI_DCS			GENMASK(18, 16)
 #define GMAC_HI_DCS_SHIFT		16
 #define GMAC_HI_REG_AE			BIT(31)
+
+/* L3/L4 Filters regs */
+#define GMAC_L4DPIM0			BIT(21)
+#define GMAC_L4DPM0			BIT(20)
+#define GMAC_L4SPIM0			BIT(19)
+#define GMAC_L4SPM0			BIT(18)
+#define GMAC_L4PEN0			BIT(16)
+#define GMAC_L3DAIM0			BIT(5)
+#define GMAC_L3DAM0			BIT(4)
+#define GMAC_L3SAIM0			BIT(3)
+#define GMAC_L3SAM0			BIT(2)
+#define GMAC_L3PEN0			BIT(0)
+#define GMAC_L4DP0			GENMASK(31, 16)
+#define GMAC_L4DP0_SHIFT		16
+#define GMAC_L4SP0			GENMASK(15, 0)
 
 /*  MTL registers */
 #define MTL_OPERATION_MODE		0x00000c00

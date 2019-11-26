@@ -3995,9 +3995,6 @@ static int lan78xx_suspend(struct usb_interface *intf, pm_message_t message)
 	struct lan78xx_priv *pdata = (struct lan78xx_priv *)(dev->data[0]);
 	u32 buf;
 	int ret;
-	int event;
-
-	event = message.event;
 
 	if (!dev->suspend_count++) {
 		spin_lock_irq(&dev->txq.lock);

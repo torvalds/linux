@@ -1,6 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
+#define EMBED_FILE(NAME, PATH)						    \
+asm (									    \
+"      .pushsection \".rodata\", \"a\", @progbits              \n"	    \
+"      .global "#NAME"_data                                    \n"	    \
+#NAME"_data:                                                   \n"	    \
+"      .incbin \"" PATH "\"                                    \n"	    \
+#NAME"_data_end:                                               \n"	    \
+"      .global "#NAME"_size                                    \n"	    \
+"      .type "#NAME"_size, @object                             \n"	    \
+"      .size "#NAME"_size, 4                                   \n"	    \
+"      .align 4,                                               \n"	    \
+#NAME"_size:                                                   \n"	    \
+"      .int "#NAME"_data_end - "#NAME"_data                    \n"	    \
+"      .popsection                                             \n"	    \
+);									    \
+extern char NAME##_data[];						    \
+extern int NAME##_size;
+
 ssize_t get_base_addr() {
 	size_t start;
 	char buf[256];
@@ -21,6 +39,8 @@ ssize_t get_base_addr() {
 	return -EINVAL;
 }
 
+EMBED_FILE(probe, "test_attach_probe.o");
+
 void test_attach_probe(void)
 {
 	const char *kprobe_name = "kprobe/sys_nanosleep";
@@ -29,11 +49,15 @@ void test_attach_probe(void)
 	const char *uretprobe_name = "uretprobe/trigger_func";
 	const int kprobe_idx = 0, kretprobe_idx = 1;
 	const int uprobe_idx = 2, uretprobe_idx = 3;
-	const char *file = "./test_attach_probe.o";
+	const char *obj_name = "attach_probe";
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts,
+		.object_name = obj_name,
+		.relaxed_maps = true,
+	);
 	struct bpf_program *kprobe_prog, *kretprobe_prog;
 	struct bpf_program *uprobe_prog, *uretprobe_prog;
 	struct bpf_object *obj;
-	int err, prog_fd, duration = 0, res;
+	int err, duration = 0, res;
 	struct bpf_link *kprobe_link = NULL;
 	struct bpf_link *kretprobe_link = NULL;
 	struct bpf_link *uprobe_link = NULL;
@@ -48,10 +72,15 @@ void test_attach_probe(void)
 		return;
 	uprobe_offset = (size_t)&get_base_addr - base_addr;
 
-	/* load programs */
-	err = bpf_prog_load(file, BPF_PROG_TYPE_KPROBE, &obj, &prog_fd);
-	if (CHECK(err, "obj_load", "err %d errno %d\n", err, errno))
+	/* open object */
+	obj = bpf_object__open_mem(probe_data, probe_size, &open_opts);
+	if (CHECK(IS_ERR(obj), "obj_open_mem", "err %ld\n", PTR_ERR(obj)))
 		return;
+
+	if (CHECK(strcmp(bpf_object__name(obj), obj_name), "obj_name",
+		  "wrong obj name '%s', expected '%s'\n",
+		  bpf_object__name(obj), obj_name))
+		goto cleanup;
 
 	kprobe_prog = bpf_object__find_program_by_title(obj, kprobe_name);
 	if (CHECK(!kprobe_prog, "find_probe",
@@ -68,6 +97,11 @@ void test_attach_probe(void)
 	uretprobe_prog = bpf_object__find_program_by_title(obj, uretprobe_name);
 	if (CHECK(!uretprobe_prog, "find_probe",
 		  "prog '%s' not found\n", uretprobe_name))
+		goto cleanup;
+
+	/* create maps && load programs */
+	err = bpf_object__load(obj);
+	if (CHECK(err, "obj_load", "err %d\n", err))
 		goto cleanup;
 
 	/* load maps */

@@ -5081,6 +5081,24 @@ static void _perf_event_reset(struct perf_event *event)
 	perf_event_update_userpage(event);
 }
 
+/* Assume it's not an event with inherit set. */
+u64 perf_event_pause(struct perf_event *event, bool reset)
+{
+	struct perf_event_context *ctx;
+	u64 count;
+
+	ctx = perf_event_ctx_lock(event);
+	WARN_ON_ONCE(event->attr.inherit);
+	_perf_event_disable(event);
+	count = local64_read(&event->count);
+	if (reset)
+		local64_set(&event->count, 0);
+	perf_event_ctx_unlock(event, ctx);
+
+	return count;
+}
+EXPORT_SYMBOL_GPL(perf_event_pause);
+
 /*
  * Holding the top-level event's child_mutex means that any
  * descendant process that has inherited this event will block
@@ -5158,15 +5176,10 @@ static int perf_event_check_period(struct perf_event *event, u64 value)
 	return event->pmu->check_period(event, value);
 }
 
-static int perf_event_period(struct perf_event *event, u64 __user *arg)
+static int _perf_event_period(struct perf_event *event, u64 value)
 {
-	u64 value;
-
 	if (!is_sampling_event(event))
 		return -EINVAL;
-
-	if (copy_from_user(&value, arg, sizeof(value)))
-		return -EFAULT;
 
 	if (!value)
 		return -EINVAL;
@@ -5184,6 +5197,19 @@ static int perf_event_period(struct perf_event *event, u64 __user *arg)
 
 	return 0;
 }
+
+int perf_event_period(struct perf_event *event, u64 value)
+{
+	struct perf_event_context *ctx;
+	int ret;
+
+	ctx = perf_event_ctx_lock(event);
+	ret = _perf_event_period(event, value);
+	perf_event_ctx_unlock(event, ctx);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(perf_event_period);
 
 static const struct file_operations perf_fops;
 
@@ -5228,8 +5254,14 @@ static long _perf_ioctl(struct perf_event *event, unsigned int cmd, unsigned lon
 		return _perf_event_refresh(event, arg);
 
 	case PERF_EVENT_IOC_PERIOD:
-		return perf_event_period(event, (u64 __user *)arg);
+	{
+		u64 value;
 
+		if (copy_from_user(&value, (u64 __user *)arg, sizeof(value)))
+			return -EFAULT;
+
+		return _perf_event_period(event, value);
+	}
 	case PERF_EVENT_IOC_ID:
 	{
 		u64 id = primary_event_id(event);
@@ -10710,12 +10742,9 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 		context = parent_event->overflow_handler_context;
 #if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_EVENT_TRACING)
 		if (overflow_handler == bpf_overflow_handler) {
-			struct bpf_prog *prog = bpf_prog_inc(parent_event->prog);
+			struct bpf_prog *prog = parent_event->prog;
 
-			if (IS_ERR(prog)) {
-				err = PTR_ERR(prog);
-				goto err_ns;
-			}
+			bpf_prog_inc(prog);
 			event->prog = prog;
 			event->orig_overflow_handler =
 				parent_event->orig_overflow_handler;

@@ -712,7 +712,7 @@ static int __metadata_commit(struct dm_clone_metadata *cmd)
 static int __flush_dmap(struct dm_clone_metadata *cmd, struct dirty_map *dmap)
 {
 	int r;
-	unsigned long word, flags;
+	unsigned long word;
 
 	word = 0;
 	do {
@@ -736,9 +736,9 @@ static int __flush_dmap(struct dm_clone_metadata *cmd, struct dirty_map *dmap)
 		return r;
 
 	/* Update the changed flag */
-	spin_lock_irqsave(&cmd->bitmap_lock, flags);
+	spin_lock_irq(&cmd->bitmap_lock);
 	dmap->changed = 0;
-	spin_unlock_irqrestore(&cmd->bitmap_lock, flags);
+	spin_unlock_irq(&cmd->bitmap_lock);
 
 	return 0;
 }
@@ -746,7 +746,6 @@ static int __flush_dmap(struct dm_clone_metadata *cmd, struct dirty_map *dmap)
 int dm_clone_metadata_commit(struct dm_clone_metadata *cmd)
 {
 	int r = -EPERM;
-	unsigned long flags;
 	struct dirty_map *dmap, *next_dmap;
 
 	down_write(&cmd->lock);
@@ -770,9 +769,9 @@ int dm_clone_metadata_commit(struct dm_clone_metadata *cmd)
 	}
 
 	/* Swap dirty bitmaps */
-	spin_lock_irqsave(&cmd->bitmap_lock, flags);
+	spin_lock_irq(&cmd->bitmap_lock);
 	cmd->current_dmap = next_dmap;
-	spin_unlock_irqrestore(&cmd->bitmap_lock, flags);
+	spin_unlock_irq(&cmd->bitmap_lock);
 
 	/*
 	 * No one is accessing the old dirty bitmap anymore, so we can flush
@@ -817,9 +816,9 @@ int dm_clone_cond_set_range(struct dm_clone_metadata *cmd, unsigned long start,
 {
 	int r = 0;
 	struct dirty_map *dmap;
-	unsigned long word, region_nr, flags;
+	unsigned long word, region_nr;
 
-	spin_lock_irqsave(&cmd->bitmap_lock, flags);
+	spin_lock_irq(&cmd->bitmap_lock);
 
 	if (cmd->read_only) {
 		r = -EPERM;
@@ -836,7 +835,7 @@ int dm_clone_cond_set_range(struct dm_clone_metadata *cmd, unsigned long start,
 		}
 	}
 out:
-	spin_unlock_irqrestore(&cmd->bitmap_lock, flags);
+	spin_unlock_irq(&cmd->bitmap_lock);
 
 	return r;
 }
@@ -903,13 +902,11 @@ out:
 
 void dm_clone_metadata_set_read_only(struct dm_clone_metadata *cmd)
 {
-	unsigned long flags;
-
 	down_write(&cmd->lock);
 
-	spin_lock_irqsave(&cmd->bitmap_lock, flags);
+	spin_lock_irq(&cmd->bitmap_lock);
 	cmd->read_only = 1;
-	spin_unlock_irqrestore(&cmd->bitmap_lock, flags);
+	spin_unlock_irq(&cmd->bitmap_lock);
 
 	if (!cmd->fail_io)
 		dm_bm_set_read_only(cmd->bm);
@@ -919,13 +916,11 @@ void dm_clone_metadata_set_read_only(struct dm_clone_metadata *cmd)
 
 void dm_clone_metadata_set_read_write(struct dm_clone_metadata *cmd)
 {
-	unsigned long flags;
-
 	down_write(&cmd->lock);
 
-	spin_lock_irqsave(&cmd->bitmap_lock, flags);
+	spin_lock_irq(&cmd->bitmap_lock);
 	cmd->read_only = 0;
-	spin_unlock_irqrestore(&cmd->bitmap_lock, flags);
+	spin_unlock_irq(&cmd->bitmap_lock);
 
 	if (!cmd->fail_io)
 		dm_bm_set_read_write(cmd->bm);

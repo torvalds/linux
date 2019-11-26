@@ -872,7 +872,8 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 
 		/* jump forward, a TX may have gotten lost, need to sync TX */
 		if (!resync_pending && seq - ntls->next_seq < U32_MAX / 4)
-			tls_offload_tx_resync_request(nskb->sk);
+			tls_offload_tx_resync_request(nskb->sk, seq,
+						      ntls->next_seq);
 
 		*nr_frags = 0;
 		return nskb;

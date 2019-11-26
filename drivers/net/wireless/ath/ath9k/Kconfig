@@ -144,13 +144,13 @@ config ATH9K_RFKILL
 	  a platform that can toggle the RF-Kill GPIO.
 
 config ATH9K_CHANNEL_CONTEXT
-       bool "Channel Context support"
-       depends on ATH9K
-       default n
-       ---help---
-	 This option enables channel context support in ath9k, which is needed
-	 for multi-channel concurrency. Enable this if P2P PowerSave support
-	 is required.
+	bool "Channel Context support"
+	depends on ATH9K
+	default n
+	---help---
+	  This option enables channel context support in ath9k, which is needed
+	  for multi-channel concurrency. Enable this if P2P PowerSave support
+	  is required.
 
 config ATH9K_PCOEM
 	bool "Atheros ath9k support for PC OEM cards" if EXPERT
@@ -162,32 +162,32 @@ config ATH9K_PCI_NO_EEPROM
 	depends on ATH9K_PCI
 	default n
 	help
-	 This separate driver provides a loader in order to support the
-	 AR500X to AR92XX-generation of ath9k PCI(e) WiFi chips, which have
-	 their initialization data (which contains the real PCI Device ID
-	 that ath9k will need) stored together with the calibration data out
-	 of reach for the ath9k chip.
+	  This separate driver provides a loader in order to support the
+	  AR500X to AR92XX-generation of ath9k PCI(e) WiFi chips, which have
+	  their initialization data (which contains the real PCI Device ID
+	  that ath9k will need) stored together with the calibration data out
+	  of reach for the ath9k chip.
 
-	 These devices are usually various network appliances, routers or
-	 access Points and such.
+	  These devices are usually various network appliances, routers or
+	  access Points and such.
 
-	 If unsure say N.
+	  If unsure say N.
 
 config ATH9K_HTC
-       tristate "Atheros HTC based wireless cards support"
-       depends on USB && MAC80211
-       select ATH9K_HW
-       select MAC80211_LEDS
-       select LEDS_CLASS
-       select NEW_LEDS
-       select ATH9K_COMMON
-       ---help---
-	 Support for Atheros HTC based cards.
-	 Chipsets supported: AR9271
+	tristate "Atheros HTC based wireless cards support"
+	depends on USB && MAC80211
+	select ATH9K_HW
+	select MAC80211_LEDS
+	select LEDS_CLASS
+	select NEW_LEDS
+	select ATH9K_COMMON
+	---help---
+	  Support for Atheros HTC based cards.
+	  Chipsets supported: AR9271
 
-	 For more information: http://wireless.kernel.org/en/users/Drivers/ath9k_htc
+	  For more information: http://wireless.kernel.org/en/users/Drivers/ath9k_htc
 
-	 The built module will be ath9k_htc.
+	  The built module will be ath9k_htc.
 
 config ATH9K_HTC_DEBUGFS
 	bool "Atheros ath9k_htc debugging"

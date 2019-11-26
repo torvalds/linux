@@ -186,7 +186,7 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
 			   u8 *sum, int len);
 u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 			       const u64 range_start, const u64 range_len);
-u64 btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
+void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 			      const u64 range_start, const u64 range_len);
 void btrfs_lock_and_flush_ordered_range(struct extent_io_tree *tree,
 					struct btrfs_inode *inode, u64 start,

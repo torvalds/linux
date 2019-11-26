@@ -475,7 +475,7 @@ static void smc_llc_rx_delete_link(struct smc_link *link,
 			smc_llc_prep_delete_link(llc, link, SMC_LLC_RESP, true);
 		}
 		smc_llc_send_message(link, llc, sizeof(*llc));
-		smc_lgr_schedule_free_work_fast(lgr);
+		smc_lgr_terminate_sched(lgr);
 	}
 }
 
@@ -614,7 +614,7 @@ static void smc_llc_testlink_work(struct work_struct *work)
 	rc = wait_for_completion_interruptible_timeout(&link->llc_testlink_resp,
 						       SMC_LLC_WAIT_TIME);
 	if (rc <= 0) {
-		smc_lgr_terminate(smc_get_lgr(link));
+		smc_lgr_terminate(smc_get_lgr(link), true);
 		return;
 	}
 	next_interval = link->llc_testlink_time;
@@ -656,6 +656,7 @@ void smc_llc_link_active(struct smc_link *link, int testlink_time)
 void smc_llc_link_deleting(struct smc_link *link)
 {
 	link->state = SMC_LNK_DELETING;
+	smc_wr_wakeup_tx_wait(link);
 }
 
 /* called in tasklet context */
@@ -663,6 +664,8 @@ void smc_llc_link_inactive(struct smc_link *link)
 {
 	link->state = SMC_LNK_INACTIVE;
 	cancel_delayed_work(&link->llc_testlink_wrk);
+	smc_wr_wakeup_reg_wait(link);
+	smc_wr_wakeup_tx_wait(link);
 }
 
 /* called in worker context */
@@ -695,9 +698,11 @@ int smc_llc_do_confirm_rkey(struct smc_link *link,
 int smc_llc_do_delete_rkey(struct smc_link *link,
 			   struct smc_buf_desc *rmb_desc)
 {
-	int rc;
+	int rc = 0;
 
 	mutex_lock(&link->llc_delete_rkey_mutex);
+	if (link->state != SMC_LNK_ACTIVE)
+		goto out;
 	reinit_completion(&link->llc_delete_rkey);
 	rc = smc_llc_send_delete_rkey(link, rmb_desc);
 	if (rc)

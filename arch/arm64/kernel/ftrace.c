@@ -62,6 +62,19 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ftrace_modify_code(pc, 0, new, false);
 }
 
+static struct plt_entry *get_ftrace_plt(struct module *mod, unsigned long addr)
+{
+#ifdef CONFIG_ARM64_MODULE_PLTS
+	struct plt_entry *plt = mod->arch.ftrace_trampolines;
+
+	if (addr == FTRACE_ADDR)
+		return &plt[FTRACE_PLT_IDX];
+	if (addr == FTRACE_REGS_ADDR && IS_ENABLED(CONFIG_FTRACE_WITH_REGS))
+		return &plt[FTRACE_REGS_PLT_IDX];
+#endif
+	return NULL;
+}
+
 /*
  * Turn on the call to ftrace_caller() in instrumented function
  */
@@ -72,9 +85,11 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	long offset = (long)pc - (long)addr;
 
 	if (offset < -SZ_128M || offset >= SZ_128M) {
-#ifdef CONFIG_ARM64_MODULE_PLTS
-		struct plt_entry trampoline, *dst;
 		struct module *mod;
+		struct plt_entry *plt;
+
+		if (!IS_ENABLED(CONFIG_ARM64_MODULE_PLTS))
+			return -EINVAL;
 
 		/*
 		 * On kernels that support module PLTs, the offset between the
@@ -93,49 +108,13 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		if (WARN_ON(!mod))
 			return -EINVAL;
 
-		/*
-		 * There is only one ftrace trampoline per module. For now,
-		 * this is not a problem since on arm64, all dynamic ftrace
-		 * invocations are routed via ftrace_caller(). This will need
-		 * to be revisited if support for multiple ftrace entry points
-		 * is added in the future, but for now, the pr_err() below
-		 * deals with a theoretical issue only.
-		 *
-		 * Note that PLTs are place relative, and plt_entries_equal()
-		 * checks whether they point to the same target. Here, we need
-		 * to check if the actual opcodes are in fact identical,
-		 * regardless of the offset in memory so use memcmp() instead.
-		 */
-		dst = mod->arch.ftrace_trampoline;
-		trampoline = get_plt_entry(addr, dst);
-		if (memcmp(dst, &trampoline, sizeof(trampoline))) {
-			if (plt_entry_is_initialized(dst)) {
-				pr_err("ftrace: far branches to multiple entry points unsupported inside a single module\n");
-				return -EINVAL;
-			}
-
-			/* point the trampoline to our ftrace entry point */
-			module_disable_ro(mod);
-			*dst = trampoline;
-			module_enable_ro(mod, true);
-
-			/*
-			 * Ensure updated trampoline is visible to instruction
-			 * fetch before we patch in the branch. Although the
-			 * architecture doesn't require an IPI in this case,
-			 * Neoverse-N1 erratum #1542419 does require one
-			 * if the TLB maintenance in module_enable_ro() is
-			 * skipped due to rodata_enabled. It doesn't seem worth
-			 * it to make it conditional given that this is
-			 * certainly not a fast-path.
-			 */
-			flush_icache_range((unsigned long)&dst[0],
-					   (unsigned long)&dst[1]);
+		plt = get_ftrace_plt(mod, addr);
+		if (!plt) {
+			pr_err("ftrace: no module PLT for %ps\n", (void *)addr);
+			return -EINVAL;
 		}
-		addr = (unsigned long)dst;
-#else /* CONFIG_ARM64_MODULE_PLTS */
-		return -EINVAL;
-#endif /* CONFIG_ARM64_MODULE_PLTS */
+
+		addr = (unsigned long)plt;
 	}
 
 	old = aarch64_insn_gen_nop();
@@ -143,6 +122,55 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	return ftrace_modify_code(pc, old, new, true);
 }
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
+			unsigned long addr)
+{
+	unsigned long pc = rec->ip;
+	u32 old, new;
+
+	old = aarch64_insn_gen_branch_imm(pc, old_addr,
+					  AARCH64_INSN_BRANCH_LINK);
+	new = aarch64_insn_gen_branch_imm(pc, addr, AARCH64_INSN_BRANCH_LINK);
+
+	return ftrace_modify_code(pc, old, new, true);
+}
+
+/*
+ * The compiler has inserted two NOPs before the regular function prologue.
+ * All instrumented functions follow the AAPCS, so x0-x8 and x19-x30 are live,
+ * and x9-x18 are free for our use.
+ *
+ * At runtime we want to be able to swing a single NOP <-> BL to enable or
+ * disable the ftrace call. The BL requires us to save the original LR value,
+ * so here we insert a <MOV X9, LR> over the first NOP so the instructions
+ * before the regular prologue are:
+ *
+ * | Compiled | Disabled   | Enabled    |
+ * +----------+------------+------------+
+ * | NOP      | MOV X9, LR | MOV X9, LR |
+ * | NOP      | NOP        | BL <entry> |
+ *
+ * The LR value will be recovered by ftrace_regs_entry, and restored into LR
+ * before returning to the regular function prologue. When a function is not
+ * being traced, the MOV is not harmful given x9 is not live per the AAPCS.
+ *
+ * Note: ftrace_process_locs() has pre-adjusted rec->ip to be the address of
+ * the BL.
+ */
+int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+{
+	unsigned long pc = rec->ip - AARCH64_INSN_SIZE;
+	u32 old, new;
+
+	old = aarch64_insn_gen_nop();
+	new = aarch64_insn_gen_move_reg(AARCH64_INSN_REG_9,
+					AARCH64_INSN_REG_LR,
+					AARCH64_INSN_VARIANT_64BIT);
+	return ftrace_modify_code(pc, old, new, true);
+}
+#endif
 
 /*
  * Turn off the call to ftrace_caller() in instrumented function
@@ -156,8 +184,10 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 	long offset = (long)pc - (long)addr;
 
 	if (offset < -SZ_128M || offset >= SZ_128M) {
-#ifdef CONFIG_ARM64_MODULE_PLTS
 		u32 replaced;
+
+		if (!IS_ENABLED(CONFIG_ARM64_MODULE_PLTS))
+			return -EINVAL;
 
 		/*
 		 * 'mod' is only set at module load time, but if we end up
@@ -189,9 +219,6 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 			return -EINVAL;
 
 		validate = false;
-#else /* CONFIG_ARM64_MODULE_PLTS */
-		return -EINVAL;
-#endif /* CONFIG_ARM64_MODULE_PLTS */
 	} else {
 		old = aarch64_insn_gen_branch_imm(pc, addr,
 						  AARCH64_INSN_BRANCH_LINK);

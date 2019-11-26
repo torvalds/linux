@@ -23,13 +23,15 @@
 #include <linux/timekeeping.h>
 #include <linux/ctype.h>
 #include <linux/nospec.h>
+#include <uapi/linux/btf.h>
 
-#define IS_FD_ARRAY(map) ((map)->map_type == BPF_MAP_TYPE_PROG_ARRAY || \
-			   (map)->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY || \
-			   (map)->map_type == BPF_MAP_TYPE_CGROUP_ARRAY || \
-			   (map)->map_type == BPF_MAP_TYPE_ARRAY_OF_MAPS)
+#define IS_FD_ARRAY(map) ((map)->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY || \
+			  (map)->map_type == BPF_MAP_TYPE_CGROUP_ARRAY || \
+			  (map)->map_type == BPF_MAP_TYPE_ARRAY_OF_MAPS)
+#define IS_FD_PROG_ARRAY(map) ((map)->map_type == BPF_MAP_TYPE_PROG_ARRAY)
 #define IS_FD_HASH(map) ((map)->map_type == BPF_MAP_TYPE_HASH_OF_MAPS)
-#define IS_FD_MAP(map) (IS_FD_ARRAY(map) || IS_FD_HASH(map))
+#define IS_FD_MAP(map) (IS_FD_ARRAY(map) || IS_FD_PROG_ARRAY(map) || \
+			IS_FD_HASH(map))
 
 #define BPF_OBJ_FLAG_MASK   (BPF_F_RDONLY | BPF_F_WRONLY)
 
@@ -42,7 +44,7 @@ static DEFINE_SPINLOCK(map_idr_lock);
 int sysctl_unprivileged_bpf_disabled __read_mostly;
 
 static const struct bpf_map_ops * const bpf_map_types[] = {
-#define BPF_PROG_TYPE(_id, _ops)
+#define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type)
 #define BPF_MAP_TYPE(_id, _ops) \
 	[_id] = &_ops,
 #include <linux/bpf_types.h>
@@ -126,7 +128,7 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	return map;
 }
 
-void *bpf_map_area_alloc(u64 size, int numa_node)
+static void *__bpf_map_area_alloc(u64 size, int numa_node, bool mmapable)
 {
 	/* We really just want to fail instead of triggering OOM killer
 	 * under memory pressure, therefore we set __GFP_NORETRY to kmalloc,
@@ -144,16 +146,31 @@ void *bpf_map_area_alloc(u64 size, int numa_node)
 	if (size >= SIZE_MAX)
 		return NULL;
 
-	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+	/* kmalloc()'ed memory can't be mmap()'ed */
+	if (!mmapable && size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
 		area = kmalloc_node(size, GFP_USER | __GFP_NORETRY | flags,
 				    numa_node);
 		if (area != NULL)
 			return area;
 	}
-
+	if (mmapable) {
+		BUG_ON(!PAGE_ALIGNED(size));
+		return vmalloc_user_node_flags(size, numa_node, GFP_KERNEL |
+					       __GFP_RETRY_MAYFAIL | flags);
+	}
 	return __vmalloc_node_flags_caller(size, numa_node,
 					   GFP_KERNEL | __GFP_RETRY_MAYFAIL |
 					   flags, __builtin_return_address(0));
+}
+
+void *bpf_map_area_alloc(u64 size, int numa_node)
+{
+	return __bpf_map_area_alloc(size, numa_node, false);
+}
+
+void *bpf_map_area_mmapable_alloc(u64 size, int numa_node)
+{
+	return __bpf_map_area_alloc(size, numa_node, true);
 }
 
 void bpf_map_area_free(void *area)
@@ -313,7 +330,7 @@ static void bpf_map_free_deferred(struct work_struct *work)
 
 static void bpf_map_put_uref(struct bpf_map *map)
 {
-	if (atomic_dec_and_test(&map->usercnt)) {
+	if (atomic64_dec_and_test(&map->usercnt)) {
 		if (map->ops->map_release_uref)
 			map->ops->map_release_uref(map);
 	}
@@ -324,7 +341,7 @@ static void bpf_map_put_uref(struct bpf_map *map)
  */
 static void __bpf_map_put(struct bpf_map *map, bool do_idr_lock)
 {
-	if (atomic_dec_and_test(&map->refcnt)) {
+	if (atomic64_dec_and_test(&map->refcnt)) {
 		/* bpf_map_free_id() must be called first */
 		bpf_map_free_id(map, do_idr_lock);
 		btf_put(map->btf);
@@ -373,13 +390,12 @@ static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 {
 	const struct bpf_map *map = filp->private_data;
 	const struct bpf_array *array;
-	u32 owner_prog_type = 0;
-	u32 owner_jited = 0;
+	u32 type = 0, jited = 0;
 
 	if (map->map_type == BPF_MAP_TYPE_PROG_ARRAY) {
 		array = container_of(map, struct bpf_array, map);
-		owner_prog_type = array->owner_prog_type;
-		owner_jited = array->owner_jited;
+		type  = array->aux->type;
+		jited = array->aux->jited;
 	}
 
 	seq_printf(m,
@@ -399,12 +415,9 @@ static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 		   map->memory.pages * 1ULL << PAGE_SHIFT,
 		   map->id,
 		   READ_ONCE(map->frozen));
-
-	if (owner_prog_type) {
-		seq_printf(m, "owner_prog_type:\t%u\n",
-			   owner_prog_type);
-		seq_printf(m, "owner_jited:\t%u\n",
-			   owner_jited);
+	if (type) {
+		seq_printf(m, "owner_prog_type:\t%u\n", type);
+		seq_printf(m, "owner_jited:\t%u\n", jited);
 	}
 }
 #endif
@@ -427,6 +440,74 @@ static ssize_t bpf_dummy_write(struct file *filp, const char __user *buf,
 	return -EINVAL;
 }
 
+/* called for any extra memory-mapped regions (except initial) */
+static void bpf_map_mmap_open(struct vm_area_struct *vma)
+{
+	struct bpf_map *map = vma->vm_file->private_data;
+
+	bpf_map_inc_with_uref(map);
+
+	if (vma->vm_flags & VM_WRITE) {
+		mutex_lock(&map->freeze_mutex);
+		map->writecnt++;
+		mutex_unlock(&map->freeze_mutex);
+	}
+}
+
+/* called for all unmapped memory region (including initial) */
+static void bpf_map_mmap_close(struct vm_area_struct *vma)
+{
+	struct bpf_map *map = vma->vm_file->private_data;
+
+	if (vma->vm_flags & VM_WRITE) {
+		mutex_lock(&map->freeze_mutex);
+		map->writecnt--;
+		mutex_unlock(&map->freeze_mutex);
+	}
+
+	bpf_map_put_with_uref(map);
+}
+
+static const struct vm_operations_struct bpf_map_default_vmops = {
+	.open		= bpf_map_mmap_open,
+	.close		= bpf_map_mmap_close,
+};
+
+static int bpf_map_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct bpf_map *map = filp->private_data;
+	int err;
+
+	if (!map->ops->map_mmap || map_value_has_spin_lock(map))
+		return -ENOTSUPP;
+
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	mutex_lock(&map->freeze_mutex);
+
+	if ((vma->vm_flags & VM_WRITE) && map->frozen) {
+		err = -EPERM;
+		goto out;
+	}
+
+	/* set default open/close callbacks */
+	vma->vm_ops = &bpf_map_default_vmops;
+	vma->vm_private_data = map;
+
+	err = map->ops->map_mmap(map, vma);
+	if (err)
+		goto out;
+
+	bpf_map_inc_with_uref(map);
+
+	if (vma->vm_flags & VM_WRITE)
+		map->writecnt++;
+out:
+	mutex_unlock(&map->freeze_mutex);
+	return err;
+}
+
 const struct file_operations bpf_map_fops = {
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo	= bpf_map_show_fdinfo,
@@ -434,6 +515,7 @@ const struct file_operations bpf_map_fops = {
 	.release	= bpf_map_release,
 	.read		= bpf_dummy_read,
 	.write		= bpf_dummy_write,
+	.mmap		= bpf_map_mmap,
 };
 
 int bpf_map_new_fd(struct bpf_map *map, int flags)
@@ -577,8 +659,9 @@ static int map_create(union bpf_attr *attr)
 	if (err)
 		goto free_map;
 
-	atomic_set(&map->refcnt, 1);
-	atomic_set(&map->usercnt, 1);
+	atomic64_set(&map->refcnt, 1);
+	atomic64_set(&map->usercnt, 1);
+	mutex_init(&map->freeze_mutex);
 
 	if (attr->btf_key_type_id || attr->btf_value_type_id) {
 		struct btf *btf;
@@ -655,20 +738,18 @@ struct bpf_map *__bpf_map_get(struct fd f)
 	return f.file->private_data;
 }
 
-/* prog's and map's refcnt limit */
-#define BPF_MAX_REFCNT 32768
-
-struct bpf_map *bpf_map_inc(struct bpf_map *map, bool uref)
+void bpf_map_inc(struct bpf_map *map)
 {
-	if (atomic_inc_return(&map->refcnt) > BPF_MAX_REFCNT) {
-		atomic_dec(&map->refcnt);
-		return ERR_PTR(-EBUSY);
-	}
-	if (uref)
-		atomic_inc(&map->usercnt);
-	return map;
+	atomic64_inc(&map->refcnt);
 }
 EXPORT_SYMBOL_GPL(bpf_map_inc);
+
+void bpf_map_inc_with_uref(struct bpf_map *map)
+{
+	atomic64_inc(&map->refcnt);
+	atomic64_inc(&map->usercnt);
+}
+EXPORT_SYMBOL_GPL(bpf_map_inc_with_uref);
 
 struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 {
@@ -679,38 +760,30 @@ struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 	if (IS_ERR(map))
 		return map;
 
-	map = bpf_map_inc(map, true);
+	bpf_map_inc_with_uref(map);
 	fdput(f);
 
 	return map;
 }
 
 /* map_idr_lock should have been held */
-static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map,
-					      bool uref)
+static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
 {
 	int refold;
 
-	refold = atomic_fetch_add_unless(&map->refcnt, 1, 0);
-
-	if (refold >= BPF_MAX_REFCNT) {
-		__bpf_map_put(map, false);
-		return ERR_PTR(-EBUSY);
-	}
-
+	refold = atomic64_fetch_add_unless(&map->refcnt, 1, 0);
 	if (!refold)
 		return ERR_PTR(-ENOENT);
-
 	if (uref)
-		atomic_inc(&map->usercnt);
+		atomic64_inc(&map->usercnt);
 
 	return map;
 }
 
-struct bpf_map *bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
+struct bpf_map *bpf_map_inc_not_zero(struct bpf_map *map)
 {
 	spin_lock_bh(&map_idr_lock);
-	map = __bpf_map_inc_not_zero(map, uref);
+	map = __bpf_map_inc_not_zero(map, false);
 	spin_unlock_bh(&map_idr_lock);
 
 	return map;
@@ -805,7 +878,7 @@ static int map_lookup_elem(union bpf_attr *attr)
 		err = bpf_percpu_cgroup_storage_copy(map, key, value);
 	} else if (map->map_type == BPF_MAP_TYPE_STACK_TRACE) {
 		err = bpf_stackmap_copy(map, key, value);
-	} else if (IS_FD_ARRAY(map)) {
+	} else if (IS_FD_ARRAY(map) || IS_FD_PROG_ARRAY(map)) {
 		err = bpf_fd_array_map_lookup_elem(map, key, value);
 	} else if (IS_FD_HASH(map)) {
 		err = bpf_fd_htab_map_lookup_elem(map, key, value);
@@ -932,6 +1005,10 @@ static int map_update_elem(union bpf_attr *attr)
 		   map->map_type == BPF_MAP_TYPE_SOCKMAP) {
 		err = map->ops->map_update_elem(map, key, value, attr->flags);
 		goto out;
+	} else if (IS_FD_PROG_ARRAY(map)) {
+		err = bpf_fd_array_map_update_elem(map, f.file, key, value,
+						   attr->flags);
+		goto out;
 	}
 
 	/* must increment bpf_prog_active to avoid kprobe+bpf triggering from
@@ -1013,6 +1090,9 @@ static int map_delete_elem(union bpf_attr *attr)
 
 	if (bpf_map_is_dev_bound(map)) {
 		err = bpf_map_offload_delete_elem(map, key);
+		goto out;
+	} else if (IS_FD_PROG_ARRAY(map)) {
+		err = map->ops->map_delete_elem(map, key);
 		goto out;
 	}
 
@@ -1175,6 +1255,13 @@ static int map_freeze(const union bpf_attr *attr)
 	map = __bpf_map_get(f);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
+
+	mutex_lock(&map->freeze_mutex);
+
+	if (map->writecnt) {
+		err = -EBUSY;
+		goto err_put;
+	}
 	if (READ_ONCE(map->frozen)) {
 		err = -EBUSY;
 		goto err_put;
@@ -1186,12 +1273,13 @@ static int map_freeze(const union bpf_attr *attr)
 
 	WRITE_ONCE(map->frozen, true);
 err_put:
+	mutex_unlock(&map->freeze_mutex);
 	fdput(f);
 	return err;
 }
 
 static const struct bpf_prog_ops * const bpf_prog_types[] = {
-#define BPF_PROG_TYPE(_id, _name) \
+#define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
 	[_id] = & _name ## _prog_ops,
 #define BPF_MAP_TYPE(_id, _ops)
 #include <linux/bpf_types.h>
@@ -1216,25 +1304,6 @@ static int find_prog_type(enum bpf_prog_type type, struct bpf_prog *prog)
 		prog->aux->ops = &bpf_offload_prog_ops;
 	prog->type = type;
 	return 0;
-}
-
-/* drop refcnt on maps used by eBPF program and free auxilary data */
-static void free_used_maps(struct bpf_prog_aux *aux)
-{
-	enum bpf_cgroup_storage_type stype;
-	int i;
-
-	for_each_cgroup_storage_type(stype) {
-		if (!aux->cgroup_storage[stype])
-			continue;
-		bpf_cgroup_storage_release(aux->prog,
-					   aux->cgroup_storage[stype]);
-	}
-
-	for (i = 0; i < aux->used_map_cnt; i++)
-		bpf_map_put(aux->used_maps[i]);
-
-	kfree(aux->used_maps);
 }
 
 int __bpf_prog_charge(struct user_struct *user, u32 pages)
@@ -1330,7 +1399,7 @@ static void __bpf_prog_put_rcu(struct rcu_head *rcu)
 	struct bpf_prog_aux *aux = container_of(rcu, struct bpf_prog_aux, rcu);
 
 	kvfree(aux->func_info);
-	free_used_maps(aux);
+	kfree(aux->func_info_aux);
 	bpf_prog_uncharge_memlock(aux->prog);
 	security_bpf_prog_free(aux);
 	bpf_prog_free(aux->prog);
@@ -1350,7 +1419,7 @@ static void __bpf_prog_put_noref(struct bpf_prog *prog, bool deferred)
 
 static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
 {
-	if (atomic_dec_and_test(&prog->aux->refcnt)) {
+	if (atomic64_dec_and_test(&prog->aux->refcnt)) {
 		perf_event_bpf_event(prog, PERF_BPF_EVENT_PROG_UNLOAD, 0);
 		/* bpf_prog_free_id() must be called first */
 		bpf_prog_free_id(prog, do_idr_lock);
@@ -1456,13 +1525,9 @@ static struct bpf_prog *____bpf_prog_get(struct fd f)
 	return f.file->private_data;
 }
 
-struct bpf_prog *bpf_prog_add(struct bpf_prog *prog, int i)
+void bpf_prog_add(struct bpf_prog *prog, int i)
 {
-	if (atomic_add_return(i, &prog->aux->refcnt) > BPF_MAX_REFCNT) {
-		atomic_sub(i, &prog->aux->refcnt);
-		return ERR_PTR(-EBUSY);
-	}
-	return prog;
+	atomic64_add(i, &prog->aux->refcnt);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_add);
 
@@ -1473,13 +1538,13 @@ void bpf_prog_sub(struct bpf_prog *prog, int i)
 	 * path holds a reference to the program, thus atomic_sub() can
 	 * be safely used in such cases!
 	 */
-	WARN_ON(atomic_sub_return(i, &prog->aux->refcnt) == 0);
+	WARN_ON(atomic64_sub_return(i, &prog->aux->refcnt) == 0);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_sub);
 
-struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog)
+void bpf_prog_inc(struct bpf_prog *prog)
 {
-	return bpf_prog_add(prog, 1);
+	atomic64_inc(&prog->aux->refcnt);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_inc);
 
@@ -1488,12 +1553,7 @@ struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 {
 	int refold;
 
-	refold = atomic_fetch_add_unless(&prog->aux->refcnt, 1, 0);
-
-	if (refold >= BPF_MAX_REFCNT) {
-		__bpf_prog_put(prog, false);
-		return ERR_PTR(-EBUSY);
-	}
+	refold = atomic64_fetch_add_unless(&prog->aux->refcnt, 1, 0);
 
 	if (!refold)
 		return ERR_PTR(-ENOENT);
@@ -1531,7 +1591,7 @@ static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *attach_type,
 		goto out;
 	}
 
-	prog = bpf_prog_inc(prog);
+	bpf_prog_inc(prog);
 out:
 	fdput(f);
 	return prog;
@@ -1576,9 +1636,21 @@ static void bpf_prog_load_fixup_attach_type(union bpf_attr *attr)
 }
 
 static int
-bpf_prog_load_check_attach_type(enum bpf_prog_type prog_type,
-				enum bpf_attach_type expected_attach_type)
+bpf_prog_load_check_attach(enum bpf_prog_type prog_type,
+			   enum bpf_attach_type expected_attach_type,
+			   u32 btf_id, u32 prog_fd)
 {
+	switch (prog_type) {
+	case BPF_PROG_TYPE_TRACING:
+		if (btf_id > BTF_MAX_TYPE)
+			return -EINVAL;
+		break;
+	default:
+		if (btf_id || prog_fd)
+			return -EINVAL;
+		break;
+	}
+
 	switch (prog_type) {
 	case BPF_PROG_TYPE_CGROUP_SOCK:
 		switch (expected_attach_type) {
@@ -1625,7 +1697,7 @@ bpf_prog_load_check_attach_type(enum bpf_prog_type prog_type,
 }
 
 /* last field in 'union bpf_attr' used by this command */
-#define	BPF_PROG_LOAD_LAST_FIELD line_info_cnt
+#define	BPF_PROG_LOAD_LAST_FIELD attach_prog_fd
 
 static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 {
@@ -1667,7 +1739,9 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 		return -EPERM;
 
 	bpf_prog_load_fixup_attach_type(attr);
-	if (bpf_prog_load_check_attach_type(type, attr->expected_attach_type))
+	if (bpf_prog_load_check_attach(type, attr->expected_attach_type,
+				       attr->attach_btf_id,
+				       attr->attach_prog_fd))
 		return -EINVAL;
 
 	/* plain bpf_prog allocation */
@@ -1676,6 +1750,17 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 		return -ENOMEM;
 
 	prog->expected_attach_type = attr->expected_attach_type;
+	prog->aux->attach_btf_id = attr->attach_btf_id;
+	if (attr->attach_prog_fd) {
+		struct bpf_prog *tgt_prog;
+
+		tgt_prog = bpf_prog_get(attr->attach_prog_fd);
+		if (IS_ERR(tgt_prog)) {
+			err = PTR_ERR(tgt_prog);
+			goto free_prog_nouncharge;
+		}
+		prog->aux->linked_prog = tgt_prog;
+	}
 
 	prog->aux->offload_requested = !!attr->prog_ifindex;
 
@@ -1697,7 +1782,7 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 	prog->orig_prog = NULL;
 	prog->jited = 0;
 
-	atomic_set(&prog->aux->refcnt, 1);
+	atomic64_set(&prog->aux->refcnt, 1);
 	prog->gpl_compatible = is_gpl ? 1 : 0;
 
 	if (bpf_prog_is_dev_bound(prog->aux)) {
@@ -1787,6 +1872,49 @@ static int bpf_obj_get(const union bpf_attr *attr)
 				attr->file_flags);
 }
 
+static int bpf_tracing_prog_release(struct inode *inode, struct file *filp)
+{
+	struct bpf_prog *prog = filp->private_data;
+
+	WARN_ON_ONCE(bpf_trampoline_unlink_prog(prog));
+	bpf_prog_put(prog);
+	return 0;
+}
+
+static const struct file_operations bpf_tracing_prog_fops = {
+	.release	= bpf_tracing_prog_release,
+	.read		= bpf_dummy_read,
+	.write		= bpf_dummy_write,
+};
+
+static int bpf_tracing_prog_attach(struct bpf_prog *prog)
+{
+	int tr_fd, err;
+
+	if (prog->expected_attach_type != BPF_TRACE_FENTRY &&
+	    prog->expected_attach_type != BPF_TRACE_FEXIT) {
+		err = -EINVAL;
+		goto out_put_prog;
+	}
+
+	err = bpf_trampoline_link_prog(prog);
+	if (err)
+		goto out_put_prog;
+
+	tr_fd = anon_inode_getfd("bpf-tracing-prog", &bpf_tracing_prog_fops,
+				 prog, O_CLOEXEC);
+	if (tr_fd < 0) {
+		WARN_ON_ONCE(bpf_trampoline_unlink_prog(prog));
+		err = tr_fd;
+		goto out_put_prog;
+	}
+	return tr_fd;
+
+out_put_prog:
+	bpf_prog_put(prog);
+	return err;
+}
+
 struct bpf_raw_tracepoint {
 	struct bpf_raw_event_map *btp;
 	struct bpf_prog *prog;
@@ -1818,17 +1946,52 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 	struct bpf_raw_tracepoint *raw_tp;
 	struct bpf_raw_event_map *btp;
 	struct bpf_prog *prog;
-	char tp_name[128];
+	const char *tp_name;
+	char buf[128];
 	int tp_fd, err;
 
-	if (strncpy_from_user(tp_name, u64_to_user_ptr(attr->raw_tracepoint.name),
-			      sizeof(tp_name) - 1) < 0)
-		return -EFAULT;
-	tp_name[sizeof(tp_name) - 1] = 0;
+	if (CHECK_ATTR(BPF_RAW_TRACEPOINT_OPEN))
+		return -EINVAL;
+
+	prog = bpf_prog_get(attr->raw_tracepoint.prog_fd);
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
+
+	if (prog->type != BPF_PROG_TYPE_RAW_TRACEPOINT &&
+	    prog->type != BPF_PROG_TYPE_TRACING &&
+	    prog->type != BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE) {
+		err = -EINVAL;
+		goto out_put_prog;
+	}
+
+	if (prog->type == BPF_PROG_TYPE_TRACING) {
+		if (attr->raw_tracepoint.name) {
+			/* The attach point for this category of programs
+			 * should be specified via btf_id during program load.
+			 */
+			err = -EINVAL;
+			goto out_put_prog;
+		}
+		if (prog->expected_attach_type == BPF_TRACE_RAW_TP)
+			tp_name = prog->aux->attach_func_name;
+		else
+			return bpf_tracing_prog_attach(prog);
+	} else {
+		if (strncpy_from_user(buf,
+				      u64_to_user_ptr(attr->raw_tracepoint.name),
+				      sizeof(buf) - 1) < 0) {
+			err = -EFAULT;
+			goto out_put_prog;
+		}
+		buf[sizeof(buf) - 1] = 0;
+		tp_name = buf;
+	}
 
 	btp = bpf_get_raw_tracepoint(tp_name);
-	if (!btp)
-		return -ENOENT;
+	if (!btp) {
+		err = -ENOENT;
+		goto out_put_prog;
+	}
 
 	raw_tp = kzalloc(sizeof(*raw_tp), GFP_USER);
 	if (!raw_tp) {
@@ -1836,38 +1999,27 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 		goto out_put_btp;
 	}
 	raw_tp->btp = btp;
-
-	prog = bpf_prog_get(attr->raw_tracepoint.prog_fd);
-	if (IS_ERR(prog)) {
-		err = PTR_ERR(prog);
-		goto out_free_tp;
-	}
-	if (prog->type != BPF_PROG_TYPE_RAW_TRACEPOINT &&
-	    prog->type != BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE) {
-		err = -EINVAL;
-		goto out_put_prog;
-	}
+	raw_tp->prog = prog;
 
 	err = bpf_probe_register(raw_tp->btp, prog);
 	if (err)
-		goto out_put_prog;
+		goto out_free_tp;
 
-	raw_tp->prog = prog;
 	tp_fd = anon_inode_getfd("bpf-raw-tracepoint", &bpf_raw_tp_fops, raw_tp,
 				 O_CLOEXEC);
 	if (tp_fd < 0) {
 		bpf_probe_unregister(raw_tp->btp, prog);
 		err = tp_fd;
-		goto out_put_prog;
+		goto out_free_tp;
 	}
 	return tp_fd;
 
-out_put_prog:
-	bpf_prog_put(prog);
 out_free_tp:
 	kfree(raw_tp);
 out_put_btp:
 	bpf_put_raw_tracepoint(btp);
+out_put_prog:
+	bpf_prog_put(prog);
 	return err;
 }
 

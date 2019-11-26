@@ -2091,6 +2091,28 @@ pf_enable - INTEGER
 
 	Default: 1
 
+pf_expose - INTEGER
+	Unset or enable/disable pf (pf is short for potentially failed) state
+	exposure.  Applications can control the exposure of the PF path state
+	in the SCTP_PEER_ADDR_CHANGE event and the SCTP_GET_PEER_ADDR_INFO
+	sockopt.   When it's unset, no SCTP_PEER_ADDR_CHANGE event with
+	SCTP_ADDR_PF state will be sent and a SCTP_PF-state transport info
+	can be got via SCTP_GET_PEER_ADDR_INFO sockopt;  When it's enabled,
+	a SCTP_PEER_ADDR_CHANGE event will be sent for a transport becoming
+	SCTP_PF state and a SCTP_PF-state transport info can be got via
+	SCTP_GET_PEER_ADDR_INFO sockopt;  When it's diabled, no
+	SCTP_PEER_ADDR_CHANGE event will be sent and it returns -EACCES when
+	trying to get a SCTP_PF-state transport info via SCTP_GET_PEER_ADDR_INFO
+	sockopt.
+
+	0: Unset pf state exposure, Compatible with old applications.
+
+	1: Disable pf state exposure.
+
+	2: Enable pf state exposure.
+
+	Default: 0
+
 addip_noauth_enable - BOOLEAN
 	Dynamic Address Reconfiguration (ADD-IP) requires the use of
 	authentication to protect the operations of adding or removing new
@@ -2172,6 +2194,18 @@ pf_retrans - INTEGER
 	disable pf state.
 
 	Default: 0
+
+ps_retrans - INTEGER
+	Primary.Switchover.Max.Retrans (PSMR), it's a tunable parameter coming
+	from section-5 "Primary Path Switchover" in rfc7829.  The primary path
+	will be changed to another active path when the path error counter on
+	the old primary path exceeds PSMR, so that "the SCTP sender is allowed
+	to continue data transmission on a new working path even when the old
+	primary destination address becomes active again".   Note this feature
+	is disabled by initializing 'ps_retrans' per netns as 0xffff by default,
+	and its value can't be less than 'pf_retrans' when changing by sysctl.
+
+	Default: 0xffff
 
 rto_initial - INTEGER
 	The initial round trip timeout value in milliseconds that will be used

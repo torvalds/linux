@@ -96,9 +96,9 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 	free_pages((unsigned long)pud, PUD_ORDER);
 }
 
-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4d, pud_t *pud)
 {
-	set_pgd(pgd, __pgd((unsigned long)pud));
+	set_p4d(p4d, __p4d((unsigned long)pud));
 }
 
 #define __pud_free_tlb(tlb, x, addr)	pud_free((tlb)->mm, x)

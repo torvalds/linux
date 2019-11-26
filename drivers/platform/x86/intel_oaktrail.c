@@ -243,7 +243,7 @@ static int oaktrail_backlight_init(void)
 
 	if (IS_ERR(bd)) {
 		oaktrail_bl_device = NULL;
-		pr_warning("Unable to register backlight device\n");
+		pr_warn("Unable to register backlight device\n");
 		return PTR_ERR(bd);
 	}
 
@@ -313,20 +313,20 @@ static int __init oaktrail_init(void)
 
 	ret = platform_driver_register(&oaktrail_driver);
 	if (ret) {
-		pr_warning("Unable to register platform driver\n");
+		pr_warn("Unable to register platform driver\n");
 		goto err_driver_reg;
 	}
 
 	oaktrail_device = platform_device_alloc(DRIVER_NAME, -1);
 	if (!oaktrail_device) {
-		pr_warning("Unable to allocate platform device\n");
+		pr_warn("Unable to allocate platform device\n");
 		ret = -ENOMEM;
 		goto err_device_alloc;
 	}
 
 	ret = platform_device_add(oaktrail_device);
 	if (ret) {
-		pr_warning("Unable to add platform device\n");
+		pr_warn("Unable to add platform device\n");
 		goto err_device_add;
 	}
 
@@ -338,7 +338,7 @@ static int __init oaktrail_init(void)
 
 	ret = oaktrail_rfkill_init();
 	if (ret) {
-		pr_warning("Setup rfkill failed\n");
+		pr_warn("Setup rfkill failed\n");
 		goto err_rfkill;
 	}
 

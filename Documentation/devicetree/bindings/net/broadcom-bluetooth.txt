@@ -14,6 +14,8 @@ Required properties:
    * "brcm,bcm4330-bt"
    * "brcm,bcm43438-bt"
    * "brcm,bcm4345c5"
+   * "brcm,bcm43540-bt"
+   * "brcm,bcm4335a0"
 
 Optional properties:
 

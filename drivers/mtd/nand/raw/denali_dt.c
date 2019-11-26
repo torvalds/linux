@@ -102,47 +102,6 @@ static int denali_dt_chip_init(struct denali_controller *denali,
 	return denali_chip_init(denali, dchip);
 }
 
-/* Backward compatibility for old platforms */
-static int denali_dt_legacy_chip_init(struct denali_controller *denali)
-{
-	struct denali_chip *dchip;
-	int nsels, i;
-
-	nsels = denali->nbanks;
-
-	dchip = devm_kzalloc(denali->dev, struct_size(dchip, sels, nsels),
-			     GFP_KERNEL);
-	if (!dchip)
-		return -ENOMEM;
-
-	dchip->nsels = nsels;
-
-	for (i = 0; i < nsels; i++)
-		dchip->sels[i].bank = i;
-
-	nand_set_flash_node(&dchip->chip, denali->dev->of_node);
-
-	return denali_chip_init(denali, dchip);
-}
-
-/*
- * Check the DT binding.
- * The new binding expects chip subnodes in the controller node.
- * So, #address-cells = <1>; #size-cells = <0>; are required.
- * Check the #size-cells to distinguish the binding.
- */
-static bool denali_dt_is_legacy_binding(struct device_node *np)
-{
-	u32 cells;
-	int ret;
-
-	ret = of_property_read_u32(np, "#size-cells", &cells);
-	if (ret)
-		return true;
-
-	return cells != 0;
-}
-
 static int denali_dt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -167,10 +126,8 @@ static int denali_dt_probe(struct platform_device *pdev)
 
 	denali->dev = dev;
 	denali->irq = platform_get_irq(pdev, 0);
-	if (denali->irq < 0) {
-		dev_err(dev, "no irq defined\n");
+	if (denali->irq < 0)
 		return denali->irq;
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "denali_reg");
 	denali->reg = devm_ioremap_resource(dev, res);
@@ -213,17 +170,11 @@ static int denali_dt_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_disable_clk_ecc;
 
-	if (denali_dt_is_legacy_binding(dev->of_node)) {
-		ret = denali_dt_legacy_chip_init(denali);
-		if (ret)
+	for_each_child_of_node(dev->of_node, np) {
+		ret = denali_dt_chip_init(denali, np);
+		if (ret) {
+			of_node_put(np);
 			goto out_remove_denali;
-	} else {
-		for_each_child_of_node(dev->of_node, np) {
-			ret = denali_dt_chip_init(denali, np);
-			if (ret) {
-				of_node_put(np);
-				goto out_remove_denali;
-			}
 		}
 	}
 

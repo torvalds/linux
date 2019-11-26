@@ -530,8 +530,7 @@ begin:
 			fq_flow_set_throttled(q, f);
 			goto begin;
 		}
-		if (time_next_packet &&
-		    (s64)(now - time_next_packet - q->ce_threshold) > 0) {
+		if ((s64)(now - time_next_packet - q->ce_threshold) > 0) {
 			INET_ECN_set_ce(skb);
 			q->stat_ce_mark++;
 		}

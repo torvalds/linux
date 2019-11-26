@@ -511,7 +511,7 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 	 * Also, don't allow GTT domain if the BO doens't have USWC falg set.
 	 */
 	if (adev->asic_type >= CHIP_CARRIZO &&
-	    adev->asic_type <= CHIP_RAVEN &&
+	    adev->asic_type < CHIP_RAVEN &&
 	    (adev->flags & AMD_IS_APU) &&
 	    (bo_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) &&
 	    amdgpu_bo_support_uswc(bo_flags) &&

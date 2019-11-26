@@ -330,9 +330,12 @@ There can be multiple csrows and multiple channels.
 
 .. [#f4] Nowadays, the term DIMM (Dual In-line Memory Module) is widely
   used to refer to a memory module, although there are other memory
-  packaging alternatives, like SO-DIMM, SIMM, etc. Along this document,
-  and inside the EDAC system, the term "dimm" is used for all memory
-  modules, even when they use a different kind of packaging.
+  packaging alternatives, like SO-DIMM, SIMM, etc. The UEFI
+  specification (Version 2.7) defines a memory module in the Common
+  Platform Error Record (CPER) section to be an SMBIOS Memory Device
+  (Type 17). Along this document, and inside the EDAC subsystem, the term
+  "dimm" is used for all memory modules, even when they use a
+  different kind of packaging.
 
 Memory controllers allow for several csrows, with 8 csrows being a
 typical value. Yet, the actual number of csrows depends on the layout of
@@ -349,12 +352,14 @@ controllers. The following example will assume 2 channels:
 	|            |  ``ch0``  |  ``ch1``  |
 	+============+===========+===========+
 	| ``csrow0`` |  DIMM_A0  |  DIMM_B0  |
-	+------------+           |           |
-	| ``csrow1`` |           |           |
+	|            |   rank0   |   rank0   |
+	+------------+     -     |     -     |
+	| ``csrow1`` |   rank1   |   rank1   |
 	+------------+-----------+-----------+
 	| ``csrow2`` |  DIMM_A1  | DIMM_B1   |
-	+------------+           |           |
-	| ``csrow3`` |           |           |
+	|            |   rank0   |   rank0   |
+	+------------+     -     |     -     |
+	| ``csrow3`` |   rank1   |   rank1   |
 	+------------+-----------+-----------+
 
 In the above example, there are 4 physical slots on the motherboard
@@ -374,11 +379,13 @@ which the memory DIMM is placed. Thus, when 1 DIMM is placed in each
 Channel, the csrows cross both DIMMs.
 
 Memory DIMMs come single or dual "ranked". A rank is a populated csrow.
-Thus, 2 single ranked DIMMs, placed in slots DIMM_A0 and DIMM_B0 above
-will have just one csrow (csrow0). csrow1 will be empty. On the other
-hand, when 2 dual ranked DIMMs are similarly placed, then both csrow0
-and csrow1 will be populated. The pattern repeats itself for csrow2 and
-csrow3.
+In the example above 2 dual ranked DIMMs are similarly placed. Thus,
+both csrow0 and csrow1 are populated. On the other hand, when 2 single
+ranked DIMMs are placed in slots DIMM_A0 and DIMM_B0, then they will
+have just one csrow (csrow0) and csrow1 will be empty. The pattern
+repeats itself for csrow2 and csrow3. Also note that some memory
+controllers don't have any logic to identify the memory module, see
+``rankX`` directories below.
 
 The representation of the above is reflected in the directory
 tree in EDAC's sysfs interface. Starting in directory

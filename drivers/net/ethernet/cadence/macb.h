@@ -7,7 +7,7 @@
 #ifndef _MACB_H
 #define _MACB_H
 
-#include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
 #include <linux/interrupt.h>
@@ -1185,15 +1185,14 @@ struct macb {
 	struct macb_or_gem_ops	macbgem_ops;
 
 	struct mii_bus		*mii_bus;
-	struct device_node	*phy_node;
-	int 			link;
-	int 			speed;
-	int 			duplex;
+	struct phylink		*phylink;
+	struct phylink_config	phylink_config;
 
 	u32			caps;
 	unsigned int		dma_burst_length;
 
 	phy_interface_t		phy_interface;
+	int			speed;
 
 	/* AT91RM9200 transmit */
 	struct sk_buff *skb;			/* holds skb until xmit interrupt completes */

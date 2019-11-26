@@ -186,7 +186,7 @@ static void wl12xx_spi_init(struct device *child)
 
 	spi_sync(to_spi_device(glue->dev), &m);
 
-	/* Restore chip select configration to normal */
+	/* Restore chip select configuration to normal */
 	spi->mode ^= SPI_CS_HIGH;
 	kfree(cmd);
 }

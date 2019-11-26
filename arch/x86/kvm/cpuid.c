@@ -816,8 +816,6 @@ static int do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 func,
 	return __do_cpuid_func(entry, func, nent, maxnent);
 }
 
-#undef F
-
 struct kvm_cpuid_param {
 	u32 func;
 	bool (*qualifier)(const struct kvm_cpuid_param *param);
@@ -1015,6 +1013,12 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 		*ebx = entry->ebx;
 		*ecx = entry->ecx;
 		*edx = entry->edx;
+		if (function == 7 && index == 0) {
+			u64 data;
+		        if (!__kvm_get_msr(vcpu, MSR_IA32_TSX_CTRL, &data, true) &&
+			    (data & TSX_CTRL_CPUID_CLEAR))
+				*ebx &= ~(F(RTM) | F(HLE));
+		}
 	} else {
 		*eax = *ebx = *ecx = *edx = 0;
 		/*

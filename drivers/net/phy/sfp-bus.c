@@ -4,10 +4,17 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/phylink.h>
+#include <linux/property.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 
 #include "sfp.h"
+
+struct sfp_quirk {
+	const char *vendor;
+	const char *part;
+	void (*modes)(const struct sfp_eeprom_id *id, unsigned long *modes);
+};
 
 /**
  * struct sfp_bus - internal representation of a sfp bus
@@ -21,6 +28,7 @@ struct sfp_bus {
 	const struct sfp_socket_ops *socket_ops;
 	struct device *sfp_dev;
 	struct sfp *sfp;
+	const struct sfp_quirk *sfp_quirk;
 
 	const struct sfp_upstream_ops *upstream_ops;
 	void *upstream;
@@ -30,6 +38,71 @@ struct sfp_bus {
 	bool started;
 };
 
+static void sfp_quirk_2500basex(const struct sfp_eeprom_id *id,
+				unsigned long *modes)
+{
+	phylink_set(modes, 2500baseX_Full);
+}
+
+static const struct sfp_quirk sfp_quirks[] = {
+	{
+		// Alcatel Lucent G-010S-P can operate at 2500base-X, but
+		// incorrectly report 2500MBd NRZ in their EEPROM
+		.vendor = "ALCATELLUCENT",
+		.part = "G010SP",
+		.modes = sfp_quirk_2500basex,
+	}, {
+		// Alcatel Lucent G-010S-A can operate at 2500base-X, but
+		// report 3.2GBd NRZ in their EEPROM
+		.vendor = "ALCATELLUCENT",
+		.part = "3FE46541AA",
+		.modes = sfp_quirk_2500basex,
+	}, {
+		// Huawei MA5671A can operate at 2500base-X, but report 1.2GBd
+		// NRZ in their EEPROM
+		.vendor = "HUAWEI",
+		.part = "MA5671A",
+		.modes = sfp_quirk_2500basex,
+	},
+};
+
+static size_t sfp_strlen(const char *str, size_t maxlen)
+{
+	size_t size, i;
+
+	/* Trailing characters should be filled with space chars */
+	for (i = 0, size = 0; i < maxlen; i++)
+		if (str[i] != ' ')
+			size = i + 1;
+
+	return size;
+}
+
+static bool sfp_match(const char *qs, const char *str, size_t len)
+{
+	if (!qs)
+		return true;
+	if (strlen(qs) != len)
+		return false;
+	return !strncmp(qs, str, len);
+}
+
+static const struct sfp_quirk *sfp_lookup_quirk(const struct sfp_eeprom_id *id)
+{
+	const struct sfp_quirk *q;
+	unsigned int i;
+	size_t vs, ps;
+
+	vs = sfp_strlen(id->base.vendor_name, ARRAY_SIZE(id->base.vendor_name));
+	ps = sfp_strlen(id->base.vendor_pn, ARRAY_SIZE(id->base.vendor_pn));
+
+	for (i = 0, q = sfp_quirks; i < ARRAY_SIZE(sfp_quirks); i++, q++)
+		if (sfp_match(q->vendor, id->base.vendor_name, vs) &&
+		    sfp_match(q->part, id->base.vendor_pn, ps))
+			return q;
+
+	return NULL;
+}
 /**
  * sfp_parse_port() - Parse the EEPROM base ID, setting the port type
  * @bus: a pointer to the &struct sfp_bus structure for the sfp module
@@ -233,6 +306,9 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 			phylink_set(modes, 1000baseX_Full);
 	}
 
+	if (bus->sfp_quirk)
+		bus->sfp_quirk->modes(id, modes);
+
 	bitmap_or(support, support, modes, __ETHTOOL_LINK_MODE_MASK_NBITS);
 
 	phylink_set(support, Autoneg);
@@ -328,10 +404,19 @@ static void sfp_bus_release(struct kref *kref)
 	kfree(bus);
 }
 
-static void sfp_bus_put(struct sfp_bus *bus)
+/**
+ * sfp_bus_put() - put a reference on the &struct sfp_bus
+ * @bus: the &struct sfp_bus found via sfp_bus_find_fwnode()
+ *
+ * Put a reference on the &struct sfp_bus and free the underlying structure
+ * if this was the last reference.
+ */
+void sfp_bus_put(struct sfp_bus *bus)
 {
-	kref_put_mutex(&bus->kref, sfp_bus_release, &sfp_mutex);
+	if (bus)
+		kref_put_mutex(&bus->kref, sfp_bus_release, &sfp_mutex);
 }
+EXPORT_SYMBOL_GPL(sfp_bus_put);
 
 static int sfp_register_bus(struct sfp_bus *bus)
 {
@@ -347,11 +432,11 @@ static int sfp_register_bus(struct sfp_bus *bus)
 				return ret;
 		}
 	}
+	bus->registered = true;
 	bus->socket_ops->attach(bus->sfp);
 	if (bus->started)
 		bus->socket_ops->start(bus->sfp);
 	bus->upstream_ops->attach(bus->upstream, bus);
-	bus->registered = true;
 	return 0;
 }
 
@@ -445,64 +530,111 @@ static void sfp_upstream_clear(struct sfp_bus *bus)
 }
 
 /**
- * sfp_register_upstream() - Register the neighbouring device
- * @fwnode: firmware node for the SFP bus
- * @upstream: the upstream private data
- * @ops: the upstream's &struct sfp_upstream_ops
+ * sfp_bus_find_fwnode() - parse and locate the SFP bus from fwnode
+ * @fwnode: firmware node for the parent device (MAC or PHY)
  *
- * Register the upstream device (eg, PHY) with the SFP bus. MAC drivers
- * should use phylink, which will call this function for them. Returns
- * a pointer to the allocated &struct sfp_bus.
+ * Parse the parent device's firmware node for a SFP bus, and locate
+ * the sfp_bus structure, incrementing its reference count.  This must
+ * be put via sfp_bus_put() when done.
  *
- * On error, returns %NULL.
+ * Returns: on success, a pointer to the sfp_bus structure,
+ *	    %NULL if no SFP is specified,
+ * 	    on failure, an error pointer value:
+ * 		corresponding to the errors detailed for
+ * 		fwnode_property_get_reference_args().
+ * 	        %-ENOMEM if we failed to allocate the bus.
+ *		an error from the upstream's connect_phy() method.
  */
-struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
-				      void *upstream,
-				      const struct sfp_upstream_ops *ops)
+struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
 {
-	struct sfp_bus *bus = sfp_bus_get(fwnode);
-	int ret = 0;
+	struct fwnode_reference_args ref;
+	struct sfp_bus *bus;
+	int ret;
 
-	if (bus) {
-		rtnl_lock();
-		bus->upstream_ops = ops;
-		bus->upstream = upstream;
+	ret = fwnode_property_get_reference_args(fwnode, "sfp", NULL,
+						 0, 0, &ref);
+	if (ret == -ENOENT)
+		return NULL;
+	else if (ret < 0)
+		return ERR_PTR(ret);
 
-		if (bus->sfp) {
-			ret = sfp_register_bus(bus);
-			if (ret)
-				sfp_upstream_clear(bus);
-		}
-		rtnl_unlock();
-	}
-
-	if (ret) {
-		sfp_bus_put(bus);
-		bus = NULL;
-	}
+	bus = sfp_bus_get(ref.fwnode);
+	fwnode_handle_put(ref.fwnode);
+	if (!bus)
+		return ERR_PTR(-ENOMEM);
 
 	return bus;
 }
-EXPORT_SYMBOL_GPL(sfp_register_upstream);
+EXPORT_SYMBOL_GPL(sfp_bus_find_fwnode);
 
 /**
- * sfp_unregister_upstream() - Unregister sfp bus
- * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ * sfp_bus_add_upstream() - parse and register the neighbouring device
+ * @bus: the &struct sfp_bus found via sfp_bus_find_fwnode()
+ * @upstream: the upstream private data
+ * @ops: the upstream's &struct sfp_upstream_ops
  *
- * Unregister a previously registered upstream connection for the SFP
- * module. @bus is returned from sfp_register_upstream().
+ * Add upstream driver for the SFP bus, and if the bus is complete, register
+ * the SFP bus using sfp_register_upstream().  This takes a reference on the
+ * bus, so it is safe to put the bus after this call.
+ *
+ * Returns: on success, a pointer to the sfp_bus structure,
+ *	    %NULL if no SFP is specified,
+ * 	    on failure, an error pointer value:
+ * 		corresponding to the errors detailed for
+ * 		fwnode_property_get_reference_args().
+ * 	        %-ENOMEM if we failed to allocate the bus.
+ *		an error from the upstream's connect_phy() method.
  */
-void sfp_unregister_upstream(struct sfp_bus *bus)
+int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
+			 const struct sfp_upstream_ops *ops)
 {
+	int ret;
+
+	/* If no bus, return success */
+	if (!bus)
+		return 0;
+
 	rtnl_lock();
-	if (bus->sfp)
-		sfp_unregister_bus(bus);
-	sfp_upstream_clear(bus);
+	kref_get(&bus->kref);
+	bus->upstream_ops = ops;
+	bus->upstream = upstream;
+
+	if (bus->sfp) {
+		ret = sfp_register_bus(bus);
+		if (ret)
+			sfp_upstream_clear(bus);
+	} else {
+		ret = 0;
+	}
 	rtnl_unlock();
 
-	sfp_bus_put(bus);
+	if (ret)
+		sfp_bus_put(bus);
+
+	return ret;
 }
-EXPORT_SYMBOL_GPL(sfp_unregister_upstream);
+EXPORT_SYMBOL_GPL(sfp_bus_add_upstream);
+
+/**
+ * sfp_bus_del_upstream() - Delete a sfp bus
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ *
+ * Delete a previously registered upstream connection for the SFP
+ * module. @bus should have been added by sfp_bus_add_upstream().
+ */
+void sfp_bus_del_upstream(struct sfp_bus *bus)
+{
+	if (bus) {
+		rtnl_lock();
+		if (bus->sfp)
+			sfp_unregister_bus(bus);
+		sfp_upstream_clear(bus);
+		rtnl_unlock();
+
+		sfp_bus_put(bus);
+	}
+}
+EXPORT_SYMBOL_GPL(sfp_bus_del_upstream);
 
 /* Socket driver entry points */
 int sfp_add_phy(struct sfp_bus *bus, struct phy_device *phydev)
@@ -553,6 +685,8 @@ int sfp_module_insert(struct sfp_bus *bus, const struct sfp_eeprom_id *id)
 	const struct sfp_upstream_ops *ops = sfp_get_upstream_ops(bus);
 	int ret = 0;
 
+	bus->sfp_quirk = sfp_lookup_quirk(id);
+
 	if (ops && ops->module_insert)
 		ret = ops->module_insert(bus->upstream, id);
 
@@ -566,6 +700,8 @@ void sfp_module_remove(struct sfp_bus *bus)
 
 	if (ops && ops->module_remove)
 		ops->module_remove(bus->upstream);
+
+	bus->sfp_quirk = NULL;
 }
 EXPORT_SYMBOL_GPL(sfp_module_remove);
 

@@ -9,25 +9,27 @@
 #include <linux/version.h>
 #include <uapi/linux/bpf.h>
 #include "bpf_helpers.h"
+#include "bpf_legacy.h"
+#include "bpf_tracing.h"
 
 #define MAX_ENTRIES 1000
 #define MAX_NR_CPUS 1024
 
-struct bpf_map_def SEC("maps") hash_map = {
+struct bpf_map_def_legacy SEC("maps") hash_map = {
 	.type = BPF_MAP_TYPE_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
 	.max_entries = MAX_ENTRIES,
 };
 
-struct bpf_map_def SEC("maps") lru_hash_map = {
+struct bpf_map_def_legacy SEC("maps") lru_hash_map = {
 	.type = BPF_MAP_TYPE_LRU_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
 	.max_entries = 10000,
 };
 
-struct bpf_map_def SEC("maps") nocommon_lru_hash_map = {
+struct bpf_map_def_legacy SEC("maps") nocommon_lru_hash_map = {
 	.type = BPF_MAP_TYPE_LRU_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
@@ -35,7 +37,7 @@ struct bpf_map_def SEC("maps") nocommon_lru_hash_map = {
 	.map_flags = BPF_F_NO_COMMON_LRU,
 };
 
-struct bpf_map_def SEC("maps") inner_lru_hash_map = {
+struct bpf_map_def_legacy SEC("maps") inner_lru_hash_map = {
 	.type = BPF_MAP_TYPE_LRU_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
@@ -44,20 +46,20 @@ struct bpf_map_def SEC("maps") inner_lru_hash_map = {
 	.numa_node = 0,
 };
 
-struct bpf_map_def SEC("maps") array_of_lru_hashs = {
+struct bpf_map_def_legacy SEC("maps") array_of_lru_hashs = {
 	.type = BPF_MAP_TYPE_ARRAY_OF_MAPS,
 	.key_size = sizeof(u32),
 	.max_entries = MAX_NR_CPUS,
 };
 
-struct bpf_map_def SEC("maps") percpu_hash_map = {
+struct bpf_map_def_legacy SEC("maps") percpu_hash_map = {
 	.type = BPF_MAP_TYPE_PERCPU_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
 	.max_entries = MAX_ENTRIES,
 };
 
-struct bpf_map_def SEC("maps") hash_map_alloc = {
+struct bpf_map_def_legacy SEC("maps") hash_map_alloc = {
 	.type = BPF_MAP_TYPE_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
@@ -65,7 +67,7 @@ struct bpf_map_def SEC("maps") hash_map_alloc = {
 	.map_flags = BPF_F_NO_PREALLOC,
 };
 
-struct bpf_map_def SEC("maps") percpu_hash_map_alloc = {
+struct bpf_map_def_legacy SEC("maps") percpu_hash_map_alloc = {
 	.type = BPF_MAP_TYPE_PERCPU_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
@@ -73,7 +75,7 @@ struct bpf_map_def SEC("maps") percpu_hash_map_alloc = {
 	.map_flags = BPF_F_NO_PREALLOC,
 };
 
-struct bpf_map_def SEC("maps") lpm_trie_map_alloc = {
+struct bpf_map_def_legacy SEC("maps") lpm_trie_map_alloc = {
 	.type = BPF_MAP_TYPE_LPM_TRIE,
 	.key_size = 8,
 	.value_size = sizeof(long),
@@ -81,14 +83,14 @@ struct bpf_map_def SEC("maps") lpm_trie_map_alloc = {
 	.map_flags = BPF_F_NO_PREALLOC,
 };
 
-struct bpf_map_def SEC("maps") array_map = {
+struct bpf_map_def_legacy SEC("maps") array_map = {
 	.type = BPF_MAP_TYPE_ARRAY,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
 	.max_entries = MAX_ENTRIES,
 };
 
-struct bpf_map_def SEC("maps") lru_hash_lookup_map = {
+struct bpf_map_def_legacy SEC("maps") lru_hash_lookup_map = {
 	.type = BPF_MAP_TYPE_LRU_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
@@ -179,8 +181,8 @@ int stress_lru_hmap_alloc(struct pt_regs *ctx)
 	if (addrlen != sizeof(*in6))
 		return 0;
 
-	ret = bpf_probe_read(test_params.dst6, sizeof(test_params.dst6),
-			     &in6->sin6_addr);
+	ret = bpf_probe_read_user(test_params.dst6, sizeof(test_params.dst6),
+				  &in6->sin6_addr);
 	if (ret)
 		goto done;
 

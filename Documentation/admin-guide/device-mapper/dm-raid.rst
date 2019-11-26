@@ -417,3 +417,5 @@ Version History
 	deadlock/potential data corruption.  Update superblock when
 	specific devices are requested via rebuild.  Fix RAID leg
 	rebuild errors.
+ 1.15.0 Fix size extensions not being synchronized in case of new MD bitmap
+        pages allocated;  also fix those not occuring after previous reductions

@@ -429,19 +429,22 @@ void dsa_port_phylink_validate(struct phylink_config *config,
 }
 EXPORT_SYMBOL_GPL(dsa_port_phylink_validate);
 
-int dsa_port_phylink_mac_link_state(struct phylink_config *config,
-				    struct phylink_link_state *state)
+void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,
+					struct phylink_link_state *state)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
 
-	/* Only called for SGMII and 802.3z */
-	if (!ds->ops->phylink_mac_link_state)
-		return -EOPNOTSUPP;
+	/* Only called for inband modes */
+	if (!ds->ops->phylink_mac_link_state) {
+		state->link = 0;
+		return;
+	}
 
-	return ds->ops->phylink_mac_link_state(ds, dp->index, state);
+	if (ds->ops->phylink_mac_link_state(ds, dp->index, state) < 0)
+		state->link = 0;
 }
-EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_state);
+EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_pcs_get_state);
 
 void dsa_port_phylink_mac_config(struct phylink_config *config,
 				 unsigned int mode,
@@ -510,7 +513,7 @@ EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_up);
 
 const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
 	.validate = dsa_port_phylink_validate,
-	.mac_link_state = dsa_port_phylink_mac_link_state,
+	.mac_pcs_get_state = dsa_port_phylink_mac_pcs_get_state,
 	.mac_config = dsa_port_phylink_mac_config,
 	.mac_an_restart = dsa_port_phylink_mac_an_restart,
 	.mac_link_down = dsa_port_phylink_mac_link_down,
@@ -561,7 +564,7 @@ static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 	struct dsa_switch *ds = dp->ds;
 	struct phy_device *phydev;
 	int port = dp->index;
-	int mode;
+	phy_interface_t mode;
 	int err;
 
 	err = of_phy_register_fixed_link(dn);
@@ -574,8 +577,8 @@ static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 
 	phydev = of_phy_find_device(dn);
 
-	mode = of_get_phy_mode(dn);
-	if (mode < 0)
+	err = of_get_phy_mode(dn, &mode);
+	if (err)
 		mode = PHY_INTERFACE_MODE_NA;
 	phydev->interface = mode;
 
@@ -593,10 +596,11 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct device_node *port_dn = dp->dn;
-	int mode, err;
+	phy_interface_t mode;
+	int err;
 
-	mode = of_get_phy_mode(port_dn);
-	if (mode < 0)
+	err = of_get_phy_mode(port_dn, &mode);
+	if (err)
 		mode = PHY_INTERFACE_MODE_NA;
 
 	dp->pl_config.dev = ds->dev;

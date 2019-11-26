@@ -732,30 +732,7 @@ static struct rtnl_link_ops xfrmi_link_ops __read_mostly = {
 	.get_link_net	= xfrmi_get_link_net,
 };
 
-static void __net_exit xfrmi_destroy_interfaces(struct xfrmi_net *xfrmn)
-{
-	struct xfrm_if *xi;
-	LIST_HEAD(list);
-
-	xi = rtnl_dereference(xfrmn->xfrmi[0]);
-	if (!xi)
-		return;
-
-	unregister_netdevice_queue(xi->dev, &list);
-	unregister_netdevice_many(&list);
-}
-
-static void __net_exit xfrmi_exit_net(struct net *net)
-{
-	struct xfrmi_net *xfrmn = net_generic(net, xfrmi_net_id);
-
-	rtnl_lock();
-	xfrmi_destroy_interfaces(xfrmn);
-	rtnl_unlock();
-}
-
 static struct pernet_operations xfrmi_net_ops = {
-	.exit = xfrmi_exit_net,
 	.id   = &xfrmi_net_id,
 	.size = sizeof(struct xfrmi_net),
 };

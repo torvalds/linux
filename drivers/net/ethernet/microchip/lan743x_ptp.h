@@ -7,6 +7,18 @@
 #include "linux/ptp_clock_kernel.h"
 #include "linux/netdevice.h"
 
+#define LAN7430_N_LED			4
+#define LAN7430_N_GPIO			4	/* multiplexed with PHY LEDs */
+#define LAN7431_N_GPIO			12
+
+#define LAN743X_PTP_N_GPIO		LAN7431_N_GPIO
+
+/* the number of periodic outputs is limited by number of
+ * PTP clock event channels
+ */
+#define LAN743X_PTP_N_EVENT_CHAN	2
+#define LAN743X_PTP_N_PEROUT		LAN743X_PTP_N_EVENT_CHAN
+
 struct lan743x_adapter;
 
 /* GPIO */
@@ -40,8 +52,13 @@ int lan743x_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd);
 
 #define LAN743X_PTP_NUMBER_OF_TX_TIMESTAMPS (4)
 
-#define PTP_FLAG_PTP_CLOCK_REGISTERED	BIT(1)
+#define PTP_FLAG_PTP_CLOCK_REGISTERED		BIT(1)
 #define PTP_FLAG_ISR_ENABLED			BIT(2)
+
+struct lan743x_ptp_perout {
+	int  event_ch;	/* PTP event channel (0=channel A, 1=channel B) */
+	int  gpio_pin;	/* GPIO pin where output appears */
+};
 
 struct lan743x_ptp {
 	int flags;
@@ -51,13 +68,13 @@ struct lan743x_ptp {
 
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_info;
-	struct ptp_pin_desc pin_config[1];
+	struct ptp_pin_desc pin_config[LAN743X_PTP_N_GPIO];
 
-#define LAN743X_PTP_NUMBER_OF_EVENT_CHANNELS (2)
 	unsigned long used_event_ch;
+	struct lan743x_ptp_perout perout[LAN743X_PTP_N_PEROUT];
 
-	int perout_event_ch;
-	int perout_gpio_bit;
+	bool leds_multiplexed;
+	bool led_enabled[LAN7430_N_LED];
 
 	/* tx_ts_lock: used to prevent concurrent access to timestamp arrays */
 	spinlock_t	tx_ts_lock;

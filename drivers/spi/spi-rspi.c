@@ -1257,9 +1257,9 @@ static int rspi_probe(struct platform_device *pdev)
 	ctlr->flags = ops->flags;
 	ctlr->dev.of_node = pdev->dev.of_node;
 
-	ret = platform_get_irq_byname(pdev, "rx");
+	ret = platform_get_irq_byname_optional(pdev, "rx");
 	if (ret < 0) {
-		ret = platform_get_irq_byname(pdev, "mux");
+		ret = platform_get_irq_byname_optional(pdev, "mux");
 		if (ret < 0)
 			ret = platform_get_irq(pdev, 0);
 		if (ret >= 0)
@@ -1269,10 +1269,6 @@ static int rspi_probe(struct platform_device *pdev)
 		ret = platform_get_irq_byname(pdev, "tx");
 		if (ret >= 0)
 			rspi->tx_irq = ret;
-	}
-	if (ret < 0) {
-		dev_err(&pdev->dev, "platform_get_irq error\n");
-		goto error2;
 	}
 
 	if (rspi->rx_irq == rspi->tx_irq) {

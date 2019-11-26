@@ -116,7 +116,7 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent);
 static int adma_port_start(struct ata_port *ap);
 static void adma_port_stop(struct ata_port *ap);
-static void adma_qc_prep(struct ata_queued_cmd *qc);
+static enum ata_completion_errors adma_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int adma_qc_issue(struct ata_queued_cmd *qc);
 static int adma_check_atapi_dma(struct ata_queued_cmd *qc);
 static void adma_freeze(struct ata_port *ap);
@@ -295,7 +295,7 @@ static int adma_fill_sg(struct ata_queued_cmd *qc)
 	return i;
 }
 
-static void adma_qc_prep(struct ata_queued_cmd *qc)
+static enum ata_completion_errors adma_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct adma_port_priv *pp = qc->ap->private_data;
 	u8  *buf = pp->pkt;
@@ -306,7 +306,7 @@ static void adma_qc_prep(struct ata_queued_cmd *qc)
 
 	adma_enter_reg_mode(qc->ap);
 	if (qc->tf.protocol != ATA_PROT_DMA)
-		return;
+		return AC_ERR_OK;
 
 	buf[i++] = 0;	/* Response flags */
 	buf[i++] = 0;	/* reserved */
@@ -371,6 +371,7 @@ static void adma_qc_prep(struct ata_queued_cmd *qc)
 			printk("%s\n", obuf);
 	}
 #endif
+	return AC_ERR_OK;
 }
 
 static inline void adma_packet_start(struct ata_queued_cmd *qc)

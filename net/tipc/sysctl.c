@@ -35,6 +35,7 @@
 
 #include "core.h"
 #include "trace.h"
+#include "crypto.h"
 
 #include <linux/sysctl.h>
 
@@ -64,6 +65,16 @@ static struct ctl_table tipc_table[] = {
 		.mode           = 0644,
 		.proc_handler   = proc_doulongvec_minmax,
 	},
+#ifdef CONFIG_TIPC_CRYPTO
+	{
+		.procname	= "max_tfms",
+		.data		= &sysctl_tipc_max_tfms,
+		.maxlen		= sizeof(sysctl_tipc_max_tfms),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1         = SYSCTL_ONE,
+	},
+#endif
 	{}
 };
 

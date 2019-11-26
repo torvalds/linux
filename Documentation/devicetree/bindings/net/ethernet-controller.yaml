@@ -121,6 +121,11 @@ properties:
       and is useful for determining certain configuration settings
       such as flow control thresholds.
 
+  sfp:
+    $ref: /schemas/types.yaml#definitions/phandle
+    description:
+      Specifies a reference to a node representing a SFP cage.
+
   tx-fifo-depth:
     $ref: /schemas/types.yaml#definitions/uint32
     description:

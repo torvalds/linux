@@ -7,6 +7,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
@@ -35,7 +36,7 @@ static struct spi_pci_desc spi_pci_mid_desc_2 = {
 };
 
 static struct spi_pci_desc spi_pci_ehl_desc = {
-	.num_cs = 1,
+	.num_cs = 2,
 	.bus_num = -1,
 	.max_freq = 100000000,
 };
@@ -57,13 +58,18 @@ static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Get basic io resource and map it */
 	dws->paddr = pci_resource_start(pdev, pci_bar);
+	pci_set_master(pdev);
 
 	ret = pcim_iomap_regions(pdev, 1 << pci_bar, pci_name(pdev));
 	if (ret)
 		return ret;
 
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0)
+		return ret;
+
 	dws->regs = pcim_iomap_table(pdev)[pci_bar];
-	dws->irq = pdev->irq;
+	dws->irq = pci_irq_vector(pdev, 0);
 
 	/*
 	 * Specific handling for platforms, like dma setup,
@@ -80,18 +86,26 @@ static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				return ret;
 		}
 	} else {
+		pci_free_irq_vectors(pdev);
 		return -ENODEV;
 	}
 
 	ret = dw_spi_add_host(&pdev->dev, dws);
-	if (ret)
+	if (ret) {
+		pci_free_irq_vectors(pdev);
 		return ret;
+	}
 
 	/* PCI hook and SPI hook use the same drv data */
 	pci_set_drvdata(pdev, dws);
 
 	dev_info(&pdev->dev, "found PCI SPI controller(ID: %04x:%04x)\n",
 		pdev->vendor, pdev->device);
+
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
+	pm_runtime_allow(&pdev->dev);
 
 	return 0;
 }
@@ -100,7 +114,11 @@ static void spi_pci_remove(struct pci_dev *pdev)
 {
 	struct dw_spi *dws = pci_get_drvdata(pdev);
 
+	pm_runtime_forbid(&pdev->dev);
+	pm_runtime_get_noresume(&pdev->dev);
+
 	dw_spi_remove_host(dws);
+	pci_free_irq_vectors(pdev);
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -4023,6 +4023,58 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
+		.alg = "blake2b-160",
+		.test = alg_test_hash,
+		.fips_allowed = 0,
+		.suite = {
+			.hash = __VECS(blake2b_160_tv_template)
+		}
+	}, {
+		.alg = "blake2b-256",
+		.test = alg_test_hash,
+		.fips_allowed = 0,
+		.suite = {
+			.hash = __VECS(blake2b_256_tv_template)
+		}
+	}, {
+		.alg = "blake2b-384",
+		.test = alg_test_hash,
+		.fips_allowed = 0,
+		.suite = {
+			.hash = __VECS(blake2b_384_tv_template)
+		}
+	}, {
+		.alg = "blake2b-512",
+		.test = alg_test_hash,
+		.fips_allowed = 0,
+		.suite = {
+			.hash = __VECS(blake2b_512_tv_template)
+		}
+	}, {
+		.alg = "blake2s-128",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(blakes2s_128_tv_template)
+		}
+	}, {
+		.alg = "blake2s-160",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(blakes2s_160_tv_template)
+		}
+	}, {
+		.alg = "blake2s-224",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(blakes2s_224_tv_template)
+		}
+	}, {
+		.alg = "blake2s-256",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(blakes2s_256_tv_template)
+		}
+	}, {
 		.alg = "cbc(aes)",
 		.test = alg_test_skcipher,
 		.fips_allowed = 1,
@@ -4125,6 +4177,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.suite = {
 			.cipher = __VECS(aes_cfb_tv_template)
 		},
+	}, {
+		.alg = "cfb(sm4)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(sm4_cfb_tv_template)
+		}
 	}, {
 		.alg = "chacha20",
 		.test = alg_test_skcipher,
@@ -4259,6 +4317,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "cts(cbc(paes))",
 		.test = alg_test_null,
 		.fips_allowed = 1,
+	}, {
+		.alg = "curve25519",
+		.test = alg_test_kpp,
+		.suite = {
+			.kpp = __VECS(curve25519_tv_template)
+		}
 	}, {
 		.alg = "deflate",
 		.test = alg_test_comp,
@@ -4655,6 +4719,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(hmac_sha512_tv_template)
 		}
 	}, {
+		.alg = "hmac(sm3)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(hmac_sm3_tv_template)
+		}
+	}, {
 		.alg = "hmac(streebog256)",
 		.test = alg_test_hash,
 		.suite = {
@@ -4791,6 +4861,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
+		.alg = "ofb(sm4)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(sm4_ofb_tv_template)
+		}
+	}, {
 		.alg = "pcbc(fcrypt)",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -4827,6 +4903,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 		.suite = {
 			.cipher = __VECS(aes_ctr_rfc3686_tv_template)
+		}
+	}, {
+		.alg = "rfc3686(ctr(sm4))",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(sm4_ctr_rfc3686_tv_template)
 		}
 	}, {
 		.alg = "rfc4106(gcm(aes))",

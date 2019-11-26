@@ -90,7 +90,7 @@ static void linear_map_bio(struct dm_target *ti, struct bio *bio)
 	struct linear_c *lc = ti->private;
 
 	bio_set_dev(bio, lc->dev->bdev);
-	if (bio_sectors(bio) || bio_op(bio) == REQ_OP_ZONE_RESET)
+	if (bio_sectors(bio) || op_is_zone_mgmt(bio_op(bio)))
 		bio->bi_iter.bi_sector =
 			linear_map_sector(ti, bio->bi_iter.bi_sector);
 }
@@ -136,21 +136,15 @@ static int linear_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
-static int linear_report_zones(struct dm_target *ti, sector_t sector,
-			       struct blk_zone *zones, unsigned int *nr_zones)
+static int linear_report_zones(struct dm_target *ti,
+		struct dm_report_zones_args *args, unsigned int nr_zones)
 {
-	struct linear_c *lc = (struct linear_c *) ti->private;
-	int ret;
+	struct linear_c *lc = ti->private;
+	sector_t sector = linear_map_sector(ti, args->next_sector);
 
-	/* Do report and remap it */
-	ret = blkdev_report_zones(lc->dev->bdev, linear_map_sector(ti, sector),
-				  zones, nr_zones);
-	if (ret != 0)
-		return ret;
-
-	if (*nr_zones)
-		dm_remap_zone_report(ti, lc->start, zones, nr_zones);
-	return 0;
+	args->start = lc->start;
+	return blkdev_report_zones(lc->dev->bdev, sector, nr_zones,
+				   dm_report_zones_cb, args);
 }
 #endif
 

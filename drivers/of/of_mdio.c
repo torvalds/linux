@@ -361,8 +361,8 @@ struct phy_device *of_phy_get_and_connect(struct net_device *dev,
 	struct phy_device *phy;
 	int ret;
 
-	iface = of_get_phy_mode(np);
-	if ((int)iface < 0)
+	ret = of_get_phy_mode(np, &iface);
+	if (ret)
 		return NULL;
 	if (of_phy_is_fixed_link(np)) {
 		ret = of_phy_register_fixed_link(np);

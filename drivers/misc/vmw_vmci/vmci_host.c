@@ -108,6 +108,11 @@ bool vmci_host_code_active(void)
 	     atomic_read(&vmci_host_active_users) > 0);
 }
 
+int vmci_host_users(void)
+{
+	return atomic_read(&vmci_host_active_users);
+}
+
 /*
  * Called on open of /dev/vmci.
  */
@@ -337,6 +342,8 @@ static int vmci_host_do_init_context(struct vmci_host_dev *vmci_host_dev,
 
 	vmci_host_dev->ct_type = VMCIOBJ_CONTEXT;
 	atomic_inc(&vmci_host_active_users);
+
+	vmci_call_vsock_callback(true);
 
 	retval = 0;
 

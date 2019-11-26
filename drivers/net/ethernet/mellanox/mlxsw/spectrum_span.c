@@ -14,8 +14,23 @@
 #include "spectrum_span.h"
 #include "spectrum_switchdev.h"
 
+static u64 mlxsw_sp_span_occ_get(void *priv)
+{
+	const struct mlxsw_sp *mlxsw_sp = priv;
+	u64 occ = 0;
+	int i;
+
+	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
+		if (mlxsw_sp->span.entries[i].ref_count)
+			occ++;
+	}
+
+	return occ;
+}
+
 int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 {
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int i;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_SPAN))
@@ -36,12 +51,18 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 		curr->id = i;
 	}
 
+	devlink_resource_occ_get_register(devlink, MLXSW_SP_RESOURCE_SPAN,
+					  mlxsw_sp_span_occ_get, mlxsw_sp);
+
 	return 0;
 }
 
 void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int i;
+
+	devlink_resource_occ_get_unregister(devlink, MLXSW_SP_RESOURCE_SPAN);
 
 	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
