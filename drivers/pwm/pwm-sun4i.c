@@ -245,7 +245,7 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		val = (duty & PWM_DTY_MASK) | PWM_PRD(period);
 		sun4i_pwm_writel(sun4i_pwm, val, PWM_CH_PRD(pwm->hwpwm));
 		sun4i_pwm->next_period[pwm->hwpwm] = jiffies +
-			usecs_to_jiffies(cstate.period / 1000 + 1);
+			usecs_to_jiffies(div_u64(cstate.period, 1000) + 1);
 		sun4i_pwm->needs_delay[pwm->hwpwm] = true;
 	}
 
