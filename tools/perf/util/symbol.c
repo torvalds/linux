@@ -239,9 +239,8 @@ void symbols__fixup_end(struct rb_root_cached *symbols)
 		curr->end = roundup(curr->start, 4096) + 4096;
 }
 
-void maps__fixup_end(struct maps *mg)
+void maps__fixup_end(struct maps *maps)
 {
-	struct maps *maps = mg;
 	struct map *prev = NULL, *curr;
 
 	down_write(&maps->lock);
@@ -1771,68 +1770,67 @@ static int map__strcmp_name(const void *name, const void *b)
 	return strcmp(name, map->dso->short_name);
 }
 
-void __maps__sort_by_name(struct maps *mg)
+void __maps__sort_by_name(struct maps *maps)
 {
-	qsort(mg->maps_by_name, mg->nr_maps, sizeof(struct map *), map__strcmp);
+	qsort(maps->maps_by_name, maps->nr_maps, sizeof(struct map *), map__strcmp);
 }
 
-static int map__groups__sort_by_name_from_rbtree(struct maps *mg)
+static int map__groups__sort_by_name_from_rbtree(struct maps *maps)
 {
 	struct map *map;
-	struct map **maps_by_name = realloc(mg->maps_by_name, mg->nr_maps * sizeof(map));
+	struct map **maps_by_name = realloc(maps->maps_by_name, maps->nr_maps * sizeof(map));
 	int i = 0;
 
 	if (maps_by_name == NULL)
 		return -1;
 
-	mg->maps_by_name = maps_by_name;
-	mg->nr_maps_allocated = mg->nr_maps;
+	maps->maps_by_name = maps_by_name;
+	maps->nr_maps_allocated = maps->nr_maps;
 
-	maps__for_each_entry(mg, map)
+	maps__for_each_entry(maps, map)
 		maps_by_name[i++] = map;
 
-	__maps__sort_by_name(mg);
+	__maps__sort_by_name(maps);
 	return 0;
 }
 
-static struct map *__maps__find_by_name(struct maps *mg, const char *name)
+static struct map *__maps__find_by_name(struct maps *maps, const char *name)
 {
 	struct map **mapp;
 
-	if (mg->maps_by_name == NULL &&
-	    map__groups__sort_by_name_from_rbtree(mg))
+	if (maps->maps_by_name == NULL &&
+	    map__groups__sort_by_name_from_rbtree(maps))
 		return NULL;
 
-	mapp = bsearch(name, mg->maps_by_name, mg->nr_maps, sizeof(*mapp), map__strcmp_name);
+	mapp = bsearch(name, maps->maps_by_name, maps->nr_maps, sizeof(*mapp), map__strcmp_name);
 	if (mapp)
 		return *mapp;
 	return NULL;
 }
 
-struct map *maps__find_by_name(struct maps *mg, const char *name)
+struct map *maps__find_by_name(struct maps *maps, const char *name)
 {
-	struct maps *maps = mg;
 	struct map *map;
 
 	down_read(&maps->lock);
 
-	if (mg->last_search_by_name && strcmp(mg->last_search_by_name->dso->short_name, name) == 0) {
-		map = mg->last_search_by_name;
+	if (maps->last_search_by_name && strcmp(maps->last_search_by_name->dso->short_name, name) == 0) {
+		map = maps->last_search_by_name;
 		goto out_unlock;
 	}
 	/*
-	 * If we have mg->maps_by_name, then the name isn't in the rbtree,
-	 * as mg->maps_by_name mirrors the rbtree when lookups by name are
+	 * If we have maps->maps_by_name, then the name isn't in the rbtree,
+	 * as maps->maps_by_name mirrors the rbtree when lookups by name are
 	 * made.
 	 */
-	map = __maps__find_by_name(mg, name);
-	if (map || mg->maps_by_name != NULL)
+	map = __maps__find_by_name(maps, name);
+	if (map || maps->maps_by_name != NULL)
 		goto out_unlock;
 
 	/* Fallback to traversing the rbtree... */
 	maps__for_each_entry(maps, map)
 		if (strcmp(map->dso->short_name, name) == 0) {
-			mg->last_search_by_name = map;
+			maps->last_search_by_name = map;
 			goto out_unlock;
 		}
 

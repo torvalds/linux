@@ -12,7 +12,7 @@ int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_
 	/* thread group */
 	struct thread *leader;
 	struct thread *t1, *t2, *t3;
-	struct maps *mg;
+	struct maps *maps;
 
 	/* other process */
 	struct thread *other, *other_leader;
@@ -42,13 +42,13 @@ int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_
 	TEST_ASSERT_VAL("failed to create threads",
 			leader && t1 && t2 && t3 && other);
 
-	mg = leader->maps;
-	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&mg->refcnt), 4);
+	maps = leader->maps;
+	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&maps->refcnt), 4);
 
 	/* test the map groups pointer is shared */
-	TEST_ASSERT_VAL("map groups don't match", mg == t1->maps);
-	TEST_ASSERT_VAL("map groups don't match", mg == t2->maps);
-	TEST_ASSERT_VAL("map groups don't match", mg == t3->maps);
+	TEST_ASSERT_VAL("map groups don't match", maps == t1->maps);
+	TEST_ASSERT_VAL("map groups don't match", maps == t2->maps);
+	TEST_ASSERT_VAL("map groups don't match", maps == t3->maps);
 
 	/*
 	 * Verify the other leader was created by previous call.
@@ -77,13 +77,13 @@ int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_
 
 	/* release thread group */
 	thread__put(leader);
-	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&mg->refcnt), 3);
+	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&maps->refcnt), 3);
 
 	thread__put(t1);
-	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&mg->refcnt), 2);
+	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&maps->refcnt), 2);
 
 	thread__put(t2);
-	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&mg->refcnt), 1);
+	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(&maps->refcnt), 1);
 
 	thread__put(t3);
 

@@ -512,52 +512,50 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	return ip + map->reloc;
 }
 
-void maps__init(struct maps *mg, struct machine *machine)
+void maps__init(struct maps *maps, struct machine *machine)
 {
-	mg->entries = RB_ROOT;
-	init_rwsem(&mg->lock);
-	mg->machine = machine;
-	mg->last_search_by_name = NULL;
-	mg->nr_maps = 0;
-	mg->maps_by_name = NULL;
-	refcount_set(&mg->refcnt, 1);
+	maps->entries = RB_ROOT;
+	init_rwsem(&maps->lock);
+	maps->machine = machine;
+	maps->last_search_by_name = NULL;
+	maps->nr_maps = 0;
+	maps->maps_by_name = NULL;
+	refcount_set(&maps->refcnt, 1);
 }
 
-static void __maps__free_maps_by_name(struct maps *mg)
+static void __maps__free_maps_by_name(struct maps *maps)
 {
 	/*
 	 * Free everything to try to do it from the rbtree in the next search
 	 */
-	zfree(&mg->maps_by_name);
-	mg->nr_maps_allocated = 0;
+	zfree(&maps->maps_by_name);
+	maps->nr_maps_allocated = 0;
 }
 
-void maps__insert(struct maps *mg, struct map *map)
+void maps__insert(struct maps *maps, struct map *map)
 {
-	struct maps *maps = mg;
-
 	down_write(&maps->lock);
 	__maps__insert(maps, map);
-	++mg->nr_maps;
+	++maps->nr_maps;
 
 	/*
 	 * If we already performed some search by name, then we need to add the just
 	 * inserted map and resort.
 	 */
-	if (mg->maps_by_name) {
-		if (mg->nr_maps > mg->nr_maps_allocated) {
-			int nr_allocate = mg->nr_maps * 2;
-			struct map **maps_by_name = realloc(mg->maps_by_name, nr_allocate * sizeof(map));
+	if (maps->maps_by_name) {
+		if (maps->nr_maps > maps->nr_maps_allocated) {
+			int nr_allocate = maps->nr_maps * 2;
+			struct map **maps_by_name = realloc(maps->maps_by_name, nr_allocate * sizeof(map));
 
 			if (maps_by_name == NULL) {
 				__maps__free_maps_by_name(maps);
 				return;
 			}
 
-			mg->maps_by_name = maps_by_name;
-			mg->nr_maps_allocated = nr_allocate;
+			maps->maps_by_name = maps_by_name;
+			maps->nr_maps_allocated = nr_allocate;
 		}
-		mg->maps_by_name[mg->nr_maps - 1] = map;
+		maps->maps_by_name[maps->nr_maps - 1] = map;
 		__maps__sort_by_name(maps);
 	}
 	up_write(&maps->lock);
@@ -569,16 +567,15 @@ static void __maps__remove(struct maps *maps, struct map *map)
 	map__put(map);
 }
 
-void maps__remove(struct maps *mg, struct map *map)
+void maps__remove(struct maps *maps, struct map *map)
 {
-	struct maps *maps = mg;
 	down_write(&maps->lock);
-	if (mg->last_search_by_name == map)
-		mg->last_search_by_name = NULL;
+	if (maps->last_search_by_name == map)
+		maps->last_search_by_name = NULL;
 
 	__maps__remove(maps, map);
-	--mg->nr_maps;
-	if (mg->maps_by_name)
+	--maps->nr_maps;
+	if (maps->maps_by_name)
 		__maps__free_maps_by_name(maps);
 	up_write(&maps->lock);
 }
@@ -607,30 +604,30 @@ bool maps__empty(struct maps *maps)
 
 struct maps *maps__new(struct machine *machine)
 {
-	struct maps *mg = zalloc(sizeof(*mg)), *maps = mg;
+	struct maps *maps = zalloc(sizeof(*maps));
 
-	if (mg != NULL)
+	if (maps != NULL)
 		maps__init(maps, machine);
 
-	return mg;
+	return maps;
 }
 
-void maps__delete(struct maps *mg)
+void maps__delete(struct maps *maps)
 {
-	maps__exit(mg);
-	unwind__finish_access(mg);
-	free(mg);
+	maps__exit(maps);
+	unwind__finish_access(maps);
+	free(maps);
 }
 
-void maps__put(struct maps *mg)
+void maps__put(struct maps *maps)
 {
-	if (mg && refcount_dec_and_test(&mg->refcnt))
-		maps__delete(mg);
+	if (maps && refcount_dec_and_test(&maps->refcnt))
+		maps__delete(maps);
 }
 
-struct symbol *maps__find_symbol(struct maps *mg, u64 addr, struct map **mapp)
+struct symbol *maps__find_symbol(struct maps *maps, u64 addr, struct map **mapp)
 {
-	struct map *map = maps__find(mg, addr);
+	struct map *map = maps__find(maps, addr);
 
 	/* Ensure map is loaded before using map->map_ip */
 	if (map != NULL && map__load(map) >= 0) {
@@ -676,12 +673,12 @@ out:
 	return sym;
 }
 
-int maps__find_ams(struct maps *mg, struct addr_map_symbol *ams)
+int maps__find_ams(struct maps *maps, struct addr_map_symbol *ams)
 {
 	if (ams->addr < ams->ms.map->start || ams->addr >= ams->ms.map->end) {
-		if (mg == NULL)
+		if (maps == NULL)
 			return -1;
-		ams->ms.map = maps__find(mg, ams->addr);
+		ams->ms.map = maps__find(maps, ams->addr);
 		if (ams->ms.map == NULL)
 			return -1;
 	}
@@ -819,7 +816,7 @@ out:
  */
 int maps__clone(struct thread *thread, struct maps *parent)
 {
-	struct maps *mg = thread->maps;
+	struct maps *maps = thread->maps;
 	int err = -ENOMEM;
 	struct map *map;
 
@@ -830,11 +827,11 @@ int maps__clone(struct thread *thread, struct maps *parent)
 		if (new == NULL)
 			goto out_unlock;
 
-		err = unwind__prepare_access(mg, new, NULL);
+		err = unwind__prepare_access(maps, new, NULL);
 		if (err)
 			goto out_unlock;
 
-		maps__insert(mg, new);
+		maps__insert(maps, new);
 		map__put(new);
 	}
 

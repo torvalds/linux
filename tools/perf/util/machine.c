@@ -1259,10 +1259,10 @@ static bool is_kmod_dso(struct dso *dso)
 	       dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE;
 }
 
-static int maps__set_module_path(struct maps *mg, const char *path, struct kmod_path *m)
+static int maps__set_module_path(struct maps *maps, const char *path, struct kmod_path *m)
 {
 	char *long_name;
-	struct map *map = maps__find_by_name(mg, m->name);
+	struct map *map = maps__find_by_name(maps, m->name);
 
 	if (map == NULL)
 		return 0;
@@ -1286,7 +1286,7 @@ static int maps__set_module_path(struct maps *mg, const char *path, struct kmod_
 	return 0;
 }
 
-static int maps__set_modules_path_dir(struct maps *mg, const char *dir_name, int depth)
+static int maps__set_modules_path_dir(struct maps *maps, const char *dir_name, int depth)
 {
 	struct dirent *dent;
 	DIR *dir = opendir(dir_name);
@@ -1318,7 +1318,7 @@ static int maps__set_modules_path_dir(struct maps *mg, const char *dir_name, int
 					continue;
 			}
 
-			ret = maps__set_modules_path_dir(mg, path, depth + 1);
+			ret = maps__set_modules_path_dir(maps, path, depth + 1);
 			if (ret < 0)
 				goto out;
 		} else {
@@ -1329,7 +1329,7 @@ static int maps__set_modules_path_dir(struct maps *mg, const char *dir_name, int
 				goto out;
 
 			if (m.kmod)
-				ret = maps__set_module_path(mg, path, &m);
+				ret = maps__set_module_path(maps, path, &m);
 
 			zfree(&m.name);
 
