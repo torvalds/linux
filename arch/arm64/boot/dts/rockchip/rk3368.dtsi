@@ -1858,9 +1858,6 @@
 
 	rockchip_system_monitor: rockchip-system-monitor {
 		compatible = "rockchip,system-monitor";
-
-		rockchip,thermal-zone = "soc-thermal";
-		rockchip,polling-delay = <200>; /* milliseconds */
 	};
 
 	pinctrl: pinctrl {

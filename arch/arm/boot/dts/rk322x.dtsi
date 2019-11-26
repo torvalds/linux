@@ -1245,6 +1245,10 @@
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
+	rockchip_system_monitor: rockchip-system-monitor {
+		compatible = "rockchip,system-monitor";
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3228-pinctrl";
 		rockchip,grf = <&grf>;
