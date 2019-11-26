@@ -150,6 +150,9 @@ enum mga_type {
 	G200_EW3,
 };
 
+/* HW does not handle 'startadd' field correct. */
+#define MGAG200_FLAG_HW_BUG_NO_STARTADD	(1ul << 8)
+
 #define MGAG200_TYPE_MASK	(0x000000ff)
 #define MGAG200_FLAG_MASK	(0x00ffff00)
 
