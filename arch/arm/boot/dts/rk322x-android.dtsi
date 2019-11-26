@@ -208,3 +208,7 @@
 &rockchip_suspend {
 	status = "okay";
 };
+
+&rng {
+	status = "okay";
+};
