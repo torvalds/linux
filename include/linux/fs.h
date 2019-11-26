@@ -148,6 +148,8 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 /* File is opened with O_PATH; almost nothing can be done with it */
 #define FMODE_PATH		((__force fmode_t)0x4000)
 
+/* File needs atomic accesses to f_pos */
+#define FMODE_ATOMIC_POS	((__force fmode_t)0x8000)
 /* Write access to underlying fs */
 #define FMODE_WRITER		((__force fmode_t)0x10000)
 /* Has read method(s) */
