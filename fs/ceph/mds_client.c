@@ -2015,7 +2015,7 @@ void ceph_reclaim_caps_nr(struct ceph_mds_client *mdsc, int nr)
 	if (!nr)
 		return;
 	val = atomic_add_return(nr, &mdsc->cap_reclaim_pending);
-	if (!(val % CEPH_CAPS_PER_RELEASE)) {
+	if ((val % CEPH_CAPS_PER_RELEASE) < nr) {
 		atomic_set(&mdsc->cap_reclaim_pending, 0);
 		ceph_queue_cap_reclaim_work(mdsc);
 	}
