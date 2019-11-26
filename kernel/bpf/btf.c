@@ -3976,8 +3976,10 @@ static int __get_type_size(struct btf *btf, u32 btf_id,
 	t = btf_type_by_id(btf, btf_id);
 	while (t && btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
-	if (!t)
+	if (!t) {
+		*bad_type = btf->types[0];
 		return -EINVAL;
+	}
 	if (btf_type_is_ptr(t))
 		/* kernel size of pointer. Not BPF's size of pointer*/
 		return sizeof(void *);
