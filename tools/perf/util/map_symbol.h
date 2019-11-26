@@ -9,7 +9,7 @@ struct map;
 struct symbol;
 
 struct map_symbol {
-	struct maps   *mg;
+	struct maps   *maps;
 	struct map    *map;
 	struct symbol *sym;
 };
