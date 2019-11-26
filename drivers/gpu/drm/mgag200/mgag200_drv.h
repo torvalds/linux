@@ -150,6 +150,8 @@ enum mga_type {
 	G200_EW3,
 };
 
+#define MGAG200_TYPE_MASK	(0x000000ff)
+
 #define IS_G200_SE(mdev) (mdev->type == G200_SE_A || mdev->type == G200_SE_B)
 
 struct mga_device {
@@ -181,6 +183,11 @@ struct mga_device {
 	u32 unique_rev_id;
 };
 
+static inline enum mga_type
+mgag200_type_from_driver_data(kernel_ulong_t driver_data)
+{
+	return (enum mga_type)(driver_data & MGAG200_TYPE_MASK);
+}
 				/* mgag200_mode.c */
 int mgag200_modeset_init(struct mga_device *mdev);
 void mgag200_modeset_fini(struct mga_device *mdev);
