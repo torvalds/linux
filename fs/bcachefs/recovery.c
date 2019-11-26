@@ -908,6 +908,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 				le16_to_cpu(bcachefs_metadata_version_min);
 		c->disk_sb.sb->version = le16_to_cpu(bcachefs_metadata_version_current);
 		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_new_siphash;
+		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_new_extent_overwrite;
 		write_sb = true;
 	}
 
@@ -1027,6 +1028,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 		le16_to_cpu(bcachefs_metadata_version_current);
 	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_atomic_nlink;
 	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_new_siphash;
+	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_new_extent_overwrite;
 
 	SET_BCH_SB_INITIALIZED(c->disk_sb.sb, true);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);

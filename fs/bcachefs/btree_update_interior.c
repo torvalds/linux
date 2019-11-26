@@ -374,6 +374,13 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 	SET_BTREE_NODE_LEVEL(b->data, level);
 	b->data->ptr = bkey_i_to_btree_ptr(&b->key)->v.start[0];
 
+	if (c->sb.features & (1ULL << BCH_FEATURE_new_extent_overwrite))
+		SET_BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data, true);
+
+	if (btree_node_is_extents(b) &&
+	    !BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data))
+		set_btree_node_old_extent_overwrite(b);
+
 	bch2_btree_build_aux_trees(b);
 
 	btree_node_will_make_reachable(as, b);

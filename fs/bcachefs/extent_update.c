@@ -186,11 +186,26 @@ bch2_extent_can_insert(struct btree_trans *trans,
 
 		overlap = bch2_extent_overlap(&insert->k->k, k.k);
 
+		/*
+		 * If we're overwriting an existing extent, we may need to emit
+		 * a whiteout - unless we're inserting a new extent at the same
+		 * position:
+		 */
+		if (k.k->needs_whiteout &&
+		    (!bkey_whiteout(&insert->k->k) ||
+		     bkey_cmp(k.k->p, insert->k->k.p)))
+			*u64s += BKEY_U64s;
+
+		/*
+		 * If we're partially overwriting an existing extent which has
+		 * been written out to disk, we'll need to emit a new version of
+		 * that extent:
+		 */
 		if (bkey_written(l->b, _k) &&
 		    overlap != BCH_EXTENT_OVERLAP_ALL)
 			*u64s += _k->u64s;
 
-		/* account for having to split existing extent: */
+		/* And we may be splitting an existing extent: */
 		if (overlap == BCH_EXTENT_OVERLAP_MIDDLE)
 			*u64s += _k->u64s;
 
@@ -286,6 +301,23 @@ static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 	bch2_btree_node_iter_fix(iter, l->b, &l->iter, k, 0, k->u64s);
 }
 
+static void pack_push_whiteout(struct bch_fs *c, struct btree *b,
+			       struct bpos pos)
+{
+	struct bkey_packed k;
+
+	if (!bkey_pack_pos(&k, pos, b)) {
+		struct bkey_i tmp;
+
+		bkey_init(&tmp.k);
+		tmp.k.p = pos;
+		bkey_copy(&k, &tmp);
+	}
+
+	k.needs_whiteout = true;
+	push_whiteout(c, b, &k);
+}
+
 static void
 extent_drop(struct bch_fs *c, struct btree_iter *iter,
 	    struct bkey_packed *_k, struct bkey_s k)
@@ -297,7 +329,12 @@ extent_drop(struct bch_fs *c, struct btree_iter *iter,
 
 	k.k->size = 0;
 	k.k->type = KEY_TYPE_deleted;
-	k.k->needs_whiteout = false;
+
+	if (!btree_node_old_extent_overwrite(l->b) &&
+	    k.k->needs_whiteout) {
+		pack_push_whiteout(c, l->b, k.k->p);
+		k.k->needs_whiteout = false;
+	}
 
 	if (_k >= btree_bset_last(l->b)->start) {
 		unsigned u64s = _k->u64s;
@@ -322,11 +359,28 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 	bkey_on_stack_init(&tmp);
 	bkey_on_stack_init(&split);
 
+	if (!btree_node_old_extent_overwrite(l->b)) {
+		if (!bkey_whiteout(&insert->k) &&
+		    !bkey_cmp(k.k->p, insert->k.p)) {
+			insert->k.needs_whiteout = k.k->needs_whiteout;
+			k.k->needs_whiteout = false;
+		}
+	} else {
+		insert->k.needs_whiteout |= k.k->needs_whiteout;
+	}
+
 	switch (overlap) {
 	case BCH_EXTENT_OVERLAP_FRONT:
 		if (bkey_written(l->b, _k)) {
 			bkey_on_stack_reassemble(&tmp, c, k.s_c);
 			bch2_cut_front(insert->k.p, tmp.k);
+
+			/*
+			 * needs_whiteout was propagated to new version of @k,
+			 * @tmp:
+			 */
+			if (!btree_node_old_extent_overwrite(l->b))
+				k.k->needs_whiteout = false;
 
 			extent_drop(c, iter, _k, k);
 			extent_bset_insert(c, iter, tmp.k);
@@ -348,9 +402,26 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 			bkey_on_stack_reassemble(&tmp, c, k.s_c);
 			bch2_cut_back(bkey_start_pos(&insert->k), tmp.k);
 
+			/*
+			 * @tmp has different position than @k, needs_whiteout
+			 * should not be propagated:
+			 */
+			if (!btree_node_old_extent_overwrite(l->b))
+				tmp.k->k.needs_whiteout = false;
+
 			extent_drop(c, iter, _k, k);
 			extent_bset_insert(c, iter, tmp.k);
 		} else {
+			/*
+			 * position of @k is changing, emit a whiteout if
+			 * needs_whiteout is set:
+			 */
+			if (!btree_node_old_extent_overwrite(l->b) &&
+			    k.k->needs_whiteout) {
+				pack_push_whiteout(c, l->b, k.k->p);
+				k.k->needs_whiteout = false;
+			}
+
 			btree_keys_account_val_delta(l->b, _k,
 				bch2_cut_back_s(bkey_start_pos(&insert->k), k));
 			extent_save(l->b, _k, k.k);
@@ -367,9 +438,16 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
 		bkey_on_stack_reassemble(&split, c, k.s_c);
 		bch2_cut_back(bkey_start_pos(&insert->k), split.k);
 
+		if (!btree_node_old_extent_overwrite(l->b))
+			split.k->k.needs_whiteout = false;
+
+		/* this is identical to BCH_EXTENT_OVERLAP_FRONT: */
 		if (bkey_written(l->b, _k)) {
 			bkey_on_stack_reassemble(&tmp, c, k.s_c);
 			bch2_cut_front(insert->k.p, tmp.k);
+
+			if (!btree_node_old_extent_overwrite(l->b))
+				k.k->needs_whiteout = false;
 
 			extent_drop(c, iter, _k, k);
 			extent_bset_insert(c, iter, tmp.k);
@@ -462,7 +540,6 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 			bch2_cut_front(cur_end, insert);
 			bch2_btree_iter_set_pos_same_leaf(iter, cur_end);
 		} else {
-			insert->k.needs_whiteout |= k.k->needs_whiteout;
 			extent_squash(c, iter, insert, _k, k, overlap);
 		}
 
@@ -480,7 +557,10 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 		if (insert->k.type == KEY_TYPE_deleted)
 			insert->k.type = KEY_TYPE_discard;
 
-		extent_bset_insert(c, iter, insert);
+		if (!bkey_whiteout(&insert->k) ||
+		    btree_node_old_extent_overwrite(l->b))
+			extent_bset_insert(c, iter, insert);
+
 		bch2_btree_journal_key(trans, iter, insert);
 	}
 

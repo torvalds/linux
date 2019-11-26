@@ -1286,6 +1286,7 @@ LE64_BITMASK(BCH_SB_ERASURE_CODE,	struct bch_sb, flags[3],  0, 16);
  * reflink:			gates KEY_TYPE_reflink
  * inline_data:			gates KEY_TYPE_inline_data
  * new_siphash:			gates BCH_STR_HASH_SIPHASH
+ * new_extent_overwrite:	gates BTREE_NODE_NEW_EXTENT_OVERWRITE
  */
 #define BCH_SB_FEATURES()			\
 	x(lz4,				0)	\
@@ -1296,7 +1297,8 @@ LE64_BITMASK(BCH_SB_ERASURE_CODE,	struct bch_sb, flags[3],  0, 16);
 	x(journal_seq_blacklist_v3,	5)	\
 	x(reflink,			6)	\
 	x(new_siphash,			7)	\
-	x(inline_data,			8)
+	x(inline_data,			8)	\
+	x(new_extent_overwrite,		9)
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,
@@ -1620,7 +1622,9 @@ struct btree_node {
 
 LE64_BITMASK(BTREE_NODE_ID,	struct btree_node, flags,  0,  4);
 LE64_BITMASK(BTREE_NODE_LEVEL,	struct btree_node, flags,  4,  8);
-/* 8-32 unused */
+LE64_BITMASK(BTREE_NODE_NEW_EXTENT_OVERWRITE,
+				struct btree_node, flags,  8,  9);
+/* 9-32 unused */
 LE64_BITMASK(BTREE_NODE_SEQ,	struct btree_node, flags, 32, 64);
 
 struct btree_node_entry {

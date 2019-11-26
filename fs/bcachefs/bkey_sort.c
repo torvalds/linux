@@ -130,24 +130,6 @@ bch2_key_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 	return nr;
 }
 
-/*
- * If keys compare equal, compare by pointer order:
- *
- * Necessary for sort_fix_overlapping() - if there are multiple keys that
- * compare equal in different sets, we have to process them newest to oldest.
- */
-static inline int extent_sort_fix_overlapping_cmp(struct btree *b,
-						  struct bkey_packed *l,
-						  struct bkey_packed *r)
-{
-	struct bkey ul = bkey_unpack_key(b, l);
-	struct bkey ur = bkey_unpack_key(b, r);
-
-	return bkey_cmp(bkey_start_pos(&ul),
-			bkey_start_pos(&ur)) ?:
-		cmp_int((unsigned long) r, (unsigned long) l);
-}
-
 static void extent_sort_advance_prev(struct bkey_format *f,
 				     struct btree_nr_keys *nr,
 				     struct bkey_packed *start,
@@ -186,6 +168,141 @@ static void extent_sort_append(struct bch_fs *c,
 	extent_sort_advance_prev(f, nr, start, prev);
 
 	bkey_reassemble((void *) *prev, k.s_c);
+}
+
+/* Sort + repack in a new format: */
+struct btree_nr_keys
+bch2_sort_repack(struct bset *dst, struct btree *src,
+		 struct btree_node_iter *src_iter,
+		 struct bkey_format *out_f,
+		 bool filter_whiteouts)
+{
+	struct bkey_format *in_f = &src->format;
+	struct bkey_packed *in, *out = vstruct_last(dst);
+	struct btree_nr_keys nr;
+
+	memset(&nr, 0, sizeof(nr));
+
+	while ((in = bch2_btree_node_iter_next_all(src_iter, src))) {
+		if (filter_whiteouts && bkey_whiteout(in))
+			continue;
+
+		if (bch2_bkey_transform(out_f, out, bkey_packed(in)
+				       ? in_f : &bch2_bkey_format_current, in))
+			out->format = KEY_FORMAT_LOCAL_BTREE;
+		else
+			bch2_bkey_unpack(src, (void *) out, in);
+
+		btree_keys_account_key_add(&nr, 0, out);
+		out = bkey_next(out);
+	}
+
+	dst->u64s = cpu_to_le16((u64 *) out - dst->_data);
+	return nr;
+}
+
+/* Sort, repack, and merge: */
+struct btree_nr_keys
+bch2_sort_repack_merge(struct bch_fs *c,
+		       struct bset *dst, struct btree *src,
+		       struct btree_node_iter *iter,
+		       struct bkey_format *out_f,
+		       bool filter_whiteouts)
+{
+	struct bkey_packed *prev = NULL, *k_packed;
+	struct bkey_s k;
+	struct btree_nr_keys nr;
+	struct bkey unpacked;
+
+	memset(&nr, 0, sizeof(nr));
+
+	while ((k_packed = bch2_btree_node_iter_next_all(iter, src))) {
+		if (filter_whiteouts && bkey_whiteout(k_packed))
+			continue;
+
+		k = __bkey_disassemble(src, k_packed, &unpacked);
+
+		if (filter_whiteouts &&
+		    bch2_bkey_normalize(c, k))
+			continue;
+
+		extent_sort_append(c, out_f, &nr, vstruct_last(dst), &prev, k);
+	}
+
+	extent_sort_advance_prev(out_f, &nr, vstruct_last(dst), &prev);
+
+	dst->u64s = cpu_to_le16((u64 *) prev - dst->_data);
+	return nr;
+}
+
+static inline int sort_keys_cmp(struct btree *b,
+				struct bkey_packed *l,
+				struct bkey_packed *r)
+{
+	return bkey_cmp_packed(b, l, r) ?:
+		(int) bkey_deleted(r) - (int) bkey_deleted(l) ?:
+		(int) l->needs_whiteout - (int) r->needs_whiteout;
+}
+
+unsigned bch2_sort_keys(struct bkey_packed *dst,
+			struct sort_iter *iter,
+			bool filter_whiteouts)
+{
+	const struct bkey_format *f = &iter->b->format;
+	struct bkey_packed *in, *next, *out = dst;
+
+	sort_iter_sort(iter, sort_keys_cmp);
+
+	while ((in = sort_iter_next(iter, sort_keys_cmp))) {
+		if (bkey_whiteout(in) &&
+		    (filter_whiteouts || !in->needs_whiteout))
+			continue;
+
+		if (bkey_whiteout(in) &&
+		    (next = sort_iter_peek(iter)) &&
+		    !bkey_cmp_packed(iter->b, in, next)) {
+			BUG_ON(in->needs_whiteout &&
+			       next->needs_whiteout);
+			/*
+			 * XXX racy, called with read lock from write path
+			 *
+			 * leads to spurious BUG_ON() in bkey_unpack_key() in
+			 * debug mode
+			 */
+			next->needs_whiteout |= in->needs_whiteout;
+			continue;
+		}
+
+		if (bkey_whiteout(in)) {
+			memcpy_u64s(out, in, bkeyp_key_u64s(f, in));
+			set_bkeyp_val_u64s(f, out, 0);
+		} else {
+			bkey_copy(out, in);
+		}
+		out = bkey_next(out);
+	}
+
+	return (u64 *) out - (u64 *) dst;
+}
+
+/* Compat code for btree_node_old_extent_overwrite: */
+
+/*
+ * If keys compare equal, compare by pointer order:
+ *
+ * Necessary for sort_fix_overlapping() - if there are multiple keys that
+ * compare equal in different sets, we have to process them newest to oldest.
+ */
+static inline int extent_sort_fix_overlapping_cmp(struct btree *b,
+						  struct bkey_packed *l,
+						  struct bkey_packed *r)
+{
+	struct bkey ul = bkey_unpack_key(b, l);
+	struct bkey ur = bkey_unpack_key(b, r);
+
+	return bkey_cmp(bkey_start_pos(&ul),
+			bkey_start_pos(&ur)) ?:
+		cmp_int((unsigned long) r, (unsigned long) l);
 }
 
 struct btree_nr_keys
@@ -282,121 +399,6 @@ bch2_extent_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 
 	bkey_on_stack_exit(&split, c);
 	return nr;
-}
-
-/* Sort + repack in a new format: */
-struct btree_nr_keys
-bch2_sort_repack(struct bset *dst, struct btree *src,
-		 struct btree_node_iter *src_iter,
-		 struct bkey_format *out_f,
-		 bool filter_whiteouts)
-{
-	struct bkey_format *in_f = &src->format;
-	struct bkey_packed *in, *out = vstruct_last(dst);
-	struct btree_nr_keys nr;
-
-	memset(&nr, 0, sizeof(nr));
-
-	while ((in = bch2_btree_node_iter_next_all(src_iter, src))) {
-		if (filter_whiteouts && bkey_whiteout(in))
-			continue;
-
-		if (bch2_bkey_transform(out_f, out, bkey_packed(in)
-				       ? in_f : &bch2_bkey_format_current, in))
-			out->format = KEY_FORMAT_LOCAL_BTREE;
-		else
-			bch2_bkey_unpack(src, (void *) out, in);
-
-		btree_keys_account_key_add(&nr, 0, out);
-		out = bkey_next(out);
-	}
-
-	dst->u64s = cpu_to_le16((u64 *) out - dst->_data);
-	return nr;
-}
-
-/* Sort, repack, and merge: */
-struct btree_nr_keys
-bch2_sort_repack_merge(struct bch_fs *c,
-		       struct bset *dst, struct btree *src,
-		       struct btree_node_iter *iter,
-		       struct bkey_format *out_f,
-		       bool filter_whiteouts)
-{
-	struct bkey_packed *prev = NULL, *k_packed;
-	struct bkey_s k;
-	struct btree_nr_keys nr;
-	struct bkey unpacked;
-
-	memset(&nr, 0, sizeof(nr));
-
-	while ((k_packed = bch2_btree_node_iter_next_all(iter, src))) {
-		if (filter_whiteouts && bkey_whiteout(k_packed))
-			continue;
-
-		k = __bkey_disassemble(src, k_packed, &unpacked);
-
-		if (filter_whiteouts &&
-		    bch2_bkey_normalize(c, k))
-			continue;
-
-		extent_sort_append(c, out_f, &nr, vstruct_last(dst), &prev, k);
-	}
-
-	extent_sort_advance_prev(out_f, &nr, vstruct_last(dst), &prev);
-
-	dst->u64s = cpu_to_le16((u64 *) prev - dst->_data);
-	return nr;
-}
-
-static inline int sort_keys_cmp(struct btree *b,
-				struct bkey_packed *l,
-				struct bkey_packed *r)
-{
-	return bkey_cmp_packed(b, l, r) ?:
-		(int) bkey_whiteout(r) - (int) bkey_whiteout(l) ?:
-		(int) l->needs_whiteout - (int) r->needs_whiteout;
-}
-
-unsigned bch2_sort_keys(struct bkey_packed *dst,
-			struct sort_iter *iter,
-			bool filter_whiteouts)
-{
-	const struct bkey_format *f = &iter->b->format;
-	struct bkey_packed *in, *next, *out = dst;
-
-	sort_iter_sort(iter, sort_keys_cmp);
-
-	while ((in = sort_iter_next(iter, sort_keys_cmp))) {
-		if (bkey_whiteout(in) &&
-		    (filter_whiteouts || !in->needs_whiteout))
-			continue;
-
-		if (bkey_whiteout(in) &&
-		    (next = sort_iter_peek(iter)) &&
-		    !bkey_cmp_packed(iter->b, in, next)) {
-			BUG_ON(in->needs_whiteout &&
-			       next->needs_whiteout);
-			/*
-			 * XXX racy, called with read lock from write path
-			 *
-			 * leads to spurious BUG_ON() in bkey_unpack_key() in
-			 * debug mode
-			 */
-			next->needs_whiteout |= in->needs_whiteout;
-			continue;
-		}
-
-		if (bkey_whiteout(in)) {
-			memcpy_u64s(out, in, bkeyp_key_u64s(f, in));
-			set_bkeyp_val_u64s(f, out, 0);
-		} else {
-			bkey_copy(out, in);
-		}
-		out = bkey_next(out);
-	}
-
-	return (u64 *) out - (u64 *) dst;
 }
 
 static inline int sort_extents_cmp(struct btree *b,

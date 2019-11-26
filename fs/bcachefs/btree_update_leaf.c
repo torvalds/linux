@@ -267,6 +267,8 @@ static void btree_insert_key_leaf(struct btree_trans *trans,
 	int old_live_u64s = b->nr.live_u64s;
 	int live_u64s_added, u64s_added;
 
+	insert->k->k.needs_whiteout = false;
+
 	if (!btree_node_is_extents(b))
 		bch2_insert_fixup_key(trans, insert);
 	else
