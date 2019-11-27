@@ -220,17 +220,14 @@ static int orion_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match =
 		of_match_device(orion_pinctrl_of_match, &pdev->dev);
-	struct resource *res;
 
 	pdev->dev.platform_data = (void*)match->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mpp_base = devm_ioremap_resource(&pdev->dev, res);
+	mpp_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mpp_base))
 		return PTR_ERR(mpp_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	high_mpp_base = devm_ioremap_resource(&pdev->dev, res);
+	high_mpp_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(high_mpp_base))
 		return PTR_ERR(high_mpp_base);
 
