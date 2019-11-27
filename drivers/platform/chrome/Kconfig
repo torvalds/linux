@@ -192,7 +192,8 @@ config CROS_EC_DEBUGFS
 
 config CROS_EC_SENSORHUB
 	tristate "ChromeOS EC MEMS Sensor Hub"
-	depends on CROS_EC
+	depends on MFD_CROS_EC_DEV
+	default MFD_CROS_EC_DEV
 	help
 	  Allow loading IIO sensors. This driver is loaded by MFD and will in
 	  turn query the EC and register the sensors.
