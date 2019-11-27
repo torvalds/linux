@@ -283,8 +283,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 
 		val &= ~(FBC_STRIDE_OVERRIDE | FBC_STRIDE_MASK);
 
-		if (i915_gem_object_get_tiling(params->vma->obj) !=
-		    I915_TILING_X)
+		if (params->gen9_wa_cfb_stride)
 			val |= FBC_STRIDE_OVERRIDE | params->gen9_wa_cfb_stride;
 
 		I915_WRITE(CHICKEN_MISC_4, val);
@@ -414,8 +413,8 @@ static void intel_fbc_deactivate(struct drm_i915_private *dev_priv,
 
 static int find_compression_threshold(struct drm_i915_private *dev_priv,
 				      struct drm_mm_node *node,
-				      int size,
-				      int fb_cpp)
+				      unsigned int size,
+				      unsigned int fb_cpp)
 {
 	int compression_threshold = 1;
 	int ret;
@@ -461,17 +460,14 @@ again:
 	}
 }
 
-static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
+static int intel_fbc_alloc_cfb(struct drm_i915_private *dev_priv,
+			       unsigned int size, unsigned int fb_cpp)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct drm_mm_node *uninitialized_var(compressed_llb);
-	int size, fb_cpp, ret;
+	int ret;
 
 	WARN_ON(drm_mm_node_allocated(&fbc->compressed_fb));
-
-	size = intel_fbc_calculate_cfb_size(dev_priv, &fbc->state_cache);
-	fb_cpp = fbc->state_cache.fb.format->cpp[0];
 
 	ret = find_compression_threshold(dev_priv, &fbc->compressed_fb,
 					 size, fb_cpp);
@@ -823,9 +819,7 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
 
-	if (IS_GEN(dev_priv, 9) && !IS_GEMINILAKE(dev_priv))
-		params->gen9_wa_cfb_stride = DIV_ROUND_UP(cache->plane.src_w,
-						32 * fbc->threshold) * 8;
+	params->gen9_wa_cfb_stride = cache->gen9_wa_cfb_stride;
 }
 
 void intel_fbc_pre_update(struct intel_crtc *crtc,
@@ -1054,6 +1048,8 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
+	struct intel_fbc_state_cache *cache = &fbc->state_cache;
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
 
 	if (!fbc_supported(dev_priv))
 		return;
@@ -1076,10 +1072,24 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 	WARN_ON(fbc->crtc != NULL);
 
 	intel_fbc_update_state_cache(crtc, crtc_state, plane_state);
-	if (intel_fbc_alloc_cfb(crtc)) {
+
+	/* FIXME crtc_state->enable_fbc lies :( */
+	if (!cache->plane.visible)
+		goto out;
+
+	if (intel_fbc_alloc_cfb(dev_priv,
+				intel_fbc_calculate_cfb_size(dev_priv, cache),
+				fb->format->cpp[0])) {
 		fbc->no_fbc_reason = "not enough stolen memory";
 		goto out;
 	}
+
+	if (IS_GEN(dev_priv, 9) && !IS_GEMINILAKE(dev_priv) &&
+	    fb->modifier != I915_FORMAT_MOD_X_TILED)
+		cache->gen9_wa_cfb_stride =
+			DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->threshold) * 8;
+	else
+		cache->gen9_wa_cfb_stride = 0;
 
 	DRM_DEBUG_KMS("Enabling FBC on pipe %c\n", pipe_name(crtc->pipe));
 	fbc->no_fbc_reason = "FBC enabled but not active yet\n";
