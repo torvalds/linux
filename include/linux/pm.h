@@ -637,6 +637,7 @@ extern void dev_pm_put_subsys_data(struct device *dev);
  * struct dev_pm_domain - power management domain representation.
  *
  * @ops: Power management operations associated with this domain.
+ * @start: Called when a user needs to start the device via the domain.
  * @detach: Called when removing a device from the domain.
  * @activate: Called before executing probe routines for bus types and drivers.
  * @sync: Called after successful driver probe.
@@ -648,6 +649,7 @@ extern void dev_pm_put_subsys_data(struct device *dev);
  */
 struct dev_pm_domain {
 	struct dev_pm_ops	ops;
+	int (*start)(struct device *dev);
 	void (*detach)(struct device *dev, bool power_off);
 	int (*activate)(struct device *dev);
 	void (*sync)(struct device *dev);

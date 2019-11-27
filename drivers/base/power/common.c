@@ -188,6 +188,26 @@ void dev_pm_domain_detach(struct device *dev, bool power_off)
 EXPORT_SYMBOL_GPL(dev_pm_domain_detach);
 
 /**
+ * dev_pm_domain_start - Start the device through its PM domain.
+ * @dev: Device to start.
+ *
+ * This function should typically be called during probe by a subsystem/driver,
+ * when it needs to start its device from the PM domain's perspective. Note
+ * that, it's assumed that the PM domain is already powered on when this
+ * function is called.
+ *
+ * Returns 0 on success and negative error values on failures.
+ */
+int dev_pm_domain_start(struct device *dev)
+{
+	if (dev->pm_domain && dev->pm_domain->start)
+		return dev->pm_domain->start(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_start);
+
+/**
  * dev_pm_domain_set - Set PM domain of a device.
  * @dev: Device whose PM domain is to be set.
  * @pd: PM domain to be set, or NULL.

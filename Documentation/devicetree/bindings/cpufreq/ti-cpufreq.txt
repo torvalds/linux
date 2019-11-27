@@ -15,12 +15,16 @@ In 'cpus' nodes:
 
 In 'operating-points-v2' table:
 - compatible: Should be
-	- 'operating-points-v2-ti-cpu' for am335x, am43xx, and dra7xx/am57xx SoCs
+	- 'operating-points-v2-ti-cpu' for am335x, am43xx, and dra7xx/am57xx,
+	  omap34xx, omap36xx and am3517 SoCs
 - syscon: A phandle pointing to a syscon node representing the control module
 	  register space of the SoC.
 
 Optional properties:
 --------------------
+- "vdd-supply", "vbb-supply": to define two regulators for dra7xx
+- "cpu0-supply", "vbb-supply": to define two regulators for omap36xx
+
 For each opp entry in 'operating-points-v2' table:
 - opp-supported-hw: Two bitfields indicating:
 	1. Which revision of the SoC the OPP is supported by

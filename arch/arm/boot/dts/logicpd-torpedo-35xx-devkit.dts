@@ -9,5 +9,5 @@
 
 / {
 	model = "LogicPD Zoom OMAP35xx Torpedo Development Kit";
-	compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap3";
+	compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap3430", "ti,omap3";
 };

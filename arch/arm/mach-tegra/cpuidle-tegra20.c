@@ -203,7 +203,7 @@ void tegra20_cpuidle_pcie_irqs_in_use(void)
 {
 	pr_info_once(
 		"Disabling cpuidle LP2 state, since PCIe IRQs are in use\n");
-	tegra_idle_driver.states[1].disabled = true;
+	cpuidle_driver_state_disabled(&tegra_idle_driver, 1, true);
 }
 
 int __init tegra20_cpuidle_init(void)
