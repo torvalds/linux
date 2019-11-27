@@ -22,6 +22,8 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 
+#include <linux/property.h>
+
 #include "../tools/testing/selftests/kselftest_module.h"
 
 #define BUF_SIZE 256
@@ -593,6 +595,35 @@ flags(void)
 	kfree(cmp_buffer);
 }
 
+static void __init fwnode_pointer(void)
+{
+	const struct software_node softnodes[] = {
+		{ .name = "first", },
+		{ .name = "second", .parent = &softnodes[0], },
+		{ .name = "third", .parent = &softnodes[1], },
+		{ NULL /* Guardian */ }
+	};
+	const char * const full_name = "first/second/third";
+	const char * const full_name_second = "first/second";
+	const char * const second_name = "second";
+	const char * const third_name = "third";
+	int rval;
+
+	rval = software_node_register_nodes(softnodes);
+	if (rval) {
+		pr_warn("cannot register softnodes; rval %d\n", rval);
+		return;
+	}
+
+	test(full_name_second, "%pfw", software_node_fwnode(&softnodes[1]));
+	test(full_name, "%pfw", software_node_fwnode(&softnodes[2]));
+	test(full_name, "%pfwf", software_node_fwnode(&softnodes[2]));
+	test(second_name, "%pfwP", software_node_fwnode(&softnodes[1]));
+	test(third_name, "%pfwP", software_node_fwnode(&softnodes[2]));
+
+	software_node_unregister_nodes(softnodes);
+}
+
 static void __init
 errptr(void)
 {
@@ -636,6 +667,7 @@ test_pointer(void)
 	netdev_features();
 	flags();
 	errptr();
+	fwnode_pointer();
 }
 
 static void __init selftest(void)
