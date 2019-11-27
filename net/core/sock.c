@@ -518,7 +518,7 @@ int __sk_receive_skb(struct sock *sk, struct sk_buff *skb,
 
 		rc = sk_backlog_rcv(sk, skb);
 
-		mutex_release(&sk->sk_lock.dep_map, 1, _RET_IP_);
+		mutex_release(&sk->sk_lock.dep_map, _RET_IP_);
 	} else if (sk_add_backlog(sk, skb, READ_ONCE(sk->sk_rcvbuf))) {
 		bh_unlock_sock(sk);
 		atomic_inc(&sk->sk_drops);

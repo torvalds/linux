@@ -339,7 +339,7 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 		 * up_read_non_owner(). The rwsem_release() is called
 		 * here to release the lock from lockdep's perspective.
 		 */
-		rwsem_release(&current->mm->mmap_sem.dep_map, 1, _RET_IP_);
+		rwsem_release(&current->mm->mmap_sem.dep_map, _RET_IP_);
 	}
 }
 

@@ -1800,7 +1800,7 @@ static void mem_cgroup_oom_unlock(struct mem_cgroup *memcg)
 	struct mem_cgroup *iter;
 
 	spin_lock(&memcg_oom_lock);
-	mutex_release(&memcg_oom_lock_dep_map, 1, _RET_IP_);
+	mutex_release(&memcg_oom_lock_dep_map, _RET_IP_);
 	for_each_mem_cgroup_tree(iter, memcg)
 		iter->oom_lock = false;
 	spin_unlock(&memcg_oom_lock);

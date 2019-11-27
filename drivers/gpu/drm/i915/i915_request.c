@@ -1495,7 +1495,7 @@ long i915_request_wait(struct i915_request *rq,
 	dma_fence_remove_callback(&rq->fence, &wait.cb);
 
 out:
-	mutex_release(&rq->engine->gt->reset.mutex.dep_map, 0, _THIS_IP_);
+	mutex_release(&rq->engine->gt->reset.mutex.dep_map, _THIS_IP_);
 	trace_i915_request_wait_end(rq);
 	return timeout;
 }

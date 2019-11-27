@@ -248,7 +248,7 @@ static void __up_console_sem(unsigned long ip)
 {
 	unsigned long flags;
 
-	mutex_release(&console_lock_dep_map, 1, ip);
+	mutex_release(&console_lock_dep_map, ip);
 
 	printk_safe_enter_irqsave(flags);
 	up(&console_sem);
@@ -1679,20 +1679,20 @@ static int console_lock_spinning_disable_and_check(void)
 	raw_spin_unlock(&console_owner_lock);
 
 	if (!waiter) {
-		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+		spin_release(&console_owner_dep_map, _THIS_IP_);
 		return 0;
 	}
 
 	/* The waiter is now free to continue */
 	WRITE_ONCE(console_waiter, false);
 
-	spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+	spin_release(&console_owner_dep_map, _THIS_IP_);
 
 	/*
 	 * Hand off console_lock to waiter. The waiter will perform
 	 * the up(). After this, the waiter is the console_lock owner.
 	 */
-	mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
+	mutex_release(&console_lock_dep_map, _THIS_IP_);
 	return 1;
 }
 
@@ -1746,7 +1746,7 @@ static int console_trylock_spinning(void)
 	/* Owner will clear console_waiter on hand off */
 	while (READ_ONCE(console_waiter))
 		cpu_relax();
-	spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+	spin_release(&console_owner_dep_map, _THIS_IP_);
 
 	printk_safe_exit_irqrestore(flags);
 	/*

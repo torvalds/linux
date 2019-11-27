@@ -210,7 +210,7 @@ static inline void rcu_lock_acquire(struct lockdep_map *map)
 
 static inline void rcu_lock_release(struct lockdep_map *map)
 {
-	lock_release(map, 1, _THIS_IP_);
+	lock_release(map, _THIS_IP_);
 }
 
 extern struct lockdep_map rcu_lock_map;
