@@ -4101,11 +4101,11 @@ static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	int status;
 
-	if (ndev->mtu == 1500 && new_mtu == 9000) {
+	if (ndev->mtu == 1500 && new_mtu == 9000)
 		netif_err(qdev, ifup, qdev->ndev, "Changing to jumbo MTU.\n");
-	} else if (ndev->mtu == 9000 && new_mtu == 1500) {
+	else if (ndev->mtu == 9000 && new_mtu == 1500)
 		netif_err(qdev, ifup, qdev->ndev, "Changing to normal MTU.\n");
-	} else
+	else
 		return -EINVAL;
 
 	queue_delayed_work(qdev->workqueue,
@@ -4113,9 +4113,8 @@ static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 
 	ndev->mtu = new_mtu;
 
-	if (!netif_running(qdev->ndev)) {
+	if (!netif_running(qdev->ndev))
 		return 0;
-	}
 
 	status = ql_change_rx_buffers(qdev);
 	if (status) {
