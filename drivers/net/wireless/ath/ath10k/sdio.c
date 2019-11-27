@@ -2137,6 +2137,8 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	bus_params.chip_id = 0;
 	bus_params.hl_msdu_ids = true;
 
+	ar->hw->max_mtu = ETH_DATA_LEN;
+
 	ret = ath10k_core_register(ar, &bus_params);
 	if (ret) {
 		ath10k_err(ar, "failed to register driver core: %d\n", ret);
