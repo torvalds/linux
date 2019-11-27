@@ -19,6 +19,7 @@
 #include <linux/sh_intc.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <asm/rtc.h>
+#include <asm/platform_early.h>
 #include <cpu/serial.h>
 
 static struct resource rtc_resources[] = {
@@ -211,7 +212,7 @@ static struct platform_device *sh7720_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(sh7720_early_devices,
+	sh_early_platform_add_devices(sh7720_early_devices,
 				   ARRAY_SIZE(sh7720_early_devices));
 }
 
