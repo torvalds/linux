@@ -402,8 +402,8 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 				   (index << MAC_ADDR_IDX_SHIFT) |	/* index */
 				   type);	/* type */
 			/* This field should also include the queue id
-			   and possibly the function id.  Right now we hardcode
-			   the route field to NIC core.
+			 * and possibly the function id.  Right now we hardcode
+			 * the route field to NIC core.
 			 */
 			cam_output = (CAM_OUT_ROUTE_NIC |
 				      (qdev->
@@ -683,7 +683,7 @@ static int ql_read_flash_word(struct ql_adapter *qdev, int offset, __le32 *data)
 			FLASH_ADDR, FLASH_ADDR_RDY, FLASH_ADDR_ERR);
 	if (status)
 		goto exit;
-	 /* This data is stored on flash as an array of
+	/* This data is stored on flash as an array of
 	 * __le32.  Since ql_read32() returns cpu endian
 	 * we need to swap it back.
 	 */
@@ -2223,7 +2223,8 @@ static int ql_napi_poll_msix(struct napi_struct *napi, int budget)
 		     "Enter, NAPI POLL cq_id = %d.\n", rx_ring->cq_id);
 
 	/* Service the TX rings first.  They start
-	 * right after the RSS rings. */
+	 * right after the RSS rings.
+	 */
 	for (i = qdev->rss_ring_count; i < qdev->rx_ring_count; i++) {
 		trx_ring = &qdev->rx_ring[i];
 		/* If this TX completion ring belongs to this vector and
@@ -2888,7 +2889,8 @@ static void ql_free_rx_resources(struct ql_adapter *qdev,
 }
 
 /* Allocate queues and buffers for this completions queue based
- * on the values in the parameter structure. */
+ * on the values in the parameter structure.
+ */
 static int ql_alloc_rx_resources(struct ql_adapter *qdev,
 				 struct rx_ring *rx_ring)
 {
