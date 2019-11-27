@@ -2329,7 +2329,7 @@ int ath11k_wmi_pdev_peer_pktlog_filter(struct ath11k *ar, u8 *addr, u8 enable)
 
 	tlv = ptr;
 	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_STRUCT) |
-		      FIELD_PREP(WMI_TLV_LEN, 0);
+		      FIELD_PREP(WMI_TLV_LEN, sizeof(*info));
 
 	ptr += TLV_HDR_SIZE;
 	info = ptr;
