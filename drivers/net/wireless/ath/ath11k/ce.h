@@ -57,7 +57,12 @@ void ath11k_ce_byte_swap(void *mem, u32 len);
 
 struct ath11k_base;
 
-/* Establish a mapping between a service/direction and a pipe. */
+/*
+ * Establish a mapping between a service/direction and a pipe.
+ * Configuration information for a Copy Engine pipe and services.
+ * Passed from Host to Target through QMI message and must be in
+ * little endian format.
+ */
 struct service_to_pipe {
 	__le32 service_id;
 	__le32 pipedir;
@@ -66,7 +71,7 @@ struct service_to_pipe {
 
 /*
  * Configuration information for a Copy Engine pipe.
- * Passed from Host to Target during startup (one per CE).
+ * Passed from Host to Target through QMI message during startup (one per CE).
  *
  * NOTE: Structure is shared between Host software and Target firmware!
  */
