@@ -1327,6 +1327,10 @@ struct net_device_ops {
 						   struct nlattr *port[]);
 	int			(*ndo_get_vf_port)(struct net_device *dev,
 						   int vf, struct sk_buff *skb);
+	int			(*ndo_get_vf_guid)(struct net_device *dev,
+						   int vf,
+						   struct ifla_vf_guid *node_guid,
+						   struct ifla_vf_guid *port_guid);
 	int			(*ndo_set_vf_guid)(struct net_device *dev,
 						   int vf, u64 guid,
 						   int guid_type);

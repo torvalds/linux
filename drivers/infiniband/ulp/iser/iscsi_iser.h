@@ -96,16 +96,12 @@
 #define iser_err(fmt, arg...) \
 	pr_err(PFX "%s: " fmt, __func__ , ## arg)
 
-#define SHIFT_4K	12
-#define SIZE_4K	(1ULL << SHIFT_4K)
-#define MASK_4K	(~(SIZE_4K-1))
-
 /* Default support is 512KB I/O size */
 #define ISER_DEF_MAX_SECTORS		1024
 #define ISCSI_ISER_DEF_SG_TABLESIZE                                            \
-	((ISER_DEF_MAX_SECTORS * SECTOR_SIZE) >> SHIFT_4K)
+	((ISER_DEF_MAX_SECTORS * SECTOR_SIZE) >> ilog2(SZ_4K))
 /* Maximum support is 16MB I/O size */
-#define ISCSI_ISER_MAX_SG_TABLESIZE	((32768 * SECTOR_SIZE) >> SHIFT_4K)
+#define ISCSI_ISER_MAX_SG_TABLESIZE ((32768 * SECTOR_SIZE) >> ilog2(SZ_4K))
 
 #define ISER_DEF_XMIT_CMDS_DEFAULT		512
 #if ISCSI_DEF_XMIT_CMDS_MAX > ISER_DEF_XMIT_CMDS_DEFAULT
@@ -232,15 +228,16 @@ enum iser_desc_type {
  * @iser_header:   iser header
  * @iscsi_header:  iscsi header
  * @type:          command/control/dataout
- * @dam_addr:      header buffer dma_address
+ * @dma_addr:      header buffer dma_address
  * @tx_sg:         sg[0] points to iser/iscsi headers
  *                 sg[1] optionally points to either of immediate data
  *                 unsolicited data-out or control
  * @num_sge:       number sges used on this TX task
+ * @cqe:           completion handler
  * @mapped:        Is the task header mapped
- * reg_wr:         registration WR
- * send_wr:        send WR
- * inv_wr:         invalidate WR
+ * @reg_wr:        registration WR
+ * @send_wr:       send WR
+ * @inv_wr:        invalidate WR
  */
 struct iser_tx_desc {
 	struct iser_ctrl             iser_header;
@@ -267,6 +264,7 @@ struct iser_tx_desc {
  * @data:          received data segment
  * @dma_addr:      receive buffer dma address
  * @rx_sg:         ib_sge of receive buffer
+ * @cqe:           completion handler
  * @pad:           for sense data TODO: Modify to maximum sense length supported
  */
 struct iser_rx_desc {
@@ -283,9 +281,9 @@ struct iser_rx_desc {
  * struct iser_login_desc - iSER login descriptor
  *
  * @req:           pointer to login request buffer
- * @resp:          pointer to login response buffer
+ * @rsp:           pointer to login response buffer
  * @req_dma:       DMA address of login request buffer
- * @rsp_dma:      DMA address of login response buffer
+ * @rsp_dma:       DMA address of login response buffer
  * @sge:           IB sge for login post recv
  * @cqe:           completion handler
  */
@@ -315,12 +313,12 @@ struct iser_comp {
 };
 
 /**
- * struct iser_device - Memory registration operations
+ * struct iser_reg_ops - Memory registration operations
  *     per-device registration schemes
  *
  * @alloc_reg_res:     Allocate registration resources
  * @free_reg_res:      Free registration resources
- * @fast_reg_mem:      Register memory buffers
+ * @reg_mem:           Register memory buffers
  * @unreg_mem:         Un-register memory buffers
  * @reg_desc_get:      Get a registration descriptor for pool
  * @reg_desc_put:      Get a registration descriptor to pool
@@ -369,7 +367,7 @@ struct iser_device {
 };
 
 /**
- * struct iser_reg_resources - Fast registration recources
+ * struct iser_reg_resources - Fast registration resources
  *
  * @mr:         memory region
  * @fmr_pool:   pool of fmrs
@@ -402,7 +400,7 @@ struct iser_fr_desc {
 };
 
 /**
- * struct iser_fr_pool: connection fast registration pool
+ * struct iser_fr_pool - connection fast registration pool
  *
  * @list:                list of fastreg descriptors
  * @lock:                protects fmr/fastreg pool
@@ -427,6 +425,7 @@ struct iser_fr_pool {
  * @comp:                iser completion context
  * @fr_pool:             connection fast registration poool
  * @pi_support:          Indicate device T10-PI support
+ * @reg_cqe:             completion handler
  */
 struct ib_conn {
 	struct rdma_cm_id           *cma_id;
@@ -467,6 +466,7 @@ struct ib_conn {
  * @num_rx_descs:     number of rx descriptors
  * @scsi_sg_tablesize: scsi host sg_tablesize
  * @pages_per_mr:     maximum pages available for registration
+ * @snd_w_inv:        connection uses remote invalidation
  */
 struct iser_conn {
 	struct ib_conn		     ib_conn;
@@ -525,7 +525,7 @@ struct iser_page_vec {
 };
 
 /**
- * struct iser_global: iSER global context
+ * struct iser_global - iSER global context
  *
  * @device_list_mutex:    protects device_list
  * @device_list:          iser devices global list

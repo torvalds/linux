@@ -170,7 +170,7 @@ int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 	dev = iser_task->iser_conn->ib_conn.device->ib_device;
 
 	data->dma_nents = ib_dma_map_sg(dev, data->sg, data->size, dma_dir);
-	if (data->dma_nents == 0) {
+	if (unlikely(data->dma_nents == 0)) {
 		iser_err("dma_map_sg failed!!!\n");
 		return -EINVAL;
 	}
@@ -237,7 +237,7 @@ int iser_fast_reg_fmr(struct iscsi_iser_task *iser_task,
 	int ret, plen;
 
 	page_vec->npages = 0;
-	page_vec->fake_mr.page_size = SIZE_4K;
+	page_vec->fake_mr.page_size = SZ_4K;
 	plen = ib_sg_to_pages(&page_vec->fake_mr, mem->sg,
 			      mem->dma_nents, NULL, iser_set_page);
 	if (unlikely(plen < mem->dma_nents)) {
@@ -451,7 +451,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 
 	ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
 
-	n = ib_map_mr_sg(mr, mem->sg, mem->dma_nents, NULL, SIZE_4K);
+	n = ib_map_mr_sg(mr, mem->sg, mem->dma_nents, NULL, SZ_4K);
 	if (unlikely(n != mem->dma_nents)) {
 		iser_err("failed to map sg (%d/%d)\n",
 			 n, mem->dma_nents);

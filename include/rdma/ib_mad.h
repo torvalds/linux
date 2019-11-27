@@ -815,46 +815,6 @@ int ib_modify_mad(struct ib_mad_agent *mad_agent,
 		  struct ib_mad_send_buf *send_buf, u32 timeout_ms);
 
 /**
- * ib_redirect_mad_qp - Registers a QP for MAD services.
- * @qp: Reference to a QP that requires MAD services.
- * @rmpp_version: If set, indicates that the client will send
- *   and receive MADs that contain the RMPP header for the given version.
- *   If set to 0, indicates that RMPP is not used by this client.
- * @send_handler: The completion callback routine invoked after a send
- *   request has completed.
- * @recv_handler: The completion callback routine invoked for a received
- *   MAD.
- * @context: User specified context associated with the registration.
- *
- * Use of this call allows clients to use MAD services, such as RMPP,
- * on user-owned QPs.  After calling this routine, users may send
- * MADs on the specified QP by calling ib_mad_post_send.
- */
-struct ib_mad_agent *ib_redirect_mad_qp(struct ib_qp *qp,
-					u8 rmpp_version,
-					ib_mad_send_handler send_handler,
-					ib_mad_recv_handler recv_handler,
-					void *context);
-
-/**
- * ib_process_mad_wc - Processes a work completion associated with a
- *   MAD sent or received on a redirected QP.
- * @mad_agent: Specifies the registered MAD service using the redirected QP.
- * @wc: References a work completion associated with a sent or received
- *   MAD segment.
- *
- * This routine is used to complete or continue processing on a MAD request.
- * If the work completion is associated with a send operation, calling
- * this routine is required to continue an RMPP transfer or to wait for a
- * corresponding response, if it is a request.  If the work completion is
- * associated with a receive operation, calling this routine is required to
- * process an inbound or outbound RMPP transfer, or to match a response MAD
- * with its corresponding request.
- */
-int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
-		      struct ib_wc *wc);
-
-/**
  * ib_create_send_mad - Allocate and initialize a data buffer and work request
  *   for sending a MAD.
  * @mad_agent: Specifies the registered MAD service to associate with the MAD.

@@ -108,6 +108,7 @@ struct bnxt_re_sqp_entries {
 #define BNXT_RE_MAX_MSIX		9
 #define BNXT_RE_AEQ_IDX			0
 #define BNXT_RE_NQ_IDX			1
+#define BNXT_RE_GEN_P5_MAX_VF		64
 
 struct bnxt_re_dev {
 	struct ib_device		ibdev;

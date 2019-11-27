@@ -423,8 +423,8 @@ static char *ocrdma_rxqp_errstats(struct ocrdma_dev *dev)
 	memset(stats, 0, (OCRDMA_MAX_DBGFS_MEM));
 
 	pcur = stats;
-	pcur += ocrdma_add_stat(stats, pcur, "nak_invalid_requst_errors",
-			(u64)rx_qp_err_stats->nak_invalid_requst_errors);
+	pcur += ocrdma_add_stat(stats, pcur, "nak_invalid_request_errors",
+			(u64)rx_qp_err_stats->nak_invalid_request_errors);
 	pcur += ocrdma_add_stat(stats, pcur, "nak_remote_operation_errors",
 			(u64)rx_qp_err_stats->nak_remote_operation_errors);
 	pcur += ocrdma_add_stat(stats, pcur, "nak_count_remote_access_errors",
@@ -670,12 +670,10 @@ err:
 	return -EFAULT;
 }
 
-int ocrdma_pma_counters(struct ocrdma_dev *dev,
-			struct ib_mad *out_mad)
+void ocrdma_pma_counters(struct ocrdma_dev *dev, struct ib_mad *out_mad)
 {
 	struct ib_pma_portcounters *pma_cnt;
 
-	memset(out_mad->data, 0, sizeof out_mad->data);
 	pma_cnt = (void *)(out_mad->data + 40);
 	ocrdma_update_stats(dev);
 
@@ -683,7 +681,6 @@ int ocrdma_pma_counters(struct ocrdma_dev *dev,
 	pma_cnt->port_rcv_data     = cpu_to_be32(ocrdma_sysfs_rcv_data(dev));
 	pma_cnt->port_xmit_packets = cpu_to_be32(ocrdma_sysfs_xmit_pkts(dev));
 	pma_cnt->port_rcv_packets  = cpu_to_be32(ocrdma_sysfs_rcv_pkts(dev));
-	return 0;
 }
 
 static ssize_t ocrdma_dbgfs_ops_read(struct file *filp, char __user *buffer,

@@ -67,6 +67,7 @@
 #include <rdma/uverbs_std_types.h>
 #include <rdma/mlx5_user_ioctl_verbs.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
+#include <rdma/ib_umem_odp.h>
 
 #define UVERBS_MODULE_NAME mlx5_ib
 #include <rdma/uverbs_named_ioctl.h>
@@ -693,21 +694,6 @@ static void get_atomic_caps_qp(struct mlx5_ib_dev *dev,
 	get_atomic_caps(dev, atomic_size_qp, props);
 }
 
-static void get_atomic_caps_dc(struct mlx5_ib_dev *dev,
-			       struct ib_device_attr *props)
-{
-	u8 atomic_size_qp = MLX5_CAP_ATOMIC(dev->mdev, atomic_size_dc);
-
-	get_atomic_caps(dev, atomic_size_qp, props);
-}
-
-bool mlx5_ib_dc_atomic_is_supported(struct mlx5_ib_dev *dev)
-{
-	struct ib_device_attr props = {};
-
-	get_atomic_caps_dc(dev, &props);
-	return (props.atomic_cap == IB_ATOMIC_HCA) ? true : false;
-}
 static int mlx5_query_system_image_guid(struct ib_device *ibdev,
 					__be64 *sys_image_guid)
 {
@@ -844,8 +830,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	resp_len = sizeof(resp.comp_mask) + sizeof(resp.response_length);
 	if (uhw->outlen && uhw->outlen < resp_len)
 		return -EINVAL;
-	else
-		resp.response_length = resp_len;
+
+	resp.response_length = resp_len;
 
 	if (uhw->inlen && !ib_is_udata_cleared(uhw, 0, uhw->inlen))
 		return -EINVAL;
@@ -1011,6 +997,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		1 << MLX5_CAP_GEN(mdev, log_max_klm_list_size);
 	props->max_pi_fast_reg_page_list_len =
 		props->max_fast_reg_page_list_len / 2;
+	props->max_sgl_rd =
+		MLX5_CAP_GEN(mdev, max_sgl_for_optimized_performance);
 	get_atomic_caps_qp(dev, props);
 	props->masked_atomic_cap   = IB_ATOMIC_NONE;
 	props->max_mcast_grp	   = 1 << MLX5_CAP_GEN(mdev, log_max_mcg);
@@ -1161,8 +1149,14 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 				MLX5_MIN_SINGLE_STRIDE_LOG_NUM_BYTES;
 			resp.striding_rq_caps.max_single_stride_log_num_of_bytes =
 				MLX5_MAX_SINGLE_STRIDE_LOG_NUM_BYTES;
-			resp.striding_rq_caps.min_single_wqe_log_num_of_strides =
-				MLX5_MIN_SINGLE_WQE_LOG_NUM_STRIDES;
+			if (MLX5_CAP_GEN(dev->mdev, ext_stride_num_range))
+				resp.striding_rq_caps
+					.min_single_wqe_log_num_of_strides =
+					MLX5_EXT_MIN_SINGLE_WQE_LOG_NUM_STRIDES;
+			else
+				resp.striding_rq_caps
+					.min_single_wqe_log_num_of_strides =
+					MLX5_MIN_SINGLE_WQE_LOG_NUM_STRIDES;
 			resp.striding_rq_caps.max_single_wqe_log_num_of_strides =
 				MLX5_MAX_SINGLE_WQE_LOG_NUM_STRIDES;
 			resp.striding_rq_caps.supported_qpts =
@@ -1808,7 +1802,7 @@ static int mlx5_ib_alloc_ucontext(struct ib_ucontext *uctx,
 		return -EINVAL;
 
 	resp.qp_tab_size = 1 << MLX5_CAP_GEN(dev->mdev, log_max_qp);
-	if (mlx5_core_is_pf(dev->mdev) && MLX5_CAP_GEN(dev->mdev, bf))
+	if (dev->wc_support)
 		resp.bf_reg_size = 1 << MLX5_CAP_GEN(dev->mdev, log_bf_reg_size);
 	resp.cache_line_size = cache_line_size();
 	resp.max_sq_desc_sz = MLX5_CAP_GEN(dev->mdev, max_wqe_sz_sq);
@@ -2168,7 +2162,7 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 	mlx5_ib_dbg(dev, "uar idx 0x%lx, pfn %pa\n", idx, &pfn);
 
 	err = rdma_user_mmap_io(&context->ibucontext, vma, pfn, PAGE_SIZE,
-				prot);
+				prot, NULL);
 	if (err) {
 		mlx5_ib_err(dev,
 			    "rdma_user_mmap_io failed with error=%d, mmap_cmd=%s\n",
@@ -2210,7 +2204,8 @@ static int dm_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	      PAGE_SHIFT) +
 	      page_idx;
 	return rdma_user_mmap_io(context, vma, pfn, map_size,
-				 pgprot_writecombine(vma->vm_page_prot));
+				 pgprot_writecombine(vma->vm_page_prot),
+				 NULL);
 }
 
 static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
@@ -2248,7 +2243,8 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 			PAGE_SHIFT;
 		return rdma_user_mmap_io(&context->ibucontext, vma, pfn,
 					 PAGE_SIZE,
-					 pgprot_noncached(vma->vm_page_prot));
+					 pgprot_noncached(vma->vm_page_prot),
+					 NULL);
 	case MLX5_IB_MMAP_CLOCK_INFO:
 		return mlx5_ib_mmap_clock_info_page(dev, vma, context);
 
@@ -6140,11 +6136,10 @@ static struct ib_counters *mlx5_ib_create_counters(struct ib_device *device,
 static void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_cleanup_multiport_master(dev);
-	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
-		srcu_barrier(&dev->mr_srcu);
-		cleanup_srcu_struct(&dev->mr_srcu);
-	}
+	WARN_ON(!xa_empty(&dev->odp_mkeys));
+	cleanup_srcu_struct(&dev->odp_srcu);
 
+	WARN_ON(!xa_empty(&dev->sig_mrs));
 	WARN_ON(!bitmap_empty(dev->dm.memic_alloc_pages, MLX5_MAX_MEMIC_PAGES));
 }
 
@@ -6196,15 +6191,15 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	mutex_init(&dev->cap_mask_mutex);
 	INIT_LIST_HEAD(&dev->qp_list);
 	spin_lock_init(&dev->reset_flow_resource_lock);
+	xa_init(&dev->odp_mkeys);
+	xa_init(&dev->sig_mrs);
 
 	spin_lock_init(&dev->dm.lock);
 	dev->dm.dev = mdev;
 
-	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
-		err = init_srcu_struct(&dev->mr_srcu);
-		if (err)
-			goto err_mp;
-	}
+	err = init_srcu_struct(&dev->odp_srcu);
+	if (err)
+		goto err_mp;
 
 	return 0;
 
@@ -6264,6 +6259,9 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.disassociate_ucontext = mlx5_ib_disassociate_ucontext,
 	.drain_rq = mlx5_ib_drain_rq,
 	.drain_sq = mlx5_ib_drain_sq,
+	.enable_driver = mlx5_ib_enable_driver,
+	.fill_res_entry = mlx5_ib_fill_res_entry,
+	.fill_stat_entry = mlx5_ib_fill_stat_entry,
 	.get_dev_fw_str = get_dev_fw_str,
 	.get_dma_mr = mlx5_ib_get_dma_mr,
 	.get_link_layer = mlx5_ib_port_link_layer,
@@ -6310,6 +6308,7 @@ static const struct ib_device_ops mlx5_ib_dev_ipoib_enhanced_ops = {
 
 static const struct ib_device_ops mlx5_ib_dev_sriov_ops = {
 	.get_vf_config = mlx5_ib_get_vf_config,
+	.get_vf_guid = mlx5_ib_get_vf_guid,
 	.get_vf_stats = mlx5_ib_get_vf_stats,
 	.set_vf_guid = mlx5_ib_set_vf_guid,
 	.set_vf_link_state = mlx5_ib_set_vf_link_state,
@@ -6703,6 +6702,18 @@ static void mlx5_ib_stage_devx_cleanup(struct mlx5_ib_dev *dev)
 		mlx5_ib_devx_cleanup_event_table(dev);
 		mlx5_ib_devx_destroy(dev, dev->devx_whitelist_uid);
 	}
+}
+
+int mlx5_ib_enable_driver(struct ib_device *dev)
+{
+	struct mlx5_ib_dev *mdev = to_mdev(dev);
+	int ret;
+
+	ret = mlx5_ib_test_wc(mdev);
+	mlx5_ib_dbg(mdev, "Write-Combining %s",
+		    mdev->wc_support ? "supported" : "not supported");
+
+	return ret;
 }
 
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,

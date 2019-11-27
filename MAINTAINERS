@@ -4471,14 +4471,6 @@ W:	http://www.chelsio.com
 S:	Supported
 F:	drivers/scsi/cxgbi/cxgb3i
 
-CXGB3 IWARP RNIC DRIVER (IW_CXGB3)
-M:	Potnuri Bharat Teja <bharat@chelsio.com>
-L:	linux-rdma@vger.kernel.org
-W:	http://www.openfabrics.org
-S:	Supported
-F:	drivers/infiniband/hw/cxgb3/
-F:	include/uapi/rdma/cxgb3-abi.h
-
 CXGB4 CRYPTO DRIVER (chcr)
 M:	Atul Gupta <atul.gupta@chelsio.com>
 L:	linux-crypto@vger.kernel.org

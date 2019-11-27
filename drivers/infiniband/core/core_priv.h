@@ -388,4 +388,15 @@ int ib_device_set_netns_put(struct sk_buff *skb,
 
 int rdma_nl_net_init(struct rdma_dev_net *rnet);
 void rdma_nl_net_exit(struct rdma_dev_net *rnet);
+
+struct rdma_umap_priv {
+	struct vm_area_struct *vma;
+	struct list_head list;
+	struct rdma_user_mmap_entry *entry;
+};
+
+void rdma_umap_priv_init(struct rdma_umap_priv *priv,
+			 struct vm_area_struct *vma,
+			 struct rdma_user_mmap_entry *entry);
+
 #endif /* _CORE_PRIV_H */

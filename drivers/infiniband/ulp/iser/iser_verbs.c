@@ -58,12 +58,12 @@ static void iser_event_handler(struct ib_event_handler *handler,
 		dev_name(&event->device->dev), event->element.port_num);
 }
 
-/**
+/*
  * iser_create_device_ib_res - creates Protection Domain (PD), Completion
  * Queue (CQ), DMA Memory Region (DMA MR) with the device associated with
- * the adapator.
+ * the adaptor.
  *
- * returns 0 on success, -1 on failure
+ * Return: 0 on success, -1 on failure
  */
 static int iser_create_device_ib_res(struct iser_device *device)
 {
@@ -124,9 +124,9 @@ comps_err:
 	return -1;
 }
 
-/**
+/*
  * iser_free_device_ib_res - destroy/dealloc/dereg the DMA MR,
- * CQ and PD created with the device associated with the adapator.
+ * CQ and PD created with the device associated with the adaptor.
  */
 static void iser_free_device_ib_res(struct iser_device *device)
 {
@@ -149,8 +149,11 @@ static void iser_free_device_ib_res(struct iser_device *device)
 
 /**
  * iser_alloc_fmr_pool - Creates FMR pool and page_vector
+ * @ib_conn: connection RDMA resources
+ * @cmds_max: max number of SCSI commands for this connection
+ * @size: max number of pages per map request
  *
- * returns 0 on success, or errno code on failure
+ * Return: 0 on success, or errno code on failure
  */
 int iser_alloc_fmr_pool(struct ib_conn *ib_conn,
 			unsigned cmds_max,
@@ -180,7 +183,7 @@ int iser_alloc_fmr_pool(struct ib_conn *ib_conn,
 
 	page_vec->pages = (u64 *)(page_vec + 1);
 
-	params.page_shift        = SHIFT_4K;
+	params.page_shift        = ilog2(SZ_4K);
 	params.max_pages_per_fmr = size;
 	/* make the pool size twice the max number of SCSI commands *
 	 * the ML is expected to queue, watermark for unmap at 50%  */
@@ -215,6 +218,7 @@ err_frpl:
 
 /**
  * iser_free_fmr_pool - releases the FMR pool and page vec
+ * @ib_conn: connection RDMA resources
  */
 void iser_free_fmr_pool(struct ib_conn *ib_conn)
 {
@@ -295,7 +299,11 @@ static void iser_destroy_fastreg_desc(struct iser_fr_desc *desc)
 /**
  * iser_alloc_fastreg_pool - Creates pool of fast_reg descriptors
  * for fast registration work requests.
- * returns 0 on success, or errno code on failure
+ * @ib_conn: connection RDMA resources
+ * @cmds_max: max number of SCSI commands for this connection
+ * @size: max number of pages per map request
+ *
+ * Return: 0 on success, or errno code on failure
  */
 int iser_alloc_fastreg_pool(struct ib_conn *ib_conn,
 			    unsigned cmds_max,
@@ -332,6 +340,7 @@ err:
 
 /**
  * iser_free_fastreg_pool - releases the pool of fast_reg descriptors
+ * @ib_conn: connection RDMA resources
  */
 void iser_free_fastreg_pool(struct ib_conn *ib_conn)
 {
@@ -355,10 +364,10 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn)
 			  fr_pool->size - i);
 }
 
-/**
+/*
  * iser_create_ib_conn_res - Queue-Pair (QP)
  *
- * returns 0 on success, -1 on failure
+ * Return: 0 on success, -1 on failure
  */
 static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 {
@@ -436,7 +445,7 @@ out_err:
 	return ret;
 }
 
-/**
+/*
  * based on the resolved device node GUID see if there already allocated
  * device for this device. If there's no such, create one.
  */
@@ -487,9 +496,9 @@ static void iser_device_try_release(struct iser_device *device)
 	mutex_unlock(&ig.device_list_mutex);
 }
 
-/**
+/*
  * Called with state mutex held
- **/
+ */
 static int iser_conn_state_comp_exch(struct iser_conn *iser_conn,
 				     enum iser_conn_state comp,
 				     enum iser_conn_state exch)
@@ -561,7 +570,8 @@ static void iser_free_ib_conn_res(struct iser_conn *iser_conn,
 }
 
 /**
- * Frees all conn objects and deallocs conn descriptor
+ * iser_conn_release - Frees all conn objects and deallocs conn descriptor
+ * @iser_conn: iSER connection context
  */
 void iser_conn_release(struct iser_conn *iser_conn)
 {
@@ -595,7 +605,10 @@ void iser_conn_release(struct iser_conn *iser_conn)
 }
 
 /**
- * triggers start of the disconnect procedures and wait for them to be done
+ * iser_conn_terminate - triggers start of the disconnect procedures and
+ * waits for them to be done
+ * @iser_conn: iSER connection context
+ *
  * Called with state mutex held
  */
 int iser_conn_terminate(struct iser_conn *iser_conn)
@@ -632,9 +645,9 @@ int iser_conn_terminate(struct iser_conn *iser_conn)
 	return 1;
 }
 
-/**
+/*
  * Called with state mutex held
- **/
+ */
 static void iser_connect_error(struct rdma_cm_id *cma_id)
 {
 	struct iser_conn *iser_conn;
@@ -670,7 +683,7 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 	else
 		max_num_sg = attr->max_fast_reg_page_list_len;
 
-	sg_tablesize = DIV_ROUND_UP(max_sectors * 512, SIZE_4K);
+	sg_tablesize = DIV_ROUND_UP(max_sectors * SECTOR_SIZE, SZ_4K);
 	if (attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)
 		sup_sg_tablesize =
 			min_t(
@@ -684,9 +697,9 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 		iser_conn->scsi_sg_tablesize + reserved_mr_pages;
 }
 
-/**
+/*
  * Called with state mutex held
- **/
+ */
 static void iser_addr_handler(struct rdma_cm_id *cma_id)
 {
 	struct iser_device *device;
@@ -732,9 +745,9 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 	}
 }
 
-/**
+/*
  * Called with state mutex held
- **/
+ */
 static void iser_route_handler(struct rdma_cm_id *cma_id)
 {
 	struct rdma_conn_param conn_param;
@@ -1019,7 +1032,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 
 	ib_conn->post_recv_buf_count += count;
 	ib_ret = ib_post_recv(ib_conn->qp, ib_conn->rx_wr, NULL);
-	if (ib_ret) {
+	if (unlikely(ib_ret)) {
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
 		ib_conn->post_recv_buf_count -= count;
 	} else
@@ -1030,9 +1043,12 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 
 
 /**
- * iser_start_send - Initiate a Send DTO operation
+ * iser_post_send - Initiate a Send DTO operation
+ * @ib_conn: connection RDMA resources
+ * @tx_desc: iSER TX descriptor
+ * @signal: true to send work request as SIGNALED
  *
- * returns 0 on success, -1 on failure
+ * Return: 0 on success, -1 on failure
  */
 int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 		   bool signal)
@@ -1060,7 +1076,7 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 		first_wr = wr;
 
 	ib_ret = ib_post_send(ib_conn->qp, first_wr, NULL);
-	if (ib_ret)
+	if (unlikely(ib_ret))
 		iser_err("ib_post_send failed, ret:%d opcode:%d\n",
 			 ib_ret, wr->opcode);
 
@@ -1081,7 +1097,7 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 		ret = ib_check_mr_status(desc->rsc.sig_mr,
 					 IB_MR_CHECK_SIG_STATUS, &mr_status);
 		if (ret) {
-			pr_err("ib_check_mr_status failed, ret %d\n", ret);
+			iser_err("ib_check_mr_status failed, ret %d\n", ret);
 			/* Not a lot we can do, return ambiguous guard error */
 			*sector = 0;
 			return 0x1;
@@ -1093,7 +1109,7 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			sector_div(sector_off, sector_size + 8);
 			*sector = scsi_get_lba(iser_task->sc) + sector_off;
 
-			pr_err("PI error found type %d at sector %llx "
+			iser_err("PI error found type %d at sector %llx "
 			       "expected %x vs actual %x\n",
 			       mr_status.sig_err.err_type,
 			       (unsigned long long)*sector,

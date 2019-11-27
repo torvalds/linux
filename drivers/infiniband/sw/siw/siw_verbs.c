@@ -34,44 +34,19 @@ static char ib_qp_state_to_string[IB_QPS_ERR + 1][sizeof("RESET")] = {
 	[IB_QPS_ERR] = "ERR"
 };
 
-static u32 siw_create_uobj(struct siw_ucontext *uctx, void *vaddr, u32 size)
+void siw_mmap_free(struct rdma_user_mmap_entry *rdma_entry)
 {
-	struct siw_uobj *uobj;
-	struct xa_limit limit = XA_LIMIT(0, SIW_UOBJ_MAX_KEY);
-	u32 key;
+	struct siw_user_mmap_entry *entry = to_siw_mmap_entry(rdma_entry);
 
-	uobj = kzalloc(sizeof(*uobj), GFP_KERNEL);
-	if (!uobj)
-		return SIW_INVAL_UOBJ_KEY;
-
-	if (xa_alloc_cyclic(&uctx->xa, &key, uobj, limit, &uctx->uobj_nextkey,
-			    GFP_KERNEL) < 0) {
-		kfree(uobj);
-		return SIW_INVAL_UOBJ_KEY;
-	}
-	uobj->size = PAGE_ALIGN(size);
-	uobj->addr = vaddr;
-
-	return key;
-}
-
-static struct siw_uobj *siw_get_uobj(struct siw_ucontext *uctx,
-				     unsigned long off, u32 size)
-{
-	struct siw_uobj *uobj = xa_load(&uctx->xa, off);
-
-	if (uobj && uobj->size == size)
-		return uobj;
-
-	return NULL;
+	kfree(entry);
 }
 
 int siw_mmap(struct ib_ucontext *ctx, struct vm_area_struct *vma)
 {
 	struct siw_ucontext *uctx = to_siw_ctx(ctx);
-	struct siw_uobj *uobj;
-	unsigned long off = vma->vm_pgoff;
-	int size = vma->vm_end - vma->vm_start;
+	size_t size = vma->vm_end - vma->vm_start;
+	struct rdma_user_mmap_entry *rdma_entry;
+	struct siw_user_mmap_entry *entry;
 	int rv = -EINVAL;
 
 	/*
@@ -79,18 +54,25 @@ int siw_mmap(struct ib_ucontext *ctx, struct vm_area_struct *vma)
 	 */
 	if (vma->vm_start & (PAGE_SIZE - 1)) {
 		pr_warn("siw: mmap not page aligned\n");
+		return -EINVAL;
+	}
+	rdma_entry = rdma_user_mmap_entry_get(&uctx->base_ucontext, vma);
+	if (!rdma_entry) {
+		siw_dbg(&uctx->sdev->base_dev, "mmap lookup failed: %lu, %#zx\n",
+			vma->vm_pgoff, size);
+		return -EINVAL;
+	}
+	entry = to_siw_mmap_entry(rdma_entry);
+
+	rv = remap_vmalloc_range(vma, entry->address, 0);
+	if (rv) {
+		pr_warn("remap_vmalloc_range failed: %lu, %zu\n", vma->vm_pgoff,
+			size);
 		goto out;
 	}
-	uobj = siw_get_uobj(uctx, off, size);
-	if (!uobj) {
-		siw_dbg(&uctx->sdev->base_dev, "mmap lookup failed: %lu, %u\n",
-			off, size);
-		goto out;
-	}
-	rv = remap_vmalloc_range(vma, uobj->addr, 0);
-	if (rv)
-		pr_warn("remap_vmalloc_range failed: %lu, %u\n", off, size);
 out:
+	rdma_user_mmap_entry_put(rdma_entry);
+
 	return rv;
 }
 
@@ -105,8 +87,6 @@ int siw_alloc_ucontext(struct ib_ucontext *base_ctx, struct ib_udata *udata)
 		rv = -ENOMEM;
 		goto err_out;
 	}
-	xa_init_flags(&ctx->xa, XA_FLAGS_ALLOC);
-	ctx->uobj_nextkey = 0;
 	ctx->sdev = sdev;
 
 	uresp.dev_id = sdev->vendor_part_id;
@@ -135,19 +115,7 @@ err_out:
 void siw_dealloc_ucontext(struct ib_ucontext *base_ctx)
 {
 	struct siw_ucontext *uctx = to_siw_ctx(base_ctx);
-	void *entry;
-	unsigned long index;
 
-	/*
-	 * Make sure all user mmap objects are gone. Since QP, CQ
-	 * and SRQ destroy routines destroy related objects, nothing
-	 * should be found here.
-	 */
-	xa_for_each(&uctx->xa, index, entry) {
-		kfree(xa_erase(&uctx->xa, index));
-		pr_warn("siw: dropping orphaned uobj at %lu\n", index);
-	}
-	xa_destroy(&uctx->xa);
 	atomic_dec(&uctx->sdev->num_ctx);
 }
 
@@ -293,6 +261,33 @@ void siw_qp_put_ref(struct ib_qp *base_qp)
 	siw_qp_put(to_siw_qp(base_qp));
 }
 
+static struct rdma_user_mmap_entry *
+siw_mmap_entry_insert(struct siw_ucontext *uctx,
+		      void *address, size_t length,
+		      u64 *offset)
+{
+	struct siw_user_mmap_entry *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	int rv;
+
+	*offset = SIW_INVAL_UOBJ_KEY;
+	if (!entry)
+		return NULL;
+
+	entry->address = address;
+
+	rv = rdma_user_mmap_entry_insert(&uctx->base_ucontext,
+					 &entry->rdma_entry,
+					 length);
+	if (rv) {
+		kfree(entry);
+		return NULL;
+	}
+
+	*offset = rdma_user_mmap_get_offset(&entry->rdma_entry);
+
+	return &entry->rdma_entry;
+}
+
 /*
  * siw_create_qp()
  *
@@ -317,6 +312,7 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 	struct siw_cq *scq = NULL, *rcq = NULL;
 	unsigned long flags;
 	int num_sqe, num_rqe, rv = 0;
+	size_t length;
 
 	siw_dbg(base_dev, "create new QP\n");
 
@@ -380,8 +376,6 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 	spin_lock_init(&qp->orq_lock);
 
 	qp->kernel_verbs = !udata;
-	qp->xa_sq_index = SIW_INVAL_UOBJ_KEY;
-	qp->xa_rq_index = SIW_INVAL_UOBJ_KEY;
 
 	rv = siw_qp_add(sdev, qp);
 	if (rv)
@@ -458,22 +452,27 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 		uresp.qp_id = qp_id(qp);
 
 		if (qp->sendq) {
-			qp->xa_sq_index =
-				siw_create_uobj(uctx, qp->sendq,
-					num_sqe * sizeof(struct siw_sqe));
+			length = num_sqe * sizeof(struct siw_sqe);
+			qp->sq_entry =
+				siw_mmap_entry_insert(uctx, qp->sendq,
+						      length, &uresp.sq_key);
+			if (!qp->sq_entry) {
+				rv = -ENOMEM;
+				goto err_out_xa;
+			}
 		}
+
 		if (qp->recvq) {
-			qp->xa_rq_index =
-				 siw_create_uobj(uctx, qp->recvq,
-					num_rqe * sizeof(struct siw_rqe));
+			length = num_rqe * sizeof(struct siw_rqe);
+			qp->rq_entry =
+				siw_mmap_entry_insert(uctx, qp->recvq,
+						      length, &uresp.rq_key);
+			if (!qp->rq_entry) {
+				uresp.sq_key = SIW_INVAL_UOBJ_KEY;
+				rv = -ENOMEM;
+				goto err_out_xa;
+			}
 		}
-		if (qp->xa_sq_index == SIW_INVAL_UOBJ_KEY ||
-		    qp->xa_rq_index == SIW_INVAL_UOBJ_KEY) {
-			rv = -ENOMEM;
-			goto err_out_xa;
-		}
-		uresp.sq_key = qp->xa_sq_index << PAGE_SHIFT;
-		uresp.rq_key = qp->xa_rq_index << PAGE_SHIFT;
 
 		if (udata->outlen < sizeof(uresp)) {
 			rv = -EINVAL;
@@ -501,11 +500,10 @@ err_out:
 	kfree(siw_base_qp);
 
 	if (qp) {
-		if (qp->xa_sq_index != SIW_INVAL_UOBJ_KEY)
-			kfree(xa_erase(&uctx->xa, qp->xa_sq_index));
-		if (qp->xa_rq_index != SIW_INVAL_UOBJ_KEY)
-			kfree(xa_erase(&uctx->xa, qp->xa_rq_index));
-
+		if (uctx) {
+			rdma_user_mmap_entry_remove(qp->sq_entry);
+			rdma_user_mmap_entry_remove(qp->rq_entry);
+		}
 		vfree(qp->sendq);
 		vfree(qp->recvq);
 		kfree(qp);
@@ -618,10 +616,10 @@ int siw_destroy_qp(struct ib_qp *base_qp, struct ib_udata *udata)
 	qp->attrs.flags |= SIW_QP_IN_DESTROY;
 	qp->rx_stream.rx_suspend = 1;
 
-	if (uctx && qp->xa_sq_index != SIW_INVAL_UOBJ_KEY)
-		kfree(xa_erase(&uctx->xa, qp->xa_sq_index));
-	if (uctx && qp->xa_rq_index != SIW_INVAL_UOBJ_KEY)
-		kfree(xa_erase(&uctx->xa, qp->xa_rq_index));
+	if (uctx) {
+		rdma_user_mmap_entry_remove(qp->sq_entry);
+		rdma_user_mmap_entry_remove(qp->rq_entry);
+	}
 
 	down_write(&qp->state_lock);
 
@@ -685,6 +683,47 @@ static int siw_copy_inline_sgl(const struct ib_send_wr *core_wr,
 	return bytes;
 }
 
+/* Complete SQ WR's without processing */
+static int siw_sq_flush_wr(struct siw_qp *qp, const struct ib_send_wr *wr,
+			   const struct ib_send_wr **bad_wr)
+{
+	struct siw_sqe sqe = {};
+	int rv = 0;
+
+	while (wr) {
+		sqe.id = wr->wr_id;
+		sqe.opcode = wr->opcode;
+		rv = siw_sqe_complete(qp, &sqe, 0, SIW_WC_WR_FLUSH_ERR);
+		if (rv) {
+			if (bad_wr)
+				*bad_wr = wr;
+			break;
+		}
+		wr = wr->next;
+	}
+	return rv;
+}
+
+/* Complete RQ WR's without processing */
+static int siw_rq_flush_wr(struct siw_qp *qp, const struct ib_recv_wr *wr,
+			   const struct ib_recv_wr **bad_wr)
+{
+	struct siw_rqe rqe = {};
+	int rv = 0;
+
+	while (wr) {
+		rqe.id = wr->wr_id;
+		rv = siw_rqe_complete(qp, &rqe, 0, 0, SIW_WC_WR_FLUSH_ERR);
+		if (rv) {
+			if (bad_wr)
+				*bad_wr = wr;
+			break;
+		}
+		wr = wr->next;
+	}
+	return rv;
+}
+
 /*
  * siw_post_send()
  *
@@ -703,26 +742,54 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 	unsigned long flags;
 	int rv = 0;
 
+	if (wr && !qp->kernel_verbs) {
+		siw_dbg_qp(qp, "wr must be empty for user mapped sq\n");
+		*bad_wr = wr;
+		return -EINVAL;
+	}
+
 	/*
 	 * Try to acquire QP state lock. Must be non-blocking
 	 * to accommodate kernel clients needs.
 	 */
 	if (!down_read_trylock(&qp->state_lock)) {
-		*bad_wr = wr;
-		siw_dbg_qp(qp, "QP locked, state %d\n", qp->attrs.state);
-		return -ENOTCONN;
+		if (qp->attrs.state == SIW_QP_STATE_ERROR) {
+			/*
+			 * ERROR state is final, so we can be sure
+			 * this state will not change as long as the QP
+			 * exists.
+			 *
+			 * This handles an ib_drain_sq() call with
+			 * a concurrent request to set the QP state
+			 * to ERROR.
+			 */
+			rv = siw_sq_flush_wr(qp, wr, bad_wr);
+		} else {
+			siw_dbg_qp(qp, "QP locked, state %d\n",
+				   qp->attrs.state);
+			*bad_wr = wr;
+			rv = -ENOTCONN;
+		}
+		return rv;
 	}
 	if (unlikely(qp->attrs.state != SIW_QP_STATE_RTS)) {
+		if (qp->attrs.state == SIW_QP_STATE_ERROR) {
+			/*
+			 * Immediately flush this WR to CQ, if QP
+			 * is in ERROR state. SQ is guaranteed to
+			 * be empty, so WR complets in-order.
+			 *
+			 * Typically triggered by ib_drain_sq().
+			 */
+			rv = siw_sq_flush_wr(qp, wr, bad_wr);
+		} else {
+			siw_dbg_qp(qp, "QP out of state %d\n",
+				   qp->attrs.state);
+			*bad_wr = wr;
+			rv = -ENOTCONN;
+		}
 		up_read(&qp->state_lock);
-		*bad_wr = wr;
-		siw_dbg_qp(qp, "QP out of state %d\n", qp->attrs.state);
-		return -ENOTCONN;
-	}
-	if (wr && !qp->kernel_verbs) {
-		siw_dbg_qp(qp, "wr must be empty for user mapped sq\n");
-		up_read(&qp->state_lock);
-		*bad_wr = wr;
-		return -EINVAL;
+		return rv;
 	}
 	spin_lock_irqsave(&qp->sq_lock, flags);
 
@@ -917,24 +984,54 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 		*bad_wr = wr;
 		return -EOPNOTSUPP; /* what else from errno.h? */
 	}
+	if (!qp->kernel_verbs) {
+		siw_dbg_qp(qp, "no kernel post_recv for user mapped sq\n");
+		*bad_wr = wr;
+		return -EINVAL;
+	}
+
 	/*
 	 * Try to acquire QP state lock. Must be non-blocking
 	 * to accommodate kernel clients needs.
 	 */
 	if (!down_read_trylock(&qp->state_lock)) {
-		*bad_wr = wr;
-		return -ENOTCONN;
-	}
-	if (!qp->kernel_verbs) {
-		siw_dbg_qp(qp, "no kernel post_recv for user mapped sq\n");
-		up_read(&qp->state_lock);
-		*bad_wr = wr;
-		return -EINVAL;
+		if (qp->attrs.state == SIW_QP_STATE_ERROR) {
+			/*
+			 * ERROR state is final, so we can be sure
+			 * this state will not change as long as the QP
+			 * exists.
+			 *
+			 * This handles an ib_drain_rq() call with
+			 * a concurrent request to set the QP state
+			 * to ERROR.
+			 */
+			rv = siw_rq_flush_wr(qp, wr, bad_wr);
+		} else {
+			siw_dbg_qp(qp, "QP locked, state %d\n",
+				   qp->attrs.state);
+			*bad_wr = wr;
+			rv = -ENOTCONN;
+		}
+		return rv;
 	}
 	if (qp->attrs.state > SIW_QP_STATE_RTS) {
+		if (qp->attrs.state == SIW_QP_STATE_ERROR) {
+			/*
+			 * Immediately flush this WR to CQ, if QP
+			 * is in ERROR state. RQ is guaranteed to
+			 * be empty, so WR complets in-order.
+			 *
+			 * Typically triggered by ib_drain_rq().
+			 */
+			rv = siw_rq_flush_wr(qp, wr, bad_wr);
+		} else {
+			siw_dbg_qp(qp, "QP out of state %d\n",
+				   qp->attrs.state);
+			*bad_wr = wr;
+			rv = -ENOTCONN;
+		}
 		up_read(&qp->state_lock);
-		*bad_wr = wr;
-		return -EINVAL;
+		return rv;
 	}
 	/*
 	 * Serialize potentially multiple producers.
@@ -991,8 +1088,8 @@ void siw_destroy_cq(struct ib_cq *base_cq, struct ib_udata *udata)
 
 	siw_cq_flush(cq);
 
-	if (ctx && cq->xa_cq_index != SIW_INVAL_UOBJ_KEY)
-		kfree(xa_erase(&ctx->xa, cq->xa_cq_index));
+	if (ctx)
+		rdma_user_mmap_entry_remove(cq->cq_entry);
 
 	atomic_dec(&sdev->num_cq);
 
@@ -1029,7 +1126,6 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 	size = roundup_pow_of_two(size);
 	cq->base_cq.cqe = size;
 	cq->num_cqe = size;
-	cq->xa_cq_index = SIW_INVAL_UOBJ_KEY;
 
 	if (!udata) {
 		cq->kernel_verbs = 1;
@@ -1055,16 +1151,17 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 		struct siw_ucontext *ctx =
 			rdma_udata_to_drv_context(udata, struct siw_ucontext,
 						  base_ucontext);
+		size_t length = size * sizeof(struct siw_cqe) +
+			sizeof(struct siw_cq_ctrl);
 
-		cq->xa_cq_index =
-			siw_create_uobj(ctx, cq->queue,
-					size * sizeof(struct siw_cqe) +
-						sizeof(struct siw_cq_ctrl));
-		if (cq->xa_cq_index == SIW_INVAL_UOBJ_KEY) {
+		cq->cq_entry =
+			siw_mmap_entry_insert(ctx, cq->queue,
+					      length, &uresp.cq_key);
+		if (!cq->cq_entry) {
 			rv = -ENOMEM;
 			goto err_out;
 		}
-		uresp.cq_key = cq->xa_cq_index << PAGE_SHIFT;
+
 		uresp.cq_id = cq->id;
 		uresp.num_cqe = size;
 
@@ -1085,8 +1182,8 @@ err_out:
 		struct siw_ucontext *ctx =
 			rdma_udata_to_drv_context(udata, struct siw_ucontext,
 						  base_ucontext);
-		if (cq->xa_cq_index != SIW_INVAL_UOBJ_KEY)
-			kfree(xa_erase(&ctx->xa, cq->xa_cq_index));
+		if (ctx)
+			rdma_user_mmap_entry_remove(cq->cq_entry);
 		vfree(cq->queue);
 	}
 	atomic_dec(&sdev->num_cq);
@@ -1490,7 +1587,6 @@ int siw_create_srq(struct ib_srq *base_srq,
 	}
 	srq->max_sge = attrs->max_sge;
 	srq->num_rqe = roundup_pow_of_two(attrs->max_wr);
-	srq->xa_srq_index = SIW_INVAL_UOBJ_KEY;
 	srq->limit = attrs->srq_limit;
 	if (srq->limit)
 		srq->armed = 1;
@@ -1509,15 +1605,16 @@ int siw_create_srq(struct ib_srq *base_srq,
 	}
 	if (udata) {
 		struct siw_uresp_create_srq uresp = {};
+		size_t length = srq->num_rqe * sizeof(struct siw_rqe);
 
-		srq->xa_srq_index = siw_create_uobj(
-			ctx, srq->recvq, srq->num_rqe * sizeof(struct siw_rqe));
-
-		if (srq->xa_srq_index == SIW_INVAL_UOBJ_KEY) {
+		srq->srq_entry =
+			siw_mmap_entry_insert(ctx, srq->recvq,
+					      length, &uresp.srq_key);
+		if (!srq->srq_entry) {
 			rv = -ENOMEM;
 			goto err_out;
 		}
-		uresp.srq_key = srq->xa_srq_index;
+
 		uresp.num_rqe = srq->num_rqe;
 
 		if (udata->outlen < sizeof(uresp)) {
@@ -1536,8 +1633,8 @@ int siw_create_srq(struct ib_srq *base_srq,
 
 err_out:
 	if (srq->recvq) {
-		if (ctx && srq->xa_srq_index != SIW_INVAL_UOBJ_KEY)
-			kfree(xa_erase(&ctx->xa, srq->xa_srq_index));
+		if (ctx)
+			rdma_user_mmap_entry_remove(srq->srq_entry);
 		vfree(srq->recvq);
 	}
 	atomic_dec(&sdev->num_srq);
@@ -1623,9 +1720,8 @@ void siw_destroy_srq(struct ib_srq *base_srq, struct ib_udata *udata)
 		rdma_udata_to_drv_context(udata, struct siw_ucontext,
 					  base_ucontext);
 
-	if (ctx && srq->xa_srq_index != SIW_INVAL_UOBJ_KEY)
-		kfree(xa_erase(&ctx->xa, srq->xa_srq_index));
-
+	if (ctx)
+		rdma_user_mmap_entry_remove(srq->srq_entry);
 	vfree(srq->recvq);
 	atomic_dec(&sdev->num_srq);
 }

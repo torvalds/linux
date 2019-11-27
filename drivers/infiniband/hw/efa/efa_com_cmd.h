@@ -100,14 +100,11 @@ struct efa_com_destroy_ah_params {
 	u16 pdn;
 };
 
-struct efa_com_get_network_attr_result {
-	u8 addr[EFA_GID_SIZE];
-	u32 mtu;
-};
-
 struct efa_com_get_device_attr_result {
+	u8 addr[EFA_GID_SIZE];
 	u64 page_size_cap;
 	u64 max_mr_pages;
+	u32 mtu;
 	u32 fw_version;
 	u32 admin_api_version;
 	u32 device_version;
@@ -124,9 +121,12 @@ struct efa_com_get_device_attr_result {
 	u32 max_pd;
 	u32 max_ah;
 	u32 max_llq_size;
+	u32 max_rdma_size;
+	u32 device_caps;
 	u16 sub_cqs_per_cq;
 	u16 max_sq_sge;
 	u16 max_rq_sge;
+	u16 max_wr_rdma_sge;
 	u8 db_bar;
 };
 
@@ -181,12 +181,7 @@ struct efa_com_reg_mr_params {
 	 * address mapping
 	 */
 	u8 page_shift;
-	/*
-	 * permissions
-	 * 0: local_write_enable - Write permissions: value of 1 needed
-	 * for RQ buffers and for RDMA write:1: reserved1 - remote
-	 * access flags, etc
-	 */
+	/* see permissions field of struct efa_admin_reg_mr_cmd */
 	u8 permissions;
 	u8 inline_pbl;
 	u8 indirect;
@@ -271,8 +266,6 @@ int efa_com_create_ah(struct efa_com_dev *edev,
 		      struct efa_com_create_ah_result *result);
 int efa_com_destroy_ah(struct efa_com_dev *edev,
 		       struct efa_com_destroy_ah_params *params);
-int efa_com_get_network_attr(struct efa_com_dev *edev,
-			     struct efa_com_get_network_attr_result *result);
 int efa_com_get_device_attr(struct efa_com_dev *edev,
 			    struct efa_com_get_device_attr_result *result);
 int efa_com_get_hw_hints(struct efa_com_dev *edev,

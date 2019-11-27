@@ -880,9 +880,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem = ib_umem_get(udata, start, length, acc,
-			       ucmd.mr_attrs & MTHCA_MR_DMASYNC);
-
+	mr->umem = ib_umem_get(udata, start, length, acc);
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
 		goto err;

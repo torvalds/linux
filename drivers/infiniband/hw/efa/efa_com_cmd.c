@@ -230,8 +230,7 @@ int efa_com_register_mr(struct efa_com_dev *edev,
 	mr_cmd.flags |= params->page_shift &
 		EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT_MASK;
 	mr_cmd.iova = params->iova;
-	mr_cmd.permissions |= params->permissions &
-			      EFA_ADMIN_REG_MR_CMD_LOCAL_WRITE_ENABLE_MASK;
+	mr_cmd.permissions = params->permissions;
 
 	if (params->inline_pbl) {
 		memcpy(mr_cmd.pbl.inline_pbl_array,
@@ -423,28 +422,6 @@ static int efa_com_get_feature(struct efa_com_dev *edev,
 	return efa_com_get_feature_ex(edev, get_resp, feature_id, 0, 0);
 }
 
-int efa_com_get_network_attr(struct efa_com_dev *edev,
-			     struct efa_com_get_network_attr_result *result)
-{
-	struct efa_admin_get_feature_resp resp;
-	int err;
-
-	err = efa_com_get_feature(edev, &resp,
-				  EFA_ADMIN_NETWORK_ATTR);
-	if (err) {
-		ibdev_err_ratelimited(edev->efa_dev,
-				      "Failed to get network attributes %d\n",
-				      err);
-		return err;
-	}
-
-	memcpy(result->addr, resp.u.network_attr.addr,
-	       sizeof(resp.u.network_attr.addr));
-	result->mtu = resp.u.network_attr.mtu;
-
-	return 0;
-}
-
 int efa_com_get_device_attr(struct efa_com_dev *edev,
 			    struct efa_com_get_device_attr_result *result)
 {
@@ -467,6 +444,8 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->phys_addr_width = resp.u.device_attr.phys_addr_width;
 	result->virt_addr_width = resp.u.device_attr.virt_addr_width;
 	result->db_bar = resp.u.device_attr.db_bar;
+	result->max_rdma_size = resp.u.device_attr.max_rdma_size;
+	result->device_caps = resp.u.device_attr.device_caps;
 
 	if (result->admin_api_version < 1) {
 		ibdev_err_ratelimited(
@@ -500,6 +479,19 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->max_ah = resp.u.queue_attr.max_ah;
 	result->max_llq_size = resp.u.queue_attr.max_llq_size;
 	result->sub_cqs_per_cq = resp.u.queue_attr.sub_cqs_per_cq;
+	result->max_wr_rdma_sge = resp.u.queue_attr.max_wr_rdma_sges;
+
+	err = efa_com_get_feature(edev, &resp, EFA_ADMIN_NETWORK_ATTR);
+	if (err) {
+		ibdev_err_ratelimited(edev->efa_dev,
+				      "Failed to get network attributes %d\n",
+				      err);
+		return err;
+	}
+
+	memcpy(result->addr, resp.u.network_attr.addr,
+	       sizeof(resp.u.network_attr.addr));
+	result->mtu = resp.u.network_attr.mtu;
 
 	return 0;
 }

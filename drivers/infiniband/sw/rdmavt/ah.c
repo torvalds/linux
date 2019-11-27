@@ -129,7 +129,6 @@ int rvt_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
  * rvt_destory_ah - Destory an address handle
  * @ibah: address handle
  * @destroy_flags: destroy address handle flags (see enum rdma_destroy_ah_flags)
- * @udata: user data or NULL for kernel object
  *
  * Return: 0 on success
  */

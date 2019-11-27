@@ -67,6 +67,8 @@ Description:	Interface for making ib_srp connect to a new target.
 		  initiator is allowed to queue per SCSI host. The default
 		  value for this parameter is 62. The lowest supported value
 		  is 2.
+		* max_it_iu_size, a decimal number specifying the maximum
+		  initiator to target information unit length.
 
 What:		/sys/class/infiniband_srp/srp-<hca>-<port_number>/ibdev
 Date:		January 2, 2006

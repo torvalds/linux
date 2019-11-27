@@ -819,22 +819,16 @@ static void cleanup_gid_table_port(struct ib_device *ib_dev, u8 port,
 				   struct ib_gid_table *table)
 {
 	int i;
-	bool deleted = false;
 
 	if (!table)
 		return;
 
 	mutex_lock(&table->lock);
 	for (i = 0; i < table->sz; ++i) {
-		if (is_gid_entry_valid(table->data_vec[i])) {
+		if (is_gid_entry_valid(table->data_vec[i]))
 			del_gid(ib_dev, port, table, i);
-			deleted = true;
-		}
 	}
 	mutex_unlock(&table->lock);
-
-	if (deleted)
-		dispatch_gid_change_event(ib_dev, port);
 }
 
 void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,

@@ -1,37 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2004, 2011 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING the madirectory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use source and binary forms, with or
- *     withmodification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retathe above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHWARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS THE
- * SOFTWARE.
+ * Copyright (c) 2019, Mellanox Technologies inc.  All rights reserved.
  */
-#if !defined(CM_MSGS_H)
+#ifndef CM_MSGS_H
 #define CM_MSGS_H
 
 #include <rdma/ib_mad.h>
