@@ -230,7 +230,7 @@ static int cc_queues_status(struct cc_drvdata *drvdata,
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	/* SW queue is checked only once as it will not
-	 * be chaned during the poll because the spinlock_bh
+	 * be changed during the poll because the spinlock_bh
 	 * is held by the thread
 	 */
 	if (((req_mgr_h->req_queue_head + 1) & (MAX_REQUEST_QUEUE_SIZE - 1)) ==
@@ -303,8 +303,8 @@ static int cc_do_send_request(struct cc_drvdata *drvdata,
 
 	/*
 	 * We are about to push command to the HW via the command registers
-	 * that may refernece hsot memory. We need to issue a memory barrier
-	 * to make sure there are no outstnading memory writes
+	 * that may reference host memory. We need to issue a memory barrier
+	 * to make sure there are no outstanding memory writes
 	 */
 	wmb();
 
@@ -532,8 +532,8 @@ int send_request_init(struct cc_drvdata *drvdata, struct cc_hw_desc *desc,
 
 	/*
 	 * We are about to push command to the HW via the command registers
-	 * that may refernece hsot memory. We need to issue a memory barrier
-	 * to make sure there are no outstnading memory writes
+	 * that may reference host memory. We need to issue a memory barrier
+	 * to make sure there are no outstanding memory writes
 	 */
 	wmb();
 	enqueue_seq(drvdata, desc, len);
@@ -668,7 +668,7 @@ static void comp_handler(unsigned long devarg)
 		request_mgr_handle->axi_completed += cc_axi_comp_count(drvdata);
 	}
 
-	/* after verifing that there is nothing to do,
+	/* after verifying that there is nothing to do,
 	 * unmask AXI completion interrupt
 	 */
 	cc_iowrite(drvdata, CC_REG(HOST_IMR),

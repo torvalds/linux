@@ -114,7 +114,7 @@ int cc_pm_init(struct cc_drvdata *drvdata)
 {
 	struct device *dev = drvdata_to_dev(drvdata);
 
-	/* must be before the enabling to avoid resdundent suspending */
+	/* must be before the enabling to avoid redundant suspending */
 	pm_runtime_set_autosuspend_delay(dev, CC_SUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(dev);
 	/* activate the PM module */
