@@ -281,7 +281,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	int threshold = dev_priv->fbc.threshold;
 
 	/* Display WA #0529: skl, kbl, bxt. */
-	if (IS_GEN(dev_priv, 9) && !IS_GEMINILAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) {
 		u32 val = I915_READ(CHICKEN_MISC_4);
 
 		val &= ~(FBC_STRIDE_OVERRIDE | FBC_STRIDE_MASK);
@@ -1089,7 +1089,7 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 		goto out;
 	}
 
-	if (IS_GEN(dev_priv, 9) && !IS_GEMINILAKE(dev_priv) &&
+	if ((IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) &&
 	    fb->modifier != I915_FORMAT_MOD_X_TILED)
 		cache->gen9_wa_cfb_stride =
 			DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->threshold) * 8;
