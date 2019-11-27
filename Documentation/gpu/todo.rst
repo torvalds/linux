@@ -182,6 +182,32 @@ Contact: Maintainer of the driver you plan to convert
 
 Level: Intermediate
 
+drm_framebuffer_funcs and drm_mode_config_funcs.fb_create cleanup
+-----------------------------------------------------------------
+
+A lot more drivers could be switched over to the drm_gem_framebuffer helpers.
+Various hold-ups:
+
+- Need to switch over to the generic dirty tracking code using
+  drm_atomic_helper_dirtyfb first (e.g. qxl).
+
+- Need to switch to drm_fbdev_generic_setup(), otherwise a lot of the custom fb
+  setup code can't be deleted.
+
+- Many drivers wrap drm_gem_fb_create() only to check for valid formats. For
+  atomic drivers we could check for valid formats by calling
+  drm_plane_check_pixel_format() against all planes, and pass if any plane
+  supports the format. For non-atomic that's not possible since like the format
+  list for the primary plane is fake and we'd therefor reject valid formats.
+
+- Many drivers subclass drm_framebuffer, we'd need a embedding compatible
+  version of the varios drm_gem_fb_create functions. Maybe called
+  drm_gem_fb_create/_with_dirty/_with_funcs as needed.
+
+Contact: Daniel Vetter
+
+Level: Intermediate
+
 Clean up mmap forwarding
 ------------------------
 
