@@ -4018,12 +4018,15 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	struct amdgpu_device *tmp_adev = NULL;
 	int i, r = 0;
 	bool in_ras_intr = amdgpu_ras_intr_triggered();
+	bool use_baco =
+		(amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) ?
+		true : false;
 
 	/*
 	 * Flush RAM to disk so that after reboot
 	 * the user can read log and see why the system rebooted.
 	 */
-	if (in_ras_intr && amdgpu_ras_get_context(adev)->reboot) {
+	if (in_ras_intr && !use_baco && amdgpu_ras_get_context(adev)->reboot) {
 
 		DRM_WARN("Emergency reboot.");
 
@@ -4034,7 +4037,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	need_full_reset = job_signaled = false;
 	INIT_LIST_HEAD(&device_list);
 
-	dev_info(adev->dev, "GPU %s begin!\n", in_ras_intr ? "jobs stop":"reset");
+	dev_info(adev->dev, "GPU %s begin!\n",
+		(in_ras_intr && !use_baco) ? "jobs stop":"reset");
 
 	cancel_delayed_work_sync(&adev->delayed_init_work);
 
@@ -4101,7 +4105,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		amdgpu_unregister_gpu_instance(tmp_adev);
 
 		/* disable ras on ALL IPs */
-		if (!in_ras_intr && amdgpu_device_ip_need_full_reset(tmp_adev))
+		if (!(in_ras_intr && !use_baco) &&
+		      amdgpu_device_ip_need_full_reset(tmp_adev))
 			amdgpu_ras_suspend(tmp_adev);
 
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
@@ -4112,13 +4117,13 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 			drm_sched_stop(&ring->sched, job ? &job->base : NULL);
 
-			if (in_ras_intr)
+			if (in_ras_intr && !use_baco)
 				amdgpu_job_stop_all_jobs_on_sched(&ring->sched);
 		}
 	}
 
 
-	if (in_ras_intr)
+	if (in_ras_intr && !use_baco)
 		goto skip_sched_resume;
 
 	/*
@@ -4212,7 +4217,7 @@ skip_hw_reset:
 skip_sched_resume:
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
 		/*unlock kfd: SRIOV would do it separately */
-		if (!in_ras_intr && !amdgpu_sriov_vf(tmp_adev))
+		if (!(in_ras_intr && !use_baco) && !amdgpu_sriov_vf(tmp_adev))
 	                amdgpu_amdkfd_post_reset(tmp_adev);
 		amdgpu_device_unlock_adev(tmp_adev);
 	}
