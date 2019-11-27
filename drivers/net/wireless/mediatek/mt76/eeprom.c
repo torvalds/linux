@@ -64,6 +64,16 @@ mt76_get_of_eeprom(struct mt76_dev *dev, int len)
 		goto out_put_node;
 	}
 
+	if (of_property_read_bool(dev->dev->of_node, "big-endian")) {
+		u8 *data = (u8 *)dev->eeprom.data;
+		int i;
+
+		/* convert eeprom data in Little Endian */
+		for (i = 0; i < round_down(len, 2); i += 2)
+			put_unaligned_le16(get_unaligned_be16(&data[i]),
+					   &data[i]);
+	}
+
 out_put_node:
 	of_node_put(np);
 	return ret;
