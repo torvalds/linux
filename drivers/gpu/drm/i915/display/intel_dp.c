@@ -5498,7 +5498,7 @@ static bool icl_combo_port_connected(struct drm_i915_private *dev_priv,
 	return I915_READ(SDEISR) & SDE_DDI_HOTPLUG_ICP(port);
 }
 
-static bool icl_digital_port_connected(struct intel_encoder *encoder)
+static bool icp_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
@@ -5536,9 +5536,9 @@ static bool __intel_digital_port_connected(struct intel_encoder *encoder)
 			return g4x_digital_port_connected(encoder);
 	}
 
-	if (INTEL_GEN(dev_priv) >= 11)
-		return icl_digital_port_connected(encoder);
-	else if (IS_GEN(dev_priv, 10) || IS_GEN9_BC(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+		return icp_digital_port_connected(encoder);
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
 		return spt_digital_port_connected(encoder);
 	else if (IS_GEN9_LP(dev_priv))
 		return bxt_digital_port_connected(encoder);
