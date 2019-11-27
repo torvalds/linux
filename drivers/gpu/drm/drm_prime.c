@@ -713,6 +713,9 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	struct file *fil;
 	int ret;
 
+	/* Add the fake offset */
+	vma->vm_pgoff += drm_vma_node_start(&obj->vma_node);
+
 	if (obj->funcs && obj->funcs->mmap) {
 		ret = obj->funcs->mmap(obj, vma);
 		if (ret)
@@ -736,8 +739,6 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	ret = drm_vma_node_allow(&obj->vma_node, priv);
 	if (ret)
 		goto out;
-
-	vma->vm_pgoff += drm_vma_node_start(&obj->vma_node);
 
 	ret = obj->dev->driver->fops->mmap(fil, vma);
 
