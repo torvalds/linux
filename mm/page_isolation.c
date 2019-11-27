@@ -279,6 +279,10 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
 		else
 			break;
 	}
+#ifdef CONFIG_NO_GKI
+	if (pfn < end_pfn)
+		dump_page_owner(page);
+#endif
 
 	return pfn;
 }
