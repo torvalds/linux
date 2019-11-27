@@ -1265,7 +1265,6 @@ static void ath11k_htt_pktlog(struct ath11k_base *ab, struct sk_buff *skb)
 	u8 pdev_id;
 
 	len = FIELD_GET(HTT_T2H_PPDU_STATS_INFO_PAYLOAD_SIZE, data->hdr);
-
 	if (len > ATH11K_HTT_PKTLOG_MAX_SIZE) {
 		ath11k_warn(ab, "htt pktlog buffer size %d, expected < %d\n",
 			    len,
@@ -1274,8 +1273,11 @@ static void ath11k_htt_pktlog(struct ath11k_base *ab, struct sk_buff *skb)
 	}
 
 	pdev_id = FIELD_GET(HTT_T2H_PPDU_STATS_INFO_PDEV_ID, data->hdr);
-	pdev_id = DP_HW2SW_MACID(pdev_id);
-	ar = ab->pdevs[pdev_id].ar;
+	ar = ath11k_mac_get_ar_by_pdev_id(ab, pdev_id);
+	if (!ar) {
+		ath11k_warn(ab, "invalid pdev id %d on htt pktlog\n", pdev_id);
+		return;
+	}
 
 	trace_ath11k_htt_pktlog(ar, data->payload, len);
 }

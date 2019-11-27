@@ -2321,7 +2321,7 @@ int ath11k_wmi_pdev_peer_pktlog_filter(struct ath11k *ar, u8 *addr, u8 enable)
 	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_PDEV_PEER_PKTLOG_FILTER_CMD) |
 			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
 
-	cmd->pdev_id = ar->pdev->pdev_id;
+	cmd->pdev_id = DP_HW2SW_MACID(ar->pdev->pdev_id);
 	cmd->num_mac = 1;
 	cmd->enable = enable;
 
@@ -2419,7 +2419,7 @@ int ath11k_wmi_pdev_pktlog_enable(struct ath11k *ar, u32 pktlog_filter)
 	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_PDEV_PKTLOG_ENABLE_CMD) |
 			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
 
-	cmd->pdev_id = ar->pdev->pdev_id;
+	cmd->pdev_id = DP_HW2SW_MACID(ar->pdev->pdev_id);
 	cmd->evlist = pktlog_filter;
 	cmd->enable = ATH11K_WMI_PKTLOG_ENABLE_FORCE;
 
@@ -2449,7 +2449,7 @@ int ath11k_wmi_pdev_pktlog_disable(struct ath11k *ar)
 	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_PDEV_PKTLOG_DISABLE_CMD) |
 			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
 
-	cmd->pdev_id = ar->pdev->pdev_id;
+	cmd->pdev_id = DP_HW2SW_MACID(ar->pdev->pdev_id);
 
 	ret = ath11k_wmi_cmd_send(wmi, skb,
 				  WMI_PDEV_PKTLOG_DISABLE_CMDID);
