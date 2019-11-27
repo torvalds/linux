@@ -116,34 +116,34 @@ intel_dsb_get(struct intel_crtc *crtc)
 	obj = i915_gem_object_create_internal(i915, DSB_BUF_SIZE);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("Gem object creation failed\n");
-		goto err;
+		goto out;
 	}
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 	if (IS_ERR(vma)) {
 		DRM_ERROR("Vma creation failed\n");
 		i915_gem_object_put(obj);
-		goto err;
+		goto out;
 	}
 
 	buf = i915_gem_object_pin_map(vma->obj, I915_MAP_WC);
 	if (IS_ERR(buf)) {
 		DRM_ERROR("Command buffer creation failed\n");
-		goto err;
+		goto out;
 	}
 
 	dsb->id = DSB1;
 	dsb->vma = vma;
 	dsb->cmd_buf = buf;
 
-err:
+out:
 	/*
-	 * Set cmd_buf to NULL so the writes pass-through, but leave the
-	 * dangling refcount to be removed later by the corresponding
-	 * intel_dsb_put(): the important error message will already be
-	 * logged above.
+	 * On error dsb->cmd_buf will continue to be NULL, making the writes
+	 * pass-through. Leave the dangling ref to be removed later by the
+	 * corresponding intel_dsb_put(): the important error message will
+	 * already be logged above.
 	 */
-	dsb->cmd_buf = NULL;
+
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 	return dsb;
