@@ -57,6 +57,11 @@ bool unwind_next_frame(struct unwind_state *state)
 		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
 		reliable = false;
 		regs = NULL;
+		if (!__kernel_text_address(ip)) {
+			/* skip bogus %r14 */
+			state->regs = NULL;
+			return unwind_next_frame(state);
+		}
 	} else {
 		sf = (struct stack_frame *) state->sp;
 		sp = READ_ONCE_NOCHECK(sf->back_chain);
