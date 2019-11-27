@@ -736,6 +736,7 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 
 			list_del(pos);
 			kfree(entry);
+			break;
 		}
 
 		/* Next ts */
