@@ -1344,15 +1344,22 @@ static int ath11k_dp_rx_msdu_coalesce(struct ath11k *ar,
 {
 	struct sk_buff *skb;
 	struct ath11k_skb_rxcb *rxcb = ATH11K_SKB_RXCB(first);
+	int buf_first_hdr_len, buf_first_len;
 	struct hal_rx_desc *ldesc;
 	int space_extra;
 	int rem_len;
 	int buf_len;
 
-	if (WARN_ON_ONCE(msdu_len <= (DP_RX_BUFFER_SIZE -
-			 (HAL_RX_DESC_SIZE + l3pad_bytes)))) {
-		skb_put(first, HAL_RX_DESC_SIZE + l3pad_bytes + msdu_len);
-		skb_pull(first, HAL_RX_DESC_SIZE + l3pad_bytes);
+	/* As the msdu is spread across multiple rx buffers,
+	 * find the offset to the start of msdu for computing
+	 * the length of the msdu in the first buffer.
+	 */
+	buf_first_hdr_len = HAL_RX_DESC_SIZE + l3pad_bytes;
+	buf_first_len = DP_RX_BUFFER_SIZE - buf_first_hdr_len;
+
+	if (WARN_ON_ONCE(msdu_len <= buf_first_len)) {
+		skb_put(first, buf_first_hdr_len + msdu_len);
+		skb_pull(first, buf_first_hdr_len);
 		return 0;
 	}
 
@@ -1365,9 +1372,9 @@ static int ath11k_dp_rx_msdu_coalesce(struct ath11k *ar,
 	 * in the first buf is of length DP_RX_BUFFER_SIZE - HAL_RX_DESC_SIZE.
 	 */
 	skb_put(first, DP_RX_BUFFER_SIZE);
-	skb_pull(first, HAL_RX_DESC_SIZE + l3pad_bytes);
+	skb_pull(first, buf_first_hdr_len);
 
-	space_extra = msdu_len - (DP_RX_BUFFER_SIZE + skb_tailroom(first));
+	space_extra = msdu_len - (buf_first_len + skb_tailroom(first));
 	if (space_extra > 0 &&
 	    (pskb_expand_head(first, 0, space_extra, GFP_ATOMIC) < 0)) {
 		/* Free up all buffers of the MSDU */
@@ -1387,8 +1394,7 @@ static int ath11k_dp_rx_msdu_coalesce(struct ath11k *ar,
 	 */
 	ath11k_dp_rx_desc_end_tlv_copy(rxcb->rx_desc, ldesc);
 
-	rem_len = msdu_len -
-		  (DP_RX_BUFFER_SIZE - HAL_RX_DESC_SIZE - l3pad_bytes);
+	rem_len = msdu_len - buf_first_len;
 	while ((skb = __skb_dequeue(msdu_list)) != NULL && rem_len > 0) {
 		rxcb = ATH11K_SKB_RXCB(skb);
 		if (rxcb->is_continuation)
