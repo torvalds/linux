@@ -178,8 +178,9 @@ int ql_wait_reg_rdy(struct ql_adapter *qdev, u32 reg, u32 bit, u32 err_bit)
 				    "register 0x%.08x access error, value = 0x%.08x!.\n",
 				    reg, temp);
 			return -EIO;
-		} else if (temp & bit)
+		} else if (temp & bit) {
 			return 0;
+		}
 		udelay(UDELAY_DELAY);
 	}
 	netif_alert(qdev, probe, qdev->ndev,
@@ -3731,8 +3732,9 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 
 		/* Wait for the NIC and MGMNT FIFOs to empty. */
 		ql_wait_fifo_empty(qdev);
-	} else
+	} else {
 		clear_bit(QL_ASIC_RECOVERY, &qdev->flags);
+	}
 
 	ql_write32(qdev, RST_FO, (RST_FO_FR << 16) | RST_FO_FR);
 
