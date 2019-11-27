@@ -1151,12 +1151,11 @@ static int smu10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 	struct smu10_hwmgr *data = hwmgr->backend;
 	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_ranges;
 	Watermarks_t *table = &(data->water_marks_table);
-	int result = 0;
 
 	smu_set_watermarks_for_clocks_ranges(table,wm_with_clock_ranges);
 	smum_smc_table_manager(hwmgr, (uint8_t *)table, (uint16_t)SMU10_WMTABLE, false);
 	data->water_marks_exist = true;
-	return result;
+	return 0;
 }
 
 static int smu10_smus_notify_pwe(struct pp_hwmgr *hwmgr)
