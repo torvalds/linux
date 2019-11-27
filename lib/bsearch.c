@@ -29,7 +29,7 @@
  * the same comparison function for both sort() and bsearch().
  */
 void *bsearch(const void *key, const void *base, size_t num, size_t size,
-	      int (*cmp)(const void *key, const void *elt))
+	      cmp_func_t cmp)
 {
 	const char *pivot;
 	int result;

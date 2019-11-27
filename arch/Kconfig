@@ -939,6 +939,14 @@ config RELR
 config ARCH_HAS_MEM_ENCRYPT
 	bool
 
+config HAVE_SPARSE_SYSCALL_NR
+       bool
+       help
+          An architecture should select this if its syscall numbering is sparse
+	  to save space. For example, MIPS architecture has a syscall array with
+	  entries at 4000, 5000 and 6000 locations. This option turns on syscall
+	  related optimizations for a given architecture.
+
 source "kernel/gcov/Kconfig"
 
 source "scripts/gcc-plugins/Kconfig"

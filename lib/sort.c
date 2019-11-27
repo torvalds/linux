@@ -117,8 +117,6 @@ static void swap_bytes(void *a, void *b, size_t n)
 	} while (n);
 }
 
-typedef void (*swap_func_t)(void *a, void *b, int size);
-
 /*
  * The values are arbitrary as long as they can't be confused with
  * a pointer, but small integers make for the smallest compare
@@ -144,12 +142,9 @@ static void do_swap(void *a, void *b, size_t size, swap_func_t swap_func)
 		swap_func(a, b, (int)size);
 }
 
-typedef int (*cmp_func_t)(const void *, const void *);
-typedef int (*cmp_r_func_t)(const void *, const void *, const void *);
 #define _CMP_WRAPPER ((cmp_r_func_t)0L)
 
-static int do_cmp(const void *a, const void *b,
-		  cmp_r_func_t cmp, const void *priv)
+static int do_cmp(const void *a, const void *b, cmp_r_func_t cmp, const void *priv)
 {
 	if (cmp == _CMP_WRAPPER)
 		return ((cmp_func_t)(priv))(a, b);
@@ -202,8 +197,8 @@ static size_t parent(size_t i, unsigned int lsbit, size_t size)
  * it less suitable for kernel use.
  */
 void sort_r(void *base, size_t num, size_t size,
-	    int (*cmp_func)(const void *, const void *, const void *),
-	    void (*swap_func)(void *, void *, int size),
+	    cmp_r_func_t cmp_func,
+	    swap_func_t swap_func,
 	    const void *priv)
 {
 	/* pre-scale counters for performance */
@@ -269,8 +264,8 @@ void sort_r(void *base, size_t num, size_t size,
 EXPORT_SYMBOL(sort_r);
 
 void sort(void *base, size_t num, size_t size,
-	  int (*cmp_func)(const void *, const void *),
-	  void (*swap_func)(void *, void *, int size))
+	  cmp_func_t cmp_func,
+	  swap_func_t swap_func)
 {
 	return sort_r(base, num, size, _CMP_WRAPPER, swap_func, cmp_func);
 }
