@@ -2096,7 +2096,7 @@ END:
 static u8 w83793_read_value(struct i2c_client *client, u16 reg)
 {
 	struct w83793_data *data = i2c_get_clientdata(client);
-	u8 res = 0xff;
+	u8 res;
 	u8 new_bank = reg >> 8;
 
 	new_bank |= data->bank & 0xfc;

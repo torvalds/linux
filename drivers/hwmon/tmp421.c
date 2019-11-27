@@ -127,7 +127,8 @@ static struct tmp421_data *tmp421_update_device(struct device *dev)
 
 	mutex_lock(&data->update_lock);
 
-	if (time_after(jiffies, data->last_updated + 2 * HZ) || !data->valid) {
+	if (time_after(jiffies, data->last_updated + (HZ / 2)) ||
+	    !data->valid) {
 		data->config = i2c_smbus_read_byte_data(client,
 			TMP421_CONFIG_REG_1);
 

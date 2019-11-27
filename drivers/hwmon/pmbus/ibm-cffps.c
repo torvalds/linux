@@ -3,6 +3,7 @@
  * Copyright 2017 IBM Corp.
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
@@ -29,6 +30,10 @@
 #define CFFPS_INPUT_HISTORY_CMD			0xD6
 #define CFFPS_INPUT_HISTORY_SIZE		100
 
+#define CFFPS_CCIN_VERSION			GENMASK(15, 8)
+#define CFFPS_CCIN_VERSION_1			 0x2b
+#define CFFPS_CCIN_VERSION_2			 0x2e
+
 /* STATUS_MFR_SPECIFIC bits */
 #define CFFPS_MFR_FAN_FAULT			BIT(0)
 #define CFFPS_MFR_THERMAL_FAULT			BIT(1)
@@ -39,9 +44,13 @@
 #define CFFPS_MFR_VAUX_FAULT			BIT(6)
 #define CFFPS_MFR_CURRENT_SHARE_WARNING		BIT(7)
 
+/*
+ * LED off state actually relinquishes LED control to PSU firmware, so it can
+ * turn on the LED for faults.
+ */
+#define CFFPS_LED_OFF				0
 #define CFFPS_LED_BLINK				BIT(0)
 #define CFFPS_LED_ON				BIT(1)
-#define CFFPS_LED_OFF				BIT(2)
 #define CFFPS_BLINK_RATE_MS			250
 
 enum {
@@ -54,7 +63,7 @@ enum {
 	CFFPS_DEBUGFS_NUM_ENTRIES
 };
 
-enum versions { cffps1, cffps2 };
+enum versions { cffps1, cffps2, cffps_unknown };
 
 struct ibm_cffps_input_history {
 	struct mutex update_lock;
@@ -292,28 +301,38 @@ static int ibm_cffps_read_word_data(struct i2c_client *client, int page,
 	return rc;
 }
 
-static void ibm_cffps_led_brightness_set(struct led_classdev *led_cdev,
-					 enum led_brightness brightness)
+static int ibm_cffps_led_brightness_set(struct led_classdev *led_cdev,
+					enum led_brightness brightness)
 {
 	int rc;
+	u8 next_led_state;
 	struct ibm_cffps *psu = container_of(led_cdev, struct ibm_cffps, led);
 
 	if (brightness == LED_OFF) {
-		psu->led_state = CFFPS_LED_OFF;
+		next_led_state = CFFPS_LED_OFF;
 	} else {
 		brightness = LED_FULL;
+
 		if (psu->led_state != CFFPS_LED_BLINK)
-			psu->led_state = CFFPS_LED_ON;
+			next_led_state = CFFPS_LED_ON;
+		else
+			next_led_state = CFFPS_LED_BLINK;
 	}
+
+	dev_dbg(&psu->client->dev, "LED brightness set: %d. Command: %d.\n",
+		brightness, next_led_state);
 
 	pmbus_set_page(psu->client, 0);
 
 	rc = i2c_smbus_write_byte_data(psu->client, CFFPS_SYS_CONFIG_CMD,
-				       psu->led_state);
+				       next_led_state);
 	if (rc < 0)
-		return;
+		return rc;
 
+	psu->led_state = next_led_state;
 	led_cdev->brightness = brightness;
+
+	return 0;
 }
 
 static int ibm_cffps_led_blink_set(struct led_classdev *led_cdev,
@@ -323,10 +342,7 @@ static int ibm_cffps_led_blink_set(struct led_classdev *led_cdev,
 	int rc;
 	struct ibm_cffps *psu = container_of(led_cdev, struct ibm_cffps, led);
 
-	psu->led_state = CFFPS_LED_BLINK;
-
-	if (led_cdev->brightness == LED_OFF)
-		return 0;
+	dev_dbg(&psu->client->dev, "LED blink set.\n");
 
 	pmbus_set_page(psu->client, 0);
 
@@ -335,6 +351,8 @@ static int ibm_cffps_led_blink_set(struct led_classdev *led_cdev,
 	if (rc < 0)
 		return rc;
 
+	psu->led_state = CFFPS_LED_BLINK;
+	led_cdev->brightness = LED_FULL;
 	*delay_on = CFFPS_BLINK_RATE_MS;
 	*delay_off = CFFPS_BLINK_RATE_MS;
 
@@ -351,7 +369,7 @@ static void ibm_cffps_create_led_class(struct ibm_cffps *psu)
 		 client->addr);
 	psu->led.name = psu->led_name;
 	psu->led.max_brightness = LED_FULL;
-	psu->led.brightness_set = ibm_cffps_led_brightness_set;
+	psu->led.brightness_set_blocking = ibm_cffps_led_brightness_set;
 	psu->led.blink_set = ibm_cffps_led_blink_set;
 
 	rc = devm_led_classdev_register(dev, &psu->led);
@@ -395,7 +413,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
 	int i, rc;
-	enum versions vs;
+	enum versions vs = cffps_unknown;
 	struct dentry *debugfs;
 	struct dentry *ibm_cffps_dir;
 	struct ibm_cffps *psu;
@@ -405,8 +423,27 @@ static int ibm_cffps_probe(struct i2c_client *client,
 		vs = (enum versions)md;
 	else if (id)
 		vs = (enum versions)id->driver_data;
-	else
-		vs = cffps1;
+
+	if (vs == cffps_unknown) {
+		u16 ccin_version = CFFPS_CCIN_VERSION_1;
+		int ccin = i2c_smbus_read_word_swapped(client, CFFPS_CCIN_CMD);
+
+		if (ccin > 0)
+			ccin_version = FIELD_GET(CFFPS_CCIN_VERSION, ccin);
+
+		switch (ccin_version) {
+		default:
+		case CFFPS_CCIN_VERSION_1:
+			vs = cffps1;
+			break;
+		case CFFPS_CCIN_VERSION_2:
+			vs = cffps2;
+			break;
+		}
+
+		/* Set the client name to include the version number. */
+		snprintf(client->name, I2C_NAME_SIZE, "cffps%d", vs + 1);
+	}
 
 	client->dev.platform_data = &ibm_cffps_pdata;
 	rc = pmbus_do_probe(client, id, &ibm_cffps_info[vs]);
@@ -465,6 +502,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 static const struct i2c_device_id ibm_cffps_id[] = {
 	{ "ibm_cffps1", cffps1 },
 	{ "ibm_cffps2", cffps2 },
+	{ "ibm_cffps", cffps_unknown },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ibm_cffps_id);
@@ -477,6 +515,10 @@ static const struct of_device_id ibm_cffps_of_match[] = {
 	{
 		.compatible = "ibm,cffps2",
 		.data = (void *)cffps2
+	},
+	{
+		.compatible = "ibm,cffps",
+		.data = (void *)cffps_unknown
 	},
 	{}
 };
