@@ -387,7 +387,6 @@ struct snd_sof_dev {
 	u32 dtrace_draining;
 
 	bool msi_enabled;
-	u32 irq_event;
 
 	void *private;			/* core does not touch this */
 };

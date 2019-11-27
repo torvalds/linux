@@ -563,10 +563,8 @@ bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 	dev_vdbg(bus->dev, "stream irq, INTSTS status: 0x%x\n", status);
 
 	/* if Register inaccessible, ignore it.*/
-	if (status != 0xffffffff) {
-		sdev->irq_event |= SOF_HDA_IRQ_STREAM;
+	if (status != 0xffffffff)
 		ret = true;
-	}
 
 	spin_unlock_irq(&bus->reg_lock);
 

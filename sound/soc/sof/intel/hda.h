@@ -43,10 +43,13 @@
 /* SOF_HDA_GCTL register bist */
 #define SOF_HDA_GCTL_RESET		BIT(0)
 
-/* SOF_HDA_INCTL and SOF_HDA_INTSTS regs */
+/* SOF_HDA_INCTL regs */
 #define SOF_HDA_INT_GLOBAL_EN		BIT(31)
 #define SOF_HDA_INT_CTRL_EN		BIT(30)
 #define SOF_HDA_INT_ALL_STREAM		0xff
+
+/* SOF_HDA_INTSTS regs */
+#define SOF_HDA_INTSTS_GIS		BIT(31)
 
 #define SOF_HDA_MAX_CAPS		10
 #define SOF_HDA_CAP_ID_OFF		16
@@ -388,11 +391,6 @@ struct sof_intel_dsp_bdl {
 #define SOF_HDA_CAPTURE_STREAMS		16
 #define SOF_HDA_PLAYBACK		0
 #define SOF_HDA_CAPTURE			1
-
-/* flags to memorize IPC source (not hardware-defined) */
-#define SOF_HDA_IRQ_IPC		BIT(0)
-#define SOF_HDA_IRQ_STREAM	BIT(1)
-#define SOF_HDA_IRQ_SDW		BIT(2)
 
 /* represents DSP HDA controller frontend - i.e. host facing control */
 struct sof_intel_hda_dev {

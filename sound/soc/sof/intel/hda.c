@@ -406,11 +406,12 @@ static irqreturn_t hda_dsp_interrupt_handler(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 
-	/* clear flags for interrupt sources */
-	sdev->irq_event = 0;
-
-	if (hda_dsp_check_stream_irq(sdev) ||
-	    hda_dsp_check_ipc_irq(sdev)) {
+	/*
+	 * Get global interrupt status. It includes all hardware interrupt
+	 * sources in the Intel HD Audio controller.
+	 */
+	if (snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTSTS) &
+	    SOF_HDA_INTSTS_GIS) {
 
 		/* disable GIE interrupt */
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
@@ -429,12 +430,10 @@ static irqreturn_t hda_dsp_interrupt_thread(int irq, void *context)
 	struct snd_sof_dev *sdev = context;
 
 	/* deal with streams and controller first */
-	if (sdev->irq_event & SOF_HDA_IRQ_STREAM ||
-	    hda_dsp_check_stream_irq(sdev))
+	if (hda_dsp_check_stream_irq(sdev))
 		hda_dsp_stream_threaded_handler(irq, sdev);
 
-	if (sdev->irq_event & SOF_HDA_IRQ_IPC ||
-	    hda_dsp_check_ipc_irq(sdev))
+	if (hda_dsp_check_ipc_irq(sdev))
 		sof_ops(sdev)->irq_thread(irq, sdev);
 
 	/* enable GIE interrupt */

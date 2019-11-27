@@ -251,10 +251,8 @@ bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 		goto out;
 
 	/* IPC message ? */
-	if (irq_status & HDA_DSP_ADSPIS_IPC) {
-		sdev->irq_event |= SOF_HDA_IRQ_IPC;
+	if (irq_status & HDA_DSP_ADSPIS_IPC)
 		ret = true;
-	}
 
 out:
 	spin_unlock_irq(&sdev->hw_lock);
