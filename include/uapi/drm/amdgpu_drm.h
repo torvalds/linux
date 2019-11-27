@@ -205,9 +205,6 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_OP_QUERY_STATE	3
 #define AMDGPU_CTX_OP_QUERY_STATE2	4
 
-/* Flag the command submission as secure */
-#define AMDGPU_CS_FLAGS_SECURE          (1 << 0)
-
 /* GPU reset status */
 #define AMDGPU_CTX_NO_RESET		0
 /* this the context caused it */
@@ -560,6 +557,9 @@ struct drm_amdgpu_cs_chunk {
 	__u32		length_dw;
 	__u64		chunk_data;
 };
+
+/* Flag the command submission as secure */
+#define AMDGPU_CS_FLAGS_SECURE          (1 << 0)
 
 struct drm_amdgpu_cs_in {
 	/** Rendering context id */
