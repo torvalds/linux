@@ -2124,7 +2124,6 @@ int ath11k_dp_process_rx(struct ath11k_base *ab, int mac_id,
 	struct ieee80211_rx_status *rx_status = &dp->rx_status;
 	struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
 	struct hal_srng *srng;
-	struct hal_rx_meta_info meta_info;
 	struct sk_buff *msdu;
 	struct sk_buff_head msdu_list;
 	struct sk_buff_head amsdu_list;
@@ -2160,11 +2159,14 @@ int ath11k_dp_process_rx(struct ath11k_base *ab, int mac_id,
 
 try_again:
 	while ((rx_desc = ath11k_hal_srng_dst_get_next_entry(ab, srng))) {
-		memset(&meta_info, 0, sizeof(meta_info));
-		ath11k_hal_rx_parse_dst_ring_desc(ab, rx_desc, &meta_info);
+		struct hal_reo_dest_ring *desc = (struct hal_reo_dest_ring *)rx_desc;
+		enum hal_reo_dest_ring_push_reason push_reason;
+		u32 cookie;
 
+		cookie = FIELD_GET(BUFFER_ADDR_INFO1_SW_COOKIE,
+				   desc->buf_addr_info.info1);
 		buf_id = FIELD_GET(DP_RXDMA_BUF_COOKIE_BUF_ID,
-				   meta_info.msdu_meta.cookie);
+				   cookie);
 		spin_lock_bh(&rx_ring->idr_lock);
 		msdu = idr_find(&rx_ring->bufs_idr, buf_id);
 		if (!msdu) {
@@ -2184,7 +2186,9 @@ try_again:
 
 		num_buffs_reaped++;
 
-		if (meta_info.push_reason !=
+		push_reason = FIELD_GET(HAL_REO_DEST_RING_INFO0_PUSH_REASON,
+					desc->info0);
+		if (push_reason !=
 		    HAL_REO_DEST_RING_PUSH_REASON_ROUTING_INSTRUCTION) {
 			/* TODO: Check if the msdu can be sent up for processing */
 			dev_kfree_skb_any(msdu);
@@ -2192,9 +2196,12 @@ try_again:
 			continue;
 		}
 
-		rxcb->is_first_msdu = meta_info.msdu_meta.first;
-		rxcb->is_last_msdu = meta_info.msdu_meta.last;
-		rxcb->is_continuation = meta_info.msdu_meta.continuation;
+		rxcb->is_first_msdu = !!(desc->rx_msdu_info.info0 &
+					 RX_MSDU_DESC_INFO0_FIRST_MSDU_IN_MPDU);
+		rxcb->is_last_msdu = !!(desc->rx_msdu_info.info0 &
+					RX_MSDU_DESC_INFO0_LAST_MSDU_IN_MPDU);
+		rxcb->is_continuation = !!(desc->rx_msdu_info.info0 &
+					   RX_MSDU_DESC_INFO0_MSDU_CONTINUATION);
 		rxcb->mac_id = mac_id;
 		__skb_queue_tail(&msdu_list, msdu);
 
@@ -2770,12 +2777,11 @@ exit:
 int ath11k_dp_process_rx_err(struct ath11k_base *ab, struct napi_struct *napi,
 			     int budget)
 {
-	struct hal_rx_msdu_meta meta[HAL_NUM_RX_MSDUS_PER_LINK_DESC];
+	u32 msdu_cookies[HAL_NUM_RX_MSDUS_PER_LINK_DESC];
 	struct dp_link_desc_bank *link_desc_banks;
 	enum hal_rx_buf_return_buf_manager rbm;
 	int tot_n_bufs_reaped, quota, ret, i;
 	int n_bufs_reaped[MAX_RADIOS] = {0};
-	struct hal_rx_meta_info meta_info;
 	struct dp_rxdma_ring *rx_ring;
 	struct dp_srng *reo_except;
 	u32 desc_bank, num_msdus;
@@ -2803,6 +2809,8 @@ int ath11k_dp_process_rx_err(struct ath11k_base *ab, struct napi_struct *napi,
 
 	while (budget &&
 	       (desc = ath11k_hal_srng_dst_get_next_entry(ab, srng))) {
+		struct hal_reo_dest_ring *reo_desc = (struct hal_reo_dest_ring *)desc;
+
 		ab->soc_stats.err_ring_pkts++;
 		ret = ath11k_hal_desc_reo_parse_err(ab, desc, &paddr,
 						    &desc_bank);
@@ -2813,7 +2821,7 @@ int ath11k_dp_process_rx_err(struct ath11k_base *ab, struct napi_struct *napi,
 		}
 		link_desc_va = link_desc_banks[desc_bank].vaddr +
 			       (paddr - link_desc_banks[desc_bank].paddr);
-		ath11k_hal_rx_msdu_link_info_get(link_desc_va, &num_msdus, meta,
+		ath11k_hal_rx_msdu_link_info_get(link_desc_va, &num_msdus, msdu_cookies,
 						 &rbm);
 		if (rbm != HAL_RX_BUF_RBM_WBM_IDLE_DESC_LIST &&
 		    rbm != HAL_RX_BUF_RBM_SW3_BM) {
@@ -2824,10 +2832,7 @@ int ath11k_dp_process_rx_err(struct ath11k_base *ab, struct napi_struct *napi,
 			continue;
 		}
 
-		memset(&meta_info, 0, sizeof(meta_info));
-		ath11k_hal_rx_parse_dst_ring_desc(ab, desc, &meta_info);
-
-		is_frag = meta_info.mpdu_meta.frag;
+		is_frag = !!(reo_desc->rx_mpdu_info.info0 & RX_MPDU_DESC_INFO0_FRAG_FLAG);
 
 		/* Return the link desc back to wbm idle list */
 		ath11k_dp_rx_link_desc_return(ab, desc,
@@ -2835,10 +2840,10 @@ int ath11k_dp_process_rx_err(struct ath11k_base *ab, struct napi_struct *napi,
 
 		for (i = 0; i < num_msdus; i++) {
 			buf_id = FIELD_GET(DP_RXDMA_BUF_COOKIE_BUF_ID,
-					   meta[i].cookie);
+					   msdu_cookies[i]);
 
 			mac_id = FIELD_GET(DP_RXDMA_BUF_COOKIE_PDEV_ID,
-					   meta[i].cookie);
+					   msdu_cookies[i]);
 
 			ar = ab->pdevs[mac_id].ar;
 
@@ -3192,7 +3197,7 @@ int ath11k_dp_process_rxdma_err(struct ath11k_base *ab, int mac_id, int budget)
 	struct dp_rxdma_ring *rx_ring = &ar->dp.rx_refill_buf_ring;
 	struct dp_link_desc_bank *link_desc_banks = ab->dp.link_desc_banks;
 	struct hal_srng *srng;
-	struct hal_rx_msdu_meta meta[HAL_NUM_RX_MSDUS_PER_LINK_DESC];
+	u32 msdu_cookies[HAL_NUM_RX_MSDUS_PER_LINK_DESC];
 	enum hal_rx_buf_return_buf_manager rbm;
 	enum hal_reo_entr_rxdma_ecode rxdma_err_code;
 	struct ath11k_skb_rxcb *rxcb;
@@ -3226,12 +3231,12 @@ int ath11k_dp_process_rxdma_err(struct ath11k_base *ab, int mac_id, int budget)
 
 		link_desc_va = link_desc_banks[desc_bank].vaddr +
 			       (paddr - link_desc_banks[desc_bank].paddr);
-		ath11k_hal_rx_msdu_link_info_get(link_desc_va, &num_msdus, meta,
-						 &rbm);
+		ath11k_hal_rx_msdu_link_info_get(link_desc_va, &num_msdus,
+						 msdu_cookies, &rbm);
 
 		for (i = 0; i < num_msdus; i++) {
 			buf_id = FIELD_GET(DP_RXDMA_BUF_COOKIE_BUF_ID,
-					   meta[i].cookie);
+					   msdu_cookies[i]);
 
 			spin_lock_bh(&rx_ring->idr_lock);
 			skb = idr_find(&rx_ring->bufs_idr, buf_id);

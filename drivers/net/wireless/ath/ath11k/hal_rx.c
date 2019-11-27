@@ -290,7 +290,7 @@ void ath11k_hal_rx_buf_addr_info_get(void *desc, dma_addr_t *paddr,
 }
 
 void ath11k_hal_rx_msdu_link_info_get(void *link_desc, u32 *num_msdus,
-				      struct hal_rx_msdu_meta *meta,
+				      u32 *msdu_cookies,
 				      enum hal_rx_buf_return_buf_manager *rbm)
 {
 	struct hal_rx_msdu_link *link = (struct hal_rx_msdu_link *)link_desc;
@@ -311,17 +311,9 @@ void ath11k_hal_rx_msdu_link_info_get(void *link_desc, u32 *num_msdus,
 			*num_msdus = i;
 			break;
 		}
-		meta->msdu_len = FIELD_GET(RX_MSDU_DESC_INFO0_MSDU_LENGTH,
-					   msdu->rx_msdu_info.info0);
-		meta->first = !!(msdu->rx_msdu_info.info0 &
-				 RX_MSDU_DESC_INFO0_FIRST_MSDU_IN_MPDU);
-		meta->last = !!(msdu->rx_msdu_info.info0 &
-				RX_MSDU_DESC_INFO0_LAST_MSDU_IN_MPDU);
-		meta->continuation = !!(msdu->rx_msdu_info.info0 &
-					RX_MSDU_DESC_INFO0_MSDU_CONTINUATION);
-		meta->cookie = FIELD_GET(BUFFER_ADDR_INFO1_SW_COOKIE,
-					 msdu->buf_addr_info.info1);
-		meta++;
+		*msdu_cookies = FIELD_GET(BUFFER_ADDR_INFO1_SW_COOKIE,
+					  msdu->buf_addr_info.info1);
+		msdu_cookies++;
 	}
 }
 
@@ -354,39 +346,6 @@ int ath11k_hal_desc_reo_parse_err(struct ath11k_base *ab, u32 *rx_desc,
 	ath11k_hal_rx_reo_ent_paddr_get(ab, rx_desc, paddr, desc_bank);
 
 	return 0;
-}
-
-void ath11k_hal_rx_parse_dst_ring_desc(struct ath11k_base *ab, u32 *rx_desc,
-				       struct hal_rx_meta_info *meta_info)
-{
-	struct hal_reo_dest_ring *desc = (struct hal_reo_dest_ring *)rx_desc;
-	struct rx_mpdu_desc *mpdu = &desc->rx_mpdu_info;
-	struct rx_msdu_desc *msdu = &desc->rx_msdu_info;
-	struct hal_rx_mpdu_meta *meta_mpdu = &meta_info->mpdu_meta;
-	struct hal_rx_msdu_meta *meta_msdu = &meta_info->msdu_meta;
-
-	meta_info->push_reason = FIELD_GET(HAL_REO_DEST_RING_INFO0_PUSH_REASON,
-					   desc->info0);
-
-	meta_mpdu->msdu_cnt = FIELD_GET(RX_MPDU_DESC_INFO0_MSDU_COUNT,
-					mpdu->info0);
-	meta_mpdu->seq_num = FIELD_GET(RX_MPDU_DESC_INFO0_SEQ_NUM, mpdu->info0);
-	meta_mpdu->frag = !!(mpdu->info0 & RX_MPDU_DESC_INFO0_FRAG_FLAG);
-	meta_mpdu->retry = !!(mpdu->info0 & RX_MPDU_DESC_INFO0_MPDU_RETRY);
-	meta_mpdu->ampdu = !!(mpdu->info0 & RX_MPDU_DESC_INFO0_AMPDU_FLAG);
-	meta_mpdu->raw = !!(mpdu->info0 & RX_MPDU_DESC_INFO0_RAW_MPDU);
-	meta_mpdu->peer_meta = mpdu->meta_data;
-
-	meta_msdu->cookie = FIELD_GET(BUFFER_ADDR_INFO1_SW_COOKIE,
-				      desc->buf_addr_info.info1);
-	meta_msdu->msdu_len = FIELD_GET(RX_MSDU_DESC_INFO0_MSDU_LENGTH,
-					msdu->info0);
-	meta_msdu->first =
-		!!(msdu->info0 & RX_MSDU_DESC_INFO0_FIRST_MSDU_IN_MPDU);
-	meta_msdu->last =
-		!!(msdu->info0 & RX_MSDU_DESC_INFO0_LAST_MSDU_IN_MPDU);
-	meta_msdu->continuation =
-		!!(msdu->info0 & RX_MSDU_DESC_INFO0_MSDU_CONTINUATION);
 }
 
 int ath11k_hal_wbm_desc_parse_err(struct ath11k_base *ab, void *desc,
