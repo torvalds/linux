@@ -583,18 +583,10 @@ int ocelot_port_add_txtstamp_skb(struct ocelot_port *ocelot_port,
 
 	if (ocelot->ptp && shinfo->tx_flags & SKBTX_HW_TSTAMP &&
 	    ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
-		struct ocelot_skb *oskb =
-			kzalloc(sizeof(struct ocelot_skb), GFP_ATOMIC);
-
-		if (unlikely(!oskb))
-			return -ENOMEM;
-
 		shinfo->tx_flags |= SKBTX_IN_PROGRESS;
-
-		oskb->skb = skb;
-		oskb->id = ocelot_port->ts_id % 4;
-
-		list_add_tail(&oskb->head, &ocelot_port->skbs);
+		/* Store timestamp ID in cb[0] of sk_buff */
+		skb->cb[0] = ocelot_port->ts_id % 4;
+		skb_queue_tail(&ocelot_port->tx_skbs, skb);
 		return 0;
 	}
 	return -ENODATA;
@@ -704,12 +696,11 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 	int budget = OCELOT_PTP_QUEUE_SZ;
 
 	while (budget--) {
+		struct sk_buff *skb, *skb_tmp, *skb_match = NULL;
 		struct skb_shared_hwtstamps shhwtstamps;
-		struct list_head *pos, *tmp;
-		struct sk_buff *skb = NULL;
-		struct ocelot_skb *entry;
 		struct ocelot_port *port;
 		struct timespec64 ts;
+		unsigned long flags;
 		u32 val, id, txport;
 
 		val = ocelot_read(ocelot, SYS_PTP_STATUS);
@@ -727,22 +718,22 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 		/* Retrieve its associated skb */
 		port = ocelot->ports[txport];
 
-		list_for_each_safe(pos, tmp, &port->skbs) {
-			entry = list_entry(pos, struct ocelot_skb, head);
-			if (entry->id != id)
+		spin_lock_irqsave(&port->tx_skbs.lock, flags);
+
+		skb_queue_walk_safe(&port->tx_skbs, skb, skb_tmp) {
+			if (skb->cb[0] != id)
 				continue;
-
-			skb = entry->skb;
-
-			list_del(pos);
-			kfree(entry);
+			__skb_unlink(skb, &port->tx_skbs);
+			skb_match = skb;
 			break;
 		}
+
+		spin_unlock_irqrestore(&port->tx_skbs.lock, flags);
 
 		/* Next ts */
 		ocelot_write(ocelot, SYS_PTP_NXT_PTP_NXT, SYS_PTP_NXT);
 
-		if (unlikely(!skb))
+		if (unlikely(!skb_match))
 			continue;
 
 		/* Get the h/w timestamp */
@@ -751,9 +742,9 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 		/* Set the timestamp into the skb */
 		memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 		shhwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
-		skb_tstamp_tx(skb, &shhwtstamps);
+		skb_tstamp_tx(skb_match, &shhwtstamps);
 
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb_any(skb_match);
 	}
 }
 EXPORT_SYMBOL(ocelot_get_txtstamp);
@@ -2206,7 +2197,7 @@ void ocelot_init_port(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
-	INIT_LIST_HEAD(&ocelot_port->skbs);
+	skb_queue_head_init(&ocelot_port->tx_skbs);
 
 	/* Basic L2 initialization */
 
@@ -2491,9 +2482,7 @@ EXPORT_SYMBOL(ocelot_init);
 
 void ocelot_deinit(struct ocelot *ocelot)
 {
-	struct list_head *pos, *tmp;
 	struct ocelot_port *port;
-	struct ocelot_skb *entry;
 	int i;
 
 	cancel_delayed_work(&ocelot->stats_work);
@@ -2503,14 +2492,7 @@ void ocelot_deinit(struct ocelot *ocelot)
 
 	for (i = 0; i < ocelot->num_phys_ports; i++) {
 		port = ocelot->ports[i];
-
-		list_for_each_safe(pos, tmp, &port->skbs) {
-			entry = list_entry(pos, struct ocelot_skb, head);
-
-			list_del(pos);
-			dev_kfree_skb_any(entry->skb);
-			kfree(entry);
-		}
+		skb_queue_purge(&port->tx_skbs);
 	}
 }
 EXPORT_SYMBOL(ocelot_deinit);
