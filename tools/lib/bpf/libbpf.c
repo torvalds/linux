@@ -171,10 +171,8 @@ struct bpf_program {
 			RELO_DATA,
 		} type;
 		int insn_idx;
-		union {
-			int map_idx;
-			int text_off;
-		};
+		int map_idx;
+		int sym_off;
 	} *reloc_desc;
 	int nr_reloc;
 	int log_level;
@@ -1824,7 +1822,7 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		}
 		reloc_desc->type = RELO_CALL;
 		reloc_desc->insn_idx = insn_idx;
-		reloc_desc->text_off = sym->st_value / 8;
+		reloc_desc->sym_off = sym->st_value;
 		obj->has_pseudo_calls = true;
 		return 0;
 	}
@@ -1868,6 +1866,7 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		reloc_desc->type = RELO_LD64;
 		reloc_desc->insn_idx = insn_idx;
 		reloc_desc->map_idx = map_idx;
+		reloc_desc->sym_off = 0; /* sym->st_value determines map_idx */
 		return 0;
 	}
 
@@ -1899,6 +1898,7 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 	reloc_desc->type = RELO_DATA;
 	reloc_desc->insn_idx = insn_idx;
 	reloc_desc->map_idx = map_idx;
+	reloc_desc->sym_off = sym->st_value;
 	return 0;
 }
 
@@ -3563,8 +3563,8 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 		return -LIBBPF_ERRNO__RELOC;
 
 	if (prog->idx == obj->efile.text_shndx) {
-		pr_warn("relo in .text insn %d into off %d\n",
-			relo->insn_idx, relo->text_off);
+		pr_warn("relo in .text insn %d into off %d (insn #%d)\n",
+			relo->insn_idx, relo->sym_off, relo->sym_off / 8);
 		return -LIBBPF_ERRNO__RELOC;
 	}
 
@@ -3599,7 +3599,7 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 			 prog->section_name);
 	}
 	insn = &prog->insns[relo->insn_idx];
-	insn->imm += relo->text_off + prog->main_prog_cnt - relo->insn_idx;
+	insn->imm += relo->sym_off / 8 + prog->main_prog_cnt - relo->insn_idx;
 	return 0;
 }
 
@@ -3622,31 +3622,26 @@ bpf_program__relocate(struct bpf_program *prog, struct bpf_object *obj)
 		return 0;
 
 	for (i = 0; i < prog->nr_reloc; i++) {
-		if (prog->reloc_desc[i].type == RELO_LD64 ||
-		    prog->reloc_desc[i].type == RELO_DATA) {
-			bool relo_data = prog->reloc_desc[i].type == RELO_DATA;
-			struct bpf_insn *insns = prog->insns;
-			int insn_idx, map_idx;
+		struct reloc_desc *relo = &prog->reloc_desc[i];
 
-			insn_idx = prog->reloc_desc[i].insn_idx;
-			map_idx = prog->reloc_desc[i].map_idx;
+		if (relo->type == RELO_LD64 || relo->type == RELO_DATA) {
+			struct bpf_insn *insn = &prog->insns[relo->insn_idx];
 
-			if (insn_idx + 1 >= (int)prog->insns_cnt) {
+			if (relo->insn_idx + 1 >= (int)prog->insns_cnt) {
 				pr_warn("relocation out of range: '%s'\n",
 					prog->section_name);
 				return -LIBBPF_ERRNO__RELOC;
 			}
 
-			if (!relo_data) {
-				insns[insn_idx].src_reg = BPF_PSEUDO_MAP_FD;
+			if (relo->type != RELO_DATA) {
+				insn[0].src_reg = BPF_PSEUDO_MAP_FD;
 			} else {
-				insns[insn_idx].src_reg = BPF_PSEUDO_MAP_VALUE;
-				insns[insn_idx + 1].imm = insns[insn_idx].imm;
+				insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
+				insn[1].imm = insn[0].imm + relo->sym_off;
 			}
-			insns[insn_idx].imm = obj->maps[map_idx].fd;
-		} else if (prog->reloc_desc[i].type == RELO_CALL) {
-			err = bpf_program__reloc_text(prog, obj,
-						      &prog->reloc_desc[i]);
+			insn[0].imm = obj->maps[relo->map_idx].fd;
+		} else if (relo->type == RELO_CALL) {
+			err = bpf_program__reloc_text(prog, obj, relo);
 			if (err)
 				return err;
 		}
