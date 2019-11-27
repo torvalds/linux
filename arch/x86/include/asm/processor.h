@@ -411,9 +411,7 @@ struct tss_struct {
 	 */
 	struct x86_hw_tss	x86_tss;
 
-#ifdef CONFIG_X86_IOPL_IOPERM
 	struct x86_io_bitmap	io_bitmap;
-#endif
 } __aligned(PAGE_SIZE);
 
 DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
