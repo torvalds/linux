@@ -519,6 +519,8 @@
 				clock-names = "ckil", "osc_25m", "osc_27m",
 				              "clk_ext1", "clk_ext2",
 				              "clk_ext3", "clk_ext4";
+				assigned-clocks = <&clk IMX8MQ_CLK_NOC>;
+				assigned-clock-rates = <800000000>;
 			};
 
 			src: reset-controller@30390000 {
