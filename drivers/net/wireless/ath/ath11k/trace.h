@@ -17,6 +17,9 @@
 static inline void trace_ ## name(proto) {}
 #endif /* !CONFIG_ATH11K_TRACING || __CHECKER__ */
 
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM ath11k
+
 TRACE_EVENT(ath11k_htt_pktlog,
 	    TP_PROTO(struct ath11k *ar, const void *buf, u16 buf_len),
 
