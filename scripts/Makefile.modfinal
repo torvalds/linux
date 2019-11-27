@@ -6,6 +6,7 @@
 PHONY := __modfinal
 __modfinal:
 
+include $(objtree)/include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
 
 # for c_flags
@@ -35,11 +36,10 @@ ifdef CONFIG_LTO_CLANG
       cmd_ld_ko_o = 							\
 	$(LD) -r $(LDFLAGS)                                 		\
 		 $(KBUILD_LDFLAGS_MODULE) $(LDFLAGS_MODULE) 		\
-		$(addprefix -T , $(KBUILD_LDS_MODULE))			\
+		 $(addprefix -T , $(KBUILD_LDS_MODULE))			\
 		 $(shell [ -s $(@:.ko=.o.symversions) ] &&		\
 			echo -T $(@:.ko=.o.symversions))  		\
-		 -o $@ --whole-archive					\
-		 $(filter-out FORCE,$(^:$(modpost-ext).o=.o));		\
+		 -o $@ --whole-archive $(filter %.o, $^);		\
 	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
 
   ifdef CONFIG_FTRACE_MCOUNT_RECORD
@@ -54,7 +54,7 @@ else
 	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
 endif
 
-$(modules): %.ko: %$(modpost-ext).o %.o %.mod.o $(KBUILD_LDS_MODULE) FORCE
+$(modules): %.ko: %.o %.mod.o $(KBUILD_LDS_MODULE) FORCE
 	+$(call if_changed,ld_ko_o)
 
 targets += $(modules) $(modules:.ko=.mod.o)
