@@ -329,9 +329,9 @@
 		#clock-cells = <0>;
 	};
 
-	gpu: gpu@10091000 {
+	gpu: gpu@10090000 {
 		compatible = "arm,mali400";
-		reg = <0x10091000 0x10000>;
+		reg = <0x10090000 0x10000>;
 
 		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
