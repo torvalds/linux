@@ -270,7 +270,7 @@ static const struct regval jx_h65_1280x960_regs[] = {
 	{0x70, 0x89},
 	{0x71, 0x8A},
 	{0x72, 0x68},
-	{0x73, 0x33},
+	{0x73, 0x53},
 	{0x74, 0x52},
 	{0x75, 0x2B},
 	{0x76, 0x40},
@@ -323,11 +323,12 @@ static const struct regval jx_h65_1280x960_regs[] = {
 	{0x90, 0x00},
 	{0x79, 0x00},
 	{0x13, 0x81},
+	{0x12, 0x00},
 	{0x45, 0x89},
 	{0x93, 0x68},
 	{REG_DELAY, 0x00},
 	{0x45, 0x19},
-	{0x1F, 0x11},
+	{0x1F, 0x01},
 	{REG_NULL, 0x00}
 };
 
@@ -738,6 +739,12 @@ static int jx_h65_s_power(struct v4l2_subdev *sd, int on)
 					 jx_h65->cur_mode->reg_list);
 		if (ret)
 			goto unlock_and_return;
+
+		/*
+		 * Enter sleep state to make sure not mipi output
+		 * during rkisp init.
+		 */
+		__jx_h65_stop_stream(jx_h65);
 
 		mutex_unlock(&jx_h65->mutex);
 		/* In case these controls are set before streaming */
