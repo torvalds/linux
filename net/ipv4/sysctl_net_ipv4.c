@@ -727,6 +727,13 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_do_large_bitmap,
 	},
 	{
+		.procname	= "ip_local_unbindable_ports",
+		.data		= &init_net.ipv4.sysctl_local_unbindable_ports,
+		.maxlen		= 65536,
+		.mode		= 0644,
+		.proc_handler	= proc_do_large_bitmap,
+	},
+	{
 		.procname	= "ip_no_pmtu_disc",
 		.data		= &init_net.ipv4.sysctl_ip_no_pmtu_disc,
 		.maxlen		= sizeof(int),
@@ -1380,11 +1387,17 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 
 	net->ipv4.sysctl_local_reserved_ports = kzalloc(65536 / 8, GFP_KERNEL);
 	if (!net->ipv4.sysctl_local_reserved_ports)
-		goto err_ports;
+		goto err_reserved_ports;
+
+	net->ipv4.sysctl_local_unbindable_ports = kzalloc(65536 / 8, GFP_KERNEL);
+	if (!net->ipv4.sysctl_local_unbindable_ports)
+		goto err_unbindable_ports;
 
 	return 0;
 
-err_ports:
+err_unbindable_ports:
+	kfree(net->ipv4.sysctl_local_reserved_ports);
+err_reserved_ports:
 	unregister_net_sysctl_table(net->ipv4.ipv4_hdr);
 err_reg:
 	if (!net_eq(net, &init_net))
@@ -1397,6 +1410,7 @@ static __net_exit void ipv4_sysctl_exit_net(struct net *net)
 {
 	struct ctl_table *table;
 
+	kfree(net->ipv4.sysctl_local_unbindable_ports);
 	kfree(net->ipv4.sysctl_local_reserved_ports);
 	table = net->ipv4.ipv4_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.ipv4_hdr);

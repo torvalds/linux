@@ -1057,6 +1057,19 @@ ip_local_reserved_ports - list of comma separated ranges
 
 	Default: Empty
 
+ip_local_unbindable_ports - list of comma separated ranges
+	Specify the ports which are not directly bind()able.
+
+	Usually you would use this to block the use of ports which
+	are invalid due to something outside of the control of the
+	kernel.  For example a port stolen by the nic for serial
+	console, remote power management or debugging.
+
+	There's a relatively high chance you will also want to list
+	these ports in 'ip_local_reserved_ports' to prevent autobinding.
+
+	Default: Empty
+
 ip_unprivileged_port_start - INTEGER
 	This is a per-namespace sysctl.  It defines the first
 	unprivileged port in the network namespace.  Privileged ports
