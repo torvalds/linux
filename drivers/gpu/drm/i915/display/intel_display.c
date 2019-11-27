@@ -1045,25 +1045,6 @@ bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
 				  NULL, best_clock);
 }
 
-bool intel_crtc_active(struct intel_crtc *crtc)
-{
-	/* Be paranoid as we can arrive here with only partial
-	 * state retrieved from the hardware during setup.
-	 *
-	 * We can ditch the adjusted_mode.crtc_clock check as soon
-	 * as Haswell has gained clock readout/fastboot support.
-	 *
-	 * We can ditch the crtc->primary->state->fb check as soon as we can
-	 * properly reconstruct framebuffers.
-	 *
-	 * FIXME: The intel_crtc->active here should be switched to
-	 * crtc->state->active once we have proper CRTC states wired up
-	 * for atomic.
-	 */
-	return crtc->active && crtc->base.primary->state->fb &&
-		crtc->config->hw.adjusted_mode.crtc_clock;
-}
-
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 					     enum pipe pipe)
 {
