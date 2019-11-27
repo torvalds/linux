@@ -11,8 +11,8 @@
 #define HAL_TX_ADDRX_EN			1
 #define HAL_TX_ADDRY_EN			2
 
-#define HAL_TX_ADDR_SEARCH_INDEX	0
-#define HAL_TX_ADDR_SEARCH_DEFAULT	1
+#define HAL_TX_ADDR_SEARCH_DEFAULT	0
+#define HAL_TX_ADDR_SEARCH_INDEX	1
 
 struct hal_tx_info {
 	u16 meta_data_flags; /* %HAL_TCL_DATA_CMD_INFO0_META_ */

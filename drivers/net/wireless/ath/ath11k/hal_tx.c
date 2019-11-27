@@ -52,9 +52,9 @@ void ath11k_hal_tx_cmd_desc_setup(struct ath11k_base *ab, void *cmd,
 		FIELD_PREP(HAL_TCL_DATA_CMD_INFO0_ENCAP_TYPE, ti->encap_type) |
 		FIELD_PREP(HAL_TCL_DATA_CMD_INFO0_ENCRYPT_TYPE,
 			   ti->encrypt_type) |
-		FIELD_PREP(HAL_TCL_DATA_CMD_INFO0_ADDRX_EN,
-			   ti->addr_search_flags) |
-		FIELD_PREP(HAL_TCL_DATA_CMD_INFO0_ADDRY_EN,
+		FIELD_PREP(HAL_TCL_DATA_CMD_INFO0_SEARCH_TYPE,
+			   ti->search_type) |
+		FIELD_PREP(HAL_TCL_DATA_CMD_INFO0_ADDR_EN,
 			   ti->addr_search_flags) |
 		FIELD_PREP(HAL_TCL_DATA_CMD_INFO0_CMD_NUM,
 			   ti->meta_data_flags);

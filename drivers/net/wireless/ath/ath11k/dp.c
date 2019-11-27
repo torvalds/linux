@@ -758,13 +758,12 @@ int ath11k_dp_htt_connect(struct ath11k_dp *dp)
 
 static void ath11k_dp_update_vdev_search(struct ath11k_vif *arvif)
 {
-	/* Enable AddrY (SA based search) for STA mode. All other modes it
-	 * is going to be AddrX (DA based search). For STA mode, set search
-	 * type based on AST value.
-	 */
+	 /* For STA mode, enable address search index,
+	  * tcl uses ast_hash value in the descriptor.
+	  */
 	switch (arvif->vdev_type) {
 	case WMI_VDEV_TYPE_STA:
-		arvif->hal_addr_search_flags = HAL_TX_ADDRY_EN;
+		arvif->hal_addr_search_flags = HAL_TX_ADDRX_EN;
 		arvif->search_type = HAL_TX_ADDR_SEARCH_INDEX;
 		break;
 	case WMI_VDEV_TYPE_AP:
