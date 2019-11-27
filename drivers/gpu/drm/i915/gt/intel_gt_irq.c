@@ -28,7 +28,7 @@ cs_irq_handler(struct intel_engine_cs *engine, u32 iir)
 		tasklet = true;
 
 	if (iir & GT_RENDER_USER_INTERRUPT) {
-		intel_engine_breadcrumbs_irq(engine);
+		intel_engine_queue_breadcrumbs(engine);
 		tasklet |= intel_engine_needs_breadcrumb_tasklet(engine);
 	}
 
