@@ -77,8 +77,10 @@ struct sdhci_esdhc {
 	bool quirk_incorrect_hostver;
 	bool quirk_limited_clk_division;
 	bool quirk_unreliable_pulse_detection;
-	bool quirk_fixup_tuning;
+	bool quirk_tuning_erratum_type1;
+	bool quirk_tuning_erratum_type2;
 	bool quirk_ignore_data_inhibit;
+	bool in_sw_tuning;
 	unsigned int peripheral_clock;
 	const struct esdhc_clk_fixup *clk_fixup;
 	u32 div_ratio;
@@ -408,6 +410,8 @@ static void esdhc_le_writel(struct sdhci_host *host, u32 val, int reg)
 
 static void esdhc_be_writew(struct sdhci_host *host, u16 val, int reg)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
 	int base = reg & ~0x3;
 	u32 value;
 	u32 ret;
@@ -416,10 +420,24 @@ static void esdhc_be_writew(struct sdhci_host *host, u16 val, int reg)
 	ret = esdhc_writew_fixup(host, reg, val, value);
 	if (reg != SDHCI_TRANSFER_MODE)
 		iowrite32be(ret, host->ioaddr + base);
+
+	/* Starting SW tuning requires ESDHC_SMPCLKSEL to be set
+	 * 1us later after ESDHC_EXTN is set.
+	 */
+	if (base == ESDHC_SYSTEM_CONTROL_2) {
+		if (!(value & ESDHC_EXTN) && (ret & ESDHC_EXTN) &&
+		    esdhc->in_sw_tuning) {
+			udelay(1);
+			ret |= ESDHC_SMPCLKSEL;
+			iowrite32be(ret, host->ioaddr + base);
+		}
+	}
 }
 
 static void esdhc_le_writew(struct sdhci_host *host, u16 val, int reg)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
 	int base = reg & ~0x3;
 	u32 value;
 	u32 ret;
@@ -428,6 +446,18 @@ static void esdhc_le_writew(struct sdhci_host *host, u16 val, int reg)
 	ret = esdhc_writew_fixup(host, reg, val, value);
 	if (reg != SDHCI_TRANSFER_MODE)
 		iowrite32(ret, host->ioaddr + base);
+
+	/* Starting SW tuning requires ESDHC_SMPCLKSEL to be set
+	 * 1us later after ESDHC_EXTN is set.
+	 */
+	if (base == ESDHC_SYSTEM_CONTROL_2) {
+		if (!(value & ESDHC_EXTN) && (ret & ESDHC_EXTN) &&
+		    esdhc->in_sw_tuning) {
+			udelay(1);
+			ret |= ESDHC_SMPCLKSEL;
+			iowrite32(ret, host->ioaddr + base);
+		}
+	}
 }
 
 static void esdhc_be_writeb(struct sdhci_host *host, u8 val, int reg)
@@ -560,6 +590,32 @@ static void esdhc_clock_enable(struct sdhci_host *host, bool enable)
 	}
 }
 
+static void esdhc_flush_async_fifo(struct sdhci_host *host)
+{
+	ktime_t timeout;
+	u32 val;
+
+	val = sdhci_readl(host, ESDHC_DMA_SYSCTL);
+	val |= ESDHC_FLUSH_ASYNC_FIFO;
+	sdhci_writel(host, val, ESDHC_DMA_SYSCTL);
+
+	/* Wait max 20 ms */
+	timeout = ktime_add_ms(ktime_get(), 20);
+	while (1) {
+		bool timedout = ktime_after(ktime_get(), timeout);
+
+		if (!(sdhci_readl(host, ESDHC_DMA_SYSCTL) &
+		      ESDHC_FLUSH_ASYNC_FIFO))
+			break;
+		if (timedout) {
+			pr_err("%s: flushing asynchronous FIFO timeout.\n",
+				mmc_hostname(host->mmc));
+			break;
+		}
+		usleep_range(10, 20);
+	}
+}
+
 static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -652,9 +708,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 		sdhci_writel(host, temp | ESDHC_HS400_WNDW_ADJUST, ESDHC_TBCTL);
 
 		esdhc_clock_enable(host, false);
-		temp = sdhci_readl(host, ESDHC_DMA_SYSCTL);
-		temp |= ESDHC_FLUSH_ASYNC_FIFO;
-		sdhci_writel(host, temp, ESDHC_DMA_SYSCTL);
+		esdhc_flush_async_fifo(host);
 	}
 
 	/* Wait max 20 ms */
@@ -796,16 +850,21 @@ static int esdhc_signal_voltage_switch(struct mmc_host *mmc,
 	}
 }
 
-static struct soc_device_attribute soc_fixup_tuning[] = {
+static struct soc_device_attribute soc_tuning_erratum_type1[] = {
+	{ .family = "QorIQ T1023", .revision = "1.0", },
 	{ .family = "QorIQ T1040", .revision = "1.0", },
 	{ .family = "QorIQ T2080", .revision = "1.0", },
-	{ .family = "QorIQ T1023", .revision = "1.0", },
 	{ .family = "QorIQ LS1021A", .revision = "1.0", },
-	{ .family = "QorIQ LS1080A", .revision = "1.0", },
-	{ .family = "QorIQ LS2080A", .revision = "1.0", },
+	{ },
+};
+
+static struct soc_device_attribute soc_tuning_erratum_type2[] = {
 	{ .family = "QorIQ LS1012A", .revision = "1.0", },
 	{ .family = "QorIQ LS1043A", .revision = "1.*", },
 	{ .family = "QorIQ LS1046A", .revision = "1.0", },
+	{ .family = "QorIQ LS1080A", .revision = "1.0", },
+	{ .family = "QorIQ LS2080A", .revision = "1.0", },
+	{ .family = "QorIQ LA1575A", .revision = "1.0", },
 	{ },
 };
 
@@ -814,10 +873,7 @@ static void esdhc_tuning_block_enable(struct sdhci_host *host, bool enable)
 	u32 val;
 
 	esdhc_clock_enable(host, false);
-
-	val = sdhci_readl(host, ESDHC_DMA_SYSCTL);
-	val |= ESDHC_FLUSH_ASYNC_FIFO;
-	sdhci_writel(host, val, ESDHC_DMA_SYSCTL);
+	esdhc_flush_async_fifo(host);
 
 	val = sdhci_readl(host, ESDHC_TBCTL);
 	if (enable)
@@ -829,15 +885,97 @@ static void esdhc_tuning_block_enable(struct sdhci_host *host, bool enable)
 	esdhc_clock_enable(host, true);
 }
 
+static void esdhc_prepare_sw_tuning(struct sdhci_host *host, u8 *window_start,
+				    u8 *window_end)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
+	u8 tbstat_15_8, tbstat_7_0;
+	u32 val;
+
+	if (esdhc->quirk_tuning_erratum_type1) {
+		*window_start = 5 * esdhc->div_ratio;
+		*window_end = 3 * esdhc->div_ratio;
+		return;
+	}
+
+	/* Write TBCTL[11:8]=4'h8 */
+	val = sdhci_readl(host, ESDHC_TBCTL);
+	val &= ~(0xf << 8);
+	val |= 8 << 8;
+	sdhci_writel(host, val, ESDHC_TBCTL);
+
+	mdelay(1);
+
+	/* Read TBCTL[31:0] register and rewrite again */
+	val = sdhci_readl(host, ESDHC_TBCTL);
+	sdhci_writel(host, val, ESDHC_TBCTL);
+
+	mdelay(1);
+
+	/* Read the TBSTAT[31:0] register twice */
+	val = sdhci_readl(host, ESDHC_TBSTAT);
+	val = sdhci_readl(host, ESDHC_TBSTAT);
+
+	/* Reset data lines by setting ESDHCCTL[RSTD] */
+	sdhci_reset(host, SDHCI_RESET_DATA);
+	/* Write 32'hFFFF_FFFF to IRQSTAT register */
+	sdhci_writel(host, 0xFFFFFFFF, SDHCI_INT_STATUS);
+
+	/* If TBSTAT[15:8]-TBSTAT[7:0] > 4 * div_ratio
+	 * or TBSTAT[7:0]-TBSTAT[15:8] > 4 * div_ratio,
+	 * then program TBPTR[TB_WNDW_END_PTR] = 4 * div_ratio
+	 * and program TBPTR[TB_WNDW_START_PTR] = 8 * div_ratio.
+	 */
+	tbstat_7_0 = val & 0xff;
+	tbstat_15_8 = (val >> 8) & 0xff;
+
+	if (abs(tbstat_15_8 - tbstat_7_0) > (4 * esdhc->div_ratio)) {
+		*window_start = 8 * esdhc->div_ratio;
+		*window_end = 4 * esdhc->div_ratio;
+	} else {
+		*window_start = 5 * esdhc->div_ratio;
+		*window_end = 3 * esdhc->div_ratio;
+	}
+}
+
+static int esdhc_execute_sw_tuning(struct mmc_host *mmc, u32 opcode,
+				   u8 window_start, u8 window_end)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
+	u32 val;
+	int ret;
+
+	/* Program TBPTR[TB_WNDW_END_PTR] and TBPTR[TB_WNDW_START_PTR] */
+	val = ((u32)window_start << ESDHC_WNDW_STRT_PTR_SHIFT) &
+	      ESDHC_WNDW_STRT_PTR_MASK;
+	val |= window_end & ESDHC_WNDW_END_PTR_MASK;
+	sdhci_writel(host, val, ESDHC_TBPTR);
+
+	/* Program the software tuning mode by setting TBCTL[TB_MODE]=2'h3 */
+	val = sdhci_readl(host, ESDHC_TBCTL);
+	val &= ~ESDHC_TB_MODE_MASK;
+	val |= ESDHC_TB_MODE_SW;
+	sdhci_writel(host, val, ESDHC_TBCTL);
+
+	esdhc->in_sw_tuning = true;
+	ret = sdhci_execute_tuning(mmc, opcode);
+	esdhc->in_sw_tuning = false;
+	return ret;
+}
+
 static int esdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
+	u8 window_start, window_end;
+	int ret, retries = 1;
 	bool hs400_tuning;
 	unsigned int clk;
 	u32 val;
-	int ret;
 
 	/* For tuning mode, the sd clock divisor value
 	 * must be larger than 3 according to reference manual.
@@ -846,39 +984,73 @@ static int esdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	if (host->clock > clk)
 		esdhc_of_set_clock(host, clk);
 
-	if (esdhc->quirk_limited_clk_division &&
-	    host->flags & SDHCI_HS400_TUNING)
-		esdhc_of_set_clock(host, host->clock);
-
 	esdhc_tuning_block_enable(host, true);
 
 	hs400_tuning = host->flags & SDHCI_HS400_TUNING;
-	ret = sdhci_execute_tuning(mmc, opcode);
 
-	if (hs400_tuning) {
+	do {
+		if (esdhc->quirk_limited_clk_division &&
+		    hs400_tuning)
+			esdhc_of_set_clock(host, host->clock);
+
+		/* Do HW tuning */
+		val = sdhci_readl(host, ESDHC_TBCTL);
+		val &= ~ESDHC_TB_MODE_MASK;
+		val |= ESDHC_TB_MODE_3;
+		sdhci_writel(host, val, ESDHC_TBCTL);
+
+		ret = sdhci_execute_tuning(mmc, opcode);
+		if (ret)
+			break;
+
+		/* If HW tuning fails and triggers erratum,
+		 * try workaround.
+		 */
+		ret = host->tuning_err;
+		if (ret == -EAGAIN &&
+		    (esdhc->quirk_tuning_erratum_type1 ||
+		     esdhc->quirk_tuning_erratum_type2)) {
+			/* Recover HS400 tuning flag */
+			if (hs400_tuning)
+				host->flags |= SDHCI_HS400_TUNING;
+			pr_info("%s: Hold on to use fixed sampling clock. Try SW tuning!\n",
+				mmc_hostname(mmc));
+			/* Do SW tuning */
+			esdhc_prepare_sw_tuning(host, &window_start,
+						&window_end);
+			ret = esdhc_execute_sw_tuning(mmc, opcode,
+						      window_start,
+						      window_end);
+			if (ret)
+				break;
+
+			/* Retry both HW/SW tuning with reduced clock. */
+			ret = host->tuning_err;
+			if (ret == -EAGAIN && retries) {
+				/* Recover HS400 tuning flag */
+				if (hs400_tuning)
+					host->flags |= SDHCI_HS400_TUNING;
+
+				clk = host->max_clk / (esdhc->div_ratio + 1);
+				esdhc_of_set_clock(host, clk);
+				pr_info("%s: Hold on to use fixed sampling clock. Try tuning with reduced clock!\n",
+					mmc_hostname(mmc));
+			} else {
+				break;
+			}
+		} else {
+			break;
+		}
+	} while (retries--);
+
+	if (ret) {
+		esdhc_tuning_block_enable(host, false);
+	} else if (hs400_tuning) {
 		val = sdhci_readl(host, ESDHC_SDTIMNGCTL);
 		val |= ESDHC_FLW_CTL_BG;
 		sdhci_writel(host, val, ESDHC_SDTIMNGCTL);
 	}
 
-	if (host->tuning_err == -EAGAIN && esdhc->quirk_fixup_tuning) {
-
-		/* program TBPTR[TB_WNDW_END_PTR] = 3*DIV_RATIO and
-		 * program TBPTR[TB_WNDW_START_PTR] = 5*DIV_RATIO
-		 */
-		val = sdhci_readl(host, ESDHC_TBPTR);
-		val = (val & ~((0x7f << 8) | 0x7f)) |
-		(3 * esdhc->div_ratio) | ((5 * esdhc->div_ratio) << 8);
-		sdhci_writel(host, val, ESDHC_TBPTR);
-
-		/* program the software tuning mode by setting
-		 * TBCTL[TB_MODE]=2'h3
-		 */
-		val = sdhci_readl(host, ESDHC_TBCTL);
-		val |= 0x3;
-		sdhci_writel(host, val, ESDHC_TBCTL);
-		sdhci_execute_tuning(mmc, opcode);
-	}
 	return ret;
 }
 
@@ -1114,10 +1286,15 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 
 	pltfm_host = sdhci_priv(host);
 	esdhc = sdhci_pltfm_priv(pltfm_host);
-	if (soc_device_match(soc_fixup_tuning))
-		esdhc->quirk_fixup_tuning = true;
+	if (soc_device_match(soc_tuning_erratum_type1))
+		esdhc->quirk_tuning_erratum_type1 = true;
 	else
-		esdhc->quirk_fixup_tuning = false;
+		esdhc->quirk_tuning_erratum_type1 = false;
+
+	if (soc_device_match(soc_tuning_erratum_type2))
+		esdhc->quirk_tuning_erratum_type2 = true;
+	else
+		esdhc->quirk_tuning_erratum_type2 = false;
 
 	if (esdhc->vendor_ver == VENDOR_V_22)
 		host->quirks2 |= SDHCI_QUIRK2_HOST_NO_CMD23;

@@ -2070,18 +2070,11 @@ static void vub300_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	kref_put(&vub300->kref, vub300_delete);
 }
 
-static void vub300_init_card(struct mmc_host *mmc, struct mmc_card *card)
-{				/* NOT irq */
-	struct vub300_mmc_host *vub300 = mmc_priv(mmc);
-	dev_info(&vub300->udev->dev, "NO host QUIRKS for this card\n");
-}
-
 static const struct mmc_host_ops vub300_mmc_ops = {
 	.request = vub300_mmc_request,
 	.set_ios = vub300_mmc_set_ios,
 	.get_ro = vub300_mmc_get_ro,
 	.enable_sdio_irq = vub300_enable_sdio_irq,
-	.init_card = vub300_init_card,
 };
 
 static int vub300_probe(struct usb_interface *interface,

@@ -159,6 +159,7 @@ config MMC_SDHCI_OF_ASPEED
 	tristate "SDHCI OF support for the ASPEED SDHCI controller"
 	depends on MMC_SDHCI_PLTFM
 	depends on OF && OF_ADDRESS
+	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the ASPEED Secure Digital Host Controller Interface.
 
@@ -364,6 +365,17 @@ config MMC_SDHCI_F_SDH30
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  Needed by some Fujitsu SoC for MMC / SD / SDIO support.
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_MILBEAUT
+	tristate "SDHCI support for Socionext Milbeaut Serieas using F_SDH30"
+	depends on MMC_SDHCI_PLTFM
+	depends on OF
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  Needed by Milbeaut SoC for MMC / SD / SDIO support.
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
@@ -1011,6 +1023,7 @@ config MMC_SDHCI_AM654
 	tristate "Support for the SDHCI Controller in TI's AM654 SOCs"
 	depends on MMC_SDHCI_PLTFM && OF && REGMAP_MMIO
 	select MMC_SDHCI_IO_ACCESSORS
+	select MMC_CQHCI
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in TI's AM654 SOCs. The controller supports
@@ -1019,3 +1032,11 @@ config MMC_SDHCI_AM654
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
+
+config MMC_OWL
+	tristate "Actions Semi Owl SD/MMC Host Controller support"
+	depends on HAS_DMA
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	help
+	  This selects support for the SD/MMC Host Controller on
+	  Actions Semi Owl SoCs.
