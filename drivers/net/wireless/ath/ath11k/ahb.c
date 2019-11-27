@@ -635,11 +635,10 @@ static void ath11k_ahb_init_qmi_ce_config(struct ath11k_base *ab)
 {
 	struct ath11k_qmi_ce_cfg *cfg = &ab->qmi.ce_cfg;
 
-	cfg->tgt_ce = (u8 *)target_ce_config_wlan;
-	cfg->tgt_ce_len = sizeof(target_ce_config_wlan);
-
-	cfg->svc_to_ce_map = (u8 *)target_service_to_ce_map_wlan;
-	cfg->svc_to_ce_map_len = sizeof(target_service_to_ce_map_wlan);
+	cfg->tgt_ce_len = ARRAY_SIZE(target_ce_config_wlan) - 1;
+	cfg->tgt_ce = target_ce_config_wlan;
+	cfg->svc_to_ce_map_len = ARRAY_SIZE(target_service_to_ce_map_wlan);
+	cfg->svc_to_ce_map = target_service_to_ce_map_wlan;
 }
 
 static void ath11k_ahb_free_ext_irq(struct ath11k_base *ab)

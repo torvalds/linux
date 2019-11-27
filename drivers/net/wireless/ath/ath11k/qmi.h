@@ -66,9 +66,9 @@ struct ath11k_qmi_driver_event {
 };
 
 struct ath11k_qmi_ce_cfg {
-	const u8 *tgt_ce;
+	const struct ce_pipe_config *tgt_ce;
 	int tgt_ce_len;
-	const u8 *svc_to_ce_map;
+	const struct service_to_pipe *svc_to_ce_map;
 	int svc_to_ce_map_len;
 	const u8 *shadow_reg;
 	int shadow_reg_len;
