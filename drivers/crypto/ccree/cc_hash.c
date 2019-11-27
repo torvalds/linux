@@ -2358,11 +2358,9 @@ cc_digest_len_addr(void *drvdata, u32 mode)
 	case DRV_HASH_SHA256:
 	case DRV_HASH_MD5:
 		return digest_len_addr;
-#if (CC_DEV_SHA_MAX > 256)
 	case DRV_HASH_SHA384:
 	case DRV_HASH_SHA512:
 		return  digest_len_addr + sizeof(cc_digest_len_init);
-#endif
 	default:
 		return digest_len_addr; /*to avoid kernel crash*/
 	}

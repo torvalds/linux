@@ -28,7 +28,6 @@
 
 /* Registers definitions from shared/hw/ree_include */
 #include "cc_host_regs.h"
-#define CC_DEV_SHA_MAX 512
 #include "cc_crypto_ctx.h"
 #include "cc_hw_queue_defs.h"
 #include "cc_sram_mgr.h"
