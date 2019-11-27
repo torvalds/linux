@@ -498,6 +498,10 @@ static int rockchip_drm_gem_object_mmap(struct drm_gem_object *obj,
 	int ret;
 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
 
+	/* default is wc. */
+	if (rk_obj->flags & ROCKCHIP_BO_CACHABLE)
+		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+
 	/*
 	 * We allocated a struct page table for rk_obj, so clear
 	 * VM_PFNMAP flag that was set by drm_gem_mmap_obj()/drm_gem_mmap().
