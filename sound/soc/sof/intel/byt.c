@@ -18,6 +18,7 @@
 #include "../ops.h"
 #include "shim.h"
 #include "../sof-audio.h"
+#include "../../intel/common/soc-intel-quirks.h"
 
 /* DSP memories */
 #define IRAM_OFFSET		0x0C0000
@@ -383,11 +384,37 @@ static int byt_reset(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
+				   const char *sof_tplg_filename,
+				   const char *ssp_str)
+{
+	const char *tplg_filename = NULL;
+	char *filename;
+	char *split_ext;
+
+	filename = devm_kstrdup(sdev->dev, sof_tplg_filename, GFP_KERNEL);
+	if (!filename)
+		return NULL;
+
+	/* this assumes a .tplg extension */
+	split_ext = strsep(&filename, ".");
+	if (split_ext) {
+		tplg_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
+					       "%s-%s.tplg",
+					       split_ext, ssp_str);
+		if (!tplg_filename)
+			return NULL;
+	}
+	return tplg_filename;
+}
+
 static void byt_machine_select(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *sof_pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = sof_pdata->desc;
 	struct snd_soc_acpi_mach *mach;
+	struct platform_device *pdev;
+	const char *tplg_filename;
 
 	mach = snd_soc_acpi_find_machine(desc->machines);
 	if (!mach) {
@@ -395,7 +422,25 @@ static void byt_machine_select(struct snd_sof_dev *sdev)
 		return;
 	}
 
-	sof_pdata->tplg_filename = mach->sof_tplg_filename;
+	pdev = to_platform_device(sdev->dev);
+	if (soc_intel_is_byt_cr(pdev)) {
+		dev_dbg(sdev->dev,
+			"BYT-CR detected, SSP0 used instead of SSP2\n");
+
+		tplg_filename = fixup_tplg_name(sdev,
+						mach->sof_tplg_filename,
+						"ssp0");
+	} else {
+		tplg_filename = mach->sof_tplg_filename;
+	}
+
+	if (!tplg_filename) {
+		dev_dbg(sdev->dev,
+			"error: no topology filename\n");
+		return;
+	}
+
+	sof_pdata->tplg_filename = tplg_filename;
 	mach->mach_params.acpi_ipc_irq_index = desc->irqindex_host_ipc;
 	sof_pdata->machine = mach;
 }
