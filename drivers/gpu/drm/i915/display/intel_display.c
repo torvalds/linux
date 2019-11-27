@@ -6068,20 +6068,20 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *state = old_crtc_state->uapi.state;
-	struct intel_crtc_state *pipe_config =
+	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(to_intel_atomic_state(state),
 						crtc);
 	struct drm_plane *primary = crtc->base.primary;
 	struct drm_plane_state *old_primary_state =
 		drm_atomic_get_old_plane_state(state, primary);
 
-	intel_frontbuffer_flip(to_i915(crtc->base.dev), pipe_config->fb_bits);
+	intel_frontbuffer_flip(to_i915(crtc->base.dev), new_crtc_state->fb_bits);
 
-	if (pipe_config->update_wm_post && pipe_config->hw.active)
+	if (new_crtc_state->update_wm_post && new_crtc_state->hw.active)
 		intel_update_watermarks(crtc);
 
-	if (hsw_post_update_enable_ips(old_crtc_state, pipe_config))
-		hsw_enable_ips(pipe_config);
+	if (hsw_post_update_enable_ips(old_crtc_state, new_crtc_state))
+		hsw_enable_ips(new_crtc_state);
 
 	if (old_primary_state) {
 		struct drm_plane_state *new_primary_state =
@@ -6090,22 +6090,22 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 		intel_fbc_post_update(crtc);
 
 		if (new_primary_state->visible &&
-		    (needs_modeset(pipe_config) ||
+		    (needs_modeset(new_crtc_state) ||
 		     !old_primary_state->visible))
-			intel_post_enable_primary(&crtc->base, pipe_config);
+			intel_post_enable_primary(&crtc->base, new_crtc_state);
 	}
 
 	if (needs_nv12_wa(old_crtc_state) &&
-	    !needs_nv12_wa(pipe_config))
+	    !needs_nv12_wa(new_crtc_state))
 		skl_wa_827(dev_priv, crtc->pipe, false);
 
 	if (needs_scalerclk_wa(old_crtc_state) &&
-	    !needs_scalerclk_wa(pipe_config))
+	    !needs_scalerclk_wa(new_crtc_state))
 		icl_wa_scalerclkgating(dev_priv, crtc->pipe, false);
 }
 
 static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
-				   struct intel_crtc_state *pipe_config)
+				   struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct drm_device *dev = crtc->base.dev;
@@ -6114,11 +6114,11 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	struct drm_plane *primary = crtc->base.primary;
 	struct drm_plane_state *old_primary_state =
 		drm_atomic_get_old_plane_state(state, primary);
-	bool modeset = needs_modeset(pipe_config);
+	bool modeset = needs_modeset(new_crtc_state);
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(state);
 
-	if (hsw_pre_update_disable_ips(old_crtc_state, pipe_config))
+	if (hsw_pre_update_disable_ips(old_crtc_state, new_crtc_state))
 		hsw_disable_ips(old_crtc_state);
 
 	if (old_primary_state) {
@@ -6126,7 +6126,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 			intel_atomic_get_new_plane_state(intel_state,
 							 to_intel_plane(primary));
 
-		intel_fbc_pre_update(crtc, pipe_config, new_primary_state);
+		intel_fbc_pre_update(crtc, new_crtc_state, new_primary_state);
 		/*
 		 * Gen2 reports pipe underruns whenever all planes are disabled.
 		 * So disable underrun reporting before all the planes get disabled.
@@ -6138,12 +6138,12 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 
 	/* Display WA 827 */
 	if (!needs_nv12_wa(old_crtc_state) &&
-	    needs_nv12_wa(pipe_config))
+	    needs_nv12_wa(new_crtc_state))
 		skl_wa_827(dev_priv, crtc->pipe, true);
 
 	/* Wa_2006604312:icl */
 	if (!needs_scalerclk_wa(old_crtc_state) &&
-	    needs_scalerclk_wa(pipe_config))
+	    needs_scalerclk_wa(new_crtc_state))
 		icl_wa_scalerclkgating(dev_priv, crtc->pipe, true);
 
 	/*
@@ -6156,7 +6156,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	 * wait-for-vblank between disabling the plane and the pipe.
 	 */
 	if (HAS_GMCH(dev_priv) && old_crtc_state->hw.active &&
-	    pipe_config->disable_cxsr && intel_set_memory_cxsr(dev_priv, false))
+	    new_crtc_state->disable_cxsr && intel_set_memory_cxsr(dev_priv, false))
 		intel_wait_for_vblank(dev_priv, crtc->pipe);
 
 	/*
@@ -6166,15 +6166,15 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	 *
 	 * WaCxSRDisabledForSpriteScaling:ivb
 	 */
-	if (pipe_config->disable_lp_wm && ilk_disable_lp_wm(dev_priv) &&
-	    old_crtc_state->hw.active)
+	if (old_crtc_state->hw.active &&
+	    new_crtc_state->disable_lp_wm && ilk_disable_lp_wm(dev_priv))
 		intel_wait_for_vblank(dev_priv, crtc->pipe);
 
 	/*
 	 * If we're doing a modeset, we're done.  No need to do any pre-vblank
 	 * watermark programming here.
 	 */
-	if (needs_modeset(pipe_config))
+	if (needs_modeset(new_crtc_state))
 		return;
 
 	/*
@@ -6193,7 +6193,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	 */
 	if (dev_priv->display.initial_watermarks)
 		dev_priv->display.initial_watermarks(intel_state, crtc);
-	else if (pipe_config->update_wm_pre)
+	else if (new_crtc_state->update_wm_pre)
 		intel_update_watermarks(crtc);
 }
 
