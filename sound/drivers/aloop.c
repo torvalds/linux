@@ -727,10 +727,6 @@ static void loopback_snd_timer_period_elapsed(struct loopback_cable *cable,
 
 	dpcm_play = cable->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	dpcm_capt = cable->streams[SNDRV_PCM_STREAM_CAPTURE];
-	substream_play = (running & (1 << SNDRV_PCM_STREAM_PLAYBACK)) ?
-			dpcm_play->substream : NULL;
-	substream_capt = (running & (1 << SNDRV_PCM_STREAM_CAPTURE)) ?
-			dpcm_capt->substream : NULL;
 
 	if (event == SNDRV_TIMER_EVENT_MSTOP) {
 		if (!dpcm_play ||
@@ -741,6 +737,10 @@ static void loopback_snd_timer_period_elapsed(struct loopback_cable *cable,
 		}
 	}
 
+	substream_play = (running & (1 << SNDRV_PCM_STREAM_PLAYBACK)) ?
+			dpcm_play->substream : NULL;
+	substream_capt = (running & (1 << SNDRV_PCM_STREAM_CAPTURE)) ?
+			dpcm_capt->substream : NULL;
 	valid_runtime = (running & (1 << SNDRV_PCM_STREAM_PLAYBACK)) ?
 				dpcm_play->substream->runtime :
 				dpcm_capt->substream->runtime;
