@@ -151,7 +151,7 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 	if (IS_I945GM(dev_priv))
 		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
 	fbc_ctl |= (cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
-	fbc_ctl |= params->vma->fence->id;
+	fbc_ctl |= params->fence_id;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 }
 
@@ -171,8 +171,8 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 	else
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
 
-	if (params->flags & PLANE_HAS_FENCE) {
-		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->vma->fence->id;
+	if (params->fence_id >= 0) {
+		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fence_id;
 		I915_WRITE(DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
 	} else {
 		I915_WRITE(DPFC_FENCE_YOFF, 0);
@@ -229,14 +229,14 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	if (params->flags & PLANE_HAS_FENCE) {
+	if (params->fence_id >= 0) {
 		dpfc_ctl |= DPFC_CTL_FENCE_EN;
 		if (IS_GEN(dev_priv, 5))
-			dpfc_ctl |= params->vma->fence->id;
+			dpfc_ctl |= params->fence_id;
 		if (IS_GEN(dev_priv, 6)) {
 			I915_WRITE(SNB_DPFC_CTL_SA,
 				   SNB_CPU_FENCE_ENABLE |
-				   params->vma->fence->id);
+				   params->fence_id);
 			I915_WRITE(DPFC_CPU_FENCE_OFFSET,
 				   params->crtc.fence_y_offset);
 		}
@@ -309,11 +309,11 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	if (params->flags & PLANE_HAS_FENCE) {
+	if (params->fence_id >= 0) {
 		dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
 		I915_WRITE(SNB_DPFC_CTL_SA,
 			   SNB_CPU_FENCE_ENABLE |
-			   params->vma->fence->id);
+			   params->fence_id);
 		I915_WRITE(DPFC_CPU_FENCE_OFFSET, params->crtc.fence_y_offset);
 	} else {
 		I915_WRITE(SNB_DPFC_CTL_SA,0);
@@ -659,10 +659,14 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->fb.format = fb->format;
 	cache->fb.stride = fb->pitches[0];
 
-	cache->vma = plane_state->vma;
-	cache->flags = plane_state->flags;
-	if (WARN_ON(cache->flags & PLANE_HAS_FENCE && !cache->vma->fence))
-		cache->flags &= ~PLANE_HAS_FENCE;
+	WARN_ON(plane_state->flags & PLANE_HAS_FENCE &&
+		!plane_state->vma->fence);
+
+	if (plane_state->flags & PLANE_HAS_FENCE &&
+	    plane_state->vma->fence)
+		cache->fence_id = plane_state->vma->fence->id;
+	else
+		cache->fence_id = -1;
 }
 
 static bool intel_fbc_can_activate(struct intel_crtc *crtc)
@@ -707,7 +711,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 * For now this will effecively disable FBC with 90/270 degree
 	 * rotation.
 	 */
-	if (!(cache->flags & PLANE_HAS_FENCE)) {
+	if (cache->fence_id < 0) {
 		fbc->no_fbc_reason = "framebuffer not tiled or fenced";
 		return false;
 	}
@@ -804,8 +808,7 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	 * zero. */
 	memset(params, 0, sizeof(*params));
 
-	params->vma = cache->vma;
-	params->flags = cache->flags;
+	params->fence_id = cache->fence_id;
 
 	params->crtc.pipe = crtc->pipe;
 	params->crtc.i9xx_plane = to_intel_plane(crtc->base.primary)->i9xx_plane;
