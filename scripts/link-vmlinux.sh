@@ -54,7 +54,7 @@ lto_lds()
 
 	if [ -n "${CONFIG_MODVERSIONS}" ]; then
 		for a in ${KBUILD_VMLINUX_OBJS} ${KBUILD_VMLINUX_LIBS}; do
-			for o in $(${AR} t $a); do
+			for o in $(${AR} t $a 2>/dev/null); do
 				if [ -f ${o}.symversions ]; then
 					cat ${o}.symversions >> .tmp_lto.lds
 				fi
