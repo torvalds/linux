@@ -386,17 +386,17 @@ config HW_RANDOM_MESON
 	  If unsure, say Y.
 
 config HW_RANDOM_CAVIUM
-       tristate "Cavium ThunderX Random Number Generator support"
-       depends on HW_RANDOM && PCI && (ARM64 || (COMPILE_TEST && 64BIT))
-       default HW_RANDOM
-       ---help---
-         This driver provides kernel-side support for the Random Number
-         Generator hardware found on Cavium SoCs.
+	tristate "Cavium ThunderX Random Number Generator support"
+	depends on HW_RANDOM && PCI && (ARM64 || (COMPILE_TEST && 64BIT))
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Cavium SoCs.
 
-         To compile this driver as a module, choose M here: the
-         module will be called cavium_rng.
+	  To compile this driver as a module, choose M here: the
+	  module will be called cavium_rng.
 
-         If unsure, say Y.
+	  If unsure, say Y.
 
 config HW_RANDOM_MTK
 	tristate "Mediatek Random Number Generator support"

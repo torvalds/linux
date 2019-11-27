@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
+ * Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -260,6 +260,7 @@ struct mei_cl {
  * @hw_config        : configure hw
  *
  * @fw_status        : get fw status registers
+ * @trc_status       : get trc status register
  * @pg_state         : power gating state of the device
  * @pg_in_transition : is device now in pg transition
  * @pg_is_enabled    : is power gating enabled
@@ -287,9 +288,11 @@ struct mei_hw_ops {
 	bool (*hw_is_ready)(struct mei_device *dev);
 	int (*hw_reset)(struct mei_device *dev, bool enable);
 	int (*hw_start)(struct mei_device *dev);
-	void (*hw_config)(struct mei_device *dev);
+	int (*hw_config)(struct mei_device *dev);
 
 	int (*fw_status)(struct mei_device *dev, struct mei_fw_status *fw_sts);
+	int (*trc_status)(struct mei_device *dev, u32 *trc);
+
 	enum mei_pg_state (*pg_state)(struct mei_device *dev);
 	bool (*pg_in_transition)(struct mei_device *dev);
 	bool (*pg_is_enabled)(struct mei_device *dev);
@@ -614,9 +617,9 @@ void mei_irq_compl_handler(struct mei_device *dev, struct list_head *cmpl_list);
  */
 
 
-static inline void mei_hw_config(struct mei_device *dev)
+static inline int mei_hw_config(struct mei_device *dev)
 {
-	dev->ops->hw_config(dev);
+	return dev->ops->hw_config(dev);
 }
 
 static inline enum mei_pg_state mei_pg_state(struct mei_device *dev)
@@ -709,6 +712,13 @@ static inline void mei_read_slots(struct mei_device *dev,
 static inline int mei_count_full_read_slots(struct mei_device *dev)
 {
 	return dev->ops->rdbuf_full_slots(dev);
+}
+
+static inline int mei_trc_status(struct mei_device *dev, u32 *trc)
+{
+	if (dev->ops->trc_status)
+		return dev->ops->trc_status(dev, trc);
+	return -EOPNOTSUPP;
 }
 
 static inline int mei_fw_status(struct mei_device *dev,

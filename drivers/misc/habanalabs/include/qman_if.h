@@ -23,6 +23,8 @@ struct hl_bd {
 #define HL_BD_SIZE			sizeof(struct hl_bd)
 
 /*
+ * S/W CTL FIELDS.
+ *
  * BD_CTL_REPEAT_VALID tells the CP whether the repeat field in the BD CTL is
  * valid. 1 means the repeat field is valid, 0 means not-valid,
  * i.e. repeat == 1
@@ -32,6 +34,16 @@ struct hl_bd {
 
 #define BD_CTL_SHADOW_INDEX_SHIFT	0
 #define BD_CTL_SHADOW_INDEX_MASK	0x00000FFF
+
+/*
+ * H/W CTL FIELDS
+ */
+
+#define BD_CTL_COMP_OFFSET_SHIFT	16
+#define BD_CTL_COMP_OFFSET_MASK		0x00FF0000
+
+#define BD_CTL_COMP_DATA_SHIFT		0
+#define BD_CTL_COMP_DATA_MASK		0x0000FFFF
 
 /*
  * COMPLETION QUEUE

@@ -1404,10 +1404,9 @@ struct tb_xdomain_lookup {
 static struct tb_xdomain *switch_find_xdomain(struct tb_switch *sw,
 	const struct tb_xdomain_lookup *lookup)
 {
-	int i;
+	struct tb_port *port;
 
-	for (i = 1; i <= sw->config.max_port_number; i++) {
-		struct tb_port *port = &sw->ports[i];
+	tb_switch_for_each_port(sw, port) {
 		struct tb_xdomain *xd;
 
 		if (port->xdomain) {

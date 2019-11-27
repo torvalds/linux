@@ -33,9 +33,9 @@ static int tb_port_enable_tmu(struct tb_port *port, bool enable)
 	 * Legacy devices need to have TMU access enabled before port
 	 * space can be fully accessed.
 	 */
-	if (tb_switch_is_lr(sw))
+	if (tb_switch_is_light_ridge(sw))
 		offset = 0x26;
-	else if (tb_switch_is_er(sw))
+	else if (tb_switch_is_eagle_ridge(sw))
 		offset = 0x2a;
 	else
 		return 0;
@@ -60,7 +60,7 @@ static void tb_port_dummy_read(struct tb_port *port)
 	 * reading stale data on next read perform one dummy read after
 	 * port capabilities are walked.
 	 */
-	if (tb_switch_is_lr(port->sw)) {
+	if (tb_switch_is_light_ridge(port->sw)) {
 		u32 dummy;
 
 		tb_port_read(port, &dummy, TB_CFG_PORT, 0, 1);

@@ -60,11 +60,16 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.tpc_enabled_mask = prop->tpc_enabled_mask;
 	hw_ip.sram_size = prop->sram_size - sram_kmd_size;
 	hw_ip.dram_size = prop->dram_size - dram_kmd_size;
-	if (hw_ip.dram_size > 0)
+	if (hw_ip.dram_size > PAGE_SIZE)
 		hw_ip.dram_enabled = 1;
 	hw_ip.num_of_events = prop->num_of_events;
-	memcpy(hw_ip.armcp_version,
-		prop->armcp_info.armcp_version, VERSION_MAX_LEN);
+
+	memcpy(hw_ip.armcp_version, prop->armcp_info.armcp_version,
+		min(VERSION_MAX_LEN, HL_INFO_VERSION_MAX_LEN));
+
+	memcpy(hw_ip.card_name, prop->armcp_info.card_name,
+		min(CARD_NAME_MAX_LEN, HL_INFO_CARD_NAME_MAX_LEN));
+
 	hw_ip.armcp_cpld_version = le32_to_cpu(prop->armcp_info.cpld_version);
 	hw_ip.psoc_pci_pll_nr = prop->psoc_pci_pll_nr;
 	hw_ip.psoc_pci_pll_nf = prop->psoc_pci_pll_nf;
@@ -179,16 +184,13 @@ static int debug_coresight(struct hl_device *hdev, struct hl_debug_args *args)
 		goto out;
 	}
 
-	if (output) {
-		if (copy_to_user((void __user *) (uintptr_t) args->output_ptr,
-					output,
-					args->output_size)) {
-			dev_err(hdev->dev,
-				"copy to user failed in debug ioctl\n");
-			rc = -EFAULT;
-			goto out;
-		}
+	if (output && copy_to_user((void __user *) (uintptr_t) args->output_ptr,
+					output, args->output_size)) {
+		dev_err(hdev->dev, "copy to user failed in debug ioctl\n");
+		rc = -EFAULT;
+		goto out;
 	}
+
 
 out:
 	kfree(params);
@@ -221,6 +223,41 @@ static int device_utilization(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(device_util))) ? -EFAULT : 0;
 }
 
+static int get_clk_rate(struct hl_device *hdev, struct hl_info_args *args)
+{
+	struct hl_info_clk_rate clk_rate = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hdev->asic_funcs->get_clk_rate(hdev, &clk_rate.cur_clk_rate_mhz,
+						&clk_rate.max_clk_rate_mhz);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &clk_rate,
+		min((size_t) max_size, sizeof(clk_rate))) ? -EFAULT : 0;
+}
+
+static int get_reset_count(struct hl_device *hdev, struct hl_info_args *args)
+{
+	struct hl_info_reset_count reset_count = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	reset_count.hard_reset_cnt = hdev->hard_reset_cnt;
+	reset_count.soft_reset_cnt = hdev->soft_reset_cnt;
+
+	return copy_to_user(out, &reset_count,
+		min((size_t) max_size, sizeof(reset_count))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -238,6 +275,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_DEVICE_STATUS:
 		return device_status_info(hdev, args);
+
+	case HL_INFO_RESET_COUNT:
+		return get_reset_count(hdev, args);
 
 	default:
 		break;
@@ -269,6 +309,10 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_HW_EVENTS_AGGREGATE:
 		rc = hw_events_info(hdev, true, args);
+		break;
+
+	case HL_INFO_CLK_RATE:
+		rc = get_clk_rate(hdev, args);
 		break;
 
 	default:
@@ -406,9 +450,8 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 
 	retcode = func(hpriv, kdata);
 
-	if (cmd & IOC_OUT)
-		if (copy_to_user((void __user *)arg, kdata, usize))
-			retcode = -EFAULT;
+	if ((cmd & IOC_OUT) && copy_to_user((void __user *)arg, kdata, usize))
+		retcode = -EFAULT;
 
 out_err:
 	if (retcode)

@@ -41,6 +41,12 @@
  *
  * SVC_STATUS_RSU_OK:
  * Secure firmware accepts the request of remote status update (RSU).
+ *
+ * SVC_STATUS_RSU_ERROR:
+ * Error encountered during remote system update.
+ *
+ * SVC_STATUS_RSU_NO_SUPPORT:
+ * Secure firmware doesn't support RSU retry or notify feature.
  */
 #define SVC_STATUS_RECONFIG_REQUEST_OK		0
 #define SVC_STATUS_RECONFIG_BUFFER_SUBMITTED	1
@@ -50,6 +56,8 @@
 #define SVC_STATUS_RECONFIG_ERROR		5
 #define SVC_STATUS_RSU_OK			6
 #define SVC_STATUS_RSU_ERROR			7
+#define SVC_STATUS_RSU_NO_SUPPORT		8
+
 /**
  * Flag bit for COMMAND_RECONFIG
  *
