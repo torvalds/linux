@@ -539,6 +539,7 @@ err_core_stop:
 	ath11k_core_stop(ab);
 err_dp_free:
 	ath11k_dp_free(ab);
+	mutex_unlock(&ab->core_lock);
 	return ret;
 }
 
