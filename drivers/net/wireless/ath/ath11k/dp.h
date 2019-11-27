@@ -63,7 +63,6 @@ struct dp_tx_ring {
 	struct dp_srng tcl_data_ring;
 	struct dp_srng tcl_comp_ring;
 	struct idr txbuf_idr;
-	u32 num_tx_pending;
 	/* Protects txbuf_idr and num_pending */
 	spinlock_t tx_idr_lock;
 	DECLARE_KFIFO_PTR(tx_status_fifo, struct hal_wbm_release_ring);

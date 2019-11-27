@@ -196,10 +196,6 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 
 	spin_unlock_bh(&tcl_ring->lock);
 
-	spin_lock_bh(&tx_ring->tx_idr_lock);
-	tx_ring->num_tx_pending++;
-	spin_unlock_bh(&tx_ring->tx_idr_lock);
-
 	atomic_inc(&ar->dp.num_tx_pending);
 
 	return 0;
@@ -236,7 +232,6 @@ static void ath11k_dp_tx_free_txbuf(struct ath11k_base *ab, u8 mac_id,
 	skb_cb = ATH11K_SKB_CB(msdu);
 
 	idr_remove(&tx_ring->txbuf_idr, msdu_id);
-	tx_ring->num_tx_pending--;
 	spin_unlock_bh(&tx_ring->tx_idr_lock);
 
 	dma_unmap_single(ab->dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
@@ -272,7 +267,6 @@ ath11k_dp_tx_htt_tx_complete_buf(struct ath11k_base *ab,
 	ar = skb_cb->ar;
 
 	idr_remove(&tx_ring->txbuf_idr, ts->msdu_id);
-	tx_ring->num_tx_pending--;
 	spin_unlock_bh(&tx_ring->tx_idr_lock);
 
 	if (atomic_dec_and_test(&ar->dp.num_tx_pending))
@@ -495,7 +489,6 @@ void ath11k_dp_tx_completion_handler(struct ath11k_base *ab, int ring_id)
 			continue;
 		}
 		idr_remove(&tx_ring->txbuf_idr, msdu_id);
-		tx_ring->num_tx_pending--;
 		spin_unlock_bh(&tx_ring->tx_idr_lock);
 
 		ar = ab->pdevs[mac_id].ar;
