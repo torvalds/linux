@@ -54,7 +54,7 @@ void skl_write_plane_wm(struct intel_plane *plane,
 			const struct intel_crtc_state *crtc_state);
 void skl_write_cursor_wm(struct intel_plane *plane,
 			 const struct intel_crtc_state *crtc_state);
-bool ilk_disable_lp_wm(struct drm_device *dev);
+bool ilk_disable_lp_wm(struct drm_i915_private *dev_priv);
 void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
 
