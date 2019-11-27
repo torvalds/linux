@@ -453,7 +453,7 @@ static void sync_rcu_exp_select_cpus(void)
  * Wait for the expedited grace period to elapse, issuing any needed
  * RCU CPU stall warnings along the way.
  */
-static void synchronize_sched_expedited_wait(void)
+static void synchronize_rcu_expedited_wait(void)
 {
 	int cpu;
 	unsigned long jiffies_stall;
@@ -538,7 +538,7 @@ static void rcu_exp_wait_wake(unsigned long s)
 {
 	struct rcu_node *rnp;
 
-	synchronize_sched_expedited_wait();
+	synchronize_rcu_expedited_wait();
 
 	// Switch over to wakeup mode, allowing the next GP to proceed.
 	// End the previous grace period only after acquiring the mutex
