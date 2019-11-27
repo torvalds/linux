@@ -1343,11 +1343,13 @@ static int igt_ctx_sseu(void *arg)
 static int igt_ctx_readonly(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
+	unsigned long idx, ndwords, dw, num_engines;
 	struct drm_i915_gem_object *obj = NULL;
 	struct i915_request *tq[5] = {};
+	struct i915_gem_engines_iter it;
 	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;
-	unsigned long idx, ndwords, dw;
+	struct intel_context *ce;
 	struct igt_live_test t;
 	I915_RND_STATE(prng);
 	IGT_TIMEOUT(end_time);
@@ -1381,12 +1383,15 @@ static int igt_ctx_readonly(void *arg)
 		goto out_file;
 	}
 
+	num_engines = 0;
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it)
+		if (intel_engine_can_store_dword(ce->engine))
+			num_engines++;
+	i915_gem_context_unlock_engines(ctx);
+
 	ndwords = 0;
 	dw = 0;
 	while (!time_after(jiffies, end_time)) {
-		struct i915_gem_engines_iter it;
-		struct intel_context *ce;
-
 		for_each_gem_engine(ce,
 				    i915_gem_context_lock_engines(ctx), it) {
 			if (!intel_engine_can_store_dword(ce->engine))
@@ -1429,8 +1434,8 @@ static int igt_ctx_readonly(void *arg)
 		}
 		i915_gem_context_unlock_engines(ctx);
 	}
-	pr_info("Submitted %lu dwords (across %u engines)\n",
-		ndwords, RUNTIME_INFO(i915)->num_engines);
+	pr_info("Submitted %lu dwords (across %lu engines)\n",
+		ndwords, num_engines);
 
 	dw = 0;
 	idx = 0;
@@ -1690,10 +1695,10 @@ static int igt_vm_isolation(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx_a, *ctx_b;
+	unsigned long num_engines, count;
 	struct intel_engine_cs *engine;
 	struct igt_live_test t;
 	I915_RND_STATE(prng);
-	unsigned long count;
 	struct file *file;
 	u64 vm_total;
 	int err;
@@ -1735,6 +1740,7 @@ static int igt_vm_isolation(void *arg)
 	vm_total -= I915_GTT_PAGE_SIZE;
 
 	count = 0;
+	num_engines = 0;
 	for_each_uabi_engine(engine, i915) {
 		IGT_TIMEOUT(end_time);
 		unsigned long this = 0;
@@ -1772,9 +1778,10 @@ static int igt_vm_isolation(void *arg)
 			this++;
 		}
 		count += this;
+		num_engines++;
 	}
-	pr_info("Checked %lu scratch offsets across %d engines\n",
-		count, RUNTIME_INFO(i915)->num_engines);
+	pr_info("Checked %lu scratch offsets across %lu engines\n",
+		count, num_engines);
 
 out_file:
 	if (igt_live_test_end(&t))
