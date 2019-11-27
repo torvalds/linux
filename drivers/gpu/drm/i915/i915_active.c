@@ -186,18 +186,33 @@ active_retire(struct i915_active *ref)
 	__active_retire(ref);
 }
 
+static inline struct dma_fence **
+__active_fence_slot(struct i915_active_fence *active)
+{
+	return (struct dma_fence ** __force)&active->fence;
+}
+
+static inline bool
+active_fence_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
+{
+	struct i915_active_fence *active =
+		container_of(cb, typeof(*active), cb);
+
+	return cmpxchg(__active_fence_slot(active), fence, NULL) == fence;
+}
+
 static void
 node_retire(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
-	i915_active_fence_cb(fence, cb);
-	active_retire(container_of(cb, struct active_node, base.cb)->ref);
+	if (active_fence_cb(fence, cb))
+		active_retire(container_of(cb, struct active_node, base.cb)->ref);
 }
 
 static void
 excl_retire(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
-	i915_active_fence_cb(fence, cb);
-	active_retire(container_of(cb, struct i915_active, excl.cb));
+	if (active_fence_cb(fence, cb))
+		active_retire(container_of(cb, struct i915_active, excl.cb));
 }
 
 static struct i915_active_fence *
@@ -244,7 +259,7 @@ active_instance(struct i915_active *ref, struct intel_timeline *tl)
 	}
 
 	node = prealloc;
-	__i915_active_fence_init(&node->base, &tl->mutex, NULL, node_retire);
+	__i915_active_fence_init(&node->base, NULL, node_retire);
 	node->ref = ref;
 	node->timeline = idx;
 
@@ -281,7 +296,7 @@ void __i915_active_init(struct i915_active *ref,
 	init_llist_head(&ref->preallocated_barriers);
 	atomic_set(&ref->count, 0);
 	__mutex_init(&ref->mutex, "i915_active", key);
-	__i915_active_fence_init(&ref->excl, &ref->mutex, NULL, excl_retire);
+	__i915_active_fence_init(&ref->excl, NULL, excl_retire);
 	INIT_WORK(&ref->work, active_work);
 }
 
@@ -376,15 +391,8 @@ void i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f)
 	/* We expect the caller to manage the exclusive timeline ordering */
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
-	/*
-	 * As we don't know which mutex the caller is using, we told a small
-	 * lie to the debug code that it is using the i915_active.mutex;
-	 * and now we must stick to that lie.
-	 */
-	mutex_acquire(&ref->mutex.dep_map, 0, 0, _THIS_IP_);
 	if (!__i915_active_fence_set(&ref->excl, f))
 		atomic_inc(&ref->count);
-	mutex_release(&ref->mutex.dep_map, 0, _THIS_IP_);
 }
 
 bool i915_active_acquire_if_busy(struct i915_active *ref)
@@ -615,10 +623,6 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 				goto unwind;
 			}
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
-			node->base.lock =
-				&engine->kernel_context->timeline->mutex;
-#endif
 			RCU_INIT_POINTER(node->base.fence, NULL);
 			node->base.cb.func = node_retire;
 			node->timeline = idx;
@@ -639,6 +643,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 			node->base.cb.node.prev = (void *)engine;
 			atomic_inc(&ref->count);
 		}
+		GEM_BUG_ON(rcu_access_pointer(node->base.fence) != ERR_PTR(-EAGAIN));
 
 		GEM_BUG_ON(barrier_to_engine(node) != engine);
 		llist_add(barrier_to_ll(node), &ref->preallocated_barriers);
@@ -702,6 +707,11 @@ void i915_active_acquire_barrier(struct i915_active *ref)
 	}
 }
 
+static struct dma_fence **ll_to_fence_slot(struct llist_node *node)
+{
+	return __active_fence_slot(&barrier_from_ll(node)->base);
+}
+
 void i915_request_add_active_barriers(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
@@ -721,18 +731,12 @@ void i915_request_add_active_barriers(struct i915_request *rq)
 	 */
 	spin_lock_irqsave(&rq->lock, flags);
 	llist_for_each_safe(node, next, node) {
-		RCU_INIT_POINTER(barrier_from_ll(node)->base.fence, &rq->fence);
-		smp_wmb(); /* serialise with reuse_idle_barrier */
+		/* serialise with reuse_idle_barrier */
+		smp_store_mb(*ll_to_fence_slot(node), &rq->fence);
 		list_add_tail((struct list_head *)node, &rq->fence.cb_list);
 	}
 	spin_unlock_irqrestore(&rq->lock, flags);
 }
-
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
-#define active_is_held(active) lockdep_is_held((active)->lock)
-#else
-#define active_is_held(active) true
-#endif
 
 /*
  * __i915_active_fence_set: Update the last active fence along its timeline
@@ -744,7 +748,7 @@ void i915_request_add_active_barriers(struct i915_request *rq)
  * fence onto this one. Returns the previous fence (if not already completed),
  * which the caller must ensure is executed before the new fence. To ensure
  * that the order of fences within the timeline of the i915_active_fence is
- * maintained, it must be locked by the caller.
+ * understood, it should be locked by the caller.
  */
 struct dma_fence *
 __i915_active_fence_set(struct i915_active_fence *active,
@@ -753,34 +757,41 @@ __i915_active_fence_set(struct i915_active_fence *active,
 	struct dma_fence *prev;
 	unsigned long flags;
 
-	/* NB: must be serialised by an outer timeline mutex (active->lock) */
-	spin_lock_irqsave(fence->lock, flags);
+	if (fence == rcu_access_pointer(active->fence))
+		return fence;
+
 	GEM_BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
 
-	prev = rcu_dereference_protected(active->fence, active_is_held(active));
+	/*
+	 * Consider that we have two threads arriving (A and B), with
+	 * C already resident as the active->fence.
+	 *
+	 * A does the xchg first, and so it sees C or NULL depending
+	 * on the timing of the interrupt handler. If it is NULL, the
+	 * previous fence must have been signaled and we know that
+	 * we are first on the timeline. If it is still present,
+	 * we acquire the lock on that fence and serialise with the interrupt
+	 * handler, in the process removing it from any future interrupt
+	 * callback. A will then wait on C before executing (if present).
+	 *
+	 * As B is second, it sees A as the previous fence and so waits for
+	 * it to complete its transition and takes over the occupancy for
+	 * itself -- remembering that it needs to wait on A before executing.
+	 *
+	 * Note the strong ordering of the timeline also provides consistent
+	 * nesting rules for the fence->lock; the inner lock is always the
+	 * older lock.
+	 */
+	spin_lock_irqsave(fence->lock, flags);
+	prev = xchg(__active_fence_slot(active), fence);
 	if (prev) {
 		GEM_BUG_ON(prev == fence);
 		spin_lock_nested(prev->lock, SINGLE_DEPTH_NESTING);
 		__list_del_entry(&active->cb.node);
 		spin_unlock(prev->lock); /* serialise with prev->cb_list */
-
-		/*
-		 * active->fence is reset by the callback from inside
-		 * interrupt context. We need to serialise our list
-		 * manipulation with the fence->lock to prevent the prev
-		 * being lost inside an interrupt (it can't be replaced as
-		 * no other caller is allowed to enter __i915_active_fence_set
-		 * as we hold the timeline lock). After serialising with
-		 * the callback, we need to double check which ran first,
-		 * our list_del() [decoupling prev from the callback] or
-		 * the callback...
-		 */
-		prev = rcu_access_pointer(active->fence);
 	}
-
-	rcu_assign_pointer(active->fence, fence);
+	GEM_BUG_ON(rcu_access_pointer(active->fence) != fence);
 	list_add_tail(&active->cb.node, &fence->cb_list);
-
 	spin_unlock_irqrestore(fence->lock, flags);
 
 	return prev;
@@ -791,10 +802,6 @@ int i915_active_fence_set(struct i915_active_fence *active,
 {
 	struct dma_fence *fence;
 	int err = 0;
-
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
-	lockdep_assert_held(active->lock);
-#endif
 
 	/* Must maintain timeline ordering wrt previous active requests */
 	rcu_read_lock();
@@ -812,7 +819,7 @@ int i915_active_fence_set(struct i915_active_fence *active,
 
 void i915_active_noop(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
-	i915_active_fence_cb(fence, cb);
+	active_fence_cb(fence, cb);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

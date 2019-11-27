@@ -183,7 +183,7 @@ static void call_idle_barriers(struct intel_engine_cs *engine)
 			container_of((struct list_head *)node,
 				     typeof(*cb), node);
 
-		cb->func(NULL, cb);
+		cb->func(ERR_PTR(-EAGAIN), cb);
 	}
 }
 

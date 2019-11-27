@@ -310,27 +310,8 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 	GEM_BUG_ON(rq->hw_context == ce);
 
 	if (rcu_access_pointer(rq->timeline) != tl) { /* timeline sharing! */
-		/*
-		 * Ideally, we just want to insert our foreign fence as
-		 * a barrier into the remove context, such that this operation
-		 * occurs after all current operations in that context, and
-		 * all future operations must occur after this.
-		 *
-		 * Currently, the timeline->last_request tracking is guarded
-		 * by its mutex and so we must obtain that to atomically
-		 * insert our barrier. However, since we already hold our
-		 * timeline->mutex, we must be careful against potential
-		 * inversion if we are the kernel_context as the remote context
-		 * will itself poke at the kernel_context when it needs to
-		 * unpin. Ergo, if already locked, we drop both locks and
-		 * try again (through the magic of userspace repeating EAGAIN).
-		 */
-		if (!mutex_trylock(&tl->mutex))
-			return -EAGAIN;
-
 		/* Queue this switch after current activity by this context. */
 		err = i915_active_fence_set(&tl->last_request, rq);
-		mutex_unlock(&tl->mutex);
 		if (err)
 			return err;
 	}
