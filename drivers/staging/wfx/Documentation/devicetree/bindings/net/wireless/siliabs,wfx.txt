@@ -1,0 +1,97 @@
+The WFxxx chip series can be connected via SPI or via SDIO.
+
+SPI
+---
+
+You have to declare the WFxxx chip in your device tree.
+
+Required properties:
+ - compatible: Should be "silabs,wfx-spi"
+ - reg: Chip select address of device
+ - spi-max-frequency: Maximum SPI clocking speed of device in Hz
+ - interrupts-extended: Should contain interrupt line (interrupt-parent +
+   interrupt can also been used). Trigger should be `IRQ_TYPE_EDGE_RISING`.
+
+Optional properties:
+ - reset-gpios: phandle of gpio that will be used to reset chip during probe.
+   Without this property, you may encounter issues with warm boot.
+
+Please consult Documentation/devicetree/bindings/spi/spi-bus.txt for optional
+SPI connection related properties,
+
+Example:
+
+&spi1 {
+	wfx {
+		compatible = "silabs,wfx-spi";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wfx_irq &wfx_gpios>;
+		interrupts-extended = <&gpio 16 IRQ_TYPE_EDGE_RISING>;
+		wakeup-gpios = <&gpio 12 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio 13 GPIO_ACTIVE_HIGH>;
+		reg = <0>;
+		spi-max-frequency = <42000000>;
+	};
+};
+
+
+SDIO
+----
+
+The driver is able to detect a WFxxx chip on SDIO bus by matching its Vendor ID
+and Product ID. However, driver will only provide limited features in this
+case. Thus declaring WFxxx chip in device tree is strongly recommended (and may
+become mandatory in the future).
+
+Required properties:
+ - compatible: Should be "silabs,wfx-sdio"
+ - reg: Should be 1
+
+In addition, it is recommended to declare a mmc-pwrseq on SDIO host above WFx.
+Without it, you may encounter issues with warm boot. mmc-pwrseq should be
+compatible with mmc-pwrseq-simple. Please consult
+Documentation/devicetree/bindings/mmc/mmc-pwrseq-simple.txt for more
+information.
+
+Example:
+
+/ {
+	wfx_pwrseq: wfx_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wfx_reset>;
+		reset-gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&mmc1 {
+	mmc-pwrseq = <&wfx_pwrseq>;
+	#address-size = <1>;
+	#size = <0>;
+
+	mmc@1 {
+		compatible = "silabs,wfx-sdio";
+		reg = <1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wfx_wakeup>;
+		wakeup-gpios = <&gpio 12 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+Note that #address-size and #size shoud already be defined in node mmc1, but it
+is rarely the case.
+
+Common properties
+-----------------
+
+Some properties are recognized either by SPI and SDIO versions:
+ - wakeup-gpios: phandle of gpio that will be used to wake-up chip. Without
+   this property, driver will disable most of power saving features.
+ - config-file: Use an alternative file as PDS. Default is `wf200.pds`. Only
+   necessary for development/debug purpose.
+ - slk_key: String representing hexadecimal value of secure link key to use.
+   Must contains 64 hexadecimal digits. Not supported in current version.
+
+WFx driver also supports `mac-address` and `local-mac-address` as described in
+Documentation/devicetree/binding/net/ethernet.txt
+

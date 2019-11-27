@@ -32,6 +32,17 @@ config ADJD_S311
 	  This driver can also be built as a module.  If so, the module
 	  will be called adjd_s311.
 
+config ADUX1020
+	tristate "ADUX1020 photometric sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	 Say Y here if you want to build a driver for the Analog Devices
+	 ADUX1020 photometric sensor.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called adux1020.
+
 config AL3320A
 	tristate "AL3320A ambient light sensor"
 	depends on I2C
@@ -495,6 +506,17 @@ config VCNL4035
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vcnl4035.
+
+config VEML6030
+	tristate "VEML6030 ambient light sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Vishay VEML6030
+	  ambient light sensor (ALS).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called veml6030.
 
 config VEML6070
 	tristate "VEML6070 UV A light sensor"

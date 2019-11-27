@@ -2234,11 +2234,7 @@ void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 
 void rtl8723b_InitAntenna_Selection(struct adapter *padapter)
 {
-	struct hal_com_data *pHalData;
 	u8 val;
-
-
-	pHalData = GET_HAL_DATA(padapter);
 
 	val = rtw_read8(padapter, REG_LEDCFG2);
 	/*  Let 8051 take control antenna settting */
@@ -3053,7 +3049,6 @@ static void rtl8723b_fill_default_txdesc(
 {
 	struct adapter *padapter;
 	struct hal_com_data *pHalData;
-	struct dm_priv *pdmpriv;
 	struct mlme_ext_priv *pmlmeext;
 	struct mlme_ext_info *pmlmeinfo;
 	struct pkt_attrib *pattrib;
@@ -3064,7 +3059,6 @@ static void rtl8723b_fill_default_txdesc(
 
 	padapter = pxmitframe->padapter;
 	pHalData = GET_HAL_DATA(padapter);
-	pdmpriv = &pHalData->dmpriv;
 	pmlmeext = &padapter->mlmeextpriv;
 	pmlmeinfo = &(pmlmeext->mlmext_info);
 
@@ -3773,7 +3767,6 @@ void C2HPacketHandler_8723B(struct adapter *padapter, u8 *pbuffer, u16 length)
 
 	process_c2h_event(padapter, &C2hEvent, tmpBuf);
 	/* c2h_handler_8723b(padapter,&C2hEvent); */
-	return;
 }
 
 void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
@@ -4157,9 +4150,8 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 				break;
 			}
 
-			/*  The value of ((usNavUpper + HAL_NAV_UPPER_UNIT_8723B - 1) / HAL_NAV_UPPER_UNIT_8723B) */
-			/*  is getting the upper integer. */
-			usNavUpper = (usNavUpper + HAL_NAV_UPPER_UNIT_8723B - 1) / HAL_NAV_UPPER_UNIT_8723B;
+			usNavUpper = DIV_ROUND_UP(usNavUpper,
+						  HAL_NAV_UPPER_UNIT_8723B);
 			rtw_write8(padapter, REG_NAV_UPPER, (u8)usNavUpper);
 		}
 		break;

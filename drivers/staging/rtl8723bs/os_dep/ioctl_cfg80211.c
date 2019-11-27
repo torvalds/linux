@@ -165,7 +165,7 @@ static void rtw_spt_band_free(struct ieee80211_supported_band *spt_band)
 			+ sizeof(struct ieee80211_channel)*RTW_2G_CHANNELS_NUM
 			+ sizeof(struct ieee80211_rate)*RTW_G_RATES_NUM;
 	}
-	kfree((u8 *)spt_band);
+	kfree(spt_band);
 }
 
 static const struct ieee80211_txrx_stypes
@@ -240,10 +240,6 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	u16 channel;
 	u32 freq;
 	u64 notify_timestamp;
-	u16 notify_capability;
-	u16 notify_interval;
-	u8 *notify_ie;
-	size_t notify_ielen;
 	s32 notify_signal;
 	u8 *buf = NULL, *pbuf;
 	size_t len, bssinf_len = 0;
@@ -323,12 +319,6 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
 	notify_timestamp = ktime_to_us(ktime_get_boottime());
-
-	notify_interval = le16_to_cpu(*(__le16 *)rtw_get_beacon_interval_from_ie(pnetwork->network.IEs));
-	notify_capability = le16_to_cpu(*(__le16 *)rtw_get_capability_from_ie(pnetwork->network.IEs));
-
-	notify_ie = pnetwork->network.IEs+_FIXED_IE_LENGTH_;
-	notify_ielen = pnetwork->network.IELength-_FIXED_IE_LENGTH_;
 
 	/* We've set wiphy's signal_type as CFG80211_SIGNAL_TYPE_MBM: signal strength in mBm (100*dBm) */
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true &&
@@ -1156,7 +1146,7 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 addkey_end:
-	kfree((u8 *)param);
+	kfree(param);
 
 	return ret;
 
@@ -1305,7 +1295,6 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 	struct wireless_dev *rtw_wdev = padapter->rtw_wdev;
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
 	int ret = 0;
-	u8 change = false;
 
 	DBG_871X(FUNC_NDEV_FMT" type =%d\n", FUNC_NDEV_ARG(ndev), type);
 
@@ -1336,7 +1325,6 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 
 	if (old_type != type)
 	{
-		change = true;
 		pmlmeext->action_public_rxseq = 0xffff;
 		pmlmeext->action_public_dialog_token = 0xff;
 	}
@@ -1410,19 +1398,19 @@ void rtw_cfg80211_unlink_bss(struct adapter *padapter, struct wlan_network *pnet
 	struct wireless_dev *pwdev = padapter->rtw_wdev;
 	struct wiphy *wiphy = pwdev->wiphy;
 	struct cfg80211_bss *bss = NULL;
-	struct wlan_bssid_ex select_network = pnetwork->network;
+	struct wlan_bssid_ex *select_network = &pnetwork->network;
 
 	bss = cfg80211_get_bss(wiphy, NULL/*notify_channel*/,
-		select_network.MacAddress, select_network.Ssid.Ssid,
-		select_network.Ssid.SsidLength, 0/*WLAN_CAPABILITY_ESS*/,
+		select_network->MacAddress, select_network->Ssid.Ssid,
+		select_network->Ssid.SsidLength, 0/*WLAN_CAPABILITY_ESS*/,
 		0/*WLAN_CAPABILITY_ESS*/);
 
 	if (bss) {
 		cfg80211_unlink_bss(wiphy, bss);
-		DBG_8192C("%s(): cfg80211_unlink %s!! () ", __func__, select_network.Ssid.Ssid);
+		DBG_8192C("%s(): cfg80211_unlink %s!! () ", __func__,
+			  select_network->Ssid.Ssid);
 		cfg80211_put_bss(padapter->rtw_wdev->wiphy, bss);
 	}
-	return;
 }
 
 void rtw_cfg80211_surveydone_event_callback(struct adapter *padapter)
@@ -1513,7 +1501,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	int i;
 	u8 _status = false;
 	int ret = 0;
-	struct ndis_802_11_ssid ssid[RTW_SSID_SCAN_AMOUNT];
+	struct ndis_802_11_ssid *ssid = NULL;
 	struct rtw_ieee80211_channel ch[RTW_CHANNEL_SCAN_AMOUNT];
 	u8 survey_times =3;
 	u8 survey_times_for_one_ch =6;
@@ -1604,7 +1592,13 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 		goto check_need_indicate_scan_done;
 	}
 
-	memset(ssid, 0, sizeof(struct ndis_802_11_ssid)*RTW_SSID_SCAN_AMOUNT);
+	ssid = kzalloc(RTW_SSID_SCAN_AMOUNT * sizeof(struct ndis_802_11_ssid),
+		       GFP_KERNEL);
+	if (!ssid) {
+		ret = -ENOMEM;
+		goto check_need_indicate_scan_done;
+	}
+
 	/* parsing request ssids, n_ssids */
 	for (i = 0; i < request->n_ssids && i < RTW_SSID_SCAN_AMOUNT; i++) {
 		#ifdef DEBUG_CFG80211
@@ -1648,6 +1642,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	}
 
 check_need_indicate_scan_done:
+	kfree(ssid);
 	if (need_indicate_scan_done)
 	{
 		rtw_cfg80211_surveydone_event_callback(padapter);
@@ -1798,7 +1793,7 @@ static int rtw_cfg80211_set_key_mgt(struct security_priv *psecuritypriv, u32 key
 
 static int rtw_cfg80211_set_wpa_ie(struct adapter *padapter, u8 *pie, size_t ielen)
 {
-	u8 *buf = NULL, *pos = NULL;
+	u8 *buf = NULL;
 	int group_cipher = 0, pairwise_cipher = 0;
 	int ret = 0;
 	int wpa_ielen = 0;
@@ -1833,7 +1828,6 @@ static int rtw_cfg80211_set_wpa_ie(struct adapter *padapter, u8 *pie, size_t iel
 			DBG_8192C("0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n", buf[i], buf[i+1], buf[i+2], buf[i+3], buf[i+4], buf[i+5], buf[i+6], buf[i+7]);
 	}
 
-	pos = buf;
 	if (ielen < RSN_HEADER_LEN) {
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_, ("Ie len too short %d\n", ielen));
 		ret  = -1;
@@ -2194,7 +2188,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 			ret = -EOPNOTSUPP ;
 		}
 
-		kfree((u8 *)pwep);
+		kfree(pwep);
 
 		if (ret < 0)
 			goto exit;
@@ -2433,7 +2427,6 @@ void rtw_cfg80211_indicate_sta_disassoc(struct adapter *padapter, unsigned char 
 
 static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struct net_device *ndev)
 {
-	int ret = 0;
 	int rtap_len;
 	int qos_len = 0;
 	int dot11_hdr_len = 24;
@@ -2499,9 +2492,7 @@ static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struc
 		DBG_8192C("should be eapol packet\n");
 
 		/* Use the real net device to transmit the packet */
-		ret = _rtw_xmit_entry(skb, padapter->pnetdev);
-
-		return ret;
+		return _rtw_xmit_entry(skb, padapter->pnetdev);
 
 	}
 	else if ((frame_control & (IEEE80211_FCTL_FTYPE|IEEE80211_FCTL_STYPE))
@@ -2647,7 +2638,7 @@ static int rtw_cfg80211_add_monitor_if (struct adapter *padapter, char *name, st
 
 out:
 	if (ret && mon_wdev) {
-		kfree((u8 *)mon_wdev);
+		kfree(mon_wdev);
 		mon_wdev = NULL;
 	}
 
@@ -2808,14 +2799,11 @@ static int cfg80211_rtw_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 static int cfg80211_rtw_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
                                 struct cfg80211_beacon_data *info)
 {
-	int ret = 0;
 	struct adapter *adapter = (struct adapter *)rtw_netdev_priv(ndev);
 
 	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 
-	ret = rtw_add_beacon(adapter, info->head, info->head_len, info->tail, info->tail_len);
-
-	return ret;
+	return rtw_add_beacon(adapter, info->head, info->head_len, info->tail, info->tail_len);
 }
 
 static int cfg80211_rtw_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
@@ -3503,7 +3491,7 @@ void rtw_wdev_free(struct wireless_dev *wdev)
 
 	wiphy_free(wdev->wiphy);
 
-	kfree((u8 *)wdev);
+	kfree(wdev);
 }
 
 void rtw_wdev_unregister(struct wireless_dev *wdev)

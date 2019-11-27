@@ -51,10 +51,11 @@ static const struct st_lsm6dsx_ext_dev_settings st_lsm6dsx_ext_dev_table[] = {
 				.addr = 0x60,
 				.mask = GENMASK(3, 2),
 			},
-			.odr_avl[0] = {  10, 0x0 },
-			.odr_avl[1] = {  20, 0x1 },
-			.odr_avl[2] = {  50, 0x2 },
-			.odr_avl[3] = { 100, 0x3 },
+			.odr_avl[0] = {  10000, 0x0 },
+			.odr_avl[1] = {  20000, 0x1 },
+			.odr_avl[2] = {  50000, 0x2 },
+			.odr_avl[3] = { 100000, 0x3 },
+			.odr_len = 4,
 		},
 		.fs_table = {
 			.fs_avl[0] = {
@@ -93,11 +94,11 @@ static const struct st_lsm6dsx_ext_dev_settings st_lsm6dsx_ext_dev_table[] = {
 static void st_lsm6dsx_shub_wait_complete(struct st_lsm6dsx_hw *hw)
 {
 	struct st_lsm6dsx_sensor *sensor;
-	u16 odr;
+	u32 odr;
 
 	sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_ACC]);
-	odr = (hw->enable_mask & BIT(ST_LSM6DSX_ID_ACC)) ? sensor->odr : 13;
-	msleep((2000U / odr) + 1);
+	odr = (hw->enable_mask & BIT(ST_LSM6DSX_ID_ACC)) ? sensor->odr : 12500;
+	msleep((2000000U / odr) + 1);
 }
 
 /**
@@ -317,17 +318,18 @@ st_lsm6dsx_shub_write_with_mask(struct st_lsm6dsx_sensor *sensor,
 
 static int
 st_lsm6dsx_shub_get_odr_val(struct st_lsm6dsx_sensor *sensor,
-			    u16 odr, u16 *val)
+			    u32 odr, u16 *val)
 {
 	const struct st_lsm6dsx_ext_dev_settings *settings;
 	int i;
 
 	settings = sensor->ext_info.settings;
-	for (i = 0; i < ST_LSM6DSX_ODR_LIST_SIZE; i++)
-		if (settings->odr_table.odr_avl[i].hz == odr)
+	for (i = 0; i < settings->odr_table.odr_len; i++) {
+		if (settings->odr_table.odr_avl[i].milli_hz == odr)
 			break;
+	}
 
-	if (i == ST_LSM6DSX_ODR_LIST_SIZE)
+	if (i == settings->odr_table.odr_len)
 		return -EINVAL;
 
 	*val = settings->odr_table.odr_avl[i].val;
@@ -335,7 +337,7 @@ st_lsm6dsx_shub_get_odr_val(struct st_lsm6dsx_sensor *sensor,
 }
 
 static int
-st_lsm6dsx_shub_set_odr(struct st_lsm6dsx_sensor *sensor, u16 odr)
+st_lsm6dsx_shub_set_odr(struct st_lsm6dsx_sensor *sensor, u32 odr)
 {
 	const struct st_lsm6dsx_ext_dev_settings *settings;
 	u16 val;
@@ -440,7 +442,7 @@ st_lsm6dsx_shub_read_oneshot(struct st_lsm6dsx_sensor *sensor,
 	if (err < 0)
 		return err;
 
-	delay = 1000000 / sensor->odr;
+	delay = 1000000000 / sensor->odr;
 	usleep_range(delay, 2 * delay);
 
 	len = min_t(int, sizeof(data), ch->scan_type.realbits >> 3);
@@ -480,8 +482,9 @@ st_lsm6dsx_shub_read_raw(struct iio_dev *iio_dev,
 		iio_device_release_direct_mode(iio_dev);
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		*val = sensor->odr;
-		ret = IIO_VAL_INT;
+		*val = sensor->odr / 1000;
+		*val2 = (sensor->odr % 1000) * 1000;
+		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
@@ -512,6 +515,7 @@ st_lsm6dsx_shub_write_raw(struct iio_dev *iio_dev,
 	case IIO_CHAN_INFO_SAMP_FREQ: {
 		u16 data;
 
+		val = val * 1000 + val2 / 1000;
 		err = st_lsm6dsx_shub_get_odr_val(sensor, val, &data);
 		if (!err)
 			sensor->odr = val;
@@ -537,12 +541,11 @@ st_lsm6dsx_shub_sampling_freq_avail(struct device *dev,
 	int i, len = 0;
 
 	settings = sensor->ext_info.settings;
-	for (i = 0; i < ST_LSM6DSX_ODR_LIST_SIZE; i++) {
-		u16 val = settings->odr_table.odr_avl[i].hz;
+	for (i = 0; i < settings->odr_table.odr_len; i++) {
+		u32 val = settings->odr_table.odr_avl[i].milli_hz;
 
-		if (val > 0)
-			len += scnprintf(buf + len, PAGE_SIZE - len, "%d ",
-					 val);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%d.%03d ",
+				 val / 1000, val % 1000);
 	}
 	buf[len - 1] = '\n';
 
@@ -607,7 +610,7 @@ st_lsm6dsx_shub_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 	sensor = iio_priv(iio_dev);
 	sensor->id = id;
 	sensor->hw = hw;
-	sensor->odr = info->odr_table.odr_avl[0].hz;
+	sensor->odr = info->odr_table.odr_avl[0].milli_hz;
 	sensor->gain = info->fs_table.fs_avl[0].gain;
 	sensor->ext_info.settings = info;
 	sensor->ext_info.addr = i2c_addr;

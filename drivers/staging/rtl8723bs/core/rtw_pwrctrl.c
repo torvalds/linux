@@ -190,7 +190,6 @@ void rtw_ps_processor(struct adapter *padapter)
 	}
 exit:
 	pwrpriv->ps_processing = false;
-	return;
 }
 
 static void pwr_state_check_handler(struct timer_list *t)

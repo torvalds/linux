@@ -1,0 +1,17 @@
+This is a list of things that need to be done to get this driver out of the
+staging directory.
+
+  - I have to take a decision about secure link support. I can:
+      - drop completely
+      - keep it in an external patch (my preferred option)
+      - replace call to mbedtls with kernel crypto API (necessitate a
+        bunch of work)
+      - pull mbedtls in kernel (non-realistic)
+
+  - mac80211 interface does not (yet) have expected quality to be placed
+    outside of staging:
+      - Some processings are redundant with mac80211 ones
+      - Many members from wfx_dev/wfx_vif can be retrieved from mac80211
+        structures
+      - Some functions are too complex
+      - ...

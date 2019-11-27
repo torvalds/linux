@@ -265,6 +265,7 @@ struct most_interface {
 struct core_component {
 	struct list_head list;
 	const char *name;
+	struct module *mod;
 	int (*probe_channel)(struct most_interface *iface, int channel_idx,
 			     struct most_channel_config *cfg, char *name,
 			     char *param);

@@ -1,0 +1,8 @@
+config WFX
+	tristate "Silicon Labs wireless chips WF200 and further"
+	depends on MAC80211
+	depends on MMC || !MMC # do not allow WFX=y if MMC=m
+	depends on (SPI || MMC)
+	help
+	  This is a driver for Silicons Labs WFxxx series (WF200 and further)
+	  chipsets. This chip can be found on SPI or SDIO buses.

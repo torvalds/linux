@@ -483,7 +483,7 @@ static void sgp_init(struct sgp_data *data)
 		data->iaq_defval_skip_jiffies =
 			43 * data->measure_interval_jiffies;
 		break;
-	};
+	}
 }
 
 static const struct iio_info sgp_info = {

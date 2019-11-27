@@ -1,6 +1,3 @@
-* reception stalls permanently (until admin intervention) if the rx buffer
-  queues become empty because of allocation failures (ex. under memory
-  pressure)
 * commit 7c734359d350 ("qlge: Size RX buffers based on MTU.", v2.6.33-rc1)
   introduced dead code in the receive routines, which should be rewritten
   anyways by the admission of the author himself, see the comment above

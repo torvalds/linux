@@ -109,13 +109,13 @@ int vchiq_platform_init(struct platform_device *pdev,
 extern struct vchiq_state *
 vchiq_get_state(void);
 
-extern VCHIQ_STATUS_T
+extern enum vchiq_status
 vchiq_arm_vcsuspend(struct vchiq_state *state);
 
-extern VCHIQ_STATUS_T
+extern enum vchiq_status
 vchiq_arm_vcresume(struct vchiq_state *state);
 
-extern VCHIQ_STATUS_T
+extern enum vchiq_status
 vchiq_arm_init_state(struct vchiq_state *state,
 		     struct vchiq_arm_state *arm_state);
 
@@ -124,16 +124,16 @@ vchiq_check_resume(struct vchiq_state *state);
 
 extern void
 vchiq_check_suspend(struct vchiq_state *state);
-VCHIQ_STATUS_T
-vchiq_use_service(VCHIQ_SERVICE_HANDLE_T handle);
+enum vchiq_status
+vchiq_use_service(unsigned int handle);
 
-extern VCHIQ_STATUS_T
-vchiq_release_service(VCHIQ_SERVICE_HANDLE_T handle);
+extern enum vchiq_status
+vchiq_release_service(unsigned int handle);
 
-extern VCHIQ_STATUS_T
+extern enum vchiq_status
 vchiq_check_service(struct vchiq_service *service);
 
-extern VCHIQ_STATUS_T
+extern enum vchiq_status
 vchiq_platform_suspend(struct vchiq_state *state);
 
 extern int
@@ -154,27 +154,27 @@ vchiq_platform_get_arm_state(struct vchiq_state *state);
 extern int
 vchiq_videocore_wanted(struct vchiq_state *state);
 
-extern VCHIQ_STATUS_T
+extern enum vchiq_status
 vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		   enum USE_TYPE_E use_type);
-extern VCHIQ_STATUS_T
+extern enum vchiq_status
 vchiq_release_internal(struct vchiq_state *state,
 		       struct vchiq_service *service);
 
 extern struct vchiq_debugfs_node *
-vchiq_instance_get_debugfs_node(VCHIQ_INSTANCE_T instance);
+vchiq_instance_get_debugfs_node(struct vchiq_instance *instance);
 
 extern int
-vchiq_instance_get_use_count(VCHIQ_INSTANCE_T instance);
+vchiq_instance_get_use_count(struct vchiq_instance *instance);
 
 extern int
-vchiq_instance_get_pid(VCHIQ_INSTANCE_T instance);
+vchiq_instance_get_pid(struct vchiq_instance *instance);
 
 extern int
-vchiq_instance_get_trace(VCHIQ_INSTANCE_T instance);
+vchiq_instance_get_trace(struct vchiq_instance *instance);
 
 extern void
-vchiq_instance_set_trace(VCHIQ_INSTANCE_T instance, int trace);
+vchiq_instance_set_trace(struct vchiq_instance *instance, int trace);
 
 extern void
 set_suspend_state(struct vchiq_arm_state *arm_state,

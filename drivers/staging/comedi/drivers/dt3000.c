@@ -508,12 +508,11 @@ static int dt3k_ai_insn_read(struct comedi_device *dev,
 			     unsigned int *data)
 {
 	int i;
-	unsigned int chan, gain, aref;
+	unsigned int chan, gain;
 
 	chan = CR_CHAN(insn->chanspec);
 	gain = CR_RANGE(insn->chanspec);
 	/* XXX docs don't explain how to select aref */
-	aref = CR_AREF(insn->chanspec);
 
 	for (i = 0; i < insn->n; i++)
 		data[i] = dt3k_readsingle(dev, DPR_SUBSYS_AI, chan, gain);

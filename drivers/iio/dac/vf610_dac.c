@@ -172,7 +172,6 @@ static int vf610_dac_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
 	struct vf610_dac *info;
-	struct resource *mem;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev,
@@ -185,8 +184,7 @@ static int vf610_dac_probe(struct platform_device *pdev)
 	info = iio_priv(indio_dev);
 	info->dev = &pdev->dev;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->regs = devm_ioremap_resource(&pdev->dev, mem);
+	info->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
 

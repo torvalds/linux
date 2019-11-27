@@ -782,6 +782,7 @@ static int audio_tx_completion(struct most_interface *iface, int channel_id)
  * Initialization of the struct core_component
  */
 static struct core_component comp = {
+	.mod = THIS_MODULE,
 	.name = DRIVER_NAME,
 	.probe_channel = audio_probe_channel,
 	.disconnect_channel = audio_disconnect_channel,
