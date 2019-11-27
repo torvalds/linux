@@ -248,8 +248,6 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 	}
 
 	I915_WRITE(ILK_DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
-	I915_WRITE(ILK_FBC_RT_BASE,
-		   i915_ggtt_offset(params->vma) | ILK_FBC_RT_VALID);
 	/* enable it... */
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
