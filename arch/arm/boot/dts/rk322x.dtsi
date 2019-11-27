@@ -1592,10 +1592,6 @@
 			pwm2_pin_pull_up: pwm2-pin-pull-up {
 				rockchip,pins = <1 12 RK_FUNC_2 &pcfg_pull_up>;
 			};
-
-			pwm2_pin_pull_down: pwm2-pin-pull-down {
-				rockchip,pins = <1 12 RK_FUNC_2 &pcfg_pull_down>;
-			};
 		};
 
 		pwm3 {
@@ -1605,10 +1601,6 @@
 
 			pwm3_pin_pull_up: pwm3-pin-pull-up {
 				rockchip,pins = <1 11 RK_FUNC_2 &pcfg_pull_up>;
-			};
-
-			pwm3_pin_pull_down: pwm3-pin-pull-down {
-				rockchip,pins = <1 11 RK_FUNC_2 &pcfg_pull_down>;
 			};
 		};
 
