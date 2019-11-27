@@ -5185,13 +5185,11 @@ uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,
 
 int smu7_init_function_pointers(struct pp_hwmgr *hwmgr)
 {
-	int ret = 0;
-
 	hwmgr->hwmgr_func = &smu7_hwmgr_funcs;
 	if (hwmgr->pp_table_version == PP_TABLE_V0)
 		hwmgr->pptable_func = &pptable_funcs;
 	else if (hwmgr->pp_table_version == PP_TABLE_V1)
 		hwmgr->pptable_func = &pptable_v1_0_funcs;
 
-	return ret;
+	return 0;
 }
