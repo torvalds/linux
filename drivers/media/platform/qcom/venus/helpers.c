@@ -5,6 +5,7 @@
  */
 #include <linux/clk.h>
 #include <linux/iopoll.h>
+#include <linux/interconnect.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
@@ -388,12 +389,91 @@ static u32 load_per_type(struct venus_core *core, u32 session_type)
 	return mbs_per_sec;
 }
 
-int venus_helper_load_scale_clocks(struct venus_core *core)
+static void mbs_to_bw(struct venus_inst *inst, u32 mbs, u32 *avg, u32 *peak)
 {
+	const struct venus_resources *res = inst->core->res;
+	const struct bw_tbl *bw_tbl;
+	unsigned int num_rows, i;
+
+	*avg = 0;
+	*peak = 0;
+
+	if (mbs == 0)
+		return;
+
+	if (inst->session_type == VIDC_SESSION_TYPE_ENC) {
+		num_rows = res->bw_tbl_enc_size;
+		bw_tbl = res->bw_tbl_enc;
+	} else if (inst->session_type == VIDC_SESSION_TYPE_DEC) {
+		num_rows = res->bw_tbl_dec_size;
+		bw_tbl = res->bw_tbl_dec;
+	} else {
+		return;
+	}
+
+	if (!bw_tbl || num_rows == 0)
+		return;
+
+	for (i = 0; i < num_rows; i++) {
+		if (mbs > bw_tbl[i].mbs_per_sec)
+			break;
+
+		if (inst->dpb_fmt & HFI_COLOR_FORMAT_10_BIT_BASE) {
+			*avg = bw_tbl[i].avg_10bit;
+			*peak = bw_tbl[i].peak_10bit;
+		} else {
+			*avg = bw_tbl[i].avg;
+			*peak = bw_tbl[i].peak;
+		}
+	}
+}
+
+static int load_scale_bw(struct venus_core *core)
+{
+	struct venus_inst *inst = NULL;
+	u32 mbs_per_sec, avg, peak, total_avg = 0, total_peak = 0;
+
+	mutex_lock(&core->lock);
+	list_for_each_entry(inst, &core->instances, list) {
+		mbs_per_sec = load_per_instance(inst);
+		mbs_to_bw(inst, mbs_per_sec, &avg, &peak);
+		total_avg += avg;
+		total_peak += peak;
+	}
+	mutex_unlock(&core->lock);
+
+	dev_dbg(core->dev, "total: avg_bw: %u, peak_bw: %u\n",
+		total_avg, total_peak);
+
+	return icc_set_bw(core->video_path, total_avg, total_peak);
+}
+
+static int set_clk_freq(struct venus_core *core, unsigned long freq)
+{
+	struct clk *clk = core->clks[0];
+	int ret;
+
+	ret = clk_set_rate(clk, freq);
+	if (ret)
+		return ret;
+
+	ret = clk_set_rate(core->core0_clk, freq);
+	if (ret)
+		return ret;
+
+	ret = clk_set_rate(core->core1_clk, freq);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int scale_clocks(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
 	const struct freq_tbl *table = core->res->freq_tbl;
 	unsigned int num_rows = core->res->freq_tbl_size;
 	unsigned long freq = table[0].freq;
-	struct clk *clk = core->clks[0];
 	struct device *dev = core->dev;
 	u32 mbs_per_sec;
 	unsigned int i;
@@ -419,23 +499,124 @@ int venus_helper_load_scale_clocks(struct venus_core *core)
 
 set_freq:
 
-	ret = clk_set_rate(clk, freq);
-	if (ret)
-		goto err;
+	ret = set_clk_freq(core, freq);
+	if (ret) {
+		dev_err(dev, "failed to set clock rate %lu (%d)\n",
+			freq, ret);
+		return ret;
+	}
 
-	ret = clk_set_rate(core->core0_clk, freq);
-	if (ret)
-		goto err;
-
-	ret = clk_set_rate(core->core1_clk, freq);
-	if (ret)
-		goto err;
+	ret = load_scale_bw(core);
+	if (ret) {
+		dev_err(dev, "failed to set bandwidth (%d)\n",
+			ret);
+		return ret;
+	}
 
 	return 0;
+}
 
-err:
-	dev_err(dev, "failed to set clock rate %lu (%d)\n", freq, ret);
-	return ret;
+static unsigned long calculate_inst_freq(struct venus_inst *inst,
+					 unsigned long filled_len)
+{
+	unsigned long vpp_freq = 0, vsp_freq = 0;
+	u32 fps = (u32)inst->fps;
+	u32 mbs_per_sec;
+
+	mbs_per_sec = load_per_instance(inst) / fps;
+
+	vpp_freq = mbs_per_sec * inst->clk_data.codec_freq_data->vpp_freq;
+	/* 21 / 20 is overhead factor */
+	vpp_freq += vpp_freq / 20;
+	vsp_freq = mbs_per_sec * inst->clk_data.codec_freq_data->vsp_freq;
+
+	/* 10 / 7 is overhead factor */
+	if (inst->session_type == VIDC_SESSION_TYPE_ENC)
+		vsp_freq += (inst->controls.enc.bitrate * 10) / 7;
+	else
+		vsp_freq += ((fps * filled_len * 8) * 10) / 7;
+
+	return max(vpp_freq, vsp_freq);
+}
+
+static int scale_clocks_v4(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
+	const struct freq_tbl *table = core->res->freq_tbl;
+	unsigned int num_rows = core->res->freq_tbl_size;
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct device *dev = core->dev;
+	unsigned long freq = 0, freq_core1 = 0, freq_core2 = 0;
+	unsigned long filled_len = 0;
+	struct venus_buffer *buf, *n;
+	struct vb2_buffer *vb;
+	int i, ret;
+
+	v4l2_m2m_for_each_src_buf_safe(m2m_ctx, buf, n) {
+		vb = &buf->vb.vb2_buf;
+		filled_len = max(filled_len, vb2_get_plane_payload(vb, 0));
+	}
+
+	if (inst->session_type == VIDC_SESSION_TYPE_DEC && !filled_len)
+		return 0;
+
+	freq = calculate_inst_freq(inst, filled_len);
+	inst->clk_data.freq = freq;
+
+	mutex_lock(&core->lock);
+	list_for_each_entry(inst, &core->instances, list) {
+		if (inst->clk_data.core_id == VIDC_CORE_ID_1) {
+			freq_core1 += inst->clk_data.freq;
+		} else if (inst->clk_data.core_id == VIDC_CORE_ID_2) {
+			freq_core2 += inst->clk_data.freq;
+		} else if (inst->clk_data.core_id == VIDC_CORE_ID_3) {
+			freq_core1 += inst->clk_data.freq;
+			freq_core2 += inst->clk_data.freq;
+		}
+	}
+	mutex_unlock(&core->lock);
+
+	freq = max(freq_core1, freq_core2);
+
+	if (freq >= table[0].freq) {
+		freq = table[0].freq;
+		dev_warn(dev, "HW is overloaded, needed: %lu max: %lu\n",
+			 freq, table[0].freq);
+		goto set_freq;
+	}
+
+	for (i = num_rows - 1 ; i >= 0; i--) {
+		if (freq <= table[i].freq) {
+			freq = table[i].freq;
+			break;
+		}
+	}
+
+set_freq:
+
+	ret = set_clk_freq(core, freq);
+	if (ret) {
+		dev_err(dev, "failed to set clock rate %lu (%d)\n",
+			freq, ret);
+		return ret;
+	}
+
+	ret = load_scale_bw(core);
+	if (ret) {
+		dev_err(dev, "failed to set bandwidth (%d)\n",
+			ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+int venus_helper_load_scale_clocks(struct venus_inst *inst)
+{
+	if (IS_V4(inst->core))
+		return scale_clocks_v4(inst);
+
+	return scale_clocks(inst);
 }
 EXPORT_SYMBOL_GPL(venus_helper_load_scale_clocks);
 
@@ -541,6 +722,8 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 
 		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
 			put_ts_metadata(inst, vbuf);
+
+		venus_helper_load_scale_clocks(inst);
 	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		if (inst->session_type == VIDC_SESSION_TYPE_ENC)
 			fdata.buffer_type = HFI_BUFFER_OUTPUT;
@@ -809,6 +992,7 @@ int venus_helper_set_core_usage(struct venus_inst *inst, u32 usage)
 	const u32 ptype = HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE;
 	struct hfi_videocores_usage_type cu;
 
+	inst->clk_data.core_id = usage;
 	if (!IS_V4(inst->core))
 		return 0;
 
@@ -817,6 +1001,36 @@ int venus_helper_set_core_usage(struct venus_inst *inst, u32 usage)
 	return hfi_session_set_property(inst, ptype, &cu);
 }
 EXPORT_SYMBOL_GPL(venus_helper_set_core_usage);
+
+int venus_helper_init_codec_freq_data(struct venus_inst *inst)
+{
+	const struct codec_freq_data *data;
+	unsigned int i, data_size;
+	u32 pixfmt;
+	int ret = 0;
+
+	if (!IS_V4(inst->core))
+		return 0;
+
+	data = inst->core->res->codec_freq_data;
+	data_size = inst->core->res->codec_freq_data_size;
+	pixfmt = inst->session_type == VIDC_SESSION_TYPE_DEC ?
+			inst->fmt_out->pixfmt : inst->fmt_cap->pixfmt;
+
+	for (i = 0; i < data_size; i++) {
+		if (data[i].pixfmt == pixfmt &&
+		    data[i].session_type == inst->session_type) {
+			inst->clk_data.codec_freq_data = &data[i];
+			break;
+		}
+	}
+
+	if (!inst->clk_data.codec_freq_data)
+		ret = -EINVAL;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(venus_helper_init_codec_freq_data);
 
 int venus_helper_set_num_bufs(struct venus_inst *inst, unsigned int input_bufs,
 			      unsigned int output_bufs,
@@ -1140,7 +1354,7 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 
 		venus_helper_free_dpb_bufs(inst);
 
-		venus_helper_load_scale_clocks(core);
+		venus_helper_load_scale_clocks(inst);
 		INIT_LIST_HEAD(&inst->registeredbufs);
 	}
 
@@ -1193,7 +1407,6 @@ EXPORT_SYMBOL_GPL(venus_helper_process_initial_out_bufs);
 
 int venus_helper_vb2_start_streaming(struct venus_inst *inst)
 {
-	struct venus_core *core = inst->core;
 	int ret;
 
 	ret = venus_helper_intbufs_alloc(inst);
@@ -1204,7 +1417,7 @@ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
 	if (ret)
 		goto err_bufs_free;
 
-	venus_helper_load_scale_clocks(core);
+	venus_helper_load_scale_clocks(inst);
 
 	ret = hfi_session_load_res(inst);
 	if (ret)

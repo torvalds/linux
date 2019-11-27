@@ -135,8 +135,12 @@ returns the information to the application. The ioctl never fails.
       - The CEC hardware can monitor CEC pin changes from low to high voltage
         and vice versa. When in pin monitoring mode the application will
 	receive ``CEC_EVENT_PIN_CEC_LOW`` and ``CEC_EVENT_PIN_CEC_HIGH`` events.
+    * .. _`CEC-CAP-CONNECTOR-INFO`:
 
-
+      - ``CEC_CAP_CONNECTOR_INFO``
+      - 0x00000100
+      - If this capability is set, then :ref:`CEC_ADAP_G_CONNECTOR_INFO` can
+        be used.
 
 Return Value
 ============

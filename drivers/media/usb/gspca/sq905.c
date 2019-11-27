@@ -378,6 +378,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 	/* Start the workqueue function to do the streaming */
 	dev->work_thread = create_singlethread_workqueue(MODULE_NAME);
+	if (!dev->work_thread)
+		return -ENOMEM;
+
 	queue_work(dev->work_thread, &dev->work_struct);
 
 	return 0;

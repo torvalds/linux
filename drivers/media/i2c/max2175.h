@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Maxim Integrated MAX2175 RF to Bits tuner driver
  *
  * This driver & most of the hard coded values are based on the reference

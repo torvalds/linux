@@ -949,7 +949,7 @@ void em28xx_do_i2c_scan(struct em28xx *dev, unsigned int bus)
 	unsigned char buf;
 	int i, rc;
 
-	memset(i2c_devicelist, 0, ARRAY_SIZE(i2c_devicelist));
+	memset(i2c_devicelist, 0, sizeof(i2c_devicelist));
 
 	for (i = 0; i < ARRAY_SIZE(i2c_devs); i++) {
 		dev->i2c_client[bus].addr = i;
@@ -964,7 +964,7 @@ void em28xx_do_i2c_scan(struct em28xx *dev, unsigned int bus)
 
 	if (bus == dev->def_i2c_bus)
 		dev->i2c_hash = em28xx_hash_mem(i2c_devicelist,
-						ARRAY_SIZE(i2c_devicelist), 32);
+						sizeof(i2c_devicelist), 32);
 }
 
 /*

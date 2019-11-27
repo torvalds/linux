@@ -121,6 +121,7 @@ struct dvb_usb_driver_info {
  * @interval: time in ms between two queries
  * @driver_type: used to point if a device supports raw mode
  * @bulk_mode: device supports bulk mode for rc (disable polling mode)
+ * @timeout: set to length of last space before raw IR goes idle
  */
 struct dvb_usb_rc {
 	const char *map_name;
@@ -130,6 +131,7 @@ struct dvb_usb_rc {
 	unsigned int interval;
 	enum rc_driver_type driver_type;
 	bool bulk_mode;
+	int timeout;
 };
 
 /**

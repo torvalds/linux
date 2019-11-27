@@ -60,10 +60,6 @@
 #define  MCI_MODE_MEMORY_READ           0x000
 #define  MCI_MODE_MEMORY_WRITE          0x4000
 
-static unsigned int mpegbufs = 8;
-module_param(mpegbufs, int, 0644);
-MODULE_PARM_DESC(mpegbufs, "number of mpeg buffers, range 2-32");
-
 static unsigned int mpeglines = 128;
 module_param(mpeglines, int, 0644);
 MODULE_PARM_DESC(mpeglines, "number of lines in an MPEG buffer, range 2-32");
@@ -1080,16 +1076,6 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	return 0;
 }
 
-static void cx231xx_417_check_encoder(struct cx231xx *dev)
-{
-	u32 status, seq;
-
-	status = 0;
-	seq = 0;
-	cx231xx_api_cmd(dev, CX2341X_ENC_GET_SEQ_END, 0, 2, &status, &seq);
-	dprintk(1, "%s() status = %d, seq = %d\n", __func__, status, seq);
-}
-
 static void cx231xx_codec_settings(struct cx231xx *dev)
 {
 	dprintk(1, "%s()\n", __func__);
@@ -1227,40 +1213,25 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 
 /* ------------------------------------------------------------------ */
 
-static int bb_buf_setup(struct videobuf_queue *q,
-	unsigned int *count, unsigned int *size)
+static int queue_setup(struct vb2_queue *vq,
+		       unsigned int *nbuffers, unsigned int *nplanes,
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
-	struct cx231xx_fh *fh = q->priv_data;
+	struct cx231xx *dev = vb2_get_drv_priv(vq);
+	unsigned int size = mpeglinesize * mpeglines;
 
-	fh->dev->ts1.ts_packet_size  = mpeglinesize;
-	fh->dev->ts1.ts_packet_count = mpeglines;
+	dev->ts1.ts_packet_size  = mpeglinesize;
+	dev->ts1.ts_packet_count = mpeglines;
 
-	*size = fh->dev->ts1.ts_packet_size * fh->dev->ts1.ts_packet_count;
-	*count = mpegbufs;
+	if (vq->num_buffers + *nbuffers < CX231XX_MIN_BUF)
+		*nbuffers = CX231XX_MIN_BUF - vq->num_buffers;
+
+	if (*nplanes)
+		return sizes[0] < size ? -EINVAL : 0;
+	*nplanes = 1;
+	sizes[0] = mpeglinesize * mpeglines;
 
 	return 0;
-}
-
-static void free_buffer(struct videobuf_queue *vq, struct cx231xx_buffer *buf)
-{
-	struct cx231xx_fh *fh = vq->priv_data;
-	struct cx231xx *dev = fh->dev;
-	unsigned long flags = 0;
-
-	BUG_ON(in_interrupt());
-
-	spin_lock_irqsave(&dev->video_mode.slock, flags);
-	if (dev->USE_ISO) {
-		if (dev->video_mode.isoc_ctl.buf == buf)
-			dev->video_mode.isoc_ctl.buf = NULL;
-	} else {
-		if (dev->video_mode.bulk_ctl.buf == buf)
-			dev->video_mode.bulk_ctl.buf = NULL;
-	}
-	spin_unlock_irqrestore(&dev->video_mode.slock, flags);
-	videobuf_waiton(vq, &buf->vb, 0, 0);
-	videobuf_vmalloc_free(&buf->vb);
-	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
 static void buffer_copy(struct cx231xx *dev, char *data, int len, struct urb *urb,
@@ -1276,13 +1247,13 @@ static void buffer_copy(struct cx231xx *dev, char *data, int len, struct urb *ur
 			return;
 
 		buf = list_entry(dma_q->active.next,
-				struct cx231xx_buffer, vb.queue);
+				struct cx231xx_buffer, list);
 		dev->video_mode.isoc_ctl.buf = buf;
 		dma_q->mpeg_buffer_done = 1;
 	}
 	/* Fill buffer */
 	buf = dev->video_mode.isoc_ctl.buf;
-	vbuf = videobuf_to_vmalloc(&buf->vb);
+	vbuf = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
 	if ((dma_q->mpeg_buffer_completed+len) <
 			mpeglines*mpeglinesize) {
@@ -1306,11 +1277,10 @@ static void buffer_copy(struct cx231xx *dev, char *data, int len, struct urb *ur
 		memcpy(vbuf+dma_q->mpeg_buffer_completed,
 				data, tail_data);
 
-		buf->vb.state = VIDEOBUF_DONE;
-		buf->vb.field_count++;
-		buf->vb.ts = ktime_get_ns();
-		list_del(&buf->vb.queue);
-		wake_up(&buf->vb.done);
+		buf->vb.vb2_buf.timestamp = ktime_get_ns();
+		buf->vb.sequence = dma_q->sequence++;
+		list_del(&buf->list);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		dma_q->mpeg_buffer_completed = 0;
 
 		if (len - tail_data > 0) {
@@ -1331,17 +1301,15 @@ static void buffer_filled(char *data, int len, struct urb *urb,
 	if (list_empty(&dma_q->active))
 		return;
 
-	buf = list_entry(dma_q->active.next,
-			struct cx231xx_buffer, vb.queue);
+	buf = list_entry(dma_q->active.next, struct cx231xx_buffer, list);
 
 	/* Fill buffer */
-	vbuf = videobuf_to_vmalloc(&buf->vb);
+	vbuf = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 	memcpy(vbuf, data, len);
-	buf->vb.state = VIDEOBUF_DONE;
-	buf->vb.field_count++;
-	buf->vb.ts = ktime_get_ns();
-	list_del(&buf->vb.queue);
-	wake_up(&buf->vb.done);
+	buf->vb.sequence = dma_q->sequence++;
+	buf->vb.vb2_buf.timestamp = ktime_get_ns();
+	list_del(&buf->list);
+	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }
 
 static int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
@@ -1394,100 +1362,104 @@ static int cx231xx_bulk_copy(struct cx231xx *dev, struct urb *urb)
 	return 0;
 }
 
-static int bb_buf_prepare(struct videobuf_queue *q,
-	struct videobuf_buffer *vb, enum v4l2_field field)
+static void buffer_queue(struct vb2_buffer *vb)
 {
-	struct cx231xx_fh *fh = q->priv_data;
 	struct cx231xx_buffer *buf =
-	    container_of(vb, struct cx231xx_buffer, vb);
-	struct cx231xx *dev = fh->dev;
-	int rc = 0, urb_init = 0;
-	int size = fh->dev->ts1.ts_packet_size * fh->dev->ts1.ts_packet_count;
+	    container_of(vb, struct cx231xx_buffer, vb.vb2_buf);
+	struct cx231xx *dev = vb2_get_drv_priv(vb->vb2_queue);
+	struct cx231xx_dmaqueue *vidq = &dev->video_mode.vidq;
+	unsigned long flags;
 
-	if (0 != buf->vb.baddr  &&  buf->vb.bsize < size)
-		return -EINVAL;
-	buf->vb.width = fh->dev->ts1.ts_packet_size;
-	buf->vb.height = fh->dev->ts1.ts_packet_count;
-	buf->vb.size = size;
-	buf->vb.field = field;
+	spin_lock_irqsave(&dev->video_mode.slock, flags);
+	list_add_tail(&buf->list, &vidq->active);
+	spin_unlock_irqrestore(&dev->video_mode.slock, flags);
+}
 
-	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
-		rc = videobuf_iolock(q, &buf->vb, NULL);
-		if (rc < 0)
-			goto fail;
+static void return_all_buffers(struct cx231xx *dev,
+			       enum vb2_buffer_state state)
+{
+	struct cx231xx_dmaqueue *vidq = &dev->video_mode.vidq;
+	struct cx231xx_buffer *buf, *node;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->video_mode.slock, flags);
+	list_for_each_entry_safe(buf, node, &vidq->active, list) {
+		vb2_buffer_done(&buf->vb.vb2_buf, state);
+		list_del(&buf->list);
 	}
+	spin_unlock_irqrestore(&dev->video_mode.slock, flags);
+}
 
-	if (dev->USE_ISO) {
-		if (!dev->video_mode.isoc_ctl.num_bufs)
-			urb_init = 1;
-	} else {
-		if (!dev->video_mode.bulk_ctl.num_bufs)
-			urb_init = 1;
-	}
-	dev_dbg(dev->dev,
-		"urb_init=%d dev->video_mode.max_pkt_size=%d\n",
-		urb_init, dev->video_mode.max_pkt_size);
+static int start_streaming(struct vb2_queue *vq, unsigned int count)
+{
+	struct cx231xx *dev = vb2_get_drv_priv(vq);
+	struct cx231xx_dmaqueue *vidq = &dev->video_mode.vidq;
+	int ret = 0;
+
+	vidq->sequence = 0;
 	dev->mode_tv = 1;
 
-	if (urb_init) {
-		rc = cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
-		rc = cx231xx_unmute_audio(dev);
-		if (dev->USE_ISO) {
-			cx231xx_set_alt_setting(dev, INDEX_TS1, 4);
-			rc = cx231xx_init_isoc(dev, mpeglines,
-				       mpegbufs,
-				       dev->ts1_mode.max_pkt_size,
-				       cx231xx_isoc_copy);
-		} else {
-			cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
-			rc = cx231xx_init_bulk(dev, mpeglines,
-				       mpegbufs,
-				       dev->ts1_mode.max_pkt_size,
-				       cx231xx_bulk_copy);
-		}
-		if (rc < 0)
-			goto fail;
-	}
+	cx231xx_set_alt_setting(dev, INDEX_VANC, 1);
+	cx231xx_set_gpio_value(dev, 2, 0);
 
-	buf->vb.state = VIDEOBUF_PREPARED;
-	return 0;
+	cx231xx_initialize_codec(dev);
 
-fail:
-	free_buffer(q, buf);
-	return rc;
+	cx231xx_start_TS1(dev);
+
+	cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
+	cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
+	if (dev->USE_ISO)
+		ret = cx231xx_init_isoc(dev, CX231XX_NUM_PACKETS,
+					CX231XX_NUM_BUFS,
+					dev->ts1_mode.max_pkt_size,
+					cx231xx_isoc_copy);
+	else
+		ret = cx231xx_init_bulk(dev, 320, 5,
+					dev->ts1_mode.max_pkt_size,
+					cx231xx_bulk_copy);
+	if (ret)
+		return_all_buffers(dev, VB2_BUF_STATE_QUEUED);
+
+	call_all(dev, video, s_stream, 1);
+	return ret;
 }
 
-static void bb_buf_queue(struct videobuf_queue *q,
-	struct videobuf_buffer *vb)
+static void stop_streaming(struct vb2_queue *vq)
 {
-	struct cx231xx_fh *fh = q->priv_data;
+	struct cx231xx *dev = vb2_get_drv_priv(vq);
+	unsigned long flags;
 
-	struct cx231xx_buffer *buf =
-	    container_of(vb, struct cx231xx_buffer, vb);
-	struct cx231xx *dev = fh->dev;
-	struct cx231xx_dmaqueue *vidq = &dev->video_mode.vidq;
+	call_all(dev, video, s_stream, 0);
 
-	buf->vb.state = VIDEOBUF_QUEUED;
-	list_add_tail(&buf->vb.queue, &vidq->active);
+	cx231xx_stop_TS1(dev);
 
+	/* do this before setting alternate! */
+	if (dev->USE_ISO)
+		cx231xx_uninit_isoc(dev);
+	else
+		cx231xx_uninit_bulk(dev);
+	cx231xx_set_mode(dev, CX231XX_SUSPEND);
+
+	cx231xx_api_cmd(dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
+			CX231xx_END_NOW, CX231xx_MPEG_CAPTURE,
+			CX231xx_RAW_BITS_NONE);
+
+	spin_lock_irqsave(&dev->video_mode.slock, flags);
+	if (dev->USE_ISO)
+		dev->video_mode.isoc_ctl.buf = NULL;
+	else
+		dev->video_mode.bulk_ctl.buf = NULL;
+	spin_unlock_irqrestore(&dev->video_mode.slock, flags);
+	return_all_buffers(dev, VB2_BUF_STATE_ERROR);
 }
 
-static void bb_buf_release(struct videobuf_queue *q,
-	struct videobuf_buffer *vb)
-{
-	struct cx231xx_buffer *buf =
-	    container_of(vb, struct cx231xx_buffer, vb);
-	/*struct cx231xx_fh *fh = q->priv_data;*/
-	/*struct cx231xx *dev = (struct cx231xx *)fh->dev;*/
-
-	free_buffer(q, buf);
-}
-
-static const struct videobuf_queue_ops cx231xx_qops = {
-	.buf_setup    = bb_buf_setup,
-	.buf_prepare  = bb_buf_prepare,
-	.buf_queue    = bb_buf_queue,
-	.buf_release  = bb_buf_release,
+static struct vb2_ops cx231xx_video_qops = {
+	.queue_setup		= queue_setup,
+	.buf_queue		= buffer_queue,
+	.start_streaming	= start_streaming,
+	.stop_streaming		= stop_streaming,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /* ------------------------------------------------------------------ */
@@ -1495,8 +1467,7 @@ static const struct videobuf_queue_ops cx231xx_qops = {
 static int vidioc_g_pixelaspect(struct file *file, void *priv,
 				int type, struct v4l2_fract *f)
 {
-	struct cx231xx_fh *fh = priv;
-	struct cx231xx *dev = fh->dev;
+	struct cx231xx *dev = video_drvdata(file);
 	bool is_50hz = dev->encodernorm.id & V4L2_STD_625_50;
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1511,8 +1482,7 @@ static int vidioc_g_pixelaspect(struct file *file, void *priv,
 static int vidioc_g_selection(struct file *file, void *priv,
 			      struct v4l2_selection *s)
 {
-	struct cx231xx_fh *fh = priv;
-	struct cx231xx *dev = fh->dev;
+	struct cx231xx *dev = video_drvdata(file);
 
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1533,8 +1503,7 @@ static int vidioc_g_selection(struct file *file, void *priv,
 
 static int vidioc_g_std(struct file *file, void *fh0, v4l2_std_id *norm)
 {
-	struct cx231xx_fh  *fh  = file->private_data;
-	struct cx231xx *dev = fh->dev;
+	struct cx231xx *dev = video_drvdata(file);
 
 	*norm = dev->encodernorm.id;
 	return 0;
@@ -1542,8 +1511,7 @@ static int vidioc_g_std(struct file *file, void *fh0, v4l2_std_id *norm)
 
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
-	struct cx231xx_fh  *fh  = file->private_data;
-	struct cx231xx *dev = fh->dev;
+	struct cx231xx *dev = video_drvdata(file);
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(cx231xx_tvnorms); i++)
@@ -1575,8 +1543,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctl)
 {
-	struct cx231xx_fh  *fh  = file->private_data;
-	struct cx231xx *dev = fh->dev;
+	struct cx231xx *dev = video_drvdata(file);
 	struct v4l2_subdev *sd;
 
 	dprintk(3, "enter vidioc_s_ctrl()\n");
@@ -1601,8 +1568,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct cx231xx_fh  *fh  = file->private_data;
-	struct cx231xx *dev = fh->dev;
+	struct cx231xx *dev = video_drvdata(file);
 
 	dprintk(3, "enter vidioc_g_fmt_vid_cap()\n");
 	f->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG;
@@ -1621,8 +1587,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct cx231xx_fh  *fh  = file->private_data;
-	struct cx231xx *dev = fh->dev;
+	struct cx231xx *dev = video_drvdata(file);
 
 	dprintk(3, "enter vidioc_try_fmt_vid_cap()\n");
 	f->fmt.pix.pixelformat = V4L2_PIX_FMT_MPEG;
@@ -1636,230 +1601,21 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_reqbufs(struct file *file, void *priv,
-				struct v4l2_requestbuffers *p)
-{
-	struct cx231xx_fh  *fh  = file->private_data;
-
-	return videobuf_reqbufs(&fh->vidq, p);
-}
-
-static int vidioc_querybuf(struct file *file, void *priv,
-				struct v4l2_buffer *p)
-{
-	struct cx231xx_fh  *fh  = file->private_data;
-
-	return videobuf_querybuf(&fh->vidq, p);
-}
-
-static int vidioc_qbuf(struct file *file, void *priv,
-				struct v4l2_buffer *p)
-{
-	struct cx231xx_fh  *fh  = file->private_data;
-
-	return videobuf_qbuf(&fh->vidq, p);
-}
-
-static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
-{
-	struct cx231xx_fh  *fh  = priv;
-
-	return videobuf_dqbuf(&fh->vidq, b, file->f_flags & O_NONBLOCK);
-}
-
-
-static int vidioc_streamon(struct file *file, void *priv,
-				enum v4l2_buf_type i)
-{
-	struct cx231xx_fh  *fh  = file->private_data;
-	struct cx231xx *dev = fh->dev;
-
-	dprintk(3, "enter vidioc_streamon()\n");
-	cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
-	cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
-	if (dev->USE_ISO)
-		cx231xx_init_isoc(dev, CX231XX_NUM_PACKETS,
-				CX231XX_NUM_BUFS,
-				dev->video_mode.max_pkt_size,
-				cx231xx_isoc_copy);
-	else {
-		cx231xx_init_bulk(dev, 320,
-				5,
-				dev->ts1_mode.max_pkt_size,
-				cx231xx_bulk_copy);
-	}
-	dprintk(3, "exit vidioc_streamon()\n");
-	return videobuf_streamon(&fh->vidq);
-}
-
-static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
-{
-	struct cx231xx_fh  *fh  = file->private_data;
-
-	return videobuf_streamoff(&fh->vidq);
-}
-
 static int vidioc_log_status(struct file *file, void *priv)
 {
-	struct cx231xx_fh  *fh  = priv;
-	struct cx231xx *dev = fh->dev;
+	struct cx231xx *dev = video_drvdata(file);
 
 	call_all(dev, core, log_status);
 	return v4l2_ctrl_log_status(file, priv);
 }
 
-static int mpeg_open(struct file *file)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct cx231xx *dev = video_drvdata(file);
-	struct cx231xx_fh *fh;
-
-	dprintk(2, "%s()\n", __func__);
-
-	if (mutex_lock_interruptible(&dev->lock))
-		return -ERESTARTSYS;
-
-	/* allocate + initialize per filehandle data */
-	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-	if (NULL == fh) {
-		mutex_unlock(&dev->lock);
-		return -ENOMEM;
-	}
-
-	file->private_data = fh;
-	v4l2_fh_init(&fh->fh, vdev);
-	fh->dev = dev;
-
-
-	videobuf_queue_vmalloc_init(&fh->vidq, &cx231xx_qops,
-			    NULL, &dev->video_mode.slock,
-			    V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_INTERLACED,
-			    sizeof(struct cx231xx_buffer), fh, &dev->lock);
-/*
-	videobuf_queue_sg_init(&fh->vidq, &cx231xx_qops,
-			    dev->dev, &dev->ts1.slock,
-			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			    V4L2_FIELD_INTERLACED,
-			    sizeof(struct cx231xx_buffer),
-			    fh, &dev->lock);
-*/
-
-	cx231xx_set_alt_setting(dev, INDEX_VANC, 1);
-	cx231xx_set_gpio_value(dev, 2, 0);
-
-	cx231xx_initialize_codec(dev);
-
-	mutex_unlock(&dev->lock);
-	v4l2_fh_add(&fh->fh);
-	cx231xx_start_TS1(dev);
-
-	return 0;
-}
-
-static int mpeg_release(struct file *file)
-{
-	struct cx231xx_fh  *fh  = file->private_data;
-	struct cx231xx *dev = fh->dev;
-
-	dprintk(3, "mpeg_release()! dev=0x%p\n", dev);
-
-	mutex_lock(&dev->lock);
-
-	cx231xx_stop_TS1(dev);
-
-	/* do this before setting alternate! */
-	if (dev->USE_ISO)
-		cx231xx_uninit_isoc(dev);
-	else
-		cx231xx_uninit_bulk(dev);
-	cx231xx_set_mode(dev, CX231XX_SUSPEND);
-
-	cx231xx_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
-			CX231xx_END_NOW, CX231xx_MPEG_CAPTURE,
-			CX231xx_RAW_BITS_NONE);
-
-	/* FIXME: Review this crap */
-	/* Shut device down on last close */
-	if (atomic_cmpxchg(&fh->v4l_reading, 1, 0) == 1) {
-		if (atomic_dec_return(&dev->v4l_reader_count) == 0) {
-			/* stop mpeg capture */
-
-			msleep(500);
-			cx231xx_417_check_encoder(dev);
-
-		}
-	}
-
-	if (fh->vidq.streaming)
-		videobuf_streamoff(&fh->vidq);
-	if (fh->vidq.reading)
-		videobuf_read_stop(&fh->vidq);
-
-	videobuf_mmap_free(&fh->vidq);
-	v4l2_fh_del(&fh->fh);
-	v4l2_fh_exit(&fh->fh);
-	kfree(fh);
-	mutex_unlock(&dev->lock);
-	return 0;
-}
-
-static ssize_t mpeg_read(struct file *file, char __user *data,
-	size_t count, loff_t *ppos)
-{
-	struct cx231xx_fh *fh = file->private_data;
-	struct cx231xx *dev = fh->dev;
-
-	/* Deal w/ A/V decoder * and mpeg encoder sync issues. */
-	/* Start mpeg encoder on first read. */
-	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
-		if (atomic_inc_return(&dev->v4l_reader_count) == 1) {
-			if (cx231xx_initialize_codec(dev) < 0)
-				return -EINVAL;
-		}
-	}
-
-	return videobuf_read_stream(&fh->vidq, data, count, ppos, 0,
-				    file->f_flags & O_NONBLOCK);
-}
-
-static __poll_t mpeg_poll(struct file *file,
-	struct poll_table_struct *wait)
-{
-	__poll_t req_events = poll_requested_events(wait);
-	struct cx231xx_fh *fh = file->private_data;
-	struct cx231xx *dev = fh->dev;
-	__poll_t res = 0;
-
-	if (v4l2_event_pending(&fh->fh))
-		res |= EPOLLPRI;
-	else
-		poll_wait(file, &fh->fh.wait, wait);
-
-	if (!(req_events & (EPOLLIN | EPOLLRDNORM)))
-		return res;
-
-	mutex_lock(&dev->lock);
-	res |= videobuf_poll_stream(file, &fh->vidq, wait);
-	mutex_unlock(&dev->lock);
-	return res;
-}
-
-static int mpeg_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct cx231xx_fh *fh = file->private_data;
-
-	dprintk(2, "%s()\n", __func__);
-
-	return videobuf_mmap_mapper(&fh->vidq, vma);
-}
-
 static const struct v4l2_file_operations mpeg_fops = {
 	.owner	       = THIS_MODULE,
-	.open	       = mpeg_open,
-	.release       = mpeg_release,
-	.read	       = mpeg_read,
-	.poll          = mpeg_poll,
-	.mmap	       = mpeg_mmap,
+	.open	       = v4l2_fh_open,
+	.release       = vb2_fop_release,
+	.read	       = vb2_fop_read,
+	.poll          = vb2_fop_poll,
+	.mmap	       = vb2_fop_mmap,
 	.unlocked_ioctl = video_ioctl2,
 };
 
@@ -1881,12 +1637,12 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap	 = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap	 = vidioc_try_fmt_vid_cap,
-	.vidioc_reqbufs		 = vidioc_reqbufs,
-	.vidioc_querybuf	 = vidioc_querybuf,
-	.vidioc_qbuf		 = vidioc_qbuf,
-	.vidioc_dqbuf		 = vidioc_dqbuf,
-	.vidioc_streamon	 = vidioc_streamon,
-	.vidioc_streamoff	 = vidioc_streamoff,
+	.vidioc_reqbufs		 = vb2_ioctl_reqbufs,
+	.vidioc_querybuf	 = vb2_ioctl_querybuf,
+	.vidioc_qbuf		 = vb2_ioctl_qbuf,
+	.vidioc_dqbuf		 = vb2_ioctl_dqbuf,
+	.vidioc_streamon	 = vb2_ioctl_streamon,
+	.vidioc_streamoff	 = vb2_ioctl_streamoff,
 	.vidioc_log_status	 = vidioc_log_status,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register	 = cx231xx_g_register,
@@ -1980,6 +1736,7 @@ int cx231xx_417_register(struct cx231xx *dev)
 	/* FIXME: Port1 hardcoded here */
 	int err = -ENODEV;
 	struct cx231xx_tsport *tsport = &dev->ts1;
+	struct vb2_queue *q;
 
 	dprintk(1, "%s()\n", __func__);
 
@@ -2017,6 +1774,21 @@ int cx231xx_417_register(struct cx231xx *dev)
 	/* Allocate and initialize V4L video device */
 	cx231xx_video_dev_init(dev, dev->udev,
 			&dev->v4l_device, &cx231xx_mpeg_template, "mpeg");
+	q = &dev->mpegq;
+	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	q->io_modes = VB2_USERPTR | VB2_MMAP | VB2_DMABUF | VB2_READ;
+	q->drv_priv = dev;
+	q->buf_struct_size = sizeof(struct cx231xx_buffer);
+	q->ops = &cx231xx_video_qops;
+	q->mem_ops = &vb2_vmalloc_memops;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->min_buffers_needed = 1;
+	q->lock = &dev->lock;
+	err = vb2_queue_init(q);
+	if (err)
+		return err;
+	dev->v4l_device.queue = q;
+
 	err = video_register_device(&dev->v4l_device,
 		VFL_TYPE_GRABBER, -1);
 	if (err < 0) {

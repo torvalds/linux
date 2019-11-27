@@ -553,7 +553,7 @@ void camif_hw_disable_capture(struct camif_vp *vp)
 
 void camif_hw_dump_regs(struct camif_dev *camif, const char *label)
 {
-	struct {
+	static const struct {
 		u32 offset;
 		const char * const name;
 	} registers[] = {

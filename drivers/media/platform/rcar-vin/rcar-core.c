@@ -983,6 +983,7 @@ static const struct rvin_group_route rcar_info_r8a7795_routes[] = {
 static const struct rvin_info rcar_info_r8a7795 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7795_routes,
@@ -1077,6 +1078,7 @@ static const struct rvin_group_route rcar_info_r8a7796_routes[] = {
 static const struct rvin_info rcar_info_r8a7796 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7796_routes,
@@ -1121,6 +1123,7 @@ static const struct rvin_group_route rcar_info_r8a77965_routes[] = {
 static const struct rvin_info rcar_info_r8a77965 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77965_routes,
@@ -1168,6 +1171,7 @@ static const struct rvin_group_route rcar_info_r8a77980_routes[] = {
 static const struct rvin_info rcar_info_r8a77980 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77980_routes,
@@ -1184,6 +1188,7 @@ static const struct rvin_group_route rcar_info_r8a77990_routes[] = {
 static const struct rvin_info rcar_info_r8a77990 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77990_routes,
@@ -1196,6 +1201,7 @@ static const struct rvin_group_route rcar_info_r8a77995_routes[] = {
 static const struct rvin_info rcar_info_r8a77995 = {
 	.model = RCAR_GEN3,
 	.use_mc = true,
+	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77995_routes,
@@ -1205,6 +1211,10 @@ static const struct of_device_id rvin_of_id_table[] = {
 	{
 		.compatible = "renesas,vin-r8a774a1",
 		.data = &rcar_info_r8a7796,
+	},
+	{
+		.compatible = "renesas,vin-r8a774b1",
+		.data = &rcar_info_r8a77965,
 	},
 	{
 		.compatible = "renesas,vin-r8a774c0",
@@ -1282,7 +1292,6 @@ static int rcar_vin_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *attr;
 	struct rvin_dev *vin;
-	struct resource *mem;
 	int irq, ret;
 
 	vin = devm_kzalloc(&pdev->dev, sizeof(*vin), GFP_KERNEL);
@@ -1301,11 +1310,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	if (attr)
 		vin->info = attr->data;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem == NULL)
-		return -EINVAL;
-
-	vin->base = devm_ioremap_resource(vin->dev, mem);
+	vin->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vin->base))
 		return PTR_ERR(vin->base);
 

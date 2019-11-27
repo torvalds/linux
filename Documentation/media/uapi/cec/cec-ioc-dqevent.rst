@@ -70,6 +70,14 @@ it is guaranteed that the state did change in between the two events.
         addresses are claimed or if ``phys_addr`` is ``CEC_PHYS_ADDR_INVALID``.
 	If bit 15 is set (``1 << CEC_LOG_ADDR_UNREGISTERED``) then this device
 	has the unregistered logical address. In that case all other bits are 0.
+    * - __u16
+      - ``have_conn_info``
+      - If non-zero, then HDMI connector information is available.
+        This field is only valid if ``CEC_CAP_CONNECTOR_INFO`` is set. If that
+        capability is set and ``have_conn_info`` is zero, then that indicates
+        that the HDMI connector device is not instantiated, either because
+        the HDMI driver is still configuring the device or because the HDMI
+        device was unbound.
 
 
 .. c:type:: cec_event_lost_msgs
