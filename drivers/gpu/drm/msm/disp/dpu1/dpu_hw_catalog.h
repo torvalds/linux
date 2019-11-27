@@ -94,6 +94,7 @@ enum {
  * @DPU_SSPP_SRC             Src and fetch part of the pipes,
  * @DPU_SSPP_SCALER_QSEED2,  QSEED2 algorithm support
  * @DPU_SSPP_SCALER_QSEED3,  QSEED3 alogorithm support
+ * @DPU_SSPP_SCALER_QSEED4,  QSEED4 algorithm support
  * @DPU_SSPP_SCALER_RGB,     RGB Scaler, supported by RGB pipes
  * @DPU_SSPP_CSC,            Support of Color space converion
  * @DPU_SSPP_CSC_10BIT,      Support of 10-bit Color space conversion
@@ -326,6 +327,7 @@ struct dpu_sspp_blks_common {
  * @maxupscale:  maxupscale ratio supported
  * @smart_dma_priority: hw priority of rect1 of multirect pipe
  * @max_per_pipe_bw: maximum allowable bandwidth of this pipe in kBps
+ * @qseed_ver: qseed version
  * @src_blk:
  * @scaler_blk:
  * @csc_blk:
@@ -346,6 +348,7 @@ struct dpu_sspp_sub_blks {
 	u32 maxupscale;
 	u32 smart_dma_priority;
 	u32 max_per_pipe_bw;
+	u32 qseed_ver;
 	struct dpu_src_blk src_blk;
 	struct dpu_scaler_blk scaler_blk;
 	struct dpu_pp_blk csc_blk;

@@ -183,7 +183,7 @@ static const struct dpu_sspp_blks_common sdm845_sspp_common = {
 	.maxvdeciexp = MAX_VERT_DECIMATION,
 };
 
-#define _VIG_SBLK(num, sdma_pri) \
+#define _VIG_SBLK(num, sdma_pri, qseed_ver) \
 	{ \
 	.common = &sdm845_sspp_common, \
 	.maxdwnscale = MAX_DOWNSCALE_RATIO, \
@@ -192,7 +192,7 @@ static const struct dpu_sspp_blks_common sdm845_sspp_common = {
 	.src_blk = {.name = STRCAT("sspp_src_", num), \
 		.id = DPU_SSPP_SRC, .base = 0x00, .len = 0x150,}, \
 	.scaler_blk = {.name = STRCAT("sspp_scaler", num), \
-		.id = DPU_SSPP_SCALER_QSEED3, \
+		.id = qseed_ver, \
 		.base = 0xa00, .len = 0xa0,}, \
 	.csc_blk = {.name = STRCAT("sspp_csc", num), \
 		.id = DPU_SSPP_CSC_10BIT, \
@@ -217,10 +217,14 @@ static const struct dpu_sspp_blks_common sdm845_sspp_common = {
 	.virt_num_formats = ARRAY_SIZE(plane_formats), \
 	}
 
-static const struct dpu_sspp_sub_blks sdm845_vig_sblk_0 = _VIG_SBLK("0", 5);
-static const struct dpu_sspp_sub_blks sdm845_vig_sblk_1 = _VIG_SBLK("1", 6);
-static const struct dpu_sspp_sub_blks sdm845_vig_sblk_2 = _VIG_SBLK("2", 7);
-static const struct dpu_sspp_sub_blks sdm845_vig_sblk_3 = _VIG_SBLK("3", 8);
+static const struct dpu_sspp_sub_blks sdm845_vig_sblk_0 =
+				_VIG_SBLK("0", 5, DPU_SSPP_SCALER_QSEED3);
+static const struct dpu_sspp_sub_blks sdm845_vig_sblk_1 =
+				_VIG_SBLK("1", 6, DPU_SSPP_SCALER_QSEED3);
+static const struct dpu_sspp_sub_blks sdm845_vig_sblk_2 =
+				_VIG_SBLK("2", 7, DPU_SSPP_SCALER_QSEED3);
+static const struct dpu_sspp_sub_blks sdm845_vig_sblk_3 =
+				_VIG_SBLK("3", 8, DPU_SSPP_SCALER_QSEED3);
 
 static const struct dpu_sspp_sub_blks sdm845_dma_sblk_0 = _DMA_SBLK("8", 1);
 static const struct dpu_sspp_sub_blks sdm845_dma_sblk_1 = _DMA_SBLK("9", 2);
@@ -258,9 +262,12 @@ static const struct dpu_sspp_cfg sdm845_sspp[] = {
 		sdm845_dma_sblk_3, 13, SSPP_TYPE_DMA, DPU_CLK_CTRL_CURSOR1),
 };
 
+static const struct dpu_sspp_sub_blks sc7180_vig_sblk_0 =
+				_VIG_SBLK("0", 4, DPU_SSPP_SCALER_QSEED4);
+
 static const struct dpu_sspp_cfg sc7180_sspp[] = {
 	SSPP_BLK("sspp_0", SSPP_VIG0, 0x4000, VIG_SC7180_MASK,
-		sdm845_vig_sblk_0, 0,  SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG0),
+		sc7180_vig_sblk_0, 0,  SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG0),
 	SSPP_BLK("sspp_8", SSPP_DMA0, 0x24000,  DMA_SDM845_MASK,
 		sdm845_dma_sblk_0, 1, SSPP_TYPE_DMA, DPU_CLK_CTRL_DMA0),
 	SSPP_BLK("sspp_9", SSPP_DMA1, 0x26000,  DMA_SDM845_MASK,
