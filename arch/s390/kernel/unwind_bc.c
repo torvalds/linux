@@ -105,13 +105,11 @@ out_stop:
 EXPORT_SYMBOL_GPL(unwind_next_frame);
 
 void __unwind_start(struct unwind_state *state, struct task_struct *task,
-		    struct pt_regs *regs, unsigned long sp)
+		    struct pt_regs *regs, unsigned long first_frame)
 {
 	struct stack_info *info = &state->stack_info;
-	unsigned long *mask = &state->stack_mask;
-	bool reliable;
 	struct stack_frame *sf;
-	unsigned long ip;
+	unsigned long ip, sp;
 
 	memset(state, 0, sizeof(*state));
 	state->task = task;
@@ -123,23 +121,28 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		return;
 	}
 
+	/* Get the instruction pointer from pt_regs or the stack frame */
+	if (regs) {
+		ip = regs->psw.addr;
+		sp = regs->gprs[15];
+	} else if (task == current) {
+		sp = current_frame_address();
+	} else {
+		sp = task->thread.ksp;
+	}
+
 	/* Get current stack pointer and initialize stack info */
-	if (get_stack_info(sp, task, info, mask) != 0 ||
-	    !on_stack(info, sp, sizeof(struct stack_frame))) {
+	if (!update_stack_info(state, sp)) {
 		/* Something is wrong with the stack pointer */
 		info->type = STACK_TYPE_UNKNOWN;
 		state->error = true;
 		return;
 	}
 
-	/* Get the instruction pointer from pt_regs or the stack frame */
-	if (regs) {
-		ip = READ_ONCE_NOCHECK(regs->psw.addr);
-		reliable = true;
-	} else {
-		sf = (struct stack_frame *) sp;
+	if (!regs) {
+		/* Stack frame is within valid stack */
+		sf = (struct stack_frame *)sp;
 		ip = READ_ONCE_NOCHECK(sf->gprs[8]);
-		reliable = false;
 	}
 
 	ip = ftrace_graph_ret_addr(state->task, &state->graph_idx, ip, NULL);
@@ -147,6 +150,17 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	/* Update unwind state */
 	state->sp = sp;
 	state->ip = ip;
-	state->reliable = reliable;
+	state->reliable = true;
+
+	if (!first_frame)
+		return;
+	/* Skip through the call chain to the specified starting frame */
+	while (!unwind_done(state)) {
+		if (on_stack(&state->stack_info, first_frame, sizeof(struct stack_frame))) {
+			if (state->sp >= first_frame)
+				break;
+		}
+		unwind_next_frame(state);
+	}
 }
 EXPORT_SYMBOL_GPL(__unwind_start);
