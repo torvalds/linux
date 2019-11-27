@@ -1757,10 +1757,14 @@ int rkisp1_fop_release(struct file *file)
 	struct rkisp1_device *dev = stream->ispdev;
 	int ret;
 
-	ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 0);
-	ret |= vb2_fop_release(file);
-	atomic_dec(&dev->open_cnt);
-
+	ret = vb2_fop_release(file);
+	if (!ret) {
+		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 0);
+		if (ret < 0)
+			v4l2_err(&dev->v4l2_dev,
+				"set pipeline power failed %d\n", ret);
+		atomic_dec(&dev->open_cnt);
+	}
 	return ret;
 }
 
