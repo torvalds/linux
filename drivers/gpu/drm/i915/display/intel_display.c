@@ -17947,6 +17947,13 @@ void intel_modeset_driver_remove(struct drm_i915_private *i915)
 	 */
 	intel_hpd_poll_fini(i915);
 
+	/*
+	 * MST topology needs to be suspended so we don't have any calls to
+	 * fbdev after it's finalized. MST will be destroyed later as part of
+	 * drm_mode_config_cleanup()
+	 */
+	intel_dp_mst_suspend(i915);
+
 	/* poll work can call into fbdev, hence clean that up afterwards */
 	intel_fbdev_fini(i915);
 
