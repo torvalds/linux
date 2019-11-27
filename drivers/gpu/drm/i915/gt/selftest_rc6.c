@@ -12,6 +12,64 @@
 
 #include "selftests/i915_random.h"
 
+int live_rc6_manual(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_rc6 *rc6 = &gt->rc6;
+	intel_wakeref_t wakeref;
+	u64 res[2];
+	int err = 0;
+
+	/*
+	 * Our claim is that we can "encourage" the GPU to enter rc6 at will.
+	 * Let's try it!
+	 */
+
+	if (!rc6->enabled)
+		return 0;
+
+	/* bsw/byt use a PCU and decouple RC6 from our manual control */
+	if (IS_VALLEYVIEW(gt->i915) || IS_CHERRYVIEW(gt->i915))
+		return 0;
+
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
+
+	/* Force RC6 off for starters */
+	__intel_rc6_disable(rc6);
+	msleep(1); /* wakeup is not immediate, takes about 100us on icl */
+
+	res[0] = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
+	msleep(250);
+	res[1] = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
+	if ((res[1] - res[0]) >> 10) {
+		pr_err("RC6 residency increased by %lldus while disabled for 250ms!\n",
+		       (res[1] - res[0]) >> 10);
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	/* Manually enter RC6 */
+	intel_rc6_park(rc6);
+
+	res[0] = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
+	msleep(100);
+	res[1] = intel_rc6_residency_ns(rc6, GEN6_GT_GFX_RC6);
+
+	if (res[1] == res[0]) {
+		pr_err("Did not enter RC6! RC6_STATE=%08x, RC6_CONTROL=%08x\n",
+		       intel_uncore_read_fw(gt->uncore, GEN6_RC_STATE),
+		       intel_uncore_read_fw(gt->uncore, GEN6_RC_CONTROL));
+		err = -EINVAL;
+	}
+
+	/* Restore what should have been the original state! */
+	intel_rc6_unpark(rc6);
+
+out_unlock:
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
+	return err;
+}
+
 static const u32 *__live_rc6_ctx(struct intel_context *ce)
 {
 	struct i915_request *rq;

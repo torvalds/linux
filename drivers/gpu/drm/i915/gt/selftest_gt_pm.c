@@ -51,6 +51,7 @@ static int live_gt_resume(void *arg)
 int intel_gt_pm_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
+		SUBTEST(live_rc6_manual),
 		SUBTEST(live_gt_resume),
 	};
 

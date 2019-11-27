@@ -15,6 +15,9 @@ struct intel_rc6;
 void intel_rc6_init(struct intel_rc6 *rc6);
 void intel_rc6_fini(struct intel_rc6 *rc6);
 
+void intel_rc6_unpark(struct intel_rc6 *rc6);
+void intel_rc6_park(struct intel_rc6 *rc6);
+
 void intel_rc6_sanitize(struct intel_rc6 *rc6);
 void intel_rc6_enable(struct intel_rc6 *rc6);
 void intel_rc6_disable(struct intel_rc6 *rc6);
