@@ -63,6 +63,8 @@
 
 #include "dcn20/dcn20_dwb.h"
 #include "dcn20/dcn20_mmhubbub.h"
+#include "dpcs/dpcs_2_1_0_offset.h"
+#include "dpcs/dpcs_2_1_0_sh_mask.h"
 
 #include "renoir_ip_offset.h"
 #include "dcn/dcn_2_1_0_offset.h"
@@ -1499,8 +1501,9 @@ static const struct encoder_feature_support link_enc_feature = {
 
 #define link_regs(id, phyid)\
 [id] = {\
-	LE_DCN10_REG_LIST(id), \
+	LE_DCN2_REG_LIST(id), \
 	UNIPHY_DCN2_REG_LIST(phyid), \
+	DPCS_DCN21_REG_LIST(id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
 }
 
@@ -1539,11 +1542,13 @@ static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
 };
 
 static const struct dcn10_link_enc_shift le_shift = {
-	LINK_ENCODER_MASK_SH_LIST_DCN20(__SHIFT)
+	LINK_ENCODER_MASK_SH_LIST_DCN20(__SHIFT),\
+	DPCS_DCN21_MASK_SH_LIST(__SHIFT)
 };
 
 static const struct dcn10_link_enc_mask le_mask = {
-	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK)
+	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK),\
+	DPCS_DCN21_MASK_SH_LIST(_MASK)
 };
 
 static int map_transmitter_id_to_phy_instance(

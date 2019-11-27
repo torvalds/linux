@@ -66,6 +66,8 @@
 
 #include "dcn/dcn_2_0_0_offset.h"
 #include "dcn/dcn_2_0_0_sh_mask.h"
+#include "dpcs/dpcs_2_0_0_offset.h"
+#include "dpcs/dpcs_2_0_0_sh_mask.h"
 
 #include "nbio/nbio_2_3_offset.h"
 
@@ -549,6 +551,7 @@ static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
 [id] = {\
 	LE_DCN10_REG_LIST(id), \
 	UNIPHY_DCN2_REG_LIST(phyid), \
+	DPCS_DCN2_REG_LIST(id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
 }
 
@@ -562,11 +565,13 @@ static const struct dcn10_link_enc_registers link_enc_regs[] = {
 };
 
 static const struct dcn10_link_enc_shift le_shift = {
-	LINK_ENCODER_MASK_SH_LIST_DCN20(__SHIFT)
+	LINK_ENCODER_MASK_SH_LIST_DCN20(__SHIFT),\
+	DPCS_DCN2_MASK_SH_LIST(__SHIFT)
 };
 
 static const struct dcn10_link_enc_mask le_mask = {
-	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK)
+	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK),\
+	DPCS_DCN2_MASK_SH_LIST(_MASK)
 };
 
 #define ipp_regs(id)\
