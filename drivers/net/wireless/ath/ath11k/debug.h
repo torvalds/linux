@@ -9,6 +9,9 @@
 #include "hal_tx.h"
 #include "trace.h"
 
+#define ATH11K_TX_POWER_MAX_VAL	70
+#define ATH11K_TX_POWER_MIN_VAL	0
+
 enum ath11k_debug_mask {
 	ATH11K_DBG_AHB		= 0x00000001,
 	ATH11K_DBG_WMI		= 0x00000002,
