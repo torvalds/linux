@@ -443,7 +443,7 @@ static int __init snd_aicapcmchip(struct snd_card_aica
 	/* Allocate the DMA buffers */
 	snd_pcm_lib_preallocate_pages_for_all(pcm,
 					      SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data(GFP_KERNEL),
+					      NULL,
 					      AICA_BUFFER_SIZE,
 					      AICA_BUFFER_SIZE);
 	return 0;

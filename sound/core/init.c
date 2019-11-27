@@ -215,6 +215,7 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	init_waitqueue_head(&card->power_sleep);
 #endif
 	init_waitqueue_head(&card->remove_sleep);
+	card->sync_irq = -1;
 
 	device_initialize(&card->card_dev);
 	card->card_dev.parent = parent;

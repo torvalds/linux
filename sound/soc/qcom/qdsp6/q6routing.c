@@ -939,12 +939,12 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 };
 
-static int routing_hw_params(struct snd_pcm_substream *substream,
-				     struct snd_pcm_hw_params *params)
+static int routing_hw_params(struct snd_soc_component *component,
+			     struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *c = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct msm_routing_data *data = dev_get_drvdata(c->dev);
+	struct msm_routing_data *data = dev_get_drvdata(component->dev);
 	unsigned int be_id = rtd->cpu_dai->id;
 	struct session_data *session;
 	int path_type;
@@ -980,10 +980,6 @@ static int routing_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_pcm_ops q6pcm_routing_ops = {
-	.hw_params = routing_hw_params,
-};
-
 static int msm_routing_probe(struct snd_soc_component *c)
 {
 	int i;
@@ -997,9 +993,9 @@ static int msm_routing_probe(struct snd_soc_component *c)
 }
 
 static const struct snd_soc_component_driver msm_soc_routing_component = {
-	.ops = &q6pcm_routing_ops,
 	.probe = msm_routing_probe,
 	.name = DRV_NAME,
+	.hw_params = routing_hw_params,
 	.dapm_widgets = msm_qdsp6_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(msm_qdsp6_widgets),
 	.dapm_routes = intercon,

@@ -93,7 +93,8 @@ static irqreturn_t aiodma_irq(int irq, void *p)
 	return ret;
 }
 
-static int uniphier_aiodma_open(struct snd_pcm_substream *substream)
+static int uniphier_aiodma_open(struct snd_soc_component *component,
+				struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -103,7 +104,8 @@ static int uniphier_aiodma_open(struct snd_pcm_substream *substream)
 		SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256);
 }
 
-static int uniphier_aiodma_hw_params(struct snd_pcm_substream *substream,
+static int uniphier_aiodma_hw_params(struct snd_soc_component *component,
+				     struct snd_pcm_substream *substream,
 				     struct snd_pcm_hw_params *params)
 {
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
@@ -112,7 +114,8 @@ static int uniphier_aiodma_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int uniphier_aiodma_hw_free(struct snd_pcm_substream *substream)
+static int uniphier_aiodma_hw_free(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream)
 {
 	snd_pcm_set_runtime_buffer(substream, NULL);
 	substream->runtime->dma_bytes = 0;
@@ -120,7 +123,8 @@ static int uniphier_aiodma_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int uniphier_aiodma_prepare(struct snd_pcm_substream *substream)
+static int uniphier_aiodma_prepare(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
@@ -146,7 +150,8 @@ static int uniphier_aiodma_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int uniphier_aiodma_trigger(struct snd_pcm_substream *substream, int cmd)
+static int uniphier_aiodma_trigger(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
@@ -181,6 +186,7 @@ static int uniphier_aiodma_trigger(struct snd_pcm_substream *substream, int cmd)
 }
 
 static snd_pcm_uframes_t uniphier_aiodma_pointer(
+					struct snd_soc_component *component,
 					struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -204,7 +210,8 @@ static snd_pcm_uframes_t uniphier_aiodma_pointer(
 	return pos;
 }
 
-static int uniphier_aiodma_mmap(struct snd_pcm_substream *substream,
+static int uniphier_aiodma_mmap(struct snd_soc_component *component,
+				struct snd_pcm_substream *substream,
 				struct vm_area_struct *vma)
 {
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -214,18 +221,8 @@ static int uniphier_aiodma_mmap(struct snd_pcm_substream *substream,
 			       vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
-static const struct snd_pcm_ops uniphier_aiodma_ops = {
-	.open      = uniphier_aiodma_open,
-	.ioctl     = snd_pcm_lib_ioctl,
-	.hw_params = uniphier_aiodma_hw_params,
-	.hw_free   = uniphier_aiodma_hw_free,
-	.prepare   = uniphier_aiodma_prepare,
-	.trigger   = uniphier_aiodma_trigger,
-	.pointer   = uniphier_aiodma_pointer,
-	.mmap      = uniphier_aiodma_mmap,
-};
-
-static int uniphier_aiodma_new(struct snd_soc_pcm_runtime *rtd)
+static int uniphier_aiodma_new(struct snd_soc_component *component,
+			       struct snd_soc_pcm_runtime *rtd)
 {
 	struct device *dev = rtd->card->snd_card->dev;
 	struct snd_pcm *pcm = rtd->pcm;
@@ -242,16 +239,24 @@ static int uniphier_aiodma_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static void uniphier_aiodma_free(struct snd_pcm *pcm)
+static void uniphier_aiodma_free(struct snd_soc_component *component,
+				 struct snd_pcm *pcm)
 {
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
 static const struct snd_soc_component_driver uniphier_soc_platform = {
-	.pcm_new   = uniphier_aiodma_new,
-	.pcm_free  = uniphier_aiodma_free,
-	.ops       = &uniphier_aiodma_ops,
-	.compr_ops = &uniphier_aio_compr_ops,
+	.open		= uniphier_aiodma_open,
+	.ioctl		= snd_soc_pcm_lib_ioctl,
+	.hw_params	= uniphier_aiodma_hw_params,
+	.hw_free	= uniphier_aiodma_hw_free,
+	.prepare	= uniphier_aiodma_prepare,
+	.trigger	= uniphier_aiodma_trigger,
+	.pointer	= uniphier_aiodma_pointer,
+	.mmap		= uniphier_aiodma_mmap,
+	.pcm_construct	= uniphier_aiodma_new,
+	.pcm_destruct	= uniphier_aiodma_free,
+	.compr_ops	= &uniphier_aio_compr_ops,
 };
 
 static const struct regmap_config aiodma_regmap_config = {

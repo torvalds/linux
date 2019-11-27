@@ -59,10 +59,13 @@ config SND_SOC_INTEL_HASWELL
 	  If you have a Intel Haswell or Broadwell platform connected to
 	  an I2S codec, then enable this option by saying Y or m. This is
 	  typically used for Chromebooks. This is a recommended option.
+	  This option is mutually exclusive with the SOF support on
+	  Broadwell. If you want to enable SOF on Broadwell, you need to
+	  deselect this option first.
 
 config SND_SOC_INTEL_BAYTRAIL
 	tristate "Baytrail (legacy) Platforms"
-	depends on DMADEVICES && ACPI && SND_SST_ATOM_HIFI2_PLATFORM=n
+	depends on DMADEVICES && ACPI && SND_SST_ATOM_HIFI2_PLATFORM=n && SND_SOC_SOF_BAYTRAIL=n
 	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_SST_ACPI
 	select SND_SOC_INTEL_SST_FIRMWARE
@@ -101,6 +104,9 @@ config SND_SST_ATOM_HIFI2_PLATFORM_ACPI
 	  If you have a Intel Baytrail or Cherrytrail platform with an I2S
 	  codec, then enable this option by saying Y or m. This is a
 	  recommended option
+	  This option is mutually exclusive with the SOF support on
+	  Baytrail/Cherrytrail. If you want to enable SOF on
+	  Baytrail/Cherrytrail, you need to deselect this option first.
 
 config SND_SOC_INTEL_SKYLAKE
 	tristate "All Skylake/SST Platforms"
@@ -113,7 +119,7 @@ config SND_SOC_INTEL_SKYLAKE
 	select SND_SOC_INTEL_CNL
 	select SND_SOC_INTEL_CFL
 	help
-          This is a backwards-compatible option to select all devices
+	  This is a backwards-compatible option to select all devices
 	  supported by the Intel SST/Skylake driver. This option is no
 	  longer recommended and will be deprecated when the SOF
 	  driver is introduced.  Distributions should explicitly
@@ -203,9 +209,12 @@ config SND_SOC_INTEL_SKYLAKE_SSP_CLK
 config SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC
 	bool "HDAudio codec support"
 	help
-	  If you have a Intel Skylake/Broxton/ApolloLake/KabyLake/
-	  GeminiLake or CannonLake platform with an HDaudio codec
-	  then enable this option by saying Y
+	  This option broke audio on Linus' Skylake laptop in December 2018
+	  and the race conditions during the probe were not fixed since.
+	  This option is DEPRECATED, all HDaudio codec support needs
+	  to be handled by the SOF driver.
+	  Distributions should not enable this option and there are no known
+	  users of this capability.
 
 config SND_SOC_INTEL_SKYLAKE_COMMON
 	tristate
@@ -215,7 +224,7 @@ config SND_SOC_INTEL_SKYLAKE_COMMON
 	select SND_SOC_INTEL_SST
 	select SND_SOC_HDAC_HDA if SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC
 	select SND_SOC_ACPI_INTEL_MATCH
-	select SND_INTEL_NHLT if ACPI
+	select SND_INTEL_DSP_CONFIG
 	help
 	  If you have a Intel Skylake/Broxton/ApolloLake/KabyLake/
 	  GeminiLake or CannonLake platform with the DSP enabled in the BIOS

@@ -1488,7 +1488,7 @@ static int snd_intel8x0_pcm1(struct intel8x0 *chip, int device,
 	chip->pcm[device] = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, intel8x0_dma_type(chip),
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      rec->prealloc_size, rec->prealloc_max_size);
 
 	if (rec->playback_ops &&
@@ -3047,7 +3047,7 @@ static int snd_intel8x0_create(struct snd_card *card,
 
 	/* allocate buffer descriptor lists */
 	/* the start of each lists must be aligned to 8 bytes */
-	if (snd_dma_alloc_pages(intel8x0_dma_type(chip), snd_dma_pci_data(pci),
+	if (snd_dma_alloc_pages(intel8x0_dma_type(chip), &pci->dev,
 				chip->bdbars_count * sizeof(u32) * ICH_MAX_FRAGS * 2,
 				&chip->bdbars) < 0) {
 		snd_intel8x0_free(chip);
