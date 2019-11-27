@@ -1859,7 +1859,7 @@ static void ath10k_sdio_hif_stop(struct ath10k *ar)
 
 static int ath10k_sdio_hif_suspend(struct ath10k *ar)
 {
-	return -EOPNOTSUPP;
+	return 0;
 }
 
 static int ath10k_sdio_hif_resume(struct ath10k *ar)
@@ -2009,7 +2009,26 @@ static const struct ath10k_hif_ops ath10k_sdio_hif_ops = {
  */
 static int ath10k_sdio_pm_suspend(struct device *device)
 {
-	return 0;
+	struct sdio_func *func = dev_to_sdio_func(device);
+	struct ath10k_sdio *ar_sdio = sdio_get_drvdata(func);
+	struct ath10k *ar = ar_sdio->ar;
+	mmc_pm_flag_t pm_flag, pm_caps;
+	int ret;
+
+	if (!device_may_wakeup(ar->dev))
+		return 0;
+
+	pm_flag = MMC_PM_KEEP_POWER;
+
+	ret = sdio_set_host_pm_flags(func, pm_flag);
+	if (ret) {
+		pm_caps = sdio_get_host_pm_caps(func);
+		ath10k_warn(ar, "failed to set sdio host pm flags (0x%x, 0x%x): %d\n",
+			    pm_flag, pm_caps, ret);
+		return ret;
+	}
+
+	return ret;
 }
 
 static int ath10k_sdio_pm_resume(struct device *device)
