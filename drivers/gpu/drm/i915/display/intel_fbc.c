@@ -420,7 +420,7 @@ static void intel_fbc_deactivate(struct drm_i915_private *dev_priv,
 }
 
 static bool multiple_pipes_ok(struct intel_crtc *crtc,
-			      struct intel_plane_state *plane_state)
+			      const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
@@ -656,8 +656,8 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 }
 
 static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
-					 struct intel_crtc_state *crtc_state,
-					 struct intel_plane_state *plane_state)
+					 const struct intel_crtc_state *crtc_state,
+					 const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
@@ -855,8 +855,8 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 }
 
 void intel_fbc_pre_update(struct intel_crtc *crtc,
-			  struct intel_crtc_state *crtc_state,
-			  struct intel_plane_state *plane_state)
+			  const struct intel_crtc_state *crtc_state,
+			  const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
@@ -1081,8 +1081,8 @@ out:
  * intel_fbc_disable in the middle, as long as it is deactivated.
  */
 void intel_fbc_enable(struct intel_crtc *crtc,
-		      struct intel_crtc_state *crtc_state,
-		      struct intel_plane_state *plane_state)
+		      const struct intel_crtc_state *crtc_state,
+		      const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
