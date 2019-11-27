@@ -1804,8 +1804,17 @@ int ath11k_wmi_send_peer_assoc_cmd(struct ath11k *ar,
 	}
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
-		   "WMI peer assoc vdev id %d assoc id %d peer mac %pM\n",
-		   param->vdev_id, param->peer_associd, param->peer_mac);
+		   "wmi peer assoc vdev id %d assoc id %d peer mac %pM peer_flags %x rate_caps %x peer_caps %x listen_intval %d ht_caps %x max_mpdu %d nss %d phymode %d peer_mpdu_density %d vht_caps %x he cap_info %x he ops %x he cap_info_ext %x he phy %x %x %x peer_bw_rxnss_override %x\n",
+		   cmd->vdev_id, cmd->peer_associd, param->peer_mac,
+		   cmd->peer_flags, cmd->peer_rate_caps, cmd->peer_caps,
+		   cmd->peer_listen_intval, cmd->peer_ht_caps,
+		   cmd->peer_max_mpdu, cmd->peer_nss, cmd->peer_phymode,
+		   cmd->peer_mpdu_density,
+		   cmd->peer_vht_caps, cmd->peer_he_cap_info,
+		   cmd->peer_he_ops, cmd->peer_he_cap_info_ext,
+		   cmd->peer_he_cap_phy[0], cmd->peer_he_cap_phy[1],
+		   cmd->peer_he_cap_phy[2],
+		   cmd->peer_bw_rxnss_override);
 
 	return ret;
 }
