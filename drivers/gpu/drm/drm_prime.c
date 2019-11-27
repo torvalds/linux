@@ -240,6 +240,7 @@ void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 				      struct dma_buf_export_info *exp_info)
 {
+	struct drm_gem_object *obj = exp_info->priv;
 	struct dma_buf *dma_buf;
 
 	dma_buf = dma_buf_export(exp_info);
@@ -247,7 +248,8 @@ struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 		return dma_buf;
 
 	drm_dev_get(dev);
-	drm_gem_object_get(exp_info->priv);
+	drm_gem_object_get(obj);
+	dma_buf->file->f_mapping = obj->dev->anon_inode->i_mapping;
 
 	return dma_buf;
 }
