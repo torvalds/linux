@@ -138,8 +138,10 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 		u32 fbc_ctl2;
 
 		/* Set it up... */
-		fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM | FBC_CTL_CPU_FENCE;
+		fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM;
 		fbc_ctl2 |= FBC_CTL_PLANE(params->crtc.i9xx_plane);
+		if (params->fence_id >= 0)
+			fbc_ctl2 |= FBC_CTL_CPU_FENCE;
 		I915_WRITE(FBC_CONTROL2, fbc_ctl2);
 		I915_WRITE(FBC_FENCE_OFF, params->crtc.fence_y_offset);
 	}
@@ -151,7 +153,8 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 	if (IS_I945GM(dev_priv))
 		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
 	fbc_ctl |= (cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
-	fbc_ctl |= params->fence_id;
+	if (params->fence_id >= 0)
+		fbc_ctl |= params->fence_id;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 }
 
