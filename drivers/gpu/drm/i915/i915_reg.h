@@ -8114,6 +8114,10 @@ enum {
 
 #define SHOTPLUG_CTL_TC				_MMIO(0xc4034)
 #define   ICP_TC_HPD_ENABLE(tc_port)		(8 << (tc_port) * 4)
+
+#define SHPD_FILTER_CNT				_MMIO(0xc4038)
+#define   SHPD_FILTER_CNT_500_ADJ		0x001D9
+
 /* Icelake DSC Rate Control Range Parameter Registers */
 #define DSCA_RC_RANGE_PARAMETERS_0		_MMIO(0x6B240)
 #define DSCA_RC_RANGE_PARAMETERS_0_UDW		_MMIO(0x6B240 + 4)
