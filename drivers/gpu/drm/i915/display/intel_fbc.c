@@ -673,6 +673,14 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 		cache->fence_id = -1;
 }
 
+static bool intel_fbc_cfb_size_changed(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	return intel_fbc_calculate_cfb_size(dev_priv, &fbc->state_cache) >
+		fbc->compressed_fb.size * fbc->threshold;
+}
+
 static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -758,8 +766,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 * we didn't get any invalidate/deactivate calls, but this would require
 	 * a lot of tracking just for a specific case. If we conclude it's an
 	 * important case, we can implement it later. */
-	if (intel_fbc_calculate_cfb_size(dev_priv, &fbc->state_cache) >
-	    fbc->compressed_fb.size * fbc->threshold) {
+	if (intel_fbc_cfb_size_changed(dev_priv)) {
 		fbc->no_fbc_reason = "CFB requirements changed";
 		return false;
 	}
@@ -1115,12 +1122,12 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 	mutex_lock(&fbc->lock);
 
 	if (fbc->crtc) {
-		WARN_ON(fbc->crtc == crtc && !crtc_state->enable_fbc);
-		goto out;
-	}
+		if (fbc->crtc != crtc ||
+		    !intel_fbc_cfb_size_changed(dev_priv))
+			goto out;
 
-	if (!crtc_state->enable_fbc)
-		goto out;
+		__intel_fbc_disable(dev_priv);
+	}
 
 	WARN_ON(fbc->active);
 
@@ -1133,6 +1140,7 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 	if (intel_fbc_alloc_cfb(dev_priv,
 				intel_fbc_calculate_cfb_size(dev_priv, cache),
 				fb->format->cpp[0])) {
+		cache->plane.visible = false;
 		fbc->no_fbc_reason = "not enough stolen memory";
 		goto out;
 	}
