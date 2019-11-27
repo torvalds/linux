@@ -15,6 +15,8 @@ Optional properties:
 
 - ieee80211-freq-limit: See ieee80211.txt
 - mediatek,mtd-eeprom: Specify a MTD partition + offset containing EEPROM data
+- big-endian: if the radio eeprom partition is written in big-endian, specify
+  this property
 
 The MAC address can as well be set with corresponding optional properties
 defined in net/ethernet.txt.
@@ -31,6 +33,7 @@ Optional nodes:
 			reg = <0x0000 0 0 0 0>;
 			ieee80211-freq-limit = <5000000 6000000>;
 			mediatek,mtd-eeprom = <&factory 0x8000>;
+			big-endian;
 
 			led {
 				led-sources = <2>;
