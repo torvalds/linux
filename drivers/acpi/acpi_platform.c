@@ -31,6 +31,44 @@ static const struct acpi_device_id forbidden_id_list[] = {
 	{"", 0},
 };
 
+static struct platform_device *acpi_platform_device_find_by_companion(struct acpi_device *adev)
+{
+	struct device *dev;
+
+	dev = bus_find_device_by_acpi_dev(&platform_bus_type, adev);
+	return dev ? to_platform_device(dev) : NULL;
+}
+
+static int acpi_platform_device_remove_notify(struct notifier_block *nb,
+					      unsigned long value, void *arg)
+{
+	struct acpi_device *adev = arg;
+	struct platform_device *pdev;
+
+	switch (value) {
+	case ACPI_RECONFIG_DEVICE_ADD:
+		/* Nothing to do here */
+		break;
+	case ACPI_RECONFIG_DEVICE_REMOVE:
+		if (!acpi_device_enumerated(adev))
+			break;
+
+		pdev = acpi_platform_device_find_by_companion(adev);
+		if (!pdev)
+			break;
+
+		platform_device_unregister(pdev);
+		put_device(&pdev->dev);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block acpi_platform_notifier = {
+	.notifier_call = acpi_platform_device_remove_notify,
+};
+
 static void acpi_platform_fill_resource(struct acpi_device *adev,
 	const struct resource *src, struct resource *dest)
 {
@@ -130,3 +168,8 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	return pdev;
 }
 EXPORT_SYMBOL_GPL(acpi_create_platform_device);
+
+void __init acpi_platform_init(void)
+{
+	acpi_reconfig_notifier_register(&acpi_platform_notifier);
+}

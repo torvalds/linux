@@ -75,6 +75,27 @@ config EFI_MAX_FAKE_MEM
 	  Ranges can be set up to this value using comma-separated list.
 	  The default value is 8.
 
+config EFI_SOFT_RESERVE
+	bool "Reserve EFI Specific Purpose Memory"
+	depends on EFI && EFI_STUB && ACPI_HMAT
+	default ACPI_HMAT
+	help
+	  On systems that have mixed performance classes of memory EFI
+	  may indicate specific purpose memory with an attribute (See
+	  EFI_MEMORY_SP in UEFI 2.8). A memory range tagged with this
+	  attribute may have unique performance characteristics compared
+	  to the system's general purpose "System RAM" pool. On the
+	  expectation that such memory has application specific usage,
+	  and its base EFI memory type is "conventional" answer Y to
+	  arrange for the kernel to reserve it as a "Soft Reserved"
+	  resource, and set aside for direct-access (device-dax) by
+	  default. The memory range can later be optionally assigned to
+	  the page allocator by system administrator policy via the
+	  device-dax kmem facility. Say N to have the kernel treat this
+	  memory as "System RAM" by default.
+
+	  If unsure, say Y.
+
 config EFI_PARAMS_FROM_FDT
 	bool
 	help

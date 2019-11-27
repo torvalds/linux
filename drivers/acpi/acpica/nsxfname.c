@@ -425,8 +425,8 @@ acpi_get_object_info(acpi_handle handle,
 	}
 
 	if (cls) {
-		next_id_string = acpi_ns_copy_device_id(&info->class_code,
-							cls, next_id_string);
+		(void)acpi_ns_copy_device_id(&info->class_code,
+					     cls, next_id_string);
 	}
 
 	/* Copy the fixed-length data */

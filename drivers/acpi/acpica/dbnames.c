@@ -10,6 +10,7 @@
 #include "acnamesp.h"
 #include "acdebug.h"
 #include "acpredef.h"
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
 ACPI_MODULE_NAME("dbnames")
@@ -504,6 +505,86 @@ acpi_db_walk_for_object_counts(acpi_handle obj_handle,
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_db_walk_for_fields
+ *
+ * PARAMETERS:  Callback from walk_namespace
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Display short info about objects in the namespace
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_db_walk_for_fields(acpi_handle obj_handle,
+			u32 nesting_level, void *context, void **return_value)
+{
+	union acpi_object *ret_value;
+	struct acpi_region_walk_info *info =
+	    (struct acpi_region_walk_info *)context;
+	struct acpi_buffer buffer;
+	acpi_status status;
+	struct acpi_namespace_node *node = acpi_ns_validate_handle(obj_handle);
+
+	if (!node) {
+		return (AE_OK);
+	}
+	if (node->object->field.region_obj->region.space_id !=
+	    info->address_space_id) {
+		return (AE_OK);
+	}
+
+	info->count++;
+
+	/* Get and display the full pathname to this object */
+
+	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
+	status = acpi_ns_handle_to_pathname(obj_handle, &buffer, TRUE);
+	if (ACPI_FAILURE(status)) {
+		acpi_os_printf("Could Not get pathname for object %p\n",
+			       obj_handle);
+		return (AE_OK);
+	}
+
+	acpi_os_printf("%s ", (char *)buffer.pointer);
+	ACPI_FREE(buffer.pointer);
+
+	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
+	acpi_evaluate_object(obj_handle, NULL, NULL, &buffer);
+
+	/*
+	 * Since this is a field unit, surround the output in braces
+	 */
+	acpi_os_printf("{");
+
+	ret_value = (union acpi_object *)buffer.pointer;
+	switch (ret_value->type) {
+	case ACPI_TYPE_INTEGER:
+
+		acpi_os_printf("%8.8X%8.8X",
+			       ACPI_FORMAT_UINT64(ret_value->integer.value));
+		break;
+
+	case ACPI_TYPE_BUFFER:
+
+		acpi_ut_dump_buffer(ret_value->buffer.pointer,
+				    ret_value->buffer.length,
+				    DB_DISPLAY_DATA_ONLY | DB_BYTE_DISPLAY, 0);
+		break;
+
+	default:
+
+		break;
+	}
+	acpi_os_printf("}\n");
+
+	ACPI_FREE(buffer.pointer);
+
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_db_walk_for_specific_objects
  *
  * PARAMETERS:  Callback from walk_namespace
@@ -625,6 +706,39 @@ acpi_status acpi_db_display_objects(char *obj_type_arg, char *display_count_arg)
 	     info.count, acpi_ut_get_type_name(type));
 
 	acpi_db_set_output_destination(ACPI_DB_CONSOLE_OUTPUT);
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_display_fields
+ *
+ * PARAMETERS:  obj_type_arg        - Type of object to display
+ *              display_count_arg   - Max depth to display
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display objects in the namespace of the requested type
+ *
+ ******************************************************************************/
+
+acpi_status acpi_db_display_fields(u32 address_space_id)
+{
+	struct acpi_region_walk_info info;
+
+	info.count = 0;
+	info.owner_id = ACPI_OWNER_ID_MAX;
+	info.debug_level = ACPI_UINT32_MAX;
+	info.display_type = ACPI_DISPLAY_SUMMARY | ACPI_DISPLAY_SHORT;
+	info.address_space_id = address_space_id;
+
+	/* Walk the namespace from the root */
+
+	(void)acpi_walk_namespace(ACPI_TYPE_LOCAL_REGION_FIELD,
+				  ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+				  acpi_db_walk_for_fields, NULL, (void *)&info,
+				  NULL);
+
 	return (AE_OK);
 }
 

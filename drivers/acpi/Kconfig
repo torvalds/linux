@@ -319,12 +319,6 @@ config ACPI_THERMAL
 	  To compile this driver as a module, choose M here:
 	  the module will be called thermal.
 
-config ACPI_NUMA
-	bool "NUMA support"
-	depends on NUMA
-	depends on (X86 || IA64 || ARM64)
-	default y if IA64 || ARM64
-
 config ACPI_CUSTOM_DSDT_FILE
 	string "Custom DSDT Table file to include"
 	default ""
@@ -473,8 +467,7 @@ config ACPI_REDUCED_HARDWARE_ONLY
 	  If you are unsure what to do, do not enable this option.
 
 source "drivers/acpi/nfit/Kconfig"
-source "drivers/acpi/hmat/Kconfig"
-
+source "drivers/acpi/numa/Kconfig"
 source "drivers/acpi/apei/Kconfig"
 source "drivers/acpi/dptf/Kconfig"
 
@@ -513,11 +506,19 @@ menuconfig PMIC_OPREGION
 	  PMIC chip.
 
 if PMIC_OPREGION
-config CRC_PMIC_OPREGION
-	bool "ACPI operation region support for CrystalCove PMIC"
+config BYTCRC_PMIC_OPREGION
+	bool "ACPI operation region support for Bay Trail Crystal Cove PMIC"
 	depends on INTEL_SOC_PMIC
 	help
-	  This config adds ACPI operation region support for CrystalCove PMIC.
+	  This config adds ACPI operation region support for the Bay Trail
+	  version of the Crystal Cove PMIC.
+
+config CHTCRC_PMIC_OPREGION
+	bool "ACPI operation region support for Cherry Trail Crystal Cove PMIC"
+	depends on INTEL_SOC_PMIC
+	help
+	  This config adds ACPI operation region support for the Cherry Trail
+	  version of the Crystal Cove PMIC.
 
 config XPOWER_PMIC_OPREGION
 	bool "ACPI operation region support for XPower AXP288 PMIC"

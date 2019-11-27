@@ -230,11 +230,15 @@ void acpi_ev_terminate(void)
 		/* Disable all GPEs in all GPE blocks */
 
 		status = acpi_ev_walk_gpe_list(acpi_hw_disable_gpe_block, NULL);
+		if (ACPI_FAILURE(status)) {
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not disable GPEs in GPE block"));
+		}
 
 		status = acpi_ev_remove_global_lock_handler();
 		if (ACPI_FAILURE(status)) {
-			ACPI_ERROR((AE_INFO,
-				    "Could not remove Global Lock handler"));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not remove Global Lock handler"));
 		}
 
 		acpi_gbl_events_initialized = FALSE;
@@ -250,6 +254,10 @@ void acpi_ev_terminate(void)
 	/* Deallocate all handler objects installed within GPE info structs */
 
 	status = acpi_ev_walk_gpe_list(acpi_ev_delete_gpe_handlers, NULL);
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not delete GPE handlers"));
+	}
 
 	/* Return to original mode if necessary */
 
