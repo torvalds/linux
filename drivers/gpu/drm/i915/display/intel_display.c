@@ -5908,37 +5908,6 @@ static void intel_crtc_dpms_overlay_disable(struct intel_crtc *intel_crtc)
 	 */
 }
 
-/**
- * intel_post_enable_primary - Perform operations after enabling primary plane
- * @crtc: the CRTC whose primary plane was just enabled
- * @new_crtc_state: the enabling state
- *
- * Performs potentially sleeping operations that must be done after the primary
- * plane is enabled, such as updating FBC and IPS.  Note that this may be
- * called due to an explicit primary plane update, or due to an implicit
- * re-enable that is caused when a sprite plane is updated to no longer
- * completely hide the primary plane.
- */
-static void
-intel_post_enable_primary(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-
-	/*
-	 * Gen2 reports pipe underruns whenever all planes are disabled.
-	 * So don't enable underrun reporting before at least some planes
-	 * are enabled.
-	 * FIXME: Need to fix the logic to work when we turn off all planes
-	 * but leave the pipe running.
-	 */
-	if (IS_GEN(dev_priv, 2))
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
-
-	/* Underruns don't always raise interrupts, so check manually. */
-	intel_check_cpu_fifo_underruns(dev_priv);
-	intel_check_pch_fifo_underruns(dev_priv);
-}
 
 /* FIXME get rid of this and use pre_plane_update */
 static void
@@ -6059,6 +6028,20 @@ static bool needs_scalerclk_wa(const struct intel_crtc_state *crtc_state)
 	return false;
 }
 
+static bool planes_enabling(const struct intel_crtc_state *old_crtc_state,
+			    const struct intel_crtc_state *new_crtc_state)
+{
+	return (!old_crtc_state->active_planes || needs_modeset(new_crtc_state)) &&
+		new_crtc_state->active_planes;
+}
+
+static bool planes_disabling(const struct intel_crtc_state *old_crtc_state,
+			     const struct intel_crtc_state *new_crtc_state)
+{
+	return old_crtc_state->active_planes &&
+		(!new_crtc_state->active_planes || needs_modeset(new_crtc_state));
+}
+
 static void intel_post_plane_update(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc)
 {
@@ -6068,10 +6051,9 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 		intel_atomic_get_old_crtc_state(state, crtc);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	const struct intel_plane_state *old_primary_state =
-		intel_atomic_get_old_plane_state(state, primary);
 	const struct intel_plane_state *new_primary_state =
 		intel_atomic_get_new_plane_state(state, primary);
+	enum pipe pipe = crtc->pipe;
 
 	intel_frontbuffer_flip(dev_priv, new_crtc_state->fb_bits);
 
@@ -6081,22 +6063,16 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 	if (hsw_post_update_enable_ips(old_crtc_state, new_crtc_state))
 		hsw_enable_ips(new_crtc_state);
 
-	if (new_primary_state) {
+	if (new_primary_state)
 		intel_fbc_post_update(crtc);
-
-		if (new_primary_state->uapi.visible &&
-		    (needs_modeset(new_crtc_state) ||
-		     !old_primary_state->uapi.visible))
-			intel_post_enable_primary(crtc);
-	}
 
 	if (needs_nv12_wa(old_crtc_state) &&
 	    !needs_nv12_wa(new_crtc_state))
-		skl_wa_827(dev_priv, crtc->pipe, false);
+		skl_wa_827(dev_priv, pipe, false);
 
 	if (needs_scalerclk_wa(old_crtc_state) &&
 	    !needs_scalerclk_wa(new_crtc_state))
-		icl_wa_scalerclkgating(dev_priv, crtc->pipe, false);
+		icl_wa_scalerclkgating(dev_priv, pipe, false);
 }
 
 static void intel_pre_plane_update(struct intel_atomic_state *state,
@@ -6108,35 +6084,25 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 		intel_atomic_get_old_crtc_state(state, crtc);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	const struct intel_plane_state *old_primary_state =
-		intel_atomic_get_old_plane_state(state, primary);
 	const struct intel_plane_state *new_primary_state =
 		intel_atomic_get_new_plane_state(state, primary);
-	bool modeset = needs_modeset(new_crtc_state);
+	enum pipe pipe = crtc->pipe;
 
 	if (hsw_pre_update_disable_ips(old_crtc_state, new_crtc_state))
 		hsw_disable_ips(old_crtc_state);
 
-	if (new_primary_state) {
+	if (new_primary_state)
 		intel_fbc_pre_update(crtc, new_crtc_state, new_primary_state);
-		/*
-		 * Gen2 reports pipe underruns whenever all planes are disabled.
-		 * So disable underrun reporting before all the planes get disabled.
-		 */
-		if (IS_GEN(dev_priv, 2) && old_primary_state->uapi.visible &&
-		    (modeset || !new_primary_state->uapi.visible))
-			intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
-	}
 
 	/* Display WA 827 */
 	if (!needs_nv12_wa(old_crtc_state) &&
 	    needs_nv12_wa(new_crtc_state))
-		skl_wa_827(dev_priv, crtc->pipe, true);
+		skl_wa_827(dev_priv, pipe, true);
 
 	/* Wa_2006604312:icl */
 	if (!needs_scalerclk_wa(old_crtc_state) &&
 	    needs_scalerclk_wa(new_crtc_state))
-		icl_wa_scalerclkgating(dev_priv, crtc->pipe, true);
+		icl_wa_scalerclkgating(dev_priv, pipe, true);
 
 	/*
 	 * Vblank time updates from the shadow to live plane control register
@@ -6149,7 +6115,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	 */
 	if (HAS_GMCH(dev_priv) && old_crtc_state->hw.active &&
 	    new_crtc_state->disable_cxsr && intel_set_memory_cxsr(dev_priv, false))
-		intel_wait_for_vblank(dev_priv, crtc->pipe);
+		intel_wait_for_vblank(dev_priv, pipe);
 
 	/*
 	 * IVB workaround: must disable low power watermarks for at least
@@ -6160,33 +6126,43 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	 */
 	if (old_crtc_state->hw.active &&
 	    new_crtc_state->disable_lp_wm && ilk_disable_lp_wm(dev_priv))
-		intel_wait_for_vblank(dev_priv, crtc->pipe);
+		intel_wait_for_vblank(dev_priv, pipe);
 
 	/*
-	 * If we're doing a modeset, we're done.  No need to do any pre-vblank
-	 * watermark programming here.
+	 * If we're doing a modeset we don't need to do any
+	 * pre-vblank watermark programming here.
 	 */
-	if (needs_modeset(new_crtc_state))
-		return;
+	if (!needs_modeset(new_crtc_state)) {
+		/*
+		 * For platforms that support atomic watermarks, program the
+		 * 'intermediate' watermarks immediately.  On pre-gen9 platforms, these
+		 * will be the intermediate values that are safe for both pre- and
+		 * post- vblank; when vblank happens, the 'active' values will be set
+		 * to the final 'target' values and we'll do this again to get the
+		 * optimal watermarks.  For gen9+ platforms, the values we program here
+		 * will be the final target values which will get automatically latched
+		 * at vblank time; no further programming will be necessary.
+		 *
+		 * If a platform hasn't been transitioned to atomic watermarks yet,
+		 * we'll continue to update watermarks the old way, if flags tell
+		 * us to.
+		 */
+		if (dev_priv->display.initial_watermarks)
+			dev_priv->display.initial_watermarks(state, crtc);
+		else if (new_crtc_state->update_wm_pre)
+			intel_update_watermarks(crtc);
+	}
 
 	/*
-	 * For platforms that support atomic watermarks, program the
-	 * 'intermediate' watermarks immediately.  On pre-gen9 platforms, these
-	 * will be the intermediate values that are safe for both pre- and
-	 * post- vblank; when vblank happens, the 'active' values will be set
-	 * to the final 'target' values and we'll do this again to get the
-	 * optimal watermarks.  For gen9+ platforms, the values we program here
-	 * will be the final target values which will get automatically latched
-	 * at vblank time; no further programming will be necessary.
+	 * Gen2 reports pipe underruns whenever all planes are disabled.
+	 * So disable underrun reporting before all the planes get disabled.
 	 *
-	 * If a platform hasn't been transitioned to atomic watermarks yet,
-	 * we'll continue to update watermarks the old way, if flags tell
-	 * us to.
+	 * We do this after .initial_watermarks() so that we have a
+	 * chance of catching underruns with the intermediate watermarks
+	 * vs. the old plane configuration.
 	 */
-	if (dev_priv->display.initial_watermarks)
-		dev_priv->display.initial_watermarks(state, crtc);
-	else if (new_crtc_state->update_wm_pre)
-		intel_update_watermarks(crtc);
+	if (IS_GEN(dev_priv, 2) && planes_disabling(old_crtc_state, new_crtc_state))
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 }
 
 static void intel_crtc_disable_planes(struct intel_atomic_state *state,
@@ -14423,13 +14399,6 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 	intel_fbc_disable(crtc);
 	intel_disable_shared_dpll(old_crtc_state);
 
-	/*
-	 * Underruns don't always raise interrupts,
-	 * so check manually.
-	 */
-	intel_check_cpu_fifo_underruns(dev_priv);
-	intel_check_pch_fifo_underruns(dev_priv);
-
 	/* FIXME unify this for all platforms */
 	if (!new_crtc_state->hw.active &&
 	    !HAS_GMCH(dev_priv) &&
@@ -14882,7 +14851,19 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	 *
 	 * TODO: Move this (and other cleanup) to an async worker eventually.
 	 */
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		/*
+		 * Gen2 reports pipe underruns whenever all planes are disabled.
+		 * So re-enable underrun reporting after some planes get enabled.
+		 *
+		 * We do this before .optimize_watermarks() so that we have a
+		 * chance of catching underruns with the intermediate watermarks
+		 * vs. the new plane configuration.
+		 */
+		if (IS_GEN(dev_priv, 2) && planes_enabling(old_crtc_state, new_crtc_state))
+			intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
+
 		if (dev_priv->display.optimize_watermarks)
 			dev_priv->display.optimize_watermarks(state, crtc);
 	}
@@ -14895,6 +14876,10 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 		intel_modeset_verify_crtc(crtc, state, old_crtc_state, new_crtc_state);
 	}
+
+	/* Underruns don't always raise interrupts, so check manually */
+	intel_check_cpu_fifo_underruns(dev_priv);
+	intel_check_pch_fifo_underruns(dev_priv);
 
 	if (state->modeset)
 		intel_verify_planes(state);
