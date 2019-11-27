@@ -171,7 +171,6 @@ static void ironlake_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 static void ironlake_pfit_enable(const struct intel_crtc_state *crtc_state);
 static void intel_modeset_setup_hw_state(struct drm_device *dev,
 					 struct drm_modeset_acquire_ctx *ctx);
-static void intel_pre_disable_primary_noatomic(struct drm_crtc *crtc);
 
 struct intel_limit {
 	struct {
@@ -3212,6 +3211,7 @@ static void fixup_active_planes(struct intel_crtc_state *crtc_state)
 static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 					 struct intel_plane *plane)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
 	struct intel_plane_state *plane_state =
@@ -3227,7 +3227,27 @@ static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	crtc_state->min_cdclk[plane->id] = 0;
 
 	if (plane->id == PLANE_PRIMARY)
-		intel_pre_disable_primary_noatomic(&crtc->base);
+		hsw_disable_ips(crtc_state);
+
+	/*
+	 * Vblank time updates from the shadow to live plane control register
+	 * are blocked if the memory self-refresh mode is active at that
+	 * moment. So to make sure the plane gets truly disabled, disable
+	 * first the self-refresh mode. The self-refresh enable bit in turn
+	 * will be checked/applied by the HW only at the next frame start
+	 * event which is after the vblank start event, so we need to have a
+	 * wait-for-vblank between disabling the plane and the pipe.
+	 */
+	if (HAS_GMCH(dev_priv) &&
+	    intel_set_memory_cxsr(dev_priv, false))
+		intel_wait_for_vblank(dev_priv, crtc->pipe);
+
+	/*
+	 * Gen2 reports pipe underruns whenever all planes are disabled.
+	 * So disable underrun reporting before all the planes get disabled.
+	 */
+	if (IS_GEN(dev_priv, 2) && !crtc_state->active_planes)
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
 
 	intel_disable_plane(plane, crtc_state);
 }
@@ -5906,39 +5926,6 @@ static void intel_crtc_dpms_overlay_disable(struct intel_crtc *intel_crtc)
 	/* Let userspace switch the overlay on again. In most cases userspace
 	 * has to recompute where to put it anyway.
 	 */
-}
-
-
-/* FIXME get rid of this and use pre_plane_update */
-static void
-intel_pre_disable_primary_noatomic(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
-
-	/*
-	 * Gen2 reports pipe underruns whenever all planes are disabled.
-	 * So disable underrun reporting before all the planes get disabled.
-	 */
-	if (IS_GEN(dev_priv, 2))
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-
-	hsw_disable_ips(to_intel_crtc_state(crtc->state));
-
-	/*
-	 * Vblank time updates from the shadow to live plane control register
-	 * are blocked if the memory self-refresh mode is active at that
-	 * moment. So to make sure the plane gets truly disabled, disable
-	 * first the self-refresh mode. The self-refresh enable bit in turn
-	 * will be checked/applied by the HW only at the next frame start
-	 * event which is after the vblank start event, so we need to have a
-	 * wait-for-vblank between disabling the plane and the pipe.
-	 */
-	if (HAS_GMCH(dev_priv) &&
-	    intel_set_memory_cxsr(dev_priv, false))
-		intel_wait_for_vblank(dev_priv, pipe);
 }
 
 static bool hsw_pre_update_disable_ips(const struct intel_crtc_state *old_crtc_state,
