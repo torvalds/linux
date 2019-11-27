@@ -94,6 +94,10 @@ int get_stack_info(unsigned long sp, struct task_struct *task,
 	if (!sp)
 		goto unknown;
 
+	/* Sanity check: ABI requires SP to be aligned 8 bytes. */
+	if (sp & 0x7)
+		goto unknown;
+
 	/* Check per-task stack */
 	if (in_task_stack(sp, task, info))
 		goto recursion_check;

@@ -92,6 +92,10 @@ bool unwind_next_frame(struct unwind_state *state)
 		}
 	}
 
+	/* Sanity check: ABI requires SP to be aligned 8 bytes. */
+	if (sp & 0x7)
+		goto out_err;
+
 	ip = ftrace_graph_ret_addr(state->task, &state->graph_idx, ip, (void *) sp);
 
 	/* Update unwind state */
