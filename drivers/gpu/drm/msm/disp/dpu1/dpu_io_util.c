@@ -175,6 +175,7 @@ int msm_dss_parse_clock(struct platform_device *pdev,
 			continue;
 		mp->clk_config[i].rate = rate;
 		mp->clk_config[i].type = DSS_CLK_PCLK;
+		mp->clk_config[i].max_rate = rate;
 	}
 
 	mp->num_clk = num_clk;
