@@ -610,6 +610,8 @@ EXPORT_SYMBOL_GPL(rtc_update_irq_enable);
 /**
  * rtc_handle_legacy_irq - AIE, UIE and PIE event hook
  * @rtc: pointer to the rtc device
+ * @num: number of occurence of the event
+ * @mode: type of the event, RTC_AF, RTC_UF of RTC_PF
  *
  * This function is called when an AIE, UIE or PIE mode interrupt
  * has occurred (or been emulated).
@@ -790,8 +792,8 @@ int rtc_irq_set_freq(struct rtc_device *rtc, int freq)
 
 /**
  * rtc_timer_enqueue - Adds a rtc_timer to the rtc_device timerqueue
- * @rtc rtc device
- * @timer timer being added.
+ * @rtc: rtc device
+ * @timer: timer being added.
  *
  * Enqueues a timer onto the rtc devices timerqueue and sets
  * the next alarm event appropriately.
@@ -850,8 +852,8 @@ static void rtc_alarm_disable(struct rtc_device *rtc)
 
 /**
  * rtc_timer_remove - Removes a rtc_timer from the rtc_device timerqueue
- * @rtc rtc device
- * @timer timer being removed.
+ * @rtc: rtc device
+ * @timer: timer being removed.
  *
  * Removes a timer onto the rtc devices timerqueue and sets
  * the next alarm event appropriately.
@@ -888,8 +890,7 @@ static void rtc_timer_remove(struct rtc_device *rtc, struct rtc_timer *timer)
 
 /**
  * rtc_timer_do_work - Expires rtc timers
- * @rtc rtc device
- * @timer timer being removed.
+ * @work: work item
  *
  * Expires rtc timers. Reprograms next alarm event if needed.
  * Called via worktask.
@@ -1022,8 +1023,8 @@ void rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer)
 
 /**
  * rtc_read_offset - Read the amount of rtc offset in parts per billion
- * @ rtc: rtc device to be used
- * @ offset: the offset in parts per billion
+ * @rtc: rtc device to be used
+ * @offset: the offset in parts per billion
  *
  * see below for details.
  *
@@ -1051,8 +1052,8 @@ int rtc_read_offset(struct rtc_device *rtc, long *offset)
 
 /**
  * rtc_set_offset - Adjusts the duration of the average second
- * @ rtc: rtc device to be used
- * @ offset: the offset in parts per billion
+ * @rtc: rtc device to be used
+ * @offset: the offset in parts per billion
  *
  * Some rtc's allow an adjustment to the average duration of a second
  * to compensate for differences in the actual clock rate due to temperature,
