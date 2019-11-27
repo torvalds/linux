@@ -1376,6 +1376,11 @@ static int ath11k_dp_rx_msdu_coalesce(struct ath11k *ar,
 	skb_put(first, DP_RX_BUFFER_SIZE);
 	skb_pull(first, buf_first_hdr_len);
 
+	/* When an MSDU spread over multiple buffers attention, MSDU_END and
+	 * MPDU_END tlvs are valid only in the last buffer. Copy those tlvs.
+	 */
+	ath11k_dp_rx_desc_end_tlv_copy(rxcb->rx_desc, ldesc);
+
 	space_extra = msdu_len - (buf_first_len + skb_tailroom(first));
 	if (space_extra > 0 &&
 	    (pskb_expand_head(first, 0, space_extra, GFP_ATOMIC) < 0)) {
@@ -1390,11 +1395,6 @@ static int ath11k_dp_rx_msdu_coalesce(struct ath11k *ar,
 		}
 		return -ENOMEM;
 	}
-
-	/* When an MSDU spread over multiple buffers attention, MSDU_END and
-	 * MPDU_END tlvs are valid only in the last buffer. Copy those tlvs.
-	 */
-	ath11k_dp_rx_desc_end_tlv_copy(rxcb->rx_desc, ldesc);
 
 	rem_len = msdu_len - buf_first_len;
 	while ((skb = __skb_dequeue(msdu_list)) != NULL && rem_len > 0) {
