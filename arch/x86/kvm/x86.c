@@ -10381,7 +10381,6 @@ bool kvm_vector_hashing_enabled(void)
 {
 	return vector_hashing;
 }
-EXPORT_SYMBOL_GPL(kvm_vector_hashing_enabled);
 
 bool kvm_arch_no_poll(struct kvm_vcpu *vcpu)
 {
