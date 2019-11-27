@@ -16,6 +16,8 @@
 #include <linux/module.h>
 #include <linux/cdev.h>
 
+#define GPIOCHIP_NAME	"gpiochip"
+
 /**
  * struct gpio_device - internal state container for GPIO devices
  * @id: numerical ID number for the GPIO chip
