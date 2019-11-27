@@ -6037,9 +6037,10 @@ static bool hsw_post_update_enable_ips(const struct intel_crtc_state *old_crtc_s
 	return !old_crtc_state->ips_enabled;
 }
 
-static bool needs_nv12_wa(struct drm_i915_private *dev_priv,
-			  const struct intel_crtc_state *crtc_state)
+static bool needs_nv12_wa(const struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+
 	if (!crtc_state->nv12_planes)
 		return false;
 
@@ -6050,9 +6051,10 @@ static bool needs_nv12_wa(struct drm_i915_private *dev_priv,
 	return false;
 }
 
-static bool needs_scalerclk_wa(struct drm_i915_private *dev_priv,
-			       const struct intel_crtc_state *crtc_state)
+static bool needs_scalerclk_wa(const struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+
 	/* Wa_2006604312:icl */
 	if (crtc_state->scaler_state.scaler_users > 0 && IS_ICELAKE(dev_priv))
 		return true;
@@ -6093,12 +6095,12 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 			intel_post_enable_primary(&crtc->base, pipe_config);
 	}
 
-	if (needs_nv12_wa(dev_priv, old_crtc_state) &&
-	    !needs_nv12_wa(dev_priv, pipe_config))
+	if (needs_nv12_wa(old_crtc_state) &&
+	    !needs_nv12_wa(pipe_config))
 		skl_wa_827(dev_priv, crtc->pipe, false);
 
-	if (needs_scalerclk_wa(dev_priv, old_crtc_state) &&
-	    !needs_scalerclk_wa(dev_priv, pipe_config))
+	if (needs_scalerclk_wa(old_crtc_state) &&
+	    !needs_scalerclk_wa(pipe_config))
 		icl_wa_scalerclkgating(dev_priv, crtc->pipe, false);
 }
 
@@ -6135,13 +6137,13 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	}
 
 	/* Display WA 827 */
-	if (!needs_nv12_wa(dev_priv, old_crtc_state) &&
-	    needs_nv12_wa(dev_priv, pipe_config))
+	if (!needs_nv12_wa(old_crtc_state) &&
+	    needs_nv12_wa(pipe_config))
 		skl_wa_827(dev_priv, crtc->pipe, true);
 
 	/* Wa_2006604312:icl */
-	if (!needs_scalerclk_wa(dev_priv, old_crtc_state) &&
-	    needs_scalerclk_wa(dev_priv, pipe_config))
+	if (!needs_scalerclk_wa(old_crtc_state) &&
+	    needs_scalerclk_wa(pipe_config))
 		icl_wa_scalerclkgating(dev_priv, crtc->pipe, true);
 
 	/*
