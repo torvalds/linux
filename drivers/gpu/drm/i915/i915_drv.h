@@ -444,6 +444,7 @@ struct intel_fbc {
 
 		int cfb_size;
 		u16 gen9_wa_cfb_stride;
+		bool plane_visible;
 	} params;
 
 	const char *no_fbc_reason;

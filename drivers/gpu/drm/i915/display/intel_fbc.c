@@ -634,8 +634,9 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 	struct drm_framebuffer *fb = plane_state->hw.fb;
 
-	cache->vma = NULL;
-	cache->flags = 0;
+	cache->plane.visible = plane_state->uapi.visible;
+	if (!cache->plane.visible)
+		return;
 
 	cache->crtc.mode_flags = crtc_state->hw.adjusted_mode.flags;
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
@@ -649,15 +650,11 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	 */
 	cache->plane.src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	cache->plane.src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
-	cache->plane.visible = plane_state->uapi.visible;
 	cache->plane.adjusted_x = plane_state->color_plane[0].x;
 	cache->plane.adjusted_y = plane_state->color_plane[0].y;
 	cache->plane.y = plane_state->uapi.src.y1 >> 16;
 
 	cache->plane.pixel_blend_mode = plane_state->hw.pixel_blend_mode;
-
-	if (!cache->plane.visible)
-		return;
 
 	cache->fb.format = fb->format;
 	cache->fb.stride = fb->pitches[0];
@@ -674,16 +671,16 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 
+	if (!cache->plane.visible) {
+		fbc->no_fbc_reason = "primary plane not visible";
+		return false;
+	}
+
 	/* We don't need to use a state cache here since this information is
 	 * global for all CRTC.
 	 */
 	if (fbc->underrun_detected) {
 		fbc->no_fbc_reason = "underrun detected";
-		return false;
-	}
-
-	if (!cache->vma) {
-		fbc->no_fbc_reason = "primary plane not visible";
 		return false;
 	}
 
@@ -820,6 +817,8 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
 
 	params->gen9_wa_cfb_stride = cache->gen9_wa_cfb_stride;
+
+	params->plane_visible = cache->plane.visible;
 }
 
 void intel_fbc_pre_update(struct intel_crtc *crtc,
