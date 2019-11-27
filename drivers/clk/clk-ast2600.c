@@ -116,8 +116,6 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_FSICLK]	= { 62,  59, "fsiclk-gate",	NULL,	 0 },	/* FSI */
 };
 
-static const char * const eclk_parent_names[] = { "mpll", "hpll", "dpll" };
-
 static const struct clk_div_table ast2600_eclk_div_table[] = {
 	{ 0x0, 2 },
 	{ 0x1, 2 },

@@ -25,20 +25,6 @@ static u32 share_count_disp;
 static u32 share_count_pdm;
 static u32 share_count_nand;
 
-enum {
-	ARM_PLL,
-	GPU_PLL,
-	VPU_PLL,
-	SYS_PLL1,
-	SYS_PLL2,
-	SYS_PLL3,
-	DRAM_PLL,
-	AUDIO_PLL1,
-	AUDIO_PLL2,
-	VIDEO_PLL2,
-	NR_PLLS,
-};
-
 static const struct imx_pll14xx_rate_table imx8mn_pll1416x_tbl[] = {
 	PLL_1416X_RATE(1800000000U, 225, 3, 0),
 	PLL_1416X_RATE(1600000000U, 200, 3, 0),
