@@ -442,7 +442,8 @@ void __dump_page_owner(struct page *page)
 	}
 
 	depot_fetch_stack(handle, &trace);
-	pr_alert("page allocated via order %u, migratetype %s, gfp_mask %#x(%pGg)\n",
+	pr_alert("PFN 0x%lx allocated via order %u, migratetype %s, gfp_mask %#x(%pGg)\n",
+		 page_to_pfn(page),
 		 page_owner->order, migratetype_names[mt], gfp_mask, &gfp_mask);
 	print_stack_trace(&trace, 0);
 
