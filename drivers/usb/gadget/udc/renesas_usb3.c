@@ -775,6 +775,18 @@ static void usb3_irq_epc_int_1_resume(struct renesas_usb3 *usb3)
 	usb3_transition_to_default_state(usb3, false);
 }
 
+static void usb3_irq_epc_int_1_suspend(struct renesas_usb3 *usb3)
+{
+	usb3_disable_irq_1(usb3, USB_INT_1_B2_SPND);
+
+	if (usb3->gadget.speed != USB_SPEED_UNKNOWN &&
+	    usb3->gadget.state != USB_STATE_NOTATTACHED) {
+		if (usb3->driver && usb3->driver->suspend)
+			usb3->driver->suspend(&usb3->gadget);
+		usb_gadget_set_state(&usb3->gadget, USB_STATE_SUSPENDED);
+	}
+}
+
 static void usb3_irq_epc_int_1_disable(struct renesas_usb3 *usb3)
 {
 	usb3_stop_usb3_connection(usb3);
@@ -859,6 +871,9 @@ static void usb3_irq_epc_int_1(struct renesas_usb3 *usb3, u32 int_sta_1)
 
 	if (int_sta_1 & USB_INT_1_B2_RSUM)
 		usb3_irq_epc_int_1_resume(usb3);
+
+	if (int_sta_1 & USB_INT_1_B2_SPND)
+		usb3_irq_epc_int_1_suspend(usb3);
 
 	if (int_sta_1 & USB_INT_1_SPEED)
 		usb3_irq_epc_int_1_speed(usb3);
@@ -2536,7 +2551,7 @@ static const struct file_operations renesas_usb3_b_device_fops = {
 static void renesas_usb3_debugfs_init(struct renesas_usb3 *usb3,
 				      struct device *dev)
 {
-	usb3->dentry = debugfs_create_dir(dev_name(dev), NULL);
+	usb3->dentry = debugfs_create_dir(dev_name(dev), usb_debug_root);
 
 	debugfs_create_file("b_device", 0644, usb3->dentry, usb3,
 			    &renesas_usb3_b_device_fops);
@@ -2733,7 +2748,6 @@ static struct usb_role_switch_desc renesas_usb3_role_switch_desc = {
 static int renesas_usb3_probe(struct platform_device *pdev)
 {
 	struct renesas_usb3 *usb3;
-	struct resource *res;
 	int irq, ret;
 	const struct renesas_usb3_priv *priv;
 	const struct soc_device_attribute *attr;
@@ -2752,8 +2766,7 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 	if (!usb3)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	usb3->reg = devm_ioremap_resource(&pdev->dev, res);
+	usb3->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(usb3->reg))
 		return PTR_ERR(usb3->reg);
 

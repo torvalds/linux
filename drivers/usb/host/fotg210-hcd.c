@@ -5646,8 +5646,10 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 	return retval;
 
 failed_dis_clk:
-	if (!IS_ERR(fotg210->pclk))
+	if (!IS_ERR(fotg210->pclk)) {
 		clk_disable_unprepare(fotg210->pclk);
+		clk_put(fotg210->pclk);
+	}
 failed_put_hcd:
 	usb_put_hcd(hcd);
 fail_create_hcd:
@@ -5665,8 +5667,10 @@ static int fotg210_hcd_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct fotg210_hcd *fotg210 = hcd_to_fotg210(hcd);
 
-	if (!IS_ERR(fotg210->pclk))
+	if (!IS_ERR(fotg210->pclk)) {
 		clk_disable_unprepare(fotg210->pclk);
+		clk_put(fotg210->pclk);
+	}
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);

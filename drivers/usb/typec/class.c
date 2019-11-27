@@ -53,6 +53,7 @@ struct typec_port {
 	struct typec_mux		*mux;
 
 	const struct typec_capability	*cap;
+	const struct typec_operations   *ops;
 };
 
 #define to_typec_port(_dev_) container_of(_dev_, struct typec_port, dev)
@@ -955,7 +956,7 @@ preferred_role_store(struct device *dev, struct device_attribute *attr,
 		return -EOPNOTSUPP;
 	}
 
-	if (!port->cap->try_role) {
+	if (!port->ops || !port->ops->try_role) {
 		dev_dbg(dev, "Setting preferred role not supported\n");
 		return -EOPNOTSUPP;
 	}
@@ -968,7 +969,7 @@ preferred_role_store(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 	}
 
-	ret = port->cap->try_role(port->cap, role);
+	ret = port->ops->try_role(port, role);
 	if (ret)
 		return ret;
 
@@ -999,7 +1000,7 @@ static ssize_t data_role_store(struct device *dev,
 	struct typec_port *port = to_typec_port(dev);
 	int ret;
 
-	if (!port->cap->dr_set) {
+	if (!port->ops || !port->ops->dr_set) {
 		dev_dbg(dev, "data role swapping not supported\n");
 		return -EOPNOTSUPP;
 	}
@@ -1014,7 +1015,7 @@ static ssize_t data_role_store(struct device *dev,
 		goto unlock_and_ret;
 	}
 
-	ret = port->cap->dr_set(port->cap, ret);
+	ret = port->ops->dr_set(port, ret);
 	if (ret)
 		goto unlock_and_ret;
 
@@ -1049,7 +1050,7 @@ static ssize_t power_role_store(struct device *dev,
 		return -EOPNOTSUPP;
 	}
 
-	if (!port->cap->pr_set) {
+	if (!port->ops || !port->ops->pr_set) {
 		dev_dbg(dev, "power role swapping not supported\n");
 		return -EOPNOTSUPP;
 	}
@@ -1071,7 +1072,7 @@ static ssize_t power_role_store(struct device *dev,
 		goto unlock_and_ret;
 	}
 
-	ret = port->cap->pr_set(port->cap, ret);
+	ret = port->ops->pr_set(port, ret);
 	if (ret)
 		goto unlock_and_ret;
 
@@ -1102,7 +1103,8 @@ port_type_store(struct device *dev, struct device_attribute *attr,
 	int ret;
 	enum typec_port_type type;
 
-	if (!port->cap->port_type_set || port->cap->type != TYPEC_PORT_DRP) {
+	if (port->cap->type != TYPEC_PORT_DRP ||
+	    !port->ops || !port->ops->port_type_set) {
 		dev_dbg(dev, "changing port type not supported\n");
 		return -EOPNOTSUPP;
 	}
@@ -1119,7 +1121,7 @@ port_type_store(struct device *dev, struct device_attribute *attr,
 		goto unlock_and_ret;
 	}
 
-	ret = port->cap->port_type_set(port->cap, type);
+	ret = port->ops->port_type_set(port, type);
 	if (ret)
 		goto unlock_and_ret;
 
@@ -1175,7 +1177,7 @@ static ssize_t vconn_source_store(struct device *dev,
 		return -EOPNOTSUPP;
 	}
 
-	if (!port->cap->vconn_set) {
+	if (!port->ops || !port->ops->vconn_set) {
 		dev_dbg(dev, "VCONN swapping not supported\n");
 		return -EOPNOTSUPP;
 	}
@@ -1184,7 +1186,7 @@ static ssize_t vconn_source_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = port->cap->vconn_set(port->cap, (enum typec_role)source);
+	ret = port->ops->vconn_set(port, (enum typec_role)source);
 	if (ret)
 		return ret;
 
@@ -1278,6 +1280,7 @@ static void typec_release(struct device *dev)
 	ida_destroy(&port->mode_ids);
 	typec_switch_put(port->sw);
 	typec_mux_put(port->mux);
+	kfree(port->cap);
 	kfree(port);
 }
 
@@ -1487,6 +1490,16 @@ EXPORT_SYMBOL_GPL(typec_set_mode);
 /* --------------------------------------- */
 
 /**
+ * typec_get_drvdata - Return private driver data pointer
+ * @port: USB Type-C port
+ */
+void *typec_get_drvdata(struct typec_port *port)
+{
+	return dev_get_drvdata(&port->dev);
+}
+EXPORT_SYMBOL_GPL(typec_get_drvdata);
+
+/**
  * typec_port_register_altmode - Register USB Type-C Port Alternate Mode
  * @port: USB Type-C Port that supports the alternate mode
  * @desc: Description of the alternate mode
@@ -1579,7 +1592,7 @@ struct typec_port *typec_register_port(struct device *parent,
 	mutex_init(&port->port_type_lock);
 
 	port->id = id;
-	port->cap = cap;
+	port->ops = cap->ops;
 	port->port_type = cap->type;
 	port->prefer_role = cap->prefer_role;
 
@@ -1589,6 +1602,13 @@ struct typec_port *typec_register_port(struct device *parent,
 	port->dev.fwnode = cap->fwnode;
 	port->dev.type = &typec_port_dev_type;
 	dev_set_name(&port->dev, "port%d", id);
+	dev_set_drvdata(&port->dev, cap->driver_data);
+
+	port->cap = kmemdup(cap, sizeof(*cap), GFP_KERNEL);
+	if (!port->cap) {
+		put_device(&port->dev);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	port->sw = typec_switch_get(&port->dev);
 	if (IS_ERR(port->sw)) {

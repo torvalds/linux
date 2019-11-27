@@ -71,7 +71,7 @@ INT_MODULE_PARM(testing, 0);
 /* Some boards misreport power switching/overcurrent*/
 static bool distrust_firmware = true;
 module_param(distrust_firmware, bool, 0);
-MODULE_PARM_DESC(distrust_firmware, "true to distrust firmware power/overcurren"
+MODULE_PARM_DESC(distrust_firmware, "true to distrust firmware power/overcurrent"
 	"t setup");
 static DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
 /*

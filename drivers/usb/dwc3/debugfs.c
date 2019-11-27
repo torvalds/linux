@@ -916,7 +916,7 @@ void dwc3_debugfs_init(struct dwc3 *dwc)
 	dwc->regset->nregs = ARRAY_SIZE(dwc3_regs);
 	dwc->regset->base = dwc->regs - DWC3_GLOBALS_REGS_START;
 
-	root = debugfs_create_dir(dev_name(dwc->dev), NULL);
+	root = debugfs_create_dir(dev_name(dwc->dev), usb_debug_root);
 	dwc->root = root;
 
 	debugfs_create_regset32("regdump", S_IRUGO, root, dwc->regset);

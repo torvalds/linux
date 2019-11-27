@@ -105,15 +105,12 @@ static struct usb_function *f_msg;
  */
 static int acm_ms_do_config(struct usb_configuration *c)
 {
-	struct fsg_opts *opts;
 	int	status;
 
 	if (gadget_is_otg(c->cdev->gadget)) {
 		c->descriptors = otg_desc;
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
-
-	opts = fsg_opts_from_func_inst(fi_msg);
 
 	f_acm = usb_get_function(f_acm_inst);
 	if (IS_ERR(f_acm))

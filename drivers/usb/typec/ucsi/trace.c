@@ -33,17 +33,6 @@ const char *ucsi_cmd_str(u64 raw_cmd)
 	return ucsi_cmd_strs[(cmd >= ARRAY_SIZE(ucsi_cmd_strs)) ? 0 : cmd];
 }
 
-static const char * const ucsi_ack_strs[] = {
-	[0]				= "",
-	[UCSI_ACK_EVENT]		= "event",
-	[UCSI_ACK_CMD]			= "command",
-};
-
-const char *ucsi_ack_str(u8 ack)
-{
-	return ucsi_ack_strs[(ack >= ARRAY_SIZE(ucsi_ack_strs)) ? 0 : ack];
-}
-
 const char *ucsi_cci_str(u32 cci)
 {
 	if (cci & GENMASK(7, 0)) {

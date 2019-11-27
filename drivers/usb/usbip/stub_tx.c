@@ -291,7 +291,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 				kfree(iov);
 				usbip_event_add(&sdev->ud,
 						SDEV_EVENT_ERROR_TCP);
-			   return -1;
+				return -1;
 			}
 		}
 

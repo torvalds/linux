@@ -97,24 +97,24 @@ config USB_DWC3_KEYSTONE
 	  Say 'Y' or 'M' here if you have one such device
 
 config USB_DWC3_MESON_G12A
-       tristate "Amlogic Meson G12A Platforms"
-       depends on OF && COMMON_CLK
-       depends on ARCH_MESON || COMPILE_TEST
-       default USB_DWC3
-       select USB_ROLE_SWITCH
+	tristate "Amlogic Meson G12A Platforms"
+	depends on OF && COMMON_CLK
+	depends on ARCH_MESON || COMPILE_TEST
+	default USB_DWC3
+	select USB_ROLE_SWITCH
 	select REGMAP_MMIO
-       help
-         Support USB2/3 functionality in Amlogic G12A platforms.
-	 Say 'Y' or 'M' if you have one such device.
+	help
+	  Support USB2/3 functionality in Amlogic G12A platforms.
+	  Say 'Y' or 'M' if you have one such device.
 
 config USB_DWC3_OF_SIMPLE
-       tristate "Generic OF Simple Glue Layer"
-       depends on OF && COMMON_CLK
-       default USB_DWC3
-       help
-         Support USB2/3 functionality in simple SoC integrations.
-	 Currently supports Xilinx and Qualcomm DWC USB3 IP.
-	 Say 'Y' or 'M' if you have one such device.
+	tristate "Generic OF Simple Glue Layer"
+	depends on OF && COMMON_CLK
+	default USB_DWC3
+	help
+	  Support USB2/3 functionality in simple SoC integrations.
+	  Currently supports Xilinx and Qualcomm DWC USB3 IP.
+	  Say 'Y' or 'M' if you have one such device.
 
 config USB_DWC3_ST
 	tristate "STMicroelectronics Platforms"

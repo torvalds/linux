@@ -676,12 +676,12 @@ static int oxu_hub_control(struct usb_hcd *hcd,
  */
 
 /* Low level read/write registers functions */
-static inline u32 oxu_readl(void *base, u32 reg)
+static inline u32 oxu_readl(void __iomem *base, u32 reg)
 {
 	return readl(base + reg);
 }
 
-static inline void oxu_writel(void *base, u32 reg, u32 val)
+static inline void oxu_writel(void __iomem *base, u32 reg, u32 val)
 {
 	writel(val, base + reg);
 }
@@ -4063,7 +4063,7 @@ static const struct hc_driver oxu_hc_driver = {
  * Module stuff
  */
 
-static void oxu_configuration(struct platform_device *pdev, void *base)
+static void oxu_configuration(struct platform_device *pdev, void __iomem *base)
 {
 	u32 tmp;
 
@@ -4093,7 +4093,7 @@ static void oxu_configuration(struct platform_device *pdev, void *base)
 	oxu_writel(base, OXU_CHIPIRQEN_SET, OXU_USBSPHLPWUI | OXU_USBOTGLPWUI);
 }
 
-static int oxu_verify_id(struct platform_device *pdev, void *base)
+static int oxu_verify_id(struct platform_device *pdev, void __iomem *base)
 {
 	u32 id;
 	static const char * const bo[] = {
@@ -4121,7 +4121,7 @@ static int oxu_verify_id(struct platform_device *pdev, void *base)
 static const struct hc_driver oxu_hc_driver;
 static struct usb_hcd *oxu_create(struct platform_device *pdev,
 				unsigned long memstart, unsigned long memlen,
-				void *base, int irq, int otg)
+				void __iomem *base, int irq, int otg)
 {
 	struct device *dev = &pdev->dev;
 
@@ -4158,7 +4158,7 @@ static struct usb_hcd *oxu_create(struct platform_device *pdev,
 
 static int oxu_init(struct platform_device *pdev,
 				unsigned long memstart, unsigned long memlen,
-				void *base, int irq)
+				void __iomem *base, int irq)
 {
 	struct oxu_info *info = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd;
@@ -4207,7 +4207,7 @@ error_create_otg:
 static int oxu_drv_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	void *base;
+	void __iomem *base;
 	unsigned long memstart, memlen;
 	int irq, ret;
 	struct oxu_info *info;

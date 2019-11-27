@@ -9,6 +9,8 @@ need this driver.
 Required properties:
 - compatible: "renesas,r8a774a1-usb3-phy" if the device is a part of an R8A774A1
 	      SoC.
+	      "renesas,r8a774b1-usb3-phy" if the device is a part of an R8A774B1
+	      SoC.
 	      "renesas,r8a7795-usb3-phy" if the device is a part of an R8A7795
 	      SoC.
 	      "renesas,r8a7796-usb3-phy" if the device is a part of an R8A7796

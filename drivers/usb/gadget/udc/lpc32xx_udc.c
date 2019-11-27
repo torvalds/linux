@@ -3000,7 +3000,6 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct lpc32xx_udc *udc;
 	int retval, i;
-	struct resource *res;
 	dma_addr_t dma_handle;
 	struct device_node *isp1301_node;
 
@@ -3048,9 +3047,6 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	 *  IORESOURCE_IRQ, USB device interrupt number
 	 *  IORESOURCE_IRQ, USB transceiver interrupt number
 	 */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
 
 	spin_lock_init(&udc->lock);
 
@@ -3061,7 +3057,7 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 			return udc->udp_irq[i];
 	}
 
-	udc->udp_baseaddr = devm_ioremap_resource(dev, res);
+	udc->udp_baseaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(udc->udp_baseaddr)) {
 		dev_err(udc->dev, "IO map failure\n");
 		return PTR_ERR(udc->udp_baseaddr);
