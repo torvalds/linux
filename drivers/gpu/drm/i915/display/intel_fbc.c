@@ -68,7 +68,7 @@ static unsigned int get_crtc_fence_y_offset(struct intel_fbc *fbc)
  * write to the PLANE_SIZE register. For BDW-, the hardware looks at the value
  * we wrote to PIPESRC.
  */
-static void intel_fbc_get_plane_source_size(struct intel_fbc_state_cache *cache,
+static void intel_fbc_get_plane_source_size(const struct intel_fbc_state_cache *cache,
 					    int *width, int *height)
 {
 	if (width)
@@ -78,7 +78,7 @@ static void intel_fbc_get_plane_source_size(struct intel_fbc_state_cache *cache,
 }
 
 static int intel_fbc_calculate_cfb_size(struct drm_i915_private *dev_priv,
-					struct intel_fbc_state_cache *cache)
+					const struct intel_fbc_state_cache *cache)
 {
 	int lines;
 
@@ -827,6 +827,38 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	params->plane_visible = cache->plane.visible;
 }
 
+static bool intel_fbc_can_flip_nuke(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_fbc *fbc = &dev_priv->fbc;
+	const struct intel_fbc_state_cache *cache = &fbc->state_cache;
+	const struct intel_fbc_reg_params *params = &fbc->params;
+
+	if (drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
+		return false;
+
+	if (!params->plane_visible)
+		return false;
+
+	if (!intel_fbc_can_activate(crtc))
+		return false;
+
+	if (params->fb.format != cache->fb.format)
+		return false;
+
+	if (params->fb.stride != cache->fb.stride)
+		return false;
+
+	if (params->cfb_size != intel_fbc_calculate_cfb_size(dev_priv, cache))
+		return false;
+
+	if (params->gen9_wa_cfb_stride != cache->gen9_wa_cfb_stride)
+		return false;
+
+	return true;
+}
+
 void intel_fbc_pre_update(struct intel_crtc *crtc,
 			  const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
@@ -846,7 +878,8 @@ void intel_fbc_pre_update(struct intel_crtc *crtc,
 	intel_fbc_update_state_cache(crtc, crtc_state, plane_state);
 	fbc->flip_pending = true;
 
-	intel_fbc_deactivate(dev_priv, reason);
+	if (!intel_fbc_can_flip_nuke(crtc_state))
+		intel_fbc_deactivate(dev_priv, reason);
 unlock:
 	mutex_unlock(&fbc->lock);
 }
@@ -885,7 +918,6 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 		return;
 
 	fbc->flip_pending = false;
-	WARN_ON(fbc->active);
 
 	if (!i915_modparams.enable_fbc) {
 		intel_fbc_deactivate(dev_priv, "disabled at runtime per module param");
@@ -899,10 +931,9 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 	if (!intel_fbc_can_activate(crtc))
 		return;
 
-	if (!fbc->busy_bits) {
-		intel_fbc_deactivate(dev_priv, "FBC enabled (active or scheduled)");
+	if (!fbc->busy_bits)
 		intel_fbc_hw_activate(dev_priv);
-	} else
+	else
 		intel_fbc_deactivate(dev_priv, "frontbuffer write");
 }
 
@@ -1061,10 +1092,7 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 	mutex_lock(&fbc->lock);
 
 	if (fbc->crtc) {
-		if (fbc->crtc == crtc) {
-			WARN_ON(!crtc_state->enable_fbc);
-			WARN_ON(fbc->active);
-		}
+		WARN_ON(fbc->crtc == crtc && !crtc_state->enable_fbc);
 		goto out;
 	}
 
