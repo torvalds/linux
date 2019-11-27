@@ -478,6 +478,9 @@ static int ath11k_wbm_idle_ring_setup(struct ath11k_base *ab, u32 *n_link_desc)
 	*n_link_desc = n_mpdu_link_desc + n_mpdu_queue_desc +
 		      n_tx_msdu_link_desc + n_rx_msdu_link_desc;
 
+	if (*n_link_desc & (*n_link_desc - 1))
+		*n_link_desc = 1 << fls(*n_link_desc);
+
 	ret = ath11k_dp_srng_setup(ab, &dp->wbm_idle_ring,
 				   HAL_WBM_IDLE_LINK, 0, 0, *n_link_desc);
 	if (ret) {
@@ -498,9 +501,6 @@ int ath11k_dp_link_desc_setup(struct ath11k_base *ab,
 	u32 paddr;
 	u32 *desc;
 	int i, ret;
-
-	if (n_link_desc & (n_link_desc - 1))
-		n_link_desc = 1 << fls(n_link_desc);
 
 	tot_mem_sz = n_link_desc * HAL_LINK_DESC_SIZE;
 	tot_mem_sz += HAL_LINK_DESC_ALIGN;
