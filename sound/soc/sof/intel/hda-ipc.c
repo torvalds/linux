@@ -239,9 +239,6 @@ bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 	bool ret = false;
 	u32 irq_status;
 
-	/* The function can be called at irq thread, so use spin_lock_irq */
-	spin_lock_irq(&sdev->hw_lock);
-
 	/* store status */
 	irq_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIS);
 	dev_vdbg(sdev->dev, "irq handler: irq_status:0x%x\n", irq_status);
@@ -255,7 +252,6 @@ bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 		ret = true;
 
 out:
-	spin_unlock_irq(&sdev->hw_lock);
 	return ret;
 }
 
