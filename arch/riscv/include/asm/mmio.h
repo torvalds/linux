@@ -14,20 +14,7 @@
 #include <linux/types.h>
 #include <asm/mmiowb.h>
 
-#ifdef CONFIG_MMU
-void __iomem *ioremap(phys_addr_t offset, unsigned long size);
-
-/*
- * The RISC-V ISA doesn't yet specify how to query or modify PMAs, so we can't
- * change the properties of memory regions.  This should be fixed by the
- * upcoming platform spec.
- */
-#define ioremap_nocache(addr, size) ioremap((addr), (size))
-#define ioremap_wc(addr, size) ioremap((addr), (size))
-#define ioremap_wt(addr, size) ioremap((addr), (size))
-
-void iounmap(volatile void __iomem *addr);
-#else
+#ifndef CONFIG_MMU
 #define pgprot_noncached(x)	(x)
 #endif /* CONFIG_MMU */
 
