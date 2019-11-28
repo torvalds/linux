@@ -5353,31 +5353,19 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 	return preferred_mirror;
 }
 
-static inline int parity_smaller(u64 a, u64 b)
-{
-	return a > b;
-}
-
 /* Bubble-sort the stripe set to put the parity/syndrome stripes last */
 static void sort_parity_stripes(struct btrfs_bio *bbio, int num_stripes)
 {
-	struct btrfs_bio_stripe s;
 	int i;
-	u64 l;
 	int again = 1;
 
 	while (again) {
 		again = 0;
 		for (i = 0; i < num_stripes - 1; i++) {
-			if (parity_smaller(bbio->raid_map[i],
-					   bbio->raid_map[i+1])) {
-				s = bbio->stripes[i];
-				l = bbio->raid_map[i];
-				bbio->stripes[i] = bbio->stripes[i+1];
-				bbio->raid_map[i] = bbio->raid_map[i+1];
-				bbio->stripes[i+1] = s;
-				bbio->raid_map[i+1] = l;
-
+			/* Swap if parity is on a smaller index */
+			if (bbio->raid_map[i] > bbio->raid_map[i + 1]) {
+				swap(bbio->stripes[i], bbio->stripes[i + 1]);
+				swap(bbio->raid_map[i], bbio->raid_map[i + 1]);
 				again = 1;
 			}
 		}
