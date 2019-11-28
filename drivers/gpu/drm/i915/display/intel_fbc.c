@@ -362,6 +362,7 @@ static void intel_fbc_hw_activate(struct drm_i915_private *dev_priv)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	fbc->active = true;
+	fbc->activated = true;
 
 	if (INTEL_GEN(dev_priv) >= 7)
 		gen7_fbc_activate(dev_priv);
@@ -859,16 +860,17 @@ static bool intel_fbc_can_flip_nuke(const struct intel_crtc_state *crtc_state)
 	return true;
 }
 
-void intel_fbc_pre_update(struct intel_crtc *crtc,
+bool intel_fbc_pre_update(struct intel_crtc *crtc,
 			  const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	const char *reason = "update pending";
+	bool need_vblank_wait = false;
 
 	if (!fbc_supported(dev_priv))
-		return;
+		return need_vblank_wait;
 
 	mutex_lock(&fbc->lock);
 
@@ -878,10 +880,31 @@ void intel_fbc_pre_update(struct intel_crtc *crtc,
 	intel_fbc_update_state_cache(crtc, crtc_state, plane_state);
 	fbc->flip_pending = true;
 
-	if (!intel_fbc_can_flip_nuke(crtc_state))
+	if (!intel_fbc_can_flip_nuke(crtc_state)) {
 		intel_fbc_deactivate(dev_priv, reason);
+
+		/*
+		 * Display WA #1198: glk+
+		 * Need an extra vblank wait between FBC disable and most plane
+		 * updates. Bspec says this is only needed for plane disable, but
+		 * that is not true. Touching most plane registers will cause the
+		 * corruption to appear. Also SKL/derivatives do not seem to be
+		 * affected.
+		 *
+		 * TODO: could optimize this a bit by sampling the frame
+		 * counter when we disable FBC (if it was already done earlier)
+		 * and skipping the extra vblank wait before the plane update
+		 * if at least one frame has already passed.
+		 */
+		if (fbc->activated &&
+		    (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)))
+			need_vblank_wait = true;
+		fbc->activated = false;
+	}
 unlock:
 	mutex_unlock(&fbc->lock);
+
+	return need_vblank_wait;
 }
 
 /**

@@ -6063,6 +6063,10 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	if (hsw_pre_update_disable_ips(old_crtc_state, new_crtc_state))
 		hsw_disable_ips(old_crtc_state);
 
+	if (new_primary_state &&
+	    intel_fbc_pre_update(crtc, new_crtc_state, new_primary_state))
+		intel_wait_for_vblank(dev_priv, pipe);
+
 	if (new_primary_state)
 		intel_fbc_pre_update(crtc, new_crtc_state, new_primary_state);
 
