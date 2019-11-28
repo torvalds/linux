@@ -29,10 +29,23 @@
 
 int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 {
+	static const struct vm_operations_struct vmw_vm_ops = {
+		.pfn_mkwrite = vmw_bo_vm_mkwrite,
+		.page_mkwrite = vmw_bo_vm_mkwrite,
+		.fault = vmw_bo_vm_fault,
+		.open = ttm_bo_vm_open,
+		.close = ttm_bo_vm_close
+	};
 	struct drm_file *file_priv = filp->private_data;
 	struct vmw_private *dev_priv = vmw_priv(file_priv->minor->dev);
+	int ret = ttm_bo_mmap(filp, vma, &dev_priv->bdev);
 
-	return ttm_bo_mmap(filp, vma, &dev_priv->bdev);
+	if (ret)
+		return ret;
+
+	vma->vm_ops = &vmw_vm_ops;
+
+	return 0;
 }
 
 /* struct vmw_validation_mem callback */
