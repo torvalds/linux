@@ -1536,24 +1536,6 @@ const struct attribute_group *pci_dev_groups[] = {
 	NULL,
 };
 
-static const struct attribute_group pci_bridge_group = {
-	.attrs = pci_bridge_attrs,
-};
-
-const struct attribute_group *pci_bridge_groups[] = {
-	&pci_bridge_group,
-	NULL,
-};
-
-static const struct attribute_group pcie_dev_group = {
-	.attrs = pcie_dev_attrs,
-};
-
-const struct attribute_group *pcie_dev_groups[] = {
-	&pcie_dev_group,
-	NULL,
-};
-
 static const struct attribute_group pci_dev_hp_attr_group = {
 	.attrs = pci_dev_hp_attrs,
 	.is_visible = pci_dev_hp_attrs_are_visible,

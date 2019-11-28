@@ -4,7 +4,6 @@
 #
 config PCIEPORTBUS
 	bool "PCI Express Port Bus support"
-	depends on PCI
 	help
 	  This enables PCI Express Port Bus support. Users can then enable
 	  support for Native Hot-Plug, Advanced Error Reporting, Power
@@ -63,7 +62,6 @@ config PCIE_ECRC
 #
 config PCIEASPM
 	bool "PCI Express ASPM control" if EXPERT
-	depends on PCI && PCIEPORTBUS
 	default y
 	help
 	  This enables OS control over PCI Express ASPM (Active State
@@ -128,7 +126,6 @@ config PCIE_DPC
 
 config PCIE_PTM
 	bool "PCI Express Precision Time Measurement support"
-	depends on PCIEPORTBUS
 	help
 	  This enables PCI Express Precision Time Measurement (PTM)
 	  support.
