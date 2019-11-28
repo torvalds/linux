@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/capability.h>
+#include <linux/compat.h>
 #include <linux/blkdev.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
@@ -284,6 +285,26 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
  * at all and could be open-coded without any exports by anybody who cares.
  */
 EXPORT_SYMBOL_GPL(__blkdev_driver_ioctl);
+
+#ifdef CONFIG_COMPAT
+/*
+ * This is the equivalent of compat_ptr_ioctl(), to be used by block
+ * drivers that implement only commands that are completely compatible
+ * between 32-bit and 64-bit user space
+ */
+int blkdev_compat_ptr_ioctl(struct block_device *bdev, fmode_t mode,
+			unsigned cmd, unsigned long arg)
+{
+	struct gendisk *disk = bdev->bd_disk;
+
+	if (disk->fops->ioctl)
+		return disk->fops->ioctl(bdev, mode, cmd,
+					 (unsigned long)compat_ptr(arg));
+
+	return -ENOIOCTLCMD;
+}
+EXPORT_SYMBOL(blkdev_compat_ptr_ioctl);
+#endif
 
 static int blkdev_pr_register(struct block_device *bdev,
 		struct pr_registration __user *arg)
