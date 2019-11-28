@@ -604,9 +604,8 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 	u64 found_start;
 	int found_level;
 	struct extent_buffer *eb;
-	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	struct btrfs_fs_info *fs_info;
+	u16 csum_size;
 	int ret = 0;
 	u8 result[BTRFS_CSUM_SIZE];
 	int reads_done;
@@ -615,6 +614,8 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 		goto out;
 
 	eb = (struct extent_buffer *)page->private;
+	fs_info = eb->fs_info;
+	csum_size = btrfs_super_csum_size(fs_info->super_copy);
 
 	/* the pending IO might have been the only thing that kept this buffer
 	 * in memory.  Make sure we have a ref for all this other checks
