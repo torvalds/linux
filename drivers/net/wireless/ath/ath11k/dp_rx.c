@@ -3735,8 +3735,15 @@ ath11k_dp_rx_mon_mpdu_pop(struct ath11k *ar,
 
 				if (ath11k_dp_rx_mon_comp_ppduid(msdu_ppdu_id,
 								 ppdu_id,
-								 &rx_bufs_used))
+								 &rx_bufs_used)) {
+					if (rx_bufs_used) {
+						drop_mpdu = true;
+						dev_kfree_skb_any(msdu);
+						msdu = NULL;
+						goto next_msdu;
+					}
 					return rx_bufs_used;
+				}
 				pmon->mon_last_linkdesc_paddr = paddr;
 				is_first_msdu = false;
 			}
@@ -3938,7 +3945,7 @@ static int ath11k_dp_rx_mon_deliver(struct ath11k *ar, u32 mac_id,
 
 		ath11k_dp_rx_deliver_msdu(ar, napi, mon_skb);
 		mon_skb = skb_next;
-	} while (mon_skb && (mon_skb != tail_msdu));
+	} while (mon_skb);
 	rxs->flag = 0;
 
 	return 0;
