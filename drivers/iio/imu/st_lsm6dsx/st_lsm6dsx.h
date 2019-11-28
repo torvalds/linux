@@ -349,9 +349,9 @@ struct st_lsm6dsx_sensor {
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
  * @conf_lock: Mutex to prevent concurrent FIFO configuration update.
  * @page_lock: Mutex to prevent concurrent memory page configuration.
- * @fifo_mode: FIFO operating mode supported by the device.
  * @suspend_mask: Suspended sensor bitmask.
  * @enable_mask: Enabled sensor bitmask.
+ * @fifo_mask: Enabled hw FIFO bitmask.
  * @ts_gain: Hw timestamp rate after internal calibration.
  * @ts_sip: Total number of timestamp samples in a given pattern.
  * @sip: Total number of samples (acc/gyro/ts) in a given pattern.
@@ -371,9 +371,9 @@ struct st_lsm6dsx_hw {
 	struct mutex conf_lock;
 	struct mutex page_lock;
 
-	enum st_lsm6dsx_fifo_mode fifo_mode;
 	u8 suspend_mask;
 	u8 enable_mask;
+	u8 fifo_mask;
 	s64 ts_gain;
 	u8 ts_sip;
 	u8 sip;

@@ -187,17 +187,10 @@ int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
 			     enum st_lsm6dsx_fifo_mode fifo_mode)
 {
 	unsigned int data;
-	int err;
 
 	data = FIELD_PREP(ST_LSM6DSX_FIFO_MODE_MASK, fifo_mode);
-	err = st_lsm6dsx_update_bits_locked(hw, ST_LSM6DSX_REG_FIFO_MODE_ADDR,
-					    ST_LSM6DSX_FIFO_MODE_MASK, data);
-	if (err < 0)
-		return err;
-
-	hw->fifo_mode = fifo_mode;
-
-	return 0;
+	return st_lsm6dsx_update_bits_locked(hw, ST_LSM6DSX_REG_FIFO_MODE_ADDR,
+					     ST_LSM6DSX_FIFO_MODE_MASK, data);
 }
 
 static int st_lsm6dsx_set_fifo_odr(struct st_lsm6dsx_sensor *sensor,
@@ -619,11 +612,17 @@ int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw)
 int st_lsm6dsx_update_fifo(struct st_lsm6dsx_sensor *sensor, bool enable)
 {
 	struct st_lsm6dsx_hw *hw = sensor->hw;
+	u8 fifo_mask;
 	int err;
 
 	mutex_lock(&hw->conf_lock);
 
-	if (hw->fifo_mode != ST_LSM6DSX_FIFO_BYPASS) {
+	if (enable)
+		fifo_mask = hw->fifo_mask | BIT(sensor->id);
+	else
+		fifo_mask = hw->fifo_mask & ~BIT(sensor->id);
+
+	if (hw->fifo_mask) {
 		err = st_lsm6dsx_flush_fifo(hw);
 		if (err < 0)
 			goto out;
@@ -653,14 +652,18 @@ int st_lsm6dsx_update_fifo(struct st_lsm6dsx_sensor *sensor, bool enable)
 	if (err < 0)
 		goto out;
 
-	if (hw->enable_mask) {
+	if (fifo_mask) {
 		/* reset hw ts counter */
 		err = st_lsm6dsx_reset_hw_ts(hw);
 		if (err < 0)
 			goto out;
 
 		err = st_lsm6dsx_set_fifo_mode(hw, ST_LSM6DSX_FIFO_CONT);
+		if (err < 0)
+			goto out;
 	}
+
+	hw->fifo_mask = fifo_mask;
 
 out:
 	mutex_unlock(&hw->conf_lock);

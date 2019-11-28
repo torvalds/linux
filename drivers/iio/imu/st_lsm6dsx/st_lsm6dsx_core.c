@@ -2300,7 +2300,7 @@ static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
 		hw->suspend_mask |= BIT(sensor->id);
 	}
 
-	if (hw->fifo_mode != ST_LSM6DSX_FIFO_BYPASS)
+	if (hw->fifo_mask)
 		err = st_lsm6dsx_flush_fifo(hw);
 
 	return err;
@@ -2336,7 +2336,7 @@ static int __maybe_unused st_lsm6dsx_resume(struct device *dev)
 		hw->suspend_mask &= ~BIT(sensor->id);
 	}
 
-	if (hw->enable_mask)
+	if (hw->fifo_mask)
 		err = st_lsm6dsx_set_fifo_mode(hw, ST_LSM6DSX_FIFO_CONT);
 
 	return err;
