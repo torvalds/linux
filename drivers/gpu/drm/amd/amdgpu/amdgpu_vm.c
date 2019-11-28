@@ -2500,6 +2500,28 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vm_evictable - check if we can evict a VM
+ *
+ * @bo: A page table of the VM.
+ *
+ * Check if it is possible to evict a VM.
+ */
+bool amdgpu_vm_evictable(struct amdgpu_bo *bo)
+{
+	struct amdgpu_vm_bo_base *bo_base = bo->vm_bo;
+
+	/* Page tables of a destroyed VM can go away immediately */
+	if (!bo_base || !bo_base->vm)
+		return true;
+
+	/* Don't evict VM page tables while they are busy */
+	if (!dma_resv_test_signaled_rcu(bo->tbo.base.resv, true))
+		return false;
+
+	return true;
+}
+
+/**
  * amdgpu_vm_bo_invalidate - mark the bo as invalid
  *
  * @adev: amdgpu_device pointer
