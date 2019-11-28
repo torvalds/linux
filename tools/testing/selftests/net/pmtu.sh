@@ -1249,8 +1249,7 @@ test_list_flush_ipv4_exception() {
 	done
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -c 2 -s 1800 "${dst2}"
 
-	# Each exception is printed as two lines
-	if [ "$(${ns_a} ip route list cache | wc -l)" -ne 202 ]; then
+	if [ "$(${ns_a} ip -oneline route list cache | wc -l)" -ne 101 ]; then
 		err "  can't list cached exceptions"
 		fail=1
 	fi
@@ -1300,7 +1299,7 @@ test_list_flush_ipv6_exception() {
 		run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s 1800 "${dst_prefix1}${i}"
 	done
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s 1800 "${dst2}"
-	if [ "$(${ns_a} ip -6 route list cache | wc -l)" -ne 101 ]; then
+	if [ "$(${ns_a} ip -oneline -6 route list cache | wc -l)" -ne 101 ]; then
 		err "  can't list cached exceptions"
 		fail=1
 	fi
