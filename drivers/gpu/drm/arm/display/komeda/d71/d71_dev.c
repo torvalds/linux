@@ -195,7 +195,7 @@ d71_irq_handler(struct komeda_dev *mdev, struct komeda_events *evts)
 	if (gcu_status & GLB_IRQ_STATUS_PIPE1)
 		evts->pipes[1] |= get_pipeline_event(d71->pipes[1], gcu_status);
 
-	return gcu_status ? IRQ_HANDLED : IRQ_NONE;
+	return IRQ_RETVAL(gcu_status);
 }
 
 #define ENABLED_GCU_IRQS	(GCU_IRQ_CVAL0 | GCU_IRQ_CVAL1 | \
@@ -395,6 +395,22 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 			err = PTR_ERR(pipe);
 			goto err_cleanup;
 		}
+
+		/* D71 HW doesn't update shadow registers when display output
+		 * is turning off, so when we disable all pipeline components
+		 * together with display output disable by one flush or one
+		 * operation, the disable operation updated registers will not
+		 * be flush to or valid in HW, which may leads problem.
+		 * To workaround this problem, introduce a two phase disable.
+		 * Phase1: Disabling components with display is on to make sure
+		 *	   the disable can be flushed to HW.
+		 * Phase2: Only turn-off display output.
+		 */
+		value = KOMEDA_PIPELINE_IMPROCS |
+			BIT(KOMEDA_COMPONENT_TIMING_CTRLR);
+
+		pipe->standalone_disabled_comps = value;
+
 		d71->pipes[i] = to_d71_pipeline(pipe);
 	}
 
@@ -561,17 +577,18 @@ static int d71_disconnect_iommu(struct komeda_dev *mdev)
 }
 
 static const struct komeda_dev_funcs d71_chip_funcs = {
-	.init_format_table = d71_init_fmt_tbl,
-	.enum_resources	= d71_enum_resources,
-	.cleanup	= d71_cleanup,
-	.irq_handler	= d71_irq_handler,
-	.enable_irq	= d71_enable_irq,
-	.disable_irq	= d71_disable_irq,
-	.on_off_vblank	= d71_on_off_vblank,
-	.change_opmode	= d71_change_opmode,
-	.flush		= d71_flush,
-	.connect_iommu	= d71_connect_iommu,
-	.disconnect_iommu = d71_disconnect_iommu,
+	.init_format_table	= d71_init_fmt_tbl,
+	.enum_resources		= d71_enum_resources,
+	.cleanup		= d71_cleanup,
+	.irq_handler		= d71_irq_handler,
+	.enable_irq		= d71_enable_irq,
+	.disable_irq		= d71_disable_irq,
+	.on_off_vblank		= d71_on_off_vblank,
+	.change_opmode		= d71_change_opmode,
+	.flush			= d71_flush,
+	.connect_iommu		= d71_connect_iommu,
+	.disconnect_iommu	= d71_disconnect_iommu,
+	.dump_register		= d71_dump,
 };
 
 const struct komeda_dev_funcs *

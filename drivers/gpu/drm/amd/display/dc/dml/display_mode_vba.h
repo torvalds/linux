@@ -387,6 +387,7 @@ struct vba_vars_st {
 
 	/* vba mode support */
 	/*inputs*/
+	bool EmbeddedPanel[DC__NUM_DPP__MAX];
 	bool SupportGFX7CompatibleTilingIn32bppAnd64bpp;
 	double MaxHSCLRatio;
 	double MaxVSCLRatio;

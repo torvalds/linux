@@ -179,6 +179,11 @@ enum pp_mp1_state {
 	PP_MP1_STATE_RESET,
 };
 
+enum pp_df_cstate {
+	DF_CSTATE_DISALLOW = 0,
+	DF_CSTATE_ALLOW,
+};
+
 #define PP_GROUP_MASK        0xF0000000
 #define PP_GROUP_SHIFT       28
 
@@ -214,6 +219,9 @@ enum pp_mp1_state {
 #define PP_CG_MSG_ID(group, block, support, state) \
 		((group) << PP_GROUP_SHIFT | (block) << PP_BLOCK_SHIFT | \
 		(support) << PP_STATE_SUPPORT_SHIFT | (state) << PP_STATE_SHIFT)
+
+#define XGMI_MODE_PSTATE_D3 0
+#define XGMI_MODE_PSTATE_D0 1
 
 struct seq_file;
 enum amd_pp_clock_type;
@@ -312,6 +320,8 @@ struct amd_pm_funcs {
 	int (*get_ppfeature_status)(void *handle, char *buf);
 	int (*set_ppfeature_status)(void *handle, uint64_t ppfeature_masks);
 	int (*asic_reset_mode_2)(void *handle);
+	int (*set_df_cstate)(void *handle, enum pp_df_cstate state);
+	int (*set_xgmi_pstate)(void *handle, uint32_t pstate);
 };
 
 #endif

@@ -712,7 +712,6 @@ static int vega10_sort_lookup_table(struct pp_hwmgr *hwmgr,
 		struct phm_ppt_v1_voltage_lookup_table *lookup_table)
 {
 	uint32_t table_size, i, j;
-	struct phm_ppt_v1_voltage_lookup_record tmp_voltage_lookup_record;
 
 	PP_ASSERT_WITH_CODE(lookup_table && lookup_table->count,
 		"Lookup table is empty", return -EINVAL);
@@ -724,9 +723,8 @@ static int vega10_sort_lookup_table(struct pp_hwmgr *hwmgr,
 		for (j = i + 1; j > 0; j--) {
 			if (lookup_table->entries[j].us_vdd <
 					lookup_table->entries[j - 1].us_vdd) {
-				tmp_voltage_lookup_record = lookup_table->entries[j - 1];
-				lookup_table->entries[j - 1] = lookup_table->entries[j];
-				lookup_table->entries[j] = tmp_voltage_lookup_record;
+				swap(lookup_table->entries[j - 1],
+				     lookup_table->entries[j]);
 			}
 		}
 	}
@@ -3691,6 +3689,13 @@ static int vega10_set_power_state_tasks(struct pp_hwmgr *hwmgr,
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
 
+	/*
+	 * If a custom pp table is loaded, set DPMTABLE_OD_UPDATE_VDDC flag.
+	 * That effectively disables AVFS feature.
+	 */
+	if(hwmgr->hardcode_pp_table != NULL)
+		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
+
 	vega10_update_avfs(hwmgr);
 
 	/*
@@ -5265,6 +5270,59 @@ static int vega10_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_
 	return 0;
 }
 
+static int vega10_disable_power_features_for_compute_performance(struct pp_hwmgr *hwmgr, bool disable)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	uint32_t feature_mask = 0;
+
+	if (disable) {
+		feature_mask |= data->smu_features[GNLD_ULV].enabled ?
+			data->smu_features[GNLD_ULV].smu_feature_bitmap : 0;
+		feature_mask |= data->smu_features[GNLD_DS_GFXCLK].enabled ?
+			data->smu_features[GNLD_DS_GFXCLK].smu_feature_bitmap : 0;
+		feature_mask |= data->smu_features[GNLD_DS_SOCCLK].enabled ?
+			data->smu_features[GNLD_DS_SOCCLK].smu_feature_bitmap : 0;
+		feature_mask |= data->smu_features[GNLD_DS_LCLK].enabled ?
+			data->smu_features[GNLD_DS_LCLK].smu_feature_bitmap : 0;
+		feature_mask |= data->smu_features[GNLD_DS_DCEFCLK].enabled ?
+			data->smu_features[GNLD_DS_DCEFCLK].smu_feature_bitmap : 0;
+	} else {
+		feature_mask |= (!data->smu_features[GNLD_ULV].enabled) ?
+			data->smu_features[GNLD_ULV].smu_feature_bitmap : 0;
+		feature_mask |= (!data->smu_features[GNLD_DS_GFXCLK].enabled) ?
+			data->smu_features[GNLD_DS_GFXCLK].smu_feature_bitmap : 0;
+		feature_mask |= (!data->smu_features[GNLD_DS_SOCCLK].enabled) ?
+			data->smu_features[GNLD_DS_SOCCLK].smu_feature_bitmap : 0;
+		feature_mask |= (!data->smu_features[GNLD_DS_LCLK].enabled) ?
+			data->smu_features[GNLD_DS_LCLK].smu_feature_bitmap : 0;
+		feature_mask |= (!data->smu_features[GNLD_DS_DCEFCLK].enabled) ?
+			data->smu_features[GNLD_DS_DCEFCLK].smu_feature_bitmap : 0;
+	}
+
+	if (feature_mask)
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
+				!disable, feature_mask),
+				"enable/disable power features for compute performance Failed!",
+				return -EINVAL);
+
+	if (disable) {
+		data->smu_features[GNLD_ULV].enabled = false;
+		data->smu_features[GNLD_DS_GFXCLK].enabled = false;
+		data->smu_features[GNLD_DS_SOCCLK].enabled = false;
+		data->smu_features[GNLD_DS_LCLK].enabled = false;
+		data->smu_features[GNLD_DS_DCEFCLK].enabled = false;
+	} else {
+		data->smu_features[GNLD_ULV].enabled = true;
+		data->smu_features[GNLD_DS_GFXCLK].enabled = true;
+		data->smu_features[GNLD_DS_SOCCLK].enabled = true;
+		data->smu_features[GNLD_DS_LCLK].enabled = true;
+		data->smu_features[GNLD_DS_DCEFCLK].enabled = true;
+	}
+
+	return 0;
+
+}
+
 static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.backend_init = vega10_hwmgr_backend_init,
 	.backend_fini = vega10_hwmgr_backend_fini,
@@ -5332,6 +5390,8 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.get_ppfeature_status = vega10_get_ppfeature_status,
 	.set_ppfeature_status = vega10_set_ppfeature_status,
 	.set_mp1_state = vega10_set_mp1_state,
+	.disable_power_features_for_compute_performance =
+			vega10_disable_power_features_for_compute_performance,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)

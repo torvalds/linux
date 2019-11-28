@@ -259,7 +259,7 @@ static int cec_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 unreg_notifier:
-	cec_notifier_cec_adap_unregister(cec->notifier);
+	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 del_adap:
 	cec_delete_adapter(cec->adap);
 	return ret;
@@ -269,7 +269,7 @@ static int cec_gpio_remove(struct platform_device *pdev)
 {
 	struct cec_gpio *cec = platform_get_drvdata(pdev);
 
-	cec_notifier_cec_adap_unregister(cec->notifier);
+	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 	return 0;
 }

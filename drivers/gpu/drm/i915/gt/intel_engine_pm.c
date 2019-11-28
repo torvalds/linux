@@ -7,10 +7,13 @@
 #include "i915_drv.h"
 
 #include "intel_engine.h"
+#include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
 #include "intel_engine_pool.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
+#include "intel_rc6.h"
+#include "intel_ring.h"
 
 static int __engine_unpark(struct intel_wakeref *wf)
 {
@@ -33,7 +36,7 @@ static int __engine_unpark(struct intel_wakeref *wf)
 	if (engine->unpark)
 		engine->unpark(engine);
 
-	intel_engine_init_hangcheck(engine);
+	intel_engine_unpark_heartbeat(engine);
 	return 0;
 }
 
@@ -103,14 +106,14 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 		/* Context switch failed, hope for the best! Maybe reset? */
 		goto out_unlock;
 
-	intel_timeline_enter(rq->timeline);
+	intel_timeline_enter(i915_request_timeline(rq));
 
 	/* Check again on the next retirement. */
 	engine->wakeref_serial = engine->serial + 1;
 	i915_request_add_active_barriers(rq);
 
 	/* Install ourselves as a preemption barrier */
-	rq->sched.attr.priority = I915_PRIORITY_UNPREEMPTABLE;
+	rq->sched.attr.priority = I915_PRIORITY_BARRIER;
 	__i915_request_commit(rq);
 
 	/* Release our exclusive hold on the engine */
@@ -121,6 +124,19 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 out_unlock:
 	__timeline_mark_unlock(engine->kernel_context, flags);
 	return result;
+}
+
+static void call_idle_barriers(struct intel_engine_cs *engine)
+{
+	struct llist_node *node, *next;
+
+	llist_for_each_safe(node, next, llist_del_all(&engine->barrier_tasks)) {
+		struct dma_fence_cb *cb =
+			container_of((struct list_head *)node,
+				     typeof(*cb), node);
+
+		cb->func(NULL, cb);
+	}
 }
 
 static int __engine_park(struct intel_wakeref *wf)
@@ -142,6 +158,9 @@ static int __engine_park(struct intel_wakeref *wf)
 
 	GEM_TRACE("%s\n", engine->name);
 
+	call_idle_barriers(engine); /* cleanup after wedging */
+
+	intel_engine_park_heartbeat(engine);
 	intel_engine_disarm_breadcrumbs(engine);
 	intel_engine_pool_park(&engine->pool);
 
@@ -169,9 +188,10 @@ static const struct intel_wakeref_ops wf_ops = {
 
 void intel_engine_init__pm(struct intel_engine_cs *engine)
 {
-	struct intel_runtime_pm *rpm = &engine->i915->runtime_pm;
+	struct intel_runtime_pm *rpm = engine->uncore->rpm;
 
 	intel_wakeref_init(&engine->wakeref, rpm, &wf_ops);
+	intel_engine_init_heartbeat(engine);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

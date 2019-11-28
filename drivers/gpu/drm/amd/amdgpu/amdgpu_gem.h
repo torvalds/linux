@@ -67,6 +67,7 @@ int amdgpu_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp);
 int amdgpu_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *filp);
+uint64_t amdgpu_gem_va_map_flags(struct amdgpu_device *adev, uint32_t flags);
 int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp);
 int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,

@@ -1069,9 +1069,9 @@ static bool mixer_mode_fixup(struct exynos_drm_crtc *crtc,
 	struct mixer_context *ctx = crtc->ctx;
 	int width = mode->hdisplay, height = mode->vdisplay, i;
 
-	struct {
+	static const struct {
 		int hdisplay, vdisplay, htotal, vtotal, scan_val;
-	} static const modes[] = {
+	} modes[] = {
 		{ 720, 480, 858, 525, MXR_CFG_SCAN_NTSC | MXR_CFG_SCAN_SD },
 		{ 720, 576, 864, 625, MXR_CFG_SCAN_PAL | MXR_CFG_SCAN_SD },
 		{ 1280, 720, 1650, 750, MXR_CFG_SCAN_HD_720 | MXR_CFG_SCAN_HD },

@@ -12,6 +12,7 @@
 #include "i915_active.h"
 #include "intel_context_types.h"
 #include "intel_engine_types.h"
+#include "intel_ring_types.h"
 #include "intel_timeline_types.h"
 
 void intel_context_init(struct intel_context *ce,

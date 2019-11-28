@@ -9,6 +9,7 @@
 
 #include <linux/export.h>
 
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_panel.h>
@@ -84,8 +85,8 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			goto done;
 		}
 
-		bridge = devm_drm_panel_bridge_add(rcdu->dev, panel,
-						   DRM_MODE_CONNECTOR_DPI);
+		bridge = devm_drm_panel_bridge_add_typed(rcdu->dev, panel,
+							 DRM_MODE_CONNECTOR_DPI);
 		if (IS_ERR(bridge)) {
 			ret = PTR_ERR(bridge);
 			goto done;

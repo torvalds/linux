@@ -79,6 +79,7 @@ struct eeprom_table_record {
 
 int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control);
 void amdgpu_ras_eeprom_fini(struct amdgpu_ras_eeprom_control *control);
+int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control);
 
 int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 					    struct eeprom_table_record *records,

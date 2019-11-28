@@ -239,7 +239,7 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	return 0;
 
 err_notifier:
-	cec_notifier_cec_adap_unregister(cec->notifier);
+	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 
 err_delete_adapter:
 	cec_delete_adapter(cec->adap);
@@ -250,7 +250,7 @@ static int s5p_cec_remove(struct platform_device *pdev)
 {
 	struct s5p_cec_dev *cec = platform_get_drvdata(pdev);
 
-	cec_notifier_cec_adap_unregister(cec->notifier);
+	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 	pm_runtime_disable(&pdev->dev);
 	return 0;

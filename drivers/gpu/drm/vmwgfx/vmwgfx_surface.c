@@ -336,7 +336,6 @@ static void vmw_hw_surface_destroy(struct vmw_resource *res)
 {
 
 	struct vmw_private *dev_priv = res->dev_priv;
-	struct vmw_surface *srf;
 	void *cmd;
 
 	if (res->func->destroy == vmw_gb_surface_destroy) {
@@ -360,7 +359,6 @@ static void vmw_hw_surface_destroy(struct vmw_resource *res)
 		 */
 
 		mutex_lock(&dev_priv->cmdbuf_mutex);
-		srf = vmw_res_to_srf(res);
 		dev_priv->used_memory_size -= res->backup_size;
 		mutex_unlock(&dev_priv->cmdbuf_mutex);
 	}

@@ -975,6 +975,17 @@ static void si_smc_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 
 static struct amdgpu_allowed_register_entry si_allowed_read_registers[] = {
 	{GRBM_STATUS},
+	{mmGRBM_STATUS2},
+	{mmGRBM_STATUS_SE0},
+	{mmGRBM_STATUS_SE1},
+	{mmSRBM_STATUS},
+	{mmSRBM_STATUS2},
+	{DMA_STATUS_REG + DMA0_REGISTER_OFFSET},
+	{DMA_STATUS_REG + DMA1_REGISTER_OFFSET},
+	{mmCP_STAT},
+	{mmCP_STALLED_STAT1},
+	{mmCP_STALLED_STAT2},
+	{mmCP_STALLED_STAT3},
 	{GB_ADDR_CONFIG},
 	{MC_ARB_RAMCFG},
 	{GB_TILE_MODE0},

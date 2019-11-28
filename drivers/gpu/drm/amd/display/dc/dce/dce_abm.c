@@ -77,6 +77,9 @@ static bool dce_abm_set_pipe(struct abm *abm, uint32_t controller_id)
 	/* notifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
+			1, 80000);
+
 	return true;
 }
 
@@ -401,6 +404,10 @@ static bool dce_abm_init_backlight(struct abm *abm)
 	/* Enable the backlight output */
 	REG_UPDATE(BL_PWM_CNTL, BL_PWM_EN, 1);
 
+	/* Disable fractional pwm if configured */
+	REG_UPDATE(BL_PWM_CNTL, BL_PWM_FRACTIONAL_EN,
+		   abm->ctx->dc->config.disable_fractional_pwm ? 0 : 1);
+
 	/* Unlock group 2 backlight registers */
 	REG_UPDATE(BL_PWM_GRP1_REG_LOCK,
 			BL_PWM_GRP1_REG_LOCK, 0);
@@ -488,9 +495,6 @@ struct abm *dce_abm_create(
 void dce_abm_destroy(struct abm **abm)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(*abm);
-
-	if (abm_dce->base.dmcu_is_running == true)
-		abm_dce->base.funcs->set_abm_immediate_disable(*abm);
 
 	kfree(abm_dce);
 	*abm = NULL;

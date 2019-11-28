@@ -79,6 +79,25 @@ static bool baco_cmd_handler(struct pp_hwmgr *hwmgr, u32 command, u32 reg, u32 m
 	return ret;
 }
 
+bool baco_program_registers(struct pp_hwmgr *hwmgr,
+			    const struct baco_cmd_entry *entry,
+			    const u32 array_size)
+{
+	u32 i, reg = 0;
+
+	for (i = 0; i < array_size; i++) {
+		if ((entry[i].cmd == CMD_WRITE) ||
+		    (entry[i].cmd == CMD_READMODIFYWRITE) ||
+		    (entry[i].cmd == CMD_WAITFOR))
+			reg = entry[i].reg_offset;
+		if (!baco_cmd_handler(hwmgr, entry[i].cmd, reg, entry[i].mask,
+				     entry[i].shift, entry[i].val, entry[i].timeout))
+			return false;
+	}
+
+	return true;
+}
+
 bool soc15_baco_program_registers(struct pp_hwmgr *hwmgr,
 				 const struct soc15_baco_cmd_entry *entry,
 				 const u32 array_size)

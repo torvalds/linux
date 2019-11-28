@@ -113,6 +113,21 @@ struct periodic_interrupt_config {
 	int lines_offset;
 };
 
+union stream_update_flags {
+	struct {
+		uint32_t scaling:1;
+		uint32_t out_tf:1;
+		uint32_t out_csc:1;
+		uint32_t abm_level:1;
+		uint32_t dpms_off:1;
+		uint32_t gamut_remap:1;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		uint32_t wb_update:1;
+#endif
+	} bits;
+
+	uint32_t raw;
+};
 
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
@@ -214,9 +229,14 @@ struct dc_stream_state {
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	bool is_dsc_enabled;
 #endif
+	union stream_update_flags update_flags;
 };
 
+#define ABM_LEVEL_IMMEDIATE_DISABLE 0xFFFFFFFF
+
 struct dc_stream_update {
+	struct dc_stream_state *stream;
+
 	struct rect src;
 	struct rect dst;
 	struct dc_transfer_func *out_transfer_func;
@@ -430,6 +450,9 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 					struct dc_stream_state **stream,
 					int num_streams,
 					const struct dc_static_screen_events *events);
+
+void dc_stream_set_dyn_expansion(struct dc *dc, struct dc_stream_state *stream,
+		enum dc_dynamic_expansion option);
 
 void dc_stream_set_dither_option(struct dc_stream_state *stream,
 				 enum dc_dither_option option);

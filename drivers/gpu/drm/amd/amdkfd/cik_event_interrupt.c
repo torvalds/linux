@@ -33,7 +33,9 @@ static bool cik_event_interrupt_isr(struct kfd_dev *dev,
 	const struct cik_ih_ring_entry *ihre =
 			(const struct cik_ih_ring_entry *)ih_ring_entry;
 	const struct kfd2kgd_calls *f2g = dev->kfd2kgd;
-	unsigned int vmid, pasid;
+	unsigned int vmid;
+	uint16_t pasid;
+	bool ret;
 
 	/* This workaround is due to HW/FW limitation on Hawaii that
 	 * VMID and PASID are not written into ih_ring_entry
@@ -48,13 +50,13 @@ static bool cik_event_interrupt_isr(struct kfd_dev *dev,
 		*tmp_ihre = *ihre;
 
 		vmid = f2g->read_vmid_from_vmfault_reg(dev->kgd);
-		pasid = f2g->get_atc_vmid_pasid_mapping_pasid(dev->kgd, vmid);
+		ret = f2g->get_atc_vmid_pasid_mapping_info(dev->kgd, vmid, &pasid);
 
 		tmp_ihre->ring_id &= 0x000000ff;
 		tmp_ihre->ring_id |= vmid << 8;
 		tmp_ihre->ring_id |= pasid << 16;
 
-		return (pasid != 0) &&
+		return ret && (pasid != 0) &&
 			vmid >= dev->vm_info.first_vmid_kfd &&
 			vmid <= dev->vm_info.last_vmid_kfd;
 	}

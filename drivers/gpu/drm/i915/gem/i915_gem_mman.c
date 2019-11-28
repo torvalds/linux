@@ -8,6 +8,7 @@
 #include <linux/sizes.h>
 
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_requests.h"
 
 #include "i915_drv.h"
 #include "i915_gem_gtt.h"
@@ -249,16 +250,6 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	if (ret)
 		goto err_rpm;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		goto err_reset;
-
-	/* Access to snoopable pages through the GTT is incoherent. */
-	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(i915)) {
-		ret = -EFAULT;
-		goto err_unlock;
-	}
-
 	/* Now pin it into the GTT as needed */
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE |
@@ -285,10 +276,19 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 			view.type = I915_GGTT_VIEW_PARTIAL;
 			vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, flags);
 		}
+
+		/* The entire mappable GGTT is pinned? Unexpected! */
+		GEM_BUG_ON(vma == ERR_PTR(-ENOSPC));
 	}
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
-		goto err_unlock;
+		goto err_reset;
+	}
+
+	/* Access to snoopable pages through the GTT is incoherent. */
+	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(i915)) {
+		ret = -EFAULT;
+		goto err_unpin;
 	}
 
 	ret = i915_vma_pin_fence(vma);
@@ -312,7 +312,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 		list_add(&obj->userfault_link, &i915->ggtt.userfault_list);
 	mutex_unlock(&i915->ggtt.vm.mutex);
 
-	if (CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)
+	if (IS_ACTIVE(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND))
 		intel_wakeref_auto(&i915->ggtt.userfault_wakeref,
 				   msecs_to_jiffies_timeout(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND));
 
@@ -326,8 +326,6 @@ err_fence:
 	i915_vma_unpin_fence(vma);
 err_unpin:
 	__i915_vma_unpin(vma);
-err_unlock:
-	mutex_unlock(&dev->struct_mutex);
 err_reset:
 	intel_gt_reset_unlock(ggtt->vm.gt, srcu);
 err_rpm:
@@ -335,23 +333,20 @@ err_rpm:
 	i915_gem_object_unpin_pages(obj);
 err:
 	switch (ret) {
-	case -EIO:
-		/*
-		 * We eat errors when the gpu is terminally wedged to avoid
-		 * userspace unduly crashing (gl has no provisions for mmaps to
-		 * fail). But any other -EIO isn't ours (e.g. swap in failure)
-		 * and so needs to be reported.
-		 */
-		if (!intel_gt_is_wedged(ggtt->vm.gt))
-			return VM_FAULT_SIGBUS;
-		/* else, fall through */
-	case -EAGAIN:
-		/*
-		 * EAGAIN means the gpu is hung and we'll wait for the error
-		 * handler to reset everything when re-faulting in
-		 * i915_mutex_lock_interruptible.
-		 */
+	default:
+		WARN_ONCE(ret, "unhandled error in %s: %i\n", __func__, ret);
+		/* fallthrough */
+	case -EIO: /* shmemfs failure from swap device */
+	case -EFAULT: /* purged object */
+	case -ENODEV: /* bad object, how did you get here! */
+		return VM_FAULT_SIGBUS;
+
+	case -ENOSPC: /* shmemfs allocation failure */
+	case -ENOMEM: /* our allocation failure */
+		return VM_FAULT_OOM;
+
 	case 0:
+	case -EAGAIN:
 	case -ERESTARTSYS:
 	case -EINTR:
 	case -EBUSY:
@@ -360,15 +355,6 @@ err:
 		 * already did the job.
 		 */
 		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	case -ENOSPC:
-	case -EFAULT:
-	case -ENODEV: /* bad object, how did you get here! */
-		return VM_FAULT_SIGBUS;
-	default:
-		WARN_ONCE(ret, "unhandled error in %s: %i\n", __func__, ret);
-		return VM_FAULT_SIGBUS;
 	}
 }
 
@@ -439,6 +425,7 @@ out:
 static int create_mmap_offset(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct intel_gt *gt = &i915->gt;
 	int err;
 
 	err = drm_gem_create_mmap_offset(&obj->base);
@@ -446,21 +433,12 @@ static int create_mmap_offset(struct drm_i915_gem_object *obj)
 		return 0;
 
 	/* Attempt to reap some mmap space from dead objects */
-	do {
-		err = i915_gem_wait_for_idle(i915,
-					     I915_WAIT_INTERRUPTIBLE,
-					     MAX_SCHEDULE_TIMEOUT);
-		if (err)
-			break;
+	err = intel_gt_retire_requests_timeout(gt, MAX_SCHEDULE_TIMEOUT);
+	if (err)
+		return err;
 
-		i915_gem_drain_freed_objects(i915);
-		err = drm_gem_create_mmap_offset(&obj->base);
-		if (!err)
-			break;
-
-	} while (flush_delayed_work(&i915->gem.retire_work));
-
-	return err;
+	i915_gem_drain_freed_objects(i915);
+	return drm_gem_create_mmap_offset(&obj->base);
 }
 
 int

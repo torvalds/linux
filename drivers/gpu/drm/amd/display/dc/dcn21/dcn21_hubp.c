@@ -22,6 +22,8 @@
  * Authors: AMD
  *
  */
+
+#include "dcn10/dcn10_hubp.h"
 #include "dcn21_hubp.h"
 
 #include "dm_services.h"
@@ -202,7 +204,7 @@ static struct hubp_funcs dcn21_hubp_funcs = {
 	.hubp_enable_tripleBuffer = hubp2_enable_triplebuffer,
 	.hubp_is_triplebuffer_enabled = hubp2_is_triplebuffer_enabled,
 	.hubp_program_surface_flip_and_addr = hubp2_program_surface_flip_and_addr,
-	.hubp_program_surface_config = hubp2_program_surface_config,
+	.hubp_program_surface_config = hubp1_program_surface_config,
 	.hubp_is_flip_pending = hubp1_is_flip_pending,
 	.hubp_setup = hubp21_setup,
 	.hubp_setup_interdependent = hubp2_setup_interdependent,

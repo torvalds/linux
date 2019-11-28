@@ -140,6 +140,9 @@ struct write_command_context {
 
 
 struct aux_engine_funcs {
+	bool (*configure_timeout)(
+		struct ddc_service *ddc,
+		uint32_t timeout);
 	void (*destroy)(
 		struct aux_engine **ptr);
 	bool (*acquire_engine)(

@@ -54,7 +54,8 @@
 	adev->umc.funcs->disable_umc_index_mode(adev);
 
 struct amdgpu_umc_funcs {
-	void (*ras_init)(struct amdgpu_device *adev);
+	void (*err_cnt_init)(struct amdgpu_device *adev);
+	int (*ras_late_init)(struct amdgpu_device *adev);
 	void (*query_ras_error_count)(struct amdgpu_device *adev,
 					void *ras_error_status);
 	void (*query_ras_error_address)(struct amdgpu_device *adev,
@@ -62,6 +63,7 @@ struct amdgpu_umc_funcs {
 	void (*enable_umc_index_mode)(struct amdgpu_device *adev,
 					uint32_t umc_instance);
 	void (*disable_umc_index_mode)(struct amdgpu_device *adev);
+	void (*init_registers)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_umc {
@@ -75,8 +77,17 @@ struct amdgpu_umc {
 	uint32_t channel_offs;
 	/* channel index table of interleaved memory */
 	const uint32_t *channel_idx_tbl;
+	struct ras_common_if *ras_if;
 
 	const struct amdgpu_umc_funcs *funcs;
 };
 
+int amdgpu_umc_ras_late_init(struct amdgpu_device *adev);
+void amdgpu_umc_ras_fini(struct amdgpu_device *adev);
+int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
+		void *ras_error_status,
+		struct amdgpu_iv_entry *entry);
+int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
+		struct amdgpu_irq_src *source,
+		struct amdgpu_iv_entry *entry);
 #endif

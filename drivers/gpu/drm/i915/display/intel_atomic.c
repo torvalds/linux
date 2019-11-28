@@ -199,7 +199,6 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->disable_cxsr = false;
 	crtc_state->update_wm_pre = false;
 	crtc_state->update_wm_post = false;
-	crtc_state->fb_changed = false;
 	crtc_state->fifo_changed = false;
 	crtc_state->preload_luts = false;
 	crtc_state->wm.need_postvbl_update = false;
@@ -265,10 +264,13 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 			 */
 			mode = PS_SCALER_MODE_NORMAL;
 		} else {
+			struct intel_plane *linked =
+				plane_state->planar_linked_plane;
+
 			mode = PS_SCALER_MODE_PLANAR;
 
-			if (plane_state->linked_plane)
-				mode |= PS_PLANE_Y_SEL(plane_state->linked_plane->id);
+			if (linked)
+				mode |= PS_PLANE_Y_SEL(linked->id);
 		}
 	} else if (INTEL_GEN(dev_priv) > 9 || IS_GEMINILAKE(dev_priv)) {
 		mode = PS_SCALER_MODE_NORMAL;
@@ -372,6 +374,15 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 			 */
 			if (!plane) {
 				struct drm_plane_state *state;
+
+				/*
+				 * GLK+ scalers don't have a HQ mode so it
+				 * isn't necessary to change between HQ and dyn mode
+				 * on those platforms.
+				 */
+				if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+					continue;
+
 				plane = drm_plane_from_index(&dev_priv->drm, i);
 				state = drm_atomic_get_plane_state(drm_state, plane);
 				if (IS_ERR(state)) {
@@ -379,13 +390,6 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 						plane->base.id);
 					return PTR_ERR(state);
 				}
-
-				/*
-				 * the plane is added after plane checks are run,
-				 * but since this plane is unchanged just do the
-				 * minimum required validation.
-				 */
-				crtc_state->base.planes_changed = true;
 			}
 
 			intel_plane = to_intel_plane(plane);
@@ -426,6 +430,13 @@ void intel_atomic_state_clear(struct drm_atomic_state *s)
 	struct intel_atomic_state *state = to_intel_atomic_state(s);
 	drm_atomic_state_default_clear(&state->base);
 	state->dpll_set = state->modeset = false;
+	state->global_state_changed = false;
+	state->active_pipes = 0;
+	memset(&state->min_cdclk, 0, sizeof(state->min_cdclk));
+	memset(&state->min_voltage_level, 0, sizeof(state->min_voltage_level));
+	memset(&state->cdclk.logical, 0, sizeof(state->cdclk.logical));
+	memset(&state->cdclk.actual, 0, sizeof(state->cdclk.actual));
+	state->cdclk.pipe = INVALID_PIPE;
 }
 
 struct intel_crtc_state *
@@ -438,4 +449,41 @@ intel_atomic_get_crtc_state(struct drm_atomic_state *state,
 		return ERR_CAST(crtc_state);
 
 	return to_intel_crtc_state(crtc_state);
+}
+
+int intel_atomic_lock_global_state(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
+
+	state->global_state_changed = true;
+
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		int ret;
+
+		ret = drm_modeset_lock(&crtc->base.mutex,
+				       state->base.acquire_ctx);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int intel_atomic_serialize_global_state(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
+
+	state->global_state_changed = true;
+
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state;
+
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+	}
+
+	return 0;
 }

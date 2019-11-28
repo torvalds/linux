@@ -27,10 +27,20 @@
 #include "nbio/nbio_2_3_default.h"
 #include "nbio/nbio_2_3_offset.h"
 #include "nbio/nbio_2_3_sh_mask.h"
+#include <uapi/linux/kfd_ioctl.h>
 
 #define smnPCIE_CONFIG_CNTL	0x11180044
 #define smnCPM_CONTROL		0x11180460
 #define smnPCIE_CNTL2		0x11180070
+
+
+static void nbio_v2_3_remap_hdp_registers(struct amdgpu_device *adev)
+{
+	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_MEM_FLUSH_CNTL,
+		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL);
+	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_REG_FLUSH_CNTL,
+		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL);
+}
 
 static u32 nbio_v2_3_get_rev_id(struct amdgpu_device *adev)
 {
@@ -56,10 +66,9 @@ static void nbio_v2_3_hdp_flush(struct amdgpu_device *adev,
 				struct amdgpu_ring *ring)
 {
 	if (!ring || !ring->funcs->emit_wreg)
-		WREG32_SOC15_NO_KIQ(NBIO, 0, mmBIF_BX_PF_HDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+		WREG32_NO_KIQ((adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >> 2, 0);
 	else
-		amdgpu_ring_emit_wreg(ring, SOC15_REG_OFFSET(
-			NBIO, 0, mmBIF_BX_PF_HDP_MEM_COHERENCY_FLUSH_CNTL), 0);
+		amdgpu_ring_emit_wreg(ring, (adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >> 2, 0);
 }
 
 static u32 nbio_v2_3_get_memsize(struct amdgpu_device *adev)
@@ -311,7 +320,6 @@ static void nbio_v2_3_init_registers(struct amdgpu_device *adev)
 }
 
 const struct amdgpu_nbio_funcs nbio_v2_3_funcs = {
-	.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg,
 	.get_hdp_flush_req_offset = nbio_v2_3_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v2_3_get_hdp_flush_done_offset,
 	.get_pcie_index_offset = nbio_v2_3_get_pcie_index_offset,
@@ -331,4 +339,5 @@ const struct amdgpu_nbio_funcs nbio_v2_3_funcs = {
 	.ih_control = nbio_v2_3_ih_control,
 	.init_registers = nbio_v2_3_init_registers,
 	.detect_hw_virt = nbio_v2_3_detect_hw_virt,
+	.remap_hdp_registers = nbio_v2_3_remap_hdp_registers,
 };

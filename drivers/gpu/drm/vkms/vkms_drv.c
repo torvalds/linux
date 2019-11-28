@@ -11,13 +11,14 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 
+#include <drm/drm_gem.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
-#include <drm/drm_gem.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_probe_helper.h>
@@ -83,7 +84,7 @@ static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_commit_hw_done(old_state);
 
-	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+	drm_atomic_helper_wait_for_flip_done(dev, old_state);
 
 	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		struct vkms_crtc_state *vkms_state =
@@ -103,6 +104,8 @@ static struct drm_driver vkms_driver = {
 	.gem_vm_ops		= &vkms_gem_vm_ops,
 	.gem_free_object_unlocked = vkms_gem_free_object,
 	.get_vblank_timestamp	= vkms_get_vblank_timestamp,
+	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
+	.gem_prime_import_sg_table = vkms_prime_import_sg_table,
 
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
@@ -156,6 +159,14 @@ static int __init vkms_init(void)
 			   &vkms_device->platform->dev);
 	if (ret)
 		goto out_unregister;
+
+	ret = dma_coerce_mask_and_coherent(vkms_device->drm.dev,
+					   DMA_BIT_MASK(64));
+
+	if (ret) {
+		DRM_ERROR("Could not initialize DMA support\n");
+		goto out_fini;
+	}
 
 	vkms_device->drm.irq_enabled = true;
 

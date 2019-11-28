@@ -136,6 +136,7 @@ void amdgpu_mn_unlock(struct amdgpu_mn *mn)
  * amdgpu_mn_read_lock - take the read side lock for this notifier
  *
  * @amn: our notifier
+ * @blockable: is the notifier blockable
  */
 static int amdgpu_mn_read_lock(struct amdgpu_mn *amn, bool blockable)
 {

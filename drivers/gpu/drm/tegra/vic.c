@@ -34,7 +34,6 @@ struct vic {
 	void __iomem *regs;
 	struct tegra_drm_client client;
 	struct host1x_channel *channel;
-	struct iommu_domain *domain;
 	struct device *dev;
 	struct clk *clk;
 	struct reset_control *rst;
@@ -97,6 +96,9 @@ static int vic_runtime_suspend(struct device *dev)
 
 static int vic_boot(struct vic *vic)
 {
+#ifdef CONFIG_IOMMU_API
+	struct iommu_fwspec *spec = dev_iommu_fwspec_get(vic->dev);
+#endif
 	u32 fce_ucode_size, fce_bin_data_offset;
 	void *hdr;
 	int err = 0;
@@ -105,15 +107,14 @@ static int vic_boot(struct vic *vic)
 		return 0;
 
 #ifdef CONFIG_IOMMU_API
-	if (vic->config->supports_sid) {
-		struct iommu_fwspec *spec = dev_iommu_fwspec_get(vic->dev);
+	if (vic->config->supports_sid && spec) {
 		u32 value;
 
 		value = TRANSCFG_ATT(1, TRANSCFG_SID_FALCON) |
 			TRANSCFG_ATT(0, TRANSCFG_SID_HW);
 		vic_writel(vic, value, VIC_TFBIF_TRANSCFG);
 
-		if (spec && spec->num_ids > 0) {
+		if (spec->num_ids > 0) {
 			value = spec->ids[0] & 0xffff;
 
 			vic_writel(vic, value, VIC_THI_STREAMID0);
@@ -132,9 +133,9 @@ static int vic_boot(struct vic *vic)
 	if (err < 0)
 		return err;
 
-	hdr = vic->falcon.firmware.vaddr;
+	hdr = vic->falcon.firmware.virt;
 	fce_bin_data_offset = *(u32 *)(hdr + VIC_UCODE_FCE_DATA_OFFSET);
-	hdr = vic->falcon.firmware.vaddr +
+	hdr = vic->falcon.firmware.virt +
 		*(u32 *)(hdr + VIC_UCODE_FCE_HEADER_OFFSET);
 	fce_ucode_size = *(u32 *)(hdr + FCE_UCODE_SIZE_OFFSET);
 
@@ -142,7 +143,7 @@ static int vic_boot(struct vic *vic)
 	falcon_execute_method(&vic->falcon, VIC_SET_FCE_UCODE_SIZE,
 			      fce_ucode_size);
 	falcon_execute_method(&vic->falcon, VIC_SET_FCE_UCODE_OFFSET,
-			      (vic->falcon.firmware.paddr + fce_bin_data_offset)
+			      (vic->falcon.firmware.iova + fce_bin_data_offset)
 				>> 8);
 
 	err = falcon_wait_idle(&vic->falcon);
@@ -157,48 +158,21 @@ static int vic_boot(struct vic *vic)
 	return 0;
 }
 
-static void *vic_falcon_alloc(struct falcon *falcon, size_t size,
-			      dma_addr_t *iova)
-{
-	struct tegra_drm *tegra = falcon->data;
-
-	return tegra_drm_alloc(tegra, size, iova);
-}
-
-static void vic_falcon_free(struct falcon *falcon, size_t size,
-			    dma_addr_t iova, void *va)
-{
-	struct tegra_drm *tegra = falcon->data;
-
-	return tegra_drm_free(tegra, size, va, iova);
-}
-
-static const struct falcon_ops vic_falcon_ops = {
-	.alloc = vic_falcon_alloc,
-	.free = vic_falcon_free
-};
-
 static int vic_init(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct iommu_group *group = iommu_group_get(client->dev);
 	struct drm_device *dev = dev_get_drvdata(client->parent);
 	struct tegra_drm *tegra = dev->dev_private;
 	struct vic *vic = to_vic(drm);
 	int err;
 
-	if (group && tegra->domain) {
-		err = iommu_attach_group(tegra->domain, group);
-		if (err < 0) {
-			dev_err(vic->dev, "failed to attach to domain: %d\n",
-				err);
-			return err;
-		}
-
-		vic->domain = tegra->domain;
+	err = host1x_client_iommu_attach(client);
+	if (err < 0) {
+		dev_err(vic->dev, "failed to attach to domain: %d\n", err);
+		return err;
 	}
 
-	vic->channel = host1x_channel_request(client->dev);
+	vic->channel = host1x_channel_request(client);
 	if (!vic->channel) {
 		err = -ENOMEM;
 		goto detach;
@@ -214,6 +188,12 @@ static int vic_init(struct host1x_client *client)
 	if (err < 0)
 		goto free_syncpt;
 
+	/*
+	 * Inherit the DMA parameters (such as maximum segment size) from the
+	 * parent device.
+	 */
+	client->dev->dma_parms = client->parent->dma_parms;
+
 	return 0;
 
 free_syncpt:
@@ -221,8 +201,7 @@ free_syncpt:
 free_channel:
 	host1x_channel_put(vic->channel);
 detach:
-	if (group && tegra->domain)
-		iommu_detach_group(tegra->domain, group);
+	host1x_client_iommu_detach(client);
 
 	return err;
 }
@@ -230,11 +209,13 @@ detach:
 static int vic_exit(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
-	struct iommu_group *group = iommu_group_get(client->dev);
 	struct drm_device *dev = dev_get_drvdata(client->parent);
 	struct tegra_drm *tegra = dev->dev_private;
 	struct vic *vic = to_vic(drm);
 	int err;
+
+	/* avoid a dangling pointer just in case this disappears */
+	client->dev->dma_parms = NULL;
 
 	err = tegra_drm_unregister_client(tegra, drm);
 	if (err < 0)
@@ -242,10 +223,18 @@ static int vic_exit(struct host1x_client *client)
 
 	host1x_syncpt_free(client->syncpts[0]);
 	host1x_channel_put(vic->channel);
+	host1x_client_iommu_detach(client);
 
-	if (vic->domain) {
-		iommu_detach_group(vic->domain, group);
-		vic->domain = NULL;
+	if (client->group) {
+		dma_unmap_single(vic->dev, vic->falcon.firmware.phys,
+				 vic->falcon.firmware.size, DMA_TO_DEVICE);
+		tegra_drm_free(tegra, vic->falcon.firmware.size,
+			       vic->falcon.firmware.virt,
+			       vic->falcon.firmware.iova);
+	} else {
+		dma_free_coherent(vic->dev, vic->falcon.firmware.size,
+				  vic->falcon.firmware.virt,
+				  vic->falcon.firmware.iova);
 	}
 
 	return 0;
@@ -258,25 +247,64 @@ static const struct host1x_client_ops vic_client_ops = {
 
 static int vic_load_firmware(struct vic *vic)
 {
+	struct host1x_client *client = &vic->client.base;
+	struct tegra_drm *tegra = vic->client.drm;
+	dma_addr_t iova;
+	size_t size;
+	void *virt;
 	int err;
 
-	if (vic->falcon.data)
+	if (vic->falcon.firmware.virt)
 		return 0;
-
-	vic->falcon.data = vic->client.drm;
 
 	err = falcon_read_firmware(&vic->falcon, vic->config->firmware);
 	if (err < 0)
-		goto cleanup;
+		return err;
+
+	size = vic->falcon.firmware.size;
+
+	if (!client->group) {
+		virt = dma_alloc_coherent(vic->dev, size, &iova, GFP_KERNEL);
+
+		err = dma_mapping_error(vic->dev, iova);
+		if (err < 0)
+			return err;
+	} else {
+		virt = tegra_drm_alloc(tegra, size, &iova);
+	}
+
+	vic->falcon.firmware.virt = virt;
+	vic->falcon.firmware.iova = iova;
 
 	err = falcon_load_firmware(&vic->falcon);
 	if (err < 0)
 		goto cleanup;
 
+	/*
+	 * In this case we have received an IOVA from the shared domain, so we
+	 * need to make sure to get the physical address so that the DMA API
+	 * knows what memory pages to flush the cache for.
+	 */
+	if (client->group) {
+		dma_addr_t phys;
+
+		phys = dma_map_single(vic->dev, virt, size, DMA_TO_DEVICE);
+
+		err = dma_mapping_error(vic->dev, phys);
+		if (err < 0)
+			goto cleanup;
+
+		vic->falcon.firmware.phys = phys;
+	}
+
 	return 0;
 
 cleanup:
-	vic->falcon.data = NULL;
+	if (!client->group)
+		dma_free_coherent(vic->dev, size, virt, iova);
+	else
+		tegra_drm_free(tegra, size, virt, iova);
+
 	return err;
 }
 
@@ -374,6 +402,13 @@ static int vic_probe(struct platform_device *pdev)
 	struct vic *vic;
 	int err;
 
+	/* inherit DMA mask from host1x parent */
+	err = dma_coerce_mask_and_coherent(dev, *dev->parent->dma_mask);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to set DMA mask: %d\n", err);
+		return err;
+	}
+
 	vic = devm_kzalloc(dev, sizeof(*vic), GFP_KERNEL);
 	if (!vic)
 		return -ENOMEM;
@@ -410,7 +445,6 @@ static int vic_probe(struct platform_device *pdev)
 
 	vic->falcon.dev = dev;
 	vic->falcon.regs = vic->regs;
-	vic->falcon.ops = &vic_falcon_ops;
 
 	err = falcon_init(&vic->falcon);
 	if (err < 0)

@@ -9859,6 +9859,8 @@
 #define mmDP0_DP_STEER_FIFO_BASE_IDX                                                                   2
 #define mmDP0_DP_MSA_MISC                                                                              0x210e
 #define mmDP0_DP_MSA_MISC_BASE_IDX                                                                     2
+#define mmDP0_DP_DPHY_INTERNAL_CTRL                                                                    0x210f
+#define mmDP0_DP_DPHY_INTERNAL_CTRL_BASE_IDX                                                           2
 #define mmDP0_DP_VID_TIMING                                                                            0x2110
 #define mmDP0_DP_VID_TIMING_BASE_IDX                                                                   2
 #define mmDP0_DP_VID_N                                                                                 0x2111
@@ -10187,6 +10189,8 @@
 #define mmDP1_DP_STEER_FIFO_BASE_IDX                                                                   2
 #define mmDP1_DP_MSA_MISC                                                                              0x220e
 #define mmDP1_DP_MSA_MISC_BASE_IDX                                                                     2
+#define mmDP1_DP_DPHY_INTERNAL_CTRL                                                                    0x220f
+#define mmDP1_DP_DPHY_INTERNAL_CTRL_BASE_IDX                                                           2
 #define mmDP1_DP_VID_TIMING                                                                            0x2210
 #define mmDP1_DP_VID_TIMING_BASE_IDX                                                                   2
 #define mmDP1_DP_VID_N                                                                                 0x2211
@@ -10515,6 +10519,8 @@
 #define mmDP2_DP_STEER_FIFO_BASE_IDX                                                                   2
 #define mmDP2_DP_MSA_MISC                                                                              0x230e
 #define mmDP2_DP_MSA_MISC_BASE_IDX                                                                     2
+#define mmDP2_DP_DPHY_INTERNAL_CTRL                                                                    0x230f
+#define mmDP2_DP_DPHY_INTERNAL_CTRL_BASE_IDX                                                           2
 #define mmDP2_DP_VID_TIMING                                                                            0x2310
 #define mmDP2_DP_VID_TIMING_BASE_IDX                                                                   2
 #define mmDP2_DP_VID_N                                                                                 0x2311
@@ -10843,6 +10849,8 @@
 #define mmDP3_DP_STEER_FIFO_BASE_IDX                                                                   2
 #define mmDP3_DP_MSA_MISC                                                                              0x240e
 #define mmDP3_DP_MSA_MISC_BASE_IDX                                                                     2
+#define mmDP3_DP_DPHY_INTERNAL_CTRL                                                                    0x240f
+#define mmDP3_DP_DPHY_INTERNAL_CTRL_BASE_IDX                                                           2
 #define mmDP3_DP_VID_TIMING                                                                            0x2410
 #define mmDP3_DP_VID_TIMING_BASE_IDX                                                                   2
 #define mmDP3_DP_VID_N                                                                                 0x2411
@@ -11171,6 +11179,8 @@
 #define mmDP4_DP_STEER_FIFO_BASE_IDX                                                                   2
 #define mmDP4_DP_MSA_MISC                                                                              0x250e
 #define mmDP4_DP_MSA_MISC_BASE_IDX                                                                     2
+#define mmDP4_DP_DPHY_INTERNAL_CTRL                                                                    0x250f
+#define mmDP4_DP_DPHY_INTERNAL_CTRL_BASE_IDX                                                           2
 #define mmDP4_DP_VID_TIMING                                                                            0x2510
 #define mmDP4_DP_VID_TIMING_BASE_IDX                                                                   2
 #define mmDP4_DP_VID_N                                                                                 0x2511

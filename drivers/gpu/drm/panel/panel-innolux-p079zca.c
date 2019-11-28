@@ -487,9 +487,8 @@ static int innolux_panel_add(struct mipi_dsi_device *dsi,
 	if (IS_ERR(innolux->backlight))
 		return PTR_ERR(innolux->backlight);
 
-	drm_panel_init(&innolux->base);
-	innolux->base.funcs = &innolux_panel_funcs;
-	innolux->base.dev = dev;
+	drm_panel_init(&innolux->base, dev, &innolux_panel_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	err = drm_panel_add(&innolux->base);
 	if (err < 0)

@@ -8,6 +8,7 @@
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_pool.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_ring.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_object_blt.h"
 
@@ -16,7 +17,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 					 u32 value)
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
-	const u32 block_size = S16_MAX * PAGE_SIZE;
+	const u32 block_size = SZ_8M; /* ~1ms at 8GiB/s preemption delay */
 	struct intel_engine_pool_node *pool;
 	struct i915_vma *batch;
 	u64 offset;
@@ -29,10 +30,10 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	GEM_BUG_ON(intel_engine_is_virtual(ce->engine));
 	intel_engine_pm_get(ce->engine);
 
-	count = div_u64(vma->size, block_size);
+	count = div_u64(round_up(vma->size, block_size), block_size);
 	size = (1 + 8 * count) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
-	pool = intel_engine_pool_get(&ce->engine->pool, size);
+	pool = intel_engine_get_pool(ce->engine, size);
 	if (IS_ERR(pool)) {
 		err = PTR_ERR(pool);
 		goto out_pm;
@@ -200,7 +201,7 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 					 struct i915_vma *dst)
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
-	const u32 block_size = S16_MAX * PAGE_SIZE;
+	const u32 block_size = SZ_8M; /* ~1ms at 8GiB/s preemption delay */
 	struct intel_engine_pool_node *pool;
 	struct i915_vma *batch;
 	u64 src_offset, dst_offset;
@@ -213,10 +214,10 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	GEM_BUG_ON(intel_engine_is_virtual(ce->engine));
 	intel_engine_pm_get(ce->engine);
 
-	count = div_u64(dst->size, block_size);
+	count = div_u64(round_up(dst->size, block_size), block_size);
 	size = (1 + 11 * count) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
-	pool = intel_engine_pool_get(&ce->engine->pool, size);
+	pool = intel_engine_get_pool(ce->engine, size);
 	if (IS_ERR(pool)) {
 		err = PTR_ERR(pool);
 		goto out_pm;

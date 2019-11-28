@@ -530,13 +530,16 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct drm_v3d_submit_cl *args = data;
 	struct v3d_bin_job *bin = NULL;
 	struct v3d_render_job *render;
+	struct v3d_job *clean_job = NULL;
+	struct v3d_job *last_job;
 	struct ww_acquire_ctx acquire_ctx;
 	int ret = 0;
 
 	trace_v3d_submit_cl_ioctl(&v3d->drm, args->rcl_start, args->rcl_end);
 
-	if (args->pad != 0) {
-		DRM_INFO("pad must be zero: %d\n", args->pad);
+	if (args->flags != 0 &&
+	    args->flags != DRM_V3D_SUBMIT_CL_FLUSH_CACHE) {
+		DRM_INFO("invalid flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -565,6 +568,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 		ret = v3d_job_init(v3d, file_priv, &bin->base,
 				   v3d_job_free, args->in_sync_bcl);
 		if (ret) {
+			kfree(bin);
 			v3d_job_put(&render->base);
 			kfree(bin);
 			return ret;
@@ -578,12 +582,31 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 		bin->render = render;
 	}
 
-	ret = v3d_lookup_bos(dev, file_priv, &render->base,
+	if (args->flags & DRM_V3D_SUBMIT_CL_FLUSH_CACHE) {
+		clean_job = kcalloc(1, sizeof(*clean_job), GFP_KERNEL);
+		if (!clean_job) {
+			ret = -ENOMEM;
+			goto fail;
+		}
+
+		ret = v3d_job_init(v3d, file_priv, clean_job, v3d_job_free, 0);
+		if (ret) {
+			kfree(clean_job);
+			clean_job = NULL;
+			goto fail;
+		}
+
+		last_job = clean_job;
+	} else {
+		last_job = &render->base;
+	}
+
+	ret = v3d_lookup_bos(dev, file_priv, last_job,
 			     args->bo_handles, args->bo_handle_count);
 	if (ret)
 		goto fail;
 
-	ret = v3d_lock_bo_reservations(&render->base, &acquire_ctx);
+	ret = v3d_lock_bo_reservations(last_job, &acquire_ctx);
 	if (ret)
 		goto fail;
 
@@ -602,28 +625,44 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	ret = v3d_push_job(v3d_priv, &render->base, V3D_RENDER);
 	if (ret)
 		goto fail_unreserve;
+
+	if (clean_job) {
+		struct dma_fence *render_fence =
+			dma_fence_get(render->base.done_fence);
+		ret = drm_gem_fence_array_add(&clean_job->deps, render_fence);
+		if (ret)
+			goto fail_unreserve;
+		ret = v3d_push_job(v3d_priv, clean_job, V3D_CACHE_CLEAN);
+		if (ret)
+			goto fail_unreserve;
+	}
+
 	mutex_unlock(&v3d->sched_lock);
 
 	v3d_attach_fences_and_unlock_reservation(file_priv,
-						 &render->base,
+						 last_job,
 						 &acquire_ctx,
 						 args->out_sync,
-						 render->base.done_fence);
+						 last_job->done_fence);
 
 	if (bin)
 		v3d_job_put(&bin->base);
 	v3d_job_put(&render->base);
+	if (clean_job)
+		v3d_job_put(clean_job);
 
 	return 0;
 
 fail_unreserve:
 	mutex_unlock(&v3d->sched_lock);
-	drm_gem_unlock_reservations(render->base.bo,
-				    render->base.bo_count, &acquire_ctx);
+	drm_gem_unlock_reservations(last_job->bo,
+				    last_job->bo_count, &acquire_ctx);
 fail:
 	if (bin)
 		v3d_job_put(&bin->base);
 	v3d_job_put(&render->base);
+	if (clean_job)
+		v3d_job_put(clean_job);
 
 	return ret;
 }

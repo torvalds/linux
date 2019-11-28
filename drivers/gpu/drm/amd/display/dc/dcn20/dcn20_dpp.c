@@ -376,13 +376,6 @@ bool dpp2_get_optimal_number_of_taps(
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
 {
-	uint32_t pixel_width;
-
-	if (scl_data->viewport.width > scl_data->recout.width)
-		pixel_width = scl_data->recout.width;
-	else
-		pixel_width = scl_data->viewport.width;
-
 	/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
 	if (scl_data->viewport.width  != scl_data->h_active &&
 		scl_data->viewport.height != scl_data->v_active &&
@@ -464,7 +457,7 @@ static struct dpp_funcs dcn20_dpp_funcs = {
 	.dpp_read_state = dpp20_read_state,
 	.dpp_reset = dpp_reset,
 	.dpp_set_scaler = dpp1_dscl_set_scaler_manual_scale,
-	.dpp_get_optimal_number_of_taps = dpp2_get_optimal_number_of_taps,
+	.dpp_get_optimal_number_of_taps = dpp1_get_optimal_number_of_taps,
 	.dpp_set_gamut_remap = dpp1_cm_set_gamut_remap,
 	.dpp_set_csc_adjustment = NULL,
 	.dpp_set_csc_default = NULL,

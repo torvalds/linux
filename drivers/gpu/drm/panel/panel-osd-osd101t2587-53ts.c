@@ -166,9 +166,8 @@ static int osd101t2587_panel_add(struct osd101t2587_panel *osd101t2587)
 	if (IS_ERR(osd101t2587->backlight))
 		return PTR_ERR(osd101t2587->backlight);
 
-	drm_panel_init(&osd101t2587->base);
-	osd101t2587->base.funcs = &osd101t2587_panel_funcs;
-	osd101t2587->base.dev = &osd101t2587->dsi->dev;
+	drm_panel_init(&osd101t2587->base, &osd101t2587->dsi->dev,
+		       &osd101t2587_panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
 	return drm_panel_add(&osd101t2587->base);
 }

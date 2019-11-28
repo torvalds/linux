@@ -844,7 +844,7 @@ load_detect:
 	}
 
 	/* for pre-945g platforms use load detect */
-	ret = intel_get_load_detect_pipe(connector, NULL, &tmp, ctx);
+	ret = intel_get_load_detect_pipe(connector, &tmp, ctx);
 	if (ret > 0) {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
@@ -1001,9 +1001,9 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	crt->base.type = INTEL_OUTPUT_ANALOG;
 	crt->base.cloneable = (1 << INTEL_OUTPUT_DVO) | (1 << INTEL_OUTPUT_HDMI);
 	if (IS_I830(dev_priv))
-		crt->base.crtc_mask = (1 << 0);
+		crt->base.pipe_mask = BIT(PIPE_A);
 	else
-		crt->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+		crt->base.pipe_mask = ~0;
 
 	if (IS_GEN(dev_priv, 2))
 		connector->interlace_allowed = 0;

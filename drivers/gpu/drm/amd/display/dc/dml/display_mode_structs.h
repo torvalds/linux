@@ -269,7 +269,7 @@ struct writeback_st {
 
 struct _vcs_dpi_display_output_params_st {
 	int dp_lanes;
-	int output_bpp;
+	double output_bpp;
 	int dsc_enable;
 	int wb_enable;
 	int num_active_wb;
@@ -318,6 +318,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int vupdate_width;
 	unsigned int vready_offset;
 	unsigned char interlaced;
+	unsigned char embedded;
 	double pixel_rate_mhz;
 	unsigned char synchronized_vblank_all_planes;
 	unsigned char otg_inst;

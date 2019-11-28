@@ -5,4 +5,4 @@
 =======================================================
 
 .. kernel-doc:: drivers/gpu/drm/mcde/mcde_drv.c
-   :doc: ST-Ericsson MCDE DRM Driver
+   :doc: ST-Ericsson MCDE Driver

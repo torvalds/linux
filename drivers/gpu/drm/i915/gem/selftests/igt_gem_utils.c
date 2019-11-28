@@ -9,6 +9,7 @@
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
+#include "gt/intel_gt.h"
 #include "i915_vma.h"
 #include "i915_drv.h"
 
@@ -84,6 +85,8 @@ igt_emit_store_dw(struct i915_vma *vma,
 	*cmd = MI_BATCH_BUFFER_END;
 	i915_gem_object_unpin_map(obj);
 
+	intel_gt_chipset_flush(vma->vm->gt);
+
 	vma = i915_vma_instance(obj, vma->vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
@@ -101,40 +104,35 @@ err:
 	return ERR_PTR(err);
 }
 
-int igt_gpu_fill_dw(struct i915_vma *vma,
-		    struct i915_gem_context *ctx,
-		    struct intel_engine_cs *engine,
-		    u64 offset,
-		    unsigned long count,
-		    u32 val)
+int igt_gpu_fill_dw(struct intel_context *ce,
+		    struct i915_vma *vma, u64 offset,
+		    unsigned long count, u32 val)
 {
-	struct i915_address_space *vm = ctx->vm ?: &engine->gt->ggtt->vm;
 	struct i915_request *rq;
 	struct i915_vma *batch;
 	unsigned int flags;
 	int err;
 
-	GEM_BUG_ON(vma->size > vm->total);
-	GEM_BUG_ON(!intel_engine_can_store_dword(engine));
+	GEM_BUG_ON(!intel_engine_can_store_dword(ce->engine));
 	GEM_BUG_ON(!i915_vma_is_pinned(vma));
 
 	batch = igt_emit_store_dw(vma, offset, count, val);
 	if (IS_ERR(batch))
 		return PTR_ERR(batch);
 
-	rq = igt_request_alloc(ctx, engine);
+	rq = intel_context_create_request(ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_batch;
 	}
 
 	flags = 0;
-	if (INTEL_GEN(vm->i915) <= 5)
+	if (INTEL_GEN(ce->vm->i915) <= 5)
 		flags |= I915_DISPATCH_SECURE;
 
-	err = engine->emit_bb_start(rq,
-				    batch->node.start, batch->node.size,
-				    flags);
+	err = rq->engine->emit_bb_start(rq,
+					batch->node.start, batch->node.size,
+					flags);
 	if (err)
 		goto err_request;
 
@@ -156,9 +154,7 @@ int igt_gpu_fill_dw(struct i915_vma *vma,
 
 	i915_request_add(rq);
 
-	i915_vma_unpin(batch);
-	i915_vma_close(batch);
-	i915_vma_put(batch);
+	i915_vma_unpin_and_release(&batch, 0);
 
 	return 0;
 
@@ -167,7 +163,6 @@ skip_request:
 err_request:
 	i915_request_add(rq);
 err_batch:
-	i915_vma_unpin(batch);
-	i915_vma_put(batch);
+	i915_vma_unpin_and_release(&batch, 0);
 	return err;
 }

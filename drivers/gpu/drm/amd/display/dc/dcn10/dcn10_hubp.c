@@ -841,6 +841,14 @@ void min_set_viewport(
 	REG_SET_2(DCSURF_PRI_VIEWPORT_START_C, 0,
 		  PRI_VIEWPORT_X_START_C, viewport_c->x,
 		  PRI_VIEWPORT_Y_START_C, viewport_c->y);
+
+	REG_SET_2(DCSURF_SEC_VIEWPORT_DIMENSION_C, 0,
+		  SEC_VIEWPORT_WIDTH_C, viewport_c->width,
+		  SEC_VIEWPORT_HEIGHT_C, viewport_c->height);
+
+	REG_SET_2(DCSURF_SEC_VIEWPORT_START_C, 0,
+		  SEC_VIEWPORT_X_START_C, viewport_c->x,
+		  SEC_VIEWPORT_Y_START_C, viewport_c->y);
 }
 
 void hubp1_read_state_common(struct hubp *hubp)

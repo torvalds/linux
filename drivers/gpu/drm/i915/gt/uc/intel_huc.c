@@ -9,6 +9,34 @@
 #include "intel_huc.h"
 #include "i915_drv.h"
 
+/**
+ * DOC: HuC
+ *
+ * The HuC is a dedicated microcontroller for usage in media HEVC (High
+ * Efficiency Video Coding) operations. Userspace can directly use the firmware
+ * capabilities by adding HuC specific commands to batch buffers.
+ *
+ * The kernel driver is only responsible for loading the HuC firmware and
+ * triggering its security authentication, which is performed by the GuC. For
+ * The GuC to correctly perform the authentication, the HuC binary must be
+ * loaded before the GuC one. Loading the HuC is optional; however, not using
+ * the HuC might negatively impact power usage and/or performance of media
+ * workloads, depending on the use-cases.
+ *
+ * See https://github.com/intel/media-driver for the latest details on HuC
+ * functionality.
+ */
+
+/**
+ * DOC: HuC Memory Management
+ *
+ * Similarly to the GuC, the HuC can't do any memory allocations on its own,
+ * with the difference being that the allocations for HuC usage are handled by
+ * the userspace driver instead of the kernel one. The HuC accesses the memory
+ * via the PPGTT belonging to the context loaded on the VCS executing the
+ * HuC-specific commands.
+ */
+
 void intel_huc_init_early(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_gt(huc)->i915;
@@ -35,7 +63,7 @@ static int intel_huc_rsa_data_create(struct intel_huc *huc)
 	void *vaddr;
 	int err;
 
-	err = i915_inject_load_error(gt->i915, -ENXIO);
+	err = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (err)
 		return err;
 
@@ -118,10 +146,9 @@ void intel_huc_fini(struct intel_huc *huc)
  *
  * Called after HuC and GuC firmware loading during intel_uc_init_hw().
  *
- * This function pins HuC firmware image object into GGTT.
- * Then it invokes GuC action to authenticate passing the offset to RSA
- * signature through intel_guc_auth_huc(). It then waits for 50ms for
- * firmware verification ACK and unpins the object.
+ * This function invokes the GuC action to authenticate the HuC firmware,
+ * passing the offset of the RSA signature to intel_guc_auth_huc(). It then
+ * waits for up to 50ms for firmware verification ACK.
  */
 int intel_huc_auth(struct intel_huc *huc)
 {
@@ -134,7 +161,7 @@ int intel_huc_auth(struct intel_huc *huc)
 	if (!intel_uc_fw_is_loaded(&huc->fw))
 		return -ENOEXEC;
 
-	ret = i915_inject_load_error(gt->i915, -ENXIO);
+	ret = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (ret)
 		goto fail;
 
@@ -185,7 +212,7 @@ int intel_huc_check_status(struct intel_huc *huc)
 	if (!intel_huc_is_supported(huc))
 		return -ENODEV;
 
-	with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
 		status = intel_uncore_read(gt->uncore, huc->status.reg);
 
 	return (status & huc->status.mask) == huc->status.value;

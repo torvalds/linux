@@ -350,9 +350,8 @@ static int versatile_panel_probe(struct platform_device *pdev)
 			dev_info(dev, "panel mounted on IB2 daughterboard\n");
 	}
 
-	drm_panel_init(&vpanel->panel);
-	vpanel->panel.dev = dev;
-	vpanel->panel.funcs = &versatile_panel_drm_funcs;
+	drm_panel_init(&vpanel->panel, dev, &versatile_panel_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&vpanel->panel);
 }

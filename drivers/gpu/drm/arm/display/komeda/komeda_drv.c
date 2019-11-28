@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/component.h>
+#include <linux/pm_runtime.h>
 #include <drm/drm_of.h>
 #include "komeda_dev.h"
 #include "komeda_kms.h"
@@ -136,13 +137,40 @@ static const struct of_device_id komeda_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, komeda_of_match);
 
+static int __maybe_unused komeda_pm_suspend(struct device *dev)
+{
+	struct komeda_drv *mdrv = dev_get_drvdata(dev);
+	struct drm_device *drm = &mdrv->kms->base;
+	int res;
+
+	res = drm_mode_config_helper_suspend(drm);
+
+	komeda_dev_suspend(mdrv->mdev);
+
+	return res;
+}
+
+static int __maybe_unused komeda_pm_resume(struct device *dev)
+{
+	struct komeda_drv *mdrv = dev_get_drvdata(dev);
+	struct drm_device *drm = &mdrv->kms->base;
+
+	komeda_dev_resume(mdrv->mdev);
+
+	return drm_mode_config_helper_resume(drm);
+}
+
+static const struct dev_pm_ops komeda_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(komeda_pm_suspend, komeda_pm_resume)
+};
+
 static struct platform_driver komeda_platform_driver = {
 	.probe	= komeda_platform_probe,
 	.remove	= komeda_platform_remove,
 	.driver	= {
 		.name = "komeda",
 		.of_match_table	= komeda_of_match,
-		.pm = NULL,
+		.pm = &komeda_pm_ops,
 	},
 };
 

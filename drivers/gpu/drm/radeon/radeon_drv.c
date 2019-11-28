@@ -361,7 +361,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 		return -EPROBE_DEFER;
 
 	/* Get rid of things like offb */
-	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, 0, "radeondrmfb");
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, "radeondrmfb");
 	if (ret)
 		return ret;
 
@@ -379,10 +379,6 @@ radeon_pci_remove(struct pci_dev *pdev)
 static void
 radeon_pci_shutdown(struct pci_dev *pdev)
 {
-#ifdef CONFIG_PPC64
-	struct drm_device *ddev = pci_get_drvdata(pdev);
-#endif
-
 	/* if we are running in a VM, make sure the device
 	 * torn down properly on reboot/shutdown
 	 */
@@ -390,13 +386,14 @@ radeon_pci_shutdown(struct pci_dev *pdev)
 		radeon_pci_remove(pdev);
 
 #ifdef CONFIG_PPC64
-	/* Some adapters need to be suspended before a
+	/*
+	 * Some adapters need to be suspended before a
 	 * shutdown occurs in order to prevent an error
 	 * during kexec.
 	 * Make this power specific becauase it breaks
 	 * some non-power boards.
 	 */
-	radeon_suspend_kms(ddev, true, true, false);
+	radeon_suspend_kms(pci_get_drvdata(pdev), true, true, false);
 #endif
 }
 

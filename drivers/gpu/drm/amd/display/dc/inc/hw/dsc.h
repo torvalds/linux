@@ -28,7 +28,11 @@
 
 #include "dc_dsc.h"
 #include "dc_hw_types.h"
-#include "dc_dp_types.h"
+#include "dc_types.h"
+/* do not include any other headers
+ * or else it might break Edid Utility functionality.
+ */
+
 
 /* Input parameters for configuring DSC from the outside of DSC */
 struct dsc_config {
@@ -79,12 +83,6 @@ struct dsc_enc_caps {
 	int32_t max_total_throughput_mps; /* Maximum total throughput with all the slices combined */
 	int32_t max_slice_width;
 	uint32_t bpp_increment_div; /* bpp increment divisor, e.g. if 16, it's 1/16th of a bit */
-};
-
-struct display_stream_compressor {
-	const struct dsc_funcs *funcs;
-	struct dc_context *ctx;
-	int inst;
 };
 
 struct dsc_funcs {

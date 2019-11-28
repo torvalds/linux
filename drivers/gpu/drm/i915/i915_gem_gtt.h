@@ -148,8 +148,8 @@ typedef u64 gen8_pte_t;
 #define GEN8_PDE_IPS_64K BIT(11)
 #define GEN8_PDE_PS_2M   BIT(7)
 
-#define for_each_sgt_dma(__dmap, __iter, __sgt) \
-	__for_each_sgt_dma(__dmap, __iter, __sgt, I915_GTT_PAGE_SIZE)
+#define for_each_sgt_daddr(__dp, __iter, __sgt) \
+	__for_each_sgt_daddr(__dp, __iter, __sgt, I915_GTT_PAGE_SIZE)
 
 struct intel_remapped_plane_info {
 	/* in gtt pages */
@@ -305,7 +305,16 @@ struct i915_address_space {
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 	u64 reserved;		/* size addr space reserved */
 
-	bool closed;
+	unsigned int bind_async_flags;
+
+	/*
+	 * Each active user context has its own address space (in full-ppgtt).
+	 * Since the vm may be shared between multiple contexts, we count how
+	 * many contexts keep us "open". Once open hits zero, we are closed
+	 * and do not allow any new attachments, and proceed to shutdown our
+	 * vma and page directories.
+	 */
+	atomic_t open;
 
 	struct mutex mutex; /* protects vma and our lists */
 #define VM_CLASS_GGTT 0
@@ -319,11 +328,6 @@ struct i915_address_space {
 	 * List of vma currently bound.
 	 */
 	struct list_head bound_list;
-
-	/**
-	 * List of vma that are not unbound.
-	 */
-	struct list_head unbound_list;
 
 	struct pagestash free_pages;
 
@@ -376,6 +380,12 @@ i915_vm_has_scratch_64K(struct i915_address_space *vm)
 	return vm->scratch_order == get_order(I915_GTT_PAGE_SIZE_64K);
 }
 
+static inline bool
+i915_vm_has_cache_coloring(struct i915_address_space *vm)
+{
+	return i915_is_ggtt(vm) && vm->mm.color_adjust;
+}
+
 /* The Graphics Translation Table is the way in which GEN hardware translates a
  * Graphics Virtual Address into a Physical Address. In addition to the normal
  * collateral associated with any va->pa translations GEN hardware also has a
@@ -401,6 +411,11 @@ struct i915_ggtt {
 
 	int mtrr;
 
+	/** Bit 6 swizzling required for X tiling */
+	u32 bit_6_swizzle_x;
+	/** Bit 6 swizzling required for Y tiling */
+	u32 bit_6_swizzle_y;
+
 	u32 pin_bias;
 
 	unsigned int num_fences;
@@ -422,7 +437,6 @@ struct i915_ggtt {
 struct i915_ppgtt {
 	struct i915_address_space vm;
 
-	intel_engine_mask_t pd_dirty_engines;
 	struct i915_page_directory *pd;
 };
 
@@ -432,7 +446,9 @@ struct gen6_ppgtt {
 	struct i915_vma *vma;
 	gen6_pte_t __iomem *pd_addr;
 
-	unsigned int pin_count;
+	atomic_t pin_count;
+	struct mutex pin_mutex;
+
 	bool scan_for_unused_pt;
 };
 
@@ -559,6 +575,11 @@ void i915_ggtt_disable_guc(struct i915_ggtt *ggtt);
 int i915_init_ggtt(struct drm_i915_private *dev_priv);
 void i915_ggtt_driver_release(struct drm_i915_private *dev_priv);
 
+static inline bool i915_ggtt_has_aperture(const struct i915_ggtt *ggtt)
+{
+	return ggtt->mappable_end > 0;
+}
+
 int i915_ppgtt_init_hw(struct intel_gt *gt);
 
 struct i915_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv);
@@ -575,6 +596,35 @@ void i915_vm_release(struct kref *kref);
 static inline void i915_vm_put(struct i915_address_space *vm)
 {
 	kref_put(&vm->ref, i915_vm_release);
+}
+
+static inline struct i915_address_space *
+i915_vm_open(struct i915_address_space *vm)
+{
+	GEM_BUG_ON(!atomic_read(&vm->open));
+	atomic_inc(&vm->open);
+	return i915_vm_get(vm);
+}
+
+static inline bool
+i915_vm_tryopen(struct i915_address_space *vm)
+{
+	if (atomic_add_unless(&vm->open, 1, 0))
+		return i915_vm_get(vm);
+
+	return false;
+}
+
+void __i915_vm_close(struct i915_address_space *vm);
+
+static inline void
+i915_vm_close(struct i915_address_space *vm)
+{
+	GEM_BUG_ON(!atomic_read(&vm->open));
+	if (atomic_dec_and_test(&vm->open))
+		__i915_vm_close(vm);
+
+	i915_vm_put(vm);
 }
 
 int gen6_ppgtt_pin(struct i915_ppgtt *base);
@@ -609,10 +659,9 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 #define PIN_OFFSET_BIAS		BIT_ULL(6)
 #define PIN_OFFSET_FIXED	BIT_ULL(7)
 
-#define PIN_MBZ			BIT_ULL(8) /* I915_VMA_PIN_OVERFLOW */
-#define PIN_GLOBAL		BIT_ULL(9) /* I915_VMA_GLOBAL_BIND */
-#define PIN_USER		BIT_ULL(10) /* I915_VMA_LOCAL_BIND */
-#define PIN_UPDATE		BIT_ULL(11)
+#define PIN_UPDATE		BIT_ULL(9)
+#define PIN_GLOBAL		BIT_ULL(10) /* I915_VMA_GLOBAL_BIND */
+#define PIN_USER		BIT_ULL(11) /* I915_VMA_LOCAL_BIND */
 
 #define PIN_OFFSET_MASK		(-I915_GTT_PAGE_SIZE)
 

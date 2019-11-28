@@ -285,7 +285,7 @@ static int dw_hdmi_cec_probe(struct platform_device *pdev)
 
 	ret = cec_register_adapter(cec->adap, pdev->dev.parent);
 	if (ret < 0) {
-		cec_notifier_cec_adap_unregister(cec->notify);
+		cec_notifier_cec_adap_unregister(cec->notify, cec->adap);
 		return ret;
 	}
 
@@ -302,7 +302,7 @@ static int dw_hdmi_cec_remove(struct platform_device *pdev)
 {
 	struct dw_hdmi_cec *cec = platform_get_drvdata(pdev);
 
-	cec_notifier_cec_adap_unregister(cec->notify);
+	cec_notifier_cec_adap_unregister(cec->notify, cec->adap);
 	cec_unregister_adapter(cec->adap);
 
 	return 0;

@@ -321,8 +321,6 @@ void dal_gpio_destroy(
 		return;
 	}
 
-	dal_gpio_close(*gpio);
-
 	switch ((*gpio)->id) {
 	case GPIO_ID_DDC_DATA:
 		kfree((*gpio)->hw_container.ddc);

@@ -27,6 +27,7 @@
 #include "amdgpu_atomfirmware.h"
 #include "atom.h"
 #include "atombios.h"
+#include "soc15_hw_ip.h"
 
 bool amdgpu_atomfirmware_gpu_supports_virtualization(struct amdgpu_device *adev)
 {
@@ -120,65 +121,14 @@ union vram_info {
 	struct atom_vram_info_header_v2_3 v23;
 	struct atom_vram_info_header_v2_4 v24;
 };
-/*
- * Return vram width from integrated system info table, if available,
- * or 0 if not.
- */
-int amdgpu_atomfirmware_get_vram_width(struct amdgpu_device *adev)
-{
-	struct amdgpu_mode_info *mode_info = &adev->mode_info;
-	int index;
-	u16 data_offset, size;
-	union igp_info *igp_info;
-	union vram_info *vram_info;
-	u32 mem_channel_number;
-	u32 mem_channel_width;
-	u8 frev, crev;
 
-	if (adev->flags & AMD_IS_APU)
-		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-						    integratedsysteminfo);
-	else
-		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-						    vram_info);
+union vram_module {
+	struct atom_vram_module_v9 v9;
+	struct atom_vram_module_v10 v10;
+};
 
-	/* get any igp specific overrides */
-	if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, &size,
-				   &frev, &crev, &data_offset)) {
-		if (adev->flags & AMD_IS_APU) {
-			igp_info = (union igp_info *)
-				(mode_info->atom_context->bios + data_offset);
-			switch (crev) {
-			case 11:
-				mem_channel_number = igp_info->v11.umachannelnumber;
-				/* channel width is 64 */
-				return mem_channel_number * 64;
-			default:
-				return 0;
-			}
-		} else {
-			vram_info = (union vram_info *)
-				(mode_info->atom_context->bios + data_offset);
-			switch (crev) {
-			case 3:
-				mem_channel_number = vram_info->v23.vram_module[0].channel_num;
-				mem_channel_width = vram_info->v23.vram_module[0].channel_width;
-				return mem_channel_number * (1 << mem_channel_width);
-			case 4:
-				mem_channel_number = vram_info->v24.vram_module[0].channel_num;
-				mem_channel_width = vram_info->v24.vram_module[0].channel_width;
-				return mem_channel_number * (1 << mem_channel_width);
-			default:
-				return 0;
-			}
-		}
-	}
-
-	return 0;
-}
-
-static int convert_atom_mem_type_to_vram_type (struct amdgpu_device *adev,
-					       int atom_mem_type)
+static int convert_atom_mem_type_to_vram_type(struct amdgpu_device *adev,
+					      int atom_mem_type)
 {
 	int vram_type;
 
@@ -219,19 +169,25 @@ static int convert_atom_mem_type_to_vram_type (struct amdgpu_device *adev,
 
 	return vram_type;
 }
-/*
- * Return vram type from either integrated system info table
- * or umc info table, if available, or 0 (TYPE_UNKNOWN) if not
- */
-int amdgpu_atomfirmware_get_vram_type(struct amdgpu_device *adev)
+
+
+int
+amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
+				  int *vram_width, int *vram_type,
+				  int *vram_vendor)
 {
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
-	int index;
+	int index, i = 0;
 	u16 data_offset, size;
 	union igp_info *igp_info;
 	union vram_info *vram_info;
+	union vram_module *vram_module;
 	u8 frev, crev;
 	u8 mem_type;
+	u8 mem_vendor;
+	u32 mem_channel_number;
+	u32 mem_channel_width;
+	u32 module_id;
 
 	if (adev->flags & AMD_IS_APU)
 		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
@@ -239,6 +195,7 @@ int amdgpu_atomfirmware_get_vram_type(struct amdgpu_device *adev)
 	else
 		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 						    vram_info);
+
 	if (amdgpu_atom_parse_data_header(mode_info->atom_context,
 					  index, &size,
 					  &frev, &crev, &data_offset)) {
@@ -247,25 +204,67 @@ int amdgpu_atomfirmware_get_vram_type(struct amdgpu_device *adev)
 				(mode_info->atom_context->bios + data_offset);
 			switch (crev) {
 			case 11:
+				mem_channel_number = igp_info->v11.umachannelnumber;
+				/* channel width is 64 */
+				if (vram_width)
+					*vram_width = mem_channel_number * 64;
 				mem_type = igp_info->v11.memorytype;
-				return convert_atom_mem_type_to_vram_type(adev, mem_type);
+				if (vram_type)
+					*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+				break;
 			default:
-				return 0;
+				return -EINVAL;
 			}
 		} else {
 			vram_info = (union vram_info *)
 				(mode_info->atom_context->bios + data_offset);
+			module_id = (RREG32(adev->bios_scratch_reg_offset + 4) & 0x00ff0000) >> 16;
 			switch (crev) {
 			case 3:
-				mem_type = vram_info->v23.vram_module[0].memory_type;
-				return convert_atom_mem_type_to_vram_type(adev, mem_type);
+				if (module_id > vram_info->v23.vram_module_num)
+					module_id = 0;
+				vram_module = (union vram_module *)vram_info->v23.vram_module;
+				while (i < module_id) {
+					vram_module = (union vram_module *)
+						((u8 *)vram_module + vram_module->v9.vram_module_size);
+					i++;
+				}
+				mem_type = vram_module->v9.memory_type;
+				if (vram_type)
+					*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+				mem_channel_number = vram_module->v9.channel_num;
+				mem_channel_width = vram_module->v9.channel_width;
+				if (vram_width)
+					*vram_width = mem_channel_number * (1 << mem_channel_width);
+				mem_vendor = (vram_module->v9.vender_rev_id) & 0xF;
+				if (vram_vendor)
+					*vram_vendor = mem_vendor;
+				break;
 			case 4:
-				mem_type = vram_info->v24.vram_module[0].memory_type;
-				return convert_atom_mem_type_to_vram_type(adev, mem_type);
+				if (module_id > vram_info->v24.vram_module_num)
+					module_id = 0;
+				vram_module = (union vram_module *)vram_info->v24.vram_module;
+				while (i < module_id) {
+					vram_module = (union vram_module *)
+						((u8 *)vram_module + vram_module->v10.vram_module_size);
+					i++;
+				}
+				mem_type = vram_module->v10.memory_type;
+				if (vram_type)
+					*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+				mem_channel_number = vram_module->v10.channel_num;
+				mem_channel_width = vram_module->v10.channel_width;
+				if (vram_width)
+					*vram_width = mem_channel_number * (1 << mem_channel_width);
+				mem_vendor = (vram_module->v10.vender_rev_id) & 0xF;
+				if (vram_vendor)
+					*vram_vendor = mem_vendor;
+				break;
 			default:
-				return 0;
+				return -EINVAL;
 			}
 		}
+
 	}
 
 	return 0;
@@ -463,4 +462,139 @@ int amdgpu_atomfirmware_get_gfx_info(struct amdgpu_device *adev)
 
 	}
 	return -EINVAL;
+}
+
+/*
+ * Check if VBIOS supports GDDR6 training data save/restore
+ */
+static bool gddr6_mem_train_vbios_support(struct amdgpu_device *adev)
+{
+	uint16_t data_offset;
+	int index;
+
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+					    firmwareinfo);
+	if (amdgpu_atom_parse_data_header(adev->mode_info.atom_context, index, NULL,
+					  NULL, NULL, &data_offset)) {
+		struct atom_firmware_info_v3_1 *firmware_info =
+			(struct atom_firmware_info_v3_1 *)(adev->mode_info.atom_context->bios +
+							   data_offset);
+
+		DRM_DEBUG("atom firmware capability:0x%08x.\n",
+			  le32_to_cpu(firmware_info->firmware_capability));
+
+		if (le32_to_cpu(firmware_info->firmware_capability) &
+		    ATOM_FIRMWARE_CAP_ENABLE_2STAGE_BIST_TRAINING)
+			return true;
+	}
+
+	return false;
+}
+
+static int gddr6_mem_train_support(struct amdgpu_device *adev)
+{
+	int ret;
+	uint32_t major, minor, revision, hw_v;
+
+	if (gddr6_mem_train_vbios_support(adev)) {
+		amdgpu_discovery_get_ip_version(adev, MP0_HWID, &major, &minor, &revision);
+		hw_v = HW_REV(major, minor, revision);
+		/*
+		 * treat 0 revision as a special case since register for MP0 and MMHUB is missing
+		 * for some Navi10 A0, preventing driver from discovering the hwip information since
+		 * none of the functions will be initialized, it should not cause any problems
+		 */
+		switch (hw_v) {
+		case HW_REV(11, 0, 0):
+		case HW_REV(11, 0, 5):
+			ret = 1;
+			break;
+		default:
+			DRM_ERROR("memory training vbios supports but psp hw(%08x)"
+				  " doesn't support!\n", hw_v);
+			ret = -1;
+			break;
+		}
+	} else {
+		ret = 0;
+		hw_v = -1;
+	}
+
+
+	DRM_DEBUG("mp0 hw_v %08x, ret:%d.\n", hw_v, ret);
+	return ret;
+}
+
+int amdgpu_atomfirmware_get_mem_train_fb_loc(struct amdgpu_device *adev)
+{
+	struct atom_context *ctx = adev->mode_info.atom_context;
+	unsigned char *bios = ctx->bios;
+	struct vram_reserve_block *reserved_block;
+	int index, block_number;
+	uint8_t frev, crev;
+	uint16_t data_offset, size;
+	uint32_t start_address_in_kb;
+	uint64_t offset;
+	int ret;
+
+	adev->fw_vram_usage.mem_train_support = false;
+
+	if (adev->asic_type != CHIP_NAVI10 &&
+	    adev->asic_type != CHIP_NAVI14)
+		return 0;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	ret = gddr6_mem_train_support(adev);
+	if (ret == -1)
+		return -EINVAL;
+	else if (ret == 0)
+		return 0;
+
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+					    vram_usagebyfirmware);
+	ret = amdgpu_atom_parse_data_header(ctx, index, &size, &frev, &crev,
+					    &data_offset);
+	if (ret == 0) {
+		DRM_ERROR("parse data header failed.\n");
+		return -EINVAL;
+	}
+
+	DRM_DEBUG("atom firmware common table header size:0x%04x, frev:0x%02x,"
+		  " crev:0x%02x, data_offset:0x%04x.\n", size, frev, crev, data_offset);
+	/* only support 2.1+ */
+	if (((uint16_t)frev << 8 | crev) < 0x0201) {
+		DRM_ERROR("frev:0x%02x, crev:0x%02x < 2.1 !\n", frev, crev);
+		return -EINVAL;
+	}
+
+	reserved_block = (struct vram_reserve_block *)
+		(bios + data_offset + sizeof(struct atom_common_table_header));
+	block_number = ((unsigned int)size - sizeof(struct atom_common_table_header))
+		/ sizeof(struct vram_reserve_block);
+	reserved_block += (block_number > 0) ? block_number-1 : 0;
+	DRM_DEBUG("block_number:0x%04x, last block: 0x%08xkb sz, %dkb fw, %dkb drv.\n",
+		  block_number,
+		  le32_to_cpu(reserved_block->start_address_in_kb),
+		  le16_to_cpu(reserved_block->used_by_firmware_in_kb),
+		  le16_to_cpu(reserved_block->used_by_driver_in_kb));
+	if (reserved_block->used_by_firmware_in_kb > 0) {
+		start_address_in_kb = le32_to_cpu(reserved_block->start_address_in_kb);
+		offset = (uint64_t)start_address_in_kb * ONE_KiB;
+		if ((offset & (ONE_MiB - 1)) < (4 * ONE_KiB + 1) ) {
+			offset -= ONE_MiB;
+		}
+
+		offset &= ~(ONE_MiB - 1);
+		adev->fw_vram_usage.mem_train_fb_loc = offset;
+		adev->fw_vram_usage.mem_train_support = true;
+		DRM_DEBUG("mem_train_fb_loc:0x%09llx.\n", offset);
+		ret = 0;
+	} else {
+		DRM_ERROR("used_by_firmware_in_kb is 0!\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
 }

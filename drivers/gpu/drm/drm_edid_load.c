@@ -175,7 +175,7 @@ static void *edid_load(struct drm_connector *connector, const char *name,
 	u8 *edid;
 	int fwsize, builtin;
 	int i, valid_extensions = 0;
-	bool print_bad_edid = !connector->bad_edid_counter || (drm_debug & DRM_UT_KMS);
+	bool print_bad_edid = !connector->bad_edid_counter || drm_debug_enabled(DRM_UT_KMS);
 
 	builtin = match_string(generic_edid_name, GENERIC_EDIDS, name);
 	if (builtin >= 0) {

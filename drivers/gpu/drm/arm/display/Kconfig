@@ -12,3 +12,9 @@ config DRM_KOMEDA
 	  Processor driver. It supports the D71 variants of the hardware.
 
 	  If compiled as a module it will be called komeda.
+
+config DRM_KOMEDA_ERROR_PRINT
+	bool "Enable komeda error print"
+	depends on DRM_KOMEDA
+	help
+	  Choose this option to enable error printing.

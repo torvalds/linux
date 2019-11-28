@@ -360,6 +360,7 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_RAVEN:
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
+	case CHIP_ARCTURUS:
 	case CHIP_RENOIR:
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
@@ -368,8 +369,6 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
 			return AMDGPU_FW_LOAD_PSP;
-	case CHIP_ARCTURUS:
-		return AMDGPU_FW_LOAD_DIRECT;
 
 	default:
 		DRM_ERROR("Unknown firmware load type\n");

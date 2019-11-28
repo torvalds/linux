@@ -147,18 +147,22 @@ int virtio_gpu_init(struct drm_device *dev)
 	INIT_WORK(&vgdev->config_changed_work,
 		  virtio_gpu_config_changed_work_func);
 
+	INIT_WORK(&vgdev->obj_free_work,
+		  virtio_gpu_array_put_free_work);
+	INIT_LIST_HEAD(&vgdev->obj_free_list);
+	spin_lock_init(&vgdev->obj_free_lock);
+
 #ifdef __LITTLE_ENDIAN
 	if (virtio_has_feature(vgdev->vdev, VIRTIO_GPU_F_VIRGL))
 		vgdev->has_virgl_3d = true;
-	DRM_INFO("virgl 3d acceleration %s\n",
-		 vgdev->has_virgl_3d ? "enabled" : "not supported by host");
-#else
-	DRM_INFO("virgl 3d acceleration not supported by guest\n");
 #endif
 	if (virtio_has_feature(vgdev->vdev, VIRTIO_GPU_F_EDID)) {
 		vgdev->has_edid = true;
-		DRM_INFO("EDID support available.\n");
 	}
+
+	DRM_INFO("features: %cvirgl %cedid\n",
+		 vgdev->has_virgl_3d ? '+' : '-',
+		 vgdev->has_edid     ? '+' : '-');
 
 	ret = virtio_find_vqs(vgdev->vdev, 2, vqs, callbacks, names, NULL);
 	if (ret) {
@@ -171,12 +175,6 @@ int virtio_gpu_init(struct drm_device *dev)
 	if (ret) {
 		DRM_ERROR("failed to alloc vbufs\n");
 		goto err_vbufs;
-	}
-
-	ret = virtio_gpu_ttm_init(vgdev);
-	if (ret) {
-		DRM_ERROR("failed to init ttm %d\n", ret);
-		goto err_ttm;
 	}
 
 	/* get display info */
@@ -210,8 +208,6 @@ int virtio_gpu_init(struct drm_device *dev)
 	return 0;
 
 err_scanouts:
-	virtio_gpu_ttm_fini(vgdev);
-err_ttm:
 	virtio_gpu_free_vbufs(vgdev);
 err_vbufs:
 	vgdev->vdev->config->del_vqs(vgdev->vdev);
@@ -234,6 +230,7 @@ void virtio_gpu_deinit(struct drm_device *dev)
 {
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 
+	flush_work(&vgdev->obj_free_work);
 	vgdev->vqs_ready = false;
 	flush_work(&vgdev->ctrlq.dequeue_work);
 	flush_work(&vgdev->cursorq.dequeue_work);
@@ -242,7 +239,6 @@ void virtio_gpu_deinit(struct drm_device *dev)
 	vgdev->vdev->config->del_vqs(vgdev->vdev);
 
 	virtio_gpu_modeset_fini(vgdev);
-	virtio_gpu_ttm_fini(vgdev);
 	virtio_gpu_free_vbufs(vgdev);
 	virtio_gpu_cleanup_cap_cache(vgdev);
 	kfree(vgdev->capsets);

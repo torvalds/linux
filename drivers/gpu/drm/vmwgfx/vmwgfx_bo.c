@@ -566,7 +566,7 @@ static void vmw_user_bo_ref_obj_release(struct ttm_base_object *base,
 
 	switch (ref_type) {
 	case TTM_REF_SYNCCPU_WRITE:
-		ttm_bo_synccpu_write_release(&user_bo->vbo.base);
+		atomic_dec(&user_bo->vbo.cpu_writers);
 		break;
 	default:
 		WARN_ONCE(true, "Undefined buffer object reference release.\n");
@@ -682,12 +682,12 @@ static int vmw_user_bo_synccpu_grab(struct vmw_user_buffer_object *user_bo,
 				    struct ttm_object_file *tfile,
 				    uint32_t flags)
 {
+	bool nonblock = !!(flags & drm_vmw_synccpu_dontblock);
 	struct ttm_buffer_object *bo = &user_bo->vbo.base;
 	bool existed;
 	int ret;
 
 	if (flags & drm_vmw_synccpu_allow_cs) {
-		bool nonblock = !!(flags & drm_vmw_synccpu_dontblock);
 		long lret;
 
 		lret = dma_resv_wait_timeout_rcu
@@ -700,15 +700,22 @@ static int vmw_user_bo_synccpu_grab(struct vmw_user_buffer_object *user_bo,
 		return 0;
 	}
 
-	ret = ttm_bo_synccpu_write_grab
-		(bo, !!(flags & drm_vmw_synccpu_dontblock));
+	ret = ttm_bo_reserve(bo, true, nonblock, NULL);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = ttm_bo_wait(bo, true, nonblock);
+	if (likely(ret == 0))
+		atomic_inc(&user_bo->vbo.cpu_writers);
+
+	ttm_bo_unreserve(bo);
 	if (unlikely(ret != 0))
 		return ret;
 
 	ret = ttm_ref_object_add(tfile, &user_bo->prime.base,
 				 TTM_REF_SYNCCPU_WRITE, &existed, false);
 	if (ret != 0 || existed)
-		ttm_bo_synccpu_write_release(&user_bo->vbo.base);
+		atomic_dec(&user_bo->vbo.cpu_writers);
 
 	return ret;
 }

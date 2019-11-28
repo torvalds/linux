@@ -24,6 +24,18 @@
 
 // addressBlock: uvd0_mmsch_dec
 // base address: 0x1e000
+#define mmMMSCH_VF_VMID                                                                                0x000b
+#define mmMMSCH_VF_VMID_BASE_IDX                                                                       0
+#define mmMMSCH_VF_CTX_ADDR_LO                                                                         0x000c
+#define mmMMSCH_VF_CTX_ADDR_LO_BASE_IDX                                                                0
+#define mmMMSCH_VF_CTX_ADDR_HI                                                                         0x000d
+#define mmMMSCH_VF_CTX_ADDR_HI_BASE_IDX                                                                0
+#define mmMMSCH_VF_CTX_SIZE                                                                            0x000e
+#define mmMMSCH_VF_CTX_SIZE_BASE_IDX                                                                   0
+#define mmMMSCH_VF_MAILBOX_HOST                                                                        0x0012
+#define mmMMSCH_VF_MAILBOX_HOST_BASE_IDX                                                               0
+#define mmMMSCH_VF_MAILBOX_RESP                                                                        0x0013
+#define mmMMSCH_VF_MAILBOX_RESP_BASE_IDX                                                               0
 
 
 // addressBlock: uvd0_jpegnpdec
