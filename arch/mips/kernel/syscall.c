@@ -93,6 +93,15 @@ SYSCALL_DEFINE1(set_thread_area, unsigned long, addr)
 	return 0;
 }
 
+SYSCALL_DEFINE1(get_thread_area,unsigned long __user*,u_info)
+{
+	struct thread_info *ti = task_thread_info(current);
+	if(copy_to_user(u_info,&(ti->tp_value),sizeof(ti->tp_value))){
+		return -EFAULT；
+	}
+	return 0;
+}
+
 static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 {
 	unsigned long old, tmp;
