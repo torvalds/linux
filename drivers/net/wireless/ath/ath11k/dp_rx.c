@@ -1034,6 +1034,7 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	u32 succ_bytes = 0;
 	u16 rate = 0, succ_pkts = 0;
 	u32 tx_duration = 0;
+	u8 tid = HTT_PPDU_STATS_NON_QOS_TID;
 	bool is_ampdu = false;
 
 	if (!usr_stats)
@@ -1051,6 +1052,8 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 		succ_bytes = usr_stats->ack_ba.success_bytes;
 		succ_pkts = FIELD_GET(HTT_PPDU_STATS_ACK_BA_INFO_NUM_MSDU_M,
 				      usr_stats->ack_ba.info);
+		tid = FIELD_GET(HTT_PPDU_STATS_ACK_BA_INFO_TID_NUM,
+				usr_stats->ack_ba.info);
 	}
 
 	if (common->fes_duration_us)
@@ -1156,19 +1159,23 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 		ieee80211_tx_rate_update(ar->hw, sta, &arsta->tx_info);
 	}
 
-	memset(peer_stats, 0, sizeof(*peer_stats));
+	/* PPDU stats reported for mgmt packet doesn't have valid tx bytes.
+	 * So skip peer stats update for mgmt packets.
+	 */
+	if (tid < HTT_PPDU_STATS_NON_QOS_TID) {
+		memset(peer_stats, 0, sizeof(*peer_stats));
+		peer_stats->succ_pkts = succ_pkts;
+		peer_stats->succ_bytes = succ_bytes;
+		peer_stats->is_ampdu = is_ampdu;
+		peer_stats->duration = tx_duration;
+		peer_stats->ba_fails =
+			HTT_USR_CMPLTN_LONG_RETRY(usr_stats->cmpltn_cmn.flags) +
+			HTT_USR_CMPLTN_SHORT_RETRY(usr_stats->cmpltn_cmn.flags);
 
-	peer_stats->succ_pkts = succ_pkts;
-	peer_stats->succ_bytes = succ_bytes;
-	peer_stats->is_ampdu = is_ampdu;
-	peer_stats->duration = tx_duration;
-	peer_stats->ba_fails =
-		HTT_USR_CMPLTN_LONG_RETRY(usr_stats->cmpltn_cmn.flags) +
-		HTT_USR_CMPLTN_SHORT_RETRY(usr_stats->cmpltn_cmn.flags);
-
-	if (ath11k_debug_is_extd_tx_stats_enabled(ar))
-		ath11k_accumulate_per_peer_tx_stats(arsta,
-						    peer_stats, rate_idx);
+		if (ath11k_debug_is_extd_tx_stats_enabled(ar))
+			ath11k_accumulate_per_peer_tx_stats(arsta,
+							    peer_stats, rate_idx);
+	}
 
 	spin_unlock_bh(&ab->base_lock);
 	rcu_read_unlock();
