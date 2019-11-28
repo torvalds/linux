@@ -525,26 +525,10 @@ static void acpi_ec_enable_event(struct acpi_ec *ec)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static bool acpi_ec_query_flushed(struct acpi_ec *ec)
+static void __acpi_ec_flush_work(void)
 {
-	bool flushed;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ec->lock, flags);
-	flushed = !ec->nr_pending_queries;
-	spin_unlock_irqrestore(&ec->lock, flags);
-	return flushed;
-}
-
-static void __acpi_ec_flush_event(struct acpi_ec *ec)
-{
-	/*
-	 * When ec_freeze_events is true, we need to flush events in
-	 * the proper position before entering the noirq stage.
-	 */
-	wait_event(ec->wait, acpi_ec_query_flushed(ec));
-	if (ec_query_wq)
-		flush_workqueue(ec_query_wq);
+	flush_scheduled_work(); /* flush ec->work */
+	flush_workqueue(ec_query_wq); /* flush queries */
 }
 
 static void acpi_ec_disable_event(struct acpi_ec *ec)
@@ -554,15 +538,21 @@ static void acpi_ec_disable_event(struct acpi_ec *ec)
 	spin_lock_irqsave(&ec->lock, flags);
 	__acpi_ec_disable_event(ec);
 	spin_unlock_irqrestore(&ec->lock, flags);
-	__acpi_ec_flush_event(ec);
+
+	/*
+	 * When ec_freeze_events is true, we need to flush events in
+	 * the proper position before entering the noirq stage.
+	 */
+	__acpi_ec_flush_work();
 }
 
 void acpi_ec_flush_work(void)
 {
-	if (first_ec)
-		__acpi_ec_flush_event(first_ec);
+	/* Without ec_query_wq there is nothing to flush. */
+	if (!ec_query_wq)
+		return;
 
-	flush_scheduled_work();
+	__acpi_ec_flush_work();
 }
 #endif /* CONFIG_PM_SLEEP */
 
