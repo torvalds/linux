@@ -147,18 +147,24 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 	}
 }
 
-static void
-wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
-		   u32 val)
+static void wa_add(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
+		   u32 val, u32 read_mask)
 {
 	struct i915_wa wa = {
 		.reg  = reg,
 		.mask = mask,
 		.val  = val,
-		.read = mask,
+		.read = read_mask,
 	};
 
 	_wa_add(wal, &wa);
+}
+
+static void
+wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
+		   u32 val)
+{
+	wa_add(wal, reg, mask, val, mask);
 }
 
 static void
@@ -569,9 +575,24 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
+	u32 val;
+
 	/* Wa_1409142259:tgl */
 	WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
 			  GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
+
+	/* Wa_1604555607:tgl */
+	val = intel_uncore_read(engine->uncore, FF_MODE2);
+	val &= ~FF_MODE2_TDS_TIMER_MASK;
+	val |= FF_MODE2_TDS_TIMER_128;
+	/*
+	 * FIXME: FF_MODE2 register is not readable till TGL B0. We can
+	 * enable verification of WA from the later steppings, which enables
+	 * the read of FF_MODE2.
+	 */
+	wa_add(wal, FF_MODE2, FF_MODE2_TDS_TIMER_MASK, val,
+	       IS_TGL_REVID(engine->i915, TGL_REVID_A0, TGL_REVID_A0) ? 0 :
+			    FF_MODE2_TDS_TIMER_MASK);
 }
 
 static void
