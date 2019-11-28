@@ -4302,7 +4302,7 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 	spin_lock(&delayed_refs->lock);
 	if (atomic_read(&delayed_refs->num_entries) == 0) {
 		spin_unlock(&delayed_refs->lock);
-		btrfs_info(fs_info, "delayed_refs has NO entry");
+		btrfs_debug(fs_info, "delayed_refs has NO entry");
 		return ret;
 	}
 
