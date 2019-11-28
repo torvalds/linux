@@ -11,6 +11,7 @@ enum {
 	IO_WQ_WORK_NEEDS_FILES	= 16,
 	IO_WQ_WORK_UNBOUND	= 32,
 	IO_WQ_WORK_INTERNAL	= 64,
+	IO_WQ_WORK_CB		= 128,
 
 	IO_WQ_HASH_SHIFT	= 24,	/* upper 8 bits are used for hash key */
 };
@@ -21,15 +22,60 @@ enum io_wq_cancel {
 	IO_WQ_CANCEL_NOTFOUND,	/* work not found */
 };
 
+struct io_wq_work_node {
+	struct io_wq_work_node *next;
+};
+
+struct io_wq_work_list {
+	struct io_wq_work_node *first;
+	struct io_wq_work_node *last;
+};
+
+static inline void wq_list_add_tail(struct io_wq_work_node *node,
+				    struct io_wq_work_list *list)
+{
+	if (!list->first) {
+		list->first = list->last = node;
+	} else {
+		list->last->next = node;
+		list->last = node;
+	}
+}
+
+static inline void wq_node_del(struct io_wq_work_list *list,
+			       struct io_wq_work_node *node,
+			       struct io_wq_work_node *prev)
+{
+	if (node == list->first)
+		list->first = node->next;
+	if (node == list->last)
+		list->last = prev;
+	if (prev)
+		prev->next = node->next;
+}
+
+#define wq_list_for_each(pos, prv, head)			\
+	for (pos = (head)->first, prv = NULL; pos; prv = pos, pos = (pos)->next)
+
+#define wq_list_empty(list)	((list)->first == NULL)
+#define INIT_WQ_LIST(list)	do {				\
+	(list)->first = NULL;					\
+	(list)->last = NULL;					\
+} while (0)
+
 struct io_wq_work {
-	struct list_head list;
+	union {
+		struct io_wq_work_node list;
+		void *data;
+	};
 	void (*func)(struct io_wq_work **);
-	unsigned flags;
 	struct files_struct *files;
+	unsigned flags;
 };
 
 #define INIT_IO_WORK(work, _func)			\
 	do {						\
+		(work)->list.next = NULL;		\
 		(work)->func = _func;			\
 		(work)->flags = 0;			\
 		(work)->files = NULL;			\
@@ -38,9 +84,16 @@ struct io_wq_work {
 typedef void (get_work_fn)(struct io_wq_work *);
 typedef void (put_work_fn)(struct io_wq_work *);
 
-struct io_wq *io_wq_create(unsigned bounded, struct mm_struct *mm,
-				struct user_struct *user,
-				get_work_fn *get_work, put_work_fn *put_work);
+struct io_wq_data {
+	struct mm_struct *mm;
+	struct user_struct *user;
+	struct cred *creds;
+
+	get_work_fn *get_work;
+	put_work_fn *put_work;
+};
+
+struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data);
 void io_wq_destroy(struct io_wq *wq);
 
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work);
