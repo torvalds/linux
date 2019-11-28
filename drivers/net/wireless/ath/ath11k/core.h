@@ -335,6 +335,7 @@ struct ath11k_sta {
 	struct rate_info txrate;
 	struct rate_info last_txrate;
 	u64 rx_duration;
+	u64 tx_duration;
 	u8 rssi_comb;
 	struct ath11k_htt_tx_stats *tx_stats;
 	struct ath11k_rx_peer_stats *rx_stats;

@@ -1147,7 +1147,7 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	arsta->txrate.nss = nss;
 	arsta->txrate.bw = ath11k_mac_bw_to_mac80211_bw(bw);
 	arsta->tx_info.status.rates[0].flags |= ath11k_bw_to_mac80211_bwflags(bw);
-
+	arsta->tx_duration += tx_duration;
 	memcpy(&arsta->last_txrate, &arsta->txrate, sizeof(struct rate_info));
 
 	if (succ_pkts) {

@@ -5316,6 +5316,9 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 	sinfo->rx_duration = arsta->rx_duration;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DURATION);
 
+	sinfo->tx_duration = arsta->tx_duration;
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_DURATION);
+
 	if (!arsta->txrate.legacy && !arsta->txrate.nss)
 		return;
 
