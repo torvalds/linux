@@ -3480,6 +3480,8 @@ static int __ath11k_set_antenna(struct ath11k *ar, u32 tx_ant, u32 rx_ant)
 		return ret;
 	}
 
+	ar->num_tx_chains = get_num_chains(tx_ant);
+
 	ret = ath11k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_RX_CHAIN_MASK,
 					rx_ant, ar->pdev->pdev_id);
 	if (ret) {
@@ -3487,6 +3489,8 @@ static int __ath11k_set_antenna(struct ath11k *ar, u32 tx_ant, u32 rx_ant)
 			    ret, rx_ant);
 		return ret;
 	}
+
+	ar->num_rx_chains = get_num_chains(rx_ant);
 
 	/* Reload HT/VHT/HE capability */
 	ath11k_mac_setup_ht_vht_cap(ar, &ar->pdev->cap, NULL);
