@@ -628,12 +628,8 @@ static int sr_block_compat_ioctl(struct block_device *bdev, fmode_t mode, unsign
 		goto put;
 	}
 
-	/*
-	 * CDROM ioctls are handled in the block layer, but
-	 * do the scsi blk ioctls here.
-	 */
-	ret = scsi_cmd_blk_ioctl(bdev, mode, cmd, argp);
-	if (ret != -ENOTTY)
+	ret = cdrom_ioctl(&cd->cdi, bdev, mode, cmd, (unsigned long)argp);
+	if (ret != -ENOSYS)
 		goto put;
 
 	ret = scsi_compat_ioctl(sdev, cmd, argp);

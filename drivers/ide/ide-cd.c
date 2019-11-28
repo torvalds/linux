@@ -25,6 +25,7 @@
 
 #define IDECD_VERSION "5.00"
 
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -1710,6 +1711,39 @@ static int idecd_ioctl(struct block_device *bdev, fmode_t mode,
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+static int idecd_locked_compat_ioctl(struct block_device *bdev, fmode_t mode,
+			unsigned int cmd, unsigned long arg)
+{
+	struct cdrom_info *info = ide_drv_g(bdev->bd_disk, cdrom_info);
+	void __user *argp = compat_ptr(arg);
+	int err;
+
+	switch (cmd) {
+	case CDROMSETSPINDOWN:
+		return idecd_set_spindown(&info->devinfo, (unsigned long)argp);
+	case CDROMGETSPINDOWN:
+		return idecd_get_spindown(&info->devinfo, (unsigned long)argp);
+	default:
+		break;
+	}
+
+	return cdrom_ioctl(&info->devinfo, bdev, mode, cmd,
+			   (unsigned long)argp);
+}
+
+static int idecd_compat_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&ide_cd_mutex);
+	ret = idecd_locked_compat_ioctl(bdev, mode, cmd, arg);
+	mutex_unlock(&ide_cd_mutex);
+
+	return ret;
+}
+#endif
 
 static unsigned int idecd_check_events(struct gendisk *disk,
 				       unsigned int clearing)
@@ -1732,6 +1766,9 @@ static const struct block_device_operations idecd_ops = {
 	.open			= idecd_open,
 	.release		= idecd_release,
 	.ioctl			= idecd_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl		= idecd_compat_ioctl,
+#endif
 	.check_events		= idecd_check_events,
 	.revalidate_disk	= idecd_revalidate_disk
 };

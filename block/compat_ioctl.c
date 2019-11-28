@@ -160,42 +160,6 @@ static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	case HDIO_DRIVE_CMD:
 	/* 0x330 is reserved -- it used to be HDIO_GETGEO_BIG */
 	case 0x330:
-	/* CDROM stuff */
-	case CDROMPAUSE:
-	case CDROMRESUME:
-	case CDROMPLAYMSF:
-	case CDROMPLAYTRKIND:
-	case CDROMREADTOCHDR:
-	case CDROMREADTOCENTRY:
-	case CDROMSTOP:
-	case CDROMSTART:
-	case CDROMEJECT:
-	case CDROMVOLCTRL:
-	case CDROMSUBCHNL:
-	case CDROMMULTISESSION:
-	case CDROM_GET_MCN:
-	case CDROMRESET:
-	case CDROMVOLREAD:
-	case CDROMSEEK:
-	case CDROMPLAYBLK:
-	case CDROMCLOSETRAY:
-	case CDROM_DISC_STATUS:
-	case CDROM_CHANGER_NSLOTS:
-	case CDROM_GET_CAPABILITY:
-	case CDROM_SEND_PACKET:
-	/* Ignore cdrom.h about these next 5 ioctls, they absolutely do
-	 * not take a struct cdrom_read, instead they take a struct cdrom_msf
-	 * which is compatible.
-	 */
-	case CDROMREADMODE2:
-	case CDROMREADMODE1:
-	case CDROMREADRAW:
-	case CDROMREADCOOKED:
-	case CDROMREADALL:
-	/* DVD ioctls */
-	case DVD_READ_STRUCT:
-	case DVD_WRITE_STRUCT:
-	case DVD_AUTH:
 		arg = (unsigned long)compat_ptr(arg);
 	/* These intepret arg as an unsigned long, not as a pointer,
 	 * so we must not do compat_ptr() conversion. */
@@ -211,15 +175,6 @@ static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	case HDIO_SET_ACOUSTIC:
 	case HDIO_SET_BUSSTATE:
 	case HDIO_SET_ADDRESS:
-	case CDROMEJECT_SW:
-	case CDROM_SET_OPTIONS:
-	case CDROM_CLEAR_OPTIONS:
-	case CDROM_SELECT_SPEED:
-	case CDROM_SELECT_DISC:
-	case CDROM_MEDIA_CHANGED:
-	case CDROM_DRIVE_STATUS:
-	case CDROM_LOCKDOOR:
-	case CDROM_DEBUG:
 		break;
 	default:
 		/* unknown ioctl number */
