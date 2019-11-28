@@ -68,7 +68,7 @@ static int pcie_poll_cmd(struct controller *ctrl, int timeout)
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_status;
 
-	while (true) {
+	do {
 		pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
 		if (slot_status == (u16) ~0) {
 			ctrl_info(ctrl, "%s: no response from device\n",
@@ -81,11 +81,9 @@ static int pcie_poll_cmd(struct controller *ctrl, int timeout)
 						   PCI_EXP_SLTSTA_CC);
 			return 1;
 		}
-		if (timeout < 0)
-			break;
 		msleep(10);
 		timeout -= 10;
-	}
+	} while (timeout >= 0);
 	return 0;	/* timeout */
 }
 
@@ -201,17 +199,29 @@ static void pcie_write_cmd_nowait(struct controller *ctrl, u16 cmd, u16 mask)
 	pcie_do_write_cmd(ctrl, cmd, mask, false);
 }
 
-bool pciehp_check_link_active(struct controller *ctrl)
+/**
+ * pciehp_check_link_active() - Is the link active
+ * @ctrl: PCIe hotplug controller
+ *
+ * Check whether the downstream link is currently active. Note it is
+ * possible that the card is removed immediately after this so the
+ * caller may need to take it into account.
+ *
+ * If the hotplug controller itself is not available anymore returns
+ * %-ENODEV.
+ */
+int pciehp_check_link_active(struct controller *ctrl)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 lnk_status;
-	bool ret;
+	int ret;
 
-	pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnk_status);
+	ret = pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnk_status);
+	if (ret == PCIBIOS_DEVICE_NOT_FOUND || lnk_status == (u16)~0)
+		return -ENODEV;
+
 	ret = !!(lnk_status & PCI_EXP_LNKSTA_DLLLA);
-
-	if (ret)
-		ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
+	ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
 
 	return ret;
 }
@@ -373,13 +383,29 @@ void pciehp_get_latch_status(struct controller *ctrl, u8 *status)
 	*status = !!(slot_status & PCI_EXP_SLTSTA_MRLSS);
 }
 
-bool pciehp_card_present(struct controller *ctrl)
+/**
+ * pciehp_card_present() - Is the card present
+ * @ctrl: PCIe hotplug controller
+ *
+ * Function checks whether the card is currently present in the slot and
+ * in that case returns true. Note it is possible that the card is
+ * removed immediately after the check so the caller may need to take
+ * this into account.
+ *
+ * It the hotplug controller itself is not available anymore returns
+ * %-ENODEV.
+ */
+int pciehp_card_present(struct controller *ctrl)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_status;
+	int ret;
 
-	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
-	return slot_status & PCI_EXP_SLTSTA_PDS;
+	ret = pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
+	if (ret == PCIBIOS_DEVICE_NOT_FOUND || slot_status == (u16)~0)
+		return -ENODEV;
+
+	return !!(slot_status & PCI_EXP_SLTSTA_PDS);
 }
 
 /**
@@ -390,10 +416,19 @@ bool pciehp_card_present(struct controller *ctrl)
  * Presence Detect State bit, this helper also returns true if the Link Active
  * bit is set.  This is a concession to broken hotplug ports which hardwire
  * Presence Detect State to zero, such as Wilocity's [1ae9:0200].
+ *
+ * Returns: %1 if the slot is occupied and %0 if it is not. If the hotplug
+ *	    port is not present anymore returns %-ENODEV.
  */
-bool pciehp_card_present_or_link_active(struct controller *ctrl)
+int pciehp_card_present_or_link_active(struct controller *ctrl)
 {
-	return pciehp_card_present(ctrl) || pciehp_check_link_active(ctrl);
+	int ret;
+
+	ret = pciehp_card_present(ctrl);
+	if (ret)
+		return ret;
+
+	return pciehp_check_link_active(ctrl);
 }
 
 int pciehp_query_power_fault(struct controller *ctrl)
@@ -583,6 +618,7 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	irqreturn_t ret;
 	u32 events;
 
+	ctrl->ist_running = true;
 	pci_config_pm_runtime_get(pdev);
 
 	/* rerun pciehp_isr() if the port was inaccessible on interrupt */
@@ -629,6 +665,7 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	up_read(&ctrl->reset_lock);
 
 	pci_config_pm_runtime_put(pdev);
+	ctrl->ist_running = false;
 	wake_up(&ctrl->requester);
 	return IRQ_HANDLED;
 }
