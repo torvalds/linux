@@ -4402,12 +4402,11 @@ static int io_uring_flush(struct file *file, void *data)
 	return 0;
 }
 
-static int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
+static void *io_uring_validate_mmap_request(struct file *file,
+					    loff_t pgoff, size_t sz)
 {
-	loff_t offset = (loff_t) vma->vm_pgoff << PAGE_SHIFT;
-	unsigned long sz = vma->vm_end - vma->vm_start;
 	struct io_ring_ctx *ctx = file->private_data;
-	unsigned long pfn;
+	loff_t offset = pgoff << PAGE_SHIFT;
 	struct page *page;
 	void *ptr;
 
@@ -4420,16 +4419,58 @@ static int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 		ptr = ctx->sq_sqes;
 		break;
 	default:
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	page = virt_to_head_page(ptr);
 	if (sz > page_size(page))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
+
+	return ptr;
+}
+
+#ifdef CONFIG_MMU
+
+static int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	size_t sz = vma->vm_end - vma->vm_start;
+	unsigned long pfn;
+	void *ptr;
+
+	ptr = io_uring_validate_mmap_request(file, vma->vm_pgoff, sz);
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
 
 	pfn = virt_to_phys(ptr) >> PAGE_SHIFT;
 	return remap_pfn_range(vma, vma->vm_start, pfn, sz, vma->vm_page_prot);
 }
+
+#else /* !CONFIG_MMU */
+
+static int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	return vma->vm_flags & (VM_SHARED | VM_MAYSHARE) ? 0 : -EINVAL;
+}
+
+static unsigned int io_uring_nommu_mmap_capabilities(struct file *file)
+{
+	return NOMMU_MAP_DIRECT | NOMMU_MAP_READ | NOMMU_MAP_WRITE;
+}
+
+static unsigned long io_uring_nommu_get_unmapped_area(struct file *file,
+	unsigned long addr, unsigned long len,
+	unsigned long pgoff, unsigned long flags)
+{
+	void *ptr;
+
+	ptr = io_uring_validate_mmap_request(file, pgoff, len);
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
+
+	return (unsigned long) ptr;
+}
+
+#endif /* !CONFIG_MMU */
 
 SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		u32, min_complete, u32, flags, const sigset_t __user *, sig,
@@ -4501,6 +4542,10 @@ static const struct file_operations io_uring_fops = {
 	.release	= io_uring_release,
 	.flush		= io_uring_flush,
 	.mmap		= io_uring_mmap,
+#ifndef CONFIG_MMU
+	.get_unmapped_area = io_uring_nommu_get_unmapped_area,
+	.mmap_capabilities = io_uring_nommu_mmap_capabilities,
+#endif
 	.poll		= io_uring_poll,
 	.fasync		= io_uring_fasync,
 };
