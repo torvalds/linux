@@ -1817,7 +1817,7 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 			return -LIBBPF_ERRNO__RELOC;
 		}
 		if (sym->st_value % 8) {
-			pr_warn("bad call relo offset: %lu\n", sym->st_value);
+			pr_warn("bad call relo offset: %llu\n", (__u64)sym->st_value);
 			return -LIBBPF_ERRNO__RELOC;
 		}
 		reloc_desc->type = RELO_CALL;
