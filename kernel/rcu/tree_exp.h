@@ -230,7 +230,9 @@ static void __maybe_unused rcu_report_exp_rnp(struct rcu_node *rnp, bool wake)
 static void rcu_report_exp_cpu_mult(struct rcu_node *rnp,
 				    unsigned long mask, bool wake)
 {
+	int cpu;
 	unsigned long flags;
+	struct rcu_data *rdp;
 
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	if (!(rnp->expmask & mask)) {
@@ -238,6 +240,13 @@ static void rcu_report_exp_cpu_mult(struct rcu_node *rnp,
 		return;
 	}
 	WRITE_ONCE(rnp->expmask, rnp->expmask & ~mask);
+	for_each_leaf_node_cpu_mask(rnp, cpu, mask) {
+		rdp = per_cpu_ptr(&rcu_data, cpu);
+		if (!IS_ENABLED(CONFIG_NO_HZ_FULL) || !rdp->rcu_forced_tick_exp)
+			continue;
+		rdp->rcu_forced_tick_exp = false;
+		tick_dep_clear_cpu(cpu, TICK_DEP_BIT_RCU_EXP);
+	}
 	__rcu_report_exp_rnp(rnp, wake, flags); /* Releases rnp->lock. */
 }
 
@@ -450,6 +459,26 @@ static void sync_rcu_exp_select_cpus(void)
 }
 
 /*
+ * Wait for the expedited grace period to elapse, within time limit.
+ * If the time limit is exceeded without the grace period elapsing,
+ * return false, otherwise return true.
+ */
+static bool synchronize_rcu_expedited_wait_once(long tlimit)
+{
+	int t;
+	struct rcu_node *rnp_root = rcu_get_root();
+
+	t = swait_event_timeout_exclusive(rcu_state.expedited_wq,
+					  sync_rcu_exp_done_unlocked(rnp_root),
+					  tlimit);
+	// Workqueues should not be signaled.
+	if (t > 0 || sync_rcu_exp_done_unlocked(rnp_root))
+		return true;
+	WARN_ON(t < 0);  /* workqueues should not be signaled. */
+	return false;
+}
+
+/*
  * Wait for the expedited grace period to elapse, issuing any needed
  * RCU CPU stall warnings along the way.
  */
@@ -460,22 +489,31 @@ static void synchronize_rcu_expedited_wait(void)
 	unsigned long jiffies_start;
 	unsigned long mask;
 	int ndetected;
+	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 	struct rcu_node *rnp_root = rcu_get_root();
-	int ret;
 
 	trace_rcu_exp_grace_period(rcu_state.name, rcu_exp_gp_seq_endval(), TPS("startwait"));
 	jiffies_stall = rcu_jiffies_till_stall_check();
 	jiffies_start = jiffies;
+	if (IS_ENABLED(CONFIG_NO_HZ_FULL)) {
+		if (synchronize_rcu_expedited_wait_once(1))
+			return;
+		rcu_for_each_leaf_node(rnp) {
+			for_each_leaf_node_cpu_mask(rnp, cpu, rnp->expmask) {
+				rdp = per_cpu_ptr(&rcu_data, cpu);
+				if (rdp->rcu_forced_tick_exp)
+					continue;
+				rdp->rcu_forced_tick_exp = true;
+				tick_dep_set_cpu(cpu, TICK_DEP_BIT_RCU_EXP);
+			}
+		}
+		WARN_ON_ONCE(1);
+	}
 
 	for (;;) {
-		ret = swait_event_timeout_exclusive(
-				rcu_state.expedited_wq,
-				sync_rcu_exp_done_unlocked(rnp_root),
-				jiffies_stall);
-		if (ret > 0 || sync_rcu_exp_done_unlocked(rnp_root))
+		if (synchronize_rcu_expedited_wait_once(jiffies_stall))
 			return;
-		WARN_ON(ret < 0);  /* workqueues should not be signaled. */
 		if (rcu_cpu_stall_suppress)
 			continue;
 		panic_on_rcu_stall();
