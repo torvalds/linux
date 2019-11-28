@@ -4033,7 +4033,6 @@ static void quirk_fixed_dma_alias(struct pci_dev *dev)
 	if (id)
 		pci_add_dma_alias(dev, id->driver_data);
 }
-
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ADAPTEC2, 0x0285, quirk_fixed_dma_alias);
 
 /*
