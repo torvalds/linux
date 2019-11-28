@@ -329,10 +329,9 @@ int ide_floppy_compat_ioctl(ide_drive_t *drive, struct block_device *bdev,
 	if (cmd != CDROM_SEND_PACKET && cmd != SCSI_IOCTL_SEND_COMMAND)
 		err = scsi_cmd_blk_ioctl(bdev, mode, cmd, argp);
 
-	/*
-	 * there is no generic_ide_compat_ioctl(), that is handled
-	 * through compat_blkdev_ioctl().
-	 */
+	if (err == -ENOTTY)
+		err = generic_ide_ioctl(drive, bdev, cmd, arg);
+
 out:
 	mutex_unlock(&ide_floppy_ioctl_mutex);
 	return err;

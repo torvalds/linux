@@ -1711,7 +1711,6 @@ static int idecd_ioctl(struct block_device *bdev, fmode_t mode,
 	return ret;
 }
 
-#ifdef CONFIG_COMPAT
 static int idecd_locked_compat_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
@@ -1728,8 +1727,12 @@ static int idecd_locked_compat_ioctl(struct block_device *bdev, fmode_t mode,
 		break;
 	}
 
-	return cdrom_ioctl(&info->devinfo, bdev, mode, cmd,
-			   (unsigned long)argp);
+	err = generic_ide_ioctl(info->drive, bdev, cmd, arg);
+	if (err == -EINVAL)
+		err = cdrom_ioctl(&info->devinfo, bdev, mode, cmd,
+				  (unsigned long)argp);
+
+	return err;
 }
 
 static int idecd_compat_ioctl(struct block_device *bdev, fmode_t mode,
@@ -1743,7 +1746,6 @@ static int idecd_compat_ioctl(struct block_device *bdev, fmode_t mode,
 
 	return ret;
 }
-#endif
 
 static unsigned int idecd_check_events(struct gendisk *disk,
 				       unsigned int clearing)
@@ -1766,9 +1768,8 @@ static const struct block_device_operations idecd_ops = {
 	.open			= idecd_open,
 	.release		= idecd_release,
 	.ioctl			= idecd_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl		= idecd_compat_ioctl,
-#endif
+	.compat_ioctl		= IS_ENABLED(CONFIG_COMPAT) ?
+				  idecd_compat_ioctl : NULL,
 	.check_events		= idecd_check_events,
 	.revalidate_disk	= idecd_revalidate_disk
 };

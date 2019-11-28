@@ -78,24 +78,6 @@ static int compat_hdio_getgeo(struct gendisk *disk, struct block_device *bdev,
 	return ret;
 }
 
-static int compat_hdio_ioctl(struct block_device *bdev, fmode_t mode,
-		unsigned int cmd, unsigned long arg)
-{
-	unsigned long __user *p;
-	int error;
-
-	p = compat_alloc_user_space(sizeof(unsigned long));
-	error = __blkdev_driver_ioctl(bdev, mode,
-				cmd, (unsigned long)p);
-	if (error == 0) {
-		unsigned int __user *uvp = compat_ptr(arg);
-		unsigned long v;
-		if (get_user(v, p) || put_user(v, uvp))
-			error = -EFAULT;
-	}
-	return error;
-}
-
 struct compat_blkpg_ioctl_arg {
 	compat_int_t op;
 	compat_int_t flags;
@@ -128,61 +110,6 @@ static int compat_blkpg_ioctl(struct block_device *bdev, fmode_t mode,
 #define BLKBSZGET_32		_IOR(0x12, 112, int)
 #define BLKBSZSET_32		_IOW(0x12, 113, int)
 #define BLKGETSIZE64_32		_IOR(0x12, 114, int)
-
-static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
-			unsigned cmd, unsigned long arg)
-{
-	switch (cmd) {
-	case HDIO_GET_UNMASKINTR:
-	case HDIO_GET_MULTCOUNT:
-	case HDIO_GET_KEEPSETTINGS:
-	case HDIO_GET_32BIT:
-	case HDIO_GET_NOWERR:
-	case HDIO_GET_DMA:
-	case HDIO_GET_NICE:
-	case HDIO_GET_WCACHE:
-	case HDIO_GET_ACOUSTIC:
-	case HDIO_GET_ADDRESS:
-	case HDIO_GET_BUSSTATE:
-		return compat_hdio_ioctl(bdev, mode, cmd, arg);
-
-	/*
-	 * No handler required for the ones below, we just need to
-	 * convert arg to a 64 bit pointer.
-	 */
-	case BLKSECTSET:
-	/*
-	 * 0x03 -- HD/IDE ioctl's used by hdparm and friends.
-	 *         Some need translations, these do not.
-	 */
-	case HDIO_GET_IDENTITY:
-	case HDIO_DRIVE_TASK:
-	case HDIO_DRIVE_CMD:
-	/* 0x330 is reserved -- it used to be HDIO_GETGEO_BIG */
-	case 0x330:
-		arg = (unsigned long)compat_ptr(arg);
-	/* These intepret arg as an unsigned long, not as a pointer,
-	 * so we must not do compat_ptr() conversion. */
-	case HDIO_SET_MULTCOUNT:
-	case HDIO_SET_UNMASKINTR:
-	case HDIO_SET_KEEPSETTINGS:
-	case HDIO_SET_32BIT:
-	case HDIO_SET_NOWERR:
-	case HDIO_SET_DMA:
-	case HDIO_SET_PIO_MODE:
-	case HDIO_SET_NICE:
-	case HDIO_SET_WCACHE:
-	case HDIO_SET_ACOUSTIC:
-	case HDIO_SET_BUSSTATE:
-	case HDIO_SET_ADDRESS:
-		break;
-	default:
-		/* unknown ioctl number */
-		return -ENOIOCTLCMD;
-	}
-
-	return __blkdev_driver_ioctl(bdev, mode, cmd, arg);
-}
 
 /* Most of the generic ioctls are handled in the normal fallback path.
    This assumes the blkdev's low level compat_ioctl always returns
@@ -294,8 +221,6 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	default:
 		if (disk->fops->compat_ioctl)
 			ret = disk->fops->compat_ioctl(bdev, mode, cmd, arg);
-		if (ret == -ENOIOCTLCMD)
-			ret = compat_blkdev_driver_ioctl(bdev, mode, cmd, arg);
 		return ret;
 	}
 }
