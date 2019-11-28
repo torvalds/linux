@@ -149,9 +149,17 @@ static int rsi_find_bulk_in_and_out_endpoints(struct usb_interface *interface,
 			break;
 	}
 
-	if (!(dev->bulkin_endpoint_addr[0]) &&
-	    dev->bulkout_endpoint_addr[0])
+	if (!(dev->bulkin_endpoint_addr[0] && dev->bulkout_endpoint_addr[0])) {
+		dev_err(&interface->dev, "missing wlan bulk endpoints\n");
 		return -EINVAL;
+	}
+
+	if (adapter->priv->coex_mode > 1) {
+		if (!dev->bulkin_endpoint_addr[1]) {
+			dev_err(&interface->dev, "missing bt bulk-in endpoint\n");
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
