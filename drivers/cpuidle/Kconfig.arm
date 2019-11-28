@@ -65,21 +65,21 @@ config ARM_U8500_CPUIDLE
 	bool "Cpu Idle Driver for the ST-E u8500 processors"
 	depends on ARCH_U8500 && !ARM64
 	help
-	  Select this to enable cpuidle for ST-E u8500 processors
+	  Select this to enable cpuidle for ST-E u8500 processors.
 
 config ARM_AT91_CPUIDLE
 	bool "Cpu Idle Driver for the AT91 processors"
 	default y
 	depends on ARCH_AT91 && !ARM64
 	help
-	  Select this to enable cpuidle for AT91 processors
+	  Select this to enable cpuidle for AT91 processors.
 
 config ARM_EXYNOS_CPUIDLE
 	bool "Cpu Idle Driver for the Exynos processors"
 	depends on ARCH_EXYNOS && !ARM64
 	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 	help
-	  Select this to enable cpuidle for Exynos processors
+	  Select this to enable cpuidle for Exynos processors.
 
 config ARM_MVEBU_V7_CPUIDLE
 	bool "CPU Idle Driver for mvebu v7 family processors"
