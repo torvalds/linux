@@ -254,8 +254,14 @@ static ssize_t sriov_numvfs_show(struct device *dev,
 				 char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	u16 num_vfs;
 
-	return sprintf(buf, "%u\n", pdev->sriov->num_VFs);
+	/* Serialize vs sriov_numvfs_store() so readers see valid num_VFs */
+	device_lock(&pdev->dev);
+	num_vfs = pdev->sriov->num_VFs;
+	device_unlock(&pdev->dev);
+
+	return sprintf(buf, "%u\n", num_vfs);
 }
 
 /*

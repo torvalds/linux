@@ -2335,6 +2335,12 @@ static void pci_init_capabilities(struct pci_dev *dev)
 	/* Address Translation Services */
 	pci_ats_init(dev);
 
+	/* Page Request Interface */
+	pci_pri_init(dev);
+
+	/* Process Address Space ID */
+	pci_pasid_init(dev);
+
 	/* Enable ACS P2P upstream forwarding */
 	pci_enable_acs(dev);
 
