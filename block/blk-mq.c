@@ -1668,14 +1668,10 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
 	struct request *rqa = container_of(a, struct request, queuelist);
 	struct request *rqb = container_of(b, struct request, queuelist);
 
-	if (rqa->mq_ctx < rqb->mq_ctx)
-		return -1;
-	else if (rqa->mq_ctx > rqb->mq_ctx)
-		return 1;
-	else if (rqa->mq_hctx < rqb->mq_hctx)
-		return -1;
-	else if (rqa->mq_hctx > rqb->mq_hctx)
-		return 1;
+	if (rqa->mq_ctx != rqb->mq_ctx)
+		return rqa->mq_ctx > rqb->mq_ctx;
+	if (rqa->mq_hctx != rqb->mq_hctx)
+		return rqa->mq_hctx > rqb->mq_hctx;
 
 	return blk_rq_pos(rqa) > blk_rq_pos(rqb);
 }
