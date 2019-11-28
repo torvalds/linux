@@ -794,6 +794,35 @@ struct bdb_lfp_backlight_data {
 } __packed;
 
 /*
+ * Block 44 - LFP Power Conservation Features Block
+ */
+
+struct als_data_entry {
+	u16 backlight_adjust;
+	u16 lux;
+} __packed;
+
+struct agressiveness_profile_entry {
+	u8 dpst_agressiveness : 4;
+	u8 lace_agressiveness : 4;
+} __packed;
+
+struct bdb_lfp_power {
+	u8 lfp_feature_bits;
+	struct als_data_entry als[5];
+	u8 lace_aggressiveness_profile;
+	u16 dpst;
+	u16 psr;
+	u16 drrs;
+	u16 lace_support;
+	u16 adt;
+	u16 dmrrs;
+	u16 adb;
+	u16 lace_enabled_status;
+	struct agressiveness_profile_entry aggressivenes[16];
+} __packed;
+
+/*
  * Block 52 - MIPI Configuration Block
  */
 

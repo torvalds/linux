@@ -659,16 +659,45 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 			dev_priv->vbt.int_lvds_support = 0;
 	}
 
-	DRM_DEBUG_KMS("DRRS State Enabled:%d\n", driver->drrs_enabled);
+	if (bdb->version < 228) {
+		DRM_DEBUG_KMS("DRRS State Enabled:%d\n", driver->drrs_enabled);
+		/*
+		 * If DRRS is not supported, drrs_type has to be set to 0.
+		 * This is because, VBT is configured in such a way that
+		 * static DRRS is 0 and DRRS not supported is represented by
+		 * driver->drrs_enabled=false
+		 */
+		if (!driver->drrs_enabled)
+			dev_priv->vbt.drrs_type = DRRS_NOT_SUPPORTED;
+
+		dev_priv->vbt.psr.enable = driver->psr_enabled;
+	}
+}
+
+static void
+parse_power_conservation_features(struct drm_i915_private *dev_priv,
+				  const struct bdb_header *bdb)
+{
+	const struct bdb_lfp_power *power;
+	u8 panel_type = dev_priv->vbt.panel_type;
+
+	if (bdb->version < 228)
+		return;
+
+	power = find_section(bdb, BDB_LVDS_POWER);
+	if (!power)
+		return;
+
+	dev_priv->vbt.psr.enable = power->psr & BIT(panel_type);
+
 	/*
 	 * If DRRS is not supported, drrs_type has to be set to 0.
 	 * This is because, VBT is configured in such a way that
 	 * static DRRS is 0 and DRRS not supported is represented by
-	 * driver->drrs_enabled=false
+	 * power->drrs & BIT(panel_type)=false
 	 */
-	if (!driver->drrs_enabled)
+	if (!(power->drrs & BIT(panel_type)))
 		dev_priv->vbt.drrs_type = DRRS_NOT_SUPPORTED;
-	dev_priv->vbt.psr.enable = driver->psr_enabled;
 }
 
 static void
@@ -1973,6 +2002,7 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	parse_lfp_backlight(dev_priv, bdb);
 	parse_sdvo_panel_data(dev_priv, bdb);
 	parse_driver_features(dev_priv, bdb);
+	parse_power_conservation_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
 	parse_psr(dev_priv, bdb);
 	parse_mipi_config(dev_priv, bdb);
