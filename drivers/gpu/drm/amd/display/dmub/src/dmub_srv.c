@@ -26,7 +26,7 @@
 #include "../inc/dmub_srv.h"
 #include "dmub_dcn20.h"
 #include "dmub_dcn21.h"
-#include "dmub_trace_buffer.h"
+#include "dmub_fw_meta.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -46,6 +46,11 @@
 /* Mailbox size */
 #define DMUB_MAILBOX_SIZE (DMUB_RB_SIZE)
 
+/* Default state size if meta is absent. */
+#define DMUB_FW_STATE_SIZE (1024)
+
+/* Default tracebuffer size if meta is absent. */
+#define DMUB_TRACE_BUFFER_SIZE (1024)
 
 /* Number of windows in use. */
 #define DMUB_NUM_WINDOWS (DMUB_WINDOW_6_FW_STATE + 1)
@@ -60,6 +65,27 @@
 static inline uint32_t dmub_align(uint32_t val, uint32_t factor)
 {
 	return (val + factor - 1) / factor * factor;
+}
+
+static const struct dmub_fw_meta_info *
+dmub_get_fw_meta_info(const uint8_t *fw_bss_data, uint32_t fw_bss_data_size)
+{
+	const union dmub_fw_meta *meta;
+
+	if (fw_bss_data == NULL)
+		return NULL;
+
+	if (fw_bss_data_size < sizeof(union dmub_fw_meta) + DMUB_FW_META_OFFSET)
+		return NULL;
+
+	meta = (const union dmub_fw_meta *)(fw_bss_data + fw_bss_data_size -
+					    DMUB_FW_META_OFFSET -
+					    sizeof(union dmub_fw_meta));
+
+	if (meta->info.magic_value != DMUB_FW_META_MAGIC)
+		return NULL;
+
+	return &meta->info;
 }
 
 static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
@@ -162,6 +188,9 @@ dmub_srv_calc_region_info(struct dmub_srv *dmub,
 	struct dmub_region *mail = &out->regions[DMUB_WINDOW_4_MAILBOX];
 	struct dmub_region *trace_buff = &out->regions[DMUB_WINDOW_5_TRACEBUFF];
 	struct dmub_region *fw_state = &out->regions[DMUB_WINDOW_6_FW_STATE];
+	const struct dmub_fw_meta_info *fw_info;
+	uint32_t fw_state_size = DMUB_FW_STATE_SIZE;
+	uint32_t trace_buffer_size = DMUB_TRACE_BUFFER_SIZE;
 
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
@@ -176,6 +205,11 @@ dmub_srv_calc_region_info(struct dmub_srv *dmub,
 	data->base = dmub_align(inst->top, 256);
 	data->top = data->base + params->bss_data_size;
 
+	/*
+	 * All cache windows below should be aligned to the size
+	 * of the DMCUB cache line, 64 bytes.
+	 */
+
 	stack->base = dmub_align(data->top, 256);
 	stack->top = stack->base + DMUB_STACK_SIZE + DMUB_CONTEXT_SIZE;
 
@@ -185,14 +219,19 @@ dmub_srv_calc_region_info(struct dmub_srv *dmub,
 	mail->base = dmub_align(bios->top, 256);
 	mail->top = mail->base + DMUB_MAILBOX_SIZE;
 
+	fw_info = dmub_get_fw_meta_info(params->fw_bss_data,
+					params->bss_data_size);
+
+	if (fw_info) {
+		fw_state_size = fw_info->fw_region_size;
+		trace_buffer_size = fw_info->trace_buffer_size;
+	}
+
 	trace_buff->base = dmub_align(mail->top, 256);
-	trace_buff->top = trace_buff->base + TRACE_BUF_SIZE;
+	trace_buff->top = trace_buff->base + dmub_align(trace_buffer_size, 64);
 
 	fw_state->base = dmub_align(trace_buff->top, 256);
-
-	/* Align firmware state to size of cache line. */
-	fw_state->top =
-		fw_state->base + dmub_align(sizeof(struct dmub_fw_state), 64);
+	fw_state->top = fw_state->base + dmub_align(fw_state_size, 64);
 
 	out->fb_size = dmub_align(fw_state->top, 4096);
 

@@ -22,52 +22,42 @@
  * Authors: AMD
  *
  */
-
-#ifndef _DMUB_FW_STATE_H_
-#define _DMUB_FW_STATE_H_
+#ifndef _DMUB_META_H_
+#define _DMUB_META_H_
 
 #include "dmub_types.h"
 
 #pragma pack(push, 1)
 
-struct dmub_fw_state {
-	/**
-	 * @phy_initialized_during_fw_boot:
-	 *
-	 * Detects if VBIOS/VBL has ran before firmware boot.
-	 * A value of 1 will usually mean S0i3 boot.
-	 */
-	uint8_t phy_initialized_during_fw_boot;
+/* Magic value for identifying dmub_fw_meta_info */
+#define DMUB_FW_META_MAGIC 0x444D5542
 
-	/**
-	 * @intialized_phy:
-	 *
-	 * Bit vector of initialized PHY.
-	 */
-	uint8_t initialized_phy;
+/* Offset from the end of the file to the dmub_fw_meta_info */
+#define DMUB_FW_META_OFFSET 0x24
 
-	/**
-	 * @enabled_phy:
-	 *
-	 * Bit vector of enabled PHY for DP alt mode switch tracking.
-	 */
-	uint8_t enabled_phy;
+/**
+ * struct dmub_fw_meta_info - metadata associated with fw binary
+ *
+ * NOTE: This should be considered a stable API. Fields should
+ *       not be repurposed or reordered. New fields should be
+ *       added instead to extend the structure.
+ *
+ * @magic_value: magic value identifying DMUB firmware meta info
+ * @fw_region_size: size of the firmware state region
+ * @trace_buffer_size: size of the tracebuffer region
+ */
+struct dmub_fw_meta_info {
+	uint32_t magic_value;
+	uint32_t fw_region_size;
+	uint32_t trace_buffer_size;
+};
 
-	/**
-	 * @dmcu_fw_loaded:
-	 *
-	 * DMCU auto load state.
-	 */
-	uint8_t dmcu_fw_loaded;
-
-	/**
-	 * @psr_state:
-	 *
-	 * PSR state tracking.
-	 */
-	uint8_t psr_state;
+/* Ensure that the structure remains 64 bytes. */
+union dmub_fw_meta {
+	struct dmub_fw_meta_info info;
+	uint8_t reserved[64];
 };
 
 #pragma pack(pop)
 
-#endif /* _DMUB_FW_STATE_H_ */
+#endif /* _DMUB_META_H_ */
