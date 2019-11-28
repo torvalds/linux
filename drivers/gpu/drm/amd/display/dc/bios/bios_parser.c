@@ -2189,7 +2189,7 @@ static uint32_t get_support_mask_for_device_id(struct device_id device_id)
 		break;
 	default:
 		break;
-	};
+	}
 
 	/* Unidentified device ID, return empty support mask. */
 	return 0;
