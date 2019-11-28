@@ -2194,10 +2194,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * core function of the snapshot creation.
 	 */
 	ret = create_pending_snapshots(trans);
-	if (ret) {
-		mutex_unlock(&fs_info->reloc_mutex);
-		goto scrub_continue;
-	}
+	if (ret)
+		goto unlock_reloc;
 
 	/*
 	 * We insert the dir indexes of the snapshots and update the inode
@@ -2210,16 +2208,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * the nodes and leaves.
 	 */
 	ret = btrfs_run_delayed_items(trans);
-	if (ret) {
-		mutex_unlock(&fs_info->reloc_mutex);
-		goto scrub_continue;
-	}
+	if (ret)
+		goto unlock_reloc;
 
 	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
-	if (ret) {
-		mutex_unlock(&fs_info->reloc_mutex);
-		goto scrub_continue;
-	}
+	if (ret)
+		goto unlock_reloc;
 
 	/*
 	 * make sure none of the code above managed to slip in a
@@ -2245,11 +2239,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	mutex_lock(&fs_info->tree_log_mutex);
 
 	ret = commit_fs_roots(trans);
-	if (ret) {
-		mutex_unlock(&fs_info->tree_log_mutex);
-		mutex_unlock(&fs_info->reloc_mutex);
-		goto scrub_continue;
-	}
+	if (ret)
+		goto unlock_tree_log;
 
 	/*
 	 * Since the transaction is done, we can apply the pending changes
@@ -2267,29 +2258,20 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * new delayed refs. Must handle them or qgroup can be wrong.
 	 */
 	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
-	if (ret) {
-		mutex_unlock(&fs_info->tree_log_mutex);
-		mutex_unlock(&fs_info->reloc_mutex);
-		goto scrub_continue;
-	}
+	if (ret)
+		goto unlock_tree_log;
 
 	/*
 	 * Since fs roots are all committed, we can get a quite accurate
 	 * new_roots. So let's do quota accounting.
 	 */
 	ret = btrfs_qgroup_account_extents(trans);
-	if (ret < 0) {
-		mutex_unlock(&fs_info->tree_log_mutex);
-		mutex_unlock(&fs_info->reloc_mutex);
-		goto scrub_continue;
-	}
+	if (ret < 0)
+		goto unlock_tree_log;
 
 	ret = commit_cowonly_roots(trans);
-	if (ret) {
-		mutex_unlock(&fs_info->tree_log_mutex);
-		mutex_unlock(&fs_info->reloc_mutex);
-		goto scrub_continue;
-	}
+	if (ret)
+		goto unlock_tree_log;
 
 	/*
 	 * The tasks which save the space cache and inode cache may also
@@ -2297,9 +2279,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 */
 	if (TRANS_ABORTED(cur_trans)) {
 		ret = cur_trans->aborted;
-		mutex_unlock(&fs_info->tree_log_mutex);
-		mutex_unlock(&fs_info->reloc_mutex);
-		goto scrub_continue;
+		goto unlock_tree_log;
 	}
 
 	btrfs_prepare_extent_commit(fs_info);
@@ -2346,6 +2326,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	if (ret) {
 		btrfs_handle_fs_error(fs_info, ret,
 				      "Error while writing out transaction");
+		/*
+		 * reloc_mutex has been unlocked, tree_log_mutex is still held
+		 * but we can't jump to unlock_tree_log causing double unlock
+		 */
 		mutex_unlock(&fs_info->tree_log_mutex);
 		goto scrub_continue;
 	}
@@ -2394,6 +2378,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	return ret;
 
+unlock_tree_log:
+	mutex_unlock(&fs_info->tree_log_mutex);
+unlock_reloc:
+	mutex_unlock(&fs_info->reloc_mutex);
 scrub_continue:
 	btrfs_scrub_continue(fs_info);
 cleanup_transaction:
