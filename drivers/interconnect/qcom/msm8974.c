@@ -550,15 +550,6 @@ static struct msm8974_icc_desc msm8974_snoc = {
 	.num_nodes = ARRAY_SIZE(msm8974_snoc_nodes),
 };
 
-static int msm8974_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
-				 u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
-{
-	*agg_avg += avg_bw;
-	*agg_peak = max(*agg_peak, peak_bw);
-
-	return 0;
-}
-
 static void msm8974_icc_rpm_smd_send(struct device *dev, int rsc_type,
 				     char *name, int id, u64 val)
 {
@@ -603,8 +594,8 @@ static int msm8974_icc_set(struct icc_node *src, struct icc_node *dst)
 	qp = to_msm8974_icc_provider(provider);
 
 	list_for_each_entry(n, &provider->nodes, node_list)
-		msm8974_icc_aggregate(n, 0, n->avg_bw, n->peak_bw,
-				      &agg_avg, &agg_peak);
+		provider->aggregate(n, 0, n->avg_bw, n->peak_bw,
+				    &agg_avg, &agg_peak);
 
 	sum_bw = icc_units_to_bps(agg_avg);
 	max_peak_bw = icc_units_to_bps(agg_peak);
@@ -694,7 +685,7 @@ static int msm8974_icc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&provider->nodes);
 	provider->dev = dev;
 	provider->set = msm8974_icc_set;
-	provider->aggregate = msm8974_icc_aggregate;
+	provider->aggregate = icc_std_aggregate;
 	provider->xlate = of_icc_xlate_onecell;
 	provider->data = data;
 
