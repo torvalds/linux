@@ -450,30 +450,32 @@ static void vfio_bar_fixup(struct vfio_pci_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	int i;
-	__le32 *bar;
+	__le32 *vbar;
 	u64 mask;
 
-	bar = (__le32 *)&vdev->vconfig[PCI_BASE_ADDRESS_0];
+	vbar = (__le32 *)&vdev->vconfig[PCI_BASE_ADDRESS_0];
 
-	for (i = PCI_STD_RESOURCES; i <= PCI_STD_RESOURCE_END; i++, bar++) {
-		if (!pci_resource_start(pdev, i)) {
-			*bar = 0; /* Unmapped by host = unimplemented to user */
+	for (i = 0; i < PCI_STD_NUM_BARS; i++, vbar++) {
+		int bar = i + PCI_STD_RESOURCES;
+
+		if (!pci_resource_start(pdev, bar)) {
+			*vbar = 0; /* Unmapped by host = unimplemented to user */
 			continue;
 		}
 
-		mask = ~(pci_resource_len(pdev, i) - 1);
+		mask = ~(pci_resource_len(pdev, bar) - 1);
 
-		*bar &= cpu_to_le32((u32)mask);
-		*bar |= vfio_generate_bar_flags(pdev, i);
+		*vbar &= cpu_to_le32((u32)mask);
+		*vbar |= vfio_generate_bar_flags(pdev, bar);
 
-		if (*bar & cpu_to_le32(PCI_BASE_ADDRESS_MEM_TYPE_64)) {
-			bar++;
-			*bar &= cpu_to_le32((u32)(mask >> 32));
+		if (*vbar & cpu_to_le32(PCI_BASE_ADDRESS_MEM_TYPE_64)) {
+			vbar++;
+			*vbar &= cpu_to_le32((u32)(mask >> 32));
 			i++;
 		}
 	}
 
-	bar = (__le32 *)&vdev->vconfig[PCI_ROM_ADDRESS];
+	vbar = (__le32 *)&vdev->vconfig[PCI_ROM_ADDRESS];
 
 	/*
 	 * NB. REGION_INFO will have reported zero size if we weren't able
@@ -483,14 +485,14 @@ static void vfio_bar_fixup(struct vfio_pci_device *vdev)
 	if (pci_resource_start(pdev, PCI_ROM_RESOURCE)) {
 		mask = ~(pci_resource_len(pdev, PCI_ROM_RESOURCE) - 1);
 		mask |= PCI_ROM_ADDRESS_ENABLE;
-		*bar &= cpu_to_le32((u32)mask);
+		*vbar &= cpu_to_le32((u32)mask);
 	} else if (pdev->resource[PCI_ROM_RESOURCE].flags &
 					IORESOURCE_ROM_SHADOW) {
 		mask = ~(0x20000 - 1);
 		mask |= PCI_ROM_ADDRESS_ENABLE;
-		*bar &= cpu_to_le32((u32)mask);
+		*vbar &= cpu_to_le32((u32)mask);
 	} else
-		*bar = 0;
+		*vbar = 0;
 
 	vdev->bardirty = false;
 }

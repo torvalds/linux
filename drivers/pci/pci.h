@@ -220,7 +220,8 @@ extern const struct device_type pci_dev_type;
 extern const struct attribute_group *pci_bus_groups[];
 
 extern unsigned long pci_hotplug_io_size;
-extern unsigned long pci_hotplug_mem_size;
+extern unsigned long pci_hotplug_mmio_size;
+extern unsigned long pci_hotplug_mmio_pref_size;
 extern unsigned long pci_hotplug_bus_size;
 
 /**
