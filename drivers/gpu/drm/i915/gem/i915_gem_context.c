@@ -275,8 +275,6 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	free_engines(rcu_access_pointer(ctx->engines));
 	mutex_destroy(&ctx->engines_mutex);
 
-	kfree(ctx->jump_whitelist);
-
 	if (ctx->timeline)
 		intel_timeline_put(ctx->timeline);
 
@@ -583,9 +581,6 @@ __create_context(struct drm_i915_private *i915)
 
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
-
-	ctx->jump_whitelist = NULL;
-	ctx->jump_whitelist_cmds = 0;
 
 	spin_lock(&i915->gem.contexts.lock);
 	list_add_tail(&ctx->link, &i915->gem.contexts.list);

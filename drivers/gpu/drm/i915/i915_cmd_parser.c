@@ -1310,13 +1310,14 @@ static int check_bbstart(const struct i915_gem_context *ctx,
 			 u32 *cmd, u32 offset, u32 length,
 			 u32 batch_len,
 			 u64 batch_start,
-			 u64 shadow_batch_start)
+			 u64 shadow_batch_start,
+			 const unsigned long *jump_whitelist)
 {
 	u64 jump_offset, jump_target;
 	u32 target_cmd_offset, target_cmd_index;
 
 	/* For igt compatibility on older platforms */
-	if (CMDPARSER_USES_GGTT(ctx->i915)) {
+	if (!jump_whitelist) {
 		DRM_DEBUG("CMD: Rejecting BB_START for ggtt based submission\n");
 		return -EACCES;
 	}
@@ -1352,10 +1353,10 @@ static int check_bbstart(const struct i915_gem_context *ctx,
 	if (target_cmd_index == offset)
 		return 0;
 
-	if (ctx->jump_whitelist_cmds <= target_cmd_index) {
-		DRM_DEBUG("CMD: Rejecting BB_START - truncated whitelist array\n");
-		return -EINVAL;
-	} else if (!test_bit(target_cmd_index, ctx->jump_whitelist)) {
+	if (IS_ERR(jump_whitelist))
+		return PTR_ERR(jump_whitelist);
+
+	if (!test_bit(target_cmd_index, jump_whitelist)) {
 		DRM_DEBUG("CMD: BB_START to 0x%llx not a previously executed cmd\n",
 			  jump_target);
 		return -EINVAL;
@@ -1364,40 +1365,27 @@ static int check_bbstart(const struct i915_gem_context *ctx,
 	return 0;
 }
 
-static void init_whitelist(struct i915_gem_context *ctx, u32 batch_len)
+static unsigned long *
+alloc_whitelist(struct drm_i915_private *i915, u32 batch_len)
 {
-	const u32 batch_cmds = DIV_ROUND_UP(batch_len, sizeof(u32));
-	const u32 exact_size = BITS_TO_LONGS(batch_cmds);
-	u32 next_size = BITS_TO_LONGS(roundup_pow_of_two(batch_cmds));
-	unsigned long *next_whitelist;
+	unsigned long *jmp;
 
-	if (CMDPARSER_USES_GGTT(ctx->i915))
-		return;
+	/*
+	 * We expect batch_len to be less than 256KiB for known users,
+	 * i.e. we need at most an 8KiB bitmap allocation which should be
+	 * reasonably cheap due to kmalloc caches.
+	 */
 
-	if (batch_cmds <= ctx->jump_whitelist_cmds) {
-		bitmap_zero(ctx->jump_whitelist, batch_cmds);
-		return;
-	}
+	if (CMDPARSER_USES_GGTT(i915))
+		return NULL;
 
-again:
-	next_whitelist = kcalloc(next_size, sizeof(long), GFP_KERNEL);
-	if (next_whitelist) {
-		kfree(ctx->jump_whitelist);
-		ctx->jump_whitelist = next_whitelist;
-		ctx->jump_whitelist_cmds =
-			next_size * BITS_PER_BYTE * sizeof(long);
-		return;
-	}
+	/* Prefer to report transient allocation failure rather than hit oom */
+	jmp = bitmap_zalloc(DIV_ROUND_UP(batch_len, sizeof(u32)),
+			    GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	if (!jmp)
+		return ERR_PTR(-ENOMEM);
 
-	if (next_size > exact_size) {
-		next_size = exact_size;
-		goto again;
-	}
-
-	DRM_DEBUG("CMD: Failed to extend whitelist. BB_START may be disallowed\n");
-	bitmap_zero(ctx->jump_whitelist, ctx->jump_whitelist_cmds);
-
-	return;
+	return jmp;
 }
 
 #define LENGTH_BIAS 2
@@ -1433,6 +1421,7 @@ int intel_engine_cmd_parser(struct i915_gem_context *ctx,
 	struct drm_i915_cmd_descriptor default_desc = noop_desc;
 	const struct drm_i915_cmd_descriptor *desc = &default_desc;
 	bool needs_clflush_after = false;
+	unsigned long *jump_whitelist;
 	int ret = 0;
 
 	cmd = copy_batch(shadow_batch_obj, batch_obj,
@@ -1443,7 +1432,8 @@ int intel_engine_cmd_parser(struct i915_gem_context *ctx,
 		return PTR_ERR(cmd);
 	}
 
-	init_whitelist(ctx, batch_len);
+	/* Defer failure until attempted use */
+	jump_whitelist = alloc_whitelist(ctx->i915, batch_len);
 
 	/*
 	 * We use the batch length as size because the shadow object is as
@@ -1487,15 +1477,16 @@ int intel_engine_cmd_parser(struct i915_gem_context *ctx,
 		if (desc->cmd.value == MI_BATCH_BUFFER_START) {
 			ret = check_bbstart(ctx, cmd, offset, length,
 					    batch_len, batch_start,
-					    shadow_batch_start);
+					    shadow_batch_start,
+					    jump_whitelist);
 
 			if (ret)
 				goto err;
 			break;
 		}
 
-		if (ctx->jump_whitelist_cmds > offset)
-			set_bit(offset, ctx->jump_whitelist);
+		if (!IS_ERR_OR_NULL(jump_whitelist))
+			__set_bit(offset, jump_whitelist);
 
 		cmd += length;
 		offset += length;
@@ -1513,6 +1504,8 @@ int intel_engine_cmd_parser(struct i915_gem_context *ctx,
 	}
 
 err:
+	if (!IS_ERR_OR_NULL(jump_whitelist))
+		kfree(jump_whitelist);
 	i915_gem_object_unpin_map(shadow_batch_obj);
 	return ret;
 }
