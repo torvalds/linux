@@ -608,7 +608,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	int crtc_hdisplay = crtc_state->hw.adjusted_mode.crtc_hdisplay;
 	int crtc_vdisplay = crtc_state->hw.adjusted_mode.crtc_vdisplay;
-	int psr_max_h = 0, psr_max_v = 0;
+	int psr_max_h = 0, psr_max_v = 0, max_bpp = 0;
 
 	if (!dev_priv->psr.sink_psr2_support)
 		return false;
@@ -632,18 +632,27 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (INTEL_GEN(dev_priv) >= 12) {
 		psr_max_h = 5120;
 		psr_max_v = 3200;
+		max_bpp = 30;
 	} else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
 		psr_max_h = 4096;
 		psr_max_v = 2304;
+		max_bpp = 24;
 	} else if (IS_GEN(dev_priv, 9)) {
 		psr_max_h = 3640;
 		psr_max_v = 2304;
+		max_bpp = 24;
 	}
 
 	if (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v) {
 		DRM_DEBUG_KMS("PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
 			      crtc_hdisplay, crtc_vdisplay,
 			      psr_max_h, psr_max_v);
+		return false;
+	}
+
+	if (crtc_state->pipe_bpp > max_bpp) {
+		DRM_DEBUG_KMS("PSR2 not enabled, pipe bpp %d > max supported %d\n",
+			      crtc_state->pipe_bpp, max_bpp);
 		return false;
 	}
 
