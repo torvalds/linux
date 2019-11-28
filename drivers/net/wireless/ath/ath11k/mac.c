@@ -3089,7 +3089,7 @@ ath11k_create_ht_cap(struct ath11k *ar, u32 ar_ht_cap, u32 rate_cap_rx_chainmask
 
 	ht_cap.ht_supported = 1;
 	ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
+	ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
 	ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	ht_cap.cap |= IEEE80211_HT_CAP_DSSSCCK40;
 	ht_cap.cap |= WLAN_HT_CAP_SM_PS_STATIC << IEEE80211_HT_CAP_SM_PS_SHIFT;
