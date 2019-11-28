@@ -5513,7 +5513,38 @@ static const struct wiphy_iftype_ext_capab ath11k_iftypes_ext_capa[] = {
 	},
 };
 
-static int ath11k_mac_register(struct ath11k *ar)
+static void __ath11k_mac_unregister(struct ath11k *ar)
+{
+	cancel_work_sync(&ar->regd_update_work);
+
+	ieee80211_unregister_hw(ar->hw);
+
+	idr_for_each(&ar->txmgmt_idr, ath11k_mac_tx_mgmt_pending_free, ar);
+	idr_destroy(&ar->txmgmt_idr);
+
+	kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
+	kfree(ar->mac.sbands[NL80211_BAND_5GHZ].channels);
+
+	SET_IEEE80211_DEV(ar->hw, NULL);
+}
+
+void ath11k_mac_unregister(struct ath11k_base *ab)
+{
+	struct ath11k *ar;
+	struct ath11k_pdev *pdev;
+	int i;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		pdev = &ab->pdevs[i];
+		ar = pdev->ar;
+		if (!ar)
+			continue;
+
+		__ath11k_mac_unregister(ar);
+	}
+}
+
+static int __ath11k_mac_register(struct ath11k *ar)
 {
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_pdev_cap *cap = &ar->pdev->cap;
@@ -5657,32 +5688,48 @@ err_free:
 	return ret;
 }
 
-void ath11k_mac_unregister(struct ath11k_base *ab)
+int ath11k_mac_register(struct ath11k_base *ab)
 {
 	struct ath11k *ar;
 	struct ath11k_pdev *pdev;
 	int i;
+	int ret;
 
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
-		if (!ar)
-			continue;
-		cancel_work_sync(&ar->regd_update_work);
+		if (ab->pdevs_macaddr_valid) {
+			ether_addr_copy(ar->mac_addr, pdev->mac_addr);
+		} else {
+			ether_addr_copy(ar->mac_addr, ab->mac_addr);
+			ar->mac_addr[4] += i;
+		}
 
-		ieee80211_unregister_hw(ar->hw);
+		ret = __ath11k_mac_register(ar);
+		if (ret)
+			goto err_cleanup;
 
-		idr_for_each(&ar->txmgmt_idr, ath11k_mac_tx_mgmt_pending_free, ar);
-		idr_destroy(&ar->txmgmt_idr);
-
-		kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
-		kfree(ar->mac.sbands[NL80211_BAND_5GHZ].channels);
-
-		SET_IEEE80211_DEV(ar->hw, NULL);
+		idr_init(&ar->txmgmt_idr);
+		spin_lock_init(&ar->txmgmt_idr_lock);
 	}
+
+	/* Initialize channel counters frequency value in hertz */
+	ab->cc_freq_hz = IPQ8074_CC_FREQ_HERTZ;
+	ab->free_vdev_map = (1LL << (ab->num_radios * TARGET_NUM_VDEVS)) - 1;
+
+	return 0;
+
+err_cleanup:
+	for (i = i - 1; i >= 0; i--) {
+		pdev = &ab->pdevs[i];
+		ar = pdev->ar;
+		__ath11k_mac_unregister(ar);
+	}
+
+	return ret;
 }
 
-int ath11k_mac_create(struct ath11k_base *ab)
+int ath11k_mac_allocate(struct ath11k_base *ab)
 {
 	struct ieee80211_hw *hw;
 	struct ath11k *ar;
@@ -5699,7 +5746,7 @@ int ath11k_mac_create(struct ath11k_base *ab)
 		if (!hw) {
 			ath11k_warn(ab, "failed to allocate mac80211 hw device\n");
 			ret = -ENOMEM;
-			goto err_destroy_mac;
+			goto err_free_mac;
 		}
 
 		ar = hw->priv;
@@ -5720,13 +5767,6 @@ int ath11k_mac_create(struct ath11k_base *ab)
 		ar->num_tx_chains = get_num_chains(pdev->cap.tx_chain_mask);
 		ar->num_rx_chains = get_num_chains(pdev->cap.rx_chain_mask);
 
-		if (ab->pdevs_macaddr_valid) {
-			ether_addr_copy(ar->mac_addr, pdev->mac_addr);
-		} else {
-			ether_addr_copy(ar->mac_addr, ab->mac_addr);
-			ar->mac_addr[4] += i;
-		}
-
 		pdev->ar = ar;
 		spin_lock_init(&ar->data_lock);
 		INIT_LIST_HEAD(&ar->arvifs);
@@ -5744,26 +5784,11 @@ int ath11k_mac_create(struct ath11k_base *ab)
 		INIT_WORK(&ar->wmi_mgmt_tx_work, ath11k_mgmt_over_wmi_tx_work);
 		skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
 		clear_bit(ATH11K_FLAG_MONITOR_ENABLED, &ar->monitor_flags);
-
-		ret = ath11k_mac_register(ar);
-		if (ret) {
-			ath11k_warn(ab, "failed to register hw device\n");
-			pdev->ar = NULL;
-			ieee80211_free_hw(hw);
-			goto err_destroy_mac;
-		}
-
-		idr_init(&ar->txmgmt_idr);
-		spin_lock_init(&ar->txmgmt_idr_lock);
 	}
-
-	/* Initialize channel counters frequency value in hertz */
-	ab->cc_freq_hz = IPQ8074_CC_FREQ_HERTZ;
-	ab->free_vdev_map = (1LL << (ab->num_radios * TARGET_NUM_VDEVS)) - 1;
 
 	return 0;
 
-err_destroy_mac:
+err_free_mac:
 	ath11k_mac_destroy(ab);
 
 	return ret;
