@@ -940,11 +940,51 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 
 }
 
+/*
+ * When handling 270 rotation in mixed SLS mode, we have
+ * stream->timing.h_border_left that is non zero.  If we are doing
+ * pipe-splitting, this h_border_left value gets added to recout.x and when it
+ * calls calculate_inits_and_adj_vp() and
+ * adjust_vp_and_init_for_seamless_clip(), it can cause viewport.height for a
+ * pipe to be incorrect.
+ *
+ * To fix this, instead of using stream->timing.h_border_left, we can use
+ * stream->dst.x to represent the border instead.  So we will set h_border_left
+ * to 0 and shift the appropriate amount in stream->dst.x.  We will then
+ * perform all calculations in resource_build_scaling_params() based on this
+ * and then restore the h_border_left and stream->dst.x to their original
+ * values.
+ *
+ * shift_border_left_to_dst() will shift the amount of h_border_left to
+ * stream->dst.x and set h_border_left to 0.  restore_border_left_from_dst()
+ * will restore h_border_left and stream->dst.x back to their original values
+ * We also need to make sure pipe_ctx->plane_res.scl_data.h_active uses the
+ * original h_border_left value in its calculation.
+ */
+int shift_border_left_to_dst(struct pipe_ctx *pipe_ctx)
+{
+	int store_h_border_left = pipe_ctx->stream->timing.h_border_left;
+
+	if (store_h_border_left) {
+		pipe_ctx->stream->timing.h_border_left = 0;
+		pipe_ctx->stream->dst.x += store_h_border_left;
+	}
+	return store_h_border_left;
+}
+
+void restore_border_left_from_dst(struct pipe_ctx *pipe_ctx,
+                                  int store_h_border_left)
+{
+	pipe_ctx->stream->dst.x -= store_h_border_left;
+	pipe_ctx->stream->timing.h_border_left = store_h_border_left;
+}
+
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	bool res = false;
+	int store_h_border_left = shift_border_left_to_dst(pipe_ctx);
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 	/* Important: scaling ratio calculation requires pixel format,
 	 * lb depth calculation requires recout and taps require scaling ratios.
@@ -957,8 +997,14 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 	calculate_viewport(pipe_ctx);
 
-	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 || pipe_ctx->plane_res.scl_data.viewport.width < 16)
+	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 ||
+		pipe_ctx->plane_res.scl_data.viewport.width < 16) {
+		if (store_h_border_left) {
+			restore_border_left_from_dst(pipe_ctx,
+				store_h_border_left);
+		}
 		return false;
+	}
 
 	calculate_recout(pipe_ctx);
 
@@ -971,8 +1017,10 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.recout.x += timing->h_border_left;
 	pipe_ctx->plane_res.scl_data.recout.y += timing->v_border_top;
 
-	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
-	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
+	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable +
+		store_h_border_left + timing->h_border_right;
+	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable +
+		timing->v_border_top + timing->v_border_bottom;
 
 	/* Taps calculations */
 	if (pipe_ctx->plane_res.xfm != NULL)
@@ -1018,6 +1066,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 				plane_state->dst_rect.width,
 				plane_state->dst_rect.x,
 				plane_state->dst_rect.y);
+
+	if (store_h_border_left)
+		restore_border_left_from_dst(pipe_ctx, store_h_border_left);
 
 	return res;
 }
