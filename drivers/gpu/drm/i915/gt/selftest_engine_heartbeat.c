@@ -91,6 +91,11 @@ static int __live_idle_pulse(struct intel_engine_cs *engine,
 	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
 
 	if (intel_gt_retire_requests_timeout(engine->gt, HZ / 5)) {
+		struct drm_printer m = drm_err_printer("pulse");
+
+		pr_err("%s: no heartbeat pulse?\n", engine->name);
+		intel_engine_dump(engine, &m, "%s", engine->name);
+
 		err = -ETIME;
 		goto out;
 	}
