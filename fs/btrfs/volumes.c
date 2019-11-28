@@ -6194,8 +6194,8 @@ static void submit_stripe_bio(struct btrfs_bio *bbio, struct bio *bio,
 	btrfs_debug_in_rcu(fs_info,
 	"btrfs_map_bio: rw %d 0x%x, sector=%llu, dev=%lu (%s id %llu), size=%u",
 		bio_op(bio), bio->bi_opf, (u64)bio->bi_iter.bi_sector,
-		(u_long)dev->bdev->bd_dev, rcu_str_deref(dev->name), dev->devid,
-		bio->bi_iter.bi_size);
+		(unsigned long)dev->bdev->bd_dev, rcu_str_deref(dev->name),
+		dev->devid, bio->bi_iter.bi_size);
 	bio_set_dev(bio, dev->bdev);
 
 	btrfs_bio_counter_inc_noblocked(fs_info);
