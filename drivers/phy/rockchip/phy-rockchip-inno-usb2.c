@@ -1121,11 +1121,12 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 
 	if (rphy->edev_self &&
 	    (extcon_get_state(rphy->edev, EXTCON_USB) !=
-	     rport->perip_connected))
+	     rport->perip_connected)) {
 		extcon_set_state_sync(rphy->edev,
 					EXTCON_USB,
 					rport->perip_connected);
-
+		extcon_sync(rphy->edev, EXTCON_USB_HOST);
+	}
 	if (sch_work)
 		schedule_delayed_work(&rport->otg_sm_work, delay);
 
