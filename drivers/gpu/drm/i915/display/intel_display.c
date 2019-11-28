@@ -17272,7 +17272,8 @@ static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc
 		val |= TRANS_FRAME_START_DELAY(0);
 		I915_WRITE(reg, val);
 	} else {
-		i915_reg_t reg = TRANS_CHICKEN2(crtc->pipe);
+		enum pipe pch_transcoder = intel_crtc_pch_transcoder(crtc);
+		i915_reg_t reg = TRANS_CHICKEN2(pch_transcoder);
 		u32 val;
 
 		val = I915_READ(reg);
