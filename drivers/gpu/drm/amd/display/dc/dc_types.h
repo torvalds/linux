@@ -25,7 +25,6 @@
 #ifndef DC_TYPES_H_
 #define DC_TYPES_H_
 
-#ifndef AMD_EDID_UTILITY
 /* AND EdidUtility only needs a portion
  * of this file, including the rest only
  * causes additional issues.
@@ -780,9 +779,6 @@ struct dc_clock_config {
 	uint32_t bw_requirequired_clock_khz;
 	uint32_t current_clock_khz;/*current clock in use*/
 };
-
-#endif /*AMD_EDID_UTILITY*/
-//AMD EDID UTILITY does not need any of the above structures
 
 /* DSC DPCD capabilities */
 union dsc_slice_caps1 {

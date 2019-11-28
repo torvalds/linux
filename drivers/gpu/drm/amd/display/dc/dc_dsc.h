@@ -41,10 +41,8 @@ struct dc_dsc_bw_range {
 
 struct display_stream_compressor {
 	const struct dsc_funcs *funcs;
-#ifndef AMD_EDID_UTILITY
 	struct dc_context *ctx;
 	int inst;
-#endif
 };
 
 bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data,

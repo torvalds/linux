@@ -26,8 +26,6 @@
 #ifndef DC_HW_TYPES_H
 #define DC_HW_TYPES_H
 
-#ifndef AMD_EDID_UTILITY
-
 #include "os_types.h"
 #include "fixed31_32.h"
 #include "signal_types.h"
@@ -584,8 +582,6 @@ struct scaling_taps {
 	bool integer_scaling;
 };
 
-#endif /* AMD_EDID_UTILITY */
-
 enum dc_timing_standard {
 	DC_TIMING_STANDARD_UNDEFINED,
 	DC_TIMING_STANDARD_DMT,
@@ -742,8 +738,6 @@ struct dc_crtc_timing {
 	struct dc_dsc_config dsc_cfg;
 };
 
-#ifndef AMD_EDID_UTILITY
-
 enum trigger_delay {
 	TRIGGER_DELAY_NEXT_PIXEL = 0,
 	TRIGGER_DELAY_NEXT_LINE,
@@ -836,8 +830,6 @@ struct tg_color {
 	uint16_t color_g_y;
 	uint16_t color_b_cb;
 };
-
-#endif /* AMD_EDID_UTILITY */
 
 #endif /* DC_HW_TYPES_H */
 
