@@ -189,6 +189,12 @@ struct hal_rx_vht_sig_a_info {
 	__le32 info1;
 } __packed;
 
+enum hal_rx_vht_sig_a_gi_setting {
+	HAL_RX_VHT_SIG_A_NORMAL_GI = 0,
+	HAL_RX_VHT_SIG_A_SHORT_GI = 1,
+	HAL_RX_VHT_SIG_A_SHORT_GI_AMBIGUITY = 3,
+};
+
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO0_TRANSMIT_MCS	GENMASK(6, 3)
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO0_DCM		BIT(7)
 #define HAL_RX_HE_SIG_A_SU_INFO_INFO0_TRANSMIT_BW	GENMASK(20, 19)

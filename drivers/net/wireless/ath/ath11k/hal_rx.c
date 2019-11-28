@@ -920,6 +920,7 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 			(struct hal_rx_vht_sig_a_info *)tlv_data;
 		u32 nsts;
 		u32 group_id;
+		u8 gi_setting;
 
 		info0 = __le32_to_cpu(vht_sig->info0);
 		info1 = __le32_to_cpu(vht_sig->info1);
@@ -928,9 +929,18 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 					    info0);
 		ppdu_info->mcs = FIELD_GET(HAL_RX_VHT_SIG_A_INFO_INFO1_MCS,
 					   info1);
-		ppdu_info->gi =
-			FIELD_GET(HAL_RX_VHT_SIG_A_INFO_INFO1_GI_SETTING,
-				  info1);
+		gi_setting = FIELD_GET(HAL_RX_VHT_SIG_A_INFO_INFO1_GI_SETTING,
+				       info1);
+		switch (gi_setting) {
+		case HAL_RX_VHT_SIG_A_NORMAL_GI:
+			ppdu_info->gi = HAL_RX_GI_0_8_US;
+			break;
+		case HAL_RX_VHT_SIG_A_SHORT_GI:
+		case HAL_RX_VHT_SIG_A_SHORT_GI_AMBIGUITY:
+			ppdu_info->gi = HAL_RX_GI_0_4_US;
+			break;
+		}
+
 		ppdu_info->is_stbc = info0 & HAL_RX_VHT_SIG_A_INFO_INFO0_STBC;
 		nsts = FIELD_GET(HAL_RX_VHT_SIG_A_INFO_INFO0_NSTS, info0);
 		if (ppdu_info->is_stbc && nsts > 0)
