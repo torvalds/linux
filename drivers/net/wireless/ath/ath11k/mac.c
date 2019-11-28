@@ -3883,15 +3883,15 @@ ath11k_mac_prepare_he_mode(struct ath11k_pdev *pdev, u32 viftype)
 	hecap_phy_ptr = &cap_band->he_cap_phy_info[0];
 
 	hemode = FIELD_PREP(HE_MODE_SU_TX_BFEE, HE_SU_BFEE_ENABLE) |
-		FIELD_PREP(HE_MODE_SU_TX_BFER, HECAP_PHY_SUBFMR_GET(hecap_phy_ptr)) |
-		FIELD_PREP(HE_MODE_UL_MUMIMO, HECAP_PHY_ULMUMIMO_GET(hecap_phy_ptr));
+		 FIELD_PREP(HE_MODE_SU_TX_BFER, HECAP_PHY_SUBFMR_GET(hecap_phy_ptr)) |
+		 FIELD_PREP(HE_MODE_UL_MUMIMO, HECAP_PHY_ULMUMIMO_GET(hecap_phy_ptr));
 
 	/* TODO WDS and other modes */
 	if (viftype == NL80211_IFTYPE_AP) {
 		hemode |= FIELD_PREP(HE_MODE_MU_TX_BFER,
-			   HECAP_PHY_MUBFMR_GET(hecap_phy_ptr)) |
-			FIELD_PREP(HE_MODE_DL_OFDMA, HE_DL_MUOFDMA_ENABLE) |
-			FIELD_PREP(HE_MODE_UL_OFDMA, HE_UL_MUOFDMA_ENABLE);
+			  HECAP_PHY_MUBFMR_GET(hecap_phy_ptr)) |
+			  FIELD_PREP(HE_MODE_DL_OFDMA, HE_DL_MUOFDMA_ENABLE) |
+			  FIELD_PREP(HE_MODE_UL_OFDMA, HE_UL_MUOFDMA_ENABLE);
 	} else {
 		hemode |= FIELD_PREP(HE_MODE_MU_TX_BFEE, HE_MU_BFEE_ENABLE);
 	}
