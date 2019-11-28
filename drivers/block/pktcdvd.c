@@ -2671,15 +2671,13 @@ static int pkt_compat_ioctl(struct block_device *bdev, fmode_t mode, unsigned in
 	case CDROMEJECT:
 	case CDROMMULTISESSION:
 	case CDROMREADTOCENTRY:
+	case CDROM_SEND_PACKET: /* compat mode handled in scsi_cmd_ioctl */
 	case SCSI_IOCTL_SEND_COMMAND:
 		return pkt_ioctl(bdev, mode, cmd, (unsigned long)compat_ptr(arg));
 
-
 	/* FIXME: no handler so far */
-	case CDROM_LAST_WRITTEN:
-	/* handled in compat_blkdev_driver_ioctl */
-	case CDROM_SEND_PACKET:
 	default:
+	case CDROM_LAST_WRITTEN:
 		return -ENOIOCTLCMD;
 	}
 }

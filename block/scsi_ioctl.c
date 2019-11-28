@@ -639,6 +639,136 @@ int get_sg_io_hdr(struct sg_io_hdr *hdr, const void __user *argp)
 }
 EXPORT_SYMBOL(get_sg_io_hdr);
 
+#ifdef CONFIG_COMPAT
+struct compat_cdrom_generic_command {
+	unsigned char	cmd[CDROM_PACKET_SIZE];
+	compat_caddr_t	buffer;
+	compat_uint_t	buflen;
+	compat_int_t	stat;
+	compat_caddr_t	sense;
+	unsigned char	data_direction;
+	compat_int_t	quiet;
+	compat_int_t	timeout;
+	compat_caddr_t	reserved[1];
+};
+#endif
+
+static int scsi_get_cdrom_generic_arg(struct cdrom_generic_command *cgc,
+				      const void __user *arg)
+{
+#ifdef CONFIG_COMPAT
+	if (in_compat_syscall()) {
+		struct compat_cdrom_generic_command cgc32;
+
+		if (copy_from_user(&cgc32, arg, sizeof(cgc32)))
+			return -EFAULT;
+
+		*cgc = (struct cdrom_generic_command) {
+			.buffer		= compat_ptr(cgc32.buffer),
+			.buflen		= cgc32.buflen,
+			.stat		= cgc32.stat,
+			.sense		= compat_ptr(cgc32.sense),
+			.data_direction	= cgc32.data_direction,
+			.quiet		= cgc32.quiet,
+			.timeout	= cgc32.timeout,
+			.reserved[0]	= compat_ptr(cgc32.reserved[0]),
+		};
+		memcpy(&cgc->cmd, &cgc32.cmd, CDROM_PACKET_SIZE);
+		return 0;
+	}
+#endif
+	if (copy_from_user(cgc, arg, sizeof(*cgc)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int scsi_put_cdrom_generic_arg(const struct cdrom_generic_command *cgc,
+				      void __user *arg)
+{
+#ifdef CONFIG_COMPAT
+	if (in_compat_syscall()) {
+		struct compat_cdrom_generic_command cgc32 = {
+			.buffer		= (uintptr_t)(cgc->buffer),
+			.buflen		= cgc->buflen,
+			.stat		= cgc->stat,
+			.sense		= (uintptr_t)(cgc->sense),
+			.data_direction	= cgc->data_direction,
+			.quiet		= cgc->quiet,
+			.timeout	= cgc->timeout,
+			.reserved[0]	= (uintptr_t)(cgc->reserved[0]),
+		};
+		memcpy(&cgc32.cmd, &cgc->cmd, CDROM_PACKET_SIZE);
+
+		if (copy_to_user(arg, &cgc32, sizeof(cgc32)))
+			return -EFAULT;
+
+		return 0;
+	}
+#endif
+	if (copy_to_user(arg, cgc, sizeof(*cgc)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int scsi_cdrom_send_packet(struct request_queue *q,
+				  struct gendisk *bd_disk,
+				  fmode_t mode, void __user *arg)
+{
+	struct cdrom_generic_command cgc;
+	struct sg_io_hdr hdr;
+	int err;
+
+	err = scsi_get_cdrom_generic_arg(&cgc, arg);
+	if (err)
+		return err;
+
+	cgc.timeout = clock_t_to_jiffies(cgc.timeout);
+	memset(&hdr, 0, sizeof(hdr));
+	hdr.interface_id = 'S';
+	hdr.cmd_len = sizeof(cgc.cmd);
+	hdr.dxfer_len = cgc.buflen;
+	switch (cgc.data_direction) {
+		case CGC_DATA_UNKNOWN:
+			hdr.dxfer_direction = SG_DXFER_UNKNOWN;
+			break;
+		case CGC_DATA_WRITE:
+			hdr.dxfer_direction = SG_DXFER_TO_DEV;
+			break;
+		case CGC_DATA_READ:
+			hdr.dxfer_direction = SG_DXFER_FROM_DEV;
+			break;
+		case CGC_DATA_NONE:
+			hdr.dxfer_direction = SG_DXFER_NONE;
+			break;
+		default:
+			return -EINVAL;
+	}
+
+	hdr.dxferp = cgc.buffer;
+	hdr.sbp = cgc.sense;
+	if (hdr.sbp)
+		hdr.mx_sb_len = sizeof(struct request_sense);
+	hdr.timeout = jiffies_to_msecs(cgc.timeout);
+	hdr.cmdp = ((struct cdrom_generic_command __user*) arg)->cmd;
+	hdr.cmd_len = sizeof(cgc.cmd);
+
+	err = sg_io(q, bd_disk, &hdr, mode);
+	if (err == -EFAULT)
+		return -EFAULT;
+
+	if (hdr.status)
+		return -EIO;
+
+	cgc.stat = err;
+	cgc.buflen = hdr.resid;
+	if (scsi_put_cdrom_generic_arg(&cgc, arg))
+		return -EFAULT;
+
+	return err;
+}
+
 int scsi_cmd_ioctl(struct request_queue *q, struct gendisk *bd_disk, fmode_t mode,
 		   unsigned int cmd, void __user *arg)
 {
@@ -689,60 +819,9 @@ int scsi_cmd_ioctl(struct request_queue *q, struct gendisk *bd_disk, fmode_t mod
 				err = -EFAULT;
 			break;
 		}
-		case CDROM_SEND_PACKET: {
-			struct cdrom_generic_command cgc;
-			struct sg_io_hdr hdr;
-
-			err = -EFAULT;
-			if (copy_from_user(&cgc, arg, sizeof(cgc)))
-				break;
-			cgc.timeout = clock_t_to_jiffies(cgc.timeout);
-			memset(&hdr, 0, sizeof(hdr));
-			hdr.interface_id = 'S';
-			hdr.cmd_len = sizeof(cgc.cmd);
-			hdr.dxfer_len = cgc.buflen;
-			err = 0;
-			switch (cgc.data_direction) {
-				case CGC_DATA_UNKNOWN:
-					hdr.dxfer_direction = SG_DXFER_UNKNOWN;
-					break;
-				case CGC_DATA_WRITE:
-					hdr.dxfer_direction = SG_DXFER_TO_DEV;
-					break;
-				case CGC_DATA_READ:
-					hdr.dxfer_direction = SG_DXFER_FROM_DEV;
-					break;
-				case CGC_DATA_NONE:
-					hdr.dxfer_direction = SG_DXFER_NONE;
-					break;
-				default:
-					err = -EINVAL;
-			}
-			if (err)
-				break;
-
-			hdr.dxferp = cgc.buffer;
-			hdr.sbp = cgc.sense;
-			if (hdr.sbp)
-				hdr.mx_sb_len = sizeof(struct request_sense);
-			hdr.timeout = jiffies_to_msecs(cgc.timeout);
-			hdr.cmdp = ((struct cdrom_generic_command __user*) arg)->cmd;
-			hdr.cmd_len = sizeof(cgc.cmd);
-
-			err = sg_io(q, bd_disk, &hdr, mode);
-			if (err == -EFAULT)
-				break;
-
-			if (hdr.status)
-				err = -EIO;
-
-			cgc.stat = err;
-			cgc.buflen = hdr.resid;
-			if (copy_to_user(arg, &cgc, sizeof(cgc)))
-				err = -EFAULT;
-
+		case CDROM_SEND_PACKET:
+			err = scsi_cdrom_send_packet(q, bd_disk, mode, arg);
 			break;
-		}
 
 		/*
 		 * old junk scsi send command ioctl
