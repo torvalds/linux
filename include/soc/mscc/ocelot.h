@@ -406,13 +406,6 @@ struct ocelot_ops {
 	int (*reset)(struct ocelot *ocelot);
 };
 
-struct ocelot_skb {
-	struct list_head head;
-	struct sk_buff *skb;
-	u8 id;
-};
-
-
 struct ocelot_port {
 	struct ocelot			*ocelot;
 
@@ -425,7 +418,7 @@ struct ocelot_port {
 	u16				vid;
 
 	u8				ptp_cmd;
-	struct list_head		skbs;
+	struct sk_buff_head		tx_skbs;
 	u8				ts_id;
 };
 
