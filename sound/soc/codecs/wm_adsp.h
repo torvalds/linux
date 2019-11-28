@@ -201,5 +201,9 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp);
 int wm_adsp_compr_copy(struct snd_compr_stream *stream,
 		       char __user *buf, size_t count);
+int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name,  int type,
+		      unsigned int alg, void *buf, size_t len);
+int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name,  int type,
+		      unsigned int alg, void *buf, size_t len);
 
 #endif

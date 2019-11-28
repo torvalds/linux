@@ -11,7 +11,38 @@
 /* Mixer Controls */
 
 #include <linux/pm_runtime.h>
+#include <linux/leds.h>
 #include "sof-priv.h"
+
+static void update_mute_led(struct snd_sof_control *scontrol,
+			    struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	unsigned int temp = 0;
+	unsigned int mask;
+	int i;
+
+	mask = 1U << snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+
+	for (i = 0; i < scontrol->num_channels; i++) {
+		if (ucontrol->value.integer.value[i]) {
+			temp |= mask;
+			break;
+		}
+	}
+
+	if (temp == scontrol->led_ctl.led_value)
+		return;
+
+	scontrol->led_ctl.led_value = temp;
+
+#if IS_REACHABLE(CONFIG_LEDS_TRIGGER_AUDIO)
+	if (!scontrol->led_ctl.direction)
+		ledtrig_audio_set(LED_AUDIO_MUTE, temp ? LED_OFF : LED_ON);
+	else
+		ledtrig_audio_set(LED_AUDIO_MICMUTE, temp ? LED_OFF : LED_ON);
+#endif
+}
 
 static inline u32 mixer_to_ipc(unsigned int value, u32 *volume_map, int size)
 {
@@ -117,6 +148,9 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 		cdata->chanv[i].channel = i;
 		cdata->chanv[i].value = value;
 	}
+
+	if (scontrol->led_ctl.use_led)
+		update_mute_led(scontrol, kcontrol, ucontrol);
 
 	/* notify DSP of mixer updates */
 	if (pm_runtime_active(sdev->dev))

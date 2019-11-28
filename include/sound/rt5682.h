@@ -31,6 +31,7 @@ struct rt5682_platform_data {
 	enum rt5682_dmic1_data_pin dmic1_data_pin;
 	enum rt5682_dmic1_clk_pin dmic1_clk_pin;
 	enum rt5682_jd_src jd_src;
+	unsigned int btndet_delay;
 };
 
 #endif
