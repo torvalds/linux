@@ -1500,7 +1500,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
-		goto err;
+		goto out;
 	}
 
 	*cmd++ = MI_STORE_DWORD_IMM_GEN4;
@@ -1522,12 +1522,12 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
-		goto err_vm;
+		goto out_vm;
 	}
 
 	err = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_OFFSET_FIXED);
 	if (err)
-		goto err_vm;
+		goto out_vm;
 
 	err = check_scratch(vm, offset);
 	if (err)
@@ -1551,22 +1551,20 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	if (err)
 		goto skip_request;
 
-	i915_vma_unpin_and_release(&vma, 0);
+	i915_vma_unpin(vma);
 
 	i915_request_add(rq);
 
-	i915_vm_put(vm);
-	return 0;
-
+	goto out_vm;
 skip_request:
 	i915_request_skip(rq, err);
 err_request:
 	i915_request_add(rq);
 err_unpin:
 	i915_vma_unpin(vma);
-err_vm:
+out_vm:
 	i915_vm_put(vm);
-err:
+out:
 	i915_gem_object_put(obj);
 	return err;
 }
@@ -1594,7 +1592,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
-		goto err;
+		goto out;
 	}
 
 	memset(cmd, POISON_INUSE, PAGE_SIZE);
@@ -1626,12 +1624,12 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
-		goto err_vm;
+		goto out_vm;
 	}
 
 	err = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_OFFSET_FIXED);
 	if (err)
-		goto err_vm;
+		goto out_vm;
 
 	err = check_scratch(vm, offset);
 	if (err)
@@ -1664,29 +1662,27 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	err = i915_gem_object_set_to_cpu_domain(obj, false);
 	i915_gem_object_unlock(obj);
 	if (err)
-		goto err_vm;
+		goto out_vm;
 
 	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
-		goto err_vm;
+		goto out_vm;
 	}
 
 	*value = cmd[result / sizeof(*cmd)];
 	i915_gem_object_unpin_map(obj);
-	i915_gem_object_put(obj);
 
-	return 0;
-
+	goto out_vm;
 skip_request:
 	i915_request_skip(rq, err);
 err_request:
 	i915_request_add(rq);
 err_unpin:
 	i915_vma_unpin(vma);
-err_vm:
+out_vm:
 	i915_vm_put(vm);
-err:
+out:
 	i915_gem_object_put(obj);
 	return err;
 }
