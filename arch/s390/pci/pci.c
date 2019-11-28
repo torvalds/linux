@@ -673,6 +673,8 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 	zdev->domain = find_first_zero_bit(zpci_domain, ZPCI_NR_DEVICES);
 	if (zdev->domain == ZPCI_NR_DEVICES) {
 		spin_unlock(&zpci_domain_lock);
+		pr_err("Adding PCI function %08x failed because the configured limit of %d is reached\n",
+			zdev->fid, ZPCI_NR_DEVICES);
 		return -ENOSPC;
 	}
 	set_bit(zdev->domain, zpci_domain);
