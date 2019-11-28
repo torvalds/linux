@@ -1437,6 +1437,29 @@ static void psr_alpm_check(struct intel_dp *intel_dp)
 	}
 }
 
+static void psr_capability_changed_check(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct i915_psr *psr = &dev_priv->psr;
+	u8 val;
+	int r;
+
+	r = drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_ESI, &val);
+	if (r != 1) {
+		DRM_ERROR("Error reading DP_PSR_ESI\n");
+		return;
+	}
+
+	if (val & DP_PSR_CAPS_CHANGE) {
+		intel_psr_disable_locked(intel_dp);
+		psr->sink_not_reliable = true;
+		DRM_DEBUG_KMS("Sink PSR capability changed, disabling PSR\n");
+
+		/* Clearing it */
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ESI, val);
+	}
+}
+
 void intel_psr_short_pulse(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -1480,6 +1503,7 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, error_status);
 
 	psr_alpm_check(intel_dp);
+	psr_capability_changed_check(intel_dp);
 
 exit:
 	mutex_unlock(&psr->lock);
