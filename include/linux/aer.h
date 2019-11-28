@@ -46,6 +46,8 @@ int pci_enable_pcie_error_reporting(struct pci_dev *dev);
 int pci_disable_pcie_error_reporting(struct pci_dev *dev);
 int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev);
 int pci_cleanup_aer_error_status_regs(struct pci_dev *dev);
+void pci_save_aer_state(struct pci_dev *dev);
+void pci_restore_aer_state(struct pci_dev *dev);
 #else
 static inline int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 {
@@ -63,6 +65,8 @@ static inline int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
 {
 	return -EINVAL;
 }
+static inline void pci_save_aer_state(struct pci_dev *dev) {}
+static inline void pci_restore_aer_state(struct pci_dev *dev) {}
 #endif
 
 void cper_print_aer(struct pci_dev *dev, int aer_severity,
