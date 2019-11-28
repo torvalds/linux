@@ -15,14 +15,17 @@
  * Hardware interface for generic Intel audio DSP HDA IP
  */
 
+#include <linux/module.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
 #include "../ops.h"
 #include "hda.h"
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 static int hda_codec_mask = -1;
 module_param_named(codec_mask, hda_codec_mask, int, 0444);
 MODULE_PARM_DESC(codec_mask, "SOF HDA codec mask for probing");
+#endif
 
 /*
  * HDA Operations.
