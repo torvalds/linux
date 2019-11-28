@@ -9,8 +9,8 @@
 #ifndef __IPC_CHANNEL_MAP_H__
 #define __IPC_CHANNEL_MAP_H__
 
-#include <ipc/header.h>
-#include <stdint.h>
+#include <uapi/sound/sof/header.h>
+#include <sound/sof/header.h>
 
 /**
  * \brief Channel map, specifies transformation of one-to-many or many-to-one.
