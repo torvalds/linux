@@ -1386,11 +1386,30 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	mutex_init(&dev_priv->psr.lock);
 }
 
+static int psr_get_status_and_error_status(struct intel_dp *intel_dp,
+					   u8 *status, u8 *error_status)
+{
+	struct drm_dp_aux *aux = &intel_dp->aux;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PSR_STATUS, status);
+	if (ret != 1)
+		return ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PSR_ERROR_STATUS, error_status);
+	if (ret != 1)
+		return ret;
+
+	*status = *status & DP_PSR_SINK_STATE_MASK;
+
+	return 0;
+}
+
 void intel_psr_short_pulse(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct i915_psr *psr = &dev_priv->psr;
-	u8 val;
+	u8 status, error_status;
 	const u8 errors = DP_PSR_RFB_STORAGE_ERROR |
 			  DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR |
 			  DP_PSR_LINK_CRC_ERROR;
@@ -1403,38 +1422,30 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	if (!psr->enabled || psr->dp != intel_dp)
 		goto exit;
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val) != 1) {
-		DRM_ERROR("PSR_STATUS dpcd read failed\n");
+	if (psr_get_status_and_error_status(intel_dp, &status, &error_status)) {
+		DRM_ERROR("Error reading PSR status or error status\n");
 		goto exit;
 	}
 
-	if ((val & DP_PSR_SINK_STATE_MASK) == DP_PSR_SINK_INTERNAL_ERROR) {
-		DRM_DEBUG_KMS("PSR sink internal error, disabling PSR\n");
+	if (status == DP_PSR_SINK_INTERNAL_ERROR || (error_status & errors)) {
 		intel_psr_disable_locked(intel_dp);
 		psr->sink_not_reliable = true;
 	}
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_ERROR_STATUS, &val) != 1) {
-		DRM_ERROR("PSR_ERROR_STATUS dpcd read failed\n");
-		goto exit;
-	}
-
-	if (val & DP_PSR_RFB_STORAGE_ERROR)
+	if (status == DP_PSR_SINK_INTERNAL_ERROR && !error_status)
+		DRM_DEBUG_KMS("PSR sink internal error, disabling PSR\n");
+	if (error_status & DP_PSR_RFB_STORAGE_ERROR)
 		DRM_DEBUG_KMS("PSR RFB storage error, disabling PSR\n");
-	if (val & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
+	if (error_status & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
 		DRM_DEBUG_KMS("PSR VSC SDP uncorrectable error, disabling PSR\n");
-	if (val & DP_PSR_LINK_CRC_ERROR)
+	if (error_status & DP_PSR_LINK_CRC_ERROR)
 		DRM_DEBUG_KMS("PSR Link CRC error, disabling PSR\n");
 
-	if (val & ~errors)
+	if (error_status & ~errors)
 		DRM_ERROR("PSR_ERROR_STATUS unhandled errors %x\n",
-			  val & ~errors);
-	if (val & errors) {
-		intel_psr_disable_locked(intel_dp);
-		psr->sink_not_reliable = true;
-	}
+			  error_status & ~errors);
 	/* clear status register */
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, val);
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, error_status);
 exit:
 	mutex_unlock(&psr->lock);
 }
