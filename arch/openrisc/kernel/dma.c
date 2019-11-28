@@ -125,7 +125,7 @@ arch_dma_free(struct device *dev, size_t size, void *vaddr,
 	free_pages_exact(vaddr, size);
 }
 
-void arch_sync_dma_for_device(struct device *dev, phys_addr_t addr, size_t size,
+void arch_sync_dma_for_device(phys_addr_t addr, size_t size,
 		enum dma_data_direction dir)
 {
 	unsigned long cl;

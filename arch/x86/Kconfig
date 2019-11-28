@@ -708,7 +708,6 @@ config X86_SUPPORTS_MEMORY_FAILURE
 config STA2X11
 	bool "STA2X11 Companion Chip Support"
 	depends on X86_32_NON_STANDARD && PCI
-	select ARCH_HAS_PHYS_TO_DMA
 	select SWIOTLB
 	select MFD_STA2X11
 	select GPIOLIB

@@ -592,7 +592,7 @@ static dma_addr_t jazz_dma_map_page(struct device *dev, struct page *page,
 	phys_addr_t phys = page_to_phys(page) + offset;
 
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		arch_sync_dma_for_device(dev, phys, size, dir);
+		arch_sync_dma_for_device(phys, size, dir);
 	return vdma_alloc(phys, size);
 }
 
@@ -600,7 +600,7 @@ static void jazz_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 		size_t size, enum dma_data_direction dir, unsigned long attrs)
 {
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		arch_sync_dma_for_cpu(dev, vdma_log2phys(dma_addr), size, dir);
+		arch_sync_dma_for_cpu(vdma_log2phys(dma_addr), size, dir);
 	vdma_free(dma_addr);
 }
 
@@ -612,7 +612,7 @@ static int jazz_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 
 	for_each_sg(sglist, sg, nents, i) {
 		if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-			arch_sync_dma_for_device(dev, sg_phys(sg), sg->length,
+			arch_sync_dma_for_device(sg_phys(sg), sg->length,
 				dir);
 		sg->dma_address = vdma_alloc(sg_phys(sg), sg->length);
 		if (sg->dma_address == DMA_MAPPING_ERROR)
@@ -631,8 +631,7 @@ static void jazz_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 
 	for_each_sg(sglist, sg, nents, i) {
 		if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-			arch_sync_dma_for_cpu(dev, sg_phys(sg), sg->length,
-				dir);
+			arch_sync_dma_for_cpu(sg_phys(sg), sg->length, dir);
 		vdma_free(sg->dma_address);
 	}
 }
@@ -640,13 +639,13 @@ static void jazz_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 static void jazz_dma_sync_single_for_device(struct device *dev,
 		dma_addr_t addr, size_t size, enum dma_data_direction dir)
 {
-	arch_sync_dma_for_device(dev, vdma_log2phys(addr), size, dir);
+	arch_sync_dma_for_device(vdma_log2phys(addr), size, dir);
 }
 
 static void jazz_dma_sync_single_for_cpu(struct device *dev,
 		dma_addr_t addr, size_t size, enum dma_data_direction dir)
 {
-	arch_sync_dma_for_cpu(dev, vdma_log2phys(addr), size, dir);
+	arch_sync_dma_for_cpu(vdma_log2phys(addr), size, dir);
 }
 
 static void jazz_dma_sync_sg_for_device(struct device *dev,
@@ -656,7 +655,7 @@ static void jazz_dma_sync_sg_for_device(struct device *dev,
 	int i;
 
 	for_each_sg(sgl, sg, nents, i)
-		arch_sync_dma_for_device(dev, sg_phys(sg), sg->length, dir);
+		arch_sync_dma_for_device(sg_phys(sg), sg->length, dir);
 }
 
 static void jazz_dma_sync_sg_for_cpu(struct device *dev,
@@ -666,7 +665,7 @@ static void jazz_dma_sync_sg_for_cpu(struct device *dev,
 	int i;
 
 	for_each_sg(sgl, sg, nents, i)
-		arch_sync_dma_for_cpu(dev, sg_phys(sg), sg->length, dir);
+		arch_sync_dma_for_cpu(sg_phys(sg), sg->length, dir);
 }
 
 const struct dma_map_ops jazz_dma_ops = {

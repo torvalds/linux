@@ -910,7 +910,7 @@ static int ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 	 * value, don't extend it here. This happens on STA2X11, for example.
 	 *
 	 * XXX: manipulating the DMA mask from platform code is completely
-	 * bogus, platform code should use dev->bus_dma_mask instead..
+	 * bogus, platform code should use dev->bus_dma_limit instead..
 	 */
 	if (pdev->dma_mask && pdev->dma_mask < DMA_BIT_MASK(32))
 		return 0;
