@@ -212,6 +212,7 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 	watchdog_set_restart_priority(&wdt->wdtdev, 128);
 
 	watchdog_set_drvdata(&wdt->wdtdev, wdt);
+	dev_set_drvdata(dev, &wdt->wdtdev);
 
 	ret = devm_watchdog_register_device(dev, &wdt->wdtdev);
 	if (ret < 0)
@@ -220,10 +221,34 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 	return da9062_wdt_ping(&wdt->wdtdev);
 }
 
+static int __maybe_unused da9062_wdt_suspend(struct device *dev)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	if (watchdog_active(wdd))
+		return da9062_wdt_stop(wdd);
+
+	return 0;
+}
+
+static int __maybe_unused da9062_wdt_resume(struct device *dev)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	if (watchdog_active(wdd))
+		return da9062_wdt_start(wdd);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(da9062_wdt_pm_ops,
+			 da9062_wdt_suspend, da9062_wdt_resume);
+
 static struct platform_driver da9062_wdt_driver = {
 	.probe = da9062_wdt_probe,
 	.driver = {
 		.name = "da9062-watchdog",
+		.pm = &da9062_wdt_pm_ops,
 		.of_match_table = da9062_compatible_id_table,
 	},
 };
