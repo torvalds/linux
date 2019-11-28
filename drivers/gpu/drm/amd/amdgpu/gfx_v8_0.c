@@ -6405,7 +6405,23 @@ static void gfx_v8_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
 	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
 	bool int_sel = flags & AMDGPU_FENCE_FLAG_INT;
 
-	/* EVENT_WRITE_EOP - flush caches, send int */
+	/* Workaround for cache flush problems. First send a dummy EOP
+	 * event down the pipe with seq one below.
+	 */
+	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
+	amdgpu_ring_write(ring, (EOP_TCL1_ACTION_EN |
+				 EOP_TC_ACTION_EN |
+				 EOP_TC_WB_ACTION_EN |
+				 EVENT_TYPE(CACHE_FLUSH_AND_INV_TS_EVENT) |
+				 EVENT_INDEX(5)));
+	amdgpu_ring_write(ring, addr & 0xfffffffc);
+	amdgpu_ring_write(ring, (upper_32_bits(addr) & 0xffff) |
+				DATA_SEL(1) | INT_SEL(0));
+	amdgpu_ring_write(ring, lower_32_bits(seq - 1));
+	amdgpu_ring_write(ring, upper_32_bits(seq - 1));
+
+	/* Then send the real EOP event down the pipe:
+	 * EVENT_WRITE_EOP - flush caches, send int */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
 	amdgpu_ring_write(ring, (EOP_TCL1_ACTION_EN |
 				 EOP_TC_ACTION_EN |
@@ -7154,7 +7170,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 		5 +  /* COND_EXEC */
 		7 +  /* PIPELINE_SYNC */
 		VI_FLUSH_GPU_TLB_NUM_WREG * 5 + 9 + /* VM_FLUSH */
-		8 +  /* FENCE for VM_FLUSH */
+		12 +  /* FENCE for VM_FLUSH */
 		20 + /* GDS switch */
 		4 + /* double SWITCH_BUFFER,
 		       the first COND_EXEC jump to the place just
@@ -7166,7 +7182,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 		31 + /*	DE_META */
 		3 + /* CNTX_CTRL */
 		5 + /* HDP_INVL */
-		8 + 8 + /* FENCE x2 */
+		12 + 12 + /* FENCE x2 */
 		2, /* SWITCH_BUFFER */
 	.emit_ib_size =	4, /* gfx_v8_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v8_0_ring_emit_ib_gfx,
