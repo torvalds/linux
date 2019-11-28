@@ -1678,14 +1678,10 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
 
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 {
-	struct blk_mq_hw_ctx *this_hctx;
-	struct blk_mq_ctx *this_ctx;
-	struct request_queue *this_q;
-	struct request *rq;
 	LIST_HEAD(list);
-	LIST_HEAD(rq_list);
-	unsigned int depth;
 
+	if (list_empty(&plug->mq_list))
+		return;
 	list_splice_init(&plug->mq_list, &list);
 
 	if (plug->rq_count > 2 && plug->multiple_queues)
@@ -1693,42 +1689,27 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 
 	plug->rq_count = 0;
 
-	this_q = NULL;
-	this_hctx = NULL;
-	this_ctx = NULL;
-	depth = 0;
+	do {
+		struct list_head rq_list;
+		struct request *rq, *head_rq = list_entry_rq(list.next);
+		struct list_head *pos = &head_rq->queuelist; /* skip first */
+		struct blk_mq_hw_ctx *this_hctx = head_rq->mq_hctx;
+		struct blk_mq_ctx *this_ctx = head_rq->mq_ctx;
+		unsigned int depth = 1;
 
-	while (!list_empty(&list)) {
-		rq = list_entry_rq(list.next);
-		list_del_init(&rq->queuelist);
-		BUG_ON(!rq->q);
-		if (rq->mq_hctx != this_hctx || rq->mq_ctx != this_ctx) {
-			if (this_hctx) {
-				trace_block_unplug(this_q, depth, !from_schedule);
-				blk_mq_sched_insert_requests(this_hctx, this_ctx,
-								&rq_list,
-								from_schedule);
-			}
-
-			this_q = rq->q;
-			this_ctx = rq->mq_ctx;
-			this_hctx = rq->mq_hctx;
-			depth = 0;
+		list_for_each_continue(pos, &list) {
+			rq = list_entry_rq(pos);
+			BUG_ON(!rq->q);
+			if (rq->mq_hctx != this_hctx || rq->mq_ctx != this_ctx)
+				break;
+			depth++;
 		}
 
-		depth++;
-		list_add_tail(&rq->queuelist, &rq_list);
-	}
-
-	/*
-	 * If 'this_hctx' is set, we know we have entries to complete
-	 * on 'rq_list'. Do those.
-	 */
-	if (this_hctx) {
-		trace_block_unplug(this_q, depth, !from_schedule);
+		list_cut_before(&rq_list, &list, pos);
+		trace_block_unplug(head_rq->q, depth, !from_schedule);
 		blk_mq_sched_insert_requests(this_hctx, this_ctx, &rq_list,
 						from_schedule);
-	}
+	} while(!list_empty(&list));
 }
 
 static void blk_mq_bio_to_request(struct request *rq, struct bio *bio,
