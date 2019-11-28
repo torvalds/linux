@@ -85,7 +85,7 @@ struct sfdp_header {
 #define BFPT_DWORD(i)		((i) - 1)
 #define BFPT_DWORD_MAX		16
 
-/* The first version of JESB216 defined only 9 DWORDs. */
+/* The first version of JESD216 defined only 9 DWORDs. */
 #define BFPT_DWORD_MAX_JESD216			9
 
 /* 1st DWORD. */
