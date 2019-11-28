@@ -402,7 +402,9 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 	/* Enable ALPM at sink for psr2 */
 	if (dev_priv->psr.psr2_enabled) {
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_RECEIVER_ALPM_CONFIG,
-				   DP_ALPM_ENABLE);
+				   DP_ALPM_ENABLE |
+				   DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE);
+
 		dpcd_val |= DP_PSR_ENABLE_PSR2 | DP_PSR_IRQ_HPD_WITH_CRC_ERRORS;
 	} else {
 		if (dev_priv->psr.link_standby)
@@ -934,6 +936,9 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	/* Disable PSR on Sink */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
 
+	if (dev_priv->psr.psr2_enabled)
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_RECEIVER_ALPM_CONFIG, 0);
+
 	dev_priv->psr.enabled = false;
 }
 
@@ -1405,6 +1410,33 @@ static int psr_get_status_and_error_status(struct intel_dp *intel_dp,
 	return 0;
 }
 
+static void psr_alpm_check(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_dp_aux *aux = &intel_dp->aux;
+	struct i915_psr *psr = &dev_priv->psr;
+	u8 val;
+	int r;
+
+	if (!psr->psr2_enabled)
+		return;
+
+	r = drm_dp_dpcd_readb(aux, DP_RECEIVER_ALPM_STATUS, &val);
+	if (r != 1) {
+		DRM_ERROR("Error reading ALPM status\n");
+		return;
+	}
+
+	if (val & DP_ALPM_LOCK_TIMEOUT_ERROR) {
+		intel_psr_disable_locked(intel_dp);
+		psr->sink_not_reliable = true;
+		DRM_DEBUG_KMS("ALPM lock timeout error, disabling PSR\n");
+
+		/* Clearing error */
+		drm_dp_dpcd_writeb(aux, DP_RECEIVER_ALPM_STATUS, val);
+	}
+}
+
 void intel_psr_short_pulse(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -1446,6 +1478,9 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 			  error_status & ~errors);
 	/* clear status register */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, error_status);
+
+	psr_alpm_check(intel_dp);
+
 exit:
 	mutex_unlock(&psr->lock);
 }
