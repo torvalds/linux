@@ -2666,6 +2666,9 @@ bool pipe_need_reprogram(
 		false == pipe_ctx_old->stream->dpms_off)
 		return true;
 
+	if (pipe_ctx_old->stream_res.dsc != pipe_ctx->stream_res.dsc)
+		return true;
+
 	return false;
 }
 
