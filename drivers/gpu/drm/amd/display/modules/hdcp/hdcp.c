@@ -503,7 +503,7 @@ enum mod_hdcp_operation_mode mod_hdcp_signal_type_to_operation_mode(
 		break;
 	default:
 		break;
-	};
+	}
 
 	return mode;
 }
