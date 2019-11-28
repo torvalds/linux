@@ -540,12 +540,10 @@ static void __tipc_shutdown(struct socket *sock, int error)
 	tipc_wait_for_cond(sock, &timeout, (!tsk->cong_link_cnt &&
 					    !tsk_conn_cong(tsk)));
 
-	/* Push out unsent messages or remove if pending SYN */
-	skb = skb_peek(&sk->sk_write_queue);
-	if (skb && !msg_is_syn(buf_msg(skb)))
-		tipc_sk_push_backlog(tsk);
-	else
-		__skb_queue_purge(&sk->sk_write_queue);
+	/* Push out delayed messages if in Nagle mode */
+	tipc_sk_push_backlog(tsk);
+	/* Remove pending SYN */
+	__skb_queue_purge(&sk->sk_write_queue);
 
 	/* Reject all unreceived messages, except on an active connection
 	 * (which disconnects locally & sends a 'FIN+' to peer).
@@ -1248,9 +1246,14 @@ static void tipc_sk_push_backlog(struct tipc_sock *tsk)
 	struct sk_buff_head *txq = &tsk->sk.sk_write_queue;
 	struct net *net = sock_net(&tsk->sk);
 	u32 dnode = tsk_peer_node(tsk);
+	struct sk_buff *skb = skb_peek(txq);
 	int rc;
 
-	if (skb_queue_empty(txq) || tsk->cong_link_cnt)
+	if (!skb || tsk->cong_link_cnt)
+		return;
+
+	/* Do not send SYN again after congestion */
+	if (msg_is_syn(buf_msg(skb)))
 		return;
 
 	tsk->snt_unacked += tsk->snd_backlog;
