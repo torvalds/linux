@@ -48,6 +48,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 			     u8 tid, u32 ba_win_sz, u16 ssn);
 void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
 				       struct sk_buff *skb);
+int ath11k_dp_pdev_reo_setup(struct ath11k_base *ab);
+void ath11k_dp_pdev_reo_cleanup(struct ath11k_base *ab);
 int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int pdev_idx);
 void ath11k_dp_rx_pdev_free(struct ath11k_base *ab, int pdev_idx);
 void ath11k_dp_reo_cmd_list_cleanup(struct ath11k_base *ab);

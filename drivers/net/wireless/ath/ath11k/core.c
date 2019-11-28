@@ -10,6 +10,7 @@
 #include "ahb.h"
 #include "core.h"
 #include "dp_tx.h"
+#include "dp_rx.h"
 #include "debug.h"
 
 unsigned int ath11k_debug_mask;
@@ -325,6 +326,7 @@ static void ath11k_core_stop(struct ath11k_base *ab)
 		ath11k_qmi_firmware_stop(ab);
 	ath11k_ahb_stop(ab);
 	ath11k_wmi_detach(ab);
+	ath11k_dp_pdev_reo_cleanup(ab);
 
 	/* De-Init of components as needed */
 }
@@ -476,28 +478,38 @@ static int ath11k_core_start(struct ath11k_base *ab,
 		goto err_hif_stop;
 	}
 
+	ath11k_dp_pdev_pre_alloc(ab);
+
+	ret = ath11k_dp_pdev_reo_setup(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to initialize reo destination rings: %d\n", ret);
+		goto err_mac_destroy;
+	}
+
 	ret = ath11k_wmi_cmd_init(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to send wmi init cmd: %d\n", ret);
-		goto err_mac_destroy;
+		goto err_reo_cleanup;
 	}
 
 	ret = ath11k_wmi_wait_for_unified_ready(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to receive wmi unified ready event: %d\n",
 			   ret);
-		goto err_mac_destroy;
+		goto err_reo_cleanup;
 	}
 
 	ret = ath11k_dp_tx_htt_h2t_ver_req_msg(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to send htt version request message: %d\n",
 			   ret);
-		goto err_mac_destroy;
+		goto err_reo_cleanup;
 	}
 
 	return 0;
 
+err_reo_cleanup:
+	ath11k_dp_pdev_reo_cleanup(ab);
 err_mac_destroy:
 	ath11k_mac_destroy(ab);
 err_hif_stop:
@@ -561,6 +573,7 @@ static int ath11k_core_reconfigure_on_crash(struct ath11k_base *ab)
 	ath11k_dp_pdev_free(ab);
 	ath11k_ahb_stop(ab);
 	ath11k_wmi_detach(ab);
+	ath11k_dp_pdev_reo_cleanup(ab);
 	mutex_unlock(&ab->core_lock);
 
 	ath11k_dp_free(ab);

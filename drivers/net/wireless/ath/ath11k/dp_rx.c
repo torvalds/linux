@@ -395,10 +395,49 @@ static void ath11k_dp_rx_pdev_srng_free(struct ath11k *ar)
 	struct ath11k_pdev_dp *dp = &ar->dp;
 
 	ath11k_dp_srng_cleanup(ar->ab, &dp->rx_refill_buf_ring.refill_buf_ring);
-	ath11k_dp_srng_cleanup(ar->ab, &dp->reo_dst_ring);
 	ath11k_dp_srng_cleanup(ar->ab, &dp->rxdma_err_dst_ring);
 	ath11k_dp_srng_cleanup(ar->ab, &dp->rx_mon_status_refill_ring.refill_buf_ring);
 	ath11k_dp_srng_cleanup(ar->ab, &dp->rxdma_mon_buf_ring.refill_buf_ring);
+}
+
+void ath11k_dp_pdev_reo_cleanup(struct ath11k_base *ab)
+{
+	struct ath11k_pdev_dp *dp;
+	struct ath11k *ar;
+	int i;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ab->pdevs[i].ar;
+		dp = &ar->dp;
+		ath11k_dp_srng_cleanup(ab, &dp->reo_dst_ring);
+	}
+}
+
+int ath11k_dp_pdev_reo_setup(struct ath11k_base *ab)
+{
+	struct ath11k *ar;
+	struct ath11k_pdev_dp *dp;
+	int ret;
+	int i;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ab->pdevs[i].ar;
+		dp = &ar->dp;
+		ret = ath11k_dp_srng_setup(ab, &dp->reo_dst_ring, HAL_REO_DST,
+					   dp->mac_id, dp->mac_id,
+					   DP_REO_DST_RING_SIZE);
+		if (ret) {
+			ath11k_warn(ar->ab, "failed to setup reo_dst_ring\n");
+			goto err_reo_cleanup;
+		}
+	}
+
+	return 0;
+
+err_reo_cleanup:
+	ath11k_dp_pdev_reo_cleanup(ab);
+
+	return ret;
 }
 
 static int ath11k_dp_rx_pdev_srng_alloc(struct ath11k *ar)
@@ -413,14 +452,6 @@ static int ath11k_dp_rx_pdev_srng_alloc(struct ath11k *ar)
 				   dp->mac_id, DP_RXDMA_BUF_RING_SIZE);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to setup rx_refill_buf_ring\n");
-		return ret;
-	}
-
-	ret = ath11k_dp_srng_setup(ar->ab, &dp->reo_dst_ring, HAL_REO_DST,
-				   dp->mac_id, dp->mac_id,
-				   DP_REO_DST_RING_SIZE);
-	if (ret) {
-		ath11k_warn(ar->ab, "failed to setup reo_dst_ring\n");
 		return ret;
 	}
 

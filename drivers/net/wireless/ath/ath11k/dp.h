@@ -1507,6 +1507,7 @@ void ath11k_dp_vdev_tx_attach(struct ath11k *ar, struct ath11k_vif *arvif);
 void ath11k_dp_free(struct ath11k_base *ab);
 int ath11k_dp_alloc(struct ath11k_base *ab);
 int ath11k_dp_pdev_alloc(struct ath11k_base *ab);
+void ath11k_dp_pdev_pre_alloc(struct ath11k_base *ab);
 void ath11k_dp_pdev_free(struct ath11k_base *ab);
 int ath11k_dp_tx_htt_srng_setup(struct ath11k_base *ab, u32 ring_id,
 				int mac_id, enum hal_ring_type ring_type);

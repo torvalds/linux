@@ -684,11 +684,10 @@ void ath11k_dp_pdev_free(struct ath11k_base *ab)
 	}
 }
 
-int ath11k_dp_pdev_alloc(struct ath11k_base *ab)
+void ath11k_dp_pdev_pre_alloc(struct ath11k_base *ab)
 {
 	struct ath11k *ar;
 	struct ath11k_pdev_dp *dp;
-	int ret;
 	int i;
 
 	for (i = 0; i <  ab->num_radios; i++) {
@@ -704,6 +703,13 @@ int ath11k_dp_pdev_alloc(struct ath11k_base *ab)
 		idr_init(&dp->rxdma_mon_buf_ring.bufs_idr);
 		spin_lock_init(&dp->rxdma_mon_buf_ring.idr_lock);
 	}
+}
+
+int ath11k_dp_pdev_alloc(struct ath11k_base *ab)
+{
+	struct ath11k *ar;
+	int ret;
+	int i;
 
 	/* TODO:Per-pdev rx ring unlike tx ring which is mapped to different AC's */
 	for (i = 0; i < ab->num_radios; i++) {
