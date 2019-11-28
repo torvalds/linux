@@ -238,6 +238,12 @@ void __init paging_init(void)
 	phys_addr_t top_of_ram = memblock_end_of_DRAM();
 
 #ifdef CONFIG_HIGHMEM
+	unsigned long v = __fix_to_virt(FIX_KMAP_END);
+	unsigned long end = __fix_to_virt(FIX_KMAP_BEGIN);
+
+	for (; v < end; v += PAGE_SIZE)
+		map_kernel_page(v, 0, __pgprot(0)); /* XXX gross */
+
 	map_kernel_page(PKMAP_BASE, 0, __pgprot(0));	/* XXX gross */
 	pkmap_page_table = virt_to_kpte(PKMAP_BASE);
 
