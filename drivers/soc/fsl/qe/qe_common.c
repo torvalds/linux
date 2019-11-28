@@ -119,23 +119,21 @@ static s32 cpm_muram_alloc_common(unsigned long size,
 	struct muram_block *entry;
 	s32 start;
 
-	start = gen_pool_alloc_algo(muram_pool, size, algo, data);
-	if (!start)
-		goto out2;
-	start = start - GENPOOL_OFFSET;
-	memset_io(cpm_muram_addr(start), 0, size);
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
-		goto out1;
+		return -ENOMEM;
+	start = gen_pool_alloc_algo(muram_pool, size, algo, data);
+	if (!start) {
+		kfree(entry);
+		return -ENOMEM;
+	}
+	start = start - GENPOOL_OFFSET;
+	memset_io(cpm_muram_addr(start), 0, size);
 	entry->start = start;
 	entry->size = size;
 	list_add(&entry->head, &muram_block_list);
 
 	return start;
-out1:
-	gen_pool_free(muram_pool, start, size);
-out2:
-	return -ENOMEM;
 }
 
 /*
