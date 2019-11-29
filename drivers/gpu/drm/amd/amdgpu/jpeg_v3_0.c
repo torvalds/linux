@@ -214,6 +214,106 @@ static int jpeg_v3_0_resume(void *handle)
 	return r;
 }
 
+static void jpeg_v3_0_disable_clock_gating(struct amdgpu_device* adev)
+{
+	uint32_t data = 0;
+
+	data = RREG32_SOC15(JPEG, 0, mmJPEG_CGC_CTRL);
+	if (adev->cg_flags & AMD_CG_SUPPORT_JPEG_MGCG)
+		data |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+	else
+		data &= ~JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+
+	data |= 1 << JPEG_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
+	data |= 4 << JPEG_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
+	WREG32_SOC15(JPEG, 0, mmJPEG_CGC_CTRL, data);
+
+	data = RREG32_SOC15(JPEG, 0, mmJPEG_CGC_GATE);
+	data &= ~(JPEG_CGC_GATE__JPEG_DEC_MASK
+		| JPEG_CGC_GATE__JPEG2_DEC_MASK
+		| JPEG_CGC_GATE__JPEG_ENC_MASK
+		| JPEG_CGC_GATE__JMCIF_MASK
+		| JPEG_CGC_GATE__JRBBM_MASK);
+	WREG32_SOC15(JPEG, 0, mmJPEG_CGC_GATE, data);
+
+	data = RREG32_SOC15(JPEG, 0, mmJPEG_CGC_CTRL);
+	data &= ~(JPEG_CGC_CTRL__JPEG_DEC_MODE_MASK
+		| JPEG_CGC_CTRL__JPEG2_DEC_MODE_MASK
+		| JPEG_CGC_CTRL__JMCIF_MODE_MASK
+		| JPEG_CGC_CTRL__JRBBM_MODE_MASK);
+	WREG32_SOC15(JPEG, 0, mmJPEG_CGC_CTRL, data);
+}
+
+static void jpeg_v3_0_enable_clock_gating(struct amdgpu_device* adev)
+{
+	uint32_t data = 0;
+
+	data = RREG32_SOC15(JPEG, 0, mmJPEG_CGC_GATE);
+	data |= (JPEG_CGC_GATE__JPEG_DEC_MASK
+		|JPEG_CGC_GATE__JPEG2_DEC_MASK
+		|JPEG_CGC_GATE__JPEG_ENC_MASK
+		|JPEG_CGC_GATE__JMCIF_MASK
+		|JPEG_CGC_GATE__JRBBM_MASK);
+	WREG32_SOC15(JPEG, 0, mmJPEG_CGC_GATE, data);
+}
+
+static int jpeg_v3_0_disable_static_power_gating(struct amdgpu_device *adev)
+{
+	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG) {
+		uint32_t data = 0;
+		int r = 0;
+
+		data = 1 << UVD_PGFSM_CONFIG__UVDJ_PWR_CONFIG__SHIFT;
+		WREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_PGFSM_CONFIG), data);
+
+		SOC15_WAIT_ON_RREG(JPEG, 0,
+			mmUVD_PGFSM_STATUS, UVD_PGFSM_STATUS_UVDJ_PWR_ON,
+			UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK, r);
+
+		if (r) {
+			DRM_ERROR("amdgpu: JPEG disable power gating failed\n");
+			return r;
+		}
+	}
+
+	/* disable anti hang mechanism */
+	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, mmUVD_JPEG_POWER_STATUS), 0,
+		~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
+
+	/* keep the JPEG in static PG mode */
+	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, mmUVD_JPEG_POWER_STATUS), 0,
+		~UVD_JPEG_POWER_STATUS__JPEG_PG_MODE_MASK);
+
+	return 0;
+}
+
+static int jpeg_v3_0_enable_static_power_gating(struct amdgpu_device* adev)
+{
+	/* enable anti hang mechanism */
+	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, mmUVD_JPEG_POWER_STATUS),
+		UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK,
+		~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
+
+	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG) {
+		uint32_t data = 0;
+		int r = 0;
+
+		data = 2 << UVD_PGFSM_CONFIG__UVDJ_PWR_CONFIG__SHIFT;
+		WREG32(SOC15_REG_OFFSET(JPEG, 0, mmUVD_PGFSM_CONFIG), data);
+
+		SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_PGFSM_STATUS,
+			(2 << UVD_PGFSM_STATUS__UVDJ_PWR_STATUS__SHIFT),
+			UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK, r);
+
+		if (r) {
+			DRM_ERROR("amdgpu: JPEG enable power gating failed\n");
+			return r;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * jpeg_v3_0_start - start JPEG block
  *
@@ -224,9 +324,18 @@ static int jpeg_v3_0_resume(void *handle)
 static int jpeg_v3_0_start(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = &adev->jpeg.inst->ring_dec;
+	int r;
 
 	if (adev->pm.dpm_enabled)
 		amdgpu_dpm_enable_jpeg(adev, true);
+
+	/* disable power gating */
+	r = jpeg_v3_0_disable_static_power_gating(adev);
+	if (r)
+		return r;
+
+	/* JPEG disable CGC */
+	jpeg_v3_0_disable_clock_gating(adev);
 
 	/* MJPEG global tiling registers */
 	WREG32_SOC15(JPEG, 0, mmJPEG_DEC_GFX10_ADDR_CONFIG,
@@ -267,10 +376,19 @@ static int jpeg_v3_0_start(struct amdgpu_device *adev)
  */
 static int jpeg_v3_0_stop(struct amdgpu_device *adev)
 {
+	int r;
+
 	/* reset JMI */
 	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, mmUVD_JMI_CNTL),
 		UVD_JMI_CNTL__SOFT_RESET_MASK,
 		~UVD_JMI_CNTL__SOFT_RESET_MASK);
+
+	jpeg_v3_0_enable_clock_gating(adev);
+
+	/* enable power gating */
+	r = jpeg_v3_0_enable_static_power_gating(adev);
+	if (r)
+		return r;
 
 	if (adev->pm.dpm_enabled)
 		amdgpu_dpm_enable_jpeg(adev, false);
@@ -357,6 +475,17 @@ static int jpeg_v3_0_wait_for_idle(void *handle)
 static int jpeg_v3_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+
+	if (enable) {
+		if (jpeg_v3_0_is_idle(handle))
+			return -EBUSY;
+		jpeg_v3_0_enable_clock_gating(adev);
+	} else {
+		jpeg_v3_0_disable_clock_gating(adev);
+	}
+
 	return 0;
 }
 
