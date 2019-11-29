@@ -47,6 +47,7 @@
 #include "amdgpu_amdkfd_gfx_v9.h"
 #include "gfxhub_v1_0.h"
 #include "mmhub_v9_4.h"
+#include "mmhub_v1_7.h"
 
 #define HQD_N_REGS 56
 #define DUMP_REG(addr) do {				\
