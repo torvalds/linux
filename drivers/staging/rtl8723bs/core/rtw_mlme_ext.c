@@ -207,10 +207,10 @@ static RT_CHANNEL_PLAN_MAP	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
 	{0x02, 0x1F},	/* 0x57, RT_CHANNEL_DOMAIN_FCC1_FCC10 */
 };
 
-static RT_CHANNEL_PLAN_MAP	RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03, 0x02}; /* use the combination for max channel numbers */
+ /* use the combination for max channel numbers */
+static RT_CHANNEL_PLAN_MAP RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03, 0x02};
 
-/*
- * Search the @param ch in given @param ch_set
+/* Search the @param ch in given @param ch_set
  * @ch_set: the given channel set
  * @ch: the given channel number
  *
@@ -229,8 +229,7 @@ int rtw_ch_set_search_ch(RT_CHANNEL_INFO *ch_set, const u32 ch)
 	return i;
 }
 
-/*
- * Check the @param ch is fit with setband setting of @param adapter
+/* Check the @param ch is fit with setband setting of @param adapter
  * @adapter: the given adapter
  * @ch: the given channel number
  *
@@ -3356,9 +3355,11 @@ void issue_assocreq(struct adapter *padapter)
 					(!memcmp(pIE->data, WPS_OUI, 4))) {
 				vs_ie_length = pIE->Length;
 				if ((!padapter->registrypriv.wifi_spec) && (!memcmp(pIE->data, WPS_OUI, 4))) {
-					/* Commented by Kurt 20110629 */
-					/* In some older APs, WPS handshake */
-					/* would be fail if we append vender extensions information to AP */
+					/* Commented by Kurt 20110629
+					 * In some older APs, WPS handshake
+					 * would be fail if we append vendor
+					 * extensions information to AP
+					 */
 
 					vs_ie_length = 14;
 				}
@@ -5379,8 +5380,7 @@ static void rtw_mlmeext_disconnect(struct adapter *padapter)
 
 	/* set_opmode_cmd(padapter, infra_client_with_mlme); */
 
-	/*
-	 * For safety, prevent from keeping macid sleep.
+	/* For safety, prevent from keeping macid sleep.
 	 * If we can sure all power mode enter/leave are paired,
 	 * this check can be removed.
 	 * Lucas@20131113
@@ -6385,7 +6385,9 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 		Save_DM_Func_Flag(padapter);
 		Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, false);
 
-		/* config the initial gain under scanning, need to write the BB registers */
+		/* config the initial gain under scanning, need to write the BB
+		 * registers
+		 */
 		initialgain = 0x1e;
 
 		rtw_hal_set_hwreg(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));

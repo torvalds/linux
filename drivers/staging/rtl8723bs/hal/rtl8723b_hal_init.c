@@ -3191,22 +3191,26 @@ static void rtl8723b_fill_default_txdesc(
 	if (bmcst)
 		ptxdesc->bmc = 1;
 
-	/*  2009.11.05. tynli_test. Suggested by SD4 Filen for FW LPS. */
-	/*  (1) The sequence number of each non-Qos frame / broadcast / multicast / */
-	/*  mgnt frame should be controlled by Hw because Fw will also send null data */
-	/*  which we cannot control when Fw LPS enable. */
-	/*  --> default enable non-Qos data sequense number. 2010.06.23. by tynli. */
-	/*  (2) Enable HW SEQ control for beacon packet, because we use Hw beacon. */
-	/*  (3) Use HW Qos SEQ to control the seq num of Ext port non-Qos packets. */
-	/*  2010.06.23. Added by tynli. */
+	/* 2009.11.05. tynli_test. Suggested by SD4 Filen for FW LPS.
+	 * (1) The sequence number of each non-Qos frame / broadcast /
+	 * multicast / mgnt frame should be controlled by Hw because Fw
+	 * will also send null data which we cannot control when Fw LPS
+	 * enable.
+	 * --> default enable non-Qos data sequense number. 2010.06.23.
+	 * by tynli.
+	 * (2) Enable HW SEQ control for beacon packet, because we use
+	 * Hw beacon.
+	 * (3) Use HW Qos SEQ to control the seq num of Ext port non-Qos
+	 * packets.
+	 * 2010.06.23. Added by tynli.
+	 */
 	if (!pattrib->qos_en) /*  Hw set sequence number */
 		ptxdesc->en_hwseq = 1; /*  HWSEQ_EN */
 }
 
-/*
- *Description:
+/* Description:
  *
- *Parameters:
+ * Parameters:
  *	pxmitframe	xmitframe
  *	pbuf		where to fill tx desc
  */
@@ -4329,8 +4333,7 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 	}
 }
 
-/*
- *Description:
+/* Description:
  *	Change default setting of specified variable.
  */
 u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, void *pval)
@@ -4348,8 +4351,7 @@ u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, v
 	return bResult;
 }
 
-/*
- *Description:
+/* Description:
  *	Query setting of specified variable.
  */
 u8 GetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, void *pval)

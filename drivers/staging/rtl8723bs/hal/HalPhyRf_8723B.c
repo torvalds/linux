@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/******************************************************************************
+/*****************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
@@ -82,7 +82,9 @@ static void setIqkMatrix_8723B(
 		/* if (RFPath == ODM_RF_PATH_A) */
 		switch (RFPath) {
 		case ODM_RF_PATH_A:
-			/* write new elements A, C, D to regC80 and regC94, element B is always 0 */
+			/* write new elements A, C, D to regC80 and regC94,
+			 * element B is always 0
+			 */
 			value32 = (ele_D<<22)|((ele_C&0x3F)<<16)|ele_A;
 			PHY_SetBBReg(pDM_Odm->Adapter, rOFDM0_XATxIQImbalance, bMaskDWord, value32);
 
@@ -93,7 +95,9 @@ static void setIqkMatrix_8723B(
 			PHY_SetBBReg(pDM_Odm->Adapter, rOFDM0_ECCAThreshold, BIT24, value32);
 			break;
 		case ODM_RF_PATH_B:
-			/* write new elements A, C, D to regC88 and regC9C, element B is always 0 */
+			/* write new elements A, C, D to regC88 and regC9C,
+			 * element B is always 0
+			 */
 			value32 = (ele_D<<22)|((ele_C&0x3F)<<16)|ele_A;
 			PHY_SetBBReg(pDM_Odm->Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord, value32);
 
