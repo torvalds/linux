@@ -219,6 +219,7 @@ static int check_config_address(struct tb_cfg_address addr,
 static struct tb_cfg_result decode_error(const struct ctl_pkg *response)
 {
 	struct cfg_error_pkg *pkg = response->buffer;
+	struct tb_ctl *ctl = response->ctl;
 	struct tb_cfg_result res = { 0 };
 	res.response_route = tb_cfg_get_route(&pkg->header);
 	res.response_port = 0;
@@ -227,9 +228,13 @@ static struct tb_cfg_result decode_error(const struct ctl_pkg *response)
 	if (res.err)
 		return res;
 
-	WARN(pkg->zero1, "pkg->zero1 is %#x\n", pkg->zero1);
-	WARN(pkg->zero2, "pkg->zero1 is %#x\n", pkg->zero1);
-	WARN(pkg->zero3, "pkg->zero1 is %#x\n", pkg->zero1);
+	if (pkg->zero1)
+		tb_ctl_warn(ctl, "pkg->zero1 is %#x\n", pkg->zero1);
+	if (pkg->zero2)
+		tb_ctl_warn(ctl, "pkg->zero2 is %#x\n", pkg->zero2);
+	if (pkg->zero3)
+		tb_ctl_warn(ctl, "pkg->zero3 is %#x\n", pkg->zero3);
+
 	res.err = 1;
 	res.tb_error = pkg->error;
 	res.response_port = pkg->port;
