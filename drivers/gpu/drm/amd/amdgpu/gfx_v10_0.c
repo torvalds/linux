@@ -3809,7 +3809,7 @@ static int gfx_v10_0_hw_fini(void *handle)
 	if (amdgpu_gfx_disable_kcq(adev))
 		DRM_ERROR("KCQ disable failed\n");
 	if (amdgpu_sriov_vf(adev)) {
-		pr_debug("For SRIOV client, shouldn't do anything.\n");
+		gfx_v10_0_cp_gfx_enable(adev, false);
 		return 0;
 	}
 	gfx_v10_0_cp_enable(adev, false);
