@@ -52,14 +52,6 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 file_offset,
 	return NULL;
 }
 
-static void ordered_data_tree_panic(struct inode *inode, int errno,
-					       u64 offset)
-{
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	btrfs_panic(fs_info, errno,
-		    "Inconsistency in ordered tree at offset %llu", offset);
-}
-
 /*
  * look for a given offset in the tree, and if it can't be found return the
  * first lesser offset
@@ -219,7 +211,9 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	node = tree_insert(&tree->tree, file_offset,
 			   &entry->rb_node);
 	if (node)
-		ordered_data_tree_panic(inode, -EEXIST, file_offset);
+		btrfs_panic(fs_info, -EEXIST,
+				"inconsistency in ordered tree at offset %llu",
+				file_offset);
 	spin_unlock_irq(&tree->lock);
 
 	spin_lock(&root->ordered_extent_lock);
