@@ -1356,7 +1356,7 @@ static void dcn20_update_dchubp_dpp(
 			|| plane_state->update_flags.bits.global_alpha_change
 			|| plane_state->update_flags.bits.per_pixel_alpha_change) {
 		// MPCC inst is equal to pipe index in practice
-		int mpcc_inst = pipe_ctx->pipe_idx;
+		int mpcc_inst = hubp->inst;
 		int opp_inst;
 		int opp_count = dc->res_pool->pipe_count;
 
