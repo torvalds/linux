@@ -2599,6 +2599,7 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 		struct drm_plane_state *state;
 		struct drm_plane *plane = &intel_plane->base;
 		struct drm_format_name_buf format_name;
+		struct drm_rect src, dst;
 		char rot_str[48];
 
 		if (!plane->state) {
@@ -2607,6 +2608,9 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 		}
 
 		state = plane->state;
+
+		src = drm_plane_state_src(state);
+		dst = drm_plane_state_dest(state);
 
 		if (state->fb) {
 			drm_get_format_name(state->fb->format->format,
@@ -2617,19 +2621,11 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 
 		plane_rotation(rot_str, sizeof(rot_str), state->rotation);
 
-		seq_printf(m, "\t--Plane id %d: type=%s, crtc_pos=%4dx%4d, crtc_size=%4dx%4d, src_pos=%d.%04ux%d.%04u, src_size=%d.%04ux%d.%04u, format=%s, rotation=%s\n",
+		seq_printf(m, "\t--Plane id %d: type=%s, dst=" DRM_RECT_FMT ", src=" DRM_RECT_FP_FMT ", format=%s, rotation=%s\n",
 			   plane->base.id,
 			   plane_type(intel_plane->base.type),
-			   state->crtc_x, state->crtc_y,
-			   state->crtc_w, state->crtc_h,
-			   (state->src_x >> 16),
-			   ((state->src_x & 0xffff) * 15625) >> 10,
-			   (state->src_y >> 16),
-			   ((state->src_y & 0xffff) * 15625) >> 10,
-			   (state->src_w >> 16),
-			   ((state->src_w & 0xffff) * 15625) >> 10,
-			   (state->src_h >> 16),
-			   ((state->src_h & 0xffff) * 15625) >> 10,
+			   DRM_RECT_ARG(&dst),
+			   DRM_RECT_FP_ARG(&src),
 			   format_name.str,
 			   rot_str);
 	}
