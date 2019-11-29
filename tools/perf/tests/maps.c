@@ -3,7 +3,7 @@
 #include <linux/kernel.h>
 #include "tests.h"
 #include "map.h"
-#include "map_groups.h"
+#include "maps.h"
 #include "dso.h"
 #include "debug.h"
 
@@ -13,12 +13,12 @@ struct map_def {
 	u64 end;
 };
 
-static int check_maps(struct map_def *merged, unsigned int size, struct map_groups *mg)
+static int check_maps(struct map_def *merged, unsigned int size, struct maps *maps)
 {
 	struct map *map;
 	unsigned int i = 0;
 
-	map_groups__for_each_entry(mg, map) {
+	maps__for_each_entry(maps, map) {
 		if (i > 0)
 			TEST_ASSERT_VAL("less maps expected", (map && i < size) || (!map && i == size));
 
@@ -33,9 +33,9 @@ static int check_maps(struct map_def *merged, unsigned int size, struct map_grou
 	return TEST_OK;
 }
 
-int test__map_groups__merge_in(struct test *t __maybe_unused, int subtest __maybe_unused)
+int test__maps__merge_in(struct test *t __maybe_unused, int subtest __maybe_unused)
 {
-	struct map_groups mg;
+	struct maps maps;
 	unsigned int i;
 	struct map_def bpf_progs[] = {
 		{ "bpf_prog_1", 200, 300 },
@@ -64,7 +64,7 @@ int test__map_groups__merge_in(struct test *t __maybe_unused, int subtest __mayb
 	struct map *map_kcore1, *map_kcore2, *map_kcore3;
 	int ret;
 
-	map_groups__init(&mg, NULL);
+	maps__init(&maps, NULL);
 
 	for (i = 0; i < ARRAY_SIZE(bpf_progs); i++) {
 		struct map *map;
@@ -74,7 +74,7 @@ int test__map_groups__merge_in(struct test *t __maybe_unused, int subtest __mayb
 
 		map->start = bpf_progs[i].start;
 		map->end   = bpf_progs[i].end;
-		map_groups__insert(&mg, map);
+		maps__insert(&maps, map);
 		map__put(map);
 	}
 
@@ -99,22 +99,22 @@ int test__map_groups__merge_in(struct test *t __maybe_unused, int subtest __mayb
 	map_kcore3->start = 880;
 	map_kcore3->end   = 1100;
 
-	ret = map_groups__merge_in(&mg, map_kcore1);
+	ret = maps__merge_in(&maps, map_kcore1);
 	TEST_ASSERT_VAL("failed to merge map", !ret);
 
-	ret = check_maps(merged12, ARRAY_SIZE(merged12), &mg);
+	ret = check_maps(merged12, ARRAY_SIZE(merged12), &maps);
 	TEST_ASSERT_VAL("merge check failed", !ret);
 
-	ret = map_groups__merge_in(&mg, map_kcore2);
+	ret = maps__merge_in(&maps, map_kcore2);
 	TEST_ASSERT_VAL("failed to merge map", !ret);
 
-	ret = check_maps(merged12, ARRAY_SIZE(merged12), &mg);
+	ret = check_maps(merged12, ARRAY_SIZE(merged12), &maps);
 	TEST_ASSERT_VAL("merge check failed", !ret);
 
-	ret = map_groups__merge_in(&mg, map_kcore3);
+	ret = maps__merge_in(&maps, map_kcore3);
 	TEST_ASSERT_VAL("failed to merge map", !ret);
 
-	ret = check_maps(merged3, ARRAY_SIZE(merged3), &mg);
+	ret = check_maps(merged3, ARRAY_SIZE(merged3), &maps);
 	TEST_ASSERT_VAL("merge check failed", !ret);
 	return TEST_OK;
 }

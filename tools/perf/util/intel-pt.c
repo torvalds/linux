@@ -3296,7 +3296,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	err = thread__set_comm(pt->unknown_thread, "unknown", 0);
 	if (err)
 		goto err_delete_thread;
-	if (thread__init_map_groups(pt->unknown_thread, pt->machine)) {
+	if (thread__init_maps(pt->unknown_thread, pt->machine)) {
 		err = -ENOMEM;
 		goto err_delete_thread;
 	}

@@ -190,10 +190,9 @@ next_pair:
 		 * so use the short name, less descriptive but the same ("[kernel]" in
 		 * both cases.
 		 */
-		pair = map_groups__find_by_name(&kallsyms.kmaps,
-						(map->dso->kernel ?
-							map->dso->short_name :
-							map->dso->name));
+		pair = maps__find_by_name(&kallsyms.kmaps, (map->dso->kernel ?
+								map->dso->short_name :
+								map->dso->name));
 		if (pair) {
 			pair->priv = 1;
 		} else {
@@ -213,7 +212,7 @@ next_pair:
 		mem_start = vmlinux_map->unmap_ip(vmlinux_map, map->start);
 		mem_end = vmlinux_map->unmap_ip(vmlinux_map, map->end);
 
-		pair = map_groups__find(&kallsyms.kmaps, mem_start);
+		pair = maps__find(&kallsyms.kmaps, mem_start);
 		if (pair == NULL || pair->priv)
 			continue;
 

@@ -28,7 +28,7 @@
 #include "dso.h"
 #include "color.h"
 #include "map.h"
-#include "map_groups.h"
+#include "maps.h"
 #include "symbol.h"
 #include <api/fs/fs.h>
 #include "trace-event.h"	/* For __maybe_unused */
@@ -321,7 +321,7 @@ static int kernel_get_module_dso(const char *module, struct dso **pdso)
 		char module_name[128];
 
 		snprintf(module_name, sizeof(module_name), "[%s]", module);
-		map = map_groups__find_by_name(&host_machine->kmaps, module_name);
+		map = maps__find_by_name(&host_machine->kmaps, module_name);
 		if (map) {
 			dso = map->dso;
 			goto found;
