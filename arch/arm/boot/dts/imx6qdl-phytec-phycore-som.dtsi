@@ -101,6 +101,10 @@
 			compatible = "dlg,da9062-rtc";
 		};
 
+		da9062_onkey: onkey {
+			compatible = "dlg,da9062-onkey";
+		};
+
 		watchdog {
 			compatible = "dlg,da9062-watchdog";
 		};
