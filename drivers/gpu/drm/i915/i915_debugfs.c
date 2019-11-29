@@ -2667,23 +2667,22 @@ static int i915_display_info(struct seq_file *m, void *unused)
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
+	drm_modeset_lock_all(dev);
+
 	seq_printf(m, "CRTC info\n");
 	seq_printf(m, "---------\n");
-	for_each_intel_crtc(dev, crtc) {
-		drm_modeset_lock(&crtc->base.mutex, NULL);
+	for_each_intel_crtc(dev, crtc)
 		intel_crtc_info(m, crtc);
-		drm_modeset_unlock(&crtc->base.mutex);
-	}
 
 	seq_printf(m, "\n");
 	seq_printf(m, "Connector info\n");
 	seq_printf(m, "--------------\n");
-	mutex_lock(&dev->mode_config.mutex);
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter)
 		intel_connector_info(m, connector);
 	drm_connector_list_iter_end(&conn_iter);
-	mutex_unlock(&dev->mode_config.mutex);
+
+	drm_modeset_unlock_all(dev);
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
