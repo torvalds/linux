@@ -485,6 +485,7 @@ static bool synchronize_rcu_expedited_wait_once(long tlimit)
 static void synchronize_rcu_expedited_wait(void)
 {
 	int cpu;
+	unsigned long j;
 	unsigned long jiffies_stall;
 	unsigned long jiffies_start;
 	unsigned long mask;
@@ -496,7 +497,7 @@ static void synchronize_rcu_expedited_wait(void)
 	trace_rcu_exp_grace_period(rcu_state.name, rcu_exp_gp_seq_endval(), TPS("startwait"));
 	jiffies_stall = rcu_jiffies_till_stall_check();
 	jiffies_start = jiffies;
-	if (IS_ENABLED(CONFIG_NO_HZ_FULL)) {
+	if (tick_nohz_full_enabled() && rcu_inkernel_boot_has_ended()) {
 		if (synchronize_rcu_expedited_wait_once(1))
 			return;
 		rcu_for_each_leaf_node(rnp) {
@@ -508,6 +509,10 @@ static void synchronize_rcu_expedited_wait(void)
 				tick_dep_set_cpu(cpu, TICK_DEP_BIT_RCU_EXP);
 			}
 		}
+		j = READ_ONCE(jiffies_till_first_fqs);
+		if (synchronize_rcu_expedited_wait_once(j + HZ))
+			return;
+		WARN_ON_ONCE(IS_ENABLED(CONFIG_PREEMPT_RT));
 	}
 
 	for (;;) {

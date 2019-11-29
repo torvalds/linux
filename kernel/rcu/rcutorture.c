@@ -1067,7 +1067,8 @@ rcu_torture_writer(void *arg)
 		if (stutter_wait("rcu_torture_writer") &&
 		    !READ_ONCE(rcu_fwd_cb_nodelay) &&
 		    !cur_ops->slow_gps &&
-		    !torture_must_stop())
+		    !torture_must_stop() &&
+		    rcu_inkernel_boot_has_ended())
 			for (i = 0; i < ARRAY_SIZE(rcu_tortures); i++)
 				if (list_empty(&rcu_tortures[i].rtort_free) &&
 				    rcu_access_pointer(rcu_torture_current) !=

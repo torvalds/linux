@@ -183,6 +183,8 @@ void rcu_unexpedite_gp(void)
 }
 EXPORT_SYMBOL_GPL(rcu_unexpedite_gp);
 
+static bool rcu_boot_ended __read_mostly;
+
 /*
  * Inform RCU of the end of the in-kernel boot sequence.
  */
@@ -191,7 +193,17 @@ void rcu_end_inkernel_boot(void)
 	rcu_unexpedite_gp();
 	if (rcu_normal_after_boot)
 		WRITE_ONCE(rcu_normal, 1);
+	rcu_boot_ended = 1;
 }
+
+/*
+ * Let rcutorture know when it is OK to turn it up to eleven.
+ */
+bool rcu_inkernel_boot_has_ended(void)
+{
+	return rcu_boot_ended;
+}
+EXPORT_SYMBOL_GPL(rcu_inkernel_boot_has_ended);
 
 #endif /* #ifndef CONFIG_TINY_RCU */
 
