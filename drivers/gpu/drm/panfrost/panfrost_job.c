@@ -269,8 +269,13 @@ static void panfrost_job_cleanup(struct kref *ref)
 	dma_fence_put(job->render_done_fence);
 
 	if (job->mappings) {
-		for (i = 0; i < job->bo_count; i++)
+		for (i = 0; i < job->bo_count; i++) {
+			if (!job->mappings[i])
+				break;
+
+			atomic_dec(&job->mappings[i]->obj->gpu_usecount);
 			panfrost_gem_mapping_put(job->mappings[i]);
+		}
 		kvfree(job->mappings);
 	}
 
