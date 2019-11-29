@@ -268,6 +268,38 @@ TEST_F(tls, sendmsg_single)
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
 }
 
+#define MAX_FRAGS	64
+#define SEND_LEN	13
+TEST_F(tls, sendmsg_fragmented)
+{
+	char const *test_str = "test_sendmsg";
+	char buf[SEND_LEN * MAX_FRAGS];
+	struct iovec vec[MAX_FRAGS];
+	struct msghdr msg;
+	int i, frags;
+
+	for (frags = 1; frags <= MAX_FRAGS; frags++) {
+		for (i = 0; i < frags; i++) {
+			vec[i].iov_base = (char *)test_str;
+			vec[i].iov_len = SEND_LEN;
+		}
+
+		memset(&msg, 0, sizeof(struct msghdr));
+		msg.msg_iov = vec;
+		msg.msg_iovlen = frags;
+
+		EXPECT_EQ(sendmsg(self->fd, &msg, 0), SEND_LEN * frags);
+		EXPECT_EQ(recv(self->cfd, buf, SEND_LEN * frags, MSG_WAITALL),
+			  SEND_LEN * frags);
+
+		for (i = 0; i < frags; i++)
+			EXPECT_EQ(memcmp(buf + SEND_LEN * i,
+					 test_str, SEND_LEN), 0);
+	}
+}
+#undef MAX_FRAGS
+#undef SEND_LEN
+
 TEST_F(tls, sendmsg_large)
 {
 	void *mem = malloc(16384);
@@ -692,6 +724,34 @@ TEST_F(tls, recv_lowat)
 
 	EXPECT_EQ(memcmp(send_mem, recv_mem, 10), 0);
 	EXPECT_EQ(memcmp(send_mem, recv_mem + 10, 5), 0);
+}
+
+TEST_F(tls, recv_rcvbuf)
+{
+	char send_mem[4096];
+	char recv_mem[4096];
+	int rcv_buf = 1024;
+
+	memset(send_mem, 0x1c, sizeof(send_mem));
+
+	EXPECT_EQ(setsockopt(self->cfd, SOL_SOCKET, SO_RCVBUF,
+			     &rcv_buf, sizeof(rcv_buf)), 0);
+
+	EXPECT_EQ(send(self->fd, send_mem, 512, 0), 512);
+	memset(recv_mem, 0, sizeof(recv_mem));
+	EXPECT_EQ(recv(self->cfd, recv_mem, sizeof(recv_mem), 0), 512);
+	EXPECT_EQ(memcmp(send_mem, recv_mem, 512), 0);
+
+	if (self->notls)
+		return;
+
+	EXPECT_EQ(send(self->fd, send_mem, 4096, 0), 4096);
+	memset(recv_mem, 0, sizeof(recv_mem));
+	EXPECT_EQ(recv(self->cfd, recv_mem, sizeof(recv_mem), 0), -1);
+	EXPECT_EQ(errno, EMSGSIZE);
+
+	EXPECT_EQ(recv(self->cfd, recv_mem, sizeof(recv_mem), 0), -1);
+	EXPECT_EQ(errno, EMSGSIZE);
 }
 
 TEST_F(tls, bidir)
