@@ -370,6 +370,13 @@ add_sample_mult(struct i915_pmu_sample *sample, u32 val, u32 mul)
 	sample->cur += mul_u32_u32(val, mul);
 }
 
+static bool frequency_sampling_enabled(struct i915_pmu *pmu)
+{
+	return pmu->enable &
+	       (config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY) |
+		config_enabled_mask(I915_PMU_REQUESTED_FREQUENCY));
+}
+
 static void
 frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 {
@@ -378,32 +385,33 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 	struct i915_pmu *pmu = &i915->pmu;
 	struct intel_rps *rps = &gt->rps;
 
+	if (!frequency_sampling_enabled(pmu))
+		return;
+
+	/* Report 0/0 (actual/requested) frequency while parked. */
+	if (!intel_gt_pm_get_if_awake(gt))
+		return;
+
 	if (pmu->enable & config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY)) {
 		u32 val;
 
-		val = rps->cur_freq;
-		if (intel_gt_pm_get_if_awake(gt)) {
-			u32 stat;
-
-			/*
-			 * We take a quick peek here without using forcewake
-			 * so that we don't perturb the system under observation
-			 * (forcewake => !rc6 => increased power use). We expect
-			 * that if the read fails because it is outside of the
-			 * mmio power well, then it will return 0 -- in which
-			 * case we assume the system is running at the intended
-			 * frequency. Fortunately, the read should rarely fail!
-			 */
-			stat = intel_uncore_read_fw(uncore, GEN6_RPSTAT1);
-			if (stat)
-				val = intel_get_cagf(rps, stat);
-
-			intel_gt_pm_put_async(gt);
-		}
+		/*
+		 * We take a quick peek here without using forcewake
+		 * so that we don't perturb the system under observation
+		 * (forcewake => !rc6 => increased power use). We expect
+		 * that if the read fails because it is outside of the
+		 * mmio power well, then it will return 0 -- in which
+		 * case we assume the system is running at the intended
+		 * frequency. Fortunately, the read should rarely fail!
+		 */
+		val = intel_uncore_read_fw(uncore, GEN6_RPSTAT1);
+		if (val)
+			val = intel_get_cagf(rps, val);
+		else
+			val = rps->cur_freq;
 
 		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_ACT],
-				intel_gpu_freq(rps, val),
-				period_ns / 1000);
+				intel_gpu_freq(rps, val), period_ns / 1000);
 	}
 
 	if (pmu->enable & config_enabled_mask(I915_PMU_REQUESTED_FREQUENCY)) {
@@ -411,6 +419,8 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 				intel_gpu_freq(rps, rps->cur_freq),
 				period_ns / 1000);
 	}
+
+	intel_gt_pm_put_async(gt);
 }
 
 static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
