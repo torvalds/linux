@@ -2388,29 +2388,16 @@ static void intel_encoder_info(struct seq_file *m,
 	seq_printf(m, "\tencoder %d: type: %s, connectors:\n",
 		   encoder->base.base.id, encoder->base.name);
 
-	for_each_connector_on_encoder(dev, &encoder->base, connector) {
-		seq_printf(m, "\t\tconnector %d: type: %s, status: %s",
-			   connector->base.base.id, connector->base.name,
-			   drm_get_connector_status_name(connector->base.status));
-
-		if (connector->base.status == connector_status_connected) {
-			const struct intel_crtc_state *crtc_state =
-				to_intel_crtc_state(crtc->base.state);
-
-			seq_printf(m, ", mode:\n");
-			intel_seq_print_mode(m, 2, &crtc_state->hw.mode);
-		} else {
-			seq_putc(m, '\n');
-		}
-	}
+	for_each_connector_on_encoder(dev, &encoder->base, connector)
+		seq_printf(m, "\t\tconnector %d: type: %s\n",
+			   connector->base.base.id, connector->base.name);
 }
 
 static void intel_panel_info(struct seq_file *m, struct intel_panel *panel)
 {
-	struct drm_display_mode *mode = panel->fixed_mode;
+	const struct drm_display_mode *mode = panel->fixed_mode;
 
-	seq_printf(m, "\tfixed mode:\n");
-	intel_seq_print_mode(m, 2, mode);
+	seq_printf(m, "\tfixed mode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 }
 
 static void intel_hdcp_info(struct seq_file *m,
@@ -2651,7 +2638,11 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 		   yesno(crtc_state->dither), crtc_state->pipe_bpp);
 
 	if (crtc_state->hw.active) {
+		const struct drm_display_mode *mode =
+			&crtc_state->hw.mode;
 		struct intel_encoder *encoder;
+
+		seq_printf(m, "\tmode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 
 		for_each_encoder_on_crtc(&dev_priv->drm, &crtc->base, encoder)
 			intel_encoder_info(m, crtc, encoder);
