@@ -198,7 +198,7 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 		container_of(work, struct mt76x02_dev, pre_tbtt_work);
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;
-	int i, nbeacons;
+	int nbeacons;
 
 	if (!dev->mt76.beacon_mask)
 		return;
@@ -226,10 +226,8 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 	nbeacons = hweight8(dev->mt76.beacon_mask);
 	mt76x02_enqueue_buffered_bc(dev, &data, N_BCN_SLOTS - nbeacons);
 
-	for (i = nbeacons; i < N_BCN_SLOTS; i++) {
-		skb = __skb_dequeue(&data.q);
+	while ((skb = __skb_dequeue(&data.q)) != NULL)
 		mt76x02_mac_set_beacon(dev, skb);
-	}
 
 out:
 	mt76_wr(dev, MT_BCN_BYPASS_MASK,
