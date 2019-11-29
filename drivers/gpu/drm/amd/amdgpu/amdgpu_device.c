@@ -3041,12 +3041,18 @@ fence_driver_init:
 		amdgpu_pm_virt_sysfs_init(adev);
 
 	r = amdgpu_pm_sysfs_init(adev);
-	if (r)
+	if (r) {
+		adev->pm_sysfs_en = false;
 		DRM_ERROR("registering pm debugfs failed (%d).\n", r);
+	} else
+		adev->pm_sysfs_en = true;
 
 	r = amdgpu_ucode_sysfs_init(adev);
-	if (r)
+	if (r) {
+		adev->ucode_sysfs_en = false;
 		DRM_ERROR("Creating firmware sysfs failed (%d).\n", r);
+	} else
+		adev->ucode_sysfs_en = true;
 
 	r = amdgpu_debugfs_gem_init(adev);
 	if (r)
@@ -3146,7 +3152,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 			drm_atomic_helper_shutdown(adev->ddev);
 	}
 	amdgpu_fence_driver_fini(adev);
-	amdgpu_pm_sysfs_fini(adev);
+	if (adev->pm_sysfs_en)
+		amdgpu_pm_sysfs_fini(adev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_device_ip_fini(adev);
 	if (adev->firmware.gpu_info_fw) {
@@ -3182,7 +3189,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 
 	amdgpu_debugfs_regs_cleanup(adev);
 	device_remove_file(adev->dev, &dev_attr_pcie_replay_count);
-	amdgpu_ucode_sysfs_fini(adev);
+	if (adev->ucode_sysfs_en)
+		amdgpu_ucode_sysfs_fini(adev);
 	if (IS_ENABLED(CONFIG_PERF_EVENTS))
 		amdgpu_pmu_fini(adev);
 	amdgpu_debugfs_preempt_cleanup(adev);
