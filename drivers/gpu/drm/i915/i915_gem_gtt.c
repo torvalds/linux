@@ -1692,7 +1692,6 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	intel_wakeref_t wakeref;
 	u64 from = start;
 	unsigned int pde;
-	bool flush = false;
 	int ret = 0;
 
 	wakeref = intel_runtime_pm_get(&vm->i915->runtime_pm);
@@ -1717,11 +1716,6 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 			spin_lock(&pd->lock);
 			if (pd->entry[pde] == &vm->scratch[1]) {
 				pd->entry[pde] = pt;
-				if (i915_vma_is_bound(ppgtt->vma,
-						      I915_VMA_GLOBAL_BIND)) {
-					gen6_write_pde(ppgtt, pde, pt);
-					flush = true;
-				}
 			} else {
 				alloc = pt;
 				pt = pd->entry[pde];
@@ -1732,8 +1726,18 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	}
 	spin_unlock(&pd->lock);
 
-	if (flush)
+	if (i915_vma_is_bound(ppgtt->vma, I915_VMA_GLOBAL_BIND)) {
+		mutex_lock(&ppgtt->flush);
+
+		/* Rewrite them all! Anything less misses an invalidate. */
+		gen6_for_all_pdes(pt, pd, pde)
+			gen6_write_pde(ppgtt, pde, pt);
+
+		ioread32(ppgtt->pd_addr + pde - 1);
 		gen6_ggtt_invalidate(vm->gt->ggtt);
+
+		mutex_unlock(&ppgtt->flush);
+	}
 
 	goto out;
 
@@ -1793,6 +1797,7 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 	gen6_ppgtt_free_pd(ppgtt);
 	free_scratch(vm);
 
+	mutex_destroy(&ppgtt->flush);
 	mutex_destroy(&ppgtt->pin_mutex);
 	kfree(ppgtt->base.pd);
 }
@@ -1958,6 +1963,7 @@ static struct i915_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&ppgtt->flush);
 	mutex_init(&ppgtt->pin_mutex);
 
 	ppgtt_init(&ppgtt->base, &i915->gt);
@@ -1994,6 +2000,7 @@ err_scratch:
 err_pd:
 	kfree(ppgtt->base.pd);
 err_free:
+	mutex_destroy(&ppgtt->pin_mutex);
 	kfree(ppgtt);
 	return ERR_PTR(err);
 }
