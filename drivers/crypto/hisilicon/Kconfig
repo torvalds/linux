@@ -16,7 +16,7 @@ config CRYPTO_DEV_HISI_SEC
 
 config CRYPTO_DEV_HISI_SEC2
 	tristate "Support for HiSilicon SEC2 crypto block cipher accelerator"
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_ALGAPI
 	select CRYPTO_LIB_DES
 	select CRYPTO_DEV_HISI_QM
