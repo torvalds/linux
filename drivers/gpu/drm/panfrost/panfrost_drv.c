@@ -347,20 +347,19 @@ static int panfrost_ioctl_madvise(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 
+	mutex_lock(&pfdev->shrinker_lock);
 	args->retained = drm_gem_shmem_madvise(gem_obj, args->madv);
 
 	if (args->retained) {
 		struct panfrost_gem_object *bo = to_panfrost_bo(gem_obj);
 
-		mutex_lock(&pfdev->shrinker_lock);
-
 		if (args->madv == PANFROST_MADV_DONTNEED)
-			list_add_tail(&bo->base.madv_list, &pfdev->shrinker_list);
+			list_add_tail(&bo->base.madv_list,
+				      &pfdev->shrinker_list);
 		else if (args->madv == PANFROST_MADV_WILLNEED)
 			list_del_init(&bo->base.madv_list);
-
-		mutex_unlock(&pfdev->shrinker_lock);
 	}
+	mutex_unlock(&pfdev->shrinker_lock);
 
 	drm_gem_object_put_unlocked(gem_obj);
 	return 0;
