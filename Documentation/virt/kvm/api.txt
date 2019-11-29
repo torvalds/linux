@@ -5,7 +5,7 @@ The Definitive KVM (Kernel-based Virtual Machine) API Documentation
 ----------------------
 
 The kvm API is a set of ioctls that are issued to control various aspects
-of a virtual machine.  The ioctls belong to three classes:
+of a virtual machine.  The ioctls belong to the following classes:
 
  - System ioctls: These query and set global attributes which affect the
    whole kvm subsystem.  In addition a system ioctl is used to create
