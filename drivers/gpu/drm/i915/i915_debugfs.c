@@ -2405,27 +2405,6 @@ static void intel_encoder_info(struct seq_file *m,
 	}
 }
 
-static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_encoder *encoder;
-	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
-	const struct intel_plane_state *plane_state =
-		to_intel_plane_state(plane->base.state);
-	const struct drm_framebuffer *fb = plane_state->uapi.fb;
-
-	if (fb)
-		seq_printf(m, "\tfb: %d, pos: %dx%d, size: %dx%d\n",
-			   fb->base.id, plane_state->uapi.src_x >> 16,
-			   plane_state->uapi.src_y >> 16,
-			   fb->width, fb->height);
-	else
-		seq_puts(m, "\tprimary plane disabled\n");
-	for_each_encoder_on_crtc(dev, &crtc->base, encoder)
-		intel_encoder_info(m, crtc, encoder);
-}
-
 static void intel_panel_info(struct seq_file *m, struct intel_panel *panel)
 {
 	struct drm_display_mode *mode = panel->fixed_mode;
@@ -2611,22 +2590,24 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *crtc)
 
 		src = drm_plane_state_src(&plane_state->uapi);
 		dst = drm_plane_state_dest(&plane_state->uapi);
-		fb = plane_state->uapi.fb;
 
+		fb = plane_state->uapi.fb;
 		if (fb)
 			drm_get_format_name(fb->format->format, &format_name);
-		else
-			sprintf(format_name.str, "N/A");
 
 		plane_rotation(rot_str, sizeof(rot_str),
 			       plane_state->uapi.rotation);
 
-		seq_printf(m, "\t--Plane id %d: type=%s, dst=" DRM_RECT_FMT ", src=" DRM_RECT_FP_FMT ", format=%s, rotation=%s\n",
+		seq_printf(m, "\t--Plane id %d: type=%s, fb=%d,%s,%dx%d, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
 			   plane->base.base.id,
 			   plane_type(plane->base.type),
-			   DRM_RECT_ARG(&dst),
+			   fb ? fb->base.id : 0,
+			   fb ? format_name.str : "n/a",
+			   fb ? fb->width : 0,
+			   fb ? fb->height : 0,
 			   DRM_RECT_FP_ARG(&src),
-			   format_name.str, rot_str);
+			   DRM_RECT_ARG(&dst),
+			   rot_str);
 	}
 }
 
@@ -2684,18 +2665,11 @@ static int i915_display_info(struct seq_file *m, void *unused)
 			   yesno(crtc_state->dither), crtc_state->pipe_bpp);
 
 		if (crtc_state->hw.active) {
-			struct intel_plane *cursor =
-				to_intel_plane(crtc->base.cursor);
+			struct intel_encoder *encoder;
 
-			intel_crtc_info(m, crtc);
+			for_each_encoder_on_crtc(dev, &crtc->base, encoder)
+				intel_encoder_info(m, crtc, encoder);
 
-			seq_printf(m, "\tcursor visible? %s, position (%d, %d), size %dx%d, addr 0x%08x\n",
-				   yesno(cursor->base.state->visible),
-				   cursor->base.state->crtc_x,
-				   cursor->base.state->crtc_y,
-				   cursor->base.state->crtc_w,
-				   cursor->base.state->crtc_h,
-				   cursor->cursor.base);
 			intel_scaler_info(m, crtc);
 			intel_plane_info(m, crtc);
 		}
