@@ -303,14 +303,17 @@ static int panfrost_ioctl_mmap_bo(struct drm_device *dev, void *data,
 	}
 
 	/* Don't allow mmapping of heap objects as pages are not pinned. */
-	if (to_panfrost_bo(gem_obj)->is_heap)
-		return -EINVAL;
+	if (to_panfrost_bo(gem_obj)->is_heap) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = drm_gem_create_mmap_offset(gem_obj);
 	if (ret == 0)
 		args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
-	drm_gem_object_put_unlocked(gem_obj);
 
+out:
+	drm_gem_object_put_unlocked(gem_obj);
 	return ret;
 }
 
