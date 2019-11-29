@@ -1954,7 +1954,6 @@ static int drm_fbdev_fb_release(struct fb_info *info, int user)
 static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 {
 	struct fb_info *fbi = fb_helper->fbdev;
-	struct fb_ops *fbops = NULL;
 	void *shadow = NULL;
 
 	if (!fb_helper->dev)
@@ -1963,15 +1962,11 @@ static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 	if (fbi && fbi->fbdefio) {
 		fb_deferred_io_cleanup(fbi);
 		shadow = fbi->screen_buffer;
-		fbops = fbi->fbops;
 	}
 
 	drm_fb_helper_fini(fb_helper);
 
-	if (shadow) {
-		vfree(shadow);
-		kfree(fbops);
-	}
+	vfree(shadow);
 
 	drm_client_framebuffer_delete(fb_helper->buffer);
 }
@@ -2062,24 +2057,10 @@ static int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	drm_fb_helper_fill_info(fbi, fb_helper, sizes);
 
 	if (drm_fbdev_use_shadow_fb(fb_helper)) {
-		struct fb_ops *fbops;
-		void *shadow;
-
-		/*
-		 * fb_deferred_io_cleanup() clears &fbops->fb_mmap so a per
-		 * instance version is necessary.
-		 */
-		fbops = kzalloc(sizeof(*fbops), GFP_KERNEL);
-		shadow = vzalloc(fbi->screen_size);
-		if (!fbops || !shadow) {
-			kfree(fbops);
-			vfree(shadow);
+		fbi->screen_buffer = vzalloc(fbi->screen_size);
+		if (!fbi->screen_buffer)
 			return -ENOMEM;
-		}
 
-		*fbops = *fbi->fbops;
-		fbi->fbops = fbops;
-		fbi->screen_buffer = shadow;
 		fbi->fbdefio = &drm_fbdev_defio;
 
 		fb_deferred_io_init(fbi);
