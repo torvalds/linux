@@ -380,6 +380,13 @@ enum phy_fia {
 			    &(dev)->mode_config.encoder_list,	\
 			    base.head)
 
+#define for_each_intel_encoder_mask(dev, intel_encoder, encoder_mask)	\
+	list_for_each_entry(intel_encoder,				\
+			    &(dev)->mode_config.encoder_list,		\
+			    base.head)					\
+		for_each_if((encoder_mask) &				\
+			    drm_encoder_mask(&intel_encoder->base))
+
 #define for_each_intel_dp(dev, intel_encoder)			\
 	for_each_intel_encoder(dev, intel_encoder)		\
 		for_each_if(intel_encoder_is_dp(intel_encoder))

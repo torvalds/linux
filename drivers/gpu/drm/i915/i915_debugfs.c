@@ -2382,15 +2382,24 @@ static void intel_encoder_info(struct seq_file *m,
 			       struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
 
 	seq_printf(m, "\t[ENCODER:%d:%s]: connectors:\n",
 		   encoder->base.base.id, encoder->base.name);
 
-	for_each_connector_on_encoder(dev, &encoder->base, connector)
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		const struct drm_connector_state *conn_state =
+			connector->state;
+
+		if (conn_state->best_encoder != &encoder->base)
+			continue;
+
 		seq_printf(m, "\t\t[CONNECTOR:%d:%s]\n",
-			   connector->base.base.id, connector->base.name);
+			   connector->base.id, connector->name);
+	}
+	drm_connector_list_iter_end(&conn_iter);
 }
 
 static void intel_panel_info(struct seq_file *m, struct intel_panel *panel)
@@ -2475,8 +2484,10 @@ static void intel_connector_info(struct seq_file *m,
 				 struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_encoder *intel_encoder = intel_connector->encoder;
-	struct drm_display_mode *mode;
+	const struct drm_connector_state *conn_state = connector->state;
+	struct intel_encoder *encoder =
+		to_intel_encoder(conn_state->best_encoder);
+	const struct drm_display_mode *mode;
 
 	seq_printf(m, "[CONNECTOR:%d:%s]: status: %s\n",
 		   connector->base.id, connector->name,
@@ -2492,24 +2503,24 @@ static void intel_connector_info(struct seq_file *m,
 		   drm_get_subpixel_order_name(connector->display_info.subpixel_order));
 	seq_printf(m, "\tCEA rev: %d\n", connector->display_info.cea_rev);
 
-	if (!intel_encoder)
+	if (!encoder)
 		return;
 
 	switch (connector->connector_type) {
 	case DRM_MODE_CONNECTOR_DisplayPort:
 	case DRM_MODE_CONNECTOR_eDP:
-		if (intel_encoder->type == INTEL_OUTPUT_DP_MST)
+		if (encoder->type == INTEL_OUTPUT_DP_MST)
 			intel_dp_mst_info(m, intel_connector);
 		else
 			intel_dp_info(m, intel_connector);
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
-		if (intel_encoder->type == INTEL_OUTPUT_LVDS)
+		if (encoder->type == INTEL_OUTPUT_LVDS)
 			intel_lvds_info(m, intel_connector);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
-		if (intel_encoder->type == INTEL_OUTPUT_HDMI ||
-		    intel_encoder->type == INTEL_OUTPUT_DDI)
+		if (encoder->type == INTEL_OUTPUT_HDMI ||
+		    encoder->type == INTEL_OUTPUT_DDI)
 			intel_hdmi_info(m, intel_connector);
 		break;
 	default:
@@ -2653,6 +2664,7 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	const struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
+	struct intel_encoder *encoder;
 
 	seq_printf(m, "[CRTC:%d:%s]:\n",
 		   crtc->base.base.id, crtc->base.name);
@@ -2663,8 +2675,6 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 		   DRM_MODE_ARG(&crtc_state->uapi.mode));
 
 	if (crtc_state->hw.enable) {
-		struct intel_encoder *encoder;
-
 		seq_printf(m, "\thw: active=%s, adjusted_mode=" DRM_MODE_FMT "\n",
 			   yesno(crtc_state->hw.active),
 			   DRM_MODE_ARG(&crtc_state->hw.adjusted_mode));
@@ -2673,11 +2683,12 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 			   crtc_state->pipe_src_w, crtc_state->pipe_src_h,
 			   yesno(crtc_state->dither), crtc_state->pipe_bpp);
 
-		for_each_encoder_on_crtc(&dev_priv->drm, &crtc->base, encoder)
-			intel_encoder_info(m, crtc, encoder);
-
 		intel_scaler_info(m, crtc);
 	}
+
+	for_each_intel_encoder_mask(&dev_priv->drm, encoder,
+				    crtc_state->uapi.encoder_mask)
+		intel_encoder_info(m, crtc, encoder);
 
 	intel_plane_info(m, crtc);
 
