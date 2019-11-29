@@ -98,6 +98,7 @@ config DRM_SII902X
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select I2C_MUX
+	select SND_SOC_HDMI_CODEC if SND_SOC
 	---help---
 	  Silicon Image sii902x bridge chip driver.
 
