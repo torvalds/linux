@@ -163,7 +163,7 @@ static void mt76u_copy(struct mt76_dev *dev, u32 offset,
 
 	mutex_lock(&usb->usb_ctrl_mtx);
 	while (i < len) {
-		current_batch_size = min_t(int, sizeof(usb->data), len - i);
+		current_batch_size = min_t(int, usb->data_len, len - i);
 		memcpy(usb->data, val + i, current_batch_size);
 		ret = __mt76u_vendor_request(dev, MT_VEND_MULTI_WRITE,
 					     USB_DIR_OUT | USB_TYPE_VENDOR,
@@ -950,6 +950,15 @@ static const struct mt76_queue_ops usb_queue_ops = {
 	.kick = mt76u_tx_kick,
 };
 
+void mt76u_deinit(struct mt76_dev *dev)
+{
+	if (dev->usb.stat_wq) {
+		destroy_workqueue(dev->usb.stat_wq);
+		dev->usb.stat_wq = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(mt76u_deinit);
+
 int mt76u_init(struct mt76_dev *dev,
 	       struct usb_interface *intf)
 {
@@ -973,6 +982,15 @@ int mt76u_init(struct mt76_dev *dev,
 	if (!usb->stat_wq)
 		return -ENOMEM;
 
+	usb->data_len = usb_maxpacket(udev, usb_sndctrlpipe(udev, 0), 1);
+	if (usb->data_len < 32)
+		usb->data_len = 32;
+	usb->data = devm_kmalloc(dev->dev, usb->data_len, GFP_KERNEL);
+	if (!usb->data) {
+		mt76u_deinit(dev);
+		return -ENOMEM;
+	}
+
 	mutex_init(&usb->mcu.mutex);
 
 	mutex_init(&usb->usb_ctrl_mtx);
@@ -986,15 +1004,6 @@ int mt76u_init(struct mt76_dev *dev,
 	return mt76u_set_endpoints(intf, usb);
 }
 EXPORT_SYMBOL_GPL(mt76u_init);
-
-void mt76u_deinit(struct mt76_dev *dev)
-{
-	if (dev->usb.stat_wq) {
-		destroy_workqueue(dev->usb.stat_wq);
-		dev->usb.stat_wq = NULL;
-	}
-}
-EXPORT_SYMBOL_GPL(mt76u_deinit);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>");
 MODULE_LICENSE("Dual BSD/GPL");
