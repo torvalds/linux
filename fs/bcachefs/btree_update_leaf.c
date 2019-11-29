@@ -104,38 +104,43 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 			return true;
 		}
 
-		insert->k.needs_whiteout = k->needs_whiteout;
-
 		btree_account_key_drop(b, k);
+
+		if (bkey_whiteout(&insert->k)) {
+			unsigned clobber_u64s = k->u64s, new_u64s = k->u64s;
+
+			k->type = KEY_TYPE_deleted;
+
+			if (k->needs_whiteout) {
+				push_whiteout(iter->trans->c, b, k);
+				k->needs_whiteout = false;
+			}
+
+			if (k >= btree_bset_last(b)->start) {
+				bch2_bset_delete(b, k, clobber_u64s);
+				new_u64s = 0;
+			}
+
+			bch2_btree_node_iter_fix(iter, b, node_iter, k,
+						 clobber_u64s, new_u64s);
+			return true;
+
+		}
 
 		if (k >= btree_bset_last(b)->start) {
 			clobber_u64s = k->u64s;
-
-			/*
-			 * If we're deleting, and the key we're deleting doesn't
-			 * need a whiteout (it wasn't overwriting a key that had
-			 * been written to disk) - just delete it:
-			 */
-			if (bkey_whiteout(&insert->k) && !k->needs_whiteout) {
-				bch2_bset_delete(b, k, clobber_u64s);
-				bch2_btree_node_iter_fix(iter, b, node_iter,
-							 k, clobber_u64s, 0);
-				return true;
-			}
-
 			goto overwrite;
 		}
 
+		insert->k.needs_whiteout = k->needs_whiteout;
+		k->needs_whiteout = false;
 		k->type = KEY_TYPE_deleted;
+		/*
+		 * XXX: we should be able to do this without two calls to
+		 * bch2_btree_node_iter_fix:
+		 */
 		bch2_btree_node_iter_fix(iter, b, node_iter, k,
 					 k->u64s, k->u64s);
-
-		if (bkey_whiteout(&insert->k)) {
-			reserve_whiteout(b, k);
-			return true;
-		} else {
-			k->needs_whiteout = false;
-		}
 	} else {
 		/*
 		 * Deleting, but the key to delete wasn't found - nothing to do:

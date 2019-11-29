@@ -558,7 +558,6 @@ out:
 	b->sib_u64s[0]		= 0;
 	b->sib_u64s[1]		= 0;
 	b->whiteout_u64s	= 0;
-	b->uncompacted_whiteout_u64s = 0;
 	bch2_btree_keys_init(b, &c->expensive_debug_checks);
 
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_mem_alloc],

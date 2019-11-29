@@ -97,7 +97,6 @@ struct btree {
 	struct btree_nr_keys	nr;
 	u16			sib_u64s[2];
 	u16			whiteout_u64s;
-	u16			uncompacted_whiteout_u64s;
 	u8			page_order;
 	u8			unpack_fn_len;
 

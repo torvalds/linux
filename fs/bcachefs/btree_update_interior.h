@@ -251,8 +251,7 @@ static inline ssize_t __bch_btree_u64s_remaining(struct bch_fs *c,
 						 void *end)
 {
 	ssize_t used = bset_byte_offset(b, end) / sizeof(u64) +
-		b->whiteout_u64s +
-		b->uncompacted_whiteout_u64s;
+		b->whiteout_u64s;
 	ssize_t total = c->opts.btree_node_size << 6;
 
 	return total - used;
@@ -302,23 +301,19 @@ static inline struct btree_node_entry *want_new_bset(struct bch_fs *c,
 	return NULL;
 }
 
-static inline void unreserve_whiteout(struct btree *b, struct bkey_packed *k)
+static inline void push_whiteout(struct bch_fs *c, struct btree *b,
+				 struct bkey_packed *k)
 {
-	if (bkey_written(b, k)) {
-		EBUG_ON(b->uncompacted_whiteout_u64s <
-			bkeyp_key_u64s(&b->format, k));
-		b->uncompacted_whiteout_u64s -=
-			bkeyp_key_u64s(&b->format, k);
-	}
-}
+	unsigned u64s = bkeyp_key_u64s(&b->format, k);
+	struct bkey_packed *dst;
 
-static inline void reserve_whiteout(struct btree *b, struct bkey_packed *k)
-{
-	if (bkey_written(b, k)) {
-		BUG_ON(!k->needs_whiteout);
-		b->uncompacted_whiteout_u64s +=
-			bkeyp_key_u64s(&b->format, k);
-	}
+	BUG_ON(u64s > bch_btree_keys_u64s_remaining(c, b));
+
+	b->whiteout_u64s += bkeyp_key_u64s(&b->format, k);
+	dst = unwritten_whiteouts_start(c, b);
+	memcpy_u64s(dst, k, u64s);
+	dst->u64s = u64s;
+	dst->type = KEY_TYPE_deleted;
 }
 
 /*

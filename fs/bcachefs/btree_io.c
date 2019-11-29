@@ -79,6 +79,81 @@ static void *btree_bounce_alloc(struct bch_fs *c, unsigned order,
 	return mempool_alloc(&c->btree_bounce_pool, GFP_NOIO);
 }
 
+static void sort_bkey_ptrs(const struct btree *bt,
+			   struct bkey_packed **ptrs, unsigned nr)
+{
+	unsigned n = nr, a = nr / 2, b, c, d;
+
+	if (!a)
+		return;
+
+	/* Heap sort: see lib/sort.c: */
+	while (1) {
+		if (a)
+			a--;
+		else if (--n)
+			swap(ptrs[0], ptrs[n]);
+		else
+			break;
+
+		for (b = a; c = 2 * b + 1, (d = c + 1) < n;)
+			b = bkey_cmp_packed(bt,
+					    ptrs[c],
+					    ptrs[d]) >= 0 ? c : d;
+		if (d == n)
+			b = c;
+
+		while (b != a &&
+		       bkey_cmp_packed(bt,
+				       ptrs[a],
+				       ptrs[b]) >= 0)
+			b = (b - 1) / 2;
+		c = b;
+		while (b != a) {
+			b = (b - 1) / 2;
+			swap(ptrs[b], ptrs[c]);
+		}
+	}
+}
+
+static void bch2_sort_whiteouts(struct bch_fs *c, struct btree *b)
+{
+	struct bkey_packed *new_whiteouts, **whiteout_ptrs, *k;
+	bool used_mempool1 = false, used_mempool2 = false;
+	unsigned order, i, nr = 0;
+
+	if (!b->whiteout_u64s)
+		return;
+
+	order = get_order(b->whiteout_u64s * sizeof(u64));
+
+	new_whiteouts = btree_bounce_alloc(c, order, &used_mempool1);
+	whiteout_ptrs = btree_bounce_alloc(c, order, &used_mempool2);
+
+	for (k = unwritten_whiteouts_start(c, b);
+	     k != unwritten_whiteouts_end(c, b);
+	     k = bkey_next(k))
+		whiteout_ptrs[nr++] = k;
+
+	sort_bkey_ptrs(b, whiteout_ptrs, nr);
+
+	k = new_whiteouts;
+
+	for (i = 0; i < nr; i++) {
+		bkey_copy(k, whiteout_ptrs[i]);
+		k = bkey_next(k);
+	}
+
+	verify_no_dups(b, new_whiteouts,
+		       (void *) ((u64 *) new_whiteouts + b->whiteout_u64s));
+
+	memcpy_u64s(unwritten_whiteouts_start(c, b),
+		    new_whiteouts, b->whiteout_u64s);
+
+	btree_bounce_free(c, order, used_mempool2, whiteout_ptrs);
+	btree_bounce_free(c, order, used_mempool1, new_whiteouts);
+}
+
 static unsigned should_compact_bset(struct btree *b, struct bset_tree *t,
 				    bool compacting,
 				    enum compact_mode mode)
@@ -115,6 +190,8 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 
 	if (!whiteout_u64s)
 		return false;
+
+	bch2_sort_whiteouts(c, b);
 
 	sort_iter_init(&sort_iter, b);
 
@@ -171,11 +248,14 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 			if (bkey_deleted(k) && btree_node_is_extents(b))
 				continue;
 
+			BUG_ON(bkey_whiteout(k) &&
+			       k->needs_whiteout &&
+			       bkey_written(b, k));
+
 			if (bkey_whiteout(k) && !k->needs_whiteout)
 				continue;
 
 			if (bkey_whiteout(k)) {
-				unreserve_whiteout(b, k);
 				memcpy_u64s(u_pos, k, bkeyp_key_u64s(f, k));
 				set_bkeyp_val_u64s(f, u_pos, 0);
 				u_pos = bkey_next(u_pos);
@@ -1342,21 +1422,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 	BUG_ON(le64_to_cpu(b->data->magic) != bset_magic(c));
 	BUG_ON(memcmp(&b->data->format, &b->format, sizeof(b->format)));
 
-	/*
-	 * We can't block on six_lock_write() here; another thread might be
-	 * trying to get a journal reservation with read locks held, and getting
-	 * a journal reservation might be blocked on flushing the journal and
-	 * doing btree writes:
-	 */
-	if (lock_type_held == SIX_LOCK_intent &&
-	    six_trylock_write(&b->c.lock)) {
-		__bch2_compact_whiteouts(c, b, COMPACT_WRITTEN);
-		six_unlock_write(&b->c.lock);
-	} else {
-		__bch2_compact_whiteouts(c, b, COMPACT_WRITTEN_NO_WRITE_LOCK);
-	}
-
-	BUG_ON(b->uncompacted_whiteout_u64s);
+	bch2_sort_whiteouts(c, b);
 
 	sort_iter_init(&sort_iter, b);
 
@@ -1545,7 +1611,6 @@ bool bch2_btree_post_write_cleanup(struct bch_fs *c, struct btree *b)
 		return false;
 
 	BUG_ON(b->whiteout_u64s);
-	BUG_ON(b->uncompacted_whiteout_u64s);
 
 	clear_btree_node_just_written(b);
 
