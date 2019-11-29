@@ -384,7 +384,7 @@ int cpsw_ale_del_mcast(struct cpsw_ale *ale, const u8 *addr, int port_mask,
 		       int flags, u16 vid)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
-	int mcast_members;
+	int mcast_members = 0;
 	int idx;
 
 	idx = cpsw_ale_match_addr(ale, addr, (flags & ALE_VLAN) ? vid : 0);
@@ -397,11 +397,13 @@ int cpsw_ale_del_mcast(struct cpsw_ale *ale, const u8 *addr, int port_mask,
 		mcast_members = cpsw_ale_get_port_mask(ale_entry,
 						       ale->port_mask_bits);
 		mcast_members &= ~port_mask;
+	}
+
+	if (mcast_members)
 		cpsw_ale_set_port_mask(ale_entry, mcast_members,
 				       ale->port_mask_bits);
-	} else {
+	else
 		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
-	}
 
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
@@ -478,6 +480,10 @@ static void cpsw_ale_del_vlan_modify(struct cpsw_ale *ale, u32 *ale_entry,
 	members = cpsw_ale_get_vlan_member_list(ale_entry,
 						ale->vlan_field_bits);
 	members &= ~port_mask;
+	if (!members) {
+		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
+		return;
+	}
 
 	untag = cpsw_ale_get_vlan_untag_force(ale_entry,
 					      ale->vlan_field_bits);
