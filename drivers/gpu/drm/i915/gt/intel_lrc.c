@@ -3777,8 +3777,18 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
 }
 
+static void execlists_shutdown(struct intel_engine_cs *engine)
+{
+	/* Synchronise with residual timers and any softirq they raise */
+	del_timer_sync(&engine->execlists.timer);
+	del_timer_sync(&engine->execlists.preempt);
+	tasklet_kill(&engine->execlists.tasklet);
+}
+
 static void execlists_destroy(struct intel_engine_cs *engine)
 {
+	execlists_shutdown(engine);
+
 	intel_engine_cleanup_common(engine);
 	lrc_destroy_wa_ctx(engine);
 	kfree(engine);
