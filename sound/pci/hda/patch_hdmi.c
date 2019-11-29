@@ -1335,24 +1335,24 @@ static int hdmi_find_pcm_slot(struct hdmi_spec *spec,
 	int i;
 
 	/*
-	 * generic_hdmi_build_pcms() allocates (num_nids + dev_num - 1)
-	 * number of pcms.
+	 * generic_hdmi_build_pcms() may allocate extra PCMs on some
+	 * platforms (with maximum of 'num_nids + dev_num - 1')
 	 *
 	 * The per_pin of pin_nid_idx=n and dev_id=m prefers to get pcm-n
 	 * if m==0. This guarantees that dynamic pcm assignments are compatible
-	 * with the legacy static per_pin-pmc assignment that existed in the
+	 * with the legacy static per_pin-pcm assignment that existed in the
 	 * days before DP-MST.
 	 *
 	 * per_pin of m!=0 prefers to get pcm=(num_nids + (m - 1)).
 	 */
-	if (per_pin->dev_id == 0 &&
-	    !test_bit(per_pin->pin_nid_idx, &spec->pcm_bitmap))
-		return per_pin->pin_nid_idx;
 
-	if (per_pin->dev_id != 0 &&
-	    !(test_bit(spec->num_nids + (per_pin->dev_id - 1),
-		&spec->pcm_bitmap))) {
-		return spec->num_nids + (per_pin->dev_id - 1);
+	if (per_pin->dev_id == 0) {
+		if (!test_bit(per_pin->pin_nid_idx, &spec->pcm_bitmap))
+			return per_pin->pin_nid_idx;
+	} else {
+		i = spec->num_nids + (per_pin->dev_id - 1);
+		if (i < spec->pcm_used && !(test_bit(i, &spec->pcm_bitmap)))
+			return i;
 	}
 
 	/* have a second try; check the area over num_nids */
