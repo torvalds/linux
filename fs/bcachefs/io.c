@@ -1224,7 +1224,8 @@ void bch2_write(struct closure *cl)
 	data_len = min_t(u64, bio->bi_iter.bi_size,
 			 op->new_i_size - (op->pos.offset << 9));
 
-	if (data_len <= min(block_bytes(c) / 2, 1024U)) {
+	if (c->opts.inline_data &&
+	    data_len <= min(block_bytes(c) / 2, 1024U)) {
 		bch2_write_data_inline(op, data_len);
 		return;
 	}

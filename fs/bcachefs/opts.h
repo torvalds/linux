@@ -181,6 +181,11 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  BCH_SB_128_BIT_MACS,		false,				\
 	  NULL,		"Store full 128 bits of cryptographic MACs, instead of 80")\
+	x(inline_data,			u8,				\
+	  OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_BOOL(),							\
+	  NO_SB_OPT,			false,				\
+	  NULL,		"Enable inline data extents")			\
 	x(acl,				u8,				\
 	  OPT_FORMAT|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
