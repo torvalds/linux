@@ -158,8 +158,6 @@ struct i2c_hid {
 
 	bool			irq_wake_enabled;
 	struct mutex		reset_lock;
-
-	unsigned long		sleep_delay;
 };
 
 static const struct i2c_hid_quirks {
