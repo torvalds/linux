@@ -578,11 +578,6 @@ int skcipher_walk_aead_decrypt(struct skcipher_walk *walk,
 }
 EXPORT_SYMBOL_GPL(skcipher_walk_aead_decrypt);
 
-static unsigned int crypto_skcipher_extsize(struct crypto_alg *alg)
-{
-	return crypto_alg_extsize(alg);
-}
-
 static void skcipher_set_needkey(struct crypto_skcipher *tfm)
 {
 	if (crypto_skcipher_max_keysize(tfm) != 0)
@@ -749,7 +744,7 @@ static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 #endif
 
 static const struct crypto_type crypto_skcipher_type = {
-	.extsize = crypto_skcipher_extsize,
+	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_skcipher_init_tfm,
 	.free = crypto_skcipher_free_instance,
 #ifdef CONFIG_PROC_FS
