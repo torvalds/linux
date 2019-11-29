@@ -2638,6 +2638,33 @@ static void intel_scaler_info(struct seq_file *m, struct intel_crtc *crtc)
 	}
 }
 
+static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	const struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+
+	seq_printf(m, "CRTC %d: pipe: %c, active=%s, (size=%dx%d), dither=%s, bpp=%d\n",
+		   crtc->base.base.id, pipe_name(crtc->pipe),
+		   yesno(crtc_state->hw.active),
+		   crtc_state->pipe_src_w, crtc_state->pipe_src_h,
+		   yesno(crtc_state->dither), crtc_state->pipe_bpp);
+
+	if (crtc_state->hw.active) {
+		struct intel_encoder *encoder;
+
+		for_each_encoder_on_crtc(&dev_priv->drm, &crtc->base, encoder)
+			intel_encoder_info(m, crtc, encoder);
+
+		intel_scaler_info(m, crtc);
+		intel_plane_info(m, crtc);
+	}
+
+	seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s\n",
+		   yesno(!crtc->cpu_fifo_underrun_disabled),
+		   yesno(!crtc->pch_fifo_underrun_disabled));
+}
+
 static int i915_display_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -2652,31 +2679,8 @@ static int i915_display_info(struct seq_file *m, void *unused)
 	seq_printf(m, "CRTC info\n");
 	seq_printf(m, "---------\n");
 	for_each_intel_crtc(dev, crtc) {
-		const struct intel_crtc_state *crtc_state;
-
 		drm_modeset_lock(&crtc->base.mutex, NULL);
-
-		crtc_state = to_intel_crtc_state(crtc->base.state);
-
-		seq_printf(m, "CRTC %d: pipe: %c, active=%s, (size=%dx%d), dither=%s, bpp=%d\n",
-			   crtc->base.base.id, pipe_name(crtc->pipe),
-			   yesno(crtc_state->hw.active),
-			   crtc_state->pipe_src_w, crtc_state->pipe_src_h,
-			   yesno(crtc_state->dither), crtc_state->pipe_bpp);
-
-		if (crtc_state->hw.active) {
-			struct intel_encoder *encoder;
-
-			for_each_encoder_on_crtc(dev, &crtc->base, encoder)
-				intel_encoder_info(m, crtc, encoder);
-
-			intel_scaler_info(m, crtc);
-			intel_plane_info(m, crtc);
-		}
-
-		seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s \n",
-			   yesno(!crtc->cpu_fifo_underrun_disabled),
-			   yesno(!crtc->pch_fifo_underrun_disabled));
+		intel_crtc_info(m, crtc);
 		drm_modeset_unlock(&crtc->base.mutex);
 	}
 
