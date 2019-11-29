@@ -610,7 +610,7 @@ static int skcipher_setkey_unaligned(struct crypto_skcipher *tfm,
 	return ret;
 }
 
-static int skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
+int crypto_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			   unsigned int keylen)
 {
 	struct skcipher_alg *cipher = crypto_skcipher_alg(tfm);
@@ -635,6 +635,7 @@ static int skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	crypto_skcipher_clear_flags(tfm, CRYPTO_TFM_NEED_KEY);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(crypto_skcipher_setkey);
 
 int crypto_skcipher_encrypt(struct skcipher_request *req)
 {
@@ -683,7 +684,6 @@ static int crypto_skcipher_init_tfm(struct crypto_tfm *tfm)
 	struct crypto_skcipher *skcipher = __crypto_skcipher_cast(tfm);
 	struct skcipher_alg *alg = crypto_skcipher_alg(skcipher);
 
-	skcipher->setkey = skcipher_setkey;
 	skcipher->encrypt = alg->encrypt;
 	skcipher->decrypt = alg->decrypt;
 

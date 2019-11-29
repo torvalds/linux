@@ -35,8 +35,6 @@ struct skcipher_request {
 };
 
 struct crypto_skcipher {
-	int (*setkey)(struct crypto_skcipher *tfm, const u8 *key,
-	              unsigned int keylen);
 	int (*encrypt)(struct skcipher_request *req);
 	int (*decrypt)(struct skcipher_request *req);
 
@@ -364,11 +362,8 @@ static inline void crypto_sync_skcipher_clear_flags(
  *
  * Return: 0 if the setting of the key was successful; < 0 if an error occurred
  */
-static inline int crypto_skcipher_setkey(struct crypto_skcipher *tfm,
-					 const u8 *key, unsigned int keylen)
-{
-	return tfm->setkey(tfm, key, keylen);
-}
+int crypto_skcipher_setkey(struct crypto_skcipher *tfm,
+			   const u8 *key, unsigned int keylen);
 
 static inline int crypto_sync_skcipher_setkey(struct crypto_sync_skcipher *tfm,
 					 const u8 *key, unsigned int keylen)
