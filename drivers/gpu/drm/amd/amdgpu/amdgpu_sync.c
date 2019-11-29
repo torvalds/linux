@@ -240,13 +240,11 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 			continue;
 
 		if (amdgpu_sync_same_dev(adev, f)) {
-			/* VM updates are only interesting
-			 * for other VM updates and moves.
+			/* VM updates only sync with moves but not with user
+			 * command submissions or KFD evictions fences
 			 */
-			if ((owner != AMDGPU_FENCE_OWNER_UNDEFINED) &&
-			    (fence_owner != AMDGPU_FENCE_OWNER_UNDEFINED) &&
-			    ((owner == AMDGPU_FENCE_OWNER_VM) !=
-			     (fence_owner == AMDGPU_FENCE_OWNER_VM)))
+			if (owner == AMDGPU_FENCE_OWNER_VM &&
+			    fence_owner != AMDGPU_FENCE_OWNER_UNDEFINED)
 				continue;
 
 			/* Ignore fence from the same owner and explicit one as

@@ -266,6 +266,10 @@ struct amdgpu_vm {
 	struct drm_sched_entity	direct;
 	struct drm_sched_entity	delayed;
 
+	/* Last submission to the scheduler entities */
+	struct dma_fence	*last_direct;
+	struct dma_fence	*last_delayed;
+
 	unsigned int		pasid;
 	/* dedicated to vm */
 	struct amdgpu_vmid	*reserved_vmid[AMDGPU_MAX_VMHUBS];

@@ -562,8 +562,8 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 {
 	entry->priority = 0;
 	entry->tv.bo = &vm->root.base.bo->tbo;
-	/* One for the VM updates, one for TTM and one for the CS job */
-	entry->tv.num_shared = 3;
+	/* One for TTM and one for the CS job */
+	entry->tv.num_shared = 2;
 	entry->user_pages = NULL;
 	list_add(&entry->tv.head, validated);
 }
@@ -2518,6 +2518,11 @@ bool amdgpu_vm_evictable(struct amdgpu_bo *bo)
 	if (!dma_resv_test_signaled_rcu(bo->tbo.base.resv, true))
 		return false;
 
+	/* Don't evict VM page tables while they are updated */
+	if (!dma_fence_is_signaled(bo_base->vm->last_direct) ||
+	    !dma_fence_is_signaled(bo_base->vm->last_delayed))
+		return false;
+
 	return true;
 }
 
@@ -2683,8 +2688,16 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
  */
 long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout)
 {
-	return dma_resv_wait_timeout_rcu(vm->root.base.bo->tbo.base.resv,
-						   true, true, timeout);
+	timeout = dma_resv_wait_timeout_rcu(vm->root.base.bo->tbo.base.resv,
+					    true, true, timeout);
+	if (timeout <= 0)
+		return timeout;
+
+	timeout = dma_fence_wait_timeout(vm->last_direct, true, timeout);
+	if (timeout <= 0)
+		return timeout;
+
+	return dma_fence_wait_timeout(vm->last_delayed, true, timeout);
 }
 
 /**
@@ -2753,6 +2766,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	else
 		vm->update_funcs = &amdgpu_vm_sdma_funcs;
 	vm->last_update = NULL;
+	vm->last_direct = dma_fence_get_stub();
+	vm->last_delayed = dma_fence_get_stub();
 
 	amdgpu_vm_bo_param(adev, vm, adev->vm_manager.root_level, false, &bp);
 	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE)
@@ -2803,6 +2818,8 @@ error_free_root:
 	vm->root.base.bo = NULL;
 
 error_free_delayed:
+	dma_fence_put(vm->last_direct);
+	dma_fence_put(vm->last_delayed);
 	drm_sched_entity_destroy(&vm->delayed);
 
 error_free_direct:
@@ -3002,6 +3019,11 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
 		vm->pasid = 0;
 	}
+
+	dma_fence_wait(vm->last_direct, false);
+	dma_fence_put(vm->last_direct);
+	dma_fence_wait(vm->last_delayed, false);
+	dma_fence_put(vm->last_delayed);
 
 	list_for_each_entry_safe(mapping, tmp, &vm->freed, list) {
 		if (mapping->flags & AMDGPU_PTE_PRT && prt_fini_needed) {
