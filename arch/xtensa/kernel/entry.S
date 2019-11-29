@@ -1876,8 +1876,7 @@ ENDPROC(fast_store_prohibited)
 
 ENTRY(system_call)
 
-	/* reserve 4 bytes on stack for function parameter */
-	abi_entry(4)
+	abi_entry_default
 
 	/* regs->syscall = regs->areg[2] */
 
@@ -1915,9 +1914,6 @@ ENTRY(system_call)
 	l32i	a10, a2, PT_AREG8
 	l32i	a11, a2, PT_AREG9
 
-	/* Pass one additional argument to the syscall: pt_regs (on stack) */
-	s32i	a2, a1, 0
-
 	callx4	a4
 
 1:	/* regs->areg[2] = return_value */
@@ -1925,12 +1921,12 @@ ENTRY(system_call)
 	s32i	a6, a2, PT_AREG2
 	bnez	a3, 1f
 .Lsyscall_exit:
-	abi_ret(4)
+	abi_ret_default
 
 1:
 	mov	a6, a2
 	call4	do_syscall_trace_leave
-	abi_ret(4)
+	abi_ret_default
 
 ENDPROC(system_call)
 
