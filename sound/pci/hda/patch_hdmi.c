@@ -1353,6 +1353,11 @@ static int hdmi_find_pcm_slot(struct hdmi_spec *spec,
 		i = spec->num_nids + (per_pin->dev_id - 1);
 		if (i < spec->pcm_used && !(test_bit(i, &spec->pcm_bitmap)))
 			return i;
+
+		/* keep legacy assignment for dev_id>0 on Intel platforms */
+		if (spec->intel_hsw_fixup)
+			if (!test_bit(per_pin->pin_nid_idx, &spec->pcm_bitmap))
+				return per_pin->pin_nid_idx;
 	}
 
 	/* have a second try; check the area over num_nids */
