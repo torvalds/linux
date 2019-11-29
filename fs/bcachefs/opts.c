@@ -299,15 +299,8 @@ int bch2_opt_check_may_set(struct bch_fs *c, int id, u64 v)
 		ret = bch2_check_set_has_compressed_data(c, v);
 		break;
 	case Opt_erasure_code:
-		if (v &&
-		    !(c->sb.features & (1ULL << BCH_FEATURE_EC))) {
-			mutex_lock(&c->sb_lock);
-			c->disk_sb.sb->features[0] |=
-				cpu_to_le64(1ULL << BCH_FEATURE_EC);
-
-			bch2_write_super(c);
-			mutex_unlock(&c->sb_lock);
-		}
+		if (v)
+			bch2_check_set_feature(c, BCH_FEATURE_EC);
 		break;
 	}
 

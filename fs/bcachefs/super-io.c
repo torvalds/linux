@@ -795,6 +795,17 @@ out:
 	return ret;
 }
 
+void __bch2_check_set_feature(struct bch_fs *c, unsigned feat)
+{
+	mutex_lock(&c->sb_lock);
+	if (!(c->sb.features & (1ULL << feat))) {
+		c->disk_sb.sb->features[0] |= cpu_to_le64(1ULL << feat);
+
+		bch2_write_super(c);
+	}
+	mutex_unlock(&c->sb_lock);
+}
+
 /* BCH_SB_FIELD_journal: */
 
 static int u64_cmp(const void *_l, const void *_r)

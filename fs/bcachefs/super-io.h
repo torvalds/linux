@@ -43,26 +43,6 @@ struct bch_sb_field_ops {
 				   struct bch_sb_field *);
 };
 
-static inline bool bch2_sb_test_feature(struct bch_sb *sb,
-					enum bch_sb_features f)
-{
-	unsigned w = f / 64;
-	unsigned b = f % 64;
-
-	return le64_to_cpu(sb->features[w]) & (1ULL << b);
-}
-
-static inline void bch2_sb_set_feature(struct bch_sb *sb,
-				       enum bch_sb_features f)
-{
-	if (!bch2_sb_test_feature(sb, f)) {
-		unsigned w = f / 64;
-		unsigned b = f % 64;
-
-		le64_add_cpu(&sb->features[w], 1ULL << b);
-	}
-}
-
 static inline __le64 bch2_sb_magic(struct bch_fs *c)
 {
 	__le64 ret;
@@ -90,6 +70,13 @@ const char *bch2_sb_validate(struct bch_sb_handle *);
 
 int bch2_read_super(const char *, struct bch_opts *, struct bch_sb_handle *);
 int bch2_write_super(struct bch_fs *);
+void __bch2_check_set_feature(struct bch_fs *, unsigned);
+
+static inline void bch2_check_set_feature(struct bch_fs *c, unsigned feat)
+{
+	if (!(c->sb.features & (1ULL << feat)))
+		__bch2_check_set_feature(c, feat);
+}
 
 /* BCH_SB_FIELD_journal: */
 
