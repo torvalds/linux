@@ -201,7 +201,7 @@ void mt76x02_mac_work(struct work_struct *work);
 
 void mt76x02_mac_cc_reset(struct mt76x02_dev *dev);
 void mt76x02_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr);
-int mt76x02_mac_set_beacon(struct mt76x02_dev *dev, struct sk_buff *skb);
+void mt76x02_mac_set_beacon(struct mt76x02_dev *dev, struct sk_buff *skb);
 void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 				   struct ieee80211_vif *vif, bool enable);
 

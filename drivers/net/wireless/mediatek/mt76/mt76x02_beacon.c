@@ -51,21 +51,15 @@ mt76x02_write_beacon(struct mt76x02_dev *dev, int offset, struct sk_buff *skb)
 	return 0;
 }
 
-int mt76x02_mac_set_beacon(struct mt76x02_dev *dev,
-			   struct sk_buff *skb)
+void mt76x02_mac_set_beacon(struct mt76x02_dev *dev,
+			    struct sk_buff *skb)
 {
 	int bcn_len = dev->beacon_ops->slot_size;
 	int bcn_addr = MT_BEACON_BASE + (bcn_len * dev->beacon_data_count);
-	int ret = 0;
 
-	if (skb) {
-		ret = mt76x02_write_beacon(dev, bcn_addr, skb);
-		if (!ret)
-			dev->beacon_data_count++;
-	}
-
+	if (!mt76x02_write_beacon(dev, bcn_addr, skb))
+		dev->beacon_data_count++;
 	dev_kfree_skb(skb);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_set_beacon);
 
