@@ -148,7 +148,8 @@ static void configure_geometry(struct atmel_isi *isi)
 	u32 fourcc = isi->current_fmt->fourcc;
 
 	isi->enable_preview_path = fourcc == V4L2_PIX_FMT_RGB565 ||
-				   fourcc == V4L2_PIX_FMT_RGB32;
+				   fourcc == V4L2_PIX_FMT_RGB32 ||
+				   fourcc == V4L2_PIX_FMT_Y16;
 
 	/* According to sensor's output format to set cfg2 */
 	cfg2 = isi->current_fmt->swap;
@@ -990,6 +991,16 @@ static const struct isi_format isi_formats[] = {
 		.mbus_code = MEDIA_BUS_FMT_VYUY8_2X8,
 		.bpp = 2,
 		.swap = ISI_CFG2_YCC_SWAP_MODE_1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.mbus_code = MEDIA_BUS_FMT_Y10_1X10,
+		.bpp = 1,
+		.swap = ISI_CFG2_GS_MODE_2_PIXEL | ISI_CFG2_GRAYSCALE,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y16,
+		.mbus_code = MEDIA_BUS_FMT_Y10_1X10,
+		.bpp = 2,
+		.swap = ISI_CFG2_GS_MODE_2_PIXEL | ISI_CFG2_GRAYSCALE,
 	},
 };
 
