@@ -2385,11 +2385,11 @@ static void intel_encoder_info(struct seq_file *m,
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_connector *connector;
 
-	seq_printf(m, "\tencoder %d: type: %s, connectors:\n",
+	seq_printf(m, "\t[ENCODER:%d:%s]: connectors:\n",
 		   encoder->base.base.id, encoder->base.name);
 
 	for_each_connector_on_encoder(dev, &encoder->base, connector)
-		seq_printf(m, "\t\tconnector %d: type: %s\n",
+		seq_printf(m, "\t\t[CONNECTOR:%d:%s]\n",
 			   connector->base.base.id, connector->base.name);
 }
 
@@ -2478,7 +2478,7 @@ static void intel_connector_info(struct seq_file *m,
 	struct intel_encoder *intel_encoder = intel_connector->encoder;
 	struct drm_display_mode *mode;
 
-	seq_printf(m, "connector %d: type %s, status: %s\n",
+	seq_printf(m, "[CONNECTOR:%d:%s]: status: %s\n",
 		   connector->base.id, connector->name,
 		   drm_get_connector_status_name(connector->status));
 
@@ -2585,8 +2585,8 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *crtc)
 		plane_rotation(rot_str, sizeof(rot_str),
 			       plane_state->uapi.rotation);
 
-		seq_printf(m, "\t--Plane id %d: type=%s, fb=%d,%s,%dx%d, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
-			   plane->base.base.id,
+		seq_printf(m, "\t[PLANE:%d:%s]: type=%s, fb=%d,%s,%dx%d, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
+			   plane->base.base.id, plane->base.name,
 			   plane_type(plane->base.type),
 			   fb ? fb->base.id : 0,
 			   fb ? format_name.str : "n/a",
@@ -2631,8 +2631,8 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 	const struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
 
-	seq_printf(m, "CRTC %d: pipe: %c, active=%s, (size=%dx%d), dither=%s, bpp=%d\n",
-		   crtc->base.base.id, pipe_name(crtc->pipe),
+	seq_printf(m, "[CRTC:%d:%s]: active=%s, (size=%dx%d), dither=%s, bpp=%d\n",
+		   crtc->base.base.id, crtc->base.name,
 		   yesno(crtc_state->hw.active),
 		   crtc_state->pipe_src_w, crtc_state->pipe_src_h,
 		   yesno(crtc_state->dither), crtc_state->pipe_bpp);
