@@ -686,7 +686,6 @@ static int crypto_skcipher_init_tfm(struct crypto_tfm *tfm)
 	skcipher->setkey = skcipher_setkey;
 	skcipher->encrypt = alg->encrypt;
 	skcipher->decrypt = alg->decrypt;
-	skcipher->ivsize = alg->ivsize;
 	skcipher->keysize = alg->max_keysize;
 
 	skcipher_set_needkey(skcipher);

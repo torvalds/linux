@@ -40,7 +40,6 @@ struct crypto_skcipher {
 	int (*encrypt)(struct skcipher_request *req);
 	int (*decrypt)(struct skcipher_request *req);
 
-	unsigned int ivsize;
 	unsigned int reqsize;
 	unsigned int keysize;
 
@@ -255,7 +254,7 @@ static inline unsigned int crypto_skcipher_alg_ivsize(struct skcipher_alg *alg)
  */
 static inline unsigned int crypto_skcipher_ivsize(struct crypto_skcipher *tfm)
 {
-	return tfm->ivsize;
+	return crypto_skcipher_alg(tfm)->ivsize;
 }
 
 static inline unsigned int crypto_sync_skcipher_ivsize(
