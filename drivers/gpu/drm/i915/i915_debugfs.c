@@ -2556,45 +2556,68 @@ static void plane_rotation(char *buf, size_t bufsize, unsigned int rotation)
 		 rotation);
 }
 
+static void intel_plane_uapi_info(struct seq_file *m, struct intel_plane *plane)
+{
+	const struct intel_plane_state *plane_state =
+		to_intel_plane_state(plane->base.state);
+	const struct drm_framebuffer *fb = plane_state->uapi.fb;
+	struct drm_format_name_buf format_name;
+	struct drm_rect src, dst;
+	char rot_str[48];
+
+	src = drm_plane_state_src(&plane_state->uapi);
+	dst = drm_plane_state_dest(&plane_state->uapi);
+
+	if (fb)
+		drm_get_format_name(fb->format->format, &format_name);
+
+	plane_rotation(rot_str, sizeof(rot_str),
+		       plane_state->uapi.rotation);
+
+	seq_printf(m, "\t\tuapi: fb=%d,%s,%dx%d, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
+		   fb ? fb->base.id : 0, fb ? format_name.str : "n/a",
+		   fb ? fb->width : 0, fb ? fb->height : 0,
+		   DRM_RECT_FP_ARG(&src),
+		   DRM_RECT_ARG(&dst),
+		   rot_str);
+}
+
+static void intel_plane_hw_info(struct seq_file *m, struct intel_plane *plane)
+{
+	const struct intel_plane_state *plane_state =
+		to_intel_plane_state(plane->base.state);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	struct drm_format_name_buf format_name;
+	char rot_str[48];
+
+	if (!fb)
+		return;
+
+	drm_get_format_name(fb->format->format, &format_name);
+
+	plane_rotation(rot_str, sizeof(rot_str),
+		       plane_state->hw.rotation);
+
+	seq_printf(m, "\t\thw: fb=%d,%s,%dx%d, visible=%s, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
+		   fb ? fb->base.id : 0, fb ? format_name.str : "n/a",
+		   fb ? fb->width : 0, fb ? fb->height : 0,
+		   yesno(plane_state->uapi.visible),
+		   DRM_RECT_FP_ARG(&plane_state->uapi.src),
+		   DRM_RECT_ARG(&plane_state->uapi.dst),
+		   rot_str);
+}
+
 static void intel_plane_info(struct seq_file *m, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_plane *plane;
 
-	for_each_intel_plane_on_crtc(dev, crtc, plane) {
-		const struct intel_plane_state *plane_state =
-			to_intel_plane_state(plane->base.state);
-		const struct drm_framebuffer *fb;
-		struct drm_format_name_buf format_name;
-		struct drm_rect src, dst;
-		char rot_str[48];
-
-		if (!plane_state) {
-			seq_puts(m, "plane->state is NULL!\n");
-			continue;
-		}
-
-		src = drm_plane_state_src(&plane_state->uapi);
-		dst = drm_plane_state_dest(&plane_state->uapi);
-
-		fb = plane_state->uapi.fb;
-		if (fb)
-			drm_get_format_name(fb->format->format, &format_name);
-
-		plane_rotation(rot_str, sizeof(rot_str),
-			       plane_state->uapi.rotation);
-
-		seq_printf(m, "\t[PLANE:%d:%s]: type=%s, fb=%d,%s,%dx%d, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
+	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
+		seq_printf(m, "\t[PLANE:%d:%s]: type=%s\n",
 			   plane->base.base.id, plane->base.name,
-			   plane_type(plane->base.type),
-			   fb ? fb->base.id : 0,
-			   fb ? format_name.str : "n/a",
-			   fb ? fb->width : 0,
-			   fb ? fb->height : 0,
-			   DRM_RECT_FP_ARG(&src),
-			   DRM_RECT_ARG(&dst),
-			   rot_str);
+			   plane_type(plane->base.type));
+		intel_plane_uapi_info(m, plane);
+		intel_plane_hw_info(m, plane);
 	}
 }
 
@@ -2631,25 +2654,32 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 	const struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
 
-	seq_printf(m, "[CRTC:%d:%s]: active=%s, (size=%dx%d), dither=%s, bpp=%d\n",
-		   crtc->base.base.id, crtc->base.name,
-		   yesno(crtc_state->hw.active),
-		   crtc_state->pipe_src_w, crtc_state->pipe_src_h,
-		   yesno(crtc_state->dither), crtc_state->pipe_bpp);
+	seq_printf(m, "[CRTC:%d:%s]:\n",
+		   crtc->base.base.id, crtc->base.name);
 
-	if (crtc_state->hw.active) {
-		const struct drm_display_mode *mode =
-			&crtc_state->hw.mode;
+	seq_printf(m, "\tuapi: enable=%s, active=%s, mode=" DRM_MODE_FMT "\n",
+		   yesno(crtc_state->uapi.enable),
+		   yesno(crtc_state->uapi.active),
+		   DRM_MODE_ARG(&crtc_state->uapi.mode));
+
+	if (crtc_state->hw.enable) {
 		struct intel_encoder *encoder;
 
-		seq_printf(m, "\tmode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+		seq_printf(m, "\thw: active=%s, adjusted_mode=" DRM_MODE_FMT "\n",
+			   yesno(crtc_state->hw.active),
+			   DRM_MODE_ARG(&crtc_state->hw.adjusted_mode));
+
+		seq_printf(m, "\tpipe src size=%dx%d, dither=%s, bpp=%d\n",
+			   crtc_state->pipe_src_w, crtc_state->pipe_src_h,
+			   yesno(crtc_state->dither), crtc_state->pipe_bpp);
 
 		for_each_encoder_on_crtc(&dev_priv->drm, &crtc->base, encoder)
 			intel_encoder_info(m, crtc, encoder);
 
 		intel_scaler_info(m, crtc);
-		intel_plane_info(m, crtc);
 	}
+
+	intel_plane_info(m, crtc);
 
 	seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s\n",
 		   yesno(!crtc->cpu_fifo_underrun_disabled),
