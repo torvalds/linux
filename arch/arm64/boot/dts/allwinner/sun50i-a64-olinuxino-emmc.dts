@@ -21,3 +21,7 @@
 	cap-mmc-hw-reset;
 	status = "okay";
 };
+
+&pio {
+	vcc-pc-supply = <&reg_eldo1>;
+};
