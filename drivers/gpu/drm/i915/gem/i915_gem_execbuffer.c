@@ -253,7 +253,6 @@ struct i915_execbuffer {
 		bool has_fence : 1;
 		bool needs_unfenced : 1;
 
-		struct intel_context *ce;
 		struct i915_request *rq;
 		u32 *rq_cmd;
 		unsigned int rq_size;
@@ -886,9 +885,6 @@ static void eb_destroy(const struct i915_execbuffer *eb)
 {
 	GEM_BUG_ON(eb->reloc_cache.rq);
 
-	if (eb->reloc_cache.ce)
-		intel_context_put(eb->reloc_cache.ce);
-
 	if (eb->lut_size > 0)
 		kfree(eb->buckets);
 }
@@ -912,7 +908,6 @@ static void reloc_cache_init(struct reloc_cache *cache,
 	cache->has_fence = cache->gen < 4;
 	cache->needs_unfenced = INTEL_INFO(i915)->unfenced_needs_alignment;
 	cache->node.flags = 0;
-	cache->ce = NULL;
 	cache->rq = NULL;
 	cache->rq_size = 0;
 }
@@ -1182,7 +1177,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	if (err)
 		goto err_unmap;
 
-	rq = intel_context_create_request(cache->ce);
+	rq = i915_request_create(eb->context);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;
@@ -1252,29 +1247,6 @@ static u32 *reloc_gpu(struct i915_execbuffer *eb,
 
 		if (!intel_engine_can_store_dword(eb->engine))
 			return ERR_PTR(-ENODEV);
-
-		if (!cache->ce) {
-			struct intel_context *ce;
-
-			/*
-			 * The CS pre-parser can pre-fetch commands across
-			 * memory sync points and starting gen12 it is able to
-			 * pre-fetch across BB_START and BB_END boundaries
-			 * (within the same context). We therefore use a
-			 * separate context gen12+ to guarantee that the reloc
-			 * writes land before the parser gets to the target
-			 * memory location.
-			 */
-			if (cache->gen >= 12)
-				ce = intel_context_create(eb->context->gem_context,
-							  eb->engine);
-			else
-				ce = intel_context_get(eb->context);
-			if (IS_ERR(ce))
-				return ERR_CAST(ce);
-
-			cache->ce = ce;
-		}
 
 		err = __reloc_gpu_alloc(eb, vma, len);
 		if (unlikely(err))
