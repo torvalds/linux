@@ -327,6 +327,7 @@ static int igt_gem_coherency(void *arg)
 	ctx.engine = random_engine(i915, &prng);
 	GEM_BUG_ON(!ctx.engine);
 	pr_info("%s: using %s\n", __func__, ctx.engine->name);
+	intel_engine_pm_get(ctx.engine);
 
 	for (over = igt_coherency_mode; over->name; over++) {
 		if (!over->set)
@@ -405,6 +406,7 @@ static int igt_gem_coherency(void *arg)
 		}
 	}
 free:
+	intel_engine_pm_put(ctx.engine);
 	kfree(offsets);
 	return err;
 
