@@ -35,8 +35,6 @@ struct skcipher_request {
 };
 
 struct crypto_skcipher {
-	int (*decrypt)(struct skcipher_request *req);
-
 	unsigned int reqsize;
 
 	struct crypto_tfm base;
