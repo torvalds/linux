@@ -1166,11 +1166,13 @@ static int igt_ggtt_page(void *arg)
 		goto out_free;
 
 	memset(&tmp, 0, sizeof(tmp));
+	mutex_lock(&ggtt->vm.mutex);
 	err = drm_mm_insert_node_in_range(&ggtt->vm.mm, &tmp,
 					  count * PAGE_SIZE, 0,
 					  I915_COLOR_UNEVICTABLE,
 					  0, ggtt->mappable_end,
 					  DRM_MM_INSERT_LOW);
+	mutex_unlock(&ggtt->vm.mutex);
 	if (err)
 		goto out_unpin;
 
@@ -1222,7 +1224,9 @@ static int igt_ggtt_page(void *arg)
 out_remove:
 	ggtt->vm.clear_range(&ggtt->vm, tmp.start, tmp.size);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	mutex_lock(&ggtt->vm.mutex);
 	drm_mm_remove_node(&tmp);
+	mutex_unlock(&ggtt->vm.mutex);
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
 out_free:
