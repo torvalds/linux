@@ -58,13 +58,15 @@ enum ath10k_htc_rx_flags {
 #define ATH10K_HTC_BUNDLE_EXTRA_MASK GENMASK(3, 2)
 #define ATH10K_HTC_BUNDLE_EXTRA_SHIFT 4
 
-static inline unsigned int ath10k_htc_get_bundle_count(u8 flags)
+static inline unsigned int ath10k_htc_get_bundle_count(u8 max_msgs, u8 flags)
 {
-	unsigned int count, extra_count;
+	unsigned int count, extra_count = 0;
 
 	count = FIELD_GET(ATH10K_HTC_FLAG_BUNDLE_MASK, flags);
-	extra_count = FIELD_GET(ATH10K_HTC_BUNDLE_EXTRA_MASK, flags) <<
-		ATH10K_HTC_BUNDLE_EXTRA_SHIFT;
+
+	if (max_msgs > 16)
+		extra_count = FIELD_GET(ATH10K_HTC_BUNDLE_EXTRA_MASK, flags) <<
+			ATH10K_HTC_BUNDLE_EXTRA_SHIFT;
 
 	return count + extra_count;
 }
