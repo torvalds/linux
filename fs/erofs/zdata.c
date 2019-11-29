@@ -575,7 +575,7 @@ static int z_erofs_do_read_page(struct z_erofs_decompress_frontend *fe,
 	struct erofs_map_blocks *const map = &fe->map;
 	struct z_erofs_collector *const clt = &fe->clt;
 	const loff_t offset = page_offset(page);
-	bool tight = (clt->mode >= COLLECT_PRIMARY_HOOKED);
+	bool tight = true;
 
 	enum z_erofs_cache_alloctype cache_strategy;
 	enum z_erofs_page_type page_type;
@@ -628,8 +628,16 @@ restart_now:
 	preload_compressed_pages(clt, MNGD_MAPPING(sbi),
 				 cache_strategy, pagepool);
 
-	tight &= (clt->mode >= COLLECT_PRIMARY_HOOKED);
 hitted:
+	/*
+	 * Ensure the current partial page belongs to this submit chain rather
+	 * than other concurrent submit chains or the noio(bypass) chain since
+	 * those chains are handled asynchronously thus the page cannot be used
+	 * for inplace I/O or pagevec (should be processed in strict order.)
+	 */
+	tight &= (clt->mode >= COLLECT_PRIMARY_HOOKED &&
+		  clt->mode != COLLECT_PRIMARY_FOLLOWED_NOINPLACE);
+
 	cur = end - min_t(unsigned int, offset + end - map->m_la, end);
 	if (!(map->m_flags & EROFS_MAP_MAPPED)) {
 		zero_user_segment(page, cur, end);

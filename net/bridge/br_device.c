@@ -24,8 +24,6 @@
 const struct nf_br_ops __rcu *nf_br_ops __read_mostly;
 EXPORT_SYMBOL_GPL(nf_br_ops);
 
-static struct lock_class_key bridge_netdev_addr_lock_key;
-
 /* net device transmit always called with BH disabled */
 netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -108,11 +106,6 @@ out:
 	return NETDEV_TX_OK;
 }
 
-static void br_set_lockdep_class(struct net_device *dev)
-{
-	lockdep_set_class(&dev->addr_list_lock, &bridge_netdev_addr_lock_key);
-}
-
 static int br_dev_init(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
@@ -150,7 +143,6 @@ static int br_dev_init(struct net_device *dev)
 		br_mdb_hash_fini(br);
 		br_fdb_hash_fini(br);
 	}
-	br_set_lockdep_class(dev);
 
 	return err;
 }

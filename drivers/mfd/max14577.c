@@ -297,11 +297,11 @@ static int max77836_init(struct max14577 *max14577)
 	int ret;
 	u8 intsrc_mask;
 
-	max14577->i2c_pmic = i2c_new_dummy(max14577->i2c->adapter,
+	max14577->i2c_pmic = i2c_new_dummy_device(max14577->i2c->adapter,
 			I2C_ADDR_PMIC);
-	if (!max14577->i2c_pmic) {
+	if (IS_ERR(max14577->i2c_pmic)) {
 		dev_err(max14577->dev, "Failed to register PMIC I2C device\n");
-		return -ENODEV;
+		return PTR_ERR(max14577->i2c_pmic);
 	}
 	i2c_set_clientdata(max14577->i2c_pmic, max14577);
 

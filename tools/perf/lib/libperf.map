@@ -1,6 +1,6 @@
 LIBPERF_0.0.1 {
 	global:
-		libperf_set_print;
+		libperf_init;
 		perf_cpu_map__dummy_new;
 		perf_cpu_map__get;
 		perf_cpu_map__put;
@@ -9,6 +9,7 @@ LIBPERF_0.0.1 {
 		perf_cpu_map__nr;
 		perf_cpu_map__cpu;
 		perf_cpu_map__empty;
+		perf_cpu_map__max;
 		perf_thread_map__new_dummy;
 		perf_thread_map__set_pid;
 		perf_thread_map__comm;
@@ -38,6 +39,7 @@ LIBPERF_0.0.1 {
 		perf_evlist__remove;
 		perf_evlist__next;
 		perf_evlist__set_maps;
+		perf_evlist__poll;
 	local:
 		*;
 };

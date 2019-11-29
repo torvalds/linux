@@ -48,7 +48,7 @@
 #include "util/auxtrace.h"
 #include "util/units.h"
 #include "util/branch.h"
-#include "util/util.h"
+#include "util/util.h" // perf_tip()
 #include "ui/ui.h"
 #include "ui/progress.h"
 
@@ -1269,8 +1269,8 @@ int cmd_report(int argc, const char **argv)
 
 repeat:
 	session = perf_session__new(&data, false, &report.tool);
-	if (session == NULL)
-		return -1;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	ret = evswitch__init(&report.evswitch, session->evlist, stderr);
 	if (ret)

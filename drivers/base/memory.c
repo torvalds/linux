@@ -100,26 +100,9 @@ unsigned long __weak memory_block_size_bytes(void)
 }
 EXPORT_SYMBOL_GPL(memory_block_size_bytes);
 
-static unsigned long get_memory_block_size(void)
-{
-	unsigned long block_sz;
-
-	block_sz = memory_block_size_bytes();
-
-	/* Validate blk_sz is a power of 2 and not less than section size */
-	if ((block_sz & (block_sz - 1)) || (block_sz < MIN_MEMORY_BLOCK_SIZE)) {
-		WARN_ON(1);
-		block_sz = MIN_MEMORY_BLOCK_SIZE;
-	}
-
-	return block_sz;
-}
-
 /*
- * use this as the physical section index that this memsection
- * uses.
+ * Show the first physical section index (number) of this memory block.
  */
-
 static ssize_t phys_index_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -131,7 +114,10 @@ static ssize_t phys_index_show(struct device *dev,
 }
 
 /*
- * Show whether the section of memory is likely to be hot-removable
+ * Show whether the memory block is likely to be offlineable (or is already
+ * offline). Once offline, the memory block could be removed. The return
+ * value does, however, not indicate that there is a way to remove the
+ * memory block.
  */
 static ssize_t removable_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -455,12 +441,12 @@ static DEVICE_ATTR_RO(phys_device);
 static DEVICE_ATTR_RO(removable);
 
 /*
- * Block size attribute stuff
+ * Show the memory block size (shared by all memory blocks).
  */
 static ssize_t block_size_bytes_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lx\n", get_memory_block_size());
+	return sprintf(buf, "%lx\n", memory_block_size_bytes());
 }
 
 static DEVICE_ATTR_RO(block_size_bytes);
@@ -554,6 +540,9 @@ static ssize_t soft_offline_page_store(struct device *dev,
 	pfn >>= PAGE_SHIFT;
 	if (!pfn_valid(pfn))
 		return -ENXIO;
+	/* Only online pages can be soft-offlined (esp., not ZONE_DEVICE). */
+	if (!pfn_to_online_page(pfn))
+		return -EIO;
 	ret = soft_offline_page(pfn_to_page(pfn), 0);
 	return ret == 0 ? count : ret;
 }
@@ -670,10 +659,10 @@ static int init_memory_block(struct memory_block **memory,
 		return -ENOMEM;
 
 	mem->start_section_nr = block_id * sections_per_block;
-	mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
 	mem->state = state;
 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
 	mem->phys_device = arch_get_memory_phys_device(start_pfn);
+	mem->nid = NUMA_NO_NODE;
 
 	ret = register_memory(mem);
 
@@ -810,18 +799,21 @@ static const struct attribute_group *memory_root_attr_groups[] = {
 /*
  * Initialize the sysfs support for memory devices...
  */
-int __init memory_dev_init(void)
+void __init memory_dev_init(void)
 {
 	int ret;
 	int err;
 	unsigned long block_sz, nr;
 
+	/* Validate the configured memory block size */
+	block_sz = memory_block_size_bytes();
+	if (!is_power_of_2(block_sz) || block_sz < MIN_MEMORY_BLOCK_SIZE)
+		panic("Memory block size not suitable: 0x%lx\n", block_sz);
+	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
+
 	ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);
 	if (ret)
 		goto out;
-
-	block_sz = get_memory_block_size();
-	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
 
 	/*
 	 * Create entries for memory sections that were found
@@ -838,8 +830,7 @@ int __init memory_dev_init(void)
 
 out:
 	if (ret)
-		printk(KERN_ERR "%s() failed: %d\n", __func__, ret);
-	return ret;
+		panic("%s() failed: %d\n", __func__, ret);
 }
 
 /**

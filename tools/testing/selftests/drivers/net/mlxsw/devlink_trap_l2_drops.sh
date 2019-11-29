@@ -224,13 +224,6 @@ ingress_vlan_filter_test()
 	local vid=10
 
 	bridge vlan add vid $vid dev $swp2 master
-	# During initialization the firmware enables all the VLAN filters and
-	# the driver does not turn them off since the traffic will be discarded
-	# by the STP filter whose default is DISCARD state. Add the VID on the
-	# ingress bridge port and then remove it to make sure it is not member
-	# in the VLAN.
-	bridge vlan add vid $vid dev $swp1 master
-	bridge vlan del vid $vid dev $swp1 master
 
 	RET=0
 

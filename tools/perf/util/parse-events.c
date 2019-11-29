@@ -30,11 +30,12 @@
 #include "parse-events-flex.h"
 #include "pmu.h"
 #include "thread_map.h"
-#include "cpumap.h"
 #include "probe-file.h"
 #include "asm/bug.h"
 #include "util/parse-branch-options.h"
 #include "metricgroup.h"
+#include "util/evsel_config.h"
+#include "util/event.h"
 
 #define MAX_NAME_LEN 100
 
@@ -335,7 +336,7 @@ __add_event(struct list_head *list, int *idx,
 	(*idx)++;
 	evsel->core.cpus   = perf_cpu_map__get(cpus);
 	evsel->core.own_cpus = perf_cpu_map__get(cpus);
-	evsel->system_wide = pmu ? pmu->is_uncore : false;
+	evsel->core.system_wide = pmu ? pmu->is_uncore : false;
 	evsel->auto_merge_stats = auto_merge_stats;
 
 	if (name)
@@ -1936,7 +1937,7 @@ int parse_events(struct evlist *evlist, const char *str,
 
 		perf_evlist__splice_list_tail(evlist, &parse_state.list);
 		evlist->nr_groups += parse_state.nr_groups;
-		last = perf_evlist__last(evlist);
+		last = evlist__last(evlist);
 		last->cmdline_group_boundary = true;
 
 		return 0;
@@ -2050,7 +2051,7 @@ foreach_evsel_in_last_glob(struct evlist *evlist,
 	 * So no need to WARN here, let *func do this.
 	 */
 	if (evlist->core.nr_entries > 0)
-		last = perf_evlist__last(evlist);
+		last = evlist__last(evlist);
 
 	do {
 		err = (*func)(last, arg);

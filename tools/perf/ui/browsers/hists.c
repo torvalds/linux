@@ -3319,13 +3319,13 @@ browse_hists:
 			switch (key) {
 			case K_TAB:
 				if (pos->core.node.next == &evlist->core.entries)
-					pos = perf_evlist__first(evlist);
+					pos = evlist__first(evlist);
 				else
 					pos = perf_evsel__next(pos);
 				goto browse_hists;
 			case K_UNTAB:
 				if (pos->core.node.prev == &evlist->core.entries)
-					pos = perf_evlist__last(evlist);
+					pos = evlist__last(evlist);
 				else
 					pos = perf_evsel__prev(pos);
 				goto browse_hists;
@@ -3417,7 +3417,7 @@ int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
 
 single_entry:
 	if (nr_entries == 1) {
-		struct evsel *first = perf_evlist__first(evlist);
+		struct evsel *first = evlist__first(evlist);
 
 		return perf_evsel__hists_browse(first, nr_entries, help,
 						false, hbt, min_pcnt,

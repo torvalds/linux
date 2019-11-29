@@ -59,7 +59,7 @@ ip netns exec ${NS_SRC} tc filter add dev veth_src egress \
 
 # start the listener
 ip netns exec ${NS_DST} bash -c \
-	"nc -4 -l -s ${IP_DST} -p 9000 >/dev/null &"
+	"nc -4 -l -p 9000 >/dev/null &"
 declare -i NC_PID=$!
 sleep 1
 

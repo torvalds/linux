@@ -108,6 +108,9 @@ void __init add_memory_region(phys_addr_t start, phys_addr_t size, long type)
 		return;
 	}
 
+	if (start < PHYS_OFFSET)
+		return;
+
 	memblock_add(start, size);
 	/* Reserve any memory except the ordinary RAM ranges. */
 	switch (type) {
@@ -321,7 +324,7 @@ static void __init bootmem_init(void)
 	 * Reserve any memory between the start of RAM and PHYS_OFFSET
 	 */
 	if (ramstart > PHYS_OFFSET)
-		memblock_reserve(PHYS_OFFSET, PFN_UP(ramstart) - PHYS_OFFSET);
+		memblock_reserve(PHYS_OFFSET, ramstart - PHYS_OFFSET);
 
 	if (PFN_UP(ramstart) > ARCH_PFN_OFFSET) {
 		pr_info("Wasting %lu bytes for tracking %lu unused pages\n",

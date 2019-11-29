@@ -48,7 +48,6 @@ struct virtio_vsock_sock {
 
 struct virtio_vsock_pkt {
 	struct virtio_vsock_hdr	hdr;
-	struct work_struct work;
 	struct list_head list;
 	/* socket refcnt not held, only use for cancellation */
 	struct vsock_sock *vsk;

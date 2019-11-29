@@ -615,7 +615,7 @@ static int dr_action_handle_cs_recalc(struct mlx5dr_domain *dmn,
 		 * that recalculates the CS and forwards to the vport.
 		 */
 		ret = mlx5dr_domain_cache_get_recalc_cs_ft_addr(dest_action->vport.dmn,
-								dest_action->vport.num,
+								dest_action->vport.caps->num,
 								final_icm_addr);
 		if (ret) {
 			mlx5dr_err(dmn, "Failed to get FW cs recalc flow table\n");
@@ -744,7 +744,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			dest_action = action;
 			if (rx_rule) {
 				/* Loopback on WIRE vport is not supported */
-				if (action->vport.num == WIRE_PORT)
+				if (action->vport.caps->num == WIRE_PORT)
 					goto out_invalid_arg;
 
 				attr.final_icm_addr = action->vport.caps->icm_address_rx;

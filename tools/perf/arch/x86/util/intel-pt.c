@@ -18,6 +18,7 @@
 #include "../../util/evlist.h"
 #include "../../util/evsel.h"
 #include "../../util/cpumap.h"
+#include "../../util/mmap.h"
 #include <subcmd/parse-options.h>
 #include "../../util/parse-events.h"
 #include "../../util/pmu.h"
@@ -26,7 +27,7 @@
 #include "../../util/record.h"
 #include "../../util/target.h"
 #include "../../util/tsc.h"
-#include "../../util/util.h"
+#include <internal/lib.h> // page_size
 #include "../../util/intel-pt.h"
 
 #define KiB(x) ((x) * 1024)
@@ -351,10 +352,10 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	filter = intel_pt_find_filter(session->evlist, ptr->intel_pt_pmu);
 	filter_str_len = filter ? strlen(filter) : 0;
 
-	if (!session->evlist->nr_mmaps)
+	if (!session->evlist->core.nr_mmaps)
 		return -EINVAL;
 
-	pc = session->evlist->mmap[0].base;
+	pc = session->evlist->mmap[0].core.base;
 	if (pc) {
 		err = perf_read_tsc_conversion(pc, &tc);
 		if (err) {
@@ -416,12 +417,12 @@ static int intel_pt_track_switches(struct evlist *evlist)
 		return err;
 	}
 
-	evsel = perf_evlist__last(evlist);
+	evsel = evlist__last(evlist);
 
 	perf_evsel__set_sample_bit(evsel, CPU);
 	perf_evsel__set_sample_bit(evsel, TIME);
 
-	evsel->system_wide = true;
+	evsel->core.system_wide = true;
 	evsel->no_aux_samples = true;
 	evsel->immediate = true;
 
@@ -716,13 +717,13 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 				if (err)
 					return err;
 
-				switch_evsel = perf_evlist__last(evlist);
+				switch_evsel = evlist__last(evlist);
 
 				switch_evsel->core.attr.freq = 0;
 				switch_evsel->core.attr.sample_period = 1;
 				switch_evsel->core.attr.context_switch = 1;
 
-				switch_evsel->system_wide = true;
+				switch_evsel->core.system_wide = true;
 				switch_evsel->no_aux_samples = true;
 				switch_evsel->immediate = true;
 
@@ -774,7 +775,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		if (err)
 			return err;
 
-		tracking_evsel = perf_evlist__last(evlist);
+		tracking_evsel = evlist__last(evlist);
 
 		perf_evlist__set_tracking_event(evlist, tracking_evsel);
 

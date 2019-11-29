@@ -12,7 +12,6 @@
 #ifdef CONFIG_USB_CDNS3_HOST
 
 int cdns3_host_init(struct cdns3 *cdns);
-void cdns3_host_exit(struct cdns3 *cdns);
 
 #else
 

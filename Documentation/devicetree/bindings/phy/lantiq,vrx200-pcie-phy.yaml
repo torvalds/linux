@@ -37,7 +37,7 @@ properties:
       - description: exclusive PHY reset line
       - description: shared reset line between the PCIe PHY and PCIe controller
 
-  resets-names:
+  reset-names:
     items:
       - const: phy
       - const: pcie

@@ -238,7 +238,6 @@ static void do_idle(void)
 	tick_nohz_idle_enter();
 
 	while (!need_resched()) {
-		check_pgt_cache();
 		rmb();
 
 		local_irq_disable();

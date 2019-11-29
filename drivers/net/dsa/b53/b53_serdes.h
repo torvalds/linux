@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
- *
+/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
+/*
  * Northstar Plus switch SerDes/SGMII PHY definitions
  *
  * Copyright (C) 2018 Florian Fainelli <f.fainelli@gmail.com>

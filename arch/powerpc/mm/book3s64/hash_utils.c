@@ -1748,7 +1748,7 @@ void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 	/*
 	 * IF we try to do a HUGE PTE update after a withdraw is done.
 	 * we will find the below NULL. This happens when we do
-	 * split_huge_page_pmd
+	 * split_huge_pmd
 	 */
 	if (!hpte_slot_array)
 		return;

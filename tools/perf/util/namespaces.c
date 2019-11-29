@@ -17,7 +17,25 @@
 #include <string.h>
 #include <unistd.h>
 #include <asm/bug.h>
+#include <linux/kernel.h>
 #include <linux/zalloc.h>
+
+static const char *perf_ns__names[] = {
+	[NET_NS_INDEX]		= "net",
+	[UTS_NS_INDEX]		= "uts",
+	[IPC_NS_INDEX]		= "ipc",
+	[PID_NS_INDEX]		= "pid",
+	[USER_NS_INDEX]		= "user",
+	[MNT_NS_INDEX]		= "mnt",
+	[CGROUP_NS_INDEX]	= "cgroup",
+};
+
+const char *perf_ns__name(unsigned int id)
+{
+	if (id >= ARRAY_SIZE(perf_ns__names))
+		return "UNKNOWN";
+	return perf_ns__names[id];
+}
 
 struct namespaces *namespaces__new(struct perf_record_namespaces *event)
 {

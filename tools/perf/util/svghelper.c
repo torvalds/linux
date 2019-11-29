@@ -17,11 +17,11 @@
 #include <linux/string.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>
+#include <internal/cpumap.h>
 #include <perf/cpumap.h>
 
 #include "env.h"
 #include "svghelper.h"
-#include "cpumap.h"
 
 static u64 first_time, last_time;
 static u64 turbo_frequency, max_freq;

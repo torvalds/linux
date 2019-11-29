@@ -312,7 +312,6 @@ header-test-			+= linux/mfd/as3711.h
 header-test-			+= linux/mfd/as3722.h
 header-test-			+= linux/mfd/da903x.h
 header-test-			+= linux/mfd/da9055/pdata.h
-header-test-			+= linux/mfd/da9063/pdata.h
 header-test-			+= linux/mfd/db8500-prcmu.h
 header-test-			+= linux/mfd/dbx500-prcmu.h
 header-test-			+= linux/mfd/dln2.h

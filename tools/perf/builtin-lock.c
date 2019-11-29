@@ -30,6 +30,7 @@
 #include <linux/hash.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
+#include <linux/err.h>
 
 static struct perf_session *session;
 
@@ -872,9 +873,9 @@ static int __cmd_report(bool display_info)
 	};
 
 	session = perf_session__new(&data, false, &eops);
-	if (!session) {
+	if (IS_ERR(session)) {
 		pr_err("Initializing perf session failed\n");
-		return -1;
+		return PTR_ERR(session);
 	}
 
 	symbol__init(&session->header.env);

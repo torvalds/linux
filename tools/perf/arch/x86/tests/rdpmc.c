@@ -13,7 +13,7 @@
 #include "tests/tests.h"
 #include "cloexec.h"
 #include "event.h"
-#include "util.h"
+#include <internal/lib.h> // page_size
 #include "arch-tests.h"
 
 static u64 rdpmc(unsigned int counter)

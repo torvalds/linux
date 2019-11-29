@@ -2329,7 +2329,7 @@ static struct evsel *find_evsel(struct evlist *evlist, char *event_name)
 		if (nr > evlist->core.nr_entries)
 			return NULL;
 
-		evsel = perf_evlist__first(evlist);
+		evsel = evlist__first(evlist);
 		while (--nr > 0)
 			evsel = perf_evsel__next(evsel);
 

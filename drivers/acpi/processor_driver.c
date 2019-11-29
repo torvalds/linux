@@ -290,14 +290,13 @@ static int acpi_processor_notifier(struct notifier_block *nb,
 				   unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
-	int cpu = policy->cpu;
 
 	if (event == CPUFREQ_CREATE_POLICY) {
-		acpi_thermal_cpufreq_init(cpu);
-		acpi_processor_ppc_init(cpu);
+		acpi_thermal_cpufreq_init(policy);
+		acpi_processor_ppc_init(policy);
 	} else if (event == CPUFREQ_REMOVE_POLICY) {
-		acpi_processor_ppc_exit(cpu);
-		acpi_thermal_cpufreq_exit(cpu);
+		acpi_processor_ppc_exit(policy);
+		acpi_thermal_cpufreq_exit(policy);
 	}
 
 	return 0;

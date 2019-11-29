@@ -90,16 +90,13 @@ static inline void *rtw_pci_get_tx_desc(struct rtw_pci_tx_ring *tx_ring, u8 idx)
 	return tx_ring->r.head + offset;
 }
 
-static void rtw_pci_free_tx_ring(struct rtw_dev *rtwdev,
-				 struct rtw_pci_tx_ring *tx_ring)
+static void rtw_pci_free_tx_ring_skbs(struct rtw_dev *rtwdev,
+				      struct rtw_pci_tx_ring *tx_ring)
 {
 	struct pci_dev *pdev = to_pci_dev(rtwdev->dev);
 	struct rtw_pci_tx_data *tx_data;
 	struct sk_buff *skb, *tmp;
 	dma_addr_t dma;
-	u8 *head = tx_ring->r.head;
-	u32 len = tx_ring->r.len;
-	int ring_sz = len * tx_ring->r.desc_size;
 
 	/* free every skb remained in tx list */
 	skb_queue_walk_safe(&tx_ring->queue, skb, tmp) {
@@ -110,21 +107,30 @@ static void rtw_pci_free_tx_ring(struct rtw_dev *rtwdev,
 		pci_unmap_single(pdev, dma, skb->len, PCI_DMA_TODEVICE);
 		dev_kfree_skb_any(skb);
 	}
+}
+
+static void rtw_pci_free_tx_ring(struct rtw_dev *rtwdev,
+				 struct rtw_pci_tx_ring *tx_ring)
+{
+	struct pci_dev *pdev = to_pci_dev(rtwdev->dev);
+	u8 *head = tx_ring->r.head;
+	u32 len = tx_ring->r.len;
+	int ring_sz = len * tx_ring->r.desc_size;
+
+	rtw_pci_free_tx_ring_skbs(rtwdev, tx_ring);
 
 	/* free the ring itself */
 	pci_free_consistent(pdev, ring_sz, head, tx_ring->r.dma);
 	tx_ring->r.head = NULL;
 }
 
-static void rtw_pci_free_rx_ring(struct rtw_dev *rtwdev,
-				 struct rtw_pci_rx_ring *rx_ring)
+static void rtw_pci_free_rx_ring_skbs(struct rtw_dev *rtwdev,
+				      struct rtw_pci_rx_ring *rx_ring)
 {
 	struct pci_dev *pdev = to_pci_dev(rtwdev->dev);
 	struct sk_buff *skb;
-	dma_addr_t dma;
-	u8 *head = rx_ring->r.head;
 	int buf_sz = RTK_PCI_RX_BUF_SIZE;
-	int ring_sz = rx_ring->r.desc_size * rx_ring->r.len;
+	dma_addr_t dma;
 	int i;
 
 	for (i = 0; i < rx_ring->r.len; i++) {
@@ -137,6 +143,16 @@ static void rtw_pci_free_rx_ring(struct rtw_dev *rtwdev,
 		dev_kfree_skb(skb);
 		rx_ring->buf[i] = NULL;
 	}
+}
+
+static void rtw_pci_free_rx_ring(struct rtw_dev *rtwdev,
+				 struct rtw_pci_rx_ring *rx_ring)
+{
+	struct pci_dev *pdev = to_pci_dev(rtwdev->dev);
+	u8 *head = rx_ring->r.head;
+	int ring_sz = rx_ring->r.desc_size * rx_ring->r.len;
+
+	rtw_pci_free_rx_ring_skbs(rtwdev, rx_ring);
 
 	pci_free_consistent(pdev, ring_sz, head, rx_ring->r.dma);
 }
@@ -484,6 +500,17 @@ static void rtw_pci_dma_reset(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
 	rtwpci->rx_tag = 0;
 }
 
+static void rtw_pci_dma_release(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
+{
+	struct rtw_pci_tx_ring *tx_ring;
+	u8 queue;
+
+	for (queue = 0; queue < RTK_MAX_TX_QUEUE_NUM; queue++) {
+		tx_ring = &rtwpci->tx_rings[queue];
+		rtw_pci_free_tx_ring_skbs(rtwdev, tx_ring);
+	}
+}
+
 static int rtw_pci_start(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
@@ -505,6 +532,7 @@ static void rtw_pci_stop(struct rtw_dev *rtwdev)
 
 	spin_lock_irqsave(&rtwpci->irq_lock, flags);
 	rtw_pci_disable_interrupt(rtwdev, rtwpci);
+	rtw_pci_dma_release(rtwdev, rtwpci);
 	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 }
 

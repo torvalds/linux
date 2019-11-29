@@ -17,3 +17,4 @@ tm-vmx-unavail
 tm-unavailable
 tm-trap
 tm-sigreturn
+tm-poison

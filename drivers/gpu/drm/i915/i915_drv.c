@@ -1924,6 +1924,11 @@ static int i915_drm_resume(struct drm_device *dev)
 	if (ret)
 		DRM_ERROR("failed to re-enable GGTT\n");
 
+	mutex_lock(&dev_priv->drm.struct_mutex);
+	i915_gem_restore_gtt_mappings(dev_priv);
+	i915_gem_restore_fences(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
 	intel_csr_ucode_resume(dev_priv);
 
 	i915_restore_state(dev_priv);

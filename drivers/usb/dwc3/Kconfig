@@ -102,6 +102,7 @@ config USB_DWC3_MESON_G12A
        depends on ARCH_MESON || COMPILE_TEST
        default USB_DWC3
        select USB_ROLE_SWITCH
+	select REGMAP_MMIO
        help
          Support USB2/3 functionality in Amlogic G12A platforms.
 	 Say 'Y' or 'M' if you have one such device.

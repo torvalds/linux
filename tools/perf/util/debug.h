@@ -3,9 +3,9 @@
 #ifndef __PERF_DEBUG_H
 #define __PERF_DEBUG_H
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <linux/compiler.h>
-#include "../ui/util.h"
 
 extern int verbose;
 extern bool quiet, dump_trace;

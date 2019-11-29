@@ -81,9 +81,10 @@ typedef struct xfs_alloc_arg {
 /*
  * Defines for datatype
  */
-#define XFS_ALLOC_INITIAL_USER_DATA	(1 << 0)/* special case start of file */
-#define XFS_ALLOC_USERDATA_ZERO		(1 << 1)/* zero extent on allocation */
-#define XFS_ALLOC_NOBUSY		(1 << 2)/* Busy extents not allowed */
+#define XFS_ALLOC_USERDATA		(1 << 0)/* allocation is for user data*/
+#define XFS_ALLOC_INITIAL_USER_DATA	(1 << 1)/* special case start of file */
+#define XFS_ALLOC_USERDATA_ZERO		(1 << 2)/* zero extent on allocation */
+#define XFS_ALLOC_NOBUSY		(1 << 3)/* Busy extents not allowed */
 
 static inline bool
 xfs_alloc_is_userdata(int datatype)

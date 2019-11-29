@@ -33,6 +33,7 @@
 #include "tsc.h"
 #include "intel-pt.h"
 #include "config.h"
+#include "util/synthetic-events.h"
 #include "time-utils.h"
 
 #include "../arch/x86/include/uapi/asm/perf_regs.h"
@@ -1704,7 +1705,7 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 	struct intel_pt *pt = ptq->pt;
 	struct evsel *evsel = pt->pebs_evsel;
 	u64 sample_type = evsel->core.attr.sample_type;
-	u64 id = evsel->id[0];
+	u64 id = evsel->core.id[0];
 	u8 cpumode;
 
 	if (intel_pt_skip_event(pt))
@@ -2719,7 +2720,7 @@ static void intel_pt_set_event_name(struct evlist *evlist, u64 id,
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->id && evsel->id[0] == id) {
+		if (evsel->core.id && evsel->core.id[0] == id) {
 			if (evsel->name)
 				zfree(&evsel->name);
 			evsel->name = strdup(name);
@@ -2734,7 +2735,7 @@ static struct evsel *intel_pt_evsel(struct intel_pt *pt,
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->core.attr.type == pt->pmu_type && evsel->ids)
+		if (evsel->core.attr.type == pt->pmu_type && evsel->core.ids)
 			return evsel;
 	}
 
@@ -2775,7 +2776,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 	attr.sample_id_all = evsel->core.attr.sample_id_all;
 	attr.read_format = evsel->core.attr.read_format;
 
-	id = evsel->id[0] + 1000000000;
+	id = evsel->core.id[0] + 1000000000;
 	if (!id)
 		id = 1;
 
@@ -2902,7 +2903,7 @@ static void intel_pt_setup_pebs_events(struct intel_pt *pt)
 		return;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
-		if (evsel->core.attr.aux_output && evsel->id) {
+		if (evsel->core.attr.aux_output && evsel->core.id) {
 			pt->sample_pebs = true;
 			pt->pebs_evsel = evsel;
 			return;

@@ -178,6 +178,29 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 		return;
 	}
 
+	/*
+	 * The locking here is pretty subtle. Ideally the implicit children
+	 * list would be protected by the umem_mutex, however that is not
+	 * possible. Instead this uses a weaker update-then-lock pattern:
+	 *
+	 *  srcu_read_lock()
+	 *    <change children list>
+	 *    mutex_lock(umem_mutex)
+	 *     mlx5_ib_update_xlt()
+	 *    mutex_unlock(umem_mutex)
+	 *    destroy lkey
+	 *
+	 * ie any change the children list must be followed by the locked
+	 * update_xlt before destroying.
+	 *
+	 * The umem_mutex provides the acquire/release semantic needed to make
+	 * the children list visible to a racing thread. While SRCU is not
+	 * technically required, using it gives consistent use of the SRCU
+	 * locking around the children list.
+	 */
+	lockdep_assert_held(&to_ib_umem_odp(mr->umem)->umem_mutex);
+	lockdep_assert_held(&mr->dev->mr_srcu);
+
 	odp = odp_lookup(offset * MLX5_IMR_MTT_SIZE,
 			 nentries * MLX5_IMR_MTT_SIZE, mr);
 
@@ -202,15 +225,22 @@ static void mr_leaf_free_action(struct work_struct *work)
 	struct ib_umem_odp *odp = container_of(work, struct ib_umem_odp, work);
 	int idx = ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT;
 	struct mlx5_ib_mr *mr = odp->private, *imr = mr->parent;
+	struct ib_umem_odp *odp_imr = to_ib_umem_odp(imr->umem);
+	int srcu_key;
 
 	mr->parent = NULL;
 	synchronize_srcu(&mr->dev->mr_srcu);
 
-	ib_umem_odp_release(odp);
-	if (imr->live)
+	if (smp_load_acquire(&imr->live)) {
+		srcu_key = srcu_read_lock(&mr->dev->mr_srcu);
+		mutex_lock(&odp_imr->umem_mutex);
 		mlx5_ib_update_xlt(imr, idx, 1, 0,
 				   MLX5_IB_UPD_XLT_INDIRECT |
 				   MLX5_IB_UPD_XLT_ATOMIC);
+		mutex_unlock(&odp_imr->umem_mutex);
+		srcu_read_unlock(&mr->dev->mr_srcu, srcu_key);
+	}
+	ib_umem_odp_release(odp);
 	mlx5_mr_cache_free(mr->dev, mr);
 
 	if (atomic_dec_and_test(&imr->num_leaf_free))
@@ -278,7 +308,6 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 				   idx - blk_start_idx + 1, 0,
 				   MLX5_IB_UPD_XLT_ZAP |
 				   MLX5_IB_UPD_XLT_ATOMIC);
-	mutex_unlock(&umem_odp->umem_mutex);
 	/*
 	 * We are now sure that the device will not access the
 	 * memory. We can safely unmap it, and mark it as dirty if
@@ -289,10 +318,12 @@ void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
 
 	if (unlikely(!umem_odp->npages && mr->parent &&
 		     !umem_odp->dying)) {
-		WRITE_ONCE(umem_odp->dying, 1);
+		WRITE_ONCE(mr->live, 0);
+		umem_odp->dying = 1;
 		atomic_inc(&mr->parent->num_leaf_free);
 		schedule_work(&umem_odp->work);
 	}
+	mutex_unlock(&umem_odp->umem_mutex);
 }
 
 void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
@@ -429,8 +460,6 @@ static struct mlx5_ib_mr *implicit_mr_alloc(struct ib_pd *pd,
 	mr->ibmr.lkey = mr->mmkey.key;
 	mr->ibmr.rkey = mr->mmkey.key;
 
-	mr->live = 1;
-
 	mlx5_ib_dbg(dev, "key %x dev %p mr %p\n",
 		    mr->mmkey.key, dev->mdev, mr);
 
@@ -484,6 +513,8 @@ next_mr:
 		mtt->parent = mr;
 		INIT_WORK(&odp->work, mr_leaf_free_action);
 
+		smp_store_release(&mtt->live, 1);
+
 		if (!nentries)
 			start_idx = addr >> MLX5_IMR_MTT_SHIFT;
 		nentries++;
@@ -536,6 +567,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	init_waitqueue_head(&imr->q_leaf_free);
 	atomic_set(&imr->num_leaf_free, 0);
 	atomic_set(&imr->num_pending_prefetch, 0);
+	smp_store_release(&imr->live, 1);
 
 	return imr;
 }
@@ -555,15 +587,19 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 		if (mr->parent != imr)
 			continue;
 
+		mutex_lock(&umem_odp->umem_mutex);
 		ib_umem_odp_unmap_dma_pages(umem_odp, ib_umem_start(umem_odp),
 					    ib_umem_end(umem_odp));
 
-		if (umem_odp->dying)
+		if (umem_odp->dying) {
+			mutex_unlock(&umem_odp->umem_mutex);
 			continue;
+		}
 
-		WRITE_ONCE(umem_odp->dying, 1);
+		umem_odp->dying = 1;
 		atomic_inc(&imr->num_leaf_free);
 		schedule_work(&umem_odp->work);
+		mutex_unlock(&umem_odp->umem_mutex);
 	}
 	up_read(&per_mm->umem_rwsem);
 
@@ -773,7 +809,7 @@ next_mr:
 	switch (mmkey->type) {
 	case MLX5_MKEY_MR:
 		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
-		if (!mr->live || !mr->ibmr.pd) {
+		if (!smp_load_acquire(&mr->live) || !mr->ibmr.pd) {
 			mlx5_ib_dbg(dev, "got dead MR\n");
 			ret = -EFAULT;
 			goto srcu_unlock;
@@ -1641,12 +1677,12 @@ static bool num_pending_prefetch_inc(struct ib_pd *pd,
 
 		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
 
-		if (mr->ibmr.pd != pd) {
+		if (!smp_load_acquire(&mr->live)) {
 			ret = false;
 			break;
 		}
 
-		if (!mr->live) {
+		if (mr->ibmr.pd != pd) {
 			ret = false;
 			break;
 		}

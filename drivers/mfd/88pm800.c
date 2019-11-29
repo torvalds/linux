@@ -425,10 +425,10 @@ static int pm800_pages_init(struct pm80x_chip *chip)
 		return -ENODEV;
 
 	/* PM800 block power page */
-	subchip->power_page = i2c_new_dummy(client->adapter,
+	subchip->power_page = i2c_new_dummy_device(client->adapter,
 					    subchip->power_page_addr);
-	if (subchip->power_page == NULL) {
-		ret = -ENODEV;
+	if (IS_ERR(subchip->power_page)) {
+		ret = PTR_ERR(subchip->power_page);
 		goto out;
 	}
 
@@ -444,10 +444,10 @@ static int pm800_pages_init(struct pm80x_chip *chip)
 	i2c_set_clientdata(subchip->power_page, chip);
 
 	/* PM800 block GPADC */
-	subchip->gpadc_page = i2c_new_dummy(client->adapter,
+	subchip->gpadc_page = i2c_new_dummy_device(client->adapter,
 					    subchip->gpadc_page_addr);
-	if (subchip->gpadc_page == NULL) {
-		ret = -ENODEV;
+	if (IS_ERR(subchip->gpadc_page)) {
+		ret = PTR_ERR(subchip->gpadc_page);
 		goto out;
 	}
 

@@ -155,7 +155,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 			err = -EINVAL;
 			break;
 		} else if (cmd == PTP_EXTTS_REQUEST) {
-			req.extts.flags &= ~PTP_EXTTS_VALID_FLAGS;
+			req.extts.flags &= PTP_EXTTS_V1_VALID_FLAGS;
 			req.extts.rsv[0] = 0;
 			req.extts.rsv[1] = 0;
 		}
@@ -184,7 +184,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 			err = -EINVAL;
 			break;
 		} else if (cmd == PTP_PEROUT_REQUEST) {
-			req.perout.flags &= ~PTP_PEROUT_VALID_FLAGS;
+			req.perout.flags &= PTP_PEROUT_V1_VALID_FLAGS;
 			req.perout.rsv[0] = 0;
 			req.perout.rsv[1] = 0;
 			req.perout.rsv[2] = 0;

@@ -799,9 +799,6 @@ struct Qdisc_ops pfifo_fast_ops __read_mostly = {
 };
 EXPORT_SYMBOL(pfifo_fast_ops);
 
-static struct lock_class_key qdisc_tx_busylock;
-static struct lock_class_key qdisc_running_key;
-
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  const struct Qdisc_ops *ops,
 			  struct netlink_ext_ack *extack)
@@ -854,17 +851,9 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	}
 
 	spin_lock_init(&sch->busylock);
-	lockdep_set_class(&sch->busylock,
-			  dev->qdisc_tx_busylock ?: &qdisc_tx_busylock);
-
 	/* seqlock has the same scope of busylock, for NOLOCK qdisc */
 	spin_lock_init(&sch->seqlock);
-	lockdep_set_class(&sch->busylock,
-			  dev->qdisc_tx_busylock ?: &qdisc_tx_busylock);
-
 	seqcount_init(&sch->running);
-	lockdep_set_class(&sch->running,
-			  dev->qdisc_running_key ?: &qdisc_running_key);
 
 	sch->ops = ops;
 	sch->flags = ops->static_flags;
@@ -874,6 +863,12 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	sch->empty = true;
 	dev_hold(dev);
 	refcount_set(&sch->refcnt, 1);
+
+	if (sch != &noop_qdisc) {
+		lockdep_set_class(&sch->busylock, &dev->qdisc_tx_busylock_key);
+		lockdep_set_class(&sch->seqlock, &dev->qdisc_tx_busylock_key);
+		lockdep_set_class(&sch->running, &dev->qdisc_running_key);
+	}
 
 	return sch;
 errout1:
@@ -1043,6 +1038,8 @@ static void attach_one_default_qdisc(struct net_device *dev,
 
 	if (dev->priv_flags & IFF_NO_QUEUE)
 		ops = &noqueue_qdisc_ops;
+	else if(dev->type == ARPHRD_CAN)
+		ops = &pfifo_fast_ops;
 
 	qdisc = qdisc_create_dflt(dev_queue, ops, TC_H_ROOT, NULL);
 	if (!qdisc) {

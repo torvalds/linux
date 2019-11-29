@@ -230,8 +230,8 @@ static inline int xa_err(void *entry)
  * This structure is used either directly or via the XA_LIMIT() macro
  * to communicate the range of IDs that are valid for allocation.
  * Two common ranges are predefined for you:
- *  * xa_limit_32b	- [0 - UINT_MAX]
- *  * xa_limit_31b	- [0 - INT_MAX]
+ * * xa_limit_32b	- [0 - UINT_MAX]
+ * * xa_limit_31b	- [0 - INT_MAX]
  */
 struct xa_limit {
 	u32 max;

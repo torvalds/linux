@@ -72,10 +72,6 @@ config 64BIT
 config ZONE_DMA32
 	def_bool y
 
-config QUICKLIST
-	bool
-	default y
-
 config MMU
 	bool
 	default y

@@ -7,11 +7,11 @@
 #include <linux/refcount.h>
 #include <linux/list.h>
 #include <api/fd/array.h>
-#include <stdio.h>
 #include <internal/evlist.h>
+#include <internal/evsel.h>
 #include "events_stats.h"
 #include "evsel.h"
-#include "mmap.h"
+#include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -20,16 +20,38 @@ struct thread_map;
 struct perf_cpu_map;
 struct record_opts;
 
-#define PERF_EVLIST__HLIST_BITS 8
-#define PERF_EVLIST__HLIST_SIZE (1 << PERF_EVLIST__HLIST_BITS)
+/*
+ * State machine of bkw_mmap_state:
+ *
+ *                     .________________(forbid)_____________.
+ *                     |                                     V
+ * NOTREADY --(0)--> RUNNING --(1)--> DATA_PENDING --(2)--> EMPTY
+ *                     ^  ^              |   ^               |
+ *                     |  |__(forbid)____/   |___(forbid)___/|
+ *                     |                                     |
+ *                      \_________________(3)_______________/
+ *
+ * NOTREADY     : Backward ring buffers are not ready
+ * RUNNING      : Backward ring buffers are recording
+ * DATA_PENDING : We are required to collect data from backward ring buffers
+ * EMPTY        : We have collected data from backward ring buffers.
+ *
+ * (0): Setup backward ring buffer
+ * (1): Pause ring buffers for reading
+ * (2): Read from ring buffers
+ * (3): Resume ring buffers for recording
+ */
+enum bkw_mmap_state {
+	BKW_MMAP_NOTREADY,
+	BKW_MMAP_RUNNING,
+	BKW_MMAP_DATA_PENDING,
+	BKW_MMAP_EMPTY,
+};
 
 struct evlist {
 	struct perf_evlist core;
-	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
 	int		 nr_groups;
-	int		 nr_mmaps;
 	bool		 enabled;
-	size_t		 mmap_len;
 	int		 id_pos;
 	int		 is_pos;
 	u64		 combined_sample_type;
@@ -38,9 +60,8 @@ struct evlist {
 		int	cork_fd;
 		pid_t	pid;
 	} workload;
-	struct fdarray	 pollfd;
-	struct perf_mmap *mmap;
-	struct perf_mmap *overwrite_mmap;
+	struct mmap *mmap;
+	struct mmap *overwrite_mmap;
 	struct evsel *selected;
 	struct events_stats stats;
 	struct perf_env	*env;
@@ -65,7 +86,7 @@ struct evlist *perf_evlist__new_default(void);
 struct evlist *perf_evlist__new_dummy(void);
 void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 		  struct perf_thread_map *threads);
-void perf_evlist__exit(struct evlist *evlist);
+void evlist__exit(struct evlist *evlist);
 void evlist__delete(struct evlist *evlist);
 
 void evlist__add(struct evlist *evlist, struct evsel *entry);
@@ -119,17 +140,10 @@ struct evsel *
 perf_evlist__find_tracepoint_by_name(struct evlist *evlist,
 				     const char *name);
 
-void perf_evlist__id_add(struct evlist *evlist, struct evsel *evsel,
-			 int cpu, int thread, u64 id);
-int perf_evlist__id_add_fd(struct evlist *evlist,
-			   struct evsel *evsel,
-			   int cpu, int thread, int fd);
+int evlist__add_pollfd(struct evlist *evlist, int fd);
+int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask);
 
-int perf_evlist__add_pollfd(struct evlist *evlist, int fd);
-int perf_evlist__alloc_pollfd(struct evlist *evlist);
-int perf_evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask);
-
-int perf_evlist__poll(struct evlist *evlist, int timeout);
+int evlist__poll(struct evlist *evlist, int timeout);
 
 struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id);
 struct evsel *perf_evlist__id2evsel_strict(struct evlist *evlist,
@@ -139,7 +153,7 @@ struct perf_sample_id *perf_evlist__id2sid(struct evlist *evlist, u64 id);
 
 void perf_evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state);
 
-void perf_evlist__mmap_consume(struct evlist *evlist, int idx);
+void evlist__mmap_consume(struct evlist *evlist, int idx);
 
 int evlist__open(struct evlist *evlist);
 void evlist__close(struct evlist *evlist);
@@ -170,14 +184,14 @@ int perf_evlist__parse_mmap_pages(const struct option *opt,
 
 unsigned long perf_event_mlock_kb_in_pages(void);
 
-int perf_evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
+int evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 			 unsigned int auxtrace_pages,
 			 bool auxtrace_overwrite, int nr_cblocks,
 			 int affinity, int flush, int comp_level);
-int perf_evlist__mmap(struct evlist *evlist, unsigned int pages);
-void perf_evlist__munmap(struct evlist *evlist);
+int evlist__mmap(struct evlist *evlist, unsigned int pages);
+void evlist__munmap(struct evlist *evlist);
 
-size_t perf_evlist__mmap_size(unsigned long pages);
+size_t evlist__mmap_size(unsigned long pages);
 
 void evlist__disable(struct evlist *evlist);
 void evlist__enable(struct evlist *evlist);
@@ -195,7 +209,6 @@ int perf_evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel);
 void __perf_evlist__set_leader(struct list_head *list);
 void perf_evlist__set_leader(struct evlist *evlist);
 
-u64 perf_evlist__read_format(struct evlist *evlist);
 u64 __perf_evlist__combined_sample_type(struct evlist *evlist);
 u64 perf_evlist__combined_sample_type(struct evlist *evlist);
 u64 perf_evlist__combined_branch_type(struct evlist *evlist);
@@ -221,17 +234,19 @@ static inline bool perf_evlist__empty(struct evlist *evlist)
 	return list_empty(&evlist->core.entries);
 }
 
-static inline struct evsel *perf_evlist__first(struct evlist *evlist)
+static inline struct evsel *evlist__first(struct evlist *evlist)
 {
-	return list_entry(evlist->core.entries.next, struct evsel, core.node);
+	struct perf_evsel *evsel = perf_evlist__first(&evlist->core);
+
+	return container_of(evsel, struct evsel, core);
 }
 
-static inline struct evsel *perf_evlist__last(struct evlist *evlist)
+static inline struct evsel *evlist__last(struct evlist *evlist)
 {
-	return list_entry(evlist->core.entries.prev, struct evsel, core.node);
-}
+	struct perf_evsel *evsel = perf_evlist__last(&evlist->core);
 
-size_t perf_evlist__fprintf(struct evlist *evlist, FILE *fp);
+	return container_of(evsel, struct evsel, core);
+}
 
 int perf_evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size);
 int perf_evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size);

@@ -2,7 +2,6 @@
 /*
  * Copyright (C) 2008,2009, Steven Rostedt <srostedt@redhat.com>
  */
-#include "util.h"
 #include <dirent.h>
 #include <mntent.h>
 #include <stdio.h>
@@ -19,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
+#include <internal/lib.h> // page_size
 
 #include "trace-event.h"
 #include <api/fs/tracing_path.h>

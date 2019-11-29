@@ -118,11 +118,10 @@ static int armada8k_pcie_setup_phys(struct armada8k_pcie *pcie)
 
 	for (i = 0; i < ARMADA8K_PCIE_MAX_LANES; i++) {
 		pcie->phy[i] = devm_of_phy_get_by_index(dev, node, i);
-		if (IS_ERR(pcie->phy[i]) &&
-		    (PTR_ERR(pcie->phy[i]) == -EPROBE_DEFER))
-			return PTR_ERR(pcie->phy[i]);
-
 		if (IS_ERR(pcie->phy[i])) {
+			if (PTR_ERR(pcie->phy[i]) != -ENODEV)
+				return PTR_ERR(pcie->phy[i]);
+
 			pcie->phy[i] = NULL;
 			continue;
 		}

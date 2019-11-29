@@ -279,54 +279,13 @@ enum {
 
 void perf_event__print_totals(void);
 
-struct perf_tool;
-struct perf_thread_map;
 struct perf_cpu_map;
+struct perf_record_stat_config;
 struct perf_stat_config;
-struct perf_counts_values;
+struct perf_tool;
 
-typedef int (*perf_event__handler_t)(struct perf_tool *tool,
-				     union perf_event *event,
-				     struct perf_sample *sample,
-				     struct machine *machine);
-
-int perf_event__synthesize_thread_map(struct perf_tool *tool,
-				      struct perf_thread_map *threads,
-				      perf_event__handler_t process,
-				      struct machine *machine, bool mmap_data);
-int perf_event__synthesize_thread_map2(struct perf_tool *tool,
-				      struct perf_thread_map *threads,
-				      perf_event__handler_t process,
-				      struct machine *machine);
-int perf_event__synthesize_cpu_map(struct perf_tool *tool,
-				   struct perf_cpu_map *cpus,
-				   perf_event__handler_t process,
-				   struct machine *machine);
-int perf_event__synthesize_threads(struct perf_tool *tool,
-				   perf_event__handler_t process,
-				   struct machine *machine, bool mmap_data,
-				   unsigned int nr_threads_synthesize);
-int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
-				       perf_event__handler_t process,
-				       struct machine *machine);
-int perf_event__synthesize_stat_config(struct perf_tool *tool,
-				       struct perf_stat_config *config,
-				       perf_event__handler_t process,
-				       struct machine *machine);
 void perf_event__read_stat_config(struct perf_stat_config *config,
 				  struct perf_record_stat_config *event);
-int perf_event__synthesize_stat(struct perf_tool *tool,
-				u32 cpu, u32 thread, u64 id,
-				struct perf_counts_values *count,
-				perf_event__handler_t process,
-				struct machine *machine);
-int perf_event__synthesize_stat_round(struct perf_tool *tool,
-				      u64 time, u64 type,
-				      perf_event__handler_t process,
-				      struct machine *machine);
-int perf_event__synthesize_modules(struct perf_tool *tool,
-				   perf_event__handler_t process,
-				   struct machine *machine);
 
 int perf_event__process_comm(struct perf_tool *tool,
 			     union perf_event *event,
@@ -380,10 +339,6 @@ int perf_event__process_bpf(struct perf_tool *tool,
 			    union perf_event *event,
 			    struct perf_sample *sample,
 			    struct machine *machine);
-int perf_tool__process_synth_event(struct perf_tool *tool,
-				   union perf_event *event,
-				   struct machine *machine,
-				   perf_event__handler_t process);
 int perf_event__process(struct perf_tool *tool,
 			union perf_event *event,
 			struct perf_sample *sample,
@@ -404,34 +359,6 @@ void thread__resolve(struct thread *thread, struct addr_location *al,
 		     struct perf_sample *sample);
 
 const char *perf_event__name(unsigned int id);
-
-size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
-				     u64 read_format);
-int perf_event__synthesize_sample(union perf_event *event, u64 type,
-				  u64 read_format,
-				  const struct perf_sample *sample);
-
-pid_t perf_event__synthesize_comm(struct perf_tool *tool,
-				  union perf_event *event, pid_t pid,
-				  perf_event__handler_t process,
-				  struct machine *machine);
-
-int perf_event__synthesize_namespaces(struct perf_tool *tool,
-				      union perf_event *event,
-				      pid_t pid, pid_t tgid,
-				      perf_event__handler_t process,
-				      struct machine *machine);
-
-int perf_event__synthesize_mmap_events(struct perf_tool *tool,
-				       union perf_event *event,
-				       pid_t pid, pid_t tgid,
-				       perf_event__handler_t process,
-				       struct machine *machine,
-				       bool mmap_data);
-
-int perf_event__synthesize_extra_kmaps(struct perf_tool *tool,
-				       perf_event__handler_t process,
-				       struct machine *machine);
 
 size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp);

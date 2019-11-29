@@ -3,11 +3,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <perf/cpumap.h>
+#include "cpumap.h"
 #include "tests.h"
-#include "util.h"
 #include "session.h"
 #include "evlist.h"
 #include "debug.h"
+#include <linux/err.h>
 
 #define TEMPL "/tmp/perf-test-XXXXXX"
 #define DATA_SIZE	10
@@ -39,7 +40,7 @@ static int session_write_header(char *path)
 	};
 
 	session = perf_session__new(&data, false, NULL);
-	TEST_ASSERT_VAL("can't get session", session);
+	TEST_ASSERT_VAL("can't get session", !IS_ERR(session));
 
 	session->evlist = perf_evlist__new_default();
 	TEST_ASSERT_VAL("can't get evlist", session->evlist);
@@ -70,7 +71,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	int i;
 
 	session = perf_session__new(&data, false, NULL);
-	TEST_ASSERT_VAL("can't get session", session);
+	TEST_ASSERT_VAL("can't get session", !IS_ERR(session));
 
 	/* On platforms with large numbers of CPUs process_cpu_topology()
 	 * might issue an error while reading the perf.data file section

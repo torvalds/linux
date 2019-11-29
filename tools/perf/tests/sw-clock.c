@@ -12,6 +12,7 @@
 #include "util/evsel.h"
 #include "util/evlist.h"
 #include "util/cpumap.h"
+#include "util/mmap.h"
 #include "util/thread_map.h"
 #include <perf/evlist.h>
 
@@ -42,7 +43,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	};
 	struct perf_cpu_map *cpus;
 	struct perf_thread_map *threads;
-	struct perf_mmap *md;
+	struct mmap *md;
 
 	attr.sample_freq = 500;
 
@@ -82,7 +83,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		goto out_delete_evlist;
 	}
 
-	err = perf_evlist__mmap(evlist, 128);
+	err = evlist__mmap(evlist, 128);
 	if (err < 0) {
 		pr_debug("failed to mmap event: %d (%s)\n", errno,
 			 str_error_r(errno, sbuf, sizeof(sbuf)));

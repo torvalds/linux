@@ -187,12 +187,12 @@ L_FETCH_2ND_TRAP:
 	// Read second-level TBA/TMA from first-level TMA and jump if available.
 	// ttmp[2:5] and ttmp12 can be used (others hold SPI-initialized debug data)
 	// ttmp12 holds SQ_WAVE_STATUS
-	s_getreg_b32	ttmp4, hwreg(HW_REG_SHADER_TMA_LO)
-	s_getreg_b32	ttmp5, hwreg(HW_REG_SHADER_TMA_HI)
-	s_lshl_b64	[ttmp4, ttmp5], [ttmp4, ttmp5], 0x8
-	s_load_dwordx2	[ttmp2, ttmp3], [ttmp4, ttmp5], 0x0 glc:1		// second-level TBA
+	s_getreg_b32	ttmp14, hwreg(HW_REG_SHADER_TMA_LO)
+	s_getreg_b32	ttmp15, hwreg(HW_REG_SHADER_TMA_HI)
+	s_lshl_b64	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8
+	s_load_dwordx2	[ttmp2, ttmp3], [ttmp14, ttmp15], 0x0 glc:1		// second-level TBA
 	s_waitcnt	lgkmcnt(0)
-	s_load_dwordx2	[ttmp4, ttmp5], [ttmp4, ttmp5], 0x8 glc:1		// second-level TMA
+	s_load_dwordx2	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8 glc:1		// second-level TMA
 	s_waitcnt	lgkmcnt(0)
 	s_and_b64	[ttmp2, ttmp3], [ttmp2, ttmp3], [ttmp2, ttmp3]
 	s_cbranch_scc0	L_NO_NEXT_TRAP						// second-level trap handler not been set

@@ -11,21 +11,22 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h> // FILE
 #include <linux/list.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include <asm/bitsperlong.h>
 #include <asm/barrier.h>
 
-#include "event.h"
-
 union perf_event;
 struct perf_session;
 struct evlist;
 struct perf_tool;
-struct perf_mmap;
+struct mmap;
+struct perf_sample;
 struct option;
 struct record_opts;
+struct perf_record_auxtrace_error;
 struct perf_record_auxtrace_info;
 struct events_stats;
 
@@ -444,14 +445,14 @@ void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 				   bool per_cpu);
 
 typedef int (*process_auxtrace_t)(struct perf_tool *tool,
-				  struct perf_mmap *map,
+				  struct mmap *map,
 				  union perf_event *event, void *data1,
 				  size_t len1, void *data2, size_t len2);
 
-int auxtrace_mmap__read(struct perf_mmap *map, struct auxtrace_record *itr,
+int auxtrace_mmap__read(struct mmap *map, struct auxtrace_record *itr,
 			struct perf_tool *tool, process_auxtrace_t fn);
 
-int auxtrace_mmap__read_snapshot(struct perf_mmap *map,
+int auxtrace_mmap__read_snapshot(struct mmap *map,
 				 struct auxtrace_record *itr,
 				 struct perf_tool *tool, process_auxtrace_t fn,
 				 size_t snapshot_size);
@@ -524,10 +525,6 @@ void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int
 			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
 			  const char *msg, u64 timestamp);
 
-int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
-					 struct perf_tool *tool,
-					 struct perf_session *session,
-					 perf_event__handler_t process);
 int perf_event__process_auxtrace_info(struct perf_session *session,
 				      union perf_event *event);
 s64 perf_event__process_auxtrace(struct perf_session *session,
@@ -602,15 +599,6 @@ auxtrace_record__init(struct evlist *evlist __maybe_unused,
 static inline
 void auxtrace_record__free(struct auxtrace_record *itr __maybe_unused)
 {
-}
-
-static inline int
-perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr __maybe_unused,
-				     struct perf_tool *tool __maybe_unused,
-				     struct perf_session *session __maybe_unused,
-				     perf_event__handler_t process __maybe_unused)
-{
-	return -EINVAL;
 }
 
 static inline

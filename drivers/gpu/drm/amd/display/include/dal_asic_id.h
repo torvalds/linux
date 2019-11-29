@@ -137,10 +137,13 @@
 #define RAVEN1_F0 0xF0
 #define RAVEN_UNKNOWN 0xFF
 
+#define PICASSO_15D8_REV_E3 0xE3
+#define PICASSO_15D8_REV_E4 0xE4
+
 #define ASICREV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)
 #define ASICREV_IS_PICASSO(eChipRev) ((eChipRev >= PICASSO_A0) && (eChipRev < RAVEN2_A0))
-#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < 0xF0))
-
+#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < PICASSO_15D8_REV_E3))
+#define ASICREV_IS_DALI(eChipRev) ((eChipRev >= PICASSO_15D8_REV_E3) && (eChipRev < RAVEN1_F0))
 
 #define ASICREV_IS_RV1_F0(eChipRev) ((eChipRev >= RAVEN1_F0) && (eChipRev < RAVEN_UNKNOWN))
 

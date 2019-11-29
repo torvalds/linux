@@ -8,6 +8,7 @@
 #include "thread_map.h"
 #include "debug.h"
 #include "event.h"
+#include "util/synthetic-events.h"
 #include <linux/zalloc.h>
 #include <perf/event.h>
 

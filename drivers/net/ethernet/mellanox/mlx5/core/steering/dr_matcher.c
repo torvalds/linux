@@ -230,8 +230,7 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 		    (dmn->type == MLX5DR_DOMAIN_TYPE_FDB ||
 		     dmn->type == MLX5DR_DOMAIN_TYPE_NIC_RX)) {
 			ret = mlx5dr_ste_build_src_gvmi_qpn(&sb[idx++], &mask,
-							    &dmn->info.caps,
-							    inner, rx);
+							    dmn, inner, rx);
 			if (ret)
 				return ret;
 		}
@@ -458,13 +457,11 @@ static int dr_matcher_add_to_tbl(struct mlx5dr_matcher *matcher)
 
 	prev_matcher = NULL;
 	if (next_matcher && !first)
-		prev_matcher = list_entry(next_matcher->matcher_list.prev,
-					  struct mlx5dr_matcher,
-					  matcher_list);
+		prev_matcher = list_prev_entry(next_matcher, matcher_list);
 	else if (!first)
-		prev_matcher = list_entry(tbl->matcher_list.prev,
-					  struct mlx5dr_matcher,
-					  matcher_list);
+		prev_matcher = list_last_entry(&tbl->matcher_list,
+					       struct mlx5dr_matcher,
+					       matcher_list);
 
 	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB ||
 	    dmn->type == MLX5DR_DOMAIN_TYPE_NIC_RX) {

@@ -285,12 +285,12 @@ struct drm_crtc_state {
 	u32 target_vblank;
 
 	/**
-	 * @pageflip_flags:
+	 * @async_flip:
 	 *
-	 * DRM_MODE_PAGE_FLIP_* flags, as passed to the page flip ioctl.
-	 * Zero in any other case.
+	 * This is set when DRM_MODE_PAGE_FLIP_ASYNC is set in the legacy
+	 * PAGE_FLIP IOCTL. It's not wired up for the atomic IOCTL itself yet.
 	 */
-	u32 pageflip_flags;
+	bool async_flip;
 
 	/**
 	 * @vrr_enabled:
@@ -1108,7 +1108,7 @@ struct drm_crtc {
 	/**
 	 * @self_refresh_data: Holds the state for the self refresh helpers
 	 *
-	 * Initialized via drm_self_refresh_helper_register().
+	 * Initialized via drm_self_refresh_helper_init().
 	 */
 	struct drm_self_refresh_data *self_refresh_data;
 };

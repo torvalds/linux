@@ -60,11 +60,6 @@
 		gpio = <&gpiosb 0 GPIO_ACTIVE_HIGH>;
 	};
 
-	usb3_phy: usb3-phy {
-		compatible = "usb-nop-xceiv";
-		vcc-supply = <&exp_usb3_vbus>;
-	};
-
 	vsdc_reg: vsdc-reg {
 		compatible = "regulator-gpio";
 		regulator-name = "vsdc";
@@ -255,10 +250,16 @@
 	status = "okay";
 };
 
+&comphy2 {
+	connector {
+		compatible = "usb-a-connector";
+		phy-supply = <&exp_usb3_vbus>;
+	};
+};
+
 &usb3 {
 	status = "okay";
 	phys = <&comphy2 0>;
-	usb-phy = <&usb3_phy>;
 };
 
 &mdio {

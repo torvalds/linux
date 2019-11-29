@@ -1794,7 +1794,7 @@ static void ip_encap(struct net *net, struct sk_buff *skb,
 	ip_send_check(iph);
 
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-	nf_reset(skb);
+	nf_reset_ct(skb);
 }
 
 static inline int ipmr_forward_finish(struct net *net, struct sock *sk,
@@ -2140,7 +2140,7 @@ int ip_mr_input(struct sk_buff *skb)
 
 			mroute_sk = rcu_dereference(mrt->mroute_sk);
 			if (mroute_sk) {
-				nf_reset(skb);
+				nf_reset_ct(skb);
 				raw_rcv(mroute_sk, skb);
 				return 0;
 			}

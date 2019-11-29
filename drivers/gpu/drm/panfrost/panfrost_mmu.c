@@ -224,9 +224,9 @@ static size_t get_pgsize(u64 addr, size_t size)
 	return SZ_2M;
 }
 
-void panfrost_mmu_flush_range(struct panfrost_device *pfdev,
-			      struct panfrost_mmu *mmu,
-			      u64 iova, size_t size)
+static void panfrost_mmu_flush_range(struct panfrost_device *pfdev,
+				     struct panfrost_mmu *mmu,
+				     u64 iova, size_t size)
 {
 	if (mmu->as < 0)
 		return;
@@ -394,58 +394,70 @@ void panfrost_mmu_pgtable_free(struct panfrost_file_priv *priv)
 	free_io_pgtable_ops(mmu->pgtbl_ops);
 }
 
-static struct drm_mm_node *addr_to_drm_mm_node(struct panfrost_device *pfdev, int as, u64 addr)
+static struct panfrost_gem_object *
+addr_to_drm_mm_node(struct panfrost_device *pfdev, int as, u64 addr)
 {
-	struct drm_mm_node *node = NULL;
+	struct panfrost_gem_object *bo = NULL;
+	struct panfrost_file_priv *priv;
+	struct drm_mm_node *node;
 	u64 offset = addr >> PAGE_SHIFT;
 	struct panfrost_mmu *mmu;
 
 	spin_lock(&pfdev->as_lock);
 	list_for_each_entry(mmu, &pfdev->as_lru_list, list) {
-		struct panfrost_file_priv *priv;
-		if (as != mmu->as)
-			continue;
+		if (as == mmu->as)
+			goto found_mmu;
+	}
+	goto out;
 
-		priv = container_of(mmu, struct panfrost_file_priv, mmu);
-		drm_mm_for_each_node(node, &priv->mm) {
-			if (offset >= node->start && offset < (node->start + node->size))
-				goto out;
+found_mmu:
+	priv = container_of(mmu, struct panfrost_file_priv, mmu);
+
+	spin_lock(&priv->mm_lock);
+
+	drm_mm_for_each_node(node, &priv->mm) {
+		if (offset >= node->start &&
+		    offset < (node->start + node->size)) {
+			bo = drm_mm_node_to_panfrost_bo(node);
+			drm_gem_object_get(&bo->base.base);
+			break;
 		}
 	}
 
+	spin_unlock(&priv->mm_lock);
 out:
 	spin_unlock(&pfdev->as_lock);
-	return node;
+	return bo;
 }
 
 #define NUM_FAULT_PAGES (SZ_2M / PAGE_SIZE)
 
-int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as, u64 addr)
+static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
+				       u64 addr)
 {
 	int ret, i;
-	struct drm_mm_node *node;
 	struct panfrost_gem_object *bo;
 	struct address_space *mapping;
 	pgoff_t page_offset;
 	struct sg_table *sgt;
 	struct page **pages;
 
-	node = addr_to_drm_mm_node(pfdev, as, addr);
-	if (!node)
+	bo = addr_to_drm_mm_node(pfdev, as, addr);
+	if (!bo)
 		return -ENOENT;
 
-	bo = drm_mm_node_to_panfrost_bo(node);
 	if (!bo->is_heap) {
 		dev_WARN(pfdev->dev, "matching BO is not heap type (GPU VA = %llx)",
-			 node->start << PAGE_SHIFT);
-		return -EINVAL;
+			 bo->node.start << PAGE_SHIFT);
+		ret = -EINVAL;
+		goto err_bo;
 	}
 	WARN_ON(bo->mmu->as != as);
 
 	/* Assume 2MB alignment and size multiple */
 	addr &= ~((u64)SZ_2M - 1);
 	page_offset = addr >> PAGE_SHIFT;
-	page_offset -= node->start;
+	page_offset -= bo->node.start;
 
 	mutex_lock(&bo->base.pages_lock);
 
@@ -454,7 +466,8 @@ int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as, u64 addr)
 				     sizeof(struct sg_table), GFP_KERNEL | __GFP_ZERO);
 		if (!bo->sgts) {
 			mutex_unlock(&bo->base.pages_lock);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_bo;
 		}
 
 		pages = kvmalloc_array(bo->base.base.size >> PAGE_SHIFT,
@@ -463,7 +476,8 @@ int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as, u64 addr)
 			kfree(bo->sgts);
 			bo->sgts = NULL;
 			mutex_unlock(&bo->base.pages_lock);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_bo;
 		}
 		bo->base.pages = pages;
 		bo->base.pages_use_count = 1;
@@ -501,12 +515,16 @@ int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as, u64 addr)
 
 	dev_dbg(pfdev->dev, "mapped page fault @ AS%d %llx", as, addr);
 
+	drm_gem_object_put_unlocked(&bo->base.base);
+
 	return 0;
 
 err_map:
 	sg_free_table(sgt);
 err_pages:
 	drm_gem_shmem_put_pages(&bo->base);
+err_bo:
+	drm_gem_object_put_unlocked(&bo->base.base);
 	return ret;
 }
 

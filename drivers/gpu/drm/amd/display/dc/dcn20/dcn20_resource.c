@@ -814,7 +814,7 @@ static const struct resource_caps res_cap_nv14 = {
 		.num_audio = 6,
 		.num_stream_encoder = 5,
 		.num_pll = 5,
-		.num_dwb = 0,
+		.num_dwb = 1,
 		.num_ddc = 5,
 };
 
@@ -1077,6 +1077,7 @@ struct clock_source *dcn20_clock_source_create(
 		return &clk_src->base;
 	}
 
+	kfree(clk_src);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }

@@ -43,13 +43,9 @@ properties:
 
   dvdd-supply:
     description: DVdd voltage supply
-    items:
-      - const: dvdd
 
   avdd-supply:
     description: AVdd voltage supply
-    items:
-      - const: avdd
 
   adi,rejection-60-Hz-enable:
     description: |
@@ -99,6 +95,9 @@ required:
 examples:
   - |
     spi0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
       adc@0 {
         compatible = "adi,ad7192";
         reg = <0>;

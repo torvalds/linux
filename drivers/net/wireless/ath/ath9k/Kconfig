@@ -148,7 +148,7 @@ config ATH9K_CHANNEL_CONTEXT
        depends on ATH9K
        default n
        ---help---
-         This option enables channel context support in ath9k, which is needed
+	 This option enables channel context support in ath9k, which is needed
 	 for multi-channel concurrency. Enable this if P2P PowerSave support
 	 is required.
 

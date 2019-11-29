@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  Copyright IBM Corp. 2001, 2018
+ *  Copyright IBM Corp. 2001, 2019
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *	       Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -29,6 +29,7 @@
 #define ZCRYPT_CEX4	       10
 #define ZCRYPT_CEX5	       11
 #define ZCRYPT_CEX6	       12
+#define ZCRYPT_CEX7	       13
 
 /**
  * Large random numbers are pulled in 4096 byte chunks from the crypto cards

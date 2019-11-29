@@ -7,7 +7,7 @@
 #include "config.h"
 #include "time-utils.h"
 #include "../util.h"
-#include "../../util/util.h"
+#include "../../util/util.h" // perf_exe()
 #include "../../perf.h"
 #include <stdlib.h>
 #include <string.h>

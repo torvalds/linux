@@ -403,8 +403,6 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
  * into virtual address `from'
  */
 
-#define pgtable_cache_init()       do { } while (0)
-
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASMNDS32_PGTABLE_H */

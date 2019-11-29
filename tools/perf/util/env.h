@@ -4,8 +4,9 @@
 
 #include <linux/types.h>
 #include <linux/rbtree.h>
-#include "cpumap.h"
 #include "rwsem.h"
+
+struct perf_cpu_map;
 
 struct cpu_topology_map {
 	int	socket_id;

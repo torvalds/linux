@@ -910,7 +910,6 @@ extern int afs_silly_iput(struct dentry *, struct inode *);
 /*
  * dynroot.c
  */
-extern const struct file_operations afs_dynroot_file_operations;
 extern const struct inode_operations afs_dynroot_inode_operations;
 extern const struct dentry_operations afs_dynroot_dentry_operations;
 

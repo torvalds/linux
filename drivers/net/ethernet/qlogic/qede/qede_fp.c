@@ -779,8 +779,7 @@ qede_rx_build_skb(struct qede_dev *edev,
 			return NULL;
 
 		skb_reserve(skb, pad);
-		memcpy(skb_put(skb, len),
-		       page_address(bd->data) + offset, len);
+		skb_put_data(skb, page_address(bd->data) + offset, len);
 		qede_reuse_page(rxq, bd);
 		goto out;
 	}

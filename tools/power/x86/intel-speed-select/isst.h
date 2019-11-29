@@ -187,12 +187,16 @@ extern int isst_send_msr_command(unsigned int cpu, unsigned int command,
 				 int write, unsigned long long *req_resp);
 
 extern int isst_get_ctdp_levels(int cpu, struct isst_pkg_ctdp *pkg_dev);
+extern int isst_get_coremask_info(int cpu, int config_index,
+			   struct isst_pkg_ctdp_level_info *ctdp_level);
 extern int isst_get_process_ctdp(int cpu, int tdp_level,
 				 struct isst_pkg_ctdp *pkg_dev);
 extern void isst_get_process_ctdp_complete(int cpu,
 					   struct isst_pkg_ctdp *pkg_dev);
 extern void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 					  struct isst_pkg_ctdp *pkg_dev);
+extern void isst_ctdp_display_core_info(int cpu, FILE *outf, char *prefix,
+					unsigned int val);
 extern void isst_ctdp_display_information_start(FILE *outf);
 extern void isst_ctdp_display_information_end(FILE *outf);
 extern void isst_pbf_display_information(int cpu, FILE *outf, int level,
@@ -223,10 +227,14 @@ extern int isst_clos_associate(int cpu, int clos);
 extern int isst_clos_get_assoc_status(int cpu, int *clos_id);
 extern void isst_clos_display_information(int cpu, FILE *outf, int clos,
 					  struct isst_clos_config *clos_config);
-
+extern void isst_clos_display_assoc_information(int cpu, FILE *outf, int clos);
 extern int isst_read_reg(unsigned short reg, unsigned int *val);
 extern int isst_write_reg(int reg, unsigned int val);
 
 extern void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
 				int result);
+
+extern int isst_clos_get_clos_information(int cpu, int *enable, int *type);
+extern void isst_clos_display_clos_information(int cpu, FILE *outf,
+					       int clos_enable, int type);
 #endif

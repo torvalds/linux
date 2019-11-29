@@ -4,7 +4,6 @@
 
 #include <linux/list.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <sys/types.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
@@ -13,79 +12,11 @@
 #include "symbol_conf.h"
 #include <internal/cpumap.h>
 
-struct addr_location;
-struct evsel;
-union perf_event;
-
-/*
- * Per fd, to map back from PERF_SAMPLE_ID to evsel, only used when there are
- * more than one entry in the evlist.
- */
-struct perf_sample_id {
-	struct hlist_node 	node;
-	u64		 	id;
-	struct evsel		*evsel;
-       /*
-	* 'idx' will be used for AUX area sampling. A sample will have AUX area
-	* data that will be queued for decoding, where there are separate
-	* queues for each CPU (per-cpu tracing) or task (per-thread tracing).
-	* The sample ID can be used to lookup 'idx' which is effectively the
-	* queue number.
-	*/
-	int			idx;
-	int			cpu;
-	pid_t			tid;
-
-	/* Holds total ID period value for PERF_SAMPLE_READ processing. */
-	u64			period;
-};
-
+struct bpf_object;
 struct cgroup;
-
-/*
- * The 'struct perf_evsel_config_term' is used to pass event
- * specific configuration data to perf_evsel__config routine.
- * It is allocated within event parsing and attached to
- * perf_evsel::config_terms list head.
-*/
-enum term_type {
-	PERF_EVSEL__CONFIG_TERM_PERIOD,
-	PERF_EVSEL__CONFIG_TERM_FREQ,
-	PERF_EVSEL__CONFIG_TERM_TIME,
-	PERF_EVSEL__CONFIG_TERM_CALLGRAPH,
-	PERF_EVSEL__CONFIG_TERM_STACK_USER,
-	PERF_EVSEL__CONFIG_TERM_INHERIT,
-	PERF_EVSEL__CONFIG_TERM_MAX_STACK,
-	PERF_EVSEL__CONFIG_TERM_MAX_EVENTS,
-	PERF_EVSEL__CONFIG_TERM_OVERWRITE,
-	PERF_EVSEL__CONFIG_TERM_DRV_CFG,
-	PERF_EVSEL__CONFIG_TERM_BRANCH,
-	PERF_EVSEL__CONFIG_TERM_PERCORE,
-	PERF_EVSEL__CONFIG_TERM_AUX_OUTPUT,
-};
-
-struct perf_evsel_config_term {
-	struct list_head	list;
-	enum term_type	type;
-	union {
-		u64	period;
-		u64	freq;
-		bool	time;
-		char	*callgraph;
-		char	*drv_cfg;
-		u64	stack_user;
-		int	max_stack;
-		bool	inherit;
-		bool	overwrite;
-		char	*branch;
-		unsigned long max_events;
-		bool	percore;
-		bool	aux_output;
-	} val;
-	bool weak;
-};
-
+struct perf_counts;
 struct perf_stat_evsel;
+union perf_event;
 
 typedef int (perf_evsel__sb_cb_t)(union perf_event *event, void *data);
 
@@ -93,10 +24,6 @@ enum perf_tool_event {
 	PERF_TOOL_NONE		= 0,
 	PERF_TOOL_DURATION_TIME = 1,
 };
-
-struct bpf_object;
-struct perf_counts;
-struct xyarray;
 
 /** struct evsel - event selector
  *
@@ -117,12 +44,9 @@ struct evsel {
 	struct perf_evsel	core;
 	struct evlist	*evlist;
 	char			*filter;
-	struct xyarray		*sample_id;
-	u64			*id;
 	struct perf_counts	*counts;
 	struct perf_counts	*prev_raw_counts;
 	int			idx;
-	u32			ids;
 	unsigned long		max_events;
 	unsigned long		nr_events_printed;
 	char			*name;
@@ -146,7 +70,6 @@ struct evsel {
 	bool 			disabled;
 	bool			no_aux_samples;
 	bool			immediate;
-	bool			system_wide;
 	bool			tracking;
 	bool			per_pkg;
 	bool			precise_max;
@@ -177,11 +100,6 @@ struct evsel {
 		perf_evsel__sb_cb_t	*cb;
 		void			*data;
 	} side_band;
-};
-
-union u64_swap {
-	u64 val64;
-	u32 val32[2];
 };
 
 struct perf_missing_features {
@@ -281,8 +199,6 @@ const char *perf_evsel__name(struct evsel *evsel);
 
 const char *perf_evsel__group_name(struct evsel *evsel);
 int perf_evsel__group_desc(struct evsel *evsel, char *buf, size_t size);
-
-int perf_evsel__alloc_id(struct evsel *evsel, int ncpus, int nthreads);
 
 void __perf_evsel__set_sample_bit(struct evsel *evsel,
 				  enum perf_event_sample_format bit);
@@ -439,37 +355,6 @@ static inline bool perf_evsel__is_clock(struct evsel *evsel)
 	       perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK);
 }
 
-struct perf_attr_details {
-	bool freq;
-	bool verbose;
-	bool event_group;
-	bool force;
-	bool trace_fields;
-};
-
-int perf_evsel__fprintf(struct evsel *evsel,
-			struct perf_attr_details *details, FILE *fp);
-
-#define EVSEL__PRINT_IP			(1<<0)
-#define EVSEL__PRINT_SYM		(1<<1)
-#define EVSEL__PRINT_DSO		(1<<2)
-#define EVSEL__PRINT_SYMOFFSET		(1<<3)
-#define EVSEL__PRINT_ONELINE		(1<<4)
-#define EVSEL__PRINT_SRCLINE		(1<<5)
-#define EVSEL__PRINT_UNKNOWN_AS_ADDR	(1<<6)
-#define EVSEL__PRINT_CALLCHAIN_ARROW	(1<<7)
-#define EVSEL__PRINT_SKIP_IGNORED	(1<<8)
-
-struct callchain_cursor;
-
-int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
-			      unsigned int print_opts,
-			      struct callchain_cursor *cursor, FILE *fp);
-
-int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
-			int left_alignment, unsigned int print_opts,
-			struct callchain_cursor *cursor, FILE *fp);
-
 bool perf_evsel__fallback(struct evsel *evsel, int err,
 			  char *msg, size_t msgsize);
 int perf_evsel__open_strerror(struct evsel *evsel, struct target *target,
@@ -501,11 +386,6 @@ static inline bool evsel__has_callchain(const struct evsel *evsel)
 {
 	return (evsel->core.attr.sample_type & PERF_SAMPLE_CALLCHAIN) != 0;
 }
-
-typedef int (*attr__fprintf_f)(FILE *, const char *, const char *, void *);
-
-int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
-			     attr__fprintf_f attr__fprintf, void *priv);
 
 struct perf_env *perf_evsel__env(struct evsel *evsel);
 

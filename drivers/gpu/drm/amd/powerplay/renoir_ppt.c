@@ -177,12 +177,82 @@ static int renoir_get_dpm_uclk_limited(struct smu_context *smu, uint32_t *clock,
 
 }
 
+static int renoir_print_clk_levels(struct smu_context *smu,
+			enum smu_clk_type clk_type, char *buf)
+{
+	int i, size = 0, ret = 0;
+	uint32_t cur_value = 0, value = 0, count = 0, min = 0, max = 0;
+	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+	SmuMetrics_t metrics = {0};
+
+	if (!clk_table || clk_type >= SMU_CLK_COUNT)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
+			       (void *)&metrics, false);
+	if (ret)
+		return ret;
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		/* retirve table returned paramters unit is MHz */
+		cur_value = metrics.ClockFrequency[CLOCK_GFXCLK];
+		ret = smu_get_dpm_freq_range(smu, SMU_GFXCLK, &min, &max);
+		if (!ret) {
+			/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
+			if (cur_value  == max)
+				i = 2;
+			else if (cur_value == min)
+				i = 0;
+			else
+				i = 1;
+
+			size += sprintf(buf + size, "0: %uMhz %s\n", min,
+					i == 0 ? "*" : "");
+			size += sprintf(buf + size, "1: %uMhz %s\n",
+					i == 1 ? cur_value : RENOIR_UMD_PSTATE_GFXCLK,
+					i == 1 ? "*" : "");
+			size += sprintf(buf + size, "2: %uMhz %s\n", max,
+					i == 2 ? "*" : "");
+		}
+		return size;
+	case SMU_SOCCLK:
+		count = NUM_SOCCLK_DPM_LEVELS;
+		cur_value = metrics.ClockFrequency[CLOCK_SOCCLK];
+		break;
+	case SMU_MCLK:
+		count = NUM_MEMCLK_DPM_LEVELS;
+		cur_value = metrics.ClockFrequency[CLOCK_UMCCLK];
+		break;
+	case SMU_DCEFCLK:
+		count = NUM_DCFCLK_DPM_LEVELS;
+		cur_value = metrics.ClockFrequency[CLOCK_DCFCLK];
+		break;
+	case SMU_FCLK:
+		count = NUM_FCLK_DPM_LEVELS;
+		cur_value = metrics.ClockFrequency[CLOCK_FCLK];
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < count; i++) {
+		GET_DPM_CUR_FREQ(clk_table, clk_type, i, value);
+		size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
+				cur_value == value ? "*" : "");
+	}
+
+	return size;
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
 	.tables_init = renoir_tables_init,
 	.set_power_state = NULL,
 	.get_dpm_uclk_limited = renoir_get_dpm_uclk_limited,
+	.print_clk_levels = renoir_print_clk_levels,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)

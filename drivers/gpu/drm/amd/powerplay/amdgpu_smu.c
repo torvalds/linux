@@ -354,6 +354,9 @@ int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 	case AMD_IP_BLOCK_TYPE_GFX:
 		ret = smu_gfx_off_control(smu, gate);
 		break;
+	case AMD_IP_BLOCK_TYPE_SDMA:
+		ret = smu_powergate_sdma(smu, gate);
+		break;
 	default:
 		break;
 	}
@@ -839,6 +842,8 @@ static int smu_sw_init(void *handle)
 	mutex_init(&smu->smu_baco.mutex);
 	smu->smu_baco.state = SMU_BACO_STATE_EXIT;
 	smu->smu_baco.platform_support = false;
+
+	mutex_init(&smu->sensor_lock);
 
 	smu->watermarks_bitmap = 0;
 	smu->power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
