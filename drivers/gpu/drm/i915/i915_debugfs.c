@@ -2367,7 +2367,7 @@ out:
 }
 
 static void intel_seq_print_mode(struct seq_file *m, int tabs,
-				 struct drm_display_mode *mode)
+				 const struct drm_display_mode *mode)
 {
 	int i;
 
@@ -2378,51 +2378,52 @@ static void intel_seq_print_mode(struct seq_file *m, int tabs,
 }
 
 static void intel_encoder_info(struct seq_file *m,
-			       struct intel_crtc *intel_crtc,
-			       struct intel_encoder *intel_encoder)
+			       struct intel_crtc *crtc,
+			       struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
-	struct drm_crtc *crtc = &intel_crtc->base;
-	struct intel_connector *intel_connector;
-	struct drm_encoder *encoder;
+	struct intel_connector *connector;
 
-	encoder = &intel_encoder->base;
 	seq_printf(m, "\tencoder %d: type: %s, connectors:\n",
-		   encoder->base.id, encoder->name);
-	for_each_connector_on_encoder(dev, encoder, intel_connector) {
-		struct drm_connector *connector = &intel_connector->base;
+		   encoder->base.base.id, encoder->base.name);
+
+	for_each_connector_on_encoder(dev, &encoder->base, connector) {
 		seq_printf(m, "\t\tconnector %d: type: %s, status: %s",
-			   connector->base.id,
-			   connector->name,
-			   drm_get_connector_status_name(connector->status));
-		if (connector->status == connector_status_connected) {
-			struct drm_display_mode *mode = &crtc->mode;
+			   connector->base.base.id, connector->base.name,
+			   drm_get_connector_status_name(connector->base.status));
+
+		if (connector->base.status == connector_status_connected) {
+			const struct intel_crtc_state *crtc_state =
+				to_intel_crtc_state(crtc->base.state);
+
 			seq_printf(m, ", mode:\n");
-			intel_seq_print_mode(m, 2, mode);
+			intel_seq_print_mode(m, 2, &crtc_state->hw.mode);
 		} else {
 			seq_putc(m, '\n');
 		}
 	}
 }
 
-static void intel_crtc_info(struct seq_file *m, struct intel_crtc *intel_crtc)
+static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
-	struct drm_crtc *crtc = &intel_crtc->base;
-	struct intel_encoder *intel_encoder;
-	struct drm_plane_state *plane_state = crtc->primary->state;
-	struct drm_framebuffer *fb = plane_state->fb;
+	struct intel_encoder *encoder;
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	const struct intel_plane_state *plane_state =
+		to_intel_plane_state(plane->base.state);
+	const struct drm_framebuffer *fb = plane_state->uapi.fb;
 
 	if (fb)
 		seq_printf(m, "\tfb: %d, pos: %dx%d, size: %dx%d\n",
-			   fb->base.id, plane_state->src_x >> 16,
-			   plane_state->src_y >> 16, fb->width, fb->height);
+			   fb->base.id, plane_state->uapi.src_x >> 16,
+			   plane_state->uapi.src_y >> 16,
+			   fb->width, fb->height);
 	else
 		seq_puts(m, "\tprimary plane disabled\n");
-	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
-		intel_encoder_info(m, intel_crtc, intel_encoder);
+	for_each_encoder_on_crtc(dev, &crtc->base, encoder)
+		intel_encoder_info(m, crtc, encoder);
 }
 
 static void intel_panel_info(struct seq_file *m, struct intel_panel *panel)
@@ -2589,66 +2590,63 @@ static void plane_rotation(char *buf, size_t bufsize, unsigned int rotation)
 		 rotation);
 }
 
-static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
+static void intel_plane_info(struct seq_file *m, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
-	struct intel_plane *intel_plane;
+	struct intel_plane *plane;
 
-	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
-		struct drm_plane_state *state;
-		struct drm_plane *plane = &intel_plane->base;
+	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+		const struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
+		const struct drm_framebuffer *fb;
 		struct drm_format_name_buf format_name;
 		struct drm_rect src, dst;
 		char rot_str[48];
 
-		if (!plane->state) {
+		if (!plane_state) {
 			seq_puts(m, "plane->state is NULL!\n");
 			continue;
 		}
 
-		state = plane->state;
+		src = drm_plane_state_src(&plane_state->uapi);
+		dst = drm_plane_state_dest(&plane_state->uapi);
+		fb = plane_state->uapi.fb;
 
-		src = drm_plane_state_src(state);
-		dst = drm_plane_state_dest(state);
-
-		if (state->fb) {
-			drm_get_format_name(state->fb->format->format,
-					    &format_name);
-		} else {
+		if (fb)
+			drm_get_format_name(fb->format->format, &format_name);
+		else
 			sprintf(format_name.str, "N/A");
-		}
 
-		plane_rotation(rot_str, sizeof(rot_str), state->rotation);
+		plane_rotation(rot_str, sizeof(rot_str),
+			       plane_state->uapi.rotation);
 
 		seq_printf(m, "\t--Plane id %d: type=%s, dst=" DRM_RECT_FMT ", src=" DRM_RECT_FP_FMT ", format=%s, rotation=%s\n",
-			   plane->base.id,
-			   plane_type(intel_plane->base.type),
+			   plane->base.base.id,
+			   plane_type(plane->base.type),
 			   DRM_RECT_ARG(&dst),
 			   DRM_RECT_FP_ARG(&src),
-			   format_name.str,
-			   rot_str);
+			   format_name.str, rot_str);
 	}
 }
 
-static void intel_scaler_info(struct seq_file *m, struct intel_crtc *intel_crtc)
+static void intel_scaler_info(struct seq_file *m, struct intel_crtc *crtc)
 {
-	struct intel_crtc_state *pipe_config;
-	int num_scalers = intel_crtc->num_scalers;
+	const struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+	int num_scalers = crtc->num_scalers;
 	int i;
-
-	pipe_config = to_intel_crtc_state(intel_crtc->base.state);
 
 	/* Not all platformas have a scaler */
 	if (num_scalers) {
 		seq_printf(m, "\tnum_scalers=%d, scaler_users=%x scaler_id=%d",
 			   num_scalers,
-			   pipe_config->scaler_state.scaler_users,
-			   pipe_config->scaler_state.scaler_id);
+			   crtc_state->scaler_state.scaler_users,
+			   crtc_state->scaler_state.scaler_id);
 
 		for (i = 0; i < num_scalers; i++) {
-			struct intel_scaler *sc =
-					&pipe_config->scaler_state.scalers[i];
+			const struct intel_scaler *sc =
+				&crtc_state->scaler_state.scalers[i];
 
 			seq_printf(m, ", scalers[%d]: use=%s, mode=%x",
 				   i, yesno(sc->in_use), sc->mode);
@@ -2673,18 +2671,19 @@ static int i915_display_info(struct seq_file *m, void *unused)
 	seq_printf(m, "CRTC info\n");
 	seq_printf(m, "---------\n");
 	for_each_intel_crtc(dev, crtc) {
-		struct intel_crtc_state *pipe_config;
+		const struct intel_crtc_state *crtc_state;
 
 		drm_modeset_lock(&crtc->base.mutex, NULL);
-		pipe_config = to_intel_crtc_state(crtc->base.state);
+
+		crtc_state = to_intel_crtc_state(crtc->base.state);
 
 		seq_printf(m, "CRTC %d: pipe: %c, active=%s, (size=%dx%d), dither=%s, bpp=%d\n",
 			   crtc->base.base.id, pipe_name(crtc->pipe),
-			   yesno(pipe_config->hw.active),
-			   pipe_config->pipe_src_w, pipe_config->pipe_src_h,
-			   yesno(pipe_config->dither), pipe_config->pipe_bpp);
+			   yesno(crtc_state->hw.active),
+			   crtc_state->pipe_src_w, crtc_state->pipe_src_h,
+			   yesno(crtc_state->dither), crtc_state->pipe_bpp);
 
-		if (pipe_config->hw.active) {
+		if (crtc_state->hw.active) {
 			struct intel_plane *cursor =
 				to_intel_plane(crtc->base.cursor);
 
