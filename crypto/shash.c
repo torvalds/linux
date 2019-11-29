@@ -50,8 +50,7 @@ static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 
 static void shash_set_needkey(struct crypto_shash *tfm, struct shash_alg *alg)
 {
-	if (crypto_shash_alg_has_setkey(alg) &&
-	    !(alg->base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY))
+	if (crypto_shash_alg_needs_key(alg))
 		crypto_shash_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
 }
 

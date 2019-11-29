@@ -442,7 +442,7 @@ static bool essiv_supported_algorithms(const char *essiv_cipher_name,
 	if (ivsize != alg->cra_blocksize)
 		goto out;
 
-	if (crypto_shash_alg_has_setkey(hash_alg))
+	if (crypto_shash_alg_needs_key(hash_alg))
 		goto out;
 
 	ret = true;
