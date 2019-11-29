@@ -805,7 +805,7 @@ void __init at91rm9200_pm_init(void)
 
 void __init sam9x60_pm_init(void)
 {
-	if (!IS_ENABLED(CONFIG_SOC_AT91SAM9))
+	if (!IS_ENABLED(CONFIG_SOC_SAM9X60))
 		return;
 
 	at91_pm_modes_init();
