@@ -30,6 +30,9 @@
 
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
+#ifdef CONFIG_MMU_NOTIFIER
+#include <linux/mmu_notifier.h>
+#endif
 
 #define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
 #define AMDGPU_BO_MAX_PLACEMENTS	3
@@ -101,10 +104,12 @@ struct amdgpu_bo {
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	struct amdgpu_mn		*mn;
 
-	union {
-		struct list_head	mn_list;
-		struct list_head	shadow_list;
-	};
+
+#ifdef CONFIG_MMU_NOTIFIER
+	struct mmu_interval_notifier	notifier;
+#endif
+
+	struct list_head		shadow_list;
 
 	struct kgd_mem                  *kfd_bo;
 };
