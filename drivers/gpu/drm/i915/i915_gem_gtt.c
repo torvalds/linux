@@ -123,6 +123,16 @@ static void gen6_ggtt_invalidate(struct i915_ggtt *ggtt)
 {
 	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
 
+	spin_lock_irq(&uncore->lock);
+	intel_uncore_write_fw(uncore, GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
+	intel_uncore_read_fw(uncore, GFX_FLSH_CNTL_GEN6);
+	spin_unlock_irq(&uncore->lock);
+}
+
+static void gen8_ggtt_invalidate(struct i915_ggtt *ggtt)
+{
+	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
+
 	/*
 	 * Note that as an uncached mmio write, this will flush the
 	 * WCB of the writes into the GGTT before it triggers the invalidate.
@@ -135,7 +145,7 @@ static void guc_ggtt_invalidate(struct i915_ggtt *ggtt)
 	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
 	struct drm_i915_private *i915 = ggtt->vm.i915;
 
-	gen6_ggtt_invalidate(ggtt);
+	gen8_ggtt_invalidate(ggtt);
 
 	if (INTEL_GEN(i915) >= 12)
 		intel_uncore_write_fw(uncore, GEN12_GUC_TLB_INV_CR,
@@ -3048,7 +3058,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 			ggtt->vm.clear_range = bxt_vtd_ggtt_clear_range__BKL;
 	}
 
-	ggtt->invalidate = gen6_ggtt_invalidate;
+	ggtt->invalidate = gen8_ggtt_invalidate;
 
 	ggtt->vm.vma_ops.bind_vma    = ggtt_bind_vma;
 	ggtt->vm.vma_ops.unbind_vma  = ggtt_unbind_vma;
@@ -3288,7 +3298,7 @@ int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv)
 
 void i915_ggtt_enable_guc(struct i915_ggtt *ggtt)
 {
-	GEM_BUG_ON(ggtt->invalidate != gen6_ggtt_invalidate);
+	GEM_BUG_ON(ggtt->invalidate != gen8_ggtt_invalidate);
 
 	ggtt->invalidate = guc_ggtt_invalidate;
 
@@ -3298,13 +3308,13 @@ void i915_ggtt_enable_guc(struct i915_ggtt *ggtt)
 void i915_ggtt_disable_guc(struct i915_ggtt *ggtt)
 {
 	/* XXX Temporary pardon for error unload */
-	if (ggtt->invalidate == gen6_ggtt_invalidate)
+	if (ggtt->invalidate == gen8_ggtt_invalidate)
 		return;
 
 	/* We should only be called after i915_ggtt_enable_guc() */
 	GEM_BUG_ON(ggtt->invalidate != guc_ggtt_invalidate);
 
-	ggtt->invalidate = gen6_ggtt_invalidate;
+	ggtt->invalidate = gen8_ggtt_invalidate;
 
 	ggtt->invalidate(ggtt);
 }
