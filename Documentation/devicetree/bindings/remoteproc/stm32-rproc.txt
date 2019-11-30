@@ -21,9 +21,6 @@ Required properties:
 
 Optional properties:
 - interrupts:	Should contain the watchdog interrupt
-- wakeup-source: Flag indicating whether remoteproc can wake up the system by
-		the watchdog interrupt. Only meaningful if the "interrupts"
-		property is defined.
 - mboxes:	This property is required only if the rpmsg/virtio functionality
 		is used. List of phandle and mailbox channel specifiers:
 		- a channel (a) used to communicate through virtqueues with the
