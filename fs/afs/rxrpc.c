@@ -152,7 +152,7 @@ static struct afs_call *afs_alloc_call(struct afs_net *net,
 	INIT_WORK(&call->async_work, afs_process_async_call);
 	init_waitqueue_head(&call->waitq);
 	spin_lock_init(&call->state_lock);
-	call->_iter = &call->iter;
+	call->iter = &call->def_iter;
 
 	o = atomic_inc_return(&net->nr_outstanding_calls);
 	trace_afs_call(call, afs_call_trace_alloc, 1, o,
@@ -513,12 +513,12 @@ static void afs_deliver_to_call(struct afs_call *call)
 	       state == AFS_CALL_SV_AWAIT_ACK
 	       ) {
 		if (state == AFS_CALL_SV_AWAIT_ACK) {
-			iov_iter_kvec(&call->iter, READ, NULL, 0, 0);
+			iov_iter_kvec(&call->def_iter, READ, NULL, 0, 0);
 			ret = rxrpc_kernel_recv_data(call->net->socket,
-						     call->rxcall, &call->iter,
+						     call->rxcall, &call->def_iter,
 						     false, &remote_abort,
 						     &call->service_id);
-			trace_afs_receive_data(call, &call->iter, false, ret);
+			trace_afs_receive_data(call, &call->def_iter, false, ret);
 
 			if (ret == -EINPROGRESS || ret == -EAGAIN)
 				return;
@@ -859,7 +859,7 @@ static int afs_deliver_cm_op_id(struct afs_call *call)
 {
 	int ret;
 
-	_enter("{%zu}", iov_iter_count(call->_iter));
+	_enter("{%zu}", iov_iter_count(call->iter));
 
 	/* the operation ID forms the first four bytes of the request data */
 	ret = afs_extract_data(call, true);
@@ -975,7 +975,7 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 int afs_extract_data(struct afs_call *call, bool want_more)
 {
 	struct afs_net *net = call->net;
-	struct iov_iter *iter = call->_iter;
+	struct iov_iter *iter = call->iter;
 	enum afs_call_state state;
 	u32 remote_abort = 0;
 	int ret;
