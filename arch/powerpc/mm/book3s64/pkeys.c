@@ -307,16 +307,6 @@ void thread_pkey_regs_init(struct thread_struct *thread)
 	write_iamr(pkey_iamr_mask);
 }
 
-static inline bool pkey_allows_readwrite(int pkey)
-{
-	int pkey_shift = pkeyshift(pkey);
-
-	if (!is_pkey_enabled(pkey))
-		return true;
-
-	return !(read_amr() & ((AMR_RD_BIT|AMR_WR_BIT) << pkey_shift));
-}
-
 int __execute_only_pkey(struct mm_struct *mm)
 {
 	return mm->context.execute_only_pkey;

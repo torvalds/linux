@@ -81,6 +81,8 @@ void __iomem *__ioremap_caller(phys_addr_t addr, unsigned long size,
 	if (slab_is_available())
 		return do_ioremap(paligned, offset, size, prot, caller);
 
+	pr_warn("ioremap() called early from %pS. Use early_ioremap() instead\n", caller);
+
 	err = early_ioremap_range(ioremap_bot, paligned, size, prot);
 	if (err)
 		return NULL;

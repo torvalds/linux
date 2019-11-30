@@ -139,9 +139,20 @@ extern unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
 extern void adjust_total_lowmem(void);
 extern int switch_to_as1(void);
 extern void restore_to_as0(int esel, int offset, void *dt_ptr, int bootcpu);
+void create_kaslr_tlb_entry(int entry, unsigned long virt, phys_addr_t phys);
+void reloc_kernel_entry(void *fdt, int addr);
+extern int is_second_reloc;
 #endif
 extern void loadcam_entry(unsigned int index);
 extern void loadcam_multi(int first_idx, int num, int tmp_idx);
+
+#ifdef CONFIG_RANDOMIZE_BASE
+void kaslr_early_init(void *dt_ptr, phys_addr_t size);
+void kaslr_late_init(void);
+#else
+static inline void kaslr_early_init(void *dt_ptr, phys_addr_t size) {}
+static inline void kaslr_late_init(void) {}
+#endif
 
 struct tlbcam {
 	u32	MAS0;

@@ -415,13 +415,13 @@ config PPC_MM_SLICES
 	bool
 
 config PPC_HAVE_PMU_SUPPORT
-       bool
+	bool
 
 config PPC_PERF_CTRS
-       def_bool y
-       depends on PERF_EVENTS && PPC_HAVE_PMU_SUPPORT
-       help
-         This enables the powerpc-specific perf_event back-end.
+	def_bool y
+	depends on PERF_EVENTS && PPC_HAVE_PMU_SUPPORT
+	help
+	 This enables the powerpc-specific perf_event back-end.
 
 config FORCE_SMP
 	# Allow platforms to force SMP=y by selecting this

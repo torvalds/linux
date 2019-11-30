@@ -157,13 +157,9 @@ static inline bool pgd_is_leaf(pgd_t pgd)
 #define is_ioremap_addr is_ioremap_addr
 static inline bool is_ioremap_addr(const void *x)
 {
-#ifdef CONFIG_MMU
 	unsigned long addr = (unsigned long)x;
 
 	return addr >= IOREMAP_BASE && addr < IOREMAP_END;
-#else
-	return false;
-#endif
 }
 #endif /* CONFIG_PPC64 */
 
