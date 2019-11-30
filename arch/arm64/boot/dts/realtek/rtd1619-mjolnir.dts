@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
 /*
  * Copyright (c) 2019 Realtek Semiconductor Corp.
+ * Copyright (c) 2019 Andreas Färber
  */
 
 /dts-v1/;
@@ -11,9 +12,9 @@
 	compatible = "realtek,mjolnir", "realtek,rtd1619";
 	model = "Realtek Mjolnir EVB";
 
-	memory@0 {
+	memory@2e000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000>;
+		reg = <0x2e000 0x7ffd2000>; /* boot ROM to 2 GiB */
 	};
 
 	chosen {

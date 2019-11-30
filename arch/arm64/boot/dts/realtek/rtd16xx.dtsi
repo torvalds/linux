@@ -3,6 +3,7 @@
  * Realtek RTD16xx SoC family
  *
  * Copyright (c) 2019 Realtek Semiconductor Corp.
+ * Copyright (c) 2019 Andreas Färber
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -107,7 +108,8 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x98000000 0x98000000 0x68000000>;
+		ranges = <0x00000000 0x00000000 0x0002e000>, /* boot ROM */
+			 <0x98000000 0x98000000 0x68000000>;
 
 		rbus: bus@98000000 {
 			compatible = "simple-bus";
