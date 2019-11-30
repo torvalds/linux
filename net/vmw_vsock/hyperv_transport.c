@@ -922,6 +922,24 @@ static int hvs_remove(struct hv_device *hdev)
 	return 0;
 }
 
+/* hv_sock connections can not persist across hibernation, and all the hv_sock
+ * channels are forced to be rescinded before hibernation: see
+ * vmbus_bus_suspend(). Here the dummy hvs_suspend() and hvs_resume()
+ * are only needed because hibernation requires that every vmbus device's
+ * driver should have a .suspend and .resume callback: see vmbus_suspend().
+ */
+static int hvs_suspend(struct hv_device *hv_dev)
+{
+	/* Dummy */
+	return 0;
+}
+
+static int hvs_resume(struct hv_device *dev)
+{
+	/* Dummy */
+	return 0;
+}
+
 /* This isn't really used. See vmbus_match() and vmbus_probe() */
 static const struct hv_vmbus_device_id id_table[] = {
 	{},
@@ -933,6 +951,8 @@ static struct hv_driver hvs_drv = {
 	.id_table	= id_table,
 	.probe		= hvs_probe,
 	.remove		= hvs_remove,
+	.suspend	= hvs_suspend,
+	.resume		= hvs_resume,
 };
 
 static int __init hvs_init(void)

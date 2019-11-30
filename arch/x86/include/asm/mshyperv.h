@@ -219,6 +219,7 @@ static inline struct hv_vp_assist_page *hv_get_vp_assist_page(unsigned int cpu)
 void __init hyperv_init(void);
 void hyperv_setup_mmu_ops(void);
 void *hv_alloc_hyperv_page(void);
+void *hv_alloc_hyperv_zeroed_page(void);
 void hv_free_hyperv_page(unsigned long addr);
 void hyperv_reenlightenment_intr(struct pt_regs *regs);
 void set_hv_tscchange_cb(void (*cb)(void));
