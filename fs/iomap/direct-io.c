@@ -318,7 +318,9 @@ zero_tail:
 		if (pad)
 			iomap_dio_zero(dio, iomap, pos, fs_block_size - pad);
 	}
-	return copied ? copied : ret;
+	if (copied)
+		return copied;
+	return ret;
 }
 
 static loff_t
@@ -358,7 +360,7 @@ iomap_dio_inline_actor(struct inode *inode, loff_t pos, loff_t length,
 
 static loff_t
 iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
-		void *data, struct iomap *iomap)
+		void *data, struct iomap *iomap, struct iomap *srcmap)
 {
 	struct iomap_dio *dio = data;
 
@@ -392,7 +394,8 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
  */
 ssize_t
 iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
-		const struct iomap_ops *ops, const struct iomap_dio_ops *dops)
+		const struct iomap_ops *ops, const struct iomap_dio_ops *dops,
+		bool wait_for_completion)
 {
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = file_inode(iocb->ki_filp);
@@ -400,7 +403,6 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	loff_t pos = iocb->ki_pos, start = pos;
 	loff_t end = iocb->ki_pos + count - 1, ret = 0;
 	unsigned int flags = IOMAP_DIRECT;
-	bool wait_for_completion = is_sync_kiocb(iocb);
 	struct blk_plug plug;
 	struct iomap_dio *dio;
 
@@ -408,6 +410,9 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 	if (!count)
 		return 0;
+
+	if (WARN_ON(is_sync_kiocb(iocb) && !wait_for_completion))
+		return -EIO;
 
 	dio = kmalloc(sizeof(*dio), GFP_KERNEL);
 	if (!dio)
@@ -430,7 +435,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		if (pos >= dio->i_size)
 			goto out_free_dio;
 
-		if (iter_is_iovec(iter) && iov_iter_rw(iter) == READ)
+		if (iter_is_iovec(iter))
 			dio->flags |= IOMAP_DIO_DIRTY;
 	} else {
 		flags |= IOMAP_WRITE;
@@ -497,8 +502,15 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		}
 		pos += ret;
 
-		if (iov_iter_rw(iter) == READ && pos >= dio->i_size)
+		if (iov_iter_rw(iter) == READ && pos >= dio->i_size) {
+			/*
+			 * We only report that we've read data up to i_size.
+			 * Revert iter to a state corresponding to that as
+			 * some callers (such as splice code) rely on it.
+			 */
+			iov_iter_revert(iter, pos - dio->i_size);
 			break;
+		}
 	} while ((count = iov_iter_count(iter)) > 0);
 	blk_finish_plug(&plug);
 
