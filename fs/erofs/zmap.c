@@ -22,11 +22,11 @@ int z_erofs_fill_inode(struct inode *inode)
 		set_bit(EROFS_I_Z_INITED_BIT, &vi->flags);
 	}
 
-	inode->i_mapping->a_ops = &z_erofs_vle_normalaccess_aops;
+	inode->i_mapping->a_ops = &z_erofs_aops;
 	return 0;
 }
 
-static int fill_inode_lazy(struct inode *inode)
+static int z_erofs_fill_inode_lazy(struct inode *inode)
 {
 	struct erofs_inode *const vi = EROFS_I(inode);
 	struct super_block *const sb = inode->i_sb;
@@ -138,8 +138,8 @@ static int z_erofs_reload_indexes(struct z_erofs_maprecorder *m,
 	return 0;
 }
 
-static int vle_legacy_load_cluster_from_disk(struct z_erofs_maprecorder *m,
-					     unsigned long lcn)
+static int legacy_load_cluster_from_disk(struct z_erofs_maprecorder *m,
+					 unsigned long lcn)
 {
 	struct inode *const inode = m->inode;
 	struct erofs_inode *const vi = EROFS_I(inode);
@@ -311,13 +311,13 @@ out:
 	return unpack_compacted_index(m, amortizedshift, erofs_blkoff(pos));
 }
 
-static int vle_load_cluster_from_disk(struct z_erofs_maprecorder *m,
-				      unsigned int lcn)
+static int z_erofs_load_cluster_from_disk(struct z_erofs_maprecorder *m,
+					  unsigned int lcn)
 {
 	const unsigned int datamode = EROFS_I(m->inode)->datalayout;
 
 	if (datamode == EROFS_INODE_FLAT_COMPRESSION_LEGACY)
-		return vle_legacy_load_cluster_from_disk(m, lcn);
+		return legacy_load_cluster_from_disk(m, lcn);
 
 	if (datamode == EROFS_INODE_FLAT_COMPRESSION)
 		return compacted_load_cluster_from_disk(m, lcn);
@@ -325,8 +325,8 @@ static int vle_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 	return -EINVAL;
 }
 
-static int vle_extent_lookback(struct z_erofs_maprecorder *m,
-			       unsigned int lookback_distance)
+static int z_erofs_extent_lookback(struct z_erofs_maprecorder *m,
+				   unsigned int lookback_distance)
 {
 	struct erofs_inode *const vi = EROFS_I(m->inode);
 	struct erofs_map_blocks *const map = m->map;
@@ -343,7 +343,7 @@ static int vle_extent_lookback(struct z_erofs_maprecorder *m,
 
 	/* load extent head logical cluster if needed */
 	lcn -= lookback_distance;
-	err = vle_load_cluster_from_disk(m, lcn);
+	err = z_erofs_load_cluster_from_disk(m, lcn);
 	if (err)
 		return err;
 
@@ -356,7 +356,7 @@ static int vle_extent_lookback(struct z_erofs_maprecorder *m,
 			DBG_BUGON(1);
 			return -EFSCORRUPTED;
 		}
-		return vle_extent_lookback(m, m->delta[0]);
+		return z_erofs_extent_lookback(m, m->delta[0]);
 	case Z_EROFS_VLE_CLUSTER_TYPE_PLAIN:
 		map->m_flags &= ~EROFS_MAP_ZIPPED;
 		/* fallthrough */
@@ -396,7 +396,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 		goto out;
 	}
 
-	err = fill_inode_lazy(inode);
+	err = z_erofs_fill_inode_lazy(inode);
 	if (err)
 		goto out;
 
@@ -405,7 +405,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 	m.lcn = ofs >> lclusterbits;
 	endoff = ofs & ((1 << lclusterbits) - 1);
 
-	err = vle_load_cluster_from_disk(&m, m.lcn);
+	err = z_erofs_load_cluster_from_disk(&m, m.lcn);
 	if (err)
 		goto unmap_out;
 
@@ -436,7 +436,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 		/* fallthrough */
 	case Z_EROFS_VLE_CLUSTER_TYPE_NONHEAD:
 		/* get the correspoinding first chunk */
-		err = vle_extent_lookback(&m, m.delta[0]);
+		err = z_erofs_extent_lookback(&m, m.delta[0]);
 		if (err)
 			goto unmap_out;
 		break;
