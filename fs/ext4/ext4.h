@@ -198,6 +198,12 @@ struct ext4_system_blocks {
  */
 #define	EXT4_IO_END_UNWRITTEN	0x0001
 
+struct ext4_io_end_vec {
+	struct list_head list;		/* list of io_end_vec */
+	loff_t offset;			/* offset in the file */
+	ssize_t size;			/* size of the extent */
+};
+
 /*
  * For converting unwritten extents on a work queue. 'handle' is used for
  * buffered writeback.
@@ -211,8 +217,7 @@ typedef struct ext4_io_end {
 						 * bios covering the extent */
 	unsigned int		flag;		/* unwritten or not */
 	atomic_t		count;		/* reference counter */
-	loff_t			offset;		/* offset in the file */
-	ssize_t			size;		/* size of the extent */
+	struct list_head	list_vec;	/* list of ext4_io_end_vec */
 } ext4_io_end_t;
 
 struct ext4_io_submit {
@@ -1579,7 +1584,6 @@ enum {
 	EXT4_STATE_NO_EXPAND,		/* No space for expansion */
 	EXT4_STATE_DA_ALLOC_CLOSE,	/* Alloc DA blks on close */
 	EXT4_STATE_EXT_MIGRATE,		/* Inode is migrating */
-	EXT4_STATE_DIO_UNWRITTEN,	/* need convert on dio done*/
 	EXT4_STATE_NEWENTRY,		/* File just added to dir */
 	EXT4_STATE_MAY_INLINE_DATA,	/* may have in-inode data */
 	EXT4_STATE_EXT_PRECACHED,	/* extents have been precached */
@@ -2562,8 +2566,6 @@ int ext4_get_block_unwritten(struct inode *inode, sector_t iblock,
 			     struct buffer_head *bh_result, int create);
 int ext4_get_block(struct inode *inode, sector_t iblock,
 		   struct buffer_head *bh_result, int create);
-int ext4_dio_get_block(struct inode *inode, sector_t iblock,
-		       struct buffer_head *bh_result, int create);
 int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 			   struct buffer_head *bh, int create);
 int ext4_walk_page_buffers(handle_t *handle,
@@ -2606,7 +2608,6 @@ extern int ext4_can_truncate(struct inode *inode);
 extern int ext4_truncate(struct inode *);
 extern int ext4_break_layouts(struct inode *);
 extern int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length);
-extern int ext4_truncate_restart_trans(handle_t *, struct inode *, int nblocks);
 extern void ext4_set_inode_flags(struct inode *);
 extern int ext4_alloc_da_blocks(struct inode *inode);
 extern void ext4_set_aops(struct inode *inode);
@@ -3266,6 +3267,8 @@ extern long ext4_fallocate(struct file *file, int mode, loff_t offset,
 			  loff_t len);
 extern int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 					  loff_t offset, ssize_t len);
+extern int ext4_convert_unwritten_io_end_vec(handle_t *handle,
+					     ext4_io_end_t *io_end);
 extern int ext4_map_blocks(handle_t *handle, struct inode *inode,
 			   struct ext4_map_blocks *map, int flags);
 extern int ext4_ext_calc_metadata_amount(struct inode *inode,
@@ -3298,6 +3301,10 @@ extern int ext4_swap_extents(handle_t *handle, struct inode *inode1,
 			     ext4_lblk_t lblk2,  ext4_lblk_t count,
 			     int mark_unwritten,int *err);
 extern int ext4_clu_mapped(struct inode *inode, ext4_lblk_t lclu);
+extern int ext4_datasem_ensure_credits(handle_t *handle, struct inode *inode,
+				       int check_cred, int restart_cred,
+				       int revoke_cred);
+
 
 /* move_extent.c */
 extern void ext4_double_down_write_data_sem(struct inode *first,
@@ -3324,6 +3331,8 @@ extern int ext4_bio_write_page(struct ext4_io_submit *io,
 			       int len,
 			       struct writeback_control *wbc,
 			       bool keep_towrite);
+extern struct ext4_io_end_vec *ext4_alloc_io_end_vec(ext4_io_end_t *io_end);
+extern struct ext4_io_end_vec *ext4_last_io_end_vec(ext4_io_end_t *io_end);
 
 /* mmp.c */
 extern int ext4_multi_mount_protect(struct super_block *, ext4_fsblk_t);
@@ -3381,6 +3390,7 @@ static inline void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
 }
 
 extern const struct iomap_ops ext4_iomap_ops;
+extern const struct iomap_ops ext4_iomap_report_ops;
 
 static inline int ext4_buffer_uptodate(struct buffer_head *bh)
 {

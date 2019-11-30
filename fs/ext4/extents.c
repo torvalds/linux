@@ -100,29 +100,41 @@ static int ext4_split_extent_at(handle_t *handle,
 static int ext4_find_delayed_extent(struct inode *inode,
 				    struct extent_status *newes);
 
-static int ext4_ext_truncate_extend_restart(handle_t *handle,
-					    struct inode *inode,
-					    int needed)
+static int ext4_ext_trunc_restart_fn(struct inode *inode, int *dropped)
 {
-	int err;
-
-	if (!ext4_handle_valid(handle))
-		return 0;
-	if (handle->h_buffer_credits >= needed)
-		return 0;
 	/*
-	 * If we need to extend the journal get a few extra blocks
-	 * while we're at it for efficiency's sake.
+	 * Drop i_data_sem to avoid deadlock with ext4_map_blocks.  At this
+	 * moment, get_block can be called only for blocks inside i_size since
+	 * page cache has been already dropped and writes are blocked by
+	 * i_mutex. So we can safely drop the i_data_sem here.
 	 */
-	needed += 3;
-	err = ext4_journal_extend(handle, needed - handle->h_buffer_credits);
-	if (err <= 0)
-		return err;
-	err = ext4_truncate_restart_trans(handle, inode, needed);
-	if (err == 0)
-		err = -EAGAIN;
+	BUG_ON(EXT4_JOURNAL(inode) == NULL);
+	ext4_discard_preallocations(inode);
+	up_write(&EXT4_I(inode)->i_data_sem);
+	*dropped = 1;
+	return 0;
+}
 
-	return err;
+/*
+ * Make sure 'handle' has at least 'check_cred' credits. If not, restart
+ * transaction with 'restart_cred' credits. The function drops i_data_sem
+ * when restarting transaction and gets it after transaction is restarted.
+ *
+ * The function returns 0 on success, 1 if transaction had to be restarted,
+ * and < 0 in case of fatal error.
+ */
+int ext4_datasem_ensure_credits(handle_t *handle, struct inode *inode,
+				int check_cred, int restart_cred,
+				int revoke_cred)
+{
+	int ret;
+	int dropped = 0;
+
+	ret = ext4_journal_ensure_credits_fn(handle, check_cred, restart_cred,
+		revoke_cred, ext4_ext_trunc_restart_fn(inode, &dropped));
+	if (dropped)
+		down_write(&EXT4_I(inode)->i_data_sem);
+	return ret;
 }
 
 /*
@@ -1753,16 +1765,9 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	 */
 	if (ext1_ee_len + ext2_ee_len > EXT_INIT_MAX_LEN)
 		return 0;
-	/*
-	 * The check for IO to unwritten extent is somewhat racy as we
-	 * increment i_unwritten / set EXT4_STATE_DIO_UNWRITTEN only after
-	 * dropping i_data_sem. But reserved blocks should save us in that
-	 * case.
-	 */
+
 	if (ext4_ext_is_unwritten(ex1) &&
-	    (ext4_test_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN) ||
-	     atomic_read(&EXT4_I(inode)->i_unwritten) ||
-	     (ext1_ee_len + ext2_ee_len > EXT_UNWRITTEN_MAX_LEN)))
+	    ext1_ee_len + ext2_ee_len > EXT_UNWRITTEN_MAX_LEN)
 		return 0;
 #ifdef AGGRESSIVE_TEST
 	if (ext1_ee_len >= 4)
@@ -1840,7 +1845,8 @@ static void ext4_ext_try_to_merge_up(handle_t *handle,
 	 * group descriptor to release the extent tree block.  If we
 	 * can't get the journal credits, give up.
 	 */
-	if (ext4_journal_extend(handle, 2))
+	if (ext4_journal_extend(handle, 2,
+			ext4_free_metadata_revoke_credits(inode->i_sb, 1)))
 		return;
 
 	/*
@@ -2727,7 +2733,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	int err = 0, correct_index = 0;
-	int depth = ext_depth(inode), credits;
+	int depth = ext_depth(inode), credits, revoke_credits;
 	struct ext4_extent_header *eh;
 	ext4_lblk_t a, b;
 	unsigned num;
@@ -2819,10 +2825,23 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			credits += (ext_depth(inode)) + 1;
 		}
 		credits += EXT4_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb);
+		/*
+		 * We may end up freeing some index blocks and data from the
+		 * punched range. Note that partial clusters are accounted for
+		 * by ext4_free_data_revoke_credits().
+		 */
+		revoke_credits =
+			ext4_free_metadata_revoke_credits(inode->i_sb,
+							  ext_depth(inode)) +
+			ext4_free_data_revoke_credits(inode, b - a + 1);
 
-		err = ext4_ext_truncate_extend_restart(handle, inode, credits);
-		if (err)
+		err = ext4_datasem_ensure_credits(handle, inode, credits,
+						  credits, revoke_credits);
+		if (err) {
+			if (err > 0)
+				err = -EAGAIN;
 			goto out;
+		}
 
 		err = ext4_ext_get_access(handle, inode, path + depth);
 		if (err)
@@ -2948,7 +2967,9 @@ int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start,
 	ext_debug("truncate since %u to %u\n", start, end);
 
 	/* probably first extent we're gonna free will be last in block */
-	handle = ext4_journal_start(inode, EXT4_HT_TRUNCATE, depth + 1);
+	handle = ext4_journal_start_with_revoke(inode, EXT4_HT_TRUNCATE,
+			depth + 1,
+			ext4_free_metadata_revoke_credits(inode->i_sb, depth));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -4962,23 +4983,13 @@ int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 	int ret = 0;
 	int ret2 = 0;
 	struct ext4_map_blocks map;
-	unsigned int credits, blkbits = inode->i_blkbits;
+	unsigned int blkbits = inode->i_blkbits;
+	unsigned int credits = 0;
 
 	map.m_lblk = offset >> blkbits;
 	max_blocks = EXT4_MAX_BLOCKS(len, offset, blkbits);
 
-	/*
-	 * This is somewhat ugly but the idea is clear: When transaction is
-	 * reserved, everything goes into it. Otherwise we rather start several
-	 * smaller transactions for conversion of each extent separately.
-	 */
-	if (handle) {
-		handle = ext4_journal_start_reserved(handle,
-						     EXT4_HT_EXT_CONVERT);
-		if (IS_ERR(handle))
-			return PTR_ERR(handle);
-		credits = 0;
-	} else {
+	if (!handle) {
 		/*
 		 * credits to insert 1 extent into extent tree
 		 */
@@ -5009,9 +5020,38 @@ int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 		if (ret <= 0 || ret2)
 			break;
 	}
-	if (!credits)
-		ret2 = ext4_journal_stop(handle);
 	return ret > 0 ? ret2 : ret;
+}
+
+int ext4_convert_unwritten_io_end_vec(handle_t *handle, ext4_io_end_t *io_end)
+{
+	int ret, err = 0;
+	struct ext4_io_end_vec *io_end_vec;
+
+	/*
+	 * This is somewhat ugly but the idea is clear: When transaction is
+	 * reserved, everything goes into it. Otherwise we rather start several
+	 * smaller transactions for conversion of each extent separately.
+	 */
+	if (handle) {
+		handle = ext4_journal_start_reserved(handle,
+						     EXT4_HT_EXT_CONVERT);
+		if (IS_ERR(handle))
+			return PTR_ERR(handle);
+	}
+
+	list_for_each_entry(io_end_vec, &io_end->list_vec, list) {
+		ret = ext4_convert_unwritten_extents(handle, io_end->inode,
+						     io_end_vec->offset,
+						     io_end_vec->size);
+		if (ret)
+			break;
+	}
+
+	if (handle)
+		err = ext4_journal_stop(handle);
+
+	return ret < 0 ? ret : err;
 }
 
 /*
@@ -5206,13 +5246,10 @@ ext4_access_path(handle_t *handle, struct inode *inode,
 	 * descriptor) for each block group; assume two block
 	 * groups
 	 */
-	if (handle->h_buffer_credits < 7) {
-		credits = ext4_writepage_trans_blocks(inode);
-		err = ext4_ext_truncate_extend_restart(handle, inode, credits);
-		/* EAGAIN is success */
-		if (err && err != -EAGAIN)
-			return err;
-	}
+	credits = ext4_writepage_trans_blocks(inode);
+	err = ext4_datasem_ensure_credits(handle, inode, 7, credits, 0);
+	if (err < 0)
+		return err;
 
 	err = ext4_ext_get_access(handle, inode, path);
 	return err;
