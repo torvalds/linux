@@ -6758,6 +6758,7 @@ FSNOTIFY: FILESYSTEM NOTIFICATION INFRASTRUCTURE
 M:	Jan Kara <jack@suse.cz>
 R:	Amir Goldstein <amir73il@gmail.com>
 L:	linux-fsdevel@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jack/linux-fs.git fsnotify
 S:	Maintained
 F:	fs/notify/
 F:	include/linux/fsnotify*.h
