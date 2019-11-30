@@ -1119,7 +1119,7 @@ static void cpu_pmu_init(struct nds32_pmu *cpu_pmu)
 		on_each_cpu(cpu_pmu->reset, cpu_pmu, 1);
 }
 
-const static struct of_device_id cpu_pmu_of_device_ids[] = {
+static const struct of_device_id cpu_pmu_of_device_ids[] = {
 	{.compatible = "andestech,nds32v3-pmu",
 	 .data = device_pmu_init},
 	{},

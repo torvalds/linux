@@ -1049,6 +1049,7 @@ F:	drivers/clk/analogbits/*
 F:	include/linux/clk/analogbits*
 
 ANDES ARCHITECTURE
+M:	Nick Hu <nickhu@andestech.com>
 M:	Greentime Hu <green.hu@gmail.com>
 M:	Vincent Chen <deanbo422@gmail.com>
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/greentime/linux.git
