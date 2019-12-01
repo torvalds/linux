@@ -8840,7 +8840,7 @@ F:	mm/kasan/
 F:	scripts/Makefile.kasan
 
 KCONFIG
-M:	Masahiro Yamada <yamada.masahiro@socionext.com>
+M:	Masahiro Yamada <masahiroy@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-kbuild.git kconfig
 L:	linux-kbuild@vger.kernel.org
 S:	Maintained
@@ -8872,7 +8872,7 @@ S:	Maintained
 F:	fs/autofs/
 
 KERNEL BUILD + files below scripts/ (unless maintained elsewhere)
-M:	Masahiro Yamada <yamada.masahiro@socionext.com>
+M:	Masahiro Yamada <masahiroy@kernel.org>
 M:	Michal Marek <michal.lkml@markovi.net>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-kbuild.git
 L:	linux-kbuild@vger.kernel.org
