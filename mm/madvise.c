@@ -1059,9 +1059,9 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
 	if (!madvise_behavior_valid(behavior))
 		return error;
 
-	if (start & ~PAGE_MASK)
+	if (!PAGE_ALIGNED(start))
 		return error;
-	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
+	len = PAGE_ALIGN(len_in);
 
 	/* Check to see whether len was rounded up from small -ve to zero */
 	if (len_in && !len)
