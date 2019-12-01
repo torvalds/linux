@@ -815,8 +815,11 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 /*
  * File creation. Allocate an inode, and we're done..
  */
-static int hugetlbfs_mknod(struct inode *dir,
-			struct dentry *dentry, umode_t mode, dev_t dev)
+static int do_hugetlbfs_mknod(struct inode *dir,
+			struct dentry *dentry,
+			umode_t mode,
+			dev_t dev,
+			bool tmpfile)
 {
 	struct inode *inode;
 	int error = -ENOSPC;
@@ -824,11 +827,21 @@ static int hugetlbfs_mknod(struct inode *dir,
 	inode = hugetlbfs_get_inode(dir->i_sb, dir, mode, dev);
 	if (inode) {
 		dir->i_ctime = dir->i_mtime = current_time(dir);
-		d_instantiate(dentry, inode);
-		dget(dentry);	/* Extra count - pin the dentry in core */
+		if (tmpfile) {
+			d_tmpfile(dentry, inode);
+		} else {
+			d_instantiate(dentry, inode);
+			dget(dentry);/* Extra count - pin the dentry in core */
+		}
 		error = 0;
 	}
 	return error;
+}
+
+static int hugetlbfs_mknod(struct inode *dir,
+			struct dentry *dentry, umode_t mode, dev_t dev)
+{
+	return do_hugetlbfs_mknod(dir, dentry, mode, dev, false);
 }
 
 static int hugetlbfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
@@ -842,6 +855,12 @@ static int hugetlbfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mod
 static int hugetlbfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 {
 	return hugetlbfs_mknod(dir, dentry, mode | S_IFREG, 0);
+}
+
+static int hugetlbfs_tmpfile(struct inode *dir,
+			struct dentry *dentry, umode_t mode)
+{
+	return do_hugetlbfs_mknod(dir, dentry, mode | S_IFREG, 0, true);
 }
 
 static int hugetlbfs_symlink(struct inode *dir,
@@ -1102,6 +1121,7 @@ static const struct inode_operations hugetlbfs_dir_inode_operations = {
 	.mknod		= hugetlbfs_mknod,
 	.rename		= simple_rename,
 	.setattr	= hugetlbfs_setattr,
+	.tmpfile	= hugetlbfs_tmpfile,
 };
 
 static const struct inode_operations hugetlbfs_inode_operations = {
