@@ -1321,7 +1321,7 @@ __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
  *
  * The allocation is performed from memory region limited by
- * memblock.current_limit if @max_addr == %MEMBLOCK_ALLOC_ACCESSIBLE.
+ * memblock.current_limit if @end == %MEMBLOCK_ALLOC_ACCESSIBLE.
  *
  * If the specified node can not hold the requested memory the
  * allocation falls back to any node in the system
