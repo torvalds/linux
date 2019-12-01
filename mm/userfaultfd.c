@@ -242,10 +242,6 @@ retry:
 		vm_shared = dst_vma->vm_flags & VM_SHARED;
 	}
 
-	if (WARN_ON(dst_addr & (vma_hpagesize - 1) ||
-		    (len - copied) & (vma_hpagesize - 1)))
-		goto out_unlock;
-
 	/*
 	 * If not shared, ensure the dst_vma has a anon_vma.
 	 */
@@ -259,7 +255,6 @@ retry:
 		pte_t dst_pteval;
 
 		BUG_ON(dst_addr >= dst_start + len);
-		VM_BUG_ON(dst_addr & (vma_hpagesize - 1));
 
 		/*
 		 * Serialize via hugetlb_fault_mutex
