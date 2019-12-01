@@ -458,7 +458,7 @@ struct page __init *__populate_section_memmap(unsigned long pfn,
 	if (map)
 		return map;
 
-	map = memblock_alloc_try_nid(size,
+	map = memblock_alloc_try_nid_raw(size,
 					  PAGE_SIZE, addr,
 					  MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 	if (!map)
