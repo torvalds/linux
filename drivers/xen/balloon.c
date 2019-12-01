@@ -374,7 +374,6 @@ static void xen_online_page(struct page *page, unsigned int order)
 	mutex_lock(&balloon_mutex);
 	for (i = 0; i < size; i++) {
 		p = pfn_to_page(start_pfn + i);
-		__online_page_set_limits(p);
 		balloon_append(p);
 	}
 	mutex_unlock(&balloon_mutex);
