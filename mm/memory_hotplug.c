@@ -1384,9 +1384,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 	return ret;
 }
 
-/*
- * remove from free_area[] and mark all as Reserved.
- */
+/* Mark all sections offline and remove all free pages from the buddy. */
 static int
 offline_isolated_pages_cb(unsigned long start, unsigned long nr_pages,
 			void *data)

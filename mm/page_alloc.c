@@ -8560,7 +8560,7 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
 {
 	struct page *page;
 	struct zone *zone;
-	unsigned int order, i;
+	unsigned int order;
 	unsigned long pfn;
 	unsigned long flags;
 	unsigned long offlined_pages = 0;
@@ -8588,7 +8588,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
 		 */
 		if (unlikely(!PageBuddy(page) && PageHWPoison(page))) {
 			pfn++;
-			SetPageReserved(page);
 			offlined_pages++;
 			continue;
 		}
@@ -8602,8 +8601,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
 			pfn, 1 << order, end_pfn);
 #endif
 		del_page_from_free_area(page, &zone->free_area[order]);
-		for (i = 0; i < (1 << order); i++)
-			SetPageReserved((page+i));
 		pfn += (1 << order);
 	}
 	spin_unlock_irqrestore(&zone->lock, flags);
