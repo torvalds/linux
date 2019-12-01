@@ -3218,9 +3218,11 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	 * Most of the time we do not need this since dio_complete() will do
 	 * the invalidation for us. However there are some file systems that
 	 * do not end up with dio_complete() being called, so let's not break
-	 * them by removing it completely
+	 * them by removing it completely.
+	 *
+	 * Skip invalidation for async writes or if mapping has no pages.
 	 */
-	if (mapping->nrpages)
+	if (written > 0 && mapping->nrpages)
 		invalidate_inode_pages2_range(mapping,
 					pos >> PAGE_SHIFT, end);
 
