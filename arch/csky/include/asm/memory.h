@@ -9,6 +9,9 @@
 #include <linux/sizes.h>
 
 #define FIXADDR_TOP	_AC(0xffffc000, UL)
+#define PKMAP_BASE	_AC(0xff800000, UL)
+#define VMALLOC_START	_AC(0xc0008000, UL)
+#define VMALLOC_END	(PKMAP_BASE - (PAGE_SIZE * 2))
 
 #ifdef CONFIG_HAVE_TCM
 #ifdef CONFIG_HAVE_DTCM

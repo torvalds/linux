@@ -27,4 +27,8 @@ enum fixed_addresses {
 
 #include <asm-generic/fixmap.h>
 
+extern void fixrange_init(unsigned long start, unsigned long end,
+	pgd_t *pgd_base);
+extern void __init fixaddr_init(void);
+
 #endif /* __ASM_CSKY_FIXMAP_H */

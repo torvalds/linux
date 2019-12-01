@@ -191,7 +191,6 @@ endchoice
 
 menuconfig HAVE_TCM
 	bool "Tightly-Coupled/Sram Memory"
-	depends on HIGHMEM
 	select GENERIC_ALLOCATOR
 	help
 	  The implementation are not only used by TCM (Tightly-Coupled Meory)

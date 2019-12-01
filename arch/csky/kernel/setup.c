@@ -133,6 +133,8 @@ void __init setup_arch(char **cmdline_p)
 
 	sparse_init();
 
+	fixaddr_init();
+
 #ifdef CONFIG_HIGHMEM
 	kmap_init();
 #endif
