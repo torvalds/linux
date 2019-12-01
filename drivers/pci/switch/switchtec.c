@@ -1025,7 +1025,7 @@ static const struct file_operations switchtec_fops = {
 	.read = switchtec_dev_read,
 	.poll = switchtec_dev_poll,
 	.unlocked_ioctl = switchtec_dev_ioctl,
-	.compat_ioctl = switchtec_dev_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 static void link_event_work(struct work_struct *work)

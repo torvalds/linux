@@ -4,6 +4,7 @@
  *
  *  Copyright (C) 2003-2008  Yoichi Yuasa <yuasa@linux-mips.org>
  */
+#include <linux/compat.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -65,6 +66,9 @@ static void __iomem *rtc2_base;
 
 #define rtc2_read(offset)		readw(rtc2_base + (offset))
 #define rtc2_write(offset, value)	writew((value), rtc2_base + (offset))
+
+/* 32-bit compat for ioctls that nobody else uses */
+#define RTC_EPOCH_READ32	_IOR('p', 0x0d, __u32)
 
 static unsigned long epoch = 1970;	/* Jan 1 1970 00:00:00 */
 
@@ -179,6 +183,10 @@ static int vr41xx_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long 
 	switch (cmd) {
 	case RTC_EPOCH_READ:
 		return put_user(epoch, (unsigned long __user *)arg);
+#ifdef CONFIG_64BIT
+	case RTC_EPOCH_READ32:
+		return put_user(epoch, (unsigned int __user *)arg);
+#endif
 	case RTC_EPOCH_SET:
 		/* Doesn't support before 1900 */
 		if (arg < 1900)

@@ -911,7 +911,7 @@ static const struct file_operations wmi_fops = {
 	.read		= wmi_char_read,
 	.open		= wmi_char_open,
 	.unlocked_ioctl	= wmi_ioctl,
-	.compat_ioctl	= wmi_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 };
 
 static int wmi_dev_probe(struct device *dev)

@@ -344,6 +344,7 @@ static const struct file_operations asr_fops = {
 	.llseek =		no_llseek,
 	.write =		asr_write,
 	.unlocked_ioctl =	asr_ioctl,
+	.compat_ioctl =		compat_ptr_ioctl,
 	.open =			asr_open,
 	.release =		asr_release,
 };

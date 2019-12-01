@@ -1923,7 +1923,7 @@ static const struct file_operations userfaultfd_fops = {
 	.poll		= userfaultfd_poll,
 	.read		= userfaultfd_read,
 	.unlocked_ioctl = userfaultfd_ioctl,
-	.compat_ioctl	= userfaultfd_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.llseek		= noop_llseek,
 };
 

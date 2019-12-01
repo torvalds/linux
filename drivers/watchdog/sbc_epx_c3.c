@@ -156,6 +156,7 @@ static const struct file_operations epx_c3_fops = {
 	.llseek		= no_llseek,
 	.write		= epx_c3_write,
 	.unlocked_ioctl	= epx_c3_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= epx_c3_open,
 	.release	= epx_c3_release,
 };

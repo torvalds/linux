@@ -183,6 +183,7 @@ static const struct file_operations m54xx_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= m54xx_wdt_write,
 	.unlocked_ioctl	= m54xx_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= m54xx_wdt_open,
 	.release	= m54xx_wdt_release,
 };

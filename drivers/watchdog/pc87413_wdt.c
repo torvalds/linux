@@ -473,6 +473,7 @@ static const struct file_operations pc87413_fops = {
 	.llseek		= no_llseek,
 	.write		= pc87413_write,
 	.unlocked_ioctl	= pc87413_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= pc87413_open,
 	.release	= pc87413_release,
 };

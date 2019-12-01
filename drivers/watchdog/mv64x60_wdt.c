@@ -241,6 +241,7 @@ static const struct file_operations mv64x60_wdt_fops = {
 	.llseek = no_llseek,
 	.write = mv64x60_wdt_write,
 	.unlocked_ioctl = mv64x60_wdt_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.open = mv64x60_wdt_open,
 	.release = mv64x60_wdt_release,
 };

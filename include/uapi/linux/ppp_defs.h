@@ -142,10 +142,24 @@ struct ppp_comp_stats {
 /*
  * The following structure records the time in seconds since
  * the last NP packet was sent or received.
+ *
+ * Linux implements both 32-bit and 64-bit time_t versions
+ * for compatibility with user space that defines ppp_idle
+ * based on the libc time_t.
  */
 struct ppp_idle {
     __kernel_time_t xmit_idle;	/* time since last NP packet sent */
     __kernel_time_t recv_idle;	/* time since last NP packet received */
+};
+
+struct ppp_idle32 {
+    __s32 xmit_idle;		/* time since last NP packet sent */
+    __s32 recv_idle;		/* time since last NP packet received */
+};
+
+struct ppp_idle64 {
+    __s64 xmit_idle;		/* time since last NP packet sent */
+    __s64 recv_idle;		/* time since last NP packet received */
 };
 
 #endif /* _UAPI_PPP_DEFS_H_ */

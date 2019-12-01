@@ -586,6 +586,7 @@ static const struct file_operations ds1374_wdt_fops = {
 	.owner			= THIS_MODULE,
 	.read			= ds1374_wdt_read,
 	.unlocked_ioctl		= ds1374_wdt_unlocked_ioctl,
+	.compat_ioctl		= compat_ptr_ioctl,
 	.write			= ds1374_wdt_write,
 	.open                   = ds1374_wdt_open,
 	.release                = ds1374_wdt_release,

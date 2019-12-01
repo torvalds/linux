@@ -227,6 +227,7 @@ static const struct file_operations mixcomwd_fops = {
 	.llseek		= no_llseek,
 	.write		= mixcomwd_write,
 	.unlocked_ioctl	= mixcomwd_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= mixcomwd_open,
 	.release	= mixcomwd_release,
 };

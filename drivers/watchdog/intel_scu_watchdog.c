@@ -412,6 +412,7 @@ static const struct file_operations intel_scu_fops = {
 	.llseek         = no_llseek,
 	.write          = intel_scu_write,
 	.unlocked_ioctl = intel_scu_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open           = intel_scu_open,
 	.release        = intel_scu_release,
 };

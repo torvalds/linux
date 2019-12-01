@@ -362,6 +362,7 @@ static const struct file_operations ali_fops = {
 	.llseek		=	no_llseek,
 	.write		=	ali_write,
 	.unlocked_ioctl =	ali_ioctl,
+	.compat_ioctl	= 	compat_ptr_ioctl,
 	.open		=	ali_open,
 	.release	=	ali_release,
 };

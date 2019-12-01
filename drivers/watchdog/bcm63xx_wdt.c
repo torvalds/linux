@@ -221,6 +221,7 @@ static const struct file_operations bcm63xx_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= bcm63xx_wdt_write,
 	.unlocked_ioctl	= bcm63xx_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= bcm63xx_wdt_open,
 	.release	= bcm63xx_wdt_release,
 };

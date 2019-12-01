@@ -49,7 +49,7 @@ static const char kfd_dev_name[] = "kfd";
 static const struct file_operations kfd_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = kfd_ioctl,
-	.compat_ioctl = kfd_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.open = kfd_open,
 	.mmap = kfd_mmap,
 };

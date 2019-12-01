@@ -1711,6 +1711,7 @@ ssize_t compat_import_iovec(int type,
 	*iov = p == *iov ? NULL : p;
 	return n;
 }
+EXPORT_SYMBOL(compat_import_iovec);
 #endif
 
 int import_single_range(int rw, void __user *buf, size_t len,

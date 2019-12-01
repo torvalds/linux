@@ -1624,7 +1624,7 @@ static const struct file_operations iio_buffer_fileops = {
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 	.unlocked_ioctl = iio_ioctl,
-	.compat_ioctl = iio_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 static int iio_check_unique_scan_index(struct iio_dev *indio_dev)

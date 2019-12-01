@@ -29,4 +29,24 @@ struct space_resv {
 					 FALLOC_FL_INSERT_RANGE |	\
 					 FALLOC_FL_UNSHARE_RANGE)
 
+/* on ia32 l_start is on a 32-bit boundary */
+#if defined(CONFIG_X86_64)
+struct space_resv_32 {
+	__s16		l_type;
+	__s16		l_whence;
+	__s64		l_start	__attribute__((packed));
+			/* len == 0 means until end of file */
+	__s64		l_len __attribute__((packed));
+	__s32		l_sysid;
+	__u32		l_pid;
+	__s32		l_pad[4];	/* reserve area */
+};
+
+#define FS_IOC_RESVSP_32		_IOW ('X', 40, struct space_resv_32)
+#define FS_IOC_RESVSP64_32	_IOW ('X', 42, struct space_resv_32)
+
+int compat_ioctl_preallocate(struct file *, struct space_resv_32 __user *);
+
+#endif
+
 #endif /* _FALLOC_H_ */

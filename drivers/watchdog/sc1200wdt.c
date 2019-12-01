@@ -307,6 +307,7 @@ static const struct file_operations sc1200wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= sc1200wdt_write,
 	.unlocked_ioctl = sc1200wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= sc1200wdt_open,
 	.release	= sc1200wdt_release,
 };

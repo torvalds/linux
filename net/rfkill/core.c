@@ -1311,7 +1311,7 @@ static const struct file_operations rfkill_fops = {
 	.release	= rfkill_fop_release,
 #ifdef CONFIG_RFKILL_INPUT
 	.unlocked_ioctl	= rfkill_fop_ioctl,
-	.compat_ioctl	= rfkill_fop_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 #endif
 	.llseek		= no_llseek,
 };
