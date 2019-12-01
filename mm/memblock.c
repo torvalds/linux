@@ -57,42 +57,38 @@
  * at build time. The region arrays for the "memory" and "reserved"
  * types are initially sized to %INIT_MEMBLOCK_REGIONS and for the
  * "physmap" type to %INIT_PHYSMEM_REGIONS.
- * The :c:func:`memblock_allow_resize` enables automatic resizing of
- * the region arrays during addition of new regions. This feature
- * should be used with care so that memory allocated for the region
- * array will not overlap with areas that should be reserved, for
- * example initrd.
+ * The memblock_allow_resize() enables automatic resizing of the region
+ * arrays during addition of new regions. This feature should be used
+ * with care so that memory allocated for the region array will not
+ * overlap with areas that should be reserved, for example initrd.
  *
  * The early architecture setup should tell memblock what the physical
- * memory layout is by using :c:func:`memblock_add` or
- * :c:func:`memblock_add_node` functions. The first function does not
- * assign the region to a NUMA node and it is appropriate for UMA
- * systems. Yet, it is possible to use it on NUMA systems as well and
- * assign the region to a NUMA node later in the setup process using
- * :c:func:`memblock_set_node`. The :c:func:`memblock_add_node`
- * performs such an assignment directly.
+ * memory layout is by using memblock_add() or memblock_add_node()
+ * functions. The first function does not assign the region to a NUMA
+ * node and it is appropriate for UMA systems. Yet, it is possible to
+ * use it on NUMA systems as well and assign the region to a NUMA node
+ * later in the setup process using memblock_set_node(). The
+ * memblock_add_node() performs such an assignment directly.
  *
  * Once memblock is setup the memory can be allocated using one of the
  * API variants:
  *
- * * :c:func:`memblock_phys_alloc*` - these functions return the
- *   **physical** address of the allocated memory
- * * :c:func:`memblock_alloc*` - these functions return the **virtual**
- *   address of the allocated memory.
+ * * memblock_phys_alloc*() - these functions return the **physical**
+ *   address of the allocated memory
+ * * memblock_alloc*() - these functions return the **virtual** address
+ *   of the allocated memory.
  *
  * Note, that both API variants use implict assumptions about allowed
  * memory ranges and the fallback methods. Consult the documentation
- * of :c:func:`memblock_alloc_internal` and
- * :c:func:`memblock_alloc_range_nid` functions for more elaboarte
- * description.
+ * of memblock_alloc_internal() and memblock_alloc_range_nid()
+ * functions for more elaborate description.
  *
- * As the system boot progresses, the architecture specific
- * :c:func:`mem_init` function frees all the memory to the buddy page
- * allocator.
+ * As the system boot progresses, the architecture specific mem_init()
+ * function frees all the memory to the buddy page allocator.
  *
- * Unless an architecure enables %CONFIG_ARCH_KEEP_MEMBLOCK, the
+ * Unless an architecture enables %CONFIG_ARCH_KEEP_MEMBLOCK, the
  * memblock data structures will be discarded after the system
- * initialization compltes.
+ * initialization completes.
  */
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
