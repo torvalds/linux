@@ -683,7 +683,7 @@ insert_vmap_area_augment(struct vmap_area *va,
  * free area is inserted. If VA has been merged, it is
  * freed.
  */
-static __always_inline void
+static __always_inline struct vmap_area *
 merge_or_add_vmap_area(struct vmap_area *va,
 	struct rb_root *root, struct list_head *head)
 {
@@ -750,7 +750,10 @@ merge_or_add_vmap_area(struct vmap_area *va,
 
 			/* Free vmap_area object. */
 			kmem_cache_free(vmap_area_cachep, va);
-			return;
+
+			/* Point to the new merged area. */
+			va = sibling;
+			merged = true;
 		}
 	}
 
@@ -759,6 +762,8 @@ insert:
 		link_va(va, root, parent, link, head);
 		augment_tree_propagate_from(va);
 	}
+
+	return va;
 }
 
 static __always_inline bool
@@ -1196,8 +1201,7 @@ static void free_vmap_area(struct vmap_area *va)
 	 * Insert/Merge it back to the free tree/list.
 	 */
 	spin_lock(&free_vmap_area_lock);
-	merge_or_add_vmap_area(va,
-		&free_vmap_area_root, &free_vmap_area_list);
+	merge_or_add_vmap_area(va, &free_vmap_area_root, &free_vmap_area_list);
 	spin_unlock(&free_vmap_area_lock);
 }
 
@@ -1294,14 +1298,20 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 	spin_lock(&free_vmap_area_lock);
 	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
 		unsigned long nr = (va->va_end - va->va_start) >> PAGE_SHIFT;
+		unsigned long orig_start = va->va_start;
+		unsigned long orig_end = va->va_end;
 
 		/*
 		 * Finally insert or merge lazily-freed area. It is
 		 * detached and there is no need to "unlink" it from
 		 * anything.
 		 */
-		merge_or_add_vmap_area(va,
-			&free_vmap_area_root, &free_vmap_area_list);
+		va = merge_or_add_vmap_area(va, &free_vmap_area_root,
+					    &free_vmap_area_list);
+
+		if (is_vmalloc_or_module_addr((void *)orig_start))
+			kasan_release_vmalloc(orig_start, orig_end,
+					      va->va_start, va->va_end);
 
 		atomic_long_sub(nr, &vmap_lazy_nr);
 
@@ -2090,6 +2100,22 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 
 	setup_vmalloc_vm(area, va, flags, caller);
 
+	/*
+	 * For KASAN, if we are in vmalloc space, we need to cover the shadow
+	 * area with real memory. If we come here through VM_ALLOC, this is
+	 * done by a higher level function that has access to the true size,
+	 * which might not be a full page.
+	 *
+	 * We assume module space comes via VM_ALLOC path.
+	 */
+	if (is_vmalloc_addr(area->addr) && !(area->flags & VM_ALLOC)) {
+		if (kasan_populate_vmalloc(area->size, area)) {
+			unmap_vmap_area(va);
+			kfree(area);
+			return NULL;
+		}
+	}
+
 	return area;
 }
 
@@ -2266,6 +2292,9 @@ static void __vunmap(const void *addr, int deallocate_pages)
 
 	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
+
+	if (area->flags & VM_KASAN)
+		kasan_poison_vmalloc(area->addr, area->size);
 
 	vm_remove_mappings(area, deallocate_pages);
 
@@ -2518,6 +2547,11 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
 	addr = __vmalloc_area_node(area, gfp_mask, prot, node);
 	if (!addr)
 		return NULL;
+
+	if (is_vmalloc_or_module_addr(area->addr)) {
+		if (kasan_populate_vmalloc(real_size, area))
+			return NULL;
+	}
 
 	/*
 	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
@@ -3400,6 +3434,12 @@ retry:
 	}
 	spin_unlock(&vmap_area_lock);
 
+	/* populate the shadow space outside of the lock */
+	for (area = 0; area < nr_vms; area++) {
+		/* assume success here */
+		kasan_populate_vmalloc(sizes[area], vms[area]);
+	}
+
 	kfree(vas);
 	return vms;
 
@@ -3411,8 +3451,8 @@ recovery:
 	 * and when pcpu_get_vm_areas() is success.
 	 */
 	while (area--) {
-		merge_or_add_vmap_area(vas[area],
-			&free_vmap_area_root, &free_vmap_area_list);
+		merge_or_add_vmap_area(vas[area], &free_vmap_area_root,
+				       &free_vmap_area_list);
 		vas[area] = NULL;
 	}
 
