@@ -1,6 +1,5 @@
 # CONFIG_SWAP is not set
 CONFIG_LOG_BUF_SHIFT=14
-CONFIG_SYSCTL_SYSCALL=y
 # CONFIG_KALLSYMS is not set
 # CONFIG_FUTEX is not set
 # CONFIG_EPOLL is not set

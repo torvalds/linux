@@ -1376,23 +1376,6 @@ config SYSFS_SYSCALL
 
 	  If unsure say Y here.
 
-config SYSCTL_SYSCALL
-	bool "Sysctl syscall support" if EXPERT
-	depends on PROC_SYSCTL
-	default n
-	select SYSCTL
-	---help---
-	  sys_sysctl uses binary paths that have been found challenging
-	  to properly maintain and use.  The interface in /proc/sys
-	  using paths with ascii names is now the primary path to this
-	  information.
-
-	  Almost nothing using the binary sysctl interface so if you are
-	  trying to save some space it is probably safe to disable this,
-	  making your kernel marginally smaller.
-
-	  If unsure say N here.
-
 config FHANDLE
 	bool "open by fhandle syscalls" if EXPERT
 	select EXPORTFS
