@@ -113,16 +113,6 @@ static inline void crypto_aead_set_reqsize(struct crypto_aead *aead,
 	aead->reqsize = reqsize;
 }
 
-static inline unsigned int crypto_aead_alg_maxauthsize(struct aead_alg *alg)
-{
-	return alg->maxauthsize;
-}
-
-static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
-{
-	return crypto_aead_alg_maxauthsize(crypto_aead_alg(aead));
-}
-
 static inline void aead_init_queue(struct aead_queue *queue,
 				   unsigned int max_qlen)
 {
