@@ -102,6 +102,7 @@ extern unsigned long __offline_isolated_pages(unsigned long start_pfn,
 
 typedef void (*online_page_callback_t)(struct page *page, unsigned int order);
 
+extern void generic_online_page(struct page *page, unsigned int order);
 extern int set_online_page_callback(online_page_callback_t callback);
 extern int restore_online_page_callback(online_page_callback_t callback);
 
