@@ -2764,6 +2764,15 @@ static int test_skcipher_vs_generic_impl(const char *driver,
 
 	/* Check the algorithm properties for consistency. */
 
+	if (crypto_skcipher_min_keysize(tfm) !=
+	    crypto_skcipher_min_keysize(generic_tfm)) {
+		pr_err("alg: skcipher: min keysize for %s (%u) doesn't match generic impl (%u)\n",
+		       driver, crypto_skcipher_min_keysize(tfm),
+		       crypto_skcipher_min_keysize(generic_tfm));
+		err = -EINVAL;
+		goto out;
+	}
+
 	if (maxkeysize != crypto_skcipher_max_keysize(generic_tfm)) {
 		pr_err("alg: skcipher: max keysize for %s (%u) doesn't match generic impl (%u)\n",
 		       driver, maxkeysize,
