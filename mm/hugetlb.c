@@ -246,14 +246,10 @@ struct file_region {
 
 /*
  * Add the huge page range represented by [f, t) to the reserve
- * map.  In the normal case, existing regions will be expanded
- * to accommodate the specified range.  Sufficient regions should
- * exist for expansion due to the previous call to region_chg
- * with the same range.  However, it is possible that region_del
- * could have been called after region_chg and modifed the map
- * in such a way that no region exists to be expanded.  In this
- * case, pull a region descriptor from the cache associated with
- * the map and use that for the new range.
+ * map.  Existing regions will be expanded to accommodate the specified
+ * range, or a region will be taken from the cache.  Sufficient regions
+ * must exist in the cache due to the previous call to region_chg with
+ * the same range.
  *
  * Return the number of new huge pages added to the map.  This
  * number is greater than or equal to zero.
@@ -272,9 +268,8 @@ static long region_add(struct resv_map *resv, long f, long t)
 
 	/*
 	 * If no region exists which can be expanded to include the
-	 * specified range, the list must have been modified by an
-	 * interleving call to region_del().  Pull a region descriptor
-	 * from the cache and use it for this range.
+	 * specified range, pull a region descriptor from the cache
+	 * and use it for this range.
 	 */
 	if (&rg->link == head || t < rg->from) {
 		VM_BUG_ON(resv->region_cache_count <= 0);
@@ -339,15 +334,9 @@ out_locked:
  * call to region_add that will actually modify the reserve
  * map to add the specified range [f, t).  region_chg does
  * not change the number of huge pages represented by the
- * map.  However, if the existing regions in the map can not
- * be expanded to represent the new range, a new file_region
- * structure is added to the map as a placeholder.  This is
- * so that the subsequent region_add call will have all the
- * regions it needs and will not fail.
- *
- * Upon entry, region_chg will also examine the cache of region descriptors
- * associated with the map.  If there are not enough descriptors cached, one
- * will be allocated for the in progress add operation.
+ * map.  A new file_region structure is added to the cache
+ * as a placeholder, so that the subsequent region_add
+ * call will have all the regions it needs and will not fail.
  *
  * Returns the number of huge pages that need to be added to the existing
  * reservation map for the range [f, t).  This number is greater or equal to
@@ -357,10 +346,9 @@ out_locked:
 static long region_chg(struct resv_map *resv, long f, long t)
 {
 	struct list_head *head = &resv->regions;
-	struct file_region *rg, *nrg = NULL;
+	struct file_region *rg;
 	long chg = 0;
 
-retry:
 	spin_lock(&resv->lock);
 retry_locked:
 	resv->adds_in_progress++;
@@ -378,10 +366,8 @@ retry_locked:
 		spin_unlock(&resv->lock);
 
 		trg = kmalloc(sizeof(*trg), GFP_KERNEL);
-		if (!trg) {
-			kfree(nrg);
+		if (!trg)
 			return -ENOMEM;
-		}
 
 		spin_lock(&resv->lock);
 		list_add(&trg->link, &resv->region_cache);
@@ -393,28 +379,6 @@ retry_locked:
 	list_for_each_entry(rg, head, link)
 		if (f <= rg->to)
 			break;
-
-	/* If we are below the current region then a new region is required.
-	 * Subtle, allocate a new region at the position but make it zero
-	 * size such that we can guarantee to record the reservation. */
-	if (&rg->link == head || t < rg->from) {
-		if (!nrg) {
-			resv->adds_in_progress--;
-			spin_unlock(&resv->lock);
-			nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
-			if (!nrg)
-				return -ENOMEM;
-
-			nrg->from = f;
-			nrg->to   = f;
-			INIT_LIST_HEAD(&nrg->link);
-			goto retry;
-		}
-
-		list_add(&nrg->link, rg->link.prev);
-		chg = t - f;
-		goto out_nrg;
-	}
 
 	/* Round our left edge to the current segment if it encloses us. */
 	if (f > rg->from)
@@ -439,11 +403,6 @@ retry_locked:
 	}
 
 out:
-	spin_unlock(&resv->lock);
-	/*  We already know we raced and no longer need the new region */
-	kfree(nrg);
-	return chg;
-out_nrg:
 	spin_unlock(&resv->lock);
 	return chg;
 }
