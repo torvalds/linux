@@ -259,7 +259,7 @@ retry:
 		pte_t dst_pteval;
 
 		BUG_ON(dst_addr >= dst_start + len);
-		VM_BUG_ON(dst_addr & ~huge_page_mask(h));
+		VM_BUG_ON(dst_addr & (vma_hpagesize - 1));
 
 		/*
 		 * Serialize via hugetlb_fault_mutex
@@ -270,7 +270,7 @@ retry:
 		mutex_lock(&hugetlb_fault_mutex_table[hash]);
 
 		err = -ENOMEM;
-		dst_pte = huge_pte_alloc(dst_mm, dst_addr, huge_page_size(h));
+		dst_pte = huge_pte_alloc(dst_mm, dst_addr, vma_hpagesize);
 		if (!dst_pte) {
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 			goto out_unlock;
@@ -297,7 +297,8 @@ retry:
 
 			err = copy_huge_page_from_user(page,
 						(const void __user *)src_addr,
-						pages_per_huge_page(h), true);
+						vma_hpagesize / PAGE_SIZE,
+						true);
 			if (unlikely(err)) {
 				err = -EFAULT;
 				goto out;
