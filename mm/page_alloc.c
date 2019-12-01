@@ -5354,6 +5354,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 			" min:%lukB"
 			" low:%lukB"
 			" high:%lukB"
+			" reserved_highatomic:%luKB"
 			" active_anon:%lukB"
 			" inactive_anon:%lukB"
 			" active_file:%lukB"
@@ -5375,6 +5376,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 			K(min_wmark_pages(zone)),
 			K(low_wmark_pages(zone)),
 			K(high_wmark_pages(zone)),
+			K(zone->nr_reserved_highatomic),
 			K(zone_page_state(zone, NR_ZONE_ACTIVE_ANON)),
 			K(zone_page_state(zone, NR_ZONE_INACTIVE_ANON)),
 			K(zone_page_state(zone, NR_ZONE_ACTIVE_FILE)),
