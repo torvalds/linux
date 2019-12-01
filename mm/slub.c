@@ -736,6 +736,7 @@ static int check_bytes_and_report(struct kmem_cache *s, struct page *page,
 {
 	u8 *fault;
 	u8 *end;
+	u8 *addr = page_address(page);
 
 	metadata_access_enable();
 	fault = memchr_inv(start, value, bytes);
@@ -748,8 +749,9 @@ static int check_bytes_and_report(struct kmem_cache *s, struct page *page,
 		end--;
 
 	slab_bug(s, "%s overwritten", what);
-	pr_err("INFO: 0x%p-0x%p. First byte 0x%x instead of 0x%x\n",
-					fault, end - 1, fault[0], value);
+	pr_err("INFO: 0x%p-0x%p @offset=%tu. First byte 0x%x instead of 0x%x\n",
+					fault, end - 1, fault - addr,
+					fault[0], value);
 	print_trailer(s, page, object);
 
 	restore_bytes(s, what, value, fault, end);
@@ -844,7 +846,8 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 	while (end > fault && end[-1] == POISON_INUSE)
 		end--;
 
-	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
+	slab_err(s, page, "Padding overwritten. 0x%p-0x%p @offset=%tu",
+			fault, end - 1, fault - start);
 	print_section(KERN_ERR, "Padding ", pad, remainder);
 
 	restore_bytes(s, "slab padding", POISON_INUSE, fault, end);
