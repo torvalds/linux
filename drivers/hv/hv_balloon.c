@@ -681,8 +681,7 @@ static void hv_page_online_one(struct hv_hotadd_state *has, struct page *pg)
 
 	/* This frame is currently backed; online the page. */
 	__online_page_set_limits(pg);
-	__online_page_increment_counters(pg);
-	__online_page_free(pg);
+	generic_online_page(pg, 0);
 
 	lockdep_assert_held(&dm_device.ha_lock);
 	dm_device.num_pages_onlined++;
