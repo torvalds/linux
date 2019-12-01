@@ -3241,11 +3241,13 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	 * do not end up with dio_complete() being called, so let's not break
 	 * them by removing it completely.
 	 *
+	 * Noticeable example is a blkdev_direct_IO().
+	 *
 	 * Skip invalidation for async writes or if mapping has no pages.
 	 */
-	if (written > 0 && mapping->nrpages)
-		invalidate_inode_pages2_range(mapping,
-					pos >> PAGE_SHIFT, end);
+	if (written > 0 && mapping->nrpages &&
+	    invalidate_inode_pages2_range(mapping, pos >> PAGE_SHIFT, end))
+		dio_warn_stale_pagecache(file);
 
 	if (written > 0) {
 		pos += written;
