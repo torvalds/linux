@@ -486,7 +486,7 @@ static void __init sparse_buffer_init(unsigned long size, int nid)
 	 * and we want it to be properly aligned to the section size - this is
 	 * especially the case for VMEMMAP which maps memmap to PMDs
 	 */
-	sparsemap_buf = memblock_alloc_try_nid_raw(size, section_map_size(),
+	sparsemap_buf = memblock_alloc_exact_nid_raw(size, section_map_size(),
 					addr, MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 	sparsemap_buf_end = sparsemap_buf + size;
 }
