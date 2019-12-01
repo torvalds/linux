@@ -148,8 +148,8 @@ struct ppp_comp_stats {
  * based on the libc time_t.
  */
 struct ppp_idle {
-    __kernel_time_t xmit_idle;	/* time since last NP packet sent */
-    __kernel_time_t recv_idle;	/* time since last NP packet received */
+    __kernel_old_time_t xmit_idle;	/* time since last NP packet sent */
+    __kernel_old_time_t recv_idle;	/* time since last NP packet received */
 };
 
 struct ppp_idle32 {

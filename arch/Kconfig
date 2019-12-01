@@ -796,16 +796,9 @@ config OLD_SIGACTION
 config COMPAT_OLD_SIGACTION
 	bool
 
-config 64BIT_TIME
-	def_bool y
-	help
-	  This should be selected by all architectures that need to support
-	  new system calls with a 64-bit time_t. This is relevant on all 32-bit
-	  architectures, and 64-bit architectures as part of compat syscall
-	  handling.
-
 config COMPAT_32BIT_TIME
-	def_bool !64BIT || COMPAT
+	bool "Provide system calls for 32-bit time_t"
+	default !64BIT || COMPAT
 	help
 	  This enables 32 bit time_t support in addition to 64 bit time_t support.
 	  This is relevant on all 32-bit architectures, and 64-bit architectures

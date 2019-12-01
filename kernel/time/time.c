@@ -59,9 +59,9 @@ EXPORT_SYMBOL(sys_tz);
  * why not move it into the appropriate arch directory (for those
  * architectures that need it).
  */
-SYSCALL_DEFINE1(time, time_t __user *, tloc)
+SYSCALL_DEFINE1(time, __kernel_old_time_t __user *, tloc)
 {
-	time_t i = (time_t)ktime_get_real_seconds();
+	__kernel_old_time_t i = (__kernel_old_time_t)ktime_get_real_seconds();
 
 	if (tloc) {
 		if (put_user(i,tloc))
@@ -78,7 +78,7 @@ SYSCALL_DEFINE1(time, time_t __user *, tloc)
  * architectures that need it).
  */
 
-SYSCALL_DEFINE1(stime, time_t __user *, tptr)
+SYSCALL_DEFINE1(stime, __kernel_old_time_t __user *, tptr)
 {
 	struct timespec64 tv;
 	int err;
@@ -137,7 +137,7 @@ SYSCALL_DEFINE1(stime32, old_time32_t __user *, tptr)
 #endif /* __ARCH_WANT_SYS_TIME32 */
 #endif
 
-SYSCALL_DEFINE2(gettimeofday, struct timeval __user *, tv,
+SYSCALL_DEFINE2(gettimeofday, struct __kernel_old_timeval __user *, tv,
 		struct timezone __user *, tz)
 {
 	if (likely(tv != NULL)) {
@@ -196,22 +196,21 @@ int do_sys_settimeofday64(const struct timespec64 *tv, const struct timezone *tz
 	return 0;
 }
 
-SYSCALL_DEFINE2(settimeofday, struct timeval __user *, tv,
+SYSCALL_DEFINE2(settimeofday, struct __kernel_old_timeval __user *, tv,
 		struct timezone __user *, tz)
 {
 	struct timespec64 new_ts;
-	struct timeval user_tv;
 	struct timezone new_tz;
 
 	if (tv) {
-		if (copy_from_user(&user_tv, tv, sizeof(*tv)))
+		if (get_user(new_ts.tv_sec, &tv->tv_sec) ||
+		    get_user(new_ts.tv_nsec, &tv->tv_usec))
 			return -EFAULT;
 
-		if (!timeval_valid(&user_tv))
+		if (new_ts.tv_nsec > USEC_PER_SEC || new_ts.tv_nsec < 0)
 			return -EINVAL;
 
-		new_ts.tv_sec = user_tv.tv_sec;
-		new_ts.tv_nsec = user_tv.tv_usec * NSEC_PER_USEC;
+		new_ts.tv_nsec *= NSEC_PER_USEC;
 	}
 	if (tz) {
 		if (copy_from_user(&new_tz, tz, sizeof(*tz)))
@@ -245,18 +244,17 @@ COMPAT_SYSCALL_DEFINE2(settimeofday, struct old_timeval32 __user *, tv,
 		       struct timezone __user *, tz)
 {
 	struct timespec64 new_ts;
-	struct timeval user_tv;
 	struct timezone new_tz;
 
 	if (tv) {
-		if (compat_get_timeval(&user_tv, tv))
+		if (get_user(new_ts.tv_sec, &tv->tv_sec) ||
+		    get_user(new_ts.tv_nsec, &tv->tv_usec))
 			return -EFAULT;
 
-		if (!timeval_valid(&user_tv))
+		if (new_ts.tv_nsec > USEC_PER_SEC || new_ts.tv_nsec < 0)
 			return -EINVAL;
 
-		new_ts.tv_sec = user_tv.tv_sec;
-		new_ts.tv_nsec = user_tv.tv_usec * NSEC_PER_USEC;
+		new_ts.tv_nsec *= NSEC_PER_USEC;
 	}
 	if (tz) {
 		if (copy_from_user(&new_tz, tz, sizeof(*tz)))
@@ -267,7 +265,7 @@ COMPAT_SYSCALL_DEFINE2(settimeofday, struct old_timeval32 __user *, tv,
 }
 #endif
 
-#if !defined(CONFIG_64BIT_TIME) || defined(CONFIG_64BIT)
+#ifdef CONFIG_64BIT
 SYSCALL_DEFINE1(adjtimex, struct __kernel_timex __user *, txc_p)
 {
 	struct __kernel_timex txc;		/* Local copy of parameter */
@@ -881,7 +879,7 @@ int get_timespec64(struct timespec64 *ts,
 	ts->tv_sec = kts.tv_sec;
 
 	/* Zero out the padding for 32 bit systems or in compat mode */
-	if (IS_ENABLED(CONFIG_64BIT_TIME) && in_compat_syscall())
+	if (in_compat_syscall())
 		kts.tv_nsec &= 0xFFFFFFFFUL;
 
 	ts->tv_nsec = kts.tv_nsec;

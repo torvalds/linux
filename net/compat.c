@@ -232,7 +232,7 @@ int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *dat
 		    (type == SO_TIMESTAMPNS_OLD || type == SO_TIMESTAMPING_OLD)) {
 			int count = type == SO_TIMESTAMPNS_OLD ? 1 : 3;
 			int i;
-			struct timespec *ts = (struct timespec *)data;
+			struct __kernel_old_timespec *ts = data;
 			for (i = 0; i < count; i++) {
 				cts[i].tv_sec = ts[i].tv_sec;
 				cts[i].tv_nsec = ts[i].tv_nsec;

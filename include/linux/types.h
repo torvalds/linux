@@ -67,7 +67,7 @@ typedef __kernel_ptrdiff_t	ptrdiff_t;
 
 #ifndef _TIME_T
 #define _TIME_T
-typedef __kernel_time_t		time_t;
+typedef __kernel_old_time_t	time_t;
 #endif
 
 #ifndef _CLOCK_T

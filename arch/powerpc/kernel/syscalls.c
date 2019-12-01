@@ -79,7 +79,7 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, size_t, len,
  * sys_select() with the appropriate args. -- Cort
  */
 int
-ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct timeval __user *tvp)
+ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct __kernel_old_timeval __user *tvp)
 {
 	if ( (unsigned long)n >= 4096 )
 	{
@@ -89,7 +89,7 @@ ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, s
 		    || __get_user(inp, ((fd_set __user * __user *)(buffer+1)))
 		    || __get_user(outp, ((fd_set  __user * __user *)(buffer+2)))
 		    || __get_user(exp, ((fd_set  __user * __user *)(buffer+3)))
-		    || __get_user(tvp, ((struct timeval  __user * __user *)(buffer+4))))
+		    || __get_user(tvp, ((struct __kernel_old_timeval  __user * __user *)(buffer+4))))
 			return -EFAULT;
 	}
 	return sys_select(n, inp, outp, exp, tvp);

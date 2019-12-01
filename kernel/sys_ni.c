@@ -410,6 +410,29 @@ COND_SYSCALL(send);
 COND_SYSCALL(bdflush);
 COND_SYSCALL(uselib);
 
+/* optional: time32 */
+COND_SYSCALL(time32);
+COND_SYSCALL(stime32);
+COND_SYSCALL(utime32);
+COND_SYSCALL(adjtimex_time32);
+COND_SYSCALL(sched_rr_get_interval_time32);
+COND_SYSCALL(nanosleep_time32);
+COND_SYSCALL(rt_sigtimedwait_time32);
+COND_SYSCALL_COMPAT(rt_sigtimedwait_time32);
+COND_SYSCALL(timer_settime32);
+COND_SYSCALL(timer_gettime32);
+COND_SYSCALL(clock_settime32);
+COND_SYSCALL(clock_gettime32);
+COND_SYSCALL(clock_getres_time32);
+COND_SYSCALL(clock_nanosleep_time32);
+COND_SYSCALL(utimes_time32);
+COND_SYSCALL(futimesat_time32);
+COND_SYSCALL(pselect6_time32);
+COND_SYSCALL_COMPAT(pselect6_time32);
+COND_SYSCALL(ppoll_time32);
+COND_SYSCALL_COMPAT(ppoll_time32);
+COND_SYSCALL(utimensat_time32);
+COND_SYSCALL(clock_adjtime32);
 
 /*
  * The syscalls below are not found in include/uapi/asm-generic/unistd.h
