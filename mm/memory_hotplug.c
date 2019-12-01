@@ -1187,7 +1187,8 @@ static bool is_pageblock_removable_nolock(unsigned long pfn)
 	if (!zone_spans_pfn(zone, pfn))
 		return false;
 
-	return !has_unmovable_pages(zone, page, 0, MIGRATE_MOVABLE, SKIP_HWPOISON);
+	return !has_unmovable_pages(zone, page, 0, MIGRATE_MOVABLE,
+				    MEMORY_OFFLINE);
 }
 
 /* Checks if this range of memory is likely to be hot-removable. */
@@ -1402,7 +1403,8 @@ static int
 check_pages_isolated_cb(unsigned long start_pfn, unsigned long nr_pages,
 			void *data)
 {
-	return test_pages_isolated(start_pfn, start_pfn + nr_pages, true);
+	return test_pages_isolated(start_pfn, start_pfn + nr_pages,
+				   MEMORY_OFFLINE);
 }
 
 static int __init cmdline_parse_movable_node(char *p)
@@ -1513,7 +1515,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
 	/* set above range as isolated */
 	ret = start_isolate_page_range(start_pfn, end_pfn,
 				       MIGRATE_MOVABLE,
-				       SKIP_HWPOISON | REPORT_FAILURE);
+				       MEMORY_OFFLINE | REPORT_FAILURE);
 	if (ret < 0) {
 		reason = "failure to isolate range";
 		goto failed_removal;

@@ -8261,7 +8261,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
 		 * The HWPoisoned page may be not in buddy system, and
 		 * page_count() is not 0.
 		 */
-		if ((flags & SKIP_HWPOISON) && PageHWPoison(page))
+		if ((flags & MEMORY_OFFLINE) && PageHWPoison(page))
 			continue;
 
 		if (__PageMovable(page))
@@ -8477,7 +8477,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 	}
 
 	/* Make sure the range is really isolated. */
-	if (test_pages_isolated(outer_start, end, false)) {
+	if (test_pages_isolated(outer_start, end, 0)) {
 		pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
 			__func__, outer_start, end);
 		ret = -EBUSY;

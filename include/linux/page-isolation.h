@@ -30,7 +30,7 @@ static inline bool is_migrate_isolate(int migratetype)
 }
 #endif
 
-#define SKIP_HWPOISON	0x1
+#define MEMORY_OFFLINE	0x1
 #define REPORT_FAILURE	0x2
 
 bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
@@ -58,7 +58,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
  * Test all pages in [start_pfn, end_pfn) are isolated or not.
  */
 int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
-			bool skip_hwpoisoned_pages);
+			int isol_flags);
 
 struct page *alloc_migrate_target(struct page *page, unsigned long private);
 
