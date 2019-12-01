@@ -259,6 +259,9 @@ struct test_sg_division {
  *	       where 0 is aligned to a 2*(MAX_ALGAPI_ALIGNMASK+1) byte boundary
  * @iv_offset_relative_to_alignmask: if true, add the algorithm's alignmask to
  *				     the @iv_offset
+ * @key_offset: misalignment of the key, where 0 is default alignment
+ * @key_offset_relative_to_alignmask: if true, add the algorithm's alignmask to
+ *				      the @key_offset
  * @finalization_type: what finalization function to use for hashes
  * @nosimd: execute with SIMD disabled?  Requires !CRYPTO_TFM_REQ_MAY_SLEEP.
  */
@@ -269,7 +272,9 @@ struct testvec_config {
 	struct test_sg_division src_divs[XBUFSIZE];
 	struct test_sg_division dst_divs[XBUFSIZE];
 	unsigned int iv_offset;
+	unsigned int key_offset;
 	bool iv_offset_relative_to_alignmask;
+	bool key_offset_relative_to_alignmask;
 	enum finalization_type finalization_type;
 	bool nosimd;
 };
@@ -297,6 +302,7 @@ static const struct testvec_config default_cipher_testvec_configs[] = {
 		.name = "unaligned buffer, offset=1",
 		.src_divs = { { .proportion_of_total = 10000, .offset = 1 } },
 		.iv_offset = 1,
+		.key_offset = 1,
 	}, {
 		.name = "buffer aligned only to alignmask",
 		.src_divs = {
@@ -308,6 +314,8 @@ static const struct testvec_config default_cipher_testvec_configs[] = {
 		},
 		.iv_offset = 1,
 		.iv_offset_relative_to_alignmask = true,
+		.key_offset = 1,
+		.key_offset_relative_to_alignmask = true,
 	}, {
 		.name = "two even aligned splits",
 		.src_divs = {
@@ -323,6 +331,7 @@ static const struct testvec_config default_cipher_testvec_configs[] = {
 			{ .proportion_of_total = 4800, .offset = 18 },
 		},
 		.iv_offset = 3,
+		.key_offset = 3,
 	}, {
 		.name = "misaligned splits crossing pages, inplace",
 		.inplace = true,
@@ -355,6 +364,7 @@ static const struct testvec_config default_hash_testvec_configs[] = {
 		.name = "init+update+final misaligned buffer",
 		.src_divs = { { .proportion_of_total = 10000, .offset = 1 } },
 		.finalization_type = FINALIZATION_TYPE_FINAL,
+		.key_offset = 1,
 	}, {
 		.name = "digest buffer aligned only to alignmask",
 		.src_divs = {
@@ -365,6 +375,8 @@ static const struct testvec_config default_hash_testvec_configs[] = {
 			},
 		},
 		.finalization_type = FINALIZATION_TYPE_DIGEST,
+		.key_offset = 1,
+		.key_offset_relative_to_alignmask = true,
 	}, {
 		.name = "init+update+update+final two even splits",
 		.src_divs = {
@@ -740,6 +752,49 @@ static int build_cipher_test_sglists(struct cipher_test_sglists *tsgls,
 				 alignmask, dst_total_len, NULL, NULL);
 }
 
+/*
+ * Support for testing passing a misaligned key to setkey():
+ *
+ * If cfg->key_offset is set, copy the key into a new buffer at that offset,
+ * optionally adding alignmask.  Else, just use the key directly.
+ */
+static int prepare_keybuf(const u8 *key, unsigned int ksize,
+			  const struct testvec_config *cfg,
+			  unsigned int alignmask,
+			  const u8 **keybuf_ret, const u8 **keyptr_ret)
+{
+	unsigned int key_offset = cfg->key_offset;
+	u8 *keybuf = NULL, *keyptr = (u8 *)key;
+
+	if (key_offset != 0) {
+		if (cfg->key_offset_relative_to_alignmask)
+			key_offset += alignmask;
+		keybuf = kmalloc(key_offset + ksize, GFP_KERNEL);
+		if (!keybuf)
+			return -ENOMEM;
+		keyptr = keybuf + key_offset;
+		memcpy(keyptr, key, ksize);
+	}
+	*keybuf_ret = keybuf;
+	*keyptr_ret = keyptr;
+	return 0;
+}
+
+/* Like setkey_f(tfm, key, ksize), but sometimes misalign the key */
+#define do_setkey(setkey_f, tfm, key, ksize, cfg, alignmask)		\
+({									\
+	const u8 *keybuf, *keyptr;					\
+	int err;							\
+									\
+	err = prepare_keybuf((key), (ksize), (cfg), (alignmask),	\
+			     &keybuf, &keyptr);				\
+	if (err == 0) {							\
+		err = setkey_f((tfm), keyptr, (ksize));			\
+		kfree(keybuf);						\
+	}								\
+	err;								\
+})
+
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
 
 /* Generate a random length in range [0, max_len], but prefer smaller values */
@@ -966,6 +1021,11 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 		p += scnprintf(p, end - p, " iv_offset=%u", cfg->iv_offset);
 	}
 
+	if (prandom_u32() % 2 == 0) {
+		cfg->key_offset = 1 + (prandom_u32() % MAX_ALGAPI_ALIGNMASK);
+		p += scnprintf(p, end - p, " key_offset=%u", cfg->key_offset);
+	}
+
 	WARN_ON_ONCE(!valid_testvec_config(cfg));
 }
 
@@ -1103,7 +1163,8 @@ static int test_shash_vec_cfg(const char *driver,
 
 	/* Set the key, if specified */
 	if (vec->ksize) {
-		err = crypto_shash_setkey(tfm, vec->key, vec->ksize);
+		err = do_setkey(crypto_shash_setkey, tfm, vec->key, vec->ksize,
+				cfg, alignmask);
 		if (err) {
 			if (err == vec->setkey_error)
 				return 0;
@@ -1290,7 +1351,8 @@ static int test_ahash_vec_cfg(const char *driver,
 
 	/* Set the key, if specified */
 	if (vec->ksize) {
-		err = crypto_ahash_setkey(tfm, vec->key, vec->ksize);
+		err = do_setkey(crypto_ahash_setkey, tfm, vec->key, vec->ksize,
+				cfg, alignmask);
 		if (err) {
 			if (err == vec->setkey_error)
 				return 0;
@@ -1861,7 +1923,9 @@ static int test_aead_vec_cfg(const char *driver, int enc,
 		crypto_aead_set_flags(tfm, CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
 	else
 		crypto_aead_clear_flags(tfm, CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
-	err = crypto_aead_setkey(tfm, vec->key, vec->klen);
+
+	err = do_setkey(crypto_aead_setkey, tfm, vec->key, vec->klen,
+			cfg, alignmask);
 	if (err && err != vec->setkey_error) {
 		pr_err("alg: aead: %s setkey failed on test vector %s; expected_error=%d, actual_error=%d, flags=%#x\n",
 		       driver, vec_name, vec->setkey_error, err,
@@ -2460,7 +2524,8 @@ static int test_skcipher_vec_cfg(const char *driver, int enc,
 	else
 		crypto_skcipher_clear_flags(tfm,
 					    CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
-	err = crypto_skcipher_setkey(tfm, vec->key, vec->klen);
+	err = do_setkey(crypto_skcipher_setkey, tfm, vec->key, vec->klen,
+			cfg, alignmask);
 	if (err) {
 		if (err == vec->setkey_error)
 			return 0;
