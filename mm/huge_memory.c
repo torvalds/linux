@@ -3003,7 +3003,7 @@ next:
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(split_huge_pages_fops, NULL, split_huge_pages_set,
+DEFINE_DEBUGFS_ATTRIBUTE(split_huge_pages_fops, NULL, split_huge_pages_set,
 		"%llu\n");
 
 static int __init split_huge_pages_debugfs(void)
