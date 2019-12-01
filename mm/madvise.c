@@ -895,7 +895,7 @@ static int madvise_inject_error(int behavior,
 			pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
 					pfn, start);
 
-			ret = soft_offline_page(page, MF_COUNT_INCREASED);
+			ret = soft_offline_page(pfn, MF_COUNT_INCREASED);
 			if (ret)
 				return ret;
 			continue;
