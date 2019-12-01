@@ -107,8 +107,6 @@ extern int set_online_page_callback(online_page_callback_t callback);
 extern int restore_online_page_callback(online_page_callback_t callback);
 
 extern void __online_page_set_limits(struct page *page);
-extern void __online_page_increment_counters(struct page *page);
-extern void __online_page_free(struct page *page);
 
 extern int try_online_node(int nid);
 
