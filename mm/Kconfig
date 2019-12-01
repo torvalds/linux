@@ -29,7 +29,7 @@ config FLATMEM_MANUAL
 
 	  For systems that have holes in their physical address
 	  spaces and for features like NUMA and memory hotplug,
-	  choose "Sparse Memory"
+	  choose "Sparse Memory".
 
 	  If unsure, choose this option (Flat Memory) over any other.
 
