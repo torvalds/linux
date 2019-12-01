@@ -1085,7 +1085,7 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
 /**
  * for_each_zone_zonelist_nodemask - helper macro to iterate over valid zones in a zonelist at or below a given zone index and within a nodemask
  * @zone - The current zone in the iterator
- * @z - The current pointer within zonelist->zones being iterated
+ * @z - The current pointer within zonelist->_zonerefs being iterated
  * @zlist - The zonelist being iterated
  * @highidx - The zone index of the highest zone to return
  * @nodemask - Nodemask allowed by the allocator
