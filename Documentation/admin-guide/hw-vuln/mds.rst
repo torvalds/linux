@@ -265,8 +265,11 @@ time with the option "mds=". The valid arguments for this option are:
 
   ============  =============================================================
 
-Not specifying this option is equivalent to "mds=full".
-
+Not specifying this option is equivalent to "mds=full". For processors
+that are affected by both TAA (TSX Asynchronous Abort) and MDS,
+specifying just "mds=off" without an accompanying "tsx_async_abort=off"
+will have no effect as the same mitigation is used for both
+vulnerabilities.
 
 Mitigation selection guide
 --------------------------

@@ -342,6 +342,34 @@ static struct hfs_bnode *hfs_bmap_new_bmap(struct hfs_bnode *prev, u32 idx)
 	return node;
 }
 
+/* Make sure @tree has enough space for the @rsvd_nodes */
+int hfs_bmap_reserve(struct hfs_btree *tree, int rsvd_nodes)
+{
+	struct inode *inode = tree->inode;
+	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
+	u32 count;
+	int res;
+
+	if (rsvd_nodes <= 0)
+		return 0;
+
+	while (tree->free_nodes < rsvd_nodes) {
+		res = hfsplus_file_extend(inode, hfs_bnode_need_zeroout(tree));
+		if (res)
+			return res;
+		hip->phys_size = inode->i_size =
+			(loff_t)hip->alloc_blocks <<
+				HFSPLUS_SB(tree->sb)->alloc_blksz_shift;
+		hip->fs_blocks =
+			hip->alloc_blocks << HFSPLUS_SB(tree->sb)->fs_shift;
+		inode_set_bytes(inode, inode->i_size);
+		count = inode->i_size >> tree->node_size_shift;
+		tree->free_nodes += count - tree->node_count;
+		tree->node_count = count;
+	}
+	return 0;
+}
+
 struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 {
 	struct hfs_bnode *node, *next_node;
@@ -351,27 +379,11 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 	u16 off16;
 	u16 len;
 	u8 *data, byte, m;
-	int i;
+	int i, res;
 
-	while (!tree->free_nodes) {
-		struct inode *inode = tree->inode;
-		struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
-		u32 count;
-		int res;
-
-		res = hfsplus_file_extend(inode, hfs_bnode_need_zeroout(tree));
-		if (res)
-			return ERR_PTR(res);
-		hip->phys_size = inode->i_size =
-			(loff_t)hip->alloc_blocks <<
-				HFSPLUS_SB(tree->sb)->alloc_blksz_shift;
-		hip->fs_blocks =
-			hip->alloc_blocks << HFSPLUS_SB(tree->sb)->fs_shift;
-		inode_set_bytes(inode, inode->i_size);
-		count = inode->i_size >> tree->node_size_shift;
-		tree->free_nodes = count - tree->node_count;
-		tree->node_count = count;
-	}
+	res = hfs_bmap_reserve(tree, 1);
+	if (res)
+		return ERR_PTR(res);
 
 	nidx = 0;
 	node = hfs_bnode_find(tree, nidx);
