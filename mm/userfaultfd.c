@@ -90,7 +90,7 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
 
 	/*
 	 * The memory barrier inside __SetPageUptodate makes sure that
-	 * preceeding stores to the page contents become visible before
+	 * preceding stores to the page contents become visible before
 	 * the set_pte_at() write.
 	 */
 	__SetPageUptodate(page);
