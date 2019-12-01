@@ -2111,6 +2111,22 @@ static int test_aead_vec(const char *driver, int enc,
 }
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+
+struct aead_extra_tests_ctx {
+	struct aead_request *req;
+	struct crypto_aead *tfm;
+	const char *driver;
+	const struct alg_test_desc *test_desc;
+	struct cipher_test_sglists *tsgls;
+	unsigned int maxdatasize;
+	unsigned int maxkeysize;
+
+	struct aead_testvec vec;
+	char vec_name[64];
+	char cfgname[TESTVEC_CONFIG_NAMELEN];
+	struct testvec_config cfg;
+};
+
 /*
  * Generate an AEAD test vector from the given implementation.
  * Assumes the buffers in 'vec' were already allocated.
@@ -2123,7 +2139,7 @@ static void generate_random_aead_testvec(struct aead_request *req,
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	const unsigned int ivsize = crypto_aead_ivsize(tfm);
-	unsigned int maxauthsize = crypto_aead_alg(tfm)->maxauthsize;
+	const unsigned int maxauthsize = crypto_aead_maxauthsize(tfm);
 	unsigned int authsize;
 	unsigned int total_len;
 	int i;
@@ -2192,34 +2208,20 @@ done:
 }
 
 /*
- * Test the AEAD algorithm represented by @req against the corresponding generic
- * implementation, if one is available.
+ * Test the AEAD algorithm against the corresponding generic implementation, if
+ * one is available.
  */
-static int test_aead_vs_generic_impl(const char *driver,
-				     const struct alg_test_desc *test_desc,
-				     struct aead_request *req,
-				     struct cipher_test_sglists *tsgls)
+static int test_aead_vs_generic_impl(struct aead_extra_tests_ctx *ctx)
 {
-	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	const unsigned int ivsize = crypto_aead_ivsize(tfm);
-	const unsigned int maxauthsize = crypto_aead_alg(tfm)->maxauthsize;
-	const unsigned int blocksize = crypto_aead_blocksize(tfm);
-	const unsigned int maxdatasize = (2 * PAGE_SIZE) - TESTMGR_POISON_LEN;
+	struct crypto_aead *tfm = ctx->tfm;
 	const char *algname = crypto_aead_alg(tfm)->base.cra_name;
-	const char *generic_driver = test_desc->generic_driver;
+	const char *driver = ctx->driver;
+	const char *generic_driver = ctx->test_desc->generic_driver;
 	char _generic_driver[CRYPTO_MAX_ALG_NAME];
 	struct crypto_aead *generic_tfm = NULL;
 	struct aead_request *generic_req = NULL;
-	unsigned int maxkeysize;
 	unsigned int i;
-	struct aead_testvec vec = { 0 };
-	char vec_name[64];
-	struct testvec_config *cfg;
-	char cfgname[TESTVEC_CONFIG_NAMELEN];
 	int err;
-
-	if (noextratests)
-		return 0;
 
 	if (!generic_driver) { /* Use default naming convention? */
 		err = build_generic_driver_name(algname, _generic_driver);
@@ -2244,12 +2246,6 @@ static int test_aead_vs_generic_impl(const char *driver,
 		return err;
 	}
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
-	if (!cfg) {
-		err = -ENOMEM;
-		goto out;
-	}
-
 	generic_req = aead_request_alloc(generic_tfm, GFP_KERNEL);
 	if (!generic_req) {
 		err = -ENOMEM;
@@ -2258,24 +2254,27 @@ static int test_aead_vs_generic_impl(const char *driver,
 
 	/* Check the algorithm properties for consistency. */
 
-	if (maxauthsize != crypto_aead_alg(generic_tfm)->maxauthsize) {
+	if (crypto_aead_maxauthsize(tfm) !=
+	    crypto_aead_maxauthsize(generic_tfm)) {
 		pr_err("alg: aead: maxauthsize for %s (%u) doesn't match generic impl (%u)\n",
-		       driver, maxauthsize,
-		       crypto_aead_alg(generic_tfm)->maxauthsize);
+		       driver, crypto_aead_maxauthsize(tfm),
+		       crypto_aead_maxauthsize(generic_tfm));
 		err = -EINVAL;
 		goto out;
 	}
 
-	if (ivsize != crypto_aead_ivsize(generic_tfm)) {
+	if (crypto_aead_ivsize(tfm) != crypto_aead_ivsize(generic_tfm)) {
 		pr_err("alg: aead: ivsize for %s (%u) doesn't match generic impl (%u)\n",
-		       driver, ivsize, crypto_aead_ivsize(generic_tfm));
+		       driver, crypto_aead_ivsize(tfm),
+		       crypto_aead_ivsize(generic_tfm));
 		err = -EINVAL;
 		goto out;
 	}
 
-	if (blocksize != crypto_aead_blocksize(generic_tfm)) {
+	if (crypto_aead_blocksize(tfm) != crypto_aead_blocksize(generic_tfm)) {
 		pr_err("alg: aead: blocksize for %s (%u) doesn't match generic impl (%u)\n",
-		       driver, blocksize, crypto_aead_blocksize(generic_tfm));
+		       driver, crypto_aead_blocksize(tfm),
+		       crypto_aead_blocksize(generic_tfm));
 		err = -EINVAL;
 		goto out;
 	}
@@ -2284,35 +2283,22 @@ static int test_aead_vs_generic_impl(const char *driver,
 	 * Now generate test vectors using the generic implementation, and test
 	 * the other implementation against them.
 	 */
-
-	maxkeysize = 0;
-	for (i = 0; i < test_desc->suite.aead.count; i++)
-		maxkeysize = max_t(unsigned int, maxkeysize,
-				   test_desc->suite.aead.vecs[i].klen);
-
-	vec.key = kmalloc(maxkeysize, GFP_KERNEL);
-	vec.iv = kmalloc(ivsize, GFP_KERNEL);
-	vec.assoc = kmalloc(maxdatasize, GFP_KERNEL);
-	vec.ptext = kmalloc(maxdatasize, GFP_KERNEL);
-	vec.ctext = kmalloc(maxdatasize, GFP_KERNEL);
-	if (!vec.key || !vec.iv || !vec.assoc || !vec.ptext || !vec.ctext) {
-		err = -ENOMEM;
-		goto out;
-	}
-
 	for (i = 0; i < fuzz_iterations * 8; i++) {
-		generate_random_aead_testvec(generic_req, &vec,
-					     maxkeysize, maxdatasize,
-					     vec_name, sizeof(vec_name));
-		generate_random_testvec_config(cfg, cfgname, sizeof(cfgname));
-
-		err = test_aead_vec_cfg(driver, ENCRYPT, &vec, vec_name, cfg,
-					req, tsgls);
+		generate_random_aead_testvec(generic_req, &ctx->vec,
+					     ctx->maxkeysize, ctx->maxdatasize,
+					     ctx->vec_name,
+					     sizeof(ctx->vec_name));
+		generate_random_testvec_config(&ctx->cfg, ctx->cfgname,
+					       sizeof(ctx->cfgname));
+		err = test_aead_vec_cfg(driver, ENCRYPT, &ctx->vec,
+					ctx->vec_name, &ctx->cfg,
+					ctx->req, ctx->tsgls);
 		if (err)
 			goto out;
-		if (vec.crypt_error == 0) {
-			err = test_aead_vec_cfg(driver, DECRYPT, &vec, vec_name,
-						cfg, req, tsgls);
+		if (ctx->vec.crypt_error == 0) {
+			err = test_aead_vec_cfg(driver, DECRYPT, &ctx->vec,
+						ctx->vec_name, &ctx->cfg,
+						ctx->req, ctx->tsgls);
 			if (err)
 				goto out;
 		}
@@ -2320,21 +2306,63 @@ static int test_aead_vs_generic_impl(const char *driver,
 	}
 	err = 0;
 out:
-	kfree(cfg);
-	kfree(vec.key);
-	kfree(vec.iv);
-	kfree(vec.assoc);
-	kfree(vec.ptext);
-	kfree(vec.ctext);
 	crypto_free_aead(generic_tfm);
 	aead_request_free(generic_req);
 	return err;
 }
+
+static int test_aead_extra(const char *driver,
+			   const struct alg_test_desc *test_desc,
+			   struct aead_request *req,
+			   struct cipher_test_sglists *tsgls)
+{
+	struct aead_extra_tests_ctx *ctx;
+	unsigned int i;
+	int err;
+
+	if (noextratests)
+		return 0;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->req = req;
+	ctx->tfm = crypto_aead_reqtfm(req);
+	ctx->driver = driver;
+	ctx->test_desc = test_desc;
+	ctx->tsgls = tsgls;
+	ctx->maxdatasize = (2 * PAGE_SIZE) - TESTMGR_POISON_LEN;
+	ctx->maxkeysize = 0;
+	for (i = 0; i < test_desc->suite.aead.count; i++)
+		ctx->maxkeysize = max_t(unsigned int, ctx->maxkeysize,
+					test_desc->suite.aead.vecs[i].klen);
+
+	ctx->vec.key = kmalloc(ctx->maxkeysize, GFP_KERNEL);
+	ctx->vec.iv = kmalloc(crypto_aead_ivsize(ctx->tfm), GFP_KERNEL);
+	ctx->vec.assoc = kmalloc(ctx->maxdatasize, GFP_KERNEL);
+	ctx->vec.ptext = kmalloc(ctx->maxdatasize, GFP_KERNEL);
+	ctx->vec.ctext = kmalloc(ctx->maxdatasize, GFP_KERNEL);
+	if (!ctx->vec.key || !ctx->vec.iv || !ctx->vec.assoc ||
+	    !ctx->vec.ptext || !ctx->vec.ctext) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	err = test_aead_vs_generic_impl(ctx);
+out:
+	kfree(ctx->vec.key);
+	kfree(ctx->vec.iv);
+	kfree(ctx->vec.assoc);
+	kfree(ctx->vec.ptext);
+	kfree(ctx->vec.ctext);
+	kfree(ctx);
+	return err;
+}
 #else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
-static int test_aead_vs_generic_impl(const char *driver,
-				     const struct alg_test_desc *test_desc,
-				     struct aead_request *req,
-				     struct cipher_test_sglists *tsgls)
+static int test_aead_extra(const char *driver,
+			   const struct alg_test_desc *test_desc,
+			   struct aead_request *req,
+			   struct cipher_test_sglists *tsgls)
 {
 	return 0;
 }
@@ -2403,7 +2431,7 @@ static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 	if (err)
 		goto out;
 
-	err = test_aead_vs_generic_impl(driver, desc, req, tsgls);
+	err = test_aead_extra(driver, desc, req, tsgls);
 out:
 	free_cipher_test_sglists(tsgls);
 	aead_request_free(req);
