@@ -283,6 +283,8 @@ struct ast_vbios_mode_info {
 
 struct ast_crtc_state {
 	struct drm_crtc_state base;
+
+	struct ast_vbios_mode_info vbios_mode_info;
 };
 
 #define to_ast_crtc_state(state) container_of(state, struct ast_crtc_state, base)
