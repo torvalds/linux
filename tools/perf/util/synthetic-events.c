@@ -493,7 +493,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 
 		/*
 		 * send mmap only for thread group leader
-		 * see thread__init_map_groups
+		 * see thread__init_maps()
 		 */
 		if (pid == tgid &&
 		    perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,

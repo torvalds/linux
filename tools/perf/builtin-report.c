@@ -780,11 +780,6 @@ static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
 	return printed;
 }
 
-static int map_groups__fprintf_task(struct map_groups *mg, int indent, FILE *fp)
-{
-	return maps__fprintf_task(&mg->maps, indent, fp);
-}
-
 static void task__print_level(struct task *task, FILE *fp, int level)
 {
 	struct thread *thread = task->thread;
@@ -795,7 +790,7 @@ static void task__print_level(struct task *task, FILE *fp, int level)
 
 	fprintf(fp, "%s\n", thread__comm_str(thread));
 
-	map_groups__fprintf_task(thread->mg, comm_indent, fp);
+	maps__fprintf_task(thread->maps, comm_indent, fp);
 
 	if (!list_empty(&task->children)) {
 		list_for_each_entry(child, &task->children, list)

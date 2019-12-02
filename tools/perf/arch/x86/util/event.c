@@ -18,8 +18,7 @@ int perf_event__synthesize_extra_kmaps(struct perf_tool *tool,
 {
 	int rc = 0;
 	struct map *pos;
-	struct map_groups *kmaps = &machine->kmaps;
-	struct maps *maps = &kmaps->maps;
+	struct maps *kmaps = &machine->kmaps;
 	union perf_event *event = zalloc(sizeof(event->mmap) +
 					 machine->id_hdr_size);
 
@@ -29,7 +28,7 @@ int perf_event__synthesize_extra_kmaps(struct perf_tool *tool,
 		return -1;
 	}
 
-	maps__for_each_entry(maps, pos) {
+	maps__for_each_entry(kmaps, pos) {
 		struct kmap *kmap;
 		size_t size;
 
