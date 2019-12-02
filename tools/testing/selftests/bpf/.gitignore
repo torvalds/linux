@@ -37,5 +37,6 @@ libbpf.so.*
 test_hashmap
 test_btf_dump
 xdping
+test_cpp
 /no_alu32
 /bpf_gcc
