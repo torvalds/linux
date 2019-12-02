@@ -1074,12 +1074,16 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		dev_err(dev, "failed to attach iommu: %ld\n",
 			PTR_ERR(mpp->iommu_info));
 	}
-	if (mpp->hw_ops->init)
-		mpp->hw_ops->init(mpp);
+	if (mpp->hw_ops->init) {
+		ret = mpp->hw_ops->init(mpp);
+		if (ret)
+			goto failed_init;
+	}
 	pm_runtime_put_sync(dev);
 
-	return 0;
-
+	return ret;
+failed_init:
+	pm_runtime_put_sync(dev);
 failed:
 	destroy_workqueue(mpp->workq);
 	device_init_wakeup(dev, false);

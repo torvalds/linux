@@ -1120,13 +1120,33 @@ static int rkvdec_devfreq_init(struct mpp_dev *mpp)
 	int ret = 0;
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
+	dec->parent_devfreq = devfreq_get_devfreq_by_phandle(mpp->dev, 0);
+	if (IS_ERR_OR_NULL(dec->parent_devfreq)) {
+		ret = PTR_ERR(dec->parent_devfreq);
+		if (ret == -EPROBE_DEFER) {
+			dev_warn(mpp->dev, "parent devfreq is not ready, retry\n");
+
+			return ret;
+		}
+	} else {
+		dec->devfreq_nb.notifier_call = devfreq_notifier_call;
+		devm_devfreq_register_notifier(mpp->dev,
+					       dec->parent_devfreq,
+					       &dec->devfreq_nb,
+					       DEVFREQ_TRANSITION_NOTIFIER);
+	}
+
 	dec->vdd = devm_regulator_get_optional(mpp->dev, "vcodec");
 	if (IS_ERR_OR_NULL(dec->vdd)) {
-		dev_warn(mpp->dev, "no regulator for %s\n",
-			 dev_name(mpp->dev));
-		dec->vdd = NULL;
-		ret = -EINVAL;
-		goto done;
+		ret = PTR_ERR(dec->vdd);
+		if (ret == -EPROBE_DEFER) {
+			dev_warn(mpp->dev, "vcodec regulator not ready, retry\n");
+
+			return ret;
+		}
+		dev_warn(mpp->dev, "no regulator for vcodec\n");
+
+		return 0;
 	} else {
 		struct devfreq_dev_status *stat;
 
@@ -1153,19 +1173,6 @@ static int rkvdec_devfreq_init(struct mpp_dev *mpp)
 			goto done;
 	}
 
-	dec->parent_devfreq = devfreq_get_devfreq_by_phandle(mpp->dev, 0);
-	if (IS_ERR_OR_NULL(dec->parent_devfreq)) {
-		dev_warn(mpp->dev, "parent devfreq is error\n");
-		dec->parent_devfreq = NULL;
-		ret = -EINVAL;
-		goto done;
-	} else {
-		dec->devfreq_nb.notifier_call = devfreq_notifier_call;
-		devm_devfreq_register_notifier(mpp->dev,
-					       dec->parent_devfreq,
-					       &dec->devfreq_nb,
-					       DEVFREQ_TRANSITION_NOTIFIER);
-	}
 	/* power simplle init */
 	ret = power_model_simple_init(mpp);
 	if (!ret && dec->devfreq) {
@@ -1528,7 +1535,7 @@ static int rkvdec_probe(struct platform_device *pdev)
 	ret = mpp_dev_probe(mpp, pdev);
 	if (ret) {
 		dev_err(dev, "probe sub driver failed\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	ret = devm_request_threaded_irq(dev, mpp->irq,
