@@ -97,7 +97,7 @@ EXPORT_SYMBOL(bd70528_wdt_set);
 /**
  * bd70528_wdt_lock - take WDT lock
  *
- * @bd70528:	device data for the PMIC instance we want to operate on
+ * @data:	device data for the PMIC instance we want to operate on
  *
  * Lock WDT for arming/disarming in order to avoid race condition caused
  * by WDT state changes initiated by WDT and RTC drivers.
@@ -114,7 +114,7 @@ EXPORT_SYMBOL(bd70528_wdt_lock);
 /**
  * bd70528_wdt_unlock - unlock WDT lock
  *
- * @bd70528:	device data for the PMIC instance we want to operate on
+ * @data:	device data for the PMIC instance we want to operate on
  *
  * Unlock WDT lock which has previously been taken by call to
  * bd70528_wdt_lock.
