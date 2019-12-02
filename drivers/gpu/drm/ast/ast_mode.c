@@ -535,6 +535,7 @@ static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 						 struct drm_plane_state *state)
 {
 	struct drm_crtc_state *crtc_state;
+	struct ast_crtc_state *ast_crtc_state;
 	int ret;
 
 	if (!state->crtc)
@@ -548,6 +549,13 @@ static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 						  false, true);
 	if (ret)
 		return ret;
+
+	if (!state->visible)
+		return 0;
+
+	ast_crtc_state = to_ast_crtc_state(crtc_state);
+
+	ast_crtc_state->format = state->fb->format;
 
 	return 0;
 }
@@ -783,8 +791,8 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 					struct drm_crtc_state *state)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
-	struct drm_plane_state *plane_state;
 	struct ast_crtc_state *ast_state;
+	const struct drm_format_info *format;
 	bool succ;
 
 	if (ast->chip == AST1180) {
@@ -793,12 +801,12 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	}
 
 	ast_state = to_ast_crtc_state(state);
-	plane_state = crtc->primary->state;
 
-	if (!plane_state || !plane_state->fb)
+	format = ast_state->format;
+	if (!format)
 		return 0;
 
-	succ = ast_get_vbios_mode_info(plane_state->fb->format, &state->mode,
+	succ = ast_get_vbios_mode_info(format, &state->mode,
 				       &state->adjusted_mode,
 				       &ast_state->vbios_mode_info);
 	if (!succ)
@@ -820,7 +828,6 @@ static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = dev->dev_private;
-	const struct drm_framebuffer *fb = crtc->primary->state->fb;
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
 	struct ast_vbios_mode_info *vbios_mode_info;
@@ -828,12 +835,12 @@ static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 
 	crtc->state->no_vblank = true;
 
-	if (!fb)
-		return;
-
 	ast_state = to_ast_crtc_state(crtc->state);
 
-	format = fb->format;
+	format = ast_state->format;
+	if (!format)
+		return;
+
 	vbios_mode_info = &ast_state->vbios_mode_info;
 
 	ast_set_color_reg(ast, format);
@@ -896,6 +903,7 @@ ast_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 
 	ast_state = to_ast_crtc_state(crtc->state);
 
+	new_ast_state->format = ast_state->format;
 	memcpy(&new_ast_state->vbios_mode_info, &ast_state->vbios_mode_info,
 	       sizeof(new_ast_state->vbios_mode_info));
 

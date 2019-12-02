@@ -284,6 +284,9 @@ struct ast_vbios_mode_info {
 struct ast_crtc_state {
 	struct drm_crtc_state base;
 
+	/* Last known format of primary plane */
+	const struct drm_format_info *format;
+
 	struct ast_vbios_mode_info vbios_mode_info;
 };
 
