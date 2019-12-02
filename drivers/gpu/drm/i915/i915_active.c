@@ -473,6 +473,7 @@ int i915_active_wait(struct i915_active *ref)
 	if (wait_var_event_interruptible(ref, i915_active_is_idle(ref)))
 		return -EINTR;
 
+	flush_work(&ref->work);
 	return 0;
 }
 
