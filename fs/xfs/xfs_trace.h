@@ -725,7 +725,7 @@ TRACE_EVENT(xfs_iomap_prealloc_size,
 		__entry->writeio_blocks = writeio_blocks;
 	),
 	TP_printk("dev %d:%d ino 0x%llx prealloc blocks %llu shift %d "
-		  "m_writeio_blocks %u",
+		  "m_allocsize_blocks %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->ino,
 		  __entry->blocks, __entry->shift, __entry->writeio_blocks)
 )
@@ -1577,8 +1577,11 @@ DEFINE_ALLOC_EVENT(xfs_alloc_exact_notfound);
 DEFINE_ALLOC_EVENT(xfs_alloc_exact_error);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_nominleft);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_first);
-DEFINE_ALLOC_EVENT(xfs_alloc_near_greater);
-DEFINE_ALLOC_EVENT(xfs_alloc_near_lesser);
+DEFINE_ALLOC_EVENT(xfs_alloc_cur);
+DEFINE_ALLOC_EVENT(xfs_alloc_cur_right);
+DEFINE_ALLOC_EVENT(xfs_alloc_cur_left);
+DEFINE_ALLOC_EVENT(xfs_alloc_cur_lookup);
+DEFINE_ALLOC_EVENT(xfs_alloc_cur_lookup_done);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_error);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_noentry);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_busy);
@@ -1597,6 +1600,32 @@ DEFINE_ALLOC_EVENT(xfs_alloc_vextent_nofix);
 DEFINE_ALLOC_EVENT(xfs_alloc_vextent_noagbp);
 DEFINE_ALLOC_EVENT(xfs_alloc_vextent_loopfailed);
 DEFINE_ALLOC_EVENT(xfs_alloc_vextent_allfailed);
+
+TRACE_EVENT(xfs_alloc_cur_check,
+	TP_PROTO(struct xfs_mount *mp, xfs_btnum_t btnum, xfs_agblock_t bno,
+		 xfs_extlen_t len, xfs_extlen_t diff, bool new),
+	TP_ARGS(mp, btnum, bno, len, diff, new),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_btnum_t, btnum)
+		__field(xfs_agblock_t, bno)
+		__field(xfs_extlen_t, len)
+		__field(xfs_extlen_t, diff)
+		__field(bool, new)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->btnum = btnum;
+		__entry->bno = bno;
+		__entry->len = len;
+		__entry->diff = diff;
+		__entry->new = new;
+	),
+	TP_printk("dev %d:%d btree %s bno 0x%x len 0x%x diff 0x%x new %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->btnum, XFS_BTNUM_STRINGS),
+		  __entry->bno, __entry->len, __entry->diff, __entry->new)
+)
 
 DECLARE_EVENT_CLASS(xfs_da_class,
 	TP_PROTO(struct xfs_da_args *args),

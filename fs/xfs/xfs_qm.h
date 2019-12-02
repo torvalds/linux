@@ -54,7 +54,7 @@ struct xfs_def_quota {
  * Various quota information for individual filesystems.
  * The mount structure keeps a pointer to this.
  */
-typedef struct xfs_quotainfo {
+struct xfs_quotainfo {
 	struct radix_tree_root qi_uquota_tree;
 	struct radix_tree_root qi_gquota_tree;
 	struct radix_tree_root qi_pquota_tree;
@@ -76,8 +76,8 @@ typedef struct xfs_quotainfo {
 	struct xfs_def_quota	qi_usr_default;
 	struct xfs_def_quota	qi_grp_default;
 	struct xfs_def_quota	qi_prj_default;
-	struct shrinker  qi_shrinker;
-} xfs_quotainfo_t;
+	struct shrinker	qi_shrinker;
+};
 
 static inline struct radix_tree_root *
 xfs_dquot_tree(

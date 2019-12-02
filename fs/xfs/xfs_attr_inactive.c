@@ -22,6 +22,7 @@
 #include "xfs_attr_leaf.h"
 #include "xfs_quota.h"
 #include "xfs_dir2.h"
+#include "xfs_error.h"
 
 /*
  * Look at all the extents for this logical region,
@@ -190,37 +191,35 @@ xfs_attr3_leaf_inactive(
  */
 STATIC int
 xfs_attr3_node_inactive(
-	struct xfs_trans **trans,
-	struct xfs_inode *dp,
-	struct xfs_buf	*bp,
-	int		level)
+	struct xfs_trans	**trans,
+	struct xfs_inode	*dp,
+	struct xfs_buf		*bp,
+	int			level)
 {
-	xfs_da_blkinfo_t *info;
-	xfs_da_intnode_t *node;
-	xfs_dablk_t child_fsb;
-	xfs_daddr_t parent_blkno, child_blkno;
-	int error, i;
-	struct xfs_buf *child_bp;
-	struct xfs_da_node_entry *btree;
+	struct xfs_mount	*mp = dp->i_mount;
+	struct xfs_da_blkinfo	*info;
+	xfs_dablk_t		child_fsb;
+	xfs_daddr_t		parent_blkno, child_blkno;
+	struct xfs_buf		*child_bp;
 	struct xfs_da3_icnode_hdr ichdr;
+	int			error, i;
 
 	/*
 	 * Since this code is recursive (gasp!) we must protect ourselves.
 	 */
 	if (level > XFS_DA_NODE_MAXDEPTH) {
 		xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
-		return -EIO;
+		xfs_buf_corruption_error(bp);
+		return -EFSCORRUPTED;
 	}
 
-	node = bp->b_addr;
-	dp->d_ops->node_hdr_from_disk(&ichdr, node);
+	xfs_da3_node_hdr_from_disk(dp->i_mount, &ichdr, bp->b_addr);
 	parent_blkno = bp->b_bn;
 	if (!ichdr.count) {
 		xfs_trans_brelse(*trans, bp);
 		return 0;
 	}
-	btree = dp->d_ops->node_tree_p(node);
-	child_fsb = be32_to_cpu(btree[0].before);
+	child_fsb = be32_to_cpu(ichdr.btree[0].before);
 	xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
 
 	/*
@@ -235,7 +234,7 @@ xfs_attr3_node_inactive(
 		 * traversal of the tree so we may deal with many blocks
 		 * before we come back to this one.
 		 */
-		error = xfs_da3_node_read(*trans, dp, child_fsb, -1, &child_bp,
+		error = xfs_da3_node_read(*trans, dp, child_fsb, &child_bp,
 					  XFS_ATTR_FORK);
 		if (error)
 			return error;
@@ -258,8 +257,9 @@ xfs_attr3_node_inactive(
 			error = xfs_attr3_leaf_inactive(trans, dp, child_bp);
 			break;
 		default:
-			error = -EIO;
+			xfs_buf_corruption_error(child_bp);
 			xfs_trans_brelse(*trans, child_bp);
+			error = -EFSCORRUPTED;
 			break;
 		}
 		if (error)
@@ -268,10 +268,16 @@ xfs_attr3_node_inactive(
 		/*
 		 * Remove the subsidiary block from the cache and from the log.
 		 */
-		error = xfs_da_get_buf(*trans, dp, 0, child_blkno, &child_bp,
-				       XFS_ATTR_FORK);
-		if (error)
+		child_bp = xfs_trans_get_buf(*trans, mp->m_ddev_targp,
+				child_blkno,
+				XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0);
+		if (!child_bp)
+			return -EIO;
+		error = bp->b_error;
+		if (error) {
+			xfs_trans_brelse(*trans, child_bp);
 			return error;
+		}
 		xfs_trans_binval(*trans, child_bp);
 
 		/*
@@ -279,13 +285,15 @@ xfs_attr3_node_inactive(
 		 * child block number.
 		 */
 		if (i + 1 < ichdr.count) {
-			error = xfs_da3_node_read(*trans, dp, 0, parent_blkno,
-						 &bp, XFS_ATTR_FORK);
+			struct xfs_da3_icnode_hdr phdr;
+
+			error = xfs_da3_node_read_mapped(*trans, dp,
+					parent_blkno, &bp, XFS_ATTR_FORK);
 			if (error)
 				return error;
-			node = bp->b_addr;
-			btree = dp->d_ops->node_tree_p(node);
-			child_fsb = be32_to_cpu(btree[i + 1].before);
+			xfs_da3_node_hdr_from_disk(dp->i_mount, &phdr,
+						  bp->b_addr);
+			child_fsb = be32_to_cpu(phdr.btree[i + 1].before);
 			xfs_trans_brelse(*trans, bp);
 		}
 		/*
@@ -310,6 +318,7 @@ xfs_attr3_root_inactive(
 	struct xfs_trans	**trans,
 	struct xfs_inode	*dp)
 {
+	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_da_blkinfo	*info;
 	struct xfs_buf		*bp;
 	xfs_daddr_t		blkno;
@@ -321,7 +330,7 @@ xfs_attr3_root_inactive(
 	 * the extents in reverse order the extent containing
 	 * block 0 must still be there.
 	 */
-	error = xfs_da3_node_read(*trans, dp, 0, -1, &bp, XFS_ATTR_FORK);
+	error = xfs_da3_node_read(*trans, dp, 0, &bp, XFS_ATTR_FORK);
 	if (error)
 		return error;
 	blkno = bp->b_bn;
@@ -341,7 +350,8 @@ xfs_attr3_root_inactive(
 		error = xfs_attr3_leaf_inactive(trans, dp, bp);
 		break;
 	default:
-		error = -EIO;
+		error = -EFSCORRUPTED;
+		xfs_buf_corruption_error(bp);
 		xfs_trans_brelse(*trans, bp);
 		break;
 	}
@@ -351,9 +361,15 @@ xfs_attr3_root_inactive(
 	/*
 	 * Invalidate the incore copy of the root block.
 	 */
-	error = xfs_da_get_buf(*trans, dp, 0, blkno, &bp, XFS_ATTR_FORK);
-	if (error)
+	bp = xfs_trans_get_buf(*trans, mp->m_ddev_targp, blkno,
+			XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0);
+	if (!bp)
+		return -EIO;
+	error = bp->b_error;
+	if (error) {
+		xfs_trans_brelse(*trans, bp);
 		return error;
+	}
 	xfs_trans_binval(*trans, bp);	/* remove from cache */
 	/*
 	 * Commit the invalidate and start the next transaction.

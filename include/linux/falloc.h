@@ -20,7 +20,10 @@ struct space_resv {
 };
 
 #define FS_IOC_RESVSP		_IOW('X', 40, struct space_resv)
+#define FS_IOC_UNRESVSP		_IOW('X', 41, struct space_resv)
 #define FS_IOC_RESVSP64		_IOW('X', 42, struct space_resv)
+#define FS_IOC_UNRESVSP64	_IOW('X', 43, struct space_resv)
+#define FS_IOC_ZERO_RANGE	_IOW('X', 57, struct space_resv)
 
 #define	FALLOC_FL_SUPPORTED_MASK	(FALLOC_FL_KEEP_SIZE |		\
 					 FALLOC_FL_PUNCH_HOLE |		\
@@ -42,10 +45,13 @@ struct space_resv_32 {
 	__s32		l_pad[4];	/* reserve area */
 };
 
-#define FS_IOC_RESVSP_32		_IOW ('X', 40, struct space_resv_32)
+#define FS_IOC_RESVSP_32	_IOW ('X', 40, struct space_resv_32)
+#define FS_IOC_UNRESVSP_32	_IOW ('X', 41, struct space_resv_32)
 #define FS_IOC_RESVSP64_32	_IOW ('X', 42, struct space_resv_32)
+#define FS_IOC_UNRESVSP64_32	_IOW ('X', 43, struct space_resv_32)
+#define FS_IOC_ZERO_RANGE_32	_IOW ('X', 57, struct space_resv_32)
 
-int compat_ioctl_preallocate(struct file *, struct space_resv_32 __user *);
+int compat_ioctl_preallocate(struct file *, int, struct space_resv_32 __user *);
 
 #endif
 

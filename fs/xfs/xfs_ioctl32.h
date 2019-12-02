@@ -99,7 +99,7 @@ typedef struct compat_xfs_fsop_handlereq {
 	_IOWR('X', 108, struct compat_xfs_fsop_handlereq)
 
 /* The bstat field in the swapext struct needs translation */
-typedef struct compat_xfs_swapext {
+struct compat_xfs_swapext {
 	int64_t			sx_version;	/* version */
 	int64_t			sx_fdtarget;	/* fd of target file */
 	int64_t			sx_fdtmp;	/* fd of tmp file */
@@ -107,7 +107,7 @@ typedef struct compat_xfs_swapext {
 	xfs_off_t		sx_length;	/* leng from offset */
 	char			sx_pad[16];	/* pad space, unused */
 	struct compat_xfs_bstat	sx_stat;	/* stat of target b4 copy */
-} __compat_packed compat_xfs_swapext_t;
+} __compat_packed;
 
 #define XFS_IOC_SWAPEXT_32	_IOWR('X', 109, struct compat_xfs_swapext)
 
@@ -142,15 +142,6 @@ typedef struct compat_xfs_fsop_attrmulti_handlereq {
 
 #define XFS_IOC_ATTRMULTI_BY_HANDLE_32 \
 	_IOW('X', 123, struct compat_xfs_fsop_attrmulti_handlereq)
-
-typedef struct compat_xfs_fsop_setdm_handlereq {
-	struct compat_xfs_fsop_handlereq hreq;	/* handle information   */
-	/* ptr to struct fsdmidata */
-	compat_uptr_t			data;	/* DMAPI data   */
-} compat_xfs_fsop_setdm_handlereq_t;
-
-#define XFS_IOC_FSSETDM_BY_HANDLE_32 \
-	_IOW('X', 121, struct compat_xfs_fsop_setdm_handlereq)
 
 #ifdef BROKEN_X86_ALIGNMENT
 /* on ia32 l_start is on a 32-bit boundary */

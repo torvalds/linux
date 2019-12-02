@@ -467,7 +467,7 @@ EXPORT_SYMBOL(generic_block_fiemap);
  * Only the l_start, l_len and l_whence fields of the 'struct space_resv'
  * are used here, rest are ignored.
  */
-int ioctl_preallocate(struct file *filp, void __user *argp)
+int ioctl_preallocate(struct file *filp, int mode, void __user *argp)
 {
 	struct inode *inode = file_inode(filp);
 	struct space_resv sr;
@@ -488,13 +488,14 @@ int ioctl_preallocate(struct file *filp, void __user *argp)
 		return -EINVAL;
 	}
 
-	return vfs_fallocate(filp, FALLOC_FL_KEEP_SIZE, sr.l_start, sr.l_len);
+	return vfs_fallocate(filp, mode | FALLOC_FL_KEEP_SIZE, sr.l_start,
+			sr.l_len);
 }
 
 /* on ia32 l_start is on a 32-bit boundary */
 #if defined CONFIG_COMPAT && defined(CONFIG_X86_64)
 /* just account for different alignment */
-int compat_ioctl_preallocate(struct file *file,
+int compat_ioctl_preallocate(struct file *file, int mode,
 				struct space_resv_32 __user *argp)
 {
 	struct inode *inode = file_inode(file);
@@ -516,7 +517,7 @@ int compat_ioctl_preallocate(struct file *file,
 		return -EINVAL;
 	}
 
-	return vfs_fallocate(file, FALLOC_FL_KEEP_SIZE, sr.l_start, sr.l_len);
+	return vfs_fallocate(file, mode | FALLOC_FL_KEEP_SIZE, sr.l_start, sr.l_len);
 }
 #endif
 
@@ -533,7 +534,12 @@ static int file_ioctl(struct file *filp, unsigned int cmd,
 		return put_user(i_size_read(inode) - filp->f_pos, p);
 	case FS_IOC_RESVSP:
 	case FS_IOC_RESVSP64:
-		return ioctl_preallocate(filp, p);
+		return ioctl_preallocate(filp, 0, p);
+	case FS_IOC_UNRESVSP:
+	case FS_IOC_UNRESVSP64:
+		return ioctl_preallocate(filp, FALLOC_FL_PUNCH_HOLE, p);
+	case FS_IOC_ZERO_RANGE:
+		return ioctl_preallocate(filp, FALLOC_FL_ZERO_RANGE, p);
 	}
 
 	return vfs_ioctl(filp, cmd, arg);

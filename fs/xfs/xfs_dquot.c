@@ -48,7 +48,7 @@ static struct lock_class_key xfs_dquot_project_class;
  */
 void
 xfs_qm_dqdestroy(
-	xfs_dquot_t	*dqp)
+	struct xfs_dquot	*dqp)
 {
 	ASSERT(list_empty(&dqp->q_lru));
 
@@ -56,7 +56,7 @@ xfs_qm_dqdestroy(
 	mutex_destroy(&dqp->q_qlock);
 
 	XFS_STATS_DEC(dqp->q_mount, xs_qm_dquot);
-	kmem_zone_free(xfs_qm_dqzone, dqp);
+	kmem_cache_free(xfs_qm_dqzone, dqp);
 }
 
 /*
@@ -113,8 +113,8 @@ xfs_qm_adjust_dqlimits(
  */
 void
 xfs_qm_adjust_dqtimers(
-	xfs_mount_t		*mp,
-	xfs_disk_dquot_t	*d)
+	struct xfs_mount	*mp,
+	struct xfs_disk_dquot	*d)
 {
 	ASSERT(d->d_id);
 
@@ -305,8 +305,8 @@ xfs_dquot_disk_alloc(
 	/* Create the block mapping. */
 	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
 	error = xfs_bmapi_write(tp, quotip, dqp->q_fileoffset,
-			XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
-			XFS_QM_DQALLOC_SPACE_RES(mp), &map, &nmaps);
+			XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA, 0, &map,
+			&nmaps);
 	if (error)
 		return error;
 	ASSERT(map.br_blockcount == XFS_DQUOT_CLUSTER_SIZE_FSB);
@@ -497,7 +497,7 @@ xfs_dquot_from_disk(
 	struct xfs_disk_dquot	*ddqp = bp->b_addr + dqp->q_bufoffset;
 
 	/* copy everything from disk dquot to the incore dquot */
-	memcpy(&dqp->q_core, ddqp, sizeof(xfs_disk_dquot_t));
+	memcpy(&dqp->q_core, ddqp, sizeof(struct xfs_disk_dquot));
 
 	/*
 	 * Reservation counters are defined as reservation plus current usage
@@ -833,7 +833,7 @@ xfs_qm_id_for_quotatype(
 	case XFS_DQ_GROUP:
 		return ip->i_d.di_gid;
 	case XFS_DQ_PROJ:
-		return xfs_get_projid(ip);
+		return ip->i_d.di_projid;
 	}
 	ASSERT(0);
 	return 0;
@@ -989,7 +989,7 @@ xfs_qm_dqput(
  */
 void
 xfs_qm_dqrele(
-	xfs_dquot_t	*dqp)
+	struct xfs_dquot	*dqp)
 {
 	if (!dqp)
 		return;
@@ -1018,8 +1018,8 @@ xfs_qm_dqflush_done(
 	struct xfs_buf		*bp,
 	struct xfs_log_item	*lip)
 {
-	xfs_dq_logitem_t	*qip = (struct xfs_dq_logitem *)lip;
-	xfs_dquot_t		*dqp = qip->qli_dquot;
+	struct xfs_dq_logitem	*qip = (struct xfs_dq_logitem *)lip;
+	struct xfs_dquot	*dqp = qip->qli_dquot;
 	struct xfs_ail		*ailp = lip->li_ailp;
 
 	/*
@@ -1126,11 +1126,11 @@ xfs_qm_dqflush(
 		xfs_buf_relse(bp);
 		xfs_dqfunlock(dqp);
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-		return -EIO;
+		return -EFSCORRUPTED;
 	}
 
 	/* This is the only portion of data that needs to persist */
-	memcpy(ddqp, &dqp->q_core, sizeof(xfs_disk_dquot_t));
+	memcpy(ddqp, &dqp->q_core, sizeof(struct xfs_disk_dquot));
 
 	/*
 	 * Clear the dirty field and remember the flush lsn for later use.
@@ -1188,8 +1188,8 @@ out_unlock:
  */
 void
 xfs_dqlock2(
-	xfs_dquot_t	*d1,
-	xfs_dquot_t	*d2)
+	struct xfs_dquot	*d1,
+	struct xfs_dquot	*d2)
 {
 	if (d1 && d2) {
 		ASSERT(d1 != d2);
@@ -1211,20 +1211,22 @@ xfs_dqlock2(
 int __init
 xfs_qm_init(void)
 {
-	xfs_qm_dqzone =
-		kmem_zone_init(sizeof(struct xfs_dquot), "xfs_dquot");
+	xfs_qm_dqzone = kmem_cache_create("xfs_dquot",
+					  sizeof(struct xfs_dquot),
+					  0, 0, NULL);
 	if (!xfs_qm_dqzone)
 		goto out;
 
-	xfs_qm_dqtrxzone =
-		kmem_zone_init(sizeof(struct xfs_dquot_acct), "xfs_dqtrx");
+	xfs_qm_dqtrxzone = kmem_cache_create("xfs_dqtrx",
+					     sizeof(struct xfs_dquot_acct),
+					     0, 0, NULL);
 	if (!xfs_qm_dqtrxzone)
 		goto out_free_dqzone;
 
 	return 0;
 
 out_free_dqzone:
-	kmem_zone_destroy(xfs_qm_dqzone);
+	kmem_cache_destroy(xfs_qm_dqzone);
 out:
 	return -ENOMEM;
 }
@@ -1232,8 +1234,8 @@ out:
 void
 xfs_qm_exit(void)
 {
-	kmem_zone_destroy(xfs_qm_dqtrxzone);
-	kmem_zone_destroy(xfs_qm_dqzone);
+	kmem_cache_destroy(xfs_qm_dqtrxzone);
+	kmem_cache_destroy(xfs_qm_dqzone);
 }
 
 /*

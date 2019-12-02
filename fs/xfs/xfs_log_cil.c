@@ -179,7 +179,7 @@ xlog_cil_alloc_shadow_bufs(
 
 			/*
 			 * We free and allocate here as a realloc would copy
-			 * unecessary data. We don't use kmem_zalloc() for the
+			 * unnecessary data. We don't use kmem_zalloc() for the
 			 * same reason - we don't need to zero the data area in
 			 * the buffer, only the log vector header and the iovec
 			 * storage.
@@ -682,7 +682,7 @@ xlog_cil_push(
 	}
 
 
-	/* check for a previously pushed seqeunce */
+	/* check for a previously pushed sequence */
 	if (push_seq < cil->xc_ctx->sequence) {
 		spin_unlock(&cil->xc_push_lock);
 		goto out_skip;
@@ -847,7 +847,7 @@ restart:
 		goto out_abort;
 
 	spin_lock(&commit_iclog->ic_callback_lock);
-	if (commit_iclog->ic_state & XLOG_STATE_IOERROR) {
+	if (commit_iclog->ic_state == XLOG_STATE_IOERROR) {
 		spin_unlock(&commit_iclog->ic_callback_lock);
 		goto out_abort;
 	}

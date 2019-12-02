@@ -71,7 +71,7 @@ xfs_trans_free(
 	if (!(tp->t_flags & XFS_TRANS_NO_WRITECOUNT))
 		sb_end_intwrite(tp->t_mountp->m_super);
 	xfs_trans_free_dqinfo(tp);
-	kmem_zone_free(xfs_trans_zone, tp);
+	kmem_cache_free(xfs_trans_zone, tp);
 }
 
 /*
