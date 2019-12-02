@@ -295,20 +295,7 @@ static int crypto_init_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 
 	if (type_obj)
 		return type_obj->init(tfm, type, mask);
-
-	switch (crypto_tfm_alg_type(tfm)) {
-	case CRYPTO_ALG_TYPE_CIPHER:
-		return crypto_init_cipher_ops(tfm);
-
-	case CRYPTO_ALG_TYPE_COMPRESS:
-		return 0;
-
-	default:
-		break;
-	}
-
-	BUG();
-	return -EINVAL;
+	return 0;
 }
 
 static void crypto_exit_ops(struct crypto_tfm *tfm)
