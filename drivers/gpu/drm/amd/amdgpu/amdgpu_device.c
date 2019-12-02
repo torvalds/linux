@@ -3018,8 +3018,6 @@ fence_driver_init:
 		}
 		dev_err(adev->dev, "amdgpu_device_ip_init failed\n");
 		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_AMDGPU_INIT_FAIL, 0, 0);
-		if (amdgpu_virt_request_full_gpu(adev, false))
-			amdgpu_virt_release_full_gpu(adev, false);
 		goto failed;
 	}
 
