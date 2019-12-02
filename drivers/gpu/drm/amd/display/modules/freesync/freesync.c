@@ -122,7 +122,7 @@ static unsigned int calc_v_total_from_refresh(
 		const struct dc_stream_state *stream,
 		unsigned int refresh_in_uhz)
 {
-	unsigned int v_total = stream->timing.v_total;
+	unsigned int v_total;
 	unsigned int frame_duration_in_ns;
 
 	frame_duration_in_ns =
