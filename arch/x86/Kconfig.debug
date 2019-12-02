@@ -117,7 +117,7 @@ config DEBUG_WX
 
 config DOUBLEFAULT
 	default y
-	bool "Enable doublefault exception handler" if EXPERT
+	bool "Enable doublefault exception handler" if EXPERT && X86_32
 	---help---
 	  This option allows trapping of rare doublefault exceptions that
 	  would otherwise cause a system to silently reboot. Disabling this

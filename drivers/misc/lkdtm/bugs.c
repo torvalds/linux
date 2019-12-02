@@ -12,6 +12,10 @@
 #include <linux/sched/task_stack.h>
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_X86_32
+#include <asm/desc.h>
+#endif
+
 struct lkdtm_list {
 	struct list_head node;
 };
@@ -337,3 +341,38 @@ void lkdtm_UNSET_SMEP(void)
 	pr_err("FAIL: this test is x86_64-only\n");
 #endif
 }
+
+#ifdef CONFIG_X86_32
+void lkdtm_DOUBLE_FAULT(void)
+{
+	/*
+	 * Trigger #DF by setting the stack limit to zero.  This clobbers
+	 * a GDT TLS slot, which is okay because the current task will die
+	 * anyway due to the double fault.
+	 */
+	struct desc_struct d = {
+		.type = 3,	/* expand-up, writable, accessed data */
+		.p = 1,		/* present */
+		.d = 1,		/* 32-bit */
+		.g = 0,		/* limit in bytes */
+		.s = 1,		/* not system */
+	};
+
+	local_irq_disable();
+	write_gdt_entry(get_cpu_gdt_rw(smp_processor_id()),
+			GDT_ENTRY_TLS_MIN, &d, DESCTYPE_S);
+
+	/*
+	 * Put our zero-limit segment in SS and then trigger a fault.  The
+	 * 4-byte access to (%esp) will fault with #SS, and the attempt to
+	 * deliver the fault will recursively cause #SS and result in #DF.
+	 * This whole process happens while NMIs and MCEs are blocked by the
+	 * MOV SS window.  This is nice because an NMI with an invalid SS
+	 * would also double-fault, resulting in the NMI or MCE being lost.
+	 */
+	asm volatile ("movw %0, %%ss; addl $0, (%%esp)" ::
+		      "r" ((unsigned short)(GDT_ENTRY_TLS_MIN << 3)));
+
+	panic("tried to double fault but didn't die\n");
+}
+#endif
