@@ -365,6 +365,40 @@ static int psp_asd_load(struct psp_context *psp)
 	return ret;
 }
 
+static void psp_prep_asd_unload_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+					uint32_t asd_session_id)
+{
+	cmd->cmd_id = GFX_CMD_ID_UNLOAD_TA;
+	cmd->cmd.cmd_unload_ta.session_id = asd_session_id;
+}
+
+static int psp_asd_unload(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	if (!psp->asd_context.asd_initialized)
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	psp_prep_asd_unload_cmd_buf(cmd, psp->asd_context.session_id);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+				 psp->fence_buf_mc_addr);
+	if (!ret)
+		psp->asd_context.asd_initialized = false;
+
+	kfree(cmd);
+
+	return ret;
+}
+
 static void psp_prep_reg_prog_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 		uint32_t id, uint32_t value)
 {
@@ -1601,6 +1635,8 @@ static int psp_hw_fini(void *handle)
 		psp_dtm_terminate(psp);
 		psp_hdcp_terminate(psp);
 	}
+
+	psp_asd_unload(psp);
 
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 
