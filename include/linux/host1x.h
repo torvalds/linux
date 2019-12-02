@@ -24,10 +24,14 @@ struct iommu_group;
  * struct host1x_client_ops - host1x client operations
  * @init: host1x client initialization code
  * @exit: host1x client tear down code
+ * @suspend: host1x client suspend code
+ * @resume: host1x client resume code
  */
 struct host1x_client_ops {
 	int (*init)(struct host1x_client *client);
 	int (*exit)(struct host1x_client *client);
+	int (*suspend)(struct host1x_client *client);
+	int (*resume)(struct host1x_client *client);
 };
 
 /**
@@ -55,6 +59,10 @@ struct host1x_client {
 
 	struct host1x_syncpt **syncpts;
 	unsigned int num_syncpts;
+
+	struct host1x_client *parent;
+	unsigned int usecount;
+	struct mutex lock;
 };
 
 /*
@@ -321,6 +329,9 @@ int host1x_device_exit(struct host1x_device *device);
 
 int host1x_client_register(struct host1x_client *client);
 int host1x_client_unregister(struct host1x_client *client);
+
+int host1x_client_suspend(struct host1x_client *client);
+int host1x_client_resume(struct host1x_client *client);
 
 struct tegra_mipi_device;
 
