@@ -107,6 +107,20 @@ extern char igc_driver_version[];
 #define AUTO_ALL_MODES		0
 #define IGC_RX_HDR_LEN			IGC_RXBUFFER_256
 
+/* Transmit and receive latency (for PTP timestamps) */
+/* FIXME: These values were estimated using the ones that i210 has as
+ * basis, they seem to provide good numbers with ptp4l/phc2sys, but we
+ * need to confirm them.
+ */
+#define IGC_I225_TX_LATENCY_10		9542
+#define IGC_I225_TX_LATENCY_100		1024
+#define IGC_I225_TX_LATENCY_1000	178
+#define IGC_I225_TX_LATENCY_2500	64
+#define IGC_I225_RX_LATENCY_10		20662
+#define IGC_I225_RX_LATENCY_100		2213
+#define IGC_I225_RX_LATENCY_1000	448
+#define IGC_I225_RX_LATENCY_2500	160
+
 /* RX and TX descriptor control thresholds.
  * PTHRESH - MAC will consider prefetch if it has fewer than this number of
  *           descriptors available in its onboard memory.
@@ -539,6 +553,9 @@ int igc_erase_filter(struct igc_adapter *adapter,
 void igc_ptp_init(struct igc_adapter *adapter);
 void igc_ptp_reset(struct igc_adapter *adapter);
 void igc_ptp_stop(struct igc_adapter *adapter);
+void igc_ptp_rx_rgtstamp(struct igc_q_vector *q_vector, struct sk_buff *skb);
+void igc_ptp_rx_pktstamp(struct igc_q_vector *q_vector, void *va,
+			 struct sk_buff *skb);
 int igc_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr);
 int igc_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr);
 #define igc_rx_pg_size(_ring) (PAGE_SIZE << igc_rx_pg_order(_ring))

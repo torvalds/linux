@@ -1299,6 +1299,10 @@ static void igc_process_skb_fields(struct igc_ring *rx_ring,
 
 	igc_rx_checksum(rx_ring, rx_desc, skb);
 
+	if (igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TS) &&
+	    !igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TSIP))
+		igc_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
+
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
 	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
@@ -1417,6 +1421,12 @@ static struct sk_buff *igc_construct_skb(struct igc_ring *rx_ring,
 	skb = napi_alloc_skb(&rx_ring->q_vector->napi, IGC_RX_HDR_LEN);
 	if (unlikely(!skb))
 		return NULL;
+
+	if (unlikely(igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TSIP))) {
+		igc_ptp_rx_pktstamp(rx_ring->q_vector, va, skb);
+		va += IGC_TS_HDR_LEN;
+		size -= IGC_TS_HDR_LEN;
+	}
 
 	/* Determine available headroom for copy */
 	headlen = size;

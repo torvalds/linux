@@ -314,11 +314,20 @@
 #define IGC_RCTL_RDMTS_HALF	0x00000000 /* Rx desc min thresh size */
 #define IGC_RCTL_BAM		0x00008000 /* broadcast enable */
 
+/* Split Replication Receive Control */
+#define IGC_SRRCTL_TIMESTAMP		0x40000000
+#define IGC_SRRCTL_TIMER1SEL(timer)	(((timer) & 0x3) << 14)
+#define IGC_SRRCTL_TIMER0SEL(timer)	(((timer) & 0x3) << 17)
+
 /* Receive Descriptor bit definitions */
 #define IGC_RXD_STAT_EOP	0x02	/* End of Packet */
 #define IGC_RXD_STAT_IXSM	0x04	/* Ignore checksum */
 #define IGC_RXD_STAT_UDPCS	0x10	/* UDP xsum calculated */
 #define IGC_RXD_STAT_TCPCS	0x20	/* TCP xsum calculated */
+
+/* Advanced Receive Descriptor bit definitions */
+#define IGC_RXDADV_STAT_TSIP	0x08000 /* timestamp in packet */
+#define IGC_RXDADV_STAT_TS	0x10000 /* Pkt was time stamped */
 
 #define IGC_RXDEXT_STATERR_CE		0x01000000
 #define IGC_RXDEXT_STATERR_SE		0x02000000
@@ -356,6 +365,7 @@
 
 #define I225_RXPBSIZE_DEFAULT	0x000000A2 /* RXPBSIZE default */
 #define I225_TXPBSIZE_DEFAULT	0x04000014 /* TXPBSIZE default */
+#define IGC_RXPBS_CFG_TS_EN	0x80000000 /* Timestamp in Rx buffer */
 
 /* Time Sync Interrupt Causes */
 #define IGC_TSICR_SYS_WRAP	BIT(0) /* SYSTIM Wrap around. */
@@ -366,6 +376,34 @@
 #define IGC_TSICR_AUTT1		BIT(6) /* Auxiliary Timestamp 1 Taken. */
 
 #define IGC_TSICR_INTERRUPTS	IGC_TSICR_TXTS
+
+/* PTP Queue Filter */
+#define IGC_ETQF_1588		BIT(30)
+
+#define IGC_FTQF_VF_BP		0x00008000
+#define IGC_FTQF_1588_TIME_STAMP	0x08000000
+#define IGC_FTQF_MASK			0xF0000000
+#define IGC_FTQF_MASK_PROTO_BP	0x10000000
+
+/* Time Sync Receive Control bit definitions */
+#define IGC_TSYNCRXCTL_VALID		0x00000001  /* Rx timestamp valid */
+#define IGC_TSYNCRXCTL_TYPE_MASK	0x0000000E  /* Rx type mask */
+#define IGC_TSYNCRXCTL_TYPE_L2_V2	0x00
+#define IGC_TSYNCRXCTL_TYPE_L4_V1	0x02
+#define IGC_TSYNCRXCTL_TYPE_L2_L4_V2	0x04
+#define IGC_TSYNCRXCTL_TYPE_ALL		0x08
+#define IGC_TSYNCRXCTL_TYPE_EVENT_V2	0x0A
+#define IGC_TSYNCRXCTL_ENABLED		0x00000010  /* enable Rx timestamping */
+#define IGC_TSYNCRXCTL_SYSCFI		0x00000020  /* Sys clock frequency */
+
+/* Time Sync Receive Configuration */
+#define IGC_TSYNCRXCFG_PTP_V1_CTRLT_MASK	0x000000FF
+#define IGC_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE	0x00
+#define IGC_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE	0x01
+
+/* Immediate Interrupt Receive Extended */
+#define IGC_IMIREXT_CTRL_BP	0x00080000  /* Bypass check of ctrl bits */
+#define IGC_IMIREXT_SIZE_BP	0x00001000  /* Packet size bypass */
 
 /* Receive Checksum Control */
 #define IGC_RXCSUM_CRCOFL	0x00000800   /* CRC32 offload enable */
