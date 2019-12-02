@@ -12,6 +12,7 @@ on the Qualcomm Hexagon core.
 		    "qcom,msm8916-mss-pil",
 		    "qcom,msm8974-mss-pil"
 		    "qcom,msm8996-mss-pil"
+		    "qcom,msm8998-mss-pil"
 		    "qcom,sdm845-mss-pil"
 
 - reg:
@@ -41,6 +42,7 @@ on the Qualcomm Hexagon core.
 	qcom,msm8974-mss-pil:
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack"
 	qcom,msm8996-mss-pil:
+	qcom,msm8998-mss-pil:
 	qcom,sdm845-mss-pil:
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack",
 		    "shutdown-ack"
@@ -70,6 +72,9 @@ on the Qualcomm Hexagon core.
 	qcom,msm8996-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
 		    "snoc_axi", "mnoc_axi", "pnoc", "qdss"
+	qcom,msm8998-mss-pil:
+		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
+		    "snoc_axi", "mnoc_axi", "qdss"
 	qcom,sdm845-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
 		    "snoc_axi", "mnoc_axi", "prng"
@@ -137,6 +142,7 @@ For the compatible string below the following supplies are required:
 	qcom,msm8974-mss-pil:
 		    no power-domain names required
 	qcom,msm8996-mss-pil:
+	qcom,msm8998-mss-pil:
 		    must be "cx", "mx"
 	qcom,sdm845-mss-pil:
 		    must be "cx", "mx", "mss", "load_state"
