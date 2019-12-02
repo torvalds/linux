@@ -527,26 +527,25 @@ void intel_rc6_ctx_wa_resume(struct intel_rc6 *rc6)
  * Check if an RC6 CTX corruption has happened since the last check and if so
  * disable RC6 and runtime power management.
 */
-void intel_rc6_ctx_wa_check(struct intel_rc6 *rc6)
+static bool intel_rc6_ctx_wa_check(struct intel_rc6 *rc6)
 {
 	struct drm_i915_private *i915 = rc6_to_i915(rc6);
 
 	if (!NEEDS_RC6_CTX_CORRUPTION_WA(i915))
-		return;
+		return false;
 
 	if (rc6->ctx_corrupted)
-		return;
+		return false;
 
 	if (!intel_rc6_ctx_corrupted(rc6))
-		return;
+		return false;
 
 	dev_notice(i915->drm.dev,
 		   "RC6 context corruption, disabling runtime power management\n");
 
-	intel_rc6_disable(rc6);
 	rc6->ctx_corrupted = true;
 
-	return;
+	return true;
 }
 
 static void __intel_rc6_disable(struct intel_rc6 *rc6)
@@ -627,6 +626,9 @@ void intel_rc6_enable(struct intel_rc6 *rc6)
 	else if (INTEL_GEN(i915) >= 6)
 		gen6_rc6_enable(rc6);
 
+	if (NEEDS_RC6_CTX_CORRUPTION_WA(i915))
+		rc6->ctl_enable = 0;
+
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 
 	/* rc6 is ready, runtime-pm is go! */
@@ -651,6 +653,11 @@ void intel_rc6_park(struct intel_rc6 *rc6)
 
 	if (!rc6->enabled)
 		return;
+
+	if (unlikely(intel_rc6_ctx_wa_check(rc6))) {
+		intel_rc6_disable(rc6);
+		return;
+	}
 
 	/* Turn off the HW timers and go directly to rc6 */
 	set(uncore, GEN6_RC_CONTROL, GEN6_RC_CTL_RC6_ENABLE);
