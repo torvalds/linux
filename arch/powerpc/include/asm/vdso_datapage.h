@@ -118,6 +118,16 @@ struct vdso_data {
 
 extern struct vdso_data *vdso_data;
 
+#else /* __ASSEMBLY__ */
+
+.macro get_datapage ptr, tmp
+	bcl	20, 31, .+4
+	mflr	\ptr
+	addi	\ptr, \ptr, (__kernel_datapage_offset - (.-4))@l
+	lwz	\tmp, 0(\ptr)
+	add	\ptr, \tmp, \ptr
+.endm
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
