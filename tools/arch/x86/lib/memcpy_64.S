@@ -28,8 +28,8 @@
  * Output:
  * rax original destination
  */
-ENTRY(__memcpy)
-ENTRY(memcpy)
+SYM_FUNC_START_ALIAS(__memcpy)
+SYM_FUNC_START_LOCAL(memcpy)
 	ALTERNATIVE_2 "jmp memcpy_orig", "", X86_FEATURE_REP_GOOD, \
 		      "jmp memcpy_erms", X86_FEATURE_ERMS
 
@@ -41,8 +41,8 @@ ENTRY(memcpy)
 	movl %edx, %ecx
 	rep movsb
 	ret
-ENDPROC(memcpy)
-ENDPROC(__memcpy)
+SYM_FUNC_END(memcpy)
+SYM_FUNC_END_ALIAS(__memcpy)
 EXPORT_SYMBOL(memcpy)
 EXPORT_SYMBOL(__memcpy)
 
@@ -50,14 +50,14 @@ EXPORT_SYMBOL(__memcpy)
  * memcpy_erms() - enhanced fast string memcpy. This is faster and
  * simpler than memcpy. Use memcpy_erms when possible.
  */
-ENTRY(memcpy_erms)
+SYM_FUNC_START(memcpy_erms)
 	movq %rdi, %rax
 	movq %rdx, %rcx
 	rep movsb
 	ret
-ENDPROC(memcpy_erms)
+SYM_FUNC_END(memcpy_erms)
 
-ENTRY(memcpy_orig)
+SYM_FUNC_START(memcpy_orig)
 	movq %rdi, %rax
 
 	cmpq $0x20, %rdx
@@ -182,7 +182,7 @@ ENTRY(memcpy_orig)
 
 .Lend:
 	retq
-ENDPROC(memcpy_orig)
+SYM_FUNC_END(memcpy_orig)
 
 #ifndef CONFIG_UML
 
@@ -193,7 +193,7 @@ MCSAFE_TEST_CTL
  * Note that we only catch machine checks when reading the source addresses.
  * Writes to target are posted and don't generate machine checks.
  */
-ENTRY(__memcpy_mcsafe)
+SYM_FUNC_START(__memcpy_mcsafe)
 	cmpl $8, %edx
 	/* Less than 8 bytes? Go to byte copy loop */
 	jb .L_no_whole_words
@@ -260,7 +260,7 @@ ENTRY(__memcpy_mcsafe)
 	xorl %eax, %eax
 .L_done:
 	ret
-ENDPROC(__memcpy_mcsafe)
+SYM_FUNC_END(__memcpy_mcsafe)
 EXPORT_SYMBOL_GPL(__memcpy_mcsafe)
 
 	.section .fixup, "ax"
