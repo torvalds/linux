@@ -117,6 +117,7 @@ struct snd_card {
 	struct device card_dev;		/* cardX object for sysfs */
 	const struct attribute_group *dev_groups[4]; /* assigned sysfs attr */
 	bool registered;		/* card_dev is registered? */
+	int sync_irq;			/* assigned irq, used for PCM sync */
 	wait_queue_head_t remove_sleep;
 
 #ifdef CONFIG_PM

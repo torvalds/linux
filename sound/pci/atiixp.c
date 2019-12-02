@@ -353,7 +353,7 @@ static int atiixp_build_dma_packets(struct atiixp *chip, struct atiixp_dma *dma,
 
 	if (dma->desc_buf.area == NULL) {
 		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-					snd_dma_pci_data(chip->pci),
+					&chip->pci->dev,
 					ATI_DESC_LIST_SIZE,
 					&dma->desc_buf) < 0)
 			return -ENOMEM;
@@ -1284,7 +1284,7 @@ static int snd_atiixp_pcm_new(struct atiixp *chip)
 	chip->pcmdevs[ATI_PCMDEV_ANALOG] = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      64*1024, 128*1024);
 
 	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
@@ -1317,7 +1317,7 @@ static int snd_atiixp_pcm_new(struct atiixp *chip)
 	chip->pcmdevs[ATI_PCMDEV_DIGITAL] = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      64*1024, 128*1024);
 
 	/* pre-select AC97 SPDIF slots 10/11 */

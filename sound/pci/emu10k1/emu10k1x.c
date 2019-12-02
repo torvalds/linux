@@ -877,7 +877,7 @@ static int snd_emu10k1x_pcm(struct emu10k1x *emu, int device)
 	emu->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(emu->pci), 
+					      &emu->pci->dev,
 					      32*1024, 32*1024);
   
 	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK, map, 2,
@@ -936,8 +936,8 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	}
 	chip->irq = pci->irq;
   
-	if(snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-			       4 * 1024, &chip->dma_buffer) < 0) {
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
+				4 * 1024, &chip->dma_buffer) < 0) {
 		snd_emu10k1x_free(chip);
 		return -ENOMEM;
 	}

@@ -2076,7 +2076,6 @@ static const struct snd_pcm_ops snd_trident_nx_playback_ops = {
 	.prepare =	snd_trident_playback_prepare,
 	.trigger =	snd_trident_trigger,
 	.pointer =	snd_trident_playback_pointer,
-	.page =		snd_pcm_sgbuf_ops_page,
 };
 
 static const struct snd_pcm_ops snd_trident_capture_ops = {
@@ -2121,7 +2120,6 @@ static const struct snd_pcm_ops snd_trident_nx_foldback_ops = {
 	.prepare =	snd_trident_foldback_prepare,
 	.trigger =	snd_trident_trigger,
 	.pointer =	snd_trident_playback_pointer,
-	.page =		snd_pcm_sgbuf_ops_page,
 };
 
 static const struct snd_pcm_ops snd_trident_spdif_ops = {
@@ -2186,14 +2184,16 @@ int snd_trident_pcm(struct snd_trident *trident, int device)
 		struct snd_pcm_substream *substream;
 		for (substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; substream; substream = substream->next)
 			snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV_SG,
-						      snd_dma_pci_data(trident->pci),
+						      &trident->pci->dev,
 						      64*1024, 128*1024);
 		snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
-					      SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(trident->pci),
+					      SNDRV_DMA_TYPE_DEV,
+					      &trident->pci->dev,
 					      64*1024, 128*1024);
 	} else {
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      snd_dma_pci_data(trident->pci), 64*1024, 128*1024);
+						      &trident->pci->dev,
+						      64*1024, 128*1024);
 	}
 
 	return 0;
@@ -2243,10 +2243,12 @@ int snd_trident_foldback_pcm(struct snd_trident *trident, int device)
 
 	if (trident->tlb.entries)
 		snd_pcm_lib_preallocate_pages_for_all(foldback, SNDRV_DMA_TYPE_DEV_SG,
-						      snd_dma_pci_data(trident->pci), 0, 128*1024);
+						      &trident->pci->dev,
+						      0, 128*1024);
 	else
 		snd_pcm_lib_preallocate_pages_for_all(foldback, SNDRV_DMA_TYPE_DEV,
-						      snd_dma_pci_data(trident->pci), 64*1024, 128*1024);
+						      &trident->pci->dev,
+						      64*1024, 128*1024);
 
 	return 0;
 }
@@ -2280,7 +2282,9 @@ int snd_trident_spdif_pcm(struct snd_trident *trident, int device)
 	strcpy(spdif->name, "Trident 4DWave IEC958");
 	trident->spdif = spdif;
 
-	snd_pcm_lib_preallocate_pages_for_all(spdif, SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(trident->pci), 64*1024, 128*1024);
+	snd_pcm_lib_preallocate_pages_for_all(spdif, SNDRV_DMA_TYPE_DEV,
+					      &trident->pci->dev,
+					      64*1024, 128*1024);
 
 	return 0;
 }
@@ -3338,7 +3342,7 @@ static int snd_trident_tlb_alloc(struct snd_trident *trident)
 	/* TLB array must be aligned to 16kB !!! so we allocate
 	   32kB region and correct offset when necessary */
 
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(trident->pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &trident->pci->dev,
 				2 * SNDRV_TRIDENT_MAX_PAGES * 4, &trident->tlb.buffer) < 0) {
 		dev_err(trident->card->dev, "unable to allocate TLB buffer\n");
 		return -ENOMEM;
@@ -3353,7 +3357,7 @@ static int snd_trident_tlb_alloc(struct snd_trident *trident)
 		return -ENOMEM;
 
 	/* allocate and setup silent page and initialise TLB entries */
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(trident->pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &trident->pci->dev,
 				SNDRV_TRIDENT_PAGE_SIZE, &trident->tlb.silent_page) < 0) {
 		dev_err(trident->card->dev, "unable to allocate silent page\n");
 		return -ENOMEM;

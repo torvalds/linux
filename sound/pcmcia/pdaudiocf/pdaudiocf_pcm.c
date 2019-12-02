@@ -89,8 +89,7 @@ static int pdacf_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 static int pdacf_pcm_hw_params(struct snd_pcm_substream *subs,
 				     struct snd_pcm_hw_params *hw_params)
 {
-	return snd_pcm_lib_alloc_vmalloc_32_buffer
-					(subs, params_buffer_bytes(hw_params));
+	return snd_pcm_lib_malloc_pages(subs, params_buffer_bytes(hw_params));
 }
 
 /*
@@ -98,7 +97,7 @@ static int pdacf_pcm_hw_params(struct snd_pcm_substream *subs,
  */
 static int pdacf_pcm_hw_free(struct snd_pcm_substream *subs)
 {
-	return snd_pcm_lib_free_vmalloc_buffer(subs);
+	return snd_pcm_lib_free_pages(subs);
 }
 
 /*
@@ -262,7 +261,6 @@ static const struct snd_pcm_ops pdacf_pcm_capture_ops = {
 	.prepare =	pdacf_pcm_prepare,
 	.trigger =	pdacf_pcm_trigger,
 	.pointer =	pdacf_pcm_capture_pointer,
-	.page =		snd_pcm_lib_get_vmalloc_page,
 };
 
 
@@ -279,6 +277,9 @@ int snd_pdacf_pcm_new(struct snd_pdacf *chip)
 		return err;
 		
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pdacf_pcm_capture_ops);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
+					      snd_dma_continuous_data(GFP_KERNEL | GFP_DMA32),
+					      0, 0);
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;

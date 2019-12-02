@@ -454,17 +454,6 @@ static snd_pcm_uframes_t sof_pcm_pointer(struct snd_soc_component *component,
 	return host;
 }
 
-#ifdef CONFIG_SND_DMA_SGBUF
-static struct page *sof_pcm_page(struct snd_soc_component *component,
-				 struct snd_pcm_substream *substream,
-				 unsigned long offset)
-{
-	return snd_pcm_sgbuf_ops_page(substream, offset);
-}
-#else
-#define sof_pcm_page	NULL
-#endif /* CONFIG_SND_DMA_SGBUF */
-
 static int sof_pcm_open(struct snd_soc_component *component,
 			struct snd_pcm_substream *substream)
 {
@@ -788,7 +777,6 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->hw_free = sof_pcm_hw_free;
 	pd->trigger = sof_pcm_trigger;
 	pd->pointer = sof_pcm_pointer;
-	pd->page = sof_pcm_page;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
 	pd->compr_ops = &sof_compressed_ops;

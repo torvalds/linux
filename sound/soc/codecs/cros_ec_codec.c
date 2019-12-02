@@ -918,8 +918,7 @@ static int wov_pcm_hw_params(struct snd_soc_component *component,
 	priv->wov_burst_read = true;
 	mutex_unlock(&priv->wov_dma_lock);
 
-	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
-			params_buffer_bytes(hw_params));
+	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
 static int wov_pcm_hw_free(struct snd_soc_component *component,
@@ -935,7 +934,7 @@ static int wov_pcm_hw_free(struct snd_soc_component *component,
 
 	cancel_delayed_work_sync(&priv->wov_copy_work);
 
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	return snd_pcm_lib_free_pages(substream);
 }
 
 static snd_pcm_uframes_t wov_pcm_pointer(struct snd_soc_component *component,
@@ -948,11 +947,12 @@ static snd_pcm_uframes_t wov_pcm_pointer(struct snd_soc_component *component,
 	return bytes_to_frames(runtime, priv->wov_dma_offset);
 }
 
-static struct page *wov_pcm_page(struct snd_soc_component *component,
-				 struct snd_pcm_substream *substream,
-				 unsigned long offset)
+static int wov_pcm_new(struct snd_soc_component *component,
+		       struct snd_soc_pcm_runtime *rtd)
 {
-	return snd_pcm_lib_get_vmalloc_page(substream, offset);
+	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm, SNDRV_DMA_TYPE_VMALLOC,
+					      NULL, 0, 0);
+	return 0;
 }
 
 static const struct snd_soc_component_driver wov_component_driver = {
@@ -964,7 +964,7 @@ static const struct snd_soc_component_driver wov_component_driver = {
 	.hw_params	= wov_pcm_hw_params,
 	.hw_free	= wov_pcm_hw_free,
 	.pointer	= wov_pcm_pointer,
-	.page		= wov_pcm_page,
+	.pcm_construct	= wov_pcm_new,
 };
 
 static int cros_ec_codec_platform_probe(struct platform_device *pdev)

@@ -283,7 +283,9 @@ void snd_dg00x_stream_destroy_duplex(struct snd_dg00x *dg00x)
 	destroy_stream(dg00x, &dg00x->tx_stream);
 }
 
-int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate)
+int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate,
+				    unsigned int frames_per_period,
+				    unsigned int frames_per_buffer)
 {
 	unsigned int curr_rate;
 	int err;
@@ -313,6 +315,14 @@ int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate)
 		err = keep_resources(dg00x, &dg00x->tx_stream, rate);
 		if (err < 0) {
 			fw_iso_resources_free(&dg00x->rx_resources);
+			return err;
+		}
+
+		err = amdtp_domain_set_events_per_period(&dg00x->domain,
+					frames_per_period, frames_per_buffer);
+		if (err < 0) {
+			fw_iso_resources_free(&dg00x->rx_resources);
+			fw_iso_resources_free(&dg00x->tx_resources);
 			return err;
 		}
 	}
@@ -365,7 +375,7 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_start(&dg00x->domain);
+		err = amdtp_domain_start(&dg00x->domain, 0);
 		if (err < 0)
 			goto error;
 

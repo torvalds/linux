@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config SND_MPU401_UART
-        tristate
-        select SND_RAWMIDI
+	tristate
+	select SND_RAWMIDI
 
 config SND_OPL3_LIB
 	tristate
@@ -90,16 +90,17 @@ config SND_DUMMY
 	  will be called snd-dummy.
 
 config SND_ALOOP
-        tristate "Generic loopback driver (PCM)"
-        select SND_PCM
-        help
-          Say 'Y' or 'M' to include support for the PCM loopback device.
+	tristate "Generic loopback driver (PCM)"
+	select SND_PCM
+	select SND_TIMER
+	help
+	  Say 'Y' or 'M' to include support for the PCM loopback device.
 	  This module returns played samples back to the user space using
 	  the standard ALSA PCM device. The devices are routed 0->1 and
-          1->0, where first number is the playback PCM device and second
+	  1->0, where first number is the playback PCM device and second
 	  number is the capture device. Module creates two PCM devices and
 	  configured number of substreams (see the pcm_substreams module
-          parameter).
+	  parameter).
 
 	  The loopback device allows time sychronization with an external
 	  timing source using the time shift universal control (+-20%
@@ -142,12 +143,12 @@ config SND_MTS64
 	select SND_RAWMIDI
 	help
 	  The ESI Miditerminal 4140 is a 4 In 4 Out MIDI Interface with 
-          additional SMPTE Timecode capabilities for the parallel port.
+	  additional SMPTE Timecode capabilities for the parallel port.
 
 	  Say 'Y' to include support for this device.
 
 	  To compile this driver as a module, chose 'M' here: the module 
-          will be called snd-mts64.
+	  will be called snd-mts64.
 
 config SND_SERIAL_U16550
 	tristate "UART16550 serial MIDI driver"

@@ -585,7 +585,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 	sprintf(card->longname, "%s %i", card_name, card->dev->id);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-		snd_dma_continuous_data(GFP_KERNEL), 0, BUFF_SIZE_MAX);
+					      NULL, 0, BUFF_SIZE_MAX);
 
 	err = snd_card_register(card);
 

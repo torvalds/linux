@@ -1235,17 +1235,6 @@ static int skl_platform_soc_mmap(struct snd_soc_component *component,
 	return snd_pcm_lib_default_mmap(substream, area);
 }
 
-#ifdef CONFIG_SND_DMA_SGBUF
-static struct page *skl_platform_soc_page(struct snd_soc_component *component,
-					  struct snd_pcm_substream *substream,
-					  unsigned long offset)
-{
-	return snd_pcm_sgbuf_ops_page(substream, offset);
-}
-#else
-#define skl_platform_soc_page NULL
-#endif /* CONFIG_SND_DMA_SGBUF */
-
 static u64 skl_adjust_codec_delay(struct snd_pcm_substream *substream,
 				u64 nsec)
 {
@@ -1325,7 +1314,7 @@ static int skl_platform_soc_new(struct snd_soc_component *component,
 			size = MAX_PREALLOC_SIZE;
 		snd_pcm_lib_preallocate_pages_for_all(pcm,
 						SNDRV_DMA_TYPE_DEV_SG,
-						snd_dma_pci_data(skl->pci),
+						&skl->pci->dev,
 						size, MAX_PREALLOC_SIZE);
 	}
 
@@ -1493,7 +1482,6 @@ static const struct snd_soc_component_driver skl_component  = {
 	.pointer	= skl_platform_soc_pointer,
 	.get_time_info	= skl_platform_soc_get_time_info,
 	.mmap		= skl_platform_soc_mmap,
-	.page		= skl_platform_soc_page,
 	.pcm_construct	= skl_platform_soc_new,
 	.pcm_destruct	= skl_platform_soc_free,
 	.module_get_upon_open = 1, /* increment refcount when a pcm is opened */
