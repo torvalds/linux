@@ -444,6 +444,25 @@ int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,
 	return snd_pcm_lib_ioctl(substream, cmd, arg);
 }
 
+int snd_soc_pcm_component_sync_stop(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component;
+	struct snd_soc_rtdcom_list *rtdcom;
+	int ret;
+
+	for_each_rtd_components(rtd, rtdcom, component) {
+		if (component->driver->ioctl) {
+			ret = component->driver->sync_stop(component,
+							   substream);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
 				    int channel, unsigned long pos,
 				    void __user *buf, unsigned long bytes)
