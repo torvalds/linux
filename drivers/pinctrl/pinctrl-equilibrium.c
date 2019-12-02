@@ -942,3 +942,4 @@ module_platform_driver(eqbr_pinctrl_driver);
 
 MODULE_AUTHOR("Zhu Yixin <yixin.zhu@intel.com>, Rahul Tanwar <rahul.tanwar@intel.com>");
 MODULE_DESCRIPTION("Pinctrl Driver for LGM SoC (Equilibrium)");
+MODULE_LICENSE("GPL v2");
