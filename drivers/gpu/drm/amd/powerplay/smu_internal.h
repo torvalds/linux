@@ -75,8 +75,8 @@
 #define smu_set_default_od_settings(smu, initialize) \
 	((smu)->ppt_funcs->set_default_od_settings ? (smu)->ppt_funcs->set_default_od_settings((smu), (initialize)) : 0)
 
-#define smu_send_smc_msg(smu, msg) \
-	((smu)->ppt_funcs->send_smc_msg? (smu)->ppt_funcs->send_smc_msg((smu), (msg)) : 0)
+int smu_send_smc_msg(struct smu_context *smu, enum smu_message_type msg);
+
 #define smu_send_smc_msg_with_param(smu, msg, param) \
 	((smu)->ppt_funcs->send_smc_msg_with_param? (smu)->ppt_funcs->send_smc_msg_with_param((smu), (msg), (param)) : 0)
 #define smu_read_smc_arg(smu, arg) \

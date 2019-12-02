@@ -2548,3 +2548,12 @@ uint32_t smu_get_pptable_power_limit(struct smu_context *smu)
 
 	return ret;
 }
+
+int smu_send_smc_msg(struct smu_context *smu,
+		     enum smu_message_type msg)
+{
+	int ret;
+
+	ret = smu_send_smc_msg_with_param(smu, msg, 0);
+	return ret;
+}
