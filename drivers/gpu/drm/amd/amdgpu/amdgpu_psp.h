@@ -32,7 +32,6 @@
 
 #define PSP_FENCE_BUFFER_SIZE	0x1000
 #define PSP_CMD_BUFFER_SIZE	0x1000
-#define PSP_ASD_SHARED_MEM_SIZE 0x4000
 #define PSP_XGMI_SHARED_MEM_SIZE 0x4000
 #define PSP_RAS_SHARED_MEM_SIZE 0x4000
 #define PSP_1_MEG		0x100000
@@ -128,6 +127,11 @@ struct psp_xgmi_node_info {
 struct psp_xgmi_topology_info {
 	uint32_t			num_nodes;
 	struct psp_xgmi_node_info	nodes[AMDGPU_XGMI_MAX_CONNECTED_NODES];
+};
+
+struct psp_asd_context {
+	bool			asd_initialized;
+	uint32_t		session_id;
 };
 
 struct psp_xgmi_context {
@@ -238,15 +242,12 @@ struct psp_context
 	struct amdgpu_bo		*tmr_bo;
 	uint64_t			tmr_mc_addr;
 
-	/* asd firmware and buffer */
+	/* asd firmware */
 	const struct firmware		*asd_fw;
 	uint32_t			asd_fw_version;
 	uint32_t			asd_feature_version;
 	uint32_t			asd_ucode_size;
 	uint8_t				*asd_start_addr;
-	struct amdgpu_bo		*asd_shared_bo;
-	uint64_t			asd_shared_mc_addr;
-	void				*asd_shared_buf;
 
 	/* fence buffer */
 	struct amdgpu_bo		*fence_buf_bo;
@@ -281,6 +282,7 @@ struct psp_context
 	uint32_t			ta_dtm_ucode_size;
 	uint8_t				*ta_dtm_start_addr;
 
+	struct psp_asd_context		asd_context;
 	struct psp_xgmi_context		xgmi_context;
 	struct psp_ras_context		ras;
 	struct psp_hdcp_context 	hdcp_context;

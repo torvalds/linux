@@ -318,35 +318,17 @@ static int psp_tmr_load(struct psp_context *psp)
 	return ret;
 }
 
-static void psp_prep_asd_cmd_buf(struct psp_gfx_cmd_resp *cmd,
-				 uint64_t asd_mc, uint64_t asd_mc_shared,
-				 uint32_t size, uint32_t shared_size)
+static void psp_prep_asd_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+				uint64_t asd_mc, uint32_t size)
 {
 	cmd->cmd_id = GFX_CMD_ID_LOAD_ASD;
 	cmd->cmd.cmd_load_ta.app_phy_addr_lo = lower_32_bits(asd_mc);
 	cmd->cmd.cmd_load_ta.app_phy_addr_hi = upper_32_bits(asd_mc);
 	cmd->cmd.cmd_load_ta.app_len = size;
 
-	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_lo = lower_32_bits(asd_mc_shared);
-	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_hi = upper_32_bits(asd_mc_shared);
-	cmd->cmd.cmd_load_ta.cmd_buf_len = shared_size;
-}
-
-static int psp_asd_init(struct psp_context *psp)
-{
-	int ret;
-
-	/*
-	 * Allocate 16k memory aligned to 4k from Frame Buffer (local
-	 * physical) for shared ASD <-> Driver
-	 */
-	ret = amdgpu_bo_create_kernel(psp->adev, PSP_ASD_SHARED_MEM_SIZE,
-				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
-				      &psp->asd_shared_bo,
-				      &psp->asd_shared_mc_addr,
-				      &psp->asd_shared_buf);
-
-	return ret;
+	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_lo = 0;
+	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_hi = 0;
+	cmd->cmd.cmd_load_ta.cmd_buf_len = 0;
 }
 
 static int psp_asd_load(struct psp_context *psp)
@@ -368,11 +350,15 @@ static int psp_asd_load(struct psp_context *psp)
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 	memcpy(psp->fw_pri_buf, psp->asd_start_addr, psp->asd_ucode_size);
 
-	psp_prep_asd_cmd_buf(cmd, psp->fw_pri_mc_addr, psp->asd_shared_mc_addr,
-			     psp->asd_ucode_size, PSP_ASD_SHARED_MEM_SIZE);
+	psp_prep_asd_load_cmd_buf(cmd, psp->fw_pri_mc_addr,
+				  psp->asd_ucode_size);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
+	if (!ret) {
+		psp->asd_context.asd_initialized = true;
+		psp->asd_context.session_id = cmd->resp.session_id;
+	}
 
 	kfree(cmd);
 
@@ -1211,12 +1197,6 @@ static int psp_hw_start(struct psp_context *psp)
 		return ret;
 	}
 
-	ret = psp_asd_init(psp);
-	if (ret) {
-		DRM_ERROR("PSP asd init failed!\n");
-		return ret;
-	}
-
 	ret = psp_asd_load(psp);
 	if (ret) {
 		DRM_ERROR("PSP load asd failed!\n");
@@ -1630,8 +1610,6 @@ static int psp_hw_fini(void *handle)
 			      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
 	amdgpu_bo_free_kernel(&psp->fence_buf_bo,
 			      &psp->fence_buf_mc_addr, &psp->fence_buf);
-	amdgpu_bo_free_kernel(&psp->asd_shared_bo, &psp->asd_shared_mc_addr,
-			      &psp->asd_shared_buf);
 	amdgpu_bo_free_kernel(&psp->cmd_buf_bo, &psp->cmd_buf_mc_addr,
 			      (void **)&psp->cmd_buf_mem);
 
