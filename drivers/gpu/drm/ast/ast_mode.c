@@ -790,6 +790,8 @@ static void ast_crtc_helper_atomic_begin(struct drm_crtc *crtc,
 static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 					 struct drm_crtc_state *old_crtc_state)
 {
+	struct drm_device *dev = crtc->dev;
+	struct ast_private *ast = dev->dev_private;
 	const struct drm_framebuffer *fb = crtc->primary->state->fb;
 	struct drm_display_mode adjusted_mode;
 	struct ast_vbios_mode_info vbios_mode;
@@ -800,36 +802,18 @@ static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	if (!fb)
 		return;
 
+	memset(&adjusted_mode, 0, sizeof(adjusted_mode));
+	drm_mode_copy(&adjusted_mode, &crtc->state->adjusted_mode);
+
+	succ = ast_get_vbios_mode_info(fb, &crtc->state->adjusted_mode,
+				       &adjusted_mode, &vbios_mode);
+	if (WARN_ON_ONCE(!succ))
+		return; /* BUG: didn't validate this in atomic_check() */
+
 	ast_set_color_reg(crtc, fb);
-
-	memset(&adjusted_mode, 0, sizeof(adjusted_mode));
-	drm_mode_copy(&adjusted_mode, &crtc->state->adjusted_mode);
-
-	succ = ast_get_vbios_mode_info(fb, &crtc->state->adjusted_mode,
-				       &adjusted_mode, &vbios_mode);
-	if (WARN_ON_ONCE(!succ))
-		return;
-
 	ast_set_vbios_color_reg(crtc, fb, &vbios_mode);
-}
 
-static void
-ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state)
-{
-	struct drm_device *dev = crtc->dev;
-	struct ast_private *ast = crtc->dev->dev_private;
-	const struct drm_framebuffer *fb = crtc->primary->state->fb;
-	struct drm_display_mode adjusted_mode;
-	struct ast_vbios_mode_info vbios_mode;
-	bool succ;
-
-	memset(&adjusted_mode, 0, sizeof(adjusted_mode));
-	drm_mode_copy(&adjusted_mode, &crtc->state->adjusted_mode);
-
-	succ = ast_get_vbios_mode_info(fb, &crtc->state->adjusted_mode,
-				       &adjusted_mode, &vbios_mode);
-	if (WARN_ON_ONCE(!succ))
+	if (!crtc->state->mode_changed)
 		return;
 
 	ast_set_vbios_mode_reg(crtc, &adjusted_mode, &vbios_mode);
@@ -840,7 +824,12 @@ ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 	ast_set_crtthd_reg(crtc);
 	ast_set_sync_reg(dev, &adjusted_mode, &vbios_mode);
 	ast_set_dac_reg(crtc, &adjusted_mode, &vbios_mode);
+}
 
+static void
+ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+			      struct drm_crtc_state *old_crtc_state)
+{
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
