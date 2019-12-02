@@ -231,7 +231,7 @@
 		/* dvdd-supply = <>; */
 		/* dovdd-supply = <>; */
 		/* reset-gpios = <>; */
-		reset-gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "rockchip,camera_default";
 		pinctrl-0 = <&cif_clkout>;
