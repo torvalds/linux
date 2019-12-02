@@ -9,7 +9,6 @@
 
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/iio/consumer.h>
 #include <linux/iio/types.h>
