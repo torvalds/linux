@@ -69,7 +69,8 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 		return rc;
 
 	p->bound_addr = saved;
-	dev_dbg(&p->pdev->dev, "bound drc 0x%x to %pR\n", p->drc_index, &p->res);
+	dev_dbg(&p->pdev->dev, "bound drc 0x%x to 0x%lx\n",
+		p->drc_index, (unsigned long)saved);
 	return rc;
 }
 
@@ -133,7 +134,7 @@ static int drc_pmem_query_n_bind(struct papr_scm_priv *p)
 		goto err_out;
 
 	p->bound_addr = start_addr;
-	dev_dbg(&p->pdev->dev, "bound drc 0x%x to %pR\n", p->drc_index, &p->res);
+	dev_dbg(&p->pdev->dev, "bound drc 0x%x to 0x%lx\n", p->drc_index, start_addr);
 	return rc;
 
 err_out:
