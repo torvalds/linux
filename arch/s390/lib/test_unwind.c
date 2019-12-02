@@ -238,7 +238,7 @@ static int test_unwind_irq(struct unwindme *u)
 {
 	preempt_disable();
 	if (register_external_irq(EXT_IRQ_CLK_COMP, unwindme_irq_handler)) {
-		pr_info("Couldn't reqister external interrupt handler");
+		pr_info("Couldn't register external interrupt handler");
 		return -1;
 	}
 	u->task = current;
