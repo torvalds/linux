@@ -1311,6 +1311,7 @@ retry_lookup:
 		err = fill_inode(in, req->r_locked_page, &rinfo->targeti, NULL,
 				session,
 				(!test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags) &&
+				 !test_bit(CEPH_MDS_R_ASYNC, &req->r_req_flags) &&
 				 rinfo->head->result == 0) ?  req->r_fmode : -1,
 				&req->r_caps_reservation);
 		if (err < 0) {
