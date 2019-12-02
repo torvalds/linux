@@ -402,7 +402,7 @@ static void ishtp_hbm_cl_connect_res(struct ishtp_device *dev,
  * @dev: ISHTP device instance
  * @disconnect_req: disconnect request structure
  *
- * Disconnect request bus message from the fw. Send diconnect response.
+ * Disconnect request bus message from the fw. Send disconnect response.
  */
 static void ishtp_hbm_fw_disconnect_req(struct ishtp_device *dev,
 	struct hbm_client_connect_request *disconnect_req)

@@ -9709,6 +9709,13 @@ S:	Maintained
 F:	Documentation/admin-guide/ldm.rst
 F:	block/partitions/ldm.*
 
+LOGITECH HID GAMING KEYBOARDS
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-input@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hid/hid.git
+S:	Maintained
+F:	drivers/hid/hid-lg-g15.c
+
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
 M:	Sathya Prakash <sathya.prakash@broadcom.com>
 M:	Chaitra P B <chaitra.basappa@broadcom.com>
