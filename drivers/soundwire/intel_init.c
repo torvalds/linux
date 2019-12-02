@@ -212,6 +212,7 @@ static struct sdw_intel_ctx
 	ctx->mmio_base = res->mmio_base;
 	ctx->link_mask = res->link_mask;
 	ctx->handle = res->handle;
+	mutex_init(&ctx->shim_lock);
 
 	link = ctx->links;
 	link_mask = ctx->link_mask;
@@ -298,6 +299,8 @@ sdw_intel_startup_controller(struct sdw_intel_ctx *ctx)
 	for (i = 0; i < ctx->count; i++, link++) {
 		if (link_mask && !(link_mask & BIT(i)))
 			continue;
+
+		link->shim_lock = &ctx->shim_lock;
 
 		md = link->md;
 
