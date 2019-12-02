@@ -2894,8 +2894,6 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 					clear_extent_buffer_dirty(next);
 			}
 
-			WARN_ON(log->root_key.objectid !=
-				BTRFS_TREE_LOG_OBJECTID);
 			ret = btrfs_pin_reserved_extent(fs_info, next->start,
 							next->len);
 			if (ret)
