@@ -884,6 +884,31 @@ static void ast_crtc_destroy(struct drm_crtc *crtc)
 	kfree(crtc);
 }
 
+static struct drm_crtc_state *
+ast_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
+{
+	struct ast_crtc_state *new_ast_state;
+
+	if (WARN_ON(!crtc->state))
+		return NULL;
+
+	new_ast_state = kmalloc(sizeof(*new_ast_state), GFP_KERNEL);
+	if (!new_ast_state)
+		return NULL;
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &new_ast_state->base);
+
+	return &new_ast_state->base;
+}
+
+static void ast_crtc_atomic_destroy_state(struct drm_crtc *crtc,
+					  struct drm_crtc_state *state)
+{
+	struct ast_crtc_state *ast_state = to_ast_crtc_state(state);
+
+	__drm_atomic_helper_crtc_destroy_state(&ast_state->base);
+	kfree(ast_state);
+}
+
 static const struct drm_crtc_funcs ast_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.set_config = drm_crtc_helper_set_config,
@@ -891,8 +916,8 @@ static const struct drm_crtc_funcs ast_crtc_funcs = {
 	.destroy = ast_crtc_destroy,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.atomic_duplicate_state = ast_crtc_atomic_duplicate_state,
+	.atomic_destroy_state = ast_crtc_atomic_destroy_state,
 };
 
 static int ast_crtc_init(struct drm_device *dev)

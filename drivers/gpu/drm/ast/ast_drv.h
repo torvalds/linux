@@ -281,6 +281,12 @@ struct ast_vbios_mode_info {
 	const struct ast_vbios_enhtable *enh_table;
 };
 
+struct ast_crtc_state {
+	struct drm_crtc_state base;
+};
+
+#define to_ast_crtc_state(state) container_of(state, struct ast_crtc_state, base)
+
 extern int ast_mode_init(struct drm_device *dev);
 extern void ast_mode_fini(struct drm_device *dev);
 
