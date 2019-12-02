@@ -152,11 +152,15 @@ i915_active_fence_isset(const struct i915_active_fence *active)
 void __i915_active_init(struct i915_active *ref,
 			int (*active)(struct i915_active *ref),
 			void (*retire)(struct i915_active *ref),
-			struct lock_class_key *key);
+			struct lock_class_key *mkey,
+			struct lock_class_key *wkey);
+
+/* Specialise each class of i915_active to avoid impossible lockdep cycles. */
 #define i915_active_init(ref, active, retire) do {		\
-	static struct lock_class_key __key;				\
+	static struct lock_class_key __mkey;				\
+	static struct lock_class_key __wkey;				\
 									\
-	__i915_active_init(ref, active, retire, &__key);		\
+	__i915_active_init(ref, active, retire, &__mkey, &__wkey);	\
 } while (0)
 
 int i915_active_ref(struct i915_active *ref,

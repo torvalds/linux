@@ -277,7 +277,8 @@ out:
 void __i915_active_init(struct i915_active *ref,
 			int (*active)(struct i915_active *ref),
 			void (*retire)(struct i915_active *ref),
-			struct lock_class_key *key)
+			struct lock_class_key *mkey,
+			struct lock_class_key *wkey)
 {
 	unsigned long bits;
 
@@ -295,9 +296,12 @@ void __i915_active_init(struct i915_active *ref,
 
 	init_llist_head(&ref->preallocated_barriers);
 	atomic_set(&ref->count, 0);
-	__mutex_init(&ref->mutex, "i915_active", key);
+	__mutex_init(&ref->mutex, "i915_active", mkey);
 	__i915_active_fence_init(&ref->excl, NULL, excl_retire);
 	INIT_WORK(&ref->work, active_work);
+#if IS_ENABLED(CONFIG_LOCKDEP)
+	lockdep_init_map(&ref->work.lockdep_map, "i915_active.work", wkey, 0);
+#endif
 }
 
 static bool ____active_del_barrier(struct i915_active *ref,
