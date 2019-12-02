@@ -301,7 +301,7 @@ static int crypto_init_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 		return crypto_init_cipher_ops(tfm);
 
 	case CRYPTO_ALG_TYPE_COMPRESS:
-		return crypto_init_compress_ops(tfm);
+		return 0;
 
 	default:
 		break;

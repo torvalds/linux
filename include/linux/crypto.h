@@ -606,17 +606,7 @@ struct cipher_tfm {
 	void (*cit_decrypt_one)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 };
 
-struct compress_tfm {
-	int (*cot_compress)(struct crypto_tfm *tfm,
-	                    const u8 *src, unsigned int slen,
-	                    u8 *dst, unsigned int *dlen);
-	int (*cot_decompress)(struct crypto_tfm *tfm,
-	                      const u8 *src, unsigned int slen,
-	                      u8 *dst, unsigned int *dlen);
-};
-
 #define crt_cipher	crt_u.cipher
-#define crt_compress	crt_u.compress
 
 struct crypto_tfm {
 
@@ -624,7 +614,6 @@ struct crypto_tfm {
 	
 	union {
 		struct cipher_tfm cipher;
-		struct compress_tfm compress;
 	} crt_u;
 
 	void (*exit)(struct crypto_tfm *tfm);
@@ -928,13 +917,6 @@ static inline struct crypto_comp *__crypto_comp_cast(struct crypto_tfm *tfm)
 	return (struct crypto_comp *)tfm;
 }
 
-static inline struct crypto_comp *crypto_comp_cast(struct crypto_tfm *tfm)
-{
-	BUG_ON((crypto_tfm_alg_type(tfm) ^ CRYPTO_ALG_TYPE_COMPRESS) &
-	       CRYPTO_ALG_TYPE_MASK);
-	return __crypto_comp_cast(tfm);
-}
-
 static inline struct crypto_comp *crypto_alloc_comp(const char *alg_name,
 						    u32 type, u32 mask)
 {
@@ -969,26 +951,13 @@ static inline const char *crypto_comp_name(struct crypto_comp *tfm)
 	return crypto_tfm_alg_name(crypto_comp_tfm(tfm));
 }
 
-static inline struct compress_tfm *crypto_comp_crt(struct crypto_comp *tfm)
-{
-	return &crypto_comp_tfm(tfm)->crt_compress;
-}
+int crypto_comp_compress(struct crypto_comp *tfm,
+			 const u8 *src, unsigned int slen,
+			 u8 *dst, unsigned int *dlen);
 
-static inline int crypto_comp_compress(struct crypto_comp *tfm,
-                                       const u8 *src, unsigned int slen,
-                                       u8 *dst, unsigned int *dlen)
-{
-	return crypto_comp_crt(tfm)->cot_compress(crypto_comp_tfm(tfm),
-						  src, slen, dst, dlen);
-}
-
-static inline int crypto_comp_decompress(struct crypto_comp *tfm,
-                                         const u8 *src, unsigned int slen,
-                                         u8 *dst, unsigned int *dlen)
-{
-	return crypto_comp_crt(tfm)->cot_decompress(crypto_comp_tfm(tfm),
-						    src, slen, dst, dlen);
-}
+int crypto_comp_decompress(struct crypto_comp *tfm,
+			   const u8 *src, unsigned int slen,
+			   u8 *dst, unsigned int *dlen);
 
 #endif	/* _LINUX_CRYPTO_H */
 
