@@ -308,6 +308,10 @@ struct io_timeout {
 	struct io_timeout_data		*data;
 };
 
+struct io_async_ctx {
+	struct io_uring_sqe		sqe;
+};
+
 /*
  * NOTE! Each of the iocb union members has the file pointer
  * as the first entry in their struct definition. So you can
@@ -323,6 +327,7 @@ struct io_kiocb {
 	};
 
 	const struct io_uring_sqe	*sqe;
+	struct io_async_ctx		*io;
 	struct file			*ring_file;
 	int				ring_fd;
 	bool				has_user;
@@ -353,7 +358,6 @@ struct io_kiocb {
 #define REQ_F_TIMEOUT_NOSEQ	8192	/* no timeout sequence */
 #define REQ_F_INFLIGHT		16384	/* on inflight list */
 #define REQ_F_COMP_LOCKED	32768	/* completion under lock */
-#define REQ_F_FREE_SQE		65536	/* free sqe if not async queued */
 	u64			user_data;
 	u32			result;
 	u32			sequence;
@@ -806,6 +810,7 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 	}
 
 got_it:
+	req->io = NULL;
 	req->ring_file = NULL;
 	req->file = NULL;
 	req->ctx = ctx;
@@ -836,8 +841,8 @@ static void __io_free_req(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	if (req->flags & REQ_F_FREE_SQE)
-		kfree(req->sqe);
+	if (req->io)
+		kfree(req->io);
 	if (req->file && !(req->flags & REQ_F_FIXED_FILE))
 		fput(req->file);
 	if (req->flags & REQ_F_INFLIGHT) {
@@ -1079,9 +1084,9 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 			 * completions for those, only batch free for fixed
 			 * file and non-linked commands.
 			 */
-			if (((req->flags &
-				(REQ_F_FIXED_FILE|REQ_F_LINK|REQ_F_FREE_SQE)) ==
-			    REQ_F_FIXED_FILE) && !io_is_fallback_req(req)) {
+			if (((req->flags & (REQ_F_FIXED_FILE|REQ_F_LINK)) ==
+			    REQ_F_FIXED_FILE) && !io_is_fallback_req(req) &&
+			    !req->io) {
 				reqs[to_free++] = req;
 				if (to_free == ARRAY_SIZE(reqs))
 					io_free_req_many(ctx, reqs, &to_free);
@@ -2259,7 +2264,7 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (!poll->wait)
 		return -ENOMEM;
 
-	req->sqe = NULL;
+	req->io = NULL;
 	INIT_IO_WORK(&req->work, io_poll_complete_work);
 	events = READ_ONCE(sqe->poll_events);
 	poll->events = demangle_poll(events) | EPOLLERR | EPOLLHUP;
@@ -2602,27 +2607,27 @@ static int io_async_cancel(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 static int io_req_defer(struct io_kiocb *req)
 {
-	struct io_uring_sqe *sqe_copy;
 	struct io_ring_ctx *ctx = req->ctx;
+	struct io_async_ctx *io;
 
 	/* Still need defer if there is pending req in defer list. */
 	if (!req_need_defer(req) && list_empty(&ctx->defer_list))
 		return 0;
 
-	sqe_copy = kmalloc(sizeof(*sqe_copy), GFP_KERNEL);
-	if (!sqe_copy)
+	io = kmalloc(sizeof(*io), GFP_KERNEL);
+	if (!io)
 		return -EAGAIN;
 
 	spin_lock_irq(&ctx->completion_lock);
 	if (!req_need_defer(req) && list_empty(&ctx->defer_list)) {
 		spin_unlock_irq(&ctx->completion_lock);
-		kfree(sqe_copy);
+		kfree(io);
 		return 0;
 	}
 
-	memcpy(sqe_copy, req->sqe, sizeof(*sqe_copy));
-	req->flags |= REQ_F_FREE_SQE;
-	req->sqe = sqe_copy;
+	memcpy(&io->sqe, req->sqe, sizeof(io->sqe));
+	req->sqe = &io->sqe;
+	req->io = io;
 
 	trace_io_uring_defer(ctx, req, req->user_data);
 	list_add_tail(&req->list, &ctx->defer_list);
@@ -2955,14 +2960,16 @@ static void __io_queue_sqe(struct io_kiocb *req)
 	 */
 	if (ret == -EAGAIN && (!(req->flags & REQ_F_NOWAIT) ||
 	    (req->flags & REQ_F_MUST_PUNT))) {
-		struct io_uring_sqe *sqe_copy;
+		struct io_async_ctx *io;
 
-		sqe_copy = kmemdup(req->sqe, sizeof(*sqe_copy), GFP_KERNEL);
-		if (!sqe_copy)
+		io = kmalloc(sizeof(*io), GFP_KERNEL);
+		if (!io)
 			goto err;
 
-		req->sqe = sqe_copy;
-		req->flags |= REQ_F_FREE_SQE;
+		memcpy(&io->sqe, req->sqe, sizeof(io->sqe));
+
+		req->sqe = &io->sqe;
+		req->io = io;
 
 		if (req->work.flags & IO_WQ_WORK_NEEDS_FILES) {
 			ret = io_grab_files(req);
@@ -3063,7 +3070,7 @@ err_req:
 	 */
 	if (*link) {
 		struct io_kiocb *prev = *link;
-		struct io_uring_sqe *sqe_copy;
+		struct io_async_ctx *io;
 
 		if (req->sqe->flags & IOSQE_IO_DRAIN)
 			(*link)->flags |= REQ_F_DRAIN_LINK | REQ_F_IO_DRAIN;
@@ -3079,14 +3086,15 @@ err_req:
 			}
 		}
 
-		sqe_copy = kmemdup(req->sqe, sizeof(*sqe_copy), GFP_KERNEL);
-		if (!sqe_copy) {
+		io = kmalloc(sizeof(*io), GFP_KERNEL);
+		if (!io) {
 			ret = -EAGAIN;
 			goto err_req;
 		}
 
-		req->sqe = sqe_copy;
-		req->flags |= REQ_F_FREE_SQE;
+		memcpy(&io->sqe, req->sqe, sizeof(io->sqe));
+		req->sqe = &io->sqe;
+		req->io = io;
 		trace_io_uring_link(ctx, req, prev);
 		list_add_tail(&req->list, &prev->link_list);
 	} else if (req->sqe->flags & IOSQE_IO_LINK) {
