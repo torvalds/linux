@@ -49,8 +49,6 @@
  * and restore_online_page_callback() for generic callback restore.
  */
 
-static void generic_online_page(struct page *page, unsigned int order);
-
 static online_page_callback_t online_page_callback = generic_online_page;
 static DEFINE_MUTEX(online_page_callback_lock);
 
@@ -278,6 +276,22 @@ static int check_pfn_span(unsigned long pfn, unsigned long nr_pages,
 	return 0;
 }
 
+static int check_hotplug_memory_addressable(unsigned long pfn,
+					    unsigned long nr_pages)
+{
+	const u64 max_addr = PFN_PHYS(pfn + nr_pages) - 1;
+
+	if (max_addr >> MAX_PHYSMEM_BITS) {
+		const u64 max_allowed = (1ull << (MAX_PHYSMEM_BITS + 1)) - 1;
+		WARN(1,
+		     "Hotplugged memory exceeds maximum addressable address, range=%#llx-%#llx, maximum=%#llx\n",
+		     (u64)PFN_PHYS(pfn), max_addr, max_allowed);
+		return -E2BIG;
+	}
+
+	return 0;
+}
+
 /*
  * Reasonably generic function for adding memory.  It is
  * expected that archs that support memory hotplug will
@@ -290,6 +304,10 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
 	int err;
 	unsigned long nr, start_sec, end_sec;
 	struct vmem_altmap *altmap = restrictions->altmap;
+
+	err = check_hotplug_memory_addressable(pfn, nr_pages);
+	if (err)
+		return err;
 
 	if (altmap) {
 		/*
@@ -580,24 +598,7 @@ int restore_online_page_callback(online_page_callback_t callback)
 }
 EXPORT_SYMBOL_GPL(restore_online_page_callback);
 
-void __online_page_set_limits(struct page *page)
-{
-}
-EXPORT_SYMBOL_GPL(__online_page_set_limits);
-
-void __online_page_increment_counters(struct page *page)
-{
-	adjust_managed_page_count(page, 1);
-}
-EXPORT_SYMBOL_GPL(__online_page_increment_counters);
-
-void __online_page_free(struct page *page)
-{
-	__free_reserved_page(page);
-}
-EXPORT_SYMBOL_GPL(__online_page_free);
-
-static void generic_online_page(struct page *page, unsigned int order)
+void generic_online_page(struct page *page, unsigned int order)
 {
 	kernel_map_pages(page, 1 << order, 1);
 	__free_pages_core(page, order);
@@ -607,6 +608,7 @@ static void generic_online_page(struct page *page, unsigned int order)
 		totalhigh_pages_add(1UL << order);
 #endif
 }
+EXPORT_SYMBOL_GPL(generic_online_page);
 
 static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
 			void *arg)
@@ -1180,7 +1182,8 @@ static bool is_pageblock_removable_nolock(unsigned long pfn)
 	if (!zone_spans_pfn(zone, pfn))
 		return false;
 
-	return !has_unmovable_pages(zone, page, 0, MIGRATE_MOVABLE, SKIP_HWPOISON);
+	return !has_unmovable_pages(zone, page, 0, MIGRATE_MOVABLE,
+				    MEMORY_OFFLINE);
 }
 
 /* Checks if this range of memory is likely to be hot-removable. */
@@ -1377,9 +1380,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 	return ret;
 }
 
-/*
- * remove from free_area[] and mark all as Reserved.
- */
+/* Mark all sections offline and remove all free pages from the buddy. */
 static int
 offline_isolated_pages_cb(unsigned long start, unsigned long nr_pages,
 			void *data)
@@ -1397,7 +1398,8 @@ static int
 check_pages_isolated_cb(unsigned long start_pfn, unsigned long nr_pages,
 			void *data)
 {
-	return test_pages_isolated(start_pfn, start_pfn + nr_pages, true);
+	return test_pages_isolated(start_pfn, start_pfn + nr_pages,
+				   MEMORY_OFFLINE);
 }
 
 static int __init cmdline_parse_movable_node(char *p)
@@ -1478,10 +1480,19 @@ static void node_states_clear_node(int node, struct memory_notify *arg)
 		node_clear_state(node, N_MEMORY);
 }
 
+static int count_system_ram_pages_cb(unsigned long start_pfn,
+				     unsigned long nr_pages, void *data)
+{
+	unsigned long *nr_system_ram_pages = data;
+
+	*nr_system_ram_pages += nr_pages;
+	return 0;
+}
+
 static int __ref __offline_pages(unsigned long start_pfn,
 		  unsigned long end_pfn)
 {
-	unsigned long pfn, nr_pages;
+	unsigned long pfn, nr_pages = 0;
 	unsigned long offlined_pages = 0;
 	int ret, node, nr_isolate_pageblock;
 	unsigned long flags;
@@ -1491,6 +1502,22 @@ static int __ref __offline_pages(unsigned long start_pfn,
 	char *reason;
 
 	mem_hotplug_begin();
+
+	/*
+	 * Don't allow to offline memory blocks that contain holes.
+	 * Consequently, memory blocks with holes can never get onlined
+	 * via the hotplug path - online_pages() - as hotplugged memory has
+	 * no holes. This way, we e.g., don't have to worry about marking
+	 * memory holes PG_reserved, don't need pfn_valid() checks, and can
+	 * avoid using walk_system_ram_range() later.
+	 */
+	walk_system_ram_range(start_pfn, end_pfn - start_pfn, &nr_pages,
+			      count_system_ram_pages_cb);
+	if (nr_pages != end_pfn - start_pfn) {
+		ret = -EINVAL;
+		reason = "memory holes";
+		goto failed_removal;
+	}
 
 	/* This makes hotplug much easier...and readable.
 	   we assume this for now. .*/
@@ -1503,12 +1530,11 @@ static int __ref __offline_pages(unsigned long start_pfn,
 
 	zone = page_zone(pfn_to_page(valid_start));
 	node = zone_to_nid(zone);
-	nr_pages = end_pfn - start_pfn;
 
 	/* set above range as isolated */
 	ret = start_isolate_page_range(start_pfn, end_pfn,
 				       MIGRATE_MOVABLE,
-				       SKIP_HWPOISON | REPORT_FAILURE);
+				       MEMORY_OFFLINE | REPORT_FAILURE);
 	if (ret < 0) {
 		reason = "failure to isolate range";
 		goto failed_removal;
@@ -1750,13 +1776,13 @@ static int __ref try_remove_memory(int nid, u64 start, u64 size)
 
 	/* remove memmap entry */
 	firmware_map_remove(start, start + size, "System RAM");
-	memblock_free(start, size);
-	memblock_remove(start, size);
 
 	/* remove memory block devices before removing memory */
 	remove_memory_block_devices(start, size);
 
 	arch_remove_memory(nid, start, size, NULL);
+	memblock_free(start, size);
+	memblock_remove(start, size);
 	__release_memory_resource(start, size);
 
 	try_offline_node(nid);

@@ -29,7 +29,7 @@ static int cma_debugfs_get(void *data, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "%llu\n");
 
 static int cma_used_get(void *data, u64 *val)
 {
@@ -44,7 +44,7 @@ static int cma_used_get(void *data, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_used_fops, cma_used_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(cma_used_fops, cma_used_get, NULL, "%llu\n");
 
 static int cma_maxchunk_get(void *data, u64 *val)
 {
@@ -66,7 +66,7 @@ static int cma_maxchunk_get(void *data, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_maxchunk_fops, cma_maxchunk_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(cma_maxchunk_fops, cma_maxchunk_get, NULL, "%llu\n");
 
 static void cma_add_to_cma_mem_list(struct cma *cma, struct cma_mem *mem)
 {
@@ -126,7 +126,7 @@ static int cma_free_write(void *data, u64 val)
 
 	return cma_free_mem(cma, pages);
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_free_fops, NULL, cma_free_write, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(cma_free_fops, NULL, cma_free_write, "%llu\n");
 
 static int cma_alloc_mem(struct cma *cma, int count)
 {
@@ -158,7 +158,7 @@ static int cma_alloc_write(void *data, u64 val)
 
 	return cma_alloc_mem(cma, pages);
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
 
 static void cma_debugfs_add_one(struct cma *cma, struct dentry *root_dentry)
 {
