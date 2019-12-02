@@ -158,9 +158,12 @@ SECTIONS
 	__inittext_begin = .;
 
 	INIT_TEXT_SECTION(8)
+
+	__exittext_begin = .;
 	.exit.text : {
 		ARM_EXIT_KEEP(EXIT_TEXT)
 	}
+	__exittext_end = .;
 
 	. = ALIGN(4);
 	.altinstructions : {
