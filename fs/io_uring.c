@@ -308,6 +308,10 @@ struct io_timeout {
 	struct io_timeout_data		*data;
 };
 
+struct io_async_connect {
+	struct sockaddr_storage		address;
+};
+
 struct io_async_msghdr {
 	struct iovec			fast_iov[UIO_FASTIOV];
 	struct iovec			*iov;
@@ -327,6 +331,7 @@ struct io_async_ctx {
 	union {
 		struct io_async_rw	rw;
 		struct io_async_msghdr	msg;
+		struct io_async_connect	connect;
 	};
 };
 
@@ -2195,11 +2200,26 @@ static int io_accept(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 #endif
 }
 
+static int io_connect_prep(struct io_kiocb *req, struct io_async_ctx *io)
+{
+#if defined(CONFIG_NET)
+	const struct io_uring_sqe *sqe = req->sqe;
+	struct sockaddr __user *addr;
+	int addr_len;
+
+	addr = (struct sockaddr __user *) (unsigned long) READ_ONCE(sqe->addr);
+	addr_len = READ_ONCE(sqe->addr2);
+	return move_addr_to_kernel(addr, addr_len, &io->connect.address);
+#else
+	return 0;
+#endif
+}
+
 static int io_connect(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		      struct io_kiocb **nxt, bool force_nonblock)
 {
 #if defined(CONFIG_NET)
-	struct sockaddr __user *addr;
+	struct io_async_ctx __io, *io;
 	unsigned file_flags;
 	int addr_len, ret;
 
@@ -2208,15 +2228,35 @@ static int io_connect(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (sqe->ioprio || sqe->len || sqe->buf_index || sqe->rw_flags)
 		return -EINVAL;
 
-	addr = (struct sockaddr __user *) (unsigned long) READ_ONCE(sqe->addr);
 	addr_len = READ_ONCE(sqe->addr2);
 	file_flags = force_nonblock ? O_NONBLOCK : 0;
 
-	ret = __sys_connect_file(req->file, addr, addr_len, file_flags);
-	if (ret == -EAGAIN && force_nonblock)
+	if (req->io) {
+		io = req->io;
+	} else {
+		ret = io_connect_prep(req, &__io);
+		if (ret)
+			goto out;
+		io = &__io;
+	}
+
+	ret = __sys_connect_file(req->file, &io->connect.address, addr_len,
+					file_flags);
+	if (ret == -EAGAIN && force_nonblock) {
+		io = kmalloc(sizeof(*io), GFP_KERNEL);
+		if (!io) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		memcpy(&io->connect, &__io.connect, sizeof(io->connect));
+		req->io = io;
+		memcpy(&io->sqe, req->sqe, sizeof(*req->sqe));
+		req->sqe = &io->sqe;
 		return -EAGAIN;
+	}
 	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
+out:
 	if (ret < 0 && (req->flags & REQ_F_LINK))
 		req->flags |= REQ_F_FAIL_LINK;
 	io_cqring_add_event(req, ret);
@@ -2831,6 +2871,9 @@ static int io_req_defer_prep(struct io_kiocb *req, struct io_async_ctx *io)
 		break;
 	case IORING_OP_RECVMSG:
 		ret = io_recvmsg_prep(req, io);
+		break;
+	case IORING_OP_CONNECT:
+		ret = io_connect_prep(req, io);
 		break;
 	default:
 		req->io = io;
