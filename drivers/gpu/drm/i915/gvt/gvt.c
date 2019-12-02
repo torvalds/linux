@@ -120,10 +120,8 @@ static struct attribute_group *gvt_vgpu_type_groups[] = {
 	[0 ... NR_MAX_INTEL_VGPU_TYPES - 1] = NULL,
 };
 
-static bool intel_get_gvt_attrs(struct attribute ***type_attrs,
-		struct attribute_group ***intel_vgpu_type_groups)
+static bool intel_get_gvt_attrs(struct attribute_group ***intel_vgpu_type_groups)
 {
-	*type_attrs = gvt_type_attrs;
 	*intel_vgpu_type_groups = gvt_vgpu_type_groups;
 	return true;
 }
