@@ -94,7 +94,7 @@ DECLARE_CRC8_TABLE(max3191x_crc8);
 
 static int max3191x_get_direction(struct gpio_chip *gpio, unsigned int offset)
 {
-	return 1; /* always in */
+	return GPIO_LINE_DIRECTION_IN; /* always in */
 }
 
 static int max3191x_direction_input(struct gpio_chip *gpio, unsigned int offset)

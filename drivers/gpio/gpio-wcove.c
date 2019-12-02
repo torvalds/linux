@@ -170,13 +170,16 @@ static int wcove_gpio_get_direction(struct gpio_chip *chip, unsigned int gpio)
 	int ret, reg = to_reg(gpio, CTRL_OUT);
 
 	if (reg < 0)
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 
 	ret = regmap_read(wg->regmap, reg, &val);
 	if (ret)
 		return ret;
 
-	return !(val & CTLO_DIR_OUT);
+	if (val & CTLO_DIR_OUT)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int wcove_gpio_get(struct gpio_chip *chip, unsigned int gpio)
