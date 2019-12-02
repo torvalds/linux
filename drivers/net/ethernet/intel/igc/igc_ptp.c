@@ -368,6 +368,7 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	if (tsync_rx_ctl) {
 		tsync_rx_ctl = IGC_TSYNCRXCTL_ENABLED;
 		tsync_rx_ctl |= IGC_TSYNCRXCTL_TYPE_ALL;
+		tsync_rx_ctl |= IGC_TSYNCRXCTL_RXSYNSIG;
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		is_l2 = true;
 		is_l4 = true;
@@ -384,8 +385,10 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 		}
 	}
 
-	if (tsync_tx_ctl)
+	if (tsync_tx_ctl) {
 		tsync_tx_ctl = IGC_TSYNCTXCTL_ENABLED;
+		tsync_tx_ctl |= IGC_TSYNCTXCTL_TXSYNSIG;
+	}
 
 	/* enable/disable TX */
 	regval = rd32(IGC_TSYNCTXCTL);

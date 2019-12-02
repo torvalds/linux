@@ -395,6 +395,7 @@
 #define IGC_TSYNCRXCTL_TYPE_EVENT_V2	0x0A
 #define IGC_TSYNCRXCTL_ENABLED		0x00000010  /* enable Rx timestamping */
 #define IGC_TSYNCRXCTL_SYSCFI		0x00000020  /* Sys clock frequency */
+#define IGC_TSYNCRXCTL_RXSYNSIG		0x00000400  /* Sample RX tstamp in PHY sop */
 
 /* Time Sync Receive Configuration */
 #define IGC_TSYNCRXCFG_PTP_V1_CTRLT_MASK	0x000000FF
@@ -418,6 +419,7 @@
 #define IGC_TSYNCTXCTL_SYNC_COMP_ERR		0x20000000  /* sync err */
 #define IGC_TSYNCTXCTL_SYNC_COMP		0x40000000  /* sync complete */
 #define IGC_TSYNCTXCTL_START_SYNC		0x80000000  /* initiate sync */
+#define IGC_TSYNCTXCTL_TXSYNSIG			0x00000020  /* Sample TX tstamp in PHY sop */
 
 /* Receive Checksum Control */
 #define IGC_RXCSUM_CRCOFL	0x00000800   /* CRC32 offload enable */
