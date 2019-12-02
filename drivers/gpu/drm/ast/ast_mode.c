@@ -31,6 +31,7 @@
 #include <linux/export.h>
 #include <linux/pci.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_crtc.h>
@@ -530,9 +531,24 @@ static const uint32_t ast_primary_plane_formats[] = {
 	DRM_FORMAT_C8,
 };
 
-int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
-					  struct drm_plane_state *state)
+static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
+						 struct drm_plane_state *state)
 {
+	struct drm_crtc_state *crtc_state;
+	int ret;
+
+	if (!state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  false, true);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -603,8 +619,9 @@ ast_cursor_plane_helper_prepare_fb(struct drm_plane *plane,
 	if (!crtc || !fb)
 		return 0;
 
-	if (fb->width > AST_MAX_HWC_WIDTH || fb->height > AST_MAX_HWC_HEIGHT)
-		return -EINVAL;
+	if (WARN_ON_ONCE(fb->width > AST_MAX_HWC_WIDTH) ||
+	    WARN_ON_ONCE(fb->height > AST_MAX_HWC_HEIGHT))
+		return -EINVAL; /* BUG: didn't test in atomic_check() */
 
 	ast = crtc->dev->dev_private;
 
@@ -646,6 +663,28 @@ err_drm_gem_vram_unpin:
 static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
 						struct drm_plane_state *state)
 {
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_crtc_state *crtc_state;
+	int ret;
+
+	if (!state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  true, true);
+	if (ret)
+		return ret;
+
+	if (!state->visible)
+		return 0;
+
+	if (fb->width > AST_MAX_HWC_WIDTH || fb->height > AST_MAX_HWC_HEIGHT)
+		return -EINVAL;
+
 	return 0;
 }
 
