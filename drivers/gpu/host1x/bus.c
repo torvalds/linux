@@ -120,7 +120,7 @@ static void host1x_subdev_register(struct host1x_device *device,
 	mutex_lock(&device->clients_lock);
 	list_move_tail(&client->list, &device->clients);
 	list_move_tail(&subdev->list, &device->active);
-	client->parent = &device->dev;
+	client->host = &device->dev;
 	subdev->client = client;
 	mutex_unlock(&device->clients_lock);
 	mutex_unlock(&device->subdevs_lock);
@@ -156,7 +156,7 @@ static void __host1x_subdev_unregister(struct host1x_device *device,
 	 */
 	mutex_lock(&device->clients_lock);
 	subdev->client = NULL;
-	client->parent = NULL;
+	client->host = NULL;
 	list_move_tail(&subdev->list, &device->subdevs);
 	/*
 	 * XXX: Perhaps don't do this here, but rather explicitly remove it

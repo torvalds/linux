@@ -1030,7 +1030,7 @@ static const struct drm_encoder_helper_funcs tegra_dsi_encoder_helper_funcs = {
 
 static int tegra_dsi_init(struct host1x_client *client)
 {
-	struct drm_device *drm = dev_get_drvdata(client->parent);
+	struct drm_device *drm = dev_get_drvdata(client->host);
 	struct tegra_dsi *dsi = host1x_client_to_dsi(client);
 	int err;
 

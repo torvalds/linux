@@ -1996,7 +1996,7 @@ static bool tegra_dc_has_window_groups(struct tegra_dc *dc)
 
 static int tegra_dc_init(struct host1x_client *client)
 {
-	struct drm_device *drm = dev_get_drvdata(client->parent);
+	struct drm_device *drm = dev_get_drvdata(client->host);
 	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
 	struct tegra_dc *dc = host1x_client_to_dc(client);
 	struct tegra_drm *tegra = drm->dev_private;
@@ -2077,9 +2077,9 @@ static int tegra_dc_init(struct host1x_client *client)
 
 	/*
 	 * Inherit the DMA parameters (such as maximum segment size) from the
-	 * parent device.
+	 * parent host1x device.
 	 */
-	client->dev->dma_parms = client->parent->dma_parms;
+	client->dev->dma_parms = client->host->dma_parms;
 
 	return 0;
 

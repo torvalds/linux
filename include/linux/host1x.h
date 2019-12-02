@@ -33,7 +33,7 @@ struct host1x_client_ops {
 /**
  * struct host1x_client - host1x client structure
  * @list: list node for the host1x client
- * @parent: pointer to struct device representing the host1x controller
+ * @host: pointer to struct device representing the host1x controller
  * @dev: pointer to struct device backing this host1x client
  * @group: IOMMU group that this client is a member of
  * @ops: host1x client operations
@@ -44,7 +44,7 @@ struct host1x_client_ops {
  */
 struct host1x_client {
 	struct list_head list;
-	struct device *parent;
+	struct device *host;
 	struct device *dev;
 	struct iommu_group *group;
 

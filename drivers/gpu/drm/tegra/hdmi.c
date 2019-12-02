@@ -1424,8 +1424,8 @@ static const struct drm_encoder_helper_funcs tegra_hdmi_encoder_helper_funcs = {
 
 static int tegra_hdmi_init(struct host1x_client *client)
 {
-	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_hdmi *hdmi = host1x_client_to_hdmi(client);
+	struct drm_device *drm = dev_get_drvdata(client->host);
 	int err;
 
 	hdmi->output.dev = client->dev;

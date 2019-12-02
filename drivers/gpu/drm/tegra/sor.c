@@ -3053,7 +3053,7 @@ static const struct tegra_sor_ops tegra_sor_dp_ops = {
 
 static int tegra_sor_init(struct host1x_client *client)
 {
-	struct drm_device *drm = dev_get_drvdata(client->parent);
+	struct drm_device *drm = dev_get_drvdata(client->host);
 	const struct drm_encoder_helper_funcs *helpers = NULL;
 	struct tegra_sor *sor = host1x_client_to_sor(client);
 	int connector = DRM_MODE_CONNECTOR_Unknown;
