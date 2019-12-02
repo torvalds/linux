@@ -310,6 +310,22 @@ static const struct ts_dmi_data jumper_ezpad_6_pro_b_data = {
 	.properties     = jumper_ezpad_6_pro_b_props,
 };
 
+static const struct property_entry jumper_ezpad_6_m4_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 35),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 15),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1950),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1525),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3692-jumper-ezpad-6-m4.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data jumper_ezpad_6_m4_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= jumper_ezpad_6_m4_props,
+};
+
 static const struct property_entry jumper_ezpad_mini3_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 23),
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 16),
@@ -496,6 +512,24 @@ static const struct property_entry pov_mobii_wintab_p1006w_v10_props[] = {
 static const struct ts_dmi_data pov_mobii_wintab_p1006w_v10_data = {
 	.acpi_name	= "MSSL1680:00",
 	.properties	= pov_mobii_wintab_p1006w_v10_props,
+};
+
+static const struct property_entry schneider_sct101ctm_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1715),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1680-schneider-sct101ctm.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data schneider_sct101ctm_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= schneider_sct101ctm_props,
 };
 
 static const struct property_entry teclast_x3_plus_props[] = {
@@ -789,6 +823,16 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
+		/* Jumper EZpad 6 m4 */
+		.driver_data = (void *)&jumper_ezpad_6_m4_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "jumper"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EZpad"),
+			/* Jumper8.S106x.A00C.1066 with the version dropped */
+			DMI_MATCH(DMI_BIOS_VERSION, "Jumper8.S106x"),
+		},
+	},
+	{
 		/* Jumper EZpad mini3 */
 		.driver_data = (void *)&jumper_ezpad_mini3_data,
 		.matches = {
@@ -906,6 +950,14 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 			/* Note 105b is Foxcon's USB/PCI vendor id */
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "105B"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "0E57"),
+		},
+	},
+	{
+		/* Schneider SCT101CTM */
+		.driver_data = (void *)&schneider_sct101ctm_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Default string"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SCT101CTM"),
 		},
 	},
 	{

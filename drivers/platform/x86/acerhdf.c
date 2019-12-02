@@ -4,7 +4,7 @@
  *           of the aspire one netbook, turns on/off the fan
  *           as soon as the upper/lower threshold is reached.
  *
- * (C) 2009 - Peter Feuerer     peter (a) piie.net
+ * (C) 2009 - Peter Kaestle     peter (a) piie.net
  *                              http://piie.net
  *     2009 Borislav Petkov	bp (a) alien8.de
  *
@@ -224,6 +224,8 @@ static const struct bios_settings bios_tbl[] __initconst = {
 	{"Acer", "Aspire 5739G", "V1.3311", 0x55, 0x58, {0x20, 0x00}, 0},
 	/* Acer TravelMate 7730 */
 	{"Acer", "TravelMate 7730G", "v0.3509", 0x55, 0x58, {0xaf, 0x00}, 0},
+	/* Acer Aspire 7551 */
+	{"Acer", "Aspire 7551", "V1.18", 0x93, 0xa8, {0x14, 0x04}, 1},
 	/* Acer TravelMate TM8573T */
 	{"Acer", "TM8573T", "V1.13", 0x93, 0xa8, {0x14, 0x04}, 1},
 	/* Gateway */
@@ -801,7 +803,7 @@ static void __exit acerhdf_exit(void)
 }
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Peter Feuerer");
+MODULE_AUTHOR("Peter Kaestle");
 MODULE_DESCRIPTION("Aspire One temperature and fan driver");
 MODULE_ALIAS("dmi:*:*Acer*:pnAOA*:");
 MODULE_ALIAS("dmi:*:*Acer*:pnAO751h*:");
@@ -815,6 +817,7 @@ MODULE_ALIAS("dmi:*:*Acer*:pnAspire*5739G:");
 MODULE_ALIAS("dmi:*:*Acer*:pnAspire*One*753:");
 MODULE_ALIAS("dmi:*:*Acer*:pnAspire*5315:");
 MODULE_ALIAS("dmi:*:*Acer*:TravelMate*7730G:");
+MODULE_ALIAS("dmi:*:*Acer*:pnAspire*7551:");
 MODULE_ALIAS("dmi:*:*Acer*:TM8573T:");
 MODULE_ALIAS("dmi:*:*Gateway*:pnAOA*:");
 MODULE_ALIAS("dmi:*:*Gateway*:pnLT31*:");

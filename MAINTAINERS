@@ -295,7 +295,7 @@ S:	Maintained
 F:	drivers/net/ethernet/alteon/acenic*
 
 ACER ASPIRE ONE TEMPERATURE AND FAN DRIVER
-M:	Peter Feuerer <peter@piie.net>
+M:	Peter Kaestle <peter@piie.net>
 L:	platform-driver-x86@vger.kernel.org
 W:	http://piie.net/?section=acerhdf
 S:	Maintained
@@ -10577,6 +10577,7 @@ M:	Darren Hart <dvhart@infradead.org>
 M:	Vadim Pasternak <vadimp@mellanox.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Supported
+F:	Documentation/ABI/testing/sysfs-platform-mellanox-bootctl
 F:	drivers/platform/mellanox/
 F:	include/linux/platform_data/mlxreg.h
 
@@ -15947,6 +15948,13 @@ F:	Documentation/trace/stm.rst
 F:	drivers/hwtracing/stm/
 F:	include/linux/stm.h
 F:	include/uapi/linux/stm.h
+
+SYSTEM76 ACPI DRIVER
+M:	Jeremy Soller <jeremy@system76.com>
+M:	System76 Product Development <productdev@system76.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/system76_acpi.c
 
 SYSV FILESYSTEM
 M:	Christoph Hellwig <hch@infradead.org>

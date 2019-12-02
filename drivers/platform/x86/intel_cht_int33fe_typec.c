@@ -17,17 +17,15 @@
  * for these chips can bind to the them.
  */
 
-#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/usb/pd.h>
 
-#define EXPECTED_PTYPE		4
+#include "intel_cht_int33fe_common.h"
 
 enum {
 	INT33FE_NODE_FUSB302,
@@ -36,14 +34,6 @@ enum {
 	INT33FE_NODE_DISPLAYPORT,
 	INT33FE_NODE_USB_CONNECTOR,
 	INT33FE_NODE_MAX,
-};
-
-struct cht_int33fe_data {
-	struct i2c_client *max17047;
-	struct i2c_client *fusb302;
-	struct i2c_client *pi3usb30532;
-
-	struct fwnode_handle *dp;
 };
 
 static const struct software_node nodes[];
@@ -251,42 +241,19 @@ cht_int33fe_register_max17047(struct device *dev, struct cht_int33fe_data *data)
 	strlcpy(board_info.type, "max17047", I2C_NAME_SIZE);
 	board_info.dev_name = "max17047";
 	board_info.fwnode = fwnode;
-	data->max17047 = i2c_acpi_new_device(dev, 1, &board_info);
+	data->battery_fg = i2c_acpi_new_device(dev, 1, &board_info);
 
-	return PTR_ERR_OR_ZERO(data->max17047);
+	return PTR_ERR_OR_ZERO(data->battery_fg);
 }
 
-static int cht_int33fe_probe(struct platform_device *pdev)
+int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 {
-	struct device *dev = &pdev->dev;
+	struct device *dev = data->dev;
 	struct i2c_board_info board_info;
-	struct cht_int33fe_data *data;
 	struct fwnode_handle *fwnode;
 	struct regulator *regulator;
-	unsigned long long ptyp;
-	acpi_status status;
 	int fusb302_irq;
 	int ret;
-
-	status = acpi_evaluate_integer(ACPI_HANDLE(dev), "PTYP", NULL, &ptyp);
-	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "Error getting PTYPE\n");
-		return -ENODEV;
-	}
-
-	/*
-	 * The same ACPI HID is used for different configurations check PTYP
-	 * to ensure that we are dealing with the expected config.
-	 */
-	if (ptyp != EXPECTED_PTYPE)
-		return -ENODEV;
-
-	/* Check presence of INT34D3 (hardware-rev 3) expected for ptype == 4 */
-	if (!acpi_dev_present("INT34D3", "1", 3)) {
-		dev_err(dev, "Error PTYPE == %d, but no INT34D3 device\n",
-			EXPECTED_PTYPE);
-		return -ENODEV;
-	}
 
 	/*
 	 * We expect the WC PMIC to be paired with a TI bq24292i charger-IC.
@@ -316,10 +283,6 @@ static int cht_int33fe_probe(struct platform_device *pdev)
 			dev_err(dev, "Error getting FUSB302 irq\n");
 		return fusb302_irq;
 	}
-
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
 
 	ret = cht_int33fe_add_nodes(data);
 	if (ret)
@@ -365,15 +328,13 @@ static int cht_int33fe_probe(struct platform_device *pdev)
 		goto out_unregister_fusb302;
 	}
 
-	platform_set_drvdata(pdev, data);
-
 	return 0;
 
 out_unregister_fusb302:
 	i2c_unregister_device(data->fusb302);
 
 out_unregister_max17047:
-	i2c_unregister_device(data->max17047);
+	i2c_unregister_device(data->battery_fg);
 
 out_remove_nodes:
 	cht_int33fe_remove_nodes(data);
@@ -381,36 +342,13 @@ out_remove_nodes:
 	return ret;
 }
 
-static int cht_int33fe_remove(struct platform_device *pdev)
+int cht_int33fe_typec_remove(struct cht_int33fe_data *data)
 {
-	struct cht_int33fe_data *data = platform_get_drvdata(pdev);
-
 	i2c_unregister_device(data->pi3usb30532);
 	i2c_unregister_device(data->fusb302);
-	i2c_unregister_device(data->max17047);
+	i2c_unregister_device(data->battery_fg);
 
 	cht_int33fe_remove_nodes(data);
 
 	return 0;
 }
-
-static const struct acpi_device_id cht_int33fe_acpi_ids[] = {
-	{ "INT33FE", },
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, cht_int33fe_acpi_ids);
-
-static struct platform_driver cht_int33fe_driver = {
-	.driver	= {
-		.name = "Intel Cherry Trail ACPI INT33FE driver",
-		.acpi_match_table = ACPI_PTR(cht_int33fe_acpi_ids),
-	},
-	.probe = cht_int33fe_probe,
-	.remove = cht_int33fe_remove,
-};
-
-module_platform_driver(cht_int33fe_driver);
-
-MODULE_DESCRIPTION("Intel Cherry Trail ACPI INT33FE pseudo device driver");
-MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
-MODULE_LICENSE("GPL v2");
