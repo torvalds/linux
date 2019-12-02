@@ -21,14 +21,12 @@ struct msm_gpummu {
 #define GPUMMU_PAGE_SIZE SZ_4K
 #define TABLE_SIZE (sizeof(uint32_t) * GPUMMU_VA_RANGE / GPUMMU_PAGE_SIZE)
 
-static int msm_gpummu_attach(struct msm_mmu *mmu, const char * const *names,
-		int cnt)
+static int msm_gpummu_attach(struct msm_mmu *mmu)
 {
 	return 0;
 }
 
-static void msm_gpummu_detach(struct msm_mmu *mmu, const char * const *names,
-		int cnt)
+static void msm_gpummu_detach(struct msm_mmu *mmu)
 {
 }
 

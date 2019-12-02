@@ -145,7 +145,7 @@ int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
 {
 	const unsigned long bit_rate = clk_req->bitclk_rate;
 	const unsigned long esc_rate = clk_req->escclk_rate;
-	s32 ui, ui_x8, lpx;
+	s32 ui, ui_x8;
 	s32 tmax, tmin;
 	s32 pcnt0 = 50;
 	s32 pcnt1 = 50;
@@ -175,7 +175,6 @@ int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
 
 	ui = mult_frac(NSEC_PER_MSEC, coeff, bit_rate / 1000);
 	ui_x8 = ui << 3;
-	lpx = mult_frac(NSEC_PER_MSEC, coeff, esc_rate / 1000);
 
 	temp = S_DIV_ROUND_UP(38 * coeff - val_ckln * ui, ui_x8);
 	tmin = max_t(s32, temp, 0);
@@ -262,7 +261,7 @@ int msm_dsi_dphy_timing_calc_v3(struct msm_dsi_dphy_timing *timing,
 {
 	const unsigned long bit_rate = clk_req->bitclk_rate;
 	const unsigned long esc_rate = clk_req->escclk_rate;
-	s32 ui, ui_x8, lpx;
+	s32 ui, ui_x8;
 	s32 tmax, tmin;
 	s32 pcnt0 = 50;
 	s32 pcnt1 = 50;
@@ -284,7 +283,6 @@ int msm_dsi_dphy_timing_calc_v3(struct msm_dsi_dphy_timing *timing,
 
 	ui = mult_frac(NSEC_PER_MSEC, coeff, bit_rate / 1000);
 	ui_x8 = ui << 3;
-	lpx = mult_frac(NSEC_PER_MSEC, coeff, esc_rate / 1000);
 
 	temp = S_DIV_ROUND_UP(38 * coeff, ui_x8);
 	tmin = max_t(s32, temp, 0);
@@ -485,6 +483,8 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 #ifdef CONFIG_DRM_MSM_DSI_28NM_PHY
 	{ .compatible = "qcom,dsi-phy-28nm-hpm",
 	  .data = &dsi_phy_28nm_hpm_cfgs },
+	{ .compatible = "qcom,dsi-phy-28nm-hpm-fam-b",
+	  .data = &dsi_phy_28nm_hpm_famb_cfgs },
 	{ .compatible = "qcom,dsi-phy-28nm-lp",
 	  .data = &dsi_phy_28nm_lp_cfgs },
 #endif

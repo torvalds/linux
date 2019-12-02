@@ -154,10 +154,6 @@ void dpu_vbif_set_ot_limit(struct dpu_kms *dpu_kms,
 	u32 ot_lim;
 	int ret, i;
 
-	if (!dpu_kms) {
-		DPU_ERROR("invalid arguments\n");
-		return;
-	}
 	mdp = dpu_kms->hw_mdp;
 
 	for (i = 0; i < ARRAY_SIZE(dpu_kms->hw_vbif); i++) {
@@ -214,7 +210,7 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 	const struct dpu_vbif_qos_tbl *qos_tbl;
 	int i;
 
-	if (!dpu_kms || !params || !dpu_kms->hw_mdp) {
+	if (!params || !dpu_kms->hw_mdp) {
 		DPU_ERROR("invalid arguments\n");
 		return;
 	}

@@ -121,7 +121,6 @@ uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	int rev = mdp5_cfg_get_hw_rev(mdp5_kms->cfg);
 	int i, hsub, nplanes, nlines;
-	u32 fmt = format->base.pixel_format;
 	uint32_t blkcfg = 0;
 
 	nplanes = info->num_planes;
@@ -135,7 +134,6 @@ uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
 	 * them together, writes to SMP using a single client.
 	 */
 	if ((rev > 0) && (format->chroma_sample > CHROMA_FULL)) {
-		fmt = DRM_FORMAT_NV24;
 		nplanes = 2;
 
 		/* if decimation is enabled, HW decimates less on the

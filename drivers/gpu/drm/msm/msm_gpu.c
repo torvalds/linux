@@ -16,6 +16,7 @@
 #include <linux/pm_opp.h>
 #include <linux/devfreq.h>
 #include <linux/devcoredump.h>
+#include <linux/sched/task.h>
 
 /*
  * Power Management:
@@ -838,7 +839,7 @@ msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
 		return ERR_CAST(aspace);
 	}
 
-	ret = aspace->mmu->funcs->attach(aspace->mmu, NULL, 0);
+	ret = aspace->mmu->funcs->attach(aspace->mmu);
 	if (ret) {
 		msm_gem_address_space_put(aspace);
 		return ERR_PTR(ret);
@@ -995,8 +996,7 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 	msm_gem_kernel_put(gpu->memptrs_bo, gpu->aspace, false);
 
 	if (!IS_ERR_OR_NULL(gpu->aspace)) {
-		gpu->aspace->mmu->funcs->detach(gpu->aspace->mmu,
-			NULL, 0);
+		gpu->aspace->mmu->funcs->detach(gpu->aspace->mmu);
 		msm_gem_address_space_put(gpu->aspace);
 	}
 }

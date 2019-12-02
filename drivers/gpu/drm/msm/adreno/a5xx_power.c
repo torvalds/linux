@@ -297,6 +297,10 @@ int a5xx_power_init(struct msm_gpu *gpu)
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int ret;
 
+	/* Not all A5xx chips have a GPMU */
+	if (adreno_is_a510(adreno_gpu))
+		return 0;
+
 	/* Set up the limits management */
 	if (adreno_is_a530(adreno_gpu))
 		a530_lm_setup(gpu);
@@ -325,6 +329,9 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	uint32_t dwords = 0, offset = 0, bosize;
 	unsigned int *data, *ptr, *cmds;
 	unsigned int cmds_size;
+
+	if (adreno_is_a510(adreno_gpu))
+		return;
 
 	if (a5xx_gpu->gpmu_bo)
 		return;

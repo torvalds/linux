@@ -298,7 +298,7 @@ void msm_rd_debugfs_cleanup(struct msm_drm_private *priv)
 
 static void snapshot_buf(struct msm_rd_state *rd,
 		struct msm_gem_submit *submit, int idx,
-		uint64_t iova, uint32_t size)
+		uint64_t iova, uint32_t size, bool full)
 {
 	struct msm_gem_object *obj = submit->bos[idx].obj;
 	unsigned offset = 0;
@@ -317,6 +317,9 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	 */
 	rd_write_section(rd, RD_GPUADDR,
 			(uint32_t[3]){ iova, size, iova >> 32 }, 12);
+
+	if (!full)
+		return;
 
 	/* But only dump the contents of buffers marked READ */
 	if (!(submit->bos[idx].flags & MSM_SUBMIT_BO_READ))
@@ -381,18 +384,21 @@ void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 	rd_write_section(rd, RD_CMD, msg, ALIGN(n, 4));
 
 	for (i = 0; i < submit->nr_bos; i++)
-		if (should_dump(submit, i))
-			snapshot_buf(rd, submit, i, 0, 0);
+		snapshot_buf(rd, submit, i, 0, 0, should_dump(submit, i));
 
 	for (i = 0; i < submit->nr_cmds; i++) {
-		uint64_t iova = submit->cmd[i].iova;
 		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 
 		/* snapshot cmdstream bo's (if we haven't already): */
 		if (!should_dump(submit, i)) {
 			snapshot_buf(rd, submit, submit->cmd[i].idx,
-					submit->cmd[i].iova, szd * 4);
+					submit->cmd[i].iova, szd * 4, true);
 		}
+	}
+
+	for (i = 0; i < submit->nr_cmds; i++) {
+		uint64_t iova = submit->cmd[i].iova;
+		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 
 		switch (submit->cmd[i].type) {
 		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
