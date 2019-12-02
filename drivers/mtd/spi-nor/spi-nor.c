@@ -196,7 +196,7 @@ struct flash_info {
 	u16		page_size;
 	u16		addr_width;
 
-	u16		flags;
+	u32		flags;
 #define SECT_4K			BIT(0)	/* SPINOR_OP_BE_4K works uniformly */
 #define SPI_NOR_NO_ERASE	BIT(1)	/* No erase command needed */
 #define SST_WRITE		BIT(2)	/* use SST byte programming */
@@ -233,6 +233,11 @@ struct flash_info {
 #define SPI_NOR_SKIP_SFDP	BIT(13)	/* Skip parsing of SFDP tables */
 #define USE_CLSR		BIT(14)	/* use CLSR command */
 #define SPI_NOR_OCTAL_READ	BIT(15)	/* Flash supports Octal Read */
+#define SPI_NOR_TB_SR_BIT6	BIT(16)	/*
+					 * Top/Bottom (TB) is bit 6 of
+					 * status register. Must be used with
+					 * SPI_NOR_HAS_TB.
+					 */
 
 	/* Part specific fixup hooks. */
 	const struct spi_nor_fixups *fixups;
@@ -1761,8 +1766,12 @@ static void stm_get_locked_range(struct spi_nor *nor, u8 sr, loff_t *ofs,
 {
 	struct mtd_info *mtd = &nor->mtd;
 	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
+	u8 tb_mask = SR_TB_BIT5;
 	int shift = ffs(mask) - 1;
 	int pow;
+
+	if (nor->flags & SNOR_F_HAS_SR_TB_BIT6)
+		tb_mask = SR_TB_BIT6;
 
 	if (!(sr & mask)) {
 		/* No protection */
@@ -1771,7 +1780,7 @@ static void stm_get_locked_range(struct spi_nor *nor, u8 sr, loff_t *ofs,
 	} else {
 		pow = ((sr & mask) ^ mask) >> shift;
 		*len = mtd->size >> pow;
-		if (nor->flags & SNOR_F_HAS_SR_TB && sr & SR_TB_BIT5)
+		if (nor->flags & SNOR_F_HAS_SR_TB && sr & tb_mask)
 			*ofs = 0;
 		else
 			*ofs = mtd->size - *len;
@@ -1850,6 +1859,7 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	struct mtd_info *mtd = &nor->mtd;
 	int ret, status_old, status_new;
 	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
+	u8 tb_mask = SR_TB_BIT5;
 	u8 shift = ffs(mask) - 1, pow, val;
 	loff_t lock_len;
 	bool can_be_top = true, can_be_bottom = nor->flags & SNOR_F_HAS_SR_TB;
@@ -1886,6 +1896,9 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	else
 		lock_len = ofs + len;
 
+	if (nor->flags & SNOR_F_HAS_SR_TB_BIT6)
+		tb_mask = SR_TB_BIT6;
+
 	/*
 	 * Need smallest pow such that:
 	 *
@@ -1903,13 +1916,13 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	if (!(val & mask))
 		return -EINVAL;
 
-	status_new = (status_old & ~mask & ~SR_TB_BIT5) | val;
+	status_new = (status_old & ~mask & ~tb_mask) | val;
 
 	/* Disallow further writes if WP pin is asserted */
 	status_new |= SR_SRWD;
 
 	if (!use_top)
-		status_new |= SR_TB_BIT5;
+		status_new |= tb_mask;
 
 	/* Don't bother if they're the same */
 	if (status_new == status_old)
@@ -1932,6 +1945,7 @@ static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	struct mtd_info *mtd = &nor->mtd;
 	int ret, status_old, status_new;
 	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
+	u8 tb_mask = SR_TB_BIT5;
 	u8 shift = ffs(mask) - 1, pow, val;
 	loff_t lock_len;
 	bool can_be_top = true, can_be_bottom = nor->flags & SNOR_F_HAS_SR_TB;
@@ -1968,6 +1982,8 @@ static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	else
 		lock_len = ofs;
 
+	if (nor->flags & SNOR_F_HAS_SR_TB_BIT6)
+		tb_mask = SR_TB_BIT6;
 	/*
 	 * Need largest pow such that:
 	 *
@@ -1987,14 +2003,14 @@ static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 			return -EINVAL;
 	}
 
-	status_new = (status_old & ~mask & ~SR_TB_BIT5) | val;
+	status_new = (status_old & ~mask & ~tb_mask) | val;
 
 	/* Don't protect status register if we're fully unlocked */
 	if (lock_len == 0)
 		status_new &= ~SR_SRWD;
 
 	if (!use_top)
-		status_new |= SR_TB_BIT5;
+		status_new |= tb_mask;
 
 	/* Don't bother if they're the same */
 	if (status_new == status_old)
@@ -5144,8 +5160,12 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 
 	if (info->flags & USE_FSR)
 		nor->flags |= SNOR_F_USE_FSR;
-	if (info->flags & SPI_NOR_HAS_TB)
+	if (info->flags & SPI_NOR_HAS_TB) {
 		nor->flags |= SNOR_F_HAS_SR_TB;
+		if (info->flags & SPI_NOR_TB_SR_BIT6)
+			nor->flags |= SNOR_F_HAS_SR_TB_BIT6;
+	}
+
 	if (info->flags & NO_CHIP_ERASE)
 		nor->flags |= SNOR_F_NO_OP_CHIP_ERASE;
 	if (info->flags & USE_CLSR)
