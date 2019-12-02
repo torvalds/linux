@@ -239,8 +239,10 @@ static int sdw_get_group_count(struct sdw_bus *bus,
 
 		} else {
 			ret = sdw_add_element_group_count(group, rate);
-			if (ret < 0)
+			if (ret < 0) {
+				kfree(group->rates);
 				return ret;
+			}
 		}
 	}
 
@@ -260,7 +262,7 @@ static int sdw_compute_port_params(struct sdw_bus *bus)
 
 	ret = sdw_get_group_count(bus, &group);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (group.count == 0)
 		goto out;
@@ -275,12 +277,13 @@ static int sdw_compute_port_params(struct sdw_bus *bus)
 	ret = sdw_compute_group_params(bus, params,
 				       &group.rates[0], group.count);
 	if (ret < 0)
-		goto out;
+		goto free_params;
 
 	_sdw_compute_port_params(bus, params, group.count);
 
-out:
+free_params:
 	kfree(params);
+out:
 	kfree(group.rates);
 
 	return ret;
