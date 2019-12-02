@@ -3396,7 +3396,7 @@ static void io_submit_state_end(struct io_submit_state *state)
  * Start submission side cache.
  */
 static void io_submit_state_start(struct io_submit_state *state,
-				  struct io_ring_ctx *ctx, unsigned max_ios)
+				  unsigned int max_ios)
 {
 	blk_start_plug(&state->plug);
 	state->free_reqs = 0;
@@ -3480,7 +3480,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 		return -EBUSY;
 
 	if (nr > IO_PLUG_THRESHOLD) {
-		io_submit_state_start(&state, ctx, nr);
+		io_submit_state_start(&state, nr);
 		statep = &state;
 	}
 
