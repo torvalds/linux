@@ -416,7 +416,7 @@
 		#clock-cells = <0>;
 		compatible = "ti,divider-clock";
 		clocks = <&dpll4_ck>;
-		ti,max-div = <32>;
+		ti,max-div = <16>;
 		reg = <0x0e40>;
 		ti,index-starts-at-one;
 	};

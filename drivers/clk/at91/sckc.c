@@ -487,8 +487,7 @@ static void __init of_sam9x60_sckc_setup(struct device_node *np)
 	if (IS_ERR(slow_osc))
 		goto unregister_slow_rc;
 
-	clk_data = kzalloc(sizeof(*clk_data) + (2 * sizeof(struct clk_hw *)),
-			   GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, 2), GFP_KERNEL);
 	if (!clk_data)
 		goto unregister_slow_osc;
 

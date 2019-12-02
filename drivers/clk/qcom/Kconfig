@@ -220,12 +220,30 @@ config MSM_GCC_8998
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, UFS, SD/eMMC, PCIe, etc.
 
+config MSM_GPUCC_8998
+	tristate "MSM8998 Graphics Clock Controller"
+	select MSM_GCC_8998
+	select QCOM_GDSC
+	help
+	  Support for the graphics clock controller on MSM8998 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 config QCS_GCC_404
 	tristate "QCS404 Global Clock Controller"
 	help
 	  Support for the global clock controller on QCS404 devices.
 	  Say Y if you want to use multimedia devices or peripheral
 	  devices such as UART, SPI, I2C, USB, SD/eMMC, PCIe etc.
+
+config SC_GCC_7180
+	tristate "SC7180 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SC7180 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, UFS, SDCC, etc.
 
 config SDM_CAMCC_845
 	tristate "SDM845 Camera Clock Controller"
@@ -247,6 +265,14 @@ config QCS_TURING_404
 	help
 	  Support for the Turing Clock Controller on QCS404, provides clocks
 	  and resets for the Turing subsystem.
+
+config QCS_Q6SSTOP_404
+	tristate "QCS404 Q6SSTOP Clock Controller"
+	select QCS_GCC_404
+	help
+	  Support for the Q6SSTOP clock controller on QCS404 devices.
+	  Say Y if you want to use the Q6SSTOP branch clocks of the WCSS clock
+	  controller to reset the Q6SSTOP subsystem.
 
 config SDM_GCC_845
 	tristate "SDM845 Global Clock Controller"

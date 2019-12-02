@@ -180,7 +180,7 @@ static void __init tegra_super_clk_init(void __iomem *clk_base,
 					gen_info->num_cclk_g_parents,
 					CLK_SET_RATE_PARENT,
 					clk_base + CCLKG_BURST_POLICY,
-					0, 4, 8, 0, NULL);
+					TEGRA210_CPU_CLK, 4, 8, 0, NULL);
 		} else {
 			clk = tegra_clk_register_super_mux("cclk_g",
 					gen_info->cclk_g_parents,
@@ -196,6 +196,11 @@ static void __init tegra_super_clk_init(void __iomem *clk_base,
 	dt_clk = tegra_lookup_dt_id(tegra_clk_cclk_lp, tegra_clks);
 	if (dt_clk) {
 		if (gen_info->gen == gen5) {
+			/*
+			 * TEGRA210_CPU_CLK flag is not needed for cclk_lp as
+			 * cluster switching is not currently supported on
+			 * Tegra210 and also cpu_lp is not used.
+			 */
 			clk = tegra_clk_register_super_mux("cclk_lp",
 					gen_info->cclk_lp_parents,
 					gen_info->num_cclk_lp_parents,
