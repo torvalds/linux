@@ -4,7 +4,7 @@
  *
  * Global definitions for the zfcp device driver.
  *
- * Copyright IBM Corp. 2002, 2017
+ * Copyright IBM Corp. 2002, 2018
  */
 
 #ifndef ZFCP_DEF_H
@@ -86,6 +86,7 @@
 #define ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED       0x00000080
 #define ZFCP_STATUS_FSFREQ_TMFUNCFAILED         0x00000200
 #define ZFCP_STATUS_FSFREQ_DISMISSED            0x00001000
+#define ZFCP_STATUS_FSFREQ_XDATAINCOMPLETE	0x00020000
 
 /************************* STRUCTURE DEFINITIONS *****************************/
 
@@ -197,6 +198,7 @@ struct zfcp_adapter {
 	struct device_dma_parameters dma_parms;
 	struct zfcp_fc_events events;
 	unsigned long		next_port_scan;
+	struct zfcp_diag_adapter	*diagnostics;
 };
 
 struct zfcp_port {

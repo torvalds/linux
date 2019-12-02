@@ -31,6 +31,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/ctype.h>
+#include <linux/vmalloc.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -2077,6 +2078,96 @@ lpfc_debugfs_lockstat_write(struct file *file, const char __user *buf,
 	return nbytes;
 }
 #endif
+
+static int lpfc_debugfs_ras_log_data(struct lpfc_hba *phba,
+				     char *buffer, int size)
+{
+	int copied = 0;
+	struct lpfc_dmabuf *dmabuf, *next;
+
+	spin_lock_irq(&phba->hbalock);
+	if (phba->ras_fwlog.state != ACTIVE) {
+		spin_unlock_irq(&phba->hbalock);
+		return -EINVAL;
+	}
+	spin_unlock_irq(&phba->hbalock);
+
+	list_for_each_entry_safe(dmabuf, next,
+				 &phba->ras_fwlog.fwlog_buff_list, list) {
+		memcpy(buffer + copied, dmabuf->virt, LPFC_RAS_MAX_ENTRY_SIZE);
+		copied += LPFC_RAS_MAX_ENTRY_SIZE;
+		if (size > copied)
+			break;
+	}
+	return copied;
+}
+
+static int
+lpfc_debugfs_ras_log_release(struct inode *inode, struct file *file)
+{
+	struct lpfc_debug *debug = file->private_data;
+
+	vfree(debug->buffer);
+	kfree(debug);
+
+	return 0;
+}
+
+/**
+ * lpfc_debugfs_ras_log_open - Open the RAS log debugfs buffer
+ * @inode: The inode pointer that contains a vport pointer.
+ * @file: The file pointer to attach the log output.
+ *
+ * Description:
+ * This routine is the entry point for the debugfs open file operation. It gets
+ * the vport from the i_private field in @inode, allocates the necessary buffer
+ * for the log, fills the buffer from the in-memory log for this vport, and then
+ * returns a pointer to that log in the private_data field in @file.
+ *
+ * Returns:
+ * This function returns zero if successful. On error it will return a negative
+ * error value.
+ **/
+static int
+lpfc_debugfs_ras_log_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_debug *debug;
+	int size;
+	int rc = -ENOMEM;
+
+	spin_lock_irq(&phba->hbalock);
+	if (phba->ras_fwlog.state != ACTIVE) {
+		spin_unlock_irq(&phba->hbalock);
+		rc = -EINVAL;
+		goto out;
+	}
+	spin_unlock_irq(&phba->hbalock);
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	size = LPFC_RAS_MIN_BUFF_POST_SIZE * phba->cfg_ras_fwlog_buffsize;
+	debug->buffer = vmalloc(size);
+	if (!debug->buffer)
+		goto free_debug;
+
+	debug->len = lpfc_debugfs_ras_log_data(phba, debug->buffer, size);
+	if (debug->len < 0) {
+		rc = -EINVAL;
+		goto free_buffer;
+	}
+	file->private_data = debug;
+
+	return 0;
+
+free_buffer:
+	vfree(debug->buffer);
+free_debug:
+	kfree(debug);
+out:
+	return rc;
+}
 
 /**
  * lpfc_debugfs_dumpHBASlim_open - Open the Dump HBA SLIM debugfs buffer
@@ -5286,6 +5377,16 @@ static const struct file_operations lpfc_debugfs_op_lockstat = {
 };
 #endif
 
+#undef lpfc_debugfs_ras_log
+static const struct file_operations lpfc_debugfs_ras_log = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_debugfs_ras_log_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_debugfs_read,
+	.release =      lpfc_debugfs_ras_log_release,
+};
+#endif
+
 #undef lpfc_debugfs_op_dumpHBASlim
 static const struct file_operations lpfc_debugfs_op_dumpHBASlim = {
 	.owner =        THIS_MODULE,
@@ -5457,7 +5558,6 @@ static const struct file_operations lpfc_idiag_op_extAcc = {
 	.release =      lpfc_idiag_cmd_release,
 };
 
-#endif
 
 /* lpfc_idiag_mbxacc_dump_bsg_mbox - idiag debugfs dump bsg mailbox command
  * @phba: Pointer to HBA context object.
@@ -5704,6 +5804,19 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		if (!phba->debug_multixri_pools) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
 					 "0527 Cannot create debugfs multixripools\n");
+			goto debug_failed;
+		}
+
+		/* RAS log */
+		snprintf(name, sizeof(name), "ras_log");
+		phba->debug_ras_log =
+			debugfs_create_file(name, 0644,
+					    phba->hba_debugfs_root,
+					    phba, &lpfc_debugfs_ras_log);
+		if (!phba->debug_ras_log) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "6148 Cannot create debugfs"
+					 " ras_log\n");
 			goto debug_failed;
 		}
 
@@ -6116,6 +6229,9 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 
 		debugfs_remove(phba->debug_hbqinfo); /* hbqinfo */
 		phba->debug_hbqinfo = NULL;
+
+		debugfs_remove(phba->debug_ras_log);
+		phba->debug_ras_log = NULL;
 
 #ifdef LPFC_HDWQ_LOCK_STAT
 		debugfs_remove(phba->debug_lockstat); /* lockstat */

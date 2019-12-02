@@ -76,8 +76,8 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"31.100.00.00"
-#define MPT3SAS_MAJOR_VERSION		31
+#define MPT3SAS_DRIVER_VERSION		"32.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		32
 #define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
@@ -303,6 +303,8 @@ struct mpt3sas_nvme_cmd {
 #define MPT3_DIAG_BUFFER_IS_REGISTERED	(0x01)
 #define MPT3_DIAG_BUFFER_IS_RELEASED	(0x02)
 #define MPT3_DIAG_BUFFER_IS_DIAG_RESET	(0x04)
+#define MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED (0x08)
+#define MPT3_DIAG_BUFFER_IS_APP_OWNED (0x10)
 
 /*
  * HP HBA branding
@@ -391,9 +393,12 @@ struct Mpi2ManufacturingPage11_t {
 	u8	Reserved6;			/* 2Fh */
 	__le32	Reserved7[7];			/* 30h - 4Bh */
 	u8	NVMeAbortTO;			/* 4Ch */
-	u8	Reserved8;			/* 4Dh */
-	u16	Reserved9;			/* 4Eh */
-	__le32	Reserved10[4];			/* 50h - 60h */
+	u8	NumPerDevEvents;		/* 4Dh */
+	u8	HostTraceBufferDecrementSizeKB;	/* 4Eh */
+	u8	HostTraceBufferFlags;		/* 4Fh */
+	u16	HostTraceBufferMaxSizeKB;	/* 50h */
+	u16	HostTraceBufferMinSizeKB;	/* 52h */
+	__le32	Reserved10[2];			/* 54h - 5Bh */
 };
 
 /**

@@ -113,15 +113,21 @@ mpt3sas_process_trigger_data(struct MPT3SAS_ADAPTER *ioc,
 	struct SL_WH_TRIGGERS_EVENT_DATA_T *event_data)
 {
 	u8 issue_reset = 0;
+	u32 *trig_data = (u32 *)&event_data->u.master;
 
 	dTriggerDiagPrintk(ioc, ioc_info(ioc, "%s: enter\n", __func__));
 
 	/* release the diag buffer trace */
 	if ((ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
 	    MPT3_DIAG_BUFFER_IS_RELEASED) == 0) {
-		dTriggerDiagPrintk(ioc,
-				   ioc_info(ioc, "%s: release trace diag buffer\n",
-					    __func__));
+		/*
+		 * add a log message so that user knows which event caused
+		 * the release
+		 */
+		ioc_info(ioc,
+		    "%s: Releasing the trace buffer. Trigger_Type 0x%08x, Data[0] 0x%08x, Data[1] 0x%08x\n",
+		    __func__, event_data->trigger_type,
+		    trig_data[0], trig_data[1]);
 		mpt3sas_send_diag_release(ioc, MPI2_DIAG_BUF_TYPE_TRACE,
 		    &issue_reset);
 	}

@@ -1084,7 +1084,8 @@ of interest:
                    commands to the adapter.
     this_id      - scsi id of host (scsi initiator) or -1 if not known
     sg_tablesize - maximum scatter gather elements allowed by host.
-                   0 implies scatter gather not supported by host
+                   Set this to SG_ALL or less to avoid chained SG lists.
+                   Must be at least 1.
     max_sectors  - maximum number of sectors (usually 512 bytes) allowed
                    in a single SCSI command. The default value of 0 leads
                    to a setting of SCSI_DEFAULT_MAX_SECTORS (defined in
