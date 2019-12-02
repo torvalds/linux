@@ -16,8 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/acpi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
@@ -360,7 +359,7 @@ struct ak8975_data {
 	struct mutex		lock;
 	u8			asa[3];
 	long			raw_to_gauss[3];
-	int			eoc_gpio;
+	struct gpio_desc	*eoc_gpiod;
 	int			eoc_irq;
 	wait_queue_head_t	data_ready_queue;
 	unsigned long		flags;
@@ -498,15 +497,13 @@ static int ak8975_setup_irq(struct ak8975_data *data)
 	if (client->irq)
 		irq = client->irq;
 	else
-		irq = gpio_to_irq(data->eoc_gpio);
+		irq = gpiod_to_irq(data->eoc_gpiod);
 
 	rc = devm_request_irq(&client->dev, irq, ak8975_irq_handler,
 			      IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 			      dev_name(&client->dev), data);
 	if (rc < 0) {
-		dev_err(&client->dev,
-			"irq %d request failed, (gpio %d): %d\n",
-			irq, data->eoc_gpio, rc);
+		dev_err(&client->dev, "irq %d request failed: %d\n", irq, rc);
 		return rc;
 	}
 
@@ -549,7 +546,7 @@ static int ak8975_setup(struct i2c_client *client)
 		return ret;
 	}
 
-	if (data->eoc_gpio > 0 || client->irq > 0) {
+	if (data->eoc_gpiod || client->irq > 0) {
 		ret = ak8975_setup_irq(data);
 		if (ret < 0) {
 			dev_err(&client->dev,
@@ -574,7 +571,7 @@ static int wait_conversion_complete_gpio(struct ak8975_data *data)
 	/* Wait for the conversion to complete. */
 	while (timeout_ms) {
 		msleep(AK8975_CONVERSION_DONE_POLL_TIME);
-		if (gpio_get_value(data->eoc_gpio))
+		if (gpiod_get_value(data->eoc_gpiod))
 			break;
 		timeout_ms -= AK8975_CONVERSION_DONE_POLL_TIME;
 	}
@@ -646,7 +643,7 @@ static int ak8975_start_read_axis(struct ak8975_data *data,
 	/* Wait for the conversion to complete. */
 	if (data->eoc_irq)
 		ret = wait_conversion_complete_interrupt(data);
-	else if (gpio_is_valid(data->eoc_gpio))
+	else if (data->eoc_gpiod)
 		ret = wait_conversion_complete_gpio(data);
 	else
 		ret = wait_conversion_complete_polled(data);
@@ -856,36 +853,23 @@ static int ak8975_probe(struct i2c_client *client,
 {
 	struct ak8975_data *data;
 	struct iio_dev *indio_dev;
-	int eoc_gpio;
+	struct gpio_desc *eoc_gpiod;
 	int err;
 	const char *name = NULL;
 	enum asahi_compass_chipset chipset = AK_MAX_TYPE;
 	const struct ak8975_platform_data *pdata =
 		dev_get_platdata(&client->dev);
 
-	/* Grab and set up the supplied GPIO. */
-	if (pdata)
-		eoc_gpio = pdata->eoc_gpio;
-	else if (client->dev.of_node)
-		eoc_gpio = of_get_gpio(client->dev.of_node, 0);
-	else
-		eoc_gpio = -1;
-
-	if (eoc_gpio == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-
-	/* We may not have a GPIO based IRQ to scan, that is fine, we will
-	   poll if so */
-	if (gpio_is_valid(eoc_gpio)) {
-		err = devm_gpio_request_one(&client->dev, eoc_gpio,
-							GPIOF_IN, "ak_8975");
-		if (err < 0) {
-			dev_err(&client->dev,
-				"failed to request GPIO %d, error %d\n",
-							eoc_gpio, err);
-			return err;
-		}
-	}
+	/*
+	 * Grab and set up the supplied GPIO.
+	 * We may not have a GPIO based IRQ to scan, that is fine, we will
+	 * poll if so.
+	 */
+	eoc_gpiod = devm_gpiod_get_optional(&client->dev, NULL, GPIOD_IN);
+	if (IS_ERR(eoc_gpiod))
+		return PTR_ERR(eoc_gpiod);
+	if (eoc_gpiod)
+		gpiod_set_consumer_name(eoc_gpiod, "ak_8975");
 
 	/* Register with IIO */
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
@@ -896,7 +880,7 @@ static int ak8975_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 
 	data->client = client;
-	data->eoc_gpio = eoc_gpio;
+	data->eoc_gpiod = eoc_gpiod;
 	data->eoc_irq = 0;
 
 	if (!pdata) {
