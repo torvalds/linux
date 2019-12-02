@@ -27,6 +27,8 @@
 #include <linux/types.h>
 
 struct i915_request;
+struct intel_engine_cs;
+struct i915_vma;
 
 struct intel_renderstate_rodata {
 	const u32 *reloc;
@@ -46,6 +48,19 @@ extern const struct intel_renderstate_rodata gen7_null_state;
 extern const struct intel_renderstate_rodata gen8_null_state;
 extern const struct intel_renderstate_rodata gen9_null_state;
 
-int intel_renderstate_emit(struct i915_request *rq);
+struct intel_renderstate {
+	const struct intel_renderstate_rodata *rodata;
+	struct i915_vma *vma;
+	u32 batch_offset;
+	u32 batch_size;
+	u32 aux_offset;
+	u32 aux_size;
+};
+
+int intel_renderstate_init(struct intel_renderstate *so,
+			   struct intel_engine_cs *engine);
+int intel_renderstate_emit(struct intel_renderstate *so,
+			   struct i915_request *rq);
+void intel_renderstate_fini(struct intel_renderstate *so);
 
 #endif /* _INTEL_RENDERSTATE_H_ */

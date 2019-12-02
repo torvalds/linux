@@ -1086,8 +1086,13 @@ static int __intel_engines_record_defaults(struct intel_gt *gt)
 	 */
 
 	for_each_engine(engine, gt, id) {
+		struct intel_renderstate so;
 		struct intel_context *ce;
 		struct i915_request *rq;
+
+		err = intel_renderstate_init(&so, engine);
+		if (err)
+			goto out;
 
 		/* We must be able to switch to something! */
 		GEM_BUG_ON(!engine->kernel_context);
@@ -1111,13 +1116,14 @@ static int __intel_engines_record_defaults(struct intel_gt *gt)
 		if (err)
 			goto err_rq;
 
-		err = intel_renderstate_emit(rq);
+		err = intel_renderstate_emit(&so, rq);
 		if (err)
 			goto err_rq;
 
 err_rq:
 		requests[id] = i915_request_get(rq);
 		i915_request_add(rq);
+		intel_renderstate_fini(&so);
 		if (err)
 			goto out;
 	}
