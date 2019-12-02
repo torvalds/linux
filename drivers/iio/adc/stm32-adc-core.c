@@ -280,21 +280,21 @@ out:
 static const struct stm32_adc_common_regs stm32f4_adc_common_regs = {
 	.csr = STM32F4_ADC_CSR,
 	.ccr = STM32F4_ADC_CCR,
-	.eoc1_msk = STM32F4_EOC1,
-	.eoc2_msk = STM32F4_EOC2,
-	.eoc3_msk = STM32F4_EOC3,
+	.eoc1_msk = STM32F4_EOC1 | STM32F4_OVR1,
+	.eoc2_msk = STM32F4_EOC2 | STM32F4_OVR2,
+	.eoc3_msk = STM32F4_EOC3 | STM32F4_OVR3,
 	.ier = STM32F4_ADC_CR1,
-	.eocie_msk = STM32F4_EOCIE,
+	.eocie_msk = STM32F4_EOCIE | STM32F4_OVRIE,
 };
 
 /* STM32H7 common registers definitions */
 static const struct stm32_adc_common_regs stm32h7_adc_common_regs = {
 	.csr = STM32H7_ADC_CSR,
 	.ccr = STM32H7_ADC_CCR,
-	.eoc1_msk = STM32H7_EOC_MST,
-	.eoc2_msk = STM32H7_EOC_SLV,
+	.eoc1_msk = STM32H7_EOC_MST | STM32H7_OVR_MST,
+	.eoc2_msk = STM32H7_EOC_SLV | STM32H7_OVR_SLV,
 	.ier = STM32H7_ADC_IER,
-	.eocie_msk = STM32H7_EOCIE,
+	.eocie_msk = STM32H7_EOCIE | STM32H7_OVRIE,
 };
 
 static const unsigned int stm32_adc_offset[STM32_ADC_MAX_ADCS] = {
