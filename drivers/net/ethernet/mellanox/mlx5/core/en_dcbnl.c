@@ -1126,7 +1126,7 @@ static void mlx5e_trust_update_sq_inline_mode(struct mlx5e_priv *priv)
 	    priv->channels.params.tx_min_inline_mode)
 		goto out;
 
-	mlx5e_safe_switch_channels(priv, &new_channels, NULL);
+	mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 
 out:
 	mutex_unlock(&priv->state_lock);

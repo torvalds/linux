@@ -1047,12 +1047,19 @@ void mlx5e_close_channels(struct mlx5e_channels *chs);
 /* Function pointer to be used to modify HW or kernel settings while
  * switching channels
  */
-typedef int (*mlx5e_fp_preactivate)(struct mlx5e_priv *priv);
+typedef int (*mlx5e_fp_preactivate)(struct mlx5e_priv *priv, void *context);
+#define MLX5E_DEFINE_PREACTIVATE_WRAPPER_CTX(fn) \
+int fn##_ctx(struct mlx5e_priv *priv, void *context) \
+{ \
+	return fn(priv); \
+}
 int mlx5e_safe_reopen_channels(struct mlx5e_priv *priv);
 int mlx5e_safe_switch_channels(struct mlx5e_priv *priv,
 			       struct mlx5e_channels *new_chs,
-			       mlx5e_fp_preactivate preactivate);
+			       mlx5e_fp_preactivate preactivate,
+			       void *context);
 int mlx5e_num_channels_changed(struct mlx5e_priv *priv);
+int mlx5e_num_channels_changed_ctx(struct mlx5e_priv *priv, void *context);
 void mlx5e_activate_priv_channels(struct mlx5e_priv *priv);
 void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv);
 
@@ -1132,10 +1139,10 @@ void mlx5e_update_ndo_stats(struct mlx5e_priv *priv);
 void mlx5e_queue_update_stats(struct mlx5e_priv *priv);
 int mlx5e_bits_invert(unsigned long a, int size);
 
-typedef int (*change_hw_mtu_cb)(struct mlx5e_priv *priv);
 int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv);
+int mlx5e_set_dev_port_mtu_ctx(struct mlx5e_priv *priv, void *context);
 int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
-		     change_hw_mtu_cb set_mtu_cb);
+		     mlx5e_fp_preactivate preactivate);
 
 /* ethtool helpers */
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,

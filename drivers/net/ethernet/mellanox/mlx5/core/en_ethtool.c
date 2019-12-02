@@ -357,7 +357,7 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 		goto unlock;
 	}
 
-	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL);
+	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 
 unlock:
 	mutex_unlock(&priv->state_lock);
@@ -441,7 +441,8 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 		mlx5e_arfs_disable(priv);
 
 	/* Switch to new channels, set new parameters and close old ones */
-	err = mlx5e_safe_switch_channels(priv, &new_channels, mlx5e_num_channels_changed);
+	err = mlx5e_safe_switch_channels(priv, &new_channels,
+					 mlx5e_num_channels_changed_ctx, NULL);
 
 	if (arfs_enabled) {
 		int err2 = mlx5e_arfs_enable(priv);
@@ -574,7 +575,7 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 		goto out;
 	}
 
-	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL);
+	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 
 out:
 	mutex_unlock(&priv->state_lock);
@@ -1742,7 +1743,7 @@ static int set_pflag_cqe_based_moder(struct net_device *netdev, bool enable,
 		return 0;
 	}
 
-	return mlx5e_safe_switch_channels(priv, &new_channels, NULL);
+	return mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 }
 
 static int set_pflag_tx_cqe_based_moder(struct net_device *netdev, bool enable)
@@ -1775,7 +1776,7 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 		return 0;
 	}
 
-	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL);
+	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 	if (err)
 		return err;
 
@@ -1832,7 +1833,7 @@ static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
 		return 0;
 	}
 
-	return mlx5e_safe_switch_channels(priv, &new_channels, NULL);
+	return mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 }
 
 static int set_pflag_rx_no_csum_complete(struct net_device *netdev, bool enable)
@@ -1876,7 +1877,7 @@ static int set_pflag_xdp_tx_mpwqe(struct net_device *netdev, bool enable)
 		return 0;
 	}
 
-	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL);
+	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 	return err;
 }
 
