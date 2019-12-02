@@ -17,14 +17,14 @@ void arch_wb_cache_pmem(void *addr, size_t size)
 	unsigned long start = (unsigned long) addr;
 	flush_dcache_range(start, start + size);
 }
-EXPORT_SYMBOL(arch_wb_cache_pmem);
+EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 
 void arch_invalidate_pmem(void *addr, size_t size)
 {
 	unsigned long start = (unsigned long) addr;
 	flush_dcache_range(start, start + size);
 }
-EXPORT_SYMBOL(arch_invalidate_pmem);
+EXPORT_SYMBOL_GPL(arch_invalidate_pmem);
 
 /*
  * CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE symbols
