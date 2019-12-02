@@ -9,14 +9,14 @@
 #include "rk3399-rockpro64.dtsi"
 
 / {
-	model = "Pine64 RockPro64 v2.1";
-	compatible = "pine64,rockpro64-v2.1", "pine64,rockpro64", "rockchip,rk3399";
+	model = "Pine64 RockPro64 v2.0";
+	compatible = "pine64,rockpro64-v2.0", "pine64,rockpro64", "rockchip,rk3399";
 };
 
 &i2c1 {
-	es8316: codec@11 {
+	es8316: codec@10 {
 		compatible = "everest,es8316";
-		reg = <0x11>;
+		reg = <0x10>;
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		clock-names = "mclk";
 		#sound-dai-cells = <0>;

@@ -409,6 +409,9 @@ properties:
 
       - description: Pine64 RockPro64
         items:
+          - enum:
+              - pine64,rockpro64-v2.1
+              - pine64,rockpro64-v2.0
           - const: pine64,rockpro64
           - const: rockchip,rk3399
 
