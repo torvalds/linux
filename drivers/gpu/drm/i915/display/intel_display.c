@@ -14497,8 +14497,8 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 		 * slave CRTCs are disabled first and then master CRTC since
 		 * Slave vblanks are masked till Master Vblanks.
 		 */
-		if (is_trans_port_sync_mode(new_crtc_state)) {
-			if (is_trans_port_sync_master(new_crtc_state))
+		if (is_trans_port_sync_mode(old_crtc_state)) {
+			if (is_trans_port_sync_master(old_crtc_state))
 				intel_trans_port_sync_modeset_disables(state,
 								       crtc,
 								       old_crtc_state,
