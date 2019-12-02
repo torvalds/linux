@@ -256,7 +256,6 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 
 	intel_mst->connector = NULL;
 	if (intel_dp->active_mst_links == 0) {
-		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 		intel_dig_port->base.post_disable(&intel_dig_port->base,
 						  old_crtc_state, NULL);
 	}

@@ -3801,14 +3801,14 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 					  INTEL_OUTPUT_DP_MST);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
-	if (!is_mst) {
-		/*
-		 * Power down sink before disabling the port, otherwise we end
-		 * up getting interrupts from the sink on detecting link loss.
-		 */
-		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
+	/*
+	 * Power down sink before disabling the port, otherwise we end
+	 * up getting interrupts from the sink on detecting link loss.
+	 */
+	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
+
+	if (!is_mst)
 		intel_ddi_disable_pipe_clock(old_crtc_state);
-	}
 
 	intel_disable_ddi_buf(encoder, old_crtc_state);
 
