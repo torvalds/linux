@@ -49,9 +49,6 @@ Device Drivers Base
 Device Drivers DMA Management
 -----------------------------
 
-.. kernel-doc:: kernel/dma/coherent.c
-   :export:
-
 .. kernel-doc:: kernel/dma/mapping.c
    :export:
 

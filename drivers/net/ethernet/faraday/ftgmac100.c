@@ -1858,7 +1858,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		}
 
 		/* Indicate that we support PAUSE frames (see comment in
-		 * Documentation/networking/phy.txt)
+		 * Documentation/networking/phy.rst)
 		 */
 		phy_support_asym_pause(phy);
 

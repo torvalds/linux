@@ -1,11 +1,11 @@
-=============================================================
-Usage of the new open sourced rbu (Remote BIOS Update) driver
-=============================================================
+=========================================
+Dell Remote BIOS Update driver (dell_rbu)
+=========================================
 
 Purpose
 =======
 
-Document demonstrating the use of the Dell Remote BIOS Update driver.
+Document demonstrating the use of the Dell Remote BIOS Update driver
 for updating BIOS images on Dell servers and desktops.
 
 Scope
@@ -37,7 +37,7 @@ maintains a link list of packets for reading them back.
 
 If the dell_rbu driver is unloaded all the allocated memory is freed.
 
-The rbu driver needs to have an application (as mentioned above)which will
+The rbu driver needs to have an application (as mentioned above) which will
 inform the BIOS to enable the update in the next system reboot.
 
 The user should not unload the rbu driver after downloading the BIOS image
@@ -71,7 +71,7 @@ be downloaded. It is done as below::
 	echo XXXX > /sys/devices/platform/dell_rbu/packet_size
 
 In the packet update mechanism, the user needs to create a new file having
-packets of data arranged back to back. It can be done as follows
+packets of data arranged back to back. It can be done as follows:
 The user creates packets header, gets the chunk of the BIOS image and
 places it next to the packetheader; now, the packetheader + BIOS image chunk
 added together should match the specified packet_size. This makes one
@@ -114,7 +114,7 @@ The entries can be recreated by doing the following::
 
 	echo init > /sys/devices/platform/dell_rbu/image_type
 
-.. note:: echoing init in image_type does not change it original value.
+.. note:: echoing init in image_type does not change its original value.
 
 Also the driver provides /sys/devices/platform/dell_rbu/data readonly file to
 read back the image downloaded.

@@ -437,8 +437,6 @@
 			no delay (0).
 			Format: integer
 
-	bootmem_debug	[KNL] Enable bootmem allocator debug messages.
-
 	bert_disable	[ACPI]
 			Disable BERT OS support on buggy BIOSes.
 
@@ -983,12 +981,10 @@
 
 	earlycon=	[KNL] Output early console device and options.
 
-			[ARM64] The early console is determined by the
-			stdout-path property in device tree's chosen node,
-			or determined by the ACPI SPCR table.
-
-			[X86] When used with no options the early console is
-			determined by the ACPI SPCR table.
+			When used with no options, the early console is
+			determined by stdout-path property in device tree's
+			chosen node or the ACPI SPCR table if supported by
+			the platform.
 
 		cdns,<addr>[,options]
 			Start an early, polled-mode console on a Cadence

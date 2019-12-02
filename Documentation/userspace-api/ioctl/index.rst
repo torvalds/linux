@@ -9,7 +9,6 @@ IOCTLs
 
    ioctl-number
 
-   botching-up-ioctls
    ioctl-decoding
 
    cdrom

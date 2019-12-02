@@ -240,7 +240,7 @@ an involved disclosed party. The current ambassadors list:
 
   ============= ========================================================
   ARM
-  AMD
+  AMD		Tom Lendacky <tom.lendacky@amd.com>
   IBM
   Intel		Tony Luck <tony.luck@intel.com>
   Qualcomm	Trilok Soni <tsoni@codeaurora.org>

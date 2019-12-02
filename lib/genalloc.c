@@ -472,7 +472,7 @@ void *gen_pool_dma_zalloc_align(struct gen_pool *pool, size_t size,
 EXPORT_SYMBOL(gen_pool_dma_zalloc_align);
 
 /**
- * gen_pool_free - free allocated special memory back to the pool
+ * gen_pool_free_owner - free allocated special memory back to the pool
  * @pool: pool to free to
  * @addr: starting address of memory to free back to pool
  * @size: size in bytes of memory to free

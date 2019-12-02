@@ -455,7 +455,7 @@ soluzioni disponibili:
   `GnuK`_ della FSIJ. Questo è uno dei pochi dispositivi a supportare le chiavi
   ECC ED25519, ma offre meno funzionalità di sicurezza (come la resistenza
   alla manomissione o alcuni attacchi ad un canale laterale).
-- `Nitrokey Pro`_: è simile alla Nitrokey Start, ma è più resistente alla
+- `Nitrokey Pro 2`_: è simile alla Nitrokey Start, ma è più resistente alla
   manomissione e offre più funzionalità di sicurezza. La Pro 2 supporta la
   crittografia ECC (NISTP).
 - `Yubikey 5`_: l'hardware e il software sono proprietari, ma è più economica

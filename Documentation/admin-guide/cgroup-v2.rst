@@ -1120,8 +1120,9 @@ PAGE_SIZE multiple when read back.
 
 	Best-effort memory protection.  If the memory usage of a
 	cgroup is within its effective low boundary, the cgroup's
-	memory won't be reclaimed unless memory can be reclaimed
-	from unprotected cgroups.  Above the effective low boundary (or
+	memory won't be reclaimed unless there is no reclaimable
+	memory available in unprotected cgroups.
+	Above the effective low	boundary (or 
 	effective min boundary if it is higher), pages are reclaimed
 	proportionally to the overage, reducing reclaim pressure for
 	smaller overages.
@@ -1925,7 +1926,7 @@ Cpuset Interface Files
 
         It accepts only the following input values when written to.
 
-        "root"   - a paritition root
+        "root"   - a partition root
         "member" - a non-root member of a partition
 
 	When set to be a partition root, the current cgroup is the

@@ -279,7 +279,7 @@ mlx5 tracepoints
 ================
 
 mlx5 driver provides internal trace points for tracking and debugging using
-kernel tracepoints interfaces (refer to Documentation/trace/ftrase.rst).
+kernel tracepoints interfaces (refer to Documentation/trace/ftrace.rst).
 
 For the list of support mlx5 events check /sys/kernel/debug/tracing/events/mlx5/
 

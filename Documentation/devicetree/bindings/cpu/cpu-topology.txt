@@ -549,5 +549,5 @@ Example 3: HiFive Unleashed (RISC-V 64 bit, 4 core system)
 [2] Devicetree NUMA binding description
     Documentation/devicetree/bindings/numa.txt
 [3] RISC-V Linux kernel documentation
-    Documentation/devicetree/bindings/riscv/cpus.txt
+    Documentation/devicetree/bindings/riscv/cpus.yaml
 [4] https://www.devicetree.org/specifications/

@@ -137,6 +137,20 @@ equivalent to %lx (or %lu). %px is preferred because it is more uniquely
 grep'able. If in the future we need to modify the way the kernel handles
 printing pointers we will be better equipped to find the call sites.
 
+Pointer Differences
+-------------------
+
+::
+
+	%td	2560
+	%tx	a00
+
+For printing the pointer differences, use the %t modifier for ptrdiff_t.
+
+Example::
+
+	printk("test: difference between pointers: %td\n", ptr2 - ptr1);
+
 Struct Resources
 ----------------
 

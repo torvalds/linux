@@ -596,8 +596,8 @@ enum ionic_txq_desc_opcode {
  *                      the @encap is set, the device will
  *                      offload the outer header checksums using
  *                      LCO (local checksum offload) (see
- *                      Documentation/networking/checksum-
- *                      offloads.txt for more info).
+ *                      Documentation/networking/checksum-offloads.rst
+ *                      for more info).
  *
  *                   IONIC_TXQ_DESC_OPCODE_CSUM_HW:
  *

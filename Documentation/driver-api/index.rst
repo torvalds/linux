@@ -40,6 +40,7 @@ available subsections can be seen below.
    ipmb
    i3c/index
    interconnect
+   devfreq
    hsi
    edac
    scsi
@@ -73,7 +74,6 @@ available subsections can be seen below.
    connector
    console
    dcdbas
-   dell_rbu
    edid
    eisa
    ipmb
@@ -93,7 +93,6 @@ available subsections can be seen below.
    pwm
    rfkill
    serial/index
-   sgi-ioc4
    sm501
    smsc_ece1099
    switchtec

@@ -1,12 +1,14 @@
-
-
-	List of maintainers and how to submit kernel changes
+List of maintainers and how to submit kernel changes
+====================================================
 
 Please try to follow the guidelines below.  This will make things
 easier on the maintainers.  Not all of these guidelines matter for every
 trivial patch so apply some common sense.
 
-1.	Always _test_ your changes, however small, on at least 4 or
+Tips for patch submitters
+-------------------------
+
+1.	Always *test* your changes, however small, on at least 4 or
 	5 people, preferably many more.
 
 2.	Try to release a few ALPHA test versions to the net. Announce
@@ -25,7 +27,7 @@ trivial patch so apply some common sense.
 	testing and await feedback.
 
 5.	Make a patch available to the relevant maintainer in the list. Use
-	'diff -u' to make the patch easy to merge. Be prepared to get your
+	``diff -u`` to make the patch easy to merge. Be prepared to get your
 	changes sent back with seemingly silly requests about formatting
 	and variable names.  These aren't as silly as they seem. One
 	job the maintainers (and especially Linus) do is to keep things
@@ -38,7 +40,7 @@ trivial patch so apply some common sense.
 	See Documentation/process/coding-style.rst for guidance here.
 
 	PLEASE CC: the maintainers and mailing lists that are generated
-	by scripts/get_maintainer.pl.  The results returned by the
+	by ``scripts/get_maintainer.pl.`` The results returned by the
 	script will be best if you have git installed and are making
 	your changes in a branch derived from Linus' latest git tree.
 	See Documentation/process/submitting-patches.rst for details.
@@ -70,26 +72,27 @@ trivial patch so apply some common sense.
 	not represent an immediate threat and are better handled publicly,
 	and ideally, should come with a patch proposal. Please do not send
 	automated reports to this list either. Such bugs will be handled
-	better and faster in the usual public places.
+	better and faster in the usual public places. See
+	Documentation/admin-guide/security-bugs.rst for details.
 
 8.	Happy hacking.
 
-Descriptions of section entries:
+Descriptions of section entries
+-------------------------------
 
-	P: Person (obsolete)
-	M: Mail patches to: FullName <address@domain>
-	R: Designated reviewer: FullName <address@domain>
+	M: *Mail* patches to: FullName <address@domain>
+	R: Designated *Reviewer*: FullName <address@domain>
 	   These reviewers should be CCed on patches.
-	L: Mailing list that is relevant to this area
-	W: Web-page with status/info
-	B: URI for where to file bugs. A web-page with detailed bug
+	L: *Mailing list* that is relevant to this area
+	W: *Web-page* with status/info
+	B: URI for where to file *bugs*. A web-page with detailed bug
 	   filing info, a direct bug tracker link, or a mailto: URI.
-	C: URI for chat protocol, server and channel where developers
+	C: URI for *chat* protocol, server and channel where developers
 	   usually hang out, for example irc://server/channel.
-	Q: Patchwork web based patch tracking system site
-	T: SCM tree type and location.
+	Q: *Patchwork* web based patch tracking system site
+	T: *SCM* tree type and location.
 	   Type is one of: git, hg, quilt, stgit, topgit
-	S: Status, one of the following:
+	S: *Status*, one of the following:
 	   Supported:	Someone is actually paid to look after this.
 	   Maintained:	Someone actually looks after it.
 	   Odd Fixes:	It has a maintainer but they don't have time to do
@@ -99,13 +102,17 @@ Descriptions of section entries:
 	   Obsolete:	Old code. Something tagged obsolete generally means
 			it has been replaced by a better system and you
 			should be using that.
-	F: Files and directories with wildcard patterns.
+	P: Subsystem Profile document for more details submitting
+	   patches to the given subsystem. This is either an in-tree file,
+	   or a URI. See Documentation/maintainer/maintainer-entry-profile.rst
+	   for details.
+	F: *Files* and directories wildcard patterns.
 	   A trailing slash includes all files and subdirectory files.
 	   F:	drivers/net/	all files in and below drivers/net
 	   F:	drivers/net/*	all files in drivers/net, but not below
 	   F:	*/net/*		all files in "any top level directory"/net
 	   One pattern per line.  Multiple F: lines acceptable.
-	N: Files and directories with regex patterns.
+	N: Files and directories *Regex* patterns.
 	   N:	[^a-z]tegra	all files whose path contains the word tegra
 	   One pattern per line.  Multiple N: lines acceptable.
 	   scripts/get_maintainer.pl has different behavior for files that
@@ -113,14 +120,14 @@ Descriptions of section entries:
 	   get_maintainer will not look at git log history when an F: pattern
 	   match occurs.  When an N: match occurs, git log history is used
 	   to also notify the people that have git commit signatures.
-	X: Files and directories that are NOT maintained, same rules as F:
-	   Files exclusions are tested before file matches.
+	X: *Excluded* files and directories that are NOT maintained, same
+	   rules as F:. Files exclusions are tested before file matches.
 	   Can be useful for excluding a specific subdirectory, for instance:
 	   F:	net/
 	   X:	net/ipv6/
 	   matches all files in and below net excluding net/ipv6/
-	K: Keyword perl extended regex pattern to match content in a
-	   patch or file.  For instance:
+	K: *Content regex* (perl extended) pattern match in a patch or file.
+	   For instance:
 	   K: of_get_profile
 	      matches patches or files that contain "of_get_profile"
 	   K: \b(printk|pr_(info|err))\b
@@ -128,13 +135,12 @@ Descriptions of section entries:
 	      printk, pr_info or pr_err
 	   One regex pattern per line.  Multiple K: lines acceptable.
 
-Note: For the hard of thinking, this list is meant to remain in alphabetical
-order. If you could add yourselves to it in alphabetical order that would be
-so much easier [Ed]
+Maintainers List
+----------------
 
-Maintainers List (try to look for most precise areas first)
-
-		-----------------------------------
+.. note:: When reading this list, please look for the most precise areas
+          first. When adding to this list, please keep the entries in
+          alphabetical order.
 
 3C59X NETWORK DRIVER
 M:	Steffen Klassert <klassert@kernel.org>
@@ -817,7 +823,7 @@ S:	Orphan
 F:	drivers/usb/gadget/udc/amd5536udc.*
 
 AMD GEODE PROCESSOR/CHIPSET SUPPORT
-P:	Andres Salomon <dilinger@queued.net>
+M:	Andres Salomon <dilinger@queued.net>
 L:	linux-geode@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.amd.com/us-en/ConnectivitySolutions/TechnicalResources/0,,50_2334_2452_11363,00.html
 S:	Supported
@@ -1640,8 +1646,7 @@ R:	Suzuki K Poulose <suzuki.poulose@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/hwtracing/coresight/*
-F:	Documentation/trace/coresight.rst
-F:	Documentation/trace/coresight-cpu-debug.rst
+F:	Documentation/trace/coresight/*
 F:	Documentation/devicetree/bindings/arm/coresight.txt
 F:	Documentation/devicetree/bindings/arm/coresight-cpu-debug.txt
 F:	Documentation/ABI/testing/sysfs-bus-coresight-devices-*
@@ -3709,7 +3714,7 @@ M:	Oleksij Rempel <o.rempel@pengutronix.de>
 R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 L:	linux-can@vger.kernel.org
 S:	Maintained
-F:	Documentation/networking/j1939.txt
+F:	Documentation/networking/j1939.rst
 F:	net/can/j1939/
 F:	include/uapi/linux/can/j1939.h
 
@@ -9401,6 +9406,7 @@ M:	Dan Williams <dan.j.williams@intel.com>
 M:	Vishal Verma <vishal.l.verma@intel.com>
 M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
+P:	Documentation/nvdimm/maintainer-entry-profile.rst
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
 F:	drivers/nvdimm/blk.c
@@ -9411,6 +9417,7 @@ M:	Vishal Verma <vishal.l.verma@intel.com>
 M:	Dan Williams <dan.j.williams@intel.com>
 M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
+P:	Documentation/nvdimm/maintainer-entry-profile.rst
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
 F:	drivers/nvdimm/btt*
@@ -9420,6 +9427,7 @@ M:	Dan Williams <dan.j.williams@intel.com>
 M:	Vishal Verma <vishal.l.verma@intel.com>
 M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
+P:	Documentation/nvdimm/maintainer-entry-profile.rst
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
 F:	drivers/nvdimm/pmem*
@@ -9438,6 +9446,7 @@ M:	Vishal Verma <vishal.l.verma@intel.com>
 M:	Dave Jiang <dave.jiang@intel.com>
 M:	Ira Weiny <ira.weiny@intel.com>
 L:	linux-nvdimm@lists.01.org
+P:	Documentation/nvdimm/maintainer-entry-profile.rst
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm.git
 S:	Supported
@@ -10337,7 +10346,6 @@ F:	drivers/staging/media/tegra-vde/
 
 MEDIA INPUT INFRASTRUCTURE (V4L/DVB)
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
-P:	LinuxTV.org Project
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 Q:	http://patchwork.kernel.org/project/linux-media/list/
@@ -13772,7 +13780,6 @@ S:	Maintained
 F:	arch/mips/ralink
 
 RALINK RT2X00 WIRELESS LAN DRIVER
-P:	rt2x00 project
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
 M:	Helmut Schaa <helmut.schaa@googlemail.com>
 L:	linux-wireless@vger.kernel.org
@@ -14108,7 +14115,6 @@ S:	Supported
 F:	drivers/net/ethernet/rocker/
 
 ROCKETPORT DRIVER
-P:	Comtrol Corp.
 W:	http://www.comtrol.com
 S:	Maintained
 F:	Documentation/driver-api/serial/rocket.rst
@@ -15016,15 +15022,13 @@ F:	drivers/video/fbdev/simplefb.c
 F:	include/linux/platform_data/simplefb.h
 
 SIMTEC EB110ATX (Chalice CATS)
-P:	Ben Dooks
-P:	Vincent Sanders <vince@simtec.co.uk>
+M:	Vincent Sanders <vince@simtec.co.uk>
 M:	Simtec Linux Team <linux@simtec.co.uk>
 W:	http://www.simtec.co.uk/products/EB110ATX/
 S:	Supported
 
 SIMTEC EB2410ITX (BAST)
-P:	Ben Dooks
-P:	Vincent Sanders <vince@simtec.co.uk>
+M:	Vincent Sanders <vince@simtec.co.uk>
 M:	Simtec Linux Team <linux@simtec.co.uk>
 W:	http://www.simtec.co.uk/products/EB2410ITX/
 S:	Supported
@@ -15739,7 +15743,7 @@ SUN4I LOW RES ADC ATTACHED TABLET KEYS DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/input/sun4i-lradc-keys.txt
+F:	Documentation/devicetree/bindings/input/allwinner,sun4i-a10-lradc-keys.yaml
 F:	drivers/input/keyboard/sun4i-lradc-keys.c
 
 SUNDANCE NETWORK DRIVER

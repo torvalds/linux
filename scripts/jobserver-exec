@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+# SPDX-License-Identifier: GPL-2.0+
+#
+# This determines how many parallel tasks "make" is expecting, as it is
+# not exposed via an special variables, reserves them all, runs a subprocess
+# with PARALLELISM environment variable set, and releases the jobs back again.
+#
+# https://www.gnu.org/software/make/manual/html_node/POSIX-Jobserver.html#POSIX-Jobserver
+from __future__ import print_function
+import os, sys, errno
+import subprocess
+
+# Extract and prepare jobserver file descriptors from envirnoment.
+claim = 0
+jobs = b""
+try:
+	# Fetch the make environment options.
+	flags = os.environ['MAKEFLAGS']
+
+	# Look for "--jobserver=R,W"
+	# Note that GNU Make has used --jobserver-fds and --jobserver-auth
+	# so this handles all of them.
+	opts = [x for x in flags.split(" ") if x.startswith("--jobserver")]
+
+	# Parse out R,W file descriptor numbers and set them nonblocking.
+	fds = opts[0].split("=", 1)[1]
+	reader, writer = [int(x) for x in fds.split(",", 1)]
+	# Open a private copy of reader to avoid setting nonblocking
+	# on an unexpecting process with the same reader fd.
+	reader = os.open("/proc/self/fd/%d" % (reader),
+			 os.O_RDONLY | os.O_NONBLOCK)
+
+	# Read out as many jobserver slots as possible.
+	while True:
+		try:
+			slot = os.read(reader, 8)
+			jobs += slot
+		except (OSError, IOError) as e:
+			if e.errno == errno.EWOULDBLOCK:
+				# Stop at the end of the jobserver queue.
+				break
+			# If something went wrong, give back the jobs.
+			if len(jobs):
+				os.write(writer, jobs)
+			raise e
+	# Add a bump for our caller's reserveration, since we're just going
+	# to sit here blocked on our child.
+	claim = len(jobs) + 1
+except (KeyError, IndexError, ValueError, OSError, IOError) as e:
+	# Any missing environment strings or bad fds should result in just
+	# not being parallel.
+	pass
+
+# We can only claim parallelism if there was a jobserver (i.e. a top-level
+# "-jN" argument) and there were no other failures. Otherwise leave out the
+# environment variable and let the child figure out what is best.
+if claim > 0:
+	os.environ['PARALLELISM'] = '%d' % (claim)
+
+rc = subprocess.call(sys.argv[1:])
+
+# Return all the reserved slots.
+if len(jobs):
+	os.write(writer, jobs)
+
+sys.exit(rc)

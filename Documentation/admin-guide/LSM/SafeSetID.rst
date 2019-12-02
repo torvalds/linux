@@ -56,7 +56,7 @@ setid capabilities from the application completely and refactor the process
 spawning semantics in the application (e.g. by using a privileged helper program
 to do process spawning and UID/GID transitions). Unfortunately, there are a
 number of semantics around process spawning that would be affected by this, such
-as fork() calls where the program doesn???t immediately call exec() after the
+as fork() calls where the program doesn't immediately call exec() after the
 fork(), parent processes specifying custom environment variables or command line
 args for spawned child processes, or inheritance of file handles across a
 fork()/exec(). Because of this, as solution that uses a privileged helper in
@@ -72,7 +72,7 @@ own user namespace, and only approved UIDs/GIDs could be mapped back to the
 initial system user namespace, affectively preventing privilege escalation.
 Unfortunately, it is not generally feasible to use user namespaces in isolation,
 without pairing them with other namespace types, which is not always an option.
-Linux checks for capabilities based off of the user namespace that ???owns??? some
+Linux checks for capabilities based off of the user namespace that "owns" some
 entity. For example, Linux has the notion that network namespaces are owned by
 the user namespace in which they were created. A consequence of this is that
 capability checks for access to a given network namespace are done by checking
