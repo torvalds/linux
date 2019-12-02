@@ -118,10 +118,6 @@ static inline void io_wq_worker_sleeping(struct task_struct *tsk)
 static inline void io_wq_worker_running(struct task_struct *tsk)
 {
 }
-#endif
+#endif /* CONFIG_IO_WQ */
 
-static inline bool io_wq_current_is_worker(void)
-{
-	return in_task() && (current->flags & PF_IO_WORKER);
-}
-#endif
+#endif /* INTERNAL_IO_WQ_H */
