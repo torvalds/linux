@@ -1307,8 +1307,8 @@ static int gmc_v9_0_hw_init(void *handle)
 	else
 		value = true;
 
-	gfxhub_v1_0_set_fault_enable_default(adev, value);
 	if (!amdgpu_sriov_vf(adev)) {
+		gfxhub_v1_0_set_fault_enable_default(adev, value);
 		if (adev->asic_type == CHIP_ARCTURUS)
 			mmhub_v9_4_set_fault_enable_default(adev, value);
 		else
