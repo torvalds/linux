@@ -28,13 +28,13 @@
 
 #include "i915_drv.h"
 
-#include "gt/intel_gt.h"
-
+#include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
 #include "intel_engine_pool.h"
 #include "intel_engine_user.h"
-#include "intel_context.h"
+#include "intel_gt.h"
+#include "intel_gt_requests.h"
 #include "intel_lrc.h"
 #include "intel_reset.h"
 #include "intel_ring.h"
@@ -616,6 +616,7 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_execlists(engine);
 	intel_engine_init_cmd_parser(engine);
 	intel_engine_init__pm(engine);
+	intel_engine_init_retire(engine);
 
 	intel_engine_pool_init(&engine->pool);
 
@@ -838,6 +839,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 
 	cleanup_status_page(engine);
 
+	intel_engine_fini_retire(engine);
 	intel_engine_pool_fini(&engine->pool);
 	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);

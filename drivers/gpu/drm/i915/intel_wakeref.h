@@ -9,6 +9,7 @@
 
 #include <linux/atomic.h>
 #include <linux/bits.h>
+#include <linux/lockdep.h>
 #include <linux/mutex.h>
 #include <linux/refcount.h>
 #include <linux/stackdepot.h>
@@ -29,9 +30,6 @@ typedef depot_stack_handle_t intel_wakeref_t;
 struct intel_wakeref_ops {
 	int (*get)(struct intel_wakeref *wf);
 	int (*put)(struct intel_wakeref *wf);
-
-	unsigned long flags;
-#define INTEL_WAKEREF_PUT_ASYNC BIT(0)
 };
 
 struct intel_wakeref {
@@ -57,7 +55,7 @@ void __intel_wakeref_init(struct intel_wakeref *wf,
 } while (0)
 
 int __intel_wakeref_get_first(struct intel_wakeref *wf);
-void __intel_wakeref_put_last(struct intel_wakeref *wf);
+void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags);
 
 /**
  * intel_wakeref_get: Acquire the wakeref
@@ -100,10 +98,9 @@ intel_wakeref_get_if_active(struct intel_wakeref *wf)
 }
 
 /**
- * intel_wakeref_put: Release the wakeref
- * @i915: the drm_i915_private device
+ * intel_wakeref_put_flags: Release the wakeref
  * @wf: the wakeref
- * @fn: callback for releasing the wakeref, called only on final release.
+ * @flags: control flags
  *
  * Release our hold on the wakeref. When there are no more users,
  * the runtime pm wakeref will be released after the @fn callback is called
@@ -116,11 +113,25 @@ intel_wakeref_get_if_active(struct intel_wakeref *wf)
  * code otherwise.
  */
 static inline void
-intel_wakeref_put(struct intel_wakeref *wf)
+__intel_wakeref_put(struct intel_wakeref *wf, unsigned long flags)
+#define INTEL_WAKEREF_PUT_ASYNC BIT(0)
 {
 	INTEL_WAKEREF_BUG_ON(atomic_read(&wf->count) <= 0);
 	if (unlikely(!atomic_add_unless(&wf->count, -1, 1)))
-		__intel_wakeref_put_last(wf);
+		__intel_wakeref_put_last(wf, flags);
+}
+
+static inline void
+intel_wakeref_put(struct intel_wakeref *wf)
+{
+	might_sleep();
+	__intel_wakeref_put(wf, 0);
+}
+
+static inline void
+intel_wakeref_put_async(struct intel_wakeref *wf)
+{
+	__intel_wakeref_put(wf, INTEL_WAKEREF_PUT_ASYNC);
 }
 
 /**
@@ -152,6 +163,21 @@ intel_wakeref_unlock(struct intel_wakeref *wf)
 }
 
 /**
+ * intel_wakeref_unlock_wait: Wait until the active callback is complete
+ * @wf: the wakeref
+ *
+ * Waits for the active callback (under the @wf->mutex or another CPU) is
+ * complete.
+ */
+static inline void
+intel_wakeref_unlock_wait(struct intel_wakeref *wf)
+{
+	mutex_lock(&wf->mutex);
+	mutex_unlock(&wf->mutex);
+	flush_work(&wf->work);
+}
+
+/**
  * intel_wakeref_is_active: Query whether the wakeref is currently held
  * @wf: the wakeref
  *
@@ -170,6 +196,7 @@ intel_wakeref_is_active(const struct intel_wakeref *wf)
 static inline void
 __intel_wakeref_defer_park(struct intel_wakeref *wf)
 {
+	lockdep_assert_held(&wf->mutex);
 	INTEL_WAKEREF_BUG_ON(atomic_read(&wf->count));
 	atomic_set_release(&wf->count, 1);
 }

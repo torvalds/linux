@@ -593,7 +593,7 @@ struct tgl_dkl_phy_ddi_buf_trans {
 	u32 dkl_de_emphasis_control;
 };
 
-static const struct tgl_dkl_phy_ddi_buf_trans tgl_dkl_phy_ddi_translations[] = {
+static const struct tgl_dkl_phy_ddi_buf_trans tgl_dkl_phy_dp_ddi_trans[] = {
 				/* VS	pre-emp	Non-trans mV	Pre-emph dB */
 	{ 0x7, 0x0, 0x00 },	/* 0	0	400mV		0 dB */
 	{ 0x5, 0x0, 0x03 },	/* 0	1	400mV		3.5 dB */
@@ -605,6 +605,20 @@ static const struct tgl_dkl_phy_ddi_buf_trans tgl_dkl_phy_ddi_translations[] = {
 	{ 0x2, 0x0, 0x00 },	/* 2	0	800mV		0 dB */
 	{ 0x0, 0x0, 0x0B },	/* 2	1	800mV		3.5 dB */
 	{ 0x0, 0x0, 0x00 },	/* 3	0	1200mV		0 dB HDMI default */
+};
+
+static const struct tgl_dkl_phy_ddi_buf_trans tgl_dkl_phy_hdmi_ddi_trans[] = {
+				/* HDMI Preset	VS	Pre-emph */
+	{ 0x7, 0x0, 0x0 },	/* 1		400mV	0dB */
+	{ 0x6, 0x0, 0x0 },	/* 2		500mV	0dB */
+	{ 0x4, 0x0, 0x0 },	/* 3		650mV	0dB */
+	{ 0x2, 0x0, 0x0 },	/* 4		800mV	0dB */
+	{ 0x0, 0x0, 0x0 },	/* 5		1000mV	0dB */
+	{ 0x0, 0x0, 0x5 },	/* 6		Full	-1.5 dB */
+	{ 0x0, 0x0, 0x6 },	/* 7		Full	-1.8 dB */
+	{ 0x0, 0x0, 0x7 },	/* 8		Full	-2 dB */
+	{ 0x0, 0x0, 0x8 },	/* 9		Full	-2.5 dB */
+	{ 0x0, 0x0, 0xA },	/* 10		Full	-3 dB */
 };
 
 static const struct ddi_buf_trans *
@@ -898,7 +912,7 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 			icl_get_combo_buf_trans(dev_priv, INTEL_OUTPUT_HDMI,
 						0, &n_entries);
 		else
-			n_entries = ARRAY_SIZE(tgl_dkl_phy_ddi_translations);
+			n_entries = ARRAY_SIZE(tgl_dkl_phy_hdmi_ddi_trans);
 		default_entry = n_entries - 1;
 	} else if (INTEL_GEN(dev_priv) == 11) {
 		if (intel_phy_is_combo(dev_priv, phy))
@@ -2371,7 +2385,7 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 			icl_get_combo_buf_trans(dev_priv, encoder->type,
 						intel_dp->link_rate, &n_entries);
 		else
-			n_entries = ARRAY_SIZE(tgl_dkl_phy_ddi_translations);
+			n_entries = ARRAY_SIZE(tgl_dkl_phy_dp_ddi_trans);
 	} else if (INTEL_GEN(dev_priv) == 11) {
 		if (intel_phy_is_combo(dev_priv, phy))
 			icl_get_combo_buf_trans(dev_priv, encoder->type,
@@ -2823,8 +2837,13 @@ tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder, int link_clock,
 	const struct tgl_dkl_phy_ddi_buf_trans *ddi_translations;
 	u32 n_entries, val, ln, dpcnt_mask, dpcnt_val;
 
-	n_entries = ARRAY_SIZE(tgl_dkl_phy_ddi_translations);
-	ddi_translations = tgl_dkl_phy_ddi_translations;
+	if (encoder->type == INTEL_OUTPUT_HDMI) {
+		n_entries = ARRAY_SIZE(tgl_dkl_phy_hdmi_ddi_trans);
+		ddi_translations = tgl_dkl_phy_hdmi_ddi_trans;
+	} else {
+		n_entries = ARRAY_SIZE(tgl_dkl_phy_dp_ddi_trans);
+		ddi_translations = tgl_dkl_phy_dp_ddi_trans;
+	}
 
 	if (level >= n_entries)
 		level = n_entries - 1;

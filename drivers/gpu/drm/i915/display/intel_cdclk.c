@@ -1273,7 +1273,9 @@ static u8 icl_calc_voltage_level(int cdclk)
 
 static u8 ehl_calc_voltage_level(int cdclk)
 {
-	if (cdclk > 312000)
+	if (cdclk > 326400)
+		return 3;
+	else if (cdclk > 312000)
 		return 2;
 	else if (cdclk > 180000)
 		return 1;

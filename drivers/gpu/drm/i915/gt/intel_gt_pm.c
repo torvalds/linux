@@ -105,7 +105,6 @@ static int __gt_park(struct intel_wakeref *wf)
 static const struct intel_wakeref_ops wf_ops = {
 	.get = __gt_unpark,
 	.put = __gt_park,
-	.flags = INTEL_WAKEREF_PUT_ASYNC,
 };
 
 void intel_gt_pm_init_early(struct intel_gt *gt)
@@ -272,7 +271,7 @@ void intel_gt_suspend_prepare(struct intel_gt *gt)
 
 static suspend_state_t pm_suspend_target(void)
 {
-#if IS_ENABLED(CONFIG_PM_SLEEP)
+#if IS_ENABLED(CONFIG_SUSPEND) && IS_ENABLED(CONFIG_PM_SLEEP)
 	return pm_suspend_target_state;
 #else
 	return PM_SUSPEND_TO_IDLE;
