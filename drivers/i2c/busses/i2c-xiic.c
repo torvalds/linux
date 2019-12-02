@@ -46,6 +46,7 @@ enum xiic_endian {
 
 /**
  * struct xiic_i2c - Internal representation of the XIIC I2C bus
+ * @dev:	Pointer to device structure
  * @base:	Memory base of the HW registers
  * @wait:	Wait queue for callers
  * @adap:	Kernel adapter representation
@@ -57,6 +58,7 @@ enum xiic_endian {
  * @rx_msg:	Current RX message
  * @rx_pos:	Position within current RX message
  * @endianness: big/little-endian byte order
+ * @clk:	Pointer to AXI4-lite input clock
  */
 struct xiic_i2c {
 	struct device		*dev;

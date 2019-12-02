@@ -145,6 +145,7 @@ config I2C_I801
 	    Comet Lake (PCH)
 	    Elkhart Lake (PCH)
 	    Tiger Lake (PCH)
+	    Jasper Lake (SOC)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -292,7 +293,7 @@ config I2C_VIA
 	select I2C_ALGOBIT
 	help
 	  If you say yes to this option, support will be included for the VIA
-          82C586B I2C interface
+	  82C586B I2C interface
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-via.
@@ -677,11 +678,11 @@ config I2C_IMX_LPI2C
 	tristate "IMX Low Power I2C interface"
 	depends on ARCH_MXC || COMPILE_TEST
 	help
-          Say Y here if you want to use the Low Power IIC bus controller
-          on the Freescale i.MX processors.
+	  Say Y here if you want to use the Low Power IIC bus controller
+	  on the Freescale i.MX processors.
 
-          This driver can also be built as a module. If so, the module
-          will be called i2c-imx-lpi2c.
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-imx-lpi2c.
 
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
@@ -874,6 +875,7 @@ config I2C_PXA_PCI
 config I2C_PXA_SLAVE
 	bool "Intel PXA2XX I2C Slave comms support"
 	depends on I2C_PXA && !X86_32
+	select I2C_SLAVE
 	help
 	  Support I2C slave mode communications on the PXA I2C bus.  This
 	  is necessary for systems where the PXA may be a target on the
@@ -1182,9 +1184,9 @@ config I2C_DIOLAN_U2C
 	  will be called i2c-diolan-u2c.
 
 config I2C_DLN2
-       tristate "Diolan DLN-2 USB I2C adapter"
-       depends on MFD_DLN2
-       help
+	tristate "Diolan DLN-2 USB I2C adapter"
+	depends on MFD_DLN2
+	help
 	 If you say yes to this option, support will be included for Diolan
 	 DLN2, a USB to I2C interface.
 
@@ -1283,9 +1285,9 @@ config I2C_VIPERBOARD
 	help
 	  Say yes here to access the I2C part of the Nano River
 	  Technologies Viperboard as I2C master.
-          See viperboard API specification and Nano
-          River Tech's viperboard.h for detailed meaning
-          of the module parameters.
+	  See viperboard API specification and Nano
+	  River Tech's viperboard.h for detailed meaning
+	  of the module parameters.
 
 comment "Other I2C/SMBus bus drivers"
 

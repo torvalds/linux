@@ -55,6 +55,24 @@ wants to support one of the below features, it should adapt the bindings below.
 	Number of nanoseconds the SDA signal takes to fall; t(f) in the I2C
 	specification.
 
+- i2c-analog-filter
+	Enable analog filter for i2c lines.
+
+- i2c-digital-filter
+	Enable digital filter for i2c lines.
+
+- i2c-digital-filter-width-ns
+	Width of spikes which can be filtered by digital filter
+	(i2c-digital-filter). This width is specified in nanoseconds.
+
+- i2c-analog-filter-cutoff-frequency
+	Frequency that the analog filter (i2c-analog-filter) uses to distinguish
+	which signal to filter. Signal with higher frequency than specified will
+	be filtered out. Only lower frequency will pass (this is applicable to
+	a low-pass analog filter). Typical value should be above the normal
+	i2c bus clock frequency (clock-frequency).
+	Specified in Hz.
+
 - interrupts
 	interrupts used by the device.
 

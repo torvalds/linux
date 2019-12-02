@@ -55,11 +55,7 @@
  */
 #define I2C_ISR_INIT	0x7FF  /* status register init */
 
-struct i2c_slave_client;
-
 struct i2c_pxa_platform_data {
-	unsigned int		slave_addr;
-	struct i2c_slave_client	*slave;
 	unsigned int		class;
 	unsigned int		use_pio :1;
 	unsigned int		fast_mode :1;
