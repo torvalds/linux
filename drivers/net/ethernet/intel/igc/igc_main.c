@@ -987,12 +987,21 @@ static inline int igc_maybe_stop_tx(struct igc_ring *tx_ring, const u16 size)
 	return __igc_maybe_stop_tx(tx_ring, size);
 }
 
+#define IGC_SET_FLAG(_input, _flag, _result) \
+	(((_flag) <= (_result)) ?				\
+	 ((u32)((_input) & (_flag)) * ((_result) / (_flag))) :	\
+	 ((u32)((_input) & (_flag)) / ((_flag) / (_result))))
+
 static u32 igc_tx_cmd_type(struct sk_buff *skb, u32 tx_flags)
 {
 	/* set type for advanced descriptor with frame checksum insertion */
 	u32 cmd_type = IGC_ADVTXD_DTYP_DATA |
 		       IGC_ADVTXD_DCMD_DEXT |
 		       IGC_ADVTXD_DCMD_IFCS;
+
+	/* set timestamp bit if present */
+	cmd_type |= IGC_SET_FLAG(tx_flags, IGC_TX_FLAGS_TSTAMP,
+				 (IGC_ADVTXD_MAC_TSTAMP));
 
 	return cmd_type;
 }
@@ -1191,6 +1200,26 @@ static netdev_tx_t igc_xmit_frame_ring(struct sk_buff *skb,
 	first->skb = skb;
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
+
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		struct igc_adapter *adapter = netdev_priv(tx_ring->netdev);
+
+		/* FIXME: add support for retrieving timestamps from
+		 * the other timer registers before skipping the
+		 * timestamping request.
+		 */
+		if (adapter->tstamp_config.tx_type == HWTSTAMP_TX_ON &&
+		    !test_and_set_bit_lock(__IGC_PTP_TX_IN_PROGRESS,
+					   &adapter->state)) {
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+			tx_flags |= IGC_TX_FLAGS_TSTAMP;
+
+			adapter->ptp_tx_skb = skb_get(skb);
+			adapter->ptp_tx_start = jiffies;
+		} else {
+			adapter->tx_hwtstamp_skipped++;
+		}
+	}
 
 	/* record initial flags and protocol */
 	first->tx_flags = tx_flags;
@@ -3648,6 +3677,22 @@ int igc_del_mac_steering_filter(struct igc_adapter *adapter,
 					IGC_MAC_STATE_QUEUE_STEERING | flags);
 }
 
+static void igc_tsync_interrupt(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u32 tsicr = rd32(IGC_TSICR);
+	u32 ack = 0;
+
+	if (tsicr & IGC_TSICR_TXTS) {
+		/* retrieve hardware timestamp */
+		schedule_work(&adapter->ptp_tx_work);
+		ack |= IGC_TSICR_TXTS;
+	}
+
+	/* acknowledge the interrupts */
+	wr32(IGC_TSICR, ack);
+}
+
 /**
  * igc_msix_other - msix other interrupt handler
  * @irq: interrupt number
@@ -3674,6 +3719,9 @@ static irqreturn_t igc_msix_other(int irq, void *data)
 		if (!test_bit(__IGC_DOWN, &adapter->state))
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
+
+	if (icr & IGC_ICR_TS)
+		igc_tsync_interrupt(adapter);
 
 	wr32(IGC_EIMS, adapter->eims_other);
 
@@ -4003,6 +4051,8 @@ no_wait:
 	} else {
 		wr32(IGC_ICS, IGC_ICS_RXDMT0);
 	}
+
+	igc_ptp_tx_hang(adapter);
 
 	/* Reset the timer */
 	if (!test_bit(__IGC_DOWN, &adapter->state)) {

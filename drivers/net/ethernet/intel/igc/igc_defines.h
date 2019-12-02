@@ -401,9 +401,23 @@
 #define IGC_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE	0x00
 #define IGC_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE	0x01
 
+/* Immediate Interrupt Receive */
+#define IGC_IMIR_CLEAR_MASK	0xF001FFFF /* IMIR Reg Clear Mask */
+#define IGC_IMIR_PORT_BYPASS	0x20000 /* IMIR Port Bypass Bit */
+#define IGC_IMIR_PRIORITY_SHIFT	29 /* IMIR Priority Shift */
+#define IGC_IMIREXT_CLEAR_MASK	0x7FFFF /* IMIREXT Reg Clear Mask */
+
 /* Immediate Interrupt Receive Extended */
 #define IGC_IMIREXT_CTRL_BP	0x00080000  /* Bypass check of ctrl bits */
 #define IGC_IMIREXT_SIZE_BP	0x00001000  /* Packet size bypass */
+
+/* Time Sync Transmit Control bit definitions */
+#define IGC_TSYNCTXCTL_VALID			0x00000001  /* Tx timestamp valid */
+#define IGC_TSYNCTXCTL_ENABLED			0x00000010  /* enable Tx timestamping */
+#define IGC_TSYNCTXCTL_MAX_ALLOWED_DLY_MASK	0x0000F000  /* max delay */
+#define IGC_TSYNCTXCTL_SYNC_COMP_ERR		0x20000000  /* sync err */
+#define IGC_TSYNCTXCTL_SYNC_COMP		0x40000000  /* sync complete */
+#define IGC_TSYNCTXCTL_START_SYNC		0x80000000  /* initiate sync */
 
 /* Receive Checksum Control */
 #define IGC_RXCSUM_CRCOFL	0x00000800   /* CRC32 offload enable */

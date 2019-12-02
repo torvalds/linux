@@ -284,6 +284,12 @@ static void igc_ptp_enable_tstamp_all_rxqueues(struct igc_adapter *adapter,
  * @adapter: networking device structure
  * @config: hwtstamp configuration
  *
+ * Outgoing time stamping can be enabled and disabled. Play nice and
+ * disable it when requested, although it shouldn't case any overhead
+ * when no packet needs it. At most one packet in the queue may be
+ * marked for time stamping, otherwise it would be impossible to tell
+ * for sure to which packet the hardware time stamp belongs.
+ *
  * Incoming time stamping has to be configured via the hardware
  * filters. Not all combinations are supported, in particular event
  * type has to be specified. Matching the kind of event packet is
@@ -294,6 +300,7 @@ static void igc_ptp_enable_tstamp_all_rxqueues(struct igc_adapter *adapter,
 static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 				      struct hwtstamp_config *config)
 {
+	u32 tsync_tx_ctl = IGC_TSYNCTXCTL_ENABLED;
 	u32 tsync_rx_ctl = IGC_TSYNCRXCTL_ENABLED;
 	struct igc_hw *hw = &adapter->hw;
 	u32 tsync_rx_cfg = 0;
@@ -304,6 +311,15 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	/* reserved for future extensions */
 	if (config->flags)
 		return -EINVAL;
+
+	switch (config->tx_type) {
+	case HWTSTAMP_TX_OFF:
+		tsync_tx_ctl = 0;
+	case HWTSTAMP_TX_ON:
+		break;
+	default:
+		return -ERANGE;
+	}
 
 	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
@@ -367,6 +383,15 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 			igc_ptp_enable_tstamp_all_rxqueues(adapter, 0);
 		}
 	}
+
+	if (tsync_tx_ctl)
+		tsync_tx_ctl = IGC_TSYNCTXCTL_ENABLED;
+
+	/* enable/disable TX */
+	regval = rd32(IGC_TSYNCTXCTL);
+	regval &= ~IGC_TSYNCTXCTL_ENABLED;
+	regval |= tsync_tx_ctl;
+	wr32(IGC_TSYNCTXCTL, regval);
 
 	/* enable/disable RX */
 	regval = rd32(IGC_TSYNCRXCTL);
@@ -442,8 +467,75 @@ void igc_ptp_tx_hang(struct igc_adapter *adapter)
 	}
 }
 
+/**
+ * igc_ptp_tx_hwtstamp - utility function which checks for TX time stamp
+ * @adapter: Board private structure
+ *
+ * If we were asked to do hardware stamping and such a time stamp is
+ * available, then it must have been for this skb here because we only
+ * allow only one such packet into the queue.
+ */
+static void igc_ptp_tx_hwtstamp(struct igc_adapter *adapter)
+{
+	struct sk_buff *skb = adapter->ptp_tx_skb;
+	struct skb_shared_hwtstamps shhwtstamps;
+	struct igc_hw *hw = &adapter->hw;
+	u64 regval;
+
+	regval = rd32(IGC_TXSTMPL);
+	regval |= (u64)rd32(IGC_TXSTMPH) << 32;
+	igc_ptp_systim_to_hwtstamp(adapter, &shhwtstamps, regval);
+
+	/* Clear the lock early before calling skb_tstamp_tx so that
+	 * applications are not woken up before the lock bit is clear. We use
+	 * a copy of the skb pointer to ensure other threads can't change it
+	 * while we're notifying the stack.
+	 */
+	adapter->ptp_tx_skb = NULL;
+	clear_bit_unlock(__IGC_PTP_TX_IN_PROGRESS, &adapter->state);
+
+	/* Notify the stack and free the skb after we've unlocked */
+	skb_tstamp_tx(skb, &shhwtstamps);
+	dev_kfree_skb_any(skb);
+}
+
+/**
+ * igc_ptp_tx_work
+ * @work: pointer to work struct
+ *
+ * This work function polls the TSYNCTXCTL valid bit to determine when a
+ * timestamp has been taken for the current stored skb.
+ */
 void igc_ptp_tx_work(struct work_struct *work)
 {
+	struct igc_adapter *adapter = container_of(work, struct igc_adapter,
+						   ptp_tx_work);
+	struct igc_hw *hw = &adapter->hw;
+	u32 tsynctxctl;
+
+	if (!adapter->ptp_tx_skb)
+		return;
+
+	if (time_is_before_jiffies(adapter->ptp_tx_start +
+				   IGC_PTP_TX_TIMEOUT)) {
+		dev_kfree_skb_any(adapter->ptp_tx_skb);
+		adapter->ptp_tx_skb = NULL;
+		clear_bit_unlock(__IGC_PTP_TX_IN_PROGRESS, &adapter->state);
+		adapter->tx_hwtstamp_timeouts++;
+		/* Clear the tx valid bit in TSYNCTXCTL register to enable
+		 * interrupt
+		 */
+		rd32(IGC_TXSTMPH);
+		dev_warn(&adapter->pdev->dev, "clearing Tx timestamp hang\n");
+		return;
+	}
+
+	tsynctxctl = rd32(IGC_TSYNCTXCTL);
+	if (tsynctxctl & IGC_TSYNCTXCTL_VALID)
+		igc_ptp_tx_hwtstamp(adapter);
+	else
+		/* reschedule to check later */
+		schedule_work(&adapter->ptp_tx_work);
 }
 
 /**
