@@ -15,8 +15,8 @@ struct {
 	__type(value, __u64);
 } data_map SEC(".maps");
 
-static volatile __u64 in_val;
-static volatile __u64 out_val;
+__u64 in_val = 0;
+__u64 out_val = 0;
 
 SEC("raw_tracepoint/sys_enter")
 int test_mmap(void *ctx)
