@@ -12,6 +12,7 @@
 #include <linux/hashtable.h>
 #include <linux/libfdt.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -779,6 +780,95 @@ static void __init of_unittest_changeset(void)
 #endif
 }
 
+static void __init of_unittest_dma_ranges_one(const char *path,
+		u64 expect_dma_addr, u64 expect_paddr, u64 expect_size)
+{
+	struct device_node *np;
+	u64 dma_addr, paddr, size;
+	int rc;
+
+	np = of_find_node_by_path(path);
+	if (!np) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	rc = of_dma_get_range(np, &dma_addr, &paddr, &size);
+
+	unittest(!rc, "of_dma_get_range failed on node %pOF rc=%i\n", np, rc);
+	if (!rc) {
+		unittest(size == expect_size,
+			 "of_dma_get_range wrong size on node %pOF size=%llx\n", np, size);
+		unittest(paddr == expect_paddr,
+			 "of_dma_get_range wrong phys addr (%llx) on node %pOF", paddr, np);
+		unittest(dma_addr == expect_dma_addr,
+			 "of_dma_get_range wrong DMA addr (%llx) on node %pOF", dma_addr, np);
+	}
+	of_node_put(np);
+}
+
+static void __init of_unittest_parse_dma_ranges(void)
+{
+	of_unittest_dma_ranges_one("/testcase-data/address-tests/device@70000000",
+		0x0, 0x20000000, 0x40000000);
+	of_unittest_dma_ranges_one("/testcase-data/address-tests/bus@80000000/device@1000",
+		0x10000000, 0x20000000, 0x40000000);
+	of_unittest_dma_ranges_one("/testcase-data/address-tests/pci@90000000",
+		0x80000000, 0x20000000, 0x10000000);
+}
+
+static void __init of_unittest_pci_dma_ranges(void)
+{
+	struct device_node *np;
+	struct of_pci_range range;
+	struct of_pci_range_parser parser;
+	int i = 0;
+
+	if (!IS_ENABLED(CONFIG_PCI))
+		return;
+
+	np = of_find_node_by_path("/testcase-data/address-tests/pci@90000000");
+	if (!np) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	if (of_pci_dma_range_parser_init(&parser, np)) {
+		pr_err("missing dma-ranges property\n");
+		return;
+	}
+
+	/*
+	 * Get the dma-ranges from the device tree
+	 */
+	for_each_of_pci_range(&parser, &range) {
+		if (!i) {
+			unittest(range.size == 0x10000000,
+				 "for_each_of_pci_range wrong size on node %pOF size=%llx\n",
+				 np, range.size);
+			unittest(range.cpu_addr == 0x20000000,
+				 "for_each_of_pci_range wrong CPU addr (%llx) on node %pOF",
+				 range.cpu_addr, np);
+			unittest(range.pci_addr == 0x80000000,
+				 "for_each_of_pci_range wrong DMA addr (%llx) on node %pOF",
+				 range.pci_addr, np);
+		} else {
+			unittest(range.size == 0x10000000,
+				 "for_each_of_pci_range wrong size on node %pOF size=%llx\n",
+				 np, range.size);
+			unittest(range.cpu_addr == 0x40000000,
+				 "for_each_of_pci_range wrong CPU addr (%llx) on node %pOF",
+				 range.cpu_addr, np);
+			unittest(range.pci_addr == 0xc0000000,
+				 "for_each_of_pci_range wrong DMA addr (%llx) on node %pOF",
+				 range.pci_addr, np);
+		}
+		i++;
+	}
+
+	of_node_put(np);
+}
+
 static void __init of_unittest_parse_interrupts(void)
 {
 	struct device_node *np;
@@ -1146,8 +1236,10 @@ static void attach_node_and_children(struct device_node *np)
 	full_name = kasprintf(GFP_KERNEL, "%pOF", np);
 
 	if (!strcmp(full_name, "/__local_fixups__") ||
-	    !strcmp(full_name, "/__fixups__"))
+	    !strcmp(full_name, "/__fixups__")) {
+		kfree(full_name);
 		return;
+	}
 
 	dup = of_find_node_by_path(full_name);
 	kfree(full_name);
@@ -2555,6 +2647,8 @@ static int __init of_unittest(void)
 	of_unittest_changeset();
 	of_unittest_parse_interrupts();
 	of_unittest_parse_interrupts_extended();
+	of_unittest_parse_dma_ranges();
+	of_unittest_pci_dma_ranges();
 	of_unittest_match_node();
 	of_unittest_platform_populate();
 	of_unittest_overlay();

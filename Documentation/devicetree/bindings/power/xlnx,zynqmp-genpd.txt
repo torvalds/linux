@@ -4,7 +4,7 @@ Device Tree Bindings for the Xilinx Zynq MPSoC PM domains
 The binding for zynqmp-power-controller follow the common
 generic PM domain binding[1].
 
-[1] Documentation/devicetree/bindings/power/power_domain.txt
+[1] Documentation/devicetree/bindings/power/power-domain.yaml
 
 == Zynq MPSoC Generic PM Domain Node ==
 

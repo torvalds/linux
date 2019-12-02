@@ -138,6 +138,7 @@ properties:
       containing a set of sub-nodes.
     patternProperties:
       "^interrupt-partition-[0-9]+$":
+        type: object
         properties:
           affinity:
             $ref: /schemas/types.yaml#/definitions/phandle-array

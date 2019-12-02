@@ -79,8 +79,6 @@ properties:
 
   hdmi-supply:
     description: phandle to an external 5V regulator to power the HDMI logic
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
 
   port@0:
     type: object

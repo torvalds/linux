@@ -45,15 +45,12 @@ properties:
 
   refin1-supply:
     description: refin1 supply can be used as reference for conversion.
-    maxItems: 1
 
   refin2-supply:
     description: refin2 supply can be used as reference for conversion.
-    maxItems: 1
 
   avdd-supply:
     description: avdd supply can be used as reference for conversion.
-    maxItems: 1
 
 required:
   - compatible

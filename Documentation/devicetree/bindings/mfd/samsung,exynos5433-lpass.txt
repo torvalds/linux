@@ -18,7 +18,7 @@ an optional sub-node. For "samsung,exynos5433-lpass" compatible this includes:
 UART, SLIMBUS, PCM, I2S, DMAC, Timers 0...4, VIC, WDT 0...1 devices.
 
 Bindings of the sub-nodes are described in:
-  ../serial/samsung_uart.txt
+  ../serial/samsung_uart.yaml
   ../sound/samsung-i2s.txt
   ../dma/arm-pl330.txt
 

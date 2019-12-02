@@ -9,7 +9,7 @@ Required properties:
 - clock-names: Should contain following entries:
   "pwmn": used to derive the functional clock for PWM channel n (n range: 0 ~ 3).
   "enablen": for PWM channel n enable clock (n range: 0 ~ 3).
-- #pwm-cells: Should be 2. See pwm.txt in this directory for a description of
+- #pwm-cells: Should be 2. See pwm.yaml in this directory for a description of
   the cells format.
 
 Optional properties:

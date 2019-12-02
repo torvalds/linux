@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright 2019 Unisoc Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/sprd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Unisoc platforms device tree bindings
+
+maintainers:
+  - Orson Zhai <orsonzhai@gmail.com>
+  - Baolin Wang <baolin.wang7@gmail.com>
+  - Chunyan Zhang <zhang.lyra@gmail.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - sprd,sc9836-openphone
+          - const: sprd,sc9836
+      - items:
+          - enum:
+              - sprd,sp9860g-1h10
+          - const: sprd,sc9860
+      - items:
+          - enum:
+              - sprd,sp9863a-1h10
+          - const: sprd,sc9863a
+
+...

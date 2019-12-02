@@ -8,7 +8,7 @@ Required properties:
   - clock-names: Must include the following entries.
     - pwm: PWM operating clock.
     - sys: PWM system interface clock.
-  - #pwm-cells: Should be 2. See pwm.txt in this directory for the
+  - #pwm-cells: Should be 2. See pwm.yaml in this directory for the
 	description of the cells format.
   - img,cr-periph: Must contain a phandle to the peripheral control
 	syscon node which contains PWM control registers.

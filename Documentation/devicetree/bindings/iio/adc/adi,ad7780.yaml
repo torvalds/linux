@@ -39,7 +39,6 @@ properties:
   avdd-supply:
     description:
       The regulator supply for the ADC reference voltage.
-    maxItems: 1
 
   powerdown-gpios:
     description:
