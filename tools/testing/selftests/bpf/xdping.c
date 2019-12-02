@@ -45,7 +45,7 @@ static int get_stats(int fd, __u16 count, __u32 raddr)
 	printf("\nXDP RTT data:\n");
 
 	if (bpf_map_lookup_elem(fd, &raddr, &pinginfo)) {
-		perror("bpf_map_lookup elem: ");
+		perror("bpf_map_lookup elem");
 		return 1;
 	}
 

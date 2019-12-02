@@ -240,14 +240,14 @@ static int sockmap_init_sockets(int verbose)
 	addr.sin_port = htons(S1_PORT);
 	err = bind(s1, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0) {
-		perror("bind s1 failed()\n");
+		perror("bind s1 failed()");
 		return errno;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = bind(s2, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0) {
-		perror("bind s2 failed()\n");
+		perror("bind s2 failed()");
 		return errno;
 	}
 
@@ -255,14 +255,14 @@ static int sockmap_init_sockets(int verbose)
 	addr.sin_port = htons(S1_PORT);
 	err = listen(s1, 32);
 	if (err < 0) {
-		perror("listen s1 failed()\n");
+		perror("listen s1 failed()");
 		return errno;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = listen(s2, 32);
 	if (err < 0) {
-		perror("listen s1 failed()\n");
+		perror("listen s1 failed()");
 		return errno;
 	}
 
@@ -270,14 +270,14 @@ static int sockmap_init_sockets(int verbose)
 	addr.sin_port = htons(S1_PORT);
 	err = connect(c1, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0 && errno != EINPROGRESS) {
-		perror("connect c1 failed()\n");
+		perror("connect c1 failed()");
 		return errno;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = connect(c2, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0 && errno != EINPROGRESS) {
-		perror("connect c2 failed()\n");
+		perror("connect c2 failed()");
 		return errno;
 	} else if (err < 0) {
 		err = 0;
@@ -286,13 +286,13 @@ static int sockmap_init_sockets(int verbose)
 	/* Accept Connecrtions */
 	p1 = accept(s1, NULL, NULL);
 	if (p1 < 0) {
-		perror("accept s1 failed()\n");
+		perror("accept s1 failed()");
 		return errno;
 	}
 
 	p2 = accept(s2, NULL, NULL);
 	if (p2 < 0) {
-		perror("accept s1 failed()\n");
+		perror("accept s1 failed()");
 		return errno;
 	}
 
@@ -332,6 +332,10 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 	int i, fp;
 
 	file = fopen(".sendpage_tst.tmp", "w+");
+	if (!file) {
+		perror("create file for sendpage");
+		return 1;
+	}
 	for (i = 0; i < iov_length * cnt; i++, k++)
 		fwrite(&k, sizeof(char), 1, file);
 	fflush(file);
@@ -339,12 +343,17 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 	fclose(file);
 
 	fp = open(".sendpage_tst.tmp", O_RDONLY);
+	if (fp < 0) {
+		perror("reopen file for sendpage");
+		return 1;
+	}
+
 	clock_gettime(CLOCK_MONOTONIC, &s->start);
 	for (i = 0; i < cnt; i++) {
 		int sent = sendfile(fd, fp, NULL, iov_length);
 
 		if (!drop && sent < 0) {
-			perror("send loop error:");
+			perror("send loop error");
 			close(fp);
 			return sent;
 		} else if (drop && sent >= 0) {
@@ -463,7 +472,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 			int sent = sendmsg(fd, &msg, flags);
 
 			if (!drop && sent < 0) {
-				perror("send loop error:");
+				perror("send loop error");
 				goto out_errno;
 			} else if (drop && sent >= 0) {
 				printf("send loop error expected: %i\n", sent);
@@ -499,7 +508,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		total_bytes -= txmsg_pop_total;
 		err = clock_gettime(CLOCK_MONOTONIC, &s->start);
 		if (err < 0)
-			perror("recv start time: ");
+			perror("recv start time");
 		while (s->bytes_recvd < total_bytes) {
 			if (txmsg_cork) {
 				timeout.tv_sec = 0;
@@ -543,7 +552,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 			if (recv < 0) {
 				if (errno != EWOULDBLOCK) {
 					clock_gettime(CLOCK_MONOTONIC, &s->end);
-					perror("recv failed()\n");
+					perror("recv failed()");
 					goto out_errno;
 				}
 			}
@@ -557,7 +566,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 
 				errno = msg_verify_data(&msg, recv, chunk_sz);
 				if (errno) {
-					perror("data verify msg failed\n");
+					perror("data verify msg failed");
 					goto out_errno;
 				}
 				if (recvp) {
@@ -565,7 +574,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 								recvp,
 								chunk_sz);
 					if (errno) {
-						perror("data verify msg_peek failed\n");
+						perror("data verify msg_peek failed");
 						goto out_errno;
 					}
 				}
@@ -654,7 +663,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 			err = 0;
 		exit(err ? 1 : 0);
 	} else if (rxpid == -1) {
-		perror("msg_loop_rx: ");
+		perror("msg_loop_rx");
 		return errno;
 	}
 
@@ -681,7 +690,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 				s.bytes_recvd, recvd_Bps, recvd_Bps/giga);
 		exit(err ? 1 : 0);
 	} else if (txpid == -1) {
-		perror("msg_loop_tx: ");
+		perror("msg_loop_tx");
 		return errno;
 	}
 
@@ -715,7 +724,7 @@ static int forever_ping_pong(int rate, struct sockmap_options *opt)
 	/* Ping/Pong data from client to server */
 	sc = send(c1, buf, sizeof(buf), 0);
 	if (sc < 0) {
-		perror("send failed()\n");
+		perror("send failed()");
 		return sc;
 	}
 
@@ -748,7 +757,7 @@ static int forever_ping_pong(int rate, struct sockmap_options *opt)
 			rc = recv(i, buf, sizeof(buf), 0);
 			if (rc < 0) {
 				if (errno != EWOULDBLOCK) {
-					perror("recv failed()\n");
+					perror("recv failed()");
 					return rc;
 				}
 			}
@@ -760,7 +769,7 @@ static int forever_ping_pong(int rate, struct sockmap_options *opt)
 
 			sc = send(i, buf, rc, 0);
 			if (sc < 0) {
-				perror("send failed()\n");
+				perror("send failed()");
 				return sc;
 			}
 		}
