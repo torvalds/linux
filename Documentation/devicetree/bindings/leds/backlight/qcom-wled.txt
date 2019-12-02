@@ -1,0 +1,154 @@
+Binding for Qualcomm Technologies, Inc. WLED driver
+
+WLED (White Light Emitting Diode) driver is used for controlling display
+backlight that is part of PMIC on Qualcomm Technologies, Inc. reference
+platforms. The PMIC is connected to the host processor via SPMI bus.
+
+- compatible
+	Usage:        required
+	Value type:   <string>
+	Definition:   should be one of:
+			"qcom,pm8941-wled"
+			"qcom,pmi8998-wled"
+			"qcom,pm660l-wled"
+
+- reg
+	Usage:        required
+	Value type:   <prop encoded array>
+	Definition:   Base address of the WLED modules.
+
+- default-brightness
+	Usage:        optional
+	Value type:   <u32>
+	Definition:   brightness value on boot, value from: 0-4095.
+		      Default: 2048
+
+- label
+	Usage:        required
+	Value type:   <string>
+	Definition:   The name of the backlight device
+
+- qcom,cs-out
+	Usage:        optional
+	Value type:   <bool>
+	Definition:   enable current sink output.
+		      This property is supported only for PM8941.
+
+- qcom,cabc
+	Usage:        optional
+	Value type:   <bool>
+	Definition:   enable content adaptive backlight control.
+
+- qcom,ext-gen
+	Usage:        optional
+	Value type:   <bool>
+	Definition:   use externally generated modulator signal to dim.
+		      This property is supported only for PM8941.
+
+- qcom,current-limit
+	Usage:        optional
+	Value type:   <u32>
+	Definition:   mA; per-string current limit; value from 0 to 25 with
+		      1 mA step. Default 20 mA.
+		      This property is supported only for pm8941.
+
+- qcom,current-limit-microamp
+	Usage:        optional
+	Value type:   <u32>
+	Definition:   uA; per-string current limit; value from 0 to 30000 with
+		      2500 uA step. Default 25 mA.
+
+- qcom,current-boost-limit
+	Usage:        optional
+	Value type:   <u32>
+	Definition:   mA; boost current limit.
+		      For pm8941: one of: 105, 385, 525, 805, 980, 1260, 1400,
+		      1680. Default: 805 mA.
+		      For pmi8998: one of: 105, 280, 450, 620, 970, 1150, 1300,
+		      1500. Default: 970 mA.
+
+- qcom,switching-freq
+	Usage:        optional
+	Value type:   <u32>
+	 Definition:   kHz; switching frequency; one of: 600, 640, 685, 738,
+		       800, 872, 960, 1066, 1200, 1371, 1600, 1920, 2400, 3200,
+		       4800, 9600.
+		       Default: for pm8941: 1600 kHz
+				for pmi8998: 800 kHz
+
+- qcom,ovp
+	Usage:        optional
+	Value type:   <u32>
+	Definition:   V; Over-voltage protection limit; one of:
+		      27, 29, 32, 35. Default: 29V
+		      This property is supported only for PM8941.
+
+- qcom,ovp-millivolt
+	Usage:        optional
+	Value type:   <u32>
+	Definition:   mV; Over-voltage protection limit;
+		      For pmi8998: one of 18100, 19600, 29600, 31100.
+		      Default 29600 mV.
+		      If this property is not specified for PM8941, it
+		      falls back to "qcom,ovp" property.
+
+- qcom,num-strings
+	Usage:        optional
+	Value type:   <u32>
+	Definition:   #; number of led strings attached;
+		      value: For PM8941 from 1 to 3. Default: 2
+			     For PMI8998 from 1 to 4.
+
+- interrupts
+	Usage:        optional
+	Value type:   <prop encoded array>
+	Definition:   Interrupts associated with WLED. This should be
+		      "short" and "ovp" interrupts. Interrupts can be
+		      specified as per the encoding listed under
+		      Documentation/devicetree/bindings/spmi/
+		      qcom,spmi-pmic-arb.txt.
+
+- interrupt-names
+	Usage:        optional
+	Value type:   <string>
+	Definition:   Interrupt names associated with the interrupts.
+		      Must be "short" and "ovp". The short circuit detection
+		      is not supported for PM8941.
+
+- qcom,enabled-strings
+	Usage:        optional
+	Value tyoe:   <u32 array>
+	Definition:   Array of the WLED strings numbered from 0 to 3. Each
+		      string of leds are operated individually. Specify the
+		      list of strings used by the device. Any combination of
+		      led strings can be used.
+
+- qcom,external-pfet
+	Usage:        optional
+	Value type:   <bool>
+	Definition:   Specify if external PFET control for short circuit
+		      protection is used. This property is supported only
+		      for PMI8998.
+
+- qcom,auto-string-detection
+	Usage:        optional
+	Value type:   <bool>
+	Definition:   Enables auto-detection of the WLED string configuration.
+		      This feature is not supported for PM8941.
+
+
+Example:
+
+pm8941-wled@d800 {
+	compatible = "qcom,pm8941-wled";
+	reg = <0xd800>;
+	label = "backlight";
+
+	qcom,cs-out;
+	qcom,current-limit = <20>;
+	qcom,current-boost-limit = <805>;
+	qcom,switching-freq = <1600>;
+	qcom,ovp = <29>;
+	qcom,num-strings = <2>;
+	qcom,enabled-strings = <0 1>;
+};

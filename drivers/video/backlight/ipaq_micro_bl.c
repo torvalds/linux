@@ -44,7 +44,7 @@ static const struct backlight_ops micro_bl_ops = {
 	.update_status  = micro_bl_update_status,
 };
 
-static struct backlight_properties micro_bl_props = {
+static const struct backlight_properties micro_bl_props = {
 	.type = BACKLIGHT_RAW,
 	.max_brightness = 255,
 	.power = FB_BLANK_UNBLANK,
