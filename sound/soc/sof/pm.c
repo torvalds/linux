@@ -70,6 +70,8 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		return ret;
 	}
 
+	sdev->fw_state = SOF_FW_BOOT_PREPARE;
+
 	/* load the firmware */
 	ret = snd_sof_load_firmware(sdev);
 	if (ret < 0) {
@@ -79,7 +81,12 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		return ret;
 	}
 
-	/* boot the firmware */
+	sdev->fw_state = SOF_FW_BOOT_IN_PROGRESS;
+
+	/*
+	 * Boot the firmware. The FW boot status will be modified
+	 * in snd_sof_run_firmware() depending on the outcome.
+	 */
 	ret = snd_sof_run_firmware(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev,
@@ -128,6 +135,9 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	if (!sof_ops(sdev)->suspend)
 		return 0;
 
+	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE)
+		goto power_down;
+
 	/* release trace */
 	snd_sof_release_trace(sdev);
 
@@ -165,6 +175,12 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 			 ret);
 	}
 
+power_down:
+
+	/* return if the DSP was not probed successfully */
+	if (sdev->fw_state == SOF_FW_BOOT_NOT_STARTED)
+		return 0;
+
 	/* power down all DSP cores */
 	if (runtime_suspend)
 		ret = snd_sof_dsp_runtime_suspend(sdev);
@@ -174,6 +190,9 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 		dev_err(sdev->dev,
 			"error: failed to power down DSP during suspend %d\n",
 			ret);
+
+	/* reset FW state */
+	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
 
 	return ret;
 }
