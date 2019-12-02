@@ -308,8 +308,18 @@ struct io_timeout {
 	struct io_timeout_data		*data;
 };
 
+struct io_async_rw {
+	struct iovec			fast_iov[UIO_FASTIOV];
+	struct iovec			*iov;
+	ssize_t				nr_segs;
+	ssize_t				size;
+};
+
 struct io_async_ctx {
 	struct io_uring_sqe		sqe;
+	union {
+		struct io_async_rw	rw;
+	};
 };
 
 /*
@@ -1415,15 +1425,6 @@ static int io_prep_rw(struct io_kiocb *req, bool force_nonblock)
 	if (S_ISREG(file_inode(req->file)->i_mode))
 		req->flags |= REQ_F_ISREG;
 
-	/*
-	 * If the file doesn't support async, mark it as REQ_F_MUST_PUNT so
-	 * we know to async punt it even if it was opened O_NONBLOCK
-	 */
-	if (force_nonblock && !io_file_supports_async(req->file)) {
-		req->flags |= REQ_F_MUST_PUNT;
-		return -EAGAIN;
-	}
-
 	kiocb->ki_pos = READ_ONCE(sqe->off);
 	kiocb->ki_flags = iocb_flags(kiocb->ki_filp);
 	kiocb->ki_hint = ki_hint_validate(file_write_hint(kiocb->ki_filp));
@@ -1592,6 +1593,16 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 		return io_import_fixed(req->ctx, rw, sqe, iter);
 	}
 
+	if (req->io) {
+		struct io_async_rw *iorw = &req->io->rw;
+
+		*iovec = iorw->iov;
+		iov_iter_init(iter, rw, *iovec, iorw->nr_segs, iorw->size);
+		if (iorw->iov == iorw->fast_iov)
+			*iovec = NULL;
+		return iorw->size;
+	}
+
 	if (!req->has_user)
 		return -EFAULT;
 
@@ -1662,6 +1673,50 @@ static ssize_t loop_rw_iter(int rw, struct file *file, struct kiocb *kiocb,
 	return ret;
 }
 
+static void io_req_map_io(struct io_kiocb *req, ssize_t io_size,
+			  struct iovec *iovec, struct iovec *fast_iov,
+			  struct iov_iter *iter)
+{
+	req->io->rw.nr_segs = iter->nr_segs;
+	req->io->rw.size = io_size;
+	req->io->rw.iov = iovec;
+	if (!req->io->rw.iov) {
+		req->io->rw.iov = req->io->rw.fast_iov;
+		memcpy(req->io->rw.iov, fast_iov,
+			sizeof(struct iovec) * iter->nr_segs);
+	}
+}
+
+static int io_setup_async_io(struct io_kiocb *req, ssize_t io_size,
+			     struct iovec *iovec, struct iovec *fast_iov,
+			     struct iov_iter *iter)
+{
+	req->io = kmalloc(sizeof(*req->io), GFP_KERNEL);
+	if (req->io) {
+		io_req_map_io(req, io_size, iovec, fast_iov, iter);
+		memcpy(&req->io->sqe, req->sqe, sizeof(req->io->sqe));
+		req->sqe = &req->io->sqe;
+		return 0;
+	}
+
+	return -ENOMEM;
+}
+
+static int io_read_prep(struct io_kiocb *req, struct iovec **iovec,
+			struct iov_iter *iter, bool force_nonblock)
+{
+	ssize_t ret;
+
+	ret = io_prep_rw(req, force_nonblock);
+	if (ret)
+		return ret;
+
+	if (unlikely(!(req->file->f_mode & FMODE_READ)))
+		return -EBADF;
+
+	return io_import_iovec(READ, req, iovec, iter);
+}
+
 static int io_read(struct io_kiocb *req, struct io_kiocb **nxt,
 		   bool force_nonblock)
 {
@@ -1670,23 +1725,31 @@ static int io_read(struct io_kiocb *req, struct io_kiocb **nxt,
 	struct iov_iter iter;
 	struct file *file;
 	size_t iov_count;
-	ssize_t read_size, ret;
+	ssize_t io_size, ret;
 
-	ret = io_prep_rw(req, force_nonblock);
-	if (ret)
-		return ret;
-	file = kiocb->ki_filp;
+	if (!req->io) {
+		ret = io_read_prep(req, &iovec, &iter, force_nonblock);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = io_import_iovec(READ, req, &iovec, &iter);
+		if (ret < 0)
+			return ret;
+	}
 
-	if (unlikely(!(file->f_mode & FMODE_READ)))
-		return -EBADF;
-
-	ret = io_import_iovec(READ, req, &iovec, &iter);
-	if (ret < 0)
-		return ret;
-
-	read_size = ret;
+	file = req->file;
+	io_size = ret;
 	if (req->flags & REQ_F_LINK)
-		req->result = read_size;
+		req->result = io_size;
+
+	/*
+	 * If the file doesn't support async, mark it as REQ_F_MUST_PUNT so
+	 * we know to async punt it even if it was opened O_NONBLOCK
+	 */
+	if (force_nonblock && !io_file_supports_async(file)) {
+		req->flags |= REQ_F_MUST_PUNT;
+		goto copy_iov;
+	}
 
 	iov_count = iov_iter_count(&iter);
 	ret = rw_verify_area(READ, file, &kiocb->ki_pos, iov_count);
@@ -1708,16 +1771,38 @@ static int io_read(struct io_kiocb *req, struct io_kiocb **nxt,
 		 */
 		if (force_nonblock && !(req->flags & REQ_F_NOWAIT) &&
 		    (req->flags & REQ_F_ISREG) &&
-		    ret2 > 0 && ret2 < read_size)
+		    ret2 > 0 && ret2 < io_size)
 			ret2 = -EAGAIN;
 		/* Catch -EAGAIN return for forced non-blocking submission */
-		if (!force_nonblock || ret2 != -EAGAIN)
+		if (!force_nonblock || ret2 != -EAGAIN) {
 			kiocb_done(kiocb, ret2, nxt, req->in_async);
-		else
-			ret = -EAGAIN;
+		} else {
+copy_iov:
+			ret = io_setup_async_io(req, io_size, iovec,
+						inline_vecs, &iter);
+			if (ret)
+				goto out_free;
+			return -EAGAIN;
+		}
 	}
+out_free:
 	kfree(iovec);
 	return ret;
+}
+
+static int io_write_prep(struct io_kiocb *req, struct iovec **iovec,
+			 struct iov_iter *iter, bool force_nonblock)
+{
+	ssize_t ret;
+
+	ret = io_prep_rw(req, force_nonblock);
+	if (ret)
+		return ret;
+
+	if (unlikely(!(req->file->f_mode & FMODE_WRITE)))
+		return -EBADF;
+
+	return io_import_iovec(WRITE, req, iovec, iter);
 }
 
 static int io_write(struct io_kiocb *req, struct io_kiocb **nxt,
@@ -1728,29 +1813,36 @@ static int io_write(struct io_kiocb *req, struct io_kiocb **nxt,
 	struct iov_iter iter;
 	struct file *file;
 	size_t iov_count;
-	ssize_t ret;
+	ssize_t ret, io_size;
 
-	ret = io_prep_rw(req, force_nonblock);
-	if (ret)
-		return ret;
+	if (!req->io) {
+		ret = io_write_prep(req, &iovec, &iter, force_nonblock);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = io_import_iovec(WRITE, req, &iovec, &iter);
+		if (ret < 0)
+			return ret;
+	}
 
 	file = kiocb->ki_filp;
-	if (unlikely(!(file->f_mode & FMODE_WRITE)))
-		return -EBADF;
-
-	ret = io_import_iovec(WRITE, req, &iovec, &iter);
-	if (ret < 0)
-		return ret;
-
+	io_size = ret;
 	if (req->flags & REQ_F_LINK)
-		req->result = ret;
+		req->result = io_size;
+
+	/*
+	 * If the file doesn't support async, mark it as REQ_F_MUST_PUNT so
+	 * we know to async punt it even if it was opened O_NONBLOCK
+	 */
+	if (force_nonblock && !io_file_supports_async(req->file)) {
+		req->flags |= REQ_F_MUST_PUNT;
+		goto copy_iov;
+	}
+
+	if (force_nonblock && !(kiocb->ki_flags & IOCB_DIRECT))
+		goto copy_iov;
 
 	iov_count = iov_iter_count(&iter);
-
-	ret = -EAGAIN;
-	if (force_nonblock && !(kiocb->ki_flags & IOCB_DIRECT))
-		goto out_free;
-
 	ret = rw_verify_area(WRITE, file, &kiocb->ki_pos, iov_count);
 	if (!ret) {
 		ssize_t ret2;
@@ -1774,10 +1866,16 @@ static int io_write(struct io_kiocb *req, struct io_kiocb **nxt,
 			ret2 = call_write_iter(file, kiocb, &iter);
 		else
 			ret2 = loop_rw_iter(WRITE, file, kiocb, &iter);
-		if (!force_nonblock || ret2 != -EAGAIN)
+		if (!force_nonblock || ret2 != -EAGAIN) {
 			kiocb_done(kiocb, ret2, nxt, req->in_async);
-		else
-			ret = -EAGAIN;
+		} else {
+copy_iov:
+			ret = io_setup_async_io(req, io_size, iovec,
+						inline_vecs, &iter);
+			if (ret)
+				goto out_free;
+			return -EAGAIN;
+		}
 	}
 out_free:
 	kfree(iovec);
@@ -2605,10 +2703,42 @@ static int io_async_cancel(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	return 0;
 }
 
+static int io_req_defer_prep(struct io_kiocb *req, struct io_async_ctx *io)
+{
+	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
+	struct iov_iter iter;
+	ssize_t ret;
+
+	memcpy(&io->sqe, req->sqe, sizeof(io->sqe));
+	req->sqe = &io->sqe;
+
+	switch (io->sqe.opcode) {
+	case IORING_OP_READV:
+	case IORING_OP_READ_FIXED:
+		ret = io_read_prep(req, &iovec, &iter, true);
+		break;
+	case IORING_OP_WRITEV:
+	case IORING_OP_WRITE_FIXED:
+		ret = io_write_prep(req, &iovec, &iter, true);
+		break;
+	default:
+		req->io = io;
+		return 0;
+	}
+
+	if (ret < 0)
+		return ret;
+
+	req->io = io;
+	io_req_map_io(req, ret, iovec, inline_vecs, &iter);
+	return 0;
+}
+
 static int io_req_defer(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_async_ctx *io;
+	int ret;
 
 	/* Still need defer if there is pending req in defer list. */
 	if (!req_need_defer(req) && list_empty(&ctx->defer_list))
@@ -2625,9 +2755,9 @@ static int io_req_defer(struct io_kiocb *req)
 		return 0;
 	}
 
-	memcpy(&io->sqe, req->sqe, sizeof(io->sqe));
-	req->sqe = &io->sqe;
-	req->io = io;
+	ret = io_req_defer_prep(req, io);
+	if (ret < 0)
+		return ret;
 
 	trace_io_uring_defer(ctx, req, req->user_data);
 	list_add_tail(&req->list, &ctx->defer_list);
@@ -2960,17 +3090,6 @@ static void __io_queue_sqe(struct io_kiocb *req)
 	 */
 	if (ret == -EAGAIN && (!(req->flags & REQ_F_NOWAIT) ||
 	    (req->flags & REQ_F_MUST_PUNT))) {
-		struct io_async_ctx *io;
-
-		io = kmalloc(sizeof(*io), GFP_KERNEL);
-		if (!io)
-			goto err;
-
-		memcpy(&io->sqe, req->sqe, sizeof(io->sqe));
-
-		req->sqe = &io->sqe;
-		req->io = io;
-
 		if (req->work.flags & IO_WQ_WORK_NEEDS_FILES) {
 			ret = io_grab_files(req);
 			if (ret)
@@ -3092,9 +3211,9 @@ err_req:
 			goto err_req;
 		}
 
-		memcpy(&io->sqe, req->sqe, sizeof(io->sqe));
-		req->sqe = &io->sqe;
-		req->io = io;
+		ret = io_req_defer_prep(req, io);
+		if (ret)
+			goto err_req;
 		trace_io_uring_link(ctx, req, prev);
 		list_add_tail(&req->list, &prev->link_list);
 	} else if (req->sqe->flags & IOSQE_IO_LINK) {
