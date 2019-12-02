@@ -184,7 +184,6 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level)
 {
-	struct i915_vma *vma;
 	int ret;
 
 	assert_object_held(obj);
@@ -192,126 +191,12 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	if (obj->cache_level == cache_level)
 		return 0;
 
-	/* Inspect the list of currently bound VMA and unbind any that would
-	 * be invalid given the new cache-level. This is principally to
-	 * catch the issue of the CS prefetch crossing page boundaries and
-	 * reading an invalid PTE on older architectures.
-	 */
-restart:
-	list_for_each_entry(vma, &obj->vma.list, obj_link) {
-		if (!drm_mm_node_allocated(&vma->node))
-			continue;
+	ret = i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE);
+	if (ret)
+		return ret;
 
-		if (i915_vma_is_pinned(vma)) {
-			DRM_DEBUG("can not change the cache level of pinned objects\n");
-			return -EBUSY;
-		}
+	/* The cache-level will be applied when each vma is rebound. */
 
-		if (!i915_vma_is_closed(vma) &&
-		    i915_gem_valid_gtt_space(vma, cache_level))
-			continue;
-
-		ret = i915_vma_unbind(vma);
-		if (ret)
-			return ret;
-
-		/* As unbinding may affect other elements in the
-		 * obj->vma_list (due to side-effects from retiring
-		 * an active vma), play safe and restart the iterator.
-		 */
-		goto restart;
-	}
-
-	/* We can reuse the existing drm_mm nodes but need to change the
-	 * cache-level on the PTE. We could simply unbind them all and
-	 * rebind with the correct cache-level on next use. However since
-	 * we already have a valid slot, dma mapping, pages etc, we may as
-	 * rewrite the PTE in the belief that doing so tramples upon less
-	 * state and so involves less work.
-	 */
-	if (atomic_read(&obj->bind_count)) {
-		struct drm_i915_private *i915 = to_i915(obj->base.dev);
-
-		/* Before we change the PTE, the GPU must not be accessing it.
-		 * If we wait upon the object, we know that all the bound
-		 * VMA are no longer active.
-		 */
-		ret = i915_gem_object_wait(obj,
-					   I915_WAIT_INTERRUPTIBLE |
-					   I915_WAIT_ALL,
-					   MAX_SCHEDULE_TIMEOUT);
-		if (ret)
-			return ret;
-
-		if (!HAS_LLC(i915) && cache_level != I915_CACHE_NONE) {
-			intel_wakeref_t wakeref =
-				intel_runtime_pm_get(&i915->runtime_pm);
-
-			/*
-			 * Access to snoopable pages through the GTT is
-			 * incoherent and on some machines causes a hard
-			 * lockup. Relinquish the CPU mmaping to force
-			 * userspace to refault in the pages and we can
-			 * then double check if the GTT mapping is still
-			 * valid for that pointer access.
-			 */
-			ret = mutex_lock_interruptible(&i915->ggtt.vm.mutex);
-			if (ret) {
-				intel_runtime_pm_put(&i915->runtime_pm,
-						     wakeref);
-				return ret;
-			}
-
-			if (obj->userfault_count)
-				__i915_gem_object_release_mmap(obj);
-
-			/*
-			 * As we no longer need a fence for GTT access,
-			 * we can relinquish it now (and so prevent having
-			 * to steal a fence from someone else on the next
-			 * fence request). Note GPU activity would have
-			 * dropped the fence as all snoopable access is
-			 * supposed to be linear.
-			 */
-			for_each_ggtt_vma(vma, obj) {
-				ret = i915_vma_revoke_fence(vma);
-				if (ret)
-					break;
-			}
-			mutex_unlock(&i915->ggtt.vm.mutex);
-			intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-			if (ret)
-				return ret;
-		} else {
-			/*
-			 * We either have incoherent backing store and
-			 * so no GTT access or the architecture is fully
-			 * coherent. In such cases, existing GTT mmaps
-			 * ignore the cache bit in the PTE and we can
-			 * rewrite it without confusing the GPU or having
-			 * to force userspace to fault back in its mmaps.
-			 */
-		}
-
-		list_for_each_entry(vma, &obj->vma.list, obj_link) {
-			if (!drm_mm_node_allocated(&vma->node))
-				continue;
-
-			/* Wait for an earlier async bind, need to rewrite it */
-			ret = i915_vma_sync(vma);
-			if (ret)
-				return ret;
-
-			ret = i915_vma_bind(vma, cache_level, PIN_UPDATE, NULL);
-			if (ret)
-				return ret;
-		}
-	}
-
-	list_for_each_entry(vma, &obj->vma.list, obj_link) {
-		if (i915_vm_has_cache_coloring(vma->vm))
-			vma->node.color = cache_level;
-	}
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 	obj->cache_dirty = true; /* Always invalidate stale cachelines */
 
