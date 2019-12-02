@@ -102,6 +102,9 @@ void igc_reset(struct igc_adapter *adapter)
 	if (!netif_running(adapter->netdev))
 		igc_power_down_link(adapter);
 
+	/* Re-enable PTP, where applicable. */
+	igc_ptp_reset(adapter);
+
 	igc_get_phy_info(hw);
 }
 
@@ -4277,6 +4280,24 @@ static int igc_close(struct net_device *netdev)
 	return 0;
 }
 
+/**
+ * igc_ioctl - Access the hwtstamp interface
+ * @netdev: network interface device structure
+ * @ifreq: interface request data
+ * @cmd: ioctl command
+ **/
+static int igc_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+{
+	switch (cmd) {
+	case SIOCGHWTSTAMP:
+		return igc_ptp_get_ts_config(netdev, ifr);
+	case SIOCSHWTSTAMP:
+		return igc_ptp_set_ts_config(netdev, ifr);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops igc_netdev_ops = {
 	.ndo_open		= igc_open,
 	.ndo_stop		= igc_close,
@@ -4288,6 +4309,7 @@ static const struct net_device_ops igc_netdev_ops = {
 	.ndo_fix_features	= igc_fix_features,
 	.ndo_set_features	= igc_set_features,
 	.ndo_features_check	= igc_features_check,
+	.ndo_do_ioctl		= igc_ioctl,
 };
 
 /* PCIe configuration access */
@@ -4588,6 +4610,9 @@ static int igc_probe(struct pci_dev *pdev,
 	 /* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
+	/* do hw tstamp init after resetting */
+	igc_ptp_init(adapter);
+
 	/* Check if Media Autosense is enabled */
 	adapter->ei = *ei;
 
@@ -4628,6 +4653,8 @@ static void igc_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	igc_ptp_stop(adapter);
 
 	set_bit(__IGC_DOWN, &adapter->state);
 

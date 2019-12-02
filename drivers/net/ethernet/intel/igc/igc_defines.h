@@ -218,6 +218,7 @@
 #define IGC_ICR_RXDMT0		BIT(4)	/* Rx desc min. threshold (0) */
 #define IGC_ICR_RXO		BIT(6)	/* Rx overrun */
 #define IGC_ICR_RXT0		BIT(7)	/* Rx timer intr (ring 0) */
+#define IGC_ICR_TS		BIT(19)	/* Time Sync Interrupt */
 #define IGC_ICR_DRSTA		BIT(30)	/* Device Reset Asserted */
 
 /* If this bit asserted, the driver should claim the interrupt */
@@ -240,6 +241,7 @@
 #define IGC_IMS_DRSTA		IGC_ICR_DRSTA	/* Device Reset Asserted */
 #define IGC_IMS_RXT0		IGC_ICR_RXT0	/* Rx timer intr */
 #define IGC_IMS_RXDMT0		IGC_ICR_RXDMT0	/* Rx desc min. threshold */
+#define IGC_IMS_TS		IGC_ICR_TS	/* Time Sync Interrupt */
 
 #define IGC_QVECTOR_MASK	0x7FFC		/* Q-vector mask */
 #define IGC_ITR_VAL_MASK	0x04		/* ITR value mask */
@@ -354,6 +356,16 @@
 
 #define I225_RXPBSIZE_DEFAULT	0x000000A2 /* RXPBSIZE default */
 #define I225_TXPBSIZE_DEFAULT	0x04000014 /* TXPBSIZE default */
+
+/* Time Sync Interrupt Causes */
+#define IGC_TSICR_SYS_WRAP	BIT(0) /* SYSTIM Wrap around. */
+#define IGC_TSICR_TXTS		BIT(1) /* Transmit Timestamp. */
+#define IGC_TSICR_TT0		BIT(3) /* Target Time 0 Trigger. */
+#define IGC_TSICR_TT1		BIT(4) /* Target Time 1 Trigger. */
+#define IGC_TSICR_AUTT0		BIT(5) /* Auxiliary Timestamp 0 Taken. */
+#define IGC_TSICR_AUTT1		BIT(6) /* Auxiliary Timestamp 1 Taken. */
+
+#define IGC_TSICR_INTERRUPTS	IGC_TSICR_TXTS
 
 /* Receive Checksum Control */
 #define IGC_RXCSUM_CRCOFL	0x00000800   /* CRC32 offload enable */

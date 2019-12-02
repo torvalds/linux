@@ -209,6 +209,30 @@
 #define IGC_LENERRS	0x04138  /* Length Errors Count */
 #define IGC_HRMPC	0x0A018  /* Header Redirection Missed Packet Count */
 
+/* Time sync registers */
+#define IGC_TSICR	0x0B66C  /* Time Sync Interrupt Cause */
+#define IGC_TSIM	0x0B674  /* Time Sync Interrupt Mask Register */
+#define IGC_TSAUXC	0x0B640  /* Timesync Auxiliary Control register */
+#define IGC_TSYNCRXCTL	0x0B620  /* Rx Time Sync Control register - RW */
+#define IGC_TSYNCTXCTL	0x0B614  /* Tx Time Sync Control register - RW */
+#define IGC_TSYNCRXCFG	0x05F50  /* Time Sync Rx Configuration - RW */
+#define IGC_TSSDP	0x0003C  /* Time Sync SDP Configuration Register - RW */
+
+#define IGC_IMIR(_i)	(0x05A80 + ((_i) * 4))  /* Immediate Interrupt */
+#define IGC_IMIREXT(_i)	(0x05AA0 + ((_i) * 4))  /* Immediate INTR Ext*/
+
+#define IGC_FTQF(_n)	(0x059E0 + (4 * (_n)))  /* 5-tuple Queue Fltr */
+/* System Time Registers */
+#define IGC_SYSTIML	0x0B600  /* System time register Low - RO */
+#define IGC_SYSTIMH	0x0B604  /* System time register High - RO */
+#define IGC_SYSTIMR	0x0B6F8  /* System time register Residue */
+#define IGC_TIMINCA	0x0B608  /* Increment attributes register - RW */
+
+#define IGC_RXSTMPL	0x0B624  /* Rx timestamp Low - RO */
+#define IGC_RXSTMPH	0x0B628  /* Rx timestamp High - RO */
+#define IGC_TXSTMPL	0x0B618  /* Tx timestamp value Low - RO */
+#define IGC_TXSTMPH	0x0B61C  /* Tx timestamp value High - RO */
+
 /* Management registers */
 #define IGC_MANC	0x05820  /* Management Control - RW */
 
