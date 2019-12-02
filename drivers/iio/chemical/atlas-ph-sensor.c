@@ -14,7 +14,6 @@
 #include <linux/err.h>
 #include <linux/irq.h>
 #include <linux/irq_work.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
