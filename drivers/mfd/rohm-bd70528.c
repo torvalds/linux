@@ -105,15 +105,14 @@ static struct regmap_config bd70528_regmap = {
  * register.
  */
 
-/* bit [0] - Shutdown register */
-unsigned int bit0_offsets[] = {0};	/* Shutdown register */
-unsigned int bit1_offsets[] = {1};	/* Power failure register */
-unsigned int bit2_offsets[] = {2};	/* VR FAULT register */
-unsigned int bit3_offsets[] = {3};	/* PMU register interrupts */
-unsigned int bit4_offsets[] = {4, 5};	/* Charger 1 and Charger 2 registers */
-unsigned int bit5_offsets[] = {6};	/* RTC register */
-unsigned int bit6_offsets[] = {7};	/* GPIO register */
-unsigned int bit7_offsets[] = {8};	/* Invalid operation register */
+static unsigned int bit0_offsets[] = {0};	/* Shutdown */
+static unsigned int bit1_offsets[] = {1};	/* Power failure */
+static unsigned int bit2_offsets[] = {2};	/* VR FAULT */
+static unsigned int bit3_offsets[] = {3};	/* PMU interrupts */
+static unsigned int bit4_offsets[] = {4, 5};	/* Charger 1 and Charger 2 */
+static unsigned int bit5_offsets[] = {6};	/* RTC */
+static unsigned int bit6_offsets[] = {7};	/* GPIO */
+static unsigned int bit7_offsets[] = {8};	/* Invalid operation */
 
 static struct regmap_irq_sub_irq_map bd70528_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit0_offsets),

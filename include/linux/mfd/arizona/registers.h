@@ -1186,13 +1186,6 @@
 #define ARIZONA_DSP4_SCRATCH_1                   0x1441
 #define ARIZONA_DSP4_SCRATCH_2                   0x1442
 #define ARIZONA_DSP4_SCRATCH_3                   0x1443
-#define ARIZONA_FRF_COEFF_1                      0x1700
-#define ARIZONA_FRF_COEFF_2                      0x1701
-#define ARIZONA_FRF_COEFF_3                      0x1702
-#define ARIZONA_FRF_COEFF_4                      0x1703
-#define ARIZONA_V2_DAC_COMP_1                    0x1704
-#define ARIZONA_V2_DAC_COMP_2                    0x1705
-
 
 /*
  * Field Definitions.

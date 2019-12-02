@@ -84,6 +84,7 @@ static void __init ux500_init_irq(void)
 	struct resource r;
 
 	irqchip_init();
+	prcmu_early_init();
 	np = of_find_compatible_node(NULL, NULL, "stericsson,db8500-prcmu");
 	of_address_to_resource(np, 0, &r);
 	of_node_put(np);
@@ -91,7 +92,6 @@ static void __init ux500_init_irq(void)
 		pr_err("could not find PRCMU base resource\n");
 		return;
 	}
-	prcmu_early_init(r.start, r.end-r.start);
 	ux500_pm_init(r.start, r.end-r.start);
 
 	/* Unlock before init */
