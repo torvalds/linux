@@ -530,9 +530,12 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 {
 	if (adev->asic_type == CHIP_VEGA20)
 		return (amdgpu_dpm == 2) ? true : false;
-	else if (adev->asic_type >= CHIP_ARCTURUS)
-		return true;
-	else
+	else if (adev->asic_type >= CHIP_ARCTURUS) {
+		if (amdgpu_sriov_vf(adev))
+			return false;
+		else
+			return true;
+	} else
 		return false;
 }
 
