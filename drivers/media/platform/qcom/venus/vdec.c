@@ -579,10 +579,6 @@ static int vdec_output_conf(struct venus_inst *inst)
 	if (ret)
 		return ret;
 
-	ret = venus_helper_set_core_usage(inst, VIDC_CORE_ID_1);
-	if (ret)
-		return ret;
-
 	if (core->res->hfi_version == HFI_VERSION_1XX) {
 		ptype = HFI_PROPERTY_PARAM_VDEC_CONTINUE_DATA_TRANSFER;
 		ret = hfi_session_set_property(inst, ptype, &en);
@@ -951,6 +947,10 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 
 	mutex_lock(&inst->lock);
 
+	ret = venus_pm_acquire_core(inst);
+	if (ret)
+		return ret;
+
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		ret = vdec_start_capture(inst);
 	else
@@ -1078,6 +1078,7 @@ static void vdec_session_release(struct venus_inst *inst)
 
 	venus_helper_free_dpb_bufs(inst);
 	venus_pm_load_scale(inst);
+	venus_pm_release_core(inst);
 	INIT_LIST_HEAD(&inst->registeredbufs);
 
 	mutex_unlock(&inst->lock);
@@ -1337,6 +1338,8 @@ static int vdec_open(struct file *file)
 	inst->num_output_bufs = 1;
 	inst->codec_state = VENUS_DEC_STATE_DEINIT;
 	inst->buf_count = 0;
+	inst->clk_data.core_id = VIDC_CORE_ID_DEFAULT;
+	inst->core_acquired = false;
 	init_waitqueue_head(&inst->reconf_wait);
 	venus_helper_init_instance(inst);
 

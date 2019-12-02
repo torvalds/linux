@@ -181,6 +181,8 @@ struct venus_core {
 	struct delayed_work work;
 	struct venus_caps caps[MAX_CODEC_NUM];
 	unsigned int codecs_count;
+	unsigned int core0_usage_count;
+	unsigned int core1_usage_count;
 };
 
 struct vdec_controls {
@@ -380,6 +382,7 @@ struct venus_inst {
 	const struct hfi_inst_ops *ops;
 	u32 session_type;
 	union hfi_get_property hprop;
+	unsigned int core_acquired: 1;
 };
 
 #define IS_V1(core)	((core)->res->hfi_version == HFI_VERSION_1XX)

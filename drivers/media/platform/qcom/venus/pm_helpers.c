@@ -14,6 +14,7 @@
 #include <media/v4l2-mem2mem.h>
 
 #include "core.h"
+#include "hfi_parser.h"
 #include "hfi_venus_io.h"
 #include "pm_helpers.h"
 
@@ -480,6 +481,173 @@ static int poweron_coreid(struct venus_core *core, unsigned int coreid_mask)
 	return 0;
 }
 
+static void
+min_loaded_core(struct venus_inst *inst, u32 *min_coreid, u32 *min_load)
+{
+	u32 mbs_per_sec, load, core1_load = 0, core2_load = 0;
+	u32 cores_max = core_num_max(inst);
+	struct venus_core *core = inst->core;
+	struct venus_inst *inst_pos;
+	unsigned long vpp_freq;
+	u32 coreid;
+
+	mutex_lock(&core->lock);
+
+	list_for_each_entry(inst_pos, &core->instances, list) {
+		if (inst_pos == inst)
+			continue;
+		vpp_freq = inst_pos->clk_data.codec_freq_data->vpp_freq;
+		coreid = inst_pos->clk_data.core_id;
+
+		mbs_per_sec = load_per_instance(inst_pos);
+		load = mbs_per_sec * vpp_freq;
+
+		if ((coreid & VIDC_CORE_ID_3) == VIDC_CORE_ID_3) {
+			core1_load += load / 2;
+			core2_load += load / 2;
+		} else if (coreid & VIDC_CORE_ID_1) {
+			core1_load += load;
+		} else if (coreid & VIDC_CORE_ID_2) {
+			core2_load += load;
+		}
+	}
+
+	*min_coreid = core1_load <= core2_load ?
+			VIDC_CORE_ID_1 : VIDC_CORE_ID_2;
+	*min_load = min(core1_load, core2_load);
+
+	if (cores_max < VIDC_CORE_ID_2 || core->res->vcodec_num < 2) {
+		*min_coreid = VIDC_CORE_ID_1;
+		*min_load = core1_load;
+	}
+
+	mutex_unlock(&core->lock);
+}
+
+static int decide_core(struct venus_inst *inst)
+{
+	const u32 ptype = HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE;
+	struct venus_core *core = inst->core;
+	u32 min_coreid, min_load, inst_load;
+	struct hfi_videocores_usage_type cu;
+	unsigned long max_freq;
+
+	if (legacy_binding) {
+		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
+			cu.video_core_enable_mask = VIDC_CORE_ID_1;
+		else
+			cu.video_core_enable_mask = VIDC_CORE_ID_2;
+
+		goto done;
+	}
+
+	if (inst->clk_data.core_id != VIDC_CORE_ID_DEFAULT)
+		return 0;
+
+	inst_load = load_per_instance(inst);
+	inst_load *= inst->clk_data.codec_freq_data->vpp_freq;
+	max_freq = core->res->freq_tbl[0].freq;
+
+	min_loaded_core(inst, &min_coreid, &min_load);
+
+	if ((inst_load + min_load) > max_freq) {
+		dev_warn(core->dev, "HW is overloaded, needed: %u max: %lu\n",
+			 inst_load, max_freq);
+		return -EINVAL;
+	}
+
+	inst->clk_data.core_id = min_coreid;
+	cu.video_core_enable_mask = min_coreid;
+
+done:
+	return hfi_session_set_property(inst, ptype, &cu);
+}
+
+static int acquire_core(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
+	unsigned int coreid_mask = 0;
+
+	if (inst->core_acquired)
+		return 0;
+
+	inst->core_acquired = true;
+
+	if (inst->clk_data.core_id & VIDC_CORE_ID_1) {
+		if (core->core0_usage_count++)
+			return 0;
+
+		coreid_mask = VIDC_CORE_ID_1;
+	}
+
+	if (inst->clk_data.core_id & VIDC_CORE_ID_2) {
+		if (core->core1_usage_count++)
+			return 0;
+
+		coreid_mask |= VIDC_CORE_ID_2;
+	}
+
+	return poweron_coreid(core, coreid_mask);
+}
+
+static int release_core(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
+	unsigned int coreid_mask = 0;
+	int ret;
+
+	if (!inst->core_acquired)
+		return 0;
+
+	if (inst->clk_data.core_id & VIDC_CORE_ID_1) {
+		if (--core->core0_usage_count)
+			goto done;
+
+		coreid_mask = VIDC_CORE_ID_1;
+	}
+
+	if (inst->clk_data.core_id & VIDC_CORE_ID_2) {
+		if (--core->core1_usage_count)
+			goto done;
+
+		coreid_mask |= VIDC_CORE_ID_2;
+	}
+
+	ret = poweroff_coreid(core, coreid_mask);
+	if (ret)
+		return ret;
+
+done:
+	inst->clk_data.core_id = VIDC_CORE_ID_DEFAULT;
+	inst->core_acquired = false;
+	return 0;
+}
+
+static int coreid_power_v4(struct venus_inst *inst, int on)
+{
+	struct venus_core *core = inst->core;
+	int ret;
+
+	if (legacy_binding)
+		return 0;
+
+	if (on == POWER_ON) {
+		ret = decide_core(inst);
+		if (ret)
+			return ret;
+
+		mutex_lock(&core->lock);
+		ret = acquire_core(inst);
+		mutex_unlock(&core->lock);
+	} else {
+		mutex_lock(&core->lock);
+		ret = release_core(inst);
+		mutex_unlock(&core->lock);
+	}
+
+	return ret;
+}
+
 static int vdec_get_v4(struct device *dev)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
@@ -661,22 +829,12 @@ static void core_put_v4(struct device *dev)
 static int core_power_v4(struct device *dev, int on)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
-	const unsigned int coreid_mask = VIDC_CORE_ID_1 | VIDC_CORE_ID_2;
 	int ret = 0;
 
-	if (on == POWER_ON) {
+	if (on == POWER_ON)
 		ret = core_clks_enable(core);
-		if (ret)
-			return ret;
-
-		if (!legacy_binding)
-			ret = poweron_coreid(core, coreid_mask);
-	} else {
-		if (!legacy_binding)
-			ret = poweroff_coreid(core, coreid_mask);
-
+	else
 		core_clks_disable(core);
-	}
 
 	return ret;
 }
@@ -781,6 +939,7 @@ static const struct venus_pm_ops pm_ops_v4 = {
 	.venc_get = venc_get_v4,
 	.venc_put = venc_put_v4,
 	.venc_power = venc_power_v4,
+	.coreid_power = coreid_power_v4,
 	.load_scale = load_scale_v4,
 };
 

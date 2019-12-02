@@ -21,6 +21,8 @@ struct venus_pm_ops {
 	void (*venc_put)(struct device *dev);
 	int (*venc_power)(struct device *dev, int on);
 
+	int (*coreid_power)(struct venus_inst *inst, int on);
+
 	int (*load_scale)(struct venus_inst *inst);
 };
 
@@ -34,6 +36,30 @@ static inline int venus_pm_load_scale(struct venus_inst *inst)
 		return 0;
 
 	return core->pm_ops->load_scale(inst);
+}
+
+static inline int venus_pm_acquire_core(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
+	const struct venus_pm_ops *pm_ops = core->pm_ops;
+	int ret = 0;
+
+	if (pm_ops && pm_ops->coreid_power)
+		ret = pm_ops->coreid_power(inst, POWER_ON);
+
+	return ret;
+}
+
+static inline int venus_pm_release_core(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
+	const struct venus_pm_ops *pm_ops = core->pm_ops;
+	int ret = 0;
+
+	if (pm_ops && pm_ops->coreid_power)
+		ret = pm_ops->coreid_power(inst, POWER_OFF);
+
+	return ret;
 }
 
 #endif

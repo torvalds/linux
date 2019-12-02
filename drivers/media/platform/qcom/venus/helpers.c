@@ -723,21 +723,6 @@ int venus_helper_set_work_mode(struct venus_inst *inst, u32 mode)
 }
 EXPORT_SYMBOL_GPL(venus_helper_set_work_mode);
 
-int venus_helper_set_core_usage(struct venus_inst *inst, u32 usage)
-{
-	const u32 ptype = HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE;
-	struct hfi_videocores_usage_type cu;
-
-	inst->clk_data.core_id = usage;
-	if (!IS_V4(inst->core))
-		return 0;
-
-	cu.video_core_enable_mask = usage;
-
-	return hfi_session_set_property(inst, ptype, &cu);
-}
-EXPORT_SYMBOL_GPL(venus_helper_set_core_usage);
-
 int venus_helper_init_codec_freq_data(struct venus_inst *inst)
 {
 	const struct codec_freq_data *data;
@@ -1111,6 +1096,8 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 		inst->streamon_out = 0;
 	else
 		inst->streamon_cap = 0;
+
+	venus_pm_release_core(inst);
 
 	mutex_unlock(&inst->lock);
 }
