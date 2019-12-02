@@ -278,12 +278,11 @@ static void ast_set_std_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 	jreg = stdtable->misc;
 	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, jreg);
 
-	/* Set SEQ */
+	/* Set SEQ; except Screen Disable field */
 	ast_set_index_reg(ast, AST_IO_SEQ_PORT, 0x00, 0x03);
-	for (i = 0; i < 4; i++) {
+	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x01, 0xdf, stdtable->seq[0]);
+	for (i = 1; i < 4; i++) {
 		jreg = stdtable->seq[i];
-		if (!i)
-			jreg |= 0x20;
 		ast_set_index_reg(ast, AST_IO_SEQ_PORT, (i + 1) , jreg);
 	}
 
@@ -562,13 +561,11 @@ int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 					    struct drm_plane_state *old_state)
 {
+	struct ast_private *ast = plane->dev->dev_private;
 	struct drm_plane_state *state = plane->state;
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_gem_vram_object *gbo;
 	s64 gpu_addr;
-
-	if (!crtc || !state->fb)
-		return;
 
 	gbo = drm_gem_vram_of_gem(state->fb->obj[0]);
 	gpu_addr = drm_gem_vram_offset(gbo);
@@ -577,6 +574,17 @@ void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 
 	ast_set_offset_reg(crtc);
 	ast_set_start_address_crt1(crtc, (u32)gpu_addr);
+
+	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x00);
+}
+
+static void
+ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
+					struct drm_plane_state *old_state)
+{
+	struct ast_private *ast = plane->dev->dev_private;
+
+	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x20);
 }
 
 static const struct drm_plane_helper_funcs ast_primary_plane_helper_funcs = {
@@ -584,6 +592,7 @@ static const struct drm_plane_helper_funcs ast_primary_plane_helper_funcs = {
 	.cleanup_fb = drm_gem_vram_plane_helper_cleanup_fb,
 	.atomic_check = ast_primary_plane_helper_atomic_check,
 	.atomic_update = ast_primary_plane_helper_atomic_update,
+	.atomic_disable = ast_primary_plane_helper_atomic_disable,
 };
 
 static const struct drm_plane_funcs ast_primary_plane_funcs = {
@@ -736,11 +745,13 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	if (ast->chip == AST1180)
 		return;
 
+	/* TODO: Maybe control display signal generation with
+	 *       Sync Enable (bit CR17.7).
+	 */
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
-		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0);
 		if (ast->tx_chip_type == AST_TX_DP501)
 			ast_set_dp501_video_output(crtc->dev, 1);
 		ast_crtc_load_lut(crtc);
@@ -748,7 +759,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_OFF:
 		if (ast->tx_chip_type == AST_TX_DP501)
 			ast_set_dp501_video_output(crtc->dev, 0);
-		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x20);
 		break;
 	}
 }
