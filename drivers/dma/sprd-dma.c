@@ -99,6 +99,7 @@
 /* DMA_CHN_WARP_* register definition */
 #define SPRD_DMA_HIGH_ADDR_MASK		GENMASK(31, 28)
 #define SPRD_DMA_LOW_ADDR_MASK		GENMASK(31, 0)
+#define SPRD_DMA_WRAP_ADDR_MASK		GENMASK(27, 0)
 #define SPRD_DMA_HIGH_ADDR_OFFSET	4
 
 /* SPRD_DMA_CHN_INTC register definition */
@@ -118,6 +119,8 @@
 #define SPRD_DMA_SWT_MODE_OFFSET	26
 #define SPRD_DMA_REQ_MODE_OFFSET	24
 #define SPRD_DMA_REQ_MODE_MASK		GENMASK(1, 0)
+#define SPRD_DMA_WRAP_SEL_DEST		BIT(23)
+#define SPRD_DMA_WRAP_EN		BIT(22)
 #define SPRD_DMA_FIX_SEL_OFFSET		21
 #define SPRD_DMA_FIX_EN_OFFSET		20
 #define SPRD_DMA_LLIST_END		BIT(19)
@@ -804,6 +807,8 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 	temp |= req_mode << SPRD_DMA_REQ_MODE_OFFSET;
 	temp |= fix_mode << SPRD_DMA_FIX_SEL_OFFSET;
 	temp |= fix_en << SPRD_DMA_FIX_EN_OFFSET;
+	temp |= schan->linklist.wrap_addr ?
+		SPRD_DMA_WRAP_EN | SPRD_DMA_WRAP_SEL_DEST : 0;
 	temp |= slave_cfg->src_maxburst & SPRD_DMA_FRG_LEN_MASK;
 	hw->frg_len = temp;
 
@@ -831,6 +836,12 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 		hw->llist_ptr = lower_32_bits(llist_ptr);
 		hw->src_blk_step = (upper_32_bits(llist_ptr) << SPRD_DMA_LLIST_HIGH_SHIFT) &
 			SPRD_DMA_LLIST_HIGH_MASK;
+
+		if (schan->linklist.wrap_addr) {
+			hw->wrap_ptr |= schan->linklist.wrap_addr &
+				SPRD_DMA_WRAP_ADDR_MASK;
+			hw->wrap_to |= dst & SPRD_DMA_WRAP_ADDR_MASK;
+		}
 	} else {
 		hw->llist_ptr = 0;
 		hw->src_blk_step = 0;
@@ -939,9 +950,11 @@ sprd_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 		schan->linklist.phy_addr = ll_cfg->phy_addr;
 		schan->linklist.virt_addr = ll_cfg->virt_addr;
+		schan->linklist.wrap_addr = ll_cfg->wrap_addr;
 	} else {
 		schan->linklist.phy_addr = 0;
 		schan->linklist.virt_addr = 0;
+		schan->linklist.wrap_addr = 0;
 	}
 
 	/*
@@ -1080,7 +1093,6 @@ static int sprd_dma_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct sprd_dma_dev *sdev;
 	struct sprd_dma_chn *dma_chn;
-	struct resource *res;
 	u32 chn_count;
 	int ret, i;
 
@@ -1126,8 +1138,7 @@ static int sprd_dma_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "no interrupts for the dma controller\n");
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sdev->glb_base = devm_ioremap_resource(&pdev->dev, res);
+	sdev->glb_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sdev->glb_base))
 		return PTR_ERR(sdev->glb_base);
 
