@@ -35,6 +35,13 @@ struct aspeed_pin_config {
 		.drv_data = (void *) &(PIN_SYM(name_)) \
 	}
 
+#define ASPEED_SB_PINCONF(param_, pin0_, pin1_, reg_, bit_) { \
+	.param = param_, \
+	.pins = {pin0_, pin1_}, \
+	.reg = reg_, \
+	.bit = bit_ \
+}
+
 struct aspeed_pinctrl_data {
 	struct regmap *scu;
 
