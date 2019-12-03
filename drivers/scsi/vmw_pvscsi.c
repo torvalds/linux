@@ -402,6 +402,17 @@ static int pvscsi_map_buffers(struct pvscsi_adapter *adapter,
 	return 0;
 }
 
+/*
+ * The device incorrectly doesn't clear the first byte of the sense
+ * buffer in some cases. We have to do it ourselves.
+ * Otherwise we run into trouble when SWIOTLB is forced.
+ */
+static void pvscsi_patch_sense(struct scsi_cmnd *cmd)
+{
+	if (cmd->sense_buffer)
+		cmd->sense_buffer[0] = 0;
+}
+
 static void pvscsi_unmap_buffers(const struct pvscsi_adapter *adapter,
 				 struct pvscsi_ctx *ctx)
 {
@@ -544,6 +555,8 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 	cmd = ctx->cmd;
 	abort_cmp = ctx->abort_cmp;
 	pvscsi_unmap_buffers(adapter, ctx);
+	if (sdstat != SAM_STAT_CHECK_CONDITION)
+		pvscsi_patch_sense(cmd);
 	pvscsi_release_context(adapter, ctx);
 	if (abort_cmp) {
 		/*
@@ -873,6 +886,7 @@ static void pvscsi_reset_all(struct pvscsi_adapter *adapter)
 			scmd_printk(KERN_ERR, cmd,
 				    "Forced reset on cmd %p\n", cmd);
 			pvscsi_unmap_buffers(adapter, ctx);
+			pvscsi_patch_sense(cmd);
 			pvscsi_release_context(adapter, ctx);
 			cmd->result = (DID_RESET << 16);
 			cmd->scsi_done(cmd);
