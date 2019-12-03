@@ -33,7 +33,6 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_vram_helper.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_probe_helper.h>
 
 #include "ast_drv.h"
