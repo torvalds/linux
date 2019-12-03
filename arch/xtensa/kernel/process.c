@@ -264,6 +264,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
 			       &regs->areg[XCHAL_NUM_AREGS - len/4], len);
 		}
 
+		childregs->syscall = regs->syscall;
+
 		/* The thread pointer is passed in the '4th argument' (= a5) */
 		if (clone_flags & CLONE_SETTLS)
 			childregs->threadptr = childregs->areg[5];

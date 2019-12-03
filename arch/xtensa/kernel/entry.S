@@ -529,7 +529,7 @@ common_exception_return:
 	l32i	a4, a2, TI_PRE_COUNT
 	bnez	a4, 4f
 	call4	preempt_schedule_irq
-	j	1b
+	j	4f
 #endif
 
 #if XTENSA_FAKE_NMI
@@ -1876,8 +1876,7 @@ ENDPROC(fast_store_prohibited)
 
 ENTRY(system_call)
 
-	/* reserve 4 bytes on stack for function parameter */
-	abi_entry(4)
+	abi_entry_default
 
 	/* regs->syscall = regs->areg[2] */
 
@@ -1892,11 +1891,10 @@ ENTRY(system_call)
 
 	mov	a6, a2
 	call4	do_syscall_trace_enter
+	beqz	a6, .Lsyscall_exit
 	l32i	a7, a2, PT_SYSCALL
 
 1:
-	s32i	a7, a1, 4
-
 	/* syscall = sys_call_table[syscall_nr] */
 
 	movi	a4, sys_call_table
@@ -1906,8 +1904,6 @@ ENTRY(system_call)
 
 	addx4	a4, a7, a4
 	l32i	a4, a4, 0
-	movi	a5, sys_ni_syscall;
-	beq	a4, a5, 1f
 
 	/* Load args: arg0 - arg5 are passed via regs. */
 
@@ -1918,25 +1914,19 @@ ENTRY(system_call)
 	l32i	a10, a2, PT_AREG8
 	l32i	a11, a2, PT_AREG9
 
-	/* Pass one additional argument to the syscall: pt_regs (on stack) */
-	s32i	a2, a1, 0
-
 	callx4	a4
 
 1:	/* regs->areg[2] = return_value */
 
 	s32i	a6, a2, PT_AREG2
 	bnez	a3, 1f
-	abi_ret(4)
+.Lsyscall_exit:
+	abi_ret_default
 
 1:
-	l32i	a4, a1, 4
-	l32i	a3, a2, PT_SYSCALL
-	s32i	a4, a2, PT_SYSCALL
 	mov	a6, a2
 	call4	do_syscall_trace_leave
-	s32i	a3, a2, PT_SYSCALL
-	abi_ret(4)
+	abi_ret_default
 
 ENDPROC(system_call)
 

@@ -236,9 +236,9 @@ restore_sigcontext(struct pt_regs *regs, struct rt_sigframe __user *frame)
  * Do a signal return; undo the signal stack.
  */
 
-asmlinkage long xtensa_rt_sigreturn(long a0, long a1, long a2, long a3,
-				    long a4, long a5, struct pt_regs *regs)
+asmlinkage long xtensa_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame;
 	sigset_t set;
 	int ret;
