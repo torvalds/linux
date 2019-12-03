@@ -3970,15 +3970,29 @@ static int tegra_sor_runtime_resume(struct device *dev)
 static int tegra_sor_suspend(struct device *dev)
 {
 	struct tegra_sor *sor = dev_get_drvdata(dev);
+	int err;
 
-	return regulator_disable(sor->hdmi_supply);
+	if (sor->hdmi_supply) {
+		err = regulator_disable(sor->hdmi_supply);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 static int tegra_sor_resume(struct device *dev)
 {
 	struct tegra_sor *sor = dev_get_drvdata(dev);
+	int err;
 
-	return regulator_enable(sor->hdmi_supply);
+	if (sor->hdmi_supply) {
+		err = regulator_enable(sor->hdmi_supply);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 static const struct dev_pm_ops tegra_sor_pm_ops = {
