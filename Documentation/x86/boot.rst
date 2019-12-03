@@ -251,7 +251,7 @@ setting fields in the header, you must make sure only to set fields
 supported by the protocol version in use.
 
 
-Details of Harder Fileds
+Details of Header Fields
 ========================
 
 For each field, some are information from the kernel to the bootloader
