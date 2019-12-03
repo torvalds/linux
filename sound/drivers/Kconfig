@@ -92,6 +92,7 @@ config SND_DUMMY
 config SND_ALOOP
 	tristate "Generic loopback driver (PCM)"
 	select SND_PCM
+	select SND_TIMER
 	help
 	  Say 'Y' or 'M' to include support for the PCM loopback device.
 	  This module returns played samples back to the user space using
