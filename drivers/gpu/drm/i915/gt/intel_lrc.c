@@ -1303,6 +1303,9 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		unsigned long flags;
 		bool ok = true;
 
+		GEM_BUG_ON(!kref_read(&rq->fence.refcount));
+		GEM_BUG_ON(!i915_request_is_active(rq));
+
 		if (ce == rq->hw_context) {
 			GEM_TRACE_ERR("Dup context:%llx in pending[%zd]\n",
 				      ce->timeline->fence_context,
