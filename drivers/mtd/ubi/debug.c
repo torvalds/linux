@@ -107,6 +107,7 @@ void ubi_dump_vol_info(const struct ubi_volume *vol)
 	pr_err("\tlast_eb_bytes   %d\n", vol->last_eb_bytes);
 	pr_err("\tcorrupted       %d\n", vol->corrupted);
 	pr_err("\tupd_marker      %d\n", vol->upd_marker);
+	pr_err("\tskip_check      %d\n", vol->skip_check);
 
 	if (vol->name_len <= UBI_VOL_NAME_MAX &&
 	    strnlen(vol->name, vol->name_len + 1) == vol->name_len) {
