@@ -187,12 +187,14 @@ static struct shash_alg mips_poly1305_alg = {
 
 static int __init mips_poly1305_mod_init(void)
 {
-	return crypto_register_shash(&mips_poly1305_alg);
+	return IS_REACHABLE(CONFIG_CRYPTO_HASH) ?
+		crypto_register_shash(&mips_poly1305_alg) : 0;
 }
 
 static void __exit mips_poly1305_mod_exit(void)
 {
-	crypto_unregister_shash(&mips_poly1305_alg);
+	if (IS_REACHABLE(CONFIG_CRYPTO_HASH))
+		crypto_unregister_shash(&mips_poly1305_alg);
 }
 
 module_init(mips_poly1305_mod_init);

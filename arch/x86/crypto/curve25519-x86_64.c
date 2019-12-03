@@ -2457,13 +2457,14 @@ static int __init curve25519_mod_init(void)
 		static_branch_enable(&curve25519_use_adx);
 	else
 		return 0;
-	return crypto_register_kpp(&curve25519_alg);
+	return IS_REACHABLE(CONFIG_CRYPTO_KPP) ?
+		crypto_register_kpp(&curve25519_alg) : 0;
 }
 
 static void __exit curve25519_mod_exit(void)
 {
-	if (boot_cpu_has(X86_FEATURE_BMI2) ||
-	    boot_cpu_has(X86_FEATURE_ADX))
+	if (IS_REACHABLE(CONFIG_CRYPTO_KPP) &&
+	    (boot_cpu_has(X86_FEATURE_BMI2) || boot_cpu_has(X86_FEATURE_ADX)))
 		crypto_unregister_kpp(&curve25519_alg);
 }
 
