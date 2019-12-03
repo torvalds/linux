@@ -18,6 +18,7 @@ static const size_t size_limit_mb = 64; /* total dmabuf size, in megabytes  */
 struct udmabuf {
 	pgoff_t pagecount;
 	struct page **pages;
+	struct miscdevice *device;
 };
 
 static vm_fault_t udmabuf_vm_fault(struct vm_fault *vmf)
@@ -104,8 +105,9 @@ static const struct dma_buf_ops udmabuf_ops = {
 #define SEALS_WANTED (F_SEAL_SHRINK)
 #define SEALS_DENIED (F_SEAL_WRITE)
 
-static long udmabuf_create(const struct udmabuf_create_list *head,
-			   const struct udmabuf_create_item *list)
+static long udmabuf_create(struct miscdevice *device,
+			   struct udmabuf_create_list *head,
+			   struct udmabuf_create_item *list)
 {
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct file *memfd = NULL;
@@ -172,6 +174,7 @@ static long udmabuf_create(const struct udmabuf_create_list *head,
 	exp_info.priv = ubuf;
 	exp_info.flags = O_RDWR;
 
+	ubuf->device = device;
 	buf = dma_buf_export(&exp_info);
 	if (IS_ERR(buf)) {
 		ret = PTR_ERR(buf);
@@ -209,7 +212,7 @@ static long udmabuf_ioctl_create(struct file *filp, unsigned long arg)
 	list.offset = create.offset;
 	list.size   = create.size;
 
-	return udmabuf_create(&head, &list);
+	return udmabuf_create(filp->private_data, &head, &list);
 }
 
 static long udmabuf_ioctl_create_list(struct file *filp, unsigned long arg)
@@ -228,7 +231,7 @@ static long udmabuf_ioctl_create_list(struct file *filp, unsigned long arg)
 	if (IS_ERR(list))
 		return PTR_ERR(list);
 
-	ret = udmabuf_create(&head, list);
+	ret = udmabuf_create(filp->private_data, &head, list);
 	kfree(list);
 	return ret;
 }
