@@ -2,7 +2,7 @@
 /*
  * padata.c - generic interface to process data streams in parallel
  *
- * See Documentation/padata.txt for an api documentation.
+ * See Documentation/core-api/padata.rst for more information.
  *
  * Copyright (C) 2008, 2009 secunet Security Networks AG
  * Copyright (C) 2008, 2009 Steffen Klassert <steffen.klassert@secunet.com>
@@ -99,6 +99,8 @@ static void padata_parallel_worker(struct work_struct *parallel_work)
  * The parallelization callback function will run with BHs off.
  * Note: Every object which is parallelized by padata_do_parallel
  * must be seen by padata_do_serial.
+ *
+ * Return: 0 on success or else negative error code.
  */
 int padata_do_parallel(struct padata_shell *ps,
 		       struct padata_priv *padata, int *cb_cpu)
@@ -163,14 +165,12 @@ EXPORT_SYMBOL(padata_do_parallel);
 /*
  * padata_find_next - Find the next object that needs serialization.
  *
- * Return values are:
- *
- * A pointer to the control struct of the next object that needs
- * serialization, if present in one of the percpu reorder queues.
- *
- * NULL, if the next object that needs serialization will
- *  be parallel processed by another cpu and is not yet present in
- *  the cpu's reorder queue.
+ * Return:
+ * * A pointer to the control struct of the next object that needs
+ *   serialization, if present in one of the percpu reorder queues.
+ * * NULL, if the next object that needs serialization will
+ *   be parallel processed by another cpu and is not yet present in
+ *   the cpu's reorder queue.
  */
 static struct padata_priv *padata_find_next(struct parallel_data *pd,
 					    bool remove_object)
@@ -582,13 +582,14 @@ out_replace:
 }
 
 /**
- * padata_set_cpumask: Sets specified by @cpumask_type cpumask to the value
- *                     equivalent to @cpumask.
- *
+ * padata_set_cpumask - Sets specified by @cpumask_type cpumask to the value
+ *                      equivalent to @cpumask.
  * @pinst: padata instance
  * @cpumask_type: PADATA_CPU_SERIAL or PADATA_CPU_PARALLEL corresponding
  *                to parallel and serial cpumasks respectively.
  * @cpumask: the cpumask to use
+ *
+ * Return: 0 on success or negative error code
  */
 int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 		       cpumask_var_t cpumask)
@@ -626,6 +627,8 @@ EXPORT_SYMBOL(padata_set_cpumask);
  * padata_start - start the parallel processing
  *
  * @pinst: padata instance to start
+ *
+ * Return: 0 on success or negative error code
  */
 int padata_start(struct padata_instance *pinst)
 {
@@ -880,6 +883,8 @@ static struct kobj_type padata_attr_type = {
  * @name: used to identify the instance
  * @pcpumask: cpumask that will be used for padata parallelization
  * @cbcpumask: cpumask that will be used for padata serialization
+ *
+ * Return: new instance on success, NULL on error
  */
 static struct padata_instance *padata_alloc(const char *name,
 					    const struct cpumask *pcpumask,
@@ -967,6 +972,8 @@ err:
  *                         parallel workers.
  *
  * @name: used to identify the instance
+ *
+ * Return: new instance on success, NULL on error
  */
 struct padata_instance *padata_alloc_possible(const char *name)
 {
@@ -977,7 +984,7 @@ EXPORT_SYMBOL(padata_alloc_possible);
 /**
  * padata_free - free a padata instance
  *
- * @padata_inst: padata instance to free
+ * @pinst: padata instance to free
  */
 void padata_free(struct padata_instance *pinst)
 {
@@ -989,6 +996,8 @@ EXPORT_SYMBOL(padata_free);
  * padata_alloc_shell - Allocate and initialize padata shell.
  *
  * @pinst: Parent padata_instance object.
+ *
+ * Return: new shell on success, NULL on error
  */
 struct padata_shell *padata_alloc_shell(struct padata_instance *pinst)
 {
