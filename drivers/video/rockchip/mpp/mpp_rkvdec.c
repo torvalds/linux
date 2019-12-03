@@ -1451,7 +1451,7 @@ static struct mpp_dev_ops rkvdec_3328_dev_ops = {
 };
 
 static const struct mpp_dev_var rk_hevcdec_data = {
-	.device_type = MPP_DEVICE_DEC_RKV,
+	.device_type = MPP_DEVICE_HEVC_DEC,
 	.hw_info = &rk_hevcdec_hw_info,
 	.trans_info = rk_hevcdec_trans,
 	.hw_ops = &rkvdec_v1_hw_ops,
@@ -1459,7 +1459,7 @@ static const struct mpp_dev_var rk_hevcdec_data = {
 };
 
 static const struct mpp_dev_var rkvdec_v1_data = {
-	.device_type = MPP_DEVICE_DEC_RKV,
+	.device_type = MPP_DEVICE_RKVDEC,
 	.hw_info = &rkvdec_v1_hw_info,
 	.trans_info = rkvdec_v1_trans,
 	.hw_ops = &rkvdec_v1_hw_ops,
@@ -1467,7 +1467,7 @@ static const struct mpp_dev_var rkvdec_v1_data = {
 };
 
 static const struct mpp_dev_var rkvdec_3399_data = {
-	.device_type = MPP_DEVICE_DEC_RKV,
+	.device_type = MPP_DEVICE_RKVDEC,
 	.hw_info = &rkvdec_v1_hw_info,
 	.trans_info = rkvdec_v1_trans,
 	.hw_ops = &rkvdec_3399_hw_ops,
@@ -1475,7 +1475,7 @@ static const struct mpp_dev_var rkvdec_3399_data = {
 };
 
 static const struct mpp_dev_var rkvdec_3328_data = {
-	.device_type = MPP_DEVICE_DEC_RKV,
+	.device_type = MPP_DEVICE_RKVDEC,
 	.hw_info = &rkvdec_v1_hw_info,
 	.trans_info = rkvdec_v1_trans,
 	.hw_ops = &rkvdec_3328_hw_ops,

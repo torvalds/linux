@@ -65,7 +65,7 @@ static int mpp_init_grf(struct device_node *np,
 		return -ENODATA;
 
 	ret = of_property_read_u32_index(np, "rockchip,grf-values",
-				   index, &grf_value);
+					 index, &grf_value);
 	if (ret)
 		return -ENODATA;
 

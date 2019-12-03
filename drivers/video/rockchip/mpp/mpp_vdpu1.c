@@ -232,7 +232,7 @@ static void *vdpu_alloc_task(struct mpp_session *session,
 
 	mpp_task_init(session, &task->mpp_task);
 
-	if (session->device_type == MPP_DEVICE_DEC_PP) {
+	if (session->device_type == MPP_DEVICE_VDPU1_PP) {
 		task->pp_enable = true;
 		task->hw_info = &vdpu_pp_v1_hw_info;
 	} else {
@@ -646,7 +646,7 @@ static struct mpp_dev_ops vdpu_v1_dev_ops = {
 };
 
 static const struct mpp_dev_var vdpu_v1_data = {
-	.device_type = MPP_DEVICE_DEC,
+	.device_type = MPP_DEVICE_VDPU1,
 	.hw_info = &vdpu_v1_hw_info,
 	.trans_info = vdpu_v1_trans,
 	.hw_ops = &vdpu_v1_hw_ops,
@@ -654,7 +654,7 @@ static const struct mpp_dev_var vdpu_v1_data = {
 };
 
 static const struct mpp_dev_var avsd_plus_data = {
-	.device_type = MPP_DEVICE_DEC_AVSPLUS,
+	.device_type = MPP_DEVICE_AVSPLUS_DEC,
 	.hw_info = &vdpu_v1_hw_info,
 	.trans_info = vdpu_v1_trans,
 	.hw_ops = &vdpu_v1_hw_ops,
@@ -710,10 +710,9 @@ static int vdpu_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (mpp->var->device_type == MPP_DEVICE_DEC) {
-		mpp->srv->sub_devices[MPP_DEVICE_PP] = mpp;
-		mpp->srv->sub_devices[MPP_DEVICE_DEC_PP] = mpp;
-	}
+	if (mpp->var->device_type == MPP_DEVICE_VDPU1)
+		mpp->srv->sub_devices[MPP_DEVICE_VDPU1_PP] = mpp;
+
 	mpp->session_max_buffers = VDPU1_SESSION_MAX_BUFFERS;
 	vdpu_debugfs_init(mpp);
 	dev_info(dev, "probing finish\n");

@@ -519,7 +519,7 @@ static struct mpp_dev_ops vepu_v2_dev_ops = {
 };
 
 static const struct mpp_dev_var vepu_v2_data = {
-	.device_type = MPP_DEVICE_ENC,
+	.device_type = MPP_DEVICE_VEPU2,
 	.hw_info = &vepu_v2_hw_info,
 	.trans_info = trans_rk_vepu2,
 	.hw_ops = &vepu_v2_hw_ops,
