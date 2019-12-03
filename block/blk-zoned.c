@@ -342,6 +342,7 @@ struct blk_revalidate_zone_args {
 	struct gendisk	*disk;
 	unsigned long	*conv_zones_bitmap;
 	unsigned long	*seq_zones_wlock;
+	unsigned int	nr_zones;
 	sector_t	sector;
 };
 
@@ -385,8 +386,22 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 	/* Check zone type */
 	switch (zone->type) {
 	case BLK_ZONE_TYPE_CONVENTIONAL:
+		if (!args->conv_zones_bitmap) {
+			args->conv_zones_bitmap =
+				blk_alloc_zone_bitmap(q->node, args->nr_zones);
+			if (!args->conv_zones_bitmap)
+				return -ENOMEM;
+		}
+		set_bit(idx, args->conv_zones_bitmap);
+		break;
 	case BLK_ZONE_TYPE_SEQWRITE_REQ:
 	case BLK_ZONE_TYPE_SEQWRITE_PREF:
+		if (!args->seq_zones_wlock) {
+			args->seq_zones_wlock =
+				blk_alloc_zone_bitmap(q->node, args->nr_zones);
+			if (!args->seq_zones_wlock)
+				return -ENOMEM;
+		}
 		break;
 	default:
 		pr_warn("%s: Invalid zone type 0x%x at sectors %llu\n",
@@ -394,35 +409,8 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 		return -ENODEV;
 	}
 
-	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
-		set_bit(idx, args->conv_zones_bitmap);
-
 	args->sector += zone->len;
 	return 0;
-}
-
-static int blk_update_zone_info(struct gendisk *disk, unsigned int nr_zones,
-				struct blk_revalidate_zone_args *args)
-{
-	/*
-	 * Ensure that all memory allocations in this context are done as
-	 * if GFP_NOIO was specified.
-	 */
-	unsigned int noio_flag = memalloc_noio_save();
-	struct request_queue *q = disk->queue;
-	int ret;
-
-	args->seq_zones_wlock = blk_alloc_zone_bitmap(q->node, nr_zones);
-	if (!args->seq_zones_wlock)
-		return -ENOMEM;
-	args->conv_zones_bitmap = blk_alloc_zone_bitmap(q->node, nr_zones);
-	if (!args->conv_zones_bitmap)
-		return -ENOMEM;
-
-	ret = disk->fops->report_zones(disk, 0, nr_zones,
-				       blk_revalidate_zone_cb, args);
-	memalloc_noio_restore(noio_flag);
-	return ret;
 }
 
 /**
@@ -437,8 +425,10 @@ static int blk_update_zone_info(struct gendisk *disk, unsigned int nr_zones,
 int blk_revalidate_disk_zones(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
-	unsigned int nr_zones = blkdev_nr_zones(disk);
-	struct blk_revalidate_zone_args args = { .disk = disk };
+	struct blk_revalidate_zone_args args = {
+		.disk		= disk,
+		.nr_zones	= blkdev_nr_zones(disk),
+	};
 	int ret = 0;
 
 	if (WARN_ON_ONCE(!blk_queue_is_zoned(q)))
@@ -449,12 +439,21 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	 * needs to be updated so that the sysfs exposed value is correct.
 	 */
 	if (!queue_is_mq(q)) {
-		q->nr_zones = nr_zones;
+		q->nr_zones = args.nr_zones;
 		return 0;
 	}
 
-	if (nr_zones)
-		ret = blk_update_zone_info(disk, nr_zones, &args);
+	/*
+	 * Ensure that all memory allocations in this context are done as
+	 * if GFP_NOIO was specified.
+	 */
+	if (args.nr_zones) {
+		unsigned int noio_flag = memalloc_noio_save();
+
+		ret = disk->fops->report_zones(disk, 0, args.nr_zones,
+					       blk_revalidate_zone_cb, &args);
+		memalloc_noio_restore(noio_flag);
+	}
 
 	/*
 	 * Install the new bitmaps, making sure the queue is stopped and
@@ -463,7 +462,7 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	 */
 	blk_mq_freeze_queue(q);
 	if (ret >= 0) {
-		q->nr_zones = nr_zones;
+		q->nr_zones = args.nr_zones;
 		swap(q->seq_zones_wlock, args.seq_zones_wlock);
 		swap(q->conv_zones_bitmap, args.conv_zones_bitmap);
 		ret = 0;
