@@ -76,16 +76,6 @@ static int mpp_init_grf(struct device_node *np,
 	return 0;
 }
 
-static const struct file_operations mpp_dev_fops = {
-	.unlocked_ioctl = mpp_dev_ioctl,
-	.open		= mpp_dev_open,
-	.release	= mpp_dev_release,
-	.poll		= mpp_dev_poll,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl   = mpp_dev_compat_ioctl,
-#endif
-};
-
 static int mpp_register_service(struct mpp_service *srv,
 				const char *service_name)
 {
@@ -99,9 +89,9 @@ static int mpp_register_service(struct mpp_service *srv,
 		return ret;
 	}
 
-	cdev_init(&srv->mpp_cdev, &mpp_dev_fops);
+	cdev_init(&srv->mpp_cdev, &rockchip_mpp_fops);
 	srv->mpp_cdev.owner = THIS_MODULE;
-	srv->mpp_cdev.ops = &mpp_dev_fops;
+	srv->mpp_cdev.ops = &rockchip_mpp_fops;
 
 	ret = cdev_add(&srv->mpp_cdev, srv->dev_id, 1);
 	if (ret) {

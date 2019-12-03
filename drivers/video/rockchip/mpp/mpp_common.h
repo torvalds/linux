@@ -27,19 +27,12 @@
 #define EXTRA_INFO_MAGIC	(0x4C4A46)
 #define JPEG_IOC_EXTRA_SIZE	(48)
 
-/* Use 'l' as magic number */
-#define MPP_IOC_MAGIC			'l'
-
-#define MPP_IOC_SET_CLIENT_TYPE		_IOW(MPP_IOC_MAGIC, 1, __u32)
-#define MPP_IOC_GET_HW_FUSE_STATUS	_IOW(MPP_IOC_MAGIC, 2, unsigned long)
-
-#define MPP_IOC_SET_REG			_IOW(MPP_IOC_MAGIC, 3, unsigned long)
-#define MPP_IOC_GET_REG			_IOW(MPP_IOC_MAGIC, 4, unsigned long)
-
-#define MPP_IOC_PROBE_IOMMU_STATUS	_IOR(MPP_IOC_MAGIC, 5, __u32)
-#define MPP_IOC_SET_DRIVER_DATA		_IOW(MPP_IOC_MAGIC, 64, u32)
-
-#define MPP_IOC_CUSTOM_BASE	(0x1000)
+#define MPP_MAX_MSG_NUM			(16)
+#define MPP_MAX_REG_TRANS_NUM		(60)
+/* define flags for mpp_request */
+#define MPP_FLAGS_MULTI_MSG		(0x00000001)
+#define MPP_FLAGS_LAST_MSG		(0x00000002)
+#define MPP_FLAGS_SECURE_MODE		(0x00010000)
 
 /**
  * Device type: classified by hardware feature
@@ -76,9 +69,47 @@ enum MPP_DRIVER_TYPE {
 	MPP_DRIVER_BUTT,
 };
 
+/**
+ * Command type: keep the same as user space
+ */
+enum MPP_DEV_COMMAND_TYPE {
+	MPP_CMD_QUERY_BASE		= 0,
+	MPP_CMD_QUERY_HW_SUPPORT	= MPP_CMD_QUERY_BASE + 0,
+
+	MPP_CMD_INIT_BASE		= 0x100,
+	MPP_CMD_INIT_CLIENT_TYPE	= MPP_CMD_INIT_BASE + 0,
+	MPP_CMD_INIT_DRIVER_DATA	= MPP_CMD_INIT_BASE + 1,
+
+	MPP_CMD_SEND_BASE		= 0x200,
+	MPP_CMD_SET_REG			= MPP_CMD_SEND_BASE + 0,
+	MPP_CMD_SET_VEPU22_CFG		= MPP_CMD_SEND_BASE + 1,
+	MPP_CMD_SET_RKVENC_OSD_PLT	= MPP_CMD_SEND_BASE + 2,
+	MPP_CMD_SET_RKVENC_L2_REG	= MPP_CMD_SEND_BASE + 3,
+
+	MPP_CMD_POLL_BASE		= 0x300,
+	MPP_CMD_GET_REG			= MPP_CMD_POLL_BASE + 0,
+
+	MPP_CMD_CONTROL_BASE		= 0x400,
+
+	MPP_CMD_BUTT,
+};
+
+/* data common struct for parse out */
 struct mpp_request {
-	__u32 *req;
+	__u32 cmd;
+	__u32 flags;
 	__u32 size;
+	__u32 offset;
+	void __user *data;
+};
+
+/* struct use to collect task input and output message */
+struct mpp_task_msgs {
+	/* for task input */
+	struct mpp_request reg_in;
+	struct mpp_request reg_offset;
+	/* for task output */
+	struct mpp_request reg_out;
 };
 
 struct mpp_grf_info {
@@ -228,6 +259,7 @@ struct mpp_service {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
+	u32 hw_support;
 	atomic_t shutdown_request;
 	/* follows for device probe */
 	struct mpp_grf_info grf_infos[MPP_DRIVER_BUTT];
@@ -288,25 +320,13 @@ struct mpp_dev_ops {
 		      u32 __user *dst, u32 size);
 	int (*free_task)(struct mpp_session *session,
 			 struct mpp_task *task);
-	long (*ioctl)(struct mpp_session *isession,
-		      unsigned int cmd, unsigned long arg);
-	struct mpp_session *(*init_session)(struct mpp_dev *mpp);
+	long (*ioctl)(struct mpp_session *session, struct mpp_request *req);
+	int (*init_session)(struct mpp_dev *mpp);
 	int (*release_session)(struct mpp_session *session);
 };
 
 int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 		       struct mpp_service *srv);
-
-/* It can handle the default ioctl */
-long mpp_dev_ioctl(struct file *filp, unsigned int cmd,
-		   unsigned long arg);
-#ifdef CONFIG_COMPAT
-long mpp_dev_compat_ioctl(struct file *filp, unsigned int cmd,
-			  unsigned long arg);
-#endif
-int mpp_dev_open(struct inode *inode, struct file *filp);
-int mpp_dev_release(struct inode *inode, struct file *filp);
-unsigned int mpp_dev_poll(struct file *filp, poll_table *wait);
 
 struct mpp_mem_region *
 mpp_task_attach_fd(struct mpp_task *task, int fd);
@@ -380,6 +400,8 @@ static inline u32 mpp_read_relaxed(struct mpp_dev *mpp, u32 reg)
 
 	return val;
 }
+
+extern const struct file_operations rockchip_mpp_fops;
 
 extern struct platform_driver rockchip_rkvdec_driver;
 extern struct platform_driver rockchip_rkvenc_driver;

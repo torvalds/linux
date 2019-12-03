@@ -30,15 +30,29 @@
 #include "mpp_iommu.h"
 
 #define MPP_TIMEOUT_DELAY		(2000)
-
 #define MPP_SESSION_MAX_DONE_TASK	(20)
 
-#ifdef CONFIG_COMPAT
-struct compat_mpp_request {
-	compat_uptr_t req;
-	u32 size;
+/* Use 'v' as magic number */
+#define MPP_IOC_MAGIC		'v'
+
+#define MPP_IOC_CFG_V1	_IOW(MPP_IOC_MAGIC, 1, unsigned int)
+#define MPP_IOC_CFG_V2	_IOW(MPP_IOC_MAGIC, 2, unsigned int)
+
+/* cmd support for version 1 */
+#define MPP_CMD_QUERY_SUPPORT_MASK_V1		(0x00000003)
+#define MPP_CMD_INIT_SUPPORT_MASK_V1		(0x00000007)
+#define MPP_CMD_SEND_SUPPORT_MASK_V1		(0x0000001F)
+#define MPP_CMD_POLL_SUPPORT_MASK_V1		(0x00000001)
+#define MPP_CMD_CONTROL_SUPPORT_MASK_V1		(0x00000007)
+
+/* input parmater structure for version 1 */
+struct mpp_msg_v1 {
+	__u32 cmd;
+	__u32 flags;
+	__u32 size;
+	__u32 offset;
+	__u64 data_ptr;
 };
-#endif
 
 static void mpp_task_try_run(struct work_struct *work_s);
 
@@ -209,20 +223,39 @@ mpp_session_pull_done(struct mpp_session *session)
 	return NULL;
 }
 
-static struct mpp_task *
-mpp_alloc_task(struct mpp_dev *mpp,
-	       struct mpp_session *session,
-	       void __user *src, u32 size)
+static int mpp_process_task(struct mpp_session *session,
+			    struct mpp_request *req)
 {
 	struct mpp_task *task = NULL;
+	struct mpp_dev *mpp = session->mpp;
+
+	if (!mpp) {
+		mpp_err("pid %d not find clinet %d\n",
+			session->pid, session->device_type);
+		return -EINVAL;
+	}
 
 	if (mpp->dev_ops->alloc_task)
-		task = mpp->dev_ops->alloc_task(session, src, size);
+		task = mpp->dev_ops->alloc_task(session, req->data, req->size);
+	if (!task) {
+		mpp_err("alloc_task failed.\n");
+		return -ENOMEM;
+	}
 
-	if (task && mpp->hw_ops->get_freq)
+	if (mpp->hw_ops->get_freq)
 		mpp->hw_ops->get_freq(mpp, task);
 
-	return task;
+	/* push current task to queue */
+	mpp_taskqueue_push_pending(mpp->queue, task);
+	mpp_session_push_pending(session, task);
+	atomic_inc(&session->task_running);
+	atomic_inc(&mpp->total_running);
+	/* trigger current queue to run task */
+	mutex_lock(&mpp->queue->lock);
+	queue_work(mpp->workq, &mpp->queue->work);
+	mutex_unlock(&mpp->queue->lock);
+
+	return 0;
 }
 
 static int
@@ -442,7 +475,7 @@ static int mpp_task_result(struct mpp_dev *mpp,
 
 static int mpp_wait_result(struct mpp_session *session,
 			   struct mpp_dev *mpp,
-			   struct mpp_request req)
+			   struct mpp_request *req)
 {
 	int ret;
 	struct mpp_task *task;
@@ -453,7 +486,7 @@ static int mpp_wait_result(struct mpp_session *session,
 	if (ret > 0) {
 		ret = 0;
 		task = mpp_session_pull_done(session);
-		mpp_task_result(mpp, task, req.req, req.size);
+		mpp_task_result(mpp, task, req->data, req->size);
 	} else {
 		mpp_err("error: pid %d wait %d task done timeout\n",
 			session->pid, atomic_read(&session->task_running));
@@ -502,6 +535,7 @@ static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
 		mpp->srv->sub_devices[mpp->var->device_type] = mpp;
 		/* set taskqueue which set in dtsi */
 		mpp->queue = mpp->srv->task_queues[node];
+		mpp->srv->hw_support |= BIT(mpp->var->device_type);
 	} else {
 		dev_err(&pdev->dev, "failed attach service\n");
 		return -EINVAL;
@@ -529,236 +563,206 @@ int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 	return 0;
 }
 
-long mpp_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static int mpp_check_cmd_v1(__u32 cmd)
+{
+	int ret;
+	__u64 mask = 0;
+
+	if (cmd >= MPP_CMD_CONTROL_BASE)
+		mask = MPP_CMD_CONTROL_SUPPORT_MASK_V1;
+	else if (cmd >= MPP_CMD_POLL_BASE)
+		mask = MPP_CMD_POLL_SUPPORT_MASK_V1;
+	else if (cmd >= MPP_CMD_SEND_BASE)
+		mask = MPP_CMD_SEND_SUPPORT_MASK_V1;
+	else if (cmd >= MPP_CMD_INIT_BASE)
+		mask = MPP_CMD_INIT_SUPPORT_MASK_V1;
+	else
+		mask = MPP_CMD_QUERY_SUPPORT_MASK_V1;
+
+	cmd &= 0x3F;
+	ret = ((mask >> cmd) & 0x1) ? 0 : (-EINVAL);
+
+	return ret;
+}
+
+static int mpp_parse_msg_v1(struct mpp_msg_v1 *msg,
+			    struct mpp_request *req)
+{
+	int ret = 0;
+
+	req->cmd = msg->cmd;
+	req->flags = msg->flags;
+	req->size = msg->size;
+	req->offset = msg->offset;
+	req->data = (void __user *)(unsigned long)msg->data_ptr;
+
+	mpp_debug(DEBUG_IOCTL, "cmd %d, flags 0x%08x, size %d, offset %d\n",
+		  req->cmd, req->flags, req->size, req->offset);
+
+	ret = mpp_check_cmd_v1(req->cmd);
+	if (ret)
+		mpp_err("mpp cmd %d is not supprot.\n", req->cmd);
+
+	return ret;
+}
+
+static inline int mpp_msg_is_last(struct mpp_request *req)
+{
+	int flag;
+
+	if (req->flags & MPP_FLAGS_MULTI_MSG)
+		flag = (req->flags & MPP_FLAGS_LAST_MSG) ? 1 : 0;
+	else
+		flag = 1;
+
+	return flag;
+}
+
+static int mpp_process_request(struct mpp_session *session,
+			       struct mpp_service *srv,
+			       struct mpp_request *req,
+			       struct mpp_task_msgs *msgs)
 {
 	struct mpp_dev *mpp;
-	struct mpp_service *srv;
-	struct mpp_session *session =
-		(struct mpp_session *)filp->private_data;
 
-	mpp_debug_enter();
-	if (!session)
-		return -EINVAL;
+	mpp_debug(DEBUG_IOCTL, "req->cmd %d\n", req->cmd);
+	switch (req->cmd) {
+	case MPP_CMD_QUERY_HW_SUPPORT: {
+		u32 hw_support = srv->hw_support;
 
-	srv = session->srv;
-	if (!srv)
-		return -EINVAL;
+		mpp_debug(DEBUG_IOCTL, "hw_support %08x\n", hw_support);
+		if (put_user(hw_support, (u32 __user *)req->data))
+			return -EFAULT;
+	} break;
+	case MPP_CMD_INIT_CLIENT_TYPE: {
+		u32 client_type;
 
-	if (atomic_read(&srv->shutdown_request) > 0)
-		return -EBUSY;
+		if (get_user(client_type, (u32 __user *)req->data))
+			return -EFAULT;
 
-	mpp_debug(DEBUG_IOCTL, "cmd=%x\n", cmd);
-	switch (cmd) {
-	case MPP_IOC_SET_CLIENT_TYPE:
-		session->device_type = (enum MPP_DEVICE_TYPE)(arg);
-		mpp_debug(DEBUG_IOCTL, "pid %d set client type %d\n",
-			  session->pid, session->device_type);
-
-		mpp = srv->sub_devices[session->device_type];
-		if (IS_ERR_OR_NULL(mpp)) {
-			mpp_err("pid %d set client type %d failed\n",
-				session->pid, session->device_type);
+		mpp_debug(DEBUG_IOCTL, "client %d\n", client_type);
+		if (client_type >= MPP_DEVICE_BUTT) {
+			mpp_err("client_type must less than %d\n",
+				MPP_DEVICE_BUTT);
 			return -EINVAL;
 		}
+		mpp = srv->sub_devices[client_type];
+		if (!mpp)
+			return -EINVAL;
+		session->device_type = (enum MPP_DEVICE_TYPE)client_type;
 		session->dma = mpp_dma_session_create(mpp->dev);
 		session->dma->max_buffers = mpp->session_max_buffers;
 		if (mpp->dev_ops->init_session)
 			mpp->dev_ops->init_session(mpp);
 		session->mpp = mpp;
-		break;
-	case MPP_IOC_SET_REG: {
-		struct mpp_request req;
-		struct mpp_task *task;
-
-		mpp = session->mpp;
-		if (IS_ERR_OR_NULL(mpp)) {
-			mpp_err("pid %d not find clinet %d\n",
-				session->pid, session->device_type);
-			return -EINVAL;
-		}
-		mpp_debug(DEBUG_IOCTL, "pid %d set reg, client type %d\n",
-			  session->pid, session->device_type);
-		if (copy_from_user(&req, (void __user *)arg,
-				   sizeof(req))) {
-			mpp_err("error: set reg copy_from_user failed\n");
-			return -EFAULT;
-		}
-		task = mpp_alloc_task(mpp, session,
-				      (void __user *)req.req,
-				      req.size);
-		if (IS_ERR_OR_NULL(task))
-			return -EFAULT;
-		mpp_taskqueue_push_pending(mpp->queue, task);
-		mpp_session_push_pending(session, task);
-		atomic_inc(&session->task_running);
-		atomic_inc(&mpp->total_running);
-		/* trigger current queue to run task */
-		mutex_lock(&mpp->queue->lock);
-		queue_work(mpp->workq, &mpp->queue->work);
-		mutex_unlock(&mpp->queue->lock);
 	} break;
-	case MPP_IOC_GET_REG: {
-		struct mpp_request req;
-
-		mpp = session->mpp;
-		if (IS_ERR_OR_NULL(mpp)) {
-			mpp_err("pid %d not find clinet %d\n",
-				session->pid, session->device_type);
-			return -EINVAL;
-		}
-		mpp_debug(DEBUG_IOCTL, "pid %d get reg, client type %d\n",
-			  session->pid, session->device_type);
-		if (copy_from_user(&req, (void __user *)arg,
-				   sizeof(req))) {
-			mpp_err("get reg copy_from_user failed\n");
-			return -EFAULT;
-		}
-
-		return mpp_wait_result(session, mpp, req);
-	} break;
-	case MPP_IOC_PROBE_IOMMU_STATUS: {
-		int iommu_enable = 1;
-
-		mpp_debug(DEBUG_IOCTL, "MPP_IOC_PROBE_IOMMU_STATUS\n");
-
-		if (put_user(iommu_enable, ((u32 __user *)arg))) {
-			mpp_err("iommu status copy_to_user fail\n");
-			return -EFAULT;
-		}
-		break;
-	}
-	case MPP_IOC_SET_DRIVER_DATA: {
+	case MPP_CMD_INIT_DRIVER_DATA: {
 		u32 val;
 
 		mpp = session->mpp;
-		if (IS_ERR_OR_NULL(mpp)) {
-			mpp_err("pid %d not find clinet %d\n",
-				session->pid, session->device_type);
+		if (!mpp)
 			return -EINVAL;
-		}
-		if (copy_from_user(&val, (void __user *)arg,
-				   sizeof(val))) {
-			mpp_err("MPP_IOC_SET_DRIVER_DATA copy_from_user fail\n");
+		if (get_user(val, (u32 __user *)req->data))
 			return -EFAULT;
-		}
-
 		if (mpp->grf_info->grf)
 			regmap_write(mpp->grf_info->grf, 0x5d8, val);
 	} break;
+	case MPP_CMD_SET_REG: {
+		mpp = session->mpp;
+		if (!mpp)
+			return -EINVAL;
+		return mpp_process_task(session, req);
+	} break;
+	case MPP_CMD_GET_REG: {
+		mpp = session->mpp;
+		if (!mpp)
+			return -EINVAL;
+		return mpp_wait_result(session, mpp, req);
+	} break;
 	default: {
 		mpp = session->mpp;
-		if (IS_ERR_OR_NULL(mpp)) {
+		if (!mpp) {
 			mpp_err("pid %d not find clinet %d\n",
 				session->pid, session->device_type);
 			return -EINVAL;
 		}
 		if (mpp->dev_ops->ioctl)
-			return mpp->dev_ops->ioctl(session, cmd, arg);
+			return mpp->dev_ops->ioctl(session, req);
 
-		mpp_err("unknown mpp ioctl cmd %x\n", cmd);
+		mpp_err("unknown mpp ioctl cmd %x\n", req->cmd);
 		return -ENOIOCTLCMD;
 	} break;
 	}
 
-	mpp_debug_leave();
-
 	return 0;
 }
 
-#ifdef CONFIG_COMPAT
-#define MPP_IOC_SET_CLIENT_TYPE32          _IOW(MPP_IOC_MAGIC, 1, u32)
-#define MPP_IOC_GET_HW_FUSE_STATUS32       _IOW(MPP_IOC_MAGIC, 2, \
-						compat_ulong_t)
-#define MPP_IOC_SET_REG32                  _IOW(MPP_IOC_MAGIC, 3, \
-						compat_ulong_t)
-#define MPP_IOC_GET_REG32                  _IOW(MPP_IOC_MAGIC, 4, \
-						compat_ulong_t)
-#define MPP_IOC_PROBE_IOMMU_STATUS32       _IOR(MPP_IOC_MAGIC, 5, u32)
-#define MPP_IOC_SET_DRIVER_DATA32          _IOW(MPP_IOC_MAGIC, 64, u32)
-
-static long native_ioctl(struct file *file,
-			 unsigned int cmd, unsigned long arg)
+static long mpp_dev_ioctl(struct file *filp,
+			  unsigned int cmd,
+			  unsigned long arg)
 {
-	long ret = -ENOIOCTLCMD;
+	int ret = 0;
+	int msg_count = 0;
+	struct mpp_service *srv;
+	void __user *msg;
+	struct mpp_request req;
+	struct mpp_task_msgs task_msgs;
+	struct mpp_session *session =
+		(struct mpp_session *)filp->private_data;
 
-	if (file->f_op->unlocked_ioctl)
-		ret = file->f_op->unlocked_ioctl(file, cmd, arg);
+	mpp_debug_enter();
+
+	if (!session || !session->srv) {
+		mpp_err("session %p\n", session);
+		return -EINVAL;
+	}
+	srv = session->srv;
+	if (atomic_read(&srv->shutdown_request) > 0) {
+		mpp_debug(DEBUG_IOCTL, "shutdown had request\n");
+		return -EBUSY;
+	}
+
+	msg = (void __user *)arg;
+	memset(&task_msgs, 0, sizeof(task_msgs));
+	do {
+		/* first, parse to fixed struct */
+		memset(&req, 0, sizeof(req));
+		switch (cmd) {
+		case MPP_IOC_CFG_V1: {
+			struct mpp_msg_v1 msg_v1;
+
+			memset(&msg_v1, 0, sizeof(msg_v1));
+			if (copy_from_user(&msg_v1, msg, sizeof(msg_v1)))
+				return -EFAULT;
+			ret = mpp_parse_msg_v1(&msg_v1, &req);
+			if (ret)
+				return -EFAULT;
+
+			msg += sizeof(msg_v1);
+		} break;
+		default:
+			mpp_err("unknown ioctl cmd %x\n", cmd);
+			return -EINVAL;
+		}
+		msg_count++;
+		/* check loop times */
+		if (msg_count > MPP_MAX_MSG_NUM) {
+			mpp_err("fail, message count %d more than %d.\n",
+				msg_count, MPP_MAX_MSG_NUM);
+			return -EINVAL;
+		}
+		/* second, process request */
+		ret = mpp_process_request(session, srv, &req, &task_msgs);
+		if (ret)
+			return -EFAULT;
+	} while (!mpp_msg_is_last(&req));
+
+	mpp_debug_leave();
 
 	return ret;
 }
 
-long mpp_dev_compat_ioctl(struct file *file,
-			  unsigned int cmd, unsigned long arg)
-{
-	struct mpp_request req;
-	void __user *up = compat_ptr(arg);
-	int compatible_arg = 1;
-	long err = 0;
-
-	mpp_debug_enter();
-	mpp_debug(DEBUG_IOCTL, "cmd %x, MPP_IOC_SET_CLIENT_TYPE32 %x\n",
-		  cmd, (u32)MPP_IOC_SET_CLIENT_TYPE32);
-	/* First, convert the command. */
-	switch (cmd) {
-	case MPP_IOC_SET_CLIENT_TYPE32:
-		cmd = MPP_IOC_SET_CLIENT_TYPE;
-		break;
-	case MPP_IOC_GET_HW_FUSE_STATUS32:
-		cmd = MPP_IOC_GET_HW_FUSE_STATUS;
-		break;
-	case MPP_IOC_SET_REG32:
-		cmd = MPP_IOC_SET_REG;
-		break;
-	case MPP_IOC_GET_REG32:
-		cmd = MPP_IOC_GET_REG;
-		break;
-	case MPP_IOC_PROBE_IOMMU_STATUS32:
-		cmd = MPP_IOC_PROBE_IOMMU_STATUS;
-		break;
-	case MPP_IOC_SET_DRIVER_DATA32:
-		cmd = MPP_IOC_SET_DRIVER_DATA;
-		break;
-	default:
-		break;
-	}
-	switch (cmd) {
-	case MPP_IOC_SET_REG:
-	case MPP_IOC_GET_REG:
-	case MPP_IOC_GET_HW_FUSE_STATUS: {
-		compat_uptr_t req_ptr;
-		struct compat_mpp_request __user *req32 = NULL;
-
-		req32 = (struct compat_mpp_request __user *)up;
-		memset(&req, 0, sizeof(req));
-
-		if (get_user(req_ptr, &req32->req) ||
-		    get_user(req.size, &req32->size)) {
-			mpp_err("compat get hw status copy_from_user failed\n");
-			return -EFAULT;
-		}
-		req.req = compat_ptr(req_ptr);
-		compatible_arg = 0;
-	} break;
-	default:
-		break;
-	}
-
-	if (compatible_arg) {
-		err = native_ioctl(file, cmd, (unsigned long)up);
-	} else {
-		mm_segment_t old_fs = get_fs();
-
-		set_fs(KERNEL_DS);
-		err = native_ioctl(file, cmd, (unsigned long)&req);
-		set_fs(old_fs);
-	}
-
-	mpp_debug_leave();
-	return err;
-}
-#endif
-
-int mpp_dev_open(struct inode *inode, struct file *filp)
+static int mpp_dev_open(struct inode *inode, struct file *filp)
 {
 	int ret;
 	struct mpp_session *session = NULL;
@@ -797,7 +801,7 @@ failed_kfifo:
 	return ret;
 }
 
-int mpp_dev_release(struct inode *inode, struct file *filp)
+static int mpp_dev_release(struct inode *inode, struct file *filp)
 {
 	int task_running;
 	struct mpp_dev *mpp;
@@ -840,7 +844,8 @@ int mpp_dev_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-unsigned int mpp_dev_poll(struct file *filp, poll_table *wait)
+static unsigned int
+mpp_dev_poll(struct file *filp, poll_table *wait)
 {
 	unsigned int mask = 0;
 	struct mpp_session *session =
@@ -852,6 +857,16 @@ unsigned int mpp_dev_poll(struct file *filp, poll_table *wait)
 
 	return mask;
 }
+
+const struct file_operations rockchip_mpp_fops = {
+	.open		= mpp_dev_open,
+	.release	= mpp_dev_release,
+	.poll		= mpp_dev_poll,
+	.unlocked_ioctl = mpp_dev_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = mpp_dev_ioctl,
+#endif
+};
 
 struct mpp_mem_region *
 mpp_task_attach_fd(struct mpp_task *task, int fd)
