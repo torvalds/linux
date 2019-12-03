@@ -2419,15 +2419,19 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 	struct btrfs_trans_handle *trans = NULL;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_state *cached_state = NULL;
+	u64 start, end;
 	int compress_type = 0;
 	int ret = 0;
-	u64 logical_len = ordered_extent->len;
+	u64 logical_len = ordered_extent->num_bytes;
 	bool freespace_inode;
 	bool truncated = false;
 	bool range_locked = false;
 	bool clear_new_delalloc_bytes = false;
 	bool clear_reserved_extent = true;
 	unsigned int clear_bits;
+
+	start = ordered_extent->file_offset;
+	end = start + ordered_extent->num_bytes - 1;
 
 	if (!test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags) &&
 	    !test_bit(BTRFS_ORDERED_PREALLOC, &ordered_extent->flags) &&
@@ -2441,10 +2445,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	btrfs_free_io_failure_record(BTRFS_I(inode),
-			ordered_extent->file_offset,
-			ordered_extent->file_offset +
-			ordered_extent->len - 1);
+	btrfs_free_io_failure_record(BTRFS_I(inode), start, end);
 
 	if (test_bit(BTRFS_ORDERED_TRUNCATED, &ordered_extent->flags)) {
 		truncated = true;
@@ -2462,8 +2463,8 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		 * space for NOCOW range.
 		 * As NOCOW won't cause a new delayed ref, just free the space
 		 */
-		btrfs_qgroup_free_data(inode, NULL, ordered_extent->file_offset,
-				       ordered_extent->len);
+		btrfs_qgroup_free_data(inode, NULL, start,
+				       ordered_extent->num_bytes);
 		btrfs_ordered_update_i_size(inode, 0, ordered_extent);
 		if (freespace_inode)
 			trans = btrfs_join_transaction_spacecache(root);
@@ -2482,9 +2483,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 	}
 
 	range_locked = true;
-	lock_extent_bits(io_tree, ordered_extent->file_offset,
-			 ordered_extent->file_offset + ordered_extent->len - 1,
-			 &cached_state);
+	lock_extent_bits(io_tree, start, end, &cached_state);
 
 	if (freespace_inode)
 		trans = btrfs_join_transaction_spacecache(root);
@@ -2502,31 +2501,30 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		compress_type = ordered_extent->compress_type;
 	if (test_bit(BTRFS_ORDERED_PREALLOC, &ordered_extent->flags)) {
 		BUG_ON(compress_type);
-		btrfs_qgroup_free_data(inode, NULL, ordered_extent->file_offset,
-				       ordered_extent->len);
+		btrfs_qgroup_free_data(inode, NULL, start,
+				       ordered_extent->num_bytes);
 		ret = btrfs_mark_extent_written(trans, BTRFS_I(inode),
 						ordered_extent->file_offset,
 						ordered_extent->file_offset +
 						logical_len);
 	} else {
 		BUG_ON(root == fs_info->tree_root);
-		ret = insert_reserved_file_extent(trans, inode,
-						ordered_extent->file_offset,
-						ordered_extent->start,
-						ordered_extent->disk_len,
+		ret = insert_reserved_file_extent(trans, inode, start,
+						ordered_extent->disk_bytenr,
+						ordered_extent->disk_num_bytes,
 						logical_len, logical_len,
 						compress_type, 0, 0,
 						BTRFS_FILE_EXTENT_REG);
 		if (!ret) {
 			clear_reserved_extent = false;
 			btrfs_release_delalloc_bytes(fs_info,
-						     ordered_extent->start,
-						     ordered_extent->disk_len);
+						ordered_extent->disk_bytenr,
+						ordered_extent->disk_num_bytes);
 		}
 	}
 	unpin_extent_cache(&BTRFS_I(inode)->extent_tree,
-			   ordered_extent->file_offset, ordered_extent->len,
-			   trans->transid);
+			   ordered_extent->file_offset,
+			   ordered_extent->num_bytes, trans->transid);
 	if (ret < 0) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -2551,27 +2549,22 @@ out:
 		clear_bits |= EXTENT_LOCKED;
 	if (clear_new_delalloc_bytes)
 		clear_bits |= EXTENT_DELALLOC_NEW;
-	clear_extent_bit(&BTRFS_I(inode)->io_tree,
-			 ordered_extent->file_offset,
-			 ordered_extent->file_offset + ordered_extent->len - 1,
-			 clear_bits, (clear_bits & EXTENT_LOCKED) ? 1 : 0, 0,
+	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, clear_bits,
+			 (clear_bits & EXTENT_LOCKED) ? 1 : 0, 0,
 			 &cached_state);
 
 	if (trans)
 		btrfs_end_transaction(trans);
 
 	if (ret || truncated) {
-		u64 start, end;
+		u64 unwritten_start = start;
 
 		if (truncated)
-			start = ordered_extent->file_offset + logical_len;
-		else
-			start = ordered_extent->file_offset;
-		end = ordered_extent->file_offset + ordered_extent->len - 1;
-		clear_extent_uptodate(io_tree, start, end, NULL);
+			unwritten_start += logical_len;
+		clear_extent_uptodate(io_tree, unwritten_start, end, NULL);
 
 		/* Drop the cache for the part of the extent we didn't write. */
-		btrfs_drop_extent_cache(BTRFS_I(inode), start, end, 0);
+		btrfs_drop_extent_cache(BTRFS_I(inode), unwritten_start, end, 0);
 
 		/*
 		 * If the ordered extent had an IOERR or something else went
@@ -2593,14 +2586,14 @@ out:
 			 */
 			if (ret && btrfs_test_opt(fs_info, DISCARD))
 				btrfs_discard_extent(fs_info,
-						ordered_extent->start,
-						ordered_extent->disk_len, NULL);
+						ordered_extent->disk_bytenr,
+						ordered_extent->disk_num_bytes,
+						NULL);
 			btrfs_free_reserved_extent(fs_info,
-						   ordered_extent->start,
-						   ordered_extent->disk_len, 1);
+					ordered_extent->disk_bytenr,
+					ordered_extent->disk_num_bytes, 1);
 		}
 	}
-
 
 	/*
 	 * This needs to be done to make sure anybody waiting knows we are done
@@ -8228,7 +8221,8 @@ again:
 	ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), start,
 					page_end - start + 1);
 	if (ordered) {
-		end = min(page_end, ordered->file_offset + ordered->len - 1);
+		end = min(page_end,
+			  ordered->file_offset + ordered->num_bytes - 1);
 		/*
 		 * IO on this page will never be started, so we need
 		 * to account for any ordered extents now
@@ -8753,7 +8747,7 @@ void btrfs_destroy_inode(struct inode *inode)
 		else {
 			btrfs_err(fs_info,
 				  "found ordered extent %llu %llu on inode cleanup",
-				  ordered->file_offset, ordered->len);
+				  ordered->file_offset, ordered->num_bytes);
 			btrfs_remove_ordered_extent(inode, ordered);
 			btrfs_put_ordered_extent(ordered);
 			btrfs_put_ordered_extent(ordered);

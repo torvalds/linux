@@ -4668,7 +4668,7 @@ int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 	LIST_HEAD(list);
 
 	ordered = btrfs_lookup_ordered_extent(inode, file_pos);
-	BUG_ON(ordered->file_offset != file_pos || ordered->len != len);
+	BUG_ON(ordered->file_offset != file_pos || ordered->num_bytes != len);
 
 	disk_bytenr = file_pos + BTRFS_I(inode)->index_cnt;
 	ret = btrfs_lookup_csums_range(fs_info->csum_root, disk_bytenr,
@@ -4692,7 +4692,7 @@ int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 		 * disk_len vs real len like with real inodes since it's all
 		 * disk length.
 		 */
-		new_bytenr = ordered->start + (sums->bytenr - disk_bytenr);
+		new_bytenr = ordered->disk_bytenr + sums->bytenr - disk_bytenr;
 		sums->bytenr = new_bytenr;
 
 		btrfs_add_ordered_sum(ordered, sums);

@@ -496,9 +496,9 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 	TP_fast_assign_btrfs(btrfs_sb(inode->i_sb),
 		__entry->ino 		= btrfs_ino(BTRFS_I(inode));
 		__entry->file_offset	= ordered->file_offset;
-		__entry->start		= ordered->start;
-		__entry->len		= ordered->len;
-		__entry->disk_len	= ordered->disk_len;
+		__entry->start		= ordered->disk_bytenr;
+		__entry->len		= ordered->num_bytes;
+		__entry->disk_len	= ordered->disk_num_bytes;
 		__entry->bytes_left	= ordered->bytes_left;
 		__entry->flags		= ordered->flags;
 		__entry->compress_type	= ordered->compress_type;
