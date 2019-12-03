@@ -478,18 +478,16 @@ static int vdpu_init(struct mpp_dev *mpp)
 		dec->hclk = NULL;
 	}
 
-	dec->rst_a = devm_reset_control_get_shared(mpp->dev, "video_a");
+	dec->rst_a = devm_reset_control_get(mpp->dev, "video_a");
 	if (IS_ERR_OR_NULL(dec->rst_a)) {
 		mpp_err("No aclk reset resource define\n");
 		dec->rst_a = NULL;
 	}
-	dec->rst_h = devm_reset_control_get_shared(mpp->dev, "video_h");
+	dec->rst_h = devm_reset_control_get(mpp->dev, "video_h");
 	if (IS_ERR_OR_NULL(dec->rst_h)) {
 		mpp_err("No hclk reset resource define\n");
 		dec->rst_h = NULL;
 	}
-	mpp_safe_unreset(dec->rst_a);
-	mpp_safe_unreset(dec->rst_h);
 
 	return 0;
 }
