@@ -1390,7 +1390,7 @@ static void exynos_dsi_enable(struct drm_encoder *encoder)
 		if (ret < 0)
 			goto err_put_sync;
 	} else {
-		drm_bridge_pre_enable(dsi->out_bridge);
+		drm_bridge_chain_pre_enable(dsi->out_bridge);
 	}
 
 	exynos_dsi_set_display_mode(dsi);
@@ -1401,7 +1401,7 @@ static void exynos_dsi_enable(struct drm_encoder *encoder)
 		if (ret < 0)
 			goto err_display_disable;
 	} else {
-		drm_bridge_enable(dsi->out_bridge);
+		drm_bridge_chain_enable(dsi->out_bridge);
 	}
 
 	dsi->state |= DSIM_STATE_VIDOUT_AVAILABLE;
@@ -1426,10 +1426,10 @@ static void exynos_dsi_disable(struct drm_encoder *encoder)
 	dsi->state &= ~DSIM_STATE_VIDOUT_AVAILABLE;
 
 	drm_panel_disable(dsi->panel);
-	drm_bridge_disable(dsi->out_bridge);
+	drm_bridge_chain_disable(dsi->out_bridge);
 	exynos_dsi_set_display_enable(dsi, false);
 	drm_panel_unprepare(dsi->panel);
-	drm_bridge_post_disable(dsi->out_bridge);
+	drm_bridge_chain_post_disable(dsi->out_bridge);
 	dsi->state &= ~DSIM_STATE_ENABLED;
 	pm_runtime_put_sync(dsi->dev);
 }

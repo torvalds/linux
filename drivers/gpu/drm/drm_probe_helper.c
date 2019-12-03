@@ -112,7 +112,7 @@ drm_mode_validate_pipeline(struct drm_display_mode *mode,
 			continue;
 		}
 
-		ret = drm_bridge_mode_valid(encoder->bridge, mode);
+		ret = drm_bridge_chain_mode_valid(encoder->bridge, mode);
 		if (ret != MODE_OK) {
 			/* There is also no point in continuing for crtc check
 			 * here. */
