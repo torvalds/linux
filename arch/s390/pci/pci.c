@@ -27,6 +27,7 @@
 #include <linux/seq_file.h>
 #include <linux/jump_label.h>
 #include <linux/pci.h>
+#include <linux/printk.h>
 
 #include <asm/isc.h>
 #include <asm/airq.h>
@@ -659,6 +660,8 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 		spin_lock(&zpci_domain_lock);
 		if (test_bit(zdev->domain, zpci_domain)) {
 			spin_unlock(&zpci_domain_lock);
+			pr_err("Adding PCI function %08x failed because domain %04x is already assigned\n",
+				zdev->fid, zdev->domain);
 			return -EEXIST;
 		}
 		set_bit(zdev->domain, zpci_domain);
@@ -670,6 +673,8 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 	zdev->domain = find_first_zero_bit(zpci_domain, ZPCI_NR_DEVICES);
 	if (zdev->domain == ZPCI_NR_DEVICES) {
 		spin_unlock(&zpci_domain_lock);
+		pr_err("Adding PCI function %08x failed because the configured limit of %d is reached\n",
+			zdev->fid, ZPCI_NR_DEVICES);
 		return -ENOSPC;
 	}
 	set_bit(zdev->domain, zpci_domain);

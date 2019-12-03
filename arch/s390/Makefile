@@ -157,7 +157,6 @@ zfcpdump:
 
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso64 $@
-	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso32 $@
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
