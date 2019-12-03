@@ -36,14 +36,6 @@
 	status = "ok";
 };
 
-&gpio2 {
-	status = "ok";
-};
-
-&gpio3 {
-	status = "ok";
-};
-
 &gpio4 {
 	status = "ok";
 };
@@ -77,10 +69,6 @@
 		pl022,rx-level-trig = <0>;
 		pl022,tx-level-trig = <0>;
 	};
-};
-
-&ipmi_kcs {
-	status = "ok";
 };
 
 &smb0 {
