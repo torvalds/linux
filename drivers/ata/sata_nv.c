@@ -2329,7 +2329,7 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
         // Make sure this is a SATA controller by counting the number of bars
         // (NVIDIA SATA controllers will always have six bars).  Otherwise,
         // it's an IDE controller and we ignore it.
-	for (bar = 0; bar < 6; bar++)
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		if (pci_resource_start(pdev, bar) == 0)
 			return -ENODEV;
 

@@ -45,7 +45,6 @@
 
 #define BAR_0		0
 #define BAR_1		1
-#define BAR_5		5
 
 #define INTEL_E1000_ETHERNET_DEVICE(device_id) {\
 	PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}

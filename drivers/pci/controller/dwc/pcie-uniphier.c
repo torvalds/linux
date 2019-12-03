@@ -33,6 +33,10 @@
 #define PCL_PIPEMON			0x0044
 #define PCL_PCLK_ALIVE			BIT(15)
 
+#define PCL_MODE			0x8000
+#define PCL_MODE_REGEN			BIT(8)
+#define PCL_MODE_REGVAL			BIT(0)
+
 #define PCL_APP_READY_CTRL		0x8008
 #define PCL_APP_LTSSM_ENABLE		BIT(0)
 
@@ -84,6 +88,12 @@ static void uniphier_pcie_ltssm_enable(struct uniphier_pcie_priv *priv,
 static void uniphier_pcie_init_rc(struct uniphier_pcie_priv *priv)
 {
 	u32 val;
+
+	/* set RC MODE */
+	val = readl(priv->base + PCL_MODE);
+	val |= PCL_MODE_REGEN;
+	val &= ~PCL_MODE_REGVAL;
+	writel(val, priv->base + PCL_MODE);
 
 	/* use auxiliary power detection */
 	val = readl(priv->base + PCL_APP_PM0);

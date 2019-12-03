@@ -848,7 +848,7 @@ static int jmb38x_ms_count_slots(struct pci_dev *pdev)
 {
 	int cnt, rc = 0;
 
-	for (cnt = 0; cnt < PCI_ROM_RESOURCE; ++cnt) {
+	for (cnt = 0; cnt < PCI_STD_NUM_BARS; ++cnt) {
 		if (!(IORESOURCE_MEM & pci_resource_flags(pdev, cnt)))
 			break;
 

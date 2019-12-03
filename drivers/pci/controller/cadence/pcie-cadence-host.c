@@ -11,33 +11,6 @@
 
 #include "pcie-cadence.h"
 
-/**
- * struct cdns_pcie_rc - private data for this PCIe Root Complex driver
- * @pcie: Cadence PCIe controller
- * @dev: pointer to PCIe device
- * @cfg_res: start/end offsets in the physical system memory to map PCI
- *           configuration space accesses
- * @bus_range: first/last buses behind the PCIe host controller
- * @cfg_base: IO mapped window to access the PCI configuration space of a
- *            single function at a time
- * @max_regions: maximum number of regions supported by the hardware
- * @no_bar_nbits: Number of bits to keep for inbound (PCIe -> CPU) address
- *                translation (nbits sets into the "no BAR match" register)
- * @vendor_id: PCI vendor ID
- * @device_id: PCI device ID
- */
-struct cdns_pcie_rc {
-	struct cdns_pcie	pcie;
-	struct device		*dev;
-	struct resource		*cfg_res;
-	struct resource		*bus_range;
-	void __iomem		*cfg_base;
-	u32			max_regions;
-	u32			no_bar_nbits;
-	u16			vendor_id;
-	u16			device_id;
-};
-
 static void __iomem *cdns_pci_map_bus(struct pci_bus *bus, unsigned int devfn,
 				      int where)
 {
@@ -92,11 +65,6 @@ static struct pci_ops cdns_pcie_host_ops = {
 	.write		= pci_generic_config_write,
 };
 
-static const struct of_device_id cdns_pcie_host_of_match[] = {
-	{ .compatible = "cdns,cdns-pcie-host" },
-
-	{ },
-};
 
 static int cdns_pcie_host_init_root_port(struct cdns_pcie_rc *rc)
 {
@@ -136,10 +104,10 @@ static int cdns_pcie_host_init_root_port(struct cdns_pcie_rc *rc)
 static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 {
 	struct cdns_pcie *pcie = &rc->pcie;
-	struct resource *cfg_res = rc->cfg_res;
 	struct resource *mem_res = pcie->mem_res;
 	struct resource *bus_range = rc->bus_range;
-	struct device *dev = rc->dev;
+	struct resource *cfg_res = rc->cfg_res;
+	struct device *dev = pcie->dev;
 	struct device_node *np = dev->of_node;
 	struct of_pci_range_parser parser;
 	struct of_pci_range range;
@@ -211,7 +179,7 @@ static int cdns_pcie_host_init(struct device *dev,
 	int err;
 
 	/* Parse our PCI ranges and request their resources */
-	err = pci_parse_request_of_pci_ranges(dev, resources, &bus_range);
+	err = pci_parse_request_of_pci_ranges(dev, resources, NULL, &bus_range);
 	if (err)
 		return err;
 
@@ -233,24 +201,20 @@ static int cdns_pcie_host_init(struct device *dev,
 	return err;
 }
 
-static int cdns_pcie_host_probe(struct platform_device *pdev)
+int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 {
-	struct device *dev = &pdev->dev;
+	struct device *dev = rc->pcie.dev;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *np = dev->of_node;
 	struct pci_host_bridge *bridge;
 	struct list_head resources;
-	struct cdns_pcie_rc *rc;
 	struct cdns_pcie *pcie;
 	struct resource *res;
 	int ret;
-	int phy_count;
 
-	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*rc));
+	bridge = pci_host_bridge_from_priv(rc);
 	if (!bridge)
 		return -ENOMEM;
-
-	rc = pci_host_bridge_priv(bridge);
-	rc->dev = dev;
 
 	pcie = &rc->pcie;
 	pcie->is_rc = true;
@@ -287,21 +251,8 @@ static int cdns_pcie_host_probe(struct platform_device *pdev)
 		dev_err(dev, "missing \"mem\"\n");
 		return -EINVAL;
 	}
+
 	pcie->mem_res = res;
-
-	ret = cdns_pcie_init_phy(dev, pcie);
-	if (ret) {
-		dev_err(dev, "failed to init phy\n");
-		return ret;
-	}
-	platform_set_drvdata(pdev, pcie);
-
-	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		dev_err(dev, "pm_runtime_get_sync() failed\n");
-		goto err_get_sync;
-	}
 
 	ret = cdns_pcie_host_init(dev, &resources, rc);
 	if (ret)
@@ -326,37 +277,5 @@ static int cdns_pcie_host_probe(struct platform_device *pdev)
  err_init:
 	pm_runtime_put_sync(dev);
 
- err_get_sync:
-	pm_runtime_disable(dev);
-	cdns_pcie_disable_phy(pcie);
-	phy_count = pcie->phy_count;
-	while (phy_count--)
-		device_link_del(pcie->link[phy_count]);
-
 	return ret;
 }
-
-static void cdns_pcie_shutdown(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct cdns_pcie *pcie = dev_get_drvdata(dev);
-	int ret;
-
-	ret = pm_runtime_put_sync(dev);
-	if (ret < 0)
-		dev_dbg(dev, "pm_runtime_put_sync failed\n");
-
-	pm_runtime_disable(dev);
-	cdns_pcie_disable_phy(pcie);
-}
-
-static struct platform_driver cdns_pcie_host_driver = {
-	.driver = {
-		.name = "cdns-pcie-host",
-		.of_match_table = cdns_pcie_host_of_match,
-		.pm	= &cdns_pcie_pm_ops,
-	},
-	.probe = cdns_pcie_host_probe,
-	.shutdown = cdns_pcie_shutdown,
-};
-builtin_platform_driver(cdns_pcie_host_driver);
