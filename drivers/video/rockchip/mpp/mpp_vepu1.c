@@ -361,12 +361,12 @@ static int vepu_debugfs_remove(struct mpp_dev *mpp)
 static int vepu_debugfs_init(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
-	struct device_node *np = mpp->dev->of_node;
 
 	enc->aclk_debug = 0;
 	enc->session_max_buffers_debug = 0;
 #ifdef CONFIG_DEBUG_FS
-	enc->debugfs = debugfs_create_dir(np->name, mpp->srv->debugfs);
+	enc->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
+					  mpp->srv->debugfs);
 	if (IS_ERR_OR_NULL(enc->debugfs)) {
 		mpp_err("failed on open debugfs\n");
 		enc->debugfs = NULL;

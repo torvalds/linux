@@ -403,12 +403,12 @@ static int vdpu_debugfs_remove(struct mpp_dev *mpp)
 static int vdpu_debugfs_init(struct mpp_dev *mpp)
 {
 	struct vdpu_dev *dec = to_vdpu_dev(mpp);
-	struct device_node *np = mpp->dev->of_node;
 
 	dec->aclk_debug = 0;
 	dec->session_max_buffers_debug = 0;
 #ifdef CONFIG_DEBUG_FS
-	dec->debugfs = debugfs_create_dir(np->name, mpp->srv->debugfs);
+	dec->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
+					  mpp->srv->debugfs);
 	if (IS_ERR_OR_NULL(dec->debugfs)) {
 		mpp_err("failed on open debugfs\n");
 		dec->debugfs = NULL;
