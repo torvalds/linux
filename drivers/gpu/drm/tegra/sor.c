@@ -3995,9 +3995,16 @@ static int __maybe_unused tegra_sor_suspend(struct device *dev)
 	struct tegra_sor *sor = dev_get_drvdata(dev);
 	int err;
 
+	err = tegra_output_suspend(&sor->output);
+	if (err < 0) {
+		dev_err(dev, "failed to suspend output: %d\n", err);
+		return err;
+	}
+
 	if (sor->hdmi_supply) {
 		err = regulator_disable(sor->hdmi_supply);
 		if (err < 0) {
+			tegra_output_resume(&sor->output);
 			return err;
 		}
 	}
@@ -4014,6 +4021,16 @@ static int __maybe_unused tegra_sor_resume(struct device *dev)
 		err = regulator_enable(sor->hdmi_supply);
 		if (err < 0)
 			return err;
+	}
+
+	err = tegra_output_resume(&sor->output);
+	if (err < 0) {
+		dev_err(dev, "failed to resume output: %d\n", err);
+
+		if (sor->hdmi_supply)
+			regulator_disable(sor->hdmi_supply);
+
+		return err;
 	}
 
 	return 0;
