@@ -74,4 +74,5 @@ extern int qcom_cc_probe(struct platform_device *pdev,
 extern int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
 				  const struct qcom_cc_desc *desc);
 extern const struct clk_ops clk_dummy_ops;
+void qcom_cc_sync_state(struct device *dev, const struct qcom_cc_desc *desc);
 #endif
