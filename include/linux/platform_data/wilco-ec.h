@@ -29,6 +29,7 @@
  * @data_size: Size of the data buffer used for EC communication.
  * @debugfs_pdev: The child platform_device used by the debugfs sub-driver.
  * @rtc_pdev: The child platform_device used by the RTC sub-driver.
+ * @charger_pdev: Child platform_device used by the charger config sub-driver.
  * @telem_pdev: The child platform_device used by the telemetry sub-driver.
  */
 struct wilco_ec_device {
@@ -41,6 +42,7 @@ struct wilco_ec_device {
 	size_t data_size;
 	struct platform_device *debugfs_pdev;
 	struct platform_device *rtc_pdev;
+	struct platform_device *charger_pdev;
 	struct platform_device *telem_pdev;
 };
 
@@ -119,6 +121,19 @@ struct wilco_ec_message {
  * Return: Number of bytes received or negative error code on failure.
  */
 int wilco_ec_mailbox(struct wilco_ec_device *ec, struct wilco_ec_message *msg);
+
+/**
+ * wilco_keyboard_leds_init() - Set up the keyboard backlight LEDs.
+ * @ec: EC device to query.
+ *
+ * After this call, the keyboard backlight will be exposed through a an LED
+ * device at /sys/class/leds.
+ *
+ * This may sleep because it uses wilco_ec_mailbox().
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int wilco_keyboard_leds_init(struct wilco_ec_device *ec);
 
 /*
  * A Property is typically a data item that is stored to NVRAM

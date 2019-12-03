@@ -31,6 +31,23 @@ Description:
                Output will a version string be similar to the example below:
                08B6
 
+What:          /sys/bus/platform/devices/GOOG000C\:00/usb_charge
+Date:          October 2019
+KernelVersion: 5.5
+Description:
+               Control the USB PowerShare Policy. USB PowerShare is a policy
+               which affects charging via the special USB PowerShare port
+               (marked with a small lightning bolt or battery icon) when in
+               low power states:
+               - In S0, the port will always provide power.
+               - In S0ix, if usb_charge is enabled, then power will be
+                 supplied to the port when on AC or if battery is > 50%.
+                 Else no power is supplied.
+               - In S5, if usb_charge is enabled, then power will be supplied
+                 to the port when on AC. Else no power is supplied.
+
+               Input should be either "0" or "1".
+
 What:          /sys/bus/platform/devices/GOOG000C\:00/version
 Date:          May 2019
 KernelVersion: 5.3
