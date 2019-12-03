@@ -70,6 +70,7 @@
 			reg = <0 0xe0300000 0 0xf0000>;
 			interrupts = <0 355 4>;
 			clocks = <&sataclk_333mhz>;
+			iommus = <&sata0_smmu 0x0 0x1f>;
 			dma-coherent;
 		};
 
@@ -80,6 +81,27 @@
 			reg = <0 0xe0d00000 0 0xf0000>;
 			interrupts = <0 354 4>;
 			clocks = <&sataclk_333mhz>;
+			iommus = <&sata1_smmu 0x0e>,
+				 <&sata1_smmu 0x0f>,
+				 <&sata1_smmu 0x1e>;
+			dma-coherent;
+		};
+
+		sata0_smmu: iommu@e0200000 {
+			compatible = "arm,mmu-401";
+			reg = <0 0xe0200000 0 0x10000>;
+			#global-interrupts = <1>;
+			interrupts = <0 332 4>, <0 332 4>;
+			#iommu-cells = <2>;
+			dma-coherent;
+		};
+
+		sata1_smmu: iommu@e0c00000 {
+			compatible = "arm,mmu-401";
+			reg = <0 0xe0c00000 0 0x10000>;
+			#global-interrupts = <1>;
+			interrupts = <0 331 4>, <0 331 4>;
+			#iommu-cells = <1>;
 			dma-coherent;
 		};
 
@@ -201,6 +223,10 @@
 			reg = <0 0xe0100000 0 0x10000>;
 			interrupts = <0 3 4>;
 			dma-coherent;
+			iommus = <&sata1_smmu 0x00>,
+				 <&sata1_smmu 0x02>,
+				 <&sata1_smmu 0x40>,
+				 <&sata1_smmu 0x42>;
 		};
 
 		pcie0: pcie@f0000000 {
