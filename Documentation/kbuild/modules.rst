@@ -492,11 +492,8 @@ build.
 	to the symbols from the kernel to check if all external symbols
 	are defined. This is done in the MODPOST step. modpost obtains
 	the symbols by reading Module.symvers from the kernel source
-	tree. If a Module.symvers file is present in the directory
-	where the external module is being built, this file will be
-	read too. During the MODPOST step, a new Module.symvers file
-	will be written containing all exported symbols that were not
-	defined in the kernel.
+	tree. During the MODPOST step, a new Module.symvers file will be
+	written containing all exported symbols from that external module.
 
 6.3 Symbols From Another External Module
 ----------------------------------------
@@ -504,7 +501,7 @@ build.
 	Sometimes, an external module uses exported symbols from
 	another external module. Kbuild needs to have full knowledge of
 	all symbols to avoid spitting out warnings about undefined
-	symbols. Three solutions exist for this situation.
+	symbols. Two solutions exist for this situation.
 
 	NOTE: The method with a top-level kbuild file is recommended
 	but may be impractical in certain situations.
@@ -544,8 +541,8 @@ build.
 		all symbols defined and not part of the kernel.
 
 	Use "make" variable KBUILD_EXTRA_SYMBOLS
-		If it is impractical to copy Module.symvers from
-		another module, you can assign a space separated list
+		If it is impractical to add a top-level kbuild file,
+		you can assign a space separated list
 		of files to KBUILD_EXTRA_SYMBOLS in your build file.
 		These files will be loaded by modpost during the
 		initialization of its symbol tables.
