@@ -210,6 +210,10 @@ enum mod_hdcp_status mod_hdcp_hdcp1_validate_rx(struct mod_hdcp *hdcp)
 	} else if (hdcp_cmd->out_msg.hdcp1_first_part_authentication.authentication_status ==
 		   TA_HDCP_AUTHENTICATION_STATUS__HDCP1_AUTHENTICATED) {
 		hdcp->connection.is_repeater = 0;
+	} else if (hdcp_cmd->out_msg.hdcp1_first_part_authentication.authentication_status ==
+		   TA_HDCP_AUTHENTICATION_STATUS__HDCP1_KSV_REVOKED) {
+		hdcp->connection.is_hdcp1_revoked = 1;
+		return MOD_HDCP_STATUS_HDCP1_BKSV_REVOKED;
 	} else
 		return MOD_HDCP_STATUS_HDCP1_VALIDATE_RX_FAILURE;
 
@@ -245,6 +249,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_validate_ksvlist_vp(struct mod_hdcp *hdcp)
 {
 	struct psp_context *psp = hdcp->config.psp.handle;
 	struct ta_hdcp_shared_memory *hdcp_cmd;
+	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
 	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
 	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
@@ -264,10 +269,19 @@ enum mod_hdcp_status mod_hdcp_hdcp1_validate_ksvlist_vp(struct mod_hdcp *hdcp)
 
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
 
-	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
-		return MOD_HDCP_STATUS_HDCP1_VALIDATE_KSV_LIST_FAILURE;
+	if (hdcp_cmd->hdcp_status == TA_HDCP_STATUS__SUCCESS &&
+	    hdcp_cmd->out_msg.hdcp1_second_part_authentication.authentication_status ==
+		    TA_HDCP_AUTHENTICATION_STATUS__HDCP1_AUTHENTICATED) {
+		status = MOD_HDCP_STATUS_SUCCESS;
+	} else if (hdcp_cmd->out_msg.hdcp1_second_part_authentication.authentication_status ==
+		   TA_HDCP_AUTHENTICATION_STATUS__HDCP1_KSV_REVOKED) {
+		hdcp->connection.is_hdcp1_revoked = 1;
+		status = MOD_HDCP_STATUS_HDCP1_KSV_LIST_REVOKED;
+	} else {
+		status = MOD_HDCP_STATUS_HDCP1_VALIDATE_KSV_LIST_FAILURE;
+	}
 
-	return MOD_HDCP_STATUS_SUCCESS;
+	return status;
 }
 
 enum mod_hdcp_status mod_hdcp_hdcp1_enable_dp_stream_encryption(struct mod_hdcp *hdcp)
@@ -473,9 +487,12 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_ake_cert(struct mod_hdcp *hdcp)
 		hdcp->connection.is_km_stored = msg_out->process.is_km_stored ? 1 : 0;
 		hdcp->connection.is_repeater = msg_out->process.is_repeater ? 1 : 0;
 		return MOD_HDCP_STATUS_SUCCESS;
+	} else if (msg_out->process.msg1_status == TA_HDCP2_MSG_AUTHENTICATION_STATUS__RECEIVERID_REVOKED) {
+		hdcp->connection.is_hdcp2_revoked = 1;
+		return MOD_HDCP_STATUS_HDCP2_AKE_CERT_REVOKED;
 	}
 
-	return MOD_HDCP_STATUS_FAILURE;
+	return MOD_HDCP_STATUS_HDCP2_VALIDATE_AKE_CERT_FAILURE;
 }
 
 enum mod_hdcp_status mod_hdcp_hdcp2_validate_h_prime(struct mod_hdcp *hdcp)
@@ -695,6 +712,9 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_rx_id_list(struct mod_hdcp *hdcp)
 		hdcp->connection.is_km_stored = msg_out->process.is_km_stored ? 1 : 0;
 		hdcp->connection.is_repeater = msg_out->process.is_repeater ? 1 : 0;
 		return MOD_HDCP_STATUS_SUCCESS;
+	} else if (msg_out->process.msg1_status == TA_HDCP2_MSG_AUTHENTICATION_STATUS__RECEIVERID_REVOKED) {
+		hdcp->connection.is_hdcp2_revoked = 1;
+		return MOD_HDCP_STATUS_HDCP2_RX_ID_LIST_REVOKED;
 	}
 
 
