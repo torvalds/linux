@@ -1440,7 +1440,7 @@ static void uvesafb_init_info(struct fb_info *info, struct vbe_mode_ib *mode)
 
 	/* Disable blanking if the user requested so. */
 	if (!blank)
-		info->fbops->fb_blank = NULL;
+		uvesafb_ops.fb_blank = NULL;
 
 	/*
 	 * Find out how much IO memory is required for the mode with
@@ -1510,7 +1510,7 @@ static void uvesafb_init_info(struct fb_info *info, struct vbe_mode_ib *mode)
 			(par->ypan ? FBINFO_HWACCEL_YPAN : 0);
 
 	if (!par->ypan)
-		info->fbops->fb_pan_display = NULL;
+		uvesafb_ops.fb_pan_display = NULL;
 }
 
 static void uvesafb_init_mtrr(struct fb_info *info)
