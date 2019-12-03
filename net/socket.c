@@ -2346,9 +2346,9 @@ out:
 	return err;
 }
 
-static int sendmsg_copy_msghdr(struct msghdr *msg,
-			       struct user_msghdr __user *umsg, unsigned flags,
-			       struct iovec **iov)
+int sendmsg_copy_msghdr(struct msghdr *msg,
+			struct user_msghdr __user *umsg, unsigned flags,
+			struct iovec **iov)
 {
 	int err;
 
@@ -2390,27 +2390,14 @@ static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
 /*
  *	BSD sendmsg interface
  */
-long __sys_sendmsg_sock(struct socket *sock, struct user_msghdr __user *umsg,
+long __sys_sendmsg_sock(struct socket *sock, struct msghdr *msg,
 			unsigned int flags)
 {
-	struct iovec iovstack[UIO_FASTIOV], *iov = iovstack;
-	struct sockaddr_storage address;
-	struct msghdr msg = { .msg_name = &address };
-	ssize_t err;
-
-	err = sendmsg_copy_msghdr(&msg, umsg, flags, &iov);
-	if (err)
-		return err;
 	/* disallow ancillary data requests from this path */
-	if (msg.msg_control || msg.msg_controllen) {
-		err = -EINVAL;
-		goto out;
-	}
+	if (msg->msg_control || msg->msg_controllen)
+		return -EINVAL;
 
-	err = ____sys_sendmsg(sock, &msg, flags, NULL, 0);
-out:
-	kfree(iov);
-	return err;
+	return ____sys_sendmsg(sock, msg, flags, NULL, 0);
 }
 
 long __sys_sendmsg(int fd, struct user_msghdr __user *msg, unsigned int flags,
@@ -2516,10 +2503,10 @@ SYSCALL_DEFINE4(sendmmsg, int, fd, struct mmsghdr __user *, mmsg,
 	return __sys_sendmmsg(fd, mmsg, vlen, flags, true);
 }
 
-static int recvmsg_copy_msghdr(struct msghdr *msg,
-			       struct user_msghdr __user *umsg, unsigned flags,
-			       struct sockaddr __user **uaddr,
-			       struct iovec **iov)
+int recvmsg_copy_msghdr(struct msghdr *msg,
+			struct user_msghdr __user *umsg, unsigned flags,
+			struct sockaddr __user **uaddr,
+			struct iovec **iov)
 {
 	ssize_t err;
 
@@ -2609,28 +2596,15 @@ static int ___sys_recvmsg(struct socket *sock, struct user_msghdr __user *msg,
  *	BSD recvmsg interface
  */
 
-long __sys_recvmsg_sock(struct socket *sock, struct user_msghdr __user *umsg,
-			unsigned int flags)
+long __sys_recvmsg_sock(struct socket *sock, struct msghdr *msg,
+			struct user_msghdr __user *umsg,
+			struct sockaddr __user *uaddr, unsigned int flags)
 {
-	struct iovec iovstack[UIO_FASTIOV], *iov = iovstack;
-	struct sockaddr_storage address;
-	struct msghdr msg = { .msg_name = &address };
-	struct sockaddr __user *uaddr;
-	ssize_t err;
-
-	err = recvmsg_copy_msghdr(&msg, umsg, flags, &uaddr, &iov);
-	if (err)
-		return err;
 	/* disallow ancillary data requests from this path */
-	if (msg.msg_control || msg.msg_controllen) {
-		err = -EINVAL;
-		goto out;
-	}
+	if (msg->msg_control || msg->msg_controllen)
+		return -EINVAL;
 
-	err = ____sys_recvmsg(sock, &msg, umsg, uaddr, flags, 0);
-out:
-	kfree(iov);
-	return err;
+	return ____sys_recvmsg(sock, msg, umsg, uaddr, flags, 0);
 }
 
 long __sys_recvmsg(int fd, struct user_msghdr __user *msg, unsigned int flags,

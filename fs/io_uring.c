@@ -308,6 +308,13 @@ struct io_timeout {
 	struct io_timeout_data		*data;
 };
 
+struct io_async_msghdr {
+	struct iovec			fast_iov[UIO_FASTIOV];
+	struct iovec			*iov;
+	struct sockaddr __user		*uaddr;
+	struct msghdr			msg;
+};
+
 struct io_async_rw {
 	struct iovec			fast_iov[UIO_FASTIOV];
 	struct iovec			*iov;
@@ -319,6 +326,7 @@ struct io_async_ctx {
 	struct io_uring_sqe		sqe;
 	union {
 		struct io_async_rw	rw;
+		struct io_async_msghdr	msg;
 	};
 };
 
@@ -1991,12 +1999,104 @@ static int io_sync_file_range(struct io_kiocb *req,
 	return 0;
 }
 
-#if defined(CONFIG_NET)
-static int io_send_recvmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			   struct io_kiocb **nxt, bool force_nonblock,
-		   long (*fn)(struct socket *, struct user_msghdr __user *,
-				unsigned int))
+static int io_sendmsg_prep(struct io_kiocb *req, struct io_async_ctx *io)
 {
+#if defined(CONFIG_NET)
+	const struct io_uring_sqe *sqe = req->sqe;
+	struct user_msghdr __user *msg;
+	unsigned flags;
+
+	flags = READ_ONCE(sqe->msg_flags);
+	msg = (struct user_msghdr __user *)(unsigned long) READ_ONCE(sqe->addr);
+	return sendmsg_copy_msghdr(&io->msg.msg, msg, flags, &io->msg.iov);
+#else
+	return 0;
+#endif
+}
+
+static int io_sendmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+		      struct io_kiocb **nxt, bool force_nonblock)
+{
+#if defined(CONFIG_NET)
+	struct socket *sock;
+	int ret;
+
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+
+	sock = sock_from_file(req->file, &ret);
+	if (sock) {
+		struct io_async_ctx io, *copy;
+		struct sockaddr_storage addr;
+		struct msghdr *kmsg;
+		unsigned flags;
+
+		flags = READ_ONCE(sqe->msg_flags);
+		if (flags & MSG_DONTWAIT)
+			req->flags |= REQ_F_NOWAIT;
+		else if (force_nonblock)
+			flags |= MSG_DONTWAIT;
+
+		if (req->io) {
+			kmsg = &req->io->msg.msg;
+			kmsg->msg_name = &addr;
+		} else {
+			kmsg = &io.msg.msg;
+			kmsg->msg_name = &addr;
+			io.msg.iov = io.msg.fast_iov;
+			ret = io_sendmsg_prep(req, &io);
+			if (ret)
+				goto out;
+		}
+
+		ret = __sys_sendmsg_sock(sock, kmsg, flags);
+		if (force_nonblock && ret == -EAGAIN) {
+			copy = kmalloc(sizeof(*copy), GFP_KERNEL);
+			if (!copy) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			memcpy(&copy->msg, &io.msg, sizeof(copy->msg));
+			req->io = copy;
+			memcpy(&req->io->sqe, req->sqe, sizeof(*req->sqe));
+			req->sqe = &req->io->sqe;
+			return ret;
+		}
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
+	}
+
+out:
+	io_cqring_add_event(req, ret);
+	if (ret < 0 && (req->flags & REQ_F_LINK))
+		req->flags |= REQ_F_FAIL_LINK;
+	io_put_req_find_next(req, nxt);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int io_recvmsg_prep(struct io_kiocb *req, struct io_async_ctx *io)
+{
+#if defined(CONFIG_NET)
+	const struct io_uring_sqe *sqe = req->sqe;
+	struct user_msghdr __user *msg;
+	unsigned flags;
+
+	flags = READ_ONCE(sqe->msg_flags);
+	msg = (struct user_msghdr __user *)(unsigned long) READ_ONCE(sqe->addr);
+	return recvmsg_copy_msghdr(&io->msg.msg, msg, flags, &io->msg.uaddr,
+					&io->msg.iov);
+#else
+	return 0;
+#endif
+}
+
+static int io_recvmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+		      struct io_kiocb **nxt, bool force_nonblock)
+{
+#if defined(CONFIG_NET)
 	struct socket *sock;
 	int ret;
 
@@ -2006,6 +2106,9 @@ static int io_send_recvmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	sock = sock_from_file(req->file, &ret);
 	if (sock) {
 		struct user_msghdr __user *msg;
+		struct io_async_ctx io, *copy;
+		struct sockaddr_storage addr;
+		struct msghdr *kmsg;
 		unsigned flags;
 
 		flags = READ_ONCE(sqe->msg_flags);
@@ -2016,39 +2119,41 @@ static int io_send_recvmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 		msg = (struct user_msghdr __user *) (unsigned long)
 			READ_ONCE(sqe->addr);
+		if (req->io) {
+			kmsg = &req->io->msg.msg;
+			kmsg->msg_name = &addr;
+		} else {
+			kmsg = &io.msg.msg;
+			kmsg->msg_name = &addr;
+			io.msg.iov = io.msg.fast_iov;
+			ret = io_recvmsg_prep(req, &io);
+			if (ret)
+				goto out;
+		}
 
-		ret = fn(sock, msg, flags);
-		if (force_nonblock && ret == -EAGAIN)
+		ret = __sys_recvmsg_sock(sock, kmsg, msg, io.msg.uaddr, flags);
+		if (force_nonblock && ret == -EAGAIN) {
+			copy = kmalloc(sizeof(*copy), GFP_KERNEL);
+			if (!copy) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			memcpy(copy, &io, sizeof(*copy));
+			req->io = copy;
+			memcpy(&req->io->sqe, req->sqe, sizeof(*req->sqe));
+			req->sqe = &req->io->sqe;
 			return ret;
+		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
 	}
 
+out:
 	io_cqring_add_event(req, ret);
 	if (ret < 0 && (req->flags & REQ_F_LINK))
 		req->flags |= REQ_F_FAIL_LINK;
 	io_put_req_find_next(req, nxt);
 	return 0;
-}
-#endif
-
-static int io_sendmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-		      struct io_kiocb **nxt, bool force_nonblock)
-{
-#if defined(CONFIG_NET)
-	return io_send_recvmsg(req, sqe, nxt, force_nonblock,
-				__sys_sendmsg_sock);
-#else
-	return -EOPNOTSUPP;
-#endif
-}
-
-static int io_recvmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-		      struct io_kiocb **nxt, bool force_nonblock)
-{
-#if defined(CONFIG_NET)
-	return io_send_recvmsg(req, sqe, nxt, force_nonblock,
-				__sys_recvmsg_sock);
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -2720,6 +2825,12 @@ static int io_req_defer_prep(struct io_kiocb *req, struct io_async_ctx *io)
 	case IORING_OP_WRITEV:
 	case IORING_OP_WRITE_FIXED:
 		ret = io_write_prep(req, &iovec, &iter, true);
+		break;
+	case IORING_OP_SENDMSG:
+		ret = io_sendmsg_prep(req, io);
+		break;
+	case IORING_OP_RECVMSG:
+		ret = io_recvmsg_prep(req, io);
 		break;
 	default:
 		req->io = io;

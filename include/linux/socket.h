@@ -378,12 +378,19 @@ extern int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg,
 extern int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg,
 			  unsigned int vlen, unsigned int flags,
 			  bool forbid_cmsg_compat);
-extern long __sys_sendmsg_sock(struct socket *sock,
-			       struct user_msghdr __user *msg,
+extern long __sys_sendmsg_sock(struct socket *sock, struct msghdr *msg,
 			       unsigned int flags);
-extern long __sys_recvmsg_sock(struct socket *sock,
-			       struct user_msghdr __user *msg,
+extern long __sys_recvmsg_sock(struct socket *sock, struct msghdr *msg,
+			       struct user_msghdr __user *umsg,
+			       struct sockaddr __user *uaddr,
 			       unsigned int flags);
+extern int sendmsg_copy_msghdr(struct msghdr *msg,
+			       struct user_msghdr __user *umsg, unsigned flags,
+			       struct iovec **iov);
+extern int recvmsg_copy_msghdr(struct msghdr *msg,
+			       struct user_msghdr __user *umsg, unsigned flags,
+			       struct sockaddr __user **uaddr,
+			       struct iovec **iov);
 
 /* helpers which do the actual work for syscalls */
 extern int __sys_recvfrom(int fd, void __user *ubuf, size_t size,
