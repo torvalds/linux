@@ -202,7 +202,6 @@ static struct padata_priv *padata_find_next(struct parallel_data *pd,
 
 	if (remove_object) {
 		list_del_init(&padata->list);
-		atomic_dec(&pd->reorder_objects);
 		++pd->processed;
 		pd->cpu = cpumask_next_wrap(cpu, pd->cpumask.pcpu, -1, false);
 	}
@@ -336,7 +335,6 @@ void padata_do_serial(struct padata_priv *padata)
 		if (cur->seq_nr < padata->seq_nr)
 			break;
 	list_add(&padata->list, &cur->list);
-	atomic_inc(&pd->reorder_objects);
 	spin_unlock(&pqueue->reorder.lock);
 
 	/*
@@ -455,7 +453,6 @@ static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 	padata_init_pqueues(pd);
 	padata_init_squeues(pd);
 	atomic_set(&pd->seq_nr, -1);
-	atomic_set(&pd->reorder_objects, 0);
 	atomic_set(&pd->refcnt, 1);
 	spin_lock_init(&pd->lock);
 	pd->cpu = cpumask_first(pd->cpumask.pcpu);

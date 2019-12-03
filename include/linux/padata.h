@@ -101,7 +101,6 @@ struct padata_cpumask {
  * @sh: padata_shell object.
  * @pqueue: percpu padata queues used for parallelization.
  * @squeue: percpu padata queues used for serialuzation.
- * @reorder_objects: Number of objects waiting in the reorder queues.
  * @refcnt: Number of objects holding a reference on this parallel_data.
  * @max_seq_nr:  Maximal used sequence number.
  * @processed: Number of already processed objects.
@@ -114,7 +113,6 @@ struct parallel_data {
 	struct padata_shell		*ps;
 	struct padata_parallel_queue	__percpu *pqueue;
 	struct padata_serial_queue	__percpu *squeue;
-	atomic_t			reorder_objects;
 	atomic_t			refcnt;
 	atomic_t			seq_nr;
 	unsigned int			processed;
