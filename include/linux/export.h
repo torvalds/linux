@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_EXPORT_H
 #define _LINUX_EXPORT_H
 
