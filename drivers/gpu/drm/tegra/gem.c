@@ -27,6 +27,29 @@ static void tegra_bo_put(struct host1x_bo *bo)
 	drm_gem_object_put_unlocked(&obj->gem);
 }
 
+/* XXX move this into lib/scatterlist.c? */
+static int sg_alloc_table_from_sg(struct sg_table *sgt, struct scatterlist *sg,
+				  unsigned int nents, gfp_t gfp_mask)
+{
+	struct scatterlist *dst;
+	unsigned int i;
+	int err;
+
+	err = sg_alloc_table(sgt, nents, gfp_mask);
+	if (err < 0)
+		return err;
+
+	dst = sgt->sgl;
+
+	for (i = 0; i < nents; i++) {
+		sg_set_page(dst, sg_page(sg), sg->length, 0);
+		dst = sg_next(dst);
+		sg = sg_next(sg);
+	}
+
+	return 0;
+}
+
 static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 				     dma_addr_t *phys)
 {
@@ -52,11 +75,31 @@ static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 		return ERR_PTR(-ENOMEM);
 
 	if (obj->pages) {
+		/*
+		 * If the buffer object was allocated from the explicit IOMMU
+		 * API code paths, construct an SG table from the pages.
+		 */
 		err = sg_alloc_table_from_pages(sgt, obj->pages, obj->num_pages,
 						0, obj->gem.size, GFP_KERNEL);
 		if (err < 0)
 			goto free;
+	} else if (obj->sgt) {
+		/*
+		 * If the buffer object already has an SG table but no pages
+		 * were allocated for it, it means the buffer was imported and
+		 * the SG table needs to be copied to avoid overwriting any
+		 * other potential users of the original SG table.
+		 */
+		err = sg_alloc_table_from_sg(sgt, obj->sgt->sgl, obj->sgt->nents,
+					     GFP_KERNEL);
+		if (err < 0)
+			goto free;
 	} else {
+		/*
+		 * If the buffer object had no pages allocated and if it was
+		 * not imported, it had to be allocated with the DMA API, so
+		 * the DMA API helper can be used.
+		 */
 		err = dma_get_sgtable(dev, sgt, obj->vaddr, obj->iova,
 				      obj->gem.size);
 		if (err < 0)
