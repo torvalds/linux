@@ -217,19 +217,21 @@
 				compatible = "aspeed,ast2500-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1a8>;
 				#address-cells = <1>;
-				#size-cells = <0>;
+				#size-cells = <1>;
+				ranges = <0 0x1e6e2000 0x1000>;
 				#clock-cells = <1>;
 				#reset-cells = <1>;
 
-				pinctrl: pinctrl {
-					compatible = "aspeed,ast2500-pinctrl";
-					aspeed,external-nodes = <&gfx &lhc>;
-
+				p2a: p2a-control@2c {
+					compatible = "aspeed,ast2500-p2a-ctrl";
+					reg = <0x2c 0x4>;
+					status = "disabled";
 				};
 
-				p2a: p2a-control {
-					compatible = "aspeed,ast2500-p2a-ctrl";
-					status = "disabled";
+				pinctrl: pinctrl@80 {
+					compatible = "aspeed,ast2500-pinctrl";
+					reg = <0x80 0x18>, <0xa0 0x10>;
+					aspeed,external-nodes = <&gfx>, <&lhc>;
 				};
 			};
 
