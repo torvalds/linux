@@ -3492,22 +3492,11 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 		 */
 		if (compressed || block_start == EXTENT_MAP_HOLE ||
 		    block_start == EXTENT_MAP_INLINE) {
-			/*
-			 * end_io notification does not happen here for
-			 * compressed extents
-			 */
-			if (!compressed)
-				btrfs_writepage_endio_finish_ordered(page, cur,
-							    cur + iosize - 1,
-							    1);
-			else if (compressed) {
-				/* we don't want to end_page_writeback on
-				 * a compressed extent.  this happens
-				 * elsewhere
-				 */
+			if (compressed)
 				nr++;
-			}
-
+			else
+				btrfs_writepage_endio_finish_ordered(page, cur,
+							cur + iosize - 1, 1);
 			cur += iosize;
 			pg_offset += iosize;
 			continue;
