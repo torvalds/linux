@@ -145,10 +145,11 @@ enum mod_hdcp_status mod_hdcp_hdcp1_create_session(struct mod_hdcp *hdcp)
 
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
 
+	hdcp->auth.id = hdcp_cmd->out_msg.hdcp1_create_session.session_handle;
+
 	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
 		return MOD_HDCP_STATUS_HDCP1_CREATE_SESSION_FAILURE;
 
-	hdcp->auth.id = hdcp_cmd->out_msg.hdcp1_create_session.session_handle;
 	hdcp->auth.msg.hdcp1.ainfo = hdcp_cmd->out_msg.hdcp1_create_session.ainfo_primary;
 	memcpy(hdcp->auth.msg.hdcp1.aksv, hdcp_cmd->out_msg.hdcp1_create_session.aksv_primary,
 		sizeof(hdcp->auth.msg.hdcp1.aksv));
