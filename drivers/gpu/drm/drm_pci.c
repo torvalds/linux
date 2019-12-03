@@ -125,8 +125,6 @@ void drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 
 EXPORT_SYMBOL(drm_pci_free);
 
-#ifdef CONFIG_PCI
-
 static int drm_get_pci_domain(struct drm_device *dev)
 {
 #ifndef __alpha__
@@ -330,17 +328,6 @@ int drm_legacy_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 	return 0;
 }
 EXPORT_SYMBOL(drm_legacy_pci_init);
-
-#else
-
-void drm_pci_agp_destroy(struct drm_device *dev) {}
-
-int drm_irq_by_busid(struct drm_device *dev, void *data,
-		     struct drm_file *file_priv)
-{
-	return -EINVAL;
-}
-#endif
 
 /**
  * drm_legacy_pci_exit - unregister shadow-attach legacy DRM driver
