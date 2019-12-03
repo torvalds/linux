@@ -154,14 +154,19 @@ static int mpp_power_off(struct mpp_dev *mpp)
 }
 
 static void *
-mpp_fd_to_mem_region(struct mpp_dev *mpp,
-		     struct mpp_dma_session *dma, int fd)
+mpp_fd_to_mem_region(struct mpp_session *session, int fd)
 {
 	struct mpp_dma_buffer *buffer = NULL;
 	struct mpp_mem_region *mem_region = NULL;
+	struct mpp_dev *mpp = session->mpp;
+	struct mpp_dma_session *dma = session->dma;
 
 	if (fd <= 0 || !dma || !mpp)
 		return ERR_PTR(-EINVAL);
+
+	mem_region = kzalloc(sizeof(*mem_region), GFP_KERNEL);
+	if (!mem_region)
+		return ERR_PTR(-ENOMEM);
 
 	down_read(&mpp->rw_sem);
 	buffer = mpp_dma_import_fd(mpp->iommu_info, dma, fd);
@@ -169,14 +174,6 @@ mpp_fd_to_mem_region(struct mpp_dev *mpp,
 	if (IS_ERR_OR_NULL(buffer)) {
 		mpp_err("can't import dma-buf %d\n", fd);
 		return ERR_PTR(-EINVAL);
-	}
-
-	mem_region = kzalloc(sizeof(*mem_region), GFP_KERNEL);
-	if (!mem_region) {
-		down_read(&mpp->rw_sem);
-		mpp_dma_release_fd(dma, fd);
-		up_read(&mpp->rw_sem);
-		return ERR_PTR(-ENOMEM);
 	}
 
 	mem_region->hdl = (void *)(long)fd;
@@ -224,7 +221,7 @@ mpp_session_pull_done(struct mpp_session *session)
 }
 
 static int mpp_process_task(struct mpp_session *session,
-			    struct mpp_request *req)
+			    struct mpp_task_msgs *msgs)
 {
 	struct mpp_task *task = NULL;
 	struct mpp_dev *mpp = session->mpp;
@@ -236,7 +233,7 @@ static int mpp_process_task(struct mpp_session *session,
 	}
 
 	if (mpp->dev_ops->alloc_task)
-		task = mpp->dev_ops->alloc_task(session, req->data, req->size);
+		task = mpp->dev_ops->alloc_task(session, msgs);
 	if (!task) {
 		mpp_err("alloc_task failed.\n");
 		return -ENOMEM;
@@ -344,7 +341,7 @@ mpp_reset_control_get(struct mpp_dev *mpp, const char *name)
 		}
 		if (!clk) {
 			rst_clk = devm_kzalloc(dev, sizeof(*rst_clk),
-						GFP_KERNEL);
+					       GFP_KERNEL);
 			strncpy(rst_clk->name, name, sizeof(rst_clk->name));
 			rst_clk->clk = devm_reset_control_get(dev,
 							      shared_name);
@@ -542,7 +539,7 @@ static int mpp_session_clear(struct mpp_dev *mpp,
 
 static int mpp_task_result(struct mpp_dev *mpp,
 			   struct mpp_task *task,
-			   u32 __user *dst, u32 size)
+			   struct mpp_task_msgs *msgs)
 {
 	mpp_debug_enter();
 
@@ -550,7 +547,7 @@ static int mpp_task_result(struct mpp_dev *mpp,
 		return -EINVAL;
 
 	if (mpp->dev_ops->result)
-		mpp->dev_ops->result(mpp, task, dst, size);
+		mpp->dev_ops->result(mpp, task, msgs);
 
 	mpp_free_task(task->session, task);
 
@@ -560,11 +557,17 @@ static int mpp_task_result(struct mpp_dev *mpp,
 }
 
 static int mpp_wait_result(struct mpp_session *session,
-			   struct mpp_dev *mpp,
-			   struct mpp_request *req)
+			   struct mpp_task_msgs *msgs)
 {
 	int ret;
 	struct mpp_task *task;
+	struct mpp_dev *mpp = session->mpp;
+
+	if (!mpp) {
+		mpp_err("pid %d not find clinet %d\n",
+			session->pid, session->device_type);
+		return -EINVAL;
+	}
 
 	ret = wait_event_timeout(session->wait,
 				 !kfifo_is_empty(&session->done_fifo),
@@ -572,9 +575,9 @@ static int mpp_wait_result(struct mpp_session *session,
 	if (ret > 0) {
 		ret = 0;
 		task = mpp_session_pull_done(session);
-		mpp_task_result(mpp, task, req->data, req->size);
+		mpp_task_result(mpp, task, msgs);
 	} else {
-		mpp_err("error: pid %d wait %d task done timeout\n",
+		mpp_err("pid %d wait %d task done timeout.\n",
 			session->pid, atomic_read(&session->task_running));
 		ret = -ETIMEDOUT;
 		mpp_dev_abort(mpp);
@@ -663,7 +666,7 @@ int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 }
 
 int mpp_reset_group_init(struct mpp_reset_group *group,
-		       struct mpp_service *srv)
+			 struct mpp_service *srv)
 {
 	init_rwsem(&group->rw_sem);
 	INIT_LIST_HEAD(&group->clk);
@@ -786,17 +789,38 @@ static int mpp_process_request(struct mpp_session *session,
 		if (mpp->grf_info->grf)
 			regmap_write(mpp->grf_info->grf, 0x5d8, val);
 	} break;
+	case MPP_CMD_INIT_TRANS_TABLE: {
+		if (session && req->size) {
+			int trans_tbl_size = sizeof(session->trans_table);
+
+			if (req->size > trans_tbl_size) {
+				mpp_err("init table size %d more than %d\n",
+					req->size, trans_tbl_size);
+				return -ENOMEM;
+			}
+
+			if (copy_from_user(session->trans_table,
+					   req->data, req->size)) {
+				mpp_err("copy_from_user failed\n");
+				return -EINVAL;
+			}
+			session->trans_count =
+				req->size / sizeof(session->trans_table[0]);
+		}
+	} break;
+	case MPP_CMD_SET_REG_ADDR_OFFSET: {
+		memcpy(&msgs->reg_offset, req, sizeof(*req));
+		if (mpp_msg_is_last(req))
+			return mpp_process_task(session, msgs);
+	} break;
 	case MPP_CMD_SET_REG: {
-		mpp = session->mpp;
-		if (!mpp)
-			return -EINVAL;
-		return mpp_process_task(session, req);
+		memcpy(&msgs->reg_in, req, sizeof(*req));
+		if (mpp_msg_is_last(req))
+			return mpp_process_task(session, msgs);
 	} break;
 	case MPP_CMD_GET_REG: {
-		mpp = session->mpp;
-		if (!mpp)
-			return -EINVAL;
-		return mpp_wait_result(session, mpp, req);
+		memcpy(&msgs->reg_out, req, sizeof(*req));
+		return mpp_wait_result(session, msgs);
 	} break;
 	default: {
 		mpp = session->mpp;
@@ -992,8 +1016,7 @@ mpp_task_attach_fd(struct mpp_task *task, int fd)
 {
 	struct mpp_mem_region *mem_region = NULL;
 
-	mem_region = mpp_fd_to_mem_region(task->session->mpp,
-					  task->session->dma, fd);
+	mem_region = mpp_fd_to_mem_region(task->session, fd);
 	if (IS_ERR(mem_region))
 		return mem_region;
 
@@ -1005,17 +1028,34 @@ mpp_task_attach_fd(struct mpp_task *task, int fd)
 	return mem_region;
 }
 
-int mpp_translate_reg_address(struct mpp_dev *mpp,
-			      struct mpp_task *task,
-			      int fmt, u32 *reg)
+int mpp_translate_reg_address(struct mpp_session *session,
+			      struct mpp_task *task, int fmt,
+			      u32 *reg, struct reg_offset_info *off_inf)
 {
-	struct mpp_trans_info *trans_info = mpp->var->trans_info;
-	const u8 *tbl = trans_info[fmt].table;
-	int size = trans_info[fmt].count;
 	int i;
+	int cnt;
+	const u16 *tbl;
+	u16 trans_tbl[MPP_MAX_REG_TRANS_NUM];
 
 	mpp_debug_enter();
-	for (i = 0; i < size; i++) {
+
+	if (off_inf->cnt > 0) {
+		cnt = off_inf->cnt;
+		for (i = 0; i < cnt; i++)
+			trans_tbl[i] = (u16)off_inf->elem[i].index;
+		tbl = trans_tbl;
+	} else if (session->trans_count > 0) {
+		cnt = session->trans_count;
+		tbl = session->trans_table;
+	} else {
+		struct mpp_dev *mpp = session->mpp;
+		struct mpp_trans_info *trans_info = mpp->var->trans_info;
+
+		cnt = trans_info[fmt].count;
+		tbl = trans_info[fmt].table;
+	}
+
+	for (i = 0; i < cnt; i++) {
 		struct mpp_mem_region *mem_region = NULL;
 		int usr_fd = reg[tbl[i]] & 0x3FF;
 		int offset = reg[tbl[i]] >> 10;
@@ -1041,22 +1081,70 @@ int mpp_translate_reg_address(struct mpp_dev *mpp,
 	return 0;
 }
 
-int mpp_translate_extra_info(struct mpp_task *task,
-			     struct extra_info_for_iommu *ext_inf,
-			     u32 *reg)
+int mpp_extract_reg_offset_info(struct mpp_request *msg,
+				struct reg_offset_info *off_inf)
+{
+	int ret = 0;
+	int off_inf_size = sizeof(off_inf->elem);
+
+	if (msg->size > off_inf_size) {
+		mpp_err("msg->size %d more than %d.\n",
+			msg->size, off_inf_size);
+		return -EINVAL;
+	}
+
+	if (msg->size) {
+		off_inf->magic = EXTRA_INFO_MAGIC;
+		off_inf->cnt = msg->size / sizeof(off_inf->elem[0]);
+
+		if (copy_from_user(off_inf->elem,
+				   msg->data,
+				   msg->size)) {
+			mpp_err("copy_from_user failed\n");
+			return -EINVAL;
+		}
+	}
+
+	return ret;
+}
+
+int mpp_query_reg_offset_info(struct reg_offset_info *off_inf,
+			      u32 index)
 {
 	mpp_debug_enter();
-	if (ext_inf) {
+	if (off_inf) {
 		int i;
 
-		if (ext_inf->magic != EXTRA_INFO_MAGIC)
-			return -EINVAL;
+		if (off_inf->magic != EXTRA_INFO_MAGIC)
+			return 0;
 
-		for (i = 0; i < ext_inf->cnt; i++) {
+		for (i = 0; i < off_inf->cnt; i++) {
+			if (off_inf->elem[i].index == index)
+				return off_inf->elem[i].offset;
+		}
+	}
+	mpp_debug_leave();
+
+	return 0;
+}
+
+int mpp_translate_reg_offset_info(struct mpp_task *task,
+				  struct reg_offset_info *off_inf,
+				  u32 *reg)
+{
+	mpp_debug_enter();
+
+	if (off_inf) {
+		int i;
+
+		if (off_inf->magic != EXTRA_INFO_MAGIC)
+			return 0;
+
+		for (i = 0; i < off_inf->cnt; i++) {
 			mpp_debug(DEBUG_IOMMU, "reg[%d] + offset %d\n",
-				  ext_inf->elem[i].index,
-				  ext_inf->elem[i].offset);
-			reg[ext_inf->elem[i].index] += ext_inf->elem[i].offset;
+				  off_inf->elem[i].index,
+				  off_inf->elem[i].offset);
+			reg[off_inf->elem[i].index] += off_inf->elem[i].offset;
 		}
 	}
 	mpp_debug_leave();

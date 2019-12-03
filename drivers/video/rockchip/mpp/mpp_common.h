@@ -32,6 +32,8 @@
 /* define flags for mpp_request */
 #define MPP_FLAGS_MULTI_MSG		(0x00000001)
 #define MPP_FLAGS_LAST_MSG		(0x00000002)
+#define MPP_FLAGS_REG_FD_NO_TRANS	(0x00000004)
+#define MPP_FLAGS_SCL_FD_NO_TRANS	(0x00000008)
 #define MPP_FLAGS_SECURE_MODE		(0x00010000)
 
 /**
@@ -80,12 +82,14 @@ enum MPP_DEV_COMMAND_TYPE {
 	MPP_CMD_INIT_BASE		= 0x100,
 	MPP_CMD_INIT_CLIENT_TYPE	= MPP_CMD_INIT_BASE + 0,
 	MPP_CMD_INIT_DRIVER_DATA	= MPP_CMD_INIT_BASE + 1,
+	MPP_CMD_INIT_TRANS_TABLE	= MPP_CMD_INIT_BASE + 2,
 
 	MPP_CMD_SEND_BASE		= 0x200,
 	MPP_CMD_SET_REG			= MPP_CMD_SEND_BASE + 0,
 	MPP_CMD_SET_VEPU22_CFG		= MPP_CMD_SEND_BASE + 1,
 	MPP_CMD_SET_RKVENC_OSD_PLT	= MPP_CMD_SEND_BASE + 2,
 	MPP_CMD_SET_RKVENC_L2_REG	= MPP_CMD_SEND_BASE + 3,
+	MPP_CMD_SET_REG_ADDR_OFFSET	= MPP_CMD_SEND_BASE + 4,
 
 	MPP_CMD_POLL_BASE		= 0x300,
 	MPP_CMD_GET_REG			= MPP_CMD_POLL_BASE + 0,
@@ -138,18 +142,18 @@ struct mpp_hw_info {
 
 struct mpp_trans_info {
 	const int count;
-	const char * const table;
+	const u16 * const table;
 };
 
-struct extra_info_elem {
+struct reg_offset_elem {
 	u32 index;
 	u32 offset;
 };
 
-struct extra_info_for_iommu {
+struct reg_offset_info {
 	u32 magic;
 	u32 cnt;
-	struct extra_info_elem elem[20];
+	struct reg_offset_elem elem[MPP_MAX_REG_TRANS_NUM];
 };
 
 struct mpp_dev_var {
@@ -222,6 +226,9 @@ struct mpp_session {
 	wait_queue_head_t wait;
 	pid_t pid;
 	atomic_t task_running;
+	/* trans info set by user */
+	int trans_count;
+	u16 trans_table[MPP_MAX_REG_TRANS_NUM];
 };
 
 /* The context for the a task */
@@ -328,14 +335,14 @@ struct mpp_hw_ops {
  */
 struct mpp_dev_ops {
 	void *(*alloc_task)(struct mpp_session *session,
-			    void __user *src, u32 size);
+			    struct mpp_task_msgs *msgs);
 	int (*prepare)(struct mpp_dev *mpp, struct mpp_task *task);
 	int (*run)(struct mpp_dev *mpp, struct mpp_task *task);
 	int (*irq)(struct mpp_dev *mpp);
 	int (*isr)(struct mpp_dev *mpp);
 	int (*finish)(struct mpp_dev *mpp, struct mpp_task *task);
 	int (*result)(struct mpp_dev *mpp, struct mpp_task *task,
-		      u32 __user *dst, u32 size);
+		      struct mpp_task_msgs *msgs);
 	int (*free_task)(struct mpp_session *session,
 			 struct mpp_task *task);
 	long (*ioctl)(struct mpp_session *session, struct mpp_request *req);
@@ -351,13 +358,17 @@ int mpp_reset_group_init(struct mpp_reset_group *group,
 
 struct mpp_mem_region *
 mpp_task_attach_fd(struct mpp_task *task, int fd);
-int mpp_translate_reg_address(struct mpp_dev *data,
-			      struct mpp_task *task,
-			      int fmt, u32 *reg);
-int mpp_translate_extra_info(struct mpp_task *task,
-			     struct extra_info_for_iommu *ext_inf,
-			     u32 *reg);
+int mpp_translate_reg_address(struct mpp_session *session,
+			      struct mpp_task *task, int fmt,
+			      u32 *reg, struct reg_offset_info *off_inf);
 
+int mpp_extract_reg_offset_info(struct mpp_request *msg,
+				struct reg_offset_info *off_inf);
+int mpp_query_reg_offset_info(struct reg_offset_info *off_inf,
+			      u32 index);
+int mpp_translate_reg_offset_info(struct mpp_task *task,
+				  struct reg_offset_info *off_inf,
+				  u32 *reg);
 int mpp_task_init(struct mpp_session *session,
 		  struct mpp_task *task);
 int mpp_task_finish(struct mpp_session *session,

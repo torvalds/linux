@@ -134,6 +134,7 @@ struct rkvdec_task {
 	unsigned long clk_cabac_freq;
 
 	u32 reg[RKVDEC_V2_REG_NUM];
+	struct reg_offset_info off_inf;
 	u32 idx;
 
 	u32 strm_addr;
@@ -207,38 +208,38 @@ static struct mpp_hw_info rkvdec_v1_hw_info = {
 /*
  * file handle translate information
  */
-static const char trans_tbl_h264d[] = {
+static const u16 trans_tbl_h264d[] = {
 	4, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
 	23, 24, 41, 42, 43, 48, 75
 };
 
-static const char trans_tbl_h265d[] = {
+static const u16 trans_tbl_h265d[] = {
 	4, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
 	23, 24, 42, 43
 };
 
-static const char trans_tbl_vp9d[] = {
+static const u16 trans_tbl_vp9d[] = {
 	4, 6, 7, 11, 12, 13, 14, 15, 16
 };
 
 static struct mpp_trans_info rk_hevcdec_trans[] = {
 	[RKVDEC_FMT_H265D] = {
-		.count = sizeof(trans_tbl_h265d),
+		.count = ARRAY_SIZE(trans_tbl_h265d),
 		.table = trans_tbl_h265d,
 	},
 };
 
 static struct mpp_trans_info rkvdec_v1_trans[] = {
 	[RKVDEC_FMT_H265D] = {
-		.count = sizeof(trans_tbl_h265d),
+		.count = ARRAY_SIZE(trans_tbl_h265d),
 		.table = trans_tbl_h265d,
 	},
 	[RKVDEC_FMT_H264D] = {
-		.count = sizeof(trans_tbl_h264d),
+		.count = ARRAY_SIZE(trans_tbl_h264d),
 		.table = trans_tbl_h264d,
 	},
 	[RKVDEC_FMT_VP9D] = {
-		.count = sizeof(trans_tbl_vp9d),
+		.count = ARRAY_SIZE(trans_tbl_vp9d),
 		.table = trans_tbl_vp9d,
 	},
 };
@@ -602,65 +603,17 @@ done:
 	return ret;
 }
 
-static void *rkvdec_alloc_task(struct mpp_session *session,
-			       void __user *src, u32 size)
+static int rkvdec_process_scl_fd(struct mpp_session *session,
+				 struct rkvdec_task *task,
+				 struct mpp_task_msgs *msgs)
 {
-	u32 fmt;
-	int ret;
-	u32 reg_len;
-	int pps_fd;
-	u32 pps_offset;
-	struct rkvdec_task *task = NULL;
-	u32 dwsize = size / sizeof(u32);
-	struct mpp_dev *mpp = session->mpp;
+	int ret = 0;
+	int idx = RKVDEC_REG_PPS_BASE_INDEX;
+	int pps_fd = task->reg[idx] & 0x3ff;
+	int pps_offset = task->reg[idx] >> 10;
+	u32 fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_SYS_CTRL_INDEX]);
 
-	mpp_debug_enter();
-
-	task = kzalloc(sizeof(*task), GFP_KERNEL);
-	if (!task)
-		return NULL;
-
-	mpp_task_init(session, &task->mpp_task);
-
-	task->hw_info = mpp->var->hw_info;
-	reg_len = min(task->hw_info->reg_num, dwsize);
-	if (copy_from_user(task->reg, src, reg_len * 4)) {
-		mpp_err("error: copy_from_user failed in reg_init\n");
-		goto fail;
-	}
-
-	fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_SYS_CTRL_INDEX]);
-	/*
-	 * special offset scale case
-	 *
-	 * This translation is for fd + offset translation.
-	 * One register has 32bits. We need to transfer both buffer file
-	 * handle and the start address offset so we packet file handle
-	 * and offset together using below format.
-	 *
-	 *  0~9  bit for buffer file handle range 0 ~ 1023
-	 * 10~31 bit for offset range 0 ~ 4M
-	 *
-	 * But on 4K case the offset can be larger the 4M
-	 * So on VP9 4K decoder colmv base we scale the offset by 16
-	 */
-	if (fmt == RKVDEC_FMT_VP9D) {
-		struct mpp_mem_region *mem_region = NULL;
-		dma_addr_t iova = 0;
-		u32 offset = task->reg[RKVDEC_REG_VP9_REFCOLMV_BASE_INDEX];
-		int fd = task->reg[RKVDEC_REG_VP9_REFCOLMV_BASE_INDEX] & 0x3ff;
-
-		offset = offset >> 10 << 4;
-		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
-		if (IS_ERR(mem_region))
-			goto fail;
-
-		iova = mem_region->iova;
-		task->reg[RKVDEC_REG_VP9_REFCOLMV_BASE_INDEX] = iova + offset;
-	}
-
-	pps_fd = task->reg[RKVDEC_REG_PPS_BASE_INDEX] & 0x3ff;
-	pps_offset = task->reg[RKVDEC_REG_PPS_BASE_INDEX] >> 10;
+	pps_offset += mpp_query_reg_offset_info(&task->off_inf, idx);
 	if (pps_fd > 0) {
 		int pps_info_offset;
 		int pps_info_count;
@@ -713,17 +666,113 @@ static void *rkvdec_alloc_task(struct mpp_session *session,
 		}
 	}
 
-	ret = mpp_translate_reg_address(session->mpp,
-					&task->mpp_task,
-					fmt, task->reg);
+fail:
+	return ret;
+}
+
+static int rkvdec_process_reg_fd(struct mpp_session *session,
+				 struct rkvdec_task *task,
+				 struct mpp_task_msgs *msgs)
+{
+	int ret = 0;
+	u32 fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_SYS_CTRL_INDEX]);
+
+	/* copy reg address offset message */
+	ret = mpp_extract_reg_offset_info(&msgs->reg_offset,
+					  &task->off_inf);
+	if (ret)
+		goto fail;
+	/*
+	 * special offset scale case
+	 *
+	 * This translation is for fd + offset translation.
+	 * One register has 32bits. We need to transfer both buffer file
+	 * handle and the start address offset so we packet file handle
+	 * and offset together using below format.
+	 *
+	 *  0~9  bit for buffer file handle range 0 ~ 1023
+	 * 10~31 bit for offset range 0 ~ 4M
+	 *
+	 * But on 4K case the offset can be larger the 4M
+	 * So on VP9 4K decoder colmv base we scale the offset by 16
+	 */
+	if (fmt == RKVDEC_FMT_VP9D) {
+		int fd;
+		int idx;
+		u32 offset;
+		dma_addr_t iova = 0;
+		struct mpp_mem_region *mem_region = NULL;
+
+		idx = RKVDEC_REG_VP9_REFCOLMV_BASE_INDEX;
+		offset = task->reg[idx];
+		fd = task->reg[idx] & 0x3ff;
+
+		offset = offset >> 10 << 4;
+		offset += mpp_query_reg_offset_info(&task->off_inf, idx);
+		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
+		if (IS_ERR(mem_region))
+			goto fail;
+
+		iova = mem_region->iova;
+		task->reg[idx] = iova + offset;
+	}
+
+	ret = mpp_translate_reg_address(session, &task->mpp_task,
+					fmt, task->reg, &task->off_inf);
 	if (ret) {
-		mpp_err("error: translate reg address failed.\n");
+		mpp_err("translate reg address failed.\n");
 		mpp_dump_reg(task->reg,
 			     task->hw_info->regidx_start,
 			     task->hw_info->regidx_end);
 		goto fail;
 	}
 
+	mpp_debug(DEBUG_SET_REG, "extra info cnt %u, magic %08x",
+		  task->off_inf.cnt, task->off_inf.magic);
+	mpp_translate_reg_offset_info(&task->mpp_task,
+				      &task->off_inf, task->reg);
+	return 0;
+fail:
+	return -EFAULT;
+}
+
+static void *rkvdec_alloc_task(struct mpp_session *session,
+			       struct mpp_task_msgs *msgs)
+{
+	int ret;
+	u32 reg_len;
+
+	struct rkvdec_task *task = NULL;
+	struct mpp_dev *mpp = session->mpp;
+	struct mpp_request *msg_reg = &msgs->reg_in;
+	u32 dwsize = msg_reg->size / sizeof(u32);
+
+	mpp_debug_enter();
+
+	task = kzalloc(sizeof(*task), GFP_KERNEL);
+	if (!task)
+		return NULL;
+
+	mpp_task_init(session, &task->mpp_task);
+	task->hw_info = mpp->var->hw_info;
+	reg_len = min(task->hw_info->reg_num, dwsize);
+	if (copy_from_user(task->reg, msg_reg->data,
+			   reg_len * sizeof(u32))) {
+		mpp_err("copy_from_user failed in reg_init\n");
+		goto fail;
+	}
+	/* process fd in pps for 264 and 265 */
+	if (!(msg_reg->flags & MPP_FLAGS_SCL_FD_NO_TRANS)) {
+		ret = rkvdec_process_scl_fd(session, task, msgs);
+		if (ret)
+			goto fail;
+	}
+	/* process fd in register */
+	if (!(msg_reg->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
+		ret = rkvdec_process_reg_fd(session, task, msgs);
+		if (ret)
+			goto fail;
+	}
 	task->strm_addr = task->reg[RKVDEC_REG_RLC_BASE_INDEX];
 
 	mpp_debug_leave();
@@ -929,12 +978,14 @@ static int rkvdec_finish(struct mpp_dev *mpp,
 
 static int rkvdec_result(struct mpp_dev *mpp,
 			 struct mpp_task *mpp_task,
-			 u32 __user *dst, u32 size)
+			 struct mpp_task_msgs *msgs)
 {
+	struct mpp_request *msg_reg_out = &msgs->reg_out;
 	struct rkvdec_task *task = to_rkvdec_task(mpp_task);
 
 	/* FIXME may overflow the kernel */
-	if (copy_to_user(dst, task->reg, size)) {
+	if (copy_to_user(msg_reg_out->data,
+			 task->reg, msg_reg_out->size)) {
 		mpp_err("copy_to_user failed\n");
 		return -EIO;
 	}
@@ -1128,6 +1179,7 @@ static int rkvdec_devfreq_remove(struct mpp_dev *mpp)
 static int rkvdec_devfreq_init(struct mpp_dev *mpp)
 {
 	int ret = 0;
+	struct devfreq_dev_status *stat;
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
 	dec->parent_devfreq = devfreq_get_devfreq_by_phandle(mpp->dev, 0);
@@ -1157,31 +1209,27 @@ static int rkvdec_devfreq_init(struct mpp_dev *mpp)
 		dev_warn(mpp->dev, "no regulator for vcodec\n");
 
 		return 0;
-	} else {
-		struct devfreq_dev_status *stat;
-
-		ret = rockchip_init_opp_table(mpp->dev, NULL,
-					      "rkvdec_leakage", "vcodec");
-		if (ret) {
-			dev_err(mpp->dev, "Failed to init_opp_table\n");
-			goto done;
-		}
-		dec->devfreq = devm_devfreq_add_device(mpp->dev,
-						       &devfreq_profile,
-						       "userspace",
-						       NULL);
-		if (IS_ERR(dec->devfreq)) {
-			ret = PTR_ERR(dec->devfreq);
-			goto done;
-		}
-
-		stat = &dec->devfreq->last_status;
-		stat->current_frequency = clk_get_rate(dec->aclk);
-
-		ret = devfreq_register_opp_notifier(mpp->dev, dec->devfreq);
-		if (ret)
-			goto done;
 	}
+
+	ret = rockchip_init_opp_table(mpp->dev, NULL,
+				      "rkvdec_leakage", "vcodec");
+	if (ret) {
+		dev_err(mpp->dev, "Failed to init_opp_table\n");
+		goto done;
+	}
+	dec->devfreq = devm_devfreq_add_device(mpp->dev, &devfreq_profile,
+					       "userspace", NULL);
+	if (IS_ERR(dec->devfreq)) {
+		ret = PTR_ERR(dec->devfreq);
+		goto done;
+	}
+
+	stat = &dec->devfreq->last_status;
+	stat->current_frequency = clk_get_rate(dec->aclk);
+
+	ret = devfreq_register_opp_notifier(mpp->dev, dec->devfreq);
+	if (ret)
+		goto done;
 
 	/* power simplle init */
 	ret = power_model_simple_init(mpp);

@@ -96,7 +96,7 @@ struct vdpu_task {
 	unsigned long aclk_freq;
 	u32 reg[VDPU1_REG_PP_NUM];
 	u32 idx;
-	struct extra_info_for_iommu ext_inf;
+	struct reg_offset_info off_inf;
 	u32 strm_addr;
 	u32 irq_status;
 };
@@ -136,66 +136,66 @@ static struct mpp_hw_info vdpu_pp_v1_hw_info = {
 /*
  * file handle translate information
  */
-static const char trans_tbl_avsd[] = {
+static const u16 trans_tbl_avsd[] = {
 	12, 13, 14, 15, 16, 17, 40, 41, 45
 };
 
-static const char trans_tbl_default[] = {
+static const u16 trans_tbl_default[] = {
 	12, 13, 14, 15, 16, 17, 40, 41
 };
 
-static const char trans_tbl_jpegd[] = {
+static const u16 trans_tbl_jpegd[] = {
 	12, 13, 14, 40, 66, 67
 };
 
-static const char trans_tbl_h264d[] = {
+static const u16 trans_tbl_h264d[] = {
 	12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
 	28, 29, 40
 };
 
-static const char trans_tbl_vc1d[] = {
+static const u16 trans_tbl_vc1d[] = {
 	12, 13, 14, 15, 16, 17, 27, 41
 };
 
-static const char trans_tbl_vp6d[] = {
+static const u16 trans_tbl_vp6d[] = {
 	12, 13, 14, 18, 27, 40
 };
 
-static const char trans_tbl_vp8d[] = {
+static const u16 trans_tbl_vp8d[] = {
 	10, 12, 13, 14, 18, 19, 22, 23, 24, 25, 26, 27, 28, 29, 40
 };
 
 static struct mpp_trans_info vdpu_v1_trans[] = {
 	[VDPU1_FMT_H264D] = {
-		.count = sizeof(trans_tbl_h264d),
+		.count = ARRAY_SIZE(trans_tbl_h264d),
 		.table = trans_tbl_h264d,
 	},
 	[VDPU1_FMT_H263D] = {
-		.count = sizeof(trans_tbl_default),
+		.count = ARRAY_SIZE(trans_tbl_default),
 		.table = trans_tbl_default,
 	},
 	[VDPU1_FMT_MPEG4D] = {
-		.count = sizeof(trans_tbl_default),
+		.count = ARRAY_SIZE(trans_tbl_default),
 		.table = trans_tbl_default,
 	},
 	[VDPU1_FMT_JPEGD] = {
-		.count = sizeof(trans_tbl_jpegd),
+		.count = ARRAY_SIZE(trans_tbl_jpegd),
 		.table = trans_tbl_jpegd,
 	},
 	[VDPU1_FMT_VC1D] = {
-		.count = sizeof(trans_tbl_vc1d),
+		.count = ARRAY_SIZE(trans_tbl_vc1d),
 		.table = trans_tbl_vc1d,
 	},
 	[VDPU1_FMT_MPEG2D] = {
-		.count = sizeof(trans_tbl_default),
+		.count = ARRAY_SIZE(trans_tbl_default),
 		.table = trans_tbl_default,
 	},
 	[VDPU1_FMT_MPEG1D] = {
-		.count = sizeof(trans_tbl_default),
+		.count = ARRAY_SIZE(trans_tbl_default),
 		.table = trans_tbl_default,
 	},
 	[VDPU1_FMT_VP6D] = {
-		.count = sizeof(trans_tbl_vp6d),
+		.count = ARRAY_SIZE(trans_tbl_vp6d),
 		.table = trans_tbl_vp6d,
 	},
 	[VDPU1_FMT_RESERVED] = {
@@ -203,79 +203,59 @@ static struct mpp_trans_info vdpu_v1_trans[] = {
 		.table = NULL,
 	},
 	[VDPU1_FMT_VP7D] = {
-		.count = sizeof(trans_tbl_default),
+		.count = ARRAY_SIZE(trans_tbl_default),
 		.table = trans_tbl_default,
 	},
 	[VDPU1_FMT_VP8D] = {
-		.count = sizeof(trans_tbl_vp8d),
+		.count = ARRAY_SIZE(trans_tbl_vp8d),
 		.table = trans_tbl_vp8d,
 	},
 	[VDPU1_FMT_AVSD] = {
-		.count = sizeof(trans_tbl_avsd),
+		.count = ARRAY_SIZE(trans_tbl_avsd),
 		.table = trans_tbl_avsd,
 	},
 };
 
-static void *vdpu_alloc_task(struct mpp_session *session,
-			     void __user *src, u32 size)
+static int vdpu_process_reg_fd(struct mpp_session *session,
+			       struct vdpu_task *task,
+			       struct mpp_task_msgs *msgs,
+			       u32 extinf_len,
+			       u32 reg_len)
 {
-	u32 fmt;
-	int err;
-	u32 reg_len;
-	u32 extinf_len;
-	struct vdpu_task *task = NULL;
-	u32 dwsize = size / sizeof(u32);
-	struct mpp_dev *mpp = session->mpp;
+	int ret = 0;
+	struct mpp_request *msg_reg = &msgs->reg_in;
+	int fmt = VDPU1_GET_FORMAT(task->reg[VDPU1_REG_SYS_CTRL_INDEX]);
 
-	mpp_debug_enter();
-
-	task = kzalloc(sizeof(*task), GFP_KERNEL);
-	if (!task)
-		return NULL;
-
-	mpp_task_init(session, &task->mpp_task);
-
-	if (session->device_type == MPP_DEVICE_VDPU1_PP) {
-		task->pp_enable = true;
-		task->hw_info = &vdpu_pp_v1_hw_info;
-	} else {
-		task->hw_info = mpp->var->hw_info;
-	}
-	reg_len = min(task->hw_info->reg_num, dwsize);
-	extinf_len = dwsize > reg_len ? (dwsize - reg_len) * 4 : 0;
-
-	if (copy_from_user(task->reg, src, reg_len * 4)) {
-		mpp_err("error: copy_from_user failed in reg_init\n");
-		goto fail;
-	}
-
-	fmt = VDPU1_GET_FORMAT(task->reg[VDPU1_REG_SYS_CTRL_INDEX]);
 	if (extinf_len > 0) {
 		if (likely(fmt == VDPU1_FMT_JPEGD)) {
-			err = copy_from_user(&task->ext_inf,
-					     (u8 *)src + size
+			ret = copy_from_user(&task->off_inf,
+					     (u8 *)msg_reg->data
+					     + msg_reg->size
 					     - JPEG_IOC_EXTRA_SIZE,
 					     JPEG_IOC_EXTRA_SIZE);
 		} else {
 			u32 ext_cpy = min_t(size_t, extinf_len,
-					    sizeof(task->ext_inf));
-			err = copy_from_user(&task->ext_inf,
-					     (u32 *)src + reg_len,
+					    sizeof(task->off_inf));
+			ret = copy_from_user(&task->off_inf,
+					     (u32 *)msg_reg->data + reg_len,
 					     ext_cpy);
 		}
 
-		if (err) {
+		if (ret) {
 			mpp_err("copy_from_user failed when extra info\n");
 			goto fail;
 		}
+	} else {
+		ret = mpp_extract_reg_offset_info(&msgs->reg_offset,
+						  &task->off_inf);
+		if (ret)
+			goto fail;
 	}
 
-	err = mpp_translate_reg_address(session->mpp,
-					&task->mpp_task,
-					fmt,
-					task->reg);
-	if (err) {
-		mpp_err("error: translate reg address failed.\n");
+	ret = mpp_translate_reg_address(session, &task->mpp_task,
+					fmt, task->reg, &task->off_inf);
+	if (ret) {
+		mpp_err("translate reg address failed.\n");
 		mpp_dump_reg(task->reg,
 			     task->hw_info->regidx_start,
 			     task->hw_info->regidx_end);
@@ -295,27 +275,76 @@ static void *vdpu_alloc_task(struct mpp_session *session,
 	 * But on 4K case the offset can be larger the 4M
 	 */
 	if (likely(fmt == VDPU1_FMT_H264D)) {
+		u32 idx = VDPU1_REG_DIR_MV_BASE_INDEX;
 		struct mpp_mem_region *mem_region = NULL;
 		dma_addr_t iova = 0;
-		u32 offset = task->reg[VDPU1_REG_DIR_MV_BASE_INDEX];
-		int fd = task->reg[VDPU1_REG_DIR_MV_BASE_INDEX] & 0x3ff;
+		u32 offset = task->reg[idx];
+		int fd = task->reg[idx] & 0x3ff;
 
 		offset = offset >> 10 << 4;
+		offset += mpp_query_reg_offset_info(&task->off_inf, idx);
 		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
 		if (IS_ERR(mem_region))
 			goto fail;
 
 		iova = mem_region->iova;
 		mpp_debug(DEBUG_IOMMU, "DMV[%3d]: %3d => %pad + offset %10d\n",
-			  VDPU1_REG_DIR_MV_BASE_INDEX, fd, &iova, offset);
-		task->reg[VDPU1_REG_DIR_MV_BASE_INDEX] = iova + offset;
+			  idx, fd, &iova, offset);
+		task->reg[idx] = iova + offset;
+	}
+	mpp_debug(DEBUG_SET_REG, "extra info cnt %u, magic %08x",
+		  task->off_inf.cnt, task->off_inf.magic);
+	mpp_translate_reg_offset_info(&task->mpp_task,
+				      &task->off_inf,
+				      task->reg);
+	return 0;
+fail:
+	return -EFAULT;
+}
+
+static void *vdpu_alloc_task(struct mpp_session *session,
+			     struct mpp_task_msgs *msgs)
+{
+	int ret;
+	u32 reg_len;
+	u32 extinf_len;
+
+	struct vdpu_task *task;
+	struct mpp_dev *mpp = session->mpp;
+	struct mpp_request *msg_reg = &msgs->reg_in;
+	u32 dwsize = msg_reg->size / sizeof(u32);
+
+	mpp_debug_enter();
+
+	task = kzalloc(sizeof(*task), GFP_KERNEL);
+	if (!task)
+		return NULL;
+
+	mpp_task_init(session, &task->mpp_task);
+
+	if (session->device_type == MPP_DEVICE_VDPU1_PP) {
+		task->pp_enable = true;
+		task->hw_info = &vdpu_pp_v1_hw_info;
+	} else {
+		task->hw_info = mpp->var->hw_info;
 	}
 
+	reg_len = min(task->hw_info->reg_num, dwsize);
+	extinf_len = dwsize > reg_len ?
+		(dwsize - reg_len) * sizeof(u32) : 0;
+	if (copy_from_user(task->reg, msg_reg->data,
+			   reg_len * sizeof(u32))) {
+		mpp_err("copy_from_user failed in reg_init\n");
+		goto fail;
+	}
+	/* process fd in register */
+	if (!(msg_reg->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
+		ret = vdpu_process_reg_fd(session, task, msgs,
+					  extinf_len, reg_len);
+		if (ret)
+			goto fail;
+	}
 	task->strm_addr = task->reg[VDPU1_REG_STREAM_RLC_BASE_INDEX];
-
-	mpp_debug(DEBUG_SET_REG, "extra info cnt %u, magic %08x",
-		  task->ext_inf.cnt, task->ext_inf.magic);
-	mpp_translate_extra_info(&task->mpp_task, &task->ext_inf, task->reg);
 
 	mpp_debug_leave();
 
@@ -404,12 +433,14 @@ static int vdpu_finish(struct mpp_dev *mpp,
 
 static int vdpu_result(struct mpp_dev *mpp,
 		       struct mpp_task *mpp_task,
-		       u32 __user *dst, u32 size)
+		       struct mpp_task_msgs *msgs)
 {
+	struct mpp_request *msg_reg_out = &msgs->reg_out;
 	struct vdpu_task *task = to_vdpu_task(mpp_task);
 
 	/* FIXME may overflow the kernel */
-	if (copy_to_user(dst, task->reg, size)) {
+	if (copy_to_user(msg_reg_out->data,
+			 task->reg, msg_reg_out->size)) {
 		mpp_err("copy_to_user failed\n");
 		return -EIO;
 	}
