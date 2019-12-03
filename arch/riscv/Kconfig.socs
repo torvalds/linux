@@ -26,6 +26,8 @@ config SOC_VIRT
        select RPMSG_VIRTIO
        select CRYPTO_DEV_VIRTIO
        select VIRTIO_INPUT
+       select POWER_RESET_SYSCON
+       select POWER_RESET_SYSCON_POWEROFF
        select SIFIVE_PLIC
        help
          This enables support for QEMU Virt Machine.
