@@ -1348,21 +1348,18 @@ static int hdmi_find_pcm_slot(struct hdmi_spec *spec,
 	 * with the legacy static per_pin-pcm assignment that existed in the
 	 * days before DP-MST.
 	 *
+	 * Intel DP-MST prefers this legacy behavior for compatibility, too.
+	 *
 	 * per_pin of m!=0 prefers to get pcm=(num_nids + (m - 1)).
 	 */
 
-	if (per_pin->dev_id == 0) {
+	if (per_pin->dev_id == 0 || spec->intel_hsw_fixup) {
 		if (!test_bit(per_pin->pin_nid_idx, &spec->pcm_bitmap))
 			return per_pin->pin_nid_idx;
 	} else {
 		i = spec->num_nids + (per_pin->dev_id - 1);
 		if (i < spec->pcm_used && !(test_bit(i, &spec->pcm_bitmap)))
 			return i;
-
-		/* keep legacy assignment for dev_id>0 on Intel platforms */
-		if (spec->intel_hsw_fixup)
-			if (!test_bit(per_pin->pin_nid_idx, &spec->pcm_bitmap))
-				return per_pin->pin_nid_idx;
 	}
 
 	/* have a second try; check the area over num_nids */
