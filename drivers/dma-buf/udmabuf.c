@@ -18,6 +18,7 @@ static const size_t size_limit_mb = 64; /* total dmabuf size, in megabytes  */
 struct udmabuf {
 	pgoff_t pagecount;
 	struct page **pages;
+	struct sg_table *sg;
 	struct miscdevice *device;
 };
 
@@ -98,12 +99,48 @@ static void unmap_udmabuf(struct dma_buf_attachment *at,
 static void release_udmabuf(struct dma_buf *buf)
 {
 	struct udmabuf *ubuf = buf->priv;
+	struct device *dev = ubuf->device->this_device;
 	pgoff_t pg;
+
+	if (ubuf->sg)
+		put_sg_table(dev, ubuf->sg, DMA_BIDIRECTIONAL);
 
 	for (pg = 0; pg < ubuf->pagecount; pg++)
 		put_page(ubuf->pages[pg]);
 	kfree(ubuf->pages);
 	kfree(ubuf);
+}
+
+static int begin_cpu_udmabuf(struct dma_buf *buf,
+			     enum dma_data_direction direction)
+{
+	struct udmabuf *ubuf = buf->priv;
+	struct device *dev = ubuf->device->this_device;
+
+	if (!ubuf->sg) {
+		ubuf->sg = get_sg_table(dev, buf, direction);
+		if (IS_ERR(ubuf->sg))
+			return PTR_ERR(ubuf->sg);
+	} else {
+		dma_sync_sg_for_device(dev, ubuf->sg->sgl,
+				       ubuf->sg->nents,
+				       direction);
+	}
+
+	return 0;
+}
+
+static int end_cpu_udmabuf(struct dma_buf *buf,
+			   enum dma_data_direction direction)
+{
+	struct udmabuf *ubuf = buf->priv;
+	struct device *dev = ubuf->device->this_device;
+
+	if (!ubuf->sg)
+		return -EINVAL;
+
+	dma_sync_sg_for_cpu(dev, ubuf->sg->sgl, ubuf->sg->nents, direction);
+	return 0;
 }
 
 static const struct dma_buf_ops udmabuf_ops = {
@@ -112,6 +149,8 @@ static const struct dma_buf_ops udmabuf_ops = {
 	.unmap_dma_buf	   = unmap_udmabuf,
 	.release	   = release_udmabuf,
 	.mmap		   = mmap_udmabuf,
+	.begin_cpu_access  = begin_cpu_udmabuf,
+	.end_cpu_access    = end_cpu_udmabuf,
 };
 
 #define SEALS_WANTED (F_SEAL_SHRINK)
