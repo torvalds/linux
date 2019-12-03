@@ -2932,7 +2932,7 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 
 int
 SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
-		u64 persistent_fid, u64 volatile_fid)
+		u64 persistent_fid, u64 volatile_fid, bool query_attrs)
 {
 	struct smb2_close_req *req;
 	struct kvec *iov = rqst->rq_iov;
@@ -2945,6 +2945,10 @@ SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
+	if (query_attrs)
+		req->Flags = SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB;
+	else
+		req->Flags = 0;
 	iov[0].iov_base = (char *)req;
 	iov[0].iov_len = total_len;
 
@@ -2959,8 +2963,9 @@ SMB2_close_free(struct smb_rqst *rqst)
 }
 
 int
-SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
-		 u64 persistent_fid, u64 volatile_fid)
+__SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
+	     u64 persistent_fid, u64 volatile_fid,
+	     struct smb2_file_network_open_info *pbuf)
 {
 	struct smb_rqst rqst;
 	struct smb2_close_rsp *rsp = NULL;
@@ -2970,6 +2975,7 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 	int resp_buftype = CIFS_NO_BUFFER;
 	int rc = 0;
 	int flags = 0;
+	bool query_attrs = false;
 
 	cifs_dbg(FYI, "Close\n");
 
@@ -2984,8 +2990,13 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 1;
 
+	/* check if need to ask server to return timestamps in close response */
+	if (pbuf)
+		query_attrs = true;
+
 	trace_smb3_close_enter(xid, persistent_fid, tcon->tid, ses->Suid);
-	rc = SMB2_close_init(tcon, &rqst, persistent_fid, volatile_fid);
+	rc = SMB2_close_init(tcon, &rqst, persistent_fid, volatile_fid,
+			     query_attrs);
 	if (rc)
 		goto close_exit;
 
@@ -2997,14 +3008,18 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		trace_smb3_close_err(xid, persistent_fid, tcon->tid, ses->Suid,
 				     rc);
 		goto close_exit;
-	} else
+	} else {
 		trace_smb3_close_done(xid, persistent_fid, tcon->tid,
 				      ses->Suid);
+		/*
+		 * Note that have to subtract 4 since struct network_open_info
+		 * has a final 4 byte pad that close response does not have
+		 */
+		if (pbuf)
+			memcpy(pbuf, (char *)&rsp->CreationTime, sizeof(*pbuf) - 4);
+	}
 
 	atomic_dec(&tcon->num_remote_opens);
-
-	/* BB FIXME - decode close response, update inode for caching */
-
 close_exit:
 	SMB2_close_free(&rqst);
 	free_rsp_buf(resp_buftype, rsp);
@@ -3020,6 +3035,13 @@ close_exit:
 				 persistent_fid, tmp_rc);
 	}
 	return rc;
+}
+
+int
+SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid)
+{
+	return __SMB2_close(xid, tcon, persistent_fid, volatile_fid, NULL);
 }
 
 int

@@ -496,7 +496,9 @@ void _cifsFileInfo_put(struct cifsFileInfo *cifs_file,
 		unsigned int xid;
 
 		xid = get_xid();
-		if (server->ops->close)
+		if (server->ops->close_getattr)
+			server->ops->close_getattr(xid, tcon, cifs_file);
+		else if (server->ops->close)
 			server->ops->close(xid, tcon, &cifs_file->fid);
 		_free_xid(xid);
 	}
