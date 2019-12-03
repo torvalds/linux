@@ -83,8 +83,6 @@
 
 #include "amdgpu_socbb.h"
 
-/* NV12 SOC BB is currently in FW, mark SW bounding box invalid. */
-#define SOC_BOUNDING_BOX_VALID false
 #define DC_LOGGER_INIT(logger)
 
 struct _vcs_dpi_ip_params_st dcn2_0_ip = {
@@ -3271,12 +3269,13 @@ static bool init_soc_bounding_box(struct dc *dc,
 
 	DC_LOGGER_INIT(dc->ctx->logger);
 
-	if (!bb && !SOC_BOUNDING_BOX_VALID) {
+	/* TODO: upstream NV12 bounding box when its launched */
+	if (!bb && ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev)) {
 		DC_LOG_ERROR("%s: not valid soc bounding box/n", __func__);
 		return false;
 	}
 
-	if (bb && !SOC_BOUNDING_BOX_VALID) {
+	if (bb && ASICREV_IS_NAVI12_P(dc->ctx->asic_id.hw_internal_rev)) {
 		int i;
 
 		dcn2_0_nv12_soc.sr_exit_time_us =
