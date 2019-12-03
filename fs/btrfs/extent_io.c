@@ -3562,7 +3562,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	u64 page_end = start + PAGE_SIZE - 1;
 	int ret;
 	int nr = 0;
-	size_t pg_offset = 0;
+	size_t pg_offset;
 	loff_t i_size = i_size_read(inode);
 	unsigned long end_index = i_size >> PAGE_SHIFT;
 	unsigned long nr_written = 0;
@@ -3590,8 +3590,6 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		kunmap_atomic(userpage);
 		flush_dcache_page(page);
 	}
-
-	pg_offset = 0;
 
 	set_page_extent_mapped(page);
 
