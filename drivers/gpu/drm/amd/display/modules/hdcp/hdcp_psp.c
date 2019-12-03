@@ -511,7 +511,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_h_prime(struct mod_hdcp *hdcp)
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
 
 	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
-		return MOD_HDCP_STATUS_HDCP2_VALIDATE_AKE_CERT_FAILURE;
+		return MOD_HDCP_STATUS_HDCP2_VALIDATE_H_PRIME_FAILURE;
 
 	if (msg_out->process.msg1_status != TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS)
 		return MOD_HDCP_STATUS_HDCP2_VALIDATE_H_PRIME_FAILURE;
