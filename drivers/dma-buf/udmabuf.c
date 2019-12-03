@@ -94,10 +94,11 @@ static void release_udmabuf(struct dma_buf *buf)
 }
 
 static const struct dma_buf_ops udmabuf_ops = {
-	.map_dma_buf	  = map_udmabuf,
-	.unmap_dma_buf	  = unmap_udmabuf,
-	.release	  = release_udmabuf,
-	.mmap		  = mmap_udmabuf,
+	.cache_sgt_mapping = true,
+	.map_dma_buf	   = map_udmabuf,
+	.unmap_dma_buf	   = unmap_udmabuf,
+	.release	   = release_udmabuf,
+	.mmap		   = mmap_udmabuf,
 };
 
 #define SEALS_WANTED (F_SEAL_SHRINK)
