@@ -14,8 +14,8 @@
 
 struct renesas_sdhi_scc {
 	unsigned long clk_rate;	/* clock rate for SDR104 */
-	u32 tap;		/* sampling clock position for SDR104 */
-	u32 tap_hs400;		/* sampling clock position for HS400 */
+	u32 tap;		/* sampling clock position for SDR104/HS400 (8 TAP) */
+	u32 tap_hs400_4tap;	/* sampling clock position for HS400 (4 TAP) */
 };
 
 struct renesas_sdhi_of_data {
