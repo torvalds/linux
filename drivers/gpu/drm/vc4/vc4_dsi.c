@@ -499,6 +499,7 @@ struct vc4_dsi {
 	struct mipi_dsi_host dsi_host;
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
+	struct list_head bridge_chain;
 
 	void __iomem *regs;
 
@@ -1460,6 +1461,8 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 				       GFP_KERNEL);
 	if (!vc4_dsi_encoder)
 		return -ENOMEM;
+
+	INIT_LIST_HEAD(&dsi->bridge_chain);
 	vc4_dsi_encoder->base.type = VC4_ENCODER_TYPE_DSI1;
 	vc4_dsi_encoder->dsi = dsi;
 	dsi->encoder = &vc4_dsi_encoder->base.base;
@@ -1610,7 +1613,7 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	 * from our driver, since we need to sequence them within the
 	 * encoder's enable/disable paths.
 	 */
-	dsi->encoder->bridge = NULL;
+	list_splice(&dsi->encoder->bridge_chain, &dsi->bridge_chain);
 
 	if (dsi->port == 0)
 		vc4_debugfs_add_regset32(drm, "dsi0_regs", &dsi->regset);
@@ -1632,6 +1635,11 @@ static void vc4_dsi_unbind(struct device *dev, struct device *master,
 	if (dsi->bridge)
 		pm_runtime_disable(dev);
 
+	/*
+	 * Restore the bridge_chain so the bridge detach procedure can happen
+	 * normally.
+	 */
+	list_splice(&dsi->bridge_chain, &dsi->encoder->bridge_chain);
 	vc4_dsi_encoder_destroy(dsi->encoder);
 
 	if (dsi->port == 1)

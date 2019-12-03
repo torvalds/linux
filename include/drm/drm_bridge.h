@@ -384,8 +384,8 @@ struct drm_bridge {
 	struct drm_device *dev;
 	/** @encoder: encoder to which this bridge is connected */
 	struct drm_encoder *encoder;
-	/** @next: the next bridge in the encoder chain */
-	struct drm_bridge *next;
+	/** @chain_node: used to form a bridge chain */
+	struct list_head chain_node;
 #ifdef CONFIG_OF
 	/** @of_node: device node pointer to the bridge */
 	struct device_node *of_node;
@@ -420,7 +420,10 @@ int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 static inline struct drm_bridge *
 drm_bridge_get_next_bridge(struct drm_bridge *bridge)
 {
-	return bridge->next;
+	if (list_is_last(&bridge->chain_node, &bridge->encoder->bridge_chain))
+		return NULL;
+
+	return list_next_entry(bridge, chain_node);
 }
 
 /**
@@ -434,7 +437,8 @@ drm_bridge_get_next_bridge(struct drm_bridge *bridge)
 static inline struct drm_bridge *
 drm_bridge_chain_get_first_bridge(struct drm_encoder *encoder)
 {
-	return encoder->bridge;
+	return list_first_entry_or_null(&encoder->bridge_chain,
+					struct drm_bridge, chain_node);
 }
 
 bool drm_bridge_chain_mode_fixup(struct drm_bridge *bridge,
