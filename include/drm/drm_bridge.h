@@ -427,6 +427,22 @@ drm_bridge_get_next_bridge(struct drm_bridge *bridge)
 }
 
 /**
+ * drm_bridge_get_prev_bridge() - Get the previous bridge in the chain
+ * @bridge: bridge object
+ *
+ * RETURNS:
+ * the previous bridge in the chain, or NULL if @bridge is the first.
+ */
+static inline struct drm_bridge *
+drm_bridge_get_prev_bridge(struct drm_bridge *bridge)
+{
+	if (list_is_first(&bridge->chain_node, &bridge->encoder->bridge_chain))
+		return NULL;
+
+	return list_prev_entry(bridge, chain_node);
+}
+
+/**
  * drm_bridge_chain_get_first_bridge() - Get the first bridge in the chain
  * @encoder: encoder object
  *
