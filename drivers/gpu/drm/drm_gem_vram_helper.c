@@ -485,6 +485,7 @@ EXPORT_SYMBOL(drm_gem_vram_vunmap);
  * @dev:		the DRM device
  * @bdev:		the TTM BO device managing the buffer object
  * @pg_align:		the buffer's alignment in multiples of the page size
+ * @pitch_align:	the scanline's alignment in powers of 2
  * @interruptible:	sleep interruptible if waiting for memory
  * @args:		the arguments as provided to \
 				&struct drm_driver.dumb_create
@@ -502,6 +503,7 @@ int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 				  struct drm_device *dev,
 				  struct ttm_bo_device *bdev,
 				  unsigned long pg_align,
+				  unsigned long pitch_align,
 				  bool interruptible,
 				  struct drm_mode_create_dumb *args)
 {
@@ -510,7 +512,12 @@ int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 	int ret;
 	u32 handle;
 
-	pitch = args->width * ((args->bpp + 7) / 8);
+	pitch = args->width * DIV_ROUND_UP(args->bpp, 8);
+	if (pitch_align) {
+		if (WARN_ON_ONCE(!is_power_of_2(pitch_align)))
+			return -EINVAL;
+		pitch = ALIGN(pitch, pitch_align);
+	}
 	size = pitch * args->height;
 
 	size = roundup(size, PAGE_SIZE);
@@ -612,8 +619,8 @@ int drm_gem_vram_driver_dumb_create(struct drm_file *file,
 	if (WARN_ONCE(!dev->vram_mm, "VRAM MM not initialized"))
 		return -EINVAL;
 
-	return drm_gem_vram_fill_create_dumb(file, dev, &dev->vram_mm->bdev, 0,
-					     false, args);
+	return drm_gem_vram_fill_create_dumb(file, dev, &dev->vram_mm->bdev,
+					     0, 0, false, args);
 }
 EXPORT_SYMBOL(drm_gem_vram_driver_dumb_create);
 

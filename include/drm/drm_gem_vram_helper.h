@@ -112,6 +112,7 @@ int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 				  struct drm_device *dev,
 				  struct ttm_bo_device *bdev,
 				  unsigned long pg_align,
+				  unsigned long pitch_align,
 				  bool interruptible,
 				  struct drm_mode_create_dumb *args);
 
