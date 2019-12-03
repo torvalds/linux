@@ -920,10 +920,8 @@ int host1x_client_iommu_attach(struct host1x_client *client)
 
 	if (tegra->domain) {
 		group = iommu_group_get(client->dev);
-		if (!group) {
-			dev_err(client->dev, "failed to get IOMMU group\n");
+		if (!group)
 			return -ENODEV;
-		}
 
 		if (domain != tegra->domain) {
 			err = iommu_attach_group(tegra->domain, group);
