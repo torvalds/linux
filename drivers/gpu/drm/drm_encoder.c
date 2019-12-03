@@ -171,7 +171,7 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 		struct drm_bridge *next;
 
 		while (bridge) {
-			next = bridge->next;
+			next = drm_bridge_get_next_bridge(bridge);
 			drm_bridge_detach(bridge);
 			bridge = next;
 		}
