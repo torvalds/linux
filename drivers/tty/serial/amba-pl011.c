@@ -414,7 +414,7 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 	dma_cap_mask_t mask;
 
 	uap->dma_probed = true;
-	chan = dma_request_slave_channel_reason(dev, "tx");
+	chan = dma_request_chan(dev, "tx");
 	if (IS_ERR(chan)) {
 		if (PTR_ERR(chan) == -EPROBE_DEFER) {
 			uap->dma_probed = false;
@@ -813,10 +813,8 @@ __acquires(&uap->port.lock)
 	if (!uap->using_tx_dma)
 		return;
 
-	/* Avoid deadlock with the DMA engine callback */
-	spin_unlock(&uap->port.lock);
-	dmaengine_terminate_all(uap->dmatx.chan);
-	spin_lock(&uap->port.lock);
+	dmaengine_terminate_async(uap->dmatx.chan);
+
 	if (uap->dmatx.queued) {
 		dma_unmap_sg(uap->dmatx.chan->device->dev, &uap->dmatx.sg, 1,
 			     DMA_TO_DEVICE);
@@ -1236,10 +1234,6 @@ static inline bool pl011_dma_rx_running(struct uart_amba_port *uap)
 
 #else
 /* Blank functions if the DMA engine is not available */
-static inline void pl011_dma_probe(struct uart_amba_port *uap)
-{
-}
-
 static inline void pl011_dma_remove(struct uart_amba_port *uap)
 {
 }
