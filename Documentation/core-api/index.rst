@@ -39,6 +39,7 @@ Core utilities
    ../RCU/index
    gcc-plugins
    symbol-namespaces
+   ioctl
 
 
 Interfaces for kernel debugging
