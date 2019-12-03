@@ -375,11 +375,6 @@ static inline unsigned int blkdev_nr_zones(struct gendisk *disk)
 	return 0;
 }
 
-static inline int blk_revalidate_disk_zones(struct gendisk *disk)
-{
-	return 0;
-}
-
 static inline int blkdev_report_zones_ioctl(struct block_device *bdev,
 					    fmode_t mode, unsigned int cmd,
 					    unsigned long arg)

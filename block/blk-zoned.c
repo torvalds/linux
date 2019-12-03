@@ -419,8 +419,9 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
  *
  * Helper function for low-level device drivers to (re) allocate and initialize
  * a disk request queue zone bitmaps. This functions should normally be called
- * within the disk ->revalidate method. For BIO based queues, no zone bitmap
- * is allocated.
+ * within the disk ->revalidate method for blk-mq based drivers.  For BIO based
+ * drivers only q->nr_zones needs to be updated so that the sysfs exposed value
+ * is correct.
  */
 int blk_revalidate_disk_zones(struct gendisk *disk)
 {
@@ -433,15 +434,8 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 
 	if (WARN_ON_ONCE(!blk_queue_is_zoned(q)))
 		return -EIO;
-
-	/*
-	 * BIO based queues do not use a scheduler so only q->nr_zones
-	 * needs to be updated so that the sysfs exposed value is correct.
-	 */
-	if (!queue_is_mq(q)) {
-		q->nr_zones = args.nr_zones;
-		return 0;
-	}
+	if (WARN_ON_ONCE(!queue_is_mq(q)))
+		return -EIO;
 
 	/*
 	 * Ensure that all memory allocations in this context are done as

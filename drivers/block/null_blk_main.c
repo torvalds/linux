@@ -1576,11 +1576,17 @@ static int null_gendisk_register(struct nullb *nullb)
 	disk->queue		= nullb->q;
 	strncpy(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
 
+#ifdef CONFIG_BLK_DEV_ZONED
 	if (nullb->dev->zoned) {
-		ret = blk_revalidate_disk_zones(disk);
-		if (ret)
-			return ret;
+		if (queue_is_mq(nullb->q)) {
+			ret = blk_revalidate_disk_zones(disk);
+			if (ret)
+				return ret;
+		} else {
+			nullb->q->nr_zones = blkdev_nr_zones(disk);
+		}
 	}
+#endif
 
 	add_disk(disk);
 	return 0;
