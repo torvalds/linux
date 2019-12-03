@@ -31,6 +31,7 @@
 #define	VDPU1_SESSION_MAX_BUFFERS	40
 /* The maximum registers number of all the version */
 #define VDPU1_REG_NUM			60
+#define VDPU1_REG_HW_ID_INDEX		0
 #define VDPU1_REG_START_INDEX		0
 #define VDPU1_REG_END_INDEX		59
 
@@ -118,6 +119,7 @@ struct vdpu_dev {
 
 static struct mpp_hw_info vdpu_v1_hw_info = {
 	.reg_num = VDPU1_REG_NUM,
+	.regidx_id = VDPU1_REG_HW_ID_INDEX,
 	.regidx_start = VDPU1_REG_START_INDEX,
 	.regidx_end = VDPU1_REG_END_INDEX,
 	.regidx_en = VDPU1_REG_DEC_INT_EN_INDEX,
@@ -125,6 +127,7 @@ static struct mpp_hw_info vdpu_v1_hw_info = {
 
 static struct mpp_hw_info vdpu_pp_v1_hw_info = {
 	.reg_num = VDPU1_REG_PP_NUM,
+	.regidx_id = VDPU1_REG_HW_ID_INDEX,
 	.regidx_start = VDPU1_REG_PP_START_INDEX,
 	.regidx_end = VDPU1_REG_PP_END_INDEX,
 	.regidx_en = VDPU1_REG_DEC_INT_EN_INDEX,
@@ -463,6 +466,7 @@ static int vdpu_debugfs_init(struct mpp_dev *mpp)
 
 static int vdpu_init(struct mpp_dev *mpp)
 {
+	struct mpp_hw_info *hw_info;
 	struct vdpu_dev *dec = to_vdpu_dev(mpp);
 
 	mpp->grf_info = &mpp->srv->grf_infos[MPP_DRIVER_VDPU1];
@@ -488,6 +492,10 @@ static int vdpu_init(struct mpp_dev *mpp)
 		mpp_err("No hclk reset resource define\n");
 		dec->rst_h = NULL;
 	}
+
+	/* read hardware id*/
+	hw_info = mpp->var->hw_info;
+	hw_info->hw_id = mpp_read(mpp, hw_info->regidx_id);
 
 	return 0;
 }

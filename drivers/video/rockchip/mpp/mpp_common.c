@@ -742,6 +742,17 @@ static int mpp_process_request(struct mpp_session *session,
 		if (put_user(hw_support, (u32 __user *)req->data))
 			return -EFAULT;
 	} break;
+	case MPP_CMD_QUERY_HW_ID: {
+		struct mpp_hw_info *hw_info;
+
+		mpp = session->mpp;
+		if (!mpp)
+			return -EINVAL;
+		hw_info = mpp->var->hw_info;
+		mpp_debug(DEBUG_IOCTL, "hw_id %08x\n", hw_info->hw_id);
+		if (put_user(hw_info->hw_id, (u32 __user *)req->data))
+			return -EFAULT;
+	} break;
 	case MPP_CMD_INIT_CLIENT_TYPE: {
 		u32 client_type;
 

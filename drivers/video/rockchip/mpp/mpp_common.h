@@ -75,6 +75,7 @@ enum MPP_DRIVER_TYPE {
 enum MPP_DEV_COMMAND_TYPE {
 	MPP_CMD_QUERY_BASE		= 0,
 	MPP_CMD_QUERY_HW_SUPPORT	= MPP_CMD_QUERY_BASE + 0,
+	MPP_CMD_QUERY_HW_ID		= MPP_CMD_QUERY_BASE + 1,
 
 	MPP_CMD_INIT_BASE		= 0x100,
 	MPP_CMD_INIT_CLIENT_TYPE	= MPP_CMD_INIT_BASE + 0,
@@ -124,6 +125,9 @@ struct mpp_grf_info {
 struct mpp_hw_info {
 	/* register number */
 	u32 reg_num;
+	/* hardware id */
+	u32 regidx_id;
+	u32 hw_id;
 	/* start index of register */
 	u32 regidx_start;
 	/* end index of register */

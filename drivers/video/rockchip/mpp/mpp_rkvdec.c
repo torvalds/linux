@@ -45,14 +45,17 @@
 #define	RKVDEC_SESSION_MAX_BUFFERS	40
 /* The maximum registers number of all the version */
 #define HEVC_DEC_REG_NUM		68
+#define HEVC_DEC_REG_HW_ID_INDEX	0
 #define HEVC_DEC_REG_START_INDEX	0
 #define HEVC_DEC_REG_END_INDEX		67
 
 #define RKVDEC_V1_REG_NUM		78
+#define RKVDEC_V1_REG_HW_ID_INDEX	0
 #define RKVDEC_V1_REG_START_INDEX	0
 #define RKVDEC_V1_REG_END_INDEX		77
 
 #define RKVDEC_V2_REG_NUM		109
+#define RKVDEC_V2_REG_HW_ID_INDEX	0
 #define RKVDEC_V2_REG_START_INDEX	0
 #define RKVDEC_V2_REG_END_INDEX		108
 
@@ -187,6 +190,7 @@ struct rkvdec_dev {
  */
 static struct mpp_hw_info rk_hevcdec_hw_info = {
 	.reg_num = HEVC_DEC_REG_NUM,
+	.regidx_id = HEVC_DEC_REG_HW_ID_INDEX,
 	.regidx_start = HEVC_DEC_REG_START_INDEX,
 	.regidx_end = HEVC_DEC_REG_END_INDEX,
 	.regidx_en = RKVDEC_REG_INT_EN_INDEX,
@@ -194,6 +198,7 @@ static struct mpp_hw_info rk_hevcdec_hw_info = {
 
 static struct mpp_hw_info rkvdec_v1_hw_info = {
 	.reg_num = RKVDEC_V1_REG_NUM,
+	.regidx_id = RKVDEC_V1_REG_HW_ID_INDEX,
 	.regidx_start = RKVDEC_V1_REG_START_INDEX,
 	.regidx_end = RKVDEC_V1_REG_END_INDEX,
 	.regidx_en = RKVDEC_REG_INT_EN_INDEX,
@@ -991,6 +996,7 @@ static int rkvdec_debugfs_init(struct mpp_dev *mpp)
 
 static int rkvdec_init(struct mpp_dev *mpp)
 {
+	struct mpp_hw_info *hw_info;
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
 	mutex_init(&dec->sip_reset_lock);
@@ -1049,6 +1055,10 @@ static int rkvdec_init(struct mpp_dev *mpp)
 		mpp_err("No core reset resource define\n");
 		dec->rst_core = NULL;
 	}
+
+	/* read hardware id*/
+	hw_info = mpp->var->hw_info;
+	hw_info->hw_id = mpp_read(mpp, hw_info->regidx_id);
 
 	return 0;
 }

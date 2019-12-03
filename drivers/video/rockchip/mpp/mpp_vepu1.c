@@ -30,6 +30,7 @@
 #define	VEPU1_SESSION_MAX_BUFFERS	20
 /* The maximum registers number of all the version */
 #define VEPU1_REG_NUM			164
+#define VEPU1_REG_HW_ID_INDEX		0
 #define VEPU1_REG_START_INDEX		0
 #define VEPU1_REG_END_INDEX		163
 
@@ -95,6 +96,7 @@ struct vepu_dev {
 
 static struct mpp_hw_info vepu_v1_hw_info = {
 	.reg_num = VEPU1_REG_NUM,
+	.regidx_id = VEPU1_REG_HW_ID_INDEX,
 	.regidx_start = VEPU1_REG_START_INDEX,
 	.regidx_end = VEPU1_REG_END_INDEX,
 	.regidx_en = VEPU1_REG_ENC_EN_INDEX,
@@ -383,6 +385,7 @@ static int vepu_debugfs_init(struct mpp_dev *mpp)
 
 static int vepu_init(struct mpp_dev *mpp)
 {
+	struct mpp_hw_info *hw_info;
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
 	mpp->grf_info = &mpp->srv->grf_infos[MPP_DRIVER_VEPU1];
@@ -408,6 +411,10 @@ static int vepu_init(struct mpp_dev *mpp)
 		mpp_err("No hclk reset resource define\n");
 		enc->rst_h = NULL;
 	}
+
+	/* read hardware id*/
+	hw_info = mpp->var->hw_info;
+	hw_info->hw_id = mpp_read(mpp, hw_info->regidx_id);
 
 	return 0;
 }
