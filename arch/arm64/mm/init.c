@@ -214,15 +214,14 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 {
 	struct memblock_region *reg;
 	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
-	unsigned long max_dma32 = min;
-	unsigned long __maybe_unused max_dma = min;
+	unsigned long __maybe_unused max_dma, max_dma32;
 
 	memset(zone_size, 0, sizeof(zone_size));
 
+	max_dma = max_dma32 = min;
 #ifdef CONFIG_ZONE_DMA
-	max_dma = PFN_DOWN(arm64_dma_phys_limit);
+	max_dma = max_dma32 = PFN_DOWN(arm64_dma_phys_limit);
 	zone_size[ZONE_DMA] = max_dma - min;
-	max_dma32 = max_dma;
 #endif
 #ifdef CONFIG_ZONE_DMA32
 	max_dma32 = PFN_DOWN(arm64_dma32_phys_limit);
@@ -236,25 +235,23 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 		unsigned long start = memblock_region_memory_base_pfn(reg);
 		unsigned long end = memblock_region_memory_end_pfn(reg);
 
-		if (start >= max)
-			continue;
 #ifdef CONFIG_ZONE_DMA
-		if (start < max_dma) {
-			unsigned long dma_end = min_not_zero(end, max_dma);
+		if (start >= min && start < max_dma) {
+			unsigned long dma_end = min(end, max_dma);
 			zhole_size[ZONE_DMA] -= dma_end - start;
+			start = dma_end;
 		}
 #endif
 #ifdef CONFIG_ZONE_DMA32
-		if (start < max_dma32) {
+		if (start >= max_dma && start < max_dma32) {
 			unsigned long dma32_end = min(end, max_dma32);
-			unsigned long dma32_start = max(start, max_dma);
-			zhole_size[ZONE_DMA32] -= dma32_end - dma32_start;
+			zhole_size[ZONE_DMA32] -= dma32_end - start;
+			start = dma32_end;
 		}
 #endif
-		if (end > max_dma32) {
+		if (start >= max_dma32 && start < max) {
 			unsigned long normal_end = min(end, max);
-			unsigned long normal_start = max(start, max_dma32);
-			zhole_size[ZONE_NORMAL] -= normal_end - normal_start;
+			zhole_size[ZONE_NORMAL] -= normal_end - start;
 		}
 	}
 
