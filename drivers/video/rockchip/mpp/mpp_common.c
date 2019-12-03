@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -539,14 +540,15 @@ static int mpp_session_clear(struct mpp_dev *mpp,
 
 static int mpp_task_result(struct mpp_dev *mpp,
 			   struct mpp_task *task,
-			   struct mpp_task_msgs *msgs)
+			   struct mpp_task_msgs *msgs,
+			   u32 no_result)
 {
 	mpp_debug_enter();
 
 	if (!mpp || !task)
 		return -EINVAL;
 
-	if (mpp->dev_ops->result)
+	if (mpp->dev_ops->result && !no_result)
 		mpp->dev_ops->result(mpp, task, msgs);
 
 	mpp_free_task(task->session, task);
@@ -557,7 +559,8 @@ static int mpp_task_result(struct mpp_dev *mpp,
 }
 
 static int mpp_wait_result(struct mpp_session *session,
-			   struct mpp_task_msgs *msgs)
+			   struct mpp_task_msgs *msgs,
+			   u32 no_result)
 {
 	int ret;
 	struct mpp_task *task;
@@ -573,14 +576,13 @@ static int mpp_wait_result(struct mpp_session *session,
 				 !kfifo_is_empty(&session->done_fifo),
 				 msecs_to_jiffies(MPP_TIMEOUT_DELAY));
 	if (ret > 0) {
-		ret = 0;
 		task = mpp_session_pull_done(session);
-		mpp_task_result(mpp, task, msgs);
+		ret = mpp_task_result(mpp, task, msgs, no_result);
 	} else {
 		mpp_err("pid %d wait %d task done timeout.\n",
 			session->pid, atomic_read(&session->task_running));
-		ret = -ETIMEDOUT;
 		mpp_dev_abort(mpp);
+		ret = -ETIMEDOUT;
 	}
 	atomic_dec(&mpp->total_running);
 	mpp_power_off(mpp);
@@ -810,17 +812,98 @@ static int mpp_process_request(struct mpp_session *session,
 	} break;
 	case MPP_CMD_SET_REG_ADDR_OFFSET: {
 		memcpy(&msgs->reg_offset, req, sizeof(*req));
-		if (mpp_msg_is_last(req))
-			return mpp_process_task(session, msgs);
 	} break;
 	case MPP_CMD_SET_REG: {
 		memcpy(&msgs->reg_in, req, sizeof(*req));
-		if (mpp_msg_is_last(req))
-			return mpp_process_task(session, msgs);
 	} break;
-	case MPP_CMD_GET_REG: {
+	case MPP_CMD_GET_REG:
+	case MPP_CMD_POLL_HW_FINISH: {
 		memcpy(&msgs->reg_out, req, sizeof(*req));
-		return mpp_wait_result(session, msgs);
+	} break;
+	case MPP_CMD_RESET_SESSION: {
+		int ret;
+		int val;
+
+		ret = readx_poll_timeout(atomic_read,
+					 &session->task_running,
+					 val, val == 0, 1000, 50000);
+		if (ret == -ETIMEDOUT) {
+			mpp_err("wait task running time out\n");
+		} else {
+			mpp = session->mpp;
+			if (!mpp)
+				return -EINVAL;
+
+			mpp_session_clear(mpp, session);
+			down_write(&mpp->rw_sem);
+			ret = mpp_dma_session_destroy(session->dma);
+			up_write(&mpp->rw_sem);
+		}
+		return ret;
+	} break;
+	case MPP_CMD_TRANS_FD_TO_IOVA: {
+		u32 i;
+		u32 count;
+		u32 data[MPP_MAX_REG_TRANS_NUM];
+
+		mpp = session->mpp;
+		if (!mpp)
+			return -EINVAL;
+
+		if (req->size <= 0 ||
+		    req->size > sizeof(data))
+			return -EINVAL;
+
+		memset(data, 0, sizeof(data));
+		if (copy_from_user(data, req->data, req->size)) {
+			mpp_err("copy_from_user failed.\n");
+			return -EINVAL;
+		}
+		count = req->size / sizeof(u32);
+		for (i = 0; i < count; i++) {
+			struct mpp_dma_buffer *buffer;
+			int fd = data[i];
+
+			down_read(&mpp->rw_sem);
+			buffer = mpp_dma_import_fd(mpp->iommu_info,
+						   session->dma, fd);
+			up_read(&mpp->rw_sem);
+			if (IS_ERR_OR_NULL(buffer)) {
+				mpp_err("can not import fd %d\n", fd);
+				return -EINVAL;
+			}
+			data[i] = (u32)buffer->iova;
+			mpp_debug(DEBUG_IOMMU, "fd %d => iova %08x\n",
+				  fd, data[i]);
+		}
+		if (copy_to_user(req->data, data, req->size)) {
+			mpp_err("copy_to_user failed.\n");
+			return -EINVAL;
+		}
+	} break;
+	case MPP_CMD_RELEASE_FD: {
+		u32 i;
+		int ret;
+		u32 count;
+		u32 data[MPP_MAX_REG_TRANS_NUM];
+
+		if (req->size <= 0 ||
+		    req->size > sizeof(data))
+			return -EINVAL;
+
+		memset(data, 0, sizeof(data));
+		if (copy_from_user(data, req->data, req->size)) {
+			mpp_err("copy_from_user failed.\n");
+			return -EINVAL;
+		}
+		count = req->size / sizeof(u32);
+		for (i = 0; i < count; i++) {
+			ret = mpp_dma_release_fd_direct(session->dma, data[i]);
+			if (ret) {
+				mpp_err("release fd %d failed.\n", data[i]);
+				return ret;
+			}
+		}
 	} break;
 	default: {
 		mpp = session->mpp;
@@ -838,6 +921,29 @@ static int mpp_process_request(struct mpp_session *session,
 	}
 
 	return 0;
+}
+
+static int mpp_process_message(struct mpp_session *session,
+			       struct mpp_task_msgs *msgs)
+{
+	int ret = 0;
+	struct mpp_request *task_msg;
+
+	/* process message register in */
+	task_msg = &msgs->reg_in;
+	if (task_msg->cmd == MPP_CMD_SET_REG && task_msg->size > 0) {
+		ret = mpp_process_task(session, msgs);
+		if (ret)
+			return ret;
+	}
+	/* process message register out */
+	task_msg = &msgs->reg_out;
+	if (task_msg->cmd == MPP_CMD_POLL_HW_FINISH)
+		ret = mpp_wait_result(session, msgs, 1);
+	else if (task_msg->cmd == MPP_CMD_GET_REG)
+		ret = mpp_wait_result(session, msgs, 0);
+
+	return ret;
 }
 
 static long mpp_dev_ioctl(struct file *filp,
@@ -898,6 +1004,12 @@ static long mpp_dev_ioctl(struct file *filp,
 		ret = mpp_process_request(session, srv, &req, &task_msgs);
 		if (ret)
 			return -EFAULT;
+		/* last, process task message */
+		if (mpp_msg_is_last(&req)) {
+			ret = mpp_process_message(session, &task_msgs);
+			if (ret)
+				return -EFAULT;
+		}
 	} while (!mpp_msg_is_last(&req));
 
 	mpp_debug_leave();

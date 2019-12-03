@@ -64,8 +64,7 @@ int mpp_dma_free(struct mpp_dma_session *session,
 struct mpp_dma_buffer *
 mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 		  struct mpp_dma_session *session, int fd);
-int mpp_dma_release(struct mpp_dma_session *session,
-		    struct mpp_dma_buffer *buffer);
+int mpp_dma_release_fd_direct(struct mpp_dma_session *session, int fd);
 int mpp_dma_release_fd(struct mpp_dma_session *session, int fd);
 
 int mpp_dma_unmap_kernel(struct mpp_dma_session *session,

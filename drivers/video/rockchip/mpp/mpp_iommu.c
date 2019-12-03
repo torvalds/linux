@@ -17,6 +17,7 @@
 #include <linux/kref.h>
 #include <linux/slab.h>
 
+#include "mpp_debug.h"
 #include "mpp_iommu.h"
 
 static struct mpp_dma_buffer *
@@ -88,13 +89,19 @@ mpp_dma_remove_extra_buffer(struct mpp_dma_session *session)
 	return 0;
 }
 
-int mpp_dma_release(struct mpp_dma_session *session,
-		    struct mpp_dma_buffer *buffer)
+int mpp_dma_release_fd_direct(struct mpp_dma_session *session, int fd)
 {
-	if (IS_ERR_OR_NULL(buffer))
-		return -EINVAL;
+	struct device *dev = session->dev;
+	struct mpp_dma_buffer *buffer = NULL;
 
-	kref_put(&buffer->ref, mpp_dma_release_buffer);
+	buffer = mpp_dma_find_buffer_fd(session, fd);
+	if (IS_ERR_OR_NULL(buffer)) {
+		dev_err(dev, "can not find %d buffer in list\n", fd);
+
+		return -EINVAL;
+	}
+
+	mpp_dma_release_buffer(&buffer->ref);
 
 	return 0;
 }
@@ -166,30 +173,29 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	struct mpp_dma_buffer *buffer;
 	struct dma_buf_attachment *attach;
 
-	if (!session)
+	if (!session) {
+		mpp_err("session is null\n");
 		return ERR_PTR(-EINVAL);
+	}
 
 	/* remove the oldest before add buffer */
 	mpp_dma_remove_extra_buffer(session);
 
-	dmabuf = dma_buf_get(fd);
-	if (IS_ERR(dmabuf))
-		return NULL;
-
 	/* Check whether in session */
 	buffer = mpp_dma_find_buffer_fd(session, fd);
 	if (!IS_ERR_OR_NULL(buffer)) {
-		if (buffer->dmabuf == dmabuf) {
-			if (kref_get_unless_zero(&buffer->ref)) {
-				buffer->last_used = ktime_get();
-				dma_buf_put(dmabuf);
-				return buffer;
-			}
+		if (kref_get_unless_zero(&buffer->ref)) {
+			buffer->last_used = ktime_get();
+			return buffer;
 		}
 		dev_dbg(session->dev, "missing the fd %d\n", fd);
-		kref_put(&buffer->ref, mpp_dma_release_buffer);
 	}
 
+	dmabuf = dma_buf_get(fd);
+	if (IS_ERR(dmabuf)) {
+		mpp_err("dma_buf_get fd %d failed\n", fd);
+		return NULL;
+	}
 	/* A new DMA buffer */
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer) {
@@ -302,7 +308,7 @@ int mpp_dma_session_destroy(struct mpp_dma_session *session)
 	list_for_each_entry_safe(buffer, n,
 				 &session->buffer_list,
 				 list) {
-		kref_put(&buffer->ref, mpp_dma_release_buffer);
+		mpp_dma_release_buffer(&buffer->ref);
 	}
 
 	kfree(session);
