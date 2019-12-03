@@ -246,7 +246,7 @@ static int wm8505fb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops wm8505fb_ops = {
+static const struct fb_ops wm8505fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_set_par	= wm8505fb_set_par,
 	.fb_setcolreg	= wm8505fb_setcolreg,

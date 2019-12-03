@@ -111,7 +111,7 @@ static int g364fb_setcolreg(u_int regno, u_int red, u_int green,
 static int g364fb_cursor(struct fb_info *info, struct fb_cursor *cursor);
 static int g364fb_blank(int blank, struct fb_info *info);
 
-static struct fb_ops g364fb_ops = {
+static const struct fb_ops g364fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= g364fb_setcolreg,
 	.fb_pan_display	= g364fb_pan_display,

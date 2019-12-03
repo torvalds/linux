@@ -157,7 +157,7 @@ static int default_vmode __initdata = VMODE_NVRAM;
 static int default_cmode __initdata = CMODE_NVRAM;
 
 
-static struct fb_ops controlfb_ops = {
+static const struct fb_ops controlfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= controlfb_check_var,
 	.fb_set_par	= controlfb_set_par,

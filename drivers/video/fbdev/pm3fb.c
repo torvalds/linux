@@ -1200,7 +1200,7 @@ static int pm3fb_blank(int blank_mode, struct fb_info *info)
 	 *  Frame buffer operations
 	 */
 
-static struct fb_ops pm3fb_ops = {
+static const struct fb_ops pm3fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= pm3fb_check_var,
 	.fb_set_par	= pm3fb_set_par,

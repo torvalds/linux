@@ -1965,7 +1965,7 @@ static int radeonfb_set_par(struct fb_info *info)
 }
 
 
-static struct fb_ops radeonfb_ops = {
+static const struct fb_ops radeonfb_ops = {
 	.owner			= THIS_MODULE,
 	.fb_check_var		= radeonfb_check_var,
 	.fb_set_par		= radeonfb_set_par,

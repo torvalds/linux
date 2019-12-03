@@ -1307,7 +1307,7 @@ static int sstfb_setup(char *options)
 }
 
 
-static struct fb_ops sstfb_ops = {
+static const struct fb_ops sstfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= sstfb_check_var,
 	.fb_set_par	= sstfb_set_par,

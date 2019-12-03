@@ -1044,7 +1044,7 @@ static int gbefb_mmap(struct fb_info *info,
 	return 0;
 }
 
-static struct fb_ops gbefb_ops = {
+static const struct fb_ops gbefb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= gbefb_check_var,
 	.fb_set_par	= gbefb_set_par,

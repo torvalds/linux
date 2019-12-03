@@ -1101,7 +1101,7 @@ stifb_init_display(struct stifb_info *fb)
 
 /* ------------ Interfaces to hardware functions ------------ */
 
-static struct fb_ops stifb_ops = {
+static const struct fb_ops stifb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= stifb_setcolreg,
 	.fb_blank	= stifb_blank,

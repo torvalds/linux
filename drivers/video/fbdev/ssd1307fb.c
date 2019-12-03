@@ -280,7 +280,7 @@ static void ssd1307fb_imageblit(struct fb_info *info, const struct fb_image *ima
 	ssd1307fb_update_display(par);
 }
 
-static struct fb_ops ssd1307fb_ops = {
+static const struct fb_ops ssd1307fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_read	= fb_sys_read,
 	.fb_write	= ssd1307fb_write,

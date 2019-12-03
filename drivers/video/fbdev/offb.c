@@ -286,7 +286,7 @@ static void offb_destroy(struct fb_info *info)
 	framebuffer_release(info);
 }
 
-static struct fb_ops offb_ops = {
+static const struct fb_ops offb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_destroy	= offb_destroy,
 	.fb_setcolreg	= offb_setcolreg,

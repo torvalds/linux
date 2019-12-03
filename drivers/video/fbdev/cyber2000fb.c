@@ -1060,7 +1060,7 @@ static int cyber2000fb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops cyber2000fb_ops = {
+static const struct fb_ops cyber2000fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= cyber2000fb_check_var,
 	.fb_set_par	= cyber2000fb_set_par,

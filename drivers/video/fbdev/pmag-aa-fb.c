@@ -147,7 +147,7 @@ static int aafb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops aafb_ops = {
+static const struct fb_ops aafb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_blank	= aafb_blank,
 	.fb_fillrect	= cfb_fillrect,

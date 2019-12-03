@@ -423,7 +423,7 @@ static int clcdfb_mmap(struct fb_info *info,
 	return ret;
 }
 
-static struct fb_ops clcdfb_ops = {
+static const struct fb_ops clcdfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= clcdfb_check_var,
 	.fb_set_par	= clcdfb_set_par,

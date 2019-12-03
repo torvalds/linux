@@ -238,7 +238,7 @@ static int vt8500lcd_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops vt8500lcd_ops = {
+static const struct fb_ops vt8500lcd_ops = {
 	.owner		= THIS_MODULE,
 	.fb_set_par	= vt8500lcd_set_par,
 	.fb_setcolreg	= vt8500lcd_setcolreg,

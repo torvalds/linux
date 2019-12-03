@@ -549,7 +549,7 @@ static int w100fb_set_par(struct fb_info *info)
 /*
  *  Frame buffer operations
  */
-static struct fb_ops w100fb_ops = {
+static const struct fb_ops w100fb_ops = {
 	.owner        = THIS_MODULE,
 	.fb_check_var = w100fb_check_var,
 	.fb_set_par   = w100fb_set_par,

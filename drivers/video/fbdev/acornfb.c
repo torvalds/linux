@@ -604,7 +604,7 @@ acornfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops acornfb_ops = {
+static const struct fb_ops acornfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= acornfb_check_var,
 	.fb_set_par	= acornfb_set_par,

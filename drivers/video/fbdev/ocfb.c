@@ -285,7 +285,7 @@ static int ocfb_init_var(struct ocfb_dev *fbdev)
 	return 0;
 }
 
-static struct fb_ops ocfb_ops = {
+static const struct fb_ops ocfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= ocfb_setcolreg,
 	.fb_fillrect	= cfb_fillrect,

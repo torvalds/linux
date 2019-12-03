@@ -1483,7 +1483,7 @@ static int au1200fb_ioctl(struct fb_info *info, unsigned int cmd,
 }
 
 
-static struct fb_ops au1200fb_fb_ops = {
+static const struct fb_ops au1200fb_fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= au1200fb_fb_check_var,
 	.fb_set_par	= au1200fb_fb_set_par,

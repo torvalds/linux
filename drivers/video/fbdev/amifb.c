@@ -3493,7 +3493,7 @@ static irqreturn_t amifb_interrupt(int irq, void *dev_id)
 }
 
 
-static struct fb_ops amifb_ops = {
+static const struct fb_ops amifb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= amifb_check_var,
 	.fb_set_par	= amifb_set_par,

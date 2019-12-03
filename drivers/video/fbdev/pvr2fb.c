@@ -707,7 +707,7 @@ out_unmap:
 }
 #endif /* CONFIG_PVR2_DMA */
 
-static struct fb_ops pvr2fb_ops = {
+static const struct fb_ops pvr2fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= pvr2fb_setcolreg,
 	.fb_blank	= pvr2fb_blank,

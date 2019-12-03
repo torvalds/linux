@@ -1483,7 +1483,7 @@ static int pm2fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
  *  Frame buffer operations
  */
 
-static struct fb_ops pm2fb_ops = {
+static const struct fb_ops pm2fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= pm2fb_check_var,
 	.fb_set_par	= pm2fb_set_par,

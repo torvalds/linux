@@ -184,7 +184,7 @@ static int hpfb_sync(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops hpfb_ops = {
+static const struct fb_ops hpfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= hpfb_setcolreg,
 	.fb_blank	= hpfb_blank,

@@ -269,7 +269,7 @@ static int cobalt_lcdfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	return 0;
 }
 
-static struct fb_ops cobalt_lcd_fbops = {
+static const struct fb_ops cobalt_lcd_fbops = {
 	.owner		= THIS_MODULE,
 	.fb_read	= cobalt_lcdfb_read,
 	.fb_write	= cobalt_lcdfb_write,

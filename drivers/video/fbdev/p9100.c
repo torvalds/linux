@@ -37,7 +37,7 @@ static int p9100_ioctl(struct fb_info *, unsigned int, unsigned long);
  *  Frame buffer operations
  */
 
-static struct fb_ops p9100_ops = {
+static const struct fb_ops p9100_ops = {
 	.owner			= THIS_MODULE,
 	.fb_setcolreg		= p9100_setcolreg,
 	.fb_blank		= p9100_blank,

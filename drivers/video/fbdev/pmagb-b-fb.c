@@ -121,7 +121,7 @@ static int pmagbbfb_setcolreg(unsigned int regno, unsigned int red,
 	return 0;
 }
 
-static struct fb_ops pmagbbfb_ops = {
+static const struct fb_ops pmagbbfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= pmagbbfb_setcolreg,
 	.fb_fillrect	= cfb_fillrect,

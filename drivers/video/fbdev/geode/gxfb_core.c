@@ -265,7 +265,7 @@ static int gxfb_map_video_memory(struct fb_info *info, struct pci_dev *dev)
 	return 0;
 }
 
-static struct fb_ops gxfb_ops = {
+static const struct fb_ops gxfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= gxfb_check_var,
 	.fb_set_par	= gxfb_set_par,

@@ -1490,7 +1490,7 @@ sh_mobile_lcdc_overlay_mmap(struct fb_info *info, struct vm_area_struct *vma)
 				 ovl->dma_handle, ovl->fb_size);
 }
 
-static struct fb_ops sh_mobile_lcdc_overlay_ops = {
+static const struct fb_ops sh_mobile_lcdc_overlay_ops = {
 	.owner          = THIS_MODULE,
 	.fb_read        = fb_sys_read,
 	.fb_write       = fb_sys_write,
@@ -1964,7 +1964,7 @@ sh_mobile_lcdc_mmap(struct fb_info *info, struct vm_area_struct *vma)
 				 ch->dma_handle, ch->fb_size);
 }
 
-static struct fb_ops sh_mobile_lcdc_ops = {
+static const struct fb_ops sh_mobile_lcdc_ops = {
 	.owner          = THIS_MODULE,
 	.fb_setcolreg	= sh_mobile_lcdc_setcolreg,
 	.fb_read        = fb_sys_read,

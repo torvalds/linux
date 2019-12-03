@@ -186,7 +186,7 @@ static void e3d_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 	spin_unlock_irqrestore(&ep->lock, flags);
 }
 
-static struct fb_ops e3d_ops = {
+static const struct fb_ops e3d_ops = {
 	.owner			= THIS_MODULE,
 	.fb_setcolreg		= e3d_setcolreg,
 	.fb_fillrect		= e3d_fillrect,

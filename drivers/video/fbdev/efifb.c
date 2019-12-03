@@ -255,7 +255,7 @@ static void efifb_destroy(struct fb_info *info)
 	fb_dealloc_cmap(&info->cmap);
 }
 
-static struct fb_ops efifb_ops = {
+static const struct fb_ops efifb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_destroy	= efifb_destroy,
 	.fb_setcolreg	= efifb_setcolreg,

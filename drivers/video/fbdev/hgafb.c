@@ -523,7 +523,7 @@ static void hgafb_imageblit(struct fb_info *info, const struct fb_image *image)
 	}
 }
 
-static struct fb_ops hgafb_ops = {
+static const struct fb_ops hgafb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= hgafb_open,
 	.fb_release	= hgafb_release,

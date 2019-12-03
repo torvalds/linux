@@ -1294,7 +1294,7 @@ static int da8xxfb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops da8xx_fb_ops = {
+static const struct fb_ops da8xx_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = fb_check_var,
 	.fb_set_par = da8xxfb_set_par,

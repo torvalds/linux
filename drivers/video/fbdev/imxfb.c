@@ -566,7 +566,7 @@ static int imxfb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops imxfb_ops = {
+static const struct fb_ops imxfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= imxfb_check_var,
 	.fb_set_par	= imxfb_set_par,

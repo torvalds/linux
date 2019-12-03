@@ -96,7 +96,7 @@ static int mc68x328fb_pan_display(struct fb_var_screeninfo *var,
 			   struct fb_info *info);
 static int mc68x328fb_mmap(struct fb_info *info, struct vm_area_struct *vma);
 
-static struct fb_ops mc68x328fb_ops = {
+static const struct fb_ops mc68x328fb_ops = {
 	.fb_check_var	= mc68x328fb_check_var,
 	.fb_set_par	= mc68x328fb_set_par,
 	.fb_setcolreg	= mc68x328fb_setcolreg,

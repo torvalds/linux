@@ -70,7 +70,7 @@ static struct tc_driver tgafb_tc_driver;
  *  Frame buffer operations
  */
 
-static struct fb_ops tgafb_ops = {
+static const struct fb_ops tgafb_ops = {
 	.owner			= THIS_MODULE,
 	.fb_check_var		= tgafb_check_var,
 	.fb_set_par		= tgafb_set_par,

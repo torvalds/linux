@@ -454,7 +454,7 @@ static int mmpfb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops mmpfb_ops = {
+static const struct fb_ops mmpfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_blank	= mmpfb_blank,
 	.fb_check_var	= mmpfb_check_var,
