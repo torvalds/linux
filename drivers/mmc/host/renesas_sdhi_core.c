@@ -350,7 +350,7 @@ static void renesas_sdhi_hs400_complete(struct tmio_mmc_host *host)
 		       0x4 << SH_MOBILE_SDHI_SCC_DTCNTL_TAPNUM_SHIFT);
 
 
-	if (host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400)
+	if (priv->quirks && priv->quirks->hs400_4taps)
 		sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET,
 			       host->tap_set / 2);
 
@@ -488,7 +488,7 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 static bool renesas_sdhi_check_scc_error(struct tmio_mmc_host *host)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
-	bool use_4tap = host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400;
+	bool use_4tap = priv->quirks && priv->quirks->hs400_4taps;
 
 	/*
 	 * Skip checking SCC errors when running on 4 taps in HS400 mode as
@@ -719,9 +719,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	if (quirks && quirks->hs400_disabled)
 		host->mmc->caps2 &= ~(MMC_CAP2_HS400 | MMC_CAP2_HS400_ES);
-
-	if (quirks && quirks->hs400_4taps)
-		mmc_data->flags |= TMIO_MMC_HAVE_4TAP_HS400;
 
 	/* For some SoC, we disable internal WP. GPIO may override this */
 	if (mmc_can_gpio_ro(host->mmc))
