@@ -38,18 +38,6 @@
 			     <1 10 0xff04>;
 	};
 
-	pmu {
-		compatible = "arm,armv8-pmuv3";
-		interrupts = <0 7 4>,
-			     <0 8 4>,
-			     <0 9 4>,
-			     <0 10 4>,
-			     <0 11 4>,
-			     <0 12 4>,
-			     <0 13 4>,
-			     <0 14 4>;
-	};
-
 	smb0: smb {
 		compatible = "simple-bus";
 		#address-cells = <2>;
