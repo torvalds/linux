@@ -34,5 +34,7 @@ void mmhub_v9_4_init(struct amdgpu_device *adev);
 int mmhub_v9_4_set_clockgating(struct amdgpu_device *adev,
 			       enum amd_clockgating_state state);
 void mmhub_v9_4_get_clockgating(struct amdgpu_device *adev, u32 *flags);
+void mmhub_v9_4_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
+				uint64_t page_table_base);
 
 #endif

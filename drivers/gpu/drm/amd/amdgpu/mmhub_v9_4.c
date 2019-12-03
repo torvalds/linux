@@ -54,7 +54,7 @@ u64 mmhub_v9_4_get_fb_location(struct amdgpu_device *adev)
 	return base;
 }
 
-void mmhub_v9_4_setup_vm_pt_regs(struct amdgpu_device *adev, int hubid,
+static void mmhub_v9_4_setup_hubid_vm_pt_regs(struct amdgpu_device *adev, int hubid,
 				uint32_t vmid, uint64_t value)
 {
 	/* two registers distance between mmVML2VC0_VM_CONTEXT0_* to
@@ -80,7 +80,7 @@ static void mmhub_v9_4_init_gart_aperture_regs(struct amdgpu_device *adev,
 {
 	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
 
-	mmhub_v9_4_setup_vm_pt_regs(adev, hubid, 0, pt_base);
+	mmhub_v9_4_setup_hubid_vm_pt_regs(adev, hubid, 0, pt_base);
 
 	WREG32_SOC15_OFFSET(MMHUB, 0,
 			    mmVML2VC0_VM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
@@ -99,6 +99,16 @@ static void mmhub_v9_4_init_gart_aperture_regs(struct amdgpu_device *adev,
 			    mmVML2VC0_VM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
 			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
 			    (u32)(adev->gmc.gart_end >> 44));
+}
+
+void mmhub_v9_4_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
+				uint64_t page_table_base)
+{
+	int i;
+
+	for (i = 0; i < MMHUB_NUM_INSTANCES; i++)
+		mmhub_v9_4_setup_hubid_vm_pt_regs(adev, i, vmid,
+				page_table_base);
 }
 
 static void mmhub_v9_4_init_system_aperture_regs(struct amdgpu_device *adev,
