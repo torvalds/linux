@@ -386,13 +386,14 @@ static const struct vic_config vic_t194_config = {
 	.supports_sid = true,
 };
 
-static const struct of_device_id vic_match[] = {
+static const struct of_device_id tegra_vic_of_match[] = {
 	{ .compatible = "nvidia,tegra124-vic", .data = &vic_t124_config },
 	{ .compatible = "nvidia,tegra210-vic", .data = &vic_t210_config },
 	{ .compatible = "nvidia,tegra186-vic", .data = &vic_t186_config },
 	{ .compatible = "nvidia,tegra194-vic", .data = &vic_t194_config },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, tegra_vic_of_match);
 
 static int vic_probe(struct platform_device *pdev)
 {
@@ -516,7 +517,7 @@ static const struct dev_pm_ops vic_pm_ops = {
 struct platform_driver tegra_vic_driver = {
 	.driver = {
 		.name = "tegra-vic",
-		.of_match_table = vic_match,
+		.of_match_table = tegra_vic_of_match,
 		.pm = &vic_pm_ops
 	},
 	.probe = vic_probe,
