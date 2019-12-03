@@ -2149,13 +2149,17 @@ static struct ptp_clock_info ocelot_ptp_clock_info = {
 
 static int ocelot_init_timestamp(struct ocelot *ocelot)
 {
+	struct ptp_clock *ptp_clock;
+
 	ocelot->ptp_info = ocelot_ptp_clock_info;
-	ocelot->ptp_clock = ptp_clock_register(&ocelot->ptp_info, ocelot->dev);
-	if (IS_ERR(ocelot->ptp_clock))
-		return PTR_ERR(ocelot->ptp_clock);
+	ptp_clock = ptp_clock_register(&ocelot->ptp_info, ocelot->dev);
+	if (IS_ERR(ptp_clock))
+		return PTR_ERR(ptp_clock);
 	/* Check if PHC support is missing at the configuration level */
-	if (!ocelot->ptp_clock)
+	if (!ptp_clock)
 		return 0;
+
+	ocelot->ptp_clock = ptp_clock;
 
 	ocelot_write(ocelot, SYS_PTP_CFG_PTP_STAMP_WID(30), SYS_PTP_CFG);
 	ocelot_write(ocelot, 0xffffffff, ANA_TABLES_PTP_ID_LOW);
@@ -2489,6 +2493,8 @@ void ocelot_deinit(struct ocelot *ocelot)
 	destroy_workqueue(ocelot->stats_queue);
 	mutex_destroy(&ocelot->stats_lock);
 	ocelot_ace_deinit();
+	if (ocelot->ptp_clock)
+		ptp_clock_unregister(ocelot->ptp_clock);
 
 	for (i = 0; i < ocelot->num_phys_ports; i++) {
 		port = ocelot->ports[i];
