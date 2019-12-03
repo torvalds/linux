@@ -419,6 +419,7 @@ mode_fixup(struct drm_atomic_state *state)
 	for_each_new_connector_in_state(state, connector, new_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
+		struct drm_bridge *bridge;
 
 		WARN_ON(!!new_conn_state->best_encoder != !!new_conn_state->crtc);
 
@@ -435,7 +436,8 @@ mode_fixup(struct drm_atomic_state *state)
 		encoder = new_conn_state->best_encoder;
 		funcs = encoder->helper_private;
 
-		ret = drm_bridge_chain_mode_fixup(encoder->bridge,
+		bridge = drm_bridge_chain_get_first_bridge(encoder);
+		ret = drm_bridge_chain_mode_fixup(bridge,
 					&new_crtc_state->mode,
 					&new_crtc_state->adjusted_mode);
 		if (!ret) {
@@ -493,6 +495,7 @@ static enum drm_mode_status mode_valid_path(struct drm_connector *connector,
 					    struct drm_crtc *crtc,
 					    const struct drm_display_mode *mode)
 {
+	struct drm_bridge *bridge;
 	enum drm_mode_status ret;
 
 	ret = drm_encoder_mode_valid(encoder, mode);
@@ -502,7 +505,8 @@ static enum drm_mode_status mode_valid_path(struct drm_connector *connector,
 		return ret;
 	}
 
-	ret = drm_bridge_chain_mode_valid(encoder->bridge, mode);
+	bridge = drm_bridge_chain_get_first_bridge(encoder);
+	ret = drm_bridge_chain_mode_valid(bridge, mode);
 	if (ret != MODE_OK) {
 		DRM_DEBUG_ATOMIC("[BRIDGE] mode_valid() failed\n");
 		return ret;
@@ -985,6 +989,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 	for_each_oldnew_connector_in_state(old_state, connector, old_conn_state, new_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
+		struct drm_bridge *bridge;
 
 		/* Shut down everything that's in the changeset and currently
 		 * still on. So need to check the old, saved state. */
@@ -1021,7 +1026,8 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call disable hooks twice.
 		 */
-		drm_atomic_bridge_chain_disable(encoder->bridge, old_state);
+		bridge = drm_bridge_chain_get_first_bridge(encoder);
+		drm_atomic_bridge_chain_disable(bridge, old_state);
 
 		/* Right function depends upon target state. */
 		if (funcs) {
@@ -1035,8 +1041,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 				funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
 		}
 
-		drm_atomic_bridge_chain_post_disable(encoder->bridge,
-						     old_state);
+		drm_atomic_bridge_chain_post_disable(bridge, old_state);
 	}
 
 	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state, new_crtc_state, i) {
@@ -1190,6 +1195,7 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
 		struct drm_display_mode *mode, *adjusted_mode;
+		struct drm_bridge *bridge;
 
 		if (!new_conn_state->best_encoder)
 			continue;
@@ -1217,8 +1223,8 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 			funcs->mode_set(encoder, mode, adjusted_mode);
 		}
 
-		drm_bridge_chain_mode_set(encoder->bridge, mode,
-					  adjusted_mode);
+		bridge = drm_bridge_chain_get_first_bridge(encoder);
+		drm_bridge_chain_mode_set(bridge, mode, adjusted_mode);
 	}
 }
 
@@ -1317,6 +1323,7 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 	for_each_new_connector_in_state(old_state, connector, new_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
+		struct drm_bridge *bridge;
 
 		if (!new_conn_state->best_encoder)
 			continue;
@@ -1335,7 +1342,8 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call enable hooks twice.
 		 */
-		drm_atomic_bridge_chain_pre_enable(encoder->bridge, old_state);
+		bridge = drm_bridge_chain_get_first_bridge(encoder);
+		drm_atomic_bridge_chain_pre_enable(bridge, old_state);
 
 		if (funcs) {
 			if (funcs->atomic_enable)
@@ -1346,7 +1354,7 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 				funcs->commit(encoder);
 		}
 
-		drm_atomic_bridge_chain_enable(encoder->bridge, old_state);
+		drm_atomic_bridge_chain_enable(bridge, old_state);
 	}
 
 	drm_atomic_helper_commit_writebacks(dev, old_state);

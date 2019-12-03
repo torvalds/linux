@@ -25,6 +25,7 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_mode_object.h>
 #include <drm/drm_modes.h>
 
@@ -420,6 +421,20 @@ static inline struct drm_bridge *
 drm_bridge_get_next_bridge(struct drm_bridge *bridge)
 {
 	return bridge->next;
+}
+
+/**
+ * drm_bridge_chain_get_first_bridge() - Get the first bridge in the chain
+ * @encoder: encoder object
+ *
+ * RETURNS:
+ * the first bridge in the chain, or NULL if @encoder has no bridge attached
+ * to it.
+ */
+static inline struct drm_bridge *
+drm_bridge_chain_get_first_bridge(struct drm_encoder *encoder)
+{
+	return encoder->bridge;
 }
 
 bool drm_bridge_chain_mode_fixup(struct drm_bridge *bridge,

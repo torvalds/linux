@@ -14,6 +14,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -680,9 +681,10 @@ static void rcar_du_crtc_atomic_enable(struct drm_crtc *crtc,
 			rcdu->encoders[RCAR_DU_OUTPUT_LVDS0 + rcrtc->index];
 		const struct drm_display_mode *mode =
 			&crtc->state->adjusted_mode;
+		struct drm_bridge *bridge;
 
-		rcar_lvds_clk_enable(encoder->base.bridge,
-				     mode->clock * 1000);
+		bridge = drm_bridge_chain_get_first_bridge(&encoder->base);
+		rcar_lvds_clk_enable(bridge, mode->clock * 1000);
 	}
 
 	rcar_du_crtc_start(rcrtc);
@@ -702,12 +704,14 @@ static void rcar_du_crtc_atomic_disable(struct drm_crtc *crtc,
 	    rstate->outputs == BIT(RCAR_DU_OUTPUT_DPAD0)) {
 		struct rcar_du_encoder *encoder =
 			rcdu->encoders[RCAR_DU_OUTPUT_LVDS0 + rcrtc->index];
+		struct drm_bridge *bridge;
 
 		/*
 		 * Disable the LVDS clock output, see
 		 * rcar_du_crtc_atomic_enable().
 		 */
-		rcar_lvds_clk_disable(encoder->base.bridge);
+		bridge = drm_bridge_chain_get_first_bridge(&encoder->base);
+		rcar_lvds_clk_disable(bridge);
 	}
 
 	spin_lock_irq(&crtc->dev->event_lock);
