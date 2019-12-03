@@ -179,6 +179,17 @@
 		regulator-always-on;
 	};
 
+	vcc_otg_vbus: otg-vbus-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PD1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&otg_vbus_drv>;
+		regulator-name = "vcc_otg_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+	};
+
 	xin32k: xin32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
@@ -608,6 +619,11 @@
 		phy-supply = <&vcc_host>;
 		status = "okay";
 	};
+
+	u2phy_otg: otg-port {
+		vbus-supply = <&vcc_otg_vbus>;
+		status = "okay";
+	};
 };
 
 &usb_host0_ehci {
@@ -695,6 +711,10 @@
 	usb2 {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		otg_vbus_drv: otg-bus-drv {
+			rockchip,pins = <0 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
