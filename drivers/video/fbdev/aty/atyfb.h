@@ -341,7 +341,7 @@ extern const u8 aty_postdividers[8];
      *  Hardware cursor support
      */
 
-extern int aty_init_cursor(struct fb_info *info);
+extern int aty_init_cursor(struct fb_info *info, struct fb_ops *atyfb_ops);
 
     /*
      *  Hardware acceleration
