@@ -2725,8 +2725,11 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 		ql_log(ql_log_warn + ql_dbg_verbose, vha, 0xffff,
 		    "Region %x is secure\n", region.code);
 
-		if (region.code == FLT_REG_FW ||
-		    region.code == FLT_REG_FW_SEC_27XX) {
+		switch (region.code) {
+		case FLT_REG_FW:
+		case FLT_REG_FW_SEC_27XX:
+		case FLT_REG_MPI_PRI_28XX:
+		case FLT_REG_MPI_SEC_28XX:
 			fw_array = dwptr;
 
 			/* 1st fw array */
@@ -2757,9 +2760,23 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 				buf_size_without_sfub += risc_size;
 				fw_array += risc_size;
 			}
-		} else {
-			ql_log(ql_log_warn + ql_dbg_verbose, vha, 0xffff,
-			    "Secure region %x not supported\n",
+			break;
+
+		case FLT_REG_PEP_PRI_28XX:
+		case FLT_REG_PEP_SEC_28XX:
+			fw_array = dwptr;
+
+			/* 1st fw array */
+			risc_size = be32_to_cpu(fw_array[3]);
+			risc_attr = be32_to_cpu(fw_array[9]);
+
+			buf_size_without_sfub = risc_size;
+			fw_array += risc_size;
+			break;
+
+		default:
+			ql_log(ql_log_warn + ql_dbg_verbose, vha,
+			    0xffff, "Secure region %x not supported\n",
 			    region.code);
 			rval = QLA_COMMAND_ERROR;
 			goto done;
