@@ -9246,7 +9246,7 @@ int register_netdevice(struct net_device *dev)
 		if (ret) {
 			if (ret > 0)
 				ret = -EIO;
-			goto out;
+			goto err_free_name;
 		}
 	}
 
@@ -9361,12 +9361,12 @@ out:
 	return ret;
 
 err_uninit:
-	if (dev->name_node)
-		netdev_name_node_free(dev->name_node);
 	if (dev->netdev_ops->ndo_uninit)
 		dev->netdev_ops->ndo_uninit(dev);
 	if (dev->priv_destructor)
 		dev->priv_destructor(dev);
+err_free_name:
+	netdev_name_node_free(dev->name_node);
 	goto out;
 }
 EXPORT_SYMBOL(register_netdevice);
