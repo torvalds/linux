@@ -579,12 +579,15 @@
 	INTEL_VGA_DEVICE(0x8A51, info), \
 	INTEL_VGA_DEVICE(0x8A5D, info)
 
-/* EHL */
+/* EHL/JSL */
 #define INTEL_EHL_IDS(info) \
 	INTEL_VGA_DEVICE(0x4500, info),	\
 	INTEL_VGA_DEVICE(0x4571, info), \
 	INTEL_VGA_DEVICE(0x4551, info), \
-	INTEL_VGA_DEVICE(0x4541, info)
+	INTEL_VGA_DEVICE(0x4541, info), \
+	INTEL_VGA_DEVICE(0x4E71, info), \
+	INTEL_VGA_DEVICE(0x4E61, info), \
+	INTEL_VGA_DEVICE(0x4E51, info)
 
 /* TGL */
 #define INTEL_TGL_12_IDS(info) \
