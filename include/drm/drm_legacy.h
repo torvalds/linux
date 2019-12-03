@@ -38,7 +38,9 @@
 #include <drm/drm_hashtab.h>
 
 struct drm_device;
+struct drm_driver;
 struct file;
+struct pci_driver;
 
 /*
  * Legacy Support for palateontologic DRM drivers
@@ -188,8 +190,33 @@ do {										\
 void drm_legacy_idlelock_take(struct drm_lock_data *lock);
 void drm_legacy_idlelock_release(struct drm_lock_data *lock);
 
-/* drm_pci.c dma alloc wrappers */
+/* drm_pci.c */
+
+#ifdef CONFIG_PCI
+
 void __drm_legacy_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
+int drm_legacy_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
+void drm_legacy_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
+
+#else
+
+static inline void __drm_legacy_pci_free(struct drm_device *dev,
+					 drm_dma_handle_t *dmah)
+{
+}
+
+static inline int drm_legacy_pci_init(struct drm_driver *driver,
+				      struct pci_driver *pdriver)
+{
+	return -EINVAL;
+}
+
+static inline void drm_legacy_pci_exit(struct drm_driver *driver,
+				       struct pci_driver *pdriver)
+{
+}
+
+#endif
 
 /* drm_memory.c */
 void drm_legacy_ioremap(struct drm_local_map *map, struct drm_device *dev);

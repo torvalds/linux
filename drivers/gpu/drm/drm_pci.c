@@ -282,6 +282,8 @@ err_free:
 }
 EXPORT_SYMBOL(drm_get_pci_dev);
 
+#ifdef CONFIG_DRM_LEGACY
+
 /**
  * drm_legacy_pci_init - shadow-attach a legacy DRM PCI driver
  * @driver: DRM device driver
@@ -354,3 +356,5 @@ void drm_legacy_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 	DRM_INFO("Module unloaded\n");
 }
 EXPORT_SYMBOL(drm_legacy_pci_exit);
+
+#endif
