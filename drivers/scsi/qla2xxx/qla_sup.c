@@ -2897,7 +2897,7 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 			    "Sending Secure Flash MB Cmd\n");
 			rval = qla28xx_secure_flash_update(vha, 0, region.code,
 				buf_size_without_sfub, sfub_dma,
-				sizeof(struct secure_flash_update_block));
+				sizeof(struct secure_flash_update_block) >> 2);
 			if (rval != QLA_SUCCESS) {
 				ql_log(ql_log_warn, vha, 0xffff,
 				    "Secure Flash MB Cmd failed %x.", rval);
