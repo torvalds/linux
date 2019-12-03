@@ -3483,7 +3483,7 @@ static bool dcn20_resource_construct(
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.hw_3d_lut = true;
-	dc->caps.extended_aux_timeout_support = false;
+	dc->caps.extended_aux_timeout_support = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV) {
 		dc->debug = debug_defaults_drv;
