@@ -1381,11 +1381,8 @@ int ionic_lif_rss_config(struct ionic_lif *lif, const u16 types,
 
 static int ionic_lif_rss_init(struct ionic_lif *lif)
 {
-	u8 rss_key[IONIC_RSS_HASH_KEY_SIZE];
 	unsigned int tbl_sz;
 	unsigned int i;
-
-	netdev_rss_key_fill(rss_key, IONIC_RSS_HASH_KEY_SIZE);
 
 	lif->rss_types = IONIC_RSS_TYPE_IPV4     |
 			 IONIC_RSS_TYPE_IPV4_TCP |
@@ -1399,12 +1396,18 @@ static int ionic_lif_rss_init(struct ionic_lif *lif)
 	for (i = 0; i < tbl_sz; i++)
 		lif->rss_ind_tbl[i] = ethtool_rxfh_indir_default(i, lif->nxqs);
 
-	return ionic_lif_rss_config(lif, lif->rss_types, rss_key, NULL);
+	return ionic_lif_rss_config(lif, lif->rss_types, NULL, NULL);
 }
 
-static int ionic_lif_rss_deinit(struct ionic_lif *lif)
+static void ionic_lif_rss_deinit(struct ionic_lif *lif)
 {
-	return ionic_lif_rss_config(lif, 0x0, NULL, NULL);
+	int tbl_sz;
+
+	tbl_sz = le16_to_cpu(lif->ionic->ident.lif.eth.rss_ind_tbl_sz);
+	memset(lif->rss_ind_tbl, 0, tbl_sz);
+	memset(lif->rss_hash_key, 0, IONIC_RSS_HASH_KEY_SIZE);
+
+	ionic_lif_rss_config(lif, 0x0, NULL, NULL);
 }
 
 static void ionic_txrx_disable(struct ionic_lif *lif)
@@ -1729,6 +1732,7 @@ static struct ionic_lif *ionic_lif_alloc(struct ionic *ionic, unsigned int index
 		dev_err(dev, "Failed to allocate rss indirection table, aborting\n");
 		goto err_out_free_qcqs;
 	}
+	netdev_rss_key_fill(lif->rss_hash_key, IONIC_RSS_HASH_KEY_SIZE);
 
 	list_add_tail(&lif->list, &ionic->lifs);
 
