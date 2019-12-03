@@ -23,10 +23,10 @@
  */
 
 #include <linux/firmware.h>
-#include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
 
-#include <drm/drm_pci.h>
 #include <drm/radeon_drm.h>
 
 #include "atom.h"

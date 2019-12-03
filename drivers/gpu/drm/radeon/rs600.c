@@ -37,9 +37,9 @@
  */
 
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/pci.h>
 
 #include <drm/drm_device.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_vblank.h>
 
 #include "atom.h"

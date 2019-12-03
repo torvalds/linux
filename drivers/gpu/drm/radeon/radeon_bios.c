@@ -26,11 +26,11 @@
  *          Jerome Glisse
  */
 
-#include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
 
 #include <drm/drm_device.h>
-#include <drm/drm_pci.h>
 
 #include "atom.h"
 #include "radeon.h"

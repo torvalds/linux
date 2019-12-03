@@ -23,9 +23,9 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 
-#include <drm/drm_pci.h>
 #include <drm/drm_vblank.h>
 #include <drm/radeon_drm.h>
 

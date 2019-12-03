@@ -26,13 +26,13 @@
  *          Jerome Glisse
  */
 
+#include <linux/pci.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_pci.h>
 
 #include "atom.h"
 #include "r100d.h"

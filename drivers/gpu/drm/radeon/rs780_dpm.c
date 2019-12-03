@@ -22,9 +22,8 @@
  * Authors: Alex Deucher
  */
 
+#include <linux/pci.h>
 #include <linux/seq_file.h>
-
-#include <drm/drm_pci.h>
 
 #include "atom.h"
 #include "r600_dpm.h"
