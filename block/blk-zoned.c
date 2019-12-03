@@ -332,15 +332,15 @@ static inline unsigned long *blk_alloc_zone_bitmap(int node,
 
 void blk_queue_free_zone_bitmaps(struct request_queue *q)
 {
-	kfree(q->seq_zones_bitmap);
-	q->seq_zones_bitmap = NULL;
+	kfree(q->conv_zones_bitmap);
+	q->conv_zones_bitmap = NULL;
 	kfree(q->seq_zones_wlock);
 	q->seq_zones_wlock = NULL;
 }
 
 struct blk_revalidate_zone_args {
 	struct gendisk	*disk;
-	unsigned long	*seq_zones_bitmap;
+	unsigned long	*conv_zones_bitmap;
 	unsigned long	*seq_zones_wlock;
 	sector_t	sector;
 };
@@ -394,8 +394,8 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 		return -ENODEV;
 	}
 
-	if (zone->type != BLK_ZONE_TYPE_CONVENTIONAL)
-		set_bit(idx, args->seq_zones_bitmap);
+	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
+		set_bit(idx, args->conv_zones_bitmap);
 
 	args->sector += zone->len;
 	return 0;
@@ -415,8 +415,8 @@ static int blk_update_zone_info(struct gendisk *disk, unsigned int nr_zones,
 	args->seq_zones_wlock = blk_alloc_zone_bitmap(q->node, nr_zones);
 	if (!args->seq_zones_wlock)
 		return -ENOMEM;
-	args->seq_zones_bitmap = blk_alloc_zone_bitmap(q->node, nr_zones);
-	if (!args->seq_zones_bitmap)
+	args->conv_zones_bitmap = blk_alloc_zone_bitmap(q->node, nr_zones);
+	if (!args->conv_zones_bitmap)
 		return -ENOMEM;
 
 	ret = disk->fops->report_zones(disk, 0, nr_zones,
@@ -465,7 +465,7 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	if (ret >= 0) {
 		q->nr_zones = nr_zones;
 		swap(q->seq_zones_wlock, args.seq_zones_wlock);
-		swap(q->seq_zones_bitmap, args.seq_zones_bitmap);
+		swap(q->conv_zones_bitmap, args.conv_zones_bitmap);
 		ret = 0;
 	} else {
 		pr_warn("%s: failed to revalidate zones\n", disk->disk_name);
@@ -474,7 +474,7 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	blk_mq_unfreeze_queue(q);
 
 	kfree(args.seq_zones_wlock);
-	kfree(args.seq_zones_bitmap);
+	kfree(args.conv_zones_bitmap);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(blk_revalidate_disk_zones);
