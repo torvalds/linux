@@ -520,7 +520,7 @@ struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
 				label = &new_profile->label;
 			continue;
 		}
-		label = aa_label_parse(&profile->label, *name, GFP_ATOMIC,
+		label = aa_label_parse(&profile->label, *name, GFP_KERNEL,
 				       true, false);
 		if (IS_ERR(label))
 			label = NULL;
@@ -600,7 +600,7 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 		/* base the stack on post domain transition */
 		struct aa_label *base = new;
 
-		new = aa_label_parse(base, stack, GFP_ATOMIC, true, false);
+		new = aa_label_parse(base, stack, GFP_KERNEL, true, false);
 		if (IS_ERR(new))
 			new = NULL;
 		aa_put_label(base);
@@ -685,20 +685,9 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 	} else if (COMPLAIN_MODE(profile)) {
 		/* no exec permission - learning mode */
 		struct aa_profile *new_profile = NULL;
-		char *n = kstrdup(name, GFP_ATOMIC);
 
-		if (n) {
-			/* name is ptr into buffer */
-			long pos = name - buffer;
-			/* break per cpu buffer hold */
-			put_buffers(buffer);
-			new_profile = aa_new_null_profile(profile, false, n,
-							  GFP_KERNEL);
-			get_buffers(buffer);
-			name = buffer + pos;
-			strcpy((char *)name, n);
-			kfree(n);
-		}
+		new_profile = aa_new_null_profile(profile, false, name,
+						  GFP_KERNEL);
 		if (!new_profile) {
 			error = -ENOMEM;
 			info = "could not create null profile";
@@ -719,7 +708,7 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 		if (DEBUG_ON) {
 			dbg_printk("apparmor: scrubbing environment variables"
 				   " for %s profile=", name);
-			aa_label_printk(new, GFP_ATOMIC);
+			aa_label_printk(new, GFP_KERNEL);
 			dbg_printk("\n");
 		}
 		*secure_exec = true;
@@ -795,7 +784,7 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 		if (DEBUG_ON) {
 			dbg_printk("apparmor: scrubbing environment "
 				   "variables for %s label=", xname);
-			aa_label_printk(onexec, GFP_ATOMIC);
+			aa_label_printk(onexec, GFP_KERNEL);
 			dbg_printk("\n");
 		}
 		*secure_exec = true;
@@ -829,7 +818,7 @@ static struct aa_label *handle_onexec(struct aa_label *label,
 					       bprm, buffer, cond, unsafe));
 		if (error)
 			return ERR_PTR(error);
-		new = fn_label_build_in_ns(label, profile, GFP_ATOMIC,
+		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
 				aa_get_newest_label(onexec),
 				profile_transition(profile, bprm, buffer,
 						   cond, unsafe));
@@ -841,9 +830,9 @@ static struct aa_label *handle_onexec(struct aa_label *label,
 					       buffer, cond, unsafe));
 		if (error)
 			return ERR_PTR(error);
-		new = fn_label_build_in_ns(label, profile, GFP_ATOMIC,
+		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
 				aa_label_merge(&profile->label, onexec,
-					       GFP_ATOMIC),
+					       GFP_KERNEL),
 				profile_transition(profile, bprm, buffer,
 						   cond, unsafe));
 	}
@@ -903,13 +892,18 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		ctx->nnp = aa_get_label(label);
 
 	/* buffer freed below, name is pointer into buffer */
-	get_buffers(buffer);
+	buffer = aa_get_buffer(false);
+	if (!buffer) {
+		error = -ENOMEM;
+		goto done;
+	}
+
 	/* Test for onexec first as onexec override other x transitions. */
 	if (ctx->onexec)
 		new = handle_onexec(label, ctx->onexec, ctx->token,
 				    bprm, buffer, &cond, &unsafe);
 	else
-		new = fn_label_build(label, profile, GFP_ATOMIC,
+		new = fn_label_build(label, profile, GFP_KERNEL,
 				profile_transition(profile, bprm, buffer,
 						   &cond, &unsafe));
 
@@ -953,7 +947,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		if (DEBUG_ON) {
 			dbg_printk("scrubbing environment variables for %s "
 				   "label=", bprm->filename);
-			aa_label_printk(new, GFP_ATOMIC);
+			aa_label_printk(new, GFP_KERNEL);
 			dbg_printk("\n");
 		}
 		bprm->secureexec = 1;
@@ -964,7 +958,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		if (DEBUG_ON) {
 			dbg_printk("apparmor: clearing unsafe personality "
 				   "bits. %s label=", bprm->filename);
-			aa_label_printk(new, GFP_ATOMIC);
+			aa_label_printk(new, GFP_KERNEL);
 			dbg_printk("\n");
 		}
 		bprm->per_clear |= PER_CLEAR_ON_SETID;
@@ -975,7 +969,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 
 done:
 	aa_put_label(label);
-	put_buffers(buffer);
+	aa_put_buffer(buffer);
 
 	return error;
 
