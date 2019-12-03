@@ -1368,7 +1368,7 @@ static int load_pd_dir(struct i915_request *rq, const struct i915_ppgtt *ppgtt)
 	const struct intel_engine_cs * const engine = rq->engine;
 	u32 *cs;
 
-	cs = intel_ring_begin(rq, 10);
+	cs = intel_ring_begin(rq, 12);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -1380,34 +1380,19 @@ static int load_pd_dir(struct i915_request *rq, const struct i915_ppgtt *ppgtt)
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine->mmio_base));
 	*cs++ = intel_gt_scratch_offset(rq->engine->gt,
 					INTEL_GT_SCRATCH_FIELD_DEFAULT);
-	*cs++ = MI_NOOP;
 
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
 	*cs++ = px_base(ppgtt->pd)->ggtt_offset << 10;
 
-	intel_ring_advance(rq, cs);
-
-	return 0;
-}
-
-static int flush_pd_dir(struct i915_request *rq)
-{
-	const struct intel_engine_cs * const engine = rq->engine;
-	u32 *cs;
-
-	cs = intel_ring_begin(rq, 4);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	/* Stall until the page table load is complete */
+	/* Stall until the page table load is complete? */
 	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
 	*cs++ = intel_gt_scratch_offset(rq->engine->gt,
 					INTEL_GT_SCRATCH_FIELD_DEFAULT);
-	*cs++ = MI_NOOP;
 
 	intel_ring_advance(rq, cs);
+
 	return 0;
 }
 
@@ -1593,19 +1578,7 @@ static int switch_context(struct i915_request *rq)
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
 	if (vm) {
-		struct intel_engine_cs *engine = rq->engine;
-
-		ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm));
-		if (ret)
-			return ret;
-
-		ret = engine->emit_flush(rq, EMIT_INVALIDATE);
-		if (ret)
-			return ret;
-
-		ret = flush_pd_dir(rq);
-		if (ret)
-			return ret;
+		int loops = 4; /* 2 for Haswell? 4 for Baytrail! */
 
 		/*
 		 * Not only do we need a full barrier (post-sync write) after
@@ -1615,11 +1588,17 @@ static int switch_context(struct i915_request *rq)
 		 * post-sync op, this extra pass appears vital before a
 		 * mm switch!
 		 */
-		ret = engine->emit_flush(rq, EMIT_INVALIDATE);
-		if (ret)
-			return ret;
+		do {
+			ret = rq->engine->emit_flush(rq, EMIT_FLUSH);
+			if (ret)
+				return ret;
 
-		ret = engine->emit_flush(rq, EMIT_FLUSH);
+			ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm));
+			if (ret)
+				return ret;
+		} while (--loops);
+
+		ret = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
 		if (ret)
 			return ret;
 	}
