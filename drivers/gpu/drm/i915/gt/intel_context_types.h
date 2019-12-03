@@ -55,6 +55,7 @@ struct intel_context {
 
 	unsigned long flags;
 #define CONTEXT_ALLOC_BIT 0
+#define CONTEXT_VALID_BIT 1
 
 	u32 *lrc_reg_state;
 	u64 lrc_desc;

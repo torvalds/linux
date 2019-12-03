@@ -4102,6 +4102,7 @@ populate_lr_context(struct intel_context *ce,
 
 		memcpy(vaddr, defaults, engine->context_size);
 		i915_gem_object_unpin_map(engine->default_state);
+		__set_bit(CONTEXT_VALID_BIT, &ce->flags);
 		inhibit = false;
 	}
 

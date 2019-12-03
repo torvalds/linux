@@ -1319,6 +1319,8 @@ static int ring_context_alloc(struct intel_context *ce)
 			return PTR_ERR(vma);
 
 		ce->state = vma;
+		if (engine->default_state)
+			__set_bit(CONTEXT_VALID_BIT, &ce->flags);
 	}
 
 	return 0;
@@ -1625,7 +1627,7 @@ static int switch_context(struct i915_request *rq)
 	if (ce->state) {
 		GEM_BUG_ON(rq->engine->id != RCS0);
 
-		if (!rq->engine->default_state)
+		if (!test_bit(CONTEXT_VALID_BIT, &ce->flags))
 			hw_flags = MI_RESTORE_INHIBIT;
 
 		ret = mi_set_context(rq, hw_flags);

@@ -147,6 +147,7 @@ static void __intel_context_retire(struct i915_active *active)
 	GEM_TRACE("%s context:%llx retire\n",
 		  ce->engine->name, ce->timeline->fence_context);
 
+	set_bit(CONTEXT_VALID_BIT, &ce->flags);
 	if (ce->state)
 		__context_unpin_state(ce->state);
 
