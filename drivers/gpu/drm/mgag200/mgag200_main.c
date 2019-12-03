@@ -8,9 +8,10 @@
  *          Dave Airlie
  */
 
+#include <linux/pci.h>
+
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_pci.h>
 
 #include "mgag200_drv.h"
 
