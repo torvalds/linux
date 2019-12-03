@@ -175,7 +175,6 @@ static irqreturn_t dc_rtc_irq(int irq, void *dev_id)
 
 static int __init dc_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct dc_rtc *rtc;
 	int irq, ret;
 
@@ -183,8 +182,7 @@ static int __init dc_rtc_probe(struct platform_device *pdev)
 	if (!rtc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rtc->regs = devm_ioremap_resource(&pdev->dev, res);
+	rtc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->regs))
 		return PTR_ERR(rtc->regs);
 

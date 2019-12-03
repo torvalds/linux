@@ -900,16 +900,6 @@ err:
 	return ret;
 }
 
-static int abb5zes3_remove(struct i2c_client *client)
-{
-	struct abb5zes3_rtc_data *rtc_data = dev_get_drvdata(&client->dev);
-
-	if (rtc_data->irq > 0)
-		device_init_wakeup(&client->dev, false);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int abb5zes3_rtc_suspend(struct device *dev)
 {
@@ -956,7 +946,6 @@ static struct i2c_driver abb5zes3_driver = {
 		.of_match_table = of_match_ptr(abb5zes3_dt_match),
 	},
 	.probe	  = abb5zes3_probe,
-	.remove	  = abb5zes3_remove,
 	.id_table = abb5zes3_id,
 };
 module_i2c_driver(abb5zes3_driver);

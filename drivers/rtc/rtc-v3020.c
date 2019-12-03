@@ -284,7 +284,6 @@ static int rtc_probe(struct platform_device *pdev)
 	struct v3020 *chip;
 	int retval = -EBUSY;
 	int i;
-	int temp;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -302,7 +301,7 @@ static int rtc_probe(struct platform_device *pdev)
 	/* Make sure the v3020 expects a communication cycle
 	 * by reading 8 times */
 	for (i = 0; i < 8; i++)
-		temp = chip->ops->read_bit(chip);
+		chip->ops->read_bit(chip);
 
 	/* Test chip by doing a write/read sequence
 	 * to the chip ram */

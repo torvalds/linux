@@ -15,8 +15,6 @@
 #include <linux/rtc.h>
 #include <linux/spi/spi.h>
 
-#define DRV_NAME	"rtc-ds1302"
-
 #define	RTC_CMD_READ	0x81		/* Read command */
 #define	RTC_CMD_WRITE	0x80		/* Write command */
 

@@ -70,7 +70,7 @@ static int rtc_valid_range(struct rtc_device *rtc, struct rtc_time *tm)
 		time64_t time = rtc_tm_to_time64(tm);
 		time64_t range_min = rtc->set_start_time ? rtc->start_secs :
 			rtc->range_min;
-		time64_t range_max = rtc->set_start_time ?
+		timeu64_t range_max = rtc->set_start_time ?
 			(rtc->start_secs + rtc->range_max - rtc->range_min) :
 			rtc->range_max;
 
@@ -125,7 +125,7 @@ EXPORT_SYMBOL_GPL(rtc_read_time);
 
 int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 {
-	int err;
+	int err, uie;
 
 	err = rtc_valid_tm(tm);
 	if (err != 0)
@@ -136,6 +136,17 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 		return err;
 
 	rtc_subtract_offset(rtc, tm);
+
+#ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
+	uie = rtc->uie_rtctimer.enabled || rtc->uie_irq_active;
+#else
+	uie = rtc->uie_rtctimer.enabled;
+#endif
+	if (uie) {
+		err = rtc_update_irq_enable(rtc, 0);
+		if (err)
+			return err;
+	}
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
@@ -152,6 +163,12 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 	mutex_unlock(&rtc->ops_lock);
 	/* A timer might have just expired */
 	schedule_work(&rtc->irqwork);
+
+	if (uie) {
+		err = rtc_update_irq_enable(rtc, 1);
+		if (err)
+			return err;
+	}
 
 	trace_rtc_set_time(rtc_tm_to_time64(tm), err);
 	return err;
@@ -528,7 +545,7 @@ EXPORT_SYMBOL_GPL(rtc_alarm_irq_enable);
 
 int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled)
 {
-	int err;
+	int rc = 0, err;
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
@@ -553,7 +570,9 @@ int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled)
 		struct rtc_time tm;
 		ktime_t now, onesec;
 
-		__rtc_read_time(rtc, &tm);
+		rc = __rtc_read_time(rtc, &tm);
+		if (rc)
+			goto out;
 		onesec = ktime_set(1, 0);
 		now = rtc_tm_to_ktime(tm);
 		rtc->uie_rtctimer.node.expires = ktime_add(now, onesec);
@@ -565,6 +584,16 @@ int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled)
 
 out:
 	mutex_unlock(&rtc->ops_lock);
+
+	/*
+	 * __rtc_read_time() failed, this probably means that the RTC time has
+	 * never been set or less probably there is a transient error on the
+	 * bus. In any case, avoid enabling emulation has this will fail when
+	 * reading the time too.
+	 */
+	if (rc)
+		return rc;
+
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	/*
 	 * Enable emulation if the driver returned -EINVAL to signal that it has
@@ -581,6 +610,8 @@ EXPORT_SYMBOL_GPL(rtc_update_irq_enable);
 /**
  * rtc_handle_legacy_irq - AIE, UIE and PIE event hook
  * @rtc: pointer to the rtc device
+ * @num: number of occurence of the event
+ * @mode: type of the event, RTC_AF, RTC_UF of RTC_PF
  *
  * This function is called when an AIE, UIE or PIE mode interrupt
  * has occurred (or been emulated).
@@ -761,8 +792,8 @@ int rtc_irq_set_freq(struct rtc_device *rtc, int freq)
 
 /**
  * rtc_timer_enqueue - Adds a rtc_timer to the rtc_device timerqueue
- * @rtc rtc device
- * @timer timer being added.
+ * @rtc: rtc device
+ * @timer: timer being added.
  *
  * Enqueues a timer onto the rtc devices timerqueue and sets
  * the next alarm event appropriately.
@@ -821,8 +852,8 @@ static void rtc_alarm_disable(struct rtc_device *rtc)
 
 /**
  * rtc_timer_remove - Removes a rtc_timer from the rtc_device timerqueue
- * @rtc rtc device
- * @timer timer being removed.
+ * @rtc: rtc device
+ * @timer: timer being removed.
  *
  * Removes a timer onto the rtc devices timerqueue and sets
  * the next alarm event appropriately.
@@ -859,8 +890,7 @@ static void rtc_timer_remove(struct rtc_device *rtc, struct rtc_timer *timer)
 
 /**
  * rtc_timer_do_work - Expires rtc timers
- * @rtc rtc device
- * @timer timer being removed.
+ * @work: work item
  *
  * Expires rtc timers. Reprograms next alarm event if needed.
  * Called via worktask.
@@ -993,8 +1023,8 @@ void rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer)
 
 /**
  * rtc_read_offset - Read the amount of rtc offset in parts per billion
- * @ rtc: rtc device to be used
- * @ offset: the offset in parts per billion
+ * @rtc: rtc device to be used
+ * @offset: the offset in parts per billion
  *
  * see below for details.
  *
@@ -1022,8 +1052,8 @@ int rtc_read_offset(struct rtc_device *rtc, long *offset)
 
 /**
  * rtc_set_offset - Adjusts the duration of the average second
- * @ rtc: rtc device to be used
- * @ offset: the offset in parts per billion
+ * @rtc: rtc device to be used
+ * @offset: the offset in parts per billion
  *
  * Some rtc's allow an adjustment to the average duration of a second
  * to compensate for differences in the actual clock rate due to temperature,

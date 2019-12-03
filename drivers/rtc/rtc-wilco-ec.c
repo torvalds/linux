@@ -110,10 +110,12 @@ static int wilco_ec_rtc_read(struct device *dev, struct rtc_time *tm)
 	tm->tm_mday	= rtc.day;
 	tm->tm_mon	= rtc.month - 1;
 	tm->tm_year	= rtc.year + (rtc.century * 100) - 1900;
-	tm->tm_yday	= rtc_year_days(tm->tm_mday, tm->tm_mon, tm->tm_year);
+	/* Ignore other tm fields, man rtc says userspace shouldn't use them. */
 
-	/* Don't compute day of week, we don't need it. */
-	tm->tm_wday = -1;
+	if (rtc_valid_tm(tm)) {
+		dev_err(dev, "Time from RTC is invalid: %ptRr\n", tm);
+		return -EIO;
+	}
 
 	return 0;
 }

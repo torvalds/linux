@@ -103,7 +103,7 @@ static int tegra_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct tegra_rtc_info *info = dev_get_drvdata(dev);
 	unsigned long flags;
-	u32 sec, msec;
+	u32 sec;
 
 	/*
 	 * RTC hardware copies seconds to shadow seconds when a read of
@@ -111,7 +111,7 @@ static int tegra_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	 */
 	spin_lock_irqsave(&info->lock, flags);
 
-	msec = readl(info->base + TEGRA_RTC_REG_MILLI_SECONDS);
+	readl(info->base + TEGRA_RTC_REG_MILLI_SECONDS);
 	sec = readl(info->base + TEGRA_RTC_REG_SHADOW_SECONDS);
 
 	spin_unlock_irqrestore(&info->lock, flags);
@@ -277,15 +277,13 @@ MODULE_DEVICE_TABLE(of, tegra_rtc_dt_match);
 static int tegra_rtc_probe(struct platform_device *pdev)
 {
 	struct tegra_rtc_info *info;
-	struct resource *res;
 	int ret;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->base = devm_ioremap_resource(&pdev->dev, res);
+	info->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->base))
 		return PTR_ERR(info->base);
 
