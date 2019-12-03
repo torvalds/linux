@@ -26,7 +26,7 @@ Additional requirements are listed below based on patch type
 
 - If the patch is a cherry-pick from Linux mainline with no changes at all
     - tag the patch subject with `UPSTREAM:`.
-    - add upstream commit information with a `(cherry-picked from ...)` line
+    - add upstream commit information with a `(cherry picked from commit ...)` line
     - Example:
         - if the upstream commit message is
 ```
@@ -46,14 +46,14 @@ Additional requirements are listed below based on patch type
 
         Bug: 135791357
         Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        (cherry-picked from c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
+        (cherry picked from commit c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
         Signed-off-by: Joe Smith <joe.smith@foo.org>
 ```
 
 - If the patch requires any changes from the upstream version, tag the patch with `BACKPORT:`
 instead of `UPSTREAM:`.
     - use the same tags as `UPSTREAM:`
-    - add comments about the changes under the `(cherry-picked from ...)` line
+    - add comments about the changes under the `(cherry picked from commit ...)` line
     - Example:
 ```
         BACKPORT: important patch from upstream
@@ -64,7 +64,7 @@ instead of `UPSTREAM:`.
 
         Bug: 135791357
         Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        (cherry-picked from c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
+        (cherry picked from commit c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
         [ Resolved minor conflict in drivers/foo/bar.c ]
         Signed-off-by: Joe Smith <joe.smith@foo.org>
 ```
