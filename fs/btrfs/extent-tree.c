@@ -3438,7 +3438,6 @@ btrfs_release_block_group(struct btrfs_block_group *cache,
  */
 struct find_free_extent_ctl {
 	/* Basic allocation info */
-	u64 ram_bytes;
 	u64 num_bytes;
 	u64 empty_size;
 	u64 flags;
@@ -3810,7 +3809,6 @@ static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 
 	WARN_ON(num_bytes < fs_info->sectorsize);
 
-	ffe_ctl.ram_bytes = ram_bytes;
 	ffe_ctl.num_bytes = num_bytes;
 	ffe_ctl.empty_size = empty_size;
 	ffe_ctl.flags = flags;
