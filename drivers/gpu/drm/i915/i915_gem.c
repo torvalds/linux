@@ -119,9 +119,22 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 			   unsigned long flags)
 {
-	struct i915_vma *vma;
+	struct intel_runtime_pm *rpm = &to_i915(obj->base.dev)->runtime_pm;
 	LIST_HEAD(still_in_list);
+	intel_wakeref_t wakeref;
+	struct i915_vma *vma;
 	int ret = 0;
+
+	if (!atomic_read(&obj->bind_count))
+		return 0;
+
+	/*
+	 * As some machines use ACPI to handle runtime-resume callbacks, and
+	 * ACPI is quite kmalloc happy, we cannot resume beneath the vm->mutex
+	 * as they are required by the shrinker. Ergo, we wake the device up
+	 * first just in case.
+	 */
+	wakeref = intel_runtime_pm_get(rpm);
 
 	spin_lock(&obj->vma.lock);
 	while (!ret && (vma = list_first_entry_or_null(&obj->vma.list,
@@ -145,6 +158,8 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 	}
 	list_splice(&still_in_list, &obj->vma.list);
 	spin_unlock(&obj->vma.lock);
+
+	intel_runtime_pm_put(rpm, wakeref);
 
 	return ret;
 }
