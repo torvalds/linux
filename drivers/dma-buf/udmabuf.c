@@ -47,10 +47,10 @@ static int mmap_udmabuf(struct dma_buf *buf, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct sg_table *map_udmabuf(struct dma_buf_attachment *at,
-				    enum dma_data_direction direction)
+static struct sg_table *get_sg_table(struct device *dev, struct dma_buf *buf,
+				     enum dma_data_direction direction)
 {
-	struct udmabuf *ubuf = at->dmabuf->priv;
+	struct udmabuf *ubuf = buf->priv;
 	struct sg_table *sg;
 	int ret;
 
@@ -62,7 +62,7 @@ static struct sg_table *map_udmabuf(struct dma_buf_attachment *at,
 					GFP_KERNEL);
 	if (ret < 0)
 		goto err;
-	if (!dma_map_sg(at->dev, sg->sgl, sg->nents, direction)) {
+	if (!dma_map_sg(dev, sg->sgl, sg->nents, direction)) {
 		ret = -EINVAL;
 		goto err;
 	}
@@ -74,13 +74,25 @@ err:
 	return ERR_PTR(ret);
 }
 
+static void put_sg_table(struct device *dev, struct sg_table *sg,
+			 enum dma_data_direction direction)
+{
+	dma_unmap_sg(dev, sg->sgl, sg->nents, direction);
+	sg_free_table(sg);
+	kfree(sg);
+}
+
+static struct sg_table *map_udmabuf(struct dma_buf_attachment *at,
+				    enum dma_data_direction direction)
+{
+	return get_sg_table(at->dev, at->dmabuf, direction);
+}
+
 static void unmap_udmabuf(struct dma_buf_attachment *at,
 			  struct sg_table *sg,
 			  enum dma_data_direction direction)
 {
-	dma_unmap_sg(at->dev, sg->sgl, sg->nents, direction);
-	sg_free_table(sg);
-	kfree(sg);
+	return put_sg_table(at->dev, sg, direction);
 }
 
 static void release_udmabuf(struct dma_buf *buf)
