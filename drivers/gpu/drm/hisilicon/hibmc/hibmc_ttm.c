@@ -15,6 +15,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_print.h>
 
@@ -97,74 +98,8 @@ int hibmc_dumb_create(struct drm_file *file, struct drm_device *dev,
 	return 0;
 }
 
-static void hibmc_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct hibmc_framebuffer *hibmc_fb = to_hibmc_framebuffer(fb);
-
-	drm_gem_object_put_unlocked(hibmc_fb->obj);
-	drm_framebuffer_cleanup(fb);
-	kfree(hibmc_fb);
-}
-
-static const struct drm_framebuffer_funcs hibmc_fb_funcs = {
-	.destroy = hibmc_user_framebuffer_destroy,
-};
-
-struct hibmc_framebuffer *
-hibmc_framebuffer_init(struct drm_device *dev,
-		       const struct drm_mode_fb_cmd2 *mode_cmd,
-		       struct drm_gem_object *obj)
-{
-	struct hibmc_framebuffer *hibmc_fb;
-	int ret;
-
-	hibmc_fb = kzalloc(sizeof(*hibmc_fb), GFP_KERNEL);
-	if (!hibmc_fb) {
-		DRM_ERROR("failed to allocate hibmc_fb\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	drm_helper_mode_fill_fb_struct(dev, &hibmc_fb->fb, mode_cmd);
-	hibmc_fb->obj = obj;
-	ret = drm_framebuffer_init(dev, &hibmc_fb->fb, &hibmc_fb_funcs);
-	if (ret) {
-		DRM_ERROR("drm_framebuffer_init failed: %d\n", ret);
-		kfree(hibmc_fb);
-		return ERR_PTR(ret);
-	}
-
-	return hibmc_fb;
-}
-
-static struct drm_framebuffer *
-hibmc_user_framebuffer_create(struct drm_device *dev,
-			      struct drm_file *filp,
-			      const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	struct drm_gem_object *obj;
-	struct hibmc_framebuffer *hibmc_fb;
-
-	DRM_DEBUG_DRIVER("%dx%d, format %c%c%c%c\n",
-			 mode_cmd->width, mode_cmd->height,
-			 (mode_cmd->pixel_format) & 0xff,
-			 (mode_cmd->pixel_format >> 8)  & 0xff,
-			 (mode_cmd->pixel_format >> 16) & 0xff,
-			 (mode_cmd->pixel_format >> 24) & 0xff);
-
-	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
-	if (!obj)
-		return ERR_PTR(-ENOENT);
-
-	hibmc_fb = hibmc_framebuffer_init(dev, mode_cmd, obj);
-	if (IS_ERR(hibmc_fb)) {
-		drm_gem_object_put_unlocked(obj);
-		return ERR_PTR((long)hibmc_fb);
-	}
-	return &hibmc_fb->fb;
-}
-
 const struct drm_mode_config_funcs hibmc_mode_funcs = {
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
-	.fb_create = hibmc_user_framebuffer_create,
+	.fb_create = drm_gem_fb_create,
 };

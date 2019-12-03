@@ -20,11 +20,6 @@
 struct drm_device;
 struct drm_gem_object;
 
-struct hibmc_framebuffer {
-	struct drm_framebuffer fb;
-	struct drm_gem_object *obj;
-};
-
 struct hibmc_drm_private {
 	/* hw */
 	void __iomem   *mmio;
@@ -38,8 +33,6 @@ struct hibmc_drm_private {
 	bool mode_config_initialized;
 };
 
-#define to_hibmc_framebuffer(x) container_of(x, struct hibmc_framebuffer, fb)
-
 void hibmc_set_power_mode(struct hibmc_drm_private *priv,
 			  unsigned int power_mode);
 void hibmc_set_current_gate(struct hibmc_drm_private *priv,
@@ -50,10 +43,6 @@ int hibmc_vdac_init(struct hibmc_drm_private *priv);
 
 int hibmc_gem_create(struct drm_device *dev, u32 size, bool iskernel,
 		     struct drm_gem_object **obj);
-struct hibmc_framebuffer *
-hibmc_framebuffer_init(struct drm_device *dev,
-		       const struct drm_mode_fb_cmd2 *mode_cmd,
-		       struct drm_gem_object *obj);
 
 int hibmc_mm_init(struct hibmc_drm_private *hibmc);
 void hibmc_mm_fini(struct hibmc_drm_private *hibmc);
