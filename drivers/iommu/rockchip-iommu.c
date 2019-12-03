@@ -1108,6 +1108,14 @@ static int rk_iommu_add_device(struct device *dev)
 
 	data->defer_attach = false;
 
+	/* set max segment size for dev, needed for single chunk map */
+	if (!dev->dma_parms)
+		dev->dma_parms = kzalloc(sizeof(*dev->dma_parms), GFP_KERNEL);
+	if (!dev->dma_parms)
+		return -ENOMEM;
+
+	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
+
 	return 0;
 }
 
@@ -1117,6 +1125,9 @@ static void rk_iommu_remove_device(struct device *dev)
 	struct rk_iommudata *data = dev->archdata.iommu;
 
 	iommu = rk_iommu_from_dev(dev);
+
+	kfree(dev->dma_parms);
+	dev->dma_parms = NULL;
 
 	device_link_del(data->link);
 	iommu_device_unlink(&iommu->iommu, dev);
