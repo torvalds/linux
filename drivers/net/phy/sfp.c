@@ -1754,6 +1754,10 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 			break;
 		}
 
+		err = sfp_hwmon_insert(sfp);
+		if (err)
+			dev_warn(sfp->dev, "hwmon probe failed: %d\n", err);
+
 		sfp_sm_mod_next(sfp, SFP_MOD_WAITDEV, 0);
 		/* fall through */
 	case SFP_MOD_WAITDEV:
@@ -1803,15 +1807,6 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 	case SFP_MOD_ERROR:
 		break;
 	}
-
-#if IS_ENABLED(CONFIG_HWMON)
-	if (sfp->sm_mod_state >= SFP_MOD_WAITDEV &&
-	    IS_ERR_OR_NULL(sfp->hwmon_dev)) {
-		err = sfp_hwmon_insert(sfp);
-		if (err)
-			dev_warn(sfp->dev, "hwmon probe failed: %d\n", err);
-	}
-#endif
 }
 
 static void sfp_sm_main(struct sfp *sfp, unsigned int event)
