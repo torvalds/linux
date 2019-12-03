@@ -514,23 +514,16 @@ static int padata_replace_one(struct padata_shell *ps)
 
 static int padata_replace(struct padata_instance *pinst)
 {
-	int notification_mask = 0;
 	struct padata_shell *ps;
 	int err;
 
 	pinst->flags |= PADATA_RESET;
 
-	cpumask_copy(pinst->omask, pinst->rcpumask.pcpu);
 	cpumask_and(pinst->rcpumask.pcpu, pinst->cpumask.pcpu,
 		    cpu_online_mask);
-	if (!cpumask_equal(pinst->omask, pinst->rcpumask.pcpu))
-		notification_mask |= PADATA_CPU_PARALLEL;
 
-	cpumask_copy(pinst->omask, pinst->rcpumask.cbcpu);
 	cpumask_and(pinst->rcpumask.cbcpu, pinst->cpumask.cbcpu,
 		    cpu_online_mask);
-	if (!cpumask_equal(pinst->omask, pinst->rcpumask.cbcpu))
-		notification_mask |= PADATA_CPU_SERIAL;
 
 	list_for_each_entry(ps, &pinst->pslist, list) {
 		err = padata_replace_one(ps);
@@ -544,47 +537,10 @@ static int padata_replace(struct padata_instance *pinst)
 		if (atomic_dec_and_test(&ps->opd->refcnt))
 			padata_free_pd(ps->opd);
 
-	if (notification_mask)
-		blocking_notifier_call_chain(&pinst->cpumask_change_notifier,
-					     notification_mask,
-					     &pinst->cpumask);
-
 	pinst->flags &= ~PADATA_RESET;
 
 	return err;
 }
-
-/**
- * padata_register_cpumask_notifier - Registers a notifier that will be called
- *                             if either pcpu or cbcpu or both cpumasks change.
- *
- * @pinst: A poineter to padata instance
- * @nblock: A pointer to notifier block.
- */
-int padata_register_cpumask_notifier(struct padata_instance *pinst,
-				     struct notifier_block *nblock)
-{
-	return blocking_notifier_chain_register(&pinst->cpumask_change_notifier,
-						nblock);
-}
-EXPORT_SYMBOL(padata_register_cpumask_notifier);
-
-/**
- * padata_unregister_cpumask_notifier - Unregisters cpumask notifier
- *        registered earlier  using padata_register_cpumask_notifier
- *
- * @pinst: A pointer to data instance.
- * @nlock: A pointer to notifier block.
- */
-int padata_unregister_cpumask_notifier(struct padata_instance *pinst,
-				       struct notifier_block *nblock)
-{
-	return blocking_notifier_chain_unregister(
-		&pinst->cpumask_change_notifier,
-		nblock);
-}
-EXPORT_SYMBOL(padata_unregister_cpumask_notifier);
-
 
 /* If cpumask contains no active cpu, we mark the instance as invalid. */
 static bool padata_validate_cpumask(struct padata_instance *pinst,
@@ -785,7 +741,6 @@ static void __padata_free(struct padata_instance *pinst)
 	WARN_ON(!list_empty(&pinst->pslist));
 
 	padata_stop(pinst);
-	free_cpumask_var(pinst->omask);
 	free_cpumask_var(pinst->rcpumask.cbcpu);
 	free_cpumask_var(pinst->rcpumask.pcpu);
 	free_cpumask_var(pinst->cpumask.pcpu);
@@ -965,8 +920,6 @@ static struct padata_instance *padata_alloc(const char *name,
 		goto err_free_masks;
 	if (!alloc_cpumask_var(&pinst->rcpumask.cbcpu, GFP_KERNEL))
 		goto err_free_rcpumask_pcpu;
-	if (!alloc_cpumask_var(&pinst->omask, GFP_KERNEL))
-		goto err_free_rcpumask_cbcpu;
 
 	INIT_LIST_HEAD(&pinst->pslist);
 
@@ -976,11 +929,10 @@ static struct padata_instance *padata_alloc(const char *name,
 	cpumask_and(pinst->rcpumask.cbcpu, cbcpumask, cpu_online_mask);
 
 	if (padata_setup_cpumasks(pinst))
-		goto err_free_omask;
+		goto err_free_rcpumask_cbcpu;
 
 	pinst->flags = 0;
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&pinst->cpumask_change_notifier);
 	kobject_init(&pinst->kobj, &padata_attr_type);
 	mutex_init(&pinst->lock);
 
@@ -994,8 +946,6 @@ static struct padata_instance *padata_alloc(const char *name,
 
 	return pinst;
 
-err_free_omask:
-	free_cpumask_var(pinst->omask);
 err_free_rcpumask_cbcpu:
 	free_cpumask_var(pinst->rcpumask.cbcpu);
 err_free_rcpumask_pcpu:

@@ -13,7 +13,6 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
 #include <linux/kobject.h>
 
 #define PADATA_CPU_SERIAL   0x01
@@ -151,10 +150,6 @@ struct padata_shell {
  * @pslist: List of padata_shell objects attached to this instance.
  * @cpumask: User supplied cpumasks for parallel and serial works.
  * @rcpumask: Actual cpumasks based on user cpumask and cpu_online_mask.
- * @omask: Temporary storage used to compute the notification mask.
- * @cpumask_change_notifier: Notifiers chain for user-defined notify
- *            callbacks that will be called when either @pcpu or @cbcpu
- *            or both cpumasks change.
  * @kobj: padata instance kernel object.
  * @lock: padata instance lock.
  * @flags: padata flags.
@@ -166,8 +161,6 @@ struct padata_instance {
 	struct list_head		pslist;
 	struct padata_cpumask		cpumask;
 	struct padata_cpumask		rcpumask;
-	cpumask_var_t			omask;
-	struct blocking_notifier_head	 cpumask_change_notifier;
 	struct kobject                   kobj;
 	struct mutex			 lock;
 	u8				 flags;
@@ -187,8 +180,4 @@ extern int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 			      cpumask_var_t cpumask);
 extern int padata_start(struct padata_instance *pinst);
 extern void padata_stop(struct padata_instance *pinst);
-extern int padata_register_cpumask_notifier(struct padata_instance *pinst,
-					    struct notifier_block *nblock);
-extern int padata_unregister_cpumask_notifier(struct padata_instance *pinst,
-					      struct notifier_block *nblock);
 #endif
