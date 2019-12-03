@@ -56,8 +56,13 @@ struct fl_flow_key {
 	struct flow_dissector_key_ip ip;
 	struct flow_dissector_key_ip enc_ip;
 	struct flow_dissector_key_enc_opts enc_opts;
-	struct flow_dissector_key_ports tp_min;
-	struct flow_dissector_key_ports tp_max;
+	union {
+		struct flow_dissector_key_ports tp;
+		struct {
+			struct flow_dissector_key_ports tp_min;
+			struct flow_dissector_key_ports tp_max;
+		};
+	} tp_range;
 	struct flow_dissector_key_ct ct;
 } __aligned(BITS_PER_LONG / 8); /* Ensure that we can do comparisons as longs. */
 
@@ -200,19 +205,19 @@ static bool fl_range_port_dst_cmp(struct cls_fl_filter *filter,
 {
 	__be16 min_mask, max_mask, min_val, max_val;
 
-	min_mask = htons(filter->mask->key.tp_min.dst);
-	max_mask = htons(filter->mask->key.tp_max.dst);
-	min_val = htons(filter->key.tp_min.dst);
-	max_val = htons(filter->key.tp_max.dst);
+	min_mask = htons(filter->mask->key.tp_range.tp_min.dst);
+	max_mask = htons(filter->mask->key.tp_range.tp_max.dst);
+	min_val = htons(filter->key.tp_range.tp_min.dst);
+	max_val = htons(filter->key.tp_range.tp_max.dst);
 
 	if (min_mask && max_mask) {
-		if (htons(key->tp.dst) < min_val ||
-		    htons(key->tp.dst) > max_val)
+		if (htons(key->tp_range.tp.dst) < min_val ||
+		    htons(key->tp_range.tp.dst) > max_val)
 			return false;
 
 		/* skb does not have min and max values */
-		mkey->tp_min.dst = filter->mkey.tp_min.dst;
-		mkey->tp_max.dst = filter->mkey.tp_max.dst;
+		mkey->tp_range.tp_min.dst = filter->mkey.tp_range.tp_min.dst;
+		mkey->tp_range.tp_max.dst = filter->mkey.tp_range.tp_max.dst;
 	}
 	return true;
 }
@@ -223,19 +228,19 @@ static bool fl_range_port_src_cmp(struct cls_fl_filter *filter,
 {
 	__be16 min_mask, max_mask, min_val, max_val;
 
-	min_mask = htons(filter->mask->key.tp_min.src);
-	max_mask = htons(filter->mask->key.tp_max.src);
-	min_val = htons(filter->key.tp_min.src);
-	max_val = htons(filter->key.tp_max.src);
+	min_mask = htons(filter->mask->key.tp_range.tp_min.src);
+	max_mask = htons(filter->mask->key.tp_range.tp_max.src);
+	min_val = htons(filter->key.tp_range.tp_min.src);
+	max_val = htons(filter->key.tp_range.tp_max.src);
 
 	if (min_mask && max_mask) {
-		if (htons(key->tp.src) < min_val ||
-		    htons(key->tp.src) > max_val)
+		if (htons(key->tp_range.tp.src) < min_val ||
+		    htons(key->tp_range.tp.src) > max_val)
 			return false;
 
 		/* skb does not have min and max values */
-		mkey->tp_min.src = filter->mkey.tp_min.src;
-		mkey->tp_max.src = filter->mkey.tp_max.src;
+		mkey->tp_range.tp_min.src = filter->mkey.tp_range.tp_min.src;
+		mkey->tp_range.tp_max.src = filter->mkey.tp_range.tp_max.src;
 	}
 	return true;
 }
@@ -734,23 +739,25 @@ static void fl_set_key_val(struct nlattr **tb,
 static int fl_set_key_port_range(struct nlattr **tb, struct fl_flow_key *key,
 				 struct fl_flow_key *mask)
 {
-	fl_set_key_val(tb, &key->tp_min.dst,
-		       TCA_FLOWER_KEY_PORT_DST_MIN, &mask->tp_min.dst,
-		       TCA_FLOWER_UNSPEC, sizeof(key->tp_min.dst));
-	fl_set_key_val(tb, &key->tp_max.dst,
-		       TCA_FLOWER_KEY_PORT_DST_MAX, &mask->tp_max.dst,
-		       TCA_FLOWER_UNSPEC, sizeof(key->tp_max.dst));
-	fl_set_key_val(tb, &key->tp_min.src,
-		       TCA_FLOWER_KEY_PORT_SRC_MIN, &mask->tp_min.src,
-		       TCA_FLOWER_UNSPEC, sizeof(key->tp_min.src));
-	fl_set_key_val(tb, &key->tp_max.src,
-		       TCA_FLOWER_KEY_PORT_SRC_MAX, &mask->tp_max.src,
-		       TCA_FLOWER_UNSPEC, sizeof(key->tp_max.src));
+	fl_set_key_val(tb, &key->tp_range.tp_min.dst,
+		       TCA_FLOWER_KEY_PORT_DST_MIN, &mask->tp_range.tp_min.dst,
+		       TCA_FLOWER_UNSPEC, sizeof(key->tp_range.tp_min.dst));
+	fl_set_key_val(tb, &key->tp_range.tp_max.dst,
+		       TCA_FLOWER_KEY_PORT_DST_MAX, &mask->tp_range.tp_max.dst,
+		       TCA_FLOWER_UNSPEC, sizeof(key->tp_range.tp_max.dst));
+	fl_set_key_val(tb, &key->tp_range.tp_min.src,
+		       TCA_FLOWER_KEY_PORT_SRC_MIN, &mask->tp_range.tp_min.src,
+		       TCA_FLOWER_UNSPEC, sizeof(key->tp_range.tp_min.src));
+	fl_set_key_val(tb, &key->tp_range.tp_max.src,
+		       TCA_FLOWER_KEY_PORT_SRC_MAX, &mask->tp_range.tp_max.src,
+		       TCA_FLOWER_UNSPEC, sizeof(key->tp_range.tp_max.src));
 
-	if ((mask->tp_min.dst && mask->tp_max.dst &&
-	     htons(key->tp_max.dst) <= htons(key->tp_min.dst)) ||
-	     (mask->tp_min.src && mask->tp_max.src &&
-	      htons(key->tp_max.src) <= htons(key->tp_min.src)))
+	if ((mask->tp_range.tp_min.dst && mask->tp_range.tp_max.dst &&
+	     htons(key->tp_range.tp_max.dst) <=
+		 htons(key->tp_range.tp_min.dst)) ||
+	    (mask->tp_range.tp_min.src && mask->tp_range.tp_max.src &&
+	     htons(key->tp_range.tp_max.src) <=
+		 htons(key->tp_range.tp_min.src)))
 		return -EINVAL;
 
 	return 0;
@@ -1509,9 +1516,10 @@ static void fl_init_dissector(struct flow_dissector *dissector,
 			     FLOW_DISSECTOR_KEY_IPV4_ADDRS, ipv4);
 	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
 			     FLOW_DISSECTOR_KEY_IPV6_ADDRS, ipv6);
-	if (FL_KEY_IS_MASKED(mask, tp) ||
-	    FL_KEY_IS_MASKED(mask, tp_min) || FL_KEY_IS_MASKED(mask, tp_max))
-		FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_PORTS, tp);
+	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
+			     FLOW_DISSECTOR_KEY_PORTS, tp);
+	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
+			     FLOW_DISSECTOR_KEY_PORTS_RANGE, tp_range);
 	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
 			     FLOW_DISSECTOR_KEY_IP, ip);
 	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
@@ -1560,8 +1568,10 @@ static struct fl_flow_mask *fl_create_new_mask(struct cls_fl_head *head,
 
 	fl_mask_copy(newmask, mask);
 
-	if ((newmask->key.tp_min.dst && newmask->key.tp_max.dst) ||
-	    (newmask->key.tp_min.src && newmask->key.tp_max.src))
+	if ((newmask->key.tp_range.tp_min.dst &&
+	     newmask->key.tp_range.tp_max.dst) ||
+	    (newmask->key.tp_range.tp_min.src &&
+	     newmask->key.tp_range.tp_max.src))
 		newmask->flags |= TCA_FLOWER_MASK_FLAGS_RANGE;
 
 	err = fl_init_mask_hashtable(newmask);
@@ -2159,18 +2169,22 @@ static int fl_dump_key_val(struct sk_buff *skb,
 static int fl_dump_key_port_range(struct sk_buff *skb, struct fl_flow_key *key,
 				  struct fl_flow_key *mask)
 {
-	if (fl_dump_key_val(skb, &key->tp_min.dst, TCA_FLOWER_KEY_PORT_DST_MIN,
-			    &mask->tp_min.dst, TCA_FLOWER_UNSPEC,
-			    sizeof(key->tp_min.dst)) ||
-	    fl_dump_key_val(skb, &key->tp_max.dst, TCA_FLOWER_KEY_PORT_DST_MAX,
-			    &mask->tp_max.dst, TCA_FLOWER_UNSPEC,
-			    sizeof(key->tp_max.dst)) ||
-	    fl_dump_key_val(skb, &key->tp_min.src, TCA_FLOWER_KEY_PORT_SRC_MIN,
-			    &mask->tp_min.src, TCA_FLOWER_UNSPEC,
-			    sizeof(key->tp_min.src)) ||
-	    fl_dump_key_val(skb, &key->tp_max.src, TCA_FLOWER_KEY_PORT_SRC_MAX,
-			    &mask->tp_max.src, TCA_FLOWER_UNSPEC,
-			    sizeof(key->tp_max.src)))
+	if (fl_dump_key_val(skb, &key->tp_range.tp_min.dst,
+			    TCA_FLOWER_KEY_PORT_DST_MIN,
+			    &mask->tp_range.tp_min.dst, TCA_FLOWER_UNSPEC,
+			    sizeof(key->tp_range.tp_min.dst)) ||
+	    fl_dump_key_val(skb, &key->tp_range.tp_max.dst,
+			    TCA_FLOWER_KEY_PORT_DST_MAX,
+			    &mask->tp_range.tp_max.dst, TCA_FLOWER_UNSPEC,
+			    sizeof(key->tp_range.tp_max.dst)) ||
+	    fl_dump_key_val(skb, &key->tp_range.tp_min.src,
+			    TCA_FLOWER_KEY_PORT_SRC_MIN,
+			    &mask->tp_range.tp_min.src, TCA_FLOWER_UNSPEC,
+			    sizeof(key->tp_range.tp_min.src)) ||
+	    fl_dump_key_val(skb, &key->tp_range.tp_max.src,
+			    TCA_FLOWER_KEY_PORT_SRC_MAX,
+			    &mask->tp_range.tp_max.src, TCA_FLOWER_UNSPEC,
+			    sizeof(key->tp_range.tp_max.src)))
 		return -1;
 
 	return 0;
