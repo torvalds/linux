@@ -2294,6 +2294,10 @@ static int sfp_remove(struct platform_device *pdev)
 
 	sfp_unregister_socket(sfp->sfp_bus);
 
+	rtnl_lock();
+	sfp_sm_event(sfp, SFP_E_REMOVE);
+	rtnl_unlock();
+
 	return 0;
 }
 
