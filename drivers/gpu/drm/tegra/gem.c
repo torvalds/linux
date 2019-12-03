@@ -440,13 +440,6 @@ static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
 		err = tegra_bo_iommu_map(tegra, bo);
 		if (err < 0)
 			goto detach;
-	} else {
-		if (bo->sgt->nents > 1) {
-			err = -EINVAL;
-			goto detach;
-		}
-
-		bo->iova = sg_dma_address(bo->sgt->sgl);
 	}
 
 	bo->gem.import_attach = attach;
