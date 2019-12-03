@@ -35,6 +35,7 @@ static struct dmi_memdev_info {
 	const char *bank;
 	u64 size;		/* bytes */
 	u16 handle;
+	u8 type;		/* DDR2, DDR3, DDR4 etc */
 } *dmi_memdev;
 static int dmi_memdev_nr;
 
@@ -391,7 +392,7 @@ static void __init save_mem_devices(const struct dmi_header *dm, void *v)
 	u64 bytes;
 	u16 size;
 
-	if (dm->type != DMI_ENTRY_MEM_DEVICE || dm->length < 0x12)
+	if (dm->type != DMI_ENTRY_MEM_DEVICE || dm->length < 0x13)
 		return;
 	if (nr >= dmi_memdev_nr) {
 		pr_warn(FW_BUG "Too many DIMM entries in SMBIOS table\n");
@@ -400,6 +401,7 @@ static void __init save_mem_devices(const struct dmi_header *dm, void *v)
 	dmi_memdev[nr].handle = get_unaligned(&dm->handle);
 	dmi_memdev[nr].device = dmi_string(dm, d[0x10]);
 	dmi_memdev[nr].bank = dmi_string(dm, d[0x11]);
+	dmi_memdev[nr].type = d[0x12];
 
 	size = get_unaligned((u16 *)&d[0xC]);
 	if (size == 0)
@@ -1128,3 +1130,40 @@ u64 dmi_memdev_size(u16 handle)
 	return ~0ull;
 }
 EXPORT_SYMBOL_GPL(dmi_memdev_size);
+
+/**
+ * dmi_memdev_type - get the memory type
+ * @handle: DMI structure handle
+ *
+ * Return the DMI memory type of the module in the slot associated with the
+ * given DMI handle, or 0x0 if no such DMI handle exists.
+ */
+u8 dmi_memdev_type(u16 handle)
+{
+	int n;
+
+	if (dmi_memdev) {
+		for (n = 0; n < dmi_memdev_nr; n++) {
+			if (handle == dmi_memdev[n].handle)
+				return dmi_memdev[n].type;
+		}
+	}
+	return 0x0;	/* Not a valid value */
+}
+EXPORT_SYMBOL_GPL(dmi_memdev_type);
+
+/**
+ *	dmi_memdev_handle - get the DMI handle of a memory slot
+ *	@slot: slot number
+ *
+ *	Return the DMI handle associated with a given memory slot, or %0xFFFF
+ *      if there is no such slot.
+ */
+u16 dmi_memdev_handle(int slot)
+{
+	if (dmi_memdev && slot >= 0 && slot < dmi_memdev_nr)
+		return dmi_memdev[slot].handle;
+
+	return 0xffff;	/* Not a valid value */
+}
+EXPORT_SYMBOL_GPL(dmi_memdev_handle);
