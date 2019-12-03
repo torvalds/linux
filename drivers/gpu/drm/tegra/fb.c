@@ -192,7 +192,7 @@ static int tegra_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return __tegra_gem_mmap(&bo->gem, vma);
 }
 
-static struct fb_ops tegra_fb_ops = {
+static const struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_fillrect = drm_fb_helper_sys_fillrect,
