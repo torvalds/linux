@@ -760,7 +760,7 @@ done:
 	return is_dsc_possible;
 }
 
-bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data, const uint8_t *dpcd_dsc_ext_data, struct dsc_dec_dpcd_caps *dsc_sink_caps)
+bool dc_dsc_parse_dsc_dpcd(const struct dc *dc, const uint8_t *dpcd_dsc_basic_data, const uint8_t *dpcd_dsc_ext_data, struct dsc_dec_dpcd_caps *dsc_sink_caps)
 {
 	if (!dpcd_dsc_basic_data)
 		return false;
@@ -812,6 +812,23 @@ bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data, const uint8_t *dp
 
 	if (!dsc_bpp_increment_div_from_dpcd(dpcd_dsc_basic_data[DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT], &dsc_sink_caps->bpp_increment_div))
 		return false;
+
+	if (dc->debug.dsc_bpp_increment_div) {
+		/* dsc_bpp_increment_div should onl be 1, 2, 4, 8 or 16, but rather than rejecting invalid values,
+		 * we'll accept all and get it into range. This also makes the above check against 0 redundant,
+		 * but that one stresses out the override will be only used if it's not 0.
+		 */
+		if (dc->debug.dsc_bpp_increment_div >= 1)
+			dsc_sink_caps->bpp_increment_div = 1;
+		if (dc->debug.dsc_bpp_increment_div >= 2)
+			dsc_sink_caps->bpp_increment_div = 2;
+		if (dc->debug.dsc_bpp_increment_div >= 4)
+			dsc_sink_caps->bpp_increment_div = 4;
+		if (dc->debug.dsc_bpp_increment_div >= 8)
+			dsc_sink_caps->bpp_increment_div = 8;
+		if (dc->debug.dsc_bpp_increment_div >= 16)
+			dsc_sink_caps->bpp_increment_div = 16;
+	}
 
 	/* Extended caps */
 	if (dpcd_dsc_ext_data == NULL) { // Extended DPCD DSC data can be null, e.g. because it doesn't apply to SST

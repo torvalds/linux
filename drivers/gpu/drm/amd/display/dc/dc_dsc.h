@@ -53,7 +53,8 @@ struct dc_dsc_policy {
 	uint32_t min_target_bpp;
 };
 
-bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data,
+bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
+		const uint8_t *dpcd_dsc_basic_data,
 		const uint8_t *dpcd_dsc_ext_data,
 		struct dsc_dec_dpcd_caps *dsc_sink_caps);
 
