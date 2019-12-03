@@ -2242,7 +2242,7 @@ static int io_connect(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 	ret = __sys_connect_file(req->file, &io->connect.address, addr_len,
 					file_flags);
-	if (ret == -EAGAIN && force_nonblock) {
+	if ((ret == -EAGAIN || ret == -EINPROGRESS) && force_nonblock) {
 		io = kmalloc(sizeof(*io), GFP_KERNEL);
 		if (!io) {
 			ret = -ENOMEM;
