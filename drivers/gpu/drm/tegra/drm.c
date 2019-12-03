@@ -1241,6 +1241,9 @@ static int host1x_drm_remove(struct host1x_device *dev)
 	drm_atomic_helper_shutdown(drm);
 	drm_mode_config_cleanup(drm);
 
+	if (tegra->hub)
+		tegra_display_hub_cleanup(tegra->hub);
+
 	err = host1x_device_exit(dev);
 	if (err < 0)
 		dev_err(&dev->dev, "host1x device cleanup failed: %d\n", err);
