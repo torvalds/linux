@@ -1151,3 +1151,19 @@ u8 dmi_memdev_type(u16 handle)
 	return 0x0;	/* Not a valid value */
 }
 EXPORT_SYMBOL_GPL(dmi_memdev_type);
+
+/**
+ *	dmi_memdev_handle - get the DMI handle of a memory slot
+ *	@slot: slot number
+ *
+ *	Return the DMI handle associated with a given memory slot, or %0xFFFF
+ *      if there is no such slot.
+ */
+u16 dmi_memdev_handle(int slot)
+{
+	if (dmi_memdev && slot >= 0 && slot < dmi_memdev_nr)
+		return dmi_memdev[slot].handle;
+
+	return 0xffff;	/* Not a valid value */
+}
+EXPORT_SYMBOL_GPL(dmi_memdev_handle);

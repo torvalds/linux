@@ -114,6 +114,7 @@ extern bool dmi_match(enum dmi_field f, const char *str);
 extern void dmi_memdev_name(u16 handle, const char **bank, const char **device);
 extern u64 dmi_memdev_size(u16 handle);
 extern u8 dmi_memdev_type(u16 handle);
+extern u16 dmi_memdev_handle(int slot);
 
 #else
 
@@ -144,6 +145,7 @@ static inline void dmi_memdev_name(u16 handle, const char **bank,
 		const char **device) { }
 static inline u64 dmi_memdev_size(u16 handle) { return ~0ul; }
 static inline u8 dmi_memdev_type(u16 handle) { return 0x0; }
+static inline u16 dmi_memdev_handle(int slot) { return 0xffff; }
 static inline const struct dmi_system_id *
 	dmi_first_match(const struct dmi_system_id *list) { return NULL; }
 
