@@ -1315,8 +1315,8 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		ce = rq->hw_context;
 
 		/* Hold tightly onto the lock to prevent concurrent retires! */
-		spin_lock_irqsave_nested(&rq->lock, flags,
-					 SINGLE_DEPTH_NESTING);
+		if (!spin_trylock_irqsave(&rq->lock, flags))
+			continue;
 
 		if (i915_request_completed(rq))
 			goto unlock;
