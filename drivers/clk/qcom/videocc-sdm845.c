@@ -338,6 +338,7 @@ static struct platform_driver video_cc_sdm845_driver = {
 	.driver		= {
 		.name	= "sdm845-videocc",
 		.of_match_table = video_cc_sdm845_match_table,
+		.sync_state = clk_sync_state,
 	},
 };
 
