@@ -28,6 +28,8 @@ config SOC_VIRT
        select VIRTIO_INPUT
        select POWER_RESET_SYSCON
        select POWER_RESET_SYSCON_POWEROFF
+       select GOLDFISH
+       select RTC_DRV_GOLDFISH
        select SIFIVE_PLIC
        help
          This enables support for QEMU Virt Machine.
