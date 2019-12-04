@@ -777,6 +777,7 @@ struct TCP_Server_Info {
 	 */
 	int nr_targets;
 	bool noblockcnt; /* use non-blocking connect() */
+	bool is_channel; /* if a session channel */
 };
 
 struct cifs_credits {

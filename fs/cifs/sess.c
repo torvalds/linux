@@ -213,6 +213,9 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 		chan->server = NULL;
 		goto out;
 	}
+	spin_lock(&cifs_tcp_ses_lock);
+	chan->server->is_channel = true;
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*
 	 * We need to allocate the server crypto now as we will need
