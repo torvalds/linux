@@ -13,6 +13,7 @@
 #include "sp-dev.h"
 #include "psp-dev.h"
 #include "sev-dev.h"
+#include "tee-dev.h"
 
 struct psp_device *psp_master;
 
@@ -45,6 +46,9 @@ static irqreturn_t psp_irq_handler(int irq, void *data)
 	if (status) {
 		if (psp->sev_irq_handler)
 			psp->sev_irq_handler(irq, psp->sev_irq_data, status);
+
+		if (psp->tee_irq_handler)
+			psp->tee_irq_handler(irq, psp->tee_irq_data, status);
 	}
 
 	/* Clear the interrupt status by writing the same value we read. */
@@ -109,6 +113,25 @@ static int psp_check_support(struct psp_device *psp,
 	return 0;
 }
 
+static int psp_init(struct psp_device *psp, unsigned int capability)
+{
+	int ret;
+
+	if (!psp_check_sev_support(psp, capability)) {
+		ret = sev_dev_init(psp);
+		if (ret)
+			return ret;
+	}
+
+	if (!psp_check_tee_support(psp, capability)) {
+		ret = tee_dev_init(psp);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int psp_dev_init(struct sp_device *sp)
 {
 	struct device *dev = sp->dev;
@@ -151,7 +174,7 @@ int psp_dev_init(struct sp_device *sp)
 		goto e_err;
 	}
 
-	ret = sev_dev_init(psp);
+	ret = psp_init(psp, capability);
 	if (ret)
 		goto e_irq;
 
@@ -189,6 +212,8 @@ void psp_dev_destroy(struct sp_device *sp)
 
 	sev_dev_destroy(psp);
 
+	tee_dev_destroy(psp);
+
 	sp_free_psp_irq(sp, psp);
 }
 
@@ -202,6 +227,18 @@ void psp_set_sev_irq_handler(struct psp_device *psp, psp_irq_handler_t handler,
 void psp_clear_sev_irq_handler(struct psp_device *psp)
 {
 	psp_set_sev_irq_handler(psp, NULL, NULL);
+}
+
+void psp_set_tee_irq_handler(struct psp_device *psp, psp_irq_handler_t handler,
+			     void *data)
+{
+	psp->tee_irq_data = data;
+	psp->tee_irq_handler = handler;
+}
+
+void psp_clear_tee_irq_handler(struct psp_device *psp)
+{
+	psp_set_tee_irq_handler(psp, NULL, NULL);
 }
 
 struct psp_device *psp_get_master_device(void)
