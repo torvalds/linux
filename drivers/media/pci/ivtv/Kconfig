@@ -24,7 +24,7 @@ config VIDEO_IVTV
 	  PCI personal video recorder devices.
 
 	  This is used in devices such as the Hauppauge PVR-150/250/350/500
-	  cards. There is a driver homepage at <http://www.ivtvdriver.org>.
+	  cards.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtv.
@@ -67,8 +67,7 @@ config VIDEO_FB_IVTV
 	  This is a framebuffer driver for the Conexant cx23415 MPEG
 	  encoder/decoder.
 
-	  This is used in the Hauppauge PVR-350 card. There is a driver
-	  homepage at <http://www.ivtvdriver.org>.
+	  This is used in the Hauppauge PVR-350 card.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtvfb.
