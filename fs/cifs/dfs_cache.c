@@ -75,13 +75,11 @@ static void refresh_cache_worker(struct work_struct *work);
 
 static DECLARE_DELAYED_WORK(refresh_task, refresh_cache_worker);
 
-static inline bool is_path_valid(const char *path)
+static int get_normalized_path(const char *path, char **npath)
 {
-	return path && (strchr(path + 1, '\\') || strchr(path + 1, '/'));
-}
+	if (!path || strlen(path) < 3 || (*path != '\\' && *path != '/'))
+		return -EINVAL;
 
-static inline int get_normalized_path(const char *path, char **npath)
-{
 	if (*path == '\\') {
 		*npath = (char *)path;
 	} else {
@@ -828,9 +826,6 @@ int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 	char *npath;
 	struct cache_entry *ce;
 
-	if (unlikely(!is_path_valid(path)))
-		return -EINVAL;
-
 	rc = get_normalized_path(path, &npath);
 	if (rc)
 		return rc;
@@ -874,9 +869,6 @@ int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
 	int rc;
 	char *npath;
 	struct cache_entry *ce;
-
-	if (unlikely(!is_path_valid(path)))
-		return -EINVAL;
 
 	rc = get_normalized_path(path, &npath);
 	if (rc)
@@ -928,9 +920,6 @@ int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
 	char *npath;
 	struct cache_entry *ce;
 	struct cache_dfs_tgt *t;
-
-	if (unlikely(!is_path_valid(path)))
-		return -EINVAL;
 
 	rc = get_normalized_path(path, &npath);
 	if (rc)
@@ -989,7 +978,7 @@ int dfs_cache_noreq_update_tgthint(const char *path,
 	struct cache_entry *ce;
 	struct cache_dfs_tgt *t;
 
-	if (unlikely(!is_path_valid(path)) || !it)
+	if (!it)
 		return -EINVAL;
 
 	rc = get_normalized_path(path, &npath);
@@ -1048,8 +1037,6 @@ int dfs_cache_get_tgt_referral(const char *path,
 	unsigned int h;
 
 	if (!it || !ref)
-		return -EINVAL;
-	if (unlikely(!is_path_valid(path)))
 		return -EINVAL;
 
 	rc = get_normalized_path(path, &npath);
