@@ -387,8 +387,8 @@ static int _abb5zes3_rtc_read_alarm(struct device *dev,
 	alarm_secs = rtc_tm_to_time64(alarm_tm);
 
 	if (alarm_secs < rtc_secs) {
-		if (alarm_tm->tm_mon == 11) {
-			alarm_tm->tm_mon = 0;
+		if (alarm_tm->tm_mon >= 12) {
+			alarm_tm->tm_mon = 1;
 			alarm_tm->tm_year += 1;
 		} else {
 			alarm_tm->tm_mon += 1;
@@ -457,8 +457,8 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		if (ret)
 			return ret;
 
-		if (rtc_tm.tm_mon == 11) { /* handle year wrapping */
-			rtc_tm.tm_mon = 0;
+		if (rtc_tm.tm_mon >= 12) { /* handle year wrapping */
+			rtc_tm.tm_mon = 1;
 			rtc_tm.tm_year += 1;
 		} else {
 			rtc_tm.tm_mon += 1;
