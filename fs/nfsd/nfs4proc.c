@@ -1169,7 +1169,8 @@ nfsd4_interssc_connect(struct nl4_server *nss, struct svc_rqst *rqstp,
 	size_t tmp_addrlen, match_netid_len = 3;
 	char *startsep = "", *endsep = "", *match_netid = "tcp";
 	char *ipaddr, *dev_name, *raw_data;
-	int len, raw_len, status = -EINVAL;
+	int len, raw_len;
+	__be32 status = nfserr_inval;
 
 	naddr = &nss->u.nl4_addr;
 	tmp_addrlen = rpc_uaddr2sockaddr(SVC_NET(rqstp), naddr->addr,
@@ -1207,7 +1208,7 @@ nfsd4_interssc_connect(struct nl4_server *nss, struct svc_rqst *rqstp,
 
 	snprintf(raw_data, raw_len, NFSD42_INTERSSC_MOUNTOPS, ipaddr);
 
-	status = -ENODEV;
+	status = nfserr_nodev;
 	type = get_fs_type("nfs");
 	if (!type)
 		goto out_free_rawdata;
@@ -1253,8 +1254,6 @@ nfsd4_interssc_disconnect(struct vfsmount *ss_mnt)
  * Called with COPY cstate:
  *    SAVED_FH: source filehandle
  *    CURRENT_FH: destination filehandle
- *
- * Returns errno (not nfserrxxx)
  */
 static __be32
 nfsd4_setup_inter_ssc(struct svc_rqst *rqstp,
@@ -1263,7 +1262,7 @@ nfsd4_setup_inter_ssc(struct svc_rqst *rqstp,
 {
 	struct svc_fh *s_fh = NULL;
 	stateid_t *s_stid = &copy->cp_src_stateid;
-	__be32 status = -EINVAL;
+	__be32 status = nfserr_inval;
 
 	/* Verify the destination stateid and set dst struct file*/
 	status = nfs4_preprocess_stateid_op(rqstp, cstate, &cstate->current_fh,
@@ -1308,7 +1307,7 @@ nfsd4_setup_inter_ssc(struct svc_rqst *rqstp,
 		      struct vfsmount **mount)
 {
 	*mount = NULL;
-	return -EINVAL;
+	return nfserr_inval;
 }
 
 static void
