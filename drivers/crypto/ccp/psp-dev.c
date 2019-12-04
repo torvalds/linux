@@ -53,7 +53,7 @@ static irqreturn_t psp_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int psp_check_sev_support(struct psp_device *psp)
+static unsigned int psp_get_capability(struct psp_device *psp)
 {
 	unsigned int val = ioread32(psp->io_regs + psp->vdata->feature_reg);
 
@@ -66,14 +66,45 @@ static int psp_check_sev_support(struct psp_device *psp)
 	 */
 	if (val == 0xffffffff) {
 		dev_notice(psp->dev, "psp: unable to access the device: you might be running a broken BIOS.\n");
-		return -ENODEV;
+		return 0;
 	}
 
-	if (!(val & 1)) {
-		/* Device does not support the SEV feature */
+	return val;
+}
+
+static int psp_check_sev_support(struct psp_device *psp,
+				 unsigned int capability)
+{
+	/* Check if device supports SEV feature */
+	if (!(capability & 1)) {
 		dev_dbg(psp->dev, "psp does not support SEV\n");
 		return -ENODEV;
 	}
+
+	return 0;
+}
+
+static int psp_check_tee_support(struct psp_device *psp,
+				 unsigned int capability)
+{
+	/* Check if device supports TEE feature */
+	if (!(capability & 2)) {
+		dev_dbg(psp->dev, "psp does not support TEE\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int psp_check_support(struct psp_device *psp,
+			     unsigned int capability)
+{
+	int sev_support = psp_check_sev_support(psp, capability);
+	int tee_support = psp_check_tee_support(psp, capability);
+
+	/* Return error if device neither supports SEV nor TEE */
+	if (sev_support && tee_support)
+		return -ENODEV;
 
 	return 0;
 }
@@ -82,6 +113,7 @@ int psp_dev_init(struct sp_device *sp)
 {
 	struct device *dev = sp->dev;
 	struct psp_device *psp;
+	unsigned int capability;
 	int ret;
 
 	ret = -ENOMEM;
@@ -100,7 +132,11 @@ int psp_dev_init(struct sp_device *sp)
 
 	psp->io_regs = sp->io_map;
 
-	ret = psp_check_sev_support(psp);
+	capability = psp_get_capability(psp);
+	if (!capability)
+		goto e_disable;
+
+	ret = psp_check_support(psp, capability);
 	if (ret)
 		goto e_disable;
 
