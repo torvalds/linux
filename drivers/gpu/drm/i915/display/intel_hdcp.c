@@ -64,7 +64,7 @@ int intel_hdcp_read_valid_bksv(struct intel_digital_port *intel_dig_port,
 /* Is HDCP1.4 capable on Platform and Sink */
 bool intel_hdcp_capable(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	const struct intel_hdcp_shim *shim = connector->hdcp.shim;
 	bool capable = false;
 	u8 bksv[5];
@@ -86,7 +86,7 @@ bool intel_hdcp_capable(struct intel_connector *connector)
 bool intel_hdcp2_capable(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	bool capable = false;
 
@@ -297,7 +297,7 @@ int intel_hdcp_validate_v_prime(struct intel_connector *connector,
 				const struct intel_hdcp_shim *shim,
 				u8 *ksv_fifo, u8 num_downstream, u8 *bstatus)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct drm_i915_private *dev_priv;
 	enum transcoder cpu_transcoder = connector->hdcp.cpu_transcoder;
 	enum port port = intel_dig_port->base.port;
@@ -513,7 +513,7 @@ int intel_hdcp_validate_v_prime(struct intel_connector *connector,
 static
 int intel_hdcp_auth_downstream(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	const struct intel_hdcp_shim *shim = connector->hdcp.shim;
 	struct drm_device *dev = connector->base.dev;
 	u8 bstatus[2], num_downstream, *ksv_fifo;
@@ -592,7 +592,7 @@ err:
 /* Implements Part 1 of the HDCP authorization procedure */
 static int intel_hdcp_auth(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	struct drm_device *dev = connector->base.dev;
 	const struct intel_hdcp_shim *shim = hdcp->shim;
@@ -757,7 +757,7 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 {
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	struct drm_i915_private *dev_priv = connector->base.dev->dev_private;
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	enum port port = intel_dig_port->base.port;
 	enum transcoder cpu_transcoder = hdcp->cpu_transcoder;
 	int ret;
@@ -838,7 +838,7 @@ static int intel_hdcp_check_link(struct intel_connector *connector)
 {
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	struct drm_i915_private *dev_priv = connector->base.dev->dev_private;
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	enum port port = intel_dig_port->base.port;
 	enum transcoder cpu_transcoder;
 	int ret = 0;
@@ -1209,7 +1209,7 @@ static int hdcp2_deauthenticate_port(struct intel_connector *connector)
 /* Authentication flow starts from here */
 static int hdcp2_authentication_key_exchange(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	struct drm_device *dev = connector->base.dev;
 	union {
@@ -1297,7 +1297,7 @@ static int hdcp2_authentication_key_exchange(struct intel_connector *connector)
 
 static int hdcp2_locality_check(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	union {
 		struct hdcp2_lc_init lc_init;
@@ -1333,7 +1333,7 @@ static int hdcp2_locality_check(struct intel_connector *connector)
 
 static int hdcp2_session_key_exchange(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	struct hdcp2_ske_send_eks send_eks;
 	int ret;
@@ -1353,7 +1353,7 @@ static int hdcp2_session_key_exchange(struct intel_connector *connector)
 static
 int hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	union {
 		struct hdcp2_rep_stream_manage stream_manage;
@@ -1404,7 +1404,7 @@ int hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 static
 int hdcp2_authenticate_repeater_topology(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	struct drm_device *dev = connector->base.dev;
 	union {
@@ -1475,7 +1475,7 @@ static int hdcp2_authenticate_repeater(struct intel_connector *connector)
 
 static int hdcp2_authenticate_sink(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	const struct intel_hdcp_shim *shim = hdcp->shim;
 	int ret;
@@ -1524,7 +1524,7 @@ static int hdcp2_authenticate_sink(struct intel_connector *connector)
 
 static int hdcp2_enable_encryption(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	enum port port = intel_attached_encoder(connector)->port;
@@ -1562,7 +1562,7 @@ static int hdcp2_enable_encryption(struct intel_connector *connector)
 
 static int hdcp2_disable_encryption(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	enum port port = intel_attached_encoder(connector)->port;
@@ -1673,7 +1673,7 @@ static int _intel_hdcp2_disable(struct intel_connector *connector)
 /* Implements the Link Integrity Check for HDCP2.2 */
 static int intel_hdcp2_check_link(struct intel_connector *connector)
 {
-	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_digital_port *intel_dig_port = intel_attached_dig_port(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	enum port port = intel_attached_encoder(connector)->port;

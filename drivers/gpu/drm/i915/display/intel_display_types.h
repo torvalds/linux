@@ -1472,7 +1472,7 @@ enc_to_dig_port(struct intel_encoder *encoder)
 }
 
 static inline struct intel_digital_port *
-conn_to_dig_port(struct intel_connector *connector)
+intel_attached_dig_port(struct intel_connector *connector)
 {
 	return enc_to_dig_port(intel_attached_encoder(connector));
 }
