@@ -2884,6 +2884,10 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		set_bit(CEPH_MDS_R_GOT_SAFE, &req->r_req_flags);
 		__unregister_request(mdsc, req);
 
+		/* last request during umount? */
+		if (mdsc->stopping && !__get_oldest_req(mdsc))
+			complete_all(&mdsc->safe_umount_waiters);
+
 		if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
 			/*
 			 * We already handled the unsafe response, now do the
@@ -2894,9 +2898,6 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 			 */
 			dout("got safe reply %llu, mds%d\n", tid, mds);
 
-			/* last unsafe request during umount? */
-			if (mdsc->stopping && !__get_oldest_req(mdsc))
-				complete_all(&mdsc->safe_umount_waiters);
 			mutex_unlock(&mdsc->mutex);
 			goto out;
 		}
