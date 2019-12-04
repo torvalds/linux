@@ -88,11 +88,9 @@ static void _dpu_crtc_setup_blend_cfg(struct dpu_crtc_mixer *mixer,
 
 static void _dpu_crtc_program_lm_output_roi(struct drm_crtc *crtc)
 {
-	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *crtc_state;
 	int lm_idx, lm_horiz_position;
 
-	dpu_crtc = to_dpu_crtc(crtc);
 	crtc_state = to_dpu_crtc_state(crtc->state);
 
 	lm_horiz_position = 0;
@@ -430,7 +428,6 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct drm_encoder *encoder;
 	struct drm_device *dev;
 	unsigned long flags;
-	struct dpu_crtc_smmu_state_data *smmu_state;
 
 	if (!crtc) {
 		DPU_ERROR("invalid crtc\n");
@@ -448,7 +445,6 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	dpu_crtc = to_dpu_crtc(crtc);
 	cstate = to_dpu_crtc_state(crtc->state);
 	dev = crtc->dev;
-	smmu_state = &dpu_crtc->smmu_state;
 
 	_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
 
@@ -491,7 +487,6 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_device *dev;
 	struct drm_plane *plane;
 	struct msm_drm_private *priv;
-	struct msm_drm_thread *event_thread;
 	unsigned long flags;
 	struct dpu_crtc_state *cstate;
 
@@ -512,8 +507,6 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 		DPU_ERROR("invalid crtc index[%d]\n", crtc->index);
 		return;
 	}
-
-	event_thread = &priv->event_thread[crtc->index];
 
 	if (dpu_crtc->event) {
 		DPU_DEBUG("already received dpu_crtc->event\n");
@@ -567,7 +560,6 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 static void dpu_crtc_destroy_state(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
-	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *cstate;
 
 	if (!crtc || !state) {
@@ -575,7 +567,6 @@ static void dpu_crtc_destroy_state(struct drm_crtc *crtc,
 		return;
 	}
 
-	dpu_crtc = to_dpu_crtc(crtc);
 	cstate = to_dpu_crtc_state(state);
 
 	DPU_DEBUG("crtc%d\n", crtc->base.id);
@@ -662,11 +653,9 @@ static void dpu_crtc_reset(struct drm_crtc *crtc)
 /**
  * dpu_crtc_duplicate_state - state duplicate hook
  * @crtc: Pointer to drm crtc structure
- * @Returns: Pointer to new drm_crtc_state structure
  */
 static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 {
-	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *cstate, *old_cstate;
 
 	if (!crtc || !crtc->state) {
@@ -674,7 +663,6 @@ static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 	}
 
-	dpu_crtc = to_dpu_crtc(crtc);
 	old_cstate = to_dpu_crtc_state(crtc->state);
 	cstate = kmemdup(old_cstate, sizeof(*old_cstate), GFP_KERNEL);
 	if (!cstate) {
@@ -693,9 +681,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 {
 	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *cstate;
-	struct drm_display_mode *mode;
 	struct drm_encoder *encoder;
-	struct msm_drm_private *priv;
 	unsigned long flags;
 	bool release_bandwidth = false;
 
@@ -705,8 +691,6 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	}
 	dpu_crtc = to_dpu_crtc(crtc);
 	cstate = to_dpu_crtc_state(crtc->state);
-	mode = &cstate->base.adjusted_mode;
-	priv = crtc->dev->dev_private;
 
 	DRM_DEBUG_KMS("crtc%d\n", crtc->base.id);
 
@@ -768,14 +752,12 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 {
 	struct dpu_crtc *dpu_crtc;
 	struct drm_encoder *encoder;
-	struct msm_drm_private *priv;
 	bool request_bandwidth;
 
 	if (!crtc) {
 		DPU_ERROR("invalid crtc\n");
 		return;
 	}
-	priv = crtc->dev->dev_private;
 
 	pm_runtime_get_sync(crtc->dev->dev);
 
