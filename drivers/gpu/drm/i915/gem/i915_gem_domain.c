@@ -379,8 +379,11 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	if (!atomic_read(&obj->bind_count))
+		return;
 
 	mutex_lock(&i915->ggtt.vm.mutex);
+	spin_lock(&obj->vma.lock);
 	for_each_ggtt_vma(vma, obj) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
@@ -388,6 +391,7 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 		GEM_BUG_ON(vma->vm != &i915->ggtt.vm);
 		list_move_tail(&vma->vm_link, &vma->vm->bound_list);
 	}
+	spin_unlock(&obj->vma.lock);
 	mutex_unlock(&i915->ggtt.vm.mutex);
 
 	if (i915_gem_object_is_shrinkable(obj)) {
