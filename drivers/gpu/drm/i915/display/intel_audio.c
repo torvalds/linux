@@ -707,8 +707,8 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	DRM_DEBUG_DRIVER("ELD on [CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 			 connector->base.id,
 			 connector->name,
-			 connector->encoder->base.id,
-			 connector->encoder->name);
+			 encoder->base.base.id,
+			 encoder->base.name);
 
 	connector->eld[6] = drm_av_sync_delay(connector, adjusted_mode) / 2;
 
