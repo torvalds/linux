@@ -146,11 +146,6 @@ bool intel_dp_is_edp(struct intel_dp *intel_dp)
 	return intel_dig_port->base.type == INTEL_OUTPUT_EDP;
 }
 
-static struct intel_dp *intel_attached_dp(struct intel_connector *connector)
-{
-	return enc_to_intel_dp(intel_attached_encoder(connector));
-}
-
 static void intel_dp_link_down(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *old_crtc_state);
 static bool edp_panel_vdd_on(struct intel_dp *intel_dp);

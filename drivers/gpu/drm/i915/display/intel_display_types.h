@@ -1489,6 +1489,11 @@ static inline struct intel_dp *enc_to_intel_dp(struct intel_encoder *encoder)
 	return &enc_to_dig_port(encoder)->dp;
 }
 
+static inline struct intel_dp *intel_attached_dp(struct intel_connector *connector)
+{
+	return enc_to_intel_dp(intel_attached_encoder(connector));
+}
+
 static inline bool intel_encoder_is_dp(struct intel_encoder *encoder)
 {
 	switch (encoder->type) {
