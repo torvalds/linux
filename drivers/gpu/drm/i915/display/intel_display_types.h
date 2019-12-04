@@ -1457,12 +1457,12 @@ static inline bool intel_encoder_is_dig_port(struct intel_encoder *encoder)
 }
 
 static inline struct intel_digital_port *
-enc_to_dig_port(struct drm_encoder *encoder)
+enc_to_dig_port(struct intel_encoder *encoder)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
+	struct intel_encoder *intel_encoder = encoder;
 
 	if (intel_encoder_is_dig_port(intel_encoder))
-		return container_of(encoder, struct intel_digital_port,
+		return container_of(&encoder->base, struct intel_digital_port,
 				    base.base);
 	else
 		return NULL;
@@ -1471,16 +1471,17 @@ enc_to_dig_port(struct drm_encoder *encoder)
 static inline struct intel_digital_port *
 conn_to_dig_port(struct intel_connector *connector)
 {
-	return enc_to_dig_port(&intel_attached_encoder(connector)->base);
+	return enc_to_dig_port(intel_attached_encoder(connector));
 }
 
 static inline struct intel_dp_mst_encoder *
-enc_to_mst(struct drm_encoder *encoder)
+enc_to_mst(struct intel_encoder *encoder)
 {
-	return container_of(encoder, struct intel_dp_mst_encoder, base.base);
+	return container_of(&encoder->base, struct intel_dp_mst_encoder,
+			    base.base);
 }
 
-static inline struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
+static inline struct intel_dp *enc_to_intel_dp(struct intel_encoder *encoder)
 {
 	return &enc_to_dig_port(encoder)->dp;
 }
@@ -1493,14 +1494,14 @@ static inline bool intel_encoder_is_dp(struct intel_encoder *encoder)
 		return true;
 	case INTEL_OUTPUT_DDI:
 		/* Skip pure HDMI/DVI DDI encoders */
-		return i915_mmio_reg_valid(enc_to_intel_dp(&encoder->base)->output_reg);
+		return i915_mmio_reg_valid(enc_to_intel_dp(encoder)->output_reg);
 	default:
 		return false;
 	}
 }
 
 static inline struct intel_lspcon *
-enc_to_intel_lspcon(struct drm_encoder *encoder)
+enc_to_intel_lspcon(struct intel_encoder *encoder)
 {
 	return &enc_to_dig_port(encoder)->lspcon;
 }

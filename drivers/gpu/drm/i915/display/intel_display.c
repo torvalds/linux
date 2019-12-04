@@ -15029,7 +15029,7 @@ static void intel_set_dp_tp_ctl_normal(struct intel_crtc *crtc,
 		if (conn_state->crtc == &crtc->base)
 			break;
 	}
-	intel_dp = enc_to_intel_dp(&intel_attached_encoder(to_intel_connector(conn))->base);
+	intel_dp = enc_to_intel_dp(intel_attached_encoder(to_intel_connector(conn)));
 	intel_dp_stop_link_train(intel_dp);
 }
 
@@ -18330,7 +18330,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 		/* We need to sanitize only the MST primary port. */
 		if (encoder->type != INTEL_OUTPUT_DP_MST &&
 		    intel_phy_is_tc(dev_priv, phy))
-			intel_tc_port_sanitize(enc_to_dig_port(&encoder->base));
+			intel_tc_port_sanitize(enc_to_dig_port(encoder));
 	}
 
 	get_encoder_power_domains(dev_priv);

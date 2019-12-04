@@ -514,7 +514,7 @@ static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
 		if (encoder->type == INTEL_OUTPUT_DP_MST)
 			continue;
 
-		dig_port = enc_to_dig_port(&encoder->base);
+		dig_port = enc_to_dig_port(encoder);
 		if (WARN_ON(!dig_port))
 			continue;
 
@@ -1664,8 +1664,8 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-	enum dpio_phy phy = vlv_dport_to_phy(enc_to_dig_port(&encoder->base));
-	enum dpio_channel ch = vlv_dport_to_channel(enc_to_dig_port(&encoder->base));
+	enum dpio_phy phy = vlv_dport_to_phy(enc_to_dig_port(encoder));
+	enum dpio_channel ch = vlv_dport_to_channel(enc_to_dig_port(encoder));
 
 	mutex_lock(&power_domains->lock);
 

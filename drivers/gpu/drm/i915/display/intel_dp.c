@@ -148,7 +148,7 @@ bool intel_dp_is_edp(struct intel_dp *intel_dp)
 
 static struct intel_dp *intel_attached_dp(struct intel_connector *connector)
 {
-	return enc_to_intel_dp(&intel_attached_encoder(connector)->base);
+	return enc_to_intel_dp(intel_attached_encoder(connector));
 }
 
 static void intel_dp_link_down(struct intel_encoder *encoder,
@@ -834,7 +834,7 @@ static enum pipe vlv_find_free_pps(struct drm_i915_private *dev_priv)
 	 * Pick one that's not used by other ports.
 	 */
 	for_each_intel_dp(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		if (encoder->type == INTEL_OUTPUT_EDP) {
 			WARN_ON(intel_dp->active_pipe != INVALID_PIPE &&
@@ -1031,7 +1031,7 @@ void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 	 */
 
 	for_each_intel_dp(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		WARN_ON(intel_dp->active_pipe != INVALID_PIPE);
 
@@ -2034,7 +2034,7 @@ static int intel_dp_dsc_compute_bpp(struct intel_dp *intel_dp, u8 dsc_max_bpc)
 static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 				       struct intel_crtc_state *crtc_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	u8 line_buf_depth;
 	int ret;
@@ -2205,7 +2205,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct drm_connector_state *conn_state)
 {
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct link_config_limits limits;
 	int common_len;
 	int ret;
@@ -2366,8 +2366,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct intel_lspcon *lspcon = enc_to_intel_lspcon(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_lspcon *lspcon = enc_to_intel_lspcon(encoder);
 	enum port port = encoder->port;
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
@@ -2482,7 +2482,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum port port = encoder->port;
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -2980,7 +2980,7 @@ static void _intel_edp_backlight_on(struct intel_dp *intel_dp)
 void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
 			    const struct drm_connector_state *conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(conn_state->best_encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(conn_state->best_encoder));
 
 	if (!intel_dp_is_edp(intel_dp))
 		return;
@@ -3018,7 +3018,7 @@ static void _intel_edp_backlight_off(struct intel_dp *intel_dp)
 /* Disable backlight PP control and backlight PWM. */
 void intel_edp_backlight_off(const struct drm_connector_state *old_conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(old_conn_state->best_encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(old_conn_state->best_encoder));
 
 	if (!intel_dp_is_edp(intel_dp))
 		return;
@@ -3258,7 +3258,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 				  enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	intel_wakeref_t wakeref;
 	bool ret;
 
@@ -3279,7 +3279,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 				struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u32 tmp, flags = 0;
 	enum port port = encoder->port;
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
@@ -3363,7 +3363,7 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *old_crtc_state,
 			     const struct drm_connector_state *old_conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 	intel_dp->link_trained = false;
 
@@ -3397,7 +3397,7 @@ static void g4x_post_disable_dp(struct intel_encoder *encoder,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum port port = encoder->port;
 
 	/*
@@ -3548,7 +3548,7 @@ static void intel_enable_dp(struct intel_encoder *encoder,
 			    const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	u32 dp_reg = I915_READ(intel_dp->output_reg);
 	enum pipe pipe = crtc->pipe;
@@ -3608,7 +3608,7 @@ static void g4x_pre_enable_dp(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config,
 			      const struct drm_connector_state *conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum port port = encoder->port;
 
 	intel_dp_prepare(encoder, pipe_config);
@@ -3658,7 +3658,7 @@ static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
 	for_each_intel_dp(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		WARN(intel_dp->active_pipe == pipe,
 		     "stealing pipe %c power sequencer from active [ENCODER:%d:%s]\n",
@@ -3681,7 +3681,7 @@ static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 					   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
@@ -4203,7 +4203,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		   const struct intel_crtc_state *old_crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	enum port port = encoder->port;
 	u32 DP = intel_dp->DP;
@@ -5096,7 +5096,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 			  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_connector_state *conn_state;
 	struct intel_crtc_state *crtc_state;
@@ -5536,7 +5536,7 @@ static bool intel_combo_phy_connected(struct drm_i915_private *dev_priv,
 static bool icp_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
 	if (intel_phy_is_combo(dev_priv, phy))
@@ -5839,7 +5839,7 @@ intel_dp_connector_unregister(struct drm_connector *connector)
 
 void intel_dp_encoder_flush_work(struct drm_encoder *encoder)
 {
-	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(to_intel_encoder(encoder));
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 
 	intel_dp_mst_encoder_cleanup(intel_dig_port);
@@ -5868,12 +5868,12 @@ static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	intel_dp_encoder_flush_work(encoder);
 
 	drm_encoder_cleanup(encoder);
-	kfree(enc_to_dig_port(encoder));
+	kfree(enc_to_dig_port(to_intel_encoder(encoder)));
 }
 
 void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(intel_encoder);
 	intel_wakeref_t wakeref;
 
 	if (!intel_dp_is_edp(intel_dp))
@@ -5904,7 +5904,7 @@ static
 int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 				u8 *an)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_dig_port->base.base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(&intel_dig_port->base.base));
 	static const struct drm_dp_aux_msg msg = {
 		.request = DP_AUX_NATIVE_WRITE,
 		.address = DP_AUX_HDCP_AKSV,
@@ -6514,7 +6514,7 @@ static enum pipe vlv_active_pipe(struct intel_dp *intel_dp)
 void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(encoder));
 	struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
 	intel_wakeref_t wakeref;
 
@@ -7660,7 +7660,7 @@ void intel_dp_mst_suspend(struct drm_i915_private *dev_priv)
 		if (encoder->type != INTEL_OUTPUT_DDI)
 			continue;
 
-		intel_dp = enc_to_intel_dp(&encoder->base);
+		intel_dp = enc_to_intel_dp(encoder);
 
 		if (!intel_dp->can_mst)
 			continue;
@@ -7681,7 +7681,7 @@ void intel_dp_mst_resume(struct drm_i915_private *dev_priv)
 		if (encoder->type != INTEL_OUTPUT_DDI)
 			continue;
 
-		intel_dp = enc_to_intel_dp(&encoder->base);
+		intel_dp = enc_to_intel_dp(encoder);
 
 		if (!intel_dp->can_mst)
 			continue;

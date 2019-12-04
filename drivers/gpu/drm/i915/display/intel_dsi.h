@@ -145,9 +145,9 @@ static inline struct intel_dsi_host *to_intel_dsi_host(struct mipi_dsi_host *h)
 #define for_each_dsi_phy(__phy, __phys_mask) \
 	for_each_phy_masked(__phy, __phys_mask)
 
-static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
+static inline struct intel_dsi *enc_to_intel_dsi(struct intel_encoder *encoder)
 {
-	return container_of(encoder, struct intel_dsi, base.base);
+	return container_of(&encoder->base, struct intel_dsi, base.base);
 }
 
 static inline bool is_vid_mode(struct intel_dsi *intel_dsi)
@@ -162,7 +162,7 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 
 static inline u16 intel_dsi_encoder_ports(struct intel_encoder *encoder)
 {
-	return enc_to_intel_dsi(&encoder->base)->ports;
+	return enc_to_intel_dsi(encoder)->ports;
 }
 
 /* icl_dsi.c */
