@@ -504,7 +504,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 
 	r = -E2BIG;
 
-	if (*nent >= maxnent)
+	if (WARN_ON(*nent >= maxnent))
 		goto out;
 
 	do_host_cpuid(entry, function, 0);
@@ -815,6 +815,9 @@ out:
 static int do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 func,
 			 int *nent, int maxnent, unsigned int type)
 {
+	if (*nent >= maxnent)
+		return -E2BIG;
+
 	if (type == KVM_GET_EMULATED_CPUID)
 		return __do_cpuid_func_emulated(entry, func, nent, maxnent);
 
