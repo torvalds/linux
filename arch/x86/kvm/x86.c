@@ -7357,7 +7357,7 @@ static void kvm_pv_kick_cpu_op(struct kvm *kvm, unsigned long flags, int apicid)
 {
 	struct kvm_lapic_irq lapic_irq;
 
-	lapic_irq.shorthand = 0;
+	lapic_irq.shorthand = APIC_DEST_NOSHORT;
 	lapic_irq.dest_mode = APIC_DEST_PHYSICAL;
 	lapic_irq.level = 0;
 	lapic_irq.dest_id = apicid;

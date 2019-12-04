@@ -330,7 +330,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		if (e->fields.delivery_mode == APIC_DM_FIXED) {
 			struct kvm_lapic_irq irq;
 
-			irq.shorthand = 0;
+			irq.shorthand = APIC_DEST_NOSHORT;
 			irq.vector = e->fields.vector;
 			irq.delivery_mode = e->fields.delivery_mode << 8;
 			irq.dest_id = e->fields.dest_id;
@@ -379,7 +379,7 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 	irqe.trig_mode = entry->fields.trig_mode;
 	irqe.delivery_mode = entry->fields.delivery_mode << 8;
 	irqe.level = 1;
-	irqe.shorthand = 0;
+	irqe.shorthand = APIC_DEST_NOSHORT;
 	irqe.msi_redir_hint = false;
 
 	if (irqe.trig_mode == IOAPIC_EDGE_TRIG)
