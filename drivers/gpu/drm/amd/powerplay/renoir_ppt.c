@@ -412,6 +412,24 @@ static int renoir_unforce_dpm_levels(struct smu_context *smu) {
 	return ret;
 }
 
+static int renoir_get_gpu_temperature(struct smu_context *smu, uint32_t *value)
+{
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = renoir_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
+
+	*value = (metrics.GfxTemperature / 100) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return 0;
+}
+
 static int renoir_get_current_activity_percent(struct smu_context *smu,
 					       enum amd_pp_sensors sensor,
 					       uint32_t *value)
@@ -764,6 +782,10 @@ static int renoir_read_sensor(struct smu_context *smu,
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
 		ret = renoir_get_current_activity_percent(smu, sensor, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		ret = renoir_get_gpu_temperature(smu, (uint32_t *)data);
 		*size = 4;
 		break;
 	default:
