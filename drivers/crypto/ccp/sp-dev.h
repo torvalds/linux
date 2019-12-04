@@ -39,10 +39,14 @@ struct ccp_vdata {
 	const unsigned int rsamax;
 };
 
-struct psp_vdata {
+struct sev_vdata {
 	const unsigned int cmdresp_reg;
 	const unsigned int cmdbuff_addr_lo_reg;
 	const unsigned int cmdbuff_addr_hi_reg;
+};
+
+struct psp_vdata {
+	const struct sev_vdata *sev;
 	const unsigned int feature_reg;
 	const unsigned int inten_reg;
 	const unsigned int intsts_reg;

@@ -67,7 +67,7 @@ static void sev_irq_handler(int irq, void *data, unsigned int status)
 		return;
 
 	/* Check if it is SEV command completion: */
-	reg = ioread32(sev->io_regs + sev->psp->vdata->cmdresp_reg);
+	reg = ioread32(sev->io_regs + sev->vdata->cmdresp_reg);
 	if (reg & PSP_CMDRESP_RESP) {
 		sev->int_rcvd = 1;
 		wake_up(&sev->int_queue);
@@ -84,7 +84,7 @@ static int sev_wait_cmd_ioc(struct sev_device *sev,
 	if (!ret)
 		return -ETIMEDOUT;
 
-	*reg = ioread32(sev->io_regs + sev->psp->vdata->cmdresp_reg);
+	*reg = ioread32(sev->io_regs + sev->vdata->cmdresp_reg);
 
 	return 0;
 }
@@ -150,15 +150,15 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 	print_hex_dump_debug("(in):  ", DUMP_PREFIX_OFFSET, 16, 2, data,
 			     sev_cmd_buffer_len(cmd), false);
 
-	iowrite32(phys_lsb, sev->io_regs + psp->vdata->cmdbuff_addr_lo_reg);
-	iowrite32(phys_msb, sev->io_regs + psp->vdata->cmdbuff_addr_hi_reg);
+	iowrite32(phys_lsb, sev->io_regs + sev->vdata->cmdbuff_addr_lo_reg);
+	iowrite32(phys_msb, sev->io_regs + sev->vdata->cmdbuff_addr_hi_reg);
 
 	sev->int_rcvd = 0;
 
 	reg = cmd;
 	reg <<= SEV_CMDRESP_CMD_SHIFT;
 	reg |= SEV_CMDRESP_IOC;
-	iowrite32(reg, sev->io_regs + psp->vdata->cmdresp_reg);
+	iowrite32(reg, sev->io_regs + sev->vdata->cmdresp_reg);
 
 	/* wait for command completion */
 	ret = sev_wait_cmd_ioc(sev, &reg, psp_timeout);
@@ -957,6 +957,13 @@ int sev_dev_init(struct psp_device *psp)
 	sev->psp = psp;
 
 	sev->io_regs = psp->io_regs;
+
+	sev->vdata = (struct sev_vdata *)psp->vdata->sev;
+	if (!sev->vdata) {
+		ret = -ENODEV;
+		dev_err(dev, "sev: missing driver data\n");
+		goto e_err;
+	}
 
 	psp_set_sev_irq_handler(psp, sev_irq_handler, sev);
 

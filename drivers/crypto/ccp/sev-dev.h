@@ -40,6 +40,8 @@ struct sev_device {
 
 	void __iomem *io_regs;
 
+	struct sev_vdata *vdata;
+
 	int state;
 	unsigned int int_rcvd;
 	wait_queue_head_t int_queue;

@@ -262,19 +262,27 @@ static int sp_pci_resume(struct pci_dev *pdev)
 #endif
 
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
-static const struct psp_vdata pspv1 = {
+static const struct sev_vdata sevv1 = {
 	.cmdresp_reg		= 0x10580,
 	.cmdbuff_addr_lo_reg	= 0x105e0,
 	.cmdbuff_addr_hi_reg	= 0x105e4,
+};
+
+static const struct sev_vdata sevv2 = {
+	.cmdresp_reg		= 0x10980,
+	.cmdbuff_addr_lo_reg	= 0x109e0,
+	.cmdbuff_addr_hi_reg	= 0x109e4,
+};
+
+static const struct psp_vdata pspv1 = {
+	.sev			= &sevv1,
 	.feature_reg		= 0x105fc,
 	.inten_reg		= 0x10610,
 	.intsts_reg		= 0x10614,
 };
 
 static const struct psp_vdata pspv2 = {
-	.cmdresp_reg		= 0x10980,
-	.cmdbuff_addr_lo_reg	= 0x109e0,
-	.cmdbuff_addr_hi_reg	= 0x109e4,
+	.sev			= &sevv2,
 	.feature_reg		= 0x109fc,
 	.inten_reg		= 0x10690,
 	.intsts_reg		= 0x10694,
