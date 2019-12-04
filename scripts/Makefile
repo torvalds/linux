@@ -24,6 +24,15 @@ HOSTCFLAGS_asn1_compiler.o = -I$(srctree)/include
 HOSTLDLIBS_sign-file = -lcrypto
 HOSTLDLIBS_extract-cert = -lcrypto
 
+ifdef CONFIG_UNWINDER_ORC
+ifeq ($(ARCH),x86_64)
+ARCH := x86
+endif
+HOSTCFLAGS_sorttable.o += -I$(srctree)/tools/arch/x86/include
+HOSTCFLAGS_sorttable.o += -DUNWINDER_ORC_ENABLED
+HOSTLDLIBS_sorttable = -lpthread
+endif
+
 always		:= $(hostprogs-y) $(hostprogs-m)
 
 # The following hostprogs-y programs are only build on demand
