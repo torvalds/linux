@@ -229,10 +229,10 @@
 		system-status-freq = <
 			/*system status		freq(KHz)*/
 			SYS_STATUS_NORMAL	456000
-			SYS_STATUS_SUSPEND	200000
-			SYS_STATUS_REBOOT	396000
+			SYS_STATUS_SUSPEND	456000
+			SYS_STATUS_REBOOT	456000
 		>;
-		auto-min-freq = <300000>;
+		auto-min-freq = <456000>;
 		auto-freq-en = <0>;
 		status = "disabled";
 	};
