@@ -17,6 +17,7 @@
 #include "i915_gem_object.h"
 #include "i915_gem_mman.h"
 #include "i915_trace.h"
+#include "i915_user_extensions.h"
 #include "i915_vma.h"
 
 static inline bool
@@ -617,9 +618,12 @@ i915_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_mmap_offset *args = data;
 	enum i915_mmap_type type;
+	int err;
 
-	if (args->extensions)
-		return -EINVAL;
+	err = i915_user_extensions(u64_to_user_ptr(args->extensions),
+				   NULL, 0, NULL);
+	if (err)
+		return err;
 
 	switch (args->flags) {
 	case I915_MMAP_OFFSET_GTT:
