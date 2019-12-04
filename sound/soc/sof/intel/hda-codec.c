@@ -80,12 +80,11 @@ EXPORT_SYMBOL(hda_codec_jack_wake_enable);
 EXPORT_SYMBOL(hda_codec_jack_check);
 
 /* probe individual codec */
-static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
+static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
+			   bool hda_codec_use_common_hdmi)
 {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 	struct hdac_hda_priv *hda_priv;
-	struct snd_soc_acpi_mach_params *mach_params = NULL;
-	struct snd_sof_pdata *pdata = sdev->pdata;
 #endif
 	struct hda_bus *hbus = sof_to_hbus(sdev);
 	struct hdac_device *hdev;
@@ -115,10 +114,6 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 	if (ret < 0)
 		return ret;
 
-	if (pdata->machine)
-		mach_params = (struct snd_soc_acpi_mach_params *)
-			&pdata->machine->mach_params;
-
 	if ((resp & 0xFFFF0000) == IDISP_VID_INTEL)
 		hda_priv->need_display_power = true;
 
@@ -126,7 +121,7 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 	 * if common HDMI codec driver is not used, codec load
 	 * is skipped here and hdac_hdmi is used instead
 	 */
-	if ((mach_params && mach_params->common_hdmi_codec_drv) ||
+	if (hda_codec_use_common_hdmi ||
 	    (resp & 0xFFFF0000) != IDISP_VID_INTEL) {
 		hdev->type = HDA_DEV_LEGACY;
 		hda_codec_load_module(&hda_priv->codec);
@@ -145,7 +140,8 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 }
 
 /* Codec initialization */
-int hda_codec_probe_bus(struct snd_sof_dev *sdev)
+int hda_codec_probe_bus(struct snd_sof_dev *sdev,
+			bool hda_codec_use_common_hdmi)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	int i, ret;
@@ -156,7 +152,7 @@ int hda_codec_probe_bus(struct snd_sof_dev *sdev)
 		if (!(bus->codec_mask & (1 << i)))
 			continue;
 
-		ret = hda_codec_probe(sdev, i);
+		ret = hda_codec_probe(sdev, i, hda_codec_use_common_hdmi);
 		if (ret < 0) {
 			dev_err(bus->dev, "error: codec #%d probe error, ret: %d\n",
 				i, ret);
