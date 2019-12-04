@@ -15010,7 +15010,7 @@ static void intel_set_dp_tp_ctl_normal(struct intel_crtc *crtc,
 		if (conn_state->crtc == &crtc->base)
 			break;
 	}
-	intel_dp = enc_to_intel_dp(intel_attached_encoder(to_intel_connector(conn)));
+	intel_dp = intel_attached_dp(to_intel_connector(conn));
 	intel_dp_stop_link_train(intel_dp);
 }
 

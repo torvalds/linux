@@ -1980,7 +1980,7 @@ static int i915_psr_sink_status_show(struct seq_file *m, void *data)
 	struct drm_connector *connector = m->private;
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_dp *intel_dp =
-		enc_to_intel_dp(intel_attached_encoder(to_intel_connector(connector)));
+		intel_attached_dp(to_intel_connector(connector));
 	int ret;
 
 	if (!CAN_PSR(dev_priv)) {
@@ -4357,7 +4357,7 @@ static int i915_dpcd_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
 	struct intel_dp *intel_dp =
-		enc_to_intel_dp(intel_attached_encoder(to_intel_connector(connector)));
+		intel_attached_dp(to_intel_connector(connector));
 	u8 buf[16];
 	ssize_t err;
 	int i;
@@ -4392,7 +4392,7 @@ static int i915_panel_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
 	struct intel_dp *intel_dp =
-		enc_to_intel_dp(intel_attached_encoder(to_intel_connector(connector)));
+		intel_attached_dp(to_intel_connector(connector));
 
 	if (connector->status != connector_status_connected)
 		return -ENODEV;
@@ -4470,7 +4470,7 @@ static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 		} else if (ret) {
 			break;
 		}
-		intel_dp = enc_to_intel_dp(intel_attached_encoder(to_intel_connector(connector)));
+		intel_dp = intel_attached_dp(to_intel_connector(connector));
 		crtc_state = to_intel_crtc_state(crtc->state);
 		seq_printf(m, "DSC_Enabled: %s\n",
 			   yesno(crtc_state->dsc.compression_enable));
