@@ -80,15 +80,13 @@ static int smu_v11_0_wait_for_response(struct smu_context *smu)
 	for (i = 0; i < timeout; i++) {
 		cur_value = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
-			break;
+			return cur_value == 0x1 ? 0 : -EIO;
+
 		udelay(1);
 	}
 
 	/* timeout means wrong logic */
-	if (i == timeout)
-		return -ETIME;
-
-	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
+	return -ETIME;
 }
 
 int
@@ -104,9 +102,11 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 		return index;
 
 	ret = smu_v11_0_wait_for_response(smu);
-	if (ret)
-		pr_err("failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
-		       smu_get_message_name(smu, msg), index, param, ret);
+	if (ret) {
+		pr_err("Msg issuing pre-check failed and "
+		       "SMU may be not in the right state!\n");
+		return ret;
+	}
 
 	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
 
