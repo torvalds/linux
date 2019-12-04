@@ -31,6 +31,9 @@
 #include "renoir_ppt.h"
 
 
+#define CLK_MAP(clk, index) \
+	[SMU_##clk] = {1, (index)}
+
 #define MSG_MAP(msg, index) \
 	[SMU_MSG_##msg] = {1, (index)}
 
@@ -104,6 +107,14 @@ static struct smu_12_0_cmn2aisc_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(SetHardMinFclkByFreq,           PPSMC_MSG_SetHardMinFclkByFreq),
 };
 
+static struct smu_12_0_cmn2aisc_mapping renoir_clk_map[SMU_CLK_COUNT] = {
+	CLK_MAP(GFXCLK, CLOCK_GFXCLK),
+	CLK_MAP(SCLK,	CLOCK_GFXCLK),
+	CLK_MAP(SOCCLK, CLOCK_SOCCLK),
+	CLK_MAP(UCLK, CLOCK_UMCCLK),
+	CLK_MAP(MCLK, CLOCK_UMCCLK),
+};
+
 static struct smu_12_0_cmn2aisc_mapping renoir_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP_VALID(WATERMARKS),
 	TAB_MAP_INVALID(CUSTOM_DPM),
@@ -121,6 +132,21 @@ static int renoir_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 	mapping = renoir_message_map[index];
 	if (!(mapping.valid_mapping))
 		return -EINVAL;
+
+	return mapping.map_to;
+}
+
+static int renoir_get_smu_clk_index(struct smu_context *smc, uint32_t index)
+{
+	struct smu_12_0_cmn2aisc_mapping mapping;
+
+	if (index >= SMU_CLK_COUNT)
+		return -EINVAL;
+
+	mapping = renoir_clk_map[index];
+	if (!(mapping.valid_mapping)) {
+		return -EINVAL;
+	}
 
 	return mapping.map_to;
 }
@@ -348,6 +374,26 @@ static int renoir_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 		}
 		power_gate->jpeg_gated = true;
 	}
+
+	return ret;
+}
+
+static int renoir_get_current_clk_freq_by_table(struct smu_context *smu,
+				       enum smu_clk_type clk_type,
+				       uint32_t *value)
+{
+	int ret = 0, clk_id = 0;
+	SmuMetrics_t metrics;
+
+	ret = renoir_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
+
+	clk_id = smu_clk_get_index(smu, clk_type);
+	if (clk_id < 0)
+		return clk_id;
+
+	*value = metrics.ClockFrequency[clk_id];
 
 	return ret;
 }
@@ -798,6 +844,7 @@ static int renoir_read_sensor(struct smu_context *smu,
 
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
+	.get_smu_clk_index = renoir_get_smu_clk_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
 	.tables_init = renoir_tables_init,
 	.set_power_state = NULL,
@@ -806,6 +853,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_current_power_state = renoir_get_current_power_state,
 	.dpm_set_uvd_enable = renoir_dpm_set_uvd_enable,
 	.dpm_set_jpeg_enable = renoir_dpm_set_jpeg_enable,
+	.get_current_clk_freq_by_table = renoir_get_current_clk_freq_by_table,
 	.force_dpm_limit_value = renoir_force_dpm_limit_value,
 	.unforce_dpm_levels = renoir_unforce_dpm_levels,
 	.get_workload_type = renoir_get_workload_type,
@@ -829,6 +877,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.init_smc_tables = smu_v12_0_init_smc_tables,
 	.fini_smc_tables = smu_v12_0_fini_smc_tables,
 	.populate_smc_tables = smu_v12_0_populate_smc_tables,
+	.get_current_clk_freq = smu_v12_0_get_current_clk_freq,
 	.get_dpm_ultimate_freq = smu_v12_0_get_dpm_ultimate_freq,
 	.mode2_reset = smu_v12_0_mode2_reset,
 	.set_soft_freq_limited_range = smu_v12_0_set_soft_freq_limited_range,

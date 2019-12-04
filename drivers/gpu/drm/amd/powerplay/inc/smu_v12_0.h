@@ -75,6 +75,10 @@ int smu_v12_0_fini_smc_tables(struct smu_context *smu);
 
 int smu_v12_0_populate_smc_tables(struct smu_context *smu);
 
+int smu_v12_0_get_current_clk_freq(struct smu_context *smu,
+					  enum smu_clk_type clk_id,
+					  uint32_t *value);
+
 int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
 						 uint32_t *min, uint32_t *max);
 

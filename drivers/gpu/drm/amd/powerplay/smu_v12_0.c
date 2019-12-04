@@ -330,6 +330,26 @@ int smu_v12_0_populate_smc_tables(struct smu_context *smu)
 	return smu_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
 }
 
+int smu_v12_0_get_current_clk_freq(struct smu_context *smu,
+					  enum smu_clk_type clk_id,
+					  uint32_t *value)
+{
+	int ret = 0;
+	uint32_t freq = 0;
+
+	if (clk_id >= SMU_CLK_COUNT || !value)
+		return -EINVAL;
+
+	ret = smu_get_current_clk_freq_by_table(smu, clk_id, &freq);
+	if (ret)
+		return ret;
+
+	freq *= 100;
+	*value = freq;
+
+	return ret;
+}
+
 int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
 						 uint32_t *min, uint32_t *max)
 {
