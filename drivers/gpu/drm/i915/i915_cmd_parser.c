@@ -1306,8 +1306,7 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 	return true;
 }
 
-static int check_bbstart(const struct i915_gem_context *ctx,
-			 u32 *cmd, u32 offset, u32 length,
+static int check_bbstart(u32 *cmd, u32 offset, u32 length,
 			 u32 batch_len,
 			 u64 batch_start,
 			 u64 shadow_batch_start,
@@ -1392,7 +1391,6 @@ alloc_whitelist(struct drm_i915_private *i915, u32 batch_len)
 
 /**
  * i915_parse_cmds() - parse a submitted batch buffer for privilege violations
- * @ctx: the context in which the batch is to execute
  * @engine: the engine on which the batch is to execute
  * @batch_obj: the batch buffer in question
  * @batch_start: Canonical base address of batch
@@ -1408,8 +1406,7 @@ alloc_whitelist(struct drm_i915_private *i915, u32 batch_len)
  * if the batch appears legal but should use hardware parsing
  */
 
-int intel_engine_cmd_parser(struct i915_gem_context *ctx,
-			    struct intel_engine_cs *engine,
+int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			    struct drm_i915_gem_object *batch_obj,
 			    u64 batch_start,
 			    u32 batch_start_offset,
@@ -1433,7 +1430,7 @@ int intel_engine_cmd_parser(struct i915_gem_context *ctx,
 	}
 
 	/* Defer failure until attempted use */
-	jump_whitelist = alloc_whitelist(ctx->i915, batch_len);
+	jump_whitelist = alloc_whitelist(engine->i915, batch_len);
 
 	/*
 	 * We use the batch length as size because the shadow object is as
@@ -1475,7 +1472,7 @@ int intel_engine_cmd_parser(struct i915_gem_context *ctx,
 		}
 
 		if (desc->cmd.value == MI_BATCH_BUFFER_START) {
-			ret = check_bbstart(ctx, cmd, offset, length,
+			ret = check_bbstart(cmd, offset, length,
 					    batch_len, batch_start,
 					    shadow_batch_start,
 					    jump_whitelist);

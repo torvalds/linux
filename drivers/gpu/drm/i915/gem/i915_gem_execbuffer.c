@@ -2022,8 +2022,7 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 
 	shadow_batch_start = gen8_canonical_addr(vma->node.start);
 
-	err = intel_engine_cmd_parser(eb->gem_context,
-				      eb->engine,
+	err = intel_engine_cmd_parser(eb->engine,
 				      eb->batch->obj,
 				      batch_start,
 				      eb->batch_start_offset,
