@@ -23,7 +23,7 @@
 
 #include <asm/smp.h>
 
-#include "sp-dev.h"
+#include "psp-dev.h"
 #include "sev-dev.h"
 
 #define DEVICE_NAME		"sev"
@@ -32,7 +32,6 @@
 
 static DEFINE_MUTEX(sev_cmd_mutex);
 static struct sev_misc_dev *misc_dev;
-static struct psp_device *psp_master;
 
 static int psp_cmd_timeout = 100;
 module_param(psp_cmd_timeout, int, 0644);
@@ -47,68 +46,45 @@ static int psp_timeout;
 
 static inline bool sev_version_greater_or_equal(u8 maj, u8 min)
 {
-	if (psp_master->api_major > maj)
+	struct sev_device *sev = psp_master->sev_data;
+
+	if (sev->api_major > maj)
 		return true;
-	if (psp_master->api_major == maj && psp_master->api_minor >= min)
+
+	if (sev->api_major == maj && sev->api_minor >= min)
 		return true;
+
 	return false;
 }
 
-static struct psp_device *psp_alloc_struct(struct sp_device *sp)
+static void sev_irq_handler(int irq, void *data, unsigned int status)
 {
-	struct device *dev = sp->dev;
-	struct psp_device *psp;
-
-	psp = devm_kzalloc(dev, sizeof(*psp), GFP_KERNEL);
-	if (!psp)
-		return NULL;
-
-	psp->dev = dev;
-	psp->sp = sp;
-
-	snprintf(psp->name, sizeof(psp->name), "psp-%u", sp->ord);
-
-	return psp;
-}
-
-static irqreturn_t psp_irq_handler(int irq, void *data)
-{
-	struct psp_device *psp = data;
-	unsigned int status;
+	struct sev_device *sev = data;
 	int reg;
 
-	/* Read the interrupt status: */
-	status = ioread32(psp->io_regs + psp->vdata->intsts_reg);
-
 	/* Check if it is command completion: */
-	if (!(status & PSP_CMD_COMPLETE))
-		goto done;
+	if (!(status & SEV_CMD_COMPLETE))
+		return;
 
 	/* Check if it is SEV command completion: */
-	reg = ioread32(psp->io_regs + psp->vdata->cmdresp_reg);
+	reg = ioread32(sev->io_regs + sev->psp->vdata->cmdresp_reg);
 	if (reg & PSP_CMDRESP_RESP) {
-		psp->sev_int_rcvd = 1;
-		wake_up(&psp->sev_int_queue);
+		sev->int_rcvd = 1;
+		wake_up(&sev->int_queue);
 	}
-
-done:
-	/* Clear the interrupt status by writing the same value we read. */
-	iowrite32(status, psp->io_regs + psp->vdata->intsts_reg);
-
-	return IRQ_HANDLED;
 }
 
-static int sev_wait_cmd_ioc(struct psp_device *psp,
+static int sev_wait_cmd_ioc(struct sev_device *sev,
 			    unsigned int *reg, unsigned int timeout)
 {
 	int ret;
 
-	ret = wait_event_timeout(psp->sev_int_queue,
-			psp->sev_int_rcvd, timeout * HZ);
+	ret = wait_event_timeout(sev->int_queue,
+			sev->int_rcvd, timeout * HZ);
 	if (!ret)
 		return -ETIMEDOUT;
 
-	*reg = ioread32(psp->io_regs + psp->vdata->cmdresp_reg);
+	*reg = ioread32(sev->io_regs + sev->psp->vdata->cmdresp_reg);
 
 	return 0;
 }
@@ -152,42 +128,45 @@ static int sev_cmd_buffer_len(int cmd)
 static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 {
 	struct psp_device *psp = psp_master;
+	struct sev_device *sev;
 	unsigned int phys_lsb, phys_msb;
 	unsigned int reg, ret = 0;
 
-	if (!psp)
+	if (!psp || !psp->sev_data)
 		return -ENODEV;
 
 	if (psp_dead)
 		return -EBUSY;
 
+	sev = psp->sev_data;
+
 	/* Get the physical address of the command buffer */
 	phys_lsb = data ? lower_32_bits(__psp_pa(data)) : 0;
 	phys_msb = data ? upper_32_bits(__psp_pa(data)) : 0;
 
-	dev_dbg(psp->dev, "sev command id %#x buffer 0x%08x%08x timeout %us\n",
+	dev_dbg(sev->dev, "sev command id %#x buffer 0x%08x%08x timeout %us\n",
 		cmd, phys_msb, phys_lsb, psp_timeout);
 
 	print_hex_dump_debug("(in):  ", DUMP_PREFIX_OFFSET, 16, 2, data,
 			     sev_cmd_buffer_len(cmd), false);
 
-	iowrite32(phys_lsb, psp->io_regs + psp->vdata->cmdbuff_addr_lo_reg);
-	iowrite32(phys_msb, psp->io_regs + psp->vdata->cmdbuff_addr_hi_reg);
+	iowrite32(phys_lsb, sev->io_regs + psp->vdata->cmdbuff_addr_lo_reg);
+	iowrite32(phys_msb, sev->io_regs + psp->vdata->cmdbuff_addr_hi_reg);
 
-	psp->sev_int_rcvd = 0;
+	sev->int_rcvd = 0;
 
 	reg = cmd;
-	reg <<= PSP_CMDRESP_CMD_SHIFT;
-	reg |= PSP_CMDRESP_IOC;
-	iowrite32(reg, psp->io_regs + psp->vdata->cmdresp_reg);
+	reg <<= SEV_CMDRESP_CMD_SHIFT;
+	reg |= SEV_CMDRESP_IOC;
+	iowrite32(reg, sev->io_regs + psp->vdata->cmdresp_reg);
 
 	/* wait for command completion */
-	ret = sev_wait_cmd_ioc(psp, &reg, psp_timeout);
+	ret = sev_wait_cmd_ioc(sev, &reg, psp_timeout);
 	if (ret) {
 		if (psp_ret)
 			*psp_ret = 0;
 
-		dev_err(psp->dev, "sev command %#x timed out, disabling PSP \n", cmd);
+		dev_err(sev->dev, "sev command %#x timed out, disabling PSP\n", cmd);
 		psp_dead = true;
 
 		return ret;
@@ -199,7 +178,7 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 		*psp_ret = reg & PSP_CMDRESP_ERR_MASK;
 
 	if (reg & PSP_CMDRESP_ERR_MASK) {
-		dev_dbg(psp->dev, "sev command %#x failed (%#010x)\n",
+		dev_dbg(sev->dev, "sev command %#x failed (%#010x)\n",
 			cmd, reg & PSP_CMDRESP_ERR_MASK);
 		ret = -EIO;
 	}
@@ -224,19 +203,22 @@ static int sev_do_cmd(int cmd, void *data, int *psp_ret)
 static int __sev_platform_init_locked(int *error)
 {
 	struct psp_device *psp = psp_master;
+	struct sev_device *sev;
 	int rc = 0;
 
-	if (!psp)
+	if (!psp || !psp->sev_data)
 		return -ENODEV;
 
-	if (psp->sev_state == SEV_STATE_INIT)
+	sev = psp->sev_data;
+
+	if (sev->state == SEV_STATE_INIT)
 		return 0;
 
-	rc = __sev_do_cmd_locked(SEV_CMD_INIT, &psp->init_cmd_buf, error);
+	rc = __sev_do_cmd_locked(SEV_CMD_INIT, &sev->init_cmd_buf, error);
 	if (rc)
 		return rc;
 
-	psp->sev_state = SEV_STATE_INIT;
+	sev->state = SEV_STATE_INIT;
 
 	/* Prepare for first SEV guest launch after INIT */
 	wbinvd_on_all_cpus();
@@ -244,7 +226,7 @@ static int __sev_platform_init_locked(int *error)
 	if (rc)
 		return rc;
 
-	dev_dbg(psp->dev, "SEV firmware initialized\n");
+	dev_dbg(sev->dev, "SEV firmware initialized\n");
 
 	return rc;
 }
@@ -263,14 +245,15 @@ EXPORT_SYMBOL_GPL(sev_platform_init);
 
 static int __sev_platform_shutdown_locked(int *error)
 {
+	struct sev_device *sev = psp_master->sev_data;
 	int ret;
 
 	ret = __sev_do_cmd_locked(SEV_CMD_SHUTDOWN, NULL, error);
 	if (ret)
 		return ret;
 
-	psp_master->sev_state = SEV_STATE_UNINIT;
-	dev_dbg(psp_master->dev, "SEV firmware shutdown\n");
+	sev->state = SEV_STATE_UNINIT;
+	dev_dbg(sev->dev, "SEV firmware shutdown\n");
 
 	return ret;
 }
@@ -288,14 +271,15 @@ static int sev_platform_shutdown(int *error)
 
 static int sev_get_platform_state(int *state, int *error)
 {
+	struct sev_device *sev = psp_master->sev_data;
 	int rc;
 
 	rc = __sev_do_cmd_locked(SEV_CMD_PLATFORM_STATUS,
-				 &psp_master->status_cmd_buf, error);
+				 &sev->status_cmd_buf, error);
 	if (rc)
 		return rc;
 
-	*state = psp_master->status_cmd_buf.state;
+	*state = sev->status_cmd_buf.state;
 	return rc;
 }
 
@@ -333,7 +317,8 @@ static int sev_ioctl_do_reset(struct sev_issue_cmd *argp)
 
 static int sev_ioctl_do_platform_status(struct sev_issue_cmd *argp)
 {
-	struct sev_user_data_status *data = &psp_master->status_cmd_buf;
+	struct sev_device *sev = psp_master->sev_data;
+	struct sev_user_data_status *data = &sev->status_cmd_buf;
 	int ret;
 
 	ret = __sev_do_cmd_locked(SEV_CMD_PLATFORM_STATUS, data, &argp->error);
@@ -348,12 +333,13 @@ static int sev_ioctl_do_platform_status(struct sev_issue_cmd *argp)
 
 static int sev_ioctl_do_pek_pdh_gen(int cmd, struct sev_issue_cmd *argp)
 {
+	struct sev_device *sev = psp_master->sev_data;
 	int rc;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (psp_master->sev_state == SEV_STATE_UNINIT) {
+	if (sev->state == SEV_STATE_UNINIT) {
 		rc = __sev_platform_init_locked(&argp->error);
 		if (rc)
 			return rc;
@@ -364,6 +350,7 @@ static int sev_ioctl_do_pek_pdh_gen(int cmd, struct sev_issue_cmd *argp)
 
 static int sev_ioctl_do_pek_csr(struct sev_issue_cmd *argp)
 {
+	struct sev_device *sev = psp_master->sev_data;
 	struct sev_user_data_pek_csr input;
 	struct sev_data_pek_csr *data;
 	void *blob = NULL;
@@ -400,7 +387,7 @@ static int sev_ioctl_do_pek_csr(struct sev_issue_cmd *argp)
 	data->len = input.length;
 
 cmd:
-	if (psp_master->sev_state == SEV_STATE_UNINIT) {
+	if (sev->state == SEV_STATE_UNINIT) {
 		ret = __sev_platform_init_locked(&argp->error);
 		if (ret)
 			goto e_free_blob;
@@ -443,21 +430,22 @@ EXPORT_SYMBOL_GPL(psp_copy_user_blob);
 
 static int sev_get_api_version(void)
 {
+	struct sev_device *sev = psp_master->sev_data;
 	struct sev_user_data_status *status;
 	int error = 0, ret;
 
-	status = &psp_master->status_cmd_buf;
+	status = &sev->status_cmd_buf;
 	ret = sev_platform_status(status, &error);
 	if (ret) {
-		dev_err(psp_master->dev,
+		dev_err(sev->dev,
 			"SEV: failed to get status. Error: %#x\n", error);
 		return 1;
 	}
 
-	psp_master->api_major = status->api_major;
-	psp_master->api_minor = status->api_minor;
-	psp_master->build = status->build;
-	psp_master->sev_state = status->state;
+	sev->api_major = status->api_major;
+	sev->api_minor = status->api_minor;
+	sev->build = status->build;
+	sev->state = status->state;
 
 	return 0;
 }
@@ -553,6 +541,7 @@ fw_err:
 
 static int sev_ioctl_do_pek_import(struct sev_issue_cmd *argp)
 {
+	struct sev_device *sev = psp_master->sev_data;
 	struct sev_user_data_pek_cert_import input;
 	struct sev_data_pek_cert_import *data;
 	void *pek_blob, *oca_blob;
@@ -589,7 +578,7 @@ static int sev_ioctl_do_pek_import(struct sev_issue_cmd *argp)
 	data->oca_cert_len = input.oca_cert_len;
 
 	/* If platform is not in INIT state then transition it to INIT */
-	if (psp_master->sev_state != SEV_STATE_INIT) {
+	if (sev->state != SEV_STATE_INIT) {
 		ret = __sev_platform_init_locked(&argp->error);
 		if (ret)
 			goto e_free_oca;
@@ -711,13 +700,14 @@ static int sev_ioctl_do_get_id(struct sev_issue_cmd *argp)
 
 static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp)
 {
+	struct sev_device *sev = psp_master->sev_data;
 	struct sev_user_data_pdh_cert_export input;
 	void *pdh_blob = NULL, *cert_blob = NULL;
 	struct sev_data_pdh_cert_export *data;
 	int ret;
 
 	/* If platform is not in INIT state then transition it to INIT. */
-	if (psp_master->sev_state != SEV_STATE_INIT) {
+	if (sev->state != SEV_STATE_INIT) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
@@ -812,7 +802,7 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 	struct sev_issue_cmd input;
 	int ret = -EFAULT;
 
-	if (!psp_master)
+	if (!psp_master || !psp_master->sev_data)
 		return -ENODEV;
 
 	if (ioctl != SEV_ISSUE_CMD)
@@ -911,9 +901,9 @@ static void sev_exit(struct kref *ref)
 	misc_deregister(&misc_dev->misc);
 }
 
-static int sev_misc_init(struct psp_device *psp)
+static int sev_misc_init(struct sev_device *sev)
 {
-	struct device *dev = psp->dev;
+	struct device *dev = sev->dev;
 	int ret;
 
 	/*
@@ -944,115 +934,61 @@ static int sev_misc_init(struct psp_device *psp)
 		kref_get(&misc_dev->refcount);
 	}
 
-	init_waitqueue_head(&psp->sev_int_queue);
-	psp->sev_misc = misc_dev;
+	init_waitqueue_head(&sev->int_queue);
+	sev->misc = misc_dev;
 	dev_dbg(dev, "registered SEV device\n");
 
 	return 0;
 }
 
-static int psp_check_sev_support(struct psp_device *psp)
+int sev_dev_init(struct psp_device *psp)
 {
-	unsigned int val = ioread32(psp->io_regs + psp->vdata->feature_reg);
+	struct device *dev = psp->dev;
+	struct sev_device *sev;
+	int ret = -ENOMEM;
 
-	/*
-	 * Check for a access to the registers.  If this read returns
-	 * 0xffffffff, it's likely that the system is running a broken
-	 * BIOS which disallows access to the device. Stop here and
-	 * fail the PSP initialization (but not the load, as the CCP
-	 * could get properly initialized).
-	 */
-	if (val == 0xffffffff) {
-		dev_notice(psp->dev, "psp: unable to access the device: you might be running a broken BIOS.\n");
-		return -ENODEV;
-	}
-
-	if (!(val & 1)) {
-		/* Device does not support the SEV feature */
-		dev_dbg(psp->dev, "psp does not support SEV\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-int psp_dev_init(struct sp_device *sp)
-{
-	struct device *dev = sp->dev;
-	struct psp_device *psp;
-	int ret;
-
-	ret = -ENOMEM;
-	psp = psp_alloc_struct(sp);
-	if (!psp)
+	sev = devm_kzalloc(dev, sizeof(*sev), GFP_KERNEL);
+	if (!sev)
 		goto e_err;
 
-	sp->psp_data = psp;
+	psp->sev_data = sev;
 
-	psp->vdata = (struct psp_vdata *)sp->dev_vdata->psp_vdata;
-	if (!psp->vdata) {
-		ret = -ENODEV;
-		dev_err(dev, "missing driver data\n");
-		goto e_err;
-	}
+	sev->dev = dev;
+	sev->psp = psp;
 
-	psp->io_regs = sp->io_map;
+	sev->io_regs = psp->io_regs;
 
-	ret = psp_check_sev_support(psp);
-	if (ret)
-		goto e_disable;
+	psp_set_sev_irq_handler(psp, sev_irq_handler, sev);
 
-	/* Disable and clear interrupts until ready */
-	iowrite32(0, psp->io_regs + psp->vdata->inten_reg);
-	iowrite32(-1, psp->io_regs + psp->vdata->intsts_reg);
-
-	/* Request an irq */
-	ret = sp_request_psp_irq(psp->sp, psp_irq_handler, psp->name, psp);
-	if (ret) {
-		dev_err(dev, "psp: unable to allocate an IRQ\n");
-		goto e_err;
-	}
-
-	ret = sev_misc_init(psp);
+	ret = sev_misc_init(sev);
 	if (ret)
 		goto e_irq;
 
-	if (sp->set_psp_master_device)
-		sp->set_psp_master_device(sp);
-
-	/* Enable interrupt */
-	iowrite32(-1, psp->io_regs + psp->vdata->inten_reg);
-
-	dev_notice(dev, "psp enabled\n");
+	dev_notice(dev, "sev enabled\n");
 
 	return 0;
 
 e_irq:
-	sp_free_psp_irq(psp->sp, psp);
+	psp_clear_sev_irq_handler(psp);
 e_err:
-	sp->psp_data = NULL;
+	psp->sev_data = NULL;
 
-	dev_notice(dev, "psp initialization failed\n");
-
-	return ret;
-
-e_disable:
-	sp->psp_data = NULL;
+	dev_notice(dev, "sev initialization failed\n");
 
 	return ret;
 }
 
-void psp_dev_destroy(struct sp_device *sp)
+void sev_dev_destroy(struct psp_device *psp)
 {
-	struct psp_device *psp = sp->psp_data;
+	struct sev_device *sev = psp->sev_data;
 
-	if (!psp)
+	if (!sev)
 		return;
 
-	if (psp->sev_misc)
+	if (sev->misc)
 		kref_put(&misc_dev->refcount, sev_exit);
 
-	sp_free_psp_irq(sp, psp);
+	psp_clear_sev_irq_handler(psp);
 }
 
 int sev_issue_cmd_external_user(struct file *filep, unsigned int cmd,
@@ -1061,20 +997,17 @@ int sev_issue_cmd_external_user(struct file *filep, unsigned int cmd,
 	if (!filep || filep->f_op != &sev_fops)
 		return -EBADF;
 
-	return  sev_do_cmd(cmd, data, error);
+	return sev_do_cmd(cmd, data, error);
 }
 EXPORT_SYMBOL_GPL(sev_issue_cmd_external_user);
 
-void psp_pci_init(void)
+void sev_pci_init(void)
 {
-	struct sp_device *sp;
+	struct sev_device *sev = psp_master->sev_data;
 	int error, rc;
 
-	sp = sp_get_psp_master_device();
-	if (!sp)
+	if (!sev)
 		return;
-
-	psp_master = sp->psp_data;
 
 	psp_timeout = psp_probe_timeout;
 
@@ -1091,13 +1024,13 @@ void psp_pci_init(void)
 	 * firmware in INIT or WORKING state.
 	 */
 
-	if (psp_master->sev_state != SEV_STATE_UNINIT) {
+	if (sev->state != SEV_STATE_UNINIT) {
 		sev_platform_shutdown(NULL);
-		psp_master->sev_state = SEV_STATE_UNINIT;
+		sev->state = SEV_STATE_UNINIT;
 	}
 
 	if (sev_version_greater_or_equal(0, 15) &&
-	    sev_update_firmware(psp_master->dev) == 0)
+	    sev_update_firmware(sev->dev) == 0)
 		sev_get_api_version();
 
 	/* Initialize the platform */
@@ -1110,27 +1043,27 @@ void psp_pci_init(void)
 		 * failed and persistent state has been erased.
 		 * Retrying INIT command here should succeed.
 		 */
-		dev_dbg(sp->dev, "SEV: retrying INIT command");
+		dev_dbg(sev->dev, "SEV: retrying INIT command");
 		rc = sev_platform_init(&error);
 	}
 
 	if (rc) {
-		dev_err(sp->dev, "SEV: failed to INIT error %#x\n", error);
+		dev_err(sev->dev, "SEV: failed to INIT error %#x\n", error);
 		return;
 	}
 
-	dev_info(sp->dev, "SEV API:%d.%d build:%d\n", psp_master->api_major,
-		 psp_master->api_minor, psp_master->build);
+	dev_info(sev->dev, "SEV API:%d.%d build:%d\n", sev->api_major,
+		 sev->api_minor, sev->build);
 
 	return;
 
 err:
-	psp_master = NULL;
+	psp_master->sev_data = NULL;
 }
 
-void psp_pci_exit(void)
+void sev_pci_exit(void)
 {
-	if (!psp_master)
+	if (!psp_master->sev_data)
 		return;
 
 	sev_platform_shutdown(NULL);

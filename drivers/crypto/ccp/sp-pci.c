@@ -22,7 +22,7 @@
 #include <linux/ccp.h>
 
 #include "ccp-dev.h"
-#include "sev-dev.h"
+#include "psp-dev.h"
 
 #define MSIX_VECTORS			2
 
