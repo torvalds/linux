@@ -497,8 +497,8 @@ struct pptable_funcs {
 	int (*notify_memory_pool_location)(struct smu_context *smu);
 	int (*set_last_dcef_min_deep_sleep_clk)(struct smu_context *smu);
 	int (*system_features_control)(struct smu_context *smu, bool en);
-	int (*send_smc_msg)(struct smu_context *smu, uint16_t msg);
-	int (*send_smc_msg_with_param)(struct smu_context *smu, uint16_t msg, uint32_t param);
+	int (*send_smc_msg_with_param)(struct smu_context *smu,
+				       enum smu_message_type msg, uint32_t param);
 	int (*read_smc_arg)(struct smu_context *smu, uint32_t *arg);
 	int (*init_display_count)(struct smu_context *smu, uint32_t count);
 	int (*set_allowed_mask)(struct smu_context *smu);
