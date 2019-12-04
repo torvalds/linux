@@ -275,7 +275,6 @@ static int sof_pci_probe(struct pci_dev *pci,
 	struct device *dev = &pci->dev;
 	const struct sof_dev_desc *desc =
 		(const struct sof_dev_desc *)pci_id->driver_data;
-	struct snd_soc_acpi_mach *mach;
 	struct snd_sof_pdata *sof_pdata;
 	const struct snd_sof_dsp_ops *ops;
 	int ret;
@@ -306,35 +305,10 @@ static int sof_pci_probe(struct pci_dev *pci,
 	if (ret < 0)
 		return ret;
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
-	/* force nocodec mode */
-	dev_warn(dev, "Force to use nocodec mode\n");
-	mach = devm_kzalloc(dev, sizeof(*mach), GFP_KERNEL);
-	if (!mach) {
-		ret = -ENOMEM;
-		goto release_regions;
-	}
-	ret = sof_nocodec_setup(dev, sof_pdata, mach, desc, ops);
-	if (ret < 0)
-		goto release_regions;
-
-#else
-	/* find machine */
-	mach = snd_soc_acpi_find_machine(desc->machines);
-	if (!mach) {
-		dev_warn(dev, "warning: No matching ASoC machine driver found\n");
-	} else {
-		mach->mach_params.platform = dev_name(dev);
-		sof_pdata->fw_filename = mach->sof_fw_filename;
-		sof_pdata->tplg_filename = mach->sof_tplg_filename;
-	}
-#endif /* CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE */
-
 	sof_pdata->name = pci_name(pci);
-	sof_pdata->machine = mach;
 	sof_pdata->desc = (struct sof_dev_desc *)pci_id->driver_data;
 	sof_pdata->dev = dev;
-	sof_pdata->platform = dev_name(dev);
+	sof_pdata->fw_filename = desc->default_fw_filename;
 
 	/* alternate fw and tplg filenames ? */
 	if (fw_path)

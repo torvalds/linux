@@ -77,7 +77,6 @@ int sof_nocodec_setup(struct device *dev,
 	sof_pdata->drv_name = "sof-nocodec";
 
 	mach->drv_name = "sof-nocodec";
-	sof_pdata->fw_filename = desc->nocodec_fw_filename;
 	sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
 
 	/* create dummy BE dai_links */

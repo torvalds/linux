@@ -204,4 +204,8 @@ int sof_restore_pipelines(struct device *dev);
 int sof_set_hw_params_upon_resume(struct device *dev);
 bool snd_sof_dsp_d0i3_on_suspend(struct snd_sof_dev *sdev);
 
+/* Machine driver enumeration */
+int sof_machine_register(struct snd_sof_dev *sdev, void *pdata);
+void sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata);
+
 #endif

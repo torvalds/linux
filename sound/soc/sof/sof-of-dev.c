@@ -44,8 +44,6 @@ static int sof_of_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct sof_dev_desc *desc;
-	/*TODO: create a generic snd_soc_xxx_mach */
-	struct snd_soc_acpi_mach *mach;
 	struct snd_sof_pdata *sof_pdata;
 	const struct snd_sof_dsp_ops *ops;
 	int ret;
@@ -67,27 +65,9 @@ static int sof_of_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
-	/* force nocodec mode */
-	dev_warn(dev, "Force to use nocodec mode\n");
-	mach = devm_kzalloc(dev, sizeof(*mach), GFP_KERNEL);
-	if (!mach)
-		return -ENOMEM;
-	ret = sof_nocodec_setup(dev, sof_pdata, mach, desc, ops);
-	if (ret < 0)
-		return ret;
-#else
-	/* TODO: implement case where we actually have a codec */
-	return -ENODEV;
-#endif
-
-	if (mach)
-		mach->mach_params.platform = dev_name(dev);
-
-	sof_pdata->machine = mach;
 	sof_pdata->desc = desc;
 	sof_pdata->dev = &pdev->dev;
-	sof_pdata->platform = dev_name(dev);
+	sof_pdata->fw_filename = desc->default_fw_filename;
 
 	/* TODO: read alternate fw and tplg filenames from DT */
 	sof_pdata->fw_filename_prefix = sof_pdata->desc->default_fw_path;

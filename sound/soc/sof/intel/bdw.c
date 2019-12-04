@@ -17,6 +17,7 @@
 #include <sound/sof/xtensa.h>
 #include "../ops.h"
 #include "shim.h"
+#include "../sof-audio.h"
 
 /* BARs */
 #define BDW_DSP_BAR 0
@@ -536,6 +537,32 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	return ret;
 }
 
+static void bdw_machine_select(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *sof_pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = sof_pdata->desc;
+	struct snd_soc_acpi_mach *mach;
+
+	mach = snd_soc_acpi_find_machine(desc->machines);
+	if (!mach) {
+		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
+		return;
+	}
+
+	sof_pdata->tplg_filename = mach->sof_tplg_filename;
+	mach->mach_params.acpi_ipc_irq_index = desc->irqindex_host_ipc;
+	sof_pdata->machine = mach;
+}
+
+static void bdw_set_mach_params(const struct snd_soc_acpi_mach *mach,
+				struct device *dev)
+{
+	struct snd_soc_acpi_mach_params *mach_params;
+
+	mach_params = (struct snd_soc_acpi_mach_params *)&mach->mach_params;
+	mach_params->platform = dev_name(dev);
+}
+
 /* Broadwell DAIs */
 static struct snd_soc_dai_driver bdw_dai[] = {
 {
@@ -573,6 +600,12 @@ const struct snd_sof_dsp_ops sof_bdw_ops = {
 
 	.ipc_msg_data	= intel_ipc_msg_data,
 	.ipc_pcm_params	= intel_ipc_pcm_params,
+
+	/* machine driver */
+	.machine_select = bdw_machine_select,
+	.machine_register = sof_machine_register,
+	.machine_unregister = sof_machine_unregister,
+	.set_mach_params = bdw_set_mach_params,
 
 	/* debug */
 	.debug_map  = bdw_debugfs,
