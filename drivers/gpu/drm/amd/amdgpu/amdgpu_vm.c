@@ -656,7 +656,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			      void *param)
 {
 	struct amdgpu_vm_bo_base *bo_base, *tmp;
-	int r = 0;
+	int r;
 
 	vm->bulk_moveable &= list_empty(&vm->evicted);
 
@@ -665,7 +665,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 		r = validate(param, bo);
 		if (r)
-			break;
+			return r;
 
 		if (bo->tbo.type != ttm_bo_type_kernel) {
 			amdgpu_vm_bo_moved(bo_base);
@@ -678,7 +678,11 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		}
 	}
 
-	return r;
+	mutex_lock(&vm->eviction_lock);
+	vm->evicting = false;
+	mutex_unlock(&vm->eviction_lock);
+
+	return 0;
 }
 
 /**
@@ -1555,15 +1559,25 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (!(flags & AMDGPU_PTE_VALID))
 		owner = AMDGPU_FENCE_OWNER_KFD;
 
+	mutex_lock(&vm->eviction_lock);
+	if (vm->evicting) {
+		r = -EBUSY;
+		goto error_unlock;
+	}
+
 	r = vm->update_funcs->prepare(&params, owner, exclusive);
 	if (r)
-		return r;
+		goto error_unlock;
 
 	r = amdgpu_vm_update_ptes(&params, start, last + 1, addr, flags);
 	if (r)
-		return r;
+		goto error_unlock;
 
-	return vm->update_funcs->commit(&params, fence);
+	r = vm->update_funcs->commit(&params, fence);
+
+error_unlock:
+	mutex_unlock(&vm->eviction_lock);
+	return r;
 }
 
 /**
@@ -2518,11 +2532,19 @@ bool amdgpu_vm_evictable(struct amdgpu_bo *bo)
 	if (!dma_resv_test_signaled_rcu(bo->tbo.base.resv, true))
 		return false;
 
-	/* Don't evict VM page tables while they are updated */
-	if (!dma_fence_is_signaled(bo_base->vm->last_direct) ||
-	    !dma_fence_is_signaled(bo_base->vm->last_delayed))
+	/* Try to block ongoing updates */
+	if (!mutex_trylock(&bo_base->vm->eviction_lock))
 		return false;
 
+	/* Don't evict VM page tables while they are updated */
+	if (!dma_fence_is_signaled(bo_base->vm->last_direct) ||
+	    !dma_fence_is_signaled(bo_base->vm->last_delayed)) {
+		mutex_unlock(&bo_base->vm->eviction_lock);
+		return false;
+	}
+
+	bo_base->vm->evicting = true;
+	mutex_unlock(&bo_base->vm->eviction_lock);
 	return true;
 }
 
@@ -2768,6 +2790,9 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	vm->last_update = NULL;
 	vm->last_direct = dma_fence_get_stub();
 	vm->last_delayed = dma_fence_get_stub();
+
+	mutex_init(&vm->eviction_lock);
+	vm->evicting = false;
 
 	amdgpu_vm_bo_param(adev, vm, adev->vm_manager.root_level, false, &bp);
 	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE)

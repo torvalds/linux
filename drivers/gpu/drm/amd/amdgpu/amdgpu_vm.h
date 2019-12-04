@@ -239,6 +239,10 @@ struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root_cached	va;
 
+	/* Lock to prevent eviction while we are updating page tables */
+	struct mutex		eviction_lock;
+	bool			evicting;
+
 	/* BOs who needs a validation */
 	struct list_head	evicted;
 
