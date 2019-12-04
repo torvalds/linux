@@ -728,8 +728,7 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 static int fill_inode(struct inode *inode, struct page *locked_page,
 		      struct ceph_mds_reply_info_in *iinfo,
 		      struct ceph_mds_reply_dirfrag *dirinfo,
-		      struct ceph_mds_session *session,
-		      unsigned long ttl_from, int cap_fmode,
+		      struct ceph_mds_session *session, int cap_fmode,
 		      struct ceph_cap_reservation *caps_reservation)
 {
 	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
@@ -1237,7 +1236,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req)
 		if (dir) {
 			err = fill_inode(dir, NULL,
 					 &rinfo->diri, rinfo->dirfrag,
-					 session, req->r_request_started, -1,
+					 session, -1,
 					 &req->r_caps_reservation);
 			if (err < 0)
 				goto done;
@@ -1305,9 +1304,9 @@ retry_lookup:
 		req->r_target_inode = in;
 
 		err = fill_inode(in, req->r_locked_page, &rinfo->targeti, NULL,
-				session, req->r_request_started,
+				session,
 				(!test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags) &&
-				rinfo->head->result == 0) ?  req->r_fmode : -1,
+				 rinfo->head->result == 0) ?  req->r_fmode : -1,
 				&req->r_caps_reservation);
 		if (err < 0) {
 			pr_err("fill_inode badness %p %llx.%llx\n",
@@ -1493,8 +1492,7 @@ static int readdir_prepopulate_inodes_only(struct ceph_mds_request *req,
 			continue;
 		}
 		rc = fill_inode(in, NULL, &rde->inode, NULL, session,
-				req->r_request_started, -1,
-				&req->r_caps_reservation);
+				-1, &req->r_caps_reservation);
 		if (rc < 0) {
 			pr_err("fill_inode badness on %p got %d\n", in, rc);
 			err = rc;
@@ -1694,8 +1692,7 @@ retry_lookup:
 		}
 
 		ret = fill_inode(in, NULL, &rde->inode, NULL, session,
-				 req->r_request_started, -1,
-				 &req->r_caps_reservation);
+				 -1, &req->r_caps_reservation);
 		if (ret < 0) {
 			pr_err("fill_inode badness on %p\n", in);
 			if (d_really_is_negative(dn)) {
