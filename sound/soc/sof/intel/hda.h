@@ -43,10 +43,13 @@
 /* SOF_HDA_GCTL register bist */
 #define SOF_HDA_GCTL_RESET		BIT(0)
 
-/* SOF_HDA_INCTL and SOF_HDA_INTSTS regs */
+/* SOF_HDA_INCTL regs */
 #define SOF_HDA_INT_GLOBAL_EN		BIT(31)
 #define SOF_HDA_INT_CTRL_EN		BIT(30)
 #define SOF_HDA_INT_ALL_STREAM		0xff
+
+/* SOF_HDA_INTSTS regs */
+#define SOF_HDA_INTSTS_GIS		BIT(31)
 
 #define SOF_HDA_MAX_CAPS		10
 #define SOF_HDA_CAP_ID_OFF		16
@@ -406,8 +409,6 @@ struct sof_intel_hda_dev {
 	/* the maximum number of streams (playback + capture) supported */
 	u32 stream_max;
 
-	int irq;
-
 	/* PM related */
 	bool l1_support_changed;/* during suspend, is L1SEN changed or not */
 
@@ -511,11 +512,12 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			     struct snd_pcm_hw_params *params);
 int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 			   struct hdac_ext_stream *stream, int cmd);
-irqreturn_t hda_dsp_stream_interrupt(int irq, void *context);
 irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context);
 int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 			     struct snd_dma_buffer *dmab,
 			     struct hdac_stream *stream);
+bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev);
+bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev);
 
 struct hdac_ext_stream *
 	hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction);
@@ -540,7 +542,6 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev);
 int hda_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev);
 int hda_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id);
 
-irqreturn_t hda_dsp_ipc_irq_handler(int irq, void *context);
 irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context);
 int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
 

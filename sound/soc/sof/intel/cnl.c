@@ -106,10 +106,6 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 				    "nothing to do in IPC IRQ thread\n");
 	}
 
-	/* re-enable IPC interrupt */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
-				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
-
 	return IRQ_HANDLED;
 }
 
@@ -231,7 +227,6 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.block_write	= sof_block_write,
 
 	/* doorbell */
-	.irq_handler	= hda_dsp_ipc_irq_handler,
 	.irq_thread	= cnl_ipc_irq_thread,
 
 	/* ipc */
