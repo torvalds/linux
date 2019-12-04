@@ -132,13 +132,13 @@ void i915_gem_object_unlock_fence(struct drm_i915_gem_object *obj,
 static inline void
 i915_gem_object_set_readonly(struct drm_i915_gem_object *obj)
 {
-	obj->base.vma_node.readonly = true;
+	obj->flags |= I915_BO_READONLY;
 }
 
 static inline bool
 i915_gem_object_is_readonly(const struct drm_i915_gem_object *obj)
 {
-	return obj->base.vma_node.readonly;
+	return obj->flags & I915_BO_READONLY;
 }
 
 static inline bool
@@ -386,9 +386,6 @@ static inline void i915_gem_object_unpin_map(struct drm_i915_gem_object *obj)
 {
 	i915_gem_object_unpin_pages(obj);
 }
-
-void __i915_gem_object_release_mmap(struct drm_i915_gem_object *obj);
-void i915_gem_object_release_mmap(struct drm_i915_gem_object *obj);
 
 void
 i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,

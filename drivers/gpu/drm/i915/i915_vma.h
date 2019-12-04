@@ -63,6 +63,9 @@ struct i915_vma {
 	u64 display_alignment;
 	struct i915_page_sizes page_sizes;
 
+	/* mmap-offset associated with fencing for this vma */
+	struct i915_mmap_offset	*mmo;
+
 	u32 fence_size;
 	u32 fence_alignment;
 

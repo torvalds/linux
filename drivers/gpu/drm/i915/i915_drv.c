@@ -61,6 +61,7 @@
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
+#include "gem/i915_gem_mman.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_rc6.h"
@@ -2660,18 +2661,12 @@ const struct dev_pm_ops i915_pm_ops = {
 	.runtime_resume = intel_runtime_resume,
 };
 
-static const struct vm_operations_struct i915_gem_vm_ops = {
-	.fault = i915_gem_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
-
 static const struct file_operations i915_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_gem_mmap,
+	.mmap = i915_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
 	.compat_ioctl = i915_compat_ioctl,
@@ -2718,7 +2713,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_PREAD, i915_gem_pread_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_PWRITE, i915_gem_pwrite_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_MMAP, i915_gem_mmap_ioctl, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(I915_GEM_MMAP_GTT, i915_gem_mmap_gtt_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(I915_GEM_MMAP_OFFSET, i915_gem_mmap_offset_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_SET_DOMAIN, i915_gem_set_domain_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_SW_FINISH, i915_gem_sw_finish_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_SET_TILING, i915_gem_set_tiling_ioctl, DRM_RENDER_ALLOW),
@@ -2760,7 +2755,6 @@ static struct drm_driver driver = {
 
 	.gem_close_object = i915_gem_close_object,
 	.gem_free_object_unlocked = i915_gem_free_object,
-	.gem_vm_ops = &i915_gem_vm_ops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
@@ -2771,7 +2765,8 @@ static struct drm_driver driver = {
 	.get_scanout_position = i915_get_crtc_scanoutpos,
 
 	.dumb_create = i915_gem_dumb_create,
-	.dumb_map_offset = i915_gem_mmap_gtt,
+	.dumb_map_offset = i915_gem_dumb_mmap_offset,
+
 	.ioctls = i915_ioctls,
 	.num_ioctls = ARRAY_SIZE(i915_ioctls),
 	.fops = &i915_driver_fops,

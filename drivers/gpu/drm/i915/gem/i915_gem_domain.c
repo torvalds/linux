@@ -13,6 +13,7 @@
 #include "i915_gem_object.h"
 #include "i915_vma.h"
 #include "i915_gem_lmem.h"
+#include "i915_gem_mman.h"
 
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 {

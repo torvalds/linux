@@ -1857,9 +1857,6 @@ i915_mutex_lock_interruptible(struct drm_device *dev)
 int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
 			 struct drm_mode_create_dumb *args);
-int i915_gem_mmap_gtt(struct drm_file *file_priv, struct drm_device *dev,
-		      u32 handle, u64 *offset);
-int i915_gem_mmap_gtt_version(void);
 
 int __must_check i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno);
 
@@ -1882,7 +1879,6 @@ void i915_gem_driver_release(struct drm_i915_private *dev_priv);
 void i915_gem_suspend(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_late(struct drm_i915_private *dev_priv);
 void i915_gem_resume(struct drm_i915_private *dev_priv);
-vm_fault_t i915_gem_fault(struct vm_fault *vmf);
 
 int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);

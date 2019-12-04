@@ -44,6 +44,7 @@
 #include "gem/i915_gem_clflush.h"
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
+#include "gem/i915_gem_mman.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_user.h"
@@ -885,7 +886,7 @@ void i915_gem_runtime_suspend(struct drm_i915_private *i915)
 
 	list_for_each_entry_safe(obj, on,
 				 &i915->ggtt.userfault_list, userfault_link)
-		__i915_gem_object_release_mmap(obj);
+		__i915_gem_object_release_mmap_gtt(obj);
 
 	/*
 	 * The fence will be lost when the device powers down. If any were

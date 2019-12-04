@@ -1054,10 +1054,8 @@ static void __i915_vma_iounmap(struct i915_vma *vma)
 
 void i915_vma_revoke_mmap(struct i915_vma *vma)
 {
-	struct drm_vma_offset_node *node = &vma->obj->base.vma_node;
+	struct drm_vma_offset_node *node;
 	u64 vma_offset;
-
-	lockdep_assert_held(&vma->vm->mutex);
 
 	if (!i915_vma_has_userfault(vma))
 		return;
@@ -1065,6 +1063,7 @@ void i915_vma_revoke_mmap(struct i915_vma *vma)
 	GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
 	GEM_BUG_ON(!vma->obj->userfault_count);
 
+	node = &vma->mmo->vma_node;
 	vma_offset = vma->ggtt_view.partial.offset << PAGE_SHIFT;
 	unmap_mapping_range(vma->vm->i915->drm.anon_inode->i_mapping,
 			    drm_vma_node_offset_addr(node) + vma_offset,
