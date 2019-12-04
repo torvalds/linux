@@ -120,6 +120,7 @@ struct rockchip_crtc_state {
 	int bcsh_en;
 	int color_space;
 	int eotf;
+	u8 mode_update;
 	struct rockchip_hdr_state hdr;
 };
 #define to_rockchip_crtc_state(s) \

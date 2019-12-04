@@ -303,6 +303,56 @@ rockchip_drm_psr_inhibit_put_state(struct drm_atomic_state *state)
 }
 
 static void
+rockchip_drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
+					    struct drm_atomic_state *old_state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	int i, ret;
+	unsigned int crtc_mask = 0;
+	struct rockchip_crtc_state *s;
+
+	 /*
+	  * Legacy cursor ioctls are completely unsynced, and userspace
+	  * relies on that (by doing tons of cursor updates).
+	  */
+	if (old_state->legacy_cursor_update)
+		return;
+
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
+		if (!new_crtc_state->active)
+			continue;
+
+		ret = drm_crtc_vblank_get(crtc);
+		if (ret != 0)
+			continue;
+
+		crtc_mask |= drm_crtc_mask(crtc);
+		old_state->crtcs[i].last_vblank_count =
+						drm_crtc_vblank_count(crtc);
+	}
+
+	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		if (!(crtc_mask & drm_crtc_mask(crtc)))
+			continue;
+
+		ret = wait_event_timeout(dev->vblank[i].queue,
+				old_state->crtcs[i].last_vblank_count !=
+					drm_crtc_vblank_count(crtc),
+				msecs_to_jiffies(50));
+
+		s = to_rockchip_crtc_state(crtc->state);
+
+		if (!s->mode_update)
+			WARN(!ret, "[CRTC:%d:%s] state:%d, vblank wait timed out\n",
+			     crtc->base.id, crtc->name, old_crtc_state->active);
+
+		drm_crtc_vblank_put(crtc);
+		s->mode_update = false;
+	}
+}
+
+static void
 rockchip_atomic_helper_commit_tail_rpm(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
@@ -320,7 +370,7 @@ rockchip_atomic_helper_commit_tail_rpm(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_commit_hw_done(old_state);
 
-	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+	rockchip_drm_atomic_helper_wait_for_vblanks(dev, old_state);
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 }
@@ -376,7 +426,7 @@ rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 
 	drm_atomic_helper_commit_hw_done(state);
 
-	drm_atomic_helper_wait_for_vblanks(dev, state);
+	rockchip_drm_atomic_helper_wait_for_vblanks(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 

@@ -228,7 +228,6 @@ struct vop {
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
 	bool is_enabled;
-	bool mode_update;
 
 	u32 version;
 
@@ -2722,8 +2721,8 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	vop_initial(crtc);
 	vop_disable_allwin(vop);
 	VOP_CTRL_SET(vop, standby, 0);
-	vop->mode_update = vop_crtc_mode_update(crtc);
-	if (vop->mode_update)
+	s->mode_update = vop_crtc_mode_update(crtc);
+	if (s->mode_update)
 		vop_disable_all_planes(vop);
 	/*
 	 * restore the lut table.
@@ -3230,7 +3229,7 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 	 */
 	if (!memcmp(s->tv_state,
 		    &vop->active_tv_state, sizeof(*s->tv_state)) &&
-	    s->yuv_overlay == old_s->yuv_overlay && vop->mode_update &&
+	    s->yuv_overlay == old_s->yuv_overlay && s->mode_update &&
 	    s->bcsh_en == old_s->bcsh_en && s->bus_format == old_s->bus_format)
 		return;
 
@@ -3384,13 +3383,13 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 		bool need_wait_vblank = 0;
 		int ret;
 
-		if (vop->mode_update)
+		if (s->mode_update)
 			VOP_CTRL_SET(vop, dma_stop, 1);
 
 		need_wait_vblank = !vop_is_allwin_disabled(vop);
-		if (vop->mode_update && need_wait_vblank)
+		if (s->mode_update && need_wait_vblank)
 			dev_warn(vop->dev, "mode_update:%d, need wait blk:%d\n",
-				 vop->mode_update, need_wait_vblank);
+				 s->mode_update, need_wait_vblank);
 
 		if (need_wait_vblank) {
 			bool active;
@@ -3445,7 +3444,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	 */
 	if (VOP_MAJOR(vop->version) == 3 &&
 	    (VOP_MINOR(vop->version) == 7 || VOP_MINOR(vop->version) == 8)) {
-		if (!vop->mode_update && VOP_CTRL_GET(vop, reg_done_frm))
+		if (!s->mode_update && VOP_CTRL_GET(vop, reg_done_frm))
 			VOP_CTRL_SET(vop, reg_done_frm, 0);
 	} else {
 		VOP_CTRL_SET(vop, reg_done_frm, 0);
@@ -3453,7 +3452,6 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	if (vop->mcu_timing.mcu_pix_total)
 		VOP_CTRL_SET(vop, mcu_hold_mode, 0);
 
-	vop->mode_update = false;
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 
 	/*
