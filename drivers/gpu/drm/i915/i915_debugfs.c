@@ -2391,7 +2391,7 @@ static void intel_hdcp_info(struct seq_file *m,
 static void intel_dp_info(struct seq_file *m,
 			  struct intel_connector *intel_connector)
 {
-	struct intel_encoder *intel_encoder = intel_connector->encoder;
+	struct intel_encoder *intel_encoder = intel_attached_encoder(intel_connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(intel_encoder);
 
 	seq_printf(m, "\tDPCD rev: %x\n", intel_dp->dpcd[DP_DPCD_REV]);
@@ -2410,7 +2410,7 @@ static void intel_dp_info(struct seq_file *m,
 static void intel_dp_mst_info(struct seq_file *m,
 			  struct intel_connector *intel_connector)
 {
-	struct intel_encoder *intel_encoder = intel_connector->encoder;
+	struct intel_encoder *intel_encoder = intel_attached_encoder(intel_connector);
 	struct intel_dp_mst_encoder *intel_mst =
 		enc_to_mst(intel_encoder);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
@@ -2424,7 +2424,7 @@ static void intel_dp_mst_info(struct seq_file *m,
 static void intel_hdmi_info(struct seq_file *m,
 			    struct intel_connector *intel_connector)
 {
-	struct intel_encoder *intel_encoder = intel_connector->encoder;
+	struct intel_encoder *intel_encoder = intel_attached_encoder(intel_connector);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(intel_encoder);
 
 	seq_printf(m, "\taudio support: %s\n", yesno(intel_hdmi->has_audio));

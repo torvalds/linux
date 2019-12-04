@@ -1563,7 +1563,7 @@ static enum drm_panel_orientation
 vlv_dsi_get_hw_panel_orientation(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	struct intel_encoder *encoder = connector->encoder;
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	enum intel_display_power_domain power_domain;
 	enum drm_panel_orientation orientation;
 	struct intel_plane *plane;

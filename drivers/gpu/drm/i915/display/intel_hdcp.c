@@ -1527,7 +1527,7 @@ static int hdcp2_enable_encryption(struct intel_connector *connector)
 	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
-	enum port port = connector->encoder->port;
+	enum port port = intel_attached_encoder(connector)->port;
 	enum transcoder cpu_transcoder = hdcp->cpu_transcoder;
 	int ret;
 
@@ -1565,7 +1565,7 @@ static int hdcp2_disable_encryption(struct intel_connector *connector)
 	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
-	enum port port = connector->encoder->port;
+	enum port port = intel_attached_encoder(connector)->port;
 	enum transcoder cpu_transcoder = hdcp->cpu_transcoder;
 	int ret;
 
@@ -1676,7 +1676,7 @@ static int intel_hdcp2_check_link(struct intel_connector *connector)
 	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
-	enum port port = connector->encoder->port;
+	enum port port = intel_attached_encoder(connector)->port;
 	enum transcoder cpu_transcoder;
 	int ret = 0;
 
@@ -1830,7 +1830,7 @@ static inline int initialize_hdcp_port_data(struct intel_connector *connector,
 
 	if (INTEL_GEN(dev_priv) < 12)
 		data->fw_ddi =
-			intel_get_mei_fw_ddi_index(connector->encoder->port);
+			intel_get_mei_fw_ddi_index(intel_attached_encoder(connector)->port);
 	else
 		/*
 		 * As per ME FW API expectation, for GEN 12+, fw_ddi is filled

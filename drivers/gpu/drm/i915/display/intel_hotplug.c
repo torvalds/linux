@@ -200,7 +200,7 @@ intel_hpd_irq_storm_switch_to_polling(struct drm_i915_private *dev_priv)
 			continue;
 
 		intel_connector = to_intel_connector(connector);
-		intel_encoder = intel_connector->encoder;
+		intel_encoder = intel_attached_encoder(intel_connector);
 		if (!intel_encoder)
 			continue;
 
@@ -255,7 +255,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 
 			/* Don't check MST ports, they don't have pins */
 			if (!intel_connector->mst_port &&
-			    intel_connector->encoder->hpd_pin == pin) {
+			    intel_attached_encoder(intel_connector)->hpd_pin == pin) {
 				if (connector->polled != intel_connector->polled)
 					DRM_DEBUG_DRIVER("Reenabling HPD on connector %s\n",
 							 connector->name);
@@ -389,9 +389,9 @@ static void i915_hotplug_work_func(struct work_struct *work)
 		u32 hpd_bit;
 
 		intel_connector = to_intel_connector(connector);
-		if (!intel_connector->encoder)
+		if (!intel_attached_encoder(intel_connector))
 			continue;
-		intel_encoder = intel_connector->encoder;
+		intel_encoder = intel_attached_encoder(intel_connector);
 		hpd_bit = BIT(intel_encoder->hpd_pin);
 		if ((hpd_event_bits | hpd_retry_bits) & hpd_bit) {
 			DRM_DEBUG_KMS("Connector %s (pin %i) received hotplug event.\n",
@@ -621,7 +621,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 			continue;
 
 		if (!connector->polled && I915_HAS_HOTPLUG(dev_priv) &&
-		    intel_connector->encoder->hpd_pin > HPD_NONE) {
+		    intel_attached_encoder(intel_connector)->hpd_pin > HPD_NONE) {
 			connector->polled = enabled ?
 				DRM_CONNECTOR_POLL_CONNECT |
 				DRM_CONNECTOR_POLL_DISCONNECT :

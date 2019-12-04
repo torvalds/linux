@@ -7581,7 +7581,7 @@ static void intel_connector_verify_state(struct intel_crtc_state *crtc_state,
 		      connector->base.name);
 
 	if (connector->get_hw_state(connector)) {
-		struct intel_encoder *encoder = connector->encoder;
+		struct intel_encoder *encoder = intel_attached_encoder(connector);
 
 		I915_STATE_WARN(!crtc_state,
 			 "connector enabled without attached crtc\n");
@@ -18073,7 +18073,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 			connector->base.dpms = DRM_MODE_DPMS_ON;
 
-			encoder = connector->encoder;
+			encoder = intel_attached_encoder(connector);
 			connector->base.encoder = &encoder->base;
 
 			crtc = to_intel_crtc(encoder->base.crtc);

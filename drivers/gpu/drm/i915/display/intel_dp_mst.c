@@ -631,9 +631,9 @@ static const struct drm_encoder_funcs intel_dp_mst_enc_funcs = {
 
 static bool intel_dp_mst_get_hw_state(struct intel_connector *connector)
 {
-	if (connector->encoder && connector->base.state->crtc) {
+	if (intel_attached_encoder(connector) && connector->base.state->crtc) {
 		enum pipe pipe;
-		if (!connector->encoder->get_hw_state(connector->encoder, &pipe))
+		if (!intel_attached_encoder(connector)->get_hw_state(intel_attached_encoder(connector), &pipe))
 			return false;
 		return true;
 	}

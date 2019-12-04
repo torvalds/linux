@@ -57,7 +57,7 @@ static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
  */
 static u32 intel_dp_aux_get_backlight(struct intel_connector *connector)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(intel_attached_encoder(connector));
 	u8 read_val[2] = { 0x0 };
 	u8 mode_reg;
 	u16 level = 0;
@@ -99,7 +99,7 @@ static void
 intel_dp_aux_set_backlight(const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
-	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(intel_attached_encoder(connector));
 	u8 vals[2] = { 0x0 };
 
 	vals[0] = level;
@@ -127,7 +127,7 @@ intel_dp_aux_set_backlight(const struct drm_connector_state *conn_state, u32 lev
 static bool intel_dp_aux_set_pwm_freq(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(intel_attached_encoder(connector));
 	const u8 pn = connector->panel.backlight.pwmgen_bit_count;
 	int freq, fxp, f, fxp_actual, fxp_min, fxp_max;
 
@@ -162,7 +162,7 @@ static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_st
 					  const struct drm_connector_state *conn_state)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
-	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(intel_attached_encoder(connector));
 	struct intel_panel *panel = &connector->panel;
 	u8 dpcd_buf, new_dpcd_buf, edp_backlight_mode;
 
@@ -221,7 +221,7 @@ static void intel_dp_aux_disable_backlight(const struct drm_connector_state *old
 static u32 intel_dp_aux_calc_max_backlight(struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(intel_attached_encoder(connector));
 	struct intel_panel *panel = &connector->panel;
 	u32 max_backlight = 0;
 	int freq, fxp, fxp_min, fxp_max, fxp_actual, f = 1;
@@ -311,7 +311,7 @@ static int intel_dp_aux_setup_backlight(struct intel_connector *connector,
 static bool
 intel_dp_aux_display_control_capable(struct intel_connector *connector)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(intel_attached_encoder(connector));
 
 	/* Check the eDP Display control capabilities registers to determine if
 	 * the panel can support backlight control over the aux channel

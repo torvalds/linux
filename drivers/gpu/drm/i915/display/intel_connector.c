@@ -153,7 +153,7 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 bool intel_connector_get_hw_state(struct intel_connector *connector)
 {
 	enum pipe pipe = 0;
-	struct intel_encoder *encoder = connector->encoder;
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
 
 	return encoder->get_hw_state(encoder, &pipe);
 }

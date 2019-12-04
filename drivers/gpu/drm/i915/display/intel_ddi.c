@@ -2046,7 +2046,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 {
 	struct drm_device *dev = intel_connector->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_encoder *encoder = intel_connector->encoder;
+	struct intel_encoder *encoder = intel_attached_encoder(intel_connector);
 	int type = intel_connector->base.connector_type;
 	enum port port = encoder->port;
 	enum transcoder cpu_transcoder;
