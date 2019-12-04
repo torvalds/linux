@@ -260,7 +260,8 @@ Taken all together there's two consequences for the atomic design:
   drm_connector_state <drm_connector_state>` for connectors. These are the only
   objects with userspace-visible and settable state. For internal state drivers
   can subclass these structures through embeddeding, or add entirely new state
-  structures for their globally shared hardware functions.
+  structures for their globally shared hardware functions, see :c:type:`struct
+  drm_private_state<drm_private_state>`.
 
 - An atomic update is assembled and validated as an entirely free-standing pile
   of structures within the :c:type:`drm_atomic_state <drm_atomic_state>`
@@ -268,6 +269,14 @@ Taken all together there's two consequences for the atomic design:
   structure; see the next chapter.  Only when a state is committed is it applied
   to the driver and modeset objects. This way rolling back an update boils down
   to releasing memory and unreferencing objects like framebuffers.
+
+Locking of atomic state structures is internally using :c:type:`struct
+drm_modeset_lock <drm_modeset_lock>`. As a general rule the locking shouldn't be
+exposed to drivers, instead the right locks should be automatically acquired by
+any function that duplicates or peeks into a state, like e.g.
+:c:func:`drm_atomic_get_crtc_state()`.  Locking only protects the software data
+structure, ordering of committing state changes to hardware is sequenced using
+:c:type:`struct drm_crtc_commit <drm_crtc_commit>`.
 
 Read on in this chapter, and also in :ref:`drm_atomic_helper` for more detailed
 coverage of specific topics.

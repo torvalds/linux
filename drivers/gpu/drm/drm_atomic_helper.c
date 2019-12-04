@@ -1832,17 +1832,21 @@ EXPORT_SYMBOL(drm_atomic_helper_commit);
 /**
  * DOC: implementing nonblocking commit
  *
- * Nonblocking atomic commits have to be implemented in the following sequence:
+ * Nonblocking atomic commits should use struct &drm_crtc_commit to sequence
+ * different operations against each another. Locks, especially struct
+ * &drm_modeset_lock, should not be held in worker threads or any other
+ * asynchronous context used to commit the hardware state.
  *
- * 1. Run drm_atomic_helper_prepare_planes() first. This is the only function
- * which commit needs to call which can fail, so we want to run it first and
+ * drm_atomic_helper_commit() implements the recommended sequence for
+ * nonblocking commits, using drm_atomic_helper_setup_commit() internally:
+ *
+ * 1. Run drm_atomic_helper_prepare_planes(). Since this can fail and we
+ * need to propagate out of memory/VRAM errors to userspace, it must be called
  * synchronously.
  *
  * 2. Synchronize with any outstanding nonblocking commit worker threads which
- * might be affected the new state update. This can be done by either cancelling
- * or flushing the work items, depending upon whether the driver can deal with
- * cancelled updates. Note that it is important to ensure that the framebuffer
- * cleanup is still done when cancelling.
+ * might be affected by the new state update. This is handled by
+ * drm_atomic_helper_setup_commit().
  *
  * Asynchronous workers need to have sufficient parallelism to be able to run
  * different atomic commits on different CRTCs in parallel. The simplest way to
@@ -1853,21 +1857,29 @@ EXPORT_SYMBOL(drm_atomic_helper_commit);
  * must be done as one global operation, and enabling or disabling a CRTC can
  * take a long time. But even that is not required.
  *
+ * IMPORTANT: A &drm_atomic_state update for multiple CRTCs is sequenced
+ * against all CRTCs therein. Therefore for atomic state updates which only flip
+ * planes the driver must not get the struct &drm_crtc_state of unrelated CRTCs
+ * in its atomic check code: This would prevent committing of atomic updates to
+ * multiple CRTCs in parallel. In general, adding additional state structures
+ * should be avoided as much as possible, because this reduces parallelism in
+ * (nonblocking) commits, both due to locking and due to commit sequencing
+ * requirements.
+ *
  * 3. The software state is updated synchronously with
  * drm_atomic_helper_swap_state(). Doing this under the protection of all modeset
- * locks means concurrent callers never see inconsistent state. And doing this
- * while it's guaranteed that no relevant nonblocking worker runs means that
- * nonblocking workers do not need grab any locks. Actually they must not grab
- * locks, for otherwise the work flushing will deadlock.
+ * locks means concurrent callers never see inconsistent state. Note that commit
+ * workers do not hold any locks; their access is only coordinated through
+ * ordering. If workers would access state only through the pointers in the
+ * free-standing state objects (currently not the case for any driver) then even
+ * multiple pending commits could be in-flight at the same time.
  *
  * 4. Schedule a work item to do all subsequent steps, using the split-out
  * commit helpers: a) pre-plane commit b) plane commit c) post-plane commit and
  * then cleaning up the framebuffers after the old framebuffer is no longer
- * being displayed.
- *
- * The above scheme is implemented in the atomic helper libraries in
- * drm_atomic_helper_commit() using a bunch of helper functions. See
- * drm_atomic_helper_setup_commit() for a starting point.
+ * being displayed. The scheduled work should synchronize against other workers
+ * using the &drm_crtc_commit infrastructure as needed. See
+ * drm_atomic_helper_setup_commit() for more details.
  */
 
 static int stall_checks(struct drm_crtc *crtc, bool nonblock)
@@ -2096,7 +2108,7 @@ EXPORT_SYMBOL(drm_atomic_helper_setup_commit);
  *
  * This function waits for all preceeding commits that touch the same CRTC as
  * @old_state to both be committed to the hardware (as signalled by
- * drm_atomic_helper_commit_hw_done) and executed by the hardware (as signalled
+ * drm_atomic_helper_commit_hw_done()) and executed by the hardware (as signalled
  * by calling drm_crtc_send_vblank_event() on the &drm_crtc_state.event).
  *
  * This is part of the atomic helper support for nonblocking commits, see

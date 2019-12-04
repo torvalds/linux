@@ -60,8 +60,8 @@
  * 	wait for flip_done		<----
  * 	clean up atomic state
  *
- * The important bit to know is that cleanup_done is the terminal event, but the
- * ordering between flip_done and hw_done is entirely up to the specific driver
+ * The important bit to know is that &cleanup_done is the terminal event, but the
+ * ordering between &flip_done and &hw_done is entirely up to the specific driver
  * and modeset state change.
  *
  * For an implementation of how to use this look at
@@ -92,6 +92,9 @@ struct drm_crtc_commit {
 	 * commit is sent to userspace, or when an out-fence is singalled. Note
 	 * that for most hardware, in most cases this happens after @hw_done is
 	 * signalled.
+	 *
+	 * Completion of this stage is signalled implicitly by calling
+	 * drm_crtc_send_vblank_event() on &drm_crtc_state.event.
 	 */
 	struct completion flip_done;
 
@@ -107,6 +110,9 @@ struct drm_crtc_commit {
 	 * Note that this does not need to include separately reference-counted
 	 * resources like backing storage buffer pinning, or runtime pm
 	 * management.
+	 *
+	 * Drivers should call drm_atomic_helper_commit_hw_done() to signal
+	 * completion of this stage.
 	 */
 	struct completion hw_done;
 
@@ -118,6 +124,9 @@ struct drm_crtc_commit {
 	 * a vblank wait completed it might be a bit later. This completion is
 	 * useful to throttle updates and avoid hardware updates getting ahead
 	 * of the buffer cleanup too much.
+	 *
+	 * Drivers should call drm_atomic_helper_commit_cleanup_done() to signal
+	 * completion of this stage.
 	 */
 	struct completion cleanup_done;
 
