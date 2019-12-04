@@ -75,7 +75,23 @@ void dm_clone_metadata_close(struct dm_clone_metadata *cmd);
 
 /*
  * Commit dm-clone metadata to disk.
+ *
+ * We use a two phase commit:
+ *
+ * 1. dm_clone_metadata_pre_commit(): Prepare the current transaction for
+ *    committing. After this is called, all subsequent metadata updates, done
+ *    through either dm_clone_set_region_hydrated() or
+ *    dm_clone_cond_set_range(), will be part of the **next** transaction.
+ *
+ * 2. dm_clone_metadata_commit(): Actually commit the current transaction to
+ *    disk and start a new transaction.
+ *
+ * This allows dm-clone to flush the destination device after step (1) to
+ * ensure that all freshly hydrated regions, for which we are updating the
+ * metadata, are properly written to non-volatile storage and won't be lost in
+ * case of a crash.
  */
+int dm_clone_metadata_pre_commit(struct dm_clone_metadata *cmd);
 int dm_clone_metadata_commit(struct dm_clone_metadata *cmd);
 
 /*
@@ -112,6 +128,7 @@ int dm_clone_metadata_abort(struct dm_clone_metadata *cmd);
  * Switches metadata to a read only mode. Once read-only mode has been entered
  * the following functions will return -EPERM:
  *
+ *   dm_clone_metadata_pre_commit()
  *   dm_clone_metadata_commit()
  *   dm_clone_set_region_hydrated()
  *   dm_clone_cond_set_range()

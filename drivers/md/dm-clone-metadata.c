@@ -127,6 +127,9 @@ struct dm_clone_metadata {
 	struct dirty_map dmap[2];
 	struct dirty_map *current_dmap;
 
+	/* Protected by lock */
+	struct dirty_map *committing_dmap;
+
 	/*
 	 * In core copy of the on-disk bitmap to save constantly doing look ups
 	 * on disk.
@@ -511,6 +514,7 @@ static int dirty_map_init(struct dm_clone_metadata *cmd)
 	}
 
 	cmd->current_dmap = &cmd->dmap[0];
+	cmd->committing_dmap = NULL;
 
 	return 0;
 }
@@ -775,15 +779,17 @@ static int __flush_dmap(struct dm_clone_metadata *cmd, struct dirty_map *dmap)
 	return 0;
 }
 
-int dm_clone_metadata_commit(struct dm_clone_metadata *cmd)
+int dm_clone_metadata_pre_commit(struct dm_clone_metadata *cmd)
 {
-	int r = -EPERM;
+	int r = 0;
 	struct dirty_map *dmap, *next_dmap;
 
 	down_write(&cmd->lock);
 
-	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm))
+	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm)) {
+		r = -EPERM;
 		goto out;
+	}
 
 	/* Get current dirty bitmap */
 	dmap = cmd->current_dmap;
@@ -795,7 +801,7 @@ int dm_clone_metadata_commit(struct dm_clone_metadata *cmd)
 	 * The last commit failed, so we don't have a clean dirty-bitmap to
 	 * use.
 	 */
-	if (WARN_ON(next_dmap->changed)) {
+	if (WARN_ON(next_dmap->changed || cmd->committing_dmap)) {
 		r = -EINVAL;
 		goto out;
 	}
@@ -805,11 +811,33 @@ int dm_clone_metadata_commit(struct dm_clone_metadata *cmd)
 	cmd->current_dmap = next_dmap;
 	spin_unlock_irq(&cmd->bitmap_lock);
 
-	/*
-	 * No one is accessing the old dirty bitmap anymore, so we can flush
-	 * it.
-	 */
-	r = __flush_dmap(cmd, dmap);
+	/* Set old dirty bitmap as currently committing */
+	cmd->committing_dmap = dmap;
+out:
+	up_write(&cmd->lock);
+
+	return r;
+}
+
+int dm_clone_metadata_commit(struct dm_clone_metadata *cmd)
+{
+	int r = -EPERM;
+
+	down_write(&cmd->lock);
+
+	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm))
+		goto out;
+
+	if (WARN_ON(!cmd->committing_dmap)) {
+		r = -EINVAL;
+		goto out;
+	}
+
+	r = __flush_dmap(cmd, cmd->committing_dmap);
+	if (!r) {
+		/* Clear committing dmap */
+		cmd->committing_dmap = NULL;
+	}
 out:
 	up_write(&cmd->lock);
 
