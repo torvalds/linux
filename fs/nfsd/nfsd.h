@@ -388,7 +388,7 @@ void		nfsd_lockd_shutdown(void);
 
 extern const u32 nfsd_suppattrs[3][3];
 
-static inline u32 nfsd4_set_netaddr(struct sockaddr *addr,
+static inline __be32 nfsd4_set_netaddr(struct sockaddr *addr,
 				    struct nfs42_netaddr *netaddr)
 {
 	struct sockaddr_in *sin = (struct sockaddr_in *)addr;
