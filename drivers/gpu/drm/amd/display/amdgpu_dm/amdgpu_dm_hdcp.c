@@ -136,6 +136,13 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 		hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
 
 		if (enable_encryption) {
+			/* Explicitly set the saved SRM as sysfs call will be after we already enabled hdcp
+			 * (s3 resume case)
+			 */
+			if (hdcp_work->srm_size > 0)
+				psp_set_srm(hdcp_work->hdcp.config.psp.handle, hdcp_work->srm, hdcp_work->srm_size,
+					    &hdcp_work->srm_version);
+
 			display->adjust.disable = 0;
 			if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0)
 				hdcp_w->link.adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
