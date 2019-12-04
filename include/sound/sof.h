@@ -91,6 +91,9 @@ struct sof_dev_desc {
 	const char *default_fw_path;
 	const char *default_tplg_path;
 
+	/* default firmware name */
+	const char *default_fw_filename;
+
 	const struct snd_sof_dsp_ops *ops;
 	const struct sof_arch_ops *arch_ops;
 };
