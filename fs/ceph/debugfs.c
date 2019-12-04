@@ -33,7 +33,7 @@ static int mdsmap_show(struct seq_file *s, void *p)
 	seq_printf(s, "max_mds %d\n", mdsmap->m_max_mds);
 	seq_printf(s, "session_timeout %d\n", mdsmap->m_session_timeout);
 	seq_printf(s, "session_autoclose %d\n", mdsmap->m_session_autoclose);
-	for (i = 0; i < mdsmap->m_num_mds; i++) {
+	for (i = 0; i < mdsmap->possible_max_rank; i++) {
 		struct ceph_entity_addr *addr = &mdsmap->m_info[i].addr;
 		int state = mdsmap->m_info[i].state;
 		seq_printf(s, "\tmds%d\t%s\t(%s)\n", i,
