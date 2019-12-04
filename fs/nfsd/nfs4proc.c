@@ -1446,7 +1446,8 @@ static void cleanup_async_copy(struct nfsd4_copy *copy)
 {
 	nfs4_free_copy_state(copy);
 	nfsd_file_put(copy->nf_dst);
-	nfsd_file_put(copy->nf_src);
+	if (copy->cp_intra)
+		nfsd_file_put(copy->nf_src);
 	spin_lock(&copy->cp_clp->async_lock);
 	list_del(&copy->copies);
 	spin_unlock(&copy->cp_clp->async_lock);
