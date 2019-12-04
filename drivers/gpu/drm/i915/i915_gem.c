@@ -124,7 +124,7 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 	LIST_HEAD(still_in_list);
 	intel_wakeref_t wakeref;
 	struct i915_vma *vma;
-	int ret = 0;
+	int ret;
 
 	if (!atomic_read(&obj->bind_count))
 		return 0;
@@ -137,6 +137,8 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 	 */
 	wakeref = intel_runtime_pm_get(rpm);
 
+try_again:
+	ret = 0;
 	spin_lock(&obj->vma.lock);
 	while (!ret && (vma = list_first_entry_or_null(&obj->vma.list,
 						       struct i915_vma,
@@ -154,6 +156,7 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 		} else {
 			if (i915_vma_is_closed(vma)) {
 				spin_unlock(&obj->vma.lock);
+				i915_vma_parked(vm->gt);
 				goto err_vm;
 			}
 		}
@@ -174,6 +177,11 @@ err_vm:
 	}
 	list_splice(&still_in_list, &obj->vma.list);
 	spin_unlock(&obj->vma.lock);
+
+	if (ret == -EAGAIN && flags & I915_GEM_OBJECT_UNBIND_ACTIVE) {
+		rcu_barrier(); /* flush the i915_vm_release() */
+		goto try_again;
+	}
 
 	intel_runtime_pm_put(rpm, wakeref);
 
