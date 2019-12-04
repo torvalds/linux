@@ -118,8 +118,11 @@ static int mgag200_device_init(struct drm_device *dev,
 		return -ENOMEM;
 
 	/* stash G200 SE model number for later use */
-	if (IS_G200_SE(mdev))
+	if (IS_G200_SE(mdev)) {
 		mdev->unique_rev_id = RREG32(0x1e24);
+		DRM_DEBUG("G200 SE unique revision id is 0x%x\n",
+			  mdev->unique_rev_id);
+	}
 
 	ret = mga_vram_init(mdev);
 	if (ret)
