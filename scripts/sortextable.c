@@ -320,7 +320,7 @@ static int do_file(char const *const fname, void *addr)
 				"unrecognized ET_EXEC/ET_DYN file: %s\n", fname);
 			break;
 		}
-		rc = do32(ehdr, fname, custom_sort);
+		rc = do_sort_32(ehdr, fname, custom_sort);
 		break;
 	case ELFCLASS64:
 		{
@@ -332,7 +332,7 @@ static int do_file(char const *const fname, void *addr)
 				fname);
 			break;
 		}
-		rc = do64(ghdr, fname, custom_sort);
+		rc = do_sort_64(ghdr, fname, custom_sort);
 		}
 		break;
 	default:
