@@ -33,6 +33,7 @@
 #include <trace/events/kvm.h>
 
 #include "trace.h"
+#include "irq.h"
 
 #define KVM_HV_MAX_SPARSE_VCPU_SET_BITS DIV_ROUND_UP(KVM_MAX_VCPUS, 64)
 
