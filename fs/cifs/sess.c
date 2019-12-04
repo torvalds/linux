@@ -77,6 +77,8 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 	int i = 0;
 	int rc = 0;
 	int tries = 0;
+	struct cifs_server_iface *ifaces = NULL;
+	size_t iface_count;
 
 	if (left <= 0) {
 		cifs_dbg(FYI,
@@ -89,6 +91,26 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 		cifs_dbg(VFS, "multichannel is not supported on this protocol version, use 3.0 or above\n");
 		return 0;
 	}
+
+	/*
+	 * Make a copy of the iface list at the time and use that
+	 * instead so as to not hold the iface spinlock for opening
+	 * channels
+	 */
+	spin_lock(&ses->iface_lock);
+	iface_count = ses->iface_count;
+	if (iface_count <= 0) {
+		spin_unlock(&ses->iface_lock);
+		cifs_dbg(FYI, "no iface list available to open channels\n");
+		return 0;
+	}
+	ifaces = kmemdup(ses->iface_list, iface_count*sizeof(*ifaces),
+			 GFP_ATOMIC);
+	if (!ifaces) {
+		spin_unlock(&ses->iface_lock);
+		return 0;
+	}
+	spin_unlock(&ses->iface_lock);
 
 	/*
 	 * Keep connecting to same, fastest, iface for all channels as
@@ -105,9 +127,9 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 			break;
 		}
 
-		iface = &ses->iface_list[i];
+		iface = &ifaces[i];
 		if (is_ses_using_iface(ses, iface) && !iface->rss_capable) {
-			i = (i+1) % ses->iface_count;
+			i = (i+1) % iface_count;
 			continue;
 		}
 
@@ -115,7 +137,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 		if (rc) {
 			cifs_dbg(FYI, "failed to open extra channel on iface#%d rc=%d\n",
 				 i, rc);
-			i = (i+1) % ses->iface_count;
+			i = (i+1) % iface_count;
 			continue;
 		}
 
@@ -124,6 +146,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 		left--;
 	}
 
+	kfree(ifaces);
 	return ses->chan_count - old_chan_count;
 }
 
