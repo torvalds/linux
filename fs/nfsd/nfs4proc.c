@@ -1298,7 +1298,8 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 out:
 	return status;
 out_err:
-	cleanup_async_copy(async_copy);
+	if (async_copy)
+		cleanup_async_copy(async_copy);
 	goto out;
 }
 
