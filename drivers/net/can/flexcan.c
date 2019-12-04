@@ -23,6 +23,7 @@
 #include <linux/netdevice.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -1742,7 +1743,7 @@ static int __maybe_unused flexcan_suspend(struct device *device)
 {
 	struct net_device *dev = dev_get_drvdata(device);
 	struct flexcan_priv *priv = netdev_priv(dev);
-	int err = 0;
+	int err;
 
 	if (netif_running(dev)) {
 		/* if wakeup is enabled, enter stop mode
@@ -1754,7 +1755,11 @@ static int __maybe_unused flexcan_suspend(struct device *device)
 			if (err)
 				return err;
 		} else {
-			err = flexcan_chip_disable(priv);
+			err = flexcan_chip_stop(dev);
+			if (err)
+				return err;
+
+			err = pinctrl_pm_select_sleep_state(device);
 			if (err)
 				return err;
 		}
@@ -1763,14 +1768,14 @@ static int __maybe_unused flexcan_suspend(struct device *device)
 	}
 	priv->can.state = CAN_STATE_SLEEPING;
 
-	return err;
+	return 0;
 }
 
 static int __maybe_unused flexcan_resume(struct device *device)
 {
 	struct net_device *dev = dev_get_drvdata(device);
 	struct flexcan_priv *priv = netdev_priv(dev);
-	int err = 0;
+	int err;
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 	if (netif_running(dev)) {
@@ -1782,11 +1787,17 @@ static int __maybe_unused flexcan_resume(struct device *device)
 			if (err)
 				return err;
 		} else {
-			err = flexcan_chip_enable(priv);
+			err = pinctrl_pm_select_default_state(device);
+			if (err)
+				return err;
+
+			err = flexcan_chip_start(dev);
+			if (err)
+				return err;
 		}
 	}
 
-	return err;
+	return 0;
 }
 
 static int __maybe_unused flexcan_runtime_suspend(struct device *device)
