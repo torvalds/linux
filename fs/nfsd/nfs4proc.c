@@ -1280,7 +1280,7 @@ nfsd4_setup_inter_ssc(struct svc_rqst *rqstp,
 
 	copy->c_fh.size = s_fh->fh_handle.fh_size;
 	memcpy(copy->c_fh.data, &s_fh->fh_handle.fh_base, copy->c_fh.size);
-	copy->stateid.seqid = s_stid->si_generation;
+	copy->stateid.seqid = cpu_to_be32(s_stid->si_generation);
 	memcpy(copy->stateid.other, (void *)&s_stid->si_opaque,
 	       sizeof(stateid_opaque_t));
 
