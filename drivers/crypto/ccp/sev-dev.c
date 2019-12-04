@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * AMD Platform Security Processor (PSP) interface
+ * AMD Secure Encrypted Virtualization (SEV) interface
  *
- * Copyright (C) 2016,2018 Advanced Micro Devices, Inc.
+ * Copyright (C) 2016,2019 Advanced Micro Devices, Inc.
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
  */
@@ -24,7 +24,7 @@
 #include <asm/smp.h>
 
 #include "sp-dev.h"
-#include "psp-dev.h"
+#include "sev-dev.h"
 
 #define DEVICE_NAME		"sev"
 #define SEV_FW_FILE		"amd/sev.fw"

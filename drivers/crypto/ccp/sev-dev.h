@@ -2,13 +2,13 @@
 /*
  * AMD Platform Security Processor (PSP) interface driver
  *
- * Copyright (C) 2017-2018 Advanced Micro Devices, Inc.
+ * Copyright (C) 2017-2019 Advanced Micro Devices, Inc.
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
  */
 
-#ifndef __PSP_DEV_H__
-#define __PSP_DEV_H__
+#ifndef __SEV_DEV_H__
+#define __SEV_DEV_H__
 
 #include <linux/device.h>
 #include <linux/spinlock.h>
@@ -64,4 +64,4 @@ struct psp_device {
 	u8 build;
 };
 
-#endif /* __PSP_DEV_H */
+#endif /* __SEV_DEV_H */
