@@ -499,7 +499,7 @@ int snd_sof_set_d0_substate(struct snd_sof_dev *sdev,
 
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev);
 
-int snd_sof_create_page_table(struct snd_sof_dev *sdev,
+int snd_sof_create_page_table(struct device *dev,
 			      struct snd_dma_buffer *dmab,
 			      unsigned char *page_table, size_t size);
 

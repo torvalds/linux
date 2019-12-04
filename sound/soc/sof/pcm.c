@@ -33,7 +33,7 @@ static int create_page_table(struct snd_soc_component *component,
 	if (!spcm)
 		return -EINVAL;
 
-	return snd_sof_create_page_table(sdev, dmab,
+	return snd_sof_create_page_table(sdev->dev, dmab,
 		spcm->stream[stream].page_table.area, size);
 }
 
