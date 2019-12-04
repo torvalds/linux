@@ -50,6 +50,14 @@
 #define EM_ARCV2	195
 #endif
 
+static uint32_t (*r)(const uint32_t *);
+static uint16_t (*r2)(const uint16_t *);
+static uint64_t (*r8)(const uint64_t *);
+static void (*w)(uint32_t, uint32_t *);
+static void (*w2)(uint16_t, uint16_t *);
+static void (*w8)(uint64_t, uint64_t *);
+typedef void (*table_sort_t)(char *, int);
+
 /*
  * Get the whole file as a programming convenience in order to avoid
  * malloc+lseek+read+free of many pieces.  If successful, then mmap
@@ -75,6 +83,7 @@ static void *mmap_file(char const *fname, size_t *size)
 		fprintf(stderr, "not a regular file: %s\n", fname);
 		goto out;
 	}
+
 	addr = mmap(0, sb.st_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 	if (addr == MAP_FAILED) {
 		fprintf(stderr, "Could not mmap file: %s\n", fname);
@@ -88,64 +97,65 @@ out:
 	return addr;
 }
 
-static uint64_t r8be(const uint64_t *x)
-{
-	return get_unaligned_be64(x);
-}
 static uint32_t rbe(const uint32_t *x)
 {
 	return get_unaligned_be32(x);
 }
+
 static uint16_t r2be(const uint16_t *x)
 {
 	return get_unaligned_be16(x);
 }
-static uint64_t r8le(const uint64_t *x)
+
+static uint64_t r8be(const uint64_t *x)
 {
-	return get_unaligned_le64(x);
+	return get_unaligned_be64(x);
 }
+
 static uint32_t rle(const uint32_t *x)
 {
 	return get_unaligned_le32(x);
 }
+
 static uint16_t r2le(const uint16_t *x)
 {
 	return get_unaligned_le16(x);
+}
+
+static uint64_t r8le(const uint64_t *x)
+{
+	return get_unaligned_le64(x);
+}
+
+static void wbe(uint32_t val, uint32_t *x)
+{
+	put_unaligned_be32(val, x);
+}
+
+static void w2be(uint16_t val, uint16_t *x)
+{
+	put_unaligned_be16(val, x);
 }
 
 static void w8be(uint64_t val, uint64_t *x)
 {
 	put_unaligned_be64(val, x);
 }
-static void wbe(uint32_t val, uint32_t *x)
-{
-	put_unaligned_be32(val, x);
-}
-static void w2be(uint16_t val, uint16_t *x)
-{
-	put_unaligned_be16(val, x);
-}
-static void w8le(uint64_t val, uint64_t *x)
-{
-	put_unaligned_le64(val, x);
-}
+
 static void wle(uint32_t val, uint32_t *x)
 {
 	put_unaligned_le32(val, x);
 }
+
 static void w2le(uint16_t val, uint16_t *x)
 {
 	put_unaligned_le16(val, x);
 }
 
-static uint64_t (*r8)(const uint64_t *);
-static uint32_t (*r)(const uint32_t *);
-static uint16_t (*r2)(const uint16_t *);
-static void (*w8)(uint64_t, uint64_t *);
-static void (*w)(uint32_t, uint32_t *);
-static void (*w2)(uint16_t, uint16_t *);
-
-typedef void (*table_sort_t)(char *, int);
+static void w8le(uint64_t val, uint64_t *x)
+{
+	put_unaligned_le64(val, x);
+}
 
 /*
  * Move reserved section indices SHN_LORESERVE..SHN_HIRESERVE out of
@@ -188,11 +198,35 @@ static int compare_relative_table(const void *a, const void *b)
 	return 0;
 }
 
+static void sort_relative_table(char *extab_image, int image_size)
+{
+	int i = 0;
+
+	/*
+	 * Do the same thing the runtime sort does, first normalize to
+	 * being relative to the start of the section.
+	 */
+	while (i < image_size) {
+		uint32_t *loc = (uint32_t *)(extab_image + i);
+		w(r(loc) + i, loc);
+		i += 4;
+	}
+
+	qsort(extab_image, image_size / 8, 8, compare_relative_table);
+
+	/* Now denormalize. */
+	i = 0;
+	while (i < image_size) {
+		uint32_t *loc = (uint32_t *)(extab_image + i);
+		w(r(loc) - i, loc);
+		i += 4;
+	}
+}
+
 static void x86_sort_relative_table(char *extab_image, int image_size)
 {
-	int i;
+	int i = 0;
 
-	i = 0;
 	while (i < image_size) {
 		uint32_t *loc = (uint32_t *)(extab_image + i);
 
@@ -217,79 +251,47 @@ static void x86_sort_relative_table(char *extab_image, int image_size)
 	}
 }
 
-static void sort_relative_table(char *extab_image, int image_size)
+static int do_file(char const *const fname, void *addr)
 {
-	int i;
-
-	/*
-	 * Do the same thing the runtime sort does, first normalize to
-	 * being relative to the start of the section.
-	 */
-	i = 0;
-	while (i < image_size) {
-		uint32_t *loc = (uint32_t *)(extab_image + i);
-		w(r(loc) + i, loc);
-		i += 4;
-	}
-
-	qsort(extab_image, image_size / 8, 8, compare_relative_table);
-
-	/* Now denormalize. */
-	i = 0;
-	while (i < image_size) {
-		uint32_t *loc = (uint32_t *)(extab_image + i);
-		w(r(loc) - i, loc);
-		i += 4;
-	}
-}
-
-static int
-do_file(char const *const fname, void *addr)
-{
-	table_sort_t custom_sort = NULL;
-	Elf32_Ehdr *ehdr = addr;
 	int rc = -1;
+	Elf32_Ehdr *ehdr = addr;
+	table_sort_t custom_sort = NULL;
 
 	switch (ehdr->e_ident[EI_DATA]) {
+	case ELFDATA2LSB:
+		r	= rle;
+		r2	= r2le;
+		r8	= r8le;
+		w	= wle;
+		w2	= w2le;
+		w8	= w8le;
+		break;
+	case ELFDATA2MSB:
+		r	= rbe;
+		r2	= r2be;
+		r8	= r8be;
+		w	= wbe;
+		w2	= w2be;
+		w8	= w8be;
+		break;
 	default:
 		fprintf(stderr, "unrecognized ELF data encoding %d: %s\n",
 			ehdr->e_ident[EI_DATA], fname);
 		return -1;
-	case ELFDATA2LSB:
-		r = rle;
-		r2 = r2le;
-		r8 = r8le;
-		w = wle;
-		w2 = w2le;
-		w8 = w8le;
-		break;
-	case ELFDATA2MSB:
-		r = rbe;
-		r2 = r2be;
-		r8 = r8be;
-		w = wbe;
-		w2 = w2be;
-		w8 = w8be;
-		break;
-	}  /* end switch */
-	if (memcmp(ELFMAG, ehdr->e_ident, SELFMAG) != 0
-	||  (r2(&ehdr->e_type) != ET_EXEC && r2(&ehdr->e_type) != ET_DYN)
-	||  ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
+	}
+
+	if (memcmp(ELFMAG, ehdr->e_ident, SELFMAG) != 0 ||
+	    (r2(&ehdr->e_type) != ET_EXEC && r2(&ehdr->e_type) != ET_DYN) ||
+	    ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
 		fprintf(stderr, "unrecognized ET_EXEC/ET_DYN file %s\n", fname);
 		return -1;
 	}
 
-	custom_sort = NULL;
 	switch (r2(&ehdr->e_machine)) {
-	default:
-		fprintf(stderr, "unrecognized e_machine %d %s\n",
-			r2(&ehdr->e_machine), fname);
-		break;
 	case EM_386:
 	case EM_X86_64:
 		custom_sort = x86_sort_relative_table;
 		break;
-
 	case EM_S390:
 	case EM_AARCH64:
 	case EM_PARISC:
@@ -304,40 +306,45 @@ do_file(char const *const fname, void *addr)
 	case EM_MIPS:
 	case EM_XTENSA:
 		break;
-	}  /* end switch */
+	default:
+		fprintf(stderr, "unrecognized e_machine %d %s\n",
+			r2(&ehdr->e_machine), fname);
+		return -1;
+	}
 
 	switch (ehdr->e_ident[EI_CLASS]) {
-	default:
-		fprintf(stderr, "unrecognized ELF class %d %s\n",
-			ehdr->e_ident[EI_CLASS], fname);
-		break;
 	case ELFCLASS32:
-		if (r2(&ehdr->e_ehsize) != sizeof(Elf32_Ehdr)
-		||  r2(&ehdr->e_shentsize) != sizeof(Elf32_Shdr)) {
+		if (r2(&ehdr->e_ehsize) != sizeof(Elf32_Ehdr) ||
+		    r2(&ehdr->e_shentsize) != sizeof(Elf32_Shdr)) {
 			fprintf(stderr,
 				"unrecognized ET_EXEC/ET_DYN file: %s\n", fname);
 			break;
 		}
 		rc = do32(ehdr, fname, custom_sort);
 		break;
-	case ELFCLASS64: {
+	case ELFCLASS64:
+		{
 		Elf64_Ehdr *const ghdr = (Elf64_Ehdr *)ehdr;
-		if (r2(&ghdr->e_ehsize) != sizeof(Elf64_Ehdr)
-		||  r2(&ghdr->e_shentsize) != sizeof(Elf64_Shdr)) {
+		if (r2(&ghdr->e_ehsize) != sizeof(Elf64_Ehdr) ||
+		    r2(&ghdr->e_shentsize) != sizeof(Elf64_Shdr)) {
 			fprintf(stderr,
-				"unrecognized ET_EXEC/ET_DYN file: %s\n", fname);
+				"unrecognized ET_EXEC/ET_DYN file: %s\n",
+				fname);
 			break;
 		}
 		rc = do64(ghdr, fname, custom_sort);
+		}
+		break;
+	default:
+		fprintf(stderr, "unrecognized ELF class %d %s\n",
+			ehdr->e_ident[EI_CLASS], fname);
 		break;
 	}
-	}  /* end switch */
 
 	return rc;
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	int i, n_error = 0;  /* gcc-4.3.0 false positive complaint */
 	size_t size = 0;
@@ -361,5 +368,6 @@ main(int argc, char *argv[])
 
 		munmap(addr, size);
 	}
+
 	return !!n_error;
 }

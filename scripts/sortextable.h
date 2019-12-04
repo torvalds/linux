@@ -6,7 +6,7 @@
  *
  * Some of this code was taken out of recordmcount.h written by:
  *
- * Copyright 2009 John F. Reiser <jreiser@BitWagon.com>.  All rights reserved.
+ * Copyright 2009 John F. Reiser <jreiser@BitWagon.com>. All rights reserved.
  * Copyright 2010 Steven Rostedt <srostedt@redhat.com>, Red Hat Inc.
  */
 
@@ -87,8 +87,9 @@ static int compare_extable(const void *a, const void *b)
 	return 0;
 }
 
-static int
-do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
+static int do_func(Elf_Ehdr *ehdr,
+		   char const *const fname,
+		   table_sort_t custom_sort)
 {
 	Elf_Shdr *shdr;
 	Elf_Shdr *shstrtab_sec;
@@ -126,7 +127,7 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 	secstrtab = (const char *)ehdr + _r(&shstrtab_sec->sh_offset);
 	for (i = 0; i < num_sections; i++) {
 		idx = r(&shdr[i].sh_name);
-		if (strcmp(secstrtab + idx, "__ex_table") == 0) {
+		if (!strcmp(secstrtab + idx, "__ex_table")) {
 			extab_sec = shdr + i;
 			extab_index = i;
 		}
@@ -136,26 +137,26 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 			relocs = (void *)ehdr + _r(&shdr[i].sh_offset);
 			relocs_size = _r(&shdr[i].sh_size);
 		}
-		if (strcmp(secstrtab + idx, ".symtab") == 0)
+		if (!strcmp(secstrtab + idx, ".symtab"))
 			symtab_sec = shdr + i;
-		if (strcmp(secstrtab + idx, ".strtab") == 0)
+		if (!strcmp(secstrtab + idx, ".strtab"))
 			strtab_sec = shdr + i;
 		if (r(&shdr[i].sh_type) == SHT_SYMTAB_SHNDX)
 			symtab_shndx_start = (Elf32_Word *)(
 				(const char *)ehdr + _r(&shdr[i].sh_offset));
 	}
-	if (strtab_sec == NULL) {
-		fprintf(stderr,	"no .strtab in  file: %s\n", fname);
+	if (!strtab_sec) {
+		fprintf(stderr,	"no .strtab in file: %s\n", fname);
 		return -1;
 	}
-	if (symtab_sec == NULL) {
-		fprintf(stderr,	"no .symtab in  file: %s\n", fname);
+	if (!symtab_sec) {
+		fprintf(stderr,	"no .symtab in file: %s\n", fname);
 		return -1;
 	}
 	symtab = (const Elf_Sym *)((const char *)ehdr +
 				   _r(&symtab_sec->sh_offset));
-	if (extab_sec == NULL) {
-		fprintf(stderr,	"no __ex_table in  file: %s\n", fname);
+	if (!extab_sec) {
+		fprintf(stderr,	"no __ex_table in file: %s\n", fname);
 		return -1;
 	}
 	strtab = (const char *)ehdr + _r(&strtab_sec->sh_offset);
@@ -181,14 +182,14 @@ do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 		if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT)
 			continue;
 		idx = r(&sym->st_name);
-		if (strcmp(strtab + idx, "main_extable_sort_needed") == 0) {
+		if (!strcmp(strtab + idx, "main_extable_sort_needed")) {
 			sort_needed_sym = sym;
 			break;
 		}
 	}
-	if (sort_needed_sym == NULL) {
+	if (!sort_needed_sym) {
 		fprintf(stderr,
-			"no main_extable_sort_needed symbol in  file: %s\n",
+			"no main_extable_sort_needed symbol in file: %s\n",
 			fname);
 		return -1;
 	}
