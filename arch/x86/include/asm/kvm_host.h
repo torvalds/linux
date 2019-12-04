@@ -1022,6 +1022,11 @@ struct kvm_lapic_irq {
 	bool msi_redir_hint;
 };
 
+static inline u16 kvm_lapic_irq_dest_mode(bool dest_mode_logical)
+{
+	return dest_mode_logical ? APIC_DEST_LOGICAL : APIC_DEST_PHYSICAL;
+}
+
 struct kvm_x86_ops {
 	int (*cpu_has_kvm_support)(void);          /* __init */
 	int (*disabled_by_bios)(void);             /* __init */

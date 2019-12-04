@@ -331,7 +331,8 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 			irq.vector = e->fields.vector;
 			irq.delivery_mode = e->fields.delivery_mode << 8;
 			irq.dest_id = e->fields.dest_id;
-			irq.dest_mode = e->fields.dest_mode;
+			irq.dest_mode =
+			    kvm_lapic_irq_dest_mode(!!e->fields.dest_mode);
 			bitmap_zero(&vcpu_bitmap, 16);
 			kvm_bitmap_or_dest_vcpus(ioapic->kvm, &irq,
 						 &vcpu_bitmap);
@@ -343,7 +344,9 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 				 * keep ioapic_handled_vectors synchronized.
 				 */
 				irq.dest_id = old_dest_id;
-				irq.dest_mode = old_dest_mode;
+				irq.dest_mode =
+				    kvm_lapic_irq_dest_mode(
+					!!e->fields.dest_mode);
 				kvm_bitmap_or_dest_vcpus(ioapic->kvm, &irq,
 							 &vcpu_bitmap);
 			}
@@ -369,7 +372,7 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 
 	irqe.dest_id = entry->fields.dest_id;
 	irqe.vector = entry->fields.vector;
-	irqe.dest_mode = entry->fields.dest_mode;
+	irqe.dest_mode = kvm_lapic_irq_dest_mode(!!entry->fields.dest_mode);
 	irqe.trig_mode = entry->fields.trig_mode;
 	irqe.delivery_mode = entry->fields.delivery_mode << 8;
 	irqe.level = 1;
