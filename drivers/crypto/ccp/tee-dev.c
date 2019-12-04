@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/gfp.h>
 #include <linux/psp-sev.h>
+#include <linux/psp-tee.h>
 
 #include "psp-dev.h"
 #include "tee-dev.h"
@@ -38,6 +39,7 @@ static int tee_alloc_ring(struct psp_tee_device *tee, int ring_size)
 	rb_mgr->ring_start = start_addr;
 	rb_mgr->ring_size = ring_size;
 	rb_mgr->ring_pa = __psp_pa(start_addr);
+	mutex_init(&rb_mgr->mutex);
 
 	return 0;
 }
@@ -55,6 +57,7 @@ static void tee_free_ring(struct psp_tee_device *tee)
 	rb_mgr->ring_start = NULL;
 	rb_mgr->ring_size = 0;
 	rb_mgr->ring_pa = 0;
+	mutex_destroy(&rb_mgr->mutex);
 }
 
 static int tee_wait_cmd_poll(struct psp_tee_device *tee, unsigned int timeout,
@@ -236,3 +239,126 @@ void tee_dev_destroy(struct psp_device *psp)
 
 	tee_destroy_ring(tee);
 }
+
+static int tee_submit_cmd(struct psp_tee_device *tee, enum tee_cmd_id cmd_id,
+			  void *buf, size_t len, struct tee_ring_cmd **resp)
+{
+	struct tee_ring_cmd *cmd;
+	u32 rptr, wptr;
+	int nloop = 1000, ret = 0;
+
+	*resp = NULL;
+
+	mutex_lock(&tee->rb_mgr.mutex);
+
+	wptr = tee->rb_mgr.wptr;
+
+	/* Check if ring buffer is full */
+	do {
+		rptr = ioread32(tee->io_regs + tee->vdata->ring_rptr_reg);
+
+		if (!(wptr + sizeof(struct tee_ring_cmd) == rptr))
+			break;
+
+		dev_info(tee->dev, "tee: ring buffer full. rptr = %u wptr = %u\n",
+			 rptr, wptr);
+
+		/* Wait if ring buffer is full */
+		mutex_unlock(&tee->rb_mgr.mutex);
+		schedule_timeout_interruptible(msecs_to_jiffies(10));
+		mutex_lock(&tee->rb_mgr.mutex);
+
+	} while (--nloop);
+
+	if (!nloop && (wptr + sizeof(struct tee_ring_cmd) == rptr)) {
+		dev_err(tee->dev, "tee: ring buffer full. rptr = %u wptr = %u\n",
+			rptr, wptr);
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	/* Pointer to empty data entry in ring buffer */
+	cmd = (struct tee_ring_cmd *)(tee->rb_mgr.ring_start + wptr);
+
+	/* Write command data into ring buffer */
+	cmd->cmd_id = cmd_id;
+	cmd->cmd_state = TEE_CMD_STATE_INIT;
+	memset(&cmd->buf[0], 0, sizeof(cmd->buf));
+	memcpy(&cmd->buf[0], buf, len);
+
+	/* Update local copy of write pointer */
+	tee->rb_mgr.wptr += sizeof(struct tee_ring_cmd);
+	if (tee->rb_mgr.wptr >= tee->rb_mgr.ring_size)
+		tee->rb_mgr.wptr = 0;
+
+	/* Trigger interrupt to Trusted OS */
+	iowrite32(tee->rb_mgr.wptr, tee->io_regs + tee->vdata->ring_wptr_reg);
+
+	/* The response is provided by Trusted OS in same
+	 * location as submitted data entry within ring buffer.
+	 */
+	*resp = cmd;
+
+unlock:
+	mutex_unlock(&tee->rb_mgr.mutex);
+
+	return ret;
+}
+
+static int tee_wait_cmd_completion(struct psp_tee_device *tee,
+				   struct tee_ring_cmd *resp,
+				   unsigned int timeout)
+{
+	/* ~5ms sleep per loop => nloop = timeout * 200 */
+	int nloop = timeout * 200;
+
+	while (--nloop) {
+		if (resp->cmd_state == TEE_CMD_STATE_COMPLETED)
+			return 0;
+
+		usleep_range(5000, 5100);
+	}
+
+	dev_err(tee->dev, "tee: command 0x%x timed out, disabling PSP\n",
+		resp->cmd_id);
+
+	psp_dead = true;
+
+	return -ETIMEDOUT;
+}
+
+int psp_tee_process_cmd(enum tee_cmd_id cmd_id, void *buf, size_t len,
+			u32 *status)
+{
+	struct psp_device *psp = psp_get_master_device();
+	struct psp_tee_device *tee;
+	struct tee_ring_cmd *resp;
+	int ret;
+
+	if (!buf || !status || !len || len > sizeof(resp->buf))
+		return -EINVAL;
+
+	*status = 0;
+
+	if (!psp || !psp->tee_data)
+		return -ENODEV;
+
+	if (psp_dead)
+		return -EBUSY;
+
+	tee = psp->tee_data;
+
+	ret = tee_submit_cmd(tee, cmd_id, buf, len, &resp);
+	if (ret)
+		return ret;
+
+	ret = tee_wait_cmd_completion(tee, resp, TEE_DEFAULT_TIMEOUT);
+	if (ret)
+		return ret;
+
+	memcpy(buf, &resp->buf[0], len);
+	*status = resp->status;
+
+	return 0;
+}
+EXPORT_SYMBOL(psp_tee_process_cmd);

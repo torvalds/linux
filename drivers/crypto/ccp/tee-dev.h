@@ -54,6 +54,7 @@ struct tee_init_ring_cmd {
  * @wptr:        index to the last written entry in ring buffer
  */
 struct ring_buf_manager {
+	struct mutex mutex;	/* synchronizes access to ring buffer */
 	void *ring_start;
 	u32 ring_size;
 	phys_addr_t ring_pa;
