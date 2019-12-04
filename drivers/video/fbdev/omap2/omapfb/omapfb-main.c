@@ -1154,16 +1154,12 @@ static int _setcolreg(struct fb_info *fbi, u_int regno, u_int red, u_int green,
 		   r = fbdev->ctrl->setcolreg(regno, red, green, blue,
 		   transp, update_hw_pal);
 		   */
-		/* Fallthrough */
 		r = -EINVAL;
 		break;
 	case OMAPFB_COLOR_RGB565:
 	case OMAPFB_COLOR_RGB444:
 	case OMAPFB_COLOR_RGB24P:
 	case OMAPFB_COLOR_RGB24U:
-		if (r != 0)
-			break;
-
 		if (regno < 16) {
 			u32 pal;
 			pal = ((red >> (16 - var->red.length)) <<
