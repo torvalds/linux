@@ -3,7 +3,7 @@ Kernel Mode Setting (KMS)
 =========================
 
 Drivers must initialize the mode setting core by calling
-:c:func:`drm_mode_config_init()` on the DRM device. The function
+drm_mode_config_init() on the DRM device. The function
 initializes the :c:type:`struct drm_device <drm_device>`
 mode_config field and never fails. Once done, mode configuration must
 be setup by initializing the following fields.
@@ -181,8 +181,7 @@ Setting`_). The somewhat surprising part here is that properties are not
 directly instantiated on each object, but free-standing mode objects themselves,
 represented by :c:type:`struct drm_property <drm_property>`, which only specify
 the type and value range of a property. Any given property can be attached
-multiple times to different objects using :c:func:`drm_object_attach_property()
-<drm_object_attach_property>`.
+multiple times to different objects using drm_object_attach_property().
 
 .. kernel-doc:: include/drm/drm_mode_object.h
    :internal:
@@ -274,7 +273,7 @@ Locking of atomic state structures is internally using :c:type:`struct
 drm_modeset_lock <drm_modeset_lock>`. As a general rule the locking shouldn't be
 exposed to drivers, instead the right locks should be automatically acquired by
 any function that duplicates or peeks into a state, like e.g.
-:c:func:`drm_atomic_get_crtc_state()`.  Locking only protects the software data
+drm_atomic_get_crtc_state().  Locking only protects the software data
 structure, ordering of committing state changes to hardware is sequenced using
 :c:type:`struct drm_crtc_commit <drm_crtc_commit>`.
 
