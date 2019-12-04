@@ -1561,7 +1561,6 @@ static int null_gendisk_register(struct nullb *nullb)
 {
 	sector_t size = ((sector_t)nullb->dev->size * SZ_1M) >> SECTOR_SHIFT;
 	struct gendisk *disk;
-	int ret;
 
 	disk = nullb->disk = alloc_disk_node(1, nullb->dev->home_node);
 	if (!disk)
@@ -1579,7 +1578,7 @@ static int null_gendisk_register(struct nullb *nullb)
 #ifdef CONFIG_BLK_DEV_ZONED
 	if (nullb->dev->zoned) {
 		if (queue_is_mq(nullb->q)) {
-			ret = blk_revalidate_disk_zones(disk);
+			int ret = blk_revalidate_disk_zones(disk);
 			if (ret)
 				return ret;
 		} else {
