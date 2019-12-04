@@ -8417,6 +8417,10 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p,
 	if (!idlest)
 		return NULL;
 
+	/* The local group has been skipped because of CPU affinity */
+	if (!local)
+		return idlest;
+
 	/*
 	 * If the local group is idler than the selected idlest group
 	 * don't try and push the task.
