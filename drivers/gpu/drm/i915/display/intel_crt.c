@@ -65,7 +65,7 @@ static struct intel_crt *intel_encoder_to_crt(struct intel_encoder *encoder)
 	return container_of(encoder, struct intel_crt, base);
 }
 
-static struct intel_crt *intel_attached_crt(struct drm_connector *connector)
+static struct intel_crt *intel_attached_crt(struct intel_connector *connector)
 {
 	return intel_encoder_to_crt(intel_attached_encoder(connector));
 }
@@ -430,7 +430,7 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 static bool ilk_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 adpa;
 	bool ret;
@@ -477,7 +477,7 @@ static bool ilk_crt_detect_hotplug(struct drm_connector *connector)
 static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	bool reenable_hpd;
 	u32 adpa;
@@ -609,7 +609,7 @@ static int intel_crt_ddc_get_modes(struct drm_connector *connector,
 
 static bool intel_crt_detect_ddc(struct drm_connector *connector)
 {
-	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(crt->base.base.dev);
 	struct edid *edid;
 	struct i2c_adapter *i2c;
@@ -795,7 +795,7 @@ intel_crt_detect(struct drm_connector *connector,
 		 bool force)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *intel_encoder = &crt->base;
 	intel_wakeref_t wakeref;
 	int status, ret;
@@ -886,7 +886,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crt *crt = intel_attached_crt(connector);
+	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *intel_encoder = &crt->base;
 	intel_wakeref_t wakeref;
 	struct i2c_adapter *i2c;

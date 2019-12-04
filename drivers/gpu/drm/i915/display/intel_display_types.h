@@ -1438,9 +1438,9 @@ struct intel_load_detect_pipe {
 };
 
 static inline struct intel_encoder *
-intel_attached_encoder(struct drm_connector *connector)
+intel_attached_encoder(struct intel_connector *connector)
 {
-	return to_intel_connector(connector)->encoder;
+	return connector->encoder;
 }
 
 static inline bool intel_encoder_is_dig_port(struct intel_encoder *encoder)
@@ -1471,7 +1471,7 @@ enc_to_dig_port(struct drm_encoder *encoder)
 static inline struct intel_digital_port *
 conn_to_dig_port(struct intel_connector *connector)
 {
-	return enc_to_dig_port(&intel_attached_encoder(&connector->base)->base);
+	return enc_to_dig_port(&intel_attached_encoder(connector)->base);
 }
 
 static inline struct intel_dp_mst_encoder *

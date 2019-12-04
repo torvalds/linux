@@ -92,7 +92,7 @@ struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
 	return &intel_dig_port->hdmi;
 }
 
-static struct intel_hdmi *intel_attached_hdmi(struct drm_connector *connector)
+static struct intel_hdmi *intel_attached_hdmi(struct intel_connector *connector)
 {
 	return enc_to_intel_hdmi(&intel_attached_encoder(connector)->base);
 }
@@ -2160,7 +2160,7 @@ static enum drm_mode_status
 intel_hdmi_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
 {
-	struct intel_hdmi *hdmi = intel_attached_hdmi(connector);
+	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
 	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum drm_mode_status status;
@@ -2496,7 +2496,7 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 static void
 intel_hdmi_unset_edid(struct drm_connector *connector)
 {
-	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(to_intel_connector(connector));
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
@@ -2512,7 +2512,7 @@ static void
 intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector, bool has_edid)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct intel_hdmi *hdmi = intel_attached_hdmi(connector);
+	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
 	enum port port = hdmi_to_dig_port(hdmi)->base.port;
 	struct i2c_adapter *adapter =
 		intel_gmbus_get_adapter(dev_priv, hdmi->ddc_bus);
@@ -2559,7 +2559,7 @@ static bool
 intel_hdmi_set_edid(struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(to_intel_connector(connector));
 	intel_wakeref_t wakeref;
 	struct edid *edid;
 	bool connected = false;
@@ -2600,7 +2600,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 {
 	enum drm_connector_status status = connector_status_disconnected;
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(to_intel_connector(connector));
 	struct intel_encoder *encoder = &hdmi_to_dig_port(intel_hdmi)->base;
 	intel_wakeref_t wakeref;
 
@@ -2772,7 +2772,7 @@ static struct i2c_adapter *
 intel_hdmi_get_i2c_adapter(struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(to_intel_connector(connector));
 
 	return intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
 }
@@ -2816,7 +2816,7 @@ intel_hdmi_connector_register(struct drm_connector *connector)
 
 static void intel_hdmi_destroy(struct drm_connector *connector)
 {
-	struct cec_notifier *n = intel_attached_hdmi(connector)->cec_notifier;
+	struct cec_notifier *n = intel_attached_hdmi(to_intel_connector(connector))->cec_notifier;
 
 	cec_notifier_conn_unregister(n);
 

@@ -898,7 +898,7 @@ static struct intel_tv *enc_to_tv(struct intel_encoder *encoder)
 	return container_of(encoder, struct intel_tv, base);
 }
 
-static struct intel_tv *intel_attached_tv(struct drm_connector *connector)
+static struct intel_tv *intel_attached_tv(struct intel_connector *connector)
 {
 	return enc_to_tv(intel_attached_encoder(connector));
 }
@@ -1662,7 +1662,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
  */
 static void intel_tv_find_better_format(struct drm_connector *connector)
 {
-	struct intel_tv *intel_tv = intel_attached_tv(connector);
+	struct intel_tv *intel_tv = intel_attached_tv(to_intel_connector(connector));
 	const struct tv_mode *tv_mode = intel_tv_mode_find(connector->state);
 	int i;
 
@@ -1689,7 +1689,7 @@ intel_tv_detect(struct drm_connector *connector,
 		struct drm_modeset_acquire_ctx *ctx,
 		bool force)
 {
-	struct intel_tv *intel_tv = intel_attached_tv(connector);
+	struct intel_tv *intel_tv = intel_attached_tv(to_intel_connector(connector));
 	enum drm_connector_status status;
 	int type;
 

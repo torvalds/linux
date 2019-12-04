@@ -125,7 +125,7 @@ static struct intel_dvo *enc_to_dvo(struct intel_encoder *encoder)
 	return container_of(encoder, struct intel_dvo, base);
 }
 
-static struct intel_dvo *intel_attached_dvo(struct drm_connector *connector)
+static struct intel_dvo *intel_attached_dvo(struct intel_connector *connector)
 {
 	return enc_to_dvo(intel_attached_encoder(connector));
 }
@@ -134,7 +134,7 @@ static bool intel_dvo_connector_get_hw_state(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_dvo *intel_dvo = intel_attached_dvo(&connector->base);
+	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 	u32 tmp;
 
 	tmp = I915_READ(intel_dvo->dev.dvo_reg);
@@ -220,7 +220,7 @@ static enum drm_mode_status
 intel_dvo_mode_valid(struct drm_connector *connector,
 		     struct drm_display_mode *mode)
 {
-	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
+	struct intel_dvo *intel_dvo = intel_attached_dvo(to_intel_connector(connector));
 	const struct drm_display_mode *fixed_mode =
 		to_intel_connector(connector)->panel.fixed_mode;
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
@@ -311,7 +311,7 @@ static void intel_dvo_pre_enable(struct intel_encoder *encoder,
 static enum drm_connector_status
 intel_dvo_detect(struct drm_connector *connector, bool force)
 {
-	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
+	struct intel_dvo *intel_dvo = intel_attached_dvo(to_intel_connector(connector));
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 	return intel_dvo->dev.dev_ops->detect(&intel_dvo->dev);

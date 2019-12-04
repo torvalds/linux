@@ -6547,7 +6547,7 @@ intel_connector_primary_encoder(struct intel_connector *connector)
 	if (connector->mst_port)
 		return &dp_to_dig_port(connector->mst_port)->base;
 
-	encoder = intel_attached_encoder(&connector->base);
+	encoder = intel_attached_encoder(connector);
 	WARN_ON(!encoder);
 
 	return encoder;
@@ -11688,7 +11688,7 @@ int intel_get_load_detect_pipe(struct drm_connector *connector,
 {
 	struct intel_crtc *intel_crtc;
 	struct intel_encoder *intel_encoder =
-		intel_attached_encoder(connector);
+		intel_attached_encoder(to_intel_connector(connector));
 	struct drm_crtc *possible_crtc;
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = NULL;
@@ -11842,7 +11842,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_encoder *intel_encoder =
-		intel_attached_encoder(connector);
+		intel_attached_encoder(to_intel_connector(connector));
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_atomic_state *state = old->restore_state;
 	int ret;
@@ -15029,7 +15029,7 @@ static void intel_set_dp_tp_ctl_normal(struct intel_crtc *crtc,
 		if (conn_state->crtc == &crtc->base)
 			break;
 	}
-	intel_dp = enc_to_intel_dp(&intel_attached_encoder(conn)->base);
+	intel_dp = enc_to_intel_dp(&intel_attached_encoder(to_intel_connector(conn))->base);
 	intel_dp_stop_link_train(intel_dp);
 }
 
