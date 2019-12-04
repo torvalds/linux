@@ -492,7 +492,7 @@ static int renoir_get_current_activity_percent(struct smu_context *smu,
 
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		*value = metrics.AverageGfxActivity;
+		*value = metrics.AverageGfxActivity / 100;
 		break;
 	default:
 		pr_err("Invalid sensor for retrieving clock activity\n");
