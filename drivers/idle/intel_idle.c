@@ -1291,8 +1291,8 @@ static void sklh_idle_state_table_update(void)
 			return;
 	}
 
-	skl_cstates[5].disabled = 1;	/* C8-SKL */
-	skl_cstates[6].disabled = 1;	/* C9-SKL */
+	skl_cstates[5].flags |= CPUIDLE_FLAG_UNUSABLE;	/* C8-SKL */
+	skl_cstates[6].flags |= CPUIDLE_FLAG_UNUSABLE;	/* C9-SKL */
 }
 /*
  * intel_idle_state_table_update()
@@ -1355,7 +1355,7 @@ static void __init intel_idle_cpuidle_driver_init(void)
 			continue;
 
 		/* if state marked as disabled, skip it */
-		if (cpuidle_state_table[cstate].disabled != 0) {
+		if (cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_UNUSABLE) {
 			pr_debug("state %s is disabled\n",
 				 cpuidle_state_table[cstate].name);
 			continue;
