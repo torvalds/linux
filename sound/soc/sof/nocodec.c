@@ -74,8 +74,6 @@ int sof_nocodec_setup(struct device *dev,
 	if (!mach)
 		return -EINVAL;
 
-	sof_pdata->drv_name = "sof-nocodec";
-
 	mach->drv_name = "sof-nocodec";
 	sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
 
