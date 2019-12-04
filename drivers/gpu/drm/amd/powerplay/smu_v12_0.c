@@ -330,6 +330,35 @@ int smu_v12_0_populate_smc_tables(struct smu_context *smu)
 	return smu_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
 }
 
+int smu_v12_0_get_enabled_mask(struct smu_context *smu,
+				      uint32_t *feature_mask, uint32_t num)
+{
+	uint32_t feature_mask_high = 0, feature_mask_low = 0;
+	int ret = 0;
+
+	if (!feature_mask || num < 2)
+		return -EINVAL;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh);
+	if (ret)
+		return ret;
+	ret = smu_read_smc_arg(smu, &feature_mask_high);
+	if (ret)
+		return ret;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow);
+	if (ret)
+		return ret;
+	ret = smu_read_smc_arg(smu, &feature_mask_low);
+	if (ret)
+		return ret;
+
+	feature_mask[0] = feature_mask_low;
+	feature_mask[1] = feature_mask_high;
+
+	return ret;
+}
+
 int smu_v12_0_get_current_clk_freq(struct smu_context *smu,
 					  enum smu_clk_type clk_id,
 					  uint32_t *value)

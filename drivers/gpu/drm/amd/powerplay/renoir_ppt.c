@@ -877,6 +877,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.init_smc_tables = smu_v12_0_init_smc_tables,
 	.fini_smc_tables = smu_v12_0_fini_smc_tables,
 	.populate_smc_tables = smu_v12_0_populate_smc_tables,
+	.get_enabled_mask = smu_v12_0_get_enabled_mask,
 	.get_current_clk_freq = smu_v12_0_get_current_clk_freq,
 	.get_dpm_ultimate_freq = smu_v12_0_get_dpm_ultimate_freq,
 	.mode2_reset = smu_v12_0_mode2_reset,
