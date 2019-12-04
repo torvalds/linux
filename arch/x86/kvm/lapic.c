@@ -1151,7 +1151,7 @@ void kvm_bitmap_or_dest_vcpus(struct kvm *kvm, struct kvm_lapic_irq *irq,
 			if (!kvm_apic_present(vcpu))
 				continue;
 			if (!kvm_apic_match_dest(vcpu, NULL,
-						 irq->delivery_mode,
+						 irq->shorthand,
 						 irq->dest_id,
 						 irq->dest_mode))
 				continue;
