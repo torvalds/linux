@@ -108,8 +108,9 @@ static void __rtc_irq_eoi_tracking_restore_one(struct kvm_vcpu *vcpu)
 	union kvm_ioapic_redirect_entry *e;
 
 	e = &ioapic->redirtbl[RTC_GSI];
-	if (!kvm_apic_match_dest(vcpu, NULL, 0,	e->fields.dest_id,
-				e->fields.dest_mode))
+	if (!kvm_apic_match_dest(vcpu, NULL, APIC_DEST_NOSHORT,
+				 e->fields.dest_id,
+				 kvm_lapic_irq_dest_mode(!!e->fields.dest_mode)))
 		return;
 
 	new_val = kvm_apic_pending_eoi(vcpu, e->fields.vector);
@@ -250,8 +251,10 @@ void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, ulong *ioapic_handled_vectors)
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG ||
 		    kvm_irq_has_notifier(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index) ||
 		    index == RTC_GSI) {
-			if (kvm_apic_match_dest(vcpu, NULL, 0,
-			             e->fields.dest_id, e->fields.dest_mode) ||
+			u16 dm = kvm_lapic_irq_dest_mode(!!e->fields.dest_mode);
+
+			if (kvm_apic_match_dest(vcpu, NULL, APIC_DEST_NOSHORT,
+						e->fields.dest_id, dm) ||
 			    kvm_apic_pending_eoi(vcpu, e->fields.vector))
 				__set_bit(e->fields.vector,
 					  ioapic_handled_vectors);

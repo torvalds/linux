@@ -789,13 +789,13 @@ static u32 kvm_apic_mda(struct kvm_vcpu *vcpu, unsigned int dest_id,
 }
 
 bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
-			   int short_hand, unsigned int dest, int dest_mode)
+			   int shorthand, unsigned int dest, int dest_mode)
 {
 	struct kvm_lapic *target = vcpu->arch.apic;
 	u32 mda = kvm_apic_mda(vcpu, dest, source, target);
 
 	ASSERT(target);
-	switch (short_hand) {
+	switch (shorthand) {
 	case APIC_DEST_NOSHORT:
 		if (dest_mode == APIC_DEST_PHYSICAL)
 			return kvm_apic_match_physical_addr(target, mda);
