@@ -224,15 +224,15 @@ int gpiod_get_direction(struct gpio_desc *desc)
 		return -ENOTSUPP;
 
 	ret = chip->get_direction(chip, offset);
-	if (ret > 0) {
-		/* GPIOF_DIR_IN, or other positive */
+	if (ret < 0)
+		return ret;
+
+	/* GPIOF_DIR_IN or other positive, otherwise GPIOF_DIR_OUT */
+	if (ret > 0)
 		ret = 1;
-		clear_bit(FLAG_IS_OUT, &desc->flags);
-	}
-	if (ret == 0) {
-		/* GPIOF_DIR_OUT */
-		set_bit(FLAG_IS_OUT, &desc->flags);
-	}
+
+	assign_bit(FLAG_IS_OUT, &desc->flags, !ret);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(gpiod_get_direction);
@@ -484,15 +484,6 @@ static int linehandle_validate_flags(u32 flags)
 	return 0;
 }
 
-static void linehandle_configure_flag(unsigned long *flagsp,
-				      u32 bit, bool active)
-{
-	if (active)
-		set_bit(bit, flagsp);
-	else
-		clear_bit(bit, flagsp);
-}
-
 static long linehandle_set_config(struct linehandle_state *lh,
 				  void __user *ip)
 {
@@ -514,22 +505,22 @@ static long linehandle_set_config(struct linehandle_state *lh,
 		desc = lh->descs[i];
 		flagsp = &desc->flags;
 
-		linehandle_configure_flag(flagsp, FLAG_ACTIVE_LOW,
+		assign_bit(FLAG_ACTIVE_LOW, flagsp,
 			lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW);
 
-		linehandle_configure_flag(flagsp, FLAG_OPEN_DRAIN,
+		assign_bit(FLAG_OPEN_DRAIN, flagsp,
 			lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN);
 
-		linehandle_configure_flag(flagsp, FLAG_OPEN_SOURCE,
+		assign_bit(FLAG_OPEN_SOURCE, flagsp,
 			lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE);
 
-		linehandle_configure_flag(flagsp, FLAG_PULL_UP,
+		assign_bit(FLAG_PULL_UP, flagsp,
 			lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP);
 
-		linehandle_configure_flag(flagsp, FLAG_PULL_DOWN,
+		assign_bit(FLAG_PULL_DOWN, flagsp,
 			lflags & GPIOHANDLE_REQUEST_BIAS_PULL_DOWN);
 
-		linehandle_configure_flag(flagsp, FLAG_BIAS_DISABLE,
+		assign_bit(FLAG_BIAS_DISABLE, flagsp,
 			lflags & GPIOHANDLE_REQUEST_BIAS_DISABLE);
 
 		/*
@@ -1516,15 +1507,11 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 		struct gpio_desc *desc = &gdev->descs[i];
 
 		if (chip->get_direction && gpiochip_line_is_valid(chip, i)) {
-			if (!chip->get_direction(chip, i))
-				set_bit(FLAG_IS_OUT, &desc->flags);
-			else
-				clear_bit(FLAG_IS_OUT, &desc->flags);
+			assign_bit(FLAG_IS_OUT,
+				   &desc->flags, !chip->get_direction(chip, i));
 		} else {
-			if (!chip->direction_input)
-				set_bit(FLAG_IS_OUT, &desc->flags);
-			else
-				clear_bit(FLAG_IS_OUT, &desc->flags);
+			assign_bit(FLAG_IS_OUT,
+				   &desc->flags, !chip->direction_input);
 		}
 	}
 
@@ -3326,10 +3313,7 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 	 * Handle FLAG_TRANSITORY first, enabling queries to gpiolib for
 	 * persistence state.
 	 */
-	if (transitory)
-		set_bit(FLAG_TRANSITORY, &desc->flags);
-	else
-		clear_bit(FLAG_TRANSITORY, &desc->flags);
+	assign_bit(FLAG_TRANSITORY, &desc->flags, transitory);
 
 	/* If the driver supports it, set the persistence state now */
 	chip = desc->gdev->chip;
@@ -3785,10 +3769,7 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 				gpio_set_open_source_value_commit(desc, value);
 			} else {
 				__set_bit(hwgpio, mask);
-				if (value)
-					__set_bit(hwgpio, bits);
-				else
-					__clear_bit(hwgpio, bits);
+				__assign_bit(hwgpio, bits, value);
 				count++;
 			}
 			i++;
