@@ -1972,6 +1972,9 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_LG,
 		HID_USB_DEVICE(USB_VENDOR_ID_LG,
 			USB_DEVICE_ID_LG_MELFAS_MT) },
+	{ .driver_data = MT_CLS_LG,
+		HID_DEVICE(BUS_I2C, HID_GROUP_GENERIC,
+			USB_VENDOR_ID_LG, I2C_DEVICE_ID_LG_7010) },
 
 	/* MosArt panels */
 	{ .driver_data = MT_CLS_CONFIDENCE_MINUS_ONE,
