@@ -20,7 +20,7 @@ struct  rt711_priv {
 	enum sdw_slave_status status;
 	struct sdw_bus_params params;
 	bool hw_init;
-	bool first_init;
+	bool first_hw_init;
 	struct snd_soc_jack *hs_jack;
 	struct delayed_work jack_detect_work;
 	struct delayed_work jack_btn_check_work;

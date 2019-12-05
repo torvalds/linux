@@ -1152,7 +1152,7 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 	 * HW init will be performed when device reports present
 	 */
 	rt711->hw_init = false;
-	rt711->first_init = false;
+	rt711->first_hw_init = false;
 
 	/* JD source uses JD2 in default */
 	rt711->jd_src = RT711_JD2;
@@ -1174,7 +1174,7 @@ int rt711_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt711->hw_init)
 		return 0;
 
-	if (rt711->first_init) {
+	if (rt711->first_hw_init) {
 		regcache_cache_only(rt711->regmap, false);
 		regcache_cache_bypass(rt711->regmap, true);
 	}
@@ -1182,7 +1182,7 @@ int rt711_io_init(struct device *dev, struct sdw_slave *slave)
 	/*
 	 * PM runtime is only enabled when a Slave reports as Attached
 	 */
-	if (!rt711->first_init) {
+	if (!rt711->first_hw_init) {
 		/* set autosuspend parameters */
 		pm_runtime_set_autosuspend_delay(&slave->dev, 3000);
 		pm_runtime_use_autosuspend(&slave->dev);
@@ -1250,7 +1250,7 @@ int rt711_io_init(struct device *dev, struct sdw_slave *slave)
 	/* Finish Initial Settings, set power to D3 */
 	regmap_write(rt711->regmap, RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
 
-	if (rt711->first_init)
+	if (rt711->first_hw_init)
 		rt711_calibration(rt711);
 	else {
 		INIT_DELAYED_WORK(&rt711->jack_detect_work,
@@ -1269,10 +1269,11 @@ int rt711_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt711->hs_jack)
 		rt711_jack_init(rt711);
 
-	if (rt711->first_init)
+	if (rt711->first_hw_init) {
 		regcache_cache_bypass(rt711->regmap, false);
-	else
-		rt711->first_init = true;
+		regcache_mark_dirty(rt711->regmap);
+	} else
+		rt711->first_hw_init = true;
 
 	/* Mark Slave initialization complete */
 	rt711->hw_init = true;
