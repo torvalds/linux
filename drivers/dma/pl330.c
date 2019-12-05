@@ -2961,12 +2961,7 @@ static int __maybe_unused pl330_suspend(struct device *dev)
 {
 	struct amba_device *pcdev = to_amba_device(dev);
 
-	pm_runtime_disable(dev);
-
-	if (!pm_runtime_status_suspended(dev)) {
-		/* amba did not disable the clock */
-		amba_pclk_disable(pcdev);
-	}
+	pm_runtime_force_suspend(dev);
 	amba_pclk_unprepare(pcdev);
 
 	return 0;
@@ -2981,10 +2976,7 @@ static int __maybe_unused pl330_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (!pm_runtime_status_suspended(dev))
-		ret = amba_pclk_enable(pcdev);
-
-	pm_runtime_enable(dev);
+	pm_runtime_force_resume(dev);
 
 	return ret;
 }
