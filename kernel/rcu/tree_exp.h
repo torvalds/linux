@@ -518,7 +518,7 @@ static void synchronize_rcu_expedited_wait(void)
 	for (;;) {
 		if (synchronize_rcu_expedited_wait_once(jiffies_stall))
 			return;
-		if (rcu_cpu_stall_suppress)
+		if (rcu_stall_is_suppressed())
 			continue;
 		panic_on_rcu_stall();
 		pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {",

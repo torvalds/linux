@@ -4195,6 +4195,12 @@
 	rcupdate.rcu_cpu_stall_suppress= [KNL]
 			Suppress RCU CPU stall warning messages.
 
+	rcupdate.rcu_cpu_stall_suppress_at_boot= [KNL]
+			Suppress RCU CPU stall warning messages and
+			rcutorture writer stall warnings that occur
+			during early boot, that is, during the time
+			before the init task is spawned.
+
 	rcupdate.rcu_cpu_stall_timeout= [KNL]
 			Set timeout for RCU CPU stall warning messages.
 
