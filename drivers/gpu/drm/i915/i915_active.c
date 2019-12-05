@@ -91,10 +91,9 @@ static void debug_active_init(struct i915_active *ref)
 
 static void debug_active_activate(struct i915_active *ref)
 {
-	spin_lock_irq(&ref->tree_lock);
+	lockdep_assert_held(&ref->tree_lock);
 	if (!atomic_read(&ref->count)) /* before the first inc */
 		debug_object_activate(ref, &active_debug_desc);
-	spin_unlock_irq(&ref->tree_lock);
 }
 
 static void debug_active_deactivate(struct i915_active *ref)
@@ -419,8 +418,10 @@ int i915_active_acquire(struct i915_active *ref)
 	if (!atomic_read(&ref->count) && ref->active)
 		err = ref->active(ref);
 	if (!err) {
+		spin_lock_irq(&ref->tree_lock); /* vs __active_retire() */
 		debug_active_activate(ref);
 		atomic_inc(&ref->count);
+		spin_unlock_irq(&ref->tree_lock);
 	}
 
 	mutex_unlock(&ref->mutex);
