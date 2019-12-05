@@ -1042,6 +1042,8 @@
 #define DP_SYMBOL_ERROR_COUNT_LANE2_PHY_REPEATER1	    0xf0039 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE3_PHY_REPEATER1	    0xf003b /* 1.3 */
 #define DP_FEC_STATUS_PHY_REPEATER1			    0xf0290 /* 1.4 */
+#define DP_FEC_ERROR_COUNT_PHY_REPEATER1                    0xf0291 /* 1.4 */
+#define DP_FEC_CAPABILITY_PHY_REPEATER1                     0xf0294 /* 1.4a */
 
 /* Repeater modes */
 #define DP_PHY_REPEATER_MODE_TRANSPARENT		    0x55    /* 1.3 */
