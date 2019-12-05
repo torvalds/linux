@@ -6639,12 +6639,6 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	spin_unlock(&send_root->root_item_lock);
 
 	/*
-	 * This is done when we lookup the root, it should already be complete
-	 * by the time we get here.
-	 */
-	WARN_ON(send_root->orphan_cleanup_state != ORPHAN_CLEANUP_DONE);
-
-	/*
 	 * Userspace tools do the checks and warn the user if it's
 	 * not RO.
 	 */
