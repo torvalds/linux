@@ -41,17 +41,14 @@ void clear_page(void *page);
 void copy_page(void *to, void *from);
 
 typedef unsigned long pte_t;
-typedef unsigned long pmd_t;
 typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
 #define pte_val(x)      (x)
-#define pmd_val(x)      (x)
 #define pgd_val(x)	(x)
 #define pgprot_val(x)   (x)
 
 #define __pte(x)        (x)
-#define __pmd(x)        (x)
 #define __pgd(x)        (x)
 #define __pgprot(x)     (x)
 

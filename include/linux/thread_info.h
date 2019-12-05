@@ -147,6 +147,8 @@ check_copy_size(const void *addr, size_t bytes, bool is_source)
 			__bad_copy_to();
 		return false;
 	}
+	if (WARN_ON_ONCE(bytes > INT_MAX))
+		return false;
 	check_object_size(addr, bytes, is_source);
 	return true;
 }

@@ -3,7 +3,12 @@
 #define _PARISC_PGTABLE_H
 
 #include <asm/page.h>
-#include <asm-generic/4level-fixup.h>
+
+#if CONFIG_PGTABLE_LEVELS == 3
+#include <asm-generic/pgtable-nopud.h>
+#elif CONFIG_PGTABLE_LEVELS == 2
+#include <asm-generic/pgtable-nopmd.h>
+#endif
 
 #include <asm/fixmap.h>
 
@@ -101,8 +106,10 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
+#if CONFIG_PGTABLE_LEVELS == 3
 #define pmd_ERROR(e) \
 	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, (unsigned long)pmd_val(e))
+#endif
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, (unsigned long)pgd_val(e))
 
@@ -132,19 +139,18 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define PTRS_PER_PTE    (1UL << BITS_PER_PTE)
 
 /* Definitions for 2nd level */
+#if CONFIG_PGTABLE_LEVELS == 3
 #define PMD_SHIFT       (PLD_SHIFT + BITS_PER_PTE)
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
-#if CONFIG_PGTABLE_LEVELS == 3
 #define BITS_PER_PMD	(PAGE_SHIFT + PMD_ORDER - BITS_PER_PMD_ENTRY)
+#define PTRS_PER_PMD    (1UL << BITS_PER_PMD)
 #else
-#define __PAGETABLE_PMD_FOLDED 1
 #define BITS_PER_PMD	0
 #endif
-#define PTRS_PER_PMD    (1UL << BITS_PER_PMD)
 
 /* Definitions for 1st level */
-#define PGDIR_SHIFT	(PMD_SHIFT + BITS_PER_PMD)
+#define PGDIR_SHIFT	(PLD_SHIFT + BITS_PER_PTE + BITS_PER_PMD)
 #if (PGDIR_SHIFT + PAGE_SHIFT + PGD_ORDER - BITS_PER_PGD_ENTRY) > BITS_PER_LONG
 #define BITS_PER_PGD	(BITS_PER_LONG - PGDIR_SHIFT)
 #else
@@ -317,6 +323,8 @@ extern unsigned long *empty_zero_page;
 
 #define pmd_flag(x)	(pmd_val(x) & PxD_FLAG_MASK)
 #define pmd_address(x)	((unsigned long)(pmd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
+#define pud_flag(x)	(pud_val(x) & PxD_FLAG_MASK)
+#define pud_address(x)	((unsigned long)(pud_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
 #define pgd_flag(x)	(pgd_val(x) & PxD_FLAG_MASK)
 #define pgd_address(x)	((unsigned long)(pgd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
 
@@ -334,42 +342,32 @@ static inline void pmd_clear(pmd_t *pmd) {
 	if (pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
 		/* This is the entry pointing to the permanent pmd
 		 * attached to the pgd; cannot clear it */
-		__pmd_val_set(*pmd, PxD_FLAG_ATTACHED);
+		set_pmd(pmd, __pmd(PxD_FLAG_ATTACHED));
 	else
 #endif
-		__pmd_val_set(*pmd,  0);
+		set_pmd(pmd,  __pmd(0));
 }
 
 
 
 #if CONFIG_PGTABLE_LEVELS == 3
-#define pgd_page_vaddr(pgd) ((unsigned long) __va(pgd_address(pgd)))
-#define pgd_page(pgd)	virt_to_page((void *)pgd_page_vaddr(pgd))
+#define pud_page_vaddr(pud) ((unsigned long) __va(pud_address(pud)))
+#define pud_page(pud)	virt_to_page((void *)pud_page_vaddr(pud))
 
 /* For 64 bit we have three level tables */
 
-#define pgd_none(x)     (!pgd_val(x))
-#define pgd_bad(x)      (!(pgd_flag(x) & PxD_FLAG_VALID))
-#define pgd_present(x)  (pgd_flag(x) & PxD_FLAG_PRESENT)
-static inline void pgd_clear(pgd_t *pgd) {
+#define pud_none(x)     (!pud_val(x))
+#define pud_bad(x)      (!(pud_flag(x) & PxD_FLAG_VALID))
+#define pud_present(x)  (pud_flag(x) & PxD_FLAG_PRESENT)
+static inline void pud_clear(pud_t *pud) {
 #if CONFIG_PGTABLE_LEVELS == 3
-	if(pgd_flag(*pgd) & PxD_FLAG_ATTACHED)
-		/* This is the permanent pmd attached to the pgd; cannot
+	if(pud_flag(*pud) & PxD_FLAG_ATTACHED)
+		/* This is the permanent pmd attached to the pud; cannot
 		 * free it */
 		return;
 #endif
-	__pgd_val_set(*pgd, 0);
+	set_pud(pud, __pud(0));
 }
-#else
-/*
- * The "pgd_xxx()" functions here are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
- */
-static inline int pgd_none(pgd_t pgd)		{ return 0; }
-static inline int pgd_bad(pgd_t pgd)		{ return 0; }
-static inline int pgd_present(pgd_t pgd)	{ return 1; }
-static inline void pgd_clear(pgd_t * pgdp)	{ }
 #endif
 
 /*
@@ -452,7 +450,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #if CONFIG_PGTABLE_LEVELS == 3
 #define pmd_index(addr)         (((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
 #define pmd_offset(dir,address) \
-((pmd_t *) pgd_page_vaddr(*(dir)) + pmd_index(address))
+((pmd_t *) pud_page_vaddr(*(dir)) + pmd_index(address))
 #else
 #define pmd_offset(dir,addr) ((pmd_t *) dir)
 #endif

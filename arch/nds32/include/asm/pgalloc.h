@@ -15,9 +15,6 @@
 /*
  * Since we have only two-level page tables, these are trivial
  */
-#define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
-#define pmd_free(mm, pmd)			do { } while (0)
-#define pgd_populate(mm, pmd, pte)	BUG()
 #define pmd_pgtable(pmd) pmd_page(pmd)
 
 extern pgd_t *pgd_alloc(struct mm_struct *mm);

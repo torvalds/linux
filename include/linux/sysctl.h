@@ -120,8 +120,7 @@ static inline void *proc_sys_poll_event(struct ctl_table_poll *poll)
 	struct ctl_table_poll name = __CTL_TABLE_POLL_INITIALIZER(name)
 
 /* A sysctl table is an array of struct ctl_table: */
-struct ctl_table 
-{
+struct ctl_table {
 	const char *procname;		/* Text ID for /proc/sys, or zero */
 	void *data;
 	int maxlen;
@@ -140,8 +139,7 @@ struct ctl_node {
 
 /* struct ctl_table_header is used to maintain dynamic lists of
    struct ctl_table trees. */
-struct ctl_table_header
-{
+struct ctl_table_header {
 	union {
 		struct {
 			struct ctl_table *ctl_table;

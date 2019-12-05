@@ -31,6 +31,12 @@ struct reclaim_stat {
 	unsigned nr_unmap_fail;
 };
 
+enum writeback_stat_item {
+	NR_DIRTY_THRESHOLD,
+	NR_DIRTY_BG_THRESHOLD,
+	NR_VM_WRITEBACK_STAT_ITEMS,
+};
+
 #ifdef CONFIG_VM_EVENT_COUNTERS
 /*
  * Light weight per cpu counter implementation.
@@ -380,5 +386,49 @@ static inline void __mod_zone_freepage_state(struct zone *zone, int nr_pages,
 }
 
 extern const char * const vmstat_text[];
+
+static inline const char *zone_stat_name(enum zone_stat_item item)
+{
+	return vmstat_text[item];
+}
+
+#ifdef CONFIG_NUMA
+static inline const char *numa_stat_name(enum numa_stat_item item)
+{
+	return vmstat_text[NR_VM_ZONE_STAT_ITEMS +
+			   item];
+}
+#endif /* CONFIG_NUMA */
+
+static inline const char *node_stat_name(enum node_stat_item item)
+{
+	return vmstat_text[NR_VM_ZONE_STAT_ITEMS +
+			   NR_VM_NUMA_STAT_ITEMS +
+			   item];
+}
+
+static inline const char *lru_list_name(enum lru_list lru)
+{
+	return node_stat_name(NR_LRU_BASE + lru) + 3; // skip "nr_"
+}
+
+static inline const char *writeback_stat_name(enum writeback_stat_item item)
+{
+	return vmstat_text[NR_VM_ZONE_STAT_ITEMS +
+			   NR_VM_NUMA_STAT_ITEMS +
+			   NR_VM_NODE_STAT_ITEMS +
+			   item];
+}
+
+#if defined(CONFIG_VM_EVENT_COUNTERS) || defined(CONFIG_MEMCG)
+static inline const char *vm_event_name(enum vm_event_item item)
+{
+	return vmstat_text[NR_VM_ZONE_STAT_ITEMS +
+			   NR_VM_NUMA_STAT_ITEMS +
+			   NR_VM_NODE_STAT_ITEMS +
+			   NR_VM_WRITEBACK_STAT_ITEMS +
+			   item];
+}
+#endif /* CONFIG_VM_EVENT_COUNTERS || CONFIG_MEMCG */
 
 #endif /* _LINUX_VMSTAT_H */
