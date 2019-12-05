@@ -52,6 +52,7 @@ static inline void wq_node_del(struct io_wq_work_list *list,
 		list->last = prev;
 	if (prev)
 		prev->next = node->next;
+	node->next = NULL;
 }
 
 #define wq_list_for_each(pos, prv, head)			\
