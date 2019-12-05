@@ -636,7 +636,6 @@ static int btrfsic_process_superblock(struct btrfsic_state *state,
 	int ret = 0;
 	int pass;
 
-	BUG_ON(NULL == state);
 	selected_super = kzalloc(sizeof(*selected_super), GFP_NOFS);
 	if (NULL == selected_super) {
 		pr_info("btrfsic: error, kmalloc failed!\n");
