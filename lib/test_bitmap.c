@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Test cases for printf facility.
+ * Test cases for bitmap API.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
