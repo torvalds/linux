@@ -136,7 +136,6 @@ struct atmel_sha_dev {
 	void __iomem		*io_base;
 
 	spinlock_t		lock;
-	int			err;
 	struct tasklet_struct	done_task;
 	struct tasklet_struct	queue_task;
 
@@ -1027,7 +1026,6 @@ static int atmel_sha_hw_init(struct atmel_sha_dev *dd)
 	if (!(SHA_FLAGS_INIT & dd->flags)) {
 		atmel_sha_write(dd, SHA_CR, SHA_CR_SWRST);
 		dd->flags |= SHA_FLAGS_INIT;
-		dd->err = 0;
 	}
 
 	return 0;
@@ -1403,10 +1401,6 @@ static int atmel_sha_done(struct atmel_sha_dev *dd)
 		if (SHA_FLAGS_DMA_ACTIVE & dd->flags) {
 			dd->flags &= ~SHA_FLAGS_DMA_ACTIVE;
 			atmel_sha_update_dma_stop(dd);
-			if (dd->err) {
-				err = dd->err;
-				goto finish;
-			}
 		}
 		if (SHA_FLAGS_OUTPUT_READY & dd->flags) {
 			/* hash or semi-hash ready */

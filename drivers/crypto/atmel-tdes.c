@@ -102,7 +102,6 @@ struct atmel_tdes_dev {
 	int					irq;
 
 	unsigned long		flags;
-	int			err;
 
 	spinlock_t		lock;
 	struct crypto_queue	queue;
@@ -228,7 +227,6 @@ static int atmel_tdes_hw_init(struct atmel_tdes_dev *dd)
 	if (!(dd->flags & TDES_FLAGS_INIT)) {
 		atmel_tdes_write(dd, TDES_CR, TDES_CR_SWRST);
 		dd->flags |= TDES_FLAGS_INIT;
-		dd->err = 0;
 	}
 
 	return 0;
@@ -1111,8 +1109,6 @@ static void atmel_tdes_done_task(unsigned long data)
 		err = atmel_tdes_crypt_pdc_stop(dd);
 	else
 		err = atmel_tdes_crypt_dma_stop(dd);
-
-	err = dd->err ? : err;
 
 	if (dd->total && !err) {
 		if (dd->flags & TDES_FLAGS_FAST) {
