@@ -40,7 +40,6 @@ header-test- += linux/omapfb.h
 header-test- += linux/patchkey.h
 header-test- += linux/phonet.h
 header-test- += linux/reiserfs_xattr.h
-header-test- += linux/scc.h
 header-test- += linux/sctp.h
 header-test- += linux/signal.h
 header-test- += linux/sysctl.h
