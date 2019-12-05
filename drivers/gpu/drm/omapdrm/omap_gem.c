@@ -843,8 +843,12 @@ fail:
  */
 static void omap_gem_unpin_locked(struct drm_gem_object *obj)
 {
+	struct omap_drm_private *priv = obj->dev->dev_private;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret;
+
+	if (omap_gem_is_contiguous(omap_obj) || !priv->has_dmm)
+		return;
 
 	if (refcount_dec_and_test(&omap_obj->dma_addr_cnt)) {
 		ret = tiler_unpin(omap_obj->block);
