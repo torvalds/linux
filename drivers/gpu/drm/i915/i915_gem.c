@@ -175,7 +175,7 @@ err_vm:
 		i915_vm_close(vm);
 		spin_lock(&obj->vma.lock);
 	}
-	list_splice(&still_in_list, &obj->vma.list);
+	list_splice_init(&still_in_list, &obj->vma.list);
 	spin_unlock(&obj->vma.lock);
 
 	if (ret == -EAGAIN && flags & I915_GEM_OBJECT_UNBIND_ACTIVE) {
