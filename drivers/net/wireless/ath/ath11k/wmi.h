@@ -4564,12 +4564,12 @@ struct wmi_twt_enable_params_cmd {
 	u32 mode_check_interval;
 	u32 add_sta_slot_interval;
 	u32 remove_sta_slot_interval;
-};
+} __packed;
 
 struct wmi_twt_disable_params_cmd {
 	u32 tlv_header;
 	u32 pdev_id;
-};
+} __packed;
 
 struct wmi_obss_spatial_reuse_params_cmd {
 	u32 tlv_header;
@@ -4578,7 +4578,7 @@ struct wmi_obss_spatial_reuse_params_cmd {
 	s32 obss_min;
 	s32 obss_max;
 	u32 vdev_id;
-};
+} __packed;
 
 struct target_resource_config {
 	u32 num_vdevs;
