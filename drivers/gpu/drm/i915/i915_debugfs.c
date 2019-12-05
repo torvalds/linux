@@ -1792,23 +1792,12 @@ static void i915_guc_log_info(struct seq_file *m,
 static int i915_guc_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	const struct intel_guc *guc = &dev_priv->gt.uc.guc;
-	struct intel_guc_client *client = guc->execbuf_client;
 
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
 	i915_guc_log_info(m, dev_priv);
 
-	if (!USES_GUC_SUBMISSION(dev_priv))
-		return 0;
-
-	GEM_BUG_ON(!guc->execbuf_client);
-
-	seq_printf(m, "\nGuC execbuf client @ %p:\n", client);
-	seq_printf(m, "\tPriority %d, GuC stage index: %u\n",
-		   client->priority,
-		   client->stage_id);
 	/* Add more as required ... */
 
 	return 0;

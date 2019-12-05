@@ -21,6 +21,7 @@
 #include "intel_reset.h"
 
 #include "uc/intel_guc.h"
+#include "uc/intel_guc_submission.h"
 
 #define RESET_MAX_RETRIES 3
 
@@ -1085,6 +1086,7 @@ static inline int intel_gt_reset_engine(struct intel_engine_cs *engine)
 int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 {
 	struct intel_gt *gt = engine->gt;
+	bool uses_guc = intel_engine_in_guc_submission_mode(engine);
 	int ret;
 
 	GEM_TRACE("%s flags=%lx\n", engine->name, gt->reset.flags);
@@ -1100,14 +1102,14 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 			   "Resetting %s for %s\n", engine->name, msg);
 	atomic_inc(&engine->i915->gpu_error.reset_engine_count[engine->uabi_class]);
 
-	if (!engine->gt->uc.guc.execbuf_client)
+	if (!uses_guc)
 		ret = intel_gt_reset_engine(engine);
 	else
 		ret = intel_guc_reset_engine(&engine->gt->uc.guc, engine);
 	if (ret) {
 		/* If we fail here, we expect to fallback to a global reset */
 		DRM_DEBUG_DRIVER("%sFailed to reset %s, ret=%d\n",
-				 engine->gt->uc.guc.execbuf_client ? "GuC " : "",
+				 uses_guc ? "GuC " : "",
 				 engine->name, ret);
 		goto out;
 	}
