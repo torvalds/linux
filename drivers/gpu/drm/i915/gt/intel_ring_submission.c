@@ -1396,6 +1396,25 @@ static int load_pd_dir(struct i915_request *rq, const struct i915_ppgtt *ppgtt)
 	return 0;
 }
 
+static int flush_tlb(struct i915_request *rq)
+{
+	const struct intel_engine_cs * const engine = rq->engine;
+	u32 *cs;
+
+	cs = intel_ring_begin(rq, 4);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = i915_mmio_reg_offset(RING_INSTPM(engine->mmio_base));
+	*cs++ = _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE);
+
+	*cs++ = MI_NOOP;
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
 static inline int mi_set_context(struct i915_request *rq, u32 flags)
 {
 	struct drm_i915_private *i915 = rq->i915;
@@ -1588,15 +1607,27 @@ static int switch_context(struct i915_request *rq)
 		 * post-sync op, this extra pass appears vital before a
 		 * mm switch!
 		 */
-		do {
-			ret = rq->engine->emit_flush(rq, EMIT_FLUSH);
-			if (ret)
-				return ret;
+		ret = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
+		if (ret)
+			return ret;
 
+		ret = flush_tlb(rq);
+		if (ret)
+			return ret;
+
+		do {
 			ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm));
 			if (ret)
 				return ret;
 		} while (--loops);
+
+		ret = flush_tlb(rq);
+		if (ret)
+			return ret;
+
+		ret = rq->engine->emit_flush(rq, EMIT_FLUSH);
+		if (ret)
+			return ret;
 
 		ret = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
 		if (ret)
