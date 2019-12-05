@@ -567,6 +567,7 @@ bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
 	rcu_read_unlock();
 	return found;
 }
+EXPORT_SYMBOL(addr_in_gen_pool);
 
 /**
  * gen_pool_avail - get available free space of the pool
