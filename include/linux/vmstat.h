@@ -420,7 +420,7 @@ static inline const char *writeback_stat_name(enum writeback_stat_item item)
 			   item];
 }
 
-#ifdef CONFIG_VM_EVENT_COUNTERS
+#if defined(CONFIG_VM_EVENT_COUNTERS) || defined(CONFIG_MEMCG)
 static inline const char *vm_event_name(enum vm_event_item item)
 {
 	return vmstat_text[NR_VM_ZONE_STAT_ITEMS +
@@ -429,6 +429,6 @@ static inline const char *vm_event_name(enum vm_event_item item)
 			   NR_VM_WRITEBACK_STAT_ITEMS +
 			   item];
 }
-#endif /* CONFIG_VM_EVENT_COUNTERS */
+#endif /* CONFIG_VM_EVENT_COUNTERS || CONFIG_MEMCG */
 
 #endif /* _LINUX_VMSTAT_H */
