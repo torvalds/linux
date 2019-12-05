@@ -916,7 +916,6 @@ static bool io_link_cancel_timeout(struct io_kiocb *req)
 static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_kiocb *nxt;
 	bool wake_ev = false;
 
 	/* Already got next link */
@@ -928,24 +927,21 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 	 * potentially happen if the chain is messed up, check to be on the
 	 * safe side.
 	 */
-	nxt = list_first_entry_or_null(&req->link_list, struct io_kiocb, list);
-	while (nxt) {
-		list_del_init(&nxt->list);
+	while (!list_empty(&req->link_list)) {
+		struct io_kiocb *nxt = list_first_entry(&req->link_list,
+						struct io_kiocb, link_list);
 
-		if ((req->flags & REQ_F_LINK_TIMEOUT) &&
-		    (nxt->flags & REQ_F_TIMEOUT)) {
+		if (unlikely((req->flags & REQ_F_LINK_TIMEOUT) &&
+			     (nxt->flags & REQ_F_TIMEOUT))) {
+			list_del_init(&nxt->link_list);
 			wake_ev |= io_link_cancel_timeout(nxt);
-			nxt = list_first_entry_or_null(&req->link_list,
-							struct io_kiocb, list);
 			req->flags &= ~REQ_F_LINK_TIMEOUT;
 			continue;
 		}
-		if (!list_empty(&req->link_list)) {
-			INIT_LIST_HEAD(&nxt->link_list);
-			list_splice(&req->link_list, &nxt->link_list);
-			nxt->flags |= REQ_F_LINK;
-		}
 
+		list_del_init(&req->link_list);
+		if (!list_empty(&nxt->link_list))
+			nxt->flags |= REQ_F_LINK;
 		*nxtptr = nxt;
 		break;
 	}
@@ -961,15 +957,15 @@ static void io_req_link_next(struct io_kiocb *req, struct io_kiocb **nxtptr)
 static void io_fail_links(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_kiocb *link;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
 
 	while (!list_empty(&req->link_list)) {
-		link = list_first_entry(&req->link_list, struct io_kiocb, list);
-		list_del_init(&link->list);
+		struct io_kiocb *link = list_first_entry(&req->link_list,
+						struct io_kiocb, link_list);
 
+		list_del_init(&link->link_list);
 		trace_io_uring_fail_link(req, link);
 
 		if ((req->flags & REQ_F_LINK_TIMEOUT) &&
@@ -3170,10 +3166,11 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	 * We don't expect the list to be empty, that will only happen if we
 	 * race with the completion of the linked work.
 	 */
-	if (!list_empty(&req->list)) {
-		prev = list_entry(req->list.prev, struct io_kiocb, link_list);
+	if (!list_empty(&req->link_list)) {
+		prev = list_entry(req->link_list.prev, struct io_kiocb,
+				  link_list);
 		if (refcount_inc_not_zero(&prev->refs)) {
-			list_del_init(&req->list);
+			list_del_init(&req->link_list);
 			prev->flags &= ~REQ_F_LINK_TIMEOUT;
 		} else
 			prev = NULL;
@@ -3203,7 +3200,7 @@ static void io_queue_linked_timeout(struct io_kiocb *req)
 	 * we got a chance to setup the timer
 	 */
 	spin_lock_irq(&ctx->completion_lock);
-	if (!list_empty(&req->list)) {
+	if (!list_empty(&req->link_list)) {
 		struct io_timeout_data *data = &req->io->timeout;
 
 		data->timer.function = io_link_timeout_fn;
@@ -3223,7 +3220,8 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 	if (!(req->flags & REQ_F_LINK))
 		return NULL;
 
-	nxt = list_first_entry_or_null(&req->link_list, struct io_kiocb, list);
+	nxt = list_first_entry_or_null(&req->link_list, struct io_kiocb,
+					link_list);
 	if (!nxt || nxt->sqe->opcode != IORING_OP_LINK_TIMEOUT)
 		return NULL;
 
@@ -3364,7 +3362,7 @@ err_req:
 			goto err_req;
 		}
 		trace_io_uring_link(ctx, req, prev);
-		list_add_tail(&req->list, &prev->link_list);
+		list_add_tail(&req->link_list, &prev->link_list);
 	} else if (req->sqe->flags & IOSQE_IO_LINK) {
 		req->flags |= REQ_F_LINK;
 
