@@ -236,9 +236,13 @@ static inline unsigned int atmel_tdes_get_version(struct atmel_tdes_dev *dd)
 	return atmel_tdes_read(dd, TDES_HW_VERSION) & 0x00000fff;
 }
 
-static void atmel_tdes_hw_version_init(struct atmel_tdes_dev *dd)
+static int atmel_tdes_hw_version_init(struct atmel_tdes_dev *dd)
 {
-	atmel_tdes_hw_init(dd);
+	int err;
+
+	err = atmel_tdes_hw_init(dd);
+	if (err)
+		return err;
 
 	dd->hw_version = atmel_tdes_get_version(dd);
 
@@ -246,6 +250,8 @@ static void atmel_tdes_hw_version_init(struct atmel_tdes_dev *dd)
 			"version: 0x%x\n", dd->hw_version);
 
 	clk_disable_unprepare(dd->iclk);
+
+	return 0;
 }
 
 static void atmel_tdes_dma_callback(void *data)
@@ -1291,7 +1297,9 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 		goto res_err;
 	}
 
-	atmel_tdes_hw_version_init(tdes_dd);
+	err = atmel_tdes_hw_version_init(tdes_dd);
+	if (err)
+		goto res_err;
 
 	atmel_tdes_get_cap(tdes_dd);
 

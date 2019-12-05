@@ -1038,9 +1038,13 @@ static inline unsigned int atmel_sha_get_version(struct atmel_sha_dev *dd)
 	return atmel_sha_read(dd, SHA_HW_VERSION) & 0x00000fff;
 }
 
-static void atmel_sha_hw_version_init(struct atmel_sha_dev *dd)
+static int atmel_sha_hw_version_init(struct atmel_sha_dev *dd)
 {
-	atmel_sha_hw_init(dd);
+	int err;
+
+	err = atmel_sha_hw_init(dd);
+	if (err)
+		return err;
 
 	dd->hw_version = atmel_sha_get_version(dd);
 
@@ -1048,6 +1052,8 @@ static void atmel_sha_hw_version_init(struct atmel_sha_dev *dd)
 			"version: 0x%x\n", dd->hw_version);
 
 	clk_disable(dd->iclk);
+
+	return 0;
 }
 
 static int atmel_sha_handle_queue(struct atmel_sha_dev *dd,
@@ -2789,7 +2795,9 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	if (err)
 		goto res_err;
 
-	atmel_sha_hw_version_init(sha_dd);
+	err = atmel_sha_hw_version_init(sha_dd);
+	if (err)
+		goto iclk_unprepare;
 
 	atmel_sha_get_cap(sha_dd);
 
