@@ -920,10 +920,8 @@ int host1x_client_iommu_attach(struct host1x_client *client)
 
 	if (tegra->domain) {
 		group = iommu_group_get(client->dev);
-		if (!group) {
-			dev_err(client->dev, "failed to get IOMMU group\n");
+		if (!group)
 			return -ENODEV;
-		}
 
 		if (domain != tegra->domain) {
 			err = iommu_attach_group(tegra->domain, group);
@@ -1242,6 +1240,9 @@ static int host1x_drm_remove(struct host1x_device *dev)
 	tegra_drm_fb_exit(drm);
 	drm_atomic_helper_shutdown(drm);
 	drm_mode_config_cleanup(drm);
+
+	if (tegra->hub)
+		tegra_display_hub_cleanup(tegra->hub);
 
 	err = host1x_device_exit(dev);
 	if (err < 0)

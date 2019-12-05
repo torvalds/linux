@@ -3912,8 +3912,7 @@ static int tegra_sor_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tegra_sor_suspend(struct device *dev)
+static int tegra_sor_runtime_suspend(struct device *dev)
 {
 	struct tegra_sor *sor = dev_get_drvdata(dev);
 	int err;
@@ -3935,7 +3934,7 @@ static int tegra_sor_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra_sor_resume(struct device *dev)
+static int tegra_sor_runtime_resume(struct device *dev)
 {
 	struct tegra_sor *sor = dev_get_drvdata(dev);
 	int err;
@@ -3967,10 +3966,39 @@ static int tegra_sor_resume(struct device *dev)
 
 	return 0;
 }
-#endif
+
+static int tegra_sor_suspend(struct device *dev)
+{
+	struct tegra_sor *sor = dev_get_drvdata(dev);
+	int err;
+
+	if (sor->hdmi_supply) {
+		err = regulator_disable(sor->hdmi_supply);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static int tegra_sor_resume(struct device *dev)
+{
+	struct tegra_sor *sor = dev_get_drvdata(dev);
+	int err;
+
+	if (sor->hdmi_supply) {
+		err = regulator_enable(sor->hdmi_supply);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
 
 static const struct dev_pm_ops tegra_sor_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra_sor_suspend, tegra_sor_resume, NULL)
+	SET_RUNTIME_PM_OPS(tegra_sor_runtime_suspend, tegra_sor_runtime_resume,
+			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(tegra_sor_suspend, tegra_sor_resume)
 };
 
 struct platform_driver tegra_sor_driver = {
