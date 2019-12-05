@@ -311,6 +311,8 @@ static const struct test_bitmap_parselist parselist_tests[] __initconst = {
 	{-EINVAL, "a-31:10/1", NULL, 8, 0},
 	{-EINVAL, "0-31:a/1", NULL, 8, 0},
 	{-EINVAL, "0-\n", NULL, 8, 0},
+
+#undef step
 };
 
 static void __init __test_bitmap_parselist(int is_user)
@@ -357,6 +359,8 @@ static void __init __test_bitmap_parselist(int is_user)
 		if (ptest.flags & PARSE_TIME)
 			pr_err("parselist%s: %d: input is '%s' OK, Time: %llu\n",
 					mode, i, ptest.in, time);
+
+#undef ptest
 	}
 }
 
