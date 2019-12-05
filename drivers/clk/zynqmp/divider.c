@@ -41,6 +41,7 @@ struct zynqmp_clk_divider {
 	bool is_frac;
 	u32 clk_id;
 	u32 div_type;
+	u16 max_div;
 };
 
 static inline int zynqmp_divider_get_val(unsigned long parent_rate,
@@ -176,6 +177,35 @@ static const struct clk_ops zynqmp_clk_divider_ops = {
 };
 
 /**
+ * zynqmp_clk_get_max_divisor() - Get maximum supported divisor from firmware.
+ * @clk_id:		Id of clock
+ * @type:		Divider type
+ *
+ * Return: Maximum divisor of a clock if query data is successful
+ *	   U16_MAX in case of query data is not success
+ */
+u32 zynqmp_clk_get_max_divisor(u32 clk_id, u32 type)
+{
+	const struct zynqmp_eemi_ops *eemi_ops = zynqmp_pm_get_eemi_ops();
+	struct zynqmp_pm_query_data qdata = {0};
+	u32 ret_payload[PAYLOAD_ARG_CNT];
+	int ret;
+
+	qdata.qid = PM_QID_CLOCK_GET_MAX_DIVISOR;
+	qdata.arg1 = clk_id;
+	qdata.arg2 = type;
+	ret = eemi_ops->query_data(qdata, ret_payload);
+	/*
+	 * To maintain backward compatibility return maximum possible value
+	 * (0xFFFF) if query for max divisor is not successful.
+	 */
+	if (ret)
+		return U16_MAX;
+
+	return ret_payload[1];
+}
+
+/**
  * zynqmp_clk_register_divider() - Register a divider clock
  * @name:		Name of this clock
  * @clk_id:		Id of clock
@@ -214,6 +244,12 @@ struct clk_hw *zynqmp_clk_register_divider(const char *name,
 	div->hw.init = &init;
 	div->clk_id = clk_id;
 	div->div_type = nodes->type;
+
+	/*
+	 * To achieve best possible rate, maximum limit of divider is required
+	 * while computation.
+	 */
+	div->max_div = zynqmp_clk_get_max_divisor(clk_id, nodes->type);
 
 	hw = &div->hw;
 	ret = clk_hw_register(NULL, hw);
