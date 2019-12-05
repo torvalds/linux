@@ -5028,27 +5028,15 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_core_hardsetup_card);
 
-static void qeth_create_skb_frag(struct qdio_buffer_element *element,
-				 struct sk_buff *skb, int offset, int data_len)
+static void qeth_create_skb_frag(struct sk_buff *skb, char *data, int data_len)
 {
-	struct page *page = virt_to_page(element->addr);
+	struct page *page = virt_to_page(data);
 	unsigned int next_frag;
-
-	/* first fill the linear space */
-	if (!skb->len) {
-		unsigned int linear = min(data_len, skb_tailroom(skb));
-
-		skb_put_data(skb, element->addr + offset, linear);
-		data_len -= linear;
-		if (!data_len)
-			return;
-		offset += linear;
-		/* fall through to add page frag for remaining data */
-	}
 
 	next_frag = skb_shinfo(skb)->nr_frags;
 	get_page(page);
-	skb_add_rx_frag(skb, next_frag, page, offset, data_len, data_len);
+	skb_add_rx_frag(skb, next_frag, page, offset_in_page(data), data_len,
+			data_len);
 }
 
 static inline int qeth_is_last_sbale(struct qdio_buffer_element *sbale)
@@ -5063,13 +5051,12 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 {
 	struct qdio_buffer_element *element = *__element;
 	struct qdio_buffer *buffer = qethbuffer->buffer;
-	unsigned int headroom, linear_len;
+	unsigned int linear_len = 0;
 	int offset = *__offset;
 	bool use_rx_sg = false;
+	unsigned int headroom;
 	struct sk_buff *skb;
 	int skb_len = 0;
-	void *data_ptr;
-	int data_len;
 
 next_packet:
 	/* qeth_hdr must not cross element boundaries */
@@ -5144,9 +5131,9 @@ next_packet:
 		skb = qethbuffer->rx_skb;
 		qethbuffer->rx_skb = NULL;
 	} else {
-		unsigned int linear = (use_rx_sg) ? QETH_RX_PULL_LEN : skb_len;
-
-		skb = napi_alloc_skb(&card->napi, linear + headroom);
+		if (!use_rx_sg)
+			linear_len = skb_len;
+		skb = napi_alloc_skb(&card->napi, linear_len + headroom);
 	}
 
 	if (!skb)
@@ -5155,18 +5142,32 @@ next_packet:
 		skb_reserve(skb, headroom);
 
 walk_packet:
-	data_ptr = element->addr + offset;
 	while (skb_len) {
-		data_len = min(skb_len, (int)(element->length - offset));
+		int data_len = min(skb_len, (int)(element->length - offset));
+		char *data = element->addr + offset;
 
-		if (skb && data_len) {
-			if (use_rx_sg)
-				qeth_create_skb_frag(element, skb, offset,
-						     data_len);
-			else
-				skb_put_data(skb, data_ptr, data_len);
-		}
 		skb_len -= data_len;
+		offset += data_len;
+
+		/* Extract data from current element: */
+		if (skb && data_len) {
+			if (linear_len) {
+				unsigned int copy_len;
+
+				copy_len = min_t(unsigned int, linear_len,
+						 data_len);
+
+				skb_put_data(skb, data, copy_len);
+				linear_len -= copy_len;
+				data_len -= copy_len;
+				data += copy_len;
+			}
+
+			if (data_len)
+				qeth_create_skb_frag(skb, data, data_len);
+		}
+
+		/* Step forward to next element: */
 		if (skb_len) {
 			if (qeth_is_last_sbale(element)) {
 				QETH_CARD_TEXT(card, 4, "unexeob");
@@ -5180,9 +5181,6 @@ walk_packet:
 			}
 			element++;
 			offset = 0;
-			data_ptr = element->addr;
-		} else {
-			offset += data_len;
 		}
 	}
 
