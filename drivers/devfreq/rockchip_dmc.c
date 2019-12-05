@@ -611,8 +611,8 @@ struct rk3128_ddr_dts_config_timing {
 	u32 phy_lpddr2_clk_drv;
 	u32 phy_lpddr2_cmd_drv;
 	u32 phy_lpddr2_dqs_drv;
-	u32 available;
 	u32 ddr_2t;
+	u32 available;
 };
 
 static const char * const rk3228_dts_timing[] = {
