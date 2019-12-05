@@ -20,7 +20,7 @@
 int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 {
 	int n = 0;
-	int i;
+	int i, j;
 
 	/* special case for one mds */
 	if (1 == m->m_num_mds && m->m_info[0].state > 0)
@@ -35,9 +35,12 @@ int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 
 	/* pick */
 	n = prandom_u32() % n;
-	for (i = 0; n > 0; i++, n--)
-		while (m->m_info[i].state <= 0)
-			i++;
+	for (j = 0, i = 0; i < m->m_num_mds; i++) {
+		if (m->m_info[i].state > 0)
+			j++;
+		if (j > n)
+			break;
+	}
 
 	return i;
 }

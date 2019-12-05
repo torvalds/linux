@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/nsproxy.h>
-#include <linux/parser.h>
+#include <linux/fs_parser.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/seq_file.h>
@@ -254,58 +254,77 @@ enum {
 	Opt_mount_timeout,
 	Opt_osd_idle_ttl,
 	Opt_osd_request_timeout,
-	Opt_last_int,
 	/* int args above */
 	Opt_fsid,
 	Opt_name,
 	Opt_secret,
 	Opt_key,
 	Opt_ip,
-	Opt_last_string,
 	/* string args above */
 	Opt_share,
-	Opt_noshare,
 	Opt_crc,
-	Opt_nocrc,
 	Opt_cephx_require_signatures,
-	Opt_nocephx_require_signatures,
 	Opt_cephx_sign_messages,
-	Opt_nocephx_sign_messages,
 	Opt_tcp_nodelay,
-	Opt_notcp_nodelay,
 	Opt_abort_on_full,
 };
 
-static match_table_t opt_tokens = {
-	{Opt_osdtimeout, "osdtimeout=%d"},
-	{Opt_osdkeepalivetimeout, "osdkeepalive=%d"},
-	{Opt_mount_timeout, "mount_timeout=%d"},
-	{Opt_osd_idle_ttl, "osd_idle_ttl=%d"},
-	{Opt_osd_request_timeout, "osd_request_timeout=%d"},
-	/* int args above */
-	{Opt_fsid, "fsid=%s"},
-	{Opt_name, "name=%s"},
-	{Opt_secret, "secret=%s"},
-	{Opt_key, "key=%s"},
-	{Opt_ip, "ip=%s"},
-	/* string args above */
-	{Opt_share, "share"},
-	{Opt_noshare, "noshare"},
-	{Opt_crc, "crc"},
-	{Opt_nocrc, "nocrc"},
-	{Opt_cephx_require_signatures, "cephx_require_signatures"},
-	{Opt_nocephx_require_signatures, "nocephx_require_signatures"},
-	{Opt_cephx_sign_messages, "cephx_sign_messages"},
-	{Opt_nocephx_sign_messages, "nocephx_sign_messages"},
-	{Opt_tcp_nodelay, "tcp_nodelay"},
-	{Opt_notcp_nodelay, "notcp_nodelay"},
-	{Opt_abort_on_full, "abort_on_full"},
-	{-1, NULL}
+static const struct fs_parameter_spec ceph_param_specs[] = {
+	fsparam_flag	("abort_on_full",		Opt_abort_on_full),
+	fsparam_flag_no ("cephx_require_signatures",	Opt_cephx_require_signatures),
+	fsparam_flag_no ("cephx_sign_messages",		Opt_cephx_sign_messages),
+	fsparam_flag_no ("crc",				Opt_crc),
+	fsparam_string	("fsid",			Opt_fsid),
+	fsparam_string	("ip",				Opt_ip),
+	fsparam_string	("key",				Opt_key),
+	fsparam_u32	("mount_timeout",		Opt_mount_timeout),
+	fsparam_string	("name",			Opt_name),
+	fsparam_u32	("osd_idle_ttl",		Opt_osd_idle_ttl),
+	fsparam_u32	("osd_request_timeout",		Opt_osd_request_timeout),
+	fsparam_u32	("osdkeepalive",		Opt_osdkeepalivetimeout),
+	__fsparam	(fs_param_is_s32, "osdtimeout", Opt_osdtimeout,
+			 fs_param_deprecated),
+	fsparam_string	("secret",			Opt_secret),
+	fsparam_flag_no ("share",			Opt_share),
+	fsparam_flag_no ("tcp_nodelay",			Opt_tcp_nodelay),
+	{}
 };
+
+static const struct fs_parameter_description ceph_parameters = {
+        .name           = "libceph",
+        .specs          = ceph_param_specs,
+};
+
+struct ceph_options *ceph_alloc_options(void)
+{
+	struct ceph_options *opt;
+
+	opt = kzalloc(sizeof(*opt), GFP_KERNEL);
+	if (!opt)
+		return NULL;
+
+	opt->mon_addr = kcalloc(CEPH_MAX_MON, sizeof(*opt->mon_addr),
+				GFP_KERNEL);
+	if (!opt->mon_addr) {
+		kfree(opt);
+		return NULL;
+	}
+
+	opt->flags = CEPH_OPT_DEFAULT;
+	opt->osd_keepalive_timeout = CEPH_OSD_KEEPALIVE_DEFAULT;
+	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT;
+	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
+	opt->osd_request_timeout = CEPH_OSD_REQUEST_TIMEOUT_DEFAULT;
+	return opt;
+}
+EXPORT_SYMBOL(ceph_alloc_options);
 
 void ceph_destroy_options(struct ceph_options *opt)
 {
 	dout("destroy_options %p\n", opt);
+	if (!opt)
+		return;
+
 	kfree(opt->name);
 	if (opt->key) {
 		ceph_crypto_key_destroy(opt->key);
@@ -317,7 +336,9 @@ void ceph_destroy_options(struct ceph_options *opt)
 EXPORT_SYMBOL(ceph_destroy_options);
 
 /* get secret from key store */
-static int get_secret(struct ceph_crypto_key *dst, const char *name) {
+static int get_secret(struct ceph_crypto_key *dst, const char *name,
+		      struct fs_context *fc)
+{
 	struct key *ukey;
 	int key_err;
 	int err = 0;
@@ -330,20 +351,20 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name) {
 		key_err = PTR_ERR(ukey);
 		switch (key_err) {
 		case -ENOKEY:
-			pr_warn("ceph: Mount failed due to key not found: %s\n",
-				name);
+			errorf(fc, "libceph: Failed due to key not found: %s",
+			       name);
 			break;
 		case -EKEYEXPIRED:
-			pr_warn("ceph: Mount failed due to expired key: %s\n",
-				name);
+			errorf(fc, "libceph: Failed due to expired key: %s",
+			       name);
 			break;
 		case -EKEYREVOKED:
-			pr_warn("ceph: Mount failed due to revoked key: %s\n",
-				name);
+			errorf(fc, "libceph: Failed due to revoked key: %s",
+			       name);
 			break;
 		default:
-			pr_warn("ceph: Mount failed due to unknown key error %d: %s\n",
-				key_err, name);
+			errorf(fc, "libceph: Failed due to key error %d: %s",
+			       key_err, name);
 		}
 		err = -EPERM;
 		goto out;
@@ -361,217 +382,157 @@ out:
 	return err;
 }
 
-struct ceph_options *
-ceph_parse_options(char *options, const char *dev_name,
-			const char *dev_name_end,
-			int (*parse_extra_token)(char *c, void *private),
-			void *private)
+int ceph_parse_mon_ips(const char *buf, size_t len, struct ceph_options *opt,
+		       struct fs_context *fc)
 {
-	struct ceph_options *opt;
-	const char *c;
-	int err = -ENOMEM;
-	substring_t argstr[MAX_OPT_ARGS];
+	int ret;
 
-	opt = kzalloc(sizeof(*opt), GFP_KERNEL);
-	if (!opt)
-		return ERR_PTR(-ENOMEM);
-	opt->mon_addr = kcalloc(CEPH_MAX_MON, sizeof(*opt->mon_addr),
-				GFP_KERNEL);
-	if (!opt->mon_addr)
-		goto out;
-
-	dout("parse_options %p options '%s' dev_name '%s'\n", opt, options,
-	     dev_name);
-
-	/* start with defaults */
-	opt->flags = CEPH_OPT_DEFAULT;
-	opt->osd_keepalive_timeout = CEPH_OSD_KEEPALIVE_DEFAULT;
-	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT;
-	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
-	opt->osd_request_timeout = CEPH_OSD_REQUEST_TIMEOUT_DEFAULT;
-
-	/* get mon ip(s) */
 	/* ip1[:port1][,ip2[:port2]...] */
-	err = ceph_parse_ips(dev_name, dev_name_end, opt->mon_addr,
-			     CEPH_MAX_MON, &opt->num_mon);
-	if (err < 0)
-		goto out;
-
-	/* parse mount options */
-	while ((c = strsep(&options, ",")) != NULL) {
-		int token, intval;
-		if (!*c)
-			continue;
-		err = -EINVAL;
-		token = match_token((char *)c, opt_tokens, argstr);
-		if (token < 0 && parse_extra_token) {
-			/* extra? */
-			err = parse_extra_token((char *)c, private);
-			if (err < 0) {
-				pr_err("bad option at '%s'\n", c);
-				goto out;
-			}
-			continue;
-		}
-		if (token < Opt_last_int) {
-			err = match_int(&argstr[0], &intval);
-			if (err < 0) {
-				pr_err("bad option arg (not int) at '%s'\n", c);
-				goto out;
-			}
-			dout("got int token %d val %d\n", token, intval);
-		} else if (token > Opt_last_int && token < Opt_last_string) {
-			dout("got string token %d val %s\n", token,
-			     argstr[0].from);
-		} else {
-			dout("got token %d\n", token);
-		}
-		switch (token) {
-		case Opt_ip:
-			err = ceph_parse_ips(argstr[0].from,
-					     argstr[0].to,
-					     &opt->my_addr,
-					     1, NULL);
-			if (err < 0)
-				goto out;
-			opt->flags |= CEPH_OPT_MYIP;
-			break;
-
-		case Opt_fsid:
-			err = parse_fsid(argstr[0].from, &opt->fsid);
-			if (err == 0)
-				opt->flags |= CEPH_OPT_FSID;
-			break;
-		case Opt_name:
-			kfree(opt->name);
-			opt->name = kstrndup(argstr[0].from,
-					      argstr[0].to-argstr[0].from,
-					      GFP_KERNEL);
-			if (!opt->name) {
-				err = -ENOMEM;
-				goto out;
-			}
-			break;
-		case Opt_secret:
-			ceph_crypto_key_destroy(opt->key);
-			kfree(opt->key);
-
-		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
-			if (!opt->key) {
-				err = -ENOMEM;
-				goto out;
-			}
-			err = ceph_crypto_key_unarmor(opt->key, argstr[0].from);
-			if (err < 0)
-				goto out;
-			break;
-		case Opt_key:
-			ceph_crypto_key_destroy(opt->key);
-			kfree(opt->key);
-
-		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
-			if (!opt->key) {
-				err = -ENOMEM;
-				goto out;
-			}
-			err = get_secret(opt->key, argstr[0].from);
-			if (err < 0)
-				goto out;
-			break;
-
-			/* misc */
-		case Opt_osdtimeout:
-			pr_warn("ignoring deprecated osdtimeout option\n");
-			break;
-		case Opt_osdkeepalivetimeout:
-			/* 0 isn't well defined right now, reject it */
-			if (intval < 1 || intval > INT_MAX / 1000) {
-				pr_err("osdkeepalive out of range\n");
-				err = -EINVAL;
-				goto out;
-			}
-			opt->osd_keepalive_timeout =
-					msecs_to_jiffies(intval * 1000);
-			break;
-		case Opt_osd_idle_ttl:
-			/* 0 isn't well defined right now, reject it */
-			if (intval < 1 || intval > INT_MAX / 1000) {
-				pr_err("osd_idle_ttl out of range\n");
-				err = -EINVAL;
-				goto out;
-			}
-			opt->osd_idle_ttl = msecs_to_jiffies(intval * 1000);
-			break;
-		case Opt_mount_timeout:
-			/* 0 is "wait forever" (i.e. infinite timeout) */
-			if (intval < 0 || intval > INT_MAX / 1000) {
-				pr_err("mount_timeout out of range\n");
-				err = -EINVAL;
-				goto out;
-			}
-			opt->mount_timeout = msecs_to_jiffies(intval * 1000);
-			break;
-		case Opt_osd_request_timeout:
-			/* 0 is "wait forever" (i.e. infinite timeout) */
-			if (intval < 0 || intval > INT_MAX / 1000) {
-				pr_err("osd_request_timeout out of range\n");
-				err = -EINVAL;
-				goto out;
-			}
-			opt->osd_request_timeout = msecs_to_jiffies(intval * 1000);
-			break;
-
-		case Opt_share:
-			opt->flags &= ~CEPH_OPT_NOSHARE;
-			break;
-		case Opt_noshare:
-			opt->flags |= CEPH_OPT_NOSHARE;
-			break;
-
-		case Opt_crc:
-			opt->flags &= ~CEPH_OPT_NOCRC;
-			break;
-		case Opt_nocrc:
-			opt->flags |= CEPH_OPT_NOCRC;
-			break;
-
-		case Opt_cephx_require_signatures:
-			opt->flags &= ~CEPH_OPT_NOMSGAUTH;
-			break;
-		case Opt_nocephx_require_signatures:
-			opt->flags |= CEPH_OPT_NOMSGAUTH;
-			break;
-		case Opt_cephx_sign_messages:
-			opt->flags &= ~CEPH_OPT_NOMSGSIGN;
-			break;
-		case Opt_nocephx_sign_messages:
-			opt->flags |= CEPH_OPT_NOMSGSIGN;
-			break;
-
-		case Opt_tcp_nodelay:
-			opt->flags |= CEPH_OPT_TCP_NODELAY;
-			break;
-		case Opt_notcp_nodelay:
-			opt->flags &= ~CEPH_OPT_TCP_NODELAY;
-			break;
-
-		case Opt_abort_on_full:
-			opt->flags |= CEPH_OPT_ABORT_ON_FULL;
-			break;
-
-		default:
-			BUG_ON(token);
-		}
+	ret = ceph_parse_ips(buf, buf + len, opt->mon_addr, CEPH_MAX_MON,
+			     &opt->num_mon);
+	if (ret) {
+		errorf(fc, "libceph: Failed to parse monitor IPs: %d", ret);
+		return ret;
 	}
 
-	/* success */
-	return opt;
-
-out:
-	ceph_destroy_options(opt);
-	return ERR_PTR(err);
+	return 0;
 }
-EXPORT_SYMBOL(ceph_parse_options);
+EXPORT_SYMBOL(ceph_parse_mon_ips);
+
+int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
+		     struct fs_context *fc)
+{
+	struct fs_parse_result result;
+	int token, err;
+
+	token = fs_parse(fc, &ceph_parameters, param, &result);
+	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
+	if (token < 0)
+		return token;
+
+	switch (token) {
+	case Opt_ip:
+		err = ceph_parse_ips(param->string,
+				     param->string + param->size,
+				     &opt->my_addr,
+				     1, NULL);
+		if (err) {
+			errorf(fc, "libceph: Failed to parse ip: %d", err);
+			return err;
+		}
+		opt->flags |= CEPH_OPT_MYIP;
+		break;
+
+	case Opt_fsid:
+		err = parse_fsid(param->string, &opt->fsid);
+		if (err) {
+			errorf(fc, "libceph: Failed to parse fsid: %d", err);
+			return err;
+		}
+		opt->flags |= CEPH_OPT_FSID;
+		break;
+	case Opt_name:
+		kfree(opt->name);
+		opt->name = param->string;
+		param->string = NULL;
+		break;
+	case Opt_secret:
+		ceph_crypto_key_destroy(opt->key);
+		kfree(opt->key);
+
+		opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
+		if (!opt->key)
+			return -ENOMEM;
+		err = ceph_crypto_key_unarmor(opt->key, param->string);
+		if (err) {
+			errorf(fc, "libceph: Failed to parse secret: %d", err);
+			return err;
+		}
+		break;
+	case Opt_key:
+		ceph_crypto_key_destroy(opt->key);
+		kfree(opt->key);
+
+		opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
+		if (!opt->key)
+			return -ENOMEM;
+		return get_secret(opt->key, param->string, fc);
+
+	case Opt_osdtimeout:
+		warnf(fc, "libceph: Ignoring osdtimeout");
+		break;
+	case Opt_osdkeepalivetimeout:
+		/* 0 isn't well defined right now, reject it */
+		if (result.uint_32 < 1 || result.uint_32 > INT_MAX / 1000)
+			goto out_of_range;
+		opt->osd_keepalive_timeout =
+		    msecs_to_jiffies(result.uint_32 * 1000);
+		break;
+	case Opt_osd_idle_ttl:
+		/* 0 isn't well defined right now, reject it */
+		if (result.uint_32 < 1 || result.uint_32 > INT_MAX / 1000)
+			goto out_of_range;
+		opt->osd_idle_ttl = msecs_to_jiffies(result.uint_32 * 1000);
+		break;
+	case Opt_mount_timeout:
+		/* 0 is "wait forever" (i.e. infinite timeout) */
+		if (result.uint_32 > INT_MAX / 1000)
+			goto out_of_range;
+		opt->mount_timeout = msecs_to_jiffies(result.uint_32 * 1000);
+		break;
+	case Opt_osd_request_timeout:
+		/* 0 is "wait forever" (i.e. infinite timeout) */
+		if (result.uint_32 > INT_MAX / 1000)
+			goto out_of_range;
+		opt->osd_request_timeout =
+		    msecs_to_jiffies(result.uint_32 * 1000);
+		break;
+
+	case Opt_share:
+		if (!result.negated)
+			opt->flags &= ~CEPH_OPT_NOSHARE;
+		else
+			opt->flags |= CEPH_OPT_NOSHARE;
+		break;
+	case Opt_crc:
+		if (!result.negated)
+			opt->flags &= ~CEPH_OPT_NOCRC;
+		else
+			opt->flags |= CEPH_OPT_NOCRC;
+		break;
+	case Opt_cephx_require_signatures:
+		if (!result.negated)
+			opt->flags &= ~CEPH_OPT_NOMSGAUTH;
+		else
+			opt->flags |= CEPH_OPT_NOMSGAUTH;
+		break;
+	case Opt_cephx_sign_messages:
+		if (!result.negated)
+			opt->flags &= ~CEPH_OPT_NOMSGSIGN;
+		else
+			opt->flags |= CEPH_OPT_NOMSGSIGN;
+		break;
+	case Opt_tcp_nodelay:
+		if (!result.negated)
+			opt->flags |= CEPH_OPT_TCP_NODELAY;
+		else
+			opt->flags &= ~CEPH_OPT_TCP_NODELAY;
+		break;
+
+	case Opt_abort_on_full:
+		opt->flags |= CEPH_OPT_ABORT_ON_FULL;
+		break;
+
+	default:
+		BUG();
+	}
+
+	return 0;
+
+out_of_range:
+	return invalf(fc, "libceph: %s out of range", param->key);
+}
+EXPORT_SYMBOL(ceph_parse_param);
 
 int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 			      bool show_all)
