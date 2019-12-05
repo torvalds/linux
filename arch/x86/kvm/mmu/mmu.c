@@ -1414,7 +1414,7 @@ pte_list_desc_remove_entry(struct kvm_rmap_head *rmap_head,
 	if (j != 0)
 		return;
 	if (!prev_desc && !desc->more)
-		rmap_head->val = (unsigned long)desc->sptes[0];
+		rmap_head->val = 0;
 	else
 		if (prev_desc)
 			prev_desc->more = desc->more;
