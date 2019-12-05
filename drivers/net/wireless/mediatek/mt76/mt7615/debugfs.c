@@ -7,6 +7,9 @@ mt7615_radar_pattern_set(void *data, u64 val)
 {
 	struct mt7615_dev *dev = data;
 
+	if (!mt7615_wait_for_mcu_init(dev))
+		return 0;
+
 	return mt7615_mcu_rdd_send_pattern(dev);
 }
 
@@ -17,6 +20,9 @@ static int
 mt7615_scs_set(void *data, u64 val)
 {
 	struct mt7615_dev *dev = data;
+
+	if (!mt7615_wait_for_mcu_init(dev))
+		return 0;
 
 	mt7615_mac_set_scs(dev, val);
 
@@ -40,6 +46,9 @@ static int
 mt7615_dbdc_set(void *data, u64 val)
 {
 	struct mt7615_dev *dev = data;
+
+	if (!mt7615_wait_for_mcu_init(dev))
+		return 0;
 
 	if (val)
 		mt7615_register_ext_phy(dev);
@@ -130,6 +139,9 @@ static int mt7615_read_temperature(struct seq_file *s, void *data)
 {
 	struct mt7615_dev *dev = dev_get_drvdata(s->private);
 	int temp;
+
+	if (!mt7615_wait_for_mcu_init(dev))
+		return 0;
 
 	/* cpu */
 	temp = mt7615_mcu_get_temperature(dev, 0);

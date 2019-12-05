@@ -30,6 +30,9 @@ static int mt7615_start(struct ieee80211_hw *hw)
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 	bool running;
 
+	if (!mt7615_wait_for_mcu_init(dev))
+		return -EIO;
+
 	mutex_lock(&dev->mt76.mutex);
 
 	running = mt7615_dev_running(dev);

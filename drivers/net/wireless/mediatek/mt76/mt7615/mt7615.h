@@ -117,6 +117,8 @@ struct mt7615_dev {
 
 	u16 chainmask;
 
+	struct work_struct mcu_work;
+
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;
 
@@ -222,6 +224,7 @@ int mt7615_eeprom_get_power_index(struct mt7615_dev *dev,
 int mt7615_dma_init(struct mt7615_dev *dev);
 void mt7615_dma_cleanup(struct mt7615_dev *dev);
 int mt7615_mcu_init(struct mt7615_dev *dev);
+bool mt7615_wait_for_mcu_init(struct mt7615_dev *dev);
 int mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
 			    struct ieee80211_vif *vif, bool enable);
 int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,

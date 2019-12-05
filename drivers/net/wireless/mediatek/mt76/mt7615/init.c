@@ -104,12 +104,33 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0, MT_WF_RMAC_MIB_RXTIME_EN);
 }
 
+bool mt7615_wait_for_mcu_init(struct mt7615_dev *dev)
+{
+	flush_work(&dev->mcu_work);
+
+	return test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
+}
+
+static void mt7615_init_work(struct work_struct *work)
+{
+	struct mt7615_dev *dev = container_of(work, struct mt7615_dev, mcu_work);
+
+	if (mt7615_mcu_init(dev))
+		return;
+
+	mt7615_mcu_set_eeprom(dev);
+	mt7615_mac_init(dev);
+	mt7615_phy_init(dev);
+	mt7615_mcu_del_wtbl_all(dev);
+}
+
 static int mt7615_init_hardware(struct mt7615_dev *dev)
 {
 	int ret, idx;
 
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
+	INIT_WORK(&dev->mcu_work, mt7615_init_work);
 	spin_lock_init(&dev->token_lock);
 	idr_init(&dev->token);
 
@@ -122,15 +143,6 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 		return ret;
 
 	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
-
-	ret = mt7615_mcu_init(dev);
-	if (ret)
-		return ret;
-
-	mt7615_mcu_set_eeprom(dev);
-	mt7615_mac_init(dev);
-	mt7615_phy_init(dev);
-	mt7615_mcu_del_wtbl_all(dev);
 
 	/* Beacon and mgmt frames should occupy wcid 0 */
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7615_WTBL_STA - 1);
@@ -392,6 +404,7 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
+	ieee80211_queue_work(mt76_hw(dev), &dev->mcu_work);
 	mt7615_init_txpower(dev, &dev->mphy.sband_2g.sband);
 	mt7615_init_txpower(dev, &dev->mphy.sband_5g.sband);
 
@@ -401,11 +414,15 @@ int mt7615_register_device(struct mt7615_dev *dev)
 void mt7615_unregister_device(struct mt7615_dev *dev)
 {
 	struct mt76_txwi_cache *txwi;
+	bool mcu_running;
 	int id;
+
+	mcu_running = mt7615_wait_for_mcu_init(dev);
 
 	mt7615_unregister_ext_phy(dev);
 	mt76_unregister_device(&dev->mt76);
-	mt7615_mcu_exit(dev);
+	if (mcu_running)
+		mt7615_mcu_exit(dev);
 	mt7615_dma_cleanup(dev);
 
 	spin_lock_bh(&dev->token_lock);
