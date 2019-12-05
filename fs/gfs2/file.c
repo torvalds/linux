@@ -407,27 +407,28 @@ static void gfs2_size_hint(struct file *filep, loff_t offset, size_t size)
 /**
  * gfs2_allocate_page_backing - Allocate blocks for a write fault
  * @page: The (locked) page to allocate backing for
+ * @length: Size of the allocation
  *
  * We try to allocate all the blocks required for the page in one go.  This
  * might fail for various reasons, so we keep trying until all the blocks to
  * back this page are allocated.  If some of the blocks are already allocated,
  * that is ok too.
  */
-static int gfs2_allocate_page_backing(struct page *page)
+static int gfs2_allocate_page_backing(struct page *page, unsigned int length)
 {
 	u64 pos = page_offset(page);
-	u64 size = PAGE_SIZE;
 
 	do {
 		struct iomap iomap = { };
 
-		if (gfs2_iomap_get_alloc(page->mapping->host, pos, 1, &iomap))
+		if (gfs2_iomap_get_alloc(page->mapping->host, pos, length, &iomap))
 			return -EIO;
 
-		iomap.length = min(iomap.length, size);
-		size -= iomap.length;
+		if (length < iomap.length)
+			iomap.length = length;
+		length -= iomap.length;
 		pos += iomap.length;
-	} while (size > 0);
+	} while (length > 0);
 
 	return 0;
 }
@@ -448,10 +449,10 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_alloc_parms ap = { .aflags = 0, };
-	unsigned long last_index;
-	u64 pos = page_offset(page);
+	u64 offset = page_offset(page);
 	unsigned int data_blocks, ind_blocks, rblocks;
 	struct gfs2_holder gh;
+	unsigned int length;
 	loff_t size;
 	int ret;
 
@@ -461,20 +462,39 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	if (ret)
 		goto out;
 
-	gfs2_size_hint(vmf->vma->vm_file, pos, PAGE_SIZE);
-
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	ret = gfs2_glock_nq(&gh);
 	if (ret)
 		goto out_uninit;
 
+	/* Check page index against inode size */
+	size = i_size_read(inode);
+	if (offset >= size) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
 	/* Update file times before taking page lock */
 	file_update_time(vmf->vma->vm_file);
+
+	/* page is wholly or partially inside EOF */
+	if (offset > size - PAGE_SIZE)
+		length = offset_in_page(size);
+	else
+		length = PAGE_SIZE;
+
+	gfs2_size_hint(vmf->vma->vm_file, offset, length);
 
 	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
-	if (!gfs2_write_alloc_required(ip, pos, PAGE_SIZE)) {
+	/*
+	 * iomap_writepage / iomap_writepages currently don't support inline
+	 * files, so always unstuff here.
+	 */
+
+	if (!gfs2_is_stuffed(ip) &&
+	    !gfs2_write_alloc_required(ip, offset, length)) {
 		lock_page(page);
 		if (!PageUptodate(page) || page->mapping != inode->i_mapping) {
 			ret = -EAGAIN;
@@ -487,7 +507,7 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	if (ret)
 		goto out_unlock;
 
-	gfs2_write_calc_reserv(ip, PAGE_SIZE, &data_blocks, &ind_blocks);
+	gfs2_write_calc_reserv(ip, length, &data_blocks, &ind_blocks);
 	ap.target = data_blocks + ind_blocks;
 	ret = gfs2_quota_lock_check(ip, &ap);
 	if (ret)
@@ -508,13 +528,6 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 		goto out_trans_fail;
 
 	lock_page(page);
-	ret = -EINVAL;
-	size = i_size_read(inode);
-	last_index = (size - 1) >> PAGE_SHIFT;
-	/* Check page index against inode size */
-	if (size == 0 || (page->index > last_index))
-		goto out_trans_end;
-
 	ret = -EAGAIN;
 	/* If truncated, we must retry the operation, we may have raced
 	 * with the glock demotion code.
@@ -527,7 +540,7 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	if (gfs2_is_stuffed(ip))
 		ret = gfs2_unstuff_dinode(ip, page);
 	if (ret == 0)
-		ret = gfs2_allocate_page_backing(page);
+		ret = gfs2_allocate_page_backing(page, length);
 
 out_trans_end:
 	if (ret)
@@ -961,6 +974,7 @@ out:
 	brelse(dibh);
 	return error;
 }
+
 /**
  * calc_max_reserv() - Reverse of write_calc_reserv. Given a number of
  *                     blocks, determine how many bytes can be written.
@@ -1208,7 +1222,7 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 		cmd = F_SETLK;
 		fl->fl_type = F_UNLCK;
 	}
-	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags))) {
+	if (unlikely(gfs2_withdrawn(sdp))) {
 		if (fl->fl_type == F_UNLCK)
 			locks_lock_file_wait(file, fl);
 		return -EIO;

@@ -1273,7 +1273,7 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_quota_data **qda;
-	unsigned int max_qd = PAGE_SIZE/sizeof(struct gfs2_holder);
+	unsigned int max_qd = PAGE_SIZE / sizeof(struct gfs2_holder);
 	unsigned int num_qd;
 	unsigned int x;
 	int error = 0;
@@ -1475,7 +1475,7 @@ static void quotad_error(struct gfs2_sbd *sdp, const char *msg, int error)
 {
 	if (error == 0 || error == -EROFS)
 		return;
-	if (!test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) {
+	if (!gfs2_withdrawn(sdp)) {
 		fs_err(sdp, "gfs2_quotad: %s error %d\n", msg, error);
 		sdp->sd_log_error = error;
 		wake_up(&sdp->sd_logd_waitq);

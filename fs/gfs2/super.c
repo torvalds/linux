@@ -399,8 +399,7 @@ struct lfcc {
  * Returns: errno
  */
 
-static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
-				    struct gfs2_holder *freeze_gh)
+static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *ip;
 	struct gfs2_jdesc *jd;
@@ -425,7 +424,9 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	}
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_EXCLUSIVE,
-				   GL_NOCACHE, freeze_gh);
+				   GL_NOCACHE, &sdp->sd_freeze_gh);
+	if (error)
+		goto out;
 
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		error = gfs2_jdesc_check(jd);
@@ -441,7 +442,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	}
 
 	if (error)
-		gfs2_glock_dq_uninit(freeze_gh);
+		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 
 out:
 	while (!list_empty(&list)) {
@@ -553,7 +554,7 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 
 	if (!(flags & I_DIRTY_INODE))
 		return;
-	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags)))
+	if (unlikely(gfs2_withdrawn(sdp)))
 		return;
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
@@ -602,7 +603,7 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, GL_NOCACHE,
 				   &freeze_gh);
-	if (error && !test_bit(SDF_WITHDRAWN, &sdp->sd_flags))
+	if (error && !gfs2_withdrawn(sdp))
 		return error;
 
 	flush_workqueue(gfs2_delete_workqueue);
@@ -761,21 +762,25 @@ static int gfs2_freeze(struct super_block *sb)
 	if (atomic_read(&sdp->sd_freeze_state) != SFS_UNFROZEN)
 		goto out;
 
-	if (test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) {
-		error = -EINVAL;
-		goto out;
-	}
-
 	for (;;) {
-		error = gfs2_lock_fs_check_clean(sdp, &sdp->sd_freeze_gh);
+		if (gfs2_withdrawn(sdp)) {
+			error = -EINVAL;
+			goto out;
+		}
+
+		error = gfs2_lock_fs_check_clean(sdp);
 		if (!error)
 			break;
 
 		if (error == -EBUSY)
 			fs_err(sdp, "waiting for recovery before freeze\n");
-		else
+		else if (error == -EIO) {
+			fs_err(sdp, "Fatal IO error: cannot freeze gfs2 due "
+			       "to recovery error.\n");
+			goto out;
+		} else {
 			fs_err(sdp, "error freezing FS: %d\n", error);
-
+		}
 		fs_err(sdp, "retrying...\n");
 		msleep(1000);
 	}

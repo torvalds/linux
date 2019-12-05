@@ -1006,8 +1006,7 @@ hostdata_error:
 void gfs2_lm_unmount(struct gfs2_sbd *sdp)
 {
 	const struct lm_lockops *lm = sdp->sd_lockstruct.ls_ops;
-	if (likely(!test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) &&
-	    lm->lm_unmount)
+	if (likely(!gfs2_withdrawn(sdp)) && lm->lm_unmount)
 		lm->lm_unmount(sdp);
 }
 
@@ -1328,7 +1327,7 @@ static const struct fs_parameter_enum gfs2_param_enums[] = {
 	{}
 };
 
-const struct fs_parameter_description gfs2_fs_parameters = {
+static const struct fs_parameter_description gfs2_fs_parameters = {
 	.name = "gfs2",
 	.specs = gfs2_param_specs,
 	.enums = gfs2_param_enums,
