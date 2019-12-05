@@ -579,8 +579,6 @@ pipe_poll(struct file *filp, poll_table *wait)
 
 	poll_wait(filp, &pipe->wait, wait);
 
-	BUG_ON(pipe_occupancy(head, tail) > pipe->ring_size);
-
 	/* Reading only -- no need for acquiring the semaphore.  */
 	mask = 0;
 	if (filp->f_mode & FMODE_READ) {
@@ -1174,6 +1172,7 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	pipe->max_usage = nr_slots;
 	pipe->tail = tail;
 	pipe->head = head;
+	wake_up_interruptible_all(&pipe->wait);
 	return pipe->max_usage * PAGE_SIZE;
 
 out_revert_acct:
