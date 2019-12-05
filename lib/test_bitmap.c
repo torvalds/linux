@@ -21,6 +21,26 @@ static unsigned failed_tests __initdata;
 
 static char pbl_buffer[PAGE_SIZE] __initdata;
 
+static const unsigned long exp1[] __initconst = {
+	BITMAP_FROM_U64(1),
+	BITMAP_FROM_U64(2),
+	BITMAP_FROM_U64(0x0000ffff),
+	BITMAP_FROM_U64(0xffff0000),
+	BITMAP_FROM_U64(0x55555555),
+	BITMAP_FROM_U64(0xaaaaaaaa),
+	BITMAP_FROM_U64(0x11111111),
+	BITMAP_FROM_U64(0x22222222),
+	BITMAP_FROM_U64(0xffffffff),
+	BITMAP_FROM_U64(0xfffffffe),
+	BITMAP_FROM_U64(0x3333333311111111ULL),
+	BITMAP_FROM_U64(0xffffffff77777777ULL),
+	BITMAP_FROM_U64(0),
+};
+
+static const unsigned long exp2[] __initconst = {
+	BITMAP_FROM_U64(0x3333333311111111ULL),
+	BITMAP_FROM_U64(0xffffffff77777777ULL),
+};
 
 static bool __init
 __check_eq_uint(const char *srcfile, unsigned int line,
@@ -245,27 +265,6 @@ struct test_bitmap_parselist{
 	const unsigned long *expected;
 	const int nbits;
 	const int flags;
-};
-
-static const unsigned long exp1[] __initconst = {
-	BITMAP_FROM_U64(1),
-	BITMAP_FROM_U64(2),
-	BITMAP_FROM_U64(0x0000ffff),
-	BITMAP_FROM_U64(0xffff0000),
-	BITMAP_FROM_U64(0x55555555),
-	BITMAP_FROM_U64(0xaaaaaaaa),
-	BITMAP_FROM_U64(0x11111111),
-	BITMAP_FROM_U64(0x22222222),
-	BITMAP_FROM_U64(0xffffffff),
-	BITMAP_FROM_U64(0xfffffffe),
-	BITMAP_FROM_U64(0x3333333311111111ULL),
-	BITMAP_FROM_U64(0xffffffff77777777ULL),
-	BITMAP_FROM_U64(0),
-};
-
-static const unsigned long exp2[] __initconst = {
-	BITMAP_FROM_U64(0x3333333311111111ULL),
-	BITMAP_FROM_U64(0xffffffff77777777ULL)
 };
 
 static const struct test_bitmap_parselist parselist_tests[] __initconst = {
