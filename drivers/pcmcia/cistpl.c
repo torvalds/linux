@@ -28,6 +28,7 @@
 #include <pcmcia/ss.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/cistpl.h>
+#include <pcmcia/ds.h>
 #include "cs_internal.h"
 
 static const u_char mantissa[] = {

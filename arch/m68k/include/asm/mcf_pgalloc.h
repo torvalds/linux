@@ -28,9 +28,6 @@ extern inline pmd_t *pmd_alloc_kernel(pgd_t *pgd, unsigned long address)
 	return (pmd_t *) pgd;
 }
 
-#define pmd_alloc_one_fast(mm, address) ({ BUG(); ((pmd_t *)1); })
-#define pmd_alloc_one(mm, address)      ({ BUG(); ((pmd_t *)2); })
-
 #define pmd_populate(mm, pmd, page) (pmd_val(*pmd) = \
 	(unsigned long)(page_address(page)))
 
@@ -44,8 +41,6 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t page,
 	pgtable_pte_page_dtor(page);
 	__free_page(page);
 }
-
-#define __pmd_free_tlb(tlb, pmd, address) do { } while (0)
 
 static inline struct page *pte_alloc_one(struct mm_struct *mm)
 {
@@ -99,7 +94,5 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	memset(new_pgd, 0, PAGE_OFFSET >> PGDIR_SHIFT);
 	return new_pgd;
 }
-
-#define pgd_populate(mm, pmd, pte) BUG()
 
 #endif /* M68K_MCF_PGALLOC_H */

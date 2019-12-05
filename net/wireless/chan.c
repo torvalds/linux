@@ -204,6 +204,11 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 		return false;
 	}
 
+	/* channel 14 is only for IEEE 802.11b */
+	if (chandef->center_freq1 == 2484 &&
+	    chandef->width != NL80211_CHAN_WIDTH_20_NOHT)
+		return false;
+
 	if (cfg80211_chandef_is_edmg(chandef) &&
 	    !cfg80211_edmg_chandef_valid(chandef))
 		return false;

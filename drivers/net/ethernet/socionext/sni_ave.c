@@ -1565,10 +1565,10 @@ static int ave_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	np = dev->of_node;
-	phy_mode = of_get_phy_mode(np);
-	if ((int)phy_mode < 0) {
+	ret = of_get_phy_mode(np, &phy_mode);
+	if (ret) {
 		dev_err(dev, "phy-mode not found\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	irq = platform_get_irq(pdev, 0);

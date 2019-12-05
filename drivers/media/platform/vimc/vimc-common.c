@@ -164,6 +164,16 @@ static const struct vimc_pix_map vimc_pix_map_list[] = {
 	},
 };
 
+bool vimc_is_source(struct media_entity *ent)
+{
+	unsigned int i;
+
+	for (i = 0; i < ent->num_pads; i++)
+		if (ent->pads[i].flags & MEDIA_PAD_FL_SINK)
+			return false;
+	return true;
+}
+
 const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i)
 {
 	if (i >= ARRAY_SIZE(vimc_pix_map_list))
@@ -171,7 +181,6 @@ const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i)
 
 	return &vimc_pix_map_list[i];
 }
-EXPORT_SYMBOL_GPL(vimc_pix_map_by_index);
 
 const struct vimc_pix_map *vimc_pix_map_by_code(u32 code)
 {
@@ -183,7 +192,6 @@ const struct vimc_pix_map *vimc_pix_map_by_code(u32 code)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(vimc_pix_map_by_code);
 
 const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat)
 {
@@ -195,87 +203,37 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(vimc_pix_map_by_pixelformat);
 
-/* Helper function to allocate and initialize pads */
-struct media_pad *vimc_pads_init(u16 num_pads, const unsigned long *pads_flag)
-{
-	struct media_pad *pads;
-	unsigned int i;
-
-	/* Allocate memory for the pads */
-	pads = kcalloc(num_pads, sizeof(*pads), GFP_KERNEL);
-	if (!pads)
-		return ERR_PTR(-ENOMEM);
-
-	/* Initialize the pads */
-	for (i = 0; i < num_pads; i++) {
-		pads[i].index = i;
-		pads[i].flags = pads_flag[i];
-	}
-
-	return pads;
-}
-EXPORT_SYMBOL_GPL(vimc_pads_init);
-
-int vimc_pipeline_s_stream(struct media_entity *ent, int enable)
-{
-	struct v4l2_subdev *sd;
-	struct media_pad *pad;
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < ent->num_pads; i++) {
-		if (ent->pads[i].flags & MEDIA_PAD_FL_SOURCE)
-			continue;
-
-		/* Start the stream in the subdevice direct connected */
-		pad = media_entity_remote_pad(&ent->pads[i]);
-		if (!pad)
-			continue;
-
-		if (!is_media_entity_v4l2_subdev(pad->entity))
-			return -EINVAL;
-
-		sd = media_entity_to_v4l2_subdev(pad->entity);
-		ret = v4l2_subdev_call(sd, video, s_stream, enable);
-		if (ret && ret != -ENOIOCTLCMD)
-			return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(vimc_pipeline_s_stream);
-
-static int vimc_get_mbus_format(struct media_pad *pad,
-				struct v4l2_subdev_format *fmt)
+static int vimc_get_pix_format(struct media_pad *pad,
+			       struct v4l2_pix_format *fmt)
 {
 	if (is_media_entity_v4l2_subdev(pad->entity)) {
 		struct v4l2_subdev *sd =
 			media_entity_to_v4l2_subdev(pad->entity);
+		struct v4l2_subdev_format sd_fmt;
+		const struct vimc_pix_map *pix_map;
 		int ret;
 
-		fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		fmt->pad = pad->index;
+		sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		sd_fmt.pad = pad->index;
 
-		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, fmt);
+		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &sd_fmt);
 		if (ret)
 			return ret;
 
+		v4l2_fill_pix_format(fmt, &sd_fmt.format);
+		pix_map = vimc_pix_map_by_code(sd_fmt.format.code);
+		fmt->pixelformat = pix_map->pixelformat;
 	} else if (is_media_entity_v4l2_video_device(pad->entity)) {
 		struct video_device *vdev = container_of(pad->entity,
 							 struct video_device,
 							 entity);
 		struct vimc_ent_device *ved = video_get_drvdata(vdev);
-		const struct vimc_pix_map *vpix;
-		struct v4l2_pix_format vdev_fmt;
 
 		if (!ved->vdev_get_format)
 			return -ENOIOCTLCMD;
 
-		ved->vdev_get_format(ved, &vdev_fmt);
-		vpix = vimc_pix_map_by_pixelformat(vdev_fmt.pixelformat);
-		v4l2_fill_mbus_format(&fmt->format, &vdev_fmt, vpix->code);
+		ved->vdev_get_format(ved, fmt);
 	} else {
 		return -EINVAL;
 	}
@@ -283,16 +241,16 @@ static int vimc_get_mbus_format(struct media_pad *pad,
 	return 0;
 }
 
-int vimc_link_validate(struct media_link *link)
+int vimc_vdev_link_validate(struct media_link *link)
 {
-	struct v4l2_subdev_format source_fmt, sink_fmt;
+	struct v4l2_pix_format source_fmt, sink_fmt;
 	int ret;
 
-	ret = vimc_get_mbus_format(link->source, &source_fmt);
+	ret = vimc_get_pix_format(link->source, &source_fmt);
 	if (ret)
 		return ret;
 
-	ret = vimc_get_mbus_format(link->sink, &sink_fmt);
+	ret = vimc_get_pix_format(link->sink, &sink_fmt);
 	if (ret)
 		return ret;
 
@@ -301,21 +259,21 @@ int vimc_link_validate(struct media_link *link)
 		"%s:snk:%dx%d (0x%x, %d, %d, %d, %d)\n",
 		/* src */
 		link->source->entity->name,
-		source_fmt.format.width, source_fmt.format.height,
-		source_fmt.format.code, source_fmt.format.colorspace,
-		source_fmt.format.quantization, source_fmt.format.xfer_func,
-		source_fmt.format.ycbcr_enc,
+		source_fmt.width, source_fmt.height,
+		source_fmt.pixelformat, source_fmt.colorspace,
+		source_fmt.quantization, source_fmt.xfer_func,
+		source_fmt.ycbcr_enc,
 		/* sink */
 		link->sink->entity->name,
-		sink_fmt.format.width, sink_fmt.format.height,
-		sink_fmt.format.code, sink_fmt.format.colorspace,
-		sink_fmt.format.quantization, sink_fmt.format.xfer_func,
-		sink_fmt.format.ycbcr_enc);
+		sink_fmt.width, sink_fmt.height,
+		sink_fmt.pixelformat, sink_fmt.colorspace,
+		sink_fmt.quantization, sink_fmt.xfer_func,
+		sink_fmt.ycbcr_enc);
 
-	/* The width, height and code must match. */
-	if (source_fmt.format.width != sink_fmt.format.width
-	    || source_fmt.format.height != sink_fmt.format.height
-	    || source_fmt.format.code != sink_fmt.format.code)
+	/* The width, height and pixelformat must match. */
+	if (source_fmt.width != sink_fmt.width ||
+	    source_fmt.height != sink_fmt.height ||
+	    source_fmt.pixelformat != sink_fmt.pixelformat)
 		return -EPIPE;
 
 	/*
@@ -323,44 +281,43 @@ int vimc_link_validate(struct media_link *link)
 	 * to support interlaced hardware connected to bridges that support
 	 * progressive formats only.
 	 */
-	if (source_fmt.format.field != sink_fmt.format.field &&
-	    sink_fmt.format.field != V4L2_FIELD_NONE)
+	if (source_fmt.field != sink_fmt.field &&
+	    sink_fmt.field != V4L2_FIELD_NONE)
 		return -EPIPE;
 
 	/*
 	 * If colorspace is DEFAULT, then assume all the colorimetry is also
 	 * DEFAULT, return 0 to skip comparing the other colorimetry parameters
 	 */
-	if (source_fmt.format.colorspace == V4L2_COLORSPACE_DEFAULT
-	    || sink_fmt.format.colorspace == V4L2_COLORSPACE_DEFAULT)
+	if (source_fmt.colorspace == V4L2_COLORSPACE_DEFAULT ||
+	    sink_fmt.colorspace == V4L2_COLORSPACE_DEFAULT)
 		return 0;
 
 	/* Colorspace must match. */
-	if (source_fmt.format.colorspace != sink_fmt.format.colorspace)
+	if (source_fmt.colorspace != sink_fmt.colorspace)
 		return -EPIPE;
 
 	/* Colorimetry must match if they are not set to DEFAULT */
-	if (source_fmt.format.ycbcr_enc != V4L2_YCBCR_ENC_DEFAULT
-	    && sink_fmt.format.ycbcr_enc != V4L2_YCBCR_ENC_DEFAULT
-	    && source_fmt.format.ycbcr_enc != sink_fmt.format.ycbcr_enc)
+	if (source_fmt.ycbcr_enc != V4L2_YCBCR_ENC_DEFAULT &&
+	    sink_fmt.ycbcr_enc != V4L2_YCBCR_ENC_DEFAULT &&
+	    source_fmt.ycbcr_enc != sink_fmt.ycbcr_enc)
 		return -EPIPE;
 
-	if (source_fmt.format.quantization != V4L2_QUANTIZATION_DEFAULT
-	    && sink_fmt.format.quantization != V4L2_QUANTIZATION_DEFAULT
-	    && source_fmt.format.quantization != sink_fmt.format.quantization)
+	if (source_fmt.quantization != V4L2_QUANTIZATION_DEFAULT &&
+	    sink_fmt.quantization != V4L2_QUANTIZATION_DEFAULT &&
+	    source_fmt.quantization != sink_fmt.quantization)
 		return -EPIPE;
 
-	if (source_fmt.format.xfer_func != V4L2_XFER_FUNC_DEFAULT
-	    && sink_fmt.format.xfer_func != V4L2_XFER_FUNC_DEFAULT
-	    && source_fmt.format.xfer_func != sink_fmt.format.xfer_func)
+	if (source_fmt.xfer_func != V4L2_XFER_FUNC_DEFAULT &&
+	    sink_fmt.xfer_func != V4L2_XFER_FUNC_DEFAULT &&
+	    source_fmt.xfer_func != sink_fmt.xfer_func)
 		return -EPIPE;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(vimc_link_validate);
 
 static const struct media_entity_operations vimc_ent_sd_mops = {
-	.link_validate = vimc_link_validate,
+	.link_validate = v4l2_subdev_link_validate,
 };
 
 int vimc_ent_sd_register(struct vimc_ent_device *ved,
@@ -369,16 +326,11 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 const char *const name,
 			 u32 function,
 			 u16 num_pads,
-			 const unsigned long *pads_flag,
+			 struct media_pad *pads,
 			 const struct v4l2_subdev_internal_ops *sd_int_ops,
 			 const struct v4l2_subdev_ops *sd_ops)
 {
 	int ret;
-
-	/* Allocate the pads */
-	ved->pads = vimc_pads_init(num_pads, pads_flag);
-	if (IS_ERR(ved->pads))
-		return PTR_ERR(ved->pads);
 
 	/* Fill the vimc_ent_device struct */
 	ved->ent = &sd->entity;
@@ -398,9 +350,9 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 		sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	/* Initialize the media entity */
-	ret = media_entity_pads_init(&sd->entity, num_pads, ved->pads);
+	ret = media_entity_pads_init(&sd->entity, num_pads, pads);
 	if (ret)
-		goto err_clean_pads;
+		return ret;
 
 	/* Register the subdev with the v4l2 and the media framework */
 	ret = v4l2_device_register_subdev(v4l2_dev, sd);
@@ -415,16 +367,5 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 
 err_clean_m_ent:
 	media_entity_cleanup(&sd->entity);
-err_clean_pads:
-	vimc_pads_cleanup(ved->pads);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(vimc_ent_sd_register);
-
-void vimc_ent_sd_unregister(struct vimc_ent_device *ved, struct v4l2_subdev *sd)
-{
-	media_entity_cleanup(ved->ent);
-	vimc_pads_cleanup(ved->pads);
-	v4l2_device_unregister_subdev(sd);
-}
-EXPORT_SYMBOL_GPL(vimc_ent_sd_unregister);

@@ -229,7 +229,7 @@ void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
 		data_len = PSAMPLE_MAX_PACKET_SIZE - meta_len - NLA_HDRLEN
 			    - NLA_ALIGNTO;
 
-	nl_skb = genlmsg_new(meta_len + data_len, GFP_ATOMIC);
+	nl_skb = genlmsg_new(meta_len + nla_total_size(data_len), GFP_ATOMIC);
 	if (unlikely(!nl_skb))
 		return;
 

@@ -112,9 +112,7 @@ struct lpfc_nvmet_rcv_ctx {
 	struct lpfc_hba *phba;
 	struct lpfc_iocbq *wqeq;
 	struct lpfc_iocbq *abort_wqeq;
-	dma_addr_t txrdy_phys;
 	spinlock_t ctxlock; /* protect flag access */
-	uint32_t *txrdy;
 	uint32_t sid;
 	uint32_t offset;
 	uint16_t oxid;

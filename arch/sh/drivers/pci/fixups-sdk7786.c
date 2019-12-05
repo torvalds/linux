@@ -53,7 +53,7 @@ static int __init sdk7786_pci_init(void)
 
 		/* Warn about forced rerouting if slot#3 is occupied */
 		if ((data & PCIECR_PRST3) == 0) {
-			pr_warning("Unreachable card detected in slot#3\n");
+			pr_warn("Unreachable card detected in slot#3\n");
 			return -EBUSY;
 		}
 	} else

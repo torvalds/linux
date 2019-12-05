@@ -922,7 +922,7 @@ static int taprio_parse_mqprio_opt(struct net_device *dev,
 	}
 
 	/* Verify priority mapping uses valid tcs */
-	for (i = 0; i < TC_BITMASK + 1; i++) {
+	for (i = 0; i <= TC_BITMASK; i++) {
 		if (qopt->prio_tc_map[i] >= qopt->num_tc) {
 			NL_SET_ERR_MSG(extack, "Invalid traffic class in priority to traffic class mapping");
 			return -EINVAL;
@@ -1152,7 +1152,7 @@ EXPORT_SYMBOL_GPL(taprio_offload_free);
  * offload state (PENDING, ACTIVE, INACTIVE) so it can be visible in dump().
  * This is left as TODO.
  */
-void taprio_offload_config_changed(struct taprio_sched *q)
+static void taprio_offload_config_changed(struct taprio_sched *q)
 {
 	struct sched_gate_list *oper, *admin;
 
@@ -1223,8 +1223,6 @@ static int taprio_enable_offload(struct net_device *dev,
 			       "Device failed to setup taprio offload");
 		goto done;
 	}
-
-	taprio_offload_config_changed(q);
 
 done:
 	taprio_offload_free(offload);
@@ -1341,8 +1339,32 @@ static int taprio_parse_clockid(struct Qdisc *sch, struct nlattr **tb,
 		NL_SET_ERR_MSG(extack, "Specifying a 'clockid' is mandatory");
 		goto out;
 	}
+
+	/* Everything went ok, return success. */
+	err = 0;
+
 out:
 	return err;
+}
+
+static int taprio_mqprio_cmp(const struct net_device *dev,
+			     const struct tc_mqprio_qopt *mqprio)
+{
+	int i;
+
+	if (!mqprio || mqprio->num_tc != dev->num_tc)
+		return -1;
+
+	for (i = 0; i < mqprio->num_tc; i++)
+		if (dev->tc_to_txq[i].count != mqprio->count[i] ||
+		    dev->tc_to_txq[i].offset != mqprio->offset[i])
+			return -1;
+
+	for (i = 0; i <= TC_BITMASK; i++)
+		if (dev->prio_tc_map[i] != mqprio->prio_tc_map[i])
+			return -1;
+
+	return 0;
 }
 
 static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
@@ -1395,6 +1417,10 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 	oper = rcu_dereference(q->oper_sched);
 	admin = rcu_dereference(q->admin_sched);
 	rcu_read_unlock();
+
+	/* no changes - no new mqprio settings */
+	if (!taprio_mqprio_cmp(dev, mqprio))
+		mqprio = NULL;
 
 	if (mqprio && (oper || admin)) {
 		NL_SET_ERR_MSG(extack, "Changing the traffic mapping of a running schedule is not supported");
@@ -1453,7 +1479,7 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 					    mqprio->offset[i]);
 
 		/* Always use supplied priority mappings */
-		for (i = 0; i < TC_BITMASK + 1; i++)
+		for (i = 0; i <= TC_BITMASK; i++)
 			netdev_set_prio_tc_map(dev, i,
 					       mqprio->prio_tc_map[i]);
 	}
@@ -1501,6 +1527,9 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 			call_rcu(&admin->rcu, taprio_free_sched_cb);
 
 		spin_unlock_irqrestore(&q->current_entry_lock, flags);
+
+		if (FULL_OFFLOAD_IS_ENABLED(taprio_flags))
+			taprio_offload_config_changed(q);
 	}
 
 	new_admin = NULL;

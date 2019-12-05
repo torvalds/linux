@@ -75,7 +75,7 @@ static struct mfd_cell crystal_cove_byt_dev[] = {
 		.resources = gpio_resources,
 	},
 	{
-		.name = "crystal_cove_pmic",
+		.name = "byt_crystal_cove_pmic",
 	},
 	{
 		.name = "crystal_cove_pwm",
@@ -87,6 +87,9 @@ static struct mfd_cell crystal_cove_cht_dev[] = {
 		.name = "crystal_cove_gpio",
 		.num_resources = ARRAY_SIZE(gpio_resources),
 		.resources = gpio_resources,
+	},
+	{
+		.name = "cht_crystal_cove_pmic",
 	},
 	{
 		.name = "crystal_cove_pwm",

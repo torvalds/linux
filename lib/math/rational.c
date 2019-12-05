@@ -3,6 +3,7 @@
  * rational fractions
  *
  * Copyright (C) 2009 emlix GmbH, Oskar Schirmer <oskar@scara.com>
+ * Copyright (C) 2019 Trent Piepho <tpiepho@gmail.com>
  *
  * helper functions when coping with rational numbers
  */
@@ -10,6 +11,7 @@
 #include <linux/rational.h>
 #include <linux/compiler.h>
 #include <linux/export.h>
+#include <linux/kernel.h>
 
 /*
  * calculate best rational approximation for a given fraction
@@ -33,30 +35,65 @@ void rational_best_approximation(
 	unsigned long max_numerator, unsigned long max_denominator,
 	unsigned long *best_numerator, unsigned long *best_denominator)
 {
-	unsigned long n, d, n0, d0, n1, d1;
+	/* n/d is the starting rational, which is continually
+	 * decreased each iteration using the Euclidean algorithm.
+	 *
+	 * dp is the value of d from the prior iteration.
+	 *
+	 * n2/d2, n1/d1, and n0/d0 are our successively more accurate
+	 * approximations of the rational.  They are, respectively,
+	 * the current, previous, and two prior iterations of it.
+	 *
+	 * a is current term of the continued fraction.
+	 */
+	unsigned long n, d, n0, d0, n1, d1, n2, d2;
 	n = given_numerator;
 	d = given_denominator;
 	n0 = d1 = 0;
 	n1 = d0 = 1;
+
 	for (;;) {
-		unsigned long t, a;
-		if ((n1 > max_numerator) || (d1 > max_denominator)) {
-			n1 = n0;
-			d1 = d0;
-			break;
-		}
+		unsigned long dp, a;
+
 		if (d == 0)
 			break;
-		t = d;
+		/* Find next term in continued fraction, 'a', via
+		 * Euclidean algorithm.
+		 */
+		dp = d;
 		a = n / d;
 		d = n % d;
-		n = t;
-		t = n0 + a * n1;
+		n = dp;
+
+		/* Calculate the current rational approximation (aka
+		 * convergent), n2/d2, using the term just found and
+		 * the two prior approximations.
+		 */
+		n2 = n0 + a * n1;
+		d2 = d0 + a * d1;
+
+		/* If the current convergent exceeds the maxes, then
+		 * return either the previous convergent or the
+		 * largest semi-convergent, the final term of which is
+		 * found below as 't'.
+		 */
+		if ((n2 > max_numerator) || (d2 > max_denominator)) {
+			unsigned long t = min((max_numerator - n0) / n1,
+					      (max_denominator - d0) / d1);
+
+			/* This tests if the semi-convergent is closer
+			 * than the previous convergent.
+			 */
+			if (2u * t > a || (2u * t == a && d0 * dp > d1 * d)) {
+				n1 = n0 + t * n1;
+				d1 = d0 + t * d1;
+			}
+			break;
+		}
 		n0 = n1;
-		n1 = t;
-		t = d0 + a * d1;
+		n1 = n2;
 		d0 = d1;
-		d1 = t;
+		d1 = d2;
 	}
 	*best_numerator = n1;
 	*best_denominator = d1;

@@ -158,6 +158,22 @@ long cg_read_key_long(const char *cgroup, const char *control, const char *key)
 	return atol(ptr + strlen(key));
 }
 
+long cg_read_lc(const char *cgroup, const char *control)
+{
+	char buf[PAGE_SIZE];
+	const char delim[] = "\n";
+	char *line;
+	long cnt = 0;
+
+	if (cg_read(cgroup, control, buf, sizeof(buf)))
+		return -1;
+
+	for (line = strtok(buf, delim); line; line = strtok(NULL, delim))
+		cnt++;
+
+	return cnt;
+}
+
 int cg_write(const char *cgroup, const char *control, char *buf)
 {
 	char path[PATH_MAX];
@@ -282,10 +298,12 @@ int cg_enter(const char *cgroup, int pid)
 
 int cg_enter_current(const char *cgroup)
 {
-	char pidbuf[64];
+	return cg_write(cgroup, "cgroup.procs", "0");
+}
 
-	snprintf(pidbuf, sizeof(pidbuf), "%d", getpid());
-	return cg_write(cgroup, "cgroup.procs", pidbuf);
+int cg_enter_current_thread(const char *cgroup)
+{
+	return cg_write(cgroup, "cgroup.threads", "0");
 }
 
 int cg_run(const char *cgroup,
@@ -410,11 +428,25 @@ int set_oom_adj_score(int pid, int score)
 	return 0;
 }
 
-char proc_read_text(int pid, const char *item, char *buf, size_t size)
+ssize_t proc_read_text(int pid, bool thread, const char *item, char *buf, size_t size)
 {
 	char path[PATH_MAX];
 
-	snprintf(path, sizeof(path), "/proc/%d/%s", pid, item);
+	if (!pid)
+		snprintf(path, sizeof(path), "/proc/%s/%s",
+			 thread ? "thread-self" : "self", item);
+	else
+		snprintf(path, sizeof(path), "/proc/%d/%s", pid, item);
 
 	return read_text(path, buf, size);
+}
+
+int proc_read_strstr(int pid, bool thread, const char *item, const char *needle)
+{
+	char buf[PAGE_SIZE];
+
+	if (proc_read_text(pid, thread, item, buf, sizeof(buf)) < 0)
+		return -1;
+
+	return strstr(buf, needle) ? 0 : -1;
 }

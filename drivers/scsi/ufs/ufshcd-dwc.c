@@ -80,7 +80,7 @@ static int ufshcd_dwc_link_is_up(struct ufs_hba *hba)
  */
 static int ufshcd_dwc_connection_setup(struct ufs_hba *hba)
 {
-	const struct ufshcd_dme_attr_val setup_attrs[] = {
+	static const struct ufshcd_dme_attr_val setup_attrs[] = {
 		{ UIC_ARG_MIB(T_CONNECTIONSTATE), 0, DME_LOCAL },
 		{ UIC_ARG_MIB(N_DEVICEID), 0, DME_LOCAL },
 		{ UIC_ARG_MIB(N_DEVICEID_VALID), 0, DME_LOCAL },

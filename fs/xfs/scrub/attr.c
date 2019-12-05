@@ -398,15 +398,14 @@ out:
 STATIC int
 xchk_xattr_rec(
 	struct xchk_da_btree		*ds,
-	int				level,
-	void				*rec)
+	int				level)
 {
 	struct xfs_mount		*mp = ds->state->mp;
-	struct xfs_attr_leaf_entry	*ent = rec;
-	struct xfs_da_state_blk		*blk;
+	struct xfs_da_state_blk		*blk = &ds->state->path.blk[level];
 	struct xfs_attr_leaf_name_local	*lentry;
 	struct xfs_attr_leaf_name_remote	*rentry;
 	struct xfs_buf			*bp;
+	struct xfs_attr_leaf_entry	*ent;
 	xfs_dahash_t			calc_hash;
 	xfs_dahash_t			hash;
 	int				nameidx;
@@ -414,7 +413,9 @@ xchk_xattr_rec(
 	unsigned int			badflags;
 	int				error;
 
-	blk = &ds->state->path.blk[level];
+	ASSERT(blk->magic == XFS_ATTR_LEAF_MAGIC);
+
+	ent = xfs_attr3_leaf_entryp(blk->bp->b_addr) + blk->index;
 
 	/* Check the whole block, if necessary. */
 	error = xchk_xattr_block(ds, level);

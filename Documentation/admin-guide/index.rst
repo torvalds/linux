@@ -57,60 +57,61 @@ configure specific aspects of kernel behavior to your liking.
 .. toctree::
    :maxdepth: 1
 
-   initrd
-   cgroup-v2
-   cgroup-v1/index
-   serial-console
-   braille-console
-   parport
-   md
-   module-signing
-   rapidio
-   sysrq
-   unicode
-   vga-softcursor
-   binfmt-misc
-   mono
-   java
-   ras
-   bcache
-   blockdev/index
-   ext4
-   binderfs
-   cifs/index
-   xfs
-   jfs
-   ufs
-   pm/index
-   thunderbolt
-   LSM/index
-   mm/index
-   namespaces/index
-   perf-security
    acpi/index
    aoe/index
+   auxdisplay/index
+   bcache
+   binderfs
+   binfmt-misc
+   blockdev/index
+   braille-console
    btmrvl
+   cgroup-v1/index
+   cgroup-v2
+   cifs/index
    clearing-warn-once
    cpu-load
    cputopology
+   dell_rbu
    device-mapper/index
    efi-stub
+   ext4
    gpio/index
    highuid
    hw_random
+   initrd
    iostats
+   java
+   jfs
    kernel-per-CPU-kthreads
    laptops/index
-   auxdisplay/index
    lcd-panel-cgram
    ldm
    lockup-watchdogs
+   LSM/index
+   md
+   mm/index
+   module-signing
+   mono
+   namespaces/index
    numastat
+   parport
+   perf-security
+   pm/index
    pnp
+   rapidio
+   ras
    rtc
+   serial-console
    svga
-   wimax/index
+   sysrq
+   thunderbolt
+   ufs
+   unicode
+   vga-softcursor
    video-output
+   wimax/index
+   xfs
 
 .. only::  subproject and html
 

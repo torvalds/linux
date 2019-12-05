@@ -15,6 +15,12 @@ enum fieldbus_dev_type {
 	FIELDBUS_DEV_TYPE_PROFINET,
 };
 
+enum fieldbus_dev_offl_mode {
+	FIELDBUS_DEV_OFFL_MODE_CLEAR = 0,
+	FIELDBUS_DEV_OFFL_MODE_FREEZE,
+	FIELDBUS_DEV_OFFL_MODE_SET
+};
+
 /**
  * struct fieldbus_dev - Fieldbus device
  * @read_area:		[DRIVER] function to read the process data area of the

@@ -10,7 +10,7 @@
 #include "lima_vm.h"
 #include "lima_mmu.h"
 #include "lima_l2_cache.h"
-#include "lima_object.h"
+#include "lima_gem.h"
 
 struct lima_fence {
 	struct dma_fence base;
@@ -117,7 +117,7 @@ int lima_sched_task_init(struct lima_sched_task *task,
 		return -ENOMEM;
 
 	for (i = 0; i < num_bos; i++)
-		drm_gem_object_get(&bos[i]->gem);
+		drm_gem_object_get(&bos[i]->base.base);
 
 	err = drm_sched_job_init(&task->base, &context->base, vm);
 	if (err) {
@@ -148,7 +148,7 @@ void lima_sched_task_fini(struct lima_sched_task *task)
 
 	if (task->bos) {
 		for (i = 0; i < task->num_bos; i++)
-			drm_gem_object_put_unlocked(&task->bos[i]->gem);
+			drm_gem_object_put_unlocked(&task->bos[i]->base.base);
 		kfree(task->bos);
 	}
 

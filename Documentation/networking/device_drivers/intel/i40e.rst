@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
-==================================================================
-Linux* Base Driver for the Intel(R) Ethernet Controller 700 Series
-==================================================================
+=================================================================
+Linux Base Driver for the Intel(R) Ethernet Controller 700 Series
+=================================================================
 
 Intel 40 Gigabit Linux driver.
 Copyright(c) 1999-2018 Intel Corporation.
@@ -384,7 +384,7 @@ NOTE: You cannot set the speed for devices based on the Intel(R) Ethernet
 Network Adapter XXV710 based devices.
 
 Speed, duplex, and autonegotiation advertising are configured through the
-ethtool* utility.
+ethtool utility.
 
 Caution: Only experienced network administrators should force speed and duplex
 or change autonegotiation advertising manually. The settings at the switch must

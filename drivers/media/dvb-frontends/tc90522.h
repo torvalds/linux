@@ -28,6 +28,9 @@ struct tc90522_config {
 
 	/* [OUT] tuner I2C adapter returned by driver */
 	struct i2c_adapter *tuner_i2c;
+
+	/* [IN] use two separate I2C transactions for one tuner read */
+	bool split_tuner_read_i2c;
 };
 
 #endif /* TC90522_H */

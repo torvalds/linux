@@ -54,8 +54,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 		memcpy(patched_ihre, ih_ring_entry,
 				dev->device_info->ih_ring_entry_size);
 
-		pasid = dev->kfd2kgd->get_atc_vmid_pasid_mapping_pasid(
-				dev->kgd, vmid);
+		pasid = dev->dqm->vmid_pasid[vmid];
 
 		/* Patch the pasid field */
 		patched_ihre[3] = cpu_to_le32((le32_to_cpu(patched_ihre[3])

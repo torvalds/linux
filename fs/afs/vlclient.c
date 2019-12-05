@@ -185,7 +185,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 	int i, ret;
 
 	_enter("{%u,%zu/%u}",
-	       call->unmarshall, iov_iter_count(call->_iter), call->count);
+	       call->unmarshall, iov_iter_count(call->iter), call->count);
 
 	switch (call->unmarshall) {
 	case 0:
@@ -316,7 +316,7 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 	int ret;
 
 	_enter("{%u,%zu/%u}",
-	       call->unmarshall, iov_iter_count(call->_iter), call->count);
+	       call->unmarshall, iov_iter_count(call->iter), call->count);
 
 	switch (call->unmarshall) {
 	case 0:
@@ -425,7 +425,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 	int ret;
 
 	_enter("{%u,%zu,%u}",
-	       call->unmarshall, iov_iter_count(call->_iter), call->count2);
+	       call->unmarshall, iov_iter_count(call->iter), call->count2);
 
 	switch (call->unmarshall) {
 	case 0:

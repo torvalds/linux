@@ -22,6 +22,7 @@
 #define HZIP_CTX_Q_NUM				2
 #define HZIP_GZIP_HEAD_BUF			256
 #define HZIP_ALG_PRIORITY			300
+#define HZIP_SGL_SGE_NR				10
 
 static const u8 zlib_head[HZIP_ZLIB_HEAD_SIZE] = {0x78, 0x9c};
 static const u8 gzip_head[HZIP_GZIP_HEAD_SIZE] = {0x1f, 0x8b, 0x08, 0x0, 0x0,
@@ -41,7 +42,7 @@ enum hisi_zip_alg_type {
 
 #define TO_HEAD(req_type)						\
 	(((req_type) == HZIP_ALG_TYPE_ZLIB) ? zlib_head :		\
-	 ((req_type) == HZIP_ALG_TYPE_GZIP) ? gzip_head : 0)		\
+	 ((req_type) == HZIP_ALG_TYPE_GZIP) ? gzip_head : NULL)		\
 
 struct hisi_zip_req {
 	struct acomp_req *req;
@@ -67,7 +68,7 @@ struct hisi_zip_qp_ctx {
 	struct hisi_qp *qp;
 	struct hisi_zip_sqe zip_sqe;
 	struct hisi_zip_req_q req_q;
-	struct hisi_acc_sgl_pool sgl_pool;
+	struct hisi_acc_sgl_pool *sgl_pool;
 	struct hisi_zip *zip_dev;
 	struct hisi_zip_ctx *ctx;
 };
@@ -77,6 +78,30 @@ struct hisi_zip_ctx {
 #define QPC_DECOMP	1
 	struct hisi_zip_qp_ctx qp_ctx[HZIP_CTX_Q_NUM];
 };
+
+static int sgl_sge_nr_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+	u16 n;
+
+	if (!val)
+		return -EINVAL;
+
+	ret = kstrtou16(val, 10, &n);
+	if (ret || n == 0 || n > HISI_ACC_SGL_SGE_NR_MAX)
+		return -EINVAL;
+
+	return param_set_int(val, kp);
+}
+
+static const struct kernel_param_ops sgl_sge_nr_ops = {
+	.set = sgl_sge_nr_set,
+	.get = param_get_int,
+};
+
+static u16 sgl_sge_nr = HZIP_SGL_SGE_NR;
+module_param_cb(sgl_sge_nr, &sgl_sge_nr_ops, &sgl_sge_nr, 0444);
+MODULE_PARM_DESC(sgl_sge_nr, "Number of sge in sgl(1-255)");
 
 static void hisi_zip_config_buf_type(struct hisi_zip_sqe *sqe, u8 buf_type)
 {
@@ -265,14 +290,15 @@ static void hisi_zip_release_req_q(struct hisi_zip_ctx *ctx)
 static int hisi_zip_create_sgl_pool(struct hisi_zip_ctx *ctx)
 {
 	struct hisi_zip_qp_ctx *tmp;
-	int i, ret;
+	struct device *dev;
+	int i;
 
 	for (i = 0; i < HZIP_CTX_Q_NUM; i++) {
 		tmp = &ctx->qp_ctx[i];
-		ret = hisi_acc_create_sgl_pool(&tmp->qp->qm->pdev->dev,
-					       &tmp->sgl_pool,
-					       QM_Q_DEPTH << 1);
-		if (ret < 0) {
+		dev = &tmp->qp->qm->pdev->dev;
+		tmp->sgl_pool = hisi_acc_create_sgl_pool(dev, QM_Q_DEPTH << 1,
+							 sgl_sge_nr);
+		if (IS_ERR(tmp->sgl_pool)) {
 			if (i == 1)
 				goto err_free_sgl_pool0;
 			return -ENOMEM;
@@ -283,7 +309,7 @@ static int hisi_zip_create_sgl_pool(struct hisi_zip_ctx *ctx)
 
 err_free_sgl_pool0:
 	hisi_acc_free_sgl_pool(&ctx->qp_ctx[QPC_COMP].qp->qm->pdev->dev,
-			       &ctx->qp_ctx[QPC_COMP].sgl_pool);
+			       ctx->qp_ctx[QPC_COMP].sgl_pool);
 	return -ENOMEM;
 }
 
@@ -293,7 +319,7 @@ static void hisi_zip_release_sgl_pool(struct hisi_zip_ctx *ctx)
 
 	for (i = 0; i < HZIP_CTX_Q_NUM; i++)
 		hisi_acc_free_sgl_pool(&ctx->qp_ctx[i].qp->qm->pdev->dev,
-				       &ctx->qp_ctx[i].sgl_pool);
+				       ctx->qp_ctx[i].sgl_pool);
 }
 
 static void hisi_zip_remove_req(struct hisi_zip_qp_ctx *qp_ctx,
@@ -512,7 +538,7 @@ static int hisi_zip_do_work(struct hisi_zip_req *req,
 	struct hisi_zip_sqe *zip_sqe = &qp_ctx->zip_sqe;
 	struct hisi_qp *qp = qp_ctx->qp;
 	struct device *dev = &qp->qm->pdev->dev;
-	struct hisi_acc_sgl_pool *pool = &qp_ctx->sgl_pool;
+	struct hisi_acc_sgl_pool *pool = qp_ctx->sgl_pool;
 	dma_addr_t input;
 	dma_addr_t output;
 	int ret;

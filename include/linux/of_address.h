@@ -12,6 +12,7 @@ struct of_pci_range_parser {
 	const __be32 *end;
 	int np;
 	int pna;
+	bool dma;
 };
 
 struct of_pci_range {
@@ -33,10 +34,6 @@ extern u64 of_translate_dma_address(struct device_node *dev,
 extern u64 of_translate_address(struct device_node *np, const __be32 *addr);
 extern int of_address_to_resource(struct device_node *dev, int index,
 				  struct resource *r);
-extern struct device_node *of_find_matching_node_by_address(
-					struct device_node *from,
-					const struct of_device_id *matches,
-					u64 base_address);
 extern void __iomem *of_iomap(struct device_node *device, int index);
 void __iomem *of_io_request_and_map(struct device_node *device,
 				    int index, const char *name);
@@ -55,8 +52,6 @@ extern int of_pci_dma_range_parser_init(struct of_pci_range_parser *parser,
 extern struct of_pci_range *of_pci_range_parser_one(
 					struct of_pci_range_parser *parser,
 					struct of_pci_range *range);
-extern int of_dma_get_range(struct device_node *np, u64 *dma_addr,
-				u64 *paddr, u64 *size);
 extern bool of_dma_is_coherent(struct device_node *np);
 #else /* CONFIG_OF_ADDRESS */
 static inline void __iomem *of_io_request_and_map(struct device_node *device,
@@ -69,14 +64,6 @@ static inline u64 of_translate_address(struct device_node *np,
 				       const __be32 *addr)
 {
 	return OF_BAD_ADDR;
-}
-
-static inline struct device_node *of_find_matching_node_by_address(
-					struct device_node *from,
-					const struct of_device_id *matches,
-					u64 base_address)
-{
-	return NULL;
 }
 
 static inline const __be32 *of_get_address(struct device_node *dev, int index,
@@ -102,12 +89,6 @@ static inline struct of_pci_range *of_pci_range_parser_one(
 					struct of_pci_range *range)
 {
 	return NULL;
-}
-
-static inline int of_dma_get_range(struct device_node *np, u64 *dma_addr,
-				u64 *paddr, u64 *size)
-{
-	return -ENODEV;
 }
 
 static inline bool of_dma_is_coherent(struct device_node *np)

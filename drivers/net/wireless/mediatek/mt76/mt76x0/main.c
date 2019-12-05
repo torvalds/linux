@@ -13,19 +13,16 @@ mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 {
 	cancel_delayed_work_sync(&dev->cal_work);
 	mt76x02_pre_tbtt_enable(dev, false);
-	if (mt76_is_mmio(dev))
+	if (mt76_is_mmio(&dev->mt76))
 		tasklet_disable(&dev->dfs_pd.dfs_tasklet);
 
 	mt76_set_channel(&dev->mt76);
 	mt76x0_phy_set_channel(dev, chandef);
 
-	/* channel cycle counters read-and-clear */
-	mt76_rr(dev, MT_CH_IDLE);
-	mt76_rr(dev, MT_CH_BUSY);
-
+	mt76x02_mac_cc_reset(dev);
 	mt76x02_edcca_init(dev);
 
-	if (mt76_is_mmio(dev)) {
+	if (mt76_is_mmio(&dev->mt76)) {
 		mt76x02_dfs_init_params(dev);
 		tasklet_enable(&dev->dfs_pd.dfs_tasklet);
 	}

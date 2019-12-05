@@ -116,7 +116,6 @@ static int xilly_drv_probe(struct platform_device *op)
 	struct xilly_endpoint *endpoint;
 	int rc;
 	int irq;
-	struct resource *res;
 	struct xilly_endpoint_hardware *ephw = &of_hw;
 
 	if (of_property_read_bool(dev->of_node, "dma-coherent"))
@@ -129,9 +128,7 @@ static int xilly_drv_probe(struct platform_device *op)
 
 	dev_set_drvdata(dev, endpoint);
 
-	res = platform_get_resource(op, IORESOURCE_MEM, 0);
-	endpoint->registers = devm_ioremap_resource(dev, res);
-
+	endpoint->registers = devm_platform_ioremap_resource(op, 0);
 	if (IS_ERR(endpoint->registers))
 		return PTR_ERR(endpoint->registers);
 

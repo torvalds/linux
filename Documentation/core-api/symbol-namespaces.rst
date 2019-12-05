@@ -152,3 +152,6 @@ in-tree modules::
 	- notice the warning of modpost telling about a missing import
 	- run `make nsdeps` to add the import to the correct code location
 
+You can also run nsdeps for external module builds. A typical usage is::
+
+	$ make -C <path_to_kernel_src> M=$PWD nsdeps

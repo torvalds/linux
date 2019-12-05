@@ -186,6 +186,7 @@ static const struct file_operations fitpc2_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= fitpc2_wdt_write,
 	.unlocked_ioctl	= fitpc2_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= fitpc2_wdt_open,
 	.release	= fitpc2_wdt_release,
 };

@@ -277,7 +277,7 @@ frame_size = frame_GPRSAVE + GPRSAVE_SIZE
 # message blocks.
 # L is the message length in SHA512 blocks
 ########################################################################
-ENTRY(sha512_transform_avx)
+SYM_FUNC_START(sha512_transform_avx)
 	cmp $0, msglen
 	je nowork
 
@@ -365,7 +365,7 @@ updateblock:
 
 nowork:
 	ret
-ENDPROC(sha512_transform_avx)
+SYM_FUNC_END(sha512_transform_avx)
 
 ########################################################################
 ### Binary Data

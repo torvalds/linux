@@ -98,7 +98,7 @@ struct strobe_map_raw {
 	/*
 	 * having volatile doesn't change anything on BPF side, but clang
 	 * emits warnings for passing `volatile const char *` into
-	 * bpf_probe_read_str that expects just `const char *`
+	 * bpf_probe_read_user_str that expects just `const char *`
 	 */
 	const char* tag;
 	/*
@@ -309,18 +309,18 @@ static __always_inline void *calc_location(struct strobe_value_loc *loc,
 	dtv_t *dtv;
 	void *tls_ptr;
 
-	bpf_probe_read(&tls_index, sizeof(struct tls_index),
-		       (void *)loc->offset);
+	bpf_probe_read_user(&tls_index, sizeof(struct tls_index),
+			    (void *)loc->offset);
 	/* valid module index is always positive */
 	if (tls_index.module > 0) {
 		/* dtv = ((struct tcbhead *)tls_base)->dtv[tls_index.module] */
-		bpf_probe_read(&dtv, sizeof(dtv),
-			       &((struct tcbhead *)tls_base)->dtv);
+		bpf_probe_read_user(&dtv, sizeof(dtv),
+				    &((struct tcbhead *)tls_base)->dtv);
 		dtv += tls_index.module;
 	} else {
 		dtv = NULL;
 	}
-	bpf_probe_read(&tls_ptr, sizeof(void *), dtv);
+	bpf_probe_read_user(&tls_ptr, sizeof(void *), dtv);
 	/* if pointer has (void *)-1 value, then TLS wasn't initialized yet */
 	return tls_ptr && tls_ptr != (void *)-1
 		? tls_ptr + tls_index.offset
@@ -336,7 +336,7 @@ static __always_inline void read_int_var(struct strobemeta_cfg *cfg,
 	if (!location)
 		return;
 
-	bpf_probe_read(value, sizeof(struct strobe_value_generic), location);
+	bpf_probe_read_user(value, sizeof(struct strobe_value_generic), location);
 	data->int_vals[idx] = value->val;
 	if (value->header.len)
 		data->int_vals_set_mask |= (1 << idx);
@@ -356,13 +356,13 @@ static __always_inline uint64_t read_str_var(struct strobemeta_cfg *cfg,
 	if (!location)
 		return 0;
 
-	bpf_probe_read(value, sizeof(struct strobe_value_generic), location);
-	len = bpf_probe_read_str(payload, STROBE_MAX_STR_LEN, value->ptr);
+	bpf_probe_read_user(value, sizeof(struct strobe_value_generic), location);
+	len = bpf_probe_read_user_str(payload, STROBE_MAX_STR_LEN, value->ptr);
 	/*
-	 * if bpf_probe_read_str returns error (<0), due to casting to
+	 * if bpf_probe_read_user_str returns error (<0), due to casting to
 	 * unsinged int, it will become big number, so next check is
 	 * sufficient to check for errors AND prove to BPF verifier, that
-	 * bpf_probe_read_str won't return anything bigger than
+	 * bpf_probe_read_user_str won't return anything bigger than
 	 * STROBE_MAX_STR_LEN
 	 */
 	if (len > STROBE_MAX_STR_LEN)
@@ -391,8 +391,8 @@ static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
 	if (!location)
 		return payload;
 
-	bpf_probe_read(value, sizeof(struct strobe_value_generic), location);
-	if (bpf_probe_read(&map, sizeof(struct strobe_map_raw), value->ptr))
+	bpf_probe_read_user(value, sizeof(struct strobe_value_generic), location);
+	if (bpf_probe_read_user(&map, sizeof(struct strobe_map_raw), value->ptr))
 		return payload;
 
 	descr->id = map.id;
@@ -402,7 +402,7 @@ static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
 		data->req_meta_valid = 1;
 	}
 
-	len = bpf_probe_read_str(payload, STROBE_MAX_STR_LEN, map.tag);
+	len = bpf_probe_read_user_str(payload, STROBE_MAX_STR_LEN, map.tag);
 	if (len <= STROBE_MAX_STR_LEN) {
 		descr->tag_len = len;
 		payload += len;
@@ -418,15 +418,15 @@ static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
 			break;
 
 		descr->key_lens[i] = 0;
-		len = bpf_probe_read_str(payload, STROBE_MAX_STR_LEN,
-					 map.entries[i].key);
+		len = bpf_probe_read_user_str(payload, STROBE_MAX_STR_LEN,
+					      map.entries[i].key);
 		if (len <= STROBE_MAX_STR_LEN) {
 			descr->key_lens[i] = len;
 			payload += len;
 		}
 		descr->val_lens[i] = 0;
-		len = bpf_probe_read_str(payload, STROBE_MAX_STR_LEN,
-					 map.entries[i].val);
+		len = bpf_probe_read_user_str(payload, STROBE_MAX_STR_LEN,
+					      map.entries[i].val);
 		if (len <= STROBE_MAX_STR_LEN) {
 			descr->val_lens[i] = len;
 			payload += len;

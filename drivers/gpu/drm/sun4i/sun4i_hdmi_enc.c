@@ -490,6 +490,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = data;
+	struct cec_connector_info conn_info;
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_hdmi *hdmi;
 	struct resource *res;
@@ -629,8 +630,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 
 #ifdef CONFIG_DRM_SUN4I_HDMI_CEC
 	hdmi->cec_adap = cec_pin_allocate_adapter(&sun4i_hdmi_cec_pin_ops,
-		hdmi, "sun4i", CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC);
+		hdmi, "sun4i", CEC_CAP_DEFAULTS | CEC_CAP_CONNECTOR_INFO);
 	ret = PTR_ERR_OR_ZERO(hdmi->cec_adap);
 	if (ret < 0)
 		goto err_cleanup_connector;
@@ -649,6 +649,8 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 			"Couldn't initialise the HDMI connector\n");
 		goto err_cleanup_connector;
 	}
+	cec_fill_conn_info_from_drm(&conn_info, &hdmi->connector);
+	cec_s_conn_info(hdmi->cec_adap, &conn_info);
 
 	/* There is no HPD interrupt, so we need to poll the controller */
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_CONNECT |

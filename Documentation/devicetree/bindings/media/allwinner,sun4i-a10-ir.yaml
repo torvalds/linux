@@ -60,9 +60,7 @@ required:
   - clocks
   - clock-names
 
-# FIXME: We should set it, but it would report all the generic
-# properties as additional properties.
-# additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

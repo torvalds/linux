@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -284,8 +285,8 @@ static int tfp410_get_connector_properties(struct tfp410 *dvi)
 	else
 		dvi->connector_type = DRM_MODE_CONNECTOR_DVID;
 
-	dvi->hpd = fwnode_get_named_gpiod(&connector_node->fwnode,
-					"hpd-gpios", 0, GPIOD_IN, "hpd");
+	dvi->hpd = fwnode_gpiod_get_index(&connector_node->fwnode,
+					  "hpd", 0, GPIOD_IN, "hpd");
 	if (IS_ERR(dvi->hpd)) {
 		ret = PTR_ERR(dvi->hpd);
 		dvi->hpd = NULL;

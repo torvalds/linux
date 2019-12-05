@@ -358,6 +358,8 @@ static inline bool iser_signal_comp(u8 sig_count)
 
 /**
  * iser_send_command - send command PDU
+ * @conn: link to matching iscsi connection
+ * @task: SCSI command task
  */
 int iser_send_command(struct iscsi_conn *conn,
 		      struct iscsi_task *task)
@@ -429,6 +431,9 @@ send_command_error:
 
 /**
  * iser_send_data_out - send data out PDU
+ * @conn: link to matching iscsi connection
+ * @task: SCSI command task
+ * @hdr: pointer to the LLD's iSCSI message header
  */
 int iser_send_data_out(struct iscsi_conn *conn,
 		       struct iscsi_task *task,

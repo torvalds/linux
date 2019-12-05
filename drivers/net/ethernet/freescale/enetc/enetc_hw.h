@@ -18,6 +18,7 @@
 #define ENETC_SICTR0	0x18
 #define ENETC_SICTR1	0x1c
 #define ENETC_SIPCAPR0	0x20
+#define ENETC_SIPCAPR0_QBV	BIT(4)
 #define ENETC_SIPCAPR0_RSS	BIT(8)
 #define ENETC_SIPCAPR1	0x24
 #define ENETC_SITGTGR	0x30
@@ -148,6 +149,11 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PORT_BASE		0x10000
 #define ENETC_PMR		0x0000
 #define ENETC_PMR_EN	GENMASK(18, 16)
+#define ENETC_PMR_PSPEED_MASK GENMASK(11, 8)
+#define ENETC_PMR_PSPEED_10M	0
+#define ENETC_PMR_PSPEED_100M	BIT(8)
+#define ENETC_PMR_PSPEED_1000M	BIT(9)
+#define ENETC_PMR_PSPEED_2500M	BIT(10)
 #define ENETC_PSR		0x0004 /* RO */
 #define ENETC_PSIPMR		0x0018
 #define ENETC_PSIPMR_SET_UP(n)	BIT(n) /* n = SI index */
@@ -179,6 +185,8 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PSICFGR0_SIVC(bmp)	(((bmp) & 0xff) << 24) /* VLAN_TYPE */
 
 #define ENETC_PTCCBSR0(n)	(0x1110 + (n) * 8) /* n = 0 to 7*/
+#define ENETC_CBSE		BIT(31)
+#define ENETC_CBS_BW_MASK	GENMASK(6, 0)
 #define ENETC_PTCCBSR1(n)	(0x1114 + (n) * 8) /* n = 0 to 7*/
 #define ENETC_RSSHASH_KEY_SIZE	40
 #define ENETC_PRSSK(n)		(0x1410 + (n) * 4) /* n = [0..9] */
@@ -440,22 +448,6 @@ union enetc_rx_bd {
 #define EMETC_MAC_ADDR_FILT_RES	3 /* # of reserved entries at the beginning */
 #define ENETC_MAX_NUM_VFS	2
 
-struct enetc_cbd {
-	union {
-		struct {
-			__le32 addr[2];
-			__le32 opt[4];
-		};
-		__le32 data[6];
-	};
-	__le16 index;
-	__le16 length;
-	u8 cmd;
-	u8 cls;
-	u8 _res;
-	u8 status_flags;
-};
-
 #define ENETC_CBD_FLAGS_SF	BIT(7) /* short format */
 #define ENETC_CBD_STATUS_MASK	0xf
 
@@ -554,3 +546,72 @@ static inline void enetc_set_bdr_prio(struct enetc_hw *hw, int bdr_idx,
 	val |= ENETC_TBMR_SET_PRIO(prio);
 	enetc_txbdr_wr(hw, bdr_idx, ENETC_TBMR, val);
 }
+
+enum bdcr_cmd_class {
+	BDCR_CMD_UNSPEC = 0,
+	BDCR_CMD_MAC_FILTER,
+	BDCR_CMD_VLAN_FILTER,
+	BDCR_CMD_RSS,
+	BDCR_CMD_RFS,
+	BDCR_CMD_PORT_GCL,
+	BDCR_CMD_RECV_CLASSIFIER,
+	__BDCR_CMD_MAX_LEN,
+	BDCR_CMD_MAX_LEN = __BDCR_CMD_MAX_LEN - 1,
+};
+
+/* class 5, command 0 */
+struct tgs_gcl_conf {
+	u8	atc;	/* init gate value */
+	u8	res[7];
+	struct {
+		u8	res1[4];
+		__le16	acl_len;
+		u8	res2[2];
+	};
+};
+
+/* gate control list entry */
+struct gce {
+	__le32	period;
+	u8	gate;
+	u8	res[3];
+};
+
+/* tgs_gcl_conf address point to this data space */
+struct tgs_gcl_data {
+	__le32		btl;
+	__le32		bth;
+	__le32		ct;
+	__le32		cte;
+	struct gce	entry[0];
+};
+
+struct enetc_cbd {
+	union{
+		struct {
+			__le32	addr[2];
+			union {
+				__le32	opt[4];
+				struct tgs_gcl_conf	gcl_conf;
+			};
+		};	/* Long format */
+		__le32 data[6];
+	};
+	__le16 index;
+	__le16 length;
+	u8 cmd;
+	u8 cls;
+	u8 _res;
+	u8 status_flags;
+};
+
+#define ENETC_CLK  400000000ULL
+
+/* port time gating control register */
+#define ENETC_QBV_PTGCR_OFFSET		0x11a00
+#define ENETC_QBV_TGE			BIT(31)
+#define ENETC_QBV_TGPE			BIT(30)
+
+/* Port time gating capability register */
+#define ENETC_QBV_PTGCAPR_OFFSET	0x11a08
+#define ENETC_QBV_MAX_GCL_LEN_MASK	GENMASK(15, 0)

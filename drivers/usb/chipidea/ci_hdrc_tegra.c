@@ -24,35 +24,23 @@ struct tegra_udc_soc_info {
 	unsigned long flags;
 };
 
-static const struct tegra_udc_soc_info tegra20_udc_soc_info = {
-	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA,
-};
-
-static const struct tegra_udc_soc_info tegra30_udc_soc_info = {
-	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA,
-};
-
-static const struct tegra_udc_soc_info tegra114_udc_soc_info = {
-	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA,
-};
-
-static const struct tegra_udc_soc_info tegra124_udc_soc_info = {
+static const struct tegra_udc_soc_info tegra_udc_soc_info = {
 	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA,
 };
 
 static const struct of_device_id tegra_udc_of_match[] = {
 	{
 		.compatible = "nvidia,tegra20-udc",
-		.data = &tegra20_udc_soc_info,
+		.data = &tegra_udc_soc_info,
 	}, {
 		.compatible = "nvidia,tegra30-udc",
-		.data = &tegra30_udc_soc_info,
+		.data = &tegra_udc_soc_info,
 	}, {
 		.compatible = "nvidia,tegra114-udc",
-		.data = &tegra114_udc_soc_info,
+		.data = &tegra_udc_soc_info,
 	}, {
 		.compatible = "nvidia,tegra124-udc",
-		.data = &tegra124_udc_soc_info,
+		.data = &tegra_udc_soc_info,
 	}, {
 		/* sentinel */
 	}

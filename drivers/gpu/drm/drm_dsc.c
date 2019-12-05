@@ -216,13 +216,11 @@ void drm_dsc_pps_payload_pack(struct drm_dsc_picture_parameter_set *pps_payload,
 	 */
 	for (i = 0; i < DSC_NUM_BUF_RANGES; i++) {
 		pps_payload->rc_range_parameters[i] =
-			((dsc_cfg->rc_range_params[i].range_min_qp <<
-			  DSC_PPS_RC_RANGE_MINQP_SHIFT) |
-			 (dsc_cfg->rc_range_params[i].range_max_qp <<
-			  DSC_PPS_RC_RANGE_MAXQP_SHIFT) |
-			 (dsc_cfg->rc_range_params[i].range_bpg_offset));
-		pps_payload->rc_range_parameters[i] =
-			cpu_to_be16(pps_payload->rc_range_parameters[i]);
+			cpu_to_be16((dsc_cfg->rc_range_params[i].range_min_qp <<
+				     DSC_PPS_RC_RANGE_MINQP_SHIFT) |
+				    (dsc_cfg->rc_range_params[i].range_max_qp <<
+				     DSC_PPS_RC_RANGE_MAXQP_SHIFT) |
+				    (dsc_cfg->rc_range_params[i].range_bpg_offset));
 	}
 
 	/* PPS 88 */
@@ -336,12 +334,6 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 	else
 		vdsc_cfg->nfl_bpg_offset = 0;
 
-	/* 2^16 - 1 */
-	if (vdsc_cfg->nfl_bpg_offset > 65535) {
-		DRM_DEBUG_KMS("NflBpgOffset is too large for this slice height\n");
-		return -ERANGE;
-	}
-
 	/* Number of groups used to code the entire slice */
 	groups_total = groups_per_line * vdsc_cfg->slice_height;
 
@@ -369,11 +361,6 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 		 * be used to disable the scale increment at the end of the slice
 		 */
 		vdsc_cfg->scale_increment_interval = 0;
-	}
-
-	if (vdsc_cfg->scale_increment_interval > 65535) {
-		DRM_DEBUG_KMS("ScaleIncrementInterval is large for slice height\n");
-		return -ERANGE;
 	}
 
 	/*

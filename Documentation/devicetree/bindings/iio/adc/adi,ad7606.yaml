@@ -31,10 +31,7 @@ properties:
 
   spi-cpha: true
 
-  avcc-supply:
-    description:
-      Phandle to the Avcc power supply
-    maxItems: 1
+  avcc-supply: true
 
   interrupts:
     maxItems: 1

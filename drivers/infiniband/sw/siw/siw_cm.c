@@ -1373,22 +1373,8 @@ int siw_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 		rv = -EINVAL;
 		goto error;
 	}
-	if (v4)
-		siw_dbg_qp(qp,
-			   "pd_len %d, laddr %pI4 %d, raddr %pI4 %d\n",
-			   pd_len,
-			   &((struct sockaddr_in *)(laddr))->sin_addr,
-			   ntohs(((struct sockaddr_in *)(laddr))->sin_port),
-			   &((struct sockaddr_in *)(raddr))->sin_addr,
-			   ntohs(((struct sockaddr_in *)(raddr))->sin_port));
-	else
-		siw_dbg_qp(qp,
-			   "pd_len %d, laddr %pI6 %d, raddr %pI6 %d\n",
-			   pd_len,
-			   &((struct sockaddr_in6 *)(laddr))->sin6_addr,
-			   ntohs(((struct sockaddr_in6 *)(laddr))->sin6_port),
-			   &((struct sockaddr_in6 *)(raddr))->sin6_addr,
-			   ntohs(((struct sockaddr_in6 *)(raddr))->sin6_port));
+	siw_dbg_qp(qp, "pd_len %d, laddr %pISp, raddr %pISp\n", pd_len, laddr,
+		   raddr);
 
 	rv = sock_create(v4 ? AF_INET : AF_INET6, SOCK_STREAM, IPPROTO_TCP, &s);
 	if (rv < 0)
@@ -1867,14 +1853,7 @@ static int siw_listen_address(struct iw_cm_id *id, int backlog,
 	list_add_tail(&cep->listenq, (struct list_head *)id->provider_data);
 	cep->state = SIW_EPSTATE_LISTENING;
 
-	if (addr_family == AF_INET)
-		siw_dbg(id->device, "Listen at laddr %pI4 %u\n",
-			&(((struct sockaddr_in *)laddr)->sin_addr),
-			((struct sockaddr_in *)laddr)->sin_port);
-	else
-		siw_dbg(id->device, "Listen at laddr %pI6 %u\n",
-			&(((struct sockaddr_in6 *)laddr)->sin6_addr),
-			((struct sockaddr_in6 *)laddr)->sin6_port);
+	siw_dbg(id->device, "Listen at laddr %pISp\n", laddr);
 
 	return 0;
 
@@ -1935,7 +1914,7 @@ static void siw_drop_listeners(struct iw_cm_id *id)
 /*
  * siw_create_listen - Create resources for a listener's IWCM ID @id
  *
- * Listens on the socket addresses id->local_addr and id->remote_addr.
+ * Listens on the socket address id->local_addr.
  *
  * If the listener's @id provides a specific local IP address, at most one
  * listening socket is created and associated with @id.
@@ -1959,7 +1938,7 @@ int siw_create_listen(struct iw_cm_id *id, int backlog)
 	 */
 	if (id->local_addr.ss_family == AF_INET) {
 		struct in_device *in_dev = in_dev_get(dev);
-		struct sockaddr_in s_laddr, *s_raddr;
+		struct sockaddr_in s_laddr;
 		const struct in_ifaddr *ifa;
 
 		if (!in_dev) {
@@ -1967,12 +1946,8 @@ int siw_create_listen(struct iw_cm_id *id, int backlog)
 			goto out;
 		}
 		memcpy(&s_laddr, &id->local_addr, sizeof(s_laddr));
-		s_raddr = (struct sockaddr_in *)&id->remote_addr;
 
-		siw_dbg(id->device,
-			"laddr %pI4:%d, raddr %pI4:%d\n",
-			&s_laddr.sin_addr, ntohs(s_laddr.sin_port),
-			&s_raddr->sin_addr, ntohs(s_raddr->sin_port));
+		siw_dbg(id->device, "laddr %pISp\n", &s_laddr);
 
 		rtnl_lock();
 		in_dev_for_each_ifa_rtnl(ifa, in_dev) {
@@ -1992,17 +1967,13 @@ int siw_create_listen(struct iw_cm_id *id, int backlog)
 	} else if (id->local_addr.ss_family == AF_INET6) {
 		struct inet6_dev *in6_dev = in6_dev_get(dev);
 		struct inet6_ifaddr *ifp;
-		struct sockaddr_in6 *s_laddr = &to_sockaddr_in6(id->local_addr),
-			*s_raddr = &to_sockaddr_in6(id->remote_addr);
+		struct sockaddr_in6 *s_laddr = &to_sockaddr_in6(id->local_addr);
 
 		if (!in6_dev) {
 			rv = -ENODEV;
 			goto out;
 		}
-		siw_dbg(id->device,
-			"laddr %pI6:%d, raddr %pI6:%d\n",
-			&s_laddr->sin6_addr, ntohs(s_laddr->sin6_port),
-			&s_raddr->sin6_addr, ntohs(s_raddr->sin6_port));
+		siw_dbg(id->device, "laddr %pISp\n", &s_laddr);
 
 		rtnl_lock();
 		list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {

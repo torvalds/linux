@@ -5,7 +5,6 @@
  *
  */
 #include <linux/clk.h>
-#include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 
 #include <drm/drm_atomic.h>
@@ -17,6 +16,33 @@
 
 #include "komeda_dev.h"
 #include "komeda_kms.h"
+
+void komeda_crtc_get_color_config(struct drm_crtc_state *crtc_st,
+				  u32 *color_depths, u32 *color_formats)
+{
+	struct drm_connector *conn;
+	struct drm_connector_state *conn_st;
+	u32 conn_color_formats = ~0u;
+	int i, min_bpc = 31, conn_bpc = 0;
+
+	for_each_new_connector_in_state(crtc_st->state, conn, conn_st, i) {
+		if (conn_st->crtc != crtc_st->crtc)
+			continue;
+
+		conn_bpc = conn->display_info.bpc ? conn->display_info.bpc : 8;
+		conn_color_formats &= conn->display_info.color_formats;
+
+		if (conn_bpc < min_bpc)
+			min_bpc = conn_bpc;
+	}
+
+	/* connector doesn't config any color_format, use RGB444 as default */
+	if (!conn_color_formats)
+		conn_color_formats = DRM_COLOR_FORMAT_RGB444;
+
+	*color_depths = GENMASK(min_bpc, 0);
+	*color_formats = conn_color_formats;
+}
 
 static void komeda_crtc_update_clock_ratio(struct komeda_crtc_state *kcrtc_st)
 {
@@ -250,7 +276,43 @@ komeda_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	komeda_crtc_prepare(to_kcrtc(crtc));
 	drm_crtc_vblank_on(crtc);
+	WARN_ON(drm_crtc_vblank_get(crtc));
 	komeda_crtc_do_flush(crtc, old);
+}
+
+static void
+komeda_crtc_flush_and_wait_for_flip_done(struct komeda_crtc *kcrtc,
+					 struct completion *input_flip_done)
+{
+	struct drm_device *drm = kcrtc->base.dev;
+	struct komeda_dev *mdev = kcrtc->master->mdev;
+	struct completion *flip_done;
+	struct completion temp;
+	int timeout;
+
+	/* if caller doesn't send a flip_done, use a private flip_done */
+	if (input_flip_done) {
+		flip_done = input_flip_done;
+	} else {
+		init_completion(&temp);
+		kcrtc->disable_done = &temp;
+		flip_done = &temp;
+	}
+
+	mdev->funcs->flush(mdev, kcrtc->master->id, 0);
+
+	/* wait the flip take affect.*/
+	timeout = wait_for_completion_timeout(flip_done, HZ);
+	if (timeout == 0) {
+		DRM_ERROR("wait pipe%d flip done timeout\n", kcrtc->master->id);
+		if (!input_flip_done) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&drm->event_lock, flags);
+			kcrtc->disable_done = NULL;
+			spin_unlock_irqrestore(&drm->event_lock, flags);
+		}
+	}
 }
 
 static void
@@ -259,14 +321,12 @@ komeda_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
 	struct komeda_crtc_state *old_st = to_kcrtc_st(old);
-	struct komeda_dev *mdev = crtc->dev->dev_private;
 	struct komeda_pipeline *master = kcrtc->master;
 	struct komeda_pipeline *slave  = kcrtc->slave;
-	struct completion *disable_done = &crtc->state->commit->flip_done;
-	struct completion temp;
-	int timeout;
+	struct completion *disable_done;
+	bool needs_phase2 = false;
 
-	DRM_DEBUG_ATOMIC("CRTC%d_DISABLE: active_pipes: 0x%x, affected: 0x%x.\n",
+	DRM_DEBUG_ATOMIC("CRTC%d_DISABLE: active_pipes: 0x%x, affected: 0x%x\n",
 			 drm_crtc_index(crtc),
 			 old_st->active_pipes, old_st->affected_pipes);
 
@@ -274,7 +334,7 @@ komeda_crtc_atomic_disable(struct drm_crtc *crtc,
 		komeda_pipeline_disable(slave, old->state);
 
 	if (has_bit(master->id, old_st->active_pipes))
-		komeda_pipeline_disable(master, old->state);
+		needs_phase2 = komeda_pipeline_disable(master, old->state);
 
 	/* crtc_disable has two scenarios according to the state->active switch.
 	 * 1. active -> inactive
@@ -293,32 +353,23 @@ komeda_crtc_atomic_disable(struct drm_crtc *crtc,
 	 *    That's also the reason why skip modeset commit in
 	 *    komeda_crtc_atomic_flush()
 	 */
-	if (crtc->state->active) {
-		struct komeda_pipeline_state *pipe_st;
-		/* clear the old active_comps to zero */
-		pipe_st = komeda_pipeline_get_old_state(master, old->state);
-		pipe_st->active_comps = 0;
+	disable_done = (needs_phase2 || crtc->state->active) ?
+		       NULL : &crtc->state->commit->flip_done;
 
-		init_completion(&temp);
-		kcrtc->disable_done = &temp;
-		disable_done = &temp;
+	/* wait phase 1 disable done */
+	komeda_crtc_flush_and_wait_for_flip_done(kcrtc, disable_done);
+
+	/* phase 2 */
+	if (needs_phase2) {
+		komeda_pipeline_disable(kcrtc->master, old->state);
+
+		disable_done = crtc->state->active ?
+			       NULL : &crtc->state->commit->flip_done;
+
+		komeda_crtc_flush_and_wait_for_flip_done(kcrtc, disable_done);
 	}
 
-	mdev->funcs->flush(mdev, master->id, 0);
-
-	/* wait the disable take affect.*/
-	timeout = wait_for_completion_timeout(disable_done, HZ);
-	if (timeout == 0) {
-		DRM_ERROR("disable pipeline%d timeout.\n", kcrtc->master->id);
-		if (crtc->state->active) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&crtc->dev->event_lock, flags);
-			kcrtc->disable_done = NULL;
-			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-		}
-	}
-
+	drm_crtc_vblank_put(crtc);
 	drm_crtc_vblank_off(crtc);
 	komeda_crtc_unprepare(kcrtc);
 }

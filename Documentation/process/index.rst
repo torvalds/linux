@@ -46,6 +46,7 @@ Other guides to the community that are of interest to most developers are:
    kernel-docs
    deprecated
    embargoed-hardware-issues
+   maintainers
 
 These are some overall technical guides that have been put here for now for
 lack of a better place.
@@ -57,6 +58,7 @@ lack of a better place.
    adding-syscalls
    magic-number
    volatile-considered-harmful
+   botching-up-ioctls
    clang-format
 
 .. only::  subproject and html

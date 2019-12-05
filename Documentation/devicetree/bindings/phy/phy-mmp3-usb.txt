@@ -1,0 +1,13 @@
+Marvell MMP3 USB PHY
+--------------------
+
+Required properties:
+- compatible: must be "marvell,mmp3-usb-phy"
+- #phy-cells: must be 0
+
+Example:
+	usb-phy: usb-phy@d4207000 {
+		compatible = "marvell,mmp3-usb-phy";
+		reg = <0xd4207000 0x40>;
+		#phy-cells = <0>;
+	};

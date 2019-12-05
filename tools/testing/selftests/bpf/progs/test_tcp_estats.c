@@ -38,7 +38,7 @@
 #include <sys/socket.h>
 #include "bpf_helpers.h"
 
-#define _(P) ({typeof(P) val = 0; bpf_probe_read(&val, sizeof(val), &P); val;})
+#define _(P) ({typeof(P) val = 0; bpf_probe_read_kernel(&val, sizeof(val), &P); val;})
 #define TCP_ESTATS_MAGIC 0xBAADBEEF
 
 /* This test case needs "sock" and "pt_regs" data structure.

@@ -26,6 +26,8 @@
 #include <asm/sn/gda.h>
 #include <asm/sn/sn0/hub.h>
 
+#include "ip27-common.h"
+
 void machine_restart(char *command) __noreturn;
 void machine_halt(void) __noreturn;
 void machine_power_off(void) __noreturn;
@@ -45,8 +47,7 @@ static void ip27_machine_restart(char *command)
 #endif
 #if 0
 	for_each_online_node(i)
-		REMOTE_HUB_S(COMPACT_TO_NASID_NODEID(i), PROMOP_REG,
-							PROMOP_REBOOT);
+		REMOTE_HUB_S(i, PROMOP_REG, PROMOP_REBOOT);
 #else
 	LOCAL_HUB_S(NI_PORT_RESET, NPR_PORTRESET | NPR_LOCALRESET);
 #endif
@@ -61,8 +62,7 @@ static void ip27_machine_halt(void)
 	smp_send_stop();
 #endif
 	for_each_online_node(i)
-		REMOTE_HUB_S(COMPACT_TO_NASID_NODEID(i), PROMOP_REG,
-							PROMOP_RESTART);
+		REMOTE_HUB_S(i, PROMOP_REG, PROMOP_RESTART);
 	LOCAL_HUB_S(NI_PORT_RESET, NPR_PORTRESET | NPR_LOCALRESET);
 	noreturn;
 }

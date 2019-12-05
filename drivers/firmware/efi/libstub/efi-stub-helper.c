@@ -32,6 +32,7 @@ static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 static int __section(.data) __nokaslr;
 static int __section(.data) __quiet;
 static int __section(.data) __novamap;
+static bool __section(.data) efi_nosoftreserve;
 
 int __pure nokaslr(void)
 {
@@ -44,6 +45,10 @@ int __pure is_quiet(void)
 int __pure novamap(void)
 {
 	return __novamap;
+}
+bool __pure __efi_soft_reserve_enabled(void)
+{
+	return !efi_nosoftreserve;
 }
 
 #define EFI_MMAP_NR_SLACK_SLOTS	8
@@ -211,6 +216,10 @@ again:
 		if (desc->type != EFI_CONVENTIONAL_MEMORY)
 			continue;
 
+		if (efi_soft_reserve_enabled() &&
+		    (desc->attribute & EFI_MEMORY_SP))
+			continue;
+
 		if (desc->num_pages < nr_pages)
 			continue;
 
@@ -260,11 +269,11 @@ fail:
 }
 
 /*
- * Allocate at the lowest possible address.
+ * Allocate at the lowest possible address that is not below 'min'.
  */
-efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
-			   unsigned long size, unsigned long align,
-			   unsigned long *addr)
+efi_status_t efi_low_alloc_above(efi_system_table_t *sys_table_arg,
+				 unsigned long size, unsigned long align,
+				 unsigned long *addr, unsigned long min)
 {
 	unsigned long map_size, desc_size, buff_size;
 	efi_memory_desc_t *map;
@@ -305,19 +314,18 @@ efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 		if (desc->type != EFI_CONVENTIONAL_MEMORY)
 			continue;
 
+		if (efi_soft_reserve_enabled() &&
+		    (desc->attribute & EFI_MEMORY_SP))
+			continue;
+
 		if (desc->num_pages < nr_pages)
 			continue;
 
 		start = desc->phys_addr;
 		end = start + desc->num_pages * EFI_PAGE_SIZE;
 
-		/*
-		 * Don't allocate at 0x0. It will confuse code that
-		 * checks pointers against NULL. Skip the first 8
-		 * bytes so we start at a nice even number.
-		 */
-		if (start == 0x0)
-			start += 8;
+		if (start < min)
+			start = min;
 
 		start = round_up(start, align);
 		if ((start + size) > end)
@@ -487,6 +495,12 @@ efi_status_t efi_parse_options(char const *cmdline)
 		if (!strncmp(str, "novamap", 7)) {
 			str += strlen("novamap");
 			__novamap = 1;
+		}
+
+		if (IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
+		    !strncmp(str, "nosoftreserve", 7)) {
+			str += strlen("nosoftreserve");
+			efi_nosoftreserve = 1;
 		}
 
 		/* Group words together, delimited by "," */
@@ -698,7 +712,8 @@ efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
 				 unsigned long image_size,
 				 unsigned long alloc_size,
 				 unsigned long preferred_addr,
-				 unsigned long alignment)
+				 unsigned long alignment,
+				 unsigned long min_addr)
 {
 	unsigned long cur_image_addr;
 	unsigned long new_addr = 0;
@@ -731,8 +746,8 @@ efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
 	 * possible.
 	 */
 	if (status != EFI_SUCCESS) {
-		status = efi_low_alloc(sys_table_arg, alloc_size, alignment,
-				       &new_addr);
+		status = efi_low_alloc_above(sys_table_arg, alloc_size,
+					     alignment, &new_addr, min_addr);
 	}
 	if (status != EFI_SUCCESS) {
 		pr_efi_err(sys_table_arg, "Failed to allocate usable memory for kernel.\n");

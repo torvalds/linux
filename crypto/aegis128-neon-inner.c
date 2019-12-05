@@ -132,6 +132,36 @@ void preload_sbox(void)
 	    :: "r"(crypto_aes_sbox));
 }
 
+void crypto_aegis128_init_neon(void *state, const void *key, const void *iv)
+{
+	static const uint8_t const0[] = {
+		0x00, 0x01, 0x01, 0x02, 0x03, 0x05, 0x08, 0x0d,
+		0x15, 0x22, 0x37, 0x59, 0x90, 0xe9, 0x79, 0x62,
+	};
+	static const uint8_t const1[] = {
+		0xdb, 0x3d, 0x18, 0x55, 0x6d, 0xc2, 0x2f, 0xf1,
+		0x20, 0x11, 0x31, 0x42, 0x73, 0xb5, 0x28, 0xdd,
+	};
+	uint8x16_t k = vld1q_u8(key);
+	uint8x16_t kiv = k ^ vld1q_u8(iv);
+	struct aegis128_state st = {{
+		kiv,
+		vld1q_u8(const1),
+		vld1q_u8(const0),
+		k ^ vld1q_u8(const0),
+		k ^ vld1q_u8(const1),
+	}};
+	int i;
+
+	preload_sbox();
+
+	for (i = 0; i < 5; i++) {
+		st = aegis128_update_neon(st, k);
+		st = aegis128_update_neon(st, kiv);
+	}
+	aegis128_save_state_neon(st, state);
+}
+
 void crypto_aegis128_update_neon(void *state, const void *msg)
 {
 	struct aegis128_state st = aegis128_load_state_neon(state);
@@ -209,4 +239,24 @@ void crypto_aegis128_decrypt_chunk_neon(void *state, void *dst, const void *src,
 	}
 
 	aegis128_save_state_neon(st, state);
+}
+
+void crypto_aegis128_final_neon(void *state, void *tag_xor, uint64_t assoclen,
+				uint64_t cryptlen)
+{
+	struct aegis128_state st = aegis128_load_state_neon(state);
+	uint8x16_t v;
+	int i;
+
+	preload_sbox();
+
+	v = st.v[3] ^ (uint8x16_t)vcombine_u64(vmov_n_u64(8 * assoclen),
+					       vmov_n_u64(8 * cryptlen));
+
+	for (i = 0; i < 7; i++)
+		st = aegis128_update_neon(st, v);
+
+	v = vld1q_u8(tag_xor);
+	v ^= st.v[0] ^ st.v[1] ^ st.v[2] ^ st.v[3] ^ st.v[4];
+	vst1q_u8(tag_xor, v);
 }

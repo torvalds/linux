@@ -528,6 +528,7 @@ static int comp_disconnect_channel(struct most_interface *iface,
 }
 
 static struct core_component comp = {
+	.mod = THIS_MODULE,
 	.name = "video",
 	.probe_channel = comp_probe_channel,
 	.disconnect_channel = comp_disconnect_channel,

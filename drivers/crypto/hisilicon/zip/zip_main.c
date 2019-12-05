@@ -79,47 +79,80 @@
 #define HZIP_SOFT_CTRL_CNT_CLR_CE	0x301000
 #define SOFT_CTRL_CNT_CLR_CE_BIT	BIT(0)
 
-#define HZIP_NUMA_DISTANCE		100
 #define HZIP_BUF_SIZE			22
 
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
-LIST_HEAD(hisi_zip_list);
-DEFINE_MUTEX(hisi_zip_list_lock);
+static LIST_HEAD(hisi_zip_list);
+static DEFINE_MUTEX(hisi_zip_list_lock);
 
-#ifdef CONFIG_NUMA
-static struct hisi_zip *find_zip_device_numa(int node)
+struct hisi_zip_resource {
+	struct hisi_zip *hzip;
+	int distance;
+	struct list_head list;
+};
+
+static void free_list(struct list_head *head)
 {
-	struct hisi_zip *zip = NULL;
-	struct hisi_zip *hisi_zip;
-	int min_distance = HZIP_NUMA_DISTANCE;
-	struct device *dev;
+	struct hisi_zip_resource *res, *tmp;
 
-	list_for_each_entry(hisi_zip, &hisi_zip_list, list) {
-		dev = &hisi_zip->qm.pdev->dev;
-		if (node_distance(dev->numa_node, node) < min_distance) {
-			zip = hisi_zip;
-			min_distance = node_distance(dev->numa_node, node);
-		}
+	list_for_each_entry_safe(res, tmp, head, list) {
+		list_del(&res->list);
+		kfree(res);
 	}
-
-	return zip;
 }
-#endif
 
 struct hisi_zip *find_zip_device(int node)
 {
-	struct hisi_zip *zip = NULL;
+	struct hisi_zip_resource *res, *tmp;
+	struct hisi_zip *ret = NULL;
+	struct hisi_zip *hisi_zip;
+	struct list_head *n;
+	struct device *dev;
+	LIST_HEAD(head);
 
 	mutex_lock(&hisi_zip_list_lock);
-#ifdef CONFIG_NUMA
-	zip = find_zip_device_numa(node);
-#else
-	zip = list_first_entry(&hisi_zip_list, struct hisi_zip, list);
-#endif
+
+	if (IS_ENABLED(CONFIG_NUMA)) {
+		list_for_each_entry(hisi_zip, &hisi_zip_list, list) {
+			res = kzalloc(sizeof(*res), GFP_KERNEL);
+			if (!res)
+				goto err;
+
+			dev = &hisi_zip->qm.pdev->dev;
+			res->hzip = hisi_zip;
+			res->distance = node_distance(dev_to_node(dev), node);
+
+			n = &head;
+			list_for_each_entry(tmp, &head, list) {
+				if (res->distance < tmp->distance) {
+					n = &tmp->list;
+					break;
+				}
+			}
+			list_add_tail(&res->list, n);
+		}
+
+		list_for_each_entry(tmp, &head, list) {
+			if (hisi_qm_get_free_qp_num(&tmp->hzip->qm)) {
+				ret = tmp->hzip;
+				break;
+			}
+		}
+
+		free_list(&head);
+	} else {
+		ret = list_first_entry(&hisi_zip_list, struct hisi_zip, list);
+	}
+
 	mutex_unlock(&hisi_zip_list_lock);
 
-	return zip;
+	return ret;
+
+err:
+	free_list(&head);
+	mutex_unlock(&hisi_zip_list_lock);
+	return NULL;
 }
 
 struct hisi_zip_hw_error {
@@ -267,6 +300,10 @@ MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 1-4096, v2 1-1024)");
 static int uacce_mode;
 module_param(uacce_mode, int, 0);
 
+static u32 vfs_num;
+module_param(vfs_num, uint, 0444);
+MODULE_PARM_DESC(vfs_num, "Number of VFs to enable(1-63)");
+
 static const struct pci_device_id hisi_zip_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_ZIP_PF) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_ZIP_VF) },
@@ -335,8 +372,7 @@ static void hisi_zip_hw_error_set_state(struct hisi_zip *hisi_zip, bool state)
 
 	if (qm->ver == QM_HW_V1) {
 		writel(HZIP_CORE_INT_DISABLE, qm->io_base + HZIP_CORE_INT_MASK);
-		dev_info(&qm->pdev->dev, "ZIP v%d does not support hw error handle\n",
-			 qm->ver);
+		dev_info(&qm->pdev->dev, "Does not support hw error handle\n");
 		return;
 	}
 
@@ -511,7 +547,7 @@ static int hisi_zip_core_debug_init(struct hisi_zip_ctrl *ctrl)
 	struct hisi_qm *qm = &hisi_zip->qm;
 	struct device *dev = &qm->pdev->dev;
 	struct debugfs_regset32 *regset;
-	struct dentry *tmp_d, *tmp;
+	struct dentry *tmp_d;
 	char buf[HZIP_BUF_SIZE];
 	int i;
 
@@ -521,10 +557,6 @@ static int hisi_zip_core_debug_init(struct hisi_zip_ctrl *ctrl)
 		else
 			sprintf(buf, "decomp_core%d", i - HZIP_COMP_CORE_NUM);
 
-		tmp_d = debugfs_create_dir(buf, ctrl->debug_root);
-		if (!tmp_d)
-			return -ENOENT;
-
 		regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 		if (!regset)
 			return -ENOENT;
@@ -533,9 +565,8 @@ static int hisi_zip_core_debug_init(struct hisi_zip_ctrl *ctrl)
 		regset->nregs = ARRAY_SIZE(hzip_dfx_regs);
 		regset->base = qm->io_base + core_offsets[i];
 
-		tmp = debugfs_create_regset32("regs", 0444, tmp_d, regset);
-		if (!tmp)
-			return -ENOENT;
+		tmp_d = debugfs_create_dir(buf, ctrl->debug_root);
+		debugfs_create_regset32("regs", 0444, tmp_d, regset);
 	}
 
 	return 0;
@@ -543,7 +574,6 @@ static int hisi_zip_core_debug_init(struct hisi_zip_ctrl *ctrl)
 
 static int hisi_zip_ctrl_debug_init(struct hisi_zip_ctrl *ctrl)
 {
-	struct dentry *tmp;
 	int i;
 
 	for (i = HZIP_CURRENT_QM; i < HZIP_DEBUG_FILE_NUM; i++) {
@@ -551,11 +581,9 @@ static int hisi_zip_ctrl_debug_init(struct hisi_zip_ctrl *ctrl)
 		ctrl->files[i].ctrl = ctrl;
 		ctrl->files[i].index = i;
 
-		tmp = debugfs_create_file(ctrl_debug_file_name[i], 0600,
-					  ctrl->debug_root, ctrl->files + i,
-					  &ctrl_debug_fops);
-		if (!tmp)
-			return -ENOENT;
+		debugfs_create_file(ctrl_debug_file_name[i], 0600,
+				    ctrl->debug_root, ctrl->files + i,
+				    &ctrl_debug_fops);
 	}
 
 	return hisi_zip_core_debug_init(ctrl);
@@ -569,8 +597,6 @@ static int hisi_zip_debugfs_init(struct hisi_zip *hisi_zip)
 	int ret;
 
 	dev_d = debugfs_create_dir(dev_name(dev), hzip_debugfs_root);
-	if (!dev_d)
-		return -ENOENT;
 
 	qm->debug.debug_root = dev_d;
 	ret = hisi_qm_debug_init(qm);
@@ -650,90 +676,6 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	hisi_zip_debug_regs_clear(hisi_zip);
 
 	return 0;
-}
-
-static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
-{
-	struct hisi_zip *hisi_zip;
-	enum qm_hw_ver rev_id;
-	struct hisi_qm *qm;
-	int ret;
-
-	rev_id = hisi_qm_get_hw_version(pdev);
-	if (rev_id == QM_HW_UNKNOWN)
-		return -EINVAL;
-
-	hisi_zip = devm_kzalloc(&pdev->dev, sizeof(*hisi_zip), GFP_KERNEL);
-	if (!hisi_zip)
-		return -ENOMEM;
-	pci_set_drvdata(pdev, hisi_zip);
-
-	qm = &hisi_zip->qm;
-	qm->pdev = pdev;
-	qm->ver = rev_id;
-
-	qm->sqe_size = HZIP_SQE_SIZE;
-	qm->dev_name = hisi_zip_name;
-	qm->fun_type = (pdev->device == PCI_DEVICE_ID_ZIP_PF) ? QM_HW_PF :
-								QM_HW_VF;
-	switch (uacce_mode) {
-	case 0:
-		qm->use_dma_api = true;
-		break;
-	case 1:
-		qm->use_dma_api = false;
-		break;
-	case 2:
-		qm->use_dma_api = true;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = hisi_qm_init(qm);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to init qm!\n");
-		return ret;
-	}
-
-	if (qm->fun_type == QM_HW_PF) {
-		ret = hisi_zip_pf_probe_init(hisi_zip);
-		if (ret)
-			return ret;
-
-		qm->qp_base = HZIP_PF_DEF_Q_BASE;
-		qm->qp_num = pf_q_num;
-	} else if (qm->fun_type == QM_HW_VF) {
-		/*
-		 * have no way to get qm configure in VM in v1 hardware,
-		 * so currently force PF to uses HZIP_PF_DEF_Q_NUM, and force
-		 * to trigger only one VF in v1 hardware.
-		 *
-		 * v2 hardware has no such problem.
-		 */
-		if (qm->ver == QM_HW_V1) {
-			qm->qp_base = HZIP_PF_DEF_Q_NUM;
-			qm->qp_num = HZIP_QUEUE_NUM_V1 - HZIP_PF_DEF_Q_NUM;
-		} else if (qm->ver == QM_HW_V2)
-			/* v2 starts to support get vft by mailbox */
-			hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
-	}
-
-	ret = hisi_qm_start(qm);
-	if (ret)
-		goto err_qm_uninit;
-
-	ret = hisi_zip_debugfs_init(hisi_zip);
-	if (ret)
-		dev_err(&pdev->dev, "Failed to init debugfs (%d)!\n", ret);
-
-	hisi_zip_add_to_list(hisi_zip);
-
-	return 0;
-
-err_qm_uninit:
-	hisi_qm_uninit(qm);
-	return ret;
 }
 
 /* Currently we only support equal assignment */
@@ -830,6 +772,100 @@ static int hisi_zip_sriov_disable(struct pci_dev *pdev)
 	pci_disable_sriov(pdev);
 
 	return hisi_zip_clear_vft_config(hisi_zip);
+}
+
+static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	struct hisi_zip *hisi_zip;
+	enum qm_hw_ver rev_id;
+	struct hisi_qm *qm;
+	int ret;
+
+	rev_id = hisi_qm_get_hw_version(pdev);
+	if (rev_id == QM_HW_UNKNOWN)
+		return -EINVAL;
+
+	hisi_zip = devm_kzalloc(&pdev->dev, sizeof(*hisi_zip), GFP_KERNEL);
+	if (!hisi_zip)
+		return -ENOMEM;
+	pci_set_drvdata(pdev, hisi_zip);
+
+	qm = &hisi_zip->qm;
+	qm->pdev = pdev;
+	qm->ver = rev_id;
+
+	qm->sqe_size = HZIP_SQE_SIZE;
+	qm->dev_name = hisi_zip_name;
+	qm->fun_type = (pdev->device == PCI_DEVICE_ID_ZIP_PF) ? QM_HW_PF :
+								QM_HW_VF;
+	switch (uacce_mode) {
+	case 0:
+		qm->use_dma_api = true;
+		break;
+	case 1:
+		qm->use_dma_api = false;
+		break;
+	case 2:
+		qm->use_dma_api = true;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = hisi_qm_init(qm);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to init qm!\n");
+		return ret;
+	}
+
+	if (qm->fun_type == QM_HW_PF) {
+		ret = hisi_zip_pf_probe_init(hisi_zip);
+		if (ret)
+			return ret;
+
+		qm->qp_base = HZIP_PF_DEF_Q_BASE;
+		qm->qp_num = pf_q_num;
+	} else if (qm->fun_type == QM_HW_VF) {
+		/*
+		 * have no way to get qm configure in VM in v1 hardware,
+		 * so currently force PF to uses HZIP_PF_DEF_Q_NUM, and force
+		 * to trigger only one VF in v1 hardware.
+		 *
+		 * v2 hardware has no such problem.
+		 */
+		if (qm->ver == QM_HW_V1) {
+			qm->qp_base = HZIP_PF_DEF_Q_NUM;
+			qm->qp_num = HZIP_QUEUE_NUM_V1 - HZIP_PF_DEF_Q_NUM;
+		} else if (qm->ver == QM_HW_V2)
+			/* v2 starts to support get vft by mailbox */
+			hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+	}
+
+	ret = hisi_qm_start(qm);
+	if (ret)
+		goto err_qm_uninit;
+
+	ret = hisi_zip_debugfs_init(hisi_zip);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to init debugfs (%d)!\n", ret);
+
+	hisi_zip_add_to_list(hisi_zip);
+
+	if (qm->fun_type == QM_HW_PF && vfs_num > 0) {
+		ret = hisi_zip_sriov_enable(pdev, vfs_num);
+		if (ret < 0)
+			goto err_remove_from_list;
+	}
+
+	return 0;
+
+err_remove_from_list:
+	hisi_zip_remove_from_list(hisi_zip);
+	hisi_zip_debugfs_exit(hisi_zip);
+	hisi_qm_stop(qm);
+err_qm_uninit:
+	hisi_qm_uninit(qm);
+	return ret;
 }
 
 static int hisi_zip_sriov_configure(struct pci_dev *pdev, int num_vfs)
@@ -945,7 +981,7 @@ static struct pci_driver hisi_zip_pci_driver = {
 	.probe			= hisi_zip_probe,
 	.remove			= hisi_zip_remove,
 	.sriov_configure	= IS_ENABLED(CONFIG_PCI_IOV) ?
-					hisi_zip_sriov_configure : 0,
+					hisi_zip_sriov_configure : NULL,
 	.err_handler		= &hisi_zip_err_handler,
 };
 
@@ -955,8 +991,6 @@ static void hisi_zip_register_debugfs(void)
 		return;
 
 	hzip_debugfs_root = debugfs_create_dir("hisi_zip", NULL);
-	if (IS_ERR_OR_NULL(hzip_debugfs_root))
-		hzip_debugfs_root = NULL;
 }
 
 static void hisi_zip_unregister_debugfs(void)

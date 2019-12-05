@@ -53,7 +53,10 @@ static int sa1100_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	void __iomem *gpdr = sa1100_gpio_chip(chip)->membase + R_GPDR;
 
-	return !(readl_relaxed(gpdr) & BIT(offset));
+	if (readl_relaxed(gpdr) & BIT(offset))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int sa1100_direction_input(struct gpio_chip *chip, unsigned offset)

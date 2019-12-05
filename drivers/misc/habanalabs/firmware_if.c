@@ -143,10 +143,7 @@ int hl_fw_test_cpu_queue(struct hl_device *hdev)
 			sizeof(test_pkt), HL_DEVICE_TIMEOUT_USEC, &result);
 
 	if (!rc) {
-		if (result == ARMCP_PACKET_FENCE_VAL)
-			dev_info(hdev->dev,
-				"queue test on CPU queue succeeded\n");
-		else
+		if (result != ARMCP_PACKET_FENCE_VAL)
 			dev_err(hdev->dev,
 				"CPU queue test failed (0x%08lX)\n", result);
 	} else {

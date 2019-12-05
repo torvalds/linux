@@ -770,7 +770,7 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 	int			ret;
 	struct dentry		*root;
 
-	root = debugfs_create_dir(dev_name(hsotg->dev), NULL);
+	root = debugfs_create_dir(dev_name(hsotg->dev), usb_debug_root);
 	hsotg->debug_root = root;
 
 	debugfs_create_file("params", 0444, root, hsotg, &params_fops);

@@ -342,7 +342,7 @@ DEFINE_SHOW_ATTRIBUTE(ci_registers);
  */
 void dbg_create_files(struct ci_hdrc *ci)
 {
-	ci->debugfs = debugfs_create_dir(dev_name(ci->dev), NULL);
+	ci->debugfs = debugfs_create_dir(dev_name(ci->dev), usb_debug_root);
 
 	debugfs_create_file("device", S_IRUGO, ci->debugfs, ci,
 			    &ci_device_fops);

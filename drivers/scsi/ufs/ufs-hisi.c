@@ -452,10 +452,7 @@ static int ufs_hisi_get_resource(struct ufs_hisi_host *host)
 
 	/* get resource of ufs sys ctrl */
 	host->ufs_sys_ctrl = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(host->ufs_sys_ctrl))
-		return PTR_ERR(host->ufs_sys_ctrl);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(host->ufs_sys_ctrl);
 }
 
 static void ufs_hisi_set_pm_lvl(struct ufs_hba *hba)

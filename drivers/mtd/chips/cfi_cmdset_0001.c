@@ -1353,7 +1353,7 @@ static int do_point_onechip (struct map_info *map, struct flchip *chip, loff_t a
 {
 	unsigned long cmd_addr;
 	struct cfi_private *cfi = map->fldrv_priv;
-	int ret = 0;
+	int ret;
 
 	adr += chip->start;
 
@@ -1383,7 +1383,7 @@ static int cfi_intelext_point(struct mtd_info *mtd, loff_t from, size_t len,
 	struct cfi_private *cfi = map->fldrv_priv;
 	unsigned long ofs, last_end = 0;
 	int chipnum;
-	int ret = 0;
+	int ret;
 
 	if (!map->virt)
 		return -EINVAL;
@@ -1550,7 +1550,7 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 {
 	struct cfi_private *cfi = map->fldrv_priv;
 	map_word status, write_cmd;
-	int ret=0;
+	int ret;
 
 	adr += chip->start;
 
@@ -1624,7 +1624,7 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
-	int ret = 0;
+	int ret;
 	int chipnum;
 	unsigned long ofs;
 
@@ -1871,7 +1871,7 @@ static int cfi_intelext_writev (struct mtd_info *mtd, const struct kvec *vecs,
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
 	int wbufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
-	int ret = 0;
+	int ret;
 	int chipnum;
 	unsigned long ofs, vec_seek, i;
 	size_t len = 0;

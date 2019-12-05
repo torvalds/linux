@@ -2,7 +2,9 @@
 #ifndef _LINUX_FUTEX_H
 #define _LINUX_FUTEX_H
 
+#include <linux/sched.h>
 #include <linux/ktime.h>
+
 #include <uapi/linux/futex.h>
 
 struct inode;
@@ -48,28 +50,40 @@ union futex_key {
 #define FUTEX_KEY_INIT (union futex_key) { .both = { .ptr = NULL } }
 
 #ifdef CONFIG_FUTEX
-extern void exit_robust_list(struct task_struct *curr);
+enum {
+	FUTEX_STATE_OK,
+	FUTEX_STATE_EXITING,
+	FUTEX_STATE_DEAD,
+};
+
+static inline void futex_init_task(struct task_struct *tsk)
+{
+	tsk->robust_list = NULL;
+#ifdef CONFIG_COMPAT
+	tsk->compat_robust_list = NULL;
+#endif
+	INIT_LIST_HEAD(&tsk->pi_state_list);
+	tsk->pi_state_cache = NULL;
+	tsk->futex_state = FUTEX_STATE_OK;
+	mutex_init(&tsk->futex_exit_mutex);
+}
+
+void futex_exit_recursive(struct task_struct *tsk);
+void futex_exit_release(struct task_struct *tsk);
+void futex_exec_release(struct task_struct *tsk);
 
 long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 	      u32 __user *uaddr2, u32 val2, u32 val3);
 #else
-static inline void exit_robust_list(struct task_struct *curr)
-{
-}
-
+static inline void futex_init_task(struct task_struct *tsk) { }
+static inline void futex_exit_recursive(struct task_struct *tsk) { }
+static inline void futex_exit_release(struct task_struct *tsk) { }
+static inline void futex_exec_release(struct task_struct *tsk) { }
 static inline long do_futex(u32 __user *uaddr, int op, u32 val,
 			    ktime_t *timeout, u32 __user *uaddr2,
 			    u32 val2, u32 val3)
 {
 	return -EINVAL;
-}
-#endif
-
-#ifdef CONFIG_FUTEX_PI
-extern void exit_pi_state_list(struct task_struct *curr);
-#else
-static inline void exit_pi_state_list(struct task_struct *curr)
-{
 }
 #endif
 

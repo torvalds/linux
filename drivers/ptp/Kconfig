@@ -97,8 +97,8 @@ config PTP_1588_CLOCK_PCH
 	help
 	  This driver adds support for using the PCH EG20T as a PTP
 	  clock. The hardware supports time stamping of PTP packets
-	  when using the end-to-end delay (E2E) mechansim. The peer
-	  delay mechansim (P2P) is not supported.
+	  when using the end-to-end delay (E2E) mechanism. The peer
+	  delay mechanism (P2P) is not supported.
 
 	  This clock is only useful if your PTP programs are getting
 	  hardware time stamps on the PTP Ethernet packets using the
@@ -118,5 +118,17 @@ config PTP_1588_CLOCK_KVM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_kvm.
+
+config PTP_1588_CLOCK_IDTCM
+	tristate "IDT CLOCKMATRIX as PTP clock"
+	depends on PTP_1588_CLOCK
+	default n
+	help
+	  This driver adds support for using IDT CLOCKMATRIX(TM) as a PTP
+	  clock. This clock is only useful if your time stamping MAC
+	  is connected to the IDT chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_clockmatrix.
 
 endmenu

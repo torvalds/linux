@@ -194,7 +194,7 @@ static int maxim_thermocouple_read_raw(struct iio_dev *indio_dev,
 		default:
 			*val = 250; /* 1000 * 0.25 */
 			ret = IIO_VAL_INT;
-		};
+		}
 		break;
 	}
 

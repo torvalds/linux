@@ -57,6 +57,10 @@ static int brcmf_pno_remove_request(struct brcmf_pno_info *pi, u64 reqid)
 
 	mutex_lock(&pi->req_lock);
 
+	/* Nothing to do if we have no requests */
+	if (pi->n_reqs == 0)
+		goto done;
+
 	/* find request */
 	for (i = 0; i < pi->n_reqs; i++) {
 		if (pi->reqs[i]->reqid == reqid)

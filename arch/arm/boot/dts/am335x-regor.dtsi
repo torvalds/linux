@@ -200,24 +200,3 @@
 	status = "okay";
 	linux,rs485-enabled-at-boot-time;
 };
-
-/* USB */
-&cppi41dma {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};

@@ -4,6 +4,7 @@
  */
 
 #include "mt76x2.h"
+#include "../mt76x02_mac.h"
 
 static int
 mt76x2_start(struct ieee80211_hw *hw)
@@ -11,10 +12,7 @@ mt76x2_start(struct ieee80211_hw *hw)
 	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
-	ret = mt76x2_mac_start(dev);
-	if (ret)
-		return ret;
-
+	mt76x02_mac_start(dev);
 	ret = mt76x2_phy_start(dev);
 	if (ret)
 		return ret;
@@ -54,10 +52,7 @@ mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	mt76x2_mac_stop(dev, true);
 	ret = mt76x2_phy_set_channel(dev, chandef);
 
-	/* channel cycle counters read-and-clear */
-	mt76_rr(dev, MT_CH_IDLE);
-	mt76_rr(dev, MT_CH_BUSY);
-
+	mt76x02_mac_cc_reset(dev);
 	mt76x02_dfs_init_params(dev);
 
 	mt76x2_mac_resume(dev);
@@ -140,19 +135,6 @@ static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 	return 0;
 }
 
-static int mt76x2_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
-			      u32 *rx_ant)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	mutex_lock(&dev->mt76.mutex);
-	*tx_ant = dev->mt76.antenna_mask;
-	*rx_ant = dev->mt76.antenna_mask;
-	mutex_unlock(&dev->mt76.mutex);
-
-	return 0;
-}
-
 const struct ieee80211_ops mt76x2_ops = {
 	.tx = mt76x02_tx,
 	.start = mt76x2_start,
@@ -177,7 +159,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.get_survey = mt76_get_survey,
 	.set_tim = mt76_set_tim,
 	.set_antenna = mt76x2_set_antenna,
-	.get_antenna = mt76x2_get_antenna,
+	.get_antenna = mt76_get_antenna,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
 };
 

@@ -98,6 +98,8 @@ static int ufs_bsg_request(struct bsg_job *job)
 
 	bsg_reply->reply_payload_rcv_len = 0;
 
+	pm_runtime_get_sync(hba->dev);
+
 	msgcode = bsg_request->msgcode;
 	switch (msgcode) {
 	case UPIU_TRANSACTION_QUERY_REQ:
@@ -135,6 +137,8 @@ static int ufs_bsg_request(struct bsg_job *job)
 		break;
 	}
 
+	pm_runtime_put_sync(hba->dev);
+
 	if (!desc_buff)
 		goto out;
 
@@ -158,6 +162,7 @@ out:
 
 /**
  * ufs_bsg_remove - detach and remove the added ufs-bsg node
+ * @hba: per adapter object
  *
  * Should be called when unloading the driver.
  */

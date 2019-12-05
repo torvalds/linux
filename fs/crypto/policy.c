@@ -29,6 +29,40 @@ bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
 	return !memcmp(policy1, policy2, fscrypt_policy_size(policy1));
 }
 
+static bool supported_iv_ino_lblk_64_policy(
+					const struct fscrypt_policy_v2 *policy,
+					const struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+	int ino_bits = 64, lblk_bits = 64;
+
+	if (policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
+		fscrypt_warn(inode,
+			     "The DIRECT_KEY and IV_INO_LBLK_64 flags are mutually exclusive");
+		return false;
+	}
+	/*
+	 * It's unsafe to include inode numbers in the IVs if the filesystem can
+	 * potentially renumber inodes, e.g. via filesystem shrinking.
+	 */
+	if (!sb->s_cop->has_stable_inodes ||
+	    !sb->s_cop->has_stable_inodes(sb)) {
+		fscrypt_warn(inode,
+			     "Can't use IV_INO_LBLK_64 policy on filesystem '%s' because it doesn't have stable inode numbers",
+			     sb->s_id);
+		return false;
+	}
+	if (sb->s_cop->get_ino_and_lblk_bits)
+		sb->s_cop->get_ino_and_lblk_bits(sb, &ino_bits, &lblk_bits);
+	if (ino_bits > 32 || lblk_bits > 32) {
+		fscrypt_warn(inode,
+			     "Can't use IV_INO_LBLK_64 policy on filesystem '%s' because it doesn't use 32-bit inode and block numbers",
+			     sb->s_id);
+		return false;
+	}
+	return true;
+}
+
 /**
  * fscrypt_supported_policy - check whether an encryption policy is supported
  *
@@ -55,7 +89,8 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 			return false;
 		}
 
-		if (policy->flags & ~FSCRYPT_POLICY_FLAGS_VALID) {
+		if (policy->flags & ~(FSCRYPT_POLICY_FLAGS_PAD_MASK |
+				      FSCRYPT_POLICY_FLAG_DIRECT_KEY)) {
 			fscrypt_warn(inode,
 				     "Unsupported encryption flags (0x%02x)",
 				     policy->flags);
@@ -82,6 +117,10 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 				     policy->flags);
 			return false;
 		}
+
+		if ((policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) &&
+		    !supported_iv_ino_lblk_64_policy(policy, inode))
+			return false;
 
 		if (memchr_inv(policy->__reserved, 0,
 			       sizeof(policy->__reserved))) {

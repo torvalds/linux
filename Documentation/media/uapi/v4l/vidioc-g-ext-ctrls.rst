@@ -199,6 +199,11 @@ still cause this situation.
       - A pointer to a matrix control of unsigned 32-bit values. Valid if
 	this control is of type ``V4L2_CTRL_TYPE_U32``.
     * -
+      - :c:type:`v4l2_area` *
+      - ``p_area``
+      - A pointer to a struct :c:type:`v4l2_area`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_AREA``.
+    * -
       - void *
       - ``ptr``
       - A pointer to a compound type which can be an N-dimensional array

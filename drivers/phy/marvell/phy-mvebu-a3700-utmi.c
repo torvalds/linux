@@ -216,20 +216,13 @@ static int mvebu_a3700_utmi_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mvebu_a3700_utmi *utmi;
 	struct phy_provider *provider;
-	struct resource *res;
 
 	utmi = devm_kzalloc(dev, sizeof(*utmi), GFP_KERNEL);
 	if (!utmi)
 		return -ENOMEM;
 
 	/* Get UTMI memory region */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "Missing UTMI PHY memory resource\n");
-		return -ENODEV;
-	}
-
-	utmi->regs = devm_ioremap_resource(dev, res);
+	utmi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(utmi->regs))
 		return PTR_ERR(utmi->regs);
 

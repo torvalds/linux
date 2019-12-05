@@ -288,31 +288,6 @@ static int charlcd_init_display(struct charlcd *lcd)
 }
 
 /*
- * Parses an unsigned integer from a string, until a non-digit character
- * is found. The empty string is not accepted. No overflow checks are done.
- *
- * Returns whether the parsing was successful. Only in that case
- * the output parameters are written to.
- *
- * TODO: If the kernel adds an inplace version of kstrtoul(), this function
- * could be easily replaced by that.
- */
-static bool parse_n(const char *s, unsigned long *res, const char **next_s)
-{
-	if (!isdigit(*s))
-		return false;
-
-	*res = 0;
-	while (isdigit(*s)) {
-		*res = *res * 10 + (*s - '0');
-		++s;
-	}
-
-	*next_s = s;
-	return true;
-}
-
-/*
  * Parses a movement command of the form "(.*);", where the group can be
  * any number of subcommands of the form "(x|y)[0-9]+".
  *
@@ -336,6 +311,7 @@ static bool parse_xy(const char *s, unsigned long *x, unsigned long *y)
 {
 	unsigned long new_x = *x;
 	unsigned long new_y = *y;
+	char *p;
 
 	for (;;) {
 		if (!*s)
@@ -345,11 +321,15 @@ static bool parse_xy(const char *s, unsigned long *x, unsigned long *y)
 			break;
 
 		if (*s == 'x') {
-			if (!parse_n(s + 1, &new_x, &s))
+			new_x = simple_strtoul(s + 1, &p, 10);
+			if (p == s + 1)
 				return false;
+			s = p;
 		} else if (*s == 'y') {
-			if (!parse_n(s + 1, &new_y, &s))
+			new_y = simple_strtoul(s + 1, &p, 10);
+			if (p == s + 1)
 				return false;
+			s = p;
 		} else {
 			return false;
 		}

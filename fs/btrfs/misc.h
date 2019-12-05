@@ -47,4 +47,15 @@ static inline u64 div_factor_fine(u64 num, int factor)
 	return div_u64(num, 100);
 }
 
+/* Copy of is_power_of_two that is 64bit safe */
+static inline bool is_power_of_two_u64(u64 n)
+{
+	return n != 0 && (n & (n - 1)) == 0;
+}
+
+static inline bool has_single_bit_set(u64 n)
+{
+	return is_power_of_two_u64(n);
+}
+
 #endif

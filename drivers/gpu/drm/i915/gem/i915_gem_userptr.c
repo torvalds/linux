@@ -92,7 +92,6 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 	struct i915_mmu_notifier *mn =
 		container_of(_mn, struct i915_mmu_notifier, mn);
 	struct interval_tree_node *it;
-	struct mutex *unlock = NULL;
 	unsigned long end;
 	int ret = 0;
 
@@ -129,33 +128,13 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		}
 		spin_unlock(&mn->lock);
 
-		if (!unlock) {
-			unlock = &mn->mm->i915->drm.struct_mutex;
-
-			switch (mutex_trylock_recursive(unlock)) {
-			default:
-			case MUTEX_TRYLOCK_FAILED:
-				if (mutex_lock_killable_nested(unlock, I915_MM_SHRINKER)) {
-					i915_gem_object_put(obj);
-					return -EINTR;
-				}
-				/* fall through */
-			case MUTEX_TRYLOCK_SUCCESS:
-				break;
-
-			case MUTEX_TRYLOCK_RECURSIVE:
-				unlock = ERR_PTR(-EEXIST);
-				break;
-			}
-		}
-
 		ret = i915_gem_object_unbind(obj,
 					     I915_GEM_OBJECT_UNBIND_ACTIVE);
 		if (ret == 0)
 			ret = __i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
 		i915_gem_object_put(obj);
 		if (ret)
-			goto unlock;
+			return ret;
 
 		spin_lock(&mn->lock);
 
@@ -167,10 +146,6 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		it = interval_tree_iter_first(&mn->objects, range->start, end);
 	}
 	spin_unlock(&mn->lock);
-
-unlock:
-	if (!IS_ERR_OR_NULL(unlock))
-		mutex_unlock(unlock);
 
 	return ret;
 
@@ -671,8 +646,28 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 		obj->mm.dirty = false;
 
 	for_each_sgt_page(page, sgt_iter, pages) {
-		if (obj->mm.dirty)
+		if (obj->mm.dirty && trylock_page(page)) {
+			/*
+			 * As this may not be anonymous memory (e.g. shmem)
+			 * but exist on a real mapping, we have to lock
+			 * the page in order to dirty it -- holding
+			 * the page reference is not sufficient to
+			 * prevent the inode from being truncated.
+			 * Play safe and take the lock.
+			 *
+			 * However...!
+			 *
+			 * The mmu-notifier can be invalidated for a
+			 * migrate_page, that is alreadying holding the lock
+			 * on the page. Such a try_to_unmap() will result
+			 * in us calling put_pages() and so recursively try
+			 * to lock the page. We avoid that deadlock with
+			 * a trylock_page() and in exchange we risk missing
+			 * some page dirtying.
+			 */
 			set_page_dirty(page);
+			unlock_page(page);
+		}
 
 		mark_page_accessed(page);
 		put_page(page);
@@ -702,6 +697,7 @@ i915_gem_userptr_dmabuf_export(struct drm_i915_gem_object *obj)
 static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
 		 I915_GEM_OBJECT_IS_SHRINKABLE |
+		 I915_GEM_OBJECT_NO_GGTT |
 		 I915_GEM_OBJECT_ASYNC_CANCEL,
 	.get_pages = i915_gem_userptr_get_pages,
 	.put_pages = i915_gem_userptr_put_pages,
@@ -749,6 +745,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		       void *data,
 		       struct drm_file *file)
 {
+	static struct lock_class_key lock_class;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_userptr *args = data;
 	struct drm_i915_gem_object *obj;
@@ -782,7 +779,8 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		 * On almost all of the older hw, we cannot tell the GPU that
 		 * a page is readonly.
 		 */
-		vm = dev_priv->kernel_context->vm;
+		vm = rcu_dereference_protected(dev_priv->kernel_context->vm,
+					       true); /* static vm */
 		if (!vm || !vm->has_read_only)
 			return -ENODEV;
 	}
@@ -792,7 +790,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		return -ENOMEM;
 
 	drm_gem_private_object_init(dev, &obj->base, args->user_size);
-	i915_gem_object_init(obj, &i915_gem_userptr_ops);
+	i915_gem_object_init(obj, &i915_gem_userptr_ops, &lock_class);
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);

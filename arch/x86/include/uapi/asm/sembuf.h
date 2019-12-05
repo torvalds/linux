@@ -2,6 +2,8 @@
 #ifndef _ASM_X86_SEMBUF_H
 #define _ASM_X86_SEMBUF_H
 
+#include <asm/ipcbuf.h>
+
 /*
  * The semid64_ds structure for x86 architecture.
  * Note extra padding because this structure is passed back and forth
@@ -21,9 +23,9 @@ struct semid64_ds {
 	unsigned long	sem_ctime;	/* last change time */
 	unsigned long	sem_ctime_high;
 #else
-	__kernel_time_t	sem_otime;	/* last semop time */
+	__kernel_long_t sem_otime;	/* last semop time */
 	__kernel_ulong_t __unused1;
-	__kernel_time_t	sem_ctime;	/* last change time */
+	__kernel_long_t sem_ctime;	/* last change time */
 	__kernel_ulong_t __unused2;
 #endif
 	__kernel_ulong_t sem_nsems;	/* no. of semaphores in array */

@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2017 Andes Technology Corporation */
 
+#ifndef _ASM_RISCV_FTRACE_H
+#define _ASM_RISCV_FTRACE_H
+
 /*
  * The graph frame test is not possible if CONFIG_FRAME_POINTER is not enabled.
  * Check arch/riscv/kernel/mcount.S for detail.
@@ -64,3 +67,5 @@ do {									\
  */
 #define MCOUNT_INSN_SIZE 8
 #endif
+
+#endif /* _ASM_RISCV_FTRACE_H */

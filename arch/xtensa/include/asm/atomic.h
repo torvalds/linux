@@ -64,13 +64,13 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32ex   %1, %3\n"			\
-			"       " #op " %0, %1, %2\n"			\
-			"       s32ex   %0, %3\n"			\
-			"       getex   %0\n"				\
-			"       beqz    %0, 1b\n"			\
-			: "=&a" (result), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			"1:     l32ex   %[tmp], %[addr]\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32ex   %[result], %[addr]\n"		\
+			"       getex   %[result]\n"			\
+			"       beqz    %[result], 1b\n"		\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp)	\
+			: [i] "a" (i), [addr] "a" (v)			\
 			: "memory"					\
 			);						\
 }									\
@@ -82,14 +82,14 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32ex   %1, %3\n"			\
-			"       " #op " %0, %1, %2\n"			\
-			"       s32ex   %0, %3\n"			\
-			"       getex   %0\n"				\
-			"       beqz    %0, 1b\n"			\
-			"       " #op " %0, %1, %2\n"			\
-			: "=&a" (result), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			"1:     l32ex   %[tmp], %[addr]\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32ex   %[result], %[addr]\n"		\
+			"       getex   %[result]\n"			\
+			"       beqz    %[result], 1b\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp)	\
+			: [i] "a" (i), [addr] "a" (v)			\
 			: "memory"					\
 			);						\
 									\
@@ -103,13 +103,13 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32ex   %1, %3\n"			\
-			"       " #op " %0, %1, %2\n"			\
-			"       s32ex   %0, %3\n"			\
-			"       getex   %0\n"				\
-			"       beqz    %0, 1b\n"			\
-			: "=&a" (result), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			"1:     l32ex   %[tmp], %[addr]\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32ex   %[result], %[addr]\n"		\
+			"       getex   %[result]\n"			\
+			"       beqz    %[result], 1b\n"		\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp)	\
+			: [i] "a" (i), [addr] "a" (v)			\
 			: "memory"					\
 			);						\
 									\
@@ -124,13 +124,14 @@ static inline void atomic_##op(int i, atomic_t * v)			\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %1, %3, 0\n"			\
-			"       wsr     %1, scompare1\n"		\
-			"       " #op " %0, %1, %2\n"			\
-			"       s32c1i  %0, %3, 0\n"			\
-			"       bne     %0, %1, 1b\n"			\
-			: "=&a" (result), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			"1:     l32i    %[tmp], %[mem]\n"		\
+			"       wsr     %[tmp], scompare1\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32c1i  %[result], %[mem]\n"		\
+			"       bne     %[result], %[tmp], 1b\n"	\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "memory"					\
 			);						\
 }									\
@@ -142,14 +143,15 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %1, %3, 0\n"			\
-			"       wsr     %1, scompare1\n"		\
-			"       " #op " %0, %1, %2\n"			\
-			"       s32c1i  %0, %3, 0\n"			\
-			"       bne     %0, %1, 1b\n"			\
-			"       " #op " %0, %0, %2\n"			\
-			: "=&a" (result), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			"1:     l32i    %[tmp], %[mem]\n"		\
+			"       wsr     %[tmp], scompare1\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32c1i  %[result], %[mem]\n"		\
+			"       bne     %[result], %[tmp], 1b\n"	\
+			"       " #op " %[result], %[result], %[i]\n"	\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "memory"					\
 			);						\
 									\
@@ -163,13 +165,14 @@ static inline int atomic_fetch_##op(int i, atomic_t * v)		\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %1, %3, 0\n"			\
-			"       wsr     %1, scompare1\n"		\
-			"       " #op " %0, %1, %2\n"			\
-			"       s32c1i  %0, %3, 0\n"			\
-			"       bne     %0, %1, 1b\n"			\
-			: "=&a" (result), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			"1:     l32i    %[tmp], %[mem]\n"		\
+			"       wsr     %[tmp], scompare1\n"		\
+			"       " #op " %[result], %[tmp], %[i]\n"	\
+			"       s32c1i  %[result], %[mem]\n"		\
+			"       bne     %[result], %[tmp], 1b\n"	\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "memory"					\
 			);						\
 									\
@@ -184,14 +187,14 @@ static inline void atomic_##op(int i, atomic_t * v)			\
 	unsigned int vval;						\
 									\
 	__asm__ __volatile__(						\
-			"       rsil    a15, "__stringify(TOPLEVEL)"\n"\
-			"       l32i    %0, %2, 0\n"			\
-			"       " #op " %0, %0, %1\n"			\
-			"       s32i    %0, %2, 0\n"			\
+			"       rsil    a15, "__stringify(TOPLEVEL)"\n"	\
+			"       l32i    %[result], %[mem]\n"		\
+			"       " #op " %[result], %[result], %[i]\n"	\
+			"       s32i    %[result], %[mem]\n"		\
 			"       wsr     a15, ps\n"			\
 			"       rsync\n"				\
-			: "=&a" (vval)					\
-			: "a" (i), "a" (v)				\
+			: [result] "=&a" (vval), [mem] "+m" (*v)	\
+			: [i] "a" (i)					\
 			: "a15", "memory"				\
 			);						\
 }									\
@@ -203,13 +206,13 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 									\
 	__asm__ __volatile__(						\
 			"       rsil    a15,"__stringify(TOPLEVEL)"\n"	\
-			"       l32i    %0, %2, 0\n"			\
-			"       " #op " %0, %0, %1\n"			\
-			"       s32i    %0, %2, 0\n"			\
+			"       l32i    %[result], %[mem]\n"		\
+			"       " #op " %[result], %[result], %[i]\n"	\
+			"       s32i    %[result], %[mem]\n"		\
 			"       wsr     a15, ps\n"			\
 			"       rsync\n"				\
-			: "=&a" (vval)					\
-			: "a" (i), "a" (v)				\
+			: [result] "=&a" (vval), [mem] "+m" (*v)	\
+			: [i] "a" (i)					\
 			: "a15", "memory"				\
 			);						\
 									\
@@ -223,13 +226,14 @@ static inline int atomic_fetch_##op(int i, atomic_t * v)		\
 									\
 	__asm__ __volatile__(						\
 			"       rsil    a15,"__stringify(TOPLEVEL)"\n"	\
-			"       l32i    %0, %3, 0\n"			\
-			"       " #op " %1, %0, %2\n"			\
-			"       s32i    %1, %3, 0\n"			\
+			"       l32i    %[result], %[mem]\n"		\
+			"       " #op " %[tmp], %[result], %[i]\n"	\
+			"       s32i    %[tmp], %[mem]\n"		\
 			"       wsr     a15, ps\n"			\
 			"       rsync\n"				\
-			: "=&a" (vval), "=&a" (tmp)			\
-			: "a" (i), "a" (v)				\
+			: [result] "=&a" (vval), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "a15", "memory"				\
 			);						\
 									\

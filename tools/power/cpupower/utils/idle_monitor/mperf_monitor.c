@@ -19,6 +19,10 @@
 #define MSR_APERF	0xE8
 #define MSR_MPERF	0xE7
 
+#define RDPRU ".byte 0x0f, 0x01, 0xfd"
+#define RDPRU_ECX_MPERF	0
+#define RDPRU_ECX_APERF	1
+
 #define MSR_TSC	0x10
 
 #define MSR_AMD_HWCR 0xc0010015
@@ -86,15 +90,51 @@ static int mperf_get_tsc(unsigned long long *tsc)
 	return ret;
 }
 
-static int mperf_init_stats(unsigned int cpu)
+static int get_aperf_mperf(int cpu, unsigned long long *aval,
+				    unsigned long long *mval)
 {
-	unsigned long long val;
+	unsigned long low_a, high_a;
+	unsigned long low_m, high_m;
 	int ret;
 
-	ret = read_msr(cpu, MSR_APERF, &val);
-	aperf_previous_count[cpu] = val;
-	ret |= read_msr(cpu, MSR_MPERF, &val);
-	mperf_previous_count[cpu] = val;
+	/*
+	 * Running on the cpu from which we read the registers will
+	 * prevent APERF/MPERF from going out of sync because of IPI
+	 * latency introduced by read_msr()s.
+	 */
+	if (mperf_monitor.flags.per_cpu_schedule) {
+		if (bind_cpu(cpu))
+			return 1;
+	}
+
+	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_RDPRU) {
+		asm volatile(RDPRU
+			     : "=a" (low_a), "=d" (high_a)
+			     : "c" (RDPRU_ECX_APERF));
+		asm volatile(RDPRU
+			     : "=a" (low_m), "=d" (high_m)
+			     : "c" (RDPRU_ECX_MPERF));
+
+		*aval = ((low_a) | (high_a) << 32);
+		*mval = ((low_m) | (high_m) << 32);
+
+		return 0;
+	}
+
+	ret  = read_msr(cpu, MSR_APERF, aval);
+	ret |= read_msr(cpu, MSR_MPERF, mval);
+
+	return ret;
+}
+
+static int mperf_init_stats(unsigned int cpu)
+{
+	unsigned long long aval, mval;
+	int ret;
+
+	ret = get_aperf_mperf(cpu, &aval, &mval);
+	aperf_previous_count[cpu] = aval;
+	mperf_previous_count[cpu] = mval;
 	is_valid[cpu] = !ret;
 
 	return 0;
@@ -102,13 +142,12 @@ static int mperf_init_stats(unsigned int cpu)
 
 static int mperf_measure_stats(unsigned int cpu)
 {
-	unsigned long long val;
+	unsigned long long aval, mval;
 	int ret;
 
-	ret = read_msr(cpu, MSR_APERF, &val);
-	aperf_current_count[cpu] = val;
-	ret |= read_msr(cpu, MSR_MPERF, &val);
-	mperf_current_count[cpu] = val;
+	ret = get_aperf_mperf(cpu, &aval, &mval);
+	aperf_current_count[cpu] = aval;
+	mperf_current_count[cpu] = mval;
 	is_valid[cpu] = !ret;
 
 	return 0;
@@ -305,6 +344,9 @@ struct cpuidle_monitor *mperf_register(void)
 	if (init_maxfreq_mode())
 		return NULL;
 
+	if (cpupower_cpu_info.vendor == X86_VENDOR_AMD)
+		mperf_monitor.flags.per_cpu_schedule = 1;
+
 	/* Free this at program termination */
 	is_valid = calloc(cpu_count, sizeof(int));
 	mperf_previous_count = calloc(cpu_count, sizeof(unsigned long long));
@@ -333,7 +375,7 @@ struct cpuidle_monitor mperf_monitor = {
 	.stop			= mperf_stop,
 	.do_register		= mperf_register,
 	.unregister		= mperf_unregister,
-	.needs_root		= 1,
+	.flags.needs_root	= 1,
 	.overflow_s		= 922000000 /* 922337203 seconds TSC overflow
 					       at 20GHz */
 };

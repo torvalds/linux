@@ -905,7 +905,8 @@ static int sis_pcm_create(struct sis7019 *sis)
 	 * world if this fails.
 	 */
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-				snd_dma_pci_data(sis->pci), 64*1024, 128*1024);
+					      &sis->pci->dev,
+					      64*1024, 128*1024);
 
 	return 0;
 }

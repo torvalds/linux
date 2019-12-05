@@ -224,6 +224,7 @@ static int cros_usbpd_logger_remove(struct platform_device *pd)
 	struct logger_data *logger = platform_get_drvdata(pd);
 
 	cancel_delayed_work_sync(&logger->log_work);
+	destroy_workqueue(logger->log_workqueue);
 
 	return 0;
 }

@@ -44,7 +44,7 @@
 static struct workqueue_struct *kpcitest_workqueue;
 
 struct pci_epf_test {
-	void			*reg[6];
+	void			*reg[PCI_STD_NUM_BARS];
 	struct pci_epf		*epf;
 	enum pci_barno		test_reg_bar;
 	struct delayed_work	cmd_handler;
@@ -377,7 +377,7 @@ static void pci_epf_test_unbind(struct pci_epf *epf)
 
 	cancel_delayed_work(&epf_test->cmd_handler);
 	pci_epc_stop(epc);
-	for (bar = BAR_0; bar <= BAR_5; bar++) {
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
 		epf_bar = &epf->bar[bar];
 
 		if (epf_test->reg[bar]) {
@@ -400,7 +400,7 @@ static int pci_epf_test_set_bar(struct pci_epf *epf)
 
 	epc_features = epf_test->epc_features;
 
-	for (bar = BAR_0; bar <= BAR_5; bar += add) {
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar += add) {
 		epf_bar = &epf->bar[bar];
 		/*
 		 * pci_epc_set_bar() sets PCI_BASE_ADDRESS_MEM_TYPE_64
@@ -450,7 +450,7 @@ static int pci_epf_test_alloc_space(struct pci_epf *epf)
 	}
 	epf_test->reg[test_reg_bar] = base;
 
-	for (bar = BAR_0; bar <= BAR_5; bar += add) {
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar += add) {
 		epf_bar = &epf->bar[bar];
 		add = (epf_bar->flags & PCI_BASE_ADDRESS_MEM_TYPE_64) ? 2 : 1;
 
@@ -478,7 +478,7 @@ static void pci_epf_configure_bar(struct pci_epf *epf,
 	bool bar_fixed_64bit;
 	int i;
 
-	for (i = BAR_0; i <= BAR_5; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		epf_bar = &epf->bar[i];
 		bar_fixed_64bit = !!(epc_features->bar_fixed_64bit & (1 << i));
 		if (bar_fixed_64bit)

@@ -157,19 +157,9 @@ static int tango_ir_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rc_dev *rc;
 	struct tango_ir *ir;
-	struct resource *rc5_res;
-	struct resource *rc6_res;
 	u64 clkrate, clkdiv;
 	int irq, err;
 	u32 val;
-
-	rc5_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!rc5_res)
-		return -EINVAL;
-
-	rc6_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!rc6_res)
-		return -EINVAL;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0)
@@ -179,11 +169,11 @@ static int tango_ir_probe(struct platform_device *pdev)
 	if (!ir)
 		return -ENOMEM;
 
-	ir->rc5_base = devm_ioremap_resource(dev, rc5_res);
+	ir->rc5_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ir->rc5_base))
 		return PTR_ERR(ir->rc5_base);
 
-	ir->rc6_base = devm_ioremap_resource(dev, rc6_res);
+	ir->rc6_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(ir->rc6_base))
 		return PTR_ERR(ir->rc6_base);
 

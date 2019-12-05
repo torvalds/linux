@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Epson RTC module RX-6110 SA
  *
  * Copyright(C) 2015 Pengutronix, Steffen Trumtrar <kernel@pengutronix.de>
  * Copyright(C) SEIKO EPSON CORPORATION 2013. All rights reserved.
- *
- * This driver software is distributed as is, without any warranty of any kind,
- * either express or implied as further specified in the GNU Public License.
- * This software may be used and distributed according to the terms of the GNU
- * Public License, version 2 as published by the Free Software Foundation.
- * See the file COPYING in the main directory of this archive for more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/bcd.h>
@@ -370,11 +362,6 @@ static int rx6110_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int rx6110_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
 static const struct spi_device_id rx6110_id[] = {
 	{ "rx6110", 0 },
 	{ }
@@ -393,7 +380,6 @@ static struct spi_driver rx6110_driver = {
 		.of_match_table = of_match_ptr(rx6110_spi_of_match),
 	},
 	.probe		= rx6110_probe,
-	.remove		= rx6110_remove,
 	.id_table	= rx6110_id,
 };
 

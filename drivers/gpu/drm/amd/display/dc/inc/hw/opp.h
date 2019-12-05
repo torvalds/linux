@@ -208,6 +208,7 @@ struct output_pixel_processor {
 	struct mpc_tree mpc_tree_params;
 	bool mpcc_disconnect_pending[MAX_PIPES];
 	const struct opp_funcs *funcs;
+	uint32_t dyn_expansion;
 };
 
 enum fmt_stereo_action {

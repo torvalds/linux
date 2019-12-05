@@ -671,10 +671,11 @@ static int secocec_probe(struct platform_device *pdev)
 	return ret;
 
 err_notifier:
-	cec_notifier_cec_adap_unregister(secocec->notifier);
+	cec_notifier_cec_adap_unregister(secocec->notifier, secocec->cec_adap);
 err_delete_adapter:
 	cec_delete_adapter(secocec->cec_adap);
 err:
+	release_region(BRA_SMB_BASE_ADDR, 7);
 	dev_err(dev, "%s device probe failed\n", dev_name(dev));
 
 	return ret;
@@ -692,7 +693,7 @@ static int secocec_remove(struct platform_device *pdev)
 
 		dev_dbg(&pdev->dev, "IR disabled");
 	}
-	cec_notifier_cec_adap_unregister(secocec->notifier);
+	cec_notifier_cec_adap_unregister(secocec->notifier, secocec->cec_adap);
 	cec_unregister_adapter(secocec->cec_adap);
 
 	release_region(BRA_SMB_BASE_ADDR, 7);

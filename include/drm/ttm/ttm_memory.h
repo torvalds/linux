@@ -65,7 +65,6 @@
 struct ttm_mem_zone;
 extern struct ttm_mem_global {
 	struct kobject kobj;
-	struct ttm_bo_global *bo_glob;
 	struct workqueue_struct *swap_queue;
 	struct work_struct work;
 	spinlock_t lock;

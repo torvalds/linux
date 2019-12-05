@@ -130,8 +130,8 @@ a full power-on reset sequence and the power-on defaults are restored to the
 device by hardware just as at initial power up.
 
 PCI devices supporting the PCI PM Spec can be programmed to generate PMEs
-while in a low-power state (D1-D3), but they are not required to be capable
-of generating PMEs from all supported low-power states.  In particular, the
+while in any power state (D0-D3), but they are not required to be capable
+of generating PMEs from all supported power states.  In particular, the
 capability of generating PMEs from D3cold is optional and depends on the
 presence of additional voltage (3.3Vaux) allowing the device to remain
 sufficiently active to generate a wakeup signal.
@@ -426,12 +426,12 @@ pm->runtime_idle() callback.
 2.4. System-Wide Power Transitions
 ----------------------------------
 There are a few different types of system-wide power transitions, described in
-Documentation/driver-api/pm/devices.rst.  Each of them requires devices to be handled
-in a specific way and the PM core executes subsystem-level power management
-callbacks for this purpose.  They are executed in phases such that each phase
-involves executing the same subsystem-level callback for every device belonging
-to the given subsystem before the next phase begins.  These phases always run
-after tasks have been frozen.
+Documentation/driver-api/pm/devices.rst.  Each of them requires devices to be
+handled in a specific way and the PM core executes subsystem-level power
+management callbacks for this purpose.  They are executed in phases such that
+each phase involves executing the same subsystem-level callback for every device
+belonging to the given subsystem before the next phase begins.  These phases
+always run after tasks have been frozen.
 
 2.4.1. System Suspend
 ^^^^^^^^^^^^^^^^^^^^^
@@ -600,17 +600,17 @@ using the following PCI bus type's callbacks::
 
 respectively.
 
-The first of them, pci_pm_thaw_noirq(), is analogous to pci_pm_resume_noirq(),
-but it doesn't put the device into the full power state and doesn't attempt to
-restore its standard configuration registers.  It also executes the device
-driver's pm->thaw_noirq() callback, if defined, instead of pm->resume_noirq().
+The first of them, pci_pm_thaw_noirq(), is analogous to pci_pm_resume_noirq().
+It puts the device into the full power state and restores its standard
+configuration registers.  It also executes the device driver's pm->thaw_noirq()
+callback, if defined, instead of pm->resume_noirq().
 
 The pci_pm_thaw() routine is similar to pci_pm_resume(), but it runs the device
 driver's pm->thaw() callback instead of pm->resume().  It is executed
 asynchronously for different PCI devices that don't depend on each other in a
 known way.
 
-The complete phase it the same as for system resume.
+The complete phase is the same as for system resume.
 
 After saving the image, devices need to be powered down before the system can
 enter the target sleep state (ACPI S4 for ACPI-based systems).  This is done in
@@ -636,12 +636,12 @@ System restore requires a hibernation image to be loaded into memory and the
 pre-hibernation memory contents to be restored before the pre-hibernation system
 activity can be resumed.
 
-As described in Documentation/driver-api/pm/devices.rst, the hibernation image is loaded
-into memory by a fresh instance of the kernel, called the boot kernel, which in
-turn is loaded and run by a boot loader in the usual way.  After the boot kernel
-has loaded the image, it needs to replace its own code and data with the code
-and data of the "hibernated" kernel stored within the image, called the image
-kernel.  For this purpose all devices are frozen just like before creating
+As described in Documentation/driver-api/pm/devices.rst, the hibernation image
+is loaded into memory by a fresh instance of the kernel, called the boot kernel,
+which in turn is loaded and run by a boot loader in the usual way.  After the
+boot kernel has loaded the image, it needs to replace its own code and data with
+the code and data of the "hibernated" kernel stored within the image, called the
+image kernel.  For this purpose all devices are frozen just like before creating
 the image during hibernation, in the
 
 	prepare, freeze, freeze_noirq
@@ -691,12 +691,12 @@ controlling the runtime power management of their devices.
 
 At the time of this writing there are two ways to define power management
 callbacks for a PCI device driver, the recommended one, based on using a
-dev_pm_ops structure described in Documentation/driver-api/pm/devices.rst, and the
-"legacy" one, in which the .suspend(), .suspend_late(), .resume_early(), and
-.resume() callbacks from struct pci_driver are used.  The legacy approach,
-however, doesn't allow one to define runtime power management callbacks and is
-not really suitable for any new drivers.  Therefore it is not covered by this
-document (refer to the source code to learn more about it).
+dev_pm_ops structure described in Documentation/driver-api/pm/devices.rst, and
+the "legacy" one, in which the .suspend() and .resume() callbacks from struct
+pci_driver are used.  The legacy approach, however, doesn't allow one to define
+runtime power management callbacks and is not really suitable for any new
+drivers.  Therefore it is not covered by this document (refer to the source code
+to learn more about it).
 
 It is recommended that all PCI device drivers define a struct dev_pm_ops object
 containing pointers to power management (PM) callbacks that will be executed by

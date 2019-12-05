@@ -90,8 +90,6 @@ struct tegra_dc {
 	struct drm_info_list *debugfs_files;
 
 	const struct tegra_dc_soc_info *soc;
-
-	struct iommu_group *group;
 };
 
 static inline struct tegra_dc *

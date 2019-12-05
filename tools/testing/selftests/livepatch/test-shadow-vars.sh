@@ -6,7 +6,7 @@
 
 MOD_TEST=test_klp_shadow_vars
 
-set_dynamic_debug
+setup_config
 
 
 # TEST: basic shadow variable API

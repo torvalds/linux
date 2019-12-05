@@ -99,6 +99,9 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_FAULT_STOP_FIRST	1
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
+/* Reserve 4MB VRAM for page tables */
+#define AMDGPU_VM_RESERVED_VRAM		(4ULL << 20)
+
 /* max number of VMHUB */
 #define AMDGPU_MAX_VMHUBS			3
 #define AMDGPU_GFXHUB_0				0
@@ -199,6 +202,11 @@ struct amdgpu_vm_update_params {
 	struct amdgpu_vm *vm;
 
 	/**
+	 * @direct: if changes should be made directly
+	 */
+	bool direct;
+
+	/**
 	 * @pages_addr:
 	 *
 	 * DMA addresses to use for mapping
@@ -254,8 +262,9 @@ struct amdgpu_vm {
 	struct amdgpu_vm_pt     root;
 	struct dma_fence	*last_update;
 
-	/* Scheduler entity for page table updates */
-	struct drm_sched_entity	entity;
+	/* Scheduler entities for page table updates */
+	struct drm_sched_entity	direct;
+	struct drm_sched_entity	delayed;
 
 	unsigned int		pasid;
 	/* dedicated to vm */
@@ -357,8 +366,8 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			      int (*callback)(void *p, struct amdgpu_bo *bo),
 			      void *param);
 int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_pipe_sync);
-int amdgpu_vm_update_directories(struct amdgpu_device *adev,
-				 struct amdgpu_vm *vm);
+int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
+			  struct amdgpu_vm *vm, bool direct);
 int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			  struct amdgpu_vm *vm,
 			  struct dma_fence **fence);
@@ -404,6 +413,8 @@ void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev);
 
 void amdgpu_vm_get_task_info(struct amdgpu_device *adev, unsigned int pasid,
 			     struct amdgpu_task_info *task_info);
+bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, unsigned int pasid,
+			    uint64_t addr);
 
 void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
 

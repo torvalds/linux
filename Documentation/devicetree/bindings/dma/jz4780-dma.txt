@@ -7,10 +7,11 @@ Required properties:
   * ingenic,jz4725b-dma
   * ingenic,jz4770-dma
   * ingenic,jz4780-dma
+  * ingenic,x1000-dma
 - reg: Should contain the DMA channel registers location and length, followed
   by the DMA controller registers location and length.
 - interrupts: Should contain the interrupt specifier of the DMA controller.
-- clocks: Should contain a clock specifier for the JZ4780 PDMA clock.
+- clocks: Should contain a clock specifier for the JZ4780/X1000 PDMA clock.
 - #dma-cells: Must be <2>. Number of integer cells in the dmas property of
   DMA clients (see below).
 

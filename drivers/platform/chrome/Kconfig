@@ -132,9 +132,9 @@ config CROS_EC_LPC
 	  module will be called cros_ec_lpcs.
 
 config CROS_EC_PROTO
-        bool
-        help
-          ChromeOS EC communication protocol helpers.
+	bool
+	help
+	  ChromeOS EC communication protocol helpers.
 
 config CROS_KBD_LED_BACKLIGHT
 	tristate "Backlight LED support for Chrome OS keyboards"
@@ -189,6 +189,19 @@ config CROS_EC_DEBUGFS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_debugfs.
+
+config CROS_EC_SENSORHUB
+	tristate "ChromeOS EC MEMS Sensor Hub"
+	depends on MFD_CROS_EC_DEV
+	default MFD_CROS_EC_DEV
+	help
+	  Allow loading IIO sensors. This driver is loaded by MFD and will in
+	  turn query the EC and register the sensors.
+	  It also spreads the sensor data coming from the EC to the IIO sensor
+	  object.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_sensorhub.
 
 config CROS_EC_SYSFS
 	tristate "ChromeOS EC control and information through sysfs"

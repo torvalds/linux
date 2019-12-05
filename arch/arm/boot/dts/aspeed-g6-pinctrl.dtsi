@@ -852,14 +852,9 @@
 		groups = "SD2";
 	};
 
-	pinctrl_sd3_default: sd3_default {
-		function = "SD3";
-		groups = "SD3";
-	};
-
 	pinctrl_emmc_default: emmc_default {
-		function = "SD3";
-		groups = "EMMC";
+		function = "EMMC";
+		groups = "EMMCG4";
 	};
 
 	pinctrl_sgpm1_default: sgpm1_default {

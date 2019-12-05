@@ -6,16 +6,6 @@
 #include "mt76x2u.h"
 #include "eeprom.h"
 
-static void mt76x2u_mac_reset_counters(struct mt76x02_dev *dev)
-{
-	mt76_rr(dev, MT_RX_STAT_0);
-	mt76_rr(dev, MT_RX_STAT_1);
-	mt76_rr(dev, MT_RX_STAT_2);
-	mt76_rr(dev, MT_TX_STA_0);
-	mt76_rr(dev, MT_TX_STA_1);
-	mt76_rr(dev, MT_TX_STA_2);
-}
-
 static void mt76x2u_mac_fixup_xtal(struct mt76x02_dev *dev)
 {
 	s8 offset = 0;
@@ -98,23 +88,6 @@ int mt76x2u_mac_reset(struct mt76x02_dev *dev)
 	mt76_clear(dev, MT_TX_ALC_CFG_4, BIT(31));
 
 	mt76x2u_mac_fixup_xtal(dev);
-
-	return 0;
-}
-
-int mt76x2u_mac_start(struct mt76x02_dev *dev)
-{
-	mt76x2u_mac_reset_counters(dev);
-
-	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
-	mt76x02_wait_for_wpdma(&dev->mt76, 1000);
-	usleep_range(50, 100);
-
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
-
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX |
-		MT_MAC_SYS_CTRL_ENABLE_RX);
 
 	return 0;
 }

@@ -95,12 +95,12 @@ enum {
 	EC_FLAGS_QUERY_ENABLED,		/* Query is enabled */
 	EC_FLAGS_QUERY_PENDING,		/* Query is pending */
 	EC_FLAGS_QUERY_GUARDING,	/* Guard for SCI_EVT check */
-	EC_FLAGS_GPE_HANDLER_INSTALLED,	/* GPE handler installed */
+	EC_FLAGS_EVENT_HANDLER_INSTALLED,	/* Event handler installed */
 	EC_FLAGS_EC_HANDLER_INSTALLED,	/* OpReg handler installed */
-	EC_FLAGS_EVT_HANDLER_INSTALLED, /* _Qxx handlers installed */
+	EC_FLAGS_QUERY_METHODS_INSTALLED, /* _Qxx handlers installed */
 	EC_FLAGS_STARTED,		/* Driver is started */
 	EC_FLAGS_STOPPED,		/* Driver is stopped */
-	EC_FLAGS_GPE_MASKED,		/* GPE masked */
+	EC_FLAGS_EVENTS_MASKED,		/* Events masked */
 };
 
 #define ACPI_EC_COMMAND_POLL		0x01 /* Available for command byte */
@@ -397,8 +397,8 @@ static inline void acpi_ec_clear_gpe(struct acpi_ec *ec)
 static void acpi_ec_submit_request(struct acpi_ec *ec)
 {
 	ec->reference_count++;
-	if (test_bit(EC_FLAGS_GPE_HANDLER_INSTALLED, &ec->flags) &&
-	    ec->reference_count == 1)
+	if (test_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags) &&
+	    ec->gpe >= 0 && ec->reference_count == 1)
 		acpi_ec_enable_gpe(ec, true);
 }
 
@@ -407,28 +407,36 @@ static void acpi_ec_complete_request(struct acpi_ec *ec)
 	bool flushed = false;
 
 	ec->reference_count--;
-	if (test_bit(EC_FLAGS_GPE_HANDLER_INSTALLED, &ec->flags) &&
-	    ec->reference_count == 0)
+	if (test_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags) &&
+	    ec->gpe >= 0 && ec->reference_count == 0)
 		acpi_ec_disable_gpe(ec, true);
 	flushed = acpi_ec_flushed(ec);
 	if (flushed)
 		wake_up(&ec->wait);
 }
 
-static void acpi_ec_mask_gpe(struct acpi_ec *ec)
+static void acpi_ec_mask_events(struct acpi_ec *ec)
 {
-	if (!test_bit(EC_FLAGS_GPE_MASKED, &ec->flags)) {
-		acpi_ec_disable_gpe(ec, false);
+	if (!test_bit(EC_FLAGS_EVENTS_MASKED, &ec->flags)) {
+		if (ec->gpe >= 0)
+			acpi_ec_disable_gpe(ec, false);
+		else
+			disable_irq_nosync(ec->irq);
+
 		ec_dbg_drv("Polling enabled");
-		set_bit(EC_FLAGS_GPE_MASKED, &ec->flags);
+		set_bit(EC_FLAGS_EVENTS_MASKED, &ec->flags);
 	}
 }
 
-static void acpi_ec_unmask_gpe(struct acpi_ec *ec)
+static void acpi_ec_unmask_events(struct acpi_ec *ec)
 {
-	if (test_bit(EC_FLAGS_GPE_MASKED, &ec->flags)) {
-		clear_bit(EC_FLAGS_GPE_MASKED, &ec->flags);
-		acpi_ec_enable_gpe(ec, false);
+	if (test_bit(EC_FLAGS_EVENTS_MASKED, &ec->flags)) {
+		clear_bit(EC_FLAGS_EVENTS_MASKED, &ec->flags);
+		if (ec->gpe >= 0)
+			acpi_ec_enable_gpe(ec, false);
+		else
+			enable_irq(ec->irq);
+
 		ec_dbg_drv("Polling disabled");
 	}
 }
@@ -454,7 +462,7 @@ static bool acpi_ec_submit_flushable_request(struct acpi_ec *ec)
 
 static void acpi_ec_submit_query(struct acpi_ec *ec)
 {
-	acpi_ec_mask_gpe(ec);
+	acpi_ec_mask_events(ec);
 	if (!acpi_ec_event_enabled(ec))
 		return;
 	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
@@ -470,7 +478,7 @@ static void acpi_ec_complete_query(struct acpi_ec *ec)
 	if (test_and_clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
 		ec_dbg_evt("Command(%s) unblocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
-	acpi_ec_unmask_gpe(ec);
+	acpi_ec_unmask_events(ec);
 }
 
 static inline void __acpi_ec_enable_event(struct acpi_ec *ec)
@@ -525,26 +533,10 @@ static void acpi_ec_enable_event(struct acpi_ec *ec)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static bool acpi_ec_query_flushed(struct acpi_ec *ec)
+static void __acpi_ec_flush_work(void)
 {
-	bool flushed;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ec->lock, flags);
-	flushed = !ec->nr_pending_queries;
-	spin_unlock_irqrestore(&ec->lock, flags);
-	return flushed;
-}
-
-static void __acpi_ec_flush_event(struct acpi_ec *ec)
-{
-	/*
-	 * When ec_freeze_events is true, we need to flush events in
-	 * the proper position before entering the noirq stage.
-	 */
-	wait_event(ec->wait, acpi_ec_query_flushed(ec));
-	if (ec_query_wq)
-		flush_workqueue(ec_query_wq);
+	flush_scheduled_work(); /* flush ec->work */
+	flush_workqueue(ec_query_wq); /* flush queries */
 }
 
 static void acpi_ec_disable_event(struct acpi_ec *ec)
@@ -554,15 +546,21 @@ static void acpi_ec_disable_event(struct acpi_ec *ec)
 	spin_lock_irqsave(&ec->lock, flags);
 	__acpi_ec_disable_event(ec);
 	spin_unlock_irqrestore(&ec->lock, flags);
-	__acpi_ec_flush_event(ec);
+
+	/*
+	 * When ec_freeze_events is true, we need to flush events in
+	 * the proper position before entering the noirq stage.
+	 */
+	__acpi_ec_flush_work();
 }
 
 void acpi_ec_flush_work(void)
 {
-	if (first_ec)
-		__acpi_ec_flush_event(first_ec);
+	/* Without ec_query_wq there is nothing to flush. */
+	if (!ec_query_wq)
+		return;
 
-	flush_scheduled_work();
+	__acpi_ec_flush_work();
 }
 #endif /* CONFIG_PM_SLEEP */
 
@@ -648,7 +646,9 @@ static void advance_transaction(struct acpi_ec *ec)
 	 * ensure a hardware STS 0->1 change after this clearing can always
 	 * trigger a GPE interrupt.
 	 */
-	acpi_ec_clear_gpe(ec);
+	if (ec->gpe >= 0)
+		acpi_ec_clear_gpe(ec);
+
 	status = acpi_ec_read_status(ec);
 	t = ec->curr;
 	/*
@@ -717,7 +717,7 @@ err:
 				++t->irq_count;
 			/* Allow triggering on 0 threshold */
 			if (t->irq_count == ec_storm_threshold)
-				acpi_ec_mask_gpe(ec);
+				acpi_ec_mask_events(ec);
 		}
 	}
 out:
@@ -815,7 +815,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 
 	spin_lock_irqsave(&ec->lock, tmp);
 	if (t->irq_count == ec_storm_threshold)
-		acpi_ec_unmask_gpe(ec);
+		acpi_ec_unmask_events(ec);
 	ec_dbg_req("Command(%s) stopped", acpi_ec_cmd_string(t->command));
 	ec->curr = NULL;
 	/* Disable GPE for command processing (IBF=0/OBF=1) */
@@ -1275,16 +1275,26 @@ static void acpi_ec_event_handler(struct work_struct *work)
 	acpi_ec_check_event(ec);
 }
 
-static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
-	u32 gpe_number, void *data)
+static void acpi_ec_handle_interrupt(struct acpi_ec *ec)
 {
 	unsigned long flags;
-	struct acpi_ec *ec = data;
 
 	spin_lock_irqsave(&ec->lock, flags);
 	advance_transaction(ec);
 	spin_unlock_irqrestore(&ec->lock, flags);
+}
+
+static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
+			       u32 gpe_number, void *data)
+{
+	acpi_ec_handle_interrupt(data);
 	return ACPI_INTERRUPT_HANDLED;
+}
+
+static irqreturn_t acpi_ec_irq_handler(int irq, void *data)
+{
+	acpi_ec_handle_interrupt(data);
+	return IRQ_HANDLED;
 }
 
 /* --------------------------------------------------------------------------
@@ -1359,6 +1369,8 @@ static struct acpi_ec *acpi_ec_alloc(void)
 	ec->timestamp = jiffies;
 	ec->busy_polling = true;
 	ec->polling_guard = 0;
+	ec->gpe = -1;
+	ec->irq = -1;
 	return ec;
 }
 
@@ -1406,9 +1418,13 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 		/* Get GPE bit assignment (EC events). */
 		/* TODO: Add support for _GPE returning a package */
 		status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
-		if (ACPI_FAILURE(status))
-			return status;
-		ec->gpe = tmp;
+		if (ACPI_SUCCESS(status))
+			ec->gpe = tmp;
+
+		/*
+		 * Errors are non-fatal, allowing for ACPI Reduced Hardware
+		 * platforms which use GpioInt instead of GPE.
+		 */
 	}
 	/* Use the global lock for all EC transactions? */
 	tmp = 0;
@@ -1418,12 +1434,57 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	return AE_CTRL_TERMINATE;
 }
 
+static void install_gpe_event_handler(struct acpi_ec *ec)
+{
+	acpi_status status =
+		acpi_install_gpe_raw_handler(NULL, ec->gpe,
+					     ACPI_GPE_EDGE_TRIGGERED,
+					     &acpi_ec_gpe_handler,
+					     ec);
+	if (ACPI_SUCCESS(status)) {
+		/* This is not fatal as we can poll EC events */
+		set_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags);
+		acpi_ec_leave_noirq(ec);
+		if (test_bit(EC_FLAGS_STARTED, &ec->flags) &&
+		    ec->reference_count >= 1)
+			acpi_ec_enable_gpe(ec, true);
+	}
+}
+
+/* ACPI reduced hardware platforms use a GpioInt specified in _CRS. */
+static int install_gpio_irq_event_handler(struct acpi_ec *ec,
+					  struct acpi_device *device)
+{
+	int irq = acpi_dev_gpio_irq_get(device, 0);
+	int ret;
+
+	if (irq < 0)
+		return irq;
+
+	ret = request_irq(irq, acpi_ec_irq_handler, IRQF_SHARED,
+			  "ACPI EC", ec);
+
+	/*
+	 * Unlike the GPE case, we treat errors here as fatal, we'll only
+	 * implement GPIO polling if we find a case that needs it.
+	 */
+	if (ret < 0)
+		return ret;
+
+	ec->irq = irq;
+	set_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags);
+	acpi_ec_leave_noirq(ec);
+
+	return 0;
+}
+
 /*
  * Note: This function returns an error code only when the address space
  *       handler is not installed, which means "not able to handle
  *       transactions".
  */
-static int ec_install_handlers(struct acpi_ec *ec, bool handle_events)
+static int ec_install_handlers(struct acpi_ec *ec, struct acpi_device *device,
+			       bool handle_events)
 {
 	acpi_status status;
 
@@ -1456,24 +1517,23 @@ static int ec_install_handlers(struct acpi_ec *ec, bool handle_events)
 	if (!handle_events)
 		return 0;
 
-	if (!test_bit(EC_FLAGS_EVT_HANDLER_INSTALLED, &ec->flags)) {
+	if (!test_bit(EC_FLAGS_QUERY_METHODS_INSTALLED, &ec->flags)) {
 		/* Find and register all query methods */
 		acpi_walk_namespace(ACPI_TYPE_METHOD, ec->handle, 1,
 				    acpi_ec_register_query_methods,
 				    NULL, ec, NULL);
-		set_bit(EC_FLAGS_EVT_HANDLER_INSTALLED, &ec->flags);
+		set_bit(EC_FLAGS_QUERY_METHODS_INSTALLED, &ec->flags);
 	}
-	if (!test_bit(EC_FLAGS_GPE_HANDLER_INSTALLED, &ec->flags)) {
-		status = acpi_install_gpe_raw_handler(NULL, ec->gpe,
-					  ACPI_GPE_EDGE_TRIGGERED,
-					  &acpi_ec_gpe_handler, ec);
-		/* This is not fatal as we can poll EC events */
-		if (ACPI_SUCCESS(status)) {
-			set_bit(EC_FLAGS_GPE_HANDLER_INSTALLED, &ec->flags);
-			acpi_ec_leave_noirq(ec);
-			if (test_bit(EC_FLAGS_STARTED, &ec->flags) &&
-			    ec->reference_count >= 1)
-				acpi_ec_enable_gpe(ec, true);
+	if (!test_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags)) {
+		if (ec->gpe >= 0) {
+			install_gpe_event_handler(ec);
+		} else if (device) {
+			int ret = install_gpio_irq_event_handler(ec, device);
+
+			if (ret)
+				return ret;
+		} else { /* No GPE and no GpioInt? */
+			return -ENODEV;
 		}
 	}
 	/* EC is fully operational, allow queries */
@@ -1504,23 +1564,29 @@ static void ec_remove_handlers(struct acpi_ec *ec)
 	 */
 	acpi_ec_stop(ec, false);
 
-	if (test_bit(EC_FLAGS_GPE_HANDLER_INSTALLED, &ec->flags)) {
-		if (ACPI_FAILURE(acpi_remove_gpe_handler(NULL, ec->gpe,
-					&acpi_ec_gpe_handler)))
+	if (test_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags)) {
+		if (ec->gpe >= 0 &&
+		    ACPI_FAILURE(acpi_remove_gpe_handler(NULL, ec->gpe,
+				 &acpi_ec_gpe_handler)))
 			pr_err("failed to remove gpe handler\n");
-		clear_bit(EC_FLAGS_GPE_HANDLER_INSTALLED, &ec->flags);
+
+		if (ec->irq >= 0)
+			free_irq(ec->irq, ec);
+
+		clear_bit(EC_FLAGS_EVENT_HANDLER_INSTALLED, &ec->flags);
 	}
-	if (test_bit(EC_FLAGS_EVT_HANDLER_INSTALLED, &ec->flags)) {
+	if (test_bit(EC_FLAGS_QUERY_METHODS_INSTALLED, &ec->flags)) {
 		acpi_ec_remove_query_handlers(ec, true, 0);
-		clear_bit(EC_FLAGS_EVT_HANDLER_INSTALLED, &ec->flags);
+		clear_bit(EC_FLAGS_QUERY_METHODS_INSTALLED, &ec->flags);
 	}
 }
 
-static int acpi_ec_setup(struct acpi_ec *ec, bool handle_events)
+static int acpi_ec_setup(struct acpi_ec *ec, struct acpi_device *device,
+			 bool handle_events)
 {
 	int ret;
 
-	ret = ec_install_handlers(ec, handle_events);
+	ret = ec_install_handlers(ec, device, handle_events);
 	if (ret)
 		return ret;
 
@@ -1531,8 +1597,8 @@ static int acpi_ec_setup(struct acpi_ec *ec, bool handle_events)
 	}
 
 	acpi_handle_info(ec->handle,
-			 "GPE=0x%x, EC_CMD/EC_SC=0x%lx, EC_DATA=0x%lx\n",
-			 ec->gpe, ec->command_addr, ec->data_addr);
+			 "GPE=0x%x, IRQ=%d, EC_CMD/EC_SC=0x%lx, EC_DATA=0x%lx\n",
+			 ec->gpe, ec->irq, ec->command_addr, ec->data_addr);
 	return ret;
 }
 
@@ -1596,7 +1662,7 @@ static int acpi_ec_add(struct acpi_device *device)
 		}
 	}
 
-	ret = acpi_ec_setup(ec, true);
+	ret = acpi_ec_setup(ec, device, true);
 	if (ret)
 		goto err_query;
 
@@ -1716,7 +1782,7 @@ void __init acpi_ec_dsdt_probe(void)
 	 * At this point, the GPE is not fully initialized, so do not to
 	 * handle the events.
 	 */
-	ret = acpi_ec_setup(ec, false);
+	ret = acpi_ec_setup(ec, NULL, false);
 	if (ret) {
 		acpi_ec_free(ec);
 		return;
@@ -1889,14 +1955,21 @@ void __init acpi_ec_ecdt_probe(void)
 		ec->command_addr = ecdt_ptr->control.address;
 		ec->data_addr = ecdt_ptr->data.address;
 	}
-	ec->gpe = ecdt_ptr->gpe;
+
+	/*
+	 * Ignore the GPE value on Reduced Hardware platforms.
+	 * Some products have this set to an erroneous value.
+	 */
+	if (!acpi_gbl_reduced_hardware)
+		ec->gpe = ecdt_ptr->gpe;
+
 	ec->handle = ACPI_ROOT_OBJECT;
 
 	/*
 	 * At this point, the namespace is not initialized, so do not find
 	 * the namespace objects, or handle the events.
 	 */
-	ret = acpi_ec_setup(ec, false);
+	ret = acpi_ec_setup(ec, NULL, false);
 	if (ret) {
 		acpi_ec_free(ec);
 		return;
@@ -1928,7 +2001,7 @@ static int acpi_ec_suspend_noirq(struct device *dev)
 	 * masked at the low level without side effects.
 	 */
 	if (ec_no_wakeup && test_bit(EC_FLAGS_STARTED, &ec->flags) &&
-	    ec->reference_count >= 1)
+	    ec->gpe >= 0 && ec->reference_count >= 1)
 		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
 
 	acpi_ec_enter_noirq(ec);
@@ -1943,7 +2016,7 @@ static int acpi_ec_resume_noirq(struct device *dev)
 	acpi_ec_leave_noirq(ec);
 
 	if (ec_no_wakeup && test_bit(EC_FLAGS_STARTED, &ec->flags) &&
-	    ec->reference_count >= 1)
+	    ec->gpe >= 0 && ec->reference_count >= 1)
 		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_ENABLE);
 
 	return 0;

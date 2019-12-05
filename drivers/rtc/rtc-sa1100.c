@@ -252,7 +252,6 @@ EXPORT_SYMBOL_GPL(sa1100_rtc_init);
 static int sa1100_rtc_probe(struct platform_device *pdev)
 {
 	struct sa1100_rtc *info;
-	struct resource *iores;
 	void __iomem *base;
 	int irq_1hz, irq_alarm;
 	int ret;
@@ -281,8 +280,7 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, iores);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

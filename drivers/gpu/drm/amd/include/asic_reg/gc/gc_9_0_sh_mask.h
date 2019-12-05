@@ -6661,7 +6661,6 @@
 #define ATC_L2_CGTT_CLK_CTRL__SOFT_STALL_OVERRIDE_MASK                                                        0x00FF0000L
 #define ATC_L2_CGTT_CLK_CTRL__SOFT_OVERRIDE_MASK                                                              0xFF000000L
 
-
 // addressBlock: gc_utcl2_vml2pfdec
 //VM_L2_CNTL
 #define VM_L2_CNTL__ENABLE_L2_CACHE__SHIFT                                                                    0x0
@@ -6991,7 +6990,22 @@
 #define VM_L2_CGTT_CLK_CTRL__MGLS_OVERRIDE_MASK                                                               0x00008000L
 #define VM_L2_CGTT_CLK_CTRL__SOFT_STALL_OVERRIDE_MASK                                                         0x00FF0000L
 #define VM_L2_CGTT_CLK_CTRL__SOFT_OVERRIDE_MASK                                                               0xFF000000L
-
+//VM_L2_MEM_ECC_INDEX
+#define VM_L2_MEM_ECC_INDEX__INDEX__SHIFT                                                                     0x0
+#define VM_L2_MEM_ECC_INDEX__INDEX_MASK                                                                       0x000000FFL
+//VM_L2_WALKER_MEM_ECC_INDEX
+#define VM_L2_WALKER_MEM_ECC_INDEX__INDEX__SHIFT                                                              0x0
+#define VM_L2_WALKER_MEM_ECC_INDEX__INDEX_MASK                                                                0x000000FFL
+//VM_L2_MEM_ECC_CNT
+#define VM_L2_MEM_ECC_CNT__SEC_COUNT__SHIFT                                                                   0xc
+#define VM_L2_MEM_ECC_CNT__DED_COUNT__SHIFT                                                                   0xe
+#define VM_L2_MEM_ECC_CNT__SEC_COUNT_MASK                                                                     0x00003000L
+#define VM_L2_MEM_ECC_CNT__DED_COUNT_MASK                                                                     0x0000C000L
+//VM_L2_WALKER_MEM_ECC_CNT
+#define VM_L2_WALKER_MEM_ECC_CNT__SEC_COUNT__SHIFT                                                            0xc
+#define VM_L2_WALKER_MEM_ECC_CNT__DED_COUNT__SHIFT                                                            0xe
+#define VM_L2_WALKER_MEM_ECC_CNT__SEC_COUNT_MASK                                                              0x00003000L
+#define VM_L2_WALKER_MEM_ECC_CNT__DED_COUNT_MASK                                                              0x0000C000L
 
 // addressBlock: gc_utcl2_vml2vcdec
 //VM_CONTEXT0_CNTL

@@ -11,6 +11,16 @@
 #include "ionic_dev.h"
 #include "ionic_lif.h"
 
+static void ionic_watchdog_cb(struct timer_list *t)
+{
+	struct ionic *ionic = from_timer(ionic, t, watchdog_timer);
+
+	mod_timer(&ionic->watchdog_timer,
+		  round_jiffies(jiffies + ionic->watchdog_period));
+
+	ionic_heartbeat_check(ionic);
+}
+
 void ionic_init_devinfo(struct ionic *ionic)
 {
 	struct ionic_dev *idev = &ionic->idev;
@@ -72,6 +82,11 @@ int ionic_dev_setup(struct ionic *ionic)
 		return -EFAULT;
 	}
 
+	timer_setup(&ionic->watchdog_timer, ionic_watchdog_cb, 0);
+	ionic->watchdog_period = IONIC_WATCHDOG_SECS * HZ;
+	mod_timer(&ionic->watchdog_timer,
+		  round_jiffies(jiffies + ionic->watchdog_period));
+
 	idev->db_pages = bar->vaddr;
 	idev->phy_db_pages = bar->bus_addr;
 
@@ -80,10 +95,53 @@ int ionic_dev_setup(struct ionic *ionic)
 
 void ionic_dev_teardown(struct ionic *ionic)
 {
-	/* place holder */
+	del_timer_sync(&ionic->watchdog_timer);
 }
 
 /* Devcmd Interface */
+int ionic_heartbeat_check(struct ionic *ionic)
+{
+	struct ionic_dev *idev = &ionic->idev;
+	unsigned long hb_time;
+	u32 fw_status;
+	u32 hb;
+
+	/* wait a little more than one second before testing again */
+	hb_time = jiffies;
+	if (time_before(hb_time, (idev->last_hb_time + ionic->watchdog_period)))
+		return 0;
+
+	/* firmware is useful only if fw_status is non-zero */
+	fw_status = ioread32(&idev->dev_info_regs->fw_status);
+	if (!fw_status)
+		return -ENXIO;
+
+	/* early FW has no heartbeat, else FW will return non-zero */
+	hb = ioread32(&idev->dev_info_regs->fw_heartbeat);
+	if (!hb)
+		return 0;
+
+	/* are we stalled? */
+	if (hb == idev->last_hb) {
+		/* only complain once for each stall seen */
+		if (idev->last_hb_time != 1) {
+			dev_info(ionic->dev, "FW heartbeat stalled at %d\n",
+				 idev->last_hb);
+			idev->last_hb_time = 1;
+		}
+
+		return -ENXIO;
+	}
+
+	if (idev->last_hb_time == 1)
+		dev_info(ionic->dev, "FW heartbeat restored at %d\n", hb);
+
+	idev->last_hb = hb;
+	idev->last_hb_time = hb_time;
+
+	return 0;
+}
+
 u8 ionic_dev_cmd_status(struct ionic_dev *idev)
 {
 	return ioread8(&idev->dev_cmd_regs->comp.comp.status);

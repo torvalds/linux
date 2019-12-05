@@ -175,6 +175,10 @@ static int eeprom_probe(struct i2c_client *client,
 		}
 	}
 
+	/* Let the users know they are using deprecated driver */
+	dev_notice(&client->dev,
+		   "eeprom driver is deprecated, please use at24 instead\n");
+
 	/* create the sysfs eeprom file */
 	return sysfs_create_bin_file(&client->dev.kobj, &eeprom_attr);
 }

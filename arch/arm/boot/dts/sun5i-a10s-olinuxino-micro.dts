@@ -130,7 +130,7 @@
 &i2c1 {
 	status = "okay";
 
-	at24@50 {
+	eeprom@50 {
 		compatible = "atmel,24c16";
 		pagesize = <16>;
 		reg = <0x50>;

@@ -606,19 +606,6 @@ inline void clear_cam_entry(struct adapter *adapter, u8 id)
 	clear_cam_cache(adapter, id);
 }
 
-inline void write_cam_from_cache(struct adapter *adapter, u8 id)
-{
-	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
-	struct cam_ctl_t *cam_ctl = &dvobj->cam_ctl;
-	struct cam_entry_cache cache;
-
-	spin_lock_bh(&cam_ctl->lock);
-	memcpy(&cache, &dvobj->cam_cache[id], sizeof(struct cam_entry_cache));
-	spin_unlock_bh(&cam_ctl->lock);
-
-	_write_cam(adapter, id, cache.ctrl, cache.mac, cache.key);
-}
-
 void write_cam_cache(struct adapter *adapter, u8 id, u16 ctrl, u8 *mac, u8 *key)
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
@@ -1170,8 +1157,6 @@ void HT_info_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 
 	pmlmeinfo->HT_info_enable = 1;
 	memcpy(&(pmlmeinfo->HT_info), pIE->data, pIE->Length);
-
-	return;
 }
 
 void HTOnAssocRsp(struct adapter *padapter)
@@ -1481,11 +1466,11 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 		}
 	}
 
-	kfree((u8 *)bssid);
+	kfree(bssid);
 	return _SUCCESS;
 
 _mismatch:
-	kfree((u8 *)bssid);
+	kfree(bssid);
 
 	if (pmlmepriv->NumOfBcnInfoChkFail == 0)
 		pmlmepriv->timeBcnInfoChkStart = jiffies;

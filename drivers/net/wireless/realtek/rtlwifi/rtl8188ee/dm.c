@@ -759,14 +759,8 @@ static void rtl88e_dm_pwdb_monitor(struct ieee80211_hw *hw)
 		rtlpriv->dm.entry_min_undec_sm_pwdb = 0;
 	}
 	/* Indicate Rx signal strength to FW. */
-	if (rtlpriv->dm.useramask) {
-		u8 h2c_parameter[3] = { 0 };
-
-		h2c_parameter[2] = (u8)(rtlpriv->dm.undec_sm_pwdb & 0xFF);
-		h2c_parameter[0] = 0x20;
-	} else {
+	if (!rtlpriv->dm.useramask)
 		rtl_write_byte(rtlpriv, 0x4fe, rtlpriv->dm.undec_sm_pwdb);
-	}
 }
 
 void rtl88e_dm_init_edca_turbo(struct ieee80211_hw *hw)

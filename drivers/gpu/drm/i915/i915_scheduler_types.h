@@ -49,6 +49,15 @@ struct i915_sched_attr {
  * DAG of each request, we are able to insert it into a sorted queue when it
  * is ready, and are able to reorder its portion of the graph to accommodate
  * dynamic priority changes.
+ *
+ * Ok, there is now one active element to the "scheduler" in the backends.
+ * We let a new context run for a small amount of time before re-evaluating
+ * the run order. As we re-evaluate, we maintain the strict ordering of
+ * dependencies, but attempt to rotate the active contexts (the current context
+ * is put to the back of its priority queue, then reshuffling its dependents).
+ * This provides minimal timeslicing and prevents a userspace hog (e.g.
+ * something waiting on a user semaphore [VkEvent]) from denying service to
+ * others.
  */
 struct i915_sched_node {
 	struct list_head signalers_list; /* those before us, we depend upon */

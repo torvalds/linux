@@ -73,7 +73,7 @@ int test__dwarf_unwind(struct test *test, int subtest);
 int test__expr(struct test *test, int subtest);
 int test__hists_filter(struct test *test, int subtest);
 int test__mmap_thread_lookup(struct test *test, int subtest);
-int test__thread_mg_share(struct test *test, int subtest);
+int test__thread_maps_share(struct test *test, int subtest);
 int test__hists_output(struct test *test, int subtest);
 int test__hists_cumulate(struct test *test, int subtest);
 int test__switch_tracking(struct test *test, int subtest);
@@ -107,10 +107,11 @@ const char *test__clang_subtest_get_desc(int subtest);
 int test__clang_subtest_get_nr(void);
 int test__unit_number__scnprint(struct test *test, int subtest);
 int test__mem2node(struct test *t, int subtest);
-int test__map_groups__merge_in(struct test *t, int subtest);
+int test__maps__merge_in(struct test *t, int subtest);
 int test__time_utils(struct test *t, int subtest);
 
 bool test__bp_signal_is_supported(void);
+bool test__bp_account_is_supported(void);
 bool test__wp_is_supported(void);
 
 #if defined(__arm__) || defined(__aarch64__)

@@ -4,7 +4,6 @@
 bin2c
 conmakehash
 kallsyms
-pnmtologo
 unifdef
 recordmcount
 sortextable

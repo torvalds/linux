@@ -236,7 +236,6 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	struct tx4939rtc_plat_data *pdata;
-	struct resource *res;
 	int irq, ret;
 	struct nvmem_config nvmem_cfg = {
 		.name = "tx4939_nvram",
@@ -253,8 +252,7 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, pdata);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdata->rtcreg = devm_ioremap_resource(&pdev->dev, res);
+	pdata->rtcreg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->rtcreg))
 		return PTR_ERR(pdata->rtcreg);
 

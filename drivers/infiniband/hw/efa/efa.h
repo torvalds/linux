@@ -60,8 +60,6 @@ struct efa_dev {
 	u64 mem_bar_len;
 	u64 db_bar_addr;
 	u64 db_bar_len;
-	u8 addr[EFA_GID_SIZE];
-	u32 mtu;
 
 	int admin_msix_vector_idx;
 	struct efa_irq admin_irq;
@@ -71,8 +69,6 @@ struct efa_dev {
 
 struct efa_ucontext {
 	struct ib_ucontext ibucontext;
-	struct xarray mmap_xa;
-	u32 mmap_xa_page;
 	u16 uarn;
 };
 
@@ -91,6 +87,7 @@ struct efa_cq {
 	struct efa_ucontext *ucontext;
 	dma_addr_t dma_addr;
 	void *cpu_addr;
+	struct rdma_user_mmap_entry *mmap_entry;
 	size_t size;
 	u16 cq_idx;
 };
@@ -101,6 +98,13 @@ struct efa_qp {
 	void *rq_cpu_addr;
 	size_t rq_size;
 	enum ib_qp_state state;
+
+	/* Used for saving mmap_xa entries */
+	struct rdma_user_mmap_entry *sq_db_mmap_entry;
+	struct rdma_user_mmap_entry *llq_desc_mmap_entry;
+	struct rdma_user_mmap_entry *rq_db_mmap_entry;
+	struct rdma_user_mmap_entry *rq_mmap_entry;
+
 	u32 qp_handle;
 	u32 max_send_wr;
 	u32 max_recv_wr;
@@ -147,6 +151,7 @@ int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata);
 void efa_dealloc_ucontext(struct ib_ucontext *ibucontext);
 int efa_mmap(struct ib_ucontext *ibucontext,
 	     struct vm_area_struct *vma);
+void efa_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
 int efa_create_ah(struct ib_ah *ibah,
 		  struct rdma_ah_attr *ah_attr,
 		  u32 flags,

@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Renesas R-Car M3-W System Controller
+ * Renesas R-Car M3-W/W+ System Controller
  *
  * Copyright (C) 2016 Glider bvba
+ * Copyright (C) 2018-2019 Renesas Electronics Corporation
  */
 
-#include <linux/bug.h>
+#include <linux/bits.h>
 #include <linux/kernel.h>
 
 #include <dt-bindings/power/r8a7796-sysc.h>
 
 #include "rcar-sysc.h"
 
-static const struct rcar_sysc_area r8a7796_areas[] __initconst = {
+static struct rcar_sysc_area r8a7796_areas[] __initdata = {
 	{ "always-on",	    0, 0, R8A7796_PD_ALWAYS_ON,	-1, PD_ALWAYS_ON },
 	{ "ca57-scu",	0x1c0, 0, R8A7796_PD_CA57_SCU,	R8A7796_PD_ALWAYS_ON,
 	  PD_SCU },
@@ -39,7 +40,28 @@ static const struct rcar_sysc_area r8a7796_areas[] __initconst = {
 	{ "a3ir",	0x180, 0, R8A7796_PD_A3IR,	R8A7796_PD_ALWAYS_ON },
 };
 
-const struct rcar_sysc_info r8a7796_sysc_info __initconst = {
+
+#ifdef CONFIG_SYSC_R8A77960
+const struct rcar_sysc_info r8a77960_sysc_info __initconst = {
 	.areas = r8a7796_areas,
 	.num_areas = ARRAY_SIZE(r8a7796_areas),
 };
+#endif /* CONFIG_SYSC_R8A77960 */
+
+#ifdef CONFIG_SYSC_R8A77961
+static int __init r8a77961_sysc_init(void)
+{
+	rcar_sysc_nullify(r8a7796_areas, ARRAY_SIZE(r8a7796_areas),
+			  R8A7796_PD_A2VC0);
+
+	return 0;
+}
+
+const struct rcar_sysc_info r8a77961_sysc_info __initconst = {
+	.init = r8a77961_sysc_init,
+	.areas = r8a7796_areas,
+	.num_areas = ARRAY_SIZE(r8a7796_areas),
+	.extmask_offs = 0x2f8,
+	.extmask_val = BIT(0),
+};
+#endif /* CONFIG_SYSC_R8A77961 */

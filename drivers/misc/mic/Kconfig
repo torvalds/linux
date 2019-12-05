@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Intel MIC & related support"
 
-comment "Intel MIC Bus Driver"
-
 config INTEL_MIC_BUS
 	tristate "Intel MIC Bus Driver"
 	depends on 64BIT && PCI && X86
@@ -17,8 +15,6 @@ config INTEL_MIC_BUS
 	  More information about the Intel MIC family as well as the Linux
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
-
-comment "SCIF Bus Driver"
 
 config SCIF_BUS
 	tristate "SCIF Bus Driver"
@@ -35,8 +31,6 @@ config SCIF_BUS
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
 
-comment "VOP Bus Driver"
-
 config VOP_BUS
 	tristate "VOP Bus Driver"
 	help
@@ -50,8 +44,6 @@ config VOP_BUS
 	  More information about the Intel MIC family as well as the Linux
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
-
-comment "Intel MIC Host Driver"
 
 config INTEL_MIC_HOST
 	tristate "Intel MIC Host Driver"
@@ -71,8 +63,6 @@ config INTEL_MIC_HOST
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
 
-comment "Intel MIC Card Driver"
-
 config INTEL_MIC_CARD
 	tristate "Intel MIC Card Driver"
 	depends on 64BIT && X86
@@ -89,8 +79,6 @@ config INTEL_MIC_CARD
 
 	  For more information see
 	  <http://software.intel.com/en-us/mic-developer>.
-
-comment "SCIF Driver"
 
 config SCIF
 	tristate "SCIF Driver"
@@ -110,8 +98,6 @@ config SCIF
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
 
-comment "Intel MIC Coprocessor State Management (COSM) Drivers"
-
 config MIC_COSM
 	tristate "Intel MIC Coprocessor State Management (COSM) Drivers"
 	depends on 64BIT && PCI && X86 && SCIF
@@ -127,8 +113,6 @@ config MIC_COSM
 	  More information about the Intel MIC family as well as the Linux
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
-
-comment "VOP Driver"
 
 config VOP
 	tristate "VOP Driver"

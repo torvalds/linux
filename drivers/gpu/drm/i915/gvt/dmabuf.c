@@ -152,6 +152,7 @@ static const struct drm_i915_gem_object_ops intel_vgpu_gem_ops = {
 static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 		struct intel_vgpu_fb_info *info)
 {
+	static struct lock_class_key lock_class;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 
@@ -161,7 +162,7 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 
 	drm_gem_private_object_init(dev, &obj->base,
 		roundup(info->size, PAGE_SIZE));
-	i915_gem_object_init(obj, &intel_vgpu_gem_ops);
+	i915_gem_object_init(obj, &intel_vgpu_gem_ops, &lock_class);
 
 	obj->read_domains = I915_GEM_DOMAIN_GTT;
 	obj->write_domain = 0;
@@ -498,8 +499,6 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 		goto out_free_gem;
 	}
 
-	i915_gem_object_put(obj);
-
 	ret = dma_buf_fd(dmabuf, DRM_CLOEXEC | DRM_RDWR);
 	if (ret < 0) {
 		gvt_vgpu_err("create dma-buf fd failed ret:%d\n", ret);
@@ -523,6 +522,8 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 		    dmabuf_fd,
 		    file_count(dmabuf->file),
 		    kref_read(&obj->base.refcount));
+
+	i915_gem_object_put(obj);
 
 	return dmabuf_fd;
 

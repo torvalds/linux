@@ -233,8 +233,10 @@ static void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 
 	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4313:
-		/* enable 12 mA drive strenth for 4313 and set chipControl
-		   register bit 1 */
+		/*
+		 * enable 12 mA drive strenth for 4313 and set chipControl
+		 * register bit 1
+		 */
 		bcma_chipco_chipctl_maskset(cc, 0,
 					    ~BCMA_CCTRL_4313_12MA_LED_DRIVE,
 					    BCMA_CCTRL_4313_12MA_LED_DRIVE);
@@ -246,8 +248,10 @@ static void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 		break;
 	case BCMA_CHIP_ID_BCM43224:
 	case BCMA_CHIP_ID_BCM43421:
-		/* enable 12 mA drive strenth for 43224 and set chipControl
-		   register bit 15 */
+		/*
+		 * enable 12 mA drive strenth for 43224 and set chipControl
+		 * register bit 15
+		 */
 		if (bus->chipinfo.rev == 0) {
 			bcma_cc_maskset32(cc, BCMA_CC_CHIPCTL,
 					  ~BCMA_CCTRL_43224_GPIO_TOGGLE,
@@ -500,8 +504,10 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 	case BCMA_CHIP_ID_BCM53572:
 		/* 5357[ab]0, 43236[ab]0, and 6362b0 */
 
-		/* BCM5357 needs to touch PLL1_PLLCTL[02],
-		   so offset PLL0_PLLCTL[02] by 6 */
+		/*
+		 * BCM5357 needs to touch PLL1_PLLCTL[02],
+		 * so offset PLL0_PLLCTL[02] by 6
+		 */
 		phypll_offset = (bus->chipinfo.id == BCMA_CHIP_ID_BCM5357 ||
 		       bus->chipinfo.id == BCMA_CHIP_ID_BCM4749 ||
 		       bus->chipinfo.id == BCMA_CHIP_ID_BCM53572) ? 6 : 0;
@@ -619,8 +625,10 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 	case BCMA_CHIP_ID_BCM43228:
 	case BCMA_CHIP_ID_BCM43428:
 		/* LCNXN */
-		/* PLL Settings for spur avoidance on/off mode,
-		   no on2 support for 43228A0 */
+		/*
+		 * PLL Settings for spur avoidance on/off mode,
+		 * no on2 support for 43228A0
+		 */
 		if (spuravoid == 1) {
 			bcma_pmu_spuravoid_pll_write(cc, BCMA_CC_PMU_PLL_CTL0,
 						     0x01100014);

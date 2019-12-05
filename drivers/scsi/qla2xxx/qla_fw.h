@@ -2101,4 +2101,6 @@ struct qla_fcp_prio_cfg {
 #define FA_FLASH_LAYOUT_ADDR_83	(0x3F1000/4)
 #define FA_FLASH_LAYOUT_ADDR_28	(0x11000/4)
 
+#define NVRAM_DUAL_FCP_NVME_FLAG_OFFSET	0x196
+
 #endif

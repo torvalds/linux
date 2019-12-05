@@ -131,7 +131,7 @@ static struct i915_request *
 hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 {
 	struct intel_gt *gt = h->gt;
-	struct i915_address_space *vm = h->ctx->vm ?: &engine->gt->ggtt->vm;
+	struct i915_address_space *vm = i915_gem_context_get_vm_rcu(h->ctx);
 	struct drm_i915_gem_object *obj;
 	struct i915_request *rq = NULL;
 	struct i915_vma *hws, *vma;
@@ -141,12 +141,15 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 	int err;
 
 	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
-	if (IS_ERR(obj))
+	if (IS_ERR(obj)) {
+		i915_vm_put(vm);
 		return ERR_CAST(obj);
+	}
 
 	vaddr = i915_gem_object_pin_map(obj, i915_coherent_map_type(gt->i915));
 	if (IS_ERR(vaddr)) {
 		i915_gem_object_put(obj);
+		i915_vm_put(vm);
 		return ERR_CAST(vaddr);
 	}
 
@@ -157,16 +160,22 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 	h->batch = vaddr;
 
 	vma = i915_vma_instance(h->obj, vm, NULL);
-	if (IS_ERR(vma))
+	if (IS_ERR(vma)) {
+		i915_vm_put(vm);
 		return ERR_CAST(vma);
+	}
 
 	hws = i915_vma_instance(h->hws, vm, NULL);
-	if (IS_ERR(hws))
+	if (IS_ERR(hws)) {
+		i915_vm_put(vm);
 		return ERR_CAST(hws);
+	}
 
 	err = i915_vma_pin(vma, 0, 0, PIN_USER);
-	if (err)
+	if (err) {
+		i915_vm_put(vm);
 		return ERR_PTR(err);
+	}
 
 	err = i915_vma_pin(hws, 0, 0, PIN_USER);
 	if (err)
@@ -264,6 +273,7 @@ unpin_hws:
 	i915_vma_unpin(hws);
 unpin_vma:
 	i915_vma_unpin(vma);
+	i915_vm_put(vm);
 	return err ? ERR_PTR(err) : rq;
 }
 
@@ -285,7 +295,7 @@ static void hang_fini(struct hang *h)
 
 	kernel_context_close(h->ctx);
 
-	igt_flush_test(h->gt->i915, I915_WAIT_LOCKED);
+	igt_flush_test(h->gt->i915);
 }
 
 static bool wait_until_running(struct hang *h, struct i915_request *rq)
@@ -309,12 +319,11 @@ static int igt_hang_sanitycheck(void *arg)
 
 	/* Basic check that we can execute our hanging batch */
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	err = hang_init(&h, gt);
 	if (err)
-		goto unlock;
+		return err;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct intel_wedge_me w;
 		long timeout;
 
@@ -355,8 +364,6 @@ static int igt_hang_sanitycheck(void *arg)
 
 fini:
 	hang_fini(&h);
-unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	return err;
 }
 
@@ -383,9 +390,7 @@ static int igt_reset_nop(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	ctx = live_context(gt->i915, file);
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto out;
@@ -395,9 +400,7 @@ static int igt_reset_nop(void *arg)
 	reset_count = i915_reset_count(global);
 	count = 0;
 	do {
-		mutex_lock(&gt->i915->drm.struct_mutex);
-
-		for_each_engine(engine, gt->i915, id) {
+		for_each_engine(engine, gt, id) {
 			int i;
 
 			for (i = 0; i < 16; i++) {
@@ -417,7 +420,6 @@ static int igt_reset_nop(void *arg)
 		intel_gt_reset(gt, ALL_ENGINES, NULL);
 		igt_global_reset_unlock(gt);
 
-		mutex_unlock(&gt->i915->drm.struct_mutex);
 		if (intel_gt_is_wedged(gt)) {
 			err = -EIO;
 			break;
@@ -429,16 +431,13 @@ static int igt_reset_nop(void *arg)
 			break;
 		}
 
-		err = igt_flush_test(gt->i915, 0);
+		err = igt_flush_test(gt->i915);
 		if (err)
 			break;
 	} while (time_before(jiffies, end_time));
 	pr_info("%s: %d resets\n", __func__, count);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
-	err = igt_flush_test(gt->i915, I915_WAIT_LOCKED);
-	mutex_unlock(&gt->i915->drm.struct_mutex);
-
+	err = igt_flush_test(gt->i915);
 out:
 	mock_file_free(gt->i915, file);
 	if (intel_gt_is_wedged(gt))
@@ -458,23 +457,21 @@ static int igt_reset_nop_engine(void *arg)
 
 	/* Check that we can engine-reset during non-user portions */
 
-	if (!intel_has_reset_engine(gt->i915))
+	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	file = mock_file(gt->i915);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	ctx = live_context(gt->i915, file);
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto out;
 	}
 
 	i915_gem_context_clear_bannable(ctx);
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count;
 		unsigned int count;
 		IGT_TIMEOUT(end_time);
@@ -494,7 +491,6 @@ static int igt_reset_nop_engine(void *arg)
 				break;
 			}
 
-			mutex_lock(&gt->i915->drm.struct_mutex);
 			for (i = 0; i < 16; i++) {
 				struct i915_request *rq;
 
@@ -507,7 +503,6 @@ static int igt_reset_nop_engine(void *arg)
 				i915_request_add(rq);
 			}
 			err = intel_engine_reset(engine, NULL);
-			mutex_unlock(&gt->i915->drm.struct_mutex);
 			if (err) {
 				pr_err("i915_reset_engine failed\n");
 				break;
@@ -533,15 +528,12 @@ static int igt_reset_nop_engine(void *arg)
 		if (err)
 			break;
 
-		err = igt_flush_test(gt->i915, 0);
+		err = igt_flush_test(gt->i915);
 		if (err)
 			break;
 	}
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
-	err = igt_flush_test(gt->i915, I915_WAIT_LOCKED);
-	mutex_unlock(&gt->i915->drm.struct_mutex);
-
+	err = igt_flush_test(gt->i915);
 out:
 	mock_file_free(gt->i915, file);
 	if (intel_gt_is_wedged(gt))
@@ -559,18 +551,16 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 
 	/* Check that we can issue an engine reset on an idle engine (no-op) */
 
-	if (!intel_has_reset_engine(gt->i915))
+	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	if (active) {
-		mutex_lock(&gt->i915->drm.struct_mutex);
 		err = hang_init(&h, gt);
-		mutex_unlock(&gt->i915->drm.struct_mutex);
 		if (err)
 			return err;
 	}
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count;
 		IGT_TIMEOUT(end_time);
 
@@ -593,17 +583,14 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 			if (active) {
 				struct i915_request *rq;
 
-				mutex_lock(&gt->i915->drm.struct_mutex);
 				rq = hang_create_request(&h, engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
-					mutex_unlock(&gt->i915->drm.struct_mutex);
 					break;
 				}
 
 				i915_request_get(rq);
 				i915_request_add(rq);
-				mutex_unlock(&gt->i915->drm.struct_mutex);
 
 				if (!wait_until_running(&h, rq)) {
 					struct drm_printer p = drm_info_printer(gt->i915->drm.dev);
@@ -647,7 +634,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 		if (err)
 			break;
 
-		err = igt_flush_test(gt->i915, 0);
+		err = igt_flush_test(gt->i915);
 		if (err)
 			break;
 	}
@@ -655,11 +642,8 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 	if (intel_gt_is_wedged(gt))
 		err = -EIO;
 
-	if (active) {
-		mutex_lock(&gt->i915->drm.struct_mutex);
+	if (active)
 		hang_fini(&h);
-		mutex_unlock(&gt->i915->drm.struct_mutex);
-	}
 
 	return err;
 }
@@ -725,9 +709,7 @@ static int active_engine(void *data)
 		return PTR_ERR(file);
 
 	for (count = 0; count < ARRAY_SIZE(ctx); count++) {
-		mutex_lock(&engine->i915->drm.struct_mutex);
 		ctx[count] = live_context(engine->i915, file);
-		mutex_unlock(&engine->i915->drm.struct_mutex);
 		if (IS_ERR(ctx[count])) {
 			err = PTR_ERR(ctx[count]);
 			while (--count)
@@ -741,10 +723,8 @@ static int active_engine(void *data)
 		struct i915_request *old = rq[idx];
 		struct i915_request *new;
 
-		mutex_lock(&engine->i915->drm.struct_mutex);
 		new = igt_request_alloc(ctx[idx], engine);
 		if (IS_ERR(new)) {
-			mutex_unlock(&engine->i915->drm.struct_mutex);
 			err = PTR_ERR(new);
 			break;
 		}
@@ -755,7 +735,6 @@ static int active_engine(void *data)
 
 		rq[idx] = i915_request_get(new);
 		i915_request_add(new);
-		mutex_unlock(&engine->i915->drm.struct_mutex);
 
 		err = active_request_put(old);
 		if (err)
@@ -791,13 +770,11 @@ static int __igt_reset_engines(struct intel_gt *gt,
 	 * with any other engine.
 	 */
 
-	if (!intel_has_reset_engine(gt->i915))
+	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	if (flags & TEST_ACTIVE) {
-		mutex_lock(&gt->i915->drm.struct_mutex);
 		err = hang_init(&h, gt);
-		mutex_unlock(&gt->i915->drm.struct_mutex);
 		if (err)
 			return err;
 
@@ -805,7 +782,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			h.ctx->sched.priority = 1024;
 	}
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct active_engine threads[I915_NUM_ENGINES] = {};
 		unsigned long device = i915_reset_count(global);
 		unsigned long count = 0, reported;
@@ -823,7 +800,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 		}
 
 		memset(threads, 0, sizeof(threads));
-		for_each_engine(other, gt->i915, tmp) {
+		for_each_engine(other, gt, tmp) {
 			struct task_struct *tsk;
 
 			threads[tmp].resets =
@@ -849,23 +826,22 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			get_task_struct(tsk);
 		}
 
+		yield(); /* start all threads before we begin */
+
 		intel_engine_pm_get(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		do {
 			struct i915_request *rq = NULL;
 
 			if (flags & TEST_ACTIVE) {
-				mutex_lock(&gt->i915->drm.struct_mutex);
 				rq = hang_create_request(&h, engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
-					mutex_unlock(&gt->i915->drm.struct_mutex);
 					break;
 				}
 
 				i915_request_get(rq);
 				i915_request_add(rq);
-				mutex_unlock(&gt->i915->drm.struct_mutex);
 
 				if (!wait_until_running(&h, rq)) {
 					struct drm_printer p = drm_info_printer(gt->i915->drm.dev);
@@ -940,7 +916,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 		}
 
 unwind:
-		for_each_engine(other, gt->i915, tmp) {
+		for_each_engine(other, gt, tmp) {
 			int ret;
 
 			if (!threads[tmp].task)
@@ -977,9 +953,7 @@ unwind:
 		if (err)
 			break;
 
-		mutex_lock(&gt->i915->drm.struct_mutex);
-		err = igt_flush_test(gt->i915, I915_WAIT_LOCKED);
-		mutex_unlock(&gt->i915->drm.struct_mutex);
+		err = igt_flush_test(gt->i915);
 		if (err)
 			break;
 	}
@@ -987,11 +961,8 @@ unwind:
 	if (intel_gt_is_wedged(gt))
 		err = -EIO;
 
-	if (flags & TEST_ACTIVE) {
-		mutex_lock(&gt->i915->drm.struct_mutex);
+	if (flags & TEST_ACTIVE)
 		hang_fini(&h);
-		mutex_unlock(&gt->i915->drm.struct_mutex);
-	}
 
 	return err;
 }
@@ -1047,7 +1018,7 @@ static int igt_reset_wait(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct i915_gpu_error *global = &gt->i915->gpu_error;
-	struct intel_engine_cs *engine = gt->i915->engine[RCS0];
+	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct i915_request *rq;
 	unsigned int reset_count;
 	struct hang h;
@@ -1061,7 +1032,6 @@ static int igt_reset_wait(void *arg)
 
 	igt_global_reset_lock(gt);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	err = hang_init(&h, gt);
 	if (err)
 		goto unlock;
@@ -1109,7 +1079,6 @@ out_rq:
 fini:
 	hang_fini(&h);
 unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	igt_global_reset_unlock(gt);
 
 	if (intel_gt_is_wedged(gt))
@@ -1127,15 +1096,14 @@ static int evict_vma(void *data)
 {
 	struct evict_vma *arg = data;
 	struct i915_address_space *vm = arg->vma->vm;
-	struct drm_i915_private *i915 = vm->i915;
 	struct drm_mm_node evict = arg->vma->node;
 	int err;
 
 	complete(&arg->completion);
 
-	mutex_lock(&i915->drm.struct_mutex);
+	mutex_lock(&vm->mutex);
 	err = i915_gem_evict_for_node(vm, &evict, 0);
-	mutex_unlock(&i915->drm.struct_mutex);
+	mutex_unlock(&vm->mutex);
 
 	return err;
 }
@@ -1143,39 +1111,33 @@ static int evict_vma(void *data)
 static int evict_fence(void *data)
 {
 	struct evict_vma *arg = data;
-	struct drm_i915_private *i915 = arg->vma->vm->i915;
 	int err;
 
 	complete(&arg->completion);
-
-	mutex_lock(&i915->drm.struct_mutex);
 
 	/* Mark the fence register as dirty to force the mmio update. */
 	err = i915_gem_object_set_tiling(arg->vma->obj, I915_TILING_Y, 512);
 	if (err) {
 		pr_err("Invalid Y-tiling settings; err:%d\n", err);
-		goto out_unlock;
+		return err;
 	}
 
 	err = i915_vma_pin(arg->vma, 0, 0, PIN_GLOBAL | PIN_MAPPABLE);
 	if (err) {
 		pr_err("Unable to pin vma for Y-tiled fence; err:%d\n", err);
-		goto out_unlock;
+		return err;
 	}
 
 	err = i915_vma_pin_fence(arg->vma);
 	i915_vma_unpin(arg->vma);
 	if (err) {
 		pr_err("Unable to pin Y-tiled fence; err:%d\n", err);
-		goto out_unlock;
+		return err;
 	}
 
 	i915_vma_unpin_fence(arg->vma);
 
-out_unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
-
-	return err;
+	return 0;
 }
 
 static int __igt_reset_evict_vma(struct intel_gt *gt,
@@ -1183,23 +1145,26 @@ static int __igt_reset_evict_vma(struct intel_gt *gt,
 				 int (*fn)(void *),
 				 unsigned int flags)
 {
-	struct intel_engine_cs *engine = gt->i915->engine[RCS0];
+	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct drm_i915_gem_object *obj;
 	struct task_struct *tsk = NULL;
 	struct i915_request *rq;
 	struct evict_vma arg;
 	struct hang h;
+	unsigned int pin_flags;
 	int err;
+
+	if (!gt->ggtt->num_fences && flags & EXEC_OBJECT_NEEDS_FENCE)
+		return 0;
 
 	if (!engine || !intel_engine_can_store_dword(engine))
 		return 0;
 
 	/* Check that we can recover an unbind stuck on a hanging request */
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	err = hang_init(&h, gt);
 	if (err)
-		goto unlock;
+		return err;
 
 	obj = i915_gem_object_create_internal(gt->i915, SZ_1M);
 	if (IS_ERR(obj)) {
@@ -1227,10 +1192,12 @@ static int __igt_reset_evict_vma(struct intel_gt *gt,
 		goto out_obj;
 	}
 
-	err = i915_vma_pin(arg.vma, 0, 0,
-			   i915_vma_is_ggtt(arg.vma) ?
-			   PIN_GLOBAL | PIN_MAPPABLE :
-			   PIN_USER);
+	pin_flags = i915_vma_is_ggtt(arg.vma) ? PIN_GLOBAL : PIN_USER;
+
+	if (flags & EXEC_OBJECT_NEEDS_FENCE)
+		pin_flags |= PIN_MAPPABLE;
+
+	err = i915_vma_pin(arg.vma, 0, 0, pin_flags);
 	if (err) {
 		i915_request_add(rq);
 		goto out_obj;
@@ -1261,8 +1228,6 @@ static int __igt_reset_evict_vma(struct intel_gt *gt,
 	i915_request_add(rq);
 	if (err)
 		goto out_rq;
-
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 
 	if (!wait_until_running(&h, rq)) {
 		struct drm_printer p = drm_info_printer(gt->i915->drm.dev);
@@ -1312,16 +1277,12 @@ out_reset:
 		put_task_struct(tsk);
 	}
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 out_rq:
 	i915_request_put(rq);
 out_obj:
 	i915_gem_object_put(obj);
 fini:
 	hang_fini(&h);
-unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
-
 	if (intel_gt_is_wedged(gt))
 		return -EIO;
 
@@ -1340,6 +1301,7 @@ static int igt_reset_evict_ppgtt(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct i915_gem_context *ctx;
+	struct i915_address_space *vm;
 	struct drm_file *file;
 	int err;
 
@@ -1347,18 +1309,20 @@ static int igt_reset_evict_ppgtt(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	ctx = live_context(gt->i915, file);
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto out;
 	}
 
 	err = 0;
-	if (ctx->vm) /* aliasing == global gtt locking, covered above */
-		err = __igt_reset_evict_vma(gt, ctx->vm,
+	vm = i915_gem_context_get_vm_rcu(ctx);
+	if (!i915_is_ggtt(vm)) {
+		/* aliasing == global gtt locking, covered above */
+		err = __igt_reset_evict_vma(gt, vm,
 					    evict_vma, EXEC_OBJECT_WRITE);
+	}
+	i915_vm_put(vm);
 
 out:
 	mock_file_free(gt->i915, file);
@@ -1379,7 +1343,7 @@ static int wait_for_others(struct intel_gt *gt,
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		if (engine == exclude)
 			continue;
 
@@ -1403,12 +1367,11 @@ static int igt_reset_queue(void *arg)
 
 	igt_global_reset_lock(gt);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
 	err = hang_init(&h, gt);
 	if (err)
 		goto unlock;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct i915_request *prev;
 		IGT_TIMEOUT(end_time);
 		unsigned int count;
@@ -1518,7 +1481,7 @@ static int igt_reset_queue(void *arg)
 
 		i915_request_put(prev);
 
-		err = igt_flush_test(gt->i915, I915_WAIT_LOCKED);
+		err = igt_flush_test(gt->i915);
 		if (err)
 			break;
 	}
@@ -1526,7 +1489,6 @@ static int igt_reset_queue(void *arg)
 fini:
 	hang_fini(&h);
 unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	igt_global_reset_unlock(gt);
 
 	if (intel_gt_is_wedged(gt))
@@ -1539,7 +1501,7 @@ static int igt_handle_error(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct i915_gpu_error *global = &gt->i915->gpu_error;
-	struct intel_engine_cs *engine = gt->i915->engine[RCS0];
+	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct hang h;
 	struct i915_request *rq;
 	struct i915_gpu_state *error;
@@ -1547,17 +1509,15 @@ static int igt_handle_error(void *arg)
 
 	/* Check that we can issue a global GPU and engine reset */
 
-	if (!intel_has_reset_engine(gt->i915))
+	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	if (!engine || !intel_engine_can_store_dword(engine))
 		return 0;
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
-
 	err = hang_init(&h, gt);
 	if (err)
-		goto err_unlock;
+		return err;
 
 	rq = hang_create_request(&h, engine);
 	if (IS_ERR(rq)) {
@@ -1581,16 +1541,12 @@ static int igt_handle_error(void *arg)
 		goto err_request;
 	}
 
-	mutex_unlock(&gt->i915->drm.struct_mutex);
-
 	/* Temporarily disable error capture */
 	error = xchg(&global->first_error, (void *)-1);
 
 	intel_gt_handle_error(gt, engine->mask, 0, NULL);
 
 	xchg(&global->first_error, error);
-
-	mutex_lock(&gt->i915->drm.struct_mutex);
 
 	if (rq->fence.error != -EIO) {
 		pr_err("Guilty request not identified!\n");
@@ -1602,8 +1558,6 @@ err_request:
 	i915_request_put(rq);
 err_fini:
 	hang_fini(&h);
-err_unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	return err;
 }
 
@@ -1617,7 +1571,7 @@ static int __igt_atomic_reset_engine(struct intel_engine_cs *engine,
 	GEM_TRACE("i915_reset_engine(%s:%s) under %s\n",
 		  engine->name, mode, p->name);
 
-	tasklet_disable_nosync(t);
+	tasklet_disable(t);
 	p->critical_section_begin();
 
 	err = intel_engine_reset(engine, NULL);
@@ -1689,14 +1643,13 @@ static int igt_reset_engines_atomic(void *arg)
 
 	/* Check that the engines resets are usable from atomic context */
 
-	if (!intel_has_reset_engine(gt->i915))
+	if (!intel_has_reset_engine(gt))
 		return 0;
 
 	if (USES_GUC_SUBMISSION(gt->i915))
 		return 0;
 
 	igt_global_reset_lock(gt);
-	mutex_lock(&gt->i915->drm.struct_mutex);
 
 	/* Flush any requests before we get started and check basics */
 	if (!igt_force_reset(gt))
@@ -1706,7 +1659,7 @@ static int igt_reset_engines_atomic(void *arg)
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
-		for_each_engine(engine, gt->i915, id) {
+		for_each_engine(engine, gt, id) {
 			err = igt_atomic_reset_engine(engine, p);
 			if (err)
 				goto out;
@@ -1716,9 +1669,7 @@ static int igt_reset_engines_atomic(void *arg)
 out:
 	/* As we poke around the guts, do a full reset before continuing. */
 	igt_force_reset(gt);
-
 unlock:
-	mutex_unlock(&gt->i915->drm.struct_mutex);
 	igt_global_reset_unlock(gt);
 
 	return err;
@@ -1743,27 +1694,19 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	};
 	struct intel_gt *gt = &i915->gt;
 	intel_wakeref_t wakeref;
-	bool saved_hangcheck;
 	int err;
 
-	if (!intel_has_gpu_reset(gt->i915))
+	if (!intel_has_gpu_reset(gt))
 		return 0;
 
 	if (intel_gt_is_wedged(gt))
 		return -EIO; /* we're long past hope of a successful reset */
 
-	wakeref = intel_runtime_pm_get(&gt->i915->runtime_pm);
-	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);
-	drain_delayed_work(&gt->hangcheck.work); /* flush param */
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 
 	err = intel_gt_live_subtests(tests, gt);
 
-	mutex_lock(&gt->i915->drm.struct_mutex);
-	igt_flush_test(gt->i915, I915_WAIT_LOCKED);
-	mutex_unlock(&gt->i915->drm.struct_mutex);
-
-	i915_modparams.enable_hangcheck = saved_hangcheck;
-	intel_runtime_pm_put(&gt->i915->runtime_pm, wakeref);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 
 	return err;
 }

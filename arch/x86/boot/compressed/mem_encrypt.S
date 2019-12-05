@@ -15,7 +15,7 @@
 
 	.text
 	.code32
-ENTRY(get_sev_encryption_bit)
+SYM_FUNC_START(get_sev_encryption_bit)
 	xor	%eax, %eax
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
@@ -65,10 +65,10 @@ ENTRY(get_sev_encryption_bit)
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
 
 	ret
-ENDPROC(get_sev_encryption_bit)
+SYM_FUNC_END(get_sev_encryption_bit)
 
 	.code64
-ENTRY(set_sev_encryption_mask)
+SYM_FUNC_START(set_sev_encryption_mask)
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	push	%rbp
 	push	%rdx
@@ -90,12 +90,11 @@ ENTRY(set_sev_encryption_mask)
 
 	xor	%rax, %rax
 	ret
-ENDPROC(set_sev_encryption_mask)
+SYM_FUNC_END(set_sev_encryption_mask)
 
 	.data
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	.balign	8
-GLOBAL(sme_me_mask)
-	.quad	0
+SYM_DATA(sme_me_mask, .quad 0)
 #endif

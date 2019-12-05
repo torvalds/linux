@@ -283,34 +283,12 @@
 	status = "okay";
 };
 
-&usb {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
-};
-
 &usb0 {
-	status = "okay";
 	dr_mode = "host";
 };
 
 &usb1 {
-	status = "okay";
 	dr_mode = "host";
-};
-
-&cppi41dma  {
-	status = "okay";
 };
 
 &cpsw_emac0 {

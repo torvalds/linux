@@ -21,6 +21,7 @@
 #include <crypto/hash.h>
 #include <crypto/sha.h>
 #include <crypto/akcipher.h>
+#include <crypto/skcipher.h>
 #include <crypto/internal/rsa.h>
 
 /* We want the module name in front of our messages */
@@ -31,12 +32,12 @@
 
 #define CCP_CRA_PRIORITY	300
 
-struct ccp_crypto_ablkcipher_alg {
+struct ccp_crypto_skcipher_alg {
 	struct list_head entry;
 
 	u32 mode;
 
-	struct crypto_alg alg;
+	struct skcipher_alg alg;
 };
 
 struct ccp_crypto_aead {
@@ -66,12 +67,12 @@ struct ccp_crypto_akcipher_alg {
 	struct akcipher_alg alg;
 };
 
-static inline struct ccp_crypto_ablkcipher_alg *
-	ccp_crypto_ablkcipher_alg(struct crypto_tfm *tfm)
+static inline struct ccp_crypto_skcipher_alg *
+	ccp_crypto_skcipher_alg(struct crypto_skcipher *tfm)
 {
-	struct crypto_alg *alg = tfm->__crt_alg;
+	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
 
-	return container_of(alg, struct ccp_crypto_ablkcipher_alg, alg);
+	return container_of(alg, struct ccp_crypto_skcipher_alg, alg);
 }
 
 static inline struct ccp_crypto_ahash_alg *

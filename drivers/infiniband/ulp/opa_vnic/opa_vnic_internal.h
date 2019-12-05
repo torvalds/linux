@@ -70,7 +70,7 @@
 
 struct opa_vnic_adapter;
 
-/**
+/*
  * struct __opa_vesw_info - OPA vnic virtual switch info
  *
  * Same as opa_vesw_info without bitwise attribute.
@@ -96,7 +96,7 @@ struct __opa_vesw_info {
 	u8   rsvd4[2];
 } __packed;
 
-/**
+/*
  * struct __opa_per_veswport_info - OPA vnic per port info
  *
  * Same as opa_per_veswport_info without bitwise attribute.
@@ -136,7 +136,7 @@ struct __opa_per_veswport_info {
 	u8   rsvd3[8];
 } __packed;
 
-/**
+/*
  * struct __opa_veswport_info - OPA vnic port info
  *
  * Same as opa_veswport_info without bitwise attribute.
@@ -146,7 +146,7 @@ struct __opa_veswport_info {
 	struct __opa_per_veswport_info    vport;
 };
 
-/**
+/*
  * struct __opa_veswport_trap - OPA vnic trap info
  *
  * Same as opa_veswport_trap without bitwise attribute.

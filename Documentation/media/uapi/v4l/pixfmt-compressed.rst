@@ -61,10 +61,10 @@ Compressed Formats
 
       - ``V4L2_PIX_FMT_H264_SLICE``
       - 'S264'
-      - H264 parsed slice data, without the start code and as
-	extracted from the H264 bitstream.  This format is adapted for
-	stateless video decoders that implement an H264 pipeline
-	(using the :ref:`mem2mem` and :ref:`media-request-api`).
+      - H264 parsed slice data, including slice headers, either with or
+	without the start code, as extracted from the H264 bitstream.
+	This format is adapted for stateless video decoders that implement an
+	H264 pipeline (using the :ref:`mem2mem` and :ref:`media-request-api`).
 	This pixelformat has two modifiers that must be set at least once
 	through the ``V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE``
         and ``V4L2_CID_MPEG_VIDEO_H264_START_CODE`` controls.
@@ -79,6 +79,10 @@ Compressed Formats
 	with this pixel format. The output buffer must contain the
 	appropriate number of macroblocks to decode a full
 	corresponding frame to the matching capture buffer.
+
+	The syntax for this format is documented in :ref:`h264`, section
+	7.3.2.8 "Slice layer without partitioning RBSP syntax" and the following
+	sections.
 
 	.. note::
 
@@ -188,6 +192,29 @@ Compressed Formats
 	If :ref:`VIDIOC_ENUM_FMT` reports ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
 	then the decoder has no	requirements since it can parse all the
 	information from the raw bytestream.
+    * .. _V4L2-PIX-FMT-HEVC-SLICE:
+
+      - ``V4L2_PIX_FMT_HEVC_SLICE``
+      - 'S265'
+      - HEVC parsed slice data, as extracted from the HEVC bitstream.
+	This format is adapted for stateless video decoders that implement a
+	HEVC pipeline (using the :ref:`mem2mem` and :ref:`media-request-api`).
+	This pixelformat has two modifiers that must be set at least once
+	through the ``V4L2_CID_MPEG_VIDEO_HEVC_DECODE_MODE``
+        and ``V4L2_CID_MPEG_VIDEO_HEVC_START_CODE`` controls.
+	Metadata associated with the frame to decode is required to be passed
+	through the following controls :
+        * ``V4L2_CID_MPEG_VIDEO_HEVC_SPS``
+        * ``V4L2_CID_MPEG_VIDEO_HEVC_PPS``
+        * ``V4L2_CID_MPEG_VIDEO_HEVC_SLICE_PARAMS``
+	See the :ref:`associated Codec Control IDs <v4l2-mpeg-hevc>`.
+	Buffers associated with this pixel format must contain the appropriate
+	number of macroblocks to decode a full corresponding frame.
+
+	.. note::
+
+	   This format is not yet part of the public kernel API and it
+	   is expected to change.
     * .. _V4L2-PIX-FMT-FWHT:
 
       - ``V4L2_PIX_FMT_FWHT``

@@ -86,7 +86,6 @@ struct coda_dev {
 	struct gen_pool		*iram_pool;
 	struct coda_aux_buf	iram;
 
-	spinlock_t		irqlock;
 	struct mutex		dev_mutex;
 	struct mutex		coda_mutex;
 	struct workqueue_struct	*workqueue;

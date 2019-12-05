@@ -139,7 +139,9 @@ int snd_ff_stream_get_multiplier_mode(enum cip_sfc sfc,
 				      enum snd_ff_stream_mode *mode);
 int snd_ff_stream_init_duplex(struct snd_ff *ff);
 void snd_ff_stream_destroy_duplex(struct snd_ff *ff);
-int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate);
+int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate,
+				 unsigned int frames_per_period,
+				 unsigned int frames_per_buffer);
 int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate);
 void snd_ff_stream_stop_duplex(struct snd_ff *ff);
 void snd_ff_stream_update_duplex(struct snd_ff *ff);

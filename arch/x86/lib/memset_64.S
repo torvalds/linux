@@ -19,8 +19,8 @@
  *
  * rax   original destination
  */
-ENTRY(memset)
-ENTRY(__memset)
+SYM_FUNC_START_ALIAS(memset)
+SYM_FUNC_START(__memset)
 	/*
 	 * Some CPUs support enhanced REP MOVSB/STOSB feature. It is recommended
 	 * to use it when possible. If not available, use fast string instructions.
@@ -43,8 +43,8 @@ ENTRY(__memset)
 	rep stosb
 	movq %r9,%rax
 	ret
-ENDPROC(memset)
-ENDPROC(__memset)
+SYM_FUNC_END(__memset)
+SYM_FUNC_END_ALIAS(memset)
 EXPORT_SYMBOL(memset)
 EXPORT_SYMBOL(__memset)
 
@@ -59,16 +59,16 @@ EXPORT_SYMBOL(__memset)
  *
  * rax   original destination
  */
-ENTRY(memset_erms)
+SYM_FUNC_START_LOCAL(memset_erms)
 	movq %rdi,%r9
 	movb %sil,%al
 	movq %rdx,%rcx
 	rep stosb
 	movq %r9,%rax
 	ret
-ENDPROC(memset_erms)
+SYM_FUNC_END(memset_erms)
 
-ENTRY(memset_orig)
+SYM_FUNC_START_LOCAL(memset_orig)
 	movq %rdi,%r10
 
 	/* expand byte value  */
@@ -139,4 +139,4 @@ ENTRY(memset_orig)
 	subq %r8,%rdx
 	jmp .Lafter_bad_alignment
 .Lfinal:
-ENDPROC(memset_orig)
+SYM_FUNC_END(memset_orig)

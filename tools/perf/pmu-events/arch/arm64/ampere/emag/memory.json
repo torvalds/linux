@@ -1,18 +1,18 @@
 [
     {
-        "ArchStdEvent": "MEM_ACCESS_RD",
+        "ArchStdEvent": "MEM_ACCESS_RD"
     },
     {
-        "ArchStdEvent": "MEM_ACCESS_WR",
+        "ArchStdEvent": "MEM_ACCESS_WR"
     },
     {
-        "ArchStdEvent": "UNALIGNED_LD_SPEC",
+        "ArchStdEvent": "UNALIGNED_LD_SPEC"
     },
     {
-        "ArchStdEvent": "UNALIGNED_ST_SPEC",
+        "ArchStdEvent": "UNALIGNED_ST_SPEC"
     },
     {
-        "ArchStdEvent": "UNALIGNED_LDST_SPEC",
+        "ArchStdEvent": "UNALIGNED_LDST_SPEC"
     },
     {
         "PublicDescription": "Data memory access",
@@ -25,5 +25,5 @@
         "EventCode": "0x1a",
         "EventName": "MEM_ERROR",
         "BriefDescription": "Memory error"
-    },
+    }
 ]

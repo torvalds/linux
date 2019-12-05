@@ -355,7 +355,7 @@ static inline bool pcie_cap_has_sltctl(const struct pci_dev *dev)
 	       pcie_caps_reg(dev) & PCI_EXP_FLAGS_SLOT;
 }
 
-static inline bool pcie_cap_has_rtctl(const struct pci_dev *dev)
+bool pcie_cap_has_rtctl(const struct pci_dev *dev)
 {
 	int type = pci_pcie_type(dev);
 

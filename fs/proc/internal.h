@@ -197,8 +197,8 @@ extern ssize_t proc_simple_write(struct file *, const char __user *, size_t, lof
  * inode.c
  */
 struct pde_opener {
-	struct file *file;
 	struct list_head lh;
+	struct file *file;
 	bool closing;
 	struct completion *c;
 } __randomize_layout;

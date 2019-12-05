@@ -567,7 +567,7 @@ int __init save_microcode_in_initrd_amd(unsigned int cpuid_1_eax)
 void reload_ucode_amd(void)
 {
 	struct microcode_amd *mc;
-	u32 rev, dummy;
+	u32 rev, dummy __always_unused;
 
 	mc = (struct microcode_amd *)amd_ucode_patch;
 
@@ -673,7 +673,7 @@ static enum ucode_state apply_microcode_amd(int cpu)
 	struct ucode_cpu_info *uci;
 	struct ucode_patch *p;
 	enum ucode_state ret;
-	u32 rev, dummy;
+	u32 rev, dummy __always_unused;
 
 	BUG_ON(raw_smp_processor_id() != cpu);
 

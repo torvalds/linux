@@ -219,6 +219,15 @@ static void mmhub_v9_4_init_cache_regs(struct amdgpu_device *adev, int hubid)
 			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET, tmp);
 
 	tmp = mmVML2PF0_VM_L2_CNTL3_DEFAULT;
+	if (adev->gmc.translate_further) {
+		tmp = REG_SET_FIELD(tmp, VML2PF0_VM_L2_CNTL3, BANK_SELECT, 12);
+		tmp = REG_SET_FIELD(tmp, VML2PF0_VM_L2_CNTL3,
+				    L2_CACHE_BIGK_FRAGMENT_SIZE, 9);
+	} else {
+		tmp = REG_SET_FIELD(tmp, VML2PF0_VM_L2_CNTL3, BANK_SELECT, 9);
+		tmp = REG_SET_FIELD(tmp, VML2PF0_VM_L2_CNTL3,
+				    L2_CACHE_BIGK_FRAGMENT_SIZE, 6);
+	}
 	WREG32_SOC15_OFFSET(MMHUB, 0, mmVML2PF0_VM_L2_CNTL3,
 			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET, tmp);
 
@@ -240,6 +249,8 @@ static void mmhub_v9_4_enable_system_domain(struct amdgpu_device *adev,
 				  hubid * MMHUB_INSTANCE_REGISTER_OFFSET);
 	tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
 	tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT0_CNTL, PAGE_TABLE_DEPTH, 0);
+	tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT0_CNTL,
+			    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT, 0);
 	WREG32_SOC15_OFFSET(MMHUB, 0, mmVML2VC0_VM_CONTEXT0_CNTL,
 			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET, tmp);
 }
@@ -493,6 +504,10 @@ void mmhub_v9_4_init(struct amdgpu_device *adev)
 			SOC15_REG_OFFSET(MMHUB, 0,
 			    mmVML2VC0_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32) +
 			    i * MMHUB_INSTANCE_REGISTER_OFFSET;
+		hub[i]->vm_inv_eng0_sem =
+			SOC15_REG_OFFSET(MMHUB, 0,
+					 mmVML2VC0_VM_INVALIDATE_ENG0_SEM) +
+					 i * MMHUB_INSTANCE_REGISTER_OFFSET;
 		hub[i]->vm_inv_eng0_req =
 			SOC15_REG_OFFSET(MMHUB, 0,
 					 mmVML2VC0_VM_INVALIDATE_ENG0_REQ) +

@@ -418,7 +418,7 @@ static int rtl_download_firmware(struct hci_dev *hdev,
 		if (IS_ERR(skb)) {
 			rtl_dev_err(hdev, "download fw command failed (%ld)",
 				    PTR_ERR(skb));
-			ret = -PTR_ERR(skb);
+			ret = PTR_ERR(skb);
 			goto out;
 		}
 
@@ -778,7 +778,7 @@ int btrtl_get_uart_settings(struct hci_dev *hdev,
 			rtl_dev_dbg(hdev, "skipping config entry 0x%x (len %u)",
 				   le16_to_cpu(entry->offset), entry->len);
 			break;
-		};
+		}
 
 		i += sizeof(*entry) + entry->len;
 	}

@@ -17,8 +17,13 @@ What:		/sys/class/watchdog/watchdogn/nowayout
 Date:		August 2015
 Contact:	Wim Van Sebroeck <wim@iguana.be>
 Description:
-		It is a read only file. While reading, it gives '1' if that
-		device supports nowayout feature else, it gives '0'.
+		It is a read/write file. While reading, it gives '1'
+		if the device has the nowayout feature set, otherwise
+		it gives '0'. Writing a '1' to the file enables the
+		nowayout feature. Once set, the nowayout feature
+		cannot be disabled, so writing a '0' either has no
+		effect (if the feature was already disabled) or
+		results in a permission error.
 
 What:		/sys/class/watchdog/watchdogn/state
 Date:		August 2015

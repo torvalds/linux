@@ -152,8 +152,10 @@ static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
 	 */
 	dentry = file->f_path.dentry;
 	if (strcmp(dentry->d_name.name, "ipc_flood_count") &&
-	    strcmp(dentry->d_name.name, "ipc_flood_duration_ms"))
-		return -EINVAL;
+	    strcmp(dentry->d_name.name, "ipc_flood_duration_ms")) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	if (!strcmp(dentry->d_name.name, "ipc_flood_duration_ms"))
 		flood_duration_test = true;
@@ -461,3 +463,19 @@ void snd_sof_free_debug(struct snd_sof_dev *sdev)
 	debugfs_remove_recursive(sdev->debugfs_root);
 }
 EXPORT_SYMBOL_GPL(snd_sof_free_debug);
+
+void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
+{
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
+	    (sof_core_debug & SOF_DBG_RETAIN_CTX)) {
+		/* should we prevent DSP entering D3 ? */
+		dev_info(sdev->dev, "info: preventing DSP entering D3 state to preserve context\n");
+		pm_runtime_get_noresume(sdev->dev);
+	}
+
+	/* dump vital information to the logs */
+	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX);
+	snd_sof_ipc_dump(sdev);
+	snd_sof_trace_notify_for_error(sdev);
+}
+EXPORT_SYMBOL(snd_sof_handle_fw_exception);

@@ -259,6 +259,7 @@ static const struct file_operations ibwdt_fops = {
 	.llseek		= no_llseek,
 	.write		= ibwdt_write,
 	.unlocked_ioctl	= ibwdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= ibwdt_open,
 	.release	= ibwdt_close,
 };

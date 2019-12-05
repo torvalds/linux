@@ -19,7 +19,7 @@
 
 #include <asm/mach/sharpsl_param.h>
 
-#include <mach/tosa.h>
+#include "tosa_bl.h"
 
 #define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_NORMAL)
 
@@ -28,12 +28,26 @@
 #define TG_REG0_UD	0x0004
 #define TG_REG0_LR	0x0008
 
+/*
+ * Timing Generator
+ */
+#define TG_PNLCTL 	0x00
+#define TG_TPOSCTL 	0x01
+#define TG_DUTYCTL 	0x02
+#define TG_GPOSR 	0x03
+#define TG_GPODR1 	0x04
+#define TG_GPODR2 	0x05
+#define TG_PINICTL 	0x06
+#define TG_HPOSCTL 	0x07
+
+
 #define	DAC_BASE	0x4e
 
 struct tosa_lcd_data {
 	struct spi_device *spi;
 	struct lcd_device *lcd;
 	struct i2c_client *i2c;
+	struct gpio_desc *gpiod_tg;
 
 	int lcd_power;
 	bool is_vga;
@@ -66,7 +80,7 @@ EXPORT_SYMBOL(tosa_bl_enable);
 static void tosa_lcd_tg_init(struct tosa_lcd_data *data)
 {
 	/* TG on */
-	gpio_set_value(TOSA_GPIO_TG_ON, 0);
+	gpiod_set_value(data->gpiod_tg, 0);
 
 	mdelay(60);
 
@@ -100,6 +114,7 @@ static void tosa_lcd_tg_on(struct tosa_lcd_data *data)
 		 */
 		struct i2c_adapter *adap = i2c_get_adapter(0);
 		struct i2c_board_info info = {
+			.dev_name = "tosa-bl",
 			.type	= "tosa-bl",
 			.addr	= DAC_BASE,
 			.platform_data = data->spi,
@@ -121,7 +136,7 @@ static void tosa_lcd_tg_off(struct tosa_lcd_data *data)
 	mdelay(50);
 
 	/* TG Off */
-	gpio_set_value(TOSA_GPIO_TG_ON, 1);
+	gpiod_set_value(data->gpiod_tg, 1);
 	mdelay(100);
 }
 
@@ -191,10 +206,9 @@ static int tosa_lcd_probe(struct spi_device *spi)
 	data->spi = spi;
 	spi_set_drvdata(spi, data);
 
-	ret = devm_gpio_request_one(&spi->dev, TOSA_GPIO_TG_ON,
-				GPIOF_OUT_INIT_LOW, "tg #pwr");
-	if (ret < 0)
-		return ret;
+	data->gpiod_tg = devm_gpiod_get(&spi->dev, "tg #pwr", GPIOD_OUT_LOW);
+	if (IS_ERR(data->gpiod_tg))
+		return PTR_ERR(data->gpiod_tg);
 
 	mdelay(60);
 

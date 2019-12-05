@@ -370,15 +370,23 @@ static int bgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 static int bgpio_get_dir(struct gpio_chip *gc, unsigned int gpio)
 {
 	/* Return 0 if output, 1 if input */
-	if (gc->bgpio_dir_unreadable)
-		return !(gc->bgpio_dir & bgpio_line2mask(gc, gpio));
-	if (gc->reg_dir_out)
-		return !(gc->read_reg(gc->reg_dir_out) & bgpio_line2mask(gc, gpio));
-	if (gc->reg_dir_in)
-		return !!(gc->read_reg(gc->reg_dir_in) & bgpio_line2mask(gc, gpio));
+	if (gc->bgpio_dir_unreadable) {
+		if (gc->bgpio_dir & bgpio_line2mask(gc, gpio))
+			return GPIO_LINE_DIRECTION_OUT;
+		return GPIO_LINE_DIRECTION_IN;
+	}
 
-	/* This should not happen */
-	return 1;
+	if (gc->reg_dir_out) {
+		if (gc->read_reg(gc->reg_dir_out) & bgpio_line2mask(gc, gpio))
+			return GPIO_LINE_DIRECTION_OUT;
+		return GPIO_LINE_DIRECTION_IN;
+	}
+
+	if (gc->reg_dir_in)
+		if (!(gc->read_reg(gc->reg_dir_in) & bgpio_line2mask(gc, gpio)))
+			return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int bgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)

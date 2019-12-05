@@ -164,6 +164,12 @@ static int lp_irq_type(struct irq_data *d, unsigned type)
 		value |= TRIG_SEL_BIT | INT_INV_BIT;
 
 	outl(value, reg);
+
+	if (type & IRQ_TYPE_EDGE_BOTH)
+		irq_set_handler_locked(d, handle_edge_irq);
+	else if (type & IRQ_TYPE_LEVEL_MASK)
+		irq_set_handler_locked(d, handle_level_irq);
+
 	spin_unlock_irqrestore(&lg->lock, flags);
 
 	return 0;
@@ -294,8 +300,9 @@ static struct irq_chip lp_irqchip = {
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 
-static void lp_gpio_irq_init_hw(struct lp_gpio *lg)
+static int lp_gpio_irq_init_hw(struct gpio_chip *chip)
 {
+	struct lp_gpio *lg = gpiochip_get_data(chip);
 	unsigned long reg;
 	unsigned base;
 
@@ -307,6 +314,8 @@ static void lp_gpio_irq_init_hw(struct lp_gpio *lg)
 		reg = lp_gpio_reg(&lg->chip, base, LP_INT_STAT);
 		outl(0xffffffff, reg);
 	}
+
+	return 0;
 }
 
 static int lp_gpio_probe(struct platform_device *pdev)
@@ -364,6 +373,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 
 		girq = &gc->irq;
 		girq->chip = &lp_irqchip;
+		girq->init_hw = lp_gpio_irq_init_hw;
 		girq->parent_handler = lp_gpio_irq_handler;
 		girq->num_parents = 1;
 		girq->parents = devm_kcalloc(&pdev->dev, girq->num_parents,
@@ -373,9 +383,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 			return -ENOMEM;
 		girq->parents[0] = (unsigned)irq_rc->start;
 		girq->default_type = IRQ_TYPE_NONE;
-		girq->handler = handle_simple_irq;
-
-		lp_gpio_irq_init_hw(lg);
+		girq->handler = handle_bad_irq;
 	}
 
 	ret = devm_gpiochip_add_data(dev, gc, lg);

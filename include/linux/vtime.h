@@ -11,11 +11,15 @@
 struct task_struct;
 
 /*
- * vtime_accounting_cpu_enabled() definitions/declarations
+ * vtime_accounting_enabled_this_cpu() definitions/declarations
  */
 #if defined(CONFIG_VIRT_CPU_ACCOUNTING_NATIVE)
-static inline bool vtime_accounting_cpu_enabled(void) { return true; }
+
+static inline bool vtime_accounting_enabled_this_cpu(void) { return true; }
+extern void vtime_task_switch(struct task_struct *prev);
+
 #elif defined(CONFIG_VIRT_CPU_ACCOUNTING_GEN)
+
 /*
  * Checks if vtime is enabled on some CPU. Cputime readers want to be careful
  * in that case and compute the tickless cputime.
@@ -24,46 +28,43 @@ static inline bool vtime_accounting_cpu_enabled(void) { return true; }
  */
 static inline bool vtime_accounting_enabled(void)
 {
-	return context_tracking_is_enabled();
+	return context_tracking_enabled();
 }
 
-static inline bool vtime_accounting_cpu_enabled(void)
+static inline bool vtime_accounting_enabled_cpu(int cpu)
 {
-	if (vtime_accounting_enabled()) {
-		if (context_tracking_cpu_is_enabled())
-			return true;
-	}
-
-	return false;
+	return context_tracking_enabled_cpu(cpu);
 }
-#else /* !CONFIG_VIRT_CPU_ACCOUNTING */
-static inline bool vtime_accounting_cpu_enabled(void) { return false; }
-#endif
 
+static inline bool vtime_accounting_enabled_this_cpu(void)
+{
+	return context_tracking_enabled_this_cpu();
+}
+
+extern void vtime_task_switch_generic(struct task_struct *prev);
+
+static inline void vtime_task_switch(struct task_struct *prev)
+{
+	if (vtime_accounting_enabled_this_cpu())
+		vtime_task_switch_generic(prev);
+}
+
+#else /* !CONFIG_VIRT_CPU_ACCOUNTING */
+
+static inline bool vtime_accounting_enabled_cpu(int cpu) {return false; }
+static inline bool vtime_accounting_enabled_this_cpu(void) { return false; }
+static inline void vtime_task_switch(struct task_struct *prev) { }
+
+#endif
 
 /*
  * Common vtime APIs
  */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-
-#ifdef __ARCH_HAS_VTIME_TASK_SWITCH
-extern void vtime_task_switch(struct task_struct *prev);
-#else
-extern void vtime_common_task_switch(struct task_struct *prev);
-static inline void vtime_task_switch(struct task_struct *prev)
-{
-	if (vtime_accounting_cpu_enabled())
-		vtime_common_task_switch(prev);
-}
-#endif /* __ARCH_HAS_VTIME_TASK_SWITCH */
-
-extern void vtime_account_system(struct task_struct *tsk);
+extern void vtime_account_kernel(struct task_struct *tsk);
 extern void vtime_account_idle(struct task_struct *tsk);
-
 #else /* !CONFIG_VIRT_CPU_ACCOUNTING */
-
-static inline void vtime_task_switch(struct task_struct *prev) { }
-static inline void vtime_account_system(struct task_struct *tsk) { }
+static inline void vtime_account_kernel(struct task_struct *tsk) { }
 #endif /* !CONFIG_VIRT_CPU_ACCOUNTING */
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
@@ -86,7 +87,7 @@ extern void vtime_account_irq_enter(struct task_struct *tsk);
 static inline void vtime_account_irq_exit(struct task_struct *tsk)
 {
 	/* On hard|softirq exit we always account to hard|softirq cputime */
-	vtime_account_system(tsk);
+	vtime_account_kernel(tsk);
 }
 extern void vtime_flush(struct task_struct *tsk);
 #else /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */

@@ -226,7 +226,7 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	/* disable irqs */
 	vega10_ih_disable_interrupts(adev);
 
-	adev->nbio_funcs->ih_control(adev);
+	adev->nbio.funcs->ih_control(adev);
 
 	ih = &adev->irq.ih;
 	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
@@ -675,10 +675,49 @@ static int vega10_ih_soft_reset(void *handle)
 	return 0;
 }
 
+static void vega10_ih_update_clockgating_state(struct amdgpu_device *adev,
+					       bool enable)
+{
+	uint32_t data, def, field_val;
+
+	if (adev->cg_flags & AMD_CG_SUPPORT_IH_CG) {
+		def = data = RREG32_SOC15(OSSSYS, 0, mmIH_CLK_CTRL);
+		field_val = enable ? 0 : 1;
+		/**
+		 * Vega10 does not have IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE
+		 * and IH_BUFFER_MEM_CLK_SOFT_OVERRIDE field.
+		 */
+		if (adev->asic_type > CHIP_VEGA10) {
+			data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE, field_val);
+			data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     IH_BUFFER_MEM_CLK_SOFT_OVERRIDE, field_val);
+		}
+
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     DBUS_MUX_CLK_SOFT_OVERRIDE, field_val);
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     OSSSYS_SHARE_CLK_SOFT_OVERRIDE, field_val);
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     LIMIT_SMN_CLK_SOFT_OVERRIDE, field_val);
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     DYN_CLK_SOFT_OVERRIDE, field_val);
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     REG_CLK_SOFT_OVERRIDE, field_val);
+		if (def != data)
+			WREG32_SOC15(OSSSYS, 0, mmIH_CLK_CTRL, data);
+	}
+}
+
 static int vega10_ih_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	vega10_ih_update_clockgating_state(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
 	return 0;
+
 }
 
 static int vega10_ih_set_powergating_state(void *handle,

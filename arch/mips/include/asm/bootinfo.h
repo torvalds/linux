@@ -61,7 +61,7 @@
 /*
  * Valid machtype for Loongson family
  */
-enum loongson_machine_type {
+enum loongson2ef_machine_type {
 	MACH_LOONGSON_UNKNOWN,
 	MACH_LEMOTE_FL2E,
 	MACH_LEMOTE_FL2F,
@@ -70,7 +70,6 @@ enum loongson_machine_type {
 	MACH_DEXXON_GDIUM2F10,
 	MACH_LEMOTE_NAS,
 	MACH_LEMOTE_LL2F,
-	MACH_LOONGSON_GENERIC,
 	MACH_LOONGSON_END
 };
 
@@ -99,6 +98,7 @@ extern void detect_memory_region(phys_addr_t start, phys_addr_t sz_min,  phys_ad
 
 extern void prom_init(void);
 extern void prom_free_prom_memory(void);
+extern void prom_cleanup(void);
 
 extern void free_init_pages(const char *what,
 			    unsigned long begin, unsigned long end);

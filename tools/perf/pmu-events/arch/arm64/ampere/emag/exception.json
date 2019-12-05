@@ -1,39 +1,39 @@
 [
     {
-        "ArchStdEvent": "EXC_UNDEF",
+        "ArchStdEvent": "EXC_UNDEF"
     },
     {
-        "ArchStdEvent": "EXC_SVC",
+        "ArchStdEvent": "EXC_SVC"
     },
     {
-        "ArchStdEvent": "EXC_PABORT",
+        "ArchStdEvent": "EXC_PABORT"
     },
     {
-        "ArchStdEvent": "EXC_DABORT",
+        "ArchStdEvent": "EXC_DABORT"
     },
     {
-        "ArchStdEvent": "EXC_IRQ",
+        "ArchStdEvent": "EXC_IRQ"
     },
     {
-        "ArchStdEvent": "EXC_FIQ",
+        "ArchStdEvent": "EXC_FIQ"
     },
     {
-        "ArchStdEvent": "EXC_HVC",
+        "ArchStdEvent": "EXC_HVC"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_PABORT",
+        "ArchStdEvent": "EXC_TRAP_PABORT"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_DABORT",
+        "ArchStdEvent": "EXC_TRAP_DABORT"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_OTHER",
+        "ArchStdEvent": "EXC_TRAP_OTHER"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_IRQ",
+        "ArchStdEvent": "EXC_TRAP_IRQ"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_FIQ",
+        "ArchStdEvent": "EXC_TRAP_FIQ"
     },
     {
         "PublicDescription": "Exception taken",
@@ -46,5 +46,5 @@
         "EventCode": "0x0a",
         "EventName": "EXC_RETURN",
         "BriefDescription": "Exception return"
-    },
+    }
 ]

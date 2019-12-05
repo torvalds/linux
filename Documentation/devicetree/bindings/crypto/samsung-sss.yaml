@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/samsung-sss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos SoC SSS (Security SubSystem) module
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Kamil Konieczny <k.konieczny@partner.samsung.com>
+
+description: |+
+  The SSS module in S5PV210 SoC supports the following:
+  -- Feeder (FeedCtrl)
+  -- Advanced Encryption Standard (AES)
+  -- Data Encryption Standard (DES)/3DES
+  -- Public Key Accelerator (PKA)
+  -- SHA-1/SHA-256/MD5/HMAC (SHA-1/SHA-256/MD5)/PRNG
+  -- PRNG: Pseudo Random Number Generator
+
+  The SSS module in Exynos4 (Exynos4210) and Exynos5 (Exynos5420 and Exynos5250)
+  SoCs supports the following also:
+  -- ARCFOUR (ARC4)
+  -- True Random Number Generator (TRNG)
+  -- Secure Key Manager
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - samsung,s5pv210-secss           # for S5PV210
+          - samsung,exynos4210-secss        # for Exynos4210, Exynos4212,
+                                            # Exynos4412, Exynos5250,
+                                            # Exynos5260 and Exynos5420
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: secss
+
+  interrupts:
+    description: One feed control interrupt.
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clock-names
+  - clocks
+  - interrupts
+
+additionalProperties: false

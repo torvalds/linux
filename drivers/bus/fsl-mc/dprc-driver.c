@@ -104,10 +104,8 @@ static int __fsl_mc_device_match(struct device *dev, void *data)
 	return fsl_mc_device_match(mc_dev, obj_desc);
 }
 
-static struct fsl_mc_device *fsl_mc_device_lookup(struct fsl_mc_obj_desc
-								*obj_desc,
-						  struct fsl_mc_device
-								*mc_bus_dev)
+struct fsl_mc_device *fsl_mc_device_lookup(struct fsl_mc_obj_desc *obj_desc,
+					   struct fsl_mc_device *mc_bus_dev)
 {
 	struct device *dev;
 

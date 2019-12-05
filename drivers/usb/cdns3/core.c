@@ -166,7 +166,6 @@ static int cdns3_core_init_role(struct cdns3 *cdns)
 		goto err;
 
 	switch (cdns->dr_mode) {
-	case USB_DR_MODE_UNKNOWN:
 	case USB_DR_MODE_OTG:
 		ret = cdns3_hw_role_switch(cdns);
 		if (ret)
@@ -182,6 +181,9 @@ static int cdns3_core_init_role(struct cdns3 *cdns)
 		if (ret)
 			goto err;
 		break;
+	default:
+		ret = -EINVAL;
+		goto err;
 	}
 
 	return ret;

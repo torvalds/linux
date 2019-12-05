@@ -287,6 +287,10 @@ void optc2_get_optc_source(struct timing_generator *optc,
 		*num_of_src_opp = 2;
 	else
 		*num_of_src_opp = 1;
+
+	/* Work around VBIOS not updating OPTC_NUM_OF_INPUT_SEGMENT */
+	if (*src_opp_id_1 == 0xf)
+		*num_of_src_opp = 1;
 }
 
 void optc2_set_dwb_source(struct timing_generator *optc,
@@ -456,7 +460,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.set_vtg_params = optc1_set_vtg_params,
 		.program_manual_trigger = optc2_program_manual_trigger,
 		.setup_manual_trigger = optc2_setup_manual_trigger,
-		.is_matching_timing = optc1_is_matching_timing
+		.get_hw_timing = optc1_get_hw_timing,
 };
 
 void dcn20_timing_generator_init(struct optc *optc1)

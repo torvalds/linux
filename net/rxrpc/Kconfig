@@ -49,7 +49,7 @@ config RXKAD
 	depends on AF_RXRPC
 	select CRYPTO
 	select CRYPTO_MANAGER
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_PCBC
 	select CRYPTO_FCRYPT
 	help

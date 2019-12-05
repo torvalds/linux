@@ -1613,13 +1613,6 @@ static inline int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optv
 {
  	return -ENOPROTOOPT;
 }
-
-static inline int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
-{
- 	/* should not happen */
- 	kfree_skb(skb);
-	return 0;
-}
 #endif
 
 struct dst_entry *__xfrm_dst_lookup(struct net *net, int tos, int oif,

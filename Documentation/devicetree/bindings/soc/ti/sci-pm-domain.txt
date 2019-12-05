@@ -12,7 +12,7 @@ PM Domain Node
 ==============
 The PM domain node represents the global PM domain managed by the PMMC, which
 in this case is the implementation as documented by the generic PM domain
-bindings in Documentation/devicetree/bindings/power/power_domain.txt.  Because
+bindings in Documentation/devicetree/bindings/power/power-domain.yaml.  Because
 this relies on the TI SCI protocol to communicate with the PMMC it must be a
 child of the pmmc node.
 

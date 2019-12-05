@@ -22,3 +22,11 @@ config BCM47XX_SPROM
 	  In case of SoC devices SPROM content is stored on a flash used by
 	  bootloader firmware CFE. This driver provides method to ssb and bcma
 	  drivers to read SPROM on SoC.
+
+config TEE_BNXT_FW
+	tristate "Broadcom BNXT firmware manager"
+	depends on (ARCH_BCM_IPROC && OPTEE) || (COMPILE_TEST && TEE)
+	default ARCH_BCM_IPROC
+	help
+	  This module help to manage firmware on Broadcom BNXT device. The module
+	  registers on tee bus and invoke calls to manage firmware on BNXT device.

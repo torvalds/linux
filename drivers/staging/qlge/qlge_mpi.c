@@ -1257,7 +1257,6 @@ void ql_mpi_work(struct work_struct *work)
 	/* End polled mode for MPI */
 	ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16) | INTR_MASK_PI);
 	mutex_unlock(&qdev->mpi_mutex);
-	ql_enable_completion_interrupt(qdev, 0);
 }
 
 void ql_mpi_reset_work(struct work_struct *work)

@@ -1,3 +1,4 @@
+
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2016 Broadcom
@@ -11,6 +12,7 @@
 #include <linux/mailbox_client.h>
 #include <crypto/aes.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/skcipher.h>
 #include <crypto/aead.h>
 #include <crypto/arc4.h>
 #include <crypto/gcm.h>
@@ -102,7 +104,7 @@ struct auth_op {
 struct iproc_alg_s {
 	u32 type;
 	union {
-		struct crypto_alg crypto;
+		struct skcipher_alg skcipher;
 		struct ahash_alg hash;
 		struct aead_alg aead;
 	} alg;
@@ -149,7 +151,7 @@ struct spu_msg_buf {
 	u8 rx_stat[ALIGN(SPU_RX_STATUS_LEN, SPU_MSG_ALIGN)];
 
 	union {
-		/* Buffers only used for ablkcipher */
+		/* Buffers only used for skcipher */
 		struct {
 			/*
 			 * Field used for either SUPDT when RC4 is used
@@ -214,7 +216,7 @@ struct iproc_ctx_s {
 
 	/*
 	 * Buffer to hold SPU message header template. Template is created at
-	 * setkey time for ablkcipher requests, since most of the fields in the
+	 * setkey time for skcipher requests, since most of the fields in the
 	 * header are known at that time. At request time, just fill in a few
 	 * missing pieces related to length of data in the request and IVs, etc.
 	 */
@@ -256,7 +258,7 @@ struct iproc_reqctx_s {
 
 	/* total todo, rx'd, and sent for this request */
 	unsigned int total_todo;
-	unsigned int total_received;	/* only valid for ablkcipher */
+	unsigned int total_received;	/* only valid for skcipher */
 	unsigned int total_sent;
 
 	/*

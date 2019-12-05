@@ -166,6 +166,9 @@ acpi_status acpi_enter_sleep_state_s4bios(void)
 
 	status = acpi_hw_write_port(acpi_gbl_FADT.smi_command,
 				    (u32)acpi_gbl_FADT.s4_bios_request, 8);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	do {
 		acpi_os_stall(ACPI_USEC_PER_MSEC);

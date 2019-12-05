@@ -1003,7 +1003,6 @@ static int lbs_add_mesh(struct lbs_private *priv)
 	if (priv->mesh_tlv) {
 		sprintf(mesh_wdev->ssid, "mesh");
 		mesh_wdev->mesh_id_up_len = 4;
-		ret = 1;
 	}
 
 	mesh_wdev->netdev = mesh_dev;

@@ -366,8 +366,8 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 
 /* IIep is write-through, not flushing on cpu to device transfer. */
 
-void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
 	if (dir != PCI_DMA_TODEVICE)
 		dma_make_coherent(paddr, PAGE_ALIGN(size));

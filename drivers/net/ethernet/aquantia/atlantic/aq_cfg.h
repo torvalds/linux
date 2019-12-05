@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File aq_cfg.h: Definition of configuration parameters and constants. */
@@ -27,7 +27,7 @@
 
 #define AQ_CFG_INTERRUPT_MODERATION_USEC_MAX (0x1FF * 2)
 
-#define AQ_CFG_IRQ_MASK                      0x1FFU
+#define AQ_CFG_IRQ_MASK                      0x3FFU
 
 #define AQ_CFG_VECS_MAX   8U
 #define AQ_CFG_TCS_MAX    8U
@@ -70,13 +70,10 @@
 
 /*#define AQ_CFG_MAC_ADDR_PERMANENT {0x30, 0x0E, 0xE3, 0x12, 0x34, 0x56}*/
 
-#define AQ_NIC_FC_OFF    0U
-#define AQ_NIC_FC_TX     1U
-#define AQ_NIC_FC_RX     2U
-#define AQ_NIC_FC_FULL   3U
-#define AQ_NIC_FC_AUTO   4U
-
 #define AQ_CFG_FC_MODE AQ_NIC_FC_FULL
+
+/* Default WOL modes used on initialization */
+#define AQ_CFG_WOL_MODES WAKE_MAGIC
 
 #define AQ_CFG_SPEED_MSK  0xFFFFU	/* 0xFFFFU==auto_neg */
 

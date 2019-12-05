@@ -238,22 +238,29 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		pr_err("VIF%u.%u: FW reported bad MAC: %pM\n",
 		       mac->macid, vif->vifid, vif->mac_addr);
 		ret = -EINVAL;
-		goto err_mac;
+		goto error_del_vif;
 	}
 
 	ret = qtnf_core_net_attach(mac, vif, name, name_assign_t);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to attach netdev\n", mac->macid,
 		       vif->vifid);
-		goto err_net;
+		goto error_del_vif;
+	}
+
+	if (mac->bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) {
+		ret = qtnf_cmd_netdev_changeupper(vif, vif->netdev->ifindex);
+		if (ret) {
+			unregister_netdevice(vif->netdev);
+			vif->netdev = NULL;
+			goto error_del_vif;
+		}
 	}
 
 	vif->wdev.netdev = vif->netdev;
 	return &vif->wdev;
 
-err_net:
-	vif->netdev = NULL;
-err_mac:
+error_del_vif:
 	qtnf_cmd_send_del_intf(vif);
 err_cmd:
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
@@ -897,6 +904,45 @@ static int qtnf_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
+static int qtnf_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
+			     int *dbm)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
+	int ret;
+
+	ret = qtnf_cmd_get_tx_power(vif, dbm);
+	if (ret)
+		pr_err("MAC%u: failed to get Tx power\n", vif->mac->macid);
+
+	return ret;
+}
+
+static int qtnf_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
+			     enum nl80211_tx_power_setting type, int mbm)
+{
+	struct qtnf_vif *vif;
+	int ret;
+
+	if (wdev) {
+		vif = qtnf_netdev_get_priv(wdev->netdev);
+	} else {
+		struct qtnf_wmac *mac = wiphy_priv(wiphy);
+
+		vif = qtnf_mac_get_base_vif(mac);
+		if (!vif) {
+			pr_err("MAC%u: primary VIF is not configured\n",
+			       mac->macid);
+			return -EFAULT;
+		}
+	}
+
+	ret = qtnf_cmd_set_tx_power(vif, type, mbm);
+	if (ret)
+		pr_err("MAC%u: failed to set Tx power\n", vif->mac->macid);
+
+	return ret;
+}
+
 #ifdef CONFIG_PM
 static int qtnf_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wowlan)
 {
@@ -991,6 +1037,8 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.start_radar_detection	= qtnf_start_radar_detection,
 	.set_mac_acl		= qtnf_set_mac_acl,
 	.set_power_mgmt		= qtnf_set_power_mgmt,
+	.get_tx_power		= qtnf_get_tx_power,
+	.set_tx_power		= qtnf_set_tx_power,
 #ifdef CONFIG_PM
 	.suspend		= qtnf_suspend,
 	.resume			= qtnf_resume,

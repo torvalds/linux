@@ -129,7 +129,7 @@ void dpp_set_gamut_remap_bypass(struct dcn10_dpp *dpp)
 
 #define IDENTITY_RATIO(ratio) (dc_fixpt_u2d19(ratio) == (1 << 19))
 
-static bool dpp_get_optimal_number_of_taps(
+bool dpp1_get_optimal_number_of_taps(
 		struct dpp *dpp,
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
@@ -521,7 +521,7 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.dpp_read_state = dpp_read_state,
 		.dpp_reset = dpp_reset,
 		.dpp_set_scaler = dpp1_dscl_set_scaler_manual_scale,
-		.dpp_get_optimal_number_of_taps = dpp_get_optimal_number_of_taps,
+		.dpp_get_optimal_number_of_taps = dpp1_get_optimal_number_of_taps,
 		.dpp_set_gamut_remap = dpp1_cm_set_gamut_remap,
 		.dpp_set_csc_adjustment = dpp1_cm_set_output_csc_adjustment,
 		.dpp_set_csc_default = dpp1_cm_set_output_csc_default,

@@ -25,13 +25,13 @@ static int bd70528_set_debounce(struct bd70528_gpio *bdgpio,
 	case 0:
 		val = BD70528_DEBOUNCE_DISABLE;
 		break;
-	case 1 ... 15:
+	case 1 ... 15000:
 		val = BD70528_DEBOUNCE_15MS;
 		break;
-	case 16 ... 30:
+	case 15001 ... 30000:
 		val = BD70528_DEBOUNCE_30MS;
 		break;
-	case 31 ... 50:
+	case 30001 ... 50000:
 		val = BD70528_DEBOUNCE_50MS;
 		break;
 	default:
@@ -54,8 +54,10 @@ static int bd70528_get_direction(struct gpio_chip *chip, unsigned int offset)
 		dev_err(bdgpio->chip.dev, "Could not read gpio direction\n");
 		return ret;
 	}
+	if (val & BD70528_GPIO_OUT_EN_MASK)
+		return GPIO_LINE_DIRECTION_OUT;
 
-	return !(val & BD70528_GPIO_OUT_EN_MASK);
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int bd70528_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
@@ -166,9 +168,9 @@ static int bd70528_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	 * locking would make no sense.
 	 */
 	ret = bd70528_get_direction(chip, offset);
-	if (ret == 0)
+	if (ret == GPIO_LINE_DIRECTION_OUT)
 		ret = bd70528_gpio_get_o(bdgpio, offset);
-	else if (ret == 1)
+	else if (ret == GPIO_LINE_DIRECTION_IN)
 		ret = bd70528_gpio_get_i(bdgpio, offset);
 	else
 		dev_err(bdgpio->chip.dev, "failed to read GPIO direction\n");
@@ -230,3 +232,4 @@ module_platform_driver(bd70528_gpio);
 MODULE_AUTHOR("Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>");
 MODULE_DESCRIPTION("BD70528 voltage regulator driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:bd70528-gpio");

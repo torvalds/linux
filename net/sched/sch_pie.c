@@ -22,6 +22,7 @@
 
 #define QUEUE_THRESHOLD 16384
 #define DQCOUNT_INVALID -1
+#define DTIME_INVALID 0xffffffffffffffff
 #define MAX_PROB 0xffffffffffffffff
 #define PIE_SCALE 8
 
@@ -34,6 +35,7 @@ struct pie_params {
 	u32 beta;		/* and are used for shift relative to 1 */
 	bool ecn;		/* true if ecn is enabled */
 	bool bytemode;		/* to scale drop early prob based on pkt size */
+	u8 dq_rate_estimator;	/* to calculate delay using Little's law */
 };
 
 /* variables used */
@@ -77,11 +79,34 @@ static void pie_params_init(struct pie_params *params)
 	params->target = PSCHED_NS2TICKS(15 * NSEC_PER_MSEC);	/* 15 ms */
 	params->ecn = false;
 	params->bytemode = false;
+	params->dq_rate_estimator = false;
+}
+
+/* private skb vars */
+struct pie_skb_cb {
+	psched_time_t enqueue_time;
+};
+
+static struct pie_skb_cb *get_pie_cb(const struct sk_buff *skb)
+{
+	qdisc_cb_private_validate(skb, sizeof(struct pie_skb_cb));
+	return (struct pie_skb_cb *)qdisc_skb_cb(skb)->data;
+}
+
+static psched_time_t pie_get_enqueue_time(const struct sk_buff *skb)
+{
+	return get_pie_cb(skb)->enqueue_time;
+}
+
+static void pie_set_enqueue_time(struct sk_buff *skb)
+{
+	get_pie_cb(skb)->enqueue_time = psched_get_time();
 }
 
 static void pie_vars_init(struct pie_vars *vars)
 {
 	vars->dq_count = DQCOUNT_INVALID;
+	vars->dq_tstamp = DTIME_INVALID;
 	vars->accu_prob = 0;
 	vars->avg_dq_rate = 0;
 	/* default of 150 ms in pschedtime */
@@ -172,6 +197,10 @@ static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 	/* we can enqueue the packet */
 	if (enqueue) {
+		/* Set enqueue time only when dq_rate_estimator is disabled. */
+		if (!q->params.dq_rate_estimator)
+			pie_set_enqueue_time(skb);
+
 		q->stats.packets_in++;
 		if (qdisc_qlen(sch) > q->stats.maxq)
 			q->stats.maxq = qdisc_qlen(sch);
@@ -194,6 +223,7 @@ static const struct nla_policy pie_policy[TCA_PIE_MAX + 1] = {
 	[TCA_PIE_BETA] = {.type = NLA_U32},
 	[TCA_PIE_ECN] = {.type = NLA_U32},
 	[TCA_PIE_BYTEMODE] = {.type = NLA_U32},
+	[TCA_PIE_DQ_RATE_ESTIMATOR] = {.type = NLA_U32},
 };
 
 static int pie_change(struct Qdisc *sch, struct nlattr *opt,
@@ -247,6 +277,10 @@ static int pie_change(struct Qdisc *sch, struct nlattr *opt,
 	if (tb[TCA_PIE_BYTEMODE])
 		q->params.bytemode = nla_get_u32(tb[TCA_PIE_BYTEMODE]);
 
+	if (tb[TCA_PIE_DQ_RATE_ESTIMATOR])
+		q->params.dq_rate_estimator =
+				nla_get_u32(tb[TCA_PIE_DQ_RATE_ESTIMATOR]);
+
 	/* Drop excess packets if new limit is lower */
 	qlen = sch->q.qlen;
 	while (sch->q.qlen > sch->limit) {
@@ -266,6 +300,28 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct pie_sched_data *q = qdisc_priv(sch);
 	int qlen = sch->qstats.backlog;	/* current queue size in bytes */
+	psched_time_t now = psched_get_time();
+	u32 dtime = 0;
+
+	/* If dq_rate_estimator is disabled, calculate qdelay using the
+	 * packet timestamp.
+	 */
+	if (!q->params.dq_rate_estimator) {
+		q->vars.qdelay = now - pie_get_enqueue_time(skb);
+
+		if (q->vars.dq_tstamp != DTIME_INVALID)
+			dtime = now - q->vars.dq_tstamp;
+
+		q->vars.dq_tstamp = now;
+
+		if (qlen == 0)
+			q->vars.qdelay = 0;
+
+		if (dtime == 0)
+			return;
+
+		goto burst_allowance_reduction;
+	}
 
 	/* If current queue is about 10 packets or more and dq_count is unset
 	 * we have enough packets to calculate the drain rate. Save
@@ -289,9 +345,9 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 		q->vars.dq_count += skb->len;
 
 		if (q->vars.dq_count >= QUEUE_THRESHOLD) {
-			psched_time_t now = psched_get_time();
-			u32 dtime = now - q->vars.dq_tstamp;
 			u32 count = q->vars.dq_count << PIE_SCALE;
+
+			dtime = now - q->vars.dq_tstamp;
 
 			if (dtime == 0)
 				return;
@@ -317,13 +373,18 @@ static void pie_process_dequeue(struct Qdisc *sch, struct sk_buff *skb)
 				q->vars.dq_tstamp = psched_get_time();
 			}
 
-			if (q->vars.burst_time > 0) {
-				if (q->vars.burst_time > dtime)
-					q->vars.burst_time -= dtime;
-				else
-					q->vars.burst_time = 0;
-			}
+			goto burst_allowance_reduction;
 		}
+	}
+
+	return;
+
+burst_allowance_reduction:
+	if (q->vars.burst_time > 0) {
+		if (q->vars.burst_time > dtime)
+			q->vars.burst_time -= dtime;
+		else
+			q->vars.burst_time = 0;
 	}
 }
 
@@ -332,19 +393,25 @@ static void calculate_probability(struct Qdisc *sch)
 	struct pie_sched_data *q = qdisc_priv(sch);
 	u32 qlen = sch->qstats.backlog;	/* queue size in bytes */
 	psched_time_t qdelay = 0;	/* in pschedtime */
-	psched_time_t qdelay_old = q->vars.qdelay;	/* in pschedtime */
+	psched_time_t qdelay_old = 0;	/* in pschedtime */
 	s64 delta = 0;		/* determines the change in probability */
 	u64 oldprob;
 	u64 alpha, beta;
 	u32 power;
 	bool update_prob = true;
 
-	q->vars.qdelay_old = q->vars.qdelay;
+	if (q->params.dq_rate_estimator) {
+		qdelay_old = q->vars.qdelay;
+		q->vars.qdelay_old = q->vars.qdelay;
 
-	if (q->vars.avg_dq_rate > 0)
-		qdelay = (qlen << PIE_SCALE) / q->vars.avg_dq_rate;
-	else
-		qdelay = 0;
+		if (q->vars.avg_dq_rate > 0)
+			qdelay = (qlen << PIE_SCALE) / q->vars.avg_dq_rate;
+		else
+			qdelay = 0;
+	} else {
+		qdelay = q->vars.qdelay;
+		qdelay_old = q->vars.qdelay_old;
+	}
 
 	/* If qdelay is zero and qlen is not, it means qlen is very small, less
 	 * than dequeue_rate, so we do not update probabilty in this round
@@ -430,14 +497,18 @@ static void calculate_probability(struct Qdisc *sch)
 	/* We restart the measurement cycle if the following conditions are met
 	 * 1. If the delay has been low for 2 consecutive Tupdate periods
 	 * 2. Calculated drop probability is zero
-	 * 3. We have atleast one estimate for the avg_dq_rate ie.,
-	 *    is a non-zero value
+	 * 3. If average dq_rate_estimator is enabled, we have atleast one
+	 *    estimate for the avg_dq_rate ie., is a non-zero value
 	 */
 	if ((q->vars.qdelay < q->params.target / 2) &&
 	    (q->vars.qdelay_old < q->params.target / 2) &&
 	    q->vars.prob == 0 &&
-	    q->vars.avg_dq_rate > 0)
+	    (!q->params.dq_rate_estimator || q->vars.avg_dq_rate > 0)) {
 		pie_vars_init(&q->vars);
+	}
+
+	if (!q->params.dq_rate_estimator)
+		q->vars.qdelay_old = qdelay;
 }
 
 static void pie_timer(struct timer_list *t)
@@ -497,7 +568,9 @@ static int pie_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_PIE_ALPHA, q->params.alpha) ||
 	    nla_put_u32(skb, TCA_PIE_BETA, q->params.beta) ||
 	    nla_put_u32(skb, TCA_PIE_ECN, q->params.ecn) ||
-	    nla_put_u32(skb, TCA_PIE_BYTEMODE, q->params.bytemode))
+	    nla_put_u32(skb, TCA_PIE_BYTEMODE, q->params.bytemode) ||
+	    nla_put_u32(skb, TCA_PIE_DQ_RATE_ESTIMATOR,
+			q->params.dq_rate_estimator))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);
@@ -514,15 +587,20 @@ static int pie_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 		.prob		= q->vars.prob,
 		.delay		= ((u32)PSCHED_TICKS2NS(q->vars.qdelay)) /
 				   NSEC_PER_USEC,
-		/* unscale and return dq_rate in bytes per sec */
-		.avg_dq_rate	= q->vars.avg_dq_rate *
-				  (PSCHED_TICKS_PER_SEC) >> PIE_SCALE,
 		.packets_in	= q->stats.packets_in,
 		.overlimit	= q->stats.overlimit,
 		.maxq		= q->stats.maxq,
 		.dropped	= q->stats.dropped,
 		.ecn_mark	= q->stats.ecn_mark,
 	};
+
+	/* avg_dq_rate is only valid if dq_rate_estimator is enabled */
+	st.dq_rate_estimating = q->params.dq_rate_estimator;
+
+	/* unscale and return dq_rate in bytes per sec */
+	if (q->params.dq_rate_estimator)
+		st.avg_dq_rate = q->vars.avg_dq_rate *
+				 (PSCHED_TICKS_PER_SEC) >> PIE_SCALE;
 
 	return gnet_stats_copy_app(d, &st, sizeof(st));
 }

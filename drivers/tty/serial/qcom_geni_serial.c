@@ -9,10 +9,12 @@
 #include <linux/console.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/qcom-geni-se.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
@@ -115,6 +117,7 @@ struct qcom_geni_serial_port {
 	bool brk;
 
 	unsigned int tx_remaining;
+	int wakeup_irq;
 };
 
 static const struct uart_ops qcom_geni_console_pops;
@@ -754,6 +757,15 @@ out_write_wakeup:
 		uart_write_wakeup(uport);
 }
 
+static irqreturn_t qcom_geni_serial_wakeup_isr(int isr, void *dev)
+{
+	struct uart_port *uport = dev;
+
+	pm_wakeup_event(uport->dev, 2000);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
 {
 	u32 m_irq_en;
@@ -830,7 +842,7 @@ static void qcom_geni_serial_shutdown(struct uart_port *uport)
 	if (uart_console(uport))
 		console_stop(uport->cons);
 
-	free_irq(uport->irq, uport);
+	disable_irq(uport->irq);
 	spin_lock_irqsave(&uport->lock, flags);
 	qcom_geni_serial_stop_tx(uport);
 	qcom_geni_serial_stop_rx(uport);
@@ -890,21 +902,14 @@ static int qcom_geni_serial_startup(struct uart_port *uport)
 	int ret;
 	struct qcom_geni_serial_port *port = to_dev_port(uport, uport);
 
-	scnprintf(port->name, sizeof(port->name),
-		  "qcom_serial_%s%d",
-		(uart_console(uport) ? "console" : "uart"), uport->line);
-
 	if (!port->setup) {
 		ret = qcom_geni_serial_port_setup(uport);
 		if (ret)
 			return ret;
 	}
+	enable_irq(uport->irq);
 
-	ret = request_irq(uport->irq, qcom_geni_serial_isr, IRQF_TRIGGER_HIGH,
-							port->name, uport);
-	if (ret)
-		dev_err(uport->dev, "Failed to get IRQ ret %d\n", ret);
-	return ret;
+	return 0;
 }
 
 static unsigned long get_clk_cfg(unsigned long clk_freq)
@@ -1297,11 +1302,44 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	port->rx_fifo_depth = DEF_FIFO_DEPTH_WORDS;
 	port->tx_fifo_width = DEF_FIFO_WIDTH_BITS;
 
+	scnprintf(port->name, sizeof(port->name), "qcom_geni_serial_%s%d",
+		(uart_console(uport) ? "console" : "uart"), uport->line);
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
 	uport->irq = irq;
 
+	irq_set_status_flags(uport->irq, IRQ_NOAUTOEN);
+	ret = devm_request_irq(uport->dev, uport->irq, qcom_geni_serial_isr,
+			IRQF_TRIGGER_HIGH, port->name, uport);
+	if (ret) {
+		dev_err(uport->dev, "Failed to get IRQ ret %d\n", ret);
+		return ret;
+	}
+
+	if (!console) {
+		port->wakeup_irq = platform_get_irq(pdev, 1);
+		if (port->wakeup_irq < 0) {
+			dev_err(&pdev->dev, "Failed to get wakeup IRQ %d\n",
+					port->wakeup_irq);
+		} else {
+			irq_set_status_flags(port->wakeup_irq, IRQ_NOAUTOEN);
+			ret = devm_request_irq(uport->dev, port->wakeup_irq,
+				qcom_geni_serial_wakeup_isr,
+				IRQF_TRIGGER_FALLING, "uart_wakeup", uport);
+			if (ret) {
+				dev_err(uport->dev, "Failed to register wakeup IRQ ret %d\n",
+						ret);
+				return ret;
+			}
+
+			device_init_wakeup(&pdev->dev, true);
+			ret = dev_pm_set_wake_irq(&pdev->dev, port->wakeup_irq);
+			if (unlikely(ret))
+				dev_err(uport->dev, "%s:Failed to set IRQ wake:%d\n",
+						__func__, ret);
+		}
+	}
 	uport->private_data = drv;
 	platform_set_drvdata(pdev, port);
 	port->handle_rx = console ? handle_rx_console : handle_rx_uart;
@@ -1324,13 +1362,21 @@ static int __maybe_unused qcom_geni_serial_sys_suspend(struct device *dev)
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
 
-	return uart_suspend_port(uport->private_data, uport);
+	uart_suspend_port(uport->private_data, uport);
+
+	if (port->wakeup_irq > 0)
+		enable_irq(port->wakeup_irq);
+
+	return 0;
 }
 
 static int __maybe_unused qcom_geni_serial_sys_resume(struct device *dev)
 {
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
+
+	if (port->wakeup_irq > 0)
+		disable_irq(port->wakeup_irq);
 
 	return uart_resume_port(uport->private_data, uport);
 }

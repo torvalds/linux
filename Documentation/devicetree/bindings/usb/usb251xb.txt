@@ -7,11 +7,12 @@ Required properties :
  - compatible : Should be "microchip,usb251xb" or one of the specific types:
 	"microchip,usb2512b", "microchip,usb2512bi", "microchip,usb2513b",
 	"microchip,usb2513bi", "microchip,usb2514b", "microchip,usb2514bi",
-	"microchip,usb2517", "microchip,usb2517i"
+	"microchip,usb2517", "microchip,usb2517i", "microchip,usb2422"
  - reg : I2C address on the selected bus (default is <0x2C>)
 
 Optional properties :
  - reset-gpios : Should specify the gpio for hub reset
+ - vdd-supply : Should specify the phandle to the regulator supplying vdd
  - skip-config : Skip Hub configuration, but only send the USB-Attach command
  - vendor-id : Set USB Vendor ID of the hub (16 bit, default is 0x0424)
  - product-id : Set USB Product ID of the hub (16 bit, default depends on type)

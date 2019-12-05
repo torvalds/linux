@@ -749,7 +749,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	enum pipe pipe = intel_crtc->pipe;
 	enum port port;
 	u32 val;
 	bool glk_cold_boot = false;
@@ -1870,11 +1870,11 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	 * port C. BXT isn't limited like this.
 	 */
 	if (IS_GEN9_LP(dev_priv))
-		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
+		intel_encoder->pipe_mask = ~0;
 	else if (port == PORT_A)
-		intel_encoder->crtc_mask = BIT(PIPE_A);
+		intel_encoder->pipe_mask = BIT(PIPE_A);
 	else
-		intel_encoder->crtc_mask = BIT(PIPE_B);
+		intel_encoder->pipe_mask = BIT(PIPE_B);
 
 	if (dev_priv->vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);

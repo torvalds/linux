@@ -1024,8 +1024,6 @@ brcmf_pcie_init_dmabuffer_for_device(struct brcmf_pciedev_info *devinfo,
 			       address & 0xffffffff);
 	brcmf_pcie_write_tcm32(devinfo, tcm_dma_phys_addr + 4, address >> 32);
 
-	memset(ring, 0, size);
-
 	return (ring);
 }
 
@@ -1426,6 +1424,8 @@ static int brcmf_pcie_reset(struct device *dev)
 	struct brcmf_pciedev_info *devinfo = buspub->devinfo;
 	struct brcmf_fw_request *fwreq;
 	int err;
+
+	brcmf_pcie_intr_disable(devinfo);
 
 	brcmf_pcie_bus_console_read(devinfo, true);
 

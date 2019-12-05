@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Aquantia Corp. Aquantia AQtion USB to 5GbE Controller
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* Aquantia Corp. Aquantia AQtion USB to 5GbE Controller
  * Copyright (C) 2003-2005 David Hollis <dhollis@davehollis.com>
  * Copyright (C) 2005 Phil Chang <pchang23@sbcglobal.net>
  * Copyright (C) 2002-2003 TiVo Inc.

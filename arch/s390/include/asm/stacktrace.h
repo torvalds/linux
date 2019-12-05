@@ -33,8 +33,8 @@ static inline bool on_stack(struct stack_info *info,
 	return addr >= info->begin && addr + len <= info->end;
 }
 
-static inline unsigned long get_stack_pointer(struct task_struct *task,
-					      struct pt_regs *regs)
+static __always_inline unsigned long get_stack_pointer(struct task_struct *task,
+						       struct pt_regs *regs)
 {
 	if (regs)
 		return (unsigned long) kernel_stack_pointer(regs);
@@ -61,6 +61,17 @@ struct stack_frame {
 	unsigned long back_chain;
 };
 #endif
+
+/*
+ * Unlike current_stack_pointer() which simply returns current value of %r15
+ * current_frame_address() returns function stack frame address, which matches
+ * %r15 upon function invocation. It may differ from %r15 later if function
+ * allocates stack for local variables or new stack frame to call other
+ * functions.
+ */
+#define current_frame_address()						\
+	((unsigned long)__builtin_frame_address(0) -			\
+	 offsetof(struct stack_frame, back_chain))
 
 #define CALL_ARGS_0()							\
 	register unsigned long r2 asm("2")
@@ -95,20 +106,33 @@ struct stack_frame {
 
 #define CALL_ON_STACK(fn, stack, nr, args...)				\
 ({									\
+	unsigned long frame = current_frame_address();			\
 	CALL_ARGS_##nr(args);						\
 	unsigned long prev;						\
 									\
 	asm volatile(							\
 		"	la	%[_prev],0(15)\n"			\
-		"	la	15,0(%[_stack])\n"			\
-		"	stg	%[_prev],%[_bc](15)\n"			\
+		"	lg	15,%[_stack]\n"				\
+		"	stg	%[_frame],%[_bc](15)\n"			\
 		"	brasl	14,%[_fn]\n"				\
 		"	la	15,0(%[_prev])\n"			\
 		: [_prev] "=&a" (prev), CALL_FMT_##nr			\
-		  [_stack] "a" (stack),					\
+		  [_stack] "R" (stack),					\
 		  [_bc] "i" (offsetof(struct stack_frame, back_chain)),	\
+		  [_frame] "d" (frame),					\
 		  [_fn] "X" (fn) : CALL_CLOBBER_##nr);			\
 	r2;								\
+})
+
+#define CALL_ON_STACK_NORETURN(fn, stack)				\
+({									\
+	asm volatile(							\
+		"	la	15,0(%[_stack])\n"			\
+		"	xc	%[_bc](8,15),%[_bc](15)\n"		\
+		"	brasl	14,%[_fn]\n"				\
+		::[_bc] "i" (offsetof(struct stack_frame, back_chain)),	\
+		  [_stack] "a" (stack), [_fn] "X" (fn));		\
+	BUG();								\
 })
 
 #endif /* _ASM_S390_STACKTRACE_H */

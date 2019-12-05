@@ -43,6 +43,7 @@ struct dcn_watermarks {
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	uint32_t frac_urg_bw_nom;
 	uint32_t frac_urg_bw_flip;
+	int32_t urgent_latency_ns;
 #endif
 	struct cstate_pstate_watermarks_st cstate_pstate;
 };

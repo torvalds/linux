@@ -376,8 +376,6 @@ static int smc_pnet_fill_entry(struct net *net,
 	return 0;
 
 error:
-	if (pnetelem->ndev)
-		dev_put(pnetelem->ndev);
 	return rc;
 }
 
@@ -718,7 +716,7 @@ static struct net_device *pnet_find_base_ndev(struct net_device *ndev)
 	int i, nest_lvl;
 
 	rtnl_lock();
-	nest_lvl = dev_get_nest_level(ndev);
+	nest_lvl = ndev->lower_level;
 	for (i = 0; i < nest_lvl; i++) {
 		struct list_head *lower = &ndev->adj_list.lower;
 
@@ -781,6 +779,7 @@ static void smc_pnet_find_rdma_dev(struct net_device *netdev,
 			dev_put(ndev);
 			if (netdev == ndev &&
 			    smc_ib_port_active(ibdev, i) &&
+			    !test_bit(i - 1, ibdev->ports_going_away) &&
 			    !smc_ib_determine_gid(ibdev, i, ini->vlan_id,
 						  ini->ib_gid, NULL)) {
 				ini->ib_dev = ibdev;
@@ -820,6 +819,7 @@ static void smc_pnet_find_roce_by_pnetid(struct net_device *ndev,
 				continue;
 			if (smc_pnet_match(ibdev->pnetid[i - 1], ndev_pnetid) &&
 			    smc_ib_port_active(ibdev, i) &&
+			    !test_bit(i - 1, ibdev->ports_going_away) &&
 			    !smc_ib_determine_gid(ibdev, i, ini->vlan_id,
 						  ini->ib_gid, NULL)) {
 				ini->ib_dev = ibdev;
@@ -846,7 +846,8 @@ static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,
 
 	spin_lock(&smcd_dev_list.lock);
 	list_for_each_entry(ismdev, &smcd_dev_list.list, list) {
-		if (smc_pnet_match(ismdev->pnetid, ndev_pnetid)) {
+		if (smc_pnet_match(ismdev->pnetid, ndev_pnetid) &&
+		    !ismdev->going_away) {
 			ini->ism_dev = ismdev;
 			break;
 		}

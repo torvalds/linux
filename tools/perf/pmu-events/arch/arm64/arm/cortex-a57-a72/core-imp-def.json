@@ -1,179 +1,179 @@
 [
     {
-        "ArchStdEvent": "L1D_CACHE_RD",
+        "ArchStdEvent": "L1D_CACHE_RD"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_WR",
+        "ArchStdEvent": "L1D_CACHE_WR"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_REFILL_RD",
+        "ArchStdEvent": "L1D_CACHE_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_REFILL_WR",
+        "ArchStdEvent": "L1D_CACHE_REFILL_WR"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_WB_VICTIM",
+        "ArchStdEvent": "L1D_CACHE_WB_VICTIM"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_WB_CLEAN",
+        "ArchStdEvent": "L1D_CACHE_WB_CLEAN"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_INVAL",
+        "ArchStdEvent": "L1D_CACHE_INVAL"
     },
     {
-        "ArchStdEvent": "L1D_TLB_REFILL_RD",
+        "ArchStdEvent": "L1D_TLB_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L1D_TLB_REFILL_WR",
+        "ArchStdEvent": "L1D_TLB_REFILL_WR"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_RD",
+        "ArchStdEvent": "L2D_CACHE_RD"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_WR",
+        "ArchStdEvent": "L2D_CACHE_WR"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_REFILL_RD",
+        "ArchStdEvent": "L2D_CACHE_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_REFILL_WR",
+        "ArchStdEvent": "L2D_CACHE_REFILL_WR"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_WB_VICTIM",
+        "ArchStdEvent": "L2D_CACHE_WB_VICTIM"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_WB_CLEAN",
+        "ArchStdEvent": "L2D_CACHE_WB_CLEAN"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_INVAL",
+        "ArchStdEvent": "L2D_CACHE_INVAL"
     },
     {
-        "ArchStdEvent": "BUS_ACCESS_RD",
+        "ArchStdEvent": "BUS_ACCESS_RD"
     },
     {
-        "ArchStdEvent": "BUS_ACCESS_WR",
+        "ArchStdEvent": "BUS_ACCESS_WR"
     },
     {
-        "ArchStdEvent": "BUS_ACCESS_SHARED",
+        "ArchStdEvent": "BUS_ACCESS_SHARED"
     },
     {
-        "ArchStdEvent": "BUS_ACCESS_NOT_SHARED",
+        "ArchStdEvent": "BUS_ACCESS_NOT_SHARED"
     },
     {
-        "ArchStdEvent": "BUS_ACCESS_NORMAL",
+        "ArchStdEvent": "BUS_ACCESS_NORMAL"
     },
     {
-        "ArchStdEvent": "BUS_ACCESS_PERIPH",
+        "ArchStdEvent": "BUS_ACCESS_PERIPH"
     },
     {
-        "ArchStdEvent": "MEM_ACCESS_RD",
+        "ArchStdEvent": "MEM_ACCESS_RD"
     },
     {
-        "ArchStdEvent": "MEM_ACCESS_WR",
+        "ArchStdEvent": "MEM_ACCESS_WR"
     },
     {
-        "ArchStdEvent": "UNALIGNED_LD_SPEC",
+        "ArchStdEvent": "UNALIGNED_LD_SPEC"
     },
     {
-        "ArchStdEvent": "UNALIGNED_ST_SPEC",
+        "ArchStdEvent": "UNALIGNED_ST_SPEC"
     },
     {
-        "ArchStdEvent": "UNALIGNED_LDST_SPEC",
+        "ArchStdEvent": "UNALIGNED_LDST_SPEC"
     },
     {
-        "ArchStdEvent": "LDREX_SPEC",
+        "ArchStdEvent": "LDREX_SPEC"
     },
     {
-        "ArchStdEvent": "STREX_PASS_SPEC",
+        "ArchStdEvent": "STREX_PASS_SPEC"
     },
     {
-        "ArchStdEvent": "STREX_FAIL_SPEC",
+        "ArchStdEvent": "STREX_FAIL_SPEC"
     },
     {
-        "ArchStdEvent": "LD_SPEC",
+        "ArchStdEvent": "LD_SPEC"
     },
     {
-        "ArchStdEvent": "ST_SPEC",
+        "ArchStdEvent": "ST_SPEC"
     },
     {
-        "ArchStdEvent": "LDST_SPEC",
+        "ArchStdEvent": "LDST_SPEC"
     },
     {
-        "ArchStdEvent": "DP_SPEC",
+        "ArchStdEvent": "DP_SPEC"
     },
     {
-        "ArchStdEvent": "ASE_SPEC",
+        "ArchStdEvent": "ASE_SPEC"
     },
     {
-        "ArchStdEvent": "VFP_SPEC",
+        "ArchStdEvent": "VFP_SPEC"
     },
     {
-        "ArchStdEvent": "PC_WRITE_SPEC",
+        "ArchStdEvent": "PC_WRITE_SPEC"
     },
     {
-        "ArchStdEvent": "CRYPTO_SPEC",
+        "ArchStdEvent": "CRYPTO_SPEC"
     },
     {
-        "ArchStdEvent": "BR_IMMED_SPEC",
+        "ArchStdEvent": "BR_IMMED_SPEC"
     },
     {
-        "ArchStdEvent": "BR_RETURN_SPEC",
+        "ArchStdEvent": "BR_RETURN_SPEC"
     },
     {
-        "ArchStdEvent": "BR_INDIRECT_SPEC",
+        "ArchStdEvent": "BR_INDIRECT_SPEC"
     },
     {
-        "ArchStdEvent": "ISB_SPEC",
+        "ArchStdEvent": "ISB_SPEC"
     },
     {
-        "ArchStdEvent": "DSB_SPEC",
+        "ArchStdEvent": "DSB_SPEC"
     },
     {
-        "ArchStdEvent": "DMB_SPEC",
+        "ArchStdEvent": "DMB_SPEC"
     },
     {
-        "ArchStdEvent": "EXC_UNDEF",
+        "ArchStdEvent": "EXC_UNDEF"
     },
     {
-        "ArchStdEvent": "EXC_SVC",
+        "ArchStdEvent": "EXC_SVC"
     },
     {
-        "ArchStdEvent": "EXC_PABORT",
+        "ArchStdEvent": "EXC_PABORT"
     },
     {
-        "ArchStdEvent": "EXC_DABORT",
+        "ArchStdEvent": "EXC_DABORT"
     },
     {
-        "ArchStdEvent": "EXC_IRQ",
+        "ArchStdEvent": "EXC_IRQ"
     },
     {
-        "ArchStdEvent": "EXC_FIQ",
+        "ArchStdEvent": "EXC_FIQ"
     },
     {
-        "ArchStdEvent": "EXC_SMC",
+        "ArchStdEvent": "EXC_SMC"
     },
     {
-        "ArchStdEvent": "EXC_HVC",
+        "ArchStdEvent": "EXC_HVC"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_PABORT",
+        "ArchStdEvent": "EXC_TRAP_PABORT"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_DABORT",
+        "ArchStdEvent": "EXC_TRAP_DABORT"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_OTHER",
+        "ArchStdEvent": "EXC_TRAP_OTHER"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_IRQ",
+        "ArchStdEvent": "EXC_TRAP_IRQ"
     },
     {
-        "ArchStdEvent": "EXC_TRAP_FIQ",
+        "ArchStdEvent": "EXC_TRAP_FIQ"
     },
     {
-        "ArchStdEvent": "RC_LD_SPEC",
+        "ArchStdEvent": "RC_LD_SPEC"
     },
     {
-        "ArchStdEvent": "RC_ST_SPEC",
-    },
+        "ArchStdEvent": "RC_ST_SPEC"
+    }
 ]

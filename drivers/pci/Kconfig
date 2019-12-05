@@ -52,7 +52,7 @@ config PCI_MSI
 	   If you don't know what to do here, say Y.
 
 config PCI_MSI_IRQ_DOMAIN
-	def_bool ARC || ARM || ARM64 || X86 || RISCV
+	def_bool y
 	depends on PCI_MSI
 	select GENERIC_MSI_IRQ_DOMAIN
 
@@ -106,14 +106,14 @@ config PCI_PF_STUB
 	  When in doubt, say N.
 
 config XEN_PCIDEV_FRONTEND
-        tristate "Xen PCI Frontend"
-        depends on X86 && XEN
-        select PCI_XEN
+	tristate "Xen PCI Frontend"
+	depends on X86 && XEN
+	select PCI_XEN
 	select XEN_XENBUS_FRONTEND
-        default y
-        help
-          The PCI device frontend driver allows the kernel to import arbitrary
-          PCI devices from a PCI backend to support PCI driver domains.
+	default y
+	help
+	  The PCI device frontend driver allows the kernel to import arbitrary
+	  PCI devices from a PCI backend to support PCI driver domains.
 
 config PCI_ATS
 	bool
@@ -180,12 +180,12 @@ config PCI_LABEL
 	select NLS
 
 config PCI_HYPERV
-        tristate "Hyper-V PCI Frontend"
-        depends on X86_64 && HYPERV && PCI_MSI && PCI_MSI_IRQ_DOMAIN && SYSFS
+	tristate "Hyper-V PCI Frontend"
+	depends on X86_64 && HYPERV && PCI_MSI && PCI_MSI_IRQ_DOMAIN && SYSFS
 	select PCI_HYPERV_INTERFACE
-        help
-          The PCI device frontend driver allows the kernel to import arbitrary
-          PCI devices from a PCI backend to support PCI driver domains.
+	help
+	  The PCI device frontend driver allows the kernel to import arbitrary
+	  PCI devices from a PCI backend to support PCI driver domains.
 
 source "drivers/pci/hotplug/Kconfig"
 source "drivers/pci/controller/Kconfig"

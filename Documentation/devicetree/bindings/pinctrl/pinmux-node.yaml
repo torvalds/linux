@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/pinmux-node.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic pin multiplexing node schema
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  The contents of the pin configuration child nodes are defined by the binding
+  for the individual pin controller device. The pin configuration nodes need not
+  be direct children of the pin controller device; they may be grandchildren,
+  for example. Whether this is legal, and whether there is any interaction
+  between the child and intermediate parent nodes, is again defined entirely by
+  the binding for the individual pin controller device.
+
+  While not required to be used, there are 3 generic forms of pin muxing nodes
+  which pin controller devices can use.
+
+  pin multiplexing nodes:
+
+  Example:
+
+  state_0_node_a {
+    uart0 {
+      function = "uart0";
+      groups = "u0rxtx", "u0rtscts";
+    };
+  };
+  state_1_node_a {
+    spi0 {
+      function = "spi0";
+      groups = "spi0pins";
+    };
+  };
+  state_2_node_a {
+    function = "i2c0";
+    pins = "mfio29", "mfio30";
+  };
+
+  Optionally an alternative binding can be used if more suitable depending on the
+  pin controller hardware. For hardware where there is a large number of identical
+  pin controller instances, naming each pin and function can easily become
+  unmaintainable. This is especially the case if the same controller is used for
+  different pins and functions depending on the SoC revision and packaging.
+
+  For cases like this, the pin controller driver may use pinctrl-pin-array helper
+  binding with a hardware based index and a number of pin configuration values:
+
+  pincontroller {
+    ... /* Standard DT properties for the device itself elided */
+    #pinctrl-cells = <2>;
+
+    state_0_node_a {
+      pinctrl-pin-array = <
+        0 A_DELAY_PS(0) G_DELAY_PS(120)
+        4 A_DELAY_PS(0) G_DELAY_PS(360)
+        ...
+        >;
+    };
+    ...
+  };
+
+  Above #pinctrl-cells specifies the number of value cells in addition to the
+  index of the registers. This is similar to the interrupts-extended binding with
+  one exception. There is no need to specify the phandle for each entry as that
+  is already known as the defined pins are always children of the pin controller
+  node. Further having the phandle pointing to another pin controller would not
+  currently work as the pinctrl framework uses named modes to group pins for each
+  pin control device.
+
+  The index for pinctrl-pin-array must relate to the hardware for the pinctrl
+  registers, and must not be a virtual index of pin instances. The reason for
+  this is to avoid mapping of the index in the dts files and the pin controller
+  driver as it can change.
+
+  For hardware where pin multiplexing configurations have to be specified for
+  each single pin the number of required sub-nodes containing "pin" and
+  "function" properties can quickly escalate and become hard to write and
+  maintain.
+
+  For cases like this, the pin controller driver may use the pinmux helper
+  property, where the pin identifier is provided with mux configuration settings
+  in a pinmux group. A pinmux group consists of the pin identifier and mux
+  settings represented as a single integer or an array of integers.
+
+  The pinmux property accepts an array of pinmux groups, each of them describing
+  a single pin multiplexing configuration.
+
+  pincontroller {
+    state_0_node_a {
+      pinmux = <PINMUX_GROUP>, <PINMUX_GROUP>, ...;
+    };
+  };
+
+  Each individual pin controller driver bindings documentation shall specify
+  how pin IDs and pin multiplexing configuration are defined and assembled
+  together in a pinmux group.
+
+properties:
+  function:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: The mux function to select
+
+  pins:
+    oneOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32-array
+      - $ref: /schemas/types.yaml#/definitions/string-array
+    description:
+      The list of pin identifiers that properties in the node apply to. The
+      specific binding for the hardware defines whether the entries are integers
+      or strings, and their meaning.
+
+  group:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description:
+      the group to apply the properties to, if the driver supports
+      configuration of whole groups rather than individual pins (either
+      this, "pins" or "pinmux" has to be specified)
+
+  pinmux:
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      The list of numeric pin ids and their mux settings that properties in the
+      node apply to (either this, "pins" or "groups" have to be specified)
+
+  pinctrl-pin-array:
+    $ref: /schemas/types.yaml#/definitions/uint32-array

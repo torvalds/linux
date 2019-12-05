@@ -415,13 +415,13 @@ config PPC_MM_SLICES
 	bool
 
 config PPC_HAVE_PMU_SUPPORT
-       bool
+	bool
 
 config PPC_PERF_CTRS
-       def_bool y
-       depends on PERF_EVENTS && PPC_HAVE_PMU_SUPPORT
-       help
-         This enables the powerpc-specific perf_event back-end.
+	def_bool y
+	depends on PERF_EVENTS && PPC_HAVE_PMU_SUPPORT
+	help
+	 This enables the powerpc-specific perf_event back-end.
 
 config FORCE_SMP
 	# Allow platforms to force SMP=y by selecting this
@@ -459,7 +459,6 @@ config NOT_COHERENT_CACHE
 	bool
 	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || \
 		GAMECUBE_COMMON || AMIGAONE
-	select ARCH_HAS_DMA_COHERENT_TO_PFN
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_HAS_SYNC_DMA_FOR_CPU

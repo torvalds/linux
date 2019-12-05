@@ -30,10 +30,10 @@ int set_dawr(struct arch_hw_breakpoint *brk)
 	 * DAWR length is stored in field MDR bits 48:53.  Matches range in
 	 * doublewords (64 bits) baised by -1 eg. 0b000000=1DW and
 	 * 0b111111=64DW.
-	 * brk->len is in bytes.
+	 * brk->hw_len is in bytes.
 	 * This aligns up to double word size, shifts and does the bias.
 	 */
-	mrd = ((brk->len + 7) >> 3) - 1;
+	mrd = ((brk->hw_len + 7) >> 3) - 1;
 	dawrx |= (mrd & 0x3f) << (63 - 53);
 
 	if (ppc_md.set_dawr)
@@ -54,7 +54,7 @@ static ssize_t dawr_write_file_bool(struct file *file,
 				    const char __user *user_buf,
 				    size_t count, loff_t *ppos)
 {
-	struct arch_hw_breakpoint null_brk = {0, 0, 0};
+	struct arch_hw_breakpoint null_brk = {0};
 	size_t rc;
 
 	/* Send error to user if they hypervisor won't allow us to write DAWR */

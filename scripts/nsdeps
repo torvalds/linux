@@ -21,22 +21,27 @@ if [ "$SPATCH_VERSION_NUM" -lt "$SPATCH_REQ_VERSION_NUM" ] ; then
 	exit 1
 fi
 
+if [ "$KBUILD_EXTMOD" ]; then
+	src_prefix=
+else
+	src_prefix=$srctree/
+fi
+
 generate_deps_for_ns() {
 	$SPATCH --very-quiet --in-place --sp-file \
 		$srctree/scripts/coccinelle/misc/add_namespace.cocci -D ns=$1 $2
 }
 
 generate_deps() {
-	local mod_name=`basename $@ .ko`
-	local mod_file=`echo $@ | sed -e 's/\.ko/\.mod/'`
-	local ns_deps_file=`echo $@ | sed -e 's/\.ko/\.ns_deps/'`
-	if [ ! -f "$ns_deps_file" ]; then return; fi
-	local mod_source_files=`cat $mod_file | sed -n 1p                      \
+	local mod=${1%.ko:}
+	shift
+	local namespaces="$*"
+	local mod_source_files="`cat $mod.mod | sed -n 1p                      \
 					      | sed -e 's/\.o/\.c/g'           \
-					      | sed "s/[^ ]* */${srctree}\/&/g"`
-	for ns in `cat $ns_deps_file`; do
-		echo "Adding namespace $ns to module $mod_name (if needed)."
-		generate_deps_for_ns $ns $mod_source_files
+					      | sed "s|[^ ]* *|${src_prefix}&|g"`"
+	for ns in $namespaces; do
+		echo "Adding namespace $ns to module $mod.ko."
+		generate_deps_for_ns $ns "$mod_source_files"
 		# sort the imports
 		for source_file in $mod_source_files; do
 			sed '/MODULE_IMPORT_NS/Q' $source_file > ${source_file}.tmp
@@ -52,7 +57,7 @@ generate_deps() {
 	done
 }
 
-for f in `cat $objtree/modules.order`; do
-	generate_deps $f
-done
-
+while read line
+do
+	generate_deps $line
+done < $MODULES_NSDEPS

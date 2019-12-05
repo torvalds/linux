@@ -15,7 +15,7 @@
 #include <linux/bug.h>
 #include <asm/cacheflush.h>
 
-static void __dma_sync(struct device *dev, phys_addr_t paddr, size_t size,
+static void __dma_sync(phys_addr_t paddr, size_t size,
 		enum dma_data_direction direction)
 {
 	switch (direction) {
@@ -31,14 +31,14 @@ static void __dma_sync(struct device *dev, phys_addr_t paddr, size_t size,
 	}
 }
 
-void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
-	__dma_sync(dev, paddr, size, dir);
+	__dma_sync(paddr, size, dir);
 }
 
-void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
-	__dma_sync(dev, paddr, size, dir);
+	__dma_sync(paddr, size, dir);
 }

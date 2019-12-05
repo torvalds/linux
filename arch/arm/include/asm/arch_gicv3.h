@@ -333,7 +333,7 @@ static inline u64 __gic_readq_nonatomic(const volatile void __iomem *addr)
  * GITS_VPENDBASER - the Valid bit must be cleared before changing
  * anything else.
  */
-static inline void gits_write_vpendbaser(u64 val, void * __iomem addr)
+static inline void gits_write_vpendbaser(u64 val, void __iomem *addr)
 {
 	u32 tmp;
 

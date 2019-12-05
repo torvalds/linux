@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <signal.h>
+#include <string.h>
+#include <pthread.h>
 
 #include "../kselftest.h"
 #include "cgroup_util.h"
@@ -354,6 +357,147 @@ cleanup:
 	return ret;
 }
 
+static void *dummy_thread_fn(void *arg)
+{
+	return (void *)(size_t)pause();
+}
+
+/*
+ * Test threadgroup migration.
+ * All threads of a process are migrated together.
+ */
+static int test_cgcore_proc_migration(const char *root)
+{
+	int ret = KSFT_FAIL;
+	int t, c_threads, n_threads = 13;
+	char *src = NULL, *dst = NULL;
+	pthread_t threads[n_threads];
+
+	src = cg_name(root, "cg_src");
+	dst = cg_name(root, "cg_dst");
+	if (!src || !dst)
+		goto cleanup;
+
+	if (cg_create(src))
+		goto cleanup;
+	if (cg_create(dst))
+		goto cleanup;
+
+	if (cg_enter_current(src))
+		goto cleanup;
+
+	for (c_threads = 0; c_threads < n_threads; ++c_threads) {
+		if (pthread_create(&threads[c_threads], NULL, dummy_thread_fn, NULL))
+			goto cleanup;
+	}
+
+	cg_enter_current(dst);
+	if (cg_read_lc(dst, "cgroup.threads") != n_threads + 1)
+		goto cleanup;
+
+	ret = KSFT_PASS;
+
+cleanup:
+	for (t = 0; t < c_threads; ++t) {
+		pthread_cancel(threads[t]);
+	}
+
+	for (t = 0; t < c_threads; ++t) {
+		pthread_join(threads[t], NULL);
+	}
+
+	cg_enter_current(root);
+
+	if (dst)
+		cg_destroy(dst);
+	if (src)
+		cg_destroy(src);
+	free(dst);
+	free(src);
+	return ret;
+}
+
+static void *migrating_thread_fn(void *arg)
+{
+	int g, i, n_iterations = 1000;
+	char **grps = arg;
+	char lines[3][PATH_MAX];
+
+	for (g = 1; g < 3; ++g)
+		snprintf(lines[g], sizeof(lines[g]), "0::%s", grps[g] + strlen(grps[0]));
+
+	for (i = 0; i < n_iterations; ++i) {
+		cg_enter_current_thread(grps[(i % 2) + 1]);
+
+		if (proc_read_strstr(0, 1, "cgroup", lines[(i % 2) + 1]))
+			return (void *)-1;
+	}
+	return NULL;
+}
+
+/*
+ * Test single thread migration.
+ * Threaded cgroups allow successful migration of a thread.
+ */
+static int test_cgcore_thread_migration(const char *root)
+{
+	int ret = KSFT_FAIL;
+	char *dom = NULL;
+	char line[PATH_MAX];
+	char *grps[3] = { (char *)root, NULL, NULL };
+	pthread_t thr;
+	void *retval;
+
+	dom = cg_name(root, "cg_dom");
+	grps[1] = cg_name(root, "cg_dom/cg_src");
+	grps[2] = cg_name(root, "cg_dom/cg_dst");
+	if (!grps[1] || !grps[2] || !dom)
+		goto cleanup;
+
+	if (cg_create(dom))
+		goto cleanup;
+	if (cg_create(grps[1]))
+		goto cleanup;
+	if (cg_create(grps[2]))
+		goto cleanup;
+
+	if (cg_write(grps[1], "cgroup.type", "threaded"))
+		goto cleanup;
+	if (cg_write(grps[2], "cgroup.type", "threaded"))
+		goto cleanup;
+
+	if (cg_enter_current(grps[1]))
+		goto cleanup;
+
+	if (pthread_create(&thr, NULL, migrating_thread_fn, grps))
+		goto cleanup;
+
+	if (pthread_join(thr, &retval))
+		goto cleanup;
+
+	if (retval)
+		goto cleanup;
+
+	snprintf(line, sizeof(line), "0::%s", grps[1] + strlen(grps[0]));
+	if (proc_read_strstr(0, 1, "cgroup", line))
+		goto cleanup;
+
+	ret = KSFT_PASS;
+
+cleanup:
+	cg_enter_current(root);
+	if (grps[2])
+		cg_destroy(grps[2]);
+	if (grps[1])
+		cg_destroy(grps[1]);
+	if (dom)
+		cg_destroy(dom);
+	free(grps[2]);
+	free(grps[1]);
+	free(dom);
+	return ret;
+}
+
 #define T(x) { x, #x }
 struct corecg_test {
 	int (*fn)(const char *root);
@@ -366,6 +510,8 @@ struct corecg_test {
 	T(test_cgcore_parent_becomes_threaded),
 	T(test_cgcore_invalid_domain),
 	T(test_cgcore_populated),
+	T(test_cgcore_proc_migration),
+	T(test_cgcore_thread_migration),
 };
 #undef T
 

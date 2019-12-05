@@ -6,7 +6,11 @@ designed for portable devices.
 
 Required properties:
 
- - compatible		: "analogix,anx7814"
+ - compatible		: Must be one of:
+			  "analogix,anx7808"
+			  "analogix,anx7812"
+			  "analogix,anx7814"
+			  "analogix,anx7818"
  - reg			: I2C address of the device
  - interrupts		: Should contain the INTP interrupt
  - hpd-gpios		: Which GPIO to use for hpd

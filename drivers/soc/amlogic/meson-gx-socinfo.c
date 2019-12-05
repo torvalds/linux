@@ -40,6 +40,7 @@ static const struct meson_gx_soc_id {
 	{ "G12A", 0x28 },
 	{ "G12B", 0x29 },
 	{ "SM1", 0x2b },
+	{ "A1", 0x2c },
 };
 
 static const struct meson_gx_package_id {
@@ -68,6 +69,8 @@ static const struct meson_gx_package_id {
 	{ "S922X", 0x29, 0x40, 0xf0 },
 	{ "A311D", 0x29, 0x10, 0xf0 },
 	{ "S905X3", 0x2b, 0x5, 0xf },
+	{ "S905D3", 0x2b, 0xb0, 0xf0 },
+	{ "A113L", 0x2c, 0x0, 0xf8 },
 };
 
 static inline unsigned int socinfo_to_major(u32 socinfo)

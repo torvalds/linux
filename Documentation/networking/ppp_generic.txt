@@ -378,6 +378,8 @@ an interface unit are:
   CONFIG_PPP_FILTER option is enabled, the set of packets which reset
   the transmit and receive idle timers is restricted to those which
   pass the `active' packet filter.
+  Two versions of this command exist, to deal with user space
+  expecting times as either 32-bit or 64-bit time_t seconds.
 
 * PPPIOCSMAXCID sets the maximum connection-ID parameter (and thus the
   number of connection slots) for the TCP header compressor and

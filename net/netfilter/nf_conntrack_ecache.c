@@ -30,6 +30,7 @@
 static DEFINE_MUTEX(nf_ct_ecache_mutex);
 
 #define ECACHE_RETRY_WAIT (HZ/10)
+#define ECACHE_STACK_ALLOC (256 / sizeof(void *))
 
 enum retry_state {
 	STATE_CONGESTED,
@@ -39,11 +40,11 @@ enum retry_state {
 
 static enum retry_state ecache_work_evict_list(struct ct_pcpu *pcpu)
 {
-	struct nf_conn *refs[16];
+	struct nf_conn *refs[ECACHE_STACK_ALLOC];
+	enum retry_state ret = STATE_DONE;
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_node *n;
 	unsigned int evicted = 0;
-	enum retry_state ret = STATE_DONE;
 
 	spin_lock(&pcpu->lock);
 
@@ -54,10 +55,22 @@ static enum retry_state ecache_work_evict_list(struct ct_pcpu *pcpu)
 		if (!nf_ct_is_confirmed(ct))
 			continue;
 
+		/* This ecache access is safe because the ct is on the
+		 * pcpu dying list and we hold the spinlock -- the entry
+		 * cannot be free'd until after the lock is released.
+		 *
+		 * This is true even if ct has a refcount of 0: the
+		 * cpu that is about to free the entry must remove it
+		 * from the dying list and needs the lock to do so.
+		 */
 		e = nf_ct_ecache_find(ct);
 		if (!e || e->state != NFCT_ECACHE_DESTROY_FAIL)
 			continue;
 
+		/* ct is in NFCT_ECACHE_DESTROY_FAIL state, this means
+		 * the worker owns this entry: the ct will remain valid
+		 * until the worker puts its ct reference.
+		 */
 		if (nf_conntrack_event(IPCT_DESTROY, ct)) {
 			ret = STATE_CONGESTED;
 			break;
@@ -189,14 +202,14 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 	if (notify == NULL)
 		goto out_unlock;
 
+	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct))
+		goto out_unlock;
+
 	e = nf_ct_ecache_find(ct);
 	if (e == NULL)
 		goto out_unlock;
 
 	events = xchg(&e->cache, 0);
-
-	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct))
-		goto out_unlock;
 
 	/* We make a copy of the missed event cache without taking
 	 * the lock, thus we may send missed events twice. However,

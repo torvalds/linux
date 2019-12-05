@@ -57,9 +57,9 @@ do {									\
 #define xfs_debug_ratelimited(dev, fmt, ...)				\
 	xfs_printk_ratelimited(xfs_debug, dev, fmt, ##__VA_ARGS__)
 
-extern void assfail(char *expr, char *f, int l);
-extern void asswarn(char *expr, char *f, int l);
+void assfail(struct xfs_mount *mp, char *expr, char *f, int l);
+void asswarn(struct xfs_mount *mp, char *expr, char *f, int l);
 
-extern void xfs_hex_dump(void *p, int length);
+extern void xfs_hex_dump(const void *p, int length);
 
 #endif	/* __XFS_MESSAGE_H */

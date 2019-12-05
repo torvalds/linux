@@ -670,13 +670,10 @@ int ehea_rem_sect_bmap(unsigned long pfn, unsigned long nr_pages)
 
 static int ehea_is_hugepage(unsigned long pfn)
 {
-	int page_order;
-
 	if (pfn & EHEA_HUGEPAGE_PFN_MASK)
 		return 0;
 
-	page_order = compound_order(pfn_to_page(pfn));
-	if (page_order + PAGE_SHIFT != EHEA_HUGEPAGESHIFT)
+	if (page_shift(pfn_to_page(pfn)) != EHEA_HUGEPAGESHIFT)
 		return 0;
 
 	return 1;

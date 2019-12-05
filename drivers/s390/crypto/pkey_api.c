@@ -715,36 +715,18 @@ out:
 
 static void *_copy_key_from_user(void __user *ukey, size_t keylen)
 {
-	void *kkey;
-
 	if (!ukey || keylen < MINKEYBLOBSIZE || keylen > KEYBLOBBUFSIZE)
 		return ERR_PTR(-EINVAL);
-	kkey = kmalloc(keylen, GFP_KERNEL);
-	if (!kkey)
-		return ERR_PTR(-ENOMEM);
-	if (copy_from_user(kkey, ukey, keylen)) {
-		kfree(kkey);
-		return ERR_PTR(-EFAULT);
-	}
 
-	return kkey;
+	return memdup_user(ukey, keylen);
 }
 
 static void *_copy_apqns_from_user(void __user *uapqns, size_t nr_apqns)
 {
-	void *kapqns = NULL;
-	size_t nbytes;
+	if (!uapqns || nr_apqns == 0)
+		return NULL;
 
-	if (uapqns && nr_apqns > 0) {
-		nbytes = nr_apqns * sizeof(struct pkey_apqn);
-		kapqns = kmalloc(nbytes, GFP_KERNEL);
-		if (!kapqns)
-			return ERR_PTR(-ENOMEM);
-		if (copy_from_user(kapqns, uapqns, nbytes))
-			return ERR_PTR(-EFAULT);
-	}
-
-	return kapqns;
+	return memdup_user(uapqns, nr_apqns * sizeof(struct pkey_apqn));
 }
 
 static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,

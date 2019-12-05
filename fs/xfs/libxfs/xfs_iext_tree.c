@@ -596,7 +596,7 @@ xfs_iext_realloc_root(
 	struct xfs_ifork	*ifp,
 	struct xfs_iext_cursor	*cur)
 {
-	size_t new_size = ifp->if_bytes + sizeof(struct xfs_iext_rec);
+	int64_t new_size = ifp->if_bytes + sizeof(struct xfs_iext_rec);
 	void *new;
 
 	/* account for the prev/next pointers */

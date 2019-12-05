@@ -135,6 +135,9 @@ struct kvmppc_xive {
 	/* Flags */
 	u8	single_escalation;
 
+	/* Number of entries in the VP block */
+	u32	nr_servers;
+
 	struct kvmppc_xive_ops *ops;
 	struct address_space   *mapping;
 	struct mutex mapping_lock;
@@ -220,6 +223,18 @@ static inline u32 kvmppc_xive_vp(struct kvmppc_xive *xive, u32 server)
 	return xive->vp_base + kvmppc_pack_vcpu_id(xive->kvm, server);
 }
 
+static inline bool kvmppc_xive_vp_in_use(struct kvm *kvm, u32 vp_id)
+{
+	struct kvm_vcpu *vcpu = NULL;
+	int i;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (vcpu->arch.xive_vcpu && vp_id == vcpu->arch.xive_vcpu->vp_id)
+			return true;
+	}
+	return false;
+}
+
 /*
  * Mapping between guest priorities and host priorities
  * is as follow.
@@ -284,6 +299,8 @@ int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 struct kvmppc_xive *kvmppc_xive_get_device(struct kvm *kvm, u32 type);
 void xive_cleanup_single_escalation(struct kvm_vcpu *vcpu,
 				    struct kvmppc_xive_vcpu *xc, int irq);
+int kvmppc_xive_compute_vp_id(struct kvmppc_xive *xive, u32 cpu, u32 *vp);
+int kvmppc_xive_set_nr_servers(struct kvmppc_xive *xive, u64 addr);
 
 #endif /* CONFIG_KVM_XICS */
 #endif /* _KVM_PPC_BOOK3S_XICS_H */

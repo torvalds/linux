@@ -93,7 +93,7 @@ static inline void percpu_up_read(struct percpu_rw_semaphore *sem)
 		__percpu_up_read(sem); /* Unconditional memory barrier */
 	preempt_enable();
 
-	rwsem_release(&sem->rw_sem.dep_map, 1, _RET_IP_);
+	rwsem_release(&sem->rw_sem.dep_map, _RET_IP_);
 }
 
 extern void percpu_down_write(struct percpu_rw_semaphore *);
@@ -118,7 +118,7 @@ extern void percpu_free_rwsem(struct percpu_rw_semaphore *);
 static inline void percpu_rwsem_release(struct percpu_rw_semaphore *sem,
 					bool read, unsigned long ip)
 {
-	lock_release(&sem->rw_sem.dep_map, 1, ip);
+	lock_release(&sem->rw_sem.dep_map, ip);
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 	if (!read)
 		atomic_long_set(&sem->rw_sem.owner, RWSEM_OWNER_UNKNOWN);

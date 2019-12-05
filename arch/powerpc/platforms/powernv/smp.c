@@ -146,20 +146,25 @@ static int pnv_smp_cpu_disable(void)
 	return 0;
 }
 
+static void pnv_flush_interrupts(void)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (xive_enabled())
+			xive_flush_interrupt();
+		else
+			icp_opal_flush_interrupt();
+	} else {
+		icp_native_flush_interrupt();
+	}
+}
+
 static void pnv_smp_cpu_kill_self(void)
 {
+	unsigned long srr1, unexpected_mask, wmask;
 	unsigned int cpu;
-	unsigned long srr1, wmask;
 	u64 lpcr_val;
 
 	/* Standard hot unplug procedure */
-	/*
-	 * This hard disables local interurpts, ensuring we have no lazy
-	 * irqs pending.
-	 */
-	WARN_ON(irqs_disabled());
-	hard_irq_disable();
-	WARN_ON(lazy_irq_pending());
 
 	idle_task_exit();
 	current->active_mm = NULL; /* for sanity */
@@ -171,6 +176,27 @@ static void pnv_smp_cpu_kill_self(void)
 	wmask = SRR1_WAKEMASK;
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		wmask = SRR1_WAKEMASK_P8;
+
+	/*
+	 * This turns the irq soft-disabled state we're called with, into a
+	 * hard-disabled state with pending irq_happened interrupts cleared.
+	 *
+	 * PACA_IRQ_DEC   - Decrementer should be ignored.
+	 * PACA_IRQ_HMI   - Can be ignored, processing is done in real mode.
+	 * PACA_IRQ_DBELL, EE, PMI - Unexpected.
+	 */
+	hard_irq_disable();
+	if (generic_check_cpu_restart(cpu))
+		goto out;
+
+	unexpected_mask = ~(PACA_IRQ_DEC | PACA_IRQ_HMI | PACA_IRQ_HARD_DIS);
+	if (local_paca->irq_happened & unexpected_mask) {
+		if (local_paca->irq_happened & PACA_IRQ_EE)
+			pnv_flush_interrupts();
+		DBG("CPU%d Unexpected exit while offline irq_happened=%lx!\n",
+				cpu, local_paca->irq_happened);
+	}
+	local_paca->irq_happened = PACA_IRQ_HARD_DIS;
 
 	/*
 	 * We don't want to take decrementer interrupts while we are
@@ -197,6 +223,7 @@ static void pnv_smp_cpu_kill_self(void)
 
 		srr1 = pnv_cpu_offline(cpu);
 
+		WARN_ON_ONCE(!irqs_disabled());
 		WARN_ON(lazy_irq_pending());
 
 		/*
@@ -212,13 +239,7 @@ static void pnv_smp_cpu_kill_self(void)
 		 */
 		if (((srr1 & wmask) == SRR1_WAKEEE) ||
 		    ((srr1 & wmask) == SRR1_WAKEHVI)) {
-			if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-				if (xive_enabled())
-					xive_flush_interrupt();
-				else
-					icp_opal_flush_interrupt();
-			} else
-				icp_native_flush_interrupt();
+			pnv_flush_interrupts();
 		} else if ((srr1 & wmask) == SRR1_WAKEHDBELL) {
 			unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 			asm volatile(PPC_MSGCLR(%0) : : "r" (msg));
@@ -266,7 +287,7 @@ static void pnv_smp_cpu_kill_self(void)
 	 */
 	lpcr_val = mfspr(SPRN_LPCR) | (u64)LPCR_PECE1;
 	pnv_program_cpu_hotplug_lpcr(cpu, lpcr_val);
-
+out:
 	DBG("CPU%d coming online...\n", cpu);
 }
 

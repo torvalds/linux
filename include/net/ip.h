@@ -185,7 +185,7 @@ static inline struct sk_buff *ip_fraglist_next(struct ip_fraglist_iter *iter)
 }
 
 struct ip_frag_state {
-	struct iphdr	*iph;
+	bool		DF;
 	unsigned int	hlen;
 	unsigned int	ll_rs;
 	unsigned int	mtu;
@@ -196,7 +196,7 @@ struct ip_frag_state {
 };
 
 void ip_frag_init(struct sk_buff *skb, unsigned int hlen, unsigned int ll_rs,
-		  unsigned int mtu, struct ip_frag_state *state);
+		  unsigned int mtu, bool DF, struct ip_frag_state *state);
 struct sk_buff *ip_frag_next(struct sk_buff *skb,
 			     struct ip_frag_state *state);
 
@@ -339,10 +339,10 @@ static inline u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_o
 void inet_get_local_port_range(struct net *net, int *low, int *high);
 
 #ifdef CONFIG_SYSCTL
-static inline int inet_is_local_reserved_port(struct net *net, int port)
+static inline bool inet_is_local_reserved_port(struct net *net, unsigned short port)
 {
 	if (!net->ipv4.sysctl_local_reserved_ports)
-		return 0;
+		return false;
 	return test_bit(port, net->ipv4.sysctl_local_reserved_ports);
 }
 
@@ -351,20 +351,20 @@ static inline bool sysctl_dev_name_is_allowed(const char *name)
 	return strcmp(name, "default") != 0  && strcmp(name, "all") != 0;
 }
 
-static inline int inet_prot_sock(struct net *net)
+static inline bool inet_port_requires_bind_service(struct net *net, unsigned short port)
 {
-	return net->ipv4.sysctl_ip_prot_sock;
+	return port < net->ipv4.sysctl_ip_prot_sock;
 }
 
 #else
-static inline int inet_is_local_reserved_port(struct net *net, int port)
+static inline bool inet_is_local_reserved_port(struct net *net, unsigned short port)
 {
-	return 0;
+	return false;
 }
 
-static inline int inet_prot_sock(struct net *net)
+static inline bool inet_port_requires_bind_service(struct net *net, unsigned short port)
 {
-	return PROT_SOCK;
+	return port < PROT_SOCK;
 }
 #endif
 

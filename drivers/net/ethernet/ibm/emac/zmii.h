@@ -50,7 +50,8 @@ struct zmii_instance {
 
 int zmii_init(void);
 void zmii_exit(void);
-int zmii_attach(struct platform_device *ofdev, int input, int *mode);
+int zmii_attach(struct platform_device *ofdev, int input,
+		phy_interface_t *mode);
 void zmii_detach(struct platform_device *ofdev, int input);
 void zmii_get_mdio(struct platform_device *ofdev, int input);
 void zmii_put_mdio(struct platform_device *ofdev, int input);

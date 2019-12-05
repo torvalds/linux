@@ -181,7 +181,7 @@ struct tegra_mc {
 	spinlock_t lock;
 };
 
-void tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate);
+int tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate);
 unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc);
 
 #endif /* __SOC_TEGRA_MC_H__ */

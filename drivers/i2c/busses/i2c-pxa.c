@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/i2c-pxa.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -180,7 +179,7 @@ struct pxa_i2c {
 	struct i2c_adapter	adap;
 	struct clk		*clk;
 #ifdef CONFIG_I2C_PXA_SLAVE
-	struct i2c_slave_client *slave;
+	struct i2c_client	*slave;
 #endif
 
 	unsigned int		irqlogidx;
@@ -544,22 +543,23 @@ static void i2c_pxa_slave_txempty(struct pxa_i2c *i2c, u32 isr)
 	if (isr & ISR_BED) {
 		/* what should we do here? */
 	} else {
-		int ret = 0;
+		u8 byte = 0;
 
 		if (i2c->slave != NULL)
-			ret = i2c->slave->read(i2c->slave->data);
+			i2c_slave_event(i2c->slave, I2C_SLAVE_READ_PROCESSED,
+					&byte);
 
-		writel(ret, _IDBR(i2c));
+		writel(byte, _IDBR(i2c));
 		writel(readl(_ICR(i2c)) | ICR_TB, _ICR(i2c));   /* allow next byte */
 	}
 }
 
 static void i2c_pxa_slave_rxfull(struct pxa_i2c *i2c, u32 isr)
 {
-	unsigned int byte = readl(_IDBR(i2c));
+	u8 byte = readl(_IDBR(i2c));
 
 	if (i2c->slave != NULL)
-		i2c->slave->write(i2c->slave->data, byte);
+		i2c_slave_event(i2c->slave, I2C_SLAVE_WRITE_RECEIVED, &byte);
 
 	writel(readl(_ICR(i2c)) | ICR_TB, _ICR(i2c));
 }
@@ -572,9 +572,18 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 		dev_dbg(&i2c->adap.dev, "SAD, mode is slave-%cx\n",
 		       (isr & ISR_RWM) ? 'r' : 't');
 
-	if (i2c->slave != NULL)
-		i2c->slave->event(i2c->slave->data,
-				 (isr & ISR_RWM) ? I2C_SLAVE_EVENT_START_READ : I2C_SLAVE_EVENT_START_WRITE);
+	if (i2c->slave != NULL) {
+		if (isr & ISR_RWM) {
+			u8 byte = 0;
+
+			i2c_slave_event(i2c->slave, I2C_SLAVE_READ_REQUESTED,
+					&byte);
+			writel(byte, _IDBR(i2c));
+		} else {
+			i2c_slave_event(i2c->slave, I2C_SLAVE_WRITE_REQUESTED,
+					NULL);
+		}
+	}
 
 	/*
 	 * slave could interrupt in the middle of us generating a
@@ -607,7 +616,7 @@ static void i2c_pxa_slave_stop(struct pxa_i2c *i2c)
 		dev_dbg(&i2c->adap.dev, "ISR: SSD (Slave Stop)\n");
 
 	if (i2c->slave != NULL)
-		i2c->slave->event(i2c->slave->data, I2C_SLAVE_EVENT_STOP);
+		i2c_slave_event(i2c->slave, I2C_SLAVE_STOP, NULL);
 
 	if (i2c_debug > 2)
 		dev_dbg(&i2c->adap.dev, "ISR: SSD (Slave Stop) acked\n");
@@ -618,6 +627,38 @@ static void i2c_pxa_slave_stop(struct pxa_i2c *i2c)
 	 */
 	if (i2c->msg)
 		i2c_pxa_master_complete(i2c, I2C_RETRY);
+}
+
+static int i2c_pxa_slave_reg(struct i2c_client *slave)
+{
+	struct pxa_i2c *i2c = slave->adapter->algo_data;
+
+	if (i2c->slave)
+		return -EBUSY;
+
+	if (!i2c->reg_isar)
+		return -EAFNOSUPPORT;
+
+	i2c->slave = slave;
+	i2c->slave_addr = slave->addr;
+
+	writel(i2c->slave_addr, _ISAR(i2c));
+
+	return 0;
+}
+
+static int i2c_pxa_slave_unreg(struct i2c_client *slave)
+{
+	struct pxa_i2c *i2c = slave->adapter->algo_data;
+
+	WARN_ON(!i2c->slave);
+
+	i2c->slave_addr = I2C_PXA_SLAVE_ADDR;
+	writel(i2c->slave_addr, _ISAR(i2c));
+
+	i2c->slave = NULL;
+
+	return 0;
 }
 #else
 static void i2c_pxa_slave_txempty(struct pxa_i2c *i2c, u32 isr)
@@ -1141,11 +1182,19 @@ static u32 i2c_pxa_functionality(struct i2c_adapter *adap)
 static const struct i2c_algorithm i2c_pxa_algorithm = {
 	.master_xfer	= i2c_pxa_xfer,
 	.functionality	= i2c_pxa_functionality,
+#ifdef CONFIG_I2C_PXA_SLAVE
+	.reg_slave	= i2c_pxa_slave_reg,
+	.unreg_slave	= i2c_pxa_slave_unreg,
+#endif
 };
 
 static const struct i2c_algorithm i2c_pxa_pio_algorithm = {
 	.master_xfer	= i2c_pxa_pio_xfer,
 	.functionality	= i2c_pxa_functionality,
+#ifdef CONFIG_I2C_PXA_SLAVE
+	.reg_slave	= i2c_pxa_slave_reg,
+	.unreg_slave	= i2c_pxa_slave_unreg,
+#endif
 };
 
 static const struct of_device_id i2c_pxa_dt_ids[] = {
@@ -1270,10 +1319,6 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	i2c->highmode_enter = false;
 
 	if (plat) {
-#ifdef CONFIG_I2C_PXA_SLAVE
-		i2c->slave_addr = plat->slave_addr;
-		i2c->slave = plat->slave;
-#endif
 		i2c->adap.class = plat->class;
 	}
 

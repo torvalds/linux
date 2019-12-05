@@ -35,7 +35,7 @@ struct sd {
 static int stv_sndctrl(struct gspca_dev *gspca_dev, int set, u8 req, u16 val,
 		       int size)
 {
-	int ret = -1;
+	int ret;
 	u8 req_type = 0;
 	unsigned int pipe = 0;
 

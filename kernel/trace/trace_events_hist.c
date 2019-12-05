@@ -23,7 +23,7 @@
 #include "trace_dynevent.h"
 
 #define SYNTH_SYSTEM		"synthetic"
-#define SYNTH_FIELDS_MAX	16
+#define SYNTH_FIELDS_MAX	32
 
 #define STR_VAR_LEN_MAX		32 /* must be multiple of sizeof(u64) */
 
@@ -678,6 +678,8 @@ static int synth_event_define_fields(struct trace_event_call *call)
 static bool synth_field_signed(char *type)
 {
 	if (str_has_prefix(type, "u"))
+		return false;
+	if (strcmp(type, "gfp_t") == 0)
 		return false;
 
 	return true;

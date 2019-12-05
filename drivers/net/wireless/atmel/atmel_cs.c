@@ -117,11 +117,9 @@ static int atmel_config_check(struct pcmcia_device *p_dev, void *priv_data)
 
 static int atmel_config(struct pcmcia_device *link)
 {
-	struct local_info *dev;
 	int ret;
 	const struct pcmcia_device_id *did;
 
-	dev = link->priv;
 	did = dev_get_drvdata(&link->dev);
 
 	dev_dbg(&link->dev, "atmel_config\n");

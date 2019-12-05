@@ -1477,7 +1477,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	struct device *dev = info->dev;
 	int bank_num = of_alias_get_id(np, "gpio");
 	struct resource res, irq_res;
-	int gpio_irq = 0, err;
+	int err;
 
 	if (of_address_to_resource(np, 0, &res))
 		return -ENODEV;
@@ -1500,12 +1500,6 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	range->pin_base = range->base = range->id * ST_GPIO_PINS_PER_BANK;
 	range->npins = bank->gpio_chip.ngpio;
 	range->gc = &bank->gpio_chip;
-	err  = gpiochip_add_data(&bank->gpio_chip, bank);
-	if (err) {
-		dev_err(dev, "Failed to add gpiochip(%d)!\n", bank_num);
-		return err;
-	}
-	dev_info(dev, "%s bank added.\n", range->name);
 
 	/**
 	 * GPIO bank can have one of the two possible types of
@@ -1527,23 +1521,40 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	 */
 
 	if (of_irq_to_resource(np, 0, &irq_res) > 0) {
-		gpio_irq = irq_res.start;
-		gpiochip_set_chained_irqchip(&bank->gpio_chip, &st_gpio_irqchip,
-					     gpio_irq, st_gpio_irq_handler);
+		struct gpio_irq_chip *girq;
+		int gpio_irq = irq_res.start;
+
+		/* This is not a valid IRQ */
+		if (gpio_irq <= 0) {
+			dev_err(dev, "invalid IRQ for %pOF bank\n", np);
+			goto skip_irq;
+		}
+		/* We need to have a mux as well */
+		if (!info->irqmux_base) {
+			dev_err(dev, "no irqmux for %pOF bank\n", np);
+			goto skip_irq;
+		}
+
+		girq = &bank->gpio_chip.irq;
+		girq->chip = &st_gpio_irqchip;
+		girq->parent_handler = st_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = gpio_irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_simple_irq;
 	}
 
-	if (info->irqmux_base || gpio_irq > 0) {
-		err = gpiochip_irqchip_add(&bank->gpio_chip, &st_gpio_irqchip,
-					   0, handle_simple_irq,
-					   IRQ_TYPE_NONE);
-		if (err) {
-			gpiochip_remove(&bank->gpio_chip);
-			dev_info(dev, "could not add irqchip\n");
-			return err;
-		}
-	} else {
-		dev_info(dev, "No IRQ support for %pOF bank\n", np);
+skip_irq:
+	err  = gpiochip_add_data(&bank->gpio_chip, bank);
+	if (err) {
+		dev_err(dev, "Failed to add gpiochip(%d)!\n", bank_num);
+		return err;
 	}
+	dev_info(dev, "%s bank added.\n", range->name);
 
 	return 0;
 }

@@ -87,7 +87,7 @@ int scsi_noretry_cmd(struct scsi_cmnd *scmd);
 extern void scsi_add_cmd_to_list(struct scsi_cmnd *cmd);
 extern void scsi_del_cmd_from_list(struct scsi_cmnd *cmd);
 extern int scsi_maybe_unblock_host(struct scsi_device *sdev);
-extern void scsi_device_unbusy(struct scsi_device *sdev);
+extern void scsi_device_unbusy(struct scsi_device *sdev, struct scsi_cmnd *cmd);
 extern void scsi_queue_insert(struct scsi_cmnd *cmd, int reason);
 extern void scsi_io_completion(struct scsi_cmnd *, unsigned int);
 extern void scsi_run_host_queues(struct Scsi_Host *shost);

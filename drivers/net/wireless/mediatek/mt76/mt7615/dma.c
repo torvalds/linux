@@ -110,6 +110,8 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 	for (i = 0; i < ARRAY_SIZE(queue_map); i++)
 		mt76_queue_tx_cleanup(dev, queue_map[i], false);
 
+	mt7615_mac_sta_poll(dev);
+
 	tasklet_schedule(&dev->mt76.tx_tasklet);
 
 	return 0;

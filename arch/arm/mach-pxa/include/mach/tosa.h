@@ -73,18 +73,6 @@
 #define TOSA_GPIO_BAT1_TH_ON		(TOSA_TC6393XB_GPIO_BASE + 15)
 
 /*
- * Timing Generator
- */
-#define TG_PNLCTL 			0x00
-#define TG_TPOSCTL 			0x01
-#define TG_DUTYCTL 			0x02
-#define TG_GPOSR 			0x03
-#define TG_GPODR1 			0x04
-#define TG_GPODR2 			0x05
-#define TG_PINICTL 			0x06
-#define TG_HPOSCTL 			0x07
-
-/*
  * PXA GPIOs
  */
 #define TOSA_GPIO_POWERON		(0)
@@ -191,8 +179,5 @@
 #define TOSA_KEY_FN		KEY_FN
 #define TOSA_KEY_MAIL		KEY_MAIL
 #endif
-
-struct spi_device;
-extern int tosa_bl_enable(struct spi_device *spi, int enable);
 
 #endif /* _ASM_ARCH_TOSA_H_ */

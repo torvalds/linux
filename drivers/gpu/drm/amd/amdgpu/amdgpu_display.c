@@ -370,11 +370,13 @@ void amdgpu_display_print_display_setup(struct drm_device *dev)
 	struct amdgpu_connector *amdgpu_connector;
 	struct drm_encoder *encoder;
 	struct amdgpu_encoder *amdgpu_encoder;
+	struct drm_connector_list_iter iter;
 	uint32_t devices;
 	int i = 0;
 
+	drm_connector_list_iter_begin(dev, &iter);
 	DRM_INFO("AMDGPU Display Connectors\n");
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_for_each_connector_iter(connector, &iter) {
 		amdgpu_connector = to_amdgpu_connector(connector);
 		DRM_INFO("Connector %d:\n", i);
 		DRM_INFO("  %s\n", connector->name);
@@ -438,6 +440,7 @@ void amdgpu_display_print_display_setup(struct drm_device *dev)
 		}
 		i++;
 	}
+	drm_connector_list_iter_end(&iter);
 }
 
 /**
@@ -511,7 +514,7 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 	 * Also, don't allow GTT domain if the BO doens't have USWC falg set.
 	 */
 	if (adev->asic_type >= CHIP_CARRIZO &&
-	    adev->asic_type <= CHIP_RAVEN &&
+	    adev->asic_type < CHIP_RAVEN &&
 	    (adev->flags & AMD_IS_APU) &&
 	    (bo_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) &&
 	    amdgpu_bo_support_uswc(bo_flags) &&

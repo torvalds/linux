@@ -19,6 +19,11 @@ struct meson_audio_arb_data {
 	spinlock_t lock;
 };
 
+struct meson_audio_arb_match_data {
+	const unsigned int *reset_bits;
+	unsigned int reset_num;
+};
+
 #define ARB_GENERAL_BIT	31
 
 static const unsigned int axg_audio_arb_reset_bits[] = {
@@ -28,6 +33,27 @@ static const unsigned int axg_audio_arb_reset_bits[] = {
 	[AXG_ARB_FRDDR_A]	= 4,
 	[AXG_ARB_FRDDR_B]	= 5,
 	[AXG_ARB_FRDDR_C]	= 6,
+};
+
+static const struct meson_audio_arb_match_data axg_audio_arb_match = {
+	.reset_bits = axg_audio_arb_reset_bits,
+	.reset_num = ARRAY_SIZE(axg_audio_arb_reset_bits),
+};
+
+static const unsigned int sm1_audio_arb_reset_bits[] = {
+	[AXG_ARB_TODDR_A]	= 0,
+	[AXG_ARB_TODDR_B]	= 1,
+	[AXG_ARB_TODDR_C]	= 2,
+	[AXG_ARB_FRDDR_A]	= 4,
+	[AXG_ARB_FRDDR_B]	= 5,
+	[AXG_ARB_FRDDR_C]	= 6,
+	[AXG_ARB_TODDR_D]	= 3,
+	[AXG_ARB_FRDDR_D]	= 7,
+};
+
+static const struct meson_audio_arb_match_data sm1_audio_arb_match = {
+	.reset_bits = sm1_audio_arb_reset_bits,
+	.reset_num = ARRAY_SIZE(sm1_audio_arb_reset_bits),
 };
 
 static int meson_audio_arb_update(struct reset_controller_dev *rcdev,
@@ -82,7 +108,13 @@ static const struct reset_control_ops meson_audio_arb_rstc_ops = {
 };
 
 static const struct of_device_id meson_audio_arb_of_match[] = {
-	{ .compatible = "amlogic,meson-axg-audio-arb", },
+	{
+		.compatible = "amlogic,meson-axg-audio-arb",
+		.data = &axg_audio_arb_match,
+	}, {
+		.compatible = "amlogic,meson-sm1-audio-arb",
+		.data = &sm1_audio_arb_match,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, meson_audio_arb_of_match);
@@ -104,9 +136,14 @@ static int meson_audio_arb_remove(struct platform_device *pdev)
 static int meson_audio_arb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	const struct meson_audio_arb_match_data *data;
 	struct meson_audio_arb_data *arb;
 	struct resource *res;
 	int ret;
+
+	data = of_device_get_match_data(dev);
+	if (!data)
+		return -EINVAL;
 
 	arb = devm_kzalloc(dev, sizeof(*arb), GFP_KERNEL);
 	if (!arb)
@@ -126,8 +163,8 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 		return PTR_ERR(arb->regs);
 
 	spin_lock_init(&arb->lock);
-	arb->reset_bits = axg_audio_arb_reset_bits;
-	arb->rstc.nr_resets = ARRAY_SIZE(axg_audio_arb_reset_bits);
+	arb->reset_bits = data->reset_bits;
+	arb->rstc.nr_resets = data->reset_num;
 	arb->rstc.ops = &meson_audio_arb_rstc_ops;
 	arb->rstc.of_node = dev->of_node;
 	arb->rstc.owner = THIS_MODULE;

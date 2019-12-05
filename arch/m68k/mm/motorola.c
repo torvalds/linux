@@ -82,9 +82,11 @@ static pmd_t * __init kernel_ptr_table(void)
 		 */
 		last = (unsigned long)kernel_pg_dir;
 		for (i = 0; i < PTRS_PER_PGD; i++) {
-			if (!pgd_present(kernel_pg_dir[i]))
+			pud_t *pud = (pud_t *)(&kernel_pg_dir[i]);
+
+			if (!pud_present(*pud))
 				continue;
-			pmd = __pgd_page(kernel_pg_dir[i]);
+			pmd = pgd_page_vaddr(kernel_pg_dir[i]);
 			if (pmd > last)
 				last = pmd;
 		}
@@ -118,6 +120,8 @@ static void __init map_node(int node)
 #define ROOTTREESIZE (32*1024*1024)
 	unsigned long physaddr, virtaddr, size;
 	pgd_t *pgd_dir;
+	p4d_t *p4d_dir;
+	pud_t *pud_dir;
 	pmd_t *pmd_dir;
 	pte_t *pte_dir;
 
@@ -149,14 +153,16 @@ static void __init map_node(int node)
 				continue;
 			}
 		}
-		if (!pgd_present(*pgd_dir)) {
+		p4d_dir = p4d_offset(pgd_dir, virtaddr);
+		pud_dir = pud_offset(p4d_dir, virtaddr);
+		if (!pud_present(*pud_dir)) {
 			pmd_dir = kernel_ptr_table();
 #ifdef DEBUG
 			printk ("[new pointer %p]", pmd_dir);
 #endif
-			pgd_set(pgd_dir, pmd_dir);
+			pud_set(pud_dir, pmd_dir);
 		} else
-			pmd_dir = pmd_offset(pgd_dir, virtaddr);
+			pmd_dir = pmd_offset(pud_dir, virtaddr);
 
 		if (CPU_IS_020_OR_030) {
 			if (virtaddr) {
@@ -304,4 +310,3 @@ void __init paging_init(void)
 			node_set_state(i, N_NORMAL_MEMORY);
 	}
 }
-

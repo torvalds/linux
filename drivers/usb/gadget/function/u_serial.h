@@ -54,8 +54,16 @@ struct usb_request *gs_alloc_req(struct usb_ep *ep, unsigned len, gfp_t flags);
 void gs_free_req(struct usb_ep *, struct usb_request *req);
 
 /* management of individual TTY ports */
+int gserial_alloc_line_no_console(unsigned char *port_line);
 int gserial_alloc_line(unsigned char *port_line);
 void gserial_free_line(unsigned char port_line);
+
+#ifdef CONFIG_U_SERIAL_CONSOLE
+
+ssize_t gserial_set_console(unsigned char port_num, const char *page, size_t count);
+ssize_t gserial_get_console(unsigned char port_num, char *page);
+
+#endif /* CONFIG_U_SERIAL_CONSOLE */
 
 /* connect/disconnect is handled by individual functions */
 int gserial_connect(struct gserial *, u8 port_num);

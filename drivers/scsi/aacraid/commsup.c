@@ -232,6 +232,7 @@ struct fib *aac_fib_alloc_tag(struct aac_dev *dev, struct scsi_cmnd *scmd)
 	fibptr->type = FSAFS_NTC_FIB_CONTEXT;
 	fibptr->callback_data = NULL;
 	fibptr->callback = NULL;
+	fibptr->flags = 0;
 
 	return fibptr;
 }
@@ -1463,6 +1464,14 @@ retry_next:
 	}
 }
 
+static void aac_schedule_bus_scan(struct aac_dev *aac)
+{
+	if (aac->sa_firmware)
+		aac_schedule_safw_scan_worker(aac);
+	else
+		aac_schedule_src_reinit_aif_worker(aac);
+}
+
 static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 {
 	int index, quirks;
@@ -1638,7 +1647,7 @@ out:
 	 */
 	if (!retval && !is_kdump_kernel()) {
 		dev_info(&aac->pdev->dev, "Scheduling bus rescan\n");
-		aac_schedule_safw_scan_worker(aac);
+		aac_schedule_bus_scan(aac);
 	}
 
 	if (jafo) {
@@ -1957,6 +1966,16 @@ int aac_scan_host(struct aac_dev *dev)
 	mutex_unlock(&dev->scan_mutex);
 
 	return rcode;
+}
+
+void aac_src_reinit_aif_worker(struct work_struct *work)
+{
+	struct aac_dev *dev = container_of(to_delayed_work(work),
+				struct aac_dev, src_reinit_aif_worker);
+
+	wait_event(dev->scsi_host_ptr->host_wait,
+			!scsi_host_in_recovery(dev->scsi_host_ptr));
+	aac_reinit_aif(dev, dev->cardtype);
 }
 
 /**

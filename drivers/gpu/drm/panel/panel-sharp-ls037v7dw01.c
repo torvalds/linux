@@ -185,9 +185,8 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 		return PTR_ERR(lcd->ud_gpio);
 	}
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = &pdev->dev;
-	lcd->panel.funcs = &ls037v7dw01_funcs;
+	drm_panel_init(&lcd->panel, &pdev->dev, &ls037v7dw01_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&lcd->panel);
 }

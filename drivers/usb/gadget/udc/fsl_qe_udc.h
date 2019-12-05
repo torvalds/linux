@@ -333,8 +333,8 @@ struct qe_udc {
 	u32 resume_state;       /* USB state to resume*/
 	u32 usb_state;          /* USB current state */
 	u32 usb_next_state;     /* USB next state */
-	u32 ep0_state;          /* Enpoint zero state */
-	u32 ep0_dir;            /* Enpoint zero direction: can be
+	u32 ep0_state;          /* Endpoint zero state */
+	u32 ep0_dir;            /* Endpoint zero direction: can be
 				USB_DIR_IN or USB_DIR_OUT*/
 	u32 usb_sof_count;      /* SOF count */
 	u32 errors;             /* USB ERRORs count */

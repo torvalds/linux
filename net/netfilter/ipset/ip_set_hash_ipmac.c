@@ -47,7 +47,7 @@ struct hash_ipmac4_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_ipmac4_data_equal(const struct hash_ipmac4_elem *e1,
 		       const struct hash_ipmac4_elem *e2,
 		       u32 *multi)
@@ -67,7 +67,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_ipmac4_data_next(struct hash_ipmac4_elem *next,
 		      const struct hash_ipmac4_elem *e)
 {
@@ -154,7 +154,7 @@ struct hash_ipmac6_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_ipmac6_data_equal(const struct hash_ipmac6_elem *e1,
 		       const struct hash_ipmac6_elem *e2,
 		       u32 *multi)
@@ -175,7 +175,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_ipmac6_data_next(struct hash_ipmac6_elem *next,
 		      const struct hash_ipmac6_elem *e)
 {
@@ -209,7 +209,7 @@ hash_ipmac6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	    (skb_mac_header(skb) + ETH_HLEN) > skb->data)
 		return -EINVAL;
 
-	if (opt->flags & IPSET_DIM_ONE_SRC)
+	if (opt->flags & IPSET_DIM_TWO_SRC)
 		ether_addr_copy(e.ether, eth_hdr(skb)->h_source);
 	else
 		ether_addr_copy(e.ether, eth_hdr(skb)->h_dest);

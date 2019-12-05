@@ -2425,7 +2425,8 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 		return -EIO;
 	hw_brk.address = data & (~HW_BRK_TYPE_DABR);
 	hw_brk.type = (data & HW_BRK_TYPE_DABR) | HW_BRK_TYPE_PRIV_ALL;
-	hw_brk.len = 8;
+	hw_brk.len = DABR_MAX_LEN;
+	hw_brk.hw_len = DABR_MAX_LEN;
 	set_bp = (data) && (hw_brk.type & HW_BRK_TYPE_RDWR);
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	bp = thread->ptrace_bps[0];
@@ -2439,6 +2440,7 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	if (bp) {
 		attr = bp->attr;
 		attr.bp_addr = hw_brk.address;
+		attr.bp_len = DABR_MAX_LEN;
 		arch_bp_generic_fields(hw_brk.type, &attr.bp_type);
 
 		/* Enable breakpoint */
@@ -2456,7 +2458,7 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	/* Create a new breakpoint request if one doesn't exist already */
 	hw_breakpoint_init(&attr);
 	attr.bp_addr = hw_brk.address;
-	attr.bp_len = 8;
+	attr.bp_len = DABR_MAX_LEN;
 	arch_bp_generic_fields(hw_brk.type,
 			       &attr.bp_type);
 
@@ -2880,18 +2882,14 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	if ((unsigned long)bp_info->addr >= TASK_SIZE)
 		return -EIO;
 
-	brk.address = bp_info->addr & ~7UL;
+	brk.address = bp_info->addr & ~HW_BREAKPOINT_ALIGN;
 	brk.type = HW_BRK_TYPE_TRANSLATE;
-	brk.len = 8;
+	brk.len = DABR_MAX_LEN;
 	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_READ)
 		brk.type |= HW_BRK_TYPE_READ;
 	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_WRITE)
 		brk.type |= HW_BRK_TYPE_WRITE;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-	/*
-	 * Check if the request is for 'range' breakpoints. We can
-	 * support it if range < 8 bytes.
-	 */
 	if (bp_info->addr_mode == PPC_BREAKPOINT_MODE_RANGE_INCLUSIVE)
 		len = bp_info->addr2 - bp_info->addr;
 	else if (bp_info->addr_mode == PPC_BREAKPOINT_MODE_EXACT)
@@ -2904,7 +2902,7 @@ static long ppc_set_hwdebug(struct task_struct *child,
 
 	/* Create a new breakpoint request if one doesn't exist already */
 	hw_breakpoint_init(&attr);
-	attr.bp_addr = (unsigned long)bp_info->addr & ~HW_BREAKPOINT_ALIGN;
+	attr.bp_addr = (unsigned long)bp_info->addr;
 	attr.bp_len = len;
 	arch_bp_generic_fields(brk.type, &attr.bp_type);
 
@@ -3361,6 +3359,12 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 	user_enter();
 }
 
+void __init pt_regs_check(void);
+
+/*
+ * Dummy function, its purpose is to break the build if struct pt_regs and
+ * struct user_pt_regs don't match.
+ */
 void __init pt_regs_check(void)
 {
 	BUILD_BUG_ON(offsetof(struct pt_regs, gpr) !=
@@ -3398,4 +3402,67 @@ void __init pt_regs_check(void)
 		     offsetof(struct user_pt_regs, result));
 
 	BUILD_BUG_ON(sizeof(struct user_pt_regs) > sizeof(struct pt_regs));
+
+	// Now check that the pt_regs offsets match the uapi #defines
+	#define CHECK_REG(_pt, _reg) \
+		BUILD_BUG_ON(_pt != (offsetof(struct user_pt_regs, _reg) / \
+				     sizeof(unsigned long)));
+
+	CHECK_REG(PT_R0,  gpr[0]);
+	CHECK_REG(PT_R1,  gpr[1]);
+	CHECK_REG(PT_R2,  gpr[2]);
+	CHECK_REG(PT_R3,  gpr[3]);
+	CHECK_REG(PT_R4,  gpr[4]);
+	CHECK_REG(PT_R5,  gpr[5]);
+	CHECK_REG(PT_R6,  gpr[6]);
+	CHECK_REG(PT_R7,  gpr[7]);
+	CHECK_REG(PT_R8,  gpr[8]);
+	CHECK_REG(PT_R9,  gpr[9]);
+	CHECK_REG(PT_R10, gpr[10]);
+	CHECK_REG(PT_R11, gpr[11]);
+	CHECK_REG(PT_R12, gpr[12]);
+	CHECK_REG(PT_R13, gpr[13]);
+	CHECK_REG(PT_R14, gpr[14]);
+	CHECK_REG(PT_R15, gpr[15]);
+	CHECK_REG(PT_R16, gpr[16]);
+	CHECK_REG(PT_R17, gpr[17]);
+	CHECK_REG(PT_R18, gpr[18]);
+	CHECK_REG(PT_R19, gpr[19]);
+	CHECK_REG(PT_R20, gpr[20]);
+	CHECK_REG(PT_R21, gpr[21]);
+	CHECK_REG(PT_R22, gpr[22]);
+	CHECK_REG(PT_R23, gpr[23]);
+	CHECK_REG(PT_R24, gpr[24]);
+	CHECK_REG(PT_R25, gpr[25]);
+	CHECK_REG(PT_R26, gpr[26]);
+	CHECK_REG(PT_R27, gpr[27]);
+	CHECK_REG(PT_R28, gpr[28]);
+	CHECK_REG(PT_R29, gpr[29]);
+	CHECK_REG(PT_R30, gpr[30]);
+	CHECK_REG(PT_R31, gpr[31]);
+	CHECK_REG(PT_NIP, nip);
+	CHECK_REG(PT_MSR, msr);
+	CHECK_REG(PT_ORIG_R3, orig_gpr3);
+	CHECK_REG(PT_CTR, ctr);
+	CHECK_REG(PT_LNK, link);
+	CHECK_REG(PT_XER, xer);
+	CHECK_REG(PT_CCR, ccr);
+#ifdef CONFIG_PPC64
+	CHECK_REG(PT_SOFTE, softe);
+#else
+	CHECK_REG(PT_MQ, mq);
+#endif
+	CHECK_REG(PT_TRAP, trap);
+	CHECK_REG(PT_DAR, dar);
+	CHECK_REG(PT_DSISR, dsisr);
+	CHECK_REG(PT_RESULT, result);
+	#undef CHECK_REG
+
+	BUILD_BUG_ON(PT_REGS_COUNT != sizeof(struct user_pt_regs) / sizeof(unsigned long));
+
+	/*
+	 * PT_DSCR isn't a real reg, but it's important that it doesn't overlap the
+	 * real registers.
+	 */
+	BUILD_BUG_ON(PT_DSCR < sizeof(struct user_pt_regs) / sizeof(unsigned long));
 }

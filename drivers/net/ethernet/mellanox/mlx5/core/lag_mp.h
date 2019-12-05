@@ -7,6 +7,12 @@
 #include "lag.h"
 #include "mlx5_core.h"
 
+enum mlx5_lag_port_affinity {
+	MLX5_LAG_NORMAL_AFFINITY,
+	MLX5_LAG_P1_AFFINITY,
+	MLX5_LAG_P2_AFFINITY,
+};
+
 struct lag_mp {
 	struct notifier_block     fib_nb;
 	struct fib_info           *mfi; /* used in tracking fib events */

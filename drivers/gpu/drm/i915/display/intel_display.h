@@ -1,5 +1,5 @@
 /*
- * Copyright © 2006-2017 Intel Corporation
+ * Copyright © 2006-2019 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,10 @@ enum link_m_n_set;
 struct dpll;
 struct drm_connector;
 struct drm_device;
+struct drm_display_mode;
 struct drm_encoder;
 struct drm_file;
+struct drm_format_info;
 struct drm_framebuffer;
 struct drm_i915_error_state_buf;
 struct drm_i915_gem_object;
@@ -52,6 +54,7 @@ struct intel_plane;
 struct intel_plane_state;
 struct intel_remapped_info;
 struct intel_rotation_info;
+struct intel_crtc_state;
 
 enum i915_gpio {
 	GPIOA,
@@ -91,6 +94,7 @@ enum pipe {
 #define pipe_name(p) ((p) + 'A')
 
 enum transcoder {
+	INVALID_TRANSCODER = -1,
 	/*
 	 * The following transcoders have a 1:1 transcoder -> pipe mapping,
 	 * keep their values fixed: the code assumes that TRANSCODER_A=0, the
@@ -182,6 +186,24 @@ enum plane_id {
 	for ((__p) = PLANE_PRIMARY; (__p) < I915_MAX_PLANES; (__p)++) \
 		for_each_if((__crtc)->plane_ids_mask & BIT(__p))
 
+enum port {
+	PORT_NONE = -1,
+
+	PORT_A = 0,
+	PORT_B,
+	PORT_C,
+	PORT_D,
+	PORT_E,
+	PORT_F,
+	PORT_G,
+	PORT_H,
+	PORT_I,
+
+	I915_MAX_PORTS
+};
+
+#define port_name(p) ((p) + 'A')
+
 /*
  * Ports identifier referenced from other drivers.
  * Expected to remain stable over time
@@ -251,6 +273,7 @@ enum aux_ch {
 	AUX_CH_D,
 	AUX_CH_E, /* ICL+ */
 	AUX_CH_F,
+	AUX_CH_G,
 };
 
 #define aux_ch_name(a) ((a) + 'A')
@@ -289,10 +312,10 @@ enum phy_fia {
 };
 
 #define for_each_pipe(__dev_priv, __p) \
-	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++)
+	for ((__p) = 0; (__p) < INTEL_NUM_PIPES(__dev_priv); (__p)++)
 
 #define for_each_pipe_masked(__dev_priv, __p, __mask) \
-	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++) \
+	for ((__p) = 0; (__p) < INTEL_NUM_PIPES(__dev_priv); (__p)++) \
 		for_each_if((__mask) & BIT(__p))
 
 #define for_each_cpu_transcoder_masked(__dev_priv, __t, __mask) \
@@ -330,7 +353,7 @@ enum phy_fia {
 			    &(dev)->mode_config.plane_list,		\
 			    base.head)					\
 		for_each_if((plane_mask) &				\
-			    drm_plane_mask(&intel_plane->base)))
+			    drm_plane_mask(&intel_plane->base))
 
 #define for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane)	\
 	list_for_each_entry(intel_plane,				\
@@ -411,6 +434,23 @@ enum phy_fia {
 	     (__i)++) \
 		for_each_if(crtc)
 
+#define for_each_oldnew_intel_crtc_in_state_reverse(__state, crtc, old_crtc_state, new_crtc_state, __i) \
+	for ((__i) = (__state)->base.dev->mode_config.num_crtc - 1; \
+	     (__i) >= 0  && \
+	     ((crtc) = to_intel_crtc((__state)->base.crtcs[__i].ptr), \
+	      (old_crtc_state) = to_intel_crtc_state((__state)->base.crtcs[__i].old_state), \
+	      (new_crtc_state) = to_intel_crtc_state((__state)->base.crtcs[__i].new_state), 1); \
+	     (__i)--) \
+		for_each_if(crtc)
+
+#define intel_atomic_crtc_state_for_each_plane_state( \
+		  plane, plane_state, \
+		  crtc_state) \
+	for_each_intel_plane_mask(((crtc_state)->base.state->dev), (plane), \
+				((crtc_state)->base.plane_mask)) \
+		for_each_if ((plane_state = \
+			      to_intel_plane_state(__drm_atomic_get_current_plane_state((crtc_state)->base.state, &plane->base))))
+
 void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n,
@@ -420,7 +460,11 @@ void lpt_disable_clkout_dp(struct drm_i915_private *dev_priv);
 u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 			      u32 pixel_format, u64 modifier);
 bool intel_plane_can_remap(const struct intel_plane_state *plane_state);
+enum drm_mode_status
+intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
+				const struct drm_display_mode *mode);
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
+bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
 
 void intel_plane_destroy(struct drm_plane *plane);
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
@@ -464,7 +508,6 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 			 struct intel_digital_port *dport,
 			 unsigned int expected_mask);
 int intel_get_load_detect_pipe(struct drm_connector *connector,
-			       const struct drm_display_mode *mode,
 			       struct intel_load_detect_pipe *old,
 			       struct drm_modeset_acquire_ctx *ctx);
 void intel_release_load_detect_pipe(struct drm_connector *connector,
@@ -499,8 +542,6 @@ void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
 void intel_dp_set_m_n(const struct intel_crtc_state *crtc_state,
 		      enum link_m_n_set m_n);
-void intel_dp_ycbcr_420_enable(struct intel_dp *intel_dp,
-			       const struct intel_crtc_state *crtc_state);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
 bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
 			struct dpll *best_clock);
@@ -520,8 +561,6 @@ void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 
 u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_center);
 int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
-int skl_max_scale(const struct intel_crtc_state *crtc_state,
-		  u32 pixel_format);
 u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state);
 u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state);
@@ -544,13 +583,10 @@ void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 				     struct intel_display_error_state *error);
 
 /* modesetting */
-void intel_modeset_init_hw(struct drm_device *dev);
-int intel_modeset_init(struct drm_device *dev);
-void intel_modeset_driver_remove(struct drm_device *dev);
-int intel_modeset_vga_set_state(struct drm_i915_private *dev_priv, bool state);
+void intel_modeset_init_hw(struct drm_i915_private *i915);
+int intel_modeset_init(struct drm_i915_private *i915);
+void intel_modeset_driver_remove(struct drm_i915_private *i915);
 void intel_display_resume(struct drm_device *dev);
-void i915_redisable_vga(struct drm_i915_private *dev_priv);
-void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv);
 void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
 
 /* modesetting asserts */

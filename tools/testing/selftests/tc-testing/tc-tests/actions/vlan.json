@@ -807,5 +807,29 @@
         "matchPattern": "^[ \t]+index [0-9]+ ref",
         "matchCount": "0",
         "teardown": []
+    },
+    {
+        "id": "1a3d",
+        "name": "Add vlan pop action with no_percpu flag",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action vlan pop no_percpu",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action vlan",
+        "matchPattern": "action order [0-9]+: vlan.*pop.*no_percpu",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
     }
 ]

@@ -210,8 +210,10 @@ int iwpm_mapinfo_available(void);
 
 /**
  * iwpm_compare_sockaddr - Compare two sockaddr storage structs
+ * @a_sockaddr: first sockaddr to compare
+ * @b_sockaddr: second sockaddr to compare
  *
- * Returns 0 if they are holding the same ip/tcp address info,
+ * Return: 0 if they are holding the same ip/tcp address info,
  * otherwise returns 1
  */
 int iwpm_compare_sockaddr(struct sockaddr_storage *a_sockaddr,
@@ -272,6 +274,7 @@ void iwpm_print_sockaddr(struct sockaddr_storage *sockaddr, char *msg);
  * iwpm_send_hello - Send hello response to iwpmd
  *
  * @nl_client: The index of the netlink client
+ * @iwpm_pid: The pid of the user space port mapper
  * @abi_version: The kernel's abi_version
  *
  * Returns 0 on success or a negative error code

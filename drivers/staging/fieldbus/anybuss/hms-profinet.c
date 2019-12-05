@@ -96,7 +96,7 @@ static int __profi_enable(struct profi_priv *priv)
 		.output_io = 220,
 		.output_dpram = PROFI_DPRAM_SIZE,
 		.output_total = PROFI_DPRAM_SIZE,
-		.offl_mode = AB_OFFL_MODE_CLEAR,
+		.offl_mode = FIELDBUS_DEV_OFFL_MODE_CLEAR,
 	};
 
 	/*

@@ -6,7 +6,6 @@
 config ARC
 	def_bool y
 	select ARC_TIMERS
-	select ARCH_HAS_DMA_COHERENT_TO_PFN
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SETUP_DMA_OPS
@@ -30,6 +29,7 @@ config ARC
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_IOREMAP_PROT
 	select HAVE_KERNEL_GZIP
@@ -46,6 +46,7 @@ config ARC
 	select OF_EARLY_FLATTREE
 	select PCI_SYSCALL if PCI
 	select PERF_USE_VMALLOC if ARC_CACHE_VIPT_ALIASING
+	select HAVE_ARCH_JUMP_LABEL if ISA_ARCV2 && !CPU_ENDIAN_BE32
 
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
@@ -525,6 +526,13 @@ config ARC_DW2_UNWIND
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
 
+config ARC_DBG_JUMP_LABEL
+	bool "Paranoid checks in Static Keys (jump labels) code"
+	depends on JUMP_LABEL
+	default y if STATIC_KEYS_SELFTEST
+	help
+	  Enable paranoid checks and self-test of both ARC-specific and generic
+	  part of static keys (jump labels) related code.
 endif
 
 config ARC_BUILTIN_DTB_NAME

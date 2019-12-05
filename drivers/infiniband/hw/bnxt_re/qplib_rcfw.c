@@ -494,8 +494,10 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 	 * shall setup this area for VF. Skipping the
 	 * HW programming
 	 */
-	if (is_virtfn || bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx))
+	if (is_virtfn)
 		goto skip_ctx_setup;
+	if (bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx))
+		goto config_vf_res;
 
 	level = ctx->qpc_tbl.level;
 	req.qpc_pg_size_qpc_lvl = (level << CMDQ_INITIALIZE_FW_QPC_LVL_SFT) |
@@ -540,6 +542,7 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 	req.number_of_srq = cpu_to_le32(ctx->srqc_tbl.max_elements);
 	req.number_of_cq = cpu_to_le32(ctx->cq_tbl.max_elements);
 
+config_vf_res:
 	req.max_qp_per_vf = cpu_to_le32(ctx->vf_res.max_qp_per_vf);
 	req.max_mrw_per_vf = cpu_to_le32(ctx->vf_res.max_mrw_per_vf);
 	req.max_srq_per_vf = cpu_to_le32(ctx->vf_res.max_srq_per_vf);

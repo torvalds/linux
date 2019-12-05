@@ -13,11 +13,11 @@ menuconfig CAIF
 	with its modems. It is accessed from user space as sockets (PF_CAIF).
 
 	Say Y (or M) here if you build for a phone product (e.g. Android or
-	MeeGo ) that uses CAIF as transport, if unsure say N.
+	MeeGo) that uses CAIF as transport. If unsure say N.
 
 	If you select to build it as module then CAIF_NETDEV also needs to be
-	built as modules. You will also need to say yes to any CAIF physical
-	devices that your platform requires.
+	built as a module. You will also need to say Y (or M) to any CAIF
+	physical devices that your platform requires.
 
 	See Documentation/networking/caif for a further explanation on how to
 	use and configure CAIF.
@@ -37,7 +37,7 @@ config CAIF_NETDEV
 	default CAIF
 	---help---
 	Say Y if you will be using a CAIF based GPRS network device.
-	This can be either built-in or a loadable module,
+	This can be either built-in or a loadable module.
 	If you select to build it as a built-in then the main CAIF device must
 	also be a built-in.
 	If unsure say Y.
@@ -48,7 +48,7 @@ config CAIF_USB
 	default n
 	---help---
 	Say Y if you are using CAIF over USB CDC NCM.
-	This can be either built-in or a loadable module,
+	This can be either built-in or a loadable module.
 	If you select to build it as a built-in then the main CAIF device must
 	also be a built-in.
 	If unsure say N.

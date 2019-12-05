@@ -31,6 +31,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_plane_helper.h>
@@ -97,17 +98,6 @@ drm_atomic_helper_plane_changed(struct drm_atomic_state *state,
 	}
 }
 
-/*
- * For connectors that support multiple encoders, either the
- * .atomic_best_encoder() or .best_encoder() operation must be implemented.
- */
-static struct drm_encoder *
-pick_single_encoder_for_connector(struct drm_connector *connector)
-{
-	WARN_ON(connector->encoder_ids[1]);
-	return drm_encoder_find(connector->dev, NULL, connector->encoder_ids[0]);
-}
-
 static int handle_conflicting_encoders(struct drm_atomic_state *state,
 				       bool disable_conflicting_encoders)
 {
@@ -135,7 +125,7 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 		else if (funcs->best_encoder)
 			new_encoder = funcs->best_encoder(connector);
 		else
-			new_encoder = pick_single_encoder_for_connector(connector);
+			new_encoder = drm_connector_get_single_encoder(connector);
 
 		if (new_encoder) {
 			if (encoder_mask & drm_encoder_mask(new_encoder)) {
@@ -359,7 +349,7 @@ update_connector_routing(struct drm_atomic_state *state,
 	else if (funcs->best_encoder)
 		new_encoder = funcs->best_encoder(connector);
 	else
-		new_encoder = pick_single_encoder_for_connector(connector);
+		new_encoder = drm_connector_get_single_encoder(connector);
 
 	if (!new_encoder) {
 		DRM_DEBUG_ATOMIC("No suitable encoder found for [CONNECTOR:%d:%s]\n",
@@ -482,7 +472,7 @@ mode_fixup(struct drm_atomic_state *state)
 			continue;
 
 		funcs = crtc->helper_private;
-		if (!funcs->mode_fixup)
+		if (!funcs || !funcs->mode_fixup)
 			continue;
 
 		ret = funcs->mode_fixup(crtc, &new_crtc_state->mode,
@@ -1581,8 +1571,11 @@ static void commit_tail(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
 	const struct drm_mode_config_helper_funcs *funcs;
+	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc *crtc;
 	ktime_t start;
 	s64 commit_time_ms;
+	unsigned int i, new_self_refresh_mask = 0;
 
 	funcs = dev->mode_config.helper_private;
 
@@ -1602,6 +1595,15 @@ static void commit_tail(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_wait_for_dependencies(old_state);
 
+	/*
+	 * We cannot safely access new_crtc_state after
+	 * drm_atomic_helper_commit_hw_done() so figure out which crtc's have
+	 * self-refresh active beforehand:
+	 */
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i)
+		if (new_crtc_state->self_refresh_active)
+			new_self_refresh_mask |= BIT(i);
+
 	if (funcs && funcs->atomic_commit_tail)
 		funcs->atomic_commit_tail(old_state);
 	else
@@ -1610,7 +1612,8 @@ static void commit_tail(struct drm_atomic_state *old_state)
 	commit_time_ms = ktime_ms_delta(ktime_get(), start);
 	if (commit_time_ms > 0)
 		drm_self_refresh_helper_update_avg_times(old_state,
-						 (unsigned long)commit_time_ms);
+						 (unsigned long)commit_time_ms,
+						 new_self_refresh_mask);
 
 	drm_atomic_helper_commit_cleanup_done(old_state);
 

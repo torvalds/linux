@@ -3086,8 +3086,8 @@ static int pnv_pci_diag_data_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(pnv_pci_diag_data_fops, NULL,
-			pnv_pci_diag_data_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(pnv_pci_diag_data_fops, NULL, pnv_pci_diag_data_set,
+			 "%llu\n");
 
 #endif /* CONFIG_DEBUG_FS */
 
@@ -3112,8 +3112,8 @@ static void pnv_pci_ioda_create_dbgfs(void)
 			continue;
 		}
 
-		debugfs_create_file("dump_diag_regs", 0200, phb->dbgfs, hose,
-				    &pnv_pci_diag_data_fops);
+		debugfs_create_file_unsafe("dump_diag_regs", 0200, phb->dbgfs,
+					   hose, &pnv_pci_diag_data_fops);
 	}
 #endif /* CONFIG_DEBUG_FS */
 }

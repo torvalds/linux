@@ -53,6 +53,14 @@ config FSI_MASTER_AST_CF
 	lines driven by the internal ColdFire coprocessor. This requires
 	the corresponding machine specific ColdFire firmware to be available.
 
+config FSI_MASTER_ASPEED
+	tristate "FSI ASPEED master"
+	help
+	 This option enables a FSI master that is present behind an OPB bridge
+	 in the AST2600.
+
+	 Enable it for your BMC kernel in an OpenPower or IBM Power system.
+
 config FSI_SCOM
 	tristate "SCOM FSI client device driver"
 	---help---

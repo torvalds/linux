@@ -382,33 +382,21 @@ static struct dentry *dfs_dir_mtd;
 static void mtd_debugfs_populate(struct mtd_info *mtd)
 {
 	struct device *dev = &mtd->dev;
-	struct dentry *root, *dent;
+	struct dentry *root;
 
 	if (IS_ERR_OR_NULL(dfs_dir_mtd))
 		return;
 
 	root = debugfs_create_dir(dev_name(dev), dfs_dir_mtd);
-	if (IS_ERR_OR_NULL(root)) {
-		dev_dbg(dev, "won't show data in debugfs\n");
-		return;
-	}
-
 	mtd->dbg.dfs_dir = root;
 
-	if (mtd->dbg.partid) {
-		dent = debugfs_create_file("partid", 0400, root, mtd,
-					   &mtd_partid_debug_fops);
-		if (IS_ERR_OR_NULL(dent))
-			dev_err(dev, "can't create debugfs entry for partid\n");
-	}
+	if (mtd->dbg.partid)
+		debugfs_create_file("partid", 0400, root, mtd,
+				    &mtd_partid_debug_fops);
 
-	if (mtd->dbg.partname) {
-		dent = debugfs_create_file("partname", 0400, root, mtd,
-					   &mtd_partname_debug_fops);
-		if (IS_ERR_OR_NULL(dent))
-			dev_err(dev,
-				"can't create debugfs entry for partname\n");
-	}
+	if (mtd->dbg.partname)
+		debugfs_create_file("partname", 0400, root, mtd,
+				    &mtd_partname_debug_fops);
 }
 
 #ifndef CONFIG_MMU

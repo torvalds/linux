@@ -37,9 +37,16 @@ struct sock_extended_err {
  *	The timestamping interfaces SO_TIMESTAMPING, MSG_TSTAMP_*
  *	communicate network timestamps by passing this struct in a cmsg with
  *	recvmsg(). See Documentation/networking/timestamping.txt for details.
+ *	User space sees a timespec definition that matches either
+ *	__kernel_timespec or __kernel_old_timespec, in the kernel we
+ *	require two structure definitions to provide both.
  */
 struct scm_timestamping {
+#ifdef __KERNEL__
+	struct __kernel_old_timespec ts[3];
+#else
 	struct timespec ts[3];
+#endif
 };
 
 struct scm_timestamping64 {

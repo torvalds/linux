@@ -905,7 +905,7 @@ static int omap_sr_probe(struct platform_device *pdev)
 	sr_info->dbg_dir = debugfs_create_dir(sr_info->name, sr_dbg_dir);
 
 	debugfs_create_file("autocomp", S_IRUGO | S_IWUSR, sr_info->dbg_dir,
-			    (void *)sr_info, &pm_sr_fops);
+			    sr_info, &pm_sr_fops);
 	debugfs_create_x32("errweight", S_IRUGO, sr_info->dbg_dir,
 			   &sr_info->err_weight);
 	debugfs_create_x32("errmaxlimit", S_IRUGO, sr_info->dbg_dir,

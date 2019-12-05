@@ -11,6 +11,7 @@
 #include "xfs_sb.h"
 #include "xfs_health.h"
 #include "scrub/scrub.h"
+#include "scrub/health.h"
 
 /*
  * Scrub and In-Core Filesystem Health Assessments

@@ -7,7 +7,7 @@
 
 / {
 	model = "INCOstartec LILLY-A83X module (DM3730)";
-	compatible = "incostartec,omap3-lilly-a83x", "ti,omap36xx", "ti,omap3";
+	compatible = "incostartec,omap3-lilly-a83x", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 
 	chosen {
 			bootargs = "console=ttyO0,115200n8 vt.global_cursor_default=0 consoleblank=0";

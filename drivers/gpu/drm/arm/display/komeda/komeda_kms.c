@@ -48,6 +48,8 @@ static irqreturn_t komeda_kms_irq_handler(int irq, void *data)
 	memset(&evts, 0, sizeof(evts));
 	status = mdev->funcs->irq_handler(mdev, &evts);
 
+	komeda_print_events(&evts);
+
 	/* Notify the crtc to handle the events */
 	for (i = 0; i < kms->n_crtcs; i++)
 		komeda_crtc_handle_event(&kms->crtcs[i], &evts);
@@ -82,7 +84,8 @@ static void komeda_kms_commit_tail(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
-	drm_atomic_helper_commit_planes(dev, old_state, 0);
+	drm_atomic_helper_commit_planes(dev, old_state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
 
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 

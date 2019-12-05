@@ -34,7 +34,10 @@ static int madera_gpio_get_direction(struct gpio_chip *chip,
 	if (ret < 0)
 		return ret;
 
-	return !!(val & MADERA_GP1_DIR_MASK);
+	if (val & MADERA_GP1_DIR_MASK)
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int madera_gpio_direction_in(struct gpio_chip *chip, unsigned int offset)

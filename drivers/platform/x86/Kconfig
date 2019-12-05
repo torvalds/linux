@@ -94,7 +94,6 @@ config ASUS_LAPTOP
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_SPARSEKMAP
-	select INPUT_POLLDEV
 	---help---
 	  This is a driver for Asus laptops, Lenovo SL and the Pegatron
 	  Lucid tablet. It may also support some MEDION, JVC or VICTOR
@@ -259,7 +258,7 @@ config DELL_RBU
 	 DELL system. Note you need a Dell OpenManage or Dell Update package (DUP)
 	 supporting application to communicate with the BIOS regarding the new
 	 image for the image update to take effect.
-	 See <file:Documentation/driver-api/dell_rbu.rst> for more details on the driver.
+	 See <file:Documentation/admin-guide/dell_rbu.rst> for more details on the driver.
 
 
 config FUJITSU_LAPTOP
@@ -623,7 +622,6 @@ config THINKPAD_ACPI_HOTKEY_POLL
 config SENSORS_HDAPS
 	tristate "Thinkpad Hard Drive Active Protection System (hdaps)"
 	depends on INPUT
-	select INPUT_POLLDEV
 	help
 	  This driver provides support for the IBM Hard Drive Active Protection
 	  System (hdaps), which provides an accelerometer and other misc. data.
@@ -806,7 +804,6 @@ config PEAQ_WMI
 	tristate "PEAQ 2-in-1 WMI hotkey driver"
 	depends on ACPI_WMI
 	depends on INPUT
-	select INPUT_POLLDEV
 	help
 	 Say Y here if you want to support WMI-based hotkeys on PEAQ 2-in-1s.
 
@@ -834,7 +831,6 @@ config ACPI_TOSHIBA
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL || RFKILL = n
 	depends on IIO
-	select INPUT_POLLDEV
 	select INPUT_SPARSEKMAP
 	---help---
 	  This driver adds support for access to certain system settings
@@ -931,14 +927,20 @@ config INTEL_CHT_INT33FE
 	  This driver add support for the INT33FE ACPI device found on
 	  some Intel Cherry Trail devices.
 
+	  There are two kinds of INT33FE ACPI device possible: for hardware
+	  with USB Type-C and Micro-B connectors. This driver supports both.
+
 	  The INT33FE ACPI device has a CRS table with I2cSerialBusV2
-	  resources for 3 devices: Maxim MAX17047 Fuel Gauge Controller,
+	  resources for Fuel Gauge Controller and (in the Type-C variant)
 	  FUSB302 USB Type-C Controller and PI3USB30532 USB switch.
 	  This driver instantiates i2c-clients for these, so that standard
 	  i2c drivers for these chips can bind to the them.
 
 	  If you enable this driver it is advised to also select
-	  CONFIG_TYPEC_FUSB302=m and CONFIG_BATTERY_MAX17042=m.
+	  CONFIG_BATTERY_BQ27XXX=m or CONFIG_BATTERY_BQ27XXX_I2C=m for Micro-B
+	  device and CONFIG_TYPEC_FUSB302=m and CONFIG_BATTERY_MAX17042=m
+	  for Type-C device.
+
 
 config INTEL_INT0002_VGPIO
 	tristate "Intel ACPI INT0002 Virtual GPIO driver"
@@ -1305,7 +1307,8 @@ config INTEL_ATOMISP2_PM
 	  will be called intel_atomisp2_pm.
 
 config HUAWEI_WMI
-	tristate "Huawei WMI hotkeys driver"
+	tristate "Huawei WMI laptop extras driver"
+	depends on ACPI_BATTERY
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
@@ -1314,9 +1317,8 @@ config HUAWEI_WMI
 	select LEDS_TRIGGER_AUDIO
 	select NEW_LEDS
 	help
-	  This driver provides support for Huawei WMI hotkeys.
-	  It enables the missing keys and adds support to the micmute
-	  LED found on some of these laptops.
+	  This driver provides support for Huawei WMI hotkeys, battery charge
+	  control, fn-lock, mic-mute LED, and other extra features.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called huawei-wmi.
@@ -1336,6 +1338,19 @@ config PCENGINES_APU2
 	  will be called pcengines-apuv2.
 
 source "drivers/platform/x86/intel_speed_select_if/Kconfig"
+
+config SYSTEM76_ACPI
+	tristate "System76 ACPI Driver"
+	depends on ACPI
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGERS
+	help
+	  This is a driver for System76 laptops running open firmware. It adds
+	  support for Fn-Fx key combinations, keyboard backlight, and airplane mode
+	  LEDs.
+
+	  If you have a System76 laptop running open firmware, say Y or M here.
 
 endif # X86_PLATFORM_DEVICES
 

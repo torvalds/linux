@@ -141,6 +141,7 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 	struct komeda_dev *mdev = kms->base.dev_private;
 	struct komeda_wb_connector *kwb_conn;
 	struct drm_writeback_connector *wb_conn;
+	struct drm_display_info *info;
 	u32 *formats, n_formats = 0;
 	int err;
 
@@ -171,6 +172,10 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 	}
 
 	drm_connector_helper_add(&wb_conn->base, &komeda_wb_conn_helper_funcs);
+
+	info = &kwb_conn->base.base.display_info;
+	info->bpc = __fls(kcrtc->master->improc->supported_color_depths);
+	info->color_formats = kcrtc->master->improc->supported_color_formats;
 
 	kcrtc->wb_conn = kwb_conn;
 

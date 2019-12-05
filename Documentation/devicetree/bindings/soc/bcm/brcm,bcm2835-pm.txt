@@ -26,7 +26,7 @@ Optional properties:
     system power.  This node follows the power controller bindings[3].
 
 [1] Documentation/devicetree/bindings/reset/reset.txt
-[2] Documentation/devicetree/bindings/power/power_domain.txt
+[2] Documentation/devicetree/bindings/power/power-domain.yaml
 [3] Documentation/devicetree/bindings/power/power-controller.txt
 
 Example:

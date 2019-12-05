@@ -7,6 +7,7 @@
 #include "mt76x2.h"
 #include "eeprom.h"
 #include "mcu.h"
+#include "../mt76x02_mac.h"
 
 static void
 mt76x2_mac_pbf_init(struct mt76x02_dev *dev)
@@ -132,32 +133,7 @@ int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 	for (i = 0; i < 16; i++)
 		mt76_rr(dev, MT_TX_STAT_FIFO);
 
-	mt76_wr(dev, MT_CH_TIME_CFG,
-		MT_CH_TIME_CFG_TIMER_EN |
-		MT_CH_TIME_CFG_TX_AS_BUSY |
-		MT_CH_TIME_CFG_RX_AS_BUSY |
-		MT_CH_TIME_CFG_NAV_AS_BUSY |
-		MT_CH_TIME_CFG_EIFS_AS_BUSY |
-		MT_CH_CCA_RC_EN |
-		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
-
 	mt76x02_set_tx_ackto(dev);
-
-	return 0;
-}
-
-int mt76x2_mac_start(struct mt76x02_dev *dev)
-{
-	int i;
-
-	for (i = 0; i < 16; i++)
-		mt76_rr(dev, MT_TX_AGG_CNT(i));
-
-	for (i = 0; i < 16; i++)
-		mt76_rr(dev, MT_TX_STAT_FIFO);
-
-	memset(dev->aggr_stats, 0, sizeof(dev->aggr_stats));
-	mt76x02_mac_start(dev);
 
 	return 0;
 }
@@ -264,9 +240,7 @@ static int mt76x2_init_hardware(struct mt76x02_dev *dev)
 		return ret;
 
 	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
-	ret = mt76x2_mac_start(dev);
-	if (ret)
-		return ret;
+	mt76x02_mac_start(dev);
 
 	ret = mt76x2_mcu_init(dev);
 	if (ret)

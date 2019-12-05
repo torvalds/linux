@@ -34,6 +34,12 @@ config SND_HDA_PREALLOC_SIZE
 	  via a proc file (/proc/asound/card*/pcm*/sub*/prealloc), too.
 
 config SND_INTEL_NHLT
-	tristate
+	bool
 	# this config should be selected only for Intel ACPI platforms.
+	# A fallback is provided so that the code compiles in all cases.
+
+config SND_INTEL_DSP_CONFIG
+	tristate
+	select SND_INTEL_NHLT if ACPI
+	# this config should be selected only for Intel DSP platforms.
 	# A fallback is provided so that the code compiles in all cases.

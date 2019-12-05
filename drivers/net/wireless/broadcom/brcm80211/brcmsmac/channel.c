@@ -496,13 +496,11 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 	 * table and override CDD later
 	 */
 	if (li_mimo == &locale_bn) {
-		if (li_mimo == &locale_bn) {
-			maxpwr20 = QDB(16);
-			maxpwr40 = 0;
+		maxpwr20 = QDB(16);
+		maxpwr40 = 0;
 
-			if (chan >= 3 && chan <= 11)
-				maxpwr40 = QDB(16);
-		}
+		if (chan >= 3 && chan <= 11)
+			maxpwr40 = QDB(16);
 
 		for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 			txpwr->mcs_20_siso[i] = (u8) maxpwr20;

@@ -70,6 +70,7 @@ struct siw_pd {
 
 struct siw_device {
 	struct ib_device base_dev;
+	struct device_dma_parameters dma_parms;
 	struct net_device *netdev;
 	struct siw_dev_cap attrs;
 
@@ -98,18 +99,9 @@ struct siw_device {
 	struct work_struct netdev_down;
 };
 
-struct siw_uobj {
-	void *addr;
-	u32 size;
-};
-
 struct siw_ucontext {
 	struct ib_ucontext base_ucontext;
 	struct siw_device *sdev;
-
-	/* xarray of user mappable objects */
-	struct xarray xa;
-	u32 uobj_nextkey;
 };
 
 /*
@@ -148,8 +140,6 @@ struct siw_pbl {
 	unsigned int max_buf;
 	struct siw_pble pbe[1];
 };
-
-struct siw_mr;
 
 /*
  * Generic memory representation for registered siw memory.
@@ -220,7 +210,7 @@ struct siw_cq {
 	u32 cq_get;
 	u32 num_cqe;
 	bool kernel_verbs;
-	u32 xa_cq_index; /* mmap information for CQE array */
+	struct rdma_user_mmap_entry *cq_entry; /* mmap info for CQE array */
 	u32 id; /* For debugging only */
 };
 
@@ -263,7 +253,7 @@ struct siw_srq {
 	u32 rq_put;
 	u32 rq_get;
 	u32 num_rqe; /* max # of wqe's allowed */
-	u32 xa_srq_index; /* mmap information for SRQ array */
+	struct rdma_user_mmap_entry *srq_entry; /* mmap info for SRQ array */
 	char armed; /* inform user if limit hit */
 	char kernel_verbs; /* '1' if kernel client */
 };
@@ -477,8 +467,8 @@ struct siw_qp {
 		u8 layer : 4, etype : 4;
 		u8 ecode;
 	} term_info;
-	u32 xa_sq_index; /* mmap information for SQE array */
-	u32 xa_rq_index; /* mmap information for RQE array */
+	struct rdma_user_mmap_entry *sq_entry; /* mmap info for SQE array */
+	struct rdma_user_mmap_entry *rq_entry; /* mmap info for RQE array */
 	struct rcu_head rcu;
 };
 
@@ -501,6 +491,11 @@ struct iwarp_msg_info {
 	int hdr_len;
 	struct iwarp_ctrl ctrl;
 	int (*rx_data)(struct siw_qp *qp);
+};
+
+struct siw_user_mmap_entry {
+	struct rdma_user_mmap_entry rdma_entry;
+	void *address;
 };
 
 /* Global siw parameters. Currently set in siw_main.c */
@@ -605,6 +600,12 @@ static inline struct siw_device *to_siw_dev(struct ib_device *base_dev)
 static inline struct siw_mr *to_siw_mr(struct ib_mr *base_mr)
 {
 	return container_of(base_mr, struct siw_mr, base_mr);
+}
+
+static inline struct siw_user_mmap_entry *
+to_siw_mmap_entry(struct rdma_user_mmap_entry *rdma_mmap)
+{
+	return container_of(rdma_mmap, struct siw_user_mmap_entry, rdma_entry);
 }
 
 static inline struct siw_qp *siw_qp_id2obj(struct siw_device *sdev, int id)

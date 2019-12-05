@@ -1028,12 +1028,13 @@ static void collapse_huge_page(struct mm_struct *mm,
 
 	anon_vma_lock_write(vma->anon_vma);
 
-	pte = pte_offset_map(pmd, address);
-	pte_ptl = pte_lockptr(mm, pmd);
-
 	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, NULL, mm,
 				address, address + HPAGE_PMD_SIZE);
 	mmu_notifier_invalidate_range_start(&range);
+
+	pte = pte_offset_map(pmd, address);
+	pte_ptl = pte_lockptr(mm, pmd);
+
 	pmd_ptl = pmd_lock(mm, pmd); /* probably unnecessary */
 	/*
 	 * After this gup_fast can't run anymore. This also removes
@@ -1601,17 +1602,24 @@ static void collapse_file(struct mm_struct *mm,
 					result = SCAN_FAIL;
 					goto xa_unlocked;
 				}
-			} else if (!PageUptodate(page)) {
-				xas_unlock_irq(&xas);
-				wait_on_page_locked(page);
-				if (!trylock_page(page)) {
-					result = SCAN_PAGE_LOCK;
-					goto xa_unlocked;
-				}
-				get_page(page);
 			} else if (PageDirty(page)) {
+				/*
+				 * khugepaged only works on read-only fd,
+				 * so this page is dirty because it hasn't
+				 * been flushed since first write. There
+				 * won't be new dirty pages.
+				 *
+				 * Trigger async flush here and hope the
+				 * writeback is done when khugepaged
+				 * revisits this page.
+				 *
+				 * This is a one-off situation. We are not
+				 * forcing writeback in loop.
+				 */
+				xas_unlock_irq(&xas);
+				filemap_flush(mapping);
 				result = SCAN_FAIL;
-				goto xa_locked;
+				goto xa_unlocked;
 			} else if (trylock_page(page)) {
 				get_page(page);
 				xas_unlock_irq(&xas);
@@ -1626,7 +1634,12 @@ static void collapse_file(struct mm_struct *mm,
 		 * without racing with truncate.
 		 */
 		VM_BUG_ON_PAGE(!PageLocked(page), page);
-		VM_BUG_ON_PAGE(!PageUptodate(page), page);
+
+		/* make sure the page is up to date */
+		if (unlikely(!PageUptodate(page))) {
+			result = SCAN_FAIL;
+			goto out_unlock;
+		}
 
 		/*
 		 * If file was truncated then extended, or hole-punched, before
@@ -1639,6 +1652,16 @@ static void collapse_file(struct mm_struct *mm,
 
 		if (page_mapping(page) != mapping) {
 			result = SCAN_TRUNCATED;
+			goto out_unlock;
+		}
+
+		if (!is_shmem && PageDirty(page)) {
+			/*
+			 * khugepaged only works on read-only fd, so this
+			 * page is dirty because it hasn't been flushed
+			 * since first write.
+			 */
+			result = SCAN_FAIL;
 			goto out_unlock;
 		}
 

@@ -17,9 +17,8 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 	if (IS_ERR(inner_map))
 		return inner_map;
 
-	/* prog_array->owner_prog_type and owner_jited
-	 * is a runtime binding.  Doing static check alone
-	 * in the verifier is not enough.
+	/* prog_array->aux->{type,jited} is a runtime binding.
+	 * Doing static check alone in the verifier is not enough.
 	 */
 	if (inner_map->map_type == BPF_MAP_TYPE_PROG_ARRAY ||
 	    inner_map->map_type == BPF_MAP_TYPE_CGROUP_STORAGE ||
@@ -98,7 +97,7 @@ void *bpf_map_fd_get_ptr(struct bpf_map *map,
 		return inner_map;
 
 	if (bpf_map_meta_equal(map->inner_map_meta, inner_map))
-		inner_map = bpf_map_inc(inner_map, false);
+		bpf_map_inc(inner_map);
 	else
 		inner_map = ERR_PTR(-EINVAL);
 

@@ -18,12 +18,14 @@
  * @open_drain: set the interrupt line to be open drain if possible.
  * @spi_3wire: enable spi-3wire mode.
  * @pullups: enable/disable i2c controller pullup resistors.
+ * @wakeup_source: enable/disable device as wakeup generator.
  */
 struct st_sensors_platform_data {
 	u8 drdy_int_pin;
 	bool open_drain;
 	bool spi_3wire;
 	bool pullups;
+	bool wakeup_source;
 };
 
 #endif /* ST_SENSORS_PDATA_H */

@@ -51,7 +51,7 @@ static int psci_boot_secondary(unsigned int cpu, struct task_struct *idle)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-int psci_cpu_disable(unsigned int cpu)
+static int psci_cpu_disable(unsigned int cpu)
 {
 	/* Fail early if we don't have CPU_OFF support */
 	if (!psci_ops.cpu_off)
@@ -64,7 +64,7 @@ int psci_cpu_disable(unsigned int cpu)
 	return 0;
 }
 
-void psci_cpu_die(unsigned int cpu)
+static void psci_cpu_die(unsigned int cpu)
 {
 	u32 state = PSCI_POWER_STATE_TYPE_POWER_DOWN <<
 		    PSCI_0_2_POWER_STATE_TYPE_SHIFT;
@@ -76,7 +76,7 @@ void psci_cpu_die(unsigned int cpu)
 	panic("psci: cpu %d failed to shutdown\n", cpu);
 }
 
-int psci_cpu_kill(unsigned int cpu)
+static int psci_cpu_kill(unsigned int cpu)
 {
 	int err, i;
 

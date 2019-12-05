@@ -1270,7 +1270,7 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("port %c trying to use the same DDC pin (0x%x) as port %c, "
 			      "disabling port %c DVI/HDMI support\n",
 			      port_name(port), info->alternate_ddc_pin,
-			      port_name(p), port_name(port));
+			      port_name(p), port_name(p));
 
 		/*
 		 * If we have multiple ports supposedly sharing the
@@ -1278,9 +1278,14 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 		 * port. Otherwise they share the same ddc bin and
 		 * system couldn't communicate with them separately.
 		 *
-		 * Give child device order the priority, first come first
-		 * served.
+		 * Give inverse child device order the priority,
+		 * last one wins. Yes, there are real machines
+		 * (eg. Asrock B250M-HDV) where VBT has both
+		 * port A and port E with the same AUX ch and
+		 * we must pick port E :(
 		 */
+		info = &dev_priv->vbt.ddi_port_info[p];
+
 		info->supports_dvi = false;
 		info->supports_hdmi = false;
 		info->alternate_ddc_pin = 0;
@@ -1316,7 +1321,7 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("port %c trying to use the same AUX CH (0x%x) as port %c, "
 			      "disabling port %c DP support\n",
 			      port_name(port), info->alternate_aux_channel,
-			      port_name(p), port_name(port));
+			      port_name(p), port_name(p));
 
 		/*
 		 * If we have multiple ports supposedlt sharing the
@@ -1324,9 +1329,14 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 		 * port. Otherwise they share the same aux channel
 		 * and system couldn't communicate with them separately.
 		 *
-		 * Give child device order the priority, first come first
-		 * served.
+		 * Give inverse child device order the priority,
+		 * last one wins. Yes, there are real machines
+		 * (eg. Asrock B250M-HDV) where VBT has both
+		 * port A and port E with the same AUX ch and
+		 * we must pick port E :(
 		 */
+		info = &dev_priv->vbt.ddi_port_info[p];
+
 		info->supports_dp = false;
 		info->alternate_aux_channel = 0;
 	}
@@ -1389,6 +1399,7 @@ static enum port dvo_port_to_port(u8 dvo_port)
 		[PORT_D] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1},
 		[PORT_E] = { DVO_PORT_CRT, DVO_PORT_HDMIE, DVO_PORT_DPE},
 		[PORT_F] = { DVO_PORT_HDMIF, DVO_PORT_DPF, -1},
+		[PORT_G] = { DVO_PORT_HDMIG, DVO_PORT_DPG, -1},
 	};
 	enum port port;
 	int i;
@@ -1615,7 +1626,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		expected_size = 37;
 	} else if (bdb->version <= 215) {
 		expected_size = 38;
-	} else if (bdb->version <= 216) {
+	} else if (bdb->version <= 229) {
 		expected_size = 39;
 	} else {
 		expected_size = sizeof(*child);
@@ -1833,7 +1844,7 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	const struct bdb_header *bdb;
 	u8 __iomem *bios = NULL;
 
-	if (!HAS_DISPLAY(dev_priv)) {
+	if (!HAS_DISPLAY(dev_priv) || !INTEL_DISPLAY_ENABLED(dev_priv)) {
 		DRM_DEBUG_KMS("Skipping VBT init due to disabled display.\n");
 		return;
 	}
@@ -2247,6 +2258,9 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 		break;
 	case DP_AUX_F:
 		aux_ch = AUX_CH_F;
+		break;
+	case DP_AUX_G:
+		aux_ch = AUX_CH_G;
 		break;
 	default:
 		MISSING_CASE(info->alternate_aux_channel);

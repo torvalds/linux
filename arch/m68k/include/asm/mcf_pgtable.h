@@ -198,17 +198,9 @@ static inline int pmd_bad2(pmd_t *pmd) { return 0; }
 #define pmd_present(pmd) (!pmd_none2(&(pmd)))
 static inline void pmd_clear(pmd_t *pmdp) { pmd_val(*pmdp) = 0; }
 
-static inline int pgd_none(pgd_t pgd) { return 0; }
-static inline int pgd_bad(pgd_t pgd) { return 0; }
-static inline int pgd_present(pgd_t pgd) { return 1; }
-static inline void pgd_clear(pgd_t *pgdp) {}
-
 #define pte_ERROR(e) \
 	printk(KERN_ERR "%s:%d: bad pte %08lx.\n",	\
 	__FILE__, __LINE__, pte_val(e))
-#define pmd_ERROR(e) \
-	printk(KERN_ERR "%s:%d: bad pmd %08lx.\n",	\
-	__FILE__, __LINE__, pmd_val(e))
 #define pgd_ERROR(e) \
 	printk(KERN_ERR "%s:%d: bad pgd %08lx.\n",	\
 	__FILE__, __LINE__, pgd_val(e))
@@ -340,14 +332,6 @@ extern pgd_t kernel_pg_dir[PTRS_PER_PGD];
 #define pgd_offset_k(address)	pgd_offset(&init_mm, address)
 
 /*
- * Find an entry in the second-level pagetable.
- */
-static inline pmd_t *pmd_offset(pgd_t *pgd, unsigned long address)
-{
-	return (pmd_t *) pgd;
-}
-
-/*
  * Find an entry in the third-level pagetable.
  */
 #define __pte_offset(address)	((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
@@ -360,12 +344,16 @@ static inline pmd_t *pmd_offset(pgd_t *pgd, unsigned long address)
 static inline void nocache_page(void *vaddr)
 {
 	pgd_t *dir;
+	p4d_t *p4dp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 	unsigned long addr = (unsigned long) vaddr;
 
 	dir = pgd_offset_k(addr);
-	pmdp = pmd_offset(dir, addr);
+	p4dp = p4d_offset(dir, addr);
+	pudp = pud_offset(p4dp, addr);
+	pmdp = pmd_offset(pudp, addr);
 	ptep = pte_offset_kernel(pmdp, addr);
 	*ptep = pte_mknocache(*ptep);
 }
@@ -376,12 +364,16 @@ static inline void nocache_page(void *vaddr)
 static inline void cache_page(void *vaddr)
 {
 	pgd_t *dir;
+	p4d_t *p4dp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 	unsigned long addr = (unsigned long) vaddr;
 
 	dir = pgd_offset_k(addr);
-	pmdp = pmd_offset(dir, addr);
+	p4dp = p4d_offset(dir, addr);
+	pudp = pud_offset(p4dp, addr);
+	pmdp = pmd_offset(pudp, addr);
 	ptep = pte_offset_kernel(pmdp, addr);
 	*ptep = pte_mkcache(*ptep);
 }

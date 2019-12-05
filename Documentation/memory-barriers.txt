@@ -63,7 +63,6 @@ CONTENTS
 
      - Compiler barrier.
      - CPU memory barriers.
-     - MMIO write barrier.
 
  (*) Implicit kernel memory barriers.
 
@@ -75,7 +74,6 @@ CONTENTS
  (*) Inter-CPU acquiring barrier effects.
 
      - Acquires vs memory accesses.
-     - Acquires vs I/O accesses.
 
  (*) Where are memory barriers needed?
 
@@ -492,10 +490,9 @@ And a couple of implicit varieties:
      happen before it completes.
 
      The use of ACQUIRE and RELEASE operations generally precludes the need
-     for other sorts of memory barrier (but note the exceptions mentioned in
-     the subsection "MMIO write barrier").  In addition, a RELEASE+ACQUIRE
-     pair is -not- guaranteed to act as a full memory barrier.  However, after
-     an ACQUIRE on a given variable, all memory accesses preceding any prior
+     for other sorts of memory barrier.  In addition, a RELEASE+ACQUIRE pair is
+     -not- guaranteed to act as a full memory barrier.  However, after an
+     ACQUIRE on a given variable, all memory accesses preceding any prior
      RELEASE on that same variable are guaranteed to be visible.  In other
      words, within a given variable's critical section, all accesses of all
      previous critical sections for that variable are guaranteed to have
@@ -1511,8 +1508,6 @@ levels:
   (*) Compiler barrier.
 
   (*) CPU memory barriers.
-
-  (*) MMIO write barrier.
 
 
 COMPILER BARRIER

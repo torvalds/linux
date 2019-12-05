@@ -105,7 +105,7 @@ static void glink_smem_rx_advance(struct qcom_glink_pipe *np,
 	tail = le32_to_cpu(*pipe->tail);
 
 	tail += count;
-	if (tail > pipe->native.length)
+	if (tail >= pipe->native.length)
 		tail -= pipe->native.length;
 
 	*pipe->tail = cpu_to_le32(tail);

@@ -174,7 +174,7 @@ static enum zfcp_erp_act_type zfcp_erp_required_act(enum zfcp_erp_act_type want,
 			return 0;
 		p_status = atomic_read(&port->status);
 		if (!(p_status & ZFCP_STATUS_COMMON_RUNNING) ||
-		      p_status & ZFCP_STATUS_COMMON_ERP_FAILED)
+		    p_status & ZFCP_STATUS_COMMON_ERP_FAILED)
 			return 0;
 		if (!(p_status & ZFCP_STATUS_COMMON_UNBLOCKED))
 			need = ZFCP_ERP_ACTION_REOPEN_PORT;
@@ -190,7 +190,7 @@ static enum zfcp_erp_act_type zfcp_erp_required_act(enum zfcp_erp_act_type want,
 			return 0;
 		a_status = atomic_read(&adapter->status);
 		if (!(a_status & ZFCP_STATUS_COMMON_RUNNING) ||
-		      a_status & ZFCP_STATUS_COMMON_ERP_FAILED)
+		    a_status & ZFCP_STATUS_COMMON_ERP_FAILED)
 			return 0;
 		if (p_status & ZFCP_STATUS_COMMON_NOESC)
 			return need;

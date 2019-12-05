@@ -570,13 +570,10 @@ static void HalRxAggr8723BSdio(struct adapter *padapter)
 
 static void sdio_AggSettingRxUpdate(struct adapter *padapter)
 {
-	struct hal_com_data *pHalData;
 	u8 valueDMA;
 	u8 valueRxAggCtrl = 0;
 	u8 aggBurstNum = 3;  /* 0:1, 1:2, 2:3, 3:4 */
 	u8 aggBurstSize = 0;  /* 0:1K, 1:512Byte, 2:256Byte... */
-
-	pHalData = GET_HAL_DATA(padapter);
 
 	valueDMA = rtw_read8(padapter, REG_TRXDMA_CTRL);
 	valueDMA |= RXDMA_AGG_EN;
@@ -713,13 +710,11 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	s32 ret;
 	struct hal_com_data *pHalData;
 	struct pwrctrl_priv *pwrctrlpriv;
-	struct registry_priv *pregistrypriv;
 	u32 NavUpper = WiFiNavUpperUs;
 	u8 u1bTmp;
 
 	pHalData = GET_HAL_DATA(padapter);
 	pwrctrlpriv = adapter_to_pwrctl(padapter);
-	pregistrypriv = &padapter->registrypriv;
 
 	if (
 		adapter_to_pwrctl(padapter)->bips_processing == true &&

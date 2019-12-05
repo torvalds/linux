@@ -552,7 +552,6 @@ int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 
 /**
  * rvt_driver_cq_init - Init cq resources on behalf of driver
- * @rdi: rvt dev structure
  *
  * Return: 0 on success
  */
@@ -568,7 +567,6 @@ int rvt_driver_cq_init(void)
 
 /**
  * rvt_cq_exit - tear down cq reources
- * @rdi: rvt dev structure
  */
 void rvt_cq_exit(void)
 {

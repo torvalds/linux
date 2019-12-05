@@ -78,8 +78,7 @@ int main(void)
 	OFFSET(__VDSO_TS_END, vdso_data, ts_end);
 	OFFSET(__VDSO_ECTG_BASE, vdso_per_cpu_data, ectg_timer_base);
 	OFFSET(__VDSO_ECTG_USER, vdso_per_cpu_data, ectg_user_time);
-	OFFSET(__VDSO_CPU_NR, vdso_per_cpu_data, cpu_nr);
-	OFFSET(__VDSO_NODE_ID, vdso_per_cpu_data, node_id);
+	OFFSET(__VDSO_GETCPU_VAL, vdso_per_cpu_data, getcpu_val);
 	BLANK();
 	/* constants used by the vdso */
 	DEFINE(__CLOCK_REALTIME, CLOCK_REALTIME);

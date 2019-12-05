@@ -53,7 +53,7 @@ void blk_stat_add(struct request *rq, u64 now)
 	struct request_queue *q = rq->q;
 	struct blk_stat_callback *cb;
 	struct blk_rq_stat *stat;
-	int bucket;
+	int bucket, cpu;
 	u64 value;
 
 	value = (now >= rq->io_start_time_ns) ? now - rq->io_start_time_ns : 0;
@@ -61,6 +61,7 @@ void blk_stat_add(struct request *rq, u64 now)
 	blk_throtl_stat_add(rq, value);
 
 	rcu_read_lock();
+	cpu = get_cpu();
 	list_for_each_entry_rcu(cb, &q->stats->callbacks, list) {
 		if (!blk_stat_is_active(cb))
 			continue;
@@ -69,10 +70,10 @@ void blk_stat_add(struct request *rq, u64 now)
 		if (bucket < 0)
 			continue;
 
-		stat = &get_cpu_ptr(cb->cpu_stat)[bucket];
+		stat = &per_cpu_ptr(cb->cpu_stat, cpu)[bucket];
 		blk_rq_stat_add(stat, value);
-		put_cpu_ptr(cb->cpu_stat);
 	}
+	put_cpu();
 	rcu_read_unlock();
 }
 

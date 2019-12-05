@@ -117,7 +117,7 @@ config DEBUG_WX
 
 config DOUBLEFAULT
 	default y
-	bool "Enable doublefault exception handler" if EXPERT
+	bool "Enable doublefault exception handler" if EXPERT && X86_32
 	---help---
 	  This option allows trapping of rare doublefault exceptions that
 	  would otherwise cause a system to silently reboot. Disabling this
@@ -315,10 +315,6 @@ config UNWINDER_FRAME_POINTER
 	  The unwinder itself is fast and it uses less RAM than the ORC
 	  unwinder, but the kernel text size will grow by ~3% and the kernel's
 	  overall performance will degrade by roughly 5-10%.
-
-	  This option is recommended if you want to use the livepatch
-	  consistency model, as this is currently the only way to get a
-	  reliable stack trace (CONFIG_HAVE_RELIABLE_STACKTRACE).
 
 config UNWINDER_GUESS
 	bool "Guess unwinder"

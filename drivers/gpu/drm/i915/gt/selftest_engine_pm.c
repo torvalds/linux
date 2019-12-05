@@ -25,7 +25,7 @@ static int live_engine_pm(void *arg)
 	}
 
 	GEM_BUG_ON(intel_gt_pm_is_awake(gt));
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		const typeof(*igt_atomic_phases) *p;
 
 		for (p = igt_atomic_phases; p->name; p++) {

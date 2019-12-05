@@ -127,7 +127,6 @@ enum dpfe_msg_fields {
 	MSG_COMMAND,
 	MSG_ARG_COUNT,
 	MSG_ARG0,
-	MSG_CHKSUM,
 	MSG_FIELD_MAX	= 16 /* Max number of arguments */
 };
 
@@ -180,7 +179,7 @@ struct dpfe_api {
 };
 
 /* Things we need for as long as we are active. */
-struct private_data {
+struct brcmstb_dpfe_priv {
 	void __iomem *regs;
 	void __iomem *dmem;
 	void __iomem *imem;
@@ -232,9 +231,13 @@ static struct attribute *dpfe_v3_attrs[] = {
 };
 ATTRIBUTE_GROUPS(dpfe_v3);
 
-/* API v2 firmware commands */
-static const struct dpfe_api dpfe_api_v2 = {
-	.version = 2,
+/*
+ * Old API v2 firmware commands, as defined in the rev 0.61 specification, we
+ * use a version set to 1 to denote that it is not compatible with the new API
+ * v2 and onwards.
+ */
+static const struct dpfe_api dpfe_api_old_v2 = {
+	.version = 1,
 	.fw_name = "dpfe.bin",
 	.sysfs_attrs = dpfe_v2_groups,
 	.command = {
@@ -243,21 +246,42 @@ static const struct dpfe_api dpfe_api_v2 = {
 			[MSG_COMMAND] = 1,
 			[MSG_ARG_COUNT] = 1,
 			[MSG_ARG0] = 1,
-			[MSG_CHKSUM] = 4,
 		},
 		[DPFE_CMD_GET_REFRESH] = {
 			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
 			[MSG_COMMAND] = 2,
 			[MSG_ARG_COUNT] = 1,
 			[MSG_ARG0] = 1,
-			[MSG_CHKSUM] = 5,
 		},
 		[DPFE_CMD_GET_VENDOR] = {
 			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
 			[MSG_COMMAND] = 2,
 			[MSG_ARG_COUNT] = 1,
 			[MSG_ARG0] = 2,
-			[MSG_CHKSUM] = 6,
+		},
+	}
+};
+
+/*
+ * API v2 firmware commands, as defined in the rev 0.8 specification, named new
+ * v2 here
+ */
+static const struct dpfe_api dpfe_api_new_v2 = {
+	.version = 2,
+	.fw_name = NULL, /* We expect the firmware to have been downloaded! */
+	.sysfs_attrs = dpfe_v2_groups,
+	.command = {
+		[DPFE_CMD_GET_INFO] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 0x101,
+		},
+		[DPFE_CMD_GET_REFRESH] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 0x201,
+		},
+		[DPFE_CMD_GET_VENDOR] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 0x202,
 		},
 	}
 };
@@ -273,48 +297,50 @@ static const struct dpfe_api dpfe_api_v3 = {
 			[MSG_COMMAND] = 0x0101,
 			[MSG_ARG_COUNT] = 1,
 			[MSG_ARG0] = 1,
-			[MSG_CHKSUM] = 0x104,
 		},
 		[DPFE_CMD_GET_REFRESH] = {
 			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
 			[MSG_COMMAND] = 0x0202,
 			[MSG_ARG_COUNT] = 0,
-			/*
-			 * This is a bit ugly. Without arguments, the checksum
-			 * follows right after the argument count and not at
-			 * offset MSG_CHKSUM.
-			 */
-			[MSG_ARG0] = 0x203,
 		},
 		/* There's no GET_VENDOR command in API v3. */
 	},
 };
 
-static bool is_dcpu_enabled(void __iomem *regs)
+static bool is_dcpu_enabled(struct brcmstb_dpfe_priv *priv)
 {
 	u32 val;
 
-	val = readl_relaxed(regs + REG_DCPU_RESET);
+	mutex_lock(&priv->lock);
+	val = readl_relaxed(priv->regs + REG_DCPU_RESET);
+	mutex_unlock(&priv->lock);
 
 	return !(val & DCPU_RESET_MASK);
 }
 
-static void __disable_dcpu(void __iomem *regs)
+static void __disable_dcpu(struct brcmstb_dpfe_priv *priv)
 {
 	u32 val;
 
-	if (!is_dcpu_enabled(regs))
+	if (!is_dcpu_enabled(priv))
 		return;
 
+	mutex_lock(&priv->lock);
+
 	/* Put DCPU in reset if it's running. */
-	val = readl_relaxed(regs + REG_DCPU_RESET);
+	val = readl_relaxed(priv->regs + REG_DCPU_RESET);
 	val |= (1 << DCPU_RESET_SHIFT);
-	writel_relaxed(val, regs + REG_DCPU_RESET);
+	writel_relaxed(val, priv->regs + REG_DCPU_RESET);
+
+	mutex_unlock(&priv->lock);
 }
 
-static void __enable_dcpu(void __iomem *regs)
+static void __enable_dcpu(struct brcmstb_dpfe_priv *priv)
 {
+	void __iomem *regs = priv->regs;
 	u32 val;
+
+	mutex_lock(&priv->lock);
 
 	/* Clear mailbox registers. */
 	writel_relaxed(0, regs + REG_TO_DCPU_MBOX);
@@ -329,6 +355,8 @@ static void __enable_dcpu(void __iomem *regs)
 	val = readl_relaxed(regs + REG_DCPU_RESET);
 	val &= ~(1 << DCPU_RESET_SHIFT);
 	writel_relaxed(val, regs + REG_DCPU_RESET);
+
+	mutex_unlock(&priv->lock);
 }
 
 static unsigned int get_msg_chksum(const u32 msg[], unsigned int max)
@@ -343,7 +371,7 @@ static unsigned int get_msg_chksum(const u32 msg[], unsigned int max)
 	return sum;
 }
 
-static void __iomem *get_msg_ptr(struct private_data *priv, u32 response,
+static void __iomem *get_msg_ptr(struct brcmstb_dpfe_priv *priv, u32 response,
 				 char *buf, ssize_t *size)
 {
 	unsigned int msg_type;
@@ -382,7 +410,7 @@ static void __iomem *get_msg_ptr(struct private_data *priv, u32 response,
 	return ptr;
 }
 
-static void __finalize_command(struct private_data *priv)
+static void __finalize_command(struct brcmstb_dpfe_priv *priv)
 {
 	unsigned int release_mbox;
 
@@ -390,12 +418,12 @@ static void __finalize_command(struct private_data *priv)
 	 * It depends on the API version which MBOX register we have to write to
 	 * to signal we are done.
 	 */
-	release_mbox = (priv->dpfe_api->version < 3)
+	release_mbox = (priv->dpfe_api->version < 2)
 			? REG_TO_HOST_MBOX : REG_TO_DCPU_MBOX;
 	writel_relaxed(0, priv->regs + release_mbox);
 }
 
-static int __send_command(struct private_data *priv, unsigned int cmd,
+static int __send_command(struct brcmstb_dpfe_priv *priv, unsigned int cmd,
 			  u32 result[])
 {
 	const u32 *msg = priv->dpfe_api->command[cmd];
@@ -421,9 +449,17 @@ static int __send_command(struct private_data *priv, unsigned int cmd,
 		return -ETIMEDOUT;
 	}
 
+	/* Compute checksum over the message */
+	chksum_idx = msg[MSG_ARG_COUNT] + MSG_ARG_COUNT + 1;
+	chksum = get_msg_chksum(msg, chksum_idx);
+
 	/* Write command and arguments to message area */
-	for (i = 0; i < MSG_FIELD_MAX; i++)
-		writel_relaxed(msg[i], regs + DCPU_MSG_RAM(i));
+	for (i = 0; i < MSG_FIELD_MAX; i++) {
+		if (i == chksum_idx)
+			writel_relaxed(chksum, regs + DCPU_MSG_RAM(i));
+		else
+			writel_relaxed(msg[i], regs + DCPU_MSG_RAM(i));
+	}
 
 	/* Tell DCPU there is a command waiting */
 	writel_relaxed(1, regs + REG_TO_DCPU_MBOX);
@@ -517,7 +553,7 @@ static int __verify_firmware(struct init_data *init,
 
 /* Verify checksum by reading back the firmware from co-processor RAM. */
 static int __verify_fw_checksum(struct init_data *init,
-				struct private_data *priv,
+				struct brcmstb_dpfe_priv *priv,
 				const struct dpfe_firmware_header *header,
 				u32 checksum)
 {
@@ -571,26 +607,23 @@ static int __write_firmware(u32 __iomem *mem, const u32 *fw,
 	return 0;
 }
 
-static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
-					  struct init_data *init)
+static int brcmstb_dpfe_download_firmware(struct brcmstb_dpfe_priv *priv)
 {
 	const struct dpfe_firmware_header *header;
 	unsigned int dmem_size, imem_size;
-	struct device *dev = &pdev->dev;
+	struct device *dev = priv->dev;
 	bool is_big_endian = false;
-	struct private_data *priv;
 	const struct firmware *fw;
 	const u32 *dmem, *imem;
+	struct init_data init;
 	const void *fw_blob;
 	int ret;
-
-	priv = platform_get_drvdata(pdev);
 
 	/*
 	 * Skip downloading the firmware if the DCPU is already running and
 	 * responding to commands.
 	 */
-	if (is_dcpu_enabled(priv->regs)) {
+	if (is_dcpu_enabled(priv)) {
 		u32 response[MSG_FIELD_MAX];
 
 		ret = __send_command(priv, DPFE_CMD_GET_INFO, response);
@@ -606,20 +639,23 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 	if (!priv->dpfe_api->fw_name)
 		return -ENODEV;
 
-	ret = request_firmware(&fw, priv->dpfe_api->fw_name, dev);
-	/* request_firmware() prints its own error messages. */
+	ret = firmware_request_nowarn(&fw, priv->dpfe_api->fw_name, dev);
+	/*
+	 * Defer the firmware download if the firmware file couldn't be found.
+	 * The root file system may not be available yet.
+	 */
 	if (ret)
-		return ret;
+		return (ret == -ENOENT) ? -EPROBE_DEFER : ret;
 
-	ret = __verify_firmware(init, fw);
+	ret = __verify_firmware(&init, fw);
 	if (ret)
 		return -EFAULT;
 
-	__disable_dcpu(priv->regs);
+	__disable_dcpu(priv);
 
-	is_big_endian = init->is_big_endian;
-	dmem_size = init->dmem_len;
-	imem_size = init->imem_len;
+	is_big_endian = init.is_big_endian;
+	dmem_size = init.dmem_len;
+	imem_size = init.imem_len;
 
 	/* At the beginning of the firmware blob is a header. */
 	header = (struct dpfe_firmware_header *)fw->data;
@@ -637,17 +673,17 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	ret = __verify_fw_checksum(init, priv, header, init->chksum);
+	ret = __verify_fw_checksum(&init, priv, header, init.chksum);
 	if (ret)
 		return ret;
 
-	__enable_dcpu(priv->regs);
+	__enable_dcpu(priv);
 
 	return 0;
 }
 
 static ssize_t generic_show(unsigned int command, u32 response[],
-			    struct private_data *priv, char *buf)
+			    struct brcmstb_dpfe_priv *priv, char *buf)
 {
 	int ret;
 
@@ -665,7 +701,7 @@ static ssize_t show_info(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	u32 response[MSG_FIELD_MAX];
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	unsigned int info;
 	ssize_t ret;
 
@@ -688,7 +724,7 @@ static ssize_t show_refresh(struct device *dev,
 {
 	u32 response[MSG_FIELD_MAX];
 	void __iomem *info;
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	u8 refresh, sr_abort, ppre, thermal_offs, tuf;
 	u32 mr4;
 	ssize_t ret;
@@ -721,7 +757,7 @@ static ssize_t store_refresh(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	u32 response[MSG_FIELD_MAX];
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	void __iomem *info;
 	unsigned long val;
 	int ret;
@@ -747,7 +783,7 @@ static ssize_t show_vendor(struct device *dev, struct device_attribute *devattr,
 			   char *buf)
 {
 	u32 response[MSG_FIELD_MAX];
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	void __iomem *info;
 	ssize_t ret;
 	u32 mr5, mr6, mr7, mr8, err;
@@ -778,7 +814,7 @@ static ssize_t show_dram(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	u32 response[MSG_FIELD_MAX];
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	ssize_t ret;
 	u32 mr4, mr5, mr6, mr7, mr8, err;
 
@@ -800,22 +836,23 @@ static ssize_t show_dram(struct device *dev, struct device_attribute *devattr,
 
 static int brcmstb_dpfe_resume(struct platform_device *pdev)
 {
-	struct init_data init;
+	struct brcmstb_dpfe_priv *priv = platform_get_drvdata(pdev);
 
-	return brcmstb_dpfe_download_firmware(pdev, &init);
+	return brcmstb_dpfe_download_firmware(priv);
 }
 
 static int brcmstb_dpfe_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct private_data *priv;
-	struct init_data init;
+	struct brcmstb_dpfe_priv *priv;
 	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	priv->dev = dev;
 
 	mutex_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
@@ -851,9 +888,10 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	ret = brcmstb_dpfe_download_firmware(pdev, &init);
+	ret = brcmstb_dpfe_download_firmware(priv);
 	if (ret) {
-		dev_err(dev, "Couldn't download firmware -- %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Couldn't download firmware -- %d\n", ret);
 		return ret;
 	}
 
@@ -867,7 +905,7 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 
 static int brcmstb_dpfe_remove(struct platform_device *pdev)
 {
-	struct private_data *priv = dev_get_drvdata(&pdev->dev);
+	struct brcmstb_dpfe_priv *priv = dev_get_drvdata(&pdev->dev);
 
 	sysfs_remove_groups(&pdev->dev.kobj, priv->dpfe_api->sysfs_attrs);
 
@@ -876,10 +914,10 @@ static int brcmstb_dpfe_remove(struct platform_device *pdev)
 
 static const struct of_device_id brcmstb_dpfe_of_match[] = {
 	/* Use legacy API v2 for a select number of chips */
-	{ .compatible = "brcm,bcm7268-dpfe-cpu", .data = &dpfe_api_v2 },
-	{ .compatible = "brcm,bcm7271-dpfe-cpu", .data = &dpfe_api_v2 },
-	{ .compatible = "brcm,bcm7278-dpfe-cpu", .data = &dpfe_api_v2 },
-	{ .compatible = "brcm,bcm7211-dpfe-cpu", .data = &dpfe_api_v2 },
+	{ .compatible = "brcm,bcm7268-dpfe-cpu", .data = &dpfe_api_old_v2 },
+	{ .compatible = "brcm,bcm7271-dpfe-cpu", .data = &dpfe_api_old_v2 },
+	{ .compatible = "brcm,bcm7278-dpfe-cpu", .data = &dpfe_api_old_v2 },
+	{ .compatible = "brcm,bcm7211-dpfe-cpu", .data = &dpfe_api_new_v2 },
 	/* API v3 is the default going forward */
 	{ .compatible = "brcm,dpfe-cpu", .data = &dpfe_api_v3 },
 	{}

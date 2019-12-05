@@ -961,11 +961,10 @@ intel_tv_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_HIGH;
 
 	/* Ensure TV refresh is close to desired refresh */
-	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode) * 1000)
-				< 1000)
-		return MODE_OK;
+	if (abs(tv_mode->refresh - drm_mode_vrefresh(mode) * 1000) >= 1000)
+		return MODE_CLOCK_RANGE;
 
-	return MODE_CLOCK_RANGE;
+	return MODE_OK;
 }
 
 static int
@@ -1702,7 +1701,7 @@ intel_tv_detect(struct drm_connector *connector,
 		struct intel_load_detect_pipe tmp;
 		int ret;
 
-		ret = intel_get_load_detect_pipe(connector, NULL, &tmp, ctx);
+		ret = intel_get_load_detect_pipe(connector, &tmp, ctx);
 		if (ret < 0)
 			return ret;
 
@@ -1948,9 +1947,8 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
 	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 	intel_encoder->port = PORT_NONE;
-	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
+	intel_encoder->pipe_mask = ~0;
 	intel_encoder->cloneable = 0;
-	intel_encoder->base.possible_crtcs = ((1 << 0) | (1 << 1));
 	intel_tv->type = DRM_MODE_CONNECTOR_Unknown;
 
 	/* BIOS margin values */

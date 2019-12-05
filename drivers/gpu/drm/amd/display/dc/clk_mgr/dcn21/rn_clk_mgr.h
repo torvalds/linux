@@ -26,10 +26,12 @@
 #ifndef __RN_CLK_MGR_H__
 #define __RN_CLK_MGR_H__
 
+#include "clk_mgr.h"
+#include "dm_pp_smu.h"
+
 struct rn_clk_registers {
 	uint32_t CLK1_CLK0_CURRENT_CNT; /* DPREFCLK */
 };
-
 
 void rn_clk_mgr_construct(struct dc_context *ctx,
 		struct clk_mgr_internal *clk_mgr,

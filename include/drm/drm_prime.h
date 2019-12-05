@@ -61,8 +61,6 @@ struct drm_device;
 struct drm_gem_object;
 struct drm_file;
 
-struct device;
-
 /* core prime functions */
 struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 				      struct dma_buf_export_info *exp_info);

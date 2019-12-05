@@ -10,6 +10,27 @@
 
 #include "mc.h"
 
+static const unsigned long tegra30_mc_emem_regs[] = {
+	MC_EMEM_ARB_CFG,
+	MC_EMEM_ARB_OUTSTANDING_REQ,
+	MC_EMEM_ARB_TIMING_RCD,
+	MC_EMEM_ARB_TIMING_RP,
+	MC_EMEM_ARB_TIMING_RC,
+	MC_EMEM_ARB_TIMING_RAS,
+	MC_EMEM_ARB_TIMING_FAW,
+	MC_EMEM_ARB_TIMING_RRD,
+	MC_EMEM_ARB_TIMING_RAP2PRE,
+	MC_EMEM_ARB_TIMING_WAP2PRE,
+	MC_EMEM_ARB_TIMING_R2R,
+	MC_EMEM_ARB_TIMING_W2W,
+	MC_EMEM_ARB_TIMING_R2W,
+	MC_EMEM_ARB_TIMING_W2R,
+	MC_EMEM_ARB_DA_TURNS,
+	MC_EMEM_ARB_DA_COVERS,
+	MC_EMEM_ARB_MISC0,
+	MC_EMEM_ARB_RING1_THROTTLE,
+};
+
 static const struct tegra_mc_client tegra30_mc_clients[] = {
 	{
 		.id = 0x00,
@@ -931,16 +952,19 @@ static const struct tegra_smmu_swgroup tegra30_swgroups[] = {
 	{ .name = "isp",  .swgroup = TEGRA_SWGROUP_ISP,  .reg = 0x258 },
 };
 
-static const unsigned int tegra30_group_display[] = {
+static const unsigned int tegra30_group_drm[] = {
 	TEGRA_SWGROUP_DC,
 	TEGRA_SWGROUP_DCB,
+	TEGRA_SWGROUP_G2,
+	TEGRA_SWGROUP_NV,
+	TEGRA_SWGROUP_NV2,
 };
 
 static const struct tegra_smmu_group_soc tegra30_groups[] = {
 	{
-		.name = "display",
-		.swgroups = tegra30_group_display,
-		.num_swgroups = ARRAY_SIZE(tegra30_group_display),
+		.name = "drm",
+		.swgroups = tegra30_group_drm,
+		.num_swgroups = ARRAY_SIZE(tegra30_group_drm),
 	},
 };
 
@@ -994,6 +1018,8 @@ const struct tegra_mc_soc tegra30_mc_soc = {
 	.atom_size = 16,
 	.client_id_mask = 0x7f,
 	.smmu = &tegra30_smmu_soc,
+	.emem_regs = tegra30_mc_emem_regs,
+	.num_emem_regs = ARRAY_SIZE(tegra30_mc_emem_regs),
 	.intmask = MC_INT_INVALID_SMMU_PAGE | MC_INT_SECURITY_VIOLATION |
 		   MC_INT_DECERR_EMEM,
 	.reset_ops = &tegra_mc_reset_ops_common,

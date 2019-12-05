@@ -227,7 +227,7 @@ struct crypto_shash {
  * CRYPTO_ALG_TYPE_AHASH (listed as type "ahash" in /proc/crypto)
  *
  * The asynchronous cipher operation discussion provided for the
- * CRYPTO_ALG_TYPE_ABLKCIPHER API applies here as well.
+ * CRYPTO_ALG_TYPE_SKCIPHER API applies here as well.
  */
 
 static inline struct crypto_ahash *__crypto_ahash_cast(struct crypto_tfm *tfm)

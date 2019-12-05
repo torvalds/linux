@@ -13,11 +13,11 @@
 
 #include <asm/opal.h>
 
-DEFINE_MUTEX(psr_mutex);
+static DEFINE_MUTEX(psr_mutex);
 
 static struct kobject *psr_kobj;
 
-struct psr_attr {
+static struct psr_attr {
 	u32 handle;
 	struct kobj_attribute attr;
 } *psr_attrs;

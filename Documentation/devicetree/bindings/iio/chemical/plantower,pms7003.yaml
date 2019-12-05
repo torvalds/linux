@@ -25,7 +25,6 @@ properties:
 
   vcc-supply:
     description: regulator that provides power to the sensor
-    maxItems: 1
 
   plantower,set-gpios:
     description: GPIO connected to the SET line

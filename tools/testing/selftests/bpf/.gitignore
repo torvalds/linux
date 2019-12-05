@@ -7,11 +7,10 @@ FEATURE-DUMP.libbpf
 fixdep
 test_align
 test_dev_cgroup
-test_progs
+/test_progs*
 test_tcpbpf_user
 test_verifier_log
 feature
-test_libbpf_open
 test_sock
 test_sock_addr
 test_sock_fields
@@ -33,9 +32,10 @@ test_tcpnotify_user
 test_libbpf
 test_tcp_check_syncookie_user
 test_sysctl
-alu32
 libbpf.pc
 libbpf.so.*
 test_hashmap
 test_btf_dump
 xdping
+/no_alu32
+/bpf_gcc

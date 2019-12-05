@@ -15,7 +15,7 @@
 #define VCHIQ_GET_SERVICE_USERDATA(service) vchiq_get_service_userdata(service)
 #define VCHIQ_GET_SERVICE_FOURCC(service)   vchiq_get_service_fourcc(service)
 
-typedef enum {
+enum vchiq_reason {
 	VCHIQ_SERVICE_OPENED,         /* service, -, -             */
 	VCHIQ_SERVICE_CLOSED,         /* service, -, -             */
 	VCHIQ_MESSAGE_AVAILABLE,      /* service, header, -        */
@@ -23,28 +23,28 @@ typedef enum {
 	VCHIQ_BULK_RECEIVE_DONE,      /* service, -, bulk_userdata */
 	VCHIQ_BULK_TRANSMIT_ABORTED,  /* service, -, bulk_userdata */
 	VCHIQ_BULK_RECEIVE_ABORTED    /* service, -, bulk_userdata */
-} VCHIQ_REASON_T;
+};
 
-typedef enum {
+enum vchiq_status {
 	VCHIQ_ERROR   = -1,
 	VCHIQ_SUCCESS = 0,
 	VCHIQ_RETRY   = 1
-} VCHIQ_STATUS_T;
+};
 
-typedef enum {
+enum vchiq_bulk_mode {
 	VCHIQ_BULK_MODE_CALLBACK,
 	VCHIQ_BULK_MODE_BLOCKING,
 	VCHIQ_BULK_MODE_NOCALLBACK,
 	VCHIQ_BULK_MODE_WAITING		/* Reserved for internal use */
-} VCHIQ_BULK_MODE_T;
+};
 
-typedef enum {
+enum vchiq_service_option {
 	VCHIQ_SERVICE_OPTION_AUTOCLOSE,
 	VCHIQ_SERVICE_OPTION_SLOT_QUOTA,
 	VCHIQ_SERVICE_OPTION_MESSAGE_QUOTA,
 	VCHIQ_SERVICE_OPTION_SYNCHRONOUS,
 	VCHIQ_SERVICE_OPTION_TRACE
-} VCHIQ_SERVICE_OPTION_T;
+};
 
 struct vchiq_header {
 	/* The message identifier - opaque to applications. */
@@ -61,21 +61,19 @@ struct vchiq_element {
 	unsigned int size;
 };
 
-typedef unsigned int VCHIQ_SERVICE_HANDLE_T;
-
-typedef VCHIQ_STATUS_T (*VCHIQ_CALLBACK_T)(VCHIQ_REASON_T,
-					   struct vchiq_header *,
-					   VCHIQ_SERVICE_HANDLE_T, void *);
+typedef enum vchiq_status (*vchiq_callback)(enum vchiq_reason,
+					    struct vchiq_header *,
+					    unsigned int, void *);
 
 struct vchiq_service_base {
 	int fourcc;
-	VCHIQ_CALLBACK_T callback;
+	vchiq_callback callback;
 	void *userdata;
 };
 
 struct vchiq_service_params {
 	int fourcc;
-	VCHIQ_CALLBACK_T callback;
+	vchiq_callback callback;
 	void *userdata;
 	short version;       /* Increment for non-trivial changes */
 	short version_min;   /* Update for incompatible changes */
@@ -92,57 +90,57 @@ struct vchiq_config {
 	short version_min;  /* The minimum compatible version of VCHIQ */
 };
 
-typedef struct vchiq_instance_struct *VCHIQ_INSTANCE_T;
-typedef void (*VCHIQ_REMOTE_USE_CALLBACK_T)(void *cb_arg);
+struct vchiq_instance;
+typedef void (*vchiq_remote_callback)(void *cb_arg);
 
-extern VCHIQ_STATUS_T vchiq_initialise(VCHIQ_INSTANCE_T *pinstance);
-extern VCHIQ_STATUS_T vchiq_shutdown(VCHIQ_INSTANCE_T instance);
-extern VCHIQ_STATUS_T vchiq_connect(VCHIQ_INSTANCE_T instance);
-extern VCHIQ_STATUS_T vchiq_add_service(VCHIQ_INSTANCE_T instance,
+extern enum vchiq_status vchiq_initialise(struct vchiq_instance **pinstance);
+extern enum vchiq_status vchiq_shutdown(struct vchiq_instance *instance);
+extern enum vchiq_status vchiq_connect(struct vchiq_instance *instance);
+extern enum vchiq_status vchiq_add_service(struct vchiq_instance *instance,
 	const struct vchiq_service_params *params,
-	VCHIQ_SERVICE_HANDLE_T *pservice);
-extern VCHIQ_STATUS_T vchiq_open_service(VCHIQ_INSTANCE_T instance,
+	unsigned int *pservice);
+extern enum vchiq_status vchiq_open_service(struct vchiq_instance *instance,
 	const struct vchiq_service_params *params,
-	VCHIQ_SERVICE_HANDLE_T *pservice);
-extern VCHIQ_STATUS_T vchiq_close_service(VCHIQ_SERVICE_HANDLE_T service);
-extern VCHIQ_STATUS_T vchiq_remove_service(VCHIQ_SERVICE_HANDLE_T service);
-extern VCHIQ_STATUS_T vchiq_use_service(VCHIQ_SERVICE_HANDLE_T service);
-extern VCHIQ_STATUS_T vchiq_release_service(VCHIQ_SERVICE_HANDLE_T service);
-extern VCHIQ_STATUS_T
-vchiq_queue_message(VCHIQ_SERVICE_HANDLE_T handle,
+	unsigned int *pservice);
+extern enum vchiq_status vchiq_close_service(unsigned int service);
+extern enum vchiq_status vchiq_remove_service(unsigned int service);
+extern enum vchiq_status vchiq_use_service(unsigned int service);
+extern enum vchiq_status vchiq_release_service(unsigned int service);
+extern enum vchiq_status
+vchiq_queue_message(unsigned int handle,
 		    ssize_t (*copy_callback)(void *context, void *dest,
 					     size_t offset, size_t maxsize),
 		    void *context,
 		    size_t size);
-extern void           vchiq_release_message(VCHIQ_SERVICE_HANDLE_T service,
+extern void           vchiq_release_message(unsigned int service,
 	struct vchiq_header *header);
-extern VCHIQ_STATUS_T vchiq_bulk_transmit(VCHIQ_SERVICE_HANDLE_T service,
+extern enum vchiq_status vchiq_bulk_transmit(unsigned int service,
 	const void *data, unsigned int size, void *userdata,
-	VCHIQ_BULK_MODE_T mode);
-extern VCHIQ_STATUS_T vchiq_bulk_receive(VCHIQ_SERVICE_HANDLE_T service,
+	enum vchiq_bulk_mode mode);
+extern enum vchiq_status vchiq_bulk_receive(unsigned int service,
 	void *data, unsigned int size, void *userdata,
-	VCHIQ_BULK_MODE_T mode);
-extern VCHIQ_STATUS_T vchiq_bulk_transmit_handle(VCHIQ_SERVICE_HANDLE_T service,
+	enum vchiq_bulk_mode mode);
+extern enum vchiq_status vchiq_bulk_transmit_handle(unsigned int service,
 	const void *offset, unsigned int size,
-	void *userdata,	VCHIQ_BULK_MODE_T mode);
-extern VCHIQ_STATUS_T vchiq_bulk_receive_handle(VCHIQ_SERVICE_HANDLE_T service,
+	void *userdata,	enum vchiq_bulk_mode mode);
+extern enum vchiq_status vchiq_bulk_receive_handle(unsigned int service,
 	void *offset, unsigned int size, void *userdata,
-	VCHIQ_BULK_MODE_T mode);
-extern int   vchiq_get_client_id(VCHIQ_SERVICE_HANDLE_T service);
-extern void *vchiq_get_service_userdata(VCHIQ_SERVICE_HANDLE_T service);
-extern int   vchiq_get_service_fourcc(VCHIQ_SERVICE_HANDLE_T service);
+	enum vchiq_bulk_mode mode);
+extern int   vchiq_get_client_id(unsigned int service);
+extern void *vchiq_get_service_userdata(unsigned int service);
+extern int   vchiq_get_service_fourcc(unsigned int service);
 extern void vchiq_get_config(struct vchiq_config *config);
-extern VCHIQ_STATUS_T vchiq_set_service_option(VCHIQ_SERVICE_HANDLE_T service,
-	VCHIQ_SERVICE_OPTION_T option, int value);
+extern enum vchiq_status vchiq_set_service_option(unsigned int service,
+	enum vchiq_service_option option, int value);
 
-extern VCHIQ_STATUS_T vchiq_remote_use(VCHIQ_INSTANCE_T instance,
-	VCHIQ_REMOTE_USE_CALLBACK_T callback, void *cb_arg);
-extern VCHIQ_STATUS_T vchiq_remote_release(VCHIQ_INSTANCE_T instance);
+extern enum vchiq_status vchiq_remote_use(struct vchiq_instance *instance,
+	vchiq_remote_callback callback, void *cb_arg);
+extern enum vchiq_status vchiq_remote_release(struct vchiq_instance *instance);
 
-extern VCHIQ_STATUS_T vchiq_dump_phys_mem(VCHIQ_SERVICE_HANDLE_T service,
+extern enum vchiq_status vchiq_dump_phys_mem(unsigned int service,
 	void *ptr, size_t num_bytes);
 
-extern VCHIQ_STATUS_T vchiq_get_peer_version(VCHIQ_SERVICE_HANDLE_T handle,
+extern enum vchiq_status vchiq_get_peer_version(unsigned int handle,
       short *peer_version);
 
 #endif /* VCHIQ_IF_H */

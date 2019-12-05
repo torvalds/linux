@@ -136,6 +136,13 @@ config COMMON_CLK_SI570
 	  This driver supports Silicon Labs 570/571/598/599 programmable
 	  clock generators.
 
+config COMMON_CLK_BM1880
+	bool "Clock driver for Bitmain BM1880 SoC"
+	depends on ARCH_BITMAIN || COMPILE_TEST
+	default ARCH_BITMAIN
+	help
+	  This driver supports the clocks on Bitmain BM1880 SoC.
+
 config COMMON_CLK_CDCE706
 	tristate "Clock driver for TI CDCE706 clock synthesizer"
 	depends on I2C
@@ -291,6 +298,11 @@ config COMMON_CLK_STM32H7
 	def_bool COMMON_CLK && MACH_STM32H743
 	help
 	  Support for stm32h7 SoC family clocks
+
+config COMMON_CLK_MMP2
+	def_bool COMMON_CLK && (MACH_MMP2_DT || MACH_MMP3_DT)
+	help
+	  Support for Marvell MMP2 and MMP3 SoC clocks
 
 config COMMON_CLK_BD718XX
 	tristate "Clock driver for ROHM BD718x7 PMIC"

@@ -398,7 +398,7 @@ static struct ib_umem *mlx4_get_umem_mr(struct ib_udata *udata, u64 start,
 		up_read(&current->mm->mmap_sem);
 	}
 
-	return ib_umem_get(udata, start, length, access_flags, 0);
+	return ib_umem_get(udata, start, length, access_flags);
 }
 
 struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,

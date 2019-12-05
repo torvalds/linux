@@ -53,8 +53,8 @@ with different configurations in advance, knowing that the configuration will be
 applied when needed to get the expected result. Configuration values at the time
 of request completion are also available for reading.
 
-Usage
-=====
+General Usage
+-------------
 
 The Request API extends the Media Controller API and cooperates with
 subsystem-specific APIs to support request usage. At the Media Controller

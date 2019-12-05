@@ -16,7 +16,7 @@
 #include <asm/setup.h>
 
 
-unsigned long powerpc_security_features __read_mostly = SEC_FTR_DEFAULT;
+u64 powerpc_security_features __read_mostly = SEC_FTR_DEFAULT;
 
 enum count_cache_flush_type {
 	COUNT_CACHE_FLUSH_NONE	= 0x1,
@@ -24,6 +24,7 @@ enum count_cache_flush_type {
 	COUNT_CACHE_FLUSH_HW	= 0x4,
 };
 static enum count_cache_flush_type count_cache_flush_type = COUNT_CACHE_FLUSH_NONE;
+static bool link_stack_flush_enabled;
 
 bool barrier_nospec_enabled;
 static bool no_nospec;
@@ -94,13 +95,14 @@ static int barrier_nospec_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_barrier_nospec,
-			barrier_nospec_get, barrier_nospec_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_barrier_nospec, barrier_nospec_get,
+			 barrier_nospec_set, "%llu\n");
 
 static __init int barrier_nospec_debugfs_init(void)
 {
-	debugfs_create_file("barrier_nospec", 0600, powerpc_debugfs_root, NULL,
-			    &fops_barrier_nospec);
+	debugfs_create_file_unsafe("barrier_nospec", 0600,
+				   powerpc_debugfs_root, NULL,
+				   &fops_barrier_nospec);
 	return 0;
 }
 device_initcall(barrier_nospec_debugfs_init);
@@ -108,7 +110,7 @@ device_initcall(barrier_nospec_debugfs_init);
 static __init int security_feature_debugfs_init(void)
 {
 	debugfs_create_x64("security_features", 0400, powerpc_debugfs_root,
-			   (u64 *)&powerpc_security_features);
+			   &powerpc_security_features);
 	return 0;
 }
 device_initcall(security_feature_debugfs_init);
@@ -141,31 +143,32 @@ ssize_t cpu_show_meltdown(struct device *dev, struct device_attribute *attr, cha
 
 	thread_priv = security_ftr_enabled(SEC_FTR_L1D_THREAD_PRIV);
 
-	if (rfi_flush || thread_priv) {
+	if (rfi_flush) {
 		struct seq_buf s;
 		seq_buf_init(&s, buf, PAGE_SIZE - 1);
 
-		seq_buf_printf(&s, "Mitigation: ");
-
-		if (rfi_flush)
-			seq_buf_printf(&s, "RFI Flush");
-
-		if (rfi_flush && thread_priv)
-			seq_buf_printf(&s, ", ");
-
+		seq_buf_printf(&s, "Mitigation: RFI Flush");
 		if (thread_priv)
-			seq_buf_printf(&s, "L1D private per thread");
+			seq_buf_printf(&s, ", L1D private per thread");
 
 		seq_buf_printf(&s, "\n");
 
 		return s.len;
 	}
 
+	if (thread_priv)
+		return sprintf(buf, "Vulnerable: L1D private per thread\n");
+
 	if (!security_ftr_enabled(SEC_FTR_L1D_FLUSH_HV) &&
 	    !security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR))
 		return sprintf(buf, "Not affected\n");
 
 	return sprintf(buf, "Vulnerable\n");
+}
+
+ssize_t cpu_show_l1tf(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return cpu_show_meltdown(dev, attr, buf);
 }
 #endif
 
@@ -212,11 +215,19 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
 
 		if (ccd)
 			seq_buf_printf(&s, "Indirect branch cache disabled");
+
+		if (link_stack_flush_enabled)
+			seq_buf_printf(&s, ", Software link stack flush");
+
 	} else if (count_cache_flush_type != COUNT_CACHE_FLUSH_NONE) {
 		seq_buf_printf(&s, "Mitigation: Software count cache flush");
 
 		if (count_cache_flush_type == COUNT_CACHE_FLUSH_HW)
 			seq_buf_printf(&s, " (hardware accelerated)");
+
+		if (link_stack_flush_enabled)
+			seq_buf_printf(&s, ", Software link stack flush");
+
 	} else if (btb_flush_enabled) {
 		seq_buf_printf(&s, "Mitigation: Branch predictor state flush");
 	} else {
@@ -367,27 +378,60 @@ static int stf_barrier_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_stf_barrier, stf_barrier_get, stf_barrier_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_stf_barrier, stf_barrier_get, stf_barrier_set,
+			 "%llu\n");
 
 static __init int stf_barrier_debugfs_init(void)
 {
-	debugfs_create_file("stf_barrier", 0600, powerpc_debugfs_root, NULL, &fops_stf_barrier);
+	debugfs_create_file_unsafe("stf_barrier", 0600, powerpc_debugfs_root,
+				   NULL, &fops_stf_barrier);
 	return 0;
 }
 device_initcall(stf_barrier_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
 
+static void no_count_cache_flush(void)
+{
+	count_cache_flush_type = COUNT_CACHE_FLUSH_NONE;
+	pr_info("count-cache-flush: software flush disabled.\n");
+}
+
 static void toggle_count_cache_flush(bool enable)
 {
-	if (!enable || !security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
+	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE) &&
+	    !security_ftr_enabled(SEC_FTR_FLUSH_LINK_STACK))
+		enable = false;
+
+	if (!enable) {
 		patch_instruction_site(&patch__call_flush_count_cache, PPC_INST_NOP);
-		count_cache_flush_type = COUNT_CACHE_FLUSH_NONE;
-		pr_info("count-cache-flush: software flush disabled.\n");
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+		patch_instruction_site(&patch__call_kvm_flush_link_stack, PPC_INST_NOP);
+#endif
+		pr_info("link-stack-flush: software flush disabled.\n");
+		link_stack_flush_enabled = false;
+		no_count_cache_flush();
 		return;
 	}
 
+	// This enables the branch from _switch to flush_count_cache
 	patch_branch_site(&patch__call_flush_count_cache,
 			  (u64)&flush_count_cache, BRANCH_SET_LINK);
+
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	// This enables the branch from guest_exit_cont to kvm_flush_link_stack
+	patch_branch_site(&patch__call_kvm_flush_link_stack,
+			  (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
+#endif
+
+	pr_info("link-stack-flush: software flush enabled.\n");
+	link_stack_flush_enabled = true;
+
+	// If we just need to flush the link stack, patch an early return
+	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
+		patch_instruction_site(&patch__flush_link_stack_return, PPC_INST_BLR);
+		no_count_cache_flush();
+		return;
+	}
 
 	if (!security_ftr_enabled(SEC_FTR_BCCTR_FLUSH_ASSIST)) {
 		count_cache_flush_type = COUNT_CACHE_FLUSH_SW;
@@ -407,10 +451,19 @@ void setup_count_cache_flush(void)
 	if (no_spectrev2 || cpu_mitigations_off()) {
 		if (security_ftr_enabled(SEC_FTR_BCCTRL_SERIALISED) ||
 		    security_ftr_enabled(SEC_FTR_COUNT_CACHE_DISABLED))
-			pr_warn("Spectre v2 mitigations not under software control, can't disable\n");
+			pr_warn("Spectre v2 mitigations not fully under software control, can't disable\n");
 
 		enable = false;
 	}
+
+	/*
+	 * There's no firmware feature flag/hypervisor bit to tell us we need to
+	 * flush the link stack on context switch. So we set it here if we see
+	 * either of the Spectre v2 mitigations that aim to protect userspace.
+	 */
+	if (security_ftr_enabled(SEC_FTR_COUNT_CACHE_DISABLED) ||
+	    security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE))
+		security_ftr_set(SEC_FTR_FLUSH_LINK_STACK);
 
 	toggle_count_cache_flush(enable);
 }
@@ -442,13 +495,14 @@ static int count_cache_flush_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_count_cache_flush, count_cache_flush_get,
-			count_cache_flush_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_count_cache_flush, count_cache_flush_get,
+			 count_cache_flush_set, "%llu\n");
 
 static __init int count_cache_flush_debugfs_init(void)
 {
-	debugfs_create_file("count_cache_flush", 0600, powerpc_debugfs_root,
-			    NULL, &fops_count_cache_flush);
+	debugfs_create_file_unsafe("count_cache_flush", 0600,
+				   powerpc_debugfs_root, NULL,
+				   &fops_count_cache_flush);
 	return 0;
 }
 device_initcall(count_cache_flush_debugfs_init);

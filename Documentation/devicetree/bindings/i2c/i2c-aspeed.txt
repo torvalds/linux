@@ -1,4 +1,4 @@
-Device tree configuration for the I2C busses on the AST24XX and AST25XX SoCs.
+Device tree configuration for the I2C busses on the AST24XX, AST25XX, and AST26XX SoCs.
 
 Required Properties:
 - #address-cells	: should be 1
@@ -6,6 +6,7 @@ Required Properties:
 - reg			: address offset and range of bus
 - compatible		: should be "aspeed,ast2400-i2c-bus"
 			  or "aspeed,ast2500-i2c-bus"
+			  or "aspeed,ast2600-i2c-bus"
 - clocks		: root clock of bus, should reference the APB
 			  clock in the second cell
 - resets		: phandle to reset controller with the reset number in

@@ -352,8 +352,8 @@ int snd_pcsp_new_pcm(struct snd_pcsp *chip)
 
 	snd_pcm_lib_preallocate_pages_for_all(chip->pcm,
 					      SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data
-					      (GFP_KERNEL), PCSP_BUFFER_SIZE,
+					      NULL,
+					      PCSP_BUFFER_SIZE,
 					      PCSP_BUFFER_SIZE);
 
 	return 0;

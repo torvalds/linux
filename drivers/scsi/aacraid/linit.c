@@ -391,6 +391,7 @@ static int aac_slave_configure(struct scsi_device *sdev)
 	int chn, tid;
 	unsigned int depth = 0;
 	unsigned int set_timeout = 0;
+	int timeout = 0;
 	bool set_qd_dev_type = false;
 	u8 devtype = 0;
 
@@ -483,10 +484,13 @@ common_config:
 
 	/*
 	 * Firmware has an individual device recovery time typically
-	 * of 35 seconds, give us a margin.
+	 * of 35 seconds, give us a margin. Thor devices can take longer in
+	 * error recovery, hence different value.
 	 */
-	if (set_timeout && sdev->request_queue->rq_timeout < (45 * HZ))
-		blk_queue_rq_timeout(sdev->request_queue, 45*HZ);
+	if (set_timeout) {
+		timeout = aac->sa_firmware ? AAC_SA_TIMEOUT : AAC_ARC_TIMEOUT;
+		blk_queue_rq_timeout(sdev->request_queue, timeout * HZ);
+	}
 
 	if (depth > 256)
 		depth = 256;
@@ -608,9 +612,13 @@ static struct device_attribute *aac_dev_attrs[] = {
 static int aac_ioctl(struct scsi_device *sdev, unsigned int cmd,
 		     void __user *arg)
 {
+	int retval;
 	struct aac_dev *dev = (struct aac_dev *)sdev->host->hostdata;
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
+	retval = aac_adapter_check_health(dev);
+	if (retval)
+		return -EBUSY;
 	return aac_do_ioctl(dev, cmd, arg);
 }
 
@@ -1585,6 +1593,19 @@ static void aac_init_char(void)
 	}
 }
 
+void aac_reinit_aif(struct aac_dev *aac, unsigned int index)
+{
+	/*
+	 * Firmware may send a AIF messages very early and the Driver may have
+	 * ignored as it is not fully ready to process the messages. Send
+	 * AIF to firmware so that if there are any unprocessed events they
+	 * can be processed now.
+	 */
+	if (aac_drivers[index].quirks & AAC_QUIRK_SRC)
+		aac_intr_normal(aac, 0, 2, 0, NULL);
+
+}
+
 static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	unsigned index = id->driver_data;
@@ -1682,6 +1703,8 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	mutex_init(&aac->scan_mutex);
 
 	INIT_DELAYED_WORK(&aac->safw_rescan_work, aac_safw_rescan_worker);
+	INIT_DELAYED_WORK(&aac->src_reinit_aif_worker,
+				aac_src_reinit_aif_worker);
 	/*
 	 *	Map in the registers from the adapter.
 	 */
@@ -1872,7 +1895,7 @@ static int aac_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
 
 	scsi_block_requests(shost);
-	aac_cancel_safw_rescan_worker(aac);
+	aac_cancel_rescan_worker(aac);
 	aac_send_shutdown(aac);
 
 	aac_release_resources(aac);
@@ -1931,7 +1954,7 @@ static void aac_remove_one(struct pci_dev *pdev)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
 
-	aac_cancel_safw_rescan_worker(aac);
+	aac_cancel_rescan_worker(aac);
 	scsi_remove_host(shost);
 
 	__aac_shutdown(aac);
@@ -1989,7 +2012,7 @@ static pci_ers_result_t aac_pci_error_detected(struct pci_dev *pdev,
 		aac->handle_pci_error = 1;
 
 		scsi_block_requests(aac->scsi_host_ptr);
-		aac_cancel_safw_rescan_worker(aac);
+		aac_cancel_rescan_worker(aac);
 		aac_flush_ios(aac);
 		aac_release_resources(aac);
 

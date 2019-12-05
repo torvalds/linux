@@ -152,8 +152,8 @@ static void yfs_check_req(struct afs_call *call, __be32 *bp)
 		pr_err("kAFS: %s: Request buffer overflow (%zu>%u)\n",
 		       call->type->name, len, call->request_size);
 	else if (len < call->request_size)
-		pr_warning("kAFS: %s: Request buffer underflow (%zu<%u)\n",
-			   call->type->name, len, call->request_size);
+		pr_warn("kAFS: %s: Request buffer underflow (%zu<%u)\n",
+			call->type->name, len, call->request_size);
 }
 
 /*
@@ -441,7 +441,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 	int ret;
 
 	_enter("{%u,%zu/%llu}",
-	       call->unmarshall, iov_iter_count(&call->iter), req->actual_len);
+	       call->unmarshall, iov_iter_count(call->iter), req->actual_len);
 
 	switch (call->unmarshall) {
 	case 0:
@@ -476,14 +476,14 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 		call->bvec[0].bv_len = size;
 		call->bvec[0].bv_offset = req->offset;
 		call->bvec[0].bv_page = req->pages[req->index];
-		iov_iter_bvec(&call->iter, READ, call->bvec, 1, size);
+		iov_iter_bvec(&call->def_iter, READ, call->bvec, 1, size);
 		ASSERTCMP(size, <=, PAGE_SIZE);
 		/* Fall through */
 
 		/* extract the returned data */
 	case 2:
 		_debug("extract data %zu/%llu",
-		       iov_iter_count(&call->iter), req->remain);
+		       iov_iter_count(call->iter), req->remain);
 
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -511,7 +511,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 
 	case 3:
 		_debug("extract discard %zu/%llu",
-		       iov_iter_count(&call->iter), req->actual_len - req->len);
+		       iov_iter_count(call->iter), req->actual_len - req->len);
 
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -605,7 +605,7 @@ int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
 	call->key = fc->key;
 	call->out_scb = scb;
 	call->out_volsync = NULL;
-	call->read_request = req;
+	call->read_request = afs_get_read(req);
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -616,7 +616,6 @@ int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
 	bp = xdr_encode_u64(bp, req->len);
 	yfs_check_req(call, bp);
 
-	refcount_inc(&req->usage);
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
 	afs_set_fc_call(call, fc);

@@ -106,6 +106,10 @@ static int rxe_modify_device(struct ib_device *dev,
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 
+	if (mask & ~(IB_DEVICE_MODIFY_SYS_IMAGE_GUID |
+		     IB_DEVICE_MODIFY_NODE_DESC))
+		return -EOPNOTSUPP;
+
 	if (mask & IB_DEVICE_MODIFY_SYS_IMAGE_GUID)
 		rxe->attr.sys_image_guid = cpu_to_be64(attr->sys_image_guid);
 
@@ -1171,6 +1175,9 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
 			    rxe->ndev->dev_addr);
 	dev->dev.dma_ops = &dma_virt_ops;
+	dev->dev.dma_parms = &rxe->dma_parms;
+	rxe->dma_parms = (struct device_dma_parameters)
+		{ .max_segment_size = SZ_2G };
 	dma_coerce_mask_and_coherent(&dev->dev,
 				     dma_get_required_mask(&dev->dev));
 

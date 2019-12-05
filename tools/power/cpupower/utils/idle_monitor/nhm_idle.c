@@ -208,7 +208,7 @@ struct cpuidle_monitor intel_nhm_monitor = {
 	.stop			= nhm_stop,
 	.do_register		= intel_nhm_register,
 	.unregister		= intel_nhm_unregister,
-	.needs_root		= 1,
+	.flags.needs_root	= 1,
 	.overflow_s		= 922000000 /* 922337203 seconds TSC overflow
 					       at 20GHz */
 };

@@ -65,20 +65,6 @@ extra-y += $(patsubst %.dtb,%.dt.yaml, $(dtb-y))
 extra-$(CONFIG_OF_ALL_DTBS) += $(patsubst %.dtb,%.dt.yaml, $(dtb-))
 endif
 
-# Test self-contained headers
-
-# Wildcard searches in $(srctree)/$(src)/, but not in $(objtree)/$(obj)/.
-# Stale generated headers are often left over, so pattern matching should
-# be avoided. Please notice $(srctree)/$(src)/ and $(objtree)/$(obj) point
-# to the same location for in-tree building. So, header-test-pattern-y should
-# be used with care.
-header-test-y	+= $(filter-out $(header-test-), \
-		$(patsubst $(srctree)/$(src)/%, %, \
-		$(wildcard $(addprefix $(srctree)/$(src)/, \
-		$(header-test-pattern-y)))))
-
-extra-$(CONFIG_HEADER_TEST) += $(addsuffix .s, $(header-test-y) $(header-test-m))
-
 # Add subdir path
 
 extra-y		:= $(addprefix $(obj)/,$(extra-y))

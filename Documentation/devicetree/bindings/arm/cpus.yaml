@@ -189,6 +189,7 @@ properties:
               - marvell,armada-390-smp
               - marvell,armada-xp-smp
               - marvell,98dx3236-smp
+              - marvell,mmp3-smp
               - mediatek,mt6589-smp
               - mediatek,mt81xx-tz-smp
               - qcom,gcc-msm8660

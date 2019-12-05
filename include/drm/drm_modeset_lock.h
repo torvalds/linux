@@ -114,6 +114,15 @@ static inline bool drm_modeset_is_locked(struct drm_modeset_lock *lock)
 	return ww_mutex_is_locked(&lock->mutex);
 }
 
+/**
+ * drm_modeset_lock_assert_held - equivalent to lockdep_assert_held()
+ * @lock: lock to check
+ */
+static inline void drm_modeset_lock_assert_held(struct drm_modeset_lock *lock)
+{
+	lockdep_assert_held(&lock->mutex.base);
+}
+
 int drm_modeset_lock(struct drm_modeset_lock *lock,
 		struct drm_modeset_acquire_ctx *ctx);
 int __must_check drm_modeset_lock_single_interruptible(struct drm_modeset_lock *lock);

@@ -321,7 +321,7 @@ static int poll_select_finish(struct timespec64 *end_time,
 	switch (pt_type) {
 	case PT_TIMEVAL:
 		{
-			struct timeval rtv;
+			struct __kernel_old_timeval rtv;
 
 			if (sizeof(rtv) > sizeof(rtv.tv_sec) + sizeof(rtv.tv_usec))
 				memset(&rtv, 0, sizeof(rtv));
@@ -698,10 +698,10 @@ out_nofds:
 }
 
 static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
-		       fd_set __user *exp, struct timeval __user *tvp)
+		       fd_set __user *exp, struct __kernel_old_timeval __user *tvp)
 {
 	struct timespec64 end_time, *to = NULL;
-	struct timeval tv;
+	struct __kernel_old_timeval tv;
 	int ret;
 
 	if (tvp) {
@@ -720,7 +720,7 @@ static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
 }
 
 SYSCALL_DEFINE5(select, int, n, fd_set __user *, inp, fd_set __user *, outp,
-		fd_set __user *, exp, struct timeval __user *, tvp)
+		fd_set __user *, exp, struct __kernel_old_timeval __user *, tvp)
 {
 	return kern_select(n, inp, outp, exp, tvp);
 }
@@ -810,7 +810,7 @@ SYSCALL_DEFINE6(pselect6_time32, int, n, fd_set __user *, inp, fd_set __user *, 
 struct sel_arg_struct {
 	unsigned long n;
 	fd_set __user *inp, *outp, *exp;
-	struct timeval __user *tvp;
+	struct __kernel_old_timeval __user *tvp;
 };
 
 SYSCALL_DEFINE1(old_select, struct sel_arg_struct __user *, arg)

@@ -344,8 +344,7 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 		pr_err("Requested number of channels not supported.\n");
 		return -EINVAL;
 	}
-	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
-						params_buffer_bytes(hw_params));
+	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
 /**
@@ -359,7 +358,7 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
  */
 static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	return snd_pcm_lib_free_pages(substream);
 }
 
 /**
@@ -469,7 +468,6 @@ static const struct snd_pcm_ops pcm_ops = {
 	.prepare    = pcm_prepare,
 	.trigger    = pcm_trigger,
 	.pointer    = pcm_pointer,
-	.page       = snd_pcm_lib_get_vmalloc_page,
 };
 
 static int split_arg_list(char *buf, u16 *ch_num, char **sample_res)
@@ -663,6 +661,8 @@ skip_adpt_alloc:
 	pcm->private_data = channel;
 	strscpy(pcm->name, device_name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, direction, &pcm_ops);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
+					      NULL, 0, 0);
 
 	return 0;
 
@@ -782,6 +782,7 @@ static int audio_tx_completion(struct most_interface *iface, int channel_id)
  * Initialization of the struct core_component
  */
 static struct core_component comp = {
+	.mod = THIS_MODULE,
 	.name = DRIVER_NAME,
 	.probe_channel = audio_probe_channel,
 	.disconnect_channel = audio_disconnect_channel,

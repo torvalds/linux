@@ -1,0 +1,84 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: Test ftrace direct functions against kprobes
+
+rmmod ftrace-direct ||:
+if ! modprobe ftrace-direct ; then
+  echo "No ftrace-direct sample module - please build with CONFIG_SAMPLE_FTRACE_DIRECT=m"
+  exit_unresolved;
+fi
+
+if [ ! -f kprobe_events ]; then
+	echo "No kprobe_events file -please build CONFIG_KPROBE_EVENTS"
+	exit_unresolved;
+fi
+
+echo "Let the module run a little"
+sleep 1
+
+grep -q "my_direct_func: waking up" trace
+
+rmmod ftrace-direct
+
+echo 'p:kwake wake_up_process task=$arg1' > kprobe_events
+
+start_direct() {
+	echo > trace
+	modprobe ftrace-direct
+	sleep 1
+	grep -q "my_direct_func: waking up" trace
+}
+
+stop_direct() {
+	rmmod ftrace-direct
+}
+
+enable_probe() {
+	echo > trace
+	echo 1 > events/kprobes/kwake/enable
+	sleep 1
+	grep -q "kwake:" trace
+}
+
+disable_probe() {
+	echo 0 > events/kprobes/kwake/enable
+}
+
+test_kprobes() {
+	# probe -> direct -> no direct > no probe
+	enable_probe
+	start_direct
+	stop_direct
+	disable_probe
+
+	# probe -> direct -> no probe > no direct
+	enable_probe
+	start_direct
+	disable_probe
+	stop_direct
+
+	# direct -> probe -> no probe > no direct
+	start_direct
+	enable_probe
+	disable_probe
+	stop_direct
+
+	# direct -> probe -> no direct > no noprobe
+	start_direct
+	enable_probe
+	stop_direct
+	disable_probe
+}
+
+test_kprobes
+
+# Now do this with a second registered direct function
+echo "Running with another ftrace direct function"
+
+modprobe ftrace-direct-too
+
+test_kprobes
+
+rmmod ftrace-direct-too
+
+echo > kprobe_events

@@ -147,7 +147,7 @@ int dce_get_dp_ref_freq_khz(struct clk_mgr *clk_mgr_base)
 
 	/* Calculate the current DFS clock, in kHz.*/
 	dp_ref_clk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-		* clk_mgr->dentist_vco_freq_khz) / target_div;
+		* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 
 	return dce_adjust_dp_ref_freq_for_ss(clk_mgr, dp_ref_clk_khz);
 }
@@ -239,7 +239,7 @@ int dce_set_clock(
 	/* Make sure requested clock isn't lower than minimum threshold*/
 	if (requested_clk_khz > 0)
 		requested_clk_khz = max(requested_clk_khz,
-				clk_mgr_dce->dentist_vco_freq_khz / 64);
+				clk_mgr_dce->base.dentist_vco_freq_khz / 64);
 
 	/* Prepare to program display clock*/
 	pxl_clk_params.target_pixel_clock_100hz = requested_clk_khz * 10;
@@ -276,11 +276,11 @@ static void dce_clock_read_integrated_info(struct clk_mgr_internal *clk_mgr_dce)
 	int i;
 
 	if (bp->integrated_info)
-		clk_mgr_dce->dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
-	if (clk_mgr_dce->dentist_vco_freq_khz == 0) {
-		clk_mgr_dce->dentist_vco_freq_khz = bp->fw_info.smu_gpu_pll_output_freq;
-		if (clk_mgr_dce->dentist_vco_freq_khz == 0)
-			clk_mgr_dce->dentist_vco_freq_khz = 3600000;
+		clk_mgr_dce->base.dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
+	if (clk_mgr_dce->base.dentist_vco_freq_khz == 0) {
+		clk_mgr_dce->base.dentist_vco_freq_khz = bp->fw_info.smu_gpu_pll_output_freq;
+		if (clk_mgr_dce->base.dentist_vco_freq_khz == 0)
+			clk_mgr_dce->base.dentist_vco_freq_khz = 3600000;
 	}
 
 	/*update the maximum display clock for each power state*/

@@ -23,12 +23,13 @@ enum cfg_options_flags {
 	READ_MEM = 0x1U,
 	SWAP_MAC = 0x2U,
 };
-struct bpf_map_def SEC("maps") config_map = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(int),
-	.value_size	= sizeof(struct config),
-	.max_entries	= 1,
-};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, int);
+	__type(value, struct config);
+	__uint(max_entries, 1);
+} config_map SEC(".maps");
 
 /* Common stats data record (shared with userspace) */
 struct datarec {
@@ -36,22 +37,22 @@ struct datarec {
 	__u64 issue;
 };
 
-struct bpf_map_def SEC("maps") stats_global_map = {
-	.type		= BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(struct datarec),
-	.max_entries	= 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, u32);
+	__type(value, struct datarec);
+	__uint(max_entries, 1);
+} stats_global_map SEC(".maps");
 
 #define MAX_RXQs 64
 
 /* Stats per rx_queue_index (per CPU) */
-struct bpf_map_def SEC("maps") rx_queue_index_map = {
-	.type		= BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(struct datarec),
-	.max_entries	= MAX_RXQs + 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, u32);
+	__type(value, struct datarec);
+	__uint(max_entries, MAX_RXQs + 1);
+} rx_queue_index_map SEC(".maps");
 
 static __always_inline
 void swap_src_dst_mac(void *data)

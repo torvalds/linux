@@ -1143,7 +1143,7 @@ static int snd_vt1724_pcm_profi(struct snd_ice1712 *ice, int device)
 	strcpy(pcm->name, "ICE1724");
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(ice->pci),
+					      &ice->pci->dev,
 					      256*1024, 256*1024);
 
 	ice->pcm_pro = pcm;
@@ -1341,7 +1341,7 @@ static int snd_vt1724_pcm_spdif(struct snd_ice1712 *ice, int device)
 	strcpy(pcm->name, name);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(ice->pci),
+					      &ice->pci->dev,
 					      256*1024, 256*1024);
 
 	ice->pcm = pcm;
@@ -1455,7 +1455,7 @@ static int snd_vt1724_pcm_indep(struct snd_ice1712 *ice, int device)
 	strcpy(pcm->name, "ICE1724 Surround PCM");
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(ice->pci),
+					      &ice->pci->dev,
 					      256*1024, 256*1024);
 
 	ice->pcm_ds = pcm;

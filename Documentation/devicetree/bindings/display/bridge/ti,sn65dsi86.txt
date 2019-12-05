@@ -21,7 +21,7 @@ Optional properties:
 - #gpio-cells    : Should be two. The first cell is the pin number and
                    the second cell is used to specify flags.
                    See ../../gpio/gpio.txt for more information.
-- #pwm-cells : Should be one. See ../../pwm/pwm.txt for description of
+- #pwm-cells : Should be one. See ../../pwm/pwm.yaml for description of
                the cell formats.
 
 - clock-names: should be "refclk"

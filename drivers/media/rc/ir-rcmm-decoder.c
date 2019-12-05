@@ -79,7 +79,7 @@ static int ir_rcmm_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		if (!ev.pulse)
 			break;
 
-		if (!eq_margin(ev.duration, RCMM_PREFIX_PULSE, RCMM_UNIT / 2))
+		if (!eq_margin(ev.duration, RCMM_PREFIX_PULSE, RCMM_UNIT))
 			break;
 
 		data->state = STATE_LOW;
@@ -91,7 +91,7 @@ static int ir_rcmm_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		if (ev.pulse)
 			break;
 
-		if (!eq_margin(ev.duration, RCMM_PULSE_0, RCMM_UNIT / 2))
+		if (!eq_margin(ev.duration, RCMM_PULSE_0, RCMM_UNIT))
 			break;
 
 		data->state = STATE_BUMP;
@@ -164,6 +164,8 @@ static int ir_rcmm_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		break;
 	}
 
+	dev_dbg(&dev->dev, "RC-MM decode failed at count %d state %d (%uus %s)\n",
+		data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

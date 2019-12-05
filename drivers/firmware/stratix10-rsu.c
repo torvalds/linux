@@ -20,7 +20,6 @@
 #define RSU_VERSION_MASK		GENMASK_ULL(63, 32)
 #define RSU_ERROR_LOCATION_MASK		GENMASK_ULL(31, 0)
 #define RSU_ERROR_DETAIL_MASK		GENMASK_ULL(63, 32)
-#define RSU_FW_VERSION_MASK		GENMASK_ULL(15, 0)
 
 #define RSU_TIMEOUT	(msecs_to_jiffies(SVC_RSU_REQUEST_TIMEOUT_MS))
 
@@ -109,9 +108,12 @@ static void rsu_command_callback(struct stratix10_svc_client *client,
 {
 	struct stratix10_rsu_priv *priv = client->priv;
 
-	if (data->status != BIT(SVC_STATUS_RSU_OK))
-		dev_err(client->dev, "RSU returned status is %i\n",
-			data->status);
+	if (data->status == BIT(SVC_STATUS_RSU_NO_SUPPORT))
+		dev_warn(client->dev, "Secure FW doesn't support notify\n");
+	else if (data->status == BIT(SVC_STATUS_RSU_ERROR))
+		dev_err(client->dev, "Failure, returned status is %lu\n",
+			BIT(data->status));
+
 	complete(&priv->completion);
 }
 
@@ -133,9 +135,11 @@ static void rsu_retry_callback(struct stratix10_svc_client *client,
 
 	if (data->status == BIT(SVC_STATUS_RSU_OK))
 		priv->retry_counter = *counter;
+	else if (data->status == BIT(SVC_STATUS_RSU_NO_SUPPORT))
+		dev_warn(client->dev, "Secure FW doesn't support retry\n");
 	else
-		dev_err(client->dev, "Failed to get retry counter %i\n",
-			data->status);
+		dev_err(client->dev, "Failed to get retry counter %lu\n",
+			BIT(data->status));
 
 	complete(&priv->completion);
 }
@@ -333,15 +337,10 @@ static ssize_t notify_store(struct device *dev,
 		return ret;
 	}
 
-	/* only 19.3 or late version FW supports retry counter feature */
-	if (FIELD_GET(RSU_FW_VERSION_MASK, priv->status.version)) {
-		ret = rsu_send_msg(priv, COMMAND_RSU_RETRY,
-				   0, rsu_retry_callback);
-		if (ret) {
-			dev_err(dev,
-				"Error, getting RSU retry %i\n", ret);
-			return ret;
-		}
+	ret = rsu_send_msg(priv, COMMAND_RSU_RETRY, 0, rsu_retry_callback);
+	if (ret) {
+		dev_err(dev, "Error, getting RSU retry %i\n", ret);
+		return ret;
 	}
 
 	return count;
@@ -413,15 +412,10 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 		stratix10_svc_free_channel(priv->chan);
 	}
 
-	/* only 19.3 or late version FW supports retry counter feature */
-	if (FIELD_GET(RSU_FW_VERSION_MASK, priv->status.version)) {
-		ret = rsu_send_msg(priv, COMMAND_RSU_RETRY, 0,
-				   rsu_retry_callback);
-		if (ret) {
-			dev_err(dev,
-				"Error, getting RSU retry %i\n", ret);
-			stratix10_svc_free_channel(priv->chan);
-		}
+	ret = rsu_send_msg(priv, COMMAND_RSU_RETRY, 0, rsu_retry_callback);
+	if (ret) {
+		dev_err(dev, "Error, getting RSU retry %i\n", ret);
+		stratix10_svc_free_channel(priv->chan);
 	}
 
 	return ret;

@@ -12,7 +12,7 @@ struct ionic_lif;
 
 #define IONIC_DRV_NAME		"ionic"
 #define IONIC_DRV_DESCRIPTION	"Pensando Ethernet NIC Driver"
-#define IONIC_DRV_VERSION	"0.15.0-k"
+#define IONIC_DRV_VERSION	"0.18.0-k"
 
 #define PCI_VENDOR_ID_PENSANDO			0x1dd8
 
@@ -46,6 +46,8 @@ struct ionic {
 	DECLARE_BITMAP(intrs, IONIC_INTR_CTRL_REGS_MAX);
 	struct work_struct nb_work;
 	struct notifier_block nb;
+	struct timer_list watchdog_timer;
+	int watchdog_period;
 };
 
 struct ionic_admin_ctx {

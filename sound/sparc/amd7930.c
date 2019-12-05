@@ -777,7 +777,7 @@ static int snd_amd7930_pcm(struct snd_amd7930 *amd)
 	amd->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data(GFP_KERNEL),
+					      NULL,
 					      64*1024, 64*1024);
 
 	return 0;

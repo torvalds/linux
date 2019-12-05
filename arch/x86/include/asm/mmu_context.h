@@ -26,12 +26,14 @@ static inline void paravirt_activate_mm(struct mm_struct *prev,
 
 #ifdef CONFIG_PERF_EVENTS
 
+DECLARE_STATIC_KEY_FALSE(rdpmc_never_available_key);
 DECLARE_STATIC_KEY_FALSE(rdpmc_always_available_key);
 
 static inline void load_mm_cr4_irqsoff(struct mm_struct *mm)
 {
 	if (static_branch_unlikely(&rdpmc_always_available_key) ||
-	    atomic_read(&mm->context.perf_rdpmc_allowed))
+	    (!static_branch_unlikely(&rdpmc_never_available_key) &&
+	     atomic_read(&mm->context.perf_rdpmc_allowed)))
 		cr4_set_bits_irqsoff(X86_CR4_PCE);
 	else
 		cr4_clear_bits_irqsoff(X86_CR4_PCE);

@@ -41,9 +41,11 @@ Hardware Monitoring Kernel Drivers
    asb100
    asc7621
    aspeed-pwm-tacho
+   bel-pfe
    coretemp
    da9052
    da9055
+   dell-smm-hwmon
    dme1737
    ds1621
    ds620
@@ -90,6 +92,7 @@ Hardware Monitoring Kernel Drivers
    lm95245
    lochnagar
    ltc2945
+   ltc2947
    ltc2978
    ltc2990
    ltc3815
@@ -153,6 +156,7 @@ Hardware Monitoring Kernel Drivers
    tmp108
    tmp401
    tmp421
+   tmp513
    tps40422
    twl4030-madc-hwmon
    ucd9000

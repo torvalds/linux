@@ -63,27 +63,7 @@ struct workspace {
 
 static struct workspace_manager wsm;
 
-static void lzo_init_workspace_manager(void)
-{
-	btrfs_init_workspace_manager(&wsm, &btrfs_lzo_compress);
-}
-
-static void lzo_cleanup_workspace_manager(void)
-{
-	btrfs_cleanup_workspace_manager(&wsm);
-}
-
-static struct list_head *lzo_get_workspace(unsigned int level)
-{
-	return btrfs_get_workspace(&wsm, level);
-}
-
-static void lzo_put_workspace(struct list_head *ws)
-{
-	btrfs_put_workspace(&wsm, ws);
-}
-
-static void lzo_free_workspace(struct list_head *ws)
+void lzo_free_workspace(struct list_head *ws)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 
@@ -93,7 +73,7 @@ static void lzo_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *lzo_alloc_workspace(unsigned int level)
+struct list_head *lzo_alloc_workspace(unsigned int level)
 {
 	struct workspace *workspace;
 
@@ -131,13 +111,9 @@ static inline size_t read_compress_length(const char *buf)
 	return le32_to_cpu(dlen);
 }
 
-static int lzo_compress_pages(struct list_head *ws,
-			      struct address_space *mapping,
-			      u64 start,
-			      struct page **pages,
-			      unsigned long *out_pages,
-			      unsigned long *total_in,
-			      unsigned long *total_out)
+int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
+		u64 start, struct page **pages, unsigned long *out_pages,
+		unsigned long *total_in, unsigned long *total_out)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0;
@@ -303,7 +279,7 @@ out:
 	return ret;
 }
 
-static int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
+int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0, ret2;
@@ -444,10 +420,9 @@ done:
 	return ret;
 }
 
-static int lzo_decompress(struct list_head *ws, unsigned char *data_in,
-			  struct page *dest_page,
-			  unsigned long start_byte,
-			  size_t srclen, size_t destlen)
+int lzo_decompress(struct list_head *ws, unsigned char *data_in,
+		struct page *dest_page, unsigned long start_byte, size_t srclen,
+		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	size_t in_len;
@@ -508,15 +483,7 @@ out:
 }
 
 const struct btrfs_compress_op btrfs_lzo_compress = {
-	.init_workspace_manager	= lzo_init_workspace_manager,
-	.cleanup_workspace_manager = lzo_cleanup_workspace_manager,
-	.get_workspace		= lzo_get_workspace,
-	.put_workspace		= lzo_put_workspace,
-	.alloc_workspace	= lzo_alloc_workspace,
-	.free_workspace		= lzo_free_workspace,
-	.compress_pages		= lzo_compress_pages,
-	.decompress_bio		= lzo_decompress_bio,
-	.decompress		= lzo_decompress,
+	.workspace_manager	= &wsm,
 	.max_level		= 1,
 	.default_level		= 1,
 };

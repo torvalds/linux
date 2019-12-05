@@ -59,6 +59,7 @@ u64 aq_hw_read_reg64(struct aq_hw_s *hw, u32 reg)
 	u64 value = aq_hw_read_reg(hw, reg);
 
 	value |= (u64)aq_hw_read_reg(hw, reg + 4) << 32;
+
 	return value;
 }
 

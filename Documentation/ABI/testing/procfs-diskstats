@@ -29,4 +29,9 @@ Description:
 		17 - sectors discarded
 		18 - time spent discarding
 
+		Kernel 5.5+ appends two more fields for flush requests:
+
+		19 - flush requests completed successfully
+		20 - time spent flushing
+
 		For more details refer to Documentation/admin-guide/iostats.rst

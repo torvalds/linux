@@ -17,7 +17,7 @@ Required properties:
   Please refer to sifive-blocks-ip-versioning.txt for details.
 - reg: physical base address and length of the controller's registers
 - clocks: Should contain a clock identifier for the PWM's parent clock.
-- #pwm-cells: Should be 3. See pwm.txt in this directory
+- #pwm-cells: Should be 3. See pwm.yaml in this directory
   for a description of the cell format.
 - interrupts: one interrupt per PWM channel
 

@@ -2,7 +2,7 @@ Ingenic JZ47xx SoCs Timer/Counter Unit devicetree bindings
 ==========================================================
 
 For a description of the TCU hardware and drivers, have a look at
-Documentation/mips/ingenic-tcu.txt.
+Documentation/mips/ingenic-tcu.rst.
 
 Required properties:
 
@@ -42,7 +42,7 @@ Required properties:
 - compatible: Must be one of:
   * ingenic,jz4740-pwm
   * ingenic,jz4725b-pwm
-- #pwm-cells: Should be 3. See ../pwm/pwm.txt for a description of the cell
+- #pwm-cells: Should be 3. See ../pwm/pwm.yaml for a description of the cell
   format.
 - clocks: List of phandle & clock specifiers for the TCU clocks.
 - clock-names: List of name strings for the TCU clocks.

@@ -1726,17 +1726,6 @@
 				      "ssi.1", "ssi.0";
 			status = "disabled";
 
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				port@0 {
-					reg = <0>;
-				};
-				port@1 {
-					reg = <1>;
-				};
-			};
-
 			rcar_sound,ctu {
 				ctu00: ctu-0 { };
 				ctu01: ctu-1 { };
@@ -2651,7 +2640,7 @@
 			clock-names = "du.0", "du.1", "du.2";
 			status = "disabled";
 
-			vsps = <&vspd0 &vspd1 &vspd2>;
+			vsps = <&vspd0 0>, <&vspd1 0>, <&vspd2 0>;
 
 			ports {
 				#address-cells = <1>;

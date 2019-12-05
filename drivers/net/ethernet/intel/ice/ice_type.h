@@ -19,6 +19,17 @@ static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 	return test_bit(tc, &bitmap);
 }
 
+static inline u64 round_up_64bit(u64 a, u32 b)
+{
+	return div64_long(((a) + (b) / 2), (b));
+}
+
+static inline u32 ice_round_to_num(u32 N, u32 R)
+{
+	return ((((N) % (R)) < ((R) / 2)) ? (((N) / (R)) * (R)) :
+		((((N) + (R) - 1) / (R)) * (R)));
+}
+
 /* Driver always calls main vsi_handle first */
 #define ICE_MAIN_VSI_HANDLE		0
 
@@ -35,6 +46,8 @@ static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 #define ICE_DBG_PKG		BIT_ULL(16)
 #define ICE_DBG_RES		BIT_ULL(17)
 #define ICE_DBG_AQ_MSG		BIT_ULL(24)
+#define ICE_DBG_AQ_DESC		BIT_ULL(25)
+#define ICE_DBG_AQ_DESC_BUF	BIT_ULL(26)
 #define ICE_DBG_AQ_CMD		BIT_ULL(27)
 #define ICE_DBG_USER		BIT_ULL(31)
 
@@ -189,6 +202,7 @@ struct ice_hw_dev_caps {
 	struct ice_hw_common_caps common_cap;
 	u32 num_vfs_exposed;		/* Total number of VFs exposed */
 	u32 num_vsi_allocd_to_host;	/* Excluding EMP VSI */
+	u32 num_funcs;
 };
 
 /* MAC info */
@@ -272,10 +286,56 @@ enum ice_agg_type {
 	ICE_AGG_TYPE_QG
 };
 
-#define ICE_SCHED_DFLT_RL_PROF_ID	0
-#define ICE_SCHED_DFLT_BW_WT		1
+/* Rate limit types */
+enum ice_rl_type {
+	ICE_UNKNOWN_BW = 0,
+	ICE_MIN_BW,		/* for CIR profile */
+	ICE_MAX_BW,		/* for EIR profile */
+	ICE_SHARED_BW		/* for shared profile */
+};
 
-/* VSI type list entry to locate corresponding VSI/ag nodes */
+#define ICE_SCHED_MIN_BW		500		/* in Kbps */
+#define ICE_SCHED_MAX_BW		100000000	/* in Kbps */
+#define ICE_SCHED_DFLT_BW		0xFFFFFFFF	/* unlimited */
+#define ICE_SCHED_DFLT_RL_PROF_ID	0
+#define ICE_SCHED_NO_SHARED_RL_PROF_ID	0xFFFF
+#define ICE_SCHED_DFLT_BW_WT		1
+#define ICE_SCHED_INVAL_PROF_ID		0xFFFF
+#define ICE_SCHED_DFLT_BURST_SIZE	(15 * 1024)	/* in bytes (15k) */
+
+ /* Data structure for saving BW information */
+enum ice_bw_type {
+	ICE_BW_TYPE_PRIO,
+	ICE_BW_TYPE_CIR,
+	ICE_BW_TYPE_CIR_WT,
+	ICE_BW_TYPE_EIR,
+	ICE_BW_TYPE_EIR_WT,
+	ICE_BW_TYPE_SHARED,
+	ICE_BW_TYPE_CNT		/* This must be last */
+};
+
+struct ice_bw {
+	u32 bw;
+	u16 bw_alloc;
+};
+
+struct ice_bw_type_info {
+	DECLARE_BITMAP(bw_t_bitmap, ICE_BW_TYPE_CNT);
+	u8 generic;
+	struct ice_bw cir_bw;
+	struct ice_bw eir_bw;
+	u32 shared_bw;
+};
+
+/* VSI queue context structure for given TC */
+struct ice_q_ctx {
+	u16  q_handle;
+	u32  q_teid;
+	/* bw_t_info saves queue BW information */
+	struct ice_bw_type_info bw_t_info;
+};
+
+/* VSI type list entry to locate corresponding VSI/aggregator nodes */
 struct ice_sched_vsi_info {
 	struct ice_sched_node *vsi_node[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_sched_node *ag_node[ICE_MAX_TRAFFIC_CLASS];
@@ -364,6 +424,8 @@ struct ice_port_info {
 	struct mutex sched_lock;	/* protect access to TXSched tree */
 	struct ice_sched_node *
 		sib_head[ICE_MAX_TRAFFIC_CLASS][ICE_AQC_TOPO_MAX_LEVEL_NUM];
+	/* List contain profile ID(s) and other params per layer */
+	struct list_head rl_prof_list[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	struct ice_dcbx_cfg local_dcbx_cfg;	/* Oper/Local Cfg */
 	/* DCBX info */
 	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
@@ -414,6 +476,8 @@ struct ice_hw {
 	u8 revision_id;
 
 	u8 pf_id;		/* device profile info */
+
+	u16 max_burst_size;	/* driver sets this value */
 
 	/* Tx Scheduler values */
 	u16 num_tx_sched_layers;
@@ -555,6 +619,8 @@ struct ice_hw_port_stats {
 };
 
 /* Checksum and Shadow RAM pointers */
+#define ICE_SR_BOOT_CFG_PTR		0x132
+#define ICE_NVM_OEM_VER_OFF		0x02
 #define ICE_SR_NVM_DEV_STARTER_VER	0x18
 #define ICE_SR_NVM_EETRACK_LO		0x2D
 #define ICE_SR_NVM_EETRACK_HI		0x2E
@@ -568,6 +634,7 @@ struct ice_hw_port_stats {
 #define ICE_OEM_VER_BUILD_MASK		(0xffff << ICE_OEM_VER_BUILD_SHIFT)
 #define ICE_OEM_VER_SHIFT		24
 #define ICE_OEM_VER_MASK		(0xff << ICE_OEM_VER_SHIFT)
+#define ICE_SR_PFA_PTR			0x40
 #define ICE_SR_SECTOR_SIZE_IN_WORDS	0x800
 #define ICE_SR_WORDS_IN_1KB		512
 

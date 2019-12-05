@@ -28,6 +28,12 @@
 			clock-frequency = <750000000>;
 		};
 
+		input_clk: input-clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <33333333>;
+		};
+
 		core_intc: arc700-intc@cpu {
 			compatible = "snps,arc700-intc";
 			interrupt-controller;

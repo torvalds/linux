@@ -5,7 +5,6 @@
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
  */
 
-#include <linux/component.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -23,29 +22,6 @@
 	.sink_pad = sinkpad,					\
 	.flags = link_flags,					\
 }
-
-struct vimc_device {
-	/* The platform device */
-	struct platform_device pdev;
-
-	/* The pipeline configuration */
-	const struct vimc_pipeline_config *pipe_cfg;
-
-	/* The Associated media_device parent */
-	struct media_device mdev;
-
-	/* Internal v4l2 parent device*/
-	struct v4l2_device v4l2_dev;
-
-	/* Subdevices */
-	struct platform_device **subdevs;
-};
-
-/* Structure which describes individual configuration for each entity */
-struct vimc_ent_config {
-	const char *name;
-	const char *drv;
-};
 
 /* Structure which describes links between entities */
 struct vimc_ent_link {
@@ -68,43 +44,52 @@ struct vimc_pipeline_config {
  * Topology Configuration
  */
 
-static const struct vimc_ent_config ent_config[] = {
+static struct vimc_ent_config ent_config[] = {
 	{
 		.name = "Sensor A",
-		.drv = "vimc-sensor",
+		.add = vimc_sen_add,
+		.rm = vimc_sen_rm,
 	},
 	{
 		.name = "Sensor B",
-		.drv = "vimc-sensor",
+		.add = vimc_sen_add,
+		.rm = vimc_sen_rm,
 	},
 	{
 		.name = "Debayer A",
-		.drv = "vimc-debayer",
+		.add = vimc_deb_add,
+		.rm = vimc_deb_rm,
 	},
 	{
 		.name = "Debayer B",
-		.drv = "vimc-debayer",
+		.add = vimc_deb_add,
+		.rm = vimc_deb_rm,
 	},
 	{
 		.name = "Raw Capture 0",
-		.drv = "vimc-capture",
+		.add = vimc_cap_add,
+		.rm = vimc_cap_rm,
 	},
 	{
 		.name = "Raw Capture 1",
-		.drv = "vimc-capture",
+		.add = vimc_cap_add,
+		.rm = vimc_cap_rm,
 	},
 	{
-		.name = "RGB/YUV Input",
 		/* TODO: change this to vimc-input when it is implemented */
-		.drv = "vimc-sensor",
+		.name = "RGB/YUV Input",
+		.add = vimc_sen_add,
+		.rm = vimc_sen_rm,
 	},
 	{
 		.name = "Scaler",
-		.drv = "vimc-scaler",
+		.add = vimc_sca_add,
+		.rm = vimc_sca_rm,
 	},
 	{
 		.name = "RGB/YUV Capture",
-		.drv = "vimc-capture",
+		.add = vimc_cap_add,
+		.rm = vimc_cap_rm,
 	},
 };
 
@@ -127,7 +112,7 @@ static const struct vimc_ent_link ent_links[] = {
 	VIMC_ENT_LINK(7, 1, 8, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 };
 
-static const struct vimc_pipeline_config pipe_cfg = {
+static struct vimc_pipeline_config pipe_cfg = {
 	.ents		= ent_config,
 	.num_ents	= ARRAY_SIZE(ent_config),
 	.links		= ent_links,
@@ -135,6 +120,14 @@ static const struct vimc_pipeline_config pipe_cfg = {
 };
 
 /* -------------------------------------------------------------------------- */
+
+static void vimc_rm_links(struct vimc_device *vimc)
+{
+	unsigned int i;
+
+	for (i = 0; i < vimc->pipe_cfg->num_ents; i++)
+		media_entity_remove_links(vimc->ent_devs[i]->ent);
+}
 
 static int vimc_create_links(struct vimc_device *vimc)
 {
@@ -144,32 +137,56 @@ static int vimc_create_links(struct vimc_device *vimc)
 	/* Initialize the links between entities */
 	for (i = 0; i < vimc->pipe_cfg->num_links; i++) {
 		const struct vimc_ent_link *link = &vimc->pipe_cfg->links[i];
-		/*
-		 * TODO: Check another way of retrieving ved struct without
-		 * relying on platform_get_drvdata
-		 */
+
 		struct vimc_ent_device *ved_src =
-			platform_get_drvdata(vimc->subdevs[link->src_ent]);
+			vimc->ent_devs[link->src_ent];
 		struct vimc_ent_device *ved_sink =
-			platform_get_drvdata(vimc->subdevs[link->sink_ent]);
+			vimc->ent_devs[link->sink_ent];
 
 		ret = media_create_pad_link(ved_src->ent, link->src_pad,
 					    ved_sink->ent, link->sink_pad,
 					    link->flags);
 		if (ret)
-			return ret;
+			goto err_rm_links;
 	}
 
 	return 0;
+
+err_rm_links:
+	vimc_rm_links(vimc);
+	return ret;
 }
 
-static int vimc_comp_bind(struct device *master)
+static int vimc_add_subdevs(struct vimc_device *vimc)
 {
-	struct vimc_device *vimc = container_of(to_platform_device(master),
-						struct vimc_device, pdev);
-	int ret;
+	unsigned int i;
 
-	dev_dbg(master, "bind");
+	for (i = 0; i < vimc->pipe_cfg->num_ents; i++) {
+		dev_dbg(&vimc->pdev.dev, "new entity for %s\n",
+			vimc->pipe_cfg->ents[i].name);
+		vimc->ent_devs[i] = vimc->pipe_cfg->ents[i].add(vimc,
+					vimc->pipe_cfg->ents[i].name);
+		if (!vimc->ent_devs[i]) {
+			dev_err(&vimc->pdev.dev, "add new entity for %s\n",
+				vimc->pipe_cfg->ents[i].name);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static void vimc_rm_subdevs(struct vimc_device *vimc)
+{
+	unsigned int i;
+
+	for (i = 0; i < vimc->pipe_cfg->num_ents; i++)
+		if (vimc->ent_devs[i])
+			vimc->pipe_cfg->ents[i].rm(vimc, vimc->ent_devs[i]);
+}
+
+static int vimc_register_devices(struct vimc_device *vimc)
+{
+	int ret;
 
 	/* Register the v4l2 struct */
 	ret = v4l2_device_register(vimc->mdev.dev, &vimc->v4l2_dev);
@@ -179,22 +196,31 @@ static int vimc_comp_bind(struct device *master)
 		return ret;
 	}
 
-	/* Bind subdevices */
-	ret = component_bind_all(master, &vimc->v4l2_dev);
-	if (ret)
+	/* allocate ent_devs */
+	vimc->ent_devs = kcalloc(vimc->pipe_cfg->num_ents,
+				 sizeof(*vimc->ent_devs), GFP_KERNEL);
+	if (!vimc->ent_devs) {
+		ret = -ENOMEM;
 		goto err_v4l2_unregister;
+	}
+
+	/* Invoke entity config hooks to initialize and register subdevs */
+	ret = vimc_add_subdevs(vimc);
+	if (ret)
+		/* remove sundevs that got added */
+		goto err_rm_subdevs;
 
 	/* Initialize links */
 	ret = vimc_create_links(vimc);
 	if (ret)
-		goto err_comp_unbind_all;
+		goto err_rm_subdevs;
 
 	/* Register the media device */
 	ret = media_device_register(&vimc->mdev);
 	if (ret) {
 		dev_err(vimc->mdev.dev,
 			"media device register failed (err=%d)\n", ret);
-		goto err_comp_unbind_all;
+		goto err_rm_subdevs;
 	}
 
 	/* Expose all subdev's nodes*/
@@ -211,97 +237,31 @@ static int vimc_comp_bind(struct device *master)
 err_mdev_unregister:
 	media_device_unregister(&vimc->mdev);
 	media_device_cleanup(&vimc->mdev);
-err_comp_unbind_all:
-	component_unbind_all(master, NULL);
+err_rm_subdevs:
+	vimc_rm_subdevs(vimc);
+	kfree(vimc->ent_devs);
 err_v4l2_unregister:
 	v4l2_device_unregister(&vimc->v4l2_dev);
 
 	return ret;
 }
 
-static void vimc_comp_unbind(struct device *master)
+static void vimc_unregister(struct vimc_device *vimc)
 {
-	struct vimc_device *vimc = container_of(to_platform_device(master),
-						struct vimc_device, pdev);
-
-	dev_dbg(master, "unbind");
-
 	media_device_unregister(&vimc->mdev);
 	media_device_cleanup(&vimc->mdev);
-	component_unbind_all(master, NULL);
 	v4l2_device_unregister(&vimc->v4l2_dev);
+	kfree(vimc->ent_devs);
 }
-
-static int vimc_comp_compare(struct device *comp, void *data)
-{
-	return comp == data;
-}
-
-static struct component_match *vimc_add_subdevs(struct vimc_device *vimc)
-{
-	struct component_match *match = NULL;
-	struct vimc_platform_data pdata;
-	int i;
-
-	for (i = 0; i < vimc->pipe_cfg->num_ents; i++) {
-		dev_dbg(&vimc->pdev.dev, "new pdev for %s\n",
-			vimc->pipe_cfg->ents[i].drv);
-
-		strscpy(pdata.entity_name, vimc->pipe_cfg->ents[i].name,
-			sizeof(pdata.entity_name));
-
-		vimc->subdevs[i] = platform_device_register_data(&vimc->pdev.dev,
-						vimc->pipe_cfg->ents[i].drv,
-						PLATFORM_DEVID_AUTO,
-						&pdata,
-						sizeof(pdata));
-		if (IS_ERR(vimc->subdevs[i])) {
-			match = ERR_CAST(vimc->subdevs[i]);
-			while (--i >= 0)
-				platform_device_unregister(vimc->subdevs[i]);
-
-			return match;
-		}
-
-		component_match_add(&vimc->pdev.dev, &match, vimc_comp_compare,
-				    &vimc->subdevs[i]->dev);
-	}
-
-	return match;
-}
-
-static void vimc_rm_subdevs(struct vimc_device *vimc)
-{
-	unsigned int i;
-
-	for (i = 0; i < vimc->pipe_cfg->num_ents; i++)
-		platform_device_unregister(vimc->subdevs[i]);
-}
-
-static const struct component_master_ops vimc_comp_ops = {
-	.bind = vimc_comp_bind,
-	.unbind = vimc_comp_unbind,
-};
 
 static int vimc_probe(struct platform_device *pdev)
 {
 	struct vimc_device *vimc = container_of(pdev, struct vimc_device, pdev);
-	struct component_match *match = NULL;
 	int ret;
 
 	dev_dbg(&pdev->dev, "probe");
 
 	memset(&vimc->mdev, 0, sizeof(vimc->mdev));
-
-	/* Create platform_device for each entity in the topology*/
-	vimc->subdevs = devm_kcalloc(&vimc->pdev.dev, vimc->pipe_cfg->num_ents,
-				     sizeof(*vimc->subdevs), GFP_KERNEL);
-	if (!vimc->subdevs)
-		return -ENOMEM;
-
-	match = vimc_add_subdevs(vimc);
-	if (IS_ERR(match))
-		return PTR_ERR(match);
 
 	/* Link the media device within the v4l2_device */
 	vimc->v4l2_dev.mdev = &vimc->mdev;
@@ -314,12 +274,9 @@ static int vimc_probe(struct platform_device *pdev)
 	vimc->mdev.dev = &pdev->dev;
 	media_device_init(&vimc->mdev);
 
-	/* Add self to the component system */
-	ret = component_master_add_with_match(&pdev->dev, &vimc_comp_ops,
-					      match);
+	ret = vimc_register_devices(vimc);
 	if (ret) {
 		media_device_cleanup(&vimc->mdev);
-		vimc_rm_subdevs(vimc);
 		return ret;
 	}
 
@@ -332,8 +289,8 @@ static int vimc_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "remove");
 
-	component_master_del(&pdev->dev, &vimc_comp_ops);
 	vimc_rm_subdevs(vimc);
+	vimc_unregister(vimc);
 
 	return 0;
 }

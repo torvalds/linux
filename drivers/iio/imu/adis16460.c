@@ -80,7 +80,7 @@ static int adis16460_show_serial_number(void *arg, u64 *val)
 
 	ret = adis_read_reg_16(&adis16460->adis, ADIS16460_REG_SERIAL_NUM,
 		&serial);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*val = serial;
@@ -98,7 +98,7 @@ static int adis16460_show_product_id(void *arg, u64 *val)
 
 	ret = adis_read_reg_16(&adis16460->adis, ADIS16460_REG_PROD_ID,
 		&prod_id);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*val = prod_id;
@@ -116,7 +116,7 @@ static int adis16460_show_flash_count(void *arg, u64 *val)
 
 	ret = adis_read_reg_32(&adis16460->adis, ADIS16460_REG_FLASH_CNT,
 		&flash_count);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*val = flash_count;
@@ -176,7 +176,7 @@ static int adis16460_get_freq(struct iio_dev *indio_dev, int *val, int *val2)
 	unsigned int freq;
 
 	ret = adis_read_reg_16(&st->adis, ADIS16460_REG_DEC_RATE, &t);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	freq = 2048000 / (t + 1);

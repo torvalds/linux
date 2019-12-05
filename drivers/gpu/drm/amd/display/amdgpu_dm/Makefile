@@ -31,6 +31,10 @@ ifneq ($(CONFIG_DRM_AMD_DC),)
 AMDGPUDM += amdgpu_dm_services.o amdgpu_dm_helpers.o amdgpu_dm_pp_smu.o
 endif
 
+ifdef CONFIG_DRM_AMD_DC_HDCP
+AMDGPUDM += amdgpu_dm_hdcp.o
+endif
+
 ifneq ($(CONFIG_DEBUG_FS),)
 AMDGPUDM += amdgpu_dm_crc.o amdgpu_dm_debugfs.o
 endif

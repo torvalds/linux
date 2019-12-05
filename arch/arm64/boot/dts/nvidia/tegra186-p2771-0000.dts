@@ -115,7 +115,7 @@
 	};
 
 	padctl@3520000 {
-		status = "disabled";
+		status = "okay";
 
 		avdd-pll-erefeut-supply = <&vdd_1v8_pll>;
 		avdd-usb-supply = <&vdd_3v3_sys>;
@@ -193,7 +193,7 @@
 	};
 
 	usb@3530000 {
-		status = "disabled";
+		status = "okay";
 
 		phys = <&{/padctl@3520000/pads/usb2/lanes/usb2-0}>,
 		       <&{/padctl@3520000/pads/usb2/lanes/usb2-1}>,
@@ -253,10 +253,14 @@
 			status = "disabled";
 		};
 
+		/* DP on E3320 */
 		sor@15540000 {
-			status = "disabled";
+			status = "okay";
 
-			nvidia,dpaux = <&dpaux1>;
+			avdd-io-hdmi-dp-supply = <&vdd_hdmi_1v05>;
+			vdd-hdmi-dp-pll = <&vdd_1v8_ap>;
+
+			nvidia,dpaux = <&dpaux>;
 		};
 
 		sor@15580000 {

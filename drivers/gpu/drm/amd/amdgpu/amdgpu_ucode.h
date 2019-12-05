@@ -108,6 +108,12 @@ struct ta_firmware_header_v1_0 {
 	uint32_t ta_ras_ucode_version;
 	uint32_t ta_ras_offset_bytes;
 	uint32_t ta_ras_size_bytes;
+	uint32_t ta_hdcp_ucode_version;
+	uint32_t ta_hdcp_offset_bytes;
+	uint32_t ta_hdcp_size_bytes;
+	uint32_t ta_dtm_ucode_version;
+	uint32_t ta_dtm_offset_bytes;
+	uint32_t ta_dtm_size_bytes;
 };
 
 /* version_major=1, version_minor=0 */

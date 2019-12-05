@@ -53,7 +53,7 @@
  * Output:
  * eax uncopied bytes or 0 if successful.
  */
-ENTRY(copy_user_generic_unrolled)
+SYM_FUNC_START(copy_user_generic_unrolled)
 	ASM_STAC
 	cmpl $8,%edx
 	jb 20f		/* less then 8 bytes, go to byte copy loop */
@@ -136,7 +136,7 @@ ENTRY(copy_user_generic_unrolled)
 	_ASM_EXTABLE_UA(19b, 40b)
 	_ASM_EXTABLE_UA(21b, 50b)
 	_ASM_EXTABLE_UA(22b, 50b)
-ENDPROC(copy_user_generic_unrolled)
+SYM_FUNC_END(copy_user_generic_unrolled)
 EXPORT_SYMBOL(copy_user_generic_unrolled)
 
 /* Some CPUs run faster using the string copy instructions.
@@ -157,7 +157,7 @@ EXPORT_SYMBOL(copy_user_generic_unrolled)
  * Output:
  * eax uncopied bytes or 0 if successful.
  */
-ENTRY(copy_user_generic_string)
+SYM_FUNC_START(copy_user_generic_string)
 	ASM_STAC
 	cmpl $8,%edx
 	jb 2f		/* less than 8 bytes, go to byte copy loop */
@@ -182,7 +182,7 @@ ENTRY(copy_user_generic_string)
 
 	_ASM_EXTABLE_UA(1b, 11b)
 	_ASM_EXTABLE_UA(3b, 12b)
-ENDPROC(copy_user_generic_string)
+SYM_FUNC_END(copy_user_generic_string)
 EXPORT_SYMBOL(copy_user_generic_string)
 
 /*
@@ -197,7 +197,7 @@ EXPORT_SYMBOL(copy_user_generic_string)
  * Output:
  * eax uncopied bytes or 0 if successful.
  */
-ENTRY(copy_user_enhanced_fast_string)
+SYM_FUNC_START(copy_user_enhanced_fast_string)
 	ASM_STAC
 	cmpl $64,%edx
 	jb .L_copy_short_string	/* less then 64 bytes, avoid the costly 'rep' */
@@ -214,7 +214,7 @@ ENTRY(copy_user_enhanced_fast_string)
 	.previous
 
 	_ASM_EXTABLE_UA(1b, 12b)
-ENDPROC(copy_user_enhanced_fast_string)
+SYM_FUNC_END(copy_user_enhanced_fast_string)
 EXPORT_SYMBOL(copy_user_enhanced_fast_string)
 
 /*
@@ -230,8 +230,7 @@ EXPORT_SYMBOL(copy_user_enhanced_fast_string)
  * Output:
  * eax uncopied bytes or 0 if successful.
  */
-ALIGN;
-.Lcopy_user_handle_tail:
+SYM_CODE_START_LOCAL(.Lcopy_user_handle_tail)
 	movl %edx,%ecx
 1:	rep movsb
 2:	mov %ecx,%eax
@@ -239,7 +238,7 @@ ALIGN;
 	ret
 
 	_ASM_EXTABLE_UA(1b, 2b)
-END(.Lcopy_user_handle_tail)
+SYM_CODE_END(.Lcopy_user_handle_tail)
 
 /*
  * copy_user_nocache - Uncached memory copy with exception handling
@@ -250,7 +249,7 @@ END(.Lcopy_user_handle_tail)
  *  - Require 8-byte alignment when size is 8 bytes or larger.
  *  - Require 4-byte alignment when size is 4 bytes.
  */
-ENTRY(__copy_user_nocache)
+SYM_FUNC_START(__copy_user_nocache)
 	ASM_STAC
 
 	/* If size is less than 8 bytes, go to 4-byte copy */
@@ -389,5 +388,5 @@ ENTRY(__copy_user_nocache)
 	_ASM_EXTABLE_UA(31b, .L_fixup_4b_copy)
 	_ASM_EXTABLE_UA(40b, .L_fixup_1b_copy)
 	_ASM_EXTABLE_UA(41b, .L_fixup_1b_copy)
-ENDPROC(__copy_user_nocache)
+SYM_FUNC_END(__copy_user_nocache)
 EXPORT_SYMBOL(__copy_user_nocache)

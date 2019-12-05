@@ -29,19 +29,9 @@ struct workspace {
 
 static struct workspace_manager wsm;
 
-static void zlib_init_workspace_manager(void)
+struct list_head *zlib_get_workspace(unsigned int level)
 {
-	btrfs_init_workspace_manager(&wsm, &btrfs_zlib_compress);
-}
-
-static void zlib_cleanup_workspace_manager(void)
-{
-	btrfs_cleanup_workspace_manager(&wsm);
-}
-
-static struct list_head *zlib_get_workspace(unsigned int level)
-{
-	struct list_head *ws = btrfs_get_workspace(&wsm, level);
+	struct list_head *ws = btrfs_get_workspace(BTRFS_COMPRESS_ZLIB, level);
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 
 	workspace->level = level;
@@ -49,12 +39,7 @@ static struct list_head *zlib_get_workspace(unsigned int level)
 	return ws;
 }
 
-static void zlib_put_workspace(struct list_head *ws)
-{
-	btrfs_put_workspace(&wsm, ws);
-}
-
-static void zlib_free_workspace(struct list_head *ws)
+void zlib_free_workspace(struct list_head *ws)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 
@@ -63,7 +48,7 @@ static void zlib_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *zlib_alloc_workspace(unsigned int level)
+struct list_head *zlib_alloc_workspace(unsigned int level)
 {
 	struct workspace *workspace;
 	int workspacesize;
@@ -88,13 +73,9 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-static int zlib_compress_pages(struct list_head *ws,
-			       struct address_space *mapping,
-			       u64 start,
-			       struct page **pages,
-			       unsigned long *out_pages,
-			       unsigned long *total_in,
-			       unsigned long *total_out)
+int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
+		u64 start, struct page **pages, unsigned long *out_pages,
+		unsigned long *total_in, unsigned long *total_out)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret;
@@ -228,7 +209,7 @@ out:
 	return ret;
 }
 
-static int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
+int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0, ret2;
@@ -319,10 +300,9 @@ done:
 	return ret;
 }
 
-static int zlib_decompress(struct list_head *ws, unsigned char *data_in,
-			   struct page *dest_page,
-			   unsigned long start_byte,
-			   size_t srclen, size_t destlen)
+int zlib_decompress(struct list_head *ws, unsigned char *data_in,
+		struct page *dest_page, unsigned long start_byte, size_t srclen,
+		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0;
@@ -419,15 +399,7 @@ next:
 }
 
 const struct btrfs_compress_op btrfs_zlib_compress = {
-	.init_workspace_manager	= zlib_init_workspace_manager,
-	.cleanup_workspace_manager = zlib_cleanup_workspace_manager,
-	.get_workspace		= zlib_get_workspace,
-	.put_workspace		= zlib_put_workspace,
-	.alloc_workspace	= zlib_alloc_workspace,
-	.free_workspace		= zlib_free_workspace,
-	.compress_pages		= zlib_compress_pages,
-	.decompress_bio		= zlib_decompress_bio,
-	.decompress		= zlib_decompress,
+	.workspace_manager	= &wsm,
 	.max_level		= 9,
 	.default_level		= BTRFS_ZLIB_DEFAULT_LEVEL,
 };

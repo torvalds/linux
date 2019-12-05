@@ -381,8 +381,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(fsnotify);
 
-extern struct kmem_cache *fsnotify_mark_connector_cachep;
-
 static __init int fsnotify_init(void)
 {
 	int ret;

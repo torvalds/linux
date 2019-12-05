@@ -8,6 +8,7 @@
 #include <dt-bindings/clock/imx8-clock.h>
 #include <dt-bindings/firmware/imx/rsrc.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/pads-imx8qxp.h>
 
@@ -172,6 +173,12 @@
 		pd: imx8qx-pd {
 			compatible = "fsl,imx8qxp-scu-pd";
 			#power-domain-cells = <1>;
+		};
+
+		scu_key: scu-key {
+			compatible = "fsl,imx8qxp-sc-key", "fsl,imx-sc-key";
+			linux,keycodes = <KEY_POWER>;
+			status = "disabled";
 		};
 
 		rtc: rtc {
@@ -361,8 +368,6 @@
 				 <&conn_lpcg IMX_CONN_LPCG_SDHC0_PER_CLK>,
 				 <&conn_lpcg IMX_CONN_LPCG_SDHC0_HCLK>;
 			clock-names = "ipg", "per", "ahb";
-			assigned-clocks = <&clk IMX_CONN_SDHC0_CLK>;
-			assigned-clock-rates = <200000000>;
 			power-domains = <&pd IMX_SC_R_SDHC_0>;
 			status = "disabled";
 		};
@@ -376,8 +381,6 @@
 				 <&conn_lpcg IMX_CONN_LPCG_SDHC1_PER_CLK>,
 				 <&conn_lpcg IMX_CONN_LPCG_SDHC1_HCLK>;
 			clock-names = "ipg", "per", "ahb";
-			assigned-clocks = <&clk IMX_CONN_SDHC1_CLK>;
-			assigned-clock-rates = <200000000>;
 			power-domains = <&pd IMX_SC_R_SDHC_1>;
 			fsl,tuning-start-tap = <20>;
 			fsl,tuning-step= <2>;
@@ -393,8 +396,6 @@
 				 <&conn_lpcg IMX_CONN_LPCG_SDHC2_PER_CLK>,
 				 <&conn_lpcg IMX_CONN_LPCG_SDHC2_HCLK>;
 			clock-names = "ipg", "per", "ahb";
-			assigned-clocks = <&clk IMX_CONN_SDHC2_CLK>;
-			assigned-clock-rates = <200000000>;
 			power-domains = <&pd IMX_SC_R_SDHC_2>;
 			status = "disabled";
 		};

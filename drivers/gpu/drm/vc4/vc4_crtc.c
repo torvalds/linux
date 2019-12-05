@@ -994,7 +994,7 @@ static void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 	struct vc4_dev *vc4 = to_vc4_dev(crtc->dev);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
 
-	if (vc4_state->mm.allocated) {
+	if (drm_mm_node_allocated(&vc4_state->mm)) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&vc4->hvs->mm_lock, flags);

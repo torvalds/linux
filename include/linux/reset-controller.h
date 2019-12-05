@@ -62,7 +62,8 @@ struct reset_control_lookup {
  * @of_node: corresponding device tree node as phandle target
  * @of_reset_n_cells: number of cells in reset line specifiers
  * @of_xlate: translation function to translate from specifier as found in the
- *            device tree to id as given to the reset control ops
+ *            device tree to id as given to the reset control ops, defaults
+ *            to :c:func:`of_reset_simple_xlate`.
  * @nr_resets: number of reset controls in this reset controller device
  */
 struct reset_controller_dev {

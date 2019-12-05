@@ -482,19 +482,12 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	return ret;
 }
 
-static long native_hpte_find(unsigned long vpn, int psize, int ssize)
+static long __native_hpte_find(unsigned long want_v, unsigned long slot)
 {
 	struct hash_pte *hptep;
-	unsigned long hash;
+	unsigned long hpte_v;
 	unsigned long i;
-	long slot;
-	unsigned long want_v, hpte_v;
 
-	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
-	want_v = hpte_encode_avpn(vpn, psize, ssize);
-
-	/* Bolted mappings are only ever in the primary group */
-	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
 
 		hptep = htab_address + slot;
@@ -506,6 +499,33 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
 	}
 
 	return -1;
+}
+
+static long native_hpte_find(unsigned long vpn, int psize, int ssize)
+{
+	unsigned long hpte_group;
+	unsigned long want_v;
+	unsigned long hash;
+	long slot;
+
+	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
+	want_v = hpte_encode_avpn(vpn, psize, ssize);
+
+	/*
+	 * We try to keep bolted entries always in primary hash
+	 * But in some case we can find them in secondary too.
+	 */
+	hpte_group = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+	slot = __native_hpte_find(want_v, hpte_group);
+	if (slot < 0) {
+		/* Try in secondary */
+		hpte_group = (~hash & htab_hash_mask) * HPTES_PER_GROUP;
+		slot = __native_hpte_find(want_v, hpte_group);
+		if (slot < 0)
+			return -1;
+	}
+
+	return slot;
 }
 
 /*

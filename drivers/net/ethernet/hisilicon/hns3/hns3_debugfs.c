@@ -16,15 +16,14 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 			       const char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
-	struct hns3_nic_ring_data *ring_data;
 	struct hns3_enet_ring *ring;
 	u32 base_add_l, base_add_h;
 	u32 queue_num, queue_max;
 	u32 value, i = 0;
 	int cnt;
 
-	if (!priv->ring_data) {
-		dev_err(&h->pdev->dev, "ring_data is NULL\n");
+	if (!priv->ring) {
+		dev_err(&h->pdev->dev, "priv->ring is NULL\n");
 		return -EFAULT;
 	}
 
@@ -44,7 +43,6 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 		return -EINVAL;
 	}
 
-	ring_data = priv->ring_data;
 	for (i = queue_num; i < queue_max; i++) {
 		/* Each cycle needs to determine whether the instance is reset,
 		 * to prevent reference to invalid memory. And need to ensure
@@ -54,73 +52,73 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 		    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
 			return -EPERM;
 
-		ring = ring_data[(u32)(i + h->kinfo.num_tqps)].ring;
+		ring = &priv->ring[(u32)(i + h->kinfo.num_tqps)];
 		base_add_h = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_RX_RING_BASEADDR_H_REG);
 		base_add_l = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_RX_RING_BASEADDR_L_REG);
-		dev_info(&h->pdev->dev, "RX(%d) BASE ADD: 0x%08x%08x\n", i,
+		dev_info(&h->pdev->dev, "RX(%u) BASE ADD: 0x%08x%08x\n", i,
 			 base_add_h, base_add_l);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_BD_NUM_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING BD NUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING BD NUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_BD_LEN_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING BD LEN: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING BD LEN: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_TAIL_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING TAIL: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING TAIL: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_HEAD_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING HEAD: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING HEAD: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_FBDNUM_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING FBDNUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING FBDNUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_RX_RING_PKTNUM_RECORD_REG);
-		dev_info(&h->pdev->dev, "RX(%d) RING PKTNUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "RX(%u) RING PKTNUM: %u\n", i, value);
 
-		ring = ring_data[i].ring;
+		ring = &priv->ring[i];
 		base_add_h = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_TX_RING_BASEADDR_H_REG);
 		base_add_l = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_TX_RING_BASEADDR_L_REG);
-		dev_info(&h->pdev->dev, "TX(%d) BASE ADD: 0x%08x%08x\n", i,
+		dev_info(&h->pdev->dev, "TX(%u) BASE ADD: 0x%08x%08x\n", i,
 			 base_add_h, base_add_l);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_BD_NUM_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING BD NUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING BD NUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_TC_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING TC: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING TC: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_TAIL_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING TAIL: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING TAIL: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_HEAD_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING HEAD: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING HEAD: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_FBDNUM_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING FBDNUM: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING FBDNUM: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_OFFSET_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING OFFSET: %u\n", i, value);
+		dev_info(&h->pdev->dev, "TX(%u) RING OFFSET: %u\n", i, value);
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_PKTNUM_RECORD_REG);
-		dev_info(&h->pdev->dev, "TX(%d) RING PKTNUM: %u\n\n", i,
+		dev_info(&h->pdev->dev, "TX(%u) RING PKTNUM: %u\n\n", i,
 			 value);
 	}
 
@@ -130,7 +128,6 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 static int hns3_dbg_queue_map(struct hnae3_handle *h)
 {
 	struct hns3_nic_priv *priv = h->priv;
-	struct hns3_nic_ring_data *ring_data;
 	int i;
 
 	if (!h->ae_algo->ops->get_global_queue_id)
@@ -143,15 +140,12 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h)
 		u16 global_qid;
 
 		global_qid = h->ae_algo->ops->get_global_queue_id(h, i);
-		ring_data = &priv->ring_data[i];
-		if (!ring_data || !ring_data->ring ||
-		    !ring_data->ring->tqp_vector)
+		if (!priv->ring || !priv->ring[i].tqp_vector)
 			continue;
 
 		dev_info(&h->pdev->dev,
 			 "      %4d            %4d            %4d\n",
-			 i, global_qid,
-			 ring_data->ring->tqp_vector->vector_irq);
+			 i, global_qid, priv->ring[i].tqp_vector->vector_irq);
 	}
 
 	return 0;
@@ -160,7 +154,6 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h)
 static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
-	struct hns3_nic_ring_data *ring_data;
 	struct hns3_desc *rx_desc, *tx_desc;
 	struct device *dev = &h->pdev->dev;
 	struct hns3_enet_ring *ring;
@@ -183,8 +176,7 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 		return -EINVAL;
 	}
 
-	ring_data = priv->ring_data;
-	ring  = ring_data[q_num].ring;
+	ring  = &priv->ring[q_num];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_TX_RING_TAIL_REG);
 	tx_index = (cnt == 1) ? value : tx_index;
 
@@ -198,23 +190,26 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	addr = le64_to_cpu(tx_desc->addr);
 	dev_info(dev, "TX Queue Num: %u, BD Index: %u\n", q_num, tx_index);
 	dev_info(dev, "(TX)addr: %pad\n", &addr);
-	dev_info(dev, "(TX)vlan_tag: %u\n", tx_desc->tx.vlan_tag);
-	dev_info(dev, "(TX)send_size: %u\n", tx_desc->tx.send_size);
+	dev_info(dev, "(TX)vlan_tag: %u\n", le16_to_cpu(tx_desc->tx.vlan_tag));
+	dev_info(dev, "(TX)send_size: %u\n",
+		 le16_to_cpu(tx_desc->tx.send_size));
 	dev_info(dev, "(TX)vlan_tso: %u\n", tx_desc->tx.type_cs_vlan_tso);
 	dev_info(dev, "(TX)l2_len: %u\n", tx_desc->tx.l2_len);
 	dev_info(dev, "(TX)l3_len: %u\n", tx_desc->tx.l3_len);
 	dev_info(dev, "(TX)l4_len: %u\n", tx_desc->tx.l4_len);
-	dev_info(dev, "(TX)vlan_tag: %u\n", tx_desc->tx.outer_vlan_tag);
-	dev_info(dev, "(TX)tv: %u\n", tx_desc->tx.tv);
+	dev_info(dev, "(TX)vlan_tag: %u\n",
+		 le16_to_cpu(tx_desc->tx.outer_vlan_tag));
+	dev_info(dev, "(TX)tv: %u\n", le16_to_cpu(tx_desc->tx.tv));
 	dev_info(dev, "(TX)vlan_msec: %u\n", tx_desc->tx.ol_type_vlan_msec);
 	dev_info(dev, "(TX)ol2_len: %u\n", tx_desc->tx.ol2_len);
 	dev_info(dev, "(TX)ol3_len: %u\n", tx_desc->tx.ol3_len);
 	dev_info(dev, "(TX)ol4_len: %u\n", tx_desc->tx.ol4_len);
-	dev_info(dev, "(TX)paylen: %u\n", tx_desc->tx.paylen);
-	dev_info(dev, "(TX)vld_ra_ri: %u\n", tx_desc->tx.bdtp_fe_sc_vld_ra_ri);
-	dev_info(dev, "(TX)mss: %u\n", tx_desc->tx.mss);
+	dev_info(dev, "(TX)paylen: %u\n", le32_to_cpu(tx_desc->tx.paylen));
+	dev_info(dev, "(TX)vld_ra_ri: %u\n",
+		 le16_to_cpu(tx_desc->tx.bdtp_fe_sc_vld_ra_ri));
+	dev_info(dev, "(TX)mss: %u\n", le16_to_cpu(tx_desc->tx.mss));
 
-	ring  = ring_data[q_num + h->kinfo.num_tqps].ring;
+	ring  = &priv->ring[q_num + h->kinfo.num_tqps];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_TAIL_REG);
 	rx_index = (cnt == 1) ? value : tx_index;
 	rx_desc	 = &ring->desc[rx_index];
@@ -222,15 +217,19 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	addr = le64_to_cpu(rx_desc->addr);
 	dev_info(dev, "RX Queue Num: %u, BD Index: %u\n", q_num, rx_index);
 	dev_info(dev, "(RX)addr: %pad\n", &addr);
-	dev_info(dev, "(RX)l234_info: %u\n", rx_desc->rx.l234_info);
-	dev_info(dev, "(RX)pkt_len: %u\n", rx_desc->rx.pkt_len);
-	dev_info(dev, "(RX)size: %u\n", rx_desc->rx.size);
-	dev_info(dev, "(RX)rss_hash: %u\n", rx_desc->rx.rss_hash);
-	dev_info(dev, "(RX)fd_id: %u\n", rx_desc->rx.fd_id);
-	dev_info(dev, "(RX)vlan_tag: %u\n", rx_desc->rx.vlan_tag);
-	dev_info(dev, "(RX)o_dm_vlan_id_fb: %u\n", rx_desc->rx.o_dm_vlan_id_fb);
-	dev_info(dev, "(RX)ot_vlan_tag: %u\n", rx_desc->rx.ot_vlan_tag);
-	dev_info(dev, "(RX)bd_base_info: %u\n", rx_desc->rx.bd_base_info);
+	dev_info(dev, "(RX)l234_info: %u\n",
+		 le32_to_cpu(rx_desc->rx.l234_info));
+	dev_info(dev, "(RX)pkt_len: %u\n", le16_to_cpu(rx_desc->rx.pkt_len));
+	dev_info(dev, "(RX)size: %u\n", le16_to_cpu(rx_desc->rx.size));
+	dev_info(dev, "(RX)rss_hash: %u\n", le32_to_cpu(rx_desc->rx.rss_hash));
+	dev_info(dev, "(RX)fd_id: %u\n", le16_to_cpu(rx_desc->rx.fd_id));
+	dev_info(dev, "(RX)vlan_tag: %u\n", le16_to_cpu(rx_desc->rx.vlan_tag));
+	dev_info(dev, "(RX)o_dm_vlan_id_fb: %u\n",
+		 le16_to_cpu(rx_desc->rx.o_dm_vlan_id_fb));
+	dev_info(dev, "(RX)ot_vlan_tag: %u\n",
+		 le16_to_cpu(rx_desc->rx.ot_vlan_tag));
+	dev_info(dev, "(RX)bd_base_info: %u\n",
+		 le32_to_cpu(rx_desc->rx.bd_base_info));
 
 	return 0;
 }

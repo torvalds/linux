@@ -716,9 +716,12 @@ static int at24_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	dev_info(dev, "%u byte %s EEPROM, %s, %u bytes/write\n",
-		 byte_len, client->name,
-		 writable ? "writable" : "read-only", at24->write_max);
+	if (writable)
+		dev_info(dev, "%u byte %s EEPROM, writable, %u bytes/write\n",
+			 byte_len, client->name, at24->write_max);
+	else
+		dev_info(dev, "%u byte %s EEPROM, read-only\n",
+			 byte_len, client->name);
 
 	return 0;
 }

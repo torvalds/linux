@@ -69,7 +69,7 @@ the kernel command line.
 
 Memory may be allocated or freed before kmemleak is initialised and
 these actions are stored in an early log buffer. The size of this buffer
-is configured via the CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE option.
+is configured via the CONFIG_DEBUG_KMEMLEAK_MEM_POOL_SIZE option.
 
 If CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF are enabled, the kmemleak is
 disabled by default. Passing ``kmemleak=on`` on the kernel command

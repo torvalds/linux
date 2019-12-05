@@ -162,17 +162,17 @@ void usbhs_usbreq_get_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req)
 	req->bRequest		= (val >> 8) & 0xFF;
 	req->bRequestType	= (val >> 0) & 0xFF;
 
-	req->wValue	= usbhs_read(priv, USBVAL);
-	req->wIndex	= usbhs_read(priv, USBINDX);
-	req->wLength	= usbhs_read(priv, USBLENG);
+	req->wValue	= cpu_to_le16(usbhs_read(priv, USBVAL));
+	req->wIndex	= cpu_to_le16(usbhs_read(priv, USBINDX));
+	req->wLength	= cpu_to_le16(usbhs_read(priv, USBLENG));
 }
 
 void usbhs_usbreq_set_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req)
 {
 	usbhs_write(priv, USBREQ,  (req->bRequest << 8) | req->bRequestType);
-	usbhs_write(priv, USBVAL,  req->wValue);
-	usbhs_write(priv, USBINDX, req->wIndex);
-	usbhs_write(priv, USBLENG, req->wLength);
+	usbhs_write(priv, USBVAL,  le16_to_cpu(req->wValue));
+	usbhs_write(priv, USBINDX, le16_to_cpu(req->wIndex));
+	usbhs_write(priv, USBLENG, le16_to_cpu(req->wLength));
 
 	usbhs_bset(priv, DCPCTR, SUREQ, SUREQ);
 }
@@ -590,7 +590,7 @@ static int usbhs_probe(struct platform_device *pdev)
 {
 	const struct renesas_usbhs_platform_info *info;
 	struct usbhs_priv *priv;
-	struct resource *res, *irq_res;
+	struct resource *irq_res;
 	struct device *dev = &pdev->dev;
 	int ret, gpio;
 	u32 tmp;
@@ -619,8 +619,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 

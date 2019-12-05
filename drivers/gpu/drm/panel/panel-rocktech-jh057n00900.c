@@ -343,9 +343,8 @@ static int jh057n_probe(struct mipi_dsi_device *dsi)
 		return ret;
 	}
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &jh057n_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &jh057n_drm_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	drm_panel_add(&ctx->panel);
 

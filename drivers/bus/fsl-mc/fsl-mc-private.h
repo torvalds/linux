@@ -105,6 +105,8 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 #define DPRC_CMDID_GET_OBJ_REG_V2               DPRC_CMD_V2(0x15E)
 #define DPRC_CMDID_SET_OBJ_IRQ                  DPRC_CMD(0x15F)
 
+#define DPRC_CMDID_GET_CONNECTION               DPRC_CMD(0x16C)
+
 struct dprc_cmd_open {
 	__le32 container_id;
 };
@@ -226,6 +228,22 @@ struct dprc_cmd_set_obj_irq {
 	__le32 obj_id;
 	/* cmd word 3-4 */
 	u8 obj_type[16];
+};
+
+struct dprc_cmd_get_connection {
+	__le32 ep1_id;
+	__le16 ep1_interface_id;
+	u8 pad[2];
+	u8 ep1_type[16];
+};
+
+struct dprc_rsp_get_connection {
+	__le64 pad[3];
+	__le32 ep2_id;
+	__le16 ep2_interface_id;
+	__le16 pad1;
+	u8 ep2_type[16];
+	__le32 state;
 };
 
 /*
@@ -391,6 +409,27 @@ int dprc_get_api_version(struct fsl_mc_io *mc_io,
 int dprc_get_container_id(struct fsl_mc_io *mc_io,
 			  u32 cmd_flags,
 			  int *container_id);
+
+/**
+ * struct dprc_endpoint - Endpoint description for link connect/disconnect
+ *			operations
+ * @type:	Endpoint object type: NULL terminated string
+ * @id:		Endpoint object ID
+ * @if_id:	Interface ID; should be set for endpoints with multiple
+ *		interfaces ("dpsw", "dpdmux"); for others, always set to 0
+ */
+struct dprc_endpoint {
+	char type[16];
+	int id;
+	u16 if_id;
+};
+
+int dprc_get_connection(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			const struct dprc_endpoint *endpoint1,
+			struct dprc_endpoint *endpoint2,
+			int *state);
 
 /*
  * Data Path Buffer Pool (DPBP) API
@@ -573,5 +612,8 @@ int __must_check fsl_create_mc_io(struct device *dev,
 void fsl_destroy_mc_io(struct fsl_mc_io *mc_io);
 
 bool fsl_mc_is_root_dprc(struct device *dev);
+
+struct fsl_mc_device *fsl_mc_device_lookup(struct fsl_mc_obj_desc *obj_desc,
+					   struct fsl_mc_device *mc_bus_dev);
 
 #endif /* _FSL_MC_PRIVATE_H_ */

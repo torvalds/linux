@@ -2,6 +2,7 @@
 
 Required properties:
 - compatible		: should contain one or more of the following:
+			  - "renesas,sata-r8a774b1" for RZ/G2N
 			  - "renesas,sata-r8a7779" for R-Car H1
 			  - "renesas,sata-r8a7790-es1" for R-Car H2 ES1
 			  - "renesas,sata-r8a7790" for R-Car H2 other than ES1
@@ -9,8 +10,10 @@ Required properties:
 			  - "renesas,sata-r8a7793" for R-Car M2-N
 			  - "renesas,sata-r8a7795" for R-Car H3
 			  - "renesas,sata-r8a77965" for R-Car M3-N
-			  - "renesas,rcar-gen2-sata" for a generic R-Car Gen2 compatible device
-			  - "renesas,rcar-gen3-sata" for a generic R-Car Gen3 compatible device
+			  - "renesas,rcar-gen2-sata" for a generic R-Car Gen2
+			     compatible device
+			  - "renesas,rcar-gen3-sata" for a generic R-Car Gen3 or
+			     RZ/G2 compatible device
 			  - "renesas,rcar-sata" is deprecated
 
 			  When compatible with the generic version nodes

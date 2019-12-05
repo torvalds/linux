@@ -307,45 +307,57 @@ static inline u64 get_hop0_addr(struct hl_ctx *ctx)
 			(ctx->asid * ctx->hdev->asic_prop.mmu_hop_table_size);
 }
 
-static inline u64 get_hop0_pte_addr(struct hl_ctx *ctx, u64 hop_addr,
-		u64 virt_addr)
+static inline u64 get_hopN_pte_addr(struct hl_ctx *ctx, u64 hop_addr,
+					u64 virt_addr, u64 mask, u64 shift)
 {
 	return hop_addr + ctx->hdev->asic_prop.mmu_pte_size *
-			((virt_addr & HOP0_MASK) >> HOP0_SHIFT);
+			((virt_addr & mask) >> shift);
 }
 
-static inline u64 get_hop1_pte_addr(struct hl_ctx *ctx, u64 hop_addr,
-		u64 virt_addr)
+static inline u64 get_hop0_pte_addr(struct hl_ctx *ctx,
+					struct hl_mmu_properties *mmu_specs,
+					u64 hop_addr, u64 vaddr)
 {
-	return hop_addr + ctx->hdev->asic_prop.mmu_pte_size *
-			((virt_addr & HOP1_MASK) >> HOP1_SHIFT);
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop0_mask,
+					mmu_specs->hop0_shift);
 }
 
-static inline u64 get_hop2_pte_addr(struct hl_ctx *ctx, u64 hop_addr,
-		u64 virt_addr)
+static inline u64 get_hop1_pte_addr(struct hl_ctx *ctx,
+					struct hl_mmu_properties *mmu_specs,
+					u64 hop_addr, u64 vaddr)
 {
-	return hop_addr + ctx->hdev->asic_prop.mmu_pte_size *
-			((virt_addr & HOP2_MASK) >> HOP2_SHIFT);
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop1_mask,
+					mmu_specs->hop1_shift);
 }
 
-static inline u64 get_hop3_pte_addr(struct hl_ctx *ctx, u64 hop_addr,
-		u64 virt_addr)
+static inline u64 get_hop2_pte_addr(struct hl_ctx *ctx,
+					struct hl_mmu_properties *mmu_specs,
+					u64 hop_addr, u64 vaddr)
 {
-	return hop_addr + ctx->hdev->asic_prop.mmu_pte_size *
-			((virt_addr & HOP3_MASK) >> HOP3_SHIFT);
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop2_mask,
+					mmu_specs->hop2_shift);
 }
 
-static inline u64 get_hop4_pte_addr(struct hl_ctx *ctx, u64 hop_addr,
-		u64 virt_addr)
+static inline u64 get_hop3_pte_addr(struct hl_ctx *ctx,
+					struct hl_mmu_properties *mmu_specs,
+					u64 hop_addr, u64 vaddr)
 {
-	return hop_addr + ctx->hdev->asic_prop.mmu_pte_size *
-			((virt_addr & HOP4_MASK) >> HOP4_SHIFT);
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop3_mask,
+					mmu_specs->hop3_shift);
+}
+
+static inline u64 get_hop4_pte_addr(struct hl_ctx *ctx,
+					struct hl_mmu_properties *mmu_specs,
+					u64 hop_addr, u64 vaddr)
+{
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop4_mask,
+					mmu_specs->hop4_shift);
 }
 
 static inline u64 get_next_hop_addr(u64 curr_pte)
 {
 	if (curr_pte & PAGE_PRESENT_MASK)
-		return curr_pte & PHYS_ADDR_MASK;
+		return curr_pte & HOP_PHYS_ADDR_MASK;
 	else
 		return ULLONG_MAX;
 }
@@ -355,7 +367,10 @@ static int mmu_show(struct seq_file *s, void *data)
 	struct hl_debugfs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_mmu_properties *mmu_prop;
 	struct hl_ctx *ctx;
+	bool is_dram_addr;
 
 	u64 hop0_addr = 0, hop0_pte_addr = 0, hop0_pte = 0,
 		hop1_addr = 0, hop1_pte_addr = 0, hop1_pte = 0,
@@ -377,33 +392,39 @@ static int mmu_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
+	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
+				prop->va_space_dram_start_address,
+				prop->va_space_dram_end_address);
+
+	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
+
 	mutex_lock(&ctx->mmu_lock);
 
 	/* the following lookup is copied from unmap() in mmu.c */
 
 	hop0_addr = get_hop0_addr(ctx);
-	hop0_pte_addr = get_hop0_pte_addr(ctx, hop0_addr, virt_addr);
+	hop0_pte_addr = get_hop0_pte_addr(ctx, mmu_prop, hop0_addr, virt_addr);
 	hop0_pte = hdev->asic_funcs->read_pte(hdev, hop0_pte_addr);
 	hop1_addr = get_next_hop_addr(hop0_pte);
 
 	if (hop1_addr == ULLONG_MAX)
 		goto not_mapped;
 
-	hop1_pte_addr = get_hop1_pte_addr(ctx, hop1_addr, virt_addr);
+	hop1_pte_addr = get_hop1_pte_addr(ctx, mmu_prop, hop1_addr, virt_addr);
 	hop1_pte = hdev->asic_funcs->read_pte(hdev, hop1_pte_addr);
 	hop2_addr = get_next_hop_addr(hop1_pte);
 
 	if (hop2_addr == ULLONG_MAX)
 		goto not_mapped;
 
-	hop2_pte_addr = get_hop2_pte_addr(ctx, hop2_addr, virt_addr);
+	hop2_pte_addr = get_hop2_pte_addr(ctx, mmu_prop, hop2_addr, virt_addr);
 	hop2_pte = hdev->asic_funcs->read_pte(hdev, hop2_pte_addr);
 	hop3_addr = get_next_hop_addr(hop2_pte);
 
 	if (hop3_addr == ULLONG_MAX)
 		goto not_mapped;
 
-	hop3_pte_addr = get_hop3_pte_addr(ctx, hop3_addr, virt_addr);
+	hop3_pte_addr = get_hop3_pte_addr(ctx, mmu_prop, hop3_addr, virt_addr);
 	hop3_pte = hdev->asic_funcs->read_pte(hdev, hop3_pte_addr);
 
 	if (!(hop3_pte & LAST_MASK)) {
@@ -412,7 +433,8 @@ static int mmu_show(struct seq_file *s, void *data)
 		if (hop4_addr == ULLONG_MAX)
 			goto not_mapped;
 
-		hop4_pte_addr = get_hop4_pte_addr(ctx, hop4_addr, virt_addr);
+		hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop, hop4_addr,
+							virt_addr);
 		hop4_pte = hdev->asic_funcs->read_pte(hdev, hop4_pte_addr);
 		if (!(hop4_pte & PAGE_PRESENT_MASK))
 			goto not_mapped;
@@ -506,6 +528,12 @@ static int engines_show(struct seq_file *s, void *data)
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
 
+	if (atomic_read(&hdev->in_reset)) {
+		dev_warn_ratelimited(hdev->dev,
+				"Can't check device idle during reset\n");
+		return 0;
+	}
+
 	hdev->asic_funcs->is_device_idle(hdev, NULL, s);
 
 	return 0;
@@ -534,41 +562,50 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 				u64 *phys_addr)
 {
 	struct hl_ctx *ctx = hdev->compute_ctx;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_mmu_properties *mmu_prop;
 	u64 hop_addr, hop_pte_addr, hop_pte;
-	u64 offset_mask = HOP4_MASK | OFFSET_MASK;
+	u64 offset_mask = HOP4_MASK | FLAGS_MASK;
 	int rc = 0;
+	bool is_dram_addr;
 
 	if (!ctx) {
 		dev_err(hdev->dev, "no ctx available\n");
 		return -EINVAL;
 	}
 
+	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
+				prop->va_space_dram_start_address,
+				prop->va_space_dram_end_address);
+
+	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
+
 	mutex_lock(&ctx->mmu_lock);
 
 	/* hop 0 */
 	hop_addr = get_hop0_addr(ctx);
-	hop_pte_addr = get_hop0_pte_addr(ctx, hop_addr, virt_addr);
+	hop_pte_addr = get_hop0_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
 	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
 
 	/* hop 1 */
 	hop_addr = get_next_hop_addr(hop_pte);
 	if (hop_addr == ULLONG_MAX)
 		goto not_mapped;
-	hop_pte_addr = get_hop1_pte_addr(ctx, hop_addr, virt_addr);
+	hop_pte_addr = get_hop1_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
 	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
 
 	/* hop 2 */
 	hop_addr = get_next_hop_addr(hop_pte);
 	if (hop_addr == ULLONG_MAX)
 		goto not_mapped;
-	hop_pte_addr = get_hop2_pte_addr(ctx, hop_addr, virt_addr);
+	hop_pte_addr = get_hop2_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
 	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
 
 	/* hop 3 */
 	hop_addr = get_next_hop_addr(hop_pte);
 	if (hop_addr == ULLONG_MAX)
 		goto not_mapped;
-	hop_pte_addr = get_hop3_pte_addr(ctx, hop_addr, virt_addr);
+	hop_pte_addr = get_hop3_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
 	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
 
 	if (!(hop_pte & LAST_MASK)) {
@@ -576,10 +613,11 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 		hop_addr = get_next_hop_addr(hop_pte);
 		if (hop_addr == ULLONG_MAX)
 			goto not_mapped;
-		hop_pte_addr = get_hop4_pte_addr(ctx, hop_addr, virt_addr);
+		hop_pte_addr = get_hop4_pte_addr(ctx, mmu_prop, hop_addr,
+							virt_addr);
 		hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
 
-		offset_mask = OFFSET_MASK;
+		offset_mask = FLAGS_MASK;
 	}
 
 	if (!(hop_pte & PAGE_PRESENT_MASK))
@@ -607,6 +645,11 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 	u64 addr = entry->addr;
 	u32 val;
 	ssize_t rc;
+
+	if (atomic_read(&hdev->in_reset)) {
+		dev_warn_ratelimited(hdev->dev, "Can't read during reset\n");
+		return 0;
+	}
 
 	if (*ppos)
 		return 0;
@@ -636,6 +679,11 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	u64 addr = entry->addr;
 	u32 value;
 	ssize_t rc;
+
+	if (atomic_read(&hdev->in_reset)) {
+		dev_warn_ratelimited(hdev->dev, "Can't write during reset\n");
+		return 0;
+	}
 
 	rc = kstrtouint_from_user(buf, count, 16, &value);
 	if (rc)

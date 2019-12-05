@@ -202,6 +202,7 @@ static const struct file_operations iop_wdt_fops = {
 	.llseek = no_llseek,
 	.write = iop_wdt_write,
 	.unlocked_ioctl = iop_wdt_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.open = iop_wdt_open,
 	.release = iop_wdt_release,
 };

@@ -37,6 +37,8 @@ struct smcd_dmb {
 #define ISM_EVENT_GID	1
 #define ISM_EVENT_SWR	2
 
+#define ISM_ERROR	0xFFFF
+
 struct smcd_event {
 	u32 type;
 	u32 code;
@@ -75,6 +77,11 @@ struct smcd_dev {
 	struct workqueue_struct *event_wq;
 	u8 pnetid[SMC_MAX_PNETID_LEN];
 	bool pnetid_by_user;
+	struct list_head lgr_list;
+	spinlock_t lgr_lock;
+	atomic_t lgr_cnt;
+	wait_queue_head_t lgrs_deleted;
+	u8 going_away : 1;
 };
 
 struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,

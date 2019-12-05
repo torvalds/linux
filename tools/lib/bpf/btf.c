@@ -269,10 +269,9 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 		t = btf__type_by_id(btf, type_id);
 	}
 
+done:
 	if (size < 0)
 		return -EINVAL;
-
-done:
 	if (nelems && size > UINT32_MAX / nelems)
 		return -E2BIG;
 
@@ -310,6 +309,28 @@ __s32 btf__find_by_name(const struct btf *btf, const char *type_name)
 		const struct btf_type *t = btf->types[i];
 		const char *name = btf__name_by_offset(btf, t->name_off);
 
+		if (name && !strcmp(type_name, name))
+			return i;
+	}
+
+	return -ENOENT;
+}
+
+__s32 btf__find_by_name_kind(const struct btf *btf, const char *type_name,
+			     __u32 kind)
+{
+	__u32 i;
+
+	if (kind == BTF_KIND_UNKN || !strcmp(type_name, "void"))
+		return 0;
+
+	for (i = 1; i <= btf->nr_types; i++) {
+		const struct btf_type *t = btf->types[i];
+		const char *name;
+
+		if (btf_kind(t) != kind)
+			continue;
+		name = btf__name_by_offset(btf, t->name_off);
 		if (name && !strcmp(type_name, name))
 			return i;
 	}
@@ -390,14 +411,14 @@ struct btf *btf__parse_elf(const char *path, struct btf_ext **btf_ext)
 	GElf_Ehdr ehdr;
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
-		pr_warning("failed to init libelf for %s\n", path);
+		pr_warn("failed to init libelf for %s\n", path);
 		return ERR_PTR(-LIBBPF_ERRNO__LIBELF);
 	}
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
 		err = -errno;
-		pr_warning("failed to open %s: %s\n", path, strerror(errno));
+		pr_warn("failed to open %s: %s\n", path, strerror(errno));
 		return ERR_PTR(err);
 	}
 
@@ -405,19 +426,19 @@ struct btf *btf__parse_elf(const char *path, struct btf_ext **btf_ext)
 
 	elf = elf_begin(fd, ELF_C_READ, NULL);
 	if (!elf) {
-		pr_warning("failed to open %s as ELF file\n", path);
+		pr_warn("failed to open %s as ELF file\n", path);
 		goto done;
 	}
 	if (!gelf_getehdr(elf, &ehdr)) {
-		pr_warning("failed to get EHDR from %s\n", path);
+		pr_warn("failed to get EHDR from %s\n", path);
 		goto done;
 	}
 	if (!btf_check_endianness(&ehdr)) {
-		pr_warning("non-native ELF endianness is not supported\n");
+		pr_warn("non-native ELF endianness is not supported\n");
 		goto done;
 	}
 	if (!elf_rawdata(elf_getscn(elf, ehdr.e_shstrndx), NULL)) {
-		pr_warning("failed to get e_shstrndx from %s\n", path);
+		pr_warn("failed to get e_shstrndx from %s\n", path);
 		goto done;
 	}
 
@@ -427,29 +448,29 @@ struct btf *btf__parse_elf(const char *path, struct btf_ext **btf_ext)
 
 		idx++;
 		if (gelf_getshdr(scn, &sh) != &sh) {
-			pr_warning("failed to get section(%d) header from %s\n",
-				   idx, path);
+			pr_warn("failed to get section(%d) header from %s\n",
+				idx, path);
 			goto done;
 		}
 		name = elf_strptr(elf, ehdr.e_shstrndx, sh.sh_name);
 		if (!name) {
-			pr_warning("failed to get section(%d) name from %s\n",
-				   idx, path);
+			pr_warn("failed to get section(%d) name from %s\n",
+				idx, path);
 			goto done;
 		}
 		if (strcmp(name, BTF_ELF_SEC) == 0) {
 			btf_data = elf_getdata(scn, 0);
 			if (!btf_data) {
-				pr_warning("failed to get section(%d, %s) data from %s\n",
-					   idx, name, path);
+				pr_warn("failed to get section(%d, %s) data from %s\n",
+					idx, name, path);
 				goto done;
 			}
 			continue;
 		} else if (btf_ext && strcmp(name, BTF_EXT_ELF_SEC) == 0) {
 			btf_ext_data = elf_getdata(scn, 0);
 			if (!btf_ext_data) {
-				pr_warning("failed to get section(%d, %s) data from %s\n",
-					   idx, name, path);
+				pr_warn("failed to get section(%d, %s) data from %s\n",
+					idx, name, path);
 				goto done;
 			}
 			continue;
@@ -600,9 +621,9 @@ int btf__load(struct btf *btf)
 			       log_buf, log_buf_size, false);
 	if (btf->fd < 0) {
 		err = -errno;
-		pr_warning("Error loading BTF: %s(%d)\n", strerror(errno), errno);
+		pr_warn("Error loading BTF: %s(%d)\n", strerror(errno), errno);
 		if (*log_buf)
-			pr_warning("%s\n", log_buf);
+			pr_warn("%s\n", log_buf);
 		goto done;
 	}
 
@@ -707,8 +728,8 @@ int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 
 	if (snprintf(container_name, max_name, "____btf_map_%s", map_name) ==
 	    max_name) {
-		pr_warning("map:%s length of '____btf_map_%s' is too long\n",
-			   map_name, map_name);
+		pr_warn("map:%s length of '____btf_map_%s' is too long\n",
+			map_name, map_name);
 		return -EINVAL;
 	}
 
@@ -721,14 +742,14 @@ int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 
 	container_type = btf__type_by_id(btf, container_id);
 	if (!container_type) {
-		pr_warning("map:%s cannot find BTF type for container_id:%u\n",
-			   map_name, container_id);
+		pr_warn("map:%s cannot find BTF type for container_id:%u\n",
+			map_name, container_id);
 		return -EINVAL;
 	}
 
 	if (!btf_is_struct(container_type) || btf_vlen(container_type) < 2) {
-		pr_warning("map:%s container_name:%s is an invalid container struct\n",
-			   map_name, container_name);
+		pr_warn("map:%s container_name:%s is an invalid container struct\n",
+			map_name, container_name);
 		return -EINVAL;
 	}
 
@@ -737,25 +758,25 @@ int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 
 	key_size = btf__resolve_size(btf, key->type);
 	if (key_size < 0) {
-		pr_warning("map:%s invalid BTF key_type_size\n", map_name);
+		pr_warn("map:%s invalid BTF key_type_size\n", map_name);
 		return key_size;
 	}
 
 	if (expected_key_size != key_size) {
-		pr_warning("map:%s btf_key_type_size:%u != map_def_key_size:%u\n",
-			   map_name, (__u32)key_size, expected_key_size);
+		pr_warn("map:%s btf_key_type_size:%u != map_def_key_size:%u\n",
+			map_name, (__u32)key_size, expected_key_size);
 		return -EINVAL;
 	}
 
 	value_size = btf__resolve_size(btf, value->type);
 	if (value_size < 0) {
-		pr_warning("map:%s invalid BTF value_type_size\n", map_name);
+		pr_warn("map:%s invalid BTF value_type_size\n", map_name);
 		return value_size;
 	}
 
 	if (expected_value_size != value_size) {
-		pr_warning("map:%s btf_value_type_size:%u != map_def_value_size:%u\n",
-			   map_name, (__u32)value_size, expected_value_size);
+		pr_warn("map:%s btf_value_type_size:%u != map_def_value_size:%u\n",
+			map_name, (__u32)value_size, expected_value_size);
 		return -EINVAL;
 	}
 
@@ -888,14 +909,14 @@ static int btf_ext_setup_line_info(struct btf_ext *btf_ext)
 	return btf_ext_setup_info(btf_ext, &param);
 }
 
-static int btf_ext_setup_offset_reloc(struct btf_ext *btf_ext)
+static int btf_ext_setup_field_reloc(struct btf_ext *btf_ext)
 {
 	struct btf_ext_sec_setup_param param = {
-		.off = btf_ext->hdr->offset_reloc_off,
-		.len = btf_ext->hdr->offset_reloc_len,
-		.min_rec_size = sizeof(struct bpf_offset_reloc),
-		.ext_info = &btf_ext->offset_reloc_info,
-		.desc = "offset_reloc",
+		.off = btf_ext->hdr->field_reloc_off,
+		.len = btf_ext->hdr->field_reloc_len,
+		.min_rec_size = sizeof(struct bpf_field_reloc),
+		.ext_info = &btf_ext->field_reloc_info,
+		.desc = "field_reloc",
 	};
 
 	return btf_ext_setup_info(btf_ext, &param);
@@ -975,9 +996,9 @@ struct btf_ext *btf_ext__new(__u8 *data, __u32 size)
 		goto done;
 
 	if (btf_ext->hdr->hdr_len <
-	    offsetofend(struct btf_ext_header, offset_reloc_len))
+	    offsetofend(struct btf_ext_header, field_reloc_len))
 		goto done;
-	err = btf_ext_setup_offset_reloc(btf_ext);
+	err = btf_ext_setup_field_reloc(btf_ext);
 	if (err)
 		goto done;
 

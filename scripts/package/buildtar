@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 #
-# buildtar 0.0.4
+# buildtar 0.0.5
 #
 # (C) 2004-2006 by Jan-Benedict Glaw <jbglaw@lug-owl.de>
 #
@@ -24,7 +24,7 @@ tarball="${objtree}/linux-${KERNELRELEASE}-${ARCH}.tar"
 # Figure out how to compress, if requested at all
 #
 case "${1}" in
-	tar-pkg)
+	dir-pkg|tar-pkg)
 		opts=
 		;;
 	targz-pkg)
@@ -125,6 +125,10 @@ case "${ARCH}" in
 		;;
 esac
 
+if [ "${1}" = dir-pkg ]; then
+	echo "Kernel tree successfully created in $tmpdir"
+	exit 0
+fi
 
 #
 # Create the tarball

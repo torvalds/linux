@@ -49,8 +49,6 @@
 /* Helper for accessing data. */
 #define RVi(table, src, dest)	((table)[(dest) * NI_NUM_NAMES + (src)])
 
-static const size_t route_table_size = NI_NUM_NAMES * NI_NUM_NAMES;
-
 /*
  * Find the proper route_values and ni_device_routes tables for this particular
  * device.

@@ -374,12 +374,19 @@
 #define DBGC_CUR_DBGBUF_STATUS			(0xd03c1c)
 #define DBGC_DBGBUF_WRAP_AROUND			(0xd03c2c)
 #define DBGC_CUR_DBGBUF_STATUS_OFFSET_MSK	(0x00ffffff)
+#define DBGC_CUR_DBGBUF_STATUS_IDX_MSK		(0x0f000000)
 
 #define MON_DMARB_RD_CTL_ADDR		(0xa03c60)
 #define MON_DMARB_RD_DATA_ADDR		(0xa03c5c)
 
 #define DBGC_IN_SAMPLE			(0xa03c00)
 #define DBGC_OUT_CTRL			(0xa03c0c)
+
+/* M2S registers */
+#define LDBG_M2S_BUF_WPTR			(0xa0476c)
+#define LDBG_M2S_BUF_WRAP_CNT			(0xa04774)
+#define LDBG_M2S_BUF_WPTR_VAL_MSK		(0x000fffff)
+#define LDBG_M2S_BUF_WRAP_CNT_VAL_MSK		(0x000fffff)
 
 /* enable the ID buf for read */
 #define WFPM_PS_CTL_CLR			0xA0300C
@@ -448,6 +455,11 @@ enum {
 #define HPM_DEBUG			0xA03440
 #define PERSISTENCE_BIT			BIT(12)
 #define PREG_WFPM_ACCESS		BIT(12)
+
+#define HPM_HIPM_GEN_CFG			0xA03458
+#define HPM_HIPM_GEN_CFG_CR_PG_EN		BIT(0)
+#define HPM_HIPM_GEN_CFG_CR_SLP_EN		BIT(1)
+#define HPM_HIPM_GEN_CFG_CR_FORCE_ACTIVE	BIT(10)
 
 #define UREG_DOORBELL_TO_ISR6		0xA05C04
 #define UREG_DOORBELL_TO_ISR6_NMI_BIT	BIT(0)

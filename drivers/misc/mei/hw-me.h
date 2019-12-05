@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2012-2018, Intel Corporation. All rights reserved.
+ * Copyright (c) 2012-2019, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -21,12 +21,14 @@
  * @quirk_probe: device exclusion quirk
  * @dma_size: device DMA buffers size
  * @fw_ver_supported: is fw version retrievable from FW
+ * @hw_trc_supported: does the hw support trc register
  */
 struct mei_cfg {
 	const struct mei_fw_status fw_status;
 	bool (*quirk_probe)(struct pci_dev *pdev);
 	size_t dma_size[DMA_DSCR_NUM];
 	u32 fw_ver_supported:1;
+	u32 hw_trc_supported:1;
 };
 
 
@@ -42,16 +44,20 @@ struct mei_cfg {
  *
  * @cfg: per device generation config and ops
  * @mem_addr: io memory address
+ * @irq: irq number
  * @pg_state: power gating state
  * @d0i3_supported: di03 support
  * @hbuf_depth: depth of hardware host/write buffer in slots
+ * @read_fws: read FW status register handler
  */
 struct mei_me_hw {
 	const struct mei_cfg *cfg;
 	void __iomem *mem_addr;
+	int irq;
 	enum mei_pg_state pg_state;
 	bool d0i3_supported;
 	u8 hbuf_depth;
+	int (*read_fws)(const struct mei_device *dev, int where, u32 *val);
 };
 
 #define to_me_hw(dev) (struct mei_me_hw *)((dev)->hw)
@@ -74,6 +80,7 @@ struct mei_me_hw {
  *                         servers platforms with quirk for
  *                         SPS firmware exclusion.
  * @MEI_ME_PCH12_CFG:      Platform Controller Hub Gen12 and newer
+ * @MEI_ME_PCH15_CFG:      Platform Controller Hub Gen15 and newer
  * @MEI_ME_NUM_CFG:        Upper Sentinel.
  */
 enum mei_cfg_idx {
@@ -86,12 +93,13 @@ enum mei_cfg_idx {
 	MEI_ME_PCH8_CFG,
 	MEI_ME_PCH8_SPS_CFG,
 	MEI_ME_PCH12_CFG,
+	MEI_ME_PCH15_CFG,
 	MEI_ME_NUM_CFG,
 };
 
 const struct mei_cfg *mei_me_get_cfg(kernel_ulong_t idx);
 
-struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
+struct mei_device *mei_me_dev_init(struct device *parent,
 				   const struct mei_cfg *cfg);
 
 int mei_me_pg_enter_sync(struct mei_device *dev);

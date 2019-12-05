@@ -1680,7 +1680,7 @@ static struct scsi_host_template atp870u_template = {
      .bios_param        	= atp870u_biosparam	/* biosparm */,
      .can_queue         	= qcnt			/* can_queue */,
      .this_id           	= 7			/* SCSI ID */,
-     .sg_tablesize      	= ATP870U_SCATTER	/*SG_ALL*/ /*SG_NONE*/,
+     .sg_tablesize      	= ATP870U_SCATTER	/*SG_ALL*/,
      .max_sectors		= ATP870U_MAX_SECTORS,
 };
 

@@ -42,7 +42,7 @@
 #include "utils.h"
 
 /* Selftest defaults */
-#define COUNT_MAX	4000		/* Number of interactions */
+#define COUNT_MAX	600		/* Number of interactions */
 #define THREADS		16		/* Number of threads */
 
 /* Arguments options */

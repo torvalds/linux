@@ -614,7 +614,7 @@ int uwb_rsv_try_move(struct uwb_rsv *rsv, struct uwb_mas_bm *available)
 	struct uwb_rsv_move *mv;
 	int ret = 0;
 
-	if (bow->can_reserve_extra_mases == false)
+	if (!bow->can_reserve_extra_mases)
 		return -EBUSY;
 
 	mv = &rsv->mv;
@@ -643,7 +643,7 @@ void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc)
 	struct uwb_rsv *rsv;
 	struct uwb_mas_bm mas;
 
-	if (bow->can_reserve_extra_mases == false)
+	if (!bow->can_reserve_extra_mases)
 		return;
 
 	list_for_each_entry(rsv, &rc->reservations, rc_node) {

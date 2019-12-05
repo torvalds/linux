@@ -183,11 +183,6 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					port@1 {
-						reg = <1>;
-						label = "internal_j9";
-					};
-
 					port@2 {
 						reg = <2>;
 						label = "eth_fc_1000_2";
@@ -270,11 +265,6 @@
 				ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
-
-					port@1 {
-						reg = <1>;
-						label = "internal_j8";
-					};
 
 					port@2 {
 						reg = <2>;
@@ -689,7 +679,6 @@
 	linux,rs485-enabled-at-boot-time;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	rs485-rts-delay = <0 200>;
 	status = "okay";
 };
 
@@ -697,7 +686,6 @@
 	linux,rs485-enabled-at-boot-time;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	rs485-rts-delay = <0 200>;
 	status = "okay";
 };
 

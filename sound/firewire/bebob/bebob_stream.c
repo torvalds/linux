@@ -7,7 +7,7 @@
 
 #include "./bebob.h"
 
-#define CALLBACK_TIMEOUT	2000
+#define CALLBACK_TIMEOUT	2500
 #define FW_ISO_RESOURCE_DELAY	1000
 
 /*
@@ -252,8 +252,7 @@ end:
 	return err;
 }
 
-static unsigned int
-map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
+static int map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 {
 	unsigned int sec, sections, ch, channels;
 	unsigned int pcm, midi, location;
@@ -399,36 +398,19 @@ check_connection_used_by_others(struct snd_bebob *bebob, struct amdtp_stream *s)
 	return err;
 }
 
-static int make_both_connections(struct snd_bebob *bebob)
-{
-	int err = 0;
-
-	err = cmp_connection_establish(&bebob->out_conn);
-	if (err < 0)
-		return err;
-
-	err = cmp_connection_establish(&bebob->in_conn);
-	if (err < 0) {
-		cmp_connection_break(&bebob->out_conn);
-		return err;
-	}
-
-	return 0;
-}
-
-static void
-break_both_connections(struct snd_bebob *bebob)
+static void break_both_connections(struct snd_bebob *bebob)
 {
 	cmp_connection_break(&bebob->in_conn);
 	cmp_connection_break(&bebob->out_conn);
 
-	/* These models seems to be in transition state for a longer time. */
-	if (bebob->maudio_special_quirk != NULL)
-		msleep(200);
+	// These models seem to be in transition state for a longer time. When
+	// accessing in the state, any transactions is corrupted. In the worst
+	// case, the device is going to reboot.
+	if (bebob->version < 2)
+		msleep(600);
 }
 
-static int
-start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
+static int start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 {
 	struct cmp_connection *conn;
 	int err = 0;
@@ -438,18 +420,19 @@ start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 	else
 		conn = &bebob->out_conn;
 
-	/* channel mapping */
+	// channel mapping.
 	if (bebob->maudio_special_quirk == NULL) {
 		err = map_data_channels(bebob, stream);
 		if (err < 0)
-			goto end;
+			return err;
 	}
 
-	// start amdtp stream.
-	err = amdtp_domain_add_stream(&bebob->domain, stream,
-				      conn->resources.channel, conn->speed);
-end:
-	return err;
+	err = cmp_connection_establish(conn);
+	if (err < 0)
+		return err;
+
+	return amdtp_domain_add_stream(&bebob->domain, stream,
+				       conn->resources.channel, conn->speed);
 }
 
 static int init_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
@@ -554,7 +537,9 @@ static int keep_resources(struct snd_bebob *bebob, struct amdtp_stream *stream,
 	return cmp_connection_reserve(conn, amdtp_stream_get_max_payload(stream));
 }
 
-int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate)
+int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate,
+				    unsigned int frames_per_period,
+				    unsigned int frames_per_buffer)
 {
 	unsigned int curr_rate;
 	int err;
@@ -607,6 +592,14 @@ int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate)
 			cmp_connection_release(&bebob->out_conn);
 			return err;
 		}
+
+		err = amdtp_domain_set_events_per_period(&bebob->domain,
+					frames_per_period, frames_per_buffer);
+		if (err < 0) {
+			cmp_connection_release(&bebob->out_conn);
+			cmp_connection_release(&bebob->in_conn);
+			return err;
+		}
 	}
 
 	return 0;
@@ -628,7 +621,10 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 	}
 
 	if (!amdtp_stream_running(&bebob->rx_stream)) {
+		enum snd_bebob_clock_type src;
+		struct amdtp_stream *master, *slave;
 		unsigned int curr_rate;
+		unsigned int ir_delay_cycle;
 
 		if (bebob->maudio_special_quirk) {
 			err = bebob->spec->rate->get(bebob, &curr_rate);
@@ -636,19 +632,40 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 				return err;
 		}
 
-		err = make_both_connections(bebob);
+		err = snd_bebob_stream_get_clock_src(bebob, &src);
 		if (err < 0)
 			return err;
 
-		err = start_stream(bebob, &bebob->rx_stream);
+		if (src != SND_BEBOB_CLOCK_TYPE_SYT) {
+			master = &bebob->tx_stream;
+			slave = &bebob->rx_stream;
+		} else {
+			master = &bebob->rx_stream;
+			slave = &bebob->tx_stream;
+		}
+
+		err = start_stream(bebob, master);
 		if (err < 0)
 			goto error;
 
-		err = start_stream(bebob, &bebob->tx_stream);
+		err = start_stream(bebob, slave);
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_start(&bebob->domain);
+		// The device postpones start of transmission mostly for 1 sec
+		// after receives packets firstly. For safe, IR context starts
+		// 0.4 sec (=3200 cycles) later to version 1 or 2 firmware,
+		// 2.0 sec (=16000 cycles) for version 3 firmware. This is
+		// within 2.5 sec (=CALLBACK_TIMEOUT).
+		// Furthermore, some devices transfer isoc packets with
+		// discontinuous counter in the beginning of packet streaming.
+		// The delay has an effect to avoid detection of this
+		// discontinuity.
+		if (bebob->version < 2)
+			ir_delay_cycle = 3200;
+		else
+			ir_delay_cycle = 16000;
+		err = amdtp_domain_start(&bebob->domain, ir_delay_cycle);
 		if (err < 0)
 			goto error;
 

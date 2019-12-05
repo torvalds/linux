@@ -147,11 +147,11 @@ enum intel_dpll_id {
 	 */
 	DPLL_ID_ICL_MGPLL4 = 6,
 	/**
-	 * @DPLL_ID_TGL_TCPLL5: TGL TC PLL port 5 (TC5)
+	 * @DPLL_ID_TGL_MGPLL5: TGL TC PLL port 5 (TC5)
 	 */
 	DPLL_ID_TGL_MGPLL5 = 7,
 	/**
-	 * @DPLL_ID_TGL_TCPLL6: TGL TC PLL port 6 (TC6)
+	 * @DPLL_ID_TGL_MGPLL6: TGL TC PLL port 6 (TC6)
 	 */
 	DPLL_ID_TGL_MGPLL6 = 8,
 };
@@ -337,6 +337,11 @@ struct intel_shared_dpll {
 	 * @info: platform specific info
 	 */
 	const struct dpll_info *info;
+
+	/**
+	 * @wakeref: In some platforms a device-level runtime pm reference may
+	 * need to be grabbed to disable DC states while this DPLL is enabled
+	 */
 	intel_wakeref_t wakeref;
 };
 

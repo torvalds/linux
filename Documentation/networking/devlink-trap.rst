@@ -162,6 +162,67 @@ be added to the following table:
      - ``drop``
      - Traps packets that the device decided to drop because they could not be
        enqueued to a transmission queue which is full
+   * - ``non_ip``
+     - ``drop``
+     - Traps packets that the device decided to drop because they need to
+       undergo a layer 3 lookup, but are not IP or MPLS packets
+   * - ``uc_dip_over_mc_dmac``
+     - ``drop``
+     - Traps packets that the device decided to drop because they need to be
+       routed and they have a unicast destination IP and a multicast destination
+       MAC
+   * - ``dip_is_loopback_address``
+     - ``drop``
+     - Traps packets that the device decided to drop because they need to be
+       routed and their destination IP is the loopback address (i.e., 127.0.0.0/8
+       and ::1/128)
+   * - ``sip_is_mc``
+     - ``drop``
+     - Traps packets that the device decided to drop because they need to be
+       routed and their source IP is multicast (i.e., 224.0.0.0/8 and ff::/8)
+   * - ``sip_is_loopback_address``
+     - ``drop``
+     - Traps packets that the device decided to drop because they need to be
+       routed and their source IP is the loopback address (i.e., 127.0.0.0/8 and ::1/128)
+   * - ``ip_header_corrupted``
+     - ``drop``
+     - Traps packets that the device decided to drop because they need to be
+       routed and their IP header is corrupted: wrong checksum, wrong IP version
+       or too short Internet Header Length (IHL)
+   * - ``ipv4_sip_is_limited_bc``
+     - ``drop``
+     - Traps packets that the device decided to drop because they need to be
+       routed and their source IP is limited broadcast (i.e., 255.255.255.255/32)
+   * - ``ipv6_mc_dip_reserved_scope``
+     - ``drop``
+     - Traps IPv6 packets that the device decided to drop because they need to
+       be routed and their IPv6 multicast destination IP has a reserved scope
+       (i.e., ffx0::/16)
+   * - ``ipv6_mc_dip_interface_local_scope``
+     - ``drop``
+     - Traps IPv6 packets that the device decided to drop because they need to
+       be routed and their IPv6 multicast destination IP has an interface-local scope
+       (i.e., ffx1::/16)
+   * - ``mtu_value_is_too_small``
+     - ``exception``
+     - Traps packets that should have been routed by the device, but were bigger
+       than the MTU of the egress interface
+   * - ``unresolved_neigh``
+     - ``exception``
+     - Traps packets that did not have a matching IP neighbour after routing
+   * - ``mc_reverse_path_forwarding``
+     - ``exception``
+     - Traps multicast IP packets that failed reverse-path forwarding (RPF)
+       check during multicast routing
+   * - ``reject_route``
+     - ``exception``
+     - Traps packets that hit reject routes (i.e., "unreachable", "prohibit")
+   * - ``ipv4_lpm_miss``
+     - ``exception``
+     - Traps unicast IPv4 packets that did not match any route
+   * - ``ipv6_lpm_miss``
+     - ``exception``
+     - Traps unicast IPv6 packets that did not match any route
 
 Driver-specific Packet Traps
 ============================
@@ -172,7 +233,7 @@ help debug packet drops caused by these exceptions. The following list includes
 links to the description of driver-specific traps registered by various device
 drivers:
 
-  * :doc:`/devlink-trap-netdevsim`
+  * :doc:`devlink-trap-netdevsim`
 
 Generic Packet Trap Groups
 ==========================

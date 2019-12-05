@@ -303,16 +303,6 @@ config GEN_RTC
 	  replacing their get_rtc_time/set_rtc_time callbacks with
 	  a proper RTC device driver.
 
-config SIMPLE_GPIO
-	bool "Support for simple, memory-mapped GPIO controllers"
-	depends on PPC
-	select GPIOLIB
-	help
-	  Say Y here to support simple, memory-mapped GPIO controllers.
-	  These are usually BCSRs used to control board's switches, LEDs,
-	  chip-selects, Ethernet/USB PHY's power and various other small
-	  on-board peripherals.
-
 config MCU_MPC8349EMITX
 	bool "MPC8349E-mITX MCU driver"
 	depends on I2C=y && PPC_83xx

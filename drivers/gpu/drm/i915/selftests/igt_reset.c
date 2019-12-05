@@ -22,7 +22,7 @@ void igt_global_reset_lock(struct intel_gt *gt)
 		wait_event(gt->reset.queue,
 			   !test_bit(I915_RESET_BACKOFF, &gt->reset.flags));
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		while (test_and_set_bit(I915_RESET_ENGINE + id,
 					&gt->reset.flags))
 			wait_on_bit(&gt->reset.flags, I915_RESET_ENGINE + id,
@@ -35,7 +35,7 @@ void igt_global_reset_unlock(struct intel_gt *gt)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, gt->i915, id)
+	for_each_engine(engine, gt, id)
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 
 	clear_bit(I915_RESET_BACKOFF, &gt->reset.flags);

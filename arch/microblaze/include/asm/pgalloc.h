@@ -41,13 +41,6 @@ static inline void free_pgd(pgd_t *pgd)
 
 #define pmd_pgtable(pmd)	pmd_page(pmd)
 
-/*
- * We don't have any real pmd's, and this code never triggers because
- * the pgd will always be present..
- */
-#define pmd_alloc_one_fast(mm, address)	({ BUG(); ((pmd_t *)1); })
-#define pmd_alloc_one(mm, address)	({ BUG(); ((pmd_t *)2); })
-
 extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm);
 
 #define __pte_free_tlb(tlb, pte, addr)	pte_free((tlb)->mm, (pte))
@@ -57,15 +50,6 @@ extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm);
 
 #define pmd_populate_kernel(mm, pmd, pte) \
 		(pmd_val(*(pmd)) = (unsigned long) (pte))
-
-/*
- * We don't have any real pmd's, and this code never triggers because
- * the pgd will always be present..
- */
-#define pmd_alloc_one(mm, address)	({ BUG(); ((pmd_t *)2); })
-#define pmd_free(mm, x)			do { } while (0)
-#define __pmd_free_tlb(tlb, x, addr)	pmd_free((tlb)->mm, x)
-#define pgd_populate(mm, pmd, pte)	BUG()
 
 #endif /* CONFIG_MMU */
 

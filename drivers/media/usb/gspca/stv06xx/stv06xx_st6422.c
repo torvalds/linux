@@ -117,7 +117,7 @@ static int st6422_init(struct sd *sd)
 {
 	int err = 0, i;
 
-	const u16 st6422_bridge_init[][2] = {
+	static const u16 st6422_bridge_init[][2] = {
 		{ STV_ISO_ENABLE, 0x00 }, /* disable capture */
 		{ 0x1436, 0x00 },
 		{ 0x1432, 0x03 },	/* 0x00-0x1F brightness */

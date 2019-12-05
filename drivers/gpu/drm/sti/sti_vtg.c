@@ -121,7 +121,7 @@ struct sti_vtg_sync_params {
 	u32 vsync_off_bot;
 };
 
-/**
+/*
  * STI VTG structure
  *
  * @regs: register mapping

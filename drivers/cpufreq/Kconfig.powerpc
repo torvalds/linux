@@ -48,9 +48,9 @@ config PPC_PASEMI_CPUFREQ
 	  PWRficient processors.
 
 config POWERNV_CPUFREQ
-       tristate "CPU frequency scaling for IBM POWERNV platform"
-       depends on PPC_POWERNV
-       default y
-       help
+	tristate "CPU frequency scaling for IBM POWERNV platform"
+	depends on PPC_POWERNV
+	default y
+	help
 	 This adds support for CPU frequency switching on IBM POWERNV
 	 platform

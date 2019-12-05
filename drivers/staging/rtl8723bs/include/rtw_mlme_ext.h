@@ -576,7 +576,6 @@ void read_cam(struct adapter *padapter , u8 entry, u8 *get_key);
 /* modify HW only */
 void _write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key);
 void _clear_cam_entry(struct adapter *padapter, u8 entry);
-void write_cam_from_cache(struct adapter *adapter, u8 id);
 
 /* modify both HW and cache */
 void write_cam(struct adapter *padapter, u8 id, u16 ctrl, u8 *mac, u8 *key);

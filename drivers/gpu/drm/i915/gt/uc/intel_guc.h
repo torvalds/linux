@@ -47,8 +47,6 @@ struct intel_guc {
 	struct i915_vma *stage_desc_pool;
 	void *stage_desc_pool_vaddr;
 	struct ida stage_ids;
-	struct i915_vma *shared_data;
-	void *shared_data_vaddr;
 
 	struct intel_guc_client *execbuf_client;
 

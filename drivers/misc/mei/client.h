@@ -69,6 +69,42 @@ static inline u8 mei_me_cl_ver(const struct mei_me_client *me_cl)
 	return me_cl->props.protocol_version;
 }
 
+/**
+ * mei_me_cl_max_conn - return me client max number of connections
+ *
+ * @me_cl: me client
+ *
+ * Return: me client max number of connections
+ */
+static inline u8 mei_me_cl_max_conn(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.max_number_of_connections;
+}
+
+/**
+ * mei_me_cl_fixed - return me client fixed address, if any
+ *
+ * @me_cl: me client
+ *
+ * Return: me client fixed address
+ */
+static inline u8 mei_me_cl_fixed(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.fixed_address;
+}
+
+/**
+ * mei_me_cl_max_len - return me client max msg length
+ *
+ * @me_cl: me client
+ *
+ * Return: me client max msg length
+ */
+static inline u32 mei_me_cl_max_len(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.max_msg_length;
+}
+
 /*
  * MEI IO Functions
  */

@@ -137,6 +137,22 @@
 				status = "disabled";
 			};
 
+			adc12_ain_pins_a: adc12-ain-0 {
+				pins {
+					pinmux = <STM32_PINMUX('C', 3, ANALOG)>, /* ADC1 in13 */
+						 <STM32_PINMUX('F', 12, ANALOG)>, /* ADC1 in6 */
+						 <STM32_PINMUX('F', 13, ANALOG)>, /* ADC2 in2 */
+						 <STM32_PINMUX('F', 14, ANALOG)>; /* ADC2 in6 */
+				};
+			};
+
+			adc12_usb_cc_pins_a: adc12-usb-cc-pins-0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 4, ANALOG)>, /* ADC12 in18 */
+						 <STM32_PINMUX('A', 5, ANALOG)>; /* ADC12 in19 */
+				};
+			};
+
 			cec_pins_a: cec-0 {
 				pins {
 					pinmux = <STM32_PINMUX('A', 15, AF4)>;
@@ -164,6 +180,18 @@
 			cec_pins_sleep_b: cec-sleep-1 {
 				pins {
 					pinmux = <STM32_PINMUX('B', 6, ANALOG)>; /* HDMI_CEC */
+				};
+			};
+
+			dac_ch1_pins_a: dac-ch1 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 4, ANALOG)>;
+				};
+			};
+
+			dac_ch2_pins_a: dac-ch2 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 5, ANALOG)>;
 				};
 			};
 

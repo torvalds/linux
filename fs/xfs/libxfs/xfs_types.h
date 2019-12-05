@@ -21,7 +21,6 @@ typedef int32_t		xfs_suminfo_t;	/* type of bitmap summary info */
 typedef uint32_t	xfs_rtword_t;	/* word type for bitmap manipulations */
 
 typedef int64_t		xfs_lsn_t;	/* log sequence number */
-typedef int32_t		xfs_tid_t;	/* transaction identifier */
 
 typedef uint32_t	xfs_dablk_t;	/* dir/attr block number (in file) */
 typedef uint32_t	xfs_dahash_t;	/* dir/attr hash value */
@@ -33,7 +32,6 @@ typedef uint64_t	xfs_fileoff_t;	/* block number in a file */
 typedef uint64_t	xfs_filblks_t;	/* number of blocks in a file */
 
 typedef int64_t		xfs_srtblock_t;	/* signed version of xfs_rtblock_t */
-typedef int64_t		xfs_sfiloff_t;	/* signed block number in a file */
 
 /*
  * New verifiers will return the instruction address of the failing check.

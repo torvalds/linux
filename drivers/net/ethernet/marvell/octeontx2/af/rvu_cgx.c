@@ -14,6 +14,7 @@
 
 #include "rvu.h"
 #include "cgx.h"
+#include "rvu_reg.h"
 
 struct cgx_evq_entry {
 	struct list_head evq_node;
@@ -40,12 +41,25 @@ MBOX_UP_CGX_MESSAGES
 #undef M
 
 /* Returns bitmap of mapped PFs */
-static inline u16 cgxlmac_to_pfmap(struct rvu *rvu, u8 cgx_id, u8 lmac_id)
+static u16 cgxlmac_to_pfmap(struct rvu *rvu, u8 cgx_id, u8 lmac_id)
 {
 	return rvu->cgxlmac2pf_map[CGX_OFFSET(cgx_id) + lmac_id];
 }
 
-static inline u8 cgxlmac_id_to_bmap(u8 cgx_id, u8 lmac_id)
+static int cgxlmac_to_pf(struct rvu *rvu, int cgx_id, int lmac_id)
+{
+	unsigned long pfmap;
+
+	pfmap = cgxlmac_to_pfmap(rvu, cgx_id, lmac_id);
+
+	/* Assumes only one pf mapped to a cgx lmac port */
+	if (!pfmap)
+		return -ENODEV;
+	else
+		return find_first_bit(&pfmap, 16);
+}
+
+static u8 cgxlmac_id_to_bmap(u8 cgx_id, u8 lmac_id)
 {
 	return ((cgx_id & 0xF) << 4) | (lmac_id & 0xF);
 }
@@ -294,6 +308,8 @@ int rvu_cgx_init(struct rvu *rvu)
 	if (err)
 		return err;
 
+	mutex_init(&rvu->cgx_cfg_lock);
+
 	/* Ensure event handler registration is completed, before
 	 * we turn on the links
 	 */
@@ -332,6 +348,24 @@ int rvu_cgx_exit(struct rvu *rvu)
 
 	rvu_cgx_wq_destroy(rvu);
 	return 0;
+}
+
+void rvu_cgx_enadis_rx_bp(struct rvu *rvu, int pf, bool enable)
+{
+	u8 cgx_id, lmac_id;
+	void *cgxd;
+
+	if (!is_pf_cgxmapped(rvu, pf))
+		return;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	cgxd = rvu_cgx_pdata(cgx_id, rvu);
+
+	/* Set / clear CTL_BCK to control pause frame forwarding to NIX */
+	if (enable)
+		cgx_lmac_enadis_rx_pause_fwding(cgxd, lmac_id, true);
+	else
+		cgx_lmac_enadis_rx_pause_fwding(cgxd, lmac_id, false);
 }
 
 int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start)
@@ -561,4 +595,96 @@ int rvu_mbox_handler_cgx_intlbk_disable(struct rvu *rvu, struct msg_req *req,
 {
 	rvu_cgx_config_intlbk(rvu, req->hdr.pcifunc, false);
 	return 0;
+}
+
+/* Finds cumulative status of NIX rx/tx counters from LF of a PF and those
+ * from its VFs as well. ie. NIX rx/tx counters at the CGX port level
+ */
+int rvu_cgx_nix_cuml_stats(struct rvu *rvu, void *cgxd, int lmac_id,
+			   int index, int rxtxflag, u64 *stat)
+{
+	struct rvu_block *block;
+	int blkaddr;
+	u16 pcifunc;
+	int pf, lf;
+
+	*stat = 0;
+
+	if (!cgxd || !rvu)
+		return -EINVAL;
+
+	pf = cgxlmac_to_pf(rvu, cgx_get_cgxid(cgxd), lmac_id);
+	if (pf < 0)
+		return pf;
+
+	/* Assumes LF of a PF and all of its VF belongs to the same
+	 * NIX block
+	 */
+	pcifunc = pf << RVU_PFVF_PF_SHIFT;
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (blkaddr < 0)
+		return 0;
+	block = &rvu->hw->block[blkaddr];
+
+	for (lf = 0; lf < block->lf.max; lf++) {
+		/* Check if a lf is attached to this PF or one of its VFs */
+		if (!((block->fn_map[lf] & ~RVU_PFVF_FUNC_MASK) == (pcifunc &
+			 ~RVU_PFVF_FUNC_MASK)))
+			continue;
+		if (rxtxflag == NIX_STATS_RX)
+			*stat += rvu_read64(rvu, blkaddr,
+					    NIX_AF_LFX_RX_STATX(lf, index));
+		else
+			*stat += rvu_read64(rvu, blkaddr,
+					    NIX_AF_LFX_TX_STATX(lf, index));
+	}
+
+	return 0;
+}
+
+int rvu_cgx_start_stop_io(struct rvu *rvu, u16 pcifunc, bool start)
+{
+	struct rvu_pfvf *parent_pf, *pfvf;
+	int cgx_users, err = 0;
+
+	if (!is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc)))
+		return 0;
+
+	parent_pf = &rvu->pf[rvu_get_pf(pcifunc)];
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+
+	mutex_lock(&rvu->cgx_cfg_lock);
+
+	if (start && pfvf->cgx_in_use)
+		goto exit;  /* CGX is already started hence nothing to do */
+	if (!start && !pfvf->cgx_in_use)
+		goto exit; /* CGX is already stopped hence nothing to do */
+
+	if (start) {
+		cgx_users = parent_pf->cgx_users;
+		parent_pf->cgx_users++;
+	} else {
+		parent_pf->cgx_users--;
+		cgx_users = parent_pf->cgx_users;
+	}
+
+	/* Start CGX when first of all NIXLFs is started.
+	 * Stop CGX when last of all NIXLFs is stopped.
+	 */
+	if (!cgx_users) {
+		err = rvu_cgx_config_rxtx(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK,
+					  start);
+		if (err) {
+			dev_err(rvu->dev, "Unable to %s CGX\n",
+				start ? "start" : "stop");
+			/* Revert the usage count in case of error */
+			parent_pf->cgx_users = start ? parent_pf->cgx_users  - 1
+					       : parent_pf->cgx_users  + 1;
+			goto exit;
+		}
+	}
+	pfvf->cgx_in_use = start;
+exit:
+	mutex_unlock(&rvu->cgx_cfg_lock);
+	return err;
 }

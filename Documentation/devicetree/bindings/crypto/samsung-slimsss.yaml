@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/samsung-slimsss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos SoC SlimSSS (Slim Security SubSystem) module
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Kamil Konieczny <k.konieczny@partner.samsung.com>
+
+description: |+
+  The SlimSSS module in Exynos5433 SoC supports the following:
+  -- Feeder (FeedCtrl)
+  -- Advanced Encryption Standard (AES) with ECB,CBC,CTR,XTS and (CBC/XTS)/CTS
+  -- SHA-1/SHA-256 and (SHA-1/SHA-256)/HMAC
+
+properties:
+  compatible:
+    items:
+      - const: samsung,exynos5433-slim-ss
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 2
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: pclk
+      - const: aclk
+
+  interrupts:
+    description: One feed control interrupt.
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clock-names
+  - clocks
+  - interrupts
+
+additionalProperties: false

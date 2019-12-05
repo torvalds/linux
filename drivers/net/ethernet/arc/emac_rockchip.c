@@ -97,8 +97,9 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct rockchip_priv_data *priv;
 	const struct of_device_id *match;
+	phy_interface_t interface;
 	u32 data;
-	int err, interface;
+	int err;
 
 	if (!pdev->dev.of_node)
 		return -ENODEV;
@@ -114,7 +115,9 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	priv->emac.drv_version = DRV_VERSION;
 	priv->emac.set_mac_speed = emac_rockchip_set_mac_speed;
 
-	interface = of_get_phy_mode(dev->of_node);
+	err = of_get_phy_mode(dev->of_node, &interface);
+	if (err)
+		goto out_netdev;
 
 	/* RK3036/RK3066/RK3188 SoCs only support RMII */
 	if (interface != PHY_INTERFACE_MODE_RMII) {
@@ -255,6 +258,9 @@ static int emac_rockchip_remove(struct platform_device *pdev)
 
 	if (priv->regulator)
 		regulator_disable(priv->regulator);
+
+	if (priv->soc_data->need_div_macclk)
+		clk_disable_unprepare(priv->macclk);
 
 	free_netdev(ndev);
 	return err;

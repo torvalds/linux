@@ -111,6 +111,7 @@ static int ath10k_qmi_msa_mem_info_send_sync_msg(struct ath10k_qmi *qmi)
 	struct wlfw_msa_info_resp_msg_v01 resp = {};
 	struct wlfw_msa_info_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
+	phys_addr_t max_mapped_addr;
 	struct qmi_txn txn;
 	int ret;
 	int i;
@@ -150,8 +151,20 @@ static int ath10k_qmi_msa_mem_info_send_sync_msg(struct ath10k_qmi *qmi)
 		goto out;
 	}
 
+	max_mapped_addr = qmi->msa_pa + qmi->msa_mem_size;
 	qmi->nr_mem_region = resp.mem_region_info_len;
 	for (i = 0; i < resp.mem_region_info_len; i++) {
+		if (resp.mem_region_info[i].size > qmi->msa_mem_size ||
+		    resp.mem_region_info[i].region_addr > max_mapped_addr ||
+		    resp.mem_region_info[i].region_addr < qmi->msa_pa ||
+		    resp.mem_region_info[i].size +
+		    resp.mem_region_info[i].region_addr > max_mapped_addr) {
+			ath10k_err(ar, "received out of range memory region address 0x%llx with size 0x%x, aborting\n",
+				   resp.mem_region_info[i].region_addr,
+				   resp.mem_region_info[i].size);
+			ret = -EINVAL;
+			goto fail_unwind;
+		}
 		qmi->mem_region[i].addr = resp.mem_region_info[i].region_addr;
 		qmi->mem_region[i].size = resp.mem_region_info[i].size;
 		qmi->mem_region[i].secure = resp.mem_region_info[i].secure_flag;
@@ -165,6 +178,8 @@ static int ath10k_qmi_msa_mem_info_send_sync_msg(struct ath10k_qmi *qmi)
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "qmi msa mem info request completed\n");
 	return 0;
 
+fail_unwind:
+	memset(&qmi->mem_region[0], 0, sizeof(qmi->mem_region[0]) * i);
 out:
 	return ret;
 }
@@ -291,9 +306,15 @@ static int ath10k_qmi_send_cal_report_req(struct ath10k_qmi *qmi)
 	struct wlfw_cal_report_resp_msg_v01 resp = {};
 	struct wlfw_cal_report_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	struct qmi_txn txn;
 	int i, j = 0;
 	int ret;
+
+	if (ar_snoc->xo_cal_supported) {
+		req.xo_cal_data_valid = 1;
+		req.xo_cal_data = ar_snoc->xo_cal_data;
+	}
 
 	ret = qmi_txn_init(&qmi->qmi_hdl, &txn, wlfw_cal_report_resp_msg_v01_ei,
 			   &resp);
@@ -581,22 +602,29 @@ static int ath10k_qmi_host_cap_send_sync(struct ath10k_qmi *qmi)
 {
 	struct wlfw_host_cap_resp_msg_v01 resp = {};
 	struct wlfw_host_cap_req_msg_v01 req = {};
+	struct qmi_elem_info *req_ei;
 	struct ath10k *ar = qmi->ar;
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	struct qmi_txn txn;
 	int ret;
 
 	req.daemon_support_valid = 1;
 	req.daemon_support = 0;
 
-	ret = qmi_txn_init(&qmi->qmi_hdl, &txn,
-			   wlfw_host_cap_resp_msg_v01_ei, &resp);
+	ret = qmi_txn_init(&qmi->qmi_hdl, &txn, wlfw_host_cap_resp_msg_v01_ei,
+			   &resp);
 	if (ret < 0)
 		goto out;
+
+	if (test_bit(ATH10K_SNOC_FLAG_8BIT_HOST_CAP_QUIRK, &ar_snoc->flags))
+		req_ei = wlfw_host_cap_8bit_req_msg_v01_ei;
+	else
+		req_ei = wlfw_host_cap_req_msg_v01_ei;
 
 	ret = qmi_send_request(&qmi->qmi_hdl, NULL, &txn,
 			       QMI_WLFW_HOST_CAP_REQ_V01,
 			       WLFW_HOST_CAP_REQ_MSG_V01_MAX_MSG_LEN,
-			       wlfw_host_cap_req_msg_v01_ei, &req);
+			       req_ei, &req);
 	if (ret < 0) {
 		qmi_txn_cancel(&txn);
 		ath10k_err(ar, "failed to send host capability request: %d\n", ret);
@@ -643,7 +671,7 @@ int ath10k_qmi_set_fw_log_mode(struct ath10k *ar, u8 fw_log_mode)
 			       wlfw_ini_req_msg_v01_ei, &req);
 	if (ret < 0) {
 		qmi_txn_cancel(&txn);
-		ath10k_err(ar, "fail to send fw log reqest: %d\n", ret);
+		ath10k_err(ar, "failed to send fw log request: %d\n", ret);
 		goto out;
 	}
 
@@ -652,7 +680,7 @@ int ath10k_qmi_set_fw_log_mode(struct ath10k *ar, u8 fw_log_mode)
 		goto out;
 
 	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
-		ath10k_err(ar, "fw log request rejectedr: %d\n",
+		ath10k_err(ar, "fw log request rejected: %d\n",
 			   resp.resp.error);
 		ret = -EINVAL;
 		goto out;
@@ -671,6 +699,7 @@ ath10k_qmi_ind_register_send_sync_msg(struct ath10k_qmi *qmi)
 	struct wlfw_ind_register_resp_msg_v01 resp = {};
 	struct wlfw_ind_register_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	struct qmi_txn txn;
 	int ret;
 
@@ -680,6 +709,11 @@ ath10k_qmi_ind_register_send_sync_msg(struct ath10k_qmi *qmi)
 	req.fw_ready_enable = 1;
 	req.msa_ready_enable_valid = 1;
 	req.msa_ready_enable = 1;
+
+	if (ar_snoc->xo_cal_supported) {
+		req.xo_cal_enable_valid = 1;
+		req.xo_cal_enable = 1;
+	}
 
 	ret = qmi_txn_init(&qmi->qmi_hdl, &txn,
 			   wlfw_ind_register_resp_msg_v01_ei, &resp);
@@ -739,6 +773,13 @@ static void ath10k_qmi_event_server_arrive(struct ath10k_qmi *qmi)
 	if (ret)
 		return;
 
+	/*
+	 * HACK: sleep for a while inbetween receiving the msa info response
+	 * and the XPU update to prevent SDM845 from crashing due to a security
+	 * violation, when running MPSS.AT.4.0.c2-01184-SDM845_GEN_PACK-1.
+	 */
+	msleep(20);
+
 	ret = ath10k_qmi_setup_msa_permissions(qmi);
 	if (ret)
 		return;
@@ -795,9 +836,13 @@ ath10k_qmi_driver_event_post(struct ath10k_qmi *qmi,
 static void ath10k_qmi_event_server_exit(struct ath10k_qmi *qmi)
 {
 	struct ath10k *ar = qmi->ar;
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 
 	ath10k_qmi_remove_msa_permission(qmi);
 	ath10k_core_free_board_files(ar);
+	if (!test_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags))
+		ath10k_snoc_fw_crashed_dump(ar);
+
 	ath10k_snoc_fw_indication(ar, ATH10K_QMI_EVENT_FW_DOWN_IND);
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "wifi fw qmi service disconnected\n");
 }
