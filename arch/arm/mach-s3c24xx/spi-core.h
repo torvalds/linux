@@ -11,7 +11,7 @@
  */
 
 /* re-define device name depending on support. */
-static inline void s3c64xx_spi_setname(char *name)
+static inline void s3c24xx_spi_setname(char *name)
 {
 #ifdef CONFIG_S3C64XX_DEV_SPI0
 	s3c64xx_device_spi0.name = name;

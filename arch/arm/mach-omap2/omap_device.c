@@ -119,11 +119,7 @@ static void _add_hwmod_clocks_clkdev(struct omap_device *od,
 
 /**
  * omap_device_build_from_dt - build an omap_device with multiple hwmods
- * @pdev_name: name of the platform_device driver to use
- * @pdev_id: this platform_device's connection ID
- * @oh: ptr to the single omap_hwmod that backs this omap_device
- * @pdata: platform_data ptr to associate with the platform_device
- * @pdata_len: amount of memory pointed to by @pdata
+ * @pdev: The platform device to update.
  *
  * Function for building an omap_device already registered from device-tree
  *
@@ -292,7 +288,7 @@ static int _omap_device_idle_hwmods(struct omap_device *od)
 
 /**
  * omap_device_get_context_loss_count - get lost context count
- * @od: struct omap_device *
+ * @pdev: The platform device to update.
  *
  * Using the primary hwmod, query the context loss count for this
  * device.
@@ -321,9 +317,8 @@ int omap_device_get_context_loss_count(struct platform_device *pdev)
 /**
  * omap_device_alloc - allocate an omap_device
  * @pdev: platform_device that will be included in this omap_device
- * @oh: ptr to the single omap_hwmod that backs this omap_device
- * @pdata: platform_data ptr to associate with the platform_device
- * @pdata_len: amount of memory pointed to by @pdata
+ * @ohs: ptr to the omap_hwmod for this omap_device
+ * @oh_cnt: the size of the ohs list
  *
  * Convenience function for allocating an omap_device structure and filling
  * hwmods, and resources.
@@ -649,7 +644,7 @@ struct dev_pm_domain omap_device_pm_domain = {
 
 /**
  * omap_device_register - register an omap_device with one omap_hwmod
- * @od: struct omap_device * to register
+ * @pdev: the platform device (omap_device) to register.
  *
  * Register the omap_device structure.  This currently just calls
  * platform_device_register() on the underlying platform_device.
@@ -668,7 +663,7 @@ int omap_device_register(struct platform_device *pdev)
 
 /**
  * omap_device_enable - fully activate an omap_device
- * @od: struct omap_device * to activate
+ * @pdev: the platform device to activate
  *
  * Do whatever is necessary for the hwmods underlying omap_device @od
  * to be accessible and ready to operate.  This generally involves
@@ -702,7 +697,7 @@ int omap_device_enable(struct platform_device *pdev)
 
 /**
  * omap_device_idle - idle an omap_device
- * @od: struct omap_device * to idle
+ * @pdev: The platform_device (omap_device) to idle
  *
  * Idle omap_device @od.  Device drivers call this function indirectly
  * via pm_runtime_put*().  Returns -EINVAL if the omap_device is not

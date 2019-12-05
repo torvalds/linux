@@ -790,7 +790,7 @@ static struct omap_hwmod_class omap44xx_sha0_hwmod_class = {
 	.sysc		= &omap44xx_sha0_sysc,
 };
 
-struct omap_hwmod omap44xx_sha0_hwmod = {
+static struct omap_hwmod omap44xx_sha0_hwmod = {
 	.name		= "sham",
 	.class		= &omap44xx_sha0_hwmod_class,
 	.clkdm_name	= "l4_secure_clkdm",
@@ -974,7 +974,7 @@ static struct omap_hwmod omap44xx_des_hwmod = {
 	},
 };
 
-struct omap_hwmod_ocp_if omap44xx_l3_main_2__des = {
+static struct omap_hwmod_ocp_if omap44xx_l3_main_2__des = {
 	.master		= &omap44xx_l3_main_2_hwmod,
 	.slave		= &omap44xx_des_hwmod,
 	.clk		= "l3_div_ck",

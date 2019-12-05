@@ -683,7 +683,7 @@ static struct omap_hwmod_class dra7xx_sha0_hwmod_class = {
 	.sysc		= &dra7xx_sha0_sysc,
 };
 
-struct omap_hwmod dra7xx_sha0_hwmod = {
+static struct omap_hwmod dra7xx_sha0_hwmod = {
 	.name		= "sham",
 	.class		= &dra7xx_sha0_hwmod_class,
 	.clkdm_name	= "l4sec_clkdm",

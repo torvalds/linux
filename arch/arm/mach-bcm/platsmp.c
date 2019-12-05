@@ -22,6 +22,8 @@
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
+#include "platsmp.h"
+
 /* Size of mapped Cortex A9 SCU address space */
 #define CORTEX_A9_SCU_SIZE	0x58
 
