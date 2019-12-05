@@ -139,7 +139,6 @@ static int mpp_debugfs_init(struct mpp_service *srv)
 static int mpp_service_probe(struct platform_device *pdev)
 {
 	int ret;
-	u32 taskqueue_cnt;
 	struct mpp_service *srv = NULL;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -158,24 +157,46 @@ static int mpp_service_probe(struct platform_device *pdev)
 		return PTR_ERR(srv->cls);
 
 	of_property_read_u32(np, "rockchip,taskqueue-count",
-			     &taskqueue_cnt);
-	if (taskqueue_cnt > MPP_DEVICE_BUTT) {
+			     &srv->taskqueue_cnt);
+	if (srv->taskqueue_cnt > MPP_DEVICE_BUTT) {
 		dev_err(dev, "rockchip,taskqueue-count %d must less than %d\n",
-			taskqueue_cnt, MPP_DEVICE_BUTT);
+			srv->taskqueue_cnt, MPP_DEVICE_BUTT);
 		return -EINVAL;
 	}
 
-	if (taskqueue_cnt) {
+	if (srv->taskqueue_cnt) {
 		u32 i = 0;
 		struct mpp_taskqueue *queue;
 
-		for (i = 0; i < taskqueue_cnt; i++) {
+		for (i = 0; i < srv->taskqueue_cnt; i++) {
 			queue = devm_kzalloc(dev, sizeof(*queue), GFP_KERNEL);
 			if (!queue)
 				continue;
 
 			mpp_taskqueue_init(queue, srv);
 			srv->task_queues[i] = queue;
+		}
+	}
+
+	of_property_read_u32(np, "rockchip,resetgroup-count",
+			     &srv->reset_group_cnt);
+	if (srv->reset_group_cnt > MPP_DEVICE_BUTT) {
+		dev_err(dev, "rockchip,resetgroup-count %d must less than %d\n",
+			srv->reset_group_cnt, MPP_DEVICE_BUTT);
+		return -EINVAL;
+	}
+
+	if (srv->reset_group_cnt) {
+		u32 i = 0;
+		struct mpp_reset_group *group;
+
+		for (i = 0; i < srv->reset_group_cnt; i++) {
+			group = devm_kzalloc(dev, sizeof(*group), GFP_KERNEL);
+			if (!group)
+				continue;
+
+			mpp_reset_group_init(group, srv);
+			srv->reset_groups[i] = group;
 		}
 	}
 	MPP_REGISTER_GRF(np, RKVDEC, "grf_rkvdec");

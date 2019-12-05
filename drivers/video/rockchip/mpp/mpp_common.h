@@ -187,16 +187,16 @@ struct mpp_dev {
 	struct mpp_iommu_info *iommu_info;
 
 	struct rw_semaphore rw_sem;
-	/* lock for reset */
-	struct mutex reset_lock;
+
 	atomic_t reset_request;
 	atomic_t total_running;
 	/* task for work queue */
 	struct workqueue_struct *workq;
 	/* set session max buffers */
 	u32 session_max_buffers;
-	/* point to MPP Service */
 	struct mpp_taskqueue *queue;
+	struct mpp_reset_group *reset_group;
+	/* point to MPP Service */
 	struct mpp_service *srv;
 };
 
@@ -250,6 +250,17 @@ struct mpp_taskqueue {
 	struct mpp_service *srv;
 };
 
+struct mpp_reset_clk {
+	struct list_head link;
+	struct reset_control *clk;
+	char name[20];
+};
+
+struct mpp_reset_group {
+	struct rw_semaphore rw_sem;
+	struct list_head clk;
+};
+
 struct mpp_service {
 	struct class *cls;
 	struct device *dev;
@@ -266,7 +277,10 @@ struct mpp_service {
 	struct platform_driver *sub_drivers[MPP_DRIVER_BUTT];
 	/* follows for attach service */
 	struct mpp_dev *sub_devices[MPP_DEVICE_BUTT];
+	u32 taskqueue_cnt;
 	struct mpp_taskqueue *task_queues[MPP_DEVICE_BUTT];
+	u32 reset_group_cnt;
+	struct mpp_reset_group *reset_groups[MPP_DEVICE_BUTT];
 };
 
 /*
@@ -328,6 +342,9 @@ struct mpp_dev_ops {
 int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 		       struct mpp_service *srv);
 
+int mpp_reset_group_init(struct mpp_reset_group *group,
+			 struct mpp_service *srv);
+
 struct mpp_mem_region *
 mpp_task_attach_fd(struct mpp_task *task, int fd);
 int mpp_translate_reg_address(struct mpp_dev *data,
@@ -350,6 +367,9 @@ int mpp_dev_remove(struct mpp_dev *mpp);
 
 irqreturn_t mpp_dev_irq(int irq, void *param);
 irqreturn_t mpp_dev_isr_sched(int irq, void *param);
+
+struct reset_control *
+mpp_reset_control_get(struct mpp_dev *mpp, const char *name);
 
 int mpp_safe_reset(struct reset_control *rst);
 int mpp_safe_unreset(struct reset_control *rst);

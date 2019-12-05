@@ -1019,32 +1019,32 @@ static int rkvdec_init(struct mpp_dev *mpp)
 		dec->clk_core = NULL;
 	}
 
-	dec->rst_a = devm_reset_control_get(mpp->dev, "video_a");
+	dec->rst_a = mpp_reset_control_get(mpp, "video_a");
 	if (IS_ERR_OR_NULL(dec->rst_a)) {
 		mpp_err("No aclk reset resource define\n");
 		dec->rst_a = NULL;
 	}
-	dec->rst_h = devm_reset_control_get(mpp->dev, "video_h");
+	dec->rst_h = mpp_reset_control_get(mpp, "video_h");
 	if (IS_ERR_OR_NULL(dec->rst_h)) {
 		mpp_err("No hclk reset resource define\n");
 		dec->rst_h = NULL;
 	}
-	dec->rst_niu_a = devm_reset_control_get(mpp->dev, "niu_a");
+	dec->rst_niu_a = mpp_reset_control_get(mpp, "niu_a");
 	if (IS_ERR_OR_NULL(dec->rst_niu_a)) {
 		mpp_err("No niu aclk reset resource define\n");
 		dec->rst_niu_a = NULL;
 	}
-	dec->rst_niu_h = devm_reset_control_get(mpp->dev, "niu_h");
+	dec->rst_niu_h = mpp_reset_control_get(mpp, "niu_h");
 	if (IS_ERR_OR_NULL(dec->rst_niu_h)) {
 		mpp_err("No niu hclk reset resource define\n");
 		dec->rst_niu_h = NULL;
 	}
-	dec->rst_cabac = devm_reset_control_get(mpp->dev, "video_cabac");
+	dec->rst_cabac = mpp_reset_control_get(mpp, "video_cabac");
 	if (IS_ERR_OR_NULL(dec->rst_cabac)) {
 		mpp_err("No cabac reset resource define\n");
 		dec->rst_cabac = NULL;
 	}
-	dec->rst_core = devm_reset_control_get(mpp->dev, "video_core");
+	dec->rst_core = mpp_reset_control_get(mpp, "video_core");
 	if (IS_ERR_OR_NULL(dec->rst_core)) {
 		mpp_err("No core reset resource define\n");
 		dec->rst_core = NULL;

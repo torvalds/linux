@@ -405,12 +405,12 @@ static int vepu_init(struct mpp_dev *mpp)
 		enc->hclk = NULL;
 	}
 
-	enc->rst_a = devm_reset_control_get(mpp->dev, "video_a");
+	enc->rst_a = mpp_reset_control_get(mpp, "video_a");
 	if (IS_ERR_OR_NULL(enc->rst_a)) {
 		mpp_err("No aclk reset resource define\n");
 		enc->rst_a = NULL;
 	}
-	enc->rst_h = devm_reset_control_get(mpp->dev, "video_h");
+	enc->rst_h = mpp_reset_control_get(mpp, "video_h");
 	if (IS_ERR_OR_NULL(enc->rst_h)) {
 		mpp_err("No hclk reset resource define\n");
 		enc->rst_h = NULL;
