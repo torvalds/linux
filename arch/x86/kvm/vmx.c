@@ -12690,9 +12690,6 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, u32 *exit_qual)
 	if (likely(!evaluate_pending_interrupts) && kvm_vcpu_apicv_active(vcpu))
 		evaluate_pending_interrupts |= vmx_has_apicv_interrupt(vcpu);
 
-	if (from_vmentry && check_vmentry_postreqs(vcpu, vmcs12, exit_qual))
-		return EXIT_REASON_INVALID_STATE;
-
 	enter_guest_mode(vcpu);
 
 	if (!(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DEBUG_CONTROLS))
@@ -12835,6 +12832,13 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 * the singlestep trap is missed.
 	 */
 	skip_emulated_instruction(vcpu);
+
+	ret = check_vmentry_postreqs(vcpu, vmcs12, &exit_qual);
+	if (ret) {
+		nested_vmx_entry_failure(vcpu, vmcs12,
+					 EXIT_REASON_INVALID_STATE, exit_qual);
+		return 1;
+	}
 
 	/*
 	 * We're finally done with prerequisite checking, and can start with
