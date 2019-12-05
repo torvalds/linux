@@ -112,13 +112,8 @@ static inline void splpar_rw_yield(arch_rwlock_t *lock) {};
 
 static inline bool is_shared_processor(void)
 {
-/*
- * LPPACA is only available on Pseries so guard anything LPPACA related to
- * allow other platforms (which include this common header) to compile.
- */
-#ifdef CONFIG_PPC_PSERIES
-	return (IS_ENABLED(CONFIG_PPC_SPLPAR) &&
-		lppaca_shared_proc(local_paca->lppaca_ptr));
+#ifdef CONFIG_PPC_SPLPAR
+	return static_branch_unlikely(&shared_processor);
 #else
 	return false;
 #endif
