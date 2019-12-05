@@ -769,7 +769,7 @@ failed_free_fbmem:
 	dma_free_wc(fbi->dev, info->fix.smem_len,
 		    info->screen_base, fbi->fb_start_dma);
 failed_free_info:
-	kfree(info);
+	framebuffer_release(info);
 
 	dev_err(&pdev->dev, "frame buffer device init failed with %d\n", ret);
 	return ret;
