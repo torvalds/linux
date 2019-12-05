@@ -36,21 +36,6 @@ static int notifier_chain_register(struct notifier_block **nl,
 	return 0;
 }
 
-static int notifier_chain_cond_register(struct notifier_block **nl,
-		struct notifier_block *n)
-{
-	while ((*nl) != NULL) {
-		if ((*nl) == n)
-			return 0;
-		if (n->priority > (*nl)->priority)
-			break;
-		nl = &((*nl)->next);
-	}
-	n->next = *nl;
-	rcu_assign_pointer(*nl, n);
-	return 0;
-}
-
 static int notifier_chain_unregister(struct notifier_block **nl,
 		struct notifier_block *n)
 {
@@ -252,7 +237,7 @@ int blocking_notifier_chain_cond_register(struct blocking_notifier_head *nh,
 	int ret;
 
 	down_write(&nh->rwsem);
-	ret = notifier_chain_cond_register(&nh->head, n);
+	ret = notifier_chain_register(&nh->head, n);
 	up_write(&nh->rwsem);
 	return ret;
 }
