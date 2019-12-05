@@ -113,13 +113,10 @@ void intel_context_unpin(struct intel_context *ce)
 
 static int __context_pin_state(struct i915_vma *vma)
 {
-	u64 flags;
+	unsigned int bias = i915_ggtt_pin_bias(vma) | PIN_OFFSET_BIAS;
 	int err;
 
-	flags = i915_ggtt_pin_bias(vma) | PIN_OFFSET_BIAS;
-	flags |= PIN_HIGH | PIN_GLOBAL;
-
-	err = i915_vma_pin(vma, 0, 0, flags);
+	err = i915_ggtt_pin(vma, 0, bias | PIN_HIGH);
 	if (err)
 		return err;
 

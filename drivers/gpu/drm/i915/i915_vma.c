@@ -28,7 +28,9 @@
 #include "display/intel_frontbuffer.h"
 
 #include "gt/intel_engine.h"
+#include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_requests.h"
 
 #include "i915_drv.h"
 #include "i915_globals.h"
@@ -937,6 +939,38 @@ err_fence:
 err_pages:
 	vma_put_pages(vma);
 	return err;
+}
+
+static void flush_idle_contexts(struct intel_gt *gt)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, gt, id)
+		intel_engine_flush_barriers(engine);
+
+	intel_gt_wait_for_idle(gt, MAX_SCHEDULE_TIMEOUT);
+}
+
+int i915_ggtt_pin(struct i915_vma *vma, u32 align, unsigned int flags)
+{
+	struct i915_address_space *vm = vma->vm;
+	int err;
+
+	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
+
+	do {
+		err = i915_vma_pin(vma, 0, align, flags | PIN_GLOBAL);
+		if (err != -ENOSPC)
+			return err;
+
+		/* Unlike i915_vma_pin, we don't take no for an answer! */
+		flush_idle_contexts(vm->gt);
+		if (mutex_lock_interruptible(&vm->mutex) == 0) {
+			i915_gem_evict_vm(vm);
+			mutex_unlock(&vm->mutex);
+		}
+	} while (1);
 }
 
 void i915_vma_close(struct i915_vma *vma)

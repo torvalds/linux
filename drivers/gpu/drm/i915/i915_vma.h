@@ -352,6 +352,7 @@ static inline void i915_vma_unlock(struct i915_vma *vma)
 
 int __must_check
 i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags);
+int i915_ggtt_pin(struct i915_vma *vma, u32 align, unsigned int flags);
 
 static inline int i915_vma_pin_count(const struct i915_vma *vma)
 {

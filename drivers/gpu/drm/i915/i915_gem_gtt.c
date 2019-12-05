@@ -1934,9 +1934,7 @@ int gen6_ppgtt_pin(struct i915_ppgtt *base)
 	 * size. We allocate at the top of the GTT to avoid fragmentation.
 	 */
 	if (!atomic_read(&ppgtt->pin_count)) {
-		err = i915_vma_pin(ppgtt->vma,
-				   0, GEN6_PD_ALIGN,
-				   PIN_GLOBAL | PIN_HIGH);
+		err = i915_ggtt_pin(ppgtt->vma, GEN6_PD_ALIGN, PIN_HIGH);
 	}
 	if (!err)
 		atomic_inc(&ppgtt->pin_count);
