@@ -235,8 +235,21 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	bool last_mst_stream;
 
-	intel_ddi_disable_pipe_clock(old_crtc_state);
+	intel_dp->active_mst_links--;
+	last_mst_stream = intel_dp->active_mst_links == 0;
+
+	/*
+	 * From TGL spec: "If multi-stream slave transcoder: Configure
+	 * Transcoder Clock Select to direct no clock to the transcoder"
+	 *
+	 * From older GENs spec: "Configure Transcoder Clock Select to direct
+	 * no clock to the transcoder"
+	 */
+	if (INTEL_GEN(dev_priv) < 12 || !last_mst_stream)
+		intel_ddi_disable_pipe_clock(old_crtc_state);
 
 	/* this can fail */
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
@@ -252,13 +265,10 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	drm_dp_send_power_updown_phy(&intel_dp->mst_mgr, connector->port,
 				     false);
 
-	intel_dp->active_mst_links--;
-
 	intel_mst->connector = NULL;
-	if (intel_dp->active_mst_links == 0) {
+	if (last_mst_stream)
 		intel_dig_port->base.post_disable(&intel_dig_port->base,
 						  old_crtc_state, NULL);
-	}
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 }

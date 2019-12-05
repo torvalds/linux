@@ -3807,10 +3807,18 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 	 */
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 
-	if (!is_mst)
+	if (INTEL_GEN(dev_priv) < 12 && !is_mst)
 		intel_ddi_disable_pipe_clock(old_crtc_state);
 
 	intel_disable_ddi_buf(encoder, old_crtc_state);
+
+	/*
+	 * From TGL spec: "If single stream or multi-stream master transcoder:
+	 * Configure Transcoder Clock select to direct no clock to the
+	 * transcoder"
+	 */
+	if (INTEL_GEN(dev_priv) >= 12)
+		intel_ddi_disable_pipe_clock(old_crtc_state);
 
 	intel_edp_panel_vdd_on(intel_dp);
 	intel_edp_panel_off(intel_dp);
