@@ -480,6 +480,7 @@ struct qeth_card_stats {
 
 	u64 rx_dropped_nomem;
 	u64 rx_dropped_notsupp;
+	u64 rx_dropped_runt;
 
 	/* rtnl_link_stats64 */
 	u64 rx_packets;
