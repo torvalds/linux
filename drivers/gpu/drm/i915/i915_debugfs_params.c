@@ -32,6 +32,14 @@ static ssize_t i915_param_int_write(struct file *file,
 	int ret;
 
 	ret = kstrtoint_from_user(ubuf, len, 0, value);
+	if (ret) {
+		/* support boolean values too */
+		bool b;
+
+		ret = kstrtobool_from_user(ubuf, len, &b);
+		if (!ret)
+			*value = b;
+	}
 
 	return ret ?: len;
 }
@@ -77,6 +85,14 @@ static ssize_t i915_param_uint_write(struct file *file,
 	int ret;
 
 	ret = kstrtouint_from_user(ubuf, len, 0, value);
+	if (ret) {
+		/* support boolean values too */
+		bool b;
+
+		ret = kstrtobool_from_user(ubuf, len, &b);
+		if (!ret)
+			*value = b;
+	}
 
 	return ret ?: len;
 }
