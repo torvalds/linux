@@ -223,10 +223,28 @@ static int cdns_clear_bit(struct sdw_cdns *cdns, int offset, u32 value)
 			return 0;
 
 		timeout--;
-		udelay(50);
+		usleep_range(50, 100);
 	} while (timeout != 0);
 
 	return -EAGAIN;
+}
+
+static int cdns_set_wait(struct sdw_cdns *cdns, int offset, u32 mask, u32 value)
+{
+	int timeout = 10;
+	u32 reg_read;
+
+	/* Wait for bit to be set */
+	do {
+		reg_read = readl(cdns->registers + offset);
+		if ((reg_read & mask) == value)
+			return 0;
+
+		timeout--;
+		usleep_range(50, 100);
+	} while (timeout != 0);
+
+	return -ETIMEDOUT;
 }
 
 /*
@@ -1166,6 +1184,144 @@ static const struct sdw_master_port_ops cdns_port_ops = {
 	.dpn_set_port_transport_params = cdns_transport_params,
 	.dpn_port_enable_ch = cdns_port_enable,
 };
+
+/**
+ * sdw_cdns_clock_stop: Cadence clock stop configuration routine
+ *
+ * @cdns: Cadence instance
+ * @block_wake: prevent wakes if required by the platform
+ */
+int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
+{
+	bool slave_attached = false;
+	struct sdw_slave *slave;
+	u32 status;
+	int ret;
+
+	/* Check suspend status */
+	status = cdns_readl(cdns, CDNS_MCP_STAT);
+	if (status & CDNS_MCP_STAT_CLK_STOP) {
+		dev_dbg(cdns->dev, "Clock is already stopped\n");
+		return 1;
+	}
+
+	/*
+	 * For specific platforms, it is required to be able to put
+	 * master into a state in which it ignores wake-up trials
+	 * in clock stop state
+	 */
+	if (block_wake)
+		cdns_updatel(cdns, CDNS_MCP_CONTROL,
+			     CDNS_MCP_CONTROL_BLOCK_WAKEUP,
+			     CDNS_MCP_CONTROL_BLOCK_WAKEUP);
+
+	list_for_each_entry(slave, &cdns->bus.slaves, node) {
+		if (slave->status == SDW_SLAVE_ATTACHED ||
+		    slave->status == SDW_SLAVE_ALERT) {
+			slave_attached = true;
+			break;
+		}
+	}
+
+	/*
+	 * This CMD_ACCEPT should be used when there are no devices
+	 * attached on the link when entering clock stop mode. If this is
+	 * not set and there is a broadcast write then the command ignored
+	 * will be treated as a failure
+	 */
+	if (!slave_attached)
+		cdns_updatel(cdns, CDNS_MCP_CONTROL,
+			     CDNS_MCP_CONTROL_CMD_ACCEPT, 1);
+	else
+		cdns_updatel(cdns, CDNS_MCP_CONTROL,
+			     CDNS_MCP_CONTROL_CMD_ACCEPT, 0);
+
+	/* commit changes */
+	cdns_update_config(cdns);
+
+	/* Prepare slaves for clock stop */
+	ret = sdw_bus_prep_clk_stop(&cdns->bus);
+	if (ret < 0) {
+		dev_err(cdns->dev, "prepare clock stop failed %d", ret);
+		return ret;
+	}
+
+	/* Enter clock stop */
+	ret = sdw_bus_clk_stop(&cdns->bus);
+	if (ret < 0) {
+		dev_err(cdns->dev, "bus clock stop failed %d", ret);
+		return ret;
+	}
+
+	ret = cdns_set_wait(cdns, CDNS_MCP_STAT,
+			    CDNS_MCP_STAT_CLK_STOP,
+			    CDNS_MCP_STAT_CLK_STOP);
+	if (ret < 0)
+		dev_err(cdns->dev, "Clock stop failed %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(sdw_cdns_clock_stop);
+
+/**
+ * sdw_cdns_clock_restart: Cadence PM clock restart configuration routine
+ *
+ * @cdns: Cadence instance
+ * @bus_reset: context may be lost while in low power modes and the bus
+ * may require a Severe Reset and re-enumeration after a wake.
+ */
+int sdw_cdns_clock_restart(struct sdw_cdns *cdns, bool bus_reset)
+{
+	int ret;
+
+	ret = cdns_clear_bit(cdns, CDNS_MCP_CONTROL,
+			     CDNS_MCP_CONTROL_CLK_STOP_CLR);
+	if (ret < 0) {
+		dev_err(cdns->dev, "Couldn't exit from clock stop\n");
+		return ret;
+	}
+
+	ret = cdns_set_wait(cdns, CDNS_MCP_STAT, CDNS_MCP_STAT_CLK_STOP, 0);
+	if (ret < 0) {
+		dev_err(cdns->dev, "clock stop exit failed %d\n", ret);
+		return ret;
+	}
+
+	cdns_updatel(cdns, CDNS_MCP_CONTROL,
+		     CDNS_MCP_CONTROL_BLOCK_WAKEUP, 0);
+
+	/*
+	 * clear CMD_ACCEPT so that the command ignored
+	 * will be treated as a failure during a broadcast write
+	 */
+	cdns_updatel(cdns, CDNS_MCP_CONTROL, CDNS_MCP_CONTROL_CMD_ACCEPT, 0);
+
+	if (bus_reset) {
+		/* program maximum length reset to be safe */
+		cdns_updatel(cdns, CDNS_MCP_CONTROL,
+			     CDNS_MCP_CONTROL_RST_DELAY,
+			     CDNS_MCP_CONTROL_RST_DELAY);
+
+		/* use hardware generated reset */
+		cdns_updatel(cdns, CDNS_MCP_CONTROL,
+			     CDNS_MCP_CONTROL_HW_RST,
+			     CDNS_MCP_CONTROL_HW_RST);
+	}
+
+	/* enable bus operations with clock and data */
+	cdns_updatel(cdns, CDNS_MCP_CONFIG,
+		     CDNS_MCP_CONFIG_OP,
+		     CDNS_MCP_CONFIG_OP_NORMAL);
+
+	cdns_update_config(cdns);
+
+	ret = sdw_bus_exit_clk_stop(&cdns->bus);
+	if (ret < 0)
+		dev_err(cdns->dev, "bus failed to exit clock stop %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(sdw_cdns_clock_restart);
 
 /**
  * sdw_cdns_probe() - Cadence probe routine
