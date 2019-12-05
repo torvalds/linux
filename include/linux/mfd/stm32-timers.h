@@ -70,14 +70,11 @@
 #define TIM_CCER_CC4E	BIT(12)	/* Capt/Comp 4  out Ena    */
 #define TIM_CCER_CC4P	BIT(13)	/* Capt/Comp 4  Polarity   */
 #define TIM_CCER_CCXE	(BIT(0) | BIT(4) | BIT(8) | BIT(12))
-#define TIM_BDTR_BKE	BIT(12) /* Break input enable	   */
-#define TIM_BDTR_BKP	BIT(13) /* Break input polarity	   */
+#define TIM_BDTR_BKE(x)	BIT(12 + (x) * 12) /* Break input enable */
+#define TIM_BDTR_BKP(x)	BIT(13 + (x) * 12) /* Break input polarity */
 #define TIM_BDTR_AOE	BIT(14)	/* Automatic Output Enable */
 #define TIM_BDTR_MOE	BIT(15)	/* Main Output Enable      */
-#define TIM_BDTR_BKF	(BIT(16) | BIT(17) | BIT(18) | BIT(19))
-#define TIM_BDTR_BK2F	(BIT(20) | BIT(21) | BIT(22) | BIT(23))
-#define TIM_BDTR_BK2E	BIT(24) /* Break 2 input enable	   */
-#define TIM_BDTR_BK2P	BIT(25) /* Break 2 input polarity  */
+#define TIM_BDTR_BKF(x)	(0xf << (16 + (x) * 4))
 #define TIM_DCR_DBA	GENMASK(4, 0)	/* DMA base addr */
 #define TIM_DCR_DBL	GENMASK(12, 8)	/* DMA burst len */
 
@@ -87,8 +84,7 @@
 #define TIM_CR2_MMS2_SHIFT	20
 #define TIM_SMCR_TS_SHIFT	4
 #define TIM_BDTR_BKF_MASK	0xF
-#define TIM_BDTR_BKF_SHIFT	16
-#define TIM_BDTR_BK2F_SHIFT	20
+#define TIM_BDTR_BKF_SHIFT(x)	(16 + (x) * 4)
 
 enum stm32_timers_dmas {
 	STM32_TIMERS_DMA_CH1,
