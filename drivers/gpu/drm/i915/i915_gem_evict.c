@@ -359,9 +359,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
  */
 int i915_gem_evict_vm(struct i915_address_space *vm)
 {
-	struct list_head eviction_list;
-	struct i915_vma *vma, *next;
-	int ret;
+	int ret = 0;
 
 	lockdep_assert_held(&vm->mutex);
 	trace_i915_gem_evict_vm(vm);
@@ -377,21 +375,30 @@ int i915_gem_evict_vm(struct i915_address_space *vm)
 			return ret;
 	}
 
-	INIT_LIST_HEAD(&eviction_list);
-	list_for_each_entry(vma, &vm->bound_list, vm_link) {
-		if (i915_vma_is_pinned(vma))
-			continue;
+	do {
+		struct i915_vma *vma, *vn;
+		LIST_HEAD(eviction_list);
 
-		__i915_vma_pin(vma);
-		list_add(&vma->evict_link, &eviction_list);
-	}
+		list_for_each_entry(vma, &vm->bound_list, vm_link) {
+			if (i915_vma_is_pinned(vma))
+				continue;
 
-	ret = 0;
-	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {
-		__i915_vma_unpin(vma);
-		if (ret == 0)
-			ret = __i915_vma_unbind(vma);
-	}
+			__i915_vma_pin(vma);
+			list_add(&vma->evict_link, &eviction_list);
+		}
+		if (list_empty(&eviction_list))
+			break;
+
+		ret = 0;
+		list_for_each_entry_safe(vma, vn, &eviction_list, evict_link) {
+			__i915_vma_unpin(vma);
+			if (ret == 0)
+				ret = __i915_vma_unbind(vma);
+			if (ret != -EINTR) /* "Get me out of here!" */
+				ret = 0;
+		}
+	} while (ret == 0);
+
 	return ret;
 }
 
