@@ -100,6 +100,8 @@ static inline void load_ksp_mmu(struct task_struct *task)
 	struct mm_struct *mm;
 	int asid;
 	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long mmuar;
@@ -127,7 +129,15 @@ static inline void load_ksp_mmu(struct task_struct *task)
 	if (pgd_none(*pgd))
 		goto bug;
 
-	pmd = pmd_offset(pgd, mmuar);
+	p4d = p4d_offset(pgd, mmuar);
+	if (p4d_none(*p4d))
+		goto bug;
+
+	pud = pud_offset(p4d, mmuar);
+	if (pud_none(*pud))
+		goto bug;
+
+	pmd = pmd_offset(pud, mmuar);
 	if (pmd_none(*pmd))
 		goto bug;
 

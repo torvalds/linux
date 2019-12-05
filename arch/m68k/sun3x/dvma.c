@@ -80,6 +80,8 @@ inline int dvma_map_cpu(unsigned long kaddr,
 			       unsigned long vaddr, int len)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
 	unsigned long end;
 	int ret = 0;
 
@@ -90,12 +92,14 @@ inline int dvma_map_cpu(unsigned long kaddr,
 
 	pr_debug("dvma: mapping kern %08lx to virt %08lx\n", kaddr, vaddr);
 	pgd = pgd_offset_k(vaddr);
+	p4d = p4d_offset(pgd, vaddr);
+	pud = pud_offset(p4d, vaddr);
 
 	do {
 		pmd_t *pmd;
 		unsigned long end2;
 
-		if((pmd = pmd_alloc(&init_mm, pgd, vaddr)) == NULL) {
+		if((pmd = pmd_alloc(&init_mm, pud, vaddr)) == NULL) {
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -196,4 +200,3 @@ void dvma_unmap_iommu(unsigned long baddr, int len)
 	}
 
 }
-
