@@ -588,7 +588,7 @@ static int nft_offload_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct flow_indr_block_ing_entry block_ing_entry = {
+static struct flow_indr_block_entry block_ing_entry = {
 	.cb	= nft_indr_block_cb,
 	.list	= LIST_HEAD_INIT(block_ing_entry.list),
 };
@@ -605,13 +605,13 @@ int nft_offload_init(void)
 	if (err < 0)
 		return err;
 
-	flow_indr_add_block_ing_cb(&block_ing_entry);
+	flow_indr_add_block_cb(&block_ing_entry);
 
 	return 0;
 }
 
 void nft_offload_exit(void)
 {
-	flow_indr_del_block_ing_cb(&block_ing_entry);
+	flow_indr_del_block_cb(&block_ing_entry);
 	unregister_netdevice_notifier(&nft_offload_netdev_notifier);
 }
