@@ -177,8 +177,8 @@ struct devfreq {
 	/* information for device frequency transition */
 	unsigned int total_trans;
 	unsigned int *trans_table;
-	unsigned long *time_in_state;
-	unsigned long last_stat_updated;
+	u64 *time_in_state;
+	u64 last_stat_updated;
 
 	struct srcu_notifier_head transition_notifier_list;
 
