@@ -1789,21 +1789,7 @@ static int atmel_aes_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 static int atmel_aes_gcm_setauthsize(struct crypto_aead *tfm,
 				     unsigned int authsize)
 {
-	/* Same as crypto_gcm_authsize() from crypto/gcm.c */
-	switch (authsize) {
-	case 4:
-	case 8:
-	case 12:
-	case 13:
-	case 14:
-	case 15:
-	case 16:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
+	return crypto_gcm_check_authsize(authsize);
 }
 
 static int atmel_aes_gcm_encrypt(struct aead_request *req)
