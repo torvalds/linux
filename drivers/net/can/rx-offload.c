@@ -116,37 +116,95 @@ static int can_rx_offload_compare(struct sk_buff *a, struct sk_buff *b)
 	return cb_b->timestamp - cb_a->timestamp;
 }
 
-static struct sk_buff *can_rx_offload_offload_one(struct can_rx_offload *offload, unsigned int n)
+/**
+ * can_rx_offload_offload_one() - Read one CAN frame from HW
+ * @offload: pointer to rx_offload context
+ * @n: number of mailbox to read
+ *
+ * The task of this function is to read a CAN frame from mailbox @n
+ * from the device and return the mailbox's content as a struct
+ * sk_buff.
+ *
+ * If the struct can_rx_offload::skb_queue exceeds the maximal queue
+ * length (struct can_rx_offload::skb_queue_len_max) or no skb can be
+ * allocated, the mailbox contents is discarded by reading it into an
+ * overflow buffer. This way the mailbox is marked as free by the
+ * driver.
+ *
+ * Return: A pointer to skb containing the CAN frame on success.
+ *
+ *         NULL if the mailbox @n is empty.
+ *
+ *         ERR_PTR() in case of an error
+ */
+static struct sk_buff *
+can_rx_offload_offload_one(struct can_rx_offload *offload, unsigned int n)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb = NULL, *skb_error = NULL;
 	struct can_rx_offload_cb *cb;
 	struct can_frame *cf;
 	int ret;
 
-	/* If queue is full or skb not available, read to discard mailbox */
-	if (likely(skb_queue_len(&offload->skb_queue) <=
-		   offload->skb_queue_len_max))
+	if (likely(skb_queue_len(&offload->skb_queue) <
+		   offload->skb_queue_len_max)) {
 		skb = alloc_can_skb(offload->dev, &cf);
+		if (unlikely(!skb))
+			skb_error = ERR_PTR(-ENOMEM);	/* skb alloc failed */
+	} else {
+		skb_error = ERR_PTR(-ENOBUFS);		/* skb_queue is full */
+	}
 
-	if (!skb) {
+	/* If queue is full or skb not available, drop by reading into
+	 * overflow buffer.
+	 */
+	if (unlikely(skb_error)) {
 		struct can_frame cf_overflow;
 		u32 timestamp;
 
 		ret = offload->mailbox_read(offload, &cf_overflow,
 					    &timestamp, n);
-		if (ret)
-			offload->dev->stats.rx_dropped++;
 
-		return NULL;
+		/* Mailbox was empty. */
+		if (unlikely(!ret))
+			return NULL;
+
+		/* Mailbox has been read and we're dropping it or
+		 * there was a problem reading the mailbox.
+		 *
+		 * Increment error counters in any case.
+		 */
+		offload->dev->stats.rx_dropped++;
+		offload->dev->stats.rx_fifo_errors++;
+
+		/* There was a problem reading the mailbox, propagate
+		 * error value.
+		 */
+		if (unlikely(ret < 0))
+			return ERR_PTR(ret);
+
+		return skb_error;
 	}
 
 	cb = can_rx_offload_get_cb(skb);
 	ret = offload->mailbox_read(offload, cf, &cb->timestamp, n);
-	if (!ret) {
+
+	/* Mailbox was empty. */
+	if (unlikely(!ret)) {
 		kfree_skb(skb);
 		return NULL;
 	}
 
+	/* There was a problem reading the mailbox, propagate error value. */
+	if (unlikely(ret < 0)) {
+		kfree_skb(skb);
+
+		offload->dev->stats.rx_dropped++;
+		offload->dev->stats.rx_fifo_errors++;
+
+		return ERR_PTR(ret);
+	}
+
+	/* Mailbox was read. */
 	return skb;
 }
 
@@ -166,8 +224,8 @@ int can_rx_offload_irq_offload_timestamp(struct can_rx_offload *offload, u64 pen
 			continue;
 
 		skb = can_rx_offload_offload_one(offload, i);
-		if (!skb)
-			break;
+		if (IS_ERR_OR_NULL(skb))
+			continue;
 
 		__skb_queue_add_sort(&skb_queue, skb, can_rx_offload_compare);
 	}
@@ -197,7 +255,13 @@ int can_rx_offload_irq_offload_fifo(struct can_rx_offload *offload)
 	struct sk_buff *skb;
 	int received = 0;
 
-	while ((skb = can_rx_offload_offload_one(offload, 0))) {
+	while (1) {
+		skb = can_rx_offload_offload_one(offload, 0);
+		if (IS_ERR(skb))
+			continue;
+		if (!skb)
+			break;
+
 		skb_queue_tail(&offload->skb_queue, skb);
 		received++;
 	}
@@ -261,8 +325,10 @@ int can_rx_offload_queue_tail(struct can_rx_offload *offload,
 			      struct sk_buff *skb)
 {
 	if (skb_queue_len(&offload->skb_queue) >
-	    offload->skb_queue_len_max)
-		return -ENOMEM;
+	    offload->skb_queue_len_max) {
+		kfree_skb(skb);
+		return -ENOBUFS;
+	}
 
 	skb_queue_tail(&offload->skb_queue, skb);
 	can_rx_offload_schedule(offload);

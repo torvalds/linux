@@ -96,7 +96,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.devs_min	= 2,
 		.tolerated_failures = 1,
 		.devs_increment	= 1,
-		.ncopies	= 2,
+		.ncopies	= 1,
 		.raid_name	= "raid5",
 		.bg_flag	= BTRFS_BLOCK_GROUP_RAID5,
 		.mindev_error	= BTRFS_ERROR_DEV_RAID5_MIN_NOT_MET,
@@ -108,7 +108,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.devs_min	= 3,
 		.tolerated_failures = 2,
 		.devs_increment	= 1,
-		.ncopies	= 3,
+		.ncopies	= 1,
 		.raid_name	= "raid6",
 		.bg_flag	= BTRFS_BLOCK_GROUP_RAID6,
 		.mindev_error	= BTRFS_ERROR_DEV_RAID6_MIN_NOT_MET,
@@ -6106,12 +6106,6 @@ static noinline void btrfs_schedule_bio(struct btrfs_device *device,
 	int should_queue = 1;
 	struct btrfs_pending_bios *pending_bios;
 
-	if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state) ||
-	    !device->bdev) {
-		bio_io_error(bio);
-		return;
-	}
-
 	/* don't bother with additional async steps for reads, right now */
 	if (bio_op(bio) == REQ_OP_READ) {
 		btrfsic_submit_bio(bio);
@@ -6240,7 +6234,8 @@ blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 
 	for (dev_nr = 0; dev_nr < total_devs; dev_nr++) {
 		dev = bbio->stripes[dev_nr].dev;
-		if (!dev || !dev->bdev ||
+		if (!dev || !dev->bdev || test_bit(BTRFS_DEV_STATE_MISSING,
+						   &dev->dev_state) ||
 		    (bio_op(first_bio) == REQ_OP_WRITE &&
 		    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state))) {
 			bbio_error(bbio, first_bio, logical);

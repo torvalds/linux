@@ -4640,6 +4640,8 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 	hba_aer_enabled = phba->hba_flag & HBA_AER_ENABLED;
 
 	rc = lpfc_sli4_brdreset(phba);
+	if (rc)
+		return rc;
 
 	spin_lock_irq(&phba->hbalock);
 	phba->pport->stopped = 0;

@@ -1776,6 +1776,9 @@ static int hns_roce_v2_rereg_write_mtpt(struct hns_roce_dev *hr_dev,
 	struct hns_roce_v2_mpt_entry *mpt_entry = mb_buf;
 	int ret = 0;
 
+	roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_MPT_ST_M,
+		       V2_MPT_BYTE_4_MPT_ST_S, V2_MPT_ST_VALID);
+
 	if (flags & IB_MR_REREG_PD) {
 		roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_PD_M,
 			       V2_MPT_BYTE_4_PD_S, pdn);
@@ -3443,7 +3446,7 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	struct device *dev = hr_dev->dev;
 	int ret = -EINVAL;
 
-	context = kcalloc(2, sizeof(*context), GFP_KERNEL);
+	context = kcalloc(2, sizeof(*context), GFP_ATOMIC);
 	if (!context)
 		return -ENOMEM;
 
@@ -3503,13 +3506,16 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		roce_set_field(qpc_mask->byte_160_sq_ci_pi,
 			       V2_QPC_BYTE_160_SQ_PRODUCER_IDX_M,
 			       V2_QPC_BYTE_160_SQ_PRODUCER_IDX_S, 0);
-		roce_set_field(context->byte_84_rq_ci_pi,
+
+		if (!ibqp->srq) {
+			roce_set_field(context->byte_84_rq_ci_pi,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_M,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_S,
 			       hr_qp->rq.head);
-		roce_set_field(qpc_mask->byte_84_rq_ci_pi,
+			roce_set_field(qpc_mask->byte_84_rq_ci_pi,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_M,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_S, 0);
+		}
 	}
 
 	if (attr_mask & IB_QP_AV) {
@@ -3971,7 +3977,8 @@ static void hns_roce_set_qps_to_err(struct hns_roce_dev *hr_dev, u32 qpn)
 	if (hr_qp->ibqp.uobject) {
 		if (hr_qp->sdb_en == 1) {
 			hr_qp->sq.head = *(int *)(hr_qp->sdb.virt_addr);
-			hr_qp->rq.head = *(int *)(hr_qp->rdb.virt_addr);
+			if (hr_qp->rdb_en == 1)
+				hr_qp->rq.head = *(int *)(hr_qp->rdb.virt_addr);
 		} else {
 			dev_warn(hr_dev->dev, "flush cqe is unsupported in userspace!\n");
 			return;

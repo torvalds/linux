@@ -547,7 +547,9 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	if (mvm->nvm_file_name)
 		iwl_mvm_load_nvm_to_nic(mvm);
 
-	WARN_ON(iwl_nvm_check_version(mvm->nvm_data, mvm->trans));
+	WARN_ONCE(mvm->nvm_data->nvm_version < mvm->trans->cfg->nvm_ver,
+		  "Too old NVM version (0x%0x, required = 0x%0x)",
+		  mvm->nvm_data->nvm_version, mvm->trans->cfg->nvm_ver);
 
 	/*
 	 * abort after reading the nvm in case RF Kill is on, we will complete

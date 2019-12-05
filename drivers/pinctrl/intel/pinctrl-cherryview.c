@@ -157,6 +157,7 @@ struct chv_pin_context {
  * @pctldesc: Pin controller description
  * @pctldev: Pointer to the pin controller device
  * @chip: GPIO chip in this pin controller
+ * @irqchip: IRQ chip in this pin controller
  * @regs: MMIO registers
  * @intr_lines: Stores mapping between 16 HW interrupt wires and GPIO
  *		offset (in GPIO number space)
@@ -170,6 +171,7 @@ struct chv_pinctrl {
 	struct pinctrl_desc pctldesc;
 	struct pinctrl_dev *pctldev;
 	struct gpio_chip chip;
+	struct irq_chip irqchip;
 	void __iomem *regs;
 	unsigned intr_lines[16];
 	const struct chv_community *community;
@@ -1477,16 +1479,6 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned type)
 	return 0;
 }
 
-static struct irq_chip chv_gpio_irqchip = {
-	.name = "chv-gpio",
-	.irq_startup = chv_gpio_irq_startup,
-	.irq_ack = chv_gpio_irq_ack,
-	.irq_mask = chv_gpio_irq_mask,
-	.irq_unmask = chv_gpio_irq_unmask,
-	.irq_set_type = chv_gpio_irq_type,
-	.flags = IRQCHIP_SKIP_SET_WAKE,
-};
-
 static void chv_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
@@ -1626,7 +1618,15 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		}
 	}
 
-	ret = gpiochip_irqchip_add(chip, &chv_gpio_irqchip, 0,
+	pctrl->irqchip.name = "chv-gpio";
+	pctrl->irqchip.irq_startup = chv_gpio_irq_startup;
+	pctrl->irqchip.irq_ack = chv_gpio_irq_ack;
+	pctrl->irqchip.irq_mask = chv_gpio_irq_mask;
+	pctrl->irqchip.irq_unmask = chv_gpio_irq_unmask;
+	pctrl->irqchip.irq_set_type = chv_gpio_irq_type;
+	pctrl->irqchip.flags = IRQCHIP_SKIP_SET_WAKE;
+
+	ret = gpiochip_irqchip_add(chip, &pctrl->irqchip, 0,
 				   handle_bad_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add IRQ chip\n");
@@ -1643,7 +1643,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		}
 	}
 
-	gpiochip_set_chained_irqchip(chip, &chv_gpio_irqchip, irq,
+	gpiochip_set_chained_irqchip(chip, &pctrl->irqchip, irq,
 				     chv_gpio_irq_handler);
 	return 0;
 }

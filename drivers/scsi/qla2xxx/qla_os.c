@@ -3538,6 +3538,8 @@ qla2x00_delete_all_vps(struct qla_hw_data *ha, scsi_qla_host_t *base_vha)
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
 		mutex_unlock(&ha->vport_lock);
 
+		qla_nvme_delete(vha);
+
 		fc_vport_terminate(vha->fc_vport);
 		scsi_host_put(vha->host);
 

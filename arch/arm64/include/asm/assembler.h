@@ -692,11 +692,9 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.macro		if_will_cond_yield_neon
 #ifdef CONFIG_PREEMPT
 	get_thread_info	x0
-	ldr		w1, [x0, #TSK_TI_PREEMPT]
-	ldr		x0, [x0, #TSK_TI_FLAGS]
-	cmp		w1, #PREEMPT_DISABLE_OFFSET
-	csel		x0, x0, xzr, eq
-	tbnz		x0, #TIF_NEED_RESCHED, .Lyield_\@	// needs rescheduling?
+	ldr		x0, [x0, #TSK_TI_PREEMPT]
+	sub		x0, x0, #PREEMPT_DISABLE_OFFSET
+	cbz		x0, .Lyield_\@
 	/* fall through to endif_yield_neon */
 	.subsection	1
 .Lyield_\@ :

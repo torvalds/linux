@@ -21,6 +21,7 @@
 	};
 
 	memory@8000000 {
+		device_type = "memory";
 		reg = <0x08000000 0x04000000>;
 	};
 };

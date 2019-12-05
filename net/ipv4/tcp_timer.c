@@ -443,10 +443,8 @@ void tcp_retransmit_timer(struct sock *sk)
 		 */
 		return;
 	}
-	if (!tp->packets_out)
-		goto out;
-
-	WARN_ON(tcp_rtx_queue_empty(sk));
+	if (!tp->packets_out || WARN_ON_ONCE(tcp_rtx_queue_empty(sk)))
+		return;
 
 	tp->tlp_high_seq = 0;
 
