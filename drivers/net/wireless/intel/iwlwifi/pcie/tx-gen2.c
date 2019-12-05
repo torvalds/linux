@@ -213,16 +213,6 @@ static void iwl_pcie_gen2_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	}
 }
 
-/*
- * We need this inline in case dma_addr_t is only 32-bits - since the
- * hardware is always 64-bit, the issue can still occur in that case,
- * so use u64 for 'phys' here to force the addition in 64-bit.
- */
-static inline bool crosses_4g_boundary(u64 phys, u16 len)
-{
-	return upper_32_bits(phys) != upper_32_bits(phys + len);
-}
-
 static int iwl_pcie_gen2_set_tb(struct iwl_trans *trans,
 				struct iwl_tfh_tfd *tfd, dma_addr_t addr,
 				u16 len)
@@ -238,7 +228,7 @@ static int iwl_pcie_gen2_set_tb(struct iwl_trans *trans,
 	 * there's no more space, and so when we know there is enough we
 	 * don't always check ...
 	 */
-	WARN(crosses_4g_boundary(addr, len),
+	WARN(iwl_pcie_crosses_4g_boundary(addr, len),
 	     "possible DMA problem with iova:0x%llx, len:%d\n",
 	     (unsigned long long)addr, len);
 
@@ -300,7 +290,7 @@ static int iwl_pcie_gen2_set_tb_with_wa(struct iwl_trans *trans,
 	if (unlikely(dma_mapping_error(trans->dev, phys)))
 		return -ENOMEM;
 
-	if (likely(!crosses_4g_boundary(phys, len))) {
+	if (likely(!iwl_pcie_crosses_4g_boundary(phys, len))) {
 		ret = iwl_pcie_gen2_set_tb(trans, tfd, phys, len);
 
 		if (ret < 0)
