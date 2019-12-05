@@ -689,7 +689,7 @@ static bool pca953x_irq_pending(struct pca953x_chip *chip, u8 *pending)
 			return false;
 
 		/* Check latched inputs and clear interrupt status */
-		ret = pca953x_read_regs(chip, PCA953X_INPUT, cur_stat);
+		ret = pca953x_read_regs(chip, chip->regs->input, cur_stat);
 		if (ret)
 			return false;
 
