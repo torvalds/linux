@@ -113,9 +113,8 @@ struct mlx5i_tx_wqe {
 #define MLX5I_SQ_FETCH_WQE(sq, pi) \
 	((struct mlx5i_tx_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, sizeof(struct mlx5i_tx_wqe)))
 
-netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-			  struct mlx5_av *av, u32 dqpn, u32 dqkey,
-			  bool xmit_more);
+void mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+		   struct mlx5_av *av, u32 dqpn, u32 dqkey, bool xmit_more);
 void mlx5i_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 void mlx5i_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 

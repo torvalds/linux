@@ -919,8 +919,8 @@ void mlx5e_build_ptys2ethtool_map(void);
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev);
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
-netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-			  struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more);
+void mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+		   struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more);
 
 void mlx5e_trigger_irq(struct mlx5e_icosq *sq);
 void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe);
