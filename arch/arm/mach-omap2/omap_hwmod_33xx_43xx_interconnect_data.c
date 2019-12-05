@@ -158,34 +158,10 @@ struct omap_hwmod_ocp_if am33xx_l3_s__gpmc = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l4 ls -> mailbox */
-struct omap_hwmod_ocp_if am33xx_l4_per__mailbox = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_mailbox_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l4 ls -> spinlock */
 struct omap_hwmod_ocp_if am33xx_l4_ls__spinlock = {
 	.master		= &am33xx_l4_ls_hwmod,
 	.slave		= &am33xx_spinlock_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 ls -> mcasp0 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__mcasp0 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_mcasp0_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 ls -> mcasp1 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__mcasp1 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_mcasp1_hwmod,
 	.clk		= "l4ls_gclk",
 	.user		= OCP_USER_MPU,
 };
@@ -307,12 +283,4 @@ struct omap_hwmod_ocp_if am33xx_l3_main__aes0 = {
 	.slave		= &am33xx_aes0_hwmod,
 	.clk		= "aes0_fck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4 per -> rng */
-struct omap_hwmod_ocp_if am33xx_l4_per__rng = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_rng_hwmod,
-	.clk		= "rng_fck",
-	.user		= OCP_USER_MPU,
 };

@@ -260,6 +260,6 @@
 			 <&gpt10_ick>, <&mcbsp5_ick>, <&mcbsp1_ick>,
 			 <&omapctrl_ick>, <&aes2_ick>, <&sha12_ick>, <&icr_ick>,
 			 <&des2_ick>, <&mspro_ick>, <&mailboxes_ick>,
-			 <&mspro_fck>;
+			 <&rng_ick>, <&mspro_fck>;
 	};
 };

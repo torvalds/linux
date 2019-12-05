@@ -5,6 +5,7 @@
 #include "msm8916.dtsi"
 #include "pm8916.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Longcheer L8150";
@@ -16,6 +17,16 @@
 
 	chosen {
 		stdout-path = "serial0";
+	};
+
+	reserved-memory {
+		// wcnss.mdt is not relocatable, so it must be loaded at 0x8b600000
+		/delete-node/ wcnss@89300000;
+
+		wcnss_mem: wcnss@8b600000 {
+			reg = <0x0 0x8b600000 0x0 0x600000>;
+			no-map;
+		};
 	};
 
 	soc {
@@ -68,6 +79,10 @@
 			};
 		};
 
+		wcnss@a21b000 {
+			status = "okay";
+		};
+
 		/*
 		 * Attempting to enable these devices causes a "synchronous
 		 * external abort". Suspected cause is that the debug power
@@ -99,9 +114,36 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_vbus_default>;
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys_default>;
+
+		label = "GPIO Buttons";
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+	};
 };
 
 &msmgpio {
+	gpio_keys_default: gpio_keys_default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio107";
+		};
+		pinconf {
+			pins = "gpio107";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
 	usb_vbus_default: usb-vbus-default {
 		pinmux {
 			function = "gpio";
@@ -110,6 +152,19 @@
 		pinconf {
 			pins = "gpio62";
 			bias-pull-up;
+		};
+	};
+};
+
+&spmi_bus {
+	pm8916@0 {
+		pon@800 {
+			volume-down {
+				compatible = "qcom,pm8941-resin";
+				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+				bias-pull-up;
+				linux,code = <KEY_VOLUMEDOWN>;
+			};
 		};
 	};
 };

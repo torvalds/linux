@@ -94,7 +94,7 @@ properties:
               - amlogic,p212
               - hwacom,amazetv
               - khadas,vim
-              - libretech,cc
+              - libretech,aml-s905x-cc
               - nexbox,a95x
           - const: amlogic,s905x
           - const: amlogic,meson-gxl
@@ -147,6 +147,7 @@ properties:
           - enum:
               - hardkernel,odroid-n2
               - khadas,vim3
+              - ugoos,am6
           - const: amlogic,s922x
           - const: amlogic,g12b
 
@@ -156,4 +157,10 @@ properties:
               - seirobotics,sei610
               - khadas,vim3l
           - const: amlogic,sm1
+
+      - description: Boards with the Amlogic Meson A1 A113L SoC
+        items:
+          - enum:
+              - amlogic,ad401
+          - const: amlogic,a1
 ...

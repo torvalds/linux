@@ -436,6 +436,16 @@ camera: &i2c7 {
 
 &spi2 {
 	status = "okay";
+
+	cr50@0 {
+		compatible = "google,cr50";
+		reg = <0>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <17 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&h1_int_od_l>;
+		spi-max-frequency = <800000>;
+	};
 };
 
 &usb_host0_ohci {

@@ -64,6 +64,16 @@
 			status = "okay";
 		};
 
+		sor@54540000 {
+			status = "okay";
+
+			avdd-io-hdmi-dp-supply = <&avdd_io_edp_1v05>;
+			vdd-hdmi-dp-pll-supply = <&vdd_1v8>;
+
+			nvidia,xbar-cfg = <2 1 0 3 4>;
+			nvidia,dpaux = <&dpaux>;
+		};
+
 		sor@54580000 {
 			status = "okay";
 
@@ -75,6 +85,10 @@
 			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(CC, 1)
 					   GPIO_ACTIVE_LOW>;
 			nvidia,xbar-cfg = <0 1 2 3 4>;
+		};
+
+		dpaux@545c0000 {
+			status = "okay";
 		};
 	};
 
@@ -382,6 +396,13 @@
 
 	pmc@7000e400 {
 		nvidia,invert-interrupt;
+		nvidia,suspend-mode = <0>;
+		nvidia,cpu-pwr-good-time = <0>;
+		nvidia,cpu-pwr-off-time = <0>;
+		nvidia,core-pwr-good-time = <4587 3876>;
+		nvidia,core-pwr-off-time = <39065>;
+		nvidia,core-power-req-active-high;
+		nvidia,sys-clock-req-active-high;
 	};
 
 	hda@70030000 {
@@ -679,6 +700,20 @@
 			regulator-settling-time-us = <160>;
 			enable-gpios = <&pmic 6 GPIO_ACTIVE_HIGH>;
 			vin-supply = <&vdd_5v0_sys>;
+		};
+
+		avdd_io_edp_1v05: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
+
+			regulator-name = "AVDD_IO_EDP_1V05";
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1050000>;
+
+			gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&avdd_1v05_pll>;
 		};
 	};
 };

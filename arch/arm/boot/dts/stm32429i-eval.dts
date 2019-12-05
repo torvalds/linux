@@ -60,7 +60,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@00000000 {
 		device_type = "memory";
 		reg = <0x00000000 0x2000000>;
 	};
@@ -234,7 +234,6 @@
 	status = "okay";
 	pinctrl-0 = <&ltdc_pins>;
 	pinctrl-names = "default";
-	dma-ranges;
 
 	port {
 		ltdc_out_rgb: endpoint {

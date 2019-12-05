@@ -384,34 +384,6 @@
 	};
 };
 
-&usb {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb1 {
-	status = "okay";
-};
-
-&cppi41dma  {
-	status = "okay";
-};
-
 /*
  * Disable soc's rtc as we have no VBAT for it. This makes the board
  * rtc (Microchip MCP79400) the default rtc device 'rtc0'.

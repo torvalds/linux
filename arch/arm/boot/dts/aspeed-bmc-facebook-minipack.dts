@@ -2,7 +2,7 @@
 // Copyright (c) 2018 Facebook Inc.
 /dts-v1/;
 
-#include "aspeed-g5.dtsi"
+#include "ast2500-facebook-netbmc-common.dtsi"
 
 / {
 	model = "Facebook Minipack 100 BMC";
@@ -76,15 +76,6 @@
 		stdout-path = &uart1;
 		bootargs = "debug console=ttyS1,9600n8 root=/dev/ram rw";
 	};
-
-	memory@80000000 {
-		reg = <0x80000000 0x20000000>;
-	};
-};
-
-&wdt1 {
-	status = "okay";
-	aspeed,reset-type = "system";
 };
 
 &wdt2 {
@@ -92,19 +83,29 @@
 	aspeed,reset-type = "system";
 };
 
-&fmc {
-	status = "okay";
-	flash@0 {
-		status = "okay";
-		m25p,fast-read;
-		label = "bmc";
-#include "facebook-bmc-flash-layout.dtsi"
+/*
+ * Both firmware flashes are 64MB on Minipack BMC.
+ */
+&fmc_flash0 {
+	partitions {
+		data0@1c00000 {
+			reg = <0x1c00000 0x2400000>;
+		};
+		flash0@0 {
+			reg = <0x0 0x4000000>;
+		};
+	};
+};
+
+&fmc_flash1 {
+	partitions {
+		flash1@0 {
+			reg = <0x0 0x4000000>;
+		};
 	};
 };
 
 &uart1 {
-	status = "okay";
-	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_txd1_default
 		     &pinctrl_rxd1_default
 		     &pinctrl_ncts1_default
@@ -120,29 +121,11 @@
 		     &pinctrl_rxd2_default>;
 };
 
-&uart3 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_txd3_default
-		     &pinctrl_rxd3_default>;
-};
-
 &uart4 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_txd4_default
 		     &pinctrl_rxd4_default>;
-};
-
-&uart5 {
-	status = "okay";
-};
-
-&mac1 {
-	status = "okay";
-	no-hw-checksum;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
 };
 
 &i2c0 {
@@ -421,9 +404,5 @@
 };
 
 &i2c13 {
-	status = "okay";
-};
-
-&vhub {
 	status = "okay";
 };

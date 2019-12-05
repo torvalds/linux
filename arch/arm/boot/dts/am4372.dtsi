@@ -230,7 +230,6 @@
 
 		target-module@47810000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mmc3";
 			reg = <0x478102fc 0x4>,
 			      <0x47810110 0x4>,
 			      <0x47810114 0x4>;
@@ -351,20 +350,20 @@
 			};
 		};
 
-		ocmcram: ocmcram@40300000 {
+		ocmcram: sram@40300000 {
 			compatible = "mmio-sram";
 			reg = <0x40300000 0x40000>; /* 256k */
 			ranges = <0x0 0x40300000 0x40000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			pm_sram_code: pm-sram-code@0 {
+			pm_sram_code: pm-code-sram@0 {
 				compatible = "ti,sram";
 				reg = <0x0 0x1000>;
 				protect-exec;
 			};
 
-			pm_sram_data: pm-sram-data@1000 {
+			pm_sram_data: pm-data-sram@1000 {
 				compatible = "ti,sram";
 				reg = <0x1000 0x1000>;
 				pool;
@@ -375,3 +374,29 @@
 
 #include "am437x-l4.dtsi"
 #include "am43xx-clocks.dtsi"
+
+&prcm {
+	prm_gfx: prm@400 {
+		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
+		reg = <0x400 0x100>;
+		#reset-cells = <1>;
+	};
+
+	prm_per: prm@800 {
+		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
+		reg = <0x800 0x100>;
+		#reset-cells = <1>;
+	};
+
+	prm_wkup: prm@2000 {
+		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
+		reg = <0x2000 0x100>;
+		#reset-cells = <1>;
+	};
+
+	prm_device: prm@4000 {
+		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
+		reg = <0x4000 0x100>;
+		#reset-cells = <1>;
+	};
+};

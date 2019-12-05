@@ -132,6 +132,19 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
+	pca9535: gpio-expander@27 {
+		compatible = "nxp,pca9535";
+		reg = <0x27>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pca9535>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
 	eeprom@57 {
 		compatible = "atmel,24c02";
 		reg = <0x57>;
@@ -235,6 +248,12 @@
 				/* user led */
 				MX6QDL_PAD_GPIO_2__GPIO1_IO02		0x80000000
 			>;
+		};
+
+		pinctrl_pca9535: pca9535grp {
+			fsl,pins = <
+				MX6QDL_PAD_NANDF_CS3__GPIO6_IO16	0x17059
+		   >;
 		};
 
 		pinctrl_uart1: uart1grp {

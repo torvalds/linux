@@ -40,6 +40,11 @@ properties:
           - const: asus,rk3288-tinker-s
           - const: rockchip,rk3288
 
+      - description: Beelink A1
+        items:
+          - const: azw,beelink-a1
+          - const: rockchip,rk3328
+
       - description: bq Curie 2 tablet
         items:
           - const: mundoreader,bq-curie2
@@ -82,6 +87,11 @@ properties:
           - const: firefly,firefly-rk3399
           - const: rockchip,rk3399
 
+      - description: Firefly ROC-RK3308-CC
+        items:
+          - const: firefly,roc-rk3308-cc
+          - const: rockchip,rk3308
+
       - description: Firefly roc-rk3328-cc
         items:
           - const: firefly,roc-rk3328-cc
@@ -89,7 +99,9 @@ properties:
 
       - description: Firefly ROC-RK3399-PC
         items:
-          - const: firefly,roc-rk3399-pc
+          - enum:
+              - firefly,roc-rk3399-pc
+              - firefly,roc-rk3399-pc-mezzanine
           - const: rockchip,rk3399
 
       - description: FriendlyElec NanoPi4 series boards
@@ -463,6 +475,11 @@ properties:
               - rockchip,rk3288-evb-act8846
               - rockchip,rk3288-evb-rk808
           - const: rockchip,rk3288
+
+      - description: Rockchip RK3308 Evaluation board
+        items:
+          - const: rockchip,rk3308-evb
+          - const: rockchip,rk3308
 
       - description: Rockchip RK3328 Evaluation board
         items:

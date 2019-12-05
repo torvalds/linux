@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2019 NXP
+ */
+
+/dts-v1/;
+
+#include "imx8mn.dtsi"
+#include "imx8mn-evk.dtsi"
+
+/ {
+	model = "NXP i.MX8MNano EVK board";
+	compatible = "fsl,imx8mn-evk", "fsl,imx8mn";
+};
+
+&A53_0 {
+	/delete-property/operating-points-v2;
+};
+
+&A53_1 {
+	/delete-property/operating-points-v2;
+};
+
+&A53_2 {
+	/delete-property/operating-points-v2;
+};
+
+&A53_3 {
+	/delete-property/operating-points-v2;
+};

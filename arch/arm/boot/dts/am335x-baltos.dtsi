@@ -258,18 +258,6 @@
 	};
 };
 
-&usb {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&cppi41dma  {
-	status = "okay";
-};
-
 #include "tps65910.dtsi"
 
 &tps {
