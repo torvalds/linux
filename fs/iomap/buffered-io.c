@@ -1143,6 +1143,7 @@ iomap_finish_ioend(struct iomap_ioend *ioend, int error)
 	struct bio *bio = &ioend->io_inline_bio;
 	struct bio *last = ioend->io_bio, *next;
 	u64 start = bio->bi_iter.bi_sector;
+	loff_t offset = ioend->io_offset;
 	bool quiet = bio_flagged(bio, BIO_QUIET);
 
 	for (bio = &ioend->io_inline_bio; bio; bio = next) {
@@ -1163,12 +1164,12 @@ iomap_finish_ioend(struct iomap_ioend *ioend, int error)
 			iomap_finish_page_writeback(inode, bv->bv_page, error);
 		bio_put(bio);
 	}
+	/* The ioend has been freed by bio_put() */
 
 	if (unlikely(error && !quiet)) {
 		printk_ratelimited(KERN_ERR
 "%s: writeback error on inode %lu, offset %lld, sector %llu",
-			inode->i_sb->s_id, inode->i_ino, ioend->io_offset,
-			start);
+			inode->i_sb->s_id, inode->i_ino, offset, start);
 	}
 }
 
