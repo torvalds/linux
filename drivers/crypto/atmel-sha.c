@@ -2756,7 +2756,7 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	if (!sha_res) {
 		dev_err(dev, "no MEM resource info\n");
 		err = -ENODEV;
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 	sha_dd->phys_base = sha_res->start;
 
@@ -2764,14 +2764,14 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	sha_dd->irq = platform_get_irq(pdev,  0);
 	if (sha_dd->irq < 0) {
 		err = sha_dd->irq;
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	err = devm_request_irq(&pdev->dev, sha_dd->irq, atmel_sha_irq,
 			       IRQF_SHARED, "atmel-sha", sha_dd);
 	if (err) {
 		dev_err(dev, "unable to request sha irq.\n");
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	/* Initializing the clock */
@@ -2779,23 +2779,23 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	if (IS_ERR(sha_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(sha_dd->iclk);
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	sha_dd->io_base = devm_ioremap_resource(&pdev->dev, sha_res);
 	if (IS_ERR(sha_dd->io_base)) {
 		dev_err(dev, "can't ioremap\n");
 		err = PTR_ERR(sha_dd->io_base);
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	err = clk_prepare(sha_dd->iclk);
 	if (err)
-		goto res_err;
+		goto err_tasklet_kill;
 
 	err = atmel_sha_hw_version_init(sha_dd);
 	if (err)
-		goto iclk_unprepare;
+		goto err_iclk_unprepare;
 
 	atmel_sha_get_cap(sha_dd);
 
@@ -2806,13 +2806,13 @@ static int atmel_sha_probe(struct platform_device *pdev)
 			if (IS_ERR(pdata)) {
 				dev_err(&pdev->dev, "platform data not available\n");
 				err = PTR_ERR(pdata);
-				goto iclk_unprepare;
+				goto err_iclk_unprepare;
 			}
 		}
 
 		err = atmel_sha_dma_init(sha_dd, pdata);
 		if (err)
-			goto err_sha_dma;
+			goto err_iclk_unprepare;
 
 		dev_info(dev, "using %s for DMA transfers\n",
 				dma_chan_name(sha_dd->dma_lch_in.chan));
@@ -2838,10 +2838,9 @@ err_algs:
 	spin_unlock(&atmel_sha.lock);
 	if (sha_dd->caps.has_dma)
 		atmel_sha_dma_cleanup(sha_dd);
-err_sha_dma:
-iclk_unprepare:
+err_iclk_unprepare:
 	clk_unprepare(sha_dd->iclk);
-res_err:
+err_tasklet_kill:
 	tasklet_kill(&sha_dd->queue_task);
 	tasklet_kill(&sha_dd->done_task);
 

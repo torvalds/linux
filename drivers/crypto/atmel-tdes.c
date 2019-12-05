@@ -1262,7 +1262,7 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	if (!tdes_res) {
 		dev_err(dev, "no MEM resource info\n");
 		err = -ENODEV;
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 	tdes_dd->phys_base = tdes_res->start;
 
@@ -1270,14 +1270,14 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	tdes_dd->irq = platform_get_irq(pdev,  0);
 	if (tdes_dd->irq < 0) {
 		err = tdes_dd->irq;
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	err = devm_request_irq(&pdev->dev, tdes_dd->irq, atmel_tdes_irq,
 			       IRQF_SHARED, "atmel-tdes", tdes_dd);
 	if (err) {
 		dev_err(dev, "unable to request tdes irq.\n");
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	/* Initializing the clock */
@@ -1285,25 +1285,25 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	if (IS_ERR(tdes_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(tdes_dd->iclk);
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	tdes_dd->io_base = devm_ioremap_resource(&pdev->dev, tdes_res);
 	if (IS_ERR(tdes_dd->io_base)) {
 		dev_err(dev, "can't ioremap\n");
 		err = PTR_ERR(tdes_dd->io_base);
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	err = atmel_tdes_hw_version_init(tdes_dd);
 	if (err)
-		goto res_err;
+		goto err_tasklet_kill;
 
 	atmel_tdes_get_cap(tdes_dd);
 
 	err = atmel_tdes_buff_init(tdes_dd);
 	if (err)
-		goto err_tdes_buff;
+		goto err_tasklet_kill;
 
 	if (tdes_dd->caps.has_dma) {
 		pdata = pdev->dev.platform_data;
@@ -1312,13 +1312,13 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 			if (IS_ERR(pdata)) {
 				dev_err(&pdev->dev, "platform data not available\n");
 				err = PTR_ERR(pdata);
-				goto err_pdata;
+				goto err_buff_cleanup;
 			}
 		}
 
 		err = atmel_tdes_dma_init(tdes_dd, pdata);
 		if (err)
-			goto err_tdes_dma;
+			goto err_buff_cleanup;
 
 		dev_info(dev, "using %s, %s for DMA transfers\n",
 				dma_chan_name(tdes_dd->dma_lch_in.chan),
@@ -1343,11 +1343,9 @@ err_algs:
 	spin_unlock(&atmel_tdes.lock);
 	if (tdes_dd->caps.has_dma)
 		atmel_tdes_dma_cleanup(tdes_dd);
-err_tdes_dma:
-err_pdata:
+err_buff_cleanup:
 	atmel_tdes_buff_cleanup(tdes_dd);
-err_tdes_buff:
-res_err:
+err_tasklet_kill:
 	tasklet_kill(&tdes_dd->done_task);
 	tasklet_kill(&tdes_dd->queue_task);
 

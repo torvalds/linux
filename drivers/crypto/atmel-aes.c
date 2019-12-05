@@ -2622,7 +2622,7 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	if (!aes_res) {
 		dev_err(dev, "no MEM resource info\n");
 		err = -ENODEV;
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 	aes_dd->phys_base = aes_res->start;
 
@@ -2630,14 +2630,14 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	aes_dd->irq = platform_get_irq(pdev,  0);
 	if (aes_dd->irq < 0) {
 		err = aes_dd->irq;
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	err = devm_request_irq(&pdev->dev, aes_dd->irq, atmel_aes_irq,
 			       IRQF_SHARED, "atmel-aes", aes_dd);
 	if (err) {
 		dev_err(dev, "unable to request aes irq.\n");
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	/* Initializing the clock */
@@ -2645,40 +2645,40 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	if (IS_ERR(aes_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(aes_dd->iclk);
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	aes_dd->io_base = devm_ioremap_resource(&pdev->dev, aes_res);
 	if (IS_ERR(aes_dd->io_base)) {
 		dev_err(dev, "can't ioremap\n");
 		err = PTR_ERR(aes_dd->io_base);
-		goto res_err;
+		goto err_tasklet_kill;
 	}
 
 	err = clk_prepare(aes_dd->iclk);
 	if (err)
-		goto res_err;
+		goto err_tasklet_kill;
 
 	err = atmel_aes_hw_version_init(aes_dd);
 	if (err)
-		goto iclk_unprepare;
+		goto err_iclk_unprepare;
 
 	atmel_aes_get_cap(aes_dd);
 
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_ATMEL_AUTHENC)
 	if (aes_dd->caps.has_authenc && !atmel_sha_authenc_is_ready()) {
 		err = -EPROBE_DEFER;
-		goto iclk_unprepare;
+		goto err_iclk_unprepare;
 	}
 #endif
 
 	err = atmel_aes_buff_init(aes_dd);
 	if (err)
-		goto err_aes_buff;
+		goto err_iclk_unprepare;
 
 	err = atmel_aes_dma_init(aes_dd, pdata);
 	if (err)
-		goto err_aes_dma;
+		goto err_buff_cleanup;
 
 	spin_lock(&atmel_aes.lock);
 	list_add_tail(&aes_dd->list, &atmel_aes.dev_list);
@@ -2699,12 +2699,11 @@ err_algs:
 	list_del(&aes_dd->list);
 	spin_unlock(&atmel_aes.lock);
 	atmel_aes_dma_cleanup(aes_dd);
-err_aes_dma:
+err_buff_cleanup:
 	atmel_aes_buff_cleanup(aes_dd);
-err_aes_buff:
-iclk_unprepare:
+err_iclk_unprepare:
 	clk_unprepare(aes_dd->iclk);
-res_err:
+err_tasklet_kill:
 	tasklet_kill(&aes_dd->done_task);
 	tasklet_kill(&aes_dd->queue_task);
 
