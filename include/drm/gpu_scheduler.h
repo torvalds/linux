@@ -81,8 +81,9 @@ enum drm_sched_priority {
 struct drm_sched_entity {
 	struct list_head		list;
 	struct drm_sched_rq		*rq;
-	struct drm_sched_rq		**rq_list;
-	unsigned int                    num_rq_list;
+	unsigned int                    num_sched_list;
+	struct drm_gpu_scheduler        **sched_list;
+	enum drm_sched_priority         priority;
 	spinlock_t			rq_lock;
 
 	struct spsc_queue		job_queue;
@@ -312,7 +313,8 @@ void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 				struct drm_sched_entity *entity);
 
 int drm_sched_entity_init(struct drm_sched_entity *entity,
-			  struct drm_sched_rq **rq_list,
+			  enum drm_sched_priority priority,
+			  struct drm_gpu_scheduler **sched_list,
 			  unsigned int num_rq_list,
 			  atomic_t *guilty);
 long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout);

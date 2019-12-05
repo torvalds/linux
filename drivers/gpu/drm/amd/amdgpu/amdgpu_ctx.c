@@ -122,7 +122,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 
 	for (i = 0; i < AMDGPU_HW_IP_NUM; ++i) {
 		struct amdgpu_ring *rings[AMDGPU_MAX_RINGS];
-		struct drm_sched_rq *rqs[AMDGPU_MAX_RINGS];
+		struct drm_gpu_scheduler *sched_list[AMDGPU_MAX_RINGS];
 		unsigned num_rings = 0;
 		unsigned num_rqs = 0;
 
@@ -181,12 +181,13 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			if (!rings[j]->adev)
 				continue;
 
-			rqs[num_rqs++] = &rings[j]->sched.sched_rq[priority];
+			sched_list[num_rqs++] = &rings[j]->sched;
 		}
 
 		for (j = 0; j < amdgpu_ctx_num_entities[i]; ++j)
 			r = drm_sched_entity_init(&ctx->entities[i][j].entity,
-						  rqs, num_rqs, &ctx->guilty);
+						  priority, sched_list,
+						  num_rqs, &ctx->guilty);
 		if (r)
 			goto error_cleanup_entities;
 	}

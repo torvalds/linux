@@ -2740,6 +2740,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 {
 	struct amdgpu_bo_param bp;
 	struct amdgpu_bo *root;
+	struct drm_gpu_scheduler *sched_list[AMDGPU_MAX_RINGS];
 	int r, i;
 
 	vm->va = RB_ROOT_CACHED;
@@ -2753,14 +2754,19 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	spin_lock_init(&vm->invalidated_lock);
 	INIT_LIST_HEAD(&vm->freed);
 
+	for (i = 0; i < adev->vm_manager.vm_pte_num_rqs; i++)
+		sched_list[i] = adev->vm_manager.vm_pte_rqs[i]->sched;
+
 	/* create scheduler entities for page table updates */
-	r = drm_sched_entity_init(&vm->direct, adev->vm_manager.vm_pte_rqs,
-				  adev->vm_manager.vm_pte_num_rqs, NULL);
+	r = drm_sched_entity_init(&vm->direct, DRM_SCHED_PRIORITY_NORMAL,
+				  sched_list, adev->vm_manager.vm_pte_num_rqs,
+				  NULL);
 	if (r)
 		return r;
 
-	r = drm_sched_entity_init(&vm->delayed, adev->vm_manager.vm_pte_rqs,
-				  adev->vm_manager.vm_pte_num_rqs, NULL);
+	r = drm_sched_entity_init(&vm->delayed, DRM_SCHED_PRIORITY_NORMAL,
+				  sched_list, adev->vm_manager.vm_pte_num_rqs,
+				  NULL);
 	if (r)
 		goto error_free_direct;
 

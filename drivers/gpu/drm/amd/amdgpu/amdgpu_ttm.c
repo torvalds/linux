@@ -1987,11 +1987,13 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 
 	if (enable) {
 		struct amdgpu_ring *ring;
-		struct drm_sched_rq *rq;
+		struct drm_gpu_scheduler *sched;
 
 		ring = adev->mman.buffer_funcs_ring;
-		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_KERNEL];
-		r = drm_sched_entity_init(&adev->mman.entity, &rq, 1, NULL);
+		sched = &ring->sched;
+		r = drm_sched_entity_init(&adev->mman.entity,
+				          DRM_SCHED_PRIORITY_KERNEL, &sched,
+					  1, NULL);
 		if (r) {
 			DRM_ERROR("Failed setting up TTM BO move entity (%d)\n",
 				  r);
