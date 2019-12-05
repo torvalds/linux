@@ -108,8 +108,8 @@ static void imx_snvs_pwrkey_act(void *pdata)
 
 static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 {
-	struct pwrkey_drv_data *pdata = NULL;
-	struct input_dev *input = NULL;
+	struct pwrkey_drv_data *pdata;
+	struct input_dev *input;
 	struct device_node *np;
 	int error;
 	u32 vid;
