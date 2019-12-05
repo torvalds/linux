@@ -29,6 +29,9 @@
 #define MAX17040_DELAY		1000
 #define MAX17040_BATTERY_FULL	95
 
+#define MAX17040_ATHD_MASK		0xFFC0
+#define MAX17040_ATHD_DEFAULT_POWER_UP	4
+
 struct max17040_chip {
 	struct i2c_client		*client;
 	struct delayed_work		work;
@@ -43,6 +46,8 @@ struct max17040_chip {
 	int soc;
 	/* State Of Charge */
 	int status;
+	/* Low alert threshold from 32% to 1% of the State of Charge */
+	u32 low_soc_alert;
 };
 
 static int max17040_get_property(struct power_supply *psy,
@@ -97,6 +102,21 @@ static int max17040_read_reg(struct i2c_client *client, int reg)
 static void max17040_reset(struct i2c_client *client)
 {
 	max17040_write_reg(client, MAX17040_CMD, 0x0054);
+}
+
+static int max17040_set_low_soc_alert(struct i2c_client *client, u32 level)
+{
+	int ret;
+	u16 data;
+
+	level = 32 - level;
+	data = max17040_read_reg(client, MAX17040_RCOMP);
+	/* clear the alrt bit and set LSb 5 bits */
+	data &= MAX17040_ATHD_MASK;
+	data |= level;
+	ret = max17040_write_reg(client, MAX17040_RCOMP, data);
+
+	return ret;
 }
 
 static void max17040_get_vcell(struct i2c_client *client)
@@ -161,6 +181,21 @@ static void max17040_get_status(struct i2c_client *client)
 		chip->status = POWER_SUPPLY_STATUS_FULL;
 }
 
+static int max17040_get_of_data(struct max17040_chip *chip)
+{
+	struct device *dev = &chip->client->dev;
+
+	chip->low_soc_alert = MAX17040_ATHD_DEFAULT_POWER_UP;
+	device_property_read_u32(dev,
+				 "maxim,alert-low-soc-level",
+				 &chip->low_soc_alert);
+
+	if (chip->low_soc_alert <= 0 || chip->low_soc_alert >= 33)
+		return -EINVAL;
+
+	return 0;
+}
+
 static void max17040_check_changes(struct i2c_client *client)
 {
 	max17040_get_vcell(client);
@@ -191,6 +226,9 @@ static irqreturn_t max17040_thread_handler(int id, void *dev)
 
 	/* send uevent */
 	power_supply_changed(chip->battery);
+
+	/* reset alert bit */
+	max17040_set_low_soc_alert(client, chip->low_soc_alert);
 
 	return IRQ_HANDLED;
 }
@@ -230,6 +268,7 @@ static int max17040_probe(struct i2c_client *client,
 	struct i2c_adapter *adapter = client->adapter;
 	struct power_supply_config psy_cfg = {};
 	struct max17040_chip *chip;
+	int ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
@@ -240,6 +279,12 @@ static int max17040_probe(struct i2c_client *client,
 
 	chip->client = client;
 	chip->pdata = client->dev.platform_data;
+	ret = max17040_get_of_data(chip);
+	if (ret) {
+		dev_err(&client->dev,
+			"failed: low SOC alert OF data out of bounds\n");
+		return ret;
+	}
 
 	i2c_set_clientdata(client, chip);
 	psy_cfg.drv_data = chip;
@@ -257,7 +302,12 @@ static int max17040_probe(struct i2c_client *client,
 	/* check interrupt */
 	if (client->irq && of_device_is_compatible(client->dev.of_node,
 						   "maxim,max77836-battery")) {
-		int ret;
+		ret = max17040_set_low_soc_alert(client, chip->low_soc_alert);
+		if (ret) {
+			dev_err(&client->dev,
+				"Failed to set low SOC alert: err %d\n", ret);
+			return ret;
+		}
 
 		ret = max17040_enable_alert_irq(chip);
 		if (ret) {
