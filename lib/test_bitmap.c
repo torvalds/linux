@@ -247,7 +247,7 @@ struct test_bitmap_parselist{
 	const int flags;
 };
 
-static const unsigned long exp[] __initconst = {
+static const unsigned long exp1[] __initconst = {
 	BITMAP_FROM_U64(1),
 	BITMAP_FROM_U64(2),
 	BITMAP_FROM_U64(0x0000ffff),
@@ -271,29 +271,29 @@ static const unsigned long exp2[] __initconst = {
 static const struct test_bitmap_parselist parselist_tests[] __initconst = {
 #define step (sizeof(u64) / sizeof(unsigned long))
 
-	{0, "0",			&exp[0], 8, 0},
-	{0, "1",			&exp[1 * step], 8, 0},
-	{0, "0-15",			&exp[2 * step], 32, 0},
-	{0, "16-31",			&exp[3 * step], 32, 0},
-	{0, "0-31:1/2",			&exp[4 * step], 32, 0},
-	{0, "1-31:1/2",			&exp[5 * step], 32, 0},
-	{0, "0-31:1/4",			&exp[6 * step], 32, 0},
-	{0, "1-31:1/4",			&exp[7 * step], 32, 0},
-	{0, "0-31:4/4",			&exp[8 * step], 32, 0},
-	{0, "1-31:4/4",			&exp[9 * step], 32, 0},
-	{0, "0-31:1/4,32-63:2/4",	&exp[10 * step], 64, 0},
-	{0, "0-31:3/4,32-63:4/4",	&exp[11 * step], 64, 0},
-	{0, "  ,,  0-31:3/4  ,, 32-63:4/4  ,,  ",	&exp[11 * step], 64, 0},
+	{0, "0",			&exp1[0], 8, 0},
+	{0, "1",			&exp1[1 * step], 8, 0},
+	{0, "0-15",			&exp1[2 * step], 32, 0},
+	{0, "16-31",			&exp1[3 * step], 32, 0},
+	{0, "0-31:1/2",			&exp1[4 * step], 32, 0},
+	{0, "1-31:1/2",			&exp1[5 * step], 32, 0},
+	{0, "0-31:1/4",			&exp1[6 * step], 32, 0},
+	{0, "1-31:1/4",			&exp1[7 * step], 32, 0},
+	{0, "0-31:4/4",			&exp1[8 * step], 32, 0},
+	{0, "1-31:4/4",			&exp1[9 * step], 32, 0},
+	{0, "0-31:1/4,32-63:2/4",	&exp1[10 * step], 64, 0},
+	{0, "0-31:3/4,32-63:4/4",	&exp1[11 * step], 64, 0},
+	{0, "  ,,  0-31:3/4  ,, 32-63:4/4  ,,  ",	&exp1[11 * step], 64, 0},
 
 	{0, "0-31:1/4,32-63:2/4,64-95:3/4,96-127:4/4",	exp2, 128, 0},
 
 	{0, "0-2047:128/256", NULL, 2048, PARSE_TIME},
 
-	{0, "",				&exp[12 * step], 8, 0},
-	{0, "\n",			&exp[12 * step], 8, 0},
-	{0, ",,  ,,  , ,  ,",		&exp[12 * step], 8, 0},
-	{0, " ,  ,,  , ,   ",		&exp[12 * step], 8, 0},
-	{0, " ,  ,,  , ,   \n",		&exp[12 * step], 8, 0},
+	{0, "",				&exp1[12 * step], 8, 0},
+	{0, "\n",			&exp1[12 * step], 8, 0},
+	{0, ",,  ,,  , ,  ,",		&exp1[12 * step], 8, 0},
+	{0, " ,  ,,  , ,   ",		&exp1[12 * step], 8, 0},
+	{0, " ,  ,,  , ,   \n",		&exp1[12 * step], 8, 0},
 
 	{-EINVAL, "-1",	NULL, 8, 0},
 	{-EINVAL, "-0",	NULL, 8, 0},
@@ -374,7 +374,7 @@ static void __init test_bitmap_parselist_user(void)
 	__test_bitmap_parselist(1);
 }
 
-#define EXP1_IN_BITS	(sizeof(exp) * 8)
+#define EXP1_IN_BITS	(sizeof(exp1) * 8)
 
 static void __init test_bitmap_arr32(void)
 {
@@ -385,9 +385,9 @@ static void __init test_bitmap_arr32(void)
 	memset(arr, 0xa5, sizeof(arr));
 
 	for (nbits = 0; nbits < EXP1_IN_BITS; ++nbits) {
-		bitmap_to_arr32(arr, exp, nbits);
+		bitmap_to_arr32(arr, exp1, nbits);
 		bitmap_from_arr32(bmap2, arr, nbits);
-		expect_eq_bitmap(bmap2, exp, nbits);
+		expect_eq_bitmap(bmap2, exp1, nbits);
 
 		next_bit = find_next_bit(bmap2,
 				round_up(nbits, BITS_PER_LONG), nbits);
