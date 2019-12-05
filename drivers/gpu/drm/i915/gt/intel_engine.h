@@ -296,7 +296,7 @@ ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
 struct i915_request *
 intel_engine_find_active_request(struct intel_engine_cs *engine);
 
-u32 intel_engine_context_size(struct drm_i915_private *i915, u8 class);
+u32 intel_engine_context_size(struct intel_gt *gt, u8 class);
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 

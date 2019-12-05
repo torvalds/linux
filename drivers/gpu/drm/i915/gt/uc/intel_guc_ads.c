@@ -93,7 +93,8 @@ static void __guc_ads_init(struct intel_guc *guc)
 		 */
 		blob->ads.golden_context_lrca[engine_class] = 0;
 		blob->ads.eng_state_size[engine_class] =
-			intel_engine_context_size(dev_priv, engine_class) -
+			intel_engine_context_size(guc_to_gt(guc),
+						  engine_class) -
 			skipped_size;
 	}
 
