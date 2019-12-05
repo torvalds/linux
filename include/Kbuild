@@ -443,7 +443,6 @@ header-test-			+= linux/platform_data/ad7793.h
 header-test-			+= linux/platform_data/ad7887.h
 header-test-			+= linux/platform_data/adau17x1.h
 header-test-			+= linux/platform_data/adp8870.h
-header-test-			+= linux/platform_data/ads1015.h
 header-test-			+= linux/platform_data/ads7828.h
 header-test-			+= linux/platform_data/apds990x.h
 header-test-			+= linux/platform_data/arm-ux500-pm.h

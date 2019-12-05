@@ -21,8 +21,6 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 
-#include <linux/platform_data/ads1015.h>
-
 #include <linux/iio/iio.h>
 #include <linux/iio/types.h>
 #include <linux/iio/sysfs.h>
@@ -32,6 +30,8 @@
 #include <linux/iio/trigger_consumer.h>
 
 #define ADS1015_DRV_NAME "ads1015"
+
+#define ADS1015_CHANNELS 8
 
 #define ADS1015_CONV_REG	0x00
 #define ADS1015_CFG_REG		0x01
@@ -218,6 +218,12 @@ static const struct iio_event_spec ads1015_events[] = {
 	.num_event_specs = ARRAY_SIZE(ads1015_events),		\
 	.datasheet_name = "AIN"#_chan"-AIN"#_chan2,		\
 }
+
+struct ads1015_channel_data {
+	bool enabled;
+	unsigned int pga;
+	unsigned int data_rate;
+};
 
 struct ads1015_thresh_data {
 	unsigned int comp_queue;
@@ -903,14 +909,6 @@ static void ads1015_get_channels_config(struct i2c_client *client)
 
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ads1015_data *data = iio_priv(indio_dev);
-	struct ads1015_platform_data *pdata = dev_get_platdata(&client->dev);
-
-	/* prefer platform data */
-	if (pdata) {
-		memcpy(data->channel_data, pdata->channel_data,
-		       sizeof(data->channel_data));
-		return;
-	}
 
 #ifdef CONFIG_OF
 	if (!ads1015_get_channels_config_of(client))
