@@ -147,8 +147,8 @@ void hantro_watchdog(struct work_struct *work);
 void hantro_run(struct hantro_ctx *ctx);
 void hantro_irq_done(struct hantro_dev *vpu, unsigned int bytesused,
 		     enum vb2_buffer_state result);
-void hantro_prepare_run(struct hantro_ctx *ctx);
-void hantro_finish_run(struct hantro_ctx *ctx);
+void hantro_start_prepare_run(struct hantro_ctx *ctx);
+void hantro_end_prepare_run(struct hantro_ctx *ctx);
 
 void hantro_h1_jpeg_enc_run(struct hantro_ctx *ctx);
 void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx);

@@ -152,7 +152,7 @@ void hantro_watchdog(struct work_struct *work)
 	}
 }
 
-void hantro_prepare_run(struct hantro_ctx *ctx)
+void hantro_start_prepare_run(struct hantro_ctx *ctx)
 {
 	struct vb2_v4l2_buffer *src_buf;
 
@@ -161,7 +161,7 @@ void hantro_prepare_run(struct hantro_ctx *ctx)
 				&ctx->ctrl_handler);
 }
 
-void hantro_finish_run(struct hantro_ctx *ctx)
+void hantro_end_prepare_run(struct hantro_ctx *ctx)
 {
 	struct vb2_v4l2_buffer *src_buf;
 
