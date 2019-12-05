@@ -915,7 +915,7 @@ static int __init sugov_register(void)
 {
 	return cpufreq_register_governor(&schedutil_gov);
 }
-fs_initcall(sugov_register);
+core_initcall(sugov_register);
 
 #ifdef CONFIG_ENERGY_MODEL
 extern bool sched_energy_update;
