@@ -203,12 +203,34 @@ static inline struct reset_control *reset_control_get_shared(
 	return __reset_control_get(dev, id, 0, true, false, false);
 }
 
+/**
+ * reset_control_get_optional_exclusive - optional reset_control_get_exclusive()
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Optional variant of reset_control_get_exclusive(). If the requested reset
+ * is not specified in the device tree, this function returns NULL instead of
+ * an error.
+ *
+ * See reset_control_get_exclusive() for more information.
+ */
 static inline struct reset_control *reset_control_get_optional_exclusive(
 					struct device *dev, const char *id)
 {
 	return __reset_control_get(dev, id, 0, false, true, true);
 }
 
+/**
+ * reset_control_get_optional_shared - optional reset_control_get_shared()
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Optional variant of reset_control_get_shared(). If the requested reset
+ * is not specified in the device tree, this function returns NULL instead of
+ * an error.
+ *
+ * See reset_control_get_shared() for more information.
+ */
 static inline struct reset_control *reset_control_get_optional_shared(
 					struct device *dev, const char *id)
 {
@@ -354,12 +376,36 @@ static inline struct reset_control *devm_reset_control_get_shared(
 	return __devm_reset_control_get(dev, id, 0, true, false, false);
 }
 
+/**
+ * devm_reset_control_get_optional_exclusive - resource managed
+ *                                             reset_control_get_optional_exclusive()
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Managed reset_control_get_optional_exclusive(). For reset controllers
+ * returned from this function, reset_control_put() is called automatically on
+ * driver detach.
+ *
+ * See reset_control_get_optional_exclusive() for more information.
+ */
 static inline struct reset_control *devm_reset_control_get_optional_exclusive(
 					struct device *dev, const char *id)
 {
 	return __devm_reset_control_get(dev, id, 0, false, true, true);
 }
 
+/**
+ * devm_reset_control_get_optional_shared - resource managed
+ *                                          reset_control_get_optional_shared()
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Managed reset_control_get_optional_shared(). For reset controllers returned
+ * from this function, reset_control_put() is called automatically on driver
+ * detach.
+ *
+ * See reset_control_get_optional_shared() for more information.
+ */
 static inline struct reset_control *devm_reset_control_get_optional_shared(
 					struct device *dev, const char *id)
 {

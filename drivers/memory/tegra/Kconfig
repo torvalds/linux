@@ -17,6 +17,16 @@ config TEGRA20_EMC
 	  This driver is required to change memory timings / clock rate for
 	  external memory.
 
+config TEGRA30_EMC
+	bool "NVIDIA Tegra30 External Memory Controller driver"
+	default y
+	depends on TEGRA_MC && ARCH_TEGRA_3x_SOC
+	help
+	  This driver is for the External Memory Controller (EMC) found on
+	  Tegra30 chips. The EMC controls the external DRAM on the board.
+	  This driver is required to change memory timings / clock rate for
+	  external memory.
+
 config TEGRA124_EMC
 	bool "NVIDIA Tegra124 External Memory Controller driver"
 	default y

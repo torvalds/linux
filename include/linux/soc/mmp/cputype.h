@@ -2,7 +2,9 @@
 #ifndef __ASM_MACH_CPUTYPE_H
 #define __ASM_MACH_CPUTYPE_H
 
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 #include <asm/cputype.h>
+#endif
 
 /*
  *  CPU   Stepping   CPU_ID      CHIP_ID

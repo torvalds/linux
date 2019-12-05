@@ -8,6 +8,7 @@
 
 #include <dt-bindings/firmware/imx/rsrc.h>
 #include <linux/firmware/imx/ipc.h>
+#include <linux/firmware/imx/sci.h>
 #include <linux/mailbox_client.h>
 
 #define IMX_SC_IRQ_FUNC_ENABLE	1

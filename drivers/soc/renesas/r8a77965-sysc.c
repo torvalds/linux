@@ -7,7 +7,7 @@
  * Copyright (C) 2016 Glider bvba
  */
 
-#include <linux/bug.h>
+#include <linux/bits.h>
 #include <linux/kernel.h>
 
 #include <dt-bindings/power/r8a77965-sysc.h>
@@ -33,4 +33,6 @@ static const struct rcar_sysc_area r8a77965_areas[] __initconst = {
 const struct rcar_sysc_info r8a77965_sysc_info __initconst = {
 	.areas = r8a77965_areas,
 	.num_areas = ARRAY_SIZE(r8a77965_areas),
+	.extmask_offs = 0x2f8,
+	.extmask_val = BIT(0),
 };

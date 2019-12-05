@@ -178,6 +178,13 @@ config ARCH_R8A774A1
 	help
 	  This enables support for the Renesas RZ/G2M SoC.
 
+config ARCH_R8A774B1
+	bool "Renesas RZ/G2N SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A774B1
+	help
+	  This enables support for the Renesas RZ/G2N SoC.
+
 config ARCH_R8A774C0
 	bool "Renesas RZ/G2E SoC Platform"
 	select ARCH_RCAR_GEN3
@@ -192,12 +199,23 @@ config ARCH_R8A7795
 	help
 	  This enables support for the Renesas R-Car H3 SoC.
 
+config ARCH_R8A77960
+	bool
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A77960
+
 config ARCH_R8A7796
 	bool "Renesas R-Car M3-W SoC Platform"
-	select ARCH_RCAR_GEN3
-	select SYSC_R8A7796
+	select ARCH_R8A77960
 	help
 	  This enables support for the Renesas R-Car M3-W SoC.
+
+config ARCH_R8A77961
+	bool "Renesas R-Car M3-W+ SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A77961
+	help
+	  This enables support for the Renesas R-Car M3-W+ SoC.
 
 config ARCH_R8A77965
 	bool "Renesas R-Car M3-N SoC Platform"
@@ -253,6 +271,10 @@ config SYSC_R8A774A1
 	bool "RZ/G2M System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
 
+config SYSC_R8A774B1
+	bool "RZ/G2N System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
 config SYSC_R8A774C0
 	bool "RZ/G2E System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
@@ -281,8 +303,12 @@ config SYSC_R8A7795
 	bool "R-Car H3 System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
 
-config SYSC_R8A7796
+config SYSC_R8A77960
 	bool "R-Car M3-W System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A77961
+	bool "R-Car M3-W+ System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
 
 config SYSC_R8A77965
