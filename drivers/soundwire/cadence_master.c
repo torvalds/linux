@@ -1260,6 +1260,8 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	u32 status;
 	int ret;
 
+	dev_dbg(cdns->dev, "%s: start\n", __func__);
+
 	/* Check suspend status */
 	status = cdns_readl(cdns, CDNS_MCP_STAT);
 	if (status & CDNS_MCP_STAT_CLK_STOP) {
@@ -1284,6 +1286,8 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 			break;
 		}
 	}
+
+	dev_dbg(cdns->dev, "%s: slave attached %d\n", __func__, slave_present);
 
 	/*
 	 * This CMD_ACCEPT should be used when there are no devices
@@ -1324,6 +1328,8 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 			    CDNS_MCP_STAT_CLK_STOP);
 	if (ret < 0)
 		dev_err(cdns->dev, "Clock stop failed %d\n", ret);
+
+	dev_dbg(cdns->dev, "%s: end\n", __func__);
 
 	return ret;
 }
