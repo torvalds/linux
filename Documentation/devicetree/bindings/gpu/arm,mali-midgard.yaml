@@ -24,6 +24,10 @@ properties:
           - const: arm,mali-t820
       - items:
           - enum:
+             - arm,juno-mali
+          - const: arm,mali-t624
+      - items:
+          - enum:
              - rockchip,rk3288-mali
           - const: arm,mali-t760
       - items:
@@ -39,7 +43,6 @@ properties:
              - samsung,exynos5433-mali
           - const: arm,mali-t760
 
-          # "arm,mali-t624"
           # "arm,mali-t628"
           # "arm,mali-t830"
           # "arm,mali-t880"
