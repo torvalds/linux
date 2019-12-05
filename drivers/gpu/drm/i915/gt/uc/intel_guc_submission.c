@@ -18,15 +18,6 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 
-enum {
-	GUC_PREEMPT_NONE = 0,
-	GUC_PREEMPT_INPROGRESS,
-	GUC_PREEMPT_FINISHED,
-};
-#define GUC_PREEMPT_BREADCRUMB_DWORDS	0x8
-#define GUC_PREEMPT_BREADCRUMB_BYTES	\
-	(sizeof(u32) * GUC_PREEMPT_BREADCRUMB_DWORDS)
-
 /**
  * DOC: GuC-based command submission
  *
@@ -881,19 +872,6 @@ static void guc_client_free(struct intel_guc_client *client)
 	i915_vma_unpin_and_release(&client->vma, I915_VMA_RELEASE_MAP);
 	ida_simple_remove(&client->guc->stage_ids, client->stage_id);
 	kfree(client);
-}
-
-static inline bool ctx_save_restore_disabled(struct intel_context *ce)
-{
-	u32 sr = ce->lrc_reg_state[CTX_CONTEXT_CONTROL + 1];
-
-#define SR_DISABLED \
-	_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT | \
-			   CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT)
-
-	return (sr & SR_DISABLED) == SR_DISABLED;
-
-#undef SR_DISABLED
 }
 
 static int guc_clients_create(struct intel_guc *guc)
