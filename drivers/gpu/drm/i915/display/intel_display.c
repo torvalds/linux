@@ -561,6 +561,12 @@ is_trans_port_sync_master(const struct intel_crtc_state *crtc_state)
 		crtc_state->sync_mode_slaves_mask);
 }
 
+static bool
+is_trans_port_sync_slave(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->master_transcoder != INVALID_TRANSCODER;
+}
+
 /*
  * Platform specific helpers to calculate the port PLL loopback- (clock.m),
  * and post-divider (clock.p) values, pre- (clock.vco) and post-divided fast
@@ -14393,53 +14399,20 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 		dev_priv->display.initial_watermarks(state, crtc);
 }
 
-static void intel_trans_port_sync_modeset_disables(struct intel_atomic_state *state,
-						   struct intel_crtc *crtc,
-						   struct intel_crtc_state *old_crtc_state,
-						   struct intel_crtc_state *new_crtc_state)
-{
-	struct intel_crtc *slave_crtc = intel_get_slave_crtc(new_crtc_state);
-	struct intel_crtc_state *new_slave_crtc_state =
-		intel_atomic_get_new_crtc_state(state, slave_crtc);
-	struct intel_crtc_state *old_slave_crtc_state =
-		intel_atomic_get_old_crtc_state(state, slave_crtc);
-
-	WARN_ON(!slave_crtc || !new_slave_crtc_state ||
-		!old_slave_crtc_state);
-
-	/* Disable Slave first */
-	intel_pre_plane_update(state, slave_crtc);
-	if (old_slave_crtc_state->hw.active)
-		intel_old_crtc_state_disables(state,
-					      old_slave_crtc_state,
-					      new_slave_crtc_state,
-					      slave_crtc);
-
-	/* Disable Master */
-	intel_pre_plane_update(state, crtc);
-	if (old_crtc_state->hw.active)
-		intel_old_crtc_state_disables(state,
-					      old_crtc_state,
-					      new_crtc_state,
-					      crtc);
-}
-
 static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 {
 	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
 	struct intel_crtc *crtc;
+	u32 handled = 0;
 	int i;
 
-	/*
-	 * Disable CRTC/pipes in reverse order because some features(MST in
-	 * TGL+) requires master and slave relationship between pipes, so it
-	 * should always pick the lowest pipe as master as it will be enabled
-	 * first and disable in the reverse order so the master will be the
-	 * last one to be disabled.
-	 */
-	for_each_oldnew_intel_crtc_in_state_reverse(state, crtc, old_crtc_state,
-						    new_crtc_state, i) {
+	/* Only disable port sync slaves */
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
 		if (!needs_modeset(new_crtc_state))
+			continue;
+
+		if (!old_crtc_state->hw.active)
 			continue;
 
 		/* In case of Transcoder port Sync master slave CRTCs can be
@@ -14447,23 +14420,26 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 		 * slave CRTCs are disabled first and then master CRTC since
 		 * Slave vblanks are masked till Master Vblanks.
 		 */
-		if (is_trans_port_sync_mode(old_crtc_state)) {
-			if (is_trans_port_sync_master(old_crtc_state))
-				intel_trans_port_sync_modeset_disables(state,
-								       crtc,
-								       old_crtc_state,
-								       new_crtc_state);
-			else
-				continue;
-		} else {
-			intel_pre_plane_update(state, crtc);
+		if (!is_trans_port_sync_slave(old_crtc_state))
+			continue;
 
-			if (old_crtc_state->hw.active)
-				intel_old_crtc_state_disables(state,
-							      old_crtc_state,
-							      new_crtc_state,
-							      crtc);
-		}
+		intel_pre_plane_update(state, crtc);
+		intel_old_crtc_state_disables(state, old_crtc_state,
+					      new_crtc_state, crtc);
+		handled |= BIT(crtc->pipe);
+	}
+
+	/* Disable everything else left on */
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (!needs_modeset(new_crtc_state) ||
+		    (handled & BIT(crtc->pipe)))
+			continue;
+
+		intel_pre_plane_update(state, crtc);
+		if (old_crtc_state->hw.active)
+			intel_old_crtc_state_disables(state, old_crtc_state,
+						      new_crtc_state, crtc);
 	}
 }
 
