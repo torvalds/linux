@@ -296,6 +296,8 @@ static void __init srmmu_nocache_init(void)
 	void *srmmu_nocache_bitmap;
 	unsigned int bitmap_bits;
 	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long paddr, vaddr;
@@ -329,6 +331,8 @@ static void __init srmmu_nocache_init(void)
 
 	while (vaddr < srmmu_nocache_end) {
 		pgd = pgd_offset_k(vaddr);
+		p4d = p4d_offset(__nocache_fix(pgd), vaddr);
+		pud = pud_offset(__nocache_fix(p4d), vaddr);
 		pmd = pmd_offset(__nocache_fix(pgd), vaddr);
 		pte = pte_offset_kernel(__nocache_fix(pmd), vaddr);
 
@@ -516,13 +520,17 @@ static inline void srmmu_mapioaddr(unsigned long physaddr,
 				   unsigned long virt_addr, int bus_type)
 {
 	pgd_t *pgdp;
+	p4d_t *p4dp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 	unsigned long tmp;
 
 	physaddr &= PAGE_MASK;
 	pgdp = pgd_offset_k(virt_addr);
-	pmdp = pmd_offset(pgdp, virt_addr);
+	p4dp = p4d_offset(pgdp, virt_addr);
+	pudp = pud_offset(p4dp, virt_addr);
+	pmdp = pmd_offset(pudp, virt_addr);
 	ptep = pte_offset_kernel(pmdp, virt_addr);
 	tmp = (physaddr >> 4) | SRMMU_ET_PTE;
 
@@ -551,11 +559,16 @@ void srmmu_mapiorange(unsigned int bus, unsigned long xpa,
 static inline void srmmu_unmapioaddr(unsigned long virt_addr)
 {
 	pgd_t *pgdp;
+	p4d_t *p4dp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 
+
 	pgdp = pgd_offset_k(virt_addr);
-	pmdp = pmd_offset(pgdp, virt_addr);
+	p4dp = p4d_offset(pgdp, virt_addr);
+	pudp = pud_offset(p4dp, virt_addr);
+	pmdp = pmd_offset(pudp, virt_addr);
 	ptep = pte_offset_kernel(pmdp, virt_addr);
 
 	/* No need to flush uncacheable page. */
@@ -693,20 +706,24 @@ static void __init srmmu_early_allocate_ptable_skeleton(unsigned long start,
 							unsigned long end)
 {
 	pgd_t *pgdp;
+	p4d_t *p4dp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 
 	while (start < end) {
 		pgdp = pgd_offset_k(start);
-		if (pgd_none(*(pgd_t *)__nocache_fix(pgdp))) {
+		p4dp = p4d_offset(pgdp, start);
+		pudp = pud_offset(p4dp, start);
+		if (pud_none(*(pud_t *)__nocache_fix(pudp))) {
 			pmdp = __srmmu_get_nocache(
 			    SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
 			memset(__nocache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
-			pgd_set(__nocache_fix(pgdp), pmdp);
+			pud_set(__nocache_fix(pudp), pmdp);
 		}
-		pmdp = pmd_offset(__nocache_fix(pgdp), start);
+		pmdp = pmd_offset(__nocache_fix(pudp), start);
 		if (srmmu_pmd_none(*(pmd_t *)__nocache_fix(pmdp))) {
 			ptep = __srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
 			if (ptep == NULL)
@@ -724,19 +741,23 @@ static void __init srmmu_allocate_ptable_skeleton(unsigned long start,
 						  unsigned long end)
 {
 	pgd_t *pgdp;
+	p4d_t *p4dp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 
 	while (start < end) {
 		pgdp = pgd_offset_k(start);
-		if (pgd_none(*pgdp)) {
+		p4dp = p4d_offset(pgdp, start);
+		pudp = pud_offset(p4dp, start);
+		if (pud_none(*pudp)) {
 			pmdp = __srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE, SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
 			memset(pmdp, 0, SRMMU_PMD_TABLE_SIZE);
-			pgd_set(pgdp, pmdp);
+			pud_set((pud_t *)pgdp, pmdp);
 		}
-		pmdp = pmd_offset(pgdp, start);
+		pmdp = pmd_offset(pudp, start);
 		if (srmmu_pmd_none(*pmdp)) {
 			ptep = __srmmu_get_nocache(PTE_SIZE,
 							     PTE_SIZE);
@@ -779,6 +800,8 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 	unsigned long probed;
 	unsigned long addr;
 	pgd_t *pgdp;
+	p4d_t *p4dp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 	int what; /* 0 = normal-pte, 1 = pmd-level pte, 2 = pgd-level pte */
@@ -810,18 +833,20 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 		}
 
 		pgdp = pgd_offset_k(start);
+		p4dp = p4d_offset(pgdp, start);
+		pudp = pud_offset(p4dp, start);
 		if (what == 2) {
 			*(pgd_t *)__nocache_fix(pgdp) = __pgd(probed);
 			start += SRMMU_PGDIR_SIZE;
 			continue;
 		}
-		if (pgd_none(*(pgd_t *)__nocache_fix(pgdp))) {
+		if (pud_none(*(pud_t *)__nocache_fix(pudp))) {
 			pmdp = __srmmu_get_nocache(SRMMU_PMD_TABLE_SIZE,
 						   SRMMU_PMD_TABLE_SIZE);
 			if (pmdp == NULL)
 				early_pgtable_allocfail("pmd");
 			memset(__nocache_fix(pmdp), 0, SRMMU_PMD_TABLE_SIZE);
-			pgd_set(__nocache_fix(pgdp), pmdp);
+			pud_set(__nocache_fix(pudp), pmdp);
 		}
 		pmdp = pmd_offset(__nocache_fix(pgdp), start);
 		if (srmmu_pmd_none(*(pmd_t *)__nocache_fix(pmdp))) {
@@ -906,6 +931,8 @@ void __init srmmu_paging_init(void)
 	phandle cpunode;
 	char node_str[128];
 	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long pages_avail;
@@ -967,7 +994,9 @@ void __init srmmu_paging_init(void)
 	srmmu_allocate_ptable_skeleton(PKMAP_BASE, PKMAP_END);
 
 	pgd = pgd_offset_k(PKMAP_BASE);
-	pmd = pmd_offset(pgd, PKMAP_BASE);
+	p4d = p4d_offset(pgd, PKMAP_BASE);
+	pud = pud_offset(p4d, PKMAP_BASE);
+	pmd = pmd_offset(pud, PKMAP_BASE);
 	pte = pte_offset_kernel(pmd, PKMAP_BASE);
 	pkmap_page_table = pte;
 
