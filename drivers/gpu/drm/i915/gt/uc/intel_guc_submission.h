@@ -44,21 +44,14 @@ struct intel_guc_client {
 	/* bitmap of (host) engine ids */
 	u32 priority;
 	u32 stage_id;
-	u32 proc_desc_offset;
-
-	u16 doorbell_id;
-	unsigned long doorbell_offset;
 
 	/* Protects GuC client's WQ access */
 	spinlock_t wq_lock;
-
-	/* For testing purposes, use nop WQ items instead of real ones */
-	I915_SELFTEST_DECLARE(bool use_nop_wqi);
 };
 
 void intel_guc_submission_init_early(struct intel_guc *guc);
 int intel_guc_submission_init(struct intel_guc *guc);
-int intel_guc_submission_enable(struct intel_guc *guc);
+void intel_guc_submission_enable(struct intel_guc *guc);
 void intel_guc_submission_disable(struct intel_guc *guc);
 void intel_guc_submission_fini(struct intel_guc *guc);
 int intel_guc_preempt_work_create(struct intel_guc *guc);

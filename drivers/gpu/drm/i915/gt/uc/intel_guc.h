@@ -20,8 +20,8 @@ struct __guc_ads_blob;
 
 /*
  * Top level structure of GuC. It handles firmware loading and manages client
- * pool and doorbells. intel_guc owns a intel_guc_client to replace the legacy
- * ExecList submission.
+ * pool. intel_guc owns a intel_guc_client to replace the legacy ExecList
+ * submission.
  */
 struct intel_guc {
 	struct intel_uc_fw fw;
@@ -49,10 +49,6 @@ struct intel_guc {
 	struct ida stage_ids;
 
 	struct intel_guc_client *execbuf_client;
-
-	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
-	/* Cyclic counter mod pagesize	*/
-	u32 db_cacheline;
 
 	/* Control params for fw initialization */
 	u32 params[GUC_CTL_MAX_DWORDS];

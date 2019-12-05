@@ -486,11 +486,8 @@ int intel_uc_init_hw(struct intel_uc *uc)
 	if (ret)
 		goto err_communication;
 
-	if (intel_uc_supports_guc_submission(uc)) {
-		ret = intel_guc_submission_enable(guc);
-		if (ret)
-			goto err_communication;
-	}
+	if (intel_uc_supports_guc_submission(uc))
+		intel_guc_submission_enable(guc);
 
 	dev_info(i915->drm.dev, "%s firmware %s version %u.%u %s:%s\n",
 		 intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_GUC), guc->fw.path,

@@ -1805,17 +1805,10 @@ static int i915_guc_info(struct seq_file *m, void *data)
 
 	GEM_BUG_ON(!guc->execbuf_client);
 
-	seq_printf(m, "\nDoorbell map:\n");
-	seq_printf(m, "\t%*pb\n", GUC_NUM_DOORBELLS, guc->doorbell_bitmap);
-	seq_printf(m, "Doorbell next cacheline: 0x%x\n", guc->db_cacheline);
-
 	seq_printf(m, "\nGuC execbuf client @ %p:\n", client);
-	seq_printf(m, "\tPriority %d, GuC stage index: %u, PD offset 0x%x\n",
+	seq_printf(m, "\tPriority %d, GuC stage index: %u\n",
 		   client->priority,
-		   client->stage_id,
-		   client->proc_desc_offset);
-	seq_printf(m, "\tDoorbell id %d, offset: 0x%lx\n",
-		   client->doorbell_id, client->doorbell_offset);
+		   client->stage_id);
 	/* Add more as required ... */
 
 	return 0;
