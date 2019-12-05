@@ -1252,130 +1252,66 @@ static int atmel_sha_cra_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
+static void atmel_sha_alg_init(struct ahash_alg *alg)
+{
+	alg->halg.base.cra_priority = ATMEL_SHA_PRIORITY;
+	alg->halg.base.cra_flags = CRYPTO_ALG_ASYNC;
+	alg->halg.base.cra_ctxsize = sizeof(struct atmel_sha_ctx);
+	alg->halg.base.cra_module = THIS_MODULE;
+	alg->halg.base.cra_init = atmel_sha_cra_init;
+
+	alg->halg.statesize = sizeof(struct atmel_sha_reqctx);
+
+	alg->init = atmel_sha_init;
+	alg->update = atmel_sha_update;
+	alg->final = atmel_sha_final;
+	alg->finup = atmel_sha_finup;
+	alg->digest = atmel_sha_digest;
+	alg->export = atmel_sha_export;
+	alg->import = atmel_sha_import;
+}
+
 static struct ahash_alg sha_1_256_algs[] = {
 {
-	.init		= atmel_sha_init,
-	.update		= atmel_sha_update,
-	.final		= atmel_sha_final,
-	.finup		= atmel_sha_finup,
-	.digest		= atmel_sha_digest,
-	.export		= atmel_sha_export,
-	.import		= atmel_sha_import,
-	.halg = {
-		.digestsize	= SHA1_DIGEST_SIZE,
-		.statesize	= sizeof(struct atmel_sha_reqctx),
-		.base	= {
-			.cra_name		= "sha1",
-			.cra_driver_name	= "atmel-sha1",
-			.cra_priority		= ATMEL_SHA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_ASYNC,
-			.cra_blocksize		= SHA1_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct atmel_sha_ctx),
-			.cra_alignmask		= 0,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= atmel_sha_cra_init,
-		}
-	}
+	.halg.base.cra_name		= "sha1",
+	.halg.base.cra_driver_name	= "atmel-sha1",
+	.halg.base.cra_blocksize	= SHA1_BLOCK_SIZE,
+
+	.halg.digestsize = SHA1_DIGEST_SIZE,
 },
 {
-	.init		= atmel_sha_init,
-	.update		= atmel_sha_update,
-	.final		= atmel_sha_final,
-	.finup		= atmel_sha_finup,
-	.digest		= atmel_sha_digest,
-	.export		= atmel_sha_export,
-	.import		= atmel_sha_import,
-	.halg = {
-		.digestsize	= SHA256_DIGEST_SIZE,
-		.statesize	= sizeof(struct atmel_sha_reqctx),
-		.base	= {
-			.cra_name		= "sha256",
-			.cra_driver_name	= "atmel-sha256",
-			.cra_priority		= ATMEL_SHA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_ASYNC,
-			.cra_blocksize		= SHA256_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct atmel_sha_ctx),
-			.cra_alignmask		= 0,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= atmel_sha_cra_init,
-		}
-	}
+	.halg.base.cra_name		= "sha256",
+	.halg.base.cra_driver_name	= "atmel-sha256",
+	.halg.base.cra_blocksize	= SHA256_BLOCK_SIZE,
+
+	.halg.digestsize = SHA256_DIGEST_SIZE,
 },
 };
 
 static struct ahash_alg sha_224_alg = {
-	.init		= atmel_sha_init,
-	.update		= atmel_sha_update,
-	.final		= atmel_sha_final,
-	.finup		= atmel_sha_finup,
-	.digest		= atmel_sha_digest,
-	.export		= atmel_sha_export,
-	.import		= atmel_sha_import,
-	.halg = {
-		.digestsize	= SHA224_DIGEST_SIZE,
-		.statesize	= sizeof(struct atmel_sha_reqctx),
-		.base	= {
-			.cra_name		= "sha224",
-			.cra_driver_name	= "atmel-sha224",
-			.cra_priority		= ATMEL_SHA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_ASYNC,
-			.cra_blocksize		= SHA224_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct atmel_sha_ctx),
-			.cra_alignmask		= 0,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= atmel_sha_cra_init,
-		}
-	}
+	.halg.base.cra_name		= "sha224",
+	.halg.base.cra_driver_name	= "atmel-sha224",
+	.halg.base.cra_blocksize	= SHA224_BLOCK_SIZE,
+
+	.halg.digestsize = SHA224_DIGEST_SIZE,
 };
 
 static struct ahash_alg sha_384_512_algs[] = {
 {
-	.init		= atmel_sha_init,
-	.update		= atmel_sha_update,
-	.final		= atmel_sha_final,
-	.finup		= atmel_sha_finup,
-	.digest		= atmel_sha_digest,
-	.export		= atmel_sha_export,
-	.import		= atmel_sha_import,
-	.halg = {
-		.digestsize	= SHA384_DIGEST_SIZE,
-		.statesize	= sizeof(struct atmel_sha_reqctx),
-		.base	= {
-			.cra_name		= "sha384",
-			.cra_driver_name	= "atmel-sha384",
-			.cra_priority		= ATMEL_SHA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_ASYNC,
-			.cra_blocksize		= SHA384_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct atmel_sha_ctx),
-			.cra_alignmask		= 0x3,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= atmel_sha_cra_init,
-		}
-	}
+	.halg.base.cra_name		= "sha384",
+	.halg.base.cra_driver_name	= "atmel-sha384",
+	.halg.base.cra_blocksize	= SHA384_BLOCK_SIZE,
+	.halg.base.cra_alignmask	= 0x3,
+
+	.halg.digestsize = SHA384_DIGEST_SIZE,
 },
 {
-	.init		= atmel_sha_init,
-	.update		= atmel_sha_update,
-	.final		= atmel_sha_final,
-	.finup		= atmel_sha_finup,
-	.digest		= atmel_sha_digest,
-	.export		= atmel_sha_export,
-	.import		= atmel_sha_import,
-	.halg = {
-		.digestsize	= SHA512_DIGEST_SIZE,
-		.statesize	= sizeof(struct atmel_sha_reqctx),
-		.base	= {
-			.cra_name		= "sha512",
-			.cra_driver_name	= "atmel-sha512",
-			.cra_priority		= ATMEL_SHA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_ASYNC,
-			.cra_blocksize		= SHA512_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct atmel_sha_ctx),
-			.cra_alignmask		= 0x3,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= atmel_sha_cra_init,
-		}
-	}
+	.halg.base.cra_name		= "sha512",
+	.halg.base.cra_driver_name	= "atmel-sha512",
+	.halg.base.cra_blocksize	= SHA512_BLOCK_SIZE,
+	.halg.base.cra_alignmask	= 0x3,
+
+	.halg.digestsize = SHA512_DIGEST_SIZE,
 },
 };
 
@@ -2084,131 +2020,61 @@ static void atmel_sha_hmac_cra_exit(struct crypto_tfm *tfm)
 	atmel_sha_hmac_key_release(&hmac->hkey);
 }
 
+static void atmel_sha_hmac_alg_init(struct ahash_alg *alg)
+{
+	alg->halg.base.cra_priority = ATMEL_SHA_PRIORITY;
+	alg->halg.base.cra_flags = CRYPTO_ALG_ASYNC;
+	alg->halg.base.cra_ctxsize = sizeof(struct atmel_sha_hmac_ctx);
+	alg->halg.base.cra_module = THIS_MODULE;
+	alg->halg.base.cra_init	= atmel_sha_hmac_cra_init;
+	alg->halg.base.cra_exit	= atmel_sha_hmac_cra_exit;
+
+	alg->halg.statesize = sizeof(struct atmel_sha_reqctx);
+
+	alg->init = atmel_sha_hmac_init;
+	alg->update = atmel_sha_update;
+	alg->final = atmel_sha_final;
+	alg->digest = atmel_sha_hmac_digest;
+	alg->setkey = atmel_sha_hmac_setkey;
+	alg->export = atmel_sha_export;
+	alg->import = atmel_sha_import;
+}
+
 static struct ahash_alg sha_hmac_algs[] = {
 {
-	.init		= atmel_sha_hmac_init,
-	.update		= atmel_sha_update,
-	.final		= atmel_sha_final,
-	.digest		= atmel_sha_hmac_digest,
-	.setkey		= atmel_sha_hmac_setkey,
-	.export		= atmel_sha_export,
-	.import		= atmel_sha_import,
-	.halg = {
-		.digestsize	= SHA1_DIGEST_SIZE,
-		.statesize	= sizeof(struct atmel_sha_reqctx),
-		.base	= {
-			.cra_name		= "hmac(sha1)",
-			.cra_driver_name	= "atmel-hmac-sha1",
-			.cra_priority		= ATMEL_SHA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_ASYNC,
-			.cra_blocksize		= SHA1_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct atmel_sha_hmac_ctx),
-			.cra_alignmask		= 0,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= atmel_sha_hmac_cra_init,
-			.cra_exit		= atmel_sha_hmac_cra_exit,
-		}
-	}
+	.halg.base.cra_name		= "hmac(sha1)",
+	.halg.base.cra_driver_name	= "atmel-hmac-sha1",
+	.halg.base.cra_blocksize	= SHA1_BLOCK_SIZE,
+
+	.halg.digestsize = SHA1_DIGEST_SIZE,
 },
 {
-	.init		= atmel_sha_hmac_init,
-	.update		= atmel_sha_update,
-	.final		= atmel_sha_final,
-	.digest		= atmel_sha_hmac_digest,
-	.setkey		= atmel_sha_hmac_setkey,
-	.export		= atmel_sha_export,
-	.import		= atmel_sha_import,
-	.halg = {
-		.digestsize	= SHA224_DIGEST_SIZE,
-		.statesize	= sizeof(struct atmel_sha_reqctx),
-		.base	= {
-			.cra_name		= "hmac(sha224)",
-			.cra_driver_name	= "atmel-hmac-sha224",
-			.cra_priority		= ATMEL_SHA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_ASYNC,
-			.cra_blocksize		= SHA224_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct atmel_sha_hmac_ctx),
-			.cra_alignmask		= 0,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= atmel_sha_hmac_cra_init,
-			.cra_exit		= atmel_sha_hmac_cra_exit,
-		}
-	}
+	.halg.base.cra_name		= "hmac(sha224)",
+	.halg.base.cra_driver_name	= "atmel-hmac-sha224",
+	.halg.base.cra_blocksize	= SHA224_BLOCK_SIZE,
+
+	.halg.digestsize = SHA224_DIGEST_SIZE,
 },
 {
-	.init		= atmel_sha_hmac_init,
-	.update		= atmel_sha_update,
-	.final		= atmel_sha_final,
-	.digest		= atmel_sha_hmac_digest,
-	.setkey		= atmel_sha_hmac_setkey,
-	.export		= atmel_sha_export,
-	.import		= atmel_sha_import,
-	.halg = {
-		.digestsize	= SHA256_DIGEST_SIZE,
-		.statesize	= sizeof(struct atmel_sha_reqctx),
-		.base	= {
-			.cra_name		= "hmac(sha256)",
-			.cra_driver_name	= "atmel-hmac-sha256",
-			.cra_priority		= ATMEL_SHA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_ASYNC,
-			.cra_blocksize		= SHA256_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct atmel_sha_hmac_ctx),
-			.cra_alignmask		= 0,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= atmel_sha_hmac_cra_init,
-			.cra_exit		= atmel_sha_hmac_cra_exit,
-		}
-	}
+	.halg.base.cra_name		= "hmac(sha256)",
+	.halg.base.cra_driver_name	= "atmel-hmac-sha256",
+	.halg.base.cra_blocksize	= SHA256_BLOCK_SIZE,
+
+	.halg.digestsize = SHA256_DIGEST_SIZE,
 },
 {
-	.init		= atmel_sha_hmac_init,
-	.update		= atmel_sha_update,
-	.final		= atmel_sha_final,
-	.digest		= atmel_sha_hmac_digest,
-	.setkey		= atmel_sha_hmac_setkey,
-	.export		= atmel_sha_export,
-	.import		= atmel_sha_import,
-	.halg = {
-		.digestsize	= SHA384_DIGEST_SIZE,
-		.statesize	= sizeof(struct atmel_sha_reqctx),
-		.base	= {
-			.cra_name		= "hmac(sha384)",
-			.cra_driver_name	= "atmel-hmac-sha384",
-			.cra_priority		= ATMEL_SHA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_ASYNC,
-			.cra_blocksize		= SHA384_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct atmel_sha_hmac_ctx),
-			.cra_alignmask		= 0,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= atmel_sha_hmac_cra_init,
-			.cra_exit		= atmel_sha_hmac_cra_exit,
-		}
-	}
+	.halg.base.cra_name		= "hmac(sha384)",
+	.halg.base.cra_driver_name	= "atmel-hmac-sha384",
+	.halg.base.cra_blocksize	= SHA384_BLOCK_SIZE,
+
+	.halg.digestsize = SHA384_DIGEST_SIZE,
 },
 {
-	.init		= atmel_sha_hmac_init,
-	.update		= atmel_sha_update,
-	.final		= atmel_sha_final,
-	.digest		= atmel_sha_hmac_digest,
-	.setkey		= atmel_sha_hmac_setkey,
-	.export		= atmel_sha_export,
-	.import		= atmel_sha_import,
-	.halg = {
-		.digestsize	= SHA512_DIGEST_SIZE,
-		.statesize	= sizeof(struct atmel_sha_reqctx),
-		.base	= {
-			.cra_name		= "hmac(sha512)",
-			.cra_driver_name	= "atmel-hmac-sha512",
-			.cra_priority		= ATMEL_SHA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_ASYNC,
-			.cra_blocksize		= SHA512_BLOCK_SIZE,
-			.cra_ctxsize		= sizeof(struct atmel_sha_hmac_ctx),
-			.cra_alignmask		= 0,
-			.cra_module		= THIS_MODULE,
-			.cra_init		= atmel_sha_hmac_cra_init,
-			.cra_exit		= atmel_sha_hmac_cra_exit,
-		}
-	}
+	.halg.base.cra_name		= "hmac(sha512)",
+	.halg.base.cra_driver_name	= "atmel-hmac-sha512",
+	.halg.base.cra_blocksize	= SHA512_BLOCK_SIZE,
+
+	.halg.digestsize = SHA512_DIGEST_SIZE,
 },
 };
 
@@ -2561,12 +2427,16 @@ static int atmel_sha_register_algs(struct atmel_sha_dev *dd)
 	int err, i, j;
 
 	for (i = 0; i < ARRAY_SIZE(sha_1_256_algs); i++) {
+		atmel_sha_alg_init(&sha_1_256_algs[i]);
+
 		err = crypto_register_ahash(&sha_1_256_algs[i]);
 		if (err)
 			goto err_sha_1_256_algs;
 	}
 
 	if (dd->caps.has_sha224) {
+		atmel_sha_alg_init(&sha_224_alg);
+
 		err = crypto_register_ahash(&sha_224_alg);
 		if (err)
 			goto err_sha_224_algs;
@@ -2574,6 +2444,8 @@ static int atmel_sha_register_algs(struct atmel_sha_dev *dd)
 
 	if (dd->caps.has_sha_384_512) {
 		for (i = 0; i < ARRAY_SIZE(sha_384_512_algs); i++) {
+			atmel_sha_alg_init(&sha_384_512_algs[i]);
+
 			err = crypto_register_ahash(&sha_384_512_algs[i]);
 			if (err)
 				goto err_sha_384_512_algs;
@@ -2582,6 +2454,8 @@ static int atmel_sha_register_algs(struct atmel_sha_dev *dd)
 
 	if (dd->caps.has_hmac) {
 		for (i = 0; i < ARRAY_SIZE(sha_hmac_algs); i++) {
+			atmel_sha_hmac_alg_init(&sha_hmac_algs[i]);
+
 			err = crypto_register_ahash(&sha_hmac_algs[i]);
 			if (err)
 				goto err_sha_hmac_algs;
