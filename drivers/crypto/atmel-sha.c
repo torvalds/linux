@@ -2734,10 +2734,8 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	int err;
 
 	sha_dd = devm_kzalloc(&pdev->dev, sizeof(*sha_dd), GFP_KERNEL);
-	if (sha_dd == NULL) {
-		err = -ENOMEM;
-		goto sha_dd_err;
-	}
+	if (!sha_dd)
+		return -ENOMEM;
 
 	sha_dd->dev = dev;
 
@@ -2846,8 +2844,6 @@ iclk_unprepare:
 res_err:
 	tasklet_kill(&sha_dd->queue_task);
 	tasklet_kill(&sha_dd->done_task);
-sha_dd_err:
-	dev_err(dev, "initialization failed.\n");
 
 	return err;
 }

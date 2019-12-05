@@ -2595,17 +2595,13 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
 		pdata = atmel_aes_of_init(pdev);
-		if (IS_ERR(pdata)) {
-			err = PTR_ERR(pdata);
-			goto aes_dd_err;
-		}
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
 	}
 
 	aes_dd = devm_kzalloc(&pdev->dev, sizeof(*aes_dd), GFP_KERNEL);
-	if (aes_dd == NULL) {
-		err = -ENOMEM;
-		goto aes_dd_err;
-	}
+	if (!aes_dd)
+		return -ENOMEM;
 
 	aes_dd->dev = dev;
 
@@ -2711,9 +2707,6 @@ iclk_unprepare:
 res_err:
 	tasklet_kill(&aes_dd->done_task);
 	tasklet_kill(&aes_dd->queue_task);
-aes_dd_err:
-	if (err != -EPROBE_DEFER)
-		dev_err(dev, "initialization failed.\n");
 
 	return err;
 }

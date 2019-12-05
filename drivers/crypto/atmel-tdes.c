@@ -1240,10 +1240,8 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	int err;
 
 	tdes_dd = devm_kmalloc(&pdev->dev, sizeof(*tdes_dd), GFP_KERNEL);
-	if (tdes_dd == NULL) {
-		err = -ENOMEM;
-		goto tdes_dd_err;
-	}
+	if (!tdes_dd)
+		return -ENOMEM;
 
 	tdes_dd->dev = dev;
 
@@ -1352,8 +1350,6 @@ err_tdes_buff:
 res_err:
 	tasklet_kill(&tdes_dd->done_task);
 	tasklet_kill(&tdes_dd->queue_task);
-tdes_dd_err:
-	dev_err(dev, "initialization failed.\n");
 
 	return err;
 }
