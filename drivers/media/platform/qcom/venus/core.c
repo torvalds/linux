@@ -3,7 +3,6 @@
  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
  */
-#include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/interconnect.h>
 #include <linux/ioctl.h>
@@ -19,9 +18,8 @@
 #include <media/v4l2-ioctl.h>
 
 #include "core.h"
-#include "vdec.h"
-#include "venc.h"
 #include "firmware.h"
+#include "pm_helpers.h"
 
 static void venus_event_notify(struct venus_core *core, u32 event)
 {
@@ -98,50 +96,6 @@ static void venus_sys_error_handler(struct work_struct *work)
 	mutex_lock(&core->lock);
 	core->sys_error = false;
 	mutex_unlock(&core->lock);
-}
-
-static int venus_clks_get(struct venus_core *core)
-{
-	const struct venus_resources *res = core->res;
-	struct device *dev = core->dev;
-	unsigned int i;
-
-	for (i = 0; i < res->clks_num; i++) {
-		core->clks[i] = devm_clk_get(dev, res->clks[i]);
-		if (IS_ERR(core->clks[i]))
-			return PTR_ERR(core->clks[i]);
-	}
-
-	return 0;
-}
-
-static int venus_clks_enable(struct venus_core *core)
-{
-	const struct venus_resources *res = core->res;
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < res->clks_num; i++) {
-		ret = clk_prepare_enable(core->clks[i]);
-		if (ret)
-			goto err;
-	}
-
-	return 0;
-err:
-	while (i--)
-		clk_disable_unprepare(core->clks[i]);
-
-	return ret;
-}
-
-static void venus_clks_disable(struct venus_core *core)
-{
-	const struct venus_resources *res = core->res;
-	unsigned int i = res->clks_num;
-
-	while (i--)
-		clk_disable_unprepare(core->clks[i]);
 }
 
 static u32 to_v4l2_codec_type(u32 codec)
@@ -256,9 +210,15 @@ static int venus_probe(struct platform_device *pdev)
 	if (!core->res)
 		return -ENODEV;
 
-	ret = venus_clks_get(core);
-	if (ret)
-		return ret;
+	core->pm_ops = venus_pm_get(core->res->hfi_version);
+	if (!core->pm_ops)
+		return -ENODEV;
+
+	if (core->pm_ops->core_get) {
+		ret = core->pm_ops->core_get(dev);
+		if (ret)
+			return ret;
+	}
 
 	ret = dma_set_mask_and_coherent(dev, core->res->dma_mask);
 	if (ret)
@@ -350,6 +310,7 @@ err_runtime_disable:
 static int venus_remove(struct platform_device *pdev)
 {
 	struct venus_core *core = platform_get_drvdata(pdev);
+	const struct venus_pm_ops *pm_ops = core->pm_ops;
 	struct device *dev = core->dev;
 	int ret;
 
@@ -368,6 +329,9 @@ static int venus_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 
+	if (pm_ops->core_put)
+		pm_ops->core_put(dev);
+
 	icc_put(core->video_path);
 	icc_put(core->cpucfg_path);
 
@@ -379,11 +343,15 @@ static int venus_remove(struct platform_device *pdev)
 static __maybe_unused int venus_runtime_suspend(struct device *dev)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
+	const struct venus_pm_ops *pm_ops = core->pm_ops;
 	int ret;
 
 	ret = hfi_core_suspend(core);
+	if (ret)
+		return ret;
 
-	venus_clks_disable(core);
+	if (pm_ops->core_power)
+		ret = pm_ops->core_power(dev, POWER_OFF);
 
 	return ret;
 }
@@ -391,21 +359,16 @@ static __maybe_unused int venus_runtime_suspend(struct device *dev)
 static __maybe_unused int venus_runtime_resume(struct device *dev)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
+	const struct venus_pm_ops *pm_ops = core->pm_ops;
 	int ret;
 
-	ret = venus_clks_enable(core);
-	if (ret)
-		return ret;
+	if (pm_ops->core_power) {
+		ret = pm_ops->core_power(dev, POWER_ON);
+		if (ret)
+			return ret;
+	}
 
-	ret = hfi_core_resume(core, false);
-	if (ret)
-		goto err_clks_disable;
-
-	return 0;
-
-err_clks_disable:
-	venus_clks_disable(core);
-	return ret;
+	return hfi_core_resume(core, false);
 }
 
 static const struct dev_pm_ops venus_pm_ops = {
@@ -463,6 +426,9 @@ static const struct venus_resources msm8996_res = {
 	.reg_tbl_size = ARRAY_SIZE(msm8996_reg_preset),
 	.clks = {"core", "iface", "bus", "mbus" },
 	.clks_num = 4,
+	.vcodec0_clks = { "core" },
+	.vcodec1_clks = { "core" },
+	.vcodec_clks_num = 1,
 	.max_load = 2563200,
 	.hfi_version = HFI_VERSION_3XX,
 	.vmem_id = VIDC_RESOURCE_NONE,
@@ -517,6 +483,9 @@ static const struct venus_resources sdm845_res = {
 	.codec_freq_data_size = ARRAY_SIZE(sdm845_codec_freq_data),
 	.clks = {"core", "iface", "bus" },
 	.clks_num = 3,
+	.vcodec0_clks = { "core", "bus" },
+	.vcodec1_clks = { "core", "bus" },
+	.vcodec_clks_num = 2,
 	.max_load = 3110400,	/* 4096x2160@90 */
 	.hfi_version = HFI_VERSION_4XX,
 	.vmem_id = VIDC_RESOURCE_NONE,

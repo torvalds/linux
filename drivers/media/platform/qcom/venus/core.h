@@ -14,7 +14,9 @@
 
 #include "hfi.h"
 
-#define VIDC_CLKS_NUM_MAX	4
+#define VIDC_CLKS_NUM_MAX		4
+#define VIDC_VCODEC_CLKS_NUM_MAX	2
+#define VIDC_PMDOMAINS_NUM_MAX		3
 
 struct freq_tbl {
 	unsigned int load;
@@ -55,6 +57,12 @@ struct venus_resources {
 	unsigned int codec_freq_data_size;
 	const char * const clks[VIDC_CLKS_NUM_MAX];
 	unsigned int clks_num;
+	const char * const vcodec0_clks[VIDC_VCODEC_CLKS_NUM_MAX];
+	const char * const vcodec1_clks[VIDC_VCODEC_CLKS_NUM_MAX];
+	unsigned int vcodec_clks_num;
+	const char * const vcodec_pmdomains[VIDC_PMDOMAINS_NUM_MAX];
+	unsigned int vcodec_pmdomains_num;
+	unsigned int vcodec_num;
 	enum hfi_version hfi_version;
 	u32 max_load;
 	unsigned int vmem_id;
@@ -100,10 +108,10 @@ struct venus_caps {
  * @base:	IO memory base address
  * @irq:		Venus irq
  * @clks:	an array of struct clk pointers
- * @core0_clk:	a struct clk pointer for core0
- * @core1_clk:	a struct clk pointer for core1
- * @core0_bus_clk: a struct clk pointer for core0 bus clock
- * @core1_bus_clk: a struct clk pointer for core1 bus clock
+ * @vcodec0_clks: an array of vcodec0 struct clk pointers
+ * @vcodec1_clks: an array of vcodec1 struct clk pointers
+ * @pd_dl_venus: pmdomain device-link for venus domain
+ * @pmdomains:	an array of pmdomains struct device pointers
  * @vdev_dec:	a reference to video device structure for decoder instances
  * @vdev_enc:	a reference to video device structure for encoder instances
  * @v4l2_dev:	a holder for v4l2 device structure
@@ -132,12 +140,12 @@ struct venus_core {
 	void __iomem *base;
 	int irq;
 	struct clk *clks[VIDC_CLKS_NUM_MAX];
-	struct clk *core0_clk;
-	struct clk *core1_clk;
-	struct clk *core0_bus_clk;
-	struct clk *core1_bus_clk;
+	struct clk *vcodec0_clks[VIDC_VCODEC_CLKS_NUM_MAX];
+	struct clk *vcodec1_clks[VIDC_VCODEC_CLKS_NUM_MAX];
 	struct icc_path *video_path;
 	struct icc_path *cpucfg_path;
+	struct device_link *pd_dl_venus;
+	struct device *pmdomains[VIDC_PMDOMAINS_NUM_MAX];
 	struct video_device *vdev_dec;
 	struct video_device *vdev_enc;
 	struct v4l2_device v4l2_dev;
@@ -159,6 +167,7 @@ struct venus_core {
 	unsigned int error;
 	bool sys_error;
 	const struct hfi_core_ops *core_ops;
+	const struct venus_pm_ops *pm_ops;
 	unsigned long enc_codecs;
 	unsigned long dec_codecs;
 	unsigned int max_sessions_supported;

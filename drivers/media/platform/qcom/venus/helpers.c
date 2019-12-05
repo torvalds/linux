@@ -3,12 +3,8 @@
  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
  */
-#include <linux/clk.h>
-#include <linux/iopoll.h>
-#include <linux/interconnect.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <media/videobuf2-dma-sg.h>
 #include <media/v4l2-mem2mem.h>
@@ -17,7 +13,7 @@
 #include "core.h"
 #include "helpers.h"
 #include "hfi_helper.h"
-#include "hfi_venus_io.h"
+#include "pm_helpers.h"
 
 struct intbuf {
 	struct list_head list;
@@ -360,261 +356,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(venus_helper_intbufs_realloc);
 
-static u32 load_per_instance(struct venus_inst *inst)
-{
-	u32 mbs;
-
-	if (!inst || !(inst->state >= INST_INIT && inst->state < INST_STOP))
-		return 0;
-
-	mbs = (ALIGN(inst->width, 16) / 16) * (ALIGN(inst->height, 16) / 16);
-
-	return mbs * inst->fps;
-}
-
-static u32 load_per_type(struct venus_core *core, u32 session_type)
-{
-	struct venus_inst *inst = NULL;
-	u32 mbs_per_sec = 0;
-
-	mutex_lock(&core->lock);
-	list_for_each_entry(inst, &core->instances, list) {
-		if (inst->session_type != session_type)
-			continue;
-
-		mbs_per_sec += load_per_instance(inst);
-	}
-	mutex_unlock(&core->lock);
-
-	return mbs_per_sec;
-}
-
-static void mbs_to_bw(struct venus_inst *inst, u32 mbs, u32 *avg, u32 *peak)
-{
-	const struct venus_resources *res = inst->core->res;
-	const struct bw_tbl *bw_tbl;
-	unsigned int num_rows, i;
-
-	*avg = 0;
-	*peak = 0;
-
-	if (mbs == 0)
-		return;
-
-	if (inst->session_type == VIDC_SESSION_TYPE_ENC) {
-		num_rows = res->bw_tbl_enc_size;
-		bw_tbl = res->bw_tbl_enc;
-	} else if (inst->session_type == VIDC_SESSION_TYPE_DEC) {
-		num_rows = res->bw_tbl_dec_size;
-		bw_tbl = res->bw_tbl_dec;
-	} else {
-		return;
-	}
-
-	if (!bw_tbl || num_rows == 0)
-		return;
-
-	for (i = 0; i < num_rows; i++) {
-		if (mbs > bw_tbl[i].mbs_per_sec)
-			break;
-
-		if (inst->dpb_fmt & HFI_COLOR_FORMAT_10_BIT_BASE) {
-			*avg = bw_tbl[i].avg_10bit;
-			*peak = bw_tbl[i].peak_10bit;
-		} else {
-			*avg = bw_tbl[i].avg;
-			*peak = bw_tbl[i].peak;
-		}
-	}
-}
-
-static int load_scale_bw(struct venus_core *core)
-{
-	struct venus_inst *inst = NULL;
-	u32 mbs_per_sec, avg, peak, total_avg = 0, total_peak = 0;
-
-	mutex_lock(&core->lock);
-	list_for_each_entry(inst, &core->instances, list) {
-		mbs_per_sec = load_per_instance(inst);
-		mbs_to_bw(inst, mbs_per_sec, &avg, &peak);
-		total_avg += avg;
-		total_peak += peak;
-	}
-	mutex_unlock(&core->lock);
-
-	dev_dbg(core->dev, "total: avg_bw: %u, peak_bw: %u\n",
-		total_avg, total_peak);
-
-	return icc_set_bw(core->video_path, total_avg, total_peak);
-}
-
-static int set_clk_freq(struct venus_core *core, unsigned long freq)
-{
-	struct clk *clk = core->clks[0];
-	int ret;
-
-	ret = clk_set_rate(clk, freq);
-	if (ret)
-		return ret;
-
-	ret = clk_set_rate(core->core0_clk, freq);
-	if (ret)
-		return ret;
-
-	ret = clk_set_rate(core->core1_clk, freq);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int scale_clocks(struct venus_inst *inst)
-{
-	struct venus_core *core = inst->core;
-	const struct freq_tbl *table = core->res->freq_tbl;
-	unsigned int num_rows = core->res->freq_tbl_size;
-	unsigned long freq = table[0].freq;
-	struct device *dev = core->dev;
-	u32 mbs_per_sec;
-	unsigned int i;
-	int ret;
-
-	mbs_per_sec = load_per_type(core, VIDC_SESSION_TYPE_ENC) +
-		      load_per_type(core, VIDC_SESSION_TYPE_DEC);
-
-	if (mbs_per_sec > core->res->max_load)
-		dev_warn(dev, "HW is overloaded, needed: %d max: %d\n",
-			 mbs_per_sec, core->res->max_load);
-
-	if (!mbs_per_sec && num_rows > 1) {
-		freq = table[num_rows - 1].freq;
-		goto set_freq;
-	}
-
-	for (i = 0; i < num_rows; i++) {
-		if (mbs_per_sec > table[i].load)
-			break;
-		freq = table[i].freq;
-	}
-
-set_freq:
-
-	ret = set_clk_freq(core, freq);
-	if (ret) {
-		dev_err(dev, "failed to set clock rate %lu (%d)\n",
-			freq, ret);
-		return ret;
-	}
-
-	ret = load_scale_bw(core);
-	if (ret) {
-		dev_err(dev, "failed to set bandwidth (%d)\n",
-			ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static unsigned long calculate_inst_freq(struct venus_inst *inst,
-					 unsigned long filled_len)
-{
-	unsigned long vpp_freq = 0, vsp_freq = 0;
-	u32 fps = (u32)inst->fps;
-	u32 mbs_per_sec;
-
-	mbs_per_sec = load_per_instance(inst) / fps;
-
-	vpp_freq = mbs_per_sec * inst->clk_data.codec_freq_data->vpp_freq;
-	/* 21 / 20 is overhead factor */
-	vpp_freq += vpp_freq / 20;
-	vsp_freq = mbs_per_sec * inst->clk_data.codec_freq_data->vsp_freq;
-
-	/* 10 / 7 is overhead factor */
-	if (inst->session_type == VIDC_SESSION_TYPE_ENC)
-		vsp_freq += (inst->controls.enc.bitrate * 10) / 7;
-	else
-		vsp_freq += ((fps * filled_len * 8) * 10) / 7;
-
-	return max(vpp_freq, vsp_freq);
-}
-
-static int scale_clocks_v4(struct venus_inst *inst)
-{
-	struct venus_core *core = inst->core;
-	const struct freq_tbl *table = core->res->freq_tbl;
-	unsigned int num_rows = core->res->freq_tbl_size;
-	struct device *dev = core->dev;
-	unsigned long freq = 0, freq_core1 = 0, freq_core2 = 0;
-	unsigned long filled_len = 0;
-	int i, ret;
-
-	for (i = 0; i < inst->num_input_bufs; i++)
-		filled_len = max(filled_len, inst->payloads[i]);
-
-	if (inst->session_type == VIDC_SESSION_TYPE_DEC && !filled_len)
-		return 0;
-
-	freq = calculate_inst_freq(inst, filled_len);
-	inst->clk_data.freq = freq;
-
-	mutex_lock(&core->lock);
-	list_for_each_entry(inst, &core->instances, list) {
-		if (inst->clk_data.core_id == VIDC_CORE_ID_1) {
-			freq_core1 += inst->clk_data.freq;
-		} else if (inst->clk_data.core_id == VIDC_CORE_ID_2) {
-			freq_core2 += inst->clk_data.freq;
-		} else if (inst->clk_data.core_id == VIDC_CORE_ID_3) {
-			freq_core1 += inst->clk_data.freq;
-			freq_core2 += inst->clk_data.freq;
-		}
-	}
-	mutex_unlock(&core->lock);
-
-	freq = max(freq_core1, freq_core2);
-
-	if (freq >= table[0].freq) {
-		freq = table[0].freq;
-		dev_warn(dev, "HW is overloaded, needed: %lu max: %lu\n",
-			 freq, table[0].freq);
-		goto set_freq;
-	}
-
-	for (i = num_rows - 1 ; i >= 0; i--) {
-		if (freq <= table[i].freq) {
-			freq = table[i].freq;
-			break;
-		}
-	}
-
-set_freq:
-
-	ret = set_clk_freq(core, freq);
-	if (ret) {
-		dev_err(dev, "failed to set clock rate %lu (%d)\n",
-			freq, ret);
-		return ret;
-	}
-
-	ret = load_scale_bw(core);
-	if (ret) {
-		dev_err(dev, "failed to set bandwidth (%d)\n",
-			ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-int venus_helper_load_scale_clocks(struct venus_inst *inst)
-{
-	if (IS_V4(inst->core))
-		return scale_clocks_v4(inst);
-
-	return scale_clocks(inst);
-}
-EXPORT_SYMBOL_GPL(venus_helper_load_scale_clocks);
-
 static void fill_buffer_desc(const struct venus_buffer *buf,
 			     struct hfi_buffer_desc *bd, bool response)
 {
@@ -718,7 +459,7 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
 			put_ts_metadata(inst, vbuf);
 
-		venus_helper_load_scale_clocks(inst);
+		venus_pm_load_scale(inst);
 	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		if (inst->session_type == VIDC_SESSION_TYPE_ENC)
 			fdata.buffer_type = HFI_BUFFER_OUTPUT;
@@ -1360,7 +1101,7 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 
 		venus_helper_free_dpb_bufs(inst);
 
-		venus_helper_load_scale_clocks(inst);
+		venus_pm_load_scale(inst);
 		INIT_LIST_HEAD(&inst->registeredbufs);
 	}
 
@@ -1423,7 +1164,7 @@ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
 	if (ret)
 		goto err_bufs_free;
 
-	venus_helper_load_scale_clocks(inst);
+	venus_pm_load_scale(inst);
 
 	ret = hfi_session_load_res(inst);
 	if (ret)
@@ -1548,52 +1289,3 @@ int venus_helper_get_out_fmts(struct venus_inst *inst, u32 v4l2_fmt,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(venus_helper_get_out_fmts);
-
-int venus_helper_power_enable(struct venus_core *core, u32 session_type,
-			      bool enable)
-{
-	void __iomem *ctrl, *stat;
-	u32 val;
-	int ret;
-
-	if (!IS_V3(core) && !IS_V4(core))
-		return 0;
-
-	if (IS_V3(core)) {
-		if (session_type == VIDC_SESSION_TYPE_DEC)
-			ctrl = core->base + WRAPPER_VDEC_VCODEC_POWER_CONTROL;
-		else
-			ctrl = core->base + WRAPPER_VENC_VCODEC_POWER_CONTROL;
-		if (enable)
-			writel(0, ctrl);
-		else
-			writel(1, ctrl);
-
-		return 0;
-	}
-
-	if (session_type == VIDC_SESSION_TYPE_DEC) {
-		ctrl = core->base + WRAPPER_VCODEC0_MMCC_POWER_CONTROL;
-		stat = core->base + WRAPPER_VCODEC0_MMCC_POWER_STATUS;
-	} else {
-		ctrl = core->base + WRAPPER_VCODEC1_MMCC_POWER_CONTROL;
-		stat = core->base + WRAPPER_VCODEC1_MMCC_POWER_STATUS;
-	}
-
-	if (enable) {
-		writel(0, ctrl);
-
-		ret = readl_poll_timeout(stat, val, val & BIT(1), 1, 100);
-		if (ret)
-			return ret;
-	} else {
-		writel(1, ctrl);
-
-		ret = readl_poll_timeout(stat, val, !(val & BIT(1)), 1, 100);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(venus_helper_power_enable);
