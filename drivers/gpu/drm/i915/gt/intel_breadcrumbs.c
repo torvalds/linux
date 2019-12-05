@@ -28,6 +28,7 @@
 
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include "intel_gt_pm.h"
 
 static void irq_enable(struct intel_engine_cs *engine)
 {
@@ -53,15 +54,17 @@ static void irq_disable(struct intel_engine_cs *engine)
 
 static void __intel_breadcrumbs_disarm_irq(struct intel_breadcrumbs *b)
 {
+	struct intel_engine_cs *engine =
+		container_of(b, struct intel_engine_cs, breadcrumbs);
+
 	lockdep_assert_held(&b->irq_lock);
 
 	GEM_BUG_ON(!b->irq_enabled);
 	if (!--b->irq_enabled)
-		irq_disable(container_of(b,
-					 struct intel_engine_cs,
-					 breadcrumbs));
+		irq_disable(engine);
 
 	b->irq_armed = false;
+	intel_gt_pm_put_async(engine->gt);
 }
 
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
@@ -207,14 +210,17 @@ static void signal_irq_work(struct irq_work *work)
 	intel_engine_breadcrumbs_irq(engine);
 }
 
-static void __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
+static bool __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
 {
 	struct intel_engine_cs *engine =
 		container_of(b, struct intel_engine_cs, breadcrumbs);
 
 	lockdep_assert_held(&b->irq_lock);
 	if (b->irq_armed)
-		return;
+		return true;
+
+	if (!intel_gt_pm_get_if_awake(engine->gt))
+		return false;
 
 	/*
 	 * The breadcrumb irq will be disarmed on the interrupt after the
@@ -234,6 +240,8 @@ static void __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
 
 	if (!b->irq_enabled++)
 		irq_enable(engine);
+
+	return true;
 }
 
 void intel_engine_init_breadcrumbs(struct intel_engine_cs *engine)
@@ -277,7 +285,8 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 		spin_lock(&b->irq_lock);
 		GEM_BUG_ON(test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags));
 
-		__intel_breadcrumbs_arm_irq(b);
+		if (!__intel_breadcrumbs_arm_irq(b))
+			goto unlock;
 
 		/*
 		 * We keep the seqno in retirement order, so we can break
@@ -306,6 +315,7 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 		GEM_BUG_ON(!check_signal_order(ce, rq));
 
 		set_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags);
+unlock:
 		spin_unlock(&b->irq_lock);
 	}
 
