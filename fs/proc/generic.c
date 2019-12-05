@@ -137,8 +137,12 @@ static int proc_getattr(const struct path *path, struct kstat *stat,
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct proc_dir_entry *de = PDE(inode);
-	if (de && de->nlink)
-		set_nlink(inode, de->nlink);
+	if (de) {
+		nlink_t nlink = READ_ONCE(de->nlink);
+		if (nlink > 0) {
+			set_nlink(inode, nlink);
+		}
+	}
 
 	generic_fillattr(inode, stat);
 	return 0;
@@ -361,6 +365,7 @@ struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
 		write_unlock(&proc_subdir_lock);
 		goto out_free_inum;
 	}
+	dir->nlink++;
 	write_unlock(&proc_subdir_lock);
 
 	return dp;
@@ -471,10 +476,7 @@ struct proc_dir_entry *proc_mkdir_data(const char *name, umode_t mode,
 		ent->data = data;
 		ent->proc_fops = &proc_dir_operations;
 		ent->proc_iops = &proc_dir_inode_operations;
-		parent->nlink++;
 		ent = proc_register(parent, ent);
-		if (!ent)
-			parent->nlink--;
 	}
 	return ent;
 }
@@ -504,10 +506,7 @@ struct proc_dir_entry *proc_create_mount_point(const char *name)
 		ent->data = NULL;
 		ent->proc_fops = NULL;
 		ent->proc_iops = NULL;
-		parent->nlink++;
 		ent = proc_register(parent, ent);
-		if (!ent)
-			parent->nlink--;
 	}
 	return ent;
 }
@@ -665,8 +664,12 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	len = strlen(fn);
 
 	de = pde_subdir_find(parent, fn, len);
-	if (de)
+	if (de) {
 		rb_erase(&de->subdir_node, &parent->subdir);
+		if (S_ISDIR(de->mode)) {
+			parent->nlink--;
+		}
+	}
 	write_unlock(&proc_subdir_lock);
 	if (!de) {
 		WARN(1, "name '%s'\n", name);
@@ -675,9 +678,6 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 
 	proc_entry_rundown(de);
 
-	if (S_ISDIR(de->mode))
-		parent->nlink--;
-	de->nlink = 0;
 	WARN(pde_subdir_first(de),
 	     "%s: removing non-empty directory '%s/%s', leaking at least '%s'\n",
 	     __func__, de->parent->name, de->name, pde_subdir_first(de)->name);
@@ -713,13 +713,12 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 			de = next;
 			continue;
 		}
-		write_unlock(&proc_subdir_lock);
-
-		proc_entry_rundown(de);
 		next = de->parent;
 		if (S_ISDIR(de->mode))
 			next->nlink--;
-		de->nlink = 0;
+		write_unlock(&proc_subdir_lock);
+
+		proc_entry_rundown(de);
 		if (de == root)
 			break;
 		pde_put(de);
