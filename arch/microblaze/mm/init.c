@@ -53,8 +53,11 @@ EXPORT_SYMBOL(kmap_prot);
 
 static inline pte_t *virt_to_kpte(unsigned long vaddr)
 {
-	return pte_offset_kernel(pmd_offset(pgd_offset_k(vaddr),
-			vaddr), vaddr);
+	pgd_t *pgd = pgd_offset_k(vaddr);
+	p4d_t *p4d = p4d_offset(pgd, vaddr);
+	pud_t *pud = pud_offset(p4d, vaddr);
+
+	return pte_offset_kernel(pmd_offset(pud, vaddr), vaddr);
 }
 
 static void __init highmem_init(void)
