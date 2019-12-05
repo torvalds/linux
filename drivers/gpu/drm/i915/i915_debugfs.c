@@ -48,6 +48,7 @@
 #include "gt/uc/intel_guc_submission.h"
 
 #include "i915_debugfs.h"
+#include "i915_debugfs_params.h"
 #include "i915_irq.h"
 #include "i915_trace.h"
 #include "intel_csr.h"
@@ -4311,9 +4312,10 @@ int i915_debugfs_register(struct drm_i915_private *dev_priv)
 	struct drm_minor *minor = dev_priv->drm.primary;
 	int i;
 
+	i915_debugfs_params(dev_priv);
+
 	debugfs_create_file("i915_forcewake_user", S_IRUSR, minor->debugfs_root,
 			    to_i915(minor->dev), &i915_forcewake_fops);
-
 	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
 		debugfs_create_file(i915_debugfs_files[i].name,
 				    S_IRUGO | S_IWUSR,
