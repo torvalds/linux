@@ -265,7 +265,7 @@ static void atmel_tdes_dma_callback(void *data)
 static int atmel_tdes_write_ctrl(struct atmel_tdes_dev *dd)
 {
 	int err;
-	u32 valcr = 0, valmr = TDES_MR_SMOD_PDC;
+	u32 valmr = TDES_MR_SMOD_PDC;
 
 	err = atmel_tdes_hw_init(dd);
 
@@ -307,7 +307,6 @@ static int atmel_tdes_write_ctrl(struct atmel_tdes_dev *dd)
 	if ((dd->flags & TDES_FLAGS_ENCRYPT) || (dd->flags & TDES_FLAGS_OFB))
 		valmr |= TDES_MR_CYPHER_ENC;
 
-	atmel_tdes_write(dd, TDES_CR, valcr);
 	atmel_tdes_write(dd, TDES_MR, valmr);
 
 	atmel_tdes_write_n(dd, TDES_KEY1W1R, dd->ctx->key,
