@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_intel.h>
 #include "cadence_master.h"
@@ -57,12 +58,21 @@ static int sdw_intel_cleanup(struct sdw_intel_ctx *ctx)
 {
 	struct sdw_intel_link_res *link = ctx->links;
 	struct sdw_master_device *md;
+	u32 link_mask;
 	int i;
 
 	if (!link)
 		return 0;
 
+	link_mask = ctx->link_mask;
+
 	for (i = 0; i < ctx->count; i++, link++) {
+		if (link_mask && !(link_mask & BIT(i)))
+			continue;
+
+		if (!link->clock_stop_quirks)
+			pm_runtime_put_noidle(link->dev);
+
 		md = link->md;
 		if (md)
 			md->driver->remove(md);
@@ -305,6 +315,16 @@ sdw_intel_startup_controller(struct sdw_intel_ctx *ctx)
 		md = link->md;
 
 		md->driver->startup(md);
+
+		if (!link->clock_stop_quirks) {
+			/*
+			 * we need to prevent the parent PCI device
+			 * from entering pm_runtime suspend, so that
+			 * power rails to the SoundWire IP are not
+			 * turned off.
+			 */
+			pm_runtime_get_noresume(link->dev);
+		}
 	}
 
 	return 0;
