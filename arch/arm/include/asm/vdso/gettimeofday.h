@@ -75,6 +75,9 @@ static __always_inline u64 __arch_get_hw_counter(int clock_mode)
 #ifdef CONFIG_ARM_ARCH_TIMER
 	u64 cycle_now;
 
+	if (!clock_mode)
+		return -EINVAL;
+
 	isb();
 	cycle_now = read_sysreg(CNTVCT);
 
