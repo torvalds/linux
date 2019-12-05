@@ -384,11 +384,10 @@ static void atmel_tdes_buff_cleanup(struct atmel_tdes_dev *dd)
 	free_page((unsigned long)dd->buf_in);
 }
 
-static int atmel_tdes_crypt_pdc(struct crypto_tfm *tfm, dma_addr_t dma_addr_in,
-			       dma_addr_t dma_addr_out, int length)
+static int atmel_tdes_crypt_pdc(struct atmel_tdes_dev *dd,
+				dma_addr_t dma_addr_in,
+				dma_addr_t dma_addr_out, int length)
 {
-	struct atmel_tdes_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct atmel_tdes_dev *dd = ctx->dd;
 	struct atmel_tdes_reqctx *rctx = skcipher_request_ctx(dd->req);
 	int len32;
 
@@ -428,11 +427,10 @@ static int atmel_tdes_crypt_pdc(struct crypto_tfm *tfm, dma_addr_t dma_addr_in,
 	return 0;
 }
 
-static int atmel_tdes_crypt_dma(struct crypto_tfm *tfm, dma_addr_t dma_addr_in,
-			       dma_addr_t dma_addr_out, int length)
+static int atmel_tdes_crypt_dma(struct atmel_tdes_dev *dd,
+				dma_addr_t dma_addr_in,
+				dma_addr_t dma_addr_out, int length)
 {
-	struct atmel_tdes_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct atmel_tdes_dev *dd = ctx->dd;
 	struct atmel_tdes_reqctx *rctx = skcipher_request_ctx(dd->req);
 	struct scatterlist sg[2];
 	struct dma_async_tx_descriptor	*in_desc, *out_desc;
@@ -501,8 +499,6 @@ static int atmel_tdes_crypt_dma(struct crypto_tfm *tfm, dma_addr_t dma_addr_in,
 
 static int atmel_tdes_crypt_start(struct atmel_tdes_dev *dd)
 {
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(
-					crypto_skcipher_reqtfm(dd->req));
 	int err, fast = 0, in, out;
 	size_t count;
 	dma_addr_t addr_in, addr_out;
@@ -558,9 +554,9 @@ static int atmel_tdes_crypt_start(struct atmel_tdes_dev *dd)
 	dd->total -= count;
 
 	if (dd->caps.has_dma)
-		err = atmel_tdes_crypt_dma(tfm, addr_in, addr_out, count);
+		err = atmel_tdes_crypt_dma(dd, addr_in, addr_out, count);
 	else
-		err = atmel_tdes_crypt_pdc(tfm, addr_in, addr_out, count);
+		err = atmel_tdes_crypt_pdc(dd, addr_in, addr_out, count);
 
 	if (err && (dd->flags & TDES_FLAGS_FAST)) {
 		dma_unmap_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
