@@ -95,10 +95,9 @@ mlx5e_get_ktls_tx_priv_ctx(struct tls_context *tls_ctx)
 void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv);
 void mlx5e_ktls_tx_offload_set_pending(struct mlx5e_ktls_offload_context_tx *priv_tx);
 
-struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
-					 struct mlx5e_txqsq *sq,
-					 struct sk_buff *skb,
-					 struct mlx5e_tx_wqe **wqe, u16 *pi);
+bool mlx5e_ktls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
+			      struct sk_buff *skb, struct mlx5e_tx_wqe **wqe,
+			      u16 *pi);
 void mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 					   struct mlx5e_tx_wqe_info *wi,
 					   u32 *dma_fifo_cc);

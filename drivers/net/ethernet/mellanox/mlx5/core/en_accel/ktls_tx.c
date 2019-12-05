@@ -413,10 +413,9 @@ err_out:
 	return MLX5E_KTLS_SYNC_FAIL;
 }
 
-struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
-					 struct mlx5e_txqsq *sq,
-					 struct sk_buff *skb,
-					 struct mlx5e_tx_wqe **wqe, u16 *pi)
+bool mlx5e_ktls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
+			      struct sk_buff *skb, struct mlx5e_tx_wqe **wqe,
+			      u16 *pi)
 {
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	struct mlx5e_sq_stats *stats = sq->stats;
@@ -474,9 +473,9 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 	stats->tls_encrypted_bytes   += datalen;
 
 out:
-	return skb;
+	return true;
 
 err_out:
 	dev_kfree_skb_any(skb);
-	return NULL;
+	return false;
 }

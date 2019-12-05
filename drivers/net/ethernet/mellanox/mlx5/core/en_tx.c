@@ -394,8 +394,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
 	/* might send skbs and update wqe and pi */
-	skb = mlx5e_accel_handle_tx(skb, sq, dev, &wqe, &pi);
-	if (unlikely(!skb))
+	if (unlikely(!mlx5e_accel_handle_tx(skb, sq, dev, &wqe, &pi)))
 		return NETDEV_TX_OK;
 
 	return mlx5e_sq_xmit(sq, skb, wqe, pi, netdev_xmit_more());

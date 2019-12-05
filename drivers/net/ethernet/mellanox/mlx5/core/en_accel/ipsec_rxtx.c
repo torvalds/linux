@@ -233,9 +233,9 @@ static void mlx5e_ipsec_set_metadata(struct sk_buff *skb,
 		   ntohs(mdata->content.tx.seq));
 }
 
-struct sk_buff *mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
-					  struct mlx5e_tx_wqe *wqe,
-					  struct sk_buff *skb)
+bool mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
+			       struct mlx5e_tx_wqe *wqe,
+			       struct sk_buff *skb)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct xfrm_offload *xo = xfrm_offload(skb);
@@ -245,7 +245,7 @@ struct sk_buff *mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
 	struct sec_path *sp;
 
 	if (!xo)
-		return skb;
+		return true;
 
 	sp = skb_sec_path(skb);
 	if (unlikely(sp->len != 1)) {
@@ -281,11 +281,11 @@ struct sk_buff *mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
 	sa_entry->set_iv_op(skb, x, xo);
 	mlx5e_ipsec_set_metadata(skb, mdata, xo);
 
-	return skb;
+	return true;
 
 drop:
 	kfree_skb(skb);
-	return NULL;
+	return false;
 }
 
 static inline struct xfrm_state *
