@@ -540,7 +540,7 @@ void gen_pool_for_each_chunk(struct gen_pool *pool,
 EXPORT_SYMBOL(gen_pool_for_each_chunk);
 
 /**
- * addr_in_gen_pool - checks if an address falls within the range of a pool
+ * gen_pool_has_addr - checks if an address falls within the range of a pool
  * @pool:	the generic memory pool
  * @start:	start address
  * @size:	size of the region
@@ -548,7 +548,7 @@ EXPORT_SYMBOL(gen_pool_for_each_chunk);
  * Check if the range of addresses falls within the specified pool. Returns
  * true if the entire range is contained in the pool and false otherwise.
  */
-bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
+bool gen_pool_has_addr(struct gen_pool *pool, unsigned long start,
 			size_t size)
 {
 	bool found = false;
@@ -567,7 +567,7 @@ bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
 	rcu_read_unlock();
 	return found;
 }
-EXPORT_SYMBOL(addr_in_gen_pool);
+EXPORT_SYMBOL(gen_pool_has_addr);
 
 /**
  * gen_pool_avail - get available free space of the pool
