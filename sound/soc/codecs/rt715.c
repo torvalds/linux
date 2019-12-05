@@ -779,7 +779,7 @@ int rt715_init(struct device *dev, struct regmap *sdw_regmap,
 	 * HW init will be performed when device reports present
 	 */
 	rt715->hw_init = false;
-	rt715->first_init = false;
+	rt715->first_hw_init = false;
 
 	ret = devm_snd_soc_register_component(dev,
 						&soc_codec_dev_rt715,
@@ -799,7 +799,7 @@ int rt715_io_init(struct device *dev, struct sdw_slave *slave)
 	/*
 	 * PM runtime is only enabled when a Slave reports as Attached
 	 */
-	if (!rt715->first_init) {
+	if (!rt715->first_hw_init) {
 		/* set autosuspend parameters */
 		pm_runtime_set_autosuspend_delay(&slave->dev, 3000);
 		pm_runtime_use_autosuspend(&slave->dev);
@@ -811,8 +811,6 @@ int rt715_io_init(struct device *dev, struct sdw_slave *slave)
 		pm_runtime_mark_last_busy(&slave->dev);
 
 		pm_runtime_enable(&slave->dev);
-
-		rt715->first_init = true;
 	}
 
 	pm_runtime_get_noresume(&slave->dev);
@@ -854,6 +852,11 @@ int rt715_io_init(struct device *dev, struct sdw_slave *slave)
 
 	/* Finish Initial Settings, set power to D3 */
 	regmap_write(rt715->regmap, RT715_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
+
+	if (rt715->first_hw_init)
+		regcache_mark_dirty(rt715->regmap);
+	else
+		rt715->first_hw_init = true;
 
 	/* Mark Slave initialization complete */
 	rt715->hw_init = true;
