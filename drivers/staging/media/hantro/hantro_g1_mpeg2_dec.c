@@ -121,7 +121,7 @@ hantro_g1_mpeg2_dec_set_buffers(struct hantro_dev *vpu, struct hantro_ctx *ctx,
 	vdpu_write_relaxed(vpu, addr, G1_REG_RLC_VLC_BASE);
 
 	/* Destination frame buffer */
-	addr = vb2_dma_contig_plane_dma_addr(dst_buf, 0);
+	addr = hantro_get_dec_buf_addr(ctx, dst_buf);
 	current_addr = addr;
 
 	if (picture->picture_structure == PICT_BOTTOM_FIELD)

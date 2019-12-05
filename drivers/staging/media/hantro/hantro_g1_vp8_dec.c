@@ -422,7 +422,7 @@ static void cfg_buffers(struct hantro_ctx *ctx,
 	}
 	vdpu_write_relaxed(vpu, reg, G1_REG_FWD_PIC(0));
 
-	dst_dma = vb2_dma_contig_plane_dma_addr(&vb2_dst->vb2_buf, 0);
+	dst_dma = hantro_get_dec_buf_addr(ctx, &vb2_dst->vb2_buf);
 	vdpu_write_relaxed(vpu, dst_dma, G1_REG_ADDR_DST);
 }
 

@@ -53,7 +53,7 @@ dma_addr_t hantro_get_ref(struct hantro_ctx *ctx, u64 ts)
 	if (index < 0)
 		return 0;
 	buf = vb2_get_buffer(q, index);
-	return vb2_dma_contig_plane_dma_addr(buf, 0);
+	return hantro_get_dec_buf_addr(ctx, buf);
 }
 
 static int
@@ -159,6 +159,11 @@ void hantro_start_prepare_run(struct hantro_ctx *ctx)
 	src_buf = hantro_get_src_buf(ctx);
 	v4l2_ctrl_request_setup(src_buf->vb2_buf.req_obj.req,
 				&ctx->ctrl_handler);
+
+	if (hantro_needs_postproc(ctx, ctx->vpu_dst_fmt))
+		hantro_postproc_enable(ctx);
+	else
+		hantro_postproc_disable(ctx);
 }
 
 void hantro_end_prepare_run(struct hantro_ctx *ctx)

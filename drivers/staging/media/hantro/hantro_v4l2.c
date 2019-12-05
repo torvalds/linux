@@ -47,6 +47,19 @@ hantro_get_formats(const struct hantro_ctx *ctx, unsigned int *num_fmts)
 }
 
 static const struct hantro_fmt *
+hantro_get_postproc_formats(const struct hantro_ctx *ctx,
+			    unsigned int *num_fmts)
+{
+	if (hantro_is_encoder_ctx(ctx)) {
+		*num_fmts = 0;
+		return NULL;
+	}
+
+	*num_fmts = ctx->dev->variant->num_postproc_fmts;
+	return ctx->dev->variant->postproc_fmts;
+}
+
+static const struct hantro_fmt *
 hantro_find_format(const struct hantro_ctx *ctx, u32 fourcc)
 {
 	const struct hantro_fmt *formats;
@@ -57,6 +70,10 @@ hantro_find_format(const struct hantro_ctx *ctx, u32 fourcc)
 		if (formats[i].fourcc == fourcc)
 			return &formats[i];
 
+	formats = hantro_get_postproc_formats(ctx, &num_fmts);
+	for (i = 0; i < num_fmts; i++)
+		if (formats[i].fourcc == fourcc)
+			return &formats[i];
 	return NULL;
 }
 
@@ -151,6 +168,24 @@ static int vidioc_enum_fmt(struct file *file, void *priv,
 		}
 		++j;
 	}
+
+	/*
+	 * Enumerate post-processed formats. As per the specification,
+	 * we enumerated these formats after natively decoded formats
+	 * as a hint for applications on what's the preferred fomat.
+	 */
+	if (!capture)
+		return -EINVAL;
+	formats = hantro_get_postproc_formats(ctx, &num_fmts);
+	for (i = 0; i < num_fmts; i++) {
+		if (j == f->index) {
+			fmt = &formats[i];
+			f->pixelformat = fmt->fourcc;
+			return 0;
+		}
+		++j;
+	}
+
 	return -EINVAL;
 }
 
@@ -245,7 +280,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 		 *
 		 * The H264 decoder needs extra space on the output buffers
 		 * to store motion vectors. This is needed for reference
-		 * frames.
+		 * frames and only if the format is non-post-processed NV12.
 		 *
 		 * Memory layout is as follow:
 		 *
@@ -259,7 +294,8 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 		 * | MC sync          32 bytes |
 		 * +---------------------------+
 		 */
-		if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_H264_SLICE)
+		if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_H264_SLICE &&
+		    !hantro_needs_postproc(ctx, ctx->vpu_dst_fmt))
 			pix_mp->plane_fmt[0].sizeimage +=
 				64 * MB_WIDTH(pix_mp->width) *
 				     MB_WIDTH(pix_mp->height) + 32;
@@ -637,10 +673,23 @@ static int hantro_start_streaming(struct vb2_queue *q, unsigned int count)
 
 		vpu_debug(4, "Codec mode = %d\n", codec_mode);
 		ctx->codec_ops = &ctx->dev->variant->codec_ops[codec_mode];
-		if (ctx->codec_ops->init)
+		if (ctx->codec_ops->init) {
 			ret = ctx->codec_ops->init(ctx);
-	}
+			if (ret)
+				return ret;
+		}
 
+		if (hantro_needs_postproc(ctx, ctx->vpu_dst_fmt)) {
+			ret = hantro_postproc_alloc(ctx);
+			if (ret)
+				goto err_codec_exit;
+		}
+	}
+	return ret;
+
+err_codec_exit:
+	if (ctx->codec_ops && ctx->codec_ops->exit)
+		ctx->codec_ops->exit(ctx);
 	return ret;
 }
 
@@ -667,6 +716,7 @@ static void hantro_stop_streaming(struct vb2_queue *q)
 	struct hantro_ctx *ctx = vb2_get_drv_priv(q);
 
 	if (hantro_vq_is_coded(q)) {
+		hantro_postproc_free(ctx);
 		if (ctx->codec_ops && ctx->codec_ops->exit)
 			ctx->codec_ops->exit(ctx);
 	}
