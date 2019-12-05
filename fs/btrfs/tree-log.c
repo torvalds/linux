@@ -795,7 +795,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 						struct btrfs_ordered_sum,
 						list);
 				if (!ret)
-					ret = btrfs_del_csums(trans, fs_info,
+					ret = btrfs_del_csums(trans,
+							      fs_info->csum_root,
 							      sums->bytenr,
 							      sums->len);
 				if (!ret)
@@ -3866,6 +3867,28 @@ static int log_inode_item(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+static int log_csums(struct btrfs_trans_handle *trans,
+		     struct btrfs_root *log_root,
+		     struct btrfs_ordered_sum *sums)
+{
+	int ret;
+
+	/*
+	 * Due to extent cloning, we might have logged a csum item that covers a
+	 * subrange of a cloned extent, and later we can end up logging a csum
+	 * item for a larger subrange of the same extent or the entire range.
+	 * This would leave csum items in the log tree that cover the same range
+	 * and break the searches for checksums in the log tree, resulting in
+	 * some checksums missing in the fs/subvolume tree. So just delete (or
+	 * trim and adjust) any existing csum items in the log for this range.
+	 */
+	ret = btrfs_del_csums(trans, log_root, sums->bytenr, sums->len);
+	if (ret)
+		return ret;
+
+	return btrfs_csum_file_blocks(trans, log_root, sums);
+}
+
 static noinline int copy_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_inode *inode,
 			       struct btrfs_path *dst_path,
@@ -4011,7 +4034,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 						   struct btrfs_ordered_sum,
 						   list);
 		if (!ret)
-			ret = btrfs_csum_file_blocks(trans, log, sums);
+			ret = log_csums(trans, log, sums);
 		list_del(&sums->list);
 		kfree(sums);
 	}
@@ -4231,7 +4254,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 						   struct btrfs_ordered_sum,
 						   list);
 		if (!ret)
-			ret = btrfs_csum_file_blocks(trans, log_root, sums);
+			ret = log_csums(trans, log_root, sums);
 		list_del(&sums->list);
 		kfree(sums);
 	}
