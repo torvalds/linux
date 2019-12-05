@@ -27,8 +27,8 @@ int _version SEC("version") = 1;
 	}
 #endif
 
-SEC("test1")
-int process(struct __sk_buff *skb)
+SEC("classifier/test_pkt_md_access")
+int test_pkt_md_access(struct __sk_buff *skb)
 {
 	TEST_FIELD(__u8,  len, 0xFF);
 	TEST_FIELD(__u16, len, 0xFFFF);
