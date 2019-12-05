@@ -5070,7 +5070,7 @@ static __init int test_ringbuffer(void)
 	int ret = 0;
 
 	if (security_locked_down(LOCKDOWN_TRACEFS)) {
-		pr_warning("Lockdown is enabled, skipping ring buffer tests\n");
+		pr_warn("Lockdown is enabled, skipping ring buffer tests\n");
 		return 0;
 	}
 
