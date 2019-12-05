@@ -149,6 +149,8 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset);
 int intel_guc_suspend(struct intel_guc *guc);
 int intel_guc_resume(struct intel_guc *guc);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
+int intel_guc_allocate_and_map_vma(struct intel_guc *guc, u32 size,
+				   struct i915_vma **out_vma, void **out_vaddr);
 
 static inline bool intel_guc_is_supported(struct intel_guc *guc)
 {

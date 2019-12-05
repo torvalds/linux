@@ -704,3 +704,37 @@ err:
 	i915_gem_object_put(obj);
 	return vma;
 }
+
+/**
+ * intel_guc_allocate_and_map_vma() - Allocate and map VMA for GuC usage
+ * @guc:	the guc
+ * @size:	size of area to allocate (both virtual space and memory)
+ * @out_vma:	return variable for the allocated vma pointer
+ * @out_vaddr:	return variable for the obj mapping
+ *
+ * This wrapper calls intel_guc_allocate_vma() and then maps the allocated
+ * object with I915_MAP_WB.
+ *
+ * Return:	0 if successful, a negative errno code otherwise.
+ */
+int intel_guc_allocate_and_map_vma(struct intel_guc *guc, u32 size,
+				   struct i915_vma **out_vma, void **out_vaddr)
+{
+	struct i915_vma *vma;
+	void *vaddr;
+
+	vma = intel_guc_allocate_vma(guc, size);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		i915_vma_unpin_and_release(&vma, 0);
+		return PTR_ERR(vaddr);
+	}
+
+	*out_vma = vma;
+	*out_vaddr = vaddr;
+
+	return 0;
+}

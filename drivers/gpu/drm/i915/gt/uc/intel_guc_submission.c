@@ -308,23 +308,15 @@ static void guc_proc_desc_fini(struct intel_guc_client *client)
 
 static int guc_stage_desc_pool_create(struct intel_guc *guc)
 {
-	struct i915_vma *vma;
-	void *vaddr;
+	u32 size = PAGE_ALIGN(sizeof(struct guc_stage_desc) *
+			      GUC_MAX_STAGE_DESCRIPTORS);
+	int ret;
 
-	vma = intel_guc_allocate_vma(guc,
-				     PAGE_ALIGN(sizeof(struct guc_stage_desc) *
-				     GUC_MAX_STAGE_DESCRIPTORS));
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
+	ret = intel_guc_allocate_and_map_vma(guc, size, &guc->stage_desc_pool,
+					     &guc->stage_desc_pool_vaddr);
+	if (ret)
+		return ret;
 
-	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
-	if (IS_ERR(vaddr)) {
-		i915_vma_unpin_and_release(&vma, 0);
-		return PTR_ERR(vaddr);
-	}
-
-	guc->stage_desc_pool = vma;
-	guc->stage_desc_pool_vaddr = vaddr;
 	ida_init(&guc->stage_ids);
 
 	return 0;

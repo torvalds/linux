@@ -125,7 +125,6 @@ static int guc_action_deregister_ct_buffer(struct intel_guc *guc,
 static int ctch_init(struct intel_guc *guc,
 		     struct intel_guc_ct_channel *ctch)
 {
-	struct i915_vma *vma;
 	void *blob;
 	int err;
 	int i;
@@ -154,20 +153,13 @@ static int ctch_init(struct intel_guc *guc,
 	 * other code will need updating as well.
 	 */
 
-	/* allocate vma */
-	vma = intel_guc_allocate_vma(guc, PAGE_SIZE);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
-		goto err_out;
+	err = intel_guc_allocate_and_map_vma(guc, PAGE_SIZE, &ctch->vma, &blob);
+	if (err) {
+		CT_DEBUG_DRIVER("CT: channel %d initialization failed; err=%d\n",
+				ctch->owner, err);
+		return err;
 	}
-	ctch->vma = vma;
 
-	/* map first page */
-	blob = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
-	if (IS_ERR(blob)) {
-		err = PTR_ERR(blob);
-		goto err_vma;
-	}
 	CT_DEBUG_DRIVER("CT: vma base=%#x\n",
 			intel_guc_ggtt_offset(guc, ctch->vma));
 
@@ -179,13 +171,6 @@ static int ctch_init(struct intel_guc *guc,
 	}
 
 	return 0;
-
-err_vma:
-	i915_vma_unpin_and_release(&ctch->vma, 0);
-err_out:
-	CT_DEBUG_DRIVER("CT: channel %d initialization failed; err=%d\n",
-			ctch->owner, err);
-	return err;
 }
 
 static void ctch_fini(struct intel_guc *guc,

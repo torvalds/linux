@@ -136,32 +136,19 @@ static void __guc_ads_init(struct intel_guc *guc)
 int intel_guc_ads_create(struct intel_guc *guc)
 {
 	const u32 size = PAGE_ALIGN(sizeof(struct __guc_ads_blob));
-	struct i915_vma *vma;
-	void *blob;
 	int ret;
 
 	GEM_BUG_ON(guc->ads_vma);
 
-	vma = intel_guc_allocate_vma(guc, size);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
+	ret = intel_guc_allocate_and_map_vma(guc, size, &guc->ads_vma,
+					     (void **)&guc->ads_blob);
 
-	blob = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
-	if (IS_ERR(blob)) {
-		ret = PTR_ERR(blob);
-		goto err_vma;
-	}
-
-	guc->ads_vma = vma;
-	guc->ads_blob = blob;
+	if (ret)
+		return ret;
 
 	__guc_ads_init(guc);
 
 	return 0;
-
-err_vma:
-	i915_vma_unpin_and_release(&guc->ads_vma, 0);
-	return ret;
 }
 
 void intel_guc_ads_destroy(struct intel_guc *guc)
