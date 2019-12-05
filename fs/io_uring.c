@@ -275,7 +275,8 @@ struct io_ring_ctx {
 		 * manipulate the list, hence no extra locking is needed there.
 		 */
 		struct list_head	poll_list;
-		struct rb_root		cancel_tree;
+		struct hlist_head	*cancel_hash;
+		unsigned		cancel_hash_bits;
 
 		spinlock_t		inflight_lock;
 		struct list_head	inflight_list;
@@ -355,7 +356,7 @@ struct io_kiocb {
 	struct io_ring_ctx	*ctx;
 	union {
 		struct list_head	list;
-		struct rb_node		rb_node;
+		struct hlist_node	hash_node;
 	};
 	struct list_head	link_list;
 	unsigned int		flags;
@@ -444,6 +445,7 @@ static void io_ring_ctx_ref_free(struct percpu_ref *ref)
 static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 {
 	struct io_ring_ctx *ctx;
+	int hash_bits;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -456,6 +458,21 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	ctx->completions = kmalloc(2 * sizeof(struct completion), GFP_KERNEL);
 	if (!ctx->completions)
 		goto err;
+
+	/*
+	 * Use 5 bits less than the max cq entries, that should give us around
+	 * 32 entries per hash list if totally full and uniformly spread.
+	 */
+	hash_bits = ilog2(p->cq_entries);
+	hash_bits -= 5;
+	if (hash_bits <= 0)
+		hash_bits = 1;
+	ctx->cancel_hash_bits = hash_bits;
+	ctx->cancel_hash = kmalloc((1U << hash_bits) * sizeof(struct hlist_head),
+					GFP_KERNEL);
+	if (!ctx->cancel_hash)
+		goto err;
+	__hash_init(ctx->cancel_hash, 1U << hash_bits);
 
 	if (percpu_ref_init(&ctx->refs, io_ring_ctx_ref_free,
 			    PERCPU_REF_ALLOW_REINIT, GFP_KERNEL))
@@ -470,7 +487,6 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	init_waitqueue_head(&ctx->wait);
 	spin_lock_init(&ctx->completion_lock);
 	INIT_LIST_HEAD(&ctx->poll_list);
-	ctx->cancel_tree = RB_ROOT;
 	INIT_LIST_HEAD(&ctx->defer_list);
 	INIT_LIST_HEAD(&ctx->timeout_list);
 	init_waitqueue_head(&ctx->inflight_wait);
@@ -481,6 +497,7 @@ err:
 	if (ctx->fallback_req)
 		kmem_cache_free(req_cachep, ctx->fallback_req);
 	kfree(ctx->completions);
+	kfree(ctx->cancel_hash);
 	kfree(ctx);
 	return NULL;
 }
@@ -2260,14 +2277,6 @@ out:
 #endif
 }
 
-static inline void io_poll_remove_req(struct io_kiocb *req)
-{
-	if (!RB_EMPTY_NODE(&req->rb_node)) {
-		rb_erase(&req->rb_node, &req->ctx->cancel_tree);
-		RB_CLEAR_NODE(&req->rb_node);
-	}
-}
-
 static void io_poll_remove_one(struct io_kiocb *req)
 {
 	struct io_poll_iocb *poll = &req->poll;
@@ -2279,36 +2288,34 @@ static void io_poll_remove_one(struct io_kiocb *req)
 		io_queue_async_work(req);
 	}
 	spin_unlock(&poll->head->lock);
-	io_poll_remove_req(req);
+	hash_del(&req->hash_node);
 }
 
 static void io_poll_remove_all(struct io_ring_ctx *ctx)
 {
-	struct rb_node *node;
+	struct hlist_node *tmp;
 	struct io_kiocb *req;
+	int i;
 
 	spin_lock_irq(&ctx->completion_lock);
-	while ((node = rb_first(&ctx->cancel_tree)) != NULL) {
-		req = rb_entry(node, struct io_kiocb, rb_node);
-		io_poll_remove_one(req);
+	for (i = 0; i < (1U << ctx->cancel_hash_bits); i++) {
+		struct hlist_head *list;
+
+		list = &ctx->cancel_hash[i];
+		hlist_for_each_entry_safe(req, tmp, list, hash_node)
+			io_poll_remove_one(req);
 	}
 	spin_unlock_irq(&ctx->completion_lock);
 }
 
 static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr)
 {
-	struct rb_node *p, *parent = NULL;
+	struct hlist_head *list;
 	struct io_kiocb *req;
 
-	p = ctx->cancel_tree.rb_node;
-	while (p) {
-		parent = p;
-		req = rb_entry(parent, struct io_kiocb, rb_node);
-		if (sqe_addr < req->user_data) {
-			p = p->rb_left;
-		} else if (sqe_addr > req->user_data) {
-			p = p->rb_right;
-		} else {
+	list = &ctx->cancel_hash[hash_long(sqe_addr, ctx->cancel_hash_bits)];
+	hlist_for_each_entry(req, list, hash_node) {
+		if (sqe_addr == req->user_data) {
 			io_poll_remove_one(req);
 			return 0;
 		}
@@ -2390,7 +2397,7 @@ static void io_poll_complete_work(struct io_wq_work **workptr)
 		spin_unlock_irq(&ctx->completion_lock);
 		return;
 	}
-	io_poll_remove_req(req);
+	hash_del(&req->hash_node);
 	io_poll_complete(req, mask, ret);
 	spin_unlock_irq(&ctx->completion_lock);
 
@@ -2425,7 +2432,7 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	 * for finalizing the request, mark us as having grabbed that already.
 	 */
 	if (mask && spin_trylock_irqsave(&ctx->completion_lock, flags)) {
-		io_poll_remove_req(req);
+		hash_del(&req->hash_node);
 		io_poll_complete(req, mask, 0);
 		req->flags |= REQ_F_COMP_LOCKED;
 		io_put_req(req);
@@ -2463,20 +2470,10 @@ static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,
 static void io_poll_req_insert(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct rb_node **p = &ctx->cancel_tree.rb_node;
-	struct rb_node *parent = NULL;
-	struct io_kiocb *tmp;
+	struct hlist_head *list;
 
-	while (*p) {
-		parent = *p;
-		tmp = rb_entry(parent, struct io_kiocb, rb_node);
-		if (req->user_data < tmp->user_data)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-	rb_link_node(&req->rb_node, parent, p);
-	rb_insert_color(&req->rb_node, &ctx->cancel_tree);
+	list = &ctx->cancel_hash[hash_long(req->user_data, ctx->cancel_hash_bits)];
+	hlist_add_head(&req->hash_node, list);
 }
 
 static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe,
@@ -2504,7 +2501,7 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	INIT_IO_WORK(&req->work, io_poll_complete_work);
 	events = READ_ONCE(sqe->poll_events);
 	poll->events = demangle_poll(events) | EPOLLERR | EPOLLHUP;
-	RB_CLEAR_NODE(&req->rb_node);
+	INIT_HLIST_NODE(&req->hash_node);
 
 	poll->head = NULL;
 	poll->done = false;
@@ -4644,6 +4641,7 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	free_uid(ctx->user);
 	put_cred(ctx->creds);
 	kfree(ctx->completions);
+	kfree(ctx->cancel_hash);
 	kmem_cache_free(req_cachep, ctx->fallback_req);
 	kfree(ctx);
 }
