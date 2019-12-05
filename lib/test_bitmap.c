@@ -330,7 +330,7 @@ static void __init __test_bitmap_parselist(int is_user)
 
 			set_fs(KERNEL_DS);
 			time = ktime_get();
-			err = bitmap_parselist_user(ptest.in, len,
+			err = bitmap_parselist_user((__force const char __user *)ptest.in, len,
 						    bmap, ptest.nbits);
 			time = ktime_get() - time;
 			set_fs(orig_fs);
