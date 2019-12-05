@@ -3,6 +3,7 @@
 #define _PARISC_MSGBUF_H
 
 #include <asm/bitsperlong.h>
+#include <asm/ipcbuf.h>
 
 /* 
  * The msqid64_ds structure for parisc architecture, copied from sparc.
