@@ -1693,15 +1693,18 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 }
 
-static void gen6_flush_pd(struct gen6_ppgtt *ppgtt)
+static void gen6_flush_pd(struct gen6_ppgtt *ppgtt, u64 start, u64 end)
 {
 	struct i915_page_directory * const pd = ppgtt->base.pd;
 	struct i915_page_table *pt;
 	unsigned int pde;
 
+	start = round_down(start, SZ_64K);
+	end = round_up(end, SZ_64K) - start;
+
 	mutex_lock(&ppgtt->flush);
 
-	gen6_for_all_pdes(pt, pd, pde)
+	gen6_for_each_pde(pt, pd, start, end, pde)
 		gen6_write_pde(ppgtt, pde, pt);
 
 	ioread32(ppgtt->pd_addr + pde - 1);
@@ -1754,8 +1757,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	spin_unlock(&pd->lock);
 
 	if (i915_vma_is_bound(ppgtt->vma, I915_VMA_GLOBAL_BIND))
-		/* Rewrite them all! Anything less misses an invalidate. */
-		gen6_flush_pd(ppgtt);
+		gen6_flush_pd(ppgtt, from, start);
 
 	goto out;
 
@@ -1844,7 +1846,7 @@ static int pd_vma_bind(struct i915_vma *vma,
 	px_base(ppgtt->base.pd)->ggtt_offset = ggtt_offset * sizeof(gen6_pte_t);
 	ppgtt->pd_addr = (gen6_pte_t __iomem *)ggtt->gsm + ggtt_offset;
 
-	gen6_flush_pd(ppgtt);
+	gen6_flush_pd(ppgtt, 0, ppgtt->base.vm.total);
 	return 0;
 }
 
