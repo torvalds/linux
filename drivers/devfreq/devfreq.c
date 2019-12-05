@@ -1597,7 +1597,34 @@ static ssize_t trans_stat_show(struct device *dev,
 					devfreq->total_trans);
 	return len;
 }
-static DEVICE_ATTR_RO(trans_stat);
+
+static ssize_t trans_stat_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct devfreq *df = to_devfreq(dev);
+	int err, value;
+
+	if (df->profile->max_state == 0)
+		return count;
+
+	err = kstrtoint(buf, 10, &value);
+	if (err || value != 0)
+		return -EINVAL;
+
+	mutex_lock(&df->lock);
+	memset(df->time_in_state, 0, (df->profile->max_state *
+					sizeof(*df->time_in_state)));
+	memset(df->trans_table, 0, array3_size(sizeof(unsigned int),
+					df->profile->max_state,
+					df->profile->max_state));
+	df->total_trans = 0;
+	df->last_stat_updated = get_jiffies_64();
+	mutex_unlock(&df->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(trans_stat);
 
 static struct attribute *devfreq_attrs[] = {
 	&dev_attr_name.attr,
