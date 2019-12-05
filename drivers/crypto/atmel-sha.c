@@ -852,7 +852,7 @@ static int atmel_sha_update_dma_start(struct atmel_sha_dev *dd)
 								0, final);
 }
 
-static int atmel_sha_update_dma_stop(struct atmel_sha_dev *dd)
+static void atmel_sha_update_dma_stop(struct atmel_sha_dev *dd)
 {
 	struct atmel_sha_reqctx *ctx = ahash_request_ctx(dd->req);
 
@@ -871,8 +871,6 @@ static int atmel_sha_update_dma_stop(struct atmel_sha_dev *dd)
 		dma_unmap_single(dd->dev, ctx->dma_addr, ctx->buflen +
 						ctx->block_size, DMA_TO_DEVICE);
 	}
-
-	return 0;
 }
 
 static int atmel_sha_update_req(struct atmel_sha_dev *dd)
