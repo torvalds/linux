@@ -11,6 +11,7 @@ function update_config() {
          -d CPU_BIG_ENDIAN \
          -d STM \
          -d TEST_MEMCAT_P \
+         -e UNWINDER_FRAME_POINTER \
 
     (cd ${OUT_DIR} && \
      make O=${OUT_DIR} $archsubarch CC=${CC} CROSS_COMPILE=${CROSS_COMPILE} olddefconfig)
