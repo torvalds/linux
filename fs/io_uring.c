@@ -3315,7 +3315,7 @@ static inline void io_queue_link_head(struct io_kiocb *req)
 
 #define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK)
 
-static void io_submit_sqe(struct io_kiocb *req, struct io_submit_state *state,
+static bool io_submit_sqe(struct io_kiocb *req, struct io_submit_state *state,
 			  struct io_kiocb **link)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -3334,7 +3334,7 @@ static void io_submit_sqe(struct io_kiocb *req, struct io_submit_state *state,
 err_req:
 		io_cqring_add_event(req, ret);
 		io_double_put_req(req);
-		return;
+		return false;
 	}
 
 	/*
@@ -3373,6 +3373,8 @@ err_req:
 	} else {
 		io_queue_sqe(req);
 	}
+
+	return true;
 }
 
 /*
@@ -3502,6 +3504,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 			}
 		}
 
+		submitted++;
 		sqe_flags = req->sqe->flags;
 
 		req->ring_file = ring_file;
@@ -3511,9 +3514,8 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 		req->needs_fixed_file = async;
 		trace_io_uring_submit_sqe(ctx, req->sqe->user_data,
 					  true, async);
-		io_submit_sqe(req, statep, &link);
-		submitted++;
-
+		if (!io_submit_sqe(req, statep, &link))
+			break;
 		/*
 		 * If previous wasn't linked and we have a linked command,
 		 * that's the end of the chain. Submit the previous link.
