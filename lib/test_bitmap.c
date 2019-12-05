@@ -42,6 +42,19 @@ static const unsigned long exp2[] __initconst = {
 	BITMAP_FROM_U64(0xffffffff77777777ULL),
 };
 
+/* Fibonacci sequence */
+static const unsigned long exp2_to_exp3_mask[] __initconst = {
+	BITMAP_FROM_U64(0x008000020020212eULL),
+};
+/* exp3_0_1 = (exp2[0] & ~exp2_to_exp3_mask) | (exp2[1] & exp2_to_exp3_mask) */
+static const unsigned long exp3_0_1[] __initconst = {
+	BITMAP_FROM_U64(0x33b3333311313137ULL),
+};
+/* exp3_1_0 = (exp2[1] & ~exp2_to_exp3_mask) | (exp2[0] & exp2_to_exp3_mask) */
+static const unsigned long exp3_1_0[] __initconst = {
+	BITMAP_FROM_U64(0xff7fffff77575751ULL),
+};
+
 static bool __init
 __check_eq_uint(const char *srcfile, unsigned int line,
 		const unsigned int exp_uint, unsigned int x)
@@ -255,6 +268,30 @@ static void __init test_copy(void)
 	bitmap_fill(bmap2, 1024);
 	bitmap_copy(bmap2, bmap1, 97);  /* ... but aligned on word length */
 	expect_eq_pbl("0-108,128-1023", bmap2, 1024);
+}
+
+#define EXP2_IN_BITS	(sizeof(exp2) * 8)
+
+static void __init test_replace(void)
+{
+	unsigned int nbits = 64;
+	DECLARE_BITMAP(bmap, 1024);
+
+	bitmap_zero(bmap, 1024);
+	bitmap_replace(bmap, &exp2[0], &exp2[1], exp2_to_exp3_mask, nbits);
+	expect_eq_bitmap(bmap, exp3_0_1, nbits);
+
+	bitmap_zero(bmap, 1024);
+	bitmap_replace(bmap, &exp2[1], &exp2[0], exp2_to_exp3_mask, nbits);
+	expect_eq_bitmap(bmap, exp3_1_0, nbits);
+
+	bitmap_fill(bmap, 1024);
+	bitmap_replace(bmap, &exp2[0], &exp2[1], exp2_to_exp3_mask, nbits);
+	expect_eq_bitmap(bmap, exp3_0_1, nbits);
+
+	bitmap_fill(bmap, 1024);
+	bitmap_replace(bmap, &exp2[1], &exp2[0], exp2_to_exp3_mask, nbits);
+	expect_eq_bitmap(bmap, exp3_1_0, nbits);
 }
 
 #define PARSE_TIME 0x1
@@ -476,6 +513,7 @@ static void __init selftest(void)
 	test_zero_clear();
 	test_fill_set();
 	test_copy();
+	test_replace();
 	test_bitmap_arr32();
 	test_bitmap_parselist();
 	test_bitmap_parselist_user();

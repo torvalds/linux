@@ -53,6 +53,7 @@
  *  bitmap_find_next_zero_area_off(buf, len, pos, n, mask)  as above
  *  bitmap_shift_right(dst, src, n, nbits)      *dst = *src >> n
  *  bitmap_shift_left(dst, src, n, nbits)       *dst = *src << n
+ *  bitmap_replace(dst, old, new, mask, nbits)  *dst = (*old & ~(*mask)) | (*new & *mask)
  *  bitmap_remap(dst, src, old, new, nbits)     *dst = map(old, new)(src)
  *  bitmap_bitremap(oldbit, old, new, nbits)    newbit = map(old, new)(oldbit)
  *  bitmap_onto(dst, orig, relmap, nbits)       *dst = orig relative to relmap
@@ -140,6 +141,9 @@ extern void __bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, unsigned int nbits);
 extern int __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, unsigned int nbits);
+extern void __bitmap_replace(unsigned long *dst,
+			const unsigned long *old, const unsigned long *new,
+			const unsigned long *mask, unsigned int nbits);
 extern int __bitmap_intersects(const unsigned long *bitmap1,
 			const unsigned long *bitmap2, unsigned int nbits);
 extern int __bitmap_subset(const unsigned long *bitmap1,
@@ -432,6 +436,18 @@ static inline void bitmap_shift_left(unsigned long *dst, const unsigned long *sr
 		*dst = (*src << shift) & BITMAP_LAST_WORD_MASK(nbits);
 	else
 		__bitmap_shift_left(dst, src, shift, nbits);
+}
+
+static inline void bitmap_replace(unsigned long *dst,
+				  const unsigned long *old,
+				  const unsigned long *new,
+				  const unsigned long *mask,
+				  unsigned int nbits)
+{
+	if (small_const_nbits(nbits))
+		*dst = (*old & ~(*mask)) | (*new & *mask);
+	else
+		__bitmap_replace(dst, old, new, mask, nbits);
 }
 
 static inline int bitmap_parse(const char *buf, unsigned int buflen,
