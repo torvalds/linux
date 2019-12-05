@@ -351,6 +351,9 @@ void bfqg_stats_update_legacy_io(struct request_queue *q, struct request *rq)
 {
 	struct bfq_group *bfqg = blkg_to_bfqg(rq->bio->bi_blkg);
 
+	if (!bfqg)
+		return;
+
 	blkg_rwstat_add(&bfqg->stats.bytes, rq->cmd_flags, blk_rq_bytes(rq));
 	blkg_rwstat_add(&bfqg->stats.ios, rq->cmd_flags, 1);
 }
