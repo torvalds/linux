@@ -40,6 +40,8 @@
 #include <linux/platform_data/crypto-atmel.h>
 #include "atmel-tdes-regs.h"
 
+#define ATMEL_TDES_PRIORITY	300
+
 /* TDES flags  */
 #define TDES_FLAGS_MODE_MASK		0x00ff
 #define TDES_FLAGS_ENCRYPT	BIT(0)
@@ -917,7 +919,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "ecb(des)",
 	.base.cra_driver_name	= "atmel-ecb-des",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= ATMEL_TDES_PRIORITY,
 	.base.cra_flags		= CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct atmel_tdes_ctx),
@@ -934,7 +936,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "cbc(des)",
 	.base.cra_driver_name	= "atmel-cbc-des",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= ATMEL_TDES_PRIORITY,
 	.base.cra_flags		= CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct atmel_tdes_ctx),
@@ -952,7 +954,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "cfb(des)",
 	.base.cra_driver_name	= "atmel-cfb-des",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= ATMEL_TDES_PRIORITY,
 	.base.cra_flags		= CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct atmel_tdes_ctx),
@@ -970,7 +972,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "cfb8(des)",
 	.base.cra_driver_name	= "atmel-cfb8-des",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= ATMEL_TDES_PRIORITY,
 	.base.cra_flags		= CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= CFB8_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct atmel_tdes_ctx),
@@ -988,7 +990,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "cfb16(des)",
 	.base.cra_driver_name	= "atmel-cfb16-des",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= ATMEL_TDES_PRIORITY,
 	.base.cra_flags		= CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= CFB16_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct atmel_tdes_ctx),
@@ -1006,7 +1008,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "cfb32(des)",
 	.base.cra_driver_name	= "atmel-cfb32-des",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= ATMEL_TDES_PRIORITY,
 	.base.cra_flags		= CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= CFB32_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct atmel_tdes_ctx),
@@ -1024,7 +1026,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "ofb(des)",
 	.base.cra_driver_name	= "atmel-ofb-des",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= ATMEL_TDES_PRIORITY,
 	.base.cra_flags		= CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct atmel_tdes_ctx),
@@ -1042,7 +1044,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "ecb(des3_ede)",
 	.base.cra_driver_name	= "atmel-ecb-tdes",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= ATMEL_TDES_PRIORITY,
 	.base.cra_flags		= CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct atmel_tdes_ctx),
@@ -1059,7 +1061,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "cbc(des3_ede)",
 	.base.cra_driver_name	= "atmel-cbc-tdes",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= ATMEL_TDES_PRIORITY,
 	.base.cra_flags		= CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct atmel_tdes_ctx),
@@ -1077,7 +1079,7 @@ static struct skcipher_alg tdes_algs[] = {
 {
 	.base.cra_name		= "ofb(des3_ede)",
 	.base.cra_driver_name	= "atmel-ofb-tdes",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= ATMEL_TDES_PRIORITY,
 	.base.cra_flags		= CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct atmel_tdes_ctx),
