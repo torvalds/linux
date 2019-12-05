@@ -102,7 +102,7 @@
 #define MGAREG_EXEC		0x0100
 
 #define	MGAREG_FIFOSTATUS	0x1e10
-#define	MGAREG_Status		0x1e14
+#define	MGAREG_STATUS		0x1e14
 #define MGAREG_CACHEFLUSH       0x1fff
 #define	MGAREG_ICLEAR		0x1e18
 #define	MGAREG_IEN		0x1e1c

@@ -111,12 +111,12 @@ static inline void mga_wait_vsync(struct mga_device *mdev)
 	unsigned int status = 0;
 
 	do {
-		status = RREG32(MGAREG_Status);
+		status = RREG32(MGAREG_STATUS);
 	} while ((status & 0x08) && time_before(jiffies, timeout));
 	timeout = jiffies + HZ/10;
 	status = 0;
 	do {
-		status = RREG32(MGAREG_Status);
+		status = RREG32(MGAREG_STATUS);
 	} while (!(status & 0x08) && time_before(jiffies, timeout));
 }
 
@@ -125,7 +125,7 @@ static inline void mga_wait_busy(struct mga_device *mdev)
 	unsigned long timeout = jiffies + HZ;
 	unsigned int status = 0;
 	do {
-		status = RREG8(MGAREG_Status + 2);
+		status = RREG8(MGAREG_STATUS + 2);
 	} while ((status & 0x01) && time_before(jiffies, timeout));
 }
 
