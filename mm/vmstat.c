@@ -1134,7 +1134,7 @@ const char * const vmstat_text[] = {
 	"numa_other",
 #endif
 
-	/* Node-based counters */
+	/* enum node_stat_item counters */
 	"nr_inactive_anon",
 	"nr_active_anon",
 	"nr_inactive_file",
@@ -1564,10 +1564,8 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 	if (is_zone_first_populated(pgdat, zone)) {
 		seq_printf(m, "\n  per-node stats");
 		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
-			seq_printf(m, "\n      %-12s %lu",
-				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
-				NR_VM_NUMA_STAT_ITEMS],
-				node_page_state(pgdat, i));
+			seq_printf(m, "\n      %-12s %lu", node_stat_name(i),
+				   node_page_state(pgdat, i));
 		}
 	}
 	seq_printf(m,
@@ -1600,14 +1598,13 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 	}
 
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-		seq_printf(m, "\n      %-12s %lu", vmstat_text[i],
-				zone_page_state(zone, i));
+		seq_printf(m, "\n      %-12s %lu", zone_stat_name(i),
+			   zone_page_state(zone, i));
 
 #ifdef CONFIG_NUMA
 	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-		seq_printf(m, "\n      %-12s %lu",
-				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
-				zone_numa_state_snapshot(zone, i));
+		seq_printf(m, "\n      %-12s %lu", numa_stat_name(i),
+			   zone_numa_state_snapshot(zone, i));
 #endif
 
 	seq_printf(m, "\n  pagesets");
@@ -1658,31 +1655,23 @@ static const struct seq_operations zoneinfo_op = {
 	.show	= zoneinfo_show,
 };
 
-enum writeback_stat_item {
-	NR_DIRTY_THRESHOLD,
-	NR_DIRTY_BG_THRESHOLD,
-	NR_VM_WRITEBACK_STAT_ITEMS,
-};
+#define NR_VMSTAT_ITEMS (NR_VM_ZONE_STAT_ITEMS + \
+			 NR_VM_NUMA_STAT_ITEMS + \
+			 NR_VM_NODE_STAT_ITEMS + \
+			 NR_VM_WRITEBACK_STAT_ITEMS + \
+			 (IS_ENABLED(CONFIG_VM_EVENT_COUNTERS) ? \
+			  NR_VM_EVENT_ITEMS : 0))
 
 static void *vmstat_start(struct seq_file *m, loff_t *pos)
 {
 	unsigned long *v;
-	int i, stat_items_size;
+	int i;
 
-	if (*pos >= ARRAY_SIZE(vmstat_text))
+	if (*pos >= NR_VMSTAT_ITEMS)
 		return NULL;
-	stat_items_size = NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long) +
-			  NR_VM_NUMA_STAT_ITEMS * sizeof(unsigned long) +
-			  NR_VM_NODE_STAT_ITEMS * sizeof(unsigned long) +
-			  NR_VM_WRITEBACK_STAT_ITEMS * sizeof(unsigned long);
 
-#ifdef CONFIG_VM_EVENT_COUNTERS
-	stat_items_size += sizeof(struct vm_event_state);
-#endif
-
-	BUILD_BUG_ON(stat_items_size !=
-		     ARRAY_SIZE(vmstat_text) * sizeof(unsigned long));
-	v = kmalloc(stat_items_size, GFP_KERNEL);
+	BUILD_BUG_ON(ARRAY_SIZE(vmstat_text) < NR_VMSTAT_ITEMS);
+	v = kmalloc_array(NR_VMSTAT_ITEMS, sizeof(unsigned long), GFP_KERNEL);
 	m->private = v;
 	if (!v)
 		return ERR_PTR(-ENOMEM);
@@ -1715,7 +1704,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
 static void *vmstat_next(struct seq_file *m, void *arg, loff_t *pos)
 {
 	(*pos)++;
-	if (*pos >= ARRAY_SIZE(vmstat_text))
+	if (*pos >= NR_VMSTAT_ITEMS)
 		return NULL;
 	return (unsigned long *)m->private + *pos;
 }
@@ -1781,7 +1770,7 @@ int vmstat_refresh(struct ctl_table *table, int write,
 		val = atomic_long_read(&vm_zone_stat[i]);
 		if (val < 0) {
 			pr_warn("%s: %s %ld\n",
-				__func__, vmstat_text[i], val);
+				__func__, zone_stat_name(i), val);
 			err = -EINVAL;
 		}
 	}
@@ -1790,7 +1779,7 @@ int vmstat_refresh(struct ctl_table *table, int write,
 		val = atomic_long_read(&vm_numa_stat[i]);
 		if (val < 0) {
 			pr_warn("%s: %s %ld\n",
-				__func__, vmstat_text[i + NR_VM_ZONE_STAT_ITEMS], val);
+				__func__, numa_stat_name(i), val);
 			err = -EINVAL;
 		}
 	}
