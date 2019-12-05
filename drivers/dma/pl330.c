@@ -2981,7 +2981,9 @@ static int __maybe_unused pl330_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(pl330_pm, pl330_suspend, pl330_resume);
+static const struct dev_pm_ops pl330_pm = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pl330_suspend, pl330_resume)
+};
 
 static int
 pl330_probe(struct amba_device *adev, const struct amba_id *id)
