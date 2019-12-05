@@ -163,7 +163,6 @@ static int __xlate_proc_name(const char *name, struct proc_dir_entry **ret,
 {
 	const char     		*cp = name, *next;
 	struct proc_dir_entry	*de;
-	unsigned int		len;
 
 	de = *ret;
 	if (!de)
@@ -174,13 +173,12 @@ static int __xlate_proc_name(const char *name, struct proc_dir_entry **ret,
 		if (!next)
 			break;
 
-		len = next - cp;
-		de = pde_subdir_find(de, cp, len);
+		de = pde_subdir_find(de, cp, next - cp);
 		if (!de) {
 			WARN(1, "name '%s'\n", name);
 			return -ENOENT;
 		}
-		cp += len + 1;
+		cp = next + 1;
 	}
 	*residual = cp;
 	*ret = de;
