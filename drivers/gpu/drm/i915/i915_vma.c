@@ -1053,7 +1053,9 @@ void i915_vma_parked(struct intel_gt *gt)
 		if (!kref_get_unless_zero(&obj->base.refcount))
 			continue;
 
-		if (!i915_vm_tryopen(vm)) {
+		if (i915_vm_tryopen(vm)) {
+			list_del_init(&vma->closed_link);
+		} else {
 			i915_gem_object_put(obj);
 			obj = NULL;
 		}
