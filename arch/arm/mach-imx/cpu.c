@@ -148,11 +148,11 @@ struct device * __init imx_soc_device_init(void)
 		soc_id = "i.MX6UL";
 		break;
 	case MXC_CPU_IMX6ULL:
-		ocotp_compat = "fsl,imx6ul-ocotp";
+		ocotp_compat = "fsl,imx6ull-ocotp";
 		soc_id = "i.MX6ULL";
 		break;
 	case MXC_CPU_IMX6ULZ:
-		ocotp_compat = "fsl,imx6ul-ocotp";
+		ocotp_compat = "fsl,imx6ull-ocotp";
 		soc_id = "i.MX6ULZ";
 		break;
 	case MXC_CPU_IMX6SLL:
