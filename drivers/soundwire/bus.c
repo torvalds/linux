@@ -1249,6 +1249,8 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 	bool slave_notify = false;
 	u8 buf, buf2[2], _buf, _buf2[2];
 
+	dev_dbg(slave->bus->dev, "%s: start\n", __func__);
+
 	sdw_modify_slave_status(slave, SDW_SLAVE_ALERT);
 
 	ret = pm_runtime_get_sync(&slave->dev);
@@ -1394,6 +1396,8 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 io_err:
 	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put_autosuspend(&slave->dev);
+
+	dev_dbg(slave->bus->dev, "%s: end\n", __func__);
 
 	return ret;
 }
