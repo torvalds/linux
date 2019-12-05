@@ -1130,6 +1130,7 @@ config SCHED_AUTOGROUP
 
 config SCHED_TUNE
 	bool "Boosting for CFS tasks (EXPERIMENTAL)"
+	depends on !UCLAMP_TASK
 	depends on SMP
 	help
 	  This option enables support for task classification using a new
