@@ -830,10 +830,10 @@ static int tegra_xusb_request_firmware(struct tegra_xusb *tegra)
 static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
 {
 	unsigned int code_tag_blocks, code_size_blocks, code_blocks;
+	struct xhci_cap_regs __iomem *cap = tegra->regs;
 	struct tegra_xusb_fw_header *header;
-	struct xhci_cap_regs __iomem *cap;
-	struct xhci_op_regs __iomem *op;
 	struct device *dev = tegra->dev;
+	struct xhci_op_regs __iomem *op;
 	unsigned long timeout;
 	time64_t timestamp;
 	struct tm time;
@@ -842,6 +842,7 @@ static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
 	int err;
 
 	header = (struct tegra_xusb_fw_header *)tegra->fw.virt;
+	op = tegra->regs + HC_LENGTH(readl(&cap->hc_capbase));
 
 	if (csb_readl(tegra, XUSB_CSB_MP_ILOAD_BASE_LO) != 0) {
 		dev_info(dev, "Firmware already loaded, Falcon state %#x\n",
@@ -911,21 +912,23 @@ static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
 	csb_writel(tegra, le32_to_cpu(header->boot_codetag),
 		   XUSB_FALC_BOOTVEC);
 
-	/* Boot Falcon CPU and wait for it to enter the STOPPED (idle) state. */
-	timeout = jiffies + msecs_to_jiffies(5);
-
+	/* Boot Falcon CPU and wait for USBSTS_CNR to get cleared. */
 	csb_writel(tegra, CPUCTL_STARTCPU, XUSB_FALC_CPUCTL);
 
-	while (time_before(jiffies, timeout)) {
-		if (csb_readl(tegra, XUSB_FALC_CPUCTL) == CPUCTL_STATE_STOPPED)
+	timeout = jiffies + msecs_to_jiffies(200);
+
+	do {
+		value = readl(&op->status);
+		if ((value & STS_CNR) == 0)
 			break;
 
-		usleep_range(100, 200);
-	}
+		usleep_range(1000, 2000);
+	} while (time_is_after_jiffies(timeout));
 
-	if (csb_readl(tegra, XUSB_FALC_CPUCTL) != CPUCTL_STATE_STOPPED) {
-		dev_err(dev, "Falcon failed to start, state: %#x\n",
-			csb_readl(tegra, XUSB_FALC_CPUCTL));
+	value = readl(&op->status);
+	if (value & STS_CNR) {
+		value = csb_readl(tegra, XUSB_FALC_CPUCTL);
+		dev_err(dev, "XHCI controller not read: %#010x\n", value);
 		return -EIO;
 	}
 
