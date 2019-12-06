@@ -3345,24 +3345,15 @@ static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
 	    !kvm_is_zone_device_pfn(pfn) && level == PT_PAGE_TABLE_LEVEL &&
 	    PageTransCompoundMap(pfn_to_page(pfn))) {
 		unsigned long mask;
+
 		/*
-		 * mmu_notifier_retry was successful and we hold the
-		 * mmu_lock here, so the pmd can't become splitting
-		 * from under us, and in turn
-		 * __split_huge_page_refcount() can't run from under
-		 * us and we can safely transfer the refcount from
-		 * PG_tail to PG_head as we switch the pfn to tail to
-		 * head.
+		 * mmu_notifier_retry() was successful and mmu_lock is held, so
+		 * the pmd can't be split from under us.
 		 */
 		*levelp = level = PT_DIRECTORY_LEVEL;
 		mask = KVM_PAGES_PER_HPAGE(level) - 1;
 		VM_BUG_ON((gfn & mask) != (pfn & mask));
-		if (pfn & mask) {
-			kvm_release_pfn_clean(pfn);
-			pfn &= ~mask;
-			kvm_get_pfn(pfn);
-			*pfnp = pfn;
-		}
+		*pfnp = pfn & ~mask;
 	}
 }
 
@@ -3390,8 +3381,9 @@ static void disallowed_hugepage_adjust(struct kvm_shadow_walk_iterator it,
 }
 
 static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, int write,
-			int map_writable, int level, kvm_pfn_t pfn,
-			bool prefault, bool account_disallowed_nx_lpage)
+			int map_writable, int level, int max_level,
+			kvm_pfn_t pfn, bool prefault,
+			bool account_disallowed_nx_lpage)
 {
 	struct kvm_shadow_walk_iterator it;
 	struct kvm_mmu_page *sp;
@@ -3401,6 +3393,9 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, int write,
 
 	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa))
 		return RET_PF_RETRY;
+
+	if (likely(max_level > PT_PAGE_TABLE_LEVEL))
+		transparent_hugepage_adjust(vcpu, gfn, &pfn, &level);
 
 	trace_kvm_mmu_spte_requested(gpa, level, pfn);
 	for_each_shadow_entry(vcpu, gpa, it) {
@@ -4220,10 +4215,8 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 		goto out_unlock;
 	if (make_mmu_pages_available(vcpu) < 0)
 		goto out_unlock;
-	if (likely(max_level > PT_PAGE_TABLE_LEVEL))
-		transparent_hugepage_adjust(vcpu, gfn, &pfn, &level);
-	r = __direct_map(vcpu, gpa, write, map_writable, level, pfn, prefault,
-			 is_tdp && lpage_disallowed);
+	r = __direct_map(vcpu, gpa, write, map_writable, level, max_level, pfn,
+			 prefault, is_tdp && lpage_disallowed);
 
 out_unlock:
 	spin_unlock(&vcpu->kvm->mmu_lock);
