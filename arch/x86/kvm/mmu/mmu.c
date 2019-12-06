@@ -1529,7 +1529,7 @@ struct rmap_iterator {
 /*
  * Iteration must be started by this function.  This should also be used after
  * removing/dropping sptes from the rmap link because in such cases the
- * information in the itererator may not be valid.
+ * information in the iterator may not be valid.
  *
  * Returns sptep if found, NULL otherwise.
  */

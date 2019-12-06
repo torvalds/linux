@@ -9792,7 +9792,7 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 	 *
 	 * The reason is, in case of PML, we need to set D-bit for any slots
 	 * with dirty logging disabled in order to eliminate unnecessary GPA
-	 * logging in PML buffer (and potential PML buffer full VMEXT). This
+	 * logging in PML buffer (and potential PML buffer full VMEXIT). This
 	 * guarantees leaving PML enabled during guest's lifetime won't have
 	 * any additional overhead from PML when guest is running with dirty
 	 * logging disabled for memory slots.
