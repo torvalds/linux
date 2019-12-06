@@ -3353,7 +3353,7 @@ static void disallowed_hugepage_adjust(struct kvm_shadow_walk_iterator it,
 
 static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, int write,
 			int map_writable, int level, kvm_pfn_t pfn,
-			bool prefault, bool lpage_disallowed)
+			bool prefault, bool account_disallowed_nx_lpage)
 {
 	struct kvm_shadow_walk_iterator it;
 	struct kvm_mmu_page *sp;
@@ -3382,7 +3382,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, int write,
 					      it.level - 1, true, ACC_ALL);
 
 			link_shadow_page(vcpu, it.sptep, sp);
-			if (lpage_disallowed)
+			if (account_disallowed_nx_lpage)
 				account_huge_nx_page(vcpu->kvm, sp);
 		}
 	}
