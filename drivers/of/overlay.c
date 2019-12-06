@@ -974,8 +974,6 @@ static int of_overlay_apply(const void *fdt, struct device_node *tree,
 		goto err_free_overlay_changeset;
 	}
 
-	of_populate_phandle_cache();
-
 	ret = __of_changeset_apply_notify(&ovcs->cset);
 	if (ret)
 		pr_err("overlay apply changeset entry notify error %d\n", ret);
@@ -1218,16 +1216,8 @@ int of_overlay_remove(int *ovcs_id)
 
 	list_del(&ovcs->ovcs_list);
 
-	/*
-	 * Disable phandle cache.  Avoids race condition that would arise
-	 * from removing cache entry when the associated node is deleted.
-	 */
-	of_free_phandle_cache();
-
 	ret_apply = 0;
 	ret = __of_changeset_revert_entries(&ovcs->cset, &ret_apply);
-
-	of_populate_phandle_cache();
 
 	if (ret) {
 		if (ret_apply)
