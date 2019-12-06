@@ -414,20 +414,16 @@ err_out:
 }
 
 bool mlx5e_ktls_handle_tx_skb(struct tls_context *tls_ctx, struct mlx5e_txqsq *sq,
-			      struct sk_buff *skb, struct mlx5e_tx_wqe **wqe,
-			      u16 *pi, int datalen)
+			      struct sk_buff *skb, u32 *tisn, int datalen)
 {
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	struct mlx5e_sq_stats *stats = sq->stats;
-	struct mlx5_wqe_ctrl_seg *cseg;
 	u32 seq;
 
 	priv_tx = mlx5e_get_ktls_tx_priv_ctx(tls_ctx);
 
 	if (unlikely(mlx5e_ktls_tx_offload_test_and_clear_pending(priv_tx))) {
 		mlx5e_ktls_tx_post_param_wqes(sq, priv_tx, false, false);
-		*pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
-		*wqe = MLX5E_TX_FETCH_WQE(sq, *pi);
 		stats->tls_ctx++;
 	}
 
@@ -438,23 +434,20 @@ bool mlx5e_ktls_handle_tx_skb(struct tls_context *tls_ctx, struct mlx5e_txqsq *s
 
 		switch (ret) {
 		case MLX5E_KTLS_SYNC_DONE:
-			*pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
-			*wqe = MLX5E_TX_FETCH_WQE(sq, *pi);
 			break;
 		case MLX5E_KTLS_SYNC_SKIP_NO_DATA:
 			if (likely(!skb->decrypted))
 				goto out;
 			WARN_ON_ONCE(1);
 			/* fall-through */
-		default: /* MLX5E_KTLS_SYNC_FAIL */
+		case MLX5E_KTLS_SYNC_FAIL:
 			goto err_out;
 		}
 	}
 
 	priv_tx->expected_seq = seq + datalen;
 
-	cseg = &(*wqe)->ctrl;
-	cseg->tisn = cpu_to_be32(priv_tx->tisn << 8);
+	*tisn = priv_tx->tisn;
 
 	stats->tls_encrypted_packets += skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
 	stats->tls_encrypted_bytes   += datalen;

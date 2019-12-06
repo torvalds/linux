@@ -186,14 +186,15 @@ static void mlx5e_tls_complete_sync_skb(struct sk_buff *skb,
 
 static bool mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 				 struct mlx5e_txqsq *sq, struct sk_buff *skb,
-				 struct mlx5e_tx_wqe **wqe, u16 *pi,
 				 struct mlx5e_tls *tls)
 {
 	u32 tcp_seq = ntohl(tcp_hdr(skb)->seq);
+	struct mlx5e_tx_wqe *wqe;
 	struct sync_info info;
 	struct sk_buff *nskb;
 	int linear_len = 0;
 	int headln;
+	u16 pi;
 	int i;
 
 	sq->stats->tls_ooo++;
@@ -245,9 +246,10 @@ static bool mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 	sq->stats->tls_resync_bytes += nskb->len;
 	mlx5e_tls_complete_sync_skb(skb, nskb, tcp_seq, headln,
 				    cpu_to_be64(info.rcd_sn));
-	mlx5e_sq_xmit(sq, nskb, *wqe, *pi, true);
-	*pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
-	*wqe = MLX5E_TX_FETCH_WQE(sq, *pi);
+	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
+	mlx5e_sq_xmit(sq, nskb, wqe, pi, true);
+
 	return true;
 
 err_out:
@@ -256,8 +258,7 @@ err_out:
 }
 
 bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
-			     struct sk_buff *skb, struct mlx5e_tx_wqe **wqe,
-			     u16 *pi)
+			     struct sk_buff *skb, u32 *tisn)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_tls_offload_context_tx *context;
@@ -278,14 +279,14 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 		goto err_out;
 
 	if (MLX5_CAP_GEN(sq->channel->mdev, tls_tx))
-		return mlx5e_ktls_handle_tx_skb(tls_ctx, sq, skb, wqe, pi, datalen);
+		return mlx5e_ktls_handle_tx_skb(tls_ctx, sq, skb, tisn, datalen);
 
 	skb_seq = ntohl(tcp_hdr(skb)->seq);
 	context = mlx5e_get_tls_tx_context(tls_ctx);
 	expected_seq = context->expected_seq;
 
 	if (unlikely(expected_seq != skb_seq))
-		return mlx5e_tls_handle_ooo(context, sq, skb, wqe, pi, priv->tls);
+		return mlx5e_tls_handle_ooo(context, sq, skb, priv->tls);
 
 	if (unlikely(mlx5e_tls_add_metadata(skb, context->swid))) {
 		atomic64_inc(&priv->tls->sw_stats.tx_tls_drop_metadata);

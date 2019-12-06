@@ -109,10 +109,18 @@ static inline bool mlx5e_accel_handle_tx(struct sk_buff *skb,
 					 u16 *pi)
 {
 #ifdef CONFIG_MLX5_EN_TLS
+	u32 tls_tisn = 0;
+
 	if (test_bit(MLX5E_SQ_STATE_TLS, &sq->state)) {
-		if (unlikely(!mlx5e_tls_handle_tx_skb(dev, sq, skb, wqe, pi)))
+		/* May send SKBs and WQEs. */
+		if (unlikely(!mlx5e_tls_handle_tx_skb(dev, sq, skb, &tls_tisn)))
 			return false;
 	}
+
+	*pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	*wqe = MLX5E_TX_FETCH_WQE(sq, *pi);
+
+	(*wqe)->ctrl.tisn = cpu_to_be32(tls_tisn << 8);
 #endif
 
 #ifdef CONFIG_MLX5_EN_IPSEC
