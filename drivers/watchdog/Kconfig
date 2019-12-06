@@ -1445,6 +1445,7 @@ config SMSC37B787_WDT
 config TQMX86_WDT
 	tristate "TQ-Systems TQMX86 Watchdog Timer"
 	depends on X86
+	select WATCHDOG_CORE
 	help
 	This is the driver for the hardware watchdog timer in the TQMX86 IO
 	controller found on some of their ComExpress Modules.
