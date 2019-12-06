@@ -1328,18 +1328,19 @@ gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t gfn,
 }
 
 static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn,
-			 bool *force_pt_level)
+			 int *max_levelp)
 {
-	int host_level, max_level;
+	int host_level, max_level = *max_levelp;
 	struct kvm_memory_slot *slot;
 
-	if (unlikely(*force_pt_level))
+	if (unlikely(max_level == PT_PAGE_TABLE_LEVEL))
 		return PT_PAGE_TABLE_LEVEL;
 
 	slot = kvm_vcpu_gfn_to_memslot(vcpu, large_gfn);
-	*force_pt_level = !memslot_valid_for_gpte(slot, true);
-	if (unlikely(*force_pt_level))
+	if (!memslot_valid_for_gpte(slot, true)) {
+		*max_levelp = PT_PAGE_TABLE_LEVEL;
 		return PT_PAGE_TABLE_LEVEL;
+	}
 
 	host_level = host_mapping_level(vcpu->kvm, large_gfn);
 
@@ -4173,9 +4174,10 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa,
 	unsigned long mmu_seq;
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	bool write = error_code & PFERR_WRITE_MASK;
-	bool force_pt_level, map_writable;
+	bool map_writable;
 	bool exec = error_code & PFERR_FETCH_MASK;
 	bool lpage_disallowed = exec && is_nx_huge_page_enabled();
+	int max_level;
 
 	/* Note, paging is disabled, ergo gva == gpa. */
 	pgprintk("%s: gva %lx error %x\n", __func__, gpa, error_code);
@@ -4191,19 +4193,12 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa,
 
 	MMU_WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root_hpa));
 
-	force_pt_level = lpage_disallowed;
-	level = mapping_level(vcpu, gfn, &force_pt_level);
-	if (likely(!force_pt_level)) {
-		/*
-		 * This path builds a PAE pagetable - so we can map
-		 * 2mb pages at maximum. Therefore check if the level
-		 * is larger than that.
-		 */
-		if (level > PT_DIRECTORY_LEVEL)
-			level = PT_DIRECTORY_LEVEL;
+	/* This path builds a PAE pagetable, we can map 2mb pages at maximum. */
+	max_level = lpage_disallowed ? PT_PAGE_TABLE_LEVEL : PT_DIRECTORY_LEVEL;
 
+	level = mapping_level(vcpu, gfn, &max_level);
+	if (level > PT_PAGE_TABLE_LEVEL)
 		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
-	}
 
 	if (fast_page_fault(vcpu, gpa, level, error_code))
 		return RET_PF_RETRY;
@@ -4223,7 +4218,7 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa,
 		goto out_unlock;
 	if (make_mmu_pages_available(vcpu) < 0)
 		goto out_unlock;
-	if (likely(!force_pt_level))
+	if (likely(max_level > PT_PAGE_TABLE_LEVEL))
 		transparent_hugepage_adjust(vcpu, gfn, &pfn, &level);
 	r = __direct_map(vcpu, gpa, write, map_writable, level, pfn,
 			 prefault, false);
@@ -4277,7 +4272,6 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	kvm_pfn_t pfn;
 	int r;
 	int level;
-	bool force_pt_level;
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	unsigned long mmu_seq;
 	int write = error_code & PFERR_WRITE_MASK;
@@ -4305,13 +4299,12 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 			break;
 	}
 
-	force_pt_level = lpage_disallowed || max_level == PT_PAGE_TABLE_LEVEL;
-	level = mapping_level(vcpu, gfn, &force_pt_level);
-	if (likely(!force_pt_level)) {
-		if (level > max_level)
-			level = max_level;
+	if (lpage_disallowed)
+		max_level = PT_PAGE_TABLE_LEVEL;
+
+	level = mapping_level(vcpu, gfn, &max_level);
+	if (level > PT_PAGE_TABLE_LEVEL)
 		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
-	}
 
 	if (fast_page_fault(vcpu, gpa, level, error_code))
 		return RET_PF_RETRY;
@@ -4331,7 +4324,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 		goto out_unlock;
 	if (make_mmu_pages_available(vcpu) < 0)
 		goto out_unlock;
-	if (likely(!force_pt_level))
+	if (likely(max_level > PT_PAGE_TABLE_LEVEL))
 		transparent_hugepage_adjust(vcpu, gfn, &pfn, &level);
 	r = __direct_map(vcpu, gpa, write, map_writable, level, pfn,
 			 prefault, lpage_disallowed);
