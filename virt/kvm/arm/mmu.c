@@ -2302,15 +2302,6 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 			break;
 
 		/*
-		 * Mapping a read-only VMA is only allowed if the
-		 * memory region is configured as read-only.
-		 */
-		if (writable && !(vma->vm_flags & VM_WRITE)) {
-			ret = -EPERM;
-			break;
-		}
-
-		/*
 		 * Take the intersection of this VMA with the memory region
 		 */
 		vm_start = max(hva, vma->vm_start);
