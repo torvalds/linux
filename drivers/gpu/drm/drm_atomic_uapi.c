@@ -160,12 +160,12 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 EXPORT_SYMBOL(drm_atomic_set_mode_prop_for_crtc);
 
 /**
- * drm_atomic_set_crtc_for_plane - set crtc for plane
+ * drm_atomic_set_crtc_for_plane - set CRTC for plane
  * @plane_state: the plane whose incoming state to update
- * @crtc: crtc to use for the plane
+ * @crtc: CRTC to use for the plane
  *
- * Changing the assigned crtc for a plane requires us to grab the lock and state
- * for the new crtc, as needed. This function takes care of all these details
+ * Changing the assigned CRTC for a plane requires us to grab the lock and state
+ * for the new CRTC, as needed. This function takes care of all these details
  * besides updating the pointer in the state object itself.
  *
  * Returns:
@@ -279,12 +279,12 @@ drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
 EXPORT_SYMBOL(drm_atomic_set_fence_for_plane);
 
 /**
- * drm_atomic_set_crtc_for_connector - set crtc for connector
+ * drm_atomic_set_crtc_for_connector - set CRTC for connector
  * @conn_state: atomic state object for the connector
- * @crtc: crtc to use for the connector
+ * @crtc: CRTC to use for the connector
  *
- * Changing the assigned crtc for a connector requires us to grab the lock and
- * state for the new crtc, as needed. This function takes care of all these
+ * Changing the assigned CRTC for a connector requires us to grab the lock and
+ * state for the new CRTC, as needed. This function takes care of all these
  * details besides updating the pointer in the state object itself.
  *
  * Returns:

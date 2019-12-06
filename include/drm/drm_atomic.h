@@ -363,7 +363,7 @@ struct drm_atomic_state {
 	 * When a connector or plane is not bound to any CRTC, it's still important
 	 * to preserve linearity to prevent the atomic states from being freed to early.
 	 *
-	 * This commit (if set) is not bound to any crtc, but will be completed when
+	 * This commit (if set) is not bound to any CRTC, but will be completed when
 	 * drm_atomic_helper_commit_hw_done() is called.
 	 */
 	struct drm_crtc_commit *fake_commit;
@@ -476,12 +476,12 @@ drm_atomic_get_new_connector_for_encoder(struct drm_atomic_state *state,
 					 struct drm_encoder *encoder);
 
 /**
- * drm_atomic_get_existing_crtc_state - get crtc state, if it exists
+ * drm_atomic_get_existing_crtc_state - get CRTC state, if it exists
  * @state: global atomic state object
- * @crtc: crtc to grab
+ * @crtc: CRTC to grab
  *
- * This function returns the crtc state for the given crtc, or NULL
- * if the crtc is not part of the global atomic state.
+ * This function returns the CRTC state for the given CRTC, or NULL
+ * if the CRTC is not part of the global atomic state.
  *
  * This function is deprecated, @drm_atomic_get_old_crtc_state or
  * @drm_atomic_get_new_crtc_state should be used instead.
@@ -494,12 +494,12 @@ drm_atomic_get_existing_crtc_state(struct drm_atomic_state *state,
 }
 
 /**
- * drm_atomic_get_old_crtc_state - get old crtc state, if it exists
+ * drm_atomic_get_old_crtc_state - get old CRTC state, if it exists
  * @state: global atomic state object
- * @crtc: crtc to grab
+ * @crtc: CRTC to grab
  *
- * This function returns the old crtc state for the given crtc, or
- * NULL if the crtc is not part of the global atomic state.
+ * This function returns the old CRTC state for the given CRTC, or
+ * NULL if the CRTC is not part of the global atomic state.
  */
 static inline struct drm_crtc_state *
 drm_atomic_get_old_crtc_state(struct drm_atomic_state *state,
@@ -508,12 +508,12 @@ drm_atomic_get_old_crtc_state(struct drm_atomic_state *state,
 	return state->crtcs[drm_crtc_index(crtc)].old_state;
 }
 /**
- * drm_atomic_get_new_crtc_state - get new crtc state, if it exists
+ * drm_atomic_get_new_crtc_state - get new CRTC state, if it exists
  * @state: global atomic state object
- * @crtc: crtc to grab
+ * @crtc: CRTC to grab
  *
- * This function returns the new crtc state for the given crtc, or
- * NULL if the crtc is not part of the global atomic state.
+ * This function returns the new CRTC state for the given CRTC, or
+ * NULL if the CRTC is not part of the global atomic state.
  */
 static inline struct drm_crtc_state *
 drm_atomic_get_new_crtc_state(struct drm_atomic_state *state,
@@ -978,11 +978,11 @@ drm_atomic_crtc_needs_modeset(const struct drm_crtc_state *state)
 }
 
 /**
- * drm_atomic_crtc_effectively_active - compute whether crtc is actually active
+ * drm_atomic_crtc_effectively_active - compute whether CRTC is actually active
  * @state: &drm_crtc_state for the CRTC
  *
  * When in self refresh mode, the crtc_state->active value will be false, since
- * the crtc is off. However in some cases we're interested in whether the crtc
+ * the CRTC is off. However in some cases we're interested in whether the CRTC
  * is active, or effectively active (ie: it's connected to an active display).
  * In these cases, use this function instead of just checking active.
  */

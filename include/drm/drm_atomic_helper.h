@@ -152,7 +152,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 /**
  * drm_atomic_crtc_for_each_plane - iterate over planes currently attached to CRTC
  * @plane: the loop cursor
- * @crtc:  the crtc whose planes are iterated
+ * @crtc:  the CRTC whose planes are iterated
  *
  * This iterates over the current state, useful (for example) when applying
  * atomic state after it has been checked and swapped.  To iterate over the
@@ -166,7 +166,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 /**
  * drm_crtc_atomic_state_for_each_plane - iterate over attached planes in new state
  * @plane: the loop cursor
- * @crtc_state: the incoming crtc-state
+ * @crtc_state: the incoming CRTC state
  *
  * Similar to drm_crtc_for_each_plane(), but iterates the planes that will be
  * attached if the specified state is applied.  Useful during for example
@@ -180,7 +180,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
  * drm_crtc_atomic_state_for_each_plane_state - iterate over attached planes in new state
  * @plane: the loop cursor
  * @plane_state: loop cursor for the plane's state, must be const
- * @crtc_state: the incoming crtc-state
+ * @crtc_state: the incoming CRTC state
  *
  * Similar to drm_crtc_for_each_plane(), but iterates the planes that will be
  * attached if the specified state is applied.  Useful during for example
@@ -189,7 +189,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
  *
  * Compared to just drm_atomic_crtc_state_for_each_plane() this also fills in a
  * const plane_state. This is useful when a driver just wants to peek at other
- * active planes on this crtc, but does not need to change it.
+ * active planes on this CRTC, but does not need to change it.
  */
 #define drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state) \
 	drm_for_each_plane_mask(plane, (crtc_state)->state->dev, (crtc_state)->plane_mask) \

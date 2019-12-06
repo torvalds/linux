@@ -251,7 +251,7 @@ EXPORT_SYMBOL(drm_atomic_state_clear);
  * @ref: This atomic state to deallocate
  *
  * This frees all memory associated with an atomic state, including all the
- * per-object state for planes, crtcs and connectors.
+ * per-object state for planes, CRTCs and connectors.
  */
 void __drm_atomic_state_free(struct kref *ref)
 {
@@ -272,12 +272,12 @@ void __drm_atomic_state_free(struct kref *ref)
 EXPORT_SYMBOL(__drm_atomic_state_free);
 
 /**
- * drm_atomic_get_crtc_state - get crtc state
+ * drm_atomic_get_crtc_state - get CRTC state
  * @state: global atomic state object
- * @crtc: crtc to get state object for
+ * @crtc: CRTC to get state object for
  *
- * This function returns the crtc state for the given crtc, allocating it if
- * needed. It will also grab the relevant crtc lock to make sure that the state
+ * This function returns the CRTC state for the given CRTC, allocating it if
+ * needed. It will also grab the relevant CRTC lock to make sure that the state
  * is consistent.
  *
  * Returns:
@@ -1018,14 +1018,14 @@ static void drm_atomic_connector_print_state(struct drm_printer *p,
 }
 
 /**
- * drm_atomic_add_affected_connectors - add connectors for crtc
+ * drm_atomic_add_affected_connectors - add connectors for CRTC
  * @state: atomic state
- * @crtc: DRM crtc
+ * @crtc: DRM CRTC
  *
  * This function walks the current configuration and adds all connectors
  * currently using @crtc to the atomic configuration @state. Note that this
  * function must acquire the connection mutex. This can potentially cause
- * unneeded seralization if the update is just for the planes on one crtc. Hence
+ * unneeded seralization if the update is just for the planes on one CRTC. Hence
  * drivers and helpers should only call this when really needed (e.g. when a
  * full modeset needs to happen due to some change).
  *
@@ -1078,9 +1078,9 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_add_affected_connectors);
 
 /**
- * drm_atomic_add_affected_planes - add planes for crtc
+ * drm_atomic_add_affected_planes - add planes for CRTC
  * @state: atomic state
- * @crtc: DRM crtc
+ * @crtc: DRM CRTC
  *
  * This function walks the current configuration and adds all planes
  * currently used by @crtc to the atomic configuration @state. This is useful
