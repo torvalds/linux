@@ -333,6 +333,13 @@ struct tb_path {
  */
 #define TB_PATH_MAX_HOPS	(7 * 2)
 
+/* Possible wake types */
+#define TB_WAKE_ON_CONNECT	BIT(0)
+#define TB_WAKE_ON_DISCONNECT	BIT(1)
+#define TB_WAKE_ON_USB4		BIT(2)
+#define TB_WAKE_ON_USB3		BIT(3)
+#define TB_WAKE_ON_PCIE		BIT(4)
+
 /**
  * struct tb_cm_ops - Connection manager specific operations vector
  * @driver_ready: Called right after control channel is started. Used by
@@ -852,6 +859,7 @@ int tb_lc_configure_port(struct tb_port *port);
 void tb_lc_unconfigure_port(struct tb_port *port);
 int tb_lc_configure_xdomain(struct tb_port *port);
 void tb_lc_unconfigure_xdomain(struct tb_port *port);
+int tb_lc_set_wake(struct tb_switch *sw, unsigned int flags);
 int tb_lc_set_sleep(struct tb_switch *sw);
 bool tb_lc_lane_bonding_possible(struct tb_switch *sw);
 bool tb_lc_dp_sink_query(struct tb_switch *sw, struct tb_port *in);
@@ -907,6 +915,7 @@ int usb4_switch_read_uid(struct tb_switch *sw, u64 *uid);
 int usb4_switch_drom_read(struct tb_switch *sw, unsigned int address, void *buf,
 			  size_t size);
 bool usb4_switch_lane_bonding_possible(struct tb_switch *sw);
+int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags);
 int usb4_switch_set_sleep(struct tb_switch *sw);
 int usb4_switch_nvm_sector_size(struct tb_switch *sw);
 int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,

@@ -158,6 +158,73 @@ void tb_lc_unconfigure_xdomain(struct tb_port *port)
 	tb_lc_set_xdomain_configured(port, false);
 }
 
+static int tb_lc_set_wake_one(struct tb_switch *sw, unsigned int offset,
+			      unsigned int flags)
+{
+	u32 ctrl;
+	int ret;
+
+	/*
+	 * Enable wake on PCIe and USB4 (wake coming from another
+	 * router).
+	 */
+	ret = tb_sw_read(sw, &ctrl, TB_CFG_SWITCH,
+			 offset + TB_LC_SX_CTRL, 1);
+	if (ret)
+		return ret;
+
+	ctrl &= ~(TB_LC_SX_CTRL_WOC | TB_LC_SX_CTRL_WOD | TB_LC_SX_CTRL_WOP |
+		  TB_LC_SX_CTRL_WOU4);
+
+	if (flags & TB_WAKE_ON_CONNECT)
+		ctrl |= TB_LC_SX_CTRL_WOC | TB_LC_SX_CTRL_WOD;
+	if (flags & TB_WAKE_ON_USB4)
+		ctrl |= TB_LC_SX_CTRL_WOU4;
+	if (flags & TB_WAKE_ON_PCIE)
+		ctrl |= TB_LC_SX_CTRL_WOP;
+
+	return tb_sw_write(sw, &ctrl, TB_CFG_SWITCH, offset + TB_LC_SX_CTRL, 1);
+}
+
+/**
+ * tb_lc_set_wake() - Enable/disable wake
+ * @sw: Switch whose wakes to configure
+ * @flags: Wakeup flags (%0 to disable)
+ *
+ * For each LC sets wake bits accordingly.
+ */
+int tb_lc_set_wake(struct tb_switch *sw, unsigned int flags)
+{
+	int start, size, nlc, ret, i;
+	u32 desc;
+
+	if (sw->generation < 2)
+		return 0;
+
+	if (!tb_route(sw))
+		return 0;
+
+	ret = read_lc_desc(sw, &desc);
+	if (ret)
+		return ret;
+
+	/* Figure out number of link controllers */
+	nlc = desc & TB_LC_DESC_NLC_MASK;
+	start = (desc & TB_LC_DESC_SIZE_MASK) >> TB_LC_DESC_SIZE_SHIFT;
+	size = (desc & TB_LC_DESC_PORT_SIZE_MASK) >> TB_LC_DESC_PORT_SIZE_SHIFT;
+
+	/* For each link controller set sleep bit */
+	for (i = 0; i < nlc; i++) {
+		unsigned int offset = sw->cap_lc + start + i * size;
+
+		ret = tb_lc_set_wake_one(sw, offset, flags);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 /**
  * tb_lc_set_sleep() - Inform LC that the switch is going to sleep
  * @sw: Switch to set sleep

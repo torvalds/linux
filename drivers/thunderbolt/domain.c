@@ -455,6 +455,8 @@ int tb_domain_add(struct tb *tb)
 	/* This starts event processing */
 	mutex_unlock(&tb->lock);
 
+	device_init_wakeup(&tb->dev, true);
+
 	pm_runtime_no_callbacks(&tb->dev);
 	pm_runtime_set_active(&tb->dev);
 	pm_runtime_enable(&tb->dev);

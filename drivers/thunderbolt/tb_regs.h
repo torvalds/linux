@@ -178,6 +178,8 @@ struct tb_regs_switch_header {
 #define ROUTER_CS_4				0x04
 #define ROUTER_CS_5				0x05
 #define ROUTER_CS_5_SLP				BIT(0)
+#define ROUTER_CS_5_WOP				BIT(1)
+#define ROUTER_CS_5_WOU				BIT(2)
 #define ROUTER_CS_5_C3S				BIT(23)
 #define ROUTER_CS_5_PTO				BIT(24)
 #define ROUTER_CS_5_UTO				BIT(25)
@@ -186,6 +188,8 @@ struct tb_regs_switch_header {
 #define ROUTER_CS_6				0x06
 #define ROUTER_CS_6_SLPR			BIT(0)
 #define ROUTER_CS_6_TNS				BIT(1)
+#define ROUTER_CS_6_WOPS			BIT(2)
+#define ROUTER_CS_6_WOUS			BIT(3)
 #define ROUTER_CS_6_HCI				BIT(18)
 #define ROUTER_CS_6_CR				BIT(25)
 #define ROUTER_CS_7				0x07
@@ -302,9 +306,13 @@ struct tb_regs_port_header {
 #define PORT_CS_18				0x12
 #define PORT_CS_18_BE				BIT(8)
 #define PORT_CS_18_TCM				BIT(9)
+#define PORT_CS_18_WOU4S			BIT(18)
 #define PORT_CS_19				0x13
 #define PORT_CS_19_PC				BIT(3)
 #define PORT_CS_19_PID				BIT(4)
+#define PORT_CS_19_WOC				BIT(16)
+#define PORT_CS_19_WOD				BIT(17)
+#define PORT_CS_19_WOU4				BIT(18)
 
 /* Display Port adapter registers */
 #define ADP_DP_CS_0				0x00
@@ -418,6 +426,10 @@ struct tb_regs_hop {
 #define TB_LC_PORT_ATTR_BE		BIT(12)
 
 #define TB_LC_SX_CTRL			0x96
+#define TB_LC_SX_CTRL_WOC		BIT(1)
+#define TB_LC_SX_CTRL_WOD		BIT(2)
+#define TB_LC_SX_CTRL_WOU4		BIT(5)
+#define TB_LC_SX_CTRL_WOP		BIT(6)
 #define TB_LC_SX_CTRL_L1C		BIT(16)
 #define TB_LC_SX_CTRL_L1D		BIT(17)
 #define TB_LC_SX_CTRL_L2C		BIT(20)
