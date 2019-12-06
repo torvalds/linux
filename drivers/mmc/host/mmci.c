@@ -1704,7 +1704,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN)
 			pinctrl_select_state(host->pinctrl, host->pins_opendrain);
 		else
-			pinctrl_select_state(host->pinctrl, host->pins_default);
+			pinctrl_select_default_state(mmc_dev(mmc));
 	}
 
 	/*
@@ -1874,14 +1874,6 @@ static int mmci_probe(struct amba_device *dev,
 		if (IS_ERR(host->pinctrl)) {
 			dev_err(&dev->dev, "failed to get pinctrl");
 			ret = PTR_ERR(host->pinctrl);
-			goto host_free;
-		}
-
-		host->pins_default = pinctrl_lookup_state(host->pinctrl,
-							  PINCTRL_STATE_DEFAULT);
-		if (IS_ERR(host->pins_default)) {
-			dev_err(mmc_dev(mmc), "Can't select default pins\n");
-			ret = PTR_ERR(host->pins_default);
 			goto host_free;
 		}
 
@@ -2203,7 +2195,7 @@ static int mmci_runtime_resume(struct device *dev)
 		struct mmci_host *host = mmc_priv(mmc);
 		clk_prepare_enable(host->clk);
 		mmci_restore(host);
-		pinctrl_pm_select_default_state(dev);
+		pinctrl_select_default_state(dev);
 	}
 
 	return 0;
