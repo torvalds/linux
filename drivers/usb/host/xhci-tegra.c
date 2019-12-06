@@ -39,7 +39,15 @@
 #define XUSB_CFG_4				0x010
 #define  XUSB_BASE_ADDR_SHIFT			15
 #define  XUSB_BASE_ADDR_MASK			0x1ffff
+#define XUSB_CFG_16				0x040
+#define XUSB_CFG_24				0x060
+#define XUSB_CFG_AXI_CFG			0x0f8
 #define XUSB_CFG_ARU_C11_CSBRANGE		0x41c
+#define XUSB_CFG_ARU_CONTEXT			0x43c
+#define XUSB_CFG_ARU_CONTEXT_HS_PLS		0x478
+#define XUSB_CFG_ARU_CONTEXT_FS_PLS		0x47c
+#define XUSB_CFG_ARU_CONTEXT_HSFS_SPEED		0x480
+#define XUSB_CFG_ARU_CONTEXT_HSFS_PP		0x484
 #define XUSB_CFG_CSB_BASE_ADDR			0x800
 
 /* FPCI mailbox registers */
@@ -63,11 +71,20 @@
 #define  MBOX_SMI_INTR_EN			BIT(3)
 
 /* IPFS registers */
+#define IPFS_XUSB_HOST_MSI_BAR_SZ_0		0x0c0
+#define IPFS_XUSB_HOST_MSI_AXI_BAR_ST_0		0x0c4
+#define IPFS_XUSB_HOST_MSI_FPCI_BAR_ST_0	0x0c8
+#define IPFS_XUSB_HOST_MSI_VEC0_0		0x100
+#define IPFS_XUSB_HOST_MSI_EN_VEC0_0		0x140
 #define IPFS_XUSB_HOST_CONFIGURATION_0		0x180
 #define  IPFS_EN_FPCI				BIT(0)
+#define IPFS_XUSB_HOST_FPCI_ERROR_MASKS_0	0x184
 #define IPFS_XUSB_HOST_INTR_MASK_0		0x188
 #define  IPFS_IP_INT_MASK			BIT(16)
+#define IPFS_XUSB_HOST_INTR_ENABLE_0		0x198
+#define IPFS_XUSB_HOST_UFPCI_CONFIG_0		0x19c
 #define IPFS_XUSB_HOST_CLKGATE_HYSTERESIS_0	0x1bc
+#define IPFS_XUSB_HOST_MCCIF_FIFOCTRL_0		0x1dc
 
 #define CSB_PAGE_SELECT_MASK			0x7fffff
 #define CSB_PAGE_SELECT_SHIFT			9
@@ -821,13 +838,6 @@ static int tegra_xusb_init_context(struct tegra_xusb *tegra)
 {
 	const struct tegra_xusb_context_soc *soc = tegra->soc->context;
 
-	/*
-	 * Skip support for context save/restore if the SoC doesn't have any
-	 * XUSB specific context that needs to be saved/restored.
-	 */
-	if (!soc)
-		return 0;
-
 	tegra->context.ipfs = devm_kcalloc(tegra->dev, soc->ipfs.num_offsets,
 					   sizeof(u32), GFP_KERNEL);
 	if (!tegra->context.ipfs)
@@ -1443,12 +1453,12 @@ static void tegra_xusb_save_context(struct tegra_xusb *tegra)
 	struct tegra_xusb_context *ctx = &tegra->context;
 	unsigned int i;
 
-	if (soc && soc->ipfs.num_offsets > 0) {
+	if (soc->ipfs.num_offsets > 0) {
 		for (i = 0; i < soc->ipfs.num_offsets; i++)
 			ctx->ipfs[i] = ipfs_readl(tegra, soc->ipfs.offsets[i]);
 	}
 
-	if (soc && soc->fpci.num_offsets > 0) {
+	if (soc->fpci.num_offsets > 0) {
 		for (i = 0; i < soc->fpci.num_offsets; i++)
 			ctx->fpci[i] = fpci_readl(tegra, soc->fpci.offsets[i]);
 	}
@@ -1460,12 +1470,12 @@ static void tegra_xusb_restore_context(struct tegra_xusb *tegra)
 	struct tegra_xusb_context *ctx = &tegra->context;
 	unsigned int i;
 
-	if (soc && soc->fpci.num_offsets > 0) {
+	if (soc->fpci.num_offsets > 0) {
 		for (i = 0; i < soc->fpci.num_offsets; i++)
 			fpci_writel(tegra, ctx->fpci[i], soc->fpci.offsets[i]);
 	}
 
-	if (soc && soc->ipfs.num_offsets > 0) {
+	if (soc->ipfs.num_offsets > 0) {
 		for (i = 0; i < soc->ipfs.num_offsets; i++)
 			ipfs_writel(tegra, ctx->ipfs[i], soc->ipfs.offsets[i]);
 	}
@@ -1522,12 +1532,50 @@ static const struct tegra_xusb_phy_type tegra124_phy_types[] = {
 	{ .name = "hsic", .num = 2, },
 };
 
+static const unsigned int tegra124_xusb_context_ipfs[] = {
+	IPFS_XUSB_HOST_MSI_BAR_SZ_0,
+	IPFS_XUSB_HOST_MSI_BAR_SZ_0,
+	IPFS_XUSB_HOST_MSI_AXI_BAR_ST_0,
+	IPFS_XUSB_HOST_MSI_FPCI_BAR_ST_0,
+	IPFS_XUSB_HOST_MSI_VEC0_0,
+	IPFS_XUSB_HOST_MSI_EN_VEC0_0,
+	IPFS_XUSB_HOST_FPCI_ERROR_MASKS_0,
+	IPFS_XUSB_HOST_INTR_MASK_0,
+	IPFS_XUSB_HOST_INTR_ENABLE_0,
+	IPFS_XUSB_HOST_UFPCI_CONFIG_0,
+	IPFS_XUSB_HOST_CLKGATE_HYSTERESIS_0,
+	IPFS_XUSB_HOST_MCCIF_FIFOCTRL_0,
+};
+
+static const unsigned int tegra124_xusb_context_fpci[] = {
+	XUSB_CFG_ARU_CONTEXT_HS_PLS,
+	XUSB_CFG_ARU_CONTEXT_FS_PLS,
+	XUSB_CFG_ARU_CONTEXT_HSFS_SPEED,
+	XUSB_CFG_ARU_CONTEXT_HSFS_PP,
+	XUSB_CFG_ARU_CONTEXT,
+	XUSB_CFG_AXI_CFG,
+	XUSB_CFG_24,
+	XUSB_CFG_16,
+};
+
+static const struct tegra_xusb_context_soc tegra124_xusb_context = {
+	.ipfs = {
+		.num_offsets = ARRAY_SIZE(tegra124_xusb_context_ipfs),
+		.offsets = tegra124_xusb_context_ipfs,
+	},
+	.fpci = {
+		.num_offsets = ARRAY_SIZE(tegra124_xusb_context_fpci),
+		.offsets = tegra124_xusb_context_fpci,
+	},
+};
+
 static const struct tegra_xusb_soc tegra124_soc = {
 	.firmware = "nvidia/tegra124/xusb.bin",
 	.supply_names = tegra124_supply_names,
 	.num_supplies = ARRAY_SIZE(tegra124_supply_names),
 	.phy_types = tegra124_phy_types,
 	.num_types = ARRAY_SIZE(tegra124_phy_types),
+	.context = &tegra124_xusb_context,
 	.ports = {
 		.usb2 = { .offset = 4, .count = 4, },
 		.hsic = { .offset = 6, .count = 2, },
@@ -1566,6 +1614,7 @@ static const struct tegra_xusb_soc tegra210_soc = {
 	.num_supplies = ARRAY_SIZE(tegra210_supply_names),
 	.phy_types = tegra210_phy_types,
 	.num_types = ARRAY_SIZE(tegra210_phy_types),
+	.context = &tegra124_xusb_context,
 	.ports = {
 		.usb2 = { .offset = 4, .count = 4, },
 		.hsic = { .offset = 8, .count = 1, },
@@ -1591,12 +1640,20 @@ static const struct tegra_xusb_phy_type tegra186_phy_types[] = {
 	{ .name = "hsic", .num = 1, },
 };
 
+static const struct tegra_xusb_context_soc tegra186_xusb_context = {
+	.fpci = {
+		.num_offsets = ARRAY_SIZE(tegra124_xusb_context_fpci),
+		.offsets = tegra124_xusb_context_fpci,
+	},
+};
+
 static const struct tegra_xusb_soc tegra186_soc = {
 	.firmware = "nvidia/tegra186/xusb.bin",
 	.supply_names = tegra186_supply_names,
 	.num_supplies = ARRAY_SIZE(tegra186_supply_names),
 	.phy_types = tegra186_phy_types,
 	.num_types = ARRAY_SIZE(tegra186_phy_types),
+	.context = &tegra186_xusb_context,
 	.ports = {
 		.usb3 = { .offset = 0, .count = 3, },
 		.usb2 = { .offset = 3, .count = 3, },
@@ -1626,6 +1683,7 @@ static const struct tegra_xusb_soc tegra194_soc = {
 	.num_supplies = ARRAY_SIZE(tegra194_supply_names),
 	.phy_types = tegra194_phy_types,
 	.num_types = ARRAY_SIZE(tegra194_phy_types),
+	.context = &tegra186_xusb_context,
 	.ports = {
 		.usb3 = { .offset = 0, .count = 4, },
 		.usb2 = { .offset = 4, .count = 4, },
