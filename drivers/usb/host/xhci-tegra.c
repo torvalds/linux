@@ -145,7 +145,7 @@ struct tegra_xusb_phy_type {
 	unsigned int num;
 };
 
-struct tega_xusb_mbox_regs {
+struct tegra_xusb_mbox_regs {
 	u16 cmd;
 	u16 data_in;
 	u16 data_out;
@@ -166,7 +166,7 @@ struct tegra_xusb_soc {
 		} usb2, ulpi, hsic, usb3;
 	} ports;
 
-	struct tega_xusb_mbox_regs mbox;
+	struct tegra_xusb_mbox_regs mbox;
 
 	bool scale_ss_clock;
 	bool has_ipfs;
