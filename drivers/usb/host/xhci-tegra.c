@@ -1242,19 +1242,6 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto put_hcd;
 	}
 
-	pm_runtime_enable(&pdev->dev);
-	if (pm_runtime_enabled(&pdev->dev))
-		err = pm_runtime_get_sync(&pdev->dev);
-	else
-		err = tegra_xusb_runtime_resume(&pdev->dev);
-
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to enable device: %d\n", err);
-		goto disable_phy;
-	}
-
-	tegra_xusb_config(tegra);
-
 	/*
 	 * The XUSB Falcon microcontroller can only address 40 bits, so set
 	 * the DMA mask accordingly.
@@ -1262,7 +1249,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	err = dma_set_mask_and_coherent(tegra->dev, DMA_BIT_MASK(40));
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to set DMA mask: %d\n", err);
-		goto put_rpm;
+		goto disable_phy;
 	}
 
 	err = tegra_xusb_request_firmware(tegra);
@@ -1271,16 +1258,30 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto disable_phy;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
+	if (!pm_runtime_enabled(&pdev->dev))
+		err = tegra_xusb_runtime_resume(&pdev->dev);
+	else
+		err = pm_runtime_get_sync(&pdev->dev);
+
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to enable device: %d\n", err);
+		goto free_firmware;
+	}
+
+	tegra_xusb_config(tegra);
+
 	err = tegra_xusb_load_firmware(tegra);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to load firmware: %d\n", err);
-		goto free_firmware;
+		goto put_rpm;
 	}
 
 	err = usb_add_hcd(tegra->hcd, tegra->xhci_irq, IRQF_SHARED);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to add USB HCD: %d\n", err);
-		goto free_firmware;
+		goto put_rpm;
 	}
 
 	device_wakeup_enable(tegra->hcd->self.controller);
