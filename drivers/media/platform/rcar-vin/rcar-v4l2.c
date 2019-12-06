@@ -79,7 +79,11 @@ const struct rvin_video_format *rvin_format_from_pixel(struct rvin_dev *vin,
 			return NULL;
 		break;
 	case V4L2_PIX_FMT_NV12:
-		if (!vin->info->nv12)
+		/*
+		 * If NV12 is supported it's only supported on channels 0, 1, 4,
+		 * 5, 8, 9, 12 and 13.
+		 */
+		if (!vin->info->nv12 || !(BIT(vin->id) & 0x3333))
 			return NULL;
 		break;
 	default:
