@@ -20,9 +20,6 @@
 
 #include "udl_drv.h"
 
-#define DL_ALIGN_UP(x, a) ALIGN(x, a)
-#define DL_ALIGN_DOWN(x, a) ALIGN_DOWN(x, a)
-
 /** Read the red component (0..255) of a 32 bpp colour. */
 #define DLO_RGB_GETRED(col) (uint8_t)((col) & 0xFF)
 
@@ -61,6 +58,28 @@ static uint16_t rgb16(uint32_t col)
 }
 #endif
 
+static int udl_aligned_damage_clip(struct drm_rect *clip, int x, int y,
+				   int width, int height)
+{
+	int x1, x2;
+
+	if (WARN_ON_ONCE(x < 0) ||
+	    WARN_ON_ONCE(y < 0) ||
+	    WARN_ON_ONCE(width < 0) ||
+	    WARN_ON_ONCE(height < 0))
+		return -EINVAL;
+
+	x1 = ALIGN_DOWN(x, sizeof(unsigned long));
+	x2 = ALIGN(width + (x - x1), sizeof(unsigned long)) + x1;
+
+	clip->x1 = x1;
+	clip->y1 = y;
+	clip->x2 = x2;
+	clip->y2 = y + height;
+
+	return 0;
+}
+
 int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 		      int width, int height)
 {
@@ -69,7 +88,7 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	int i, ret;
 	char *cmd;
 	struct urb *urb;
-	int aligned_x;
+	struct drm_rect clip;
 	int log_bpp;
 	void *vaddr;
 
@@ -85,15 +104,11 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	}
 	spin_unlock(&udl->active_fb_16_lock);
 
-	aligned_x = DL_ALIGN_DOWN(x, sizeof(unsigned long));
-	width = DL_ALIGN_UP(width + (x-aligned_x), sizeof(unsigned long));
-	x = aligned_x;
-
-	if ((width <= 0) ||
-	    (x + width > fb->width) ||
-	    (y + height > fb->height)) {
+	ret = udl_aligned_damage_clip(&clip, x, y, width, height);
+	if (ret)
+		return ret;
+	else if ((clip.x2 > fb->width) || (clip.y2 > fb->height))
 		return -EINVAL;
-	}
 
 	vaddr = drm_gem_shmem_vmap(fb->obj[0]);
 	if (IS_ERR(vaddr)) {
@@ -106,13 +121,14 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 		goto out;
 	cmd = urb->transfer_buffer;
 
-	for (i = y; i < y + height ; i++) {
+	for (i = clip.y1; i < clip.y2; i++) {
 		const int line_offset = fb->pitches[0] * i;
-		const int byte_offset = line_offset + (x << log_bpp);
-		const int dev_byte_offset = (fb->width * i + x) << log_bpp;
+		const int byte_offset = line_offset + (clip.x1 << log_bpp);
+		const int dev_byte_offset = (fb->width * i + clip.x1) << log_bpp;
+		const int byte_width = (clip.x2 - clip.x1) << log_bpp;
 		if (udl_render_hline(dev, log_bpp, &urb, (char *)vaddr,
 				     &cmd, byte_offset, dev_byte_offset,
-				     width << log_bpp))
+				     byte_width))
 			goto out;
 	}
 
