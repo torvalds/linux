@@ -462,7 +462,6 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 	new_fn->name_len = ent_name->len;
 	new_fn->file_type = dirent->file_type;
 	memcpy(new_fn->name, ent_name->name, ent_name->len);
-	new_fn->name[ent_name->len] = 0;
 
 	while (*p) {
 		parent = *p;
