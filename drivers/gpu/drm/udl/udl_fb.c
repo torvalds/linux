@@ -92,7 +92,8 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 {
 	struct drm_device *dev = fb->dev;
 	struct udl_device *udl = to_udl(dev);
-	int i, ret;
+	struct dma_buf_attachment *import_attach = fb->obj[0]->import_attach;
+	int i, ret, tmp_ret;
 	char *cmd;
 	struct urb *urb;
 	struct drm_rect clip;
@@ -117,15 +118,22 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	else if ((clip.x2 > fb->width) || (clip.y2 > fb->height))
 		return -EINVAL;
 
+	if (import_attach) {
+		ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
+					       DMA_FROM_DEVICE);
+		if (ret)
+			return ret;
+	}
+
 	vaddr = drm_gem_shmem_vmap(fb->obj[0]);
 	if (IS_ERR(vaddr)) {
 		DRM_ERROR("failed to vmap fb\n");
-		return 0;
+		goto out_dma_buf_end_cpu_access;
 	}
 
 	urb = udl_get_urb(dev);
 	if (!urb)
-		goto out;
+		goto out_drm_gem_shmem_vunmap;
 	cmd = urb->transfer_buffer;
 
 	for (i = clip.y1; i < clip.y2; i++) {
@@ -136,7 +144,7 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 		if (udl_render_hline(dev, log_bpp, &urb, (char *)vaddr,
 				     &cmd, byte_offset, dev_byte_offset,
 				     byte_width))
-			goto out;
+			goto out_drm_gem_shmem_vunmap;
 	}
 
 	if (cmd > (char *) urb->transfer_buffer) {
@@ -149,10 +157,19 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	} else
 		udl_urb_completion(urb);
 
-out:
-	drm_gem_shmem_vunmap(fb->obj[0], vaddr);
+	ret = 0;
 
-	return 0;
+out_drm_gem_shmem_vunmap:
+	drm_gem_shmem_vunmap(fb->obj[0], vaddr);
+out_dma_buf_end_cpu_access:
+	if (import_attach) {
+		tmp_ret = dma_buf_end_cpu_access(import_attach->dmabuf,
+						 DMA_FROM_DEVICE);
+		if (tmp_ret && !ret)
+			ret = tmp_ret; /* only update ret if not set yet */
+	}
+
+	return ret;
 }
 
 static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
@@ -162,7 +179,6 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 				      unsigned num_clips)
 {
 	struct udl_device *udl = fb->dev->dev_private;
-	struct dma_buf_attachment *import_attach;
 	int i;
 	int ret = 0;
 
@@ -175,15 +191,6 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	}
 	spin_unlock(&udl->active_fb_16_lock);
 
-	import_attach = fb->obj[0]->import_attach;
-
-	if (import_attach) {
-		ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
-					       DMA_FROM_DEVICE);
-		if (ret)
-			goto unlock;
-	}
-
 	for (i = 0; i < num_clips; i++) {
 		ret = udl_handle_damage(fb, clips[i].x1, clips[i].y1,
 					clips[i].x2 - clips[i].x1,
@@ -191,10 +198,6 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 		if (ret)
 			break;
 	}
-
-	if (import_attach)
-		ret = dma_buf_end_cpu_access(import_attach->dmabuf,
-					     DMA_FROM_DEVICE);
 
  unlock:
 	drm_modeset_unlock_all(fb->dev);
