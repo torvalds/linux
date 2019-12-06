@@ -1801,6 +1801,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	tlbsync
 	ptesync
 
+BEGIN_FTR_SECTION
 	/* Radix: Handle the case where the guest used an illegal PID */
 	LOAD_REG_ADDR(r4, mmu_base_pid)
 	lwz	r3, VCPU_GUEST_PID(r9)
@@ -1830,6 +1831,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	addi	r7,r7,0x1000
 	bdnz	1b
 	ptesync
+END_FTR_SECTION_IFSET(CPU_FTR_P9_RADIX_PREFETCH_BUG)
 
 2:
 #endif /* CONFIG_PPC_RADIX_MMU */
