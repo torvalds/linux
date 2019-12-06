@@ -435,7 +435,7 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 		opt.offset[tc] = dev->tc_to_txq[tc].offset;
 	}
 
-	if (nla_put(skb, TCA_OPTIONS, NLA_ALIGN(sizeof(opt)), &opt))
+	if (nla_put(skb, TCA_OPTIONS, sizeof(opt), &opt))
 		goto nla_put_failure;
 
 	if ((priv->flags & TC_MQPRIO_F_MODE) &&
