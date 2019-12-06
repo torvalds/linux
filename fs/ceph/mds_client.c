@@ -530,6 +530,7 @@ const char *ceph_session_state_name(int s)
 	case CEPH_MDS_SESSION_OPEN: return "open";
 	case CEPH_MDS_SESSION_HUNG: return "hung";
 	case CEPH_MDS_SESSION_CLOSING: return "closing";
+	case CEPH_MDS_SESSION_CLOSED: return "closed";
 	case CEPH_MDS_SESSION_RESTARTING: return "restarting";
 	case CEPH_MDS_SESSION_RECONNECTING: return "reconnecting";
 	case CEPH_MDS_SESSION_REJECTED: return "rejected";
@@ -674,7 +675,6 @@ static void __unregister_session(struct ceph_mds_client *mdsc,
 	dout("__unregister_session mds%d %p\n", s->s_mds, s);
 	BUG_ON(mdsc->sessions[s->s_mds] != s);
 	mdsc->sessions[s->s_mds] = NULL;
-	s->s_state = 0;
 	ceph_con_close(&s->s_con);
 	ceph_put_mds_session(s);
 	atomic_dec(&mdsc->num_sessions);
@@ -3166,6 +3166,7 @@ static void handle_session(struct ceph_mds_session *session,
 	case CEPH_SESSION_CLOSE:
 		if (session->s_state == CEPH_MDS_SESSION_RECONNECTING)
 			pr_info("mds%d reconnect denied\n", session->s_mds);
+		session->s_state = CEPH_MDS_SESSION_CLOSED;
 		cleanup_session_requests(mdsc, session);
 		remove_session_caps(session);
 		wake = 2; /* for good measure */
