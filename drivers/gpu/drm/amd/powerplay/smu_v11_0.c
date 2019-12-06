@@ -1676,10 +1676,17 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 		}
 	} else {
 		ret = smu_send_smc_msg(smu, SMU_MSG_ExitBaco);
+		if (ret)
+			goto out;
+
 		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
 						BIF_DOORBELL_INT_CNTL,
 						DOORBELL_INTERRUPT_DISABLE, 0);
 		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+
+		/* clear vbios scratch 6 and 7 for coming asic reinit */
+		WREG32(adev->bios_scratch_reg_offset + 6, 0);
+		WREG32(adev->bios_scratch_reg_offset + 7, 0);
 	}
 	if (ret)
 		goto out;
