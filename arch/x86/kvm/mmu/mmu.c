@@ -3657,10 +3657,6 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, int level,
 	return fault_handled;
 }
 
-static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
-			 gpa_t cr2_or_gpa, kvm_pfn_t *pfn, bool write,
-			 bool *writable);
-
 static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
 			       struct list_head *invalid_list)
 {
@@ -4119,6 +4115,55 @@ static void shadow_page_table_clear_flood(struct kvm_vcpu *vcpu, gva_t addr)
 	walk_shadow_page_lockless_end(vcpu);
 }
 
+static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
+				   gfn_t gfn)
+{
+	struct kvm_arch_async_pf arch;
+
+	arch.token = (vcpu->arch.apf.id++ << 12) | vcpu->vcpu_id;
+	arch.gfn = gfn;
+	arch.direct_map = vcpu->arch.mmu->direct_map;
+	arch.cr3 = vcpu->arch.mmu->get_cr3(vcpu);
+
+	return kvm_setup_async_pf(vcpu, cr2_or_gpa,
+				  kvm_vcpu_gfn_to_hva(vcpu, gfn), &arch);
+}
+
+static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
+			 gpa_t cr2_or_gpa, kvm_pfn_t *pfn, bool write,
+			 bool *writable)
+{
+	struct kvm_memory_slot *slot;
+	bool async;
+
+	/*
+	 * Don't expose private memslots to L2.
+	 */
+	if (is_guest_mode(vcpu) && !kvm_is_visible_gfn(vcpu->kvm, gfn)) {
+		*pfn = KVM_PFN_NOSLOT;
+		return false;
+	}
+
+	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
+	async = false;
+	*pfn = __gfn_to_pfn_memslot(slot, gfn, false, &async, write, writable);
+	if (!async)
+		return false; /* *pfn has correct page already */
+
+	if (!prefault && kvm_can_do_async_pf(vcpu)) {
+		trace_kvm_try_async_get_page(cr2_or_gpa, gfn);
+		if (kvm_find_async_pf_gfn(vcpu, gfn)) {
+			trace_kvm_async_pf_doublefault(cr2_or_gpa, gfn);
+			kvm_make_request(KVM_REQ_APF_HALT, vcpu);
+			return true;
+		} else if (kvm_arch_setup_async_pf(vcpu, cr2_or_gpa, gfn))
+			return true;
+	}
+
+	*pfn = __gfn_to_pfn_memslot(slot, gfn, false, NULL, write, writable);
+	return false;
+}
+
 static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa,
 				u32 error_code, bool prefault)
 {
@@ -4186,55 +4231,6 @@ out_unlock:
 	spin_unlock(&vcpu->kvm->mmu_lock);
 	kvm_release_pfn_clean(pfn);
 	return r;
-}
-
-static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
-				   gfn_t gfn)
-{
-	struct kvm_arch_async_pf arch;
-
-	arch.token = (vcpu->arch.apf.id++ << 12) | vcpu->vcpu_id;
-	arch.gfn = gfn;
-	arch.direct_map = vcpu->arch.mmu->direct_map;
-	arch.cr3 = vcpu->arch.mmu->get_cr3(vcpu);
-
-	return kvm_setup_async_pf(vcpu, cr2_or_gpa,
-				  kvm_vcpu_gfn_to_hva(vcpu, gfn), &arch);
-}
-
-static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
-			 gpa_t cr2_or_gpa, kvm_pfn_t *pfn, bool write,
-			 bool *writable)
-{
-	struct kvm_memory_slot *slot;
-	bool async;
-
-	/*
-	 * Don't expose private memslots to L2.
-	 */
-	if (is_guest_mode(vcpu) && !kvm_is_visible_gfn(vcpu->kvm, gfn)) {
-		*pfn = KVM_PFN_NOSLOT;
-		return false;
-	}
-
-	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
-	async = false;
-	*pfn = __gfn_to_pfn_memslot(slot, gfn, false, &async, write, writable);
-	if (!async)
-		return false; /* *pfn has correct page already */
-
-	if (!prefault && kvm_can_do_async_pf(vcpu)) {
-		trace_kvm_try_async_get_page(cr2_or_gpa, gfn);
-		if (kvm_find_async_pf_gfn(vcpu, gfn)) {
-			trace_kvm_async_pf_doublefault(cr2_or_gpa, gfn);
-			kvm_make_request(KVM_REQ_APF_HALT, vcpu);
-			return true;
-		} else if (kvm_arch_setup_async_pf(vcpu, cr2_or_gpa, gfn))
-			return true;
-	}
-
-	*pfn = __gfn_to_pfn_memslot(slot, gfn, false, NULL, write, writable);
-	return false;
 }
 
 int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
