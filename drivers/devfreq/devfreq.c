@@ -224,8 +224,8 @@ int devfreq_update_status(struct devfreq *devfreq, unsigned long freq)
 		goto out;
 	}
 
-	devfreq->time_in_state[prev_lev] +=
-			 cur_time - devfreq->last_stat_updated;
+	devfreq->stats.time_in_state[prev_lev] +=
+			cur_time - devfreq->stats.last_update;
 
 	lev = devfreq_get_freq_level(devfreq, freq);
 	if (lev < 0) {
@@ -234,13 +234,13 @@ int devfreq_update_status(struct devfreq *devfreq, unsigned long freq)
 	}
 
 	if (lev != prev_lev) {
-		devfreq->trans_table[(prev_lev *
-				devfreq->profile->max_state) + lev]++;
-		devfreq->total_trans++;
+		devfreq->stats.trans_table[
+			(prev_lev * devfreq->profile->max_state) + lev]++;
+		devfreq->stats.total_trans++;
 	}
 
 out:
-	devfreq->last_stat_updated = cur_time;
+	devfreq->stats.last_update = cur_time;
 	return ret;
 }
 EXPORT_SYMBOL(devfreq_update_status);
@@ -535,7 +535,7 @@ void devfreq_monitor_resume(struct devfreq *devfreq)
 			msecs_to_jiffies(devfreq->profile->polling_ms));
 
 out_update:
-	devfreq->last_stat_updated = get_jiffies_64();
+	devfreq->stats.last_update = get_jiffies_64();
 	devfreq->stop_polling = false;
 
 	if (devfreq->profile->get_cur_freq &&
@@ -807,28 +807,29 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		goto err_out;
 	}
 
-	devfreq->trans_table = devm_kzalloc(&devfreq->dev,
+	devfreq->stats.trans_table = devm_kzalloc(&devfreq->dev,
 			array3_size(sizeof(unsigned int),
 				    devfreq->profile->max_state,
 				    devfreq->profile->max_state),
 			GFP_KERNEL);
-	if (!devfreq->trans_table) {
+	if (!devfreq->stats.trans_table) {
 		mutex_unlock(&devfreq->lock);
 		err = -ENOMEM;
 		goto err_devfreq;
 	}
 
-	devfreq->time_in_state = devm_kcalloc(&devfreq->dev,
+	devfreq->stats.time_in_state = devm_kcalloc(&devfreq->dev,
 			devfreq->profile->max_state,
-			sizeof(*devfreq->time_in_state),
+			sizeof(*devfreq->stats.time_in_state),
 			GFP_KERNEL);
-	if (!devfreq->time_in_state) {
+	if (!devfreq->stats.time_in_state) {
 		mutex_unlock(&devfreq->lock);
 		err = -ENOMEM;
 		goto err_devfreq;
 	}
 
-	devfreq->last_stat_updated = get_jiffies_64();
+	devfreq->stats.total_trans = 0;
+	devfreq->stats.last_update = get_jiffies_64();
 
 	srcu_init_notifier_head(&devfreq->transition_notifier_list);
 
@@ -1588,13 +1589,14 @@ static ssize_t trans_stat_show(struct device *dev,
 				devfreq->profile->freq_table[i]);
 		for (j = 0; j < max_state; j++)
 			len += sprintf(buf + len, "%10u",
-				devfreq->trans_table[(i * max_state) + j]);
+				devfreq->stats.trans_table[(i * max_state) + j]);
+
 		len += sprintf(buf + len, "%10llu\n", (u64)
-			jiffies64_to_msecs(devfreq->time_in_state[i]));
+			jiffies64_to_msecs(devfreq->stats.time_in_state[i]));
 	}
 
 	len += sprintf(buf + len, "Total transition : %u\n",
-					devfreq->total_trans);
+					devfreq->stats.total_trans);
 	return len;
 }
 
@@ -1613,13 +1615,13 @@ static ssize_t trans_stat_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&df->lock);
-	memset(df->time_in_state, 0, (df->profile->max_state *
-					sizeof(*df->time_in_state)));
-	memset(df->trans_table, 0, array3_size(sizeof(unsigned int),
+	memset(df->stats.time_in_state, 0, (df->profile->max_state *
+					sizeof(*df->stats.time_in_state)));
+	memset(df->stats.trans_table, 0, array3_size(sizeof(unsigned int),
 					df->profile->max_state,
 					df->profile->max_state));
-	df->total_trans = 0;
-	df->last_stat_updated = get_jiffies_64();
+	df->stats.total_trans = 0;
+	df->stats.last_update = get_jiffies_64();
 	mutex_unlock(&df->lock);
 
 	return count;
