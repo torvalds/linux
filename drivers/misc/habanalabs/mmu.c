@@ -637,29 +637,27 @@ static int _hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, bool is_dram_addr)
 			clear_hop3 = true;
 
 		if (!clear_hop3)
-			goto flush;
+			goto mapped;
 
 		clear_pte(ctx, hop3_pte_addr);
 
 		if (put_pte(ctx, hop3_addr))
-			goto flush;
+			goto mapped;
 
 		clear_pte(ctx, hop2_pte_addr);
 
 		if (put_pte(ctx, hop2_addr))
-			goto flush;
+			goto mapped;
 
 		clear_pte(ctx, hop1_pte_addr);
 
 		if (put_pte(ctx, hop1_addr))
-			goto flush;
+			goto mapped;
 
 		clear_pte(ctx, hop0_pte_addr);
 	}
 
-flush:
-	flush(ctx);
-
+mapped:
 	return 0;
 
 not_mapped:
@@ -675,6 +673,7 @@ not_mapped:
  * @ctx: pointer to the context structure
  * @virt_addr: virt addr to map from
  * @page_size: size of the page to unmap
+ * @flush_pte: whether to do a PCI flush
  *
  * This function does the following:
  * - Check that the virt addr is mapped
@@ -685,15 +684,19 @@ not_mapped:
  * changes the MMU hash, it must be protected by a lock.
  * However, because it maps only a single page, the lock should be implemented
  * in a higher level in order to protect the entire mapping of the memory area
+ *
+ * For optimization reasons PCI flush may be requested once after unmapping of
+ * large area.
  */
-int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size)
+int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
+		bool flush_pte)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_mmu_properties *mmu_prop;
 	u64 real_virt_addr;
 	u32 real_page_size, npages;
-	int i, rc;
+	int i, rc = 0;
 	bool is_dram_addr;
 
 	if (!hdev->mmu_enable)
@@ -729,12 +732,15 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size)
 	for (i = 0 ; i < npages ; i++) {
 		rc = _hl_mmu_unmap(ctx, real_virt_addr, is_dram_addr);
 		if (rc)
-			return rc;
+			break;
 
 		real_virt_addr += real_page_size;
 	}
 
-	return 0;
+	if (flush_pte)
+		flush(ctx);
+
+	return rc;
 }
 
 static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
@@ -885,8 +891,6 @@ static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 		get_pte(ctx, hop3_addr);
 	}
 
-	flush(ctx);
-
 	return 0;
 
 err:
@@ -909,6 +913,7 @@ err:
  * @virt_addr: virt addr to map from
  * @phys_addr: phys addr to map to
  * @page_size: physical page size
+ * @flush_pte: whether to do a PCI flush
  *
  * This function does the following:
  * - Check that the virt addr is not mapped
@@ -919,8 +924,12 @@ err:
  * changes the MMU hash, it must be protected by a lock.
  * However, because it maps only a single page, the lock should be implemented
  * in a higher level in order to protect the entire mapping of the memory area
+ *
+ * For optimization reasons PCI flush may be requested once after mapping of
+ * large area.
  */
-int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size)
+int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
+		bool flush_pte)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -976,6 +985,9 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size)
 		mapped_cnt++;
 	}
 
+	if (flush_pte)
+		flush(ctx);
+
 	return 0;
 
 err:
@@ -987,6 +999,8 @@ err:
 
 		real_virt_addr += real_page_size;
 	}
+
+	flush(ctx);
 
 	return rc;
 }

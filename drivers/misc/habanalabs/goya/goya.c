@@ -4776,7 +4776,8 @@ static int goya_mmu_add_mappings_for_device_cpu(struct hl_device *hdev)
 
 	for (off = 0 ; off < CPU_FW_IMAGE_SIZE ; off += PAGE_SIZE_2MB) {
 		rc = hl_mmu_map(hdev->kernel_ctx, prop->dram_base_address + off,
-				prop->dram_base_address + off, PAGE_SIZE_2MB);
+				prop->dram_base_address + off, PAGE_SIZE_2MB,
+				(off + PAGE_SIZE_2MB) == CPU_FW_IMAGE_SIZE);
 		if (rc) {
 			dev_err(hdev->dev, "Map failed for address 0x%llx\n",
 				prop->dram_base_address + off);
@@ -4786,7 +4787,7 @@ static int goya_mmu_add_mappings_for_device_cpu(struct hl_device *hdev)
 
 	if (!(hdev->cpu_accessible_dma_address & (PAGE_SIZE_2MB - 1))) {
 		rc = hl_mmu_map(hdev->kernel_ctx, VA_CPU_ACCESSIBLE_MEM_ADDR,
-			hdev->cpu_accessible_dma_address, PAGE_SIZE_2MB);
+			hdev->cpu_accessible_dma_address, PAGE_SIZE_2MB, true);
 
 		if (rc) {
 			dev_err(hdev->dev,
@@ -4799,7 +4800,7 @@ static int goya_mmu_add_mappings_for_device_cpu(struct hl_device *hdev)
 			rc = hl_mmu_map(hdev->kernel_ctx,
 				VA_CPU_ACCESSIBLE_MEM_ADDR + cpu_off,
 				hdev->cpu_accessible_dma_address + cpu_off,
-				PAGE_SIZE_4KB);
+				PAGE_SIZE_4KB, true);
 			if (rc) {
 				dev_err(hdev->dev,
 					"Map failed for CPU accessible memory\n");
@@ -4825,14 +4826,15 @@ unmap_cpu:
 	for (; cpu_off >= 0 ; cpu_off -= PAGE_SIZE_4KB)
 		if (hl_mmu_unmap(hdev->kernel_ctx,
 				VA_CPU_ACCESSIBLE_MEM_ADDR + cpu_off,
-				PAGE_SIZE_4KB))
+				PAGE_SIZE_4KB, true))
 			dev_warn_ratelimited(hdev->dev,
 				"failed to unmap address 0x%llx\n",
 				VA_CPU_ACCESSIBLE_MEM_ADDR + cpu_off);
 unmap:
 	for (; off >= 0 ; off -= PAGE_SIZE_2MB)
 		if (hl_mmu_unmap(hdev->kernel_ctx,
-				prop->dram_base_address + off, PAGE_SIZE_2MB))
+				prop->dram_base_address + off, PAGE_SIZE_2MB,
+				true))
 			dev_warn_ratelimited(hdev->dev,
 				"failed to unmap address 0x%llx\n",
 				prop->dram_base_address + off);
@@ -4857,14 +4859,15 @@ void goya_mmu_remove_device_cpu_mappings(struct hl_device *hdev)
 
 	if (!(hdev->cpu_accessible_dma_address & (PAGE_SIZE_2MB - 1))) {
 		if (hl_mmu_unmap(hdev->kernel_ctx, VA_CPU_ACCESSIBLE_MEM_ADDR,
-				PAGE_SIZE_2MB))
+				PAGE_SIZE_2MB, true))
 			dev_warn(hdev->dev,
 				"Failed to unmap CPU accessible memory\n");
 	} else {
 		for (cpu_off = 0 ; cpu_off < SZ_2M ; cpu_off += PAGE_SIZE_4KB)
 			if (hl_mmu_unmap(hdev->kernel_ctx,
 					VA_CPU_ACCESSIBLE_MEM_ADDR + cpu_off,
-					PAGE_SIZE_4KB))
+					PAGE_SIZE_4KB,
+					(cpu_off + PAGE_SIZE_4KB) >= SZ_2M))
 				dev_warn_ratelimited(hdev->dev,
 					"failed to unmap address 0x%llx\n",
 					VA_CPU_ACCESSIBLE_MEM_ADDR + cpu_off);
@@ -4872,7 +4875,8 @@ void goya_mmu_remove_device_cpu_mappings(struct hl_device *hdev)
 
 	for (off = 0 ; off < CPU_FW_IMAGE_SIZE ; off += PAGE_SIZE_2MB)
 		if (hl_mmu_unmap(hdev->kernel_ctx,
-				prop->dram_base_address + off, PAGE_SIZE_2MB))
+				prop->dram_base_address + off, PAGE_SIZE_2MB,
+				(off + PAGE_SIZE_2MB) >= CPU_FW_IMAGE_SIZE))
 			dev_warn_ratelimited(hdev->dev,
 					"Failed to unmap address 0x%llx\n",
 					prop->dram_base_address + off);
