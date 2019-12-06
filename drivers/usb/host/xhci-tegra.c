@@ -793,17 +793,10 @@ disable_clk:
 	return err;
 }
 
-static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
+static int tegra_xusb_request_firmware(struct tegra_xusb *tegra)
 {
-	unsigned int code_tag_blocks, code_size_blocks, code_blocks;
 	struct tegra_xusb_fw_header *header;
-	struct device *dev = tegra->dev;
 	const struct firmware *fw;
-	unsigned long timeout;
-	time64_t timestamp;
-	struct tm time;
-	u64 address;
-	u32 value;
 	int err;
 
 	err = request_firmware(&fw, tegra->soc->firmware, tegra->dev);
@@ -827,6 +820,24 @@ static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
 	header = (struct tegra_xusb_fw_header *)tegra->fw.virt;
 	memcpy(tegra->fw.virt, fw->data, tegra->fw.size);
 	release_firmware(fw);
+
+	return 0;
+}
+
+static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
+{
+	unsigned int code_tag_blocks, code_size_blocks, code_blocks;
+	struct tegra_xusb_fw_header *header;
+	struct xhci_cap_regs __iomem *cap;
+	struct xhci_op_regs __iomem *op;
+	struct device *dev = tegra->dev;
+	unsigned long timeout;
+	time64_t timestamp;
+	struct tm time;
+	u64 address;
+	u32 value;
+
+	header = (struct tegra_xusb_fw_header *)tegra->fw.virt;
 
 	if (csb_readl(tegra, XUSB_CSB_MP_ILOAD_BASE_LO) != 0) {
 		dev_info(dev, "Firmware already loaded, Falcon state %#x\n",
@@ -1208,10 +1219,16 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto put_rpm;
 	}
 
+	err = tegra_xusb_request_firmware(tegra);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to request firmware: %d\n", err);
+		goto disable_phy;
+	}
+
 	err = tegra_xusb_load_firmware(tegra);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to load firmware: %d\n", err);
-		goto put_rpm;
+		goto free_firmware;
 	}
 
 	tegra->hcd->regs = tegra->regs;
@@ -1221,7 +1238,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	err = usb_add_hcd(tegra->hcd, tegra->xhci_irq, IRQF_SHARED);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to add USB HCD: %d\n", err);
-		goto put_rpm;
+		goto free_firmware;
 	}
 
 	device_wakeup_enable(tegra->hcd->self.controller);
@@ -1281,6 +1298,9 @@ put_rpm:
 		tegra_xusb_runtime_suspend(&pdev->dev);
 put_hcd:
 	usb_put_hcd(tegra->hcd);
+free_firmware:
+	dma_free_coherent(&pdev->dev, tegra->fw.size, tegra->fw.virt,
+			  tegra->fw.phys);
 disable_phy:
 	tegra_xusb_phy_disable(tegra);
 	pm_runtime_disable(&pdev->dev);
