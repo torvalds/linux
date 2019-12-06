@@ -1,0 +1,74 @@
+.. SPDX-License-Identifier: GPL-2.0-or-later
+
+Kernel driver max20730
+======================
+
+Supported chips:
+
+  * Maxim MAX20730
+
+    Prefix: 'max20730'
+
+    Addresses scanned: -
+
+    Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX20730.pdf
+
+  * Maxim MAX20734
+
+    Prefix: 'max20734'
+
+    Addresses scanned: -
+
+    Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX20734.pdf
+
+  * Maxim MAX20743
+
+    Prefix: 'max20743'
+
+    Addresses scanned: -
+
+    Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX20743.pdf
+
+Author: Guenter Roeck <linux@roeck-us.net>
+
+
+Description
+-----------
+
+This driver implements support for Maxim MAX20730, MAX20734, and MAX20743
+Integrated, Step-Down Switching Regulators with PMBus support.
+
+The driver is a client driver to the core PMBus driver.
+Please see Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
+details.
+
+
+Sysfs entries
+-------------
+
+=================== ===== =======================================================
+curr1_crit          RW/RO Critical output current. Please see datasheet for
+                          supported limits. Read-only if the chip is
+                          write protected; read-write otherwise.
+curr1_crit_alarm    RO    Output current critical alarm
+curr1_input         RO    Output current
+curr1_label         RO    'iout1'
+in1_alarm           RO    Input voltage alarm
+in1_input           RO    Input voltage
+in1_label           RO    'vin'
+in2_alarm           RO    Output voltage alarm
+in2_input           RO    Output voltage
+in2_label           RO    'vout1'
+temp1_crit          RW/RO Critical temeperature. Supported values are 130 or 150
+                          degrees C. Read-only if the chip is write protected;
+                          read-write otherwise.
+temp1_crit_alarm    RO    Temperature critical alarm
+temp1_input         RO    Chip temperature
+=================== ===== =======================================================
