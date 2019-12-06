@@ -73,11 +73,18 @@ const struct rvin_video_format *rvin_format_from_pixel(struct rvin_dev *vin,
 {
 	int i;
 
-	if (vin->info->model == RCAR_M1 && pixelformat == V4L2_PIX_FMT_XBGR32)
-		return NULL;
-
-	if (pixelformat == V4L2_PIX_FMT_NV12 && !vin->info->nv12)
-		return NULL;
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_XBGR32:
+		if (vin->info->model == RCAR_M1)
+			return NULL;
+		break;
+	case V4L2_PIX_FMT_NV12:
+		if (!vin->info->nv12)
+			return NULL;
+		break;
+	default:
+		break;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(rvin_formats); i++)
 		if (rvin_formats[i].fourcc == pixelformat)
