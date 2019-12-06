@@ -1470,6 +1470,7 @@ static ssize_t min_freq_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%lu\n", min_freq);
 }
+static DEVICE_ATTR_RW(min_freq);
 
 static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
@@ -1510,7 +1511,6 @@ static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR_RW(min_freq);
 
 static ssize_t max_freq_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
