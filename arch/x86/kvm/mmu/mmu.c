@@ -4271,16 +4271,6 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 }
 EXPORT_SYMBOL_GPL(kvm_handle_page_fault);
 
-static bool
-check_hugepage_cache_consistency(struct kvm_vcpu *vcpu, gfn_t gfn, int level)
-{
-	int page_num = KVM_PAGES_PER_HPAGE(level);
-
-	gfn &= ~(page_num - 1);
-
-	return kvm_mtrr_check_gfn_range_consistency(vcpu, gfn, page_num);
-}
-
 static int tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 			  bool prefault)
 {
@@ -4294,6 +4284,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	bool map_writable;
 	bool lpage_disallowed = (error_code & PFERR_FETCH_MASK) &&
 				is_nx_huge_page_enabled();
+	int max_level;
 
 	MMU_WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root_hpa));
 
@@ -4304,14 +4295,21 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	if (r)
 		return r;
 
-	force_pt_level =
-		lpage_disallowed ||
-		!check_hugepage_cache_consistency(vcpu, gfn, PT_DIRECTORY_LEVEL);
+	for (max_level = PT_MAX_HUGEPAGE_LEVEL;
+	     max_level > PT_PAGE_TABLE_LEVEL;
+	     max_level--) {
+		int page_num = KVM_PAGES_PER_HPAGE(max_level);
+		gfn_t base = gfn & ~(page_num - 1);
+
+		if (kvm_mtrr_check_gfn_range_consistency(vcpu, base, page_num))
+			break;
+	}
+
+	force_pt_level = lpage_disallowed || max_level == PT_PAGE_TABLE_LEVEL;
 	level = mapping_level(vcpu, gfn, &force_pt_level);
 	if (likely(!force_pt_level)) {
-		if (level > PT_DIRECTORY_LEVEL &&
-		    !check_hugepage_cache_consistency(vcpu, gfn, level))
-			level = PT_DIRECTORY_LEVEL;
+		if (level > max_level)
+			level = max_level;
 		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
 	}
 
