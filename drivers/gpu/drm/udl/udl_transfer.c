@@ -212,8 +212,7 @@ static void udl_compress_hline16(
 int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 		     const char *front, char **urb_buf_ptr,
 		     u32 byte_offset, u32 device_byte_offset,
-		     u32 byte_width,
-		     int *ident_ptr, int *sent_ptr)
+		     u32 byte_width)
 {
 	const u8 *line_start, *line_end, *next_pixel;
 	u32 base16 = 0 + (device_byte_offset >> log_bpp) * 2;
@@ -237,7 +236,6 @@ int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 			int len = cmd - (u8 *) urb->transfer_buffer;
 			if (udl_submit_urb(dev, urb, len))
 				return 1; /* lost pixels is set */
-			*sent_ptr += len;
 			urb = udl_get_urb(dev);
 			if (!urb)
 				return 1; /* lost_pixels is set */

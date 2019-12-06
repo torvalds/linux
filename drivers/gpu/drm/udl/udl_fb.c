@@ -68,8 +68,6 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	struct udl_device *udl = to_udl(dev);
 	int i, ret;
 	char *cmd;
-	int bytes_sent = 0;
-	int bytes_identical = 0;
 	struct urb *urb;
 	int aligned_x;
 	int log_bpp;
@@ -115,8 +113,7 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 		const int dev_byte_offset = (fb->width * i + x) << log_bpp;
 		if (udl_render_hline(dev, log_bpp, &urb, (char *)vaddr,
 				     &cmd, byte_offset, dev_byte_offset,
-				     width << log_bpp,
-				     &bytes_identical, &bytes_sent))
+				     width << log_bpp))
 			goto out;
 	}
 
@@ -127,7 +124,6 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 			*cmd++ = 0xAF;
 		len = cmd - (char *) urb->transfer_buffer;
 		ret = udl_submit_urb(dev, urb, len);
-		bytes_sent += len;
 	} else
 		udl_urb_completion(urb);
 
