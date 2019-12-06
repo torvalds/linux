@@ -1,0 +1,211 @@
+libperf-counting(7)
+===================
+
+NAME
+----
+libperf-counting - counting interface
+
+DESCRIPTION
+-----------
+The counting interface provides API to meassure and get count for specific perf events.
+
+The following test tries to explain count on `counting.c` example.
+
+It is by no means complete guide to counting, but shows libperf basic API for counting.
+
+The `counting.c` comes with libbperf package and can be compiled and run like:
+
+[source,bash]
+--
+$ gcc -o counting counting.c -lperf
+$ sudo ./counting
+count 176792, enabled 176944, run 176944
+count 176242, enabled 176242, run 176242
+--
+
+It requires root access, because of the `PERF_COUNT_SW_CPU_CLOCK` event,
+which is available only for root.
+
+The `counting.c` example monitors two events on the current process and displays their count, in a nutshel it:
+
+* creates events
+* adds them to the event list
+* opens and enables events through the event list
+* does some workload
+* disables events
+* reads and displays event counts
+* destroys the event list
+
+The first thing you need to do before using libperf is to call init function:
+
+[source,c]
+--
+  8 static int libperf_print(enum libperf_print_level level,
+  9                          const char *fmt, va_list ap)
+ 10 {
+ 11         return vfprintf(stderr, fmt, ap);
+ 12 }
+
+ 14 int main(int argc, char **argv)
+ 15 {
+ ...
+ 35         libperf_init(libperf_print);
+--
+
+It will setup the library and sets function for debug output from library.
+
+The `libperf_print` callback will receive any message with its debug level,
+defined as:
+
+[source,c]
+--
+enum libperf_print_level {
+        LIBPERF_ERR,
+        LIBPERF_WARN,
+        LIBPERF_INFO,
+        LIBPERF_DEBUG,
+        LIBPERF_DEBUG2,
+        LIBPERF_DEBUG3,
+};
+--
+
+Once the setup is complete we start by defining specific events using the `struct perf_event_attr`.
+
+We create software events for cpu and task:
+
+[source,c]
+--
+ 20         struct perf_event_attr attr1 = {
+ 21                 .type        = PERF_TYPE_SOFTWARE,
+ 22                 .config      = PERF_COUNT_SW_CPU_CLOCK,
+ 23                 .read_format = PERF_FORMAT_TOTAL_TIME_ENABLED|PERF_FORMAT_TOTAL_TIME_RUNNING,
+ 24                 .disabled    = 1,
+ 25         };
+ 26         struct perf_event_attr attr2 = {
+ 27                 .type        = PERF_TYPE_SOFTWARE,
+ 28                 .config      = PERF_COUNT_SW_TASK_CLOCK,
+ 29                 .read_format = PERF_FORMAT_TOTAL_TIME_ENABLED|PERF_FORMAT_TOTAL_TIME_RUNNING,
+ 30                 .disabled    = 1,
+ 31         };
+--
+
+The `read_format` setup tells perf to include timing details together with each count.
+
+Next step is to prepare threads map.
+
+In this case we will monitor current process, so we create threads map with single pid (0):
+
+[source,c]
+--
+ 37         threads = perf_thread_map__new_dummy();
+ 38         if (!threads) {
+ 39                 fprintf(stderr, "failed to create threads\n");
+ 40                 return -1;
+ 41         }
+ 42
+ 43         perf_thread_map__set_pid(threads, 0, 0);
+--
+
+Now we create libperf's event list, which will serve as holder for the events we want:
+
+[source,c]
+--
+ 45         evlist = perf_evlist__new();
+ 46         if (!evlist) {
+ 47                 fprintf(stderr, "failed to create evlist\n");
+ 48                 goto out_threads;
+ 49         }
+--
+
+We create libperf's events for the attributes we defined earlier and add them to the list:
+
+[source,c]
+--
+ 51         evsel = perf_evsel__new(&attr1);
+ 52         if (!evsel) {
+ 53                 fprintf(stderr, "failed to create evsel1\n");
+ 54                 goto out_evlist;
+ 55         }
+ 56
+ 57         perf_evlist__add(evlist, evsel);
+ 58
+ 59         evsel = perf_evsel__new(&attr2);
+ 60         if (!evsel) {
+ 61                 fprintf(stderr, "failed to create evsel2\n");
+ 62                 goto out_evlist;
+ 63         }
+ 64
+ 65         perf_evlist__add(evlist, evsel);
+--
+
+Configure event list with the thread map and open events:
+
+[source,c]
+--
+ 67         perf_evlist__set_maps(evlist, NULL, threads);
+ 68
+ 69         err = perf_evlist__open(evlist);
+ 70         if (err) {
+ 71                 fprintf(stderr, "failed to open evsel\n");
+ 72                 goto out_evlist;
+ 73         }
+--
+
+Both events are created as disabled (note the `disabled = 1` assignment above),
+so we need to enable the whole list explicitely (both events).
+
+From this moment events are counting and we can do our workload.
+
+When we are done we disable the events list.
+
+[source,c]
+--
+ 75         perf_evlist__enable(evlist);
+ 76
+ 77         while (count--);
+ 78
+ 79         perf_evlist__disable(evlist);
+--
+
+Now we need to get the counts from events, following code iterates throught the events list and read counts:
+
+[source,c]
+--
+ 81         perf_evlist__for_each_evsel(evlist, evsel) {
+ 82                 perf_evsel__read(evsel, 0, 0, &counts);
+ 83                 fprintf(stdout, "count %llu, enabled %llu, run %llu\n",
+ 84                         counts.val, counts.ena, counts.run);
+ 85         }
+--
+
+And finaly cleanup.
+
+We close the whole events list (both events) and remove it together with the threads map:
+
+[source,c]
+--
+ 87         perf_evlist__close(evlist);
+ 88
+ 89 out_evlist:
+ 90         perf_evlist__delete(evlist);
+ 91 out_threads:
+ 92         perf_thread_map__put(threads);
+ 93         return err;
+ 94 }
+--
+
+REPORTING BUGS
+--------------
+Report bugs to <linux-perf-users@vger.kernel.org>.
+
+LICENSE
+-------
+libperf is Free Software licensed under the GNU LGPL 2.1
+
+RESOURCES
+---------
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+
+SEE ALSO
+--------
+libperf(3), libperf-sampling(7)
