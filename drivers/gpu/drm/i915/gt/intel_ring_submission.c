@@ -497,14 +497,13 @@ static void set_hwstam(struct intel_engine_cs *engine, u32 mask)
 
 static void set_hws_pga(struct intel_engine_cs *engine, phys_addr_t phys)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	u32 addr;
 
 	addr = lower_32_bits(phys);
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (INTEL_GEN(engine->i915) >= 4)
 		addr |= (phys >> 28) & 0xf0;
 
-	I915_WRITE(HWS_PGA, addr);
+	intel_uncore_write(engine->uncore, HWS_PGA, addr);
 }
 
 static struct page *status_page(struct intel_engine_cs *engine)
@@ -523,14 +522,13 @@ static void ring_setup_phys_status_page(struct intel_engine_cs *engine)
 
 static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	i915_reg_t hwsp;
 
 	/*
 	 * The ring status page addresses are no longer next to the rest of
 	 * the ring registers as of gen7.
 	 */
-	if (IS_GEN(dev_priv, 7)) {
+	if (IS_GEN(engine->i915, 7)) {
 		switch (engine->id) {
 		/*
 		 * No more rings exist on Gen7. Default case is only to shut up
@@ -552,14 +550,14 @@ static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 			hwsp = VEBOX_HWS_PGA_GEN7;
 			break;
 		}
-	} else if (IS_GEN(dev_priv, 6)) {
+	} else if (IS_GEN(engine->i915, 6)) {
 		hwsp = RING_HWS_PGA_GEN6(engine->mmio_base);
 	} else {
 		hwsp = RING_HWS_PGA(engine->mmio_base);
 	}
 
-	I915_WRITE(hwsp, offset);
-	POSTING_READ(hwsp);
+	intel_uncore_write(engine->uncore, hwsp, offset);
+	intel_uncore_posting_read(engine->uncore, hwsp);
 }
 
 static void flush_cs_tlb(struct intel_engine_cs *engine)
@@ -843,7 +841,8 @@ static void reset_finish(struct intel_engine_cs *engine)
 
 static int rcs_resume(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_private *i915 = engine->i915;
+	struct intel_uncore *uncore = engine->uncore;
 
 	/*
 	 * Disable CONSTANT_BUFFER before it is loaded from the context
@@ -855,13 +854,14 @@ static int rcs_resume(struct intel_engine_cs *engine)
 	 * they are already accustomed to from before contexts were
 	 * enabled.
 	 */
-	if (IS_GEN(dev_priv, 4))
-		I915_WRITE(ECOSKPD,
+	if (IS_GEN(i915, 4))
+		intel_uncore_write(uncore, ECOSKPD,
 			   _MASKED_BIT_ENABLE(ECO_CONSTANT_BUFFER_SR_DISABLE));
 
 	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
-	if (IS_GEN_RANGE(dev_priv, 4, 6))
-		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH));
+	if (IS_GEN_RANGE(i915, 4, 6))
+		intel_uncore_write(uncore, MI_MODE,
+				   _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH));
 
 	/* We need to disable the AsyncFlip performance optimisations in order
 	 * to use MI_WAIT_FOR_EVENT within the CS. It should already be
@@ -869,33 +869,35 @@ static int rcs_resume(struct intel_engine_cs *engine)
 	 *
 	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv
 	 */
-	if (IS_GEN_RANGE(dev_priv, 6, 7))
-		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
+	if (IS_GEN_RANGE(i915, 6, 7))
+		intel_uncore_write(uncore, MI_MODE,
+				   _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
 
 	/* Required for the hardware to program scanline values for waiting */
 	/* WaEnableFlushTlbInvalidationMode:snb */
-	if (IS_GEN(dev_priv, 6))
-		I915_WRITE(GFX_MODE,
+	if (IS_GEN(i915, 6))
+		intel_uncore_write(uncore, GFX_MODE,
 			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_EXPLICIT));
 
 	/* WaBCSVCSTlbInvalidationMode:ivb,vlv,hsw */
-	if (IS_GEN(dev_priv, 7))
-		I915_WRITE(GFX_MODE_GEN7,
+	if (IS_GEN(i915, 7))
+		intel_uncore_write(uncore, GFX_MODE_GEN7,
 			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_EXPLICIT) |
 			   _MASKED_BIT_ENABLE(GFX_REPLAY_MODE));
 
-	if (IS_GEN(dev_priv, 6)) {
+	if (IS_GEN(i915, 6)) {
 		/* From the Sandybridge PRM, volume 1 part 3, page 24:
 		 * "If this bit is set, STCunit will have LRA as replacement
 		 *  policy. [...] This bit must be reset.  LRA replacement
 		 *  policy is not supported."
 		 */
-		I915_WRITE(CACHE_MODE_0,
+		intel_uncore_write(uncore, CACHE_MODE_0,
 			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
 	}
 
-	if (IS_GEN_RANGE(dev_priv, 6, 7))
-		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
+	if (IS_GEN_RANGE(i915, 6, 7))
+		intel_uncore_write(uncore, INSTPM,
+				   _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
 	return xcs_resume(engine);
 }
