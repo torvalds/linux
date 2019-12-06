@@ -3565,9 +3565,6 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, int level,
 	u64 spte = 0ull;
 	uint retry_count = 0;
 
-	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa))
-		return false;
-
 	if (!page_fault_can_be_fast(error_code))
 		return false;
 
@@ -4011,9 +4008,6 @@ walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 	int root, leaf;
 	bool reserved = false;
 
-	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa))
-		goto exit;
-
 	walk_shadow_page_lockless_begin(vcpu);
 
 	for (shadow_walk_init(&iterator, vcpu, addr),
@@ -4043,7 +4037,7 @@ walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 			root--;
 		}
 	}
-exit:
+
 	*sptep = spte;
 	return reserved;
 }
@@ -4106,9 +4100,6 @@ static void shadow_page_table_clear_flood(struct kvm_vcpu *vcpu, gva_t addr)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	u64 spte;
-
-	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa))
-		return;
 
 	walk_shadow_page_lockless_begin(vcpu);
 	for_each_shadow_entry_lockless(vcpu, addr, iterator, spte) {
@@ -5471,6 +5462,9 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
 {
 	int r, emulation_type = 0;
 	bool direct = vcpu->arch.mmu->direct_map;
+
+	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa))
+		return RET_PF_RETRY;
 
 	/* With shadow page tables, fault_address contains a GVA or nGPA.  */
 	if (vcpu->arch.mmu->direct_map) {
