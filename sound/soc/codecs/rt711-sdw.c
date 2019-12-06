@@ -492,10 +492,14 @@ static int rt711_dev_suspend(struct device *dev)
 {
 	struct rt711_priv *rt711 = dev_get_drvdata(dev);
 
+	dev_dbg(dev, "%s start\n", __func__);
+
 	if (!rt711->hw_init)
 		return 0;
 
 	regcache_cache_only(rt711->regmap, true);
+
+	dev_dbg(dev, "%s end\n", __func__);
 
 	return 0;
 }
@@ -507,6 +511,8 @@ static int rt711_dev_resume(struct device *dev)
 	struct sdw_slave *slave = to_sdw_slave_device(dev);
 	struct rt711_priv *rt711 = dev_get_drvdata(dev);
 	unsigned long time;
+
+	dev_dbg(dev, "%s start\n", __func__);
 
 	if (!rt711->hw_init)
 		return 0;
@@ -526,6 +532,8 @@ regmap_sync:
 	regcache_cache_only(rt711->regmap, false);
 	regcache_sync_region(rt711->regmap, 0x3000, 0x8fff);
 	regcache_sync_region(rt711->regmap, 0x752009, 0x752091);
+
+	dev_dbg(dev, "%s end\n", __func__);
 
 	return 0;
 }
