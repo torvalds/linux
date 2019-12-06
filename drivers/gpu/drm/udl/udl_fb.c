@@ -58,6 +58,13 @@ static uint16_t rgb16(uint32_t col)
 }
 #endif
 
+static long udl_log_cpp(unsigned int cpp)
+{
+	if (WARN_ON(!is_power_of_2(cpp)))
+		return -EINVAL;
+	return __ffs(cpp);
+}
+
 static int udl_aligned_damage_clip(struct drm_rect *clip, int x, int y,
 				   int width, int height)
 {
@@ -92,17 +99,17 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	int log_bpp;
 	void *vaddr;
 
-	if (WARN_ON(!is_power_of_2(fb->format->cpp[0])))
-		return -EINVAL;
-
-	log_bpp = __ffs(fb->format->cpp[0]);
-
 	spin_lock(&udl->active_fb_16_lock);
 	if (udl->active_fb_16 != fb) {
 		spin_unlock(&udl->active_fb_16_lock);
 		return 0;
 	}
 	spin_unlock(&udl->active_fb_16_lock);
+
+	ret = udl_log_cpp(fb->format->cpp[0]);
+	if (ret < 0)
+		return ret;
+	log_bpp = ret;
 
 	ret = udl_aligned_damage_clip(&clip, x, y, width, height);
 	if (ret)
