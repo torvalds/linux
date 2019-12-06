@@ -35,7 +35,7 @@
  * struct drm_crtc_commit - track modeset commits on a CRTC
  *
  * This structure is used to track pending modeset changes and atomic commit on
- * a per-CRTC basis. Since updating the list should never block this structure
+ * a per-CRTC basis. Since updating the list should never block, this structure
  * is reference counted to allow waiters to safely wait on an event to complete,
  * without holding any locks.
  *

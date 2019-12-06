@@ -220,7 +220,7 @@ set_best_encoder(struct drm_atomic_state *state,
 		crtc = conn_state->connector->state->crtc;
 
 		/* A NULL crtc is an error here because we should have
-		 *  duplicated a NULL best_encoder when crtc was NULL.
+		 * duplicated a NULL best_encoder when crtc was NULL.
 		 * As an exception restoring duplicated atomic state
 		 * during resume is allowed, so don't warn when
 		 * best_encoder is equal to encoder we intend to set.
@@ -567,7 +567,7 @@ mode_valid(struct drm_atomic_state *state)
  *
  * 1. &drm_connector_helper_funcs.atomic_best_encoder for determining the new encoder.
  * 2. &drm_connector_helper_funcs.atomic_check to validate the connector state.
- * 3. If it's determined a modeset is needed then all connectors on the affected crtc
+ * 3. If it's determined a modeset is needed then all connectors on the affected
  *    crtc are added and &drm_connector_helper_funcs.atomic_check is run on them.
  * 4. &drm_encoder_helper_funcs.mode_valid, &drm_bridge_funcs.mode_valid and
  *    &drm_crtc_helper_funcs.mode_valid are called on the affected components.
@@ -1418,7 +1418,7 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_fences);
  * @dev: DRM device
  * @old_state: atomic state object with old state structures
  *
- * Helper to, after atomic commit, wait for vblanks on all effected
+ * Helper to, after atomic commit, wait for vblanks on all affected
  * crtcs (ie. before cleaning up old framebuffers using
  * drm_atomic_helper_cleanup_planes()). It will only wait on CRTCs where the
  * framebuffers have actually changed to optimize for the legacy cursor and
@@ -1478,10 +1478,10 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_vblanks);
  * @dev: DRM device
  * @old_state: atomic state object with old state structures
  *
- * Helper to, after atomic commit, wait for page flips on all effected
+ * Helper to, after atomic commit, wait for page flips on all affected
  * crtcs (ie. before cleaning up old framebuffers using
  * drm_atomic_helper_cleanup_planes()). Compared to
- * drm_atomic_helper_wait_for_vblanks() this waits for the completion of on all
+ * drm_atomic_helper_wait_for_vblanks() this waits for the completion on all
  * CRTCs, assuming that cursors-only updates are signalling their completion
  * immediately (or using a different path).
  *
@@ -2195,7 +2195,7 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
  * drm_atomic_helper_fake_vblank - fake VBLANK events if needed
  * @old_state: atomic state object with old state structures
  *
- * This function walks all CRTCs and fake VBLANK events on those with
+ * This function walks all CRTCs and fakes VBLANK events on those with
  * &drm_crtc_state.no_vblank set to true and &drm_crtc_state.event != NULL.
  * The primary use of this function is writeback connectors working in oneshot
  * mode and faking VBLANK events. In this case they only fake the VBLANK event
