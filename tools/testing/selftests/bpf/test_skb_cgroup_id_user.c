@@ -120,7 +120,7 @@ int check_ancestor_cgroup_ids(int prog_id)
 	int err = 0;
 	int map_fd;
 
-	expected_ids[0] = 0x100000001;	/* root cgroup */
+	expected_ids[0] = get_cgroup_id("/..");	/* root cgroup */
 	expected_ids[1] = get_cgroup_id("");
 	expected_ids[2] = get_cgroup_id(CGROUP_PATH);
 	expected_ids[3] = 0; /* non-existent cgroup */
