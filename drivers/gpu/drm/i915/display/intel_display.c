@@ -2165,19 +2165,18 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	 * pin/unpin/fence and not more.
 	 */
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-	i915_gem_object_lock(obj);
 
 	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
 
-	pinctl = 0;
-
-	/* Valleyview is definitely limited to scanning out the first
+	/*
+	 * Valleyview is definitely limited to scanning out the first
 	 * 512MiB. Lets presume this behaviour was inherited from the
 	 * g4x display engine and that all earlier gen are similarly
 	 * limited. Testing suggests that it is a little more
 	 * complicated than this. For example, Cherryview appears quite
 	 * happy to scanout from anywhere within its global aperture.
 	 */
+	pinctl = 0;
 	if (HAS_GMCH(dev_priv))
 		pinctl |= PIN_MAPPABLE;
 
@@ -2189,7 +2188,8 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	if (uses_fence && i915_vma_is_map_and_fenceable(vma)) {
 		int ret;
 
-		/* Install a fence for tiled scan-out. Pre-i965 always needs a
+		/*
+		 * Install a fence for tiled scan-out. Pre-i965 always needs a
 		 * fence, whereas 965+ only requires a fence if using
 		 * framebuffer compression.  For simplicity, we always, when
 		 * possible, install a fence as the cost is not that onerous.
@@ -2219,8 +2219,6 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	i915_vma_get(vma);
 err:
 	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
-
-	i915_gem_object_unlock(obj);
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 	return vma;
 }

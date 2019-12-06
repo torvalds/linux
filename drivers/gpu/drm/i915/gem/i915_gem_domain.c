@@ -187,21 +187,23 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 {
 	int ret;
 
-	assert_object_held(obj);
-
 	if (obj->cache_level == cache_level)
 		return 0;
 
-	ret = i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE);
+	ret = i915_gem_object_lock_interruptible(obj);
 	if (ret)
 		return ret;
 
+	/* Always invalidate stale cachelines */
+	if (obj->cache_level != cache_level) {
+		i915_gem_object_set_cache_coherency(obj, cache_level);
+		obj->cache_dirty = true;
+	}
+
+	i915_gem_object_unlock(obj);
+
 	/* The cache-level will be applied when each vma is rebound. */
-
-	i915_gem_object_set_cache_coherency(obj, cache_level);
-	obj->cache_dirty = true; /* Always invalidate stale cachelines */
-
-	return 0;
+	return i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE);
 }
 
 int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
@@ -282,20 +284,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	if (obj->cache_level == level)
-		goto out;
-
-	ret = i915_gem_object_wait(obj,
-				   I915_WAIT_INTERRUPTIBLE,
-				   MAX_SCHEDULE_TIMEOUT);
-	if (ret)
-		goto out;
-
-	ret = i915_gem_object_lock_interruptible(obj);
-	if (ret == 0) {
-		ret = i915_gem_object_set_cache_level(obj, level);
-		i915_gem_object_unlock(obj);
-	}
+	ret = i915_gem_object_set_cache_level(obj, level);
 
 out:
 	i915_gem_object_put(obj);
@@ -317,8 +306,6 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_vma *vma;
 	int ret;
-
-	assert_object_held(obj);
 
 	/* Frame buffer must be in LMEM (no migration yet) */
 	if (HAS_LMEM(i915) && !i915_gem_object_is_lmem(obj))
@@ -362,13 +349,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
-	__i915_gem_object_flush_for_display(obj);
-
-	/*
-	 * It should now be out of any other write domains, and we can update
-	 * the domain values for our changes.
-	 */
-	obj->read_domains |= I915_GEM_DOMAIN_GTT;
+	i915_gem_object_flush_if_display(obj);
 
 	return vma;
 }
