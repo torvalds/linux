@@ -291,7 +291,6 @@ static const struct fs_parameter_spec ceph_param_specs[] = {
 };
 
 static const struct fs_parameter_description ceph_parameters = {
-        .name           = "libceph",
         .specs          = ceph_param_specs,
 };
 

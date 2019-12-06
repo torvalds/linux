@@ -592,7 +592,6 @@ static const struct fs_parameter_spec spufs_param_specs[] = {
 };
 
 static const struct fs_parameter_description spufs_fs_parameters = {
-	.name		= "spufs",
 	.specs		= spufs_param_specs,
 };
 

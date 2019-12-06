@@ -463,7 +463,6 @@ static const struct fs_parameter_spec fuse_param_specs[] = {
 };
 
 static const struct fs_parameter_description fuse_fs_parameters = {
-	.name		= "fuse",
 	.specs		= fuse_param_specs,
 };
 

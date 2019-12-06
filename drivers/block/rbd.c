@@ -864,7 +864,6 @@ static const struct fs_parameter_spec rbd_param_specs[] = {
 };
 
 static const struct fs_parameter_description rbd_parameters = {
-	.name		= "rbd",
 	.specs		= rbd_param_specs,
 };
 

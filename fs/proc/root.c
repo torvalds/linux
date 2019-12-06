@@ -48,7 +48,6 @@ static const struct fs_parameter_spec proc_param_specs[] = {
 };
 
 static const struct fs_parameter_description proc_fs_parameters = {
-	.name		= "proc",
 	.specs		= proc_param_specs,
 };
 

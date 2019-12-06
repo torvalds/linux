@@ -2045,7 +2045,6 @@ static const struct fs_parameter_spec rdt_param_specs[] = {
 };
 
 static const struct fs_parameter_description rdt_fs_parameters = {
-	.name		= "rdt",
 	.specs		= rdt_param_specs,
 };
 

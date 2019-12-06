@@ -187,7 +187,6 @@ static const struct fs_parameter_spec ramfs_param_specs[] = {
 };
 
 const struct fs_parameter_description ramfs_fs_parameters = {
-	.name		= "ramfs",
 	.specs		= ramfs_param_specs,
 };
 

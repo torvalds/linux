@@ -199,7 +199,6 @@ static const struct fs_parameter_spec ceph_mount_param_specs[] = {
 };
 
 static const struct fs_parameter_description ceph_mount_parameters = {
-	.name           = "ceph",
 	.specs          = ceph_mount_param_specs,
 };
 

@@ -593,7 +593,6 @@ static const struct fs_parameter_spec bpf_param_specs[] = {
 };
 
 static const struct fs_parameter_description bpf_fs_parameters = {
-	.name		= "bpf",
 	.specs		= bpf_param_specs,
 };
 

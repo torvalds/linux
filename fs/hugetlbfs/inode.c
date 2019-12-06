@@ -85,7 +85,6 @@ static const struct fs_parameter_spec hugetlb_param_specs[] = {
 };
 
 static const struct fs_parameter_description hugetlb_fs_parameters = {
-	.name		= "hugetlbfs",
 	.specs		= hugetlb_param_specs,
 };
 

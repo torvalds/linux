@@ -107,7 +107,6 @@ static const struct fs_parameter_spec xfs_param_specs[] = {
 };
 
 static const struct fs_parameter_description xfs_fs_parameters = {
-	.name		= "xfs",
 	.specs		= xfs_param_specs,
 };
 

@@ -1337,7 +1337,6 @@ static const struct fs_parameter_spec gfs2_param_specs[] = {
 };
 
 static const struct fs_parameter_description gfs2_fs_parameters = {
-	.name = "gfs2",
 	.specs = gfs2_param_specs,
 };
 

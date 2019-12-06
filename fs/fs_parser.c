@@ -354,19 +354,13 @@ bool validate_constant_table(const struct constant_table *tbl, size_t tbl_size,
  * fs_validate_description - Validate a parameter description
  * @desc: The parameter description to validate.
  */
-bool fs_validate_description(const struct fs_parameter_description *desc)
+bool fs_validate_description(const char *name,
+	const struct fs_parameter_description *desc)
 {
 	const struct fs_parameter_spec *param, *p2;
-	const char *name = desc->name;
 	bool good = true;
 
 	pr_notice("*** VALIDATE %s ***\n", name);
-
-	if (!name[0]) {
-		pr_err("VALIDATE Parser: No name\n");
-		name = "Unknown";
-		good = false;
-	}
 
 	if (desc->specs) {
 		for (param = desc->specs; param->name; param++) {

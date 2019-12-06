@@ -216,7 +216,6 @@ static const struct fs_parameter_spec hypfs_param_specs[] = {
 };
 
 static const struct fs_parameter_description hypfs_fs_parameters = {
-	.name		= "hypfs",
 	.specs		= hypfs_param_specs,
 };
 

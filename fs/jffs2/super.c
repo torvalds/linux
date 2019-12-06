@@ -185,7 +185,6 @@ static const struct fs_parameter_spec jffs2_param_specs[] = {
 };
 
 const struct fs_parameter_description jffs2_fs_parameters = {
-	.name		= "jffs2",
 	.specs		= jffs2_param_specs,
 };
 

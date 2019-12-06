@@ -689,7 +689,6 @@ static const struct fs_parameter_spec smack_param_specs[] = {
 };
 
 static const struct fs_parameter_description smack_fs_parameters = {
-	.name		= "smack",
 	.specs		= smack_param_specs,
 };
 

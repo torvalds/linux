@@ -90,7 +90,6 @@ static const struct fs_parameter_spec afs_param_specs[] = {
 };
 
 static const struct fs_parameter_description afs_fs_parameters = {
-	.name		= "kAFS",
 	.specs		= afs_param_specs,
 };
 
