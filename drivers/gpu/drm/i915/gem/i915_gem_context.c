@@ -1140,9 +1140,6 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 		}
 		*cs++ = MI_NOOP;
 		intel_ring_advance(rq, cs);
-	} else {
-		/* ppGTT is not part of the legacy context image */
-		gen6_ppgtt_pin(i915_vm_to_ppgtt(vm));
 	}
 
 	return 0;
@@ -1150,10 +1147,20 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 
 static bool skip_ppgtt_update(struct intel_context *ce, void *data)
 {
+	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))
+		return true;
+
 	if (HAS_LOGICAL_RING_CONTEXTS(ce->engine->i915))
-		return !ce->state;
-	else
-		return !atomic_read(&ce->pin_count);
+		return false;
+
+	if (!atomic_read(&ce->pin_count))
+		return true;
+
+	/* ppGTT is not part of the legacy context image */
+	if (gen6_ppgtt_pin(i915_vm_to_ppgtt(ce->vm)))
+		return true;
+
+	return false;
 }
 
 static int set_ppgtt(struct drm_i915_file_private *file_priv,
