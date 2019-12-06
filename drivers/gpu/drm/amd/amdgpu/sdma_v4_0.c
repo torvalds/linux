@@ -2409,10 +2409,9 @@ static void sdma_v4_0_set_vm_pte_funcs(struct amdgpu_device *adev)
 			sched = &adev->sdma.instance[i].page.sched;
 		else
 			sched = &adev->sdma.instance[i].ring.sched;
-		adev->vm_manager.vm_pte_rqs[i] =
-			&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
+		adev->vm_manager.vm_pte_scheds[i] = sched;
 	}
-	adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
+	adev->vm_manager.vm_pte_num_scheds = adev->sdma.num_instances;
 }
 
 const struct amdgpu_ip_block_version sdma_v4_0_ip_block = {

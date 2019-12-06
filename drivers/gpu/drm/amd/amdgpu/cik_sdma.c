@@ -1372,16 +1372,14 @@ static const struct amdgpu_vm_pte_funcs cik_sdma_vm_pte_funcs = {
 
 static void cik_sdma_set_vm_pte_funcs(struct amdgpu_device *adev)
 {
-	struct drm_gpu_scheduler *sched;
 	unsigned i;
 
 	adev->vm_manager.vm_pte_funcs = &cik_sdma_vm_pte_funcs;
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		sched = &adev->sdma.instance[i].ring.sched;
-		adev->vm_manager.vm_pte_rqs[i] =
-			&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
+		adev->vm_manager.vm_pte_scheds[i] =
+			&adev->sdma.instance[i].ring.sched;
 	}
-	adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
+	adev->vm_manager.vm_pte_num_scheds = adev->sdma.num_instances;
 }
 
 const struct amdgpu_ip_block_version cik_sdma_ip_block =
