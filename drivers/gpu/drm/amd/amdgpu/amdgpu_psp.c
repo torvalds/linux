@@ -1721,6 +1721,39 @@ static int psp_resume(void *handle)
 	if (ret)
 		goto failed;
 
+	ret = psp_asd_load(psp);
+	if (ret) {
+		DRM_ERROR("PSP load asd failed!\n");
+		goto failed;
+	}
+
+	if (adev->gmc.xgmi.num_physical_nodes > 1) {
+		ret = psp_xgmi_initialize(psp);
+		/* Warning the XGMI seesion initialize failure
+		 * Instead of stop driver initialization
+		 */
+		if (ret)
+			dev_err(psp->adev->dev,
+				"XGMI: Failed to initialize XGMI session\n");
+	}
+
+	if (psp->adev->psp.ta_fw) {
+		ret = psp_ras_initialize(psp);
+		if (ret)
+			dev_err(psp->adev->dev,
+					"RAS: Failed to initialize RAS\n");
+
+		ret = psp_hdcp_initialize(psp);
+		if (ret)
+			dev_err(psp->adev->dev,
+				"HDCP: Failed to initialize HDCP\n");
+
+		ret = psp_dtm_initialize(psp);
+		if (ret)
+			dev_err(psp->adev->dev,
+				"DTM: Failed to initialize DTM\n");
+	}
+
 	mutex_unlock(&adev->firmware.mutex);
 
 	return 0;
