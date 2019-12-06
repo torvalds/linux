@@ -389,7 +389,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *filp = iocb->ki_filp;
 	struct pipe_inode_info *pipe = filp->private_data;
-	unsigned int head, max_usage, mask;
+	unsigned int head;
 	ssize_t ret = 0;
 	int do_wakeup = 0;
 	size_t total_len = iov_iter_count(from);
@@ -408,12 +408,11 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	head = pipe->head;
-	max_usage = pipe->max_usage;
-	mask = pipe->ring_size - 1;
 
 	/* We try to merge small writes */
 	chars = total_len & (PAGE_SIZE-1); /* size of the last buffer */
 	if (!pipe_empty(head, pipe->tail) && chars != 0) {
+		unsigned int mask = pipe->ring_size - 1;
 		struct pipe_buffer *buf = &pipe->bufs[(head - 1) & mask];
 		int offset = buf->offset + buf->len;
 
@@ -443,7 +442,8 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		}
 
 		head = pipe->head;
-		if (!pipe_full(head, pipe->tail, max_usage)) {
+		if (!pipe_full(head, pipe->tail, pipe->max_usage)) {
+			unsigned int mask = pipe->ring_size - 1;
 			struct pipe_buffer *buf = &pipe->bufs[head & mask];
 			struct page *page = pipe->tmp_page;
 			int copied;
@@ -465,7 +465,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			spin_lock_irq(&pipe->wait.lock);
 
 			head = pipe->head;
-			if (pipe_full(head, pipe->tail, max_usage)) {
+			if (pipe_full(head, pipe->tail, pipe->max_usage)) {
 				spin_unlock_irq(&pipe->wait.lock);
 				continue;
 			}
@@ -510,7 +510,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 				break;
 		}
 
-		if (!pipe_full(head, pipe->tail, max_usage))
+		if (!pipe_full(head, pipe->tail, pipe->max_usage))
 			continue;
 
 		/* Wait for buffer space to become available. */
@@ -578,8 +578,6 @@ pipe_poll(struct file *filp, poll_table *wait)
 	unsigned int tail = READ_ONCE(pipe->tail);
 
 	poll_wait(filp, &pipe->wait, wait);
-
-	BUG_ON(pipe_occupancy(head, tail) > pipe->ring_size);
 
 	/* Reading only -- no need for acquiring the semaphore.  */
 	mask = 0;
@@ -1176,6 +1174,7 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	pipe->max_usage = nr_slots;
 	pipe->tail = tail;
 	pipe->head = head;
+	wake_up_interruptible_all(&pipe->wait);
 	return pipe->max_usage * PAGE_SIZE;
 
 out_revert_acct:
