@@ -1657,22 +1657,6 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 		      info->supports_typec_usb, info->supports_tbt,
 		      devdata->dsc != NULL);
 
-	if (is_edp && is_dvi)
-		DRM_DEBUG_KMS("Internal DP port %c is TMDS compatible\n",
-			      port_name(port));
-	if (is_crt && port != PORT_E)
-		DRM_DEBUG_KMS("Port %c is analog\n", port_name(port));
-	if (is_crt && (is_dvi || is_dp))
-		DRM_DEBUG_KMS("Analog port %c is also DP or TMDS compatible\n",
-			      port_name(port));
-	if (is_dvi && (port == PORT_A || port == PORT_E))
-		DRM_DEBUG_KMS("Port %c is TMDS compatible\n", port_name(port));
-	if (!is_dvi && !is_dp && !is_crt)
-		DRM_DEBUG_KMS("Port %c is not DP/TMDS/CRT compatible\n",
-			      port_name(port));
-	if (is_edp && (port == PORT_B || port == PORT_C || port == PORT_E))
-		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
-
 	if (is_dvi) {
 		u8 ddc_pin;
 
