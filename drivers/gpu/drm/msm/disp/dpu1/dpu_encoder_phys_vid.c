@@ -305,8 +305,6 @@ static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 		return;
 
 	hw_ctl = phys_enc->hw_ctl;
-	if (!hw_ctl)
-		return;
 
 	DPU_ATRACE_BEGIN("vblank_irq");
 
@@ -322,7 +320,7 @@ static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 	 * so we need to double-check with hw that it accepted the flush bits
 	 */
 	spin_lock_irqsave(phys_enc->enc_spinlock, lock_flags);
-	if (hw_ctl && hw_ctl->ops.get_flush_register)
+	if (hw_ctl->ops.get_flush_register)
 		flush_register = hw_ctl->ops.get_flush_register(hw_ctl);
 
 	if (!(flush_register & hw_ctl->ops.get_pending_flush(hw_ctl)))
@@ -566,7 +564,7 @@ static void dpu_encoder_phys_vid_prepare_for_kickoff(
 	}
 
 	ctl = phys_enc->hw_ctl;
-	if (!ctl || !ctl->ops.wait_reset_status)
+	if (!ctl->ops.wait_reset_status)
 		return;
 
 	/*
@@ -591,7 +589,7 @@ static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 		return;
 	}
 
-	if (!phys_enc->hw_intf || !phys_enc->hw_ctl) {
+	if (!phys_enc->hw_intf) {
 		DPU_ERROR("invalid hw_intf %d hw_ctl %d\n",
 				phys_enc->hw_intf != 0, phys_enc->hw_ctl != 0);
 		return;

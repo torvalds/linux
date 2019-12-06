@@ -62,7 +62,7 @@ static void _dpu_encoder_phys_cmd_update_intf_cfg(
 		return;
 
 	ctl = phys_enc->hw_ctl;
-	if (!ctl || !ctl->ops.setup_intf_cfg)
+	if (!ctl->ops.setup_intf_cfg)
 		return;
 
 	intf_cfg.intf = phys_enc->intf_idx;
@@ -125,7 +125,7 @@ static void dpu_encoder_phys_cmd_ctl_start_irq(void *arg, int irq_idx)
 {
 	struct dpu_encoder_phys *phys_enc = arg;
 
-	if (!phys_enc || !phys_enc->hw_ctl)
+	if (!phys_enc)
 		return;
 
 	DPU_ATRACE_BEGIN("ctl_start_irq");
@@ -198,7 +198,7 @@ static int _dpu_encoder_phys_cmd_handle_ppdone_timeout(
 	u32 frame_event = DPU_ENCODER_FRAME_EVENT_ERROR;
 	bool do_log = false;
 
-	if (!phys_enc || !phys_enc->hw_pp || !phys_enc->hw_ctl)
+	if (!phys_enc || !phys_enc->hw_pp)
 		return -EINVAL;
 
 	cmd_enc->pp_timeout_report_cnt++;
@@ -428,7 +428,7 @@ static void _dpu_encoder_phys_cmd_pingpong_config(
 	struct dpu_encoder_phys_cmd *cmd_enc =
 		to_dpu_encoder_phys_cmd(phys_enc);
 
-	if (!phys_enc || !phys_enc->hw_ctl || !phys_enc->hw_pp
+	if (!phys_enc || !phys_enc->hw_pp
 			|| !phys_enc->hw_ctl->ops.setup_intf_cfg) {
 		DPU_ERROR("invalid arg(s), enc %d\n", phys_enc != 0);
 		return;
@@ -458,7 +458,7 @@ static void dpu_encoder_phys_cmd_enable_helper(
 	struct dpu_hw_ctl *ctl;
 	u32 flush_mask = 0;
 
-	if (!phys_enc || !phys_enc->hw_ctl || !phys_enc->hw_pp) {
+	if (!phys_enc || !phys_enc->hw_pp) {
 		DPU_ERROR("invalid arg(s), encoder %d\n", phys_enc != 0);
 		return;
 	}
@@ -614,7 +614,7 @@ static int _dpu_encoder_phys_cmd_wait_for_ctl_start(
 	struct dpu_encoder_wait_info wait_info;
 	int ret;
 
-	if (!phys_enc || !phys_enc->hw_ctl) {
+	if (!phys_enc) {
 		DPU_ERROR("invalid argument(s)\n");
 		return -EINVAL;
 	}

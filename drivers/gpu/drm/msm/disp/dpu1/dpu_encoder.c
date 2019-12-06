@@ -1434,7 +1434,7 @@ static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
 	}
 
 	ctl = phys->hw_ctl;
-	if (!ctl || !ctl->ops.trigger_flush) {
+	if (!ctl->ops.trigger_flush) {
 		DPU_ERROR("missing trigger cb\n");
 		return;
 	}
@@ -1484,7 +1484,7 @@ void dpu_encoder_helper_trigger_start(struct dpu_encoder_phys *phys_enc)
 	}
 
 	ctl = phys_enc->hw_ctl;
-	if (ctl && ctl->ops.trigger_start) {
+	if (ctl->ops.trigger_start) {
 		ctl->ops.trigger_start(ctl);
 		trace_dpu_enc_trigger_start(DRMID(phys_enc->parent), ctl->idx);
 	}
@@ -1528,7 +1528,7 @@ static void dpu_encoder_helper_hw_reset(struct dpu_encoder_phys *phys_enc)
 	dpu_enc = to_dpu_encoder_virt(phys_enc->parent);
 	ctl = phys_enc->hw_ctl;
 
-	if (!ctl || !ctl->ops.reset)
+	if (!ctl->ops.reset)
 		return;
 
 	DRM_DEBUG_KMS("id:%u ctl %d reset\n", DRMID(phys_enc->parent),
@@ -1569,8 +1569,6 @@ static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc)
 			continue;
 
 		ctl = phys->hw_ctl;
-		if (!ctl)
-			continue;
 
 		/*
 		 * This is cleared in frame_done worker, which isn't invoked
@@ -1618,7 +1616,7 @@ void dpu_encoder_trigger_kickoff_pending(struct drm_encoder *drm_enc)
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		phys = dpu_enc->phys_encs[i];
 
-		if (phys && phys->hw_ctl) {
+		if (phys) {
 			ctl = phys->hw_ctl;
 			if (ctl->ops.clear_pending_flush)
 				ctl->ops.clear_pending_flush(ctl);
