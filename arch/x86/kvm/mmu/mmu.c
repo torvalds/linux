@@ -2903,6 +2903,26 @@ static bool prepare_zap_oldest_mmu_page(struct kvm *kvm,
 	return kvm_mmu_prepare_zap_page(kvm, sp, invalid_list);
 }
 
+static int make_mmu_pages_available(struct kvm_vcpu *vcpu)
+{
+	LIST_HEAD(invalid_list);
+
+	if (likely(kvm_mmu_available_pages(vcpu->kvm) >= KVM_MIN_FREE_MMU_PAGES))
+		return 0;
+
+	while (kvm_mmu_available_pages(vcpu->kvm) < KVM_REFILL_PAGES) {
+		if (!prepare_zap_oldest_mmu_page(vcpu->kvm, &invalid_list))
+			break;
+
+		++vcpu->kvm->stat.mmu_recycled;
+	}
+	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
+
+	if (!kvm_mmu_available_pages(vcpu->kvm))
+		return -ENOSPC;
+	return 0;
+}
+
 /*
  * Changing the number of mmu pages allocated to the vm
  * Note: if goal_nr_mmu_pages is too small, you will get dead lock
@@ -3640,7 +3660,6 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, int level,
 static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 			 gpa_t cr2_or_gpa, kvm_pfn_t *pfn, bool write,
 			 bool *writable);
-static int make_mmu_pages_available(struct kvm_vcpu *vcpu);
 
 static int nonpaging_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 			 gfn_t gfn, bool prefault)
@@ -5510,26 +5529,6 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_unprotect_page_virt);
-
-static int make_mmu_pages_available(struct kvm_vcpu *vcpu)
-{
-	LIST_HEAD(invalid_list);
-
-	if (likely(kvm_mmu_available_pages(vcpu->kvm) >= KVM_MIN_FREE_MMU_PAGES))
-		return 0;
-
-	while (kvm_mmu_available_pages(vcpu->kvm) < KVM_REFILL_PAGES) {
-		if (!prepare_zap_oldest_mmu_page(vcpu->kvm, &invalid_list))
-			break;
-
-		++vcpu->kvm->stat.mmu_recycled;
-	}
-	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
-
-	if (!kvm_mmu_available_pages(vcpu->kvm))
-		return -ENOSPC;
-	return 0;
-}
 
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
 		       void *insn, int insn_len)
