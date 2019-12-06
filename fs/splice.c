@@ -495,7 +495,7 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
 	unsigned int mask = pipe->ring_size - 1;
 	int ret;
 
-	while (!pipe_empty(tail, head)) {
+	while (!pipe_empty(head, tail)) {
 		struct pipe_buffer *buf = &pipe->bufs[tail & mask];
 
 		sd->len = buf->len;
@@ -711,9 +711,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	splice_from_pipe_begin(&sd);
 	while (sd.total_len) {
 		struct iov_iter from;
-		unsigned int head = pipe->head;
-		unsigned int tail = pipe->tail;
-		unsigned int mask = pipe->ring_size - 1;
+		unsigned int head, tail, mask;
 		size_t left;
 		int n;
 
@@ -731,6 +729,10 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 				break;
 			}
 		}
+
+		head = pipe->head;
+		tail = pipe->tail;
+		mask = pipe->ring_size - 1;
 
 		/* build the vector */
 		left = sd.total_len;
