@@ -220,8 +220,7 @@ static bool dpu_encoder_phys_vid_mode_fixup(
 		const struct drm_display_mode *mode,
 		struct drm_display_mode *adj_mode)
 {
-	if (phys_enc)
-		DPU_DEBUG_VIDENC(phys_enc, "\n");
+	DPU_DEBUG_VIDENC(phys_enc, "\n");
 
 	/*
 	 * Modifying mode has consequences when the mode comes back to us
@@ -239,7 +238,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	unsigned long lock_flags;
 	struct dpu_hw_intf_cfg intf_cfg = { 0 };
 
-	if (!phys_enc || !phys_enc->hw_ctl->ops.setup_intf_cfg) {
+	if (!phys_enc->hw_ctl->ops.setup_intf_cfg) {
 		DPU_ERROR("invalid encoder %d\n", phys_enc != 0);
 		return;
 	}
@@ -301,9 +300,6 @@ static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 	u32 flush_register = 0;
 	int new_cnt = -1, old_cnt = -1;
 
-	if (!phys_enc)
-		return;
-
 	hw_ctl = phys_enc->hw_ctl;
 
 	DPU_ATRACE_BEGIN("vblank_irq");
@@ -341,9 +337,6 @@ static void dpu_encoder_phys_vid_underrun_irq(void *arg, int irq_idx)
 {
 	struct dpu_encoder_phys *phys_enc = arg;
 
-	if (!phys_enc)
-		return;
-
 	if (phys_enc->parent_ops->handle_underrun_virt)
 		phys_enc->parent_ops->handle_underrun_virt(phys_enc->parent,
 			phys_enc);
@@ -380,11 +373,6 @@ static void dpu_encoder_phys_vid_mode_set(
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adj_mode)
 {
-	if (!phys_enc) {
-		DPU_ERROR("invalid encoder/kms\n");
-		return;
-	}
-
 	if (adj_mode) {
 		phys_enc->cached_mode = *adj_mode;
 		drm_mode_debug_printmodeline(adj_mode);
@@ -400,11 +388,6 @@ static int dpu_encoder_phys_vid_control_vblank_irq(
 {
 	int ret = 0;
 	int refcount;
-
-	if (!phys_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return -EINVAL;
-	}
 
 	refcount = atomic_read(&phys_enc->vblank_refcount);
 
@@ -486,11 +469,6 @@ skip_flush:
 
 static void dpu_encoder_phys_vid_destroy(struct dpu_encoder_phys *phys_enc)
 {
-	if (!phys_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return;
-	}
-
 	DPU_DEBUG_VIDENC(phys_enc, "\n");
 	kfree(phys_enc);
 }
@@ -507,11 +485,6 @@ static int dpu_encoder_phys_vid_wait_for_vblank(
 {
 	struct dpu_encoder_wait_info wait_info;
 	int ret;
-
-	if (!phys_enc) {
-		pr_err("invalid encoder\n");
-		return -EINVAL;
-	}
 
 	wait_info.wq = &phys_enc->pending_kickoff_wq;
 	wait_info.atomic_cnt = &phys_enc->pending_kickoff_cnt;
@@ -558,11 +531,6 @@ static void dpu_encoder_phys_vid_prepare_for_kickoff(
 	struct dpu_hw_ctl *ctl;
 	int rc;
 
-	if (!phys_enc) {
-		DPU_ERROR("invalid encoder/parameters\n");
-		return;
-	}
-
 	ctl = phys_enc->hw_ctl;
 	if (!ctl->ops.wait_reset_status)
 		return;
@@ -584,7 +552,7 @@ static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 	unsigned long lock_flags;
 	int ret;
 
-	if (!phys_enc || !phys_enc->parent || !phys_enc->parent->dev) {
+	if (!phys_enc->parent || !phys_enc->parent->dev) {
 		DPU_ERROR("invalid encoder/device\n");
 		return;
 	}
@@ -654,9 +622,6 @@ static void dpu_encoder_phys_vid_irq_control(struct dpu_encoder_phys *phys_enc,
 {
 	int ret;
 
-	if (!phys_enc)
-		return;
-
 	trace_dpu_enc_phys_vid_irq_ctrl(DRMID(phys_enc->parent),
 			    phys_enc->hw_intf->idx - INTF_0,
 			    enable,
@@ -677,9 +642,6 @@ static void dpu_encoder_phys_vid_irq_control(struct dpu_encoder_phys *phys_enc,
 static int dpu_encoder_phys_vid_get_line_count(
 		struct dpu_encoder_phys *phys_enc)
 {
-	if (!phys_enc)
-		return -EINVAL;
-
 	if (!dpu_encoder_phys_vid_is_master(phys_enc))
 		return -EINVAL;
 
