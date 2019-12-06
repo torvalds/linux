@@ -1447,6 +1447,45 @@ static int tegra_xusb_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static bool xhci_hub_ports_suspended(struct xhci_hub *hub)
+{
+	struct device *dev = hub->hcd->self.controller;
+	bool status = true;
+	unsigned int i;
+	u32 value;
+
+	for (i = 0; i < hub->num_ports; i++) {
+		value = readl(hub->ports[i]->addr);
+		if ((value & PORT_PE) == 0)
+			continue;
+
+		if ((value & PORT_PLS_MASK) != XDEV_U3) {
+			dev_info(dev, "%u-%u isn't suspended: %#010x\n",
+				 hub->hcd->self.busnum, i + 1, value);
+			status = false;
+		}
+	}
+
+	return status;
+}
+
+static int tegra_xusb_check_ports(struct tegra_xusb *tegra)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
+	unsigned long flags;
+	int err = 0;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	if (!xhci_hub_ports_suspended(&xhci->usb2_rhub) ||
+	    !xhci_hub_ports_suspended(&xhci->usb3_rhub))
+		err = -EBUSY;
+
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	return err;
+}
+
 static void tegra_xusb_save_context(struct tegra_xusb *tegra)
 {
 	const struct tegra_xusb_context_soc *soc = tegra->soc->context;
@@ -1481,31 +1520,103 @@ static void tegra_xusb_restore_context(struct tegra_xusb *tegra)
 	}
 }
 
+static int tegra_xusb_enter_elpg(struct tegra_xusb *tegra, bool wakeup)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
+	int err;
+
+	err = tegra_xusb_check_ports(tegra);
+	if (err < 0) {
+		dev_err(tegra->dev, "not all ports suspended: %d\n", err);
+		return err;
+	}
+
+	err = xhci_suspend(xhci, wakeup);
+	if (err < 0) {
+		dev_err(tegra->dev, "failed to suspend XHCI: %d\n", err);
+		return err;
+	}
+
+	tegra_xusb_save_context(tegra);
+	tegra_xusb_phy_disable(tegra);
+	tegra_xusb_clk_disable(tegra);
+
+	return 0;
+}
+
+static int tegra_xusb_exit_elpg(struct tegra_xusb *tegra, bool wakeup)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
+	int err;
+
+	err = tegra_xusb_clk_enable(tegra);
+	if (err < 0) {
+		dev_err(tegra->dev, "failed to enable clocks: %d\n", err);
+		return err;
+	}
+
+	err = tegra_xusb_phy_enable(tegra);
+	if (err < 0) {
+		dev_err(tegra->dev, "failed to enable PHYs: %d\n", err);
+		goto disable_clk;
+	}
+
+	tegra_xusb_config(tegra);
+	tegra_xusb_restore_context(tegra);
+
+	err = tegra_xusb_load_firmware(tegra);
+	if (err < 0) {
+		dev_err(tegra->dev, "failed to load firmware: %d\n", err);
+		goto disable_phy;
+	}
+
+	err = __tegra_xusb_enable_firmware_messages(tegra);
+	if (err < 0) {
+		dev_err(tegra->dev, "failed to enable messages: %d\n", err);
+		goto disable_phy;
+	}
+
+	err = xhci_resume(xhci, true);
+	if (err < 0) {
+		dev_err(tegra->dev, "failed to resume XHCI: %d\n", err);
+		goto disable_phy;
+	}
+
+	return 0;
+
+disable_phy:
+	tegra_xusb_phy_disable(tegra);
+disable_clk:
+	tegra_xusb_clk_disable(tegra);
+	return err;
+}
+
 static int tegra_xusb_suspend(struct device *dev)
 {
 	struct tegra_xusb *tegra = dev_get_drvdata(dev);
-	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
 	bool wakeup = device_may_wakeup(dev);
 	int err;
 
-	/* TODO: Powergate controller across suspend/resume. */
-	err = xhci_suspend(xhci, wakeup);
-	if (err < 0)
-		return err;
+	synchronize_irq(tegra->mbox_irq);
 
-	tegra_xusb_save_context(tegra);
+	mutex_lock(&tegra->lock);
+	err = tegra_xusb_enter_elpg(tegra, wakeup);
+	mutex_unlock(&tegra->lock);
 
-	return 0;
+	return err;
 }
 
 static int tegra_xusb_resume(struct device *dev)
 {
 	struct tegra_xusb *tegra = dev_get_drvdata(dev);
-	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
+	bool wakeup = device_may_wakeup(dev);
+	int err;
 
-	tegra_xusb_restore_context(tegra);
+	mutex_lock(&tegra->lock);
+	err = tegra_xusb_exit_elpg(tegra, wakeup);
+	mutex_unlock(&tegra->lock);
 
-	return xhci_resume(xhci, false);
+	return err;
 }
 #endif
 
