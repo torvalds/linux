@@ -62,7 +62,6 @@ struct udl_device {
 	int sku_pixel_limit;
 
 	struct urb_list urbs;
-	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
 
 	char mode_buf[1024];
 	uint32_t mode_buf_len;

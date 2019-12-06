@@ -234,11 +234,12 @@ int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 
 		if (cmd >= cmd_end) {
 			int len = cmd - (u8 *) urb->transfer_buffer;
-			if (udl_submit_urb(dev, urb, len))
-				return 1; /* lost pixels is set */
+			int ret = udl_submit_urb(dev, urb, len);
+			if (ret)
+				return ret;
 			urb = udl_get_urb(dev);
 			if (!urb)
-				return 1; /* lost_pixels is set */
+				return -EAGAIN;
 			*urb_ptr = urb;
 			cmd = urb->transfer_buffer;
 			cmd_end = &cmd[urb->transfer_buffer_length];

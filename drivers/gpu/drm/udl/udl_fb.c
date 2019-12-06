@@ -141,9 +141,10 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 		const int byte_offset = line_offset + (clip.x1 << log_bpp);
 		const int dev_byte_offset = (fb->width * i + clip.x1) << log_bpp;
 		const int byte_width = (clip.x2 - clip.x1) << log_bpp;
-		if (udl_render_hline(dev, log_bpp, &urb, (char *)vaddr,
-				     &cmd, byte_offset, dev_byte_offset,
-				     byte_width))
+		ret = udl_render_hline(dev, log_bpp, &urb, (char *)vaddr,
+				       &cmd, byte_offset, dev_byte_offset,
+				       byte_width);
+		if (ret)
 			goto out_drm_gem_shmem_vunmap;
 	}
 
