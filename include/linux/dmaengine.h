@@ -481,7 +481,7 @@ struct dmaengine_unmap_data {
  * @cookie: tracking cookie for this transaction, set to -EBUSY if
  *	this tx is sitting on a dependency list
  * @flags: flags to augment operation preparation, control completion, and
- * 	communicate status
+ *	communicate status
  * @phys: physical address of the descriptor
  * @chan: target channel for this operation
  * @tx_submit: accept the descriptor, assign ordered cookie and mark the
