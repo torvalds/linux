@@ -3391,7 +3391,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, int write,
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	gfn_t base_gfn = gfn;
 
-	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa))
+	if (WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root_hpa)))
 		return RET_PF_RETRY;
 
 	if (likely(max_level > PT_PAGE_TABLE_LEVEL))

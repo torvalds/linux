@@ -637,7 +637,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gpa_t addr,
 	if (FNAME(gpte_changed)(vcpu, gw, top_level))
 		goto out_gpte_changed;
 
-	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa))
+	if (WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root_hpa)))
 		goto out_gpte_changed;
 
 	for (shadow_walk_init(&it, vcpu, addr);
