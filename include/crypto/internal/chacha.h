@@ -34,7 +34,7 @@ static inline int chacha20_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	return chacha_setkey(tfm, key, keysize, 20);
 }
 
-static int inline chacha12_setkey(struct crypto_skcipher *tfm, const u8 *key,
+static inline int chacha12_setkey(struct crypto_skcipher *tfm, const u8 *key,
 				  unsigned int keysize)
 {
 	return chacha_setkey(tfm, key, keysize, 12);
