@@ -1330,7 +1330,7 @@ gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t gfn,
 static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn,
 			 bool *force_pt_level)
 {
-	int host_level, level, max_level;
+	int host_level, max_level;
 	struct kvm_memory_slot *slot;
 
 	if (unlikely(*force_pt_level))
@@ -1347,12 +1347,12 @@ static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn,
 		return host_level;
 
 	max_level = min(kvm_x86_ops->get_lpage_level(), host_level);
-
-	for (level = PT_DIRECTORY_LEVEL; level <= max_level; ++level)
-		if (__mmu_gfn_lpage_is_disallowed(large_gfn, level, slot))
+	for ( ; max_level > PT_PAGE_TABLE_LEVEL; max_level--) {
+		if (!__mmu_gfn_lpage_is_disallowed(large_gfn, max_level, slot))
 			break;
+	}
 
-	return level - 1;
+	return max_level;
 }
 
 /*
