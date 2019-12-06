@@ -68,7 +68,6 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	struct udl_device *udl = to_udl(dev);
 	int i, ret;
 	char *cmd;
-	cycles_t start_cycles, end_cycles;
 	int bytes_sent = 0;
 	int bytes_identical = 0;
 	struct urb *urb;
@@ -105,8 +104,6 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 		goto err_drm_gem_shmem_vunmap;
 	}
 
-	start_cycles = get_cycles();
-
 	urb = udl_get_urb(dev);
 	if (!urb)
 		goto out;
@@ -120,7 +117,7 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 				     &cmd, byte_offset, dev_byte_offset,
 				     width << log_bpp,
 				     &bytes_identical, &bytes_sent))
-			goto error;
+			goto out;
 	}
 
 	if (cmd > (char *) urb->transfer_buffer) {
@@ -133,15 +130,6 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 		bytes_sent += len;
 	} else
 		udl_urb_completion(urb);
-
-error:
-	atomic_add(bytes_sent, &udl->bytes_sent);
-	atomic_add(bytes_identical, &udl->bytes_identical);
-	atomic_add((width * height) << log_bpp, &udl->bytes_rendered);
-	end_cycles = get_cycles();
-	atomic_add(((unsigned int) ((end_cycles - start_cycles)
-		    >> 10)), /* Kcycles */
-		   &udl->cpu_kcycles_used);
 
 out:
 	drm_gem_shmem_vunmap(fb->obj[0], vaddr);

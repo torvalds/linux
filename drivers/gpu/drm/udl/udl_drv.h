@@ -66,10 +66,6 @@ struct udl_device {
 
 	char mode_buf[1024];
 	uint32_t mode_buf_len;
-	atomic_t bytes_rendered; /* raw pixel-bytes driver asked to render */
-	atomic_t bytes_identical; /* saved effort with backbuffer comparison */
-	atomic_t bytes_sent; /* to usb, after compression including overhead */
-	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
 };
 
 #define to_udl(x) container_of(x, struct udl_device, drm)
