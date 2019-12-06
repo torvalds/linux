@@ -85,6 +85,7 @@ int irq_bypass_register_producer(struct irq_bypass_producer *producer)
 {
 	struct irq_bypass_producer *tmp;
 	struct irq_bypass_consumer *consumer;
+	int ret;
 
 	if (!producer->token)
 		return -EINVAL;
@@ -98,20 +99,16 @@ int irq_bypass_register_producer(struct irq_bypass_producer *producer)
 
 	list_for_each_entry(tmp, &producers, node) {
 		if (tmp->token == producer->token) {
-			mutex_unlock(&lock);
-			module_put(THIS_MODULE);
-			return -EBUSY;
+			ret = -EBUSY;
+			goto out_err;
 		}
 	}
 
 	list_for_each_entry(consumer, &consumers, node) {
 		if (consumer->token == producer->token) {
-			int ret = __connect(producer, consumer);
-			if (ret) {
-				mutex_unlock(&lock);
-				module_put(THIS_MODULE);
-				return ret;
-			}
+			ret = __connect(producer, consumer);
+			if (ret)
+				goto out_err;
 			break;
 		}
 	}
@@ -121,6 +118,10 @@ int irq_bypass_register_producer(struct irq_bypass_producer *producer)
 	mutex_unlock(&lock);
 
 	return 0;
+out_err:
+	mutex_unlock(&lock);
+	module_put(THIS_MODULE);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(irq_bypass_register_producer);
 
