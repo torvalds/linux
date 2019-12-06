@@ -197,8 +197,8 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 	DPU_DEBUG("%s\n", dpu_crtc->name);
 
 	for (i = 0; i < cstate->num_mixers; i++) {
-		if (!mixer[i].hw_lm || !mixer[i].lm_ctl) {
-			DPU_ERROR("invalid lm or ctl assigned to mixer\n");
+		if (!mixer[i].hw_lm) {
+			DPU_ERROR("invalid lm assigned to mixer\n");
 			return;
 		}
 		mixer[i].mixer_op_mode = 0;
@@ -1115,8 +1115,6 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 		m = &cstate->mixers[i];
 		if (!m->hw_lm)
 			seq_printf(s, "\tmixer[%d] has no lm\n", i);
-		else if (!m->lm_ctl)
-			seq_printf(s, "\tmixer[%d] has no ctl\n", i);
 		else
 			seq_printf(s, "\tmixer:%d ctl:%d width:%d height:%d\n",
 				m->hw_lm->idx - LM_0, m->lm_ctl->idx - CTL_0,
