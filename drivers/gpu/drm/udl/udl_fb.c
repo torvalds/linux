@@ -85,12 +85,6 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	}
 	spin_unlock(&udl->active_fb_16_lock);
 
-	vaddr = drm_gem_shmem_vmap(fb->obj[0]);
-	if (IS_ERR(vaddr)) {
-		DRM_ERROR("failed to vmap fb\n");
-		return 0;
-	}
-
 	aligned_x = DL_ALIGN_DOWN(x, sizeof(unsigned long));
 	width = DL_ALIGN_UP(width + (x-aligned_x), sizeof(unsigned long));
 	x = aligned_x;
@@ -98,8 +92,13 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	if ((width <= 0) ||
 	    (x + width > fb->width) ||
 	    (y + height > fb->height)) {
-		ret = -EINVAL;
-		goto err_drm_gem_shmem_vunmap;
+		return -EINVAL;
+	}
+
+	vaddr = drm_gem_shmem_vmap(fb->obj[0]);
+	if (IS_ERR(vaddr)) {
+		DRM_ERROR("failed to vmap fb\n");
+		return 0;
 	}
 
 	urb = udl_get_urb(dev);
@@ -131,10 +130,6 @@ out:
 	drm_gem_shmem_vunmap(fb->obj[0], vaddr);
 
 	return 0;
-
-err_drm_gem_shmem_vunmap:
-	drm_gem_shmem_vunmap(fb->obj[0], vaddr);
-	return ret;
 }
 
 static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,

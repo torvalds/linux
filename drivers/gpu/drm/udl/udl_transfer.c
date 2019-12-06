@@ -249,4 +249,3 @@ int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 
 	return 0;
 }
-
