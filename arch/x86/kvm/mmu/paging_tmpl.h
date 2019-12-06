@@ -773,7 +773,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gpa_t addr, u32 error_code,
 	struct guest_walker walker;
 	int r;
 	kvm_pfn_t pfn;
-	int level = PT_PAGE_TABLE_LEVEL;
+	int level;
 	unsigned long mmu_seq;
 	bool map_writable, is_self_change_mapping;
 	bool lpage_disallowed = (error_code & PFERR_FETCH_MASK) &&
@@ -818,18 +818,14 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gpa_t addr, u32 error_code,
 	is_self_change_mapping = FNAME(is_self_change_mapping)(vcpu,
 	      &walker, user_fault, &vcpu->arch.write_fault_to_shadow_pgtable);
 
-	max_level = lpage_disallowed ? PT_PAGE_TABLE_LEVEL :
-				       PT_MAX_HUGEPAGE_LEVEL;
-
-	if (walker.level >= PT_DIRECTORY_LEVEL && !is_self_change_mapping) {
-		level = mapping_level(vcpu, walker.gfn, &max_level);
-		if (likely(max_level > PT_DIRECTORY_LEVEL)) {
-			level = min(walker.level, level);
-			walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
-		}
-	} else {
+	if (lpage_disallowed || is_self_change_mapping)
 		max_level = PT_PAGE_TABLE_LEVEL;
-	}
+	else
+		max_level = walker.level;
+
+	level = mapping_level(vcpu, walker.gfn, &max_level);
+	if (level > PT_PAGE_TABLE_LEVEL)
+		walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
 
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
