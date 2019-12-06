@@ -34,7 +34,7 @@
  * and padding is also possible, the limits need to be generous.
  */
 #define PAES_MIN_KEYSIZE 16
-#define PAES_MAX_KEYSIZE 256
+#define PAES_MAX_KEYSIZE 320
 
 static u8 *ctrblk;
 static DEFINE_MUTEX(ctrblk_lock);
