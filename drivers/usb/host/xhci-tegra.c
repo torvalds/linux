@@ -993,11 +993,37 @@ static int tegra_xusb_powerdomain_init(struct device *dev,
 	return 0;
 }
 
-static int tegra_xusb_probe(struct platform_device *pdev)
+static int __tegra_xusb_enable_firmware_messages(struct tegra_xusb *tegra)
 {
 	struct tegra_xusb_mbox_msg msg;
-	struct resource *regs;
+	int err;
+
+	/* Enable firmware messages from controller. */
+	msg.cmd = MBOX_CMD_MSG_ENABLED;
+	msg.data = 0;
+
+	err = tegra_xusb_mbox_send(tegra, &msg);
+	if (err < 0)
+		dev_err(tegra->dev, "failed to enable messages: %d\n", err);
+
+	return err;
+}
+
+static int tegra_xusb_enable_firmware_messages(struct tegra_xusb *tegra)
+{
+	int err;
+
+	mutex_lock(&tegra->lock);
+	err = __tegra_xusb_enable_firmware_messages(tegra);
+	mutex_unlock(&tegra->lock);
+
+	return err;
+}
+
+static int tegra_xusb_probe(struct platform_device *pdev)
+{
 	struct tegra_xusb *tegra;
+	struct resource *regs;
 	struct xhci_hcd *xhci;
 	unsigned int i, j, k;
 	struct phy *phy;
@@ -1277,20 +1303,11 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto put_usb3;
 	}
 
-	mutex_lock(&tegra->lock);
-
-	/* Enable firmware messages from controller. */
-	msg.cmd = MBOX_CMD_MSG_ENABLED;
-	msg.data = 0;
-
-	err = tegra_xusb_mbox_send(tegra, &msg);
+	err = tegra_xusb_enable_firmware_messages(tegra);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to enable messages: %d\n", err);
-		mutex_unlock(&tegra->lock);
 		goto remove_usb3;
 	}
-
-	mutex_unlock(&tegra->lock);
 
 	err = devm_request_threaded_irq(&pdev->dev, tegra->mbox_irq,
 					tegra_xusb_mbox_irq,
