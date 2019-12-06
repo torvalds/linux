@@ -368,7 +368,7 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 	if (!ce->timeline)
 		return NULL;
 
-	rcu_read_lock();
+	mutex_lock(&ce->timeline->mutex);
 	list_for_each_entry_reverse(rq, &ce->timeline->requests, link) {
 		if (i915_request_completed(rq))
 			break;
@@ -378,7 +378,7 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 		if (engine)
 			break;
 	}
-	rcu_read_unlock();
+	mutex_unlock(&ce->timeline->mutex);
 
 	return engine;
 }
