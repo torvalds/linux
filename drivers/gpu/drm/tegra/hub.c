@@ -605,10 +605,7 @@ static struct tegra_display_hub_state *
 tegra_display_hub_get_state(struct tegra_display_hub *hub,
 			    struct drm_atomic_state *state)
 {
-	struct drm_device *drm = dev_get_drvdata(hub->client.parent);
 	struct drm_private_state *priv;
-
-	WARN_ON(!drm_modeset_is_locked(&drm->mode_config.connection_mutex));
 
 	priv = drm_atomic_get_private_obj_state(state, &hub->base);
 	if (IS_ERR(priv))

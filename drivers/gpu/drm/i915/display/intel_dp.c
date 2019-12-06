@@ -5476,15 +5476,13 @@ static bool bxt_digital_port_connected(struct intel_encoder *encoder)
 	return I915_READ(GEN8_DE_PORT_ISR) & bit;
 }
 
-static bool icl_combo_port_connected(struct drm_i915_private *dev_priv,
-				     struct intel_digital_port *intel_dig_port)
+static bool intel_combo_phy_connected(struct drm_i915_private *dev_priv,
+				      enum phy phy)
 {
-	enum port port = intel_dig_port->base.port;
-
-	if (HAS_PCH_MCC(dev_priv) && port == PORT_C)
+	if (HAS_PCH_MCC(dev_priv) && phy == PHY_C)
 		return I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(PORT_TC1);
 
-	return I915_READ(SDEISR) & SDE_DDI_HOTPLUG_ICP(port);
+	return I915_READ(SDEISR) & SDE_DDI_HOTPLUG_ICP(phy);
 }
 
 static bool icl_digital_port_connected(struct intel_encoder *encoder)
@@ -5494,7 +5492,7 @@ static bool icl_digital_port_connected(struct intel_encoder *encoder)
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
 	if (intel_phy_is_combo(dev_priv, phy))
-		return icl_combo_port_connected(dev_priv, dig_port);
+		return intel_combo_phy_connected(dev_priv, phy);
 	else if (intel_phy_is_tc(dev_priv, phy))
 		return intel_tc_port_connected(dig_port);
 	else

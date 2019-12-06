@@ -4,6 +4,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/workqueue.h>
+
 #include "i915_drv.h" /* for_each_engine() */
 #include "i915_request.h"
 #include "intel_gt.h"
@@ -29,6 +31,79 @@ static void flush_submission(struct intel_gt *gt)
 		intel_engine_flush_submission(engine);
 }
 
+static void engine_retire(struct work_struct *work)
+{
+	struct intel_engine_cs *engine =
+		container_of(work, typeof(*engine), retire_work);
+	struct intel_timeline *tl = xchg(&engine->retire, NULL);
+
+	do {
+		struct intel_timeline *next = xchg(&tl->retire, NULL);
+
+		/*
+		 * Our goal here is to retire _idle_ timelines as soon as
+		 * possible (as they are idle, we do not expect userspace
+		 * to be cleaning up anytime soon).
+		 *
+		 * If the timeline is currently locked, either it is being
+		 * retired elsewhere or about to be!
+		 */
+		if (mutex_trylock(&tl->mutex)) {
+			retire_requests(tl);
+			mutex_unlock(&tl->mutex);
+		}
+		intel_timeline_put(tl);
+
+		GEM_BUG_ON(!next);
+		tl = ptr_mask_bits(next, 1);
+	} while (tl);
+}
+
+static bool add_retire(struct intel_engine_cs *engine,
+		       struct intel_timeline *tl)
+{
+	struct intel_timeline *first;
+
+	/*
+	 * We open-code a llist here to include the additional tag [BIT(0)]
+	 * so that we know when the timeline is already on a
+	 * retirement queue: either this engine or another.
+	 *
+	 * However, we rely on that a timeline can only be active on a single
+	 * engine at any one time and that add_retire() is called before the
+	 * engine releases the timeline and transferred to another to retire.
+	 */
+
+	if (READ_ONCE(tl->retire)) /* already queued */
+		return false;
+
+	intel_timeline_get(tl);
+	first = READ_ONCE(engine->retire);
+	do
+		tl->retire = ptr_pack_bits(first, 1, 1);
+	while (!try_cmpxchg(&engine->retire, &first, tl));
+
+	return !first;
+}
+
+void intel_engine_add_retire(struct intel_engine_cs *engine,
+			     struct intel_timeline *tl)
+{
+	if (add_retire(engine, tl))
+		schedule_work(&engine->retire_work);
+}
+
+void intel_engine_init_retire(struct intel_engine_cs *engine)
+{
+	INIT_WORK(&engine->retire_work, engine_retire);
+}
+
+void intel_engine_fini_retire(struct intel_engine_cs *engine)
+{
+	flush_work(&engine->retire_work);
+	GEM_BUG_ON(engine->retire);
+}
+
 long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 {
 	struct intel_gt_timelines *timelines = &gt->timelines;
@@ -52,8 +127,8 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 		}
 
 		intel_timeline_get(tl);
-		GEM_BUG_ON(!tl->active_count);
-		tl->active_count++; /* pin the list element */
+		GEM_BUG_ON(!atomic_read(&tl->active_count));
+		atomic_inc(&tl->active_count); /* pin the list element */
 		spin_unlock_irqrestore(&timelines->lock, flags);
 
 		if (timeout > 0) {
@@ -74,7 +149,7 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 
 		/* Resume iteration after dropping lock */
 		list_safe_reset_next(tl, tn, link);
-		if (!--tl->active_count)
+		if (atomic_dec_and_test(&tl->active_count))
 			list_del(&tl->link);
 		else
 			active_count += !!rcu_access_pointer(tl->last_request.fence);
@@ -83,7 +158,7 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 
 		/* Defer the final release to after the spinlock */
 		if (refcount_dec_and_test(&tl->kref.refcount)) {
-			GEM_BUG_ON(tl->active_count);
+			GEM_BUG_ON(atomic_read(&tl->active_count));
 			list_add(&tl->link, &free);
 		}
 	}

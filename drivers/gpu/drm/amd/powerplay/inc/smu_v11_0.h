@@ -177,10 +177,9 @@ int smu_v11_0_notify_memory_pool_location(struct smu_context *smu);
 int smu_v11_0_system_features_control(struct smu_context *smu,
 					     bool en);
 
-int smu_v11_0_send_msg(struct smu_context *smu, uint16_t msg);
-
 int
-smu_v11_0_send_msg_with_param(struct smu_context *smu, uint16_t msg,
+smu_v11_0_send_msg_with_param(struct smu_context *smu,
+			      enum smu_message_type msg,
 			      uint32_t param);
 
 int smu_v11_0_read_arg(struct smu_context *smu, uint32_t *arg);
