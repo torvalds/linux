@@ -4873,6 +4873,10 @@
 			topology updates sent by the hypervisor to this
 			LPAR.
 
+	torture.disable_onoff_at_boot= [KNL]
+			Prevent the CPU-hotplug component of torturing
+			until after init has spawned.
+
 	tp720=		[HW,PS2]
 
 	tpm_suspend_pcr=[HW,TPM]
