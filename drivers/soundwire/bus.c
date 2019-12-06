@@ -710,7 +710,7 @@ static void sdw_modify_slave_status(struct sdw_slave *slave,
 {
 	mutex_lock(&slave->bus->bus_lock);
 
-	dev_vdbg(&slave->dev,
+	dev_dbg(&slave->dev,
 		 "%s: changing status slave %d status %d new status %d\n",
 		 __func__, slave->dev_num, slave->status, status);
 
