@@ -630,7 +630,10 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 			break;
 		} else if (input->prepare_stream_manage != PASS ||
 				input->stream_manage_write != PASS) {
-			fail_and_restart_in_ms(0, &status, output);
+			if (event_ctx->event == MOD_HDCP_EVENT_CALLBACK)
+				fail_and_restart_in_ms(0, &status, output);
+			else
+				increment_stay_counter(hdcp);
 			break;
 		}
 		callback_in_ms(100, output);
@@ -655,10 +658,12 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 			 */
 			if (hdcp->auth.count.stream_management_retry_count > 10) {
 				fail_and_restart_in_ms(0, &status, output);
-			} else {
+			} else if (event_ctx->event == MOD_HDCP_EVENT_CALLBACK) {
 				hdcp->auth.count.stream_management_retry_count++;
 				callback_in_ms(0, output);
 				set_state_id(hdcp, output, D2_A9_SEND_STREAM_MANAGEMENT);
+			} else {
+				increment_stay_counter(hdcp);
 			}
 			break;
 		}
