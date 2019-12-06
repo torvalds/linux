@@ -60,7 +60,7 @@ else
 endif
 
 INCLUDES = \
--I$(srctree)/tools/perf/lib/include \
+-I$(srctree)/tools/lib/perf/include \
 -I$(srctree)/tools/lib/ \
 -I$(srctree)/tools/include \
 -I$(srctree)/tools/arch/$(SRCARCH)/include/ \
