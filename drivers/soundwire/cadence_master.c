@@ -680,16 +680,19 @@ static int cdns_update_slave_status(struct sdw_cdns *cdns,
 		}
 
 		if (mask & CDNS_MCP_SLAVE_INTSTAT_ATTACHED) {
+			dev_dbg(cdns->dev, "Slave %d ATTACHED\n", i);
 			status[i] = SDW_SLAVE_ATTACHED;
 			set_status++;
 		}
 
 		if (mask & CDNS_MCP_SLAVE_INTSTAT_ALERT) {
+			dev_dbg(cdns->dev, "Slave %d ALERT\n", i);
 			status[i] = SDW_SLAVE_ALERT;
 			set_status++;
 		}
 
 		if (mask & CDNS_MCP_SLAVE_INTSTAT_NPRESENT) {
+			dev_dbg(cdns->dev, "Slave %d UNATTACHED\n", i);
 			status[i] = SDW_SLAVE_UNATTACHED;
 			set_status++;
 		}
