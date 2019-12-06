@@ -357,8 +357,7 @@ typedef int (*report_zones_cb)(struct blk_zone *zone, unsigned int idx,
 #define BLK_ALL_ZONES  ((unsigned int)-1)
 int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data);
-
-extern unsigned int blkdev_nr_zones(struct block_device *bdev);
+unsigned int blkdev_nr_zones(struct gendisk *disk);
 extern int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
 			    sector_t sectors, sector_t nr_sectors,
 			    gfp_t gfp_mask);
@@ -371,12 +370,7 @@ extern int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
 
 #else /* CONFIG_BLK_DEV_ZONED */
 
-static inline unsigned int blkdev_nr_zones(struct block_device *bdev)
-{
-	return 0;
-}
-
-static inline int blk_revalidate_disk_zones(struct gendisk *disk)
+static inline unsigned int blkdev_nr_zones(struct gendisk *disk)
 {
 	return 0;
 }
@@ -504,9 +498,9 @@ struct request_queue {
 	/*
 	 * Zoned block device information for request dispatch control.
 	 * nr_zones is the total number of zones of the device. This is always
-	 * 0 for regular block devices. seq_zones_bitmap is a bitmap of nr_zones
-	 * bits which indicates if a zone is conventional (bit clear) or
-	 * sequential (bit set). seq_zones_wlock is a bitmap of nr_zones
+	 * 0 for regular block devices. conv_zones_bitmap is a bitmap of nr_zones
+	 * bits which indicates if a zone is conventional (bit set) or
+	 * sequential (bit clear). seq_zones_wlock is a bitmap of nr_zones
 	 * bits which indicates if a zone is write locked, that is, if a write
 	 * request targeting the zone was dispatched. All three fields are
 	 * initialized by the low level device driver (e.g. scsi/sd.c).
@@ -519,7 +513,7 @@ struct request_queue {
 	 * blk_mq_unfreeze_queue().
 	 */
 	unsigned int		nr_zones;
-	unsigned long		*seq_zones_bitmap;
+	unsigned long		*conv_zones_bitmap;
 	unsigned long		*seq_zones_wlock;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
@@ -724,9 +718,11 @@ static inline unsigned int blk_queue_zone_no(struct request_queue *q,
 static inline bool blk_queue_zone_is_seq(struct request_queue *q,
 					 sector_t sector)
 {
-	if (!blk_queue_is_zoned(q) || !q->seq_zones_bitmap)
+	if (!blk_queue_is_zoned(q))
 		return false;
-	return test_bit(blk_queue_zone_no(q, sector), q->seq_zones_bitmap);
+	if (!q->conv_zones_bitmap)
+		return true;
+	return !test_bit(blk_queue_zone_no(q, sector), q->conv_zones_bitmap);
 }
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
