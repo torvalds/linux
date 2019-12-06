@@ -25,6 +25,7 @@
 #define _SMB2PDU_H
 
 #include <net/sock.h>
+#include <cifsacl.h>
 
 /*
  * Note that, due to trying to use names similar to the protocol specifications,
@@ -854,6 +855,15 @@ struct crt_query_id_ctxt {
 	struct create_context ccontext;
 	__u8	Name[8];
 } __packed;
+
+struct crt_sd_ctxt {
+	struct create_context ccontext;
+	__u8	Name[8];
+	struct smb3_sd sd;
+	struct smb3_acl acl;
+	/* Followed by at least 4 ACEs */
+} __packed;
+
 
 #define COPY_CHUNK_RES_KEY_SIZE	24
 struct resume_key_req {

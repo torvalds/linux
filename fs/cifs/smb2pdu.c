@@ -2191,6 +2191,72 @@ add_twarp_context(struct kvec *iov, unsigned int *num_iovec, __u64 timewarp)
 	return 0;
 }
 
+/* See MS-SMB2 2.2.13.2.2 and MS-DTYP 2.4.6 */
+static struct crt_sd_ctxt *
+create_sd_buf(umode_t mode, unsigned int *len)
+{
+	struct crt_sd_ctxt *buf;
+	struct cifs_ace *pace;
+	unsigned int sdlen, acelen;
+
+	*len = roundup(sizeof(struct crt_sd_ctxt) + sizeof(struct cifs_ace), 8);
+	buf = kzalloc(*len, GFP_KERNEL);
+	if (buf == NULL)
+		return buf;
+
+	sdlen = sizeof(struct smb3_sd) + sizeof(struct smb3_acl) +
+		 sizeof(struct cifs_ace);
+
+	buf->ccontext.DataOffset = cpu_to_le16(offsetof
+					(struct crt_sd_ctxt, sd));
+	buf->ccontext.DataLength = cpu_to_le32(sdlen);
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct crt_sd_ctxt, Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+	/* SMB2_CREATE_SD_BUFFER_TOKEN is "SecD" */
+	buf->Name[0] = 'S';
+	buf->Name[1] = 'e';
+	buf->Name[2] = 'c';
+	buf->Name[3] = 'D';
+	buf->sd.Revision = 1;  /* Must be one see MS-DTYP 2.4.6 */
+	/*
+	 * ACL is "self relative" ie ACL is stored in contiguous block of memory
+	 * and "DP" ie the DACL is present
+	 */
+	buf->sd.Control = cpu_to_le16(ACL_CONTROL_SR | ACL_CONTROL_DP);
+
+	/* offset owner, group and Sbz1 and SACL are all zero */
+	buf->sd.OffsetDacl = cpu_to_le32(sizeof(struct smb3_sd));
+	buf->acl.AclRevision = ACL_REVISION; /* See 2.4.4.1 of MS-DTYP */
+
+	/* create one ACE to hold the mode embedded in reserved special SID */
+	pace = (struct cifs_ace *)(sizeof(struct crt_sd_ctxt) + (char *)buf);
+	acelen = setup_special_mode_ACE(pace, (__u64)mode);
+	buf->acl.AclSize = cpu_to_le16(sizeof(struct cifs_acl) + acelen);
+	buf->acl.AceCount = cpu_to_le16(1);
+	return buf;
+}
+
+static int
+add_sd_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
+{
+	struct smb2_create_req *req = iov[0].iov_base;
+	unsigned int num = *num_iovec;
+	unsigned int len = 0;
+
+	iov[num].iov_base = create_sd_buf(mode, &len);
+	if (iov[num].iov_base == NULL)
+		return -ENOMEM;
+	iov[num].iov_len = len;
+	if (!req->CreateContextsOffset)
+		req->CreateContextsOffset = cpu_to_le32(
+				sizeof(struct smb2_create_req) +
+				iov[num - 1].iov_len);
+	le32_add_cpu(&req->CreateContextsLength, len);
+	*num_iovec = num + 1;
+	return 0;
+}
+
 static struct crt_query_id_ctxt *
 create_query_id_buf(void)
 {
@@ -2563,7 +2629,7 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 			return rc;
 	}
 
-	if ((oparms->disposition == FILE_CREATE) &&
+	if ((oparms->disposition != FILE_OPEN) &&
 	    (oparms->mode != ACL_NO_MODE)) {
 		if (n_iov > 2) {
 			struct create_context *ccontext =
@@ -2572,7 +2638,8 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 				cpu_to_le32(iov[n_iov-1].iov_len);
 		}
 
-		/* rc = add_sd_context(iov, &n_iov, oparms->mode); */
+		cifs_dbg(FYI, "add sd with mode 0x%x\n", oparms->mode);
+		rc = add_sd_context(iov, &n_iov, oparms->mode);
 		if (rc)
 			return rc;
 	}

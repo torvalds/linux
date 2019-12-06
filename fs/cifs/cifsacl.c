@@ -802,6 +802,31 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	return;
 }
 
+/*
+ * Fill in the special SID based on the mode. See
+ * http://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx
+ */
+unsigned int setup_special_mode_ACE(struct cifs_ace *pntace, __u64 nmode)
+{
+	int i;
+	unsigned int ace_size = 28;
+
+	pntace->type = ACCESS_DENIED_ACE_TYPE;
+	pntace->flags = 0x0;
+	pntace->access_req = 0;
+	pntace->sid.num_subauth = 3;
+	pntace->sid.revision = 1;
+	for (i = 0; i < NUM_AUTHS; i++)
+		pntace->sid.authority[i] = sid_unix_NFS_mode.authority[i];
+
+	pntace->sid.sub_auth[0] = sid_unix_NFS_mode.sub_auth[0];
+	pntace->sid.sub_auth[1] = sid_unix_NFS_mode.sub_auth[1];
+	pntace->sid.sub_auth[2] = cpu_to_le32(nmode & 07777);
+
+	/* size = 1 + 1 + 2 + 4 + 1 + 1 + 6 + (psid->num_subauth*4) */
+	pntace->size = cpu_to_le16(ace_size);
+	return ace_size;
+}
 
 static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
 			struct cifs_sid *pgrpsid, __u64 nmode, bool modefromsid)
@@ -815,23 +840,8 @@ static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
 	if (modefromsid) {
 		struct cifs_ace *pntace =
 			(struct cifs_ace *)((char *)pnndacl + size);
-		int i;
 
-		pntace->type = ACCESS_ALLOWED;
-		pntace->flags = 0x0;
-		pntace->access_req = 0;
-		pntace->sid.num_subauth = 3;
-		pntace->sid.revision = 1;
-		for (i = 0; i < NUM_AUTHS; i++)
-			pntace->sid.authority[i] =
-				sid_unix_NFS_mode.authority[i];
-		pntace->sid.sub_auth[0] = sid_unix_NFS_mode.sub_auth[0];
-		pntace->sid.sub_auth[1] = sid_unix_NFS_mode.sub_auth[1];
-		pntace->sid.sub_auth[2] = cpu_to_le32(nmode & 07777);
-
-		/* size = 1 + 1 + 2 + 4 + 1 + 1 + 6 + (psid->num_subauth*4) */
-		pntace->size = cpu_to_le16(28);
-		size += 28;
+		size += setup_special_mode_ACE(pntace, nmode);
 		num_aces++;
 	}
 
