@@ -365,7 +365,7 @@ static void intel_pch_thermal_remove(struct pci_dev *pdev)
 	thermal_zone_device_unregister(ptd->tzd);
 	iounmap(ptd->hw_base);
 	pci_set_drvdata(pdev, NULL);
-	pci_release_region(pdev, 0);
+	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
 
