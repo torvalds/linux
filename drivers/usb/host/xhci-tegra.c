@@ -626,9 +626,9 @@ static irqreturn_t tegra_xusb_mbox_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void tegra_xusb_config(struct tegra_xusb *tegra,
-			      struct resource *regs)
+static void tegra_xusb_config(struct tegra_xusb *tegra)
 {
+	u32 regs = tegra->hcd->rsrc_start;
 	u32 value;
 
 	if (tegra->soc->has_ipfs) {
@@ -642,7 +642,7 @@ static void tegra_xusb_config(struct tegra_xusb *tegra,
 	/* Program BAR0 space */
 	value = fpci_readl(tegra, XUSB_CFG_4);
 	value &= ~(XUSB_BASE_ADDR_MASK << XUSB_BASE_ADDR_SHIFT);
-	value |= regs->start & (XUSB_BASE_ADDR_MASK << XUSB_BASE_ADDR_SHIFT);
+	value |= regs & (XUSB_BASE_ADDR_MASK << XUSB_BASE_ADDR_SHIFT);
 	fpci_writel(tegra, value, XUSB_CFG_4);
 
 	usleep_range(100, 200);
@@ -1226,6 +1226,10 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto put_powerdomains;
 	}
 
+	tegra->hcd->regs = tegra->regs;
+	tegra->hcd->rsrc_start = regs->start;
+	tegra->hcd->rsrc_len = resource_size(regs);
+
 	/*
 	 * This must happen after usb_create_hcd(), because usb_create_hcd()
 	 * will overwrite the drvdata of the device with the hcd it creates.
@@ -1249,7 +1253,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto disable_phy;
 	}
 
-	tegra_xusb_config(tegra, regs);
+	tegra_xusb_config(tegra);
 
 	/*
 	 * The XUSB Falcon microcontroller can only address 40 bits, so set
@@ -1272,10 +1276,6 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to load firmware: %d\n", err);
 		goto free_firmware;
 	}
-
-	tegra->hcd->regs = tegra->regs;
-	tegra->hcd->rsrc_start = regs->start;
-	tegra->hcd->rsrc_len = resource_size(regs);
 
 	err = usb_add_hcd(tegra->hcd, tegra->xhci_irq, IRQF_SHARED);
 	if (err < 0) {
