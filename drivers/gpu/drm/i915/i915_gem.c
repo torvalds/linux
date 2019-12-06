@@ -670,11 +670,12 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		user_data += page_length;
 		offset += page_length;
 	}
+
+	intel_gt_flush_ggtt_writes(ggtt->vm.gt);
 	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
 
 	i915_gem_object_unlock_fence(obj, fence);
 out_unpin:
-	intel_gt_flush_ggtt_writes(ggtt->vm.gt);
 	if (drm_mm_node_allocated(&node)) {
 		ggtt->vm.clear_range(&ggtt->vm, node.start, node.size);
 		remove_mappable_node(ggtt, &node);
