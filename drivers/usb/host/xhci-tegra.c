@@ -11,6 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -101,6 +102,8 @@
 #define  L2IMEMOP_ACTION_SHIFT			24
 #define  L2IMEMOP_INVALIDATE_ALL		(0x40 << L2IMEMOP_ACTION_SHIFT)
 #define  L2IMEMOP_LOAD_LOCKED_RESULT		(0x11 << L2IMEMOP_ACTION_SHIFT)
+#define XUSB_CSB_MEMPOOL_L2IMEMOP_RESULT	0x101a18
+#define  L2IMEMOP_RESULT_VLD			BIT(31)
 #define XUSB_CSB_MP_APMAP			0x10181c
 #define  APMAP_BOOTPATH				BIT(31)
 
@@ -836,6 +839,7 @@ static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
 	struct tm time;
 	u64 address;
 	u32 value;
+	int err;
 
 	header = (struct tegra_xusb_fw_header *)tegra->fw.virt;
 
@@ -893,7 +897,16 @@ static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
 
 	csb_writel(tegra, 0, XUSB_FALC_DMACTL);
 
-	msleep(50);
+	/* wait for RESULT_VLD to get set */
+#define tegra_csb_readl(offset) csb_readl(tegra, offset)
+	err = readx_poll_timeout(tegra_csb_readl,
+				 XUSB_CSB_MEMPOOL_L2IMEMOP_RESULT, value,
+				 value & L2IMEMOP_RESULT_VLD, 100, 10000);
+	if (err < 0) {
+		dev_err(dev, "DMA controller not ready %#010x\n", value);
+		return err;
+	}
+#undef tegra_csb_readl
 
 	csb_writel(tegra, le32_to_cpu(header->boot_codetag),
 		   XUSB_FALC_BOOTVEC);
