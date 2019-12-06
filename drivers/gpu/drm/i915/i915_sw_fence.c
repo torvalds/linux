@@ -428,8 +428,10 @@ static void dma_i915_sw_fence_wake_timer(struct dma_fence *dma,
 	struct i915_sw_fence *fence;
 
 	fence = xchg(&cb->base.fence, NULL);
-	if (fence)
+	if (fence) {
+		i915_sw_fence_set_error_once(fence, dma->error);
 		i915_sw_fence_complete(fence);
+	}
 
 	irq_work_queue(&cb->work);
 }
@@ -457,8 +459,10 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 	debug_fence_assert(fence);
 	might_sleep_if(gfpflags_allow_blocking(gfp));
 
-	if (dma_fence_is_signaled(dma))
+	if (dma_fence_is_signaled(dma)) {
+		i915_sw_fence_set_error_once(fence, dma->error);
 		return 0;
+	}
 
 	cb = kmalloc(timeout ?
 		     sizeof(struct i915_sw_dma_fence_cb_timer) :
@@ -468,7 +472,12 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 		if (!gfpflags_allow_blocking(gfp))
 			return -ENOMEM;
 
-		return dma_fence_wait(dma, false);
+		ret = dma_fence_wait(dma, false);
+		if (ret)
+			return ret;
+
+		i915_sw_fence_set_error_once(fence, dma->error);
+		return 0;
 	}
 
 	cb->fence = fence;
@@ -518,8 +527,10 @@ int __i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 
 	debug_fence_assert(fence);
 
-	if (dma_fence_is_signaled(dma))
+	if (dma_fence_is_signaled(dma)) {
+		i915_sw_fence_set_error_once(fence, dma->error);
 		return 0;
+	}
 
 	cb->fence = fence;
 	i915_sw_fence_await(fence);
@@ -553,8 +564,7 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 		struct dma_fence **shared;
 		unsigned int count, i;
 
-		ret = dma_resv_get_fences_rcu(resv,
-							&excl, &count, &shared);
+		ret = dma_resv_get_fences_rcu(resv, &excl, &count, &shared);
 		if (ret)
 			return ret;
 
