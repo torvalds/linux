@@ -155,12 +155,25 @@ struct tegra_xusb_mbox_regs {
 	u16 owner;
 };
 
+struct tegra_xusb_context_soc {
+	struct {
+		const unsigned int *offsets;
+		unsigned int num_offsets;
+	} ipfs;
+
+	struct {
+		const unsigned int *offsets;
+		unsigned int num_offsets;
+	} fpci;
+};
+
 struct tegra_xusb_soc {
 	const char *firmware;
 	const char * const *supply_names;
 	unsigned int num_supplies;
 	const struct tegra_xusb_phy_type *phy_types;
 	unsigned int num_types;
+	const struct tegra_xusb_context_soc *context;
 
 	struct {
 		struct {
@@ -173,6 +186,11 @@ struct tegra_xusb_soc {
 
 	bool scale_ss_clock;
 	bool has_ipfs;
+};
+
+struct tegra_xusb_context {
+	u32 *ipfs;
+	u32 *fpci;
 };
 
 struct tegra_xusb {
@@ -221,6 +239,8 @@ struct tegra_xusb {
 		void *virt;
 		dma_addr_t phys;
 	} fw;
+
+	struct tegra_xusb_context context;
 };
 
 static struct hc_driver __read_mostly tegra_xhci_hc_driver;
@@ -796,6 +816,37 @@ disable_clk:
 	return err;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int tegra_xusb_init_context(struct tegra_xusb *tegra)
+{
+	const struct tegra_xusb_context_soc *soc = tegra->soc->context;
+
+	/*
+	 * Skip support for context save/restore if the SoC doesn't have any
+	 * XUSB specific context that needs to be saved/restored.
+	 */
+	if (!soc)
+		return 0;
+
+	tegra->context.ipfs = devm_kcalloc(tegra->dev, soc->ipfs.num_offsets,
+					   sizeof(u32), GFP_KERNEL);
+	if (!tegra->context.ipfs)
+		return -ENOMEM;
+
+	tegra->context.fpci = devm_kcalloc(tegra->dev, soc->ipfs.num_offsets,
+					   sizeof(u32), GFP_KERNEL);
+	if (!tegra->context.fpci)
+		return -ENOMEM;
+
+	return 0;
+}
+#else
+static inline int tegra_xusb_init_context(struct tegra_xusb *tegra)
+{
+	return 0;
+}
+#endif
+
 static int tegra_xusb_request_firmware(struct tegra_xusb *tegra)
 {
 	struct tegra_xusb_fw_header *header;
@@ -1038,6 +1089,10 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	tegra->soc = of_device_get_match_data(&pdev->dev);
 	mutex_init(&tegra->lock);
 	tegra->dev = &pdev->dev;
+
+	err = tegra_xusb_init_context(tegra);
+	if (err < 0)
+		return err;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tegra->regs = devm_ioremap_resource(&pdev->dev, regs);
@@ -1382,14 +1437,55 @@ static int tegra_xusb_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static void tegra_xusb_save_context(struct tegra_xusb *tegra)
+{
+	const struct tegra_xusb_context_soc *soc = tegra->soc->context;
+	struct tegra_xusb_context *ctx = &tegra->context;
+	unsigned int i;
+
+	if (soc && soc->ipfs.num_offsets > 0) {
+		for (i = 0; i < soc->ipfs.num_offsets; i++)
+			ctx->ipfs[i] = ipfs_readl(tegra, soc->ipfs.offsets[i]);
+	}
+
+	if (soc && soc->fpci.num_offsets > 0) {
+		for (i = 0; i < soc->fpci.num_offsets; i++)
+			ctx->fpci[i] = fpci_readl(tegra, soc->fpci.offsets[i]);
+	}
+}
+
+static void tegra_xusb_restore_context(struct tegra_xusb *tegra)
+{
+	const struct tegra_xusb_context_soc *soc = tegra->soc->context;
+	struct tegra_xusb_context *ctx = &tegra->context;
+	unsigned int i;
+
+	if (soc && soc->fpci.num_offsets > 0) {
+		for (i = 0; i < soc->fpci.num_offsets; i++)
+			fpci_writel(tegra, ctx->fpci[i], soc->fpci.offsets[i]);
+	}
+
+	if (soc && soc->ipfs.num_offsets > 0) {
+		for (i = 0; i < soc->ipfs.num_offsets; i++)
+			ipfs_writel(tegra, ctx->ipfs[i], soc->ipfs.offsets[i]);
+	}
+}
+
 static int tegra_xusb_suspend(struct device *dev)
 {
 	struct tegra_xusb *tegra = dev_get_drvdata(dev);
 	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
 	bool wakeup = device_may_wakeup(dev);
+	int err;
 
 	/* TODO: Powergate controller across suspend/resume. */
-	return xhci_suspend(xhci, wakeup);
+	err = xhci_suspend(xhci, wakeup);
+	if (err < 0)
+		return err;
+
+	tegra_xusb_save_context(tegra);
+
+	return 0;
 }
 
 static int tegra_xusb_resume(struct device *dev)
@@ -1397,7 +1493,9 @@ static int tegra_xusb_resume(struct device *dev)
 	struct tegra_xusb *tegra = dev_get_drvdata(dev);
 	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
 
-	return xhci_resume(xhci, 0);
+	tegra_xusb_restore_context(tegra);
+
+	return xhci_resume(xhci, false);
 }
 #endif
 
