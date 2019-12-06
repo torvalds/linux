@@ -2713,7 +2713,8 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		return -EINVAL;
 	}
 
-	if (!(props->sample_flags & SAMPLE_OA_REPORT)) {
+	if (!(props->sample_flags & SAMPLE_OA_REPORT) &&
+	    (INTEL_GEN(perf->i915) < 12 || !stream->ctx)) {
 		DRM_DEBUG("Only OA report sampling supported\n");
 		return -EINVAL;
 	}
@@ -2745,7 +2746,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	format_size = perf->oa_formats[props->oa_format].size;
 
-	stream->sample_flags |= SAMPLE_OA_REPORT;
+	stream->sample_flags = props->sample_flags;
 	stream->sample_size += format_size;
 
 	stream->oa_buffer.format_size = format_size;
