@@ -979,6 +979,19 @@ static void drm_dp_aux_crc_work(struct work_struct *work)
 }
 
 /**
+ * drm_dp_remote_aux_init() - minimally initialise a remote aux channel
+ * @aux: DisplayPort AUX channel
+ *
+ * Used for remote aux channel in general. Merely initialize the crc work
+ * struct.
+ */
+void drm_dp_remote_aux_init(struct drm_dp_aux *aux)
+{
+	INIT_WORK(&aux->crc_work, drm_dp_aux_crc_work);
+}
+EXPORT_SYMBOL(drm_dp_remote_aux_init);
+
+/**
  * drm_dp_aux_init() - minimally initialise an aux channel
  * @aux: DisplayPort AUX channel
  *
