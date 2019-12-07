@@ -6,7 +6,6 @@
  *   Author: Stefan Mavrodiev <stefan@olimex.com>
  */
 
-#include <linux/backlight.h>
 #include <linux/crc32.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -68,7 +67,6 @@ struct lcd_olinuxino {
 	bool prepared;
 	bool enabled;
 
-	struct backlight_device *backlight;
 	struct regulator *supply;
 	struct gpio_desc *enable_gpio;
 
@@ -86,8 +84,6 @@ static int lcd_olinuxino_disable(struct drm_panel *panel)
 
 	if (!lcd->enabled)
 		return 0;
-
-	backlight_disable(lcd->backlight);
 
 	lcd->enabled = false;
 
@@ -133,8 +129,6 @@ static int lcd_olinuxino_enable(struct drm_panel *panel)
 
 	if (lcd->enabled)
 		return 0;
-
-	backlight_enable(lcd->backlight);
 
 	lcd->enabled = true;
 
@@ -283,12 +277,12 @@ static int lcd_olinuxino_probe(struct i2c_client *client,
 	if (IS_ERR(lcd->enable_gpio))
 		return PTR_ERR(lcd->enable_gpio);
 
-	lcd->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(lcd->backlight))
-		return PTR_ERR(lcd->backlight);
-
 	drm_panel_init(&lcd->panel, dev, &lcd_olinuxino_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
+
+	ret = drm_panel_of_backlight(&lcd->panel);
+	if (ret)
+		return ret;
 
 	return drm_panel_add(&lcd->panel);
 }
@@ -299,8 +293,8 @@ static int lcd_olinuxino_remove(struct i2c_client *client)
 
 	drm_panel_remove(&panel->panel);
 
-	lcd_olinuxino_disable(&panel->panel);
-	lcd_olinuxino_unprepare(&panel->panel);
+	drm_panel_disable(&panel->panel);
+	drm_panel_unprepare(&panel->panel);
 
 	return 0;
 }
