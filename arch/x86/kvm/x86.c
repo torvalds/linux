@@ -4703,9 +4703,6 @@ static int kvm_vm_ioctl_reinject(struct kvm *kvm,
 {
 	struct kvm_pit *pit = kvm->arch.vpit;
 
-	if (!pit)
-		return -ENXIO;
-
 	/* pit->pit_state.lock was overloaded to prevent userspace from getting
 	 * an inconsistent state after running multiple KVM_REINJECT_CONTROL
 	 * ioctls in parallel.  Use a separate lock if that ioctl isn't rare.
@@ -5071,6 +5068,9 @@ set_identity_unlock:
 		struct kvm_reinject_control control;
 		r =  -EFAULT;
 		if (copy_from_user(&control, argp, sizeof(control)))
+			goto out;
+		r = -ENXIO;
+		if (!kvm->arch.vpit)
 			goto out;
 		r = kvm_vm_ioctl_reinject(kvm, &control);
 		break;
