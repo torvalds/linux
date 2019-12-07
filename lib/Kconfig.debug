@@ -295,18 +295,6 @@ config READABLE_ASM
           to keep kernel developers who have to stare a lot at assembler listings
           sane.
 
-config DEBUG_FS
-	bool "Debug Filesystem"
-	help
-	  debugfs is a virtual file system that kernel developers use to put
-	  debugging files into.  Enable this option to be able to read and
-	  write to these files.
-
-	  For detailed documentation on the debugfs API, see
-	  Documentation/filesystems/.
-
-	  If unsure, say N.
-
 config HEADERS_INSTALL
 	bool "Install uapi headers to usr/include"
 	depends on !UML
@@ -442,6 +430,18 @@ config MAGIC_SYSRQ_SERIAL
 	  generate some garbage that can lead to spurious false sysrq detects.
 	  This option allows you to decide whether you want to enable the
 	  magic SysRq key.
+
+config DEBUG_FS
+	bool "Debug Filesystem"
+	help
+	  debugfs is a virtual file system that kernel developers use to put
+	  debugging files into.  Enable this option to be able to read and
+	  write to these files.
+
+	  For detailed documentation on the debugfs API, see
+	  Documentation/filesystems/.
+
+	  If unsure, say N.
 
 source "lib/Kconfig.kgdb"
 
