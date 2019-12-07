@@ -620,6 +620,15 @@ i915_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 	enum i915_mmap_type type;
 	int err;
 
+	/*
+	 * Historically we failed to check args.pad and args.offset
+	 * and so we cannot use those fields for user input and we cannot
+	 * add -EINVAL for them as the ABI is fixed, i.e. old userspace
+	 * may be feeding in garbage in those fields.
+	 *
+	 * if (args->pad) return -EINVAL; is verbotten!
+	 */
+
 	err = i915_user_extensions(u64_to_user_ptr(args->extensions),
 				   NULL, 0, NULL);
 	if (err)
