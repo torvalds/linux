@@ -112,7 +112,7 @@ static int panel_lvds_get_modes(struct drm_panel *panel,
 	struct panel_lvds *lvds = to_panel_lvds(panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_create(lvds->panel.drm);
+	mode = drm_mode_create(connector->dev);
 	if (!mode)
 		return 0;
 

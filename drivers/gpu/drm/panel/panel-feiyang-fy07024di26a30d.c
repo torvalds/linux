@@ -168,7 +168,7 @@ static int feiyang_get_modes(struct drm_panel *panel,
 	struct feiyang *ctx = panel_to_feiyang(panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &feiyang_default_mode);
+	mode = drm_mode_duplicate(connector->dev, &feiyang_default_mode);
 	if (!mode) {
 		DRM_DEV_ERROR(&ctx->dsi->dev, "failed to add mode %ux%ux@%u\n",
 			      feiyang_default_mode.hdisplay,

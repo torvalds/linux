@@ -394,7 +394,7 @@ static int tpg110_get_modes(struct drm_panel *panel,
 	connector->display_info.height_mm = tpg->height;
 	connector->display_info.bus_flags = tpg->panel_mode->bus_flags;
 
-	mode = drm_mode_duplicate(panel->drm, &tpg->panel_mode->mode);
+	mode = drm_mode_duplicate(connector->dev, &tpg->panel_mode->mode);
 	drm_mode_set_name(mode);
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 

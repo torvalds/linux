@@ -351,7 +351,7 @@ static int td043mtea1_get_modes(struct drm_panel *panel,
 {
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &td043mtea1_mode);
+	mode = drm_mode_duplicate(connector->dev, &td043mtea1_mode);
 	if (!mode)
 		return -ENOMEM;
 

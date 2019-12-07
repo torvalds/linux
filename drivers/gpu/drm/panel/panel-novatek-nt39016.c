@@ -213,7 +213,7 @@ static int nt39016_get_modes(struct drm_panel *drm_panel,
 	const struct nt39016_panel_info *panel_info = panel->panel_info;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(drm_panel->drm, &panel_info->display_mode);
+	mode = drm_mode_duplicate(connector->dev, &panel_info->display_mode);
 	if (!mode)
 		return -ENOMEM;
 

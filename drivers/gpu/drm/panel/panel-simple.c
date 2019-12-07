@@ -120,7 +120,6 @@ static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
 static unsigned int panel_simple_get_timings_modes(struct panel_simple *panel,
 						   struct drm_connector *connector)
 {
-	struct drm_device *drm = panel->base.drm;
 	struct drm_display_mode *mode;
 	unsigned int i, num = 0;
 
@@ -129,9 +128,9 @@ static unsigned int panel_simple_get_timings_modes(struct panel_simple *panel,
 		struct videomode vm;
 
 		videomode_from_timing(dt, &vm);
-		mode = drm_mode_create(drm);
+		mode = drm_mode_create(connector->dev);
 		if (!mode) {
-			dev_err(drm->dev, "failed to add mode %ux%u\n",
+			dev_err(panel->base.dev, "failed to add mode %ux%u\n",
 				dt->hactive.typ, dt->vactive.typ);
 			continue;
 		}
@@ -153,16 +152,15 @@ static unsigned int panel_simple_get_timings_modes(struct panel_simple *panel,
 static unsigned int panel_simple_get_display_modes(struct panel_simple *panel,
 						   struct drm_connector *connector)
 {
-	struct drm_device *drm = panel->base.drm;
 	struct drm_display_mode *mode;
 	unsigned int i, num = 0;
 
 	for (i = 0; i < panel->desc->num_modes; i++) {
 		const struct drm_display_mode *m = &panel->desc->modes[i];
 
-		mode = drm_mode_duplicate(drm, m);
+		mode = drm_mode_duplicate(connector->dev, m);
 		if (!mode) {
-			dev_err(drm->dev, "failed to add mode %ux%u@%u\n",
+			dev_err(panel->base.dev, "failed to add mode %ux%u@%u\n",
 				m->hdisplay, m->vdisplay, m->vrefresh);
 			continue;
 		}
@@ -184,7 +182,6 @@ static unsigned int panel_simple_get_display_modes(struct panel_simple *panel,
 static int panel_simple_get_non_edid_modes(struct panel_simple *panel,
 					   struct drm_connector *connector)
 {
-	struct drm_device *drm = panel->base.drm;
 	struct drm_display_mode *mode;
 	bool has_override = panel->override_mode.type;
 	unsigned int num = 0;
@@ -193,12 +190,13 @@ static int panel_simple_get_non_edid_modes(struct panel_simple *panel,
 		return 0;
 
 	if (has_override) {
-		mode = drm_mode_duplicate(drm, &panel->override_mode);
+		mode = drm_mode_duplicate(connector->dev,
+					  &panel->override_mode);
 		if (mode) {
 			drm_mode_probed_add(connector, mode);
 			num = 1;
 		} else {
-			dev_err(drm->dev, "failed to add override mode\n");
+			dev_err(panel->base.dev, "failed to add override mode\n");
 		}
 	}
 

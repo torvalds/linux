@@ -211,7 +211,7 @@ static int innolux_panel_enable(struct drm_panel *panel)
 
 	ret = backlight_enable(innolux->backlight);
 	if (ret) {
-		DRM_DEV_ERROR(panel->drm->dev,
+		DRM_DEV_ERROR(panel->dev,
 			      "Failed to enable backlight %d\n", ret);
 		return ret;
 	}
@@ -410,9 +410,9 @@ static int innolux_panel_get_modes(struct drm_panel *panel,
 	const struct drm_display_mode *m = innolux->desc->mode;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, m);
+	mode = drm_mode_duplicate(connector->dev, m);
 	if (!mode) {
-		DRM_DEV_ERROR(panel->drm->dev, "failed to add mode %ux%ux@%u\n",
+		DRM_DEV_ERROR(panel->dev, "failed to add mode %ux%ux@%u\n",
 			      m->hdisplay, m->vdisplay, m->vrefresh);
 		return -ENOMEM;
 	}

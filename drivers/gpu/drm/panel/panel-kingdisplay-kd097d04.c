@@ -310,7 +310,7 @@ static int kingdisplay_panel_enable(struct drm_panel *panel)
 
 	ret = backlight_enable(kingdisplay->backlight);
 	if (ret) {
-		DRM_DEV_ERROR(panel->drm->dev,
+		DRM_DEV_ERROR(panel->dev,
 			      "Failed to enable backlight %d\n", ret);
 		return ret;
 	}
@@ -338,9 +338,9 @@ static int kingdisplay_panel_get_modes(struct drm_panel *panel,
 {
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
-		DRM_DEV_ERROR(panel->drm->dev, "failed to add mode %ux%ux@%u\n",
+		DRM_DEV_ERROR(panel->dev, "failed to add mode %ux%ux@%u\n",
 			      default_mode.hdisplay, default_mode.vdisplay,
 			      default_mode.vrefresh);
 		return -ENOMEM;

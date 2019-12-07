@@ -114,11 +114,6 @@ EXPORT_SYMBOL(drm_panel_remove);
  */
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
 {
-	if (panel->drm)
-		return -EBUSY;
-
-	panel->drm = connector->dev;
-
 	return 0;
 }
 EXPORT_SYMBOL(drm_panel_attach);
@@ -135,7 +130,6 @@ EXPORT_SYMBOL(drm_panel_attach);
  */
 void drm_panel_detach(struct drm_panel *panel)
 {
-	panel->drm = NULL;
 }
 EXPORT_SYMBOL(drm_panel_detach);
 

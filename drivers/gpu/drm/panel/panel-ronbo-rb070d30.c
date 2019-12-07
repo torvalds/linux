@@ -127,7 +127,7 @@ static int rb070d30_panel_get_modes(struct drm_panel *panel,
 	struct drm_display_mode *mode;
 	static const u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
-	mode = drm_mode_duplicate(panel->drm, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
 		DRM_DEV_ERROR(&ctx->dsi->dev,
 			      "Failed to add mode " DRM_MODE_FMT "\n",

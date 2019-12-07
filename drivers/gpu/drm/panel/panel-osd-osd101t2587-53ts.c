@@ -118,9 +118,9 @@ static int osd101t2587_panel_get_modes(struct drm_panel *panel,
 	struct osd101t2587_panel *osd101t2587 = ti_osd_panel(panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, osd101t2587->default_mode);
+	mode = drm_mode_duplicate(connector->dev, osd101t2587->default_mode);
 	if (!mode) {
-		dev_err(panel->drm->dev, "failed to add mode %ux%ux@%u\n",
+		dev_err(panel->dev, "failed to add mode %ux%ux@%u\n",
 			osd101t2587->default_mode->hdisplay,
 			osd101t2587->default_mode->vdisplay,
 			osd101t2587->default_mode->vrefresh);

@@ -130,13 +130,6 @@ struct drm_panel_funcs {
  */
 struct drm_panel {
 	/**
-	 * @drm:
-	 *
-	 * DRM device owning the panel.
-	 */
-	struct drm_device *drm;
-
-	/**
 	 * @dev:
 	 *
 	 * Parent device of the panel.

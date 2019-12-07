@@ -105,7 +105,7 @@ static int ls037v7dw01_get_modes(struct drm_panel *panel,
 {
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &ls037v7dw01_mode);
+	mode = drm_mode_duplicate(connector->dev, &ls037v7dw01_mode);
 	if (!mode)
 		return -ENOMEM;
 

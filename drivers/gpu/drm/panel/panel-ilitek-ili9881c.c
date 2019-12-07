@@ -393,7 +393,7 @@ static int ili9881c_get_modes(struct drm_panel *panel,
 	struct ili9881c *ctx = panel_to_ili9881c(panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &bananapi_default_mode);
+	mode = drm_mode_duplicate(connector->dev, &bananapi_default_mode);
 	if (!mode) {
 		dev_err(&ctx->dsi->dev, "failed to add mode %ux%ux@%u\n",
 			bananapi_default_mode.hdisplay,

@@ -271,7 +271,7 @@ static int st7701_get_modes(struct drm_panel *panel,
 	const struct drm_display_mode *desc_mode = st7701->desc->mode;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, desc_mode);
+	mode = drm_mode_duplicate(connector->dev, desc_mode);
 	if (!mode) {
 		DRM_DEV_ERROR(&st7701->dsi->dev,
 			      "failed to add mode %ux%ux@%u\n",
