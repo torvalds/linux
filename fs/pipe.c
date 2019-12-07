@@ -276,16 +276,25 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 	size_t total_len = iov_iter_count(to);
 	struct file *filp = iocb->ki_filp;
 	struct pipe_inode_info *pipe = filp->private_data;
-	int do_wakeup;
+	bool was_full;
 	ssize_t ret;
 
 	/* Null read succeeds. */
 	if (unlikely(total_len == 0))
 		return 0;
 
-	do_wakeup = 0;
 	ret = 0;
 	__pipe_lock(pipe);
+
+	/*
+	 * We only wake up writers if the pipe was full when we started
+	 * reading in order to avoid unnecessary wakeups.
+	 *
+	 * But when we do wake up writers, we do so using a sync wakeup
+	 * (WF_SYNC), because we want them to get going and generate more
+	 * data for us.
+	 */
+	was_full = pipe_full(pipe->head, pipe->tail, pipe->max_usage);
 	for (;;) {
 		unsigned int head = pipe->head;
 		unsigned int tail = pipe->tail;
@@ -324,19 +333,11 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 			}
 
 			if (!buf->len) {
-				bool wake;
 				pipe_buf_release(pipe, buf);
 				spin_lock_irq(&pipe->wait.lock);
 				tail++;
 				pipe->tail = tail;
-				do_wakeup = 1;
-				wake = head - (tail - 1) == pipe->max_usage / 2;
-				if (wake)
-					wake_up_locked_poll(
-						&pipe->wait, EPOLLOUT | EPOLLWRNORM);
 				spin_unlock_irq(&pipe->wait.lock);
-				if (wake)
-					kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 			}
 			total_len -= chars;
 			if (!total_len)
@@ -365,13 +366,17 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 				ret = -ERESTARTSYS;
 			break;
 		}
+		if (was_full) {
+			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
+			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
+		}
 		pipe_wait(pipe);
+		was_full = pipe_full(pipe->head, pipe->tail, pipe->max_usage);
 	}
 	__pipe_unlock(pipe);
 
-	/* Signal writers asynchronously that there is more room. */
-	if (do_wakeup) {
-		wake_up_interruptible_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
+	if (was_full) {
+		wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
 	if (ret > 0)
