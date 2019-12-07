@@ -3712,17 +3712,9 @@ static int bond_neigh_init(struct neighbour *n)
 		return 0;
 
 	parms.neigh_setup = NULL;
-	parms.neigh_cleanup = NULL;
 	ret = slave_ops->ndo_neigh_setup(slave->dev, &parms);
 	if (ret)
 		return ret;
-
-	/* Assign slave's neigh_cleanup to neighbour in case cleanup is called
-	 * after the last slave has been detached.  Assumes that all slaves
-	 * utilize the same neigh_cleanup (true at this writing as only user
-	 * is ipoib).
-	 */
-	n->parms->neigh_cleanup = parms.neigh_cleanup;
 
 	if (!parms.neigh_setup)
 		return 0;
