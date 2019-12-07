@@ -53,6 +53,8 @@
 #define DBG(...)
 #endif
 
+#define NALLOC 3 /* 1 normal, 1 for concurrent threads, 1 for preallocation */
+
 /**
  * DOC: Global GTT views
  *
@@ -793,7 +795,7 @@ __set_pd_entry(struct i915_page_directory * const pd,
 	       u64 (*encode)(const dma_addr_t, const enum i915_cache_level))
 {
 	/* Each thread pre-pins the pd, and we may have a thread per pde. */
-	GEM_BUG_ON(atomic_read(px_used(pd)) > 2 * ARRAY_SIZE(pd->entry));
+	GEM_BUG_ON(atomic_read(px_used(pd)) > NALLOC * ARRAY_SIZE(pd->entry));
 
 	atomic_inc(px_used(pd));
 	pd->entry[idx] = to;
@@ -1128,7 +1130,7 @@ static int __gen8_ppgtt_alloc(struct i915_address_space * const vm,
 
 			atomic_add(count, &pt->used);
 			/* All other pdes may be simultaneously removed */
-			GEM_BUG_ON(atomic_read(&pt->used) > 2 * I915_PDES);
+			GEM_BUG_ON(atomic_read(&pt->used) > NALLOC * I915_PDES);
 			*start += count;
 		}
 	} while (idx++, --len);
