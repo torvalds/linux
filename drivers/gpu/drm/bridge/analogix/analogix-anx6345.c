@@ -493,7 +493,7 @@ unlock:
 	mutex_unlock(&anx6345->lock);
 
 	if (!num_modes && anx6345->panel)
-		num_modes += drm_panel_get_modes(anx6345->panel);
+		num_modes += drm_panel_get_modes(anx6345->panel, connector);
 
 	return num_modes;
 }

@@ -201,7 +201,7 @@ static int rockchip_lvds_connector_get_modes(struct drm_connector *connector)
 	struct rockchip_lvds *lvds = connector_to_lvds(connector);
 	struct drm_panel *panel = lvds->panel;
 
-	return drm_panel_get_modes(panel);
+	return drm_panel_get_modes(panel, connector);
 }
 
 static const

@@ -85,7 +85,7 @@ static int exynos_dpi_get_modes(struct drm_connector *connector)
 	}
 
 	if (ctx->panel)
-		return drm_panel_get_modes(ctx->panel);
+		return drm_panel_get_modes(ctx->panel, connector);
 
 	return 0;
 }

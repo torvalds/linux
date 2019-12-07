@@ -114,10 +114,9 @@ EXPORT_SYMBOL(drm_panel_remove);
  */
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
 {
-	if (panel->connector)
+	if (panel->drm)
 		return -EBUSY;
 
-	panel->connector = connector;
 	panel->drm = connector->dev;
 
 	return 0;
@@ -136,7 +135,6 @@ EXPORT_SYMBOL(drm_panel_attach);
  */
 void drm_panel_detach(struct drm_panel *panel)
 {
-	panel->connector = NULL;
 	panel->drm = NULL;
 }
 EXPORT_SYMBOL(drm_panel_detach);
@@ -250,6 +248,7 @@ EXPORT_SYMBOL(drm_panel_disable);
 /**
  * drm_panel_get_modes - probe the available display modes of a panel
  * @panel: DRM panel
+ * @connector: DRM connector
  *
  * The modes probed from the panel are automatically added to the connector
  * that the panel is attached to.
@@ -257,13 +256,14 @@ EXPORT_SYMBOL(drm_panel_disable);
  * Return: The number of modes available from the panel on success or a
  * negative error code on failure.
  */
-int drm_panel_get_modes(struct drm_panel *panel)
+int drm_panel_get_modes(struct drm_panel *panel,
+			struct drm_connector *connector)
 {
 	if (!panel)
 		return -EINVAL;
 
 	if (panel->funcs && panel->funcs->get_modes)
-		return panel->funcs->get_modes(panel, panel->connector);
+		return panel->funcs->get_modes(panel, connector);
 
 	return -EOPNOTSUPP;
 }

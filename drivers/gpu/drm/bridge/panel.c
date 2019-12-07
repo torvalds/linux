@@ -37,7 +37,7 @@ static int panel_bridge_connector_get_modes(struct drm_connector *connector)
 	struct panel_bridge *panel_bridge =
 		drm_connector_to_panel_bridge(connector);
 
-	return drm_panel_get_modes(panel_bridge->panel);
+	return drm_panel_get_modes(panel_bridge->panel, connector);
 }
 
 static const struct drm_connector_helper_funcs

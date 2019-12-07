@@ -137,13 +137,6 @@ struct drm_panel {
 	struct drm_device *drm;
 
 	/**
-	 * @connector:
-	 *
-	 * DRM connector that the panel is attached to.
-	 */
-	struct drm_connector *connector;
-
-	/**
 	 * @dev:
 	 *
 	 * Parent device of the panel.
@@ -201,7 +194,7 @@ int drm_panel_unprepare(struct drm_panel *panel);
 int drm_panel_enable(struct drm_panel *panel);
 int drm_panel_disable(struct drm_panel *panel);
 
-int drm_panel_get_modes(struct drm_panel *panel);
+int drm_panel_get_modes(struct drm_panel *panel, struct drm_connector *connector);
 
 #if defined(CONFIG_OF) && defined(CONFIG_DRM_PANEL)
 struct drm_panel *of_drm_find_panel(const struct device_node *np);

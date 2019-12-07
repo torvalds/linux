@@ -329,7 +329,7 @@ static int dsi_mgr_connector_get_modes(struct drm_connector *connector)
 	 * attached to the drm_panel.
 	 */
 	drm_panel_attach(panel, connector);
-	num = drm_panel_get_modes(panel);
+	num = drm_panel_get_modes(panel, connector);
 	if (!num)
 		return 0;
 
