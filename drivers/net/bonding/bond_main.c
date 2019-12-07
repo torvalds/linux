@@ -3702,24 +3702,35 @@ static int bond_neigh_init(struct neighbour *n)
 	const struct net_device_ops *slave_ops;
 	struct neigh_parms parms;
 	struct slave *slave;
-	int ret;
+	int ret = 0;
 
-	slave = bond_first_slave(bond);
+	rcu_read_lock();
+	slave = bond_first_slave_rcu(bond);
 	if (!slave)
-		return 0;
+		goto out;
 	slave_ops = slave->dev->netdev_ops;
 	if (!slave_ops->ndo_neigh_setup)
-		return 0;
+		goto out;
 
-	parms.neigh_setup = NULL;
+	/* TODO: find another way [1] to implement this.
+	 * Passing a zeroed structure is fragile,
+	 * but at least we do not pass garbage.
+	 *
+	 * [1] One way would be that ndo_neigh_setup() never touch
+	 *     struct neigh_parms, but propagate the new neigh_setup()
+	 *     back to ___neigh_create() / neigh_parms_alloc()
+	 */
+	memset(&parms, 0, sizeof(parms));
 	ret = slave_ops->ndo_neigh_setup(slave->dev, &parms);
+
 	if (ret)
-		return ret;
+		goto out;
 
-	if (!parms.neigh_setup)
-		return 0;
-
-	return parms.neigh_setup(n);
+	if (parms.neigh_setup)
+		ret = parms.neigh_setup(n);
+out:
+	rcu_read_unlock();
+	return ret;
 }
 
 /* The bonding ndo_neigh_setup is called at init time beofre any
