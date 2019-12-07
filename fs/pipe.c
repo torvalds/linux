@@ -574,12 +574,24 @@ pipe_poll(struct file *filp, poll_table *wait)
 {
 	__poll_t mask;
 	struct pipe_inode_info *pipe = filp->private_data;
-	unsigned int head = READ_ONCE(pipe->head);
-	unsigned int tail = READ_ONCE(pipe->tail);
+	unsigned int head, tail;
 
+	/*
+	 * Reading only -- no need for acquiring the semaphore.
+	 *
+	 * But because this is racy, the code has to add the
+	 * entry to the poll table _first_ ..
+	 */
 	poll_wait(filp, &pipe->wait, wait);
 
-	/* Reading only -- no need for acquiring the semaphore.  */
+	/*
+	 * .. and only then can you do the racy tests. That way,
+	 * if something changes and you got it wrong, the poll
+	 * table entry will wake you up and fix it.
+	 */
+	head = READ_ONCE(pipe->head);
+	tail = READ_ONCE(pipe->tail);
+
 	mask = 0;
 	if (filp->f_mode & FMODE_READ) {
 		if (!pipe_empty(head, tail))
