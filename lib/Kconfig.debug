@@ -399,6 +399,8 @@ config DEBUG_FORCE_WEAK_PER_CPU
 
 endmenu # "Compiler options"
 
+menu "Generic Kernel Debugging Instruments"
+
 config MAGIC_SYSRQ
 	bool "Magic SysRq key"
 	depends on !UML
@@ -431,6 +433,12 @@ config MAGIC_SYSRQ_SERIAL
 	  generate some garbage that can lead to spurious false sysrq detects.
 	  This option allows you to decide whether you want to enable the
 	  magic SysRq key.
+
+source "lib/Kconfig.kgdb"
+
+source "lib/Kconfig.ubsan"
+
+endmenu
 
 config DEBUG_KERNEL
 	bool "Kernel debugging"
@@ -2110,10 +2118,6 @@ config BUG_ON_DATA_CORRUPTION
 	  If unsure, say N.
 
 source "samples/Kconfig"
-
-source "lib/Kconfig.kgdb"
-
-source "lib/Kconfig.ubsan"
 
 config ARCH_HAS_DEVMEM_IS_ALLOWED
 	bool
