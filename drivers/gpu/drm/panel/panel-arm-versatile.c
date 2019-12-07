@@ -260,9 +260,9 @@ static int versatile_panel_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int versatile_panel_get_modes(struct drm_panel *panel)
+static int versatile_panel_get_modes(struct drm_panel *panel,
+				     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct versatile_panel *vpanel = to_versatile_panel(panel);
 	struct drm_display_mode *mode;
 

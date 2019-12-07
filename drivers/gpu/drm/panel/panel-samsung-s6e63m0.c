@@ -362,9 +362,9 @@ static int s6e63m0_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int s6e63m0_get_modes(struct drm_panel *panel)
+static int s6e63m0_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
 	mode = drm_mode_duplicate(panel->drm, &default_mode);

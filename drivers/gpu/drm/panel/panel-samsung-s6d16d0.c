@@ -143,9 +143,9 @@ static int s6d16d0_disable(struct drm_panel *panel)
 	return 0;
 }
 
-static int s6d16d0_get_modes(struct drm_panel *panel)
+static int s6d16d0_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
 	mode = drm_mode_duplicate(panel->drm, &samsung_s6d16d0_mode);

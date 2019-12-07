@@ -123,9 +123,9 @@ static const struct drm_display_mode nl8048_mode = {
 	.height_mm = 53,
 };
 
-static int nl8048_get_modes(struct drm_panel *panel)
+static int nl8048_get_modes(struct drm_panel *panel,
+			    struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
 	mode = drm_mode_duplicate(panel->drm, &nl8048_mode);

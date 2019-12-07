@@ -112,7 +112,8 @@ static const struct drm_display_mode default_mode_osd101t2587 = {
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
-static int osd101t2587_panel_get_modes(struct drm_panel *panel)
+static int osd101t2587_panel_get_modes(struct drm_panel *panel,
+				       struct drm_connector *connector)
 {
 	struct osd101t2587_panel *osd101t2587 = ti_osd_panel(panel);
 	struct drm_display_mode *mode;
@@ -128,10 +129,10 @@ static int osd101t2587_panel_get_modes(struct drm_panel *panel)
 
 	drm_mode_set_name(mode);
 
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm = 217;
-	panel->connector->display_info.height_mm = 136;
+	connector->display_info.width_mm = 217;
+	connector->display_info.height_mm = 136;
 
 	return 1;
 }

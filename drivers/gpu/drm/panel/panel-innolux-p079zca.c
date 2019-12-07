@@ -403,7 +403,8 @@ static const struct panel_desc innolux_p097pfg_panel_desc = {
 	.sleep_mode_delay = 100, /* T15 */
 };
 
-static int innolux_panel_get_modes(struct drm_panel *panel)
+static int innolux_panel_get_modes(struct drm_panel *panel,
+				   struct drm_connector *connector)
 {
 	struct innolux_panel *innolux = to_innolux_panel(panel);
 	const struct drm_display_mode *m = innolux->desc->mode;
@@ -418,13 +419,11 @@ static int innolux_panel_get_modes(struct drm_panel *panel)
 
 	drm_mode_set_name(mode);
 
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm =
-			innolux->desc->size.width;
-	panel->connector->display_info.height_mm =
-			innolux->desc->size.height;
-	panel->connector->display_info.bpc = innolux->desc->bpc;
+	connector->display_info.width_mm = innolux->desc->size.width;
+	connector->display_info.height_mm = innolux->desc->size.height;
+	connector->display_info.bpc = innolux->desc->bpc;
 
 	return 1;
 }

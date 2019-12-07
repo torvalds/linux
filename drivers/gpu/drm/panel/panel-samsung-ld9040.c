@@ -261,9 +261,9 @@ static int ld9040_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int ld9040_get_modes(struct drm_panel *panel)
+static int ld9040_get_modes(struct drm_panel *panel,
+			    struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct ld9040 *ctx = panel_to_ld9040(panel);
 	struct drm_display_mode *mode;
 

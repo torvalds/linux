@@ -287,9 +287,9 @@ static const struct drm_display_mode td028ttec1_mode = {
 	.height_mm = 58,
 };
 
-static int td028ttec1_get_modes(struct drm_panel *panel)
+static int td028ttec1_get_modes(struct drm_panel *panel,
+				struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
 	mode = drm_mode_duplicate(panel->drm, &td028ttec1_mode);

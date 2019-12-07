@@ -263,7 +263,7 @@ int drm_panel_get_modes(struct drm_panel *panel)
 		return -EINVAL;
 
 	if (panel->funcs && panel->funcs->get_modes)
-		return panel->funcs->get_modes(panel);
+		return panel->funcs->get_modes(panel, panel->connector);
 
 	return -EOPNOTSUPP;
 }

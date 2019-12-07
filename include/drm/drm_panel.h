@@ -110,7 +110,8 @@ struct drm_panel_funcs {
 	 *
 	 * This function is mandatory.
 	 */
-	int (*get_modes)(struct drm_panel *panel);
+	int (*get_modes)(struct drm_panel *panel,
+			 struct drm_connector *connector);
 
 	/**
 	 * @get_timings:

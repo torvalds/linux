@@ -278,7 +278,8 @@ static const struct drm_display_mode default_mode = {
 	.vrefresh = 60,
 };
 
-static int sharp_panel_get_modes(struct drm_panel *panel)
+static int sharp_panel_get_modes(struct drm_panel *panel,
+				 struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
 
@@ -292,10 +293,10 @@ static int sharp_panel_get_modes(struct drm_panel *panel)
 
 	drm_mode_set_name(mode);
 
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm = 217;
-	panel->connector->display_info.height_mm = 136;
+	connector->display_info.width_mm = 217;
+	connector->display_info.height_mm = 136;
 
 	return 1;
 }

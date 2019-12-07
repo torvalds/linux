@@ -56,9 +56,9 @@ static inline struct seiko_panel *to_seiko_panel(struct drm_panel *panel)
 	return container_of(panel, struct seiko_panel, base);
 }
 
-static int seiko_panel_get_fixed_modes(struct seiko_panel *panel)
+static int seiko_panel_get_fixed_modes(struct seiko_panel *panel,
+				       struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->base.connector;
 	struct drm_device *drm = panel->base.drm;
 	struct drm_display_mode *mode;
 	unsigned int i, num = 0;
@@ -208,12 +208,13 @@ static int seiko_panel_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int seiko_panel_get_modes(struct drm_panel *panel)
+static int seiko_panel_get_modes(struct drm_panel *panel,
+				 struct drm_connector *connector)
 {
 	struct seiko_panel *p = to_seiko_panel(panel);
 
 	/* add hard-coded panel modes */
-	return seiko_panel_get_fixed_modes(p);
+	return seiko_panel_get_fixed_modes(p, connector);
 }
 
 static int seiko_panel_get_timings(struct drm_panel *panel,

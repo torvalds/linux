@@ -141,10 +141,10 @@ static int lcd_olinuxino_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int lcd_olinuxino_get_modes(struct drm_panel *panel)
+static int lcd_olinuxino_get_modes(struct drm_panel *panel,
+				   struct drm_connector *connector)
 {
 	struct lcd_olinuxino *lcd = to_lcd_olinuxino(panel);
-	struct drm_connector *connector = lcd->panel.connector;
 	struct lcd_olinuxino_info *lcd_info = &lcd->eeprom.info;
 	struct drm_device *drm = lcd->panel.drm;
 	struct lcd_olinuxino_mode *lcd_mode;

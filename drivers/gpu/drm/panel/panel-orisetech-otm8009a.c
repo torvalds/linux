@@ -349,7 +349,8 @@ static int otm8009a_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int otm8009a_get_modes(struct drm_panel *panel)
+static int otm8009a_get_modes(struct drm_panel *panel,
+			      struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
 
@@ -364,10 +365,10 @@ static int otm8009a_get_modes(struct drm_panel *panel)
 	drm_mode_set_name(mode);
 
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm = mode->width_mm;
-	panel->connector->display_info.height_mm = mode->height_mm;
+	connector->display_info.width_mm = mode->width_mm;
+	connector->display_info.height_mm = mode->height_mm;
 
 	return 1;
 }

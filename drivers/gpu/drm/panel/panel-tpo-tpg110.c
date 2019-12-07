@@ -384,9 +384,9 @@ static int tpg110_enable(struct drm_panel *panel)
  * presents the mode that is configured for the system under use,
  * and which is detected by reading the registers of the display.
  */
-static int tpg110_get_modes(struct drm_panel *panel)
+static int tpg110_get_modes(struct drm_panel *panel,
+			    struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct tpg110 *tpg = to_tpg110(panel);
 	struct drm_display_mode *mode;
 

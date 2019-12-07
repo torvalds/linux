@@ -641,9 +641,9 @@ static const struct drm_display_mode itu_r_bt_656_720_mode = {
 	.flags = 0,
 };
 
-static int ili9322_get_modes(struct drm_panel *panel)
+static int ili9322_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct ili9322 *ili = panel_to_ili9322(panel);
 	struct drm_display_mode *mode;
 	struct drm_display_info *info;

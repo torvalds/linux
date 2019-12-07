@@ -264,7 +264,8 @@ static int st7701_unprepare(struct drm_panel *panel)
 	return 0;
 }
 
-static int st7701_get_modes(struct drm_panel *panel)
+static int st7701_get_modes(struct drm_panel *panel,
+			    struct drm_connector *connector)
 {
 	struct st7701 *st7701 = panel_to_st7701(panel);
 	const struct drm_display_mode *desc_mode = st7701->desc->mode;
@@ -280,10 +281,10 @@ static int st7701_get_modes(struct drm_panel *panel)
 	}
 
 	drm_mode_set_name(mode);
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm = desc_mode->width_mm;
-	panel->connector->display_info.height_mm = desc_mode->height_mm;
+	connector->display_info.width_mm = desc_mode->width_mm;
+	connector->display_info.height_mm = desc_mode->height_mm;
 
 	return 1;
 }

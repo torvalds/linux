@@ -120,9 +120,9 @@ static const struct drm_display_mode default_mode = {
 	.height_mm	= 85,
 };
 
-static int rb070d30_panel_get_modes(struct drm_panel *panel)
+static int rb070d30_panel_get_modes(struct drm_panel *panel,
+				    struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct rb070d30_panel *ctx = panel_to_rb070d30_panel(panel);
 	struct drm_display_mode *mode;
 	static const u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
@@ -140,9 +140,9 @@ static int rb070d30_panel_get_modes(struct drm_panel *panel)
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.bpc = 8;
-	panel->connector->display_info.width_mm = mode->width_mm;
-	panel->connector->display_info.height_mm = mode->height_mm;
+	connector->display_info.bpc = 8;
+	connector->display_info.width_mm = mode->width_mm;
+	connector->display_info.height_mm = mode->height_mm;
 	drm_display_info_set_bus_formats(&connector->display_info,
 					 &bus_format, 1);
 

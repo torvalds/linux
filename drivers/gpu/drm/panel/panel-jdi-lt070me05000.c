@@ -300,7 +300,8 @@ static const struct drm_display_mode default_mode = {
 		.flags = 0,
 };
 
-static int jdi_panel_get_modes(struct drm_panel *panel)
+static int jdi_panel_get_modes(struct drm_panel *panel,
+			       struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
 	struct jdi_panel *jdi = to_jdi_panel(panel);
@@ -316,10 +317,10 @@ static int jdi_panel_get_modes(struct drm_panel *panel)
 
 	drm_mode_set_name(mode);
 
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm = 95;
-	panel->connector->display_info.height_mm = 151;
+	connector->display_info.width_mm = 95;
+	connector->display_info.height_mm = 151;
 
 	return 1;
 }

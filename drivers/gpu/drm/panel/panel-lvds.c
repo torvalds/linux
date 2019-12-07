@@ -106,10 +106,10 @@ static int panel_lvds_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int panel_lvds_get_modes(struct drm_panel *panel)
+static int panel_lvds_get_modes(struct drm_panel *panel,
+				struct drm_connector *connector)
 {
 	struct panel_lvds *lvds = to_panel_lvds(panel);
-	struct drm_connector *connector = lvds->panel.connector;
 	struct drm_display_mode *mode;
 
 	mode = drm_mode_create(lvds->panel.drm);
