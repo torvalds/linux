@@ -270,6 +270,16 @@ static bool pipe_buf_can_merge(struct pipe_buffer *buf)
 	return buf->ops == &anon_pipe_buf_ops;
 }
 
+/* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
+static inline bool pipe_readable(const struct pipe_inode_info *pipe)
+{
+	unsigned int head = READ_ONCE(pipe->head);
+	unsigned int tail = READ_ONCE(pipe->tail);
+	unsigned int writers = READ_ONCE(pipe->writers);
+
+	return !pipe_empty(head, tail) || !writers;
+}
+
 static ssize_t
 pipe_read(struct kiocb *iocb, struct iov_iter *to)
 {
@@ -359,11 +369,13 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 				ret = -ERESTARTSYS;
 			break;
 		}
+		__pipe_unlock(pipe);
 		if (was_full) {
 			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
 			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 		}
-		pipe_wait(pipe);
+		wait_event_interruptible(pipe->wait, pipe_readable(pipe));
+		__pipe_lock(pipe);
 		was_full = pipe_full(pipe->head, pipe->tail, pipe->max_usage);
 	}
 	__pipe_unlock(pipe);
@@ -380,6 +392,17 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 static inline int is_packetized(struct file *file)
 {
 	return (file->f_flags & O_DIRECT) != 0;
+}
+
+/* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
+static inline bool pipe_writable(const struct pipe_inode_info *pipe)
+{
+	unsigned int head = READ_ONCE(pipe->head);
+	unsigned int tail = READ_ONCE(pipe->tail);
+	unsigned int max_usage = READ_ONCE(pipe->max_usage);
+
+	return !pipe_full(head, tail, max_usage) ||
+		!READ_ONCE(pipe->readers);
 }
 
 static ssize_t
@@ -529,12 +552,13 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		 * after waiting we need to re-check whether the pipe
 		 * become empty while we dropped the lock.
 		 */
+		__pipe_unlock(pipe);
 		if (was_empty) {
 			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLIN | EPOLLRDNORM);
 			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 		}
-		pipe_wait(pipe);
-
+		wait_event_interruptible(pipe->wait, pipe_writable(pipe));
+		__pipe_lock(pipe);
 		was_empty = pipe_empty(head, pipe->tail);
 	}
 out:
