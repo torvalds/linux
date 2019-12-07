@@ -2630,6 +2630,8 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 	}
 
 	if ((oparms->disposition != FILE_OPEN) &&
+	    (oparms->cifs_sb) &&
+	    (oparms->cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID) &&
 	    (oparms->mode != ACL_NO_MODE)) {
 		if (n_iov > 2) {
 			struct create_context *ccontext =
