@@ -348,18 +348,11 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 
 		if (!pipe->writers)
 			break;
-		if (!pipe->waiting_writers) {
-			/* syscall merging: Usually we must not sleep
-			 * if O_NONBLOCK is set, or if we got some data.
-			 * But if a writer sleeps in kernel space, then
-			 * we can wait for that data without violating POSIX.
-			 */
-			if (ret)
-				break;
-			if (filp->f_flags & O_NONBLOCK) {
-				ret = -EAGAIN;
-				break;
-			}
+		if (ret)
+			break;
+		if (filp->f_flags & O_NONBLOCK) {
+			ret = -EAGAIN;
+			break;
 		}
 		if (signal_pending(current)) {
 			if (!ret)
@@ -540,9 +533,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLIN | EPOLLRDNORM);
 			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 		}
-		pipe->waiting_writers++;
 		pipe_wait(pipe);
-		pipe->waiting_writers--;
 
 		was_empty = pipe_empty(head, pipe->tail);
 	}
