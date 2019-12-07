@@ -488,10 +488,9 @@ static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
  */
 static void flush_ggtt_writes(struct i915_vma *vma)
 {
-	struct drm_i915_private *i915 = vma->vm->i915;
-
 	if (i915_vma_is_map_and_fenceable(vma))
-		intel_uncore_posting_read_fw(&i915->uncore, GUC_STATUS);
+		intel_uncore_posting_read_fw(vma->vm->gt->uncore,
+					     GUC_STATUS);
 }
 
 static void guc_submit(struct intel_engine_cs *engine,
