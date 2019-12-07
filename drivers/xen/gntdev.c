@@ -55,12 +55,10 @@ MODULE_AUTHOR("Derek G. Murray <Derek.Murray@cl.cam.ac.uk>, "
 	      "Gerd Hoffmann <kraxel@redhat.com>");
 MODULE_DESCRIPTION("User-space granted page access driver");
 
-static int limit = 1024*1024;
-module_param(limit, int, 0644);
-MODULE_PARM_DESC(limit, "Maximum number of grants that may be mapped by "
-		"the gntdev device");
-
-static atomic_t pages_mapped = ATOMIC_INIT(0);
+static unsigned int limit = 64*1024;
+module_param(limit, uint, 0644);
+MODULE_PARM_DESC(limit,
+	"Maximum number of grants that may be mapped by one mapping request");
 
 static int use_ptemod;
 
@@ -71,9 +69,9 @@ static struct miscdevice gntdev_miscdev;
 
 /* ------------------------------------------------------------------ */
 
-bool gntdev_account_mapped_pages(int count)
+bool gntdev_test_page_count(unsigned int count)
 {
-	return atomic_add_return(count, &pages_mapped) > limit;
+	return !count || count > limit;
 }
 
 static void gntdev_print_maps(struct gntdev_priv *priv,
@@ -114,14 +112,14 @@ static void gntdev_free_map(struct gntdev_grant_map *map)
 		gnttab_free_pages(map->count, map->pages);
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
-	kfree(map->frames);
+	kvfree(map->frames);
 #endif
-	kfree(map->pages);
-	kfree(map->grants);
-	kfree(map->map_ops);
-	kfree(map->unmap_ops);
-	kfree(map->kmap_ops);
-	kfree(map->kunmap_ops);
+	kvfree(map->pages);
+	kvfree(map->grants);
+	kvfree(map->map_ops);
+	kvfree(map->unmap_ops);
+	kvfree(map->kmap_ops);
+	kvfree(map->kunmap_ops);
 	kfree(map);
 }
 
@@ -135,12 +133,13 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	if (NULL == add)
 		return NULL;
 
-	add->grants    = kcalloc(count, sizeof(add->grants[0]), GFP_KERNEL);
-	add->map_ops   = kcalloc(count, sizeof(add->map_ops[0]), GFP_KERNEL);
-	add->unmap_ops = kcalloc(count, sizeof(add->unmap_ops[0]), GFP_KERNEL);
-	add->kmap_ops  = kcalloc(count, sizeof(add->kmap_ops[0]), GFP_KERNEL);
-	add->kunmap_ops = kcalloc(count, sizeof(add->kunmap_ops[0]), GFP_KERNEL);
-	add->pages     = kcalloc(count, sizeof(add->pages[0]), GFP_KERNEL);
+	add->grants    = kvcalloc(count, sizeof(add->grants[0]), GFP_KERNEL);
+	add->map_ops   = kvcalloc(count, sizeof(add->map_ops[0]), GFP_KERNEL);
+	add->unmap_ops = kvcalloc(count, sizeof(add->unmap_ops[0]), GFP_KERNEL);
+	add->kmap_ops  = kvcalloc(count, sizeof(add->kmap_ops[0]), GFP_KERNEL);
+	add->kunmap_ops = kvcalloc(count,
+				   sizeof(add->kunmap_ops[0]), GFP_KERNEL);
+	add->pages     = kvcalloc(count, sizeof(add->pages[0]), GFP_KERNEL);
 	if (NULL == add->grants    ||
 	    NULL == add->map_ops   ||
 	    NULL == add->unmap_ops ||
@@ -159,8 +158,8 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	if (dma_flags & (GNTDEV_DMA_FLAG_WC | GNTDEV_DMA_FLAG_COHERENT)) {
 		struct gnttab_dma_alloc_args args;
 
-		add->frames = kcalloc(count, sizeof(add->frames[0]),
-				      GFP_KERNEL);
+		add->frames = kvcalloc(count, sizeof(add->frames[0]),
+				       GFP_KERNEL);
 		if (!add->frames)
 			goto err;
 
@@ -240,8 +239,6 @@ void gntdev_put_map(struct gntdev_priv *priv, struct gntdev_grant_map *map)
 
 	if (!refcount_dec_and_test(&map->users))
 		return;
-
-	atomic_sub(map->count, &pages_mapped);
 
 	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
 		notify_remote_via_evtchn(map->notify.event);
@@ -506,7 +503,6 @@ static const struct mmu_interval_notifier_ops gntdev_mmu_ops = {
 static int gntdev_open(struct inode *inode, struct file *flip)
 {
 	struct gntdev_priv *priv;
-	int ret = 0;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -518,16 +514,12 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 #ifdef CONFIG_XEN_GNTDEV_DMABUF
 	priv->dmabuf_priv = gntdev_dmabuf_init(flip);
 	if (IS_ERR(priv->dmabuf_priv)) {
-		ret = PTR_ERR(priv->dmabuf_priv);
+		int ret = PTR_ERR(priv->dmabuf_priv);
+
 		kfree(priv);
 		return ret;
 	}
 #endif
-
-	if (ret) {
-		kfree(priv);
-		return ret;
-	}
 
 	flip->private_data = priv;
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
@@ -573,19 +565,13 @@ static long gntdev_ioctl_map_grant_ref(struct gntdev_priv *priv,
 	if (copy_from_user(&op, u, sizeof(op)) != 0)
 		return -EFAULT;
 	pr_debug("priv %p, add %d\n", priv, op.count);
-	if (unlikely(op.count <= 0))
+	if (unlikely(gntdev_test_page_count(op.count)))
 		return -EINVAL;
 
 	err = -ENOMEM;
 	map = gntdev_alloc_map(priv, op.count, 0 /* This is not a dma-buf. */);
 	if (!map)
 		return err;
-
-	if (unlikely(gntdev_account_mapped_pages(op.count))) {
-		pr_debug("can't map: over limit\n");
-		gntdev_put_map(NULL, map);
-		return err;
-	}
 
 	if (copy_from_user(map->grants, &u->refs,
 			   sizeof(map->grants[0]) * op.count) != 0) {
