@@ -2158,7 +2158,11 @@ config IO_STRICT_DEVMEM
 
 	  If in doubt, say Y.
 
+menu "$(SRCARCH) Debugging"
+
 source "arch/$(SRCARCH)/Kconfig.debug"
+
+endmenu
 
 config HYPERV_TESTING
 	bool "Microsoft Hyper-V driver testing"
