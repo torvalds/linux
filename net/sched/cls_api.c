@@ -2735,13 +2735,19 @@ static int tc_chain_tmplt_add(struct tcf_chain *chain, struct net *net,
 			      struct netlink_ext_ack *extack)
 {
 	const struct tcf_proto_ops *ops;
+	char name[IFNAMSIZ];
 	void *tmplt_priv;
 
 	/* If kind is not set, user did not specify template. */
 	if (!tca[TCA_KIND])
 		return 0;
 
-	ops = tcf_proto_lookup_ops(nla_data(tca[TCA_KIND]), true, extack);
+	if (tcf_proto_check_kind(tca[TCA_KIND], name)) {
+		NL_SET_ERR_MSG(extack, "Specified TC chain template name too long");
+		return -EINVAL;
+	}
+
+	ops = tcf_proto_lookup_ops(name, true, extack);
 	if (IS_ERR(ops))
 		return PTR_ERR(ops);
 	if (!ops->tmplt_create || !ops->tmplt_destroy || !ops->tmplt_dump) {
