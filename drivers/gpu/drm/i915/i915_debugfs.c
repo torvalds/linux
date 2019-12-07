@@ -61,24 +61,14 @@ static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 
 static int i915_capabilities(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	const struct intel_device_info *info = INTEL_INFO(dev_priv);
+	struct drm_i915_private *i915 = node_to_i915(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
-	const char *msg;
 
-	seq_printf(m, "gen: %d\n", INTEL_GEN(dev_priv));
-	seq_printf(m, "platform: %s\n", intel_platform_name(info->platform));
-	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(dev_priv));
+	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(i915));
 
-	msg = "n/a";
-#ifdef CONFIG_INTEL_IOMMU
-	msg = enableddisabled(intel_iommu_gfx_mapped);
-#endif
-	seq_printf(m, "iommu: %s\n", msg);
-
-	intel_device_info_dump_flags(info, &p);
-	intel_device_info_dump_runtime(RUNTIME_INFO(dev_priv), &p);
-	intel_driver_caps_print(&dev_priv->caps, &p);
+	intel_device_info_print_static(INTEL_INFO(i915), &p);
+	intel_device_info_print_runtime(RUNTIME_INFO(i915), &p);
+	intel_driver_caps_print(&i915->caps, &p);
 
 	kernel_param_lock(THIS_MODULE);
 	i915_params_dump(&i915_modparams, &p);
@@ -2759,7 +2749,7 @@ static int i915_rcs_topology(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	intel_device_info_dump_topology(&RUNTIME_INFO(dev_priv)->sseu, &p);
+	intel_device_info_print_topology(&RUNTIME_INFO(dev_priv)->sseu, &p);
 
 	return 0;
 }
