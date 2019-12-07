@@ -112,8 +112,8 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 }
 
 static void flow_offload_mangle(struct flow_action_entry *entry,
-				enum flow_action_mangle_base htype,
-				u32 offset, u8 *value, u8 *mask)
+				enum flow_action_mangle_base htype, u32 offset,
+				const __be32 *value, const __be32 *mask)
 {
 	entry->id = FLOW_ACTION_MANGLE;
 	entry->mangle.htype = htype;
@@ -150,12 +150,12 @@ static int flow_offload_eth_src(struct net *net,
 	memcpy(&val16, dev->dev_addr, 2);
 	val = val16 << 16;
 	flow_offload_mangle(entry0, FLOW_ACT_MANGLE_HDR_TYPE_ETH, 4,
-			    (u8 *)&val, (u8 *)&mask);
+			    &val, &mask);
 
 	mask = ~0xffffffff;
 	memcpy(&val, dev->dev_addr + 2, 4);
 	flow_offload_mangle(entry1, FLOW_ACT_MANGLE_HDR_TYPE_ETH, 8,
-			    (u8 *)&val, (u8 *)&mask);
+			    &val, &mask);
 	dev_put(dev);
 
 	return 0;
@@ -180,13 +180,13 @@ static int flow_offload_eth_dst(struct net *net,
 	mask = ~0xffffffff;
 	memcpy(&val, n->ha, 4);
 	flow_offload_mangle(entry0, FLOW_ACT_MANGLE_HDR_TYPE_ETH, 0,
-			    (u8 *)&val, (u8 *)&mask);
+			    &val, &mask);
 
 	mask = ~0x0000ffff;
 	memcpy(&val16, n->ha + 4, 2);
 	val = val16;
 	flow_offload_mangle(entry1, FLOW_ACT_MANGLE_HDR_TYPE_ETH, 4,
-			    (u8 *)&val, (u8 *)&mask);
+			    &val, &mask);
 	neigh_release(n);
 
 	return 0;
@@ -216,7 +216,7 @@ static void flow_offload_ipv4_snat(struct net *net,
 	}
 
 	flow_offload_mangle(entry, FLOW_ACT_MANGLE_HDR_TYPE_IP4, offset,
-			    (u8 *)&addr, (u8 *)&mask);
+			    &addr, &mask);
 }
 
 static void flow_offload_ipv4_dnat(struct net *net,
@@ -243,12 +243,12 @@ static void flow_offload_ipv4_dnat(struct net *net,
 	}
 
 	flow_offload_mangle(entry, FLOW_ACT_MANGLE_HDR_TYPE_IP4, offset,
-			    (u8 *)&addr, (u8 *)&mask);
+			    &addr, &mask);
 }
 
 static void flow_offload_ipv6_mangle(struct nf_flow_rule *flow_rule,
 				     unsigned int offset,
-				     u8 *addr, u8 *mask)
+				     const __be32 *addr, const __be32 *mask)
 {
 	struct flow_action_entry *entry;
 	int i;
@@ -256,8 +256,7 @@ static void flow_offload_ipv6_mangle(struct nf_flow_rule *flow_rule,
 	for (i = 0; i < sizeof(struct in6_addr) / sizeof(u32); i += sizeof(u32)) {
 		entry = flow_action_entry_next(flow_rule);
 		flow_offload_mangle(entry, FLOW_ACT_MANGLE_HDR_TYPE_IP6,
-				    offset + i,
-				    &addr[i], mask);
+				    offset + i, &addr[i], mask);
 	}
 }
 
@@ -267,23 +266,23 @@ static void flow_offload_ipv6_snat(struct net *net,
 				   struct nf_flow_rule *flow_rule)
 {
 	u32 mask = ~htonl(0xffffffff);
-	const u8 *addr;
+	const __be32 *addr;
 	u32 offset;
 
 	switch (dir) {
 	case FLOW_OFFLOAD_DIR_ORIGINAL:
-		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_v6.s6_addr;
+		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_v6.s6_addr32;
 		offset = offsetof(struct ipv6hdr, saddr);
 		break;
 	case FLOW_OFFLOAD_DIR_REPLY:
-		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_v6.s6_addr;
+		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_v6.s6_addr32;
 		offset = offsetof(struct ipv6hdr, daddr);
 		break;
 	default:
 		return;
 	}
 
-	flow_offload_ipv6_mangle(flow_rule, offset, (u8 *)addr, (u8 *)&mask);
+	flow_offload_ipv6_mangle(flow_rule, offset, addr, &mask);
 }
 
 static void flow_offload_ipv6_dnat(struct net *net,
@@ -292,23 +291,23 @@ static void flow_offload_ipv6_dnat(struct net *net,
 				   struct nf_flow_rule *flow_rule)
 {
 	u32 mask = ~htonl(0xffffffff);
-	const u8 *addr;
+	const __be32 *addr;
 	u32 offset;
 
 	switch (dir) {
 	case FLOW_OFFLOAD_DIR_ORIGINAL:
-		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.src_v6.s6_addr;
+		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.src_v6.s6_addr32;
 		offset = offsetof(struct ipv6hdr, daddr);
 		break;
 	case FLOW_OFFLOAD_DIR_REPLY:
-		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_v6.s6_addr;
+		addr = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_v6.s6_addr32;
 		offset = offsetof(struct ipv6hdr, saddr);
 		break;
 	default:
 		return;
 	}
 
-	flow_offload_ipv6_mangle(flow_rule, offset, (u8 *)addr, (u8 *)&mask);
+	flow_offload_ipv6_mangle(flow_rule, offset, addr, &mask);
 }
 
 static int flow_offload_l4proto(const struct flow_offload *flow)
@@ -336,25 +335,24 @@ static void flow_offload_port_snat(struct net *net,
 				   struct nf_flow_rule *flow_rule)
 {
 	struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
-	u32 mask = ~htonl(0xffff0000);
-	__be16 port;
+	u32 mask = ~htonl(0xffff0000), port;
 	u32 offset;
 
 	switch (dir) {
 	case FLOW_OFFLOAD_DIR_ORIGINAL:
-		port = flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_port;
+		port = ntohs(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_port);
 		offset = 0; /* offsetof(struct tcphdr, source); */
 		break;
 	case FLOW_OFFLOAD_DIR_REPLY:
-		port = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_port;
+		port = ntohs(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_port);
 		offset = 0; /* offsetof(struct tcphdr, dest); */
 		break;
 	default:
 		return;
 	}
-
+	port = htonl(port << 16);
 	flow_offload_mangle(entry, flow_offload_l4proto(flow), offset,
-			    (u8 *)&port, (u8 *)&mask);
+			    &port, &mask);
 }
 
 static void flow_offload_port_dnat(struct net *net,
@@ -363,25 +361,24 @@ static void flow_offload_port_dnat(struct net *net,
 				   struct nf_flow_rule *flow_rule)
 {
 	struct flow_action_entry *entry = flow_action_entry_next(flow_rule);
-	u32 mask = ~htonl(0xffff);
-	__be16 port;
+	u32 mask = ~htonl(0xffff), port;
 	u32 offset;
 
 	switch (dir) {
 	case FLOW_OFFLOAD_DIR_ORIGINAL:
-		port = flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_port;
+		port = ntohs(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_port);
 		offset = 0; /* offsetof(struct tcphdr, source); */
 		break;
 	case FLOW_OFFLOAD_DIR_REPLY:
-		port = flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_port;
+		port = ntohs(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.src_port);
 		offset = 0; /* offsetof(struct tcphdr, dest); */
 		break;
 	default:
 		return;
 	}
-
+	port = htonl(port);
 	flow_offload_mangle(entry, flow_offload_l4proto(flow), offset,
-			    (u8 *)&port, (u8 *)&mask);
+			    &port, &mask);
 }
 
 static void flow_offload_ipv4_checksum(struct net *net,
