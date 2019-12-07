@@ -82,6 +82,15 @@ static void crypto_destroy_instance(struct crypto_alg *alg)
 	crypto_tmpl_put(tmpl);
 }
 
+/*
+ * This function adds a spawn to the list secondary_spawns which
+ * will be used at the end of crypto_remove_spawns to unregister
+ * instances, unless the spawn happens to be one that is depended
+ * on by the new algorithm (nalg in crypto_remove_spawns).
+ *
+ * This function is also responsible for resurrecting any algorithms
+ * in the dependency chain of nalg by unsetting n->dead.
+ */
 static struct list_head *crypto_more_spawns(struct crypto_alg *alg,
 					    struct list_head *stack,
 					    struct list_head *top,
@@ -128,6 +137,12 @@ static void crypto_remove_instance(struct crypto_instance *inst,
 	BUG_ON(!list_empty(&inst->alg.cra_users));
 }
 
+/*
+ * Given an algorithm alg, remove all algorithms that depend on it
+ * through spawns.  If nalg is not null, then exempt any algorithms
+ * that is depended on by nalg.  This is useful when nalg itself
+ * depends on alg.
+ */
 void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 			  struct crypto_alg *nalg)
 {
@@ -146,6 +161,11 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 		list_move(&spawn->list, &top);
 	}
 
+	/*
+	 * Perform a depth-first walk starting from alg through
+	 * the cra_users tree.  The list stack records the path
+	 * from alg to the current spawn.
+	 */
 	spawns = &top;
 	do {
 		while (!list_empty(spawns)) {
@@ -180,6 +200,11 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 	} while ((spawns = crypto_more_spawns(alg, &stack, &top,
 					      &secondary_spawns)));
 
+	/*
+	 * Remove all instances that are marked as dead.  Also
+	 * complete the resurrection of the others by moving them
+	 * back to the cra_users list.
+	 */
 	list_for_each_entry_safe(spawn, n, &secondary_spawns, list) {
 		if (!spawn->dead)
 			list_move(&spawn->list, &spawn->alg->cra_users);
