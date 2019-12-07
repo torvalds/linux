@@ -57,7 +57,7 @@ follows:
 Single-Block Symmetric Ciphers [CIPHER]
 ---------------------------------------
 
-Example of transformations: aes, arc4, ...
+Example of transformations: aes, serpent, ...
 
 This section describes the simplest of all transformation
 implementations, that being the CIPHER type used for symmetric ciphers.
@@ -108,7 +108,7 @@ is also valid:
 Multi-Block Ciphers
 -------------------
 
-Example of transformations: cbc(aes), ecb(arc4), ...
+Example of transformations: cbc(aes), chacha20, ...
 
 This section describes the multi-block cipher transformation
 implementations. The multi-block ciphers are used for transformations
