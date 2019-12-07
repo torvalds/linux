@@ -93,15 +93,17 @@ static struct list_head *crypto_more_spawns(struct crypto_alg *alg,
 	if (!spawn)
 		return NULL;
 
-	n = list_next_entry(spawn, list);
-
-	if (spawn->alg && &n->list != stack && !n->alg)
-		n->alg = (n->list.next == stack) ? alg :
-			 &list_next_entry(n, list)->inst->alg;
-
+	n = list_prev_entry(spawn, list);
 	list_move(&spawn->list, secondary_spawns);
 
-	return &n->list == stack ? top : &n->inst->alg.cra_users;
+	if (list_is_last(&n->list, stack))
+		return top;
+
+	n = list_next_entry(n, list);
+	if (!spawn->dead)
+		n->dead = false;
+
+	return &n->inst->alg.cra_users;
 }
 
 static void crypto_remove_instance(struct crypto_instance *inst,
@@ -160,7 +162,7 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 			if (&inst->alg == nalg)
 				break;
 
-			spawn->alg = NULL;
+			spawn->dead = true;
 			spawns = &inst->alg.cra_users;
 
 			/*
@@ -179,7 +181,7 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 					      &secondary_spawns)));
 
 	list_for_each_entry_safe(spawn, n, &secondary_spawns, list) {
-		if (spawn->alg)
+		if (!spawn->dead)
 			list_move(&spawn->list, &spawn->alg->cra_users);
 		else
 			crypto_remove_instance(spawn->inst, list);
@@ -670,7 +672,7 @@ EXPORT_SYMBOL_GPL(crypto_grab_spawn);
 void crypto_drop_spawn(struct crypto_spawn *spawn)
 {
 	down_write(&crypto_alg_sem);
-	if (spawn->alg)
+	if (!spawn->dead)
 		list_del(&spawn->list);
 	up_write(&crypto_alg_sem);
 }
@@ -682,7 +684,7 @@ static struct crypto_alg *crypto_spawn_alg(struct crypto_spawn *spawn)
 
 	down_read(&crypto_alg_sem);
 	alg = spawn->alg;
-	if (alg && !crypto_mod_get(alg)) {
+	if (!spawn->dead && !crypto_mod_get(alg)) {
 		alg->cra_flags |= CRYPTO_ALG_DYING;
 		alg = NULL;
 	}
