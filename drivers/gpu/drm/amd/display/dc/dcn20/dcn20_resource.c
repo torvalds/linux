@@ -1,5 +1,6 @@
 /*
 * Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2019 Raptor Engineering, LLC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -3211,7 +3212,7 @@ void dcn20_update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_s
 
 void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb)
 {
-	kernel_fpu_begin();
+	DC_FP_START();
 	if ((int)(bb->sr_exit_time_us * 1000) != dc->bb_overrides.sr_exit_time_ns
 			&& dc->bb_overrides.sr_exit_time_ns) {
 		bb->sr_exit_time_us = dc->bb_overrides.sr_exit_time_ns / 1000.0;
@@ -3235,7 +3236,7 @@ void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st
 		bb->dram_clock_change_latency_us =
 				dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
 	}
-	kernel_fpu_end();
+	DC_FP_END();
 }
 
 static struct _vcs_dpi_soc_bounding_box_st *get_asic_rev_soc_bb(

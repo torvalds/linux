@@ -1,5 +1,6 @@
 /*
 * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2019 Raptor Engineering, LLC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -993,7 +994,8 @@ static void patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_s
 {
 	int i;
 
-	kernel_fpu_begin();
+	DC_FP_START();
+
 	if (dc->bb_overrides.sr_exit_time_ns) {
 		for (i = 0; i < WM_SET_COUNT; i++) {
 			  dc->clk_mgr->bw_params->wm_table.entries[i].sr_exit_time_us =
@@ -1019,7 +1021,7 @@ static void patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_s
 		}
 	}
 
-	kernel_fpu_end();
+	DC_FP_END();
 }
 
 void dcn21_calculate_wm(

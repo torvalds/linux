@@ -1,5 +1,6 @@
 /*
  * Copyright 2012-16 Advanced Micro Devices, Inc.
+ * Copyright 2019 Raptor Engineering, LLC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -51,6 +52,8 @@
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 #include <asm/fpu/api.h>
+#define DC_FP_START() kernel_fpu_begin()
+#define DC_FP_END() kernel_fpu_end()
 #endif
 
 /*
