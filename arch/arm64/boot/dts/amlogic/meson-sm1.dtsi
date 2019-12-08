@@ -134,6 +134,10 @@
 	power-domains = <&pwrc PWRC_SM1_ETH_ID>;
 };
 
+&pcie {
+	power-domains = <&pwrc PWRC_SM1_PCIE_ID>;
+};
+
 &pwrc {
 	compatible = "amlogic,meson-sm1-pwrc";
 };

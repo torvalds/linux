@@ -188,7 +188,8 @@ xfs_file_dio_aio_read(
 	file_accessed(iocb->ki_filp);
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
-	ret = iomap_dio_rw(iocb, to, &xfs_iomap_ops, NULL);
+	ret = iomap_dio_rw(iocb, to, &xfs_read_iomap_ops, NULL,
+			is_sync_kiocb(iocb));
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
 	return ret;
@@ -215,7 +216,7 @@ xfs_file_dax_read(
 		xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	}
 
-	ret = dax_iomap_rw(iocb, to, &xfs_iomap_ops);
+	ret = dax_iomap_rw(iocb, to, &xfs_read_iomap_ops);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
 	file_accessed(iocb->ki_filp);
@@ -351,7 +352,7 @@ restart:
 	
 		trace_xfs_zero_eof(ip, isize, iocb->ki_pos - isize);
 		error = iomap_zero_range(inode, isize, iocb->ki_pos - isize,
-				NULL, &xfs_iomap_ops);
+				NULL, &xfs_buffered_write_iomap_ops);
 		if (error)
 			return error;
 	} else
@@ -486,8 +487,7 @@ xfs_file_dio_aio_write(
 	int			unaligned_io = 0;
 	int			iolock;
 	size_t			count = iov_iter_count(from);
-	struct xfs_buftarg      *target = XFS_IS_REALTIME_INODE(ip) ?
-					mp->m_rtdev_targp : mp->m_ddev_targp;
+	struct xfs_buftarg      *target = xfs_inode_buftarg(ip);
 
 	/* DIO must be aligned to device logical sector size */
 	if ((iocb->ki_pos | count) & target->bt_logical_sectormask)
@@ -547,15 +547,13 @@ xfs_file_dio_aio_write(
 	}
 
 	trace_xfs_file_direct_write(ip, count, iocb->ki_pos);
-	ret = iomap_dio_rw(iocb, from, &xfs_iomap_ops, &xfs_dio_write_ops);
-
 	/*
-	 * If unaligned, this is the only IO in-flight. If it has not yet
-	 * completed, wait on it before we release the iolock to prevent
-	 * subsequent overlapping IO.
+	 * If unaligned, this is the only IO in-flight. Wait on it before we
+	 * release the iolock to prevent subsequent overlapping IO.
 	 */
-	if (ret == -EIOCBQUEUED && unaligned_io)
-		inode_dio_wait(inode);
+	ret = iomap_dio_rw(iocb, from, &xfs_direct_write_iomap_ops,
+			   &xfs_dio_write_ops,
+			   is_sync_kiocb(iocb) || unaligned_io);
 out:
 	xfs_iunlock(ip, iolock);
 
@@ -594,7 +592,7 @@ xfs_file_dax_write(
 	count = iov_iter_count(from);
 
 	trace_xfs_file_dax_write(ip, count, pos);
-	ret = dax_iomap_rw(iocb, from, &xfs_iomap_ops);
+	ret = dax_iomap_rw(iocb, from, &xfs_direct_write_iomap_ops);
 	if (ret > 0 && iocb->ki_pos > i_size_read(inode)) {
 		i_size_write(inode, iocb->ki_pos);
 		error = xfs_setfilesize(ip, pos, ret);
@@ -641,7 +639,8 @@ write_retry:
 	current->backing_dev_info = inode_to_bdi(inode);
 
 	trace_xfs_file_buffered_write(ip, iov_iter_count(from), iocb->ki_pos);
-	ret = iomap_file_buffered_write(iocb, from, &xfs_iomap_ops);
+	ret = iomap_file_buffered_write(iocb, from,
+			&xfs_buffered_write_iomap_ops);
 	if (likely(ret >= 0))
 		iocb->ki_pos += ret;
 
@@ -818,6 +817,36 @@ xfs_file_fallocate(
 	if (error)
 		goto out_unlock;
 
+	/*
+	 * Must wait for all AIO to complete before we continue as AIO can
+	 * change the file size on completion without holding any locks we
+	 * currently hold. We must do this first because AIO can update both
+	 * the on disk and in memory inode sizes, and the operations that follow
+	 * require the in-memory size to be fully up-to-date.
+	 */
+	inode_dio_wait(inode);
+
+	/*
+	 * Now AIO and DIO has drained we flush and (if necessary) invalidate
+	 * the cached range over the first operation we are about to run.
+	 *
+	 * We care about zero and collapse here because they both run a hole
+	 * punch over the range first. Because that can zero data, and the range
+	 * of invalidation for the shift operations is much larger, we still do
+	 * the required flush for collapse in xfs_prepare_shift().
+	 *
+	 * Insert has the same range requirements as collapse, and we extend the
+	 * file first which can zero data. Hence insert has the same
+	 * flush/invalidate requirements as collapse and so they are both
+	 * handled at the right time by xfs_prepare_shift().
+	 */
+	if (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE |
+		    FALLOC_FL_COLLAPSE_RANGE)) {
+		error = xfs_flush_unmap_range(ip, offset, len);
+		if (error)
+			goto out_unlock;
+	}
+
 	if (mode & FALLOC_FL_PUNCH_HOLE) {
 		error = xfs_free_file_space(ip, offset, len);
 		if (error)
@@ -881,16 +910,30 @@ xfs_file_fallocate(
 		}
 
 		if (mode & FALLOC_FL_ZERO_RANGE) {
-			error = xfs_zero_file_space(ip, offset, len);
+			/*
+			 * Punch a hole and prealloc the range.  We use a hole
+			 * punch rather than unwritten extent conversion for two
+			 * reasons:
+			 *
+			 *   1.) Hole punch handles partial block zeroing for us.
+			 *   2.) If prealloc returns ENOSPC, the file range is
+			 *       still zero-valued by virtue of the hole punch.
+			 */
+			unsigned int blksize = i_blocksize(inode);
+
+			trace_xfs_zero_file_space(ip);
+
+			error = xfs_free_file_space(ip, offset, len);
+			if (error)
+				goto out_unlock;
+
+			len = round_up(offset + len, blksize) -
+			      round_down(offset, blksize);
+			offset = round_down(offset, blksize);
 		} else if (mode & FALLOC_FL_UNSHARE_RANGE) {
 			error = xfs_reflink_unshare(ip, offset, len);
 			if (error)
 				goto out_unlock;
-
-			if (!xfs_is_always_cow_inode(ip)) {
-				error = xfs_alloc_file_space(ip, offset, len,
-						XFS_BMAPI_PREALLOC);
-			}
 		} else {
 			/*
 			 * If always_cow mode we can't use preallocations and
@@ -900,12 +943,14 @@ xfs_file_fallocate(
 				error = -EOPNOTSUPP;
 				goto out_unlock;
 			}
+		}
 
+		if (!xfs_is_always_cow_inode(ip)) {
 			error = xfs_alloc_file_space(ip, offset, len,
 						     XFS_BMAPI_PREALLOC);
+			if (error)
+				goto out_unlock;
 		}
-		if (error)
-			goto out_unlock;
 	}
 
 	if (file->f_flags & O_DSYNC)
@@ -1059,7 +1104,7 @@ xfs_dir_open(
 	 */
 	mode = xfs_ilock_data_map_shared(ip);
 	if (ip->i_d.di_nextents > 0)
-		error = xfs_dir3_data_readahead(ip, 0, -1);
+		error = xfs_dir3_data_readahead(ip, 0, 0);
 	xfs_iunlock(ip, mode);
 	return error;
 }
@@ -1156,12 +1201,16 @@ __xfs_filemap_fault(
 	if (IS_DAX(inode)) {
 		pfn_t pfn;
 
-		ret = dax_iomap_fault(vmf, pe_size, &pfn, NULL, &xfs_iomap_ops);
+		ret = dax_iomap_fault(vmf, pe_size, &pfn, NULL,
+				(write_fault && !vmf->cow_page) ?
+				 &xfs_direct_write_iomap_ops :
+				 &xfs_read_iomap_ops);
 		if (ret & VM_FAULT_NEEDDSYNC)
 			ret = dax_finish_sync_fault(vmf, pe_size, pfn);
 	} else {
 		if (write_fault)
-			ret = iomap_page_mkwrite(vmf, &xfs_iomap_ops);
+			ret = iomap_page_mkwrite(vmf,
+					&xfs_buffered_write_iomap_ops);
 		else
 			ret = filemap_fault(vmf);
 	}
@@ -1225,22 +1274,22 @@ static const struct vm_operations_struct xfs_file_vm_ops = {
 
 STATIC int
 xfs_file_mmap(
-	struct file	*filp,
-	struct vm_area_struct *vma)
+	struct file		*file,
+	struct vm_area_struct	*vma)
 {
-	struct dax_device 	*dax_dev;
+	struct inode		*inode = file_inode(file);
+	struct xfs_buftarg	*target = xfs_inode_buftarg(XFS_I(inode));
 
-	dax_dev = xfs_find_daxdev_for_inode(file_inode(filp));
 	/*
 	 * We don't support synchronous mappings for non-DAX files and
 	 * for DAX files if underneath dax_device is not synchronous.
 	 */
-	if (!daxdev_mapping_supported(vma, dax_dev))
+	if (!daxdev_mapping_supported(vma, target->bt_daxdev))
 		return -EOPNOTSUPP;
 
-	file_accessed(filp);
+	file_accessed(file);
 	vma->vm_ops = &xfs_file_vm_ops;
-	if (IS_DAX(file_inode(filp)))
+	if (IS_DAX(inode))
 		vma->vm_flags |= VM_HUGEPAGE;
 	return 0;
 }

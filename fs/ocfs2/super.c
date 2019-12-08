@@ -926,8 +926,8 @@ static int ocfs2_enable_quotas(struct ocfs2_super *osb)
 			status = -ENOENT;
 			goto out_quota_off;
 		}
-		status = dquot_enable(inode[type], type, QFMT_OCFS2,
-				      DQUOT_USAGE_ENABLED);
+		status = dquot_load_quota_inode(inode[type], type, QFMT_OCFS2,
+						DQUOT_USAGE_ENABLED);
 		if (status < 0)
 			goto out_quota_off;
 	}

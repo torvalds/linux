@@ -113,7 +113,10 @@ static int uniphier_gpio_offset_read(struct gpio_chip *chip,
 static int uniphier_gpio_get_direction(struct gpio_chip *chip,
 				       unsigned int offset)
 {
-	return uniphier_gpio_offset_read(chip, offset, UNIPHIER_GPIO_PORT_DIR);
+	if (uniphier_gpio_offset_read(chip, offset, UNIPHIER_GPIO_PORT_DIR))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int uniphier_gpio_direction_input(struct gpio_chip *chip,

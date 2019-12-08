@@ -52,7 +52,10 @@ static int gpiomm_gpio_get_direction(struct gpio_chip *chip,
 	const unsigned int port = offset / 8;
 	const unsigned int mask = BIT(offset % 8);
 
-	return !!(gpiommgpio->io_state[port] & mask);
+	if (gpiommgpio->io_state[port] & mask)
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int gpiomm_gpio_direction_input(struct gpio_chip *chip,

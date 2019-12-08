@@ -229,7 +229,8 @@ int adis_debugfs_reg_access(struct iio_dev *indio_dev,
 		int ret;
 
 		ret = adis_read_reg_16(adis, reg, &val16);
-		*readval = val16;
+		if (ret == 0)
+			*readval = val16;
 
 		return ret;
 	} else {
@@ -286,7 +287,7 @@ int adis_check_status(struct adis *adis)
 	int i;
 
 	ret = adis_read_reg_16(adis, adis->data->diag_stat_reg, &status);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	status &= adis->data->status_error_mask;

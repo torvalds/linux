@@ -317,6 +317,7 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 						       struct efa_admin_acq_entry *comp,
 						       size_t comp_size_in_bytes)
 {
+	struct efa_admin_aq_entry *aqe;
 	struct efa_comp_ctx *comp_ctx;
 	u16 queue_size_mask;
 	u16 cmd_id;
@@ -350,7 +351,9 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 
 	reinit_completion(&comp_ctx->wait_event);
 
-	memcpy(&aq->sq.entries[pi], cmd, cmd_size_in_bytes);
+	aqe = &aq->sq.entries[pi];
+	memset(aqe, 0, sizeof(*aqe));
+	memcpy(aqe, cmd, cmd_size_in_bytes);
 
 	aq->sq.pc++;
 	atomic64_inc(&aq->stats.submitted_cmd);

@@ -91,6 +91,13 @@ struct mpll_cfg {
 	uint32_t ref_range;
 	uint32_t ref_clk;
 	bool hdmimode_enable;
+	bool sup_pre_hp;
+	bool dp_tx0_vergdrv_byp;
+	bool dp_tx1_vergdrv_byp;
+	bool dp_tx2_vergdrv_byp;
+	bool dp_tx3_vergdrv_byp;
+
+
 };
 
 struct dpcssys_phy_seq_cfg {

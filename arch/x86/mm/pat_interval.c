@@ -56,7 +56,7 @@ static struct memtype *memtype_match(u64 start, u64 end, int match_type)
 {
 	struct memtype *match;
 
-	match = memtype_interval_iter_first(&memtype_rbroot, start, end);
+	match = memtype_interval_iter_first(&memtype_rbroot, start, end-1);
 	while (match != NULL && match->start < end) {
 		if ((match_type == MEMTYPE_EXACT_MATCH) &&
 		    (match->start == start) && (match->end == end))
@@ -66,7 +66,7 @@ static struct memtype *memtype_match(u64 start, u64 end, int match_type)
 		    (match->start < start) && (match->end == end))
 			return match;
 
-		match = memtype_interval_iter_next(match, start, end);
+		match = memtype_interval_iter_next(match, start, end-1);
 	}
 
 	return NULL; /* Returns NULL if there is no match */
@@ -79,7 +79,7 @@ static int memtype_check_conflict(u64 start, u64 end,
 	struct memtype *match;
 	enum page_cache_mode found_type = reqtype;
 
-	match = memtype_interval_iter_first(&memtype_rbroot, start, end);
+	match = memtype_interval_iter_first(&memtype_rbroot, start, end-1);
 	if (match == NULL)
 		goto success;
 
@@ -89,12 +89,12 @@ static int memtype_check_conflict(u64 start, u64 end,
 	dprintk("Overlap at 0x%Lx-0x%Lx\n", match->start, match->end);
 	found_type = match->type;
 
-	match = memtype_interval_iter_next(match, start, end);
+	match = memtype_interval_iter_next(match, start, end-1);
 	while (match) {
 		if (match->type != found_type)
 			goto failure;
 
-		match = memtype_interval_iter_next(match, start, end);
+		match = memtype_interval_iter_next(match, start, end-1);
 	}
 success:
 	if (newtype)
@@ -160,7 +160,7 @@ struct memtype *memtype_erase(u64 start, u64 end)
 struct memtype *memtype_lookup(u64 addr)
 {
 	return memtype_interval_iter_first(&memtype_rbroot, addr,
-					   addr + PAGE_SIZE);
+					   addr + PAGE_SIZE-1);
 }
 
 #if defined(CONFIG_DEBUG_FS)

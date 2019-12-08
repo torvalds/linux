@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/init.h>
+#include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
@@ -85,10 +86,17 @@ unsigned long pci_cardbus_io_size = DEFAULT_CARDBUS_IO_SIZE;
 unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 
 #define DEFAULT_HOTPLUG_IO_SIZE		(256)
-#define DEFAULT_HOTPLUG_MEM_SIZE	(2*1024*1024)
-/* pci=hpmemsize=nnM,hpiosize=nn can override this */
+#define DEFAULT_HOTPLUG_MMIO_SIZE	(2*1024*1024)
+#define DEFAULT_HOTPLUG_MMIO_PREF_SIZE	(2*1024*1024)
+/* hpiosize=nn can override this */
 unsigned long pci_hotplug_io_size  = DEFAULT_HOTPLUG_IO_SIZE;
-unsigned long pci_hotplug_mem_size = DEFAULT_HOTPLUG_MEM_SIZE;
+/*
+ * pci=hpmmiosize=nnM overrides non-prefetchable MMIO size,
+ * pci=hpmmioprefsize=nnM overrides prefetchable MMIO size;
+ * pci=hpmemsize=nnM overrides both
+ */
+unsigned long pci_hotplug_mmio_size = DEFAULT_HOTPLUG_MMIO_SIZE;
+unsigned long pci_hotplug_mmio_pref_size = DEFAULT_HOTPLUG_MMIO_PREF_SIZE;
 
 #define DEFAULT_HOTPLUG_BUS_SIZE	1
 unsigned long pci_hotplug_bus_size = DEFAULT_HOTPLUG_BUS_SIZE;
@@ -674,7 +682,7 @@ struct resource *pci_find_resource(struct pci_dev *dev, struct resource *res)
 {
 	int i;
 
-	for (i = 0; i < PCI_ROM_RESOURCE; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		struct resource *r = &dev->resource[i];
 
 		if (r->start && resource_contains(r, res))
@@ -834,14 +842,16 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 		return -EINVAL;
 
 	/*
-	 * Validate current state:
-	 * Can enter D0 from any state, but if we can only go deeper
-	 * to sleep if we're already in a low power state
+	 * Validate transition: We can enter D0 from any state, but if
+	 * we're already in a low-power state, we can only go deeper.  E.g.,
+	 * we can go from D1 to D3, but we can't go directly from D3 to D1;
+	 * we'd have to go from D3 to D0, then to D1.
 	 */
 	if (state != PCI_D0 && dev->current_state <= PCI_D3cold
 	    && dev->current_state > state) {
-		pci_err(dev, "invalid power transition (from state %d to %d)\n",
-			dev->current_state, state);
+		pci_err(dev, "invalid power transition (from %s to %s)\n",
+			pci_power_name(dev->current_state),
+			pci_power_name(state));
 		return -EINVAL;
 	}
 
@@ -851,6 +861,12 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 		return -EIO;
 
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	if (pmcsr == (u16) ~0) {
+		pci_err(dev, "can't change power state from %s to %s (config space inaccessible)\n",
+			pci_power_name(dev->current_state),
+			pci_power_name(state));
+		return -EIO;
+	}
 
 	/*
 	 * If we're (effectively) in D3, force entire word to 0.
@@ -886,13 +902,14 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (state == PCI_D3hot || dev->current_state == PCI_D3hot)
 		pci_dev_d3_sleep(dev);
 	else if (state == PCI_D2 || dev->current_state == PCI_D2)
-		udelay(PCI_PM_D2_DELAY);
+		msleep(PCI_PM_D2_DELAY);
 
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 	dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
 	if (dev->current_state != state)
-		pci_info_ratelimited(dev, "Refused to change power state, currently in D%d\n",
-			 dev->current_state);
+		pci_info_ratelimited(dev, "refused to change power state from %s to %s\n",
+			 pci_power_name(dev->current_state),
+			 pci_power_name(state));
 
 	/*
 	 * According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
@@ -963,7 +980,7 @@ void pci_refresh_power_state(struct pci_dev *dev)
  * @dev: PCI device to handle.
  * @state: State to put the device into.
  */
-static int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
+int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
 {
 	int error;
 
@@ -979,6 +996,7 @@ static int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
 
 	return error;
 }
+EXPORT_SYMBOL_GPL(pci_platform_power_transition);
 
 /**
  * pci_wakeup - Wake up a PCI device
@@ -1002,34 +1020,70 @@ void pci_wakeup_bus(struct pci_bus *bus)
 		pci_walk_bus(bus, pci_wakeup, NULL);
 }
 
-/**
- * __pci_start_power_transition - Start power transition of a PCI device
- * @dev: PCI device to handle.
- * @state: State to put the device into.
- */
-static void __pci_start_power_transition(struct pci_dev *dev, pci_power_t state)
+static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
 {
-	if (state == PCI_D0) {
-		pci_platform_power_transition(dev, PCI_D0);
-		/*
-		 * Mandatory power management transition delays, see
-		 * PCI Express Base Specification Revision 2.0 Section
-		 * 6.6.1: Conventional Reset.  Do not delay for
-		 * devices powered on/off by corresponding bridge,
-		 * because have already delayed for the bridge.
-		 */
-		if (dev->runtime_d3cold) {
-			if (dev->d3cold_delay && !dev->imm_ready)
-				msleep(dev->d3cold_delay);
-			/*
-			 * When powering on a bridge from D3cold, the
-			 * whole hierarchy may be powered on into
-			 * D0uninitialized state, resume them to give
-			 * them a chance to suspend again
-			 */
-			pci_wakeup_bus(dev->subordinate);
+	int delay = 1;
+	u32 id;
+
+	/*
+	 * After reset, the device should not silently discard config
+	 * requests, but it may still indicate that it needs more time by
+	 * responding to them with CRS completions.  The Root Port will
+	 * generally synthesize ~0 data to complete the read (except when
+	 * CRS SV is enabled and the read was for the Vendor ID; in that
+	 * case it synthesizes 0x0001 data).
+	 *
+	 * Wait for the device to return a non-CRS completion.  Read the
+	 * Command register instead of Vendor ID so we don't have to
+	 * contend with the CRS SV value.
+	 */
+	pci_read_config_dword(dev, PCI_COMMAND, &id);
+	while (id == ~0) {
+		if (delay > timeout) {
+			pci_warn(dev, "not ready %dms after %s; giving up\n",
+				 delay - 1, reset_type);
+			return -ENOTTY;
 		}
+
+		if (delay > 1000)
+			pci_info(dev, "not ready %dms after %s; waiting\n",
+				 delay - 1, reset_type);
+
+		msleep(delay);
+		delay *= 2;
+		pci_read_config_dword(dev, PCI_COMMAND, &id);
 	}
+
+	if (delay > 1000)
+		pci_info(dev, "ready %dms after %s\n", delay - 1,
+			 reset_type);
+
+	return 0;
+}
+
+/**
+ * pci_power_up - Put the given device into D0
+ * @dev: PCI device to power up
+ */
+int pci_power_up(struct pci_dev *dev)
+{
+	pci_platform_power_transition(dev, PCI_D0);
+
+	/*
+	 * Mandatory power management transition delays are handled in
+	 * pci_pm_resume_noirq() and pci_pm_runtime_resume() of the
+	 * corresponding bridge.
+	 */
+	if (dev->runtime_d3cold) {
+		/*
+		 * When powering on a bridge from D3cold, the whole hierarchy
+		 * may be powered on into D0uninitialized state, resume them to
+		 * give them a chance to suspend again
+		 */
+		pci_wakeup_bus(dev->subordinate);
+	}
+
+	return pci_raw_set_power_state(dev, PCI_D0);
 }
 
 /**
@@ -1055,27 +1109,6 @@ void pci_bus_set_current_state(struct pci_bus *bus, pci_power_t state)
 	if (bus)
 		pci_walk_bus(bus, __pci_dev_set_current_state, &state);
 }
-
-/**
- * __pci_complete_power_transition - Complete power transition of a PCI device
- * @dev: PCI device to handle.
- * @state: State to put the device into.
- *
- * This function should not be called directly by device drivers.
- */
-int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state)
-{
-	int ret;
-
-	if (state <= PCI_D0)
-		return -EINVAL;
-	ret = pci_platform_power_transition(dev, state);
-	/* Power off the bridge may power off the whole hierarchy */
-	if (!ret && state == PCI_D3cold)
-		pci_bus_set_current_state(dev->subordinate, PCI_D3cold);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(__pci_complete_power_transition);
 
 /**
  * pci_set_power_state - Set the power state of a PCI device
@@ -1117,7 +1150,8 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (dev->current_state == state)
 		return 0;
 
-	__pci_start_power_transition(dev, state);
+	if (state == PCI_D0)
+		return pci_power_up(dev);
 
 	/*
 	 * This device is quirked not to be put into D3, so don't put it in
@@ -1133,23 +1167,16 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	error = pci_raw_set_power_state(dev, state > PCI_D3hot ?
 					PCI_D3hot : state);
 
-	if (!__pci_complete_power_transition(dev, state))
-		error = 0;
+	if (pci_platform_power_transition(dev, state))
+		return error;
 
-	return error;
+	/* Powering off a bridge may power off the whole hierarchy */
+	if (state == PCI_D3cold)
+		pci_bus_set_current_state(dev->subordinate, PCI_D3cold);
+
+	return 0;
 }
 EXPORT_SYMBOL(pci_set_power_state);
-
-/**
- * pci_power_up - Put the given device into D0 forcibly
- * @dev: PCI device to power up
- */
-void pci_power_up(struct pci_dev *dev)
-{
-	__pci_start_power_transition(dev, PCI_D0);
-	pci_raw_set_power_state(dev, PCI_D0);
-	pci_update_current_state(dev, PCI_D0);
-}
 
 /**
  * pci_choose_state - Choose the power state of a PCI device
@@ -1359,6 +1386,7 @@ int pci_save_state(struct pci_dev *dev)
 
 	pci_save_ltr_state(dev);
 	pci_save_dpc_state(dev);
+	pci_save_aer_state(dev);
 	return pci_save_vc_state(dev);
 }
 EXPORT_SYMBOL(pci_save_state);
@@ -1472,6 +1500,7 @@ void pci_restore_state(struct pci_dev *dev)
 	pci_restore_dpc_state(dev);
 
 	pci_cleanup_aer_error_status_regs(dev);
+	pci_restore_aer_state(dev);
 
 	pci_restore_config_space(dev);
 
@@ -3766,7 +3795,7 @@ void pci_release_selected_regions(struct pci_dev *pdev, int bars)
 {
 	int i;
 
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < PCI_STD_NUM_BARS; i++)
 		if (bars & (1 << i))
 			pci_release_region(pdev, i);
 }
@@ -3777,7 +3806,7 @@ static int __pci_request_selected_regions(struct pci_dev *pdev, int bars,
 {
 	int i;
 
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < PCI_STD_NUM_BARS; i++)
 		if (bars & (1 << i))
 			if (__pci_request_region(pdev, i, res_name, excl))
 				goto err_out;
@@ -3825,7 +3854,7 @@ EXPORT_SYMBOL(pci_request_selected_regions_exclusive);
 
 void pci_release_regions(struct pci_dev *pdev)
 {
-	pci_release_selected_regions(pdev, (1 << 6) - 1);
+	pci_release_selected_regions(pdev, (1 << PCI_STD_NUM_BARS) - 1);
 }
 EXPORT_SYMBOL(pci_release_regions);
 
@@ -3844,7 +3873,8 @@ EXPORT_SYMBOL(pci_release_regions);
  */
 int pci_request_regions(struct pci_dev *pdev, const char *res_name)
 {
-	return pci_request_selected_regions(pdev, ((1 << 6) - 1), res_name);
+	return pci_request_selected_regions(pdev,
+			((1 << PCI_STD_NUM_BARS) - 1), res_name);
 }
 EXPORT_SYMBOL(pci_request_regions);
 
@@ -3866,7 +3896,7 @@ EXPORT_SYMBOL(pci_request_regions);
 int pci_request_regions_exclusive(struct pci_dev *pdev, const char *res_name)
 {
 	return pci_request_selected_regions_exclusive(pdev,
-					((1 << 6) - 1), res_name);
+				((1 << PCI_STD_NUM_BARS) - 1), res_name);
 }
 EXPORT_SYMBOL(pci_request_regions_exclusive);
 
@@ -4428,47 +4458,6 @@ int pci_wait_for_pending_transaction(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_wait_for_pending_transaction);
 
-static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
-{
-	int delay = 1;
-	u32 id;
-
-	/*
-	 * After reset, the device should not silently discard config
-	 * requests, but it may still indicate that it needs more time by
-	 * responding to them with CRS completions.  The Root Port will
-	 * generally synthesize ~0 data to complete the read (except when
-	 * CRS SV is enabled and the read was for the Vendor ID; in that
-	 * case it synthesizes 0x0001 data).
-	 *
-	 * Wait for the device to return a non-CRS completion.  Read the
-	 * Command register instead of Vendor ID so we don't have to
-	 * contend with the CRS SV value.
-	 */
-	pci_read_config_dword(dev, PCI_COMMAND, &id);
-	while (id == ~0) {
-		if (delay > timeout) {
-			pci_warn(dev, "not ready %dms after %s; giving up\n",
-				 delay - 1, reset_type);
-			return -ENOTTY;
-		}
-
-		if (delay > 1000)
-			pci_info(dev, "not ready %dms after %s; waiting\n",
-				 delay - 1, reset_type);
-
-		msleep(delay);
-		delay *= 2;
-		pci_read_config_dword(dev, PCI_COMMAND, &id);
-	}
-
-	if (delay > 1000)
-		pci_info(dev, "ready %dms after %s\n", delay - 1,
-			 reset_type);
-
-	return 0;
-}
-
 /**
  * pcie_has_flr - check if a device supports function level resets
  * @dev: device to check
@@ -4603,16 +4592,19 @@ static int pci_pm_reset(struct pci_dev *dev, int probe)
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, csr);
 	pci_dev_d3_sleep(dev);
 
-	return pci_dev_wait(dev, "PM D3->D0", PCIE_RESET_READY_POLL_MS);
+	return pci_dev_wait(dev, "PM D3hot->D0", PCIE_RESET_READY_POLL_MS);
 }
+
 /**
- * pcie_wait_for_link - Wait until link is active or inactive
+ * pcie_wait_for_link_delay - Wait until link is active or inactive
  * @pdev: Bridge device
  * @active: waiting for active or inactive?
+ * @delay: Delay to wait after link has become active (in ms)
  *
  * Use this to wait till link becomes active or inactive.
  */
-bool pcie_wait_for_link(struct pci_dev *pdev, bool active)
+static bool pcie_wait_for_link_delay(struct pci_dev *pdev, bool active,
+				     int delay)
 {
 	int timeout = 1000;
 	bool ret;
@@ -4649,11 +4641,142 @@ bool pcie_wait_for_link(struct pci_dev *pdev, bool active)
 		timeout -= 10;
 	}
 	if (active && ret)
-		msleep(100);
+		msleep(delay);
 	else if (ret != active)
 		pci_info(pdev, "Data Link Layer Link Active not %s in 1000 msec\n",
 			active ? "set" : "cleared");
 	return ret == active;
+}
+
+/**
+ * pcie_wait_for_link - Wait until link is active or inactive
+ * @pdev: Bridge device
+ * @active: waiting for active or inactive?
+ *
+ * Use this to wait till link becomes active or inactive.
+ */
+bool pcie_wait_for_link(struct pci_dev *pdev, bool active)
+{
+	return pcie_wait_for_link_delay(pdev, active, 100);
+}
+
+/*
+ * Find maximum D3cold delay required by all the devices on the bus.  The
+ * spec says 100 ms, but firmware can lower it and we allow drivers to
+ * increase it as well.
+ *
+ * Called with @pci_bus_sem locked for reading.
+ */
+static int pci_bus_max_d3cold_delay(const struct pci_bus *bus)
+{
+	const struct pci_dev *pdev;
+	int min_delay = 100;
+	int max_delay = 0;
+
+	list_for_each_entry(pdev, &bus->devices, bus_list) {
+		if (pdev->d3cold_delay < min_delay)
+			min_delay = pdev->d3cold_delay;
+		if (pdev->d3cold_delay > max_delay)
+			max_delay = pdev->d3cold_delay;
+	}
+
+	return max(min_delay, max_delay);
+}
+
+/**
+ * pci_bridge_wait_for_secondary_bus - Wait for secondary bus to be accessible
+ * @dev: PCI bridge
+ *
+ * Handle necessary delays before access to the devices on the secondary
+ * side of the bridge are permitted after D3cold to D0 transition.
+ *
+ * For PCIe this means the delays in PCIe 5.0 section 6.6.1. For
+ * conventional PCI it means Tpvrh + Trhfa specified in PCI 3.0 section
+ * 4.3.2.
+ */
+void pci_bridge_wait_for_secondary_bus(struct pci_dev *dev)
+{
+	struct pci_dev *child;
+	int delay;
+
+	if (pci_dev_is_disconnected(dev))
+		return;
+
+	if (!pci_is_bridge(dev) || !dev->bridge_d3)
+		return;
+
+	down_read(&pci_bus_sem);
+
+	/*
+	 * We only deal with devices that are present currently on the bus.
+	 * For any hot-added devices the access delay is handled in pciehp
+	 * board_added(). In case of ACPI hotplug the firmware is expected
+	 * to configure the devices before OS is notified.
+	 */
+	if (!dev->subordinate || list_empty(&dev->subordinate->devices)) {
+		up_read(&pci_bus_sem);
+		return;
+	}
+
+	/* Take d3cold_delay requirements into account */
+	delay = pci_bus_max_d3cold_delay(dev->subordinate);
+	if (!delay) {
+		up_read(&pci_bus_sem);
+		return;
+	}
+
+	child = list_first_entry(&dev->subordinate->devices, struct pci_dev,
+				 bus_list);
+	up_read(&pci_bus_sem);
+
+	/*
+	 * Conventional PCI and PCI-X we need to wait Tpvrh + Trhfa before
+	 * accessing the device after reset (that is 1000 ms + 100 ms). In
+	 * practice this should not be needed because we don't do power
+	 * management for them (see pci_bridge_d3_possible()).
+	 */
+	if (!pci_is_pcie(dev)) {
+		pci_dbg(dev, "waiting %d ms for secondary bus\n", 1000 + delay);
+		msleep(1000 + delay);
+		return;
+	}
+
+	/*
+	 * For PCIe downstream and root ports that do not support speeds
+	 * greater than 5 GT/s need to wait minimum 100 ms. For higher
+	 * speeds (gen3) we need to wait first for the data link layer to
+	 * become active.
+	 *
+	 * However, 100 ms is the minimum and the PCIe spec says the
+	 * software must allow at least 1s before it can determine that the
+	 * device that did not respond is a broken device. There is
+	 * evidence that 100 ms is not always enough, for example certain
+	 * Titan Ridge xHCI controller does not always respond to
+	 * configuration requests if we only wait for 100 ms (see
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=203885).
+	 *
+	 * Therefore we wait for 100 ms and check for the device presence.
+	 * If it is still not present give it an additional 100 ms.
+	 */
+	if (!pcie_downstream_port(dev))
+		return;
+
+	if (pcie_get_speed_cap(dev) <= PCIE_SPEED_5_0GT) {
+		pci_dbg(dev, "waiting %d ms for downstream link\n", delay);
+		msleep(delay);
+	} else {
+		pci_dbg(dev, "waiting %d ms for downstream link, after activation\n",
+			delay);
+		if (!pcie_wait_for_link_delay(dev, true, delay)) {
+			/* Did not train, no need to wait any further */
+			return;
+		}
+	}
+
+	if (!pci_device_is_present(child)) {
+		pci_dbg(child, "waiting additional %d ms to become accessible\n", delay);
+		msleep(delay);
+	}
 }
 
 void pci_reset_secondary_bus(struct pci_dev *dev)
@@ -5854,6 +5977,24 @@ int pci_set_vga_state(struct pci_dev *dev, bool decode,
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
+bool pci_pr3_present(struct pci_dev *pdev)
+{
+	struct acpi_device *adev;
+
+	if (acpi_disabled)
+		return false;
+
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (!adev)
+		return false;
+
+	return adev->power.flags.power_resources &&
+		acpi_has_method(adev->handle, "_PR3");
+}
+EXPORT_SYMBOL_GPL(pci_pr3_present);
+#endif
+
 /**
  * pci_add_dma_alias - Add a DMA devfn alias for a device
  * @dev: the PCI device for which alias is added
@@ -6286,8 +6427,13 @@ static int __init pci_setup(char *str)
 				pcie_ecrc_get_policy(str + 5);
 			} else if (!strncmp(str, "hpiosize=", 9)) {
 				pci_hotplug_io_size = memparse(str + 9, &str);
+			} else if (!strncmp(str, "hpmmiosize=", 11)) {
+				pci_hotplug_mmio_size = memparse(str + 11, &str);
+			} else if (!strncmp(str, "hpmmioprefsize=", 15)) {
+				pci_hotplug_mmio_pref_size = memparse(str + 15, &str);
 			} else if (!strncmp(str, "hpmemsize=", 10)) {
-				pci_hotplug_mem_size = memparse(str + 10, &str);
+				pci_hotplug_mmio_size = memparse(str + 10, &str);
+				pci_hotplug_mmio_pref_size = pci_hotplug_mmio_size;
 			} else if (!strncmp(str, "hpbussize=", 10)) {
 				pci_hotplug_bus_size =
 					simple_strtoul(str + 10, &str, 0);

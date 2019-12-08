@@ -46,10 +46,15 @@ struct vop_modeset {
 struct vop_output {
 	struct vop_reg pin_pol;
 	struct vop_reg dp_pin_pol;
+	struct vop_reg dp_dclk_pol;
 	struct vop_reg edp_pin_pol;
+	struct vop_reg edp_dclk_pol;
 	struct vop_reg hdmi_pin_pol;
+	struct vop_reg hdmi_dclk_pol;
 	struct vop_reg mipi_pin_pol;
+	struct vop_reg mipi_dclk_pol;
 	struct vop_reg rgb_pin_pol;
+	struct vop_reg rgb_dclk_pol;
 	struct vop_reg dp_en;
 	struct vop_reg edp_en;
 	struct vop_reg hdmi_en;
@@ -67,6 +72,7 @@ struct vop_common {
 	struct vop_reg dither_down_mode;
 	struct vop_reg dither_down_en;
 	struct vop_reg dither_up;
+	struct vop_reg dsp_lut_en;
 	struct vop_reg gate_en;
 	struct vop_reg mmu_en;
 	struct vop_reg out_mode;
@@ -170,6 +176,7 @@ struct vop_data {
 	const struct vop_win_yuv2yuv_data *win_yuv2yuv;
 	const struct vop_win_data *win;
 	unsigned int win_size;
+	unsigned int lut_size;
 
 #define VOP_FEATURE_OUTPUT_RGB10	BIT(0)
 #define VOP_FEATURE_INTERNAL_RGB	BIT(1)
@@ -294,8 +301,7 @@ enum dither_down_mode_sel {
 enum vop_pol {
 	HSYNC_POSITIVE = 0,
 	VSYNC_POSITIVE = 1,
-	DEN_NEGATIVE   = 2,
-	DCLK_INVERT    = 3
+	DEN_NEGATIVE   = 2
 };
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))

@@ -1722,7 +1722,7 @@ struct ncb {
 	**	Miscellaneous configuration and status parameters.
 	**----------------------------------------------------------------
 	*/
-	u_char		disc;		/* Diconnection allowed		*/
+	u_char		disc;		/* Disconnection allowed	*/
 	u_char		scsi_mode;	/* Current SCSI BUS mode	*/
 	u_char		order;		/* Tag order to use		*/
 	u_char		verbose;	/* Verbosity for this controller*/

@@ -240,14 +240,30 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 		v4l2_fill_pixfmt_mp(pix_mp, fmt->fourcc, pix_mp->width,
 				    pix_mp->height);
 		/*
+		 * A decoded 8-bit 4:2:0 NV12 frame may need memory for up to
+		 * 448 bytes per macroblock with additional 32 bytes on
+		 * multi-core variants.
+		 *
 		 * The H264 decoder needs extra space on the output buffers
 		 * to store motion vectors. This is needed for reference
 		 * frames.
+		 *
+		 * Memory layout is as follow:
+		 *
+		 * +---------------------------+
+		 * | Y-plane   256 bytes x MBs |
+		 * +---------------------------+
+		 * | UV-plane  128 bytes x MBs |
+		 * +---------------------------+
+		 * | MV buffer  64 bytes x MBs |
+		 * +---------------------------+
+		 * | MC sync          32 bytes |
+		 * +---------------------------+
 		 */
 		if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_H264_SLICE)
 			pix_mp->plane_fmt[0].sizeimage +=
-				128 * DIV_ROUND_UP(pix_mp->width, 16) *
-				      DIV_ROUND_UP(pix_mp->height, 16);
+				64 * MB_WIDTH(pix_mp->width) *
+				     MB_WIDTH(pix_mp->height) + 32;
 	} else if (!pix_mp->plane_fmt[0].sizeimage) {
 		/*
 		 * For coded formats the application can specify
@@ -367,19 +383,26 @@ vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	struct hantro_ctx *ctx = fh_to_ctx(priv);
+	struct vb2_queue *vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
 	const struct hantro_fmt *formats;
 	unsigned int num_fmts;
-	struct vb2_queue *vq;
 	int ret;
 
-	/* Change not allowed if queue is busy. */
-	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (vb2_is_busy(vq))
-		return -EBUSY;
+	ret = vidioc_try_fmt_out_mplane(file, priv, f);
+	if (ret)
+		return ret;
 
 	if (!hantro_is_encoder_ctx(ctx)) {
 		struct vb2_queue *peer_vq;
 
+		/*
+		 * In order to support dynamic resolution change,
+		 * the decoder admits a resolution change, as long
+		 * as the pixelformat remains. Can't be done if streaming.
+		 */
+		if (vb2_is_streaming(vq) || (vb2_is_busy(vq) &&
+		    pix_mp->pixelformat != ctx->src_fmt.pixelformat))
+			return -EBUSY;
 		/*
 		 * Since format change on the OUTPUT queue will reset
 		 * the CAPTURE queue, we can't allow doing so
@@ -389,11 +412,14 @@ vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 					  V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 		if (vb2_is_busy(peer_vq))
 			return -EBUSY;
+	} else {
+		/*
+		 * The encoder doesn't admit a format change if
+		 * there are OUTPUT buffers allocated.
+		 */
+		if (vb2_is_busy(vq))
+			return -EBUSY;
 	}
-
-	ret = vidioc_try_fmt_out_mplane(file, priv, f);
-	if (ret)
-		return ret;
 
 	formats = hantro_get_formats(ctx, &num_fmts);
 	ctx->vpu_src_fmt = hantro_find_format(formats, num_fmts,

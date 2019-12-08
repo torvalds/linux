@@ -47,6 +47,7 @@
 #include <linux/kthread.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
+#include <linux/completion.h>
 #include <uapi/linux/sched/types.h>
 
 #include <drm/drm_print.h>
@@ -134,6 +135,7 @@ drm_sched_rq_select_entity(struct drm_sched_rq *rq)
 		list_for_each_entry_continue(entity, &rq->entities, list) {
 			if (drm_sched_entity_is_ready(entity)) {
 				rq->current_entity = entity;
+				reinit_completion(&entity->entity_idle);
 				spin_unlock(&rq->lock);
 				return entity;
 			}
@@ -144,6 +146,7 @@ drm_sched_rq_select_entity(struct drm_sched_rq *rq)
 
 		if (drm_sched_entity_is_ready(entity)) {
 			rq->current_entity = entity;
+			reinit_completion(&entity->entity_idle);
 			spin_unlock(&rq->lock);
 			return entity;
 		}
@@ -496,8 +499,10 @@ void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 		fence = sched->ops->run_job(s_job);
 
 		if (IS_ERR_OR_NULL(fence)) {
+			if (IS_ERR(fence))
+				dma_fence_set_error(&s_fence->finished, PTR_ERR(fence));
+
 			s_job->s_fence->parent = NULL;
-			dma_fence_set_error(&s_fence->finished, PTR_ERR(fence));
 		} else {
 			s_job->s_fence->parent = fence;
 		}
@@ -632,43 +637,45 @@ static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
 }
 
 /**
- * drm_sched_cleanup_jobs - destroy finished jobs
+ * drm_sched_get_cleanup_job - fetch the next finished job to be destroyed
  *
  * @sched: scheduler instance
  *
- * Remove all finished jobs from the mirror list and destroy them.
+ * Returns the next finished job from the mirror list (if there is one)
+ * ready for it to be destroyed.
  */
-static void drm_sched_cleanup_jobs(struct drm_gpu_scheduler *sched)
+static struct drm_sched_job *
+drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 {
+	struct drm_sched_job *job;
 	unsigned long flags;
 
-	/* Don't destroy jobs while the timeout worker is running */
-	if (sched->timeout != MAX_SCHEDULE_TIMEOUT &&
-	    !cancel_delayed_work(&sched->work_tdr))
-		return;
+	/*
+	 * Don't destroy jobs while the timeout worker is running  OR thread
+	 * is being parked and hence assumed to not touch ring_mirror_list
+	 */
+	if ((sched->timeout != MAX_SCHEDULE_TIMEOUT &&
+	    !cancel_delayed_work(&sched->work_tdr)) ||
+	    __kthread_should_park(sched->thread))
+		return NULL;
 
+	spin_lock_irqsave(&sched->job_list_lock, flags);
 
-	while (!list_empty(&sched->ring_mirror_list)) {
-		struct drm_sched_job *job;
-
-		job = list_first_entry(&sched->ring_mirror_list,
+	job = list_first_entry_or_null(&sched->ring_mirror_list,
 				       struct drm_sched_job, node);
-		if (!dma_fence_is_signaled(&job->s_fence->finished))
-			break;
 
-		spin_lock_irqsave(&sched->job_list_lock, flags);
+	if (job && dma_fence_is_signaled(&job->s_fence->finished)) {
 		/* remove job from ring_mirror_list */
 		list_del_init(&job->node);
-		spin_unlock_irqrestore(&sched->job_list_lock, flags);
-
-		sched->ops->free_job(job);
+	} else {
+		job = NULL;
+		/* queue timeout for next job */
+		drm_sched_start_timeout(sched);
 	}
 
-	/* queue timeout for next job */
-	spin_lock_irqsave(&sched->job_list_lock, flags);
-	drm_sched_start_timeout(sched);
 	spin_unlock_irqrestore(&sched->job_list_lock, flags);
 
+	return job;
 }
 
 /**
@@ -708,17 +715,27 @@ static int drm_sched_main(void *param)
 		struct drm_sched_fence *s_fence;
 		struct drm_sched_job *sched_job;
 		struct dma_fence *fence;
+		struct drm_sched_job *cleanup_job = NULL;
 
 		wait_event_interruptible(sched->wake_up_worker,
-					 (drm_sched_cleanup_jobs(sched),
+					 (cleanup_job = drm_sched_get_cleanup_job(sched)) ||
 					 (!drm_sched_blocked(sched) &&
 					  (entity = drm_sched_select_entity(sched))) ||
-					 kthread_should_stop()));
+					 kthread_should_stop());
+
+		if (cleanup_job) {
+			sched->ops->free_job(cleanup_job);
+			/* queue timeout for next job */
+			drm_sched_start_timeout(sched);
+		}
 
 		if (!entity)
 			continue;
 
 		sched_job = drm_sched_entity_pop_job(entity);
+
+		complete(&entity->entity_idle);
+
 		if (!sched_job)
 			continue;
 
@@ -741,8 +758,9 @@ static int drm_sched_main(void *param)
 					  r);
 			dma_fence_put(fence);
 		} else {
+			if (IS_ERR(fence))
+				dma_fence_set_error(&s_fence->finished, PTR_ERR(fence));
 
-			dma_fence_set_error(&s_fence->finished, PTR_ERR(fence));
 			drm_sched_process_job(NULL, &sched_job->cb);
 		}
 

@@ -149,7 +149,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	if (li->cpu) {
 		int is_single_links = 0;
 
-		/* BE is dummy */
+		/* Codec is dummy */
 		codecs->of_node		= NULL;
 		codecs->dai_name	= "snd-soc-dummy-dai";
 		codecs->name		= "snd-soc-dummy";
@@ -179,7 +179,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
-		/* FE is dummy */
+		/* CPU is dummy */
 		cpus->of_node		= NULL;
 		cpus->dai_name		= "snd-soc-dummy-dai";
 		cpus->name		= "snd-soc-dummy";

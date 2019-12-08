@@ -68,7 +68,7 @@ static long adf_ctl_ioctl(struct file *fp, unsigned int cmd, unsigned long arg);
 static const struct file_operations adf_ctl_ops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = adf_ctl_ioctl,
-	.compat_ioctl = adf_ctl_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 struct adf_ctl_drv_info {

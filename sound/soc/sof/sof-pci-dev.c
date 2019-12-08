@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
+#include <sound/intel-dsp-config.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include <sound/sof.h>
@@ -28,6 +29,12 @@ MODULE_PARM_DESC(fw_path, "alternate path for SOF firmware.");
 static char *tplg_path;
 module_param(tplg_path, charp, 0444);
 MODULE_PARM_DESC(tplg_path, "alternate path for SOF topology.");
+
+static int sof_pci_debug;
+module_param_named(sof_pci_debug, sof_pci_debug, int, 0444);
+MODULE_PARM_DESC(sof_pci_debug, "SOF PCI debug options (0x0 all off)");
+
+#define SOF_PCI_DISABLE_PM_RUNTIME BIT(0)
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
 static const struct sof_dev_desc bxt_desc = {
@@ -113,7 +120,7 @@ static const struct sof_dev_desc cnl_desc = {
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_COFFEELAKE)
 static const struct sof_dev_desc cfl_desc = {
-	.machines		= snd_soc_acpi_intel_cnl_machines,
+	.machines		= snd_soc_acpi_intel_cfl_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= -1,
@@ -122,7 +129,7 @@ static const struct sof_dev_desc cfl_desc = {
 	.chip_info = &cnl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-cnl.ri",
+	.nocodec_fw_filename = "sof-cfl.ri",
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
@@ -133,7 +140,7 @@ static const struct sof_dev_desc cfl_desc = {
 	IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_H)
 
 static const struct sof_dev_desc cml_desc = {
-	.machines		= snd_soc_acpi_intel_cnl_machines,
+	.machines		= snd_soc_acpi_intel_cml_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= -1,
@@ -142,7 +149,7 @@ static const struct sof_dev_desc cml_desc = {
 	.chip_info = &cnl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-cnl.ri",
+	.nocodec_fw_filename = "sof-cml.ri",
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
@@ -163,42 +170,6 @@ static const struct sof_dev_desc icl_desc = {
 	.nocodec_fw_filename = "sof-icl.ri",
 	.nocodec_tplg_filename = "sof-icl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_SKYLAKE)
-static const struct sof_dev_desc skl_desc = {
-	.machines		= snd_soc_acpi_intel_skl_machines,
-	.resindex_lpe_base	= 0,
-	.resindex_pcicfg_base	= -1,
-	.resindex_imr_base	= -1,
-	.irqindex_host_ipc	= -1,
-	.resindex_dma_base	= -1,
-	.chip_info = &skl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-skl.ri",
-	.nocodec_tplg_filename = "sof-skl-nocodec.tplg",
-	.ops = &sof_skl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_KABYLAKE)
-static const struct sof_dev_desc kbl_desc = {
-	.machines		= snd_soc_acpi_intel_kbl_machines,
-	.resindex_lpe_base	= 0,
-	.resindex_pcicfg_base	= -1,
-	.resindex_imr_base	= -1,
-	.irqindex_host_ipc	= -1,
-	.resindex_dma_base	= -1,
-	.chip_info = &skl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-kbl.ri",
-	.nocodec_tplg_filename = "sof-kbl-nocodec.tplg",
-	.ops = &sof_skl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
@@ -239,7 +210,27 @@ static const struct sof_dev_desc ehl_desc = {
 };
 #endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_JASPERLAKE)
+static const struct sof_dev_desc jsl_desc = {
+	.machines               = snd_soc_acpi_intel_jsl_machines,
+	.resindex_lpe_base      = 0,
+	.resindex_pcicfg_base   = -1,
+	.resindex_imr_base      = -1,
+	.irqindex_host_ipc      = -1,
+	.resindex_dma_base      = -1,
+	.chip_info = &jsl_chip_info,
+	.default_fw_path = "intel/sof",
+	.default_tplg_path = "intel/sof-tplg",
+	.nocodec_fw_filename = "sof-jsl.ri",
+	.nocodec_tplg_filename = "sof-jsl-nocodec.tplg",
+	.ops = &sof_cnl_ops,
+	.arch_ops = &sof_xtensa_arch_ops
+};
+#endif
+
 static const struct dev_pm_ops sof_pci_pm = {
+	.prepare = snd_sof_prepare,
+	.complete = snd_sof_complete,
 	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
 	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
 			   snd_sof_runtime_idle)
@@ -248,6 +239,9 @@ static const struct dev_pm_ops sof_pci_pm = {
 static void sof_pci_probe_complete(struct device *dev)
 {
 	dev_dbg(dev, "Completing SOF PCI probe");
+
+	if (sof_pci_debug & SOF_PCI_DISABLE_PM_RUNTIME)
+		return;
 
 	/* allow runtime_pm */
 	pm_runtime_set_autosuspend_delay(dev, SND_SOF_SUSPEND_DELAY_MS);
@@ -276,6 +270,11 @@ static int sof_pci_probe(struct pci_dev *pci,
 	struct snd_sof_pdata *sof_pdata;
 	const struct snd_sof_dsp_ops *ops;
 	int ret;
+
+	ret = snd_intel_dsp_driver_probe(pci);
+	if (ret != SND_INTEL_DSP_DRIVER_ANY &&
+	    ret != SND_INTEL_DSP_DRIVER_SOF)
+		return -ENODEV;
 
 	dev_dbg(&pci->dev, "PCI DSP detected");
 
@@ -370,7 +369,8 @@ static void sof_pci_remove(struct pci_dev *pci)
 	snd_sof_device_remove(&pci->dev);
 
 	/* follow recommendation in pci-driver.c to increment usage counter */
-	pm_runtime_get_noresume(&pci->dev);
+	if (!(sof_pci_debug & SOF_PCI_DISABLE_PM_RUNTIME))
+		pm_runtime_get_noresume(&pci->dev);
 
 	/* release pci regions and disable device */
 	pci_release_regions(pci);
@@ -401,17 +401,13 @@ static const struct pci_device_id sof_pci_ids[] = {
 	{ PCI_DEVICE(0x8086, 0xa348),
 		.driver_data = (unsigned long)&cfl_desc},
 #endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_KABYLAKE)
-	{ PCI_DEVICE(0x8086, 0x9d71),
-		.driver_data = (unsigned long)&kbl_desc},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_SKYLAKE)
-	{ PCI_DEVICE(0x8086, 0x9d70),
-		.driver_data = (unsigned long)&skl_desc},
-#endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_ICELAKE)
 	{ PCI_DEVICE(0x8086, 0x34C8),
 		.driver_data = (unsigned long)&icl_desc},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_JASPERLAKE)
+	{ PCI_DEVICE(0x8086, 0x38c8),
+		.driver_data = (unsigned long)&jsl_desc},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_LP)
 	{ PCI_DEVICE(0x8086, 0x02c8),

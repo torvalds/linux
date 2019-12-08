@@ -201,6 +201,7 @@ static const struct file_operations scx200_wdt_fops = {
 	.llseek = no_llseek,
 	.write = scx200_wdt_write,
 	.unlocked_ioctl = scx200_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open = scx200_wdt_open,
 	.release = scx200_wdt_release,
 };

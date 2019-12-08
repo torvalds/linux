@@ -81,7 +81,8 @@ struct vdso_data {
 	__u32 stamp_sec_fraction;		/* fractional seconds of stamp_xtime */
 	__s32 wtom_clock_nsec;			/* Wall to monotonic clock nsec */
 	__s64 wtom_clock_sec;			/* Wall to monotonic clock sec */
-	struct timespec stamp_xtime;		/* xtime as at tb_orig_stamp */
+	__s64 stamp_xtime_sec;			/* xtime secs as at tb_orig_stamp */
+	__s64 stamp_xtime_nsec;			/* xtime nsecs as at tb_orig_stamp */
    	__u32 syscall_map_64[SYSCALL_MAP_SIZE]; /* map of syscalls  */
    	__u32 syscall_map_32[SYSCALL_MAP_SIZE]; /* map of syscalls */
 };
@@ -101,7 +102,8 @@ struct vdso_data {
 	__u32 tz_dsttime;		/* Type of dst correction	0x5C */
 	__s32 wtom_clock_sec;			/* Wall to monotonic clock */
 	__s32 wtom_clock_nsec;
-	struct timespec stamp_xtime;	/* xtime as at tb_orig_stamp */
+	__s32 stamp_xtime_sec;		/* xtime seconds as at tb_orig_stamp */
+	__s32 stamp_xtime_nsec;		/* xtime nsecs as at tb_orig_stamp */
 	__u32 stamp_sec_fraction;	/* fractional seconds of stamp_xtime */
    	__u32 syscall_map_32[SYSCALL_MAP_SIZE]; /* map of syscalls */
 	__u32 dcache_block_size;	/* L1 d-cache block size     */

@@ -321,7 +321,7 @@ static int atiixp_build_dma_packets(struct atiixp_modem *chip,
 		return -ENOMEM;
 
 	if (dma->desc_buf.area == NULL) {
-		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(chip->pci),
+		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
 					ATI_DESC_LIST_SIZE, &dma->desc_buf) < 0)
 			return -ENOMEM;
 		dma->period_bytes = dma->periods = 0; /* clear */
@@ -995,7 +995,7 @@ static int snd_atiixp_pcm_new(struct atiixp_modem *chip)
 	chip->pcmdevs[ATI_PCMDEV_ANALOG] = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
+					      &chip->pci->dev,
 					      64*1024, 128*1024);
 
 	return 0;

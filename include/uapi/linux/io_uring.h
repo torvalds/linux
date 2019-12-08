@@ -73,6 +73,7 @@ struct io_uring_sqe {
 #define IORING_OP_ACCEPT	13
 #define IORING_OP_ASYNC_CANCEL	14
 #define IORING_OP_LINK_TIMEOUT	15
+#define IORING_OP_CONNECT	16
 
 /*
  * sqe->fsync_flags

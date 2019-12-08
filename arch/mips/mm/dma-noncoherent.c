@@ -27,7 +27,7 @@
  * R10000 and R12000 are used in such systems, the SGI IP28 Indigo² rsp.
  * SGI IP32 aka O2.
  */
-static inline bool cpu_needs_post_dma_flush(struct device *dev)
+static inline bool cpu_needs_post_dma_flush(void)
 {
 	switch (boot_cpu_type()) {
 	case CPU_R10000:
@@ -57,12 +57,6 @@ void *uncached_kernel_address(void *addr)
 void *cached_kernel_address(void *addr)
 {
 	return __va(addr) - UNCAC_BASE;
-}
-
-long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
-		dma_addr_t dma_addr)
-{
-	return page_to_pfn(virt_to_page(cached_kernel_address(cpu_addr)));
 }
 
 static inline void dma_sync_virt(void *addr, size_t size,
@@ -118,17 +112,17 @@ static inline void dma_sync_phys(phys_addr_t paddr, size_t size,
 	} while (left);
 }
 
-void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
 	dma_sync_phys(paddr, size, dir);
 }
 
 #ifdef CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU
-void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
-	if (cpu_needs_post_dma_flush(dev))
+	if (cpu_needs_post_dma_flush())
 		dma_sync_phys(paddr, size, dir);
 }
 #endif

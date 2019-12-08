@@ -423,7 +423,7 @@ ip_vs_service_find(struct netns_ipvs *ipvs, int af, __u32 fwmark, __u16 protocol
 
 	if (!svc && protocol == IPPROTO_TCP &&
 	    atomic_read(&ipvs->ftpsvc_counter) &&
-	    (vport == FTPDATA || ntohs(vport) >= inet_prot_sock(ipvs->net))) {
+	    (vport == FTPDATA || !inet_port_requires_bind_service(ipvs->net, ntohs(vport)))) {
 		/*
 		 * Check if ftp service entry exists, the packet
 		 * might belong to FTP data connections.

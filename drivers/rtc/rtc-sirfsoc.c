@@ -365,13 +365,6 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sirfsoc_rtc_remove(struct platform_device *pdev)
-{
-	device_init_wakeup(&pdev->dev, 0);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int sirfsoc_rtc_suspend(struct device *dev)
 {
@@ -450,7 +443,6 @@ static struct platform_driver sirfsoc_rtc_driver = {
 		.of_match_table = sirfsoc_rtc_of_match,
 	},
 	.probe = sirfsoc_rtc_probe,
-	.remove = sirfsoc_rtc_remove,
 };
 module_platform_driver(sirfsoc_rtc_driver);
 

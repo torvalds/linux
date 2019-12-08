@@ -211,10 +211,7 @@ static void kick_submission(struct intel_engine_cs *engine,
 
 	/*
 	 * If we are already the currently executing context, don't
-	 * bother evaluating if we should preempt ourselves, or if
-	 * we expect nothing to change as a result of running the
-	 * tasklet, i.e. we have not change the priority queue
-	 * sufficiently to oust the running context.
+	 * bother evaluating if we should preempt ourselves.
 	 */
 	if (inflight->hw_context == rq->hw_context)
 		goto unlock;

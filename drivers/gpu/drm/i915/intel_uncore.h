@@ -378,23 +378,23 @@ intel_uncore_read64_2x32(struct intel_uncore *uncore,
 static inline void intel_uncore_rmw(struct intel_uncore *uncore,
 				    i915_reg_t reg, u32 clear, u32 set)
 {
-	u32 val;
+	u32 old, val;
 
-	val = intel_uncore_read(uncore, reg);
-	val &= ~clear;
-	val |= set;
-	intel_uncore_write(uncore, reg, val);
+	old = intel_uncore_read(uncore, reg);
+	val = (old & ~clear) | set;
+	if (val != old)
+		intel_uncore_write(uncore, reg, val);
 }
 
 static inline void intel_uncore_rmw_fw(struct intel_uncore *uncore,
 				       i915_reg_t reg, u32 clear, u32 set)
 {
-	u32 val;
+	u32 old, val;
 
-	val = intel_uncore_read_fw(uncore, reg);
-	val &= ~clear;
-	val |= set;
-	intel_uncore_write_fw(uncore, reg, val);
+	old = intel_uncore_read_fw(uncore, reg);
+	val = (old & ~clear) | set;
+	if (val != old)
+		intel_uncore_write_fw(uncore, reg, val);
 }
 
 static inline int intel_uncore_write_and_verify(struct intel_uncore *uncore,

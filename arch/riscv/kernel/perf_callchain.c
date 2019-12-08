@@ -67,7 +67,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 		return;
 
 	fp = regs->s0;
-	perf_callchain_store(entry, regs->sepc);
+	perf_callchain_store(entry, regs->epc);
 
 	fp = user_backtrace(entry, fp, regs->ra);
 	while (fp && !(fp & 0x3) && entry->nr < entry->max_stack)

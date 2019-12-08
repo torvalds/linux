@@ -26,17 +26,6 @@ static void nd_pfn_release(struct device *dev)
 	kfree(nd_pfn);
 }
 
-static struct device_type nd_pfn_device_type = {
-	.name = "nd_pfn",
-	.release = nd_pfn_release,
-};
-
-bool is_nd_pfn(struct device *dev)
-{
-	return dev ? dev->type == &nd_pfn_device_type : false;
-}
-EXPORT_SYMBOL(is_nd_pfn);
-
 struct nd_pfn *to_nd_pfn(struct device *dev)
 {
 	struct nd_pfn *nd_pfn = container_of(dev, struct nd_pfn, dev);
@@ -229,7 +218,7 @@ static ssize_t resource_show(struct device *dev,
 
 	return rc;
 }
-static DEVICE_ATTR_RO(resource);
+static DEVICE_ATTR(resource, 0400, resource_show, NULL);
 
 static ssize_t size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -280,24 +269,28 @@ static struct attribute *nd_pfn_attributes[] = {
 	NULL,
 };
 
-static umode_t pfn_visible(struct kobject *kobj, struct attribute *a, int n)
-{
-	if (a == &dev_attr_resource.attr)
-		return 0400;
-	return a->mode;
-}
-
-struct attribute_group nd_pfn_attribute_group = {
+static struct attribute_group nd_pfn_attribute_group = {
 	.attrs = nd_pfn_attributes,
-	.is_visible = pfn_visible,
 };
 
-static const struct attribute_group *nd_pfn_attribute_groups[] = {
+const struct attribute_group *nd_pfn_attribute_groups[] = {
 	&nd_pfn_attribute_group,
 	&nd_device_attribute_group,
 	&nd_numa_attribute_group,
 	NULL,
 };
+
+static const struct device_type nd_pfn_device_type = {
+	.name = "nd_pfn",
+	.release = nd_pfn_release,
+	.groups = nd_pfn_attribute_groups,
+};
+
+bool is_nd_pfn(struct device *dev)
+{
+	return dev ? dev->type == &nd_pfn_device_type : false;
+}
+EXPORT_SYMBOL(is_nd_pfn);
 
 struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
 		struct nd_namespace_common *ndns)
@@ -337,7 +330,6 @@ static struct nd_pfn *nd_pfn_alloc(struct nd_region *nd_region)
 
 	dev = &nd_pfn->dev;
 	dev_set_name(dev, "pfn%d.%d", nd_region->id, nd_pfn->id);
-	dev->groups = nd_pfn_attribute_groups;
 	dev->type = &nd_pfn_device_type;
 	dev->parent = &nd_region->dev;
 
@@ -381,6 +373,15 @@ static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
 	nsio = to_nd_namespace_io(&ndns->dev);
 	meta_start = (SZ_4K + sizeof(*pfn_sb)) >> 9;
 	meta_num = (le64_to_cpu(pfn_sb->dataoff) >> 9) - meta_start;
+
+	/*
+	 * re-enable the namespace with correct size so that we can access
+	 * the device memmap area.
+	 */
+	devm_namespace_disable(&nd_pfn->dev, ndns);
+	rc = devm_namespace_enable(&nd_pfn->dev, ndns, le64_to_cpu(pfn_sb->dataoff));
+	if (rc)
+		return rc;
 
 	do {
 		unsigned long zero_len;
@@ -591,7 +592,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		return -ENXIO;
 	}
 
-	return nd_pfn_clear_memmap_errors(nd_pfn);
+	return 0;
 }
 EXPORT_SYMBOL(nd_pfn_validate);
 
@@ -635,11 +636,6 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 }
 EXPORT_SYMBOL(nd_pfn_probe);
 
-static u32 info_block_reserve(void)
-{
-	return ALIGN(SZ_8K, PAGE_SIZE);
-}
-
 /*
  * We hotplug memory at sub-section granularity, pad the reserved area
  * from the previous section base to the namespace base address.
@@ -653,7 +649,7 @@ static unsigned long init_altmap_base(resource_size_t base)
 
 static unsigned long init_altmap_reserve(resource_size_t base)
 {
-	unsigned long reserve = info_block_reserve() >> PAGE_SHIFT;
+	unsigned long reserve = nd_info_block_reserve() >> PAGE_SHIFT;
 	unsigned long base_pfn = PHYS_PFN(base);
 
 	reserve += base_pfn - SUBSECTION_ALIGN_DOWN(base_pfn);
@@ -668,7 +664,7 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
 	u64 offset = le64_to_cpu(pfn_sb->dataoff);
 	u32 start_pad = __le32_to_cpu(pfn_sb->start_pad);
 	u32 end_trunc = __le32_to_cpu(pfn_sb->end_trunc);
-	u32 reserve = info_block_reserve();
+	u32 reserve = nd_info_block_reserve();
 	struct nd_namespace_common *ndns = nd_pfn->ndns;
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	resource_size_t base = nsio->res.start + start_pad;
@@ -729,6 +725,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 		sig = PFN_SIG;
 
 	rc = nd_pfn_validate(nd_pfn, sig);
+	if (rc == 0)
+		return nd_pfn_clear_memmap_errors(nd_pfn);
 	if (rc != -ENODEV)
 		return rc;
 
@@ -795,6 +793,10 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	pfn_sb->page_size = cpu_to_le32(PAGE_SIZE);
 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
 	pfn_sb->checksum = cpu_to_le64(checksum);
+
+	rc = nd_pfn_clear_memmap_errors(nd_pfn);
+	if (rc)
+		return rc;
 
 	return nvdimm_write_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb), 0);
 }

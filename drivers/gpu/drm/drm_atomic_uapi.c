@@ -1405,7 +1405,7 @@ retry:
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_nonblocking_commit(state);
 	} else {
-		if (unlikely(drm_debug & DRM_UT_STATE))
+		if (drm_debug_enabled(DRM_UT_STATE))
 			drm_atomic_print_state(state);
 
 		ret = drm_atomic_commit(state);

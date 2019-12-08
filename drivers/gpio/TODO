@@ -80,6 +80,10 @@ Work items:
 - Look over and identify any remaining easily converted drivers and
   dry-code conversions to MMIO GPIO for maintainers to test
 
+- Expand the MMIO GPIO or write a new library for regmap-based I/O
+  helpers for GPIO drivers on regmap that simply use offsets
+  0..n in some register to drive GPIO lines
+
 - Expand the MMIO GPIO or write a new library for port-mapped I/O
   helpers (x86 inb()/outb()) and convert port-mapped I/O drivers to use
   this with dry-coding and sending to maintainers to test

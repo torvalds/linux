@@ -5,19 +5,23 @@ config SND_SOC_SOF_IMX_TOPLEVEL
 	depends on ARM64|| COMPILE_TEST
 	depends on SND_SOC_SOF_OF
 	help
-          This adds support for Sound Open Firmware for NXP i.MX platforms.
-          Say Y if you have such a device.
-          If unsure select "N".
+	  This adds support for Sound Open Firmware for NXP i.MX platforms.
+	  Say Y if you have such a device.
+	  If unsure select "N".
 
 if SND_SOC_SOF_IMX_TOPLEVEL
 
-config SND_SOC_SOF_IMX8
-	tristate "SOF support for i.MX8"
+config SND_SOC_SOF_IMX8_SUPPORT
+	bool "SOF support for i.MX8"
 	depends on IMX_SCU
 	depends on IMX_DSP
 	help
-          This adds support for Sound Open Firmware for NXP i.MX8 platforms
-          Say Y if you have such a device.
-          If unsure select "N".
+	  This adds support for Sound Open Firmware for NXP i.MX8 platforms
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_IMX8
+	def_tristate SND_SOC_SOF_OF
+	depends on SND_SOC_SOF_IMX8_SUPPORT
 
 endif ## SND_SOC_SOF_IMX_IMX_TOPLEVEL

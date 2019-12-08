@@ -12,11 +12,8 @@
 #include <linux/types.h>
 
 struct dso;
-struct ip_callchain;
-struct ref_reloc_sym;
-struct map_groups;
+struct maps;
 struct machine;
-struct evsel;
 
 struct map {
 	union {
@@ -45,7 +42,7 @@ struct kmap;
 
 struct kmap *__map__kmap(struct map *map);
 struct kmap *map__kmap(struct map *map);
-struct map_groups *map__kmaps(struct map *map);
+struct maps *map__kmaps(struct map *map);
 
 static inline u64 map__map_ip(struct map *map, u64 ip)
 {
@@ -138,18 +135,11 @@ char *map__srcline(struct map *map, u64 addr, struct symbol *sym);
 int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 			 FILE *fp);
 
-struct srccode_state;
-
-int map__fprintf_srccode(struct map *map, u64 addr,
-			 FILE *fp, struct srccode_state *state);
-
 int map__load(struct map *map);
 struct symbol *map__find_symbol(struct map *map, u64 addr);
 struct symbol *map__find_symbol_by_name(struct map *map, const char *name);
 void map__fixup_start(struct map *map);
 void map__fixup_end(struct map *map);
-
-void map__reloc_vmlinux(struct map *map);
 
 int map__set_kallsyms_ref_reloc_sym(struct map *map, const char *symbol_name,
 				    u64 addr);

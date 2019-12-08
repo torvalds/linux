@@ -372,13 +372,13 @@ void rtw_free_cmd_obj(struct cmd_obj *pcmd)
 	if ((pcmd->cmdcode != _JoinBss_CMD_) &&
 	    (pcmd->cmdcode != _CreateBss_CMD_)) {
 		/* free parmbuf in cmd_obj */
-		kfree((unsigned char *)pcmd->parmbuf);
+		kfree(pcmd->parmbuf);
 	}
 
 	if (pcmd->rsp != NULL) {
 		if (pcmd->rspsz != 0) {
 			/* free rsp in cmd_obj */
-			kfree((unsigned char *)pcmd->rsp);
+			kfree(pcmd->rsp);
 		}
 	}
 
@@ -507,19 +507,9 @@ post_process:
 
 		cmd_process_time = jiffies_to_msecs(jiffies - cmd_start_time);
 		if (cmd_process_time > 1000) {
-			if (pcmd->cmdcode == GEN_CMD_CODE(_Set_Drv_Extra)) {
-				DBG_871X(ADPT_FMT" cmd =%d process_time =%lu > 1 sec\n",
-					ADPT_ARG(pcmd->padapter), pcmd->cmdcode, cmd_process_time);
-				/* rtw_warn_on(1); */
-			} else if (pcmd->cmdcode == GEN_CMD_CODE(_Set_MLME_EVT)) {
-				DBG_871X(ADPT_FMT" cmd =%d, process_time =%lu > 1 sec\n",
-					ADPT_ARG(pcmd->padapter), pcmd->cmdcode, cmd_process_time);
-				/* rtw_warn_on(1); */
-			} else {
-				DBG_871X(ADPT_FMT" cmd =%d, process_time =%lu > 1 sec\n",
-					ADPT_ARG(pcmd->padapter), pcmd->cmdcode, cmd_process_time);
-				/* rtw_warn_on(1); */
-			}
+			DBG_871X(ADPT_FMT "cmd= %d process_time= %lu > 1 sec\n",
+				 ADPT_ARG(pcmd->padapter), pcmd->cmdcode,
+				 cmd_process_time);
 		}
 
 		/* call callback function for post-processed */

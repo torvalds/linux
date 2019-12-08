@@ -2930,6 +2930,9 @@ static int snd_usb_mixer_controls_badd(struct usb_mixer_interface *mixer,
 			continue;
 
 		iface = usb_ifnum_to_if(dev, intf);
+		if (!iface)
+			continue;
+
 		num = iface->num_altsetting;
 
 		if (num < 2)

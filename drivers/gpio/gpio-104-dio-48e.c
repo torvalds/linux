@@ -59,7 +59,10 @@ static int dio48e_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	const unsigned port = offset / 8;
 	const unsigned mask = BIT(offset % 8);
 
-	return !!(dio48egpio->io_state[port] & mask);
+	if (dio48egpio->io_state[port] & mask)
+		return  GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int dio48e_gpio_direction_input(struct gpio_chip *chip, unsigned offset)

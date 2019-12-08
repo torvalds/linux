@@ -502,9 +502,7 @@ static int snd_line6_new_pcm(struct usb_line6 *line6, struct snd_pcm **pcm_ret)
 
 	/* pre-allocation of buffers */
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data
-					      (GFP_KERNEL), 64 * 1024,
-					      128 * 1024);
+					      NULL, 64 * 1024, 128 * 1024);
 	return 0;
 }
 

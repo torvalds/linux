@@ -1602,6 +1602,24 @@ static void collapse_file(struct mm_struct *mm,
 					result = SCAN_FAIL;
 					goto xa_unlocked;
 				}
+			} else if (PageDirty(page)) {
+				/*
+				 * khugepaged only works on read-only fd,
+				 * so this page is dirty because it hasn't
+				 * been flushed since first write. There
+				 * won't be new dirty pages.
+				 *
+				 * Trigger async flush here and hope the
+				 * writeback is done when khugepaged
+				 * revisits this page.
+				 *
+				 * This is a one-off situation. We are not
+				 * forcing writeback in loop.
+				 */
+				xas_unlock_irq(&xas);
+				filemap_flush(mapping);
+				result = SCAN_FAIL;
+				goto xa_unlocked;
 			} else if (trylock_page(page)) {
 				get_page(page);
 				xas_unlock_irq(&xas);

@@ -13,8 +13,9 @@
  * HW only supports 7 predefined pixel clocks, and clock select is
  * in bit 29:27 of Display Control register.
  */
-static unsigned long displayControlAdjust_SM750LE(struct mode_parameter *pModeParam,
-						  unsigned long dispControl)
+static unsigned long
+displayControlAdjust_SM750LE(struct mode_parameter *pModeParam,
+			     unsigned long dispControl)
 {
 	unsigned long x, y;
 
@@ -81,7 +82,7 @@ static int programModeRegisters(struct mode_parameter *pModeParam,
 	int cnt = 0;
 	unsigned int tmp, reg;
 
-	if (pll->clockType == SECONDARY_PLL) {
+	if (pll->clock_type == SECONDARY_PLL) {
 		/* programe secondary pixel clock */
 		poke32(CRT_PLL_CTRL, sm750_format_pll_reg(pll));
 
@@ -134,7 +135,7 @@ static int programModeRegisters(struct mode_parameter *pModeParam,
 			poke32(CRT_DISPLAY_CTRL, tmp | reg);
 		}
 
-	} else if (pll->clockType == PRIMARY_PLL) {
+	} else if (pll->clock_type == PRIMARY_PLL) {
 		unsigned int reserved;
 
 		poke32(PANEL_PLL_CTRL, sm750_format_pll_reg(pll));
@@ -209,12 +210,11 @@ static int programModeRegisters(struct mode_parameter *pModeParam,
 int ddk750_setModeTiming(struct mode_parameter *parm, enum clock_type clock)
 {
 	struct pll_value pll;
-	unsigned int uiActualPixelClk;
 
-	pll.inputFreq = DEFAULT_INPUT_CLOCK;
-	pll.clockType = clock;
+	pll.input_freq = DEFAULT_INPUT_CLOCK;
+	pll.clock_type = clock;
 
-	uiActualPixelClk = sm750_calc_pll_value(parm->pixel_clock, &pll);
+	sm750_calc_pll_value(parm->pixel_clock, &pll);
 	if (sm750_get_chip_type() == SM750LE) {
 		/* set graphic mode via IO method */
 		outb_p(0x88, 0x3d4);

@@ -256,6 +256,7 @@ static const struct drm_i915_gem_object_ops i915_gem_object_dmabuf_ops = {
 struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 					     struct dma_buf *dma_buf)
 {
+	static struct lock_class_key lock_class;
 	struct dma_buf_attachment *attach;
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -287,7 +288,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	}
 
 	drm_gem_private_object_init(dev, &obj->base, dma_buf->size);
-	i915_gem_object_init(obj, &i915_gem_object_dmabuf_ops);
+	i915_gem_object_init(obj, &i915_gem_object_dmabuf_ops, &lock_class);
 	obj->base.import_attach = attach;
 	obj->base.resv = dma_buf->resv;
 

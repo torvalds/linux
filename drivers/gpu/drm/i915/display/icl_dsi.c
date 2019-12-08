@@ -1584,7 +1584,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder->get_hw_state = gen11_dsi_get_hw_state;
 	encoder->type = INTEL_OUTPUT_DSI;
 	encoder->cloneable = 0;
-	encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
+	encoder->pipe_mask = ~0;
 	encoder->power_domain = POWER_DOMAIN_PORT_DSI;
 	encoder->get_power_domains = gen11_dsi_get_power_domains;
 

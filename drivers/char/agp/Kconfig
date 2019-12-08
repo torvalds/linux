@@ -63,7 +63,7 @@ config AGP_AMD64
 	  This option gives you AGP support for the GLX component of
 	  X using the on-CPU northbridge of the AMD Athlon64/Opteron CPUs.
 	  You still need an external AGP bridge like the AMD 8151, VIA
-          K8T400M, SiS755. It may also support other AGP bridges when loaded
+	  K8T400M, SiS755. It may also support other AGP bridges when loaded
 	  with agp_try_unsupported=1.
 
 config AGP_INTEL

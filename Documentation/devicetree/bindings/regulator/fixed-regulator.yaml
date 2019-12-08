@@ -68,7 +68,6 @@ properties:
 
   vin-supply:
     description: Input supply phandle.
-    $ref: /schemas/types.yaml#/definitions/phandle
 
 required:
   - compatible

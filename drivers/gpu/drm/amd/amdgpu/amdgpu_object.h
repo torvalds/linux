@@ -30,6 +30,9 @@
 
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
+#ifdef CONFIG_MMU_NOTIFIER
+#include <linux/mmu_notifier.h>
+#endif
 
 #define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
 #define AMDGPU_BO_MAX_PLACEMENTS	3
@@ -41,6 +44,7 @@ struct amdgpu_bo_param {
 	u32				preferred_domain;
 	u64				flags;
 	enum ttm_bo_type		type;
+	bool				no_wait_gpu;
 	struct dma_resv	*resv;
 };
 
@@ -100,10 +104,12 @@ struct amdgpu_bo {
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	struct amdgpu_mn		*mn;
 
-	union {
-		struct list_head	mn_list;
-		struct list_head	shadow_list;
-	};
+
+#ifdef CONFIG_MMU_NOTIFIER
+	struct mmu_interval_notifier	notifier;
+#endif
+
+	struct list_head		shadow_list;
 
 	struct kgd_mem                  *kfd_bo;
 };
@@ -237,6 +243,9 @@ int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 			    unsigned long size, int align,
 			    u32 domain, struct amdgpu_bo **bo_ptr,
 			    u64 *gpu_addr, void **cpu_addr);
+int amdgpu_bo_create_kernel_at(struct amdgpu_device *adev,
+			       uint64_t offset, uint64_t size, uint32_t domain,
+			       struct amdgpu_bo **bo_ptr, void **cpu_addr);
 void amdgpu_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr,
 			   void **cpu_addr);
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr);

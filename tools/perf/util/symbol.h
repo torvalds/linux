@@ -21,7 +21,7 @@
 
 struct dso;
 struct map;
-struct map_groups;
+struct maps;
 struct option;
 
 /*
@@ -108,7 +108,7 @@ struct ref_reloc_sym {
 
 struct addr_location {
 	struct thread *thread;
-	struct map_groups *mg;
+	struct maps   *maps;
 	struct map    *map;
 	struct symbol *sym;
 	const char    *srcline;
@@ -186,7 +186,7 @@ void __symbols__insert(struct rb_root_cached *symbols, struct symbol *sym,
 void symbols__insert(struct rb_root_cached *symbols, struct symbol *sym);
 void symbols__fixup_duplicate(struct rb_root_cached *symbols);
 void symbols__fixup_end(struct rb_root_cached *symbols);
-void map_groups__fixup_end(struct map_groups *mg);
+void maps__fixup_end(struct maps *maps);
 
 typedef int (*mapfn_t)(u64 start, u64 len, u64 pgoff, void *data);
 int file__read_maps(int fd, bool exe, mapfn_t mapfn, void *data,

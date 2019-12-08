@@ -837,8 +837,6 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 
 	mlx5_init_qp_table(dev);
 
-	mlx5_init_mkey_table(dev);
-
 	mlx5_init_reserved_gids(dev);
 
 	mlx5_init_clock(dev);
@@ -896,7 +894,6 @@ err_rl_cleanup:
 err_tables_cleanup:
 	mlx5_geneve_destroy(dev->geneve);
 	mlx5_vxlan_destroy(dev->vxlan);
-	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_qp_table(dev);
 	mlx5_cq_debugfs_cleanup(dev);
 	mlx5_events_cleanup(dev);
@@ -924,7 +921,6 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_vxlan_destroy(dev->vxlan);
 	mlx5_cleanup_clock(dev);
 	mlx5_cleanup_reserved_gids(dev);
-	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_qp_table(dev);
 	mlx5_cq_debugfs_cleanup(dev);
 	mlx5_events_cleanup(dev);

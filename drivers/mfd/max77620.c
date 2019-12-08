@@ -507,7 +507,6 @@ static int max77620_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
-	chip->irq_base = -1;
 	chip->chip_irq = client->irq;
 	chip->chip_id = (enum max77620_chip_id)id->driver_data;
 
@@ -545,8 +544,8 @@ static int max77620_probe(struct i2c_client *client,
 
 	max77620_top_irq_chip.irq_drv_data = chip;
 	ret = devm_regmap_add_irq_chip(chip->dev, chip->rmap, client->irq,
-				       IRQF_ONESHOT | IRQF_SHARED,
-				       chip->irq_base, &max77620_top_irq_chip,
+				       IRQF_ONESHOT | IRQF_SHARED, 0,
+				       &max77620_top_irq_chip,
 				       &chip->top_irq_data);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to add regmap irq: %d\n", ret);

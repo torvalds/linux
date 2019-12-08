@@ -116,8 +116,8 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	 * CLOCK_REALTIME_COARSE, below values are needed for MONOTONIC_COARSE
 	 * too
 	 */
-	ld      r4,STAMP_XTIME+TSPC64_TV_SEC(r3)
-	ld      r5,STAMP_XTIME+TSPC64_TV_NSEC(r3)
+	ld      r4,STAMP_XTIME_SEC(r3)
+	ld      r5,STAMP_XTIME_NSEC(r3)
 	bne     cr6,75f
 
 	/* CLOCK_MONOTONIC_COARSE */
@@ -220,7 +220,7 @@ V_FUNCTION_BEGIN(__kernel_time)
 	mr	r11,r3			/* r11 holds t */
 	bl	V_LOCAL_FUNC(__get_datapage)
 
-	ld	r4,STAMP_XTIME+TSPC64_TV_SEC(r3)
+	ld	r4,STAMP_XTIME_SEC(r3)
 
 	cmpldi	r11,0			/* check if t is NULL */
 	beq	2f
@@ -265,7 +265,7 @@ V_FUNCTION_BEGIN(__do_get_tspec)
 	mulhdu	r6,r6,r5		/* in units of 2^-32 seconds */
 
 	/* Add stamp since epoch */
-	ld	r4,STAMP_XTIME+TSPC64_TV_SEC(r3)
+	ld	r4,STAMP_XTIME_SEC(r3)
 	lwz	r5,STAMP_SEC_FRAC(r3)
 	or	r0,r4,r5
 	or	r0,r0,r6

@@ -51,6 +51,11 @@
 #define ESDHC_CLOCK_HCKEN		0x00000002
 #define ESDHC_CLOCK_IPGEN		0x00000001
 
+/* System Control 2 Register */
+#define ESDHC_SYSTEM_CONTROL_2		0x3c
+#define ESDHC_SMPCLKSEL			0x00800000
+#define ESDHC_EXTN			0x00400000
+
 /* Host Controller Capabilities Register 2 */
 #define ESDHC_CAPABILITIES_1		0x114
 
@@ -59,7 +64,16 @@
 #define ESDHC_HS400_WNDW_ADJUST		0x00000040
 #define ESDHC_HS400_MODE		0x00000010
 #define ESDHC_TB_EN			0x00000004
+#define ESDHC_TB_MODE_MASK		0x00000003
+#define ESDHC_TB_MODE_SW		0x00000003
+#define ESDHC_TB_MODE_3			0x00000002
+
+#define ESDHC_TBSTAT			0x124
+
 #define ESDHC_TBPTR			0x128
+#define ESDHC_WNDW_STRT_PTR_SHIFT	8
+#define ESDHC_WNDW_STRT_PTR_MASK	(0x7f << 8)
+#define ESDHC_WNDW_END_PTR_MASK		0x7f
 
 /* SD Clock Control Register */
 #define ESDHC_SDCLKCTL			0x144
