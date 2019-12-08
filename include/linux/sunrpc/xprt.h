@@ -19,8 +19,6 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
 
-#ifdef __KERNEL__
-
 #define RPC_MIN_SLOT_TABLE	(2U)
 #define RPC_DEF_SLOT_TABLE	(16U)
 #define RPC_MAX_SLOT_TABLE_LIMIT	(65536U)
@@ -505,7 +503,5 @@ static inline void xprt_inject_disconnect(struct rpc_xprt *xprt)
 {
 }
 #endif
-
-#endif /* __KERNEL__*/
 
 #endif /* _LINUX_SUNRPC_XPRT_H */

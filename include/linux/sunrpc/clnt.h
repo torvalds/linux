@@ -109,8 +109,6 @@ struct rpc_procinfo {
 	const char *		p_name;		/* name of procedure */
 };
 
-#ifdef __KERNEL__
-
 struct rpc_create_args {
 	struct net		*net;
 	int			protocol;
@@ -238,5 +236,4 @@ static inline int rpc_reply_expected(struct rpc_task *task)
 		(task->tk_msg.rpc_proc->p_decode != NULL);
 }
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */
