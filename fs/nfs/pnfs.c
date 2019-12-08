@@ -2160,8 +2160,6 @@ out_unlock:
 	return NULL;
 }
 
-extern const nfs4_stateid current_stateid;
-
 static void _lgopen_prepare_attached(struct nfs4_opendata *data,
 				     struct nfs_open_context *ctx)
 {
