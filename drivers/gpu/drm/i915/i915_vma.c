@@ -1181,7 +1181,7 @@ int __i915_vma_unbind(struct i915_vma *vma)
 	GEM_BUG_ON(i915_vma_is_active(vma));
 	if (i915_vma_is_pinned(vma)) {
 		vma_print_allocator(vma, "is pinned");
-		return -EBUSY;
+		return -EAGAIN;
 	}
 
 	GEM_BUG_ON(i915_vma_is_active(vma));
