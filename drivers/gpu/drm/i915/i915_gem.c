@@ -178,7 +178,7 @@ err_vm:
 	list_splice_init(&still_in_list, &obj->vma.list);
 	spin_unlock(&obj->vma.lock);
 
-	if (ret == -EAGAIN && flags & I915_GEM_OBJECT_UNBIND_ACTIVE) {
+	if (ret == -EAGAIN && flags & I915_GEM_OBJECT_UNBIND_BARRIER) {
 		rcu_barrier(); /* flush the i915_vm_release() */
 		goto try_again;
 	}

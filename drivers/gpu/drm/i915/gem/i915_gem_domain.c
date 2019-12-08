@@ -203,7 +203,9 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	i915_gem_object_unlock(obj);
 
 	/* The cache-level will be applied when each vma is rebound. */
-	return i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE);
+	return i915_gem_object_unbind(obj,
+				      I915_GEM_OBJECT_UNBIND_ACTIVE |
+				      I915_GEM_OBJECT_UNBIND_BARRIER);
 }
 
 int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
