@@ -40,6 +40,9 @@
 #define MT_CHFREQ_DBDC_IDX	BIT(6)
 #define MT_CHFREQ_SEQ		GENMASK(5, 0)
 
+#define MT7615_CFEND_RATE_DEFAULT	0x69 /* chip default (24M) */
+#define MT7615_CFEND_RATE_11B		0x03 /* 11B LP, 11M */
+
 struct mt7615_vif;
 struct mt7615_sta;
 
@@ -96,6 +99,9 @@ struct mt7615_phy {
 	s8 cck_sensitivity;
 
 	u16 chainmask;
+
+	s16 coverage_class;
+	u8 slottime;
 
 	u8 chfreq_seq;
 	u8 rdd_state;
@@ -286,6 +292,7 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta, int pid,
 			  struct ieee80211_key_conf *key);
+void mt7615_mac_set_timing(struct mt7615_phy *phy);
 int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb);
 void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data);
 void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb);

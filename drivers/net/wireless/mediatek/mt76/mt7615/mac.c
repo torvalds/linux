@@ -64,6 +64,67 @@ void mt7615_mac_reset_counters(struct mt7615_dev *dev)
 	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
 }
 
+void mt7615_mac_set_timing(struct mt7615_phy *phy)
+{
+	s16 coverage_class = phy->coverage_class;
+	struct mt7615_dev *dev = phy->dev;
+	bool ext_phy = phy != &dev->phy;
+	u32 val, reg_offset, reg = ext_phy ? MT_TMAC_ICR1 : MT_TMAC_ICR0;
+	u32 cck = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 231) |
+		  FIELD_PREP(MT_TIMEOUT_VAL_CCA, 48);
+	u32 ofdm = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 60) |
+		   FIELD_PREP(MT_TIMEOUT_VAL_CCA, 24);
+	int sifs, offset;
+
+	if (phy->mt76->chandef.chan->band == NL80211_BAND_5GHZ)
+		sifs = 16;
+	else
+		sifs = 10;
+
+	if (ext_phy) {
+		coverage_class = max_t(s16, dev->phy.coverage_class,
+				       coverage_class);
+		mt76_set(dev, MT_ARB_SCR,
+			 MT_ARB_SCR_TX1_DISABLE | MT_ARB_SCR_RX1_DISABLE);
+	} else {
+		struct mt7615_phy *phy_ext = mt7615_ext_phy(dev);
+
+		if (phy_ext)
+			coverage_class = max_t(s16, phy_ext->coverage_class,
+					       coverage_class);
+		mt76_set(dev, MT_ARB_SCR,
+			 MT_ARB_SCR_TX0_DISABLE | MT_ARB_SCR_RX0_DISABLE);
+	}
+	udelay(1);
+
+	offset = 3 * coverage_class;
+	reg_offset = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, offset) |
+		     FIELD_PREP(MT_TIMEOUT_VAL_CCA, offset);
+	mt76_wr(dev, MT_TMAC_CDTR, cck + reg_offset);
+	mt76_wr(dev, MT_TMAC_ODTR, ofdm + reg_offset);
+
+	mt76_wr(dev, reg,
+		FIELD_PREP(MT_IFS_EIFS, 360) |
+		FIELD_PREP(MT_IFS_RIFS, 2) |
+		FIELD_PREP(MT_IFS_SIFS, sifs) |
+		FIELD_PREP(MT_IFS_SLOT, phy->slottime));
+
+	if (phy->slottime < 20)
+		val = MT7615_CFEND_RATE_DEFAULT;
+	else
+		val = MT7615_CFEND_RATE_11B;
+
+	if (ext_phy) {
+		mt76_rmw_field(dev, MT_AGG_ACR1, MT_AGG_ACR_CFEND_RATE, val);
+		mt76_clear(dev, MT_ARB_SCR,
+			   MT_ARB_SCR_TX1_DISABLE | MT_ARB_SCR_RX1_DISABLE);
+	} else {
+		mt76_rmw_field(dev, MT_AGG_ACR0, MT_AGG_ACR_CFEND_RATE, val);
+		mt76_clear(dev, MT_ARB_SCR,
+			   MT_ARB_SCR_TX0_DISABLE | MT_ARB_SCR_RX0_DISABLE);
+	}
+}
+
 int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;

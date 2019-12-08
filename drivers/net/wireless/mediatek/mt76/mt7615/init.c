@@ -271,12 +271,15 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 static void
 mt7615_init_wiphy(struct ieee80211_hw *hw)
 {
+	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 	struct wiphy *wiphy = hw->wiphy;
 
 	hw->queues = 4;
 	hw->max_rates = 3;
 	hw->max_report_rates = 7;
 	hw->max_rate_tries = 11;
+
+	phy->slottime = 9;
 
 	hw->sta_data_size = sizeof(struct mt7615_sta);
 	hw->vif_data_size = sizeof(struct mt7615_vif);

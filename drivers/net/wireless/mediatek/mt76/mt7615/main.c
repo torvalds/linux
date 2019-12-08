@@ -233,6 +233,7 @@ static int mt7615_set_channel(struct mt7615_phy *phy)
 		(ext_phy * MT_CHFREQ_DBDC_IDX) |
 		phy->chfreq_seq);
 
+	mt7615_mac_set_timing(phy);
 	ret = mt7615_dfs_init_radar_detector(phy);
 	mt7615_mac_cca_stats_reset(phy);
 
@@ -408,6 +409,16 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC)
 		mt7615_mcu_set_bss_info(dev, vif, info->assoc);
+
+	if (changed & BSS_CHANGED_ERP_SLOT) {
+		int slottime = info->use_short_slot ? 9 : 20;
+		struct mt7615_phy *phy = mt7615_hw_phy(hw);
+
+		if (slottime != phy->slottime) {
+			phy->slottime = slottime;
+			mt7615_mac_set_timing(phy);
+		}
+	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		mt7615_mcu_set_bss_info(dev, vif, info->enable_beacon);
@@ -616,6 +627,15 @@ mt7615_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  IEEE80211_STA_NOTEXIST);
 }
 
+static void
+mt7615_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
+{
+	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+
+	phy->coverage_class = max_t(s16, coverage_class, 0);
+	mt7615_mac_set_timing(phy);
+}
+
 const struct ieee80211_ops mt7615_ops = {
 	.tx = mt7615_tx,
 	.start = mt7615_start,
@@ -640,4 +660,5 @@ const struct ieee80211_ops mt7615_ops = {
 	.channel_switch_beacon = mt7615_channel_switch_beacon,
 	.get_survey = mt76_get_survey,
 	.get_antenna = mt76_get_antenna,
+	.set_coverage_class = mt7615_set_coverage_class,
 };
