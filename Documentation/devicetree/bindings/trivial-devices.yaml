@@ -132,6 +132,8 @@ properties:
           - maxim,max6621
             # 9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
           - maxim,max6625
+            # 3-Channel Remote Temperature Sensor
+          - maxim,max31730
             # mCube 3-axis 8-bit digital accelerometer
           - mcube,mc3230
             # MEMSIC 2-axis 8-bit digital accelerometer
