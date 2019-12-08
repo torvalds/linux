@@ -545,7 +545,7 @@ void mt76x02_set_coverage_class(struct ieee80211_hw *hw,
 	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
-	dev->coverage_class = coverage_class;
+	dev->coverage_class = max_t(s16, coverage_class, 0);
 	mt76x02_set_tx_ackto(dev);
 	mutex_unlock(&dev->mt76.mutex);
 }
