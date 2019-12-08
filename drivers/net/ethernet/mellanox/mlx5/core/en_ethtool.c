@@ -1027,18 +1027,11 @@ static bool ext_link_mode_requested(const unsigned long *adver)
 	return bitmap_intersects(modes, adver, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static bool ext_speed_requested(u32 speed)
-{
-#define MLX5E_MAX_PTYS_LEGACY_SPEED 100000
-	return !!(speed > MLX5E_MAX_PTYS_LEGACY_SPEED);
-}
-
-static bool ext_requested(u8 autoneg, const unsigned long *adver, u32 speed)
+static bool ext_requested(u8 autoneg, const unsigned long *adver, bool ext_supported)
 {
 	bool ext_link_mode = ext_link_mode_requested(adver);
-	bool ext_speed = ext_speed_requested(speed);
 
-	return  autoneg == AUTONEG_ENABLE ? ext_link_mode : ext_speed;
+	return  autoneg == AUTONEG_ENABLE ? ext_link_mode : ext_supported;
 }
 
 int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
@@ -1065,8 +1058,8 @@ int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 	autoneg = link_ksettings->base.autoneg;
 	speed = link_ksettings->base.speed;
 
-	ext = ext_requested(autoneg, adver, speed),
 	ext_supported = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
+	ext = ext_requested(autoneg, adver, ext_supported);
 	if (!ext_supported && ext)
 		return -EOPNOTSUPP;
 
@@ -1643,7 +1636,7 @@ static int mlx5e_get_module_info(struct net_device *netdev,
 		break;
 	case MLX5_MODULE_ID_SFP:
 		modinfo->type       = ETH_MODULE_SFF_8472;
-		modinfo->eeprom_len = MLX5_EEPROM_PAGE_LENGTH;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 		break;
 	default:
 		netdev_err(priv->netdev, "%s: cable type not recognized:0x%x\n",

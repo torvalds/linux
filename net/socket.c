@@ -2546,7 +2546,12 @@ static int ____sys_recvmsg(struct socket *sock, struct msghdr *msg_sys,
 
 	if (sock->file->f_flags & O_NONBLOCK)
 		flags |= MSG_DONTWAIT;
-	err = (nosec ? sock_recvmsg_nosec : sock_recvmsg)(sock, msg_sys, flags);
+
+	if (unlikely(nosec))
+		err = sock_recvmsg_nosec(sock, msg_sys, flags);
+	else
+		err = sock_recvmsg(sock, msg_sys, flags);
+
 	if (err < 0)
 		goto out;
 	len = err;

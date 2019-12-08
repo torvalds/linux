@@ -81,7 +81,14 @@ struct vport_ingress {
 		struct mlx5_fc *drop_counter;
 	} legacy;
 	struct {
-		struct mlx5_flow_group *metadata_grp;
+		/* Optional group to add an FTE to do internal priority
+		 * tagging on ingress packets.
+		 */
+		struct mlx5_flow_group *metadata_prio_tag_grp;
+		/* Group to add default match-all FTE entry to tag ingress
+		 * packet with metadata.
+		 */
+		struct mlx5_flow_group *metadata_allmatch_grp;
 		struct mlx5_modify_hdr *modify_metadata;
 		struct mlx5_flow_handle *modify_metadata_rule;
 	} offloads;

@@ -8,7 +8,7 @@ struct sk_buff {
 	unsigned int len;
 };
 
-static volatile __u64 test_result;
+__u64 test_result = 0;
 BPF_TRACE_2("fexit/test_pkt_access", test_main,
 	    struct sk_buff *, skb, int, ret)
 {
@@ -23,7 +23,7 @@ BPF_TRACE_2("fexit/test_pkt_access", test_main,
 	return 0;
 }
 
-static volatile __u64 test_result_subprog1;
+__u64 test_result_subprog1 = 0;
 BPF_TRACE_2("fexit/test_pkt_access_subprog1", test_subprog1,
 	    struct sk_buff *, skb, int, ret)
 {
@@ -56,7 +56,7 @@ struct args_subprog2 {
 	__u64 args[5];
 	__u64 ret;
 };
-static volatile __u64 test_result_subprog2;
+__u64 test_result_subprog2 = 0;
 SEC("fexit/test_pkt_access_subprog2")
 int test_subprog2(struct args_subprog2 *ctx)
 {

@@ -1250,7 +1250,9 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 		vf_spoofchk.vf =
 		vf_linkstate.vf =
 		vf_rss_query_en.vf =
-		vf_trust.vf = ivi.vf;
+		vf_trust.vf =
+		node_guid.vf =
+		port_guid.vf = ivi.vf;
 
 	memcpy(vf_mac.mac, ivi.mac, sizeof(ivi.mac));
 	memcpy(vf_broadcast.broadcast, dev->broadcast, dev->addr_len);
