@@ -220,6 +220,12 @@ static inline struct shash_instance *shash_instance(
 			    struct shash_instance, alg);
 }
 
+static inline struct shash_instance *shash_alg_instance(
+	struct crypto_shash *shash)
+{
+	return shash_instance(crypto_tfm_alg_instance(&shash->base));
+}
+
 static inline void *shash_instance_ctx(struct shash_instance *inst)
 {
 	return crypto_instance_ctx(shash_crypto_instance(inst));

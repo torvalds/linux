@@ -138,12 +138,11 @@ static int hmac_finup(struct shash_desc *pdesc, const u8 *data,
 	       crypto_shash_finup(desc, out, ds, out);
 }
 
-static int hmac_init_tfm(struct crypto_tfm *tfm)
+static int hmac_init_tfm(struct crypto_shash *parent)
 {
-	struct crypto_shash *parent = __crypto_shash_cast(tfm);
 	struct crypto_shash *hash;
-	struct crypto_instance *inst = (void *)tfm->__crt_alg;
-	struct crypto_shash_spawn *spawn = crypto_instance_ctx(inst);
+	struct shash_instance *inst = shash_alg_instance(parent);
+	struct crypto_shash_spawn *spawn = shash_instance_ctx(inst);
 	struct hmac_ctx *ctx = hmac_ctx(parent);
 
 	hash = crypto_spawn_shash(spawn);
@@ -152,18 +151,14 @@ static int hmac_init_tfm(struct crypto_tfm *tfm)
 
 	parent->descsize = sizeof(struct shash_desc) +
 			   crypto_shash_descsize(hash);
-	if (WARN_ON(parent->descsize > HASH_MAX_DESCSIZE)) {
-		crypto_free_shash(hash);
-		return -EINVAL;
-	}
 
 	ctx->hash = hash;
 	return 0;
 }
 
-static void hmac_exit_tfm(struct crypto_tfm *tfm)
+static void hmac_exit_tfm(struct crypto_shash *parent)
 {
-	struct hmac_ctx *ctx = hmac_ctx(__crypto_shash_cast(tfm));
+	struct hmac_ctx *ctx = hmac_ctx(parent);
 	crypto_free_shash(ctx->hash);
 }
 
@@ -217,9 +212,6 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.base.cra_ctxsize = sizeof(struct hmac_ctx) +
 				     ALIGN(ss * 2, crypto_tfm_ctx_alignment());
 
-	inst->alg.base.cra_init = hmac_init_tfm;
-	inst->alg.base.cra_exit = hmac_exit_tfm;
-
 	inst->alg.init = hmac_init;
 	inst->alg.update = hmac_update;
 	inst->alg.final = hmac_final;
@@ -227,6 +219,8 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.export = hmac_export;
 	inst->alg.import = hmac_import;
 	inst->alg.setkey = hmac_setkey;
+	inst->alg.init_tfm = hmac_init_tfm;
+	inst->alg.exit_tfm = hmac_exit_tfm;
 
 	err = shash_register_instance(tmpl, inst);
 	if (err) {
