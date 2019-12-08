@@ -1681,7 +1681,7 @@ EXPORT_SYMBOL(d_invalidate);
  * copied and the copy passed in may be reused after this call.
  */
  
-struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 {
 	struct dentry *dentry;
 	char *dname;

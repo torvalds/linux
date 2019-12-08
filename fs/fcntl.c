@@ -277,7 +277,7 @@ static long fcntl_rw_hint(struct file *file, unsigned int cmd,
 			  unsigned long arg)
 {
 	struct inode *inode = file_inode(file);
-	u64 *argp = (u64 __user *)arg;
+	u64 __user *argp = (u64 __user *)arg;
 	enum rw_hint hint;
 	u64 h;
 
