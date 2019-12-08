@@ -70,6 +70,47 @@ config DUMMY
 	  To compile this driver as a module, choose M here: the module
 	  will be called dummy.
 
+config WIREGUARD
+	tristate "WireGuard secure network tunnel"
+	depends on NET && INET
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	select DST_CACHE
+	select CRYPTO
+	select CRYPTO_LIB_CURVE25519
+	select CRYPTO_LIB_CHACHA20POLY1305
+	select CRYPTO_LIB_BLAKE2S
+	select CRYPTO_CHACHA20_X86_64 if X86 && 64BIT
+	select CRYPTO_POLY1305_X86_64 if X86 && 64BIT
+	select CRYPTO_BLAKE2S_X86 if X86 && 64BIT
+	select CRYPTO_CURVE25519_X86 if X86 && 64BIT
+	select CRYPTO_CHACHA20_NEON if (ARM || ARM64) && KERNEL_MODE_NEON
+	select CRYPTO_POLY1305_NEON if ARM64 && KERNEL_MODE_NEON
+	select CRYPTO_POLY1305_ARM if ARM
+	select CRYPTO_CURVE25519_NEON if ARM && KERNEL_MODE_NEON
+	select CRYPTO_CHACHA_MIPS if CPU_MIPS32_R2
+	select CRYPTO_POLY1305_MIPS if CPU_MIPS32 || (CPU_MIPS64 && 64BIT)
+	help
+	  WireGuard is a secure, fast, and easy to use replacement for IPSec
+	  that uses modern cryptography and clever networking tricks. It's
+	  designed to be fairly general purpose and abstract enough to fit most
+	  use cases, while at the same time remaining extremely simple to
+	  configure. See www.wireguard.com for more info.
+
+	  It's safe to say Y or M here, as the driver is very lightweight and
+	  is only in use when an administrator chooses to add an interface.
+
+config WIREGUARD_DEBUG
+	bool "Debugging checks and verbose messages"
+	depends on WIREGUARD
+	help
+	  This will write log messages for handshake and other events
+	  that occur for a WireGuard interface. It will also perform some
+	  extra validation checks and unit tests at various points. This is
+	  only useful for debugging.
+
+	  Say N here unless you know what you're doing.
+
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
 	---help---
