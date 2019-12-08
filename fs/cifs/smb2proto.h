@@ -155,12 +155,13 @@ extern int SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, bool watch_tree,
 			u32 completion_filter);
 
+extern int __SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
+			u64 persistent_fid, u64 volatile_fid,
+			struct smb2_file_network_open_info *pbuf);
 extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
-extern int SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
-			    u64 persistent_fid, u64 volatile_fid, int flags);
 extern int SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
-		      u64 persistent_file_id, u64 volatile_file_id);
+		      u64 persistent_fid, u64 volatile_fid, bool query_attrs);
 extern void SMB2_close_free(struct smb_rqst *rqst);
 extern int SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);

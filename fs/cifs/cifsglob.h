@@ -368,6 +368,9 @@ struct smb_version_operations {
 	/* close a file */
 	void (*close)(const unsigned int, struct cifs_tcon *,
 		      struct cifs_fid *);
+	/* close a file, returning file attributes and timestamps */
+	void (*close_getattr)(const unsigned int xid, struct cifs_tcon *tcon,
+		      struct cifsFileInfo *pfile_info);
 	/* send a flush request to the server */
 	int (*flush)(const unsigned int, struct cifs_tcon *, struct cifs_fid *);
 	/* async read from the server */
@@ -774,6 +777,7 @@ struct TCP_Server_Info {
 	 */
 	int nr_targets;
 	bool noblockcnt; /* use non-blocking connect() */
+	bool is_channel; /* if a session channel */
 };
 
 struct cifs_credits {

@@ -554,7 +554,7 @@ static void
 assemble_neg_contexts(struct smb2_negotiate_req *req,
 		      struct TCP_Server_Info *server, unsigned int *total_len)
 {
-	char *pneg_ctxt = (char *)req;
+	char *pneg_ctxt;
 	unsigned int ctxt_len;
 
 	if (*total_len > 200) {
@@ -2191,6 +2191,72 @@ add_twarp_context(struct kvec *iov, unsigned int *num_iovec, __u64 timewarp)
 	return 0;
 }
 
+/* See MS-SMB2 2.2.13.2.2 and MS-DTYP 2.4.6 */
+static struct crt_sd_ctxt *
+create_sd_buf(umode_t mode, unsigned int *len)
+{
+	struct crt_sd_ctxt *buf;
+	struct cifs_ace *pace;
+	unsigned int sdlen, acelen;
+
+	*len = roundup(sizeof(struct crt_sd_ctxt) + sizeof(struct cifs_ace), 8);
+	buf = kzalloc(*len, GFP_KERNEL);
+	if (buf == NULL)
+		return buf;
+
+	sdlen = sizeof(struct smb3_sd) + sizeof(struct smb3_acl) +
+		 sizeof(struct cifs_ace);
+
+	buf->ccontext.DataOffset = cpu_to_le16(offsetof
+					(struct crt_sd_ctxt, sd));
+	buf->ccontext.DataLength = cpu_to_le32(sdlen);
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct crt_sd_ctxt, Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+	/* SMB2_CREATE_SD_BUFFER_TOKEN is "SecD" */
+	buf->Name[0] = 'S';
+	buf->Name[1] = 'e';
+	buf->Name[2] = 'c';
+	buf->Name[3] = 'D';
+	buf->sd.Revision = 1;  /* Must be one see MS-DTYP 2.4.6 */
+	/*
+	 * ACL is "self relative" ie ACL is stored in contiguous block of memory
+	 * and "DP" ie the DACL is present
+	 */
+	buf->sd.Control = cpu_to_le16(ACL_CONTROL_SR | ACL_CONTROL_DP);
+
+	/* offset owner, group and Sbz1 and SACL are all zero */
+	buf->sd.OffsetDacl = cpu_to_le32(sizeof(struct smb3_sd));
+	buf->acl.AclRevision = ACL_REVISION; /* See 2.4.4.1 of MS-DTYP */
+
+	/* create one ACE to hold the mode embedded in reserved special SID */
+	pace = (struct cifs_ace *)(sizeof(struct crt_sd_ctxt) + (char *)buf);
+	acelen = setup_special_mode_ACE(pace, (__u64)mode);
+	buf->acl.AclSize = cpu_to_le16(sizeof(struct cifs_acl) + acelen);
+	buf->acl.AceCount = cpu_to_le16(1);
+	return buf;
+}
+
+static int
+add_sd_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
+{
+	struct smb2_create_req *req = iov[0].iov_base;
+	unsigned int num = *num_iovec;
+	unsigned int len = 0;
+
+	iov[num].iov_base = create_sd_buf(mode, &len);
+	if (iov[num].iov_base == NULL)
+		return -ENOMEM;
+	iov[num].iov_len = len;
+	if (!req->CreateContextsOffset)
+		req->CreateContextsOffset = cpu_to_le32(
+				sizeof(struct smb2_create_req) +
+				iov[num - 1].iov_len);
+	le32_add_cpu(&req->CreateContextsLength, len);
+	*num_iovec = num + 1;
+	return 0;
+}
+
 static struct crt_query_id_ctxt *
 create_query_id_buf(void)
 {
@@ -2563,7 +2629,9 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 			return rc;
 	}
 
-	if ((oparms->disposition == FILE_CREATE) &&
+	if ((oparms->disposition != FILE_OPEN) &&
+	    (oparms->cifs_sb) &&
+	    (oparms->cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID) &&
 	    (oparms->mode != ACL_NO_MODE)) {
 		if (n_iov > 2) {
 			struct create_context *ccontext =
@@ -2572,7 +2640,8 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 				cpu_to_le32(iov[n_iov-1].iov_len);
 		}
 
-		/* rc = add_sd_context(iov, &n_iov, oparms->mode); */
+		cifs_dbg(FYI, "add sd with mode 0x%x\n", oparms->mode);
+		rc = add_sd_context(iov, &n_iov, oparms->mode);
 		if (rc)
 			return rc;
 	}
@@ -2932,7 +3001,7 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 
 int
 SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
-		u64 persistent_fid, u64 volatile_fid)
+		u64 persistent_fid, u64 volatile_fid, bool query_attrs)
 {
 	struct smb2_close_req *req;
 	struct kvec *iov = rqst->rq_iov;
@@ -2945,6 +3014,10 @@ SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
+	if (query_attrs)
+		req->Flags = SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB;
+	else
+		req->Flags = 0;
 	iov[0].iov_base = (char *)req;
 	iov[0].iov_len = total_len;
 
@@ -2959,8 +3032,9 @@ SMB2_close_free(struct smb_rqst *rqst)
 }
 
 int
-SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
-		 u64 persistent_fid, u64 volatile_fid, int flags)
+__SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
+	     u64 persistent_fid, u64 volatile_fid,
+	     struct smb2_file_network_open_info *pbuf)
 {
 	struct smb_rqst rqst;
 	struct smb2_close_rsp *rsp = NULL;
@@ -2969,6 +3043,8 @@ SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
 	struct kvec rsp_iov;
 	int resp_buftype = CIFS_NO_BUFFER;
 	int rc = 0;
+	int flags = 0;
+	bool query_attrs = false;
 
 	cifs_dbg(FYI, "Close\n");
 
@@ -2983,8 +3059,13 @@ SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 1;
 
+	/* check if need to ask server to return timestamps in close response */
+	if (pbuf)
+		query_attrs = true;
+
 	trace_smb3_close_enter(xid, persistent_fid, tcon->tid, ses->Suid);
-	rc = SMB2_close_init(tcon, &rqst, persistent_fid, volatile_fid);
+	rc = SMB2_close_init(tcon, &rqst, persistent_fid, volatile_fid,
+			     query_attrs);
 	if (rc)
 		goto close_exit;
 
@@ -2996,39 +3077,40 @@ SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
 		trace_smb3_close_err(xid, persistent_fid, tcon->tid, ses->Suid,
 				     rc);
 		goto close_exit;
-	} else
+	} else {
 		trace_smb3_close_done(xid, persistent_fid, tcon->tid,
 				      ses->Suid);
+		/*
+		 * Note that have to subtract 4 since struct network_open_info
+		 * has a final 4 byte pad that close response does not have
+		 */
+		if (pbuf)
+			memcpy(pbuf, (char *)&rsp->CreationTime, sizeof(*pbuf) - 4);
+	}
 
 	atomic_dec(&tcon->num_remote_opens);
-
-	/* BB FIXME - decode close response, update inode for caching */
-
 close_exit:
 	SMB2_close_free(&rqst);
 	free_rsp_buf(resp_buftype, rsp);
-	return rc;
-}
-
-int
-SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
-	   u64 persistent_fid, u64 volatile_fid)
-{
-	int rc;
-	int tmp_rc;
-
-	rc = SMB2_close_flags(xid, tcon, persistent_fid, volatile_fid, 0);
 
 	/* retry close in a worker thread if this one is interrupted */
 	if (rc == -EINTR) {
+		int tmp_rc;
+
 		tmp_rc = smb2_handle_cancelled_close(tcon, persistent_fid,
 						     volatile_fid);
 		if (tmp_rc)
 			cifs_dbg(VFS, "handle cancelled close fid 0x%llx returned error %d\n",
 				 persistent_fid, tmp_rc);
 	}
-
 	return rc;
+}
+
+int
+SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid)
+{
+	return __SMB2_close(xid, tcon, persistent_fid, volatile_fid, NULL);
 }
 
 int
