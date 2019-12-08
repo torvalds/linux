@@ -1365,7 +1365,9 @@ static const struct intel_context_ops ring_context_ops = {
 	.destroy = ring_context_destroy,
 };
 
-static int load_pd_dir(struct i915_request *rq, const struct i915_ppgtt *ppgtt)
+static int load_pd_dir(struct i915_request *rq,
+		       const struct i915_ppgtt *ppgtt,
+		       u32 valid)
 {
 	const struct intel_engine_cs * const engine = rq->engine;
 	u32 *cs;
@@ -1376,7 +1378,7 @@ static int load_pd_dir(struct i915_request *rq, const struct i915_ppgtt *ppgtt)
 
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine->mmio_base));
-	*cs++ = PP_DIR_DCLV_2G;
+	*cs++ = valid;
 
 	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine->mmio_base));
@@ -1395,7 +1397,7 @@ static int load_pd_dir(struct i915_request *rq, const struct i915_ppgtt *ppgtt)
 
 	intel_ring_advance(rq, cs);
 
-	return 0;
+	return rq->engine->emit_flush(rq, EMIT_FLUSH);
 }
 
 static int flush_tlb(struct i915_request *rq)
@@ -1599,8 +1601,6 @@ static int switch_context(struct i915_request *rq)
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
 	if (vm) {
-		int loops = 4; /* 2 for Haswell? 4 for Baytrail! */
-
 		/*
 		 * Not only do we need a full barrier (post-sync write) after
 		 * invalidating the TLBs, but we need to wait a little bit
@@ -1617,17 +1617,15 @@ static int switch_context(struct i915_request *rq)
 		if (ret)
 			return ret;
 
-		do {
-			ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm));
-			if (ret)
-				return ret;
-		} while (--loops);
-
-		ret = flush_tlb(rq);
+		ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm), 0);
 		if (ret)
 			return ret;
 
-		ret = rq->engine->emit_flush(rq, EMIT_FLUSH);
+		ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm), PP_DIR_DCLV_2G);
+		if (ret)
+			return ret;
+
+		ret = flush_tlb(rq);
 		if (ret)
 			return ret;
 
