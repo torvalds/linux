@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Device Tree File for the Kontron KBox A-230-LS.
+ *
+ * This consists of a Kontron SMARC-sAL28 (Dual PHY) and a special
+ * carrier (s1914).
+ *
+ * Copyright (C) 2019 Michael Walle <michael@walle.cc>
+ *
+ */
+
+/dts-v1/;
+#include "fsl-ls1028a-kontron-sl28-var4.dts"
+
+/ {
+	model = "Kontron KBox A-230-LS";
+	compatible = "kontron,kbox-a-230-ls", "kontron,sl28-var4",
+		     "kontron,sl28", "fsl,ls1028a";
+};
+
+&i2c4 {
+	eeprom@50 {
+		compatible = "atmel,24c32";
+		reg = <0x50>;
+		pagesize = <32>;
+	};
+};
