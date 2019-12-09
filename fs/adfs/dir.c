@@ -13,6 +13,16 @@
  */
 static DEFINE_RWLOCK(adfs_dir_lock);
 
+static int adfs_dir_read(struct super_block *sb, u32 indaddr,
+			 unsigned int size, struct adfs_dir *dir)
+{
+	dir->sb = sb;
+	dir->bhs = dir->bh;
+	dir->nr_buffers = 0;
+
+	return ADFS_SB(sb)->s_dir->read(sb, indaddr, size, dir);
+}
+
 void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
 {
 	unsigned int dots, i;
@@ -64,7 +74,7 @@ adfs_readdir(struct file *file, struct dir_context *ctx)
 	if (ctx->pos >> 32)
 		return 0;
 
-	ret = ops->read(sb, inode->i_ino, inode->i_size, &dir);
+	ret = adfs_dir_read(sb, inode->i_ino, inode->i_size, &dir);
 	if (ret)
 		return ret;
 
@@ -115,7 +125,7 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 		goto out;
 	}
 
-	ret = ops->read(sb, obj->parent_id, 0, &dir);
+	ret = adfs_dir_read(sb, obj->parent_id, 0, &dir);
 	if (ret)
 		goto out;
 
@@ -167,7 +177,7 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 	u32 name_len;
 	int ret;
 
-	ret = ops->read(sb, inode->i_ino, inode->i_size, &dir);
+	ret = adfs_dir_read(sb, inode->i_ino, inode->i_size, &dir);
 	if (ret)
 		goto out;
 

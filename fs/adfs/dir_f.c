@@ -139,9 +139,6 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 
 	size >>= blocksize_bits;
 
-	dir->nr_buffers = 0;
-	dir->sb = sb;
-
 	for (blk = 0; blk < size; blk++) {
 		int phys;
 

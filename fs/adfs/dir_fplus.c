@@ -17,11 +17,6 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	unsigned int blk, size;
 	int i, ret = -EIO;
 
-	dir->nr_buffers = 0;
-
-	/* start off using fixed bh set - only alloc for big dirs */
-	dir->bhs = &dir->bh[0];
-
 	block = __adfs_block_map(sb, id, 0);
 	if (!block) {
 		adfs_error(sb, "dir object %X has a hole at offset 0", id);
@@ -94,7 +89,6 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	}
 
 	dir->parent_id = le32_to_cpu(h->bigdirparent);
-	dir->sb = sb;
 	return 0;
 
 out:
