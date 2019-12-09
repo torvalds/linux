@@ -373,6 +373,61 @@ static int check_csum_item(struct extent_buffer *leaf, struct btrfs_key *key,
 	return 0;
 }
 
+/* Inode item error output has the same format as dir_item_err() */
+#define inode_item_err(eb, slot, fmt, ...)			\
+	dir_item_err(eb, slot, fmt, __VA_ARGS__)
+
+static int check_inode_key(struct extent_buffer *leaf, struct btrfs_key *key,
+			   int slot)
+{
+	struct btrfs_key item_key;
+	bool is_inode_item;
+
+	btrfs_item_key_to_cpu(leaf, &item_key, slot);
+	is_inode_item = (item_key.type == BTRFS_INODE_ITEM_KEY);
+
+	/* For XATTR_ITEM, location key should be all 0 */
+	if (item_key.type == BTRFS_XATTR_ITEM_KEY) {
+		if (key->type != 0 || key->objectid != 0 || key->offset != 0)
+			return -EUCLEAN;
+		return 0;
+	}
+
+	if ((key->objectid < BTRFS_FIRST_FREE_OBJECTID ||
+	     key->objectid > BTRFS_LAST_FREE_OBJECTID) &&
+	    key->objectid != BTRFS_ROOT_TREE_DIR_OBJECTID &&
+	    key->objectid != BTRFS_FREE_INO_OBJECTID) {
+		if (is_inode_item) {
+			generic_err(leaf, slot,
+	"invalid key objectid: has %llu expect %llu or [%llu, %llu] or %llu",
+				key->objectid, BTRFS_ROOT_TREE_DIR_OBJECTID,
+				BTRFS_FIRST_FREE_OBJECTID,
+				BTRFS_LAST_FREE_OBJECTID,
+				BTRFS_FREE_INO_OBJECTID);
+		} else {
+			dir_item_err(leaf, slot,
+"invalid location key objectid: has %llu expect %llu or [%llu, %llu] or %llu",
+				key->objectid, BTRFS_ROOT_TREE_DIR_OBJECTID,
+				BTRFS_FIRST_FREE_OBJECTID,
+				BTRFS_LAST_FREE_OBJECTID,
+				BTRFS_FREE_INO_OBJECTID);
+		}
+		return -EUCLEAN;
+	}
+	if (key->offset != 0) {
+		if (is_inode_item)
+			inode_item_err(leaf, slot,
+				       "invalid key offset: has %llu expect 0",
+				       key->offset);
+		else
+			dir_item_err(leaf, slot,
+				"invalid location key offset:has %llu expect 0",
+				key->offset);
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
 static int check_dir_item(struct extent_buffer *leaf,
 			  struct btrfs_key *key, struct btrfs_key *prev_key,
 			  int slot)
@@ -850,25 +905,12 @@ static int check_inode_item(struct extent_buffer *leaf,
 	u64 super_gen = btrfs_super_generation(fs_info->super_copy);
 	u32 valid_mask = (S_IFMT | S_ISUID | S_ISGID | S_ISVTX | 0777);
 	u32 mode;
+	int ret;
 
-	if ((key->objectid < BTRFS_FIRST_FREE_OBJECTID ||
-	     key->objectid > BTRFS_LAST_FREE_OBJECTID) &&
-	    key->objectid != BTRFS_ROOT_TREE_DIR_OBJECTID &&
-	    key->objectid != BTRFS_FREE_INO_OBJECTID) {
-		generic_err(leaf, slot,
-	"invalid key objectid: has %llu expect %llu or [%llu, %llu] or %llu",
-			    key->objectid, BTRFS_ROOT_TREE_DIR_OBJECTID,
-			    BTRFS_FIRST_FREE_OBJECTID,
-			    BTRFS_LAST_FREE_OBJECTID,
-			    BTRFS_FREE_INO_OBJECTID);
-		return -EUCLEAN;
-	}
-	if (key->offset != 0) {
-		inode_item_err(leaf, slot,
-			"invalid key offset: has %llu expect 0",
-			key->offset);
-		return -EUCLEAN;
-	}
+	ret = check_inode_key(leaf, key, slot);
+	if (ret < 0)
+		return ret;
+
 	iitem = btrfs_item_ptr(leaf, slot, struct btrfs_inode_item);
 
 	/* Here we use super block generation + 1 to handle log tree */
