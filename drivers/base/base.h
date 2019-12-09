@@ -186,3 +186,11 @@ extern void device_links_unbind_consumers(struct device *dev);
 
 /* device pm support */
 void device_pm_move_to_tail(struct device *dev);
+
+#ifdef CONFIG_DEVTMPFS
+int devtmpfs_create_node(struct device *dev);
+int devtmpfs_delete_node(struct device *dev);
+#else
+static inline int devtmpfs_create_node(struct device *dev) { return 0; }
+static inline int devtmpfs_delete_node(struct device *dev) { return 0; }
+#endif
