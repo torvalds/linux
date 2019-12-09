@@ -808,12 +808,9 @@ static int snd_trident_allocate_pcm_mem(struct snd_pcm_substream *substream,
 	struct snd_trident *trident = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_trident_voice *voice = runtime->private_data;
-	int err;
 
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
 	if (trident->tlb.entries) {
-		if (err > 0) { /* change */
+		if (runtime->buffer_changed) {
 			if (voice->memblk)
 				snd_trident_free_pages(trident, voice->memblk);
 			voice->memblk = snd_trident_alloc_pages(trident, substream);
@@ -911,7 +908,6 @@ static int snd_trident_hw_free(struct snd_pcm_substream *substream)
 			voice->memblk = NULL;
 		}
 	}
-	snd_pcm_lib_free_pages(substream);
 	if (evoice != NULL) {
 		snd_trident_free_voice(trident, evoice);
 		voice->extra = NULL;
@@ -1128,11 +1124,6 @@ static int snd_trident_capture_prepare(struct snd_pcm_substream *substream)
 static int snd_trident_si7018_capture_hw_params(struct snd_pcm_substream *substream,
 						struct snd_pcm_hw_params *hw_params)
 {
-	int err;
-
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
-
 	return snd_trident_allocate_evoice(substream, hw_params);
 }
 
@@ -1154,7 +1145,6 @@ static int snd_trident_si7018_capture_hw_free(struct snd_pcm_substream *substrea
 	struct snd_trident_voice *voice = runtime->private_data;
 	struct snd_trident_voice *evoice = voice ? voice->extra : NULL;
 
-	snd_pcm_lib_free_pages(substream);
 	if (evoice != NULL) {
 		snd_trident_free_voice(trident, evoice);
 		voice->extra = NULL;
@@ -2183,17 +2173,17 @@ int snd_trident_pcm(struct snd_trident *trident, int device)
 	if (trident->tlb.entries) {
 		struct snd_pcm_substream *substream;
 		for (substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; substream; substream = substream->next)
-			snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV_SG,
-						      &trident->pci->dev,
-						      64*1024, 128*1024);
-		snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
-					      SNDRV_DMA_TYPE_DEV,
-					      &trident->pci->dev,
-					      64*1024, 128*1024);
+			snd_pcm_set_managed_buffer(substream, SNDRV_DMA_TYPE_DEV_SG,
+						   &trident->pci->dev,
+						   64*1024, 128*1024);
+		snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
+					   SNDRV_DMA_TYPE_DEV,
+					   &trident->pci->dev,
+					   64*1024, 128*1024);
 	} else {
-		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      &trident->pci->dev,
-						      64*1024, 128*1024);
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+					       &trident->pci->dev,
+					       64*1024, 128*1024);
 	}
 
 	return 0;
@@ -2242,13 +2232,13 @@ int snd_trident_foldback_pcm(struct snd_trident *trident, int device)
 	trident->foldback = foldback;
 
 	if (trident->tlb.entries)
-		snd_pcm_lib_preallocate_pages_for_all(foldback, SNDRV_DMA_TYPE_DEV_SG,
-						      &trident->pci->dev,
-						      0, 128*1024);
+		snd_pcm_set_managed_buffer_all(foldback, SNDRV_DMA_TYPE_DEV_SG,
+					       &trident->pci->dev,
+					       0, 128*1024);
 	else
-		snd_pcm_lib_preallocate_pages_for_all(foldback, SNDRV_DMA_TYPE_DEV,
-						      &trident->pci->dev,
-						      64*1024, 128*1024);
+		snd_pcm_set_managed_buffer_all(foldback, SNDRV_DMA_TYPE_DEV,
+					       &trident->pci->dev,
+					       64*1024, 128*1024);
 
 	return 0;
 }
@@ -2282,9 +2272,8 @@ int snd_trident_spdif_pcm(struct snd_trident *trident, int device)
 	strcpy(spdif->name, "Trident 4DWave IEC958");
 	trident->spdif = spdif;
 
-	snd_pcm_lib_preallocate_pages_for_all(spdif, SNDRV_DMA_TYPE_DEV,
-					      &trident->pci->dev,
-					      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(spdif, SNDRV_DMA_TYPE_DEV,
+				       &trident->pci->dev, 64*1024, 128*1024);
 
 	return 0;
 }
