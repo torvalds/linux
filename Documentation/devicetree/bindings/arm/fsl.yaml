@@ -402,6 +402,44 @@ properties:
               - fsl,ls1028a-rdb
           - const: fsl,ls1028a
 
+      - description: Kontron KBox A-230-LS
+        items:
+          - const: kontron,kbox-a-230-ls
+          - const: kontron,sl28-var4
+          - const: kontron,sl28
+          - const: fsl,ls1028a
+      - description:
+          Kontron SMARC-sAL28 board on the SMARC Eval Carrier 2.0
+        items:
+          - enum:
+              - kontron,sl28-var2-ads2
+              - kontron,sl28-var3-ads2
+              - kontron,sl28-var4-ads2
+          - enum:
+              - kontron,sl28-var2
+              - kontron,sl28-var3
+              - kontron,sl28-var4
+          - const: kontron,sl28
+          - const: fsl,ls1028a
+
+      - description:
+          Kontron SMARC-sAL28 board (on a generic/undefined carrier)
+        items:
+          - enum:
+              - kontron,sl28-var2
+              - kontron,sl28-var3
+              - kontron,sl28-var4
+          - const: kontron,sl28
+          - const: fsl,ls1028a
+
+      - description:
+          Kontron SMARC-sAL28 board (base). This is used in the base device
+          tree which is compatible with the overlays provided by the
+          vendor.
+        items:
+          - const: kontron,sl28
+          - const: fsl,ls1028a
+
       - description: LS1043A based Boards
         items:
           - enum:
