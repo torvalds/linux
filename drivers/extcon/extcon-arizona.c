@@ -77,8 +77,6 @@ struct arizona_extcon_info {
 	const struct arizona_micd_range *micd_ranges;
 	int num_micd_ranges;
 
-	int micd_timeout;
-
 	bool micd_reva;
 	bool micd_clamp;
 
@@ -1016,7 +1014,7 @@ handled:
 
 		queue_delayed_work(system_power_efficient_wq,
 				   &info->micd_timeout_work,
-				   msecs_to_jiffies(info->micd_timeout));
+				   msecs_to_jiffies(arizona->pdata.micd_timeout));
 	}
 
 	pm_runtime_mark_last_busy(info->dev);
@@ -1136,7 +1134,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 					   msecs_to_jiffies(HPDET_DEBOUNCE));
 
 		if (cancelled_mic) {
-			int micd_timeout = info->micd_timeout;
+			int micd_timeout = arizona->pdata.micd_timeout;
 
 			queue_delayed_work(system_power_efficient_wq,
 					   &info->micd_timeout_work,
@@ -1212,11 +1210,6 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 				   ARIZONA_MICD_CLAMP_DB | ARIZONA_JD1_DB,
 				   ARIZONA_MICD_CLAMP_DB | ARIZONA_JD1_DB);
 	}
-
-	if (arizona->pdata.micd_timeout)
-		info->micd_timeout = arizona->pdata.micd_timeout;
-	else
-		info->micd_timeout = DEFAULT_MICD_TIMEOUT;
 
 out:
 	/* Clear trig_sts to make sure DCVDD is not forced up */
@@ -1445,6 +1438,9 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 
 	info->input->name = "Headset";
 	info->input->phys = "arizona/extcon";
+
+	if (!pdata->micd_timeout)
+		pdata->micd_timeout = DEFAULT_MICD_TIMEOUT;
 
 	if (pdata->num_micd_configs) {
 		info->micd_modes = pdata->micd_configs;
