@@ -35,31 +35,25 @@ static inline bool arm64_kernel_unmapped_at_el0(void)
 	       cpus_have_const_cap(ARM64_UNMAP_KERNEL_AT_EL0);
 }
 
-static inline bool arm64_kernel_use_ng_mappings(void)
+/*
+ * This check is triggered during the early boot before the cpufeature
+ * is initialised. Checking the status on the local CPU allows the boot
+ * CPU to detect the need for non-global mappings and thus avoiding a
+ * pagetable re-write after all the CPUs are booted. This check will be
+ * anyway run on individual CPUs, allowing us to get the consistent
+ * state once the SMP CPUs are up and thus make the switch to non-global
+ * mappings if required.
+ */
+static inline bool kaslr_requires_kpti(void)
 {
 	bool tx1_bug;
-
-	/* What's a kpti? Use global mappings if we don't know. */
-	if (!IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0))
-		return false;
-
-	/*
-	 * Note: this function is called before the CPU capabilities have
-	 * been configured, so our early mappings will be global. If we
-	 * later determine that kpti is required, then
-	 * kpti_install_ng_mappings() will make them non-global.
-	 */
-	if (arm64_kernel_unmapped_at_el0())
-		return true;
 
 	if (!IS_ENABLED(CONFIG_RANDOMIZE_BASE))
 		return false;
 
 	/*
-	 * KASLR is enabled so we're going to be enabling kpti on non-broken
-	 * CPUs regardless of their susceptibility to Meltdown. Rather
-	 * than force everybody to go through the G -> nG dance later on,
-	 * just put down non-global mappings from the beginning.
+	 * Systems affected by Cavium erratum 24756 are incompatible
+	 * with KPTI.
 	 */
 	if (!IS_ENABLED(CONFIG_CAVIUM_ERRATUM_27456)) {
 		tx1_bug = false;
@@ -73,8 +67,42 @@ static inline bool arm64_kernel_use_ng_mappings(void)
 	} else {
 		tx1_bug = __cpus_have_const_cap(ARM64_WORKAROUND_CAVIUM_27456);
 	}
+	if (tx1_bug)
+		return false;
 
-	return !tx1_bug && kaslr_offset() > 0;
+	return kaslr_offset() > 0;
+}
+
+static inline bool arm64_kernel_use_ng_mappings(void)
+{
+	/* What's a kpti? Use global mappings if we don't know. */
+	if (!IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0))
+		return false;
+
+	/*
+	 * Note: this function is called before the CPU capabilities have
+	 * been configured, so our early mappings will be global. If we
+	 * later determine that kpti is required, then
+	 * kpti_install_ng_mappings() will make them non-global.
+	 */
+	if (arm64_kernel_unmapped_at_el0())
+		return true;
+
+	/*
+	 * Once we are far enough into boot for capabilities to be
+	 * ready we will have confirmed if we are using non-global
+	 * mappings so don't need to consider anything else here.
+	 */
+	if (static_branch_likely(&arm64_const_caps_ready))
+		return false;
+
+	/*
+	 * KASLR is enabled so we're going to be enabling kpti on non-broken
+	 * CPUs regardless of their susceptibility to Meltdown. Rather
+	 * than force everybody to go through the G -> nG dance later on,
+	 * just put down non-global mappings from the beginning
+	 */
+	return kaslr_requires_kpti();
 }
 
 typedef void (*bp_hardening_cb_t)(void);
