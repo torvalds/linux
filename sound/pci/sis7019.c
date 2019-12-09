@@ -499,18 +499,6 @@ static int sis_substream_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int sis_playback_hw_params(struct snd_pcm_substream *substream,
-					struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
-static int sis_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static int sis_pcm_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -701,11 +689,6 @@ static int sis_capture_hw_params(struct snd_pcm_substream *substream,
 	if (rc)
 		goto out;
 
-	rc = snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-	if (rc < 0)
-		goto out;
-
 	rc = sis_alloc_timing_voice(substream, hw_params);
 
 out:
@@ -864,8 +847,6 @@ static const struct snd_pcm_ops sis_playback_ops = {
 	.open = sis_playback_open,
 	.close = sis_substream_close,
 	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = sis_playback_hw_params,
-	.hw_free = sis_hw_free,
 	.prepare = sis_pcm_playback_prepare,
 	.trigger = sis_pcm_trigger,
 	.pointer = sis_pcm_pointer,
@@ -876,7 +857,6 @@ static const struct snd_pcm_ops sis_capture_ops = {
 	.close = sis_substream_close,
 	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = sis_capture_hw_params,
-	.hw_free = sis_hw_free,
 	.prepare = sis_pcm_capture_prepare,
 	.trigger = sis_pcm_trigger,
 	.pointer = sis_pcm_pointer,
@@ -904,9 +884,8 @@ static int sis_pcm_create(struct sis7019 *sis)
 	/* Try to preallocate some memory, but it's not the end of the
 	 * world if this fails.
 	 */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &sis->pci->dev,
-					      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &sis->pci->dev, 64*1024, 128*1024);
 
 	return 0;
 }
