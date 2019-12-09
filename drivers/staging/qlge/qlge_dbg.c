@@ -702,8 +702,8 @@ static void ql_build_coredump_seg_header(
 {
 	memset(seg_hdr, 0, sizeof(struct mpi_coredump_segment_header));
 	seg_hdr->cookie = MPI_COREDUMP_COOKIE;
-	seg_hdr->segNum = seg_number;
-	seg_hdr->segSize = seg_size;
+	seg_hdr->seg_num = seg_number;
+	seg_hdr->seg_size = seg_size;
 	strncpy(seg_hdr->description, desc, (sizeof(seg_hdr->description)) - 1);
 }
 
@@ -741,12 +741,12 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 	memset(&(mpi_coredump->mpi_global_header), 0,
 	       sizeof(struct mpi_coredump_global_header));
 	mpi_coredump->mpi_global_header.cookie = MPI_COREDUMP_COOKIE;
-	mpi_coredump->mpi_global_header.headerSize =
+	mpi_coredump->mpi_global_header.header_size =
 		sizeof(struct mpi_coredump_global_header);
-	mpi_coredump->mpi_global_header.imageSize =
+	mpi_coredump->mpi_global_header.image_size =
 		sizeof(struct ql_mpi_coredump);
-	strncpy(mpi_coredump->mpi_global_header.idString, "MPI Coredump",
-		sizeof(mpi_coredump->mpi_global_header.idString));
+	strncpy(mpi_coredump->mpi_global_header.id_string, "MPI Coredump",
+		sizeof(mpi_coredump->mpi_global_header.id_string));
 
 	/* Get generic NIC reg dump */
 	ql_build_coredump_seg_header(&mpi_coredump->nic_regs_seg_hdr,
@@ -1231,12 +1231,12 @@ static void ql_gen_reg_dump(struct ql_adapter *qdev,
 	memset(&(mpi_coredump->mpi_global_header), 0,
 	       sizeof(struct mpi_coredump_global_header));
 	mpi_coredump->mpi_global_header.cookie = MPI_COREDUMP_COOKIE;
-	mpi_coredump->mpi_global_header.headerSize =
+	mpi_coredump->mpi_global_header.header_size =
 		sizeof(struct mpi_coredump_global_header);
-	mpi_coredump->mpi_global_header.imageSize =
+	mpi_coredump->mpi_global_header.image_size =
 		sizeof(struct ql_reg_dump);
-	strncpy(mpi_coredump->mpi_global_header.idString, "MPI Coredump",
-		sizeof(mpi_coredump->mpi_global_header.idString));
+	strncpy(mpi_coredump->mpi_global_header.id_string, "MPI Coredump",
+		sizeof(mpi_coredump->mpi_global_header.id_string));
 
 
 	/* segment 16 */
