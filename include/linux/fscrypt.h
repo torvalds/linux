@@ -72,6 +72,21 @@ static inline bool fscrypt_has_encryption_key(const struct inode *inode)
 	return READ_ONCE(inode->i_crypt_info) != NULL;
 }
 
+/**
+ * fscrypt_needs_contents_encryption() - check whether an inode needs
+ *					 contents encryption
+ *
+ * Return: %true iff the inode is an encrypted regular file and the kernel was
+ * built with fscrypt support.
+ *
+ * If you need to know whether the encrypt bit is set even when the kernel was
+ * built without fscrypt support, you must use IS_ENCRYPTED() directly instead.
+ */
+static inline bool fscrypt_needs_contents_encryption(const struct inode *inode)
+{
+	return IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode);
+}
+
 static inline bool fscrypt_dummy_context_enabled(struct inode *inode)
 {
 	return inode->i_sb->s_cop->dummy_context &&
@@ -260,6 +275,11 @@ extern const char *fscrypt_get_symlink(struct inode *inode, const void *caddr,
 #else  /* !CONFIG_FS_ENCRYPTION */
 
 static inline bool fscrypt_has_encryption_key(const struct inode *inode)
+{
+	return false;
+}
+
+static inline bool fscrypt_needs_contents_encryption(const struct inode *inode)
 {
 	return false;
 }
