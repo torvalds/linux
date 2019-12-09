@@ -1250,7 +1250,8 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	 */
 	if (!slave_attached)
 		cdns_updatel(cdns, CDNS_MCP_CONTROL,
-			     CDNS_MCP_CONTROL_CMD_ACCEPT, 1);
+			     CDNS_MCP_CONTROL_CMD_ACCEPT,
+			     CDNS_MCP_CONTROL_CMD_ACCEPT);
 	else
 		cdns_updatel(cdns, CDNS_MCP_CONTROL,
 			     CDNS_MCP_CONTROL_CMD_ACCEPT, 0);
