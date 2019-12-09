@@ -444,8 +444,10 @@ static struct ltc2983_custom_sensor *__ltc2983_custom_sensor_new(
 			else
 				temp = __convert_to_raw(temp, resolution);
 		} else {
-			of_property_read_u32_index(np, propname, index,
-						   (u32 *)&temp);
+			u32 t32;
+
+			of_property_read_u32_index(np, propname, index, &t32);
+			temp = t32;
 		}
 
 		for (j = 0; j < n_size; j++)
