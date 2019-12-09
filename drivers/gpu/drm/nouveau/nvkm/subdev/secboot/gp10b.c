@@ -23,15 +23,13 @@
 #include "acr.h"
 #include "gm200.h"
 
-#define TEGRA186_MC_BASE			0x02c10000
-
 static int
 gp10b_secboot_oneinit(struct nvkm_secboot *sb)
 {
 	struct gm200_secboot *gsb = gm200_secboot(sb);
 	int ret;
 
-	ret = gm20b_secboot_tegra_read_wpr(gsb, TEGRA186_MC_BASE);
+	ret = gm20b_secboot_tegra_read_wpr(gsb);
 	if (ret)
 		return ret;
 
