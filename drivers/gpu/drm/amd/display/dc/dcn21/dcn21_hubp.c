@@ -251,10 +251,20 @@ static void hubp21_apply_PLAT_54186_wa(
 			ROTATION_ANGLE, &rotation_angle,
 			H_MIRROR_EN, &h_mirror_en);
 
-	/* apply wa only for NV12 surface with scatter gather enabled with view port > 512 */
+	/* reset persistent cached data */
+	hubp21->PLAT_54186_wa_chroma_addr_offset = 0;
+	/* apply wa only for NV12 surface with scatter gather enabled with viewport > 512 along
+	 * the vertical direction*/
 	if (address->type != PLN_ADDR_TYPE_VIDEO_PROGRESSIVE ||
-			address->video_progressive.luma_addr.high_part == 0xf4
-			|| viewport_c_height <= 512)
+			address->video_progressive.luma_addr.high_part == 0xf4)
+		return;
+
+	if ((rotation_angle == 0 || rotation_angle == 180)
+			&& viewport_c_height <= 512)
+		return;
+
+	if ((rotation_angle == 90 || rotation_angle == 270)
+				&& viewport_c_width <= 512)
 		return;
 
 	switch (rotation_angle) {
