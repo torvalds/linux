@@ -121,6 +121,21 @@ adfs_dir_checkbyte(const struct adfs_dir *dir)
 	return (dircheck ^ (dircheck >> 8) ^ (dircheck >> 16) ^ (dircheck >> 24)) & 0xff;
 }
 
+static int adfs_f_validate(struct adfs_dir *dir)
+{
+	struct adfs_dirheader *head = dir->dirhead;
+	struct adfs_newdirtail *tail = dir->newtail;
+
+	if (head->startmasseq != tail->endmasseq ||
+	    (memcmp(&head->startname, "Nick", 4) &&
+	     memcmp(&head->startname, "Hugo", 4)) ||
+	    memcmp(&head->startname, &tail->endname, 4) ||
+	    adfs_dir_checkbyte(dir) != tail->dircheckbyte)
+		return -EIO;
+
+	return 0;
+}
+
 /* Read and check that a directory is valid */
 static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 			 unsigned int size, struct adfs_dir *dir)
@@ -142,15 +157,7 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 	dir->dirhead = bufoff(dir->bh, 0);
 	dir->newtail = bufoff(dir->bh, 2007);
 
-	if (dir->dirhead->startmasseq != dir->newtail->endmasseq ||
-	    memcmp(&dir->dirhead->startname, &dir->newtail->endname, 4))
-		goto bad_dir;
-
-	if (memcmp(&dir->dirhead->startname, "Nick", 4) &&
-	    memcmp(&dir->dirhead->startname, "Hugo", 4))
-		goto bad_dir;
-
-	if (adfs_dir_checkbyte(dir) != dir->newtail->dircheckbyte)
+	if (adfs_f_validate(dir))
 		goto bad_dir;
 
 	return 0;
@@ -327,7 +334,7 @@ adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 	ret = adfs_dir_find_entry(dir, obj->indaddr);
 	if (ret < 0) {
 		adfs_error(dir->sb, "unable to locate entry to update");
-		goto out;
+		return ret;
 	}
 
 	__adfs_dir_put(dir, ret, obj);
@@ -344,26 +351,11 @@ adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 	 */
 	dir->newtail->dircheckbyte = ret;
 
-#if 1
-	if (dir->dirhead->startmasseq != dir->newtail->endmasseq ||
-	    memcmp(&dir->dirhead->startname, &dir->newtail->endname, 4))
-		goto bad_dir;
+	ret = adfs_f_validate(dir);
+	if (ret)
+		adfs_error(dir->sb, "whoops!  I broke a directory!");
 
-	if (memcmp(&dir->dirhead->startname, "Nick", 4) &&
-	    memcmp(&dir->dirhead->startname, "Hugo", 4))
-		goto bad_dir;
-
-	if (adfs_dir_checkbyte(dir) != dir->newtail->dircheckbyte)
-		goto bad_dir;
-#endif
-	ret = 0;
-out:
 	return ret;
-#if 1
-bad_dir:
-	adfs_error(dir->sb, "whoops!  I broke a directory!");
-	return -EIO;
-#endif
 }
 
 const struct adfs_dir_ops adfs_f_dir_ops = {
