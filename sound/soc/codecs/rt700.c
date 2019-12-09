@@ -115,6 +115,7 @@ static int rt700_headset_detect(struct rt700_priv *rt700)
 {
 	unsigned int buf, loop = 0;
 	int ret;
+	unsigned int jack_status = 0, reg;
 
 	ret = rt700_index_read(rt700->regmap,
 					RT700_COMBO_JACK_AUTO_CTL2, &buf);
@@ -130,6 +131,11 @@ static int rt700_headset_detect(struct rt700_priv *rt700)
 					RT700_COMBO_JACK_AUTO_CTL2, &buf);
 		if (ret < 0)
 			goto io_error;
+
+		reg = RT700_VERB_GET_PIN_SENSE | RT700_HP_OUT;
+		ret = regmap_read(rt700->regmap, reg, &jack_status);
+		if ((jack_status & (1 << 31)) == 0)
+			goto remove_error;
 	}
 
 	if (loop >= 500)
@@ -150,6 +156,9 @@ to_error:
 io_error:
 	pr_err_ratelimited("IO error in %s, ret %d\n", __func__, ret);
 	return ret;
+remove_error:
+	pr_err_ratelimited("Jack removal in %s\n", __func__);
+	return -ENODEV;
 }
 
 static void rt700_jack_detect_handler(struct work_struct *work)
