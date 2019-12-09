@@ -533,66 +533,64 @@ static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading,
 	struct arizona *arizona = info->arizona;
 	int id_gpio = arizona->pdata.hpdet_id_gpio;
 
+	if (!arizona->pdata.hpdet_acc_id)
+		return 0;
+
 	/*
 	 * If we're using HPDET for accessory identification we need
 	 * to take multiple measurements, step through them in sequence.
 	 */
-	if (arizona->pdata.hpdet_acc_id) {
-		info->hpdet_res[info->num_hpdet_res++] = *reading;
+	info->hpdet_res[info->num_hpdet_res++] = *reading;
 
-		/* Only check the mic directly if we didn't already ID it */
-		if (id_gpio && info->num_hpdet_res == 1) {
-			dev_dbg(arizona->dev, "Measuring mic\n");
+	/* Only check the mic directly if we didn't already ID it */
+	if (id_gpio && info->num_hpdet_res == 1) {
+		dev_dbg(arizona->dev, "Measuring mic\n");
 
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_ACCESSORY_DETECT_MODE_1,
-					   ARIZONA_ACCDET_MODE_MASK |
-					   ARIZONA_ACCDET_SRC,
-					   ARIZONA_ACCDET_MODE_HPR |
-					   info->micd_modes[0].src);
-
-			gpio_set_value_cansleep(id_gpio, 1);
-
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_HEADPHONE_DETECT_1,
-					   ARIZONA_HP_POLL, ARIZONA_HP_POLL);
-			return -EAGAIN;
-		}
-
-		/* OK, got both.  Now, compare... */
-		dev_dbg(arizona->dev, "HPDET measured %d %d\n",
-			info->hpdet_res[0], info->hpdet_res[1]);
-
-		/* Take the headphone impedance for the main report */
-		*reading = info->hpdet_res[0];
-
-		/* Sometimes we get false readings due to slow insert */
-		if (*reading >= ARIZONA_HPDET_MAX && !info->hpdet_retried) {
-			dev_dbg(arizona->dev, "Retrying high impedance\n");
-			info->num_hpdet_res = 0;
-			info->hpdet_retried = true;
-			arizona_start_hpdet_acc_id(info);
-			pm_runtime_put(info->dev);
-			return -EAGAIN;
-		}
-
-		/*
-		 * If we measure the mic as high impedance
-		 */
-		if (!id_gpio || info->hpdet_res[1] > 50) {
-			dev_dbg(arizona->dev, "Detected mic\n");
-			*mic = true;
-			info->detecting = true;
-		} else {
-			dev_dbg(arizona->dev, "Detected headphone\n");
-		}
-
-		/* Make sure everything is reset back to the real polarity */
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_ACCESSORY_DETECT_MODE_1,
+				   ARIZONA_ACCDET_MODE_MASK |
 				   ARIZONA_ACCDET_SRC,
+				   ARIZONA_ACCDET_MODE_HPR |
 				   info->micd_modes[0].src);
+
+		gpio_set_value_cansleep(id_gpio, 1);
+
+		regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
+				   ARIZONA_HP_POLL, ARIZONA_HP_POLL);
+		return -EAGAIN;
 	}
+
+	/* OK, got both.  Now, compare... */
+	dev_dbg(arizona->dev, "HPDET measured %d %d\n",
+		info->hpdet_res[0], info->hpdet_res[1]);
+
+	/* Take the headphone impedance for the main report */
+	*reading = info->hpdet_res[0];
+
+	/* Sometimes we get false readings due to slow insert */
+	if (*reading >= ARIZONA_HPDET_MAX && !info->hpdet_retried) {
+		dev_dbg(arizona->dev, "Retrying high impedance\n");
+		info->num_hpdet_res = 0;
+		info->hpdet_retried = true;
+		arizona_start_hpdet_acc_id(info);
+		pm_runtime_put(info->dev);
+		return -EAGAIN;
+	}
+
+	/*
+	 * If we measure the mic as high impedance
+	 */
+	if (!id_gpio || info->hpdet_res[1] > 50) {
+		dev_dbg(arizona->dev, "Detected mic\n");
+		*mic = true;
+		info->detecting = true;
+	} else {
+		dev_dbg(arizona->dev, "Detected headphone\n");
+	}
+
+	/* Make sure everything is reset back to the real polarity */
+	regmap_update_bits(arizona->regmap, ARIZONA_ACCESSORY_DETECT_MODE_1,
+			   ARIZONA_ACCDET_SRC, info->micd_modes[0].src);
 
 	return 0;
 }
