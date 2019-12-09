@@ -108,7 +108,7 @@ nvkm_fault_oneinit_buffer(struct nvkm_fault *fault, int id)
 		return ret;
 
 	/* Pin fault buffer in BAR2. */
-	buffer->addr = nvkm_memory_bar2(buffer->mem);
+	buffer->addr = fault->func->buffer.pin(buffer);
 	if (buffer->addr == ~0ULL)
 		return -EFAULT;
 
