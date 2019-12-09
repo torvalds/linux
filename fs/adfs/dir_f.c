@@ -9,8 +9,6 @@
 #include "adfs.h"
 #include "dir_f.h"
 
-static void adfs_f_free(struct adfs_dir *dir);
-
 /*
  * Read an (unaligned) value of length 1..4 bytes
  */
@@ -128,7 +126,7 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 			 unsigned int size, struct adfs_dir *dir)
 {
 	const unsigned int blocksize_bits = sb->s_blocksize_bits;
-	int blk = 0;
+	int blk;
 
 	/*
 	 * Directories which are not a multiple of 2048 bytes
@@ -152,6 +150,8 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 		dir->bh[blk] = sb_bread(sb, phys);
 		if (!dir->bh[blk])
 			goto release_buffers;
+
+		dir->nr_buffers += 1;
 	}
 
 	memcpy(&dir->dirhead, bufoff(dir->bh, 0), sizeof(dir->dirhead));
@@ -168,17 +168,12 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 	if (adfs_dir_checkbyte(dir) != dir->dirtail.new.dircheckbyte)
 		goto bad_dir;
 
-	dir->nr_buffers = blk;
-
 	return 0;
 
 bad_dir:
 	adfs_error(sb, "dir %06x is corrupted", indaddr);
 release_buffers:
-	for (blk -= 1; blk >= 0; blk -= 1)
-		brelse(dir->bh[blk]);
-
-	dir->sb = NULL;
+	adfs_dir_relse(dir);
 
 	return -EIO;
 }
@@ -435,25 +430,10 @@ adfs_f_sync(struct adfs_dir *dir)
 	return err;
 }
 
-static void
-adfs_f_free(struct adfs_dir *dir)
-{
-	int i;
-
-	for (i = dir->nr_buffers - 1; i >= 0; i--) {
-		brelse(dir->bh[i]);
-		dir->bh[i] = NULL;
-	}
-
-	dir->nr_buffers = 0;
-	dir->sb = NULL;
-}
-
 const struct adfs_dir_ops adfs_f_dir_ops = {
 	.read		= adfs_f_read,
 	.setpos		= adfs_f_setpos,
 	.getnext	= adfs_f_getnext,
 	.update		= adfs_f_update,
 	.sync		= adfs_f_sync,
-	.free		= adfs_f_free
 };

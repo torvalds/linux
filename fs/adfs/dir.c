@@ -6,12 +6,27 @@
  *
  *  Common directory handling for ADFS
  */
+#include <linux/slab.h>
 #include "adfs.h"
 
 /*
  * For future.  This should probably be per-directory.
  */
 static DEFINE_RWLOCK(adfs_dir_lock);
+
+void adfs_dir_relse(struct adfs_dir *dir)
+{
+	unsigned int i;
+
+	for (i = 0; i < dir->nr_buffers; i++)
+		brelse(dir->bhs[i]);
+	dir->nr_buffers = 0;
+
+	if (dir->bhs != dir->bh)
+		kfree(dir->bhs);
+	dir->bhs = NULL;
+	dir->sb = NULL;
+}
 
 static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 			 unsigned int size, struct adfs_dir *dir)
@@ -105,7 +120,7 @@ unlock_out:
 	read_unlock(&adfs_dir_lock);
 
 free_out:
-	ops->free(&dir);
+	adfs_dir_relse(&dir);
 	return ret;
 }
 
@@ -139,7 +154,7 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 			ret = err;
 	}
 
-	ops->free(&dir);
+	adfs_dir_relse(&dir);
 out:
 #endif
 	return ret;
@@ -211,7 +226,7 @@ unlock_out:
 	read_unlock(&adfs_dir_lock);
 
 free_out:
-	ops->free(&dir);
+	adfs_dir_relse(&dir);
 out:
 	return ret;
 }

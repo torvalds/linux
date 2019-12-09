@@ -15,7 +15,7 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	struct adfs_bigdirtail *t;
 	unsigned long block;
 	unsigned int blk, size;
-	int i, ret = -EIO;
+	int ret = -EIO;
 
 	block = __adfs_block_map(sb, id, 0);
 	if (!block) {
@@ -92,18 +92,8 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	return 0;
 
 out:
-	if (dir->bhs) {
-		for (i = 0; i < dir->nr_buffers; i++)
-			brelse(dir->bhs[i]);
+	adfs_dir_relse(dir);
 
-		if (&dir->bh[0] != dir->bhs)
-			kfree(dir->bhs);
-
-		dir->bhs = NULL;
-	}
-
-	dir->nr_buffers = 0;
-	dir->sb = NULL;
 	return ret;
 }
 
@@ -205,29 +195,9 @@ adfs_fplus_sync(struct adfs_dir *dir)
 	return err;
 }
 
-static void
-adfs_fplus_free(struct adfs_dir *dir)
-{
-	int i;
-
-	if (dir->bhs) {
-		for (i = 0; i < dir->nr_buffers; i++)
-			brelse(dir->bhs[i]);
-
-		if (&dir->bh[0] != dir->bhs)
-			kfree(dir->bhs);
-
-		dir->bhs = NULL;
-	}
-
-	dir->nr_buffers = 0;
-	dir->sb = NULL;
-}
-
 const struct adfs_dir_ops adfs_fplus_dir_ops = {
 	.read		= adfs_fplus_read,
 	.setpos		= adfs_fplus_setpos,
 	.getnext	= adfs_fplus_getnext,
 	.sync		= adfs_fplus_sync,
-	.free		= adfs_fplus_free
 };
