@@ -331,12 +331,63 @@ static int adfs_checkmap(struct super_block *sb, struct adfs_discmap *dm)
 	return crosscheck == 0xff && zonecheck;
 }
 
+/*
+ * Layout the map - the first zone contains a copy of the disc record,
+ * and the last zone must be limited to the size of the filesystem.
+ */
+static void adfs_map_layout(struct adfs_discmap *dm, unsigned int nzones,
+			    struct adfs_discrecord *dr)
+{
+	unsigned int zone, zone_size;
+	u64 size;
+
+	zone_size = (8 << dr->log2secsize) - le16_to_cpu(dr->zone_spare);
+
+	dm[0].dm_bh       = NULL;
+	dm[0].dm_startblk = 0;
+	dm[0].dm_startbit = ADFS_DR_SIZE_BITS;
+	dm[0].dm_endbit   = zone_size;
+
+	for (zone = 1; zone < nzones; zone++) {
+		dm[zone].dm_bh       = NULL;
+		dm[zone].dm_startblk = zone * zone_size - ADFS_DR_SIZE_BITS;
+		dm[zone].dm_startbit = 0;
+		dm[zone].dm_endbit   = zone_size;
+	}
+
+	size = adfs_disc_size(dr) >> dr->log2bpmb;
+	size -= (nzones - 1) * zone_size - ADFS_DR_SIZE_BITS;
+	dm[nzones - 1].dm_endbit = size;
+}
+
+static int adfs_map_read(struct adfs_discmap *dm, struct super_block *sb,
+			 unsigned int map_addr, unsigned int nzones)
+{
+	unsigned int zone;
+
+	for (zone = 0; zone < nzones; zone++) {
+		dm[zone].dm_bh = sb_bread(sb, map_addr + zone);
+		if (!dm[zone].dm_bh)
+			return -EIO;
+	}
+
+	return 0;
+}
+
+static void adfs_map_relse(struct adfs_discmap *dm, unsigned int nzones)
+{
+	unsigned int zone;
+
+	for (zone = 0; zone < nzones; zone++)
+		brelse(dm[zone].dm_bh);
+}
+
 struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_discrecord *dr)
 {
+	struct adfs_sb_info *asb = ADFS_SB(sb);
 	struct adfs_discmap *dm;
 	unsigned int map_addr, zone_size, nzones;
-	int i, zone;
-	struct adfs_sb_info *asb = ADFS_SB(sb);
+	int ret;
 
 	nzones    = asb->s_map_size;
 	zone_size = (8 << dr->log2secsize) - le16_to_cpu(dr->zone_spare);
@@ -352,24 +403,13 @@ struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_discrecor
 		return ERR_PTR(-ENOMEM);
 	}
 
-	for (zone = 0; zone < nzones; zone++, map_addr++) {
-		dm[zone].dm_startbit = 0;
-		dm[zone].dm_endbit   = zone_size;
-		dm[zone].dm_startblk = zone * zone_size - ADFS_DR_SIZE_BITS;
-		dm[zone].dm_bh       = sb_bread(sb, map_addr);
+	adfs_map_layout(dm, nzones, dr);
 
-		if (!dm[zone].dm_bh) {
-			adfs_error(sb, "unable to read map");
-			goto error_free;
-		}
+	ret = adfs_map_read(dm, sb, map_addr, nzones);
+	if (ret) {
+		adfs_error(sb, "unable to read map");
+		goto error_free;
 	}
-
-	/* adjust the limits for the first and last map zones */
-	i = zone - 1;
-	dm[0].dm_startblk = 0;
-	dm[0].dm_startbit = ADFS_DR_SIZE_BITS;
-	dm[i].dm_endbit   = (adfs_disc_size(dr) >> dr->log2bpmb) +
-			    (ADFS_DR_SIZE_BITS - i * zone_size);
 
 	if (adfs_checkmap(sb, dm))
 		return dm;
@@ -377,9 +417,7 @@ struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_discrecor
 	adfs_error(sb, "map corrupted");
 
 error_free:
-	while (--zone >= 0)
-		brelse(dm[zone].dm_bh);
-
+	adfs_map_relse(dm, nzones);
 	kfree(dm);
 	return ERR_PTR(-EIO);
 }
