@@ -785,11 +785,6 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	ret = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (ret < 0)
-		goto stop_pipeline;
-
 	subs->pcm_format = params_format(hw_params);
 	subs->period_bytes = params_period_bytes(hw_params);
 	subs->period_frames = params_period_size(hw_params);
@@ -853,7 +848,7 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 		snd_usb_unlock_shutdown(subs->stream->chip);
 	}
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 /*
@@ -1803,9 +1798,9 @@ void snd_usb_preallocate_buffer(struct snd_usb_substream *subs)
 	struct device *dev = subs->dev->bus->controller;
 
 	if (snd_usb_use_vmalloc)
-		snd_pcm_lib_preallocate_pages(s, SNDRV_DMA_TYPE_VMALLOC,
-					      NULL, 0, 0);
+		snd_pcm_set_managed_buffer(s, SNDRV_DMA_TYPE_VMALLOC,
+					   NULL, 0, 0);
 	else
-		snd_pcm_lib_preallocate_pages(s, SNDRV_DMA_TYPE_DEV_SG,
-					      dev, 64*1024, 512*1024);
+		snd_pcm_set_managed_buffer(s, SNDRV_DMA_TYPE_DEV_SG,
+					   dev, 64*1024, 512*1024);
 }
