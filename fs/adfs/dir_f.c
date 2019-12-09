@@ -230,46 +230,6 @@ __adfs_dir_get(struct adfs_dir *dir, int pos, struct object_info *obj)
 }
 
 static int
-__adfs_dir_put(struct adfs_dir *dir, int pos, struct object_info *obj)
-{
-	struct adfs_direntry de;
-	int ret;
-
-	ret = adfs_dir_copyfrom(&de, dir, pos, 26);
-	if (ret)
-		return ret;
-
-	adfs_obj2dir(&de, obj);
-
-	return adfs_dir_copyto(dir, pos, &de, 26);
-}
-
-/*
- * the caller is responsible for holding the necessary
- * locks.
- */
-static int adfs_dir_find_entry(struct adfs_dir *dir, u32 indaddr)
-{
-	int pos, ret;
-
-	ret = -ENOENT;
-
-	for (pos = 5; pos < ADFS_NUM_DIR_ENTRIES * 26 + 5; pos += 26) {
-		struct object_info obj;
-
-		if (!__adfs_dir_get(dir, pos, &obj))
-			break;
-
-		if (obj.indaddr == indaddr) {
-			ret = pos;
-			break;
-		}
-	}
-
-	return ret;
-}
-
-static int
 adfs_f_setpos(struct adfs_dir *dir, unsigned int fpos)
 {
 	if (fpos >= ADFS_NUM_DIR_ENTRIES)
@@ -308,18 +268,33 @@ static int adfs_f_iterate(struct adfs_dir *dir, struct dir_context *ctx)
 	return 0;
 }
 
-static int
-adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
+static int adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 {
-	int ret;
+	struct adfs_direntry de;
+	int offset, ret;
 
-	ret = adfs_dir_find_entry(dir, obj->indaddr);
-	if (ret < 0) {
-		adfs_error(dir->sb, "unable to locate entry to update");
+	offset = 5 - (int)sizeof(de);
+
+	do {
+		offset += sizeof(de);
+		ret = adfs_dir_copyfrom(&de, dir, offset, sizeof(de));
+		if (ret) {
+			adfs_error(dir->sb, "error reading directory entry");
+			return -ENOENT;
+		}
+		if (!de.dirobname[0]) {
+			adfs_error(dir->sb, "unable to locate entry to update");
+			return -ENOENT;
+		}
+	} while (adfs_readval(de.dirinddiscadd, 3) != obj->indaddr);
+
+	/* Update the directory entry with the new object state */
+	adfs_obj2dir(&de, obj);
+
+	/* Write the directory entry back to the directory */
+	ret = adfs_dir_copyto(dir, pos, &de, 26);
+	if (ret)
 		return ret;
-	}
-
-	__adfs_dir_put(dir, ret, obj);
  
 	/*
 	 * Increment directory sequence number
