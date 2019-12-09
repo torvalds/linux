@@ -78,6 +78,55 @@ void adfs_dir_relse(struct adfs_dir *dir)
 	dir->sb = NULL;
 }
 
+int adfs_dir_read_buffers(struct super_block *sb, u32 indaddr,
+			  unsigned int size, struct adfs_dir *dir)
+{
+	struct buffer_head **bhs;
+	unsigned int i, num;
+	int block;
+
+	num = ALIGN(size, sb->s_blocksize) >> sb->s_blocksize_bits;
+	if (num > ARRAY_SIZE(dir->bh)) {
+		/* We only allow one extension */
+		if (dir->bhs != dir->bh)
+			return -EINVAL;
+
+		bhs = kcalloc(num, sizeof(*bhs), GFP_KERNEL);
+		if (!bhs)
+			return -ENOMEM;
+
+		if (dir->nr_buffers)
+			memcpy(bhs, dir->bhs, dir->nr_buffers * sizeof(*bhs));
+
+		dir->bhs = bhs;
+	}
+
+	for (i = dir->nr_buffers; i < num; i++) {
+		block = __adfs_block_map(sb, indaddr, i);
+		if (!block) {
+			adfs_error(sb, "dir %06x has a hole at offset %u",
+				   indaddr, i);
+			goto error;
+		}
+
+		dir->bhs[i] = sb_bread(sb, block);
+		if (!dir->bhs[i]) {
+			adfs_error(sb,
+				   "dir %06x failed read at offset %u, mapped block 0x%08x",
+				   indaddr, i, block);
+			goto error;
+		}
+
+		dir->nr_buffers++;
+	}
+	return 0;
+
+error:
+	adfs_dir_relse(dir);
+
+	return -EIO;
+}
+
 static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 			 unsigned int size, struct adfs_dir *dir)
 {

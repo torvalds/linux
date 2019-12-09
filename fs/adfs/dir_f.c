@@ -126,7 +126,7 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 			 unsigned int size, struct adfs_dir *dir)
 {
 	const unsigned int blocksize_bits = sb->s_blocksize_bits;
-	int blk;
+	int ret;
 
 	/*
 	 * Directories which are not a multiple of 2048 bytes
@@ -135,24 +135,9 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 	if (size & 2047)
 		goto bad_dir;
 
-	size >>= blocksize_bits;
-
-	for (blk = 0; blk < size; blk++) {
-		int phys;
-
-		phys = __adfs_block_map(sb, indaddr, blk);
-		if (!phys) {
-			adfs_error(sb, "dir %06x has a hole at offset %d",
-				   indaddr, blk);
-			goto release_buffers;
-		}
-
-		dir->bh[blk] = sb_bread(sb, phys);
-		if (!dir->bh[blk])
-			goto release_buffers;
-
-		dir->nr_buffers += 1;
-	}
+	ret = adfs_dir_read_buffers(sb, indaddr, size, dir);
+	if (ret)
+		return ret;
 
 	memcpy(&dir->dirhead, bufoff(dir->bh, 0), sizeof(dir->dirhead));
 	memcpy(&dir->dirtail, bufoff(dir->bh, 2007), sizeof(dir->dirtail));
@@ -172,7 +157,6 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 
 bad_dir:
 	adfs_error(sb, "dir %06x is corrupted", indaddr);
-release_buffers:
 	adfs_dir_relse(dir);
 
 	return -EIO;

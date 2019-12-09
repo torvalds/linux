@@ -4,87 +4,49 @@
  *
  *  Copyright (C) 1997-1999 Russell King
  */
-#include <linux/slab.h>
 #include "adfs.h"
 #include "dir_fplus.h"
 
-static int
-adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct adfs_dir *dir)
+static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
+			   unsigned int size, struct adfs_dir *dir)
 {
 	struct adfs_bigdirheader *h;
 	struct adfs_bigdirtail *t;
-	unsigned long block;
-	unsigned int blk, size;
-	int ret = -EIO;
+	unsigned int dirsize;
+	int ret;
 
-	block = __adfs_block_map(sb, id, 0);
-	if (!block) {
-		adfs_error(sb, "dir object %X has a hole at offset 0", id);
-		goto out;
-	}
-
-	dir->bhs[0] = sb_bread(sb, block);
-	if (!dir->bhs[0])
-		goto out;
-	dir->nr_buffers += 1;
+	/* Read first buffer */
+	ret = adfs_dir_read_buffers(sb, indaddr, sb->s_blocksize, dir);
+	if (ret)
+		return ret;
 
 	h = (struct adfs_bigdirheader *)dir->bhs[0]->b_data;
-	size = le32_to_cpu(h->bigdirsize);
-	if (size != sz) {
+	dirsize = le32_to_cpu(h->bigdirsize);
+	if (dirsize != size) {
 		adfs_msg(sb, KERN_WARNING,
-			 "directory header size %X does not match directory size %X",
-			 size, sz);
+			 "dir %06x header size %X does not match directory size %X",
+			 indaddr, dirsize, size);
 	}
 
 	if (h->bigdirversion[0] != 0 || h->bigdirversion[1] != 0 ||
 	    h->bigdirversion[2] != 0 || size & 2047 ||
 	    h->bigdirstartname != cpu_to_le32(BIGDIRSTARTNAME)) {
-		adfs_error(sb, "dir %06x has malformed header", id);
+		adfs_error(sb, "dir %06x has malformed header", indaddr);
 		goto out;
 	}
 
-	size >>= sb->s_blocksize_bits;
-	if (size > ARRAY_SIZE(dir->bh)) {
-		/* this directory is too big for fixed bh set, must allocate */
-		struct buffer_head **bhs =
-			kcalloc(size, sizeof(struct buffer_head *),
-				GFP_KERNEL);
-		if (!bhs) {
-			adfs_msg(sb, KERN_ERR,
-				 "not enough memory for dir object %X (%d blocks)",
-				 id, size);
-			ret = -ENOMEM;
-			goto out;
-		}
-		dir->bhs = bhs;
-		/* copy over the pointer to the block that we've already read */
-		dir->bhs[0] = dir->bh[0];
-	}
-
-	for (blk = 1; blk < size; blk++) {
-		block = __adfs_block_map(sb, id, blk);
-		if (!block) {
-			adfs_error(sb, "dir object %X has a hole at offset %d", id, blk);
-			goto out;
-		}
-
-		dir->bhs[blk] = sb_bread(sb, block);
-		if (!dir->bhs[blk]) {
-			adfs_error(sb,	"dir object %x failed read for offset %d, mapped block %lX",
-				   id, blk, block);
-			goto out;
-		}
-
-		dir->nr_buffers += 1;
-	}
+	/* Read remaining buffers */
+	ret = adfs_dir_read_buffers(sb, indaddr, dirsize, dir);
+	if (ret)
+		return ret;
 
 	t = (struct adfs_bigdirtail *)
-		(dir->bhs[size - 1]->b_data + (sb->s_blocksize - 8));
+		(dir->bhs[dir->nr_buffers - 1]->b_data + (sb->s_blocksize - 8));
 
 	if (t->bigdirendname != cpu_to_le32(BIGDIRENDNAME) ||
 	    t->bigdirendmasseq != h->startmasseq ||
 	    t->reserved[0] != 0 || t->reserved[1] != 0) {
-		adfs_error(sb, "dir %06x has malformed tail", id);
+		adfs_error(sb, "dir %06x has malformed tail", indaddr);
 		goto out;
 	}
 

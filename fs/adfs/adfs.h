@@ -170,6 +170,8 @@ int adfs_dir_copyfrom(void *dst, struct adfs_dir *dir, unsigned int offset,
 int adfs_dir_copyto(struct adfs_dir *dir, unsigned int offset, const void *src,
 		    size_t len);
 void adfs_dir_relse(struct adfs_dir *dir);
+int adfs_dir_read_buffers(struct super_block *sb, u32 indaddr,
+			  unsigned int size, struct adfs_dir *dir);
 void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj);
 extern int adfs_dir_update(struct super_block *sb, struct object_info *obj,
 			   int wait);
