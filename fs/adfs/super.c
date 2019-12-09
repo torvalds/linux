@@ -347,6 +347,20 @@ static int adfs_validate_bblk(struct super_block *sb, struct buffer_head *bh,
 	return 0;
 }
 
+static int adfs_validate_dr0(struct super_block *sb, struct buffer_head *bh,
+			      struct adfs_discrecord **drp)
+{
+	struct adfs_discrecord *dr;
+
+	/* Do some sanity checks on the ADFS disc record */
+	dr = (struct adfs_discrecord *)(bh->b_data + 4);
+	if (adfs_checkdiscrecord(dr) || dr->nzones_high || dr->nzones != 1)
+		return -EILSEQ;
+
+	*drp = dr;
+	return 0;
+}
+
 static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct adfs_discrecord *dr;
@@ -376,7 +390,9 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto error;
 
 	/* Try to probe the filesystem boot block */
-	ret = adfs_probe(sb, ADFS_DISCRECORD, silent, adfs_validate_bblk);
+	ret = adfs_probe(sb, ADFS_DISCRECORD, 1, adfs_validate_bblk);
+	if (ret == -EILSEQ)
+		ret = adfs_probe(sb, 0, silent, adfs_validate_dr0);
 	if (ret == -EILSEQ) {
 		if (!silent)
 			adfs_msg(sb, KERN_ERR,
