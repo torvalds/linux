@@ -68,9 +68,9 @@ static DEFINE_RWLOCK(adfs_map_lock);
 static int lookup_zone(const struct adfs_discmap *dm, const unsigned int idlen,
 		       const u32 frag_id, unsigned int *offset)
 {
-	const unsigned int mapsize = dm->dm_endbit;
+	const unsigned int endbit = dm->dm_endbit;
 	const u32 idmask = (1 << idlen) - 1;
-	unsigned char *map = dm->dm_bh->b_data + 4;
+	unsigned char *map = dm->dm_bh->b_data;
 	unsigned int start = dm->dm_startbit;
 	unsigned int mapptr;
 	u32 frag;
@@ -87,7 +87,7 @@ static int lookup_zone(const struct adfs_discmap *dm, const unsigned int idlen,
 			u32 v = le32_to_cpu(_map[mapptr >> 5]) >> (mapptr & 31);
 			while (v == 0) {
 				mapptr = (mapptr & ~31) + 32;
-				if (mapptr >= mapsize)
+				if (mapptr >= endbit)
 					goto error;
 				v = le32_to_cpu(_map[mapptr >> 5]);
 			}
@@ -99,7 +99,7 @@ static int lookup_zone(const struct adfs_discmap *dm, const unsigned int idlen,
 			goto found;
 again:
 		start = mapptr;
-	} while (mapptr < mapsize);
+	} while (mapptr < endbit);
 	return -1;
 
 error:
@@ -127,7 +127,7 @@ found:
 static unsigned int
 scan_free_map(struct adfs_sb_info *asb, struct adfs_discmap *dm)
 {
-	const unsigned int mapsize = dm->dm_endbit + 32;
+	const unsigned int endbit = dm->dm_endbit;
 	const unsigned int idlen  = asb->s_idlen;
 	const unsigned int frag_idlen = idlen <= 15 ? idlen : 15;
 	const u32 idmask = (1 << frag_idlen) - 1;
@@ -165,7 +165,7 @@ scan_free_map(struct adfs_sb_info *asb, struct adfs_discmap *dm)
 			u32 v = le32_to_cpu(_map[mapptr >> 5]) >> (mapptr & 31);
 			while (v == 0) {
 				mapptr = (mapptr & ~31) + 32;
-				if (mapptr >= mapsize)
+				if (mapptr >= endbit)
 					goto error;
 				v = le32_to_cpu(_map[mapptr >> 5]);
 			}
@@ -345,19 +345,19 @@ static void adfs_map_layout(struct adfs_discmap *dm, unsigned int nzones,
 
 	dm[0].dm_bh       = NULL;
 	dm[0].dm_startblk = 0;
-	dm[0].dm_startbit = ADFS_DR_SIZE_BITS;
-	dm[0].dm_endbit   = zone_size;
+	dm[0].dm_startbit = 32 + ADFS_DR_SIZE_BITS;
+	dm[0].dm_endbit   = 32 + zone_size;
 
 	for (zone = 1; zone < nzones; zone++) {
 		dm[zone].dm_bh       = NULL;
 		dm[zone].dm_startblk = zone * zone_size - ADFS_DR_SIZE_BITS;
-		dm[zone].dm_startbit = 0;
-		dm[zone].dm_endbit   = zone_size;
+		dm[zone].dm_startbit = 32;
+		dm[zone].dm_endbit   = 32 + zone_size;
 	}
 
 	size = adfs_disc_size(dr) >> dr->log2bpmb;
 	size -= (nzones - 1) * zone_size - ADFS_DR_SIZE_BITS;
-	dm[nzones - 1].dm_endbit = size;
+	dm[nzones - 1].dm_endbit = 32 + size;
 }
 
 static int adfs_map_read(struct adfs_discmap *dm, struct super_block *sb,
