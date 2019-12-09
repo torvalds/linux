@@ -67,6 +67,39 @@ static int adfs_fplus_validate_tail(const struct adfs_bigdirheader *h,
 	return 0;
 }
 
+static u8 adfs_fplus_checkbyte(struct adfs_dir *dir)
+{
+	struct adfs_bigdirheader *h = dir->bighead;
+	struct adfs_bigdirtail *t = dir->bigtail;
+	unsigned int end, bs, bi, i;
+	__le32 *bp;
+	u32 dircheck;
+
+	end = adfs_fplus_offset(h, le32_to_cpu(h->bigdirentries)) +
+		le32_to_cpu(h->bigdirnamesize);
+
+	/* Accumulate the contents of the header, entries and names */
+	for (dircheck = 0, bi = 0; end; bi++) {
+		bp = (void *)dir->bhs[bi]->b_data;
+		bs = dir->bhs[bi]->b_size;
+		if (bs > end)
+			bs = end;
+
+		for (i = 0; i < bs; i += sizeof(u32))
+			dircheck = ror32(dircheck, 13) ^ le32_to_cpup(bp++);
+
+		end -= bs;
+	}
+
+	/* Accumulate the contents of the tail except for the check byte */
+	dircheck = ror32(dircheck, 13) ^ le32_to_cpu(t->bigdirendname);
+	dircheck = ror32(dircheck, 13) ^ t->bigdirendmasseq;
+	dircheck = ror32(dircheck, 13) ^ t->reserved[0];
+	dircheck = ror32(dircheck, 13) ^ t->reserved[1];
+
+	return dircheck ^ dircheck >> 8 ^ dircheck >> 16 ^ dircheck >> 24;
+}
+
 static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 			   unsigned int size, struct adfs_dir *dir)
 {
@@ -104,6 +137,11 @@ static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 	ret = adfs_fplus_validate_tail(h, t);
 	if (ret) {
 		adfs_error(sb, "dir %06x has malformed tail", indaddr);
+		goto out;
+	}
+
+	if (adfs_fplus_checkbyte(dir) != t->bigdircheckbyte) {
+		adfs_error(sb, "dir %06x checkbyte mismatch\n", indaddr);
 		goto out;
 	}
 
