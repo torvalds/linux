@@ -64,18 +64,34 @@ int adfs_dir_copyto(struct adfs_dir *dir, unsigned int offset, const void *src,
 	return 0;
 }
 
-void adfs_dir_relse(struct adfs_dir *dir)
+static void __adfs_dir_cleanup(struct adfs_dir *dir)
 {
-	unsigned int i;
-
-	for (i = 0; i < dir->nr_buffers; i++)
-		brelse(dir->bhs[i]);
 	dir->nr_buffers = 0;
 
 	if (dir->bhs != dir->bh)
 		kfree(dir->bhs);
 	dir->bhs = NULL;
 	dir->sb = NULL;
+}
+
+void adfs_dir_relse(struct adfs_dir *dir)
+{
+	unsigned int i;
+
+	for (i = 0; i < dir->nr_buffers; i++)
+		brelse(dir->bhs[i]);
+
+	__adfs_dir_cleanup(dir);
+}
+
+static void adfs_dir_forget(struct adfs_dir *dir)
+{
+	unsigned int i;
+
+	for (i = 0; i < dir->nr_buffers; i++)
+		bforget(dir->bhs[i]);
+
+	__adfs_dir_cleanup(dir);
 }
 
 int adfs_dir_read_buffers(struct super_block *sb, u32 indaddr,
@@ -288,20 +304,28 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 		goto unlock;
 
 	ret = ops->update(&dir, obj);
+	if (ret)
+		goto forget;
 	up_write(&adfs_dir_rwsem);
 
-	if (ret == 0)
-		adfs_dir_mark_dirty(&dir);
+	adfs_dir_mark_dirty(&dir);
 
-	if (wait) {
-		int err = adfs_dir_sync(&dir);
-		if (!ret)
-			ret = err;
-	}
+	if (wait)
+		ret = adfs_dir_sync(&dir);
 
 	adfs_dir_relse(&dir);
 	return ret;
 
+	/*
+	 * If the updated failed because the entry wasn't found, we can
+	 * just release the buffers. If it was any other error, forget
+	 * the dirtied buffers so they aren't written back to the media.
+	 */
+forget:
+	if (ret == -ENOENT)
+		adfs_dir_relse(&dir);
+	else
+		adfs_dir_forget(&dir);
 unlock:
 	up_write(&adfs_dir_rwsem);
 #endif
