@@ -157,11 +157,14 @@ struct dc_surface_dcc_cap {
 	bool const_color_support;
 };
 
-struct dc_static_screen_events {
-	bool force_trigger;
-	bool cursor_update;
-	bool surface_update;
-	bool overlay_update;
+struct dc_static_screen_params {
+	struct {
+		bool force_trigger;
+		bool cursor_update;
+		bool surface_update;
+		bool overlay_update;
+	} triggers;
+	unsigned int num_frames;
 };
 
 

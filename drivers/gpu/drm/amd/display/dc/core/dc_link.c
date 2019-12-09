@@ -2542,7 +2542,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 		transmitter_to_phy_id(link->link_enc->transmitter);
 
 	psr_context->crtcTimingVerticalTotal = stream->timing.v_total;
-	psr_context->vsyncRateHz = div64_u64(div64_u64((stream->
+	psr_context->vsync_rate_hz = div64_u64(div64_u64((stream->
 					timing.pix_clk_100hz * 100),
 					stream->timing.v_total),
 					stream->timing.h_total);

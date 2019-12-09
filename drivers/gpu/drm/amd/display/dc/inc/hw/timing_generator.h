@@ -208,7 +208,8 @@ struct timing_generator_funcs {
 					bool enable, const struct dc_crtc_timing *timing);
 	void (*set_drr)(struct timing_generator *tg, const struct drr_params *params);
 	void (*set_static_screen_control)(struct timing_generator *tg,
-							uint32_t value);
+						uint32_t event_triggers,
+						uint32_t num_frames);
 	void (*set_test_pattern)(
 		struct timing_generator *tg,
 		enum controller_dp_test_pattern test_pattern,

@@ -729,7 +729,7 @@ struct psr_context {
 	/* The VSync rate in Hz used to calculate the
 	 * step size for smooth brightness feature
 	 */
-	unsigned int vsyncRateHz;
+	unsigned int vsync_rate_hz;
 	unsigned int skipPsrWaitForPllLock;
 	unsigned int numberOfControllers;
 	/* Unused, for future use. To indicate that first changed frame from

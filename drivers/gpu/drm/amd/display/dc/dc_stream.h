@@ -439,10 +439,10 @@ bool dc_stream_get_crc(struct dc *dc,
 		       uint32_t *g_y,
 		       uint32_t *b_cb);
 
-void dc_stream_set_static_screen_events(struct dc *dc,
+void dc_stream_set_static_screen_params(struct dc *dc,
 					struct dc_stream_state **stream,
 					int num_streams,
-					const struct dc_static_screen_events *events);
+					const struct dc_static_screen_params *params);
 
 void dc_stream_set_dyn_expansion(struct dc *dc, struct dc_stream_state *stream,
 		enum dc_dynamic_expansion option);

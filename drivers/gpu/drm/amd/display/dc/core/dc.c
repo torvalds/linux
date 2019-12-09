@@ -510,10 +510,10 @@ bool dc_stream_program_csc_matrix(struct dc *dc, struct dc_stream_state *stream)
 	return ret;
 }
 
-void dc_stream_set_static_screen_events(struct dc *dc,
+void dc_stream_set_static_screen_params(struct dc *dc,
 		struct dc_stream_state **streams,
 		int num_streams,
-		const struct dc_static_screen_events *events)
+		const struct dc_static_screen_params *params)
 {
 	int i = 0;
 	int j = 0;
@@ -532,7 +532,7 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 		}
 	}
 
-	dc->hwss.set_static_screen_control(pipes_affected, num_pipes_affected, events);
+	dc->hwss.set_static_screen_control(pipes_affected, num_pipes_affected, params);
 }
 
 static void dc_destruct(struct dc *dc)
