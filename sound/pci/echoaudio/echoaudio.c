@@ -547,16 +547,6 @@ static int init_engine(struct snd_pcm_substream *substream,
 		"pcm_hw_params (bufsize=%dB periods=%d persize=%dB)\n",
 		params_buffer_bytes(hw_params), params_periods(hw_params),
 		params_period_bytes(hw_params));
-	err = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (err < 0) {
-		dev_err(chip->card->dev, "malloc_pages err=%d\n", err);
-		spin_lock_irq(&chip->lock);
-		free_pipes(chip, pipe);
-		spin_unlock_irq(&chip->lock);
-		pipe->index = -1;
-		return err;
-	}
 
 	sglist_init(chip, pipe);
 	edge = PAGE_SIZE;
@@ -671,7 +661,6 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 	}
 	spin_unlock_irq(&chip->lock);
 
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -872,10 +861,10 @@ static void snd_echo_preallocate_pages(struct snd_pcm *pcm, struct device *dev)
 
 	for (stream = 0; stream < 2; stream++)
 		for (ss = pcm->streams[stream].substream; ss; ss = ss->next)
-			snd_pcm_lib_preallocate_pages(ss, SNDRV_DMA_TYPE_DEV_SG,
-						      dev,
-						      ss->number ? 0 : 128<<10,
-						      256<<10);
+			snd_pcm_set_managed_buffer(ss, SNDRV_DMA_TYPE_DEV_SG,
+						   dev,
+						   ss->number ? 0 : 128<<10,
+						   256<<10);
 }
 
 
