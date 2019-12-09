@@ -1320,7 +1320,7 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 				       struct sctp_chunk *init,
 				       struct sctp_cmd_seq *commands)
 {
-	struct net *net = sock_net(new_asoc->base.sk);
+	struct net *net = new_asoc->base.net;
 	struct sctp_transport *new_addr;
 	int ret = 1;
 

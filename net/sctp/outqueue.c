@@ -279,7 +279,7 @@ void sctp_outq_free(struct sctp_outq *q)
 /* Put a new chunk in an sctp_outq.  */
 void sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 {
-	struct net *net = sock_net(q->asoc->base.sk);
+	struct net *net = q->asoc->base.net;
 
 	pr_debug("%s: outq:%p, chunk:%p[%s]\n", __func__, q, chunk,
 		 chunk && chunk->chunk_hdr ?
@@ -533,7 +533,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 		     enum sctp_retransmit_reason reason)
 {
-	struct net *net = sock_net(q->asoc->base.sk);
+	struct net *net = q->asoc->base.net;
 
 	switch (reason) {
 	case SCTP_RTXR_T3_RTX:
@@ -1884,6 +1884,6 @@ void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
 
 	if (ftsn_chunk) {
 		list_add_tail(&ftsn_chunk->list, &q->control_chunk_list);
-		SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_OUTCTRLCHUNKS);
+		SCTP_INC_STATS(asoc->base.net, SCTP_MIB_OUTCTRLCHUNKS);
 	}
 }
