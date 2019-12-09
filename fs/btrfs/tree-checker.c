@@ -428,6 +428,49 @@ static int check_inode_key(struct extent_buffer *leaf, struct btrfs_key *key,
 	return 0;
 }
 
+static int check_root_key(struct extent_buffer *leaf, struct btrfs_key *key,
+			  int slot)
+{
+	struct btrfs_key item_key;
+	bool is_root_item;
+
+	btrfs_item_key_to_cpu(leaf, &item_key, slot);
+	is_root_item = (item_key.type == BTRFS_ROOT_ITEM_KEY);
+
+	/* No such tree id */
+	if (key->objectid == 0) {
+		if (is_root_item)
+			generic_err(leaf, slot, "invalid root id 0");
+		else
+			dir_item_err(leaf, slot,
+				     "invalid location key root id 0");
+		return -EUCLEAN;
+	}
+
+	/* DIR_ITEM/INDEX/INODE_REF is not allowed to point to non-fs trees */
+	if (!is_fstree(key->objectid) && !is_root_item) {
+		dir_item_err(leaf, slot,
+		"invalid location key objectid, have %llu expect [%llu, %llu]",
+				key->objectid, BTRFS_FIRST_FREE_OBJECTID,
+				BTRFS_LAST_FREE_OBJECTID);
+		return -EUCLEAN;
+	}
+
+	/*
+	 * ROOT_ITEM with non-zero offset means this is a snapshot, created at
+	 * @offset transid.
+	 * Furthermore, for location key in DIR_ITEM, its offset is always -1.
+	 *
+	 * So here we only check offset for reloc tree whose key->offset must
+	 * be a valid tree.
+	 */
+	if (key->objectid == BTRFS_TREE_RELOC_OBJECTID && key->offset == 0) {
+		generic_err(leaf, slot, "invalid root id 0 for reloc tree");
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
 static int check_dir_item(struct extent_buffer *leaf,
 			  struct btrfs_key *key, struct btrfs_key *prev_key,
 			  int slot)
@@ -978,22 +1021,11 @@ static int check_root_item(struct extent_buffer *leaf, struct btrfs_key *key,
 	struct btrfs_root_item ri;
 	const u64 valid_root_flags = BTRFS_ROOT_SUBVOL_RDONLY |
 				     BTRFS_ROOT_SUBVOL_DEAD;
+	int ret;
 
-	/* No such tree id */
-	if (key->objectid == 0) {
-		generic_err(leaf, slot, "invalid root id 0");
-		return -EUCLEAN;
-	}
-
-	/*
-	 * Some older kernel may create ROOT_ITEM with non-zero offset, so here
-	 * we only check offset for reloc tree whose key->offset must be a
-	 * valid tree.
-	 */
-	if (key->objectid == BTRFS_TREE_RELOC_OBJECTID && key->offset == 0) {
-		generic_err(leaf, slot, "invalid root id 0 for reloc tree");
-		return -EUCLEAN;
-	}
+	ret = check_root_key(leaf, key, slot);
+	if (ret < 0)
+		return ret;
 
 	if (btrfs_item_size_nr(leaf, slot) != sizeof(ri)) {
 		generic_err(leaf, slot,
