@@ -878,7 +878,8 @@ static struct inode *get_nonsnap_parent(struct dentry *dentry)
  * Called under mdsc->mutex.
  */
 static int __choose_mds(struct ceph_mds_client *mdsc,
-			struct ceph_mds_request *req)
+			struct ceph_mds_request *req,
+			bool *random)
 {
 	struct inode *inode;
 	struct ceph_inode_info *ci;
@@ -887,6 +888,9 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	int mds = -1;
 	u32 hash = req->r_direct_hash;
 	bool is_hash = test_bit(CEPH_MDS_R_DIRECT_IS_HASH, &req->r_req_flags);
+
+	if (random)
+		*random = false;
 
 	/*
 	 * is there a specific mds we should try?  ignore hint if we have
@@ -1023,6 +1027,9 @@ out:
 	return mds;
 
 random:
+	if (random)
+		*random = true;
+
 	mds = ceph_mdsmap_get_random_mds(mdsc->mdsmap);
 	dout("choose_mds chose random mds%d\n", mds);
 	return mds;
@@ -2551,6 +2558,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 	struct ceph_mds_session *session = NULL;
 	int mds = -1;
 	int err = 0;
+	bool random;
 
 	if (req->r_err || test_bit(CEPH_MDS_R_GOT_RESULT, &req->r_req_flags)) {
 		if (test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags))
@@ -2590,7 +2598,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 
 	put_request_session(req);
 
-	mds = __choose_mds(mdsc, req);
+	mds = __choose_mds(mdsc, req, &random);
 	if (mds < 0 ||
 	    ceph_mdsmap_get_state(mdsc->mdsmap, mds) < CEPH_MDS_STATE_ACTIVE) {
 		dout("do_request no mds or not active, waiting for map\n");
@@ -2618,8 +2626,12 @@ static void __do_request(struct ceph_mds_client *mdsc,
 			goto out_session;
 		}
 		if (session->s_state == CEPH_MDS_SESSION_NEW ||
-		    session->s_state == CEPH_MDS_SESSION_CLOSING)
+		    session->s_state == CEPH_MDS_SESSION_CLOSING) {
 			__open_session(mdsc, session);
+			/* retry the same mds later */
+			if (random)
+				req->r_resend_mds = mds;
+		}
 		list_add(&req->r_wait, &session->s_waiting);
 		goto out_session;
 	}
@@ -2883,7 +2895,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 			mutex_unlock(&mdsc->mutex);
 			goto out;
 		} else  {
-			int mds = __choose_mds(mdsc, req);
+			int mds = __choose_mds(mdsc, req, NULL);
 			if (mds >= 0 && mds != req->r_session->s_mds) {
 				dout("but auth changed, so resending\n");
 				__do_request(mdsc, req);
