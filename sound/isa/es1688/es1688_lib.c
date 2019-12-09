@@ -341,17 +341,6 @@ static int snd_es1688_trigger(struct snd_es1688 *chip, int cmd, unsigned char va
 	return 0;
 }
 
-static int snd_es1688_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_es1688_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static int snd_es1688_playback_prepare(struct snd_pcm_substream *substream)
 {
 	unsigned long flags;
@@ -693,8 +682,6 @@ static const struct snd_pcm_ops snd_es1688_playback_ops = {
 	.open =			snd_es1688_playback_open,
 	.close =		snd_es1688_playback_close,
 	.ioctl =		snd_es1688_ioctl,
-	.hw_params =		snd_es1688_hw_params,
-	.hw_free =		snd_es1688_hw_free,
 	.prepare =		snd_es1688_playback_prepare,
 	.trigger =		snd_es1688_playback_trigger,
 	.pointer =		snd_es1688_playback_pointer,
@@ -704,8 +691,6 @@ static const struct snd_pcm_ops snd_es1688_capture_ops = {
 	.open =			snd_es1688_capture_open,
 	.close =		snd_es1688_capture_close,
 	.ioctl =		snd_es1688_ioctl,
-	.hw_params =		snd_es1688_hw_params,
-	.hw_free =		snd_es1688_hw_free,
 	.prepare =		snd_es1688_capture_prepare,
 	.trigger =		snd_es1688_capture_trigger,
 	.pointer =		snd_es1688_capture_pointer,
@@ -728,9 +713,8 @@ int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip, int device)
 	strcpy(pcm->name, snd_es1688_chip_id(chip));
 	chip->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      card->dev,
-					      64*1024, 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, card->dev,
+				       64*1024, 64*1024);
 	return 0;
 }
 
