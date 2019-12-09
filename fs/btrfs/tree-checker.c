@@ -484,18 +484,39 @@ static int check_dir_item(struct extent_buffer *leaf,
 		return -EUCLEAN;
 	di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 	while (cur < item_size) {
+		struct btrfs_key location_key;
 		u32 name_len;
 		u32 data_len;
 		u32 max_name_len;
 		u32 total_size;
 		u32 name_hash;
 		u8 dir_type;
+		int ret;
 
 		/* header itself should not cross item boundary */
 		if (cur + sizeof(*di) > item_size) {
 			dir_item_err(leaf, slot,
 		"dir item header crosses item boundary, have %zu boundary %u",
 				cur + sizeof(*di), item_size);
+			return -EUCLEAN;
+		}
+
+		/* Location key check */
+		btrfs_dir_item_key_to_cpu(leaf, di, &location_key);
+		if (location_key.type == BTRFS_ROOT_ITEM_KEY) {
+			ret = check_root_key(leaf, &location_key, slot);
+			if (ret < 0)
+				return ret;
+		} else if (location_key.type == BTRFS_INODE_ITEM_KEY ||
+			   location_key.type == 0) {
+			ret = check_inode_key(leaf, &location_key, slot);
+			if (ret < 0)
+				return ret;
+		} else {
+			dir_item_err(leaf, slot,
+			"invalid location key type, have %u, expect %u or %u",
+				     location_key.type, BTRFS_ROOT_ITEM_KEY,
+				     BTRFS_INODE_ITEM_KEY);
 			return -EUCLEAN;
 		}
 
