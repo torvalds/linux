@@ -449,9 +449,6 @@ static int snd_card_asihpi_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int bytes_per_sec;
 
 	print_hwparams(substream, params);
-	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (err < 0)
-		return err;
 	err = snd_card_asihpi_format_alsa2hpi(params_format(params), &format);
 	if (err)
 		return err;
@@ -509,7 +506,6 @@ snd_card_asihpi_hw_free(struct snd_pcm_substream *substream)
 	if (dpcm->hpi_buffer_attached)
 		hpi_stream_host_buffer_detach(dpcm->h_stream);
 
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -1324,9 +1320,9 @@ static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 
 	/*? do we want to emulate MMAP for non-BBM cards?
 	Jack doesn't work with ALSAs MMAP emulation - WHY NOT? */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &asihpi->pci->dev,
-					      64*1024, BUFFER_BYTES_MAX);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &asihpi->pci->dev,
+				       64*1024, BUFFER_BYTES_MAX);
 
 	return 0;
 }
