@@ -93,9 +93,7 @@ struct adfs_dir {
 
 	int			nr_buffers;
 	struct buffer_head	*bh[4];
-
-	/* big directories need allocated buffers */
-	struct buffer_head	**bh_fplus;
+	struct buffer_head	**bhs;
 
 	unsigned int		pos;
 	__u32			parent_id;
