@@ -486,3 +486,8 @@ int intel_bw_init(struct drm_i915_private *dev_priv)
 
 	return 0;
 }
+
+void intel_bw_cleanup(struct drm_i915_private *dev_priv)
+{
+	drm_atomic_private_obj_fini(&dev_priv->bw_obj);
+}
