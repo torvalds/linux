@@ -32,6 +32,7 @@ properties:
           - enum:
               - mele,v9 # MeLE V9
               - probox2,ava # ProBox2 AVA
+              - xnano,x5 # Xnano X5
               - zidoo,x9s # Zidoo X9S
           - const: realtek,rtd1295
 
