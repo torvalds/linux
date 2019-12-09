@@ -391,7 +391,9 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
 	if (!asb)
 		return -ENOMEM;
+
 	sb->s_fs_info = asb;
+	sb->s_time_gran = 10000000;
 
 	/* set default options */
 	asb->s_uid = GLOBAL_ROOT_UID;

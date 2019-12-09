@@ -158,6 +158,8 @@ adfs_mode2atts(struct super_block *sb, struct inode *inode)
 	return attr;
 }
 
+static const s64 nsec_unix_epoch_diff_risc_os_epoch = 2208988800000000000LL;
+
 /*
  * Convert an ADFS time to Unix time.  ADFS has a 40-bit centi-second time
  * referenced to 1 Jan 1900 (til 2248) so we need to discard 2208988800 seconds
@@ -170,8 +172,6 @@ adfs_adfs2unix_time(struct timespec64 *tv, struct inode *inode)
 	/* 01 Jan 1970 00:00:00 (Unix epoch) as nanoseconds since
 	 * 01 Jan 1900 00:00:00 (RISC OS epoch)
 	 */
-	static const s64 nsec_unix_epoch_diff_risc_os_epoch =
-							2208988800000000000LL;
 	s64 nsec;
 
 	if (!adfs_inode_is_stamped(inode))
@@ -204,24 +204,23 @@ adfs_adfs2unix_time(struct timespec64 *tv, struct inode *inode)
 	return;
 }
 
-/*
- * Convert an Unix time to ADFS time.  We only do this if the entry has a
- * time/date stamp already.
- */
-static void
-adfs_unix2adfs_time(struct inode *inode, unsigned int secs)
+/* Convert an Unix time to ADFS time for an entry that is already stamped. */
+static void adfs_unix2adfs_time(struct inode *inode,
+				const struct timespec64 *ts)
 {
-	unsigned int high, low;
+	s64 cs, nsec = timespec64_to_ns(ts);
 
-	if (adfs_inode_is_stamped(inode)) {
-		/* convert 32-bit seconds to 40-bit centi-seconds */
-		low  = (secs & 255) * 100;
-		high = (secs / 256) * 100 + (low >> 8) + 0x336e996a;
+	/* convert from Unix to RISC OS epoch */
+	nsec += nsec_unix_epoch_diff_risc_os_epoch;
 
-		ADFS_I(inode)->loadaddr = (high >> 24) |
-				(ADFS_I(inode)->loadaddr & ~0xff);
-		ADFS_I(inode)->execaddr = (low & 255) | (high << 8);
-	}
+	/* convert from nanoseconds to centiseconds */
+	cs = div_s64(nsec, 10000000);
+
+	cs = clamp_t(s64, cs, 0, 0xffffffffff);
+
+	ADFS_I(inode)->loadaddr &= ~0xff;
+	ADFS_I(inode)->loadaddr |= (cs >> 32) & 0xff;
+	ADFS_I(inode)->execaddr = cs;
 }
 
 /*
@@ -315,10 +314,11 @@ adfs_notify_change(struct dentry *dentry, struct iattr *attr)
 	if (ia_valid & ATTR_SIZE)
 		truncate_setsize(inode, attr->ia_size);
 
-	if (ia_valid & ATTR_MTIME) {
-		inode->i_mtime = attr->ia_mtime;
-		adfs_unix2adfs_time(inode, attr->ia_mtime.tv_sec);
+	if (ia_valid & ATTR_MTIME && adfs_inode_is_stamped(inode)) {
+		adfs_unix2adfs_time(inode, &attr->ia_mtime);
+		adfs_adfs2unix_time(&inode->i_mtime, inode);
 	}
+
 	/*
 	 * FIXME: should we make these == to i_mtime since we don't
 	 * have the ability to represent them in our filesystem?
