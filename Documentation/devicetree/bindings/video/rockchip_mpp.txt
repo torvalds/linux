@@ -6,9 +6,13 @@ Required properties:
 - rockchip,taskqueue-count: the value of queue nodes for task running
 	the value must be between 1 and 8
 
+- rockchip,resetgroup-count: the value of reset clk groups for device reset
+	the value must be between 1 and 8
+
 Example:
 	mpp_srv: mpp_srv {
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <1>;
+		rockchip,resetgroup-count = <1>;
 		status = "disabled";
 	};
