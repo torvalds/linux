@@ -233,7 +233,6 @@ extern int fscrypt_crypt_block(const struct inode *inode,
 			       unsigned int len, unsigned int offs,
 			       gfp_t gfp_flags);
 extern struct page *fscrypt_alloc_bounce_page(gfp_t gfp_flags);
-extern const struct dentry_operations fscrypt_d_ops;
 
 extern void __printf(3, 4) __cold
 fscrypt_msg(const struct inode *inode, const char *level, const char *fmt, ...);
@@ -265,6 +264,7 @@ extern int fname_encrypt(const struct inode *inode, const struct qstr *iname,
 extern bool fscrypt_fname_encrypted_size(const struct inode *inode,
 					 u32 orig_len, u32 max_len,
 					 u32 *encrypted_len_ret);
+extern const struct dentry_operations fscrypt_d_ops;
 
 /* hkdf.c */
 
