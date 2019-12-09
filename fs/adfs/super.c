@@ -88,51 +88,6 @@ static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 	return 0;
 }
 
-static unsigned char adfs_calczonecheck(struct super_block *sb, unsigned char *map)
-{
-	unsigned int v0, v1, v2, v3;
-	int i;
-
-	v0 = v1 = v2 = v3 = 0;
-	for (i = sb->s_blocksize - 4; i; i -= 4) {
-		v0 += map[i]     + (v3 >> 8);
-		v3 &= 0xff;
-		v1 += map[i + 1] + (v0 >> 8);
-		v0 &= 0xff;
-		v2 += map[i + 2] + (v1 >> 8);
-		v1 &= 0xff;
-		v3 += map[i + 3] + (v2 >> 8);
-		v2 &= 0xff;
-	}
-	v0 +=           v3 >> 8;
-	v1 += map[1] + (v0 >> 8);
-	v2 += map[2] + (v1 >> 8);
-	v3 += map[3] + (v2 >> 8);
-
-	return v0 ^ v1 ^ v2 ^ v3;
-}
-
-static int adfs_checkmap(struct super_block *sb, struct adfs_discmap *dm)
-{
-	unsigned char crosscheck = 0, zonecheck = 1;
-	int i;
-
-	for (i = 0; i < ADFS_SB(sb)->s_map_size; i++) {
-		unsigned char *map;
-
-		map = dm[i].dm_bh->b_data;
-
-		if (adfs_calczonecheck(sb, map) != map[0]) {
-			adfs_error(sb, "zone %d fails zonecheck", i);
-			zonecheck = 0;
-		}
-		crosscheck ^= map[3];
-	}
-	if (crosscheck != 0xff)
-		adfs_error(sb, "crosscheck != 0xff");
-	return crosscheck == 0xff && zonecheck;
-}
-
 static void adfs_put_super(struct super_block *sb)
 {
 	int i;
@@ -321,59 +276,6 @@ static const struct super_operations adfs_sops = {
 	.remount_fs	= adfs_remount,
 	.show_options	= adfs_show_options,
 };
-
-static struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_discrecord *dr)
-{
-	struct adfs_discmap *dm;
-	unsigned int map_addr, zone_size, nzones;
-	int i, zone;
-	struct adfs_sb_info *asb = ADFS_SB(sb);
-
-	nzones    = asb->s_map_size;
-	zone_size = (8 << dr->log2secsize) - le16_to_cpu(dr->zone_spare);
-	map_addr  = (nzones >> 1) * zone_size -
-		     ((nzones > 1) ? ADFS_DR_SIZE_BITS : 0);
-	map_addr  = signed_asl(map_addr, asb->s_map2blk);
-
-	asb->s_ids_per_zone = zone_size / (asb->s_idlen + 1);
-
-	dm = kmalloc_array(nzones, sizeof(*dm), GFP_KERNEL);
-	if (dm == NULL) {
-		adfs_error(sb, "not enough memory");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	for (zone = 0; zone < nzones; zone++, map_addr++) {
-		dm[zone].dm_startbit = 0;
-		dm[zone].dm_endbit   = zone_size;
-		dm[zone].dm_startblk = zone * zone_size - ADFS_DR_SIZE_BITS;
-		dm[zone].dm_bh       = sb_bread(sb, map_addr);
-
-		if (!dm[zone].dm_bh) {
-			adfs_error(sb, "unable to read map");
-			goto error_free;
-		}
-	}
-
-	/* adjust the limits for the first and last map zones */
-	i = zone - 1;
-	dm[0].dm_startblk = 0;
-	dm[0].dm_startbit = ADFS_DR_SIZE_BITS;
-	dm[i].dm_endbit   = (adfs_disc_size(dr) >> dr->log2bpmb) +
-			    (ADFS_DR_SIZE_BITS - i * zone_size);
-
-	if (adfs_checkmap(sb, dm))
-		return dm;
-
-	adfs_error(sb, "map corrupted");
-
-error_free:
-	while (--zone >= 0)
-		brelse(dm[zone].dm_bh);
-
-	kfree(dm);
-	return ERR_PTR(-EIO);
-}
 
 static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 {
