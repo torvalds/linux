@@ -723,23 +723,10 @@ static int snd_amd7930_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_amd7930_hw_params(struct snd_pcm_substream *substream,
-				    struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_amd7930_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static const struct snd_pcm_ops snd_amd7930_playback_ops = {
 	.open		=	snd_amd7930_playback_open,
 	.close		=	snd_amd7930_playback_close,
 	.ioctl		=	snd_pcm_lib_ioctl,
-	.hw_params	=	snd_amd7930_hw_params,
-	.hw_free	=	snd_amd7930_hw_free,
 	.prepare	=	snd_amd7930_playback_prepare,
 	.trigger	=	snd_amd7930_playback_trigger,
 	.pointer	=	snd_amd7930_playback_pointer,
@@ -749,8 +736,6 @@ static const struct snd_pcm_ops snd_amd7930_capture_ops = {
 	.open		=	snd_amd7930_capture_open,
 	.close		=	snd_amd7930_capture_close,
 	.ioctl		=	snd_pcm_lib_ioctl,
-	.hw_params	=	snd_amd7930_hw_params,
-	.hw_free	=	snd_amd7930_hw_free,
 	.prepare	=	snd_amd7930_capture_prepare,
 	.trigger	=	snd_amd7930_capture_trigger,
 	.pointer	=	snd_amd7930_capture_pointer,
@@ -776,9 +761,8 @@ static int snd_amd7930_pcm(struct snd_amd7930 *amd)
 	strcpy(pcm->name, amd->card->shortname);
 	amd->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					      NULL,
-					      64*1024, 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL, 64*1024, 64*1024);
 
 	return 0;
 }
