@@ -1410,7 +1410,7 @@ static void sfp_sm_phy_detach(struct sfp *sfp)
 	sfp->mod_phy = NULL;
 }
 
-static void sfp_sm_probe_phy(struct sfp *sfp, bool is_c45)
+static int sfp_sm_probe_phy(struct sfp *sfp, bool is_c45)
 {
 	struct phy_device *phy;
 	int err;
@@ -1418,18 +1418,18 @@ static void sfp_sm_probe_phy(struct sfp *sfp, bool is_c45)
 	phy = get_phy_device(sfp->i2c_mii, SFP_PHY_ADDR, is_c45);
 	if (phy == ERR_PTR(-ENODEV)) {
 		dev_info(sfp->dev, "no PHY detected\n");
-		return;
+		return 0;
 	}
 	if (IS_ERR(phy)) {
 		dev_err(sfp->dev, "mdiobus scan returned %ld\n", PTR_ERR(phy));
-		return;
+		return PTR_ERR(phy);
 	}
 
 	err = phy_device_register(phy);
 	if (err) {
 		phy_device_free(phy);
 		dev_err(sfp->dev, "phy_device_register failed: %d\n", err);
-		return;
+		return err;
 	}
 
 	err = sfp_add_phy(sfp->sfp_bus, phy);
@@ -1437,10 +1437,12 @@ static void sfp_sm_probe_phy(struct sfp *sfp, bool is_c45)
 		phy_device_remove(phy);
 		phy_device_free(phy);
 		dev_err(sfp->dev, "sfp_add_phy failed: %d\n", err);
-		return;
+		return err;
 	}
 
 	sfp->mod_phy = phy;
+
+	return 0;
 }
 
 static void sfp_sm_link_up(struct sfp *sfp)
@@ -1513,21 +1515,24 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
  * Clause 45 copper SFP+ modules (10G) appear to switch their interface
  * mode according to the negotiated line speed.
  */
-static void sfp_sm_probe_for_phy(struct sfp *sfp)
+static int sfp_sm_probe_for_phy(struct sfp *sfp)
 {
+	int err = 0;
+
 	switch (sfp->id.base.extended_cc) {
 	case SFF8024_ECC_10GBASE_T_SFI:
 	case SFF8024_ECC_10GBASE_T_SR:
 	case SFF8024_ECC_5GBASE_T:
 	case SFF8024_ECC_2_5GBASE_T:
-		sfp_sm_probe_phy(sfp, true);
+		err = sfp_sm_probe_phy(sfp, true);
 		break;
 
 	default:
 		if (sfp->id.base.e1000_base_t)
-			sfp_sm_probe_phy(sfp, false);
+			err = sfp_sm_probe_phy(sfp, false);
 		break;
 	}
+	return err;
 }
 
 static int sfp_module_parse_power(struct sfp *sfp)
@@ -1938,7 +1943,10 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 	init_done:	/* TX_FAULT deasserted or we timed out with TX_FAULT
 			 * clear.  Probe for the PHY and check the LOS state.
 			 */
-			sfp_sm_probe_for_phy(sfp);
+			if (sfp_sm_probe_for_phy(sfp)) {
+				sfp_sm_next(sfp, SFP_S_FAIL, 0);
+				break;
+			}
 			if (sfp_module_start(sfp->sfp_bus)) {
 				sfp_sm_next(sfp, SFP_S_FAIL, 0);
 				break;
