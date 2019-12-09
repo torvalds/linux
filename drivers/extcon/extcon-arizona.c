@@ -310,9 +310,13 @@ static void arizona_start_mic(struct arizona_extcon_info *info)
 	}
 
 	if (info->micd_reva) {
-		regmap_write(arizona->regmap, 0x80, 0x3);
-		regmap_write(arizona->regmap, 0x294, 0);
-		regmap_write(arizona->regmap, 0x80, 0x0);
+		const struct reg_sequence reva[] = {
+			{ 0x80,  0x3 },
+			{ 0x294, 0x0 },
+			{ 0x80,  0x0 },
+		};
+
+		regmap_multi_reg_write(arizona->regmap, reva, ARRAY_SIZE(reva));
 	}
 
 	if (info->detecting && arizona->pdata.micd_software_compare)
@@ -361,9 +365,13 @@ static void arizona_stop_mic(struct arizona_extcon_info *info)
 	snd_soc_dapm_sync(dapm);
 
 	if (info->micd_reva) {
-		regmap_write(arizona->regmap, 0x80, 0x3);
-		regmap_write(arizona->regmap, 0x294, 2);
-		regmap_write(arizona->regmap, 0x80, 0x0);
+		const struct reg_sequence reva[] = {
+			{ 0x80,  0x3 },
+			{ 0x294, 0x2 },
+			{ 0x80,  0x0 },
+		};
+
+		regmap_multi_reg_write(arizona->regmap, reva, ARRAY_SIZE(reva));
 	}
 
 	ret = regulator_allow_bypass(info->micvdd, true);
