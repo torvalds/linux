@@ -295,6 +295,10 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 	ret = ops->update(&dir, obj);
 	if (ret)
 		goto forget;
+
+	ret = ops->commit(&dir);
+	if (ret)
+		goto forget;
 	up_write(&adfs_dir_rwsem);
 
 	adfs_dir_mark_dirty(&dir);

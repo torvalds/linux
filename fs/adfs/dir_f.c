@@ -292,25 +292,24 @@ static int adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 	adfs_obj2dir(&de, obj);
 
 	/* Write the directory entry back to the directory */
-	ret = adfs_dir_copyto(dir, pos, &de, 26);
-	if (ret)
-		return ret;
- 
-	/*
-	 * Increment directory sequence number
-	 */
+	return adfs_dir_copyto(dir, offset, &de, 26);
+}
+
+static int adfs_f_commit(struct adfs_dir *dir)
+{
+	int ret;
+
+	/* Increment directory sequence number */
 	dir->dirhead->startmasseq += 1;
 	dir->newtail->endmasseq += 1;
 
-	ret = adfs_dir_checkbyte(dir);
-	/*
-	 * Update directory check byte
-	 */
-	dir->newtail->dircheckbyte = ret;
+	/* Update directory check byte */
+	dir->newtail->dircheckbyte = adfs_dir_checkbyte(dir);
 
+	/* Make sure the directory still validates correctly */
 	ret = adfs_f_validate(dir);
 	if (ret)
-		adfs_error(dir->sb, "whoops!  I broke a directory!");
+		adfs_msg(dir->sb, KERN_ERR, "error: update broke directory");
 
 	return ret;
 }
@@ -321,4 +320,5 @@ const struct adfs_dir_ops adfs_f_dir_ops = {
 	.setpos		= adfs_f_setpos,
 	.getnext	= adfs_f_getnext,
 	.update		= adfs_f_update,
+	.commit		= adfs_f_commit,
 };
