@@ -90,12 +90,9 @@ static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 
 static void adfs_put_super(struct super_block *sb)
 {
-	int i;
 	struct adfs_sb_info *asb = ADFS_SB(sb);
 
-	for (i = 0; i < asb->s_map_size; i++)
-		brelse(asb->s_map[i].dm_bh);
-	kfree(asb->s_map);
+	adfs_free_map(sb);
 	kfree_rcu(asb, rcu);
 }
 
@@ -412,10 +409,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	root = adfs_iget(sb, &root_obj);
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
-		int i;
-		for (i = 0; i < asb->s_map_size; i++)
-			brelse(asb->s_map[i].dm_bh);
-		kfree(asb->s_map);
+		adfs_free_map(sb);
 		adfs_error(sb, "get root inode failed\n");
 		ret = -EIO;
 		goto error;

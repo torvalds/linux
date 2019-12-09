@@ -421,3 +421,11 @@ error_free:
 	kfree(dm);
 	return ERR_PTR(-EIO);
 }
+
+void adfs_free_map(struct super_block *sb)
+{
+	struct adfs_sb_info *asb = ADFS_SB(sb);
+
+	adfs_map_relse(asb->s_map, asb->s_map_size);
+	kfree(asb->s_map);
+}
