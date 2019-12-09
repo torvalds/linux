@@ -257,20 +257,6 @@ snd_ad1889_ac97_ready(struct snd_ad1889 *chip)
 	return 0;
 }
 
-static int 
-snd_ad1889_hw_params(struct snd_pcm_substream *substream,
-			struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, 
-					params_buffer_bytes(hw_params));
-}
-
-static int
-snd_ad1889_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static const struct snd_pcm_hardware snd_ad1889_playback_hw = {
 	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_BLOCK_TRANSFER,
@@ -563,8 +549,6 @@ static const struct snd_pcm_ops snd_ad1889_playback_ops = {
 	.open = snd_ad1889_playback_open,
 	.close = snd_ad1889_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_ad1889_hw_params,
-	.hw_free = snd_ad1889_hw_free,
 	.prepare = snd_ad1889_playback_prepare,
 	.trigger = snd_ad1889_playback_trigger,
 	.pointer = snd_ad1889_playback_pointer, 
@@ -574,8 +558,6 @@ static const struct snd_pcm_ops snd_ad1889_capture_ops = {
 	.open = snd_ad1889_capture_open,
 	.close = snd_ad1889_capture_close,
 	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_ad1889_hw_params,
-	.hw_free = snd_ad1889_hw_free,
 	.prepare = snd_ad1889_capture_prepare,
 	.trigger = snd_ad1889_capture_trigger,
 	.pointer = snd_ad1889_capture_pointer, 
@@ -632,10 +614,8 @@ snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device)
 	chip->psubs = NULL;
 	chip->csubs = NULL;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &chip->pci->dev,
-					      BUFFER_BYTES_MAX / 2,
-					      BUFFER_BYTES_MAX);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
+				       BUFFER_BYTES_MAX / 2, BUFFER_BYTES_MAX);
 
 	return 0;
 }
