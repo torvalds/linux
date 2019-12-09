@@ -214,12 +214,7 @@ static int snd_pcsp_playback_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_pcsp *chip = snd_pcm_substream_chip(substream);
-	int err;
 	pcsp_sync_stop(chip);
-	err = snd_pcm_lib_malloc_pages(substream,
-				      params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
 	return 0;
 }
 
@@ -230,7 +225,7 @@ static int snd_pcsp_playback_hw_free(struct snd_pcm_substream *substream)
 	printk(KERN_INFO "PCSP: hw_free called\n");
 #endif
 	pcsp_sync_stop(chip);
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int snd_pcsp_playback_prepare(struct snd_pcm_substream *substream)
@@ -350,11 +345,11 @@ int snd_pcsp_new_pcm(struct snd_pcsp *chip)
 	chip->pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
 	strcpy(chip->pcm->name, "pcsp");
 
-	snd_pcm_lib_preallocate_pages_for_all(chip->pcm,
-					      SNDRV_DMA_TYPE_CONTINUOUS,
-					      NULL,
-					      PCSP_BUFFER_SIZE,
-					      PCSP_BUFFER_SIZE);
+	snd_pcm_set_managed_buffer_all(chip->pcm,
+				       SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL,
+				       PCSP_BUFFER_SIZE,
+				       PCSP_BUFFER_SIZE);
 
 	return 0;
 }
