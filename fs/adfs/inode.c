@@ -126,29 +126,29 @@ adfs_atts2mode(struct super_block *sb, struct inode *inode)
  * Convert Linux permission to ADFS attribute.  We try to do the reverse
  * of atts2mode, but there is not a 1:1 translation.
  */
-static int
-adfs_mode2atts(struct super_block *sb, struct inode *inode)
+static int adfs_mode2atts(struct super_block *sb, struct inode *inode,
+			  umode_t ia_mode)
 {
+	struct adfs_sb_info *asb = ADFS_SB(sb);
 	umode_t mode;
 	int attr;
-	struct adfs_sb_info *asb = ADFS_SB(sb);
 
 	/* FIXME: should we be able to alter a link? */
 	if (S_ISLNK(inode->i_mode))
 		return ADFS_I(inode)->attr;
 
+	/* Directories do not have read/write permissions on the media */
 	if (S_ISDIR(inode->i_mode))
-		attr = ADFS_NDA_DIRECTORY;
-	else
-		attr = 0;
+		return ADFS_NDA_DIRECTORY;
 
-	mode = inode->i_mode & asb->s_owner_mask;
+	attr = 0;
+	mode = ia_mode & asb->s_owner_mask;
 	if (mode & S_IRUGO)
 		attr |= ADFS_NDA_OWNER_READ;
 	if (mode & S_IWUGO)
 		attr |= ADFS_NDA_OWNER_WRITE;
 
-	mode = inode->i_mode & asb->s_other_mask;
+	mode = ia_mode & asb->s_other_mask;
 	mode &= ~asb->s_owner_mask;
 	if (mode & S_IRUGO)
 		attr |= ADFS_NDA_PUBLIC_READ;
@@ -328,7 +328,7 @@ adfs_notify_change(struct dentry *dentry, struct iattr *attr)
 	if (ia_valid & ATTR_CTIME)
 		inode->i_ctime = attr->ia_ctime;
 	if (ia_valid & ATTR_MODE) {
-		ADFS_I(inode)->attr = adfs_mode2atts(sb, inode);
+		ADFS_I(inode)->attr = adfs_mode2atts(sb, inode, attr->ia_mode);
 		inode->i_mode = adfs_atts2mode(sb, inode);
 	}
 
