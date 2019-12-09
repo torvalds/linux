@@ -567,20 +567,12 @@ static int
 snd_harmony_hw_params(struct snd_pcm_substream *ss,
 		      struct snd_pcm_hw_params *hw)
 {
-	int err;
 	struct snd_harmony *h = snd_pcm_substream_chip(ss);
 	
-	err = snd_pcm_lib_malloc_pages(ss, params_buffer_bytes(hw));
-	if (err > 0 && h->dma.type == SNDRV_DMA_TYPE_CONTINUOUS)
+	if (h->dma.type == SNDRV_DMA_TYPE_CONTINUOUS)
 		ss->runtime->dma_addr = __pa(ss->runtime->dma_area);
-	
-	return err;
-}
 
-static int 
-snd_harmony_hw_free(struct snd_pcm_substream *ss) 
-{
-	return snd_pcm_lib_free_pages(ss);
+	return 0;
 }
 
 static const struct snd_pcm_ops snd_harmony_playback_ops = {
@@ -588,7 +580,6 @@ static const struct snd_pcm_ops snd_harmony_playback_ops = {
 	.close = snd_harmony_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_harmony_hw_params,
-	.hw_free = snd_harmony_hw_free,
 	.prepare = snd_harmony_playback_prepare,
 	.trigger = snd_harmony_playback_trigger,
  	.pointer = snd_harmony_playback_pointer,
@@ -599,7 +590,6 @@ static const struct snd_pcm_ops snd_harmony_capture_ops = {
         .close = snd_harmony_capture_close,
         .ioctl = snd_pcm_lib_ioctl,
         .hw_params = snd_harmony_hw_params,
-        .hw_free = snd_harmony_hw_free,
         .prepare = snd_harmony_capture_prepare,
         .trigger = snd_harmony_capture_trigger,
         .pointer = snd_harmony_capture_pointer,
@@ -656,8 +646,8 @@ snd_harmony_pcm_init(struct snd_harmony *h)
 	}
 
 	/* pre-allocate space for DMA */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, h->dma.type, h->dma.dev,
-					      MAX_BUF_SIZE, MAX_BUF_SIZE);
+	snd_pcm_set_managed_buffer_all(pcm, h->dma.type, h->dma.dev,
+				       MAX_BUF_SIZE, MAX_BUF_SIZE);
 
 	h->st.format = snd_harmony_set_data_format(h,
 		SNDRV_PCM_FORMAT_S16_BE, 1);
