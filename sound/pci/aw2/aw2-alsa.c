@@ -109,9 +109,6 @@ static int snd_aw2_pcm_playback_open(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_playback_close(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_capture_open(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_capture_close(struct snd_pcm_substream *substream);
-static int snd_aw2_pcm_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *hw_params);
-static int snd_aw2_pcm_hw_free(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_prepare_playback(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_prepare_capture(struct snd_pcm_substream *substream);
 static int snd_aw2_pcm_trigger_playback(struct snd_pcm_substream *substream,
@@ -170,8 +167,6 @@ static const struct snd_pcm_ops snd_aw2_playback_ops = {
 	.open = snd_aw2_pcm_playback_open,
 	.close = snd_aw2_pcm_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_aw2_pcm_hw_params,
-	.hw_free = snd_aw2_pcm_hw_free,
 	.prepare = snd_aw2_pcm_prepare_playback,
 	.trigger = snd_aw2_pcm_trigger_playback,
 	.pointer = snd_aw2_pcm_pointer_playback,
@@ -182,8 +177,6 @@ static const struct snd_pcm_ops snd_aw2_capture_ops = {
 	.open = snd_aw2_pcm_capture_open,
 	.close = snd_aw2_pcm_capture_close,
 	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_aw2_pcm_hw_params,
-	.hw_free = snd_aw2_pcm_hw_free,
 	.prepare = snd_aw2_pcm_prepare_capture,
 	.trigger = snd_aw2_pcm_trigger_capture,
 	.pointer = snd_aw2_pcm_pointer_capture,
@@ -411,20 +404,6 @@ static int snd_aw2_pcm_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
- /* hw_params callback */
-static int snd_aw2_pcm_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
-/* hw_free callback */
-static int snd_aw2_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 /* prepare callback for playback */
 static int snd_aw2_pcm_prepare_playback(struct snd_pcm_substream *substream)
 {
@@ -611,10 +590,10 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 
 	/* pre-allocation of buffers */
 	/* Preallocate continuous pages. */
-	snd_pcm_lib_preallocate_pages_for_all(pcm_playback_ana,
-					      SNDRV_DMA_TYPE_DEV,
-					      &chip->pci->dev,
-					      64 * 1024, 64 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm_playback_ana,
+				       SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev,
+				       64 * 1024, 64 * 1024);
 
 	err = snd_pcm_new(chip->card, "Audiowerk2 digital playback", 1, 1, 0,
 			  &pcm_playback_num);
@@ -643,10 +622,10 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 
 	/* pre-allocation of buffers */
 	/* Preallocate continuous pages. */
-	snd_pcm_lib_preallocate_pages_for_all(pcm_playback_num,
-					      SNDRV_DMA_TYPE_DEV,
-					      &chip->pci->dev,
-					      64 * 1024, 64 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm_playback_num,
+				       SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev,
+				       64 * 1024, 64 * 1024);
 
 	err = snd_pcm_new(chip->card, "Audiowerk2 capture", 2, 0, 1,
 			  &pcm_capture);
@@ -676,10 +655,10 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 
 	/* pre-allocation of buffers */
 	/* Preallocate continuous pages. */
-	snd_pcm_lib_preallocate_pages_for_all(pcm_capture,
-					      SNDRV_DMA_TYPE_DEV,
-					      &chip->pci->dev,
-					      64 * 1024, 64 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm_capture,
+				       SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev,
+				       64 * 1024, 64 * 1024);
 
 	/* Create control */
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&aw2_control, chip));
