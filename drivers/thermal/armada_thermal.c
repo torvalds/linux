@@ -578,7 +578,7 @@ static const struct armada_thermal_data armadaxp_data = {
 	.coef_m = 10000000ULL,
 	.coef_div = 13825,
 	.syscon_status_off = 0xb0,
-	.syscon_control1_off = 0xd0,
+	.syscon_control1_off = 0x2d0,
 };
 
 static const struct armada_thermal_data armada370_data = {
