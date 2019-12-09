@@ -434,7 +434,7 @@ static int snd_es18xx_playback_hw_params(struct snd_pcm_substream *substream,
 					 struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_es18xx *chip = snd_pcm_substream_chip(substream);
-	int shift, err;
+	int shift;
 
 	shift = 0;
 	if (params_channels(hw_params) == 2)
@@ -453,14 +453,7 @@ static int snd_es18xx_playback_hw_params(struct snd_pcm_substream *substream,
 	} else {
 		chip->dma1_shift = shift;
 	}
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
 	return 0;
-}
-
-static int snd_es18xx_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int snd_es18xx_playback1_prepare(struct snd_es18xx *chip,
@@ -543,7 +536,7 @@ static int snd_es18xx_capture_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_es18xx *chip = snd_pcm_substream_chip(substream);
-	int shift, err;
+	int shift;
 
 	shift = 0;
 	if ((chip->caps & ES18XX_DUPLEX_MONO) &&
@@ -557,8 +550,6 @@ static int snd_es18xx_capture_hw_params(struct snd_pcm_substream *substream,
 	if (snd_pcm_format_width(params_format(hw_params)) == 16)
 		shift++;
 	chip->dma1_shift = shift;
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
 	return 0;
 }
 
@@ -915,7 +906,6 @@ static int snd_es18xx_playback_close(struct snd_pcm_substream *substream)
 	else
 		chip->playback_b_substream = NULL;
 	
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -924,7 +914,6 @@ static int snd_es18xx_capture_close(struct snd_pcm_substream *substream)
         struct snd_es18xx *chip = snd_pcm_substream_chip(substream);
 
         chip->capture_a_substream = NULL;
-	snd_pcm_lib_free_pages(substream);
         return 0;
 }
 
@@ -1656,7 +1645,6 @@ static const struct snd_pcm_ops snd_es18xx_playback_ops = {
 	.close =	snd_es18xx_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_es18xx_playback_hw_params,
-	.hw_free =	snd_es18xx_pcm_hw_free,
 	.prepare =	snd_es18xx_playback_prepare,
 	.trigger =	snd_es18xx_playback_trigger,
 	.pointer =	snd_es18xx_playback_pointer,
@@ -1667,7 +1655,6 @@ static const struct snd_pcm_ops snd_es18xx_capture_ops = {
 	.close =	snd_es18xx_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_es18xx_capture_hw_params,
-	.hw_free =	snd_es18xx_pcm_hw_free,
 	.prepare =	snd_es18xx_capture_prepare,
 	.trigger =	snd_es18xx_capture_trigger,
 	.pointer =	snd_es18xx_capture_pointer,
@@ -1701,10 +1688,9 @@ static int snd_es18xx_pcm(struct snd_card *card, int device)
 	sprintf(pcm->name, "ESS AudioDrive ES%x", chip->version);
         chip->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      card->dev,
-					      64*1024,
-					      chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, card->dev,
+				       64*1024,
+				       chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 	return 0;
 }
 
