@@ -307,9 +307,9 @@ void mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	ds_cnt += skb_shinfo(skb)->nr_frags;
 
 	if (ihs) {
-		ihs += !!skb_vlan_tag_present(skb) * VLAN_HLEN;
+		u16 inl = ihs + !!skb_vlan_tag_present(skb) * VLAN_HLEN - INL_HDR_START_SZ;
 
-		ds_cnt_inl = DIV_ROUND_UP(ihs - INL_HDR_START_SZ, MLX5_SEND_WQE_DS);
+		ds_cnt_inl = DIV_ROUND_UP(inl, MLX5_SEND_WQE_DS);
 		ds_cnt += ds_cnt_inl;
 	}
 
@@ -348,12 +348,12 @@ void mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	eseg->mss = mss;
 
 	if (ihs) {
-		eseg->inline_hdr.sz = cpu_to_be16(ihs);
 		if (skb_vlan_tag_present(skb)) {
-			ihs -= VLAN_HLEN;
+			eseg->inline_hdr.sz = cpu_to_be16(ihs + VLAN_HLEN);
 			mlx5e_insert_vlan(eseg->inline_hdr.start, skb, ihs);
 			stats->added_vlan_packets++;
 		} else {
+			eseg->inline_hdr.sz = cpu_to_be16(ihs);
 			memcpy(eseg->inline_hdr.start, skb->data, ihs);
 		}
 		dseg += ds_cnt_inl;
