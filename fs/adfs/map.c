@@ -5,6 +5,7 @@
  *  Copyright (C) 1997-2002 Russell King
  */
 #include <linux/slab.h>
+#include <linux/statfs.h>
 #include <asm/unaligned.h>
 #include "adfs.h"
 
@@ -221,10 +222,10 @@ found:
  *  total_free = E(free_in_zone_n)
  *              nzones
  */
-unsigned int
-adfs_map_free(struct super_block *sb)
+void adfs_map_statfs(struct super_block *sb, struct kstatfs *buf)
 {
 	struct adfs_sb_info *asb = ADFS_SB(sb);
+	struct adfs_discrecord *dr = adfs_map_discrecord(asb->s_map);
 	struct adfs_discmap *dm;
 	unsigned int total = 0;
 	unsigned int zone;
@@ -236,7 +237,10 @@ adfs_map_free(struct super_block *sb)
 		total += scan_free_map(asb, dm++);
 	} while (--zone > 0);
 
-	return signed_asl(total, asb->s_map2blk);
+	buf->f_blocks  = adfs_disc_size(dr) >> sb->s_blocksize_bits;
+	buf->f_files   = asb->s_ids_per_zone * asb->s_map_size;
+	buf->f_bavail  =
+	buf->f_bfree   = signed_asl(total, asb->s_map2blk);
 }
 
 int adfs_map_lookup(struct super_block *sb, u32 frag_id, unsigned int offset)

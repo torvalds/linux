@@ -145,7 +145,7 @@ int adfs_notify_change(struct dentry *dentry, struct iattr *attr);
 
 /* map.c */
 int adfs_map_lookup(struct super_block *sb, u32 frag_id, unsigned int offset);
-extern unsigned int adfs_map_free(struct super_block *sb);
+void adfs_map_statfs(struct super_block *sb, struct kstatfs *buf);
 struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_discrecord *dr);
 
 /* Misc */
