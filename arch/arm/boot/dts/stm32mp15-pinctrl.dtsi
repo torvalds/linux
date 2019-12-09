@@ -120,13 +120,18 @@
 				 <STM32_PINMUX('C', 2, AF11)>, /* ETH_RGMII_TXD2 */
 				 <STM32_PINMUX('E', 2, AF11)>, /* ETH_RGMII_TXD3 */
 				 <STM32_PINMUX('B', 11, AF11)>, /* ETH_RGMII_TX_CTL */
-				 <STM32_PINMUX('A', 2, AF11)>, /* ETH_MDIO */
 				 <STM32_PINMUX('C', 1, AF11)>; /* ETH_MDC */
 			bias-disable;
 			drive-push-pull;
-			slew-rate = <3>;
+			slew-rate = <2>;
 		};
 		pins2 {
+			pinmux = <STM32_PINMUX('A', 2, AF11)>; /* ETH_MDIO */
+			bias-disable;
+			drive-push-pull;
+			slew-rate = <0>;
+		};
+		pins3 {
 			pinmux = <STM32_PINMUX('C', 4, AF11)>, /* ETH_RGMII_RXD0 */
 				 <STM32_PINMUX('C', 5, AF11)>, /* ETH_RGMII_RXD1 */
 				 <STM32_PINMUX('B', 0, AF11)>, /* ETH_RGMII_RXD2 */
