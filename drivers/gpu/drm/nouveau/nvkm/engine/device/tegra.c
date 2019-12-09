@@ -279,6 +279,7 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 		      struct nvkm_device **pdevice)
 {
 	struct nvkm_device_tegra *tdev;
+	unsigned long rate;
 	int ret;
 
 	if (!(tdev = kzalloc(sizeof(*tdev), GFP_KERNEL)))
@@ -305,6 +306,17 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 	if (IS_ERR(tdev->clk)) {
 		ret = PTR_ERR(tdev->clk);
 		goto free;
+	}
+
+	rate = clk_get_rate(tdev->clk);
+	if (rate == 0) {
+		ret = clk_set_rate(tdev->clk, ULONG_MAX);
+		if (ret < 0)
+			goto free;
+
+		rate = clk_get_rate(tdev->clk);
+
+		dev_dbg(&pdev->dev, "GPU clock set to %lu\n", rate);
 	}
 
 	if (func->require_ref_clk)
