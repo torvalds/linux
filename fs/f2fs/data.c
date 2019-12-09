@@ -340,7 +340,7 @@ static bool f2fs_crypt_mergeable_bio(struct bio *bio, const struct inode *inode,
 	 * read/write raw data without encryption.
 	 */
 	if (fio && fio->encrypted_page)
-		return true;
+		return !bio_has_crypt_ctx(bio);
 
 	return fscrypt_mergeable_bio(bio, inode, next_idx);
 }
