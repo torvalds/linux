@@ -172,6 +172,14 @@ static const enum gpiod_flags gpio_flags[] = {
 #define T_RESET_US		10
 #define T_FAULT_RECOVER		msecs_to_jiffies(1000)
 
+/* N_FAULT_INIT is the number of recovery attempts at module initialisation
+ * time. If the TX_FAULT signal is not deasserted after this number of
+ * attempts at clearing it, we decide that the module is faulty.
+ * N_FAULT is the same but after the module has initialised.
+ */
+#define N_FAULT_INIT		5
+#define N_FAULT			5
+
 /* SFP module presence detection is poor: the three MOD DEF signals are
  * the same length on the PCB, which means it's possible for MOD DEF 0 to
  * connect before the I2C bus on MOD DEF 1/2.
@@ -1885,7 +1893,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		sfp_module_tx_enable(sfp);
 
 		/* Initialise the fault clearance retries */
-		sfp->sm_retries = 5;
+		sfp->sm_retries = N_FAULT_INIT;
 
 		/* We need to check the TX_FAULT state, which is not defined
 		 * while TX_DISABLE is asserted. The earliest we want to do
@@ -1925,7 +1933,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 			 * or t_start_up, so assume there is a fault.
 			 */
 			sfp_sm_fault(sfp, SFP_S_INIT_TX_FAULT,
-				     sfp->sm_retries == 5);
+				     sfp->sm_retries == N_FAULT_INIT);
 		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
 	init_done:	/* TX_FAULT deasserted or we timed out with TX_FAULT
 			 * clear.  Probe for the PHY and check the LOS state.
@@ -1938,7 +1946,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 			sfp_sm_link_check_los(sfp);
 
 			/* Reset the fault retry count */
-			sfp->sm_retries = 5;
+			sfp->sm_retries = N_FAULT;
 		}
 		break;
 
