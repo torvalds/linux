@@ -287,52 +287,12 @@ err_clk:
 	return ret;
 }
 
-static int exynos_bus_probe(struct platform_device *pdev)
+static int exynos_bus_profile_init(struct exynos_bus *bus,
+				   struct devfreq_dev_profile *profile)
 {
-	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node, *node;
-	struct devfreq_dev_profile *profile;
+	struct device *dev = bus->dev;
 	struct devfreq_simple_ondemand_data *ondemand_data;
-	struct devfreq_passive_data *passive_data;
-	struct devfreq *parent_devfreq;
-	struct exynos_bus *bus;
-	int ret, max_state;
-	unsigned long min_freq, max_freq;
-	bool passive = false;
-
-	if (!np) {
-		dev_err(dev, "failed to find devicetree node\n");
-		return -EINVAL;
-	}
-
-	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
-	if (!bus)
-		return -ENOMEM;
-	mutex_init(&bus->lock);
-	bus->dev = &pdev->dev;
-	platform_set_drvdata(pdev, bus);
-
-	profile = devm_kzalloc(dev, sizeof(*profile), GFP_KERNEL);
-	if (!profile)
-		return -ENOMEM;
-
-	node = of_parse_phandle(dev->of_node, "devfreq", 0);
-	if (node) {
-		of_node_put(node);
-		passive = true;
-	} else {
-		ret = exynos_bus_parent_parse_of(np, bus);
-		if (ret < 0)
-			return ret;
-	}
-
-	/* Parse the device-tree to get the resource information */
-	ret = exynos_bus_parse_of(np, bus);
-	if (ret < 0)
-		goto err_reg;
-
-	if (passive)
-		goto passive;
+	int ret;
 
 	/* Initialize the struct profile and governor data for parent device */
 	profile->polling_ms = 50;
@@ -380,6 +340,60 @@ static int exynos_bus_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to set event to devfreq-event devices\n");
 		goto err;
 	}
+
+err:
+	return ret;
+}
+
+static int exynos_bus_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node, *node;
+	struct devfreq_dev_profile *profile;
+	struct devfreq_passive_data *passive_data;
+	struct devfreq *parent_devfreq;
+	struct exynos_bus *bus;
+	int ret, max_state;
+	unsigned long min_freq, max_freq;
+	bool passive = false;
+
+	if (!np) {
+		dev_err(dev, "failed to find devicetree node\n");
+		return -EINVAL;
+	}
+
+	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
+	if (!bus)
+		return -ENOMEM;
+	mutex_init(&bus->lock);
+	bus->dev = &pdev->dev;
+	platform_set_drvdata(pdev, bus);
+
+	profile = devm_kzalloc(dev, sizeof(*profile), GFP_KERNEL);
+	if (!profile)
+		return -ENOMEM;
+
+	node = of_parse_phandle(dev->of_node, "devfreq", 0);
+	if (node) {
+		of_node_put(node);
+		passive = true;
+	} else {
+		ret = exynos_bus_parent_parse_of(np, bus);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Parse the device-tree to get the resource information */
+	ret = exynos_bus_parse_of(np, bus);
+	if (ret < 0)
+		goto err_reg;
+
+	if (passive)
+		goto passive;
+
+	ret = exynos_bus_profile_init(bus, profile);
+	if (ret < 0)
+		goto err;
 
 	goto out;
 passive:
