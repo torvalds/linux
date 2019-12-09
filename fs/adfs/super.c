@@ -277,13 +277,80 @@ static const struct super_operations adfs_sops = {
 	.show_options	= adfs_show_options,
 };
 
+static int adfs_probe(struct super_block *sb, unsigned int offset, int silent,
+		      int (*validate)(struct super_block *sb,
+				      struct buffer_head *bh,
+				      struct adfs_discrecord **bhp))
+{
+	struct adfs_sb_info *asb = ADFS_SB(sb);
+	struct adfs_discrecord *dr;
+	struct buffer_head *bh;
+	unsigned int blocksize = BLOCK_SIZE;
+	int ret, try;
+
+	for (try = 0; try < 2; try++) {
+		/* try to set the requested block size */
+		if (sb->s_blocksize != blocksize &&
+		    !sb_set_blocksize(sb, blocksize)) {
+			if (!silent)
+				adfs_msg(sb, KERN_ERR,
+					 "error: unsupported blocksize");
+			return -EINVAL;
+		}
+
+		/* read the buffer */
+		bh = sb_bread(sb, offset >> sb->s_blocksize_bits);
+		if (!bh) {
+			adfs_msg(sb, KERN_ERR,
+				 "error: unable to read block %u, try %d",
+				 offset >> sb->s_blocksize_bits, try);
+			return -EIO;
+		}
+
+		/* validate it */
+		ret = validate(sb, bh, &dr);
+		if (ret) {
+			brelse(bh);
+			return ret;
+		}
+
+		/* does the block size match the filesystem block size? */
+		blocksize = 1 << dr->log2secsize;
+		if (sb->s_blocksize == blocksize) {
+			asb->s_map = adfs_read_map(sb, dr);
+			brelse(bh);
+			return PTR_ERR_OR_ZERO(asb->s_map);
+		}
+
+		brelse(bh);
+	}
+
+	return -EIO;
+}
+
+static int adfs_validate_bblk(struct super_block *sb, struct buffer_head *bh,
+			      struct adfs_discrecord **drp)
+{
+	struct adfs_discrecord *dr;
+	unsigned char *b_data;
+
+	b_data = bh->b_data + (ADFS_DISCRECORD % sb->s_blocksize);
+	if (adfs_checkbblk(b_data))
+		return -EILSEQ;
+
+	/* Do some sanity checks on the ADFS disc record */
+	dr = (struct adfs_discrecord *)(b_data + ADFS_DR_OFFSET);
+	if (adfs_checkdiscrecord(dr))
+		return -EILSEQ;
+
+	*drp = dr;
+	return 0;
+}
+
 static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct adfs_discrecord *dr;
-	struct buffer_head *bh;
 	struct object_info root_obj;
-	unsigned char *b_data;
-	unsigned int blocksize;
 	struct adfs_sb_info *asb;
 	struct inode *root;
 	int ret = -EINVAL;
@@ -308,72 +375,19 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (parse_options(sb, asb, data))
 		goto error;
 
-	sb_set_blocksize(sb, BLOCK_SIZE);
-	if (!(bh = sb_bread(sb, ADFS_DISCRECORD / BLOCK_SIZE))) {
-		adfs_msg(sb, KERN_ERR, "error: unable to read superblock");
-		ret = -EIO;
-		goto error;
-	}
-
-	b_data = bh->b_data + (ADFS_DISCRECORD % BLOCK_SIZE);
-
-	if (adfs_checkbblk(b_data)) {
-		ret = -EINVAL;
-		goto error_badfs;
-	}
-
-	dr = (struct adfs_discrecord *)(b_data + ADFS_DR_OFFSET);
-
-	/*
-	 * Do some sanity checks on the ADFS disc record
-	 */
-	if (adfs_checkdiscrecord(dr)) {
-		ret = -EINVAL;
-		goto error_badfs;
-	}
-
-	blocksize = 1 << dr->log2secsize;
-	brelse(bh);
-
-	if (sb_set_blocksize(sb, blocksize)) {
-		bh = sb_bread(sb, ADFS_DISCRECORD / sb->s_blocksize);
-		if (!bh) {
-			adfs_msg(sb, KERN_ERR,
-				 "error: couldn't read superblock on 2nd try.");
-			ret = -EIO;
-			goto error;
-		}
-		b_data = bh->b_data + (ADFS_DISCRECORD % sb->s_blocksize);
-		if (adfs_checkbblk(b_data)) {
-			adfs_msg(sb, KERN_ERR,
-				 "error: disc record mismatch, very weird!");
-			ret = -EINVAL;
-			goto error_free_bh;
-		}
-		dr = (struct adfs_discrecord *)(b_data + ADFS_DR_OFFSET);
-	} else {
+	/* Try to probe the filesystem boot block */
+	ret = adfs_probe(sb, ADFS_DISCRECORD, silent, adfs_validate_bblk);
+	if (ret == -EILSEQ) {
 		if (!silent)
 			adfs_msg(sb, KERN_ERR,
-				 "error: unsupported blocksize");
+				 "error: can't find an ADFS filesystem on dev %s.",
+				 sb->s_id);
 		ret = -EINVAL;
+	}
+	if (ret)
 		goto error;
-	}
 
-	/*
-	 * blocksize on this device should now be set to the ADFS log2secsize
-	 */
-
-	asb->s_map = adfs_read_map(sb, dr);
-	if (IS_ERR(asb->s_map)) {
-		ret =  PTR_ERR(asb->s_map);
-		goto error_free_bh;
-	}
-
-	brelse(bh);
-
-	/*
-	 * set up enough so that we can read an inode
-	 */
+	/* set up enough so that we can read an inode */
 	sb->s_op = &adfs_sops;
 
 	dr = adfs_map_discrecord(asb->s_map);
@@ -417,13 +431,6 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	return 0;
 
-error_badfs:
-	if (!silent)
-		adfs_msg(sb, KERN_ERR,
-			 "error: can't find an ADFS filesystem on dev %s.",
-			 sb->s_id);
-error_free_bh:
-	brelse(bh);
 error:
 	sb->s_fs_info = NULL;
 	kfree(asb);
