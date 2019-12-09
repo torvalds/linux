@@ -247,7 +247,7 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&ff->mutex);
 	}
 
-	return 0;
+	return err;
 }
 
 static int pcm_hw_free(struct snd_pcm_substream *substream)
