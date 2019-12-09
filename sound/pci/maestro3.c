@@ -1381,10 +1381,7 @@ static int snd_m3_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *hw_params)
 {
 	struct m3_dma *s = substream->runtime->private_data;
-	int err;
 
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
 	/* set buffer address */
 	s->buffer_addr = substream->runtime->dma_addr;
 	if (s->buffer_addr & 0x3) {
@@ -1401,7 +1398,6 @@ static int snd_m3_pcm_hw_free(struct snd_pcm_substream *substream)
 	if (substream->runtime->private_data == NULL)
 		return 0;
 	s = substream->runtime->private_data;
-	snd_pcm_lib_free_pages(substream);
 	s->buffer_addr = 0;
 	return 0;
 }
@@ -1860,9 +1856,8 @@ snd_m3_pcm(struct snd_m3 * chip, int device)
 	strcpy(pcm->name, chip->card->driver);
 	chip->pcm = pcm;
 	
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &chip->pci->dev,
-					      64*1024, 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev, 64*1024, 64*1024);
 
 	return 0;
 }
