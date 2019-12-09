@@ -7,6 +7,15 @@
 #include "adfs.h"
 #include "dir_fplus.h"
 
+/* Return the byte offset to directory entry pos */
+static unsigned int adfs_fplus_offset(const struct adfs_bigdirheader *h,
+				      unsigned int pos)
+{
+	return offsetof(struct adfs_bigdirheader, bigdirname) +
+	       ALIGN(le32_to_cpu(h->bigdirnamelen), 4) +
+	       pos * sizeof(struct adfs_bigdirentry);
+}
+
 static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 			   unsigned int size, struct adfs_dir *dir)
 {
@@ -83,9 +92,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	if (dir->pos >= le32_to_cpu(h->bigdirentries))
 		return -ENOENT;
 
-	offset = offsetof(struct adfs_bigdirheader, bigdirname);
-	offset += ((le32_to_cpu(h->bigdirnamelen) + 4) & ~3);
-	offset += dir->pos * sizeof(struct adfs_bigdirentry);
+	offset = adfs_fplus_offset(h, dir->pos);
 
 	ret = adfs_dir_copyfrom(&bde, dir, offset,
 				sizeof(struct adfs_bigdirentry));
@@ -99,9 +106,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	obj->attr     = le32_to_cpu(bde.bigdirattr);
 	obj->name_len = le32_to_cpu(bde.bigdirobnamelen);
 
-	offset = offsetof(struct adfs_bigdirheader, bigdirname);
-	offset += ((le32_to_cpu(h->bigdirnamelen) + 4) & ~3);
-	offset += le32_to_cpu(h->bigdirentries) * sizeof(struct adfs_bigdirentry);
+	offset = adfs_fplus_offset(h, le32_to_cpu(h->bigdirentries));
 	offset += le32_to_cpu(bde.bigdirobnameptr);
 
 	ret = adfs_dir_copyfrom(obj->name, dir, offset, obj->name_len);
