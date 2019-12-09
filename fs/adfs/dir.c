@@ -14,6 +14,56 @@
  */
 static DEFINE_RWLOCK(adfs_dir_lock);
 
+int adfs_dir_copyfrom(void *dst, struct adfs_dir *dir, unsigned int offset,
+		      size_t len)
+{
+	struct super_block *sb = dir->sb;
+	unsigned int index, remain;
+
+	index = offset >> sb->s_blocksize_bits;
+	offset &= sb->s_blocksize - 1;
+	remain = sb->s_blocksize - offset;
+	if (index + (remain < len) >= dir->nr_buffers)
+		return -EINVAL;
+
+	if (remain < len) {
+		memcpy(dst, dir->bhs[index]->b_data + offset, remain);
+		dst += remain;
+		len -= remain;
+		index += 1;
+		offset = 0;
+	}
+
+	memcpy(dst, dir->bhs[index]->b_data + offset, len);
+
+	return 0;
+}
+
+int adfs_dir_copyto(struct adfs_dir *dir, unsigned int offset, const void *src,
+		    size_t len)
+{
+	struct super_block *sb = dir->sb;
+	unsigned int index, remain;
+
+	index = offset >> sb->s_blocksize_bits;
+	offset &= sb->s_blocksize - 1;
+	remain = sb->s_blocksize - offset;
+	if (index + (remain < len) >= dir->nr_buffers)
+		return -EINVAL;
+
+	if (remain < len) {
+		memcpy(dir->bhs[index]->b_data + offset, src, remain);
+		src += remain;
+		len -= remain;
+		index += 1;
+		offset = 0;
+	}
+
+	memcpy(dir->bhs[index]->b_data + offset, src, len);
+
+	return 0;
+}
+
 void adfs_dir_relse(struct adfs_dir *dir)
 {
 	unsigned int i;

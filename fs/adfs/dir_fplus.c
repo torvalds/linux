@@ -112,34 +112,6 @@ adfs_fplus_setpos(struct adfs_dir *dir, unsigned int fpos)
 	return ret;
 }
 
-static void
-dir_memcpy(struct adfs_dir *dir, unsigned int offset, void *to, int len)
-{
-	struct super_block *sb = dir->sb;
-	unsigned int buffer, partial, remainder;
-
-	buffer = offset >> sb->s_blocksize_bits;
-	offset &= sb->s_blocksize - 1;
-
-	partial = sb->s_blocksize - offset;
-
-	if (partial >= len)
-		memcpy(to, dir->bhs[buffer]->b_data + offset, len);
-	else {
-		char *c = (char *)to;
-
-		remainder = len - partial;
-
-		memcpy(c,
-			dir->bhs[buffer]->b_data + offset,
-			partial);
-
-		memcpy(c + partial,
-			dir->bhs[buffer + 1]->b_data,
-			remainder);
-	}
-}
-
 static int
 adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 {
@@ -147,16 +119,19 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 		(struct adfs_bigdirheader *) dir->bhs[0]->b_data;
 	struct adfs_bigdirentry bde;
 	unsigned int offset;
-	int ret = -ENOENT;
+	int ret;
 
 	if (dir->pos >= le32_to_cpu(h->bigdirentries))
-		goto out;
+		return -ENOENT;
 
 	offset = offsetof(struct adfs_bigdirheader, bigdirname);
 	offset += ((le32_to_cpu(h->bigdirnamelen) + 4) & ~3);
 	offset += dir->pos * sizeof(struct adfs_bigdirentry);
 
-	dir_memcpy(dir, offset, &bde, sizeof(struct adfs_bigdirentry));
+	ret = adfs_dir_copyfrom(&bde, dir, offset,
+				sizeof(struct adfs_bigdirentry));
+	if (ret)
+		return ret;
 
 	obj->loadaddr = le32_to_cpu(bde.bigdirload);
 	obj->execaddr = le32_to_cpu(bde.bigdirexec);
@@ -170,13 +145,15 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	offset += le32_to_cpu(h->bigdirentries) * sizeof(struct adfs_bigdirentry);
 	offset += le32_to_cpu(bde.bigdirobnameptr);
 
-	dir_memcpy(dir, offset, obj->name, obj->name_len);
+	ret = adfs_dir_copyfrom(obj->name, dir, offset, obj->name_len);
+	if (ret)
+		return ret;
+
 	adfs_object_fixup(dir, obj);
 
 	dir->pos += 1;
-	ret = 0;
-out:
-	return ret;
+
+	return 0;
 }
 
 const struct adfs_dir_ops adfs_fplus_dir_ops = {

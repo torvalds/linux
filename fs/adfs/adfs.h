@@ -165,6 +165,10 @@ extern const struct dentry_operations adfs_dentry_operations;
 extern const struct adfs_dir_ops adfs_f_dir_ops;
 extern const struct adfs_dir_ops adfs_fplus_dir_ops;
 
+int adfs_dir_copyfrom(void *dst, struct adfs_dir *dir, unsigned int offset,
+		      size_t len);
+int adfs_dir_copyto(struct adfs_dir *dir, unsigned int offset, const void *src,
+		    size_t len);
 void adfs_dir_relse(struct adfs_dir *dir);
 void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj);
 extern int adfs_dir_update(struct super_block *sb, struct object_info *obj,

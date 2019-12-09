@@ -224,24 +224,12 @@ adfs_obj2dir(struct adfs_direntry *de, struct object_info *obj)
 static int
 __adfs_dir_get(struct adfs_dir *dir, int pos, struct object_info *obj)
 {
-	struct super_block *sb = dir->sb;
 	struct adfs_direntry de;
-	int thissize, buffer, offset;
+	int ret;
 
-	buffer = pos >> sb->s_blocksize_bits;
-
-	if (buffer > dir->nr_buffers)
-		return -EINVAL;
-
-	offset = pos & (sb->s_blocksize - 1);
-	thissize = sb->s_blocksize - offset;
-	if (thissize > 26)
-		thissize = 26;
-
-	memcpy(&de, dir->bh[buffer]->b_data + offset, thissize);
-	if (thissize != 26)
-		memcpy(((char *)&de) + thissize, dir->bh[buffer + 1]->b_data,
-		       26 - thissize);
+	ret = adfs_dir_copyfrom(&de, dir, pos, 26);
+	if (ret)
+		return ret;
 
 	if (!de.dirobname[0])
 		return -ENOENT;
@@ -254,42 +242,16 @@ __adfs_dir_get(struct adfs_dir *dir, int pos, struct object_info *obj)
 static int
 __adfs_dir_put(struct adfs_dir *dir, int pos, struct object_info *obj)
 {
-	struct super_block *sb = dir->sb;
 	struct adfs_direntry de;
-	int thissize, buffer, offset;
+	int ret;
 
-	buffer = pos >> sb->s_blocksize_bits;
+	ret = adfs_dir_copyfrom(&de, dir, pos, 26);
+	if (ret)
+		return ret;
 
-	if (buffer > dir->nr_buffers)
-		return -EINVAL;
-
-	offset = pos & (sb->s_blocksize - 1);
-	thissize = sb->s_blocksize - offset;
-	if (thissize > 26)
-		thissize = 26;
-
-	/*
-	 * Get the entry in total
-	 */
-	memcpy(&de, dir->bh[buffer]->b_data + offset, thissize);
-	if (thissize != 26)
-		memcpy(((char *)&de) + thissize, dir->bh[buffer + 1]->b_data,
-		       26 - thissize);
-
-	/*
-	 * update it
-	 */
 	adfs_obj2dir(&de, obj);
 
-	/*
-	 * Put the new entry back
-	 */
-	memcpy(dir->bh[buffer]->b_data + offset, &de, thissize);
-	if (thissize != 26)
-		memcpy(dir->bh[buffer + 1]->b_data, ((char *)&de) + thissize,
-		       26 - thissize);
-
-	return 0;
+	return adfs_dir_copyto(dir, pos, &de, 26);
 }
 
 /*
