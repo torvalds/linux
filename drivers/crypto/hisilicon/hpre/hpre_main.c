@@ -557,7 +557,7 @@ static const struct file_operations hpre_ctrl_debug_fops = {
 static int hpre_create_debugfs_file(struct hpre_debug *dbg, struct dentry *dir,
 				    enum hpre_ctrl_dbgfs_file type, int indx)
 {
-	struct dentry *tmp, *file_dir;
+	struct dentry *file_dir;
 
 	if (dir)
 		file_dir = dir;
@@ -571,10 +571,8 @@ static int hpre_create_debugfs_file(struct hpre_debug *dbg, struct dentry *dir,
 	dbg->files[indx].debug = dbg;
 	dbg->files[indx].type = type;
 	dbg->files[indx].index = indx;
-	tmp = debugfs_create_file(hpre_debug_file_name[type], 0600, file_dir,
-				  dbg->files + indx, &hpre_ctrl_debug_fops);
-	if (!tmp)
-		return -ENOENT;
+	debugfs_create_file(hpre_debug_file_name[type], 0600, file_dir,
+			    dbg->files + indx, &hpre_ctrl_debug_fops);
 
 	return 0;
 }
@@ -585,7 +583,6 @@ static int hpre_pf_comm_regs_debugfs_init(struct hpre_debug *debug)
 	struct hisi_qm *qm = &hpre->qm;
 	struct device *dev = &qm->pdev->dev;
 	struct debugfs_regset32 *regset;
-	struct dentry *tmp;
 
 	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 	if (!regset)
@@ -595,10 +592,7 @@ static int hpre_pf_comm_regs_debugfs_init(struct hpre_debug *debug)
 	regset->nregs = ARRAY_SIZE(hpre_com_dfx_regs);
 	regset->base = qm->io_base;
 
-	tmp = debugfs_create_regset32("regs", 0444,  debug->debug_root, regset);
-	if (!tmp)
-		return -ENOENT;
-
+	debugfs_create_regset32("regs", 0444,  debug->debug_root, regset);
 	return 0;
 }
 
@@ -609,15 +603,12 @@ static int hpre_cluster_debugfs_init(struct hpre_debug *debug)
 	struct device *dev = &qm->pdev->dev;
 	char buf[HPRE_DBGFS_VAL_MAX_LEN];
 	struct debugfs_regset32 *regset;
-	struct dentry *tmp_d, *tmp;
+	struct dentry *tmp_d;
 	int i, ret;
 
 	for (i = 0; i < HPRE_CLUSTERS_NUM; i++) {
 		sprintf(buf, "cluster%d", i);
-
 		tmp_d = debugfs_create_dir(buf, debug->debug_root);
-		if (!tmp_d)
-			return -ENOENT;
 
 		regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 		if (!regset)
@@ -627,9 +618,7 @@ static int hpre_cluster_debugfs_init(struct hpre_debug *debug)
 		regset->nregs = ARRAY_SIZE(hpre_cluster_dfx_regs);
 		regset->base = qm->io_base + hpre_cluster_offsets[i];
 
-		tmp = debugfs_create_regset32("regs", 0444, tmp_d, regset);
-		if (!tmp)
-			return -ENOENT;
+		debugfs_create_regset32("regs", 0444, tmp_d, regset);
 		ret = hpre_create_debugfs_file(debug, tmp_d, HPRE_CLUSTER_CTRL,
 					       i + HPRE_CLUSTER_CTRL);
 		if (ret)
@@ -668,9 +657,6 @@ static int hpre_debugfs_init(struct hpre *hpre)
 	int ret;
 
 	dir = debugfs_create_dir(dev_name(dev), hpre_debugfs_root);
-	if (!dir)
-		return -ENOENT;
-
 	qm->debug.debug_root = dir;
 
 	ret = hisi_qm_debug_init(qm);
@@ -1014,8 +1000,6 @@ static void hpre_register_debugfs(void)
 		return;
 
 	hpre_debugfs_root = debugfs_create_dir(hpre_name, NULL);
-	if (IS_ERR_OR_NULL(hpre_debugfs_root))
-		hpre_debugfs_root = NULL;
 }
 
 static void hpre_unregister_debugfs(void)
