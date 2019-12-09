@@ -138,20 +138,16 @@ static int adfs_f_validate(struct adfs_dir *dir)
 }
 
 /* Read and check that a directory is valid */
-static int adfs_dir_read(struct super_block *sb, u32 indaddr,
-			 unsigned int size, struct adfs_dir *dir)
+static int adfs_f_read(struct super_block *sb, u32 indaddr, unsigned int size,
+		       struct adfs_dir *dir)
 {
 	const unsigned int blocksize_bits = sb->s_blocksize_bits;
 	int ret;
 
-	/*
-	 * Directories which are not a multiple of 2048 bytes
-	 * are considered bad v2 [3.6]
-	 */
-	if (size & 2047)
-		goto bad_dir;
+	if (size && size != ADFS_NEWDIR_SIZE)
+		return -EIO;
 
-	ret = adfs_dir_read_buffers(sb, indaddr, size, dir);
+	ret = adfs_dir_read_buffers(sb, indaddr, ADFS_NEWDIR_SIZE, dir);
 	if (ret)
 		return ret;
 
@@ -160,6 +156,8 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 
 	if (adfs_f_validate(dir))
 		goto bad_dir;
+
+	dir->parent_id = adfs_readval(dir->newtail->dirparent, 3);
 
 	return 0;
 
@@ -267,23 +265,6 @@ static int adfs_dir_find_entry(struct adfs_dir *dir, u32 indaddr)
 			break;
 		}
 	}
-
-	return ret;
-}
-
-static int adfs_f_read(struct super_block *sb, u32 indaddr, unsigned int size,
-		       struct adfs_dir *dir)
-{
-	int ret;
-
-	if (size != ADFS_NEWDIR_SIZE)
-		return -EIO;
-
-	ret = adfs_dir_read(sb, indaddr, size, dir);
-	if (ret)
-		adfs_error(sb, "unable to read directory");
-	else
-		dir->parent_id = adfs_readval(dir->newtail->dirparent, 3);
 
 	return ret;
 }
