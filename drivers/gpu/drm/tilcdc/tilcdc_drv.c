@@ -30,7 +30,6 @@
 #include "tilcdc_external.h"
 #include "tilcdc_panel.h"
 #include "tilcdc_regs.h"
-#include "tilcdc_tfp410.h"
 
 static LIST_HEAD(module_list);
 
@@ -643,7 +642,6 @@ static struct platform_driver tilcdc_platform_driver = {
 static int __init tilcdc_drm_init(void)
 {
 	DBG("init");
-	tilcdc_tfp410_init();
 	tilcdc_panel_init();
 	return platform_driver_register(&tilcdc_platform_driver);
 }
@@ -653,7 +651,6 @@ static void __exit tilcdc_drm_fini(void)
 	DBG("fini");
 	platform_driver_unregister(&tilcdc_platform_driver);
 	tilcdc_panel_fini();
-	tilcdc_tfp410_fini();
 }
 
 module_init(tilcdc_drm_init);
