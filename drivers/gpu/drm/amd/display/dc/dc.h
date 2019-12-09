@@ -910,6 +910,8 @@ void dc_resource_state_copy_construct_current(
 
 void dc_resource_state_destruct(struct dc_state *context);
 
+bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
+
 /*
  * TODO update to make it about validation sets
  * Set up streams and links associated to drive sinks
