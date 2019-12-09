@@ -1521,7 +1521,8 @@ static int tipc_link_build_nack_msg(struct tipc_link *l,
 				    struct sk_buff_head *xmitq)
 {
 	u32 def_cnt = ++l->stats.deferred_recv;
-	u32 defq_len = skb_queue_len(&l->deferdq);
+	struct sk_buff_head *dfq = &l->deferdq;
+	u32 defq_len = skb_queue_len(dfq);
 	int match1, match2;
 
 	if (link_is_bc_rcvlink(l)) {
@@ -1532,8 +1533,12 @@ static int tipc_link_build_nack_msg(struct tipc_link *l,
 		return 0;
 	}
 
-	if (defq_len >= 3 && !((defq_len - 3) % 16))
-		tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, 0, 0, xmitq);
+	if (defq_len >= 3 && !((defq_len - 3) % 16)) {
+		u16 rcvgap = buf_seqno(skb_peek(dfq)) - l->rcv_nxt;
+
+		tipc_link_build_proto_msg(l, STATE_MSG, 0, 0,
+					  rcvgap, 0, 0, xmitq);
+	}
 	return 0;
 }
 
@@ -1631,7 +1636,7 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 	if (!tipc_link_is_up(l) && (mtyp == STATE_MSG))
 		return;
 
-	if (!skb_queue_empty(dfq))
+	if ((probe || probe_reply) && !skb_queue_empty(dfq))
 		rcvgap = buf_seqno(skb_peek(dfq)) - l->rcv_nxt;
 
 	skb = tipc_msg_create(LINK_PROTOCOL, mtyp, INT_H_SIZE,
@@ -2079,7 +2084,6 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		if (rcvgap || reply)
 			tipc_link_build_proto_msg(l, STATE_MSG, 0, reply,
 						  rcvgap, 0, 0, xmitq);
-
 		rc |= tipc_link_advance_transmq(l, ack, gap, ga, xmitq);
 
 		/* If NACK, retransmit will now start at right position */
