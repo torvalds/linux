@@ -235,8 +235,7 @@ void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
 	}
 }
 
-static int
-adfs_readdir(struct file *file, struct dir_context *ctx)
+static int adfs_iterate(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
@@ -399,7 +398,7 @@ unlock:
 const struct file_operations adfs_dir_operations = {
 	.read		= generic_read_dir,
 	.llseek		= generic_file_llseek,
-	.iterate	= adfs_readdir,
+	.iterate_shared	= adfs_iterate,
 	.fsync		= generic_file_fsync,
 };
 
