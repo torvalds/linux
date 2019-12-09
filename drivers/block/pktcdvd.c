@@ -2663,26 +2663,6 @@ static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, 
 	return ret;
 }
 
-#ifdef CONFIG_COMPAT
-static int pkt_compat_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-	/* compatible */
-	case CDROMEJECT:
-	case CDROMMULTISESSION:
-	case CDROMREADTOCENTRY:
-	case CDROM_SEND_PACKET: /* compat mode handled in scsi_cmd_ioctl */
-	case SCSI_IOCTL_SEND_COMMAND:
-		return pkt_ioctl(bdev, mode, cmd, (unsigned long)compat_ptr(arg));
-
-	/* FIXME: no handler so far */
-	default:
-	case CDROM_LAST_WRITTEN:
-		return -ENOIOCTLCMD;
-	}
-}
-#endif
-
 static unsigned int pkt_check_events(struct gendisk *disk,
 				     unsigned int clearing)
 {
@@ -2704,9 +2684,7 @@ static const struct block_device_operations pktcdvd_ops = {
 	.open =			pkt_open,
 	.release =		pkt_close,
 	.ioctl =		pkt_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl =		pkt_compat_ioctl,
-#endif
+	.compat_ioctl =		blkdev_compat_ptr_ioctl,
 	.check_events =		pkt_check_events,
 };
 
