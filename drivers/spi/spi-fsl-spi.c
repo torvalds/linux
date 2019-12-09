@@ -746,8 +746,8 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	if (ret)
 		goto err;
 
-	irq = irq_of_parse_and_map(np, 0);
-	if (!irq) {
+	irq = of_irq_to_resource(np, 0, NULL);
+	if (irq <= 0) {
 		ret = -EINVAL;
 		goto err;
 	}
@@ -761,7 +761,6 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	return 0;
 
 err:
-	irq_dispose_mapping(irq);
 	return ret;
 }
 
