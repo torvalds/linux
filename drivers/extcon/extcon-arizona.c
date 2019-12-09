@@ -872,38 +872,18 @@ static int arizona_micd_read(struct arizona_extcon_info *info)
 	return val;
 }
 
-static void arizona_micd_detect(struct work_struct *work)
+static int arizona_micdet_reading(void *priv)
 {
-	struct arizona_extcon_info *info = container_of(work,
-						struct arizona_extcon_info,
-						micd_detect_work.work);
+	struct arizona_extcon_info *info = priv;
 	struct arizona *arizona = info->arizona;
-	unsigned int val = 0, lvl;
-	int ret, i, key;
-
-	cancel_delayed_work_sync(&info->micd_timeout_work);
-
-	mutex_lock(&info->lock);
-
-	/* If the cable was removed while measuring ignore the result */
-	ret = extcon_get_state(info->edev, EXTCON_MECHANICAL);
-	if (ret < 0) {
-		dev_err(arizona->dev, "Failed to check cable state: %d\n",
-				ret);
-		mutex_unlock(&info->lock);
-		return;
-	} else if (!ret) {
-		dev_dbg(arizona->dev, "Ignoring MICDET for removed cable\n");
-		mutex_unlock(&info->lock);
-		return;
-	}
+	int ret, val;
 
 	if (info->detecting && arizona->pdata.micd_software_compare)
 		ret = arizona_micd_adc_read(info);
 	else
 		ret = arizona_micd_read(info);
 	if (ret < 0)
-		goto handled;
+		return ret;
 
 	val = ret;
 
@@ -913,11 +893,11 @@ static void arizona_micd_detect(struct work_struct *work)
 		info->mic = false;
 		info->detecting = false;
 		arizona_identify_headphone(info);
-		goto handled;
+		return 0;
 	}
 
 	/* If we got a high impedence we should have a headset, report it. */
-	if (info->detecting && (val & ARIZONA_MICD_LVL_8)) {
+	if (val & ARIZONA_MICD_LVL_8) {
 		info->mic = true;
 		info->detecting = false;
 
@@ -936,7 +916,7 @@ static void arizona_micd_detect(struct work_struct *work)
 				ret);
 		}
 
-		goto handled;
+		return 0;
 	}
 
 	/* If we detected a lower impedence during initial startup
@@ -945,7 +925,7 @@ static void arizona_micd_detect(struct work_struct *work)
 	 * plain headphones.  If both polarities report a low
 	 * impedence then give up and report headphones.
 	 */
-	if (info->detecting && (val & MICD_LVL_1_TO_7)) {
+	if (val & MICD_LVL_1_TO_7) {
 		if (info->jack_flips >= info->micd_num_modes * 10) {
 			dev_dbg(arizona->dev, "Detected HP/line\n");
 
@@ -959,10 +939,42 @@ static void arizona_micd_detect(struct work_struct *work)
 			arizona_extcon_set_mode(info, info->micd_mode);
 
 			info->jack_flips++;
+
+			if (arizona->pdata.micd_software_compare)
+				regmap_update_bits(arizona->regmap,
+						   ARIZONA_MIC_DETECT_1,
+						   ARIZONA_MICD_ENA,
+						   ARIZONA_MICD_ENA);
+
+			queue_delayed_work(system_power_efficient_wq,
+					   &info->micd_timeout_work,
+					   msecs_to_jiffies(arizona->pdata.micd_timeout));
 		}
 
-		goto handled;
+		return 0;
 	}
+
+	/*
+	 * If we're still detecting and we detect a short then we've
+	 * got a headphone.
+	 */
+	dev_dbg(arizona->dev, "Headphone detected\n");
+	info->detecting = false;
+
+	arizona_identify_headphone(info);
+
+	return 0;
+}
+
+static int arizona_button_reading(void *priv)
+{
+	struct arizona_extcon_info *info = priv;
+	struct arizona *arizona = info->arizona;
+	int val, key, lvl, i;
+
+	val = arizona_micd_read(info);
+	if (val < 0)
+		return val;
 
 	/*
 	 * If we're still detecting and we detect a short then we've
@@ -986,11 +998,6 @@ static void arizona_micd_detect(struct work_struct *work)
 			} else {
 				dev_err(arizona->dev, "Button out of range\n");
 			}
-		} else if (info->detecting) {
-			dev_dbg(arizona->dev, "Headphone detected\n");
-			info->detecting = false;
-
-			arizona_identify_headphone(info);
 		} else {
 			dev_warn(arizona->dev, "Button with no mic: %x\n",
 				 val);
@@ -1004,18 +1011,38 @@ static void arizona_micd_detect(struct work_struct *work)
 		arizona_extcon_pulse_micbias(info);
 	}
 
-handled:
-	if (info->detecting) {
-		if (arizona->pdata.micd_software_compare)
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_MIC_DETECT_1,
-					   ARIZONA_MICD_ENA,
-					   ARIZONA_MICD_ENA);
+	return 0;
+}
 
-		queue_delayed_work(system_power_efficient_wq,
-				   &info->micd_timeout_work,
-				   msecs_to_jiffies(arizona->pdata.micd_timeout));
+static void arizona_micd_detect(struct work_struct *work)
+{
+	struct arizona_extcon_info *info = container_of(work,
+						struct arizona_extcon_info,
+						micd_detect_work.work);
+	struct arizona *arizona = info->arizona;
+	int ret;
+
+	cancel_delayed_work_sync(&info->micd_timeout_work);
+
+	mutex_lock(&info->lock);
+
+	/* If the cable was removed while measuring ignore the result */
+	ret = extcon_get_state(info->edev, EXTCON_MECHANICAL);
+	if (ret < 0) {
+		dev_err(arizona->dev, "Failed to check cable state: %d\n",
+				ret);
+		mutex_unlock(&info->lock);
+		return;
+	} else if (!ret) {
+		dev_dbg(arizona->dev, "Ignoring MICDET for removed cable\n");
+		mutex_unlock(&info->lock);
+		return;
 	}
+
+	if (info->detecting)
+		arizona_micdet_reading(info);
+	else
+		arizona_button_reading(info);
 
 	pm_runtime_mark_last_busy(info->dev);
 	mutex_unlock(&info->lock);
