@@ -72,50 +72,32 @@ static int lookup_zone(const struct adfs_discmap *dm, const unsigned int idlen,
 	const u32 idmask = (1 << idlen) - 1;
 	unsigned char *map = dm->dm_bh->b_data;
 	unsigned int start = dm->dm_startbit;
-	unsigned int mapptr;
+	unsigned int fragend;
 	u32 frag;
 
 	do {
 		frag = GET_FRAG_ID(map, start, idmask);
-		mapptr = start + idlen;
 
-		/*
-		 * find end of fragment
-		 */
-		{
-			__le32 *_map = (__le32 *)map;
-			u32 v = le32_to_cpu(_map[mapptr >> 5]) >> (mapptr & 31);
-			while (v == 0) {
-				mapptr = (mapptr & ~31) + 32;
-				if (mapptr >= endbit)
-					goto error;
-				v = le32_to_cpu(_map[mapptr >> 5]);
-			}
+		fragend = find_next_bit_le(map, endbit, start + idlen);
+		if (fragend >= endbit)
+			goto error;
 
-			mapptr += 1 + ffz(~v);
+		if (frag == frag_id) {
+			unsigned int length = fragend + 1 - start;
+
+			if (*offset < length)
+				return start + *offset;
+			*offset -= length;
 		}
 
-		if (frag == frag_id)
-			goto found;
-again:
-		start = mapptr;
-	} while (mapptr < endbit);
+		start = fragend + 1;
+	} while (start < endbit);
 	return -1;
 
 error:
 	printk(KERN_ERR "adfs: oversized fragment 0x%x at 0x%x-0x%x\n",
-		frag, start, mapptr);
+		frag, start, fragend);
 	return -1;
-
-found:
-	{
-		int length = mapptr - start;
-		if (*offset >= length) {
-			*offset -= length;
-			goto again;
-		}
-	}
-	return start + *offset;
 }
 
 /*
@@ -132,7 +114,7 @@ scan_free_map(struct adfs_sb_info *asb, struct adfs_discmap *dm)
 	const unsigned int frag_idlen = idlen <= 15 ? idlen : 15;
 	const u32 idmask = (1 << frag_idlen) - 1;
 	unsigned char *map = dm->dm_bh->b_data;
-	unsigned int start = 8, mapptr;
+	unsigned int start = 8, fragend;
 	u32 frag;
 	unsigned long total = 0;
 
@@ -151,29 +133,13 @@ scan_free_map(struct adfs_sb_info *asb, struct adfs_discmap *dm)
 	do {
 		start += frag;
 
-		/*
-		 * get fragment id
-		 */
 		frag = GET_FRAG_ID(map, start, idmask);
-		mapptr = start + idlen;
 
-		/*
-		 * find end of fragment
-		 */
-		{
-			__le32 *_map = (__le32 *)map;
-			u32 v = le32_to_cpu(_map[mapptr >> 5]) >> (mapptr & 31);
-			while (v == 0) {
-				mapptr = (mapptr & ~31) + 32;
-				if (mapptr >= endbit)
-					goto error;
-				v = le32_to_cpu(_map[mapptr >> 5]);
-			}
+		fragend = find_next_bit_le(map, endbit, start + idlen);
+		if (fragend >= endbit)
+			goto error;
 
-			mapptr += 1 + ffz(~v);
-		}
-
-		total += mapptr - start;
+		total += fragend + 1 - start;
 	} while (frag >= idlen + 1);
 
 	if (frag != 0)
