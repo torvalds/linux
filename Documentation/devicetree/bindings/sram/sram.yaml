@@ -64,15 +64,16 @@ patternProperties:
         description:
           Should contain a vendor specific string in the form
           <vendor>,[<device>-]<usage>
-        enum:
-          - allwinner,sun9i-a80-smp-sram
-          - amlogic,meson8-smp-sram
-          - amlogic,meson8b-smp-sram
-          - renesas,smp-sram
-          - rockchip,rk3066-smp-sram
-          - samsung,exynos4210-sysram
-          - samsung,exynos4210-sysram-ns
-          - socionext,milbeaut-smp-sram
+        contains:
+          enum:
+            - allwinner,sun9i-a80-smp-sram
+            - amlogic,meson8-smp-sram
+            - amlogic,meson8b-smp-sram
+            - renesas,smp-sram
+            - rockchip,rk3066-smp-sram
+            - samsung,exynos4210-sysram
+            - samsung,exynos4210-sysram-ns
+            - socionext,milbeaut-smp-sram
 
       reg:
         description:
