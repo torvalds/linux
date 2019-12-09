@@ -19,11 +19,38 @@ static unsigned int adfs_fplus_offset(const struct adfs_bigdirheader *h,
 static int adfs_fplus_validate_header(const struct adfs_bigdirheader *h)
 {
 	unsigned int size = le32_to_cpu(h->bigdirsize);
+	unsigned int len;
 
 	if (h->bigdirversion[0] != 0 || h->bigdirversion[1] != 0 ||
 	    h->bigdirversion[2] != 0 ||
 	    h->bigdirstartname != cpu_to_le32(BIGDIRSTARTNAME) ||
-	    size & 2047)
+	    !size || size & 2047 || size > SZ_4M)
+		return -EIO;
+
+	size -= sizeof(struct adfs_bigdirtail) +
+		offsetof(struct adfs_bigdirheader, bigdirname);
+
+	/* Check that bigdirnamelen fits within the directory */
+	len = ALIGN(le32_to_cpu(h->bigdirnamelen), 4);
+	if (len > size)
+		return -EIO;
+
+	size -= len;
+
+	/* Check that bigdirnamesize fits within the directory */
+	len = le32_to_cpu(h->bigdirnamesize);
+	if (len > size)
+		return -EIO;
+
+	size -= len;
+
+	/*
+	 * Avoid division, we know that absolute maximum number of entries
+	 * can not be so large to cause overflow of the multiplication below.
+	 */
+	len = le32_to_cpu(h->bigdirentries);
+	if (len > SZ_4M / sizeof(struct adfs_bigdirentry) ||
+	    len * sizeof(struct adfs_bigdirentry) > size)
 		return -EIO;
 
 	return 0;
