@@ -80,6 +80,7 @@ enum {
 	IORING_OP_FALLOCATE,
 	IORING_OP_OPENAT,
 	IORING_OP_CLOSE,
+	IORING_OP_FILES_UPDATE,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,

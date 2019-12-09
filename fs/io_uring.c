@@ -179,6 +179,21 @@ struct fixed_file_table {
 	struct file		**files;
 };
 
+enum {
+	FFD_F_ATOMIC,
+};
+
+struct fixed_file_data {
+	struct fixed_file_table		*table;
+	struct io_ring_ctx		*ctx;
+
+	struct percpu_ref		refs;
+	struct llist_head		put_llist;
+	unsigned long			state;
+	struct work_struct		ref_work;
+	struct completion		done;
+};
+
 struct io_ring_ctx {
 	struct {
 		struct percpu_ref	refs;
@@ -231,7 +246,7 @@ struct io_ring_ctx {
 	 * readers must ensure that ->refs is alive as long as the file* is
 	 * used. Only updated through io_uring_register(2).
 	 */
-	struct fixed_file_table	*file_table;
+	struct fixed_file_data	*file_data;
 	unsigned		nr_user_files;
 
 	/* if used, fixed mapped user buffers */
@@ -370,6 +385,13 @@ struct io_open {
 	int				flags;
 };
 
+struct io_files_update {
+	struct file			*file;
+	u64				arg;
+	u32				nr_args;
+	u32				offset;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -421,6 +443,7 @@ struct io_kiocb {
 		struct io_sr_msg	sr_msg;
 		struct io_open		open;
 		struct io_close		close;
+		struct io_files_update	files_update;
 	};
 
 	struct io_async_ctx		*io;
@@ -496,6 +519,9 @@ static void io_double_put_req(struct io_kiocb *req);
 static void __io_double_put_req(struct io_kiocb *req);
 static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
+static int __io_sqe_files_update(struct io_ring_ctx *ctx,
+				 struct io_uring_files_update *ip,
+				 unsigned nr_args);
 
 static struct kmem_cache *req_cachep;
 
@@ -945,6 +971,7 @@ static void io_free_req_many(struct io_ring_ctx *ctx, void **reqs, int *nr)
 	if (*nr) {
 		kmem_cache_free_bulk(req_cachep, *nr, reqs);
 		percpu_ref_put_many(&ctx->refs, *nr);
+		percpu_ref_put_many(&ctx->file_data->refs, *nr);
 		*nr = 0;
 	}
 }
@@ -955,8 +982,12 @@ static void __io_free_req(struct io_kiocb *req)
 
 	if (req->io)
 		kfree(req->io);
-	if (req->file && !(req->flags & REQ_F_FIXED_FILE))
-		fput(req->file);
+	if (req->file) {
+		if (req->flags & REQ_F_FIXED_FILE)
+			percpu_ref_put(&ctx->file_data->refs);
+		else
+			fput(req->file);
+	}
 	if (req->flags & REQ_F_INFLIGHT) {
 		unsigned long flags;
 
@@ -3293,6 +3324,45 @@ static int io_async_cancel(struct io_kiocb *req, struct io_kiocb **nxt)
 	return 0;
 }
 
+static int io_files_update_prep(struct io_kiocb *req,
+				const struct io_uring_sqe *sqe)
+{
+	if (sqe->flags || sqe->ioprio || sqe->rw_flags)
+		return -EINVAL;
+
+	req->files_update.offset = READ_ONCE(sqe->off);
+	req->files_update.nr_args = READ_ONCE(sqe->len);
+	if (!req->files_update.nr_args)
+		return -EINVAL;
+	req->files_update.arg = READ_ONCE(sqe->addr);
+	return 0;
+}
+
+static int io_files_update(struct io_kiocb *req, bool force_nonblock)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_uring_files_update up;
+	int ret;
+
+	if (force_nonblock) {
+		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
+		return -EAGAIN;
+	}
+
+	up.offset = req->files_update.offset;
+	up.fds = req->files_update.arg;
+
+	mutex_lock(&ctx->uring_lock);
+	ret = __io_sqe_files_update(ctx, &up, req->files_update.nr_args);
+	mutex_unlock(&ctx->uring_lock);
+
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	io_put_req(req);
+	return 0;
+}
+
 static int io_req_defer_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
@@ -3353,6 +3423,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 		break;
 	case IORING_OP_CLOSE:
 		ret = io_close_prep(req, sqe);
+		break;
+	case IORING_OP_FILES_UPDATE:
+		ret = io_files_update_prep(req, sqe);
 		break;
 	default:
 		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
@@ -3532,6 +3605,14 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		}
 		ret = io_close(req, nxt, force_nonblock);
 		break;
+	case IORING_OP_FILES_UPDATE:
+		if (sqe) {
+			ret = io_files_update_prep(req, sqe);
+			if (ret)
+				break;
+		}
+		ret = io_files_update(req, force_nonblock);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -3631,8 +3712,8 @@ static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
 {
 	struct fixed_file_table *table;
 
-	table = &ctx->file_table[index >> IORING_FILE_TABLE_SHIFT];
-	return table->files[index & IORING_FILE_TABLE_MASK];
+	table = &ctx->file_data->table[index >> IORING_FILE_TABLE_SHIFT];
+	return table->files[index & IORING_FILE_TABLE_MASK];;
 }
 
 static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
@@ -3653,7 +3734,7 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 		return ret;
 
 	if (flags & IOSQE_FIXED_FILE) {
-		if (unlikely(!ctx->file_table ||
+		if (unlikely(!ctx->file_data ||
 		    (unsigned) fd >= ctx->nr_user_files))
 			return -EBADF;
 		fd = array_index_nospec(fd, ctx->nr_user_files);
@@ -3661,6 +3742,7 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 		if (!req->file)
 			return -EBADF;
 		req->flags |= REQ_F_FIXED_FILE;
+		percpu_ref_get(&ctx->file_data->refs);
 	} else {
 		if (req->needs_fixed_file)
 			return -EBADF;
@@ -4338,19 +4420,37 @@ static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 #endif
 }
 
+static void io_file_ref_kill(struct percpu_ref *ref)
+{
+	struct fixed_file_data *data;
+
+	data = container_of(ref, struct fixed_file_data, refs);
+	complete(&data->done);
+}
+
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
+	struct fixed_file_data *data = ctx->file_data;
 	unsigned nr_tables, i;
 
-	if (!ctx->file_table)
+	if (!data)
 		return -ENXIO;
+
+	/* protect against inflight atomic switch, which drops the ref */
+	flush_work(&data->ref_work);
+	percpu_ref_get(&data->refs);
+	percpu_ref_kill_and_confirm(&data->refs, io_file_ref_kill);
+	wait_for_completion(&data->done);
+	percpu_ref_put(&data->refs);
+	percpu_ref_exit(&data->refs);
 
 	__io_sqe_files_unregister(ctx);
 	nr_tables = DIV_ROUND_UP(ctx->nr_user_files, IORING_MAX_FILES_TABLE);
 	for (i = 0; i < nr_tables; i++)
-		kfree(ctx->file_table[i].files);
-	kfree(ctx->file_table);
-	ctx->file_table = NULL;
+		kfree(data->table[i].files);
+	kfree(data->table);
+	kfree(data);
+	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
 	return 0;
 }
@@ -4381,16 +4481,6 @@ static void io_finish_async(struct io_ring_ctx *ctx)
 }
 
 #if defined(CONFIG_UNIX)
-static void io_destruct_skb(struct sk_buff *skb)
-{
-	struct io_ring_ctx *ctx = skb->sk->sk_user_data;
-
-	if (ctx->io_wq)
-		io_wq_flush(ctx->io_wq);
-
-	unix_destruct_scm(skb);
-}
-
 /*
  * Ensure the UNIX gc is aware of our file set, so we are certain that
  * the io_uring can be safely unregistered on process exit, even if we have
@@ -4438,7 +4528,7 @@ static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int nr, int offset)
 		fpl->max = SCM_MAX_FD;
 		fpl->count = nr_files;
 		UNIXCB(skb).fp = fpl;
-		skb->destructor = io_destruct_skb;
+		skb->destructor = unix_destruct_scm;
 		refcount_add(skb->truesize, &sk->sk_wmem_alloc);
 		skb_queue_head(&sk->sk_receive_queue, skb);
 
@@ -4500,7 +4590,7 @@ static int io_sqe_alloc_file_tables(struct io_ring_ctx *ctx, unsigned nr_tables,
 	int i;
 
 	for (i = 0; i < nr_tables; i++) {
-		struct fixed_file_table *table = &ctx->file_table[i];
+		struct fixed_file_table *table = &ctx->file_data->table[i];
 		unsigned this_files;
 
 		this_files = min(nr_files, IORING_MAX_FILES_TABLE);
@@ -4515,101 +4605,15 @@ static int io_sqe_alloc_file_tables(struct io_ring_ctx *ctx, unsigned nr_tables,
 		return 0;
 
 	for (i = 0; i < nr_tables; i++) {
-		struct fixed_file_table *table = &ctx->file_table[i];
+		struct fixed_file_table *table = &ctx->file_data->table[i];
 		kfree(table->files);
 	}
 	return 1;
 }
 
-static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
-				 unsigned nr_args)
-{
-	__s32 __user *fds = (__s32 __user *) arg;
-	unsigned nr_tables;
-	int fd, ret = 0;
-	unsigned i;
-
-	if (ctx->file_table)
-		return -EBUSY;
-	if (!nr_args)
-		return -EINVAL;
-	if (nr_args > IORING_MAX_FIXED_FILES)
-		return -EMFILE;
-
-	nr_tables = DIV_ROUND_UP(nr_args, IORING_MAX_FILES_TABLE);
-	ctx->file_table = kcalloc(nr_tables, sizeof(struct fixed_file_table),
-					GFP_KERNEL);
-	if (!ctx->file_table)
-		return -ENOMEM;
-
-	if (io_sqe_alloc_file_tables(ctx, nr_tables, nr_args)) {
-		kfree(ctx->file_table);
-		ctx->file_table = NULL;
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
-		struct fixed_file_table *table;
-		unsigned index;
-
-		ret = -EFAULT;
-		if (copy_from_user(&fd, &fds[i], sizeof(fd)))
-			break;
-		/* allow sparse sets */
-		if (fd == -1) {
-			ret = 0;
-			continue;
-		}
-
-		table = &ctx->file_table[i >> IORING_FILE_TABLE_SHIFT];
-		index = i & IORING_FILE_TABLE_MASK;
-		table->files[index] = fget(fd);
-
-		ret = -EBADF;
-		if (!table->files[index])
-			break;
-		/*
-		 * Don't allow io_uring instances to be registered. If UNIX
-		 * isn't enabled, then this causes a reference cycle and this
-		 * instance can never get freed. If UNIX is enabled we'll
-		 * handle it just fine, but there's still no point in allowing
-		 * a ring fd as it doesn't support regular read/write anyway.
-		 */
-		if (table->files[index]->f_op == &io_uring_fops) {
-			fput(table->files[index]);
-			break;
-		}
-		ret = 0;
-	}
-
-	if (ret) {
-		for (i = 0; i < ctx->nr_user_files; i++) {
-			struct file *file;
-
-			file = io_file_from_index(ctx, i);
-			if (file)
-				fput(file);
-		}
-		for (i = 0; i < nr_tables; i++)
-			kfree(ctx->file_table[i].files);
-
-		kfree(ctx->file_table);
-		ctx->file_table = NULL;
-		ctx->nr_user_files = 0;
-		return ret;
-	}
-
-	ret = io_sqe_files_scm(ctx);
-	if (ret)
-		io_sqe_files_unregister(ctx);
-
-	return ret;
-}
-
-static void io_sqe_file_unregister(struct io_ring_ctx *ctx, int index)
+static void io_ring_file_put(struct io_ring_ctx *ctx, struct file *file)
 {
 #if defined(CONFIG_UNIX)
-	struct file *file = io_file_from_index(ctx, index);
 	struct sock *sock = ctx->ring_sock->sk;
 	struct sk_buff_head list, *head = &sock->sk_receive_queue;
 	struct sk_buff *skb;
@@ -4665,8 +4669,155 @@ static void io_sqe_file_unregister(struct io_ring_ctx *ctx, int index)
 		spin_unlock_irq(&head->lock);
 	}
 #else
-	fput(io_file_from_index(ctx, index));
+	fput(file);
 #endif
+}
+
+struct io_file_put {
+	struct llist_node llist;
+	struct file *file;
+	struct completion *done;
+};
+
+static void io_ring_file_ref_switch(struct work_struct *work)
+{
+	struct io_file_put *pfile, *tmp;
+	struct fixed_file_data *data;
+	struct llist_node *node;
+
+	data = container_of(work, struct fixed_file_data, ref_work);
+
+	while ((node = llist_del_all(&data->put_llist)) != NULL) {
+		llist_for_each_entry_safe(pfile, tmp, node, llist) {
+			io_ring_file_put(data->ctx, pfile->file);
+			if (pfile->done)
+				complete(pfile->done);
+			else
+				kfree(pfile);
+		}
+	}
+
+	percpu_ref_get(&data->refs);
+	percpu_ref_switch_to_percpu(&data->refs);
+}
+
+static void io_file_data_ref_zero(struct percpu_ref *ref)
+{
+	struct fixed_file_data *data;
+
+	data = container_of(ref, struct fixed_file_data, refs);
+
+	/* we can't safely switch from inside this context, punt to wq */
+	queue_work(system_wq, &data->ref_work);
+}
+
+static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
+				 unsigned nr_args)
+{
+	__s32 __user *fds = (__s32 __user *) arg;
+	unsigned nr_tables;
+	struct file *file;
+	int fd, ret = 0;
+	unsigned i;
+
+	if (ctx->file_data)
+		return -EBUSY;
+	if (!nr_args)
+		return -EINVAL;
+	if (nr_args > IORING_MAX_FIXED_FILES)
+		return -EMFILE;
+
+	ctx->file_data = kzalloc(sizeof(*ctx->file_data), GFP_KERNEL);
+	if (!ctx->file_data)
+		return -ENOMEM;
+	ctx->file_data->ctx = ctx;
+	init_completion(&ctx->file_data->done);
+
+	nr_tables = DIV_ROUND_UP(nr_args, IORING_MAX_FILES_TABLE);
+	ctx->file_data->table = kcalloc(nr_tables,
+					sizeof(struct fixed_file_table),
+					GFP_KERNEL);
+	if (!ctx->file_data->table) {
+		kfree(ctx->file_data);
+		ctx->file_data = NULL;
+		return -ENOMEM;
+	}
+
+	if (percpu_ref_init(&ctx->file_data->refs, io_file_data_ref_zero,
+				PERCPU_REF_ALLOW_REINIT, GFP_KERNEL)) {
+		kfree(ctx->file_data->table);
+		kfree(ctx->file_data);
+		ctx->file_data = NULL;
+		return -ENOMEM;
+	}
+	ctx->file_data->put_llist.first = NULL;
+	INIT_WORK(&ctx->file_data->ref_work, io_ring_file_ref_switch);
+
+	if (io_sqe_alloc_file_tables(ctx, nr_tables, nr_args)) {
+		percpu_ref_exit(&ctx->file_data->refs);
+		kfree(ctx->file_data->table);
+		kfree(ctx->file_data);
+		ctx->file_data = NULL;
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
+		struct fixed_file_table *table;
+		unsigned index;
+
+		ret = -EFAULT;
+		if (copy_from_user(&fd, &fds[i], sizeof(fd)))
+			break;
+		/* allow sparse sets */
+		if (fd == -1) {
+			ret = 0;
+			continue;
+		}
+
+		table = &ctx->file_data->table[i >> IORING_FILE_TABLE_SHIFT];
+		index = i & IORING_FILE_TABLE_MASK;
+		file = fget(fd);
+
+		ret = -EBADF;
+		if (!file)
+			break;
+
+		/*
+		 * Don't allow io_uring instances to be registered. If UNIX
+		 * isn't enabled, then this causes a reference cycle and this
+		 * instance can never get freed. If UNIX is enabled we'll
+		 * handle it just fine, but there's still no point in allowing
+		 * a ring fd as it doesn't support regular read/write anyway.
+		 */
+		if (file->f_op == &io_uring_fops) {
+			fput(file);
+			break;
+		}
+		ret = 0;
+		table->files[index] = file;
+	}
+
+	if (ret) {
+		for (i = 0; i < ctx->nr_user_files; i++) {
+			file = io_file_from_index(ctx, i);
+			if (file)
+				fput(file);
+		}
+		for (i = 0; i < nr_tables; i++)
+			kfree(ctx->file_data->table[i].files);
+
+		kfree(ctx->file_data->table);
+		kfree(ctx->file_data);
+		ctx->file_data = NULL;
+		ctx->nr_user_files = 0;
+		return ret;
+	}
+
+	ret = io_sqe_files_scm(ctx);
+	if (ret)
+		io_sqe_files_unregister(ctx);
+
+	return ret;
 }
 
 static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
@@ -4712,29 +4863,65 @@ static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
 #endif
 }
 
-static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
-			       unsigned nr_args)
+static void io_atomic_switch(struct percpu_ref *ref)
 {
-	struct io_uring_files_update up;
+	struct fixed_file_data *data;
+
+	data = container_of(ref, struct fixed_file_data, refs);
+	clear_bit(FFD_F_ATOMIC, &data->state);
+}
+
+static bool io_queue_file_removal(struct fixed_file_data *data,
+				  struct file *file)
+{
+	struct io_file_put *pfile, pfile_stack;
+	DECLARE_COMPLETION_ONSTACK(done);
+
+	/*
+	 * If we fail allocating the struct we need for doing async reomval
+	 * of this file, just punt to sync and wait for it.
+	 */
+	pfile = kzalloc(sizeof(*pfile), GFP_KERNEL);
+	if (!pfile) {
+		pfile = &pfile_stack;
+		pfile->done = &done;
+	}
+
+	pfile->file = file;
+	llist_add(&pfile->llist, &data->put_llist);
+
+	if (pfile == &pfile_stack) {
+		if (!test_and_set_bit(FFD_F_ATOMIC, &data->state)) {
+			percpu_ref_put(&data->refs);
+			percpu_ref_switch_to_atomic(&data->refs,
+							io_atomic_switch);
+		}
+		wait_for_completion(&done);
+		flush_work(&data->ref_work);
+		return false;
+	}
+
+	return true;
+}
+
+static int __io_sqe_files_update(struct io_ring_ctx *ctx,
+				 struct io_uring_files_update *up,
+				 unsigned nr_args)
+{
+	struct fixed_file_data *data = ctx->file_data;
+	bool ref_switch = false;
+	struct file *file;
 	__s32 __user *fds;
 	int fd, i, err;
 	__u32 done;
 
-	if (!ctx->file_table)
-		return -ENXIO;
-	if (!nr_args)
-		return -EINVAL;
-	if (copy_from_user(&up, arg, sizeof(up)))
-		return -EFAULT;
-	if (up.resv)
-		return -EINVAL;
-	if (check_add_overflow(up.offset, nr_args, &done))
+	if (check_add_overflow(up->offset, nr_args, &done))
 		return -EOVERFLOW;
 	if (done > ctx->nr_user_files)
 		return -EINVAL;
 
 	done = 0;
-	fds = u64_to_user_ptr(up.fds);
+	fds = u64_to_user_ptr(up->fds);
 	while (nr_args) {
 		struct fixed_file_table *table;
 		unsigned index;
@@ -4744,16 +4931,16 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 			err = -EFAULT;
 			break;
 		}
-		i = array_index_nospec(up.offset, ctx->nr_user_files);
-		table = &ctx->file_table[i >> IORING_FILE_TABLE_SHIFT];
+		i = array_index_nospec(up->offset, ctx->nr_user_files);
+		table = &ctx->file_data->table[i >> IORING_FILE_TABLE_SHIFT];
 		index = i & IORING_FILE_TABLE_MASK;
 		if (table->files[index]) {
-			io_sqe_file_unregister(ctx, i);
+			file = io_file_from_index(ctx, index);
 			table->files[index] = NULL;
+			if (io_queue_file_removal(data, file))
+				ref_switch = true;
 		}
 		if (fd != -1) {
-			struct file *file;
-
 			file = fget(fd);
 			if (!file) {
 				err = -EBADF;
@@ -4779,10 +4966,31 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 		}
 		nr_args--;
 		done++;
-		up.offset++;
+		up->offset++;
+	}
+
+	if (ref_switch && !test_and_set_bit(FFD_F_ATOMIC, &data->state)) {
+		percpu_ref_put(&data->refs);
+		percpu_ref_switch_to_atomic(&data->refs, io_atomic_switch);
 	}
 
 	return done ? done : err;
+}
+static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
+			       unsigned nr_args)
+{
+	struct io_uring_files_update up;
+
+	if (!ctx->file_data)
+		return -ENXIO;
+	if (!nr_args)
+		return -EINVAL;
+	if (copy_from_user(&up, arg, sizeof(up)))
+		return -EFAULT;
+	if (up.resv)
+		return -EINVAL;
+
+	return __io_sqe_files_update(ctx, &up, nr_args);
 }
 
 static void io_put_work(struct io_wq_work *work)
@@ -5546,7 +5754,6 @@ static int io_uring_get_fd(struct io_ring_ctx *ctx)
 
 #if defined(CONFIG_UNIX)
 	ctx->ring_sock->file = file;
-	ctx->ring_sock->sk->sk_user_data = ctx;
 #endif
 	fd_install(ret, file);
 	return ret;
@@ -5710,18 +5917,22 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	if (percpu_ref_is_dying(&ctx->refs))
 		return -ENXIO;
 
-	percpu_ref_kill(&ctx->refs);
+	if (opcode != IORING_UNREGISTER_FILES &&
+	    opcode != IORING_REGISTER_FILES_UPDATE) {
+		percpu_ref_kill(&ctx->refs);
 
-	/*
-	 * Drop uring mutex before waiting for references to exit. If another
-	 * thread is currently inside io_uring_enter() it might need to grab
-	 * the uring_lock to make progress. If we hold it here across the drain
-	 * wait, then we can deadlock. It's safe to drop the mutex here, since
-	 * no new references will come in after we've killed the percpu ref.
-	 */
-	mutex_unlock(&ctx->uring_lock);
-	wait_for_completion(&ctx->completions[0]);
-	mutex_lock(&ctx->uring_lock);
+		/*
+		 * Drop uring mutex before waiting for references to exit. If
+		 * another thread is currently inside io_uring_enter() it might
+		 * need to grab the uring_lock to make progress. If we hold it
+		 * here across the drain wait, then we can deadlock. It's safe
+		 * to drop the mutex here, since no new references will come in
+		 * after we've killed the percpu ref.
+		 */
+		mutex_unlock(&ctx->uring_lock);
+		wait_for_completion(&ctx->completions[0]);
+		mutex_lock(&ctx->uring_lock);
+	}
 
 	switch (opcode) {
 	case IORING_REGISTER_BUFFERS:
@@ -5762,9 +5973,13 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		break;
 	}
 
-	/* bring the ctx back to life */
-	reinit_completion(&ctx->completions[0]);
-	percpu_ref_reinit(&ctx->refs);
+
+	if (opcode != IORING_UNREGISTER_FILES &&
+	    opcode != IORING_REGISTER_FILES_UPDATE) {
+		/* bring the ctx back to life */
+		reinit_completion(&ctx->completions[0]);
+		percpu_ref_reinit(&ctx->refs);
+	}
 	return ret;
 }
 
