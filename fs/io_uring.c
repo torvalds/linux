@@ -2996,12 +2996,7 @@ static int io_issue_sqe(struct io_kiocb *req, struct io_kiocb **nxt,
 		if (req->result == -EAGAIN)
 			return -EAGAIN;
 
-		/* workqueue context doesn't hold uring_lock, grab it now */
-		if (req->in_async)
-			mutex_lock(&ctx->uring_lock);
 		io_iopoll_req_issued(req);
-		if (req->in_async)
-			mutex_unlock(&ctx->uring_lock);
 	}
 
 	return 0;
@@ -3655,7 +3650,9 @@ static int io_sq_thread(void *data)
 		}
 
 		to_submit = min(to_submit, ctx->sq_entries);
+		mutex_lock(&ctx->uring_lock);
 		ret = io_submit_sqes(ctx, to_submit, NULL, -1, &cur_mm, true);
+		mutex_unlock(&ctx->uring_lock);
 		if (ret > 0)
 			inflight += ret;
 	}
