@@ -1915,15 +1915,15 @@ err_skip:
 	return err;
 }
 
-static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
+static int i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 {
 	if (exec->flags & __I915_EXEC_ILLEGAL_FLAGS)
-		return false;
+		return -EINVAL;
 
 	/* Kernel clipping was a DRI1 misfeature */
 	if (!(exec->flags & I915_EXEC_FENCE_ARRAY)) {
 		if (exec->num_cliprects || exec->cliprects_ptr)
-			return false;
+			return -EINVAL;
 	}
 
 	if (exec->DR4 == 0xffffffff) {
@@ -1931,12 +1931,12 @@ static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 		exec->DR4 = 0;
 	}
 	if (exec->DR1 || exec->DR4)
-		return false;
+		return -EINVAL;
 
 	if ((exec->batch_start_offset | exec->batch_len) & 0x7)
-		return false;
+		return -EINVAL;
 
-	return true;
+	return 0;
 }
 
 static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
@@ -2768,8 +2768,9 @@ i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
 	exec2.flags = I915_EXEC_RENDER;
 	i915_execbuffer2_set_context_id(exec2, 0);
 
-	if (!i915_gem_check_execbuffer(&exec2))
-		return -EINVAL;
+	err = i915_gem_check_execbuffer(&exec2);
+	if (err)
+		return err;
 
 	/* Copy in the exec list from userland */
 	exec_list = kvmalloc_array(count, sizeof(*exec_list),
@@ -2846,8 +2847,9 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	if (!i915_gem_check_execbuffer(args))
-		return -EINVAL;
+	err = i915_gem_check_execbuffer(args);
+	if (err)
+		return err;
 
 	/* Allocate an extra slot for use by the command parser */
 	exec2_list = kvmalloc_array(count + 1, eb_element_size(),
