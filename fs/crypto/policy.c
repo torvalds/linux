@@ -29,6 +29,26 @@ bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
 	return !memcmp(policy1, policy2, fscrypt_policy_size(policy1));
 }
 
+static bool supported_direct_key_modes(const struct inode *inode,
+				       u32 contents_mode, u32 filenames_mode)
+{
+	const struct fscrypt_mode *mode;
+
+	if (contents_mode != filenames_mode) {
+		fscrypt_warn(inode,
+			     "Direct key flag not allowed with different contents and filenames modes");
+		return false;
+	}
+	mode = &fscrypt_modes[contents_mode];
+
+	if (mode->ivsize < offsetofend(union fscrypt_iv, nonce)) {
+		fscrypt_warn(inode, "Direct key flag not allowed with %s",
+			     mode->friendly_name);
+		return false;
+	}
+	return true;
+}
+
 static bool supported_iv_ino_lblk_64_policy(
 					const struct fscrypt_policy_v2 *policy,
 					const struct inode *inode)
@@ -82,6 +102,11 @@ static bool fscrypt_supported_v1_policy(const struct fscrypt_policy_v1 *policy,
 		return false;
 	}
 
+	if ((policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) &&
+	    !supported_direct_key_modes(inode, policy->contents_encryption_mode,
+					policy->filenames_encryption_mode))
+		return false;
+
 	return true;
 }
 
@@ -102,6 +127,11 @@ static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
 			     policy->flags);
 		return false;
 	}
+
+	if ((policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) &&
+	    !supported_direct_key_modes(inode, policy->contents_encryption_mode,
+					policy->filenames_encryption_mode))
+		return false;
 
 	if ((policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) &&
 	    !supported_iv_ino_lblk_64_policy(policy, inode))

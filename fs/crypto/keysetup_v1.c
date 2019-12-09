@@ -253,22 +253,7 @@ err_free_dk:
 static int setup_v1_file_key_direct(struct fscrypt_info *ci,
 				    const u8 *raw_master_key)
 {
-	const struct fscrypt_mode *mode = ci->ci_mode;
 	struct fscrypt_direct_key *dk;
-
-	if (!fscrypt_mode_supports_direct_key(mode)) {
-		fscrypt_warn(ci->ci_inode,
-			     "Direct key mode not allowed with %s",
-			     mode->friendly_name);
-		return -EINVAL;
-	}
-
-	if (ci->ci_policy.v1.contents_encryption_mode !=
-	    ci->ci_policy.v1.filenames_encryption_mode) {
-		fscrypt_warn(ci->ci_inode,
-			     "Direct key mode not allowed with different contents and filenames modes");
-		return -EINVAL;
-	}
 
 	dk = fscrypt_get_direct_key(ci, raw_master_key);
 	if (IS_ERR(dk))

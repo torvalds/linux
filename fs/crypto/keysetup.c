@@ -13,7 +13,7 @@
 
 #include "fscrypt_private.h"
 
-static struct fscrypt_mode available_modes[] = {
+struct fscrypt_mode fscrypt_modes[] = {
 	[FSCRYPT_MODE_AES_256_XTS] = {
 		.friendly_name = "AES-256-XTS",
 		.cipher_str = "xts(aes)",
@@ -51,10 +51,10 @@ select_encryption_mode(const union fscrypt_policy *policy,
 		       const struct inode *inode)
 {
 	if (S_ISREG(inode->i_mode))
-		return &available_modes[fscrypt_policy_contents_mode(policy)];
+		return &fscrypt_modes[fscrypt_policy_contents_mode(policy)];
 
 	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
-		return &available_modes[fscrypt_policy_fnames_mode(policy)];
+		return &fscrypt_modes[fscrypt_policy_fnames_mode(policy)];
 
 	WARN_ONCE(1, "fscrypt: filesystem tried to load encryption info for inode %lu, which is not encryptable (file type %d)\n",
 		  inode->i_ino, (inode->i_mode & S_IFMT));
@@ -129,7 +129,7 @@ static int setup_per_mode_key(struct fscrypt_info *ci,
 	const struct inode *inode = ci->ci_inode;
 	const struct super_block *sb = inode->i_sb;
 	struct fscrypt_mode *mode = ci->ci_mode;
-	u8 mode_num = mode - available_modes;
+	const u8 mode_num = mode - fscrypt_modes;
 	struct crypto_skcipher *tfm, *prev_tfm;
 	u8 mode_key[FSCRYPT_MAX_KEY_SIZE];
 	u8 hkdf_info[sizeof(mode_num) + sizeof(sb->s_uuid)];
@@ -189,12 +189,6 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 		 * This ensures that the master key is consistently used only
 		 * for HKDF, avoiding key reuse issues.
 		 */
-		if (!fscrypt_mode_supports_direct_key(ci->ci_mode)) {
-			fscrypt_warn(ci->ci_inode,
-				     "Direct key flag not allowed with %s",
-				     ci->ci_mode->friendly_name);
-			return -EINVAL;
-		}
 		return setup_per_mode_key(ci, mk, mk->mk_direct_tfms,
 					  HKDF_CONTEXT_DIRECT_KEY, false);
 	} else if (ci->ci_policy.v2.flags &
