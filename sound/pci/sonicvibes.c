@@ -681,17 +681,6 @@ static int snd_sonicvibes_capture_trigger(struct snd_pcm_substream *substream,
 	return snd_sonicvibes_trigger(sonic, 2, cmd);
 }
 
-static int snd_sonicvibes_hw_params(struct snd_pcm_substream *substream,
-				    struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_sonicvibes_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static int snd_sonicvibes_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
@@ -847,8 +836,6 @@ static const struct snd_pcm_ops snd_sonicvibes_playback_ops = {
 	.open =		snd_sonicvibes_playback_open,
 	.close =	snd_sonicvibes_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_sonicvibes_hw_params,
-	.hw_free =	snd_sonicvibes_hw_free,
 	.prepare =	snd_sonicvibes_playback_prepare,
 	.trigger =	snd_sonicvibes_playback_trigger,
 	.pointer =	snd_sonicvibes_playback_pointer,
@@ -858,8 +845,6 @@ static const struct snd_pcm_ops snd_sonicvibes_capture_ops = {
 	.open =		snd_sonicvibes_capture_open,
 	.close =	snd_sonicvibes_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_sonicvibes_hw_params,
-	.hw_free =	snd_sonicvibes_hw_free,
 	.prepare =	snd_sonicvibes_capture_prepare,
 	.trigger =	snd_sonicvibes_capture_trigger,
 	.pointer =	snd_sonicvibes_capture_pointer,
@@ -883,9 +868,8 @@ static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device)
 	strcpy(pcm->name, "S3 SonicVibes");
 	sonic->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &sonic->pci->dev,
-					      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &sonic->pci->dev, 64*1024, 128*1024);
 
 	return 0;
 }
