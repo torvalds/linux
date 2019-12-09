@@ -125,7 +125,6 @@ struct adfs_dir_ops {
 	int	(*update)(struct adfs_dir *dir, struct object_info *obj);
 	int	(*create)(struct adfs_dir *dir, struct object_info *obj);
 	int	(*remove)(struct adfs_dir *dir, struct object_info *obj);
-	int	(*sync)(struct adfs_dir *dir);
 };
 
 struct adfs_discmap {

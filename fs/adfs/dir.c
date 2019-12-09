@@ -38,6 +38,21 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 	return ADFS_SB(sb)->s_dir->read(sb, indaddr, size, dir);
 }
 
+static int adfs_dir_sync(struct adfs_dir *dir)
+{
+	int err = 0;
+	int i;
+
+	for (i = dir->nr_buffers - 1; i >= 0; i--) {
+		struct buffer_head *bh = dir->bhs[i];
+		sync_dirty_buffer(bh);
+		if (buffer_req(bh) && !buffer_uptodate(bh))
+			err = -EIO;
+	}
+
+	return err;
+}
+
 void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
 {
 	unsigned int dots, i;
@@ -135,10 +150,8 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 	printk(KERN_INFO "adfs_dir_update: object %06x in dir %06x\n",
 		 obj->indaddr, obj->parent_id);
 
-	if (!ops->update) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!ops->update)
+		return -EINVAL;
 
 	ret = adfs_dir_read(sb, obj->parent_id, 0, &dir);
 	if (ret)
@@ -149,7 +162,7 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 	write_unlock(&adfs_dir_lock);
 
 	if (wait) {
-		int err = ops->sync(&dir);
+		int err = adfs_dir_sync(&dir);
 		if (!ret)
 			ret = err;
 	}
