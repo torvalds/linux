@@ -816,6 +816,7 @@
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <2>;
+		rockchip,resetgroup-count = <2>;
 		status = "disabled";
 	};
 
@@ -827,11 +828,12 @@
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
-		reset-names = "video_a", "video_h";
+		reset-names = "shared_video_a", "shared_video_h";
 		iommus = <&vpu_mmu>;
 		power-domains = <&power RK3228_PD_VPU>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
 		status = "disabled";
 	};
 
@@ -843,11 +845,12 @@
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
-		reset-names = "video_a", "video_h";
+		reset-names = "shared_video_a", "shared_video_h";
 		iommus = <&vpu_mmu>;
 		power-domains = <&power RK3228_PD_VPU>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
 		status = "disabled";
 	};
 
@@ -881,6 +884,7 @@
 		power-domains = <&power RK3228_PD_RKVDEC>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <1>;
+		rockchip,resetgroup-node = <1>;
 		operating-points-v2 = <&rkvdec_opp_table>;
 		#cooling-cells = <2>;
 		status = "disabled";
