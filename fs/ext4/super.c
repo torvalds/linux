@@ -1172,9 +1172,9 @@ void ext4_clear_inode(struct inode *inode)
 {
 	invalidate_inode_buffers(inode);
 	clear_inode(inode);
-	dquot_drop(inode);
 	ext4_discard_preallocations(inode);
 	ext4_es_remove_extent(inode, 0, EXT_MAX_BLOCKS);
+	dquot_drop(inode);
 	if (EXT4_I(inode)->jinode) {
 		jbd2_journal_release_jbd_inode(EXT4_JOURNAL(inode),
 					       EXT4_I(inode)->jinode);
@@ -1394,7 +1394,6 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
 			     unsigned int flags);
 static int ext4_enable_quotas(struct super_block *sb);
-static int ext4_get_next_id(struct super_block *sb, struct kqid *qid);
 
 static struct dquot **ext4_get_dquots(struct inode *inode)
 {
@@ -1412,7 +1411,7 @@ static const struct dquot_operations ext4_quota_operations = {
 	.destroy_dquot		= dquot_destroy,
 	.get_projid		= ext4_get_projid,
 	.get_inode_usage	= ext4_get_inode_usage,
-	.get_next_id		= ext4_get_next_id,
+	.get_next_id		= dquot_get_next_id,
 };
 
 static const struct quotactl_ops ext4_qctl_operations = {
@@ -2078,7 +2077,7 @@ static int parse_options(char *options, struct super_block *sb,
 			 unsigned int *journal_ioprio,
 			 int is_remount)
 {
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_sb_info __maybe_unused *sbi = EXT4_SB(sb);
 	char *p, __maybe_unused *usr_qf_name, __maybe_unused *grp_qf_name;
 	substring_t args[MAX_OPT_ARGS];
 	int token;
@@ -2132,16 +2131,6 @@ static int parse_options(char *options, struct super_block *sb,
 		}
 	}
 #endif
-	if (test_opt(sb, DIOREAD_NOLOCK)) {
-		int blocksize =
-			BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
-
-		if (blocksize < PAGE_SIZE) {
-			ext4_msg(sb, KERN_ERR, "can't mount with "
-				 "dioread_nolock if block size != PAGE_SIZE");
-			return 0;
-		}
-	}
 	return 1;
 }
 
@@ -3582,12 +3571,15 @@ static void ext4_clamp_want_extra_isize(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
+	unsigned def_extra_isize = sizeof(struct ext4_inode) -
+						EXT4_GOOD_OLD_INODE_SIZE;
 
-	/* determine the minimum size of new large inodes, if present */
-	if (sbi->s_inode_size > EXT4_GOOD_OLD_INODE_SIZE &&
-	    sbi->s_want_extra_isize == 0) {
-		sbi->s_want_extra_isize = sizeof(struct ext4_inode) -
-						     EXT4_GOOD_OLD_INODE_SIZE;
+	if (sbi->s_inode_size == EXT4_GOOD_OLD_INODE_SIZE) {
+		sbi->s_want_extra_isize = 0;
+		return;
+	}
+	if (sbi->s_want_extra_isize < 4) {
+		sbi->s_want_extra_isize = def_extra_isize;
 		if (ext4_has_feature_extra_isize(sb)) {
 			if (sbi->s_want_extra_isize <
 			    le16_to_cpu(es->s_want_extra_isize))
@@ -3600,10 +3592,10 @@ static void ext4_clamp_want_extra_isize(struct super_block *sb)
 		}
 	}
 	/* Check if enough inode space is available */
-	if (EXT4_GOOD_OLD_INODE_SIZE + sbi->s_want_extra_isize >
-							sbi->s_inode_size) {
-		sbi->s_want_extra_isize = sizeof(struct ext4_inode) -
-						       EXT4_GOOD_OLD_INODE_SIZE;
+	if ((sbi->s_want_extra_isize > sbi->s_inode_size) ||
+	    (EXT4_GOOD_OLD_INODE_SIZE + sbi->s_want_extra_isize >
+							sbi->s_inode_size)) {
+		sbi->s_want_extra_isize = def_extra_isize;
 		ext4_msg(sb, KERN_INFO,
 			 "required extra inode space not available");
 	}
@@ -4464,13 +4456,6 @@ no_journal:
 				goto failed_mount_wq;
 			}
 		}
-	}
-
-	if ((DUMMY_ENCRYPTION_ENABLED(sbi) || ext4_has_feature_encrypt(sb)) &&
-	    (blocksize != PAGE_SIZE)) {
-		ext4_msg(sb, KERN_ERR,
-			 "Unsupported blocksize for fs encryption");
-		goto failed_mount_wq;
 	}
 
 	if (ext4_has_feature_verity(sb) && blocksize != PAGE_SIZE) {
@@ -5862,7 +5847,7 @@ static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
 	/* Don't account quota for quota files to avoid recursion */
 	qf_inode->i_flags |= S_NOQUOTA;
 	lockdep_set_quota_inode(qf_inode, I_DATA_SEM_QUOTA);
-	err = dquot_enable(qf_inode, type, format_id, flags);
+	err = dquot_load_quota_inode(qf_inode, type, format_id, flags);
 	if (err)
 		lockdep_set_quota_inode(qf_inode, I_DATA_SEM_NORMAL);
 	iput(qf_inode);
@@ -6045,18 +6030,6 @@ out:
 		ext4_mark_inode_dirty(handle, inode);
 	}
 	return len;
-}
-
-static int ext4_get_next_id(struct super_block *sb, struct kqid *qid)
-{
-	const struct quota_format_ops	*ops;
-
-	if (!sb_has_quota_loaded(sb, qid->type))
-		return -ESRCH;
-	ops = sb_dqopt(sb)->ops[qid->type];
-	if (!ops || !ops->get_next_id)
-		return -ENOSYS;
-	return dquot_get_next_id(sb, qid);
 }
 #endif
 

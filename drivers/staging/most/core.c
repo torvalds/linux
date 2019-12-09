@@ -52,7 +52,7 @@ struct most_channel {
 	u16 channel_id;
 	char name[STRING_SIZE];
 	bool is_poisoned;
-	struct mutex start_mutex;
+	struct mutex start_mutex; /* channel activation synchronization */
 	struct mutex nq_mutex; /* nq thread synchronization */
 	int is_starving;
 	struct most_interface *iface;
@@ -60,7 +60,7 @@ struct most_channel {
 	bool keep_mbo;
 	bool enqueue_halt;
 	struct list_head fifo;
-	spinlock_t fifo_lock;
+	spinlock_t fifo_lock; /* fifo access synchronization */
 	struct list_head halt_fifo;
 	struct list_head list;
 	struct pipe pipe0;
@@ -84,11 +84,11 @@ static const struct {
 	int most_ch_data_type;
 	const char *name;
 } ch_data_type[] = {
-	{ MOST_CH_CONTROL, "control\n" },
-	{ MOST_CH_ASYNC, "async\n" },
-	{ MOST_CH_SYNC, "sync\n" },
-	{ MOST_CH_ISOC, "isoc\n"},
-	{ MOST_CH_ISOC, "isoc_avp\n"},
+	{ MOST_CH_CONTROL, "control" },
+	{ MOST_CH_ASYNC, "async" },
+	{ MOST_CH_SYNC, "sync" },
+	{ MOST_CH_ISOC, "isoc"},
+	{ MOST_CH_ISOC, "isoc_avp"},
 };
 
 /**
@@ -521,48 +521,6 @@ static ssize_t components_show(struct device_driver *drv, char *buf)
 }
 
 /**
- * split_string - parses buf and extracts ':' separated substrings.
- *
- * @buf: complete string from attribute 'add_channel'
- * @a: storage for 1st substring (=interface name)
- * @b: storage for 2nd substring (=channel name)
- * @c: storage for 3rd substring (=component name)
- * @d: storage optional 4th substring (=user defined name)
- *
- * Examples:
- *
- * Input: "mdev0:ch6:cdev:my_channel\n" or
- *        "mdev0:ch6:cdev:my_channel"
- *
- * Output: *a -> "mdev0", *b -> "ch6", *c -> "cdev" *d -> "my_channel"
- *
- * Input: "mdev1:ep81:cdev\n"
- * Output: *a -> "mdev1", *b -> "ep81", *c -> "cdev" *d -> ""
- *
- * Input: "mdev1:ep81"
- * Output: *a -> "mdev1", *b -> "ep81", *c -> "cdev" *d == NULL
- */
-static int split_string(char *buf, char **a, char **b, char **c, char **d)
-{
-	*a = strsep(&buf, ":");
-	if (!*a)
-		return -EIO;
-
-	*b = strsep(&buf, ":\n");
-	if (!*b)
-		return -EIO;
-
-	*c = strsep(&buf, ":\n");
-	if (!*c)
-		return -EIO;
-
-	if (d)
-		*d = strsep(&buf, ":\n");
-
-	return 0;
-}
-
-/**
  * get_channel - get pointer to channel
  * @mdev: name of the device interface
  * @mdev_ch: name of channel
@@ -675,13 +633,13 @@ int most_set_cfg_direction(char *mdev, char *mdev_ch, char *buf)
 
 	if (!c)
 		return -ENODEV;
-	if (!strcmp(buf, "dir_rx\n")) {
+	if (!strcmp(buf, "dir_rx")) {
 		c->cfg.direction = MOST_CH_RX;
-	} else if (!strcmp(buf, "rx\n")) {
+	} else if (!strcmp(buf, "rx")) {
 		c->cfg.direction = MOST_CH_RX;
-	} else if (!strcmp(buf, "dir_tx\n")) {
+	} else if (!strcmp(buf, "dir_tx")) {
 		c->cfg.direction = MOST_CH_TX;
-	} else if (!strcmp(buf, "tx\n")) {
+	} else if (!strcmp(buf, "tx")) {
 		c->cfg.direction = MOST_CH_TX;
 	} else {
 		pr_info("Invalid direction\n");
@@ -723,48 +681,6 @@ int most_add_link(char *mdev, char *mdev_ch, char *comp_name, char *link_name,
 	return link_channel_to_component(c, comp, link_name, comp_param);
 }
 
-/**
- * remove_link_store - store function for remove_link attribute
- * @drv: device driver
- * @buf: buffer
- * @len: buffer length
- *
- * Example:
- * echo "mdev0:ep81" >remove_link
- */
-static ssize_t remove_link_store(struct device_driver *drv,
-				 const char *buf,
-				 size_t len)
-{
-	struct most_channel *c;
-	struct core_component *comp;
-	char buffer[STRING_SIZE];
-	char *mdev;
-	char *mdev_ch;
-	char *comp_name;
-	int ret;
-	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
-
-	strlcpy(buffer, buf, max_len);
-	ret = split_string(buffer, &mdev, &mdev_ch, &comp_name, NULL);
-	if (ret)
-		return ret;
-	comp = match_component(comp_name);
-	if (!comp)
-		return -ENODEV;
-	c = get_channel(mdev, mdev_ch);
-	if (!c)
-		return -ENODEV;
-
-	if (comp->disconnect_channel(c->iface, c->channel_id))
-		return -EIO;
-	if (c->pipe0.comp == comp)
-		c->pipe0.comp = NULL;
-	if (c->pipe1.comp == comp)
-		c->pipe1.comp = NULL;
-	return len;
-}
-
 int most_remove_link(char *mdev, char *mdev_ch, char *comp_name)
 {
 	struct most_channel *c;
@@ -790,12 +706,10 @@ int most_remove_link(char *mdev, char *mdev_ch, char *comp_name)
 
 static DRIVER_ATTR_RO(links);
 static DRIVER_ATTR_RO(components);
-static DRIVER_ATTR_WO(remove_link);
 
 static struct attribute *mc_attrs[] = {
 	DRV_ATTR(links),
 	DRV_ATTR(components),
-	DRV_ATTR(remove_link),
 	NULL,
 };
 

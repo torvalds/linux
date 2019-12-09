@@ -670,11 +670,25 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 				      struct sk_buff *skb, bool dropped)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	u16 tx_time_est = ieee80211_info_get_tx_time_est(info);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	bool acked = info->flags & IEEE80211_TX_STAT_ACK;
 
 	if (dropped)
 		acked = false;
+
+	if (tx_time_est) {
+		struct sta_info *sta;
+
+		rcu_read_lock();
+
+		sta = sta_info_get_by_addrs(local, hdr->addr1, hdr->addr2);
+		ieee80211_sta_update_pending_airtime(local, sta,
+						     skb_get_queue_mapping(skb),
+						     tx_time_est,
+						     true);
+		rcu_read_unlock();
+	}
 
 	if (info->flags & IEEE80211_TX_INTFL_MLME_CONN_TX) {
 		struct ieee80211_sub_if_data *sdata;
@@ -877,6 +891,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	struct ieee80211_bar *bar;
 	int shift = 0;
 	int tid = IEEE80211_NUM_TIDS;
+	u16 tx_time_est;
 
 	rates_idx = ieee80211_tx_get_rates(hw, info, &retry_count);
 
@@ -986,6 +1001,17 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 			ieee80211_sta_register_airtime(&sta->sta, tid,
 						       info->status.tx_time, 0);
 
+		if ((tx_time_est = ieee80211_info_get_tx_time_est(info)) > 0) {
+			/* Do this here to avoid the expensive lookup of the sta
+			 * in ieee80211_report_used_skb().
+			 */
+			ieee80211_sta_update_pending_airtime(local, sta,
+							     skb_get_queue_mapping(skb),
+							     tx_time_est,
+							     true);
+			ieee80211_info_set_tx_time_est(info, 0);
+		}
+
 		if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 			if (info->flags & IEEE80211_TX_STAT_ACK) {
 				if (sta->status_stats.lost_packets)
@@ -1030,7 +1056,8 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 			I802_DEBUG_INC(local->dot11FailedCount);
 	}
 
-	if (ieee80211_is_nullfunc(fc) && ieee80211_has_pm(fc) &&
+	if ((ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc)) &&
+	    ieee80211_has_pm(fc) &&
 	    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS) &&
 	    !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
 	    local->ps_sdata && !(local->scanning)) {
@@ -1073,19 +1100,13 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		.skb = skb,
 		.info = IEEE80211_SKB_CB(skb),
 	};
-	struct rhlist_head *tmp;
 	struct sta_info *sta;
 
 	rcu_read_lock();
 
-	for_each_sta_info(local, hdr->addr1, sta, tmp) {
-		/* skip wrong virtual interface */
-		if (!ether_addr_equal(hdr->addr2, sta->sdata->vif.addr))
-			continue;
-
+	sta = sta_info_get_by_addrs(local, hdr->addr1, hdr->addr2);
+	if (sta)
 		status.sta = &sta->sta;
-		break;
-	}
 
 	__ieee80211_tx_status(hw, &status);
 	rcu_read_unlock();

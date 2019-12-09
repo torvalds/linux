@@ -105,7 +105,7 @@ getattr:	no
 listxattr:	no
 fiemap:		no
 update_time:	no
-atomic_open:	exclusive
+atomic_open:	shared (exclusive if O_CREAT is set in open flags)
 tmpfile:	no
 ============	=============================================
 

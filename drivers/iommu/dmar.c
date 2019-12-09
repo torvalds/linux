@@ -895,8 +895,11 @@ int __init detect_intel_iommu(void)
 	}
 
 #ifdef CONFIG_X86
-	if (!ret)
+	if (!ret) {
 		x86_init.iommu.iommu_init = intel_iommu_init;
+		x86_platform.iommu_shutdown = intel_iommu_shutdown;
+	}
+
 #endif
 
 	if (dmar_tbl) {

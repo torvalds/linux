@@ -178,7 +178,7 @@ bool dma_in_atomic_pool(void *start, size_t size)
 	if (unlikely(!atomic_pool))
 		return false;
 
-	return addr_in_gen_pool(atomic_pool, (unsigned long)start, size);
+	return gen_pool_has_addr(atomic_pool, (unsigned long)start, size);
 }
 
 void *dma_alloc_from_pool(size_t size, struct page **ret_page, gfp_t flags)
@@ -209,60 +209,5 @@ bool dma_free_from_pool(void *start, size_t size)
 		return false;
 	gen_pool_free(atomic_pool, (unsigned long)start, size);
 	return true;
-}
-
-void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		gfp_t flags, unsigned long attrs)
-{
-	struct page *page = NULL;
-	void *ret;
-
-	size = PAGE_ALIGN(size);
-
-	if (!gfpflags_allow_blocking(flags)) {
-		ret = dma_alloc_from_pool(size, &page, flags);
-		if (!ret)
-			return NULL;
-		goto done;
-	}
-
-	page = __dma_direct_alloc_pages(dev, size, dma_handle, flags, attrs);
-	if (!page)
-		return NULL;
-
-	/* remove any dirty cache lines on the kernel alias */
-	arch_dma_prep_coherent(page, size);
-
-	/* create a coherent mapping */
-	ret = dma_common_contiguous_remap(page, size,
-			dma_pgprot(dev, PAGE_KERNEL, attrs),
-			__builtin_return_address(0));
-	if (!ret) {
-		__dma_direct_free_pages(dev, size, page);
-		return ret;
-	}
-
-	memset(ret, 0, size);
-done:
-	*dma_handle = phys_to_dma(dev, page_to_phys(page));
-	return ret;
-}
-
-void arch_dma_free(struct device *dev, size_t size, void *vaddr,
-		dma_addr_t dma_handle, unsigned long attrs)
-{
-	if (!dma_free_from_pool(vaddr, PAGE_ALIGN(size))) {
-		phys_addr_t phys = dma_to_phys(dev, dma_handle);
-		struct page *page = pfn_to_page(__phys_to_pfn(phys));
-
-		vunmap(vaddr);
-		__dma_direct_free_pages(dev, size, page);
-	}
-}
-
-long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
-		dma_addr_t dma_addr)
-{
-	return __phys_to_pfn(dma_to_phys(dev, dma_addr));
 }
 #endif /* CONFIG_DMA_DIRECT_REMAP */

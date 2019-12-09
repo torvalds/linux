@@ -378,6 +378,7 @@ static int psp_v12_0_cmd_submit(struct psp_context *psp,
 	write_frame->fence_addr_hi = upper_32_bits(fence_mc_addr);
 	write_frame->fence_addr_lo = lower_32_bits(fence_mc_addr);
 	write_frame->fence_value = index;
+	amdgpu_asic_flush_hdp(adev, NULL);
 
 	/* Update the write Pointer in DWORDs */
 	psp_write_ptr_reg = (psp_write_ptr_reg + rb_frame_size_dw) % ring_size_dw;

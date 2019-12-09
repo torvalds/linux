@@ -12,7 +12,7 @@
 #ifndef __ASSEMBLY__
 
 struct pt_regs {
-	unsigned long sepc;
+	unsigned long epc;
 	unsigned long ra;
 	unsigned long sp;
 	unsigned long gp;
@@ -44,10 +44,10 @@ struct pt_regs {
 	unsigned long t4;
 	unsigned long t5;
 	unsigned long t6;
-	/* Supervisor CSRs */
-	unsigned long sstatus;
-	unsigned long sbadaddr;
-	unsigned long scause;
+	/* Supervisor/Machine CSRs */
+	unsigned long status;
+	unsigned long badaddr;
+	unsigned long cause;
 	/* a0 value before the syscall */
 	unsigned long orig_a0;
 };
@@ -58,18 +58,18 @@ struct pt_regs {
 #define REG_FMT "%08lx"
 #endif
 
-#define user_mode(regs) (((regs)->sstatus & SR_SPP) == 0)
+#define user_mode(regs) (((regs)->status & SR_PP) == 0)
 
 
 /* Helpers for working with the instruction pointer */
 static inline unsigned long instruction_pointer(struct pt_regs *regs)
 {
-	return regs->sepc;
+	return regs->epc;
 }
 static inline void instruction_pointer_set(struct pt_regs *regs,
 					   unsigned long val)
 {
-	regs->sepc = val;
+	regs->epc = val;
 }
 
 #define profile_pc(regs) instruction_pointer(regs)

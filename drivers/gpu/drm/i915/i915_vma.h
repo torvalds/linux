@@ -72,7 +72,7 @@ struct i915_vma {
 	 * that exist in the ctx->handle_vmas LUT for this vma.
 	 */
 	atomic_t open_count;
-	unsigned long flags;
+	atomic_t flags;
 	/**
 	 * How many users have pinned this object in GTT space.
 	 *
@@ -96,21 +96,40 @@ struct i915_vma {
 	 * exclusive cachelines of a single page, so a maximum of 64 possible
 	 * users.
 	 */
-#define I915_VMA_PIN_MASK 0xff
-#define I915_VMA_PIN_OVERFLOW	BIT(8)
+#define I915_VMA_PIN_MASK 0x3ff
+#define I915_VMA_OVERFLOW 0x200
 
 	/** Flags and address space this VMA is bound to */
-#define I915_VMA_GLOBAL_BIND	BIT(9)
-#define I915_VMA_LOCAL_BIND	BIT(10)
-#define I915_VMA_BIND_MASK (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND | I915_VMA_PIN_OVERFLOW)
+#define I915_VMA_GLOBAL_BIND_BIT 10
+#define I915_VMA_LOCAL_BIND_BIT  11
 
-#define I915_VMA_GGTT		BIT(11)
-#define I915_VMA_CAN_FENCE	BIT(12)
-#define I915_VMA_USERFAULT_BIT	13
-#define I915_VMA_USERFAULT	BIT(I915_VMA_USERFAULT_BIT)
-#define I915_VMA_GGTT_WRITE	BIT(14)
+#define I915_VMA_GLOBAL_BIND	((int)BIT(I915_VMA_GLOBAL_BIND_BIT))
+#define I915_VMA_LOCAL_BIND	((int)BIT(I915_VMA_LOCAL_BIND_BIT))
+
+#define I915_VMA_BIND_MASK (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND)
+
+#define I915_VMA_ALLOC_BIT	12
+#define I915_VMA_ALLOC		((int)BIT(I915_VMA_ALLOC_BIT))
+
+#define I915_VMA_ERROR_BIT	13
+#define I915_VMA_ERROR		((int)BIT(I915_VMA_ERROR_BIT))
+
+#define I915_VMA_GGTT_BIT	14
+#define I915_VMA_CAN_FENCE_BIT	15
+#define I915_VMA_USERFAULT_BIT	16
+#define I915_VMA_GGTT_WRITE_BIT	17
+
+#define I915_VMA_GGTT		((int)BIT(I915_VMA_GGTT_BIT))
+#define I915_VMA_CAN_FENCE	((int)BIT(I915_VMA_CAN_FENCE_BIT))
+#define I915_VMA_USERFAULT	((int)BIT(I915_VMA_USERFAULT_BIT))
+#define I915_VMA_GGTT_WRITE	((int)BIT(I915_VMA_GGTT_WRITE_BIT))
 
 	struct i915_active active;
+
+#define I915_VMA_PAGES_BIAS 24
+#define I915_VMA_PAGES_ACTIVE (BIT(24) | 1)
+	atomic_t pages_count; /* number of active binds to the pages */
+	struct mutex pages_mutex; /* protect acquire/release of backing pages */
 
 	/**
 	 * Support different GGTT views into the same object.
@@ -158,52 +177,57 @@ static inline bool i915_vma_is_active(const struct i915_vma *vma)
 	return !i915_active_is_idle(&vma->active);
 }
 
+int __must_check __i915_vma_move_to_active(struct i915_vma *vma,
+					   struct i915_request *rq);
 int __must_check i915_vma_move_to_active(struct i915_vma *vma,
 					 struct i915_request *rq,
 					 unsigned int flags);
 
+#define __i915_vma_flags(v) ((unsigned long *)&(v)->flags.counter)
+
 static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
 {
-	return vma->flags & I915_VMA_GGTT;
+	return test_bit(I915_VMA_GGTT_BIT, __i915_vma_flags(vma));
 }
 
 static inline bool i915_vma_has_ggtt_write(const struct i915_vma *vma)
 {
-	return vma->flags & I915_VMA_GGTT_WRITE;
+	return test_bit(I915_VMA_GGTT_WRITE_BIT, __i915_vma_flags(vma));
 }
 
 static inline void i915_vma_set_ggtt_write(struct i915_vma *vma)
 {
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
-	vma->flags |= I915_VMA_GGTT_WRITE;
+	set_bit(I915_VMA_GGTT_WRITE_BIT, __i915_vma_flags(vma));
 }
 
-static inline void i915_vma_unset_ggtt_write(struct i915_vma *vma)
+static inline bool i915_vma_unset_ggtt_write(struct i915_vma *vma)
 {
-	vma->flags &= ~I915_VMA_GGTT_WRITE;
+	return test_and_clear_bit(I915_VMA_GGTT_WRITE_BIT,
+				  __i915_vma_flags(vma));
 }
 
 void i915_vma_flush_writes(struct i915_vma *vma);
 
 static inline bool i915_vma_is_map_and_fenceable(const struct i915_vma *vma)
 {
-	return vma->flags & I915_VMA_CAN_FENCE;
+	return test_bit(I915_VMA_CAN_FENCE_BIT, __i915_vma_flags(vma));
 }
 
 static inline bool i915_vma_set_userfault(struct i915_vma *vma)
 {
 	GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-	return __test_and_set_bit(I915_VMA_USERFAULT_BIT, &vma->flags);
+	return test_and_set_bit(I915_VMA_USERFAULT_BIT, __i915_vma_flags(vma));
 }
 
 static inline void i915_vma_unset_userfault(struct i915_vma *vma)
 {
-	return __clear_bit(I915_VMA_USERFAULT_BIT, &vma->flags);
+	return clear_bit(I915_VMA_USERFAULT_BIT, __i915_vma_flags(vma));
 }
 
 static inline bool i915_vma_has_userfault(const struct i915_vma *vma)
 {
-	return test_bit(I915_VMA_USERFAULT_BIT, &vma->flags);
+	return test_bit(I915_VMA_USERFAULT_BIT, __i915_vma_flags(vma));
 }
 
 static inline bool i915_vma_is_closed(const struct i915_vma *vma)
@@ -214,7 +238,7 @@ static inline bool i915_vma_is_closed(const struct i915_vma *vma)
 static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
 {
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
-	GEM_BUG_ON(!vma->node.allocated);
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(upper_32_bits(vma->node.start));
 	GEM_BUG_ON(upper_32_bits(vma->node.start + vma->node.size - 1));
 	return lower_32_bits(vma->node.start);
@@ -293,13 +317,18 @@ i915_vma_compare(struct i915_vma *vma,
 	return memcmp(&vma->ggtt_view.partial, &view->partial, view->type);
 }
 
-int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
-		  u32 flags);
-bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level);
+struct i915_vma_work *i915_vma_work(void);
+int i915_vma_bind(struct i915_vma *vma,
+		  enum i915_cache_level cache_level,
+		  u32 flags,
+		  struct i915_vma_work *work);
+
+bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long color);
 bool i915_vma_misplaced(const struct i915_vma *vma,
 			u64 size, u64 alignment, u64 flags);
 void __i915_vma_set_map_and_fenceable(struct i915_vma *vma);
 void i915_vma_revoke_mmap(struct i915_vma *vma);
+int __i915_vma_unbind(struct i915_vma *vma);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 void i915_vma_unlink_ctx(struct i915_vma *vma);
 void i915_vma_close(struct i915_vma *vma);
@@ -318,30 +347,12 @@ static inline void i915_vma_unlock(struct i915_vma *vma)
 	dma_resv_unlock(vma->resv);
 }
 
-int __i915_vma_do_pin(struct i915_vma *vma,
-		      u64 size, u64 alignment, u64 flags);
-static inline int __must_check
-i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
-{
-	BUILD_BUG_ON(PIN_MBZ != I915_VMA_PIN_OVERFLOW);
-	BUILD_BUG_ON(PIN_GLOBAL != I915_VMA_GLOBAL_BIND);
-	BUILD_BUG_ON(PIN_USER != I915_VMA_LOCAL_BIND);
-
-	/* Pin early to prevent the shrinker/eviction logic from destroying
-	 * our vma as we insert and bind.
-	 */
-	if (likely(((++vma->flags ^ flags) & I915_VMA_BIND_MASK) == 0)) {
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
-		return 0;
-	}
-
-	return __i915_vma_do_pin(vma, size, alignment, flags);
-}
+int __must_check
+i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags);
 
 static inline int i915_vma_pin_count(const struct i915_vma *vma)
 {
-	return vma->flags & I915_VMA_PIN_MASK;
+	return atomic_read(&vma->flags) & I915_VMA_PIN_MASK;
 }
 
 static inline bool i915_vma_is_pinned(const struct i915_vma *vma)
@@ -351,18 +362,18 @@ static inline bool i915_vma_is_pinned(const struct i915_vma *vma)
 
 static inline void __i915_vma_pin(struct i915_vma *vma)
 {
-	vma->flags++;
-	GEM_BUG_ON(vma->flags & I915_VMA_PIN_OVERFLOW);
+	atomic_inc(&vma->flags);
+	GEM_BUG_ON(!i915_vma_is_pinned(vma));
 }
 
 static inline void __i915_vma_unpin(struct i915_vma *vma)
 {
-	vma->flags--;
+	GEM_BUG_ON(!i915_vma_is_pinned(vma));
+	atomic_dec(&vma->flags);
 }
 
 static inline void i915_vma_unpin(struct i915_vma *vma)
 {
-	GEM_BUG_ON(!i915_vma_is_pinned(vma));
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	__i915_vma_unpin(vma);
 }
@@ -370,7 +381,13 @@ static inline void i915_vma_unpin(struct i915_vma *vma)
 static inline bool i915_vma_is_bound(const struct i915_vma *vma,
 				     unsigned int where)
 {
-	return vma->flags & where;
+	return atomic_read(&vma->flags) & where;
+}
+
+static inline bool i915_node_color_differs(const struct drm_mm_node *node,
+					   unsigned long color)
+{
+	return drm_mm_node_allocated(node) && node->color != color;
 }
 
 /**
@@ -381,8 +398,6 @@ static inline bool i915_vma_is_bound(const struct i915_vma *vma,
  * An extra pinning of the VMA is acquired for the return iomapping,
  * the caller must call i915_vma_unpin_iomap to relinquish the pinning
  * after the iomapping is no longer required.
- *
- * Callers must hold the struct_mutex.
  *
  * Returns a valid iomapped pointer or ERR_PTR.
  */
@@ -395,8 +410,8 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma);
  *
  * Unpins the previously iomapped VMA from i915_vma_pin_iomap().
  *
- * Callers must hold the struct_mutex. This function is only valid to be
- * called on a VMA previously iomapped by the caller with i915_vma_pin_iomap().
+ * This function is only valid to be called on a VMA previously
+ * iomapped by the caller with i915_vma_pin_iomap().
  */
 void i915_vma_unpin_iomap(struct i915_vma *vma);
 
@@ -424,6 +439,8 @@ static inline struct page *i915_vma_first_page(struct i915_vma *vma)
 int __must_check i915_vma_pin_fence(struct i915_vma *vma);
 int __must_check i915_vma_revoke_fence(struct i915_vma *vma);
 
+int __i915_vma_pin_fence(struct i915_vma *vma);
+
 static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
 {
 	GEM_BUG_ON(atomic_read(&vma->fence->pin_count) <= 0);
@@ -441,12 +458,11 @@ static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
 static inline void
 i915_vma_unpin_fence(struct i915_vma *vma)
 {
-	/* lockdep_assert_held(&vma->vm->i915->drm.struct_mutex); */
 	if (vma->fence)
 		__i915_vma_unpin_fence(vma);
 }
 
-void i915_vma_parked(struct drm_i915_private *i915);
+void i915_vma_parked(struct intel_gt *gt);
 
 #define for_each_until(cond) if (cond) break; else
 
@@ -469,5 +485,11 @@ void i915_vma_free(struct i915_vma *vma);
 struct i915_vma *i915_vma_make_unshrinkable(struct i915_vma *vma);
 void i915_vma_make_shrinkable(struct i915_vma *vma);
 void i915_vma_make_purgeable(struct i915_vma *vma);
+
+static inline int i915_vma_sync(struct i915_vma *vma)
+{
+	/* Wait for the asynchronous bindings and pending GPU reads */
+	return i915_active_wait(&vma->active);
+}
 
 #endif

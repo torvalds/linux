@@ -13,6 +13,7 @@
 #include "util/mmap.h"
 #include <errno.h>
 #include <linux/string.h>
+#include <perf/mmap.h>
 
 #define NR_ITERS 111
 
@@ -37,8 +38,8 @@ static int count_samples(struct evlist *evlist, int *sample_count,
 		struct mmap *map = &evlist->overwrite_mmap[i];
 		union perf_event *event;
 
-		perf_mmap__read_init(map);
-		while ((event = perf_mmap__read_event(map)) != NULL) {
+		perf_mmap__read_init(&map->core);
+		while ((event = perf_mmap__read_event(&map->core)) != NULL) {
 			const u32 type = event->header.type;
 
 			switch (type) {
@@ -53,7 +54,7 @@ static int count_samples(struct evlist *evlist, int *sample_count,
 				return TEST_FAIL;
 			}
 		}
-		perf_mmap__read_done(map);
+		perf_mmap__read_done(&map->core);
 	}
 	return TEST_OK;
 }
@@ -144,6 +145,15 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 	if ((sample_count != NR_ITERS) || (comm_count != NR_ITERS)) {
 		pr_err("Unexpected counter: sample_count=%d, comm_count=%d\n",
 		       sample_count, comm_count);
+		goto out_delete_evlist;
+	}
+
+	evlist__close(evlist);
+
+	err = evlist__open(evlist);
+	if (err < 0) {
+		pr_debug("perf_evlist__open: %s\n",
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 

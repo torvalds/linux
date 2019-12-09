@@ -157,6 +157,15 @@ struct drm_panel {
 	const struct drm_panel_funcs *funcs;
 
 	/**
+	 * @connector_type:
+	 *
+	 * Type of the panel as a DRM_MODE_CONNECTOR_* value. This is used to
+	 * initialise the drm_connector corresponding to the panel with the
+	 * correct connector type.
+	 */
+	int connector_type;
+
+	/**
 	 * @list:
 	 *
 	 * Panel entry in registry.
@@ -171,7 +180,9 @@ struct drm_panel {
 	struct blocking_notifier_head nh;
 };
 
-void drm_panel_init(struct drm_panel *panel);
+void drm_panel_init(struct drm_panel *panel, struct device *dev,
+		    const struct drm_panel_funcs *funcs,
+		    int connector_type);
 
 int drm_panel_add(struct drm_panel *panel);
 void drm_panel_remove(struct drm_panel *panel);

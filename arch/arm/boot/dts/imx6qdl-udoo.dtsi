@@ -210,6 +210,14 @@
 			>;
 		};
 
+		pinctrl_usbotg: usbotg {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x17059
+				MX6QDL_PAD_EIM_D22__USB_OTG_PWR 0x17059
+				MX6QDL_PAD_EIM_D21__USB_OTG_OC 0x17059
+			>;
+		};
+
 		pinctrl_usdhc3: usdhc3grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD3_CMD__SD3_CMD		0x17059
@@ -284,6 +292,12 @@
 	pinctrl-0 = <&pinctrl_usbh>;
 	vbus-supply = <&reg_usb_h1_vbus>;
 	clocks = <&clks IMX6QDL_CLK_CKO>;
+	status = "okay";
+};
+
+&usbotg {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg>;
 	status = "okay";
 };
 

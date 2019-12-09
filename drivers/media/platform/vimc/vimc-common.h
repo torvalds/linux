@@ -8,6 +8,7 @@
 #ifndef _VIMC_COMMON_H_
 #define _VIMC_COMMON_H_
 
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
@@ -18,6 +19,7 @@
 #define VIMC_CID_VIMC_BASE		(0x00f00000 | 0xf000)
 #define VIMC_CID_VIMC_CLASS		(0x00f00000 | 1)
 #define VIMC_CID_TEST_PATTERN		(VIMC_CID_VIMC_BASE + 0)
+#define VIMC_CID_MEAN_WIN_SIZE		(VIMC_CID_VIMC_BASE + 1)
 
 #define VIMC_FRAME_MAX_WIDTH 4096
 #define VIMC_FRAME_MAX_HEIGHT 2160
@@ -25,6 +27,10 @@
 #define VIMC_FRAME_MIN_HEIGHT 16
 
 #define VIMC_FRAME_INDEX(lin, col, width, bpp) ((lin * width + col) * bpp)
+
+/* Source and sink pad checks */
+#define VIMC_IS_SRC(pad)	(pad)
+#define VIMC_IS_SINK(pad)	(!(pad))
 
 /**
  * struct vimc_colorimetry_clamp - Adjust colorimetry parameters
@@ -53,21 +59,6 @@ do {									\
 } while (0)
 
 /**
- * struct vimc_platform_data - platform data to components
- *
- * @entity_name:	The name of the entity to be created
- *
- * Board setup code will often provide additional information using the device's
- * platform_data field to hold additional information.
- * When injecting a new platform_device in the component system the core needs
- * to provide to the corresponding submodules the name of the entity that should
- * be used when registering the subdevice in the Media Controller system.
- */
-struct vimc_platform_data {
-	char entity_name[32];
-};
-
-/**
  * struct vimc_pix_map - maps media bus code with v4l2 pixel format
  *
  * @code:		media bus format code defined by MEDIA_BUS_FMT_* macros
@@ -85,10 +76,11 @@ struct vimc_pix_map {
 };
 
 /**
- * struct vimc_ent_device - core struct that represents a node in the topology
+ * struct vimc_ent_device - core struct that represents an entity in the
+ * topology
  *
+ * @dev:		a pointer of the device struct of the driver
  * @ent:		the pointer to struct media_entity for the node
- * @pads:		the list of pads of the node
  * @process_frame:	callback send a frame to that node
  * @vdev_get_format:	callback that returns the current format a pad, used
  *			only when is_media_entity_v4l2_video_device(ent) returns
@@ -103,8 +95,8 @@ struct vimc_pix_map {
  * media_entity
  */
 struct vimc_ent_device {
+	struct device *dev;
 	struct media_entity *ent;
-	struct media_pad *pads;
 	void * (*process_frame)(struct vimc_ent_device *ved,
 				const void *frame);
 	void (*vdev_get_format)(struct vimc_ent_device *ved,
@@ -112,38 +104,65 @@ struct vimc_ent_device {
 };
 
 /**
- * vimc_pads_init - initialize pads
+ * struct vimc_device - main device for vimc driver
  *
- * @num_pads:	number of pads to initialize
- * @pads_flags:	flags to use in each pad
- *
- * Helper functions to allocate/initialize pads
+ * @pdev	pointer to the platform device
+ * @pipe_cfg	pointer to the vimc pipeline configuration structure
+ * @ent_devs	array of vimc_ent_device pointers
+ * @mdev	the associated media_device parent
+ * @v4l2_dev	Internal v4l2 parent device
  */
-struct media_pad *vimc_pads_init(u16 num_pads,
-				 const unsigned long *pads_flag);
+struct vimc_device {
+	struct platform_device pdev;
+	const struct vimc_pipeline_config *pipe_cfg;
+	struct vimc_ent_device **ent_devs;
+	struct media_device mdev;
+	struct v4l2_device v4l2_dev;
+};
 
 /**
- * vimc_pads_cleanup - free pads
+ * struct vimc_ent_config	Structure which describes individual
+ *				configuration for each entity
  *
- * @pads: pointer to the pads
- *
- * Helper function to free the pads initialized with vimc_pads_init
+ * @name			entity name
+ * @ved				pointer to vimc_ent_device (a node in the
+ *					topology)
+ * @add				subdev add hook - initializes and registers
+ *					subdev called from vimc-core
+ * @rm				subdev rm hook - unregisters and frees
+ *					subdev called from vimc-core
  */
-static inline void vimc_pads_cleanup(struct media_pad *pads)
-{
-	kfree(pads);
-}
+struct vimc_ent_config {
+	const char *name;
+	struct vimc_ent_device *(*add)(struct vimc_device *vimc,
+				       const char *vcfg_name);
+	void (*rm)(struct vimc_device *vimc, struct vimc_ent_device *ved);
+};
 
 /**
- * vimc_pipeline_s_stream - start stream through the pipeline
+ * vimc_is_source - returns true if the entity has only source pads
  *
- * @ent:		the pointer to struct media_entity for the node
- * @enable:		1 to start the stream and 0 to stop
+ * @ent: pointer to &struct media_entity
  *
- * Helper function to call the s_stream of the subdevices connected
- * in all the sink pads of the entity
  */
-int vimc_pipeline_s_stream(struct media_entity *ent, int enable);
+bool vimc_is_source(struct media_entity *ent);
+
+/* prototypes for vimc_ent_config add and rm hooks */
+struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
+				     const char *vcfg_name);
+void vimc_cap_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
+
+struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
+				     const char *vcfg_name);
+void vimc_deb_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
+
+struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
+				     const char *vcfg_name);
+void vimc_sca_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
+
+struct vimc_ent_device *vimc_sen_add(struct vimc_device *vimc,
+				     const char *vcfg_name);
+void vimc_sen_rm(struct vimc_device *vimc, struct vimc_ent_device *ved);
 
 /**
  * vimc_pix_map_by_index - get vimc_pix_map struct by its index
@@ -176,7 +195,8 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
  *		unique.
  * @function:	media entity function defined by MEDIA_ENT_F_* macros
  * @num_pads:	number of pads to initialize
- * @pads_flag:	flags to use in each pad
+ * @pads:	the array of pads of the entity, the caller should set the
+		flags of the pads
  * @sd_int_ops:	pointer to &struct v4l2_subdev_internal_ops
  * @sd_ops:	pointer to &struct v4l2_subdev_ops.
  *
@@ -189,29 +209,17 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 const char *const name,
 			 u32 function,
 			 u16 num_pads,
-			 const unsigned long *pads_flag,
+			 struct media_pad *pads,
 			 const struct v4l2_subdev_internal_ops *sd_int_ops,
 			 const struct v4l2_subdev_ops *sd_ops);
 
 /**
- * vimc_ent_sd_unregister - cleanup and unregister a subdev node
- *
- * @ved:	the vimc_ent_device struct to be cleaned up
- * @sd:		the v4l2_subdev struct to be unregistered
- *
- * Helper function cleanup and unregister the struct vimc_ent_device and struct
- * v4l2_subdev which represents a subdev node in the topology
- */
-void vimc_ent_sd_unregister(struct vimc_ent_device *ved,
-			    struct v4l2_subdev *sd);
-
-/**
- * vimc_link_validate - validates a media link
+ * vimc_vdev_link_validate - validates a media link
  *
  * @link: pointer to &struct media_link
  *
  * This function calls validates if a media link is valid for streaming.
  */
-int vimc_link_validate(struct media_link *link);
+int vimc_vdev_link_validate(struct media_link *link);
 
 #endif

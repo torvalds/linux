@@ -103,7 +103,7 @@ snap-pkg:
 
 # tarball targets
 # ---------------------------------------------------------------------------
-tar-pkgs := tar-pkg targz-pkg tarbz2-pkg tarxz-pkg
+tar-pkgs := dir-pkg tar-pkg targz-pkg tarbz2-pkg tarxz-pkg
 PHONY += $(tar-pkgs)
 $(tar-pkgs):
 	$(MAKE) -f $(srctree)/Makefile
@@ -146,7 +146,9 @@ help:
 	@echo '  binrpm-pkg          - Build only the binary kernel RPM package'
 	@echo '  deb-pkg             - Build both source and binary deb kernel packages'
 	@echo '  bindeb-pkg          - Build only the binary kernel deb package'
-	@echo '  snap-pkg            - Build only the binary kernel snap package (will connect to external hosts)'
+	@echo '  snap-pkg            - Build only the binary kernel snap package'
+	@echo '                        (will connect to external hosts)'
+	@echo '  dir-pkg             - Build the kernel as a plain directory structure'
 	@echo '  tar-pkg             - Build the kernel as an uncompressed tarball'
 	@echo '  targz-pkg           - Build the kernel as a gzip compressed tarball'
 	@echo '  tarbz2-pkg          - Build the kernel as a bzip2 compressed tarball'

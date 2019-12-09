@@ -192,6 +192,9 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	if (desc->bLength == 0)
 		goto cleanup;
 
+	/* The pointer is not NULL when we resume from hibernation */
+	if (input_device->hid_desc != NULL)
+		kfree(input_device->hid_desc);
 	input_device->hid_desc = kmemdup(desc, desc->bLength, GFP_ATOMIC);
 
 	if (!input_device->hid_desc)
@@ -203,6 +206,9 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 		goto cleanup;
 	}
 
+	/* The pointer is not NULL when we resume from hibernation */
+	if (input_device->report_desc != NULL)
+		kfree(input_device->report_desc);
 	input_device->report_desc = kzalloc(input_device->report_desc_size,
 					  GFP_ATOMIC);
 
@@ -341,6 +347,8 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 	struct mousevsc_dev *input_dev = hv_get_drvdata(device);
 	struct mousevsc_prt_msg *request;
 	struct mousevsc_prt_msg *response;
+
+	reinit_completion(&input_dev->wait_event);
 
 	request = &input_dev->protocol_req;
 	memset(request, 0, sizeof(struct mousevsc_prt_msg));
@@ -541,6 +549,30 @@ static int mousevsc_remove(struct hv_device *dev)
 	return 0;
 }
 
+static int mousevsc_suspend(struct hv_device *dev)
+{
+	vmbus_close(dev->channel);
+
+	return 0;
+}
+
+static int mousevsc_resume(struct hv_device *dev)
+{
+	int ret;
+
+	ret = vmbus_open(dev->channel,
+			 INPUTVSC_SEND_RING_BUFFER_SIZE,
+			 INPUTVSC_RECV_RING_BUFFER_SIZE,
+			 NULL, 0,
+			 mousevsc_on_channel_callback,
+			 dev);
+	if (ret)
+		return ret;
+
+	ret = mousevsc_connect_to_vsp(dev);
+	return ret;
+}
+
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Mouse guid */
 	{ HV_MOUSE_GUID, },
@@ -554,6 +586,8 @@ static struct  hv_driver mousevsc_drv = {
 	.id_table = id_table,
 	.probe = mousevsc_probe,
 	.remove = mousevsc_remove,
+	.suspend = mousevsc_suspend,
+	.resume = mousevsc_resume,
 	.driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},

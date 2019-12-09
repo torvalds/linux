@@ -196,4 +196,20 @@ enum nix_scheduler {
 #define DEFAULT_RSS_CONTEXT_GROUP	0
 #define MAX_RSS_INDIR_TBL_SIZE		256 /* 1 << Max adder bits */
 
+/* NDC info */
+enum ndc_idx_e {
+	NIX0_RX = 0x0,
+	NIX0_TX = 0x1,
+	NPA0_U  = 0x2,
+};
+
+enum ndc_ctype_e {
+	CACHING = 0x0,
+	BYPASS = 0x1,
+};
+
+#define NDC_MAX_PORT 6
+#define NDC_READ_TRANS 0
+#define NDC_WRITE_TRANS 1
+
 #endif /* COMMON_H */

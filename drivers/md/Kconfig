@@ -38,9 +38,9 @@ config MD_AUTODETECT
 	default y
 	---help---
 	  If you say Y here, then the kernel will try to autodetect raid
-	  arrays as part of its boot process. 
+	  arrays as part of its boot process.
 
-	  If you don't use raid and say Y, this autodetection can cause 
+	  If you don't use raid and say Y, this autodetection can cause
 	  a several-second delay in the boot time due to various
 	  synchronisation steps that are part of this step.
 
@@ -290,7 +290,7 @@ config DM_SNAPSHOT
        depends on BLK_DEV_DM
        select DM_BUFIO
        ---help---
-         Allow volume managers to take writable snapshots of a device.
+	 Allow volume managers to take writable snapshots of a device.
 
 config DM_THIN_PROVISIONING
        tristate "Thin provisioning target"
@@ -298,7 +298,7 @@ config DM_THIN_PROVISIONING
        select DM_PERSISTENT_DATA
        select DM_BIO_PRISON
        ---help---
-         Provides thin provisioning and snapshots that share a data store.
+	 Provides thin provisioning and snapshots that share a data store.
 
 config DM_CACHE
        tristate "Cache target (EXPERIMENTAL)"
@@ -307,23 +307,23 @@ config DM_CACHE
        select DM_PERSISTENT_DATA
        select DM_BIO_PRISON
        ---help---
-         dm-cache attempts to improve performance of a block device by
-         moving frequently used data to a smaller, higher performance
-         device.  Different 'policy' plugins can be used to change the
-         algorithms used to select which blocks are promoted, demoted,
-         cleaned etc.  It supports writeback and writethrough modes.
+	 dm-cache attempts to improve performance of a block device by
+	 moving frequently used data to a smaller, higher performance
+	 device.  Different 'policy' plugins can be used to change the
+	 algorithms used to select which blocks are promoted, demoted,
+	 cleaned etc.  It supports writeback and writethrough modes.
 
 config DM_CACHE_SMQ
        tristate "Stochastic MQ Cache Policy (EXPERIMENTAL)"
        depends on DM_CACHE
        default y
        ---help---
-         A cache policy that uses a multiqueue ordered by recent hits
-         to select which blocks should be promoted and demoted.
-         This is meant to be a general purpose policy.  It prioritises
-         reads over writes.  This SMQ policy (vs MQ) offers the promise
-         of less memory utilization, improved performance and increased
-         adaptability in the face of changing workloads.
+	 A cache policy that uses a multiqueue ordered by recent hits
+	 to select which blocks should be promoted and demoted.
+	 This is meant to be a general purpose policy.  It prioritises
+	 reads over writes.  This SMQ policy (vs MQ) offers the promise
+	 of less memory utilization, improved performance and increased
+	 adaptability in the face of changing workloads.
 
 config DM_WRITECACHE
 	tristate "Writecache target"
@@ -343,9 +343,9 @@ config DM_ERA
        select DM_PERSISTENT_DATA
        select DM_BIO_PRISON
        ---help---
-         dm-era tracks which parts of a block device are written to
-         over time.  Useful for maintaining cache coherency when using
-         vendor snapshots.
+	 dm-era tracks which parts of a block device are written to
+	 over time.  Useful for maintaining cache coherency when using
+	 vendor snapshots.
 
 config DM_CLONE
        tristate "Clone target (EXPERIMENTAL)"
@@ -353,20 +353,20 @@ config DM_CLONE
        default n
        select DM_PERSISTENT_DATA
        ---help---
-         dm-clone produces a one-to-one copy of an existing, read-only source
-         device into a writable destination device. The cloned device is
-         visible/mountable immediately and the copy of the source device to the
-         destination device happens in the background, in parallel with user
-         I/O.
+	 dm-clone produces a one-to-one copy of an existing, read-only source
+	 device into a writable destination device. The cloned device is
+	 visible/mountable immediately and the copy of the source device to the
+	 destination device happens in the background, in parallel with user
+	 I/O.
 
-         If unsure, say N.
+	 If unsure, say N.
 
 config DM_MIRROR
        tristate "Mirror target"
        depends on BLK_DEV_DM
        ---help---
-         Allow volume managers to mirror logical volumes, also
-         needed for live data migration tools such as 'pvmove'.
+	 Allow volume managers to mirror logical volumes, also
+	 needed for live data migration tools such as 'pvmove'.
 
 config DM_LOG_USERSPACE
 	tristate "Mirror userspace logging"
@@ -483,7 +483,7 @@ config DM_FLAKEY
        tristate "Flakey target"
        depends on BLK_DEV_DM
        ---help---
-         A target that intermittently fails I/O for debugging purposes.
+	 A target that intermittently fails I/O for debugging purposes.
 
 config DM_VERITY
 	tristate "Verity target support"

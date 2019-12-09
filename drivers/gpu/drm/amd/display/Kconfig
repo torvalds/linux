@@ -23,16 +23,16 @@ config DRM_AMD_DC_DCN2_0
 	depends on DRM_AMD_DC && X86
 	depends on DRM_AMD_DC_DCN1_0
 	help
-	    Choose this option if you want to have
-	    Navi support for display engine
+	  Choose this option if you want to have
+	  Navi support for display engine
 
 config DRM_AMD_DC_DCN2_1
-        bool "DCN 2.1 family"
-        depends on DRM_AMD_DC && X86
-        depends on DRM_AMD_DC_DCN2_0
-        help
-            Choose this option if you want to have
-            Renoir support for display engine
+	bool "DCN 2.1 family"
+	depends on DRM_AMD_DC && X86
+	depends on DRM_AMD_DC_DCN2_0
+	help
+	  Choose this option if you want to have
+	  Renoir support for display engine
 
 config DRM_AMD_DC_DSC_SUPPORT
 	bool "DSC support"
@@ -41,8 +41,16 @@ config DRM_AMD_DC_DSC_SUPPORT
 	depends on DRM_AMD_DC_DCN1_0
 	depends on DRM_AMD_DC_DCN2_0
 	help
-	    Choose this option if you want to have
-	    Dynamic Stream Compression support
+	  Choose this option if you want to have
+	  Dynamic Stream Compression support
+
+config DRM_AMD_DC_HDCP
+	bool "Enable HDCP support in DC"
+	depends on DRM_AMD_DC
+	help
+	 Choose this option
+	 if you want to support
+	 HDCP authentication
 
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"

@@ -53,6 +53,10 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+};
+
 &hdmi {
 	status = "okay";
 };

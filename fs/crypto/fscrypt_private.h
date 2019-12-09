@@ -515,7 +515,7 @@ struct fscrypt_mode {
 	int keysize;
 	int ivsize;
 	enum blk_crypto_mode_num blk_crypto_mode;
-	bool logged_impl_name;
+	int logged_impl_name;
 };
 
 extern struct fscrypt_mode fscrypt_modes[];

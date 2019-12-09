@@ -472,6 +472,7 @@ static const struct file_operations wdrtas_fops = {
 	.llseek		= no_llseek,
 	.write		= wdrtas_write,
 	.unlocked_ioctl	= wdrtas_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= wdrtas_open,
 	.release	= wdrtas_close,
 };

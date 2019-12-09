@@ -263,7 +263,7 @@ static struct ib_qp *create_gsi_ud_qp(struct mlx5_ib_gsi_qp *gsi)
 		},
 		.sq_sig_type = gsi->sq_sig_type,
 		.qp_type = IB_QPT_UD,
-		.create_flags = mlx5_ib_create_qp_sqpn_qp1(),
+		.create_flags = MLX5_IB_QP_CREATE_SQPN_QP1,
 	};
 
 	return ib_create_qp(pd, &init_attr);

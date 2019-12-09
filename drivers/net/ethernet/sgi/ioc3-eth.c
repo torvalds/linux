@@ -48,7 +48,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
-#include <linux/dma-direct.h>
+#include <linux/dma-mapping.h>
 
 #include <net/ip.h>
 
@@ -89,6 +89,7 @@ struct ioc3_private {
 	struct device *dma_dev;
 	u32 *ssram;
 	unsigned long *rxr;		/* pointer to receiver ring */
+	void *tx_ring;
 	struct ioc3_etxd *txr;
 	dma_addr_t rxr_dma;
 	dma_addr_t txr_dma;
@@ -1173,26 +1174,14 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ioc3 *ioc3;
 	unsigned long ioc3_base, ioc3_size;
 	u32 vendor, model, rev;
-	int err, pci_using_dac;
+	int err;
 
 	/* Configure DMA attributes. */
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (!err) {
-		pci_using_dac = 1;
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-		if (err < 0) {
-			pr_err("%s: Unable to obtain 64 bit DMA for consistent allocations\n",
-			       pci_name(pdev));
-			goto out;
-		}
-	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (err) {
-			pr_err("%s: No usable DMA configuration, aborting.\n",
-			       pci_name(pdev));
-			goto out;
-		}
-		pci_using_dac = 0;
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		pr_err("%s: No usable DMA configuration, aborting.\n",
+		       pci_name(pdev));
+		goto out;
 	}
 
 	if (pci_enable_device(pdev))
@@ -1203,9 +1192,6 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENOMEM;
 		goto out_disable;
 	}
-
-	if (pci_using_dac)
-		dev->features |= NETIF_F_HIGHDMA;
 
 	err = pci_request_regions(pdev, "ioc3");
 	if (err)
@@ -1242,8 +1228,8 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ioc3_stop(ip);
 
 	/* Allocate rx ring.  4kb = 512 entries, must be 4kb aligned */
-	ip->rxr = dma_direct_alloc_pages(ip->dma_dev, RX_RING_SIZE,
-					 &ip->rxr_dma, GFP_ATOMIC, 0);
+	ip->rxr = dma_alloc_coherent(ip->dma_dev, RX_RING_SIZE, &ip->rxr_dma,
+				     GFP_KERNEL);
 	if (!ip->rxr) {
 		pr_err("ioc3-eth: rx ring allocation failed\n");
 		err = -ENOMEM;
@@ -1251,14 +1237,16 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Allocate tx rings.  16kb = 128 bufs, must be 16kb aligned  */
-	ip->txr = dma_direct_alloc_pages(ip->dma_dev, TX_RING_SIZE,
-					 &ip->txr_dma,
-					 GFP_KERNEL | __GFP_ZERO, 0);
-	if (!ip->txr) {
+	ip->tx_ring = dma_alloc_coherent(ip->dma_dev, TX_RING_SIZE + SZ_16K - 1,
+					 &ip->txr_dma, GFP_KERNEL);
+	if (!ip->tx_ring) {
 		pr_err("ioc3-eth: tx ring allocation failed\n");
 		err = -ENOMEM;
 		goto out_stop;
 	}
+	/* Align TX ring */
+	ip->txr = PTR_ALIGN(ip->tx_ring, SZ_16K);
+	ip->txr_dma = ALIGN(ip->txr_dma, SZ_16K);
 
 	ioc3_init(dev);
 
@@ -1288,7 +1276,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->netdev_ops		= &ioc3_netdev_ops;
 	dev->ethtool_ops	= &ioc3_ethtool_ops;
 	dev->hw_features	= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
-	dev->features		= NETIF_F_IP_CSUM;
+	dev->features		= NETIF_F_IP_CSUM | NETIF_F_HIGHDMA;
 
 	sw_physid1 = ioc3_mdio_read(dev, ip->mii.phy_id, MII_PHYSID1);
 	sw_physid2 = ioc3_mdio_read(dev, ip->mii.phy_id, MII_PHYSID2);
@@ -1313,11 +1301,11 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 out_stop:
 	del_timer_sync(&ip->ioc3_timer);
 	if (ip->rxr)
-		dma_direct_free_pages(ip->dma_dev, RX_RING_SIZE, ip->rxr,
-				      ip->rxr_dma, 0);
-	if (ip->txr)
-		dma_direct_free_pages(ip->dma_dev, TX_RING_SIZE, ip->txr,
-				      ip->txr_dma, 0);
+		dma_free_coherent(ip->dma_dev, RX_RING_SIZE, ip->rxr,
+				  ip->rxr_dma);
+	if (ip->tx_ring)
+		dma_free_coherent(ip->dma_dev, TX_RING_SIZE, ip->tx_ring,
+				  ip->txr_dma);
 out_res:
 	pci_release_regions(pdev);
 out_free:
@@ -1335,10 +1323,8 @@ static void ioc3_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct ioc3_private *ip = netdev_priv(dev);
 
-	dma_direct_free_pages(ip->dma_dev, RX_RING_SIZE, ip->rxr,
-			      ip->rxr_dma, 0);
-	dma_direct_free_pages(ip->dma_dev, TX_RING_SIZE, ip->txr,
-			      ip->txr_dma, 0);
+	dma_free_coherent(ip->dma_dev, RX_RING_SIZE, ip->rxr, ip->rxr_dma);
+	dma_free_coherent(ip->dma_dev, TX_RING_SIZE, ip->tx_ring, ip->txr_dma);
 
 	unregister_netdev(dev);
 	del_timer_sync(&ip->ioc3_timer);

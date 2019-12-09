@@ -108,23 +108,15 @@ static bool client_doorbell_in_sync(struct intel_guc_client *client)
  * validating that the doorbells status expected by the driver matches what the
  * GuC/HW have.
  */
-static int igt_guc_clients(void *args)
+static int igt_guc_clients(void *arg)
 {
-	struct drm_i915_private *dev_priv = args;
+	struct intel_gt *gt = arg;
+	struct intel_guc *guc = &gt->uc.guc;
 	intel_wakeref_t wakeref;
-	struct intel_guc *guc;
 	int err = 0;
 
-	GEM_BUG_ON(!HAS_GT_UC(dev_priv));
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-
-	guc = &dev_priv->gt.uc.guc;
-	if (!guc) {
-		pr_err("No guc object!\n");
-		err = -EINVAL;
-		goto unlock;
-	}
+	GEM_BUG_ON(!HAS_GT_UC(gt->i915));
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 
 	err = check_all_doorbells(guc);
 	if (err)
@@ -189,8 +181,7 @@ out:
 	guc_clients_create(guc);
 	guc_clients_enable(guc);
 unlock:
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 	return err;
 }
 
@@ -201,22 +192,14 @@ unlock:
  */
 static int igt_guc_doorbells(void *arg)
 {
-	struct drm_i915_private *dev_priv = arg;
+	struct intel_gt *gt = arg;
+	struct intel_guc *guc = &gt->uc.guc;
 	intel_wakeref_t wakeref;
-	struct intel_guc *guc;
 	int i, err = 0;
 	u16 db_id;
 
-	GEM_BUG_ON(!HAS_GT_UC(dev_priv));
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-
-	guc = &dev_priv->gt.uc.guc;
-	if (!guc) {
-		pr_err("No guc object!\n");
-		err = -EINVAL;
-		goto unlock;
-	}
+	GEM_BUG_ON(!HAS_GT_UC(gt->i915));
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 
 	err = check_all_doorbells(guc);
 	if (err)
@@ -298,20 +281,19 @@ out:
 			guc_client_free(clients[i]);
 		}
 unlock:
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 	return err;
 }
 
-int intel_guc_live_selftest(struct drm_i915_private *dev_priv)
+int intel_guc_live_selftest(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_guc_clients),
 		SUBTEST(igt_guc_doorbells),
 	};
 
-	if (!USES_GUC_SUBMISSION(dev_priv))
+	if (!USES_GUC_SUBMISSION(i915))
 		return 0;
 
-	return i915_subtests(tests, dev_priv);
+	return intel_gt_live_subtests(tests, &i915->gt);
 }

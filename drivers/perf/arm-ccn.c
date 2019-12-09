@@ -1477,8 +1477,7 @@ static int arm_ccn_probe(struct platform_device *pdev)
 	ccn->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ccn);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ccn->base = devm_ioremap_resource(ccn->dev, res);
+	ccn->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ccn->base))
 		return PTR_ERR(ccn->base);
 
@@ -1537,6 +1536,7 @@ static int arm_ccn_remove(struct platform_device *pdev)
 static const struct of_device_id arm_ccn_match[] = {
 	{ .compatible = "arm,ccn-502", },
 	{ .compatible = "arm,ccn-504", },
+	{ .compatible = "arm,ccn-512", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, arm_ccn_match);

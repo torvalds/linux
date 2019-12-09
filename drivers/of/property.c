@@ -165,7 +165,7 @@ EXPORT_SYMBOL_GPL(of_property_read_u64_index);
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
- * @out_values:	pointer to return value, modified only if return value is 0.
+ * @out_values:	pointer to found values.
  * @sz_min:	minimum number of array elements to read
  * @sz_max:	maximum number of array elements to read, if zero there is no
  *		upper limit on the number of elements in the dts entry but only
@@ -213,7 +213,7 @@ EXPORT_SYMBOL_GPL(of_property_read_variable_u8_array);
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
- * @out_values:	pointer to return value, modified only if return value is 0.
+ * @out_values:	pointer to found values.
  * @sz_min:	minimum number of array elements to read
  * @sz_max:	maximum number of array elements to read, if zero there is no
  *		upper limit on the number of elements in the dts entry but only
@@ -261,7 +261,7 @@ EXPORT_SYMBOL_GPL(of_property_read_variable_u16_array);
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
- * @out_values:	pointer to return value, modified only if return value is 0.
+ * @out_values:	pointer to return found values.
  * @sz_min:	minimum number of array elements to read
  * @sz_max:	maximum number of array elements to read, if zero there is no
  *		upper limit on the number of elements in the dts entry but only
@@ -335,7 +335,7 @@ EXPORT_SYMBOL_GPL(of_property_read_u64);
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
- * @out_values:	pointer to return value, modified only if return value is 0.
+ * @out_values:	pointer to found values.
  * @sz_min:	minimum number of array elements to read
  * @sz_max:	maximum number of array elements to read, if zero there is no
  *		upper limit on the number of elements in the dts entry but only
@@ -873,6 +873,20 @@ of_fwnode_property_read_string_array(const struct fwnode_handle *fwnode,
 		of_property_count_strings(node, propname);
 }
 
+static const char *of_fwnode_get_name(const struct fwnode_handle *fwnode)
+{
+	return kbasename(to_of_node(fwnode)->full_name);
+}
+
+static const char *of_fwnode_get_name_prefix(const struct fwnode_handle *fwnode)
+{
+	/* Root needs no prefix here (its name is "/"). */
+	if (!to_of_node(fwnode)->parent)
+		return "";
+
+	return "/";
+}
+
 static struct fwnode_handle *
 of_fwnode_get_parent(const struct fwnode_handle *fwnode)
 {
@@ -1308,6 +1322,8 @@ const struct fwnode_operations of_fwnode_ops = {
 	.property_present = of_fwnode_property_present,
 	.property_read_int_array = of_fwnode_property_read_int_array,
 	.property_read_string_array = of_fwnode_property_read_string_array,
+	.get_name = of_fwnode_get_name,
+	.get_name_prefix = of_fwnode_get_name_prefix,
 	.get_parent = of_fwnode_get_parent,
 	.get_next_child_node = of_fwnode_get_next_child_node,
 	.get_named_child_node = of_fwnode_get_named_child_node,

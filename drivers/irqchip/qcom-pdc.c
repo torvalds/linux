@@ -63,6 +63,26 @@ static u32 pdc_reg_read(int reg, u32 i)
 	return readl_relaxed(pdc_base + reg + i * sizeof(u32));
 }
 
+static int qcom_pdc_gic_get_irqchip_state(struct irq_data *d,
+					  enum irqchip_irq_state which,
+					  bool *state)
+{
+	if (d->hwirq == GPIO_NO_WAKE_IRQ)
+		return 0;
+
+	return irq_chip_get_parent_state(d, which, state);
+}
+
+static int qcom_pdc_gic_set_irqchip_state(struct irq_data *d,
+					  enum irqchip_irq_state which,
+					  bool value)
+{
+	if (d->hwirq == GPIO_NO_WAKE_IRQ)
+		return 0;
+
+	return irq_chip_set_parent_state(d, which, value);
+}
+
 static void pdc_enable_intr(struct irq_data *d, bool on)
 {
 	int pin_out = d->hwirq;
@@ -222,6 +242,9 @@ static int qcom_pdc_gic_set_type(struct irq_data *d, unsigned int type)
 	int parent_hwirq = d->parent_data->hwirq;
 	enum pdc_irq_config_bits pdc_type;
 	int ret;
+
+	if (pin_out == GPIO_NO_WAKE_IRQ)
+		return 0;
 
 	if (pin_out == GPIO_NO_WAKE_IRQ)
 		return 0;
@@ -498,10 +521,10 @@ static int qcom_pdc_init(struct device_node *node, struct device_node *parent)
 	}
 
 	pdc_gpio_domain = irq_domain_create_hierarchy(parent_domain,
-						      IRQ_DOMAIN_FLAG_QCOM_PDC_WAKEUP,
-						      PDC_MAX_GPIO_IRQS,
-						      of_fwnode_handle(node),
-						      &qcom_pdc_gpio_ops, NULL);
+					IRQ_DOMAIN_FLAG_QCOM_PDC_WAKEUP,
+					PDC_MAX_GPIO_IRQS,
+					of_fwnode_handle(node),
+					&qcom_pdc_gpio_ops, NULL);
 	if (!pdc_gpio_domain) {
 		pr_err("%pOF: PDC domain add failed for GPIO domain\n", node);
 		ret = -ENOMEM;
@@ -521,4 +544,4 @@ fail:
 	return ret;
 }
 
-IRQCHIP_DECLARE(pdc_sdm845, "qcom,sdm845-pdc", qcom_pdc_init);
+IRQCHIP_DECLARE(qcom_pdc, "qcom,pdc", qcom_pdc_init);

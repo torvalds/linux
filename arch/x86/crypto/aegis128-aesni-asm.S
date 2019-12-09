@@ -71,7 +71,7 @@
  *   %r8
  *   %r9
  */
-__load_partial:
+SYM_FUNC_START_LOCAL(__load_partial)
 	xor %r9d, %r9d
 	pxor MSG, MSG
 
@@ -123,7 +123,7 @@ __load_partial:
 
 .Lld_partial_8:
 	ret
-ENDPROC(__load_partial)
+SYM_FUNC_END(__load_partial)
 
 /*
  * __store_partial: internal ABI
@@ -137,7 +137,7 @@ ENDPROC(__load_partial)
  *   %r9
  *   %r10
  */
-__store_partial:
+SYM_FUNC_START_LOCAL(__store_partial)
 	mov LEN, %r8
 	mov DST, %r9
 
@@ -181,12 +181,12 @@ __store_partial:
 
 .Lst_partial_1:
 	ret
-ENDPROC(__store_partial)
+SYM_FUNC_END(__store_partial)
 
 /*
  * void crypto_aegis128_aesni_init(void *state, const void *key, const void *iv);
  */
-ENTRY(crypto_aegis128_aesni_init)
+SYM_FUNC_START(crypto_aegis128_aesni_init)
 	FRAME_BEGIN
 
 	/* load IV: */
@@ -226,13 +226,13 @@ ENTRY(crypto_aegis128_aesni_init)
 
 	FRAME_END
 	ret
-ENDPROC(crypto_aegis128_aesni_init)
+SYM_FUNC_END(crypto_aegis128_aesni_init)
 
 /*
  * void crypto_aegis128_aesni_ad(void *state, unsigned int length,
  *                               const void *data);
  */
-ENTRY(crypto_aegis128_aesni_ad)
+SYM_FUNC_START(crypto_aegis128_aesni_ad)
 	FRAME_BEGIN
 
 	cmp $0x10, LEN
@@ -378,7 +378,7 @@ ENTRY(crypto_aegis128_aesni_ad)
 .Lad_out:
 	FRAME_END
 	ret
-ENDPROC(crypto_aegis128_aesni_ad)
+SYM_FUNC_END(crypto_aegis128_aesni_ad)
 
 .macro encrypt_block a s0 s1 s2 s3 s4 i
 	movdq\a (\i * 0x10)(SRC), MSG
@@ -402,7 +402,7 @@ ENDPROC(crypto_aegis128_aesni_ad)
  * void crypto_aegis128_aesni_enc(void *state, unsigned int length,
  *                                const void *src, void *dst);
  */
-ENTRY(crypto_aegis128_aesni_enc)
+SYM_FUNC_START(crypto_aegis128_aesni_enc)
 	FRAME_BEGIN
 
 	cmp $0x10, LEN
@@ -493,13 +493,13 @@ ENTRY(crypto_aegis128_aesni_enc)
 .Lenc_out:
 	FRAME_END
 	ret
-ENDPROC(crypto_aegis128_aesni_enc)
+SYM_FUNC_END(crypto_aegis128_aesni_enc)
 
 /*
  * void crypto_aegis128_aesni_enc_tail(void *state, unsigned int length,
  *                                     const void *src, void *dst);
  */
-ENTRY(crypto_aegis128_aesni_enc_tail)
+SYM_FUNC_START(crypto_aegis128_aesni_enc_tail)
 	FRAME_BEGIN
 
 	/* load the state: */
@@ -533,7 +533,7 @@ ENTRY(crypto_aegis128_aesni_enc_tail)
 
 	FRAME_END
 	ret
-ENDPROC(crypto_aegis128_aesni_enc_tail)
+SYM_FUNC_END(crypto_aegis128_aesni_enc_tail)
 
 .macro decrypt_block a s0 s1 s2 s3 s4 i
 	movdq\a (\i * 0x10)(SRC), MSG
@@ -556,7 +556,7 @@ ENDPROC(crypto_aegis128_aesni_enc_tail)
  * void crypto_aegis128_aesni_dec(void *state, unsigned int length,
  *                                const void *src, void *dst);
  */
-ENTRY(crypto_aegis128_aesni_dec)
+SYM_FUNC_START(crypto_aegis128_aesni_dec)
 	FRAME_BEGIN
 
 	cmp $0x10, LEN
@@ -647,13 +647,13 @@ ENTRY(crypto_aegis128_aesni_dec)
 .Ldec_out:
 	FRAME_END
 	ret
-ENDPROC(crypto_aegis128_aesni_dec)
+SYM_FUNC_END(crypto_aegis128_aesni_dec)
 
 /*
  * void crypto_aegis128_aesni_dec_tail(void *state, unsigned int length,
  *                                     const void *src, void *dst);
  */
-ENTRY(crypto_aegis128_aesni_dec_tail)
+SYM_FUNC_START(crypto_aegis128_aesni_dec_tail)
 	FRAME_BEGIN
 
 	/* load the state: */
@@ -697,13 +697,13 @@ ENTRY(crypto_aegis128_aesni_dec_tail)
 
 	FRAME_END
 	ret
-ENDPROC(crypto_aegis128_aesni_dec_tail)
+SYM_FUNC_END(crypto_aegis128_aesni_dec_tail)
 
 /*
  * void crypto_aegis128_aesni_final(void *state, void *tag_xor,
  *                                  u64 assoclen, u64 cryptlen);
  */
-ENTRY(crypto_aegis128_aesni_final)
+SYM_FUNC_START(crypto_aegis128_aesni_final)
 	FRAME_BEGIN
 
 	/* load the state: */
@@ -744,4 +744,4 @@ ENTRY(crypto_aegis128_aesni_final)
 
 	FRAME_END
 	ret
-ENDPROC(crypto_aegis128_aesni_final)
+SYM_FUNC_END(crypto_aegis128_aesni_final)

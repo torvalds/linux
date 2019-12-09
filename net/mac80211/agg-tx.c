@@ -485,7 +485,14 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 
 	params.ssn = sta->tid_seq[tid] >> 4;
 	ret = drv_ampdu_action(local, sdata, &params);
-	if (ret) {
+	if (ret == IEEE80211_AMPDU_TX_START_IMMEDIATE) {
+		/*
+		 * We didn't send the request yet, so don't need to check
+		 * here if we already got a response, just mark as driver
+		 * ready immediately.
+		 */
+		set_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state);
+	} else if (ret) {
 		ht_dbg(sdata,
 		       "BA request denied - HW unavailable for %pM tid %d\n",
 		       sta->sta.addr, tid);

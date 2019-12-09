@@ -758,16 +758,16 @@ struct ufs_hba {
 	 */
 #define UFSHCD_CAP_KEEP_AUTO_BKOPS_ENABLED_EXCEPT_SUSPEND (1 << 5)
 	/*
-	 * This capability allows the host controller driver to use the
-	 * inline crypto engine, if it is present
-	 */
-#define UFSHCD_CAP_CRYPTO (1 << 6)
-	/*
 	 * This capability allows host controller driver to automatically
 	 * enable runtime power management by itself instead of waiting
 	 * for userspace to control the power management.
 	 */
 #define UFSHCD_CAP_RPM_AUTOSUSPEND (1 << 6)
+	/*
+	 * This capability allows the host controller driver to use the
+	 * inline crypto engine, if it is present
+	 */
+#define UFSHCD_CAP_CRYPTO (1 << 7)
 
 	struct devfreq *devfreq;
 	struct ufs_clk_scaling clk_scaling;
@@ -980,6 +980,8 @@ int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 		      enum attr_idn idn, u8 index, u8 selector, u32 *attr_val);
 int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 	enum flag_idn idn, bool *flag_res);
+
+void ufshcd_auto_hibern8_enable(struct ufs_hba *hba);
 
 #define SD_ASCII_STD true
 #define SD_RAW false

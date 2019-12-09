@@ -1028,7 +1028,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	/* well, we really should support scatter/gather DMA */
 	snd_pcm_lib_preallocate_pages_for_all(
 		dev->pcm, SNDRV_DMA_TYPE_DEV,
-		snd_dma_pci_data(macio_get_pci_dev(i2sdev->macio)),
+		&macio_get_pci_dev(i2sdev->macio)->dev,
 		64 * 1024, 64 * 1024);
 
 	return 0;

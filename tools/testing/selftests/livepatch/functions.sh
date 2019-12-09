@@ -29,27 +29,43 @@ function die() {
 	exit 1
 }
 
-function push_dynamic_debug() {
-        DYNAMIC_DEBUG=$(grep '^kernel/livepatch' /sys/kernel/debug/dynamic_debug/control | \
-                awk -F'[: ]' '{print "file " $1 " line " $2 " " $4}')
+function push_config() {
+	DYNAMIC_DEBUG=$(grep '^kernel/livepatch' /sys/kernel/debug/dynamic_debug/control | \
+			awk -F'[: ]' '{print "file " $1 " line " $2 " " $4}')
+	FTRACE_ENABLED=$(sysctl --values kernel.ftrace_enabled)
 }
 
-function pop_dynamic_debug() {
+function pop_config() {
 	if [[ -n "$DYNAMIC_DEBUG" ]]; then
 		echo -n "$DYNAMIC_DEBUG" > /sys/kernel/debug/dynamic_debug/control
 	fi
+	if [[ -n "$FTRACE_ENABLED" ]]; then
+		sysctl kernel.ftrace_enabled="$FTRACE_ENABLED" &> /dev/null
+	fi
 }
 
-# set_dynamic_debug() - save the current dynamic debug config and tweak
-# 			it for the self-tests.  Set a script exit trap
-#			that restores the original config.
 function set_dynamic_debug() {
-        push_dynamic_debug
-        trap pop_dynamic_debug EXIT INT TERM HUP
         cat <<-EOF > /sys/kernel/debug/dynamic_debug/control
 		file kernel/livepatch/* +p
 		func klp_try_switch_task -p
 		EOF
+}
+
+function set_ftrace_enabled() {
+	local sysctl="$1"
+	result=$(sysctl kernel.ftrace_enabled="$1" 2>&1 | paste --serial --delimiters=' ')
+	echo "livepatch: $result" > /dev/kmsg
+}
+
+# setup_config - save the current config and set a script exit trap that
+#		 restores the original config.  Setup the dynamic debug
+#		 for verbose livepatching output and turn on
+#		 the ftrace_enabled sysctl.
+function setup_config() {
+	push_config
+	set_dynamic_debug
+	set_ftrace_enabled 1
+	trap pop_config EXIT INT TERM HUP
 }
 
 # loop_until(cmd) - loop a command until it is successful or $MAX_RETRIES,

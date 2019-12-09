@@ -7,6 +7,8 @@
 #include <linux/siphash.h>
 #include <uapi/linux/if_ether.h>
 
+struct sk_buff;
+
 /**
  * struct flow_dissector_key_control:
  * @thoff: Transport header offset
@@ -46,9 +48,14 @@ struct flow_dissector_key_tags {
 };
 
 struct flow_dissector_key_vlan {
-	u16	vlan_id:12,
-		vlan_dei:1,
-		vlan_priority:3;
+	union {
+		struct {
+			u16	vlan_id:12,
+				vlan_dei:1,
+				vlan_priority:3;
+		};
+		__be16	vlan_tci;
+	};
 	__be16	vlan_tpid;
 };
 
@@ -157,19 +164,16 @@ struct flow_dissector_key_ports {
 
 /**
  * flow_dissector_key_icmp:
- *	@ports: type and code of ICMP header
- *		icmp: ICMP type (high) and code (low)
  *		type: ICMP type
  *		code: ICMP code
+ *		id:   session identifier
  */
 struct flow_dissector_key_icmp {
-	union {
-		__be16 icmp;
-		struct {
-			u8 type;
-			u8 code;
-		};
+	struct {
+		u8 type;
+		u8 code;
 	};
+	u16 id;
 };
 
 /**
@@ -204,9 +208,11 @@ struct flow_dissector_key_ip {
 /**
  * struct flow_dissector_key_meta:
  * @ingress_ifindex: ingress ifindex
+ * @ingress_iftype: ingress interface type
  */
 struct flow_dissector_key_meta {
 	int ingress_ifindex;
+	u16 ingress_iftype;
 };
 
 /**
@@ -229,6 +235,7 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_IPV4_ADDRS, /* struct flow_dissector_key_ipv4_addrs */
 	FLOW_DISSECTOR_KEY_IPV6_ADDRS, /* struct flow_dissector_key_ipv6_addrs */
 	FLOW_DISSECTOR_KEY_PORTS, /* struct flow_dissector_key_ports */
+	FLOW_DISSECTOR_KEY_PORTS_RANGE, /* struct flow_dissector_key_ports */
 	FLOW_DISSECTOR_KEY_ICMP, /* struct flow_dissector_key_icmp */
 	FLOW_DISSECTOR_KEY_ETH_ADDRS, /* struct flow_dissector_key_eth_addrs */
 	FLOW_DISSECTOR_KEY_TIPC, /* struct flow_dissector_key_tipc */
@@ -283,6 +290,8 @@ struct flow_keys {
 	struct flow_dissector_key_vlan cvlan;
 	struct flow_dissector_key_keyid keyid;
 	struct flow_dissector_key_ports ports;
+	struct flow_dissector_key_icmp icmp;
+	/* 'addrs' must be the last member */
 	struct flow_dissector_key_addrs addrs;
 };
 
@@ -316,6 +325,9 @@ static inline bool flow_keys_have_l4(const struct flow_keys *keys)
 }
 
 u32 flow_hash_from_keys(struct flow_keys *keys);
+void skb_flow_get_icmp_tci(const struct sk_buff *skb,
+			   struct flow_dissector_key_icmp *key_icmp,
+			   void *data, int thoff, int hlen);
 
 static inline bool dissector_uses_key(const struct flow_dissector *flow_dissector,
 				      enum flow_dissector_key_id key_id)

@@ -42,7 +42,7 @@ static inline int liblockdep_pthread_mutex_lock(liblockdep_pthread_mutex_t *lock
 
 static inline int liblockdep_pthread_mutex_unlock(liblockdep_pthread_mutex_t *lock)
 {
-	lock_release(&lock->dep_map, 0, (unsigned long)_RET_IP_);
+	lock_release(&lock->dep_map, (unsigned long)_RET_IP_);
 	return pthread_mutex_unlock(&lock->mutex);
 }
 

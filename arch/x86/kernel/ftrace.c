@@ -1043,6 +1043,20 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 		return;
 
 	/*
+	 * If the return location is actually pointing directly to
+	 * the start of a direct trampoline (if we trace the trampoline
+	 * it will still be offset by MCOUNT_INSN_SIZE), then the
+	 * return address is actually off by one word, and we
+	 * need to adjust for that.
+	 */
+	if (ftrace_direct_func_count) {
+		if (ftrace_find_direct_func(self_addr + MCOUNT_INSN_SIZE)) {
+			self_addr = *parent;
+			parent++;
+		}
+	}
+
+	/*
 	 * Protect against fault, even if it shouldn't
 	 * happen. This tool is too much intrusive to
 	 * ignore such a protection.

@@ -164,6 +164,7 @@ static ssize_t mdev_link_direction_store(struct config_item *item,
 	    !sysfs_streq(page, "dir_tx") && !sysfs_streq(page, "tx"))
 		return -EINVAL;
 	strcpy(mdev_link->direction, page);
+	strim(mdev_link->direction);
 	return count;
 }
 
@@ -182,6 +183,7 @@ static ssize_t mdev_link_datatype_store(struct config_item *item,
 	    !sysfs_streq(page, "isoc_avp"))
 		return -EINVAL;
 	strcpy(mdev_link->datatype, page);
+	strim(mdev_link->datatype);
 	return count;
 }
 
@@ -196,6 +198,7 @@ static ssize_t mdev_link_device_store(struct config_item *item,
 	struct mdev_link *mdev_link = to_mdev_link(item);
 
 	strcpy(mdev_link->device, page);
+	strim(mdev_link->device);
 	return count;
 }
 
@@ -210,6 +213,7 @@ static ssize_t mdev_link_channel_store(struct config_item *item,
 	struct mdev_link *mdev_link = to_mdev_link(item);
 
 	strcpy(mdev_link->channel, page);
+	strim(mdev_link->channel);
 	return count;
 }
 
@@ -391,22 +395,29 @@ static const struct config_item_type mdev_link_type = {
 
 struct most_common {
 	struct config_group group;
+	struct module *mod;
+	struct configfs_subsystem subsys;
 };
 
-static struct most_common *to_most_common(struct config_item *item)
+static struct most_common *to_most_common(struct configfs_subsystem *subsys)
 {
-	return container_of(to_config_group(item), struct most_common, group);
+	return container_of(subsys, struct most_common, subsys);
 }
 
 static struct config_item *most_common_make_item(struct config_group *group,
 						 const char *name)
 {
 	struct mdev_link *mdev_link;
+	struct most_common *mc = to_most_common(group->cg_subsys);
 
 	mdev_link = kzalloc(sizeof(*mdev_link), GFP_KERNEL);
 	if (!mdev_link)
 		return ERR_PTR(-ENOMEM);
 
+	if (!try_module_get(mc->mod)) {
+		kfree(mdev_link);
+		return ERR_PTR(-ENOLCK);
+	}
 	config_item_init_type_name(&mdev_link->item, name,
 				   &mdev_link_type);
 
@@ -422,15 +433,26 @@ static struct config_item *most_common_make_item(struct config_group *group,
 
 static void most_common_release(struct config_item *item)
 {
-	kfree(to_most_common(item));
+	struct config_group *group = to_config_group(item);
+
+	kfree(to_most_common(group->cg_subsys));
 }
 
 static struct configfs_item_operations most_common_item_ops = {
 	.release	= most_common_release,
 };
 
+static void most_common_disconnect(struct config_group *group,
+				   struct config_item *item)
+{
+	struct most_common *mc = to_most_common(group->cg_subsys);
+
+	module_put(mc->mod);
+}
+
 static struct configfs_group_operations most_common_group_ops = {
 	.make_item	= most_common_make_item,
+	.disconnect_notify = most_common_disconnect,
 };
 
 static const struct config_item_type most_common_type = {
@@ -439,29 +461,35 @@ static const struct config_item_type most_common_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-static struct configfs_subsystem most_cdev_subsys = {
-	.su_group = {
-		.cg_item = {
-			.ci_namebuf = "most_cdev",
-			.ci_type = &most_common_type,
+static struct most_common most_cdev = {
+	.subsys = {
+		.su_group = {
+			.cg_item = {
+				.ci_namebuf = "most_cdev",
+				.ci_type = &most_common_type,
+			},
 		},
 	},
 };
 
-static struct configfs_subsystem most_net_subsys = {
-	.su_group = {
-		.cg_item = {
-			.ci_namebuf = "most_net",
-			.ci_type = &most_common_type,
+static struct most_common most_net = {
+	.subsys = {
+		.su_group = {
+			.cg_item = {
+				.ci_namebuf = "most_net",
+				.ci_type = &most_common_type,
+			},
 		},
 	},
 };
 
-static struct configfs_subsystem most_video_subsys = {
-	.su_group = {
-		.cg_item = {
-			.ci_namebuf = "most_video",
-			.ci_type = &most_common_type,
+static struct most_common most_video = {
+	.subsys = {
+		.su_group = {
+			.cg_item = {
+				.ci_namebuf = "most_video",
+				.ci_type = &most_common_type,
+			},
 		},
 	},
 };
@@ -487,7 +515,7 @@ static struct config_item *most_snd_grp_make_item(struct config_group *group,
 		return ERR_PTR(-ENOMEM);
 
 	config_item_init_type_name(&mdev_link->item, name, &mdev_link_type);
-	mdev_link->create_link = 0;
+	mdev_link->create_link = false;
 	strcpy(mdev_link->name, name);
 	strcpy(mdev_link->comp, "sound");
 	return &mdev_link->item;
@@ -545,13 +573,14 @@ static const struct config_item_type most_snd_grp_type = {
 struct most_sound {
 	struct configfs_subsystem subsys;
 	struct list_head soundcard_list;
+	struct module *mod;
 };
 
 static struct config_group *most_sound_make_group(struct config_group *group,
 						  const char *name)
 {
 	struct most_snd_grp *most;
-	struct most_sound *ms = container_of(to_configfs_subsystem(group),
+	struct most_sound *ms = container_of(group->cg_subsys,
 					     struct most_sound, subsys);
 
 	list_for_each_entry(most, &ms->soundcard_list, list) {
@@ -560,17 +589,29 @@ static struct config_group *most_sound_make_group(struct config_group *group,
 			return ERR_PTR(-EPROTO);
 		}
 	}
+	if (!try_module_get(ms->mod))
+		return ERR_PTR(-ENOLCK);
 	most = kzalloc(sizeof(*most), GFP_KERNEL);
-	if (!most)
+	if (!most) {
+		module_put(ms->mod);
 		return ERR_PTR(-ENOMEM);
-
+	}
 	config_group_init_type_name(&most->group, name, &most_snd_grp_type);
 	list_add_tail(&most->list, &ms->soundcard_list);
 	return &most->group;
 }
 
+static void most_sound_disconnect(struct config_group *group,
+				  struct config_item *item)
+{
+	struct most_sound *ms = container_of(group->cg_subsys,
+					     struct most_sound, subsys);
+	module_put(ms->mod);
+}
+
 static struct configfs_group_operations most_sound_group_ops = {
 	.make_group	= most_sound_make_group,
+	.disconnect_notify = most_sound_disconnect,
 };
 
 static const struct config_item_type most_sound_type = {
@@ -593,16 +634,21 @@ int most_register_configfs_subsys(struct core_component *c)
 {
 	int ret;
 
-	if (!strcmp(c->name, "cdev"))
-		ret = configfs_register_subsystem(&most_cdev_subsys);
-	else if (!strcmp(c->name, "net"))
-		ret = configfs_register_subsystem(&most_net_subsys);
-	else if (!strcmp(c->name, "video"))
-		ret = configfs_register_subsystem(&most_video_subsys);
-	else if (!strcmp(c->name, "sound"))
+	if (!strcmp(c->name, "cdev")) {
+		most_cdev.mod = c->mod;
+		ret = configfs_register_subsystem(&most_cdev.subsys);
+	} else if (!strcmp(c->name, "net")) {
+		most_net.mod = c->mod;
+		ret = configfs_register_subsystem(&most_net.subsys);
+	} else if (!strcmp(c->name, "video")) {
+		most_video.mod = c->mod;
+		ret = configfs_register_subsystem(&most_video.subsys);
+	} else if (!strcmp(c->name, "sound")) {
+		most_sound_subsys.mod = c->mod;
 		ret = configfs_register_subsystem(&most_sound_subsys.subsys);
-	else
+	} else {
 		return -ENODEV;
+	}
 
 	if (ret) {
 		pr_err("Error %d while registering subsystem %s\n",
@@ -631,11 +677,11 @@ void most_interface_register_notify(const char *mdev)
 void most_deregister_configfs_subsys(struct core_component *c)
 {
 	if (!strcmp(c->name, "cdev"))
-		configfs_unregister_subsystem(&most_cdev_subsys);
+		configfs_unregister_subsystem(&most_cdev.subsys);
 	else if (!strcmp(c->name, "net"))
-		configfs_unregister_subsystem(&most_net_subsys);
+		configfs_unregister_subsystem(&most_net.subsys);
 	else if (!strcmp(c->name, "video"))
-		configfs_unregister_subsystem(&most_video_subsys);
+		configfs_unregister_subsystem(&most_video.subsys);
 	else if (!strcmp(c->name, "sound"))
 		configfs_unregister_subsystem(&most_sound_subsys.subsys);
 }
@@ -643,14 +689,14 @@ EXPORT_SYMBOL_GPL(most_deregister_configfs_subsys);
 
 int __init configfs_init(void)
 {
-	config_group_init(&most_cdev_subsys.su_group);
-	mutex_init(&most_cdev_subsys.su_mutex);
+	config_group_init(&most_cdev.subsys.su_group);
+	mutex_init(&most_cdev.subsys.su_mutex);
 
-	config_group_init(&most_net_subsys.su_group);
-	mutex_init(&most_net_subsys.su_mutex);
+	config_group_init(&most_net.subsys.su_group);
+	mutex_init(&most_net.subsys.su_mutex);
 
-	config_group_init(&most_video_subsys.su_group);
-	mutex_init(&most_video_subsys.su_mutex);
+	config_group_init(&most_video.subsys.su_group);
+	mutex_init(&most_video.subsys.su_mutex);
 
 	config_group_init(&most_sound_subsys.subsys.su_group);
 	mutex_init(&most_sound_subsys.subsys.su_mutex);

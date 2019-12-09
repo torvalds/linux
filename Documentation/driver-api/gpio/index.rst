@@ -13,6 +13,7 @@ Contents:
    board
    drivers-on-gpio
    legacy
+   bt8xxgpio
 
 Core
 ====

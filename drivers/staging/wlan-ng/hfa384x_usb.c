@@ -293,13 +293,11 @@ void dbprint_urb(struct urb *urb)
 	pr_debug("urb->transfer_buffer_length=0x%08x\n",
 		 urb->transfer_buffer_length);
 	pr_debug("urb->actual_length=0x%08x\n", urb->actual_length);
-	pr_debug("urb->bandwidth=0x%08x\n", urb->bandwidth);
 	pr_debug("urb->setup_packet(ctl)=0x%08x\n",
 		 (unsigned int)urb->setup_packet);
 	pr_debug("urb->start_frame(iso/irq)=0x%08x\n", urb->start_frame);
 	pr_debug("urb->interval(irq)=0x%08x\n", urb->interval);
 	pr_debug("urb->error_count(iso)=0x%08x\n", urb->error_count);
-	pr_debug("urb->timeout=0x%08x\n", urb->timeout);
 	pr_debug("urb->context=0x%08x\n", (unsigned int)urb->context);
 	pr_debug("urb->complete=0x%08x\n", (unsigned int)urb->complete);
 }

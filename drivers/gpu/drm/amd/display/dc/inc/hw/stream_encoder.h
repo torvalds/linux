@@ -214,6 +214,11 @@ struct stream_encoder_funcs {
 	unsigned int (*dig_source_otg)(
 		struct stream_encoder *enc);
 
+	bool (*dp_get_pixel_format)(
+		struct stream_encoder *enc,
+		enum dc_pixel_encoding *encoding,
+		enum dc_color_depth *depth);
+
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	void (*enc_read_state)(struct stream_encoder *enc, struct enc_state *s);

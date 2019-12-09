@@ -862,7 +862,7 @@ mt7530_port_set_vlan_unaware(struct dsa_switch *ds, int port)
 
 	for (i = 0; i < MT7530_NUM_PORTS; i++) {
 		if (dsa_is_user_port(ds, i) &&
-		    dsa_port_is_vlan_filtering(&ds->ports[i])) {
+		    dsa_port_is_vlan_filtering(dsa_to_port(ds, i))) {
 			all_user_ports_removed = false;
 			break;
 		}
@@ -922,7 +922,7 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 		 * other port is still a VLAN-aware port.
 		 */
 		if (dsa_is_user_port(ds, i) && i != port &&
-		   !dsa_port_is_vlan_filtering(&ds->ports[i])) {
+		   !dsa_port_is_vlan_filtering(dsa_to_port(ds, i))) {
 			if (dsa_to_port(ds, i)->bridge_dev != bridge)
 				continue;
 			if (priv->ports[i].enable)
@@ -1165,7 +1165,7 @@ mt7530_port_vlan_add(struct dsa_switch *ds, int port,
 	/* The port is kept as VLAN-unaware if bridge with vlan_filtering not
 	 * being set.
 	 */
-	if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
+	if (!dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
 		return;
 
 	mutex_lock(&priv->reg_mutex);
@@ -1196,7 +1196,7 @@ mt7530_port_vlan_del(struct dsa_switch *ds, int port,
 	/* The port is kept as VLAN-unaware if bridge with vlan_filtering not
 	 * being set.
 	 */
-	if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
+	if (!dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
 		return 0;
 
 	mutex_lock(&priv->reg_mutex);
@@ -1252,7 +1252,7 @@ mt7530_setup(struct dsa_switch *ds)
 	 * controller also is the container for two GMACs nodes representing
 	 * as two netdev instances.
 	 */
-	dn = ds->ports[MT7530_CPU_PORT].master->dev.of_node->parent;
+	dn = dsa_to_port(ds, MT7530_CPU_PORT)->master->dev.of_node->parent;
 
 	if (priv->id == ID_MT7530) {
 		priv->ethernet = syscon_node_to_regmap(dn);
@@ -1340,7 +1340,9 @@ mt7530_setup(struct dsa_switch *ds)
 
 	if (!dsa_is_unused_port(ds, 5)) {
 		priv->p5_intf_sel = P5_INTF_SEL_GMAC5;
-		interface = of_get_phy_mode(ds->ports[5].dn);
+		ret = of_get_phy_mode(dsa_to_port(ds, 5)->dn, &interface);
+		if (ret && ret != -ENODEV)
+			return ret;
 	} else {
 		/* Scan the ethernet nodes. look for GMAC1, lookup used phy */
 		for_each_child_of_node(dn, mac_np) {
@@ -1354,7 +1356,9 @@ mt7530_setup(struct dsa_switch *ds)
 
 			phy_node = of_parse_phandle(mac_np, "phy-handle", 0);
 			if (phy_node->parent == priv->dev->of_node->parent) {
-				interface = of_get_phy_mode(mac_np);
+				ret = of_get_phy_mode(mac_np, &interface);
+				if (ret && ret != -ENODEV)
+					return ret;
 				id = of_mdio_parse_addr(ds->dev, phy_node);
 				if (id == 0)
 					priv->p5_intf_sel = P5_INTF_SEL_PHY_P0;
@@ -1632,9 +1636,12 @@ mt7530_probe(struct mdio_device *mdiodev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->ds = dsa_switch_alloc(&mdiodev->dev, DSA_MAX_PORTS);
+	priv->ds = devm_kzalloc(&mdiodev->dev, sizeof(*priv->ds), GFP_KERNEL);
 	if (!priv->ds)
 		return -ENOMEM;
+
+	priv->ds->dev = &mdiodev->dev;
+	priv->ds->num_ports = DSA_MAX_PORTS;
 
 	/* Use medatek,mcm property to distinguish hardware type that would
 	 * casues a little bit differences on power-on sequence.

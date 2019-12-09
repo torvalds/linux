@@ -67,6 +67,13 @@ config TCG_TIS_SPI
 	  within Linux. To compile this driver as a module, choose  M here;
 	  the module will be called tpm_tis_spi.
 
+config TCG_TIS_SPI_CR50
+	bool "Cr50 SPI Interface"
+	depends on TCG_TIS_SPI
+	help
+	  If you have a H1 secure module running Cr50 firmware on SPI bus,
+	  say Yes and it will be accessible from within Linux.
+
 config TCG_TIS_I2C_ATMEL
 	tristate "TPM Interface Specification 1.2 Interface (I2C - Atmel)"
 	depends on I2C

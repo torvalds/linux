@@ -1298,7 +1298,7 @@ void qede_config_rx_mode(struct net_device *ndev)
 	rx_mode.type = QED_FILTER_TYPE_RX_MODE;
 
 	/* Remove all previous unicast secondary macs and multicast macs
-	 * (configrue / leave the primary mac)
+	 * (configure / leave the primary mac)
 	 */
 	rc = qede_set_ucast_rx_mac(edev, QED_FILTER_XCAST_TYPE_REPLACE,
 				   edev->ndev->dev_addr);

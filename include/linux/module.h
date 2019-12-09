@@ -1,11 +1,14 @@
-#ifndef _LINUX_MODULE_H
-#define _LINUX_MODULE_H
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Dynamic loading of modules into the kernel.
  *
  * Rewritten by Richard Henderson <rth@tamu.edu> Dec 1996
  * Rewritten again by Rusty Russell, 2002
  */
+
+#ifndef _LINUX_MODULE_H
+#define _LINUX_MODULE_H
+
 #include <linux/list.h>
 #include <linux/stat.h>
 #include <linux/compiler.h>

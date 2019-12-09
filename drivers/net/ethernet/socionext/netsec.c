@@ -252,7 +252,6 @@
 #define NETSEC_XDP_CONSUMED      BIT(0)
 #define NETSEC_XDP_TX            BIT(1)
 #define NETSEC_XDP_REDIR         BIT(2)
-#define NETSEC_XDP_RX_OK (NETSEC_XDP_PASS | NETSEC_XDP_TX | NETSEC_XDP_REDIR)
 
 enum ring_id {
 	NETSEC_RING_TX = 0,
@@ -661,6 +660,7 @@ static bool netsec_clean_tx_dring(struct netsec_priv *priv)
 			bytes += desc->skb->len;
 			dev_kfree_skb(desc->skb);
 		} else {
+			bytes += desc->xdpf->len;
 			xdp_return_frame(desc->xdpf);
 		}
 next:
@@ -847,8 +847,8 @@ static u32 netsec_xdp_queue_one(struct netsec_priv *priv,
 		enum dma_data_direction dma_dir =
 			page_pool_get_dma_dir(rx_ring->page_pool);
 
-		dma_handle = page_pool_get_dma_addr(page) +
-			NETSEC_RXBUF_HEADROOM;
+		dma_handle = page_pool_get_dma_addr(page) + xdpf->headroom +
+			sizeof(*xdpf);
 		dma_sync_single_for_device(priv->dev, dma_handle, xdpf->len,
 					   dma_dir);
 		tx_desc.buf_type = TYPE_NETSEC_XDP_TX;
@@ -858,6 +858,7 @@ static u32 netsec_xdp_queue_one(struct netsec_priv *priv,
 	tx_desc.addr = xdpf->data;
 	tx_desc.len = xdpf->len;
 
+	netdev_sent_queue(priv->ndev, xdpf->len);
 	netsec_set_tx_de(priv, tx_ring, &tx_ctrl, &tx_desc, xdpf);
 
 	return NETSEC_XDP_TX;
@@ -1030,7 +1031,7 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 
 next:
 		if ((skb && napi_gro_receive(&priv->napi, skb) != GRO_DROP) ||
-		    xdp_result & NETSEC_XDP_RX_OK) {
+		    xdp_result) {
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += xdp.data_end - xdp.data;
 		}

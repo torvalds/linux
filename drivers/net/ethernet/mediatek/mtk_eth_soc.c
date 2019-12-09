@@ -361,8 +361,8 @@ init_err:
 		mac->id, phy_modes(state->interface), err);
 }
 
-static int mtk_mac_link_state(struct phylink_config *config,
-			      struct phylink_link_state *state)
+static void mtk_mac_pcs_get_state(struct phylink_config *config,
+				  struct phylink_link_state *state)
 {
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
@@ -391,8 +391,6 @@ static int mtk_mac_link_state(struct phylink_config *config,
 		state->pause |= MLO_PAUSE_RX;
 	if (pmsr & MAC_MSR_TX_FC)
 		state->pause |= MLO_PAUSE_TX;
-
-	return 1;
 }
 
 static void mtk_mac_an_restart(struct phylink_config *config)
@@ -514,7 +512,7 @@ static void mtk_validate(struct phylink_config *config,
 
 static const struct phylink_mac_ops mtk_phylink_ops = {
 	.validate = mtk_validate,
-	.mac_link_state = mtk_mac_link_state,
+	.mac_pcs_get_state = mtk_mac_pcs_get_state,
 	.mac_an_restart = mtk_mac_an_restart,
 	.mac_config = mtk_mac_config,
 	.mac_link_down = mtk_mac_link_down,
@@ -2180,6 +2178,31 @@ static int mtk_start_dma(struct mtk_eth *eth)
 	return 0;
 }
 
+static void mtk_gdm_config(struct mtk_eth *eth, u32 config)
+{
+	int i;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
+		return;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		u32 val = mtk_r32(eth, MTK_GDMA_FWD_CFG(i));
+
+		/* default setup the forward port to send frame to PDMA */
+		val &= ~0xffff;
+
+		/* Enable RX checksum */
+		val |= MTK_GDMA_ICS_EN | MTK_GDMA_TCS_EN | MTK_GDMA_UCS_EN;
+
+		val |= config;
+
+		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(i));
+	}
+	/* Reset and enable PSE */
+	mtk_w32(eth, RST_GL_PSE, MTK_RST_GL);
+	mtk_w32(eth, 0, MTK_RST_GL);
+}
+
 static int mtk_open(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
@@ -2199,6 +2222,8 @@ static int mtk_open(struct net_device *dev)
 
 		if (err)
 			return err;
+
+		mtk_gdm_config(eth, MTK_GDMA_TO_PDMA);
 
 		napi_enable(&eth->tx_napi);
 		napi_enable(&eth->rx_napi);
@@ -2251,6 +2276,8 @@ static int mtk_stop(struct net_device *dev)
 	/* only shutdown DMA if this is the last user */
 	if (!refcount_dec_and_test(&eth->dma_refcnt))
 		return 0;
+
+	mtk_gdm_config(eth, MTK_GDMA_DROP_ALL);
 
 	mtk_tx_irq_disable(eth, MTK_TX_DONE_INT);
 	mtk_rx_irq_disable(eth, MTK_RX_DONE_INT);
@@ -2375,8 +2402,6 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	mtk_w32(eth, 0, MTK_QDMA_DELAY_INT);
 	mtk_tx_irq_disable(eth, ~0);
 	mtk_rx_irq_disable(eth, ~0);
-	mtk_w32(eth, RST_GL_PSE, MTK_RST_GL);
-	mtk_w32(eth, 0, MTK_RST_GL);
 
 	/* FE int grouping */
 	mtk_w32(eth, MTK_TX_DONE_INT, MTK_PDMA_INT_GRP1);
@@ -2384,19 +2409,6 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	mtk_w32(eth, MTK_TX_DONE_INT, MTK_QDMA_INT_GRP1);
 	mtk_w32(eth, MTK_RX_DONE_INT, MTK_QDMA_INT_GRP2);
 	mtk_w32(eth, 0x21021000, MTK_FE_INT_GRP);
-
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		u32 val = mtk_r32(eth, MTK_GDMA_FWD_CFG(i));
-
-		/* setup the forward port to send frame to PDMA */
-		val &= ~0xffff;
-
-		/* Enable RX checksum */
-		val |= MTK_GDMA_ICS_EN | MTK_GDMA_TCS_EN | MTK_GDMA_UCS_EN;
-
-		/* setup the mac dma */
-		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(i));
-	}
 
 	return 0;
 
@@ -2758,9 +2770,10 @@ static const struct net_device_ops mtk_netdev_ops = {
 static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 {
 	const __be32 *_id = of_get_property(np, "reg", NULL);
+	phy_interface_t phy_mode;
 	struct phylink *phylink;
-	int phy_mode, id, err;
 	struct mtk_mac *mac;
+	int id, err;
 
 	if (!_id) {
 		dev_err(eth->dev, "missing mac id\n");
@@ -2805,10 +2818,9 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	mac->hw_stats->reg_offset = id * MTK_STAT_OFFSET;
 
 	/* phylink create */
-	phy_mode = of_get_phy_mode(np);
-	if (phy_mode < 0) {
+	err = of_get_phy_mode(np, &phy_mode);
+	if (err) {
 		dev_err(eth->dev, "incorrect phy-mode\n");
-		err = -EINVAL;
 		goto free_netdev;
 	}
 

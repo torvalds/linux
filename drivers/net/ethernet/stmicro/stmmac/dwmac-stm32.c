@@ -155,18 +155,14 @@ static int stm32mp1_clk_prepare(struct stm32_dwmac *dwmac, bool prepare)
 		ret = clk_prepare_enable(dwmac->syscfg_clk);
 		if (ret)
 			return ret;
-
-		if (dwmac->clk_eth_ck) {
-			ret = clk_prepare_enable(dwmac->clk_eth_ck);
-			if (ret) {
-				clk_disable_unprepare(dwmac->syscfg_clk);
-				return ret;
-			}
+		ret = clk_prepare_enable(dwmac->clk_eth_ck);
+		if (ret) {
+			clk_disable_unprepare(dwmac->syscfg_clk);
+			return ret;
 		}
 	} else {
 		clk_disable_unprepare(dwmac->syscfg_clk);
-		if (dwmac->clk_eth_ck)
-			clk_disable_unprepare(dwmac->clk_eth_ck);
+		clk_disable_unprepare(dwmac->clk_eth_ck);
 	}
 	return ret;
 }
@@ -175,7 +171,7 @@ static int stm32mp1_set_mode(struct plat_stmmacenet_data *plat_dat)
 {
 	struct stm32_dwmac *dwmac = plat_dat->bsp_priv;
 	u32 reg = dwmac->mode_reg;
-	int val, ret;
+	int val;
 
 	switch (plat_dat->interface) {
 	case PHY_INTERFACE_MODE_MII:
@@ -211,8 +207,8 @@ static int stm32mp1_set_mode(struct plat_stmmacenet_data *plat_dat)
 	}
 
 	/* Need to update PMCCLRR (clear register) */
-	ret = regmap_write(dwmac->regmap, reg + SYSCFG_PMCCLRR_OFFSET,
-			   dwmac->ops->syscfg_eth_mask);
+	regmap_write(dwmac->regmap, reg + SYSCFG_PMCCLRR_OFFSET,
+		     dwmac->ops->syscfg_eth_mask);
 
 	/* Update PMCSETR (set register) */
 	return regmap_update_bits(dwmac->regmap, reg,
@@ -320,12 +316,10 @@ static int stm32mp1_parse_data(struct stm32_dwmac *dwmac,
 		return PTR_ERR(dwmac->clk_ethstp);
 	}
 
-	/*  Clock for sysconfig */
+	/*  Optional Clock for sysconfig */
 	dwmac->syscfg_clk = devm_clk_get(dev, "syscfg-clk");
-	if (IS_ERR(dwmac->syscfg_clk)) {
-		dev_err(dev, "No syscfg clock provided...\n");
-		return PTR_ERR(dwmac->syscfg_clk);
-	}
+	if (IS_ERR(dwmac->syscfg_clk))
+		dwmac->syscfg_clk = NULL;
 
 	/* Get IRQ information early to have an ability to ask for deferred
 	 * probe if needed before we went too far with resource allocation.
@@ -437,8 +431,7 @@ static int stm32mp1_suspend(struct stm32_dwmac *dwmac)
 
 	clk_disable_unprepare(dwmac->clk_tx);
 	clk_disable_unprepare(dwmac->syscfg_clk);
-	if (dwmac->clk_eth_ck)
-		clk_disable_unprepare(dwmac->clk_eth_ck);
+	clk_disable_unprepare(dwmac->clk_eth_ck);
 
 	return ret;
 }

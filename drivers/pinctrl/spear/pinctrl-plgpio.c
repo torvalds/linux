@@ -515,15 +515,13 @@ end:
 static int plgpio_probe(struct platform_device *pdev)
 {
 	struct plgpio *plgpio;
-	struct resource *res;
 	int ret, irq;
 
 	plgpio = devm_kzalloc(&pdev->dev, sizeof(*plgpio), GFP_KERNEL);
 	if (!plgpio)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	plgpio->base = devm_ioremap_resource(&pdev->dev, res);
+	plgpio->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(plgpio->base))
 		return PTR_ERR(plgpio->base);
 
@@ -569,40 +567,35 @@ static int plgpio_probe(struct platform_device *pdev)
 		}
 	}
 
+	irq = platform_get_irq(pdev, 0);
+	if (irq > 0) {
+		struct gpio_irq_chip *girq;
+
+		girq = &plgpio->chip.irq;
+		girq->chip = &plgpio_irqchip;
+		girq->parent_handler = plgpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&pdev->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_simple_irq;
+		dev_info(&pdev->dev, "PLGPIO registering with IRQs\n");
+	} else {
+		dev_info(&pdev->dev, "PLGPIO registering without IRQs\n");
+	}
+
 	ret = gpiochip_add_data(&plgpio->chip, plgpio);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to add gpio chip\n");
 		goto unprepare_clk;
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_info(&pdev->dev, "PLGPIO registered without IRQs\n");
-		return 0;
-	}
-
-	ret = gpiochip_irqchip_add(&plgpio->chip,
-				   &plgpio_irqchip,
-				   0,
-				   handle_simple_irq,
-				   IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add irqchip to gpiochip\n");
-		goto remove_gpiochip;
-	}
-
-	gpiochip_set_chained_irqchip(&plgpio->chip,
-				     &plgpio_irqchip,
-				     irq,
-				     plgpio_irq_handler);
-
-	dev_info(&pdev->dev, "PLGPIO registered with IRQs\n");
-
 	return 0;
 
-remove_gpiochip:
-	dev_info(&pdev->dev, "Remove gpiochip\n");
-	gpiochip_remove(&plgpio->chip);
 unprepare_clk:
 	if (!IS_ERR(plgpio->clk))
 		clk_unprepare(plgpio->clk);

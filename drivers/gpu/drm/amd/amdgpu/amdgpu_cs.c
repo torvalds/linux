@@ -35,6 +35,7 @@
 #include "amdgpu_trace.h"
 #include "amdgpu_gmc.h"
 #include "amdgpu_gem.h"
+#include "amdgpu_ras.h"
 
 static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 				      struct drm_amdgpu_cs_chunk_fence *data,
@@ -449,75 +450,12 @@ retry:
 	return r;
 }
 
-/* Last resort, try to evict something from the current working set */
-static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
-				struct amdgpu_bo *validated)
-{
-	uint32_t domain = validated->allowed_domains;
-	struct ttm_operation_ctx ctx = { true, false };
-	int r;
-
-	if (!p->evictable)
-		return false;
-
-	for (;&p->evictable->tv.head != &p->validated;
-	     p->evictable = list_prev_entry(p->evictable, tv.head)) {
-
-		struct amdgpu_bo_list_entry *candidate = p->evictable;
-		struct amdgpu_bo *bo = ttm_to_amdgpu_bo(candidate->tv.bo);
-		struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-		bool update_bytes_moved_vis;
-		uint32_t other;
-
-		/* If we reached our current BO we can forget it */
-		if (bo == validated)
-			break;
-
-		/* We can't move pinned BOs here */
-		if (bo->pin_count)
-			continue;
-
-		other = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
-
-		/* Check if this BO is in one of the domains we need space for */
-		if (!(other & domain))
-			continue;
-
-		/* Check if we can move this BO somewhere else */
-		other = bo->allowed_domains & ~domain;
-		if (!other)
-			continue;
-
-		/* Good we can try to move this BO somewhere else */
-		update_bytes_moved_vis =
-				!amdgpu_gmc_vram_full_visible(&adev->gmc) &&
-				amdgpu_bo_in_cpu_visible_vram(bo);
-		amdgpu_bo_placement_from_domain(bo, other);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-		p->bytes_moved += ctx.bytes_moved;
-		if (update_bytes_moved_vis)
-			p->bytes_moved_vis += ctx.bytes_moved;
-
-		if (unlikely(r))
-			break;
-
-		p->evictable = list_prev_entry(p->evictable, tv.head);
-		list_move(&candidate->tv.head, &p->validated);
-
-		return true;
-	}
-
-	return false;
-}
-
 static int amdgpu_cs_validate(void *param, struct amdgpu_bo *bo)
 {
 	struct amdgpu_cs_parser *p = param;
 	int r;
 
-	do {
-		r = amdgpu_cs_bo_validate(p, bo);
-	} while (r == -ENOMEM && amdgpu_cs_try_evict(p, bo));
+	r = amdgpu_cs_bo_validate(p, bo);
 	if (r)
 		return r;
 
@@ -553,9 +491,6 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm,
 						     lobj->user_pages);
 		}
-
-		if (p->evictable == lobj)
-			p->evictable = NULL;
 
 		r = amdgpu_cs_validate(p, bo);
 		if (r)
@@ -603,8 +538,6 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		e->tv.num_shared = 2;
 
 	amdgpu_bo_list_get_list(p->bo_list, &p->validated);
-	if (p->bo_list->first_userptr != p->bo_list->num_entries)
-		p->mn = amdgpu_mn_get(p->adev, AMDGPU_MN_TYPE_GFX);
 
 	INIT_LIST_HEAD(&duplicates);
 	amdgpu_vm_get_pd_bo(&fpriv->vm, &p->validated, &p->vm_pd);
@@ -646,7 +579,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	}
 
 	r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true,
-				   &duplicates, false);
+				   &duplicates);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("ttm_eu_reserve_buffers failed.\n");
@@ -657,9 +590,6 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 					  &p->bytes_moved_vis_threshold);
 	p->bytes_moved = 0;
 	p->bytes_moved_vis = 0;
-	p->evictable = list_last_entry(&p->validated,
-				       struct amdgpu_bo_list_entry,
-				       tv.head);
 
 	r = amdgpu_vm_validate_pt_bos(p->adev, &fpriv->vm,
 				      amdgpu_cs_validate, p);
@@ -911,7 +841,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	r = amdgpu_vm_update_directories(adev, vm);
+	r = amdgpu_vm_update_pdes(adev, vm, false);
 	if (r)
 		return r;
 
@@ -1287,11 +1217,11 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	if (r)
 		goto error_unlock;
 
-	/* No memory allocation is allowed while holding the mn lock.
-	 * p->mn is hold until amdgpu_cs_submit is finished and fence is added
-	 * to BOs.
+	/* No memory allocation is allowed while holding the notifier lock.
+	 * The lock is held until amdgpu_cs_submit is finished and fence is
+	 * added to BOs.
 	 */
-	amdgpu_mn_lock(p->mn);
+	mutex_lock(&p->adev->notifier_lock);
 
 	/* If userptr are invalidated after amdgpu_cs_parser_bos(), return
 	 * -EAGAIN, drmIoctl in libdrm will restart the amdgpu_cs_ioctl.
@@ -1334,13 +1264,13 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	amdgpu_vm_move_to_lru_tail(p->adev, &fpriv->vm);
 
 	ttm_eu_fence_buffer_objects(&p->ticket, &p->validated, p->fence);
-	amdgpu_mn_unlock(p->mn);
+	mutex_unlock(&p->adev->notifier_lock);
 
 	return 0;
 
 error_abort:
 	drm_sched_job_cleanup(&job->base);
-	amdgpu_mn_unlock(p->mn);
+	mutex_unlock(&p->adev->notifier_lock);
 
 error_unlock:
 	amdgpu_job_free(job);
@@ -1354,6 +1284,9 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	struct amdgpu_cs_parser parser = {};
 	bool reserved_buffers = false;
 	int i, r;
+
+	if (amdgpu_ras_intr_triggered())
+		return -EHWPOISON;
 
 	if (!adev->accel_working)
 		return -EBUSY;

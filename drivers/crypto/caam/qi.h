@@ -147,7 +147,6 @@ int caam_drv_ctx_update(struct caam_drv_ctx *drv_ctx, u32 *sh_desc);
 void caam_drv_ctx_rel(struct caam_drv_ctx *drv_ctx);
 
 int caam_qi_init(struct platform_device *pdev);
-void caam_qi_shutdown(struct device *dev);
 
 /**
  * qi_cache_alloc - Allocate buffers from CAAM-QI cache

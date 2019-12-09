@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2003 Manuel Estrada Sainz
  *
- * Please see Documentation/firmware_class/ for more information.
+ * Please see Documentation/driver-api/firmware/ for more information.
  *
  */
 
@@ -504,6 +504,7 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv,
 					 path);
 			continue;
 		}
+		dev_dbg(device, "Loading firmware from %s\n", path);
 		if (decompress) {
 			dev_dbg(device, "f/w decompressing %s\n",
 				fw_priv->fw_name);

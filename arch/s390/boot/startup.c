@@ -46,7 +46,7 @@ struct diag_ops __bootdata_preserved(diag_dma_ops) = {
 	.diag0c = _diag0c_dma,
 	.diag308_reset = _diag308_reset_dma
 };
-static struct diag210 _diag210_tmp_dma __section(".dma.data");
+static struct diag210 _diag210_tmp_dma __section(.dma.data);
 struct diag210 *__bootdata_preserved(__diag210_tmp_dma) = &_diag210_tmp_dma;
 void _swsusp_reset_dma(void);
 unsigned long __bootdata_preserved(__swsusp_reset_dma) = __pa(_swsusp_reset_dma);
@@ -170,6 +170,11 @@ void startup_kernel(void)
 		handle_relocs(__kaslr_offset);
 
 	if (__kaslr_offset) {
+		/*
+		 * Save KASLR offset for early dumps, before vmcore_info is set.
+		 * Mark as uneven to distinguish from real vmcore_info pointer.
+		 */
+		S390_lowcore.vmcore_info = __kaslr_offset | 0x1UL;
 		/* Clear non-relocated kernel */
 		if (IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED))
 			memset(img, 0, vmlinux.image_size);

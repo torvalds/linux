@@ -29,6 +29,10 @@ properties:
   '#size-cells':
     const: 0
 
+  enable-gpios:
+    description: GPIO to use to enable/disable the backlight (HWEN pin).
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -89,6 +93,7 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -96,6 +101,7 @@ examples:
         led-controller@38 {
                 compatible = "ti,lm3630a";
                 reg = <0x38>;
+                enable-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 
                 #address-cells = <1>;
                 #size-cells = <0>;

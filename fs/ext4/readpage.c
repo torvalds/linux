@@ -402,10 +402,12 @@ int ext4_mpage_readpages(struct address_space *mapping,
 		if (bio == NULL) {
 			struct bio_post_read_ctx *ctx;
 
+			/*
+			 * bio_alloc will _always_ be able to allocate a bio if
+			 * __GFP_DIRECT_RECLAIM is set, see bio_alloc_bioset().
+			 */
 			bio = bio_alloc(GFP_KERNEL,
 				min_t(int, nr_pages, BIO_MAX_PAGES));
-			if (!bio)
-				goto set_error_page;
 			if (fscrypt_set_bio_crypt_ctx(bio, inode, next_block,
 						      GFP_KERNEL) != 0) {
 				bio_put(bio);

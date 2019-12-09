@@ -1210,13 +1210,6 @@ config AB8500_DEBUG
 	  Select this option if you want debug information using the debug
 	  filesystem, debugfs.
 
-config AB8500_GPADC
-	bool "ST-Ericsson AB8500 GPADC driver"
-	depends on AB8500_CORE && REGULATOR_AB8500
-	default y
-	help
-	  AB8500 GPADC driver used to convert Acc and battery/ac/usb voltage
-
 config MFD_DB8500_PRCMU
 	bool "ST-Ericsson DB8500 Power Reset Control Management Unit"
 	depends on UX500_SOC_DB8500

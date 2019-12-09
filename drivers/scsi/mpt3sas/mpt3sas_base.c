@@ -3044,11 +3044,11 @@ _base_alloc_irq_vectors(struct MPT3SAS_ADAPTER *ioc)
 		descp = NULL;
 
 	ioc_info(ioc, " %d %d\n", ioc->high_iops_queues,
-	    ioc->msix_vector_count);
+	    ioc->reply_queue_count);
 
 	i = pci_alloc_irq_vectors_affinity(ioc->pdev,
 	    ioc->high_iops_queues,
-	    ioc->msix_vector_count, irq_flags, descp);
+	    ioc->reply_queue_count, irq_flags, descp);
 
 	return i;
 }
@@ -4242,10 +4242,12 @@ _base_display_OEMs_branding(struct MPT3SAS_ADAPTER *ioc)
 	static int
 _base_display_fwpkg_version(struct MPT3SAS_ADAPTER *ioc)
 {
-	Mpi2FWImageHeader_t *FWImgHdr;
+	Mpi2FWImageHeader_t *fw_img_hdr;
+	Mpi26ComponentImageHeader_t *cmp_img_hdr;
 	Mpi25FWUploadRequest_t *mpi_request;
 	Mpi2FWUploadReply_t mpi_reply;
 	int r = 0;
+	u32  package_version = 0;
 	void *fwpkg_data = NULL;
 	dma_addr_t fwpkg_data_dma;
 	u16 smid, ioc_status;
@@ -4302,14 +4304,26 @@ _base_display_fwpkg_version(struct MPT3SAS_ADAPTER *ioc)
 			ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
 						MPI2_IOCSTATUS_MASK;
 			if (ioc_status == MPI2_IOCSTATUS_SUCCESS) {
-				FWImgHdr = (Mpi2FWImageHeader_t *)fwpkg_data;
-				if (FWImgHdr->PackageVersion.Word) {
-					ioc_info(ioc, "FW Package Version (%02d.%02d.%02d.%02d)\n",
-						 FWImgHdr->PackageVersion.Struct.Major,
-						 FWImgHdr->PackageVersion.Struct.Minor,
-						 FWImgHdr->PackageVersion.Struct.Unit,
-						 FWImgHdr->PackageVersion.Struct.Dev);
-				}
+				fw_img_hdr = (Mpi2FWImageHeader_t *)fwpkg_data;
+				if (le32_to_cpu(fw_img_hdr->Signature) ==
+				    MPI26_IMAGE_HEADER_SIGNATURE0_MPI26) {
+					cmp_img_hdr =
+					    (Mpi26ComponentImageHeader_t *)
+					    (fwpkg_data);
+					package_version =
+					    le32_to_cpu(
+					    cmp_img_hdr->ApplicationSpecific);
+				} else
+					package_version =
+					    le32_to_cpu(
+					    fw_img_hdr->PackageVersion.Word);
+				if (package_version)
+					ioc_info(ioc,
+					"FW Package Ver(%02d.%02d.%02d.%02d)\n",
+					((package_version) & 0xFF000000) >> 24,
+					((package_version) & 0x00FF0000) >> 16,
+					((package_version) & 0x0000FF00) >> 8,
+					(package_version) & 0x000000FF);
 			} else {
 				_debug_dump_mf(&mpi_reply,
 						sizeof(Mpi2FWUploadReply_t)/4);
