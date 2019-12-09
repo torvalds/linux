@@ -72,8 +72,11 @@ static int lookup_zone(const struct adfs_discmap *dm, const unsigned int idlen,
 	const u32 idmask = (1 << idlen) - 1;
 	unsigned char *map = dm->dm_bh->b_data;
 	unsigned int start = dm->dm_startbit;
-	unsigned int fragend;
+	unsigned int freelink, fragend;
 	u32 frag;
+
+	frag = GET_FRAG_ID(map, 8, idmask & 0x7fff);
+	freelink = frag ? 8 + frag : 0;
 
 	do {
 		frag = GET_FRAG_ID(map, start, idmask);
@@ -82,7 +85,9 @@ static int lookup_zone(const struct adfs_discmap *dm, const unsigned int idlen,
 		if (fragend >= endbit)
 			goto error;
 
-		if (frag == frag_id) {
+		if (start == freelink) {
+			freelink += frag & 0x7fff;
+		} else if (frag == frag_id) {
 			unsigned int length = fragend + 1 - start;
 
 			if (*offset < length)
