@@ -705,8 +705,7 @@ static void arizona_identify_headphone(struct arizona_extcon_info *info)
 
 	info->hpdet_active = true;
 
-	if (info->mic)
-		arizona_stop_mic(info);
+	arizona_stop_mic(info);
 
 	arizona_extcon_hp_clamp(info, true);
 
@@ -815,8 +814,6 @@ static void arizona_micd_timeout_work(struct work_struct *work)
 
 	arizona_identify_headphone(info);
 
-	arizona_stop_mic(info);
-
 	mutex_unlock(&info->lock);
 }
 
@@ -906,7 +903,6 @@ static void arizona_micd_detect(struct work_struct *work)
 	if (!(val & ARIZONA_MICD_STS)) {
 		dev_warn(arizona->dev, "Detected open circuit\n");
 		info->mic = false;
-		arizona_stop_mic(info);
 		info->detecting = false;
 		arizona_identify_headphone(info);
 		goto handled;
@@ -948,8 +944,6 @@ static void arizona_micd_detect(struct work_struct *work)
 			info->detecting = false;
 
 			arizona_identify_headphone(info);
-
-			arizona_stop_mic(info);
 		} else {
 			info->micd_mode++;
 			if (info->micd_mode == info->micd_num_modes)
@@ -988,7 +982,6 @@ static void arizona_micd_detect(struct work_struct *work)
 		} else if (info->detecting) {
 			dev_dbg(arizona->dev, "Headphone detected\n");
 			info->detecting = false;
-			arizona_stop_mic(info);
 
 			arizona_identify_headphone(info);
 		} else {
