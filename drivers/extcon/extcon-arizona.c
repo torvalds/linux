@@ -724,6 +724,9 @@ static void arizona_identify_headphone(struct arizona_extcon_info *info)
 	return;
 
 err:
+	arizona_extcon_hp_clamp(info, false);
+	pm_runtime_put_autosuspend(info->dev);
+
 	regmap_update_bits(arizona->regmap, ARIZONA_ACCESSORY_DETECT_MODE_1,
 			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
 
