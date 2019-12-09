@@ -55,7 +55,7 @@ properties:
     type: boolean
 
 patternProperties:
-  "^([a-z]*-)?sram@[a-f0-9]+$":
+  "^([a-z]*-)?sram(-section)?@[a-f0-9]+$":
     type: object
     description:
       Each child of the sram node specifies a region of reserved memory.
