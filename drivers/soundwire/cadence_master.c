@@ -1213,7 +1213,7 @@ EXPORT_SYMBOL(sdw_cdns_is_clock_stop);
  */
 int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 {
-	bool slave_attached = false;
+	bool slave_present = false;
 	struct sdw_slave *slave;
 	u32 status;
 	int ret;
@@ -1238,7 +1238,7 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	list_for_each_entry(slave, &cdns->bus.slaves, node) {
 		if (slave->status == SDW_SLAVE_ATTACHED ||
 		    slave->status == SDW_SLAVE_ALERT) {
-			slave_attached = true;
+			slave_present = true;
 			break;
 		}
 	}
@@ -1249,7 +1249,7 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	 * not set and there is a broadcast write then the command ignored
 	 * will be treated as a failure
 	 */
-	if (!slave_attached)
+	if (!slave_present)
 		cdns_updatel(cdns, CDNS_MCP_CONTROL,
 			     CDNS_MCP_CONTROL_CMD_ACCEPT,
 			     CDNS_MCP_CONTROL_CMD_ACCEPT);
@@ -1267,9 +1267,12 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 		return ret;
 	}
 
-	/* Enter clock stop */
+	/*
+	 * Enter clock stop mode and only report errors if there are
+	 * Slave devices present (ALERT or ATTACHED)
+	 */
 	ret = sdw_bus_clk_stop(&cdns->bus);
-	if (ret < 0) {
+	if (ret < 0 && slave_present && ret != -ENODATA) {
 		dev_err(cdns->dev, "bus clock stop failed %d", ret);
 		return ret;
 	}
