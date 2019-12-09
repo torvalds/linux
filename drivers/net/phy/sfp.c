@@ -234,7 +234,7 @@ struct sfp {
 	unsigned char sm_mod_tries;
 	unsigned char sm_dev_state;
 	unsigned short sm_state;
-	unsigned int sm_retries;
+	unsigned char sm_fault_retries;
 
 	struct sfp_eeprom_id id;
 	unsigned int module_power_mW;
@@ -1490,7 +1490,7 @@ static bool sfp_los_event_inactive(struct sfp *sfp, unsigned int event)
 
 static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
 {
-	if (sfp->sm_retries && !--sfp->sm_retries) {
+	if (sfp->sm_fault_retries && !--sfp->sm_fault_retries) {
 		dev_err(sfp->dev,
 			"module persistently indicates fault, disabling\n");
 		sfp_sm_next(sfp, SFP_S_TX_DISABLE, 0);
@@ -1893,7 +1893,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		sfp_module_tx_enable(sfp);
 
 		/* Initialise the fault clearance retries */
-		sfp->sm_retries = N_FAULT_INIT;
+		sfp->sm_fault_retries = N_FAULT_INIT;
 
 		/* We need to check the TX_FAULT state, which is not defined
 		 * while TX_DISABLE is asserted. The earliest we want to do
@@ -1933,7 +1933,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 			 * or t_start_up, so assume there is a fault.
 			 */
 			sfp_sm_fault(sfp, SFP_S_INIT_TX_FAULT,
-				     sfp->sm_retries == N_FAULT_INIT);
+				     sfp->sm_fault_retries == N_FAULT_INIT);
 		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
 	init_done:	/* TX_FAULT deasserted or we timed out with TX_FAULT
 			 * clear.  Probe for the PHY and check the LOS state.
@@ -1946,7 +1946,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 			sfp_sm_link_check_los(sfp);
 
 			/* Reset the fault retry count */
-			sfp->sm_retries = N_FAULT;
+			sfp->sm_fault_retries = N_FAULT;
 		}
 		break;
 
