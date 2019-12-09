@@ -231,6 +231,12 @@ static void adfs_free_inode(struct inode *inode)
 	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
 }
 
+static int adfs_drop_inode(struct inode *inode)
+{
+	/* always drop inodes if we are read-only */
+	return !IS_ENABLED(CONFIG_ADFS_FS_RW) || IS_RDONLY(inode);
+}
+
 static void init_once(void *foo)
 {
 	struct adfs_inode_info *ei = (struct adfs_inode_info *) foo;
@@ -263,7 +269,7 @@ static void destroy_inodecache(void)
 static const struct super_operations adfs_sops = {
 	.alloc_inode	= adfs_alloc_inode,
 	.free_inode	= adfs_free_inode,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= adfs_drop_inode,
 	.write_inode	= adfs_write_inode,
 	.put_super	= adfs_put_super,
 	.statfs		= adfs_statfs,
