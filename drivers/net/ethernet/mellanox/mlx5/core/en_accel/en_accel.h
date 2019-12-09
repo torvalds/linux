@@ -110,7 +110,12 @@ static inline bool mlx5e_accel_handle_tx(struct sk_buff *skb,
 {
 #ifdef CONFIG_MLX5_EN_TLS
 	u32 tls_tisn = 0;
+#endif
 
+	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+		mlx5e_udp_gso_handle_tx_skb(skb);
+
+#ifdef CONFIG_MLX5_EN_TLS
 	if (test_bit(MLX5E_SQ_STATE_TLS, &sq->state)) {
 		/* May send SKBs and WQEs. */
 		if (unlikely(!mlx5e_tls_handle_tx_skb(dev, sq, skb, &tls_tisn)))
@@ -129,9 +134,6 @@ static inline bool mlx5e_accel_handle_tx(struct sk_buff *skb,
 			return false;
 	}
 #endif
-
-	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
-		mlx5e_udp_gso_handle_tx_skb(skb);
 
 	return true;
 }
