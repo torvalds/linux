@@ -302,6 +302,23 @@ adfs_f_getnext(struct adfs_dir *dir, struct object_info *obj)
 	return ret;
 }
 
+static int adfs_f_iterate(struct adfs_dir *dir, struct dir_context *ctx)
+{
+	struct object_info obj;
+	int pos = 5 + (ctx->pos - 2) * 26;
+
+	while (ctx->pos < 2 + ADFS_NUM_DIR_ENTRIES) {
+		if (__adfs_dir_get(dir, pos, &obj))
+			break;
+		if (!dir_emit(ctx, obj.name, obj.name_len,
+			      obj.indaddr, DT_UNKNOWN))
+			break;
+		pos += 26;
+		ctx->pos++;
+	}
+	return 0;
+}
+
 static int
 adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 {
@@ -359,6 +376,7 @@ bad_dir:
 
 const struct adfs_dir_ops adfs_f_dir_ops = {
 	.read		= adfs_f_read,
+	.iterate	= adfs_f_iterate,
 	.setpos		= adfs_f_setpos,
 	.getnext	= adfs_f_getnext,
 	.update		= adfs_f_update,

@@ -240,12 +240,8 @@ static int adfs_iterate(struct file *file, struct dir_context *ctx)
 	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
-	struct object_info obj;
 	struct adfs_dir dir;
-	int ret = 0;
-
-	if (ctx->pos >> 32)
-		return 0;
+	int ret;
 
 	down_read(&adfs_dir_rwsem);
 	ret = adfs_dir_read_inode(sb, inode, &dir);
@@ -263,15 +259,7 @@ static int adfs_iterate(struct file *file, struct dir_context *ctx)
 		ctx->pos = 2;
 	}
 
-	ret = ops->setpos(&dir, ctx->pos - 2);
-	if (ret)
-		goto unlock_relse;
-	while (ops->getnext(&dir, &obj) == 0) {
-		if (!dir_emit(ctx, obj.name, obj.name_len,
-			      obj.indaddr, DT_UNKNOWN))
-			break;
-		ctx->pos++;
-	}
+	ret = ops->iterate(&dir, ctx);
 
 unlock_relse:
 	up_read(&adfs_dir_rwsem);

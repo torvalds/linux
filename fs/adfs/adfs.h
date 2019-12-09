@@ -120,6 +120,7 @@ struct object_info {
 struct adfs_dir_ops {
 	int	(*read)(struct super_block *sb, unsigned int indaddr,
 			unsigned int size, struct adfs_dir *dir);
+	int	(*iterate)(struct adfs_dir *dir, struct dir_context *ctx);
 	int	(*setpos)(struct adfs_dir *dir, unsigned int fpos);
 	int	(*getnext)(struct adfs_dir *dir, struct object_info *obj);
 	int	(*update)(struct adfs_dir *dir, struct object_info *obj);

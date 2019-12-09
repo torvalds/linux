@@ -118,8 +118,29 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	return 0;
 }
 
+static int adfs_fplus_iterate(struct adfs_dir *dir, struct dir_context *ctx)
+{
+	struct object_info obj;
+
+	if ((ctx->pos - 2) >> 32)
+		return 0;
+
+	if (adfs_fplus_setpos(dir, ctx->pos - 2))
+		return 0;
+
+	while (!adfs_fplus_getnext(dir, &obj)) {
+		if (!dir_emit(ctx, obj.name, obj.name_len,
+			      obj.indaddr, DT_UNKNOWN))
+			break;
+		ctx->pos++;
+	}
+
+	return 0;
+}
+
 const struct adfs_dir_ops adfs_fplus_dir_ops = {
 	.read		= adfs_fplus_read,
+	.iterate	= adfs_fplus_iterate,
 	.setpos		= adfs_fplus_setpos,
 	.getnext	= adfs_fplus_getnext,
 };
