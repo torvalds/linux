@@ -193,6 +193,7 @@ static int rt711_headset_detect(struct rt711_priv *rt711)
 {
 	unsigned int buf, loop = 0;
 	int ret;
+	unsigned int jack_status = 0, reg;
 
 	ret = rt711_index_read(rt711->regmap, RT711_VENDOR_REG,
 				RT711_COMBO_JACK_AUTO_CTL2, &buf);
@@ -208,6 +209,13 @@ static int rt711_headset_detect(struct rt711_priv *rt711)
 					RT711_COMBO_JACK_AUTO_CTL2, &buf);
 		if (ret < 0)
 			goto io_error;
+
+		reg = RT711_VERB_GET_PIN_SENSE | RT711_HP_OUT;
+		ret = regmap_read(rt711->regmap, reg, &jack_status);
+		if (ret < 0)
+			goto io_error;
+		if ((jack_status & (1 << 31)) == 0)
+			goto remove_error;
 	}
 
 	if (loop >= 500)
@@ -228,6 +236,9 @@ to_error:
 io_error:
 	pr_err_ratelimited("IO error in %s, ret %d\n", __func__, ret);
 	return ret;
+remove_error:
+	pr_err_ratelimited("Jack removal in %s\n", __func__);
+	return -ENODEV;
 }
 
 static void rt711_jack_detect_handler(struct work_struct *work)
