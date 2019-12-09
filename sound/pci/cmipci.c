@@ -666,12 +666,6 @@ static void snd_cmipci_set_pll(struct cmipci *cm, unsigned int rate, unsigned in
 }
 #endif /* USE_VAR48KRATE */
 
-static int snd_cmipci_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
 static int snd_cmipci_playback2_hw_params(struct snd_pcm_substream *substream,
 					  struct snd_pcm_hw_params *hw_params)
 {
@@ -686,7 +680,7 @@ static int snd_cmipci_playback2_hw_params(struct snd_pcm_substream *substream,
 		cm->opened[CM_CH_PLAY] = CM_OPEN_PLAYBACK_MULTI;
 		mutex_unlock(&cm->open_mutex);
 	}
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
+	return 0;
 }
 
 static void snd_cmipci_ch_reset(struct cmipci *cm, int ch)
@@ -695,11 +689,6 @@ static void snd_cmipci_ch_reset(struct cmipci *cm, int ch)
 	snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl | reset);
 	snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl & ~reset);
 	udelay(10);
-}
-
-static int snd_cmipci_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 
@@ -1371,14 +1360,14 @@ static int snd_cmipci_playback_hw_free(struct snd_pcm_substream *substream)
 	setup_spdif_playback(cm, substream, 0, 0);
 	restore_mixer_state(cm);
 	snd_cmipci_silence_hack(cm, &cm->channel[0]);
-	return snd_cmipci_hw_free(substream);
+	return 0;
 }
 
 static int snd_cmipci_playback2_hw_free(struct snd_pcm_substream *substream)
 {
 	struct cmipci *cm = snd_pcm_substream_chip(substream);
 	snd_cmipci_silence_hack(cm, &cm->channel[1]);
-	return snd_cmipci_hw_free(substream);
+	return 0;
 }
 
 /* capture */
@@ -1420,7 +1409,7 @@ static int snd_cmipci_capture_spdif_hw_free(struct snd_pcm_substream *subs)
 	snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_SPD32SEL);
 	spin_unlock_irq(&cm->reg_lock);
 
-	return snd_cmipci_hw_free(subs);
+	return 0;
 }
 
 
@@ -1829,7 +1818,6 @@ static const struct snd_pcm_ops snd_cmipci_playback_ops = {
 	.open =		snd_cmipci_playback_open,
 	.close =	snd_cmipci_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_cmipci_hw_params,
 	.hw_free =	snd_cmipci_playback_hw_free,
 	.prepare =	snd_cmipci_playback_prepare,
 	.trigger =	snd_cmipci_playback_trigger,
@@ -1840,8 +1828,6 @@ static const struct snd_pcm_ops snd_cmipci_capture_ops = {
 	.open =		snd_cmipci_capture_open,
 	.close =	snd_cmipci_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_cmipci_hw_params,
-	.hw_free =	snd_cmipci_hw_free,
 	.prepare =	snd_cmipci_capture_prepare,
 	.trigger =	snd_cmipci_capture_trigger,
 	.pointer =	snd_cmipci_capture_pointer,
@@ -1862,7 +1848,6 @@ static const struct snd_pcm_ops snd_cmipci_playback_spdif_ops = {
 	.open =		snd_cmipci_playback_spdif_open,
 	.close =	snd_cmipci_playback_spdif_close,
 	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_cmipci_hw_params,
 	.hw_free =	snd_cmipci_playback_hw_free,
 	.prepare =	snd_cmipci_playback_spdif_prepare,	/* set up rate */
 	.trigger =	snd_cmipci_playback_trigger,
@@ -1873,7 +1858,6 @@ static const struct snd_pcm_ops snd_cmipci_capture_spdif_ops = {
 	.open =		snd_cmipci_capture_spdif_open,
 	.close =	snd_cmipci_capture_spdif_close,
 	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_cmipci_hw_params,
 	.hw_free =	snd_cmipci_capture_spdif_hw_free,
 	.prepare =	snd_cmipci_capture_spdif_prepare,
 	.trigger =	snd_cmipci_capture_trigger,
@@ -1901,8 +1885,8 @@ static int snd_cmipci_pcm_new(struct cmipci *cm, int device)
 	strcpy(pcm->name, "C-Media PCI DAC/ADC");
 	cm->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &cm->pci->dev, 64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &cm->pci->dev, 64*1024, 128*1024);
 
 	return 0;
 }
@@ -1923,8 +1907,8 @@ static int snd_cmipci_pcm2_new(struct cmipci *cm, int device)
 	strcpy(pcm->name, "C-Media PCI 2nd DAC");
 	cm->pcm2 = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &cm->pci->dev, 64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &cm->pci->dev, 64*1024, 128*1024);
 
 	return 0;
 }
@@ -1946,8 +1930,8 @@ static int snd_cmipci_pcm_spdif_new(struct cmipci *cm, int device)
 	strcpy(pcm->name, "C-Media PCI IEC958");
 	cm->pcm_spdif = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &cm->pci->dev, 64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &cm->pci->dev, 64*1024, 128*1024);
 
 	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     snd_pcm_alt_chmaps, cm->max_channels, 0,
