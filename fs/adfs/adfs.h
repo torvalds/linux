@@ -32,6 +32,7 @@ static inline u16 adfs_filetype(u32 loadaddr)
 struct adfs_inode_info {
 	loff_t		mmu_private;
 	__u32		parent_id;	/* parent indirect disc address	*/
+	__u32		indaddr;	/* object indirect disc address	*/
 	__u32		loadaddr;	/* RISC OS load address		*/
 	__u32		execaddr;	/* RISC OS exec address		*/
 	unsigned int	attr;		/* RISC OS permissions		*/

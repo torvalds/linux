@@ -20,7 +20,8 @@ adfs_get_block(struct inode *inode, sector_t block, struct buffer_head *bh,
 		if (block >= inode->i_blocks)
 			goto abort_toobig;
 
-		block = __adfs_block_map(inode->i_sb, inode->i_ino, block);
+		block = __adfs_block_map(inode->i_sb, ADFS_I(inode)->indaddr,
+					 block);
 		if (block)
 			map_bh(bh, inode->i_sb, block);
 		return 0;
@@ -259,6 +260,7 @@ adfs_iget(struct super_block *sb, struct object_info *obj)
 	 * for cross-directory renames.
 	 */
 	ADFS_I(inode)->parent_id = obj->parent_id;
+	ADFS_I(inode)->indaddr   = obj->indaddr;
 	ADFS_I(inode)->loadaddr  = obj->loadaddr;
 	ADFS_I(inode)->execaddr  = obj->execaddr;
 	ADFS_I(inode)->attr      = obj->attr;
@@ -353,7 +355,7 @@ int adfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct object_info obj;
 	int ret;
 
-	obj.indaddr	= inode->i_ino;
+	obj.indaddr	= ADFS_I(inode)->indaddr;
 	obj.name_len	= 0;
 	obj.parent_id	= ADFS_I(inode)->parent_id;
 	obj.loadaddr	= ADFS_I(inode)->loadaddr;

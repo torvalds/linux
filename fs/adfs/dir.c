@@ -158,7 +158,7 @@ static int adfs_dir_read_inode(struct super_block *sb, struct inode *inode,
 {
 	int ret;
 
-	ret = adfs_dir_read(sb, inode->i_ino, inode->i_size, dir);
+	ret = adfs_dir_read(sb, ADFS_I(inode)->indaddr, inode->i_size, dir);
 	if (ret)
 		return ret;
 
@@ -372,7 +372,7 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 			break;
 		}
 	}
-	obj->parent_id = inode->i_ino;
+	obj->parent_id = ADFS_I(inode)->indaddr;
 
 unlock_relse:
 	up_read(&adfs_dir_rwsem);
