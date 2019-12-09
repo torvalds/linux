@@ -670,23 +670,6 @@ snd_ml403_ac97cr_pcm_capture_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_ml403_ac97cr_hw_free(struct snd_pcm_substream *substream)
-{
-	PDEBUG(WORK_INFO, "hw_free()\n");
-	return snd_pcm_lib_free_pages(substream);
-}
-
-static int
-snd_ml403_ac97cr_hw_params(struct snd_pcm_substream *substream,
-			   struct snd_pcm_hw_params *hw_params)
-{
-	PDEBUG(WORK_INFO, "hw_params(): desired buffer bytes=%d, desired "
-	       "period bytes=%d\n",
-	       params_buffer_bytes(hw_params), params_period_bytes(hw_params));
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
 static int snd_ml403_ac97cr_playback_open(struct snd_pcm_substream *substream)
 {
 	struct snd_ml403_ac97cr *ml403_ac97cr;
@@ -749,8 +732,6 @@ static const struct snd_pcm_ops snd_ml403_ac97cr_playback_ops = {
 	.open = snd_ml403_ac97cr_playback_open,
 	.close = snd_ml403_ac97cr_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_ml403_ac97cr_hw_params,
-	.hw_free = snd_ml403_ac97cr_hw_free,
 	.prepare = snd_ml403_ac97cr_pcm_playback_prepare,
 	.trigger = snd_ml403_ac97cr_pcm_playback_trigger,
 	.pointer = snd_ml403_ac97cr_pcm_pointer,
@@ -760,8 +741,6 @@ static const struct snd_pcm_ops snd_ml403_ac97cr_capture_ops = {
 	.open = snd_ml403_ac97cr_capture_open,
 	.close = snd_ml403_ac97cr_capture_close,
 	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_ml403_ac97cr_hw_params,
-	.hw_free = snd_ml403_ac97cr_hw_free,
 	.prepare = snd_ml403_ac97cr_pcm_capture_prepare,
 	.trigger = snd_ml403_ac97cr_pcm_capture_trigger,
 	.pointer = snd_ml403_ac97cr_pcm_pointer,
@@ -1241,10 +1220,10 @@ snd_ml403_ac97cr_pcm(struct snd_ml403_ac97cr *ml403_ac97cr, int device)
 	strcpy(pcm->name, "ML403AC97CR DAC/ADC");
 	ml403_ac97cr->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					  NULL,
-					  64 * 1024,
-					  128 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL,
+				       64 * 1024,
+				       128 * 1024);
 	return 0;
 }
 
