@@ -860,8 +860,6 @@ out:
 	return ret;
 }
 
-static const struct of_device_id pca953x_dt_ids[];
-
 static int pca953x_probe(struct i2c_client *client,
 			 const struct i2c_device_id *i2c_id)
 {
