@@ -204,6 +204,9 @@ static int __init imx8_soc_init(void)
 		goto free_serial_number;
 	}
 
+	pr_info("SoC: %s revision %s\n", soc_dev_attr->soc_id,
+		soc_dev_attr->revision);
+
 	if (IS_ENABLED(CONFIG_ARM_IMX_CPUFREQ_DT))
 		platform_device_register_simple("imx-cpufreq-dt", -1, NULL, 0);
 
