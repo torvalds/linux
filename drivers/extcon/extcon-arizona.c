@@ -668,11 +668,6 @@ done:
 	if (id_gpio)
 		gpio_set_value_cansleep(id_gpio, 0);
 
-	/* Revert back to MICDET mode */
-	regmap_update_bits(arizona->regmap,
-			   ARIZONA_ACCESSORY_DETECT_MODE_1,
-			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
-
 	/* If we have a mic then reenable MICDET */
 	if (mic || info->mic)
 		arizona_start_mic(info);
@@ -732,9 +727,6 @@ err:
 	arizona_extcon_hp_clamp(info, false);
 	pm_runtime_put_autosuspend(info->dev);
 
-	regmap_update_bits(arizona->regmap, ARIZONA_ACCESSORY_DETECT_MODE_1,
-			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
-
 	/* Just report headphone */
 	ret = extcon_set_state_sync(info->edev, EXTCON_JACK_HEADPHONE, true);
 	if (ret != 0)
@@ -789,9 +781,6 @@ static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info)
 	return;
 
 err:
-	regmap_update_bits(arizona->regmap, ARIZONA_ACCESSORY_DETECT_MODE_1,
-			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
-
 	/* Just report headphone */
 	ret = extcon_set_state_sync(info->edev, EXTCON_JACK_HEADPHONE, true);
 	if (ret != 0)
