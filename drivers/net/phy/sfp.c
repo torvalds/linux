@@ -155,10 +155,20 @@ static const enum gpiod_flags gpio_flags[] = {
 	GPIOD_ASIS,
 };
 
-#define T_WAIT		msecs_to_jiffies(50)
-#define T_INIT_JIFFIES	msecs_to_jiffies(300)
-#define T_RESET_US	10
-#define T_FAULT_RECOVER	msecs_to_jiffies(1000)
+/* t_start_up (SFF-8431) or t_init (SFF-8472) is the time required for a
+ * non-cooled module to initialise its laser safety circuitry. We wait
+ * an initial T_WAIT period before we check the tx fault to give any PHY
+ * on board (for a copper SFP) time to initialise.
+ */
+#define T_WAIT			msecs_to_jiffies(50)
+#define T_START_UP		msecs_to_jiffies(300)
+#define T_START_UP_BAD_GPON	msecs_to_jiffies(60000)
+
+/* t_reset is the time required to assert the TX_DISABLE signal to reset
+ * an indicated TX_FAULT.
+ */
+#define T_RESET_US		10
+#define T_FAULT_RECOVER		msecs_to_jiffies(1000)
 
 /* SFP module presence detection is poor: the three MOD DEF signals are
  * the same length on the PCB, which means it's possible for MOD DEF 0 to
@@ -218,6 +228,7 @@ struct sfp {
 
 	struct sfp_eeprom_id id;
 	unsigned int module_power_mW;
+	unsigned int module_t_start_up;
 
 #if IS_ENABLED(CONFIG_HWMON)
 	struct sfp_diag diag;
@@ -1655,6 +1666,12 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	if (ret < 0)
 		return ret;
 
+	if (!memcmp(id.base.vendor_name, "ALCATELLUCENT   ", 16) &&
+	    !memcmp(id.base.vendor_pn, "3FE46541AA      ", 16))
+		sfp->module_t_start_up = T_START_UP_BAD_GPON;
+	else
+		sfp->module_t_start_up = T_START_UP;
+
 	return 0;
 }
 
@@ -1855,11 +1872,12 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 			break;
 
 		if (sfp->state & SFP_F_TX_FAULT) {
-			/* Wait t_init before indicating that the link is up,
-			 * provided the current state indicates no TX_FAULT. If
-			 * TX_FAULT clears before this time, that's fine too.
+			/* Wait up to t_init (SFF-8472) or t_start_up (SFF-8431)
+			 * from the TX_DISABLE deassertion for the module to
+			 * initialise, which is indicated by TX_FAULT
+			 * deasserting.
 			 */
-			timeout = T_INIT_JIFFIES;
+			timeout = sfp->module_t_start_up;
 			if (timeout > T_WAIT)
 				timeout -= T_WAIT;
 			else
@@ -1876,8 +1894,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 
 	case SFP_S_INIT:
 		if (event == SFP_E_TIMEOUT && sfp->state & SFP_F_TX_FAULT) {
-			/* TX_FAULT is still asserted after t_init, so assume
-			 * there is a fault.
+			/* TX_FAULT is still asserted after t_init or
+			 * or t_start_up, so assume there is a fault.
 			 */
 			sfp_sm_fault(sfp, SFP_S_INIT_TX_FAULT,
 				     sfp->sm_retries == 5);
@@ -1896,7 +1914,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 	case SFP_S_INIT_TX_FAULT:
 		if (event == SFP_E_TIMEOUT) {
 			sfp_module_tx_fault_reset(sfp);
-			sfp_sm_next(sfp, SFP_S_INIT, T_INIT_JIFFIES);
+			sfp_sm_next(sfp, SFP_S_INIT, sfp->module_t_start_up);
 		}
 		break;
 
@@ -1920,7 +1938,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 	case SFP_S_TX_FAULT:
 		if (event == SFP_E_TIMEOUT) {
 			sfp_module_tx_fault_reset(sfp);
-			sfp_sm_next(sfp, SFP_S_REINIT, T_INIT_JIFFIES);
+			sfp_sm_next(sfp, SFP_S_REINIT, sfp->module_t_start_up);
 		}
 		break;
 
