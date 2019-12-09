@@ -26,8 +26,6 @@ static inline u16 adfs_filetype(u32 loadaddr)
 #define ADFS_NDA_PUBLIC_READ	(1 << 5)
 #define ADFS_NDA_PUBLIC_WRITE	(1 << 6)
 
-#include "dir_f.h"
-
 /*
  * adfs file system inode data in memory
  */
@@ -98,8 +96,14 @@ struct adfs_dir {
 	unsigned int		pos;
 	__u32			parent_id;
 
-	struct adfs_dirheader	dirhead;
-	union  adfs_dirtail	dirtail;
+	union {
+		struct adfs_dirheader	*dirhead;
+		struct adfs_bigdirheader *bighead;
+	};
+	union {
+		struct adfs_newdirtail	*newtail;
+		struct adfs_bigdirtail	*bigtail;
+	};
 };
 
 /*

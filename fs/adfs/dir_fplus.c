@@ -20,7 +20,7 @@ static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 	if (ret)
 		return ret;
 
-	h = (struct adfs_bigdirheader *)dir->bhs[0]->b_data;
+	dir->bighead = h = (void *)dir->bhs[0]->b_data;
 	dirsize = le32_to_cpu(h->bigdirsize);
 	if (dirsize != size) {
 		adfs_msg(sb, KERN_WARNING,
@@ -40,7 +40,7 @@ static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 	if (ret)
 		return ret;
 
-	t = (struct adfs_bigdirtail *)
+	dir->bigtail = t = (struct adfs_bigdirtail *)
 		(dir->bhs[dir->nr_buffers - 1]->b_data + (sb->s_blocksize - 8));
 
 	if (t->bigdirendname != cpu_to_le32(BIGDIRENDNAME) ||
@@ -62,11 +62,9 @@ out:
 static int
 adfs_fplus_setpos(struct adfs_dir *dir, unsigned int fpos)
 {
-	struct adfs_bigdirheader *h =
-		(struct adfs_bigdirheader *) dir->bhs[0]->b_data;
 	int ret = -ENOENT;
 
-	if (fpos <= le32_to_cpu(h->bigdirentries)) {
+	if (fpos <= le32_to_cpu(dir->bighead->bigdirentries)) {
 		dir->pos = fpos;
 		ret = 0;
 	}
@@ -77,8 +75,7 @@ adfs_fplus_setpos(struct adfs_dir *dir, unsigned int fpos)
 static int
 adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 {
-	struct adfs_bigdirheader *h =
-		(struct adfs_bigdirheader *) dir->bhs[0]->b_data;
+	struct adfs_bigdirheader *h = dir->bighead;
 	struct adfs_bigdirentry bde;
 	unsigned int offset;
 	int ret;

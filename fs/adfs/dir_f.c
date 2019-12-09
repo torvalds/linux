@@ -58,7 +58,7 @@ static inline void adfs_writeval(unsigned char *p, int len, unsigned int val)
 #define bufoff(_bh,_idx)			\
 	({ int _buf = _idx >> blocksize_bits;	\
 	   int _off = _idx - (_buf << blocksize_bits);\
-	  (u8 *)(_bh[_buf]->b_data + _off);	\
+	  (void *)(_bh[_buf]->b_data + _off);	\
 	})
 
 /*
@@ -139,18 +139,18 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 	if (ret)
 		return ret;
 
-	memcpy(&dir->dirhead, bufoff(dir->bh, 0), sizeof(dir->dirhead));
-	memcpy(&dir->dirtail, bufoff(dir->bh, 2007), sizeof(dir->dirtail));
+	dir->dirhead = bufoff(dir->bh, 0);
+	dir->newtail = bufoff(dir->bh, 2007);
 
-	if (dir->dirhead.startmasseq != dir->dirtail.new.endmasseq ||
-	    memcmp(&dir->dirhead.startname, &dir->dirtail.new.endname, 4))
+	if (dir->dirhead->startmasseq != dir->newtail->endmasseq ||
+	    memcmp(&dir->dirhead->startname, &dir->newtail->endname, 4))
 		goto bad_dir;
 
-	if (memcmp(&dir->dirhead.startname, "Nick", 4) &&
-	    memcmp(&dir->dirhead.startname, "Hugo", 4))
+	if (memcmp(&dir->dirhead->startname, "Nick", 4) &&
+	    memcmp(&dir->dirhead->startname, "Hugo", 4))
 		goto bad_dir;
 
-	if (adfs_dir_checkbyte(dir) != dir->dirtail.new.dircheckbyte)
+	if (adfs_dir_checkbyte(dir) != dir->newtail->dircheckbyte)
 		goto bad_dir;
 
 	return 0;
@@ -275,7 +275,7 @@ static int adfs_f_read(struct super_block *sb, u32 indaddr, unsigned int size,
 	if (ret)
 		adfs_error(sb, "unable to read directory");
 	else
-		dir->parent_id = adfs_readval(dir->dirtail.new.dirparent, 3);
+		dir->parent_id = adfs_readval(dir->newtail->dirparent, 3);
 
 	return ret;
 }
@@ -322,7 +322,6 @@ static int adfs_f_iterate(struct adfs_dir *dir, struct dir_context *ctx)
 static int
 adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 {
-	struct super_block *sb = dir->sb;
 	int ret;
 
 	ret = adfs_dir_find_entry(dir, obj->indaddr);
@@ -336,33 +335,26 @@ adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 	/*
 	 * Increment directory sequence number
 	 */
-	dir->bh[0]->b_data[0] += 1;
-	dir->bh[dir->nr_buffers - 1]->b_data[sb->s_blocksize - 6] += 1;
+	dir->dirhead->startmasseq += 1;
+	dir->newtail->endmasseq += 1;
 
 	ret = adfs_dir_checkbyte(dir);
 	/*
 	 * Update directory check byte
 	 */
-	dir->bh[dir->nr_buffers - 1]->b_data[sb->s_blocksize - 1] = ret;
+	dir->newtail->dircheckbyte = ret;
 
 #if 1
-	{
-	const unsigned int blocksize_bits = sb->s_blocksize_bits;
-
-	memcpy(&dir->dirhead, bufoff(dir->bh, 0), sizeof(dir->dirhead));
-	memcpy(&dir->dirtail, bufoff(dir->bh, 2007), sizeof(dir->dirtail));
-
-	if (dir->dirhead.startmasseq != dir->dirtail.new.endmasseq ||
-	    memcmp(&dir->dirhead.startname, &dir->dirtail.new.endname, 4))
+	if (dir->dirhead->startmasseq != dir->newtail->endmasseq ||
+	    memcmp(&dir->dirhead->startname, &dir->newtail->endname, 4))
 		goto bad_dir;
 
-	if (memcmp(&dir->dirhead.startname, "Nick", 4) &&
-	    memcmp(&dir->dirhead.startname, "Hugo", 4))
+	if (memcmp(&dir->dirhead->startname, "Nick", 4) &&
+	    memcmp(&dir->dirhead->startname, "Hugo", 4))
 		goto bad_dir;
 
-	if (adfs_dir_checkbyte(dir) != dir->dirtail.new.dircheckbyte)
+	if (adfs_dir_checkbyte(dir) != dir->newtail->dircheckbyte)
 		goto bad_dir;
-	}
 #endif
 	ret = 0;
 out:
