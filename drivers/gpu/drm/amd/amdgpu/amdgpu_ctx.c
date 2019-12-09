@@ -170,7 +170,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			break;
 		case AMDGPU_HW_IP_VCN_JPEG:
 			for (j = 0; j < adev->jpeg.num_jpeg_inst; ++j) {
-				if (adev->vcn.harvest_config & (1 << j))
+				if (adev->jpeg.harvest_config & (1 << j))
 					continue;
 				rings[num_rings++] = &adev->jpeg.inst[j].ring_dec;
 			}
