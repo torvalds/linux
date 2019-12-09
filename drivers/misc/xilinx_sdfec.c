@@ -733,7 +733,7 @@ static int xsdfec_set_order(struct xsdfec_dev *xsdfec, void __user *arg)
 	enum xsdfec_order order;
 	int err;
 
-	err = get_user(order, (enum xsdfec_order *)arg);
+	err = get_user(order, (enum xsdfec_order __user *)arg);
 	if (err)
 		return -EFAULT;
 
