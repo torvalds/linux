@@ -770,8 +770,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 
 	ret = devm_request_threaded_irq(&client->dev, client->irq,
 					NULL, pca953x_irq_handler,
-					IRQF_TRIGGER_LOW | IRQF_ONESHOT |
-					IRQF_SHARED,
+					IRQF_ONESHOT | IRQF_SHARED,
 					dev_name(&client->dev), chip);
 	if (ret) {
 		dev_err(&client->dev, "failed to request irq %d\n",
