@@ -1788,7 +1788,7 @@ static const struct amdgpu_irq_src_funcs vcn_v2_0_irq_funcs = {
 
 static void vcn_v2_0_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->vcn.inst->irq.num_types = adev->vcn.num_enc_rings + 2;
+	adev->vcn.inst->irq.num_types = adev->vcn.num_enc_rings + 1;
 	adev->vcn.inst->irq.funcs = &vcn_v2_0_irq_funcs;
 }
 
