@@ -707,34 +707,6 @@ static int snd_ca0106_pcm_open_3_capture(struct snd_pcm_substream *substream)
 	return snd_ca0106_pcm_open_capture_channel(substream, 3);
 }
 
-/* hw_params callback */
-static int snd_ca0106_pcm_hw_params_playback(struct snd_pcm_substream *substream,
-				      struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
-/* hw_free callback */
-static int snd_ca0106_pcm_hw_free_playback(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
-/* hw_params callback */
-static int snd_ca0106_pcm_hw_params_capture(struct snd_pcm_substream *substream,
-				      struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
-/* hw_free callback */
-static int snd_ca0106_pcm_hw_free_capture(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 /* prepare playback callback */
 static int snd_ca0106_pcm_prepare_playback(struct snd_pcm_substream *substream)
 {
@@ -1097,8 +1069,6 @@ static const struct snd_pcm_ops snd_ca0106_playback_front_ops = {
 	.open =        snd_ca0106_pcm_open_playback_front,
 	.close =       snd_ca0106_pcm_close_playback,
 	.ioctl =       snd_pcm_lib_ioctl,
-	.hw_params =   snd_ca0106_pcm_hw_params_playback,
-	.hw_free =     snd_ca0106_pcm_hw_free_playback,
 	.prepare =     snd_ca0106_pcm_prepare_playback,
 	.trigger =     snd_ca0106_pcm_trigger_playback,
 	.pointer =     snd_ca0106_pcm_pointer_playback,
@@ -1108,8 +1078,6 @@ static const struct snd_pcm_ops snd_ca0106_capture_0_ops = {
 	.open =        snd_ca0106_pcm_open_0_capture,
 	.close =       snd_ca0106_pcm_close_capture,
 	.ioctl =       snd_pcm_lib_ioctl,
-	.hw_params =   snd_ca0106_pcm_hw_params_capture,
-	.hw_free =     snd_ca0106_pcm_hw_free_capture,
 	.prepare =     snd_ca0106_pcm_prepare_capture,
 	.trigger =     snd_ca0106_pcm_trigger_capture,
 	.pointer =     snd_ca0106_pcm_pointer_capture,
@@ -1119,8 +1087,6 @@ static const struct snd_pcm_ops snd_ca0106_capture_1_ops = {
 	.open =        snd_ca0106_pcm_open_1_capture,
 	.close =       snd_ca0106_pcm_close_capture,
 	.ioctl =       snd_pcm_lib_ioctl,
-	.hw_params =   snd_ca0106_pcm_hw_params_capture,
-	.hw_free =     snd_ca0106_pcm_hw_free_capture,
 	.prepare =     snd_ca0106_pcm_prepare_capture,
 	.trigger =     snd_ca0106_pcm_trigger_capture,
 	.pointer =     snd_ca0106_pcm_pointer_capture,
@@ -1130,8 +1096,6 @@ static const struct snd_pcm_ops snd_ca0106_capture_2_ops = {
 	.open =        snd_ca0106_pcm_open_2_capture,
 	.close =       snd_ca0106_pcm_close_capture,
 	.ioctl =       snd_pcm_lib_ioctl,
-	.hw_params =   snd_ca0106_pcm_hw_params_capture,
-	.hw_free =     snd_ca0106_pcm_hw_free_capture,
 	.prepare =     snd_ca0106_pcm_prepare_capture,
 	.trigger =     snd_ca0106_pcm_trigger_capture,
 	.pointer =     snd_ca0106_pcm_pointer_capture,
@@ -1141,8 +1105,6 @@ static const struct snd_pcm_ops snd_ca0106_capture_3_ops = {
 	.open =        snd_ca0106_pcm_open_3_capture,
 	.close =       snd_ca0106_pcm_close_capture,
 	.ioctl =       snd_pcm_lib_ioctl,
-	.hw_params =   snd_ca0106_pcm_hw_params_capture,
-	.hw_free =     snd_ca0106_pcm_hw_free_capture,
 	.prepare =     snd_ca0106_pcm_prepare_capture,
 	.trigger =     snd_ca0106_pcm_trigger_capture,
 	.pointer =     snd_ca0106_pcm_pointer_capture,
@@ -1152,8 +1114,6 @@ static const struct snd_pcm_ops snd_ca0106_playback_center_lfe_ops = {
         .open =         snd_ca0106_pcm_open_playback_center_lfe,
         .close =        snd_ca0106_pcm_close_playback,
         .ioctl =        snd_pcm_lib_ioctl,
-        .hw_params =    snd_ca0106_pcm_hw_params_playback,
-        .hw_free =      snd_ca0106_pcm_hw_free_playback,
         .prepare =      snd_ca0106_pcm_prepare_playback,     
         .trigger =      snd_ca0106_pcm_trigger_playback,  
         .pointer =      snd_ca0106_pcm_pointer_playback, 
@@ -1163,8 +1123,6 @@ static const struct snd_pcm_ops snd_ca0106_playback_unknown_ops = {
         .open =         snd_ca0106_pcm_open_playback_unknown,
         .close =        snd_ca0106_pcm_close_playback,
         .ioctl =        snd_pcm_lib_ioctl,
-        .hw_params =    snd_ca0106_pcm_hw_params_playback,
-        .hw_free =      snd_ca0106_pcm_hw_free_playback,
         .prepare =      snd_ca0106_pcm_prepare_playback,     
         .trigger =      snd_ca0106_pcm_trigger_playback,  
         .pointer =      snd_ca0106_pcm_pointer_playback, 
@@ -1174,8 +1132,6 @@ static const struct snd_pcm_ops snd_ca0106_playback_rear_ops = {
         .open =         snd_ca0106_pcm_open_playback_rear,
         .close =        snd_ca0106_pcm_close_playback,
         .ioctl =        snd_pcm_lib_ioctl,
-        .hw_params =    snd_ca0106_pcm_hw_params_playback,
-		.hw_free =      snd_ca0106_pcm_hw_free_playback,
         .prepare =      snd_ca0106_pcm_prepare_playback,     
         .trigger =      snd_ca0106_pcm_trigger_playback,  
         .pointer =      snd_ca0106_pcm_pointer_playback, 
@@ -1388,17 +1344,17 @@ static int snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; 
 	    substream; 
 	    substream = substream->next) {
-		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
-					      &emu->pci->dev,
-					      64*1024, 64*1024);
+		snd_pcm_set_managed_buffer(substream, SNDRV_DMA_TYPE_DEV,
+					   &emu->pci->dev,
+					   64*1024, 64*1024);
 	}
 
 	for (substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream; 
 	      substream; 
 	      substream = substream->next) {
-		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
-					      &emu->pci->dev,
-					      64*1024, 64*1024);
+		snd_pcm_set_managed_buffer(substream, SNDRV_DMA_TYPE_DEV,
+					   &emu->pci->dev,
+					   64*1024, 64*1024);
 	}
   
 	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK, map, 2,
