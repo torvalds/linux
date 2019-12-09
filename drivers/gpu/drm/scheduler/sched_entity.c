@@ -56,8 +56,6 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 			  unsigned int num_sched_list,
 			  atomic_t *guilty)
 {
-	int i;
-
 	if (!(entity && sched_list && (num_sched_list == 0 || sched_list[0])))
 		return -EINVAL;
 
@@ -67,21 +65,13 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 	entity->guilty = guilty;
 	entity->num_sched_list = num_sched_list;
 	entity->priority = priority;
-	entity->sched_list =  kcalloc(num_sched_list,
-				      sizeof(struct drm_gpu_scheduler *), GFP_KERNEL);
+	entity->sched_list = num_sched_list > 1 ? sched_list : NULL;
+	entity->last_scheduled = NULL;
 
-	if(!entity->sched_list)
-		return -ENOMEM;
+	if(num_sched_list)
+		entity->rq = &sched_list[0]->sched_rq[entity->priority];
 
 	init_completion(&entity->entity_idle);
-
-	for (i = 0; i < num_sched_list; i++)
-		entity->sched_list[i] = sched_list[i];
-
-	if (num_sched_list)
-		entity->rq = &entity->sched_list[0]->sched_rq[entity->priority];
-
-	entity->last_scheduled = NULL;
 
 	spin_lock_init(&entity->rq_lock);
 	spsc_queue_init(&entity->job_queue);
@@ -312,7 +302,6 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 
 	dma_fence_put(entity->last_scheduled);
 	entity->last_scheduled = NULL;
-	kfree(entity->sched_list);
 }
 EXPORT_SYMBOL(drm_sched_entity_fini);
 
