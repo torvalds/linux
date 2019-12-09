@@ -287,13 +287,15 @@ unlock:
 int
 adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 {
-	int ret = -EINVAL;
-#ifdef CONFIG_ADFS_FS_RW
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
 	struct adfs_dir dir;
+	int ret;
 
 	printk(KERN_INFO "adfs_dir_update: object %06x in dir %06x\n",
 		 obj->indaddr, obj->parent_id);
+
+	if (!IS_ENABLED(CONFIG_ADFS_FS_RW))
+		return -EINVAL;
 
 	if (!ops->update)
 		return -EINVAL;
@@ -328,7 +330,7 @@ forget:
 		adfs_dir_forget(&dir);
 unlock:
 	up_write(&adfs_dir_rwsem);
-#endif
+
 	return ret;
 }
 
