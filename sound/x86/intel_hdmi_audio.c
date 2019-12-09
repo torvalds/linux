@@ -1132,16 +1132,13 @@ static int had_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_intelhad *intelhaddata;
-	int buf_size, retval;
+	int buf_size;
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 	buf_size = params_buffer_bytes(hw_params);
-	retval = snd_pcm_lib_malloc_pages(substream, buf_size);
-	if (retval < 0)
-		return retval;
 	dev_dbg(intelhaddata->dev, "%s:allocated memory = %d\n",
 		__func__, buf_size);
-	return retval;
+	return 0;
 }
 
 /*
@@ -1154,7 +1151,7 @@ static int had_pcm_hw_free(struct snd_pcm_substream *substream)
 	intelhaddata = snd_pcm_substream_chip(substream);
 	had_do_reset(intelhaddata);
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 /*
@@ -1801,10 +1798,9 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		/* allocate dma pages;
 		 * try to allocate 600k buffer as default which is large enough
 		 */
-		snd_pcm_lib_preallocate_pages_for_all(pcm,
-						      SNDRV_DMA_TYPE_DEV_UC,
-						      card->dev,
-						      HAD_DEFAULT_BUFFER, HAD_MAX_BUFFER);
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_UC,
+					       card->dev, HAD_DEFAULT_BUFFER,
+					       HAD_MAX_BUFFER);
 
 		/* create controls */
 		for (i = 0; i < ARRAY_SIZE(had_controls); i++) {
