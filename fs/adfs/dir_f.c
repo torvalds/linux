@@ -127,6 +127,7 @@ static int adfs_f_validate(struct adfs_dir *dir)
 	struct adfs_newdirtail *tail = dir->newtail;
 
 	if (head->startmasseq != tail->endmasseq ||
+	    tail->dirlastmask || tail->reserved[0] || tail->reserved[1] ||
 	    (memcmp(&head->startname, "Nick", 4) &&
 	     memcmp(&head->startname, "Hugo", 4)) ||
 	    memcmp(&head->startname, &tail->endname, 4) ||
