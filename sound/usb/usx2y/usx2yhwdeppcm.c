@@ -376,7 +376,7 @@ static int snd_usX2Y_usbpcm_hw_free(struct snd_pcm_substream *substream)
 		}
 	}
 	mutex_unlock(&subs->usX2Y->pcm_mutex);
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static void usX2Y_usbpcm_subs_startup(struct snd_usX2Y_substream *subs)
@@ -726,14 +726,14 @@ int usX2Y_hwdep_pcm_new(struct snd_card *card)
 	pcm->info_flags = 0;
 
 	sprintf(pcm->name, NAME_ALLCAPS" hwdep Audio");
-	snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
-				      SNDRV_DMA_TYPE_CONTINUOUS,
-				      NULL,
-				      64*1024, 128*1024);
-	snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
-				      SNDRV_DMA_TYPE_CONTINUOUS,
-				      NULL,
-				      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
+				   SNDRV_DMA_TYPE_CONTINUOUS,
+				   NULL,
+				   64*1024, 128*1024);
+	snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
+				   SNDRV_DMA_TYPE_CONTINUOUS,
+				   NULL,
+				   64*1024, 128*1024);
 
 	return 0;
 }
