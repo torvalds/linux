@@ -137,6 +137,26 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 	return ADFS_SB(sb)->s_dir->read(sb, indaddr, size, dir);
 }
 
+static int adfs_dir_read_inode(struct super_block *sb, struct inode *inode,
+			       struct adfs_dir *dir)
+{
+	int ret;
+
+	ret = adfs_dir_read(sb, inode->i_ino, inode->i_size, dir);
+	if (ret)
+		return ret;
+
+	if (ADFS_I(inode)->parent_id != dir->parent_id) {
+		adfs_error(sb,
+			   "parent directory id changed under me! (%06x but got %06x)\n",
+			   ADFS_I(inode)->parent_id, dir->parent_id);
+		adfs_dir_relse(dir);
+		ret = -EIO;
+	}
+
+	return ret;
+}
+
 static int adfs_dir_sync(struct adfs_dir *dir)
 {
 	int err = 0;
@@ -203,7 +223,7 @@ adfs_readdir(struct file *file, struct dir_context *ctx)
 	if (ctx->pos >> 32)
 		return 0;
 
-	ret = adfs_dir_read(sb, inode->i_ino, inode->i_size, &dir);
+	ret = adfs_dir_read_inode(sb, inode, &dir);
 	if (ret)
 		return ret;
 
@@ -304,17 +324,9 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 	u32 name_len;
 	int ret;
 
-	ret = adfs_dir_read(sb, inode->i_ino, inode->i_size, &dir);
+	ret = adfs_dir_read_inode(sb, inode, &dir);
 	if (ret)
 		goto out;
-
-	if (ADFS_I(inode)->parent_id != dir.parent_id) {
-		adfs_error(sb,
-			   "parent directory changed under me! (%06x but got %06x)\n",
-			   ADFS_I(inode)->parent_id, dir.parent_id);
-		ret = -EIO;
-		goto free_out;
-	}
 
 	obj->parent_id = inode->i_ino;
 
