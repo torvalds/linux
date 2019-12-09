@@ -16,6 +16,30 @@ static unsigned int adfs_fplus_offset(const struct adfs_bigdirheader *h,
 	       pos * sizeof(struct adfs_bigdirentry);
 }
 
+static int adfs_fplus_validate_header(const struct adfs_bigdirheader *h)
+{
+	unsigned int size = le32_to_cpu(h->bigdirsize);
+
+	if (h->bigdirversion[0] != 0 || h->bigdirversion[1] != 0 ||
+	    h->bigdirversion[2] != 0 ||
+	    h->bigdirstartname != cpu_to_le32(BIGDIRSTARTNAME) ||
+	    size & 2047)
+		return -EIO;
+
+	return 0;
+}
+
+static int adfs_fplus_validate_tail(const struct adfs_bigdirheader *h,
+				    const struct adfs_bigdirtail *t)
+{
+	if (t->bigdirendname != cpu_to_le32(BIGDIRENDNAME) ||
+	    t->bigdirendmasseq != h->startmasseq ||
+	    t->reserved[0] != 0 || t->reserved[1] != 0)
+		return -EIO;
+
+	return 0;
+}
+
 static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 			   unsigned int size, struct adfs_dir *dir)
 {
@@ -30,18 +54,16 @@ static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 		return ret;
 
 	dir->bighead = h = (void *)dir->bhs[0]->b_data;
+	if (adfs_fplus_validate_header(h)) {
+		adfs_error(sb, "dir %06x has malformed header", indaddr);
+		goto out;
+	}
+
 	dirsize = le32_to_cpu(h->bigdirsize);
 	if (dirsize != size) {
 		adfs_msg(sb, KERN_WARNING,
 			 "dir %06x header size %X does not match directory size %X",
 			 indaddr, dirsize, size);
-	}
-
-	if (h->bigdirversion[0] != 0 || h->bigdirversion[1] != 0 ||
-	    h->bigdirversion[2] != 0 || size & 2047 ||
-	    h->bigdirstartname != cpu_to_le32(BIGDIRSTARTNAME)) {
-		adfs_error(sb, "dir %06x has malformed header", indaddr);
-		goto out;
 	}
 
 	/* Read remaining buffers */
@@ -52,9 +74,8 @@ static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 	dir->bigtail = t = (struct adfs_bigdirtail *)
 		(dir->bhs[dir->nr_buffers - 1]->b_data + (sb->s_blocksize - 8));
 
-	if (t->bigdirendname != cpu_to_le32(BIGDIRENDNAME) ||
-	    t->bigdirendmasseq != h->startmasseq ||
-	    t->reserved[0] != 0 || t->reserved[1] != 0) {
+	ret = adfs_fplus_validate_tail(h, t);
+	if (ret) {
 		adfs_error(sb, "dir %06x has malformed tail", indaddr);
 		goto out;
 	}
