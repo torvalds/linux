@@ -746,10 +746,18 @@ mt76_airtime_report(struct mt76_dev *dev, struct mt76_rx_status *status,
 		    int len)
 {
 	struct mt76_wcid *wcid = status->wcid;
+	struct ieee80211_rx_status info = {
+		.enc_flags = status->enc_flags,
+		.rate_idx = status->rate_idx,
+		.encoding = status->encoding,
+		.band = status->band,
+		.nss = status->nss,
+		.bw = status->bw,
+	};
 	struct ieee80211_sta *sta;
 	u32 airtime;
 
-	airtime = mt76_calc_rx_airtime(dev, status, len);
+	airtime = ieee80211_calc_rx_airtime(dev->hw, &info, len);
 	spin_lock(&dev->cc_lock);
 	dev->cur_cc_bss_rx += airtime;
 	spin_unlock(&dev->cc_lock);

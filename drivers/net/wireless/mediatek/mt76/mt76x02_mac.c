@@ -631,7 +631,7 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 	if (!len)
 		goto out;
 
-	duration = mt76_calc_tx_airtime(&dev->mt76, &info, len);
+	duration = ieee80211_calc_tx_airtime(mt76_hw(dev), &info, len);
 
 	spin_lock_bh(&dev->mt76.cc_lock);
 	dev->tx_airtime += duration;

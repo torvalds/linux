@@ -820,8 +820,6 @@ void mt76_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  const u8 *mac);
 void mt76_sw_scan_complete(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif);
-u32 mt76_calc_tx_airtime(struct mt76_dev *dev, struct ieee80211_tx_info *info,
-			 int len);
 
 /* internal */
 static inline struct ieee80211_hw *
@@ -846,8 +844,6 @@ void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
 			   struct napi_struct *napi);
 void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames);
-u32 mt76_calc_rx_airtime(struct mt76_dev *dev, struct mt76_rx_status *status,
-			 int len);
 
 /* usb */
 static inline bool mt76u_urb_error(struct urb *urb)
