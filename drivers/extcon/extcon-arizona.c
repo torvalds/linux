@@ -1154,11 +1154,11 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 			dev_err(arizona->dev, "Mechanical report failed: %d\n",
 				ret);
 
-		if (!arizona->pdata.hpdet_acc_id) {
-			info->detecting = true;
-			info->mic = false;
-			info->jack_flips = 0;
+		info->detecting = true;
+		info->mic = false;
+		info->jack_flips = 0;
 
+		if (!arizona->pdata.hpdet_acc_id) {
 			arizona_start_mic(info);
 		} else {
 			queue_delayed_work(system_power_efficient_wq,
