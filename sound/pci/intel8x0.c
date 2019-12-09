@@ -901,9 +901,6 @@ static int snd_intel8x0_hw_params(struct snd_pcm_substream *substream,
 	int dbl = params_rate(hw_params) > 48000;
 	int err;
 
-	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
 	if (ichdev->pcm_open_flag) {
 		snd_ac97_pcm_close(ichdev->pcm);
 		ichdev->pcm_open_flag = 0;
@@ -929,7 +926,7 @@ static int snd_intel8x0_hw_free(struct snd_pcm_substream *substream)
 		snd_ac97_pcm_close(ichdev->pcm);
 		ichdev->pcm_open_flag = 0;
 	}
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static void snd_intel8x0_setup_pcm_out(struct intel8x0 *chip,
@@ -1487,9 +1484,9 @@ static int snd_intel8x0_pcm1(struct intel8x0 *chip, int device,
 		strcpy(pcm->name, chip->card->shortname);
 	chip->pcm[device] = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, intel8x0_dma_type(chip),
-					      &chip->pci->dev,
-					      rec->prealloc_size, rec->prealloc_max_size);
+	snd_pcm_set_managed_buffer_all(pcm, intel8x0_dma_type(chip),
+				       &chip->pci->dev,
+				       rec->prealloc_size, rec->prealloc_max_size);
 
 	if (rec->playback_ops &&
 	    rec->playback_ops->open == snd_intel8x0_playback_open) {

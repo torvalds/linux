@@ -553,17 +553,6 @@ static int snd_intel8x0m_pcm_trigger(struct snd_pcm_substream *substream, int cm
 	return 0;
 }
 
-static int snd_intel8x0m_hw_params(struct snd_pcm_substream *substream,
-				  struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_intel8x0m_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static snd_pcm_uframes_t snd_intel8x0m_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct intel8x0m *chip = snd_pcm_substream_chip(substream);
@@ -674,8 +663,6 @@ static const struct snd_pcm_ops snd_intel8x0m_playback_ops = {
 	.open =		snd_intel8x0m_playback_open,
 	.close =	snd_intel8x0m_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_intel8x0m_hw_params,
-	.hw_free =	snd_intel8x0m_hw_free,
 	.prepare =	snd_intel8x0m_pcm_prepare,
 	.trigger =	snd_intel8x0m_pcm_trigger,
 	.pointer =	snd_intel8x0m_pcm_pointer,
@@ -685,8 +672,6 @@ static const struct snd_pcm_ops snd_intel8x0m_capture_ops = {
 	.open =		snd_intel8x0m_capture_open,
 	.close =	snd_intel8x0m_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_intel8x0m_hw_params,
-	.hw_free =	snd_intel8x0m_hw_free,
 	.prepare =	snd_intel8x0m_pcm_prepare,
 	.trigger =	snd_intel8x0m_pcm_trigger,
 	.pointer =	snd_intel8x0m_pcm_pointer,
@@ -733,10 +718,10 @@ static int snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
 		strcpy(pcm->name, chip->card->shortname);
 	chip->pcm[device] = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &chip->pci->dev,
-					      rec->prealloc_size,
-					      rec->prealloc_max_size);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev,
+				       rec->prealloc_size,
+				       rec->prealloc_max_size);
 
 	return 0;
 }
