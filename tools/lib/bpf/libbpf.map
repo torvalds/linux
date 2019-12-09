@@ -208,3 +208,6 @@ LIBBPF_0.0.6 {
 		btf__find_by_name_kind;
 		libbpf_find_vmlinux_btf_id;
 } LIBBPF_0.0.5;
+
+LIBBPF_0.0.7 {
+} LIBBPF_0.0.6;
