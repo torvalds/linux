@@ -157,6 +157,15 @@ static int adfs_dir_read_inode(struct super_block *sb, struct inode *inode,
 	return ret;
 }
 
+static void adfs_dir_mark_dirty(struct adfs_dir *dir)
+{
+	unsigned int i;
+
+	/* Mark the buffers dirty */
+	for (i = 0; i < dir->nr_buffers; i++)
+		mark_buffer_dirty(dir->bhs[i]);
+}
+
 static int adfs_dir_sync(struct adfs_dir *dir)
 {
 	int err = 0;
@@ -279,6 +288,9 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 	write_lock(&adfs_dir_lock);
 	ret = ops->update(&dir, obj);
 	write_unlock(&adfs_dir_lock);
+
+	if (ret == 0)
+		adfs_dir_mark_dirty(&dir);
 
 	if (wait) {
 		int err = adfs_dir_sync(&dir);

@@ -306,7 +306,7 @@ static int
 adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 {
 	struct super_block *sb = dir->sb;
-	int ret, i;
+	int ret;
 
 	ret = adfs_dir_find_entry(dir, obj->indaddr);
 	if (ret < 0) {
@@ -347,9 +347,6 @@ adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 		goto bad_dir;
 	}
 #endif
-	for (i = dir->nr_buffers - 1; i >= 0; i--)
-		mark_buffer_dirty(dir->bh[i]);
-
 	ret = 0;
 out:
 	return ret;
