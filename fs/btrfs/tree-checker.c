@@ -839,7 +839,7 @@ static int check_dev_item(struct extent_buffer *leaf,
 }
 
 /* Inode item error output has the same format as dir_item_err() */
-#define inode_item_err(fs_info, eb, slot, fmt, ...)			\
+#define inode_item_err(eb, slot, fmt, ...)			\
 	dir_item_err(eb, slot, fmt, __VA_ARGS__)
 
 static int check_inode_item(struct extent_buffer *leaf,
@@ -864,7 +864,7 @@ static int check_inode_item(struct extent_buffer *leaf,
 		return -EUCLEAN;
 	}
 	if (key->offset != 0) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 			"invalid key offset: has %llu expect 0",
 			key->offset);
 		return -EUCLEAN;
@@ -873,7 +873,7 @@ static int check_inode_item(struct extent_buffer *leaf,
 
 	/* Here we use super block generation + 1 to handle log tree */
 	if (btrfs_inode_generation(leaf, iitem) > super_gen + 1) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 			"invalid inode generation: has %llu expect (0, %llu]",
 			       btrfs_inode_generation(leaf, iitem),
 			       super_gen + 1);
@@ -881,7 +881,7 @@ static int check_inode_item(struct extent_buffer *leaf,
 	}
 	/* Note for ROOT_TREE_DIR_ITEM, mkfs could set its transid 0 */
 	if (btrfs_inode_transid(leaf, iitem) > super_gen + 1) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 			"invalid inode generation: has %llu expect [0, %llu]",
 			       btrfs_inode_transid(leaf, iitem), super_gen + 1);
 		return -EUCLEAN;
@@ -894,7 +894,7 @@ static int check_inode_item(struct extent_buffer *leaf,
 	 */
 	mode = btrfs_inode_mode(leaf, iitem);
 	if (mode & ~valid_mask) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 			       "unknown mode bit detected: 0x%x",
 			       mode & ~valid_mask);
 		return -EUCLEAN;
@@ -907,20 +907,20 @@ static int check_inode_item(struct extent_buffer *leaf,
 	 */
 	if (!has_single_bit_set(mode & S_IFMT)) {
 		if (!S_ISLNK(mode) && !S_ISBLK(mode) && !S_ISSOCK(mode)) {
-			inode_item_err(fs_info, leaf, slot,
+			inode_item_err(leaf, slot,
 			"invalid mode: has 0%o expect valid S_IF* bit(s)",
 				       mode & S_IFMT);
 			return -EUCLEAN;
 		}
 	}
 	if (S_ISDIR(mode) && btrfs_inode_nlink(leaf, iitem) > 1) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 		       "invalid nlink: has %u expect no more than 1 for dir",
 			btrfs_inode_nlink(leaf, iitem));
 		return -EUCLEAN;
 	}
 	if (btrfs_inode_flags(leaf, iitem) & ~BTRFS_INODE_FLAG_MASK) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 			       "unknown flags detected: 0x%llx",
 			       btrfs_inode_flags(leaf, iitem) &
 			       ~BTRFS_INODE_FLAG_MASK);
@@ -1340,8 +1340,8 @@ static int check_extent_data_ref(struct extent_buffer *leaf,
 	return 0;
 }
 
-#define inode_ref_err(fs_info, eb, slot, fmt, args...)			\
-	inode_item_err(fs_info, eb, slot, fmt, ##args)
+#define inode_ref_err(eb, slot, fmt, args...)			\
+	inode_item_err(eb, slot, fmt, ##args)
 static int check_inode_ref(struct extent_buffer *leaf,
 			   struct btrfs_key *key, struct btrfs_key *prev_key,
 			   int slot)
@@ -1354,7 +1354,7 @@ static int check_inode_ref(struct extent_buffer *leaf,
 		return -EUCLEAN;
 	/* namelen can't be 0, so item_size == sizeof() is also invalid */
 	if (btrfs_item_size_nr(leaf, slot) <= sizeof(*iref)) {
-		inode_ref_err(fs_info, leaf, slot,
+		inode_ref_err(leaf, slot,
 			"invalid item size, have %u expect (%zu, %u)",
 			btrfs_item_size_nr(leaf, slot),
 			sizeof(*iref), BTRFS_LEAF_DATA_SIZE(leaf->fs_info));
@@ -1367,7 +1367,7 @@ static int check_inode_ref(struct extent_buffer *leaf,
 		u16 namelen;
 
 		if (ptr + sizeof(iref) > end) {
-			inode_ref_err(fs_info, leaf, slot,
+			inode_ref_err(leaf, slot,
 			"inode ref overflow, ptr %lu end %lu inode_ref_size %zu",
 				ptr, end, sizeof(iref));
 			return -EUCLEAN;
@@ -1376,7 +1376,7 @@ static int check_inode_ref(struct extent_buffer *leaf,
 		iref = (struct btrfs_inode_ref *)ptr;
 		namelen = btrfs_inode_ref_name_len(leaf, iref);
 		if (ptr + sizeof(*iref) + namelen > end) {
-			inode_ref_err(fs_info, leaf, slot,
+			inode_ref_err(leaf, slot,
 				"inode ref overflow, ptr %lu end %lu namelen %u",
 				ptr, end, namelen);
 			return -EUCLEAN;
