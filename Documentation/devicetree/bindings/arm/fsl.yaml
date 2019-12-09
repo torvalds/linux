@@ -395,6 +395,13 @@ properties:
               - fsl,ls1021a-twr
           - const: fsl,ls1021a
 
+      - description: LS1028A based Boards
+        items:
+          - enum:
+              - fsl,ls1028a-qds
+              - fsl,ls1028a-rdb
+          - const: fsl,ls1028a
+
       - description: LS1043A based Boards
         items:
           - enum:
