@@ -4999,7 +4999,7 @@ F:	include/linux/dma-mapping.h
 F:	include/linux/dma-noncoherent.h
 
 DMC FREQUENCY DRIVER FOR SAMSUNG EXYNOS5422
-M:	Lukasz Luba <l.luba@partner.samsung.com>
+M:	Lukasz Luba <lukasz.luba@arm.com>
 L:	linux-pm@vger.kernel.org
 L:	linux-samsung-soc@vger.kernel.org
 S:	Maintained
