@@ -727,7 +727,7 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	int dlen = COMPRESSED_DATA_NODE_BUF_SZ, allocated = 1;
 	int write_len;
 	struct ubifs_inode *ui = ubifs_inode(inode);
-	bool encrypted = ubifs_crypt_is_encrypted(inode);
+	bool encrypted = IS_ENCRYPTED(inode);
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
 	dbg_jnlk(key, "ino %lu, blk %u, len %d, key ",
@@ -1449,7 +1449,7 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 	dlen = old_dlen = le32_to_cpu(dn->ch.len) - UBIFS_DATA_NODE_SZ;
 	compr_type = le16_to_cpu(dn->compr_type);
 
-	if (ubifs_crypt_is_encrypted(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		err = ubifs_decrypt(inode, dn, &dlen, block);
 		if (err)
 			goto out;
@@ -1465,7 +1465,7 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 		ubifs_compress(c, buf, *new_len, &dn->data, &out_len, &compr_type);
 	}
 
-	if (ubifs_crypt_is_encrypted(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		err = ubifs_encrypt(inode, dn, out_len, &old_dlen, block);
 		if (err)
 			goto out;
