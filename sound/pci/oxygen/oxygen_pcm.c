@@ -304,12 +304,6 @@ static int oxygen_hw_params(struct snd_pcm_substream *substream,
 {
 	struct oxygen *chip = snd_pcm_substream_chip(substream);
 	unsigned int channel = oxygen_substream_channel(substream);
-	int err;
-
-	err = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
 
 	oxygen_write32(chip, channel_base_registers[channel],
 		       (u32)substream->runtime->dma_addr);
@@ -529,7 +523,7 @@ static int oxygen_hw_free(struct snd_pcm_substream *substream)
 	oxygen_clear_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
 	spin_unlock_irq(&chip->reg_lock);
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int oxygen_spdif_hw_free(struct snd_pcm_substream *substream)
@@ -711,17 +705,17 @@ int oxygen_pcm_init(struct oxygen *chip)
 		pcm->private_data = chip;
 		strcpy(pcm->name, "Multichannel");
 		if (outs)
-			snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
-						      SNDRV_DMA_TYPE_DEV,
-						      &chip->pci->dev,
-						      DEFAULT_BUFFER_BYTES_MULTICH,
-						      BUFFER_BYTES_MAX_MULTICH);
+			snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
+						   SNDRV_DMA_TYPE_DEV,
+						   &chip->pci->dev,
+						   DEFAULT_BUFFER_BYTES_MULTICH,
+						   BUFFER_BYTES_MAX_MULTICH);
 		if (ins)
-			snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
-						      SNDRV_DMA_TYPE_DEV,
-						      &chip->pci->dev,
-						      DEFAULT_BUFFER_BYTES,
-						      BUFFER_BYTES_MAX);
+			snd_pcm_set_managed_buffer(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
+						   SNDRV_DMA_TYPE_DEV,
+						   &chip->pci->dev,
+						   DEFAULT_BUFFER_BYTES,
+						   BUFFER_BYTES_MAX);
 	}
 
 	outs = !!(chip->model.device_config & PLAYBACK_1_TO_SPDIF);
@@ -738,10 +732,10 @@ int oxygen_pcm_init(struct oxygen *chip)
 					&oxygen_rec_c_ops);
 		pcm->private_data = chip;
 		strcpy(pcm->name, "Digital");
-		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      &chip->pci->dev,
-						      DEFAULT_BUFFER_BYTES,
-						      BUFFER_BYTES_MAX);
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+					       &chip->pci->dev,
+					       DEFAULT_BUFFER_BYTES,
+					       BUFFER_BYTES_MAX);
 	}
 
 	if (chip->has_ac97_1) {
@@ -768,10 +762,10 @@ int oxygen_pcm_init(struct oxygen *chip)
 					&oxygen_rec_b_ops);
 		pcm->private_data = chip;
 		strcpy(pcm->name, outs ? "Front Panel" : "Analog 2");
-		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      &chip->pci->dev,
-						      DEFAULT_BUFFER_BYTES,
-						      BUFFER_BYTES_MAX);
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+					       &chip->pci->dev,
+					       DEFAULT_BUFFER_BYTES,
+					       BUFFER_BYTES_MAX);
 	}
 
 	ins = !!(chip->model.device_config & CAPTURE_3_FROM_I2S_3);
@@ -786,10 +780,10 @@ int oxygen_pcm_init(struct oxygen *chip)
 				     OXYGEN_REC_C_ROUTE_MASK);
 		pcm->private_data = chip;
 		strcpy(pcm->name, "Analog 3");
-		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      &chip->pci->dev,
-						      DEFAULT_BUFFER_BYTES,
-						      BUFFER_BYTES_MAX);
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+					       &chip->pci->dev,
+					       DEFAULT_BUFFER_BYTES,
+					       BUFFER_BYTES_MAX);
 	}
 	return 0;
 }
