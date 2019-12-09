@@ -960,14 +960,13 @@ static void arizona_micd_detect(struct work_struct *work)
 				input_report_key(info->input,
 						 info->micd_ranges[i].key, 0);
 
-			WARN_ON(!lvl);
-			WARN_ON(ffs(lvl) - 1 >= info->num_micd_ranges);
 			if (lvl && ffs(lvl) - 1 < info->num_micd_ranges) {
 				key = info->micd_ranges[ffs(lvl) - 1].key;
 				input_report_key(info->input, key, 1);
 				input_sync(info->input);
+			} else {
+				dev_err(arizona->dev, "Button out of range\n");
 			}
-
 		} else if (info->detecting) {
 			dev_dbg(arizona->dev, "Headphone detected\n");
 			info->detecting = false;
