@@ -289,6 +289,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	sb->s_fs_info = asb;
+	sb->s_magic = ADFS_SUPER_MAGIC;
 	sb->s_time_gran = 10000000;
 
 	/* set default options */
@@ -355,12 +356,6 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	/*
 	 * blocksize on this device should now be set to the ADFS log2secsize
 	 */
-
-	sb->s_magic		= ADFS_SUPER_MAGIC;
-	asb->s_idlen		= dr->idlen;
-	asb->s_map_size		= dr->nzones | (dr->nzones_high << 8);
-	asb->s_map2blk		= dr->log2bpmb - dr->log2secsize;
-	asb->s_log2sharesize	= dr->log2sharesize;
 
 	asb->s_map = adfs_read_map(sb, dr);
 	if (IS_ERR(asb->s_map)) {

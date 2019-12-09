@@ -355,13 +355,18 @@ struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_discrecor
 	unsigned int map_addr, zone_size, nzones;
 	int ret;
 
-	nzones    = asb->s_map_size;
+	nzones    = dr->nzones | dr->nzones_high << 8;
 	zone_size = (8 << dr->log2secsize) - le16_to_cpu(dr->zone_spare);
-	map_addr  = (nzones >> 1) * zone_size -
-		     ((nzones > 1) ? ADFS_DR_SIZE_BITS : 0);
-	map_addr  = signed_asl(map_addr, asb->s_map2blk);
 
+	asb->s_idlen = dr->idlen;
+	asb->s_map_size = nzones;
+	asb->s_map2blk = dr->log2bpmb - dr->log2secsize;
+	asb->s_log2sharesize = dr->log2sharesize;
 	asb->s_ids_per_zone = zone_size / (asb->s_idlen + 1);
+
+	map_addr = (nzones >> 1) * zone_size -
+		     ((nzones > 1) ? ADFS_DR_SIZE_BITS : 0);
+	map_addr = signed_asl(map_addr, asb->s_map2blk);
 
 	dm = kmalloc_array(nzones, sizeof(*dm), GFP_KERNEL);
 	if (dm == NULL) {
