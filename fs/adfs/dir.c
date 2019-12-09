@@ -12,7 +12,7 @@
 /*
  * For future.  This should probably be per-directory.
  */
-static DEFINE_RWLOCK(adfs_dir_lock);
+static DECLARE_RWSEM(adfs_dir_rwsem);
 
 int adfs_dir_copyfrom(void *dst, struct adfs_dir *dir, unsigned int offset,
 		      size_t len)
@@ -232,26 +232,25 @@ adfs_readdir(struct file *file, struct dir_context *ctx)
 	if (ctx->pos >> 32)
 		return 0;
 
+	down_read(&adfs_dir_rwsem);
 	ret = adfs_dir_read_inode(sb, inode, &dir);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	if (ctx->pos == 0) {
 		if (!dir_emit_dot(file, ctx))
-			goto free_out;
+			goto unlock_relse;
 		ctx->pos = 1;
 	}
 	if (ctx->pos == 1) {
 		if (!dir_emit(ctx, "..", 2, dir.parent_id, DT_DIR))
-			goto free_out;
+			goto unlock_relse;
 		ctx->pos = 2;
 	}
 
-	read_lock(&adfs_dir_lock);
-
 	ret = ops->setpos(&dir, ctx->pos - 2);
 	if (ret)
-		goto unlock_out;
+		goto unlock_relse;
 	while (ops->getnext(&dir, &obj) == 0) {
 		if (!dir_emit(ctx, obj.name, obj.name_len,
 			      obj.indaddr, DT_UNKNOWN))
@@ -259,11 +258,13 @@ adfs_readdir(struct file *file, struct dir_context *ctx)
 		ctx->pos++;
 	}
 
-unlock_out:
-	read_unlock(&adfs_dir_lock);
-
-free_out:
+unlock_relse:
+	up_read(&adfs_dir_rwsem);
 	adfs_dir_relse(&dir);
+	return ret;
+
+unlock:
+	up_read(&adfs_dir_rwsem);
 	return ret;
 }
 
@@ -281,13 +282,13 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 	if (!ops->update)
 		return -EINVAL;
 
+	down_write(&adfs_dir_rwsem);
 	ret = adfs_dir_read(sb, obj->parent_id, 0, &dir);
 	if (ret)
-		goto out;
+		goto unlock;
 
-	write_lock(&adfs_dir_lock);
 	ret = ops->update(&dir, obj);
-	write_unlock(&adfs_dir_lock);
+	up_write(&adfs_dir_rwsem);
 
 	if (ret == 0)
 		adfs_dir_mark_dirty(&dir);
@@ -299,7 +300,10 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 	}
 
 	adfs_dir_relse(&dir);
-out:
+	return ret;
+
+unlock:
+	up_write(&adfs_dir_rwsem);
 #endif
 	return ret;
 }
@@ -336,17 +340,14 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 	u32 name_len;
 	int ret;
 
+	down_read(&adfs_dir_rwsem);
 	ret = adfs_dir_read_inode(sb, inode, &dir);
 	if (ret)
-		goto out;
-
-	obj->parent_id = inode->i_ino;
-
-	read_lock(&adfs_dir_lock);
+		goto unlock;
 
 	ret = ops->setpos(&dir, 0);
 	if (ret)
-		goto unlock_out;
+		goto unlock_relse;
 
 	ret = -ENOENT;
 	name = qstr->name;
@@ -357,13 +358,15 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 			break;
 		}
 	}
+	obj->parent_id = inode->i_ino;
 
-unlock_out:
-	read_unlock(&adfs_dir_lock);
-
-free_out:
+unlock_relse:
+	up_read(&adfs_dir_rwsem);
 	adfs_dir_relse(&dir);
-out:
+	return ret;
+
+unlock:
+	up_read(&adfs_dir_rwsem);
 	return ret;
 }
 
