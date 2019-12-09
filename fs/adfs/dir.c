@@ -278,9 +278,6 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 	struct adfs_dir dir;
 	int ret;
 
-	printk(KERN_INFO "adfs_dir_update: object %06x in dir %06x\n",
-		 obj->indaddr, obj->parent_id);
-
 	if (!IS_ENABLED(CONFIG_ADFS_FS_RW))
 		return -EINVAL;
 
