@@ -2079,8 +2079,12 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			     &l->mon_state, l->bearer_id);
 
 		/* Send NACK if peer has sent pkts we haven't received yet */
-		if (more(peers_snd_nxt, rcv_nxt) && !tipc_link_is_synching(l))
+		if ((reply || msg_is_keepalive(hdr)) &&
+		    more(peers_snd_nxt, rcv_nxt) &&
+		    !tipc_link_is_synching(l) &&
+		    skb_queue_empty(&l->deferdq))
 			rcvgap = peers_snd_nxt - l->rcv_nxt;
+
 		if (rcvgap || reply)
 			tipc_link_build_proto_msg(l, STATE_MSG, 0, reply,
 						  rcvgap, 0, 0, xmitq);
