@@ -297,7 +297,7 @@ static inline int tc_poll_timeout(struct tc_data *tc, unsigned int addr,
 
 static int tc_aux_wait_busy(struct tc_data *tc)
 {
-	return tc_poll_timeout(tc, DP0_AUXSTATUS, AUX_BUSY, 0, 1000, 100000);
+	return tc_poll_timeout(tc, DP0_AUXSTATUS, AUX_BUSY, 0, 100, 100000);
 }
 
 static int tc_aux_write_data(struct tc_data *tc, const void *data,
@@ -640,7 +640,7 @@ static int tc_aux_link_setup(struct tc_data *tc)
 	if (ret)
 		goto err;
 
-	ret = tc_poll_timeout(tc, DP_PHY_CTRL, PHY_RDY, PHY_RDY, 1, 1000);
+	ret = tc_poll_timeout(tc, DP_PHY_CTRL, PHY_RDY, PHY_RDY, 100, 100000);
 	if (ret == -ETIMEDOUT) {
 		dev_err(tc->dev, "Timeout waiting for PHY to become ready");
 		return ret;
@@ -876,7 +876,7 @@ static int tc_wait_link_training(struct tc_data *tc)
 	int ret;
 
 	ret = tc_poll_timeout(tc, DP0_LTSTAT, LT_LOOPDONE,
-			      LT_LOOPDONE, 1, 1000);
+			      LT_LOOPDONE, 500, 100000);
 	if (ret) {
 		dev_err(tc->dev, "Link training timeout waiting for LT_LOOPDONE!\n");
 		return ret;
@@ -949,7 +949,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 	dp_phy_ctrl &= ~(DP_PHY_RST | PHY_M1_RST | PHY_M0_RST);
 	ret = regmap_write(tc->regmap, DP_PHY_CTRL, dp_phy_ctrl);
 
-	ret = tc_poll_timeout(tc, DP_PHY_CTRL, PHY_RDY, PHY_RDY, 1, 1000);
+	ret = tc_poll_timeout(tc, DP_PHY_CTRL, PHY_RDY, PHY_RDY, 500, 100000);
 	if (ret) {
 		dev_err(dev, "timeout waiting for phy become ready");
 		return ret;
