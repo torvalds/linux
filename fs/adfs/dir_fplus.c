@@ -120,7 +120,7 @@ static int adfs_fplus_read(struct super_block *sb, u32 indaddr,
 	}
 
 	dirsize = le32_to_cpu(h->bigdirsize);
-	if (dirsize != size) {
+	if (size && dirsize != size) {
 		adfs_msg(sb, KERN_WARNING,
 			 "dir %06x header size %X does not match directory size %X",
 			 indaddr, dirsize, size);
@@ -226,9 +226,61 @@ static int adfs_fplus_iterate(struct adfs_dir *dir, struct dir_context *ctx)
 	return 0;
 }
 
+static int adfs_fplus_update(struct adfs_dir *dir, struct object_info *obj)
+{
+	struct adfs_bigdirheader *h = dir->bighead;
+	struct adfs_bigdirentry bde;
+	int offset, end, ret;
+
+	offset = adfs_fplus_offset(h, 0) - sizeof(bde);
+	end = adfs_fplus_offset(h, le32_to_cpu(h->bigdirentries));
+
+	do {
+		offset += sizeof(bde);
+		if (offset >= end) {
+			adfs_error(dir->sb, "unable to locate entry to update");
+			return -ENOENT;
+		}
+		ret = adfs_dir_copyfrom(&bde, dir, offset, sizeof(bde));
+		if (ret) {
+			adfs_error(dir->sb, "error reading directory entry");
+			return -ENOENT;
+		}
+	} while (le32_to_cpu(bde.bigdirindaddr) != obj->indaddr);
+
+	bde.bigdirload    = cpu_to_le32(obj->loadaddr);
+	bde.bigdirexec    = cpu_to_le32(obj->execaddr);
+	bde.bigdirlen     = cpu_to_le32(obj->size);
+	bde.bigdirindaddr = cpu_to_le32(obj->indaddr);
+	bde.bigdirattr    = cpu_to_le32(obj->attr);
+
+	return adfs_dir_copyto(dir, offset, &bde, sizeof(bde));
+}
+
+static int adfs_fplus_commit(struct adfs_dir *dir)
+{
+	int ret;
+
+	/* Increment directory sequence number */
+	dir->bighead->startmasseq += 1;
+	dir->bigtail->bigdirendmasseq += 1;
+
+	/* Update directory check byte */
+	dir->bigtail->bigdircheckbyte = adfs_fplus_checkbyte(dir);
+
+	/* Make sure the directory still validates correctly */
+	ret = adfs_fplus_validate_header(dir->bighead);
+	if (ret == 0)
+		ret = adfs_fplus_validate_tail(dir->bighead, dir->bigtail);
+
+	return ret;
+}
+
 const struct adfs_dir_ops adfs_fplus_dir_ops = {
 	.read		= adfs_fplus_read,
 	.iterate	= adfs_fplus_iterate,
 	.setpos		= adfs_fplus_setpos,
 	.getnext	= adfs_fplus_getnext,
+	.update		= adfs_fplus_update,
+	.commit		= adfs_fplus_commit,
 };
