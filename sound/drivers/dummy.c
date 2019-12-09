@@ -529,15 +529,7 @@ static int dummy_pcm_hw_params(struct snd_pcm_substream *substream,
 		substream->runtime->dma_bytes = params_buffer_bytes(hw_params);
 		return 0;
 	}
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
-static int dummy_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	if (fake_buffer)
-		return 0;
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int dummy_pcm_open(struct snd_pcm_substream *substream)
@@ -657,7 +649,6 @@ static struct snd_pcm_ops dummy_pcm_ops = {
 	.close =	dummy_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	dummy_pcm_hw_params,
-	.hw_free =	dummy_pcm_hw_free,
 	.prepare =	dummy_pcm_prepare,
 	.trigger =	dummy_pcm_trigger,
 	.pointer =	dummy_pcm_pointer,
@@ -668,7 +659,6 @@ static struct snd_pcm_ops dummy_pcm_ops_no_buf = {
 	.close =	dummy_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	dummy_pcm_hw_params,
-	.hw_free =	dummy_pcm_hw_free,
 	.prepare =	dummy_pcm_prepare,
 	.trigger =	dummy_pcm_trigger,
 	.pointer =	dummy_pcm_pointer,
@@ -700,7 +690,7 @@ static int snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "Dummy PCM");
 	if (!fake_buffer) {
-		snd_pcm_lib_preallocate_pages_for_all(pcm,
+		snd_pcm_set_managed_buffer_all(pcm,
 			SNDRV_DMA_TYPE_CONTINUOUS,
 			NULL,
 			0, 64*1024);
