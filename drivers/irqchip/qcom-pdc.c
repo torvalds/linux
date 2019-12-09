@@ -228,9 +228,6 @@ static int qcom_pdc_gic_set_type(struct irq_data *d, unsigned int type)
 	if (pin_out == GPIO_NO_WAKE_IRQ)
 		return 0;
 
-	if (pin_out == GPIO_NO_WAKE_IRQ)
-		return 0;
-
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
 		pdc_type = PDC_EDGE_RISING;
