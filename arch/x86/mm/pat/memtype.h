@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __PAT_INTERNAL_H_
-#define __PAT_INTERNAL_H_
+#ifndef __MEMTYPE_H_
+#define __MEMTYPE_H_
 
 extern int pat_debug_enable;
 
@@ -46,4 +46,4 @@ static inline int memtype_copy_nth_element(struct memtype *out, loff_t pos)
 { return 0; }
 #endif
 
-#endif /* __PAT_INTERNAL_H_ */
+#endif /* __MEMTYPE_H_ */

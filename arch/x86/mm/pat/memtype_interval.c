@@ -18,7 +18,7 @@
 #include <asm/pgtable.h>
 #include <asm/pat.h>
 
-#include "pat_internal.h"
+#include "memtype.h"
 
 /*
  * The memtype tree keeps track of memory type for specific

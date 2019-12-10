@@ -55,8 +55,8 @@
 #include <asm/pat.h>
 #include <asm/io.h>
 
-#include "pat_internal.h"
-#include "mm_internal.h"
+#include "memtype.h"
+#include "../mm_internal.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) "" fmt
