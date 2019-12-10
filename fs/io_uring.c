@@ -319,6 +319,7 @@ struct io_sync {
 	loff_t				len;
 	loff_t				off;
 	int				flags;
+	int				mode;
 };
 
 struct io_cancel {
@@ -2101,6 +2102,54 @@ static int io_fsync(struct io_kiocb *req, struct io_kiocb **nxt,
 	return 0;
 }
 
+static void io_fallocate_finish(struct io_wq_work **workptr)
+{
+	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
+	struct io_kiocb *nxt = NULL;
+	int ret;
+
+	ret = vfs_fallocate(req->file, req->sync.mode, req->sync.off,
+				req->sync.len);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	io_put_req_find_next(req, &nxt);
+	if (nxt)
+		io_wq_assign_next(workptr, nxt);
+}
+
+static int io_fallocate_prep(struct io_kiocb *req,
+			     const struct io_uring_sqe *sqe)
+{
+	if (sqe->ioprio || sqe->buf_index || sqe->rw_flags)
+		return -EINVAL;
+
+	req->sync.off = READ_ONCE(sqe->off);
+	req->sync.len = READ_ONCE(sqe->addr);
+	req->sync.mode = READ_ONCE(sqe->len);
+	return 0;
+}
+
+static int io_fallocate(struct io_kiocb *req, struct io_kiocb **nxt,
+			bool force_nonblock)
+{
+	struct io_wq_work *work, *old_work;
+
+	/* fallocate always requiring blocking context */
+	if (force_nonblock) {
+		io_put_req(req);
+		req->work.func = io_fallocate_finish;
+		return -EAGAIN;
+	}
+
+	work = old_work = &req->work;
+	io_fallocate_finish(&work);
+	if (work && work != old_work)
+		*nxt = container_of(work, struct io_kiocb, work);
+
+	return 0;
+}
+
 static int io_prep_sfr(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -3123,6 +3172,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	case IORING_OP_ACCEPT:
 		ret = io_accept_prep(req, sqe);
 		break;
+	case IORING_OP_FALLOCATE:
+		ret = io_fallocate_prep(req, sqe);
+		break;
 	default:
 		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
 				req->opcode);
@@ -3276,6 +3328,14 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 				break;
 		}
 		ret = io_async_cancel(req, nxt);
+		break;
+	case IORING_OP_FALLOCATE:
+		if (sqe) {
+			ret = io_fallocate_prep(req, sqe);
+			if (ret)
+				break;
+		}
+		ret = io_fallocate(req, nxt, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;
