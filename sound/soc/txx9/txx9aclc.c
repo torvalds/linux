@@ -406,7 +406,6 @@ static const struct snd_soc_component_driver txx9aclc_soc_component = {
 	.remove		= txx9aclc_pcm_remove,
 	.open		= txx9aclc_pcm_open,
 	.close		= txx9aclc_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= txx9aclc_pcm_hw_params,
 	.hw_free	= txx9aclc_pcm_hw_free,
 	.prepare	= txx9aclc_pcm_prepare,
