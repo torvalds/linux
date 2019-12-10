@@ -284,6 +284,13 @@ static unsigned int brcm_ahci_read_id(struct ata_device *dev,
 	/* Perform the SATA PHY reset sequence */
 	brcm_sata_phy_disable(priv, ap->port_no);
 
+	/* Reset the SATA clock */
+	ahci_platform_disable_clks(hpriv);
+	msleep(10);
+
+	ahci_platform_enable_clks(hpriv);
+	msleep(10);
+
 	/* Bring the PHY back on */
 	brcm_sata_phy_enable(priv, ap->port_no);
 
