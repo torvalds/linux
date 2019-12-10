@@ -1190,6 +1190,7 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 	chip->card = card;
 	chip->chip_idx = idx;
 	chip->mgr = mgr;
+	card->sync_irq = mgr->irq;
 
 	if (idx < mgr->playback_chips)
 		/* stereo or mono streams */
