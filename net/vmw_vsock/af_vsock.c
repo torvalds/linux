@@ -136,6 +136,8 @@ static const struct vsock_transport *transport_h2g;
 static const struct vsock_transport *transport_g2h;
 /* Transport used for DGRAM communication */
 static const struct vsock_transport *transport_dgram;
+/* Transport used for local communication */
+static const struct vsock_transport *transport_local;
 static DEFINE_MUTEX(vsock_register_mutex);
 
 /**** UTILS ****/
@@ -2137,7 +2139,7 @@ EXPORT_SYMBOL_GPL(vsock_core_get_transport);
 
 int vsock_core_register(const struct vsock_transport *t, int features)
 {
-	const struct vsock_transport *t_h2g, *t_g2h, *t_dgram;
+	const struct vsock_transport *t_h2g, *t_g2h, *t_dgram, *t_local;
 	int err = mutex_lock_interruptible(&vsock_register_mutex);
 
 	if (err)
@@ -2146,6 +2148,7 @@ int vsock_core_register(const struct vsock_transport *t, int features)
 	t_h2g = transport_h2g;
 	t_g2h = transport_g2h;
 	t_dgram = transport_dgram;
+	t_local = transport_local;
 
 	if (features & VSOCK_TRANSPORT_F_H2G) {
 		if (t_h2g) {
@@ -2171,9 +2174,18 @@ int vsock_core_register(const struct vsock_transport *t, int features)
 		t_dgram = t;
 	}
 
+	if (features & VSOCK_TRANSPORT_F_LOCAL) {
+		if (t_local) {
+			err = -EBUSY;
+			goto err_busy;
+		}
+		t_local = t;
+	}
+
 	transport_h2g = t_h2g;
 	transport_g2h = t_g2h;
 	transport_dgram = t_dgram;
+	transport_local = t_local;
 
 err_busy:
 	mutex_unlock(&vsock_register_mutex);
@@ -2193,6 +2205,9 @@ void vsock_core_unregister(const struct vsock_transport *t)
 
 	if (transport_dgram == t)
 		transport_dgram = NULL;
+
+	if (transport_local == t)
+		transport_local = NULL;
 
 	mutex_unlock(&vsock_register_mutex);
 }
