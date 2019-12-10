@@ -893,7 +893,6 @@ static const struct snd_pcm_ops snd_usX2Y_pcm_ops =
 {
 	.open =		snd_usX2Y_pcm_open,
 	.close =	snd_usX2Y_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_usX2Y_pcm_hw_params,
 	.hw_free =	snd_usX2Y_pcm_hw_free,
 	.prepare =	snd_usX2Y_pcm_prepare,

@@ -870,7 +870,6 @@ static snd_pcm_uframes_t playback_pcm_pointer(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops capture_pcm_ops = {
 	.open = capture_pcm_open,
 	.close = capture_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = capture_pcm_hw_params,
 	.prepare = capture_pcm_prepare,
 	.trigger = capture_pcm_trigger,
@@ -880,7 +879,6 @@ static const struct snd_pcm_ops capture_pcm_ops = {
 static const struct snd_pcm_ops playback_pcm_ops = {
 	.open = playback_pcm_open,
 	.close = playback_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = playback_pcm_hw_params,
 	.prepare = playback_pcm_prepare,
 	.trigger = playback_pcm_trigger,
