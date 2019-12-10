@@ -1652,7 +1652,6 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
  */
 static const struct snd_soc_component_driver rsnd_soc_component = {
 	.name		= "rsnd",
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= rsnd_hw_params,
 	.hw_free	= rsnd_hw_free,
 	.pointer	= rsnd_pointer,

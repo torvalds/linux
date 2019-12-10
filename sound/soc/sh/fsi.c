@@ -1801,7 +1801,6 @@ static struct snd_soc_dai_driver fsi_soc_dai[] = {
 static const struct snd_soc_component_driver fsi_soc_component = {
 	.name		= "fsi",
 	.open		= fsi_pcm_open,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.pointer	= fsi_pointer,
 	.pcm_construct	= fsi_pcm_new,
 };
