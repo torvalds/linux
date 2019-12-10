@@ -108,7 +108,7 @@ static u32 trifilter(u32 *a)
 
 	sort(a, COUNT, sizeof(*a), cmp_u32, NULL);
 
-	sum += mul_u32_u32(a[2], 2);
+	sum = mul_u32_u32(a[2], 2);
 	sum += a[1];
 	sum += a[3];
 
