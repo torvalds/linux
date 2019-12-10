@@ -42,31 +42,9 @@ static char *udl_vidreg_unlock(char *buf)
 	return udl_set_register(buf, 0xFF, 0xFF);
 }
 
-/*
- * On/Off for driving the DisplayLink framebuffer to the display
- *  0x00 H and V sync on
- *  0x01 H and V sync off (screen blank but powered)
- *  0x07 DPMS powerdown (requires modeset to come back)
- */
-static char *udl_set_blank(char *buf, int dpms_mode)
+static char *udl_set_blank_mode(char *buf, u8 mode)
 {
-	u8 reg;
-	switch (dpms_mode) {
-	case DRM_MODE_DPMS_OFF:
-		reg = 0x07;
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-		reg = 0x05;
-		break;
-	case DRM_MODE_DPMS_SUSPEND:
-		reg = 0x01;
-		break;
-	case DRM_MODE_DPMS_ON:
-		reg = 0x00;
-		break;
-	}
-
-	return udl_set_register(buf, 0x1f, reg);
+	return udl_set_register(buf, UDL_REG_BLANK_MODE, mode);
 }
 
 static char *udl_set_color_depth(char *buf, u8 selection)
@@ -237,6 +215,11 @@ static int udl_crtc_write_mode_to_hw(struct drm_crtc *crtc)
 	char *buf;
 	int retval;
 
+	if (udl->mode_buf_len == 0) {
+		DRM_ERROR("No mode set\n");
+		return -EINVAL;
+	}
+
 	urb = udl_get_urb(dev);
 	if (!urb)
 		return -ENOMEM;
@@ -247,38 +230,6 @@ static int udl_crtc_write_mode_to_hw(struct drm_crtc *crtc)
 	retval = udl_submit_urb(dev, urb, udl->mode_buf_len);
 	DRM_DEBUG("write mode info %d\n", udl->mode_buf_len);
 	return retval;
-}
-
-
-static void udl_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct drm_device *dev = crtc->dev;
-	struct udl_device *udl = dev->dev_private;
-	int retval;
-
-	if (mode == DRM_MODE_DPMS_OFF) {
-		char *buf;
-		struct urb *urb;
-		urb = udl_get_urb(dev);
-		if (!urb)
-			return;
-
-		buf = (char *)urb->transfer_buffer;
-		buf = udl_vidreg_lock(buf);
-		buf = udl_set_blank(buf, mode);
-		buf = udl_vidreg_unlock(buf);
-
-		buf = udl_dummy_render(buf);
-		retval = udl_submit_urb(dev, urb, buf - (char *)
-					urb->transfer_buffer);
-	} else {
-		if (udl->mode_buf_len == 0) {
-			DRM_ERROR("Trying to enable DPMS with no mode\n");
-			return;
-		}
-		udl_crtc_write_mode_to_hw(crtc);
-	}
-
 }
 
 /*
@@ -327,7 +278,7 @@ udl_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	wrptr = udl_set_base8bpp(wrptr, 2 * mode->vdisplay * mode->hdisplay);
 
 	wrptr = udl_set_vid_cmds(wrptr, mode);
-	wrptr = udl_set_blank(wrptr, DRM_MODE_DPMS_ON);
+	wrptr = udl_set_blank_mode(wrptr, UDL_BLANK_MODE_ON);
 	wrptr = udl_vidreg_unlock(wrptr);
 
 	wrptr = udl_dummy_render(wrptr);
@@ -339,13 +290,32 @@ udl_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	udl_handle_damage(fb, 0, 0, fb->width, fb->height);
 
-	udl_crtc_dpms(&pipe->crtc, DRM_MODE_DPMS_ON);
+	if (!crtc_state->mode_changed)
+		return;
+
+	/* enable display */
+	udl_crtc_write_mode_to_hw(crtc);
 }
 
 static void
 udl_simple_display_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
-	udl_crtc_dpms(&pipe->crtc, DRM_MODE_DPMS_OFF);
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_device *dev = crtc->dev;
+	struct urb *urb;
+	char *buf;
+
+	urb = udl_get_urb(dev);
+	if (!urb)
+		return;
+
+	buf = (char *)urb->transfer_buffer;
+	buf = udl_vidreg_lock(buf);
+	buf = udl_set_blank_mode(buf, UDL_BLANK_MODE_POWERDOWN);
+	buf = udl_vidreg_unlock(buf);
+	buf = udl_dummy_render(buf);
+
+	udl_submit_urb(dev, urb, buf - (char *)urb->transfer_buffer);
 }
 
 static int
