@@ -391,6 +391,21 @@ EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
 
 static const struct snd_soc_ops null_snd_soc_ops;
 
+struct snd_soc_pcm_runtime
+*snd_soc_get_pcm_runtime(struct snd_soc_card *card,
+			 const char *dai_link)
+{
+	struct snd_soc_pcm_runtime *rtd;
+
+	for_each_card_rtds(card, rtd) {
+		if (!strcmp(rtd->dai_link->name, dai_link))
+			return rtd;
+	}
+	dev_dbg(card->dev, "ASoC: failed to find rtd %s\n", dai_link);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_pcm_runtime);
+
 static void soc_release_rtd_dev(struct device *dev)
 {
 	/* "dev" means "rtd->dev" */
@@ -490,20 +505,6 @@ free_rtd:
 	soc_free_pcm_runtime(rtd);
 	return NULL;
 }
-
-struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
-		const char *dai_link)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	for_each_card_rtds(card, rtd) {
-		if (!strcmp(rtd->dai_link->name, dai_link))
-			return rtd;
-	}
-	dev_dbg(card->dev, "ASoC: failed to find rtd %s\n", dai_link);
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(snd_soc_get_pcm_runtime);
 
 static void snd_soc_flush_all_delayed_work(struct snd_soc_card *card)
 {
