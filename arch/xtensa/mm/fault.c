@@ -25,6 +25,7 @@ void bad_page_fault(struct pt_regs*, unsigned long, int);
 
 static void vmalloc_fault(struct pt_regs *regs, unsigned int address)
 {
+#ifdef CONFIG_MMU
 	/* Synchronize this task's top level page-table
 	 * with the 'reference' page table.
 	 */
@@ -71,6 +72,9 @@ static void vmalloc_fault(struct pt_regs *regs, unsigned int address)
 
 bad_page_fault:
 	bad_page_fault(regs, address, SIGKILL);
+#else
+	WARN_ONCE(1, "%s in noMMU configuration\n", __func__);
+#endif
 }
 /*
  * This routine handles page faults.  It determines the address,

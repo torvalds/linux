@@ -79,6 +79,7 @@ config STACKTRACE_SUPPORT
 
 config MMU
 	def_bool n
+	select PFAULT
 
 config HAVE_XTENSA_GPIO32
 	def_bool n
@@ -177,6 +178,16 @@ config XTENSA_FAKE_NMI
 	  actually fire.
 
 	  If unsure, say N.
+
+config PFAULT
+	bool "Handle protection faults" if EXPERT && !MMU
+	default y
+	help
+	  Handle protection faults. MMU configurations must enable it.
+	  noMMU configurations may disable it if used memory map never
+	  generates protection faults or faults are always fatal.
+
+	  If unsure, say Y.
 
 config XTENSA_UNALIGNED_USER
 	bool "Unaligned memory access in user space"

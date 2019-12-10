@@ -110,21 +110,21 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 { EXCCAUSE_UNALIGNED,		KRNL,	   fast_unaligned },
 #endif
 #ifdef CONFIG_MMU
-{ EXCCAUSE_ITLB_MISS,		0,	   do_page_fault },
-{ EXCCAUSE_ITLB_MISS,		USER|KRNL, fast_second_level_miss},
-{ EXCCAUSE_ITLB_MULTIHIT,		0,	   do_multihit },
-{ EXCCAUSE_ITLB_PRIVILEGE,	0,	   do_page_fault },
-/* EXCCAUSE_SIZE_RESTRICTION unhandled */
-{ EXCCAUSE_FETCH_CACHE_ATTRIBUTE,	0,	   do_page_fault },
-{ EXCCAUSE_DTLB_MISS,		USER|KRNL, fast_second_level_miss},
-{ EXCCAUSE_DTLB_MISS,		0,	   do_page_fault },
-{ EXCCAUSE_DTLB_MULTIHIT,		0,	   do_multihit },
-{ EXCCAUSE_DTLB_PRIVILEGE,	0,	   do_page_fault },
-/* EXCCAUSE_DTLB_SIZE_RESTRICTION unhandled */
+{ EXCCAUSE_ITLB_MISS,			0,	   do_page_fault },
+{ EXCCAUSE_ITLB_MISS,			USER|KRNL, fast_second_level_miss},
+{ EXCCAUSE_DTLB_MISS,			USER|KRNL, fast_second_level_miss},
+{ EXCCAUSE_DTLB_MISS,			0,	   do_page_fault },
 { EXCCAUSE_STORE_CACHE_ATTRIBUTE,	USER|KRNL, fast_store_prohibited },
+#endif /* CONFIG_MMU */
+#ifdef CONFIG_PFAULT
+{ EXCCAUSE_ITLB_MULTIHIT,		0,	   do_multihit },
+{ EXCCAUSE_ITLB_PRIVILEGE,		0,	   do_page_fault },
+{ EXCCAUSE_FETCH_CACHE_ATTRIBUTE,	0,	   do_page_fault },
+{ EXCCAUSE_DTLB_MULTIHIT,		0,	   do_multihit },
+{ EXCCAUSE_DTLB_PRIVILEGE,		0,	   do_page_fault },
 { EXCCAUSE_STORE_CACHE_ATTRIBUTE,	0,	   do_page_fault },
 { EXCCAUSE_LOAD_CACHE_ATTRIBUTE,	0,	   do_page_fault },
-#endif /* CONFIG_MMU */
+#endif
 /* XCCHAL_EXCCAUSE_FLOATING_POINT unhandled */
 #if XTENSA_HAVE_COPROCESSOR(0)
 COPROCESSOR(0),
