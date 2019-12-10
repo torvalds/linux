@@ -190,46 +190,6 @@ struct omap_hwmod_ocp_if am33xx_l4_ls__timer2 = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l4 per -> timer3 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__timer3 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_timer3_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 per -> timer4 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__timer4 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_timer4_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 per -> timer5 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__timer5 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_timer5_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 per -> timer6 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__timer6 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_timer6_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 per -> timer7 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__timer7 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_timer7_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l3 main -> tpcc */
 struct omap_hwmod_ocp_if am33xx_l3_main__tpcc = {
 	.master		= &am33xx_l3_main_hwmod,

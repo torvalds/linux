@@ -900,7 +900,6 @@
 
 		target-module@42000 {			/* 0x48042000, ap 20 24.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer3";
 			reg = <0x42000 0x4>,
 			      <0x42010 0x4>,
 			      <0x42014 0x4>;
@@ -927,7 +926,6 @@
 
 		target-module@44000 {			/* 0x48044000, ap 22 26.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer4";
 			reg = <0x44000 0x4>,
 			      <0x44010 0x4>,
 			      <0x44014 0x4>;
@@ -955,7 +953,6 @@
 
 		target-module@46000 {			/* 0x48046000, ap 24 28.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer5";
 			reg = <0x46000 0x4>,
 			      <0x46010 0x4>,
 			      <0x46014 0x4>;
@@ -983,7 +980,6 @@
 
 		target-module@48000 {			/* 0x48048000, ap 26 1a.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer6";
 			reg = <0x48000 0x4>,
 			      <0x48010 0x4>,
 			      <0x48014 0x4>;
@@ -1011,7 +1007,6 @@
 
 		target-module@4a000 {			/* 0x4804a000, ap 71 48.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer7";
 			reg = <0x4a000 0x4>,
 			      <0x4a010 0x4>,
 			      <0x4a014 0x4>;
@@ -1527,7 +1522,6 @@
 
 		target-module@c1000 {			/* 0x481c1000, ap 94 68.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer8";
 			reg = <0xc1000 0x4>,
 			      <0xc1010 0x4>,
 			      <0xc1014 0x4>;
@@ -2162,7 +2156,6 @@
 
 		target-module@3d000 {			/* 0x4833d000, ap 102 6e.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer9";
 			reg = <0x3d000 0x4>,
 			      <0x3d010 0x4>,
 			      <0x3d014 0x4>;
@@ -2189,7 +2182,6 @@
 
 		target-module@3f000 {			/* 0x4833f000, ap 104 5c.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer10";
 			reg = <0x3f000 0x4>,
 			      <0x3f010 0x4>,
 			      <0x3f014 0x4>;
@@ -2216,7 +2208,6 @@
 
 		target-module@41000 {			/* 0x48341000, ap 106 76.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer11";
 			reg = <0x41000 0x4>,
 			      <0x41010 0x4>,
 			      <0x41014 0x4>;

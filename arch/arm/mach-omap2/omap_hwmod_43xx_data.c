@@ -112,58 +112,6 @@ static struct omap_hwmod am43xx_synctimer_hwmod = {
 	},
 };
 
-static struct omap_hwmod am43xx_timer8_hwmod = {
-	.name		= "timer8",
-	.class		= &am33xx_timer_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "timer8_fck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM43XX_CM_PER_TIMER8_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod am43xx_timer9_hwmod = {
-	.name		= "timer9",
-	.class		= &am33xx_timer_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "timer9_fck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM43XX_CM_PER_TIMER9_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod am43xx_timer10_hwmod = {
-	.name		= "timer10",
-	.class		= &am33xx_timer_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "timer10_fck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM43XX_CM_PER_TIMER10_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod am43xx_timer11_hwmod = {
-	.name		= "timer11",
-	.class		= &am33xx_timer_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "timer11_fck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM43XX_CM_PER_TIMER11_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
 static struct omap_hwmod am43xx_epwmss3_hwmod = {
 	.name		= "epwmss3",
 	.class		= &am33xx_epwmss_hwmod_class,
@@ -532,34 +480,6 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__synctimer = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_ocp_if am43xx_l4_ls__timer8 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am43xx_timer8_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_ocp_if am43xx_l4_ls__timer9 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am43xx_timer9_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_ocp_if am43xx_l4_ls__timer10 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am43xx_timer10_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_ocp_if am43xx_l4_ls__timer11 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am43xx_timer11_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 static struct omap_hwmod_ocp_if am43xx_l4_ls__epwmss3 = {
 	.master		= &am33xx_l4_ls_hwmod,
 	.slave		= &am43xx_epwmss3_hwmod,
@@ -688,10 +608,6 @@ static struct omap_hwmod_ocp_if am43xx_l4_ls__vpfe1 = {
 
 static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_wkup__synctimer,
-	&am43xx_l4_ls__timer8,
-	&am43xx_l4_ls__timer9,
-	&am43xx_l4_ls__timer10,
-	&am43xx_l4_ls__timer11,
 	&am43xx_l4_ls__epwmss3,
 	&am43xx_l4_ls__epwmss4,
 	&am43xx_l4_ls__epwmss5,
@@ -721,11 +637,6 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_per__dcan0,
 	&am33xx_l4_per__dcan1,
 	&am33xx_l4_ls__timer2,
-	&am33xx_l4_ls__timer3,
-	&am33xx_l4_ls__timer4,
-	&am33xx_l4_ls__timer5,
-	&am33xx_l4_ls__timer6,
-	&am33xx_l4_ls__timer7,
 	&am33xx_l3_main__tpcc,
 	&am33xx_l4_ls__spinlock,
 	&am33xx_l4_ls__elm,
