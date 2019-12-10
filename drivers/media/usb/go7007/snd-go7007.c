@@ -9,7 +9,6 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/vmalloc.h>
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/i2c.h>
@@ -100,16 +99,7 @@ static int go7007_snd_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *hw_params)
 {
 	struct go7007 *go = snd_pcm_substream_chip(substream);
-	unsigned int bytes;
 
-	bytes = params_buffer_bytes(hw_params);
-	if (substream->runtime->dma_bytes > 0)
-		vfree(substream->runtime->dma_area);
-	substream->runtime->dma_bytes = 0;
-	substream->runtime->dma_area = vmalloc(bytes);
-	if (substream->runtime->dma_area == NULL)
-		return -ENOMEM;
-	substream->runtime->dma_bytes = bytes;
 	go->audio_deliver = parse_audio_stream_data;
 	return 0;
 }
@@ -119,9 +109,6 @@ static int go7007_snd_hw_free(struct snd_pcm_substream *substream)
 	struct go7007 *go = snd_pcm_substream_chip(substream);
 
 	go->audio_deliver = NULL;
-	if (substream->runtime->dma_bytes > 0)
-		vfree(substream->runtime->dma_area);
-	substream->runtime->dma_bytes = 0;
 	return 0;
 }
 
@@ -185,12 +172,6 @@ static snd_pcm_uframes_t go7007_snd_pcm_pointer(struct snd_pcm_substream *substr
 	return gosnd->hw_ptr;
 }
 
-static struct page *go7007_snd_pcm_page(struct snd_pcm_substream *substream,
-					unsigned long offset)
-{
-	return vmalloc_to_page(substream->runtime->dma_area + offset);
-}
-
 static const struct snd_pcm_ops go7007_snd_capture_ops = {
 	.open		= go7007_snd_capture_open,
 	.close		= go7007_snd_capture_close,
@@ -200,7 +181,6 @@ static const struct snd_pcm_ops go7007_snd_capture_ops = {
 	.prepare	= go7007_snd_pcm_prepare,
 	.trigger	= go7007_snd_pcm_trigger,
 	.pointer	= go7007_snd_pcm_pointer,
-	.page		= go7007_snd_pcm_page,
 };
 
 static int go7007_snd_free(struct snd_device *device)
@@ -256,6 +236,8 @@ int go7007_snd_init(struct go7007 *go)
 	gosnd->pcm->private_data = go;
 	snd_pcm_set_ops(gosnd->pcm, SNDRV_PCM_STREAM_CAPTURE,
 			&go7007_snd_capture_ops);
+	snd_pcm_set_managed_buffer_all(gosnd->pcm, SNDRV_DMA_TYPE_VMALLOC,
+				       NULL, 0, 0);
 
 	ret = snd_card_register(gosnd->card);
 	if (ret < 0)
