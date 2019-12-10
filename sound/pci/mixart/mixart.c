@@ -1041,6 +1041,7 @@ static int snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *card, int 
 	chip->card = card;
 	chip->chip_idx = idx;
 	chip->mgr = mgr;
+	card->sync_irq = mgr->irq;
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_mixart_chip_free(chip);
