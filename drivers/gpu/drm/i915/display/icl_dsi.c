@@ -1286,6 +1286,11 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	else
 		pipe_config->cpu_transcoder = TRANSCODER_DSI_0;
 
+	if (intel_dsi->pixel_format == MIPI_DSI_FMT_RGB888)
+		pipe_config->pipe_bpp = 24;
+	else
+		pipe_config->pipe_bpp = 18;
+
 	pipe_config->clock_set = true;
 	pipe_config->port_clock = intel_dsi_bitrate(intel_dsi) / 5;
 
