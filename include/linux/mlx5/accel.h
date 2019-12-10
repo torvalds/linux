@@ -92,6 +92,18 @@ struct mlx5_accel_esp_xfrm_attrs {
 	union {
 		struct aes_gcm_keymat aes_gcm;
 	} keymat;
+
+	union {
+		__be32 a4;
+		__be32 a6[4];
+	} saddr;
+
+	union {
+		__be32 a4;
+		__be32 a6[4];
+	} daddr;
+
+	u8 is_ipv6;
 };
 
 struct mlx5_accel_esp_xfrm {

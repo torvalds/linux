@@ -199,6 +199,14 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	attrs->flags |= (x->props.mode == XFRM_MODE_TRANSPORT) ?
 			MLX5_ACCEL_ESP_FLAGS_TRANSPORT :
 			MLX5_ACCEL_ESP_FLAGS_TUNNEL;
+
+	/* spi */
+	attrs->spi = x->id.spi;
+
+	/* source , destination ips */
+	memcpy(&attrs->saddr, x->props.saddr.a6, sizeof(attrs->saddr));
+	memcpy(&attrs->daddr, x->id.daddr.a6, sizeof(attrs->daddr));
+	attrs->is_ipv6 = (x->props.family != AF_INET);
 }
 
 static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
@@ -284,8 +292,6 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 	struct net_device *netdev = x->xso.dev;
 	struct mlx5_accel_esp_xfrm_attrs attrs;
 	struct mlx5e_priv *priv;
-	__be32 saddr[4] = {0}, daddr[4] = {0}, spi;
-	bool is_ipv6 = false;
 	int err;
 
 	priv = netdev_priv(netdev);
@@ -331,20 +337,9 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 	}
 
 	/* create hw context */
-	if (x->props.family == AF_INET) {
-		saddr[3] = x->props.saddr.a4;
-		daddr[3] = x->id.daddr.a4;
-	} else {
-		memcpy(saddr, x->props.saddr.a6, sizeof(saddr));
-		memcpy(daddr, x->id.daddr.a6, sizeof(daddr));
-		is_ipv6 = true;
-	}
-	spi = x->id.spi;
 	sa_entry->hw_context =
 			mlx5_accel_esp_create_hw_context(priv->mdev,
-							 sa_entry->xfrm,
-							 saddr, daddr, spi,
-							 is_ipv6);
+							 sa_entry->xfrm);
 	if (IS_ERR(sa_entry->hw_context)) {
 		err = PTR_ERR(sa_entry->hw_context);
 		goto err_xfrm;
