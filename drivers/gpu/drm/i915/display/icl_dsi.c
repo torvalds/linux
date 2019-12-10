@@ -302,17 +302,22 @@ static void configure_dual_link_mode(struct intel_encoder *encoder,
 }
 
 /* aka DSI 8X clock */
-static int afe_clk(struct intel_encoder *encoder)
+static int afe_clk(struct intel_encoder *encoder,
+		   const struct intel_crtc_state *crtc_state)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	int bpp;
 
-	bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
+	if (crtc_state->dsc.compression_enable)
+		bpp = crtc_state->dsc.compressed_bpp;
+	else
+		bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
 	return DIV_ROUND_CLOSEST(intel_dsi->pclk * bpp, intel_dsi->lane_count);
 }
 
-static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder)
+static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
+					  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -320,7 +325,7 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder)
 	int afe_clk_khz;
 	u32 esc_clk_div_m;
 
-	afe_clk_khz = afe_clk(encoder);
+	afe_clk_khz = afe_clk(encoder, crtc_state);
 	esc_clk_div_m = DIV_ROUND_UP(afe_clk_khz, DSI_MAX_ESC_CLK);
 
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -498,7 +503,9 @@ static void gen11_dsi_enable_ddi_buffer(struct intel_encoder *encoder)
 	}
 }
 
-static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
+static void
+gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder,
+			     const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -539,7 +546,7 @@ static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
 	 * leave all fields at HW default values.
 	 */
 	if (IS_GEN(dev_priv, 11)) {
-		if (afe_clk(encoder) <= 800000) {
+		if (afe_clk(encoder, crtc_state) <= 800000) {
 			for_each_dsi_port(port, intel_dsi->ports) {
 				tmp = I915_READ(DPHY_TA_TIMING_PARAM(port));
 				tmp &= ~TA_SURE_MASK;
@@ -649,7 +656,7 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			tmp |= EOTP_DISABLED;
 
 		/* enable link calibration if freq > 1.5Gbps */
-		if (afe_clk(encoder) >= 1500 * 1000) {
+		if (afe_clk(encoder, pipe_config) >= 1500 * 1000) {
 			tmp &= ~LINK_CALIBRATION_MASK;
 			tmp |= CALIBRATION_ENABLED_INITIAL_ONLY;
 		}
@@ -915,7 +922,8 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 	}
 }
 
-static void gen11_dsi_setup_timeouts(struct intel_encoder *encoder)
+static void gen11_dsi_setup_timeouts(struct intel_encoder *encoder,
+				     const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -930,7 +938,7 @@ static void gen11_dsi_setup_timeouts(struct intel_encoder *encoder)
 	 * TIME_NS = (BYTE_CLK_COUNT * 8 * 10^6)/ Bitrate
 	 * ESCAPE_CLK_COUNT  = TIME_NS/ESC_CLK_NS
 	 */
-	divisor = intel_dsi_tlpx_ns(intel_dsi) * afe_clk(encoder) * 1000;
+	divisor = intel_dsi_tlpx_ns(intel_dsi) * afe_clk(encoder, crtc_state) * 1000;
 	mul = 8 * 1000000;
 	hs_tx_timeout = DIV_ROUND_UP(intel_dsi->hs_tx_timeout * mul,
 				     divisor);
@@ -966,7 +974,7 @@ static void gen11_dsi_setup_timeouts(struct intel_encoder *encoder)
 
 static void
 gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
-			      const struct intel_crtc_state *pipe_config)
+			      const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
@@ -983,13 +991,13 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 	gen11_dsi_enable_ddi_buffer(encoder);
 
 	/* setup D-PHY timings */
-	gen11_dsi_setup_dphy_timings(encoder);
+	gen11_dsi_setup_dphy_timings(encoder, crtc_state);
 
 	/* step 4h: setup DSI protocol timeouts */
-	gen11_dsi_setup_timeouts(encoder);
+	gen11_dsi_setup_timeouts(encoder, crtc_state);
 
 	/* Step (4h, 4i, 4j, 4k): Configure transcoder */
-	gen11_dsi_configure_transcoder(encoder, pipe_config);
+	gen11_dsi_configure_transcoder(encoder, crtc_state);
 
 	/* Step 4l: Gate DDI clocks */
 	if (IS_GEN(dev_priv, 11))
@@ -1036,14 +1044,14 @@ static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
 }
 
 static void gen11_dsi_pre_pll_enable(struct intel_encoder *encoder,
-				     const struct intel_crtc_state *pipe_config,
+				     const struct intel_crtc_state *crtc_state,
 				     const struct drm_connector_state *conn_state)
 {
 	/* step2: enable IO power */
 	gen11_dsi_enable_io_power(encoder);
 
 	/* step3: enable DSI PLL */
-	gen11_dsi_program_esc_clk_div(encoder);
+	gen11_dsi_program_esc_clk_div(encoder, crtc_state);
 }
 
 static void gen11_dsi_pre_enable(struct intel_encoder *encoder,
@@ -1300,7 +1308,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 		pipe_config->pipe_bpp = 18;
 
 	pipe_config->clock_set = true;
-	pipe_config->port_clock = afe_clk(encoder) / 5;
+	pipe_config->port_clock = afe_clk(encoder, pipe_config) / 5;
 
 	return 0;
 }
