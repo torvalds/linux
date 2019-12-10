@@ -152,17 +152,15 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
  * btrfs_lookup_bio_sums - Look up checksums for a bio.
  * @inode: inode that the bio is for.
  * @bio: bio embedded in btrfs_io_bio.
- * @at_offset: If true, look up checksums for the extent at @offset.
- *             If false, use the page offsets from the bio.
- * @offset: If @at_offset is true, offset in file to look up checksums for.
- *          Ignored otherwise.
+ * @offset: Unless (u64)-1, look up checksums for this offset in the file.
+ *          If (u64)-1, use the page offsets from the bio instead.
  * @dst: Buffer of size btrfs_super_csum_size() used to return checksum. If
  *       NULL, the checksum is returned in btrfs_io_bio(bio)->csum instead.
  *
  * Return: BLK_STS_RESOURCE if allocating memory fails, BLK_STS_OK otherwise.
  */
 blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
-				   bool at_offset, u64 offset, u8 *dst)
+				   u64 offset, u8 *dst)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct bio_vec bvec;
@@ -171,6 +169,7 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 	struct btrfs_csum_item *item = NULL;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_path *path;
+	const bool page_offsets = (offset == (u64)-1);
 	u8 *csum;
 	u64 item_start_offset = 0;
 	u64 item_last_offset = 0;
@@ -223,7 +222,7 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 		if (count)
 			goto next;
 
-		if (!at_offset)
+		if (page_offsets)
 			offset = page_offset(bvec.bv_page) + bvec.bv_offset;
 		count = btrfs_find_ordered_sum(inode, offset, disk_bytenr,
 					       csum, nblocks);
