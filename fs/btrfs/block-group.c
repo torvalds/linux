@@ -15,6 +15,7 @@
 #include "tree-log.h"
 #include "delalloc-space.h"
 #include "discard.h"
+#include "raid56.h"
 
 /*
  * Return target flags in extended format or 0 if restripe for this chunk_type
@@ -1559,6 +1560,91 @@ static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 	if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
 		fs_info->avail_system_alloc_bits |= extra_flags;
 	write_sequnlock(&fs_info->profiles_lock);
+}
+
+/**
+ * btrfs_rmap_block - Map a physical disk address to a list of logical addresses
+ * @chunk_start:   logical address of block group
+ * @physical:	   physical address to map to logical addresses
+ * @logical:	   return array of logical addresses which map to @physical
+ * @naddrs:	   length of @logical
+ * @stripe_len:    size of IO stripe for the given block group
+ *
+ * Maps a particular @physical disk address to a list of @logical addresses.
+ * Used primarily to exclude those portions of a block group that contain super
+ * block copies.
+ */
+EXPORT_FOR_TESTS
+int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
+		     u64 physical, u64 **logical, int *naddrs, int *stripe_len)
+{
+	struct extent_map *em;
+	struct map_lookup *map;
+	u64 *buf;
+	u64 bytenr;
+	u64 length;
+	u64 stripe_nr;
+	u64 rmap_len;
+	int i, j, nr = 0;
+
+	em = btrfs_get_chunk_map(fs_info, chunk_start, 1);
+	if (IS_ERR(em))
+		return -EIO;
+
+	map = em->map_lookup;
+	length = em->len;
+	rmap_len = map->stripe_len;
+
+	if (map->type & BTRFS_BLOCK_GROUP_RAID10)
+		length = div_u64(length, map->num_stripes / map->sub_stripes);
+	else if (map->type & BTRFS_BLOCK_GROUP_RAID0)
+		length = div_u64(length, map->num_stripes);
+	else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
+		length = div_u64(length, nr_data_stripes(map));
+		rmap_len = map->stripe_len * nr_data_stripes(map);
+	}
+
+	buf = kcalloc(map->num_stripes, sizeof(u64), GFP_NOFS);
+	BUG_ON(!buf); /* -ENOMEM */
+
+	for (i = 0; i < map->num_stripes; i++) {
+		if (map->stripes[i].physical > physical ||
+		    map->stripes[i].physical + length <= physical)
+			continue;
+
+		stripe_nr = physical - map->stripes[i].physical;
+		stripe_nr = div64_u64(stripe_nr, map->stripe_len);
+
+		if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
+			stripe_nr = stripe_nr * map->num_stripes + i;
+			stripe_nr = div_u64(stripe_nr, map->sub_stripes);
+		} else if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
+			stripe_nr = stripe_nr * map->num_stripes + i;
+		}
+		/*
+		 * The remaining case would be for RAID56, multiply by
+		 * nr_data_stripes().  Alternatively, just use rmap_len below
+		 * instead of map->stripe_len
+		 */
+
+		bytenr = chunk_start + stripe_nr * rmap_len;
+		WARN_ON(nr >= map->num_stripes);
+		for (j = 0; j < nr; j++) {
+			if (buf[j] == bytenr)
+				break;
+		}
+		if (j == nr) {
+			WARN_ON(nr >= map->num_stripes);
+			buf[nr++] = bytenr;
+		}
+	}
+
+	*logical = buf;
+	*naddrs = nr;
+	*stripe_len = rmap_len;
+
+	free_extent_map(em);
+	return 0;
 }
 
 static int exclude_super_stripes(struct btrfs_block_group *cache)
