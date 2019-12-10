@@ -612,6 +612,9 @@ void intel_rc6_park(struct intel_rc6 *rc6)
 		return;
 	}
 
+	if (!(rc6->ctl_enable & GEN6_RC_CTL_RC6_ENABLE))
+		return;
+
 	/* Turn off the HW timers and go directly to rc6 */
 	set(uncore, GEN6_RC_CONTROL, GEN6_RC_CTL_RC6_ENABLE);
 	set(uncore, GEN6_RC_STATE, 0x4 << RC_SW_TARGET_STATE_SHIFT);
