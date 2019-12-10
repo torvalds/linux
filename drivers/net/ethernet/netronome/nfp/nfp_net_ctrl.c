@@ -114,6 +114,15 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 			caps->crypto_ops = readl(data);
 			caps->crypto_enable_off = data - ctrl_mem + 16;
 			break;
+		case NFP_NET_CFG_TLV_TYPE_VNIC_STATS:
+			if ((data - ctrl_mem) % 8) {
+				dev_warn(dev, "VNIC STATS TLV misaligned, ignoring offset:%u len:%u\n",
+					 offset, length);
+				break;
+			}
+			caps->vnic_stats_off = data - ctrl_mem;
+			caps->vnic_stats_cnt = length / 10;
+			break;
 		default:
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))
 				break;

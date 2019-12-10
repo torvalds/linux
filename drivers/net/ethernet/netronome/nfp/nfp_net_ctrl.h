@@ -479,6 +479,17 @@
  * 8 words, bitmaps of supported and enabled crypto operations.
  * First 16B (4 words) contains a bitmap of supported crypto operations,
  * and next 16B contain the enabled operations.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_VNIC_STATS:
+ * Variable, per-vNIC statistics, data should be 8B aligned (FW should insert
+ * zero-length RESERVED TLV to pad).
+ * TLV data has two sections.  First is an array of statistics' IDs (2B each).
+ * Second 8B statistics themselves.  Statistics are 8B aligned, meaning there
+ * may be a padding between sections.
+ * Number of statistics can be determined as floor(tlv.length / (2 + 8)).
+ * This TLV overwrites %NFP_NET_CFG_STATS_* values (statistics in this TLV
+ * duplicate the old ones, so driver should be careful not to unnecessarily
+ * render both).
  */
 #define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
 #define NFP_NET_CFG_TLV_TYPE_RESERVED		1
@@ -490,6 +501,7 @@
 #define NFP_NET_CFG_TLV_TYPE_REPR_CAP		7
 #define NFP_NET_CFG_TLV_TYPE_MBOX_CMSG_TYPES	10
 #define NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS		11 /* see crypto/fw.h */
+#define NFP_NET_CFG_TLV_TYPE_VNIC_STATS		12
 
 struct device;
 
@@ -502,6 +514,8 @@ struct device;
  * @mbox_cmsg_types:	cmsgs which can be passed through the mailbox
  * @crypto_ops:		supported crypto operations
  * @crypto_enable_off:	offset of crypto ops enable region
+ * @vnic_stats_off:	offset of vNIC stats area
+ * @vnic_stats_cnt:	number of vNIC stats
  */
 struct nfp_net_tlv_caps {
 	u32 me_freq_mhz;
@@ -511,6 +525,8 @@ struct nfp_net_tlv_caps {
 	u32 mbox_cmsg_types;
 	u32 crypto_ops;
 	unsigned int crypto_enable_off;
+	unsigned int vnic_stats_off;
+	unsigned int vnic_stats_cnt;
 };
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
