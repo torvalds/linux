@@ -104,13 +104,10 @@ struct qoriq_tmu_regs_v2 {
 	u32 ttrcr[4];	/* Temperature Range Control Register */
 };
 
-struct qoriq_tmu_data;
-
 /*
  * Thermal zone data
  */
 struct qoriq_sensor {
-	struct qoriq_tmu_data		*qdata;
 	int				id;
 };
 
@@ -120,8 +117,13 @@ struct qoriq_tmu_data {
 	struct qoriq_tmu_regs_v2 __iomem *regs_v2;
 	struct clk *clk;
 	bool little_endian;
-	struct qoriq_sensor	*sensor[SITES_MAX];
+	struct qoriq_sensor	sensor[SITES_MAX];
 };
+
+static struct qoriq_tmu_data *qoriq_sensor_to_data(struct qoriq_sensor *s)
+{
+	return container_of(s, struct qoriq_tmu_data, sensor[s->id]);
+}
 
 static void tmu_write(struct qoriq_tmu_data *p, u32 val, void __iomem *addr)
 {
@@ -142,7 +144,7 @@ static u32 tmu_read(struct qoriq_tmu_data *p, void __iomem *addr)
 static int tmu_get_temp(void *p, int *temp)
 {
 	struct qoriq_sensor *qsensor = p;
-	struct qoriq_tmu_data *qdata = qsensor->qdata;
+	struct qoriq_tmu_data *qdata = qoriq_sensor_to_data(qsensor);
 	u32 val;
 
 	val = tmu_read(qdata, &qdata->regs->site[qsensor->id].tritsr);
@@ -162,19 +164,10 @@ static int qoriq_tmu_register_tmu_zone(struct platform_device *pdev)
 
 	for (id = 0; id < SITES_MAX; id++) {
 		struct thermal_zone_device *tzd;
-		struct qoriq_sensor *sensor;
+		struct qoriq_sensor *sensor = &qdata->sensor[id];
 		int ret;
 
-		sensor = devm_kzalloc(&pdev->dev,
-				      sizeof(struct qoriq_sensor),
-				      GFP_KERNEL);
-		if (!qdata->sensor[id])
-			return -ENOMEM;
-
-		qdata->sensor[id] = sensor;
-
 		sensor->id = id;
-		sensor->qdata = qdata;
 
 		tzd = devm_thermal_zone_of_sensor_register(&pdev->dev, id,
 							   sensor,
