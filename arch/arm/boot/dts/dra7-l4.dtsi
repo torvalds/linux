@@ -471,7 +471,6 @@
 
 		target-module@f6000 {			/* 0x4a0f6000, ap 25 78.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spinlock";
 			reg = <0xf6000 0x4>,
 			      <0xf6010 0x4>,
 			      <0xf6014 0x4>;
