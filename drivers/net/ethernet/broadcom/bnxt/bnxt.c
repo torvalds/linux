@@ -6190,7 +6190,7 @@ static void bnxt_hwrm_set_coal_params(struct bnxt *bp,
 		tmr = bnxt_usec_to_coal_tmr(bp, hw_coal->coal_ticks_irq);
 		val = clamp_t(u16, tmr, 1,
 			      coal_cap->cmpl_aggr_dma_tmr_during_int_max);
-		req->cmpl_aggr_dma_tmr_during_int = cpu_to_le16(tmr);
+		req->cmpl_aggr_dma_tmr_during_int = cpu_to_le16(val);
 		req->enables |=
 			cpu_to_le16(BNXT_COAL_CMPL_AGGR_TMR_DURING_INT_ENABLE);
 	}
