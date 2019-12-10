@@ -1286,7 +1286,6 @@ static int had_pcm_mmap(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops had_pcm_ops = {
 	.open =		had_pcm_open,
 	.close =	had_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	had_pcm_hw_params,
 	.hw_free =	had_pcm_hw_free,
 	.prepare =	had_pcm_prepare,
