@@ -1543,6 +1543,7 @@ static void s3c24xx_serial_release_port(struct uart_port *port)
 static int s3c24xx_serial_request_port(struct uart_port *port)
 {
 	const char *name = s3c24xx_serial_portname(port);
+
 	return request_mem_region(port->mapbase, MAP_SIZE, name) ? 0 : -EBUSY;
 }
 
@@ -1963,6 +1964,7 @@ static inline struct s3c24xx_serial_drv_data *s3c24xx_get_driver_data(
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
+
 		match = of_match_node(s3c24xx_uart_dt_match, pdev->dev.of_node);
 		return (struct s3c24xx_serial_drv_data *)match->data;
 	}
@@ -2109,6 +2111,7 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 		/* restore IRQ mask */
 		if (s3c24xx_serial_has_interrupt_mask(port)) {
 			unsigned int uintm = 0xf;
+
 			if (tx_enabled(port))
 				uintm &= ~S3C64XX_UINTM_TXD_MSK;
 			if (rx_enabled(port))
