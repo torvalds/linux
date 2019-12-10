@@ -553,7 +553,9 @@ static void remove_link(struct snd_soc_component *comp,
 	kfree(link->cpus->dai_name);
 
 	list_del(&dobj->list);
-	snd_soc_remove_dai_link(comp->card, link);
+
+	snd_soc_remove_pcm_runtime(comp->card,
+			snd_soc_get_pcm_runtime(comp->card, link));
 	kfree(link);
 }
 

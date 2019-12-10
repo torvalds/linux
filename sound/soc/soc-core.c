@@ -998,33 +998,26 @@ static int soc_dai_link_sanity_check(struct snd_soc_card *card,
 }
 
 /**
- * snd_soc_remove_dai_link - Remove a DAI link from the list
- * @card: The ASoC card that owns the link
- * @dai_link: The DAI link to remove
+ * snd_soc_remove_pcm_runtime - Remove a pcm_runtime from card
+ * @card: The ASoC card to which the pcm_runtime has
+ * @rtd: The pcm_runtime to remove
  *
- * This function removes a DAI link from the ASoC card's link list.
- *
- * For DAI links previously added by topology, topology should
- * remove them by using the dobj embedded in the link.
+ * This function removes a pcm_runtime from the ASoC card.
  */
-void snd_soc_remove_dai_link(struct snd_soc_card *card,
-			     struct snd_soc_dai_link *dai_link)
+void snd_soc_remove_pcm_runtime(struct snd_soc_card *card,
+				struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_pcm_runtime *rtd;
-
 	lockdep_assert_held(&client_mutex);
 
 	/*
 	 * Notify the machine driver for extra destruction
 	 */
 	if (card->remove_dai_link)
-		card->remove_dai_link(card, dai_link);
+		card->remove_dai_link(card, rtd->dai_link);
 
-	rtd = snd_soc_get_pcm_runtime(card, dai_link);
-	if (rtd)
-		soc_free_pcm_runtime(rtd);
+	soc_free_pcm_runtime(rtd);
 }
-EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
+EXPORT_SYMBOL_GPL(snd_soc_remove_pcm_runtime);
 
 /**
  * snd_soc_add_pcm_runtime - Add a pcm_runtime dynamically via dai_link
@@ -1104,7 +1097,7 @@ int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 	return 0;
 
 _err_defer:
-	soc_free_pcm_runtime(rtd);
+	snd_soc_remove_pcm_runtime(card, rtd);
 	return -EPROBE_DEFER;
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_pcm_runtime);
@@ -1871,7 +1864,7 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card,
 	soc_remove_link_components(card);
 
 	for_each_card_rtds_safe(card, rtd, n)
-		snd_soc_remove_dai_link(card, rtd->dai_link);
+		snd_soc_remove_pcm_runtime(card, rtd);
 
 	/* remove auxiliary devices */
 	soc_remove_aux_devices(card);
