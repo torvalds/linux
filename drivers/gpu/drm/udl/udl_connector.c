@@ -104,7 +104,6 @@ static void udl_connector_destroy(struct drm_connector *connector)
 					struct udl_drm_connector,
 					connector);
 
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(udl_connector->edid);
 	kfree(connector);
@@ -123,24 +122,22 @@ static const struct drm_connector_funcs udl_connector_funcs = {
 	.set_property = udl_connector_set_property,
 };
 
-int udl_connector_init(struct drm_device *dev, struct drm_encoder *encoder)
+struct drm_connector *udl_connector_init(struct drm_device *dev)
 {
 	struct udl_drm_connector *udl_connector;
 	struct drm_connector *connector;
 
 	udl_connector = kzalloc(sizeof(struct udl_drm_connector), GFP_KERNEL);
 	if (!udl_connector)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	connector = &udl_connector->connector;
 	drm_connector_init(dev, connector, &udl_connector_funcs,
 			   DRM_MODE_CONNECTOR_DVII);
 	drm_connector_helper_add(connector, &udl_connector_helper_funcs);
 
-	drm_connector_register(connector);
-	drm_connector_attach_encoder(connector, encoder);
 	connector->polled = DRM_CONNECTOR_POLL_HPD |
 		DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 
-	return 0;
+	return connector;
 }

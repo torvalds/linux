@@ -421,7 +421,10 @@ static const struct drm_mode_config_funcs udl_mode_funcs = {
 
 int udl_modeset_init(struct drm_device *dev)
 {
+	struct drm_connector *connector;
 	struct drm_encoder *encoder;
+	int ret;
+
 	drm_mode_config_init(dev);
 
 	dev->mode_config.min_width = 640;
@@ -435,13 +438,22 @@ int udl_modeset_init(struct drm_device *dev)
 
 	dev->mode_config.funcs = &udl_mode_funcs;
 
+	connector = udl_connector_init(dev);
+	if (IS_ERR(connector)) {
+		ret = PTR_ERR(connector);
+		goto err_drm_mode_config_cleanup;
+	}
+
 	udl_crtc_init(dev);
 
 	encoder = udl_encoder_init(dev);
-
-	udl_connector_init(dev, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
+
+err_drm_mode_config_cleanup:
+	drm_mode_config_cleanup(dev);
+	return ret;
 }
 
 void udl_modeset_restore(struct drm_device *dev)
