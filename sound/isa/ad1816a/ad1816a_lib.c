@@ -597,6 +597,7 @@ int snd_ad1816a_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = irq;
+	card->sync_irq = chip->irq;
 	if (request_dma(dma1, "AD1816A - 1")) {
 		snd_printk(KERN_ERR "ad1816a: can't grab DMA1 %d\n", dma1);
 		snd_ad1816a_free(chip);
