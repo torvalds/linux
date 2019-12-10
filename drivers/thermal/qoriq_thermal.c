@@ -30,6 +30,7 @@
 #define TMR_DISABLE	0x0
 #define TMR_ME		0x80000000
 #define TMR_ALPF	0x0c000000
+#define TMR_MSITE_ALL	GENMASK(15, 0)
 
 #define REGS_TMTMIR	0x008	/* Temperature measurement interval Register */
 #define TMTMIR_DEFAULT	0x0000000f
@@ -94,7 +95,15 @@ static const struct thermal_zone_of_device_ops tmu_tz_ops = {
 static int qoriq_tmu_register_tmu_zone(struct device *dev,
 				       struct qoriq_tmu_data *qdata)
 {
-	int id, sites = 0;
+	int id;
+
+	if (qdata->ver == TMU_VER1) {
+		regmap_write(qdata->regmap, REGS_TMR,
+			     TMR_MSITE_ALL | TMR_ME | TMR_ALPF);
+	} else {
+		regmap_write(qdata->regmap, REGS_V2_TMSR, TMR_MSITE_ALL);
+		regmap_write(qdata->regmap, REGS_TMR, TMR_ME | TMR_ALPF_V2);
+	}
 
 	for (id = 0; id < SITES_MAX; id++) {
 		struct thermal_zone_device *tzd;
@@ -110,25 +119,9 @@ static int qoriq_tmu_register_tmu_zone(struct device *dev,
 		if (ret) {
 			if (ret == -ENODEV)
 				continue;
-			else
-				return ret;
-		}
 
-		if (qdata->ver == TMU_VER1)
-			sites |= 0x1 << (15 - id);
-		else
-			sites |= 0x1 << id;
-	}
-
-	/* Enable monitoring */
-	if (sites != 0) {
-		if (qdata->ver == TMU_VER1) {
-			regmap_write(qdata->regmap, REGS_TMR,
-				     sites | TMR_ME | TMR_ALPF);
-		} else {
-			regmap_write(qdata->regmap, REGS_V2_TMSR, sites);
-			regmap_write(qdata->regmap, REGS_TMR,
-				     TMR_ME | TMR_ALPF_V2);
+			regmap_write(qdata->regmap, REGS_TMR, TMR_DISABLE);
+			return ret;
 		}
 	}
 
