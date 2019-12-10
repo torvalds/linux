@@ -216,7 +216,6 @@
 		};
 		target-module@4012c000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "slimbus1";
 			reg = <0x4012c000 0x4>,
 			      <0x4012c010 0x4>;
 			reg-names = "rev", "sysc";

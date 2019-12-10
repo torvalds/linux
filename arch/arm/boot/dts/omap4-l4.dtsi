@@ -1881,7 +1881,6 @@
 
 		target-module@76000 {			/* 0x48076000, ap 39 38.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "slimbus2";
 			reg = <0x76000 0x4>,
 			      <0x76010 0x4>;
 			reg-names = "rev", "sysc";
