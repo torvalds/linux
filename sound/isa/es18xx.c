@@ -1781,6 +1781,7 @@ static int snd_es18xx_new_device(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = irq;
+	card->sync_irq = chip->irq;
 
 	if (request_dma(dma1, "ES18xx DMA 1")) {
 		snd_es18xx_free(card);
