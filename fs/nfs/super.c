@@ -70,28 +70,6 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-static struct dentry *nfs_prepared_mount(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data);
-
-struct file_system_type nfs_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "nfs",
-	.mount		= nfs_fs_mount,
-	.kill_sb	= nfs_kill_super,
-	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
-};
-MODULE_ALIAS_FS("nfs");
-EXPORT_SYMBOL_GPL(nfs_fs_type);
-
-struct file_system_type nfs_prepared_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "nfs",
-	.mount		= nfs_prepared_mount,
-	.kill_sb	= nfs_kill_super,
-	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
-};
-EXPORT_SYMBOL_GPL(nfs_prepared_fs_type);
-
 const struct super_operations nfs_sops = {
 	.alloc_inode	= nfs_alloc_inode,
 	.free_inode	= nfs_free_inode,
@@ -104,22 +82,10 @@ const struct super_operations nfs_sops = {
 	.show_devname	= nfs_show_devname,
 	.show_path	= nfs_show_path,
 	.show_stats	= nfs_show_stats,
-	.remount_fs	= nfs_remount,
 };
 EXPORT_SYMBOL_GPL(nfs_sops);
 
 #if IS_ENABLED(CONFIG_NFS_V4)
-struct file_system_type nfs4_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "nfs4",
-	.mount		= nfs_fs_mount,
-	.kill_sb	= nfs_kill_super,
-	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
-};
-MODULE_ALIAS_FS("nfs4");
-MODULE_ALIAS("nfs4");
-EXPORT_SYMBOL_GPL(nfs4_fs_type);
-
 static int __init register_nfs4_fs(void)
 {
 	return register_filesystem(&nfs4_fs_type);
@@ -911,20 +877,19 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 	return nfs_mod->rpc_ops->create_server(mount_info);
 }
 
-static struct dentry *nfs_fs_mount_common(int, const char *, struct nfs_mount_info *);
-
-struct dentry *nfs_try_mount(int flags, const char *dev_name,
-			     struct nfs_mount_info *mount_info)
+int nfs_try_get_tree(struct fs_context *fc)
 {
-	struct nfs_subversion *nfs_mod = mount_info->nfs_mod;
-	if (mount_info->ctx->need_mount)
-		mount_info->server = nfs_try_mount_request(mount_info);
-	else
-		mount_info->server = nfs_mod->rpc_ops->create_server(mount_info);
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 
-	return nfs_fs_mount_common(flags, dev_name, mount_info);
+	if (ctx->need_mount)
+		ctx->mount_info.server = nfs_try_mount_request(&ctx->mount_info);
+	else
+		ctx->mount_info.server = ctx->mount_info.nfs_mod->rpc_ops->create_server(&ctx->mount_info);
+
+	return nfs_get_tree_common(fc);
 }
-EXPORT_SYMBOL_GPL(nfs_try_mount);
+EXPORT_SYMBOL_GPL(nfs_try_get_tree);
+
 
 #define NFS_REMOUNT_CMP_FLAGMASK ~(NFS_MOUNT_INTR \
 		| NFS_MOUNT_SECURE \
@@ -965,15 +930,11 @@ nfs_compare_remount_data(struct nfs_server *nfss,
 	return 0;
 }
 
-int
-nfs_remount(struct super_block *sb, int *flags, char *raw_data)
+int nfs_reconfigure(struct fs_context *fc)
 {
-	int error;
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
+	struct super_block *sb = fc->root->d_sb;
 	struct nfs_server *nfss = sb->s_fs_info;
-	struct nfs_fs_context *ctx;
-	struct nfs_mount_data *options = (struct nfs_mount_data *)raw_data;
-	struct nfs4_mount_data *options4 = (struct nfs4_mount_data *)raw_data;
-	u32 nfsvers = nfss->nfs_client->rpc_ops->version;
 
 	sync_filesystem(sb);
 
@@ -983,57 +944,24 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	 * ones were explicitly specified. Fall back to legacy behavior and
 	 * just return success.
 	 */
-	if ((nfsvers == 4 && (!options4 || options4->version == 1)) ||
-	    (nfsvers <= 3 && (!options || (options->version >= 1 &&
-					   options->version <= 6))))
+	if (ctx->skip_reconfig_option_check)
 		return 0;
-
-	ctx = nfs_alloc_parsed_mount_data();
-	if (ctx == NULL)
-		return -ENOMEM;
-
-	/* fill out struct with values from existing mount */
-	ctx->flags = nfss->flags;
-	ctx->rsize = nfss->rsize;
-	ctx->wsize = nfss->wsize;
-	ctx->retrans = nfss->client->cl_timeout->to_retries;
-	ctx->selected_flavor = nfss->client->cl_auth->au_flavor;
-	ctx->acregmin = nfss->acregmin / HZ;
-	ctx->acregmax = nfss->acregmax / HZ;
-	ctx->acdirmin = nfss->acdirmin / HZ;
-	ctx->acdirmax = nfss->acdirmax / HZ;
-	ctx->timeo = 10U * nfss->client->cl_timeout->to_initval / HZ;
-	ctx->nfs_server.port = nfss->port;
-	ctx->nfs_server.addrlen = nfss->nfs_client->cl_addrlen;
-	ctx->version = nfsvers;
-	ctx->minorversion = nfss->nfs_client->cl_minorversion;
-	ctx->net = current->nsproxy->net_ns;
-	memcpy(&ctx->nfs_server.address, &nfss->nfs_client->cl_addr,
-		ctx->nfs_server.addrlen);
-
-	/* overwrite those values with any that were specified */
-	error = -EINVAL;
-	if (!nfs_parse_mount_options((char *)options, ctx))
-		goto out;
 
 	/*
 	 * noac is a special case. It implies -o sync, but that's not
-	 * necessarily reflected in the mtab options. do_remount_sb
+	 * necessarily reflected in the mtab options. reconfigure_super
 	 * will clear SB_SYNCHRONOUS if -o sync wasn't specified in the
 	 * remount options, so we have to explicitly reset it.
 	 */
-	if (ctx->flags & NFS_MOUNT_NOAC)
-		*flags |= SB_SYNCHRONOUS;
+	if (ctx->flags & NFS_MOUNT_NOAC) {
+		fc->sb_flags |= SB_SYNCHRONOUS;
+		fc->sb_flags_mask |= SB_SYNCHRONOUS;
+	}
 
 	/* compare new mount options with old ones */
-	error = nfs_compare_remount_data(nfss, ctx);
-	if (!error)
-		error = security_sb_remount(sb, ctx->lsm_opts);
-out:
-	nfs_free_parsed_mount_data(ctx);
-	return error;
+	return nfs_compare_remount_data(nfss, ctx);
 }
-EXPORT_SYMBOL_GPL(nfs_remount);
+EXPORT_SYMBOL_GPL(nfs_reconfigure);
 
 /*
  * Finish setting up an NFS superblock
@@ -1112,19 +1040,11 @@ Ebusy:
 	return 0;
 }
 
-struct nfs_sb_mountdata {
-	struct nfs_server *server;
-	int mntflags;
-};
-
-static int nfs_set_super(struct super_block *s, void *data)
+static int nfs_set_super(struct super_block *s, struct fs_context *fc)
 {
-	struct nfs_sb_mountdata *sb_mntdata = data;
-	struct nfs_server *server = sb_mntdata->server;
+	struct nfs_server *server = fc->s_fs_info;
 	int ret;
 
-	s->s_flags = sb_mntdata->mntflags;
-	s->s_fs_info = server;
 	s->s_d_op = server->nfs_client->rpc_ops->dentry_ops;
 	ret = set_anon_super(s, server);
 	if (ret == 0)
@@ -1189,11 +1109,9 @@ static int nfs_compare_userns(const struct nfs_server *old,
 	return 1;
 }
 
-static int nfs_compare_super(struct super_block *sb, void *data)
+static int nfs_compare_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct nfs_sb_mountdata *sb_mntdata = data;
-	struct nfs_server *server = sb_mntdata->server, *old = NFS_SB(sb);
-	int mntflags = sb_mntdata->mntflags;
+	struct nfs_server *server = fc->s_fs_info, *old = NFS_SB(sb);
 
 	if (!nfs_compare_super_address(old, server))
 		return 0;
@@ -1204,13 +1122,12 @@ static int nfs_compare_super(struct super_block *sb, void *data)
 		return 0;
 	if (!nfs_compare_userns(old, server))
 		return 0;
-	return nfs_compare_mount_options(sb, server, mntflags);
+	return nfs_compare_mount_options(sb, server, fc->sb_flags);
 }
 
 #ifdef CONFIG_NFS_FSCACHE
 static void nfs_get_cache_cookie(struct super_block *sb,
-				 struct nfs_fs_context *ctx,
-				 struct nfs_clone_mount *cloned)
+				 struct nfs_fs_context *ctx)
 {
 	struct nfs_server *nfss = NFS_SB(sb);
 	char *uniq = NULL;
@@ -1219,30 +1136,32 @@ static void nfs_get_cache_cookie(struct super_block *sb,
 	nfss->fscache_key = NULL;
 	nfss->fscache = NULL;
 
-	if (ctx) {
-		if (!(ctx->options & NFS_OPTION_FSCACHE))
-			return;
-		if (ctx->fscache_uniq) {
-			uniq = ctx->fscache_uniq;
-			ulen = strlen(ctx->fscache_uniq);
-		}
-	} else if (cloned) {
-		struct nfs_server *mnt_s = NFS_SB(cloned->sb);
+	if (!ctx)
+		return;
+
+	if (ctx->clone_data.sb) {
+		struct nfs_server *mnt_s = NFS_SB(ctx->clone_data.sb);
 		if (!(mnt_s->options & NFS_OPTION_FSCACHE))
 			return;
 		if (mnt_s->fscache_key) {
 			uniq = mnt_s->fscache_key->key.uniquifier;
 			ulen = mnt_s->fscache_key->key.uniq_len;
 		}
-	} else
+	} else {
+		if (!(ctx->options & NFS_OPTION_FSCACHE))
+			return;
+		if (ctx->fscache_uniq) {
+			uniq = ctx->fscache_uniq;
+			ulen = strlen(ctx->fscache_uniq);
+		}
 		return;
+	}
 
 	nfs_fscache_get_super_cookie(sb, uniq, ulen);
 }
 #else
 static void nfs_get_cache_cookie(struct super_block *sb,
-				 struct nfs_fs_context *parsed,
-				 struct nfs_clone_mount *cloned)
+				 struct nfs_fs_context *ctx)
 {
 }
 #endif
@@ -1254,40 +1173,41 @@ static void nfs_set_readahead(struct backing_dev_info *bdi,
 	bdi->io_pages = iomax_pages;
 }
 
-static struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
-				   struct nfs_mount_info *mount_info)
+int nfs_get_tree_common(struct fs_context *fc)
 {
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	struct super_block *s;
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
-	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
-	struct nfs_server *server = mount_info->server;
+	int (*compare_super)(struct super_block *, struct fs_context *) = nfs_compare_super;
+	struct nfs_server *server = ctx->mount_info.server;
 	unsigned long kflags = 0, kflags_out = 0;
-	struct nfs_sb_mountdata sb_mntdata = {
-		.mntflags = flags,
-		.server = server,
-	};
 	int error;
 
-	mount_info->server = NULL;
+	ctx->mount_info.server = NULL;
 	if (IS_ERR(server))
-		return ERR_CAST(server);
+		return PTR_ERR(server);
 
 	if (server->flags & NFS_MOUNT_UNSHARED)
 		compare_super = NULL;
 
 	/* -o noac implies -o sync */
 	if (server->flags & NFS_MOUNT_NOAC)
-		sb_mntdata.mntflags |= SB_SYNCHRONOUS;
+		fc->sb_flags |= SB_SYNCHRONOUS;
 
-	if (mount_info->cloned != NULL && mount_info->cloned->sb != NULL)
-		if (mount_info->cloned->sb->s_flags & SB_SYNCHRONOUS)
-			sb_mntdata.mntflags |= SB_SYNCHRONOUS;
+	if (ctx->clone_data.sb)
+		if (ctx->clone_data.sb->s_flags & SB_SYNCHRONOUS)
+			fc->sb_flags |= SB_SYNCHRONOUS;
+
+	if (server->caps & NFS_CAP_SECURITY_LABEL)
+		fc->lsm_flags |= SECURITY_LSM_NATIVE_LABELS;
 
 	/* Get a superblock - note that we may end up sharing one that already exists */
-	s = sget(mount_info->nfs_mod->nfs_fs, compare_super, nfs_set_super,
-		 flags, &sb_mntdata);
+	fc->s_fs_info = server;
+	s = sget_fc(fc, compare_super, nfs_set_super);
+	fc->s_fs_info = NULL;
 	if (IS_ERR(s)) {
-		mntroot = ERR_CAST(s);
+		error = PTR_ERR(s);
+		dfprintk(MOUNT, "NFS: Couldn't get superblock\n");
 		goto out_err_nosb;
 	}
 
@@ -1297,44 +1217,43 @@ static struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
 	} else {
 		error = super_setup_bdi_name(s, "%u:%u", MAJOR(server->s_dev),
 					     MINOR(server->s_dev));
-		if (error) {
-			mntroot = ERR_PTR(error);
+		if (error)
 			goto error_splat_super;
-		}
 		nfs_set_readahead(s->s_bdi, server->rpages);
 		server->super = s;
 	}
 
 	if (!s->s_root) {
-		unsigned bsize = mount_info->inherited_bsize;
+		unsigned bsize = ctx->mount_info.inherited_bsize;
 		/* initial superblock/root creation */
-		nfs_fill_super(s, mount_info);
+		nfs_fill_super(s, &ctx->mount_info);
 		if (bsize) {
 			s->s_blocksize_bits = bsize;
 			s->s_blocksize = 1U << bsize;
 		}
-		nfs_get_cache_cookie(s, mount_info->ctx, mount_info->cloned);
-		if (!(server->flags & NFS_MOUNT_UNSHARED))
-			s->s_iflags |= SB_I_MULTIROOT;
+		nfs_get_cache_cookie(s, ctx);
 	}
 
-	mntroot = nfs_get_root(s, mount_info->mntfh, dev_name);
-	if (IS_ERR(mntroot))
+	mntroot = nfs_get_root(s, ctx->mount_info.mntfh, fc->source);
+	if (IS_ERR(mntroot)) {
+		error = PTR_ERR(mntroot);
+		dfprintk(MOUNT, "NFS: Couldn't get root dentry\n");
 		goto error_splat_super;
-
+	}
+	fc->root = mntroot;
 
 	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL)
 		kflags |= SECURITY_LSM_NATIVE_LABELS;
-	if (mount_info->cloned) {
-		if (d_inode(mntroot)->i_fop != &nfs_dir_operations) {
+	if (ctx->clone_data.sb) {
+		if (d_inode(fc->root)->i_fop != &nfs_dir_operations) {
 			error = -ESTALE;
 			goto error_splat_root;
 		}
 		/* clone any lsm security options from the parent to the new sb */
-		error = security_sb_clone_mnt_opts(mount_info->cloned->sb, s, kflags,
+		error = security_sb_clone_mnt_opts(ctx->clone_data.sb, s, kflags,
 				&kflags_out);
 	} else {
-		error = security_sb_set_mnt_opts(s, mount_info->ctx->lsm_opts,
+		error = security_sb_set_mnt_opts(s, fc->security,
 							kflags, &kflags_out);
 	}
 	if (error)
@@ -1342,66 +1261,24 @@ static struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
 	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL &&
 		!(kflags_out & SECURITY_LSM_NATIVE_LABELS))
 		NFS_SB(s)->caps &= ~NFS_CAP_SECURITY_LABEL;
-	if (error)
-		goto error_splat_root;
 
 	s->s_flags |= SB_ACTIVE;
+	error = 0;
 
 out:
-	return mntroot;
+	return error;
 
 out_err_nosb:
 	nfs_free_server(server);
 	goto out;
 
 error_splat_root:
-	dput(mntroot);
-	mntroot = ERR_PTR(error);
+	dput(fc->root);
+	fc->root = NULL;
 error_splat_super:
 	deactivate_locked_super(s);
 	goto out;
 }
-
-struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data)
-{
-	struct nfs_mount_info mount_info = {
-	};
-	struct dentry *mntroot = ERR_PTR(-ENOMEM);
-	struct nfs_subversion *nfs_mod;
-	int error;
-
-	mount_info.ctx = nfs_alloc_parsed_mount_data();
-	mount_info.mntfh = nfs_alloc_fhandle();
-	if (mount_info.ctx == NULL || mount_info.mntfh == NULL)
-		goto out;
-
-	/* Validate the mount data */
-	error = nfs_validate_mount_data(fs_type, raw_data, mount_info.ctx, mount_info.mntfh, dev_name);
-	if (error == NFS_TEXT_DATA)
-		error = nfs_validate_text_mount_data(raw_data,
-						     mount_info.ctx, dev_name);
-	if (error < 0) {
-		mntroot = ERR_PTR(error);
-		goto out;
-	}
-
-	nfs_mod = get_nfs_version(mount_info.ctx->version);
-	if (IS_ERR(nfs_mod)) {
-		mntroot = ERR_CAST(nfs_mod);
-		goto out;
-	}
-	mount_info.nfs_mod = nfs_mod;
-
-	mntroot = nfs_mod->rpc_ops->try_mount(flags, dev_name, &mount_info);
-
-	put_nfs_version(nfs_mod);
-out:
-	nfs_free_parsed_mount_data(mount_info.ctx);
-	nfs_free_fhandle(mount_info.mntfh);
-	return mntroot;
-}
-EXPORT_SYMBOL_GPL(nfs_fs_mount);
 
 /*
  * Destroy an NFS2/3 superblock
@@ -1419,17 +1296,6 @@ void nfs_kill_super(struct super_block *s)
 	free_anon_bdev(dev);
 }
 EXPORT_SYMBOL_GPL(nfs_kill_super);
-
-/*
- * Internal use only: mount_info is already set up by caller.
- * Used for mountpoint crossings and for nfs4 root.
- */
-static struct dentry *
-nfs_prepared_mount(struct file_system_type *fs_type, int flags,
-		   const char *dev_name, void *raw_data)
-{
-	return nfs_fs_mount_common(flags, dev_name, raw_data);
-}
 
 #if IS_ENABLED(CONFIG_NFS_V4)
 

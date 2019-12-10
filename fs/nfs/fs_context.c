@@ -3,6 +3,7 @@
  * linux/fs/nfs/fs_context.c
  *
  * Copyright (C) 1992 Rick Sladkey
+ * Conversion to new mount api Copyright (C) David Howells
  *
  * NFS mount handling.
  *
@@ -467,21 +468,31 @@ static int nfs_parse_version_string(struct nfs_fs_context *ctx,
 /*
  * Parse a single mount parameter.
  */
-static int nfs_fs_context_parse_param(struct nfs_fs_context *ctx,
+static int nfs_fs_context_parse_param(struct fs_context *fc,
 				      struct fs_parameter *param)
 {
 	struct fs_parse_result result;
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	unsigned short protofamily, mountfamily;
 	unsigned int len;
 	int ret, opt;
 
 	dfprintk(MOUNT, "NFS:   parsing nfs mount option '%s'\n", param->key);
 
-	opt = fs_parse(NULL, &nfs_fs_parameters, param, &result);
+	opt = fs_parse(fc, &nfs_fs_parameters, param, &result);
 	if (opt < 0)
 		return ctx->sloppy ? 1 : opt;
 
 	switch (opt) {
+	case Opt_source:
+		if (fc->source) {
+			dfprintk(MOUNT, "NFS: Multiple sources not supported\n");
+			return -EINVAL;
+		}
+		fc->source = param->string;
+		param->string = NULL;
+		break;
+
 		/*
 		 * boolean options:  foo/nofoo
 		 */
@@ -807,112 +818,6 @@ out_of_bounds:
 	return -ERANGE;
 }
 
-/* cribbed from generic_parse_monolithic and vfs_parse_fs_string */
-static int nfs_fs_context_parse_option(struct nfs_fs_context *ctx, char *p)
-{
-	int ret;
-	char *key = p, *value;
-	size_t v_size = 0;
-	struct fs_parameter param;
-
-	memset(&param, 0, sizeof(param));
-	value = strchr(key, '=');
-	if (value && value != key) {
-		*value++ = 0;
-		v_size = strlen(value);
-	}
-	param.key = key;
-	param.type = fs_value_is_flag;
-	param.size = v_size;
-	if (v_size > 0) {
-		param.type = fs_value_is_string;
-		param.string = kmemdup_nul(value, v_size, GFP_KERNEL);
-		if (!param.string)
-			return -ENOMEM;
-	}
-	ret = nfs_fs_context_parse_param(ctx, &param);
-	kfree(param.string);
-	return ret;
-}
-
-/*
- * Error-check and convert a string of mount options from user space into
- * a data structure.  The whole mount string is processed; bad options are
- * skipped as they are encountered.  If there were no errors, return 1;
- * otherwise return 0 (zero).
- */
-int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
-{
-	char *p;
-	int rc, sloppy = 0, invalid_option = 0;
-
-	if (!raw) {
-		dfprintk(MOUNT, "NFS: mount options string was NULL.\n");
-		return 1;
-	}
-	dfprintk(MOUNT, "NFS: nfs mount opts='%s'\n", raw);
-
-	rc = security_sb_eat_lsm_opts(raw, &ctx->lsm_opts);
-	if (rc)
-		goto out_security_failure;
-
-	while ((p = strsep(&raw, ",")) != NULL) {
-		if (!*p)
-			continue;
-		if (nfs_fs_context_parse_option(ctx, p) < 0)
-			invalid_option = true;
-	}
-
-	if (!sloppy && invalid_option)
-		return 0;
-
-	if (ctx->minorversion && ctx->version != 4)
-		goto out_minorversion_mismatch;
-
-	if (ctx->options & NFS_OPTION_MIGRATION &&
-	    (ctx->version != 4 || ctx->minorversion != 0))
-		goto out_migration_misuse;
-
-	/*
-	 * verify that any proto=/mountproto= options match the address
-	 * families in the addr=/mountaddr= options.
-	 */
-	if (ctx->protofamily != AF_UNSPEC &&
-	    ctx->protofamily != ctx->nfs_server.address.sa_family)
-		goto out_proto_mismatch;
-
-	if (ctx->mountfamily != AF_UNSPEC) {
-		if (ctx->mount_server.addrlen) {
-			if (ctx->mountfamily != ctx->mount_server.address.sa_family)
-				goto out_mountproto_mismatch;
-		} else {
-			if (ctx->mountfamily != ctx->nfs_server.address.sa_family)
-				goto out_mountproto_mismatch;
-		}
-	}
-
-	return 1;
-
-out_minorversion_mismatch:
-	printk(KERN_INFO "NFS: mount option vers=%u does not support "
-			 "minorversion=%u\n", ctx->version, ctx->minorversion);
-	return 0;
-out_mountproto_mismatch:
-	printk(KERN_INFO "NFS: mount server address does not match mountproto= "
-			 "option\n");
-	return 0;
-out_proto_mismatch:
-	printk(KERN_INFO "NFS: server address does not match proto= option\n");
-	return 0;
-out_migration_misuse:
-	printk(KERN_INFO
-		"NFS: 'migration' not supported for this NFS version\n");
-	return -EINVAL;
-out_security_failure:
-	printk(KERN_INFO "NFS: security options invalid: %d\n", rc);
-	return 0;
-}
-
 /*
  * Split "dev_name" into "hostname:export_path".
  *
@@ -990,6 +895,11 @@ out_path:
 	return -ENAMETOOLONG;
 }
 
+static inline bool is_remount_fc(struct fs_context *fc)
+{
+	return fc->root != NULL;
+}
+
 /*
  * Parse monolithic NFS2/NFS3 mount data
  * - fills in the mount root filehandle
@@ -1006,12 +916,11 @@ out_path:
  * + breaking back: trying proto=udp after proto=tcp, v2 after v3,
  *   mountproto=tcp after mountproto=udp, and so on
  */
-static int nfs23_validate_mount_data(void *options,
-				     struct nfs_fs_context *ctx,
-				     struct nfs_fh *mntfh,
-				     const char *dev_name)
+static int nfs23_parse_monolithic(struct fs_context *fc,
+				  struct nfs_mount_data *data)
 {
-	struct nfs_mount_data *data = (struct nfs_mount_data *)options;
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
+	struct nfs_fh *mntfh = ctx->mount_info.mntfh;
 	struct sockaddr *sap = (struct sockaddr *)&ctx->nfs_server.address;
 	int extra_flags = NFS_MOUNT_LEGACY_INTERFACE;
 
@@ -1083,6 +992,9 @@ static int nfs23_validate_mount_data(void *options,
 			ctx->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 		/* N.B. caller will free nfs_server.hostname in all cases */
 		ctx->nfs_server.hostname = kstrdup(data->hostname, GFP_KERNEL);
+		if (!ctx->nfs_server.hostname)
+			goto out_nomem;
+
 		ctx->namlen		= data->namlen;
 		ctx->bsize		= data->bsize;
 
@@ -1090,8 +1002,6 @@ static int nfs23_validate_mount_data(void *options,
 			ctx->selected_flavor = data->pseudoflavor;
 		else
 			ctx->selected_flavor = RPC_AUTH_UNIX;
-		if (!ctx->nfs_server.hostname)
-			goto out_nomem;
 
 		if (!(data->flags & NFS_MOUNT_NONLM))
 			ctx->flags &= ~(NFS_MOUNT_LOCAL_FLOCK|
@@ -1109,12 +1019,13 @@ static int nfs23_validate_mount_data(void *options,
 		 */
 		if (data->context[0]){
 #ifdef CONFIG_SECURITY_SELINUX
-			int rc;
+			int ret;
+
 			data->context[NFS_MAX_CONTEXT_LEN] = '\0';
-			rc = security_add_mnt_opt("context", data->context,
-					strlen(data->context), ctx->lsm_opts);
-			if (rc)
-				return rc;
+			ret = vfs_parse_fs_string(fc, "context",
+						  data->context, strlen(data->context));
+			if (ret < 0)
+				return ret;
 #else
 			return -EINVAL;
 #endif
@@ -1122,12 +1033,20 @@ static int nfs23_validate_mount_data(void *options,
 
 		break;
 	default:
-		return NFS_TEXT_DATA;
+		goto generic;
 	}
 
+	ctx->skip_reconfig_option_check = true;
 	return 0;
 
+generic:
+	return generic_parse_monolithic(fc, data);
+
 out_no_data:
+	if (is_remount_fc(fc)) {
+		ctx->skip_reconfig_option_check = true;
+		return 0;
+	}
 	dfprintk(MOUNT, "NFS: mount program didn't pass any mount data\n");
 	return -EINVAL;
 
@@ -1163,12 +1082,11 @@ static void nfs4_validate_mount_flags(struct nfs_fs_context *ctx)
 /*
  * Validate NFSv4 mount options
  */
-static int nfs4_validate_mount_data(void *options,
-				    struct nfs_fs_context *ctx,
-				    const char *dev_name)
+static int nfs4_parse_monolithic(struct fs_context *fc,
+				 struct nfs4_mount_data *data)
 {
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	struct sockaddr *sap = (struct sockaddr *)&ctx->nfs_server.address;
-	struct nfs4_mount_data *data = (struct nfs4_mount_data *)options;
 	char *c;
 
 	if (data == NULL)
@@ -1218,7 +1136,7 @@ static int nfs4_validate_mount_data(void *options,
 		ctx->client_address = c;
 
 		/*
-		 * Translate to nfs_fs_context, which nfs4_fill_super
+		 * Translate to nfs_fs_context, which nfs_fill_super
 		 * can deal with.
 		 */
 
@@ -1238,12 +1156,20 @@ static int nfs4_validate_mount_data(void *options,
 
 		break;
 	default:
-		return NFS_TEXT_DATA;
+		goto generic;
 	}
 
+	ctx->skip_reconfig_option_check = true;
 	return 0;
 
+generic:
+	return generic_parse_monolithic(fc, data);
+
 out_no_data:
+	if (is_remount_fc(fc)) {
+		ctx->skip_reconfig_option_check = true;
+		return 0;
+	}
 	dfprintk(MOUNT, "NFS4: mount program didn't pass any mount data\n");
 	return -EINVAL;
 
@@ -1260,39 +1186,66 @@ out_invalid_transport_udp:
 	dfprintk(MOUNT, "NFSv4: Unsupported transport protocol udp\n");
 	return -EINVAL;
 }
-
-int nfs_validate_mount_data(struct file_system_type *fs_type,
-			    void *options,
-			    struct nfs_fs_context *ctx,
-			    struct nfs_fh *mntfh,
-			    const char *dev_name)
-{
-	if (fs_type == &nfs_fs_type)
-		return nfs23_validate_mount_data(options, ctx, mntfh, dev_name);
-	return nfs4_validate_mount_data(options, ctx, dev_name);
-}
-#else
-int nfs_validate_mount_data(struct file_system_type *fs_type,
-			    void *options,
-			    struct nfs_fs_context *ctx,
-			    struct nfs_fh *mntfh,
-			    const char *dev_name)
-{
-	return nfs23_validate_mount_data(options, ctx, mntfh, dev_name);
-}
 #endif
 
-int nfs_validate_text_mount_data(void *options,
-				 struct nfs_fs_context *ctx,
-				 const char *dev_name)
+/*
+ * Parse a monolithic block of data from sys_mount().
+ */
+static int nfs_fs_context_parse_monolithic(struct fs_context *fc,
+					   void *data)
 {
-	int port = 0;
+	if (fc->fs_type == &nfs_fs_type)
+		return nfs23_parse_monolithic(fc, data);
+
+#if IS_ENABLED(CONFIG_NFS_V4)
+	if (fc->fs_type == &nfs4_fs_type)
+		return nfs4_parse_monolithic(fc, data);
+#endif
+
+	dfprintk(MOUNT, "NFS: Unsupported monolithic data version\n");
+	return -EINVAL;
+}
+
+/*
+ * Validate the preparsed information in the config.
+ */
+static int nfs_fs_context_validate(struct fs_context *fc)
+{
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
+	struct nfs_subversion *nfs_mod;
+	struct sockaddr *sap = (struct sockaddr *)&ctx->nfs_server.address;
 	int max_namelen = PAGE_SIZE;
 	int max_pathlen = NFS_MAXPATHLEN;
-	struct sockaddr *sap = (struct sockaddr *)&ctx->nfs_server.address;
+	int port = 0;
+	int ret;
 
-	if (nfs_parse_mount_options((char *)options, ctx) == 0)
-		return -EINVAL;
+	if (!fc->source)
+		goto out_no_device_name;
+
+	/* Check for sanity first. */
+	if (ctx->minorversion && ctx->version != 4)
+		goto out_minorversion_mismatch;
+
+	if (ctx->options & NFS_OPTION_MIGRATION &&
+	    (ctx->version != 4 || ctx->minorversion != 0))
+		goto out_migration_misuse;
+
+	/* Verify that any proto=/mountproto= options match the address
+	 * families in the addr=/mountaddr= options.
+	 */
+	if (ctx->protofamily != AF_UNSPEC &&
+	    ctx->protofamily != ctx->nfs_server.address.sa_family)
+		goto out_proto_mismatch;
+
+	if (ctx->mountfamily != AF_UNSPEC) {
+		if (ctx->mount_server.addrlen) {
+			if (ctx->mountfamily != ctx->mount_server.address.sa_family)
+				goto out_mountproto_mismatch;
+		} else {
+			if (ctx->mountfamily != ctx->nfs_server.address.sa_family)
+				goto out_mountproto_mismatch;
+		}
+	}
 
 	if (!nfs_verify_server_address(sap))
 		goto out_no_address;
@@ -1320,8 +1273,24 @@ int nfs_validate_text_mount_data(void *options,
 
 	nfs_set_port(sap, &ctx->nfs_server.port, port);
 
-	return nfs_parse_devname(ctx, dev_name, max_namelen, max_pathlen);
+	ret = nfs_parse_devname(ctx, fc->source, max_namelen, max_pathlen);
+	if (ret < 0)
+		return ret;
 
+	/* Load the NFS protocol module if we haven't done so yet */
+	if (!ctx->mount_info.nfs_mod) {
+		nfs_mod = get_nfs_version(ctx->version);
+		if (IS_ERR(nfs_mod)) {
+			ret = PTR_ERR(nfs_mod);
+			goto out_version_unavailable;
+		}
+		ctx->mount_info.nfs_mod = nfs_mod;
+	}
+	return 0;
+
+out_no_device_name:
+	dfprintk(MOUNT, "NFS: Device name not specified\n");
+	return -EINVAL;
 #if !IS_ENABLED(CONFIG_NFS_V4)
 out_v4_not_compiled:
 	dfprintk(MOUNT, "NFS: NFSv4 is not compiled into kernel\n");
@@ -1331,8 +1300,201 @@ out_invalid_transport_udp:
 	dfprintk(MOUNT, "NFSv4: Unsupported transport protocol udp\n");
 	return -EINVAL;
 #endif /* !CONFIG_NFS_V4 */
-
 out_no_address:
 	dfprintk(MOUNT, "NFS: mount program didn't pass remote address\n");
 	return -EINVAL;
+out_mountproto_mismatch:
+	dfprintk(MOUNT, "NFS: Mount server address does not match mountproto= option\n");
+	return -EINVAL;
+out_proto_mismatch:
+	dfprintk(MOUNT, "NFS: Server address does not match proto= option\n");
+	return -EINVAL;
+out_minorversion_mismatch:
+	dfprintk(MOUNT, "NFS: Mount option vers=%u does not support minorversion=%u\n",
+			  ctx->version, ctx->minorversion);
+	return -EINVAL;
+out_migration_misuse:
+	dfprintk(MOUNT, "NFS: 'Migration' not supported for this NFS version\n");
+	return -EINVAL;
+out_version_unavailable:
+	dfprintk(MOUNT, "NFS: Version unavailable\n");
+	return ret;
 }
+
+/*
+ * Create an NFS superblock by the appropriate method.
+ */
+static int nfs_get_tree(struct fs_context *fc)
+{
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
+	int err = nfs_fs_context_validate(fc);
+
+	if (err)
+		return err;
+	if (!ctx->internal)
+		return ctx->mount_info.nfs_mod->rpc_ops->try_get_tree(fc);
+	else
+		return nfs_get_tree_common(fc);
+}
+
+/*
+ * Handle duplication of a configuration.  The caller copied *src into *sc, but
+ * it can't deal with resource pointers in the filesystem context, so we have
+ * to do that.  We need to clear pointers, copy data or get extra refs as
+ * appropriate.
+ */
+static int nfs_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc)
+{
+	struct nfs_fs_context *src = nfs_fc2context(src_fc), *ctx;
+
+	ctx = kmemdup(src, sizeof(struct nfs_fs_context), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->mount_info.mntfh = nfs_alloc_fhandle();
+	if (!ctx->mount_info.mntfh) {
+		kfree(ctx);
+		return -ENOMEM;
+	}
+	nfs_copy_fh(ctx->mount_info.mntfh, src->mount_info.mntfh);
+
+	__module_get(ctx->mount_info.nfs_mod->owner);
+	ctx->client_address		= NULL;
+	ctx->mount_server.hostname	= NULL;
+	ctx->nfs_server.export_path	= NULL;
+	ctx->nfs_server.hostname	= NULL;
+	ctx->fscache_uniq		= NULL;
+	ctx->clone_data.addr		= NULL;
+	ctx->clone_data.fattr		= NULL;
+	fc->fs_private = ctx;
+	return 0;
+}
+
+static void nfs_fs_context_free(struct fs_context *fc)
+{
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
+
+	if (ctx) {
+		if (ctx->mount_info.server)
+			nfs_free_server(ctx->mount_info.server);
+		if (ctx->mount_info.nfs_mod)
+			put_nfs_version(ctx->mount_info.nfs_mod);
+		kfree(ctx->client_address);
+		kfree(ctx->mount_server.hostname);
+		kfree(ctx->nfs_server.export_path);
+		kfree(ctx->nfs_server.hostname);
+		kfree(ctx->fscache_uniq);
+		nfs_free_fhandle(ctx->mount_info.mntfh);
+		kfree(ctx->clone_data.addr);
+		nfs_free_fattr(ctx->clone_data.fattr);
+		kfree(ctx);
+	}
+}
+
+static const struct fs_context_operations nfs_fs_context_ops = {
+	.free			= nfs_fs_context_free,
+	.dup			= nfs_fs_context_dup,
+	.parse_param		= nfs_fs_context_parse_param,
+	.parse_monolithic	= nfs_fs_context_parse_monolithic,
+	.get_tree		= nfs_get_tree,
+	.reconfigure		= nfs_reconfigure,
+};
+
+/*
+ * Prepare superblock configuration.  We use the namespaces attached to the
+ * context.  This may be the current process's namespaces, or it may be a
+ * container's namespaces.
+ */
+static int nfs_init_fs_context(struct fs_context *fc)
+{
+	struct nfs_fs_context *ctx;
+
+	ctx = kzalloc(sizeof(struct nfs_fs_context), GFP_KERNEL);
+	if (unlikely(!ctx))
+		return -ENOMEM;
+
+	ctx->mount_info.ctx = ctx;
+	ctx->mount_info.mntfh = nfs_alloc_fhandle();
+	if (unlikely(!ctx->mount_info.mntfh)) {
+		kfree(ctx);
+		return -ENOMEM;
+	}
+
+	ctx->protofamily	= AF_UNSPEC;
+	ctx->mountfamily	= AF_UNSPEC;
+	ctx->mount_server.port	= NFS_UNSPEC_PORT;
+
+	if (fc->root) {
+		/* reconfigure, start with the current config */
+		struct nfs_server *nfss = fc->root->d_sb->s_fs_info;
+		struct net *net = nfss->nfs_client->cl_net;
+
+		ctx->flags		= nfss->flags;
+		ctx->rsize		= nfss->rsize;
+		ctx->wsize		= nfss->wsize;
+		ctx->retrans		= nfss->client->cl_timeout->to_retries;
+		ctx->selected_flavor	= nfss->client->cl_auth->au_flavor;
+		ctx->acregmin		= nfss->acregmin / HZ;
+		ctx->acregmax		= nfss->acregmax / HZ;
+		ctx->acdirmin		= nfss->acdirmin / HZ;
+		ctx->acdirmax		= nfss->acdirmax / HZ;
+		ctx->timeo		= 10U * nfss->client->cl_timeout->to_initval / HZ;
+		ctx->nfs_server.port	= nfss->port;
+		ctx->nfs_server.addrlen	= nfss->nfs_client->cl_addrlen;
+		ctx->version		= nfss->nfs_client->rpc_ops->version;
+		ctx->minorversion	= nfss->nfs_client->cl_minorversion;
+
+		memcpy(&ctx->nfs_server.address, &nfss->nfs_client->cl_addr,
+			ctx->nfs_server.addrlen);
+
+		if (fc->net_ns != net) {
+			put_net(fc->net_ns);
+			fc->net_ns = get_net(net);
+		}
+
+		ctx->mount_info.nfs_mod = nfss->nfs_client->cl_nfs_mod;
+		__module_get(ctx->mount_info.nfs_mod->owner);
+	} else {
+		/* defaults */
+		ctx->timeo		= NFS_UNSPEC_TIMEO;
+		ctx->retrans		= NFS_UNSPEC_RETRANS;
+		ctx->acregmin		= NFS_DEF_ACREGMIN;
+		ctx->acregmax		= NFS_DEF_ACREGMAX;
+		ctx->acdirmin		= NFS_DEF_ACDIRMIN;
+		ctx->acdirmax		= NFS_DEF_ACDIRMAX;
+		ctx->nfs_server.port	= NFS_UNSPEC_PORT;
+		ctx->nfs_server.protocol = XPRT_TRANSPORT_TCP;
+		ctx->selected_flavor	= RPC_AUTH_MAXFLAVOR;
+		ctx->minorversion	= 0;
+		ctx->need_mount		= true;
+	}
+	ctx->net = fc->net_ns;
+	fc->fs_private = ctx;
+	fc->ops = &nfs_fs_context_ops;
+	return 0;
+}
+
+struct file_system_type nfs_fs_type = {
+	.owner			= THIS_MODULE,
+	.name			= "nfs",
+	.init_fs_context	= nfs_init_fs_context,
+	.parameters		= &nfs_fs_parameters,
+	.kill_sb		= nfs_kill_super,
+	.fs_flags		= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
+};
+MODULE_ALIAS_FS("nfs");
+EXPORT_SYMBOL_GPL(nfs_fs_type);
+
+#if IS_ENABLED(CONFIG_NFS_V4)
+struct file_system_type nfs4_fs_type = {
+	.owner			= THIS_MODULE,
+	.name			= "nfs4",
+	.init_fs_context	= nfs_init_fs_context,
+	.parameters		= &nfs_fs_parameters,
+	.kill_sb		= nfs_kill_super,
+	.fs_flags		= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
+};
+MODULE_ALIAS_FS("nfs4");
+MODULE_ALIAS("nfs4");
+EXPORT_SYMBOL_GPL(nfs4_fs_type);
+#endif /* CONFIG_NFS_V4 */
