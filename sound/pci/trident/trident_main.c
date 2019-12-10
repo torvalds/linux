@@ -768,29 +768,6 @@ static unsigned int snd_trident_control_mode(struct snd_pcm_substream *substream
  */
 
 /*---------------------------------------------------------------------------
-   snd_trident_ioctl
-  
-   Description: Device I/O control handler for playback/capture parameters.
-  
-   Parameters:   substream  - PCM substream class
-                cmd     - what ioctl message to process
-                arg     - additional message infoarg     
-  
-   Returns:     Error status
-  
-  ---------------------------------------------------------------------------*/
-
-static int snd_trident_ioctl(struct snd_pcm_substream *substream,
-			     unsigned int cmd,
-			     void *arg)
-{
-	/* FIXME: it seems that with small periods the behaviour of
-	          trident hardware is unpredictable and interrupt generator
-	          is broken */
-	return snd_pcm_lib_ioctl(substream, cmd, arg);
-}
-
-/*---------------------------------------------------------------------------
    snd_trident_allocate_pcm_mem
   
    Description: Allocate PCM ring buffer for given substream
@@ -2049,7 +2026,6 @@ static int snd_trident_foldback_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_trident_playback_ops = {
 	.open =		snd_trident_playback_open,
 	.close =	snd_trident_playback_close,
-	.ioctl =	snd_trident_ioctl,
 	.hw_params =	snd_trident_hw_params,
 	.hw_free =	snd_trident_hw_free,
 	.prepare =	snd_trident_playback_prepare,
@@ -2060,7 +2036,6 @@ static const struct snd_pcm_ops snd_trident_playback_ops = {
 static const struct snd_pcm_ops snd_trident_nx_playback_ops = {
 	.open =		snd_trident_playback_open,
 	.close =	snd_trident_playback_close,
-	.ioctl =	snd_trident_ioctl,
 	.hw_params =	snd_trident_hw_params,
 	.hw_free =	snd_trident_hw_free,
 	.prepare =	snd_trident_playback_prepare,
@@ -2071,7 +2046,6 @@ static const struct snd_pcm_ops snd_trident_nx_playback_ops = {
 static const struct snd_pcm_ops snd_trident_capture_ops = {
 	.open =		snd_trident_capture_open,
 	.close =	snd_trident_capture_close,
-	.ioctl =	snd_trident_ioctl,
 	.hw_params =	snd_trident_capture_hw_params,
 	.hw_free =	snd_trident_hw_free,
 	.prepare =	snd_trident_capture_prepare,
@@ -2082,7 +2056,6 @@ static const struct snd_pcm_ops snd_trident_capture_ops = {
 static const struct snd_pcm_ops snd_trident_si7018_capture_ops = {
 	.open =		snd_trident_capture_open,
 	.close =	snd_trident_capture_close,
-	.ioctl =	snd_trident_ioctl,
 	.hw_params =	snd_trident_si7018_capture_hw_params,
 	.hw_free =	snd_trident_si7018_capture_hw_free,
 	.prepare =	snd_trident_si7018_capture_prepare,
@@ -2093,7 +2066,6 @@ static const struct snd_pcm_ops snd_trident_si7018_capture_ops = {
 static const struct snd_pcm_ops snd_trident_foldback_ops = {
 	.open =		snd_trident_foldback_open,
 	.close =	snd_trident_foldback_close,
-	.ioctl =	snd_trident_ioctl,
 	.hw_params =	snd_trident_hw_params,
 	.hw_free =	snd_trident_hw_free,
 	.prepare =	snd_trident_foldback_prepare,
@@ -2104,7 +2076,6 @@ static const struct snd_pcm_ops snd_trident_foldback_ops = {
 static const struct snd_pcm_ops snd_trident_nx_foldback_ops = {
 	.open =		snd_trident_foldback_open,
 	.close =	snd_trident_foldback_close,
-	.ioctl =	snd_trident_ioctl,
 	.hw_params =	snd_trident_hw_params,
 	.hw_free =	snd_trident_hw_free,
 	.prepare =	snd_trident_foldback_prepare,
@@ -2115,7 +2086,6 @@ static const struct snd_pcm_ops snd_trident_nx_foldback_ops = {
 static const struct snd_pcm_ops snd_trident_spdif_ops = {
 	.open =		snd_trident_spdif_open,
 	.close =	snd_trident_spdif_close,
-	.ioctl =	snd_trident_ioctl,
 	.hw_params =	snd_trident_spdif_hw_params,
 	.hw_free =	snd_trident_hw_free,
 	.prepare =	snd_trident_spdif_prepare,
@@ -2126,7 +2096,6 @@ static const struct snd_pcm_ops snd_trident_spdif_ops = {
 static const struct snd_pcm_ops snd_trident_spdif_7018_ops = {
 	.open =		snd_trident_spdif_open,
 	.close =	snd_trident_spdif_close,
-	.ioctl =	snd_trident_ioctl,
 	.hw_params =	snd_trident_spdif_hw_params,
 	.hw_free =	snd_trident_hw_free,
 	.prepare =	snd_trident_spdif_prepare,
