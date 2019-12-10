@@ -29,6 +29,7 @@
 #include <drm/i915_drm.h>
 
 #include "display/intel_display.h"
+#include "display/intel_display_types.h"
 #include "display/intel_gmbus.h"
 
 #include "i915_drv.h"
@@ -2388,6 +2389,104 @@ bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv,
 			   dvo_port == DVO_PORT_MIPID) {
 			DRM_DEBUG_KMS("VBT has unsupported DSI port %c\n",
 				      port_name(dvo_port - DVO_PORT_MIPIA));
+		}
+	}
+
+	return false;
+}
+
+static void fill_dsc(struct intel_crtc_state *crtc_state,
+		     struct dsc_compression_parameters_entry *dsc,
+		     int dsc_max_bpc)
+{
+	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
+	int bpc = 8;
+
+	vdsc_cfg->dsc_version_major = dsc->version_major;
+	vdsc_cfg->dsc_version_minor = dsc->version_minor;
+
+	if (dsc->support_12bpc && dsc_max_bpc >= 12)
+		bpc = 12;
+	else if (dsc->support_10bpc && dsc_max_bpc >= 10)
+		bpc = 10;
+	else if (dsc->support_8bpc && dsc_max_bpc >= 8)
+		bpc = 8;
+	else
+		DRM_DEBUG_KMS("VBT: Unsupported BPC %d for DCS\n",
+			      dsc_max_bpc);
+
+	crtc_state->pipe_bpp = bpc * 3;
+
+	crtc_state->dsc.compressed_bpp = min(crtc_state->pipe_bpp,
+					     VBT_DSC_MAX_BPP(dsc->max_bpp));
+
+	/*
+	 * FIXME: This is ugly, and slice count should take DSC engine
+	 * throughput etc. into account.
+	 *
+	 * Also, per spec DSI supports 1, 2, 3 or 4 horizontal slices.
+	 */
+	if (dsc->slices_per_line & BIT(2)) {
+		crtc_state->dsc.slice_count = 4;
+	} else if (dsc->slices_per_line & BIT(1)) {
+		crtc_state->dsc.slice_count = 2;
+	} else {
+		/* FIXME */
+		if (!(dsc->slices_per_line & BIT(0)))
+			DRM_DEBUG_KMS("VBT: Unsupported DSC slice count for DSI\n");
+
+		crtc_state->dsc.slice_count = 1;
+	}
+
+	if (crtc_state->hw.adjusted_mode.crtc_hdisplay %
+	    crtc_state->dsc.slice_count != 0)
+		DRM_DEBUG_KMS("VBT: DSC hdisplay %d not divisible by slice count %d\n",
+			      crtc_state->hw.adjusted_mode.crtc_hdisplay,
+			      crtc_state->dsc.slice_count);
+
+	/*
+	 * FIXME: Use VBT rc_buffer_block_size and rc_buffer_size for the
+	 * implementation specific physical rate buffer size. Currently we use
+	 * the required rate buffer model size calculated in
+	 * drm_dsc_compute_rc_parameters() according to VESA DSC Annex E.
+	 *
+	 * The VBT rc_buffer_block_size and rc_buffer_size definitions
+	 * correspond to DP 1.4 DPCD offsets 0x62 and 0x63. The DP DSC
+	 * implementation should also use the DPCD (or perhaps VBT for eDP)
+	 * provided value for the buffer size.
+	 */
+
+	/* FIXME: DSI spec says bpc + 1 for this one */
+	vdsc_cfg->line_buf_depth = VBT_DSC_LINE_BUFFER_DEPTH(dsc->line_buffer_depth);
+
+	vdsc_cfg->block_pred_enable = dsc->block_prediction_enable;
+
+	vdsc_cfg->slice_height = dsc->slice_height;
+}
+
+/* FIXME: initially DSI specific */
+bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
+			       struct intel_crtc_state *crtc_state,
+			       int dsc_max_bpc)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct display_device_data *devdata;
+	const struct child_device_config *child;
+
+	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
+		child = &devdata->child;
+
+		if (!(child->device_type & DEVICE_TYPE_MIPI_OUTPUT))
+			continue;
+
+		if (child->dvo_port - DVO_PORT_MIPIA == encoder->port) {
+			if (!devdata->dsc)
+				return false;
+
+			if (crtc_state)
+				fill_dsc(crtc_state, devdata->dsc, dsc_max_bpc);
+
+			return true;
 		}
 	}
 
