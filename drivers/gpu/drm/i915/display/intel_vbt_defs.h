@@ -369,7 +369,7 @@ struct child_device_config {
 			u16 dtd_buf_ptr;			/* 161 */
 			u8 edidless_efp:1;			/* 161 */
 			u8 compression_enable:1;		/* 198 */
-			u8 compression_method:1;		/* 198 */
+			u8 compression_method_cps:1;		/* 198 */
 			u8 ganged_edp:1;			/* 202 */
 			u8 reserved0:4;
 			u8 compression_structure_index:4;	/* 198 */

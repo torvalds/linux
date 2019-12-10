@@ -61,6 +61,7 @@
 /* Wrapper for VBT child device config */
 struct display_device_data {
 	struct child_device_config child;
+	struct dsc_compression_parameters_entry *dsc;
 	struct list_head node;
 };
 
@@ -1366,6 +1367,57 @@ err:
 	memset(dev_priv->vbt.dsi.sequence, 0, sizeof(dev_priv->vbt.dsi.sequence));
 }
 
+static void
+parse_compression_parameters(struct drm_i915_private *i915,
+			     const struct bdb_header *bdb)
+{
+	const struct bdb_compression_parameters *params;
+	struct display_device_data *devdata;
+	const struct child_device_config *child;
+	u16 block_size;
+	int index;
+
+	if (bdb->version < 198)
+		return;
+
+	params = find_section(bdb, BDB_COMPRESSION_PARAMETERS);
+	if (params) {
+		/* Sanity checks */
+		if (params->entry_size != sizeof(params->data[0])) {
+			DRM_DEBUG_KMS("VBT: unsupported compression param entry size\n");
+			return;
+		}
+
+		block_size = get_blocksize(params);
+		if (block_size < sizeof(*params)) {
+			DRM_DEBUG_KMS("VBT: expected 16 compression param entries\n");
+			return;
+		}
+	}
+
+	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
+		child = &devdata->child;
+
+		if (!child->compression_enable)
+			continue;
+
+		if (!params) {
+			DRM_DEBUG_KMS("VBT: compression params not available\n");
+			continue;
+		}
+
+		if (child->compression_method_cps) {
+			DRM_DEBUG_KMS("VBT: CPS compression not supported\n");
+			continue;
+		}
+
+		index = child->compression_structure_index;
+
+		devdata->dsc = kmemdup(&params->data[index],
+				       sizeof(*devdata->dsc), GFP_KERNEL);
+	}
+}
+
 static u8 translate_iboost(u8 val)
 {
 	static const u8 mapping[] = { 1, 3, 7 }; /* See VBT spec */
@@ -1598,10 +1650,11 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 	if (bdb_version >= 209)
 		info->supports_tbt = child->tbt;
 
-	DRM_DEBUG_KMS("Port %c VBT info: CRT:%d DVI:%d HDMI:%d DP:%d eDP:%d LSPCON:%d USB-Type-C:%d TBT:%d\n",
+	DRM_DEBUG_KMS("Port %c VBT info: CRT:%d DVI:%d HDMI:%d DP:%d eDP:%d LSPCON:%d USB-Type-C:%d TBT:%d DSC:%d\n",
 		      port_name(port), is_crt, is_dvi, is_hdmi, is_dp, is_edp,
 		      HAS_LSPCON(dev_priv) && child->lspcon,
-		      info->supports_typec_usb, info->supports_tbt);
+		      info->supports_typec_usb, info->supports_tbt,
+		      devdata->dsc != NULL);
 
 	if (is_edp && is_dvi)
 		DRM_DEBUG_KMS("Internal DP port %c is TMDS compatible\n",
@@ -2037,6 +2090,9 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	parse_mipi_config(dev_priv, bdb);
 	parse_mipi_sequence(dev_priv, bdb);
 
+	/* Depends on child device list */
+	parse_compression_parameters(dev_priv, bdb);
+
 	/* Further processing on pre-parsed data */
 	parse_sdvo_device_mapping(dev_priv, bdb->version);
 	parse_ddi_ports(dev_priv, bdb->version);
@@ -2060,6 +2116,7 @@ void intel_bios_driver_remove(struct drm_i915_private *dev_priv)
 
 	list_for_each_entry_safe(devdata, n, &dev_priv->vbt.display_devices, node) {
 		list_del(&devdata->node);
+		kfree(devdata->dsc);
 		kfree(devdata);
 	}
 
