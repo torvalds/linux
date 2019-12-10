@@ -1444,6 +1444,7 @@ static int es1938_suspend(struct device *dev)
 	if (chip->irq >= 0) {
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
+		card->sync_irq = -1;
 	}
 	return 0;
 }
@@ -1463,6 +1464,7 @@ static int es1938_resume(struct device *dev)
 		return -EIO;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	snd_es1938_chip_init(chip);
 
 	/* restore mixer-related registers */
@@ -1591,6 +1593,7 @@ static int snd_es1938_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	dev_dbg(card->dev,
 		"create: io: 0x%lx, sb: 0x%lx, vc: 0x%lx, mpu: 0x%lx, game: 0x%lx\n",
 		   chip->io_port, chip->sb_port, chip->vc_port, chip->mpu_port, chip->game_port);
