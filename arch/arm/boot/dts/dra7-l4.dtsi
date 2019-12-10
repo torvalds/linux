@@ -186,7 +186,6 @@
 
 		target-module@56000 {			/* 0x4a056000, ap 9 02.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dma_system";
 			reg = <0x56000 0x4>,
 			      <0x5602c 0x4>,
 			      <0x56028 0x4>;

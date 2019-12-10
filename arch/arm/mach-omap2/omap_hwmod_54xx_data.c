@@ -17,8 +17,6 @@
 #include <linux/io.h>
 #include <linux/power/smartreflex.h>
 
-#include <linux/omap-dma.h>
-
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
 #include "cm1_54xx.h"
@@ -27,10 +25,6 @@
 
 /* Base offset for all OMAP5 interrupts external to MPUSS */
 #define OMAP54XX_IRQ_GIC_START	32
-
-/* Base offset for all OMAP5 dma requests */
-#define OMAP54XX_DMA_REQ_START	1
-
 
 /*
  * IP blocks
@@ -228,44 +222,6 @@ static struct omap_hwmod omap54xx_counter_32k_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = OMAP54XX_CM_WKUPAON_COUNTER_32K_CLKCTRL_OFFSET,
 			.context_offs = OMAP54XX_RM_WKUPAON_COUNTER_32K_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/*
- * 'dma' class
- * dma controller for data exchange between memory to memory (i.e. internal or
- * external memory) and gp peripherals to memory or memory to gp peripherals
- */
-
-static struct omap_hwmod_class_sysconfig omap54xx_dma_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x002c,
-	.syss_offs	= 0x0028,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
-			   SYSC_HAS_EMUFREE | SYSC_HAS_MIDLEMODE |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
-			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap54xx_dma_hwmod_class = {
-	.name	= "dma",
-	.sysc	= &omap54xx_dma_sysc,
-};
-
-/* dma_system */
-static struct omap_hwmod omap54xx_dma_system_hwmod = {
-	.name		= "dma_system",
-	.class		= &omap54xx_dma_hwmod_class,
-	.clkdm_name	= "dma_clkdm",
-	.main_clk	= "l3_iclk_div",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_DMA_DMA_SYSTEM_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_DMA_DMA_SYSTEM_CONTEXT_OFFSET,
 		},
 	},
 };
@@ -1415,14 +1371,6 @@ static struct omap_hwmod_ocp_if omap54xx_l4_wkup__counter_32k = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> dma_system */
-static struct omap_hwmod_ocp_if omap54xx_l4_cfg__dma_system = {
-	.master		= &omap54xx_l4_cfg_hwmod,
-	.slave		= &omap54xx_dma_system_hwmod,
-	.clk		= "l4_root_clk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_abe -> dmic */
 static struct omap_hwmod_ocp_if omap54xx_l4_abe__dmic = {
 	.master		= &omap54xx_l4_abe_hwmod,
@@ -1665,7 +1613,6 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l3_main_1__l4_wkup,
 	&omap54xx_mpu__mpu_private,
 	&omap54xx_l4_wkup__counter_32k,
-	&omap54xx_l4_cfg__dma_system,
 	&omap54xx_l4_abe__dmic,
 	&omap54xx_l4_cfg__mmu_dsp,
 	&omap54xx_l3_main_2__dss,

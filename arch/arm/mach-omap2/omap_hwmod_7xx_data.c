@@ -17,8 +17,6 @@
 #include <linux/io.h>
 #include <linux/power/smartreflex.h>
 
-#include <linux/omap-dma.h>
-
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
 #include "cm1_7xx.h"
@@ -28,10 +26,6 @@
 
 /* Base offset for all DRA7XX interrupts external to MPUSS */
 #define DRA7XX_IRQ_GIC_START	32
-
-/* Base offset for all DRA7XX dma requests */
-#define DRA7XX_DMA_REQ_START	1
-
 
 /*
  * IP blocks
@@ -383,44 +377,6 @@ static struct omap_hwmod dra7xx_epwmss2_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 			.clkctrl_offs	= DRA7XX_CM_L4PER2_PWMSS3_CLKCTRL_OFFSET,
 			.context_offs	= DRA7XX_RM_L4PER2_PWMSS3_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/*
- * 'dma' class
- *
- */
-
-static struct omap_hwmod_class_sysconfig dra7xx_dma_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x002c,
-	.syss_offs	= 0x0028,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
-			   SYSC_HAS_EMUFREE | SYSC_HAS_MIDLEMODE |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
-			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP | MSTANDBY_FORCE | MSTANDBY_NO |
-			   MSTANDBY_SMART | MSTANDBY_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class dra7xx_dma_hwmod_class = {
-	.name	= "dma",
-	.sysc	= &dra7xx_dma_sysc,
-};
-
-/* dma_system */
-static struct omap_hwmod dra7xx_dma_system_hwmod = {
-	.name		= "dma_system",
-	.class		= &dra7xx_dma_hwmod_class,
-	.clkdm_name	= "dma_clkdm",
-	.main_clk	= "l3_iclk_div",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_DMA_DMA_SYSTEM_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_DMA_DMA_SYSTEM_CONTEXT_OFFSET,
 		},
 	},
 };
@@ -1698,14 +1654,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per2__dcan2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> dma_system */
-static struct omap_hwmod_ocp_if dra7xx_l4_cfg__dma_system = {
-	.master		= &dra7xx_l4_cfg_hwmod,
-	.slave		= &dra7xx_dma_system_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_1 -> tpcc */
 static struct omap_hwmod_ocp_if dra7xx_l3_main_1__tpcc = {
 	.master		= &dra7xx_l3_main_1_hwmod,
@@ -2140,7 +2088,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_wkup__ctrl_module_wkup,
 	&dra7xx_l4_wkup__dcan1,
 	&dra7xx_l4_per2__dcan2,
-	&dra7xx_l4_cfg__dma_system,
 	&dra7xx_l3_main_1__tpcc,
 	&dra7xx_l3_main_1__tptc0,
 	&dra7xx_l3_main_1__tptc1,
