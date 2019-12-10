@@ -1072,42 +1072,6 @@ static struct omap_hwmod omap44xx_iva_hwmod = {
 	},
 };
 
-/*
- * 'kbd' class
- * keyboard controller
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_kbd_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
-			   SYSC_HAS_EMUFREE | SYSC_HAS_ENAWAKEUP |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
-			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap44xx_kbd_hwmod_class = {
-	.name	= "kbd",
-	.sysc	= &omap44xx_kbd_sysc,
-};
-
-/* kbd */
-static struct omap_hwmod omap44xx_kbd_hwmod = {
-	.name		= "kbd",
-	.class		= &omap44xx_kbd_hwmod_class,
-	.clkdm_name	= "l4_wkup_clkdm",
-	.main_clk	= "sys_32k_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_WKUP_KEYBOARD_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_WKUP_KEYBOARD_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
 
 
 /*
@@ -2099,14 +2063,6 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__iva = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l4_wkup -> kbd */
-static struct omap_hwmod_ocp_if omap44xx_l4_wkup__kbd = {
-	.master		= &omap44xx_l4_wkup_hwmod,
-	.slave		= &omap44xx_kbd_hwmod,
-	.clk		= "l4_wkup_clk_mux_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_2 -> ocmc_ram */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_2__ocmc_ram = {
 	.master		= &omap44xx_l3_main_2_hwmod,
@@ -2297,7 +2253,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l3_main_2__iss,
 	/* &omap44xx_iva__sl2if, */
 	&omap44xx_l3_main_2__iva,
-	&omap44xx_l4_wkup__kbd,
 	&omap44xx_l3_main_2__mmu_ipu,
 	&omap44xx_l4_cfg__mmu_dsp,
 	&omap44xx_l3_main_2__ocmc_ram,
