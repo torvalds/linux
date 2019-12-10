@@ -633,7 +633,6 @@ int snd_ad1816a_create(struct snd_card *card,
 static const struct snd_pcm_ops snd_ad1816a_playback_ops = {
 	.open =		snd_ad1816a_playback_open,
 	.close =	snd_ad1816a_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_ad1816a_playback_prepare,
 	.trigger =	snd_ad1816a_playback_trigger,
 	.pointer =	snd_ad1816a_playback_pointer,
@@ -642,7 +641,6 @@ static const struct snd_pcm_ops snd_ad1816a_playback_ops = {
 static const struct snd_pcm_ops snd_ad1816a_capture_ops = {
 	.open =		snd_ad1816a_capture_open,
 	.close =	snd_ad1816a_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_ad1816a_capture_prepare,
 	.trigger =	snd_ad1816a_capture_trigger,
 	.pointer =	snd_ad1816a_capture_pointer,

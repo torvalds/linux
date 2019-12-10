@@ -546,7 +546,6 @@ static int snd_sb8_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_sb8_playback_ops = {
 	.open =			snd_sb8_open,
 	.close =		snd_sb8_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.prepare =		snd_sb8_playback_prepare,
 	.trigger =		snd_sb8_playback_trigger,
 	.pointer =		snd_sb8_playback_pointer,
@@ -555,7 +554,6 @@ static const struct snd_pcm_ops snd_sb8_playback_ops = {
 static const struct snd_pcm_ops snd_sb8_capture_ops = {
 	.open =			snd_sb8_open,
 	.close =		snd_sb8_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.prepare =		snd_sb8_capture_prepare,
 	.trigger =		snd_sb8_capture_trigger,
 	.pointer =		snd_sb8_capture_pointer,

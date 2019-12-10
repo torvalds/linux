@@ -1871,7 +1871,6 @@ EXPORT_SYMBOL(snd_wss_create);
 static const struct snd_pcm_ops snd_wss_playback_ops = {
 	.open =		snd_wss_playback_open,
 	.close =	snd_wss_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_wss_playback_hw_params,
 	.prepare =	snd_wss_playback_prepare,
 	.trigger =	snd_wss_trigger,
@@ -1881,7 +1880,6 @@ static const struct snd_pcm_ops snd_wss_playback_ops = {
 static const struct snd_pcm_ops snd_wss_capture_ops = {
 	.open =		snd_wss_capture_open,
 	.close =	snd_wss_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_wss_capture_hw_params,
 	.prepare =	snd_wss_capture_prepare,
 	.trigger =	snd_wss_trigger,

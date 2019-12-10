@@ -1643,7 +1643,6 @@ static int snd_es18xx_probe(struct snd_es18xx *chip,
 static const struct snd_pcm_ops snd_es18xx_playback_ops = {
 	.open =		snd_es18xx_playback_open,
 	.close =	snd_es18xx_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_es18xx_playback_hw_params,
 	.prepare =	snd_es18xx_playback_prepare,
 	.trigger =	snd_es18xx_playback_trigger,
@@ -1653,7 +1652,6 @@ static const struct snd_pcm_ops snd_es18xx_playback_ops = {
 static const struct snd_pcm_ops snd_es18xx_capture_ops = {
 	.open =		snd_es18xx_capture_open,
 	.close =	snd_es18xx_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_es18xx_capture_hw_params,
 	.prepare =	snd_es18xx_capture_prepare,
 	.trigger =	snd_es18xx_capture_trigger,

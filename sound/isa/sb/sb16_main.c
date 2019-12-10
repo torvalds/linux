@@ -817,7 +817,6 @@ int snd_sb16dsp_configure(struct snd_sb * chip)
 static const struct snd_pcm_ops snd_sb16_playback_ops = {
 	.open =		snd_sb16_playback_open,
 	.close =	snd_sb16_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_sb16_playback_prepare,
 	.trigger =	snd_sb16_playback_trigger,
 	.pointer =	snd_sb16_playback_pointer,
@@ -826,7 +825,6 @@ static const struct snd_pcm_ops snd_sb16_playback_ops = {
 static const struct snd_pcm_ops snd_sb16_capture_ops = {
 	.open =		snd_sb16_capture_open,
 	.close =	snd_sb16_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_sb16_capture_prepare,
 	.trigger =	snd_sb16_capture_trigger,
 	.pointer =	snd_sb16_capture_pointer,
