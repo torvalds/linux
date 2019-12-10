@@ -129,7 +129,8 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		spin_unlock(&mn->lock);
 
 		ret = i915_gem_object_unbind(obj,
-					     I915_GEM_OBJECT_UNBIND_ACTIVE);
+					     I915_GEM_OBJECT_UNBIND_ACTIVE |
+					     I915_GEM_OBJECT_UNBIND_BARRIER);
 		if (ret == 0)
 			ret = __i915_gem_object_put_pages(obj);
 		i915_gem_object_put(obj);
