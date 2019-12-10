@@ -3543,6 +3543,7 @@ int snd_trident_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	trident->irq = pci->irq;
+	card->sync_irq = trident->irq;
 
 	/* allocate 16k-aligned TLB for NX cards */
 	trident->tlb.entries = NULL;
