@@ -34,6 +34,7 @@
 #include "intel_ddi.h"
 #include "intel_dsi.h"
 #include "intel_panel.h"
+#include "intel_vdsc.h"
 
 static inline int header_credits_available(struct drm_i915_private *dev_priv,
 					   enum transcoder dsi_trans)
@@ -1087,6 +1088,8 @@ static void gen11_dsi_pre_enable(struct intel_encoder *encoder,
 	/* step5: program and powerup panel */
 	gen11_dsi_powerup_panel(encoder);
 
+	intel_dsc_enable(encoder, pipe_config);
+
 	/* step6c: configure transcoder timings */
 	gen11_dsi_set_transcoder_timings(encoder, pipe_config);
 
@@ -1248,6 +1251,13 @@ static void gen11_dsi_disable(struct intel_encoder *encoder,
 	gen11_dsi_disable_io_power(encoder);
 }
 
+static enum drm_mode_status gen11_dsi_mode_valid(struct drm_connector *connector,
+						 struct drm_display_mode *mode)
+{
+	/* FIXME: DSC? */
+	return intel_dsi_mode_valid(connector, mode);
+}
+
 static void gen11_dsi_get_timings(struct intel_encoder *encoder,
 				  struct intel_crtc_state *pipe_config)
 {
@@ -1294,6 +1304,8 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 
+	intel_dsc_get_config(encoder, pipe_config);
+
 	/* FIXME: adapt icl_ddi_clock_get() for DSI and use that? */
 	pipe_config->port_clock =
 		cnl_calc_wrpll_link(dev_priv, &pipe_config->dpll_hw_state);
@@ -1305,6 +1317,48 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	gen11_dsi_get_timings(encoder, pipe_config);
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 	pipe_config->pipe_bpp = bdw_get_pipemisc_bpp(crtc);
+}
+
+static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
+					struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
+	int dsc_max_bpc = INTEL_GEN(dev_priv) >= 12 ? 12 : 10;
+	bool use_dsc;
+	int ret;
+
+	use_dsc = intel_bios_get_dsc_params(encoder, crtc_state, dsc_max_bpc);
+	if (!use_dsc)
+		return 0;
+
+	if (crtc_state->pipe_bpp < 8 * 3)
+		return -EINVAL;
+
+	/* FIXME: split only when necessary */
+	if (crtc_state->dsc.slice_count > 1)
+		crtc_state->dsc.dsc_split = true;
+
+	vdsc_cfg->convert_rgb = true;
+
+	ret = intel_dsc_compute_params(encoder, crtc_state);
+	if (ret)
+		return ret;
+
+	/* DSI specific sanity checks on the common code */
+	WARN_ON(vdsc_cfg->vbr_enable);
+	WARN_ON(vdsc_cfg->simple_422);
+	WARN_ON(vdsc_cfg->pic_width % vdsc_cfg->slice_width);
+	WARN_ON(vdsc_cfg->slice_height < 8);
+	WARN_ON(vdsc_cfg->pic_height % vdsc_cfg->slice_height);
+
+	ret = drm_dsc_compute_rc_parameters(vdsc_cfg);
+	if (ret)
+		return ret;
+
+	crtc_state->dsc.compression_enable = true;
+
+	return 0;
 }
 
 static int gen11_dsi_compute_config(struct intel_encoder *encoder,
@@ -1338,6 +1392,10 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 		pipe_config->pipe_bpp = 18;
 
 	pipe_config->clock_set = true;
+
+	if (gen11_dsi_dsc_compute_config(encoder, pipe_config))
+		DRM_DEBUG_KMS("Attempting to use DSC failed\n");
+
 	pipe_config->port_clock = afe_clk(encoder, pipe_config) / 5;
 
 	return 0;
@@ -1346,8 +1404,13 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 static void gen11_dsi_get_power_domains(struct intel_encoder *encoder,
 					struct intel_crtc_state *crtc_state)
 {
-	get_dsi_io_power_domains(to_i915(encoder->base.dev),
-				 enc_to_intel_dsi(&encoder->base));
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	get_dsi_io_power_domains(i915, enc_to_intel_dsi(&encoder->base));
+
+	if (crtc_state->dsc.compression_enable)
+		intel_display_power_get(i915,
+					intel_dsc_power_domain(crtc_state));
 }
 
 static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
@@ -1417,7 +1480,7 @@ static const struct drm_connector_funcs gen11_dsi_connector_funcs = {
 
 static const struct drm_connector_helper_funcs gen11_dsi_connector_helper_funcs = {
 	.get_modes = intel_dsi_get_modes,
-	.mode_valid = intel_dsi_mode_valid,
+	.mode_valid = gen11_dsi_mode_valid,
 	.atomic_check = intel_digital_connector_atomic_check,
 };
 
