@@ -899,7 +899,7 @@ snd_ad1889_create(struct snd_card *card,
 	}
 
 	chip->irq = pci->irq;
-	synchronize_irq(chip->irq);
+	card->sync_irq = chip->irq;
 
 	/* (2) initialization of the chip hardware */
 	if ((err = snd_ad1889_init(chip)) < 0) {
