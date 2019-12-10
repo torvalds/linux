@@ -118,6 +118,9 @@ static u32 rvin_format_bytesperline(struct rvin_dev *vin,
 		break;
 	}
 
+	if (V4L2_FIELD_IS_SEQUENTIAL(pix->field))
+		align = 0x80;
+
 	return ALIGN(pix->width, align) * fmt->bpp;
 }
 
@@ -148,6 +151,8 @@ static void rvin_format_align(struct rvin_dev *vin, struct v4l2_pix_format *pix)
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:
 	case V4L2_FIELD_ALTERNATE:
+	case V4L2_FIELD_SEQ_TB:
+	case V4L2_FIELD_SEQ_BT:
 		break;
 	default:
 		pix->field = RVIN_DEFAULT_FIELD;
