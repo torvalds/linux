@@ -1746,7 +1746,6 @@
 
 		target-module@78000 {			/* 0x48078000, ap 39 0a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "elm";
 			reg = <0x78000 0x4>,
 			      <0x78010 0x4>,
 			      <0x78014 0x4>;
