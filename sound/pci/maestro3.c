@@ -2633,6 +2633,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 		goto free_chip;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 #ifdef CONFIG_PM_SLEEP
 	chip->suspend_mem =
