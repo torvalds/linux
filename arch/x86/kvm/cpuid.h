@@ -93,10 +93,6 @@ static __always_inline bool guest_cpuid_has(struct kvm_vcpu *vcpu, unsigned x86_
 {
 	int *reg;
 
-	if (x86_feature == X86_FEATURE_XSAVE &&
-			!static_cpu_has(X86_FEATURE_XSAVE))
-		return false;
-
 	reg = guest_cpuid_get_register(vcpu, x86_feature);
 	if (!reg)
 		return false;
