@@ -3024,6 +3024,7 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 		return -EBUSY;
 	}
 	cm->irq = pci->irq;
+	card->sync_irq = cm->irq;
 
 	pci_set_master(cm->pci);
 
