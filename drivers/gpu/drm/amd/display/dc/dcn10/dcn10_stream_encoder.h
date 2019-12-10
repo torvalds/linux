@@ -621,4 +621,9 @@ void get_audio_clock_info(
 void enc1_reset_hdmi_stream_attribute(
 	struct stream_encoder *enc);
 
+bool enc1_stream_encoder_dp_get_pixel_format(
+	struct stream_encoder *enc,
+	enum dc_pixel_encoding *encoding,
+	enum dc_color_depth *depth);
+
 #endif /* __DC_STREAM_ENCODER_DCN10_H__ */

@@ -21,7 +21,7 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 				bool apicv);
 void nested_vmx_hardware_unsetup(void);
 __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *));
-void nested_vmx_vcpu_setup(void);
+void nested_vmx_set_vmcs_shadowing_bitmap(void);
 void nested_vmx_free_vcpu(struct kvm_vcpu *vcpu);
 enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 						     bool from_vmentry);
@@ -33,6 +33,7 @@ int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 int vmx_get_vmx_msr(struct nested_vmx_msrs *msrs, u32 msr_index, u64 *pdata);
 int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 			u32 vmx_instruction_info, bool wr, int len, gva_t *ret);
+void nested_vmx_pmu_entry_exit_ctls_update(struct kvm_vcpu *vcpu);
 
 static inline struct vmcs12 *get_vmcs12(struct kvm_vcpu *vcpu)
 {
@@ -256,7 +257,7 @@ static inline bool fixed_bits_valid(u64 val, u64 fixed0, u64 fixed1)
 	return ((val & fixed1) | fixed0) == val;
 }
 
-static bool nested_guest_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
+static inline bool nested_guest_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
 {
 	u64 fixed0 = to_vmx(vcpu)->nested.msrs.cr0_fixed0;
 	u64 fixed1 = to_vmx(vcpu)->nested.msrs.cr0_fixed1;
@@ -270,7 +271,7 @@ static bool nested_guest_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
 	return fixed_bits_valid(val, fixed0, fixed1);
 }
 
-static bool nested_host_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
+static inline bool nested_host_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
 {
 	u64 fixed0 = to_vmx(vcpu)->nested.msrs.cr0_fixed0;
 	u64 fixed1 = to_vmx(vcpu)->nested.msrs.cr0_fixed1;
@@ -278,7 +279,7 @@ static bool nested_host_cr0_valid(struct kvm_vcpu *vcpu, unsigned long val)
 	return fixed_bits_valid(val, fixed0, fixed1);
 }
 
-static bool nested_cr4_valid(struct kvm_vcpu *vcpu, unsigned long val)
+static inline bool nested_cr4_valid(struct kvm_vcpu *vcpu, unsigned long val)
 {
 	u64 fixed0 = to_vmx(vcpu)->nested.msrs.cr4_fixed0;
 	u64 fixed1 = to_vmx(vcpu)->nested.msrs.cr4_fixed1;

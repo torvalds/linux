@@ -107,6 +107,8 @@ static inline bool seg_writable(struct desc_struct *d)
 #define FPU_access_ok(y,z)	if ( !access_ok(y,z) ) \
 				math_abort(FPU_info,SIGSEGV)
 #define FPU_abort		math_abort(FPU_info, SIGSEGV)
+#define FPU_copy_from_user(to, from, n)	\
+		do { if (copy_from_user(to, from, n)) FPU_abort; } while (0)
 
 #undef FPU_IGNORE_CODE_SEGV
 #ifdef FPU_IGNORE_CODE_SEGV
@@ -122,7 +124,7 @@ static inline bool seg_writable(struct desc_struct *d)
 #define	FPU_code_access_ok(z) FPU_access_ok((void __user *)FPU_EIP,z)
 #endif
 
-#define FPU_get_user(x,y)       get_user((x),(y))
-#define FPU_put_user(x,y)       put_user((x),(y))
+#define FPU_get_user(x,y) do { if (get_user((x),(y))) FPU_abort; } while (0)
+#define FPU_put_user(x,y) do { if (put_user((x),(y))) FPU_abort; } while (0)
 
 #endif

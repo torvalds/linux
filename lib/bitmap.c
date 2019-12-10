@@ -222,6 +222,18 @@ int __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
 }
 EXPORT_SYMBOL(__bitmap_andnot);
 
+void __bitmap_replace(unsigned long *dst,
+		      const unsigned long *old, const unsigned long *new,
+		      const unsigned long *mask, unsigned int nbits)
+{
+	unsigned int k;
+	unsigned int nr = BITS_TO_LONGS(nbits);
+
+	for (k = 0; k < nr; k++)
+		dst[k] = (old[k] & ~mask[k]) | (new[k] & mask[k]);
+}
+EXPORT_SYMBOL(__bitmap_replace);
+
 int __bitmap_intersects(const unsigned long *bitmap1,
 			const unsigned long *bitmap2, unsigned int bits)
 {

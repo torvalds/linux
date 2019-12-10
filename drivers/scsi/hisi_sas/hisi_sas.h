@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/timer.h>
 #include <scsi/sas_ata.h>
 #include <scsi/libsas.h>
 
@@ -84,6 +85,7 @@
 #define HISI_SAS_PROT_MASK (HISI_SAS_DIF_PROT_MASK | HISI_SAS_DIX_PROT_MASK)
 
 #define HISI_SAS_WAIT_PHYUP_TIMEOUT 20
+#define CLEAR_ITCT_TIMEOUT	20
 
 struct hisi_hba;
 
@@ -167,6 +169,7 @@ struct hisi_sas_phy {
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
 	int enable;
+	atomic_t down_cnt;
 };
 
 struct hisi_sas_port {
@@ -296,8 +299,8 @@ struct hisi_sas_hw {
 	void (*phy_set_linkrate)(struct hisi_hba *hisi_hba, int phy_no,
 			struct sas_phy_linkrates *linkrates);
 	enum sas_linkrate (*phy_get_max_linkrate)(void);
-	void (*clear_itct)(struct hisi_hba *hisi_hba,
-			    struct hisi_sas_device *dev);
+	int (*clear_itct)(struct hisi_hba *hisi_hba,
+			  struct hisi_sas_device *dev);
 	void (*free_device)(struct hisi_sas_device *sas_dev);
 	int (*get_wideport_bitmap)(struct hisi_hba *hisi_hba, int port_id);
 	void (*dereg_device)(struct hisi_hba *hisi_hba,
@@ -319,6 +322,44 @@ struct hisi_sas_hw {
 
 	const struct hisi_sas_debugfs_reg *debugfs_reg_array[DEBUGFS_REGS_NUM];
 	const struct hisi_sas_debugfs_reg *debugfs_reg_port;
+};
+
+#define HISI_SAS_MAX_DEBUGFS_DUMP (50)
+
+struct hisi_sas_debugfs_cq {
+	struct hisi_sas_cq *cq;
+	void *complete_hdr;
+};
+
+struct hisi_sas_debugfs_dq {
+	struct hisi_sas_dq *dq;
+	struct hisi_sas_cmd_hdr *hdr;
+};
+
+struct hisi_sas_debugfs_regs {
+	struct hisi_hba *hisi_hba;
+	u32 *data;
+};
+
+struct hisi_sas_debugfs_port {
+	struct hisi_sas_phy *phy;
+	u32 *data;
+};
+
+struct hisi_sas_debugfs_iost {
+	struct hisi_sas_iost *iost;
+};
+
+struct hisi_sas_debugfs_itct {
+	struct hisi_sas_itct *itct;
+};
+
+struct hisi_sas_debugfs_iost_cache {
+	struct hisi_sas_iost_itct_cache *cache;
+};
+
+struct hisi_sas_debugfs_itct_cache {
+	struct hisi_sas_iost_itct_cache *cache;
 };
 
 struct hisi_hba {
@@ -402,19 +443,20 @@ struct hisi_hba {
 
 	/* debugfs memories */
 	/* Put Global AXI and RAS Register into register array */
-	u32 *debugfs_regs[DEBUGFS_REGS_NUM];
-	u32 *debugfs_port_reg[HISI_SAS_MAX_PHYS];
-	void *debugfs_complete_hdr[HISI_SAS_MAX_QUEUES];
-	struct hisi_sas_cmd_hdr	*debugfs_cmd_hdr[HISI_SAS_MAX_QUEUES];
-	struct hisi_sas_iost *debugfs_iost;
-	struct hisi_sas_itct *debugfs_itct;
-	u64 *debugfs_iost_cache;
-	u64 *debugfs_itct_cache;
+	struct hisi_sas_debugfs_regs debugfs_regs[HISI_SAS_MAX_DEBUGFS_DUMP][DEBUGFS_REGS_NUM];
+	struct hisi_sas_debugfs_port debugfs_port_reg[HISI_SAS_MAX_DEBUGFS_DUMP][HISI_SAS_MAX_PHYS];
+	struct hisi_sas_debugfs_cq debugfs_cq[HISI_SAS_MAX_DEBUGFS_DUMP][HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_debugfs_dq debugfs_dq[HISI_SAS_MAX_DEBUGFS_DUMP][HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_debugfs_iost debugfs_iost[HISI_SAS_MAX_DEBUGFS_DUMP];
+	struct hisi_sas_debugfs_itct debugfs_itct[HISI_SAS_MAX_DEBUGFS_DUMP];
+	struct hisi_sas_debugfs_iost_cache debugfs_iost_cache[HISI_SAS_MAX_DEBUGFS_DUMP];
+	struct hisi_sas_debugfs_itct_cache debugfs_itct_cache[HISI_SAS_MAX_DEBUGFS_DUMP];
 
+	u64 debugfs_timestamp[HISI_SAS_MAX_DEBUGFS_DUMP];
+	int debugfs_dump_index;
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_dump_dentry;
 	struct dentry *debugfs_bist_dentry;
-	bool debugfs_snapshot;
 };
 
 /* Generic HW DMA host memory structures */
@@ -556,6 +598,7 @@ struct hisi_sas_slot_dif_buf_table {
 extern struct scsi_transport_template *hisi_sas_stt;
 
 extern bool hisi_sas_debugfs_enable;
+extern u32 hisi_sas_debugfs_dump_count;
 extern struct dentry *hisi_sas_debugfs_dir;
 
 extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);

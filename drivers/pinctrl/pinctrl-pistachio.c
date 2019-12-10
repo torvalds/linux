@@ -1352,6 +1352,7 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 	for (i = 0; i < pctl->nbanks; i++) {
 		char child_name[sizeof("gpioXX")];
 		struct device_node *child;
+		struct gpio_irq_chip *girq;
 
 		snprintf(child_name, sizeof(child_name), "gpio%d", i);
 		child = of_get_child_by_name(node, child_name);
@@ -1383,23 +1384,28 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 
 		bank->gpio_chip.parent = pctl->dev;
 		bank->gpio_chip.of_node = child;
+
+		girq = &bank->gpio_chip.irq;
+		girq->chip = &bank->irq_chip;
+		girq->parent_handler = pistachio_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(pctl->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents) {
+			ret = -ENOMEM;
+			goto err;
+		}
+		girq->parents[0] = irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_level_irq;
+
 		ret = gpiochip_add_data(&bank->gpio_chip, bank);
 		if (ret < 0) {
 			dev_err(pctl->dev, "Failed to add GPIO chip %u: %d\n",
 				i, ret);
 			goto err;
 		}
-
-		ret = gpiochip_irqchip_add(&bank->gpio_chip, &bank->irq_chip,
-					   0, handle_level_irq, IRQ_TYPE_NONE);
-		if (ret < 0) {
-			dev_err(pctl->dev, "Failed to add IRQ chip %u: %d\n",
-				i, ret);
-			gpiochip_remove(&bank->gpio_chip);
-			goto err;
-		}
-		gpiochip_set_chained_irqchip(&bank->gpio_chip, &bank->irq_chip,
-					     irq, pistachio_gpio_irq_handler);
 
 		ret = gpiochip_add_pin_range(&bank->gpio_chip,
 					     dev_name(pctl->dev), 0,
@@ -1429,7 +1435,6 @@ static const struct of_device_id pistachio_pinctrl_of_match[] = {
 static int pistachio_pinctrl_probe(struct platform_device *pdev)
 {
 	struct pistachio_pinctrl *pctl;
-	struct resource *res;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
@@ -1437,8 +1442,7 @@ static int pistachio_pinctrl_probe(struct platform_device *pdev)
 	pctl->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, pctl);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pctl->base = devm_ioremap_resource(&pdev->dev, res);
+	pctl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctl->base))
 		return PTR_ERR(pctl->base);
 

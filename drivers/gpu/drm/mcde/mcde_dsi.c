@@ -946,8 +946,8 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 		}
 	}
 	if (panel) {
-		bridge = drm_panel_bridge_add(panel,
-					      DRM_MODE_CONNECTOR_DSI);
+		bridge = drm_panel_bridge_add_typed(panel,
+						    DRM_MODE_CONNECTOR_DSI);
 		if (IS_ERR(bridge)) {
 			dev_err(dev, "error adding panel bridge\n");
 			return PTR_ERR(bridge);

@@ -965,9 +965,9 @@ enum ice_status ice_init_dcb(struct ice_hw *hw, bool enable_mib_change)
 	    pi->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED) {
 		/* Get current DCBX configuration */
 		ret = ice_get_dcb_cfg(pi);
-		pi->is_sw_lldp = (hw->adminq.sq_last_status == ICE_AQ_RC_EPERM);
 		if (ret)
 			return ret;
+		pi->is_sw_lldp = false;
 	} else if (pi->dcbx_status == ICE_DCBX_STATUS_DIS) {
 		return ICE_ERR_NOT_READY;
 	}
@@ -975,8 +975,8 @@ enum ice_status ice_init_dcb(struct ice_hw *hw, bool enable_mib_change)
 	/* Configure the LLDP MIB change event */
 	if (enable_mib_change) {
 		ret = ice_aq_cfg_lldp_mib_change(hw, true, NULL);
-		if (!ret)
-			pi->is_sw_lldp = false;
+		if (ret)
+			pi->is_sw_lldp = true;
 	}
 
 	return ret;

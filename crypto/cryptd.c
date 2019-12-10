@@ -919,7 +919,7 @@ static int cryptd_create(struct crypto_template *tmpl, struct rtattr **tb)
 		return PTR_ERR(algt);
 
 	switch (algt->type & algt->mask & CRYPTO_ALG_TYPE_MASK) {
-	case CRYPTO_ALG_TYPE_BLKCIPHER:
+	case CRYPTO_ALG_TYPE_SKCIPHER:
 		return cryptd_create_skcipher(tmpl, tb, &queue);
 	case CRYPTO_ALG_TYPE_HASH:
 		return cryptd_create_hash(tmpl, tb, &queue);

@@ -232,9 +232,16 @@ int xenbus_dev_probe(struct device *_dev)
 		return err;
 	}
 
+	if (!try_module_get(drv->driver.owner)) {
+		dev_warn(&dev->dev, "failed to acquire module reference on '%s'\n",
+			 drv->driver.name);
+		err = -ESRCH;
+		goto fail;
+	}
+
 	err = drv->probe(dev, id);
 	if (err)
-		goto fail;
+		goto fail_put;
 
 	err = watch_otherend(dev);
 	if (err) {
@@ -244,6 +251,8 @@ int xenbus_dev_probe(struct device *_dev)
 	}
 
 	return 0;
+fail_put:
+	module_put(drv->driver.owner);
 fail:
 	xenbus_dev_error(dev, err, "xenbus_dev_probe on %s", dev->nodename);
 	xenbus_switch_state(dev, XenbusStateClosed);
@@ -262,6 +271,8 @@ int xenbus_dev_remove(struct device *_dev)
 
 	if (drv->remove)
 		drv->remove(dev);
+
+	module_put(drv->driver.owner);
 
 	free_otherend_details(dev);
 

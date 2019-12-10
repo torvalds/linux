@@ -22,6 +22,7 @@ Regulator nodes are identified by their compatible:
 		    "qcom,rpm-pm8841-regulators"
 		    "qcom,rpm-pm8916-regulators"
 		    "qcom,rpm-pm8941-regulators"
+		    "qcom,rpm-pm8950-regulators"
 		    "qcom,rpm-pm8994-regulators"
 		    "qcom,rpm-pm8998-regulators"
 		    "qcom,rpm-pma8084-regulators"
@@ -50,6 +51,26 @@ Regulator nodes are identified by their compatible:
 - vdd_l7-supply:
 - vdd_l8_l9_l10_l11_l12_l13_l14_l15_l16_l17_l18-supply:
 	Usage: optional (pm8916 only)
+	Value type: <phandle>
+	Definition: reference to regulator supplying the input pin, as
+		    described in the data sheet
+
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_s4-supply:
+- vdd_s4-supply:
+- vdd_s5-supply:
+- vdd_s6-supply:
+- vdd_l1_l19-supply:
+- vdd_l2_l23-supply:
+- vdd_l3-supply:
+- vdd_l4_l5_l6_l7_l16-supply:
+- vdd_l8_l11_l12_l17_l22-supply:
+- vdd_l9_l10_l13_l14_l15_l18-supply:
+- vdd_l20-supply:
+- vdd_l21-supply:
+	Usage: optional (pm8950 only)
 	Value type: <phandle>
 	Definition: reference to regulator supplying the input pin, as
 		    described in the data sheet

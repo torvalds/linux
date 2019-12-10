@@ -12,8 +12,6 @@
 #include <linux/irq.h>
 #include <boot_param.h>
 
-/* loongson internal northbridge initialization */
-extern void bonito_irq_init(void);
 
 /* machine-specific reboot/halt operation */
 extern void mach_prepare_reboot(void);
@@ -26,25 +24,9 @@ extern const struct plat_smp_ops loongson3_smp_ops;
 
 /* loongson-specific command line, env and memory initialization */
 extern void __init prom_init_memory(void);
-extern void __init prom_init_cmdline(void);
-extern void __init prom_init_machtype(void);
 extern void __init prom_init_env(void);
-#ifdef CONFIG_LOONGSON_UART_BASE
-extern unsigned long _loongson_uart_base[], loongson_uart_base[];
-extern void prom_init_loongson_uart_base(void);
-#endif
-
-static inline void prom_init_uart_base(void)
-{
-#ifdef CONFIG_LOONGSON_UART_BASE
-	prom_init_loongson_uart_base();
-#endif
-}
 
 /* irq operation functions */
-extern void bonito_irqdispatch(void);
-extern void __init bonito_irq_init(void);
-extern void __init mach_init_irq(void);
 extern void mach_irq_dispatch(unsigned int pending);
 extern int mach_i8259_irq(void);
 
@@ -63,17 +45,6 @@ extern int mach_i8259_irq(void);
 
 #define LOONGSON3_REG32(base, x) \
 	(*(volatile u32 *)((char *)TO_UNCAC(base) + (x)))
-
-#define LOONGSON_IRQ_BASE	32
-#define LOONGSON2_PERFCNT_IRQ	(MIPS_CPU_IRQ_BASE + 6) /* cpu perf counter */
-
-#include <linux/interrupt.h>
-static inline void do_perfcnt_IRQ(void)
-{
-#if IS_ENABLED(CONFIG_OPROFILE)
-	do_IRQ(LOONGSON2_PERFCNT_IRQ);
-#endif
-}
 
 #define LOONGSON_FLASH_BASE	0x1c000000
 #define LOONGSON_FLASH_SIZE	0x02000000	/* 32M */
@@ -109,11 +80,7 @@ static inline void do_perfcnt_IRQ(void)
 #define LOONGSON_PCICFG_SIZE	0x00000800	/* 2K */
 #define LOONGSON_PCICFG_TOP	(LOONGSON_PCICFG_BASE+LOONGSON_PCICFG_SIZE-1)
 
-#ifdef CONFIG_CPU_LOONGSON3
 #define LOONGSON_PCIIO_BASE	loongson_sysconf.pci_io_base
-#else
-#define LOONGSON_PCIIO_BASE	0x1fd00000
-#endif
 
 #define LOONGSON_PCIIO_SIZE	0x00100000	/* 1M */
 #define LOONGSON_PCIIO_TOP	(LOONGSON_PCIIO_BASE+LOONGSON_PCIIO_SIZE-1)
@@ -269,87 +236,5 @@ extern u64 loongson_freqctrl[MAX_PACKAGES];
 #define LOONGSON_PCIMAP_PCIMAP_2	0x00040000
 #define LOONGSON_PCIMAP_WIN(WIN, ADDR)	\
 	((((ADDR)>>26) & LOONGSON_PCIMAP_PCIMAP_LO0) << ((WIN)*6))
-
-#ifdef CONFIG_CPU_SUPPORTS_CPUFREQ
-#include <linux/cpufreq.h>
-extern struct cpufreq_frequency_table loongson2_clockmod_table[];
-#endif
-
-/*
- * address windows configuration module
- *
- * loongson2e do not have this module
- */
-#ifdef CONFIG_CPU_SUPPORTS_ADDRWINCFG
-
-/* address window config module base address */
-#define LOONGSON_ADDRWINCFG_BASE		0x3ff00000ul
-#define LOONGSON_ADDRWINCFG_SIZE		0x180
-
-extern unsigned long _loongson_addrwincfg_base;
-#define LOONGSON_ADDRWINCFG(offset) \
-	(*(volatile u64 *)(_loongson_addrwincfg_base + (offset)))
-
-#define CPU_WIN0_BASE	LOONGSON_ADDRWINCFG(0x00)
-#define CPU_WIN1_BASE	LOONGSON_ADDRWINCFG(0x08)
-#define CPU_WIN2_BASE	LOONGSON_ADDRWINCFG(0x10)
-#define CPU_WIN3_BASE	LOONGSON_ADDRWINCFG(0x18)
-
-#define CPU_WIN0_MASK	LOONGSON_ADDRWINCFG(0x20)
-#define CPU_WIN1_MASK	LOONGSON_ADDRWINCFG(0x28)
-#define CPU_WIN2_MASK	LOONGSON_ADDRWINCFG(0x30)
-#define CPU_WIN3_MASK	LOONGSON_ADDRWINCFG(0x38)
-
-#define CPU_WIN0_MMAP	LOONGSON_ADDRWINCFG(0x40)
-#define CPU_WIN1_MMAP	LOONGSON_ADDRWINCFG(0x48)
-#define CPU_WIN2_MMAP	LOONGSON_ADDRWINCFG(0x50)
-#define CPU_WIN3_MMAP	LOONGSON_ADDRWINCFG(0x58)
-
-#define PCIDMA_WIN0_BASE	LOONGSON_ADDRWINCFG(0x60)
-#define PCIDMA_WIN1_BASE	LOONGSON_ADDRWINCFG(0x68)
-#define PCIDMA_WIN2_BASE	LOONGSON_ADDRWINCFG(0x70)
-#define PCIDMA_WIN3_BASE	LOONGSON_ADDRWINCFG(0x78)
-
-#define PCIDMA_WIN0_MASK	LOONGSON_ADDRWINCFG(0x80)
-#define PCIDMA_WIN1_MASK	LOONGSON_ADDRWINCFG(0x88)
-#define PCIDMA_WIN2_MASK	LOONGSON_ADDRWINCFG(0x90)
-#define PCIDMA_WIN3_MASK	LOONGSON_ADDRWINCFG(0x98)
-
-#define PCIDMA_WIN0_MMAP	LOONGSON_ADDRWINCFG(0xa0)
-#define PCIDMA_WIN1_MMAP	LOONGSON_ADDRWINCFG(0xa8)
-#define PCIDMA_WIN2_MMAP	LOONGSON_ADDRWINCFG(0xb0)
-#define PCIDMA_WIN3_MMAP	LOONGSON_ADDRWINCFG(0xb8)
-
-#define ADDRWIN_WIN0	0
-#define ADDRWIN_WIN1	1
-#define ADDRWIN_WIN2	2
-#define ADDRWIN_WIN3	3
-
-#define ADDRWIN_MAP_DST_DDR	0
-#define ADDRWIN_MAP_DST_PCI	1
-#define ADDRWIN_MAP_DST_LIO	1
-
-/*
- * s: CPU, PCIDMA
- * d: DDR, PCI, LIO
- * win: 0, 1, 2, 3
- * src: map source
- * dst: map destination
- * size: ~mask + 1
- */
-#define LOONGSON_ADDRWIN_CFG(s, d, w, src, dst, size) do {\
-	s##_WIN##w##_BASE = (src); \
-	s##_WIN##w##_MMAP = (dst) | ADDRWIN_MAP_DST_##d; \
-	s##_WIN##w##_MASK = ~(size-1); \
-} while (0)
-
-#define LOONGSON_ADDRWIN_CPUTOPCI(win, src, dst, size) \
-	LOONGSON_ADDRWIN_CFG(CPU, PCI, win, src, dst, size)
-#define LOONGSON_ADDRWIN_CPUTODDR(win, src, dst, size) \
-	LOONGSON_ADDRWIN_CFG(CPU, DDR, win, src, dst, size)
-#define LOONGSON_ADDRWIN_PCITODDR(win, src, dst, size) \
-	LOONGSON_ADDRWIN_CFG(PCIDMA, DDR, win, src, dst, size)
-
-#endif	/* ! CONFIG_CPU_SUPPORTS_ADDRWINCFG */
 
 #endif /* __ASM_MACH_LOONGSON64_LOONGSON_H */

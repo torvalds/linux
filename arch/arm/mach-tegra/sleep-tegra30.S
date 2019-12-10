@@ -682,10 +682,12 @@ tegra30_enter_sleep:
 	dsb
 	ldr	r0, [r6, r2] /* memory barrier */
 
+	cmp	r10, #TEGRA30
 halted:
 	isb
 	dsb
-	wfi	/* CPU should be power gated here */
+	wfine	/* CPU should be power gated here */
+	wfeeq
 
 	/* !!!FIXME!!! Implement halt failure handler */
 	b	halted

@@ -542,8 +542,9 @@ static void hdmi_core_audio_config(struct hdmi_core_data *core,
 	}
 
 	/* Set ACR clock divisor */
-	REG_FLD_MOD(av_base,
-			HDMI_CORE_AV_FREQ_SVAL, cfg->mclk_mode, 2, 0);
+	if (cfg->use_mclk)
+		REG_FLD_MOD(av_base, HDMI_CORE_AV_FREQ_SVAL,
+			    cfg->mclk_mode, 2, 0);
 
 	r = hdmi_read_reg(av_base, HDMI_CORE_AV_ACR_CTRL);
 	/*
@@ -675,7 +676,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	struct hdmi_audio_format audio_format;
 	struct hdmi_audio_dma audio_dma;
 	struct hdmi_core_audio_config acore;
-	int err, n, cts, channel_count;
+	int n, cts, channel_count;
 	unsigned int fs_nr;
 	bool word_length_16b = false;
 
@@ -737,7 +738,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 		return -EINVAL;
 	}
 
-	err = hdmi_compute_acr(pclk, fs_nr, &n, &cts);
+	hdmi_compute_acr(pclk, fs_nr, &n, &cts);
 
 	/* Audio clock regeneration settings */
 	acore.n = n;

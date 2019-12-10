@@ -237,31 +237,6 @@
 };
 
 /* USB */
-&cppi41dma {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};
-
 &usb1 {
-	status = "okay";
 	dr_mode = "host";
-};
-
-&usb1_phy {
-	status = "okay";
 };

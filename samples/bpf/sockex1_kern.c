@@ -3,13 +3,14 @@
 #include <uapi/linux/if_packet.h>
 #include <uapi/linux/ip.h>
 #include "bpf_helpers.h"
+#include "bpf_legacy.h"
 
-struct bpf_map_def SEC("maps") my_map = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(long),
-	.max_entries = 256,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32);
+	__type(value, long);
+	__uint(max_entries, 256);
+} my_map SEC(".maps");
 
 SEC("socket1")
 int bpf_prog1(struct __sk_buff *skb)

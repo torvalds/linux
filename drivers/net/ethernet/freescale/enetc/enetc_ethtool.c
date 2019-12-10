@@ -584,6 +584,31 @@ static int enetc_get_ts_info(struct net_device *ndev,
 	return 0;
 }
 
+static void enetc_get_wol(struct net_device *dev,
+			  struct ethtool_wolinfo *wol)
+{
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (dev->phydev)
+		phy_ethtool_get_wol(dev->phydev, wol);
+}
+
+static int enetc_set_wol(struct net_device *dev,
+			 struct ethtool_wolinfo *wol)
+{
+	int ret;
+
+	if (!dev->phydev)
+		return -EOPNOTSUPP;
+
+	ret = phy_ethtool_set_wol(dev->phydev, wol);
+	if (!ret)
+		device_set_wakeup_enable(&dev->dev, wol->wolopts);
+
+	return ret;
+}
+
 static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.get_regs_len = enetc_get_reglen,
 	.get_regs = enetc_get_regs,
@@ -601,6 +626,8 @@ static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = enetc_get_ts_info,
+	.get_wol = enetc_get_wol,
+	.set_wol = enetc_set_wol,
 };
 
 static const struct ethtool_ops enetc_vf_ethtool_ops = {

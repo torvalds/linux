@@ -9,12 +9,15 @@
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 #include <linux/platform_device.h>
+#include <linux/arm-smccc.h>
 #include <linux/of.h>
 
 #define REV_B1				0x21
 
 #define IMX8MQ_SW_INFO_B1		0x40
 #define IMX8MQ_SW_MAGIC_B1		0xff0055aa
+
+#define IMX_SIP_GET_SOC_INFO		0xc2000006
 
 #define OCOTP_UID_LOW			0x410
 #define OCOTP_UID_HIGH			0x420
@@ -29,13 +32,21 @@ struct imx8_soc_data {
 
 static u64 soc_uid;
 
-static ssize_t soc_uid_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
+#ifdef CONFIG_HAVE_ARM_SMCCC
+static u32 imx8mq_soc_revision_from_atf(void)
 {
-	return sprintf(buf, "%016llX\n", soc_uid);
-}
+	struct arm_smccc_res res;
 
-static DEVICE_ATTR_RO(soc_uid);
+	arm_smccc_smc(IMX_SIP_GET_SOC_INFO, 0, 0, 0, 0, 0, 0, 0, &res);
+
+	if (res.a0 == SMCCC_RET_NOT_SUPPORTED)
+		return 0;
+	else
+		return res.a0 & 0xff;
+}
+#else
+static inline u32 imx8mq_soc_revision_from_atf(void) { return 0; };
+#endif
 
 static u32 __init imx8mq_soc_revision(void)
 {
@@ -51,9 +62,16 @@ static u32 __init imx8mq_soc_revision(void)
 	ocotp_base = of_iomap(np, 0);
 	WARN_ON(!ocotp_base);
 
-	magic = readl_relaxed(ocotp_base + IMX8MQ_SW_INFO_B1);
-	if (magic == IMX8MQ_SW_MAGIC_B1)
-		rev = REV_B1;
+	/*
+	 * SOC revision on older imx8mq is not available in fuses so query
+	 * the value from ATF instead.
+	 */
+	rev = imx8mq_soc_revision_from_atf();
+	if (!rev) {
+		magic = readl_relaxed(ocotp_base + IMX8MQ_SW_INFO_B1);
+		if (magic == IMX8MQ_SW_MAGIC_B1)
+			rev = REV_B1;
+	}
 
 	soc_uid = readl_relaxed(ocotp_base + OCOTP_UID_HIGH);
 	soc_uid <<= 32;
@@ -174,22 +192,25 @@ static int __init imx8_soc_init(void)
 		goto free_soc;
 	}
 
-	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR(soc_dev)) {
-		ret = PTR_ERR(soc_dev);
+	soc_dev_attr->serial_number = kasprintf(GFP_KERNEL, "%016llX", soc_uid);
+	if (!soc_dev_attr->serial_number) {
+		ret = -ENOMEM;
 		goto free_rev;
 	}
 
-	ret = device_create_file(soc_device_to_device(soc_dev),
-				 &dev_attr_soc_uid);
-	if (ret)
-		goto free_rev;
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+		ret = PTR_ERR(soc_dev);
+		goto free_serial_number;
+	}
 
 	if (IS_ENABLED(CONFIG_ARM_IMX_CPUFREQ_DT))
 		platform_device_register_simple("imx-cpufreq-dt", -1, NULL, 0);
 
 	return 0;
 
+free_serial_number:
+	kfree(soc_dev_attr->serial_number);
 free_rev:
 	if (strcmp(soc_dev_attr->revision, "unknown"))
 		kfree(soc_dev_attr->revision);

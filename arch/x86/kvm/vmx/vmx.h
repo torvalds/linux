@@ -22,11 +22,17 @@ extern u32 get_umwait_control_msr(void);
 
 #define X2APIC_MSR(r) (APIC_BASE_MSR + ((r) >> 4))
 
-#define NR_AUTOLOAD_MSRS 8
+#ifdef CONFIG_X86_64
+#define NR_SHARED_MSRS	7
+#else
+#define NR_SHARED_MSRS	4
+#endif
+
+#define NR_LOADSTORE_MSRS 8
 
 struct vmx_msrs {
 	unsigned int		nr;
-	struct vmx_msr_entry	val[NR_AUTOLOAD_MSRS];
+	struct vmx_msr_entry	val[NR_LOADSTORE_MSRS];
 };
 
 struct shared_msr_entry {
@@ -167,6 +173,9 @@ struct nested_vmx {
 	u64 vmcs01_debugctl;
 	u64 vmcs01_guest_bndcfgs;
 
+	/* to migrate it to L1 if L2 writes to L1's CR8 directly */
+	int l1_tpr_threshold;
+
 	u16 vpid02;
 	u16 last_vpid;
 
@@ -203,7 +212,7 @@ struct vcpu_vmx {
 	u32                   idt_vectoring_info;
 	ulong                 rflags;
 
-	struct shared_msr_entry *guest_msrs;
+	struct shared_msr_entry guest_msrs[NR_SHARED_MSRS];
 	int                   nmsrs;
 	int                   save_nmsrs;
 	bool                  guest_msrs_ready;
@@ -229,6 +238,10 @@ struct vcpu_vmx {
 		struct vmx_msrs guest;
 		struct vmx_msrs host;
 	} msr_autoload;
+
+	struct msr_autostore {
+		struct vmx_msrs guest;
+	} msr_autostore;
 
 	struct {
 		int vm86_active;
@@ -334,6 +347,7 @@ void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
 struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr);
 void pt_update_intercept_for_msr(struct vcpu_vmx *vmx);
 void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp);
+int vmx_find_msr_index(struct vmx_msrs *m, u32 msr);
 
 #define POSTED_INTR_ON  0
 #define POSTED_INTR_SN  1

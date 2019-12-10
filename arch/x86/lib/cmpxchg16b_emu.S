@@ -13,7 +13,7 @@
  * %rcx : high 64 bits of new value
  * %al  : Operation successful
  */
-ENTRY(this_cpu_cmpxchg16b_emu)
+SYM_FUNC_START(this_cpu_cmpxchg16b_emu)
 
 #
 # Emulate 'cmpxchg16b %gs:(%rsi)' except we return the result in %al not
@@ -44,4 +44,4 @@ ENTRY(this_cpu_cmpxchg16b_emu)
 	xor %al,%al
 	ret
 
-ENDPROC(this_cpu_cmpxchg16b_emu)
+SYM_FUNC_END(this_cpu_cmpxchg16b_emu)

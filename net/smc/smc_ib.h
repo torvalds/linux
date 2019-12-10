@@ -14,6 +14,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/if_ether.h>
+#include <linux/wait.h>
 #include <rdma/ib_verbs.h>
 #include <net/smc.h>
 
@@ -47,6 +48,9 @@ struct smc_ib_device {				/* ib-device infos for smc */
 	u8			initialized : 1; /* ib dev CQ, evthdl done */
 	struct work_struct	port_event_work;
 	unsigned long		port_event_mask;
+	DECLARE_BITMAP(ports_going_away, SMC_MAX_PORTS);
+	atomic_t		lnk_cnt;	/* number of links on ibdev */
+	wait_queue_head_t	lnks_deleted;	/* wait 4 removal of all links*/
 };
 
 struct smc_buf_desc;

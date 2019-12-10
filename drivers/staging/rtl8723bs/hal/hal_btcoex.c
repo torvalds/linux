@@ -1315,7 +1315,7 @@ void EXhalbtcoutsrc_DisplayBtCoexInfo(PBTC_COEXIST pBtCoexist)
 
 /*
  * Description:
- *Run BT-Coexist mechansim or not
+ *Run BT-Coexist mechanism or not
  *
  */
 void hal_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist)

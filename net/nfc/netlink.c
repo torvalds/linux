@@ -102,22 +102,14 @@ nla_put_failure:
 
 static struct nfc_dev *__get_device_from_cb(struct netlink_callback *cb)
 {
-	struct nlattr **attrbuf = genl_family_attrbuf(&nfc_genl_family);
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct nfc_dev *dev;
-	int rc;
 	u32 idx;
 
-	rc = nlmsg_parse_deprecated(cb->nlh,
-				    GENL_HDRLEN + nfc_genl_family.hdrsize,
-				    attrbuf, nfc_genl_family.maxattr,
-				    nfc_genl_policy, NULL);
-	if (rc < 0)
-		return ERR_PTR(rc);
-
-	if (!attrbuf[NFC_ATTR_DEVICE_INDEX])
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
 		return ERR_PTR(-EINVAL);
 
-	idx = nla_get_u32(attrbuf[NFC_ATTR_DEVICE_INDEX]);
+	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
 
 	dev = nfc_get_device(idx);
 	if (!dev)
@@ -1695,7 +1687,8 @@ static const struct genl_ops nfc_genl_ops[] = {
 	},
 	{
 		.cmd = NFC_CMD_GET_TARGET,
-		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.validate = GENL_DONT_VALIDATE_STRICT |
+			    GENL_DONT_VALIDATE_DUMP_STRICT,
 		.dumpit = nfc_genl_dump_targets,
 		.done = nfc_genl_dump_targets_done,
 	},

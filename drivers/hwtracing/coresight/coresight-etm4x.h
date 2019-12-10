@@ -175,21 +175,27 @@
 					 ETM_MODE_EXCL_USER)
 
 #define TRCSTATR_IDLE_BIT		0
+#define TRCSTATR_PMSTABLE_BIT		1
 #define ETM_DEFAULT_ADDR_COMP		0
 
 /* PowerDown Control Register bits */
 #define TRCPDCR_PU			BIT(3)
 
-/* secure state access levels */
+/* secure state access levels - TRCACATRn */
 #define ETM_EXLEVEL_S_APP		BIT(8)
 #define ETM_EXLEVEL_S_OS		BIT(9)
-#define ETM_EXLEVEL_S_NA		BIT(10)
-#define ETM_EXLEVEL_S_HYP		BIT(11)
-/* non-secure state access levels */
+#define ETM_EXLEVEL_S_HYP		BIT(10)
+#define ETM_EXLEVEL_S_MON		BIT(11)
+/* non-secure state access levels - TRCACATRn */
 #define ETM_EXLEVEL_NS_APP		BIT(12)
 #define ETM_EXLEVEL_NS_OS		BIT(13)
 #define ETM_EXLEVEL_NS_HYP		BIT(14)
 #define ETM_EXLEVEL_NS_NA		BIT(15)
+
+/* secure / non secure masks - TRCVICTLR, IDR3 */
+#define ETM_EXLEVEL_S_VICTLR_MASK	GENMASK(19, 16)
+/* NS MON (EL3) mode never implemented */
+#define ETM_EXLEVEL_NS_VICTLR_MASK	GENMASK(22, 20)
 
 /**
  * struct etmv4_config - configuration information related to an ETMv4
@@ -221,6 +227,7 @@
  * @cntr_val:	Sets or returns the value for a counter.
  * @res_idx:	Resource index selector.
  * @res_ctrl:	Controls the selection of the resources in the trace unit.
+ * @ss_idx:	Single-shot index selector.
  * @ss_ctrl:	Controls the corresponding single-shot comparator resource.
  * @ss_status:	The status of the corresponding single-shot comparator.
  * @ss_pe_cmp:	Selects the PE comparator inputs for Single-shot control.
@@ -237,6 +244,7 @@
  * @vmid_mask0:	VM ID comparator mask for comparator 0-3.
  * @vmid_mask1:	VM ID comparator mask for comparator 4-7.
  * @ext_inp:	External input selection.
+ * @arch:	ETM architecture version (for arch dependent config).
  */
 struct etmv4_config {
 	u32				mode;
@@ -263,6 +271,7 @@ struct etmv4_config {
 	u32				cntr_val[ETMv4_MAX_CNTR];
 	u8				res_idx;
 	u32				res_ctrl[ETM_MAX_RES_SEL];
+	u8				ss_idx;
 	u32				ss_ctrl[ETM_MAX_SS_CMP];
 	u32				ss_status[ETM_MAX_SS_CMP];
 	u32				ss_pe_cmp[ETM_MAX_SS_CMP];
@@ -279,6 +288,66 @@ struct etmv4_config {
 	u32				vmid_mask0;
 	u32				vmid_mask1;
 	u32				ext_inp;
+	u8				arch;
+};
+
+/**
+ * struct etm4_save_state - state to be preserved when ETM is without power
+ */
+struct etmv4_save_state {
+	u32	trcprgctlr;
+	u32	trcprocselr;
+	u32	trcconfigr;
+	u32	trcauxctlr;
+	u32	trceventctl0r;
+	u32	trceventctl1r;
+	u32	trcstallctlr;
+	u32	trctsctlr;
+	u32	trcsyncpr;
+	u32	trcccctlr;
+	u32	trcbbctlr;
+	u32	trctraceidr;
+	u32	trcqctlr;
+
+	u32	trcvictlr;
+	u32	trcviiectlr;
+	u32	trcvissctlr;
+	u32	trcvipcssctlr;
+	u32	trcvdctlr;
+	u32	trcvdsacctlr;
+	u32	trcvdarcctlr;
+
+	u32	trcseqevr[ETM_MAX_SEQ_STATES];
+	u32	trcseqrstevr;
+	u32	trcseqstr;
+	u32	trcextinselr;
+	u32	trccntrldvr[ETMv4_MAX_CNTR];
+	u32	trccntctlr[ETMv4_MAX_CNTR];
+	u32	trccntvr[ETMv4_MAX_CNTR];
+
+	u32	trcrsctlr[ETM_MAX_RES_SEL * 2];
+
+	u32	trcssccr[ETM_MAX_SS_CMP];
+	u32	trcsscsr[ETM_MAX_SS_CMP];
+	u32	trcsspcicr[ETM_MAX_SS_CMP];
+
+	u64	trcacvr[ETM_MAX_SINGLE_ADDR_CMP];
+	u64	trcacatr[ETM_MAX_SINGLE_ADDR_CMP];
+	u64	trccidcvr[ETMv4_MAX_CTXID_CMP];
+	u32	trcvmidcvr[ETM_MAX_VMID_CMP];
+	u32	trccidcctlr0;
+	u32	trccidcctlr1;
+	u32	trcvmidcctlr0;
+	u32	trcvmidcctlr1;
+
+	u32	trcclaimset;
+
+	u32	cntr_val[ETMv4_MAX_CNTR];
+	u32	seq_state;
+	u32	vinst_ctrl;
+	u32	ss_status[ETM_MAX_SS_CMP];
+
+	u32	trcpdcr;
 };
 
 /**
@@ -336,6 +405,8 @@ struct etmv4_config {
  * @atbtrig:	If the implementation can support ATB triggers
  * @lpoverride:	If the implementation can support low-power state over.
  * @config:	structure holding configuration parameters.
+ * @save_state:	State to be preserved across power loss
+ * @state_needs_restore: True when there is context to restore after PM exit
  */
 struct etmv4_drvdata {
 	void __iomem			*base;
@@ -381,6 +452,8 @@ struct etmv4_drvdata {
 	bool				atbtrig;
 	bool				lpoverride;
 	struct etmv4_config		config;
+	struct etmv4_save_state		*save_state;
+	bool				state_needs_restore;
 };
 
 /* Address comparator access types */

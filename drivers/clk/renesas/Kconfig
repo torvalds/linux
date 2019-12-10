@@ -12,6 +12,7 @@ config CLK_RENESAS
 	select CLK_R8A7745 if ARCH_R8A7745
 	select CLK_R8A77470 if ARCH_R8A77470
 	select CLK_R8A774A1 if ARCH_R8A774A1
+	select CLK_R8A774B1 if ARCH_R8A774B1
 	select CLK_R8A774C0 if ARCH_R8A774C0
 	select CLK_R8A7778 if ARCH_R8A7778
 	select CLK_R8A7779 if ARCH_R8A7779
@@ -20,7 +21,8 @@ config CLK_RENESAS
 	select CLK_R8A7792 if ARCH_R8A7792
 	select CLK_R8A7794 if ARCH_R8A7794
 	select CLK_R8A7795 if ARCH_R8A7795
-	select CLK_R8A7796 if ARCH_R8A7796
+	select CLK_R8A77960 if ARCH_R8A77960 || ARCH_R8A7796
+	select CLK_R8A77961 if ARCH_R8A77961
 	select CLK_R8A77965 if ARCH_R8A77965
 	select CLK_R8A77970 if ARCH_R8A77970
 	select CLK_R8A77980 if ARCH_R8A77980
@@ -30,17 +32,6 @@ config CLK_RENESAS
 	select CLK_SH73A0 if ARCH_SH73A0
 
 if CLK_RENESAS
-
-config CLK_RENESAS_LEGACY
-	bool "Legacy DT clock support"
-	depends on CLK_R8A7790 || CLK_R8A7791 || CLK_R8A7792 || CLK_R8A7794
-	help
-	  Enable backward compatibility with old device trees describing a
-	  hierarchical representation of the various CPG and MSTP clocks.
-
-	  Say Y if you want your kernel to work with old DTBs.
-	  It is safe to say N if you use the DTS that is supplied with the
-	  current kernel source tree.
 
 # SoC
 config CLK_EMEV2
@@ -80,6 +71,10 @@ config CLK_R8A774A1
 	bool "RZ/G2M clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN3_CPG
 
+config CLK_R8A774B1
+	bool "RZ/G2N clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
 config CLK_R8A774C0
 	bool "RZ/G2E clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN3_CPG
@@ -94,24 +89,20 @@ config CLK_R8A7779
 
 config CLK_R8A7790
 	bool "R-Car H2 clock support" if COMPILE_TEST
-	select CLK_RCAR_GEN2 if CLK_RENESAS_LEGACY
 	select CLK_RCAR_GEN2_CPG
 	select CLK_RENESAS_DIV6
 
 config CLK_R8A7791
 	bool "R-Car M2-W/N clock support" if COMPILE_TEST
-	select CLK_RCAR_GEN2 if CLK_RENESAS_LEGACY
 	select CLK_RCAR_GEN2_CPG
 	select CLK_RENESAS_DIV6
 
 config CLK_R8A7792
 	bool "R-Car V2H clock support" if COMPILE_TEST
-	select CLK_RCAR_GEN2 if CLK_RENESAS_LEGACY
 	select CLK_RCAR_GEN2_CPG
 
 config CLK_R8A7794
 	bool "R-Car E2 clock support" if COMPILE_TEST
-	select CLK_RCAR_GEN2 if CLK_RENESAS_LEGACY
 	select CLK_RCAR_GEN2_CPG
 	select CLK_RENESAS_DIV6
 
@@ -119,8 +110,12 @@ config CLK_R8A7795
 	bool "R-Car H3 clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN3_CPG
 
-config CLK_R8A7796
+config CLK_R8A77960
 	bool "R-Car M3-W clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77961
+	bool "R-Car M3-W+ clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN3_CPG
 
 config CLK_R8A77965
@@ -155,11 +150,6 @@ config CLK_SH73A0
 
 
 # Family
-config CLK_RCAR_GEN2
-	bool "R-Car Gen2 legacy clock support" if COMPILE_TEST
-	select CLK_RENESAS_CPG_MSTP
-	select CLK_RENESAS_DIV6
-
 config CLK_RCAR_GEN2_CPG
 	bool "R-Car Gen2 CPG clock support" if COMPILE_TEST
 	select CLK_RENESAS_CPG_MSSR

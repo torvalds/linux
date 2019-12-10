@@ -333,6 +333,12 @@ int __init xen_blkif_interface_init(void)
 	return 0;
 }
 
+void xen_blkif_interface_fini(void)
+{
+	kmem_cache_destroy(xen_blkif_cachep);
+	xen_blkif_cachep = NULL;
+}
+
 /*
  *  sysfs interface for VBD I/O requests
  */
@@ -1121,4 +1127,9 @@ static struct xenbus_driver xen_blkbk_driver = {
 int xen_blkif_xenbus_init(void)
 {
 	return xenbus_register_backend(&xen_blkbk_driver);
+}
+
+void xen_blkif_xenbus_fini(void)
+{
+	xenbus_unregister_driver(&xen_blkbk_driver);
 }

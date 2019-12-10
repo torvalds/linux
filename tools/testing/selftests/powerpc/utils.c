@@ -127,6 +127,26 @@ bool is_ppc64le(void)
 	return strcmp(uts.machine, "ppc64le") == 0;
 }
 
+int read_sysfs_file(char *fpath, char *result, size_t result_size)
+{
+	char path[PATH_MAX] = "/sys/";
+	int rc = -1, fd;
+
+	strncat(path, fpath, PATH_MAX - strlen(path) - 1);
+
+	if ((fd = open(path, O_RDONLY)) < 0)
+		return rc;
+
+	rc = read(fd, result, result_size);
+
+	close(fd);
+
+	if (rc < 0)
+		return rc;
+
+	return 0;
+}
+
 int read_debugfs_file(char *debugfs_file, int *result)
 {
 	int rc = -1, fd;

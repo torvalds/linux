@@ -526,7 +526,7 @@ STACK_SIZE	= _RSP      + _RSP_SIZE
 ## arg 3 : Num blocks
 ########################################################################
 .text
-ENTRY(sha256_transform_rorx)
+SYM_FUNC_START(sha256_transform_rorx)
 .align 32
 	pushq	%rbx
 	pushq	%r12
@@ -713,7 +713,7 @@ done_hash:
 	popq	%r12
 	popq	%rbx
 	ret
-ENDPROC(sha256_transform_rorx)
+SYM_FUNC_END(sha256_transform_rorx)
 
 .section	.rodata.cst512.K256, "aM", @progbits, 512
 .align 64

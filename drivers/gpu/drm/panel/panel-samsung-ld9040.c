@@ -351,9 +351,8 @@ static int ld9040_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &ld9040_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &ld9040_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	return drm_panel_add(&ctx->panel);
 }

@@ -28,6 +28,7 @@
 #include <drm/i915_component.h>
 
 #include "i915_drv.h"
+#include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_display_types.h"
 #include "intel_lpe_audio.h"
@@ -560,8 +561,9 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	u32 tmp, eldv;
 	i915_reg_t aud_config, aud_cntrl_st2;
 
-	DRM_DEBUG_KMS("Disable audio codec on port %c, pipe %c\n",
-		      port_name(port), pipe_name(pipe));
+	DRM_DEBUG_KMS("Disable audio codec on [ENCODER:%d:%s], pipe %c\n",
+		      encoder->base.base.id, encoder->base.name,
+		      pipe_name(pipe));
 
 	if (WARN_ON(port == PORT_A))
 		return;
@@ -609,8 +611,9 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	int len, i;
 	i915_reg_t hdmiw_hdmiedid, aud_config, aud_cntl_st, aud_cntrl_st2;
 
-	DRM_DEBUG_KMS("Enable audio codec on port %c, pipe %c, %u bytes ELD\n",
-		      port_name(port), pipe_name(pipe), drm_eld_size(eld));
+	DRM_DEBUG_KMS("Enable audio codec on [ENCODER:%d:%s], pipe %c, %u bytes ELD\n",
+		      encoder->base.base.id, encoder->base.name,
+		      pipe_name(pipe), drm_eld_size(eld));
 
 	if (WARN_ON(port == PORT_A))
 		return;
@@ -816,13 +819,8 @@ retry:
 	to_intel_atomic_state(state)->cdclk.force_min_cdclk =
 		enable ? 2 * 96000 : 0;
 
-	/*
-	 * Protects dev_priv->cdclk.force_min_cdclk
-	 * Need to lock this here in case we have no active pipes
-	 * and thus wouldn't lock it during the commit otherwise.
-	 */
-	ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
-			       &ctx);
+	/* Protects dev_priv->cdclk.force_min_cdclk */
+	ret = intel_atomic_lock_global_state(to_intel_atomic_state(state));
 	if (!ret)
 		ret = drm_atomic_commit(state);
 
@@ -850,7 +848,6 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 
 	ret = intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
 
-	/* Force CDCLK to 2*BCLK as long as we need audio to be powered. */
 	if (dev_priv->audio_power_refcount++ == 0) {
 		if (IS_TIGERLAKE(dev_priv) || IS_ICELAKE(dev_priv)) {
 			I915_WRITE(AUD_FREQ_CNTRL, dev_priv->audio_freq_cntrl);
@@ -858,6 +855,7 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 				      dev_priv->audio_freq_cntrl);
 		}
 
+		/* Force CDCLK to 2*BCLK as long as we need audio powered. */
 		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 			glk_force_audio_cdclk(dev_priv, true);
 

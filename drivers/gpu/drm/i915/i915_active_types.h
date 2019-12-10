@@ -8,22 +8,18 @@
 #define _I915_ACTIVE_TYPES_H_
 
 #include <linux/atomic.h>
+#include <linux/dma-fence.h>
 #include <linux/llist.h>
 #include <linux/mutex.h>
 #include <linux/rbtree.h>
 #include <linux/rcupdate.h>
+#include <linux/workqueue.h>
 
-struct drm_i915_private;
-struct i915_active_request;
-struct i915_request;
+#include "i915_utils.h"
 
-typedef void (*i915_active_retire_fn)(struct i915_active_request *,
-				      struct i915_request *);
-
-struct i915_active_request {
-	struct i915_request __rcu *request;
-	struct list_head link;
-	i915_active_retire_fn retire;
+struct i915_active_fence {
+	struct dma_fence __rcu *fence;
+	struct dma_fence_cb cb;
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
 	/*
 	 * Incorporeal!
@@ -43,19 +39,29 @@ struct i915_active_request {
 
 struct active_node;
 
-struct i915_active {
-	struct drm_i915_private *i915;
+#define I915_ACTIVE_MAY_SLEEP BIT(0)
 
+#define __i915_active_call __aligned(4)
+#define i915_active_may_sleep(fn) ptr_pack_bits(&(fn), I915_ACTIVE_MAY_SLEEP, 2)
+
+struct i915_active {
+	atomic_t count;
+	struct mutex mutex;
+
+	spinlock_t tree_lock;
 	struct active_node *cache;
 	struct rb_root tree;
-	struct mutex mutex;
-	atomic_t count;
+
+	/* Preallocated "exclusive" node */
+	struct i915_active_fence excl;
 
 	unsigned long flags;
-#define I915_ACTIVE_GRAB_BIT 0
+#define I915_ACTIVE_RETIRE_SLEEPS BIT(0)
 
 	int (*active)(struct i915_active *ref);
 	void (*retire)(struct i915_active *ref);
+
+	struct work_struct work;
 
 	struct llist_head preallocated_barriers;
 };

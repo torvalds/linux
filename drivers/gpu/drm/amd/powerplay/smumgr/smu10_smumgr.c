@@ -137,7 +137,7 @@ static int smu10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			priv->smu_tables.entry[table_id].table_id);
 
 	/* flush hdp cache */
-	adev->nbio_funcs->hdp_flush(adev, NULL);
+	adev->nbio.funcs->hdp_flush(adev, NULL);
 
 	memcpy(table, (uint8_t *)priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);

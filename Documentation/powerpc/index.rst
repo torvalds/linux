@@ -19,6 +19,7 @@ powerpc
     firmware-assisted-dump
     hvcs
     isa-versions
+    kaslr-booke32
     mpc52xx
     pci_iov_resource_on_powernv
     pmu-ebb

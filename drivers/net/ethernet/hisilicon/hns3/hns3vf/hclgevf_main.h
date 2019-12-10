@@ -150,8 +150,6 @@ enum hclgevf_states {
 	HCLGEVF_STATE_CMD_DISABLE,
 };
 
-#define HCLGEVF_MPF_ENBALE 1
-
 struct hclgevf_mac {
 	u8 media_type;
 	u8 module_type;
@@ -266,6 +264,7 @@ struct hclgevf_dev {
 	u16 num_tx_desc;	/* desc num of per tx queue */
 	u16 num_rx_desc;	/* desc num of per rx queue */
 	u8 hw_tc_map;
+	u8 has_pf_mac;
 
 	u16 num_msi;
 	u16 num_msi_left;

@@ -158,7 +158,9 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	/* encode packet rate for no-skb packet id to fix up status reporting */
 	if (pid == MT_PACKET_ID_NO_SKB)
 		pid = MT_PACKET_ID_HAS_RATE |
-		      (le16_to_cpu(txwi->rate) & MT_RXWI_RATE_INDEX);
+		      (le16_to_cpu(txwi->rate) & MT_RXWI_RATE_INDEX) |
+		      FIELD_PREP(MT_PKTID_AC,
+				 skb_get_queue_mapping(tx_info->skb));
 
 	txwi->pktid = pid;
 
@@ -170,6 +172,12 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 
 	if (!wcid || wcid->hw_key_idx == 0xff || wcid->sw_iv)
 		tx_info->info |= MT_TXD_INFO_WIV;
+
+	if (sta) {
+		struct mt76x02_sta *msta = (struct mt76x02_sta *)sta->drv_priv;
+
+		ewma_pktlen_add(&msta->pktlen, tx_info->skb->len);
+	}
 
 	return 0;
 }

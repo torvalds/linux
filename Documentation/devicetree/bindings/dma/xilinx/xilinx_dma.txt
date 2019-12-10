@@ -11,9 +11,16 @@ is to receive from the device.
 Xilinx AXI CDMA engine, it does transfers between memory-mapped source
 address and a memory-mapped destination address.
 
+Xilinx AXI MCDMA engine, it does transfer between memory and AXI4 stream
+target devices. It can be configured to have up to 16 independent transmit
+and receive channels.
+
 Required properties:
-- compatible: Should be "xlnx,axi-vdma-1.00.a" or "xlnx,axi-dma-1.00.a" or
-	      "xlnx,axi-cdma-1.00.a""
+- compatible: Should be one of-
+		"xlnx,axi-vdma-1.00.a"
+		"xlnx,axi-dma-1.00.a"
+		"xlnx,axi-cdma-1.00.a"
+		"xlnx,axi-mcdma-1.00.a"
 - #dma-cells: Should be <1>, see "dmas" property below
 - reg: Should contain VDMA registers location and length.
 - xlnx,addrwidth: Should be the vdma addressing size in bits(ex: 32 bits).
@@ -29,7 +36,7 @@ Required properties:
 			   "m_axis_mm2s_aclk", "s_axis_s2mm_aclk"
 	For CDMA:
 	Required elements: "s_axi_lite_aclk", "m_axi_aclk"
-	FOR AXIDMA:
+	For AXIDMA and MCDMA:
 	Required elements: "s_axi_lite_aclk"
 	Optional elements: "m_axi_mm2s_aclk", "m_axi_s2mm_aclk",
 			   "m_axi_sg_aclk"
@@ -37,12 +44,11 @@ Required properties:
 Required properties for VDMA:
 - xlnx,num-fstores: Should be the number of framebuffers as configured in h/w.
 
-Optional properties for AXI DMA:
+Optional properties for AXI DMA and MCDMA:
 - xlnx,sg-length-width: Should be set to the width in bits of the length
 	register as configured in h/w. Takes values {8...26}. If the property
 	is missing or invalid then the default value 23 is used. This is the
 	maximum value that is supported by all IP versions.
-- xlnx,mcdma: Tells whether configured for multi-channel mode in the hardware.
 Optional properties for VDMA:
 - xlnx,flush-fsync: Tells which channel to Flush on Frame sync.
 	It takes following values:
@@ -55,8 +61,8 @@ Required child node properties:
 	For VDMA: It should be either "xlnx,axi-vdma-mm2s-channel" or
 	"xlnx,axi-vdma-s2mm-channel".
 	For CDMA: It should be "xlnx,axi-cdma-channel".
-	For AXIDMA: It should be either "xlnx,axi-dma-mm2s-channel" or
-	"xlnx,axi-dma-s2mm-channel".
+	For AXIDMA and MCDMA: It should be either "xlnx,axi-dma-mm2s-channel"
+	or "xlnx,axi-dma-s2mm-channel".
 - interrupts: Should contain per channel VDMA interrupts.
 - xlnx,datawidth: Should contain the stream data width, take values
 	{32,64...1024}.
@@ -69,8 +75,8 @@ Optional child node properties for VDMA:
 	enabled/disabled in hardware.
 - xlnx,enable-vert-flip: Tells vertical flip is
 	enabled/disabled in hardware(S2MM path).
-Optional child node properties for AXI DMA:
--dma-channels: Number of dma channels in child node.
+Optional child node properties for MCDMA:
+- dma-channels: Number of dma channels in child node.
 
 Example:
 ++++++++

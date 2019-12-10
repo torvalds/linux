@@ -582,7 +582,7 @@ static int replacement_allowed(struct aa_profile *profile, int noreplace,
 {
 	if (profile) {
 		if (profile->label.flags & FLAG_IMMUTIBLE) {
-			*info = "cannot replace immutible profile";
+			*info = "cannot replace immutable profile";
 			return -EPERM;
 		} else if (noreplace) {
 			*info = "profile already exists";
@@ -856,7 +856,7 @@ static struct aa_profile *update_to_newest_parent(struct aa_profile *new)
 ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 			    u32 mask, struct aa_loaddata *udata)
 {
-	const char *ns_name, *info = NULL;
+	const char *ns_name = NULL, *info = NULL;
 	struct aa_ns *ns = NULL;
 	struct aa_load_ent *ent, *tmp;
 	struct aa_loaddata *rawdata_ent;
@@ -1043,6 +1043,7 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 out:
 	aa_put_ns(ns);
 	aa_put_loaddata(udata);
+	kfree(ns_name);
 
 	if (error)
 		return error;

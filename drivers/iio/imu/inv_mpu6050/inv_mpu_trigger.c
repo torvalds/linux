@@ -5,7 +5,7 @@
 
 #include "inv_mpu_iio.h"
 
-static void inv_scan_query(struct iio_dev *indio_dev)
+static void inv_scan_query_mpu6050(struct iio_dev *indio_dev)
 {
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
 
@@ -26,6 +26,60 @@ static void inv_scan_query(struct iio_dev *indio_dev)
 			 indio_dev->active_scan_mask);
 }
 
+static void inv_scan_query_mpu9x50(struct iio_dev *indio_dev)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+
+	inv_scan_query_mpu6050(indio_dev);
+
+	/* no magnetometer if i2c auxiliary bus is used */
+	if (st->magn_disabled)
+		return;
+
+	st->chip_config.magn_fifo_enable =
+		test_bit(INV_MPU9X50_SCAN_MAGN_X,
+			 indio_dev->active_scan_mask) ||
+		test_bit(INV_MPU9X50_SCAN_MAGN_Y,
+			 indio_dev->active_scan_mask) ||
+		test_bit(INV_MPU9X50_SCAN_MAGN_Z,
+			 indio_dev->active_scan_mask);
+}
+
+static void inv_scan_query(struct iio_dev *indio_dev)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+
+	switch (st->chip_type) {
+	case INV_MPU9250:
+	case INV_MPU9255:
+		return inv_scan_query_mpu9x50(indio_dev);
+	default:
+		return inv_scan_query_mpu6050(indio_dev);
+	}
+}
+
+static unsigned int inv_compute_skip_samples(const struct inv_mpu6050_state *st)
+{
+	unsigned int gyro_skip = 0;
+	unsigned int magn_skip = 0;
+	unsigned int skip_samples;
+
+	/* gyro first sample is out of specs, skip it */
+	if (st->chip_config.gyro_fifo_enable)
+		gyro_skip = 1;
+
+	/* mag first sample is always not ready, skip it */
+	if (st->chip_config.magn_fifo_enable)
+		magn_skip = 1;
+
+	/* compute first samples to skip */
+	skip_samples = gyro_skip;
+	if (magn_skip > skip_samples)
+		skip_samples = magn_skip;
+
+	return skip_samples;
+}
+
 /**
  *  inv_mpu6050_set_enable() - enable chip functions.
  *  @indio_dev:	Device driver instance.
@@ -34,6 +88,7 @@ static void inv_scan_query(struct iio_dev *indio_dev)
 static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	uint8_t d;
 	int result;
 
 	if (enable) {
@@ -41,14 +96,11 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 		if (result)
 			return result;
 		inv_scan_query(indio_dev);
-		st->skip_samples = 0;
 		if (st->chip_config.gyro_fifo_enable) {
 			result = inv_mpu6050_switch_engine(st, true,
 					INV_MPU6050_BIT_PWR_GYRO_STBY);
 			if (result)
 				goto error_power_off;
-			/* gyro first sample is out of specs, skip it */
-			st->skip_samples = 1;
 		}
 		if (st->chip_config.accl_fifo_enable) {
 			result = inv_mpu6050_switch_engine(st, true,
@@ -56,22 +108,32 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 			if (result)
 				goto error_gyro_off;
 		}
+		if (st->chip_config.magn_fifo_enable) {
+			d = st->chip_config.user_ctrl |
+					INV_MPU6050_BIT_I2C_MST_EN;
+			result = regmap_write(st->map, st->reg->user_ctrl, d);
+			if (result)
+				goto error_accl_off;
+			st->chip_config.user_ctrl = d;
+		}
+		st->skip_samples = inv_compute_skip_samples(st);
 		result = inv_reset_fifo(indio_dev);
 		if (result)
-			goto error_accl_off;
+			goto error_magn_off;
 	} else {
 		result = regmap_write(st->map, st->reg->fifo_en, 0);
 		if (result)
-			goto error_accl_off;
+			goto error_magn_off;
 
 		result = regmap_write(st->map, st->reg->int_enable, 0);
 		if (result)
-			goto error_accl_off;
+			goto error_magn_off;
 
-		result = regmap_write(st->map, st->reg->user_ctrl,
-				      st->chip_config.user_ctrl);
+		d = st->chip_config.user_ctrl & ~INV_MPU6050_BIT_I2C_MST_EN;
+		result = regmap_write(st->map, st->reg->user_ctrl, d);
 		if (result)
-			goto error_accl_off;
+			goto error_magn_off;
+		st->chip_config.user_ctrl = d;
 
 		result = inv_mpu6050_switch_engine(st, false,
 					INV_MPU6050_BIT_PWR_ACCL_STBY);
@@ -90,6 +152,10 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 
 	return 0;
 
+error_magn_off:
+	/* always restore user_ctrl to disable fifo properly */
+	st->chip_config.user_ctrl &= ~INV_MPU6050_BIT_I2C_MST_EN;
+	regmap_write(st->map, st->reg->user_ctrl, st->chip_config.user_ctrl);
 error_accl_off:
 	if (st->chip_config.accl_fifo_enable)
 		inv_mpu6050_switch_engine(st, false,

@@ -9,12 +9,9 @@ staging directory.
   relevant. (Sakari)
 
 - IPU3 driver documentation (Laurent)
-  Add diagram in driver rst to describe output capability.
   Comments on configuring v4l2 subdevs for CIO2 and ImgU.
 
 - uAPI documentation:
-  Further clarification on some ambiguities such as data type conversion of
-  IEFD CU inputs. (Sakari)
   Move acronyms to doc-rst file. (Mauro)
 
 - Switch to yavta from v4l2n in driver docs.
@@ -27,5 +24,3 @@ staging directory.
 - Document different operation modes, and which buffer queues are relevant
   in each mode. To process an image, which queues require a buffer an in
   which ones is it optional?
-
-- Make sure it builds fine with no warnings with W=1

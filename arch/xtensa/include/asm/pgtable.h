@@ -8,7 +8,6 @@
 #ifndef _XTENSA_PGTABLE_H
 #define _XTENSA_PGTABLE_H
 
-#define __ARCH_USE_5LEVEL_HACK
 #include <asm/page.h>
 #include <asm/kmem_layout.h>
 #include <asm-generic/pgtable-nopmd.h>
@@ -370,9 +369,6 @@ ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 #define pgd_offset(mm,address)	((mm)->pgd + pgd_index(address))
 
 #define pgd_index(address)	((address) >> PGDIR_SHIFT)
-
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(dir,address) ((pmd_t*)(dir))
 
 /* Find an entry in the third-level page table.. */
 #define pte_index(address)	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))

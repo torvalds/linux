@@ -20,42 +20,64 @@
  * Dorn and Kyleen Hall and Jarko Sakkinnen.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
-#include <linux/wait.h>
 #include <linux/acpi.h>
-#include <linux/freezer.h>
+#include <linux/completion.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 
+#include <linux/of_device.h>
 #include <linux/spi/spi.h>
-#include <linux/gpio.h>
-#include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #include <linux/tpm.h>
+
 #include "tpm.h"
 #include "tpm_tis_core.h"
+#include "tpm_tis_spi.h"
 
 #define MAX_SPI_FRAMESIZE 64
 
-struct tpm_tis_spi_phy {
-	struct tpm_tis_data priv;
-	struct spi_device *spi_device;
-	u8 *iobuf;
-};
-
-static inline struct tpm_tis_spi_phy *to_tpm_tis_spi_phy(struct tpm_tis_data *data)
+/*
+ * TCG SPI flow control is documented in section 6.4 of the spec[1]. In short,
+ * keep trying to read from the device until MISO goes high indicating the
+ * wait state has ended.
+ *
+ * [1] https://trustedcomputinggroup.org/resource/pc-client-platform-tpm-profile-ptp-specification/
+ */
+static int tpm_tis_spi_flow_control(struct tpm_tis_spi_phy *phy,
+				    struct spi_transfer *spi_xfer)
 {
-	return container_of(data, struct tpm_tis_spi_phy, priv);
+	struct spi_message m;
+	int ret, i;
+
+	if ((phy->iobuf[3] & 0x01) == 0) {
+		// handle SPI wait states
+		phy->iobuf[0] = 0;
+
+		for (i = 0; i < TPM_RETRY; i++) {
+			spi_xfer->len = 1;
+			spi_message_init(&m);
+			spi_message_add_tail(spi_xfer, &m);
+			ret = spi_sync_locked(phy->spi_device, &m);
+			if (ret < 0)
+				return ret;
+			if (phy->iobuf[0] & 0x01)
+				break;
+		}
+
+		if (i == TPM_RETRY)
+			return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
-static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
-				u8 *in, const u8 *out)
+int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
+			 u8 *in, const u8 *out)
 {
 	struct tpm_tis_spi_phy *phy = to_tpm_tis_spi_phy(data);
 	int ret = 0;
-	int i;
 	struct spi_message m;
 	struct spi_transfer spi_xfer;
 	u8 transfer_len;
@@ -82,26 +104,9 @@ static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 		if (ret < 0)
 			goto exit;
 
-		if ((phy->iobuf[3] & 0x01) == 0) {
-			// handle SPI wait states
-			phy->iobuf[0] = 0;
-
-			for (i = 0; i < TPM_RETRY; i++) {
-				spi_xfer.len = 1;
-				spi_message_init(&m);
-				spi_message_add_tail(&spi_xfer, &m);
-				ret = spi_sync_locked(phy->spi_device, &m);
-				if (ret < 0)
-					goto exit;
-				if (phy->iobuf[0] & 0x01)
-					break;
-			}
-
-			if (i == TPM_RETRY) {
-				ret = -ETIMEDOUT;
-				goto exit;
-			}
-		}
+		ret = phy->flow_control(phy, &spi_xfer);
+		if (ret < 0)
+			goto exit;
 
 		spi_xfer.cs_change = 0;
 		spi_xfer.len = transfer_len;
@@ -117,6 +122,7 @@ static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 
 		spi_message_init(&m);
 		spi_message_add_tail(&spi_xfer, &m);
+		reinit_completion(&phy->ready);
 		ret = spi_sync_locked(phy->spi_device, &m);
 		if (ret < 0)
 			goto exit;
@@ -146,7 +152,7 @@ static int tpm_tis_spi_write_bytes(struct tpm_tis_data *data, u32 addr,
 	return tpm_tis_spi_transfer(data, addr, len, NULL, value);
 }
 
-static int tpm_tis_spi_read16(struct tpm_tis_data *data, u32 addr, u16 *result)
+int tpm_tis_spi_read16(struct tpm_tis_data *data, u32 addr, u16 *result)
 {
 	__le16 result_le;
 	int rc;
@@ -159,7 +165,7 @@ static int tpm_tis_spi_read16(struct tpm_tis_data *data, u32 addr, u16 *result)
 	return rc;
 }
 
-static int tpm_tis_spi_read32(struct tpm_tis_data *data, u32 addr, u32 *result)
+int tpm_tis_spi_read32(struct tpm_tis_data *data, u32 addr, u32 *result)
 {
 	__le32 result_le;
 	int rc;
@@ -172,7 +178,7 @@ static int tpm_tis_spi_read32(struct tpm_tis_data *data, u32 addr, u32 *result)
 	return rc;
 }
 
-static int tpm_tis_spi_write32(struct tpm_tis_data *data, u32 addr, u32 value)
+int tpm_tis_spi_write32(struct tpm_tis_data *data, u32 addr, u32 value)
 {
 	__le32 value_le;
 	int rc;
@@ -182,6 +188,18 @@ static int tpm_tis_spi_write32(struct tpm_tis_data *data, u32 addr, u32 value)
 					(u8 *)&value_le);
 
 	return rc;
+}
+
+int tpm_tis_spi_init(struct spi_device *spi, struct tpm_tis_spi_phy *phy,
+		     int irq, const struct tpm_tis_phy_ops *phy_ops)
+{
+	phy->iobuf = devm_kmalloc(&spi->dev, MAX_SPI_FRAMESIZE, GFP_KERNEL);
+	if (!phy->iobuf)
+		return -ENOMEM;
+
+	phy->spi_device = spi;
+
+	return tpm_tis_core_init(&spi->dev, &phy->priv, irq, phy_ops, NULL);
 }
 
 static const struct tpm_tis_phy_ops tpm_spi_phy_ops = {
@@ -202,11 +220,7 @@ static int tpm_tis_spi_probe(struct spi_device *dev)
 	if (!phy)
 		return -ENOMEM;
 
-	phy->spi_device = dev;
-
-	phy->iobuf = devm_kmalloc(&dev->dev, MAX_SPI_FRAMESIZE, GFP_KERNEL);
-	if (!phy->iobuf)
-		return -ENOMEM;
+	phy->flow_control = tpm_tis_spi_flow_control;
 
 	/* If the SPI device has an IRQ then use that */
 	if (dev->irq > 0)
@@ -214,11 +228,27 @@ static int tpm_tis_spi_probe(struct spi_device *dev)
 	else
 		irq = -1;
 
-	return tpm_tis_core_init(&dev->dev, &phy->priv, irq, &tpm_spi_phy_ops,
-				 NULL);
+	init_completion(&phy->ready);
+	return tpm_tis_spi_init(dev, phy, irq, &tpm_spi_phy_ops);
 }
 
-static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
+typedef int (*tpm_tis_spi_probe_func)(struct spi_device *);
+
+static int tpm_tis_spi_driver_probe(struct spi_device *spi)
+{
+	const struct spi_device_id *spi_dev_id = spi_get_device_id(spi);
+	tpm_tis_spi_probe_func probe_func;
+
+	probe_func = of_device_get_match_data(&spi->dev);
+	if (!probe_func && spi_dev_id)
+		probe_func = (tpm_tis_spi_probe_func)spi_dev_id->driver_data;
+	if (!probe_func)
+		return -ENODEV;
+
+	return probe_func(spi);
+}
+
+static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_spi_resume);
 
 static int tpm_tis_spi_remove(struct spi_device *dev)
 {
@@ -230,15 +260,17 @@ static int tpm_tis_spi_remove(struct spi_device *dev)
 }
 
 static const struct spi_device_id tpm_tis_spi_id[] = {
-	{"tpm_tis_spi", 0},
+	{ "tpm_tis_spi", (unsigned long)tpm_tis_spi_probe },
+	{ "cr50", (unsigned long)cr50_spi_probe },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, tpm_tis_spi_id);
 
 static const struct of_device_id of_tis_spi_match[] = {
-	{ .compatible = "st,st33htpm-spi", },
-	{ .compatible = "infineon,slb9670", },
-	{ .compatible = "tcg,tpm_tis-spi", },
+	{ .compatible = "st,st33htpm-spi", .data = tpm_tis_spi_probe },
+	{ .compatible = "infineon,slb9670", .data = tpm_tis_spi_probe },
+	{ .compatible = "tcg,tpm_tis-spi", .data = tpm_tis_spi_probe },
+	{ .compatible = "google,cr50", .data = cr50_spi_probe },
 	{}
 };
 MODULE_DEVICE_TABLE(of, of_tis_spi_match);
@@ -251,13 +283,12 @@ MODULE_DEVICE_TABLE(acpi, acpi_tis_spi_match);
 
 static struct spi_driver tpm_tis_spi_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "tpm_tis_spi",
 		.pm = &tpm_tis_pm,
 		.of_match_table = of_match_ptr(of_tis_spi_match),
 		.acpi_match_table = ACPI_PTR(acpi_tis_spi_match),
 	},
-	.probe = tpm_tis_spi_probe,
+	.probe = tpm_tis_spi_driver_probe,
 	.remove = tpm_tis_spi_remove,
 	.id_table = tpm_tis_spi_id,
 };

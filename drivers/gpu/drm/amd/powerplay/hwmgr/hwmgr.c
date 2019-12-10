@@ -81,6 +81,8 @@ static void hwmgr_init_workload_prority(struct pp_hwmgr *hwmgr)
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev;
+
 	if (!hwmgr)
 		return -EINVAL;
 
@@ -94,8 +96,11 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	hwmgr_init_workload_prority(hwmgr);
 	hwmgr->gfxoff_state_changed_by_workload = false;
 
+	adev = hwmgr->adev;
+
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CI:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		hwmgr->smumgr_funcs = &ci_smu_funcs;
 		ci_set_asic_special_caps(hwmgr);
 		hwmgr->feature_mask &= ~(PP_VBI_TIME_SUPPORT_MASK |
@@ -106,12 +111,14 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		smu7_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_CZ:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		hwmgr->od_enabled = false;
 		hwmgr->smumgr_funcs = &smu8_smu_funcs;
 		hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 		smu8_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_VI:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 		switch (hwmgr->chip_id) {
 		case CHIP_TOPAZ:
@@ -153,6 +160,7 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	case AMDGPU_FAMILY_AI:
 		switch (hwmgr->chip_id) {
 		case CHIP_VEGA10:
+			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 			hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 			hwmgr->smumgr_funcs = &vega10_smu_funcs;
 			vega10_hwmgr_init(hwmgr);
@@ -162,6 +170,7 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 			vega12_hwmgr_init(hwmgr);
 			break;
 		case CHIP_VEGA20:
+			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 			hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 			hwmgr->smumgr_funcs = &vega20_smu_funcs;
 			vega20_hwmgr_init(hwmgr);

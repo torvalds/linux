@@ -689,16 +689,50 @@ static int vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 	return -EINVAL;
 }
 
+int smu7_asic_get_baco_capability(struct amdgpu_device *adev, bool *cap)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs || !pp_funcs->get_asic_baco_capability) {
+		*cap = false;
+		return -ENOENT;
+	}
+
+	return pp_funcs->get_asic_baco_capability(pp_handle, cap);
+}
+
+int smu7_asic_baco_reset(struct amdgpu_device *adev)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs ||!pp_funcs->get_asic_baco_state ||!pp_funcs->set_asic_baco_state)
+		return -ENOENT;
+
+	/* enter BACO state */
+	if (pp_funcs->set_asic_baco_state(pp_handle, 1))
+		return -EIO;
+
+	/* exit BACO state */
+	if (pp_funcs->set_asic_baco_state(pp_handle, 0))
+		return -EIO;
+
+	dev_info(adev->dev, "GPU BACO reset\n");
+
+	return 0;
+}
+
 /**
- * vi_asic_reset - soft reset GPU
+ * vi_asic_pci_config_reset - soft reset GPU
  *
  * @adev: amdgpu_device pointer
  *
- * Look up which blocks are hung and attempt
- * to reset them.
+ * Use PCI Config method to reset the GPU.
+ *
  * Returns 0 for success.
  */
-static int vi_asic_reset(struct amdgpu_device *adev)
+static int vi_asic_pci_config_reset(struct amdgpu_device *adev)
 {
 	int r;
 
@@ -714,7 +748,50 @@ static int vi_asic_reset(struct amdgpu_device *adev)
 static enum amd_reset_method
 vi_asic_reset_method(struct amdgpu_device *adev)
 {
-	return AMD_RESET_METHOD_LEGACY;
+	bool baco_reset;
+
+	switch (adev->asic_type) {
+	case CHIP_FIJI:
+	case CHIP_TONGA:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_TOPAZ:
+		smu7_asic_get_baco_capability(adev, &baco_reset);
+		break;
+	default:
+		baco_reset = false;
+		break;
+	}
+
+	if (baco_reset)
+		return AMD_RESET_METHOD_BACO;
+	else
+		return AMD_RESET_METHOD_LEGACY;
+}
+
+/**
+ * vi_asic_reset - soft reset GPU
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Look up which blocks are hung and attempt
+ * to reset them.
+ * Returns 0 for success.
+ */
+static int vi_asic_reset(struct amdgpu_device *adev)
+{
+	int r;
+
+	if (vi_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
+		if (!adev->in_suspend)
+			amdgpu_inc_vram_lost(adev);
+		r = smu7_asic_baco_reset(adev);
+	} else {
+		r = vi_asic_pci_config_reset(adev);
+	}
+
+	return r;
 }
 
 static u32 vi_get_config_memsize(struct amdgpu_device *adev)

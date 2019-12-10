@@ -1,0 +1,9 @@
+menuconfig FSL_DPAA2_QDMA
+	tristate "NXP DPAA2 QDMA"
+	depends on ARM64
+	depends on FSL_MC_BUS && FSL_MC_DPIO
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  NXP Data Path Acceleration Architecture 2 QDMA driver,
+	  using the NXP MC bus driver.
