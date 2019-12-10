@@ -2479,6 +2479,7 @@ static int snd_rme9652_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	rme9652->irq = pci->irq;
+	card->sync_irq = rme9652->irq;
 	rme9652->precise_ptr = precise_ptr;
 
 	/* Determine the h/w rev level of the card. This seems like
