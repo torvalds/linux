@@ -71,6 +71,25 @@ static void set_sctlr_el1_tcf0(u64 tcf0)
 	preempt_enable();
 }
 
+static void update_gcr_el1_excl(u64 incl)
+{
+	u64 excl = ~incl & SYS_GCR_EL1_EXCL_MASK;
+
+	/*
+	 * Note that 'incl' is an include mask (controlled by the user via
+	 * prctl()) while GCR_EL1 accepts an exclude mask.
+	 * No need for ISB since this only affects EL0 currently, implicit
+	 * with ERET.
+	 */
+	sysreg_clear_set_s(SYS_GCR_EL1, SYS_GCR_EL1_EXCL_MASK, excl);
+}
+
+static void set_gcr_el1_excl(u64 incl)
+{
+	current->thread.gcr_user_incl = incl;
+	update_gcr_el1_excl(incl);
+}
+
 void flush_mte_state(void)
 {
 	if (!system_supports_mte())
@@ -82,6 +101,8 @@ void flush_mte_state(void)
 	clear_thread_flag(TIF_MTE_ASYNC_FAULT);
 	/* disable tag checking */
 	set_sctlr_el1_tcf0(SCTLR_EL1_TCF0_NONE);
+	/* reset tag generation mask */
+	set_gcr_el1_excl(0);
 }
 
 void mte_thread_switch(struct task_struct *next)
@@ -92,6 +113,7 @@ void mte_thread_switch(struct task_struct *next)
 	/* avoid expensive SCTLR_EL1 accesses if no change */
 	if (current->thread.sctlr_tcf0 != next->thread.sctlr_tcf0)
 		update_sctlr_el1_tcf0(next->thread.sctlr_tcf0);
+	update_gcr_el1_excl(next->thread.gcr_user_incl);
 }
 
 long set_mte_ctrl(unsigned long arg)
@@ -116,23 +138,30 @@ long set_mte_ctrl(unsigned long arg)
 	}
 
 	set_sctlr_el1_tcf0(tcf0);
+	set_gcr_el1_excl((arg & PR_MTE_TAG_MASK) >> PR_MTE_TAG_SHIFT);
 
 	return 0;
 }
 
 long get_mte_ctrl(void)
 {
+	unsigned long ret;
+
 	if (!system_supports_mte())
 		return 0;
+
+	ret = current->thread.gcr_user_incl << PR_MTE_TAG_SHIFT;
 
 	switch (current->thread.sctlr_tcf0) {
 	case SCTLR_EL1_TCF0_NONE:
 		return PR_MTE_TCF_NONE;
 	case SCTLR_EL1_TCF0_SYNC:
-		return PR_MTE_TCF_SYNC;
+		ret |= PR_MTE_TCF_SYNC;
+		break;
 	case SCTLR_EL1_TCF0_ASYNC:
-		return PR_MTE_TCF_ASYNC;
+		ret |= PR_MTE_TCF_ASYNC;
+		break;
 	}
 
-	return 0;
+	return ret;
 }

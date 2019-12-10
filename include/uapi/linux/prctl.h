@@ -239,6 +239,9 @@ struct prctl_mm_map {
 # define PR_MTE_TCF_SYNC		(1UL << PR_MTE_TCF_SHIFT)
 # define PR_MTE_TCF_ASYNC		(2UL << PR_MTE_TCF_SHIFT)
 # define PR_MTE_TCF_MASK		(3UL << PR_MTE_TCF_SHIFT)
+/* MTE tag inclusion mask */
+# define PR_MTE_TAG_SHIFT		3
+# define PR_MTE_TAG_MASK		(0xffffUL << PR_MTE_TAG_SHIFT)
 
 /* Control reclaim behavior when allocating memory */
 #define PR_SET_IO_FLUSHER		57
