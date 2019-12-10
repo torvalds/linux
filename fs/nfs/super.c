@@ -2578,7 +2578,7 @@ int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
 	unsigned long kflags = 0, kflags_out = 0;
 
 	/* clone any lsm security options from the parent to the new sb */
-	if (d_inode(mntroot)->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops)
+	if (d_inode(mntroot)->i_fop != &nfs_dir_operations)
 		return -ESTALE;
 
 	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL)
