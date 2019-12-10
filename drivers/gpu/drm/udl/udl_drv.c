@@ -21,17 +21,14 @@ static int udl_usb_suspend(struct usb_interface *interface,
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 
-	drm_kms_helper_poll_disable(dev);
-	return 0;
+	return drm_mode_config_helper_suspend(dev);
 }
 
 static int udl_usb_resume(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 
-	drm_kms_helper_poll_enable(dev);
-	udl_modeset_restore(dev);
-	return 0;
+	return drm_mode_config_helper_resume(dev);
 }
 
 DEFINE_DRM_GEM_FOPS(udl_driver_fops);

@@ -438,20 +438,6 @@ err_drm_mode_config_cleanup:
 	return ret;
 }
 
-void udl_modeset_restore(struct drm_device *dev)
-{
-	struct udl_device *udl = dev->dev_private;
-	struct drm_crtc *crtc = &udl->display_pipe.crtc;
-	struct drm_plane *primary = &udl->display_pipe.plane;
-	struct drm_framebuffer *fb = primary->fb;
-
-	if (!fb)
-		return;
-
-	udl_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
-	udl_handle_damage(fb, 0, 0, fb->width, fb->height);
-}
-
 void udl_modeset_cleanup(struct drm_device *dev)
 {
 	drm_mode_config_cleanup(dev);

@@ -72,7 +72,6 @@ struct udl_device {
 
 /* modeset */
 int udl_modeset_init(struct drm_device *dev);
-void udl_modeset_restore(struct drm_device *dev);
 void udl_modeset_cleanup(struct drm_device *dev);
 struct drm_connector *udl_connector_init(struct drm_device *dev);
 
