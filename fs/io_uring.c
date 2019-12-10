@@ -3224,13 +3224,14 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 
 static void __io_queue_sqe(struct io_kiocb *req)
 {
-	struct io_kiocb *linked_timeout = io_prep_linked_timeout(req);
+	struct io_kiocb *linked_timeout;
 	struct io_kiocb *nxt = NULL;
 	int ret;
 
+again:
+	linked_timeout = io_prep_linked_timeout(req);
+
 	ret = io_issue_sqe(req, &nxt, true);
-	if (nxt)
-		io_queue_async_work(nxt);
 
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
@@ -3249,7 +3250,7 @@ static void __io_queue_sqe(struct io_kiocb *req)
 		 * submit reference when the iocb is actually submitted.
 		 */
 		io_queue_async_work(req);
-		return;
+		goto done_req;
 	}
 
 err:
@@ -3268,6 +3269,12 @@ err:
 		io_cqring_add_event(req, ret);
 		req_set_fail_links(req);
 		io_put_req(req);
+	}
+done_req:
+	if (nxt) {
+		req = nxt;
+		nxt = NULL;
+		goto again;
 	}
 }
 
