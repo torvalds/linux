@@ -156,6 +156,8 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 	fs = &tc_port_matchall->ingress.fs;
 	memset(fs, 0, sizeof(*fs));
 
+	if (fidx < adap->tids.nhpftids)
+		fs->prio = 1;
 	fs->tc_prio = cls->common.prio;
 	fs->tc_cookie = cls->cookie;
 	fs->hitcnts = 1;

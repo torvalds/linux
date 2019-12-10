@@ -804,6 +804,26 @@ static int setup_ppod_edram(struct adapter *adap)
 	return 0;
 }
 
+static void adap_config_hpfilter(struct adapter *adapter)
+{
+	u32 param, val = 0;
+	int ret;
+
+	/* Enable HP filter region. Older fw will fail this request and
+	 * it is fine.
+	 */
+	param = FW_PARAM_DEV(HPFILTER_REGION_SUPPORT);
+	ret = t4_set_params(adapter, adapter->mbox, adapter->pf, 0,
+			    1, &param, &val);
+
+	/* An error means FW doesn't know about HP filter support,
+	 * it's not a problem, don't return an error.
+	 */
+	if (ret < 0)
+		dev_err(adapter->pdev_dev,
+			"HP filter region isn't supported by FW\n");
+}
+
 /**
  *	cxgb4_write_rss - write the RSS table for a given port
  *	@pi: the port
@@ -1518,6 +1538,7 @@ static int tid_init(struct tid_info *t)
 	struct adapter *adap = container_of(t, struct adapter, tids);
 	unsigned int max_ftids = t->nftids + t->nsftids;
 	unsigned int natids = t->natids;
+	unsigned int hpftid_bmap_size;
 	unsigned int eotid_bmap_size;
 	unsigned int stid_bmap_size;
 	unsigned int ftid_bmap_size;
@@ -1525,12 +1546,15 @@ static int tid_init(struct tid_info *t)
 
 	stid_bmap_size = BITS_TO_LONGS(t->nstids + t->nsftids);
 	ftid_bmap_size = BITS_TO_LONGS(t->nftids);
+	hpftid_bmap_size = BITS_TO_LONGS(t->nhpftids);
 	eotid_bmap_size = BITS_TO_LONGS(t->neotids);
 	size = t->ntids * sizeof(*t->tid_tab) +
 	       natids * sizeof(*t->atid_tab) +
 	       t->nstids * sizeof(*t->stid_tab) +
 	       t->nsftids * sizeof(*t->stid_tab) +
 	       stid_bmap_size * sizeof(long) +
+	       t->nhpftids * sizeof(*t->hpftid_tab) +
+	       hpftid_bmap_size * sizeof(long) +
 	       max_ftids * sizeof(*t->ftid_tab) +
 	       ftid_bmap_size * sizeof(long) +
 	       t->neotids * sizeof(*t->eotid_tab) +
@@ -1543,7 +1567,9 @@ static int tid_init(struct tid_info *t)
 	t->atid_tab = (union aopen_entry *)&t->tid_tab[t->ntids];
 	t->stid_tab = (struct serv_entry *)&t->atid_tab[natids];
 	t->stid_bmap = (unsigned long *)&t->stid_tab[t->nstids + t->nsftids];
-	t->ftid_tab = (struct filter_entry *)&t->stid_bmap[stid_bmap_size];
+	t->hpftid_tab = (struct filter_entry *)&t->stid_bmap[stid_bmap_size];
+	t->hpftid_bmap = (unsigned long *)&t->hpftid_tab[t->nhpftids];
+	t->ftid_tab = (struct filter_entry *)&t->hpftid_bmap[hpftid_bmap_size];
 	t->ftid_bmap = (unsigned long *)&t->ftid_tab[max_ftids];
 	t->eotid_tab = (struct eotid_entry *)&t->ftid_bmap[ftid_bmap_size];
 	t->eotid_bmap = (unsigned long *)&t->eotid_tab[t->neotids];
@@ -1578,6 +1604,8 @@ static int tid_init(struct tid_info *t)
 			bitmap_zero(t->eotid_bmap, t->neotids);
 	}
 
+	if (t->nhpftids)
+		bitmap_zero(t->hpftid_bmap, t->nhpftids);
 	bitmap_zero(t->ftid_bmap, t->nftids);
 	return 0;
 }
@@ -4351,6 +4379,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 			"HMA configuration failed with error %d\n", ret);
 
 	if (is_t6(adapter->params.chip)) {
+		adap_config_hpfilter(adapter);
 		ret = setup_ppod_edram(adapter);
 		if (!ret)
 			dev_info(adapter->pdev_dev, "Successfully enabled "
@@ -4660,16 +4689,6 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	/*
 	 * Grab some of our basic fundamental operating parameters.
 	 */
-#define FW_PARAM_DEV(param) \
-	(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) | \
-	FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_##param))
-
-#define FW_PARAM_PFVF(param) \
-	FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) | \
-	FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_##param)|  \
-	FW_PARAMS_PARAM_Y_V(0) | \
-	FW_PARAMS_PARAM_Z_V(0)
-
 	params[0] = FW_PARAM_PFVF(EQ_START);
 	params[1] = FW_PARAM_PFVF(L2T_START);
 	params[2] = FW_PARAM_PFVF(L2T_END);
@@ -4687,6 +4706,16 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	adap->sge.ingr_start = val[5];
 
 	if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
+		params[0] = FW_PARAM_PFVF(HPFILTER_START);
+		params[1] = FW_PARAM_PFVF(HPFILTER_END);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+				      params, val);
+		if (ret < 0)
+			goto bye;
+
+		adap->tids.hpftid_base = val[0];
+		adap->tids.nhpftids = val[1] - val[0] + 1;
+
 		/* Read the raw mps entries. In T6, the last 2 tcam entries
 		 * are reserved for raw mac addresses (rawf = 2, one per port).
 		 */
@@ -5050,8 +5079,6 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 		}
 		adap->params.crypto = ntohs(caps_cmd.cryptocaps);
 	}
-#undef FW_PARAM_PFVF
-#undef FW_PARAM_DEV
 
 	/* The MTU/MSS Table is initialized by now, so load their values.  If
 	 * we're initializing the adapter, then we'll make any modifications

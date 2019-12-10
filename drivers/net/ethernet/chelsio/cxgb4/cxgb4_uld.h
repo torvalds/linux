@@ -111,6 +111,11 @@ struct tid_info {
 	unsigned int natids;
 	unsigned int atid_base;
 
+	struct filter_entry *hpftid_tab;
+	unsigned long *hpftid_bmap;
+	unsigned int nhpftids;
+	unsigned int hpftid_base;
+
 	struct filter_entry *ftid_tab;
 	unsigned long *ftid_bmap;
 	unsigned int nftids;
