@@ -1102,8 +1102,8 @@ _err_defer:
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_pcm_runtime);
 
-static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
-				struct snd_soc_pcm_runtime *rtd)
+static int soc_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
+			   struct snd_soc_pcm_runtime *rtd)
 {
 	int i, ret = 0;
 
@@ -1464,11 +1464,11 @@ static int soc_link_init(struct snd_soc_card *card,
 			dai_link->stream_name, ret);
 		return ret;
 	}
-	ret = soc_link_dai_pcm_new(&cpu_dai, 1, rtd);
+	ret = soc_dai_pcm_new(&cpu_dai, 1, rtd);
 	if (ret < 0)
 		return ret;
-	ret = soc_link_dai_pcm_new(rtd->codec_dais,
-				   rtd->num_codecs, rtd);
+	ret = soc_dai_pcm_new(rtd->codec_dais,
+			      rtd->num_codecs, rtd);
 	return ret;
 }
 
