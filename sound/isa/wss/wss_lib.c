@@ -1811,6 +1811,7 @@ int snd_wss_create(struct snd_card *card,
 			return -EBUSY;
 		}
 	chip->irq = irq;
+	card->sync_irq = chip->irq;
 	if (!(hwshare & WSS_HWSHARE_DMA1) && request_dma(dma1, "WSS - 1")) {
 		snd_printk(KERN_ERR "wss: can't grab DMA1 %d\n", dma1);
 		snd_wss_free(chip);
