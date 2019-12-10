@@ -539,7 +539,7 @@ static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
 	 * leave all fields at HW default values.
 	 */
 	if (IS_GEN(dev_priv, 11)) {
-		if (intel_dsi_bitrate(intel_dsi) <= 800000) {
+		if (afe_clk(encoder) <= 800000) {
 			for_each_dsi_port(port, intel_dsi->ports) {
 				tmp = I915_READ(DPHY_TA_TIMING_PARAM(port));
 				tmp &= ~TA_SURE_MASK;
@@ -649,7 +649,7 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			tmp |= EOTP_DISABLED;
 
 		/* enable link calibration if freq > 1.5Gbps */
-		if (intel_dsi_bitrate(intel_dsi) >= 1500 * 1000) {
+		if (afe_clk(encoder) >= 1500 * 1000) {
 			tmp &= ~LINK_CALIBRATION_MASK;
 			tmp |= CALIBRATION_ENABLED_INITIAL_ONLY;
 		}
@@ -930,7 +930,7 @@ static void gen11_dsi_setup_timeouts(struct intel_encoder *encoder)
 	 * TIME_NS = (BYTE_CLK_COUNT * 8 * 10^6)/ Bitrate
 	 * ESCAPE_CLK_COUNT  = TIME_NS/ESC_CLK_NS
 	 */
-	divisor = intel_dsi_tlpx_ns(intel_dsi) * intel_dsi_bitrate(intel_dsi) * 1000;
+	divisor = intel_dsi_tlpx_ns(intel_dsi) * afe_clk(encoder) * 1000;
 	mul = 8 * 1000000;
 	hs_tx_timeout = DIV_ROUND_UP(intel_dsi->hs_tx_timeout * mul,
 				     divisor);
@@ -1300,7 +1300,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 		pipe_config->pipe_bpp = 18;
 
 	pipe_config->clock_set = true;
-	pipe_config->port_clock = intel_dsi_bitrate(intel_dsi) / 5;
+	pipe_config->port_clock = afe_clk(encoder) / 5;
 
 	return 0;
 }
