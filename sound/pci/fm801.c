@@ -1223,6 +1223,7 @@ static int snd_fm801_create(struct snd_card *card,
 			return -EBUSY;
 		}
 		chip->irq = pci->irq;
+		card->sync_irq = chip->irq;
 		pci_set_master(pci);
 	}
 
