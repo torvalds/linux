@@ -98,7 +98,7 @@ static struct dentry *
 nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 		  const char *dev_name, void *info)
 {
-	return nfs_fs_mount_common(flags, dev_name, info, &nfs_v4);
+	return nfs_fs_mount_common(flags, dev_name, info);
 }
 
 struct nfs_referral_count {
@@ -216,8 +216,7 @@ static struct dentry *do_nfs4_mount(struct nfs_server *server, int flags,
 }
 
 struct dentry *nfs4_try_mount(int flags, const char *dev_name,
-			      struct nfs_mount_info *mount_info,
-			      struct nfs_subversion *nfs_mod)
+			      struct nfs_mount_info *mount_info)
 {
 	struct nfs_parsed_mount_data *data = mount_info->parsed;
 	struct dentry *res;

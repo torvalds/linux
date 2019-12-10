@@ -1893,15 +1893,15 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 }
 
 struct dentry *nfs_try_mount(int flags, const char *dev_name,
-			     struct nfs_mount_info *mount_info,
-			     struct nfs_subversion *nfs_mod)
+			     struct nfs_mount_info *mount_info)
 {
+	struct nfs_subversion *nfs_mod = mount_info->nfs_mod;
 	if (mount_info->parsed->need_mount)
 		mount_info->server = nfs_try_mount_request(mount_info, nfs_mod);
 	else
 		mount_info->server = nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
 
-	return nfs_fs_mount_common(flags, dev_name, mount_info, nfs_mod);
+	return nfs_fs_mount_common(flags, dev_name, mount_info);
 }
 EXPORT_SYMBOL_GPL(nfs_try_mount);
 
@@ -2648,8 +2648,7 @@ static void nfs_set_readahead(struct backing_dev_info *bdi,
 }
 
 struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
-				   struct nfs_mount_info *mount_info,
-				   struct nfs_subversion *nfs_mod)
+				   struct nfs_mount_info *mount_info)
 {
 	struct super_block *s;
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
@@ -2677,7 +2676,8 @@ struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
 			sb_mntdata.mntflags |= SB_SYNCHRONOUS;
 
 	/* Get a superblock - note that we may end up sharing one that already exists */
-	s = sget(nfs_mod->nfs_fs, compare_super, nfs_set_super, flags, &sb_mntdata);
+	s = sget(mount_info->nfs_mod->nfs_fs, compare_super, nfs_set_super,
+		 flags, &sb_mntdata);
 	if (IS_ERR(s)) {
 		mntroot = ERR_CAST(s);
 		goto out_err_nosb;
@@ -2763,7 +2763,7 @@ struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 	}
 	mount_info.nfs_mod = nfs_mod;
 
-	mntroot = nfs_mod->rpc_ops->try_mount(flags, dev_name, &mount_info, nfs_mod);
+	mntroot = nfs_mod->rpc_ops->try_mount(flags, dev_name, &mount_info);
 
 	put_nfs_version(nfs_mod);
 out:
@@ -2797,10 +2797,7 @@ static struct dentry *
 nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 		const char *dev_name, void *raw_data)
 {
-	struct nfs_mount_info *info = raw_data;
-	struct nfs_subversion *nfs_mod = NFS_SB(info->cloned->sb)->nfs_client->cl_nfs_mod;
-
-	return nfs_fs_mount_common(flags, dev_name, info, nfs_mod);
+	return nfs_fs_mount_common(flags, dev_name, raw_data);
 }
 
 #if IS_ENABLED(CONFIG_NFS_V4)
