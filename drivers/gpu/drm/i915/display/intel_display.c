@@ -17751,7 +17751,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
-			crtc_state = to_intel_crtc_state(crtc->base.state);
+			to_intel_crtc_state(crtc->base.state);
 
 		intel_sanitize_crtc(crtc, ctx);
 		intel_dump_pipe_config(crtc_state, NULL, "[setup_hw_state]");
