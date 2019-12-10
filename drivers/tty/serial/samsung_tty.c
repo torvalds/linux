@@ -46,28 +46,6 @@
 #include <linux/of.h>
 #include <asm/irq.h>
 
-#if	defined(CONFIG_SERIAL_SAMSUNG_DEBUG) &&	\
-	!defined(MODULE)
-
-extern void printascii(const char *);
-
-__printf(1, 2)
-static void dbg(const char *fmt, ...)
-{
-	va_list va;
-	char buff[256];
-
-	va_start(va, fmt);
-	vscnprintf(buff, sizeof(buff), fmt, va);
-	va_end(va);
-
-	printascii(buff);
-}
-
-#else
-#define dbg(fmt, ...) do { if (0) no_printk(fmt, ##__VA_ARGS__); } while (0)
-#endif
-
 /* UART name and device definitions */
 
 #define S3C24XX_SERIAL_NAME	"ttySAC"
@@ -517,7 +495,7 @@ static void s3c24xx_serial_stop_rx(struct uart_port *port)
 	unsigned int received;
 
 	if (rx_enabled(port)) {
-		dbg("s3c24xx_serial_stop_rx: port=%p\n", port);
+		dev_dbg(port->dev, "stopping rx\n");
 		if (s3c24xx_serial_has_interrupt_mask(port))
 			s3c24xx_set_bit(port, S3C64XX_UINTM_RXD,
 					S3C64XX_UINTM);
@@ -768,12 +746,13 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 		port->icount.rx++;
 
 		if (unlikely(uerstat & S3C2410_UERSTAT_ANY)) {
-			dbg("rxerr: port ch=0x%02x, rxs=0x%08x\n",
-			    ch, uerstat);
+			dev_dbg(port->dev,
+				"rxerr: port ch=0x%02x, rxs=0x%08x\n",
+				ch, uerstat);
 
 			/* check for break */
 			if (uerstat & S3C2410_UERSTAT_BREAK) {
-				dbg("break!\n");
+				dev_dbg(port->dev, "break!\n");
 				port->icount.brk++;
 				if (uart_handle_break(port))
 					continue; /* Ignore character */
@@ -1148,7 +1127,7 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	ourport->rx_claimed = 1;
 
-	dbg("requesting tx irq...\n");
+	dev_dbg(port->dev, "requesting tx irq...\n");
 
 	tx_enabled(port) = 1;
 
@@ -1433,29 +1412,30 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 		if (cfg->has_fracval) {
 			udivslot = (div & 15);
-			dbg("fracval = %04x\n", udivslot);
+			dev_dbg(port->dev, "fracval = %04x\n", udivslot);
 		} else {
 			udivslot = udivslot_table[div & 15];
-			dbg("udivslot = %04x (div %d)\n", udivslot, div & 15);
+			dev_dbg(port->dev, "udivslot = %04x (div %d)\n",
+				udivslot, div & 15);
 		}
 	}
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
-		dbg("config: 5bits/char\n");
+		dev_dbg(port->dev, "config: 5bits/char\n");
 		ulcon = S3C2410_LCON_CS5;
 		break;
 	case CS6:
-		dbg("config: 6bits/char\n");
+		dev_dbg(port->dev, "config: 6bits/char\n");
 		ulcon = S3C2410_LCON_CS6;
 		break;
 	case CS7:
-		dbg("config: 7bits/char\n");
+		dev_dbg(port->dev, "config: 7bits/char\n");
 		ulcon = S3C2410_LCON_CS7;
 		break;
 	case CS8:
 	default:
-		dbg("config: 8bits/char\n");
+		dev_dbg(port->dev, "config: 8bits/char\n");
 		ulcon = S3C2410_LCON_CS8;
 		break;
 	}
@@ -1477,8 +1457,9 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	dbg("setting ulcon to %08x, brddiv to %d, udivslot %08x\n",
-	    ulcon, quot, udivslot);
+	dev_dbg(port->dev,
+		"setting ulcon to %08x, brddiv to %d, udivslot %08x\n",
+		ulcon, quot, udivslot);
 
 	wr_regl(port, S3C2410_ULCON, ulcon);
 	wr_regl(port, S3C2410_UBRDIV, quot);
@@ -1499,10 +1480,11 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	if (ourport->info->has_divslot)
 		wr_regl(port, S3C2443_DIVSLOT, udivslot);
 
-	dbg("uart: ulcon = 0x%08x, ucon = 0x%08x, ufcon = 0x%08x\n",
-	    rd_regl(port, S3C2410_ULCON),
-	    rd_regl(port, S3C2410_UCON),
-	    rd_regl(port, S3C2410_UFCON));
+	dev_dbg(port->dev,
+		"uart: ulcon = 0x%08x, ucon = 0x%08x, ufcon = 0x%08x\n",
+		rd_regl(port, S3C2410_ULCON),
+		rd_regl(port, S3C2410_UCON),
+		rd_regl(port, S3C2410_UFCON));
 
 	/*
 	 * Update the per-port timeout.
@@ -1877,7 +1859,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	port->uartclk = 1;
 
 	if (cfg->uart_flags & UPF_CONS_FLOW) {
-		dbg("s3c24xx_serial_init_port: enabling flow control\n");
+		dev_dbg(port->dev, "enabling flow control\n");
 		port->flags |= UPF_CONS_FLOW;
 	}
 
@@ -1889,7 +1871,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		return -EINVAL;
 	}
 
-	dbg("resource %pR)\n", res);
+	dev_dbg(port->dev, "resource %pR)\n", res);
 
 	port->membase = devm_ioremap(port->dev, res->start, resource_size(res));
 	if (!port->membase) {
@@ -1951,9 +1933,9 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		wr_regl(port, S3C64XX_UINTSP, 0xf);
 	}
 
-	dbg("port: map=%pa, mem=%p, irq=%d (%d,%d), clock=%u\n",
-	    &port->mapbase, port->membase, port->irq,
-	    ourport->rx_irq, ourport->tx_irq, port->uartclk);
+	dev_dbg(port->dev, "port: map=%pa, mem=%p, irq=%d (%d,%d), clock=%u\n",
+		&port->mapbase, port->membase, port->irq,
+		ourport->rx_irq, ourport->tx_irq, port->uartclk);
 
 	/* reset the fifos (and setup the uart) */
 	s3c24xx_serial_resetport(port, cfg);
@@ -2034,7 +2016,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	ourport->min_dma_size = max_t(int, ourport->port.fifosize,
 				    dma_get_cache_alignment());
 
-	dbg("%s: initialising port %p...\n", __func__, ourport);
+	dev_dbg(&pdev->dev, "%s: initialising port %p...\n", __func__, ourport);
 
 	ret = s3c24xx_serial_init_port(ourport, pdev);
 	if (ret < 0)
@@ -2048,7 +2030,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 		}
 	}
 
-	dbg("%s: adding port\n", __func__);
+	dev_dbg(&pdev->dev, "%s: adding port\n", __func__);
 	uart_add_one_port(&s3c24xx_uart_drv, &ourport->port);
 	platform_set_drvdata(pdev, &ourport->port);
 
@@ -2303,7 +2285,7 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 			rate = 1;
 
 		*baud = rate / (16 * (ubrdiv + 1));
-		dbg("calculated baud %d\n", *baud);
+		dev_dbg(port->dev, "calculated baud %d\n", *baud);
 	}
 
 }
@@ -2341,7 +2323,7 @@ s3c24xx_serial_console_setup(struct console *co, char *options)
 	else
 		s3c24xx_serial_get_options(port, &baud, &parity, &bits);
 
-	dbg("s3c24xx_serial_console_setup: baud %d\n", baud);
+	dev_dbg(port->dev, "baud %d\n", baud);
 
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
