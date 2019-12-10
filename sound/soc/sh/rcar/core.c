@@ -1218,10 +1218,10 @@ static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
 	for (substream = rtd->pcm->streams[stream].substream;
 	     substream;
 	     substream = substream->next) {
-		snd_pcm_lib_preallocate_pages(substream,
-					      SNDRV_DMA_TYPE_DEV,
-					      dev,
-					      PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
+		snd_pcm_set_managed_buffer(substream,
+					   SNDRV_DMA_TYPE_DEV,
+					   dev,
+					   PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
 	}
 
 	return 0;
@@ -1400,7 +1400,6 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
 	struct snd_soc_pcm_runtime *fe = substream->private_data;
-	int ret;
 
 	/*
 	 * rsnd assumes that it might be used under DPCM if user want to use
@@ -1433,12 +1432,7 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 			dev_dbg(dev, "convert rate     = %d\n", io->converted_rate);
 	}
 
-	ret = rsnd_dai_call(hw_params, io, substream, hw_params);
-	if (ret)
-		return ret;
-
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
+	return rsnd_dai_call(hw_params, io, substream, hw_params);
 }
 
 static int rsnd_hw_free(struct snd_soc_component *component,
@@ -1447,13 +1441,8 @@ static int rsnd_hw_free(struct snd_soc_component *component,
 	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-	int ret;
 
-	ret = rsnd_dai_call(hw_free, io, substream);
-	if (ret)
-		return ret;
-
-	return snd_pcm_lib_free_pages(substream);
+	return rsnd_dai_call(hw_free, io, substream);
 }
 
 static snd_pcm_uframes_t rsnd_pointer(struct snd_soc_component *component,
