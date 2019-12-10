@@ -532,11 +532,26 @@ static int brcm_ahci_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void brcm_ahci_shutdown(struct platform_device *pdev)
+{
+	int ret;
+
+	/* All resources releasing happens via devres, but our device, unlike a
+	 * proper remove is not disappearing, therefore using
+	 * brcm_ahci_suspend() here which does explicit power management is
+	 * appropriate.
+	 */
+	ret = brcm_ahci_suspend(&pdev->dev);
+	if (ret)
+		dev_err(&pdev->dev, "failed to shutdown\n");
+}
+
 static SIMPLE_DEV_PM_OPS(ahci_brcm_pm_ops, brcm_ahci_suspend, brcm_ahci_resume);
 
 static struct platform_driver brcm_ahci_driver = {
 	.probe = brcm_ahci_probe,
 	.remove = brcm_ahci_remove,
+	.shutdown = brcm_ahci_shutdown,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = ahci_of_match,
