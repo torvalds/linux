@@ -58,11 +58,6 @@
 			    | KOMEDA_EVENT_MODE \
 			    )
 
-/* malidp device id */
-enum {
-	MALI_D71 = 0,
-};
-
 /* pipeline DT ports */
 enum {
 	KOMEDA_OF_PORT_OUTPUT		= 0,
@@ -74,12 +69,6 @@ struct komeda_chip_info {
 	u32 core_id;
 	u32 core_info;
 	u32 bus_width;
-};
-
-struct komeda_product_data {
-	u32 product_id;
-	const struct komeda_dev_funcs *(*identify)(u32 __iomem *reg,
-					     struct komeda_chip_info *info);
 };
 
 struct komeda_dev;
@@ -233,6 +222,9 @@ komeda_product_match(struct komeda_dev *mdev, u32 target)
 {
 	return MALIDP_CORE_ID_PRODUCT_ID(mdev->chip.core_id) == target;
 }
+
+typedef const struct komeda_dev_funcs *
+(*komeda_identify_func)(u32 __iomem *reg, struct komeda_chip_info *chip);
 
 const struct komeda_dev_funcs *
 d71_identify(u32 __iomem *reg, struct komeda_chip_info *chip);

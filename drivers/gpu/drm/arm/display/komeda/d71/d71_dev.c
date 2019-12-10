@@ -597,10 +597,25 @@ static const struct komeda_dev_funcs d71_chip_funcs = {
 const struct komeda_dev_funcs *
 d71_identify(u32 __iomem *reg_base, struct komeda_chip_info *chip)
 {
+	const struct komeda_dev_funcs *funcs;
+	u32 product_id;
+
+	chip->core_id = malidp_read32(reg_base, GLB_CORE_ID);
+
+	product_id = MALIDP_CORE_ID_PRODUCT_ID(chip->core_id);
+
+	switch (product_id) {
+	case MALIDP_D71_PRODUCT_ID:
+		funcs = &d71_chip_funcs;
+		break;
+	default:
+		DRM_ERROR("Unsupported product: 0x%x\n", product_id);
+		return NULL;
+	}
+
 	chip->arch_id	= malidp_read32(reg_base, GLB_ARCH_ID);
-	chip->core_id	= malidp_read32(reg_base, GLB_CORE_ID);
 	chip->core_info	= malidp_read32(reg_base, GLB_CORE_INFO);
 	chip->bus_width	= D71_BUS_WIDTH_16_BYTES;
 
-	return &d71_chip_funcs;
+	return funcs;
 }
