@@ -1554,9 +1554,10 @@ static enum port dvo_port_to_port(u8 dvo_port)
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv,
-			   const struct child_device_config *child,
+			   struct display_device_data *devdata,
 			   u8 bdb_version)
 {
+	const struct child_device_config *child = &devdata->child;
 	struct ddi_vbt_port_info *info;
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt;
 	enum port port;
@@ -1708,7 +1709,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 
 static void parse_ddi_ports(struct drm_i915_private *dev_priv, u8 bdb_version)
 {
-	const struct display_device_data *devdata;
+	struct display_device_data *devdata;
 
 	if (!HAS_DDI(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		return;
@@ -1717,7 +1718,7 @@ static void parse_ddi_ports(struct drm_i915_private *dev_priv, u8 bdb_version)
 		return;
 
 	list_for_each_entry(devdata, &dev_priv->vbt.display_devices, node)
-		parse_ddi_port(dev_priv, &devdata->child, bdb_version);
+		parse_ddi_port(dev_priv, devdata, bdb_version);
 }
 
 static void
