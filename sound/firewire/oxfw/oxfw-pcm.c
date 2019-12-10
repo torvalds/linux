@@ -411,7 +411,6 @@ int snd_oxfw_create_pcm(struct snd_oxfw *oxfw)
 	static const struct snd_pcm_ops capture_ops = {
 		.open      = pcm_open,
 		.close     = pcm_close,
-		.ioctl     = snd_pcm_lib_ioctl,
 		.hw_params = pcm_capture_hw_params,
 		.hw_free   = pcm_capture_hw_free,
 		.prepare   = pcm_capture_prepare,
@@ -422,7 +421,6 @@ int snd_oxfw_create_pcm(struct snd_oxfw *oxfw)
 	static const struct snd_pcm_ops playback_ops = {
 		.open      = pcm_open,
 		.close     = pcm_close,
-		.ioctl     = snd_pcm_lib_ioctl,
 		.hw_params = pcm_playback_hw_params,
 		.hw_free   = pcm_playback_hw_free,
 		.prepare   = pcm_playback_prepare,

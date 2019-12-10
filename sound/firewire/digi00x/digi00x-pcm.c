@@ -325,7 +325,6 @@ int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x)
 	static const struct snd_pcm_ops capture_ops = {
 		.open		= pcm_open,
 		.close		= pcm_close,
-		.ioctl		= snd_pcm_lib_ioctl,
 		.hw_params	= pcm_hw_params,
 		.hw_free	= pcm_hw_free,
 		.prepare	= pcm_capture_prepare,
@@ -336,7 +335,6 @@ int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x)
 	static const struct snd_pcm_ops playback_ops = {
 		.open		= pcm_open,
 		.close		= pcm_close,
-		.ioctl		= snd_pcm_lib_ioctl,
 		.hw_params	= pcm_hw_params,
 		.hw_free	= pcm_hw_free,
 		.prepare	= pcm_playback_prepare,

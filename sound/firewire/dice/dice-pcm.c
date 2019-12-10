@@ -405,7 +405,6 @@ int snd_dice_create_pcm(struct snd_dice *dice)
 	static const struct snd_pcm_ops capture_ops = {
 		.open      = pcm_open,
 		.close     = pcm_close,
-		.ioctl     = snd_pcm_lib_ioctl,
 		.hw_params = pcm_hw_params,
 		.hw_free   = pcm_hw_free,
 		.prepare   = capture_prepare,
@@ -416,7 +415,6 @@ int snd_dice_create_pcm(struct snd_dice *dice)
 	static const struct snd_pcm_ops playback_ops = {
 		.open      = pcm_open,
 		.close     = pcm_close,
-		.ioctl     = snd_pcm_lib_ioctl,
 		.hw_params = pcm_hw_params,
 		.hw_free   = pcm_hw_free,
 		.prepare   = playback_prepare,

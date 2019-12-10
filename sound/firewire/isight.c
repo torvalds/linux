@@ -441,7 +441,6 @@ static int isight_create_pcm(struct isight *isight)
 	static const struct snd_pcm_ops ops = {
 		.open      = isight_open,
 		.close     = isight_close,
-		.ioctl     = snd_pcm_lib_ioctl,
 		.hw_params = isight_hw_params,
 		.hw_free   = isight_hw_free,
 		.prepare   = isight_prepare,
