@@ -420,7 +420,6 @@
 
 		target-module@2d000 {			/* 0x4a0ad000, ap 88 0c.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "ocp2scp_usb_phy";
 			reg = <0x2d000 0x4>,
 			      <0x2d010 0x4>,
 			      <0x2d014 0x4>;
