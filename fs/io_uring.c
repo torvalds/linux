@@ -1431,7 +1431,7 @@ static bool io_file_supports_async(struct file *file)
 {
 	umode_t mode = file_inode(file)->i_mode;
 
-	if (S_ISBLK(mode) || S_ISCHR(mode))
+	if (S_ISBLK(mode) || S_ISCHR(mode) || S_ISSOCK(mode))
 		return true;
 	if (S_ISREG(mode) && file->f_op != &io_uring_fops)
 		return true;
@@ -1867,7 +1867,9 @@ static int io_write(struct io_kiocb *req, struct io_kiocb **nxt,
 		goto copy_iov;
 	}
 
-	if (force_nonblock && !(kiocb->ki_flags & IOCB_DIRECT))
+	/* file path doesn't support NOWAIT for non-direct_IO */
+	if (force_nonblock && !(kiocb->ki_flags & IOCB_DIRECT) &&
+	    (req->flags & REQ_F_ISREG))
 		goto copy_iov;
 
 	iov_count = iov_iter_count(&iter);
