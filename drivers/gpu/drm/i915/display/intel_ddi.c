@@ -4294,6 +4294,8 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	if (WARN_ON(transcoder_is_dsi(cpu_transcoder)))
 		return;
 
+	intel_dsc_get_config(encoder, pipe_config);
+
 	temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if (temp & TRANS_DDI_PHSYNC)
 		flags |= DRM_MODE_FLAG_PHSYNC;

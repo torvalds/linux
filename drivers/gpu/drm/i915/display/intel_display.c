@@ -13301,6 +13301,10 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_I(sync_mode_slaves_mask);
 	PIPE_CONF_CHECK_I(master_transcoder);
 
+	PIPE_CONF_CHECK_I(dsc.compression_enable);
+	PIPE_CONF_CHECK_I(dsc.dsc_split);
+	PIPE_CONF_CHECK_I(dsc.compressed_bpp);
+
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
 #undef PIPE_CONF_CHECK_BOOL

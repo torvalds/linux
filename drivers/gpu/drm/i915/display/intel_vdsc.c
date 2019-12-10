@@ -864,6 +864,55 @@ static void intel_dsc_pps_configure(struct intel_encoder *encoder,
 	}
 }
 
+void intel_dsc_get_config(struct intel_encoder *encoder,
+			  struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	enum pipe pipe = crtc->pipe;
+	enum intel_display_power_domain power_domain;
+	intel_wakeref_t wakeref;
+	u32 dss_ctl1, dss_ctl2, val;
+
+	if (!intel_dsc_source_support(encoder, crtc_state))
+		return;
+
+	power_domain = intel_dsc_power_domain(crtc_state);
+
+	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	if (!wakeref)
+		return;
+
+	if (crtc_state->cpu_transcoder == TRANSCODER_EDP) {
+		dss_ctl1 = I915_READ(DSS_CTL1);
+		dss_ctl2 = I915_READ(DSS_CTL2);
+	} else {
+		dss_ctl1 = I915_READ(ICL_PIPE_DSS_CTL1(pipe));
+		dss_ctl2 = I915_READ(ICL_PIPE_DSS_CTL2(pipe));
+	}
+
+	crtc_state->dsc.compression_enable = dss_ctl2 & LEFT_BRANCH_VDSC_ENABLE;
+	if (!crtc_state->dsc.compression_enable)
+		goto out;
+
+	crtc_state->dsc.dsc_split = (dss_ctl2 & RIGHT_BRANCH_VDSC_ENABLE) &&
+		(dss_ctl1 & JOINER_ENABLE);
+
+	/* FIXME: add more state readout as needed */
+
+	/* PPS1 */
+	if (cpu_transcoder == TRANSCODER_EDP)
+		val = I915_READ(DSCA_PICTURE_PARAMETER_SET_1);
+	else
+		val = I915_READ(ICL_DSC0_PICTURE_PARAMETER_SET_1(pipe));
+	vdsc_cfg->bits_per_pixel = val;
+	crtc_state->dsc.compressed_bpp = vdsc_cfg->bits_per_pixel >> 4;
+out:
+	intel_display_power_put(dev_priv, power_domain, wakeref);
+}
+
 static void intel_dsc_dsi_pps_write(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *crtc_state)
 {
