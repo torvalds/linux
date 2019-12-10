@@ -705,7 +705,6 @@ static const struct snd_soc_component_driver sst_soc_platform_drv  = {
 	.probe		= sst_soc_probe,
 	.remove		= sst_soc_remove,
 	.open		= sst_soc_open,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.trigger	= sst_soc_trigger,
 	.pointer	= sst_soc_pointer,
 	.compr_ops	= &sst_platform_compr_ops,

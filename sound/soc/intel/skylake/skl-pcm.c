@@ -1477,7 +1477,6 @@ static const struct snd_soc_component_driver skl_component  = {
 	.probe		= skl_platform_soc_probe,
 	.remove		= skl_platform_soc_remove,
 	.open		= skl_platform_soc_open,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.trigger	= skl_platform_soc_trigger,
 	.pointer	= skl_platform_soc_pointer,
 	.get_time_info	= skl_platform_soc_get_time_info,

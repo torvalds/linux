@@ -373,7 +373,6 @@ static const struct snd_soc_component_driver byt_dai_component = {
 	.probe		= sst_byt_pcm_probe,
 	.open		= sst_byt_pcm_open,
 	.close		= sst_byt_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= sst_byt_pcm_hw_params,
 	.hw_free	= sst_byt_pcm_hw_free,
 	.trigger	= sst_byt_pcm_trigger,
