@@ -10,6 +10,7 @@
 
 #include "i915_drv.h"
 #include "intel_display_types.h"
+#include "intel_dsi.h"
 #include "intel_vdsc.h"
 
 enum ROW_INDEX_BPP {
@@ -844,6 +845,25 @@ static void intel_dsc_pps_configure(struct intel_encoder *encoder,
 	}
 }
 
+static void intel_dsc_dsi_pps_write(struct intel_encoder *encoder,
+				    const struct intel_crtc_state *crtc_state)
+{
+	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct mipi_dsi_device *dsi;
+	struct drm_dsc_picture_parameter_set pps;
+	enum port port;
+
+	drm_dsc_pps_payload_pack(&pps, vdsc_cfg);
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi = intel_dsi->dsi_hosts[port]->device;
+
+		mipi_dsi_picture_parameter_set(dsi, &pps);
+		mipi_dsi_compression_mode(dsi, true);
+	}
+}
+
 static void intel_dsc_dp_pps_write(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *crtc_state)
 {
@@ -882,7 +902,10 @@ void intel_dsc_enable(struct intel_encoder *encoder,
 
 	intel_dsc_pps_configure(encoder, crtc_state);
 
-	intel_dsc_dp_pps_write(encoder, crtc_state);
+	if (encoder->type == INTEL_OUTPUT_DSI)
+		intel_dsc_dsi_pps_write(encoder, crtc_state);
+	else
+		intel_dsc_dp_pps_write(encoder, crtc_state);
 
 	if (crtc_state->cpu_transcoder == TRANSCODER_EDP) {
 		dss_ctl1_reg = DSS_CTL1;
