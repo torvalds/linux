@@ -407,40 +407,6 @@ static struct omap_hwmod omap44xx_dma_system_hwmod = {
 	.dev_attr	= &dma_dev_attr,
 };
 
-/*
- * 'dmic' class
- * digital microphone controller
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_dmic_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= (SYSC_HAS_EMUFREE | SYSC_HAS_RESET_STATUS |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class omap44xx_dmic_hwmod_class = {
-	.name	= "dmic",
-	.sysc	= &omap44xx_dmic_sysc,
-};
-
-/* dmic */
-static struct omap_hwmod omap44xx_dmic_hwmod = {
-	.name		= "dmic",
-	.class		= &omap44xx_dmic_hwmod_class,
-	.clkdm_name	= "abe_clkdm",
-	.main_clk	= "func_dmic_abe_gfclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM1_ABE_DMIC_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_ABE_DMIC_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
 
 /*
  * 'dsp' class
@@ -2400,14 +2366,6 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__dma_system = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_abe -> dmic */
-static struct omap_hwmod_ocp_if omap44xx_l4_abe__dmic = {
-	.master		= &omap44xx_l4_abe_hwmod,
-	.slave		= &omap44xx_dmic_hwmod,
-	.clk		= "ocp_abe_iclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* dsp -> iva */
 static struct omap_hwmod_ocp_if omap44xx_dsp__iva = {
 	.master		= &omap44xx_dsp_hwmod,
@@ -2920,7 +2878,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_wkup__ctrl_module_pad_wkup,
 	&omap44xx_l3_instr__debugss,
 	&omap44xx_l4_cfg__dma_system,
-	&omap44xx_l4_abe__dmic,
 	&omap44xx_dsp__iva,
 	/* &omap44xx_dsp__sl2if, */
 	&omap44xx_l4_cfg__dsp,
