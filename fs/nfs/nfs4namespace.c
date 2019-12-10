@@ -130,9 +130,10 @@ static int nfs4_validate_fspath(struct dentry *dentry,
 				const struct nfs4_fs_locations *locations,
 				struct nfs_fs_context *ctx)
 {
-	const char *path, *fs_path;
-	char *buf;
+	const char *path;
+	char *fs_path;
 	unsigned short len;
+	char *buf;
 	int n;
 
 	buf = kmalloc(4096, GFP_KERNEL);
@@ -278,7 +279,6 @@ out:
 static int try_location(struct fs_context *fc,
 			const struct nfs4_fs_location *location)
 {
-	const size_t addr_bufsize = sizeof(struct sockaddr_storage);
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	unsigned int len, s;
 	char *export_path, *source, *p;
@@ -314,29 +314,24 @@ static int try_location(struct fs_context *fc,
 
 	kfree(fc->source);
 	fc->source = source;
-
-	ctx->clone_data.addr = kmalloc(addr_bufsize, GFP_KERNEL);
-	if (ctx->clone_data.addr == NULL)
-		return -ENOMEM;
 	for (s = 0; s < location->nservers; s++) {
 		const struct nfs4_string *buf = &location->servers[s];
 
 		if (memchr(buf->data, IPV6_SCOPE_DELIMITER, buf->len))
 			continue;
 
-		ctx->clone_data.addrlen =
+		ctx->nfs_server.addrlen =
 			nfs_parse_server_name(buf->data, buf->len,
-					      ctx->clone_data.addr,
-					      addr_bufsize,
+					      &ctx->nfs_server.address,
+					      sizeof(ctx->nfs_server._address),
 					      fc->net_ns);
-		if (ctx->clone_data.addrlen == 0)
+		if (ctx->nfs_server.addrlen == 0)
 			continue;
 
-		rpc_set_port(ctx->clone_data.addr, NFS_PORT);
+		rpc_set_port(&ctx->nfs_server.address, NFS_PORT);
 
 		memcpy(ctx->nfs_server.hostname, buf->data, buf->len);
 		ctx->nfs_server.hostname[buf->len] = '\0';
-		ctx->clone_data.hostname = ctx->nfs_server.hostname;
 
 		p = source;
 		memcpy(p, buf->data, buf->len);
@@ -449,7 +444,7 @@ int nfs4_submount(struct fs_context *fc, struct nfs_server *server)
 	int ret;
 
 	/* Look it up again to get its attributes and sec flavor */
-	client = nfs4_proc_lookup_mountpoint(dir, name, ctx->mount_info.mntfh,
+	client = nfs4_proc_lookup_mountpoint(dir, name, ctx->mntfh,
 					     ctx->clone_data.fattr);
 	dput(parent);
 	if (IS_ERR(client))

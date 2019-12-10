@@ -745,11 +745,12 @@ out:
  * Use the remote server's MOUNT service to request the NFS file handle
  * corresponding to the provided path.
  */
-static int nfs_request_mount(struct nfs_fs_context *ctx,
+static int nfs_request_mount(struct fs_context *fc,
 			     struct nfs_fh *root_fh,
 			     rpc_authflavor_t *server_authlist,
 			     unsigned int *server_authlist_len)
 {
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	struct nfs_mount_request request = {
 		.sap		= (struct sockaddr *)
 						&ctx->mount_server.address,
@@ -759,7 +760,7 @@ static int nfs_request_mount(struct nfs_fs_context *ctx,
 		.noresvport	= ctx->flags & NFS_MOUNT_NORESVPORT,
 		.auth_flav_len	= server_authlist_len,
 		.auth_flavs	= server_authlist,
-		.net		= ctx->net,
+		.net		= fc->net_ns,
 	};
 	int status;
 
@@ -804,20 +805,18 @@ static int nfs_request_mount(struct nfs_fs_context *ctx,
 	return 0;
 }
 
-static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_info)
+static struct nfs_server *nfs_try_mount_request(struct fs_context *fc)
 {
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	int status;
 	unsigned int i;
 	bool tried_auth_unix = false;
 	bool auth_null_in_list = false;
 	struct nfs_server *server = ERR_PTR(-EACCES);
-	struct nfs_fs_context *ctx = mount_info->ctx;
 	rpc_authflavor_t authlist[NFS_MAX_SECFLAVORS];
 	unsigned int authlist_len = ARRAY_SIZE(authlist);
-	struct nfs_subversion *nfs_mod = mount_info->nfs_mod;
 
-	status = nfs_request_mount(ctx, mount_info->mntfh, authlist,
-					&authlist_len);
+	status = nfs_request_mount(fc, ctx->mntfh, authlist, &authlist_len);
 	if (status)
 		return ERR_PTR(status);
 
@@ -831,7 +830,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 			 ctx->selected_flavor);
 		if (status)
 			return ERR_PTR(status);
-		return nfs_mod->rpc_ops->create_server(mount_info);
+		return ctx->nfs_mod->rpc_ops->create_server(fc);
 	}
 
 	/*
@@ -858,7 +857,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 		}
 		dfprintk(MOUNT, "NFS: attempting to use auth flavor %u\n", flavor);
 		ctx->selected_flavor = flavor;
-		server = nfs_mod->rpc_ops->create_server(mount_info);
+		server = ctx->nfs_mod->rpc_ops->create_server(fc);
 		if (!IS_ERR(server))
 			return server;
 	}
@@ -874,7 +873,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 	/* Last chance! Try AUTH_UNIX */
 	dfprintk(MOUNT, "NFS: attempting to use auth flavor %u\n", RPC_AUTH_UNIX);
 	ctx->selected_flavor = RPC_AUTH_UNIX;
-	return nfs_mod->rpc_ops->create_server(mount_info);
+	return ctx->nfs_mod->rpc_ops->create_server(fc);
 }
 
 int nfs_try_get_tree(struct fs_context *fc)
@@ -882,9 +881,9 @@ int nfs_try_get_tree(struct fs_context *fc)
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 
 	if (ctx->need_mount)
-		ctx->mount_info.server = nfs_try_mount_request(&ctx->mount_info);
+		ctx->server = nfs_try_mount_request(fc);
 	else
-		ctx->mount_info.server = ctx->mount_info.nfs_mod->rpc_ops->create_server(&ctx->mount_info);
+		ctx->server = ctx->nfs_mod->rpc_ops->create_server(fc);
 
 	return nfs_get_tree_common(fc);
 }
@@ -966,9 +965,8 @@ EXPORT_SYMBOL_GPL(nfs_reconfigure);
 /*
  * Finish setting up an NFS superblock
  */
-static void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
+static void nfs_fill_super(struct super_block *sb, struct nfs_fs_context *ctx)
 {
-	struct nfs_fs_context *ctx = mount_info->ctx;
 	struct nfs_server *server = NFS_SB(sb);
 
 	sb->s_blocksize_bits = 0;
@@ -1009,13 +1007,14 @@ static void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_
 	nfs_super_set_maxbytes(sb, server->maxfilesize);
 }
 
-static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b, int flags)
+static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b,
+				     const struct fs_context *fc)
 {
 	const struct nfs_server *a = s->s_fs_info;
 	const struct rpc_clnt *clnt_a = a->client;
 	const struct rpc_clnt *clnt_b = b->client;
 
-	if ((s->s_flags & NFS_MS_MASK) != (flags & NFS_MS_MASK))
+	if ((s->s_flags & NFS_SB_MASK) != (fc->sb_flags & NFS_SB_MASK))
 		goto Ebusy;
 	if (a->nfs_client != b->nfs_client)
 		goto Ebusy;
@@ -1122,7 +1121,7 @@ static int nfs_compare_super(struct super_block *sb, struct fs_context *fc)
 		return 0;
 	if (!nfs_compare_userns(old, server))
 		return 0;
-	return nfs_compare_mount_options(sb, server, fc->sb_flags);
+	return nfs_compare_mount_options(sb, server, fc);
 }
 
 #ifdef CONFIG_NFS_FSCACHE
@@ -1177,13 +1176,12 @@ int nfs_get_tree_common(struct fs_context *fc)
 {
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	struct super_block *s;
-	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 	int (*compare_super)(struct super_block *, struct fs_context *) = nfs_compare_super;
-	struct nfs_server *server = ctx->mount_info.server;
+	struct nfs_server *server = ctx->server;
 	unsigned long kflags = 0, kflags_out = 0;
 	int error;
 
-	ctx->mount_info.server = NULL;
+	ctx->server = NULL;
 	if (IS_ERR(server))
 		return PTR_ERR(server);
 
@@ -1224,9 +1222,9 @@ int nfs_get_tree_common(struct fs_context *fc)
 	}
 
 	if (!s->s_root) {
-		unsigned bsize = ctx->mount_info.inherited_bsize;
+		unsigned bsize = ctx->clone_data.inherited_bsize;
 		/* initial superblock/root creation */
-		nfs_fill_super(s, &ctx->mount_info);
+		nfs_fill_super(s, ctx);
 		if (bsize) {
 			s->s_blocksize_bits = bsize;
 			s->s_blocksize = 1U << bsize;
@@ -1234,13 +1232,11 @@ int nfs_get_tree_common(struct fs_context *fc)
 		nfs_get_cache_cookie(s, ctx);
 	}
 
-	mntroot = nfs_get_root(s, ctx->mount_info.mntfh, fc->source);
-	if (IS_ERR(mntroot)) {
-		error = PTR_ERR(mntroot);
+	error = nfs_get_root(s, fc);
+	if (error < 0) {
 		dfprintk(MOUNT, "NFS: Couldn't get root dentry\n");
 		goto error_splat_super;
 	}
-	fc->root = mntroot;
 
 	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL)
 		kflags |= SECURITY_LSM_NATIVE_LABELS;

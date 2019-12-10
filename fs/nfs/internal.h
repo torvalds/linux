@@ -11,7 +11,7 @@
 #include <linux/nfs_page.h>
 #include <linux/wait_bit.h>
 
-#define NFS_MS_MASK (SB_RDONLY|SB_NOSUID|SB_NODEV|SB_NOEXEC|SB_SYNCHRONOUS)
+#define NFS_SB_MASK (SB_RDONLY|SB_NOSUID|SB_NODEV|SB_NOEXEC|SB_SYNCHRONOUS)
 
 extern const struct export_operations nfs_export_ops;
 
@@ -32,17 +32,6 @@ static inline int nfs_attr_use_mounted_on_fileid(struct nfs_fattr *fattr)
 		return 0;
 	return 1;
 }
-
-struct nfs_clone_mount {
-	const struct super_block *sb;
-	struct dentry *dentry;
-	char *hostname;
-	char *mnt_path;
-	struct sockaddr *addr;
-	size_t addrlen;
-	rpc_authflavor_t authflavor;
-	struct nfs_fattr *fattr;
-};
 
 /*
  * Note: RFC 1813 doesn't limit the number of auth flavors that
@@ -78,15 +67,6 @@ struct nfs_client_initdata {
 	struct net *net;
 	const struct rpc_timeout *timeparms;
 	const struct cred *cred;
-};
-
-struct nfs_mount_info {
-	unsigned int inherited_bsize;
-	struct nfs_fs_context *ctx;
-	struct nfs_clone_mount *cloned;
-	struct nfs_server *server;
-	struct nfs_fh *mntfh;
-	struct nfs_subversion *nfs_mod;
 };
 
 /*
@@ -140,13 +120,17 @@ struct nfs_fs_context {
 		unsigned short		export_path_len;
 	} nfs_server;
 
-	void			*lsm_opts;
-	struct net		*net;
+	struct nfs_fh		*mntfh;
+	struct nfs_server	*server;
+	struct nfs_subversion	*nfs_mod;
 
-	char			buf[32];	/* Parse buffer */
-
-	struct nfs_mount_info	mount_info;
-	struct nfs_clone_mount	clone_data;
+	/* Information for a cloned mount. */
+	struct nfs_clone_mount {
+		struct super_block	*sb;
+		struct dentry		*dentry;
+		struct nfs_fattr	*fattr;
+		unsigned int		inherited_bsize;
+	} clone_data;
 };
 
 static inline struct nfs_fs_context *nfs_fc2context(const struct fs_context *fc)
@@ -194,10 +178,9 @@ extern struct nfs_client *nfs4_find_client_ident(struct net *, int);
 extern struct nfs_client *
 nfs4_find_client_sessionid(struct net *, const struct sockaddr *,
 				struct nfs4_sessionid *, u32);
-extern struct nfs_server *nfs_create_server(struct nfs_mount_info *);
-extern struct nfs_server *nfs4_create_server(struct nfs_mount_info *);
-extern struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *,
-						      struct nfs_fh *);
+extern struct nfs_server *nfs_create_server(struct fs_context *);
+extern struct nfs_server *nfs4_create_server(struct fs_context *);
+extern struct nfs_server *nfs4_create_referral_server(struct fs_context *);
 extern int nfs4_update_server(struct nfs_server *server, const char *hostname,
 					struct sockaddr *sap, size_t salen,
 					struct net *net);
@@ -444,12 +427,8 @@ int nfs_submount(struct fs_context *, struct nfs_server *);
 int nfs_do_submount(struct fs_context *);
 
 /* getroot.c */
-extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *,
-				   const char *);
+extern int nfs_get_root(struct super_block *s, struct fs_context *fc);
 #if IS_ENABLED(CONFIG_NFS_V4)
-extern struct dentry *nfs4_get_root(struct super_block *, struct nfs_fh *,
-				    const char *);
-
 extern int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh, bool);
 #endif
 

@@ -241,43 +241,6 @@ static const struct constant_table nfs_secflavor_tokens[] = {
 	{ "sys",	Opt_sec_sys },
 };
 
-struct nfs_fs_context *nfs_alloc_parsed_mount_data(void)
-{
-	struct nfs_fs_context *ctx;
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (ctx) {
-		ctx->timeo		= NFS_UNSPEC_TIMEO;
-		ctx->retrans		= NFS_UNSPEC_RETRANS;
-		ctx->acregmin		= NFS_DEF_ACREGMIN;
-		ctx->acregmax		= NFS_DEF_ACREGMAX;
-		ctx->acdirmin		= NFS_DEF_ACDIRMIN;
-		ctx->acdirmax		= NFS_DEF_ACDIRMAX;
-		ctx->mount_server.port	= NFS_UNSPEC_PORT;
-		ctx->nfs_server.port	= NFS_UNSPEC_PORT;
-		ctx->nfs_server.protocol = XPRT_TRANSPORT_TCP;
-		ctx->selected_flavor	= RPC_AUTH_MAXFLAVOR;
-		ctx->minorversion	= 0;
-		ctx->need_mount	= true;
-		ctx->net		= current->nsproxy->net_ns;
-		ctx->lsm_opts = NULL;
-	}
-	return ctx;
-}
-
-void nfs_free_parsed_mount_data(struct nfs_fs_context *ctx)
-{
-	if (ctx) {
-		kfree(ctx->client_address);
-		kfree(ctx->mount_server.hostname);
-		kfree(ctx->nfs_server.export_path);
-		kfree(ctx->nfs_server.hostname);
-		kfree(ctx->fscache_uniq);
-		security_free_mnt_opts(&ctx->lsm_opts);
-		kfree(ctx);
-	}
-}
-
 /*
  * Sanity-check a server address provided by the mount command.
  *
@@ -342,7 +305,7 @@ static void nfs_set_mount_transport_protocol(struct nfs_fs_context *ctx)
  * Add 'flavor' to 'auth_info' if not already present.
  * Returns true if 'flavor' ends up in the list, false otherwise
  */
-static int nfs_auth_info_add(struct nfs_fs_context *ctx,
+static int nfs_auth_info_add(struct fs_context *fc,
 			     struct nfs_auth_info *auth_info,
 			     rpc_authflavor_t flavor)
 {
@@ -367,9 +330,10 @@ static int nfs_auth_info_add(struct nfs_fs_context *ctx,
 /*
  * Parse the value of the 'sec=' option.
  */
-static int nfs_parse_security_flavors(struct nfs_fs_context *ctx,
+static int nfs_parse_security_flavors(struct fs_context *fc,
 				      struct fs_parameter *param)
 {
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 	rpc_authflavor_t pseudoflavor;
 	char *string = param->string, *p;
 	int ret;
@@ -419,7 +383,7 @@ static int nfs_parse_security_flavors(struct nfs_fs_context *ctx,
 			return -EINVAL;
 		}
 
-		ret = nfs_auth_info_add(ctx, &ctx->auth_info, pseudoflavor);
+		ret = nfs_auth_info_add(fc, &ctx->auth_info, pseudoflavor);
 		if (ret < 0)
 			return ret;
 	}
@@ -427,9 +391,11 @@ static int nfs_parse_security_flavors(struct nfs_fs_context *ctx,
 	return 0;
 }
 
-static int nfs_parse_version_string(struct nfs_fs_context *ctx,
+static int nfs_parse_version_string(struct fs_context *fc,
 				    const char *string)
 {
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
+
 	ctx->flags &= ~NFS_MOUNT_VER3;
 	switch (lookup_constant(nfs_vers_tokens, string, -1)) {
 	case Opt_vers_2:
@@ -656,17 +622,17 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		 * options that take text values
 		 */
 	case Opt_v:
-		ret = nfs_parse_version_string(ctx, param->key + 1);
+		ret = nfs_parse_version_string(fc, param->key + 1);
 		if (ret < 0)
 			return ret;
 		break;
 	case Opt_vers:
-		ret = nfs_parse_version_string(ctx, param->string);
+		ret = nfs_parse_version_string(fc, param->string);
 		if (ret < 0)
 			return ret;
 		break;
 	case Opt_sec:
-		ret = nfs_parse_security_flavors(ctx, param);
+		ret = nfs_parse_security_flavors(fc, param);
 		if (ret < 0)
 			return ret;
 		break;
@@ -729,7 +695,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		break;
 
 	case Opt_addr:
-		len = rpc_pton(ctx->net, param->string, param->size,
+		len = rpc_pton(fc->net_ns, param->string, param->size,
 			       &ctx->nfs_server.address,
 			       sizeof(ctx->nfs_server._address));
 		if (len == 0)
@@ -747,7 +713,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		param->string = NULL;
 		break;
 	case Opt_mountaddr:
-		len = rpc_pton(ctx->net, param->string, param->size,
+		len = rpc_pton(fc->net_ns, param->string, param->size,
 			       &ctx->mount_server.address,
 			       sizeof(ctx->mount_server._address));
 		if (len == 0)
@@ -819,7 +785,7 @@ out_of_bounds:
 }
 
 /*
- * Split "dev_name" into "hostname:export_path".
+ * Split fc->source into "hostname:export_path".
  *
  * The leftmost colon demarks the split between the server's hostname
  * and the export path.  If the hostname starts with a left square
@@ -827,12 +793,13 @@ out_of_bounds:
  *
  * Note: caller frees hostname and export path, even on error.
  */
-static int nfs_parse_devname(struct nfs_fs_context *ctx,
-			     const char *dev_name,
-			     size_t maxnamlen, size_t maxpathlen)
+static int nfs_parse_source(struct fs_context *fc,
+			    size_t maxnamlen, size_t maxpathlen)
 {
+	struct nfs_fs_context *ctx = nfs_fc2context(fc);
+	const char *dev_name = fc->source;
 	size_t len;
-	char *end;
+	const char *end;
 
 	if (unlikely(!dev_name || !*dev_name)) {
 		dfprintk(MOUNT, "NFS: device name not specified\n");
@@ -848,7 +815,7 @@ static int nfs_parse_devname(struct nfs_fs_context *ctx,
 		len = end - dev_name;
 		end++;
 	} else {
-		char *comma;
+		const char *comma;
 
 		end = strchr(dev_name, ':');
 		if (end == NULL)
@@ -856,8 +823,8 @@ static int nfs_parse_devname(struct nfs_fs_context *ctx,
 		len = end - dev_name;
 
 		/* kill possible hostname list: not supported */
-		comma = strchr(dev_name, ',');
-		if (comma != NULL && comma < end)
+		comma = memchr(dev_name, ',', len);
+		if (comma)
 			len = comma - dev_name;
 	}
 
@@ -920,7 +887,7 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 				  struct nfs_mount_data *data)
 {
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
-	struct nfs_fh *mntfh = ctx->mount_info.mntfh;
+	struct nfs_fh *mntfh = ctx->mntfh;
 	struct sockaddr *sap = (struct sockaddr *)&ctx->nfs_server.address;
 	int extra_flags = NFS_MOUNT_LEGACY_INTERFACE;
 
@@ -1009,6 +976,7 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		else
 			ctx->flags |= (NFS_MOUNT_LOCAL_FLOCK|
 					NFS_MOUNT_LOCAL_FCNTL);
+
 		/*
 		 * The legacy version 6 binary mount data from userspace has a
 		 * field used only to transport selinux information into the
@@ -1073,12 +1041,6 @@ out_invalid_fh:
 }
 
 #if IS_ENABLED(CONFIG_NFS_V4)
-static void nfs4_validate_mount_flags(struct nfs_fs_context *ctx)
-{
-	ctx->flags &= ~(NFS_MOUNT_NONLM|NFS_MOUNT_NOACL|NFS_MOUNT_VER3|
-			 NFS_MOUNT_LOCAL_FLOCK|NFS_MOUNT_LOCAL_FCNTL);
-}
-
 /*
  * Validate NFSv4 mount options
  */
@@ -1251,20 +1213,22 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 		goto out_no_address;
 
 	if (ctx->version == 4) {
-#if IS_ENABLED(CONFIG_NFS_V4)
-		if (ctx->nfs_server.protocol == XPRT_TRANSPORT_RDMA)
-			port = NFS_RDMA_PORT;
-		else
-			port = NFS_PORT;
-		max_namelen = NFS4_MAXNAMLEN;
-		max_pathlen = NFS4_MAXPATHLEN;
-		nfs_validate_transport_protocol(ctx);
-		if (ctx->nfs_server.protocol == XPRT_TRANSPORT_UDP)
-			goto out_invalid_transport_udp;
-		nfs4_validate_mount_flags(ctx);
-#else
-		goto out_v4_not_compiled;
-#endif /* CONFIG_NFS_V4 */
+		if (IS_ENABLED(CONFIG_NFS_V4)) {
+			if (ctx->nfs_server.protocol == XPRT_TRANSPORT_RDMA)
+				port = NFS_RDMA_PORT;
+			else
+				port = NFS_PORT;
+			max_namelen = NFS4_MAXNAMLEN;
+			max_pathlen = NFS4_MAXPATHLEN;
+			nfs_validate_transport_protocol(ctx);
+			if (ctx->nfs_server.protocol == XPRT_TRANSPORT_UDP)
+				goto out_invalid_transport_udp;
+			ctx->flags &= ~(NFS_MOUNT_NONLM | NFS_MOUNT_NOACL |
+					NFS_MOUNT_VER3 | NFS_MOUNT_LOCAL_FLOCK |
+					NFS_MOUNT_LOCAL_FCNTL);
+		} else {
+			goto out_v4_not_compiled;
+		}
 	} else {
 		nfs_set_mount_transport_protocol(ctx);
 		if (ctx->nfs_server.protocol == XPRT_TRANSPORT_RDMA)
@@ -1273,33 +1237,30 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 
 	nfs_set_port(sap, &ctx->nfs_server.port, port);
 
-	ret = nfs_parse_devname(ctx, fc->source, max_namelen, max_pathlen);
+	ret = nfs_parse_source(fc, max_namelen, max_pathlen);
 	if (ret < 0)
 		return ret;
 
 	/* Load the NFS protocol module if we haven't done so yet */
-	if (!ctx->mount_info.nfs_mod) {
+	if (!ctx->nfs_mod) {
 		nfs_mod = get_nfs_version(ctx->version);
 		if (IS_ERR(nfs_mod)) {
 			ret = PTR_ERR(nfs_mod);
 			goto out_version_unavailable;
 		}
-		ctx->mount_info.nfs_mod = nfs_mod;
+		ctx->nfs_mod = nfs_mod;
 	}
 	return 0;
 
 out_no_device_name:
 	dfprintk(MOUNT, "NFS: Device name not specified\n");
 	return -EINVAL;
-#if !IS_ENABLED(CONFIG_NFS_V4)
 out_v4_not_compiled:
 	dfprintk(MOUNT, "NFS: NFSv4 is not compiled into kernel\n");
 	return -EPROTONOSUPPORT;
-#else
 out_invalid_transport_udp:
 	dfprintk(MOUNT, "NFSv4: Unsupported transport protocol udp\n");
 	return -EINVAL;
-#endif /* !CONFIG_NFS_V4 */
 out_no_address:
 	dfprintk(MOUNT, "NFS: mount program didn't pass remote address\n");
 	return -EINVAL;
@@ -1332,7 +1293,7 @@ static int nfs_get_tree(struct fs_context *fc)
 	if (err)
 		return err;
 	if (!ctx->internal)
-		return ctx->mount_info.nfs_mod->rpc_ops->try_get_tree(fc);
+		return ctx->nfs_mod->rpc_ops->try_get_tree(fc);
 	else
 		return nfs_get_tree_common(fc);
 }
@@ -1351,20 +1312,19 @@ static int nfs_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->mount_info.mntfh = nfs_alloc_fhandle();
-	if (!ctx->mount_info.mntfh) {
+	ctx->mntfh = nfs_alloc_fhandle();
+	if (!ctx->mntfh) {
 		kfree(ctx);
 		return -ENOMEM;
 	}
-	nfs_copy_fh(ctx->mount_info.mntfh, src->mount_info.mntfh);
+	nfs_copy_fh(ctx->mntfh, src->mntfh);
 
-	__module_get(ctx->mount_info.nfs_mod->owner);
+	__module_get(ctx->nfs_mod->owner);
 	ctx->client_address		= NULL;
 	ctx->mount_server.hostname	= NULL;
 	ctx->nfs_server.export_path	= NULL;
 	ctx->nfs_server.hostname	= NULL;
 	ctx->fscache_uniq		= NULL;
-	ctx->clone_data.addr		= NULL;
 	ctx->clone_data.fattr		= NULL;
 	fc->fs_private = ctx;
 	return 0;
@@ -1375,17 +1335,16 @@ static void nfs_fs_context_free(struct fs_context *fc)
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
 
 	if (ctx) {
-		if (ctx->mount_info.server)
-			nfs_free_server(ctx->mount_info.server);
-		if (ctx->mount_info.nfs_mod)
-			put_nfs_version(ctx->mount_info.nfs_mod);
+		if (ctx->server)
+			nfs_free_server(ctx->server);
+		if (ctx->nfs_mod)
+			put_nfs_version(ctx->nfs_mod);
 		kfree(ctx->client_address);
 		kfree(ctx->mount_server.hostname);
 		kfree(ctx->nfs_server.export_path);
 		kfree(ctx->nfs_server.hostname);
 		kfree(ctx->fscache_uniq);
-		nfs_free_fhandle(ctx->mount_info.mntfh);
-		kfree(ctx->clone_data.addr);
+		nfs_free_fhandle(ctx->mntfh);
 		nfs_free_fattr(ctx->clone_data.fattr);
 		kfree(ctx);
 	}
@@ -1413,9 +1372,8 @@ static int nfs_init_fs_context(struct fs_context *fc)
 	if (unlikely(!ctx))
 		return -ENOMEM;
 
-	ctx->mount_info.ctx = ctx;
-	ctx->mount_info.mntfh = nfs_alloc_fhandle();
-	if (unlikely(!ctx->mount_info.mntfh)) {
+	ctx->mntfh = nfs_alloc_fhandle();
+	if (unlikely(!ctx->mntfh)) {
 		kfree(ctx);
 		return -ENOMEM;
 	}
@@ -1452,8 +1410,8 @@ static int nfs_init_fs_context(struct fs_context *fc)
 			fc->net_ns = get_net(net);
 		}
 
-		ctx->mount_info.nfs_mod = nfss->nfs_client->cl_nfs_mod;
-		__module_get(ctx->mount_info.nfs_mod->owner);
+		ctx->nfs_mod = nfss->nfs_client->cl_nfs_mod;
+		__module_get(ctx->nfs_mod->owner);
 	} else {
 		/* defaults */
 		ctx->timeo		= NFS_UNSPEC_TIMEO;
@@ -1468,7 +1426,6 @@ static int nfs_init_fs_context(struct fs_context *fc)
 		ctx->minorversion	= 0;
 		ctx->need_mount		= true;
 	}
-	ctx->net = fc->net_ns;
 	fc->fs_private = ctx;
 	fc->ops = &nfs_fs_context_ops;
 	return 0;

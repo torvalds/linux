@@ -176,8 +176,8 @@ struct vfsmount *nfs_d_automount(struct path *path)
 
 	ctx->version		= client->rpc_ops->version;
 	ctx->minorversion	= client->cl_minorversion;
-	ctx->mount_info.nfs_mod	= client->cl_nfs_mod;
-	__module_get(ctx->mount_info.nfs_mod->owner);
+	ctx->nfs_mod		= client->cl_nfs_mod;
+	__module_get(ctx->nfs_mod->owner);
 
 	ret = client->rpc_ops->submount(fc, server);
 	if (ret < 0) {
@@ -262,22 +262,22 @@ int nfs_do_submount(struct fs_context *fc)
 	int ret;
 
 	/* create a new volume representation */
-	server = ctx->mount_info.nfs_mod->rpc_ops->clone_server(NFS_SB(ctx->clone_data.sb),
-						     ctx->mount_info.mntfh,
+	server = ctx->nfs_mod->rpc_ops->clone_server(NFS_SB(ctx->clone_data.sb),
+						     ctx->mntfh,
 						     ctx->clone_data.fattr,
 						     ctx->selected_flavor);
 
 	if (IS_ERR(server))
 		return PTR_ERR(server);
 
-	ctx->mount_info.server = server;
+	ctx->server = server;
 
 	buffer = kmalloc(4096, GFP_USER);
 	if (!buffer)
 		return -ENOMEM;
 
 	ctx->internal		= true;
-	ctx->mount_info.inherited_bsize = ctx->clone_data.sb->s_blocksize_bits;
+	ctx->clone_data.inherited_bsize = ctx->clone_data.sb->s_blocksize_bits;
 
 	p = nfs_devname(dentry, buffer, 4096);
 	if (IS_ERR(p)) {
@@ -302,7 +302,7 @@ int nfs_submount(struct fs_context *fc, struct nfs_server *server)
 
 	/* Look it up again to get its attributes */
 	err = server->nfs_client->rpc_ops->lookup(d_inode(parent), &dentry->d_name,
-						  ctx->mount_info.mntfh, ctx->clone_data.fattr,
+						  ctx->mntfh, ctx->clone_data.fattr,
 						  NULL);
 	dput(parent);
 	if (err != 0)
