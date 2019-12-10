@@ -322,6 +322,8 @@ static inline bool drm_debug_enabled(enum drm_debug_category category)
 
 /*
  * struct device based logging
+ *
+ * Prefer drm_device based logging over device or prink based logging.
  */
 
 __printf(3, 4)
@@ -418,7 +420,70 @@ void drm_dev_dbg(const struct device *dev, enum drm_debug_category category,
 					  fmt, ##__VA_ARGS__)
 
 /*
+ * struct drm_device based logging
+ *
+ * Prefer drm_device based logging over device or prink based logging.
+ */
+
+/* Helper for struct drm_device based logging. */
+#define __drm_printk(drm, level, type, fmt, ...)			\
+	dev_##level##type((drm)->dev, "[drm] " fmt, ##__VA_ARGS__)
+
+
+#define drm_info(drm, fmt, ...)					\
+	__drm_printk((drm), info,, fmt, ##__VA_ARGS__)
+
+#define drm_notice(drm, fmt, ...)				\
+	__drm_printk((drm), notice,, fmt, ##__VA_ARGS__)
+
+#define drm_warn(drm, fmt, ...)					\
+	__drm_printk((drm), warn,, fmt, ##__VA_ARGS__)
+
+#define drm_err(drm, fmt, ...)					\
+	__drm_printk((drm), err,, "*ERROR* " fmt, ##__VA_ARGS__)
+
+
+#define drm_info_once(drm, fmt, ...)				\
+	__drm_printk((drm), info, _once, fmt, ##__VA_ARGS__)
+
+#define drm_notice_once(drm, fmt, ...)				\
+	__drm_printk((drm), notice, _once, fmt, ##__VA_ARGS__)
+
+#define drm_warn_once(drm, fmt, ...)				\
+	__drm_printk((drm), warn, _once, fmt, ##__VA_ARGS__)
+
+#define drm_err_once(drm, fmt, ...)				\
+	__drm_printk((drm), err, _once, "*ERROR* " fmt, ##__VA_ARGS__)
+
+
+#define drm_err_ratelimited(drm, fmt, ...)				\
+	__drm_printk((drm), err, _ratelimited, "*ERROR* " fmt, ##__VA_ARGS__)
+
+
+#define drm_dbg_core(drm, fmt, ...)					\
+	drm_dev_dbg((drm)->dev, DRM_UT_CORE, fmt, ##__VA_ARGS__)
+#define drm_dbg(drm, fmt, ...)						\
+	drm_dev_dbg((drm)->dev, DRM_UT_DRIVER, fmt, ##__VA_ARGS__)
+#define drm_dbg_kms(drm, fmt, ...)					\
+	drm_dev_dbg((drm)->dev, DRM_UT_KMS, fmt, ##__VA_ARGS__)
+#define drm_dbg_prime(drm, fmt, ...)					\
+	drm_dev_dbg((drm)->dev, DRM_UT_PRIME, fmt, ##__VA_ARGS__)
+#define drm_dbg_atomic(drm, fmt, ...)					\
+	drm_dev_dbg((drm)->dev, DRM_UT_ATOMIC, fmt, ##__VA_ARGS__)
+#define drm_dbg_vbl(drm, fmt, ...)					\
+	drm_dev_dbg((drm)->dev, DRM_UT_VBL, fmt, ##__VA_ARGS__)
+#define drm_dbg_state(drm, fmt, ...)					\
+	drm_dev_dbg((drm)->dev, DRM_UT_STATE, fmt, ##__VA_ARGS__)
+#define drm_dbg_lease(drm, fmt, ...)					\
+	drm_dev_dbg((drm)->dev, DRM_UT_LEASE, fmt, ##__VA_ARGS__)
+#define drm_dbg_dp(drm, fmt, ...)					\
+	drm_dev_dbg((drm)->dev, DRM_UT_DP, fmt, ##__VA_ARGS__)
+
+
+/*
  * printk based logging
+ *
+ * Prefer drm_device based logging over device or prink based logging.
  */
 
 __printf(2, 3)
