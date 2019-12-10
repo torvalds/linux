@@ -481,7 +481,6 @@ static const struct snd_soc_component_driver xtfpga_i2s_component = {
 	.name		= DRV_NAME,
 	.open		= xtfpga_pcm_open,
 	.close		= xtfpga_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= xtfpga_pcm_hw_params,
 	.trigger	= xtfpga_pcm_trigger,
 	.pointer	= xtfpga_pcm_pointer,
