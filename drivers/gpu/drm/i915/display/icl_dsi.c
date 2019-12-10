@@ -301,18 +301,26 @@ static void configure_dual_link_mode(struct intel_encoder *encoder,
 	I915_WRITE(DSS_CTL1, dss_ctl1);
 }
 
+/* aka DSI 8X clock */
+static int afe_clk(struct intel_encoder *encoder)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	int bpp;
+
+	bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
+
+	return DIV_ROUND_CLOSEST(intel_dsi->pclk * bpp, intel_dsi->lane_count);
+}
+
 static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
-	u32 bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
-	u32 afe_clk_khz; /* 8X Clock */
+	int afe_clk_khz;
 	u32 esc_clk_div_m;
 
-	afe_clk_khz = DIV_ROUND_CLOSEST(intel_dsi->pclk * bpp,
-					intel_dsi->lane_count);
-
+	afe_clk_khz = afe_clk(encoder);
 	esc_clk_div_m = DIV_ROUND_UP(afe_clk_khz, DSI_MAX_ESC_CLK);
 
 	for_each_dsi_port(port, intel_dsi->ports) {
