@@ -136,7 +136,7 @@ struct nfs_mount_request {
 };
 
 struct nfs_mount_info {
-	void (*fill_super)(struct super_block *, struct nfs_mount_info *);
+	unsigned int inherited_bsize;
 	int (*set_security)(struct super_block *, struct dentry *, struct nfs_mount_info *);
 	struct nfs_parsed_mount_data *parsed;
 	struct nfs_clone_mount *cloned;
@@ -395,8 +395,6 @@ int nfs_set_sb_security(struct super_block *, struct dentry *, struct nfs_mount_
 int nfs_clone_sb_security(struct super_block *, struct dentry *, struct nfs_mount_info *);
 struct dentry *nfs_fs_mount(struct file_system_type *, int, const char *, void *);
 void nfs_kill_super(struct super_block *);
-void nfs_fill_super(struct super_block *, struct nfs_mount_info *);
-void nfs_clone_super(struct super_block *, struct nfs_mount_info *);
 
 extern struct rpc_stat nfs_rpcstat;
 

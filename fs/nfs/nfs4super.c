@@ -224,7 +224,6 @@ static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
 {
 	struct nfs_clone_mount *data = raw_data;
 	struct nfs_mount_info mount_info = {
-		.fill_super = nfs_fill_super,
 		.set_security = nfs_clone_sb_security,
 		.cloned = data,
 		.nfs_mod = &nfs_v4,

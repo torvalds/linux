@@ -232,7 +232,7 @@ struct vfsmount *nfs_do_submount(struct dentry *dentry, struct nfs_fh *fh,
 		.authflavor = authflavor,
 	};
 	struct nfs_mount_info mount_info = {
-		.fill_super = nfs_clone_super,
+		.inherited_bsize = sb->s_blocksize_bits,
 		.set_security = nfs_clone_sb_security,
 		.cloned = &mountdata,
 		.mntfh = fh,

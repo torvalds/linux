@@ -2339,29 +2339,9 @@ out:
 EXPORT_SYMBOL_GPL(nfs_remount);
 
 /*
- * Initialise the common bits of the superblock
+ * Finish setting up an NFS superblock
  */
-static void nfs_initialise_sb(struct super_block *sb)
-{
-	struct nfs_server *server = NFS_SB(sb);
-
-	sb->s_magic = NFS_SUPER_MAGIC;
-
-	/* We probably want something more informative here */
-	snprintf(sb->s_id, sizeof(sb->s_id),
-		 "%u:%u", MAJOR(sb->s_dev), MINOR(sb->s_dev));
-
-	if (sb->s_blocksize == 0)
-		sb->s_blocksize = nfs_block_bits(server->wsize,
-						 &sb->s_blocksize_bits);
-
-	nfs_super_set_maxbytes(sb, server->maxfilesize);
-}
-
-/*
- * Finish setting up an NFS2/3 superblock
- */
-void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
+static void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 {
 	struct nfs_parsed_mount_data *data = mount_info->parsed;
 	struct nfs_server *server = NFS_SB(sb);
@@ -2391,44 +2371,17 @@ void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 		sb->s_time_max = S64_MAX;
 	}
 
- 	nfs_initialise_sb(sb);
-}
-EXPORT_SYMBOL_GPL(nfs_fill_super);
+	sb->s_magic = NFS_SUPER_MAGIC;
 
-/*
- * Finish setting up a cloned NFS2/3/4 superblock
- */
-void nfs_clone_super(struct super_block *sb,
-			    struct nfs_mount_info *mount_info)
-{
-	const struct super_block *old_sb = mount_info->cloned->sb;
-	struct nfs_server *server = NFS_SB(sb);
+	/* We probably want something more informative here */
+	snprintf(sb->s_id, sizeof(sb->s_id),
+		 "%u:%u", MAJOR(sb->s_dev), MINOR(sb->s_dev));
 
-	sb->s_blocksize_bits = old_sb->s_blocksize_bits;
-	sb->s_blocksize = old_sb->s_blocksize;
-	sb->s_maxbytes = old_sb->s_maxbytes;
-	sb->s_xattr = old_sb->s_xattr;
-	sb->s_op = old_sb->s_op;
-	sb->s_export_op = old_sb->s_export_op;
+	if (sb->s_blocksize == 0)
+		sb->s_blocksize = nfs_block_bits(server->wsize,
+						 &sb->s_blocksize_bits);
 
-	if (server->nfs_client->rpc_ops->version != 2) {
-		/* The VFS shouldn't apply the umask to mode bits. We will do
-		 * so ourselves when necessary.
-		 */
-		sb->s_flags |= SB_POSIXACL;
-		sb->s_time_gran = 1;
-	} else
-		sb->s_time_gran = 1000;
-
-	if (server->nfs_client->rpc_ops->version != 4) {
-		sb->s_time_min = 0;
-		sb->s_time_max = U32_MAX;
-	} else {
-		sb->s_time_min = S64_MIN;
-		sb->s_time_max = S64_MAX;
-	}
-
- 	nfs_initialise_sb(sb);
+	nfs_super_set_maxbytes(sb, server->maxfilesize);
 }
 
 static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b, int flags)
@@ -2701,8 +2654,13 @@ static struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
 	}
 
 	if (!s->s_root) {
+		unsigned bsize = mount_info->inherited_bsize;
 		/* initial superblock/root creation */
-		mount_info->fill_super(s, mount_info);
+		nfs_fill_super(s, mount_info);
+		if (bsize) {
+			s->s_blocksize_bits = bsize;
+			s->s_blocksize = 1U << bsize;
+		}
 		nfs_get_cache_cookie(s, mount_info->parsed, mount_info->cloned);
 		if (!(server->flags & NFS_MOUNT_UNSHARED))
 			s->s_iflags |= SB_I_MULTIROOT;
@@ -2737,7 +2695,6 @@ struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data)
 {
 	struct nfs_mount_info mount_info = {
-		.fill_super = nfs_fill_super,
 		.set_security = nfs_set_sb_security,
 	};
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
