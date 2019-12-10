@@ -73,6 +73,7 @@ enum brcm_ahci_version {
 	BRCM_SATA_BCM7425 = 1,
 	BRCM_SATA_BCM7445,
 	BRCM_SATA_NSP,
+	BRCM_SATA_BCM7216,
 };
 
 enum brcm_ahci_quirks {
@@ -415,6 +416,7 @@ static const struct of_device_id ahci_of_match[] = {
 	{.compatible = "brcm,bcm7445-ahci", .data = (void *)BRCM_SATA_BCM7445},
 	{.compatible = "brcm,bcm63138-ahci", .data = (void *)BRCM_SATA_BCM7445},
 	{.compatible = "brcm,bcm-nsp-ahci", .data = (void *)BRCM_SATA_NSP},
+	{.compatible = "brcm,bcm7216-ahci", .data = (void *)BRCM_SATA_BCM7216},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ahci_of_match);
@@ -423,6 +425,7 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
+	const char *reset_name = NULL;
 	struct brcm_ahci_priv *priv;
 	struct ahci_host_priv *hpriv;
 	struct resource *res;
@@ -444,8 +447,13 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->top_ctrl))
 		return PTR_ERR(priv->top_ctrl);
 
-	/* Reset is optional depending on platform */
-	priv->rcdev = devm_reset_control_get(&pdev->dev, "ahci");
+	/* Reset is optional depending on platform and named differently */
+	if (priv->version == BRCM_SATA_BCM7216)
+		reset_name = "rescal";
+	else
+		reset_name = "ahci";
+
+	priv->rcdev = devm_reset_control_get(&pdev->dev, reset_name);
 	if (!IS_ERR_OR_NULL(priv->rcdev))
 		reset_control_deassert(priv->rcdev);
 
