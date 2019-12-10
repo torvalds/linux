@@ -581,7 +581,9 @@ static inline bool io_prep_async_work(struct io_kiocb *req,
 		switch (req->sqe->opcode) {
 		case IORING_OP_WRITEV:
 		case IORING_OP_WRITE_FIXED:
-			do_hashed = true;
+			/* only regular files should be hashed for writes */
+			if (req->flags & REQ_F_ISREG)
+				do_hashed = true;
 			/* fall-through */
 		case IORING_OP_READV:
 		case IORING_OP_READ_FIXED:
