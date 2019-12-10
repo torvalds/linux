@@ -658,28 +658,28 @@ EXPORT_SYMBOL_GPL(nfs_init_client);
  * Create a version 2 or 3 client
  */
 static int nfs_init_server(struct nfs_server *server,
-			   const struct nfs_parsed_mount_data *data,
+			   const struct nfs_fs_context *cfg,
 			   struct nfs_subversion *nfs_mod)
 {
 	struct rpc_timeout timeparms;
 	struct nfs_client_initdata cl_init = {
-		.hostname = data->nfs_server.hostname,
-		.addr = (const struct sockaddr *)&data->nfs_server.address,
-		.addrlen = data->nfs_server.addrlen,
+		.hostname = cfg->nfs_server.hostname,
+		.addr = (const struct sockaddr *)&cfg->nfs_server.address,
+		.addrlen = cfg->nfs_server.addrlen,
 		.nfs_mod = nfs_mod,
-		.proto = data->nfs_server.protocol,
-		.net = data->net,
+		.proto = cfg->nfs_server.protocol,
+		.net = cfg->net,
 		.timeparms = &timeparms,
 		.cred = server->cred,
-		.nconnect = data->nfs_server.nconnect,
+		.nconnect = cfg->nfs_server.nconnect,
 		.init_flags = (1UL << NFS_CS_REUSEPORT),
 	};
 	struct nfs_client *clp;
 	int error;
 
-	nfs_init_timeout_values(&timeparms, data->nfs_server.protocol,
-			data->timeo, data->retrans);
-	if (data->flags & NFS_MOUNT_NORESVPORT)
+	nfs_init_timeout_values(&timeparms, cfg->nfs_server.protocol,
+				cfg->timeo, cfg->retrans);
+	if (cfg->flags & NFS_MOUNT_NORESVPORT)
 		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
 
 	/* Allocate or find a client reference we can use */
@@ -690,46 +690,46 @@ static int nfs_init_server(struct nfs_server *server,
 	server->nfs_client = clp;
 
 	/* Initialise the client representation from the mount data */
-	server->flags = data->flags;
-	server->options = data->options;
+	server->flags = cfg->flags;
+	server->options = cfg->options;
 	server->caps |= NFS_CAP_HARDLINKS|NFS_CAP_SYMLINKS|NFS_CAP_FILEID|
 		NFS_CAP_MODE|NFS_CAP_NLINK|NFS_CAP_OWNER|NFS_CAP_OWNER_GROUP|
 		NFS_CAP_ATIME|NFS_CAP_CTIME|NFS_CAP_MTIME;
 
-	if (data->rsize)
-		server->rsize = nfs_block_size(data->rsize, NULL);
-	if (data->wsize)
-		server->wsize = nfs_block_size(data->wsize, NULL);
+	if (cfg->rsize)
+		server->rsize = nfs_block_size(cfg->rsize, NULL);
+	if (cfg->wsize)
+		server->wsize = nfs_block_size(cfg->wsize, NULL);
 
-	server->acregmin = data->acregmin * HZ;
-	server->acregmax = data->acregmax * HZ;
-	server->acdirmin = data->acdirmin * HZ;
-	server->acdirmax = data->acdirmax * HZ;
+	server->acregmin = cfg->acregmin * HZ;
+	server->acregmax = cfg->acregmax * HZ;
+	server->acdirmin = cfg->acdirmin * HZ;
+	server->acdirmax = cfg->acdirmax * HZ;
 
 	/* Start lockd here, before we might error out */
 	error = nfs_start_lockd(server);
 	if (error < 0)
 		goto error;
 
-	server->port = data->nfs_server.port;
-	server->auth_info = data->auth_info;
+	server->port = cfg->nfs_server.port;
+	server->auth_info = cfg->auth_info;
 
 	error = nfs_init_server_rpcclient(server, &timeparms,
-					  data->selected_flavor);
+					  cfg->selected_flavor);
 	if (error < 0)
 		goto error;
 
 	/* Preserve the values of mount_server-related mount options */
-	if (data->mount_server.addrlen) {
-		memcpy(&server->mountd_address, &data->mount_server.address,
-			data->mount_server.addrlen);
-		server->mountd_addrlen = data->mount_server.addrlen;
+	if (cfg->mount_server.addrlen) {
+		memcpy(&server->mountd_address, &cfg->mount_server.address,
+			cfg->mount_server.addrlen);
+		server->mountd_addrlen = cfg->mount_server.addrlen;
 	}
-	server->mountd_version = data->mount_server.version;
-	server->mountd_port = data->mount_server.port;
-	server->mountd_protocol = data->mount_server.protocol;
+	server->mountd_version = cfg->mount_server.version;
+	server->mountd_port = cfg->mount_server.port;
+	server->mountd_protocol = cfg->mount_server.protocol;
 
-	server->namelen  = data->namlen;
+	server->namelen  = cfg->namlen;
 	return 0;
 
 error:
@@ -970,7 +970,7 @@ struct nfs_server *nfs_create_server(struct nfs_mount_info *mount_info)
 		goto error;
 
 	/* Get a client representation */
-	error = nfs_init_server(server, mount_info->parsed, nfs_mod);
+	error = nfs_init_server(server, mount_info->ctx, nfs_mod);
 	if (error < 0)
 		goto error;
 
@@ -981,7 +981,7 @@ struct nfs_server *nfs_create_server(struct nfs_mount_info *mount_info)
 	if (server->nfs_client->rpc_ops->version == 3) {
 		if (server->namelen == 0 || server->namelen > NFS3_MAXNAMLEN)
 			server->namelen = NFS3_MAXNAMLEN;
-		if (!(mount_info->parsed->flags & NFS_MOUNT_NORDIRPLUS))
+		if (!(mount_info->ctx->flags & NFS_MOUNT_NORDIRPLUS))
 			server->caps |= NFS_CAP_READDIRPLUS;
 	} else {
 		if (server->namelen == 0 || server->namelen > NFS2_MAXNAMLEN)

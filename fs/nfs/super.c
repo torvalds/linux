@@ -726,12 +726,13 @@ bool nfs_auth_info_match(const struct nfs_auth_info *auth_info,
 EXPORT_SYMBOL_GPL(nfs_auth_info_match);
 
 /*
- * Ensure that a specified authtype in args->auth_info is supported by
- * the server. Returns 0 and sets args->selected_flavor if it's ok, and
+ * Ensure that a specified authtype in cfg->auth_info is supported by
+ * the server. Returns 0 and sets cfg->selected_flavor if it's ok, and
  * -EACCES if not.
  */
-static int nfs_verify_authflavors(struct nfs_parsed_mount_data *args,
-			rpc_authflavor_t *server_authlist, unsigned int count)
+static int nfs_verify_authflavors(struct nfs_fs_context *cfg,
+				  rpc_authflavor_t *server_authlist,
+				  unsigned int count)
 {
 	rpc_authflavor_t flavor = RPC_AUTH_MAXFLAVOR;
 	bool found_auth_null = false;
@@ -752,7 +753,7 @@ static int nfs_verify_authflavors(struct nfs_parsed_mount_data *args,
 	for (i = 0; i < count; i++) {
 		flavor = server_authlist[i];
 
-		if (nfs_auth_info_match(&args->auth_info, flavor))
+		if (nfs_auth_info_match(&cfg->auth_info, flavor))
 			goto out;
 
 		if (flavor == RPC_AUTH_NULL)
@@ -760,7 +761,7 @@ static int nfs_verify_authflavors(struct nfs_parsed_mount_data *args,
 	}
 
 	if (found_auth_null) {
-		flavor = args->auth_info.flavors[0];
+		flavor = cfg->auth_info.flavors[0];
 		goto out;
 	}
 
@@ -769,8 +770,8 @@ static int nfs_verify_authflavors(struct nfs_parsed_mount_data *args,
 	return -EACCES;
 
 out:
-	args->selected_flavor = flavor;
-	dfprintk(MOUNT, "NFS: using auth flavor %u\n", args->selected_flavor);
+	cfg->selected_flavor = flavor;
+	dfprintk(MOUNT, "NFS: using auth flavor %u\n", cfg->selected_flavor);
 	return 0;
 }
 
@@ -778,50 +779,50 @@ out:
  * Use the remote server's MOUNT service to request the NFS file handle
  * corresponding to the provided path.
  */
-static int nfs_request_mount(struct nfs_parsed_mount_data *args,
+static int nfs_request_mount(struct nfs_fs_context *cfg,
 			     struct nfs_fh *root_fh,
 			     rpc_authflavor_t *server_authlist,
 			     unsigned int *server_authlist_len)
 {
 	struct nfs_mount_request request = {
 		.sap		= (struct sockaddr *)
-						&args->mount_server.address,
-		.dirpath	= args->nfs_server.export_path,
-		.protocol	= args->mount_server.protocol,
+						&cfg->mount_server.address,
+		.dirpath	= cfg->nfs_server.export_path,
+		.protocol	= cfg->mount_server.protocol,
 		.fh		= root_fh,
-		.noresvport	= args->flags & NFS_MOUNT_NORESVPORT,
+		.noresvport	= cfg->flags & NFS_MOUNT_NORESVPORT,
 		.auth_flav_len	= server_authlist_len,
 		.auth_flavs	= server_authlist,
-		.net		= args->net,
+		.net		= cfg->net,
 	};
 	int status;
 
-	if (args->mount_server.version == 0) {
-		switch (args->version) {
+	if (cfg->mount_server.version == 0) {
+		switch (cfg->version) {
 			default:
-				args->mount_server.version = NFS_MNT3_VERSION;
+				cfg->mount_server.version = NFS_MNT3_VERSION;
 				break;
 			case 2:
-				args->mount_server.version = NFS_MNT_VERSION;
+				cfg->mount_server.version = NFS_MNT_VERSION;
 		}
 	}
-	request.version = args->mount_server.version;
+	request.version = cfg->mount_server.version;
 
-	if (args->mount_server.hostname)
-		request.hostname = args->mount_server.hostname;
+	if (cfg->mount_server.hostname)
+		request.hostname = cfg->mount_server.hostname;
 	else
-		request.hostname = args->nfs_server.hostname;
+		request.hostname = cfg->nfs_server.hostname;
 
 	/*
 	 * Construct the mount server's address.
 	 */
-	if (args->mount_server.address.ss_family == AF_UNSPEC) {
-		memcpy(request.sap, &args->nfs_server.address,
-		       args->nfs_server.addrlen);
-		args->mount_server.addrlen = args->nfs_server.addrlen;
+	if (cfg->mount_server.address.ss_family == AF_UNSPEC) {
+		memcpy(request.sap, &cfg->nfs_server.address,
+		       cfg->nfs_server.addrlen);
+		cfg->mount_server.addrlen = cfg->nfs_server.addrlen;
 	}
-	request.salen = args->mount_server.addrlen;
-	nfs_set_port(request.sap, &args->mount_server.port, 0);
+	request.salen = cfg->mount_server.addrlen;
+	nfs_set_port(request.sap, &cfg->mount_server.port, 0);
 
 	/*
 	 * Now ask the mount server to map our export path
@@ -844,12 +845,12 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 	bool tried_auth_unix = false;
 	bool auth_null_in_list = false;
 	struct nfs_server *server = ERR_PTR(-EACCES);
-	struct nfs_parsed_mount_data *args = mount_info->parsed;
+	struct nfs_fs_context *ctx = mount_info->ctx;
 	rpc_authflavor_t authlist[NFS_MAX_SECFLAVORS];
 	unsigned int authlist_len = ARRAY_SIZE(authlist);
 	struct nfs_subversion *nfs_mod = mount_info->nfs_mod;
 
-	status = nfs_request_mount(args, mount_info->mntfh, authlist,
+	status = nfs_request_mount(ctx, mount_info->mntfh, authlist,
 					&authlist_len);
 	if (status)
 		return ERR_PTR(status);
@@ -858,10 +859,10 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 	 * Was a sec= authflavor specified in the options? First, verify
 	 * whether the server supports it, and then just try to use it if so.
 	 */
-	if (args->auth_info.flavor_len > 0) {
-		status = nfs_verify_authflavors(args, authlist, authlist_len);
+	if (ctx->auth_info.flavor_len > 0) {
+		status = nfs_verify_authflavors(ctx, authlist, authlist_len);
 		dfprintk(MOUNT, "NFS: using auth flavor %u\n",
-			 args->selected_flavor);
+			 ctx->selected_flavor);
 		if (status)
 			return ERR_PTR(status);
 		return nfs_mod->rpc_ops->create_server(mount_info);
@@ -890,7 +891,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 			/* Fallthrough */
 		}
 		dfprintk(MOUNT, "NFS: attempting to use auth flavor %u\n", flavor);
-		args->selected_flavor = flavor;
+		ctx->selected_flavor = flavor;
 		server = nfs_mod->rpc_ops->create_server(mount_info);
 		if (!IS_ERR(server))
 			return server;
@@ -906,7 +907,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 
 	/* Last chance! Try AUTH_UNIX */
 	dfprintk(MOUNT, "NFS: attempting to use auth flavor %u\n", RPC_AUTH_UNIX);
-	args->selected_flavor = RPC_AUTH_UNIX;
+	ctx->selected_flavor = RPC_AUTH_UNIX;
 	return nfs_mod->rpc_ops->create_server(mount_info);
 }
 
@@ -916,7 +917,7 @@ struct dentry *nfs_try_mount(int flags, const char *dev_name,
 			     struct nfs_mount_info *mount_info)
 {
 	struct nfs_subversion *nfs_mod = mount_info->nfs_mod;
-	if (mount_info->parsed->need_mount)
+	if (mount_info->ctx->need_mount)
 		mount_info->server = nfs_try_mount_request(mount_info);
 	else
 		mount_info->server = nfs_mod->rpc_ops->create_server(mount_info);
@@ -940,24 +941,24 @@ EXPORT_SYMBOL_GPL(nfs_try_mount);
 
 static int
 nfs_compare_remount_data(struct nfs_server *nfss,
-			 struct nfs_parsed_mount_data *data)
+			 struct nfs_fs_context *ctx)
 {
-	if ((data->flags ^ nfss->flags) & NFS_REMOUNT_CMP_FLAGMASK ||
-	    data->rsize != nfss->rsize ||
-	    data->wsize != nfss->wsize ||
-	    data->version != nfss->nfs_client->rpc_ops->version ||
-	    data->minorversion != nfss->nfs_client->cl_minorversion ||
-	    data->retrans != nfss->client->cl_timeout->to_retries ||
-	    !nfs_auth_info_match(&data->auth_info, nfss->client->cl_auth->au_flavor) ||
-	    data->acregmin != nfss->acregmin / HZ ||
-	    data->acregmax != nfss->acregmax / HZ ||
-	    data->acdirmin != nfss->acdirmin / HZ ||
-	    data->acdirmax != nfss->acdirmax / HZ ||
-	    data->timeo != (10U * nfss->client->cl_timeout->to_initval / HZ) ||
-	    (data->options & NFS_OPTION_FSCACHE) != (nfss->options & NFS_OPTION_FSCACHE) ||
-	    data->nfs_server.port != nfss->port ||
-	    data->nfs_server.addrlen != nfss->nfs_client->cl_addrlen ||
-	    !rpc_cmp_addr((struct sockaddr *)&data->nfs_server.address,
+	if ((ctx->flags ^ nfss->flags) & NFS_REMOUNT_CMP_FLAGMASK ||
+	    ctx->rsize != nfss->rsize ||
+	    ctx->wsize != nfss->wsize ||
+	    ctx->version != nfss->nfs_client->rpc_ops->version ||
+	    ctx->minorversion != nfss->nfs_client->cl_minorversion ||
+	    ctx->retrans != nfss->client->cl_timeout->to_retries ||
+	    !nfs_auth_info_match(&ctx->auth_info, nfss->client->cl_auth->au_flavor) ||
+	    ctx->acregmin != nfss->acregmin / HZ ||
+	    ctx->acregmax != nfss->acregmax / HZ ||
+	    ctx->acdirmin != nfss->acdirmin / HZ ||
+	    ctx->acdirmax != nfss->acdirmax / HZ ||
+	    ctx->timeo != (10U * nfss->client->cl_timeout->to_initval / HZ) ||
+	    (ctx->options & NFS_OPTION_FSCACHE) != (nfss->options & NFS_OPTION_FSCACHE) ||
+	    ctx->nfs_server.port != nfss->port ||
+	    ctx->nfs_server.addrlen != nfss->nfs_client->cl_addrlen ||
+	    !rpc_cmp_addr((struct sockaddr *)&ctx->nfs_server.address,
 			  (struct sockaddr *)&nfss->nfs_client->cl_addr))
 		return -EINVAL;
 
@@ -969,7 +970,7 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 {
 	int error;
 	struct nfs_server *nfss = sb->s_fs_info;
-	struct nfs_parsed_mount_data *data;
+	struct nfs_fs_context *ctx;
 	struct nfs_mount_data *options = (struct nfs_mount_data *)raw_data;
 	struct nfs4_mount_data *options4 = (struct nfs4_mount_data *)raw_data;
 	u32 nfsvers = nfss->nfs_client->rpc_ops->version;
@@ -987,32 +988,32 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 					   options->version <= 6))))
 		return 0;
 
-	data = nfs_alloc_parsed_mount_data();
-	if (data == NULL)
+	ctx = nfs_alloc_parsed_mount_data();
+	if (ctx == NULL)
 		return -ENOMEM;
 
 	/* fill out struct with values from existing mount */
-	data->flags = nfss->flags;
-	data->rsize = nfss->rsize;
-	data->wsize = nfss->wsize;
-	data->retrans = nfss->client->cl_timeout->to_retries;
-	data->selected_flavor = nfss->client->cl_auth->au_flavor;
-	data->acregmin = nfss->acregmin / HZ;
-	data->acregmax = nfss->acregmax / HZ;
-	data->acdirmin = nfss->acdirmin / HZ;
-	data->acdirmax = nfss->acdirmax / HZ;
-	data->timeo = 10U * nfss->client->cl_timeout->to_initval / HZ;
-	data->nfs_server.port = nfss->port;
-	data->nfs_server.addrlen = nfss->nfs_client->cl_addrlen;
-	data->version = nfsvers;
-	data->minorversion = nfss->nfs_client->cl_minorversion;
-	data->net = current->nsproxy->net_ns;
-	memcpy(&data->nfs_server.address, &nfss->nfs_client->cl_addr,
-		data->nfs_server.addrlen);
+	ctx->flags = nfss->flags;
+	ctx->rsize = nfss->rsize;
+	ctx->wsize = nfss->wsize;
+	ctx->retrans = nfss->client->cl_timeout->to_retries;
+	ctx->selected_flavor = nfss->client->cl_auth->au_flavor;
+	ctx->acregmin = nfss->acregmin / HZ;
+	ctx->acregmax = nfss->acregmax / HZ;
+	ctx->acdirmin = nfss->acdirmin / HZ;
+	ctx->acdirmax = nfss->acdirmax / HZ;
+	ctx->timeo = 10U * nfss->client->cl_timeout->to_initval / HZ;
+	ctx->nfs_server.port = nfss->port;
+	ctx->nfs_server.addrlen = nfss->nfs_client->cl_addrlen;
+	ctx->version = nfsvers;
+	ctx->minorversion = nfss->nfs_client->cl_minorversion;
+	ctx->net = current->nsproxy->net_ns;
+	memcpy(&ctx->nfs_server.address, &nfss->nfs_client->cl_addr,
+		ctx->nfs_server.addrlen);
 
 	/* overwrite those values with any that were specified */
 	error = -EINVAL;
-	if (!nfs_parse_mount_options((char *)options, data))
+	if (!nfs_parse_mount_options((char *)options, ctx))
 		goto out;
 
 	/*
@@ -1021,15 +1022,15 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	 * will clear SB_SYNCHRONOUS if -o sync wasn't specified in the
 	 * remount options, so we have to explicitly reset it.
 	 */
-	if (data->flags & NFS_MOUNT_NOAC)
+	if (ctx->flags & NFS_MOUNT_NOAC)
 		*flags |= SB_SYNCHRONOUS;
 
 	/* compare new mount options with old ones */
-	error = nfs_compare_remount_data(nfss, data);
+	error = nfs_compare_remount_data(nfss, ctx);
 	if (!error)
-		error = security_sb_remount(sb, data->lsm_opts);
+		error = security_sb_remount(sb, ctx->lsm_opts);
 out:
-	nfs_free_parsed_mount_data(data);
+	nfs_free_parsed_mount_data(ctx);
 	return error;
 }
 EXPORT_SYMBOL_GPL(nfs_remount);
@@ -1039,15 +1040,15 @@ EXPORT_SYMBOL_GPL(nfs_remount);
  */
 static void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 {
-	struct nfs_parsed_mount_data *data = mount_info->parsed;
+	struct nfs_fs_context *ctx = mount_info->ctx;
 	struct nfs_server *server = NFS_SB(sb);
 
 	sb->s_blocksize_bits = 0;
 	sb->s_blocksize = 0;
 	sb->s_xattr = server->nfs_client->cl_nfs_mod->xattr;
 	sb->s_op = server->nfs_client->cl_nfs_mod->sops;
-	if (data && data->bsize)
-		sb->s_blocksize = nfs_block_size(data->bsize, &sb->s_blocksize_bits);
+	if (ctx && ctx->bsize)
+		sb->s_blocksize = nfs_block_size(ctx->bsize, &sb->s_blocksize_bits);
 
 	if (server->nfs_client->rpc_ops->version != 2) {
 		/* The VFS shouldn't apply the umask to mode bits. We will do
@@ -1208,7 +1209,7 @@ static int nfs_compare_super(struct super_block *sb, void *data)
 
 #ifdef CONFIG_NFS_FSCACHE
 static void nfs_get_cache_cookie(struct super_block *sb,
-				 struct nfs_parsed_mount_data *parsed,
+				 struct nfs_fs_context *ctx,
 				 struct nfs_clone_mount *cloned)
 {
 	struct nfs_server *nfss = NFS_SB(sb);
@@ -1218,12 +1219,12 @@ static void nfs_get_cache_cookie(struct super_block *sb,
 	nfss->fscache_key = NULL;
 	nfss->fscache = NULL;
 
-	if (parsed) {
-		if (!(parsed->options & NFS_OPTION_FSCACHE))
+	if (ctx) {
+		if (!(ctx->options & NFS_OPTION_FSCACHE))
 			return;
-		if (parsed->fscache_uniq) {
-			uniq = parsed->fscache_uniq;
-			ulen = strlen(parsed->fscache_uniq);
+		if (ctx->fscache_uniq) {
+			uniq = ctx->fscache_uniq;
+			ulen = strlen(ctx->fscache_uniq);
 		}
 	} else if (cloned) {
 		struct nfs_server *mnt_s = NFS_SB(cloned->sb);
@@ -1240,7 +1241,7 @@ static void nfs_get_cache_cookie(struct super_block *sb,
 }
 #else
 static void nfs_get_cache_cookie(struct super_block *sb,
-				 struct nfs_parsed_mount_data *parsed,
+				 struct nfs_fs_context *parsed,
 				 struct nfs_clone_mount *cloned)
 {
 }
@@ -1312,7 +1313,7 @@ static struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
 			s->s_blocksize_bits = bsize;
 			s->s_blocksize = 1U << bsize;
 		}
-		nfs_get_cache_cookie(s, mount_info->parsed, mount_info->cloned);
+		nfs_get_cache_cookie(s, mount_info->ctx, mount_info->cloned);
 		if (!(server->flags & NFS_MOUNT_UNSHARED))
 			s->s_iflags |= SB_I_MULTIROOT;
 	}
@@ -1333,7 +1334,7 @@ static struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
 		error = security_sb_clone_mnt_opts(mount_info->cloned->sb, s, kflags,
 				&kflags_out);
 	} else {
-		error = security_sb_set_mnt_opts(s, mount_info->parsed->lsm_opts,
+		error = security_sb_set_mnt_opts(s, mount_info->ctx->lsm_opts,
 							kflags, &kflags_out);
 	}
 	if (error)
@@ -1370,21 +1371,22 @@ struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 	struct nfs_subversion *nfs_mod;
 	int error;
 
-	mount_info.parsed = nfs_alloc_parsed_mount_data();
+	mount_info.ctx = nfs_alloc_parsed_mount_data();
 	mount_info.mntfh = nfs_alloc_fhandle();
-	if (mount_info.parsed == NULL || mount_info.mntfh == NULL)
+	if (mount_info.ctx == NULL || mount_info.mntfh == NULL)
 		goto out;
 
 	/* Validate the mount data */
-	error = nfs_validate_mount_data(fs_type, raw_data, mount_info.parsed, mount_info.mntfh, dev_name);
+	error = nfs_validate_mount_data(fs_type, raw_data, mount_info.ctx, mount_info.mntfh, dev_name);
 	if (error == NFS_TEXT_DATA)
-		error = nfs_validate_text_mount_data(raw_data, mount_info.parsed, dev_name);
+		error = nfs_validate_text_mount_data(raw_data,
+						     mount_info.ctx, dev_name);
 	if (error < 0) {
 		mntroot = ERR_PTR(error);
 		goto out;
 	}
 
-	nfs_mod = get_nfs_version(mount_info.parsed->version);
+	nfs_mod = get_nfs_version(mount_info.ctx->version);
 	if (IS_ERR(nfs_mod)) {
 		mntroot = ERR_CAST(nfs_mod);
 		goto out;
@@ -1395,7 +1397,7 @@ struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 
 	put_nfs_version(nfs_mod);
 out:
-	nfs_free_parsed_mount_data(mount_info.parsed);
+	nfs_free_parsed_mount_data(mount_info.ctx);
 	nfs_free_fhandle(mount_info.mntfh);
 	return mntroot;
 }
