@@ -196,34 +196,6 @@ static struct omap_hwmod am33xx_control_hwmod = {
 	},
 };
 
-/* lcdc */
-static struct omap_hwmod_class_sysconfig lcdc_sysc = {
-	.rev_offs	= 0x0,
-	.sysc_offs	= 0x54,
-	.sysc_flags	= SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			  MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART,
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class am33xx_lcdc_hwmod_class = {
-	.name		= "lcdc",
-	.sysc		= &lcdc_sysc,
-};
-
-static struct omap_hwmod am33xx_lcdc_hwmod = {
-	.name		= "lcdc",
-	.class		= &am33xx_lcdc_hwmod_class,
-	.clkdm_name	= "lcdc_clkdm",
-	.flags		= HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY,
-	.main_clk	= "lcd_gclk",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM33XX_CM_PER_LCDC_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
 
 /*
  * Interfaces
@@ -301,13 +273,6 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__control = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_ocp_if am33xx_l3_main__lcdc = {
-	.master		= &am33xx_l3_main_hwmod,
-	.slave		= &am33xx_lcdc_hwmod,
-	.clk		= "dpll_core_m4_ck",
-	.user		= OCP_USER_MPU,
-};
-
 /* l4 wkup -> timer1 */
 static struct omap_hwmod_ocp_if am33xx_l4_wkup__timer1 = {
 	.master		= &am33xx_l4_wkup_hwmod,
@@ -341,7 +306,6 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_ls__timer2,
 	&am33xx_l3_main__tpcc,
 	&am33xx_l3_s__gpmc,
-	&am33xx_l3_main__lcdc,
 	&am33xx_l3_main__tptc0,
 	&am33xx_l3_main__tptc1,
 	&am33xx_l3_main__tptc2,

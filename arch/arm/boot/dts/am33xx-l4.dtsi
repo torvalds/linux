@@ -2007,7 +2007,6 @@
 
 		target-module@e000 {			/* 0x4830e000, ap 72 4a.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "lcdc";
 			reg = <0xe000 0x4>,
 			      <0xe054 0x4>;
 			reg-names = "rev", "sysc";
