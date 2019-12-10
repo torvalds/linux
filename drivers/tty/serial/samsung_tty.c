@@ -1851,7 +1851,10 @@ err:
 
 /* Device driver serial port probe */
 
+#ifdef CONFIG_OF
 static const struct of_device_id s3c24xx_uart_dt_match[];
+#endif
+
 static int probe_index;
 
 static inline struct s3c24xx_serial_drv_data *s3c24xx_get_driver_data(
