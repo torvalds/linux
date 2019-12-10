@@ -540,6 +540,7 @@ static void mtk_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 	mtk_crtc->pending_planes = true;
 
+	mtk_drm_crtc_hw_config(mtk_crtc);
 	/* Wait for planes to be disabled */
 	drm_crtc_wait_one_vblank(crtc);
 
