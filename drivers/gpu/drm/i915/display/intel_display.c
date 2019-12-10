@@ -14553,17 +14553,19 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
-	unsigned int updated = 0;
-	bool progress;
-	int i;
 	u8 hw_enabled_slices = dev_priv->wm.skl_hw.ddb.enabled_slices;
 	u8 required_slices = state->wm_results.ddb.enabled_slices;
 	struct skl_ddb_entry entries[I915_MAX_PIPES] = {};
+	u8 dirty_pipes = 0;
+	int i;
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i)
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		/* ignore allocations for crtc's that have been turned off. */
 		if (!needs_modeset(new_crtc_state) && new_crtc_state->hw.active)
 			entries[i] = old_crtc_state->wm.skl.ddb;
+		if (new_crtc_state->hw.active)
+			dirty_pipes |= BIT(crtc->pipe);
+	}
 
 	/* If 2nd DBuf slice required, enable it here */
 	if (INTEL_GEN(dev_priv) >= 11 && required_slices > hw_enabled_slices)
@@ -14575,15 +14577,13 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	 * never overlap with eachother inbetween CRTC updates. Otherwise we'll
 	 * cause pipe underruns and other bad stuff.
 	 */
-	do {
-		progress = false;
-
-		for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+	while (dirty_pipes) {
+		for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+						    new_crtc_state, i) {
 			enum pipe pipe = crtc->pipe;
-			bool vbl_wait = false;
 			bool modeset = needs_modeset(new_crtc_state);
 
-			if (updated & BIT(crtc->pipe) || !new_crtc_state->hw.active)
+			if ((dirty_pipes & BIT(pipe)) == 0)
 				continue;
 
 			if (skl_ddb_allocation_overlaps(&new_crtc_state->wm.skl.ddb,
@@ -14591,20 +14591,8 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 							INTEL_NUM_PIPES(dev_priv), i))
 				continue;
 
-			updated |= BIT(pipe);
 			entries[i] = new_crtc_state->wm.skl.ddb;
-
-			/*
-			 * If this is an already active pipe, it's DDB changed,
-			 * and this isn't the last pipe that needs updating
-			 * then we need to wait for a vblank to pass for the
-			 * new ddb allocation to take effect.
-			 */
-			if (!skl_ddb_entry_equal(&new_crtc_state->wm.skl.ddb,
-						 &old_crtc_state->wm.skl.ddb) &&
-			    !modeset &&
-			    state->wm_results.dirty_pipes != updated)
-				vbl_wait = true;
+			dirty_pipes &= ~BIT(pipe);
 
 			if (modeset && is_trans_port_sync_mode(new_crtc_state)) {
 				if (is_trans_port_sync_master(new_crtc_state))
@@ -14619,12 +14607,18 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 						  new_crtc_state);
 			}
 
-			if (vbl_wait)
+			/*
+			 * If this is an already active pipe, it's DDB changed,
+			 * and this isn't the last pipe that needs updating
+			 * then we need to wait for a vblank to pass for the
+			 * new ddb allocation to take effect.
+			 */
+			if (!skl_ddb_entry_equal(&new_crtc_state->wm.skl.ddb,
+						 &old_crtc_state->wm.skl.ddb) &&
+			    !modeset && dirty_pipes)
 				intel_wait_for_vblank(dev_priv, pipe);
-
-			progress = true;
 		}
-	} while (progress);
+	}
 
 	/* If 2nd DBuf slice is no more required disable it */
 	if (INTEL_GEN(dev_priv) >= 11 && required_slices < hw_enabled_slices)
