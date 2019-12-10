@@ -63,7 +63,7 @@ static const int b15_cpubiuctrl_regs[] = {
 	[CPU_WRITEBACK_CTRL_REG] = -1,
 };
 
-/* Odd cases, e.g: 7260 */
+/* Odd cases, e.g: 7260A0 */
 static const int b53_cpubiuctrl_no_wb_regs[] = {
 	[CPU_CREDIT_REG] = 0x0b0,
 	[CPU_MCP_FLOW_REG] = 0x0b4,
@@ -102,6 +102,7 @@ static int __init mcp_write_pairing_set(void)
 }
 
 static const u32 b53_mach_compat[] = {
+	0x7260,
 	0x7268,
 	0x7271,
 	0x7278,
@@ -157,6 +158,7 @@ static void __init mcp_b53_set(void)
 static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
 {
 	struct device_node *cpu_dn;
+	u32 family_id;
 	int ret = 0;
 
 	cpubiuctrl_base = of_iomap(np, 0);
@@ -185,7 +187,8 @@ static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
 	}
 	of_node_put(cpu_dn);
 
-	if (BRCM_ID(brcmstb_get_family_id()) == 0x7260)
+	family_id = brcmstb_get_family_id();
+	if (BRCM_ID(family_id) == 0x7260 && BRCM_REV(family_id) == 0)
 		cpubiuctrl_regs = b53_cpubiuctrl_no_wb_regs;
 out:
 	of_node_put(np);
