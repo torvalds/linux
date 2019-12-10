@@ -1864,6 +1864,7 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	chip->device_id = pci->device;
 	pci_set_master(pci);
 	if ((err = snd_riptide_initialize(chip)) < 0) {
