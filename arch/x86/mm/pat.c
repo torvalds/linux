@@ -1,11 +1,34 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Handle caching attributes in page tables (PAT)
+ * Page Attribute Table (PAT) support: handle memory caching attributes in page tables.
  *
  * Authors: Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
  *          Suresh B Siddha <suresh.b.siddha@intel.com>
  *
  * Loosely based on earlier PAT patchset from Eric Biederman and Andi Kleen.
+ *
+ * Basic principles:
+ *
+ * PAT is a CPU feature supported by all modern x86 CPUs, to allow the firmware and
+ * the kernel to set one of a handful of 'caching type' attributes for physical
+ * memory ranges: uncached, write-combining, write-through, write-protected,
+ * and the most commonly used and default attribute: write-back caching.
+ *
+ * PAT support supercedes and augments MTRR support in a compatible fashion: MTRR is
+ * a hardware interface to enumerate a limited number of physical memory ranges
+ * and set their caching attributes explicitly, programmed into the CPU via MSRs.
+ * Even modern CPUs have MTRRs enabled - but these are typically not touched
+ * by the kernel or by user-space (such as the X server), we rely on PAT for any
+ * additional cache attribute logic.
+ *
+ * PAT doesn't work via explicit memory ranges, but uses page table entries to add
+ * cache attribute information to the mapped memory range: there's 3 bits used,
+ * (_PAGE_PWT, _PAGE_PCD, _PAGE_PAT), with the 8 possible values mapped by the
+ * CPU to actual cache attributes via an MSR loaded into the CPU (MSR_IA32_CR_PAT).
+ *
+ * ( There's a metric ton of finer details, such as compatibility with CPU quirks
+ *   that only support 4 types of PAT entries, and interaction with MTRRs, see
+ *   below for details. )
  */
 
 #include <linux/seq_file.h>
@@ -839,7 +862,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 }
 
 /*
- * Change the memory type for the physial address range in kernel identity
+ * Change the memory type for the physical address range in kernel identity
  * mapping space if that range is a part of identity map.
  */
 int kernel_map_sync_memtype(u64 base, unsigned long size,
@@ -851,15 +874,14 @@ int kernel_map_sync_memtype(u64 base, unsigned long size,
 		return 0;
 
 	/*
-	 * some areas in the middle of the kernel identity range
-	 * are not mapped, like the PCI space.
+	 * Some areas in the middle of the kernel identity range
+	 * are not mapped, for example the PCI space.
 	 */
 	if (!page_is_ram(base >> PAGE_SHIFT))
 		return 0;
 
 	id_sz = (__pa(high_memory-1) <= base + size) ?
-				__pa(high_memory) - base :
-				size;
+				__pa(high_memory) - base : size;
 
 	if (ioremap_change_attr((unsigned long)__va(base), id_sz, pcm) < 0) {
 		pr_info("x86/PAT: %s:%d ioremap_change_attr failed %s for [mem %#010Lx-%#010Lx]\n",
@@ -1099,6 +1121,10 @@ EXPORT_SYMBOL_GPL(pgprot_writethrough);
 
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_X86_PAT)
 
+/*
+ * We are allocating a temporary printout-entry to be passed
+ * between seq_start()/next() and seq_show():
+ */
 static struct memtype *memtype_get_idx(loff_t pos)
 {
 	struct memtype *print_entry;
@@ -1112,12 +1138,13 @@ static struct memtype *memtype_get_idx(loff_t pos)
 	ret = memtype_copy_nth_element(print_entry, pos);
 	spin_unlock(&memtype_lock);
 
-	if (!ret) {
-		return print_entry;
-	} else {
+	/* Free it on error: */
+	if (ret) {
 		kfree(print_entry);
 		return NULL;
 	}
+
+	return print_entry;
 }
 
 static void *memtype_seq_start(struct seq_file *seq, loff_t *pos)
@@ -1144,8 +1171,11 @@ static int memtype_seq_show(struct seq_file *seq, void *v)
 {
 	struct memtype *print_entry = (struct memtype *)v;
 
-	seq_printf(seq, "%s @ 0x%Lx-0x%Lx\n", cattr_name(print_entry->type),
-			print_entry->start, print_entry->end);
+	seq_printf(seq, "%s @ 0x%Lx-0x%Lx\n",
+			cattr_name(print_entry->type),
+			print_entry->start,
+			print_entry->end);
+
 	kfree(print_entry);
 
 	return 0;
@@ -1178,7 +1208,6 @@ static int __init pat_memtype_list_init(void)
 	}
 	return 0;
 }
-
 late_initcall(pat_memtype_list_init);
 
 #endif /* CONFIG_DEBUG_FS && CONFIG_X86_PAT */

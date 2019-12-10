@@ -25,25 +25,27 @@
  * physical memory areas. Without proper tracking, conflicting memory
  * types in different mappings can cause CPU cache corruption.
  *
- * The tree is an interval tree (augmented rbtree) with tree ordered
- * on starting address. Tree can contain multiple entries for
+ * The tree is an interval tree (augmented rbtree) which tree is ordered
+ * by the starting address. The tree can contain multiple entries for
  * different regions which overlap. All the aliases have the same
- * cache attributes of course.
+ * cache attributes of course, as enforced by the PAT logic.
  *
  * memtype_lock protects the rbtree.
  */
-static inline u64 memtype_interval_start(struct memtype *memtype)
+
+static inline u64 interval_start(struct memtype *memtype)
 {
 	return memtype->start;
 }
 
-static inline u64 memtype_interval_end(struct memtype *memtype)
+static inline u64 interval_end(struct memtype *memtype)
 {
 	return memtype->end - 1;
 }
+
 INTERVAL_TREE_DEFINE(struct memtype, rb, u64, subtree_max_end,
-		     memtype_interval_start, memtype_interval_end,
-		     static, memtype_interval)
+		     interval_start, interval_end,
+		     static, interval)
 
 static struct rb_root_cached memtype_rbroot = RB_ROOT_CACHED;
 
@@ -56,7 +58,7 @@ static struct memtype *memtype_match(u64 start, u64 end, int match_type)
 {
 	struct memtype *match;
 
-	match = memtype_interval_iter_first(&memtype_rbroot, start, end-1);
+	match = interval_iter_first(&memtype_rbroot, start, end-1);
 	while (match != NULL && match->start < end) {
 		if ((match_type == MEMTYPE_EXACT_MATCH) &&
 		    (match->start == start) && (match->end == end))
@@ -66,7 +68,7 @@ static struct memtype *memtype_match(u64 start, u64 end, int match_type)
 		    (match->start < start) && (match->end == end))
 			return match;
 
-		match = memtype_interval_iter_next(match, start, end-1);
+		match = interval_iter_next(match, start, end-1);
 	}
 
 	return NULL; /* Returns NULL if there is no match */
@@ -79,7 +81,7 @@ static int memtype_check_conflict(u64 start, u64 end,
 	struct memtype *match;
 	enum page_cache_mode found_type = reqtype;
 
-	match = memtype_interval_iter_first(&memtype_rbroot, start, end-1);
+	match = interval_iter_first(&memtype_rbroot, start, end-1);
 	if (match == NULL)
 		goto success;
 
@@ -89,12 +91,12 @@ static int memtype_check_conflict(u64 start, u64 end,
 	dprintk("Overlap at 0x%Lx-0x%Lx\n", match->start, match->end);
 	found_type = match->type;
 
-	match = memtype_interval_iter_next(match, start, end-1);
+	match = interval_iter_next(match, start, end-1);
 	while (match) {
 		if (match->type != found_type)
 			goto failure;
 
-		match = memtype_interval_iter_next(match, start, end-1);
+		match = interval_iter_next(match, start, end-1);
 	}
 success:
 	if (newtype)
@@ -106,11 +108,11 @@ failure:
 	pr_info("x86/PAT: %s:%d conflicting memory types %Lx-%Lx %s<->%s\n",
 		current->comm, current->pid, start, end,
 		cattr_name(found_type), cattr_name(match->type));
+
 	return -EBUSY;
 }
 
-int memtype_check_insert(struct memtype *new,
-			 enum page_cache_mode *ret_type)
+int memtype_check_insert(struct memtype *new, enum page_cache_mode *ret_type)
 {
 	int err = 0;
 
@@ -121,7 +123,7 @@ int memtype_check_insert(struct memtype *new,
 	if (ret_type)
 		new->type = *ret_type;
 
-	memtype_interval_insert(new, &memtype_rbroot);
+	interval_insert(new, &memtype_rbroot);
 	return 0;
 }
 
@@ -145,12 +147,13 @@ struct memtype *memtype_erase(u64 start, u64 end)
 
 	if (data->start == start) {
 		/* munmap: erase this node */
-		memtype_interval_remove(data, &memtype_rbroot);
+		interval_remove(data, &memtype_rbroot);
 	} else {
 		/* mremap: update the end value of this node */
-		memtype_interval_remove(data, &memtype_rbroot);
+		interval_remove(data, &memtype_rbroot);
 		data->end = start;
-		memtype_interval_insert(data, &memtype_rbroot);
+		interval_insert(data, &memtype_rbroot);
+
 		return NULL;
 	}
 
@@ -159,19 +162,24 @@ struct memtype *memtype_erase(u64 start, u64 end)
 
 struct memtype *memtype_lookup(u64 addr)
 {
-	return memtype_interval_iter_first(&memtype_rbroot, addr,
-					   addr + PAGE_SIZE-1);
+	return interval_iter_first(&memtype_rbroot, addr, addr + PAGE_SIZE-1);
 }
 
-#if defined(CONFIG_DEBUG_FS)
+/*
+ * Debugging helper, copy the Nth entry of the tree into a
+ * a copy for printout. This allows us to print out the tree
+ * via debugfs, without holding the memtype_lock too long:
+ */
+#ifdef CONFIG_DEBUG_FS
 int memtype_copy_nth_element(struct memtype *out, loff_t pos)
 {
 	struct memtype *match;
 	int i = 1;
 
-	match = memtype_interval_iter_first(&memtype_rbroot, 0, ULONG_MAX);
+	match = interval_iter_first(&memtype_rbroot, 0, ULONG_MAX);
+
 	while (match && pos != i) {
-		match = memtype_interval_iter_next(match, 0, ULONG_MAX);
+		match = interval_iter_next(match, 0, ULONG_MAX);
 		i++;
 	}
 
