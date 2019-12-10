@@ -411,7 +411,7 @@ static int dsps_musb_dbg_init(struct musb *musb, struct dsps_glue *glue)
 	char buf[128];
 
 	sprintf(buf, "%s.dsps", dev_name(musb->controller));
-	root = debugfs_create_dir(buf, NULL);
+	root = debugfs_create_dir(buf, usb_debug_root);
 	glue->dbgfs_root = root;
 
 	glue->regset.regs = dsps_musb_regs;

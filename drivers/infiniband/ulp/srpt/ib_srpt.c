@@ -556,33 +556,40 @@ static int srpt_refresh_port(struct srpt_port *sport)
 	struct ib_port_attr port_attr;
 	int ret;
 
-	memset(&port_modify, 0, sizeof(port_modify));
-	port_modify.set_port_cap_mask = IB_PORT_DEVICE_MGMT_SUP;
-	port_modify.clr_port_cap_mask = 0;
-
-	ret = ib_modify_port(sport->sdev->device, sport->port, 0, &port_modify);
-	if (ret)
-		goto err_mod_port;
-
 	ret = ib_query_port(sport->sdev->device, sport->port, &port_attr);
 	if (ret)
-		goto err_query_port;
+		return ret;
 
 	sport->sm_lid = port_attr.sm_lid;
 	sport->lid = port_attr.lid;
 
 	ret = rdma_query_gid(sport->sdev->device, sport->port, 0, &sport->gid);
 	if (ret)
-		goto err_query_port;
+		return ret;
 
-	sport->port_guid_wwn.priv = sport;
-	srpt_format_guid(sport->port_guid, sizeof(sport->port_guid),
+	sport->port_guid_id.wwn.priv = sport;
+	srpt_format_guid(sport->port_guid_id.name,
+			 sizeof(sport->port_guid_id.name),
 			 &sport->gid.global.interface_id);
-	sport->port_gid_wwn.priv = sport;
-	snprintf(sport->port_gid, sizeof(sport->port_gid),
+	sport->port_gid_id.wwn.priv = sport;
+	snprintf(sport->port_gid_id.name, sizeof(sport->port_gid_id.name),
 		 "0x%016llx%016llx",
 		 be64_to_cpu(sport->gid.global.subnet_prefix),
 		 be64_to_cpu(sport->gid.global.interface_id));
+
+	if (rdma_protocol_iwarp(sport->sdev->device, sport->port))
+		return 0;
+
+	memset(&port_modify, 0, sizeof(port_modify));
+	port_modify.set_port_cap_mask = IB_PORT_DEVICE_MGMT_SUP;
+	port_modify.clr_port_cap_mask = 0;
+
+	ret = ib_modify_port(sport->sdev->device, sport->port, 0, &port_modify);
+	if (ret) {
+		pr_warn("%s-%d: enabling device management failed (%d). Note: this is expected if SR-IOV is enabled.\n",
+			dev_name(&sport->sdev->device->dev), sport->port, ret);
+		return 0;
+	}
 
 	if (!sport->mad_agent) {
 		memset(&reg_req, 0, sizeof(reg_req));
@@ -599,23 +606,14 @@ static int srpt_refresh_port(struct srpt_port *sport)
 							 srpt_mad_recv_handler,
 							 sport, 0);
 		if (IS_ERR(sport->mad_agent)) {
-			ret = PTR_ERR(sport->mad_agent);
+			pr_err("%s-%d: MAD agent registration failed (%ld). Note: this is expected if SR-IOV is enabled.\n",
+			       dev_name(&sport->sdev->device->dev), sport->port,
+			       PTR_ERR(sport->mad_agent));
 			sport->mad_agent = NULL;
-			goto err_query_port;
 		}
 	}
 
 	return 0;
-
-err_query_port:
-
-	port_modify.set_port_cap_mask = 0;
-	port_modify.clr_port_cap_mask = IB_PORT_DEVICE_MGMT_SUP;
-	ib_modify_port(sport->sdev->device, sport->port, 0, &port_modify);
-
-err_mod_port:
-
-	return ret;
 }
 
 /**
@@ -1364,9 +1362,11 @@ static int srpt_build_cmd_rsp(struct srpt_rdma_ch *ch,
 			      struct srpt_send_ioctx *ioctx, u64 tag,
 			      int status)
 {
+	struct se_cmd *cmd = &ioctx->cmd;
 	struct srp_rsp *srp_rsp;
 	const u8 *sense_data;
 	int sense_data_len, max_sense_len;
+	u32 resid = cmd->residual_count;
 
 	/*
 	 * The lowest bit of all SAM-3 status codes is zero (see also
@@ -1387,6 +1387,28 @@ static int srpt_build_cmd_rsp(struct srpt_rdma_ch *ch,
 		cpu_to_be32(1 + atomic_xchg(&ch->req_lim_delta, 0));
 	srp_rsp->tag = tag;
 	srp_rsp->status = status;
+
+	if (cmd->se_cmd_flags & SCF_UNDERFLOW_BIT) {
+		if (cmd->data_direction == DMA_TO_DEVICE) {
+			/* residual data from an underflow write */
+			srp_rsp->flags = SRP_RSP_FLAG_DOUNDER;
+			srp_rsp->data_out_res_cnt = cpu_to_be32(resid);
+		} else if (cmd->data_direction == DMA_FROM_DEVICE) {
+			/* residual data from an underflow read */
+			srp_rsp->flags = SRP_RSP_FLAG_DIUNDER;
+			srp_rsp->data_in_res_cnt = cpu_to_be32(resid);
+		}
+	} else if (cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
+		if (cmd->data_direction == DMA_TO_DEVICE) {
+			/* residual data from an overflow write */
+			srp_rsp->flags = SRP_RSP_FLAG_DOOVER;
+			srp_rsp->data_out_res_cnt = cpu_to_be32(resid);
+		} else if (cmd->data_direction == DMA_FROM_DEVICE) {
+			/* residual data from an overflow read */
+			srp_rsp->flags = SRP_RSP_FLAG_DIOVER;
+			srp_rsp->data_in_res_cnt = cpu_to_be32(resid);
+		}
+	}
 
 	if (sense_data_len) {
 		BUILD_BUG_ON(MIN_MAX_RSP_SIZE <= sizeof(*srp_rsp));
@@ -1931,41 +1953,22 @@ static int srpt_disconnect_ch(struct srpt_rdma_ch *ch)
 	return ret;
 }
 
-static bool srpt_ch_closed(struct srpt_port *sport, struct srpt_rdma_ch *ch)
-{
-	struct srpt_nexus *nexus;
-	struct srpt_rdma_ch *ch2;
-	bool res = true;
-
-	rcu_read_lock();
-	list_for_each_entry(nexus, &sport->nexus_list, entry) {
-		list_for_each_entry(ch2, &nexus->ch_list, list) {
-			if (ch2 == ch) {
-				res = false;
-				goto done;
-			}
-		}
-	}
-done:
-	rcu_read_unlock();
-
-	return res;
-}
-
 /* Send DREQ and wait for DREP. */
 static void srpt_disconnect_ch_sync(struct srpt_rdma_ch *ch)
 {
+	DECLARE_COMPLETION_ONSTACK(closed);
 	struct srpt_port *sport = ch->sport;
 
 	pr_debug("ch %s-%d state %d\n", ch->sess_name, ch->qp->qp_num,
 		 ch->state);
 
+	ch->closed = &closed;
+
 	mutex_lock(&sport->mutex);
 	srpt_disconnect_ch(ch);
 	mutex_unlock(&sport->mutex);
 
-	while (wait_event_timeout(sport->ch_releaseQ, srpt_ch_closed(sport, ch),
-				  5 * HZ) == 0)
+	while (wait_for_completion_timeout(&closed, 5 * HZ) == 0)
 		pr_info("%s(%s-%d state %d): still waiting ...\n", __func__,
 			ch->sess_name, ch->qp->qp_num, ch->state);
 
@@ -2045,10 +2048,17 @@ static void srpt_set_enabled(struct srpt_port *sport, bool enabled)
 		__srpt_close_all_ch(sport);
 }
 
+static void srpt_drop_sport_ref(struct srpt_port *sport)
+{
+	if (atomic_dec_return(&sport->refcount) == 0 && sport->freed_channels)
+		complete(sport->freed_channels);
+}
+
 static void srpt_free_ch(struct kref *kref)
 {
 	struct srpt_rdma_ch *ch = container_of(kref, struct srpt_rdma_ch, kref);
 
+	srpt_drop_sport_ref(ch->sport);
 	kfree_rcu(ch, rcu);
 }
 
@@ -2092,6 +2102,9 @@ static void srpt_release_channel_work(struct work_struct *w)
 	list_del_rcu(&ch->list);
 	mutex_unlock(&sport->mutex);
 
+	if (ch->closed)
+		complete(ch->closed);
+
 	srpt_destroy_ch_ib(ch);
 
 	srpt_free_ioctx_ring((struct srpt_ioctx **)ch->ioctx_ring,
@@ -2105,8 +2118,6 @@ static void srpt_release_channel_work(struct work_struct *w)
 			     ch->req_buf_cache, DMA_FROM_DEVICE);
 
 	kmem_cache_destroy(ch->req_buf_cache);
-
-	wake_up(&sport->ch_releaseQ);
 
 	kref_put(&ch->kref, srpt_free_ch);
 }
@@ -2144,6 +2155,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 	char i_port_id[36];
 	u32 it_iu_len;
 	int i, tag_num, tag_size, ret;
+	struct srpt_tpg *stpg;
 
 	WARN_ON_ONCE(irqs_disabled());
 
@@ -2296,23 +2308,38 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 			be64_to_cpu(*(__be64 *)nexus->i_port_id),
 			be64_to_cpu(*(__be64 *)(nexus->i_port_id + 8)));
 
-	pr_debug("registering session %s\n", ch->sess_name);
+	pr_debug("registering src addr %s or i_port_id %s\n", ch->sess_name,
+		 i_port_id);
 
 	tag_num = ch->rq_size;
 	tag_size = 1; /* ib_srpt does not use se_sess->sess_cmd_map */
-	if (sport->port_guid_tpg.se_tpg_wwn)
-		ch->sess = target_setup_session(&sport->port_guid_tpg, tag_num,
+
+	mutex_lock(&sport->port_guid_id.mutex);
+	list_for_each_entry(stpg, &sport->port_guid_id.tpg_list, entry) {
+		if (!IS_ERR_OR_NULL(ch->sess))
+			break;
+		ch->sess = target_setup_session(&stpg->tpg, tag_num,
 						tag_size, TARGET_PROT_NORMAL,
 						ch->sess_name, ch, NULL);
-	if (sport->port_gid_tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
-		ch->sess = target_setup_session(&sport->port_gid_tpg, tag_num,
+	}
+	mutex_unlock(&sport->port_guid_id.mutex);
+
+	mutex_lock(&sport->port_gid_id.mutex);
+	list_for_each_entry(stpg, &sport->port_gid_id.tpg_list, entry) {
+		if (!IS_ERR_OR_NULL(ch->sess))
+			break;
+		ch->sess = target_setup_session(&stpg->tpg, tag_num,
 					tag_size, TARGET_PROT_NORMAL, i_port_id,
 					ch, NULL);
-	/* Retry without leading "0x" */
-	if (sport->port_gid_tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
-		ch->sess = target_setup_session(&sport->port_gid_tpg, tag_num,
+		if (!IS_ERR_OR_NULL(ch->sess))
+			break;
+		/* Retry without leading "0x" */
+		ch->sess = target_setup_session(&stpg->tpg, tag_num,
 						tag_size, TARGET_PROT_NORMAL,
 						i_port_id + 2, ch, NULL);
+	}
+	mutex_unlock(&sport->port_gid_id.mutex);
+
 	if (IS_ERR_OR_NULL(ch->sess)) {
 		WARN_ON_ONCE(ch->sess == NULL);
 		ret = PTR_ERR(ch->sess);
@@ -2324,6 +2351,12 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 				SRP_LOGIN_REJ_CHANNEL_LIMIT_REACHED);
 		goto destroy_ib;
 	}
+
+	/*
+	 * Once a session has been created destruction of srpt_rdma_ch objects
+	 * will decrement sport->refcount. Hence increment sport->refcount now.
+	 */
+	atomic_inc(&sport->refcount);
 
 	mutex_lock(&sport->mutex);
 
@@ -2505,6 +2538,7 @@ static int srpt_rdma_cm_req_recv(struct rdma_cm_id *cm_id,
 	struct srpt_device *sdev;
 	struct srp_login_req req;
 	const struct srp_login_req_rdma *req_rdma;
+	struct sa_path_rec *path_rec = cm_id->route.path_rec;
 	char src_addr[40];
 
 	sdev = ib_get_client_data(cm_id->device, &srpt_client);
@@ -2530,7 +2564,7 @@ static int srpt_rdma_cm_req_recv(struct rdma_cm_id *cm_id,
 		 &cm_id->route.addr.src_addr);
 
 	return srpt_cm_req_recv(sdev, NULL, cm_id, cm_id->port_num,
-				cm_id->route.path_rec->pkey, &req, src_addr);
+				path_rec ? path_rec->pkey : 0, &req, src_addr);
 }
 
 static void srpt_cm_rej_recv(struct srpt_rdma_ch *ch,
@@ -2906,39 +2940,29 @@ static void srpt_refresh_port_work(struct work_struct *work)
 	srpt_refresh_port(sport);
 }
 
-static bool srpt_ch_list_empty(struct srpt_port *sport)
-{
-	struct srpt_nexus *nexus;
-	bool res = true;
-
-	rcu_read_lock();
-	list_for_each_entry(nexus, &sport->nexus_list, entry)
-		if (!list_empty(&nexus->ch_list))
-			res = false;
-	rcu_read_unlock();
-
-	return res;
-}
-
 /**
  * srpt_release_sport - disable login and wait for associated channels
  * @sport: SRPT HCA port.
  */
 static int srpt_release_sport(struct srpt_port *sport)
 {
+	DECLARE_COMPLETION_ONSTACK(c);
 	struct srpt_nexus *nexus, *next_n;
 	struct srpt_rdma_ch *ch;
 
 	WARN_ON_ONCE(irqs_disabled());
 
+	sport->freed_channels = &c;
+
 	mutex_lock(&sport->mutex);
 	srpt_set_enabled(sport, false);
 	mutex_unlock(&sport->mutex);
 
-	while (wait_event_timeout(sport->ch_releaseQ,
-				  srpt_ch_list_empty(sport), 5 * HZ) <= 0) {
-		pr_info("%s_%d: waiting for session unregistration ...\n",
-			dev_name(&sport->sdev->device->dev), sport->port);
+	while (atomic_read(&sport->refcount) > 0 &&
+	       wait_for_completion_timeout(&c, 5 * HZ) <= 0) {
+		pr_info("%s_%d: waiting for unregistration of %d sessions ...\n",
+			dev_name(&sport->sdev->device->dev), sport->port,
+			atomic_read(&sport->refcount));
 		rcu_read_lock();
 		list_for_each_entry(nexus, &sport->nexus_list, entry) {
 			list_for_each_entry(ch, &nexus->ch_list, list) {
@@ -2975,10 +2999,10 @@ static struct se_wwn *__srpt_lookup_wwn(const char *name)
 		for (i = 0; i < dev->phys_port_cnt; i++) {
 			sport = &sdev->port[i];
 
-			if (strcmp(sport->port_guid, name) == 0)
-				return &sport->port_guid_wwn;
-			if (strcmp(sport->port_gid, name) == 0)
-				return &sport->port_gid_wwn;
+			if (strcmp(sport->port_guid_id.name, name) == 0)
+				return &sport->port_guid_id.wwn;
+			if (strcmp(sport->port_gid_id.name, name) == 0)
+				return &sport->port_gid_id.wwn;
 		}
 	}
 
@@ -3147,7 +3171,6 @@ static void srpt_add_one(struct ib_device *device)
 	for (i = 1; i <= sdev->device->phys_port_cnt; i++) {
 		sport = &sdev->port[i - 1];
 		INIT_LIST_HEAD(&sport->nexus_list);
-		init_waitqueue_head(&sport->ch_releaseQ);
 		mutex_init(&sport->mutex);
 		sport->sdev = sdev;
 		sport->port = i;
@@ -3156,6 +3179,10 @@ static void srpt_add_one(struct ib_device *device)
 		sport->port_attrib.srp_sq_size = DEF_SRPT_SQ_SIZE;
 		sport->port_attrib.use_srq = false;
 		INIT_WORK(&sport->work, srpt_refresh_port_work);
+		mutex_init(&sport->port_guid_id.mutex);
+		INIT_LIST_HEAD(&sport->port_guid_id.tpg_list);
+		mutex_init(&sport->port_gid_id.mutex);
+		INIT_LIST_HEAD(&sport->port_gid_id.tpg_list);
 
 		if (srpt_refresh_port(sport)) {
 			pr_err("MAD registration failed for %s-%d.\n",
@@ -3258,14 +3285,23 @@ static struct srpt_port *srpt_tpg_to_sport(struct se_portal_group *tpg)
 	return tpg->se_tpg_wwn->priv;
 }
 
+static struct srpt_port_id *srpt_wwn_to_sport_id(struct se_wwn *wwn)
+{
+	struct srpt_port *sport = wwn->priv;
+
+	if (wwn == &sport->port_guid_id.wwn)
+		return &sport->port_guid_id;
+	if (wwn == &sport->port_gid_id.wwn)
+		return &sport->port_gid_id;
+	WARN_ON_ONCE(true);
+	return NULL;
+}
+
 static char *srpt_get_fabric_wwn(struct se_portal_group *tpg)
 {
-	struct srpt_port *sport = srpt_tpg_to_sport(tpg);
+	struct srpt_tpg *stpg = container_of(tpg, typeof(*stpg), tpg);
 
-	WARN_ON_ONCE(tpg != &sport->port_guid_tpg &&
-		     tpg != &sport->port_gid_tpg);
-	return tpg == &sport->port_guid_tpg ? sport->port_guid :
-		sport->port_gid;
+	return stpg->sport_id->name;
 }
 
 static u16 srpt_get_tag(struct se_portal_group *tpg)
@@ -3721,19 +3757,25 @@ static struct configfs_attribute *srpt_tpg_attrs[] = {
 static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
 					     const char *name)
 {
-	struct srpt_port *sport = wwn->priv;
-	struct se_portal_group *tpg;
-	int res;
+	struct srpt_port_id *sport_id = srpt_wwn_to_sport_id(wwn);
+	struct srpt_tpg *stpg;
+	int res = -ENOMEM;
 
-	WARN_ON_ONCE(wwn != &sport->port_guid_wwn &&
-		     wwn != &sport->port_gid_wwn);
-	tpg = wwn == &sport->port_guid_wwn ? &sport->port_guid_tpg :
-		&sport->port_gid_tpg;
-	res = core_tpg_register(wwn, tpg, SCSI_PROTOCOL_SRP);
-	if (res)
+	stpg = kzalloc(sizeof(*stpg), GFP_KERNEL);
+	if (!stpg)
 		return ERR_PTR(res);
+	stpg->sport_id = sport_id;
+	res = core_tpg_register(wwn, &stpg->tpg, SCSI_PROTOCOL_SRP);
+	if (res) {
+		kfree(stpg);
+		return ERR_PTR(res);
+	}
 
-	return tpg;
+	mutex_lock(&sport_id->mutex);
+	list_add_tail(&stpg->entry, &sport_id->tpg_list);
+	mutex_unlock(&sport_id->mutex);
+
+	return &stpg->tpg;
 }
 
 /**
@@ -3742,10 +3784,17 @@ static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
  */
 static void srpt_drop_tpg(struct se_portal_group *tpg)
 {
+	struct srpt_tpg *stpg = container_of(tpg, typeof(*stpg), tpg);
+	struct srpt_port_id *sport_id = stpg->sport_id;
 	struct srpt_port *sport = srpt_tpg_to_sport(tpg);
+
+	mutex_lock(&sport_id->mutex);
+	list_del(&stpg->entry);
+	mutex_unlock(&sport_id->mutex);
 
 	sport->enabled = false;
 	core_tpg_deregister(tpg);
+	kfree(stpg);
 }
 
 /**

@@ -11,6 +11,7 @@
 #include <linux/trace_seq.h>
 #include <linux/spinlock.h>
 #include <linux/irq_work.h>
+#include <linux/security.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
 #include <linux/kthread.h>	/* for self test */
@@ -5067,6 +5068,11 @@ static __init int test_ringbuffer(void)
 	struct ring_buffer *buffer;
 	int cpu;
 	int ret = 0;
+
+	if (security_locked_down(LOCKDOWN_TRACEFS)) {
+		pr_warning("Lockdown is enabled, skipping ring buffer tests\n");
+		return 0;
+	}
 
 	pr_info("Running ring buffer tests...\n");
 

@@ -452,10 +452,16 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
  * a default probing method is used.
  */
 extern struct i2c_client *
+i2c_new_scanned_device(struct i2c_adapter *adap,
+		       struct i2c_board_info *info,
+		       unsigned short const *addr_list,
+		       int (*probe)(struct i2c_adapter *adap, unsigned short addr));
+
+extern struct i2c_client *
 i2c_new_probed_device(struct i2c_adapter *adap,
-		      struct i2c_board_info *info,
-		      unsigned short const *addr_list,
-		      int (*probe)(struct i2c_adapter *adap, unsigned short addr));
+		       struct i2c_board_info *info,
+		       unsigned short const *addr_list,
+		       int (*probe)(struct i2c_adapter *adap, unsigned short addr));
 
 /* Common custom probe functions */
 extern int i2c_probe_func_quick_read(struct i2c_adapter *adap, unsigned short addr);
@@ -575,6 +581,10 @@ struct i2c_lock_operations {
  * @scl_int_delay_ns: time IP core additionally needs to setup SCL in ns
  * @sda_fall_ns: time SDA signal takes to fall in ns; t(f) in the I2C specification
  * @sda_hold_ns: time IP core additionally needs to hold SDA in ns
+ * @digital_filter_width_ns: width in ns of spikes on i2c lines that the IP core
+ *	digital filter can filter out
+ * @analog_filter_cutoff_freq_hz: threshold frequency for the low pass IP core
+ *	analog filter
  */
 struct i2c_timings {
 	u32 bus_freq_hz;
@@ -583,6 +593,8 @@ struct i2c_timings {
 	u32 scl_int_delay_ns;
 	u32 sda_fall_ns;
 	u32 sda_hold_ns;
+	u32 digital_filter_width_ns;
+	u32 analog_filter_cutoff_freq_hz;
 };
 
 /**
@@ -843,9 +855,6 @@ extern void i2c_del_driver(struct i2c_driver *driver);
 /* use a define to avoid include chaining to get THIS_MODULE */
 #define i2c_add_driver(driver) \
 	i2c_register_driver(THIS_MODULE, driver)
-
-extern struct i2c_client *i2c_use_client(struct i2c_client *client);
-extern void i2c_release_client(struct i2c_client *client);
 
 /* call the i2c_client->command() of all attached clients with
  * the given arguments */

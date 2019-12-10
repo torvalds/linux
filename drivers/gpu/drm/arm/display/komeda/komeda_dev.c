@@ -25,6 +25,8 @@ static int komeda_register_show(struct seq_file *sf, void *x)
 	struct komeda_dev *mdev = sf->private;
 	int i;
 
+	seq_puts(sf, "\n====== Komeda register dump =========\n");
+
 	if (mdev->funcs->dump_register)
 		mdev->funcs->dump_register(mdev, sf);
 
@@ -91,9 +93,19 @@ config_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR_RO(config_id);
 
+static ssize_t
+aclk_hz_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct komeda_dev *mdev = dev_to_mdev(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%lu\n", clk_get_rate(mdev->aclk));
+}
+static DEVICE_ATTR_RO(aclk_hz);
+
 static struct attribute *komeda_sysfs_entries[] = {
 	&dev_attr_core_id.attr,
 	&dev_attr_config_id.attr,
+	&dev_attr_aclk_hz.attr,
 	NULL,
 };
 
@@ -216,7 +228,7 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 			  product->product_id,
 			  MALIDP_CORE_ID_PRODUCT_ID(mdev->chip.core_id));
 		err = -ENODEV;
-		goto err_cleanup;
+		goto disable_clk;
 	}
 
 	DRM_INFO("Found ARM Mali-D%x version r%dp%d\n",
@@ -229,19 +241,19 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 	err = mdev->funcs->enum_resources(mdev);
 	if (err) {
 		DRM_ERROR("enumerate display resource failed.\n");
-		goto err_cleanup;
+		goto disable_clk;
 	}
 
 	err = komeda_parse_dt(dev, mdev);
 	if (err) {
 		DRM_ERROR("parse device tree failed.\n");
-		goto err_cleanup;
+		goto disable_clk;
 	}
 
 	err = komeda_assemble_pipelines(mdev);
 	if (err) {
 		DRM_ERROR("assemble display pipelines failed.\n");
-		goto err_cleanup;
+		goto disable_clk;
 	}
 
 	dev->dma_parms = &mdev->dma_parms;
@@ -254,10 +266,13 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 	if (mdev->iommu && mdev->funcs->connect_iommu) {
 		err = mdev->funcs->connect_iommu(mdev);
 		if (err) {
+			DRM_ERROR("connect iommu failed.\n");
 			mdev->iommu = NULL;
-			goto err_cleanup;
+			goto disable_clk;
 		}
 	}
+
+	clk_disable_unprepare(mdev->aclk);
 
 	err = sysfs_create_group(&dev->kobj, &komeda_sysfs_attr_group);
 	if (err) {
@@ -271,6 +286,8 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 
 	return mdev;
 
+disable_clk:
+	clk_disable_unprepare(mdev->aclk);
 err_cleanup:
 	komeda_dev_destroy(mdev);
 	return ERR_PTR(err);
@@ -288,8 +305,12 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 	debugfs_remove_recursive(mdev->debugfs_root);
 #endif
 
+	if (mdev->aclk)
+		clk_prepare_enable(mdev->aclk);
+
 	if (mdev->iommu && mdev->funcs->disconnect_iommu)
-		mdev->funcs->disconnect_iommu(mdev);
+		if (mdev->funcs->disconnect_iommu(mdev))
+			DRM_ERROR("disconnect iommu failed.\n");
 	mdev->iommu = NULL;
 
 	for (i = 0; i < mdev->n_pipelines; i++) {
@@ -316,4 +337,48 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 	}
 
 	devm_kfree(dev, mdev);
+}
+
+int komeda_dev_resume(struct komeda_dev *mdev)
+{
+	int ret = 0;
+
+	clk_prepare_enable(mdev->aclk);
+
+	if (mdev->iommu && mdev->funcs->connect_iommu) {
+		ret = mdev->funcs->connect_iommu(mdev);
+		if (ret < 0) {
+			DRM_ERROR("connect iommu failed.\n");
+			goto disable_clk;
+		}
+	}
+
+	ret = mdev->funcs->enable_irq(mdev);
+
+disable_clk:
+	clk_disable_unprepare(mdev->aclk);
+
+	return ret;
+}
+
+int komeda_dev_suspend(struct komeda_dev *mdev)
+{
+	int ret = 0;
+
+	clk_prepare_enable(mdev->aclk);
+
+	if (mdev->iommu && mdev->funcs->disconnect_iommu) {
+		ret = mdev->funcs->disconnect_iommu(mdev);
+		if (ret < 0) {
+			DRM_ERROR("disconnect iommu failed.\n");
+			goto disable_clk;
+		}
+	}
+
+	ret = mdev->funcs->disable_irq(mdev);
+
+disable_clk:
+	clk_disable_unprepare(mdev->aclk);
+
+	return ret;
 }

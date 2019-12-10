@@ -42,17 +42,13 @@ static __latent_entropy void blk_done_softirq(struct softirq_action *h)
 static void trigger_softirq(void *data)
 {
 	struct request *rq = data;
-	unsigned long flags;
 	struct list_head *list;
 
-	local_irq_save(flags);
 	list = this_cpu_ptr(&blk_cpu_done);
 	list_add_tail(&rq->ipi_list, list);
 
 	if (list->next == &rq->ipi_list)
 		raise_softirq_irqoff(BLOCK_SOFTIRQ);
-
-	local_irq_restore(flags);
 }
 
 /*

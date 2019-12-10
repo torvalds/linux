@@ -392,8 +392,7 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 		unsigned long nr_pages;
 
 		for (j = 0; j < nr_channels; j++) {
-			struct dimm_info *dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
-							       mci->n_layers, i, j, 0);
+			struct dimm_info *dimm = edac_get_dimm(mci, i, j, 0);
 
 			nr_pages = drb_to_nr_pages(drbs, stacked, j, i);
 			if (nr_pages == 0)

@@ -7,7 +7,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 
@@ -97,17 +96,26 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 			sd = media_entity_to_v4l2_subdev(ved->ent);
 			ret = v4l2_subdev_call(sd, video, s_stream, 1);
 			if (ret && ret != -ENOIOCTLCMD) {
-				pr_err("subdev_call error %s\n",
-				       ved->ent->name);
+				dev_err(ved->dev, "subdev_call error %s\n",
+					ved->ent->name);
 				vimc_streamer_pipeline_terminate(stream);
 				return ret;
 			}
 		}
 
 		entity = vimc_get_source_entity(ved->ent);
-		/* Check if the end of the pipeline was reached*/
-		if (!entity)
+		/* Check if the end of the pipeline was reached */
+		if (!entity) {
+			/* the first entity of the pipe should be source only */
+			if (!vimc_is_source(ved->ent)) {
+				dev_err(ved->dev,
+					"first entity in the pipe '%s' is not a source\n",
+					ved->ent->name);
+				vimc_streamer_pipeline_terminate(stream);
+				return -EPIPE;
+			}
 			return 0;
+		}
 
 		/* Get the next device in the pipeline */
 		if (is_media_entity_v4l2_subdev(entity)) {
@@ -217,4 +225,3 @@ int vimc_streamer_s_stream(struct vimc_stream *stream,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(vimc_streamer_s_stream);

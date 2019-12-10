@@ -373,17 +373,6 @@ config RTC_DRV_MAX77686
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max77686.
 
-config RTC_DRV_MESON_VRTC
-	tristate "Amlogic Meson Virtual RTC"
-	depends on ARCH_MESON || COMPILE_TEST
-	default m if ARCH_MESON
-	help
-	  If you say yes here you will get support for the
-	  Virtual RTC of Amlogic SoCs.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-meson-vrtc.
-
 config RTC_DRV_RK808
 	tristate "Rockchip RK805/RK808/RK809/RK817/RK818 RTC"
 	depends on MFD_RK808
@@ -1337,8 +1326,6 @@ config RTC_DRV_IMXDI
 config RTC_DRV_FSL_FTM_ALARM
 	tristate "Freescale FlexTimer alarm timer"
 	depends on ARCH_LAYERSCAPE || SOC_LS1021A
-	select FSL_RCPM
-	default y
 	help
 	   For the FlexTimer in LS1012A, LS1021A, LS1028A, LS1043A, LS1046A,
 	   LS1088A, LS208xA, we can use FTM as the wakeup source.
@@ -1359,6 +1346,17 @@ config RTC_DRV_MESON
 
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-meson".
+
+config RTC_DRV_MESON_VRTC
+	tristate "Amlogic Meson Virtual RTC"
+	depends on ARCH_MESON || COMPILE_TEST
+	default m if ARCH_MESON
+	help
+	  If you say yes here you will get support for the
+	  Virtual RTC of Amlogic SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-meson-vrtc.
 
 config RTC_DRV_OMAP
 	tristate "TI OMAP Real Time Clock"
@@ -1459,6 +1457,7 @@ config RTC_DRV_PL031
 config RTC_DRV_AT91RM9200
 	tristate "AT91RM9200 or some AT91SAM9 RTC"
 	depends on ARCH_AT91 || COMPILE_TEST
+	depends on OF
 	help
 	  Driver for the internal RTC (Realtime Clock) module found on
 	  Atmel AT91RM9200's and some  AT91SAM9 chips. On AT91SAM9 chips
@@ -1510,9 +1509,9 @@ config RTC_DRV_PXA
 	depends on ARCH_PXA
 	select RTC_DRV_SA1100
 	help
-         If you say Y here you will get access to the real time clock
-         built into your PXA27x or PXA3xx CPU. This RTC is actually 2 RTCs
-         consisting of an SA1100 compatible RTC and the extended PXA RTC.
+	 If you say Y here you will get access to the real time clock
+	 built into your PXA27x or PXA3xx CPU. This RTC is actually 2 RTCs
+	 consisting of an SA1100 compatible RTC and the extended PXA RTC.
 
 	 This RTC driver uses PXA RTC registers available since pxa27x
 	 series (RDxR, RYxR) instead of legacy RCNR, RTAR.

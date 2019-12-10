@@ -77,7 +77,10 @@ static int mmio_74xx_get_direction(struct gpio_chip *gc, unsigned offset)
 {
 	struct mmio_74xx_gpio_priv *priv = gpiochip_get_data(gc);
 
-	return !(priv->flags & MMIO_74XX_DIR_OUT);
+	if (priv->flags & MMIO_74XX_DIR_OUT)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return  GPIO_LINE_DIRECTION_IN;
 }
 
 static int mmio_74xx_dir_in(struct gpio_chip *gc, unsigned int gpio)

@@ -149,21 +149,21 @@ config USB_ETH_RNDIS
 	   is given in comments found in that info file.
 
 config USB_ETH_EEM
-       bool "Ethernet Emulation Model (EEM) support"
-       depends on USB_ETH
+	bool "Ethernet Emulation Model (EEM) support"
+	depends on USB_ETH
 	select USB_LIBCOMPOSITE
 	select USB_F_EEM
-       help
-         CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
-         and therefore can be supported by more hardware.  Technically ECM and
-         EEM are designed for different applications.  The ECM model extends
-         the network interface to the target (e.g. a USB cable modem), and the
-         EEM model is for mobile devices to communicate with hosts using
-         ethernet over USB.  For Linux gadgets, however, the interface with
-         the host is the same (a usbX device), so the differences are minimal.
+	help
+	  CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
+	  and therefore can be supported by more hardware.  Technically ECM and
+	  EEM are designed for different applications.  The ECM model extends
+	  the network interface to the target (e.g. a USB cable modem), and the
+	  EEM model is for mobile devices to communicate with hosts using
+	  ethernet over USB.  For Linux gadgets, however, the interface with
+	  the host is the same (a usbX device), so the differences are minimal.
 
-         If you say "y" here, the Ethernet gadget driver will use the EEM
-         protocol rather than ECM.  If unsure, say "n".
+	  If you say "y" here, the Ethernet gadget driver will use the EEM
+	  protocol rather than ECM.  If unsure, say "n".
 
 config USB_G_NCM
 	tristate "Network Control Model (NCM) support"

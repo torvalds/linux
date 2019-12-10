@@ -181,7 +181,7 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 	if (al->map) {
 		struct dso *dso = al->map->dso;
 
-		err = db_export__dso(dbe, dso, al->machine);
+		err = db_export__dso(dbe, dso, al->maps->machine);
 		if (err)
 			return err;
 		*dso_db_id = dso->db_id;
@@ -249,9 +249,9 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		 * constructing an addr_location struct and then passing it to
 		 * db_ids_from_al() to perform the export.
 		 */
-		al.sym = node->sym;
-		al.map = node->map;
-		al.machine = machine;
+		al.sym = node->ms.sym;
+		al.map = node->ms.map;
+		al.maps = thread->maps;
 		al.addr = node->ip;
 
 		if (al.map && !al.sym)
@@ -360,13 +360,13 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	if (err)
 		return err;
 
-	err = db_export__machine(dbe, al->machine);
+	err = db_export__machine(dbe, al->maps->machine);
 	if (err)
 		return err;
 
-	main_thread = thread__main_thread(al->machine, thread);
+	main_thread = thread__main_thread(al->maps->machine, thread);
 
-	err = db_export__threads(dbe, thread, main_thread, al->machine, &comm);
+	err = db_export__threads(dbe, thread, main_thread, al->maps->machine, &comm);
 	if (err)
 		goto out_put;
 
@@ -380,7 +380,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		goto out_put;
 
 	if (dbe->cpr) {
-		struct call_path *cp = call_path_from_sample(dbe, al->machine,
+		struct call_path *cp = call_path_from_sample(dbe, al->maps->machine,
 							     thread, sample,
 							     evsel);
 		if (cp) {

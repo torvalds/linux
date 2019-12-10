@@ -5,27 +5,15 @@
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
  */
 
-#include <linux/component.h>
-#include <linux/module.h>
-#include <linux/mod_devicetable.h>
+#include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 #include <linux/v4l2-mediabus.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-subdev.h>
 
 #include "vimc-common.h"
-
-#define VIMC_DEB_DRV_NAME "vimc-debayer"
-
-static unsigned int deb_mean_win_size = 3;
-module_param(deb_mean_win_size, uint, 0000);
-MODULE_PARM_DESC(deb_mean_win_size, " the window size to calculate the mean.\n"
-	"NOTE: the window size needs to be an odd number, as the main pixel "
-	"stays in the center of the window, otherwise the next odd number "
-	"is considered");
-
-#define IS_SINK(pad) (!pad)
-#define IS_SRC(pad)  (pad)
 
 enum vimc_deb_rgb_colors {
 	VIMC_DEB_RED = 0,
@@ -41,7 +29,6 @@ struct vimc_deb_pix_map {
 struct vimc_deb_device {
 	struct vimc_ent_device ved;
 	struct v4l2_subdev sd;
-	struct device *dev;
 	/* The active format */
 	struct v4l2_mbus_framefmt sink_fmt;
 	u32 src_code;
@@ -51,6 +38,9 @@ struct vimc_deb_device {
 	u8 *src_frame;
 	const struct vimc_deb_pix_map *sink_pix_map;
 	unsigned int sink_bpp;
+	unsigned int mean_win_size;
+	struct v4l2_ctrl_handler hdl;
+	struct media_pad pads[2];
 };
 
 static const struct v4l2_mbus_framefmt sink_fmt_default = {
@@ -159,7 +149,7 @@ static int vimc_deb_enum_mbus_code(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
 	/* We only support one format for source pads */
-	if (IS_SRC(code->pad)) {
+	if (VIMC_IS_SRC(code->pad)) {
 		struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
 
 		if (code->index)
@@ -185,7 +175,7 @@ static int vimc_deb_enum_frame_size(struct v4l2_subdev *sd,
 	if (fse->index)
 		return -EINVAL;
 
-	if (IS_SINK(fse->pad)) {
+	if (VIMC_IS_SINK(fse->pad)) {
 		const struct vimc_deb_pix_map *vpix =
 			vimc_deb_pix_map_by_code(fse->code);
 
@@ -215,7 +205,7 @@ static int vimc_deb_get_fmt(struct v4l2_subdev *sd,
 		      vdeb->sink_fmt;
 
 	/* Set the right code for the source pad */
-	if (IS_SRC(fmt->pad))
+	if (VIMC_IS_SRC(fmt->pad))
 		fmt->format.code = vdeb->src_code;
 
 	return 0;
@@ -262,7 +252,7 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 	 * Do not change the format of the source pad,
 	 * it is propagated from the sink
 	 */
-	if (IS_SRC(fmt->pad)) {
+	if (VIMC_IS_SRC(fmt->pad)) {
 		fmt->format = *sink_fmt;
 		/* TODO: Add support for other formats */
 		fmt->format.code = vdeb->src_code;
@@ -270,7 +260,7 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 		/* Set the new format in the sink pad */
 		vimc_deb_adjust_sink_fmt(&fmt->format);
 
-		dev_dbg(vdeb->dev, "%s: sink format update: "
+		dev_dbg(vdeb->ved.dev, "%s: sink format update: "
 			"old:%dx%d (0x%x, %d, %d, %d, %d) "
 			"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vdeb->sd.name,
 			/* old */
@@ -351,11 +341,18 @@ static int vimc_deb_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
+static const struct v4l2_subdev_core_ops vimc_deb_core_ops = {
+	.log_status = v4l2_ctrl_subdev_log_status,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
 static const struct v4l2_subdev_video_ops vimc_deb_video_ops = {
 	.s_stream = vimc_deb_s_stream,
 };
 
 static const struct v4l2_subdev_ops vimc_deb_ops = {
+	.core = &vimc_deb_core_ops,
 	.pad = &vimc_deb_pad_ops,
 	.video = &vimc_deb_video_ops,
 };
@@ -389,11 +386,11 @@ static void vimc_deb_calc_rgb_sink(struct vimc_deb_device *vdeb,
 	 * the top left corner of the mean window (considering the current
 	 * pixel as the center)
 	 */
-	seek = deb_mean_win_size / 2;
+	seek = vdeb->mean_win_size / 2;
 
 	/* Sum the values of the colors in the mean window */
 
-	dev_dbg(vdeb->dev,
+	dev_dbg(vdeb->ved.dev,
 		"deb: %s: --- Calc pixel %dx%d, window mean %d, seek %d ---\n",
 		vdeb->sd.name, lin, col, vdeb->sink_fmt.height, seek);
 
@@ -426,7 +423,7 @@ static void vimc_deb_calc_rgb_sink(struct vimc_deb_device *vdeb,
 						 vdeb->sink_fmt.width,
 						 vdeb->sink_bpp);
 
-			dev_dbg(vdeb->dev,
+			dev_dbg(vdeb->ved.dev,
 				"deb: %s: RGB CALC: frame index %d, win pos %dx%d, color %d\n",
 				vdeb->sd.name, index, wlin, wcol, color);
 
@@ -437,21 +434,21 @@ static void vimc_deb_calc_rgb_sink(struct vimc_deb_device *vdeb,
 			/* Save how many values we already added */
 			n_rgb[color]++;
 
-			dev_dbg(vdeb->dev, "deb: %s: RGB CALC: val %d, n %d\n",
+			dev_dbg(vdeb->ved.dev, "deb: %s: RGB CALC: val %d, n %d\n",
 				vdeb->sd.name, rgb[color], n_rgb[color]);
 		}
 	}
 
 	/* Calculate the mean */
 	for (i = 0; i < 3; i++) {
-		dev_dbg(vdeb->dev,
+		dev_dbg(vdeb->ved.dev,
 			"deb: %s: PRE CALC: %dx%d Color %d, val %d, n %d\n",
 			vdeb->sd.name, lin, col, i, rgb[i], n_rgb[i]);
 
 		if (n_rgb[i])
 			rgb[i] = rgb[i] / n_rgb[i];
 
-		dev_dbg(vdeb->dev,
+		dev_dbg(vdeb->ved.dev,
 			"deb: %s: FINAL CALC: %dx%d Color %d, val %d\n",
 			vdeb->sd.name, lin, col, i, rgb[i]);
 	}
@@ -476,14 +473,34 @@ static void *vimc_deb_process_frame(struct vimc_ent_device *ved,
 		}
 
 	return vdeb->src_frame;
-
 }
+
+static int vimc_deb_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vimc_deb_device *vdeb =
+		container_of(ctrl->handler, struct vimc_deb_device, hdl);
+
+	switch (ctrl->id) {
+	case VIMC_CID_MEAN_WIN_SIZE:
+		vdeb->mean_win_size = ctrl->val;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops vimc_deb_ctrl_ops = {
+	.s_ctrl = vimc_deb_s_ctrl,
+};
 
 static void vimc_deb_release(struct v4l2_subdev *sd)
 {
 	struct vimc_deb_device *vdeb =
 				container_of(sd, struct vimc_deb_device, sd);
 
+	v4l2_ctrl_handler_free(&vdeb->hdl);
+	media_entity_cleanup(vdeb->ved.ent);
 	kfree(vdeb);
 }
 
@@ -491,44 +508,69 @@ static const struct v4l2_subdev_internal_ops vimc_deb_int_ops = {
 	.release = vimc_deb_release,
 };
 
-static void vimc_deb_comp_unbind(struct device *comp, struct device *master,
-				 void *master_data)
+void vimc_deb_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
 {
-	struct vimc_ent_device *ved = dev_get_drvdata(comp);
-	struct vimc_deb_device *vdeb = container_of(ved, struct vimc_deb_device,
-						    ved);
+	struct vimc_deb_device *vdeb;
 
-	vimc_ent_sd_unregister(ved, &vdeb->sd);
+	vdeb = container_of(ved, struct vimc_deb_device, ved);
+	v4l2_device_unregister_subdev(&vdeb->sd);
 }
 
-static int vimc_deb_comp_bind(struct device *comp, struct device *master,
-			      void *master_data)
+static const struct v4l2_ctrl_config vimc_deb_ctrl_class = {
+	.flags = V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY,
+	.id = VIMC_CID_VIMC_CLASS,
+	.name = "VIMC Controls",
+	.type = V4L2_CTRL_TYPE_CTRL_CLASS,
+};
+
+static const struct v4l2_ctrl_config vimc_deb_ctrl_mean_win_size = {
+	.ops = &vimc_deb_ctrl_ops,
+	.id = VIMC_CID_MEAN_WIN_SIZE,
+	.name = "Debayer Mean Window Size",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 1,
+	.max = 25,
+	.step = 2,
+	.def = 3,
+};
+
+struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
+				     const char *vcfg_name)
 {
-	struct v4l2_device *v4l2_dev = master_data;
-	struct vimc_platform_data *pdata = comp->platform_data;
+	struct v4l2_device *v4l2_dev = &vimc->v4l2_dev;
 	struct vimc_deb_device *vdeb;
 	int ret;
 
 	/* Allocate the vdeb struct */
 	vdeb = kzalloc(sizeof(*vdeb), GFP_KERNEL);
 	if (!vdeb)
-		return -ENOMEM;
+		return NULL;
 
-	/* Initialize ved and sd */
-	ret = vimc_ent_sd_register(&vdeb->ved, &vdeb->sd, v4l2_dev,
-				   pdata->entity_name,
-				   MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV, 2,
-				   (const unsigned long[2]) {MEDIA_PAD_FL_SINK,
-				   MEDIA_PAD_FL_SOURCE},
-				   &vimc_deb_int_ops, &vimc_deb_ops);
-	if (ret) {
-		kfree(vdeb);
-		return ret;
+	/* Create controls: */
+	v4l2_ctrl_handler_init(&vdeb->hdl, 2);
+	v4l2_ctrl_new_custom(&vdeb->hdl, &vimc_deb_ctrl_class, NULL);
+	v4l2_ctrl_new_custom(&vdeb->hdl, &vimc_deb_ctrl_mean_win_size, NULL);
+	vdeb->sd.ctrl_handler = &vdeb->hdl;
+	if (vdeb->hdl.error) {
+		ret = vdeb->hdl.error;
+		goto err_free_vdeb;
 	}
 
+	/* Initialize ved and sd */
+	vdeb->pads[0].flags = MEDIA_PAD_FL_SINK;
+	vdeb->pads[1].flags = MEDIA_PAD_FL_SOURCE;
+
+	ret = vimc_ent_sd_register(&vdeb->ved, &vdeb->sd, v4l2_dev,
+				   vcfg_name,
+				   MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV, 2,
+				   vdeb->pads,
+				   &vimc_deb_int_ops, &vimc_deb_ops);
+	if (ret)
+		goto err_free_hdl;
+
 	vdeb->ved.process_frame = vimc_deb_process_frame;
-	dev_set_drvdata(comp, &vdeb->ved);
-	vdeb->dev = comp;
+	vdeb->ved.dev = &vimc->pdev.dev;
+	vdeb->mean_win_size = vimc_deb_ctrl_mean_win_size.def;
 
 	/* Initialize the frame format */
 	vdeb->sink_fmt = sink_fmt_default;
@@ -541,46 +583,12 @@ static int vimc_deb_comp_bind(struct device *comp, struct device *master,
 	vdeb->src_code = MEDIA_BUS_FMT_RGB888_1X24;
 	vdeb->set_rgb_src = vimc_deb_set_rgb_mbus_fmt_rgb888_1x24;
 
-	return 0;
+	return &vdeb->ved;
+
+err_free_hdl:
+	v4l2_ctrl_handler_free(&vdeb->hdl);
+err_free_vdeb:
+	kfree(vdeb);
+
+	return NULL;
 }
-
-static const struct component_ops vimc_deb_comp_ops = {
-	.bind = vimc_deb_comp_bind,
-	.unbind = vimc_deb_comp_unbind,
-};
-
-static int vimc_deb_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &vimc_deb_comp_ops);
-}
-
-static int vimc_deb_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &vimc_deb_comp_ops);
-
-	return 0;
-}
-
-static const struct platform_device_id vimc_deb_driver_ids[] = {
-	{
-		.name           = VIMC_DEB_DRV_NAME,
-	},
-	{ }
-};
-
-static struct platform_driver vimc_deb_pdrv = {
-	.probe		= vimc_deb_probe,
-	.remove		= vimc_deb_remove,
-	.id_table	= vimc_deb_driver_ids,
-	.driver		= {
-		.name	= VIMC_DEB_DRV_NAME,
-	},
-};
-
-module_platform_driver(vimc_deb_pdrv);
-
-MODULE_DEVICE_TABLE(platform, vimc_deb_driver_ids);
-
-MODULE_DESCRIPTION("Virtual Media Controller Driver (VIMC) Debayer");
-MODULE_AUTHOR("Helen Mae Koike Fornazier <helen.fornazier@gmail.com>");
-MODULE_LICENSE("GPL");

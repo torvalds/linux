@@ -39,7 +39,7 @@ static int set_lid_wake_behavior(bool wake_on_close)
 
 	status = acpi_execute_simple_method(NULL, "\\_SB.PCI0.LID.LIDW", wake_on_close);
 	if (ACPI_FAILURE(status)) {
-		pr_warning(PFX "failed to set lid behavior\n");
+		pr_warn(PFX "failed to set lid behavior\n");
 		return 1;
 	}
 

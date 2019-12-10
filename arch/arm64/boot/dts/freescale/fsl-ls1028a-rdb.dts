@@ -184,3 +184,7 @@
 &sata {
 	status = "okay";
 };
+
+&usb1 {
+	dr_mode = "otg";
+};

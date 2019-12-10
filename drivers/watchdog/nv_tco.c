@@ -267,6 +267,7 @@ static const struct file_operations nv_tco_fops = {
 	.llseek =		no_llseek,
 	.write =		nv_tco_write,
 	.unlocked_ioctl =	nv_tco_ioctl,
+	.compat_ioctl =		compat_ptr_ioctl,
 	.open =			nv_tco_open,
 	.release =		nv_tco_release,
 };

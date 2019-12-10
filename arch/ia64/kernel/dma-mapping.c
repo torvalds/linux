@@ -19,9 +19,3 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 {
 	dma_direct_free_pages(dev, size, cpu_addr, dma_addr, attrs);
 }
-
-long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
-		dma_addr_t dma_addr)
-{
-	return page_to_pfn(virt_to_page(cpu_addr));
-}

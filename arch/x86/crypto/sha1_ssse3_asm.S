@@ -67,7 +67,7 @@
  * param: function's name
  */
 .macro SHA1_VECTOR_ASM  name
-	ENTRY(\name)
+	SYM_FUNC_START(\name)
 
 	push	%rbx
 	push	%r12
@@ -101,7 +101,7 @@
 	pop	%rbx
 	ret
 
-	ENDPROC(\name)
+	SYM_FUNC_END(\name)
 .endm
 
 /*

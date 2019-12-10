@@ -129,7 +129,7 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	atomic_dec(&sdp->sd_log_pinned);
 }
 
-static void gfs2_log_incr_head(struct gfs2_sbd *sdp)
+void gfs2_log_incr_head(struct gfs2_sbd *sdp)
 {
 	BUG_ON((sdp->sd_log_flush_head == sdp->sd_log_tail) &&
 	       (sdp->sd_log_flush_head != sdp->sd_log_head));
@@ -138,18 +138,13 @@ static void gfs2_log_incr_head(struct gfs2_sbd *sdp)
 		sdp->sd_log_flush_head = 0;
 }
 
-u64 gfs2_log_bmap(struct gfs2_sbd *sdp)
+u64 gfs2_log_bmap(struct gfs2_jdesc *jd, unsigned int lblock)
 {
-	unsigned int lbn = sdp->sd_log_flush_head;
 	struct gfs2_journal_extent *je;
-	u64 block;
 
-	list_for_each_entry(je, &sdp->sd_jdesc->extent_list, list) {
-		if ((lbn >= je->lblock) && (lbn < (je->lblock + je->blocks))) {
-			block = je->dblock + lbn - je->lblock;
-			gfs2_log_incr_head(sdp);
-			return block;
-		}
+	list_for_each_entry(je, &jd->extent_list, list) {
+		if (lblock >= je->lblock && lblock < je->lblock + je->blocks)
+			return je->dblock + lblock - je->lblock;
 	}
 
 	return -1;
@@ -351,8 +346,11 @@ void gfs2_log_write(struct gfs2_sbd *sdp, struct page *page,
 
 static void gfs2_log_write_bh(struct gfs2_sbd *sdp, struct buffer_head *bh)
 {
-	gfs2_log_write(sdp, bh->b_page, bh->b_size, bh_offset(bh),
-		       gfs2_log_bmap(sdp));
+	u64 dblock;
+
+	dblock = gfs2_log_bmap(sdp->sd_jdesc, sdp->sd_log_flush_head);
+	gfs2_log_incr_head(sdp);
+	gfs2_log_write(sdp, bh->b_page, bh->b_size, bh_offset(bh), dblock);
 }
 
 /**
@@ -369,8 +367,11 @@ static void gfs2_log_write_bh(struct gfs2_sbd *sdp, struct buffer_head *bh)
 void gfs2_log_write_page(struct gfs2_sbd *sdp, struct page *page)
 {
 	struct super_block *sb = sdp->sd_vfs;
-	gfs2_log_write(sdp, page, sb->s_blocksize, 0,
-		       gfs2_log_bmap(sdp));
+	u64 dblock;
+
+	dblock = gfs2_log_bmap(sdp->sd_jdesc, sdp->sd_log_flush_head);
+	gfs2_log_incr_head(sdp);
+	gfs2_log_write(sdp, page, sb->s_blocksize, 0, dblock);
 }
 
 /**
@@ -882,10 +883,7 @@ static void revoke_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 		bd = list_entry(head->next, struct gfs2_bufdata, bd_list);
 		list_del_init(&bd->bd_list);
 		gl = bd->bd_gl;
-		if (atomic_dec_return(&gl->gl_revokes) == 0) {
-			clear_bit(GLF_LFLUSH, &gl->gl_flags);
-			gfs2_glock_queue_put(gl);
-		}
+		gfs2_glock_remove_revoke(gl);
 		kmem_cache_free(gfs2_bufdata_cachep, bd);
 	}
 }

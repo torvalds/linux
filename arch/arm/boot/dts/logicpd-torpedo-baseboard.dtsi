@@ -101,6 +101,12 @@
 	};
 };
 
+&hdqw1w {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdq_pins>;
+};
+
+
 &vpll2 {
 	regulator-always-on;
 };
@@ -108,6 +114,7 @@
 &dss {
 	status = "ok";
 	vdds_dsi-supply = <&vpll2>;
+	vdda_video-supply = <&vpll2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&dss_dpi_pins1>;
 	port {
@@ -125,7 +132,6 @@
 
 	lcd0: display {
 		/* This isn't the exact LCD, but the timings meet spec */
-		/* To make it work, set CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK=4 */
 		compatible = "newhaven,nhd-4.3-480272ef-atxl";
 		label = "15";
 		pinctrl-names = "default";
@@ -165,6 +171,12 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d6, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcspi2_clk.gpio_178 */
 			OMAP3_CORE1_IOPAD(0x21dc, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcspi2_cs0.gpio_181 */
+		>;
+	};
+
+	hdq_pins: hdq_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21c6, PIN_INPUT_PULLUP | MUX_MODE0) /* hdq_sio */
 		>;
 	};
 

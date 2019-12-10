@@ -9,6 +9,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>

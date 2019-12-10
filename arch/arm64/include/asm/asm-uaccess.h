@@ -58,29 +58,4 @@ alternative_else_nop_endif
 	.endm
 #endif
 
-/*
- * These macros are no-ops when UAO is present.
- */
-	.macro	uaccess_disable_not_uao, tmp1, tmp2
-	uaccess_ttbr0_disable \tmp1, \tmp2
-alternative_if ARM64_ALT_PAN_NOT_UAO
-	SET_PSTATE_PAN(1)
-alternative_else_nop_endif
-	.endm
-
-	.macro	uaccess_enable_not_uao, tmp1, tmp2, tmp3
-	uaccess_ttbr0_enable \tmp1, \tmp2, \tmp3
-alternative_if ARM64_ALT_PAN_NOT_UAO
-	SET_PSTATE_PAN(0)
-alternative_else_nop_endif
-	.endm
-
-/*
- * Remove the address tag from a virtual address, if present.
- */
-	.macro	untagged_addr, dst, addr
-	sbfx	\dst, \addr, #0, #56
-	and	\dst, \dst, \addr
-	.endm
-
 #endif

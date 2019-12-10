@@ -55,7 +55,7 @@
 		interrupt-parent = <&avic>;
 		ranges;
 
-		iram: iram@1fffc000 {
+		iram: sram@1fffc000 {
 			compatible = "mmio-sram";
 			reg = <0x1fffc000 0x4000>;
 			#address-cells = <1>;

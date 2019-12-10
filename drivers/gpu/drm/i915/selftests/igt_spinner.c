@@ -147,7 +147,7 @@ igt_spinner_create_request(struct igt_spinner *spin,
 	intel_gt_chipset_flush(engine->gt);
 
 	if (engine->emit_init_breadcrumb &&
-	    rq->timeline->has_initial_breadcrumb) {
+	    i915_request_timeline(rq)->has_initial_breadcrumb) {
 		err = engine->emit_init_breadcrumb(rq);
 		if (err)
 			goto cancel_rq;

@@ -1424,16 +1424,10 @@ void btc8723b1ant_tdma_dur_adj_for_acl(struct btc_coexist *btcoexist,
 	 * -1: decrease WiFi duration
 	 */
 	s32 result;
-	u8 retry_count = 0, bt_info_ext;
-	bool wifi_busy = false;
+	u8 retry_count = 0;
 
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 		 "[BTCoex], TdmaDurationAdjustForAcl()\n");
-
-	if (wifi_status == BT_8723B_1ANT_WIFI_STATUS_CONNECTED_BUSY)
-		wifi_busy = true;
-	else
-		wifi_busy = false;
 
 	if ((wifi_status ==
 	     BT_8723B_1ANT_WIFI_STATUS_NON_CONNECTED_ASSO_AUTH_SCAN) ||
@@ -1472,7 +1466,6 @@ void btc8723b1ant_tdma_dur_adj_for_acl(struct btc_coexist *btcoexist,
 	} else {
 		/* acquire the BT TRx retry count from BT_Info byte2 */
 		retry_count = coex_sta->bt_retry_cnt;
-		bt_info_ext = coex_sta->bt_info_ext;
 
 		if ((coex_sta->low_priority_tx) > 1050 ||
 		    (coex_sta->low_priority_rx) > 1250)

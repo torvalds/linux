@@ -28,6 +28,8 @@
 
 #define LINK_TRAINING_ATTEMPTS 4
 #define LINK_TRAINING_RETRY_DELAY 50 /* ms */
+#define LINK_AUX_DEFAULT_EXTENDED_TIMEOUT_PERIOD 32000 /*us*/
+#define LINK_AUX_DEFAULT_TIMEOUT_PERIOD 400 /*us*/
 
 struct dc_link;
 struct dc_stream_state;
@@ -42,6 +44,9 @@ bool dp_verify_link_cap_with_retries(
 	struct dc_link *link,
 	struct dc_link_settings *known_limit_link_setting,
 	int attempts);
+
+bool dp_verify_mst_link_cap(
+	struct dc_link *link);
 
 bool dp_validate_mode_timing(
 	struct dc_link *link,

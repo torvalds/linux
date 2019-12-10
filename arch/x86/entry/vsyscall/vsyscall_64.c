@@ -184,7 +184,7 @@ bool emulate_vsyscall(unsigned long error_code,
 	 */
 	switch (vsyscall_nr) {
 	case 0:
-		if (!write_ok_or_segv(regs->di, sizeof(struct timeval)) ||
+		if (!write_ok_or_segv(regs->di, sizeof(struct __kernel_old_timeval)) ||
 		    !write_ok_or_segv(regs->si, sizeof(struct timezone))) {
 			ret = -EFAULT;
 			goto check_fault;
@@ -194,7 +194,7 @@ bool emulate_vsyscall(unsigned long error_code,
 		break;
 
 	case 1:
-		if (!write_ok_or_segv(regs->di, sizeof(time_t))) {
+		if (!write_ok_or_segv(regs->di, sizeof(__kernel_old_time_t))) {
 			ret = -EFAULT;
 			goto check_fault;
 		}
@@ -222,7 +222,7 @@ bool emulate_vsyscall(unsigned long error_code,
 	 */
 	regs->orig_ax = syscall_nr;
 	regs->ax = -ENOSYS;
-	tmp = secure_computing(NULL);
+	tmp = secure_computing();
 	if ((!tmp && regs->orig_ax != syscall_nr) || regs->ip != address) {
 		warn_bad_vsyscall(KERN_DEBUG, regs,
 				  "seccomp tried to change syscall nr or ip");

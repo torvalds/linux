@@ -61,11 +61,12 @@ struct drm_printer;
 	param(char *, dmc_firmware_path, NULL) \
 	param(int, mmio_debug, -IS_ENABLED(CONFIG_DRM_I915_DEBUG_MMIO)) \
 	param(int, edp_vswing, 0) \
-	param(int, reset, 2) \
-	param(unsigned int, inject_load_failure, 0) \
+	param(int, reset, 3) \
+	param(unsigned int, inject_probe_failure, 0) \
 	param(int, fastboot, -1) \
 	param(int, enable_dpcd_backlight, 0) \
 	param(char *, force_probe, CONFIG_DRM_I915_FORCE_PROBE) \
+	param(unsigned long, fake_lmem_start, 0) \
 	/* leave bools at the end to not create holes */ \
 	param(bool, alpha_support, IS_ENABLED(CONFIG_DRM_I915_ALPHA_SUPPORT)) \
 	param(bool, enable_hangcheck, true) \

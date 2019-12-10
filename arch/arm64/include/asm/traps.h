@@ -42,16 +42,6 @@ static inline int __in_irqentry_text(unsigned long ptr)
 	       ptr < (unsigned long)&__irqentry_text_end;
 }
 
-static inline int in_exception_text(unsigned long ptr)
-{
-	int in;
-
-	in = ptr >= (unsigned long)&__exception_text_start &&
-	     ptr < (unsigned long)&__exception_text_end;
-
-	return in ? : __in_irqentry_text(ptr);
-}
-
 static inline int in_entry_text(unsigned long ptr)
 {
 	return ptr >= (unsigned long)&__entry_text_start &&

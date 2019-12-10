@@ -102,7 +102,7 @@ out:
 static int
 mt76x0_rf_wr(struct mt76x02_dev *dev, u32 offset, u8 val)
 {
-	if (mt76_is_usb(dev)) {
+	if (mt76_is_usb(&dev->mt76)) {
 		struct mt76_reg_pair pair = {
 			.reg = offset,
 			.value = val,
@@ -121,7 +121,7 @@ static int mt76x0_rf_rr(struct mt76x02_dev *dev, u32 offset)
 	int ret;
 	u32 val;
 
-	if (mt76_is_usb(dev)) {
+	if (mt76_is_usb(&dev->mt76)) {
 		struct mt76_reg_pair pair = {
 			.reg = offset,
 		};
@@ -176,7 +176,7 @@ mt76x0_phy_rf_csr_wr_rp(struct mt76x02_dev *dev,
 }
 
 #define RF_RANDOM_WRITE(dev, tab) do {					\
-	if (mt76_is_mmio(dev))						\
+	if (mt76_is_mmio(&dev->mt76))					\
 		mt76x0_phy_rf_csr_wr_rp(dev, tab, ARRAY_SIZE(tab));	\
 	else								\
 		mt76_wr_rp(dev, MT_MCU_MEMMAP_RF, tab, ARRAY_SIZE(tab));\
@@ -744,7 +744,7 @@ mt76x0_phy_get_delta_power(struct mt76x02_dev *dev, u8 tx_mode,
 
 	if (!tx_mode) {
 		data = mt76_rr(dev, MT_BBP(CORE, 1));
-		if (is_mt7630(dev) && mt76_is_mmio(dev)) {
+		if (is_mt7630(dev) && mt76_is_mmio(&dev->mt76)) {
 			int offset;
 
 			/* 2.3 * 8192 or 1.5 * 8192 */
@@ -899,7 +899,6 @@ void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 	}
 
 	mt76x02_mcu_calibrate(dev, MCU_CAL_FULL, val);
-	msleep(350);
 	mt76x02_mcu_calibrate(dev, MCU_CAL_LC, is_5ghz);
 	usleep_range(15000, 20000);
 
@@ -967,7 +966,7 @@ void mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 		break;
 	}
 
-	if (mt76_is_usb(dev)) {
+	if (mt76_is_usb(&dev->mt76)) {
 		mt76x0_phy_bbp_set_bw(dev, chandef->width);
 	} else {
 		if (chandef->width == NL80211_CHAN_WIDTH_80 ||
@@ -1123,7 +1122,7 @@ static void mt76x0_rf_patch_reg_array(struct mt76x02_dev *dev,
 
 		switch (reg) {
 		case MT_RF(0, 3):
-			if (mt76_is_mmio(dev)) {
+			if (mt76_is_mmio(&dev->mt76)) {
 				if (is_mt7630(dev))
 					val = 0x70;
 				else

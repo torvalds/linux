@@ -154,6 +154,16 @@ __visible void do_syscall_trace_enter(struct pt_regs *regs)
 		if (tracehook_report_syscall_entry(regs))
 			syscall_set_nr(current, regs, -1);
 
+	/*
+	 * Do the secure computing after ptrace; failures should be fast.
+	 * If this fails we might have return value in a0 from seccomp
+	 * (via SECCOMP_RET_ERRNO/TRACE).
+	 */
+	if (secure_computing() == -1) {
+		syscall_set_nr(current, regs, -1);
+		return;
+	}
+
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_enter(regs, syscall_get_nr(current, regs));

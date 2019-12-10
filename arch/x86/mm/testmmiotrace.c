@@ -127,9 +127,9 @@ static int __init init(void)
 		return -ENXIO;
 	}
 
-	pr_warning("WARNING: mapping %lu kB @ 0x%08lx in PCI address space, "
-		   "and writing 16 kB of rubbish in there.\n",
-		   size >> 10, mmio_address);
+	pr_warn("WARNING: mapping %lu kB @ 0x%08lx in PCI address space, "
+		"and writing 16 kB of rubbish in there.\n",
+		size >> 10, mmio_address);
 	do_test(size);
 	do_test_bulk_ioremapping();
 	pr_info("All done.\n");

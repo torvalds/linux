@@ -12,6 +12,35 @@
 
 #include <linux/platform_device.h>
 
+#define MFD_RES_SIZE(arr) (sizeof(arr) / sizeof(struct resource))
+
+#define MFD_CELL_ALL(_name, _res, _pdata, _pdsize, _id, _compat, _match)\
+	{								\
+		.name = (_name),					\
+		.resources = (_res),					\
+		.num_resources = MFD_RES_SIZE((_res)),			\
+		.platform_data = (_pdata),				\
+		.pdata_size = (_pdsize),				\
+		.of_compatible = (_compat),				\
+		.acpi_match = (_match),					\
+		.id = (_id),						\
+	}
+
+#define OF_MFD_CELL(_name, _res, _pdata, _pdsize,_id, _compat)		\
+	MFD_CELL_ALL(_name, _res, _pdata, _pdsize, _id, _compat, NULL)	\
+
+#define ACPI_MFD_CELL(_name, _res, _pdata, _pdsize, _id, _match)	\
+	MFD_CELL_ALL(_name, _res, _pdata, _pdsize, _id, NULL, _match)	\
+
+#define MFD_CELL_BASIC(_name, _res, _pdata, _pdsize, _id)		\
+	MFD_CELL_ALL(_name, _res, _pdata, _pdsize, _id, NULL, NULL)	\
+
+#define MFD_CELL_RES(_name, _res)					\
+	MFD_CELL_ALL(_name, _res, NULL, 0, 0, NULL, NULL)		\
+
+#define MFD_CELL_NAME(_name)						\
+	MFD_CELL_ALL(_name, NULL, NULL, 0, 0, NULL, NULL)		\
+
 struct irq_domain;
 struct property_entry;
 
@@ -30,8 +59,6 @@ struct mfd_cell {
 	const char		*name;
 	int			id;
 
-	/* refcounting for multiple drivers to use a single cell */
-	atomic_t		*usage_count;
 	int			(*enable)(struct platform_device *dev);
 	int			(*disable)(struct platform_device *dev);
 
@@ -85,24 +112,6 @@ struct mfd_cell {
  */
 extern int mfd_cell_enable(struct platform_device *pdev);
 extern int mfd_cell_disable(struct platform_device *pdev);
-
-/*
- * "Clone" multiple platform devices for a single cell. This is to be used
- * for devices that have multiple users of a cell.  For example, if an mfd
- * driver wants the cell "foo" to be used by a GPIO driver, an MTD driver,
- * and a platform driver, the following bit of code would be use after first
- * calling mfd_add_devices():
- *
- * const char *fclones[] = { "foo-gpio", "foo-mtd" };
- * err = mfd_clone_cells("foo", fclones, ARRAY_SIZE(fclones));
- *
- * Each driver (MTD, GPIO, and platform driver) would then register
- * platform_drivers for "foo-mtd", "foo-gpio", and "foo", respectively.
- * The cell's .enable/.disable hooks should be used to deal with hardware
- * resource contention.
- */
-extern int mfd_clone_cell(const char *cell, const char **clones,
-		size_t n_clones);
 
 /*
  * Given a platform device that's been created by mfd_add_devices(), fetch

@@ -112,7 +112,7 @@ static int subdev_close(struct file *file)
 	return 0;
 }
 
-static inline int check_which(__u32 which)
+static inline int check_which(u32 which)
 {
 	if (which != V4L2_SUBDEV_FORMAT_TRY &&
 	    which != V4L2_SUBDEV_FORMAT_ACTIVE)
@@ -121,7 +121,7 @@ static inline int check_which(__u32 which)
 	return 0;
 }
 
-static inline int check_pad(struct v4l2_subdev *sd, __u32 pad)
+static inline int check_pad(struct v4l2_subdev *sd, u32 pad)
 {
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	if (sd->entity.num_pads) {
@@ -136,7 +136,7 @@ static inline int check_pad(struct v4l2_subdev *sd, __u32 pad)
 	return 0;
 }
 
-static int check_cfg(__u32 which, struct v4l2_subdev_pad_config *cfg)
+static int check_cfg(u32 which, struct v4l2_subdev_pad_config *cfg)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY && !cfg)
 		return -EINVAL;

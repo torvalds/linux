@@ -1578,10 +1578,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	static int up, dn, m, n, wait_cnt;
-	/* 0: no change, +1: increase WiFi duration,
-	 * -1: decrease WiFi duration
-	 */
-	int result;
 	u8 retry_cnt = 0;
 
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
@@ -1669,7 +1665,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 		dn = 0;
 		m = 1;
 		n = 3;
-		result = 0;
 		wait_cnt = 0;
 	} else {
 		/* accquire the BT TRx retry count from BT_Info byte2 */
@@ -1679,7 +1674,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], up=%d, dn=%d, m=%d, n=%d, wait_cnt=%d\n",
 			 up, dn, m, n, wait_cnt);
-		result = 0;
 		wait_cnt++;
 		/* no retry in the last 2-second duration */
 		if (retry_cnt == 0) {
@@ -1694,7 +1688,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 				n = 3;
 				up = 0;
 				dn = 0;
-				result = 1;
 				RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 					 "[BTCoex]Increase wifi duration!!\n");
 			}
@@ -1718,7 +1711,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 				up = 0;
 				dn = 0;
 				wait_cnt = 0;
-				result = -1;
 				RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 					 "Reduce wifi duration for retry<3\n");
 			}
@@ -1735,7 +1727,6 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 			up = 0;
 			dn = 0;
 			wait_cnt = 0;
-			result = -1;
 			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 				 "Decrease wifi duration for retryCounter>3!!\n");
 		}

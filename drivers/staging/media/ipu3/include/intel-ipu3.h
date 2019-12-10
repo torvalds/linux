@@ -1217,6 +1217,11 @@ struct ipu3_uapi_shd_config {
  *
  * All CU inputs are unsigned, they will be converted to signed when written
  * to register, i.e. a01 will be written to 9 bit register in s4.4 format.
+ * The data precision s4.4 means 4 bits for integer parts and 4 bits for the
+ * fractional part, the first bit indicates positive or negative value.
+ * For userspace software (commonly the imaging library), the computation for
+ * the CU slope values should be based on the slope resolution 1/16 (binary
+ * 0.0001 - the minimal interval value), the slope value range is [-256, +255].
  * This applies to &ipu3_uapi_iefd_cux6_ed, &ipu3_uapi_iefd_cux2_1,
  * &ipu3_uapi_iefd_cux2_1, &ipu3_uapi_iefd_cux4 and &ipu3_uapi_iefd_cux6_rad.
  */

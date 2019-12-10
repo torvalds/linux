@@ -650,6 +650,7 @@ static const struct file_operations mpc52xx_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= mpc52xx_wdt_write,
 	.unlocked_ioctl = mpc52xx_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= mpc52xx_wdt_open,
 	.release	= mpc52xx_wdt_release,
 };

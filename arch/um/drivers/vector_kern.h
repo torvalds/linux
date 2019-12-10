@@ -29,9 +29,12 @@
 #define VECTOR_TX (1 << 1)
 #define VECTOR_BPF (1 << 2)
 #define VECTOR_QDISC_BYPASS (1 << 3)
+#define VECTOR_BPF_FLASH (1 << 4)
 
 #define ETH_MAX_PACKET 1500
 #define ETH_HEADER_OTHER 32 /* just in case someone decides to go mad on QnQ */
+
+#define MAX_FILTER_PROG (2 << 16)
 
 struct vector_queue {
 	struct mmsghdr *mmsg_vector;
@@ -118,10 +121,13 @@ struct vector_private {
 	bool in_write_poll;
 	bool in_error;
 
+	/* guest allowed to use ethtool flash to load bpf */
+	bool bpf_via_flash;
+
 	/* ethtool stats */
 
 	struct vector_estats estats;
-	void *bpf;
+	struct sock_fprog *bpf;
 
 	char user[0];
 };

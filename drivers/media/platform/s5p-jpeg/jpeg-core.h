@@ -190,7 +190,6 @@ struct s5p_jpeg_marker {
  * @dqt:	DQT markers' positions relative to the buffer beginning
  * @sof:	SOF0 marker's position relative to the buffer beginning
  * @sof_len:	SOF0 marker's payload length (without length field itself)
- * @components:	number of image components
  * @size:	image buffer size in bytes
  */
 struct s5p_jpeg_q_data {
@@ -202,7 +201,6 @@ struct s5p_jpeg_q_data {
 	struct s5p_jpeg_marker	dqt;
 	u32			sof;
 	u32			sof_len;
-	u32			components;
 	u32			size;
 };
 

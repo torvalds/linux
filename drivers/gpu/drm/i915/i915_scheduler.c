@@ -177,21 +177,51 @@ static inline int rq_prio(const struct i915_request *rq)
 	return rq->sched.attr.priority | __NO_PREEMPTION;
 }
 
-static void kick_submission(struct intel_engine_cs *engine, int prio)
+static inline bool need_preempt(int prio, int active)
 {
-	const struct i915_request *inflight = *engine->execlists.active;
+	/*
+	 * Allow preemption of low -> normal -> high, but we do
+	 * not allow low priority tasks to preempt other low priority
+	 * tasks under the impression that latency for low priority
+	 * tasks does not matter (as much as background throughput),
+	 * so kiss.
+	 */
+	return prio >= max(I915_PRIORITY_NORMAL, active);
+}
+
+static void kick_submission(struct intel_engine_cs *engine,
+			    const struct i915_request *rq,
+			    int prio)
+{
+	const struct i915_request *inflight;
+
+	/*
+	 * We only need to kick the tasklet once for the high priority
+	 * new context we add into the queue.
+	 */
+	if (prio <= engine->execlists.queue_priority_hint)
+		return;
+
+	rcu_read_lock();
+
+	/* Nothing currently active? We're overdue for a submission! */
+	inflight = execlists_active(&engine->execlists);
+	if (!inflight)
+		goto unlock;
 
 	/*
 	 * If we are already the currently executing context, don't
-	 * bother evaluating if we should preempt ourselves, or if
-	 * we expect nothing to change as a result of running the
-	 * tasklet, i.e. we have not change the priority queue
-	 * sufficiently to oust the running context.
+	 * bother evaluating if we should preempt ourselves.
 	 */
-	if (!inflight || !i915_scheduler_need_preempt(prio, rq_prio(inflight)))
-		return;
+	if (inflight->hw_context == rq->hw_context)
+		goto unlock;
 
-	tasklet_hi_schedule(&engine->execlists.tasklet);
+	engine->execlists.queue_priority_hint = prio;
+	if (need_preempt(prio, rq_prio(inflight)))
+		tasklet_hi_schedule(&engine->execlists.tasklet);
+
+unlock:
+	rcu_read_unlock();
 }
 
 static void __i915_schedule(struct i915_sched_node *node,
@@ -317,13 +347,8 @@ static void __i915_schedule(struct i915_sched_node *node,
 			list_move_tail(&node->link, cache.priolist);
 		}
 
-		if (prio <= engine->execlists.queue_priority_hint)
-			continue;
-
-		engine->execlists.queue_priority_hint = prio;
-
 		/* Defer (tasklet) submission until after all of our updates. */
-		kick_submission(engine, prio);
+		kick_submission(engine, node_to_request(node), prio);
 	}
 
 	spin_unlock(&engine->active.lock);

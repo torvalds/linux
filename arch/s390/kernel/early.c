@@ -30,6 +30,7 @@
 #include <asm/sclp.h>
 #include <asm/facility.h>
 #include <asm/boot_data.h>
+#include <asm/switch_to.h>
 #include "entry.h"
 
 static void __init reset_tod_clock(void)
@@ -238,7 +239,7 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
 		__ctl_set_bit(0, 17);
 	}
-	if (test_facility(130)) {
+	if (test_facility(130) && !noexec_disabled) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_NX;
 		__ctl_set_bit(0, 20);
 	}
@@ -260,6 +261,24 @@ static inline void save_vector_registers(void)
 #endif
 }
 
+static inline void setup_control_registers(void)
+{
+	unsigned long reg;
+
+	__ctl_store(reg, 0, 0);
+	reg |= CR0_LOW_ADDRESS_PROTECTION;
+	reg |= CR0_EMERGENCY_SIGNAL_SUBMASK;
+	reg |= CR0_EXTERNAL_CALL_SUBMASK;
+	__ctl_load(reg, 0, 0);
+}
+
+static inline void setup_access_registers(void)
+{
+	unsigned int acrs[NUM_ACRS] = { 0 };
+
+	restore_access_regs(acrs);
+}
+
 static int __init disable_vector_extension(char *str)
 {
 	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
@@ -267,21 +286,6 @@ static int __init disable_vector_extension(char *str)
 	return 0;
 }
 early_param("novx", disable_vector_extension);
-
-static int __init noexec_setup(char *str)
-{
-	bool enabled;
-	int rc;
-
-	rc = kstrtobool(str, &enabled);
-	if (!rc && !enabled) {
-		/* Disable no-execute support */
-		S390_lowcore.machine_flags &= ~MACHINE_FLAG_NX;
-		__ctl_clear_bit(0, 20);
-	}
-	return rc;
-}
-early_param("noexec", noexec_setup);
 
 static int __init cad_setup(char *str)
 {
@@ -332,5 +336,7 @@ void __init startup_init(void)
 	save_vector_registers();
 	setup_topology();
 	sclp_early_detect();
+	setup_control_registers();
+	setup_access_registers();
 	lockdep_on();
 }

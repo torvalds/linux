@@ -59,10 +59,6 @@
 	clock-frequency = <100000>;
 };
 
-&i2c2 {
-	status = "okay";
-};
-
 &usb {
 	power-domains = <&power RPI_POWER_DOMAIN_USB>;
 };

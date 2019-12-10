@@ -455,10 +455,6 @@ int __init arch_populate_kprobe_blacklist(void)
 					(unsigned long)__irqentry_text_end);
 	if (ret)
 		return ret;
-	ret = kprobe_add_area_blacklist((unsigned long)__exception_text_start,
-					(unsigned long)__exception_text_end);
-	if (ret)
-		return ret;
 	ret = kprobe_add_area_blacklist((unsigned long)__idmap_text_start,
 					(unsigned long)__idmap_text_end);
 	if (ret)

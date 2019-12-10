@@ -390,7 +390,7 @@ static int pcf8563_irq_enable(struct device *dev, unsigned int enabled)
 
 #define clkout_hw_to_pcf8563(_hw) container_of(_hw, struct pcf8563, clkout_hw)
 
-static int clkout_rates[] = {
+static const int clkout_rates[] = {
 	32768,
 	1024,
 	32,

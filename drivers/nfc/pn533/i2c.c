@@ -193,12 +193,10 @@ static int pn533_i2c_probe(struct i2c_client *client,
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
 
-	priv = pn533_register_device(PN533_DEVICE_PN532,
-				     PN533_NO_TYPE_B_PROTOCOLS,
-				     PN533_PROTO_REQ_ACK_RESP,
-				     phy, &i2c_phy_ops, NULL,
-				     &phy->i2c_dev->dev,
-				     &client->dev);
+	priv = pn53x_common_init(PN533_DEVICE_PN532,
+				PN533_PROTO_REQ_ACK_RESP,
+				phy, &i2c_phy_ops, NULL,
+				&phy->i2c_dev->dev);
 
 	if (IS_ERR(priv)) {
 		r = PTR_ERR(priv);
@@ -206,6 +204,9 @@ static int pn533_i2c_probe(struct i2c_client *client,
 	}
 
 	phy->priv = priv;
+	r = pn532_i2c_nfc_alloc(priv, PN533_NO_TYPE_B_PROTOCOLS, &client->dev);
+	if (r)
+		goto nfc_alloc_err;
 
 	r = request_threaded_irq(client->irq, NULL, pn533_i2c_irq_thread_fn,
 				IRQF_TRIGGER_FALLING |
@@ -220,13 +221,20 @@ static int pn533_i2c_probe(struct i2c_client *client,
 	if (r)
 		goto fn_setup_err;
 
-	return 0;
+	r = nfc_register_device(priv->nfc_dev);
+	if (r)
+		goto fn_setup_err;
+
+	return r;
 
 fn_setup_err:
 	free_irq(client->irq, phy);
 
 irq_rqst_err:
-	pn533_unregister_device(phy->priv);
+	nfc_free_device(priv->nfc_dev);
+
+nfc_alloc_err:
+	pn53x_common_clean(phy->priv);
 
 	return r;
 }
@@ -239,12 +247,18 @@ static int pn533_i2c_remove(struct i2c_client *client)
 
 	free_irq(client->irq, phy);
 
-	pn533_unregister_device(phy->priv);
+	pn53x_unregister_nfc(phy->priv);
+	pn53x_common_clean(phy->priv);
 
 	return 0;
 }
 
 static const struct of_device_id of_pn533_i2c_match[] = {
+	{ .compatible = "nxp,pn532", },
+	/*
+	 * NOTE: The use of the compatibles with the trailing "...-i2c" is
+	 * deprecated and will be removed.
+	 */
 	{ .compatible = "nxp,pn533-i2c", },
 	{ .compatible = "nxp,pn532-i2c", },
 	{},

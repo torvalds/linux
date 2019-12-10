@@ -18,6 +18,8 @@ NETIF_CREATE=${NETIF_CREATE:=yes}
 MCD=${MCD:=smcrouted}
 MC_CLI=${MC_CLI:=smcroutectl}
 PING_TIMEOUT=${PING_TIMEOUT:=5}
+WAIT_TIMEOUT=${WAIT_TIMEOUT:=20}
+INTERFACE_TIMEOUT=${INTERFACE_TIMEOUT:=600}
 
 relative_path="${BASH_SOURCE%/*}"
 if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
@@ -226,24 +228,45 @@ log_info()
 setup_wait_dev()
 {
 	local dev=$1; shift
+	local wait_time=${1:-$WAIT_TIME}; shift
 
-	while true; do
+	setup_wait_dev_with_timeout "$dev" $INTERFACE_TIMEOUT $wait_time
+
+	if (($?)); then
+		check_err 1
+		log_test setup_wait_dev ": Interface $dev does not come up."
+		exit 1
+	fi
+}
+
+setup_wait_dev_with_timeout()
+{
+	local dev=$1; shift
+	local max_iterations=${1:-$WAIT_TIMEOUT}; shift
+	local wait_time=${1:-$WAIT_TIME}; shift
+	local i
+
+	for ((i = 1; i <= $max_iterations; ++i)); do
 		ip link show dev $dev up \
 			| grep 'state UP' &> /dev/null
 		if [[ $? -ne 0 ]]; then
 			sleep 1
 		else
-			break
+			sleep $wait_time
+			return 0
 		fi
 	done
+
+	return 1
 }
 
 setup_wait()
 {
 	local num_netifs=${1:-$NUM_NETIFS}
+	local i
 
 	for ((i = 1; i <= num_netifs; ++i)); do
-		setup_wait_dev ${NETIFS[p$i]}
+		setup_wait_dev ${NETIFS[p$i]} 0
 	done
 
 	# Make sure links are ready.
@@ -254,6 +277,7 @@ cmd_jq()
 {
 	local cmd=$1
 	local jq_exp=$2
+	local jq_opts=$3
 	local ret
 	local output
 
@@ -263,7 +287,11 @@ cmd_jq()
 	if [[ $ret -ne 0 ]]; then
 		return $ret
 	fi
-	output=$(echo $output | jq -r "$jq_exp")
+	output=$(echo $output | jq -r $jq_opts "$jq_exp")
+	ret=$?
+	if [[ $ret -ne 0 ]]; then
+		return $ret
+	fi
 	echo $output
 	# return success only in case of non-empty output
 	[ ! -z "$output" ]

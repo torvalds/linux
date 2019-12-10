@@ -148,6 +148,10 @@ config DEBUG_TEST_DRIVER_REMOVE
 	  unusable. You should say N here unless you are explicitly looking to
 	  test this functionality.
 
+config PM_QOS_KUNIT_TEST
+	bool "KUnit Test for PM QoS features"
+	depends on KUNIT
+
 config HMEM_REPORTING
 	bool
 	default n

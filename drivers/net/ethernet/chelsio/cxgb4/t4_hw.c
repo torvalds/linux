@@ -8777,8 +8777,8 @@ int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
 		       unsigned int *speedp, unsigned int *mtup)
 {
 	unsigned int fw_caps = pi->adapter->params.fw_caps_support;
-	struct fw_port_cmd port_cmd;
 	unsigned int action, link_ok, mtu;
+	struct fw_port_cmd port_cmd;
 	fw_port_cap32_t linkattr;
 	int ret;
 
@@ -8813,9 +8813,12 @@ int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
 			be32_to_cpu(port_cmd.u.info32.auxlinfo32_mtu32));
 	}
 
-	*link_okp = link_ok;
-	*speedp = fwcap_to_speed(linkattr);
-	*mtup = mtu;
+	if (link_okp)
+		*link_okp = link_ok;
+	if (speedp)
+		*speedp = fwcap_to_speed(linkattr);
+	if (mtup)
+		*mtup = mtu;
 
 	return 0;
 }
