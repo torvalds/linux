@@ -284,47 +284,6 @@ static struct omap_hwmod dra7xx_ctrl_module_wkup_hwmod = {
 };
 
 /*
- * 'dcan' class
- *
- */
-
-static struct omap_hwmod_class dra7xx_dcan_hwmod_class = {
-	.name	= "dcan",
-};
-
-/* dcan1 */
-static struct omap_hwmod dra7xx_dcan1_hwmod = {
-	.name		= "dcan1",
-	.class		= &dra7xx_dcan_hwmod_class,
-	.clkdm_name	= "wkupaon_clkdm",
-	.main_clk	= "dcan1_sys_clk_mux",
-	.flags		= HWMOD_CLKDM_NOAUTO,
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_WKUPAON_DCAN1_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_WKUPAON_DCAN1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* dcan2 */
-static struct omap_hwmod dra7xx_dcan2_hwmod = {
-	.name		= "dcan2",
-	.class		= &dra7xx_dcan_hwmod_class,
-	.clkdm_name	= "l4per2_clkdm",
-	.main_clk	= "sys_clkin1",
-	.flags		= HWMOD_CLKDM_NOAUTO,
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER2_DCAN2_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER2_DCAN2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
  * 'dma' class
  *
  */
@@ -1318,22 +1277,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_wkup__ctrl_module_wkup = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_wkup -> dcan1 */
-static struct omap_hwmod_ocp_if dra7xx_l4_wkup__dcan1 = {
-	.master		= &dra7xx_l4_wkup_hwmod,
-	.slave		= &dra7xx_dcan1_hwmod,
-	.clk		= "wkupaon_iclk_mux",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per2 -> dcan2 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per2__dcan2 = {
-	.master		= &dra7xx_l4_per2_hwmod,
-	.slave		= &dra7xx_dcan2_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> dma_system */
 static struct omap_hwmod_ocp_if dra7xx_l4_cfg__dma_system = {
 	.master		= &dra7xx_l4_cfg_hwmod,
@@ -1614,8 +1557,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l3_main_1__bb2d,
 	&dra7xx_l4_wkup__counter_32k,
 	&dra7xx_l4_wkup__ctrl_module_wkup,
-	&dra7xx_l4_wkup__dcan1,
-	&dra7xx_l4_per2__dcan2,
 	&dra7xx_l4_cfg__dma_system,
 	&dra7xx_l3_main_1__tpcc,
 	&dra7xx_l3_main_1__tptc0,
