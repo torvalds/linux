@@ -271,7 +271,6 @@ static void dw_pcm_free(struct snd_soc_component *component,
 static const struct snd_soc_component_driver dw_pcm_component = {
 	.open		= dw_pcm_open,
 	.close		= dw_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= dw_pcm_hw_params,
 	.hw_free	= dw_pcm_hw_free,
 	.trigger	= dw_pcm_trigger,
