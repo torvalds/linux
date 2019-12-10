@@ -11417,12 +11417,11 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnxt *bp = netdev_priv(dev);
 
-	if (BNXT_PF(bp)) {
+	if (BNXT_PF(bp))
 		bnxt_sriov_disable(bp);
-		bnxt_dl_fw_reporters_destroy(bp, true);
-		bnxt_dl_unregister(bp);
-	}
 
+	bnxt_dl_fw_reporters_destroy(bp, true);
+	bnxt_dl_unregister(bp);
 	pci_disable_pcie_error_reporting(pdev);
 	unregister_netdev(dev);
 	bnxt_shutdown_tc(bp);
@@ -11899,10 +11898,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_cleanup_tc;
 
-	if (BNXT_PF(bp)) {
-		bnxt_dl_register(bp);
-		bnxt_dl_fw_reporters_create(bp);
-	}
+	bnxt_dl_register(bp);
+	bnxt_dl_fw_reporters_create(bp);
 
 	netdev_info(dev, "%s found at mem %lx, node addr %pM\n",
 		    board_info[ent->driver_data].name,
