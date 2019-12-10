@@ -1888,8 +1888,6 @@ static int snd_ensoniq_free(struct ensoniq *ensoniq)
 	outl(0, ES_REG(ensoniq, CONTROL));	/* switch everything off */
 	outl(0, ES_REG(ensoniq, SERIAL));	/* clear serial interface */
 #endif
-	if (ensoniq->irq >= 0)
-		synchronize_irq(ensoniq->irq);
 	pci_set_power_state(ensoniq->pci, PCI_D3hot);
       __hw_end:
 #ifdef CHIP1370
@@ -1990,7 +1988,6 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 	outb(ensoniq->uartc = 0x00, ES_REG(ensoniq, UART_CONTROL));
 	outb(0x00, ES_REG(ensoniq, UART_RES));
 	outl(ensoniq->cssr, ES_REG(ensoniq, STATUS));
-	synchronize_irq(ensoniq->irq);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2074,6 +2071,7 @@ static int snd_ensoniq_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	ensoniq->irq = pci->irq;
+	card->sync_irq = ensoniq->irq;
 #ifdef CHIP1370
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				16, &ensoniq->dma_bug) < 0) {
