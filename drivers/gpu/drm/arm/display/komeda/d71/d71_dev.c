@@ -371,22 +371,32 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 		goto err_cleanup;
 	}
 
-	/* probe PERIPH */
+	/* Only the legacy HW has the periph block, the newer merges the periph
+	 * into GCU
+	 */
 	value = malidp_read32(d71->periph_addr, BLK_BLOCK_INFO);
-	if (BLOCK_INFO_BLK_TYPE(value) != D71_BLK_TYPE_PERIPH) {
-		DRM_ERROR("access blk periph but got blk: %d.\n",
-			  BLOCK_INFO_BLK_TYPE(value));
-		err = -EINVAL;
-		goto err_cleanup;
+	if (BLOCK_INFO_BLK_TYPE(value) != D71_BLK_TYPE_PERIPH)
+		d71->periph_addr = NULL;
+
+	if (d71->periph_addr) {
+		/* probe PERIPHERAL in legacy HW */
+		value = malidp_read32(d71->periph_addr, PERIPH_CONFIGURATION_ID);
+
+		d71->max_line_size	= value & PERIPH_MAX_LINE_SIZE ? 4096 : 2048;
+		d71->max_vsize		= 4096;
+		d71->num_rich_layers	= value & PERIPH_NUM_RICH_LAYERS ? 2 : 1;
+		d71->supports_dual_link	= !!(value & PERIPH_SPLIT_EN);
+		d71->integrates_tbu	= !!(value & PERIPH_TBU_EN);
+	} else {
+		value = malidp_read32(d71->gcu_addr, GCU_CONFIGURATION_ID0);
+		d71->max_line_size	= GCU_MAX_LINE_SIZE(value);
+		d71->max_vsize		= GCU_MAX_NUM_LINES(value);
+
+		value = malidp_read32(d71->gcu_addr, GCU_CONFIGURATION_ID1);
+		d71->num_rich_layers	= GCU_NUM_RICH_LAYERS(value);
+		d71->supports_dual_link	= GCU_DISPLAY_SPLIT_EN(value);
+		d71->integrates_tbu	= GCU_DISPLAY_TBU_EN(value);
 	}
-
-	value = malidp_read32(d71->periph_addr, PERIPH_CONFIGURATION_ID);
-
-	d71->max_line_size	= value & PERIPH_MAX_LINE_SIZE ? 4096 : 2048;
-	d71->max_vsize		= 4096;
-	d71->num_rich_layers	= value & PERIPH_NUM_RICH_LAYERS ? 2 : 1;
-	d71->supports_dual_link	= value & PERIPH_SPLIT_EN ? true : false;
-	d71->integrates_tbu	= value & PERIPH_TBU_EN ? true : false;
 
 	for (i = 0; i < d71->num_pipelines; i++) {
 		pipe = komeda_pipeline_add(mdev, sizeof(struct d71_pipeline),
@@ -606,6 +616,7 @@ d71_identify(u32 __iomem *reg_base, struct komeda_chip_info *chip)
 
 	switch (product_id) {
 	case MALIDP_D71_PRODUCT_ID:
+	case MALIDP_D32_PRODUCT_ID:
 		funcs = &d71_chip_funcs;
 		break;
 	default:

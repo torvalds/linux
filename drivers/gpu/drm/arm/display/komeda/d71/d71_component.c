@@ -1270,7 +1270,7 @@ static int d71_timing_ctrlr_init(struct d71_dev *d71,
 
 	ctrlr = to_ctrlr(c);
 
-	ctrlr->supports_dual_link = true;
+	ctrlr->supports_dual_link = d71->supports_dual_link;
 
 	return 0;
 }
