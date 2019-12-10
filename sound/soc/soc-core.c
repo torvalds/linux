@@ -934,11 +934,14 @@ struct snd_soc_dai_link *snd_soc_find_dai_link(struct snd_soc_card *card,
 					       int id, const char *name,
 					       const char *stream_name)
 {
+	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link *link;
 
 	lockdep_assert_held(&client_mutex);
 
-	for_each_card_links(card, link) {
+	for_each_card_rtds(card, rtd) {
+		link = rtd->dai_link;
+
 		if (link->id != id)
 			continue;
 
@@ -1075,8 +1078,6 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 	if (card->remove_dai_link)
 		card->remove_dai_link(card, dai_link);
 
-	list_del(&dai_link->list);
-
 	rtd = snd_soc_get_pcm_runtime(card, dai_link->name);
 	if (rtd)
 		soc_free_pcm_runtime(rtd);
@@ -1157,9 +1158,6 @@ int snd_soc_add_dai_link(struct snd_soc_card *card,
 			snd_soc_rtdcom_add(rtd, component);
 		}
 	}
-
-	/* see for_each_card_links */
-	list_add_tail(&dai_link->list, &card->dai_link_list);
 
 	return 0;
 
@@ -1931,7 +1929,7 @@ static void __soc_setup_card_name(char *name, int len,
 static void soc_cleanup_card_resources(struct snd_soc_card *card,
 				       int card_probed)
 {
-	struct snd_soc_dai_link *link, *_link;
+	struct snd_soc_pcm_runtime *rtd, *n;
 
 	if (card->snd_card)
 		snd_card_disconnect_sync(card->snd_card);
@@ -1942,8 +1940,8 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card,
 	soc_remove_link_dais(card);
 	soc_remove_link_components(card);
 
-	for_each_card_links_safe(card, link, _link)
-		snd_soc_remove_dai_link(card, link);
+	for_each_card_rtds_safe(card, rtd, n)
+		snd_soc_remove_dai_link(card, rtd->dai_link);
 
 	/* remove auxiliary devices */
 	soc_remove_aux_devices(card);
@@ -2393,7 +2391,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	INIT_LIST_HEAD(&card->aux_comp_list);
 	INIT_LIST_HEAD(&card->component_dev_list);
 	INIT_LIST_HEAD(&card->list);
-	INIT_LIST_HEAD(&card->dai_link_list);
 	INIT_LIST_HEAD(&card->rtd_list);
 	INIT_LIST_HEAD(&card->dapm_dirty);
 	INIT_LIST_HEAD(&card->dobj_list);
