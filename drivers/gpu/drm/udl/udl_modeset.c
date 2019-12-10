@@ -9,10 +9,14 @@
 
  */
 
+#include <linux/dma-buf.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_vblank.h>
 
@@ -231,6 +235,114 @@ static int udl_crtc_write_mode_to_hw(struct drm_crtc *crtc)
 	retval = udl_submit_urb(dev, urb, udl->mode_buf_len);
 	DRM_DEBUG("write mode info %d\n", udl->mode_buf_len);
 	return retval;
+}
+
+static long udl_log_cpp(unsigned int cpp)
+{
+	if (WARN_ON(!is_power_of_2(cpp)))
+		return -EINVAL;
+	return __ffs(cpp);
+}
+
+static int udl_aligned_damage_clip(struct drm_rect *clip, int x, int y,
+				   int width, int height)
+{
+	int x1, x2;
+
+	if (WARN_ON_ONCE(x < 0) ||
+	    WARN_ON_ONCE(y < 0) ||
+	    WARN_ON_ONCE(width < 0) ||
+	    WARN_ON_ONCE(height < 0))
+		return -EINVAL;
+
+	x1 = ALIGN_DOWN(x, sizeof(unsigned long));
+	x2 = ALIGN(width + (x - x1), sizeof(unsigned long)) + x1;
+
+	clip->x1 = x1;
+	clip->y1 = y;
+	clip->x2 = x2;
+	clip->y2 = y + height;
+
+	return 0;
+}
+
+int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
+		      int width, int height)
+{
+	struct drm_device *dev = fb->dev;
+	struct dma_buf_attachment *import_attach = fb->obj[0]->import_attach;
+	int i, ret, tmp_ret;
+	char *cmd;
+	struct urb *urb;
+	struct drm_rect clip;
+	int log_bpp;
+	void *vaddr;
+
+	ret = udl_log_cpp(fb->format->cpp[0]);
+	if (ret < 0)
+		return ret;
+	log_bpp = ret;
+
+	ret = udl_aligned_damage_clip(&clip, x, y, width, height);
+	if (ret)
+		return ret;
+	else if ((clip.x2 > fb->width) || (clip.y2 > fb->height))
+		return -EINVAL;
+
+	if (import_attach) {
+		ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
+					       DMA_FROM_DEVICE);
+		if (ret)
+			return ret;
+	}
+
+	vaddr = drm_gem_shmem_vmap(fb->obj[0]);
+	if (IS_ERR(vaddr)) {
+		DRM_ERROR("failed to vmap fb\n");
+		goto out_dma_buf_end_cpu_access;
+	}
+
+	urb = udl_get_urb(dev);
+	if (!urb)
+		goto out_drm_gem_shmem_vunmap;
+	cmd = urb->transfer_buffer;
+
+	for (i = clip.y1; i < clip.y2; i++) {
+		const int line_offset = fb->pitches[0] * i;
+		const int byte_offset = line_offset + (clip.x1 << log_bpp);
+		const int dev_byte_offset = (fb->width * i + clip.x1) << log_bpp;
+		const int byte_width = (clip.x2 - clip.x1) << log_bpp;
+		ret = udl_render_hline(dev, log_bpp, &urb, (char *)vaddr,
+				       &cmd, byte_offset, dev_byte_offset,
+				       byte_width);
+		if (ret)
+			goto out_drm_gem_shmem_vunmap;
+	}
+
+	if (cmd > (char *)urb->transfer_buffer) {
+		/* Send partial buffer remaining before exiting */
+		int len;
+		if (cmd < (char *)urb->transfer_buffer + urb->transfer_buffer_length)
+			*cmd++ = 0xAF;
+		len = cmd - (char *)urb->transfer_buffer;
+		ret = udl_submit_urb(dev, urb, len);
+	} else {
+		udl_urb_completion(urb);
+	}
+
+	ret = 0;
+
+out_drm_gem_shmem_vunmap:
+	drm_gem_shmem_vunmap(fb->obj[0], vaddr);
+out_dma_buf_end_cpu_access:
+	if (import_attach) {
+		tmp_ret = dma_buf_end_cpu_access(import_attach->dmabuf,
+						 DMA_FROM_DEVICE);
+		if (tmp_ret && !ret)
+			ret = tmp_ret; /* only update ret if not set yet */
+	}
+
+	return ret;
 }
 
 /*
