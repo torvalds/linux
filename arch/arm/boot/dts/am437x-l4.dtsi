@@ -1545,7 +1545,6 @@
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			reg = <0xcc020 0x4>;
 			reg-names = "rev";
-			ti,hwmods = "d_can0";
 			/* Domains (P, C): per_pwrdm, l4ls_clkdm */
 			clocks = <&l4ls_clkctrl AM4_L4LS_D_CAN0_CLKCTRL 0>;
 			clock-names = "fck";
@@ -1566,7 +1565,6 @@
 			compatible = "ti,sysc-omap4", "ti,sysc";
 			reg = <0xd0020 0x4>;
 			reg-names = "rev";
-			ti,hwmods = "d_can1";
 			/* Domains (P, C): per_pwrdm, l4ls_clkdm */
 			clocks = <&l4ls_clkctrl AM4_L4LS_D_CAN1_CLKCTRL 0>;
 			clock-names = "fck";
