@@ -38,6 +38,8 @@
 #define PREFIX "ACPI: "
 
 #define ACPI_BATTERY_VALUE_UNKNOWN 0xFFFFFFFF
+#define ACPI_BATTERY_CAPACITY_VALID(capacity) \
+	((capacity) != 0 && (capacity) != ACPI_BATTERY_VALUE_UNKNOWN)
 
 #define ACPI_BATTERY_DEVICE_NAME	"Battery"
 
@@ -192,7 +194,8 @@ static int acpi_battery_is_charged(struct acpi_battery *battery)
 
 static bool acpi_battery_is_degraded(struct acpi_battery *battery)
 {
-	return battery->full_charge_capacity && battery->design_capacity &&
+	return ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity) &&
+		ACPI_BATTERY_CAPACITY_VALID(battery->design_capacity) &&
 		battery->full_charge_capacity < battery->design_capacity;
 }
 
@@ -263,14 +266,14 @@ static int acpi_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
-		if (battery->design_capacity == ACPI_BATTERY_VALUE_UNKNOWN)
+		if (!ACPI_BATTERY_CAPACITY_VALID(battery->design_capacity))
 			ret = -ENODEV;
 		else
 			val->intval = battery->design_capacity * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 	case POWER_SUPPLY_PROP_ENERGY_FULL:
-		if (battery->full_charge_capacity == ACPI_BATTERY_VALUE_UNKNOWN)
+		if (!ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity))
 			ret = -ENODEV;
 		else
 			val->intval = battery->full_charge_capacity * 1000;
@@ -283,11 +286,12 @@ static int acpi_battery_get_property(struct power_supply *psy,
 			val->intval = battery->capacity_now * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		if (battery->capacity_now && battery->full_charge_capacity)
+		if (battery->capacity_now == ACPI_BATTERY_VALUE_UNKNOWN ||
+		    !ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity))
+			ret = -ENODEV;
+		else
 			val->intval = battery->capacity_now * 100/
 					battery->full_charge_capacity;
-		else
-			val->intval = 0;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
 		if (battery->state & ACPI_BATTERY_STATE_CRITICAL)
@@ -799,7 +803,8 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 		battery->bat_desc.properties = charge_battery_props;
 		battery->bat_desc.num_properties =
 			ARRAY_SIZE(charge_battery_props);
-	} else if (battery->full_charge_capacity == 0) {
+	} else if (!ACPI_BATTERY_CAPACITY_VALID(
+					battery->full_charge_capacity)) {
 		battery->bat_desc.properties =
 			energy_battery_full_cap_broken_props;
 		battery->bat_desc.num_properties =
