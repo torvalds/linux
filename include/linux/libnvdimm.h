@@ -65,13 +65,6 @@ enum {
 	DPA_RESOURCE_ADJUSTED = 1 << 0,
 };
 
-extern struct attribute_group nvdimm_bus_attribute_group;
-extern struct attribute_group nvdimm_attribute_group;
-extern struct attribute_group nd_device_attribute_group;
-extern struct attribute_group nd_numa_attribute_group;
-extern struct attribute_group nd_region_attribute_group;
-extern struct attribute_group nd_mapping_attribute_group;
-
 struct nvdimm;
 struct nvdimm_bus_descriptor;
 typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,

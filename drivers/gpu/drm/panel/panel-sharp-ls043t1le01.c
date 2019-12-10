@@ -264,9 +264,8 @@ static int sharp_nt_panel_add(struct sharp_nt_panel *sharp_nt)
 	if (IS_ERR(sharp_nt->backlight))
 		return PTR_ERR(sharp_nt->backlight);
 
-	drm_panel_init(&sharp_nt->base);
-	sharp_nt->base.funcs = &sharp_nt_panel_funcs;
-	sharp_nt->base.dev = &sharp_nt->dsi->dev;
+	drm_panel_init(&sharp_nt->base, &sharp_nt->dsi->dev,
+		       &sharp_nt_panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
 	return drm_panel_add(&sharp_nt->base);
 }

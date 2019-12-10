@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/fsl,mpr121-touchkey.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale MPR121 capacitive touch sensor controller
+
+maintainers:
+  - Dmitry Torokhov <dmitry.torokhov@gmail.com>
+
+description: |
+  The MPR121 supports up to 12 completely independent electrodes/capacitance
+  sensing inputs in which 8 are multifunctional for LED driving and GPIO.
+  https://www.nxp.com/docs/en/data-sheet/MPR121.pdf
+
+allOf:
+  - $ref: input.yaml#
+
+anyOf:
+  - required: [ interrupts ]
+  - required: [ poll-interval ]
+
+properties:
+  compatible:
+    const: fsl,mpr121-touchkey
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vdd-supply:
+    maxItems: 1
+
+  linux,keycodes:
+    minItems: 1
+    maxItems: 12
+
+  wakeup-source:
+    description: Use any event on keypad as wakeup event.
+    type: boolean
+
+required:
+  - compatible
+  - reg
+  - vdd-supply
+  - linux,keycodes
+
+examples:
+  - |
+    // Example with interrupts
+    #include "dt-bindings/input/input.h"
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        mpr121@5a {
+            compatible = "fsl,mpr121-touchkey";
+            reg = <0x5a>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <28 2>;
+            autorepeat;
+            vdd-supply = <&ldo4_reg>;
+            linux,keycodes = <KEY_0>, <KEY_1>, <KEY_2>, <KEY_3>,
+                             <KEY_4>, <KEY_5>, <KEY_6>, <KEY_7>,
+                             <KEY_8>, <KEY_9>, <KEY_A>, <KEY_B>;
+        };
+    };
+
+  - |
+    // Example with polling
+    #include "dt-bindings/input/input.h"
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        mpr121@5a {
+            compatible = "fsl,mpr121-touchkey";
+            reg = <0x5a>;
+            poll-interval = <20>;
+            autorepeat;
+            vdd-supply = <&ldo4_reg>;
+            linux,keycodes = <KEY_0>, <KEY_1>, <KEY_2>, <KEY_3>,
+                             <KEY_4>, <KEY_5>, <KEY_6>, <KEY_7>,
+                             <KEY_8>, <KEY_9>, <KEY_A>, <KEY_B>;
+        };
+    };

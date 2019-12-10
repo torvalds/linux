@@ -148,7 +148,7 @@ config FW_LOADER_USER_HELPER_FALLBACK
 	  to be used for all firmware requests which explicitly do not disable a
 	  a fallback mechanism. Firmware calls which do prohibit a fallback
 	  mechanism is request_firmware_direct(). This option is kept for
-          backward compatibility purposes given this precise mechanism can also
+	  backward compatibility purposes given this precise mechanism can also
 	  be enabled by setting the proc sysctl value to true:
 
 	       /proc/sys/kernel/firmware_config/force_sysfs_fallback
@@ -168,6 +168,18 @@ config FW_LOADER_COMPRESS
 	  Currently only XZ-compressed files are supported, and they have to
 	  be compressed with either none or crc32 integrity check type (pass
 	  "-C crc32" option to xz command).
+
+config FW_CACHE
+	bool "Enable firmware caching during suspend"
+	depends on PM_SLEEP
+	default y if PM_SLEEP
+	help
+	  Because firmware caching generates uevent messages that are sent
+	  over a netlink socket, it can prevent suspend on many platforms.
+	  It is also not always useful, so on such platforms we have the
+	  option.
+
+	  If unsure, say Y.
 
 endif # FW_LOADER
 endmenu

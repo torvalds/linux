@@ -6,6 +6,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 
 #include "dc.h"
@@ -23,6 +24,7 @@ static void tegra_plane_reset(struct drm_plane *plane)
 {
 	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_plane_state *state;
+	unsigned int i;
 
 	if (plane->state)
 		__drm_atomic_helper_plane_destroy_state(plane->state);
@@ -36,6 +38,9 @@ static void tegra_plane_reset(struct drm_plane *plane)
 		plane->state->plane = plane;
 		plane->state->zpos = p->index;
 		plane->state->normalized_zpos = p->index;
+
+		for (i = 0; i < 3; i++)
+			state->iova[i] = DMA_MAPPING_ERROR;
 	}
 }
 
@@ -59,6 +64,11 @@ tegra_plane_atomic_duplicate_state(struct drm_plane *plane)
 
 	for (i = 0; i < 2; i++)
 		copy->blending[i] = state->blending[i];
+
+	for (i = 0; i < 3; i++) {
+		copy->iova[i] = DMA_MAPPING_ERROR;
+		copy->sgt[i] = NULL;
+	}
 
 	return &copy->base;
 }
@@ -94,6 +104,111 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
 	.format_mod_supported = tegra_plane_format_mod_supported,
 };
+
+static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < state->base.fb->format->num_planes; i++) {
+		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
+
+		if (!dc->client.group) {
+			struct sg_table *sgt;
+
+			sgt = host1x_bo_pin(dc->dev, &bo->base, NULL);
+			if (IS_ERR(sgt)) {
+				err = PTR_ERR(sgt);
+				goto unpin;
+			}
+
+			err = dma_map_sg(dc->dev, sgt->sgl, sgt->nents,
+					 DMA_TO_DEVICE);
+			if (err == 0) {
+				err = -ENOMEM;
+				goto unpin;
+			}
+
+			/*
+			 * The display controller needs contiguous memory, so
+			 * fail if the buffer is discontiguous and we fail to
+			 * map its SG table to a single contiguous chunk of
+			 * I/O virtual memory.
+			 */
+			if (err > 1) {
+				err = -EINVAL;
+				goto unpin;
+			}
+
+			state->iova[i] = sg_dma_address(sgt->sgl);
+			state->sgt[i] = sgt;
+		} else {
+			state->iova[i] = bo->iova;
+		}
+	}
+
+	return 0;
+
+unpin:
+	dev_err(dc->dev, "failed to map plane %u: %d\n", i, err);
+
+	while (i--) {
+		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
+		struct sg_table *sgt = state->sgt[i];
+
+		dma_unmap_sg(dc->dev, sgt->sgl, sgt->nents, DMA_TO_DEVICE);
+		host1x_bo_unpin(dc->dev, &bo->base, sgt);
+
+		state->iova[i] = DMA_MAPPING_ERROR;
+		state->sgt[i] = NULL;
+	}
+
+	return err;
+}
+
+static void tegra_dc_unpin(struct tegra_dc *dc, struct tegra_plane_state *state)
+{
+	unsigned int i;
+
+	for (i = 0; i < state->base.fb->format->num_planes; i++) {
+		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
+
+		if (!dc->client.group) {
+			struct sg_table *sgt = state->sgt[i];
+
+			if (sgt) {
+				dma_unmap_sg(dc->dev, sgt->sgl, sgt->nents,
+					     DMA_TO_DEVICE);
+				host1x_bo_unpin(dc->dev, &bo->base, sgt);
+			}
+		}
+
+		state->iova[i] = DMA_MAPPING_ERROR;
+		state->sgt[i] = NULL;
+	}
+}
+
+int tegra_plane_prepare_fb(struct drm_plane *plane,
+			   struct drm_plane_state *state)
+{
+	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+
+	if (!state->fb)
+		return 0;
+
+	drm_gem_fb_prepare_fb(plane, state);
+
+	return tegra_dc_pin(dc, to_tegra_plane_state(state));
+}
+
+void tegra_plane_cleanup_fb(struct drm_plane *plane,
+			    struct drm_plane_state *state)
+{
+	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+
+	if (dc)
+		tegra_dc_unpin(dc, to_tegra_plane_state(state));
+}
 
 int tegra_plane_state_add(struct tegra_plane *plane,
 			  struct drm_plane_state *state)

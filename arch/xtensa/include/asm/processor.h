@@ -195,6 +195,7 @@ struct thread_struct {
 /* Clearing a0 terminates the backtrace. */
 #define start_thread(regs, new_pc, new_sp) \
 	do { \
+		unsigned long syscall = (regs)->syscall; \
 		memset((regs), 0, sizeof(*(regs))); \
 		(regs)->pc = (new_pc); \
 		(regs)->ps = USER_PS_VALUE; \
@@ -204,7 +205,7 @@ struct thread_struct {
 		(regs)->depc = 0; \
 		(regs)->windowbase = 0; \
 		(regs)->windowstart = 1; \
-		(regs)->syscall = NO_SYSCALL; \
+		(regs)->syscall = syscall; \
 	} while (0)
 
 /* Forward declaration */

@@ -136,7 +136,6 @@ struct sun6i_rtc_clk_data {
 
 struct sun6i_rtc_dev {
 	struct rtc_device *rtc;
-	struct device *dev;
 	const struct sun6i_rtc_clk_data *data;
 	void __iomem *base;
 	int irq;
@@ -669,7 +668,6 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	platform_set_drvdata(pdev, chip);
-	chip->dev = &pdev->dev;
 
 	chip->irq = platform_get_irq(pdev, 0);
 	if (chip->irq < 0)

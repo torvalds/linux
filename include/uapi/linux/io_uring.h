@@ -73,6 +73,7 @@ struct io_uring_sqe {
 #define IORING_OP_ACCEPT	13
 #define IORING_OP_ASYNC_CANCEL	14
 #define IORING_OP_LINK_TIMEOUT	15
+#define IORING_OP_CONNECT	16
 
 /*
  * sqe->fsync_flags
@@ -156,6 +157,7 @@ struct io_uring_params {
  */
 #define IORING_FEAT_SINGLE_MMAP		(1U << 0)
 #define IORING_FEAT_NODROP		(1U << 1)
+#define IORING_FEAT_SUBMIT_STABLE	(1U << 2)
 
 /*
  * io_uring_register(2) opcodes and arguments

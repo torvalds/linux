@@ -13,12 +13,15 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include "stm32-dac-core.h"
 
 #define STM32_DAC_CHANNEL_1		1
 #define STM32_DAC_CHANNEL_2		2
 #define STM32_DAC_IS_CHAN_1(ch)		((ch) & STM32_DAC_CHANNEL_1)
+
+#define STM32_DAC_AUTO_SUSPEND_DELAY_MS	2000
 
 /**
  * struct stm32_dac - private data of DAC driver
@@ -49,15 +52,34 @@ static int stm32_dac_set_enable_state(struct iio_dev *indio_dev, int ch,
 				      bool enable)
 {
 	struct stm32_dac *dac = iio_priv(indio_dev);
+	struct device *dev = indio_dev->dev.parent;
 	u32 msk = STM32_DAC_IS_CHAN_1(ch) ? STM32_DAC_CR_EN1 : STM32_DAC_CR_EN2;
 	u32 en = enable ? msk : 0;
 	int ret;
 
+	/* already enabled / disabled ? */
+	mutex_lock(&indio_dev->mlock);
+	ret = stm32_dac_is_enabled(indio_dev, ch);
+	if (ret < 0 || enable == !!ret) {
+		mutex_unlock(&indio_dev->mlock);
+		return ret < 0 ? ret : 0;
+	}
+
+	if (enable) {
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(dev);
+			mutex_unlock(&indio_dev->mlock);
+			return ret;
+		}
+	}
+
 	ret = regmap_update_bits(dac->common->regmap, STM32_DAC_CR, msk, en);
+	mutex_unlock(&indio_dev->mlock);
 	if (ret < 0) {
 		dev_err(&indio_dev->dev, "%s failed\n", en ?
 			"Enable" : "Disable");
-		return ret;
+		goto err_put_pm;
 	}
 
 	/*
@@ -68,7 +90,20 @@ static int stm32_dac_set_enable_state(struct iio_dev *indio_dev, int ch,
 	if (en && dac->common->hfsel)
 		udelay(1);
 
+	if (!enable) {
+		pm_runtime_mark_last_busy(dev);
+		pm_runtime_put_autosuspend(dev);
+	}
+
 	return 0;
+
+err_put_pm:
+	if (enable) {
+		pm_runtime_mark_last_busy(dev);
+		pm_runtime_put_autosuspend(dev);
+	}
+
+	return ret;
 }
 
 static int stm32_dac_get_value(struct stm32_dac *dac, int channel, int *val)
@@ -272,6 +307,7 @@ static int stm32_dac_chan_of_init(struct iio_dev *indio_dev)
 static int stm32_dac_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct iio_dev *indio_dev;
 	struct stm32_dac *dac;
 	int ret;
@@ -296,8 +332,60 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	return devm_iio_device_register(&pdev->dev, indio_dev);
+	/* Get stm32-dac-core PM online */
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_set_autosuspend_delay(dev, STM32_DAC_AUTO_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_enable(dev);
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto err_pm_put;
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	return 0;
+
+err_pm_put:
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_put_noidle(dev);
+
+	return ret;
 }
+
+static int stm32_dac_remove(struct platform_device *pdev)
+{
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+
+	pm_runtime_get_sync(&pdev->dev);
+	iio_device_unregister(indio_dev);
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
+
+	return 0;
+}
+
+static int __maybe_unused stm32_dac_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	int channel = indio_dev->channels[0].channel;
+	int ret;
+
+	/* Ensure DAC is disabled before suspend */
+	ret = stm32_dac_is_enabled(indio_dev, channel);
+	if (ret)
+		return ret < 0 ? ret : -EBUSY;
+
+	return pm_runtime_force_suspend(dev);
+}
+
+static const struct dev_pm_ops stm32_dac_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(stm32_dac_suspend, pm_runtime_force_resume)
+};
 
 static const struct of_device_id stm32_dac_of_match[] = {
 	{ .compatible = "st,stm32-dac", },
@@ -307,9 +395,11 @@ MODULE_DEVICE_TABLE(of, stm32_dac_of_match);
 
 static struct platform_driver stm32_dac_driver = {
 	.probe = stm32_dac_probe,
+	.remove = stm32_dac_remove,
 	.driver = {
 		.name = "stm32-dac",
 		.of_match_table = stm32_dac_of_match,
+		.pm = &stm32_dac_pm_ops,
 	},
 };
 module_platform_driver(stm32_dac_driver);

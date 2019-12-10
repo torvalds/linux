@@ -202,7 +202,6 @@ static int vcn_v1_0_hw_init(void *handle)
 
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 		ring = &adev->vcn.inst->ring_enc[i];
-		ring->sched.ready = true;
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
 			goto done;

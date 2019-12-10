@@ -350,7 +350,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 		ip->i_inode.i_rdev = MKDEV(be32_to_cpu(str->di_major),
 					   be32_to_cpu(str->di_minor));
 		break;
-	};
+	}
 
 	i_uid_write(&ip->i_inode, be32_to_cpu(str->di_uid));
 	i_gid_write(&ip->i_inode, be32_to_cpu(str->di_gid));
@@ -540,7 +540,7 @@ static int freeze_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
 			gfs2_consist(sdp);
 
 		/*  Initialize some head of the log stuff  */
-		if (!test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) {
+		if (!gfs2_withdrawn(sdp)) {
 			sdp->sd_log_sequence = head.lh_sequence + 1;
 			gfs2_log_pointers_init(sdp, head.lh_blkno);
 		}

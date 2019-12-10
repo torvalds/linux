@@ -163,6 +163,7 @@ static const struct file_operations ixp4xx_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= ixp4xx_wdt_write,
 	.unlocked_ioctl	= ixp4xx_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= ixp4xx_wdt_open,
 	.release	= ixp4xx_wdt_release,
 };

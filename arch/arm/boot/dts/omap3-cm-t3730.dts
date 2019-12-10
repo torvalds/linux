@@ -9,7 +9,7 @@
 
 / {
 	model = "CompuLab CM-T3730";
-	compatible = "compulab,omap3-cm-t3730", "ti,omap36xx", "ti,omap3";
+	compatible = "compulab,omap3-cm-t3730", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 
 	wl12xx_vmmc2: wl12xx_vmmc2 {
 		compatible = "regulator-fixed";

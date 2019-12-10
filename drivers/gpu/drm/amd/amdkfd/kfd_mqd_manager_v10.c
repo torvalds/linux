@@ -69,35 +69,13 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 		struct queue_properties *q)
 {
-	int retval;
-	struct kfd_mem_obj *mqd_mem_obj = NULL;
+	struct kfd_mem_obj *mqd_mem_obj;
 
-	/* From V9,  for CWSR, the control stack is located on the next page
-	 * boundary after the mqd, we will use the gtt allocation function
-	 * instead of sub-allocation function.
-	 */
-	if (kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
-		mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_NOIO);
-		if (!mqd_mem_obj)
-			return NULL;
-		retval = amdgpu_amdkfd_alloc_gtt_mem(kfd->kgd,
-			ALIGN(q->ctl_stack_size, PAGE_SIZE) +
-				ALIGN(sizeof(struct v10_compute_mqd), PAGE_SIZE),
-			&(mqd_mem_obj->gtt_mem),
-			&(mqd_mem_obj->gpu_addr),
-			(void *)&(mqd_mem_obj->cpu_ptr), true);
-	} else {
-		retval = kfd_gtt_sa_allocate(kfd, sizeof(struct v10_compute_mqd),
-				&mqd_mem_obj);
-	}
-
-	if (retval) {
-		kfree(mqd_mem_obj);
+	if (kfd_gtt_sa_allocate(kfd, sizeof(struct v10_compute_mqd),
+			&mqd_mem_obj))
 		return NULL;
-	}
 
 	return mqd_mem_obj;
-
 }
 
 static void init_mqd(struct mqd_manager *mm, void **mqd,
@@ -250,14 +228,7 @@ static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 static void free_mqd(struct mqd_manager *mm, void *mqd,
 			struct kfd_mem_obj *mqd_mem_obj)
 {
-	struct kfd_dev *kfd = mm->dev;
-
-	if (mqd_mem_obj->gtt_mem) {
-		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, mqd_mem_obj->gtt_mem);
-		kfree(mqd_mem_obj);
-	} else {
-		kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
-	}
+	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
 }
 
 static bool is_occupied(struct mqd_manager *mm, void *mqd,

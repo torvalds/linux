@@ -89,6 +89,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct snd_dma_buffer *dmab;
+	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
 	int ret;
 	u32 size, rate, bits;
 
@@ -116,9 +117,17 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	/* disable SPIB, to enable buffer wrap for stream */
 	hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
 
-	/* set host_period_bytes to 0 if no IPC position */
-	if (hda && hda->no_ipc_position)
-		ipc_params->host_period_bytes = 0;
+	/* update no_stream_position flag for ipc params */
+	if (hda && hda->no_ipc_position) {
+		/* For older ABIs set host_period_bytes to zero to inform
+		 * FW we don't want position updates. Newer versions use
+		 * no_stream_position for this purpose.
+		 */
+		if (v->abi_version < SOF_ABI_VER(3, 10, 0))
+			ipc_params->host_period_bytes = 0;
+		else
+			ipc_params->no_stream_position = 1;
+	}
 
 	ipc_params->stream_tag = hstream->stream_tag;
 

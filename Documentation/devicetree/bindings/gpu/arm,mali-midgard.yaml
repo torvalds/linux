@@ -16,31 +16,35 @@ properties:
     oneOf:
       - items:
           - enum:
+             - samsung,exynos5250-mali
+          - const: arm,mali-t604
+      - items:
+          - enum:
+             - samsung,exynos5420-mali
+          - const: arm,mali-t628
+      - items:
+          - enum:
              - allwinner,sun50i-h6-mali
           - const: arm,mali-t720
       - items:
           - enum:
              - amlogic,meson-gxm-mali
+             - realtek,rtd1295-mali
           - const: arm,mali-t820
       - items:
           - enum:
+             - arm,juno-mali
+          - const: arm,mali-t624
+      - items:
+          - enum:
              - rockchip,rk3288-mali
+             - samsung,exynos5433-mali
           - const: arm,mali-t760
       - items:
           - enum:
              - rockchip,rk3399-mali
           - const: arm,mali-t860
-      - items:
-          - enum:
-             - samsung,exynos5250-mali
-          - const: arm,mali-t604
-      - items:
-          - enum:
-             - samsung,exynos5433-mali
-          - const: arm,mali-t760
 
-          # "arm,mali-t624"
-          # "arm,mali-t628"
           # "arm,mali-t830"
           # "arm,mali-t880"
 
@@ -69,8 +73,7 @@ properties:
       - const: core
       - const: bus
 
-  mali-supply:
-    maxItems: 1
+  mali-supply: true
 
   resets:
     minItems: 1

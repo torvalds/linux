@@ -69,33 +69,11 @@ static void bochs_pipe_update(struct drm_simple_display_pipe *pipe,
 	}
 }
 
-static int bochs_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
-				 struct drm_plane_state *new_state)
-{
-	struct drm_gem_vram_object *gbo;
-
-	if (!new_state->fb)
-		return 0;
-	gbo = drm_gem_vram_of_gem(new_state->fb->obj[0]);
-	return drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
-}
-
-static void bochs_pipe_cleanup_fb(struct drm_simple_display_pipe *pipe,
-				  struct drm_plane_state *old_state)
-{
-	struct drm_gem_vram_object *gbo;
-
-	if (!old_state->fb)
-		return;
-	gbo = drm_gem_vram_of_gem(old_state->fb->obj[0]);
-	drm_gem_vram_unpin(gbo);
-}
-
 static const struct drm_simple_display_pipe_funcs bochs_pipe_funcs = {
 	.enable	    = bochs_pipe_enable,
 	.update	    = bochs_pipe_update,
-	.prepare_fb = bochs_pipe_prepare_fb,
-	.cleanup_fb = bochs_pipe_cleanup_fb,
+	.prepare_fb = drm_gem_vram_simple_display_pipe_prepare_fb,
+	.cleanup_fb = drm_gem_vram_simple_display_pipe_cleanup_fb,
 };
 
 static int bochs_connector_get_modes(struct drm_connector *connector)

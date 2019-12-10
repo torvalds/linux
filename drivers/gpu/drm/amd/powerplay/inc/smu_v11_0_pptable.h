@@ -141,7 +141,9 @@ struct smu_11_0_powerplay_table
       struct smu_11_0_power_saving_clock_table      power_saving_clock;
       struct smu_11_0_overdrive_table               overdrive_table;
 
+#ifndef SMU_11_0_PARTIAL_PPTABLE
       PPTable_t smc_pptable;                        //PPTable_t in smu11_driver_if.h
+#endif
 } __attribute__((packed));
 
 #endif

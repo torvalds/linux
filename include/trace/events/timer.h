@@ -303,7 +303,7 @@ DEFINE_EVENT(hrtimer_class, hrtimer_cancel,
  */
 TRACE_EVENT(itimer_state,
 
-	TP_PROTO(int which, const struct itimerval *const value,
+	TP_PROTO(int which, const struct itimerspec64 *const value,
 		 unsigned long long expires),
 
 	TP_ARGS(which, value, expires),
@@ -312,24 +312,24 @@ TRACE_EVENT(itimer_state,
 		__field(	int,			which		)
 		__field(	unsigned long long,	expires		)
 		__field(	long,			value_sec	)
-		__field(	long,			value_usec	)
+		__field(	long,			value_nsec	)
 		__field(	long,			interval_sec	)
-		__field(	long,			interval_usec	)
+		__field(	long,			interval_nsec	)
 	),
 
 	TP_fast_assign(
 		__entry->which		= which;
 		__entry->expires	= expires;
 		__entry->value_sec	= value->it_value.tv_sec;
-		__entry->value_usec	= value->it_value.tv_usec;
+		__entry->value_nsec	= value->it_value.tv_nsec;
 		__entry->interval_sec	= value->it_interval.tv_sec;
-		__entry->interval_usec	= value->it_interval.tv_usec;
+		__entry->interval_nsec	= value->it_interval.tv_nsec;
 	),
 
-	TP_printk("which=%d expires=%llu it_value=%ld.%ld it_interval=%ld.%ld",
+	TP_printk("which=%d expires=%llu it_value=%ld.%06ld it_interval=%ld.%06ld",
 		  __entry->which, __entry->expires,
-		  __entry->value_sec, __entry->value_usec,
-		  __entry->interval_sec, __entry->interval_usec)
+		  __entry->value_sec, __entry->value_nsec / NSEC_PER_USEC,
+		  __entry->interval_sec, __entry->interval_nsec / NSEC_PER_USEC)
 );
 
 /**

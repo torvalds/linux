@@ -143,7 +143,7 @@ static struct trace_event_fields ftrace_event_fields_##name[] = {	\
 
 #undef FTRACE_ENTRY_REG
 #define FTRACE_ENTRY_REG(call, struct_name, etype, tstruct, print, regfn) \
-struct trace_event_class __refdata event_class_ftrace_##call = {	\
+static struct trace_event_class __refdata event_class_ftrace_##call = {	\
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.fields_array		= ftrace_event_fields_##call,		\
 	.fields			= LIST_HEAD_INIT(event_class_ftrace_##call.fields),\
@@ -159,7 +159,7 @@ struct trace_event_call __used event_##call = {				\
 	.print_fmt		= print,				\
 	.flags			= TRACE_EVENT_FL_IGNORE_ENABLE,		\
 };									\
-struct trace_event_call __used						\
+static struct trace_event_call __used						\
 __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call;
 
 #undef FTRACE_ENTRY

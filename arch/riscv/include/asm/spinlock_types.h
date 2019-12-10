@@ -22,4 +22,4 @@ typedef struct {
 
 #define __ARCH_RW_LOCK_UNLOCKED		{ 0 }
 
-#endif
+#endif /* _ASM_RISCV_SPINLOCK_TYPES_H */

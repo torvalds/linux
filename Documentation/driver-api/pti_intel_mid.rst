@@ -49,7 +49,9 @@ but is not just blindly executing as 'root'. Keep in mind
 the use of ioctl(,TIOCSETD,) is not specific to the n_tracerouter
 and n_tracesink line discpline drivers but is a generic
 operation for a program to use a line discpline driver
-on a tty port other than the default n_tty::
+on a tty port other than the default n_tty:
+
+.. code-block:: c
 
   /////////// To hook up n_tracerouter and n_tracesink /////////
 

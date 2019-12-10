@@ -96,7 +96,7 @@ void *sram_exec_copy(struct gen_pool *pool, void *dst, void *src,
 	if (!part)
 		return NULL;
 
-	if (!addr_in_gen_pool(pool, (unsigned long)dst, size))
+	if (!gen_pool_has_addr(pool, (unsigned long)dst, size))
 		return NULL;
 
 	base = (unsigned long)part->base;

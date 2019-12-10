@@ -37,6 +37,44 @@ struct smu_12_0_cmn2aisc_mapping {
 	int	map_to;
 };
 
-void smu_v12_0_set_smu_funcs(struct smu_context *smu);
+int smu_v12_0_send_msg_without_waiting(struct smu_context *smu,
+					      uint16_t msg);
+
+int smu_v12_0_read_arg(struct smu_context *smu, uint32_t *arg);
+
+int smu_v12_0_wait_for_response(struct smu_context *smu);
+
+int
+smu_v12_0_send_msg_with_param(struct smu_context *smu,
+			      enum smu_message_type msg,
+			      uint32_t param);
+
+int smu_v12_0_check_fw_status(struct smu_context *smu);
+
+int smu_v12_0_check_fw_version(struct smu_context *smu);
+
+int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate);
+
+int smu_v12_0_powergate_vcn(struct smu_context *smu, bool gate);
+
+int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable);
+
+uint32_t smu_v12_0_get_gfxoff_status(struct smu_context *smu);
+
+int smu_v12_0_gfx_off_control(struct smu_context *smu, bool enable);
+
+int smu_v12_0_init_smc_tables(struct smu_context *smu);
+
+int smu_v12_0_fini_smc_tables(struct smu_context *smu);
+
+int smu_v12_0_populate_smc_tables(struct smu_context *smu);
+
+int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
+						 uint32_t *min, uint32_t *max);
+
+int smu_v12_0_mode2_reset(struct smu_context *smu);
+
+int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
+			    uint32_t min, uint32_t max);
 
 #endif

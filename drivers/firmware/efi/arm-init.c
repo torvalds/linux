@@ -164,6 +164,15 @@ static __init int is_usable_memory(efi_memory_desc_t *md)
 	case EFI_CONVENTIONAL_MEMORY:
 	case EFI_PERSISTENT_MEMORY:
 		/*
+		 * Special purpose memory is 'soft reserved', which means it
+		 * is set aside initially, but can be hotplugged back in or
+		 * be assigned to the dax driver after boot.
+		 */
+		if (efi_soft_reserve_enabled() &&
+		    (md->attribute & EFI_MEMORY_SP))
+			return false;
+
+		/*
 		 * According to the spec, these regions are no longer reserved
 		 * after calling ExitBootServices(). However, we can only use
 		 * them as System RAM if they can be mapped writeback cacheable.
