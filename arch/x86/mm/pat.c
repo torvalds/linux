@@ -576,7 +576,7 @@ static u64 sanitize_phys(u64 address)
 int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
 		    enum page_cache_mode *new_type)
 {
-	struct memtype *new;
+	struct memtype *entry_new;
 	enum page_cache_mode actual_type;
 	int is_range_ram;
 	int err = 0;
@@ -624,22 +624,22 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
 		return -EINVAL;
 	}
 
-	new  = kzalloc(sizeof(struct memtype), GFP_KERNEL);
-	if (!new)
+	entry_new = kzalloc(sizeof(struct memtype), GFP_KERNEL);
+	if (!entry_new)
 		return -ENOMEM;
 
-	new->start	= start;
-	new->end	= end;
-	new->type	= actual_type;
+	entry_new->start = start;
+	entry_new->end	 = end;
+	entry_new->type	 = actual_type;
 
 	spin_lock(&memtype_lock);
 
-	err = memtype_check_insert(new, new_type);
+	err = memtype_check_insert(entry_new, new_type);
 	if (err) {
 		pr_info("x86/PAT: reserve_memtype failed [mem %#010Lx-%#010Lx], track %s, req %s\n",
 			start, end - 1,
-			cattr_name(new->type), cattr_name(req_type));
-		kfree(new);
+			cattr_name(entry_new->type), cattr_name(req_type));
+		kfree(entry_new);
 		spin_unlock(&memtype_lock);
 
 		return err;
@@ -648,7 +648,7 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
 	spin_unlock(&memtype_lock);
 
 	dprintk("reserve_memtype added [mem %#010Lx-%#010Lx], track %s, req %s, ret %s\n",
-		start, end - 1, cattr_name(new->type), cattr_name(req_type),
+		start, end - 1, cattr_name(entry_new->type), cattr_name(req_type),
 		new_type ? cattr_name(*new_type) : "-");
 
 	return err;
@@ -657,7 +657,7 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
 int free_memtype(u64 start, u64 end)
 {
 	int is_range_ram;
-	struct memtype *entry;
+	struct memtype *entry_old;
 
 	if (!pat_enabled())
 		return 0;
@@ -676,16 +676,16 @@ int free_memtype(u64 start, u64 end)
 		return -EINVAL;
 
 	spin_lock(&memtype_lock);
-	entry = memtype_erase(start, end);
+	entry_old = memtype_erase(start, end);
 	spin_unlock(&memtype_lock);
 
-	if (IS_ERR(entry)) {
+	if (IS_ERR(entry_old)) {
 		pr_info("x86/PAT: %s:%d freeing invalid memtype [mem %#010Lx-%#010Lx]\n",
 			current->comm, current->pid, start, end - 1);
 		return -EINVAL;
 	}
 
-	kfree(entry);
+	kfree(entry_old);
 
 	dprintk("free_memtype request [mem %#010Lx-%#010Lx]\n", start, end - 1);
 
@@ -726,6 +726,7 @@ static enum page_cache_mode lookup_memtype(u64 paddr)
 		rettype = _PAGE_CACHE_MODE_UC_MINUS;
 
 	spin_unlock(&memtype_lock);
+
 	return rettype;
 }
 
@@ -1130,24 +1131,24 @@ EXPORT_SYMBOL_GPL(pgprot_writethrough);
  */
 static struct memtype *memtype_get_idx(loff_t pos)
 {
-	struct memtype *print_entry;
+	struct memtype *entry_print;
 	int ret;
 
-	print_entry  = kzalloc(sizeof(struct memtype), GFP_KERNEL);
-	if (!print_entry)
+	entry_print  = kzalloc(sizeof(struct memtype), GFP_KERNEL);
+	if (!entry_print)
 		return NULL;
 
 	spin_lock(&memtype_lock);
-	ret = memtype_copy_nth_element(print_entry, pos);
+	ret = memtype_copy_nth_element(entry_print, pos);
 	spin_unlock(&memtype_lock);
 
 	/* Free it on error: */
 	if (ret) {
-		kfree(print_entry);
+		kfree(entry_print);
 		return NULL;
 	}
 
-	return print_entry;
+	return entry_print;
 }
 
 static void *memtype_seq_start(struct seq_file *seq, loff_t *pos)
@@ -1172,14 +1173,14 @@ static void memtype_seq_stop(struct seq_file *seq, void *v)
 
 static int memtype_seq_show(struct seq_file *seq, void *v)
 {
-	struct memtype *print_entry = (struct memtype *)v;
+	struct memtype *entry_print = (struct memtype *)v;
 
 	seq_printf(seq, "PAT: [mem 0x%016Lx-0x%016Lx] %s\n",
-			print_entry->start,
-			print_entry->end,
-			cattr_name(print_entry->type));
+			entry_print->start,
+			entry_print->end,
+			cattr_name(entry_print->type));
 
-	kfree(print_entry);
+	kfree(entry_print);
 
 	return 0;
 }
