@@ -638,6 +638,7 @@ int snd_es1688_create(struct snd_card *card,
 	}
 
 	chip->irq = irq;
+	card->sync_irq = chip->irq;
 	err = request_dma(dma8, "ES1688");
 
 	if (err < 0) {
