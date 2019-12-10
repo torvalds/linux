@@ -203,7 +203,6 @@
 
 		target-module@2e000 {			/* 0x4012e000, ap 12 0c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "dmic";
 			reg = <0x2e000 0x4>,
 			      <0x2e010 0x4>;
 			reg-names = "rev", "sysc";
