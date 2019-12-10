@@ -1638,6 +1638,7 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 	/* This stores the periods table. */
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
