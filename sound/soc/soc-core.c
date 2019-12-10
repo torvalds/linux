@@ -1444,18 +1444,6 @@ static int soc_probe_link_components(struct snd_soc_card *card)
 	return 0;
 }
 
-void snd_soc_disconnect_sync(struct device *dev)
-{
-	struct snd_soc_component *component =
-			snd_soc_lookup_component(dev, NULL);
-
-	if (!component || !component->card)
-		return;
-
-	snd_card_disconnect_sync(component->card->snd_card);
-}
-EXPORT_SYMBOL_GPL(snd_soc_disconnect_sync);
-
 static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 				struct snd_soc_pcm_runtime *rtd)
 {
