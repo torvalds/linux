@@ -122,6 +122,8 @@ struct nfs_fs_context {
 
 	void			*lsm_opts;
 	struct net		*net;
+
+	char			buf[32];	/* Parse buffer */
 };
 
 /* mount_clnt.c */

@@ -468,27 +468,38 @@ static int nfs_get_option_str(substring_t args[], char **option)
 	return !*option;
 }
 
-static int nfs_get_option_ul(substring_t args[], unsigned long *option)
+static int nfs_get_option_ui(struct nfs_fs_context *ctx,
+			     substring_t args[], unsigned int *option)
 {
-	int rc;
-	char *string;
-
-	string = match_strdup(args);
-	if (string == NULL)
-		return -ENOMEM;
-	rc = kstrtoul(string, 10, option);
-	kfree(string);
-
-	return rc;
+	match_strlcpy(ctx->buf, args, sizeof(ctx->buf));
+	return kstrtouint(ctx->buf, 10, option);
 }
 
-static int nfs_get_option_ul_bound(substring_t args[], unsigned long *option,
-		unsigned long l_bound, unsigned long u_bound)
+static int nfs_get_option_ui_bound(struct nfs_fs_context *ctx,
+				   substring_t args[], unsigned int *option,
+				   unsigned int l_bound, unsigned u_bound)
 {
 	int ret;
 
-	ret = nfs_get_option_ul(args, option);
-	if (ret != 0)
+	match_strlcpy(ctx->buf, args, sizeof(ctx->buf));
+	ret = kstrtouint(ctx->buf, 10, option);
+	if (ret < 0)
+		return ret;
+	if (*option < l_bound || *option > u_bound)
+		return -ERANGE;
+	return 0;
+}
+
+static int nfs_get_option_us_bound(struct nfs_fs_context *ctx,
+				   substring_t args[], unsigned short *option,
+				   unsigned short l_bound,
+				   unsigned short u_bound)
+{
+	int ret;
+
+	match_strlcpy(ctx->buf, args, sizeof(ctx->buf));
+	ret = kstrtou16(ctx->buf, 10, option);
+	if (ret < 0)
 		return ret;
 	if (*option < l_bound || *option > u_bound)
 		return -ERANGE;
@@ -501,7 +512,6 @@ static int nfs_get_option_ul_bound(substring_t args[], unsigned long *option,
 static int nfs_fs_context_parse_option(struct nfs_fs_context *ctx, char *p)
 {
 	substring_t args[MAX_OPT_ARGS];
-	unsigned long option;
 	char *string;
 	int token, rc;
 
@@ -609,86 +619,70 @@ static int nfs_fs_context_parse_option(struct nfs_fs_context *ctx, char *p)
 		 * options that take numeric values
 		 */
 	case Opt_port:
-		if (nfs_get_option_ul(args, &option) ||
-		    option > USHRT_MAX)
+		if (nfs_get_option_ui_bound(ctx, args, &ctx->nfs_server.port,
+					    0, USHRT_MAX))
 			goto out_invalid_value;
-		ctx->nfs_server.port = option;
 		break;
 	case Opt_rsize:
-		if (nfs_get_option_ul(args, &option))
+		if (nfs_get_option_ui(ctx, args, &ctx->rsize))
 			goto out_invalid_value;
-		ctx->rsize = option;
 		break;
 	case Opt_wsize:
-		if (nfs_get_option_ul(args, &option))
+		if (nfs_get_option_ui(ctx, args, &ctx->wsize))
 			goto out_invalid_value;
-		ctx->wsize = option;
 		break;
 	case Opt_bsize:
-		if (nfs_get_option_ul(args, &option))
+		if (nfs_get_option_ui(ctx, args, &ctx->bsize))
 			goto out_invalid_value;
-		ctx->bsize = option;
 		break;
 	case Opt_timeo:
-		if (nfs_get_option_ul_bound(args, &option, 1, INT_MAX))
+		if (nfs_get_option_ui_bound(ctx, args, &ctx->timeo, 1, INT_MAX))
 			goto out_invalid_value;
-		ctx->timeo = option;
 		break;
 	case Opt_retrans:
-		if (nfs_get_option_ul_bound(args, &option, 0, INT_MAX))
+		if (nfs_get_option_ui_bound(ctx, args, &ctx->retrans, 0, INT_MAX))
 			goto out_invalid_value;
-		ctx->retrans = option;
 		break;
 	case Opt_acregmin:
-		if (nfs_get_option_ul(args, &option))
+		if (nfs_get_option_ui(ctx, args, &ctx->acregmin))
 			goto out_invalid_value;
-		ctx->acregmin = option;
 		break;
 	case Opt_acregmax:
-		if (nfs_get_option_ul(args, &option))
+		if (nfs_get_option_ui(ctx, args, &ctx->acregmax))
 			goto out_invalid_value;
-		ctx->acregmax = option;
 		break;
 	case Opt_acdirmin:
-		if (nfs_get_option_ul(args, &option))
+		if (nfs_get_option_ui(ctx, args, &ctx->acdirmin))
 			goto out_invalid_value;
-		ctx->acdirmin = option;
 		break;
 	case Opt_acdirmax:
-		if (nfs_get_option_ul(args, &option))
+		if (nfs_get_option_ui(ctx, args, &ctx->acdirmax))
 			goto out_invalid_value;
-		ctx->acdirmax = option;
 		break;
 	case Opt_actimeo:
-		if (nfs_get_option_ul(args, &option))
+		if (nfs_get_option_ui(ctx, args, &ctx->acdirmax))
 			goto out_invalid_value;
 		ctx->acregmin = ctx->acregmax =
-			ctx->acdirmin = ctx->acdirmax = option;
+			ctx->acdirmin = ctx->acdirmax;
 		break;
 	case Opt_namelen:
-		if (nfs_get_option_ul(args, &option))
+		if (nfs_get_option_ui(ctx, args, &ctx->namlen))
 			goto out_invalid_value;
-		ctx->namlen = option;
 		break;
 	case Opt_mountport:
-		if (nfs_get_option_ul(args, &option) ||
-		    option > USHRT_MAX)
+		if (nfs_get_option_ui_bound(ctx, args, &ctx->mount_server.port,
+					    0, USHRT_MAX))
 			goto out_invalid_value;
-		ctx->mount_server.port = option;
 		break;
 	case Opt_mountvers:
-		if (nfs_get_option_ul(args, &option) ||
-		    option < NFS_MNT_VERSION ||
-		    option > NFS_MNT3_VERSION)
+		if (nfs_get_option_ui_bound(ctx, args, &ctx->mount_server.version,
+					    NFS_MNT_VERSION, NFS_MNT3_VERSION))
 			goto out_invalid_value;
-		ctx->mount_server.version = option;
 		break;
 	case Opt_minorversion:
-		if (nfs_get_option_ul(args, &option))
+		if (nfs_get_option_ui_bound(ctx, args, &ctx->minorversion,
+					    0, NFS4_MAX_MINOR_VERSION))
 			goto out_invalid_value;
-		if (option > NFS4_MAX_MINOR_VERSION)
-			goto out_invalid_value;
-		ctx->minorversion = option;
 		break;
 
 		/*
@@ -820,9 +814,9 @@ static int nfs_fs_context_parse_option(struct nfs_fs_context *ctx, char *p)
 			goto out_invalid_address;
 		break;
 	case Opt_nconnect:
-		if (nfs_get_option_ul_bound(args, &option, 1, NFS_MAX_CONNECTIONS))
+		if (nfs_get_option_us_bound(ctx, args, &ctx->nfs_server.nconnect,
+					    1, NFS_MAX_CONNECTIONS))
 			goto out_invalid_value;
-		ctx->nfs_server.nconnect = option;
 		break;
 	case Opt_lookupcache:
 		string = match_strdup(args);
