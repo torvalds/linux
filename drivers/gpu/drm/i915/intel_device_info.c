@@ -829,6 +829,8 @@ static const u16 subplatform_ult_ids[] = {
 	INTEL_WHL_U_GT1_IDS(0),
 	INTEL_WHL_U_GT2_IDS(0),
 	INTEL_WHL_U_GT3_IDS(0),
+	INTEL_CML_U_GT1_IDS(0),
+	INTEL_CML_U_GT2_IDS(0),
 };
 
 static const u16 subplatform_ulx_ids[] = {
