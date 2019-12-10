@@ -282,7 +282,8 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 		goto _err;
 	}
 	maxcard->irq = xirq;
-	
+	card->sync_irq = maxcard->irq;
+
 	err = snd_wss_create(card,
 			     gus->gf1.port + 0x10c, -1, xirq,
 			     xdma2 < 0 ? xdma1 : xdma2, xdma1,
