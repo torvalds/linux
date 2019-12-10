@@ -1102,6 +1102,27 @@ _err_defer:
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_pcm_runtime);
 
+static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
+				struct snd_soc_pcm_runtime *rtd)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < num_dais; ++i) {
+		struct snd_soc_dai_driver *drv = dais[i]->driver;
+
+		if (drv->pcm_new)
+			ret = drv->pcm_new(rtd, dais[i]);
+		if (ret < 0) {
+			dev_err(dais[i]->dev,
+				"ASoC: Failed to bind %s with pcm device\n",
+				dais[i]->name);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void soc_set_of_name_prefix(struct snd_soc_component *component)
 {
 	struct device_node *of_node = soc_component_to_node(component);
@@ -1373,27 +1394,6 @@ static int soc_probe_link_components(struct snd_soc_card *card)
 				if (ret < 0)
 					return ret;
 			}
-		}
-	}
-
-	return 0;
-}
-
-static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
-				struct snd_soc_pcm_runtime *rtd)
-{
-	int i, ret = 0;
-
-	for (i = 0; i < num_dais; ++i) {
-		struct snd_soc_dai_driver *drv = dais[i]->driver;
-
-		if (drv->pcm_new)
-			ret = drv->pcm_new(rtd, dais[i]);
-		if (ret < 0) {
-			dev_err(dais[i]->dev,
-				"ASoC: Failed to bind %s with pcm device\n",
-				dais[i]->name);
-			return ret;
 		}
 	}
 
