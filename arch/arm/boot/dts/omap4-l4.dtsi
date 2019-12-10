@@ -715,7 +715,6 @@
 
 		target-module@a000 {			/* 0x4a10a000, ap 65 50.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "fdif";
 			reg = <0xa000 0x4>,
 			      <0xa010 0x4>;
 			reg-names = "rev", "sysc";
