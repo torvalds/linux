@@ -201,8 +201,6 @@ struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 	struct nfs_parsed_mount_data *data = mount_info->parsed;
 	struct dentry *res;
 
-	mount_info->set_security = nfs_set_sb_security;
-
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
 
 	res = do_nfs4_mount(nfs4_create_server(mount_info),
@@ -224,7 +222,6 @@ static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
 {
 	struct nfs_clone_mount *data = raw_data;
 	struct nfs_mount_info mount_info = {
-		.set_security = nfs_clone_sb_security,
 		.cloned = data,
 		.nfs_mod = &nfs_v4,
 	};

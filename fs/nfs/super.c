@@ -2550,52 +2550,6 @@ static void nfs_get_cache_cookie(struct super_block *sb,
 }
 #endif
 
-int nfs_set_sb_security(struct super_block *s, struct dentry *mntroot,
-			struct nfs_mount_info *mount_info)
-{
-	int error;
-	unsigned long kflags = 0, kflags_out = 0;
-	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL)
-		kflags |= SECURITY_LSM_NATIVE_LABELS;
-
-	error = security_sb_set_mnt_opts(s, mount_info->parsed->lsm_opts,
-						kflags, &kflags_out);
-	if (error)
-		goto err;
-
-	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL &&
-		!(kflags_out & SECURITY_LSM_NATIVE_LABELS))
-		NFS_SB(s)->caps &= ~NFS_CAP_SECURITY_LABEL;
-err:
-	return error;
-}
-EXPORT_SYMBOL_GPL(nfs_set_sb_security);
-
-int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
-			  struct nfs_mount_info *mount_info)
-{
-	int error;
-	unsigned long kflags = 0, kflags_out = 0;
-
-	/* clone any lsm security options from the parent to the new sb */
-	if (d_inode(mntroot)->i_fop != &nfs_dir_operations)
-		return -ESTALE;
-
-	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL)
-		kflags |= SECURITY_LSM_NATIVE_LABELS;
-
-	error = security_sb_clone_mnt_opts(mount_info->cloned->sb, s, kflags,
-			&kflags_out);
-	if (error)
-		return error;
-
-	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL &&
-		!(kflags_out & SECURITY_LSM_NATIVE_LABELS))
-		NFS_SB(s)->caps &= ~NFS_CAP_SECURITY_LABEL;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(nfs_clone_sb_security);
-
 static void nfs_set_readahead(struct backing_dev_info *bdi,
 			      unsigned long iomax_pages)
 {
@@ -2610,6 +2564,7 @@ static struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	struct nfs_server *server = mount_info->server;
+	unsigned long kflags = 0, kflags_out = 0;
 	struct nfs_sb_mountdata sb_mntdata = {
 		.mntflags = flags,
 		.server = server,
@@ -2670,7 +2625,26 @@ static struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
 	if (IS_ERR(mntroot))
 		goto error_splat_super;
 
-	error = mount_info->set_security(s, mntroot, mount_info);
+
+	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL)
+		kflags |= SECURITY_LSM_NATIVE_LABELS;
+	if (mount_info->cloned) {
+		if (d_inode(mntroot)->i_fop != &nfs_dir_operations) {
+			error = -ESTALE;
+			goto error_splat_root;
+		}
+		/* clone any lsm security options from the parent to the new sb */
+		error = security_sb_clone_mnt_opts(mount_info->cloned->sb, s, kflags,
+				&kflags_out);
+	} else {
+		error = security_sb_set_mnt_opts(s, mount_info->parsed->lsm_opts,
+							kflags, &kflags_out);
+	}
+	if (error)
+		goto error_splat_root;
+	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL &&
+		!(kflags_out & SECURITY_LSM_NATIVE_LABELS))
+		NFS_SB(s)->caps &= ~NFS_CAP_SECURITY_LABEL;
 	if (error)
 		goto error_splat_root;
 
@@ -2695,7 +2669,6 @@ struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data)
 {
 	struct nfs_mount_info mount_info = {
-		.set_security = nfs_set_sb_security,
 	};
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 	struct nfs_subversion *nfs_mod;
