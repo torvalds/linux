@@ -1983,8 +1983,11 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 		goto probe_end;
 	}
 
-	for_each_card_rtds(card, rtd)
-		soc_link_init(card, rtd);
+	for_each_card_rtds(card, rtd) {
+		ret = soc_link_init(card, rtd);
+		if (ret < 0)
+			goto probe_end;
+	}
 
 	snd_soc_dapm_link_dai_widgets(card);
 	snd_soc_dapm_connect_dai_link_widgets(card);
