@@ -1330,6 +1330,7 @@ static int snd_rme32_create(struct rme32 *rme32)
 		return -EBUSY;
 	}
 	rme32->irq = pci->irq;
+	rme32->card->sync_irq = rme32->irq;
 
 	/* read the card's revision number */
 	pci_read_config_byte(pci, 8, &rme32->rev);
