@@ -2001,6 +2001,9 @@ static int bnxt_async_event_process(struct bnxt *bp,
 	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY: {
 		u32 data1 = le32_to_cpu(cmpl->event_data1);
 
+		if (!bp->fw_health)
+			goto async_event_process_exit;
+
 		bp->fw_reset_timestamp = jiffies;
 		bp->fw_reset_min_dsecs = cmpl->timestamp_lo;
 		if (!bp->fw_reset_min_dsecs)
@@ -4421,8 +4424,9 @@ int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap, int bmap_size,
 			    FUNC_DRV_RGTR_REQ_ENABLES_ASYNC_EVENT_FWD);
 
 	req.os_type = cpu_to_le16(FUNC_DRV_RGTR_REQ_OS_TYPE_LINUX);
-	flags = FUNC_DRV_RGTR_REQ_FLAGS_16BIT_VER_MODE |
-		FUNC_DRV_RGTR_REQ_FLAGS_HOT_RESET_SUPPORT;
+	flags = FUNC_DRV_RGTR_REQ_FLAGS_16BIT_VER_MODE;
+	if (bp->fw_cap & BNXT_FW_CAP_HOT_RESET)
+		flags |= FUNC_DRV_RGTR_REQ_FLAGS_HOT_RESET_SUPPORT;
 	if (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)
 		flags |= FUNC_DRV_RGTR_REQ_FLAGS_ERROR_RECOVERY_SUPPORT |
 			 FUNC_DRV_RGTR_REQ_FLAGS_MASTER_SUPPORT;
@@ -7115,14 +7119,6 @@ static int bnxt_hwrm_error_recovery_qcfg(struct bnxt *bp)
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		goto err_recovery_out;
-	if (!fw_health) {
-		fw_health = kzalloc(sizeof(*fw_health), GFP_KERNEL);
-		bp->fw_health = fw_health;
-		if (!fw_health) {
-			rc = -ENOMEM;
-			goto err_recovery_out;
-		}
-	}
 	fw_health->flags = le32_to_cpu(resp->flags);
 	if ((fw_health->flags & ERROR_RECOVERY_QCFG_RESP_FLAGS_CO_CPU) &&
 	    !(bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL)) {
@@ -10485,6 +10481,23 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
 }
 
+static void bnxt_alloc_fw_health(struct bnxt *bp)
+{
+	if (bp->fw_health)
+		return;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_HOT_RESET) &&
+	    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
+		return;
+
+	bp->fw_health = kzalloc(sizeof(*bp->fw_health), GFP_KERNEL);
+	if (!bp->fw_health) {
+		netdev_warn(bp->dev, "Failed to allocate fw_health\n");
+		bp->fw_cap &= ~BNXT_FW_CAP_HOT_RESET;
+		bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
+	}
+}
+
 static int bnxt_fw_init_one_p1(struct bnxt *bp)
 {
 	int rc;
@@ -10531,6 +10544,7 @@ static int bnxt_fw_init_one_p2(struct bnxt *bp)
 		netdev_warn(bp->dev, "hwrm query adv flow mgnt failure rc: %d\n",
 			    rc);
 
+	bnxt_alloc_fw_health(bp);
 	rc = bnxt_hwrm_error_recovery_qcfg(bp);
 	if (rc)
 		netdev_warn(bp->dev, "hwrm query error recovery failure rc: %d\n",
@@ -11418,6 +11432,8 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	bnxt_dcb_free(bp);
 	kfree(bp->edev);
 	bp->edev = NULL;
+	kfree(bp->fw_health);
+	bp->fw_health = NULL;
 	bnxt_cleanup_pci(bp);
 	bnxt_free_ctx_mem(bp);
 	kfree(bp->ctx);
