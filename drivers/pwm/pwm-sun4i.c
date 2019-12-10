@@ -172,7 +172,7 @@ static int sun4i_pwm_calculate(struct sun4i_pwm_chip *sun4i_pwm,
 			       bool *bypass)
 {
 	u64 clk_rate, div = 0;
-	unsigned int pval, prescaler = 0;
+	unsigned int prescaler = 0;
 
 	clk_rate = clk_get_rate(sun4i_pwm->clk);
 
@@ -203,9 +203,11 @@ static int sun4i_pwm_calculate(struct sun4i_pwm_chip *sun4i_pwm,
 	if (prescaler == 0) {
 		/* Go up from the first divider */
 		for (prescaler = 0; prescaler < PWM_PRESCAL_MASK; prescaler++) {
-			if (!prescaler_table[prescaler])
+			unsigned int pval = prescaler_table[prescaler];
+
+			if (!pval)
 				continue;
-			pval = prescaler_table[prescaler];
+
 			div = clk_rate;
 			do_div(div, pval);
 			div = div * state->period;
