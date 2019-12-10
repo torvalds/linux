@@ -1629,6 +1629,7 @@ snd_rme96_create(struct rme96 *rme96)
 		return -EBUSY;
 	}
 	rme96->irq = pci->irq;
+	rme96->card->sync_irq = rme96->irq;
 
 	/* read the card's revision number */
 	pci_read_config_byte(pci, 8, &rme96->rev);	
