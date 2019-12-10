@@ -170,6 +170,14 @@
 	};
 };
 
+&hevc {
+	status = "okay";
+};
+
+&hevc_mmu {
+	status = "okay";
+};
+
 &iep {
 	status = "okay";
 };
@@ -186,15 +194,23 @@
 	status = "okay";
 };
 
-&vpu_combo {
+&mpp_srv {
 	status = "okay";
 };
 
-&vpu_mmu {
+&vdpu {
 	status = "okay";
 };
 
-&hevc_mmu {
+&vdpu_mmu {
+	status = "okay";
+};
+
+&vepu {
+	status = "okay";
+};
+
+&vepu_mmu {
 	status = "okay";
 };
 
