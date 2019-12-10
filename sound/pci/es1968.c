@@ -2602,8 +2602,6 @@ static int snd_es1968_free(struct es1968 *chip)
 #endif
 
 	if (chip->io_port) {
-		if (chip->irq >= 0)
-			synchronize_irq(chip->irq);
 		outw(1, chip->io_port + 0x04); /* clear WP interrupts */
 		outw(0, chip->io_port + ESM_PORT_HOST_IRQ); /* disable IRQ */
 	}
@@ -2712,6 +2710,7 @@ static int snd_es1968_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	        
 	/* Clear Maestro_map */
 	for (i = 0; i < 32; i++)
