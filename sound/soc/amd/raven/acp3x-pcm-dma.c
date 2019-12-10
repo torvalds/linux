@@ -334,7 +334,6 @@ static int acp3x_dma_hw_params(struct snd_soc_component *component,
 			       struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params)
 {
-	int status;
 	u64 size;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct i2s_stream_instance *rtd = runtime->private_data;
@@ -343,20 +342,10 @@ static int acp3x_dma_hw_params(struct snd_soc_component *component,
 		return -EINVAL;
 
 	size = params_buffer_bytes(params);
-	status = snd_pcm_lib_malloc_pages(substream, size);
-	if (status < 0)
-		return status;
-
-	memset(substream->runtime->dma_area, 0, params_buffer_bytes(params));
-	if (substream->dma_buffer.area) {
-		rtd->dma_addr = substream->dma_buffer.addr;
-		rtd->num_pages = (PAGE_ALIGN(size) >> PAGE_SHIFT);
-		config_acp3x_dma(rtd, substream->stream);
-		status = 0;
-	} else {
-		status = -ENOMEM;
-	}
-	return status;
+	rtd->dma_addr = substream->dma_buffer.addr;
+	rtd->num_pages = (PAGE_ALIGN(size) >> PAGE_SHIFT);
+	config_acp3x_dma(rtd, substream->stream);
+	return 0;
 }
 
 static snd_pcm_uframes_t acp3x_dma_pointer(struct snd_soc_component *component,
@@ -381,15 +370,9 @@ static int acp3x_dma_new(struct snd_soc_component *component,
 			 struct snd_soc_pcm_runtime *rtd)
 {
 	struct device *parent = component->dev->parent;
-	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
-					      parent, MIN_BUFFER, MAX_BUFFER);
+	snd_pcm_set_managed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
+				       parent, MIN_BUFFER, MAX_BUFFER);
 	return 0;
-}
-
-static int acp3x_dma_hw_free(struct snd_soc_component *component,
-			     struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int acp3x_dma_mmap(struct snd_soc_component *component,
@@ -601,7 +584,6 @@ static const struct snd_soc_component_driver acp3x_i2s_component = {
 	.close		= acp3x_dma_close,
 	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= acp3x_dma_hw_params,
-	.hw_free	= acp3x_dma_hw_free,
 	.pointer	= acp3x_dma_pointer,
 	.mmap		= acp3x_dma_mmap,
 	.pcm_construct	= acp3x_dma_new,
