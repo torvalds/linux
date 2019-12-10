@@ -430,7 +430,6 @@
 
 		target-module@0 {			/* 0x4a080000, ap 83 28.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "ocp2scp1";
 			reg = <0x0 0x4>,
 			      <0x10 0x4>,
 			      <0x14 0x4>;
@@ -488,7 +487,6 @@
 
 		target-module@10000 {			/* 0x4a090000, ap 89 36.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "ocp2scp3";
 			reg = <0x10000 0x4>,
 			      <0x10010 0x4>,
 			      <0x10014 0x4>;
