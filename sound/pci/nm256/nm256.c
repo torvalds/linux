@@ -460,6 +460,7 @@ static int snd_nm256_acquire_irq(struct nm256 *chip)
 			return -EBUSY;
 		}
 		chip->irq = chip->pci->irq;
+		chip->card->sync_irq = chip->irq;
 	}
 	chip->irq_acks++;
 	mutex_unlock(&chip->irq_mutex);
@@ -475,6 +476,7 @@ static void snd_nm256_release_irq(struct nm256 *chip)
 	if (chip->irq_acks == 0 && chip->irq >= 0) {
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
+		chip->card->sync_irq = -1;
 	}
 	mutex_unlock(&chip->irq_mutex);
 }
