@@ -726,7 +726,6 @@ static int snd_amd7930_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_amd7930_playback_ops = {
 	.open		=	snd_amd7930_playback_open,
 	.close		=	snd_amd7930_playback_close,
-	.ioctl		=	snd_pcm_lib_ioctl,
 	.prepare	=	snd_amd7930_playback_prepare,
 	.trigger	=	snd_amd7930_playback_trigger,
 	.pointer	=	snd_amd7930_playback_pointer,
@@ -735,7 +734,6 @@ static const struct snd_pcm_ops snd_amd7930_playback_ops = {
 static const struct snd_pcm_ops snd_amd7930_capture_ops = {
 	.open		=	snd_amd7930_capture_open,
 	.close		=	snd_amd7930_capture_close,
-	.ioctl		=	snd_pcm_lib_ioctl,
 	.prepare	=	snd_amd7930_capture_prepare,
 	.trigger	=	snd_amd7930_capture_trigger,
 	.pointer	=	snd_amd7930_capture_pointer,
