@@ -115,11 +115,6 @@ int axg_fifo_pcm_hw_params(struct snd_soc_component *component,
 	struct axg_fifo *fifo = axg_fifo_data(ss);
 	dma_addr_t end_ptr;
 	unsigned int burst_num;
-	int ret;
-
-	ret = snd_pcm_lib_malloc_pages(ss, params_buffer_bytes(params));
-	if (ret < 0)
-		return ret;
 
 	/* Setup dma memory pointers */
 	end_ptr = runtime->dma_addr + runtime->dma_bytes - AXG_FIFO_BURST;
@@ -167,7 +162,7 @@ int axg_fifo_pcm_hw_free(struct snd_soc_component *component,
 	regmap_update_bits(fifo->map, FIFO_CTRL0,
 			   CTRL0_INT_EN(FIFO_INT_COUNT_REPEAT), 0);
 
-	return snd_pcm_lib_free_pages(ss);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(axg_fifo_pcm_hw_free);
 
@@ -287,9 +282,9 @@ int axg_fifo_pcm_new(struct snd_soc_pcm_runtime *rtd, unsigned int type)
 	struct snd_card *card = rtd->card->snd_card;
 	size_t size = axg_fifo_hw.buffer_bytes_max;
 
-	snd_pcm_lib_preallocate_pages(rtd->pcm->streams[type].substream,
-				      SNDRV_DMA_TYPE_DEV, card->dev,
-				      size, size);
+	snd_pcm_set_managed_buffer(rtd->pcm->streams[type].substream,
+				   SNDRV_DMA_TYPE_DEV, card->dev,
+				   size, size);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(axg_fifo_pcm_new);
