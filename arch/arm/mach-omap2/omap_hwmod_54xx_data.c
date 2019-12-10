@@ -593,54 +593,6 @@ static struct omap_hwmod omap54xx_kbd_hwmod = {
 	},
 };
 
-/*
- * 'mcpdm' class
- * multi channel pdm controller (proprietary interface with phoenix power
- * ic)
- */
-
-static struct omap_hwmod_class_sysconfig omap54xx_mcpdm_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= (SYSC_HAS_EMUFREE | SYSC_HAS_RESET_STATUS |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class omap54xx_mcpdm_hwmod_class = {
-	.name	= "mcpdm",
-	.sysc	= &omap54xx_mcpdm_sysc,
-};
-
-/* mcpdm */
-static struct omap_hwmod omap54xx_mcpdm_hwmod = {
-	.name		= "mcpdm",
-	.class		= &omap54xx_mcpdm_hwmod_class,
-	.clkdm_name	= "abe_clkdm",
-	/*
-	 * It's suspected that the McPDM requires an off-chip main
-	 * functional clock, controlled via I2C.  This IP block is
-	 * currently reset very early during boot, before I2C is
-	 * available, so it doesn't seem that we have any choice in
-	 * the kernel other than to avoid resetting it.  XXX This is
-	 * really a hardware issue workaround: every IP block should
-	 * be able to source its main functional clock from either
-	 * on-chip or off-chip sources.  McPDM seems to be the only
-	 * current exception.
-	 */
-
-	.flags		= HWMOD_EXT_OPT_MAIN_CLK | HWMOD_SWSUP_SIDLE,
-	.main_clk	= "pad_clks_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_ABE_MCPDM_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_ABE_MCPDM_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
 
 
 /*
@@ -1469,14 +1421,6 @@ static struct omap_hwmod_ocp_if omap54xx_l4_wkup__kbd = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_abe -> mcpdm */
-static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcpdm = {
-	.master		= &omap54xx_l4_abe_hwmod,
-	.slave		= &omap54xx_mcpdm_hwmod,
-	.clk		= "abe_iclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l4_cfg -> mpu */
 static struct omap_hwmod_ocp_if omap54xx_l4_cfg__mpu = {
 	.master		= &omap54xx_l4_cfg_hwmod,
@@ -1643,7 +1587,6 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_mpu__emif2,
 	&omap54xx_l3_main_2__mmu_ipu,
 	&omap54xx_l4_wkup__kbd,
-	&omap54xx_l4_abe__mcpdm,
 	&omap54xx_l4_cfg__mpu,
 	&omap54xx_l4_cfg__spinlock,
 	&omap54xx_l4_cfg__ocp2scp1,
