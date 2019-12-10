@@ -152,6 +152,9 @@
 #define ENA_XDP_MAX_MTU (ENA_PAGE_SIZE - ETH_HLEN - ETH_FCS_LEN - \
 				VLAN_HLEN - XDP_PACKET_HEADROOM)
 
+#define ENA_IS_XDP_INDEX(adapter, index) (((index) >= (adapter)->xdp_first_ring) && \
+	((index) < (adapter)->xdp_first_ring + (adapter)->xdp_num_queues))
+
 struct ena_irq {
 	irq_handler_t handler;
 	void *data;
@@ -165,6 +168,7 @@ struct ena_napi {
 	struct napi_struct napi ____cacheline_aligned;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
+	struct ena_ring *xdp_ring;
 	u32 qid;
 	struct dim dim;
 };
@@ -189,6 +193,17 @@ struct ena_tx_buffer {
 	u32 tx_descs;
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
+
+	/* XDP buffer structure which is used for sending packets in
+	 * the xdp queues
+	 */
+	struct xdp_frame *xdpf;
+	/* The rx page for the rx buffer that was received in rx and
+	 * re transmitted on xdp tx queues as a result of XDP_TX action.
+	 * We need to free the page once we finished cleaning the buffer in
+	 * clean_xdp_irq()
+	 */
+	struct page *xdp_rx_page;
 
 	/* Indicate if bufs[0] map the linear data of the skb. */
 	u8 map_linear_data;
@@ -394,6 +409,8 @@ struct ena_adapter {
 	enum ena_regs_reset_reason_types reset_reason;
 
 	struct bpf_prog *xdp_bpf_prog;
+	u32 xdp_first_ring;
+	u32 xdp_num_queues;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);
@@ -410,6 +427,17 @@ int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count);
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
 
+enum ena_xdp_errors_t {
+	ENA_XDP_ALLOWED = 0,
+	ENA_XDP_CURRENT_MTU_TOO_LARGE,
+	ENA_XDP_NO_ENOUGH_QUEUES,
+};
+
+static inline bool ena_xdp_queues_present(struct ena_adapter *adapter)
+{
+	return adapter->xdp_first_ring != 0;
+}
+
 static inline bool ena_xdp_present(struct ena_adapter *adapter)
 {
 	return !!adapter->xdp_bpf_prog;
@@ -420,9 +448,22 @@ static inline bool ena_xdp_present_ring(struct ena_ring *ring)
 	return !!ring->xdp_bpf_prog;
 }
 
-static inline bool ena_xdp_allowed(struct ena_adapter *adapter)
+static inline int ena_xdp_legal_queue_count(struct ena_adapter *adapter,
+					    u32 queues)
 {
-	return adapter->netdev->mtu <= ENA_XDP_MAX_MTU;
+	return 2 * queues <= adapter->max_num_io_queues;
+}
+
+static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter)
+{
+	enum ena_xdp_errors_t rc = ENA_XDP_ALLOWED;
+
+	if (adapter->netdev->mtu > ENA_XDP_MAX_MTU)
+		rc = ENA_XDP_CURRENT_MTU_TOO_LARGE;
+	else if (!ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))
+		rc = ENA_XDP_NO_ENOUGH_QUEUES;
+
+	return rc;
 }
 
 #endif /* !(ENA_H) */
