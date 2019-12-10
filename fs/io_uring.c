@@ -293,7 +293,7 @@ struct io_poll_iocb {
 	__poll_t			events;
 	bool				done;
 	bool				canceled;
-	struct wait_queue_entry		*wait;
+	struct wait_queue_entry		wait;
 };
 
 struct io_timeout_data {
@@ -2286,8 +2286,8 @@ static void io_poll_remove_one(struct io_kiocb *req)
 
 	spin_lock(&poll->head->lock);
 	WRITE_ONCE(poll->canceled, true);
-	if (!list_empty(&poll->wait->entry)) {
-		list_del_init(&poll->wait->entry);
+	if (!list_empty(&poll->wait.entry)) {
+		list_del_init(&poll->wait.entry);
 		io_queue_async_work(req);
 	}
 	spin_unlock(&poll->head->lock);
@@ -2358,7 +2358,6 @@ static void io_poll_complete(struct io_kiocb *req, __poll_t mask, int error)
 	struct io_ring_ctx *ctx = req->ctx;
 
 	req->poll.done = true;
-	kfree(req->poll.wait);
 	if (error)
 		io_cqring_fill_event(req, error);
 	else
@@ -2396,7 +2395,7 @@ static void io_poll_complete_work(struct io_wq_work **workptr)
 	 */
 	spin_lock_irq(&ctx->completion_lock);
 	if (!mask && ret != -ECANCELED) {
-		add_wait_queue(poll->head, poll->wait);
+		add_wait_queue(poll->head, &poll->wait);
 		spin_unlock_irq(&ctx->completion_lock);
 		return;
 	}
@@ -2426,7 +2425,7 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	if (mask && !(mask & poll->events))
 		return 0;
 
-	list_del_init(&poll->wait->entry);
+	list_del_init(&poll->wait.entry);
 
 	/*
 	 * Run completion inline if we can. We're using trylock here because
@@ -2467,7 +2466,7 @@ static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,
 
 	pt->error = 0;
 	pt->req->poll.head = head;
-	add_wait_queue(head, pt->req->poll.wait);
+	add_wait_queue(head, &pt->req->poll.wait);
 }
 
 static void io_poll_req_insert(struct io_kiocb *req)
@@ -2496,10 +2495,6 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (!poll->file)
 		return -EBADF;
 
-	poll->wait = kmalloc(sizeof(*poll->wait), GFP_KERNEL);
-	if (!poll->wait)
-		return -ENOMEM;
-
 	req->io = NULL;
 	INIT_IO_WORK(&req->work, io_poll_complete_work);
 	events = READ_ONCE(sqe->poll_events);
@@ -2516,9 +2511,9 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	ipt.error = -EINVAL; /* same as no support for IOCB_CMD_POLL */
 
 	/* initialized the list so that we can do list_empty checks */
-	INIT_LIST_HEAD(&poll->wait->entry);
-	init_waitqueue_func_entry(poll->wait, io_poll_wake);
-	poll->wait->private = poll;
+	INIT_LIST_HEAD(&poll->wait.entry);
+	init_waitqueue_func_entry(&poll->wait, io_poll_wake);
+	poll->wait.private = poll;
 
 	INIT_LIST_HEAD(&req->list);
 
@@ -2527,14 +2522,14 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	spin_lock_irq(&ctx->completion_lock);
 	if (likely(poll->head)) {
 		spin_lock(&poll->head->lock);
-		if (unlikely(list_empty(&poll->wait->entry))) {
+		if (unlikely(list_empty(&poll->wait.entry))) {
 			if (ipt.error)
 				cancel = true;
 			ipt.error = 0;
 			mask = 0;
 		}
 		if (mask || ipt.error)
-			list_del_init(&poll->wait->entry);
+			list_del_init(&poll->wait.entry);
 		else if (cancel)
 			WRITE_ONCE(poll->canceled, true);
 		else if (!poll->done) /* actually waiting for an event */
