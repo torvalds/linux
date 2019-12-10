@@ -792,21 +792,25 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 	struct hda_bus *hbus = &chip->bus;
 	unsigned long timeout;
 	unsigned long loopcounter;
-	int do_poll = 0;
+	wait_queue_entry_t wait;
 	bool warned = false;
 
+	init_wait_entry(&wait, 0);
  again:
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	for (loopcounter = 0;; loopcounter++) {
 		spin_lock_irq(&bus->reg_lock);
-		if (bus->polling_mode || do_poll)
+		if (!bus->polling_mode)
+			prepare_to_wait(&bus->rirb_wq, &wait,
+					TASK_UNINTERRUPTIBLE);
+		if (bus->polling_mode)
 			snd_hdac_bus_update_rirb(bus);
 		if (!bus->rirb.cmds[addr]) {
-			if (!do_poll)
-				bus->poll_count = 0;
 			if (res)
 				*res = bus->rirb.res[addr]; /* the last value */
+			if (!bus->polling_mode)
+				finish_wait(&bus->rirb_wq, &wait);
 			spin_unlock_irq(&bus->reg_lock);
 			return 0;
 		}
@@ -814,7 +818,9 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 		if (time_after(jiffies, timeout))
 			break;
 #define LOOP_COUNT_MAX	3000
-		if (hbus->needs_damn_long_delay ||
+		if (!bus->polling_mode) {
+			schedule_timeout(msecs_to_jiffies(2));
+		} else if (hbus->needs_damn_long_delay ||
 		    loopcounter > LOOP_COUNT_MAX) {
 			if (loopcounter > LOOP_COUNT_MAX && !warned) {
 				dev_dbg_ratelimited(chip->card->dev,
@@ -829,18 +835,11 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 		}
 	}
 
+	if (!bus->polling_mode)
+		finish_wait(&bus->rirb_wq, &wait);
+
 	if (hbus->no_response_fallback)
 		return -EIO;
-
-	if (!bus->polling_mode && bus->poll_count < 2) {
-		dev_dbg(chip->card->dev,
-			"azx_get_response timeout, polling the codec once: last cmd=0x%08x\n",
-			bus->last_cmd[addr]);
-		do_poll = 1;
-		bus->poll_count++;
-		goto again;
-	}
-
 
 	if (!bus->polling_mode) {
 		dev_warn(chip->card->dev,

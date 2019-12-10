@@ -317,6 +317,7 @@ struct hdac_bus {
 	struct hdac_rb corb;
 	struct hdac_rb rirb;
 	unsigned int last_cmd[HDA_MAX_CODECS];	/* last sent command */
+	wait_queue_head_t rirb_wq;
 
 	/* CORB/RIRB and position buffers */
 	struct snd_dma_buffer rb;
