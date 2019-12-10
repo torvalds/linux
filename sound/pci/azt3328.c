@@ -2423,8 +2423,8 @@ snd_azf3328_create(struct snd_card *card,
 		goto out_err;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	pci_set_master(pci);
-	synchronize_irq(chip->irq);
 
 	snd_azf3328_debug_show_ports(chip);
 
