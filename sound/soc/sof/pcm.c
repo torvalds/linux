@@ -766,7 +766,6 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->remove = sof_pcm_remove;
 	pd->open = sof_pcm_open;
 	pd->close = sof_pcm_close;
-	pd->ioctl = snd_soc_pcm_lib_ioctl;
 	pd->hw_params = sof_pcm_hw_params;
 	pd->prepare = sof_pcm_prepare;
 	pd->hw_free = sof_pcm_hw_free;
