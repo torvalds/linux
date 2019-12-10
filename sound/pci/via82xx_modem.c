@@ -791,7 +791,6 @@ static int snd_via82xx_pcm_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_via686_playback_ops = {
 	.open =		snd_via82xx_playback_open,
 	.close =	snd_via82xx_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_via82xx_hw_params,
 	.hw_free =	snd_via82xx_hw_free,
 	.prepare =	snd_via82xx_pcm_prepare,
@@ -803,7 +802,6 @@ static const struct snd_pcm_ops snd_via686_playback_ops = {
 static const struct snd_pcm_ops snd_via686_capture_ops = {
 	.open =		snd_via82xx_capture_open,
 	.close =	snd_via82xx_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_via82xx_hw_params,
 	.hw_free =	snd_via82xx_hw_free,
 	.prepare =	snd_via82xx_pcm_prepare,
