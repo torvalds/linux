@@ -5,8 +5,6 @@
 #ifndef __PINCTRL_MSM_H__
 #define __PINCTRL_MSM_H__
 
-#include <linux/gpio/driver.h>
-
 struct pinctrl_pin_desc;
 
 /**

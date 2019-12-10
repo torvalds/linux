@@ -1174,16 +1174,6 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 		}
 	}
 
-	/*
-	 * Since we are chained to the GIC using the TLMM summary line
-	 * and in hierarchy with the wakeup parent interrupt controller,
-	 * explicitly set the chained summary line. We need to do this because
-	 * the summary line is not routed to the wakeup parent but directly
-	 * to the GIC.
-	 */
-	gpiochip_set_chained_irqchip(chip, &pctrl->irq_chip, pctrl->irq,
-				     msm_gpio_irq_handler);
-
 	return 0;
 }
 
