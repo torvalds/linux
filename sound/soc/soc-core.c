@@ -1209,11 +1209,11 @@ static void soc_set_of_name_prefix(struct snd_soc_component *component)
 static void soc_set_name_prefix(struct snd_soc_card *card,
 				struct snd_soc_component *component)
 {
+	struct device_node *of_node = soc_component_to_node(component);
 	int i;
 
 	for (i = 0; i < card->num_configs; i++) {
 		struct snd_soc_codec_conf *map = &card->codec_conf[i];
-		struct device_node *of_node = soc_component_to_node(component);
 
 		if (map->of_node && of_node != map->of_node)
 			continue;
