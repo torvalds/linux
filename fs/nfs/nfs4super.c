@@ -101,37 +101,6 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 	return nfs_fs_mount_common(flags, dev_name, info, &nfs_v4);
 }
 
-static struct vfsmount *nfs_do_root_mount(struct nfs_server *server, int flags,
-					  struct nfs_mount_info *info,
-					  const char *hostname)
-{
-	struct vfsmount *root_mnt;
-	char *root_devname;
-	size_t len;
-
-	if (IS_ERR(server))
-		return ERR_CAST(server);
-
-	len = strlen(hostname) + 5;
-	root_devname = kmalloc(len, GFP_KERNEL);
-	if (root_devname == NULL) {
-		nfs_free_server(server);
-		return ERR_PTR(-ENOMEM);
-	}
-	/* Does hostname needs to be enclosed in brackets? */
-	if (strchr(hostname, ':'))
-		snprintf(root_devname, len, "[%s]:/", hostname);
-	else
-		snprintf(root_devname, len, "%s:/", hostname);
-	info->server = server;
-	root_mnt = vfs_kern_mount(&nfs4_remote_fs_type, flags, root_devname, info);
-	if (info->server)
-		nfs_free_server(info->server);
-	info->server = NULL;
-	kfree(root_devname);
-	return root_mnt;
-}
-
 struct nfs_referral_count {
 	struct list_head list;
 	const struct task_struct *task;
@@ -198,11 +167,38 @@ static void nfs_referral_loop_unprotect(void)
 	kfree(p);
 }
 
-static struct dentry *nfs_follow_remote_path(struct vfsmount *root_mnt,
-		const char *export_path)
+static struct dentry *do_nfs4_mount(struct nfs_server *server, int flags,
+				    struct nfs_mount_info *info,
+				    const char *hostname,
+				    const char *export_path)
 {
+	struct vfsmount *root_mnt;
 	struct dentry *dentry;
+	char *root_devname;
 	int err;
+	size_t len;
+
+	if (IS_ERR(server))
+		return ERR_CAST(server);
+
+	len = strlen(hostname) + 5;
+	root_devname = kmalloc(len, GFP_KERNEL);
+	if (root_devname == NULL) {
+		nfs_free_server(server);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	/* Does hostname needs to be enclosed in brackets? */
+	if (strchr(hostname, ':'))
+		snprintf(root_devname, len, "[%s]:/", hostname);
+	else
+		snprintf(root_devname, len, "%s:/", hostname);
+	info->server = server;
+	root_mnt = vfs_kern_mount(&nfs4_remote_fs_type, flags, root_devname, info);
+	if (info->server)
+		nfs_free_server(info->server);
+	info->server = NULL;
+	kfree(root_devname);
 
 	if (IS_ERR(root_mnt))
 		return ERR_CAST(root_mnt);
@@ -223,22 +219,17 @@ struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 			      struct nfs_mount_info *mount_info,
 			      struct nfs_subversion *nfs_mod)
 {
-	char *export_path;
-	struct vfsmount *root_mnt;
-	struct dentry *res;
 	struct nfs_parsed_mount_data *data = mount_info->parsed;
+	struct dentry *res;
 
 	mount_info->set_security = nfs_set_sb_security;
 
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
 
-	export_path = data->nfs_server.export_path;
-	root_mnt = nfs_do_root_mount(
-			nfs4_create_server(mount_info, &nfs_v4),
-			flags, mount_info,
-			data->nfs_server.hostname);
-
-	res = nfs_follow_remote_path(root_mnt, export_path);
+	res = do_nfs4_mount(nfs4_create_server(mount_info, &nfs_v4),
+			    flags, mount_info,
+			    data->nfs_server.hostname,
+			    data->nfs_server.export_path);
 
 	dfprintk(MOUNT, "<-- nfs4_try_mount() = %d%s\n",
 		 PTR_ERR_OR_ZERO(res),
@@ -258,8 +249,6 @@ static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
 		.set_security = nfs_clone_sb_security,
 		.cloned = data,
 	};
-	char *export_path;
-	struct vfsmount *root_mnt;
 	struct dentry *res;
 
 	dprintk("--> nfs4_referral_mount()\n");
@@ -268,13 +257,10 @@ static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
 	if (!mount_info.mntfh)
 		return ERR_PTR(-ENOMEM);
 
-	export_path = data->mnt_path;
-	root_mnt = nfs_do_root_mount(
-			nfs4_create_referral_server(mount_info.cloned,
-						    mount_info.mntfh),
-			flags, &mount_info, data->hostname);
+	res = do_nfs4_mount(nfs4_create_referral_server(mount_info.cloned,
+							mount_info.mntfh),
+			    flags, &mount_info, data->hostname, data->mnt_path);
 
-	res = nfs_follow_remote_path(root_mnt, export_path);
 	dprintk("<-- nfs4_referral_mount() = %d%s\n",
 		PTR_ERR_OR_ZERO(res),
 		IS_ERR(res) ? " [error]" : "");
