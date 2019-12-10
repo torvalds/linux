@@ -647,7 +647,6 @@ static struct page *dummy_pcm_page(struct snd_pcm_substream *substream,
 static struct snd_pcm_ops dummy_pcm_ops = {
 	.open =		dummy_pcm_open,
 	.close =	dummy_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	dummy_pcm_hw_params,
 	.prepare =	dummy_pcm_prepare,
 	.trigger =	dummy_pcm_trigger,
@@ -657,7 +656,6 @@ static struct snd_pcm_ops dummy_pcm_ops = {
 static struct snd_pcm_ops dummy_pcm_ops_no_buf = {
 	.open =		dummy_pcm_open,
 	.close =	dummy_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	dummy_pcm_hw_params,
 	.prepare =	dummy_pcm_prepare,
 	.trigger =	dummy_pcm_trigger,

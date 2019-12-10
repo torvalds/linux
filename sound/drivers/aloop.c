@@ -1299,7 +1299,6 @@ static int loopback_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops loopback_pcm_ops = {
 	.open =		loopback_open,
 	.close =	loopback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_free =	loopback_hw_free,
 	.prepare =	loopback_prepare,
 	.trigger =	loopback_trigger,

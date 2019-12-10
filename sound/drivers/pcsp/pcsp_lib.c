@@ -322,7 +322,6 @@ static int snd_pcsp_playback_open(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_pcsp_playback_ops = {
 	.open = snd_pcsp_playback_open,
 	.close = snd_pcsp_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_pcsp_playback_hw_params,
 	.hw_free = snd_pcsp_playback_hw_free,
 	.prepare = snd_pcsp_playback_prepare,
