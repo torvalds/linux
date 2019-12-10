@@ -1893,6 +1893,8 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 	return nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
 }
 
+static struct dentry *nfs_fs_mount_common(int, const char *, struct nfs_mount_info *);
+
 struct dentry *nfs_try_mount(int flags, const char *dev_name,
 			     struct nfs_mount_info *mount_info)
 {
@@ -2648,7 +2650,7 @@ static void nfs_set_readahead(struct backing_dev_info *bdi,
 	bdi->io_pages = iomax_pages;
 }
 
-struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
+static struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
 				   struct nfs_mount_info *mount_info)
 {
 	struct super_block *s;
@@ -2730,7 +2732,6 @@ error_splat_super:
 	deactivate_locked_super(s);
 	goto out;
 }
-EXPORT_SYMBOL_GPL(nfs_fs_mount_common);
 
 struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data)
