@@ -9461,6 +9461,13 @@ void kvm_arch_hardware_unsetup(void)
 
 int kvm_arch_check_processor_compat(void)
 {
+	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
+
+	WARN_ON(!irqs_disabled());
+
+	if (kvm_host_cr4_reserved_bits(c) != cr4_reserved_bits)
+		return -EIO;
+
 	return kvm_x86_ops->check_processor_compatibility();
 }
 
