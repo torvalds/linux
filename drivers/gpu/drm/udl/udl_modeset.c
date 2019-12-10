@@ -380,7 +380,7 @@ int udl_modeset_init(struct drm_device *dev)
 	dev->mode_config.max_height = 2048;
 
 	dev->mode_config.prefer_shadow = 0;
-	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.preferred_depth = 16;
 
 	dev->mode_config.funcs = &udl_mode_funcs;
 
