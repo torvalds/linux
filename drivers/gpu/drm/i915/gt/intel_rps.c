@@ -1715,6 +1715,7 @@ void intel_rps_driver_register(struct intel_rps *rps)
 	 * set up, to avoid intel-ips sneaking in and reading bogus values.
 	 */
 	if (IS_GEN(gt->i915, 5)) {
+		GEM_BUG_ON(ips_mchdev);
 		rcu_assign_pointer(ips_mchdev, gt->i915);
 		ips_ping_for_i915_load();
 	}
@@ -1722,7 +1723,8 @@ void intel_rps_driver_register(struct intel_rps *rps)
 
 void intel_rps_driver_unregister(struct intel_rps *rps)
 {
-	rcu_assign_pointer(ips_mchdev, NULL);
+	if (ips_mchdev == rps_to_i915(rps))
+		rcu_assign_pointer(ips_mchdev, NULL);
 }
 
 static struct drm_i915_private *mchdev_get(void)
