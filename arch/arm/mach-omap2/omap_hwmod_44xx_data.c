@@ -733,39 +733,6 @@ static struct omap_hwmod omap44xx_sha0_hwmod = {
 	},
 };
 
-/*
- * 'elm' class
- * bch error location module
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_elm_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
-			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap44xx_elm_hwmod_class = {
-	.name	= "elm",
-	.sysc	= &omap44xx_elm_sysc,
-};
-
-/* elm */
-static struct omap_hwmod omap44xx_elm_hwmod = {
-	.name		= "elm",
-	.class		= &omap44xx_elm_hwmod_class,
-	.clkdm_name	= "l4_per_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_L4PER_ELM_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_L4PER_ELM_CONTEXT_OFFSET,
-		},
-	},
-};
 
 /*
  * 'emif' class
@@ -2261,14 +2228,6 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__sha0 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_per -> elm */
-static struct omap_hwmod_ocp_if omap44xx_l4_per__elm = {
-	.master		= &omap44xx_l4_per_hwmod,
-	.slave		= &omap44xx_elm_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> fdif */
 static struct omap_hwmod_ocp_if omap44xx_l4_cfg__fdif = {
 	.master		= &omap44xx_l4_cfg_hwmod,
@@ -2550,7 +2509,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_per__dss_rfbi,
 	&omap44xx_l3_main_2__dss_venc,
 	&omap44xx_l4_per__dss_venc,
-	&omap44xx_l4_per__elm,
 	&omap44xx_l4_cfg__fdif,
 	&omap44xx_l3_main_2__gpmc,
 	&omap44xx_l4_cfg__hsi,
