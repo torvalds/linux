@@ -106,13 +106,6 @@ struct omap_hwmod_ocp_if am33xx_l4_wkup__rtc = {
 	.user		= OCP_USER_MPU,
 };
 
-struct omap_hwmod_ocp_if am33xx_l4_ls__elm = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_elm_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l3s cfg -> gpmc */
 struct omap_hwmod_ocp_if am33xx_l3_s__gpmc = {
 	.master		= &am33xx_l3_s_hwmod,

@@ -1100,7 +1100,6 @@
 
 		target-module@80000 {			/* 0x48080000, ap 32 18.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "elm";
 			reg = <0x80000 0x4>,
 			      <0x80010 0x4>,
 			      <0x80014 0x4>;
