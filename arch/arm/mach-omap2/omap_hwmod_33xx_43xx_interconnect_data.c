@@ -129,27 +129,6 @@ struct omap_hwmod_ocp_if am33xx_l4_ls__elm = {
 	.user		= OCP_USER_MPU,
 };
 
-struct omap_hwmod_ocp_if am33xx_l4_ls__epwmss0 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_epwmss0_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_l4_ls__epwmss1 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_epwmss1_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_l4_ls__epwmss2 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_epwmss2_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l3s cfg -> gpmc */
 struct omap_hwmod_ocp_if am33xx_l3_s__gpmc = {
 	.master		= &am33xx_l3_s_hwmod,

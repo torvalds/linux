@@ -1858,7 +1858,6 @@
 
 		target-module@0 {			/* 0x48300000, ap 66 48.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss0";
 			reg = <0x0 0x4>,
 			      <0x4 0x4>;
 			reg-names = "rev", "sysc";
@@ -1911,7 +1910,6 @@
 
 		target-module@2000 {			/* 0x48302000, ap 68 52.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss1";
 			reg = <0x2000 0x4>,
 			      <0x2004 0x4>;
 			reg-names = "rev", "sysc";
@@ -1964,7 +1962,6 @@
 
 		target-module@4000 {			/* 0x48304000, ap 70 44.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "epwmss2";
 			reg = <0x4000 0x4>,
 			      <0x4004 0x4>;
 			reg-names = "rev", "sysc";
