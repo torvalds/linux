@@ -2613,7 +2613,8 @@ static void samsung_early_putc(struct uart_port *port, int c)
 	writeb(c, port->membase + S3C2410_UTXH);
 }
 
-static void samsung_early_write(struct console *con, const char *s, unsigned n)
+static void samsung_early_write(struct console *con, const char *s,
+				unsigned int n)
 {
 	struct earlycon_device *dev = con->data;
 
