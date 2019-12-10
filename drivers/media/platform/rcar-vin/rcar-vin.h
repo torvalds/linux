@@ -164,9 +164,8 @@ struct rvin_info {
  * @scratch:		cpu address for scratch buffer
  * @scratch_phys:	physical address of the scratch buffer
  *
- * @qlock:		protects @queue_buf, @buf_list, @sequence
- *			@state
- * @queue_buf:		Keeps track of buffers given to HW slot
+ * @qlock:		protects @buf_hw, @buf_list, @sequence and @state
+ * @buf_hw:		Keeps track of buffers given to HW slot
  * @buf_list:		list of queued buffers
  * @sequence:		V4L2 buffers sequence number
  * @state:		keeps track of operation state
@@ -205,7 +204,9 @@ struct rvin_dev {
 	dma_addr_t scratch_phys;
 
 	spinlock_t qlock;
-	struct vb2_v4l2_buffer *queue_buf[HW_BUFFER_NUM];
+	struct {
+		struct vb2_v4l2_buffer *buffer;
+	} buf_hw[HW_BUFFER_NUM];
 	struct list_head buf_list;
 	unsigned int sequence;
 	enum rvin_dma_state state;
