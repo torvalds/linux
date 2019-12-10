@@ -7,6 +7,7 @@
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/crc32.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/nfs_page.h>
 #include <linux/wait_bit.h>
 
@@ -224,6 +225,22 @@ extern const struct svc_version nfs4_callback_version1;
 extern const struct svc_version nfs4_callback_version4;
 
 struct nfs_pageio_descriptor;
+
+/* mount.c */
+#define NFS_TEXT_DATA		1
+
+extern struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(void);
+extern void nfs_free_parsed_mount_data(struct nfs_parsed_mount_data *data);
+extern int nfs_parse_mount_options(char *raw, struct nfs_parsed_mount_data *mnt);
+extern int nfs_validate_mount_data(struct file_system_type *fs_type,
+				   void *options,
+				   struct nfs_parsed_mount_data *args,
+				   struct nfs_fh *mntfh,
+				   const char *dev_name);
+extern int nfs_validate_text_mount_data(void *options,
+					struct nfs_parsed_mount_data *args,
+					const char *dev_name);
+
 /* pagelist.c */
 extern int __init nfs_init_nfspagecache(void);
 extern void nfs_destroy_nfspagecache(void);
@@ -764,4 +781,17 @@ static inline bool nfs_error_is_fatal_on_server(int err)
 		return false;
 	}
 	return nfs_error_is_fatal(err);
+}
+
+/*
+ * Select between a default port value and a user-specified port value.
+ * If a zero value is set, then autobind will be used.
+ */
+static inline void nfs_set_port(struct sockaddr *sap, int *port,
+				const unsigned short default_port)
+{
+	if (*port == NFS_UNSPEC_PORT)
+		*port = default_port;
+
+	rpc_set_port(sap, *port);
 }
