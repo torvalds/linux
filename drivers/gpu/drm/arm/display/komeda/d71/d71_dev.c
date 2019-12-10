@@ -414,8 +414,11 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 		d71->pipes[i] = to_d71_pipeline(pipe);
 	}
 
-	/* loop the register blks and probe */
-	i = 2; /* exclude GCU and PERIPH */
+	/* loop the register blks and probe.
+	 * NOTE: d71->num_blocks includes reserved blocks.
+	 * d71->num_blocks = GCU + valid blocks + reserved blocks
+	 */
+	i = 1; /* exclude GCU */
 	offset = D71_BLOCK_SIZE; /* skip GCU */
 	while (i < d71->num_blocks) {
 		blk_base = mdev->reg_base + (offset >> 2);
@@ -425,9 +428,9 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 			err = d71_probe_block(d71, &blk, blk_base);
 			if (err)
 				goto err_cleanup;
-			i++;
 		}
 
+		i++;
 		offset += D71_BLOCK_SIZE;
 	}
 
