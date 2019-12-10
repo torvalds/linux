@@ -334,6 +334,25 @@ static const struct rc_parameters *get_rc_params(u16 compressed_bpp,
 	return &rc_parameters[row_index][column_index];
 }
 
+bool intel_dsc_source_support(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	if (!INTEL_INFO(i915)->display.has_dsc)
+		return false;
+
+	/* On TGL, DSC is supported on all Pipes */
+	if (INTEL_GEN(i915) >= 12)
+		return true;
+
+	if (INTEL_GEN(i915) >= 10 &&
+	    crtc_state->cpu_transcoder != TRANSCODER_A)
+		return true;
+
+	return false;
+}
+
 int intel_dsc_compute_params(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config)
 {

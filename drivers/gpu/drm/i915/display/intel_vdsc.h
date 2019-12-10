@@ -6,9 +6,13 @@
 #ifndef __INTEL_VDSC_H__
 #define __INTEL_VDSC_H__
 
+#include <linux/types.h>
+
 struct intel_encoder;
 struct intel_crtc_state;
 
+bool intel_dsc_source_support(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state);
 void intel_dsc_enable(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state);
 void intel_dsc_disable(const struct intel_crtc_state *crtc_state);

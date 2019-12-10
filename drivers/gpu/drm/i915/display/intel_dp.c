@@ -1889,32 +1889,15 @@ static bool intel_dp_supports_fec(struct intel_dp *intel_dp,
 		drm_dp_sink_supports_fec(intel_dp->fec_capable);
 }
 
-static bool intel_dp_source_supports_dsc(struct intel_dp *intel_dp,
-					 const struct intel_crtc_state *pipe_config)
-{
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-
-	if (!INTEL_INFO(dev_priv)->display.has_dsc)
-		return false;
-
-	/* On TGL, DSC is supported on all Pipes */
-	if (INTEL_GEN(dev_priv) >= 12)
-		return true;
-
-	if (INTEL_GEN(dev_priv) >= 10 &&
-	    pipe_config->cpu_transcoder != TRANSCODER_A)
-		return true;
-
-	return false;
-}
-
 static bool intel_dp_supports_dsc(struct intel_dp *intel_dp,
-				  const struct intel_crtc_state *pipe_config)
+				  const struct intel_crtc_state *crtc_state)
 {
-	if (!intel_dp_is_edp(intel_dp) && !pipe_config->fec_enable)
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+
+	if (!intel_dp_is_edp(intel_dp) && !crtc_state->fec_enable)
 		return false;
 
-	return intel_dp_source_supports_dsc(intel_dp, pipe_config) &&
+	return intel_dsc_source_support(encoder, crtc_state) &&
 		drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd);
 }
 
