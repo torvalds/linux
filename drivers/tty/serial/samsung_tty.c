@@ -1136,9 +1136,6 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 	int ret;
 
-	dbg("s3c24xx_serial_startup: port=%p (%08llx,%p)\n",
-	    port, (unsigned long long)port->mapbase, port->membase);
-
 	rx_enabled(port) = 1;
 
 	ret = request_irq(ourport->rx_irq, s3c24xx_serial_rx_chars, 0,
@@ -1165,8 +1162,6 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	ourport->tx_claimed = 1;
 
-	dbg("s3c24xx_serial_startup ok\n");
-
 	/* the port reset code should have done the correct
 	 * register setup for the port controls */
 
@@ -1183,9 +1178,6 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	unsigned long flags;
 	unsigned int ufcon;
 	int ret;
-
-	dbg("s3c64xx_serial_startup: port=%p (%08llx,%p)\n",
-	    port, (unsigned long long)port->mapbase, port->membase);
 
 	wr_regl(port, S3C64XX_UINTM, 0xf);
 	if (ourport->dma) {
@@ -1224,7 +1216,6 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	/* Enable Rx Interrupt */
 	s3c24xx_clear_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
 
-	dbg("s3c64xx_serial_startup ok\n");
 	return ret;
 }
 
@@ -1870,8 +1861,6 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	struct resource *res;
 	int ret;
 
-	dbg("s3c24xx_serial_init_port: port=%p, platdev=%p\n", port, platdev);
-
 	if (platdev == NULL)
 		return -ENODEV;
 
@@ -2010,8 +1999,6 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 		if (ret >= 0)
 			index = ret;
 	}
-
-	dbg("s3c24xx_serial_probe(%p) %d\n", pdev, index);
 
 	if (index >= ARRAY_SIZE(s3c24xx_serial_ports)) {
 		dev_err(&pdev->dev, "serial%d out of range\n", index);
@@ -2273,10 +2260,6 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 	ucon   = rd_regl(port, S3C2410_UCON);
 	ubrdiv = rd_regl(port, S3C2410_UBRDIV);
 
-	dbg("s3c24xx_serial_get_options: port=%p\n"
-	    "registers: ulcon=%08x, ucon=%08x, ubdriv=%08x\n",
-	    port, ulcon, ucon, ubrdiv);
-
 	if (s3c24xx_port_configured(ucon)) {
 		switch (ulcon & S3C2410_LCON_CSMASK) {
 		case S3C2410_LCON_CS5:
@@ -2334,9 +2317,6 @@ s3c24xx_serial_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	dbg("s3c24xx_serial_console_setup: co=%p (%d), %s\n",
-	    co, co->index, options);
-
 	/* is this a valid port */
 
 	if (co->index == -1 || co->index >= CONFIG_SERIAL_SAMSUNG_UARTS)
@@ -2350,8 +2330,6 @@ s3c24xx_serial_console_setup(struct console *co, char *options)
 		return -ENODEV;
 
 	cons_uart = port;
-
-	dbg("s3c24xx_serial_console_setup: port=%p (%d)\n", port, co->index);
 
 	/*
 	 * Check whether an invalid uart number has been specified, and
