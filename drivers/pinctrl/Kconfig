@@ -321,6 +321,16 @@ config PINCTRL_INGENIC
 	select GENERIC_PINMUX_FUNCTIONS
 	select REGMAP_MMIO
 
+config PINCTRL_RK628
+	tristate "Pinctrl and GPIO driver for RK628 PMIC"
+	depends on MFD_RK628
+	select GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	select REGMAP_IRQ
+	help
+	  This selects the pinctrl driver for RK628.
+
 config PINCTRL_RK805
 	tristate "Pinctrl and GPIO driver for RK805 PMIC"
 	depends on MFD_RK808
