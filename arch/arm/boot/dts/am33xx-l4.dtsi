@@ -1009,7 +1009,6 @@
 
 		target-module@30000 {			/* 0x48030000, ap 77 08.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spi0";
 			reg = <0x30000 0x4>,
 			      <0x30110 0x4>,
 			      <0x30114 0x4>;
@@ -1527,7 +1526,6 @@
 
 		target-module@a0000 {			/* 0x481a0000, ap 79 24.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "spi1";
 			reg = <0xa0000 0x4>,
 			      <0xa0110 0x4>,
 			      <0xa0114 0x4>;

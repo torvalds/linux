@@ -112,45 +112,6 @@ static struct omap_hwmod am43xx_synctimer_hwmod = {
 	},
 };
 
-static struct omap_hwmod am43xx_spi2_hwmod = {
-	.name		= "spi2",
-	.class		= &am33xx_spi_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "dpll_per_m2_div4_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs = AM43XX_CM_PER_SPI2_CLKCTRL_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod am43xx_spi3_hwmod = {
-	.name		= "spi3",
-	.class		= &am33xx_spi_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "dpll_per_m2_div4_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs = AM43XX_CM_PER_SPI3_CLKCTRL_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod am43xx_spi4_hwmod = {
-	.name		= "spi4",
-	.class		= &am33xx_spi_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.main_clk	= "dpll_per_m2_div4_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs = AM43XX_CM_PER_SPI4_CLKCTRL_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
 static struct omap_hwmod_class am43xx_ocp2scp_hwmod_class = {
 	.name	= "ocp2scp",
 };
@@ -441,27 +402,6 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__synctimer = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_ocp_if am43xx_l4_ls__mcspi2 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am43xx_spi2_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_ocp_if am43xx_l4_ls__mcspi3 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am43xx_spi3_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_ocp_if am43xx_l4_ls__mcspi4 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am43xx_spi4_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 static struct omap_hwmod_ocp_if am43xx_l4_ls__ocp2scp0 = {
 	.master		= &am33xx_l4_ls_hwmod,
 	.slave		= &am43xx_ocp2scp0_hwmod,
@@ -548,9 +488,6 @@ static struct omap_hwmod_ocp_if am43xx_l4_ls__vpfe1 = {
 
 static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_wkup__synctimer,
-	&am43xx_l4_ls__mcspi2,
-	&am43xx_l4_ls__mcspi3,
-	&am43xx_l4_ls__mcspi4,
 	&am43xx_l3_main__pruss,
 	&am33xx_mpu__l3_main,
 	&am33xx_mpu__prcm,
@@ -577,8 +514,6 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__tpcc,
 	&am33xx_l4_ls__elm,
 	&am33xx_l3_s__gpmc,
-	&am33xx_l4_ls__mcspi0,
-	&am33xx_l4_ls__mcspi1,
 	&am33xx_l3_main__tptc0,
 	&am33xx_l3_main__tptc1,
 	&am33xx_l3_main__tptc2,
