@@ -21,6 +21,21 @@
 };
 
 &cluster_a15_opp_table {
+	opp-2000000000 {
+		opp-hz = /bits/ 64 <2000000000>;
+		opp-microvolt = <1312500>;
+		clock-latency-ns = <140000>;
+	};
+	opp-1900000000 {
+		opp-hz = /bits/ 64 <1900000000>;
+		opp-microvolt = <1262500>;
+		clock-latency-ns = <140000>;
+	};
+	opp-1800000000 {
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <1237500>;
+		clock-latency-ns = <140000>;
+	};
 	opp-1700000000 {
 		opp-microvolt = <1250000 1250000 1500000>;
 	};
@@ -82,6 +97,11 @@
 };
 
 &cluster_a7_opp_table {
+	opp-1400000000 {
+		opp-hz = /bits/ 64 <1400000000>;
+		opp-microvolt = <1275000>;
+		clock-latency-ns = <140000>;
+	};
 	opp-1300000000 {
 		opp-microvolt = <1250000>;
 	};
