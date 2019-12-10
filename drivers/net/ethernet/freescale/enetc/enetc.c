@@ -227,6 +227,8 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 	enetc_bdr_idx_inc(tx_ring, &i);
 	tx_ring->next_to_use = i;
 
+	skb_tx_timestamp(skb);
+
 	/* let H/W know BD ring has been updated */
 	enetc_wr_reg(tx_ring->tpir, i); /* includes wmb() */
 
