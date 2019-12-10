@@ -39,11 +39,10 @@ static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 				     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = devlink_health_reporter_priv(reporter);
-	struct bnxt_fw_health *health = bp->fw_health;
 	u32 val, health_status;
 	int rc;
 
-	if (!health || test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
+	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 		return 0;
 
 	val = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
@@ -184,9 +183,6 @@ void bnxt_devlink_health_report(struct bnxt *bp, unsigned long event)
 {
 	struct bnxt_fw_health *fw_health = bp->fw_health;
 	struct bnxt_fw_reporter_ctx fw_reporter_ctx;
-
-	if (!fw_health)
-		return;
 
 	fw_reporter_ctx.sp_event = event;
 	switch (event) {

@@ -9989,8 +9989,7 @@ static void bnxt_fw_health_check(struct bnxt *bp)
 	struct bnxt_fw_health *fw_health = bp->fw_health;
 	u32 val;
 
-	if (!fw_health || !fw_health->enabled ||
-	    test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
+	if (!fw_health->enabled || test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 		return;
 
 	if (fw_health->tmr_counter) {
@@ -10768,8 +10767,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		bnxt_queue_fw_reset_work(bp, bp->fw_reset_min_dsecs * HZ / 10);
 		return;
 	case BNXT_FW_RESET_STATE_ENABLE_DEV:
-		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) &&
-		    bp->fw_health) {
+		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
 			u32 val;
 
 			val = bnxt_fw_health_readl(bp,
