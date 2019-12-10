@@ -826,7 +826,7 @@ static int adreno_get_legacy_pwrlevels(struct device *dev)
 
 	node = of_get_compatible_child(dev->of_node, "qcom,gpu-pwrlevels");
 	if (!node) {
-		DRM_DEV_ERROR(dev, "Could not find the GPU powerlevels\n");
+		DRM_DEV_DEBUG(dev, "Could not find the GPU powerlevels\n");
 		return -ENXIO;
 	}
 
