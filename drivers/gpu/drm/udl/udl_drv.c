@@ -45,7 +45,7 @@ static void udl_driver_release(struct drm_device *dev)
 }
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM,
+	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 	.release = udl_driver_release,
 
 	/* gem hooks */

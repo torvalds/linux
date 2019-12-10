@@ -9,11 +9,15 @@
 
  */
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_vblank.h>
 
 #include "udl_drv.h"
+
+#define UDL_COLOR_DEPTH_16BPP	0
 
 /*
  * All DisplayLink bulk operations start with 0xAF, followed by specific code
@@ -277,48 +281,44 @@ static void udl_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 }
 
-#if 0
-static int
-udl_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			   int x, int y, enum mode_set_atomic state)
+/*
+ * Simple display pipeline
+ */
+
+static const uint32_t udl_simple_display_pipe_formats[] = {
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+};
+
+static enum drm_mode_status
+udl_simple_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
+				   const struct drm_display_mode *mode)
 {
-	return 0;
+	return MODE_OK;
 }
 
-static int
-udl_pipe_set_base(struct drm_crtc *crtc, int x, int y,
-		    struct drm_framebuffer *old_fb)
+static void
+udl_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
+			       struct drm_crtc_state *crtc_state,
+			       struct drm_plane_state *plane_state)
 {
-	return 0;
-}
-#endif
-
-static int udl_crtc_mode_set(struct drm_crtc *crtc,
-			       struct drm_display_mode *mode,
-			       struct drm_display_mode *adjusted_mode,
-			       int x, int y,
-			       struct drm_framebuffer *old_fb)
-
-{
+	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_device *dev = crtc->dev;
-	struct drm_framebuffer *fb = crtc->primary->fb;
+	struct drm_framebuffer *fb = plane_state->fb;
 	struct udl_device *udl = dev->dev_private;
+	struct drm_display_mode *mode = &crtc_state->mode;
 	char *buf;
 	char *wrptr;
-	int color_depth = 0;
+	int color_depth = UDL_COLOR_DEPTH_16BPP;
 
-	udl->crtc = crtc;
+	crtc_state->no_vblank = true;
 
 	buf = (char *)udl->mode_buf;
 
-	/* for now we just clip 24 -> 16 - if we fix that fix this */
-	/*if  (crtc->fb->bits_per_pixel != 16)
-	  color_depth = 1; */
-
 	/* This first section has to do with setting the base address on the
-	* controller * associated with the display. There are 2 base
-	* pointers, currently, we only * use the 16 bpp segment.
-	*/
+	 * controller associated with the display. There are 2 base
+	 * pointers, currently, we only use the 16 bpp segment.
+	 */
 	wrptr = udl_vidreg_lock(buf);
 	wrptr = udl_set_color_depth(wrptr, color_depth);
 	/* set base for 16bpp segment to 0 */
@@ -326,7 +326,7 @@ static int udl_crtc_mode_set(struct drm_crtc *crtc,
 	/* set base for 8bpp segment to end of fb */
 	wrptr = udl_set_base8bpp(wrptr, 2 * mode->vdisplay * mode->hdisplay);
 
-	wrptr = udl_set_vid_cmds(wrptr, adjusted_mode);
+	wrptr = udl_set_vid_cmds(wrptr, mode);
 	wrptr = udl_set_blank(wrptr, DRM_MODE_DPMS_ON);
 	wrptr = udl_vidreg_unlock(wrptr);
 
@@ -337,92 +337,68 @@ static int udl_crtc_mode_set(struct drm_crtc *crtc,
 	spin_unlock(&udl->active_fb_16_lock);
 	udl->mode_buf_len = wrptr - buf;
 
-	/* damage all of it */
 	udl_handle_damage(fb, 0, 0, fb->width, fb->height);
+
+	udl_crtc_dpms(&pipe->crtc, DRM_MODE_DPMS_ON);
+}
+
+static void
+udl_simple_display_pipe_disable(struct drm_simple_display_pipe *pipe)
+{
+	udl_crtc_dpms(&pipe->crtc, DRM_MODE_DPMS_OFF);
+}
+
+static int
+udl_simple_display_pipe_check(struct drm_simple_display_pipe *pipe,
+			      struct drm_plane_state *plane_state,
+			      struct drm_crtc_state *crtc_state)
+{
 	return 0;
 }
 
-
-static void udl_crtc_disable(struct drm_crtc *crtc)
+static void
+udl_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
+			       struct drm_plane_state *old_plane_state)
 {
-	udl_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-}
-
-static void udl_crtc_destroy(struct drm_crtc *crtc)
-{
-	drm_crtc_cleanup(crtc);
-	kfree(crtc);
-}
-
-static int udl_crtc_page_flip(struct drm_crtc *crtc,
-			      struct drm_framebuffer *fb,
-			      struct drm_pending_vblank_event *event,
-			      uint32_t page_flip_flags,
-			      struct drm_modeset_acquire_ctx *ctx)
-{
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = pipe->crtc.dev;
 	struct udl_device *udl = dev->dev_private;
+	struct drm_framebuffer *fb = pipe->plane.state->fb;
 
 	spin_lock(&udl->active_fb_16_lock);
 	udl->active_fb_16 = fb;
 	spin_unlock(&udl->active_fb_16_lock);
 
+	if (!fb)
+		return;
+
 	udl_handle_damage(fb, 0, 0, fb->width, fb->height);
-
-	spin_lock_irq(&dev->event_lock);
-	if (event)
-		drm_crtc_send_vblank_event(crtc, event);
-	spin_unlock_irq(&dev->event_lock);
-	crtc->primary->fb = fb;
-
-	return 0;
 }
 
-static void udl_crtc_prepare(struct drm_crtc *crtc)
-{
-}
-
-static void udl_crtc_commit(struct drm_crtc *crtc)
-{
-	udl_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
-}
-
-static const struct drm_crtc_helper_funcs udl_helper_funcs = {
-	.dpms = udl_crtc_dpms,
-	.mode_set = udl_crtc_mode_set,
-	.prepare = udl_crtc_prepare,
-	.commit = udl_crtc_commit,
-	.disable = udl_crtc_disable,
+static const
+struct drm_simple_display_pipe_funcs udl_simple_display_pipe_funcs = {
+	.mode_valid = udl_simple_display_pipe_mode_valid,
+	.enable = udl_simple_display_pipe_enable,
+	.disable = udl_simple_display_pipe_disable,
+	.check = udl_simple_display_pipe_check,
+	.update = udl_simple_display_pipe_update,
+	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
-static const struct drm_crtc_funcs udl_crtc_funcs = {
-	.set_config = drm_crtc_helper_set_config,
-	.destroy = udl_crtc_destroy,
-	.page_flip = udl_crtc_page_flip,
-};
-
-static int udl_crtc_init(struct drm_device *dev)
-{
-	struct drm_crtc *crtc;
-
-	crtc = kzalloc(sizeof(struct drm_crtc) + sizeof(struct drm_connector *), GFP_KERNEL);
-	if (crtc == NULL)
-		return -ENOMEM;
-
-	drm_crtc_init(dev, crtc, &udl_crtc_funcs);
-	drm_crtc_helper_add(crtc, &udl_helper_funcs);
-
-	return 0;
-}
+/*
+ * Modesetting
+ */
 
 static const struct drm_mode_config_funcs udl_mode_funcs = {
 	.fb_create = udl_fb_user_fb_create,
+	.atomic_check  = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 int udl_modeset_init(struct drm_device *dev)
 {
+	size_t format_count = ARRAY_SIZE(udl_simple_display_pipe_formats);
+	struct udl_device *udl = dev->dev_private;
 	struct drm_connector *connector;
-	struct drm_encoder *encoder;
 	int ret;
 
 	drm_mode_config_init(dev);
@@ -444,10 +420,16 @@ int udl_modeset_init(struct drm_device *dev)
 		goto err_drm_mode_config_cleanup;
 	}
 
-	udl_crtc_init(dev);
+	format_count = ARRAY_SIZE(udl_simple_display_pipe_formats);
 
-	encoder = udl_encoder_init(dev);
-	drm_connector_attach_encoder(connector, encoder);
+	ret = drm_simple_display_pipe_init(dev, &udl->display_pipe,
+					   &udl_simple_display_pipe_funcs,
+					   udl_simple_display_pipe_formats,
+					   format_count, NULL, connector);
+	if (ret)
+		goto err_drm_mode_config_cleanup;
+
+	drm_mode_config_reset(dev);
 
 	return 0;
 
@@ -459,12 +441,14 @@ err_drm_mode_config_cleanup:
 void udl_modeset_restore(struct drm_device *dev)
 {
 	struct udl_device *udl = dev->dev_private;
-	struct drm_framebuffer *fb;
+	struct drm_crtc *crtc = &udl->display_pipe.crtc;
+	struct drm_plane *primary = &udl->display_pipe.plane;
+	struct drm_framebuffer *fb = primary->fb;
 
-	if (!udl->crtc || !udl->crtc->primary->fb)
+	if (!fb)
 		return;
-	udl_crtc_commit(udl->crtc);
-	fb = udl->crtc->primary->fb;
+
+	udl_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 	udl_handle_damage(fb, 0, 0, fb->width, fb->height);
 }
 

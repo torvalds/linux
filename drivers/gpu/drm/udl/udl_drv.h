@@ -17,8 +17,8 @@
 #include <drm/drm_device.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_simple_kms_helper.h>
 
-struct drm_encoder;
 struct drm_mode_create_dumb;
 
 #define DRIVER_NAME		"udl"
@@ -51,7 +51,8 @@ struct udl_device {
 	struct drm_device drm;
 	struct device *dev;
 	struct usb_device *udev;
-	struct drm_crtc *crtc;
+
+	struct drm_simple_display_pipe display_pipe;
 
 	/* active framebuffer on the 16-bit channel */
 	const struct drm_framebuffer *active_fb_16;
@@ -74,8 +75,6 @@ int udl_modeset_init(struct drm_device *dev);
 void udl_modeset_restore(struct drm_device *dev);
 void udl_modeset_cleanup(struct drm_device *dev);
 struct drm_connector *udl_connector_init(struct drm_device *dev);
-
-struct drm_encoder *udl_encoder_init(struct drm_device *dev);
 
 struct urb *udl_get_urb(struct drm_device *dev);
 
