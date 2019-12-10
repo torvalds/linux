@@ -682,22 +682,26 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 
 		/* select pixel format */
 		tmp &= ~PIX_FMT_MASK;
-		switch (intel_dsi->pixel_format) {
-		default:
-			MISSING_CASE(intel_dsi->pixel_format);
-			/* fallthrough */
-		case MIPI_DSI_FMT_RGB565:
-			tmp |= PIX_FMT_RGB565;
-			break;
-		case MIPI_DSI_FMT_RGB666_PACKED:
-			tmp |= PIX_FMT_RGB666_PACKED;
-			break;
-		case MIPI_DSI_FMT_RGB666:
-			tmp |= PIX_FMT_RGB666_LOOSE;
-			break;
-		case MIPI_DSI_FMT_RGB888:
-			tmp |= PIX_FMT_RGB888;
-			break;
+		if (pipe_config->dsc.compression_enable) {
+			tmp |= PIX_FMT_COMPRESSED;
+		} else {
+			switch (intel_dsi->pixel_format) {
+			default:
+				MISSING_CASE(intel_dsi->pixel_format);
+				/* fallthrough */
+			case MIPI_DSI_FMT_RGB565:
+				tmp |= PIX_FMT_RGB565;
+				break;
+			case MIPI_DSI_FMT_RGB666_PACKED:
+				tmp |= PIX_FMT_RGB666_PACKED;
+				break;
+			case MIPI_DSI_FMT_RGB666:
+				tmp |= PIX_FMT_RGB666_LOOSE;
+				break;
+			case MIPI_DSI_FMT_RGB888:
+				tmp |= PIX_FMT_RGB888;
+				break;
+			}
 		}
 
 		if (INTEL_GEN(dev_priv) >= 12) {
