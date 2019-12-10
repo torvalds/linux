@@ -785,12 +785,12 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 
 static void
 gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
-				 const struct intel_crtc_state *pipe_config)
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	const struct drm_display_mode *adjusted_mode =
-					&pipe_config->hw.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 	enum port port;
 	enum transcoder dsi_trans;
 	/* horizontal timings */
@@ -798,11 +798,25 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	u16 hback_porch;
 	/* vertical timings */
 	u16 vtotal, vactive, vsync_start, vsync_end, vsync_shift;
+	int mul = 1, div = 1;
+
+	/*
+	 * Adjust horizontal timings (htotal, hsync_start, hsync_end) to account
+	 * for slower link speed if DSC is enabled.
+	 *
+	 * The compression frequency ratio is the ratio between compressed and
+	 * non-compressed link speeds, and simplifies down to the ratio between
+	 * compressed and non-compressed bpp.
+	 */
+	if (crtc_state->dsc.compression_enable) {
+		mul = crtc_state->dsc.compressed_bpp;
+		div = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
+	}
 
 	hactive = adjusted_mode->crtc_hdisplay;
-	htotal = adjusted_mode->crtc_htotal;
-	hsync_start = adjusted_mode->crtc_hsync_start;
-	hsync_end = adjusted_mode->crtc_hsync_end;
+	htotal = DIV_ROUND_UP(adjusted_mode->crtc_htotal * mul, div);
+	hsync_start = DIV_ROUND_UP(adjusted_mode->crtc_hsync_start * mul, div);
+	hsync_end = DIV_ROUND_UP(adjusted_mode->crtc_hsync_end * mul, div);
 	hsync_size  = hsync_end - hsync_start;
 	hback_porch = (adjusted_mode->crtc_htotal -
 		       adjusted_mode->crtc_hsync_end);
