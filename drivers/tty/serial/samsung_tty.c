@@ -4,7 +4,7 @@
  *
  * Ben Dooks, Copyright (c) 2003-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
-*/
+ */
 
 /* Hote on 2410 error handling
  *
@@ -19,7 +19,7 @@
  * and change the policy on BREAK
  *
  * BJD, 04-Nov-2004
-*/
+ */
 
 #if defined(CONFIG_SERIAL_SAMSUNG_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -838,7 +838,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 
 	/* if there isn't anything more to transmit, or the uart is now
 	 * stopped, disable the uart and exit
-	*/
+	 */
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
 		s3c24xx_serial_stop_tx(port);
@@ -1142,7 +1142,8 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 	ourport->tx_claimed = 1;
 
 	/* the port reset code should have done the correct
-	 * register setup for the port controls */
+	 * register setup for the port controls
+	 */
 
 	return ret;
 
@@ -1242,7 +1243,7 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
  * baud clocks (and the resultant actual baud rates) and then tries to
  * pick the closest one and select that.
  *
-*/
+ */
 
 #define MAX_CLK_NAME_LENGTH 15
 
@@ -1683,7 +1684,7 @@ s3c24xx_serial_ports[CONFIG_SERIAL_SAMSUNG_UARTS] = {
 /* s3c24xx_serial_resetport
  *
  * reset the fifos and other the settings.
-*/
+ */
 
 static void s3c24xx_serial_resetport(struct uart_port *port,
 				   struct s3c2410_uartcfg *cfg)
@@ -1737,7 +1738,8 @@ static int s3c24xx_serial_cpufreq_transition(struct notifier_block *nb,
 
 	if (val == CPUFREQ_PRECHANGE) {
 		/* we should really shut the port down whilst the
-		 * frequency change is in progress. */
+		 * frequency change is in progress.
+		 */
 
 	} else if (val == CPUFREQ_POSTCHANGE) {
 		struct ktermios *termios;
