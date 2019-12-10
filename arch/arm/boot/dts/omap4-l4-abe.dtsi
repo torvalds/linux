@@ -312,7 +312,6 @@
 
 		target-module@38000 {			/* 0x40138000, ap 18 12.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer5";
 			reg = <0x38000 0x4>,
 			      <0x38010 0x4>;
 			reg-names = "rev", "sysc";
@@ -343,7 +342,6 @@
 
 		target-module@3a000 {			/* 0x4013a000, ap 20 14.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer6";
 			reg = <0x3a000 0x4>,
 			      <0x3a010 0x4>;
 			reg-names = "rev", "sysc";
@@ -374,7 +372,6 @@
 
 		target-module@3c000 {			/* 0x4013c000, ap 22 16.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer7";
 			reg = <0x3c000 0x4>,
 			      <0x3c010 0x4>;
 			reg-names = "rev", "sysc";
@@ -405,7 +402,6 @@
 
 		target-module@3e000 {			/* 0x4013e000, ap 24 18.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer8";
 			reg = <0x3e000 0x4>,
 			      <0x3e010 0x4>;
 			reg-names = "rev", "sysc";
