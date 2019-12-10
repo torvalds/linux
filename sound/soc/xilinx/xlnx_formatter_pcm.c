@@ -543,7 +543,6 @@ static const struct snd_soc_component_driver xlnx_asoc_component = {
 	.name		= DRV_NAME,
 	.open		= xlnx_formatter_pcm_open,
 	.close		= xlnx_formatter_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= xlnx_formatter_pcm_hw_params,
 	.hw_free	= xlnx_formatter_pcm_hw_free,
 	.trigger	= xlnx_formatter_pcm_trigger,
