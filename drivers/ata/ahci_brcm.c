@@ -220,28 +220,18 @@ static void brcm_sata_phys_disable(struct brcm_ahci_priv *priv)
 			brcm_sata_phy_disable(priv, i);
 }
 
-static u32 brcm_ahci_get_portmask(struct platform_device *pdev,
+static u32 brcm_ahci_get_portmask(struct ahci_host_priv *hpriv,
 				  struct brcm_ahci_priv *priv)
 {
-	void __iomem *ahci;
-	struct resource *res;
 	u32 impl;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ahci");
-	ahci = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(ahci))
-		return 0;
-
-	impl = readl(ahci + HOST_PORTS_IMPL);
+	impl = readl(hpriv->mmio + HOST_PORTS_IMPL);
 
 	if (fls(impl) > SATA_TOP_MAX_PHYS)
 		dev_warn(priv->dev, "warning: more ports than PHYs (%#x)\n",
 			 impl);
 	else if (!impl)
 		dev_info(priv->dev, "no ports found\n");
-
-	devm_iounmap(&pdev->dev, ahci);
-	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
 
 	return impl;
 }
@@ -354,11 +344,10 @@ static int brcm_ahci_suspend(struct device *dev)
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	struct brcm_ahci_priv *priv = hpriv->plat_data;
-	int ret;
 
-	ret = ahci_platform_suspend(dev);
 	brcm_sata_phys_disable(priv);
-	return ret;
+
+	return ahci_platform_suspend(dev);
 }
 
 static int brcm_ahci_resume(struct device *dev)
@@ -366,11 +355,44 @@ static int brcm_ahci_resume(struct device *dev)
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	struct brcm_ahci_priv *priv = hpriv->plat_data;
+	int ret;
+
+	/* Make sure clocks are turned on before re-configuration */
+	ret = ahci_platform_enable_clks(hpriv);
+	if (ret)
+		return ret;
 
 	brcm_sata_init(priv);
 	brcm_sata_phys_enable(priv);
 	brcm_sata_alpm_init(hpriv);
-	return ahci_platform_resume(dev);
+
+	/* Since we had to enable clocks earlier on, we cannot use
+	 * ahci_platform_resume() as-is since a second call to
+	 * ahci_platform_enable_resources() would bump up the resources
+	 * (regulators, clocks, PHYs) count artificially so we copy the part
+	 * after ahci_platform_enable_resources().
+	 */
+	ret = ahci_platform_enable_phys(hpriv);
+	if (ret)
+		goto out_disable_phys;
+
+	ret = ahci_platform_resume_host(dev);
+	if (ret)
+		goto out_disable_platform_phys;
+
+	/* We resumed so update PM runtime state */
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	return 0;
+
+out_disable_platform_phys:
+	ahci_platform_disable_phys(hpriv);
+out_disable_phys:
+	brcm_sata_phys_disable(priv);
+	ahci_platform_disable_clks(hpriv);
+	return ret;
 }
 #endif
 
@@ -417,38 +439,63 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 		priv->quirks |= BRCM_AHCI_QUIRK_SKIP_PHY_ENABLE;
 	}
 
+	hpriv = ahci_platform_get_resources(pdev, 0);
+	if (IS_ERR(hpriv)) {
+		ret = PTR_ERR(hpriv);
+		goto out_reset;
+	}
+
+	ret = ahci_platform_enable_clks(hpriv);
+	if (ret)
+		goto out_reset;
+
+	/* Must be first so as to configure endianness including that
+	 * of the standard AHCI register space.
+	 */
 	brcm_sata_init(priv);
 
-	priv->port_mask = brcm_ahci_get_portmask(pdev, priv);
-	if (!priv->port_mask)
-		return -ENODEV;
+	/* Initializes priv->port_mask which is used below */
+	priv->port_mask = brcm_ahci_get_portmask(hpriv, priv);
+	if (!priv->port_mask) {
+		ret = -ENODEV;
+		goto out_disable_clks;
+	}
 
+	/* Must be done before ahci_platform_enable_phys() */
 	brcm_sata_phys_enable(priv);
 
-	hpriv = ahci_platform_get_resources(pdev, 0);
-	if (IS_ERR(hpriv))
-		return PTR_ERR(hpriv);
 	hpriv->plat_data = priv;
 	hpriv->flags = AHCI_HFLAG_WAKE_BEFORE_STOP;
 
 	brcm_sata_alpm_init(hpriv);
 
-	ret = ahci_platform_enable_resources(hpriv);
-	if (ret)
-		return ret;
-
 	if (priv->quirks & BRCM_AHCI_QUIRK_NO_NCQ)
 		hpriv->flags |= AHCI_HFLAG_NO_NCQ;
 	hpriv->flags |= AHCI_HFLAG_NO_WRITE_TO_RO;
 
+	ret = ahci_platform_enable_phys(hpriv);
+	if (ret)
+		goto out_disable_phys;
+
 	ret = ahci_platform_init_host(pdev, hpriv, &ahci_brcm_port_info,
 				      &ahci_platform_sht);
 	if (ret)
-		return ret;
+		goto out_disable_platform_phys;
 
 	dev_info(dev, "Broadcom AHCI SATA3 registered\n");
 
 	return 0;
+
+out_disable_platform_phys:
+	ahci_platform_disable_phys(hpriv);
+out_disable_phys:
+	brcm_sata_phys_disable(priv);
+out_disable_clks:
+	ahci_platform_disable_clks(hpriv);
+out_reset:
+	if (!IS_ERR_OR_NULL(priv->rcdev))
+		reset_control_assert(priv->rcdev);
+	return ret;
 }
 
 static int brcm_ahci_remove(struct platform_device *pdev)
@@ -458,11 +505,11 @@ static int brcm_ahci_remove(struct platform_device *pdev)
 	struct brcm_ahci_priv *priv = hpriv->plat_data;
 	int ret;
 
+	brcm_sata_phys_disable(priv);
+
 	ret = ata_platform_remove_one(pdev);
 	if (ret)
 		return ret;
-
-	brcm_sata_phys_disable(priv);
 
 	return 0;
 }
