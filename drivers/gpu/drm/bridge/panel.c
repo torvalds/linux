@@ -306,3 +306,4 @@ struct drm_connector *drm_panel_bridge_connector(struct drm_bridge *bridge)
 
 	return &panel_bridge->connector;
 }
+EXPORT_SYMBOL(drm_panel_bridge_connector);
