@@ -578,7 +578,6 @@ snd_harmony_hw_params(struct snd_pcm_substream *ss,
 static const struct snd_pcm_ops snd_harmony_playback_ops = {
 	.open =	snd_harmony_playback_open,
 	.close = snd_harmony_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_harmony_hw_params,
 	.prepare = snd_harmony_playback_prepare,
 	.trigger = snd_harmony_playback_trigger,
@@ -588,7 +587,6 @@ static const struct snd_pcm_ops snd_harmony_playback_ops = {
 static const struct snd_pcm_ops snd_harmony_capture_ops = {
         .open = snd_harmony_capture_open,
         .close = snd_harmony_capture_close,
-        .ioctl = snd_pcm_lib_ioctl,
         .hw_params = snd_harmony_hw_params,
         .prepare = snd_harmony_capture_prepare,
         .trigger = snd_harmony_capture_trigger,
