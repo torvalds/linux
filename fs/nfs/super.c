@@ -726,11 +726,11 @@ bool nfs_auth_info_match(const struct nfs_auth_info *auth_info,
 EXPORT_SYMBOL_GPL(nfs_auth_info_match);
 
 /*
- * Ensure that a specified authtype in cfg->auth_info is supported by
- * the server. Returns 0 and sets cfg->selected_flavor if it's ok, and
+ * Ensure that a specified authtype in ctx->auth_info is supported by
+ * the server. Returns 0 and sets ctx->selected_flavor if it's ok, and
  * -EACCES if not.
  */
-static int nfs_verify_authflavors(struct nfs_fs_context *cfg,
+static int nfs_verify_authflavors(struct nfs_fs_context *ctx,
 				  rpc_authflavor_t *server_authlist,
 				  unsigned int count)
 {
@@ -753,7 +753,7 @@ static int nfs_verify_authflavors(struct nfs_fs_context *cfg,
 	for (i = 0; i < count; i++) {
 		flavor = server_authlist[i];
 
-		if (nfs_auth_info_match(&cfg->auth_info, flavor))
+		if (nfs_auth_info_match(&ctx->auth_info, flavor))
 			goto out;
 
 		if (flavor == RPC_AUTH_NULL)
@@ -761,7 +761,7 @@ static int nfs_verify_authflavors(struct nfs_fs_context *cfg,
 	}
 
 	if (found_auth_null) {
-		flavor = cfg->auth_info.flavors[0];
+		flavor = ctx->auth_info.flavors[0];
 		goto out;
 	}
 
@@ -770,8 +770,8 @@ static int nfs_verify_authflavors(struct nfs_fs_context *cfg,
 	return -EACCES;
 
 out:
-	cfg->selected_flavor = flavor;
-	dfprintk(MOUNT, "NFS: using auth flavor %u\n", cfg->selected_flavor);
+	ctx->selected_flavor = flavor;
+	dfprintk(MOUNT, "NFS: using auth flavor %u\n", ctx->selected_flavor);
 	return 0;
 }
 
@@ -779,50 +779,50 @@ out:
  * Use the remote server's MOUNT service to request the NFS file handle
  * corresponding to the provided path.
  */
-static int nfs_request_mount(struct nfs_fs_context *cfg,
+static int nfs_request_mount(struct nfs_fs_context *ctx,
 			     struct nfs_fh *root_fh,
 			     rpc_authflavor_t *server_authlist,
 			     unsigned int *server_authlist_len)
 {
 	struct nfs_mount_request request = {
 		.sap		= (struct sockaddr *)
-						&cfg->mount_server.address,
-		.dirpath	= cfg->nfs_server.export_path,
-		.protocol	= cfg->mount_server.protocol,
+						&ctx->mount_server.address,
+		.dirpath	= ctx->nfs_server.export_path,
+		.protocol	= ctx->mount_server.protocol,
 		.fh		= root_fh,
-		.noresvport	= cfg->flags & NFS_MOUNT_NORESVPORT,
+		.noresvport	= ctx->flags & NFS_MOUNT_NORESVPORT,
 		.auth_flav_len	= server_authlist_len,
 		.auth_flavs	= server_authlist,
-		.net		= cfg->net,
+		.net		= ctx->net,
 	};
 	int status;
 
-	if (cfg->mount_server.version == 0) {
-		switch (cfg->version) {
+	if (ctx->mount_server.version == 0) {
+		switch (ctx->version) {
 			default:
-				cfg->mount_server.version = NFS_MNT3_VERSION;
+				ctx->mount_server.version = NFS_MNT3_VERSION;
 				break;
 			case 2:
-				cfg->mount_server.version = NFS_MNT_VERSION;
+				ctx->mount_server.version = NFS_MNT_VERSION;
 		}
 	}
-	request.version = cfg->mount_server.version;
+	request.version = ctx->mount_server.version;
 
-	if (cfg->mount_server.hostname)
-		request.hostname = cfg->mount_server.hostname;
+	if (ctx->mount_server.hostname)
+		request.hostname = ctx->mount_server.hostname;
 	else
-		request.hostname = cfg->nfs_server.hostname;
+		request.hostname = ctx->nfs_server.hostname;
 
 	/*
 	 * Construct the mount server's address.
 	 */
-	if (cfg->mount_server.address.sa_family == AF_UNSPEC) {
-		memcpy(request.sap, &cfg->nfs_server.address,
-		       cfg->nfs_server.addrlen);
-		cfg->mount_server.addrlen = cfg->nfs_server.addrlen;
+	if (ctx->mount_server.address.sa_family == AF_UNSPEC) {
+		memcpy(request.sap, &ctx->nfs_server.address,
+		       ctx->nfs_server.addrlen);
+		ctx->mount_server.addrlen = ctx->nfs_server.addrlen;
 	}
-	request.salen = cfg->mount_server.addrlen;
-	nfs_set_port(request.sap, &cfg->mount_server.port, 0);
+	request.salen = ctx->mount_server.addrlen;
+	nfs_set_port(request.sap, &ctx->mount_server.port, 0);
 
 	/*
 	 * Now ask the mount server to map our export path
