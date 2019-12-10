@@ -170,7 +170,6 @@ static int __maybe_unused hda_tegra_runtime_suspend(struct device *dev)
 
 	if (chip && chip->running) {
 		azx_stop_chip(chip);
-		synchronize_irq(bus->irq);
 		azx_enter_link_reset(chip);
 	}
 	hda_tegra_disable_clocks(hda);
@@ -298,8 +297,7 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 		return err;
 	}
 	bus->irq = irq_id;
-
-	synchronize_irq(bus->irq);
+	card->sync_irq = bus->irq;
 
 	gcap = azx_readw(chip, GCAP);
 	dev_dbg(card->dev, "chipset global capabilities = 0x%x\n", gcap);
