@@ -1112,8 +1112,7 @@ static int nfs4_init_server(struct nfs_server *server,
  */
 /*struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 				      struct nfs_fh *mntfh)*/
-struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
-				      struct nfs_subversion *nfs_mod)
+struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info)
 {
 	struct nfs_server *server;
 	bool auth_probe;

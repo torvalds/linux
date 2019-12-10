@@ -205,7 +205,7 @@ struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
 
-	res = do_nfs4_mount(nfs4_create_server(mount_info, &nfs_v4),
+	res = do_nfs4_mount(nfs4_create_server(mount_info),
 			    flags, mount_info,
 			    data->nfs_server.hostname,
 			    data->nfs_server.export_path);

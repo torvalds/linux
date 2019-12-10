@@ -1820,8 +1820,7 @@ static int nfs_request_mount(struct nfs_parsed_mount_data *args,
 	return 0;
 }
 
-static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_info,
-					struct nfs_subversion *nfs_mod)
+static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_info)
 {
 	int status;
 	unsigned int i;
@@ -1831,6 +1830,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 	struct nfs_parsed_mount_data *args = mount_info->parsed;
 	rpc_authflavor_t authlist[NFS_MAX_SECFLAVORS];
 	unsigned int authlist_len = ARRAY_SIZE(authlist);
+	struct nfs_subversion *nfs_mod = mount_info->nfs_mod;
 
 	status = nfs_request_mount(args, mount_info->mntfh, authlist,
 					&authlist_len);
@@ -1847,7 +1847,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 			 args->selected_flavor);
 		if (status)
 			return ERR_PTR(status);
-		return nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
+		return nfs_mod->rpc_ops->create_server(mount_info);
 	}
 
 	/*
@@ -1874,7 +1874,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 		}
 		dfprintk(MOUNT, "NFS: attempting to use auth flavor %u\n", flavor);
 		args->selected_flavor = flavor;
-		server = nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
+		server = nfs_mod->rpc_ops->create_server(mount_info);
 		if (!IS_ERR(server))
 			return server;
 	}
@@ -1890,7 +1890,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 	/* Last chance! Try AUTH_UNIX */
 	dfprintk(MOUNT, "NFS: attempting to use auth flavor %u\n", RPC_AUTH_UNIX);
 	args->selected_flavor = RPC_AUTH_UNIX;
-	return nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
+	return nfs_mod->rpc_ops->create_server(mount_info);
 }
 
 static struct dentry *nfs_fs_mount_common(int, const char *, struct nfs_mount_info *);
@@ -1900,9 +1900,9 @@ struct dentry *nfs_try_mount(int flags, const char *dev_name,
 {
 	struct nfs_subversion *nfs_mod = mount_info->nfs_mod;
 	if (mount_info->parsed->need_mount)
-		mount_info->server = nfs_try_mount_request(mount_info, nfs_mod);
+		mount_info->server = nfs_try_mount_request(mount_info);
 	else
-		mount_info->server = nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
+		mount_info->server = nfs_mod->rpc_ops->create_server(mount_info);
 
 	return nfs_fs_mount_common(flags, dev_name, mount_info);
 }
