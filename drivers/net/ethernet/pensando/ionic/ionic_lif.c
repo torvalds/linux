@@ -1285,7 +1285,7 @@ static void ionic_tx_timeout_work(struct work_struct *ws)
 	rtnl_unlock();
 }
 
-static void ionic_tx_timeout(struct net_device *netdev)
+static void ionic_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 

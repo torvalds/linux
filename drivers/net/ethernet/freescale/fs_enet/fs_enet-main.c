@@ -641,7 +641,7 @@ static void fs_timeout_work(struct work_struct *work)
 		netif_wake_queue(dev);
 }
 
-static void fs_timeout(struct net_device *dev)
+static void fs_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 

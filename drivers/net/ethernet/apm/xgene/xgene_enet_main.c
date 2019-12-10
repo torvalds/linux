@@ -859,7 +859,7 @@ static int xgene_enet_napi(struct napi_struct *napi, const int budget)
 	return processed;
 }
 
-static void xgene_enet_timeout(struct net_device *ndev)
+static void xgene_enet_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct netdev_queue *txq;

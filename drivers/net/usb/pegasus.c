@@ -693,7 +693,7 @@ static void intr_callback(struct urb *urb)
 			  "can't resubmit interrupt urb, %d\n", res);
 }
 
-static void pegasus_tx_timeout(struct net_device *net)
+static void pegasus_tx_timeout(struct net_device *net, unsigned int txqueue)
 {
 	pegasus_t *pegasus = netdev_priv(net);
 	netif_warn(pegasus, timer, net, "tx timeout\n");

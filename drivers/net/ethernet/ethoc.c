@@ -869,7 +869,7 @@ static int ethoc_change_mtu(struct net_device *dev, int new_mtu)
 	return -ENOSYS;
 }
 
-static void ethoc_tx_timeout(struct net_device *dev)
+static void ethoc_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ethoc *priv = netdev_priv(dev);
 	u32 pending = ethoc_read(priv, INT_SOURCE);

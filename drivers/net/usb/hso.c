@@ -820,7 +820,7 @@ static const struct ethtool_ops ops = {
 };
 
 /* called when a packet did not ack after watchdogtimeout */
-static void hso_net_tx_timeout(struct net_device *net)
+static void hso_net_tx_timeout(struct net_device *net, unsigned int txqueue)
 {
 	struct hso_net *odev = netdev_priv(net);
 

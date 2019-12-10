@@ -5060,7 +5060,7 @@ ice_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
  * ice_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
-static void ice_tx_timeout(struct net_device *netdev)
+static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_ring *tx_ring = NULL;

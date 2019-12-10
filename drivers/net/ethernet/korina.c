@@ -917,7 +917,7 @@ static void korina_restart_task(struct work_struct *work)
 	enable_irq(lp->rx_irq);
 }
 
-static void korina_tx_timeout(struct net_device *dev)
+static void korina_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct korina_private *lp = netdev_priv(dev);
 

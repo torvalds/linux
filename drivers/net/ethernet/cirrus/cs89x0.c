@@ -1128,7 +1128,7 @@ net_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
-static void net_timeout(struct net_device *dev)
+static void net_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	/* If we get here, some higher level has decided we are broken.
 	   There should really be a "kick me" function call instead. */

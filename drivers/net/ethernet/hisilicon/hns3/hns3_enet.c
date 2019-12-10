@@ -1869,7 +1869,7 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 	return true;
 }
 
-static void hns3_nic_net_timeout(struct net_device *ndev)
+static void hns3_nic_net_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	struct hnae3_handle *h = priv->ae_handle;

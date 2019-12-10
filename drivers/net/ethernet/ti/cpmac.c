@@ -797,7 +797,7 @@ static irqreturn_t cpmac_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void cpmac_tx_timeout(struct net_device *dev)
+static void cpmac_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 

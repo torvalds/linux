@@ -1039,7 +1039,7 @@ static const struct dev_pm_ops uhdlc_pm_ops = {
 #define HDLC_PM_OPS NULL
 
 #endif
-static void uhdlc_tx_timeout(struct net_device *ndev)
+static void uhdlc_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	netdev_err(ndev, "%s\n", __func__);
 }

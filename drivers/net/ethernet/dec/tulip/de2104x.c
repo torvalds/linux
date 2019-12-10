@@ -1436,7 +1436,7 @@ static int de_close (struct net_device *dev)
 	return 0;
 }
 
-static void de_tx_timeout (struct net_device *dev)
+static void de_tx_timeout (struct net_device *dev, unsigned int txqueue)
 {
 	struct de_private *de = netdev_priv(dev);
 	const int irq = de->pdev->irq;

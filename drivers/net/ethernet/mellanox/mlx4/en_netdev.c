@@ -1363,7 +1363,7 @@ static void mlx4_en_delete_rss_steer_rules(struct mlx4_en_priv *priv)
 	}
 }
 
-static void mlx4_en_tx_timeout(struct net_device *dev)
+static void mlx4_en_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;

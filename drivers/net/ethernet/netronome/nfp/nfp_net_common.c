@@ -1321,7 +1321,7 @@ nfp_net_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 	netdev_tx_reset_queue(nd_q);
 }
 
-static void nfp_net_tx_timeout(struct net_device *netdev)
+static void nfp_net_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	int i;

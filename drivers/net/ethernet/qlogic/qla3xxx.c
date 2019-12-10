@@ -3602,7 +3602,7 @@ static int ql3xxx_set_mac_address(struct net_device *ndev, void *p)
 	return 0;
 }
 
-static void ql3xxx_tx_timeout(struct net_device *ndev)
+static void ql3xxx_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct ql3_adapter *qdev = netdev_priv(ndev);
 

@@ -776,7 +776,7 @@ static void set_rx_mode(struct net_device *dev);
 #ifdef CONFIG_PCI
 static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 #endif
-static void vortex_tx_timeout(struct net_device *dev);
+static void vortex_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void acpi_set_WOL(struct net_device *dev);
 static const struct ethtool_ops vortex_ethtool_ops;
 static void set_8021q_mode(struct net_device *dev, int enable);
@@ -1877,7 +1877,7 @@ leave_media_alone:
 		iowrite16(FakeIntr, ioaddr + EL3_CMD);
 }
 
-static void vortex_tx_timeout(struct net_device *dev)
+static void vortex_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr = vp->ioaddr;

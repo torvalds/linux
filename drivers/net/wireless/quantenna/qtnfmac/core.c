@@ -156,7 +156,7 @@ static void qtnf_netdev_get_stats64(struct net_device *ndev,
 
 /* Netdev handler for transmission timeout.
  */
-static void qtnf_netdev_tx_timeout(struct net_device *ndev)
+static void qtnf_netdev_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
 	struct qtnf_wmac *mac;

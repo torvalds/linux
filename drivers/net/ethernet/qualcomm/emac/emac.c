@@ -282,7 +282,7 @@ static int emac_close(struct net_device *netdev)
 }
 
 /* Respond to a TX hang */
-static void emac_tx_timeout(struct net_device *netdev)
+static void emac_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct emac_adapter *adpt = netdev_priv(netdev);
 

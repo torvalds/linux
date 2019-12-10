@@ -45,7 +45,7 @@ struct wep_key {
  *	function prototypes
  */
 static int ks_wlan_open(struct net_device *dev);
-static void ks_wlan_tx_timeout(struct net_device *dev);
+static void ks_wlan_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ks_wlan_close(struct net_device *dev);
 static void ks_wlan_set_rx_mode(struct net_device *dev);
@@ -2498,7 +2498,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 }
 
 static
-void ks_wlan_tx_timeout(struct net_device *dev)
+void ks_wlan_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 

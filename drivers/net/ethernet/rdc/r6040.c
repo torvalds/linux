@@ -410,7 +410,7 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	iowrite16(TM2TX, ioaddr + MTPR);
 }
 
-static void r6040_tx_timeout(struct net_device *dev)
+static void r6040_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct r6040_private *priv = netdev_priv(dev);
 	void __iomem *ioaddr = priv->base;

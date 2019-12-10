@@ -1539,7 +1539,7 @@ out_dropped:
 }
 EXPORT_SYMBOL_GPL(sunvnet_start_xmit_common);
 
-void sunvnet_tx_timeout_common(struct net_device *dev)
+void sunvnet_tx_timeout_common(struct net_device *dev, unsigned int txqueue)
 {
 	/* XXX Implement me XXX */
 }

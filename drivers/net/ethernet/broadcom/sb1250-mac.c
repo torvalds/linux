@@ -294,7 +294,7 @@ static int sbmac_set_duplex(struct sbmac_softc *s, enum sbmac_duplex duplex,
 			    enum sbmac_fc fc);
 
 static int sbmac_open(struct net_device *dev);
-static void sbmac_tx_timeout (struct net_device *dev);
+static void sbmac_tx_timeout (struct net_device *dev, unsigned int txqueue);
 static void sbmac_set_rx_mode(struct net_device *dev);
 static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int sbmac_close(struct net_device *dev);
@@ -2419,7 +2419,7 @@ static void sbmac_mii_poll(struct net_device *dev)
 }
 
 
-static void sbmac_tx_timeout (struct net_device *dev)
+static void sbmac_tx_timeout (struct net_device *dev, unsigned int txqueue)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
 	unsigned long flags;

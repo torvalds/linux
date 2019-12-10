@@ -1235,7 +1235,7 @@ static int cp_close (struct net_device *dev)
 	return 0;
 }
 
-static void cp_tx_timeout(struct net_device *dev)
+static void cp_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned long flags;

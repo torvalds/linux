@@ -4325,7 +4325,7 @@ int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback)
 	return rc;
 }
 
-void qeth_tx_timeout(struct net_device *dev)
+void qeth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct qeth_card *card;
 
