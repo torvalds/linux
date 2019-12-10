@@ -881,31 +881,34 @@ int kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 }
 EXPORT_SYMBOL_GPL(kvm_set_xcr);
 
+#define __cr4_reserved_bits(__cpu_has, __c)		\
+({							\
+	u64 __reserved_bits = CR4_RESERVED_BITS;	\
+							\
+	if (!__cpu_has(__c, X86_FEATURE_XSAVE))		\
+		__reserved_bits |= X86_CR4_OSXSAVE;	\
+	if (!__cpu_has(__c, X86_FEATURE_SMEP))		\
+		__reserved_bits |= X86_CR4_SMEP;	\
+	if (!__cpu_has(__c, X86_FEATURE_SMAP))		\
+		__reserved_bits |= X86_CR4_SMAP;	\
+	if (!__cpu_has(__c, X86_FEATURE_FSGSBASE))	\
+		__reserved_bits |= X86_CR4_FSGSBASE;	\
+	if (!__cpu_has(__c, X86_FEATURE_PKU))		\
+		__reserved_bits |= X86_CR4_PKE;		\
+	if (!__cpu_has(__c, X86_FEATURE_LA57))		\
+		__reserved_bits |= X86_CR4_LA57;	\
+	__reserved_bits;				\
+})
+
 static u64 kvm_host_cr4_reserved_bits(struct cpuinfo_x86 *c)
 {
-	u64 reserved_bits = CR4_RESERVED_BITS;
+	u64 reserved_bits = __cr4_reserved_bits(cpu_has, c);
 
-	if (!cpu_has(c, X86_FEATURE_XSAVE))
-		reserved_bits |= X86_CR4_OSXSAVE;
+	if (cpuid_ecx(0x7) & bit(X86_FEATURE_LA57))
+		reserved_bits &= ~X86_CR4_LA57;
 
-	if (!cpu_has(c, X86_FEATURE_SMEP))
-		reserved_bits |= X86_CR4_SMEP;
-
-	if (!cpu_has(c, X86_FEATURE_SMAP))
-		reserved_bits |= X86_CR4_SMAP;
-
-	if (!cpu_has(c, X86_FEATURE_FSGSBASE))
-		reserved_bits |= X86_CR4_FSGSBASE;
-
-	if (!cpu_has(c, X86_FEATURE_PKU))
-		reserved_bits |= X86_CR4_PKE;
-
-	if (!cpu_has(c, X86_FEATURE_LA57) &&
-	    !(cpuid_ecx(0x7) & bit(X86_FEATURE_LA57)))
-		reserved_bits |= X86_CR4_LA57;
-
-	if (!cpu_has(c, X86_FEATURE_UMIP) && !kvm_x86_ops->umip_emulated())
-		reserved_bits |= X86_CR4_UMIP;
+	if (kvm_x86_ops->umip_emulated())
+		reserved_bits &= ~X86_CR4_UMIP;
 
 	return reserved_bits;
 }
@@ -915,25 +918,7 @@ static int kvm_valid_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	if (cr4 & cr4_reserved_bits)
 		return -EINVAL;
 
-	if (!guest_cpuid_has(vcpu, X86_FEATURE_XSAVE) && (cr4 & X86_CR4_OSXSAVE))
-		return -EINVAL;
-
-	if (!guest_cpuid_has(vcpu, X86_FEATURE_SMEP) && (cr4 & X86_CR4_SMEP))
-		return -EINVAL;
-
-	if (!guest_cpuid_has(vcpu, X86_FEATURE_SMAP) && (cr4 & X86_CR4_SMAP))
-		return -EINVAL;
-
-	if (!guest_cpuid_has(vcpu, X86_FEATURE_FSGSBASE) && (cr4 & X86_CR4_FSGSBASE))
-		return -EINVAL;
-
-	if (!guest_cpuid_has(vcpu, X86_FEATURE_PKU) && (cr4 & X86_CR4_PKE))
-		return -EINVAL;
-
-	if (!guest_cpuid_has(vcpu, X86_FEATURE_LA57) && (cr4 & X86_CR4_LA57))
-		return -EINVAL;
-
-	if (!guest_cpuid_has(vcpu, X86_FEATURE_UMIP) && (cr4 & X86_CR4_UMIP))
+	if (cr4 & __cr4_reserved_bits(guest_cpuid_has, vcpu))
 		return -EINVAL;
 
 	return 0;
