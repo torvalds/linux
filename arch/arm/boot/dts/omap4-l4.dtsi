@@ -174,7 +174,6 @@
 
 		target-module@58000 {			/* 0x4a058000, ap 10 0e.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "hsi";
 			reg = <0x58000 0x4>,
 			      <0x58010 0x4>,
 			      <0x58014 0x4>;
