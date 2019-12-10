@@ -11,12 +11,8 @@
 #include <linux/moduleparam.h>
 #include <linux/dma-buf.h>
 
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_drv.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
-#include <drm/drm_modeset_helper.h>
 
 #include "udl_drv.h"
 
@@ -171,52 +167,4 @@ out_dma_buf_end_cpu_access:
 	}
 
 	return ret;
-}
-
-static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
-				      struct drm_file *file,
-				      unsigned flags, unsigned color,
-				      struct drm_clip_rect *clips,
-				      unsigned num_clips)
-{
-	struct udl_device *udl = fb->dev->dev_private;
-	int i;
-	int ret = 0;
-
-	drm_modeset_lock_all(fb->dev);
-
-	spin_lock(&udl->active_fb_16_lock);
-	if (udl->active_fb_16 != fb) {
-		spin_unlock(&udl->active_fb_16_lock);
-		goto unlock;
-	}
-	spin_unlock(&udl->active_fb_16_lock);
-
-	for (i = 0; i < num_clips; i++) {
-		ret = udl_handle_damage(fb, clips[i].x1, clips[i].y1,
-					clips[i].x2 - clips[i].x1,
-					clips[i].y2 - clips[i].y1);
-		if (ret)
-			break;
-	}
-
- unlock:
-	drm_modeset_unlock_all(fb->dev);
-
-	return ret;
-}
-
-static const struct drm_framebuffer_funcs udlfb_funcs = {
-	.destroy	= drm_gem_fb_destroy,
-	.create_handle	= drm_gem_fb_create_handle,
-	.dirty		= udl_user_framebuffer_dirty,
-};
-
-struct drm_framebuffer *
-udl_fb_user_fb_create(struct drm_device *dev,
-		   struct drm_file *file,
-		   const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	return drm_gem_fb_create_with_funcs(dev, file, mode_cmd,
-					    &udlfb_funcs);
 }

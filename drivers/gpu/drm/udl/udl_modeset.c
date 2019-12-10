@@ -11,6 +11,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_damage_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_vblank.h>
@@ -332,7 +333,9 @@ udl_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 {
 	struct drm_device *dev = pipe->crtc.dev;
 	struct udl_device *udl = dev->dev_private;
-	struct drm_framebuffer *fb = pipe->plane.state->fb;
+	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_rect rect;
 
 	spin_lock(&udl->active_fb_16_lock);
 	udl->active_fb_16 = fb;
@@ -341,7 +344,9 @@ udl_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	if (!fb)
 		return;
 
-	udl_handle_damage(fb, 0, 0, fb->width, fb->height);
+	if (drm_atomic_helper_damage_merged(old_plane_state, state, &rect))
+		udl_handle_damage(fb, rect.x1, rect.y1, rect.x2 - rect.x1,
+				  rect.y2 - rect.y1);
 }
 
 static const
@@ -359,7 +364,7 @@ struct drm_simple_display_pipe_funcs udl_simple_display_pipe_funcs = {
  */
 
 static const struct drm_mode_config_funcs udl_mode_funcs = {
-	.fb_create = udl_fb_user_fb_create,
+	.fb_create = drm_gem_fb_create_with_dirty,
 	.atomic_check  = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
