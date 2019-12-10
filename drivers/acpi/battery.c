@@ -230,7 +230,7 @@ static int acpi_battery_get_property(struct power_supply *psy,
 				     enum power_supply_property psp,
 				     union power_supply_propval *val)
 {
-	int ret = 0;
+	int full_capacity = ACPI_BATTERY_VALUE_UNKNOWN, ret = 0;
 	struct acpi_battery *battery = to_acpi_battery(psy);
 
 	if (acpi_battery_present(battery)) {
@@ -299,12 +299,17 @@ static int acpi_battery_get_property(struct power_supply *psy,
 			val->intval = battery->capacity_now * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
+		if (ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity))
+			full_capacity = battery->full_charge_capacity;
+		else if (ACPI_BATTERY_CAPACITY_VALID(battery->design_capacity))
+			full_capacity = battery->design_capacity;
+
 		if (battery->capacity_now == ACPI_BATTERY_VALUE_UNKNOWN ||
-		    !ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity))
+		    full_capacity == ACPI_BATTERY_VALUE_UNKNOWN)
 			ret = -ENODEV;
 		else
 			val->intval = battery->capacity_now * 100/
-					battery->full_charge_capacity;
+					full_capacity;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
 		if (battery->state & ACPI_BATTERY_STATE_CRITICAL)
