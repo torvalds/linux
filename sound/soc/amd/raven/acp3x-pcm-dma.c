@@ -582,7 +582,6 @@ static const struct snd_soc_component_driver acp3x_i2s_component = {
 	.name		= DRV_NAME,
 	.open		= acp3x_dma_open,
 	.close		= acp3x_dma_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= acp3x_dma_hw_params,
 	.pointer	= acp3x_dma_pointer,
 	.mmap		= acp3x_dma_mmap,

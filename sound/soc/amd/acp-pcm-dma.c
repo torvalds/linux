@@ -1202,7 +1202,6 @@ static const struct snd_soc_component_driver acp_asoc_platform = {
 	.name		= DRV_NAME,
 	.open		= acp_dma_open,
 	.close		= acp_dma_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= acp_dma_hw_params,
 	.trigger	= acp_dma_trigger,
 	.pointer	= acp_dma_pointer,
