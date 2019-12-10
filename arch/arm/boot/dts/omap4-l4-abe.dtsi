@@ -466,7 +466,6 @@
 
 		target-module@f1000 {			/* 0x401f1000, ap 32 20.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "aess";
 			reg = <0xf1000 0x4>,
 			      <0xf1010 0x4>;
 			reg-names = "rev", "sysc";

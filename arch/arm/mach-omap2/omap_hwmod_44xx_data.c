@@ -238,43 +238,6 @@ static struct omap_hwmod omap44xx_ocp_wp_noc_hwmod = {
  */
 
 /*
- * 'aess' class
- * audio engine sub system
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_aess_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= (SYSC_HAS_MIDLEMODE | SYSC_HAS_SIDLEMODE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART |
-			   MSTANDBY_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class omap44xx_aess_hwmod_class = {
-	.name	= "aess",
-	.sysc	= &omap44xx_aess_sysc,
-	.enable_preprogram = omap_hwmod_aess_preprogram,
-};
-
-/* aess */
-static struct omap_hwmod omap44xx_aess_hwmod = {
-	.name		= "aess",
-	.class		= &omap44xx_aess_hwmod_class,
-	.clkdm_name	= "abe_clkdm",
-	.main_clk	= "aess_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM1_ABE_AESS_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_ABE_AESS_CONTEXT_OFFSET,
-			.lostcontext_mask = OMAP4430_LOSTCONTEXT_DFF_MASK,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
  * 'counter' class
  * 32-bit ordinary counter, clocked by the falling edge of the 32 khz clock
  */
@@ -2317,14 +2280,6 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__l3_main_3 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* aess -> l4_abe */
-static struct omap_hwmod_ocp_if __maybe_unused omap44xx_aess__l4_abe = {
-	.master		= &omap44xx_aess_hwmod,
-	.slave		= &omap44xx_l4_abe_hwmod,
-	.clk		= "ocp_abe_iclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* dsp -> l4_abe */
 static struct omap_hwmod_ocp_if omap44xx_dsp__l4_abe = {
 	.master		= &omap44xx_dsp_hwmod,
@@ -2387,22 +2342,6 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__ocp_wp_noc = {
 	.slave		= &omap44xx_ocp_wp_noc_hwmod,
 	.clk		= "l4_div_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_abe -> aess */
-static struct omap_hwmod_ocp_if __maybe_unused omap44xx_l4_abe__aess = {
-	.master		= &omap44xx_l4_abe_hwmod,
-	.slave		= &omap44xx_aess_hwmod,
-	.clk		= "ocp_abe_iclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4_abe -> aess (dma) */
-static struct omap_hwmod_ocp_if __maybe_unused omap44xx_l4_abe__aess_dma = {
-	.master		= &omap44xx_l4_abe_hwmod,
-	.slave		= &omap44xx_aess_hwmod,
-	.clk		= "ocp_abe_iclk",
-	.user		= OCP_USER_SDMA,
 };
 
 /* l4_wkup -> counter_32k */
@@ -2966,7 +2905,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l3_main_1__l3_main_3,
 	&omap44xx_l3_main_2__l3_main_3,
 	&omap44xx_l4_cfg__l3_main_3,
-	&omap44xx_aess__l4_abe,
 	&omap44xx_dsp__l4_abe,
 	&omap44xx_l3_main_1__l4_abe,
 	&omap44xx_mpu__l4_abe,
@@ -2975,8 +2913,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__l4_wkup,
 	&omap44xx_mpu__mpu_private,
 	&omap44xx_l4_cfg__ocp_wp_noc,
-	&omap44xx_l4_abe__aess,
-	&omap44xx_l4_abe__aess_dma,
 	&omap44xx_l4_wkup__counter_32k,
 	&omap44xx_l4_cfg__ctrl_module_core,
 	&omap44xx_l4_cfg__ctrl_module_pad_core,
