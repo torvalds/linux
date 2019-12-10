@@ -86,6 +86,7 @@ int nfs_get_root(struct super_block *s, struct fs_context *fc)
 	error = server->nfs_client->rpc_ops->getroot(server, ctx->mntfh, &fsinfo);
 	if (error < 0) {
 		dprintk("nfs_get_root: getattr error = %d\n", -error);
+		nfs_errorf(fc, "NFS: Couldn't getattr on root");
 		goto out_fattr;
 	}
 
@@ -93,6 +94,7 @@ int nfs_get_root(struct super_block *s, struct fs_context *fc)
 	if (IS_ERR(inode)) {
 		dprintk("nfs_get_root: get root inode failed\n");
 		error = PTR_ERR(inode);
+		nfs_errorf(fc, "NFS: Couldn't get root inode");
 		goto out_fattr;
 	}
 
@@ -108,6 +110,7 @@ int nfs_get_root(struct super_block *s, struct fs_context *fc)
 	if (IS_ERR(root)) {
 		dprintk("nfs_get_root: get root dentry failed\n");
 		error = PTR_ERR(root);
+		nfs_errorf(fc, "NFS: Couldn't get root dentry");
 		goto out_fattr;
 	}
 

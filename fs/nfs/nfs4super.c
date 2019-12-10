@@ -225,6 +225,7 @@ int nfs4_try_get_tree(struct fs_context *fc)
 			   fc, ctx->nfs_server.hostname,
 			   ctx->nfs_server.export_path);
 	if (err) {
+		nfs_errorf(fc, "NFS4: Couldn't follow remote path");
 		dfprintk(MOUNT, "<-- nfs4_try_get_tree() = %d [error]\n", err);
 	} else {
 		dfprintk(MOUNT, "<-- nfs4_try_get_tree() = 0\n");
@@ -247,6 +248,7 @@ int nfs4_get_referral_tree(struct fs_context *fc)
 			    fc, ctx->nfs_server.hostname,
 			    ctx->nfs_server.export_path);
 	if (err) {
+		nfs_errorf(fc, "NFS4: Couldn't follow remote path");
 		dfprintk(MOUNT, "<-- nfs4_get_referral_tree() = %d [error]\n", err);
 	} else {
 		dfprintk(MOUNT, "<-- nfs4_get_referral_tree() = 0\n");

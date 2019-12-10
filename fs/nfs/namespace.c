@@ -281,7 +281,7 @@ int nfs_do_submount(struct fs_context *fc)
 
 	p = nfs_devname(dentry, buffer, 4096);
 	if (IS_ERR(p)) {
-		dprintk("NFS: Couldn't determine submount pathname\n");
+		nfs_errorf(fc, "NFS: Couldn't determine submount pathname");
 		ret = PTR_ERR(p);
 	} else {
 		ret = vfs_parse_fs_string(fc, "source", p, buffer + 4096 - p);

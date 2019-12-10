@@ -318,10 +318,8 @@ static int nfs_auth_info_add(struct fs_context *fc,
 			return 0;
 	}
 
-	if (auth_info->flavor_len + 1 >= max_flavor_len) {
-		dfprintk(MOUNT, "NFS: too many sec= flavors\n");
-		return -EINVAL;
-	}
+	if (auth_info->flavor_len + 1 >= max_flavor_len)
+		return nfs_invalf(fc, "NFS: too many sec= flavors");
 
 	auth_info->flavors[auth_info->flavor_len++] = flavor;
 	return 0;
@@ -378,9 +376,7 @@ static int nfs_parse_security_flavors(struct fs_context *fc,
 			pseudoflavor = RPC_AUTH_GSS_SPKMP;
 			break;
 		default:
-			dfprintk(MOUNT,
-				 "NFS: sec= option '%s' not recognized\n", p);
-			return -EINVAL;
+			return nfs_invalf(fc, "NFS: sec=%s option not recognized", p);
 		}
 
 		ret = nfs_auth_info_add(fc, &ctx->auth_info, pseudoflavor);
@@ -425,8 +421,7 @@ static int nfs_parse_version_string(struct fs_context *fc,
 		ctx->minorversion = 2;
 		break;
 	default:
-		dfprintk(MOUNT, "NFS:   Unsupported NFS version\n");
-		return -EINVAL;
+		return nfs_invalf(fc, "NFS: Unsupported NFS version");
 	}
 	return 0;
 }
@@ -451,10 +446,8 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 
 	switch (opt) {
 	case Opt_source:
-		if (fc->source) {
-			dfprintk(MOUNT, "NFS: Multiple sources not supported\n");
-			return -EINVAL;
-		}
+		if (fc->source)
+			return nfs_invalf(fc, "NFS: Multiple sources not supported");
 		fc->source = param->string;
 		param->string = NULL;
 		break;
@@ -664,8 +657,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 			xprt_load_transport(param->string);
 			break;
 		default:
-			dfprintk(MOUNT, "NFS:   unrecognized transport protocol\n");
-			return -EINVAL;
+			return nfs_invalf(fc, "NFS: Unrecognized transport protocol");
 		}
 
 		ctx->protofamily = protofamily;
@@ -688,8 +680,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 			break;
 		case Opt_xprt_rdma: /* not used for side protocols */
 		default:
-			dfprintk(MOUNT, "NFS:   unrecognized transport protocol\n");
-			return -EINVAL;
+			return nfs_invalf(fc, "NFS: Unrecognized transport protocol");
 		}
 		ctx->mountfamily = mountfamily;
 		break;
@@ -774,13 +765,11 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 	return 0;
 
 out_invalid_value:
-	printk(KERN_INFO "NFS: Bad mount option value specified\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: Bad mount option value specified");
 out_invalid_address:
-	printk(KERN_INFO "NFS: Bad IP address specified\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: Bad IP address specified");
 out_of_bounds:
-	printk(KERN_INFO "NFS: Value for '%s' out of range\n", param->key);
+	nfs_invalf(fc, "NFS: Value for '%s' out of range", param->key);
 	return -ERANGE;
 }
 
@@ -846,19 +835,15 @@ static int nfs_parse_source(struct fs_context *fc,
 	return 0;
 
 out_bad_devname:
-	dfprintk(MOUNT, "NFS: device name not in host:path format\n");
-	return -EINVAL;
-
+	return nfs_invalf(fc, "NFS: device name not in host:path format");
 out_nomem:
-	dfprintk(MOUNT, "NFS: not enough memory to parse device name\n");
+	nfs_errorf(fc, "NFS: not enough memory to parse device name");
 	return -ENOMEM;
-
 out_hostname:
-	dfprintk(MOUNT, "NFS: server hostname too long\n");
+	nfs_errorf(fc, "NFS: server hostname too long");
 	return -ENAMETOOLONG;
-
 out_path:
-	dfprintk(MOUNT, "NFS: export pathname too long\n");
+	nfs_errorf(fc, "NFS: export pathname too long");
 	return -ENAMETOOLONG;
 }
 
@@ -1015,29 +1000,23 @@ out_no_data:
 		ctx->skip_reconfig_option_check = true;
 		return 0;
 	}
-	dfprintk(MOUNT, "NFS: mount program didn't pass any mount data\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: mount program didn't pass any mount data");
 
 out_no_v3:
-	dfprintk(MOUNT, "NFS: nfs_mount_data version %d does not support v3\n",
-		 data->version);
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: nfs_mount_data version does not support v3");
 
 out_no_sec:
-	dfprintk(MOUNT, "NFS: nfs_mount_data version supports only AUTH_SYS\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: nfs_mount_data version supports only AUTH_SYS");
 
 out_nomem:
-	dfprintk(MOUNT, "NFS: not enough memory to handle mount options\n");
+	dfprintk(MOUNT, "NFS: not enough memory to handle mount options");
 	return -ENOMEM;
 
 out_no_address:
-	dfprintk(MOUNT, "NFS: mount program didn't pass remote address\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: mount program didn't pass remote address");
 
 out_invalid_fh:
-	dfprintk(MOUNT, "NFS: invalid root filehandle\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: invalid root filehandle");
 }
 
 #if IS_ENABLED(CONFIG_NFS_V4)
@@ -1132,21 +1111,17 @@ out_no_data:
 		ctx->skip_reconfig_option_check = true;
 		return 0;
 	}
-	dfprintk(MOUNT, "NFS4: mount program didn't pass any mount data\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS4: mount program didn't pass any mount data");
 
 out_inval_auth:
-	dfprintk(MOUNT, "NFS4: Invalid number of RPC auth flavours %d\n",
-		 data->auth_flavourlen);
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS4: Invalid number of RPC auth flavours %d",
+		      data->auth_flavourlen);
 
 out_no_address:
-	dfprintk(MOUNT, "NFS4: mount program didn't pass remote address\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS4: mount program didn't pass remote address");
 
 out_invalid_transport_udp:
-	dfprintk(MOUNT, "NFSv4: Unsupported transport protocol udp\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFSv4: Unsupported transport protocol udp");
 }
 #endif
 
@@ -1164,8 +1139,7 @@ static int nfs_fs_context_parse_monolithic(struct fs_context *fc,
 		return nfs4_parse_monolithic(fc, data);
 #endif
 
-	dfprintk(MOUNT, "NFS: Unsupported monolithic data version\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: Unsupported monolithic data version");
 }
 
 /*
@@ -1253,32 +1227,25 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 	return 0;
 
 out_no_device_name:
-	dfprintk(MOUNT, "NFS: Device name not specified\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: Device name not specified");
 out_v4_not_compiled:
-	dfprintk(MOUNT, "NFS: NFSv4 is not compiled into kernel\n");
+	nfs_errorf(fc, "NFS: NFSv4 is not compiled into kernel");
 	return -EPROTONOSUPPORT;
 out_invalid_transport_udp:
-	dfprintk(MOUNT, "NFSv4: Unsupported transport protocol udp\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFSv4: Unsupported transport protocol udp");
 out_no_address:
-	dfprintk(MOUNT, "NFS: mount program didn't pass remote address\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: mount program didn't pass remote address");
 out_mountproto_mismatch:
-	dfprintk(MOUNT, "NFS: Mount server address does not match mountproto= option\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: Mount server address does not match mountproto= option");
 out_proto_mismatch:
-	dfprintk(MOUNT, "NFS: Server address does not match proto= option\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: Server address does not match proto= option");
 out_minorversion_mismatch:
-	dfprintk(MOUNT, "NFS: Mount option vers=%u does not support minorversion=%u\n",
+	return nfs_invalf(fc, "NFS: Mount option vers=%u does not support minorversion=%u",
 			  ctx->version, ctx->minorversion);
-	return -EINVAL;
 out_migration_misuse:
-	dfprintk(MOUNT, "NFS: 'Migration' not supported for this NFS version\n");
-	return -EINVAL;
+	return nfs_invalf(fc, "NFS: 'Migration' not supported for this NFS version");
 out_version_unavailable:
-	dfprintk(MOUNT, "NFS: Version unavailable\n");
+	nfs_errorf(fc, "NFS: Version unavailable");
 	return ret;
 }
 
