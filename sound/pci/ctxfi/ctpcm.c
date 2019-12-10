@@ -367,7 +367,6 @@ ct_pcm_capture_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops ct_pcm_playback_ops = {
 	.open	 	= ct_pcm_playback_open,
 	.close		= ct_pcm_playback_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= ct_pcm_hw_params,
 	.hw_free	= ct_pcm_hw_free,
 	.prepare	= ct_pcm_playback_prepare,
@@ -379,7 +378,6 @@ static const struct snd_pcm_ops ct_pcm_playback_ops = {
 static const struct snd_pcm_ops ct_pcm_capture_ops = {
 	.open	 	= ct_pcm_capture_open,
 	.close		= ct_pcm_capture_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= ct_pcm_hw_params,
 	.hw_free	= ct_pcm_hw_free,
 	.prepare	= ct_pcm_capture_prepare,

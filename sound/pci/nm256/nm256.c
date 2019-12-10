@@ -906,7 +906,6 @@ snd_nm256_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_nm256_playback_ops = {
 	.open =		snd_nm256_playback_open,
 	.close =	snd_nm256_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_nm256_pcm_hw_params,
 	.prepare =	snd_nm256_pcm_prepare,
 	.trigger =	snd_nm256_playback_trigger,
@@ -922,7 +921,6 @@ static const struct snd_pcm_ops snd_nm256_playback_ops = {
 static const struct snd_pcm_ops snd_nm256_capture_ops = {
 	.open =		snd_nm256_capture_open,
 	.close =	snd_nm256_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_nm256_pcm_hw_params,
 	.prepare =	snd_nm256_pcm_prepare,
 	.trigger =	snd_nm256_capture_trigger,

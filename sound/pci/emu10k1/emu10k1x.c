@@ -536,7 +536,6 @@ snd_emu10k1x_pcm_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_emu10k1x_playback_ops = {
 	.open =        snd_emu10k1x_playback_open,
 	.close =       snd_emu10k1x_playback_close,
-	.ioctl =       snd_pcm_lib_ioctl,
 	.hw_params =   snd_emu10k1x_pcm_hw_params,
 	.hw_free =     snd_emu10k1x_pcm_hw_free,
 	.prepare =     snd_emu10k1x_pcm_prepare,
@@ -681,7 +680,6 @@ snd_emu10k1x_pcm_pointer_capture(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_emu10k1x_capture_ops = {
 	.open =        snd_emu10k1x_pcm_open_capture,
 	.close =       snd_emu10k1x_pcm_close_capture,
-	.ioctl =       snd_pcm_lib_ioctl,
 	.hw_params =   snd_emu10k1x_pcm_hw_params_capture,
 	.hw_free =     snd_emu10k1x_pcm_hw_free_capture,
 	.prepare =     snd_emu10k1x_pcm_prepare_capture,

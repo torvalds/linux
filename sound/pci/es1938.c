@@ -977,7 +977,6 @@ static int snd_es1938_playback_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_es1938_playback_ops = {
 	.open =		snd_es1938_playback_open,
 	.close =	snd_es1938_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_es1938_playback_prepare,
 	.trigger =	snd_es1938_playback_trigger,
 	.pointer =	snd_es1938_playback_pointer,
@@ -986,7 +985,6 @@ static const struct snd_pcm_ops snd_es1938_playback_ops = {
 static const struct snd_pcm_ops snd_es1938_capture_ops = {
 	.open =		snd_es1938_capture_open,
 	.close =	snd_es1938_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_es1938_capture_prepare,
 	.trigger =	snd_es1938_capture_trigger,
 	.pointer =	snd_es1938_capture_pointer,

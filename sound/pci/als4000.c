@@ -647,7 +647,6 @@ static int snd_als4000_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_als4000_playback_ops = {
 	.open =		snd_als4000_playback_open,
 	.close =	snd_als4000_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_als4000_playback_prepare,
 	.trigger =	snd_als4000_playback_trigger,
 	.pointer =	snd_als4000_playback_pointer
@@ -656,7 +655,6 @@ static const struct snd_pcm_ops snd_als4000_playback_ops = {
 static const struct snd_pcm_ops snd_als4000_capture_ops = {
 	.open =		snd_als4000_capture_open,
 	.close =	snd_als4000_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_als4000_capture_prepare,
 	.trigger =	snd_als4000_capture_trigger,
 	.pointer =	snd_als4000_capture_pointer

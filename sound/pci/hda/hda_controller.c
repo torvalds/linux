@@ -689,7 +689,6 @@ static int azx_pcm_mmap(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops azx_pcm_ops = {
 	.open = azx_pcm_open,
 	.close = azx_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = azx_pcm_hw_params,
 	.hw_free = azx_pcm_hw_free,
 	.prepare = azx_pcm_prepare,

@@ -1656,7 +1656,6 @@ static int snd_riptide_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_riptide_playback_ops = {
 	.open = snd_riptide_playback_open,
 	.close = snd_riptide_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_riptide_hw_params,
 	.hw_free = snd_riptide_hw_free,
 	.prepare = snd_riptide_prepare,
@@ -1666,7 +1665,6 @@ static const struct snd_pcm_ops snd_riptide_playback_ops = {
 static const struct snd_pcm_ops snd_riptide_capture_ops = {
 	.open = snd_riptide_capture_open,
 	.close = snd_riptide_capture_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_riptide_hw_params,
 	.hw_free = snd_riptide_hw_free,
 	.prepare = snd_riptide_prepare,

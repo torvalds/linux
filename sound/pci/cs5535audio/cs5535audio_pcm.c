@@ -366,7 +366,6 @@ static int snd_cs5535audio_capture_prepare(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_cs5535audio_playback_ops = {
 	.open =		snd_cs5535audio_playback_open,
 	.close =	snd_cs5535audio_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_cs5535audio_hw_params,
 	.hw_free =	snd_cs5535audio_hw_free,
 	.prepare =	snd_cs5535audio_playback_prepare,
@@ -377,7 +376,6 @@ static const struct snd_pcm_ops snd_cs5535audio_playback_ops = {
 static const struct snd_pcm_ops snd_cs5535audio_capture_ops = {
 	.open =		snd_cs5535audio_capture_open,
 	.close =	snd_cs5535audio_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_cs5535audio_hw_params,
 	.hw_free =	snd_cs5535audio_hw_free,
 	.prepare =	snd_cs5535audio_capture_prepare,

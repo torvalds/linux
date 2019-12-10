@@ -791,7 +791,6 @@ mac_ready:
 static const struct snd_pcm_ops lx_ops_playback = {
 	.open      = lx_pcm_open,
 	.close     = lx_pcm_close,
-	.ioctl     = snd_pcm_lib_ioctl,
 	.prepare   = lx_pcm_prepare,
 	.hw_params = lx_pcm_hw_params_playback,
 	.hw_free   = lx_pcm_hw_free,
@@ -802,7 +801,6 @@ static const struct snd_pcm_ops lx_ops_playback = {
 static const struct snd_pcm_ops lx_ops_capture = {
 	.open      = lx_pcm_open,
 	.close     = lx_pcm_close,
-	.ioctl     = snd_pcm_lib_ioctl,
 	.prepare   = lx_pcm_prepare,
 	.hw_params = lx_pcm_hw_params_capture,
 	.hw_free   = lx_pcm_hw_free,

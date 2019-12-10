@@ -927,7 +927,6 @@ static int snd_cs4281_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_cs4281_playback_ops = {
 	.open =		snd_cs4281_playback_open,
 	.close =	snd_cs4281_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_cs4281_playback_prepare,
 	.trigger =	snd_cs4281_trigger,
 	.pointer =	snd_cs4281_pointer,
@@ -936,7 +935,6 @@ static const struct snd_pcm_ops snd_cs4281_playback_ops = {
 static const struct snd_pcm_ops snd_cs4281_capture_ops = {
 	.open =		snd_cs4281_capture_open,
 	.close =	snd_cs4281_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_cs4281_capture_prepare,
 	.trigger =	snd_cs4281_trigger,
 	.pointer =	snd_cs4281_pointer,

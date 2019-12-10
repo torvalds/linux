@@ -166,7 +166,6 @@ module_pci_driver(aw2_driver);
 static const struct snd_pcm_ops snd_aw2_playback_ops = {
 	.open = snd_aw2_pcm_playback_open,
 	.close = snd_aw2_pcm_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.prepare = snd_aw2_pcm_prepare_playback,
 	.trigger = snd_aw2_pcm_trigger_playback,
 	.pointer = snd_aw2_pcm_pointer_playback,
@@ -176,7 +175,6 @@ static const struct snd_pcm_ops snd_aw2_playback_ops = {
 static const struct snd_pcm_ops snd_aw2_capture_ops = {
 	.open = snd_aw2_pcm_capture_open,
 	.close = snd_aw2_pcm_capture_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.prepare = snd_aw2_pcm_prepare_capture,
 	.trigger = snd_aw2_pcm_trigger_capture,
 	.pointer = snd_aw2_pcm_pointer_capture,

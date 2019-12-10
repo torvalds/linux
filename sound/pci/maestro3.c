@@ -1818,7 +1818,6 @@ snd_m3_capture_close(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops snd_m3_playback_ops = {
 	.open =		snd_m3_playback_open,
 	.close =	snd_m3_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_m3_pcm_hw_params,
 	.hw_free =	snd_m3_pcm_hw_free,
 	.prepare =	snd_m3_pcm_prepare,
@@ -1829,7 +1828,6 @@ static const struct snd_pcm_ops snd_m3_playback_ops = {
 static const struct snd_pcm_ops snd_m3_capture_ops = {
 	.open =		snd_m3_capture_open,
 	.close =	snd_m3_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_m3_pcm_hw_params,
 	.hw_free =	snd_m3_pcm_hw_free,
 	.prepare =	snd_m3_pcm_prepare,

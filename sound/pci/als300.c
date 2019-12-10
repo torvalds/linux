@@ -539,7 +539,6 @@ static snd_pcm_uframes_t snd_als300_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_als300_playback_ops = {
 	.open =		snd_als300_playback_open,
 	.close =	snd_als300_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_als300_playback_prepare,
 	.trigger =	snd_als300_trigger,
 	.pointer =	snd_als300_pointer,
@@ -548,7 +547,6 @@ static const struct snd_pcm_ops snd_als300_playback_ops = {
 static const struct snd_pcm_ops snd_als300_capture_ops = {
 	.open =		snd_als300_capture_open,
 	.close =	snd_als300_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.prepare =	snd_als300_capture_prepare,
 	.trigger =	snd_als300_trigger,
 	.pointer =	snd_als300_pointer,

@@ -846,7 +846,6 @@ static int sis_pcm_capture_prepare(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops sis_playback_ops = {
 	.open = sis_playback_open,
 	.close = sis_substream_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.prepare = sis_pcm_playback_prepare,
 	.trigger = sis_pcm_trigger,
 	.pointer = sis_pcm_pointer,
@@ -855,7 +854,6 @@ static const struct snd_pcm_ops sis_playback_ops = {
 static const struct snd_pcm_ops sis_capture_ops = {
 	.open = sis_capture_open,
 	.close = sis_substream_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = sis_capture_hw_params,
 	.prepare = sis_pcm_capture_prepare,
 	.trigger = sis_pcm_trigger,

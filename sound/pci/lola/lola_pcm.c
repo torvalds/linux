@@ -575,7 +575,6 @@ void lola_pcm_update(struct lola *chip, struct lola_pcm *pcm, unsigned int bits)
 static const struct snd_pcm_ops lola_pcm_ops = {
 	.open = lola_pcm_open,
 	.close = lola_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = lola_pcm_hw_params,
 	.hw_free = lola_pcm_hw_free,
 	.prepare = lola_pcm_prepare,

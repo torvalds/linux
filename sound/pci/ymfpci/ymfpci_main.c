@@ -1103,7 +1103,6 @@ static int snd_ymfpci_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_ymfpci_playback_ops = {
 	.open =			snd_ymfpci_playback_open,
 	.close =		snd_ymfpci_playback_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_ymfpci_playback_hw_params,
 	.hw_free =		snd_ymfpci_playback_hw_free,
 	.prepare =		snd_ymfpci_playback_prepare,
@@ -1114,7 +1113,6 @@ static const struct snd_pcm_ops snd_ymfpci_playback_ops = {
 static const struct snd_pcm_ops snd_ymfpci_capture_rec_ops = {
 	.open =			snd_ymfpci_capture_rec_open,
 	.close =		snd_ymfpci_capture_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_free =		snd_ymfpci_capture_hw_free,
 	.prepare =		snd_ymfpci_capture_prepare,
 	.trigger =		snd_ymfpci_capture_trigger,
@@ -1148,7 +1146,6 @@ int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device)
 static const struct snd_pcm_ops snd_ymfpci_capture_ac97_ops = {
 	.open =			snd_ymfpci_capture_ac97_open,
 	.close =		snd_ymfpci_capture_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_free =		snd_ymfpci_capture_hw_free,
 	.prepare =		snd_ymfpci_capture_prepare,
 	.trigger =		snd_ymfpci_capture_trigger,
@@ -1181,7 +1178,6 @@ int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device)
 static const struct snd_pcm_ops snd_ymfpci_playback_spdif_ops = {
 	.open =			snd_ymfpci_playback_spdif_open,
 	.close =		snd_ymfpci_playback_spdif_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_ymfpci_playback_hw_params,
 	.hw_free =		snd_ymfpci_playback_hw_free,
 	.prepare =		snd_ymfpci_playback_prepare,
@@ -1214,7 +1210,6 @@ int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device)
 static const struct snd_pcm_ops snd_ymfpci_playback_4ch_ops = {
 	.open =			snd_ymfpci_playback_4ch_open,
 	.close =		snd_ymfpci_playback_4ch_close,
-	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_ymfpci_playback_hw_params,
 	.hw_free =		snd_ymfpci_playback_hw_free,
 	.prepare =		snd_ymfpci_playback_prepare,
