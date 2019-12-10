@@ -1945,7 +1945,7 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	link->dobj.type = SND_SOC_DOBJ_DAI_LINK;
 	list_add(&link->dobj.list, &tplg->comp->dobj_list);
 
-	snd_soc_add_dai_link(tplg->comp->card, link);
+	snd_soc_add_pcm_runtime(tplg->comp->card, link);
 	return 0;
 }
 

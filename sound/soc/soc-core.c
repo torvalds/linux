@@ -1027,18 +1027,18 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 EXPORT_SYMBOL_GPL(snd_soc_remove_dai_link);
 
 /**
- * snd_soc_add_dai_link - Add a DAI link dynamically
- * @card: The ASoC card to which the DAI link is added
- * @dai_link: The new DAI link to add
+ * snd_soc_add_pcm_runtime - Add a pcm_runtime dynamically via dai_link
+ * @card: The ASoC card to which the pcm_runtime is added
+ * @dai_link: The DAI link to find pcm_runtime
  *
- * This function adds a DAI link to the ASoC card's link list.
+ * This function adds a pcm_runtime ASoC card by using dai_link.
  *
- * Note: Topology can use this API to add DAI links when probing the
+ * Note: Topology can use this API to add pcm_runtime when probing the
  * topology component. And machine drivers can still define static
  * DAI links in dai_link array.
  */
-int snd_soc_add_dai_link(struct snd_soc_card *card,
-			 struct snd_soc_dai_link *dai_link)
+int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
+			    struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link_component *codec, *platform;
@@ -1107,7 +1107,7 @@ _err_defer:
 	soc_free_pcm_runtime(rtd);
 	return -EPROBE_DEFER;
 }
-EXPORT_SYMBOL_GPL(snd_soc_add_dai_link);
+EXPORT_SYMBOL_GPL(snd_soc_add_pcm_runtime);
 
 static void soc_set_of_name_prefix(struct snd_soc_component *component)
 {
@@ -1929,7 +1929,7 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 	/* add predefined DAI links to the list */
 	card->num_rtd = 0;
 	for_each_card_prelinks(card, i, dai_link) {
-		ret = snd_soc_add_dai_link(card, dai_link);
+		ret = snd_soc_add_pcm_runtime(card, dai_link);
 		if (ret < 0)
 			goto probe_end;
 	}
