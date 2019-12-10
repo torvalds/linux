@@ -2,6 +2,7 @@
 
 Required properties:
 - compatible: should be one or more of
+     "brcm,bcm7216-sata-phy"
      "brcm,bcm7425-sata-phy"
      "brcm,bcm7445-sata-phy"
      "brcm,iproc-ns2-sata-phy"
