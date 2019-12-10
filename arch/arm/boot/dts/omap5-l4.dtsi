@@ -2349,7 +2349,6 @@
 
 		target-module@c000 {			/* 0x4ae1c000, ap 11 1c.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "kbd";
 			reg = <0xc000 0x4>,
 			      <0xc010 0x4>;
 			reg-names = "rev", "sysc";
