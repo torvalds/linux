@@ -201,23 +201,23 @@ static int qoriq_tmu_register_tmu_zone(struct device *dev,
 	return 0;
 }
 
-static int qoriq_tmu_calibration(struct platform_device *pdev)
+static int qoriq_tmu_calibration(struct device *dev,
+				 struct qoriq_tmu_data *data)
 {
 	int i, val, len;
 	u32 range[4];
 	const u32 *calibration;
-	struct device_node *np = pdev->dev.of_node;
-	struct qoriq_tmu_data *data = platform_get_drvdata(pdev);
+	struct device_node *np = dev->of_node;
 
 	len = of_property_count_u32_elems(np, "fsl,tmu-range");
 	if (len < 0 || len > 4) {
-		dev_err(&pdev->dev, "invalid range data.\n");
+		dev_err(dev, "invalid range data.\n");
 		return len;
 	}
 
 	val = of_property_read_u32_array(np, "fsl,tmu-range", range, len);
 	if (val != 0) {
-		dev_err(&pdev->dev, "failed to read range data.\n");
+		dev_err(dev, "failed to read range data.\n");
 		return val;
 	}
 
@@ -227,7 +227,7 @@ static int qoriq_tmu_calibration(struct platform_device *pdev)
 
 	calibration = of_get_property(np, "fsl,tmu-calibration", &len);
 	if (calibration == NULL || len % 8) {
-		dev_err(&pdev->dev, "invalid calibration data.\n");
+		dev_err(dev, "invalid calibration data.\n");
 		return -ENODEV;
 	}
 
@@ -271,8 +271,6 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, data);
-
 	data->little_endian = of_property_read_bool(np, "little-endian");
 
 	data->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -299,7 +297,7 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 
 	qoriq_tmu_init_device(data);	/* TMU initialization */
 
-	ret = qoriq_tmu_calibration(pdev);	/* TMU calibration */
+	ret = qoriq_tmu_calibration(dev, data);	/* TMU calibration */
 	if (ret < 0)
 		goto err;
 
@@ -310,11 +308,12 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	platform_set_drvdata(pdev, data);
+
 	return 0;
 
 err:
 	clk_disable_unprepare(data->clk);
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
