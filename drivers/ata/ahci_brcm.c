@@ -343,10 +343,16 @@ static int brcm_ahci_suspend(struct device *dev)
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	struct brcm_ahci_priv *priv = hpriv->plat_data;
+	int ret;
 
 	brcm_sata_phys_disable(priv);
 
-	return ahci_platform_suspend(dev);
+	ret = ahci_platform_suspend(dev);
+
+	if (!IS_ERR_OR_NULL(priv->rcdev))
+		reset_control_assert(priv->rcdev);
+
+	return ret;
 }
 
 static int brcm_ahci_resume(struct device *dev)
@@ -354,7 +360,12 @@ static int brcm_ahci_resume(struct device *dev)
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	struct brcm_ahci_priv *priv = hpriv->plat_data;
-	int ret;
+	int ret = 0;
+
+	if (!IS_ERR_OR_NULL(priv->rcdev))
+		ret = reset_control_deassert(priv->rcdev);
+	if (ret)
+		return ret;
 
 	/* Make sure clocks are turned on before re-configuration */
 	ret = ahci_platform_enable_clks(hpriv);
