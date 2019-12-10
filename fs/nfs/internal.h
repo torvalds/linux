@@ -142,6 +142,7 @@ struct nfs_mount_info {
 	struct nfs_clone_mount *cloned;
 	struct nfs_server *server;
 	struct nfs_fh *mntfh;
+	struct nfs_subversion *nfs_mod;
 };
 
 extern int nfs_mount(struct nfs_mount_request *info);

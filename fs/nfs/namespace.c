@@ -236,8 +236,8 @@ struct vfsmount *nfs_do_submount(struct dentry *dentry, struct nfs_fh *fh,
 		.set_security = nfs_clone_sb_security,
 		.cloned = &mountdata,
 		.mntfh = fh,
+		.nfs_mod = NFS_SB(sb)->nfs_client->cl_nfs_mod,
 	};
-	struct nfs_subversion *nfs_mod = NFS_SB(sb)->nfs_client->cl_nfs_mod;
 	struct nfs_server *server;
 	struct vfsmount *mnt;
 	char *page = (char *) __get_free_page(GFP_USER);
@@ -246,8 +246,8 @@ struct vfsmount *nfs_do_submount(struct dentry *dentry, struct nfs_fh *fh,
 	if (page == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	server = nfs_mod->rpc_ops->clone_server(NFS_SB(sb), fh,
-						fattr, authflavor);
+	server = mount_info.nfs_mod->rpc_ops->clone_server(NFS_SB(sb), fh,
+							   fattr, authflavor);
 	if (IS_ERR(server))
 		return ERR_CAST(server);
 

@@ -2761,6 +2761,7 @@ struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 		mntroot = ERR_CAST(nfs_mod);
 		goto out;
 	}
+	mount_info.nfs_mod = nfs_mod;
 
 	mntroot = nfs_mod->rpc_ops->try_mount(flags, dev_name, &mount_info, nfs_mod);
 
