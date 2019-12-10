@@ -96,7 +96,10 @@ struct nfs_fs_context {
 	unsigned int		version;
 	unsigned int		minorversion;
 	char			*fscache_uniq;
+	unsigned short		protofamily;
+	unsigned short		mountfamily;
 	bool			need_mount;
+	bool			sloppy;
 
 	struct {
 		struct sockaddr_storage	address;

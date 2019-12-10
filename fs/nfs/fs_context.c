@@ -496,35 +496,17 @@ static int nfs_get_option_ul_bound(substring_t args[], unsigned long *option,
 }
 
 /*
- * Error-check and convert a string of mount options from user space into
- * a data structure.  The whole mount string is processed; bad options are
- * skipped as they are encountered.  If there were no errors, return 1;
- * otherwise return 0 (zero).
+ * Parse a single mount option in "key[=val]" form.
  */
-int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
+static int nfs_fs_context_parse_option(struct nfs_fs_context *ctx, char *p)
 {
-	char *p, *string;
-	int rc, sloppy = 0, invalid_option = 0;
-	unsigned short protofamily = AF_UNSPEC;
-	unsigned short mountfamily = AF_UNSPEC;
+	char *string;
+	int rc;
 
-	if (!raw) {
-		dfprintk(MOUNT, "NFS: mount options string was NULL.\n");
-		return 1;
-	}
-	dfprintk(MOUNT, "NFS: nfs mount opts='%s'\n", raw);
-
-	rc = security_sb_eat_lsm_opts(raw, &ctx->lsm_opts);
-	if (rc)
-		goto out_security_failure;
-
-	while ((p = strsep(&raw, ",")) != NULL) {
+	{
 		substring_t args[MAX_OPT_ARGS];
 		unsigned long option;
 		int token;
-
-		if (!*p)
-			continue;
 
 		dfprintk(MOUNT, "NFS:   parsing nfs mount option '%s'\n", p);
 
@@ -734,7 +716,7 @@ int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
 			if (!rc) {
 				dfprintk(MOUNT, "NFS:   unrecognized "
 						"security flavor\n");
-				return 0;
+				return -EINVAL;
 			}
 			break;
 		case Opt_proto:
@@ -744,24 +726,24 @@ int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
 			token = match_token(string,
 					    nfs_xprt_protocol_tokens, args);
 
-			protofamily = AF_INET;
+			ctx->protofamily = AF_INET;
 			switch (token) {
 			case Opt_xprt_udp6:
-				protofamily = AF_INET6;
+				ctx->protofamily = AF_INET6;
 				/* fall through */
 			case Opt_xprt_udp:
 				ctx->flags &= ~NFS_MOUNT_TCP;
 				ctx->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 				break;
 			case Opt_xprt_tcp6:
-				protofamily = AF_INET6;
+				ctx->protofamily = AF_INET6;
 				/* fall through */
 			case Opt_xprt_tcp:
 				ctx->flags |= NFS_MOUNT_TCP;
 				ctx->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 				break;
 			case Opt_xprt_rdma6:
-				protofamily = AF_INET6;
+				ctx->protofamily = AF_INET6;
 				/* fall through */
 			case Opt_xprt_rdma:
 				/* vector side protocols to TCP */
@@ -773,7 +755,7 @@ int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
 				dfprintk(MOUNT, "NFS:   unrecognized "
 						"transport protocol\n");
 				kfree(string);
-				return 0;
+				return -EINVAL;
 			}
 			kfree(string);
 			break;
@@ -785,16 +767,16 @@ int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
 					    nfs_xprt_protocol_tokens, args);
 			kfree(string);
 
-			mountfamily = AF_INET;
+			ctx->mountfamily = AF_INET;
 			switch (token) {
 			case Opt_xprt_udp6:
-				mountfamily = AF_INET6;
+				ctx->mountfamily = AF_INET6;
 				/* fall through */
 			case Opt_xprt_udp:
 				ctx->mount_server.protocol = XPRT_TRANSPORT_UDP;
 				break;
 			case Opt_xprt_tcp6:
-				mountfamily = AF_INET6;
+				ctx->mountfamily = AF_INET6;
 				/* fall through */
 			case Opt_xprt_tcp:
 				ctx->mount_server.protocol = XPRT_TRANSPORT_TCP;
@@ -803,7 +785,7 @@ int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
 			default:
 				dfprintk(MOUNT, "NFS:   unrecognized "
 						"transport protocol\n");
-				return 0;
+				return -EINVAL;
 			}
 			break;
 		case Opt_addr:
@@ -867,7 +849,7 @@ int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
 				default:
 					dfprintk(MOUNT, "NFS:   invalid "
 							"lookupcache argument\n");
-					return 0;
+					return -EINVAL;
 			}
 			break;
 		case Opt_fscache_uniq:
@@ -900,7 +882,7 @@ int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
 			default:
 				dfprintk(MOUNT, "NFS:	invalid	"
 						"local_lock argument\n");
-				return 0;
+				return -EINVAL;
 			}
 			break;
 
@@ -908,7 +890,7 @@ int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
 		 * Special options
 		 */
 		case Opt_sloppy:
-			sloppy = 1;
+			ctx->sloppy = 1;
 			dfprintk(MOUNT, "NFS:   relaxing parsing rules\n");
 			break;
 		case Opt_userspace:
@@ -918,10 +900,51 @@ int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
 			break;
 
 		default:
-			invalid_option = 1;
 			dfprintk(MOUNT, "NFS:   unrecognized mount option "
 					"'%s'\n", p);
+			return -EINVAL;
 		}
+	}
+
+	return 0;
+
+out_invalid_address:
+	printk(KERN_INFO "NFS: bad IP address specified: %s\n", p);
+	return -EINVAL;
+out_invalid_value:
+	printk(KERN_INFO "NFS: bad mount option value specified: %s\n", p);
+	return -EINVAL;
+out_nomem:
+	printk(KERN_INFO "NFS: not enough memory to parse option\n");
+	return -ENOMEM;
+}
+
+/*
+ * Error-check and convert a string of mount options from user space into
+ * a data structure.  The whole mount string is processed; bad options are
+ * skipped as they are encountered.  If there were no errors, return 1;
+ * otherwise return 0 (zero).
+ */
+int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
+{
+	char *p;
+	int rc, sloppy = 0, invalid_option = 0;
+
+	if (!raw) {
+		dfprintk(MOUNT, "NFS: mount options string was NULL.\n");
+		return 1;
+	}
+	dfprintk(MOUNT, "NFS: nfs mount opts='%s'\n", raw);
+
+	rc = security_sb_eat_lsm_opts(raw, &ctx->lsm_opts);
+	if (rc)
+		goto out_security_failure;
+
+	while ((p = strsep(&raw, ",")) != NULL) {
+		if (!*p)
+			continue;
+		if (nfs_fs_context_parse_option(ctx, p) < 0)
+			invalid_option = true;
 	}
 
 	if (!sloppy && invalid_option)
@@ -938,22 +961,26 @@ int nfs_parse_mount_options(char *raw, struct nfs_fs_context *ctx)
 	 * verify that any proto=/mountproto= options match the address
 	 * families in the addr=/mountaddr= options.
 	 */
-	if (protofamily != AF_UNSPEC &&
-	    protofamily != ctx->nfs_server.address.ss_family)
+	if (ctx->protofamily != AF_UNSPEC &&
+	    ctx->protofamily != ctx->nfs_server.address.ss_family)
 		goto out_proto_mismatch;
 
-	if (mountfamily != AF_UNSPEC) {
+	if (ctx->mountfamily != AF_UNSPEC) {
 		if (ctx->mount_server.addrlen) {
-			if (mountfamily != ctx->mount_server.address.ss_family)
+			if (ctx->mountfamily != ctx->mount_server.address.ss_family)
 				goto out_mountproto_mismatch;
 		} else {
-			if (mountfamily != ctx->nfs_server.address.ss_family)
+			if (ctx->mountfamily != ctx->nfs_server.address.ss_family)
 				goto out_mountproto_mismatch;
 		}
 	}
 
 	return 1;
 
+out_minorversion_mismatch:
+	printk(KERN_INFO "NFS: mount option vers=%u does not support "
+			 "minorversion=%u\n", ctx->version, ctx->minorversion);
+	return 0;
 out_mountproto_mismatch:
 	printk(KERN_INFO "NFS: mount server address does not match mountproto= "
 			 "option\n");
@@ -961,23 +988,10 @@ out_mountproto_mismatch:
 out_proto_mismatch:
 	printk(KERN_INFO "NFS: server address does not match proto= option\n");
 	return 0;
-out_invalid_address:
-	printk(KERN_INFO "NFS: bad IP address specified: %s\n", p);
-	return 0;
-out_invalid_value:
-	printk(KERN_INFO "NFS: bad mount option value specified: %s\n", p);
-	return 0;
-out_minorversion_mismatch:
-	printk(KERN_INFO "NFS: mount option vers=%u does not support "
-			 "minorversion=%u\n", ctx->version, ctx->minorversion);
-	return 0;
 out_migration_misuse:
 	printk(KERN_INFO
 		"NFS: 'migration' not supported for this NFS version\n");
-	return 0;
-out_nomem:
-	printk(KERN_INFO "NFS: not enough memory to parse option\n");
-	return 0;
+	return -EINVAL;
 out_security_failure:
 	printk(KERN_INFO "NFS: security options invalid: %d\n", rc);
 	return 0;
