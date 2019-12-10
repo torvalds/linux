@@ -684,7 +684,6 @@ static int hal2_capture_ack(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops hal2_playback_ops = {
 	.open =        hal2_playback_open,
 	.close =       hal2_playback_close,
-	.ioctl =       snd_pcm_lib_ioctl,
 	.prepare =     hal2_playback_prepare,
 	.trigger =     hal2_playback_trigger,
 	.pointer =     hal2_playback_pointer,
@@ -694,7 +693,6 @@ static const struct snd_pcm_ops hal2_playback_ops = {
 static const struct snd_pcm_ops hal2_capture_ops = {
 	.open =        hal2_capture_open,
 	.close =       hal2_capture_close,
-	.ioctl =       snd_pcm_lib_ioctl,
 	.prepare =     hal2_capture_prepare,
 	.trigger =     hal2_capture_trigger,
 	.pointer =     hal2_capture_pointer,
