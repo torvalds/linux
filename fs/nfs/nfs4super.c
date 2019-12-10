@@ -108,32 +108,37 @@ static struct dentry *
 nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 		  const char *dev_name, void *info)
 {
-	struct nfs_mount_info *mount_info = info;
-
-	mount_info->set_security = nfs_set_sb_security;
-
-	/* Get a volume representation */
-	mount_info->server = nfs4_create_server(mount_info, &nfs_v4);
-	return nfs_fs_mount_common(flags, dev_name, mount_info, &nfs_v4);
+	return nfs_fs_mount_common(flags, dev_name, info, &nfs_v4);
 }
 
 static struct vfsmount *nfs_do_root_mount(struct file_system_type *fs_type,
-		int flags, void *data, const char *hostname)
+					  struct nfs_server *server, int flags,
+					  struct nfs_mount_info *info,
+					  const char *hostname)
 {
 	struct vfsmount *root_mnt;
 	char *root_devname;
 	size_t len;
 
+	if (IS_ERR(server))
+		return ERR_CAST(server);
+
 	len = strlen(hostname) + 5;
 	root_devname = kmalloc(len, GFP_KERNEL);
-	if (root_devname == NULL)
+	if (root_devname == NULL) {
+		nfs_free_server(server);
 		return ERR_PTR(-ENOMEM);
+	}
 	/* Does hostname needs to be enclosed in brackets? */
 	if (strchr(hostname, ':'))
 		snprintf(root_devname, len, "[%s]:/", hostname);
 	else
 		snprintf(root_devname, len, "%s:/", hostname);
-	root_mnt = vfs_kern_mount(fs_type, flags, root_devname, data);
+	info->server = server;
+	root_mnt = vfs_kern_mount(fs_type, flags, root_devname, info);
+	if (info->server)
+		nfs_free_server(info->server);
+	info->server = NULL;
 	kfree(root_devname);
 	return root_mnt;
 }
@@ -234,11 +239,15 @@ struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 	struct dentry *res;
 	struct nfs_parsed_mount_data *data = mount_info->parsed;
 
+	mount_info->set_security = nfs_set_sb_security;
+
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
 
 	export_path = data->nfs_server.export_path;
 	data->nfs_server.export_path = "/";
-	root_mnt = nfs_do_root_mount(&nfs4_remote_fs_type, flags, mount_info,
+	root_mnt = nfs_do_root_mount(&nfs4_remote_fs_type,
+			nfs4_create_server(mount_info, &nfs_v4),
+			flags, mount_info,
 			data->nfs_server.hostname);
 	data->nfs_server.export_path = export_path;
 
@@ -254,25 +263,7 @@ static struct dentry *
 nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 			   const char *dev_name, void *raw_data)
 {
-	struct nfs_mount_info mount_info = {
-		.fill_super = nfs_fill_super,
-		.set_security = nfs_clone_sb_security,
-		.cloned = raw_data,
-	};
-	struct dentry *mntroot = ERR_PTR(-ENOMEM);
-
-	dprintk("--> nfs4_referral_get_sb()\n");
-
-	mount_info.mntfh = nfs_alloc_fhandle();
-	if (mount_info.cloned == NULL || mount_info.mntfh == NULL)
-		goto out;
-
-	/* create a new volume representation */
-	mount_info.server = nfs4_create_referral_server(mount_info.cloned, mount_info.mntfh);
-	mntroot = nfs_fs_mount_common(flags, dev_name, &mount_info, &nfs_v4);
-out:
-	nfs_free_fhandle(mount_info.mntfh);
-	return mntroot;
+	return nfs_fs_mount_common(flags, dev_name, raw_data, &nfs_v4);
 }
 
 /*
@@ -282,23 +273,35 @@ static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
 		int flags, const char *dev_name, void *raw_data)
 {
 	struct nfs_clone_mount *data = raw_data;
+	struct nfs_mount_info mount_info = {
+		.fill_super = nfs_fill_super,
+		.set_security = nfs_clone_sb_security,
+		.cloned = data,
+	};
 	char *export_path;
 	struct vfsmount *root_mnt;
 	struct dentry *res;
 
 	dprintk("--> nfs4_referral_mount()\n");
 
+	mount_info.mntfh = nfs_alloc_fhandle();
+	if (!mount_info.mntfh)
+		return ERR_PTR(-ENOMEM);
+
 	export_path = data->mnt_path;
 	data->mnt_path = "/";
-
 	root_mnt = nfs_do_root_mount(&nfs4_remote_referral_fs_type,
-			flags, data, data->hostname);
+			nfs4_create_referral_server(mount_info.cloned,
+						    mount_info.mntfh),
+			flags, &mount_info, data->hostname);
 	data->mnt_path = export_path;
 
 	res = nfs_follow_remote_path(root_mnt, export_path);
 	dprintk("<-- nfs4_referral_mount() = %d%s\n",
 		PTR_ERR_OR_ZERO(res),
 		IS_ERR(res) ? " [error]" : "");
+
+	nfs_free_fhandle(mount_info.mntfh);
 	return res;
 }
 
