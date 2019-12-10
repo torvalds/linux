@@ -2534,7 +2534,6 @@ static int snd_vt1724_create(struct snd_card *card,
 	ice->irq = -1;
 	pci_set_master(pci);
 	snd_vt1724_proc_init(ice);
-	synchronize_irq(pci->irq);
 
 	card->private_data = ice;
 
@@ -2555,6 +2554,7 @@ static int snd_vt1724_create(struct snd_card *card,
 	}
 
 	ice->irq = pci->irq;
+	card->sync_irq = ice->irq;
 
 	snd_vt1724_chip_reset(ice);
 	if (snd_vt1724_read_eeprom(ice, modelname) < 0) {
