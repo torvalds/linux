@@ -278,7 +278,6 @@
 
 		mcpdm_module: target-module@32000 {	/* 0x40132000, ap 16 10.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mcpdm";
 			reg = <0x32000 0x4>,
 			      <0x32010 0x4>;
 			reg-names = "rev", "sysc";
