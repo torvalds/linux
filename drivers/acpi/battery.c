@@ -342,6 +342,20 @@ static enum power_supply_property charge_battery_props[] = {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
+static enum power_supply_property charge_battery_full_cap_broken_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_CYCLE_COUNT,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+};
+
 static enum power_supply_property energy_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
@@ -803,21 +817,34 @@ static void __exit battery_hook_exit(void)
 static int sysfs_add_battery(struct acpi_battery *battery)
 {
 	struct power_supply_config psy_cfg = { .drv_data = battery, };
+	bool full_cap_broken = false;
+
+	if (!ACPI_BATTERY_CAPACITY_VALID(battery->full_charge_capacity) &&
+	    !ACPI_BATTERY_CAPACITY_VALID(battery->design_capacity))
+		full_cap_broken = true;
 
 	if (battery->power_unit == ACPI_BATTERY_POWER_UNIT_MA) {
-		battery->bat_desc.properties = charge_battery_props;
-		battery->bat_desc.num_properties =
-			ARRAY_SIZE(charge_battery_props);
-	} else if (!ACPI_BATTERY_CAPACITY_VALID(
-					battery->full_charge_capacity)) {
-		battery->bat_desc.properties =
-			energy_battery_full_cap_broken_props;
-		battery->bat_desc.num_properties =
-			ARRAY_SIZE(energy_battery_full_cap_broken_props);
+		if (full_cap_broken) {
+			battery->bat_desc.properties =
+			    charge_battery_full_cap_broken_props;
+			battery->bat_desc.num_properties =
+			    ARRAY_SIZE(charge_battery_full_cap_broken_props);
+		} else {
+			battery->bat_desc.properties = charge_battery_props;
+			battery->bat_desc.num_properties =
+			    ARRAY_SIZE(charge_battery_props);
+		}
 	} else {
-		battery->bat_desc.properties = energy_battery_props;
-		battery->bat_desc.num_properties =
-			ARRAY_SIZE(energy_battery_props);
+		if (full_cap_broken) {
+			battery->bat_desc.properties =
+			    energy_battery_full_cap_broken_props;
+			battery->bat_desc.num_properties =
+			    ARRAY_SIZE(energy_battery_full_cap_broken_props);
+		} else {
+			battery->bat_desc.properties = energy_battery_props;
+			battery->bat_desc.num_properties =
+			    ARRAY_SIZE(energy_battery_props);
+		}
 	}
 
 	battery->bat_desc.name = acpi_device_bid(battery->device);
