@@ -1255,6 +1255,18 @@ static void gen11_dsi_get_timings(struct intel_encoder *encoder,
 	struct drm_display_mode *adjusted_mode =
 					&pipe_config->hw.adjusted_mode;
 
+	if (pipe_config->dsc.compressed_bpp) {
+		int div = pipe_config->dsc.compressed_bpp;
+		int mul = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
+
+		adjusted_mode->crtc_htotal =
+			DIV_ROUND_UP(adjusted_mode->crtc_htotal * mul, div);
+		adjusted_mode->crtc_hsync_start =
+			DIV_ROUND_UP(adjusted_mode->crtc_hsync_start * mul, div);
+		adjusted_mode->crtc_hsync_end =
+			DIV_ROUND_UP(adjusted_mode->crtc_hsync_end * mul, div);
+	}
+
 	if (intel_dsi->dual_link) {
 		adjusted_mode->crtc_hdisplay *= 2;
 		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
