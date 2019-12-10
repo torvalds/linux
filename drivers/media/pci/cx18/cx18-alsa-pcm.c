@@ -200,18 +200,6 @@ static int snd_cx18_pcm_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_cx18_pcm_ioctl(struct snd_pcm_substream *substream,
-		     unsigned int cmd, void *arg)
-{
-	struct snd_cx18_card *cxsc = snd_pcm_substream_chip(substream);
-	int ret;
-
-	snd_cx18_lock(cxsc);
-	ret = snd_pcm_lib_ioctl(substream, cmd, arg);
-	snd_cx18_unlock(cxsc);
-	return ret;
-}
-
 static int snd_cx18_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_cx18_card *cxsc = snd_pcm_substream_chip(substream);
@@ -244,7 +232,6 @@ snd_pcm_uframes_t snd_cx18_pcm_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_cx18_pcm_capture_ops = {
 	.open		= snd_cx18_pcm_capture_open,
 	.close		= snd_cx18_pcm_capture_close,
-	.ioctl		= snd_cx18_pcm_ioctl,
 	.prepare	= snd_cx18_pcm_prepare,
 	.trigger	= snd_cx18_pcm_trigger,
 	.pointer	= snd_cx18_pcm_pointer,
