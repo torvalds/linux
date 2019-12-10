@@ -87,7 +87,6 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 		      int width, int height)
 {
 	struct drm_device *dev = fb->dev;
-	struct udl_device *udl = to_udl(dev);
 	struct dma_buf_attachment *import_attach = fb->obj[0]->import_attach;
 	int i, ret, tmp_ret;
 	char *cmd;
@@ -95,13 +94,6 @@ int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	struct drm_rect clip;
 	int log_bpp;
 	void *vaddr;
-
-	spin_lock(&udl->active_fb_16_lock);
-	if (udl->active_fb_16 != fb) {
-		spin_unlock(&udl->active_fb_16_lock);
-		return 0;
-	}
-	spin_unlock(&udl->active_fb_16_lock);
 
 	ret = udl_log_cpp(fb->format->cpp[0]);
 	if (ret < 0)

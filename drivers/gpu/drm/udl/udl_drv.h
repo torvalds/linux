@@ -54,10 +54,6 @@ struct udl_device {
 
 	struct drm_simple_display_pipe display_pipe;
 
-	/* active framebuffer on the 16-bit channel */
-	const struct drm_framebuffer *active_fb_16;
-	spinlock_t active_fb_16_lock;
-
 	struct mutex gem_lock;
 
 	int sku_pixel_limit;

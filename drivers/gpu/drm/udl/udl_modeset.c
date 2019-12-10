@@ -284,9 +284,6 @@ udl_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	wrptr = udl_dummy_render(wrptr);
 
-	spin_lock(&udl->active_fb_16_lock);
-	udl->active_fb_16 = fb;
-	spin_unlock(&udl->active_fb_16_lock);
 	udl->mode_buf_len = wrptr - buf;
 
 	udl_handle_damage(fb, 0, 0, fb->width, fb->height);
@@ -331,15 +328,9 @@ static void
 udl_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 			       struct drm_plane_state *old_plane_state)
 {
-	struct drm_device *dev = pipe->crtc.dev;
-	struct udl_device *udl = dev->dev_private;
 	struct drm_plane_state *state = pipe->plane.state;
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect rect;
-
-	spin_lock(&udl->active_fb_16_lock);
-	udl->active_fb_16 = fb;
-	spin_unlock(&udl->active_fb_16_lock);
 
 	if (!fb)
 		return;
