@@ -1268,9 +1268,6 @@ static int snd_cs4281_free(struct cs4281 *chip)
 {
 	snd_cs4281_free_gameport(chip);
 
-	if (chip->irq >= 0)
-		synchronize_irq(chip->irq);
-
 	/* Mask interrupts */
 	snd_cs4281_pokeBA0(chip, BA0_HIMR, 0x7fffffff);
 	/* Stop the DLL Clock logic. */
@@ -1352,6 +1349,7 @@ static int snd_cs4281_create(struct snd_card *card,
 		return -ENOMEM;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 	tmp = snd_cs4281_chip_init(chip);
 	if (tmp) {
@@ -1600,7 +1598,6 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 					BA0_HISR_DMA(1) |
 					BA0_HISR_DMA(2) |
 					BA0_HISR_DMA(3)));
-	synchronize_irq(chip->irq);
 
 	return 0;
 }
