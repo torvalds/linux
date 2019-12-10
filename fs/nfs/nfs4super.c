@@ -109,13 +109,12 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 		  const char *dev_name, void *info)
 {
 	struct nfs_mount_info *mount_info = info;
-	struct nfs_server *server;
 
 	mount_info->set_security = nfs_set_sb_security;
 
 	/* Get a volume representation */
-	server = nfs4_create_server(mount_info, &nfs_v4);
-	return nfs_fs_mount_common(server, flags, dev_name, mount_info, &nfs_v4);
+	mount_info->server = nfs4_create_server(mount_info, &nfs_v4);
+	return nfs_fs_mount_common(flags, dev_name, mount_info, &nfs_v4);
 }
 
 static struct vfsmount *nfs_do_root_mount(struct file_system_type *fs_type,
@@ -260,7 +259,6 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 		.set_security = nfs_clone_sb_security,
 		.cloned = raw_data,
 	};
-	struct nfs_server *server;
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 
 	dprintk("--> nfs4_referral_get_sb()\n");
@@ -270,8 +268,8 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 		goto out;
 
 	/* create a new volume representation */
-	server = nfs4_create_referral_server(mount_info.cloned, mount_info.mntfh);
-	mntroot = nfs_fs_mount_common(server, flags, dev_name, &mount_info, &nfs_v4);
+	mount_info.server = nfs4_create_referral_server(mount_info.cloned, mount_info.mntfh);
+	mntroot = nfs_fs_mount_common(flags, dev_name, &mount_info, &nfs_v4);
 out:
 	nfs_free_fhandle(mount_info.mntfh);
 	return mntroot;

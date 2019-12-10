@@ -1896,14 +1896,12 @@ struct dentry *nfs_try_mount(int flags, const char *dev_name,
 			     struct nfs_mount_info *mount_info,
 			     struct nfs_subversion *nfs_mod)
 {
-	struct nfs_server *server;
-
 	if (mount_info->parsed->need_mount)
-		server = nfs_try_mount_request(mount_info, nfs_mod);
+		mount_info->server = nfs_try_mount_request(mount_info, nfs_mod);
 	else
-		server = nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
+		mount_info->server = nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
 
-	return nfs_fs_mount_common(server, flags, dev_name, mount_info, nfs_mod);
+	return nfs_fs_mount_common(flags, dev_name, mount_info, nfs_mod);
 }
 EXPORT_SYMBOL_GPL(nfs_try_mount);
 
@@ -2649,20 +2647,21 @@ static void nfs_set_readahead(struct backing_dev_info *bdi,
 	bdi->io_pages = iomax_pages;
 }
 
-struct dentry *nfs_fs_mount_common(struct nfs_server *server,
-				   int flags, const char *dev_name,
+struct dentry *nfs_fs_mount_common(int flags, const char *dev_name,
 				   struct nfs_mount_info *mount_info,
 				   struct nfs_subversion *nfs_mod)
 {
 	struct super_block *s;
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
+	struct nfs_server *server = mount_info->server;
 	struct nfs_sb_mountdata sb_mntdata = {
 		.mntflags = flags,
 		.server = server,
 	};
 	int error;
 
+	mount_info->server = NULL;
 	if (IS_ERR(server))
 		return ERR_CAST(server);
 
@@ -2803,7 +2802,6 @@ nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 		.set_security = nfs_clone_sb_security,
 		.cloned = data,
 	};
-	struct nfs_server *server;
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 	struct nfs_subversion *nfs_mod = NFS_SB(data->sb)->nfs_client->cl_nfs_mod;
 
@@ -2812,10 +2810,9 @@ nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 	mount_info.mntfh = mount_info.cloned->fh;
 
 	/* create a new volume representation */
-	server = nfs_mod->rpc_ops->clone_server(NFS_SB(data->sb), data->fh, data->fattr, data->authflavor);
+	mount_info.server = nfs_mod->rpc_ops->clone_server(NFS_SB(data->sb), data->fh, data->fattr, data->authflavor);
 
-	mntroot = nfs_fs_mount_common(server, flags,
-				dev_name, &mount_info, nfs_mod);
+	mntroot = nfs_fs_mount_common(flags, dev_name, &mount_info, nfs_mod);
 
 	dprintk("<-- nfs_xdev_mount() = %ld\n",
 			IS_ERR(mntroot) ? PTR_ERR(mntroot) : 0L);
