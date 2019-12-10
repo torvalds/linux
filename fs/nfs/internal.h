@@ -388,7 +388,7 @@ extern int nfs_wait_atomic_killable(atomic_t *p, unsigned int mode);
 /* super.c */
 extern const struct super_operations nfs_sops;
 extern struct file_system_type nfs_fs_type;
-extern struct file_system_type nfs_xdev_fs_type;
+extern struct file_system_type nfs_prepared_fs_type;
 #if IS_ENABLED(CONFIG_NFS_V4)
 extern struct file_system_type nfs4_referral_fs_type;
 #endif

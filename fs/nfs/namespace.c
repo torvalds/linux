@@ -257,7 +257,7 @@ struct vfsmount *nfs_do_submount(struct dentry *dentry, struct nfs_fh *fh,
 	if (IS_ERR(devname))
 		mnt = ERR_CAST(devname);
 	else
-		mnt = vfs_submount(dentry, &nfs_xdev_fs_type, devname, &mount_info);
+		mnt = vfs_submount(dentry, &nfs_prepared_fs_type, devname, &mount_info);
 
 	if (mount_info.server)
 		nfs_free_server(mount_info.server);
