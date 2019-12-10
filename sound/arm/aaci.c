@@ -625,7 +625,6 @@ static int aaci_pcm_playback_trigger(struct snd_pcm_substream *substream, int cm
 static const struct snd_pcm_ops aaci_playback_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= aaci_pcm_hw_params,
 	.hw_free	= aaci_pcm_hw_free,
 	.prepare	= aaci_pcm_prepare,
@@ -728,7 +727,6 @@ static int aaci_pcm_capture_prepare(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops aaci_capture_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= aaci_pcm_hw_params,
 	.hw_free	= aaci_pcm_hw_free,
 	.prepare	= aaci_pcm_capture_prepare,
