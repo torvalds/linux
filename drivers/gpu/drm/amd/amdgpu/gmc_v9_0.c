@@ -398,8 +398,10 @@ static void gmc_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->gmc.vm_fault.num_types = 1;
 	adev->gmc.vm_fault.funcs = &gmc_v9_0_irq_funcs;
 
-	adev->gmc.ecc_irq.num_types = 1;
-	adev->gmc.ecc_irq.funcs = &gmc_v9_0_ecc_funcs;
+	if (!amdgpu_sriov_vf(adev)) {
+		adev->gmc.ecc_irq.num_types = 1;
+		adev->gmc.ecc_irq.funcs = &gmc_v9_0_ecc_funcs;
+	}
 }
 
 static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid,
@@ -1117,11 +1119,13 @@ static int gmc_v9_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	/* interrupt sent to DF. */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DF, 0,
-			&adev->gmc.ecc_irq);
-	if (r)
-		return r;
+	if (!amdgpu_sriov_vf(adev)) {
+		/* interrupt sent to DF. */
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DF, 0,
+				      &adev->gmc.ecc_irq);
+		if (r)
+			return r;
+	}
 
 	/* Set the internal MC address mask
 	 * This is the max address of the GPU's
