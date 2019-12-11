@@ -2636,6 +2636,9 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 		return amdgpu_dc != 0;
 #endif
 	default:
+		if (amdgpu_dc > 0)
+			DRM_INFO("Display Core has been requested via kernel parameter "
+					 "but isn't supported by ASIC, ignoring\n");
 		return false;
 	}
 }
