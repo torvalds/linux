@@ -400,11 +400,10 @@ static u32 uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw, struct i915_ggtt *ggtt)
 	return lower_32_bits(node->start);
 }
 
-static void intel_uc_fw_ggtt_bind(struct intel_uc_fw *uc_fw,
-				  struct intel_gt *gt)
+static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
 {
 	struct drm_i915_gem_object *obj = uc_fw->obj;
-	struct i915_ggtt *ggtt = gt->ggtt;
+	struct i915_ggtt *ggtt = __uc_fw_to_gt(uc_fw)->ggtt;
 	struct i915_vma dummy = {
 		.node.start = uc_fw_ggtt_offset(uc_fw, ggtt),
 		.node.size = obj->base.size,
@@ -421,19 +420,18 @@ static void intel_uc_fw_ggtt_bind(struct intel_uc_fw *uc_fw,
 	ggtt->vm.insert_entries(&ggtt->vm, &dummy, I915_CACHE_NONE, 0);
 }
 
-static void intel_uc_fw_ggtt_unbind(struct intel_uc_fw *uc_fw,
-				    struct intel_gt *gt)
+static void uc_fw_unbind_ggtt(struct intel_uc_fw *uc_fw)
 {
 	struct drm_i915_gem_object *obj = uc_fw->obj;
-	struct i915_ggtt *ggtt = gt->ggtt;
+	struct i915_ggtt *ggtt = __uc_fw_to_gt(uc_fw)->ggtt;
 	u64 start = uc_fw_ggtt_offset(uc_fw, ggtt);
 
 	ggtt->vm.clear_range(&ggtt->vm, start, obj->base.size);
 }
 
-static int uc_fw_xfer(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
-		      u32 wopcm_offset, u32 dma_flags)
+static int uc_fw_xfer(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 {
+	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
 	struct intel_uncore *uncore = gt->uncore;
 	u64 offset;
 	int ret;
@@ -451,7 +449,7 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 	intel_uncore_write_fw(uncore, DMA_ADDR_0_HIGH, upper_32_bits(offset));
 
 	/* Set the DMA destination */
-	intel_uncore_write_fw(uncore, DMA_ADDR_1_LOW, wopcm_offset);
+	intel_uncore_write_fw(uncore, DMA_ADDR_1_LOW, dst_offset);
 	intel_uncore_write_fw(uncore, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
 
 	/*
@@ -483,17 +481,16 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 /**
  * intel_uc_fw_upload - load uC firmware using custom loader
  * @uc_fw: uC firmware
- * @gt: the intel_gt structure
- * @wopcm_offset: destination offset in wopcm
+ * @dst_offset: destination offset
  * @dma_flags: flags for flags for dma ctrl
  *
  * Loads uC firmware and updates internal flags.
  *
  * Return: 0 on success, non-zero on failure.
  */
-int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
-		       u32 wopcm_offset, u32 dma_flags)
+int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 {
+	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
 	int err;
 
 	/* make sure the status was cleared the last time we reset the uc */
@@ -507,9 +504,9 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 		return -ENOEXEC;
 
 	/* Call custom loader */
-	intel_uc_fw_ggtt_bind(uc_fw, gt);
-	err = uc_fw_xfer(uc_fw, gt, wopcm_offset, dma_flags);
-	intel_uc_fw_ggtt_unbind(uc_fw, gt);
+	uc_fw_bind_ggtt(uc_fw);
+	err = uc_fw_xfer(uc_fw, dst_offset, dma_flags);
+	uc_fw_unbind_ggtt(uc_fw);
 	if (err)
 		goto fail;
 

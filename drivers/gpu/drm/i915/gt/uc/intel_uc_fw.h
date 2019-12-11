@@ -231,8 +231,7 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 			    enum intel_platform platform, u8 rev);
 int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw);
 void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw);
-int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
-		       u32 wopcm_offset, u32 dma_flags);
+int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, u32 offset, u32 dma_flags);
 int intel_uc_fw_init(struct intel_uc_fw *uc_fw);
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw);
 size_t intel_uc_fw_copy_rsa(struct intel_uc_fw *uc_fw, void *dst, u32 max_len);
