@@ -11,7 +11,6 @@
 #include "intel_uc_fw_abi.h"
 #include "i915_drv.h"
 
-#ifdef CONFIG_DRM_I915_DEBUG_GUC
 static inline struct intel_gt *__uc_fw_to_gt(struct intel_uc_fw *uc_fw)
 {
 	GEM_BUG_ON(uc_fw->status == INTEL_UC_FIRMWARE_UNINITIALIZED);
@@ -22,6 +21,7 @@ static inline struct intel_gt *__uc_fw_to_gt(struct intel_uc_fw *uc_fw)
 	return container_of(uc_fw, struct intel_gt, uc.huc.fw);
 }
 
+#ifdef CONFIG_DRM_I915_DEBUG_GUC
 void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 			       enum intel_uc_fw_status status)
 {
@@ -219,10 +219,9 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 				  INTEL_UC_FIRMWARE_NOT_SUPPORTED);
 }
 
-static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw,
-				      struct drm_i915_private *i915,
-				      int e)
+static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw, int e)
 {
+	struct drm_i915_private *i915 = __uc_fw_to_gt(uc_fw)->i915;
 	bool user = e == -EINVAL;
 
 	if (i915_inject_probe_error(i915, e)) {
@@ -260,14 +259,14 @@ static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw,
 /**
  * intel_uc_fw_fetch - fetch uC firmware
  * @uc_fw: uC firmware
- * @i915: device private
  *
  * Fetch uC firmware into GEM obj.
  *
  * Return: 0 on success, a negative errno code on failure.
  */
-int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
+int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 {
+	struct drm_i915_private *i915 = __uc_fw_to_gt(uc_fw)->i915;
 	struct device *dev = i915->drm.dev;
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw = NULL;
@@ -282,8 +281,8 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	if (err)
 		return err;
 
-	__force_fw_fetch_failures(uc_fw, i915, -EINVAL);
-	__force_fw_fetch_failures(uc_fw, i915, -ESTALE);
+	__force_fw_fetch_failures(uc_fw, -EINVAL);
+	__force_fw_fetch_failures(uc_fw, -ESTALE);
 
 	err = request_firmware(&fw, uc_fw->path, dev);
 	if (err)
