@@ -986,7 +986,9 @@ struct snd_soc_card {
 	const char *long_name;
 	const char *driver_name;
 	const char *components;
+#ifdef CONFIG_DMI
 	char dmi_longname[80];
+#endif /* CONFIG_DMI */
 	char topology_shortname[32];
 
 	struct device *dev;
