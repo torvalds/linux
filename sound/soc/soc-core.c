@@ -1206,22 +1206,12 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 	return ret;
 }
 
-static void soc_set_of_name_prefix(struct snd_soc_component *component)
-{
-	struct device_node *of_node = soc_component_to_node(component);
-	const char *str;
-	int ret;
-
-	ret = of_property_read_string(of_node, "sound-name-prefix", &str);
-	if (!ret)
-		component->name_prefix = str;
-}
-
 static void soc_set_name_prefix(struct snd_soc_card *card,
 				struct snd_soc_component *component)
 {
 	struct device_node *of_node = soc_component_to_node(component);
-	int i;
+	const char *str;
+	int ret, i;
 
 	for (i = 0; i < card->num_configs; i++) {
 		struct snd_soc_codec_conf *map = &card->codec_conf[i];
@@ -1238,7 +1228,11 @@ static void soc_set_name_prefix(struct snd_soc_card *card,
 	 * If there is no configuration table or no match in the table,
 	 * check if a prefix is provided in the node
 	 */
-	soc_set_of_name_prefix(component);
+	ret = of_property_read_string(of_node, "sound-name-prefix", &str);
+	if (ret < 0)
+		return;
+
+	component->name_prefix = str;
 }
 
 static void soc_remove_component(struct snd_soc_component *component,
