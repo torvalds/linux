@@ -31,3 +31,10 @@ Description:	write only
 		the system is booted to capture the vmcore using FADump.
 		It is used to release the memory reserved by FADump to
 		save the crash dump.
+
+What:		/sys/kernel/fadump/mem_reserved
+Date:		Dec 2019
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read only
+		Provide information about the amount of memory reserved by
+		FADump to save the crash dump in bytes.
