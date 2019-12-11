@@ -13,7 +13,6 @@
 #ifndef _LINUX_SUNRPC_GSS_API_H
 #define _LINUX_SUNRPC_GSS_API_H
 
-#ifdef __KERNEL__
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/uio.h>
@@ -160,6 +159,5 @@ struct gss_api_mech * gss_mech_get(struct gss_api_mech *);
  * corresponding call to gss_mech_put. */
 void gss_mech_put(struct gss_api_mech *);
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_GSS_API_H */
 

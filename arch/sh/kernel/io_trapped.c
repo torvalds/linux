@@ -99,7 +99,7 @@ int register_trapped_io(struct trapped_io *tiop)
 
 	return 0;
  bad:
-	pr_warning("unable to install trapped io filter\n");
+	pr_warn("unable to install trapped io filter\n");
 	return -1;
 }
 EXPORT_SYMBOL_GPL(register_trapped_io);

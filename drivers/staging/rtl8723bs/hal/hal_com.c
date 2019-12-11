@@ -30,7 +30,6 @@ void rtw_hal_data_deinit(struct adapter *padapter)
 {
 	if (is_primary_adapter(padapter)) {	/* if (padapter->isprimary) */
 		if (padapter->HalData) {
-			phy_free_filebuf(padapter);
 			vfree(padapter->HalData);
 			padapter->HalData = NULL;
 			padapter->hal_data_sz = 0;

@@ -23,10 +23,15 @@ struct mt76x02_tx_status {
 #define MT_VIF_WCID(_n)		(254 - ((_n) & 7))
 #define MT_MAX_VIFS		8
 
+#define MT_PKTID_RATE		GENMASK(4, 0)
+#define MT_PKTID_AC		GENMASK(6, 5)
+
 struct mt76x02_vif {
 	struct mt76_wcid group_wcid; /* must be first */
 	u8 idx;
 };
+
+DECLARE_EWMA(pktlen, 8, 8);
 
 struct mt76x02_sta {
 	struct mt76_wcid wcid; /* must be first */
@@ -35,6 +40,7 @@ struct mt76x02_sta {
 	struct mt76x02_tx_status status;
 	int n_frames;
 
+	struct ewma_pktlen pktlen;
 };
 
 #define MT_RXINFO_BA			BIT(0)
@@ -161,6 +167,7 @@ static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
 	return false;
 }
 
+void mt76x02_mac_reset_counters(struct mt76x02_dev *dev);
 void mt76x02_mac_set_short_preamble(struct mt76x02_dev *dev, bool enable);
 int mt76x02_mac_shared_key_setup(struct mt76x02_dev *dev, u8 vif_idx,
 				 u8 key_idx, struct ieee80211_key_conf *key);
@@ -192,6 +199,7 @@ void mt76x02_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 void mt76x02_update_channel(struct mt76_dev *mdev);
 void mt76x02_mac_work(struct work_struct *work);
 
+void mt76x02_mac_cc_reset(struct mt76x02_dev *dev);
 void mt76x02_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr);
 int mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 vif_idx,
 			   struct sk_buff *skb);

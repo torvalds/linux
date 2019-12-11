@@ -1623,7 +1623,7 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 			raw_event.cntr_mask =
 				raw_id > 127 ? CNTR_ODD : CNTR_EVEN;
 		break;
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON64:
 		raw_event.cntr_mask = raw_id > 127 ? CNTR_ODD : CNTR_EVEN;
 	break;
 	}
@@ -1764,12 +1764,12 @@ init_hw_perf_events(void)
 		mipspmu.general_event_map = &mipsxxcore_event_map;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map;
 		break;
-	case CPU_LOONGSON1:
+	case CPU_LOONGSON32:
 		mipspmu.name = "mips/loongson1";
 		mipspmu.general_event_map = &mipsxxcore_event_map;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map;
 		break;
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON64:
 		mipspmu.name = "mips/loongson3";
 		mipspmu.general_event_map = &loongson3_event_map;
 		mipspmu.cache_event_map = &loongson3_cache_map;

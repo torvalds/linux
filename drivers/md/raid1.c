@@ -819,6 +819,7 @@ static void flush_bio_list(struct r1conf *conf, struct bio *bio)
 		else
 			generic_make_request(bio);
 		bio = next;
+		cond_resched();
 	}
 }
 
@@ -1567,10 +1568,9 @@ static bool raid1_make_request(struct mddev *mddev, struct bio *bio)
 {
 	sector_t sectors;
 
-	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
-		md_flush_request(mddev, bio);
+	if (unlikely(bio->bi_opf & REQ_PREFLUSH)
+	    && md_flush_request(mddev, bio))
 		return true;
-	}
 
 	/*
 	 * There is a limit to the maximum size, but

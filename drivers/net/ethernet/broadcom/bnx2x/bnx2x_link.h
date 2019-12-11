@@ -127,15 +127,15 @@ struct link_vars;
 struct link_params;
 struct bnx2x_phy;
 
-typedef u8 (*config_init_t)(struct bnx2x_phy *phy, struct link_params *params,
-			    struct link_vars *vars);
+typedef void (*config_init_t)(struct bnx2x_phy *phy, struct link_params *params,
+			      struct link_vars *vars);
 typedef u8 (*read_status_t)(struct bnx2x_phy *phy, struct link_params *params,
 			    struct link_vars *vars);
 typedef void (*link_reset_t)(struct bnx2x_phy *phy,
 			     struct link_params *params);
 typedef void (*config_loopback_t)(struct bnx2x_phy *phy,
 				  struct link_params *params);
-typedef u8 (*format_fw_ver_t)(u32 raw, u8 *str, u16 *len);
+typedef int (*format_fw_ver_t)(u32 raw, u8 *str, u16 *len);
 typedef void (*hw_reset_t)(struct bnx2x_phy *phy, struct link_params *params);
 typedef void (*set_link_led_t)(struct bnx2x_phy *phy,
 			       struct link_params *params, u8 mode);

@@ -873,7 +873,8 @@ static int rtsx_probe(struct pci_dev *pci,
 		 (unsigned long)(dev->addr), (unsigned long)(dev->remap_addr));
 
 	dev->rtsx_resv_buf = dmam_alloc_coherent(&pci->dev, RTSX_RESV_BUF_LEN,
-			&dev->rtsx_resv_buf_addr, GFP_KERNEL);
+						 &dev->rtsx_resv_buf_addr,
+						 GFP_KERNEL);
 	if (!dev->rtsx_resv_buf) {
 		dev_err(&pci->dev, "alloc dma buffer fail\n");
 		err = -ENXIO;

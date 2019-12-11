@@ -26,3 +26,14 @@ config NFC_PN533_I2C
 
 	  If you choose to build a module, it'll be called pn533_i2c.
 	  Say N if unsure.
+
+config NFC_PN532_UART
+	tristate "NFC PN532 device support (UART)"
+	depends on SERIAL_DEV_BUS
+	select NFC_PN533
+	---help---
+	  This module adds support for the NXP pn532 UART interface.
+	  Select this if your platform is using the UART bus.
+
+	  If you choose to build a module, it'll be called pn532_uart.
+	  Say N if unsure.

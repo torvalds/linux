@@ -142,8 +142,8 @@ int omap_aes_write_ctrl(struct omap_aes_dev *dd)
 			__le32_to_cpu(dd->ctx->key[i]));
 	}
 
-	if ((dd->flags & (FLAGS_CBC | FLAGS_CTR)) && dd->req->info)
-		omap_aes_write_n(dd, AES_REG_IV(dd, 0), dd->req->info, 4);
+	if ((dd->flags & (FLAGS_CBC | FLAGS_CTR)) && dd->req->iv)
+		omap_aes_write_n(dd, AES_REG_IV(dd, 0), (void *)dd->req->iv, 4);
 
 	if ((dd->flags & (FLAGS_GCM)) && dd->aead_req->iv) {
 		rctx = aead_request_ctx(dd->aead_req);
@@ -382,11 +382,11 @@ int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
 
 static void omap_aes_finish_req(struct omap_aes_dev *dd, int err)
 {
-	struct ablkcipher_request *req = dd->req;
+	struct skcipher_request *req = dd->req;
 
 	pr_debug("err: %d\n", err);
 
-	crypto_finalize_ablkcipher_request(dd->engine, req, err);
+	crypto_finalize_skcipher_request(dd->engine, req, err);
 
 	pm_runtime_mark_last_busy(dd->dev);
 	pm_runtime_put_autosuspend(dd->dev);
@@ -403,10 +403,10 @@ int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 }
 
 static int omap_aes_handle_queue(struct omap_aes_dev *dd,
-				 struct ablkcipher_request *req)
+				 struct skcipher_request *req)
 {
 	if (req)
-		return crypto_transfer_ablkcipher_request_to_engine(dd->engine, req);
+		return crypto_transfer_skcipher_request_to_engine(dd->engine, req);
 
 	return 0;
 }
@@ -414,10 +414,10 @@ static int omap_aes_handle_queue(struct omap_aes_dev *dd,
 static int omap_aes_prepare_req(struct crypto_engine *engine,
 				void *areq)
 {
-	struct ablkcipher_request *req = container_of(areq, struct ablkcipher_request, base);
-	struct omap_aes_ctx *ctx = crypto_ablkcipher_ctx(
-			crypto_ablkcipher_reqtfm(req));
-	struct omap_aes_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct skcipher_request *req = container_of(areq, struct skcipher_request, base);
+	struct omap_aes_ctx *ctx = crypto_skcipher_ctx(
+			crypto_skcipher_reqtfm(req));
+	struct omap_aes_reqctx *rctx = skcipher_request_ctx(req);
 	struct omap_aes_dev *dd = rctx->dd;
 	int ret;
 	u16 flags;
@@ -427,8 +427,8 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 
 	/* assign new request to device */
 	dd->req = req;
-	dd->total = req->nbytes;
-	dd->total_save = req->nbytes;
+	dd->total = req->cryptlen;
+	dd->total_save = req->cryptlen;
 	dd->in_sg = req->src;
 	dd->out_sg = req->dst;
 	dd->orig_out = req->dst;
@@ -469,8 +469,8 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 static int omap_aes_crypt_req(struct crypto_engine *engine,
 			      void *areq)
 {
-	struct ablkcipher_request *req = container_of(areq, struct ablkcipher_request, base);
-	struct omap_aes_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct skcipher_request *req = container_of(areq, struct skcipher_request, base);
+	struct omap_aes_reqctx *rctx = skcipher_request_ctx(req);
 	struct omap_aes_dev *dd = rctx->dd;
 
 	if (!dd)
@@ -505,26 +505,26 @@ static void omap_aes_done_task(unsigned long data)
 	pr_debug("exit\n");
 }
 
-static int omap_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
+static int omap_aes_crypt(struct skcipher_request *req, unsigned long mode)
 {
-	struct omap_aes_ctx *ctx = crypto_ablkcipher_ctx(
-			crypto_ablkcipher_reqtfm(req));
-	struct omap_aes_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct omap_aes_ctx *ctx = crypto_skcipher_ctx(
+			crypto_skcipher_reqtfm(req));
+	struct omap_aes_reqctx *rctx = skcipher_request_ctx(req);
 	struct omap_aes_dev *dd;
 	int ret;
 
-	pr_debug("nbytes: %d, enc: %d, cbc: %d\n", req->nbytes,
+	pr_debug("nbytes: %d, enc: %d, cbc: %d\n", req->cryptlen,
 		  !!(mode & FLAGS_ENCRYPT),
 		  !!(mode & FLAGS_CBC));
 
-	if (req->nbytes < aes_fallback_sz) {
+	if (req->cryptlen < aes_fallback_sz) {
 		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->fallback);
 
 		skcipher_request_set_sync_tfm(subreq, ctx->fallback);
 		skcipher_request_set_callback(subreq, req->base.flags, NULL,
 					      NULL);
 		skcipher_request_set_crypt(subreq, req->src, req->dst,
-					   req->nbytes, req->info);
+					   req->cryptlen, req->iv);
 
 		if (mode & FLAGS_ENCRYPT)
 			ret = crypto_skcipher_encrypt(subreq);
@@ -545,10 +545,10 @@ static int omap_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 
 /* ********************** ALG API ************************************ */
 
-static int omap_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+static int omap_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			   unsigned int keylen)
 {
-	struct omap_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct omap_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int ret;
 
 	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
@@ -571,32 +571,32 @@ static int omap_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	return 0;
 }
 
-static int omap_aes_ecb_encrypt(struct ablkcipher_request *req)
+static int omap_aes_ecb_encrypt(struct skcipher_request *req)
 {
 	return omap_aes_crypt(req, FLAGS_ENCRYPT);
 }
 
-static int omap_aes_ecb_decrypt(struct ablkcipher_request *req)
+static int omap_aes_ecb_decrypt(struct skcipher_request *req)
 {
 	return omap_aes_crypt(req, 0);
 }
 
-static int omap_aes_cbc_encrypt(struct ablkcipher_request *req)
+static int omap_aes_cbc_encrypt(struct skcipher_request *req)
 {
 	return omap_aes_crypt(req, FLAGS_ENCRYPT | FLAGS_CBC);
 }
 
-static int omap_aes_cbc_decrypt(struct ablkcipher_request *req)
+static int omap_aes_cbc_decrypt(struct skcipher_request *req)
 {
 	return omap_aes_crypt(req, FLAGS_CBC);
 }
 
-static int omap_aes_ctr_encrypt(struct ablkcipher_request *req)
+static int omap_aes_ctr_encrypt(struct skcipher_request *req)
 {
 	return omap_aes_crypt(req, FLAGS_ENCRYPT | FLAGS_CTR);
 }
 
-static int omap_aes_ctr_decrypt(struct ablkcipher_request *req)
+static int omap_aes_ctr_decrypt(struct skcipher_request *req)
 {
 	return omap_aes_crypt(req, FLAGS_CTR);
 }
@@ -606,10 +606,10 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 static int omap_aes_crypt_req(struct crypto_engine *engine,
 			      void *req);
 
-static int omap_aes_cra_init(struct crypto_tfm *tfm)
+static int omap_aes_init_tfm(struct crypto_skcipher *tfm)
 {
-	const char *name = crypto_tfm_alg_name(tfm);
-	struct omap_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+	const char *name = crypto_tfm_alg_name(&tfm->base);
+	struct omap_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct crypto_sync_skcipher *blk;
 
 	blk = crypto_alloc_sync_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
@@ -618,7 +618,7 @@ static int omap_aes_cra_init(struct crypto_tfm *tfm)
 
 	ctx->fallback = blk;
 
-	tfm->crt_ablkcipher.reqsize = sizeof(struct omap_aes_reqctx);
+	crypto_skcipher_set_reqsize(tfm, sizeof(struct omap_aes_reqctx));
 
 	ctx->enginectx.op.prepare_request = omap_aes_prepare_req;
 	ctx->enginectx.op.unprepare_request = NULL;
@@ -657,9 +657,9 @@ static int omap_aes_gcm_cra_init(struct crypto_aead *tfm)
 	return 0;
 }
 
-static void omap_aes_cra_exit(struct crypto_tfm *tfm)
+static void omap_aes_exit_tfm(struct crypto_skcipher *tfm)
 {
-	struct omap_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct omap_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	if (ctx->fallback)
 		crypto_free_sync_skcipher(ctx->fallback);
@@ -671,7 +671,10 @@ static void omap_aes_gcm_cra_exit(struct crypto_aead *tfm)
 {
 	struct omap_aes_ctx *ctx = crypto_aead_ctx(tfm);
 
-	omap_aes_cra_exit(crypto_aead_tfm(tfm));
+	if (ctx->fallback)
+		crypto_free_sync_skcipher(ctx->fallback);
+
+	ctx->fallback = NULL;
 
 	if (ctx->ctr)
 		crypto_free_skcipher(ctx->ctr);
@@ -679,78 +682,69 @@ static void omap_aes_gcm_cra_exit(struct crypto_aead *tfm)
 
 /* ********************** ALGS ************************************ */
 
-static struct crypto_alg algs_ecb_cbc[] = {
+static struct skcipher_alg algs_ecb_cbc[] = {
 {
-	.cra_name		= "ecb(aes)",
-	.cra_driver_name	= "ecb-aes-omap",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct omap_aes_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= omap_aes_cra_init,
-	.cra_exit		= omap_aes_cra_exit,
-	.cra_u.ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.setkey		= omap_aes_setkey,
-		.encrypt	= omap_aes_ecb_encrypt,
-		.decrypt	= omap_aes_ecb_decrypt,
-	}
+	.base.cra_name		= "ecb(aes)",
+	.base.cra_driver_name	= "ecb-aes-omap",
+	.base.cra_priority	= 300,
+	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
+				  CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_NEED_FALLBACK,
+	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_ctxsize	= sizeof(struct omap_aes_ctx),
+	.base.cra_module	= THIS_MODULE,
+
+	.min_keysize		= AES_MIN_KEY_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE,
+	.setkey			= omap_aes_setkey,
+	.encrypt		= omap_aes_ecb_encrypt,
+	.decrypt		= omap_aes_ecb_decrypt,
+	.init			= omap_aes_init_tfm,
+	.exit			= omap_aes_exit_tfm,
 },
 {
-	.cra_name		= "cbc(aes)",
-	.cra_driver_name	= "cbc-aes-omap",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct omap_aes_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= omap_aes_cra_init,
-	.cra_exit		= omap_aes_cra_exit,
-	.cra_u.ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= omap_aes_setkey,
-		.encrypt	= omap_aes_cbc_encrypt,
-		.decrypt	= omap_aes_cbc_decrypt,
-	}
+	.base.cra_name		= "cbc(aes)",
+	.base.cra_driver_name	= "cbc-aes-omap",
+	.base.cra_priority	= 300,
+	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
+				  CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_NEED_FALLBACK,
+	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_ctxsize	= sizeof(struct omap_aes_ctx),
+	.base.cra_module	= THIS_MODULE,
+
+	.min_keysize		= AES_MIN_KEY_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE,
+	.ivsize			= AES_BLOCK_SIZE,
+	.setkey			= omap_aes_setkey,
+	.encrypt		= omap_aes_cbc_encrypt,
+	.decrypt		= omap_aes_cbc_decrypt,
+	.init			= omap_aes_init_tfm,
+	.exit			= omap_aes_exit_tfm,
 }
 };
 
-static struct crypto_alg algs_ctr[] = {
+static struct skcipher_alg algs_ctr[] = {
 {
-	.cra_name		= "ctr(aes)",
-	.cra_driver_name	= "ctr-aes-omap",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct omap_aes_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= omap_aes_cra_init,
-	.cra_exit		= omap_aes_cra_exit,
-	.cra_u.ablkcipher = {
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
-		.setkey		= omap_aes_setkey,
-		.encrypt	= omap_aes_ctr_encrypt,
-		.decrypt	= omap_aes_ctr_decrypt,
-	}
-} ,
+	.base.cra_name		= "ctr(aes)",
+	.base.cra_driver_name	= "ctr-aes-omap",
+	.base.cra_priority	= 300,
+	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
+				  CRYPTO_ALG_ASYNC |
+				  CRYPTO_ALG_NEED_FALLBACK,
+	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_ctxsize	= sizeof(struct omap_aes_ctx),
+	.base.cra_module	= THIS_MODULE,
+
+	.min_keysize		= AES_MIN_KEY_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE,
+	.ivsize			= AES_BLOCK_SIZE,
+	.setkey			= omap_aes_setkey,
+	.encrypt		= omap_aes_ctr_encrypt,
+	.decrypt		= omap_aes_ctr_decrypt,
+	.init			= omap_aes_init_tfm,
+	.exit			= omap_aes_exit_tfm,
+}
 };
 
 static struct omap_aes_algs_info omap_aes_algs_info_ecb_cbc[] = {
@@ -1121,7 +1115,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct omap_aes_dev *dd;
-	struct crypto_alg *algp;
+	struct skcipher_alg *algp;
 	struct aead_alg *aalg;
 	struct resource res;
 	int err = -ENOMEM, i, j, irq = -1;
@@ -1215,9 +1209,9 @@ static int omap_aes_probe(struct platform_device *pdev)
 			for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
 				algp = &dd->pdata->algs_info[i].algs_list[j];
 
-				pr_debug("reg alg: %s\n", algp->cra_name);
+				pr_debug("reg alg: %s\n", algp->base.cra_name);
 
-				err = crypto_register_alg(algp);
+				err = crypto_register_skcipher(algp);
 				if (err)
 					goto err_algs;
 
@@ -1230,9 +1224,8 @@ static int omap_aes_probe(struct platform_device *pdev)
 	    !dd->pdata->aead_algs_info->registered) {
 		for (i = 0; i < dd->pdata->aead_algs_info->size; i++) {
 			aalg = &dd->pdata->aead_algs_info->algs_list[i];
-			algp = &aalg->base;
 
-			pr_debug("reg alg: %s\n", algp->cra_name);
+			pr_debug("reg alg: %s\n", aalg->base.cra_name);
 
 			err = crypto_register_aead(aalg);
 			if (err)
@@ -1257,7 +1250,7 @@ err_aead_algs:
 err_algs:
 	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
-			crypto_unregister_alg(
+			crypto_unregister_skcipher(
 					&dd->pdata->algs_info[i].algs_list[j]);
 
 err_engine:
@@ -1290,7 +1283,7 @@ static int omap_aes_remove(struct platform_device *pdev)
 
 	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
-			crypto_unregister_alg(
+			crypto_unregister_skcipher(
 					&dd->pdata->algs_info[i].algs_list[j]);
 
 	for (i = dd->pdata->aead_algs_info->size - 1; i >= 0; i--) {

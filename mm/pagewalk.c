@@ -10,8 +10,9 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	pte_t *pte;
 	int err = 0;
 	const struct mm_walk_ops *ops = walk->ops;
+	spinlock_t *ptl;
 
-	pte = pte_offset_map(pmd, addr);
+	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
 	for (;;) {
 		err = ops->pte_entry(pte, addr, addr + PAGE_SIZE, walk);
 		if (err)
@@ -22,7 +23,7 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 		pte++;
 	}
 
-	pte_unmap(pte);
+	pte_unmap_unlock(pte, ptl);
 	return err;
 }
 
@@ -253,12 +254,22 @@ static int __walk_page_range(unsigned long start, unsigned long end,
 {
 	int err = 0;
 	struct vm_area_struct *vma = walk->vma;
+	const struct mm_walk_ops *ops = walk->ops;
+
+	if (vma && ops->pre_vma) {
+		err = ops->pre_vma(start, end, walk);
+		if (err)
+			return err;
+	}
 
 	if (vma && is_vm_hugetlb_page(vma)) {
-		if (walk->ops->hugetlb_entry)
+		if (ops->hugetlb_entry)
 			err = walk_hugetlb_range(start, end, walk);
 	} else
 		err = walk_pgd_range(start, end, walk);
+
+	if (vma && ops->post_vma)
+		ops->post_vma(walk);
 
 	return err;
 }
@@ -289,6 +300,11 @@ static int __walk_page_range(unsigned long start, unsigned long end,
  * they really want to walk over the current vma, typically by checking
  * its vm_flags. walk_page_test() and @ops->test_walk() are used for this
  * purpose.
+ *
+ * If operations need to be staged before and committed after a vma is walked,
+ * there are two callbacks, pre_vma() and post_vma(). Note that post_vma(),
+ * since it is intended to handle commit-type operations, can't return any
+ * errors.
  *
  * struct mm_walk keeps current values of some common data like vma and pmd,
  * which are useful for the access from callbacks. If you want to pass some
@@ -375,4 +391,81 @@ int walk_page_vma(struct vm_area_struct *vma, const struct mm_walk_ops *ops,
 	if (err < 0)
 		return err;
 	return __walk_page_range(vma->vm_start, vma->vm_end, &walk);
+}
+
+/**
+ * walk_page_mapping - walk all memory areas mapped into a struct address_space.
+ * @mapping: Pointer to the struct address_space
+ * @first_index: First page offset in the address_space
+ * @nr: Number of incremental page offsets to cover
+ * @ops:	operation to call during the walk
+ * @private:	private data for callbacks' usage
+ *
+ * This function walks all memory areas mapped into a struct address_space.
+ * The walk is limited to only the given page-size index range, but if
+ * the index boundaries cross a huge page-table entry, that entry will be
+ * included.
+ *
+ * Also see walk_page_range() for additional information.
+ *
+ * Locking:
+ *   This function can't require that the struct mm_struct::mmap_sem is held,
+ *   since @mapping may be mapped by multiple processes. Instead
+ *   @mapping->i_mmap_rwsem must be held. This might have implications in the
+ *   callbacks, and it's up tho the caller to ensure that the
+ *   struct mm_struct::mmap_sem is not needed.
+ *
+ *   Also this means that a caller can't rely on the struct
+ *   vm_area_struct::vm_flags to be constant across a call,
+ *   except for immutable flags. Callers requiring this shouldn't use
+ *   this function.
+ *
+ * Return: 0 on success, negative error code on failure, positive number on
+ * caller defined premature termination.
+ */
+int walk_page_mapping(struct address_space *mapping, pgoff_t first_index,
+		      pgoff_t nr, const struct mm_walk_ops *ops,
+		      void *private)
+{
+	struct mm_walk walk = {
+		.ops		= ops,
+		.private	= private,
+	};
+	struct vm_area_struct *vma;
+	pgoff_t vba, vea, cba, cea;
+	unsigned long start_addr, end_addr;
+	int err = 0;
+
+	lockdep_assert_held(&mapping->i_mmap_rwsem);
+	vma_interval_tree_foreach(vma, &mapping->i_mmap, first_index,
+				  first_index + nr - 1) {
+		/* Clip to the vma */
+		vba = vma->vm_pgoff;
+		vea = vba + vma_pages(vma);
+		cba = first_index;
+		cba = max(cba, vba);
+		cea = first_index + nr;
+		cea = min(cea, vea);
+
+		start_addr = ((cba - vba) << PAGE_SHIFT) + vma->vm_start;
+		end_addr = ((cea - vba) << PAGE_SHIFT) + vma->vm_start;
+		if (start_addr >= end_addr)
+			continue;
+
+		walk.vma = vma;
+		walk.mm = vma->vm_mm;
+
+		err = walk_page_test(vma->vm_start, vma->vm_end, &walk);
+		if (err > 0) {
+			err = 0;
+			break;
+		} else if (err < 0)
+			break;
+
+		err = __walk_page_range(start_addr, end_addr, &walk);
+		if (err)
+			break;
+	}
+
+	return err;
 }

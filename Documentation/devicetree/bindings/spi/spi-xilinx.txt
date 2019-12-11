@@ -8,7 +8,8 @@ Required properties:
 			  number.
 
 Optional properties:
-- xlnx,num-ss-bits	: Number of chip selects used.
+- xlnx,num-ss-bits	 : Number of chip selects used.
+- xlnx,num-transfer-bits : Number of bits per transfer. This will be 8 if not specified
 
 Example:
 	axi_quad_spi@41e00000 {
@@ -17,5 +18,6 @@ Example:
 			interrupts = <0 31 1>;
 			reg = <0x41e00000 0x10000>;
 			xlnx,num-ss-bits = <0x1>;
+			xlnx,num-transfer-bits = <32>;
 	};
 

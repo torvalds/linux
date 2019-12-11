@@ -29,13 +29,6 @@
 #include <asm/vdso.h>
 #include <asm/facility.h>
 
-#ifdef CONFIG_COMPAT_VDSO
-extern char vdso32_start, vdso32_end;
-static void *vdso32_kbase = &vdso32_start;
-static unsigned int vdso32_pages;
-static struct page **vdso32_pagelist;
-#endif
-
 extern char vdso64_start, vdso64_end;
 static void *vdso64_kbase = &vdso64_start;
 static unsigned int vdso64_pages;
@@ -55,12 +48,6 @@ static vm_fault_t vdso_fault(const struct vm_special_mapping *sm,
 
 	vdso_pagelist = vdso64_pagelist;
 	vdso_pages = vdso64_pages;
-#ifdef CONFIG_COMPAT_VDSO
-	if (vma->vm_mm->context.compat_mm) {
-		vdso_pagelist = vdso32_pagelist;
-		vdso_pages = vdso32_pages;
-	}
-#endif
 
 	if (vmf->pgoff >= vdso_pages)
 		return VM_FAULT_SIGBUS;
@@ -76,10 +63,6 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 	unsigned long vdso_pages;
 
 	vdso_pages = vdso64_pages;
-#ifdef CONFIG_COMPAT_VDSO
-	if (vma->vm_mm->context.compat_mm)
-		vdso_pages = vdso32_pages;
-#endif
 
 	if ((vdso_pages << PAGE_SHIFT) != vma->vm_end - vma->vm_start)
 		return -EINVAL;
@@ -209,12 +192,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (!vdso_enabled)
 		return 0;
 
+	if (is_compat_task())
+		return 0;
+
 	vdso_pages = vdso64_pages;
-#ifdef CONFIG_COMPAT_VDSO
-	mm->context.compat_mm = is_compat_task();
-	if (mm->context.compat_mm)
-		vdso_pages = vdso32_pages;
-#endif
 	/*
 	 * vDSO has a problem and was disabled, just don't "enable" it for
 	 * the process
@@ -267,23 +248,6 @@ static int __init vdso_init(void)
 	int i;
 
 	vdso_init_data(vdso_data);
-#ifdef CONFIG_COMPAT_VDSO
-	/* Calculate the size of the 32 bit vDSO */
-	vdso32_pages = ((&vdso32_end - &vdso32_start
-			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
-
-	/* Make sure pages are in the correct state */
-	vdso32_pagelist = kcalloc(vdso32_pages + 1, sizeof(struct page *),
-				  GFP_KERNEL);
-	BUG_ON(vdso32_pagelist == NULL);
-	for (i = 0; i < vdso32_pages - 1; i++) {
-		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
-		get_page(pg);
-		vdso32_pagelist[i] = pg;
-	}
-	vdso32_pagelist[vdso32_pages - 1] = virt_to_page(vdso_data);
-	vdso32_pagelist[vdso32_pages] = NULL;
-#endif
 
 	/* Calculate the size of the 64 bit vDSO */
 	vdso64_pages = ((&vdso64_end - &vdso64_start

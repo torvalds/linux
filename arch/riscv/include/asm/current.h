@@ -7,8 +7,8 @@
  */
 
 
-#ifndef __ASM_CURRENT_H
-#define __ASM_CURRENT_H
+#ifndef _ASM_RISCV_CURRENT_H
+#define _ASM_RISCV_CURRENT_H
 
 #include <linux/bug.h>
 #include <linux/compiler.h>
@@ -34,4 +34,4 @@ static __always_inline struct task_struct *get_current(void)
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* __ASM_CURRENT_H */
+#endif /* _ASM_RISCV_CURRENT_H */

@@ -4,13 +4,14 @@
 
 #include <sys/types.h>
 #include <linux/rbtree.h>
-#include "map_groups.h"
+#include "maps.h"
 #include "dsos.h"
 #include "rwsem.h"
 
 struct addr_location;
 struct branch_stack;
 struct dso;
+struct dso_id;
 struct evsel;
 struct perf_sample;
 struct symbol;
@@ -50,7 +51,7 @@ struct machine {
 	struct vdso_info  *vdso_info;
 	struct perf_env   *env;
 	struct dsos	  dsos;
-	struct map_groups kmaps;
+	struct maps	  kmaps;
 	struct map	  *vmlinux_map;
 	u64		  kernel_start;
 	pid_t		  *current_tid;
@@ -82,7 +83,7 @@ struct map *machine__kernel_map(struct machine *machine)
 static inline
 struct maps *machine__kernel_maps(struct machine *machine)
 {
-	return &machine->kmaps.maps;
+	return &machine->kmaps;
 }
 
 int machine__get_kernel_start(struct machine *machine);
@@ -202,6 +203,7 @@ int machine__nr_cpus_avail(struct machine *machine);
 struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
 struct thread *machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
 
+struct dso *machine__findnew_dso_id(struct machine *machine, const char *filename, struct dso_id *id);
 struct dso *machine__findnew_dso(struct machine *machine, const char *filename);
 
 size_t machine__fprintf(struct machine *machine, FILE *fp);
@@ -210,7 +212,7 @@ static inline
 struct symbol *machine__find_kernel_symbol(struct machine *machine, u64 addr,
 					   struct map **mapp)
 {
-	return map_groups__find_symbol(&machine->kmaps, addr, mapp);
+	return maps__find_symbol(&machine->kmaps, addr, mapp);
 }
 
 static inline
@@ -218,11 +220,9 @@ struct symbol *machine__find_kernel_symbol_by_name(struct machine *machine,
 						   const char *name,
 						   struct map **mapp)
 {
-	return map_groups__find_symbol_by_name(&machine->kmaps, name, mapp);
+	return maps__find_symbol_by_name(&machine->kmaps, name, mapp);
 }
 
-struct map *machine__findnew_module_map(struct machine *machine, u64 start,
-					const char *filename);
 int arch__fix_module_text_start(u64 *start, u64 *size, const char *name);
 
 int machine__load_kallsyms(struct machine *machine, const char *filename);

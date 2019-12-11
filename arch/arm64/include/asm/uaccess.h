@@ -62,8 +62,13 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 {
 	unsigned long ret, limit = current_thread_info()->addr_limit;
 
+	/*
+	 * Asynchronous I/O running in a kernel thread does not have the
+	 * TIF_TAGGED_ADDR flag of the process owning the mm, so always untag
+	 * the user address before checking.
+	 */
 	if (IS_ENABLED(CONFIG_ARM64_TAGGED_ADDR_ABI) &&
-	    test_thread_flag(TIF_TAGGED_ADDR))
+	    (current->flags & PF_KTHREAD || test_thread_flag(TIF_TAGGED_ADDR)))
 		addr = untagged_addr(addr);
 
 	__chk_user_ptr(addr);
@@ -378,20 +383,34 @@ do {									\
 extern unsigned long __must_check __arch_copy_from_user(void *to, const void __user *from, unsigned long n);
 #define raw_copy_from_user(to, from, n)					\
 ({									\
-	__arch_copy_from_user((to), __uaccess_mask_ptr(from), (n));	\
+	unsigned long __acfu_ret;					\
+	uaccess_enable_not_uao();					\
+	__acfu_ret = __arch_copy_from_user((to),			\
+				      __uaccess_mask_ptr(from), (n));	\
+	uaccess_disable_not_uao();					\
+	__acfu_ret;							\
 })
 
 extern unsigned long __must_check __arch_copy_to_user(void __user *to, const void *from, unsigned long n);
 #define raw_copy_to_user(to, from, n)					\
 ({									\
-	__arch_copy_to_user(__uaccess_mask_ptr(to), (from), (n));	\
+	unsigned long __actu_ret;					\
+	uaccess_enable_not_uao();					\
+	__actu_ret = __arch_copy_to_user(__uaccess_mask_ptr(to),	\
+				    (from), (n));			\
+	uaccess_disable_not_uao();					\
+	__actu_ret;							\
 })
 
 extern unsigned long __must_check __arch_copy_in_user(void __user *to, const void __user *from, unsigned long n);
 #define raw_copy_in_user(to, from, n)					\
 ({									\
-	__arch_copy_in_user(__uaccess_mask_ptr(to),			\
-			    __uaccess_mask_ptr(from), (n));		\
+	unsigned long __aciu_ret;					\
+	uaccess_enable_not_uao();					\
+	__aciu_ret = __arch_copy_in_user(__uaccess_mask_ptr(to),	\
+				    __uaccess_mask_ptr(from), (n));	\
+	uaccess_disable_not_uao();					\
+	__aciu_ret;							\
 })
 
 #define INLINE_COPY_TO_USER
@@ -400,8 +419,11 @@ extern unsigned long __must_check __arch_copy_in_user(void __user *to, const voi
 extern unsigned long __must_check __arch_clear_user(void __user *to, unsigned long n);
 static inline unsigned long __must_check __clear_user(void __user *to, unsigned long n)
 {
-	if (access_ok(to, n))
+	if (access_ok(to, n)) {
+		uaccess_enable_not_uao();
 		n = __arch_clear_user(__uaccess_mask_ptr(to), n);
+		uaccess_disable_not_uao();
+	}
 	return n;
 }
 #define clear_user	__clear_user

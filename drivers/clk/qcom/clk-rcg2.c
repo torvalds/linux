@@ -206,7 +206,7 @@ static int _freq_tbl_determine_rate(struct clk_hw *hw, const struct freq_tbl *f,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	if (!f)
 		return -EINVAL;
@@ -220,6 +220,8 @@ static int _freq_tbl_determine_rate(struct clk_hw *hw, const struct freq_tbl *f,
 	if (clk_flags & CLK_SET_RATE_PARENT) {
 		rate = f->freq;
 		if (f->pre_div) {
+			if (!rate)
+				rate = req->rate;
 			rate /= 2;
 			rate *= f->pre_div + 1;
 		}
@@ -319,7 +321,7 @@ static int __clk_rcg2_set_rate(struct clk_hw *hw, unsigned long rate,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	if (!f)
 		return -EINVAL;

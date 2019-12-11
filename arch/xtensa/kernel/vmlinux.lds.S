@@ -14,6 +14,8 @@
  * Joe Taylor <joe@tensilica.com, joetylr@yahoo.com>
  */
 
+#define RO_EXCEPTION_TABLE_ALIGN	16
+
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/page.h>
 #include <asm/thread_info.h>
@@ -117,25 +119,22 @@ SECTIONS
     SCHED_TEXT
     CPUIDLE_TEXT
     LOCK_TEXT
-
+    *(.fixup)
   }
   _etext = .;
   PROVIDE (etext = .);
 
   . = ALIGN(16);
 
-  RODATA
+  RO_DATA(4096)
 
-  /*  Relocation table */
-
-  .fixup   : { *(.fixup) }
-
-  EXCEPTION_TABLE(16)
-  NOTES
   /* Data section */
 
+#ifdef CONFIG_XIP_KERNEL
+  INIT_TEXT_SECTION(PAGE_SIZE)
+#else
   _sdata = .;
-  RW_DATA_SECTION(XCHAL_ICACHE_LINESIZE, PAGE_SIZE, THREAD_SIZE)
+  RW_DATA(XCHAL_ICACHE_LINESIZE, PAGE_SIZE, THREAD_SIZE)
   _edata = .;
 
   /* Initialization code and data: */
@@ -147,6 +146,11 @@ SECTIONS
   .init.data :
   {
     INIT_DATA
+  }
+#endif
+
+  .init.rodata :
+  {
     . = ALIGN(0x4);
     __tagtable_begin = .;
     *(.taglist)
@@ -187,12 +191,16 @@ SECTIONS
     RELOCATE_ENTRY(_DebugInterruptVector_text,
 		   .DebugInterruptVector.text);
 #endif
+#ifdef CONFIG_XIP_KERNEL
+    RELOCATE_ENTRY(_xip_data, .data);
+    RELOCATE_ENTRY(_xip_init_data, .init.data);
+#else
 #if defined(CONFIG_SMP)
     RELOCATE_ENTRY(_SecondaryResetVector_text,
 		   .SecondaryResetVector.text);
 #endif
+#endif
 
-  
     __boot_reloc_table_end = ABSOLUTE(.) ;
 
     INIT_SETUP(XCHAL_ICACHE_LINESIZE)
@@ -278,7 +286,7 @@ SECTIONS
   . = (LOADADDR( .DoubleExceptionVector.text ) + SIZEOF( .DoubleExceptionVector.text ) + 3) & ~ 3;
 
 #endif
-#if defined(CONFIG_SMP)
+#if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SMP)
 
   SECTION_VECTOR (_SecondaryResetVector_text,
 		  .SecondaryResetVector.text,
@@ -291,11 +299,47 @@ SECTIONS
 
   . = ALIGN(PAGE_SIZE);
 
+#ifndef CONFIG_XIP_KERNEL
   __init_end = .;
 
   BSS_SECTION(0, 8192, 0)
+#endif
 
   _end = .;
+
+#ifdef CONFIG_XIP_KERNEL
+  . = CONFIG_XIP_DATA_ADDR;
+
+  _xip_start = .;
+
+#undef LOAD_OFFSET
+#define LOAD_OFFSET \
+  (CONFIG_XIP_DATA_ADDR - (LOADADDR(.dummy) + SIZEOF(.dummy) + 3) & ~ 3)
+
+  _xip_data_start = .;
+  _sdata = .;
+  RW_DATA(XCHAL_ICACHE_LINESIZE, PAGE_SIZE, THREAD_SIZE)
+  _edata = .;
+  _xip_data_end = .;
+
+  /* Initialization data: */
+
+  STRUCT_ALIGN();
+
+  _xip_init_data_start = .;
+  __init_begin = .;
+  .init.data :
+  {
+    INIT_DATA
+  }
+  _xip_init_data_end = .;
+  __init_end = .;
+  BSS_SECTION(0, 8192, 0)
+
+  _xip_end = .;
+
+#undef LOAD_OFFSET
+#endif
 
   DWARF_DEBUG
 

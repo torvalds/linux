@@ -91,6 +91,7 @@ int mlx4_en_alloc_tx_queue_per_tc(struct net_device *dev, u8 tc)
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_port_profile new_prof;
 	struct mlx4_en_priv *tmp;
+	int total_count;
 	int port_up = 0;
 	int err = 0;
 
@@ -104,6 +105,14 @@ int mlx4_en_alloc_tx_queue_per_tc(struct net_device *dev, u8 tc)
 				      MLX4_EN_NUM_UP_HIGH;
 	new_prof.tx_ring_num[TX] = new_prof.num_tx_rings_p_up *
 				   new_prof.num_up;
+	total_count = new_prof.tx_ring_num[TX] + new_prof.tx_ring_num[TX_XDP];
+	if (total_count > MAX_TX_RINGS) {
+		err = -EINVAL;
+		en_err(priv,
+		       "Total number of TX and XDP rings (%d) exceeds the maximum supported (%d)\n",
+		       total_count, MAX_TX_RINGS);
+		goto out;
+	}
 	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof, true);
 	if (err)
 		goto out;
@@ -2286,11 +2295,7 @@ int mlx4_en_try_alloc_resources(struct mlx4_en_priv *priv,
 		lockdep_is_held(&priv->mdev->state_lock));
 
 	if (xdp_prog && carry_xdp_prog) {
-		xdp_prog = bpf_prog_add(xdp_prog, tmp->rx_ring_num);
-		if (IS_ERR(xdp_prog)) {
-			mlx4_en_free_resources(tmp);
-			return PTR_ERR(xdp_prog);
-		}
+		bpf_prog_add(xdp_prog, tmp->rx_ring_num);
 		for (i = 0; i < tmp->rx_ring_num; i++)
 			rcu_assign_pointer(tmp->rx_ring[i]->xdp_prog,
 					   xdp_prog);
@@ -2782,11 +2787,9 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	 * program for a new one.
 	 */
 	if (priv->tx_ring_num[TX_XDP] == xdp_ring_num) {
-		if (prog) {
-			prog = bpf_prog_add(prog, priv->rx_ring_num - 1);
-			if (IS_ERR(prog))
-				return PTR_ERR(prog);
-		}
+		if (prog)
+			bpf_prog_add(prog, priv->rx_ring_num - 1);
+
 		mutex_lock(&mdev->state_lock);
 		for (i = 0; i < priv->rx_ring_num; i++) {
 			old_prog = rcu_dereference_protected(
@@ -2807,13 +2810,8 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	if (!tmp)
 		return -ENOMEM;
 
-	if (prog) {
-		prog = bpf_prog_add(prog, priv->rx_ring_num - 1);
-		if (IS_ERR(prog)) {
-			err = PTR_ERR(prog);
-			goto out;
-		}
-	}
+	if (prog)
+		bpf_prog_add(prog, priv->rx_ring_num - 1);
 
 	mutex_lock(&mdev->state_lock);
 	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
@@ -2862,7 +2860,6 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 
 unlock_out:
 	mutex_unlock(&mdev->state_lock);
-out:
 	kfree(tmp);
 	return err;
 }

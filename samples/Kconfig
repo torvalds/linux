@@ -19,6 +19,21 @@ config SAMPLE_TRACE_PRINTK
 	 This builds a module that calls trace_printk() and can be used to
 	 test various trace_printk() calls from a module.
 
+config SAMPLE_FTRACE_DIRECT
+	tristate "Build register_ftrace_direct() example"
+	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS && m
+	depends on X86_64 # has x86_64 inlined asm
+	help
+	  This builds an ftrace direct function example
+	  that hooks to wake_up_process and prints the parameters.
+
+config SAMPLE_TRACE_ARRAY
+        tristate "Build sample module for kernel access to Ftrace instancess"
+	depends on EVENT_TRACING && m
+	help
+	 This builds a module that demonstrates the use of various APIs to
+	 access Ftrace instances from within the kernel.
+
 config SAMPLE_KOBJECT
 	tristate "Build kobject examples"
 	help
@@ -168,5 +183,12 @@ config SAMPLE_VFS
 	  Build example userspace programs that use new VFS system calls such
 	  as mount API and statx().  Note that this is restricted to the x86
 	  arch whilst it accesses system calls that aren't yet in all arches.
+
+config SAMPLE_INTEL_MEI
+	bool "Build example program working with intel mei driver"
+	depends on INTEL_MEI
+	help
+	  Build a sample program to work with mei device.
+
 
 endif # SAMPLES

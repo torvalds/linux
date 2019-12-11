@@ -789,6 +789,18 @@ static int ccp5_init(struct ccp_device *ccp)
 
 	/* Find available queues */
 	qmr = ioread32(ccp->io_regs + Q_MASK_REG);
+	/*
+	 * Check for a access to the registers.  If this read returns
+	 * 0xffffffff, it's likely that the system is running a broken
+	 * BIOS which disallows access to the device. Stop here and fail
+	 * the initialization (but not the load, as the PSP could get
+	 * properly initialized).
+	 */
+	if (qmr == 0xffffffff) {
+		dev_notice(dev, "ccp: unable to access the device: you might be running a broken BIOS.\n");
+		return 1;
+	}
+
 	for (i = 0; (i < MAX_HW_QUEUES) && (ccp->cmd_q_count < ccp->max_q_count); i++) {
 		if (!(qmr & (1 << i)))
 			continue;
@@ -854,7 +866,7 @@ static int ccp5_init(struct ccp_device *ccp)
 
 	if (ccp->cmd_q_count == 0) {
 		dev_notice(dev, "no command queues available\n");
-		ret = -EIO;
+		ret = 1;
 		goto e_pool;
 	}
 

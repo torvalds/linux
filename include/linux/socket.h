@@ -378,12 +378,19 @@ extern int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg,
 extern int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg,
 			  unsigned int vlen, unsigned int flags,
 			  bool forbid_cmsg_compat);
-extern long __sys_sendmsg_sock(struct socket *sock,
-			       struct user_msghdr __user *msg,
+extern long __sys_sendmsg_sock(struct socket *sock, struct msghdr *msg,
 			       unsigned int flags);
-extern long __sys_recvmsg_sock(struct socket *sock,
-			       struct user_msghdr __user *msg,
+extern long __sys_recvmsg_sock(struct socket *sock, struct msghdr *msg,
+			       struct user_msghdr __user *umsg,
+			       struct sockaddr __user *uaddr,
 			       unsigned int flags);
+extern int sendmsg_copy_msghdr(struct msghdr *msg,
+			       struct user_msghdr __user *umsg, unsigned flags,
+			       struct iovec **iov);
+extern int recvmsg_copy_msghdr(struct msghdr *msg,
+			       struct user_msghdr __user *umsg, unsigned flags,
+			       struct sockaddr __user **uaddr,
+			       struct iovec **iov);
 
 /* helpers which do the actual work for syscalls */
 extern int __sys_recvfrom(int fd, void __user *ubuf, size_t size,
@@ -392,10 +399,15 @@ extern int __sys_recvfrom(int fd, void __user *ubuf, size_t size,
 extern int __sys_sendto(int fd, void __user *buff, size_t len,
 			unsigned int flags, struct sockaddr __user *addr,
 			int addr_len);
+extern int __sys_accept4_file(struct file *file, unsigned file_flags,
+			struct sockaddr __user *upeer_sockaddr,
+			 int __user *upeer_addrlen, int flags);
 extern int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
 			 int __user *upeer_addrlen, int flags);
 extern int __sys_socket(int family, int type, int protocol);
 extern int __sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen);
+extern int __sys_connect_file(struct file *file, struct sockaddr_storage *addr,
+			      int addrlen, int file_flags);
 extern int __sys_connect(int fd, struct sockaddr __user *uservaddr,
 			 int addrlen);
 extern int __sys_listen(int fd, int backlog);

@@ -24,6 +24,30 @@
         ]
     },
     {
+        "id": "e38c",
+        "name": "Add simple ct action with cookie",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct index 42 cookie deadbeef",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct zone 0 pipe.*index 42 ref.*cookie deadbeef",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
         "id": "9f20",
         "name": "Add ct clear action",
         "category": [
@@ -42,6 +66,30 @@
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action ct",
         "matchPattern": "action order [0-9]*: ct clear pipe.*index 42 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "0bc1",
+        "name": "Add ct clear action with cookie of max length",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct clear index 42 cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct clear pipe.*index 42 ref.*cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action ct"
@@ -306,6 +354,54 @@
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action ct",
         "matchPattern": "action order [0-9]*: ct mark 66/0xf0 zone 0 pipe.*index 42 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "2faa",
+        "name": "Try ct with mark + mask and cookie",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct mark 0x42/0xf0 index 42 cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct mark 66/0xf0 zone 0 pipe.*index 42 ref.*cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ct"
+        ]
+    },
+    {
+        "id": "3991",
+        "name": "Add simple ct action with no_percpu flag",
+        "category": [
+            "actions",
+            "ct"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ct",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action ct no_percpu",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action ct",
+        "matchPattern": "action order [0-9]*: ct zone 0 pipe.*no_percpu",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action ct"

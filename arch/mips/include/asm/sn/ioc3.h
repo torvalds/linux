@@ -590,4 +590,13 @@ struct ioc3_etxd {
 
 #define MIDR_DATA_MASK		0x0000ffff
 
+/* subsystem IDs supplied by card detection in pci-xtalk-bridge */
+#define	IOC3_SUBSYS_IP27_BASEIO6G	0xc300
+#define	IOC3_SUBSYS_IP27_MIO		0xc301
+#define	IOC3_SUBSYS_IP27_BASEIO		0xc302
+#define	IOC3_SUBSYS_IP29_SYSBOARD	0xc303
+#define	IOC3_SUBSYS_IP30_SYSBOARD	0xc304
+#define	IOC3_SUBSYS_MENET		0xc305
+#define	IOC3_SUBSYS_MENET4		0xc306
+
 #endif /* MIPS_SN_IOC3_H */

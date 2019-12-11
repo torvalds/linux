@@ -23,8 +23,9 @@ enum si2157_pads {
 struct si2157_dev {
 	struct mutex i2c_mutex;
 	struct dvb_frontend *fe;
-	bool active;
-	bool inversion;
+	unsigned int active:1;
+	unsigned int inversion:1;
+	unsigned int dont_load_firmware:1;
 	u8 chiptype;
 	u8 if_port;
 	u32 if_frequency;

@@ -59,7 +59,7 @@ int test_dwarf_unwind__krava_1(struct thread *thread);
 static int unwind_entry(struct unwind_entry *entry, void *arg)
 {
 	unsigned long *cnt = (unsigned long *) arg;
-	char *symbol = entry->sym ? entry->sym->name : NULL;
+	char *symbol = entry->ms.sym ? entry->ms.sym->name : NULL;
 	static const char *funcs[MAX_STACK] = {
 		"test__arch_unwind_sample",
 		"test_dwarf_unwind__thread",

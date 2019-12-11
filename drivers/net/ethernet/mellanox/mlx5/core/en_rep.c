@@ -47,6 +47,7 @@
 #include "en/tc_tun.h"
 #include "fs_core.h"
 #include "lib/port_tun.h"
+#include "lib/mlx5.h"
 #define CREATE_TRACE_POINTS
 #include "diag/en_rep_tracepoint.h"
 
@@ -1243,20 +1244,59 @@ static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
-static LIST_HEAD(mlx5e_rep_block_cb_list);
+static int mlx5e_rep_setup_ft_cb(enum tc_setup_type type, void *type_data,
+				 void *cb_priv)
+{
+	struct flow_cls_offload *f = type_data;
+	struct flow_cls_offload cls_flower;
+	struct mlx5e_priv *priv = cb_priv;
+	struct mlx5_eswitch *esw;
+	unsigned long flags;
+	int err;
 
+	flags = MLX5_TC_FLAG(INGRESS) |
+		MLX5_TC_FLAG(ESW_OFFLOAD) |
+		MLX5_TC_FLAG(FT_OFFLOAD);
+	esw = priv->mdev->priv.eswitch;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		if (!mlx5_eswitch_prios_supported(esw) || f->common.chain_index)
+			return -EOPNOTSUPP;
+
+		/* Re-use tc offload path by moving the ft flow to the
+		 * reserved ft chain.
+		 */
+		memcpy(&cls_flower, f, sizeof(*f));
+		cls_flower.common.chain_index = FDB_FT_CHAIN;
+		err = mlx5e_rep_setup_tc_cls_flower(priv, &cls_flower, flags);
+		memcpy(&f->stats, &cls_flower.stats, sizeof(f->stats));
+		return err;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static LIST_HEAD(mlx5e_rep_block_tc_cb_list);
+static LIST_HEAD(mlx5e_rep_block_ft_cb_list);
 static int mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			      void *type_data)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct flow_block_offload *f = type_data;
 
+	f->unlocked_driver_cb = true;
+
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		f->unlocked_driver_cb = true;
 		return flow_block_cb_setup_simple(type_data,
-						  &mlx5e_rep_block_cb_list,
+						  &mlx5e_rep_block_tc_cb_list,
 						  mlx5e_rep_setup_tc_cb,
+						  priv, priv, true);
+	case TC_SETUP_FT:
+		return flow_block_cb_setup_simple(type_data,
+						  &mlx5e_rep_block_ft_cb_list,
+						  mlx5e_rep_setup_ft_cb,
 						  priv, priv, true);
 	default:
 		return -EOPNOTSUPP;
@@ -1877,6 +1917,7 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 		return -EINVAL;
 	}
 
+	dev_net_set(netdev, mlx5_core_net(dev));
 	rpriv->netdev = netdev;
 	rep->rep_data[REP_ETH].priv = rpriv;
 	INIT_LIST_HEAD(&rpriv->vport_sqs_list);

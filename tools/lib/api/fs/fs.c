@@ -381,8 +381,8 @@ int filename__read_str(const char *filename, char **buf, size_t *sizep)
 		n = read(fd, bf + size, alloc_size - size);
 		if (n < 0) {
 			if (size) {
-				pr_warning("read failed %d: %s\n", errno,
-					 strerror_r(errno, sbuf, sizeof(sbuf)));
+				pr_warn("read failed %d: %s\n", errno,
+					strerror_r(errno, sbuf, sizeof(sbuf)));
 				err = 0;
 			} else
 				err = -errno;

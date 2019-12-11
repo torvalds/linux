@@ -42,6 +42,7 @@ Supported adapters:
   * Intel Comet Lake (PCH)
   * Intel Elkhart Lake (PCH)
   * Intel Tiger Lake (PCH)
+  * Intel Jasper Lake (SOC)
 
    Datasheets: Publicly available at the Intel website
 

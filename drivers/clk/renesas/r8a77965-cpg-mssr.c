@@ -323,7 +323,7 @@ static int __init r8a77965_cpg_mssr_init(struct device *dev)
 	}
 
 	return rcar_gen3_cpg_init(cpg_pll_config, CLK_EXTALR, cpg_mode);
-};
+}
 
 const struct cpg_mssr_info r8a77965_cpg_mssr_info __initconst = {
 	/* Core Clocks */

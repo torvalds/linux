@@ -173,6 +173,7 @@ enum ovs_packet_cmd {
  * @OVS_PACKET_ATTR_LEN: Packet size before truncation.
  * %OVS_PACKET_ATTR_USERSPACE action specify the Maximum received fragment
  * size.
+ * @OVS_PACKET_ATTR_HASH: Packet hash info (e.g. hash, sw_hash and l4_hash in skb).
  *
  * These attributes follow the &struct ovs_header within the Generic Netlink
  * payload for %OVS_PACKET_* commands.
@@ -190,7 +191,8 @@ enum ovs_packet_attr {
 	OVS_PACKET_ATTR_PROBE,      /* Packet operation is a feature probe,
 				       error logging should be suppressed. */
 	OVS_PACKET_ATTR_MRU,	    /* Maximum received IP fragment size. */
-	OVS_PACKET_ATTR_LEN,		/* Packet size before truncation. */
+	OVS_PACKET_ATTR_LEN,	    /* Packet size before truncation. */
+	OVS_PACKET_ATTR_HASH,	    /* Packet hash. */
 	__OVS_PACKET_ATTR_MAX
 };
 

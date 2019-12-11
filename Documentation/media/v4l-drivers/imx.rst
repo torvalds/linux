@@ -515,10 +515,10 @@ Streaming can then begin independently on the capture device nodes
 be used to select any supported YUV pixelformat on the capture device
 nodes, including planar.
 
-SabreAuto with ADV7180 decoder
-------------------------------
+i.MX6Q SabreAuto with ADV7180 decoder
+-------------------------------------
 
-On the SabreAuto, an on-board ADV7180 SD decoder is connected to the
+On the i.MX6Q SabreAuto, an on-board ADV7180 SD decoder is connected to the
 parallel bus input on the internal video mux to IPU1 CSI0.
 
 The following example configures a pipeline to capture from the ADV7180
@@ -547,8 +547,6 @@ This example configures a pipeline to capture from the ADV7180
 video decoder, assuming PAL 720x576 input signals, with Motion
 Compensated de-interlacing. The adv7180 must output sequential or
 alternating fields (field type 'seq-tb' for PAL, or 'alternate').
-$outputfmt can be any format supported by the ipu1_ic_prpvf entity
-at its output pad:
 
 .. code-block:: none
 
@@ -565,11 +563,70 @@ at its output pad:
    media-ctl -V "'ipu1_csi0':1 [fmt:AYUV32/720x576]"
    media-ctl -V "'ipu1_vdic':2 [fmt:AYUV32/720x576 field:none]"
    media-ctl -V "'ipu1_ic_prp':2 [fmt:AYUV32/720x576 field:none]"
-   media-ctl -V "'ipu1_ic_prpvf':1 [fmt:$outputfmt field:none]"
+   media-ctl -V "'ipu1_ic_prpvf':1 [fmt:AYUV32/720x576 field:none]"
+   # Configure "ipu1_ic_prpvf capture" interface (assumed at /dev/video2)
+   v4l2-ctl -d2 --set-fmt-video=field=none
 
-Streaming can then begin on the capture device node at
-"ipu1_ic_prpvf capture". The v4l2-ctl tool can be used to select any
-supported YUV or RGB pixelformat on the capture device node.
+Streaming can then begin on /dev/video2. The v4l2-ctl tool can also be
+used to select any supported YUV pixelformat on /dev/video2.
+
+This platform accepts Composite Video analog inputs to the ADV7180 on
+Ain1 (connector J42).
+
+i.MX6DL SabreAuto with ADV7180 decoder
+--------------------------------------
+
+On the i.MX6DL SabreAuto, an on-board ADV7180 SD decoder is connected to the
+parallel bus input on the internal video mux to IPU1 CSI0.
+
+The following example configures a pipeline to capture from the ADV7180
+video decoder, assuming NTSC 720x480 input signals, using simple
+interweave (unconverted and without motion compensation). The adv7180
+must output sequential or alternating fields (field type 'seq-bt' for
+NTSC, or 'alternate'):
+
+.. code-block:: none
+
+   # Setup links
+   media-ctl -l "'adv7180 4-0021':0 -> 'ipu1_csi0_mux':4[1]"
+   media-ctl -l "'ipu1_csi0_mux':5 -> 'ipu1_csi0':0[1]"
+   media-ctl -l "'ipu1_csi0':2 -> 'ipu1_csi0 capture':0[1]"
+   # Configure pads
+   media-ctl -V "'adv7180 4-0021':0 [fmt:UYVY2X8/720x480 field:seq-bt]"
+   media-ctl -V "'ipu1_csi0_mux':5 [fmt:UYVY2X8/720x480]"
+   media-ctl -V "'ipu1_csi0':2 [fmt:AYUV32/720x480]"
+   # Configure "ipu1_csi0 capture" interface (assumed at /dev/video0)
+   v4l2-ctl -d0 --set-fmt-video=field=interlaced_bt
+
+Streaming can then begin on /dev/video0. The v4l2-ctl tool can also be
+used to select any supported YUV pixelformat on /dev/video0.
+
+This example configures a pipeline to capture from the ADV7180
+video decoder, assuming PAL 720x576 input signals, with Motion
+Compensated de-interlacing. The adv7180 must output sequential or
+alternating fields (field type 'seq-tb' for PAL, or 'alternate').
+
+.. code-block:: none
+
+   # Setup links
+   media-ctl -l "'adv7180 4-0021':0 -> 'ipu1_csi0_mux':4[1]"
+   media-ctl -l "'ipu1_csi0_mux':5 -> 'ipu1_csi0':0[1]"
+   media-ctl -l "'ipu1_csi0':1 -> 'ipu1_vdic':0[1]"
+   media-ctl -l "'ipu1_vdic':2 -> 'ipu1_ic_prp':0[1]"
+   media-ctl -l "'ipu1_ic_prp':2 -> 'ipu1_ic_prpvf':0[1]"
+   media-ctl -l "'ipu1_ic_prpvf':1 -> 'ipu1_ic_prpvf capture':0[1]"
+   # Configure pads
+   media-ctl -V "'adv7180 4-0021':0 [fmt:UYVY2X8/720x576 field:seq-tb]"
+   media-ctl -V "'ipu1_csi0_mux':5 [fmt:UYVY2X8/720x576]"
+   media-ctl -V "'ipu1_csi0':1 [fmt:AYUV32/720x576]"
+   media-ctl -V "'ipu1_vdic':2 [fmt:AYUV32/720x576 field:none]"
+   media-ctl -V "'ipu1_ic_prp':2 [fmt:AYUV32/720x576 field:none]"
+   media-ctl -V "'ipu1_ic_prpvf':1 [fmt:AYUV32/720x576 field:none]"
+   # Configure "ipu1_ic_prpvf capture" interface (assumed at /dev/video2)
+   v4l2-ctl -d2 --set-fmt-video=field=none
+
+Streaming can then begin on /dev/video2. The v4l2-ctl tool can also be
+used to select any supported YUV pixelformat on /dev/video2.
 
 This platform accepts Composite Video analog inputs to the ADV7180 on
 Ain1 (connector J42).

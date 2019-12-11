@@ -936,6 +936,8 @@ next:
 out_of_memory:
 	pr_alert("%s: out of memory\n", __func__);
 	put_free_pages(ring, pages_to_gnt, segs_to_map);
+	for (i = last_map; i < num; i++)
+		pages[i]->handle = BLKBACK_INVALID_HANDLE;
 	return -ENOMEM;
 }
 
@@ -1503,6 +1505,14 @@ static int __init xen_blkif_init(void)
 }
 
 module_init(xen_blkif_init);
+
+static void __exit xen_blkif_fini(void)
+{
+	xen_blkif_xenbus_fini();
+	xen_blkif_interface_fini();
+}
+
+module_exit(xen_blkif_fini);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("xen-backend:vbd");

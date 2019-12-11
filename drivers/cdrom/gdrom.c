@@ -742,7 +742,7 @@ static int probe_gdrom(struct platform_device *devptr)
 	int err;
 	/* Start the device */
 	if (gdrom_execute_diagnostic() != 1) {
-		pr_warning("ATA Probe for GDROM failed\n");
+		pr_warn("ATA Probe for GDROM failed\n");
 		return -ENODEV;
 	}
 	/* Print out firmware ID */
@@ -814,7 +814,7 @@ probe_fail_no_disk:
 probe_fail_no_mem:
 	unregister_blkdev(gdrom_major, GDROM_DEV_NAME);
 	gdrom_major = 0;
-	pr_warning("Probe failed - error is 0x%X\n", err);
+	pr_warn("Probe failed - error is 0x%X\n", err);
 	return err;
 }
 

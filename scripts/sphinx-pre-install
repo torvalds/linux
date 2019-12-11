@@ -124,11 +124,13 @@ sub add_package($$)
 
 sub check_missing_file($$$)
 {
-	my $file = shift;
+	my $files = shift;
 	my $package = shift;
 	my $is_optional = shift;
 
-	return if(-e $file);
+	for (@$files) {
+		return if(-e $_);
+	}
 
 	add_package($package, $is_optional);
 }
@@ -343,10 +345,11 @@ sub give_debian_hints()
 	);
 
 	if ($pdf) {
-		check_missing_file("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+		check_missing_file(["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
 				   "fonts-dejavu", 2);
 
-		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+				   "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"],
 				   "fonts-noto-cjk", 2);
 	}
 
@@ -413,7 +416,7 @@ sub give_redhat_hints()
 	}
 
 	if ($pdf) {
-		check_missing_file("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc"],
 				   "google-noto-sans-cjk-ttc-fonts", 2);
 	}
 
@@ -498,7 +501,7 @@ sub give_mageia_hints()
 	$map{"latexmk"} = "texlive-collection-basic";
 
 	if ($pdf) {
-		check_missing_file("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc"],
 				   "google-noto-sans-cjk-ttc-fonts", 2);
 	}
 
@@ -517,6 +520,7 @@ sub give_arch_linux_hints()
 		"dot"			=> "graphviz",
 		"convert"		=> "imagemagick",
 		"xelatex"		=> "texlive-bin",
+		"latexmk"		=> "texlive-core",
 		"rsvg-convert"		=> "extra/librsvg",
 	);
 
@@ -528,7 +532,7 @@ sub give_arch_linux_hints()
 	check_pacman_missing(\@archlinux_tex_pkgs, 2) if ($pdf);
 
 	if ($pdf) {
-		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"],
 				   "noto-fonts-cjk", 2);
 	}
 
@@ -549,11 +553,11 @@ sub give_gentoo_hints()
 		"rsvg-convert"		=> "gnome-base/librsvg",
 	);
 
-	check_missing_file("/usr/share/fonts/dejavu/DejaVuSans.ttf",
+	check_missing_file(["/usr/share/fonts/dejavu/DejaVuSans.ttf"],
 			   "media-fonts/dejavu", 2) if ($pdf);
 
 	if ($pdf) {
-		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
+		check_missing_file(["/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf"],
 				   "media-fonts/noto-cjk", 2);
 	}
 
@@ -645,6 +649,12 @@ sub check_distros()
 # Common dependencies
 #
 
+sub deactivate_help()
+{
+	printf "\tIf you want to exit the virtualenv, you can use:\n";
+	printf "\tdeactivate\n";
+}
+
 sub check_needs()
 {
 	# Check for needed programs/tools
@@ -686,6 +696,7 @@ sub check_needs()
 		if ($need_sphinx && scalar @activates > 0 && $activates[0] ge $min_activate) {
 			printf "\nNeed to activate a compatible Sphinx version on virtualenv with:\n";
 			printf "\t. $activates[0]\n";
+			deactivate_help();
 			exit (1);
 		} else {
 			my $rec_activate = "$virtenv_dir/bin/activate";
@@ -697,6 +708,7 @@ sub check_needs()
 			printf "\t$virtualenv $virtenv_dir\n";
 			printf "\t. $rec_activate\n";
 			printf "\tpip install -r $requirement_file\n";
+			deactivate_help();
 
 			$need++ if (!$rec_sphinx_upgrade);
 		}

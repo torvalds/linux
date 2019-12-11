@@ -28,6 +28,8 @@
 #define TRANS_BESS "bess"
 #define TRANS_BESS_LEN strlen(TRANS_BESS)
 
+#define DEFAULT_BPF_LEN 6
+
 #ifndef IPPROTO_GRE
 #define IPPROTO_GRE 0x2F
 #endif
@@ -95,8 +97,10 @@ extern int uml_vector_recvmmsg(
 	unsigned int vlen,
 	unsigned int flags
 );
-extern void *uml_vector_default_bpf(int fd, void *mac);
-extern int uml_vector_attach_bpf(int fd, void *bpf, int bpf_len);
+extern void *uml_vector_default_bpf(void *mac);
+extern void *uml_vector_user_bpf(char *filename);
+extern int uml_vector_attach_bpf(int fd, void *bpf);
+extern int uml_vector_detach_bpf(int fd, void *bpf);
 extern bool uml_raw_enable_qdisc_bypass(int fd);
 extern bool uml_raw_enable_vnet_headers(int fd);
 extern bool uml_tap_enable_vnet_headers(int fd);

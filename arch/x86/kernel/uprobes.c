@@ -842,8 +842,8 @@ static int push_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 
 /**
  * arch_uprobe_analyze_insn - instruction analysis including validity and fixups.
+ * @auprobe: the probepoint information.
  * @mm: the probed address space.
- * @arch_uprobe: the probepoint information.
  * @addr: virtual address at which to install the probepoint
  * Return 0 on success or a -ve number on error.
  */

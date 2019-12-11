@@ -11,6 +11,7 @@
 /*
  * User space memory access functions
  */
+#ifdef CONFIG_MMU
 #include <linux/errno.h>
 #include <linux/compiler.h>
 #include <linux/thread_info.h>
@@ -475,4 +476,7 @@ unsigned long __must_check clear_user(void __user *to, unsigned long n)
 	__ret;							\
 })
 
+#else /* CONFIG_MMU */
+#include <asm-generic/uaccess.h>
+#endif /* CONFIG_MMU */
 #endif /* _ASM_RISCV_UACCESS_H */

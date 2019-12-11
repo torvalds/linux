@@ -117,14 +117,14 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 	}
 }
 
-static inline void pgd_set(pgd_t *pgdp, pmd_t *pmdp)
+static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 {
-	pgd_val(*pgdp) = _PAGE_TABLE | _PAGE_ACCESSED | __pa(pmdp);
+	pud_val(*pudp) = _PAGE_TABLE | _PAGE_ACCESSED | __pa(pmdp);
 }
 
 #define __pte_page(pte) ((unsigned long)__va(pte_val(pte) & PAGE_MASK))
 #define __pmd_page(pmd) ((unsigned long)__va(pmd_val(pmd) & _TABLE_MASK))
-#define __pgd_page(pgd) ((unsigned long)__va(pgd_val(pgd) & _TABLE_MASK))
+#define pud_page_vaddr(pud) ((unsigned long)__va(pud_val(pud) & _TABLE_MASK))
 
 
 #define pte_none(pte)		(!pte_val(pte))
@@ -147,11 +147,11 @@ static inline void pgd_set(pgd_t *pgdp, pmd_t *pmdp)
 #define pmd_page(pmd)		virt_to_page(__va(pmd_val(pmd)))
 
 
-#define pgd_none(pgd)		(!pgd_val(pgd))
-#define pgd_bad(pgd)		((pgd_val(pgd) & _DESCTYPE_MASK) != _PAGE_TABLE)
-#define pgd_present(pgd)	(pgd_val(pgd) & _PAGE_TABLE)
-#define pgd_clear(pgdp)		({ pgd_val(*pgdp) = 0; })
-#define pgd_page(pgd)		(mem_map + ((unsigned long)(__va(pgd_val(pgd)) - PAGE_OFFSET) >> PAGE_SHIFT))
+#define pud_none(pud)		(!pud_val(pud))
+#define pud_bad(pud)		((pud_val(pud) & _DESCTYPE_MASK) != _PAGE_TABLE)
+#define pud_present(pud)	(pud_val(pud) & _PAGE_TABLE)
+#define pud_clear(pudp)		({ pud_val(*pudp) = 0; })
+#define pud_page(pud)		(mem_map + ((unsigned long)(__va(pud_val(pud)) - PAGE_OFFSET) >> PAGE_SHIFT))
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
@@ -209,9 +209,9 @@ static inline pgd_t *pgd_offset_k(unsigned long address)
 
 
 /* Find an entry in the second-level page table.. */
-static inline pmd_t *pmd_offset(pgd_t *dir, unsigned long address)
+static inline pmd_t *pmd_offset(pud_t *dir, unsigned long address)
 {
-	return (pmd_t *)__pgd_page(*dir) + ((address >> PMD_SHIFT) & (PTRS_PER_PMD-1));
+	return (pmd_t *)pud_page_vaddr(*dir) + ((address >> PMD_SHIFT) & (PTRS_PER_PMD-1));
 }
 
 /* Find an entry in the third-level page table.. */
@@ -239,11 +239,15 @@ static inline void nocache_page(void *vaddr)
 
 	if (CPU_IS_040_OR_060) {
 		pgd_t *dir;
+		p4d_t *p4dp;
+		pud_t *pudp;
 		pmd_t *pmdp;
 		pte_t *ptep;
 
 		dir = pgd_offset_k(addr);
-		pmdp = pmd_offset(dir, addr);
+		p4dp = p4d_offset(dir, addr);
+		pudp = pud_offset(p4dp, addr);
+		pmdp = pmd_offset(pudp, addr);
 		ptep = pte_offset_kernel(pmdp, addr);
 		*ptep = pte_mknocache(*ptep);
 	}
@@ -255,11 +259,15 @@ static inline void cache_page(void *vaddr)
 
 	if (CPU_IS_040_OR_060) {
 		pgd_t *dir;
+		p4d_t *p4dp;
+		pud_t *pudp;
 		pmd_t *pmdp;
 		pte_t *ptep;
 
 		dir = pgd_offset_k(addr);
-		pmdp = pmd_offset(dir, addr);
+		p4dp = p4d_offset(dir, addr);
+		pudp = pud_offset(p4dp, addr);
+		pmdp = pmd_offset(pudp, addr);
 		ptep = pte_offset_kernel(pmdp, addr);
 		*ptep = pte_mkcache(*ptep);
 	}

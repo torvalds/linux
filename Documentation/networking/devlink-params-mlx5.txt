@@ -1,0 +1,17 @@
+flow_steering_mode	[DEVICE, DRIVER-SPECIFIC]
+			Controls the flow steering mode of the driver.
+			Two modes are supported:
+			1. 'dmfs' - Device managed flow steering.
+			2. 'smfs  - Software/Driver managed flow steering.
+			In DMFS mode, the HW steering entities are created and
+			managed through the Firmware.
+			In SMFS mode, the HW steering entities are created and
+			managed though by the driver directly into Hardware
+			without firmware intervention.
+			Type: String
+			Configuration mode: runtime
+
+enable_roce		[DEVICE, GENERIC]
+			Enable handling of RoCE traffic in the device.
+			Defaultly enabled.
+			Configuration mode: driverinit

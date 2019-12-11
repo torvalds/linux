@@ -127,13 +127,6 @@ static inline void rtw_netif_stop_queue(struct net_device *pnetdev)
 	netif_tx_stop_all_queues(pnetdev);
 }
 
-static inline void rtw_merge_string(char *dst, int dst_len, char *src1, char *src2)
-{
-	int	len = 0;
-	len += snprintf(dst+len, dst_len - len, "%s", src1);
-	len += snprintf(dst+len, dst_len - len, "%s", src2);
-}
-
 #define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)), (sig), 1)
 
 #define rtw_netdev_priv(netdev) (((struct rtw_netdev_priv_indicator *)netdev_priv(netdev))->priv)

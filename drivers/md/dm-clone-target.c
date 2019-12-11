@@ -332,8 +332,6 @@ static void submit_bios(struct bio_list *bios)
  */
 static void issue_bio(struct clone *clone, struct bio *bio)
 {
-	unsigned long flags;
-
 	if (!bio_triggers_commit(clone, bio)) {
 		generic_make_request(bio);
 		return;
@@ -352,9 +350,9 @@ static void issue_bio(struct clone *clone, struct bio *bio)
 	 * Batch together any bios that trigger commits and then issue a single
 	 * commit for them in process_deferred_flush_bios().
 	 */
-	spin_lock_irqsave(&clone->lock, flags);
+	spin_lock_irq(&clone->lock);
 	bio_list_add(&clone->deferred_flush_bios, bio);
-	spin_unlock_irqrestore(&clone->lock, flags);
+	spin_unlock_irq(&clone->lock);
 
 	wake_worker(clone);
 }
@@ -469,7 +467,7 @@ static void complete_discard_bio(struct clone *clone, struct bio *bio, bool succ
 
 static void process_discard_bio(struct clone *clone, struct bio *bio)
 {
-	unsigned long rs, re, flags;
+	unsigned long rs, re;
 
 	bio_region_range(clone, bio, &rs, &re);
 	BUG_ON(re > clone->nr_regions);
@@ -501,9 +499,9 @@ static void process_discard_bio(struct clone *clone, struct bio *bio)
 	/*
 	 * Defer discard processing.
 	 */
-	spin_lock_irqsave(&clone->lock, flags);
+	spin_lock_irq(&clone->lock);
 	bio_list_add(&clone->deferred_discard_bios, bio);
-	spin_unlock_irqrestore(&clone->lock, flags);
+	spin_unlock_irq(&clone->lock);
 
 	wake_worker(clone);
 }
@@ -553,6 +551,12 @@ struct hash_table_bucket {
 
 #define bucket_unlock_irqrestore(bucket, flags) \
 	spin_unlock_irqrestore(&(bucket)->lock, flags)
+
+#define bucket_lock_irq(bucket) \
+	spin_lock_irq(&(bucket)->lock)
+
+#define bucket_unlock_irq(bucket) \
+	spin_unlock_irq(&(bucket)->lock)
 
 static int hash_table_init(struct clone *clone)
 {
@@ -851,7 +855,6 @@ static void hydration_overwrite(struct dm_clone_region_hydration *hd, struct bio
  */
 static void hydrate_bio_region(struct clone *clone, struct bio *bio)
 {
-	unsigned long flags;
 	unsigned long region_nr;
 	struct hash_table_bucket *bucket;
 	struct dm_clone_region_hydration *hd, *hd2;
@@ -859,19 +862,19 @@ static void hydrate_bio_region(struct clone *clone, struct bio *bio)
 	region_nr = bio_to_region(clone, bio);
 	bucket = get_hash_table_bucket(clone, region_nr);
 
-	bucket_lock_irqsave(bucket, flags);
+	bucket_lock_irq(bucket);
 
 	hd = __hash_find(bucket, region_nr);
 	if (hd) {
 		/* Someone else is hydrating the region */
 		bio_list_add(&hd->deferred_bios, bio);
-		bucket_unlock_irqrestore(bucket, flags);
+		bucket_unlock_irq(bucket);
 		return;
 	}
 
 	if (dm_clone_is_region_hydrated(clone->cmd, region_nr)) {
 		/* The region has been hydrated */
-		bucket_unlock_irqrestore(bucket, flags);
+		bucket_unlock_irq(bucket);
 		issue_bio(clone, bio);
 		return;
 	}
@@ -880,16 +883,16 @@ static void hydrate_bio_region(struct clone *clone, struct bio *bio)
 	 * We must allocate a hydration descriptor and start the hydration of
 	 * the corresponding region.
 	 */
-	bucket_unlock_irqrestore(bucket, flags);
+	bucket_unlock_irq(bucket);
 
 	hd = alloc_hydration(clone);
 	hydration_init(hd, region_nr);
 
-	bucket_lock_irqsave(bucket, flags);
+	bucket_lock_irq(bucket);
 
 	/* Check if the region has been hydrated in the meantime. */
 	if (dm_clone_is_region_hydrated(clone->cmd, region_nr)) {
-		bucket_unlock_irqrestore(bucket, flags);
+		bucket_unlock_irq(bucket);
 		free_hydration(hd);
 		issue_bio(clone, bio);
 		return;
@@ -899,7 +902,7 @@ static void hydrate_bio_region(struct clone *clone, struct bio *bio)
 	if (hd2 != hd) {
 		/* Someone else started the region's hydration. */
 		bio_list_add(&hd2->deferred_bios, bio);
-		bucket_unlock_irqrestore(bucket, flags);
+		bucket_unlock_irq(bucket);
 		free_hydration(hd);
 		return;
 	}
@@ -911,7 +914,7 @@ static void hydrate_bio_region(struct clone *clone, struct bio *bio)
 	 */
 	if (unlikely(get_clone_mode(clone) >= CM_READ_ONLY)) {
 		hlist_del(&hd->h);
-		bucket_unlock_irqrestore(bucket, flags);
+		bucket_unlock_irq(bucket);
 		free_hydration(hd);
 		bio_io_error(bio);
 		return;
@@ -925,11 +928,11 @@ static void hydrate_bio_region(struct clone *clone, struct bio *bio)
 	 * to the destination device.
 	 */
 	if (is_overwrite_bio(clone, bio)) {
-		bucket_unlock_irqrestore(bucket, flags);
+		bucket_unlock_irq(bucket);
 		hydration_overwrite(hd, bio);
 	} else {
 		bio_list_add(&hd->deferred_bios, bio);
-		bucket_unlock_irqrestore(bucket, flags);
+		bucket_unlock_irq(bucket);
 		hydration_copy(hd, 1);
 	}
 }
@@ -996,7 +999,6 @@ static unsigned long __start_next_hydration(struct clone *clone,
 					    unsigned long offset,
 					    struct batch_info *batch)
 {
-	unsigned long flags;
 	struct hash_table_bucket *bucket;
 	struct dm_clone_region_hydration *hd;
 	unsigned long nr_regions = clone->nr_regions;
@@ -1010,13 +1012,13 @@ static unsigned long __start_next_hydration(struct clone *clone,
 			break;
 
 		bucket = get_hash_table_bucket(clone, offset);
-		bucket_lock_irqsave(bucket, flags);
+		bucket_lock_irq(bucket);
 
 		if (!dm_clone_is_region_hydrated(clone->cmd, offset) &&
 		    !__hash_find(bucket, offset)) {
 			hydration_init(hd, offset);
 			__insert_region_hydration(bucket, hd);
-			bucket_unlock_irqrestore(bucket, flags);
+			bucket_unlock_irq(bucket);
 
 			/* Batch hydration */
 			__batch_hydration(batch, hd);
@@ -1024,7 +1026,7 @@ static unsigned long __start_next_hydration(struct clone *clone,
 			return (offset + 1);
 		}
 
-		bucket_unlock_irqrestore(bucket, flags);
+		bucket_unlock_irq(bucket);
 
 	} while (++offset < nr_regions);
 
@@ -1140,13 +1142,13 @@ static void process_deferred_discards(struct clone *clone)
 	int r = -EPERM;
 	struct bio *bio;
 	struct blk_plug plug;
-	unsigned long rs, re, flags;
+	unsigned long rs, re;
 	struct bio_list discards = BIO_EMPTY_LIST;
 
-	spin_lock_irqsave(&clone->lock, flags);
+	spin_lock_irq(&clone->lock);
 	bio_list_merge(&discards, &clone->deferred_discard_bios);
 	bio_list_init(&clone->deferred_discard_bios);
-	spin_unlock_irqrestore(&clone->lock, flags);
+	spin_unlock_irq(&clone->lock);
 
 	if (bio_list_empty(&discards))
 		return;
@@ -1176,13 +1178,12 @@ out:
 
 static void process_deferred_bios(struct clone *clone)
 {
-	unsigned long flags;
 	struct bio_list bios = BIO_EMPTY_LIST;
 
-	spin_lock_irqsave(&clone->lock, flags);
+	spin_lock_irq(&clone->lock);
 	bio_list_merge(&bios, &clone->deferred_bios);
 	bio_list_init(&clone->deferred_bios);
-	spin_unlock_irqrestore(&clone->lock, flags);
+	spin_unlock_irq(&clone->lock);
 
 	if (bio_list_empty(&bios))
 		return;
@@ -1193,7 +1194,6 @@ static void process_deferred_bios(struct clone *clone)
 static void process_deferred_flush_bios(struct clone *clone)
 {
 	struct bio *bio;
-	unsigned long flags;
 	struct bio_list bios = BIO_EMPTY_LIST;
 	struct bio_list bio_completions = BIO_EMPTY_LIST;
 
@@ -1201,13 +1201,13 @@ static void process_deferred_flush_bios(struct clone *clone)
 	 * If there are any deferred flush bios, we must commit the metadata
 	 * before issuing them or signaling their completion.
 	 */
-	spin_lock_irqsave(&clone->lock, flags);
+	spin_lock_irq(&clone->lock);
 	bio_list_merge(&bios, &clone->deferred_flush_bios);
 	bio_list_init(&clone->deferred_flush_bios);
 
 	bio_list_merge(&bio_completions, &clone->deferred_flush_completions);
 	bio_list_init(&clone->deferred_flush_completions);
-	spin_unlock_irqrestore(&clone->lock, flags);
+	spin_unlock_irq(&clone->lock);
 
 	if (bio_list_empty(&bios) && bio_list_empty(&bio_completions) &&
 	    !(dm_clone_changed_this_transaction(clone->cmd) && need_commit_due_to_time(clone)))

@@ -21,22 +21,22 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SIBYTE, PCI_DEVICE_ID_BCM1250_PCI,
 
 /*
  * The BCM1250, etc. PCI host bridge does not support DAC on its 32-bit
- * bus, so we set the bus's DMA mask accordingly.  However the HT link
+ * bus, so we set the bus's DMA limit accordingly.  However the HT link
  * down the artificial PCI-HT bridge supports 40-bit addressing and the
  * SP1011 HT-PCI bridge downstream supports both DAC and a 64-bit bus
  * width, so we record the PCI-HT bridge's secondary and subordinate bus
- * numbers and do not set the mask for devices present in the inclusive
+ * numbers and do not set the limit for devices present in the inclusive
  * range of those.
  */
-struct sb1250_bus_dma_mask_exclude {
+struct sb1250_bus_dma_limit_exclude {
 	bool set;
 	unsigned char start;
 	unsigned char end;
 };
 
-static int sb1250_bus_dma_mask(struct pci_dev *dev, void *data)
+static int sb1250_bus_dma_limit(struct pci_dev *dev, void *data)
 {
-	struct sb1250_bus_dma_mask_exclude *exclude = data;
+	struct sb1250_bus_dma_limit_exclude *exclude = data;
 	bool exclude_this;
 	bool ht_bridge;
 
@@ -55,7 +55,7 @@ static int sb1250_bus_dma_mask(struct pci_dev *dev, void *data)
 			exclude->start, exclude->end);
 	} else {
 		dev_dbg(&dev->dev, "disabling DAC for device");
-		dev->dev.bus_dma_mask = DMA_BIT_MASK(32);
+		dev->dev.bus_dma_limit = DMA_BIT_MASK(32);
 	}
 
 	return 0;
@@ -63,9 +63,9 @@ static int sb1250_bus_dma_mask(struct pci_dev *dev, void *data)
 
 static void quirk_sb1250_pci_dac(struct pci_dev *dev)
 {
-	struct sb1250_bus_dma_mask_exclude exclude = { .set = false };
+	struct sb1250_bus_dma_limit_exclude exclude = { .set = false };
 
-	pci_walk_bus(dev->bus, sb1250_bus_dma_mask, &exclude);
+	pci_walk_bus(dev->bus, sb1250_bus_dma_limit, &exclude);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SIBYTE, PCI_DEVICE_ID_BCM1250_PCI,
 			quirk_sb1250_pci_dac);

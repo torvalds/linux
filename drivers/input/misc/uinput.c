@@ -695,7 +695,7 @@ static __poll_t uinput_poll(struct file *file, poll_table *wait)
 	if (udev->head != udev->tail)
 		return EPOLLIN | EPOLLRDNORM;
 
-	return 0;
+	return EPOLLOUT | EPOLLWRNORM;
 }
 
 static int uinput_release(struct inode *inode, struct file *file)

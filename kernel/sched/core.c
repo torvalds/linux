@@ -16,6 +16,7 @@
 #include <asm/tlb.h>
 
 #include "../workqueue_internal.h"
+#include "../../fs/io-wq.h"
 #include "../smpboot.h"
 
 #include "pelt.h"
@@ -810,7 +811,7 @@ static inline unsigned int uclamp_bucket_base_value(unsigned int clamp_value)
 	return UCLAMP_BUCKET_DELTA * uclamp_bucket_id(clamp_value);
 }
 
-static inline enum uclamp_id uclamp_none(enum uclamp_id clamp_id)
+static inline unsigned int uclamp_none(enum uclamp_id clamp_id)
 {
 	if (clamp_id == UCLAMP_MIN)
 		return 0;
@@ -853,7 +854,7 @@ static inline void uclamp_idle_reset(struct rq *rq, enum uclamp_id clamp_id,
 }
 
 static inline
-enum uclamp_id uclamp_rq_max_value(struct rq *rq, enum uclamp_id clamp_id,
+unsigned int uclamp_rq_max_value(struct rq *rq, enum uclamp_id clamp_id,
 				   unsigned int clamp_value)
 {
 	struct uclamp_bucket *bucket = rq->uclamp[clamp_id].bucket;
@@ -918,7 +919,7 @@ uclamp_eff_get(struct task_struct *p, enum uclamp_id clamp_id)
 	return uc_req;
 }
 
-enum uclamp_id uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id)
+unsigned int uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id)
 {
 	struct uclamp_se uc_eff;
 
@@ -3105,7 +3106,7 @@ prepare_lock_switch(struct rq *rq, struct task_struct *next, struct rq_flags *rf
 	 * do an early lockdep release here:
 	 */
 	rq_unpin_lock(rq, rf);
-	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
+	spin_release(&rq->lock.dep_map, _THIS_IP_);
 #ifdef CONFIG_DEBUG_SPINLOCK
 	/* this is a valid case when another task releases the spinlock */
 	rq->lock.owner = next;
@@ -3917,13 +3918,15 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 		    prev->sched_class == &fair_sched_class) &&
 		   rq->nr_running == rq->cfs.h_nr_running)) {
 
-		p = fair_sched_class.pick_next_task(rq, prev, rf);
+		p = pick_next_task_fair(rq, prev, rf);
 		if (unlikely(p == RETRY_TASK))
 			goto restart;
 
 		/* Assumes fair_sched_class->next == idle_sched_class */
-		if (unlikely(!p))
-			p = idle_sched_class.pick_next_task(rq, prev, rf);
+		if (!p) {
+			put_prev_task(rq, prev);
+			p = pick_next_task_idle(rq);
+		}
 
 		return p;
 	}
@@ -3947,7 +3950,7 @@ restart:
 	put_prev_task(rq, prev);
 
 	for_each_class(class) {
-		p = class->pick_next_task(rq, NULL, NULL);
+		p = class->pick_next_task(rq);
 		if (p)
 			return p;
 	}
@@ -4112,9 +4115,12 @@ static inline void sched_submit_work(struct task_struct *tsk)
 	 * we disable preemption to avoid it calling schedule() again
 	 * in the possible wakeup of a kworker.
 	 */
-	if (tsk->flags & PF_WQ_WORKER) {
+	if (tsk->flags & (PF_WQ_WORKER | PF_IO_WORKER)) {
 		preempt_disable();
-		wq_worker_sleeping(tsk);
+		if (tsk->flags & PF_WQ_WORKER)
+			wq_worker_sleeping(tsk);
+		else
+			io_wq_worker_sleeping(tsk);
 		preempt_enable_no_resched();
 	}
 
@@ -4131,8 +4137,12 @@ static inline void sched_submit_work(struct task_struct *tsk)
 
 static void sched_update_worker(struct task_struct *tsk)
 {
-	if (tsk->flags & PF_WQ_WORKER)
-		wq_worker_running(tsk);
+	if (tsk->flags & (PF_WQ_WORKER | PF_IO_WORKER)) {
+		if (tsk->flags & PF_WQ_WORKER)
+			wq_worker_running(tsk);
+		else
+			io_wq_worker_running(tsk);
+	}
 }
 
 asmlinkage __visible void __sched schedule(void)
@@ -6209,7 +6219,7 @@ static struct task_struct *__pick_migrate_task(struct rq *rq)
 	struct task_struct *next;
 
 	for_each_class(class) {
-		next = class->pick_next_task(rq, NULL, NULL);
+		next = class->pick_next_task(rq);
 		if (next) {
 			next->sched_class->put_prev_task(rq, next);
 			return next;

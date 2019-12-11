@@ -222,16 +222,10 @@ static const struct iio_info ec_sensors_info = {
 static int cros_ec_sensors_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
 	struct iio_dev *indio_dev;
 	struct cros_ec_sensors_state *state;
 	struct iio_chan_spec *channel;
 	int ret, i;
-
-	if (!ec_dev || !ec_dev->ec_dev) {
-		dev_warn(&pdev->dev, "No CROS EC device found.\n");
-		return -EINVAL;
-	}
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*state));
 	if (!indio_dev)

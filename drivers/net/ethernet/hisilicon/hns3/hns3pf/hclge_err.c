@@ -1747,7 +1747,7 @@ static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
 
 	if (vf_id) {
 		if (vf_id >= hdev->num_alloc_vport) {
-			dev_err(dev, "invalid vf id(%d)\n", vf_id);
+			dev_err(dev, "invalid vf id(%u)\n", vf_id);
 			return;
 		}
 

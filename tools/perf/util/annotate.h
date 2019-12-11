@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <asm/bug.h>
 #include "symbol_conf.h"
+#include "spark.h"
 
 struct hist_browser_timer;
 struct hist_entry;
@@ -235,6 +236,7 @@ struct cyc_hist {
 	u64	cycles_aggr;
 	u64	cycles_max;
 	u64	cycles_min;
+	s64	cycles_spark[NUM_SPARKS];
 	u32	num;
 	u32	num_aggr;
 	u8	have_start;
@@ -347,11 +349,11 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *samp
 struct annotated_source *symbol__hists(struct symbol *sym, int nr_hists);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
-int symbol__annotate(struct symbol *sym, struct map *map,
+int symbol__annotate(struct map_symbol *ms,
 		     struct evsel *evsel, size_t privsize,
 		     struct annotation_options *options,
 		     struct arch **parch);
-int symbol__annotate2(struct symbol *sym, struct map *map,
+int symbol__annotate2(struct map_symbol *ms,
 		      struct evsel *evsel,
 		      struct annotation_options *options,
 		      struct arch **parch);
@@ -378,11 +380,9 @@ enum symbol_disassemble_errno {
 	__SYMBOL_ANNOTATE_ERRNO__END,
 };
 
-int symbol__strerror_disassemble(struct symbol *sym, struct map *map,
-				 int errnum, char *buf, size_t buflen);
+int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, size_t buflen);
 
-int symbol__annotate_printf(struct symbol *sym, struct map *map,
-			    struct evsel *evsel,
+int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel,
 			    struct annotation_options *options);
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
 void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
@@ -393,20 +393,16 @@ int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel,
 
 bool ui__has_annotation(void);
 
-int symbol__tty_annotate(struct symbol *sym, struct map *map,
-			 struct evsel *evsel, struct annotation_options *opts);
+int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel, struct annotation_options *opts);
 
-int symbol__tty_annotate2(struct symbol *sym, struct map *map,
-			  struct evsel *evsel, struct annotation_options *opts);
+int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel, struct annotation_options *opts);
 
 #ifdef HAVE_SLANG_SUPPORT
-int symbol__tui_annotate(struct symbol *sym, struct map *map,
-			 struct evsel *evsel,
+int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 			 struct hist_browser_timer *hbt,
 			 struct annotation_options *opts);
 #else
-static inline int symbol__tui_annotate(struct symbol *sym __maybe_unused,
-				struct map *map __maybe_unused,
+static inline int symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
 				struct evsel *evsel  __maybe_unused,
 				struct hist_browser_timer *hbt __maybe_unused,
 				struct annotation_options *opts __maybe_unused)

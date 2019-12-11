@@ -1371,8 +1371,8 @@ static int nb8800_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 	priv->base = base;
 
-	priv->phy_mode = of_get_phy_mode(pdev->dev.of_node);
-	if (priv->phy_mode < 0)
+	ret = of_get_phy_mode(pdev->dev.of_node, &priv->phy_mode);
+	if (ret)
 		priv->phy_mode = PHY_INTERFACE_MODE_RGMII;
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);

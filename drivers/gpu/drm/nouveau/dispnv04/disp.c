@@ -256,7 +256,7 @@ nv04_display_create(struct drm_device *dev)
 
 	list_for_each_entry_safe(connector, ct,
 				 &dev->mode_config.connector_list, head) {
-		if (!connector->encoder_ids[0]) {
+		if (!connector->possible_encoders) {
 			NV_WARN(drm, "%s has no encoders, removing\n",
 				connector->name);
 			connector->funcs->destroy(connector);

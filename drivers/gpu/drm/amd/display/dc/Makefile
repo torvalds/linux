@@ -48,6 +48,10 @@ DC_LIBS += dce110
 DC_LIBS += dce100
 DC_LIBS += dce80
 
+ifdef CONFIG_DRM_AMD_DC_HDCP
+DC_LIBS += hdcp
+endif
+
 AMD_DC = $(addsuffix /Makefile, $(addprefix $(FULL_AMD_DISPLAY_PATH)/dc/,$(DC_LIBS)))
 
 include $(AMD_DC)

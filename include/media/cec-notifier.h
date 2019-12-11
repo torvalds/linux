@@ -93,8 +93,10 @@ cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *conn_name,
  * cec_notifier_cec_adap_unregister - decrease refcount and delete when the
  * refcount reaches 0.
  * @n: notifier. If NULL, then this function does nothing.
+ * @adap: the cec adapter that registered this notifier.
  */
-void cec_notifier_cec_adap_unregister(struct cec_notifier *n);
+void cec_notifier_cec_adap_unregister(struct cec_notifier *n,
+				      struct cec_adapter *adap);
 
 /**
  * cec_notifier_set_phys_addr - set a new physical address.
@@ -160,7 +162,8 @@ cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *conn_name,
 	return (struct cec_notifier *)0xdeadfeed;
 }
 
-static inline void cec_notifier_cec_adap_unregister(struct cec_notifier *n)
+static inline void cec_notifier_cec_adap_unregister(struct cec_notifier *n,
+						    struct cec_adapter *adap)
 {
 }
 

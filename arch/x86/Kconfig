@@ -24,7 +24,7 @@ config X86_64
 	depends on 64BIT
 	# Options that are inherently 64-bit kernel only:
 	select ARCH_HAS_GIGANTIC_PAGE
-	select ARCH_SUPPORTS_INT128
+	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select HAVE_ARCH_SOFT_DIRTY
 	select MODULES_USE_ELF_RELA
@@ -73,7 +73,6 @@ config X86
 	select ARCH_HAS_PMEM_API		if X86_64
 	select ARCH_HAS_PTE_DEVMAP		if X86_64
 	select ARCH_HAS_PTE_SPECIAL
-	select ARCH_HAS_REFCOUNT
 	select ARCH_HAS_UACCESS_FLUSHCACHE	if X86_64
 	select ARCH_HAS_UACCESS_MCSAFE		if X86_64 && X86_MCE
 	select ARCH_HAS_SET_MEMORY
@@ -135,6 +134,7 @@ config X86
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
 	select HAVE_ARCH_KASAN			if X86_64
+	select HAVE_ARCH_KASAN_VMALLOC		if X86_64
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
@@ -158,6 +158,7 @@ config X86
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	select HAVE_EBPF_JIT
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_EISA
@@ -708,7 +709,6 @@ config X86_SUPPORTS_MEMORY_FAILURE
 config STA2X11
 	bool "STA2X11 Companion Chip Support"
 	depends on X86_32_NON_STANDARD && PCI
-	select ARCH_HAS_PHYS_TO_DMA
 	select SWIOTLB
 	select MFD_STA2X11
 	select GPIOLIB
@@ -932,36 +932,6 @@ config GART_IOMMU
 
 	  If unsure, say Y.
 
-config CALGARY_IOMMU
-	bool "IBM Calgary IOMMU support"
-	select IOMMU_HELPER
-	select SWIOTLB
-	depends on X86_64 && PCI
-	---help---
-	  Support for hardware IOMMUs in IBM's xSeries x366 and x460
-	  systems. Needed to run systems with more than 3GB of memory
-	  properly with 32-bit PCI devices that do not support DAC
-	  (Double Address Cycle). Calgary also supports bus level
-	  isolation, where all DMAs pass through the IOMMU.  This
-	  prevents them from going anywhere except their intended
-	  destination. This catches hard-to-find kernel bugs and
-	  mis-behaving drivers and devices that do not use the DMA-API
-	  properly to set up their DMA buffers.  The IOMMU can be
-	  turned off at boot time with the iommu=off parameter.
-	  Normally the kernel will make the right choice by itself.
-	  If unsure, say Y.
-
-config CALGARY_IOMMU_ENABLED_BY_DEFAULT
-	def_bool y
-	prompt "Should Calgary be enabled by default?"
-	depends on CALGARY_IOMMU
-	---help---
-	  Should Calgary be enabled by default? if you choose 'y', Calgary
-	  will be used (if it exists). If you choose 'n', Calgary will not be
-	  used even if it exists. If you choose 'n' and would like to use
-	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
-	  If unsure, say Y.
-
 config MAXSMP
 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
 	depends on X86_64 && SMP && DEBUG_KERNEL
@@ -1000,8 +970,8 @@ config NR_CPUS_RANGE_END
 config NR_CPUS_RANGE_END
 	int
 	depends on X86_64
-	default 8192 if  SMP && ( MAXSMP ||  CPUMASK_OFFSTACK)
-	default  512 if  SMP && (!MAXSMP && !CPUMASK_OFFSTACK)
+	default 8192 if  SMP && CPUMASK_OFFSTACK
+	default  512 if  SMP && !CPUMASK_OFFSTACK
 	default    1 if !SMP
 
 config NR_CPUS_DEFAULT
@@ -1254,6 +1224,24 @@ config X86_VSYSCALL_EMULATION
 	 Disabling this option saves about 7K of kernel size and
 	 possibly 4K of additional runtime pagetable memory.
 
+config X86_IOPL_IOPERM
+	bool "IOPERM and IOPL Emulation"
+	default y
+	---help---
+	  This enables the ioperm() and iopl() syscalls which are necessary
+	  for legacy applications.
+
+	  Legacy IOPL support is an overbroad mechanism which allows user
+	  space aside of accessing all 65536 I/O ports also to disable
+	  interrupts. To gain this access the caller needs CAP_SYS_RAWIO
+	  capabilities and permission from potentially active security
+	  modules.
+
+	  The emulation restricts the functionality of the syscall to
+	  only allowing the full range I/O port access, but prevents the
+	  ability to disable interrupts from user space which would be
+	  granted if the hardware IOPL mechanism would be used.
+
 config TOSHIBA
 	tristate "Toshiba Laptop support"
 	depends on X86_32
@@ -1492,6 +1480,7 @@ config X86_PAE
 
 config X86_5LEVEL
 	bool "Enable 5-level page tables support"
+	default y
 	select DYNAMIC_MEMORY_LAYOUT
 	select SPARSEMEM_VMEMMAP
 	depends on X86_64
@@ -1751,7 +1740,7 @@ config X86_RESERVE_LOW
 config MATH_EMULATION
 	bool
 	depends on MODIFY_LDT_SYSCALL
-	prompt "Math emulation" if X86_32
+	prompt "Math emulation" if X86_32 && (M486SX || MELAN)
 	---help---
 	  Linux can emulate a math coprocessor (used for floating point
 	  operations) if you don't have one. 486DX and Pentium processors have
@@ -1880,16 +1869,16 @@ config X86_SMAP
 
 	  If unsure, say Y.
 
-config X86_INTEL_UMIP
+config X86_UMIP
 	def_bool y
-	depends on CPU_SUP_INTEL
-	prompt "Intel User Mode Instruction Prevention" if EXPERT
+	depends on CPU_SUP_INTEL || CPU_SUP_AMD
+	prompt "User Mode Instruction Prevention" if EXPERT
 	---help---
-	  The User Mode Instruction Prevention (UMIP) is a security
-	  feature in newer Intel processors. If enabled, a general
-	  protection fault is issued if the SGDT, SLDT, SIDT, SMSW
-	  or STR instructions are executed in user mode. These instructions
-	  unnecessarily expose information about the hardware state.
+	  User Mode Instruction Prevention (UMIP) is a security feature in
+	  some x86 processors. If enabled, a general protection fault is
+	  issued if the SGDT, SLDT, SIDT, SMSW or STR instructions are
+	  executed in user mode. These instructions unnecessarily expose
+	  information about the hardware state.
 
 	  The vast majority of applications do not use these instructions.
 	  For the very few that do, software emulation is provided in

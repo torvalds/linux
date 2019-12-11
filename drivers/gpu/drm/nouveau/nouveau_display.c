@@ -407,6 +407,17 @@ nouveau_display_init(struct drm_device *dev, bool resume, bool runtime)
 	struct drm_connector_list_iter conn_iter;
 	int ret;
 
+	/*
+	 * Enable hotplug interrupts (done as early as possible, since we need
+	 * them for MST)
+	 */
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
+		struct nouveau_connector *conn = nouveau_connector(connector);
+		nvif_notify_get(&conn->hpd);
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
 	ret = disp->init(dev, resume, runtime);
 	if (ret)
 		return ret;
@@ -415,14 +426,6 @@ nouveau_display_init(struct drm_device *dev, bool resume, bool runtime)
 	 * support
 	 */
 	drm_kms_helper_poll_enable(dev);
-
-	/* enable hotplug interrupts */
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
-		struct nouveau_connector *conn = nouveau_connector(connector);
-		nvif_notify_get(&conn->hpd);
-	}
-	drm_connector_list_iter_end(&conn_iter);
 
 	return ret;
 }

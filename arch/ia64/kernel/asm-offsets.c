@@ -211,7 +211,7 @@ void foo(void)
 	       offsetof (struct cpuinfo_ia64, ptce_stride));
 	BLANK();
 	DEFINE(IA64_TIMESPEC_TV_NSEC_OFFSET,
-	       offsetof (struct timespec, tv_nsec));
+	       offsetof (struct __kernel_old_timespec, tv_nsec));
 	DEFINE(IA64_TIME_SN_SPEC_SNSEC_OFFSET,
 	       offsetof (struct time_sn_spec, snsec));
 

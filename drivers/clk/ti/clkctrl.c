@@ -24,7 +24,7 @@
 #include <linux/timekeeping.h>
 #include "clock.h"
 
-#define NO_IDLEST			0x1
+#define NO_IDLEST			0
 
 #define OMAP4_MODULEMODE_MASK		0x3
 
@@ -33,6 +33,9 @@
 
 #define OMAP4_IDLEST_MASK		(0x3 << 16)
 #define OMAP4_IDLEST_SHIFT		16
+
+#define OMAP4_STBYST_MASK		BIT(18)
+#define OMAP4_STBYST_SHIFT		18
 
 #define CLKCTRL_IDLEST_FUNCTIONAL	0x0
 #define CLKCTRL_IDLEST_INTERFACE_IDLE	0x2
@@ -159,7 +162,7 @@ static int _omap4_clkctrl_clk_enable(struct clk_hw *hw)
 
 	ti_clk_ll_ops->clk_writel(val, &clk->enable_reg);
 
-	if (clk->flags & NO_IDLEST)
+	if (test_bit(NO_IDLEST, &clk->flags))
 		return 0;
 
 	/* Wait until module is enabled */
@@ -188,7 +191,7 @@ static void _omap4_clkctrl_clk_disable(struct clk_hw *hw)
 
 	ti_clk_ll_ops->clk_writel(val, &clk->enable_reg);
 
-	if (clk->flags & NO_IDLEST)
+	if (test_bit(NO_IDLEST, &clk->flags))
 		goto exit;
 
 	/* Wait until module is disabled */
@@ -381,7 +384,7 @@ _ti_clkctrl_setup_div(struct omap_clkctrl_provider *provider,
 
 	if (ti_clk_parse_divider_data((int *)div_data->dividers, 0,
 				      div_data->max_div, div_flags,
-				      &div->width, &div->table)) {
+				      div)) {
 		pr_err("%s: Data parsing for %pOF:%04x:%d failed\n", __func__,
 		       node, offset, data->bit);
 		kfree(div);
@@ -597,7 +600,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		if (reg_data->flags & CLKF_HW_SUP)
 			hw->enable_bit = MODULEMODE_HWCTRL;
 		if (reg_data->flags & CLKF_NO_IDLEST)
-			hw->flags |= NO_IDLEST;
+			set_bit(NO_IDLEST, &hw->flags);
 
 		if (reg_data->clkdm_name)
 			hw->clkdm_name = reg_data->clkdm_name;
@@ -623,7 +626,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		init.ops = &omap4_clkctrl_clk_ops;
 		hw->hw.init = &init;
 
-		clk = ti_clk_register(NULL, &hw->hw, init.name);
+		clk = ti_clk_register_omap_hw(NULL, &hw->hw, init.name);
 		if (IS_ERR_OR_NULL(clk))
 			goto cleanup;
 
@@ -648,3 +651,33 @@ cleanup:
 }
 CLK_OF_DECLARE(ti_omap4_clkctrl_clock, "ti,clkctrl",
 	       _ti_omap4_clkctrl_setup);
+
+/**
+ * ti_clk_is_in_standby - Check if clkctrl clock is in standby or not
+ * @clk: clock to check standby status for
+ *
+ * Finds whether the provided clock is in standby mode or not. Returns
+ * true if the provided clock is a clkctrl type clock and it is in standby,
+ * false otherwise.
+ */
+bool ti_clk_is_in_standby(struct clk *clk)
+{
+	struct clk_hw *hw;
+	struct clk_hw_omap *hwclk;
+	u32 val;
+
+	hw = __clk_get_hw(clk);
+
+	if (!omap2_clk_is_hw_omap(hw))
+		return false;
+
+	hwclk = to_clk_hw_omap(hw);
+
+	val = ti_clk_ll_ops->clk_readl(&hwclk->enable_reg);
+
+	if (val & OMAP4_STBYST_MASK)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(ti_clk_is_in_standby);

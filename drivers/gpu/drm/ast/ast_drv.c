@@ -35,7 +35,6 @@
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_pci.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_vram_mm_helper.h>
 
 #include "ast_drv.h"
 
@@ -201,10 +200,7 @@ static struct pci_driver ast_pci_driver = {
 	.driver.pm = &ast_pm_ops,
 };
 
-static const struct file_operations ast_fops = {
-	.owner = THIS_MODULE,
-	DRM_VRAM_MM_FILE_OPERATIONS
-};
+DEFINE_DRM_GEM_FOPS(ast_fops);
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,
