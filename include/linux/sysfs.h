@@ -300,6 +300,10 @@ void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
 int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
 				      struct kobject *target_kobj,
 				      const char *target_name);
+int compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
+					 struct kobject *target_kobj,
+					 const char *target_name,
+					 const char *symlink_name);
 
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 
@@ -504,6 +508,14 @@ static inline int __compat_only_sysfs_link_entry_to_kobj(
 	struct kobject *kobj,
 	struct kobject *target_kobj,
 	const char *target_name)
+{
+	return 0;
+}
+
+static inline int compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
+						       struct kobject *target_kobj,
+						       const char *target_name,
+						       const char *symlink_name)
 {
 	return 0;
 }
