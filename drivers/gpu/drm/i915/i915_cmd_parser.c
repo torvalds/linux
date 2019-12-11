@@ -1453,7 +1453,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 		if (!desc) {
 			DRM_DEBUG("CMD: Unrecognized command: 0x%08X\n", *cmd);
 			ret = -EINVAL;
-			goto err;
+			break;
 		}
 
 		if (desc->flags & CMD_DESC_FIXED)
@@ -1467,21 +1467,18 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 				  length,
 				  batch_end - cmd);
 			ret = -EINVAL;
-			goto err;
+			break;
 		}
 
 		if (!check_cmd(engine, desc, cmd, length)) {
 			ret = -EACCES;
-			goto err;
+			break;
 		}
 
 		if (desc->cmd.value == MI_BATCH_BUFFER_START) {
 			ret = check_bbstart(cmd, offset, length, batch_length,
 					    batch_addr, shadow_addr,
 					    jump_whitelist);
-
-			if (ret)
-				goto err;
 			break;
 		}
 
@@ -1493,7 +1490,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 		if  (cmd >= batch_end) {
 			DRM_DEBUG("CMD: Got to the end of the buffer w/o a BBE cmd!\n");
 			ret = -EINVAL;
-			goto err;
+			break;
 		}
 	} while (1);
 
@@ -1503,7 +1500,6 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 		drm_clflush_virt_range(ptr, (void *)(cmd + 1) - ptr);
 	}
 
-err:
 	if (!IS_ERR_OR_NULL(jump_whitelist))
 		kfree(jump_whitelist);
 	i915_gem_object_unpin_map(shadow->obj);
