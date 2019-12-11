@@ -601,7 +601,8 @@ static const struct hubbub_funcs hubbub2_funcs = {
 	.wm_read_state = hubbub2_wm_read_state,
 	.get_dchub_ref_freq = hubbub2_get_dchub_ref_freq,
 	.program_watermarks = hubbub2_program_watermarks,
-	.allow_self_refresh_control = hubbub1_allow_self_refresh_control
+	.is_allow_self_refresh_enabled = hubbub1_is_allow_self_refresh_enabled,
+	.allow_self_refresh_control = hubbub1_allow_self_refresh_control,
 };
 
 void hubbub2_construct(struct dcn20_hubbub *hubbub,
