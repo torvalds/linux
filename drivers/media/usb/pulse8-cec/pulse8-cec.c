@@ -333,6 +333,10 @@ static void pulse8_irq_work_handler(struct work_struct *work)
 	spin_lock_irqsave(&pulse8->msg_lock, flags);
 	while (pulse8->rx_msg_num) {
 		spin_unlock_irqrestore(&pulse8->msg_lock, flags);
+		if (debug)
+			dev_info(pulse8->dev, "adap received %*ph\n",
+				 pulse8->rx_msg[pulse8->rx_msg_cur_idx].len,
+				 pulse8->rx_msg[pulse8->rx_msg_cur_idx].msg);
 		cec_received_msg(pulse8->adap,
 				 &pulse8->rx_msg[pulse8->rx_msg_cur_idx]);
 		spin_lock_irqsave(&pulse8->msg_lock, flags);
