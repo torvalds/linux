@@ -232,6 +232,20 @@
 	};
 };
 
+&qspi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi_clk &qspi_cs0 &qspi_data01>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <25000000>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
+	};
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };
@@ -249,6 +263,29 @@
 };
 
 /* PINCTRL - additions to nodes defined in sc7180.dtsi */
+
+&qspi_clk {
+	pinconf {
+		pins = "gpio63";
+		bias-disable;
+	};
+};
+
+&qspi_cs0 {
+	pinconf {
+		pins = "gpio68";
+		bias-disable;
+	};
+};
+
+&qspi_data01 {
+	pinconf {
+		pins = "gpio64", "gpio65";
+
+		/* High-Z when no transfers; nice to park the lines */
+		bias-pull-up;
+	};
+};
 
 &qup_i2c2_default {
 	pinconf {
@@ -364,39 +401,3 @@
 	};
 };
 
-&qspi {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&qspi_clk &qspi_cs0 &qspi_data01>;
-
-	flash@0 {
-		compatible = "jedec,spi-nor";
-		reg = <0>;
-		spi-max-frequency = <25000000>;
-		spi-tx-bus-width = <2>;
-		spi-rx-bus-width = <2>;
-	};
-};
-
-&qspi_cs0 {
-		pinconf {
-			pins = "gpio68";
-			bias-disable;
-		};
-};
-
-&qspi_clk {
-		pinconf {
-			pins = "gpio63";
-			bias-disable;
-		};
-};
-
-&qspi_data01 {
-		pinconf {
-			pins = "gpio64", "gpio65";
-
-			/* High-Z when no transfers; nice to park the lines */
-			bias-pull-up;
-		};
-};
