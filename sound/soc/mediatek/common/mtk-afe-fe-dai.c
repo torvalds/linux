@@ -129,10 +129,6 @@ int mtk_afe_fe_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate = params_rate(params);
 	snd_pcm_format_t format = params_format(params);
 
-	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (ret < 0)
-		return ret;
-
 	if (afe->request_dram_resource)
 		afe->request_dram_resource(afe->dev);
 
@@ -193,7 +189,7 @@ int mtk_afe_fe_hw_free(struct snd_pcm_substream *substream,
 	if (afe->release_dram_resource)
 		afe->release_dram_resource(afe->dev);
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mtk_afe_fe_hw_free);
 
