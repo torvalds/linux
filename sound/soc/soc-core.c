@@ -45,11 +45,6 @@
 
 #define NAME_SIZE	32
 
-#ifdef CONFIG_DEBUG_FS
-struct dentry *snd_soc_debugfs_root;
-EXPORT_SYMBOL_GPL(snd_soc_debugfs_root);
-#endif
-
 static DEFINE_MUTEX(client_mutex);
 static LIST_HEAD(component_list);
 static LIST_HEAD(unbind_card_list);
@@ -133,6 +128,9 @@ static const struct attribute_group *soc_dev_attr_groups[] = {
 };
 
 #ifdef CONFIG_DEBUG_FS
+struct dentry *snd_soc_debugfs_root;
+EXPORT_SYMBOL_GPL(snd_soc_debugfs_root);
+
 static void soc_init_component_debugfs(struct snd_soc_component *component)
 {
 	if (!component->card->debugfs_card_root)
