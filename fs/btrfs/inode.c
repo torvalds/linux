@@ -1479,10 +1479,10 @@ next_slot:
 			disk_num_bytes =
 				btrfs_file_extent_disk_num_bytes(leaf, fi);
 			/*
-			 * If extent we got ends before our range starts, skip
-			 * to next extent
+			 * If the extent we got ends before our current offset,
+			 * skip to the next extent.
 			 */
-			if (extent_end <= start) {
+			if (extent_end <= cur_offset) {
 				path->slots[0]++;
 				goto next_slot;
 			}
