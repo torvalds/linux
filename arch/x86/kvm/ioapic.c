@@ -189,7 +189,7 @@ static int ioapic_set_irq(struct kvm_ioapic *ioapic, unsigned int irq,
 	/*
 	 * Return 0 for coalesced interrupts; for edge-triggered interrupts,
 	 * this only happens if a previous edge has not been delivered due
-	 * do masking.  For level interrupts, the remote_irr field tells
+	 * to masking.  For level interrupts, the remote_irr field tells
 	 * us if the interrupt is waiting for an EOI.
 	 *
 	 * RTC is special: it is edge-triggered, but userspace likes to know

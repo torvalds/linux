@@ -964,7 +964,7 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 }
 
 /*
- * This routine tries to handler interrupts in posted mode, here is how
+ * This routine tries to handle interrupts in posted mode, here is how
  * it deals with different cases:
  * - For single-destination interrupts, handle it in posted mode
  * - Else if vector hashing is enabled and it is a lowest-priority

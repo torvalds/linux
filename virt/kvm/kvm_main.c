@@ -964,7 +964,7 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
 
 	/*
 	 * Increment the new memslot generation a second time, dropping the
-	 * update in-progress flag and incrementing then generation based on
+	 * update in-progress flag and incrementing the generation based on
 	 * the number of address spaces.  This provides a unique and easily
 	 * identifiable generation number while the memslots are in flux.
 	 */
