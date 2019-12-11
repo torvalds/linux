@@ -1982,19 +1982,24 @@ shadow_batch_pin(struct i915_execbuffer *eb, struct drm_i915_gem_object *obj)
 	return vma;
 }
 
-static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
+static int eb_parse(struct i915_execbuffer *eb)
 {
 	struct intel_engine_pool_node *pool;
 	struct i915_vma *vma;
 	int err;
 
+	if (!eb_use_cmdparser(eb))
+		return 0;
+
 	pool = intel_engine_get_pool(eb->engine, eb->batch_len);
 	if (IS_ERR(pool))
-		return ERR_CAST(pool);
+		return PTR_ERR(pool);
 
 	vma = shadow_batch_pin(eb, pool->obj);
-	if (IS_ERR(vma))
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
 		goto err;
+	}
 
 	err = intel_engine_cmd_parser(eb->engine,
 				      eb->batch,
@@ -2002,8 +2007,6 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 				      eb->batch_len,
 				      vma);
 	if (err) {
-		i915_vma_unpin(vma);
-
 		/*
 		 * Unsafe GGTT-backed buffers can still be submitted safely
 		 * as non-secure.
@@ -2011,11 +2014,9 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 		 * reject unsafe buffers
 		 */
 		if (i915_vma_is_ggtt(vma) && err == -EACCES)
-			/* Execute original buffer non-secure */
-			vma = NULL;
-		else
-			vma = ERR_PTR(err);
-		goto err;
+			err = 0;
+
+		goto err_unpin;
 	}
 
 	eb->vma[eb->buffer_count] = i915_vma_get(vma);
@@ -2033,11 +2034,13 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 	/* eb->batch_len unchanged */
 
 	vma->private = pool;
-	return vma;
+	return 0;
 
+err_unpin:
+	i915_vma_unpin(vma);
 err:
 	intel_engine_pool_put(pool);
-	return vma;
+	return err;
 }
 
 static void
@@ -2558,15 +2561,9 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (eb.batch_len == 0)
 		eb.batch_len = eb.batch->size - eb.batch_start_offset;
 
-	if (eb_use_cmdparser(&eb)) {
-		struct i915_vma *vma;
-
-		vma = eb_parse(&eb);
-		if (IS_ERR(vma)) {
-			err = PTR_ERR(vma);
-			goto err_vma;
-		}
-	}
+	err = eb_parse(&eb);
+	if (err)
+		goto err_vma;
 
 	/*
 	 * snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
