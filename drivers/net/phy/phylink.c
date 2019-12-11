@@ -1767,6 +1767,26 @@ static int phylink_sfp_module_insert(void *upstream,
 	return ret;
 }
 
+static int phylink_sfp_module_start(void *upstream)
+{
+	struct phylink *pl = upstream;
+
+	/* If this SFP module has a PHY, start the PHY now. */
+	if (pl->phydev)
+		phy_start(pl->phydev);
+
+	return 0;
+}
+
+static void phylink_sfp_module_stop(void *upstream)
+{
+	struct phylink *pl = upstream;
+
+	/* If this SFP module has a PHY, stop it. */
+	if (pl->phydev)
+		phy_stop(pl->phydev);
+}
+
 static void phylink_sfp_link_down(void *upstream)
 {
 	struct phylink *pl = upstream;
@@ -1802,6 +1822,8 @@ static const struct sfp_upstream_ops sfp_phylink_ops = {
 	.attach = phylink_sfp_attach,
 	.detach = phylink_sfp_detach,
 	.module_insert = phylink_sfp_module_insert,
+	.module_start = phylink_sfp_module_start,
+	.module_stop = phylink_sfp_module_stop,
 	.link_up = phylink_sfp_link_up,
 	.link_down = phylink_sfp_link_down,
 	.connect_phy = phylink_sfp_connect_phy,

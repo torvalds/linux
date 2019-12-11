@@ -1396,7 +1396,6 @@ static void sfp_sm_mod_next(struct sfp *sfp, unsigned int state,
 
 static void sfp_sm_phy_detach(struct sfp *sfp)
 {
-	phy_stop(sfp->mod_phy);
 	sfp_remove_phy(sfp->sfp_bus);
 	phy_device_remove(sfp->mod_phy);
 	phy_device_free(sfp->mod_phy);
@@ -1427,7 +1426,6 @@ static void sfp_sm_probe_phy(struct sfp *sfp)
 	}
 
 	sfp->mod_phy = phy;
-	phy_start(phy);
 }
 
 static void sfp_sm_link_up(struct sfp *sfp)
