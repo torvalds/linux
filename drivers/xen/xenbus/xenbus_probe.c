@@ -255,7 +255,6 @@ fail_put:
 	module_put(drv->driver.owner);
 fail:
 	xenbus_dev_error(dev, err, "xenbus_dev_probe on %s", dev->nodename);
-	xenbus_switch_state(dev, XenbusStateClosed);
 	return err;
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_probe);
@@ -276,7 +275,16 @@ int xenbus_dev_remove(struct device *_dev)
 
 	free_otherend_details(dev);
 
-	xenbus_switch_state(dev, XenbusStateClosed);
+	/*
+	 * If the toolstack has forced the device state to closing then set
+	 * the state to closed now to allow it to be cleaned up.
+	 * Similarly, if the driver does not support re-bind, set the
+	 * closed.
+	 */
+	if (!drv->allow_rebind ||
+	    xenbus_read_driver_state(dev->nodename) == XenbusStateClosing)
+		xenbus_switch_state(dev, XenbusStateClosed);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_remove);
