@@ -1509,13 +1509,13 @@ static void intel_master_process_wakeen_event(struct sdw_master_device *md)
 	 * the wakeen event and let codec driver check codec status
 	 */
 	list_for_each_entry(slave, &bus->slaves, node) {
-		if (slave->prop.wake_capable) {
-			if (slave->status != SDW_SLAVE_ATTACHED &&
-			    slave->status != SDW_SLAVE_ALERT)
-				continue;
-
+		/*
+		 * discard devices that are defined in ACPI tables but
+		 * not physically present and devices that cannot
+		 * generate wakes
+		 */
+		if (slave->dev_num_sticky && slave->prop.wake_capable)
 			pm_request_resume(&slave->dev);
-		}
 	}
 }
 
