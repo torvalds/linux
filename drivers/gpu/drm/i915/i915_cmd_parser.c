@@ -731,7 +731,7 @@ static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
 			return 0xFF;
 	}
 
-	DRM_DEBUG_DRIVER("CMD: Abnormal rcs cmd length! 0x%08X\n", cmd_header);
+	DRM_DEBUG("CMD: Abnormal rcs cmd length! 0x%08X\n", cmd_header);
 	return 0;
 }
 
@@ -754,7 +754,7 @@ static u32 gen7_bsd_get_cmd_length_mask(u32 cmd_header)
 			return 0xFF;
 	}
 
-	DRM_DEBUG_DRIVER("CMD: Abnormal bsd cmd length! 0x%08X\n", cmd_header);
+	DRM_DEBUG("CMD: Abnormal bsd cmd length! 0x%08X\n", cmd_header);
 	return 0;
 }
 
@@ -767,7 +767,7 @@ static u32 gen7_blt_get_cmd_length_mask(u32 cmd_header)
 	else if (client == INSTR_BC_CLIENT)
 		return 0xFF;
 
-	DRM_DEBUG_DRIVER("CMD: Abnormal blt cmd length! 0x%08X\n", cmd_header);
+	DRM_DEBUG("CMD: Abnormal blt cmd length! 0x%08X\n", cmd_header);
 	return 0;
 }
 
@@ -778,7 +778,7 @@ static u32 gen9_blt_get_cmd_length_mask(u32 cmd_header)
 	if (client == INSTR_MI_CLIENT || client == INSTR_BC_CLIENT)
 		return 0xFF;
 
-	DRM_DEBUG_DRIVER("CMD: Abnormal blt cmd length! 0x%08X\n", cmd_header);
+	DRM_DEBUG("CMD: Abnormal blt cmd length! 0x%08X\n", cmd_header);
 	return 0;
 }
 
@@ -1211,7 +1211,7 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 		return true;
 
 	if (desc->flags & CMD_DESC_REJECT) {
-		DRM_DEBUG_DRIVER("CMD: Rejected command: 0x%08X\n", *cmd);
+		DRM_DEBUG("CMD: Rejected command: 0x%08X\n", *cmd);
 		return false;
 	}
 
@@ -1231,8 +1231,8 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 				find_reg(engine, reg_addr);
 
 			if (!reg) {
-				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (%s)\n",
-						 reg_addr, *cmd, engine->name);
+				DRM_DEBUG("CMD: Rejected register 0x%08X in command: 0x%08X (%s)\n",
+					  reg_addr, *cmd, engine->name);
 				return false;
 			}
 
@@ -1242,22 +1242,22 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 			 */
 			if (reg->mask) {
 				if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
-					DRM_DEBUG_DRIVER("CMD: Rejected LRM to masked register 0x%08X\n",
-							 reg_addr);
+					DRM_DEBUG("CMD: Rejected LRM to masked register 0x%08X\n",
+						  reg_addr);
 					return false;
 				}
 
 				if (desc->cmd.value == MI_LOAD_REGISTER_REG) {
-					DRM_DEBUG_DRIVER("CMD: Rejected LRR to masked register 0x%08X\n",
-							 reg_addr);
+					DRM_DEBUG("CMD: Rejected LRR to masked register 0x%08X\n",
+						  reg_addr);
 					return false;
 				}
 
 				if (desc->cmd.value == MI_LOAD_REGISTER_IMM(1) &&
 				    (offset + 2 > length ||
 				     (cmd[offset + 1] & reg->mask) != reg->value)) {
-					DRM_DEBUG_DRIVER("CMD: Rejected LRI to masked register 0x%08X\n",
-							 reg_addr);
+					DRM_DEBUG("CMD: Rejected LRI to masked register 0x%08X\n",
+						  reg_addr);
 					return false;
 				}
 			}
@@ -1284,8 +1284,8 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 			}
 
 			if (desc->bits[i].offset >= length) {
-				DRM_DEBUG_DRIVER("CMD: Rejected command 0x%08X, too short to check bitmask (%s)\n",
-						 *cmd, engine->name);
+				DRM_DEBUG("CMD: Rejected command 0x%08X, too short to check bitmask (%s)\n",
+					  *cmd, engine->name);
 				return false;
 			}
 
@@ -1293,11 +1293,11 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 				desc->bits[i].mask;
 
 			if (dword != desc->bits[i].expected) {
-				DRM_DEBUG_DRIVER("CMD: Rejected command 0x%08X for bitmask 0x%08X (exp=0x%08X act=0x%08X) (%s)\n",
-						 *cmd,
-						 desc->bits[i].mask,
-						 desc->bits[i].expected,
-						 dword, engine->name);
+				DRM_DEBUG("CMD: Rejected command 0x%08X for bitmask 0x%08X (exp=0x%08X act=0x%08X) (%s)\n",
+					  *cmd,
+					  desc->bits[i].mask,
+					  desc->bits[i].expected,
+					  dword, engine->name);
 				return false;
 			}
 		}
@@ -1425,7 +1425,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			 batch_start_offset, batch_len,
 			 &needs_clflush_after);
 	if (IS_ERR(cmd)) {
-		DRM_DEBUG_DRIVER("CMD: Failed to copy batch\n");
+		DRM_DEBUG("CMD: Failed to copy batch\n");
 		return PTR_ERR(cmd);
 	}
 
@@ -1446,8 +1446,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 
 		desc = find_cmd(engine, *cmd, desc, &default_desc);
 		if (!desc) {
-			DRM_DEBUG_DRIVER("CMD: Unrecognized command: 0x%08X\n",
-					 *cmd);
+			DRM_DEBUG("CMD: Unrecognized command: 0x%08X\n", *cmd);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -1458,10 +1457,10 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			length = ((*cmd & desc->length.mask) + LENGTH_BIAS);
 
 		if ((batch_end - cmd) < length) {
-			DRM_DEBUG_DRIVER("CMD: Command length exceeds batch length: 0x%08X length=%u batchlen=%td\n",
-					 *cmd,
-					 length,
-					 batch_end - cmd);
+			DRM_DEBUG("CMD: Command length exceeds batch length: 0x%08X length=%u batchlen=%td\n",
+				  *cmd,
+				  length,
+				  batch_end - cmd);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -1488,7 +1487,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 		cmd += length;
 		offset += length;
 		if  (cmd >= batch_end) {
-			DRM_DEBUG_DRIVER("CMD: Got to the end of the buffer w/o a BBE cmd!\n");
+			DRM_DEBUG("CMD: Got to the end of the buffer w/o a BBE cmd!\n");
 			ret = -EINVAL;
 			goto err;
 		}
