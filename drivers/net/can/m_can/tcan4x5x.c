@@ -457,6 +457,10 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 
 	tcan4x5x_power_enable(priv->power, 1);
 
+	ret = tcan4x5x_init(mcan_class);
+	if (ret)
+		goto out_power;
+
 	ret = m_can_class_register(mcan_class);
 	if (ret)
 		goto out_power;
