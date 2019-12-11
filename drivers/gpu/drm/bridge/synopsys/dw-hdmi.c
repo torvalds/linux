@@ -2158,16 +2158,43 @@ static void hdmi_config_drm_infoframe(struct dw_hdmi *hdmi,
 				      const struct drm_connector *connector)
 {
 	const struct drm_connector_state *conn_state = connector->state;
+	struct hdr_output_metadata *hdr_metadata;
 	struct hdmi_drm_infoframe frame;
 	u8 buffer[30];
 	ssize_t err;
 	int i;
+
+	/* Dynamic Range and Mastering Infoframe is introduced in v2.11a. */
+	if (hdmi->version < 0x211a) {
+		DRM_ERROR("Not support DRM Infoframe\n");
+		return;
+	}
 
 	if (!hdmi->plat_data->use_drm_infoframe)
 		return;
 
 	hdmi_modb(hdmi, HDMI_FC_PACKET_TX_EN_DRM_DISABLE,
 		  HDMI_FC_PACKET_TX_EN_DRM_MASK, HDMI_FC_PACKET_TX_EN);
+
+	if (!hdmi->connector.hdr_sink_metadata.hdmi_type1.eotf) {
+		DRM_DEBUG("No need to set HDR metadata in infoframe\n");
+		return;
+	}
+
+	if (!conn_state->hdr_output_metadata) {
+		DRM_DEBUG("source metadata not set yet\n");
+		return;
+	}
+
+	hdr_metadata = (struct hdr_output_metadata *)
+		conn_state->hdr_output_metadata->data;
+
+	if (!(hdmi->connector.hdr_sink_metadata.hdmi_type1.eotf &
+	    BIT(hdr_metadata->hdmi_metadata_type1.eotf))) {
+		DRM_ERROR("Not support EOTF %d\n",
+			  hdr_metadata->hdmi_metadata_type1.eotf);
+		return;
+	}
 
 	err = drm_hdmi_infoframe_set_hdr_metadata(&frame, conn_state);
 	if (err < 0)
@@ -2188,6 +2215,9 @@ static void hdmi_config_drm_infoframe(struct dw_hdmi *hdmi,
 	hdmi_writeb(hdmi, 1, HDMI_FC_DRM_UP);
 	hdmi_modb(hdmi, HDMI_FC_PACKET_TX_EN_DRM_ENABLE,
 		  HDMI_FC_PACKET_TX_EN_DRM_MASK, HDMI_FC_PACKET_TX_EN);
+
+	DRM_DEBUG("%s eotf %d end\n", __func__,
+		  hdr_metadata->hdmi_metadata_type1.eotf);
 }
 
 static unsigned int
@@ -2824,11 +2854,14 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 {
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
 					     connector);
+	struct hdr_static_metadata *metedata =
+			&connector->hdr_sink_metadata.hdmi_type1;
 	struct edid *edid;
 	struct drm_display_mode *mode;
 	struct drm_display_info *info = &connector->display_info;
 	int i,  ret = 0;
 
+	memset(metedata, 0, sizeof(*metedata));
 	edid = dw_hdmi_get_edid(hdmi, connector);
 	if (edid) {
 		dev_dbg(hdmi->dev, "got edid: width[%d] x height[%d]\n",
