@@ -1217,23 +1217,32 @@ static void configure_lttpr_mode(struct dc_link *link)
 	uint8_t repeater_cnt;
 	uint32_t aux_interval_address;
 	uint8_t repeater_id;
+	enum dc_status result = DC_ERROR_UNEXPECTED;
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
 	DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
-	core_link_write_dpcd(link,
+	result = core_link_write_dpcd(link,
 			DP_PHY_REPEATER_MODE,
 			(uint8_t *)&repeater_mode,
 			sizeof(repeater_mode));
+
+	if (result == DC_OK) {
+		link->dpcd_caps.lttpr_caps.mode = repeater_mode;
+	}
 
 	if (!link->is_lttpr_mode_transparent) {
 
 		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Non Transparent Mode\n", __func__);
 
 		repeater_mode = DP_PHY_REPEATER_MODE_NON_TRANSPARENT;
-		core_link_write_dpcd(link,
+		result = core_link_write_dpcd(link,
 				DP_PHY_REPEATER_MODE,
 				(uint8_t *)&repeater_mode,
 				sizeof(repeater_mode));
+
+		if (result == DC_OK) {
+			link->dpcd_caps.lttpr_caps.mode = repeater_mode;
+		}
 
 		repeater_cnt = convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 		for (repeater_id = repeater_cnt; repeater_id > 0; repeater_id--) {
