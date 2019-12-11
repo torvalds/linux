@@ -36,6 +36,12 @@ enum dmub_cmd_psr_type {
 	DMUB_CMD__PSR_DISABLE = 1,
 	DMUB_CMD__PSR_COPY_SETTINGS = 2,
 	DMUB_CMD__PSR_SET_LEVEL = 3,
+	DMUB_CMD__PSR_SETUP = 4,
+};
+
+enum psr_version {
+	PSR_VERSION_1 = 0x0,
+	PSR_VERSION_2 = 0x10,
 };
 
 #endif /* _DMUB_CMD_DAL_H_ */

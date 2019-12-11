@@ -262,23 +262,13 @@ struct dmub_rb_cmd_psr_enable {
 	struct dmub_cmd_header header;
 };
 
-struct dmub_cmd_psr_notify_vblank_data {
-	uint32_t vblank_int; // Which vblank interrupt was triggered
+struct dmub_cmd_psr_setup_data {
+	enum psr_version version; // PSR version 1 or 2
 };
 
-struct dmub_rb_cmd_notify_vblank {
+struct dmub_rb_cmd_psr_setup {
 	struct dmub_cmd_header header;
-	struct dmub_cmd_psr_notify_vblank_data psr_notify_vblank_data;
-};
-
-struct dmub_cmd_psr_notify_static_state_data {
-	uint32_t ss_int;	// Which static screen interrupt was triggered
-	uint32_t ss_enter;	// Enter (1) or exit (0) static screen
-};
-
-struct dmub_rb_cmd_psr_notify_static_state {
-	struct dmub_cmd_header header;
-	struct dmub_cmd_psr_notify_static_state_data psr_notify_static_state_data;
+	struct dmub_cmd_psr_setup_data psr_setup_data;
 };
 
 union dmub_rb_cmd {
@@ -296,6 +286,7 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_psr_copy_settings psr_copy_settings;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
 	struct dmub_rb_cmd_flip surface_flip;
+	struct dmub_rb_cmd_psr_setup psr_setup;
 };
 
 #pragma pack(pop)
