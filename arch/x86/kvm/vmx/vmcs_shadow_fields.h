@@ -28,7 +28,7 @@ BUILD_BUG_ON(1)
 
 /*
  * Keeping the fields ordered by size is an attempt at improving
- * branch prediction in vmcs_read_any and vmcs_write_any.
+ * branch prediction in vmcs12_read_any and vmcs12_write_any.
  */
 
 /* 16-bits */
