@@ -2157,7 +2157,7 @@ static int io_sendmsg_prep(struct io_kiocb *req, struct io_async_ctx *io)
 	unsigned flags;
 
 	flags = READ_ONCE(sqe->msg_flags);
-	msg = (struct user_msghdr __user *)(unsigned long) READ_ONCE(sqe->addr);
+	msg = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	io->msg.iov = io->msg.fast_iov;
 	return sendmsg_copy_msghdr(&io->msg.msg, msg, flags, &io->msg.iov);
 #else
@@ -2239,7 +2239,7 @@ static int io_recvmsg_prep(struct io_kiocb *req, struct io_async_ctx *io)
 	unsigned flags;
 
 	flags = READ_ONCE(sqe->msg_flags);
-	msg = (struct user_msghdr __user *)(unsigned long) READ_ONCE(sqe->addr);
+	msg = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	io->msg.iov = io->msg.fast_iov;
 	return recvmsg_copy_msghdr(&io->msg.msg, msg, flags, &io->msg.uaddr,
 					&io->msg.iov);
@@ -2273,8 +2273,7 @@ static int io_recvmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 		else if (force_nonblock)
 			flags |= MSG_DONTWAIT;
 
-		msg = (struct user_msghdr __user *) (unsigned long)
-			READ_ONCE(sqe->addr);
+		msg = u64_to_user_ptr(READ_ONCE(sqe->addr));
 		if (req->io) {
 			kmsg = &req->io->msg;
 			kmsg->msg.msg_name = &addr;
@@ -2331,9 +2330,8 @@ static int io_accept_prep(struct io_kiocb *req)
 	if (sqe->ioprio || sqe->len || sqe->buf_index)
 		return -EINVAL;
 
-	accept->addr = (struct sockaddr __user *)
-				(unsigned long) READ_ONCE(sqe->addr);
-	accept->addr_len = (int __user *) (unsigned long) READ_ONCE(sqe->addr2);
+	accept->addr = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	accept->addr_len = u64_to_user_ptr(READ_ONCE(sqe->addr2));
 	accept->flags = READ_ONCE(sqe->accept_flags);
 	req->flags |= REQ_F_PREPPED;
 	return 0;
@@ -2407,7 +2405,7 @@ static int io_connect_prep(struct io_kiocb *req, struct io_async_ctx *io)
 	struct sockaddr __user *addr;
 	int addr_len;
 
-	addr = (struct sockaddr __user *) (unsigned long) READ_ONCE(sqe->addr);
+	addr = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	addr_len = READ_ONCE(sqe->addr2);
 	return move_addr_to_kernel(addr, addr_len, &io->connect.address);
 #else
@@ -4702,7 +4700,7 @@ static int io_copy_iov(struct io_ring_ctx *ctx, struct iovec *dst,
 		if (copy_from_user(&ciov, &ciovs[index], sizeof(ciov)))
 			return -EFAULT;
 
-		dst->iov_base = (void __user *) (unsigned long) ciov.iov_base;
+		dst->iov_base = u64_to_user_ptr((u64)ciov.iov_base);
 		dst->iov_len = ciov.iov_len;
 		return 0;
 	}
