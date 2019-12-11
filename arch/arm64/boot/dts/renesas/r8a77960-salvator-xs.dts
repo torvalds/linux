@@ -6,11 +6,11 @@
  */
 
 /dts-v1/;
-#include "r8a7796.dtsi"
+#include "r8a77960.dtsi"
 #include "salvator-xs.dtsi"
 
 / {
-	model = "Renesas Salvator-X 2nd version board based on r8a7796";
+	model = "Renesas Salvator-X 2nd version board based on r8a77960";
 	compatible = "renesas,salvator-xs", "renesas,r8a7796";
 
 	memory@48000000 {

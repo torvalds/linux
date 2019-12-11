@@ -7,11 +7,11 @@
  */
 
 /dts-v1/;
-#include "r8a7796.dtsi"
+#include "r8a77960.dtsi"
 #include "ulcb.dtsi"
 
 / {
-	model = "Renesas M3ULCB board based on r8a7796";
+	model = "Renesas M3ULCB board based on r8a77960";
 	compatible = "renesas,m3ulcb", "renesas,r8a7796";
 
 	memory@48000000 {
