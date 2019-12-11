@@ -3512,7 +3512,7 @@ htt_print_rx_pdev_fw_stats_phy_err_tlv(const void *tag_buf,
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "HTT_RX_PDEV_FW_STATS_PHY_ERR_TLV:");
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "mac_id__word = %u",
 			   htt_stats_buf->mac_id__word);
-	len += HTT_DBG_OUT(buf + len, buf_len - len, "tota_phy_err_nct = %u",
+	len += HTT_DBG_OUT(buf + len, buf_len - len, "total_phy_err_nct = %u",
 			   htt_stats_buf->total_phy_err_cnt);
 
 	ARRAY_TO_STRING(phy_errs,
