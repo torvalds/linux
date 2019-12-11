@@ -3062,7 +3062,12 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 	}
 }
 
-static bool io_op_needs_file(const struct io_uring_sqe *sqe)
+static bool io_req_op_valid(int op)
+{
+	return op >= IORING_OP_NOP && op < IORING_OP_LAST;
+}
+
+static int io_op_needs_file(const struct io_uring_sqe *sqe)
 {
 	int op = READ_ONCE(sqe->opcode);
 
@@ -3073,9 +3078,11 @@ static bool io_op_needs_file(const struct io_uring_sqe *sqe)
 	case IORING_OP_TIMEOUT_REMOVE:
 	case IORING_OP_ASYNC_CANCEL:
 	case IORING_OP_LINK_TIMEOUT:
-		return false;
+		return 0;
 	default:
-		return true;
+		if (io_req_op_valid(op))
+			return 1;
+		return -EINVAL;
 	}
 }
 
@@ -3092,7 +3099,7 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned flags;
-	int fd;
+	int fd, ret;
 
 	flags = READ_ONCE(req->sqe->flags);
 	fd = READ_ONCE(req->sqe->fd);
@@ -3100,8 +3107,9 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req)
 	if (flags & IOSQE_IO_DRAIN)
 		req->flags |= REQ_F_IO_DRAIN;
 
-	if (!io_op_needs_file(req->sqe))
-		return 0;
+	ret = io_op_needs_file(req->sqe);
+	if (ret <= 0)
+		return ret;
 
 	if (flags & IOSQE_FIXED_FILE) {
 		if (unlikely(!ctx->file_table ||
@@ -3311,7 +3319,6 @@ static inline void io_queue_link_head(struct io_kiocb *req)
 	} else
 		io_queue_sqe(req);
 }
-
 
 #define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
 				IOSQE_IO_HARDLINK)
