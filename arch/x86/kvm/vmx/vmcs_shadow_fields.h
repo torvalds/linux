@@ -23,7 +23,7 @@ BUILD_BUG_ON(1)
  *
  * When adding or removing fields here, note that shadowed
  * fields must always be synced by prepare_vmcs02, not just
- * prepare_vmcs02_full.
+ * prepare_vmcs02_rare.
  */
 
 /*
