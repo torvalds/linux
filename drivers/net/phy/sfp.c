@@ -242,7 +242,7 @@ struct sfp {
 
 static bool sff_module_supported(const struct sfp_eeprom_id *id)
 {
-	return id->base.phys_id == SFP_PHYS_ID_SFF &&
+	return id->base.phys_id == SFF8024_ID_SFF_8472 &&
 	       id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP;
 }
 
@@ -253,7 +253,7 @@ static const struct sff_data sff_data = {
 
 static bool sfp_module_supported(const struct sfp_eeprom_id *id)
 {
-	return id->base.phys_id == SFP_PHYS_ID_SFP &&
+	return id->base.phys_id == SFF8024_ID_SFP &&
 	       id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP;
 }
 

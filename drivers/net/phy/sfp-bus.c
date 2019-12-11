@@ -124,35 +124,35 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 
 	/* port is the physical connector, set this from the connector field. */
 	switch (id->base.connector) {
-	case SFP_CONNECTOR_SC:
-	case SFP_CONNECTOR_FIBERJACK:
-	case SFP_CONNECTOR_LC:
-	case SFP_CONNECTOR_MT_RJ:
-	case SFP_CONNECTOR_MU:
-	case SFP_CONNECTOR_OPTICAL_PIGTAIL:
+	case SFF8024_CONNECTOR_SC:
+	case SFF8024_CONNECTOR_FIBERJACK:
+	case SFF8024_CONNECTOR_LC:
+	case SFF8024_CONNECTOR_MT_RJ:
+	case SFF8024_CONNECTOR_MU:
+	case SFF8024_CONNECTOR_OPTICAL_PIGTAIL:
+	case SFF8024_CONNECTOR_MPO_1X12:
+	case SFF8024_CONNECTOR_MPO_2X16:
 		port = PORT_FIBRE;
 		break;
 
-	case SFP_CONNECTOR_RJ45:
+	case SFF8024_CONNECTOR_RJ45:
 		port = PORT_TP;
 		break;
 
-	case SFP_CONNECTOR_COPPER_PIGTAIL:
+	case SFF8024_CONNECTOR_COPPER_PIGTAIL:
 		port = PORT_DA;
 		break;
 
-	case SFP_CONNECTOR_UNSPEC:
+	case SFF8024_CONNECTOR_UNSPEC:
 		if (id->base.e1000_base_t) {
 			port = PORT_TP;
 			break;
 		}
 		/* fallthrough */
-	case SFP_CONNECTOR_SG: /* guess */
-	case SFP_CONNECTOR_MPO_1X12:
-	case SFP_CONNECTOR_MPO_2X16:
-	case SFP_CONNECTOR_HSSDC_II:
-	case SFP_CONNECTOR_NOSEPARATE:
-	case SFP_CONNECTOR_MXC_2X16:
+	case SFF8024_CONNECTOR_SG: /* guess */
+	case SFF8024_CONNECTOR_HSSDC_II:
+	case SFF8024_CONNECTOR_NOSEPARATE:
+	case SFF8024_CONNECTOR_MXC_2X16:
 		port = PORT_OTHER;
 		break;
 	default:
@@ -261,21 +261,32 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	}
 
 	switch (id->base.extended_cc) {
-	case 0x00: /* Unspecified */
+	case SFF8024_ECC_UNSPEC:
 		break;
-	case 0x02: /* 100Gbase-SR4 or 25Gbase-SR */
+	case SFF8024_ECC_100GBASE_SR4_25GBASE_SR:
 		phylink_set(modes, 100000baseSR4_Full);
 		phylink_set(modes, 25000baseSR_Full);
 		break;
-	case 0x03: /* 100Gbase-LR4 or 25Gbase-LR */
-	case 0x04: /* 100Gbase-ER4 or 25Gbase-ER */
+	case SFF8024_ECC_100GBASE_LR4_25GBASE_LR:
+	case SFF8024_ECC_100GBASE_ER4_25GBASE_ER:
 		phylink_set(modes, 100000baseLR4_ER4_Full);
 		break;
-	case 0x0b: /* 100Gbase-CR4 or 25Gbase-CR CA-L */
-	case 0x0c: /* 25Gbase-CR CA-S */
-	case 0x0d: /* 25Gbase-CR CA-N */
+	case SFF8024_ECC_100GBASE_CR4:
 		phylink_set(modes, 100000baseCR4_Full);
+		/* fallthrough */
+	case SFF8024_ECC_25GBASE_CR_S:
+	case SFF8024_ECC_25GBASE_CR_N:
 		phylink_set(modes, 25000baseCR_Full);
+		break;
+	case SFF8024_ECC_10GBASE_T_SFI:
+	case SFF8024_ECC_10GBASE_T_SR:
+		phylink_set(modes, 10000baseT_Full);
+		break;
+	case SFF8024_ECC_5GBASE_T:
+		phylink_set(modes, 5000baseT_Full);
+		break;
+	case SFF8024_ECC_2_5GBASE_T:
+		phylink_set(modes, 2500baseT_Full);
 		break;
 	default:
 		dev_warn(bus->sfp_dev,
@@ -301,7 +312,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	 */
 	if (bitmap_empty(modes, __ETHTOOL_LINK_MODE_MASK_NBITS)) {
 		/* If the encoding and bit rate allows 1000baseX */
-		if (id->base.encoding == SFP_ENCODING_8B10B && br_nom &&
+		if (id->base.encoding == SFF8024_ENCODING_8B10B && br_nom &&
 		    br_min <= 1300 && br_max >= 1200)
 			phylink_set(modes, 1000baseX_Full);
 	}
@@ -332,7 +343,8 @@ phy_interface_t sfp_select_interface(struct sfp_bus *bus,
 	    phylink_test(link_modes, 10000baseSR_Full) ||
 	    phylink_test(link_modes, 10000baseLR_Full) ||
 	    phylink_test(link_modes, 10000baseLRM_Full) ||
-	    phylink_test(link_modes, 10000baseER_Full))
+	    phylink_test(link_modes, 10000baseER_Full) ||
+	    phylink_test(link_modes, 10000baseT_Full))
 		return PHY_INTERFACE_MODE_10GKR;
 
 	if (phylink_test(link_modes, 2500baseX_Full))
