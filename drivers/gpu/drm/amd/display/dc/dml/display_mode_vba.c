@@ -393,11 +393,11 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.ViewportYStartC[mode_lib->vba.NumberOfActivePlanes] =
 				src->viewport_y_c;
 		mode_lib->vba.PitchY[mode_lib->vba.NumberOfActivePlanes] = src->data_pitch;
-		mode_lib->vba.SurfaceHeightY[mode_lib->vba.NumberOfActivePlanes] = src->viewport_height;
-		mode_lib->vba.SurfaceWidthY[mode_lib->vba.NumberOfActivePlanes] = src->viewport_width;
+		mode_lib->vba.SurfaceWidthY[mode_lib->vba.NumberOfActivePlanes] = src->surface_width_y;
+		mode_lib->vba.SurfaceHeightY[mode_lib->vba.NumberOfActivePlanes] = src->surface_height_y;
 		mode_lib->vba.PitchC[mode_lib->vba.NumberOfActivePlanes] = src->data_pitch_c;
-		mode_lib->vba.SurfaceHeightC[mode_lib->vba.NumberOfActivePlanes] = src->viewport_height_c;
-		mode_lib->vba.SurfaceWidthC[mode_lib->vba.NumberOfActivePlanes] = src->viewport_width_c;
+		mode_lib->vba.SurfaceHeightC[mode_lib->vba.NumberOfActivePlanes] = src->surface_height_c;
+		mode_lib->vba.SurfaceWidthC[mode_lib->vba.NumberOfActivePlanes] = src->surface_width_c;
 		mode_lib->vba.DCCMetaPitchY[mode_lib->vba.NumberOfActivePlanes] = src->meta_pitch;
 		mode_lib->vba.DCCMetaPitchC[mode_lib->vba.NumberOfActivePlanes] = src->meta_pitch_c;
 		mode_lib->vba.HRatio[mode_lib->vba.NumberOfActivePlanes] = scl->hscl_ratio;
