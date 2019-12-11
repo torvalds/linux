@@ -180,8 +180,8 @@ struct pulse8 {
 	unsigned int idx;
 	bool escape;
 	bool started;
-	struct mutex config_lock;
-	struct mutex write_lock;
+	/* locks access to the adapter */
+	struct mutex lock;
 	bool config_pending;
 	bool restoring_config;
 	bool autonomous;
@@ -244,22 +244,17 @@ static int pulse8_send_and_wait(struct pulse8 *pulse8,
 	u8 cmd_sc[2];
 	int err;
 
-	mutex_lock(&pulse8->write_lock);
 	err = pulse8_send_and_wait_once(pulse8, cmd, cmd_len, response, size);
+	if (err != -ENOTTY)
+		return err;
 
-	if (err == -ENOTTY) {
-		cmd_sc[0] = MSGCODE_SET_CONTROLLED;
-		cmd_sc[1] = 1;
-		err = pulse8_send_and_wait_once(pulse8, cmd_sc, 2,
-						MSGCODE_COMMAND_ACCEPTED, 1);
-		if (err)
-			goto unlock;
+	cmd_sc[0] = MSGCODE_SET_CONTROLLED;
+	cmd_sc[1] = 1;
+	err = pulse8_send_and_wait_once(pulse8, cmd_sc, 2,
+					MSGCODE_COMMAND_ACCEPTED, 1);
+	if (!err)
 		err = pulse8_send_and_wait_once(pulse8, cmd, cmd_len,
 						response, size);
-	}
-
-unlock:
-	mutex_unlock(&pulse8->write_lock);
 	return err == -ENOTTY ? -EIO : err;
 }
 
@@ -275,15 +270,21 @@ static void pulse8_irq_work_handler(struct work_struct *work)
 		cec_received_msg(pulse8->adap, &pulse8->rx_msg);
 		break;
 	case MSGCODE_TRANSMIT_SUCCEEDED:
+		mutex_lock(&pulse8->lock);
 		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_OK);
+		mutex_unlock(&pulse8->lock);
 		break;
 	case MSGCODE_TRANSMIT_FAILED_ACK:
+		mutex_lock(&pulse8->lock);
 		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_NACK);
+		mutex_unlock(&pulse8->lock);
 		break;
 	case MSGCODE_TRANSMIT_FAILED_LINE:
 	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_DATA:
 	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_LINE:
+		mutex_lock(&pulse8->lock);
 		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_ERROR);
+		mutex_unlock(&pulse8->lock);
 		break;
 	}
 }
@@ -373,10 +374,12 @@ static int pulse8_cec_adap_enable(struct cec_adapter *adap, bool enable)
 	u8 cmd[16];
 	int err;
 
+	mutex_lock(&pulse8->lock);
 	cmd[0] = MSGCODE_SET_CONTROLLED;
 	cmd[1] = enable;
 	err = pulse8_send_and_wait(pulse8, cmd, 2,
 				   MSGCODE_COMMAND_ACCEPTED, 1);
+	mutex_unlock(&pulse8->lock);
 	return enable ? err : 0;
 }
 
@@ -388,7 +391,7 @@ static int pulse8_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
 	u8 cmd[16];
 	int err = 0;
 
-	mutex_lock(&pulse8->config_lock);
+	mutex_lock(&pulse8->lock);
 	if (log_addr != CEC_LOG_ADDR_INVALID)
 		mask = 1 << log_addr;
 	cmd[0] = MSGCODE_SET_ACK_MASK;
@@ -496,7 +499,7 @@ unlock:
 		pulse8->restoring_config = false;
 	else
 		pulse8->config_pending = true;
-	mutex_unlock(&pulse8->config_lock);
+	mutex_unlock(&pulse8->lock);
 	return log_addr == CEC_LOG_ADDR_INVALID ? 0 : err;
 }
 
@@ -508,6 +511,7 @@ static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	unsigned int i;
 	int err;
 
+	mutex_lock(&pulse8->lock);
 	cmd[0] = MSGCODE_TRANSMIT_IDLETIME;
 	cmd[1] = signal_free_time;
 	err = pulse8_send_and_wait(pulse8, cmd, 2,
@@ -537,6 +541,7 @@ static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 		}
 	}
 
+	mutex_unlock(&pulse8->lock);
 	return err;
 }
 
@@ -699,14 +704,14 @@ static void pulse8_ping_eeprom_work_handler(struct work_struct *work)
 	u8 cmd;
 
 	schedule_delayed_work(&pulse8->ping_eeprom_work, PING_PERIOD);
+	mutex_lock(&pulse8->lock);
 	cmd = MSGCODE_PING;
 	pulse8_send_and_wait(pulse8, &cmd, 1,
 			     MSGCODE_COMMAND_ACCEPTED, 0);
 
 	if (pulse8->vers < 2)
-		return;
+		goto unlock;
 
-	mutex_lock(&pulse8->config_lock);
 	if (pulse8->config_pending && persistent_config) {
 		dev_dbg(pulse8->dev, "writing pending config to EEPROM\n");
 		cmd = MSGCODE_WRITE_EEPROM;
@@ -716,7 +721,8 @@ static void pulse8_ping_eeprom_work_handler(struct work_struct *work)
 		else
 			pulse8->config_pending = false;
 	}
-	mutex_unlock(&pulse8->config_lock);
+unlock:
+	mutex_unlock(&pulse8->lock);
 }
 
 static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
@@ -742,8 +748,7 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 	pulse8->dev = &serio->dev;
 	serio_set_drvdata(serio, pulse8);
 	INIT_WORK(&pulse8->work, pulse8_irq_work_handler);
-	mutex_init(&pulse8->write_lock);
-	mutex_init(&pulse8->config_lock);
+	mutex_init(&pulse8->lock);
 	pulse8->config_pending = false;
 
 	err = serio_open(serio, drv);
