@@ -5972,8 +5972,7 @@ xfs_bmap_insert_extents(
 		goto del_cursor;
 	}
 
-	if (XFS_IS_CORRUPT(mp,
-			   stop_fsb >= got.br_startoff + got.br_blockcount)) {
+	if (XFS_IS_CORRUPT(mp, stop_fsb > got.br_startoff)) {
 		error = -EFSCORRUPTED;
 		goto del_cursor;
 	}
