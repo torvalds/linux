@@ -282,7 +282,8 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv,
 			sreq->processed = sreq->block_sz;
 			sreq->hmac = 0;
 
-			ctx->base.needs_inv = true;
+			if (priv->flags & EIP197_TRC_CACHE)
+				ctx->base.needs_inv = true;
 			areq->nbytes = 0;
 			safexcel_ahash_enqueue(areq);
 
