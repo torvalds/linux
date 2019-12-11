@@ -266,8 +266,6 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.MaxDispclk[i] = soc->clock_limits[i].dispclk_mhz;
 		mode_lib->vba.DTBCLKPerState[i] = soc->clock_limits[i].dtbclk_mhz;
 	}
-	mode_lib->vba.MinVoltageLevel = 0;
-	mode_lib->vba.MaxVoltageLevel = mode_lib->vba.soc.num_states;
 
 	mode_lib->vba.DoUrgentLatencyAdjustment =
 		soc->do_urgent_latency_adjustment;
