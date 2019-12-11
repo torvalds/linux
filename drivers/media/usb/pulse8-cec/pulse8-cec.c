@@ -624,10 +624,23 @@ static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	return 0;
 }
 
+static void pulse8_cec_adap_free(struct cec_adapter *adap)
+{
+	struct pulse8 *pulse8 = cec_get_drvdata(adap);
+
+	cancel_delayed_work_sync(&pulse8->ping_eeprom_work);
+	cancel_work_sync(&pulse8->irq_work);
+	cancel_work_sync(&pulse8->tx_work);
+	serio_close(pulse8->serio);
+	serio_set_drvdata(pulse8->serio, NULL);
+	kfree(pulse8);
+}
+
 static const struct cec_adap_ops pulse8_cec_adap_ops = {
 	.adap_enable = pulse8_cec_adap_enable,
 	.adap_log_addr = pulse8_cec_adap_log_addr,
 	.adap_transmit = pulse8_cec_adap_transmit,
+	.adap_free = pulse8_cec_adap_free,
 };
 
 static void pulse8_disconnect(struct serio *serio)
@@ -635,13 +648,6 @@ static void pulse8_disconnect(struct serio *serio)
 	struct pulse8 *pulse8 = serio_get_drvdata(serio);
 
 	cec_unregister_adapter(pulse8->adap);
-	cancel_delayed_work_sync(&pulse8->ping_eeprom_work);
-	cancel_work_sync(&pulse8->irq_work);
-	cancel_work_sync(&pulse8->tx_work);
-	dev_info(&serio->dev, "disconnected\n");
-	serio_close(serio);
-	serio_set_drvdata(serio, NULL);
-	kfree(pulse8);
 }
 
 static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
