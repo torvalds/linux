@@ -711,7 +711,8 @@ static void phylink_phy_change(struct phy_device *phydev, bool up,
 		    phy_duplex_to_str(phydev->duplex));
 }
 
-static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
+static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
+			       phy_interface_t interface)
 {
 	struct phylink_link_state config;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
@@ -729,7 +730,7 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 	memset(&config, 0, sizeof(config));
 	linkmode_copy(supported, phy->supported);
 	linkmode_copy(config.advertising, phy->advertising);
-	config.interface = pl->link_config.interface;
+	config.interface = interface;
 
 	ret = phylink_validate(pl, supported, &config);
 	if (ret)
@@ -745,6 +746,7 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 	mutex_lock(&phy->lock);
 	mutex_lock(&pl->state_mutex);
 	pl->phydev = phy;
+	pl->phy_state.interface = interface;
 	linkmode_copy(pl->supported, supported);
 	linkmode_copy(pl->link_config.advertising, config.advertising);
 
@@ -807,7 +809,7 @@ int phylink_connect_phy(struct phylink *pl, struct phy_device *phy)
 	if (ret < 0)
 		return ret;
 
-	ret = phylink_bringup_phy(pl, phy);
+	ret = phylink_bringup_phy(pl, phy, pl->link_config.interface);
 	if (ret)
 		phy_detach(phy);
 
@@ -860,7 +862,7 @@ int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn,
 	if (!phy_dev)
 		return -ENODEV;
 
-	ret = phylink_bringup_phy(pl, phy_dev);
+	ret = phylink_bringup_phy(pl, phy_dev, pl->link_config.interface);
 	if (ret)
 		phy_detach(phy_dev);
 
@@ -1809,13 +1811,22 @@ static void phylink_sfp_link_up(void *upstream)
 static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 {
 	struct phylink *pl = upstream;
+	phy_interface_t interface = pl->link_config.interface;
 	int ret;
 
 	ret = phylink_attach_phy(pl, phy, pl->link_config.interface);
 	if (ret < 0)
 		return ret;
 
-	ret = phylink_bringup_phy(pl, phy);
+	/* Clause 45 PHYs switch their Serdes lane between several different
+	 * modes, normally 10GBASE-R, SGMII. Some use 2500BASE-X for 2.5G
+	 * speeds.  We really need to know which interface modes the PHY and
+	 * MAC supports to properly work out which linkmodes can be supported.
+	 */
+	if (phy->is_c45)
+		interface = PHY_INTERFACE_MODE_NA;
+
+	ret = phylink_bringup_phy(pl, phy, interface);
 	if (ret)
 		phy_detach(phy);
 
