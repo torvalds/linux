@@ -311,6 +311,8 @@
 	pinconf {
 		pins = "gpio6", "gpio7";
 		drive-strength = <2>;
+
+		/* Has external pullup */
 		bias-disable;
 	};
 };
