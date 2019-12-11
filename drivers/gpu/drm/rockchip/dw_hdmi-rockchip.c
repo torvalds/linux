@@ -563,11 +563,12 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 {
 	struct drm_display_info *info = &conn_state->connector->display_info;
 	struct drm_display_mode *mode = &crtc_state->mode;
-	struct hdr_static_metadata *hdr_metadata;
+	struct hdr_output_metadata *hdr_metadata;
 	u32 vic = drm_match_cea_mode(mode);
 	unsigned long tmdsclock, pixclock = mode->crtc_clock;
 	bool support_dc = false;
 	int max_tmds_clock = info->max_tmds_clock;
+	int output_eotf;
 
 	*color_format = DRM_HDMI_OUTPUT_DEFAULT_RGB;
 
@@ -628,11 +629,12 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 
 	*eotf = TRADITIONAL_GAMMA_SDR;
 	if (conn_state->hdr_output_metadata) {
-		hdr_metadata = (struct hdr_static_metadata *)
+		hdr_metadata = (struct hdr_output_metadata *)
 			conn_state->hdr_output_metadata->data;
-		if (hdr_metadata->eotf > TRADITIONAL_GAMMA_HDR &&
-		    hdr_metadata->eotf < FUTURE_EOTF)
-			*eotf = hdr_metadata->eotf;
+		output_eotf = hdr_metadata->hdmi_metadata_type1.eotf;
+		if (output_eotf > TRADITIONAL_GAMMA_HDR &&
+		    output_eotf < FUTURE_EOTF)
+			*eotf = output_eotf;
 	}
 
 	if ((*eotf > TRADITIONAL_GAMMA_HDR &&

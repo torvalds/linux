@@ -1961,7 +1961,7 @@ hdmi_get_tmdsclock(struct dw_hdmi *hdmi, unsigned long mpixelclock)
 static void hdmi_config_hdr_infoframe(struct dw_hdmi *hdmi)
 {
 	struct hdmi_drm_infoframe frame;
-	struct hdr_static_metadata *hdr_metadata;
+	struct hdr_output_metadata *hdr_metadata;
 	struct drm_connector_state *conn_state = hdmi->connector.state;
 	int ret;
 
@@ -1984,12 +1984,13 @@ static void hdmi_config_hdr_infoframe(struct dw_hdmi *hdmi)
 		return;
 	}
 
-	hdr_metadata = (struct hdr_static_metadata *)
+	hdr_metadata = (struct hdr_output_metadata *)
 		conn_state->hdr_output_metadata->data;
 
 	if (!(hdmi->connector.hdr_sink_metadata.hdmi_type1.eotf &
-	    BIT(hdr_metadata->eotf))) {
-		DRM_ERROR("Not support EOTF %d\n", hdr_metadata->eotf);
+	    BIT(hdr_metadata->hdmi_metadata_type1.eotf))) {
+		DRM_ERROR("Not support EOTF %d\n",
+			  hdr_metadata->hdmi_metadata_type1.eotf);
 		return;
 	}
 
@@ -2050,7 +2051,8 @@ static void hdmi_config_hdr_infoframe(struct dw_hdmi *hdmi)
 	if (conn_state->hdr_metadata_changed)
 		conn_state->hdr_metadata_changed = false;
 
-	DRM_DEBUG("%s eotf %d end\n", __func__, hdr_metadata->eotf);
+	DRM_DEBUG("%s eotf %d end\n", __func__,
+		  hdr_metadata->hdmi_metadata_type1.eotf);
 }
 
 static void hdmi_av_composer(struct dw_hdmi *hdmi,
