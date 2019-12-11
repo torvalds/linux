@@ -404,6 +404,7 @@ static int afs_test_super(struct super_block *sb, struct fs_context *fc)
 	return (as->net_ns == fc->net_ns &&
 		as->volume &&
 		as->volume->vid == ctx->volume->vid &&
+		as->cell == ctx->cell &&
 		!as->dyn_root);
 }
 
