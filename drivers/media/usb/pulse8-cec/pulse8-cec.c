@@ -100,6 +100,61 @@ enum pulse8_msgcodes {
 	MSGCODE_FRAME_ACK = 0x40,
 };
 
+static const char * const pulse8_msgnames[] = {
+	"NOTHING",
+	"PING",
+	"TIMEOUT_ERROR",
+	"HIGH_ERROR",
+	"LOW_ERROR",
+	"FRAME_START",
+	"FRAME_DATA",
+	"RECEIVE_FAILED",
+	"COMMAND_ACCEPTED",
+	"COMMAND_REJECTED",
+	"SET_ACK_MASK",
+	"TRANSMIT",
+	"TRANSMIT_EOM",
+	"TRANSMIT_IDLETIME",
+	"TRANSMIT_ACK_POLARITY",
+	"TRANSMIT_LINE_TIMEOUT",
+	"TRANSMIT_SUCCEEDED",
+	"TRANSMIT_FAILED_LINE",
+	"TRANSMIT_FAILED_ACK",
+	"TRANSMIT_FAILED_TIMEOUT_DATA",
+	"TRANSMIT_FAILED_TIMEOUT_LINE",
+	"FIRMWARE_VERSION",
+	"START_BOOTLOADER",
+	"GET_BUILDDATE",
+	"SET_CONTROLLED",
+	"GET_AUTO_ENABLED",
+	"SET_AUTO_ENABLED",
+	"GET_DEFAULT_LOGICAL_ADDRESS",
+	"SET_DEFAULT_LOGICAL_ADDRESS",
+	"GET_LOGICAL_ADDRESS_MASK",
+	"SET_LOGICAL_ADDRESS_MASK",
+	"GET_PHYSICAL_ADDRESS",
+	"SET_PHYSICAL_ADDRESS",
+	"GET_DEVICE_TYPE",
+	"SET_DEVICE_TYPE",
+	"GET_HDMI_VERSION",
+	"SET_HDMI_VERSION",
+	"GET_OSD_NAME",
+	"SET_OSD_NAME",
+	"WRITE_EEPROM",
+	"GET_ADAPTER_TYPE",
+	"SET_ACTIVE_SOURCE",
+};
+
+static const char *pulse8_msgname(u8 cmd)
+{
+	static char unknown_msg[5];
+
+	if ((cmd & 0x3f) < ARRAY_SIZE(pulse8_msgnames))
+		return pulse8_msgnames[cmd & 0x3f];
+	snprintf(unknown_msg, sizeof(unknown_msg), "0x%02x", cmd);
+	return unknown_msg;
+}
+
 #define MSGSTART	0xff
 #define MSGEND		0xfe
 #define MSGESC		0xfd
@@ -178,8 +233,8 @@ static irqreturn_t pulse8_interrupt(struct serio *serio, unsigned char data,
 		u8 msgcode = pulse8->buf[0];
 
 		if (debug)
-			dev_info(pulse8->dev, "received: %*ph\n",
-				 pulse8->idx, pulse8->buf);
+			dev_info(pulse8->dev, "received %s: %*ph\n",
+				 pulse8_msgname(msgcode), pulse8->idx, pulse8->buf);
 		switch (msgcode & 0x3f) {
 		case MSGCODE_FRAME_START:
 			msg->len = 1;
@@ -278,7 +333,7 @@ static int pulse8_send_and_wait_once(struct pulse8 *pulse8,
 {
 	int err;
 
-	/*dev_info(pulse8->dev, "transmit: %*ph\n", cmd_len, cmd);*/
+	/* dev_info(pulse8->dev, "transmit %s: %*ph\n", pulse8_msgname(cmd[0]), cmd_len, cmd); */
 	init_completion(&pulse8->cmd_done);
 
 	err = pulse8_send(pulse8->serio, cmd, cmd_len);
@@ -294,8 +349,8 @@ static int pulse8_send_and_wait_once(struct pulse8 *pulse8,
 		return -ENOTTY;
 	if (response &&
 	    ((pulse8->data[0] & 0x3f) != response || pulse8->len < size + 1)) {
-		dev_info(pulse8->dev, "transmit: failed %02x\n",
-			 pulse8->data[0] & 0x3f);
+		dev_info(pulse8->dev, "transmit %s: failed %s\n",
+			 pulse8_msgname(cmd[0]), pulse8_msgname(pulse8->data[0]));
 		return -EIO;
 	}
 	return 0;
