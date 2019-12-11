@@ -120,10 +120,6 @@ static void of_gpio_flags_quirks(struct device_node *np,
 			if (of_property_read_bool(np, "cd-inverted"))
 				*flags ^= OF_GPIO_ACTIVE_LOW;
 		}
-		if (!strcmp(propname, "wp-gpios")) {
-			if (of_property_read_bool(np, "wp-inverted"))
-				*flags ^= OF_GPIO_ACTIVE_LOW;
-		}
 	}
 	/*
 	 * Some GPIO fixed regulator quirks.
