@@ -25,6 +25,7 @@
 #include "i915_gem_clflush.h"
 #include "i915_gem_context.h"
 #include "i915_gem_ioctls.h"
+#include "i915_sw_fence_work.h"
 #include "i915_trace.h"
 
 enum {
@@ -1223,10 +1224,6 @@ static u32 *reloc_gpu(struct i915_execbuffer *eb,
 	if (unlikely(!cache->rq)) {
 		int err;
 
-		/* If we need to copy for the cmdparser, we will stall anyway */
-		if (eb_use_cmdparser(eb))
-			return ERR_PTR(-EWOULDBLOCK);
-
 		if (!intel_engine_can_store_dword(eb->engine))
 			return ERR_PTR(-ENODEV);
 
@@ -1965,6 +1962,85 @@ shadow_batch_pin(struct drm_i915_gem_object *obj,
 	return vma;
 }
 
+struct eb_parse_work {
+	struct dma_fence_work base;
+	struct intel_engine_cs *engine;
+	struct i915_vma *batch;
+	struct i915_vma *shadow;
+	struct i915_vma *trampoline;
+	unsigned int batch_offset;
+	unsigned int batch_length;
+};
+
+static int __eb_parse(struct dma_fence_work *work)
+{
+	struct eb_parse_work *pw = container_of(work, typeof(*pw), base);
+
+	return intel_engine_cmd_parser(pw->engine,
+				       pw->batch,
+				       pw->batch_offset,
+				       pw->batch_length,
+				       pw->shadow,
+				       pw->trampoline);
+}
+
+static const struct dma_fence_work_ops eb_parse_ops = {
+	.name = "eb_parse",
+	.work = __eb_parse,
+};
+
+static int eb_parse_pipeline(struct i915_execbuffer *eb,
+			     struct i915_vma *shadow,
+			     struct i915_vma *trampoline)
+{
+	struct eb_parse_work *pw;
+	int err;
+
+	pw = kzalloc(sizeof(*pw), GFP_KERNEL);
+	if (!pw)
+		return -ENOMEM;
+
+	dma_fence_work_init(&pw->base, &eb_parse_ops);
+
+	pw->engine = eb->engine;
+	pw->batch = eb->batch;
+	pw->batch_offset = eb->batch_start_offset;
+	pw->batch_length = eb->batch_len;
+	pw->shadow = shadow;
+	pw->trampoline = trampoline;
+
+	dma_resv_lock(pw->batch->resv, NULL);
+
+	err = dma_resv_reserve_shared(pw->batch->resv, 1);
+	if (err)
+		goto err_batch_unlock;
+
+	/* Wait for all writes (and relocs) into the batch to complete */
+	err = i915_sw_fence_await_reservation(&pw->base.chain,
+					      pw->batch->resv, NULL, false,
+					      0, I915_FENCE_GFP);
+	if (err < 0)
+		goto err_batch_unlock;
+
+	/* Keep the batch alive and unwritten as we parse */
+	dma_resv_add_shared_fence(pw->batch->resv, &pw->base.dma);
+
+	dma_resv_unlock(pw->batch->resv);
+
+	/* Force execution to wait for completion of the parser */
+	dma_resv_lock(shadow->resv, NULL);
+	dma_resv_add_excl_fence(shadow->resv, &pw->base.dma);
+	dma_resv_unlock(shadow->resv);
+
+	dma_fence_work_commit(&pw->base);
+	return 0;
+
+err_batch_unlock:
+	dma_resv_unlock(pw->batch->resv);
+	kfree(pw);
+	return err;
+}
+
 static int eb_parse(struct i915_execbuffer *eb)
 {
 	struct intel_engine_pool_node *pool;
@@ -2016,11 +2092,7 @@ static int eb_parse(struct i915_execbuffer *eb)
 		eb->batch_flags |= I915_DISPATCH_SECURE;
 	}
 
-	err = intel_engine_cmd_parser(eb->engine,
-				      eb->batch,
-				      eb->batch_start_offset,
-				      eb->batch_len,
-				      shadow, trampoline);
+	err = eb_parse_pipeline(eb, shadow, trampoline);
 	if (err)
 		goto err_trampoline;
 

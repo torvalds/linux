@@ -1127,31 +1127,27 @@ find_reg(const struct intel_engine_cs *engine, u32 addr)
 /* Returns a vmap'd pointer to dst_obj, which the caller must unmap */
 static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		       struct drm_i915_gem_object *src_obj,
-		       u32 offset, u32 length,
-		       bool *needs_clflush_after)
+		       u32 offset, u32 length)
 {
-	unsigned int src_needs_clflush;
-	unsigned int dst_needs_clflush;
+	bool needs_clflush;
 	void *dst, *src;
 	int ret;
 
-	ret = i915_gem_object_prepare_write(dst_obj, &dst_needs_clflush);
-	if (ret)
-		return ERR_PTR(ret);
-
 	dst = i915_gem_object_pin_map(dst_obj, I915_MAP_FORCE_WB);
-	i915_gem_object_finish_access(dst_obj);
 	if (IS_ERR(dst))
 		return dst;
 
-	ret = i915_gem_object_prepare_read(src_obj, &src_needs_clflush);
+	ret = i915_gem_object_pin_pages(src_obj);
 	if (ret) {
 		i915_gem_object_unpin_map(dst_obj);
 		return ERR_PTR(ret);
 	}
 
+	needs_clflush =
+		!(src_obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ);
+
 	src = ERR_PTR(-ENODEV);
-	if (src_needs_clflush && i915_has_memcpy_from_wc()) {
+	if (needs_clflush && i915_has_memcpy_from_wc()) {
 		src = i915_gem_object_pin_map(src_obj, I915_MAP_WC);
 		if (!IS_ERR(src)) {
 			i915_unaligned_memcpy_from_wc(dst,
@@ -1172,7 +1168,7 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		 * We don't care about copying too much here as we only
 		 * validate up to the end of the batch.
 		 */
-		if (dst_needs_clflush & CLFLUSH_BEFORE)
+		if (!(dst_obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ))
 			length = round_up(length,
 					  boot_cpu_data.x86_clflush_size);
 
@@ -1182,7 +1178,7 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 			int len = min_t(int, length, PAGE_SIZE - x);
 
 			src = kmap_atomic(i915_gem_object_get_page(src_obj, n));
-			if (src_needs_clflush)
+			if (needs_clflush)
 				drm_clflush_virt_range(src + x, len);
 			memcpy(ptr, src + x, len);
 			kunmap_atomic(src);
@@ -1193,11 +1189,9 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		}
 	}
 
-	i915_gem_object_finish_access(src_obj);
+	i915_gem_object_unpin_pages(src_obj);
 
 	/* dst_obj is returned with vmap pinned */
-	*needs_clflush_after = dst_needs_clflush & CLFLUSH_AFTER;
-
 	return dst;
 }
 
@@ -1383,6 +1377,11 @@ static unsigned long *alloc_whitelist(u32 batch_length)
 
 #define LENGTH_BIAS 2
 
+static bool shadow_needs_clflush(struct drm_i915_gem_object *obj)
+{
+	return !(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE);
+}
+
 /**
  * intel_engine_cmd_parser() - parse a batch buffer for privilege violations
  * @engine: the engine on which the batch is to execute
@@ -1398,7 +1397,6 @@ static unsigned long *alloc_whitelist(u32 batch_length)
  * Return: non-zero if the parser finds violations or otherwise fails; -EACCES
  * if the batch appears legal but should use hardware parsing
  */
-
 int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			    struct i915_vma *batch,
 			    u32 batch_offset,
@@ -1409,7 +1407,6 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 	u32 *cmd, *batch_end, offset = 0;
 	struct drm_i915_cmd_descriptor default_desc = noop_desc;
 	const struct drm_i915_cmd_descriptor *desc = &default_desc;
-	bool needs_clflush_after = false;
 	unsigned long *jump_whitelist;
 	u64 batch_addr, shadow_addr;
 	int ret = 0;
@@ -1420,9 +1417,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 				     batch->size));
 	GEM_BUG_ON(!batch_length);
 
-	cmd = copy_batch(shadow->obj, batch->obj,
-			 batch_offset, batch_length,
-			 &needs_clflush_after);
+	cmd = copy_batch(shadow->obj, batch->obj, batch_offset, batch_length);
 	if (IS_ERR(cmd)) {
 		DRM_DEBUG("CMD: Failed to copy batch\n");
 		return PTR_ERR(cmd);
@@ -1530,11 +1525,11 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			}
 		}
 
-		if (needs_clflush_after)
+		if (shadow_needs_clflush(shadow->obj))
 			drm_clflush_virt_range(batch_end, 8);
 	}
 
-	if (needs_clflush_after) {
+	if (shadow_needs_clflush(shadow->obj)) {
 		void *ptr = page_mask_bits(shadow->obj->mm.mapping);
 
 		drm_clflush_virt_range(ptr, (void *)(cmd + 1) - ptr);
