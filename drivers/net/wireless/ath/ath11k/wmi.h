@@ -2904,15 +2904,6 @@ struct wmi_bcn_offload_ctrl_cmd {
 	u32 bcn_ctrl_op;
 } __packed;
 
-enum scan_priority {
-	SCAN_PRIORITY_VERY_LOW,
-	SCAN_PRIORITY_LOW,
-	SCAN_PRIORITY_MEDIUM,
-	SCAN_PRIORITY_HIGH,
-	SCAN_PRIORITY_VERY_HIGH,
-	SCAN_PRIORITY_COUNT,
-};
-
 enum scan_dwelltime_adaptive_mode {
 	SCAN_DWELL_MODE_DEFAULT = 0,
 	SCAN_DWELL_MODE_CONSERVATIVE = 1,
@@ -3064,7 +3055,7 @@ struct scan_req_params {
 	u32 scan_req_id;
 	u32 vdev_id;
 	u32 pdev_id;
-	enum scan_priority scan_priority;
+	enum wmi_scan_priority scan_priority;
 	union {
 		struct {
 			u32 scan_ev_started:1,
