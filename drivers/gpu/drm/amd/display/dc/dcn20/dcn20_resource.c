@@ -706,6 +706,7 @@ static const struct dcn20_mpc_registers mpc_regs = {
 		MPC_OUT_MUX_REG_LIST_DCN2_0(3),
 		MPC_OUT_MUX_REG_LIST_DCN2_0(4),
 		MPC_OUT_MUX_REG_LIST_DCN2_0(5),
+		MPC_DBG_REG_LIST_DCN2_0()
 };
 
 static const struct dcn20_mpc_shift mpc_shift = {
