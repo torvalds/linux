@@ -772,8 +772,7 @@
 			qup_spi1_default: qup-spi1-default {
 				pinmux {
 					pins = "gpio0", "gpio1",
-					       "gpio2", "gpio3",
-					       "gpio12", "gpio94";
+					       "gpio2", "gpio3";
 					function = "qup01";
 				};
 			};
@@ -797,8 +796,7 @@
 			qup_spi6_default: qup-spi6-default {
 				pinmux {
 					pins = "gpio59", "gpio60",
-					       "gpio61", "gpio62",
-					       "gpio68", "gpio72";
+					       "gpio61", "gpio62";
 					function = "qup10";
 				};
 			};
@@ -814,8 +812,7 @@
 			qup_spi10_default: qup-spi10-default {
 				pinmux {
 					pins = "gpio86", "gpio87",
-					       "gpio88", "gpio89",
-					       "gpio90", "gpio91";
+					       "gpio88", "gpio89";
 					function = "qup14";
 				};
 			};
