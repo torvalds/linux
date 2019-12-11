@@ -59,6 +59,7 @@ enum {
 	SFP_DEV_UP,
 
 	SFP_S_DOWN = 0,
+	SFP_S_FAIL,
 	SFP_S_WAIT,
 	SFP_S_INIT,
 	SFP_S_INIT_TX_FAULT,
@@ -122,6 +123,7 @@ static const char *event_to_str(unsigned short event)
 
 static const char * const sm_state_strings[] = {
 	[SFP_S_DOWN] = "down",
+	[SFP_S_FAIL] = "fail",
 	[SFP_S_WAIT] = "wait",
 	[SFP_S_INIT] = "init",
 	[SFP_S_INIT_TX_FAULT] = "init_tx_fault",
@@ -1826,6 +1828,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		if (sfp->sm_state == SFP_S_LINK_UP &&
 		    sfp->sm_dev_state == SFP_DEV_UP)
 			sfp_sm_link_down(sfp);
+		if (sfp->sm_state > SFP_S_INIT)
+			sfp_module_stop(sfp->sfp_bus);
 		if (sfp->mod_phy)
 			sfp_sm_phy_detach(sfp);
 		sfp_module_tx_disable(sfp);
@@ -1893,6 +1897,10 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 			 * clear.  Probe for the PHY and check the LOS state.
 			 */
 			sfp_sm_probe_for_phy(sfp);
+			if (sfp_module_start(sfp->sfp_bus)) {
+				sfp_sm_next(sfp, SFP_S_FAIL, 0);
+				break;
+			}
 			sfp_sm_link_check_los(sfp);
 
 			/* Reset the fault retry count */

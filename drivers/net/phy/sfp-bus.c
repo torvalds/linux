@@ -712,6 +712,27 @@ void sfp_module_remove(struct sfp_bus *bus)
 }
 EXPORT_SYMBOL_GPL(sfp_module_remove);
 
+int sfp_module_start(struct sfp_bus *bus)
+{
+	const struct sfp_upstream_ops *ops = sfp_get_upstream_ops(bus);
+	int ret = 0;
+
+	if (ops && ops->module_start)
+		ret = ops->module_start(bus->upstream);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sfp_module_start);
+
+void sfp_module_stop(struct sfp_bus *bus)
+{
+	const struct sfp_upstream_ops *ops = sfp_get_upstream_ops(bus);
+
+	if (ops && ops->module_stop)
+		ops->module_stop(bus->upstream);
+}
+EXPORT_SYMBOL_GPL(sfp_module_stop);
+
 static void sfp_socket_clear(struct sfp_bus *bus)
 {
 	bus->sfp_dev = NULL;

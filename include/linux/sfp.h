@@ -507,6 +507,8 @@ struct sfp_bus;
  * @module_insert: called after a module has been detected to determine
  *   whether the module is supported for the upstream device.
  * @module_remove: called after the module has been removed.
+ * @module_start: called after the PHY probe step
+ * @module_stop: called before the PHY is removed
  * @link_down: called when the link is non-operational for whatever
  *   reason.
  * @link_up: called when the link is operational.
@@ -520,6 +522,8 @@ struct sfp_upstream_ops {
 	void (*detach)(void *priv, struct sfp_bus *bus);
 	int (*module_insert)(void *priv, const struct sfp_eeprom_id *id);
 	void (*module_remove)(void *priv);
+	int (*module_start)(void *priv);
+	void (*module_stop)(void *priv);
 	void (*link_down)(void *priv);
 	void (*link_up)(void *priv);
 	int (*connect_phy)(void *priv, struct phy_device *);
