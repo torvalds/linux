@@ -295,6 +295,18 @@ Note: /sys/kernel/fadump_release_opalcore sysfs has moved to
 
     echo 1  > /sys/firmware/opal/mpipl/release_core
 
+Note: The following FADump sysfs files are deprecated.
+
++----------------------------------+--------------------------------+
+| Deprecated                       | Alternative                    |
++----------------------------------+--------------------------------+
+| /sys/kernel/fadump_enabled       | /sys/kernel/fadump/enabled     |
++----------------------------------+--------------------------------+
+| /sys/kernel/fadump_registered    | /sys/kernel/fadump/registered  |
++----------------------------------+--------------------------------+
+| /sys/kernel/fadump_release_mem   | /sys/kernel/fadump/release_mem |
++----------------------------------+--------------------------------+
+
 Here is the list of files under powerpc debugfs:
 (Assuming debugfs is mounted on /sys/kernel/debug directory.)
 
