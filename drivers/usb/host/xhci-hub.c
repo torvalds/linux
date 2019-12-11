@@ -920,11 +920,13 @@ static void xhci_get_usb3_port_status(struct xhci_port *port, u32 *status,
 {
 	struct xhci_bus_state *bus_state;
 	struct xhci_hcd	*xhci;
+	struct usb_hcd *hcd;
 	u32 link_state;
 	u32 portnum;
 
 	bus_state = &port->rhub->bus_state;
 	xhci = hcd_to_xhci(port->rhub->hcd);
+	hcd = port->rhub->hcd;
 	link_state = portsc & PORT_PLS_MASK;
 	portnum = port->hcd_portnum;
 
@@ -950,6 +952,14 @@ static void xhci_get_usb3_port_status(struct xhci_port *port, u32 *status,
 		/* link state handling */
 		if (link_state == XDEV_U0)
 			bus_state->suspended_ports &= ~(1 << portnum);
+	}
+
+	/* remote wake resume signaling complete */
+	if (bus_state->port_remote_wakeup & (1 << portnum) &&
+	    link_state != XDEV_RESUME &&
+	    link_state != XDEV_RECOVERY) {
+		bus_state->port_remote_wakeup &= ~(1 << portnum);
+		usb_hcd_end_port_resume(&hcd->self, portnum);
 	}
 
 	xhci_hub_report_usb3_link_state(xhci, status, portsc);
