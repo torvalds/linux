@@ -1489,18 +1489,7 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
 
 static void sfp_sm_probe_for_phy(struct sfp *sfp)
 {
-	/* Setting the serdes link mode is guesswork: there's no
-	 * field in the EEPROM which indicates what mode should
-	 * be used.
-	 *
-	 * If it's a gigabit-only fiber module, it probably does
-	 * not have a PHY, so switch to 802.3z negotiation mode.
-	 * Otherwise, switch to SGMII mode (which is required to
-	 * support non-gigabit speeds) and probe for a PHY.
-	 */
-	if (sfp->id.base.e1000_base_t ||
-	    sfp->id.base.e100_base_lx ||
-	    sfp->id.base.e100_base_fx)
+	if (sfp->id.base.e1000_base_t)
 		sfp_sm_probe_phy(sfp);
 }
 
