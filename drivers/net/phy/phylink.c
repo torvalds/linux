@@ -72,6 +72,9 @@ struct phylink {
 	bool mac_link_dropped;
 
 	struct sfp_bus *sfp_bus;
+	bool sfp_may_have_phy;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(sfp_support);
+	u8 sfp_port;
 };
 
 #define phylink_printk(level, pl, fmt, ...) \
@@ -1684,7 +1687,7 @@ static void phylink_sfp_detach(void *upstream, struct sfp_bus *bus)
 	pl->netdev->sfp_bus = NULL;
 }
 
-static int phylink_sfp_config(struct phylink *pl, u8 mode, u8 port,
+static int phylink_sfp_config(struct phylink *pl, u8 mode,
 			      const unsigned long *supported,
 			      const unsigned long *advertising)
 {
@@ -1757,7 +1760,7 @@ static int phylink_sfp_config(struct phylink *pl, u8 mode, u8 port,
 			     phy_modes(config.interface));
 	}
 
-	pl->link_port = port;
+	pl->link_port = pl->sfp_port;
 
 	if (changed && !test_bit(PHYLINK_DISABLE_STOPPED,
 				 &pl->phylink_disable_state))
@@ -1770,15 +1773,20 @@ static int phylink_sfp_module_insert(void *upstream,
 				     const struct sfp_eeprom_id *id)
 {
 	struct phylink *pl = upstream;
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(support) = { 0, };
-	u8 port;
+	unsigned long *support = pl->sfp_support;
 
 	ASSERT_RTNL();
 
+	linkmode_zero(support);
 	sfp_parse_support(pl->sfp_bus, id, support);
-	port = sfp_parse_port(pl->sfp_bus, id, support);
+	pl->sfp_port = sfp_parse_port(pl->sfp_bus, id, support);
 
-	return phylink_sfp_config(pl, MLO_AN_INBAND, port, support, support);
+	/* If this module may have a PHY connecting later, defer until later */
+	pl->sfp_may_have_phy = sfp_may_have_phy(pl->sfp_bus, id);
+	if (pl->sfp_may_have_phy)
+		return 0;
+
+	return phylink_sfp_config(pl, MLO_AN_INBAND, support, support);
 }
 
 static int phylink_sfp_module_start(void *upstream)
@@ -1786,10 +1794,19 @@ static int phylink_sfp_module_start(void *upstream)
 	struct phylink *pl = upstream;
 
 	/* If this SFP module has a PHY, start the PHY now. */
-	if (pl->phydev)
+	if (pl->phydev) {
 		phy_start(pl->phydev);
+		return 0;
+	}
 
-	return 0;
+	/* If the module may have a PHY but we didn't detect one we
+	 * need to configure the MAC here.
+	 */
+	if (!pl->sfp_may_have_phy)
+		return 0;
+
+	return phylink_sfp_config(pl, MLO_AN_INBAND,
+				  pl->sfp_support, pl->sfp_support);
 }
 
 static void phylink_sfp_module_stop(void *upstream)
@@ -1823,10 +1840,26 @@ static void phylink_sfp_link_up(void *upstream)
 static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 {
 	struct phylink *pl = upstream;
-	phy_interface_t interface = pl->link_config.interface;
+	phy_interface_t interface;
 	int ret;
 
-	ret = phylink_attach_phy(pl, phy, pl->link_config.interface);
+	/*
+	 * This is the new way of dealing with flow control for PHYs,
+	 * as described by Timur Tabi in commit 529ed1275263 ("net: phy:
+	 * phy drivers should not set SUPPORTED_[Asym_]Pause") except
+	 * using our validate call to the MAC, we rely upon the MAC
+	 * clearing the bits from both supported and advertising fields.
+	 */
+	phy_support_asym_pause(phy);
+
+	/* Do the initial configuration */
+	ret = phylink_sfp_config(pl, MLO_AN_INBAND, phy->supported,
+				 phy->advertising);
+	if (ret < 0)
+		return ret;
+
+	interface = pl->link_config.interface;
+	ret = phylink_attach_phy(pl, phy, interface);
 	if (ret < 0)
 		return ret;
 

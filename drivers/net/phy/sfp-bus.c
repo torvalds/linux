@@ -103,6 +103,7 @@ static const struct sfp_quirk *sfp_lookup_quirk(const struct sfp_eeprom_id *id)
 
 	return NULL;
 }
+
 /**
  * sfp_parse_port() - Parse the EEPROM base ID, setting the port type
  * @bus: a pointer to the &struct sfp_bus structure for the sfp module
@@ -177,6 +178,33 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	return port;
 }
 EXPORT_SYMBOL_GPL(sfp_parse_port);
+
+/**
+ * sfp_may_have_phy() - indicate whether the module may have a PHY
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ * @id: a pointer to the module's &struct sfp_eeprom_id
+ *
+ * Parse the EEPROM identification given in @id, and return whether
+ * this module may have a PHY.
+ */
+bool sfp_may_have_phy(struct sfp_bus *bus, const struct sfp_eeprom_id *id)
+{
+	if (id->base.e1000_base_t)
+		return true;
+
+	if (id->base.phys_id != SFF8024_ID_DWDM_SFP) {
+		switch (id->base.extended_cc) {
+		case SFF8024_ECC_10GBASE_T_SFI:
+		case SFF8024_ECC_10GBASE_T_SR:
+		case SFF8024_ECC_5GBASE_T:
+		case SFF8024_ECC_2_5GBASE_T:
+			return true;
+		}
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(sfp_may_have_phy);
 
 /**
  * sfp_parse_support() - Parse the eeprom id for supported link modes
