@@ -24,7 +24,7 @@ enum imx_pllv1_type {
 	IMX_PLLV1_IMX35,
 };
 
-enum imx_sccg_pll_type {
+enum imx_sscg_pll_type {
 	SCCG_PLL1,
 	SCCG_PLL2,
 };
@@ -110,7 +110,7 @@ struct clk *imx_clk_pllv2(const char *name, const char *parent,
 struct clk *imx_clk_frac_pll(const char *name, const char *parent_name,
 			     void __iomem *base);
 
-struct clk *imx_clk_sccg_pll(const char *name,
+struct clk *imx_clk_sscg_pll(const char *name,
 				const char * const *parent_names,
 				u8 num_parents,
 				u8 parent, u8 bypass1, u8 bypass2,
