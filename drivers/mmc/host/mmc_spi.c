@@ -1426,7 +1426,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	 * Index 0 is card detect
 	 * Old boardfiles were specifying 1 ms as debounce
 	 */
-	status = mmc_gpiod_request_cd(mmc, NULL, 0, false, 1000, NULL);
+	status = mmc_gpiod_request_cd(mmc, NULL, 0, false, 1000);
 	if (status == -EPROBE_DEFER)
 		goto fail_add_host;
 	if (!status) {
@@ -1441,7 +1441,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	mmc_detect_change(mmc, 0);
 
 	/* Index 1 is write protect/read only */
-	status = mmc_gpiod_request_ro(mmc, NULL, 1, 0, NULL);
+	status = mmc_gpiod_request_ro(mmc, NULL, 1, 0);
 	if (status == -EPROBE_DEFER)
 		goto fail_add_host;
 	if (!status)

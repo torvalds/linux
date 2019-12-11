@@ -2054,11 +2054,11 @@ static int mmci_probe(struct amba_device *dev,
 	 * silently of these do not exist
 	 */
 	if (!np) {
-		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0);
 		if (ret == -EPROBE_DEFER)
 			goto clk_disable;
 
-		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
+		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0);
 		if (ret == -EPROBE_DEFER)
 			goto clk_disable;
 	}

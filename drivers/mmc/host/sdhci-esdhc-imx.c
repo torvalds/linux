@@ -1381,7 +1381,7 @@ static int sdhci_esdhc_imx_probe_nondt(struct platform_device *pdev,
 	if (boarddata->wp_type == ESDHC_WP_GPIO) {
 		host->mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
-		err = mmc_gpiod_request_ro(host->mmc, "wp", 0, 0, NULL);
+		err = mmc_gpiod_request_ro(host->mmc, "wp", 0, 0);
 		if (err) {
 			dev_err(mmc_dev(host->mmc),
 				"failed to request write-protect gpio!\n");
@@ -1392,7 +1392,7 @@ static int sdhci_esdhc_imx_probe_nondt(struct platform_device *pdev,
 	/* card_detect */
 	switch (boarddata->cd_type) {
 	case ESDHC_CD_GPIO:
-		err = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0, NULL);
+		err = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0);
 		if (err) {
 			dev_err(mmc_dev(host->mmc),
 				"failed to request card-detect gpio!\n");
