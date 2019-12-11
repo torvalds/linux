@@ -37,6 +37,13 @@ void curve25519_arch(u8 out[CURVE25519_KEY_SIZE],
 }
 EXPORT_SYMBOL(curve25519_arch);
 
+void curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
+			  const u8 secret[CURVE25519_KEY_SIZE])
+{
+	return curve25519_arch(pub, secret, curve25519_base_point);
+}
+EXPORT_SYMBOL(curve25519_base_arch);
+
 static int curve25519_set_secret(struct crypto_kpp *tfm, const void *buf,
 				 unsigned int len)
 {
