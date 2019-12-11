@@ -6520,6 +6520,9 @@ brcmf_txrx_stypes[NUM_NL80211_IFTYPES] = {
  *	#STA <= 1, #AP <= 1, channels = 1, 2 total
  *	#AP <= 4, matching BI, channels = 1, 4 total
  *
+ * no p2p and rsdb:
+ *	#STA <= 2, #AP <= 2, channels = 2, 4 total
+ *
  * p2p, no mchan, and mbss:
  *
  *	#STA <= 1, #P2P-DEV <= 1, #{P2P-CL, P2P-GO} <= 1, channels = 1, 3 total
@@ -6531,6 +6534,10 @@ brcmf_txrx_stypes[NUM_NL80211_IFTYPES] = {
  *	#STA <= 1, #P2P-DEV <= 1, #{P2P-CL, P2P-GO} <= 1, channels = 2, 3 total
  *	#STA <= 1, #P2P-DEV <= 1, #AP <= 1, #P2P-CL <= 1, channels = 1, 4 total
  *	#AP <= 4, matching BI, channels = 1, 4 total
+ *
+ * p2p, rsdb, and no mbss:
+ *	#STA <= 2, #P2P-DEV <= 1, #{P2P-CL, P2P-GO} <= 2, AP <= 2,
+ *	 channels = 2, 4 total
  */
 static int brcmf_setup_ifmodes(struct wiphy *wiphy, struct brcmf_if *ifp)
 {
@@ -6538,13 +6545,14 @@ static int brcmf_setup_ifmodes(struct wiphy *wiphy, struct brcmf_if *ifp)
 	struct ieee80211_iface_limit *c0_limits = NULL;
 	struct ieee80211_iface_limit *p2p_limits = NULL;
 	struct ieee80211_iface_limit *mbss_limits = NULL;
-	bool mbss, p2p;
+	bool mbss, p2p, rsdb;
 	int i, c, n_combos;
 
 	mbss = brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MBSS);
 	p2p = brcmf_feat_is_enabled(ifp, BRCMF_FEAT_P2P);
+	rsdb = brcmf_feat_is_enabled(ifp, BRCMF_FEAT_RSDB);
 
-	n_combos = 1 + !!p2p + !!mbss;
+	n_combos = 1 + !!(p2p && !rsdb) + !!mbss;
 	combo = kcalloc(n_combos, sizeof(*combo), GFP_KERNEL);
 	if (!combo)
 		goto err;
@@ -6555,16 +6563,36 @@ static int brcmf_setup_ifmodes(struct wiphy *wiphy, struct brcmf_if *ifp)
 
 	c = 0;
 	i = 0;
-	c0_limits = kcalloc(p2p ? 3 : 2, sizeof(*c0_limits), GFP_KERNEL);
+	if (p2p && rsdb)
+		c0_limits = kcalloc(4, sizeof(*c0_limits), GFP_KERNEL);
+	else if (p2p)
+		c0_limits = kcalloc(3, sizeof(*c0_limits), GFP_KERNEL);
+	else
+		c0_limits = kcalloc(2, sizeof(*c0_limits), GFP_KERNEL);
 	if (!c0_limits)
 		goto err;
-	c0_limits[i].max = 1;
-	c0_limits[i++].types = BIT(NL80211_IFTYPE_STATION);
-	if (p2p) {
+	if (p2p && rsdb) {
+		combo[c].num_different_channels = 2;
+		wiphy->interface_modes |= BIT(NL80211_IFTYPE_P2P_CLIENT) |
+					  BIT(NL80211_IFTYPE_P2P_GO) |
+					  BIT(NL80211_IFTYPE_P2P_DEVICE);
+		c0_limits[i].max = 2;
+		c0_limits[i++].types = BIT(NL80211_IFTYPE_STATION);
+		c0_limits[i].max = 1;
+		c0_limits[i++].types = BIT(NL80211_IFTYPE_P2P_DEVICE);
+		c0_limits[i].max = 2;
+		c0_limits[i++].types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				       BIT(NL80211_IFTYPE_P2P_GO);
+		c0_limits[i].max = 2;
+		c0_limits[i++].types = BIT(NL80211_IFTYPE_AP);
+		combo[c].max_interfaces = 5;
+	} else if (p2p) {
 		if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MCHAN))
 			combo[c].num_different_channels = 2;
 		else
 			combo[c].num_different_channels = 1;
+		c0_limits[i].max = 1;
+		c0_limits[i++].types = BIT(NL80211_IFTYPE_STATION);
 		wiphy->interface_modes |= BIT(NL80211_IFTYPE_P2P_CLIENT) |
 					  BIT(NL80211_IFTYPE_P2P_GO) |
 					  BIT(NL80211_IFTYPE_P2P_DEVICE);
@@ -6573,16 +6601,26 @@ static int brcmf_setup_ifmodes(struct wiphy *wiphy, struct brcmf_if *ifp)
 		c0_limits[i].max = 1;
 		c0_limits[i++].types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				       BIT(NL80211_IFTYPE_P2P_GO);
+		combo[c].max_interfaces = i;
+	} else if (rsdb) {
+		combo[c].num_different_channels = 2;
+		c0_limits[i].max = 2;
+		c0_limits[i++].types = BIT(NL80211_IFTYPE_STATION);
+		c0_limits[i].max = 2;
+		c0_limits[i++].types = BIT(NL80211_IFTYPE_AP);
+		combo[c].max_interfaces = 3;
 	} else {
 		combo[c].num_different_channels = 1;
 		c0_limits[i].max = 1;
+		c0_limits[i++].types = BIT(NL80211_IFTYPE_STATION);
+		c0_limits[i].max = 1;
 		c0_limits[i++].types = BIT(NL80211_IFTYPE_AP);
+		combo[c].max_interfaces = i;
 	}
-	combo[c].max_interfaces = i;
 	combo[c].n_limits = i;
 	combo[c].limits = c0_limits;
 
-	if (p2p) {
+	if (p2p && !rsdb) {
 		c++;
 		i = 0;
 		p2p_limits = kcalloc(4, sizeof(*p2p_limits), GFP_KERNEL);
