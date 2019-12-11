@@ -87,12 +87,14 @@ static void safexcel_hash_token(struct safexcel_command_desc *cdesc,
 
 	input_length &= 15;
 	if (unlikely(cbcmac && input_length)) {
+		token[0].stat =  0;
 		token[1].opcode = EIP197_TOKEN_OPCODE_INSERT;
 		token[1].packet_length = 16 - input_length;
 		token[1].stat = EIP197_TOKEN_STAT_LAST_HASH;
 		token[1].instructions = EIP197_TOKEN_INS_TYPE_HASH;
 	} else {
 		token[0].stat = EIP197_TOKEN_STAT_LAST_HASH;
+		eip197_noop_token(&token[1]);
 	}
 
 	token[2].opcode = EIP197_TOKEN_OPCODE_INSERT;
@@ -101,6 +103,8 @@ static void safexcel_hash_token(struct safexcel_command_desc *cdesc,
 	token[2].packet_length = result_length;
 	token[2].instructions = EIP197_TOKEN_INS_TYPE_OUTPUT |
 				EIP197_TOKEN_INS_INSERT_HASH_DIGEST;
+
+	eip197_noop_token(&token[3]);
 }
 
 static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
@@ -111,6 +115,7 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 	u64 count = 0;
 
 	cdesc->control_data.control0 = ctx->alg;
+	cdesc->control_data.control1 = 0;
 
 	/*
 	 * Copy the input digest if needed, and setup the context
@@ -314,6 +319,7 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	struct safexcel_command_desc *cdesc, *first_cdesc = NULL;
 	struct safexcel_result_desc *rdesc;
 	struct scatterlist *sg;
+	struct safexcel_token *dmmy;
 	int i, extra = 0, n_cdesc = 0, ret = 0, cache_len, skip = 0;
 	u64 queued, len;
 
@@ -397,7 +403,8 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 		first_cdesc = safexcel_add_cdesc(priv, ring, 1,
 						 (cache_len == len),
 						 req->cache_dma, cache_len,
-						 len, ctx->base.ctxr_dma);
+						 len, ctx->base.ctxr_dma,
+						 &dmmy);
 		if (IS_ERR(first_cdesc)) {
 			ret = PTR_ERR(first_cdesc);
 			goto unmap_cache;
@@ -436,7 +443,7 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 		cdesc = safexcel_add_cdesc(priv, ring, !n_cdesc,
 					   !(queued - sglen),
 					   sg_dma_address(sg) + skip, sglen,
-					   len, ctx->base.ctxr_dma);
+					   len, ctx->base.ctxr_dma, &dmmy);
 		if (IS_ERR(cdesc)) {
 			ret = PTR_ERR(cdesc);
 			goto unmap_sg;
