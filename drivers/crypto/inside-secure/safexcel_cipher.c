@@ -782,16 +782,31 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 
 	memcpy(ctx->base.ctxr->data, ctx->key, ctx->key_len);
 
-	/* The EIP cannot deal with zero length input packets! */
-	if (totlen == 0)
-		totlen = 1;
+	if (!totlen) {
+		/*
+		 * The EIP97 cannot deal with zero length input packets!
+		 * So stuff a dummy command descriptor indicating a 1 byte
+		 * (dummy) input packet, using the context record as source.
+		 */
+		first_cdesc = safexcel_add_cdesc(priv, ring,
+						 1, 1, ctx->base.ctxr_dma,
+						 1, 1, ctx->base.ctxr_dma,
+						 &atoken);
+		if (IS_ERR(first_cdesc)) {
+			/* No space left in the command descriptor ring */
+			ret = PTR_ERR(first_cdesc);
+			goto cdesc_rollback;
+		}
+		n_cdesc = 1;
+		goto skip_cdesc;
+	}
 
 	/* command descriptors */
 	for_each_sg(src, sg, sreq->nr_src, i) {
 		int len = sg_dma_len(sg);
 
 		/* Do not overflow the request */
-		if (queued - len < 0)
+		if (queued < len)
 			len = queued;
 
 		cdesc = safexcel_add_cdesc(priv, ring, !n_cdesc,
@@ -803,27 +818,16 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 			ret = PTR_ERR(cdesc);
 			goto cdesc_rollback;
 		}
-		n_cdesc++;
 
-		if (n_cdesc == 1) {
+		if (!n_cdesc)
 			first_cdesc = cdesc;
-		}
 
+		n_cdesc++;
 		queued -= len;
 		if (!queued)
 			break;
 	}
-
-	if (unlikely(!n_cdesc)) {
-		/*
-		 * Special case: zero length input buffer.
-		 * The engine always needs the 1st command descriptor, however!
-		 */
-		first_cdesc = safexcel_add_cdesc(priv, ring, 1, 1, 0, 0, totlen,
-						 ctx->base.ctxr_dma, &atoken);
-		n_cdesc = 1;
-	}
-
+skip_cdesc:
 	/* Add context control words and token to first command descriptor */
 	safexcel_context_control(ctx, base, sreq, first_cdesc);
 	if (ctx->aead)
