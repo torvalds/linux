@@ -337,7 +337,10 @@ static const struct rc_parameters *get_rc_params(u16 compressed_bpp,
 bool intel_dsc_source_support(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state)
 {
+	const struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	enum pipe pipe = crtc->pipe;
 
 	if (!INTEL_INFO(i915)->display.has_dsc)
 		return false;
@@ -347,7 +350,10 @@ bool intel_dsc_source_support(struct intel_encoder *encoder,
 		return true;
 
 	if (INTEL_GEN(i915) >= 10 &&
-	    crtc_state->cpu_transcoder != TRANSCODER_A)
+	    (pipe != PIPE_A ||
+	     (cpu_transcoder == TRANSCODER_EDP ||
+	      cpu_transcoder == TRANSCODER_DSI_0 ||
+	      cpu_transcoder == TRANSCODER_DSI_1)))
 		return true;
 
 	return false;
