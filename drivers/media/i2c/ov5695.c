@@ -1163,6 +1163,7 @@ static const struct v4l2_subdev_video_ops ov5695_video_ops = {
 static const struct v4l2_subdev_pad_ops ov5695_pad_ops = {
 	.enum_mbus_code = ov5695_enum_mbus_code,
 	.enum_frame_size = ov5695_enum_frame_sizes,
+	.enum_frame_interval = ov5695_enum_frame_interval,
 	.get_fmt = ov5695_get_fmt,
 	.set_fmt = ov5695_set_fmt,
 };
