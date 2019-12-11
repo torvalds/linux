@@ -281,29 +281,6 @@ int xenbus_dev_remove(struct device *_dev)
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_remove);
 
-void xenbus_dev_shutdown(struct device *_dev)
-{
-	struct xenbus_device *dev = to_xenbus_device(_dev);
-	unsigned long timeout = 5*HZ;
-
-	DPRINTK("%s", dev->nodename);
-
-	get_device(&dev->dev);
-	if (dev->state != XenbusStateConnected) {
-		pr_info("%s: %s: %s != Connected, skipping\n",
-			__func__, dev->nodename, xenbus_strstate(dev->state));
-		goto out;
-	}
-	xenbus_switch_state(dev, XenbusStateClosing);
-	timeout = wait_for_completion_timeout(&dev->down, timeout);
-	if (!timeout)
-		pr_info("%s: %s timeout closing device\n",
-			__func__, dev->nodename);
- out:
-	put_device(&dev->dev);
-}
-EXPORT_SYMBOL_GPL(xenbus_dev_shutdown);
-
 int xenbus_register_driver_common(struct xenbus_driver *drv,
 				  struct xen_bus_type *bus,
 				  struct module *owner, const char *mod_name)
