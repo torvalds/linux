@@ -55,11 +55,9 @@ struct inode *ceph_get_inode(struct super_block *sb, struct ceph_vino vino)
 	inode = iget5_locked(sb, t, ceph_ino_compare, ceph_set_ino_cb, &vino);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	if (inode->i_state & I_NEW) {
+	if (inode->i_state & I_NEW)
 		dout("get_inode created new inode %p %llx.%llx ino %llx\n",
 		     inode, ceph_vinop(inode), (u64)inode->i_ino);
-		unlock_new_inode(inode);
-	}
 
 	dout("get_inode on %lu=%llx.%llx got %p\n", inode->i_ino, vino.ino,
 	     vino.snap, inode);
@@ -88,6 +86,10 @@ struct inode *ceph_get_snapdir(struct inode *parent)
 	inode->i_fop = &ceph_snapdir_fops;
 	ci->i_snap_caps = CEPH_CAP_PIN; /* so we can open */
 	ci->i_rbytes = 0;
+
+	if (inode->i_state & I_NEW)
+		unlock_new_inode(inode);
+
 	return inode;
 }
 
@@ -1304,7 +1306,6 @@ retry_lookup:
 			err = PTR_ERR(in);
 			goto done;
 		}
-		req->r_target_inode = in;
 
 		err = fill_inode(in, req->r_locked_page, &rinfo->targeti, NULL,
 				session,
@@ -1314,8 +1315,13 @@ retry_lookup:
 		if (err < 0) {
 			pr_err("fill_inode badness %p %llx.%llx\n",
 				in, ceph_vinop(in));
+			if (in->i_state & I_NEW)
+				discard_new_inode(in);
 			goto done;
 		}
+		req->r_target_inode = in;
+		if (in->i_state & I_NEW)
+			unlock_new_inode(in);
 	}
 
 	/*
@@ -1499,7 +1505,14 @@ static int readdir_prepopulate_inodes_only(struct ceph_mds_request *req,
 		if (rc < 0) {
 			pr_err("fill_inode badness on %p got %d\n", in, rc);
 			err = rc;
+			if (in->i_state & I_NEW) {
+				ihold(in);
+				discard_new_inode(in);
+			}
+		} else if (in->i_state & I_NEW) {
+			unlock_new_inode(in);
 		}
+
 		/* avoid calling iput_final() in mds dispatch threads */
 		ceph_async_iput(in);
 	}
@@ -1701,12 +1714,18 @@ retry_lookup:
 			if (d_really_is_negative(dn)) {
 				/* avoid calling iput_final() in mds
 				 * dispatch threads */
+				if (in->i_state & I_NEW) {
+					ihold(in);
+					discard_new_inode(in);
+				}
 				ceph_async_iput(in);
 			}
 			d_drop(dn);
 			err = ret;
 			goto next_item;
 		}
+		if (in->i_state & I_NEW)
+			unlock_new_inode(in);
 
 		if (d_really_is_negative(dn)) {
 			if (ceph_security_xattr_deadlock(in)) {
