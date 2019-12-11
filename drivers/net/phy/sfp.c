@@ -1402,18 +1402,25 @@ static void sfp_sm_phy_detach(struct sfp *sfp)
 	sfp->mod_phy = NULL;
 }
 
-static void sfp_sm_probe_phy(struct sfp *sfp)
+static void sfp_sm_probe_phy(struct sfp *sfp, bool is_c45)
 {
 	struct phy_device *phy;
 	int err;
 
-	phy = mdiobus_scan(sfp->i2c_mii, SFP_PHY_ADDR);
+	phy = get_phy_device(sfp->i2c_mii, SFP_PHY_ADDR, is_c45);
 	if (phy == ERR_PTR(-ENODEV)) {
 		dev_info(sfp->dev, "no PHY detected\n");
 		return;
 	}
 	if (IS_ERR(phy)) {
 		dev_err(sfp->dev, "mdiobus scan returned %ld\n", PTR_ERR(phy));
+		return;
+	}
+
+	err = phy_device_register(phy);
+	if (err) {
+		phy_device_free(phy);
+		dev_err(sfp->dev, "phy_device_register failed: %d\n", err);
 		return;
 	}
 
@@ -1487,10 +1494,32 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
 	}
 }
 
+/* Probe a SFP for a PHY device if the module supports copper - the PHY
+ * normally sits at I2C bus address 0x56, and may either be a clause 22
+ * or clause 45 PHY.
+ *
+ * Clause 22 copper SFP modules normally operate in Cisco SGMII mode with
+ * negotiation enabled, but some may be in 1000base-X - which is for the
+ * PHY driver to determine.
+ *
+ * Clause 45 copper SFP+ modules (10G) appear to switch their interface
+ * mode according to the negotiated line speed.
+ */
 static void sfp_sm_probe_for_phy(struct sfp *sfp)
 {
-	if (sfp->id.base.e1000_base_t)
-		sfp_sm_probe_phy(sfp);
+	switch (sfp->id.base.extended_cc) {
+	case SFF8024_ECC_10GBASE_T_SFI:
+	case SFF8024_ECC_10GBASE_T_SR:
+	case SFF8024_ECC_5GBASE_T:
+	case SFF8024_ECC_2_5GBASE_T:
+		sfp_sm_probe_phy(sfp, true);
+		break;
+
+	default:
+		if (sfp->id.base.e1000_base_t)
+			sfp_sm_probe_phy(sfp, false);
+		break;
+	}
 }
 
 static int sfp_module_parse_power(struct sfp *sfp)
@@ -1549,6 +1578,13 @@ static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 		dev_err(sfp->dev, "Failed to read EEPROM: %d\n", err);
 		return -EAGAIN;
 	}
+
+	/* DM7052 reports as a high power module, responds to reads (with
+	 * all bytes 0xff) at 0x51 but does not accept writes.  In any case,
+	 * if the bit is already set, we're already in high power mode.
+	 */
+	if (!!(val & BIT(0)) == enable)
+		return 0;
 
 	if (enable)
 		val |= BIT(0);
