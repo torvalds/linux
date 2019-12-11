@@ -31,16 +31,6 @@
 #define AD_CHURN_DETECTION_TIME    60
 #define AD_AGGREGATE_WAIT_TIME     2
 
-/* Port state definitions (43.4.2.2 in the 802.3ad standard) */
-#define AD_STATE_LACP_ACTIVITY   0x1
-#define AD_STATE_LACP_TIMEOUT    0x2
-#define AD_STATE_AGGREGATION     0x4
-#define AD_STATE_SYNCHRONIZATION 0x8
-#define AD_STATE_COLLECTING      0x10
-#define AD_STATE_DISTRIBUTING    0x20
-#define AD_STATE_DEFAULTED       0x40
-#define AD_STATE_EXPIRED         0x80
-
 /* Port Variables definitions used by the State Machines (43.4.7 in the
  * 802.3ad standard)
  */
