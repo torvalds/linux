@@ -948,10 +948,29 @@ struct text_poke_loc {
 	const u8 text[POKE_MAX_OPCODE_SIZE];
 };
 
-static struct bp_patching_desc {
+struct bp_patching_desc {
 	struct text_poke_loc *vec;
 	int nr_entries;
-} bp_patching;
+	atomic_t refs;
+};
+
+static struct bp_patching_desc *bp_desc;
+
+static inline struct bp_patching_desc *try_get_desc(struct bp_patching_desc **descp)
+{
+	struct bp_patching_desc *desc = READ_ONCE(*descp); /* rcu_dereference */
+
+	if (!desc || !atomic_inc_not_zero(&desc->refs))
+		return NULL;
+
+	return desc;
+}
+
+static inline void put_desc(struct bp_patching_desc *desc)
+{
+	smp_mb__before_atomic();
+	atomic_dec(&desc->refs);
+}
 
 static inline void *text_poke_addr(struct text_poke_loc *tp)
 {
@@ -972,26 +991,26 @@ NOKPROBE_SYMBOL(patch_cmp);
 
 int notrace poke_int3_handler(struct pt_regs *regs)
 {
+	struct bp_patching_desc *desc;
 	struct text_poke_loc *tp;
+	int len, ret = 0;
 	void *ip;
-	int len;
+
+	if (user_mode(regs))
+		return 0;
 
 	/*
 	 * Having observed our INT3 instruction, we now must observe
-	 * bp_patching.nr_entries.
+	 * bp_desc:
 	 *
-	 *	nr_entries != 0			INT3
+	 *	bp_desc = desc			INT3
 	 *	WMB				RMB
-	 *	write INT3			if (nr_entries)
-	 *
-	 * Idem for other elements in bp_patching.
+	 *	write INT3			if (desc)
 	 */
 	smp_rmb();
 
-	if (likely(!bp_patching.nr_entries))
-		return 0;
-
-	if (user_mode(regs))
+	desc = try_get_desc(&bp_desc);
+	if (!desc)
 		return 0;
 
 	/*
@@ -1002,16 +1021,16 @@ int notrace poke_int3_handler(struct pt_regs *regs)
 	/*
 	 * Skip the binary search if there is a single member in the vector.
 	 */
-	if (unlikely(bp_patching.nr_entries > 1)) {
-		tp = bsearch(ip, bp_patching.vec, bp_patching.nr_entries,
+	if (unlikely(desc->nr_entries > 1)) {
+		tp = bsearch(ip, desc->vec, desc->nr_entries,
 			     sizeof(struct text_poke_loc),
 			     patch_cmp);
 		if (!tp)
-			return 0;
+			goto out_put;
 	} else {
-		tp = bp_patching.vec;
+		tp = desc->vec;
 		if (text_poke_addr(tp) != ip)
-			return 0;
+			goto out_put;
 	}
 
 	len = text_opcode_size(tp->opcode);
@@ -1023,7 +1042,7 @@ int notrace poke_int3_handler(struct pt_regs *regs)
 		 * Someone poked an explicit INT3, they'll want to handle it,
 		 * do not consume.
 		 */
-		return 0;
+		goto out_put;
 
 	case CALL_INSN_OPCODE:
 		int3_emulate_call(regs, (long)ip + tp->rel32);
@@ -1038,7 +1057,11 @@ int notrace poke_int3_handler(struct pt_regs *regs)
 		BUG();
 	}
 
-	return 1;
+	ret = 1;
+
+out_put:
+	put_desc(desc);
+	return ret;
 }
 NOKPROBE_SYMBOL(poke_int3_handler);
 
@@ -1069,14 +1092,18 @@ static int tp_vec_nr;
  */
 static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries)
 {
+	struct bp_patching_desc desc = {
+		.vec = tp,
+		.nr_entries = nr_entries,
+		.refs = ATOMIC_INIT(1),
+	};
 	unsigned char int3 = INT3_INSN_OPCODE;
 	unsigned int i;
 	int do_sync;
 
 	lockdep_assert_held(&text_mutex);
 
-	bp_patching.vec = tp;
-	bp_patching.nr_entries = nr_entries;
+	smp_store_release(&bp_desc, &desc); /* rcu_assign_pointer */
 
 	/*
 	 * Corresponding read barrier in int3 notifier for making sure the
@@ -1131,17 +1158,12 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 		text_poke_sync();
 
 	/*
-	 * sync_core() implies an smp_mb() and orders this store against
-	 * the writing of the new instruction.
+	 * Remove and synchronize_rcu(), except we have a very primitive
+	 * refcount based completion.
 	 */
-	bp_patching.nr_entries = 0;
-	/*
-	 * This sync_core () call ensures that all INT3 handlers in progress
-	 * have finished. This allows poke_int3_handler() after this to
-	 * avoid touching bp_paching.vec by checking nr_entries == 0.
-	 */
-	text_poke_sync();
-	bp_patching.vec = NULL;
+	WRITE_ONCE(bp_desc, NULL); /* RCU_INIT_POINTER */
+	if (!atomic_dec_and_test(&desc.refs))
+		atomic_cond_read_acquire(&desc.refs, !VAL);
 }
 
 void text_poke_loc_init(struct text_poke_loc *tp, void *addr,
