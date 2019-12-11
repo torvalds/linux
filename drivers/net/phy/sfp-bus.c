@@ -320,16 +320,12 @@ EXPORT_SYMBOL_GPL(sfp_parse_support);
 /**
  * sfp_select_interface() - Select appropriate phy_interface_t mode
  * @bus: a pointer to the &struct sfp_bus structure for the sfp module
- * @id: a pointer to the module's &struct sfp_eeprom_id
  * @link_modes: ethtool link modes mask
  *
- * Derive the phy_interface_t mode for the information found in the
- * module's identifying EEPROM and the link modes mask. There is no
- * standard or defined way to derive this information, so we decide
- * based upon the link mode mask.
+ * Derive the phy_interface_t mode for the SFP module from the link
+ * modes mask.
  */
 phy_interface_t sfp_select_interface(struct sfp_bus *bus,
-				     const struct sfp_eeprom_id *id,
 				     unsigned long *link_modes)
 {
 	if (phylink_test(link_modes, 10000baseCR_Full) ||
@@ -342,7 +338,8 @@ phy_interface_t sfp_select_interface(struct sfp_bus *bus,
 	if (phylink_test(link_modes, 2500baseX_Full))
 		return PHY_INTERFACE_MODE_2500BASEX;
 
-	if (id->base.e1000_base_t)
+	if (phylink_test(link_modes, 1000baseT_Half) ||
+	    phylink_test(link_modes, 1000baseT_Full))
 		return PHY_INTERFACE_MODE_SGMII;
 
 	if (phylink_test(link_modes, 1000baseX_Full))

@@ -214,7 +214,7 @@ static int mv3310_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 	phy_interface_t iface;
 
 	sfp_parse_support(phydev->sfp_bus, id, support);
-	iface = sfp_select_interface(phydev->sfp_bus, id, support);
+	iface = sfp_select_interface(phydev->sfp_bus, support);
 
 	if (iface != PHY_INTERFACE_MODE_10GKR) {
 		dev_err(&phydev->mdio.dev, "incompatible SFP module inserted\n");
