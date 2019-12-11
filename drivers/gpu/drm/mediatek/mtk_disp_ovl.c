@@ -260,8 +260,10 @@ static void mtk_ovl_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 	unsigned int src_size = (pending->height << 16) | pending->width;
 	unsigned int con;
 
-	if (!pending->enable)
+	if (!pending->enable) {
 		mtk_ovl_layer_off(comp, idx, cmdq_pkt);
+		return;
+	}
 
 	con = ovl_fmt_convert(ovl, fmt);
 	if (idx != 0)
@@ -288,8 +290,7 @@ static void mtk_ovl_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 	mtk_ddp_write_relaxed(cmdq_pkt, addr, comp,
 			      DISP_REG_OVL_ADDR(ovl, idx));
 
-	if (pending->enable)
-		mtk_ovl_layer_on(comp, idx, cmdq_pkt);
+	mtk_ovl_layer_on(comp, idx, cmdq_pkt);
 }
 
 static void mtk_ovl_bgclr_in_on(struct mtk_ddp_comp *comp)
