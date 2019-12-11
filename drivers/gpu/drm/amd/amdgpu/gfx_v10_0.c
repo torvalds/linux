@@ -610,11 +610,29 @@ static void gfx_v10_0_init_rlc_ext_microcode(struct amdgpu_device *adev)
 			le32_to_cpu(rlc_hdr->reg_list_format_direct_reg_list_length);
 }
 
+static bool gfx_v10_0_navi10_gfxoff_should_enable(struct amdgpu_device *adev)
+{
+	bool ret = false;
+
+	switch (adev->pdev->revision) {
+	case 0xc2:
+	case 0xc3:
+		ret = true;
+		break;
+	default:
+		ret = false;
+		break;
+	}
+
+	return ret ;
+}
+
 static void gfx_v10_0_check_gfxoff_flag(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
-		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		if (!gfx_v10_0_navi10_gfxoff_should_enable(adev))
+			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		break;
 	default:
 		break;
