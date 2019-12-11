@@ -18,6 +18,7 @@
 #include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/bitops.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/iio/iio.h>
@@ -110,6 +111,8 @@ struct bma180_part_info {
 #define BMA250_INT_RESET_MASK	BIT(7) /* Reset pending interrupts */
 
 struct bma180_data {
+	struct regulator *vdd_supply;
+	struct regulator *vddio_supply;
 	struct i2c_client *client;
 	struct iio_trigger *trig;
 	const struct bma180_part_info *part_info;
@@ -736,6 +739,40 @@ static int bma180_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
+	data->vdd_supply = devm_regulator_get(dev, "vdd");
+	if (IS_ERR(data->vdd_supply)) {
+		if (PTR_ERR(data->vdd_supply) != -EPROBE_DEFER)
+			dev_err(dev, "Failed to get vdd regulator %d\n",
+				(int)PTR_ERR(data->vdd_supply));
+		return PTR_ERR(data->vdd_supply);
+	}
+	data->vddio_supply = devm_regulator_get(dev, "vddio");
+	if (IS_ERR(data->vddio_supply)) {
+		if (PTR_ERR(data->vddio_supply) != -EPROBE_DEFER)
+			dev_err(dev, "Failed to get vddio regulator %d\n",
+				(int)PTR_ERR(data->vddio_supply));
+		return PTR_ERR(data->vddio_supply);
+	}
+	/* Typical voltage 2.4V these are min and max */
+	ret = regulator_set_voltage(data->vdd_supply, 1620000, 3600000);
+	if (ret)
+		return ret;
+	ret = regulator_set_voltage(data->vddio_supply, 1200000, 3600000);
+	if (ret)
+		return ret;
+	ret = regulator_enable(data->vdd_supply);
+	if (ret) {
+		dev_err(dev, "Failed to enable vdd regulator: %d\n", ret);
+		return ret;
+	}
+	ret = regulator_enable(data->vddio_supply);
+	if (ret) {
+		dev_err(dev, "Failed to enable vddio regulator: %d\n", ret);
+		goto err_disable_vdd;
+	}
+	/* Wait to make sure we started up properly (3 ms at least) */
+	usleep_range(3000, 5000);
+
 	ret = data->part_info->chip_config(data);
 	if (ret < 0)
 		goto err_chip_disable;
@@ -798,6 +835,9 @@ err_trigger_free:
 	iio_trigger_free(data->trig);
 err_chip_disable:
 	data->part_info->chip_disable(data);
+	regulator_disable(data->vddio_supply);
+err_disable_vdd:
+	regulator_disable(data->vdd_supply);
 
 	return ret;
 }
@@ -817,6 +857,8 @@ static int bma180_remove(struct i2c_client *client)
 	mutex_lock(&data->mutex);
 	data->part_info->chip_disable(data);
 	mutex_unlock(&data->mutex);
+	regulator_disable(data->vddio_supply);
+	regulator_disable(data->vdd_supply);
 
 	return 0;
 }
