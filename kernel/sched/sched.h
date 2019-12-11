@@ -2322,8 +2322,8 @@ static inline void cpufreq_update_util(struct rq *rq, unsigned int flags) {}
 unsigned long uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id);
 
 static __always_inline
-unsigned long uclamp_util_with(struct rq *rq, unsigned long util,
-			       struct task_struct *p)
+unsigned long uclamp_rq_util_with(struct rq *rq, unsigned long util,
+				  struct task_struct *p)
 {
 	unsigned long min_util = READ_ONCE(rq->uclamp[UCLAMP_MIN].value);
 	unsigned long max_util = READ_ONCE(rq->uclamp[UCLAMP_MAX].value);
@@ -2344,8 +2344,9 @@ unsigned long uclamp_util_with(struct rq *rq, unsigned long util,
 	return clamp(util, min_util, max_util);
 }
 #else /* CONFIG_UCLAMP_TASK */
-static inline unsigned long uclamp_util_with(struct rq *rq, unsigned long util,
-					     struct task_struct *p)
+static inline
+unsigned long uclamp_rq_util_with(struct rq *rq, unsigned long util,
+				  struct task_struct *p)
 {
 	return util;
 }
