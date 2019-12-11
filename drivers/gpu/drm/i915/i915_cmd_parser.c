@@ -1362,8 +1362,7 @@ static int check_bbstart(u32 *cmd, u32 offset, u32 length,
 	return 0;
 }
 
-static unsigned long *
-alloc_whitelist(struct drm_i915_private *i915, u32 batch_length)
+static unsigned long *alloc_whitelist(u32 batch_length)
 {
 	unsigned long *jmp;
 
@@ -1372,9 +1371,6 @@ alloc_whitelist(struct drm_i915_private *i915, u32 batch_length)
 	 * i.e. we need at most an 8KiB bitmap allocation which should be
 	 * reasonably cheap due to kmalloc caches.
 	 */
-
-	if (CMDPARSER_USES_GGTT(i915))
-		return NULL;
 
 	/* Prefer to report transient allocation failure rather than hit oom */
 	jmp = bitmap_zalloc(DIV_ROUND_UP(batch_length, sizeof(u32)),
@@ -1394,6 +1390,7 @@ alloc_whitelist(struct drm_i915_private *i915, u32 batch_length)
  * @batch_offset: byte offset in the batch at which execution starts
  * @batch_length: length of the commands in batch_obj
  * @shadow: validated copy of the batch buffer in question
+ * @trampoline: whether to emit a conditional trampoline at the end of the batch
  *
  * Parses the specified batch buffer looking for privilege violations as
  * described in the overview.
@@ -1406,7 +1403,8 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			    struct i915_vma *batch,
 			    u32 batch_offset,
 			    u32 batch_length,
-			    struct i915_vma *shadow)
+			    struct i915_vma *shadow,
+			    bool trampoline)
 {
 	u32 *cmd, *batch_end, offset = 0;
 	struct drm_i915_cmd_descriptor default_desc = noop_desc;
@@ -1430,8 +1428,10 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 		return PTR_ERR(cmd);
 	}
 
-	/* Defer failure until attempted use */
-	jump_whitelist = alloc_whitelist(engine->i915, batch_length);
+	jump_whitelist = NULL;
+	if (!trampoline)
+		/* Defer failure until attempted use */
+		jump_whitelist = alloc_whitelist(batch_length);
 
 	shadow_addr = gen8_canonical_addr(shadow->node.start);
 	batch_addr = gen8_canonical_addr(batch->node.start + batch_offset);
@@ -1492,6 +1492,47 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			break;
 		}
 	} while (1);
+
+	if (trampoline) {
+		/*
+		 * With the trampoline, the shadow is executed twice.
+		 *
+		 *   1 - starting at offset 0, in privileged mode
+		 *   2 - starting at offset batch_len, as non-privileged
+		 *
+		 * Only if the batch is valid and safe to execute, do we
+		 * allow the first privileged execution to proceed. If not,
+		 * we terminate the first batch and use the second batchbuffer
+		 * entry to chain to the original unsafe non-privileged batch,
+		 * leaving it to the HW to validate.
+		 */
+		*batch_end = MI_BATCH_BUFFER_END;
+
+		if (ret) {
+			/* Batch unsafe to execute with privileges, cancel! */
+			cmd = page_mask_bits(shadow->obj->mm.mapping);
+			*cmd = MI_BATCH_BUFFER_END;
+
+			/* If batch is unsafe but valid, jump to the original */
+			if (ret == -EACCES) {
+				unsigned int flags;
+
+				flags = MI_BATCH_NON_SECURE_I965;
+				if (IS_HASWELL(engine->i915))
+					flags = MI_BATCH_NON_SECURE_HSW;
+
+				GEM_BUG_ON(!IS_GEN_RANGE(engine->i915, 6, 7));
+				__gen6_emit_bb_start(batch_end,
+						     batch_addr,
+						     flags);
+
+				ret = 0; /* allow execution */
+			}
+		}
+
+		if (needs_clflush_after)
+			drm_clflush_virt_range(batch_end, 8);
+	}
 
 	if (needs_clflush_after) {
 		void *ptr = page_mask_bits(shadow->obj->mm.mapping);

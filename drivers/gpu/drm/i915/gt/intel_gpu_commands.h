@@ -340,4 +340,12 @@ static inline u64 gen8_noncanonical_addr(u64 address)
 	return address & GENMASK_ULL(GEN8_HIGH_ADDRESS_BIT, 0);
 }
 
+static inline u32 *__gen6_emit_bb_start(u32 *cs, u32 addr, unsigned int flags)
+{
+	*cs++ = MI_BATCH_BUFFER_START | flags;
+	*cs++ = addr;
+
+	return cs;
+}
+
 #endif /* _INTEL_GPU_COMMANDS_H_ */
