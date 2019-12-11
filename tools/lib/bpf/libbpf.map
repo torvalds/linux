@@ -190,3 +190,21 @@ LIBBPF_0.0.5 {
 	global:
 		bpf_btf_get_next_id;
 } LIBBPF_0.0.4;
+
+LIBBPF_0.0.6 {
+	global:
+		bpf_get_link_xdp_info;
+		bpf_map__get_pin_path;
+		bpf_map__is_pinned;
+		bpf_map__set_pin_path;
+		bpf_object__open_file;
+		bpf_object__open_mem;
+		bpf_program__attach_trace;
+		bpf_program__get_expected_attach_type;
+		bpf_program__get_type;
+		bpf_program__is_tracing;
+		bpf_program__set_tracing;
+		bpf_program__size;
+		btf__find_by_name_kind;
+		libbpf_find_vmlinux_btf_id;
+} LIBBPF_0.0.5;

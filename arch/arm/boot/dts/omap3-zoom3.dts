@@ -9,7 +9,7 @@
 
 / {
 	model = "TI Zoom3";
-	compatible = "ti,omap3-zoom3", "ti,omap36xx", "ti,omap3";
+	compatible = "ti,omap3-zoom3", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 
 	cpus {
 		cpu@0 {

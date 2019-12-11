@@ -100,7 +100,6 @@ config INPUT_ATMEL_CAPTOUCH
 config INPUT_BMA150
 	tristate "BMA150/SMB380 acceleration sensor support"
 	depends on I2C
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you have Bosch Sensortec's BMA150 or SMB380
 	  acceleration sensor hooked to an I2C bus.
@@ -246,7 +245,6 @@ config INPUT_MC13783_PWRBUTTON
 config INPUT_MMA8450
 	tristate "MMA8450 - Freescale's 3-Axis, 8/12-bit Digital Accelerometer"
 	depends on I2C
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you want to support Freescale's MMA8450 Accelerometer
 	  through I2C interface.
@@ -257,7 +255,6 @@ config INPUT_MMA8450
 config INPUT_APANEL
 	tristate "Fujitsu Lifebook Application Panel buttons"
 	depends on X86 && I2C && LEDS_CLASS
-	select INPUT_POLLDEV
 	select CHECK_SIGNATURE
 	help
 	 Say Y here for support of the Application Panel buttons, used on
@@ -291,7 +288,6 @@ config INPUT_GPIO_BEEPER
 config INPUT_GPIO_DECODER
 	tristate "Polled GPIO Decoder Input driver"
 	depends on GPIOLIB || COMPILE_TEST
-	select INPUT_POLLDEV
 	help
 	 Say Y here if you want driver to read status of multiple GPIO
 	 lines and report the encoded value as an absolute integer to
@@ -327,7 +323,6 @@ config INPUT_IXP4XX_BEEPER
 config INPUT_COBALT_BTNS
 	tristate "Cobalt button interface"
 	depends on MIPS_COBALT
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you want to support MIPS Cobalt button interface.
 
@@ -347,7 +342,6 @@ config INPUT_CPCAP_PWRBUTTON
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
 	depends on X86_32
-	select INPUT_POLLDEV
 	select INPUT_SPARSEKMAP
 	select NEW_LEDS
 	select LEDS_CLASS
@@ -409,13 +403,6 @@ config INPUT_KXTJ9
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called kxtj9.
-
-config INPUT_KXTJ9_POLLED_MODE
-	bool "Enable polling mode support"
-	depends on INPUT_KXTJ9
-	select INPUT_POLLDEV
-	help
-	  Say Y here if you need accelerometer to work in polling mode.
 
 config INPUT_POWERMATE
 	tristate "Griffin PowerMate and Contour Jog support"
@@ -546,7 +533,6 @@ config INPUT_UINPUT
 config INPUT_SGI_BTNS
 	tristate "SGI Indy/O2 volume button interface"
 	depends on SGI_IP22 || SGI_IP32
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you want to support SGI Indy/O2 volume button interface.
 
@@ -637,7 +623,6 @@ config INPUT_RB532_BUTTON
 	tristate "Mikrotik Routerboard 532 button interface"
 	depends on MIKROTIK_RB532
 	depends on GPIOLIB
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you want support for the S1 button built into
 	  Mikrotik's Routerboard 532.

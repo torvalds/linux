@@ -192,7 +192,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 }
 
 #ifndef IP_SET_BITMAP_STORED_TIMEOUT
-static inline bool
+static bool
 mtype_is_filled(const struct mtype_elem *x)
 {
 	return true;

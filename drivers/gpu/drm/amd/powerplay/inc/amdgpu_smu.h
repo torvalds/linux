@@ -261,7 +261,6 @@ struct smu_table_context
 	struct smu_table		*tables;
 	struct smu_table		memory_pool;
 	uint8_t                         thermal_controller_type;
-	uint16_t			TDPODLimit;
 
 	void				*overdrive_table;
 };
@@ -391,6 +390,7 @@ struct smu_context
 
 	uint32_t smc_if_version;
 
+	bool uploading_custom_pp_table;
 };
 
 struct i2c_adapter;
@@ -497,8 +497,8 @@ struct pptable_funcs {
 	int (*notify_memory_pool_location)(struct smu_context *smu);
 	int (*set_last_dcef_min_deep_sleep_clk)(struct smu_context *smu);
 	int (*system_features_control)(struct smu_context *smu, bool en);
-	int (*send_smc_msg)(struct smu_context *smu, uint16_t msg);
-	int (*send_smc_msg_with_param)(struct smu_context *smu, uint16_t msg, uint32_t param);
+	int (*send_smc_msg_with_param)(struct smu_context *smu,
+				       enum smu_message_type msg, uint32_t param);
 	int (*read_smc_arg)(struct smu_context *smu, uint32_t *arg);
 	int (*init_display_count)(struct smu_context *smu, uint32_t count);
 	int (*set_allowed_mask)(struct smu_context *smu);
@@ -548,6 +548,7 @@ struct pptable_funcs {
 	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
 	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
 	int (*override_pcie_parameters)(struct smu_context *smu);
+	uint32_t (*get_pptable_power_limit)(struct smu_context *smu);
 };
 
 int smu_load_microcode(struct smu_context *smu);
@@ -716,5 +717,7 @@ int smu_get_uclk_dpm_states(struct smu_context *smu,
 
 int smu_get_dpm_clock_table(struct smu_context *smu,
 			    struct dpm_clocks *clock_table);
+
+uint32_t smu_get_pptable_power_limit(struct smu_context *smu);
 
 #endif

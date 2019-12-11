@@ -26,7 +26,7 @@ TRACE_EVENT(fsi_master_read,
 		__entry->addr = addr;
 		__entry->size = size;
 	),
-	TP_printk("fsi%d:%02d:%02d %08x[%zd]",
+	TP_printk("fsi%d:%02d:%02d %08x[%zu]",
 		__entry->master_idx,
 		__entry->link,
 		__entry->id,
@@ -56,7 +56,7 @@ TRACE_EVENT(fsi_master_write,
 		__entry->data = 0;
 		memcpy(&__entry->data, data, size);
 	),
-	TP_printk("fsi%d:%02d:%02d %08x[%zd] <= {%*ph}",
+	TP_printk("fsi%d:%02d:%02d %08x[%zu] <= {%*ph}",
 		__entry->master_idx,
 		__entry->link,
 		__entry->id,
@@ -93,7 +93,7 @@ TRACE_EVENT(fsi_master_rw_result,
 		if (__entry->write || !__entry->ret)
 			memcpy(&__entry->data, data, size);
 	),
-	TP_printk("fsi%d:%02d:%02d %08x[%zd] %s {%*ph} ret %d",
+	TP_printk("fsi%d:%02d:%02d %08x[%zu] %s {%*ph} ret %d",
 		__entry->master_idx,
 		__entry->link,
 		__entry->id,

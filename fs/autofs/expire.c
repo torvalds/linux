@@ -211,7 +211,7 @@ static int autofs_tree_busy(struct vfsmount *mnt,
 			}
 		} else {
 			struct autofs_info *ino = autofs_dentry_ino(p);
-			unsigned int ino_count = atomic_read(&ino->count);
+			unsigned int ino_count = READ_ONCE(ino->count);
 
 			/* allow for dget above and top is already dgot */
 			if (p == top)
@@ -379,7 +379,7 @@ static struct dentry *should_expire(struct dentry *dentry,
 		/* Not a forced expire? */
 		if (!(how & AUTOFS_EXP_FORCED)) {
 			/* ref-walk currently on this dentry? */
-			ino_count = atomic_read(&ino->count) + 1;
+			ino_count = READ_ONCE(ino->count) + 1;
 			if (d_count(dentry) > ino_count)
 				return NULL;
 		}
@@ -396,7 +396,7 @@ static struct dentry *should_expire(struct dentry *dentry,
 		/* Not a forced expire? */
 		if (!(how & AUTOFS_EXP_FORCED)) {
 			/* ref-walk currently on this dentry? */
-			ino_count = atomic_read(&ino->count) + 1;
+			ino_count = READ_ONCE(ino->count) + 1;
 			if (d_count(dentry) > ino_count)
 				return NULL;
 		}
@@ -459,9 +459,10 @@ static struct dentry *autofs_expire_indirect(struct super_block *sb,
 		 */
 		how &= ~AUTOFS_EXP_LEAVES;
 		found = should_expire(expired, mnt, timeout, how);
-		if (!found || found != expired)
-			/* Something has changed, continue */
+		if (found != expired) { // something has changed, continue
+			dput(found);
 			goto next;
+		}
 
 		if (expired != dentry)
 			dput(dentry);

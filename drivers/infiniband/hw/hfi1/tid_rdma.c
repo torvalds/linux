@@ -107,8 +107,6 @@ static u32 mask_generation(u32 a)
  * C - Capcode
  */
 
-static u32 tid_rdma_flow_wt;
-
 static void tid_rdma_trigger_resume(struct work_struct *work);
 static void hfi1_kern_exp_rcv_free_flows(struct tid_rdma_request *req);
 static int hfi1_kern_exp_rcv_alloc_flows(struct tid_rdma_request *req,
@@ -135,6 +133,26 @@ static void update_r_next_psn_fecn(struct hfi1_packet *packet,
 				   struct hfi1_ctxtdata *rcd,
 				   struct tid_rdma_flow *flow,
 				   bool fecn);
+
+static void validate_r_tid_ack(struct hfi1_qp_priv *priv)
+{
+	if (priv->r_tid_ack == HFI1_QP_WQE_INVALID)
+		priv->r_tid_ack = priv->r_tid_tail;
+}
+
+static void tid_rdma_schedule_ack(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	priv->s_flags |= RVT_S_ACK_PENDING;
+	hfi1_schedule_tid_send(qp);
+}
+
+static void tid_rdma_trigger_ack(struct rvt_qp *qp)
+{
+	validate_r_tid_ack(qp->priv);
+	tid_rdma_schedule_ack(qp);
+}
 
 static u64 tid_rdma_opfn_encode(struct tid_rdma_params *p)
 {
@@ -3005,10 +3023,7 @@ nak_psn:
 		qpriv->s_nak_state = IB_NAK_PSN_ERROR;
 		/* We are NAK'ing the next expected PSN */
 		qpriv->s_nak_psn = mask_psn(flow->flow_state.r_next_psn);
-		qpriv->s_flags |= RVT_S_ACK_PENDING;
-		if (qpriv->r_tid_ack == HFI1_QP_WQE_INVALID)
-			qpriv->r_tid_ack = qpriv->r_tid_tail;
-		hfi1_schedule_tid_send(qp);
+		tid_rdma_trigger_ack(qp);
 	}
 	goto unlock;
 }
@@ -3371,18 +3386,17 @@ u32 hfi1_build_tid_rdma_write_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	return sizeof(ohdr->u.tid_rdma.w_req) / sizeof(u32);
 }
 
-void hfi1_compute_tid_rdma_flow_wt(void)
+static u32 hfi1_compute_tid_rdma_flow_wt(struct rvt_qp *qp)
 {
 	/*
 	 * Heuristic for computing the RNR timeout when waiting on the flow
 	 * queue. Rather than a computationaly expensive exact estimate of when
 	 * a flow will be available, we assume that if a QP is at position N in
 	 * the flow queue it has to wait approximately (N + 1) * (number of
-	 * segments between two sync points), assuming PMTU of 4K. The rationale
-	 * for this is that flows are released and recycled at each sync point.
+	 * segments between two sync points). The rationale for this is that
+	 * flows are released and recycled at each sync point.
 	 */
-	tid_rdma_flow_wt = MAX_TID_FLOW_PSN * enum_to_mtu(OPA_MTU_4096) /
-		TID_RDMA_MAX_SEGMENT_SIZE;
+	return (MAX_TID_FLOW_PSN * qp->pmtu) >> TID_RDMA_SEGMENT_SHIFT;
 }
 
 static u32 position_in_queue(struct hfi1_qp_priv *qpriv,
@@ -3505,7 +3519,7 @@ static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx)
 		if (qpriv->flow_state.index >= RXE_NUM_TID_FLOWS) {
 			ret = hfi1_kern_setup_hw_flow(qpriv->rcd, qp);
 			if (ret) {
-				to_seg = tid_rdma_flow_wt *
+				to_seg = hfi1_compute_tid_rdma_flow_wt(qp) *
 					position_in_queue(qpriv,
 							  &rcd->flow_queue);
 				break;
@@ -3526,7 +3540,7 @@ static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx)
 		/*
 		 * If overtaking req->acked_tail, send an RNR NAK. Because the
 		 * QP is not queued in this case, and the issue can only be
-		 * caused due a delay in scheduling the second leg which we
+		 * caused by a delay in scheduling the second leg which we
 		 * cannot estimate, we use a rather arbitrary RNR timeout of
 		 * (MAX_FLOWS / 2) segments
 		 */
@@ -3534,8 +3548,7 @@ static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx)
 				MAX_FLOWS)) {
 			ret = -EAGAIN;
 			to_seg = MAX_FLOWS >> 1;
-			qpriv->s_flags |= RVT_S_ACK_PENDING;
-			hfi1_schedule_tid_send(qp);
+			tid_rdma_trigger_ack(qp);
 			break;
 		}
 
@@ -4335,8 +4348,7 @@ void hfi1_rc_rcv_tid_rdma_write_data(struct hfi1_packet *packet)
 	trace_hfi1_tid_req_rcv_write_data(qp, 0, e->opcode, e->psn, e->lpsn,
 					  req);
 	trace_hfi1_tid_write_rsp_rcv_data(qp);
-	if (priv->r_tid_ack == HFI1_QP_WQE_INVALID)
-		priv->r_tid_ack = priv->r_tid_tail;
+	validate_r_tid_ack(priv);
 
 	if (opcode == TID_OP(WRITE_DATA_LAST)) {
 		release_rdma_sge_mr(e);
@@ -4375,8 +4387,7 @@ void hfi1_rc_rcv_tid_rdma_write_data(struct hfi1_packet *packet)
 	}
 
 done:
-	priv->s_flags |= RVT_S_ACK_PENDING;
-	hfi1_schedule_tid_send(qp);
+	tid_rdma_schedule_ack(qp);
 exit:
 	priv->r_next_psn_kdeth = flow->flow_state.r_next_psn;
 	if (fecn)
@@ -4388,10 +4399,7 @@ send_nak:
 	if (!priv->s_nak_state) {
 		priv->s_nak_state = IB_NAK_PSN_ERROR;
 		priv->s_nak_psn = flow->flow_state.r_next_psn;
-		priv->s_flags |= RVT_S_ACK_PENDING;
-		if (priv->r_tid_ack == HFI1_QP_WQE_INVALID)
-			priv->r_tid_ack = priv->r_tid_tail;
-		hfi1_schedule_tid_send(qp);
+		tid_rdma_trigger_ack(qp);
 	}
 	goto done;
 }
@@ -4939,8 +4947,7 @@ void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet)
 	qpriv->resync = true;
 	/* RESYNC request always gets a TID RDMA ACK. */
 	qpriv->s_nak_state = 0;
-	qpriv->s_flags |= RVT_S_ACK_PENDING;
-	hfi1_schedule_tid_send(qp);
+	tid_rdma_trigger_ack(qp);
 bail:
 	if (fecn)
 		qp->s_flags |= RVT_S_ECN;

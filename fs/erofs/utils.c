@@ -7,7 +7,7 @@
 #include "internal.h"
 #include <linux/pagevec.h>
 
-struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp, bool nofail)
+struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp)
 {
 	struct page *page;
 
@@ -16,7 +16,7 @@ struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp, bool nofail)
 		DBG_BUGON(page_ref_count(page) != 1);
 		list_del(&page->lru);
 	} else {
-		page = alloc_pages(gfp | (nofail ? __GFP_NOFAIL : 0), 0);
+		page = alloc_page(gfp);
 	}
 	return page;
 }
@@ -149,8 +149,7 @@ static void erofs_workgroup_unfreeze_final(struct erofs_workgroup *grp)
 }
 
 static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
-					   struct erofs_workgroup *grp,
-					   bool cleanup)
+					   struct erofs_workgroup *grp)
 {
 	/*
 	 * If managed cache is on, refcount of workgroups
@@ -188,8 +187,7 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 }
 
 static unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
-					      unsigned long nr_shrink,
-					      bool cleanup)
+					      unsigned long nr_shrink)
 {
 	pgoff_t first_index = 0;
 	void *batch[PAGEVEC_SIZE];
@@ -208,7 +206,7 @@ repeat:
 		first_index = grp->index + 1;
 
 		/* try to shrink each valid workgroup */
-		if (!erofs_try_to_release_workgroup(sbi, grp, cleanup))
+		if (!erofs_try_to_release_workgroup(sbi, grp))
 			continue;
 
 		++freed;
@@ -245,7 +243,8 @@ void erofs_shrinker_unregister(struct super_block *sb)
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 
 	mutex_lock(&sbi->umount_mutex);
-	erofs_shrink_workstation(sbi, ~0UL, true);
+	/* clean up all remaining workgroups in memory */
+	erofs_shrink_workstation(sbi, ~0UL);
 
 	spin_lock(&erofs_sb_list_lock);
 	list_del(&sbi->list);
@@ -294,7 +293,7 @@ static unsigned long erofs_shrink_scan(struct shrinker *shrink,
 		spin_unlock(&erofs_sb_list_lock);
 		sbi->shrinker_run_no = run_no;
 
-		freed += erofs_shrink_workstation(sbi, nr, false);
+		freed += erofs_shrink_workstation(sbi, nr);
 
 		spin_lock(&erofs_sb_list_lock);
 		/* Get the next list element before we move this one */

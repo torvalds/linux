@@ -48,6 +48,8 @@
 
 #define AXP20X_VBUS_MON_VBUS_VALID	BIT(3)
 
+#define AXP813_BC_EN		BIT(0)
+
 /*
  * Note do not raise the debounce time, we must report Vusb high within
  * 100ms otherwise we get Vbus errors in musb.
@@ -493,6 +495,12 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Unsupported AXP variant: %ld\n",
 			axp20x->variant);
 		return -EINVAL;
+	}
+
+	if (power->axp20x_id == AXP813_ID) {
+		/* Enable USB Battery Charging specification detection */
+		regmap_update_bits(axp20x->regmap, AXP288_BC_GLOBAL,
+				   AXP813_BC_EN, AXP813_BC_EN);
 	}
 
 	psy_cfg.of_node = pdev->dev.of_node;

@@ -436,12 +436,12 @@ void i915_gem_shrinker_taints_mutex(struct drm_i915_private *i915,
 	fs_reclaim_acquire(GFP_KERNEL);
 
 	mutex_acquire(&mutex->dep_map, 0, 0, _RET_IP_);
-	mutex_release(&mutex->dep_map, 0, _RET_IP_);
+	mutex_release(&mutex->dep_map, _RET_IP_);
 
 	fs_reclaim_release(GFP_KERNEL);
 
 	if (unlock)
-		mutex_release(&i915->drm.struct_mutex.dep_map, 0, _RET_IP_);
+		mutex_release(&i915->drm.struct_mutex.dep_map, _RET_IP_);
 }
 
 #define obj_to_i915(obj__) to_i915((obj__)->base.dev)

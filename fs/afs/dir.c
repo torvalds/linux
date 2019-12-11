@@ -803,7 +803,12 @@ success:
 			continue;
 
 		if (cookie->inodes[i]) {
-			afs_vnode_commit_status(&fc, AFS_FS_I(cookie->inodes[i]),
+			struct afs_vnode *iv = AFS_FS_I(cookie->inodes[i]);
+
+			if (test_bit(AFS_VNODE_UNSET, &iv->flags))
+				continue;
+
+			afs_vnode_commit_status(&fc, iv,
 						scb->cb_break, NULL, scb);
 			continue;
 		}

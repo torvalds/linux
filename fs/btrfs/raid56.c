@@ -190,7 +190,7 @@ static void scrub_parity_work(struct btrfs_work *work);
 
 static void start_async_work(struct btrfs_raid_bio *rbio, btrfs_func_t work_func)
 {
-	btrfs_init_work(&rbio->work, btrfs_rmw_helper, work_func, NULL, NULL);
+	btrfs_init_work(&rbio->work, work_func, NULL, NULL);
 	btrfs_queue_work(rbio->fs_info->rmw_workers, &rbio->work);
 }
 
@@ -671,8 +671,7 @@ static struct page *rbio_qstripe_page(struct btrfs_raid_bio *rbio, int index)
  */
 static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 {
-	int bucket = rbio_bucket(rbio);
-	struct btrfs_stripe_hash *h = rbio->fs_info->stripe_hash_table->table + bucket;
+	struct btrfs_stripe_hash *h;
 	struct btrfs_raid_bio *cur;
 	struct btrfs_raid_bio *pending;
 	unsigned long flags;
@@ -680,64 +679,63 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 	struct btrfs_raid_bio *cache_drop = NULL;
 	int ret = 0;
 
+	h = rbio->fs_info->stripe_hash_table->table + rbio_bucket(rbio);
+
 	spin_lock_irqsave(&h->lock, flags);
 	list_for_each_entry(cur, &h->hash_list, hash_list) {
-		if (cur->bbio->raid_map[0] == rbio->bbio->raid_map[0]) {
-			spin_lock(&cur->bio_list_lock);
+		if (cur->bbio->raid_map[0] != rbio->bbio->raid_map[0])
+			continue;
 
-			/* can we steal this cached rbio's pages? */
-			if (bio_list_empty(&cur->bio_list) &&
-			    list_empty(&cur->plug_list) &&
-			    test_bit(RBIO_CACHE_BIT, &cur->flags) &&
-			    !test_bit(RBIO_RMW_LOCKED_BIT, &cur->flags)) {
-				list_del_init(&cur->hash_list);
-				refcount_dec(&cur->refs);
+		spin_lock(&cur->bio_list_lock);
 
-				steal_rbio(cur, rbio);
-				cache_drop = cur;
-				spin_unlock(&cur->bio_list_lock);
+		/* Can we steal this cached rbio's pages? */
+		if (bio_list_empty(&cur->bio_list) &&
+		    list_empty(&cur->plug_list) &&
+		    test_bit(RBIO_CACHE_BIT, &cur->flags) &&
+		    !test_bit(RBIO_RMW_LOCKED_BIT, &cur->flags)) {
+			list_del_init(&cur->hash_list);
+			refcount_dec(&cur->refs);
 
-				goto lockit;
-			}
+			steal_rbio(cur, rbio);
+			cache_drop = cur;
+			spin_unlock(&cur->bio_list_lock);
 
-			/* can we merge into the lock owner? */
-			if (rbio_can_merge(cur, rbio)) {
-				merge_rbio(cur, rbio);
+			goto lockit;
+		}
+
+		/* Can we merge into the lock owner? */
+		if (rbio_can_merge(cur, rbio)) {
+			merge_rbio(cur, rbio);
+			spin_unlock(&cur->bio_list_lock);
+			freeit = rbio;
+			ret = 1;
+			goto out;
+		}
+
+
+		/*
+		 * We couldn't merge with the running rbio, see if we can merge
+		 * with the pending ones.  We don't have to check for rmw_locked
+		 * because there is no way they are inside finish_rmw right now
+		 */
+		list_for_each_entry(pending, &cur->plug_list, plug_list) {
+			if (rbio_can_merge(pending, rbio)) {
+				merge_rbio(pending, rbio);
 				spin_unlock(&cur->bio_list_lock);
 				freeit = rbio;
 				ret = 1;
 				goto out;
 			}
-
-
-			/*
-			 * we couldn't merge with the running
-			 * rbio, see if we can merge with the
-			 * pending ones.  We don't have to
-			 * check for rmw_locked because there
-			 * is no way they are inside finish_rmw
-			 * right now
-			 */
-			list_for_each_entry(pending, &cur->plug_list,
-					    plug_list) {
-				if (rbio_can_merge(pending, rbio)) {
-					merge_rbio(pending, rbio);
-					spin_unlock(&cur->bio_list_lock);
-					freeit = rbio;
-					ret = 1;
-					goto out;
-				}
-			}
-
-			/* no merging, put us on the tail of the plug list,
-			 * our rbio will be started with the currently
-			 * running rbio unlocks
-			 */
-			list_add_tail(&rbio->plug_list, &cur->plug_list);
-			spin_unlock(&cur->bio_list_lock);
-			ret = 1;
-			goto out;
 		}
+
+		/*
+		 * No merging, put us on the tail of the plug list, our rbio
+		 * will be started with the currently running rbio unlocks
+		 */
+		list_add_tail(&rbio->plug_list, &cur->plug_list);
+		spin_unlock(&cur->bio_list_lock);
+		ret = 1;
+		goto out;
 	}
 lockit:
 	refcount_inc(&rbio->refs);
@@ -1743,8 +1741,7 @@ static void btrfs_raid_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	plug = container_of(cb, struct btrfs_plug_cb, cb);
 
 	if (from_schedule) {
-		btrfs_init_work(&plug->work, btrfs_rmw_helper,
-				unplug_work, NULL, NULL);
+		btrfs_init_work(&plug->work, unplug_work, NULL, NULL);
 		btrfs_queue_work(plug->info->rmw_workers,
 				 &plug->work);
 		return;

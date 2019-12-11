@@ -436,7 +436,6 @@ static const struct snd_pcm_ops snd_vortex_playback_ops = {
 	.prepare = snd_vortex_pcm_prepare,
 	.trigger = snd_vortex_pcm_trigger,
 	.pointer = snd_vortex_pcm_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 
 /*
@@ -638,7 +637,7 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 	/* pre-allocation of Scatter-Gather buffers */
 	
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-					      snd_dma_pci_data(chip->pci_dev),
+					      &chip->pci_dev->dev,
 					      0x10000, 0x10000);
 
 	switch (VORTEX_PCM_TYPE(pcm)) {

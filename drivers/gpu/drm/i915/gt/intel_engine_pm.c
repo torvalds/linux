@@ -55,7 +55,7 @@ static inline unsigned long __timeline_mark_lock(struct intel_context *ce)
 static inline void __timeline_mark_unlock(struct intel_context *ce,
 					  unsigned long flags)
 {
-	mutex_release(&ce->timeline->mutex.dep_map, 0, _THIS_IP_);
+	mutex_release(&ce->timeline->mutex.dep_map, _THIS_IP_);
 	local_irq_restore(flags);
 }
 

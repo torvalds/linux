@@ -23,6 +23,14 @@
  *
  * Portrait orientation is also supported:
  *     For example: video=hyperv_fb:864x1152
+ *
+ * When a Windows 10 RS5+ host is used, the virtual machine screen
+ * resolution is obtained from the host. The "video=hyperv_fb" option is
+ * not needed, but still can be used to overwrite what the host specifies.
+ * The VM resolution on the host could be set by executing the powershell
+ * "set-vmvideo" command. For example
+ *     set-vmvideo -vmname name -horizontalresolution:1920 \
+ * -verticalresolution:1200 -resolutiontype single
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -34,6 +42,7 @@
 #include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/efi.h>
+#include <linux/console.h>
 
 #include <linux/hyperv.h>
 
@@ -44,6 +53,10 @@
 #define SYNTHVID_VERSION(major, minor) ((minor) << 16 | (major))
 #define SYNTHVID_VERSION_WIN7 SYNTHVID_VERSION(3, 0)
 #define SYNTHVID_VERSION_WIN8 SYNTHVID_VERSION(3, 2)
+#define SYNTHVID_VERSION_WIN10 SYNTHVID_VERSION(3, 5)
+
+#define SYNTHVID_VER_GET_MAJOR(ver) (ver & 0x0000ffff)
+#define SYNTHVID_VER_GET_MINOR(ver) ((ver & 0xffff0000) >> 16)
 
 #define SYNTHVID_DEPTH_WIN7 16
 #define SYNTHVID_DEPTH_WIN8 32
@@ -82,15 +95,24 @@ enum synthvid_msg_type {
 	SYNTHVID_POINTER_SHAPE		= 8,
 	SYNTHVID_FEATURE_CHANGE		= 9,
 	SYNTHVID_DIRT			= 10,
+	SYNTHVID_RESOLUTION_REQUEST	= 13,
+	SYNTHVID_RESOLUTION_RESPONSE	= 14,
 
-	SYNTHVID_MAX			= 11
+	SYNTHVID_MAX			= 15
 };
+
+#define		SYNTHVID_EDID_BLOCK_SIZE	128
+#define		SYNTHVID_MAX_RESOLUTION_COUNT	64
+
+struct hvd_screen_info {
+	u16 width;
+	u16 height;
+} __packed;
 
 struct synthvid_msg_hdr {
 	u32 type;
 	u32 size;  /* size of this header + payload after this field*/
 } __packed;
-
 
 struct synthvid_version_req {
 	u32 version;
@@ -100,6 +122,19 @@ struct synthvid_version_resp {
 	u32 version;
 	u8 is_accepted;
 	u8 max_video_outputs;
+} __packed;
+
+struct synthvid_supported_resolution_req {
+	u8 maximum_resolution_count;
+} __packed;
+
+struct synthvid_supported_resolution_resp {
+	u8 edid_block[SYNTHVID_EDID_BLOCK_SIZE];
+	u8 resolution_count;
+	u8 default_resolution_index;
+	u8 is_standard;
+	struct hvd_screen_info
+		supported_resolution[SYNTHVID_MAX_RESOLUTION_COUNT];
 } __packed;
 
 struct synthvid_vram_location {
@@ -187,6 +222,8 @@ struct synthvid_msg {
 		struct synthvid_pointer_shape ptr_shape;
 		struct synthvid_feature_change feature_chg;
 		struct synthvid_dirt dirt;
+		struct synthvid_supported_resolution_req resolution_req;
+		struct synthvid_supported_resolution_resp resolution_resp;
 	};
 } __packed;
 
@@ -201,6 +238,7 @@ struct synthvid_msg {
 #define RING_BUFSIZE (256 * 1024)
 #define VSP_TIMEOUT (10 * HZ)
 #define HVFB_UPDATE_DELAY (HZ / 20)
+#define HVFB_ONDEMAND_THROTTLE (HZ / 20)
 
 struct hvfb_par {
 	struct fb_info *info;
@@ -211,6 +249,7 @@ struct hvfb_par {
 
 	struct delayed_work dwork;
 	bool update;
+	bool update_saved; /* The value of 'update' before hibernation */
 
 	u32 pseudo_palette[16];
 	u8 init_buf[MAX_VMBUS_PKT_SIZE];
@@ -220,12 +259,25 @@ struct hvfb_par {
 	bool synchronous_fb;
 
 	struct notifier_block hvfb_panic_nb;
+
+	/* Memory for deferred IO and frame buffer itself */
+	unsigned char *dio_vp;
+	unsigned char *mmio_vp;
+	unsigned long mmio_pp;
+
+	/* Dirty rectangle, protected by delayed_refresh_lock */
+	int x1, y1, x2, y2;
+	bool delayed_refresh;
+	spinlock_t delayed_refresh_lock;
 };
 
 static uint screen_width = HVFB_WIDTH;
 static uint screen_height = HVFB_HEIGHT;
+static uint screen_width_max = HVFB_WIDTH;
+static uint screen_height_max = HVFB_HEIGHT;
 static uint screen_depth;
 static uint screen_fb_size;
+static uint dio_fb_size; /* FB size for deferred IO */
 
 /* Send message to Hyper-V host */
 static inline int synthvid_send(struct hv_device *hdev,
@@ -312,28 +364,88 @@ static int synthvid_send_ptr(struct hv_device *hdev)
 }
 
 /* Send updated screen area (dirty rectangle) location to host */
-static int synthvid_update(struct fb_info *info)
+static int
+synthvid_update(struct fb_info *info, int x1, int y1, int x2, int y2)
 {
 	struct hv_device *hdev = device_to_hv_device(info->device);
 	struct synthvid_msg msg;
 
 	memset(&msg, 0, sizeof(struct synthvid_msg));
+	if (x2 == INT_MAX)
+		x2 = info->var.xres;
+	if (y2 == INT_MAX)
+		y2 = info->var.yres;
 
 	msg.vid_hdr.type = SYNTHVID_DIRT;
 	msg.vid_hdr.size = sizeof(struct synthvid_msg_hdr) +
 		sizeof(struct synthvid_dirt);
 	msg.dirt.video_output = 0;
 	msg.dirt.dirt_count = 1;
-	msg.dirt.rect[0].x1 = 0;
-	msg.dirt.rect[0].y1 = 0;
-	msg.dirt.rect[0].x2 = info->var.xres;
-	msg.dirt.rect[0].y2 = info->var.yres;
+	msg.dirt.rect[0].x1 = (x1 > x2) ? 0 : x1;
+	msg.dirt.rect[0].y1 = (y1 > y2) ? 0 : y1;
+	msg.dirt.rect[0].x2 =
+		(x2 < x1 || x2 > info->var.xres) ? info->var.xres : x2;
+	msg.dirt.rect[0].y2 =
+		(y2 < y1 || y2 > info->var.yres) ? info->var.yres : y2;
 
 	synthvid_send(hdev, &msg);
 
 	return 0;
 }
 
+static void hvfb_docopy(struct hvfb_par *par,
+			unsigned long offset,
+			unsigned long size)
+{
+	if (!par || !par->mmio_vp || !par->dio_vp || !par->fb_ready ||
+	    size == 0 || offset >= dio_fb_size)
+		return;
+
+	if (offset + size > dio_fb_size)
+		size = dio_fb_size - offset;
+
+	memcpy(par->mmio_vp + offset, par->dio_vp + offset, size);
+}
+
+/* Deferred IO callback */
+static void synthvid_deferred_io(struct fb_info *p,
+				 struct list_head *pagelist)
+{
+	struct hvfb_par *par = p->par;
+	struct page *page;
+	unsigned long start, end;
+	int y1, y2, miny, maxy;
+
+	miny = INT_MAX;
+	maxy = 0;
+
+	/*
+	 * Merge dirty pages. It is possible that last page cross
+	 * over the end of frame buffer row yres. This is taken care of
+	 * in synthvid_update function by clamping the y2
+	 * value to yres.
+	 */
+	list_for_each_entry(page, pagelist, lru) {
+		start = page->index << PAGE_SHIFT;
+		end = start + PAGE_SIZE - 1;
+		y1 = start / p->fix.line_length;
+		y2 = end / p->fix.line_length;
+		miny = min_t(int, miny, y1);
+		maxy = max_t(int, maxy, y2);
+
+		/* Copy from dio space to mmio address */
+		if (par->fb_ready)
+			hvfb_docopy(par, start, PAGE_SIZE);
+	}
+
+	if (par->fb_ready && par->update)
+		synthvid_update(p, 0, miny, p->var.xres, maxy + 1);
+}
+
+static struct fb_deferred_io synthvid_defio = {
+	.delay		= HZ / 20,
+	.deferred_io	= synthvid_deferred_io,
+};
 
 /*
  * Actions on received messages from host:
@@ -354,6 +466,7 @@ static void synthvid_recv_sub(struct hv_device *hdev)
 
 	/* Complete the wait event */
 	if (msg->vid_hdr.type == SYNTHVID_VERSION_RESPONSE ||
+	    msg->vid_hdr.type == SYNTHVID_RESOLUTION_RESPONSE ||
 	    msg->vid_hdr.type == SYNTHVID_VRAM_LOCATION_ACK) {
 		memcpy(par->init_buf, msg, MAX_VMBUS_PKT_SIZE);
 		complete(&par->wait);
@@ -400,6 +513,17 @@ static void synthvid_receive(void *ctx)
 	} while (bytes_recvd > 0 && ret == 0);
 }
 
+/* Check if the ver1 version is equal or greater than ver2 */
+static inline bool synthvid_ver_ge(u32 ver1, u32 ver2)
+{
+	if (SYNTHVID_VER_GET_MAJOR(ver1) > SYNTHVID_VER_GET_MAJOR(ver2) ||
+	    (SYNTHVID_VER_GET_MAJOR(ver1) == SYNTHVID_VER_GET_MAJOR(ver2) &&
+	     SYNTHVID_VER_GET_MINOR(ver1) >= SYNTHVID_VER_GET_MINOR(ver2)))
+		return true;
+
+	return false;
+}
+
 /* Check synthetic video protocol version with the host */
 static int synthvid_negotiate_ver(struct hv_device *hdev, u32 ver)
 {
@@ -428,6 +552,64 @@ static int synthvid_negotiate_ver(struct hv_device *hdev, u32 ver)
 	}
 
 	par->synthvid_version = ver;
+	pr_info("Synthvid Version major %d, minor %d\n",
+		SYNTHVID_VER_GET_MAJOR(ver), SYNTHVID_VER_GET_MINOR(ver));
+
+out:
+	return ret;
+}
+
+/* Get current resolution from the host */
+static int synthvid_get_supported_resolution(struct hv_device *hdev)
+{
+	struct fb_info *info = hv_get_drvdata(hdev);
+	struct hvfb_par *par = info->par;
+	struct synthvid_msg *msg = (struct synthvid_msg *)par->init_buf;
+	int ret = 0;
+	unsigned long t;
+	u8 index;
+	int i;
+
+	memset(msg, 0, sizeof(struct synthvid_msg));
+	msg->vid_hdr.type = SYNTHVID_RESOLUTION_REQUEST;
+	msg->vid_hdr.size = sizeof(struct synthvid_msg_hdr) +
+		sizeof(struct synthvid_supported_resolution_req);
+
+	msg->resolution_req.maximum_resolution_count =
+		SYNTHVID_MAX_RESOLUTION_COUNT;
+	synthvid_send(hdev, msg);
+
+	t = wait_for_completion_timeout(&par->wait, VSP_TIMEOUT);
+	if (!t) {
+		pr_err("Time out on waiting resolution response\n");
+			ret = -ETIMEDOUT;
+			goto out;
+	}
+
+	if (msg->resolution_resp.resolution_count == 0) {
+		pr_err("No supported resolutions\n");
+		ret = -ENODEV;
+		goto out;
+	}
+
+	index = msg->resolution_resp.default_resolution_index;
+	if (index >= msg->resolution_resp.resolution_count) {
+		pr_err("Invalid resolution index: %d\n", index);
+		ret = -ENODEV;
+		goto out;
+	}
+
+	for (i = 0; i < msg->resolution_resp.resolution_count; i++) {
+		screen_width_max = max_t(unsigned int, screen_width_max,
+		    msg->resolution_resp.supported_resolution[i].width);
+		screen_height_max = max_t(unsigned int, screen_height_max,
+		    msg->resolution_resp.supported_resolution[i].height);
+	}
+
+	screen_width =
+		msg->resolution_resp.supported_resolution[index].width;
+	screen_height =
+		msg->resolution_resp.supported_resolution[index].height;
 
 out:
 	return ret;
@@ -448,11 +630,27 @@ static int synthvid_connect_vsp(struct hv_device *hdev)
 	}
 
 	/* Negotiate the protocol version with host */
-	if (vmbus_proto_version == VERSION_WS2008 ||
-	    vmbus_proto_version == VERSION_WIN7)
-		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN7);
-	else
+	switch (vmbus_proto_version) {
+	case VERSION_WIN10:
+	case VERSION_WIN10_V5:
+		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN10);
+		if (!ret)
+			break;
+		/* Fallthrough */
+	case VERSION_WIN8:
+	case VERSION_WIN8_1:
 		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN8);
+		if (!ret)
+			break;
+		/* Fallthrough */
+	case VERSION_WS2008:
+	case VERSION_WIN7:
+		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN7);
+		break;
+	default:
+		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN10);
+		break;
+	}
 
 	if (ret) {
 		pr_err("Synthetic video device version not accepted\n");
@@ -463,6 +661,12 @@ static int synthvid_connect_vsp(struct hv_device *hdev)
 		screen_depth = SYNTHVID_DEPTH_WIN7;
 	else
 		screen_depth = SYNTHVID_DEPTH_WIN8;
+
+	if (synthvid_ver_ge(par->synthvid_version, SYNTHVID_VERSION_WIN10)) {
+		ret = synthvid_get_supported_resolution(hdev);
+		if (ret)
+			pr_info("Failed to get supported resolution from host, use default\n");
+	}
 
 	screen_fb_size = hdev->channel->offermsg.offer.
 				mmio_megabytes * 1024 * 1024;
@@ -488,7 +692,7 @@ static int synthvid_send_config(struct hv_device *hdev)
 	msg->vid_hdr.type = SYNTHVID_VRAM_LOCATION;
 	msg->vid_hdr.size = sizeof(struct synthvid_msg_hdr) +
 		sizeof(struct synthvid_vram_location);
-	msg->vram.user_ctx = msg->vram.vram_gpa = info->fix.smem_start;
+	msg->vram.user_ctx = msg->vram.vram_gpa = par->mmio_pp;
 	msg->vram.is_vram_gpa_specified = 1;
 	synthvid_send(hdev, msg);
 
@@ -498,7 +702,7 @@ static int synthvid_send_config(struct hv_device *hdev)
 		ret = -ETIMEDOUT;
 		goto out;
 	}
-	if (msg->vram_ack.user_ctx != info->fix.smem_start) {
+	if (msg->vram_ack.user_ctx != par->mmio_pp) {
 		pr_err("Unable to set VRAM location\n");
 		ret = -ENODEV;
 		goto out;
@@ -515,19 +719,77 @@ out:
 
 /*
  * Delayed work callback:
- * It is called at HVFB_UPDATE_DELAY or longer time interval to process
- * screen updates. It is re-scheduled if further update is necessary.
+ * It is scheduled to call whenever update request is received and it has
+ * not been called in last HVFB_ONDEMAND_THROTTLE time interval.
  */
 static void hvfb_update_work(struct work_struct *w)
 {
 	struct hvfb_par *par = container_of(w, struct hvfb_par, dwork.work);
 	struct fb_info *info = par->info;
+	unsigned long flags;
+	int x1, x2, y1, y2;
+	int j;
 
-	if (par->fb_ready)
-		synthvid_update(info);
+	spin_lock_irqsave(&par->delayed_refresh_lock, flags);
+	/* Reset the request flag */
+	par->delayed_refresh = false;
 
-	if (par->update)
-		schedule_delayed_work(&par->dwork, HVFB_UPDATE_DELAY);
+	/* Store the dirty rectangle to local variables */
+	x1 = par->x1;
+	x2 = par->x2;
+	y1 = par->y1;
+	y2 = par->y2;
+
+	/* Clear dirty rectangle */
+	par->x1 = par->y1 = INT_MAX;
+	par->x2 = par->y2 = 0;
+
+	spin_unlock_irqrestore(&par->delayed_refresh_lock, flags);
+
+	if (x1 > info->var.xres || x2 > info->var.xres ||
+	    y1 > info->var.yres || y2 > info->var.yres || x2 <= x1)
+		return;
+
+	/* Copy the dirty rectangle to frame buffer memory */
+	for (j = y1; j < y2; j++) {
+		hvfb_docopy(par,
+			    j * info->fix.line_length +
+			    (x1 * screen_depth / 8),
+			    (x2 - x1) * screen_depth / 8);
+	}
+
+	/* Refresh */
+	if (par->fb_ready && par->update)
+		synthvid_update(info, x1, y1, x2, y2);
+}
+
+/*
+ * Control the on-demand refresh frequency. It schedules a delayed
+ * screen update if it has not yet.
+ */
+static void hvfb_ondemand_refresh_throttle(struct hvfb_par *par,
+					   int x1, int y1, int w, int h)
+{
+	unsigned long flags;
+	int x2 = x1 + w;
+	int y2 = y1 + h;
+
+	spin_lock_irqsave(&par->delayed_refresh_lock, flags);
+
+	/* Merge dirty rectangle */
+	par->x1 = min_t(int, par->x1, x1);
+	par->y1 = min_t(int, par->y1, y1);
+	par->x2 = max_t(int, par->x2, x2);
+	par->y2 = max_t(int, par->y2, y2);
+
+	/* Schedule a delayed screen update if not yet */
+	if (par->delayed_refresh == false) {
+		schedule_delayed_work(&par->dwork,
+				      HVFB_ONDEMAND_THROTTLE);
+		par->delayed_refresh = true;
+	}
+
+	spin_unlock_irqrestore(&par->delayed_refresh_lock, flags);
 }
 
 static int hvfb_on_panic(struct notifier_block *nb,
@@ -539,7 +801,8 @@ static int hvfb_on_panic(struct notifier_block *nb,
 	par = container_of(nb, struct hvfb_par, hvfb_panic_nb);
 	par->synchronous_fb = true;
 	info = par->info;
-	synthvid_update(info);
+	hvfb_docopy(par, 0, dio_fb_size);
+	synthvid_update(info, 0, 0, INT_MAX, INT_MAX);
 
 	return NOTIFY_DONE;
 }
@@ -600,7 +863,10 @@ static void hvfb_cfb_fillrect(struct fb_info *p,
 
 	cfb_fillrect(p, rect);
 	if (par->synchronous_fb)
-		synthvid_update(p);
+		synthvid_update(p, 0, 0, INT_MAX, INT_MAX);
+	else
+		hvfb_ondemand_refresh_throttle(par, rect->dx, rect->dy,
+					       rect->width, rect->height);
 }
 
 static void hvfb_cfb_copyarea(struct fb_info *p,
@@ -610,7 +876,10 @@ static void hvfb_cfb_copyarea(struct fb_info *p,
 
 	cfb_copyarea(p, area);
 	if (par->synchronous_fb)
-		synthvid_update(p);
+		synthvid_update(p, 0, 0, INT_MAX, INT_MAX);
+	else
+		hvfb_ondemand_refresh_throttle(par, area->dx, area->dy,
+					       area->width, area->height);
 }
 
 static void hvfb_cfb_imageblit(struct fb_info *p,
@@ -620,7 +889,10 @@ static void hvfb_cfb_imageblit(struct fb_info *p,
 
 	cfb_imageblit(p, image);
 	if (par->synchronous_fb)
-		synthvid_update(p);
+		synthvid_update(p, 0, 0, INT_MAX, INT_MAX);
+	else
+		hvfb_ondemand_refresh_throttle(par, image->dx, image->dy,
+					       image->width, image->height);
 }
 
 static struct fb_ops hvfb_ops = {
@@ -653,6 +925,8 @@ static void hvfb_get_option(struct fb_info *info)
 	}
 
 	if (x < HVFB_WIDTH_MIN || y < HVFB_HEIGHT_MIN ||
+	    (synthvid_ver_ge(par->synthvid_version, SYNTHVID_VERSION_WIN10) &&
+	    (x > screen_width_max || y > screen_height_max)) ||
 	    (par->synthvid_version == SYNTHVID_VERSION_WIN8 &&
 	     x * y * screen_depth / 8 > SYNTHVID_FB_SIZE_WIN8) ||
 	    (par->synthvid_version == SYNTHVID_VERSION_WIN7 &&
@@ -677,6 +951,9 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 	resource_size_t pot_start, pot_end;
 	int ret;
 
+	dio_fb_size =
+		screen_width * screen_height * screen_depth / 8;
+
 	if (gen2vm) {
 		pot_start = 0;
 		pot_end = -1;
@@ -689,8 +966,12 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 		}
 
 		if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM) ||
-		    pci_resource_len(pdev, 0) < screen_fb_size)
+		    pci_resource_len(pdev, 0) < screen_fb_size) {
+			pr_err("Resource not available or (0x%lx < 0x%lx)\n",
+			       (unsigned long) pci_resource_len(pdev, 0),
+			       (unsigned long) screen_fb_size);
 			goto err1;
+		}
 
 		pot_end = pci_resource_end(pdev, 0);
 		pot_start = pot_end - screen_fb_size + 1;
@@ -707,9 +988,14 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 	if (!fb_virt)
 		goto err2;
 
+	/* Allocate memory for deferred IO */
+	par->dio_vp = vzalloc(round_up(dio_fb_size, PAGE_SIZE));
+	if (par->dio_vp == NULL)
+		goto err3;
+
 	info->apertures = alloc_apertures(1);
 	if (!info->apertures)
-		goto err3;
+		goto err4;
 
 	if (gen2vm) {
 		info->apertures->ranges[0].base = screen_info.lfb_base;
@@ -721,16 +1007,23 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 		info->apertures->ranges[0].size = pci_resource_len(pdev, 0);
 	}
 
+	/* Physical address of FB device */
+	par->mmio_pp = par->mem->start;
+	/* Virtual address of FB device */
+	par->mmio_vp = (unsigned char *) fb_virt;
+
 	info->fix.smem_start = par->mem->start;
-	info->fix.smem_len = screen_fb_size;
-	info->screen_base = fb_virt;
-	info->screen_size = screen_fb_size;
+	info->fix.smem_len = dio_fb_size;
+	info->screen_base = par->dio_vp;
+	info->screen_size = dio_fb_size;
 
 	if (!gen2vm)
 		pci_dev_put(pdev);
 
 	return 0;
 
+err4:
+	vfree(par->dio_vp);
 err3:
 	iounmap(fb_virt);
 err2:
@@ -748,6 +1041,7 @@ static void hvfb_putmem(struct fb_info *info)
 {
 	struct hvfb_par *par = info->par;
 
+	vfree(par->dio_vp);
 	iounmap(info->screen_base);
 	vmbus_free_mmio(par->mem->start, screen_fb_size);
 	par->mem = NULL;
@@ -771,6 +1065,11 @@ static int hvfb_probe(struct hv_device *hdev,
 	init_completion(&par->wait);
 	INIT_DELAYED_WORK(&par->dwork, hvfb_update_work);
 
+	par->delayed_refresh = false;
+	spin_lock_init(&par->delayed_refresh_lock);
+	par->x1 = par->y1 = INT_MAX;
+	par->x2 = par->y2 = 0;
+
 	/* Connect to VSP */
 	hv_set_drvdata(hdev, info);
 	ret = synthvid_connect_vsp(hdev);
@@ -779,16 +1078,15 @@ static int hvfb_probe(struct hv_device *hdev,
 		goto error1;
 	}
 
+	hvfb_get_option(info);
+	pr_info("Screen resolution: %dx%d, Color depth: %d\n",
+		screen_width, screen_height, screen_depth);
+
 	ret = hvfb_getmem(hdev, info);
 	if (ret) {
 		pr_err("No memory for framebuffer\n");
 		goto error2;
 	}
-
-	hvfb_get_option(info);
-	pr_info("Screen resolution: %dx%d, Color depth: %d\n",
-		screen_width, screen_height, screen_depth);
-
 
 	/* Set up fb_info */
 	info->flags = FBINFO_DEFAULT;
@@ -823,6 +1121,10 @@ static int hvfb_probe(struct hv_device *hdev,
 	info->fbops = &hvfb_ops;
 	info->pseudo_palette = par->pseudo_palette;
 
+	/* Initialize deferred IO */
+	info->fbdefio = &synthvid_defio;
+	fb_deferred_io_init(info);
+
 	/* Send config to host */
 	ret = synthvid_send_config(hdev);
 	if (ret)
@@ -844,6 +1146,7 @@ static int hvfb_probe(struct hv_device *hdev,
 	return 0;
 
 error:
+	fb_deferred_io_cleanup(info);
 	hvfb_putmem(info);
 error2:
 	vmbus_close(hdev->channel);
@@ -866,6 +1169,8 @@ static int hvfb_remove(struct hv_device *hdev)
 	par->update = false;
 	par->fb_ready = false;
 
+	fb_deferred_io_cleanup(info);
+
 	unregister_framebuffer(info);
 	cancel_delayed_work_sync(&par->dwork);
 
@@ -876,6 +1181,61 @@ static int hvfb_remove(struct hv_device *hdev)
 	framebuffer_release(info);
 
 	return 0;
+}
+
+static int hvfb_suspend(struct hv_device *hdev)
+{
+	struct fb_info *info = hv_get_drvdata(hdev);
+	struct hvfb_par *par = info->par;
+
+	console_lock();
+
+	/* 1 means do suspend */
+	fb_set_suspend(info, 1);
+
+	cancel_delayed_work_sync(&par->dwork);
+
+	par->update_saved = par->update;
+	par->update = false;
+	par->fb_ready = false;
+
+	vmbus_close(hdev->channel);
+
+	console_unlock();
+
+	return 0;
+}
+
+static int hvfb_resume(struct hv_device *hdev)
+{
+	struct fb_info *info = hv_get_drvdata(hdev);
+	struct hvfb_par *par = info->par;
+	int ret;
+
+	console_lock();
+
+	ret = synthvid_connect_vsp(hdev);
+	if (ret != 0)
+		goto out;
+
+	ret = synthvid_send_config(hdev);
+	if (ret != 0) {
+		vmbus_close(hdev->channel);
+		goto out;
+	}
+
+	par->fb_ready = true;
+	par->update = par->update_saved;
+
+	schedule_delayed_work(&par->dwork, HVFB_UPDATE_DELAY);
+
+	/* 0 means do resume */
+	fb_set_suspend(info, 0);
+
+out:
+	console_unlock();
+
+	return ret;
 }
 
 
@@ -901,6 +1261,8 @@ static struct hv_driver hvfb_drv = {
 	.id_table = id_table,
 	.probe = hvfb_probe,
 	.remove = hvfb_remove,
+	.suspend = hvfb_suspend,
+	.resume = hvfb_resume,
 	.driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},

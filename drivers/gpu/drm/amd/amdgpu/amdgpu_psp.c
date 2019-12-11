@@ -567,7 +567,9 @@ static int psp_xgmi_initialize(struct psp_context *psp)
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
 
-	if (!psp->adev->psp.ta_fw)
+	if (!psp->adev->psp.ta_fw ||
+	    !psp->adev->psp.ta_xgmi_ucode_size ||
+	    !psp->adev->psp.ta_xgmi_start_addr)
 		return -ENOENT;
 
 	if (!psp->xgmi_context.initialized) {
@@ -756,6 +758,12 @@ static int psp_ras_terminate(struct psp_context *psp)
 {
 	int ret;
 
+	/*
+	 * TODO: bypass the terminate in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
 	if (!psp->ras.ras_initialized)
 		return 0;
 
@@ -776,6 +784,18 @@ static int psp_ras_terminate(struct psp_context *psp)
 static int psp_ras_initialize(struct psp_context *psp)
 {
 	int ret;
+
+	/*
+	 * TODO: bypass the initialize in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	if (!psp->adev->psp.ta_ras_ucode_size ||
+	    !psp->adev->psp.ta_ras_start_addr) {
+		dev_warn(psp->adev->dev, "RAS: ras ta ucode is not available\n");
+		return 0;
+	}
 
 	if (!psp->ras.ras_initialized) {
 		ret = psp_ras_init_shared_buf(psp);
@@ -866,6 +886,18 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 {
 	int ret;
 
+	/*
+	 * TODO: bypass the initialize in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	if (!psp->adev->psp.ta_hdcp_ucode_size ||
+	    !psp->adev->psp.ta_hdcp_start_addr) {
+		dev_warn(psp->adev->dev, "HDCP: hdcp ta ucode is not available\n");
+		return 0;
+	}
+
 	if (!psp->hdcp_context.hdcp_initialized) {
 		ret = psp_hdcp_init_shared_buf(psp);
 		if (ret)
@@ -947,6 +979,12 @@ int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 static int psp_hdcp_terminate(struct psp_context *psp)
 {
 	int ret;
+
+	/*
+	 * TODO: bypass the terminate in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
 
 	if (!psp->hdcp_context.hdcp_initialized)
 		return 0;
@@ -1039,6 +1077,18 @@ static int psp_dtm_initialize(struct psp_context *psp)
 {
 	int ret;
 
+	/*
+	 * TODO: bypass the initialize in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	if (!psp->adev->psp.ta_dtm_ucode_size ||
+	    !psp->adev->psp.ta_dtm_start_addr) {
+		dev_warn(psp->adev->dev, "DTM: dtm ta ucode is not available\n");
+		return 0;
+	}
+
 	if (!psp->dtm_context.dtm_initialized) {
 		ret = psp_dtm_init_shared_buf(psp);
 		if (ret)
@@ -1090,6 +1140,12 @@ int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 static int psp_dtm_terminate(struct psp_context *psp)
 {
 	int ret;
+
+	/*
+	 * TODO: bypass the terminate in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
 
 	if (!psp->dtm_context.dtm_initialized)
 		return 0;
@@ -1411,7 +1467,10 @@ out:
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA5
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA6
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA7
-		    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G))
+                    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G
+	            || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL
+	            || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM
+	            || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM))
 			/*skip ucode loading in SRIOV VF */
 			continue;
 
@@ -1428,8 +1487,8 @@ out:
 			return ret;
 
 		/* Start rlc autoload after psp recieved all the gfx firmware */
-		if (psp->autoload_supported && ucode->ucode_id ==
-			AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM) {
+		if (psp->autoload_supported && ucode->ucode_id == (amdgpu_sriov_vf(adev) ?
+		    AMDGPU_UCODE_ID_CP_MEC2 : AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM)) {
 			ret = psp_rlc_autoload(psp);
 			if (ret) {
 				DRM_ERROR("Failed to start rlc autoload\n");

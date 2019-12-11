@@ -4,7 +4,6 @@
 
 #include <linux/io.h>
 #include <linux/scatterlist.h>
-#include <linux/gpio.h>
 
 /* Register offsets */
 #define DW_SPI_CTRL0			0x00

@@ -298,7 +298,8 @@ xfs_iwalk_ag_start(
 	error = xfs_inobt_get_rec(*curpp, irec, has_more);
 	if (error)
 		return error;
-	XFS_WANT_CORRUPTED_RETURN(mp, *has_more == 1);
+	if (XFS_IS_CORRUPT(mp, *has_more != 1))
+		return -EFSCORRUPTED;
 
 	/*
 	 * If the LE lookup yielded an inobt record before the cursor position,

@@ -1599,9 +1599,9 @@ static int cmd_handler_mi_op_2f(struct parser_exec_state *s)
 	if (!(cmd_val(s, 0) & (1 << 22)))
 		return ret;
 
-	/* check if QWORD */
-	if (DWORD_FIELD(0, 20, 19) == 1)
-		valid_len += 8;
+	/* check inline data */
+	if (cmd_val(s, 0) & BIT(18))
+		valid_len = CMD_LEN(9);
 	ret = gvt_check_valid_cmd_length(cmd_length(s),
 			valid_len);
 	if (ret)

@@ -293,7 +293,7 @@ static int vcn_v2_5_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring;
-	int i;
+	int i, j;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		if (adev->vcn.harvest_config & (1 << i))
@@ -305,8 +305,8 @@ static int vcn_v2_5_hw_fini(void *handle)
 
 		ring->sched.ready = false;
 
-		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
-			ring = &adev->vcn.inst[i].ring_enc[i];
+		for (j = 0; j < adev->vcn.num_enc_rings; ++j) {
+			ring = &adev->vcn.inst[i].ring_enc[j];
 			ring->sched.ready = false;
 		}
 

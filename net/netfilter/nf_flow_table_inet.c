@@ -21,9 +21,34 @@ nf_flow_offload_inet_hook(void *priv, struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
+static int nf_flow_rule_route_inet(struct net *net,
+				   const struct flow_offload *flow,
+				   enum flow_offload_tuple_dir dir,
+				   struct nf_flow_rule *flow_rule)
+{
+	const struct flow_offload_tuple *flow_tuple = &flow->tuplehash[dir].tuple;
+	int err;
+
+	switch (flow_tuple->l3proto) {
+	case NFPROTO_IPV4:
+		err = nf_flow_rule_route_ipv4(net, flow, dir, flow_rule);
+		break;
+	case NFPROTO_IPV6:
+		err = nf_flow_rule_route_ipv6(net, flow, dir, flow_rule);
+		break;
+	default:
+		err = -1;
+		break;
+	}
+
+	return err;
+}
+
 static struct nf_flowtable_type flowtable_inet = {
 	.family		= NFPROTO_INET,
 	.init		= nf_flow_table_init,
+	.setup		= nf_flow_table_offload_setup,
+	.action		= nf_flow_rule_route_inet,
 	.free		= nf_flow_table_free,
 	.hook		= nf_flow_offload_inet_hook,
 	.owner		= THIS_MODULE,

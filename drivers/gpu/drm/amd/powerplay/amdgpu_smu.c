@@ -591,9 +591,17 @@ int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size)
 	smu_table->power_play_table = smu_table->hardcode_pptable;
 	smu_table->power_play_table_size = size;
 
+	/*
+	 * Special hw_fini action(for Navi1x, the DPMs disablement will be
+	 * skipped) may be needed for custom pptable uploading.
+	 */
+	smu->uploading_custom_pp_table = true;
+
 	ret = smu_reset(smu);
 	if (ret)
 		pr_info("smu reset failed, ret = %d\n", ret);
+
+	smu->uploading_custom_pp_table = false;
 
 failed:
 	mutex_unlock(&smu->mutex);
@@ -719,6 +727,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		vega20_set_ppt_funcs(smu);
 		break;
 	case CHIP_NAVI10:
@@ -727,6 +736,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		navi10_set_ppt_funcs(smu);
 		break;
 	case CHIP_ARCTURUS:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		arcturus_set_ppt_funcs(smu);
 		/* OD is not supported on Arcturus */
 		smu->od_enabled =false;
@@ -1068,10 +1078,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		return ret;
 
 	if (adev->asic_type != CHIP_ARCTURUS) {
-		ret = smu_override_pcie_parameters(smu);
-		if (ret)
-			return ret;
-
 		ret = smu_notify_display_change(smu);
 		if (ret)
 			return ret;
@@ -1100,6 +1106,12 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 			return ret;
 	}
 
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		ret = smu_override_pcie_parameters(smu);
+		if (ret)
+			return ret;
+	}
+
 	ret = smu_set_default_od_settings(smu, initialize);
 	if (ret)
 		return ret;
@@ -1109,7 +1121,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		if (ret)
 			return ret;
 
-		ret = smu_get_power_limit(smu, &smu->default_power_limit, true, false);
+		ret = smu_get_power_limit(smu, &smu->default_power_limit, false, false);
 		if (ret)
 			return ret;
 	}
@@ -1293,10 +1305,25 @@ static int smu_hw_fini(void *handle)
 		return ret;
 	}
 
-	ret = smu_stop_dpms(smu);
-	if (ret) {
-		pr_warn("Fail to stop Dpms!\n");
-		return ret;
+	/*
+	 * For custom pptable uploading, skip the DPM features
+	 * disable process on Navi1x ASICs.
+	 *   - As the gfx related features are under control of
+	 *     RLC on those ASICs. RLC reinitialization will be
+	 *     needed to reenable them. That will cost much more
+	 *     efforts.
+	 *
+	 *   - SMU firmware can handle the DPM reenablement
+	 *     properly.
+	 */
+	if (!smu->uploading_custom_pp_table ||
+	    !((adev->asic_type >= CHIP_NAVI10) &&
+	      (adev->asic_type <= CHIP_NAVI12))) {
+		ret = smu_stop_dpms(smu);
+		if (ret) {
+			pr_warn("Fail to stop Dpms!\n");
+			return ret;
+		}
 	}
 
 	kfree(table_context->driver_pptable);
@@ -2509,5 +2536,24 @@ int smu_get_dpm_clock_table(struct smu_context *smu,
 
 	mutex_unlock(&smu->mutex);
 
+	return ret;
+}
+
+uint32_t smu_get_pptable_power_limit(struct smu_context *smu)
+{
+	uint32_t ret = 0;
+
+	if (smu->ppt_funcs->get_pptable_power_limit)
+		ret = smu->ppt_funcs->get_pptable_power_limit(smu);
+
+	return ret;
+}
+
+int smu_send_smc_msg(struct smu_context *smu,
+		     enum smu_message_type msg)
+{
+	int ret;
+
+	ret = smu_send_smc_msg_with_param(smu, msg, 0);
 	return ret;
 }

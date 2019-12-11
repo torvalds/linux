@@ -105,11 +105,24 @@ void amdgpu_amdkfd_gpuvm_init_mem_limits(void)
 		(kfd_mem_limit.max_ttm_mem_limit >> 20));
 }
 
+/* Estimate page table size needed to represent a given memory size
+ *
+ * With 4KB pages, we need one 8 byte PTE for each 4KB of memory
+ * (factor 512, >> 9). With 2MB pages, we need one 8 byte PTE for 2MB
+ * of memory (factor 256K, >> 18). ROCm user mode tries to optimize
+ * for 2MB pages for TLB efficiency. However, small allocations and
+ * fragmented system memory still need some 4KB pages. We choose a
+ * compromise that should work in most cases without reserving too
+ * much memory for page tables unnecessarily (factor 16K, >> 14).
+ */
+#define ESTIMATE_PT_SIZE(mem_size) ((mem_size) >> 14)
+
 static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 		uint64_t size, u32 domain, bool sg)
 {
+	uint64_t reserved_for_pt =
+		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
 	size_t acc_size, system_mem_needed, ttm_mem_needed, vram_needed;
-	uint64_t reserved_for_pt = amdgpu_amdkfd_total_mem_size >> 9;
 	int ret = 0;
 
 	acc_size = ttm_bo_dma_acc_size(&adev->mman.bdev, size,
@@ -505,8 +518,7 @@ static void remove_kgd_mem_from_kfd_bo_list(struct kgd_mem *mem,
  *
  * Returns 0 for success, negative errno for errors.
  */
-static int init_user_pages(struct kgd_mem *mem, struct mm_struct *mm,
-			   uint64_t user_addr)
+static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr)
 {
 	struct amdkfd_process_info *process_info = mem->process_info;
 	struct amdgpu_bo *bo = mem->bo;
@@ -1199,7 +1211,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	add_kgd_mem_to_kfd_bo_list(*mem, avm->process_info, user_addr);
 
 	if (user_addr) {
-		ret = init_user_pages(*mem, current->mm, user_addr);
+		ret = init_user_pages(*mem, user_addr);
 		if (ret)
 			goto allocate_init_user_pages_failed;
 	}
@@ -1744,6 +1756,10 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 			return ret;
 		}
 
+		/*
+		 * FIXME: Cannot ignore the return code, must hold
+		 * notifier_lock
+		 */
 		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
 
 		/* Mark the BO as valid unless it was invalidated

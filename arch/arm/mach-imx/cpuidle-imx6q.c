@@ -62,13 +62,13 @@ static struct cpuidle_driver imx6q_cpuidle_driver = {
  */
 void imx6q_cpuidle_fec_irqs_used(void)
 {
-	imx6q_cpuidle_driver.states[1].disabled = true;
+	cpuidle_driver_state_disabled(&imx6q_cpuidle_driver, 1, true);
 }
 EXPORT_SYMBOL_GPL(imx6q_cpuidle_fec_irqs_used);
 
 void imx6q_cpuidle_fec_irqs_unused(void)
 {
-	imx6q_cpuidle_driver.states[1].disabled = false;
+	cpuidle_driver_state_disabled(&imx6q_cpuidle_driver, 1, false);
 }
 EXPORT_SYMBOL_GPL(imx6q_cpuidle_fec_irqs_unused);
 

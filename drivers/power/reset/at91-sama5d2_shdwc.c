@@ -269,6 +269,12 @@ static const struct of_device_id at91_shdwc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, at91_shdwc_of_match);
 
+static const struct of_device_id at91_pmc_ids[] = {
+	{ .compatible = "atmel,sama5d2-pmc" },
+	{ .compatible = "microchip,sam9x60-pmc" },
+	{ /* Sentinel. */ }
+};
+
 static int __init at91_shdwc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -313,7 +319,7 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 
 	at91_shdwc_dt_configure(pdev);
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-pmc");
+	np = of_find_matching_node(NULL, at91_pmc_ids);
 	if (!np) {
 		ret = -ENODEV;
 		goto clk_disable;

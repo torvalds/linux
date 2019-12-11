@@ -793,7 +793,7 @@ static void pstore_timefunc(struct timer_list *unused)
 			  jiffies + msecs_to_jiffies(pstore_update_ms));
 }
 
-void __init pstore_choose_compression(void)
+static void __init pstore_choose_compression(void)
 {
 	const struct pstore_zbackend *step;
 

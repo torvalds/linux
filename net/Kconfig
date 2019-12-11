@@ -258,7 +258,7 @@ config XPS
 	default y
 
 config HWBM
-       bool
+	bool
 
 config CGROUP_NET_PRIO
 	bool "Network priority cgroup"
@@ -309,12 +309,12 @@ config BPF_STREAM_PARSER
 	select STREAM_PARSER
 	select NET_SOCK_MSG
 	---help---
-	 Enabling this allows a stream parser to be used with
-	 BPF_MAP_TYPE_SOCKMAP.
+	  Enabling this allows a stream parser to be used with
+	  BPF_MAP_TYPE_SOCKMAP.
 
-	 BPF_MAP_TYPE_SOCKMAP provides a map type to use with network sockets.
-	 It can be used to enforce socket policy, implement socket redirects,
-	 etc.
+	  BPF_MAP_TYPE_SOCKMAP provides a map type to use with network sockets.
+	  It can be used to enforce socket policy, implement socket redirects,
+	  etc.
 
 config NET_FLOW_LIMIT
 	bool
@@ -349,12 +349,12 @@ config NET_DROP_MONITOR
 	tristate "Network packet drop alerting service"
 	depends on INET && TRACEPOINTS
 	---help---
-	This feature provides an alerting service to userspace in the
-	event that packets are discarded in the network stack.  Alerts
-	are broadcast via netlink socket to any listening user space
-	process.  If you don't need network drop alerts, or if you are ok
-	just checking the various proc files and other utilities for
-	drop statistics, say N here.
+	  This feature provides an alerting service to userspace in the
+	  event that packets are discarded in the network stack.  Alerts
+	  are broadcast via netlink socket to any listening user space
+	  process.  If you don't need network drop alerts, or if you are ok
+	  just checking the various proc files and other utilities for
+	  drop statistics, say N here.
 
 endmenu
 
@@ -433,7 +433,7 @@ config NET_DEVLINK
 	imply NET_DROP_MONITOR
 
 config PAGE_POOL
-       bool
+	bool
 
 config FAILOVER
 	tristate "Generic failover module"

@@ -286,7 +286,7 @@ struct dcbmsg {
  * @DCB_CMD_GNUMTCS: get the number of traffic classes currently supported
  * @DCB_CMD_SNUMTCS: set the number of traffic classes
  * @DCB_CMD_GBCN: set backward congestion notification configuration
- * @DCB_CMD_SBCN: get backward congestion notification configration.
+ * @DCB_CMD_SBCN: get backward congestion notification configuration.
  * @DCB_CMD_GAPP: get application protocol configuration
  * @DCB_CMD_SAPP: set application protocol configuration
  * @DCB_CMD_IEEE_SET: set IEEE 802.1Qaz configuration

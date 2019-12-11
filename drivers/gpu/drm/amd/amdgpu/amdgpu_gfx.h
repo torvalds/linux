@@ -225,7 +225,7 @@ struct amdgpu_me {
 	uint32_t			num_me;
 	uint32_t			num_pipe_per_me;
 	uint32_t			num_queue_per_pipe;
-	void				*mqd_backup[AMDGPU_MAX_GFX_RINGS + 1];
+	void				*mqd_backup[AMDGPU_MAX_GFX_RINGS];
 
 	/* These are the resources for which amdgpu takes ownership */
 	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_GFX_QUEUES);

@@ -1057,9 +1057,12 @@ static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 	atomic64_set(&iocg->active_period, cur_period);
 
 	/* already activated or breaking leaf-only constraint? */
-	for (i = iocg->level; i > 0; i--)
-		if (!list_empty(&iocg->active_list))
+	if (!list_empty(&iocg->active_list))
+		goto succeed_unlock;
+	for (i = iocg->level - 1; i > 0; i--)
+		if (!list_empty(&iocg->ancestors[i]->active_list))
 			goto fail_unlock;
+
 	if (iocg->child_active_sum)
 		goto fail_unlock;
 
@@ -1101,6 +1104,7 @@ static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 		ioc_start_period(ioc, now);
 	}
 
+succeed_unlock:
 	spin_unlock_irq(&ioc->lock);
 	return true;
 

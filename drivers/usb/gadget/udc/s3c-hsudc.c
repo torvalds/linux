@@ -1263,7 +1263,6 @@ static const struct usb_gadget_ops s3c_hsudc_gadget_ops = {
 static int s3c_hsudc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct s3c_hsudc *hsudc;
 	struct s3c24xx_hsudc_platdata *pd = dev_get_platdata(&pdev->dev);
 	int ret, i;
@@ -1290,9 +1289,7 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 		goto err_supplies;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	hsudc->regs = devm_ioremap_resource(&pdev->dev, res);
+	hsudc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hsudc->regs)) {
 		ret = PTR_ERR(hsudc->regs);
 		goto err_res;
