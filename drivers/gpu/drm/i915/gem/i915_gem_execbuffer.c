@@ -276,25 +276,6 @@ struct i915_execbuffer {
 
 #define exec_entry(EB, VMA) (&(EB)->exec[(VMA)->exec_flags - (EB)->flags])
 
-/*
- * Used to convert any address to canonical form.
- * Starting from gen8, some commands (e.g. STATE_BASE_ADDRESS,
- * MI_LOAD_REGISTER_MEM and others, see Broadwell PRM Vol2a) require the
- * addresses to be in a canonical form:
- * "GraphicsAddress[63:48] are ignored by the HW and assumed to be in correct
- * canonical form [63:48] == [47]."
- */
-#define GEN8_HIGH_ADDRESS_BIT 47
-static inline u64 gen8_canonical_addr(u64 address)
-{
-	return sign_extend64(address, GEN8_HIGH_ADDRESS_BIT);
-}
-
-static inline u64 gen8_noncanonical_addr(u64 address)
-{
-	return address & GENMASK_ULL(GEN8_HIGH_ADDRESS_BIT, 0);
-}
-
 static inline bool eb_use_cmdparser(const struct i915_execbuffer *eb)
 {
 	return intel_engine_requires_cmd_parser(eb->engine) ||
@@ -2005,8 +1986,6 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 {
 	struct intel_engine_pool_node *pool;
 	struct i915_vma *vma;
-	u64 batch_start;
-	u64 shadow_batch_start;
 	int err;
 
 	pool = intel_engine_get_pool(eb->engine, eb->batch_len);
@@ -2017,19 +1996,11 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 	if (IS_ERR(vma))
 		goto err;
 
-	batch_start = gen8_canonical_addr(eb->batch->node.start) +
-		      eb->batch_start_offset;
-
-	shadow_batch_start = gen8_canonical_addr(vma->node.start);
-
 	err = intel_engine_cmd_parser(eb->engine,
-				      eb->batch->obj,
-				      batch_start,
+				      eb->batch,
 				      eb->batch_start_offset,
 				      eb->batch_len,
-				      pool->obj,
-				      shadow_batch_start);
-
+				      vma);
 	if (err) {
 		i915_vma_unpin(vma);
 
