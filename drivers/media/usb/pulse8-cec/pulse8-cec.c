@@ -49,7 +49,7 @@ static int debug;
 static int persistent_config;
 module_param(debug, int, 0644);
 module_param(persistent_config, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-1)");
+MODULE_PARM_DESC(debug, "debug level (0-2)");
 MODULE_PARM_DESC(persistent_config, "read config from persistent memory (0-1)");
 
 enum pulse8_msgcodes {
@@ -215,7 +215,9 @@ static int pulse8_send_and_wait_once(struct pulse8 *pulse8,
 {
 	int err;
 
-	/* dev_info(pulse8->dev, "transmit %s: %*ph\n", pulse8_msgname(cmd[0]), cmd_len, cmd); */
+	if (debug > 1)
+		dev_info(pulse8->dev, "transmit %s: %*ph\n",
+			 pulse8_msgname(cmd[0]), cmd_len, cmd);
 	init_completion(&pulse8->cmd_done);
 
 	err = pulse8_send(pulse8->serio, cmd, cmd_len);
@@ -231,8 +233,9 @@ static int pulse8_send_and_wait_once(struct pulse8 *pulse8,
 		return -ENOTTY;
 	if (response &&
 	    ((pulse8->data[0] & 0x3f) != response || pulse8->len < size + 1)) {
-		dev_info(pulse8->dev, "transmit %s: failed %s\n",
-			 pulse8_msgname(cmd[0]), pulse8_msgname(pulse8->data[0]));
+		dev_info(pulse8->dev, "transmit %s failed with %s\n",
+			 pulse8_msgname(cmd[0]),
+			 pulse8_msgname(pulse8->data[0]));
 		return -EIO;
 	}
 	return 0;
@@ -307,9 +310,10 @@ static irqreturn_t pulse8_interrupt(struct serio *serio, unsigned char data,
 		struct cec_msg *msg = &pulse8->rx_msg;
 		u8 msgcode = pulse8->buf[0];
 
-		if (debug)
+		if (debug > 1)
 			dev_info(pulse8->dev, "received %s: %*ph\n",
-				 pulse8_msgname(msgcode), pulse8->idx, pulse8->buf);
+				 pulse8_msgname(msgcode),
+				 pulse8->idx, pulse8->buf);
 		switch (msgcode & 0x3f) {
 		case MSGCODE_FRAME_START:
 			msg->len = 1;
@@ -511,6 +515,9 @@ static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	unsigned int i;
 	int err;
 
+	if (debug)
+		dev_info(pulse8->dev, "adap transmit %*ph\n",
+			 msg->len, msg->msg);
 	mutex_lock(&pulse8->lock);
 	cmd[0] = MSGCODE_TRANSMIT_IDLETIME;
 	cmd[1] = signal_free_time;
@@ -540,7 +547,10 @@ static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 						   MSGCODE_COMMAND_ACCEPTED, 1);
 		}
 	}
-
+	if (err && debug)
+		dev_info(pulse8->dev, "%s(0x%02x) failed with error %d for msg %*ph\n",
+			 pulse8_msgname(cmd[0]), cmd[1],
+			 err, msg->len, msg->msg);
 	mutex_unlock(&pulse8->lock);
 	return err;
 }
