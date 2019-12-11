@@ -538,6 +538,18 @@
 			 SCTLR_EL1_NTWE | SCTLR_ELx_IESB | SCTLR_EL1_SPAN |\
 			 ENDIAN_SET_EL1 | SCTLR_EL1_UCI  | SCTLR_EL1_RES1)
 
+/* MAIR_ELx memory attributes (used by Linux) */
+#define MAIR_ATTR_DEVICE_nGnRnE		UL(0x00)
+#define MAIR_ATTR_DEVICE_nGnRE		UL(0x04)
+#define MAIR_ATTR_DEVICE_GRE		UL(0x0c)
+#define MAIR_ATTR_NORMAL_NC		UL(0x44)
+#define MAIR_ATTR_NORMAL_WT		UL(0xbb)
+#define MAIR_ATTR_NORMAL		UL(0xff)
+#define MAIR_ATTR_MASK			UL(0xff)
+
+/* Position the attr at the correct index */
+#define MAIR_ATTRIDX(attr, idx)		((attr) << ((idx) * 8))
+
 /* id_aa64isar0 */
 #define ID_AA64ISAR0_TS_SHIFT		52
 #define ID_AA64ISAR0_FHM_SHIFT		48
