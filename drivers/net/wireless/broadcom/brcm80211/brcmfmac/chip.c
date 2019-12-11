@@ -433,11 +433,25 @@ static void brcmf_chip_ai_resetcore(struct brcmf_core_priv *core, u32 prereset,
 {
 	struct brcmf_chip_priv *ci;
 	int count;
+	struct brcmf_core *d11core2 = NULL;
+	struct brcmf_core_priv *d11priv2 = NULL;
 
 	ci = core->chip;
 
+	/* special handle two D11 cores reset */
+	if (core->pub.id == BCMA_CORE_80211) {
+		d11core2 = brcmf_chip_get_d11core(&ci->pub, 1);
+		if (d11core2) {
+			brcmf_dbg(INFO, "found two d11 cores, reset both\n");
+			d11priv2 = container_of(d11core2,
+						struct brcmf_core_priv, pub);
+		}
+	}
+
 	/* must disable first to work for arbitrary current core state */
 	brcmf_chip_ai_coredisable(core, prereset, reset);
+	if (d11priv2)
+		brcmf_chip_ai_coredisable(d11priv2, prereset, reset);
 
 	count = 0;
 	while (ci->ops->read32(ci->ctx, core->wrapbase + BCMA_RESET_CTL) &
@@ -449,9 +463,30 @@ static void brcmf_chip_ai_resetcore(struct brcmf_core_priv *core, u32 prereset,
 		usleep_range(40, 60);
 	}
 
+	if (d11priv2) {
+		count = 0;
+		while (ci->ops->read32(ci->ctx,
+				       d11priv2->wrapbase + BCMA_RESET_CTL) &
+				       BCMA_RESET_CTL_RESET) {
+			ci->ops->write32(ci->ctx,
+					 d11priv2->wrapbase + BCMA_RESET_CTL,
+					 0);
+			count++;
+			if (count > 50)
+				break;
+			usleep_range(40, 60);
+		}
+	}
+
 	ci->ops->write32(ci->ctx, core->wrapbase + BCMA_IOCTL,
 			 postreset | BCMA_IOCTL_CLK);
 	ci->ops->read32(ci->ctx, core->wrapbase + BCMA_IOCTL);
+
+	if (d11priv2) {
+		ci->ops->write32(ci->ctx, d11priv2->wrapbase + BCMA_IOCTL,
+				 postreset | BCMA_IOCTL_CLK);
+		ci->ops->read32(ci->ctx, d11priv2->wrapbase + BCMA_IOCTL);
+	}
 }
 
 char *brcmf_chip_name(u32 id, u32 rev, char *buf, uint len)
@@ -1107,6 +1142,21 @@ void brcmf_chip_detach(struct brcmf_chip *pub)
 		kfree(core);
 	}
 	kfree(chip);
+}
+
+struct brcmf_core *brcmf_chip_get_d11core(struct brcmf_chip *pub, u8 unit)
+{
+	struct brcmf_chip_priv *chip;
+	struct brcmf_core_priv *core;
+
+	chip = container_of(pub, struct brcmf_chip_priv, pub);
+	list_for_each_entry(core, &chip->cores, list) {
+		if (core->pub.id == BCMA_CORE_80211) {
+			if (unit-- == 0)
+				return &core->pub;
+		}
+	}
+	return NULL;
 }
 
 struct brcmf_core *brcmf_chip_get_core(struct brcmf_chip *pub, u16 coreid)

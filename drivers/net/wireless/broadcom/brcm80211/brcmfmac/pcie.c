@@ -78,7 +78,7 @@ static const struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 	BRCMF_FW_ENTRY(BRCM_CC_4371_CHIP_ID, 0xFFFFFFFF, 4371),
 };
 
-#define BRCMF_PCIE_FW_UP_TIMEOUT		2000 /* msec */
+#define BRCMF_PCIE_FW_UP_TIMEOUT		5000 /* msec */
 
 #define BRCMF_PCIE_REG_MAP_SIZE			(32 * 1024)
 
