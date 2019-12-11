@@ -70,6 +70,8 @@
 #include <linux/sizes.h>
 #include <linux/hugetlb.h>
 #include <linux/highmem.h>
+#include <linux/namei.h>
+#include <linux/fsnotify.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -353,6 +355,15 @@ struct io_sr_msg {
 	int				msg_flags;
 };
 
+struct io_open {
+	struct file			*file;
+	int				dfd;
+	umode_t				mode;
+	const char __user		*fname;
+	struct filename			*filename;
+	int				flags;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -371,12 +382,17 @@ struct io_async_rw {
 	ssize_t				size;
 };
 
+struct io_async_open {
+	struct filename			*filename;
+};
+
 struct io_async_ctx {
 	union {
 		struct io_async_rw	rw;
 		struct io_async_msghdr	msg;
 		struct io_async_connect	connect;
 		struct io_timeout_data	timeout;
+		struct io_async_open	open;
 	};
 };
 
@@ -397,6 +413,7 @@ struct io_kiocb {
 		struct io_timeout	timeout;
 		struct io_connect	connect;
 		struct io_sr_msg	sr_msg;
+		struct io_open		open;
 	};
 
 	struct io_async_ctx		*io;
@@ -2150,6 +2167,67 @@ static int io_fallocate(struct io_kiocb *req, struct io_kiocb **nxt,
 	return 0;
 }
 
+static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	int ret;
+
+	if (sqe->ioprio || sqe->buf_index)
+		return -EINVAL;
+
+	req->open.dfd = READ_ONCE(sqe->fd);
+	req->open.mode = READ_ONCE(sqe->len);
+	req->open.fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	req->open.flags = READ_ONCE(sqe->open_flags);
+
+	req->open.filename = getname(req->open.fname);
+	if (IS_ERR(req->open.filename)) {
+		ret = PTR_ERR(req->open.filename);
+		req->open.filename = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
+static int io_openat(struct io_kiocb *req, struct io_kiocb **nxt,
+		     bool force_nonblock)
+{
+	struct open_flags op;
+	struct open_how how;
+	struct file *file;
+	int ret;
+
+	if (force_nonblock) {
+		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
+		return -EAGAIN;
+	}
+
+	how = build_open_how(req->open.flags, req->open.mode);
+	ret = build_open_flags(&how, &op);
+	if (ret)
+		goto err;
+
+	ret = get_unused_fd_flags(how.flags);
+	if (ret < 0)
+		goto err;
+
+	file = do_filp_open(req->open.dfd, req->open.filename, &op);
+	if (IS_ERR(file)) {
+		put_unused_fd(ret);
+		ret = PTR_ERR(file);
+	} else {
+		fsnotify_open(file);
+		fd_install(ret, file);
+	}
+err:
+	putname(req->open.filename);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	io_put_req_find_next(req, nxt);
+	return 0;
+}
+
 static int io_prep_sfr(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -3175,6 +3253,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	case IORING_OP_FALLOCATE:
 		ret = io_fallocate_prep(req, sqe);
 		break;
+	case IORING_OP_OPENAT:
+		ret = io_openat_prep(req, sqe);
+		break;
 	default:
 		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
 				req->opcode);
@@ -3337,6 +3418,14 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		}
 		ret = io_fallocate(req, nxt, force_nonblock);
 		break;
+	case IORING_OP_OPENAT:
+		if (sqe) {
+			ret = io_openat_prep(req, sqe);
+			if (ret)
+				break;
+		}
+		ret = io_openat(req, nxt, force_nonblock);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -3409,7 +3498,7 @@ static bool io_req_op_valid(int op)
 	return op >= IORING_OP_NOP && op < IORING_OP_LAST;
 }
 
-static int io_req_needs_file(struct io_kiocb *req)
+static int io_req_needs_file(struct io_kiocb *req, int fd)
 {
 	switch (req->opcode) {
 	case IORING_OP_NOP:
@@ -3419,6 +3508,8 @@ static int io_req_needs_file(struct io_kiocb *req)
 	case IORING_OP_ASYNC_CANCEL:
 	case IORING_OP_LINK_TIMEOUT:
 		return 0;
+	case IORING_OP_OPENAT:
+		return fd != -1;
 	default:
 		if (io_req_op_valid(req->opcode))
 			return 1;
@@ -3448,7 +3539,7 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 	if (flags & IOSQE_IO_DRAIN)
 		req->flags |= REQ_F_IO_DRAIN;
 
-	ret = io_req_needs_file(req);
+	ret = io_req_needs_file(req, fd);
 	if (ret <= 0)
 		return ret;
 

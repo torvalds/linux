@@ -34,6 +34,7 @@ struct io_uring_sqe {
 		__u32		timeout_flags;
 		__u32		accept_flags;
 		__u32		cancel_flags;
+		__u32		open_flags;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
 	union {
@@ -77,6 +78,7 @@ enum {
 	IORING_OP_LINK_TIMEOUT,
 	IORING_OP_CONNECT,
 	IORING_OP_FALLOCATE,
+	IORING_OP_OPENAT,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
