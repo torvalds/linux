@@ -230,9 +230,6 @@ lpfc_mem_free(struct lpfc_hba *phba)
 	dma_pool_destroy(phba->lpfc_hrb_pool);
 	phba->lpfc_hrb_pool = NULL;
 
-	dma_pool_destroy(phba->txrdy_payload_pool);
-	phba->txrdy_payload_pool = NULL;
-
 	dma_pool_destroy(phba->lpfc_hbq_pool);
 	phba->lpfc_hbq_pool = NULL;
 

@@ -10,8 +10,6 @@
 #ifndef _LINUX_SUNRPC_AUTH_H
 #define _LINUX_SUNRPC_AUTH_H
 
-#ifdef __KERNEL__
-
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/xdr.h>
@@ -194,5 +192,4 @@ struct rpc_cred *get_rpccred(struct rpc_cred *cred)
 	return NULL;
 }
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_AUTH_H */

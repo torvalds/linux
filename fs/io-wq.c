@@ -111,7 +111,7 @@ struct io_wq {
 
 	struct task_struct *manager;
 	struct user_struct *user;
-	struct cred *creds;
+	const struct cred *creds;
 	struct mm_struct *mm;
 	refcount_t refs;
 	struct completion done;

@@ -960,6 +960,7 @@ void update_vsyscall(struct timekeeper *tk)
 	vdso_data->stamp_xtime_sec = xt.tv_sec;
 	vdso_data->stamp_xtime_nsec = xt.tv_nsec;
 	vdso_data->stamp_sec_fraction = frac_sec;
+	vdso_data->hrtimer_res = hrtimer_resolution;
 	smp_wmb();
 	++(vdso_data->tb_update_count);
 }

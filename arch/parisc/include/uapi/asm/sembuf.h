@@ -3,6 +3,7 @@
 #define _PARISC_SEMBUF_H
 
 #include <asm/bitsperlong.h>
+#include <asm/ipcbuf.h>
 
 /* 
  * The semid64_ds structure for parisc architecture.

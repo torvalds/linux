@@ -52,6 +52,7 @@ static inline void wq_node_del(struct io_wq_work_list *list,
 		list->last = prev;
 	if (prev)
 		prev->next = node->next;
+	node->next = NULL;
 }
 
 #define wq_list_for_each(pos, prv, head)			\
@@ -87,7 +88,7 @@ typedef void (put_work_fn)(struct io_wq_work *);
 struct io_wq_data {
 	struct mm_struct *mm;
 	struct user_struct *user;
-	struct cred *creds;
+	const struct cred *creds;
 
 	get_work_fn *get_work;
 	put_work_fn *put_work;
@@ -118,10 +119,6 @@ static inline void io_wq_worker_sleeping(struct task_struct *tsk)
 static inline void io_wq_worker_running(struct task_struct *tsk)
 {
 }
-#endif
+#endif /* CONFIG_IO_WQ */
 
-static inline bool io_wq_current_is_worker(void)
-{
-	return in_task() && (current->flags & PF_IO_WORKER);
-}
-#endif
+#endif /* INTERNAL_IO_WQ_H */

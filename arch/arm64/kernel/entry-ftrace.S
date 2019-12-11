@@ -133,7 +133,6 @@ ENTRY(ftrace_graph_caller)
 	bl	prepare_ftrace_return
 	b	ftrace_common_return
 ENDPROC(ftrace_graph_caller)
-#else
 #endif
 
 #else /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
@@ -287,6 +286,7 @@ GLOBAL(ftrace_graph_call)		// ftrace_graph_caller();
 
 	mcount_exit
 ENDPROC(ftrace_caller)
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
@@ -307,7 +307,6 @@ ENTRY(ftrace_graph_caller)
 	mcount_exit
 ENDPROC(ftrace_graph_caller)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-#endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
 
 ENTRY(ftrace_stub)

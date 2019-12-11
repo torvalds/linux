@@ -53,7 +53,6 @@ void cpuidle_poll_state_init(struct cpuidle_driver *drv)
 	state->target_residency_ns = 0;
 	state->power_usage = -1;
 	state->enter = poll_idle;
-	state->disabled = false;
 	state->flags = CPUIDLE_FLAG_POLLING;
 }
 EXPORT_SYMBOL_GPL(cpuidle_poll_state_init);

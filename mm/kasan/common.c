@@ -36,6 +36,7 @@
 #include <linux/bug.h>
 #include <linux/uaccess.h>
 
+#include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
 #include "kasan.h"

@@ -1332,6 +1332,7 @@ static int enetc_phy_connect(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct phy_device *phydev;
+	struct ethtool_eee edata;
 
 	if (!priv->phy_node)
 		return 0; /* phy-less mode */
@@ -1344,6 +1345,10 @@ static int enetc_phy_connect(struct net_device *ndev)
 	}
 
 	phy_attached_info(phydev);
+
+	/* disable EEE autoneg, until ENETC driver supports it */
+	memset(&edata, 0, sizeof(struct ethtool_eee));
+	phy_ethtool_set_eee(phydev, &edata);
 
 	return 0;
 }

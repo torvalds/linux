@@ -697,7 +697,6 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.check_fw_version = smu_v12_0_check_fw_version,
 	.powergate_sdma = smu_v12_0_powergate_sdma,
 	.powergate_vcn = smu_v12_0_powergate_vcn,
-	.send_smc_msg = smu_v12_0_send_msg,
 	.send_smc_msg_with_param = smu_v12_0_send_msg_with_param,
 	.read_smc_arg = smu_v12_0_read_arg,
 	.set_gfx_cgpg = smu_v12_0_set_gfx_cgpg,

@@ -56,7 +56,7 @@ static int hi3660_reset_dev(struct reset_controller_dev *rcdev,
 	return hi3660_reset_deassert(rcdev, idx);
 }
 
-static struct reset_control_ops hi3660_reset_ops = {
+static const struct reset_control_ops hi3660_reset_ops = {
 	.reset    = hi3660_reset_dev,
 	.assert   = hi3660_reset_assert,
 	.deassert = hi3660_reset_deassert,

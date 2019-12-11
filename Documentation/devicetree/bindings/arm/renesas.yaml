@@ -116,6 +116,18 @@ properties:
           - const: hoperun,hihope-rzg2m
           - const: renesas,r8a774a1
 
+      - description: RZ/G2N (R8A774B1)
+        items:
+          - enum:
+              - hoperun,hihope-rzg2n # HopeRun HiHope RZ/G2N platform
+          - const: renesas,r8a774b1
+
+      - items:
+          - enum:
+              - hoperun,hihope-rzg2-ex # HopeRun expansion board for HiHope RZ/G2 platforms
+          - const: hoperun,hihope-rzg2n
+          - const: renesas,r8a774b1
+
       - description: RZ/G2E (R8A774C0)
         items:
           - enum:
@@ -193,15 +205,23 @@ properties:
               - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version, RTP0RC7796SIPB0012S)
           - const: renesas,r8a7796
 
+      - description: R-Car M3-W+ (R8A77961)
+        items:
+          - enum:
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version, RTP0RC7796SIPB0012SA5A)
+          - const: renesas,r8a77961
+
       - description: Kingfisher (SBEV-RCAR-KF-M03)
         items:
           - const: shimafuji,kingfisher
           - enum:
               - renesas,h3ulcb
               - renesas,m3ulcb
+              - renesas,m3nulcb
           - enum:
               - renesas,r8a7795
               - renesas,r8a7796
+              - renesas,r8a77965
 
       - description: R-Car M3-N (R8A77965)
         items:

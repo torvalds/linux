@@ -86,7 +86,6 @@
 
 		target-module@22000 {			/* 0x40122000, ap 2 02.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp1";
 			reg = <0x2208c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
@@ -120,7 +119,6 @@
 
 		target-module@24000 {			/* 0x40124000, ap 4 04.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp2";
 			reg = <0x2408c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
@@ -154,7 +152,6 @@
 
 		target-module@26000 {			/* 0x40126000, ap 6 06.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp3";
 			reg = <0x2608c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
@@ -188,7 +185,6 @@
 
 		target-module@28000 {			/* 0x40128000, ap 8 08.0 */
 			compatible = "ti,sysc-mcasp", "ti,sysc";
-			ti,hwmods = "mcasp";
 			reg = <0x28000 0x4>,
 			      <0x28004 0x4>;
 			reg-names = "rev", "sysc";

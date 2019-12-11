@@ -241,4 +241,7 @@ static inline void sd_zbc_complete(struct scsi_cmnd *cmd,
 
 #endif /* CONFIG_BLK_DEV_ZONED */
 
+void sd_print_sense_hdr(struct scsi_disk *sdkp, struct scsi_sense_hdr *sshdr);
+void sd_print_result(const struct scsi_disk *sdkp, const char *msg, int result);
+
 #endif /* _SCSI_DISK_H */

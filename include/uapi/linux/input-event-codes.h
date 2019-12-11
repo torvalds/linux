@@ -649,6 +649,8 @@
  */
 #define KEY_DATA			0x277
 #define KEY_ONSCREEN_KEYBOARD		0x278
+/* Electronic privacy screen control */
+#define KEY_PRIVACY_SCREEN_TOGGLE	0x279
 
 /*
  * Some keyboards have keys which do not have a defined meaning, these keys
