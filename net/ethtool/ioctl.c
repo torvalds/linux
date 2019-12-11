@@ -154,6 +154,9 @@ static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 	    !ops->get_ethtool_phy_stats)
 		return phy_ethtool_get_sset_count(dev->phydev);
 
+	if (sset == ETH_SS_LINK_MODES)
+		return __ETHTOOL_LINK_MODE_MASK_NBITS;
+
 	if (ops->get_sset_count && ops->get_strings)
 		return ops->get_sset_count(dev, sset);
 	else
@@ -178,6 +181,9 @@ static void __ethtool_get_strings(struct net_device *dev,
 	else if (stringset == ETH_SS_PHY_STATS && dev->phydev &&
 		 !ops->get_ethtool_phy_stats)
 		phy_ethtool_get_strings(dev->phydev, data);
+	else if (stringset == ETH_SS_LINK_MODES)
+		memcpy(data, link_mode_names,
+		       __ETHTOOL_LINK_MODE_MASK_NBITS * ETH_GSTRING_LEN);
 	else
 		/* ops->get_strings is valid because checked earlier */
 		ops->get_strings(dev, stringset, data);
