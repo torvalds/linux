@@ -506,7 +506,7 @@ static const struct clk_ops clk_sscg_pll_ops = {
 	.determine_rate	= clk_sscg_pll_determine_rate,
 };
 
-struct clk *imx_clk_sscg_pll(const char *name,
+struct clk_hw *imx_clk_hw_sscg_pll(const char *name,
 				const char * const *parent_names,
 				u8 num_parents,
 				u8 parent, u8 bypass1, u8 bypass2,
@@ -545,5 +545,5 @@ struct clk *imx_clk_sscg_pll(const char *name,
 		return ERR_PTR(ret);
 	}
 
-	return hw->clk;
+	return hw;
 }
