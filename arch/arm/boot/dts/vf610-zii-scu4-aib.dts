@@ -536,6 +536,11 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
+	watchdog@38 {
+		compatible = "zii,rave-wdt";
+		reg = <0x38>;
+	};
+
 	adc@4a {
 		compatible = "adi,adt7411";
 		reg = <0x4a>;
