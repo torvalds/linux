@@ -544,7 +544,6 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	if (status)
 		goto end;
 
-
 	/* If we're generating a system error, then there's nothing
 	 * to wait for.
 	 */
@@ -730,7 +729,6 @@ int ql_mb_set_port_cfg(struct ql_adapter *qdev)
 	mbcp->mbox_in[1] = qdev->link_config;
 	mbcp->mbox_in[2] = qdev->max_frame_size;
 
-
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
 		return status;
@@ -767,7 +765,6 @@ static int ql_mb_dump_ram(struct ql_adapter *qdev, u64 req_dma, u32 addr,
 	mbcp->mbox_in[6] = MSW(MSD(req_dma));
 	mbcp->mbox_in[7] = LSW(MSD(req_dma));
 	mbcp->mbox_in[8] = MSW(addr);
-
 
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
@@ -849,7 +846,6 @@ int ql_mb_wol_mode(struct ql_adapter *qdev, u32 wol)
 
 	mbcp->mbox_in[0] = MB_CMD_SET_WOL_MODE;
 	mbcp->mbox_in[1] = wol;
-
 
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
@@ -964,7 +960,6 @@ int ql_mb_set_led_cfg(struct ql_adapter *qdev, u32 led_config)
 
 	mbcp->mbox_in[0] = MB_CMD_SET_LED_CFG;
 	mbcp->mbox_in[1] = led_config;
-
 
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
