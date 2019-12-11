@@ -674,6 +674,7 @@ W:	http://www.allsensors.com/
 S:	Maintained
 L:	linux-iio@vger.kernel.org
 F:	drivers/iio/pressure/dlhl60d.c
+F:	Documentation/devicetree/bindings/iio/pressure/asc,dlhl60d.yaml
 
 ALLEGRO DVT VIDEO IP CORE DRIVER
 M:	Michael Tretter <m.tretter@pengutronix.de>
