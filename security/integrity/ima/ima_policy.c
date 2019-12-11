@@ -79,6 +79,7 @@ struct ima_rule_entry {
 		int type;	/* audit type */
 	} lsm[MAX_LSM_RULES];
 	char *fsname;
+	char *keyrings; /* Measure keys added to these keyrings */
 	struct ima_template_desc *template;
 };
 
@@ -357,6 +358,50 @@ int ima_lsm_policy_change(struct notifier_block *nb, unsigned long event,
 }
 
 /**
+ * ima_match_keyring - determine whether the keyring matches the measure rule
+ * @rule: a pointer to a rule
+ * @keyring: name of the keyring to match against the measure rule
+ * @cred: a pointer to a credentials structure for user validation
+ *
+ * Returns true if keyring matches one in the rule, false otherwise.
+ */
+static bool ima_match_keyring(struct ima_rule_entry *rule,
+			      const char *keyring, const struct cred *cred)
+{
+	char *keyrings, *next_keyring, *keyrings_ptr;
+	bool matched = false;
+
+	if ((rule->flags & IMA_UID) && !rule->uid_op(cred->uid, rule->uid))
+		return false;
+
+	if (!rule->keyrings)
+		return true;
+
+	if (!keyring)
+		return false;
+
+	keyrings = kstrdup(rule->keyrings, GFP_KERNEL);
+	if (!keyrings)
+		return false;
+
+	/*
+	 * "keyrings=" is specified in the policy in the format below:
+	 * keyrings=.builtin_trusted_keys|.ima|.evm
+	 */
+	keyrings_ptr = keyrings;
+	while ((next_keyring = strsep(&keyrings_ptr, "|")) != NULL) {
+		if (!strcmp(next_keyring, keyring)) {
+			matched = true;
+			break;
+		}
+	}
+
+	kfree(keyrings);
+
+	return matched;
+}
+
+/**
  * ima_match_rules - determine whether an inode matches the measure rule.
  * @rule: a pointer to a rule
  * @inode: a pointer to an inode
@@ -364,18 +409,23 @@ int ima_lsm_policy_change(struct notifier_block *nb, unsigned long event,
  * @secid: the secid of the task to be validated
  * @func: LIM hook identifier
  * @mask: requested action (MAY_READ | MAY_WRITE | MAY_APPEND | MAY_EXEC)
+ * @keyring: keyring name to check in policy for KEY_CHECK func
  *
  * Returns true on rule match, false on failure.
  */
 static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
 			    const struct cred *cred, u32 secid,
-			    enum ima_hooks func, int mask)
+			    enum ima_hooks func, int mask,
+			    const char *keyring)
 {
 	int i;
 
 	if ((func == KEXEC_CMDLINE) || (func == KEY_CHECK)) {
-		if ((rule->flags & IMA_FUNC) && (rule->func == func))
+		if ((rule->flags & IMA_FUNC) && (rule->func == func)) {
+			if (func == KEY_CHECK)
+				return ima_match_keyring(rule, keyring, cred);
 			return true;
+		}
 		return false;
 	}
 	if ((rule->flags & IMA_FUNC) &&
@@ -479,6 +529,8 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  * @mask: requested action (MAY_READ | MAY_WRITE | MAY_APPEND | MAY_EXEC)
  * @pcr: set the pcr to extend
  * @template_desc: the template that should be used for this rule
+ * @keyring: the keyring name, if given, to be used to check in the policy.
+ *           keyring can be NULL if func is anything other than KEY_CHECK.
  *
  * Measure decision based on func/mask/fsmagic and LSM(subj/obj/type)
  * conditions.
@@ -489,7 +541,8 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  */
 int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 		     enum ima_hooks func, int mask, int flags, int *pcr,
-		     struct ima_template_desc **template_desc)
+		     struct ima_template_desc **template_desc,
+		     const char *keyring)
 {
 	struct ima_rule_entry *entry;
 	int action = 0, actmask = flags | (flags << 1);
@@ -503,7 +556,8 @@ int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 		if (!(entry->action & actmask))
 			continue;
 
-		if (!ima_match_rules(entry, inode, cred, secid, func, mask))
+		if (!ima_match_rules(entry, inode, cred, secid, func, mask,
+				     keyring))
 			continue;
 
 		action |= entry->flags & IMA_ACTION_FLAGS;

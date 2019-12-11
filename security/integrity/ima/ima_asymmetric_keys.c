@@ -46,7 +46,13 @@ void ima_post_key_create_or_update(struct key *keyring, struct key *key,
 	 * parameter to process_buffer_measurement() and is set
 	 * in the "eventname" field in ima_event_data for
 	 * the key measurement IMA event.
+	 *
+	 * The name of the keyring is also passed in the "keyring"
+	 * parameter to process_buffer_measurement() to check
+	 * if the IMA policy is configured to measure a key linked
+	 * to the given keyring.
 	 */
 	process_buffer_measurement(payload, payload_len,
-				   keyring->description, KEY_CHECK, 0);
+				   keyring->description, KEY_CHECK, 0,
+				   keyring->description);
 }
