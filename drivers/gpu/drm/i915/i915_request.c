@@ -57,7 +57,7 @@ static struct i915_global_request {
 
 static const char *i915_fence_get_driver_name(struct dma_fence *fence)
 {
-	return "i915";
+	return dev_name(to_request(fence)->i915->drm.dev);
 }
 
 static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
@@ -74,7 +74,7 @@ static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return "signaled";
 
-	return to_request(fence)->gem_context->name ?: "[i915]";
+	return to_request(fence)->gem_context->name ?: "[" DRIVER_NAME "]";
 }
 
 static bool i915_fence_signaled(struct dma_fence *fence)
