@@ -301,6 +301,12 @@ struct io_poll_iocb {
 	struct wait_queue_entry		wait;
 };
 
+struct io_close {
+	struct file			*file;
+	struct file			*put_file;
+	int				fd;
+};
+
 struct io_timeout_data {
 	struct io_kiocb			*req;
 	struct hrtimer			timer;
@@ -414,6 +420,7 @@ struct io_kiocb {
 		struct io_connect	connect;
 		struct io_sr_msg	sr_msg;
 		struct io_open		open;
+		struct io_close		close;
 	};
 
 	struct io_async_ctx		*io;
@@ -2228,6 +2235,94 @@ err:
 	return 0;
 }
 
+static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	/*
+	 * If we queue this for async, it must not be cancellable. That would
+	 * leave the 'file' in an undeterminate state.
+	 */
+	req->work.flags |= IO_WQ_WORK_NO_CANCEL;
+
+	if (sqe->ioprio || sqe->off || sqe->addr || sqe->len ||
+	    sqe->rw_flags || sqe->buf_index)
+		return -EINVAL;
+	if (sqe->flags & IOSQE_FIXED_FILE)
+		return -EINVAL;
+
+	req->close.fd = READ_ONCE(sqe->fd);
+	if (req->file->f_op == &io_uring_fops ||
+	    req->close.fd == req->ring_fd)
+		return -EBADF;
+
+	return 0;
+}
+
+static void io_close_finish(struct io_wq_work **workptr)
+{
+	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
+	struct io_kiocb *nxt = NULL;
+
+	/* Invoked with files, we need to do the close */
+	if (req->work.files) {
+		int ret;
+
+		ret = filp_close(req->close.put_file, req->work.files);
+		if (ret < 0) {
+			req_set_fail_links(req);
+		}
+		io_cqring_add_event(req, ret);
+	}
+
+	fput(req->close.put_file);
+
+	/* we bypassed the re-issue, drop the submission reference */
+	io_put_req(req);
+	io_put_req_find_next(req, &nxt);
+	if (nxt)
+		io_wq_assign_next(workptr, nxt);
+}
+
+static int io_close(struct io_kiocb *req, struct io_kiocb **nxt,
+		    bool force_nonblock)
+{
+	int ret;
+
+	req->close.put_file = NULL;
+	ret = __close_fd_get_file(req->close.fd, &req->close.put_file);
+	if (ret < 0)
+		return ret;
+
+	/* if the file has a flush method, be safe and punt to async */
+	if (req->close.put_file->f_op->flush && !io_wq_current_is_worker()) {
+		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
+		goto eagain;
+	}
+
+	/*
+	 * No ->flush(), safely close from here and just punt the
+	 * fput() to async context.
+	 */
+	ret = filp_close(req->close.put_file, current->files);
+
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+
+	if (io_wq_current_is_worker()) {
+		struct io_wq_work *old_work, *work;
+
+		old_work = work = &req->work;
+		io_close_finish(&work);
+		if (work && work != old_work)
+			*nxt = container_of(work, struct io_kiocb, work);
+		return 0;
+	}
+
+eagain:
+	req->work.func = io_close_finish;
+	return -EAGAIN;
+}
+
 static int io_prep_sfr(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -3256,6 +3351,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	case IORING_OP_OPENAT:
 		ret = io_openat_prep(req, sqe);
 		break;
+	case IORING_OP_CLOSE:
+		ret = io_close_prep(req, sqe);
+		break;
 	default:
 		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
 				req->opcode);
@@ -3426,6 +3524,14 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		}
 		ret = io_openat(req, nxt, force_nonblock);
 		break;
+	case IORING_OP_CLOSE:
+		if (sqe) {
+			ret = io_close_prep(req, sqe);
+			if (ret)
+				break;
+		}
+		ret = io_close(req, nxt, force_nonblock);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -3571,6 +3677,9 @@ static int io_grab_files(struct io_kiocb *req)
 {
 	int ret = -EBADF;
 	struct io_ring_ctx *ctx = req->ctx;
+
+	if (!req->ring_file)
+		return -EBADF;
 
 	rcu_read_lock();
 	spin_lock_irq(&ctx->inflight_lock);

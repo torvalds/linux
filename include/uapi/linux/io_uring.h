@@ -79,6 +79,7 @@ enum {
 	IORING_OP_CONNECT,
 	IORING_OP_FALLOCATE,
 	IORING_OP_OPENAT,
+	IORING_OP_CLOSE,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
