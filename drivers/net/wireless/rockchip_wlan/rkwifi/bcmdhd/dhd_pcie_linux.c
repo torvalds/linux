@@ -139,7 +139,7 @@ struct pcos_info {
 	dhdpcie_info_t *pc;
 	spinlock_t lock;
 	wait_queue_head_t intr_wait_queue;
-	struct timer_list tuning_timer;
+	timer_list_compat_t tuning_timer;
 	int tuning_timer_exp;
 	atomic_t timer_enab;
 	struct tasklet_struct tuning_tasklet;
@@ -570,7 +570,7 @@ static int dhdpcie_suspend_dev(struct pci_dev *dev)
 		DHD_ERROR(("%s: pci_set_power_state error %d\n",
 			__FUNCTION__, ret));
 	}
-	dev->state_saved = FALSE;
+//	dev->state_saved = FALSE;
 	return ret;
 }
 
@@ -607,7 +607,7 @@ static int dhdpcie_resume_dev(struct pci_dev *dev)
 	pci_load_and_free_saved_state(dev, &pch->state);
 #endif /* OEM_ANDROID && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0) */
 	DHD_TRACE_HW4(("%s: Enter\n", __FUNCTION__));
-	dev->state_saved = TRUE;
+//	dev->state_saved = TRUE;
 	pci_restore_state(dev);
 	err = pci_enable_device(dev);
 	if (err) {
@@ -884,11 +884,13 @@ dhdpcie_bus_unregister(void)
 int __devinit
 dhdpcie_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	int err = 0;
 	DHD_MUTEX_LOCK();
 
 	if (dhdpcie_chipmatch (pdev->vendor, pdev->device)) {
 		DHD_ERROR(("%s: chipmatch failed!!\n", __FUNCTION__));
-			return -ENODEV;
+		err = -ENODEV;
+		goto exit;
 	}
 	printf("PCI_PROBE:  bus %X, slot %X,vendor %X, device %X"
 		"(good PCI location)\n", pdev->bus->number,
@@ -896,7 +898,8 @@ dhdpcie_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (dhdpcie_init (pdev)) {
 		DHD_ERROR(("%s: PCIe Enumeration failed\n", __FUNCTION__));
-		return -ENODEV;
+		err = -ENODEV;
+		goto exit;
 	}
 
 #ifdef BCMPCIE_DISABLE_ASYNC_SUSPEND
@@ -905,8 +908,10 @@ dhdpcie_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif /* BCMPCIE_DISABLE_ASYNC_SUSPEND */
 
 	DHD_TRACE(("%s: PCIe Enumeration done!!\n", __FUNCTION__));
+
+exit:
 	DHD_MUTEX_UNLOCK();
-	return 0;
+	return err;
 }
 
 int
@@ -1203,7 +1208,8 @@ void dhdpcie_linkdown_cb(struct_pcie_notify *noti)
 	}
 
 }
-#endif /* CONFIG_ARCH_MSM || (EXYNOS_PCIE_LINKDOWN_RECOVERY &&
+#endif
+/* CONFIG_ARCH_MSM || (EXYNOS_PCIE_LINKDOWN_RECOVERY &&
 	* (CONFIG_SOC_EXYNOS8890 || CONFIG_SOC_EXYNOS8895))
 	*/
 #endif /* SUPPORT_LINKDOWN_RECOVERY */
@@ -1541,7 +1547,7 @@ dhdpcie_enable_irq(dhd_bus_t *bus)
 bool
 dhdpcie_irq_enabled(dhd_bus_t *bus)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0))
 	struct irq_desc *desc = irq_to_desc(bus->dev->irq);
 	/* depth will be zero, if enabled */
 	if (!desc->depth) {

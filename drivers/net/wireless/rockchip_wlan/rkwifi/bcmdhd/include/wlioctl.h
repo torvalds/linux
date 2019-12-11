@@ -1081,6 +1081,8 @@ typedef struct wl_wsec_key {
 
 #define WSEC_MIN_PSK_LEN	8
 #define WSEC_MAX_PSK_LEN	64
+/* Max length of supported passphrases for SAE */
+#define WSEC_MAX_PASSPHRASE_LEN 256u
 
 /** Flag for key material needing passhash'ing */
 #define WSEC_PASSPHRASE		(1<<0)
@@ -1091,6 +1093,23 @@ typedef struct wsec_pmk {
 	ushort	flags;			/**< key handling qualification */
 	uint8	key[WSEC_MAX_PSK_LEN];	/**< PMK material */
 } wsec_pmk_t;
+
+#define WL_AUTH_EVENT_DATA_V1		0x1
+
+/* tlv ids for auth event */
+#define WL_AUTH_PMK_TLV_ID	1
+#define WL_AUTH_PMKID_TLV_ID	2
+/* AUTH event data
+* pmk and pmkid in case of SAE auth
+* xtlvs will be 32 bit alligned
+*/
+typedef struct wl_auth_event {
+	uint16 version;
+	uint16 length;
+	uint8 xtlvs[];
+} wl_auth_event_t;
+
+#define WL_AUTH_EVENT_FIXED_LEN_V1	OFFSETOF(wl_auth_event_t, xtlvs)
 
 typedef struct _pmkid {
 	struct ether_addr	BSSID;
@@ -6521,6 +6540,7 @@ typedef struct wlc_btc_stats {
 
 #define LOGRRC_FIX_LEN	8
 #define IOBUF_ALLOWED_NUM_OF_LOGREC(type, len) ((len - LOGRRC_FIX_LEN)/sizeof(type))
+#ifdef BCMWAPI_WAI
 /* BCMWAPI_WAI */
 #define IV_LEN 16
 	struct wapi_sta_msg_t
@@ -6534,7 +6554,7 @@ typedef struct wlc_btc_stats {
 		uint8	gsn[IV_LEN];
 		uint8	wie[256];
 	};
-/* #endif BCMWAPI_WAI */
+#endif /* BCMWAPI_WAI */
 	/* chanim acs record */
 	typedef struct {
 		uint8 valid;

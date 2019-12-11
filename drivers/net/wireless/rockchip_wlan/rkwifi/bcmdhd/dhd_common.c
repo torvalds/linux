@@ -53,12 +53,13 @@
 
 #include <dhd_bus.h>
 #include <dhd_proto.h>
-#include <dhd_config.h>
 #include <bcmsdbus.h>
 #include <dhd_dbg.h>
 #include <dhd_debug.h>
 #include <dhd_mschdbg.h>
 #include <msgtrace.h>
+#include <dhd_config.h>
+#include <wl_android.h>
 
 #ifdef WL_CFG80211
 #include <wl_cfg80211.h>
@@ -828,6 +829,9 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 #ifdef DUMP_IOCTL_IOV_LIST
 	dhd_iov_li_t *iov_li;
 #endif /* DUMP_IOCTL_IOV_LIST */
+	int hostsleep_set = 0;
+	int hostsleep_val = 0;
+
 #ifdef KEEPIF_ON_DEVICE_RESET
 		if (ioc->cmd == WLC_GET_VAR) {
 			dbus_config_t config;
@@ -919,7 +923,11 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 			}
 		}
 #endif /* DUMP_IOCTL_IOV_LIST */
+		if (dhd_conf_check_hostsleep(dhd_pub, ioc->cmd, ioc->buf, len,
+				&hostsleep_set, &hostsleep_val, &ret))
+			goto exit;
 		ret = dhd_prot_ioctl(dhd_pub, ifidx, ioc, buf, len);
+		dhd_conf_get_hostsleep(dhd_pub, hostsleep_set, hostsleep_val, ret);
 #ifdef DUMP_IOCTL_IOV_LIST
 		if (ret == -ETIMEDOUT) {
 			DHD_ERROR(("Last %d issued commands: Latest one is at bottom.\n",
@@ -983,6 +991,7 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 			dhd_pub->busstate = DHD_BUS_DOWN;
 		}
 
+exit:
 		DHD_LINUX_GENERAL_LOCK(dhd_pub, flags);
 		DHD_BUS_BUSY_CLEAR_IN_IOVAR(dhd_pub);
 		dhd_os_busbusy_wake(dhd_pub);
@@ -3272,7 +3281,6 @@ dhd_print_buf(void *pbuf, int len, int bytes_per_line)
 #define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
 #endif
 
-#if defined(PKT_FILTER_SUPPORT) || defined(DHD_PKT_LOGGING)
 /* Convert user's input in hex pattern to byte-size mask */
 int
 wl_pattern_atoh(char *src, char *dst)
@@ -3297,7 +3305,6 @@ wl_pattern_atoh(char *src, char *dst)
 	}
 	return i;
 }
-#endif /* PKT_FILTER_SUPPORT || DHD_PKT_LOGGING */
 
 #ifdef PKT_FILTER_SUPPORT
 void
@@ -3655,7 +3662,7 @@ dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg)
 	rc = rc >= 0 ? 0 : rc;
 
 	if (rc)
-		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
+		DHD_ERROR(("%s: failed to add pktfilter %s, retcode = %d\n",
 		__FUNCTION__, arg, rc));
 	else
 		DHD_TRACE(("%s: successfully added pktfilter %s\n",
@@ -4263,7 +4270,6 @@ dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd)
 		if (bcn_li_dtim == 0) {
 			bcn_li_dtim = 1;
 		}
-		bcn_li_dtim = MAX(dhd->suspend_bcn_li_dtim, bcn_li_dtim);
 	} else {
 		/* attemp to use platform defined dtim skip interval */
 		bcn_li_dtim = dhd->suspend_bcn_li_dtim;
@@ -4291,8 +4297,6 @@ dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd)
 		}
 	}
 
-	if (dhd->conf->suspend_bcn_li_dtim >= 0)
-		bcn_li_dtim = dhd->conf->suspend_bcn_li_dtim;
 	DHD_ERROR(("%s beacon=%d bcn_li_dtim=%d DTIM=%d Listen=%d\n",
 		__FUNCTION__, ap_beacon, bcn_li_dtim, dtim_period, CUSTOM_LISTEN_INTERVAL));
 
@@ -4994,69 +4998,78 @@ void dhd_free_download_buffer(dhd_pub_t	*dhd, void *buffer, int length)
 }
 
 #if defined(DHD_8021X_DUMP)
-#define EAP_PRINT(str) \
-	DHD_ERROR(("ETHER_TYPE_802_1X[%s] [%s]: " str "\n", \
-	ifname, direction ? "TX" : "RX"));
+#define EAP_PRINT(x, args...) \
+	do { \
+		if (dump_msg_level & DUMP_EAPOL_VAL) { \
+			printk("[dhd-%s] 802_1X " x " [%s] : (%s) %s (%s)\n", ifname, ## args, \
+			tx?"TX":"RX", tx?seabuf:deabuf, tx?"->":"<-", tx?deabuf:seabuf); \
+		} \
+	} while (0)
 #else
-#define EAP_PRINT(str)
+#define EAP_PRINT(x, args...)
 #endif /* DHD_8021X_DUMP */
 /* Parse EAPOL 4 way handshake messages */
 void
 dhd_dump_eapol_4way_message(dhd_pub_t *dhd, char *ifname,
-	char *dump_data, bool direction)
+	char *dump_data, bool tx)
 {
 	unsigned char type;
 	int pair, ack, mic, kerr, req, sec, install;
-	unsigned short us_tmp;
+	unsigned short us_tmp, key_len;
+	char seabuf[ETHER_ADDR_STR_LEN]="";
+	char deabuf[ETHER_ADDR_STR_LEN]="";
+
+	bcm_ether_ntoa((struct ether_addr *)dump_data, deabuf);
+	bcm_ether_ntoa((struct ether_addr *)(dump_data+6), seabuf);
 
 	type = dump_data[15];
 	if (type == 0) {
 		if ((dump_data[22] == 1) && (dump_data[18] == 1)) {
-			dhd->conf->eapol_status = EAPOL_STATUS_WPS_REQID;
-			EAP_PRINT("EAP Packet, Request, Identity");
+			dhd->conf->eapol_status = EAPOL_STATUS_REQID;
+			EAP_PRINT("Request, Identity");
 		} else if ((dump_data[22] == 1) && (dump_data[18] == 2)) {
-			dhd->conf->eapol_status = EAPOL_STATUS_WPS_RSPID;
-			EAP_PRINT("EAP Packet, Response, Identity");
+			dhd->conf->eapol_status = EAPOL_STATUS_RSPID;
+			EAP_PRINT("Response, Identity");
 		} else if (dump_data[22] == 254) {
 			if (dump_data[30] == 1) {
-				dhd->conf->eapol_status = EAPOL_STATUS_WPS_WSC_START;
-				EAP_PRINT("EAP Packet, WSC Start");
+				dhd->conf->eapol_status = EAPOL_STATUS_WSC_START;
+				EAP_PRINT("WSC Start");
 			} else if (dump_data[30] == 4) {
 				if (dump_data[41] == 4) {
 					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M1;
-					EAP_PRINT("EAP Packet, WPS M1");
+					EAP_PRINT("WPS M1");
 				} else if (dump_data[41] == 5) {
 					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M2;
-					EAP_PRINT("EAP Packet, WPS M2");
+					EAP_PRINT("WPS M2");
 				} else if (dump_data[41] == 7) {
 					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M3;
-					EAP_PRINT("EAP Packet, WPS M3");
+					EAP_PRINT("WPS M3");
 				} else if (dump_data[41] == 8) {
 					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M4;
-					EAP_PRINT("EAP Packet, WPS M4");
+					EAP_PRINT("WPS M4");
 				} else if (dump_data[41] == 9) {
 					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M5;
-					EAP_PRINT("EAP Packet, WPS M5");
+					EAP_PRINT("WPS M5");
 				} else if (dump_data[41] == 10) {
 					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M6;
-					EAP_PRINT("EAP Packet, WPS M6");
+					EAP_PRINT("WPS M6");
 				} else if (dump_data[41] == 11) {
 					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M7;
-					EAP_PRINT("EAP Packet, WPS M7");
+					EAP_PRINT("WPS M7");
 				} else if (dump_data[41] == 12) {
 					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M8;
-					EAP_PRINT("EAP Packet, WPS M8");
+					EAP_PRINT("WPS M8");
 				}
 			} else if (dump_data[30] == 5) {
-				dhd->conf->eapol_status = EAPOL_STATUS_WPS_DONE;
-				EAP_PRINT("EAP Packet, WSC Done");
+				dhd->conf->eapol_status = EAPOL_STATUS_WSC_DONE;
+				EAP_PRINT("WSC Done");
 			}
 		} else {
-			DHD_ERROR(("ETHER_TYPE_802_1X[%s] [%s]: ver %d, type %d, replay %d\n",
-				ifname, direction ? "TX" : "RX",
-				dump_data[14], dump_data[15], dump_data[30]));
+			EAP_PRINT("ver %d, type %d, replay %d",
+				dump_data[14], dump_data[15], dump_data[30]);
 		}
-	} else if (type == 3 && dump_data[18] == 2) {
+	}
+	else if (type == 3 && dump_data[18] == 2) {
 		us_tmp = (dump_data[19] << 8) | dump_data[20];
 		pair =  0 != (us_tmp & 0x08);
 		ack = 0  != (us_tmp & 0x80);
@@ -5066,27 +5079,59 @@ dhd_dump_eapol_4way_message(dhd_pub_t *dhd, char *ifname,
 		sec = 0  != (us_tmp & 0x200);
 		install  = 0 != (us_tmp & 0x40);
 
-		if (!sec && !mic && ack && !install && pair && !kerr && !req) {
-			dhd->conf->eapol_status = EAPOL_STATUS_WPA_M1;
-			EAP_PRINT("EAPOL Packet, 4-way handshake, M1");
-		} else if (pair && !install && !ack && mic && !sec && !kerr && !req) {
-			dhd->conf->eapol_status = EAPOL_STATUS_WPA_M2;
-			EAP_PRINT("EAPOL Packet, 4-way handshake, M2");
-		} else if (pair && ack && mic && sec && !kerr && !req) {
-			dhd->conf->eapol_status = EAPOL_STATUS_WPA_M3;
-			EAP_PRINT("EAPOL Packet, 4-way handshake, M3");
-		} else if (pair && !install && !ack && mic && sec && !req && !kerr) {
-			dhd->conf->eapol_status = EAPOL_STATUS_WPA_M4;
-			EAP_PRINT("EAPOL Packet, 4-way handshake, M4");
+		if (!req && !kerr && !sec && !mic && ack && !install && pair) {
+			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M1;
+			EAP_PRINT("WPA2 4-way M1(0x%04x)", us_tmp);
+		} else if (!req && !kerr && !sec && mic && !ack && !install && pair) {
+			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M2;
+			EAP_PRINT("WPA2 4-way M2(0x%04x)", us_tmp);
+		} else if (!req && !kerr && sec && mic && ack && pair) {
+			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M3;
+			EAP_PRINT("WPA2 4-way M3(0x%04x)", us_tmp);
+		} else if (!req && !kerr && sec && mic && !ack && !install && pair) {
+			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M4;
+			EAP_PRINT("WPA2 4-way M4(0x%04x)", us_tmp);
 		} else {
-			DHD_ERROR(("ETHER_TYPE_802_1X[%s] [%s]: ver %d, type %d, replay %d\n",
-				ifname, direction ? "TX" : "RX",
-				dump_data[14], dump_data[15], dump_data[30]));
+			EAP_PRINT("ver %d, type %d, key_info 0x%x, replay %d",
+				dump_data[14], dump_data[15], us_tmp, dump_data[30]);
+		}
+	}
+	else if (type == 3 && dump_data[18] == 254) {
+		us_tmp = (dump_data[19] << 8) | dump_data[20];
+		req = 0  != (us_tmp & 0x800);
+		kerr = 0 != (us_tmp & 0x400);
+		sec = 0  != (us_tmp & 0x200);
+		mic = 0  != (us_tmp & 0x100);
+		ack = 0  != (us_tmp & 0x80);
+		install = 0 != (us_tmp & 0x40);
+		pair = 0 != (us_tmp & 0x08);
+		key_len = (dump_data[111] << 8) | dump_data[112];
+
+		if (!req && !kerr && !sec && !mic && ack && !install && pair) {
+			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M1;
+			EAP_PRINT("WPA 4-way M1(0x%04x)", us_tmp);
+		} else if (!req && !kerr && !sec && mic && !ack && !install && pair && key_len) {
+			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M2;
+			EAP_PRINT("WPA 4-way M2(0x%04x)", us_tmp);
+		} else if (!req && !kerr && !sec && mic && ack && install && pair) {
+			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M3;
+			EAP_PRINT("WPA 4-way M3(0x%04x)", us_tmp);
+		} else if (!req && !kerr && !sec && mic && !ack && !install && pair) {
+			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M4;
+			EAP_PRINT("WPA 4-way M4(0x%04x)", us_tmp);
+		} else if (!req && !kerr && sec && mic && ack && !install && !pair) {
+			dhd->conf->eapol_status = EAPOL_STATUS_GROUPKEY_M1;
+			EAP_PRINT("GROUP Key M1(0x%04x)", us_tmp);
+		} else if (!req && !kerr && sec && mic && !ack && !install && !pair) {
+			dhd->conf->eapol_status = EAPOL_STATUS_GROUPKEY_M2;
+			EAP_PRINT("GROUP Key M2(0x%04x)", us_tmp);
+		} else {
+			EAP_PRINT("ver %d, type %d, key_type %d, key_info 0x%x, replay %d",
+				dump_data[14], dump_data[15], dump_data[18], us_tmp, dump_data[30]);
 		}
 	} else {
-		DHD_ERROR(("ETHER_TYPE_802_1X[%s] [%s]: ver %d, type %d, replay %d\n",
-			ifname, direction ? "TX" : "RX",
-			dump_data[14], dump_data[15], dump_data[30]));
+		EAP_PRINT("ver %d, type %d, replay %d",
+			dump_data[14], dump_data[15], dump_data[30]);
 	}
 }
 

@@ -2634,7 +2634,7 @@ process_nvram_vars(char *varbuf, unsigned int len)
 				break;
 			nv_ver[n-1] = varbuf[n];
 		}
-		printk("NVRAM version: %s\n", nv_ver);
+		printf("NVRAM version: %s\n", nv_ver);
 	}
 
 	for (n = 0; n < len; n++) {

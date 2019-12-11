@@ -130,6 +130,21 @@ BWL_PRE_PACKED_STRUCT struct ipv4_hdr {
 	uint8	dst_ip[IPV4_ADDR_LEN];	/* Destination IP Address */
 } BWL_POST_PACKED_STRUCT;
 
+#define HTYPE_ETHERNET		1		/* htype for ethernet */
+#define ARP_OPC_REQUEST		1		/* ARP request */
+#define ARP_OPC_REPLY		2		/* ARP reply */
+BWL_PRE_PACKED_STRUCT struct bcmarp {
+	uint16	htype;				/* Header type (1 = ethernet) */
+	uint16	ptype;				/* Protocol type (0x800 = IP) */
+	uint8	hlen;				/* Hardware address length (Eth = 6) */
+	uint8	plen;				/* Protocol address length (IP = 4) */
+	uint16	oper;				/* ARP_OPC_... */
+	uint8	src_eth[ETHER_ADDR_LEN];	/* Source hardware address */
+	uint8	src_ip[IPV4_ADDR_LEN];		/* Source protocol address (not aligned) */
+	uint8	dst_eth[ETHER_ADDR_LEN];	/* Destination hardware address */
+	uint8	dst_ip[IPV4_ADDR_LEN];		/* Destination protocol address */
+} BWL_POST_PACKED_STRUCT;
+
 /* IPV6 field offsets */
 #define IPV6_PAYLOAD_LEN_OFFSET	4	/* payload length offset */
 #define IPV6_NEXT_HDR_OFFSET	6	/* next header/protocol offset */

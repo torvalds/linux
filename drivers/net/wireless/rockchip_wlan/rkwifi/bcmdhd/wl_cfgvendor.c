@@ -2080,6 +2080,53 @@ wl_cfgvendor_get_ndev(struct bcm_cfg80211 *cfg, struct wireless_dev *wdev,
 	return ndev;
 }
 
+#ifdef WL_SAE
+static int
+wl_cfgvendor_set_sae_password(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	int err = BCME_OK;
+	struct net_device *net = wdev->netdev;
+	struct bcm_cfg80211 *cfg = wl_get_cfg(net);
+	wsec_pmk_t pmk;
+	s32 bssidx;
+
+	/* clear the content of pmk structure before usage */
+	(void)memset(&pmk, 0x0, sizeof(wsec_pmk_t));
+
+	if ((bssidx = wl_get_bssidx_by_wdev(cfg, net->ieee80211_ptr)) < 0) {
+		WL_ERR(("Find p2p index from wdev(%p) failed\n", net->ieee80211_ptr));
+		return BCME_ERROR;
+	}
+
+	if ((len < WSEC_MIN_PSK_LEN) || (len >= WSEC_MAX_PASSPHRASE_LEN)) {
+		WL_ERR(("Invalid passphrase length %d..should be >= 8 and < 256\n",
+			len));
+		err = BCME_BADLEN;
+		goto done;
+	}
+	/* Set AUTH to SAE */
+	err = wldev_iovar_setint_bsscfg(net, "wpa_auth", WPA3_AUTH_SAE_PSK, bssidx);
+	if (unlikely(err)) {
+		WL_ERR(("could not set wpa_auth (0x%x)\n", err));
+		goto done;
+	}
+	pmk.key_len = htod16(len);
+	bcopy((const u8*)data, pmk.key, len);
+	pmk.flags = htod16(WSEC_PASSPHRASE);
+
+	err = wldev_ioctl_set(net, WLC_SET_WSEC_PMK, &pmk, sizeof(pmk));
+	if (err) {
+		WL_ERR(("\n failed to set pmk %d\n", err));
+		goto done;
+	} else {
+		WL_INFORM(("sae passphrase set successfully\n"));
+	}
+done:
+	return err;
+}
+#endif /* WL_SAE */
+
 /* Max length for the reply buffer. For BRCM_ATTR_DRIVER_CMD, the reply
  * would be a formatted string and reply buf would be the size of the
  * string.
@@ -3212,6 +3259,16 @@ static const struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
 		.doit = wl_cfgvendor_priv_bcm_handler
 	},
+#ifdef WL_SAE
+	{
+		{
+			.vendor_id = OUI_BRCM,
+			.subcmd = BRCM_VENDOR_SCMD_BCM_PSK
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = wl_cfgvendor_set_sae_password
+	},
+#endif /* WL_SAE */
 #ifdef GSCAN_SUPPORT
 	{
 		{
@@ -3612,40 +3669,45 @@ static const struct wiphy_vendor_command wl_vendor_cmds [] = {
 static const struct  nl80211_vendor_cmd_info wl_vendor_events [] = {
 		{ OUI_BRCM, BRCM_VENDOR_EVENT_UNSPEC },
 		{ OUI_BRCM, BRCM_VENDOR_EVENT_PRIV_STR },
-#ifdef GSCAN_SUPPORT
 		{ OUI_GOOGLE, GOOGLE_GSCAN_SIGNIFICANT_EVENT },
 		{ OUI_GOOGLE, GOOGLE_GSCAN_GEOFENCE_FOUND_EVENT },
 		{ OUI_GOOGLE, GOOGLE_GSCAN_BATCH_SCAN_EVENT },
 		{ OUI_GOOGLE, GOOGLE_SCAN_FULL_RESULTS_EVENT },
-#endif /* GSCAN_SUPPORT */
-#ifdef RTT_SUPPORT
 		{ OUI_GOOGLE, GOOGLE_RTT_COMPLETE_EVENT },
-#endif /* RTT_SUPPORT */
-#ifdef GSCAN_SUPPORT
 		{ OUI_GOOGLE, GOOGLE_SCAN_COMPLETE_EVENT },
 		{ OUI_GOOGLE, GOOGLE_GSCAN_GEOFENCE_LOST_EVENT },
 		{ OUI_GOOGLE, GOOGLE_SCAN_EPNO_EVENT },
-#endif /* GSCAN_SUPPORT */
 		{ OUI_GOOGLE, GOOGLE_DEBUG_RING_EVENT },
 		{ OUI_GOOGLE, GOOGLE_FW_DUMP_EVENT },
-#ifdef GSCAN_SUPPORT
 		{ OUI_GOOGLE, GOOGLE_PNO_HOTSPOT_FOUND_EVENT },
-#endif /* GSCAN_SUPPORT */
 		{ OUI_GOOGLE, GOOGLE_RSSI_MONITOR_EVENT },
 		{ OUI_GOOGLE, GOOGLE_MKEEP_ALIVE_EVENT },
 		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_ENABLED},
 		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_DISABLED},
-		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_PUBLISH_TERMINATED},
 		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_SUBSCRIBE_MATCH},
-		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_SUBSCRIBE_UNMATCH},
+		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_REPLIED},
+		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_PUBLISH_TERMINATED},
 		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_SUBSCRIBE_TERMINATED},
 		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_DE_EVENT},
 		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_FOLLOWUP},
+		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_TRANSMIT_FOLLOWUP_IND},
+		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_DATA_REQUEST},
+		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_DATA_CONFIRMATION},
+		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_DATA_END},
+		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_BEACON},
+		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_SDF},
 		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_TCA},
-#ifdef NAN_DP
-		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_DATA_PATH_OPEN},
-#endif /* NAN_DP */
-		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_UNKNOWN}
+		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_SUBSCRIBE_UNMATCH},
+		{ OUI_GOOGLE, GOOGLE_NAN_EVENT_UNKNOWN},
+		{ OUI_GOOGLE, GOOGLE_ROAM_EVENT_START},
+		{ OUI_BRCM, BRCM_VENDOR_EVENT_HANGED},
+		{ OUI_BRCM, BRCM_VENDOR_EVENT_SAE_KEY},
+		{ OUI_BRCM, BRCM_VENDOR_EVENT_BEACON_RECV},
+		{ OUI_BRCM, BRCM_VENDOR_EVENT_PORT_AUTHORIZED},
+		{ OUI_GOOGLE, GOOGLE_FILE_DUMP_EVENT },
+		{ OUI_BRCM, BRCM_VENDOR_EVENT_CU},
+		{ OUI_BRCM, BRCM_VENDOR_EVENT_WIPS},
+		{ OUI_GOOGLE, NAN_ASYNC_RESPONSE_DISABLED}
 };
 
 int wl_cfgvendor_attach(struct wiphy *wiphy, dhd_pub_t *dhd)

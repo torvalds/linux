@@ -1,49 +1,34 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #if defined(WL_ESCAN)
-
-#include <typedefs.h>
-#include <linuxver.h>
-#include <osl.h>
-#include <dngl_stats.h>
-#include <dhd.h>
-
-#include <bcmutils.h>
 #include <bcmendian.h>
-#include <ethernet.h>
-
 #include <linux/if_arp.h>
 #include <asm/uaccess.h>
-
-#include <wlioctl.h>
 #include <wl_android.h>
-#include <wl_iw.h>
 #include <wl_escan.h>
 #include <dhd_config.h>
 
-/* message levels */
-#define ESCAN_ERROR_LEVEL	0x0001
-#define ESCAN_SCAN_LEVEL	0x0002
-#define ESCAN_TRACE_LEVEL	0x0004
-
-#define ESCAN_ERROR(x) \
+#define ESCAN_ERROR(name, arg1, args...) \
 	do { \
-		if (iw_msg_level & ESCAN_ERROR_LEVEL) { \
-			printf(KERN_ERR "ESCAN-ERROR) %s : ", __func__);	\
-			printf x; \
+		if (android_msg_level & ANDROID_ERROR_LEVEL) { \
+			printk(KERN_ERR "[dhd-%s] ESCAN-ERROR) %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
-#define ESCAN_SCAN(x) \
+#define ESCAN_TRACE(name, arg1, args...) \
 	do { \
-		if (iw_msg_level & ESCAN_SCAN_LEVEL) { \
-			printf(KERN_ERR "ESCAN-SCAN) %s : ", __func__);	\
-			printf x; \
+		if (android_msg_level & ANDROID_TRACE_LEVEL) { \
+			printk(KERN_ERR "[dhd-%s] ESCAN-TRACE) %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
-#define ESCAN_TRACE(x) \
+#define ESCAN_SCAN(name, arg1, args...) \
 	do { \
-		if (iw_msg_level & ESCAN_TRACE_LEVEL) { \
-			printf(KERN_ERR "ESCAN-TRACE) %s : ", __func__);	\
-			printf x; \
+		if (android_msg_level & ANDROID_SCAN_LEVEL) { \
+			printk(KERN_ERR "[dhd-%s] ESCAN-SCAN) %s : " arg1, name, __func__, ## args); \
+		} \
+	} while (0)
+#define ESCAN_DBG(name, arg1, args...) \
+	do { \
+		if (android_msg_level & ANDROID_DBG_LEVEL) { \
+			printk(KERN_ERR "[dhd-%s] ESCAN-DBG) %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
 
@@ -103,8 +88,8 @@ wl_chspec_from_legacy(chanspec_t legacy_chspec)
 	}
 
 	if (wf_chspec_malformed(chspec)) {
-		ESCAN_ERROR(("wl_chspec_from_legacy: output chanspec (0x%04X) malformed\n",
-		        chspec));
+		ESCAN_ERROR("wlan", "wl_chspec_from_legacy: output chanspec (0x%04X) malformed\n",
+			chspec);
 		return INVCHANSPEC;
 	}
 
@@ -120,8 +105,8 @@ wl_chspec_to_legacy(chanspec_t chspec)
 	chanspec_t lchspec;
 
 	if (wf_chspec_malformed(chspec)) {
-		ESCAN_ERROR(("wl_chspec_to_legacy: input chanspec (0x%04X) malformed\n",
-		        chspec));
+		ESCAN_ERROR("wlan", "wl_chspec_to_legacy: input chanspec (0x%04X) malformed\n",
+			chspec);
 		return INVCHANSPEC;
 	}
 
@@ -149,10 +134,9 @@ wl_chspec_to_legacy(chanspec_t chspec)
 	} else {
 		/* cannot express the bandwidth */
 		char chanbuf[CHANSPEC_STR_LEN];
-		ESCAN_ERROR((
-		        "wl_chspec_to_legacy: unable to convert chanspec %s (0x%04X) "
-		        "to pre-11ac format\n",
-		        wf_chspec_ntoa(chspec, chanbuf), chspec));
+		ESCAN_ERROR("wlan", "wl_chspec_to_legacy: unable to convert chanspec %s "
+			"(0x%04X) to pre-11ac format\n",
+			wf_chspec_ntoa(chspec, chanbuf), chspec);
 		return INVCHANSPEC;
 	}
 
@@ -197,7 +181,7 @@ wl_chspec_host_to_driver(int ioctl_ver, chanspec_t chanspec)
  * Returns INVCHANSPEC on error
  */
 static chanspec_t
-wl_ch_host_to_driver(int ioctl_ver, s32 bssidx, u16 channel)
+wl_ch_host_to_driver(int ioctl_ver, u16 channel)
 {
 	chanspec_t chanspec;
 
@@ -215,233 +199,15 @@ wl_ch_host_to_driver(int ioctl_ver, s32 bssidx, u16 channel)
 	return wl_chspec_host_to_driver(ioctl_ver, chanspec);
 }
 
-static inline struct wl_bss_info *next_bss(struct wl_scan_results *list, struct wl_bss_info *bss)
+static inline struct wl_bss_info *next_bss(struct wl_scan_results *list,
+	struct wl_bss_info *bss)
 {
 	return bss = bss ?
 		(struct wl_bss_info *)((uintptr) bss + dtoh32(bss->length)) : list->bss_info;
 }
 
-#define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
-
-static int
-rssi_to_qual(int rssi)
-{
-	if (rssi <= WL_IW_RSSI_NO_SIGNAL)
-		return 0;
-	else if (rssi <= WL_IW_RSSI_VERY_LOW)
-		return 1;
-	else if (rssi <= WL_IW_RSSI_LOW)
-		return 2;
-	else if (rssi <= WL_IW_RSSI_GOOD)
-		return 3;
-	else if (rssi <= WL_IW_RSSI_VERY_GOOD)
-		return 4;
-	else
-		return 5;
-}
-
-#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == \
-	4 && __GNUC_MINOR__ >= 6))
-#define BCM_SET_LIST_FIRST_ENTRY(entry, ptr, type, member) \
-_Pragma("GCC diagnostic push") \
-_Pragma("GCC diagnostic ignored \"-Wcast-qual\"") \
-(entry) = list_first_entry((ptr), type, member); \
-_Pragma("GCC diagnostic pop") \
-
-#define BCM_SET_CONTAINER_OF(entry, ptr, type, member) \
-_Pragma("GCC diagnostic push") \
-_Pragma("GCC diagnostic ignored \"-Wcast-qual\"") \
-entry = container_of((ptr), type, member); \
-_Pragma("GCC diagnostic pop") \
-
-#else
-#define BCM_SET_LIST_FIRST_ENTRY(entry, ptr, type, member) \
-(entry) = list_first_entry((ptr), type, member); \
-
-#define BCM_SET_CONTAINER_OF(entry, ptr, type, member) \
-entry = container_of((ptr), type, member); \
-
-#endif /* STRICT_GCC_WARNINGS */
-
-static unsigned long wl_lock_eq(struct wl_escan_info *escan)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&escan->eq_lock, flags);
-	return flags;
-}
-
-static void wl_unlock_eq(struct wl_escan_info *escan, unsigned long flags)
-{
-	spin_unlock_irqrestore(&escan->eq_lock, flags);
-}
-
-static void wl_init_eq(struct wl_escan_info *escan)
-{
-	spin_lock_init(&escan->eq_lock);
-	INIT_LIST_HEAD(&escan->eq_list);
-}
-
-static void wl_flush_eq(struct wl_escan_info *escan)
-{
-	struct escan_event_q *e;
-	unsigned long flags;
-
-	flags = wl_lock_eq(escan);
-	while (!list_empty_careful(&escan->eq_list)) {
-		BCM_SET_LIST_FIRST_ENTRY(e, &escan->eq_list, struct escan_event_q, eq_list);
-		list_del(&e->eq_list);
-		kfree(e);
-	}
-	wl_unlock_eq(escan, flags);
-}
-
-static struct escan_event_q *wl_deq_event(struct wl_escan_info *escan)
-{
-	struct escan_event_q *e = NULL;
-	unsigned long flags;
-
-	flags = wl_lock_eq(escan);
-	if (likely(!list_empty(&escan->eq_list))) {
-		BCM_SET_LIST_FIRST_ENTRY(e, &escan->eq_list, struct escan_event_q, eq_list);
-		list_del(&e->eq_list);
-	}
-	wl_unlock_eq(escan, flags);
-
-	return e;
-}
-
-/*
- * push event to tail of the queue
- */
-
 static s32
-wl_enq_event(struct wl_escan_info *escan, struct net_device *ndev, u32 event,
-	const wl_event_msg_t *msg, void *data)
-{
-	struct escan_event_q *e;
-	s32 err = 0;
-	uint32 evtq_size;
-	uint32 data_len;
-	unsigned long flags;
-	gfp_t aflags;
-
-	data_len = 0;
-	if (data)
-		data_len = ntoh32(msg->datalen);
-	evtq_size = sizeof(struct escan_event_q) + data_len;
-	aflags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
-	e = kzalloc(evtq_size, aflags);
-	if (unlikely(!e)) {
-		ESCAN_ERROR(("event alloc failed\n"));
-		return -ENOMEM;
-	}
-	e->etype = event;
-	memcpy(&e->emsg, msg, sizeof(wl_event_msg_t));
-	if (data)
-		memcpy(e->edata, data, data_len);
-	flags = wl_lock_eq(escan);
-	list_add_tail(&e->eq_list, &escan->eq_list);
-	wl_unlock_eq(escan, flags);
-
-	return err;
-}
-
-static void wl_put_event(struct escan_event_q *e)
-{
-	kfree(e);
-}
-
-static void wl_wakeup_event(struct wl_escan_info *escan)
-{
-	dhd_pub_t *dhd = (dhd_pub_t *)(escan->pub);
-
-	if (dhd->up && (escan->event_tsk.thr_pid >= 0)) {
-		up(&escan->event_tsk.sema);
-	}
-}
-
-static s32 wl_escan_event_handler(void *data)
-{
-	struct wl_escan_info *escan = NULL;
-	struct escan_event_q *e;
-	tsk_ctl_t *tsk = (tsk_ctl_t *)data;
-
-	escan = (struct wl_escan_info *)tsk->parent;
-
-	printf("tsk Enter, tsk = 0x%p\n", tsk);
-
-	while (down_interruptible (&tsk->sema) == 0) {
-		SMP_RD_BARRIER_DEPENDS();
-		if (tsk->terminated) {
-			break;
-		}
-		while (escan && (e = wl_deq_event(escan))) {
-			ESCAN_TRACE(("dev=%p, event type (%d), ifidx: %d bssidx: %d \n",
-				escan->dev, e->etype, e->emsg.ifidx, e->emsg.bsscfgidx));
-
-			if (e->emsg.ifidx > WL_MAX_IFS) {
-				ESCAN_ERROR(("Event ifidx not in range. val:%d \n", e->emsg.ifidx));
-				goto fail;
-			}
-
-			if (escan->dev && escan->evt_handler[e->etype]) {
-				dhd_pub_t *dhd = (struct dhd_pub *)(escan->pub);
-				if (dhd->busstate == DHD_BUS_DOWN) {
-					ESCAN_ERROR((": BUS is DOWN.\n"));
-				} else {
-					escan->evt_handler[e->etype](escan, &e->emsg, e->edata);
-				}
-			} else {
-				ESCAN_TRACE(("Unknown Event (%d): ignoring\n", e->etype));
-			}
-fail:
-			wl_put_event(e);
-			DHD_EVENT_WAKE_UNLOCK(escan->pub);
-		}
-	}
-	printf("%s: was terminated\n", __FUNCTION__);
-	complete_and_exit(&tsk->completed, 0);
-	return 0;
-}
-
-void
-wl_escan_event(struct net_device *dev, const wl_event_msg_t * e, void *data)
-{
-	struct dhd_pub *dhd = dhd_get_pub(dev);
-	struct wl_escan_info *escan = dhd->escan;
-	u32 event_type = ntoh32(e->event_type);
-
-	if (!escan || !escan->dev) {
-		return;
-	}
-
-	if (escan->event_tsk.thr_pid == -1) {
-		ESCAN_ERROR(("Event handler is not created\n"));
-		return;
-	}
-
-	if (escan == NULL) {
-		ESCAN_ERROR(("Stale event ignored\n"));
-		return;
-	}
-
-	if (event_type == WLC_E_PFN_NET_FOUND) {
-		ESCAN_TRACE(("PNOEVENT: PNO_NET_FOUND\n"));
-	}
-	else if (event_type == WLC_E_PFN_NET_LOST) {
-		ESCAN_TRACE(("PNOEVENT: PNO_NET_LOST\n"));
-	}
-
-	DHD_EVENT_WAKE_LOCK(escan->pub);
-	if (likely(!wl_enq_event(escan, dev, event_type, e, data))) {
-		wl_wakeup_event(escan);
-	} else {
-		DHD_EVENT_WAKE_UNLOCK(escan->pub);
-	}
-}
-
-static s32 wl_escan_inform_bss(struct wl_escan_info *escan)
+wl_escan_inform_bss(struct net_device *dev, struct wl_escan_info *escan)
 {
 	struct wl_scan_results *bss_list;
 	s32 err = 0;
@@ -451,11 +217,15 @@ static s32 wl_escan_inform_bss(struct wl_escan_info *escan)
 
 	bss_list = escan->bss_list;
 
+	ESCAN_SCAN(dev->name, "scanned AP count (%d)\n", bss_list->count);
+
 	/* Delete disconnected cache */
 #if defined(BSSCACHE)
-	wl_delete_disconnected_bss_cache(&escan->g_bss_cache_ctrl, (u8*)&escan->disconnected_bssid);
+	wl_delete_disconnected_bss_cache(&escan->g_bss_cache_ctrl,
+		(u8*)&escan->disconnected_bssid);
 #if defined(RSSIAVG)
-	wl_delete_disconnected_rssi_cache(&escan->g_rssi_cache_ctrl, (u8*)&escan->disconnected_bssid);
+	wl_delete_disconnected_rssi_cache(&escan->g_rssi_cache_ctrl,
+		(u8*)&escan->disconnected_bssid);
 #endif
 #endif
 
@@ -463,7 +233,7 @@ static s32 wl_escan_inform_bss(struct wl_escan_info *escan)
 #if defined(RSSIAVG)
 	wl_update_rssi_cache(&escan->g_rssi_cache_ctrl, bss_list);
 	if (!in_atomic())
-		wl_update_connected_rssi_cache(escan->dev, &escan->g_rssi_cache_ctrl, &rssi);
+		wl_update_connected_rssi_cache(dev, &escan->g_rssi_cache_ctrl, &rssi);
 #endif
 #if defined(BSSCACHE)
 	wl_update_bss_cache(&escan->g_bss_cache_ctrl,
@@ -482,27 +252,24 @@ static s32 wl_escan_inform_bss(struct wl_escan_info *escan)
 	wl_delete_dirty_bss_cache(&escan->g_bss_cache_ctrl);
 	wl_reset_bss_cache(&escan->g_bss_cache_ctrl);
 	if (escan->autochannel)
-		wl_ext_get_best_channel(escan->dev, &escan->g_bss_cache_ctrl,
+		wl_ext_get_best_channel(dev, &escan->g_bss_cache_ctrl,
 			escan->ioctl_ver &escan->best_2g_ch, &escan->best_5g_ch);
 #else
 	if (escan->autochannel)
-		wl_ext_get_best_channel(escan->dev, bss_list, escan->ioctl_ver,
+		wl_ext_get_best_channel(dev, bss_list, escan->ioctl_ver,
 			&escan->best_2g_ch, &escan->best_5g_ch);
 #endif
-
-	ESCAN_TRACE(("scanned AP count (%d)\n", bss_list->count));
 
 	return err;
 }
 
 static wl_scan_params_t *
-wl_escan_alloc_params(struct wl_escan_info *escan, int channel,
-	int nprobes, int *out_params_size)
+wl_escan_alloc_params(struct net_device *dev, struct wl_escan_info *escan,
+	int channel, int nprobes, int *out_params_size)
 {
 	wl_scan_params_t *params;
 	int params_size;
 	int num_chans;
-	int bssidx = 0;
 
 	*out_params_size = 0;
 
@@ -510,7 +277,7 @@ wl_escan_alloc_params(struct wl_escan_info *escan, int channel,
 	params_size = WL_SCAN_PARAMS_FIXED_SIZE + 1 * sizeof(uint16);
 	params = (wl_scan_params_t*) kzalloc(params_size, GFP_KERNEL);
 	if (params == NULL) {
-		ESCAN_ERROR(("mem alloc failed (%d bytes)\n", params_size));
+		ESCAN_ERROR(dev->name, "mem alloc failed (%d bytes)\n", params_size);
 		return params;
 	}
 	memset(params, 0, params_size);
@@ -528,7 +295,7 @@ wl_escan_alloc_params(struct wl_escan_info *escan, int channel,
 	if (channel == -1)
 		params->channel_list[0] = htodchanspec(channel);
 	else
-		params->channel_list[0] = wl_ch_host_to_driver(escan->ioctl_ver, bssidx, channel);
+		params->channel_list[0] = wl_ch_host_to_driver(escan->ioctl_ver, channel);
 
 	/* Our scan params have 1 channel and 0 ssids */
 	params->channel_num = htod32((0 << WL_SCAN_PARAMS_NSSID_SHIFT) |
@@ -538,78 +305,83 @@ wl_escan_alloc_params(struct wl_escan_info *escan, int channel,
 	return params;
 }
 
-static void wl_escan_abort(struct wl_escan_info *escan)
+static void
+wl_escan_abort(struct net_device *dev, struct wl_escan_info *escan)
 {
 	wl_scan_params_t *params = NULL;
 	s32 params_size = 0;
 	s32 err = BCME_OK;
 	if (!in_atomic()) {
 		/* Our scan params only need space for 1 channel and 0 ssids */
-		params = wl_escan_alloc_params(escan, -1, 0, &params_size);
+		params = wl_escan_alloc_params(dev, escan, -1, 0, &params_size);
 		if (params == NULL) {
-			ESCAN_ERROR(("scan params allocation failed \n"));
+			ESCAN_ERROR(dev->name, "scan params allocation failed \n");
 			err = -ENOMEM;
 		} else {
 			/* Do a scan abort to stop the driver's scan engine */
-			err = wldev_ioctl(escan->dev, WLC_SCAN, params, params_size, true);
+			err = wldev_ioctl(dev, WLC_SCAN, params, params_size, true);
 			if (err < 0) {
-				ESCAN_ERROR(("scan abort  failed \n"));
+				ESCAN_ERROR(dev->name, "scan abort  failed \n");
 			}
 			kfree(params);
 		}
 	}
 }
 
-static s32 wl_notify_escan_complete(struct wl_escan_info *escan, bool fw_abort)
+static s32
+wl_escan_notify_complete(struct net_device *dev,
+	struct wl_escan_info *escan, bool fw_abort)
 {
 	s32 err = BCME_OK;
+#if defined(WL_WIRELESS_EXT)
 	int cmd = 0;
 #if WIRELESS_EXT > 13
 	union iwreq_data wrqu;
 	char extra[IW_CUSTOM_MAX + 1];
-
-	memset(extra, 0, sizeof(extra));
 #endif
+#endif
+	struct dhd_pub *dhd = dhd_get_pub(dev);
 
-	ESCAN_TRACE(("Enter\n"));
+	ESCAN_TRACE(dev->name, "Enter\n");
 
-	if (!escan || !escan->dev) {
-		ESCAN_ERROR(("escan or dev is null\n"));
-		err = BCME_ERROR;
-		goto out;
-	}
 	if (fw_abort && !in_atomic())
-		wl_escan_abort(escan);
+		wl_escan_abort(dev, escan);
 
 	if (timer_pending(&escan->scan_timeout))
 		del_timer_sync(&escan->scan_timeout);
+
 #if defined(ESCAN_RESULT_PATCH)
 	escan->bss_list = wl_escan_get_buf(escan);
-	wl_escan_inform_bss(escan);
+	wl_escan_inform_bss(dev, escan);
 #endif /* ESCAN_RESULT_PATCH */
 
+	escan->escan_state = ESCAN_STATE_IDLE;
+	wake_up_interruptible(&dhd->conf->event_complete);
+
+#if defined(WL_WIRELESS_EXT)
 #if WIRELESS_EXT > 13
 #if WIRELESS_EXT > 14
 	cmd = SIOCGIWSCAN;
 #endif
-	ESCAN_TRACE(("event WLC_E_SCAN_COMPLETE\n"));
 	// terence 20150224: fix "wlan0: (WE) : Wireless Event too big (65306)"
 	memset(&wrqu, 0, sizeof(wrqu));
+	memset(extra, 0, sizeof(extra));
 	if (cmd) {
 		if (cmd == SIOCGIWSCAN) {
-			wireless_send_event(escan->dev, cmd, &wrqu, NULL);
+			wireless_send_event(dev, cmd, &wrqu, NULL);
 		} else
-			wireless_send_event(escan->dev, cmd, &wrqu, extra);
+			wireless_send_event(dev, cmd, &wrqu, extra);
 	}
 #endif
+#endif
 
-out:
 	return err;
 }
 
 #ifdef ESCAN_BUF_OVERFLOW_MGMT
 static void
-wl_cfg80211_find_removal_candidate(wl_bss_info_t *bss, removal_element_t *candidate)
+wl_escan_find_removal_candidate(struct wl_escan_info *escan,
+	wl_bss_info_t *bss, removal_element_t *candidate)
 {
 	int idx;
 	for (idx = 0; idx < BUF_OVERFLOW_MGMT_COUNT; idx++) {
@@ -627,8 +399,8 @@ wl_cfg80211_find_removal_candidate(wl_bss_info_t *bss, removal_element_t *candid
 }
 
 static void
-wl_cfg80211_remove_lowRSSI_info(wl_scan_results_t *list, removal_element_t *candidate,
-	wl_bss_info_t *bi)
+wl_escan_remove_lowRSSI_info(struct net_device *dev, struct wl_escan_info *escan,
+	wl_scan_results_t *list, removal_element_t *candidate, wl_bss_info_t *bi)
 {
 	int idx1, idx2;
 	int total_delete_len = 0;
@@ -644,8 +416,8 @@ wl_cfg80211_remove_lowRSSI_info(wl_scan_results_t *list, removal_element_t *cand
 				candidate[idx1].RSSI == bss->RSSI &&
 				candidate[idx1].length == dtoh32(bss->length)) {
 				u32 delete_len = dtoh32(bss->length);
-				ESCAN_TRACE(("delete scan info of " MACDBG " to add new AP\n",
-					MAC2STRDBG(bss->BSSID.octet)));
+				ESCAN_DBG(dev->name,
+					"delete scan info of %pM to add new AP\n", &bss->BSSID);
 				if (idx2 < list->count -1) {
 					memmove((u8 *)bss, (u8 *)bss + delete_len,
 						list->buflen - cur_len - delete_len);
@@ -665,7 +437,8 @@ wl_cfg80211_remove_lowRSSI_info(wl_scan_results_t *list, removal_element_t *cand
 }
 #endif /* ESCAN_BUF_OVERFLOW_MGMT */
 
-static s32 wl_escan_handler(struct wl_escan_info *escan,
+static s32
+wl_escan_handler(struct net_device *dev, struct wl_escan_info *escan,
 	const wl_event_msg_t *e, void *data)
 {
 	s32 err = BCME_OK;
@@ -678,41 +451,44 @@ static s32 wl_escan_handler(struct wl_escan_info *escan,
 	u32 i;
 	u16 channel;
 
-	ESCAN_TRACE(("enter event type : %d, status : %d \n",
-		ntoh32(e->event_type), ntoh32(e->status)));
-
 	mutex_lock(&escan->usr_sync);
 	escan_result = (wl_escan_result_t *)data;
 
 	if (escan->escan_state != ESCAN_STATE_SCANING) {
-		ESCAN_TRACE(("Not my scan\n"));
+		ESCAN_DBG(dev->name, "Not my scan\n");
 		goto exit;
 	}
 
+	ESCAN_DBG(dev->name, "enter event type : %d, status : %d \n",
+		ntoh32(e->event_type), ntoh32(e->status));
+
 	if (status == WLC_E_STATUS_PARTIAL) {
-		ESCAN_TRACE(("WLC_E_STATUS_PARTIAL \n"));
+		ESCAN_DBG(dev->name, "WLC_E_STATUS_PARTIAL \n");
 		if (!escan_result) {
-			ESCAN_ERROR(("Invalid escan result (NULL pointer)\n"));
+			ESCAN_ERROR(dev->name, "Invalid escan result (NULL pointer)\n");
 			goto exit;
 		}
 		if (dtoh16(escan_result->bss_count) != 1) {
-			ESCAN_ERROR(("Invalid bss_count %d: ignoring\n", escan_result->bss_count));
+			ESCAN_ERROR(dev->name, "Invalid bss_count %d: ignoring\n",
+				escan_result->bss_count);
 			goto exit;
 		}
 		bi = escan_result->bss_info;
 		if (!bi) {
-			ESCAN_ERROR(("Invalid escan bss info (NULL pointer)\n"));
+			ESCAN_ERROR(dev->name, "Invalid escan bss info (NULL pointer)\n");
 			goto exit;
 		}
 		bi_length = dtoh32(bi->length);
 		if (bi_length != (dtoh32(escan_result->buflen) - WL_ESCAN_RESULTS_FIXED_SIZE)) {
-			ESCAN_ERROR(("Invalid bss_info length %d: ignoring\n", bi_length));
+			ESCAN_ERROR(dev->name, "Invalid bss_info length %d: ignoring\n",
+				bi_length);
 			goto exit;
 		}
 
 		/* +++++ terence 20130524: skip invalid bss */
 		channel =
-			bi->ctl_ch ? bi->ctl_ch : CHSPEC_CHANNEL(wl_chspec_driver_to_host(escan->ioctl_ver, bi->chanspec));
+			bi->ctl_ch ? bi->ctl_ch :
+			CHSPEC_CHANNEL(wl_chspec_driver_to_host(escan->ioctl_ver, bi->chanspec));
 		if (!dhd_conf_match_channel(escan->pub, channel))
 			goto exit;
 		/* ----- terence 20130524: skip invalid bss */
@@ -732,24 +508,24 @@ static s32 wl_escan_handler(struct wl_escan_info *escan,
 				remove_lower_rssi = TRUE;
 #endif /* ESCAN_BUF_OVERFLOW_MGMT */
 
-			ESCAN_TRACE(("%s("MACDBG") RSSI %d flags 0x%x length %d\n", bi->SSID,
-				MAC2STRDBG(bi->BSSID.octet), bi->RSSI, bi->flags, bi->length));
+			ESCAN_DBG(dev->name, "%s(%pM) RSSI %d flags 0x%x length %d\n",
+				bi->SSID, &bi->BSSID, bi->RSSI, bi->flags, bi->length);
 			for (i = 0; i < list->count; i++) {
 				bss = bss ? (wl_bss_info_t *)((uintptr)bss + dtoh32(bss->length))
 					: list->bss_info;
 #ifdef ESCAN_BUF_OVERFLOW_MGMT
-				ESCAN_TRACE(("%s("MACDBG"), i=%d bss: RSSI %d list->count %d\n",
-					bss->SSID, MAC2STRDBG(bss->BSSID.octet),
-					i, bss->RSSI, list->count));
+				ESCAN_DBG(dev->name,
+					"%s(%pM), i=%d bss: RSSI %d list->count %d\n",
+					bss->SSID, &bss->BSSID, i, bss->RSSI, list->count);
 
 				if (remove_lower_rssi)
-					wl_cfg80211_find_removal_candidate(bss, candidate);
+					wl_escan_find_removal_candidate(escan, bss, candidate);
 #endif /* ESCAN_BUF_OVERFLOW_MGMT */
 				if (!bcmp(&bi->BSSID, &bss->BSSID, ETHER_ADDR_LEN) &&
-					(CHSPEC_BAND(wl_chspec_driver_to_host(escan->ioctl_ver, bi->chanspec))
-					== CHSPEC_BAND(wl_chspec_driver_to_host(escan->ioctl_ver, bss->chanspec))) &&
-					bi->SSID_len == bss->SSID_len &&
-					!bcmp(bi->SSID, bss->SSID, bi->SSID_len)) {
+						(CHSPEC_BAND(wl_chspec_driver_to_host(escan->ioctl_ver, bi->chanspec))
+						== CHSPEC_BAND(wl_chspec_driver_to_host(escan->ioctl_ver, bss->chanspec))) &&
+						bi->SSID_len == bss->SSID_len &&
+						!bcmp(bi->SSID, bss->SSID, bi->SSID_len)) {
 
 					/* do not allow beacon data to update
 					*the data recd from a probe response
@@ -758,47 +534,46 @@ static s32 wl_escan_handler(struct wl_escan_info *escan,
 						(bi->flags & WL_BSS_FLAGS_FROM_BEACON))
 						goto exit;
 
-					ESCAN_TRACE(("%s("MACDBG"), i=%d prev: RSSI %d"
-						" flags 0x%x, new: RSSI %d flags 0x%x\n",
-						bss->SSID, MAC2STRDBG(bi->BSSID.octet), i,
-						bss->RSSI, bss->flags, bi->RSSI, bi->flags));
+					ESCAN_DBG(dev->name,
+						"%s(%pM), i=%d prev: RSSI %d flags 0x%x, "
+						"new: RSSI %d flags 0x%x\n",
+						bss->SSID, &bi->BSSID, i, bss->RSSI, bss->flags,
+						bi->RSSI, bi->flags);
 
 					if ((bss->flags & WL_BSS_FLAGS_RSSI_ONCHANNEL) ==
 						(bi->flags & WL_BSS_FLAGS_RSSI_ONCHANNEL)) {
 						/* preserve max RSSI if the measurements are
 						* both on-channel or both off-channel
 						*/
-						ESCAN_TRACE(("%s("MACDBG"), same onchan"
-						", RSSI: prev %d new %d\n",
-						bss->SSID, MAC2STRDBG(bi->BSSID.octet),
-						bss->RSSI, bi->RSSI));
+						ESCAN_DBG(dev->name,
+							"%s(%pM), same onchan, RSSI: prev %d new %d\n",
+							bss->SSID, &bi->BSSID, bss->RSSI, bi->RSSI);
 						bi->RSSI = MAX(bss->RSSI, bi->RSSI);
 					} else if ((bss->flags & WL_BSS_FLAGS_RSSI_ONCHANNEL) &&
 						(bi->flags & WL_BSS_FLAGS_RSSI_ONCHANNEL) == 0) {
 						/* preserve the on-channel rssi measurement
 						* if the new measurement is off channel
 						*/
-						ESCAN_TRACE(("%s("MACDBG"), prev onchan"
-						", RSSI: prev %d new %d\n",
-						bss->SSID, MAC2STRDBG(bi->BSSID.octet),
-						bss->RSSI, bi->RSSI));
+						ESCAN_DBG(dev->name,
+							"%s(%pM), prev onchan, RSSI: prev %d new %d\n",
+							bss->SSID, &bi->BSSID, bss->RSSI, bi->RSSI);
 						bi->RSSI = bss->RSSI;
 						bi->flags |= WL_BSS_FLAGS_RSSI_ONCHANNEL;
 					}
 					if (dtoh32(bss->length) != bi_length) {
 						u32 prev_len = dtoh32(bss->length);
 
-						ESCAN_TRACE(("bss info replacement"
-							" is occured(bcast:%d->probresp%d)\n",
-							bss->ie_length, bi->ie_length));
-						ESCAN_TRACE(("%s("MACDBG"), replacement!(%d -> %d)\n",
-						bss->SSID, MAC2STRDBG(bi->BSSID.octet),
-						prev_len, bi_length));
+						ESCAN_DBG(dev->name,
+							"bss info replacement occured(bcast:%d->probresp%d)\n",
+							bss->ie_length, bi->ie_length);
+						ESCAN_DBG(dev->name,
+							"%s(%pM), replacement!(%d -> %d)\n",
+							bss->SSID, &bi->BSSID, prev_len, bi_length);
 
-						if (list->buflen - prev_len + bi_length
-							> ESCAN_BUF_SIZE) {
-							ESCAN_ERROR(("Buffer is too small: keep the"
-								" previous result of this AP\n"));
+						if (list->buflen - prev_len + bi_length	> ESCAN_BUF_SIZE) {
+							ESCAN_ERROR(dev->name,
+								"Buffer is too small: keep the previous result "
+								"of this AP\n");
 							/* Only update RSSI */
 							bss->RSSI = bi->RSSI;
 							bss->flags |= (bi->flags
@@ -823,21 +598,17 @@ static s32 wl_escan_handler(struct wl_escan_info *escan,
 			}
 			if (bi_length > ESCAN_BUF_SIZE - list->buflen) {
 #ifdef ESCAN_BUF_OVERFLOW_MGMT
-				wl_cfg80211_remove_lowRSSI_info(list, candidate, bi);
+				wl_escan_remove_lowRSSI_info(dev, escan, list, candidate, bi);
 				if (bi_length > ESCAN_BUF_SIZE - list->buflen) {
-					ESCAN_TRACE(("RSSI(" MACDBG ") is too low(%d) to add Buffer\n",
-						MAC2STRDBG(bi->BSSID.octet), bi->RSSI));
+					ESCAN_DBG(dev->name,
+						"RSSI(%pM) is too low(%d) to add Buffer\n",
+						&bi->BSSID, bi->RSSI);
 					goto exit;
 				}
 #else
-				ESCAN_ERROR(("Buffer is too small: ignoring\n"));
+				ESCAN_ERROR(dev->name, "Buffer is too small: ignoring\n");
 				goto exit;
 #endif /* ESCAN_BUF_OVERFLOW_MGMT */
-			}
-
-			if (strlen(bi->SSID) == 0) { // terence: fix for hidden SSID
-				ESCAN_SCAN(("Skip hidden SSID %pM\n", &bi->BSSID));
-				goto exit;
 			}
 
 			memcpy(&(((char *)list)[list->buflen]), bi, bi_length);
@@ -847,39 +618,32 @@ static s32 wl_escan_handler(struct wl_escan_info *escan,
 		}
 	}
 	else if (status == WLC_E_STATUS_SUCCESS) {
-		escan->escan_state = ESCAN_STATE_IDLE;
-		ESCAN_TRACE(("ESCAN COMPLETED\n"));
+		ESCAN_DBG(dev->name, "ESCAN COMPLETED\n");
 		escan->bss_list = wl_escan_get_buf(escan);
-		ESCAN_TRACE(("SCAN COMPLETED: scanned AP count=%d\n",
-			escan->bss_list->count));
-		wl_escan_inform_bss(escan);
-		wl_notify_escan_complete(escan, false);
+		ESCAN_DBG(dev->name, "SCAN COMPLETED: scanned AP count=%d\n",
+			escan->bss_list->count);
+		wl_escan_notify_complete(dev, escan, false);
 	} else if ((status == WLC_E_STATUS_ABORT) || (status == WLC_E_STATUS_NEWSCAN) ||
 		(status == WLC_E_STATUS_11HQUIET) || (status == WLC_E_STATUS_CS_ABORT) ||
 		(status == WLC_E_STATUS_NEWASSOC)) {
 		/* Handle all cases of scan abort */
-		escan->escan_state = ESCAN_STATE_IDLE;
-		ESCAN_TRACE(("ESCAN ABORT reason: %d\n", status));
+		ESCAN_DBG(dev->name, "ESCAN ABORT reason: %d\n", status);
 		escan->bss_list = wl_escan_get_buf(escan);
-		ESCAN_TRACE(("SCAN ABORT: scanned AP count=%d\n",
-			escan->bss_list->count));
-		wl_escan_inform_bss(escan);
-		wl_notify_escan_complete(escan, false);
+		ESCAN_DBG(dev->name, "SCAN ABORT: scanned AP count=%d\n",
+			escan->bss_list->count);
+		wl_escan_notify_complete(dev, escan, false);
 	} else if (status == WLC_E_STATUS_TIMEOUT) {
-		ESCAN_ERROR(("WLC_E_STATUS_TIMEOUT\n"));
-		ESCAN_ERROR(("reason[0x%x]\n", e->reason));
+		ESCAN_ERROR(dev->name, "WLC_E_STATUS_TIMEOUT\n");
+		ESCAN_ERROR(dev->name, "reason[0x%x]\n", e->reason);
 		if (e->reason == 0xFFFFFFFF) {
-			wl_notify_escan_complete(escan, true);
+			wl_escan_notify_complete(dev, escan, true);
 		}
-		escan->escan_state = ESCAN_STATE_IDLE;
 	} else {
-		ESCAN_ERROR(("unexpected Escan Event %d : abort\n", status));
-		escan->escan_state = ESCAN_STATE_IDLE;
+		ESCAN_ERROR(dev->name, "unexpected Escan Event %d : abort\n", status);
 		escan->bss_list = wl_escan_get_buf(escan);
-		ESCAN_TRACE(("SCAN ABORTED(UNEXPECTED): scanned AP count=%d\n",
-				escan->bss_list->count));
-		wl_escan_inform_bss(escan);
-		wl_notify_escan_complete(escan, false);
+		ESCAN_DBG(dev->name, "SCAN ABORTED(UNEXPECTED): scanned AP count=%d\n",
+			escan->bss_list->count);
+		wl_escan_notify_complete(dev, escan, false);
 	}
 exit:
 	mutex_unlock(&escan->usr_sync);
@@ -887,8 +651,8 @@ exit:
 }
 
 static int
-wl_escan_prep(struct wl_escan_info *escan, wl_uint32_list_t *list,
-	wl_scan_params_t *params, wlc_ssid_t *ssid)
+wl_escan_prep(struct net_device *dev, struct wl_escan_info *escan,
+	wl_uint32_list_t *list, wl_scan_params_t *params, wlc_ssid_t *ssid, bool bcast)
 {
 	int err = 0;
 	wl_scan_results_t *results;
@@ -899,6 +663,7 @@ wl_escan_prep(struct wl_escan_info *escan, wl_uint32_list_t *list,
 	u32 n_channels = 0;
 	uint channel;
 	chanspec_t chanspec;
+	u32 n_ssids;
 
 	results = wl_escan_get_buf(escan);
 	results->version = 0;
@@ -925,7 +690,7 @@ wl_escan_prep(struct wl_escan_info *escan, wl_uint32_list_t *list,
 
 	n_channels = dtoh32(list->count);
 	/* Copy channel array if applicable */
-	ESCAN_SCAN(("### List of channelspecs to scan ###\n"));
+	ESCAN_SCAN(dev->name, "### List of channelspecs to scan ###\n");
 	if (n_channels > 0) {
 		for (i = 0; i < n_channels; i++) {
 			channel = dtoh32(list->element[i]);
@@ -933,7 +698,7 @@ wl_escan_prep(struct wl_escan_info *escan, wl_uint32_list_t *list,
 				continue;
 			chanspec = WL_CHANSPEC_BW_20;
 			if (chanspec == INVCHANSPEC) {
-				ESCAN_ERROR(("Invalid chanspec! Skipping channel\n"));
+				ESCAN_ERROR(dev->name, "Invalid chanspec! Skipping channel\n");
 				continue;
 			}
 			if (channel <= CH_MAX_2G_CHANNEL) {
@@ -944,48 +709,55 @@ wl_escan_prep(struct wl_escan_info *escan, wl_uint32_list_t *list,
 			params->channel_list[j] = channel;
 			params->channel_list[j] &= WL_CHANSPEC_CHAN_MASK;
 			params->channel_list[j] |= chanspec;
-			ESCAN_SCAN(("Chan : %d, Channel spec: %x \n",
-				channel, params->channel_list[j]));
+			ESCAN_SCAN(dev->name, "Chan : %d, Channel spec: %x\n",
+				channel, params->channel_list[j]);
 			params->channel_list[j] = wl_chspec_host_to_driver(escan->ioctl_ver,
 				params->channel_list[j]);
 			j++;
 		}
 	} else {
-		ESCAN_SCAN(("Scanning all channels\n"));
+		ESCAN_SCAN(dev->name, "Scanning all channels\n");
 	}
 
 	if (ssid && ssid->SSID_len) {
 		/* Copy ssid array if applicable */
-		ESCAN_SCAN(("### List of SSIDs to scan ###\n"));
+		ESCAN_SCAN(dev->name, "### List of SSIDs to scan ###\n");
 		offset = offsetof(wl_scan_params_t, channel_list) + n_channels * sizeof(u16);
 		offset = roundup(offset, sizeof(u32));
 		ptr = (char*)params + offset;
 
-		ESCAN_SCAN(("0: Broadcast scan\n"));
-		memset(&ssid_tmp, 0, sizeof(wlc_ssid_t));
-		ssid_tmp.SSID_len = 0;
-		memcpy(ptr, &ssid_tmp, sizeof(wlc_ssid_t));
-		ptr += sizeof(wlc_ssid_t);
+		if (bcast) {
+			n_ssids = 2;
+			ESCAN_SCAN(dev->name, "0: Broadcast scan\n");
+			memset(&ssid_tmp, 0, sizeof(wlc_ssid_t));
+			ssid_tmp.SSID_len = 0;
+			memcpy(ptr, &ssid_tmp, sizeof(wlc_ssid_t));
+			ptr += sizeof(wlc_ssid_t);
+		} else {
+			n_ssids = 1;
+		}
 
 		memset(&ssid_tmp, 0, sizeof(wlc_ssid_t));
 		ssid_tmp.SSID_len = ssid->SSID_len;
 		memcpy(ssid_tmp.SSID, ssid->SSID, ssid->SSID_len);
 		memcpy(ptr, &ssid_tmp, sizeof(wlc_ssid_t));
 		ptr += sizeof(wlc_ssid_t);
-		ESCAN_SCAN(("1: scan for %s size=%d\n", ssid_tmp.SSID, ssid_tmp.SSID_len));
+		ESCAN_SCAN(dev->name, "1: scan for %s size=%d\n",
+			ssid_tmp.SSID, ssid_tmp.SSID_len);
 		/* Adding mask to channel numbers */
 		params->channel_num =
-	        htod32((2 << WL_SCAN_PARAMS_NSSID_SHIFT) |
+	        htod32((n_ssids << WL_SCAN_PARAMS_NSSID_SHIFT) |
 	               (n_channels & WL_SCAN_PARAMS_COUNT_MASK));
 	}
 	else {
-		ESCAN_SCAN(("Broadcast scan\n"));
+		ESCAN_SCAN(dev->name, "Broadcast scan\n");
 	}
 
 	return err;
 }
 
-static int wl_escan_reset(struct wl_escan_info *escan)
+static int
+wl_escan_reset(struct wl_escan_info *escan)
 {
 	if (timer_pending(&escan->scan_timeout))
 		del_timer_sync(&escan->scan_timeout);
@@ -994,130 +766,90 @@ static int wl_escan_reset(struct wl_escan_info *escan)
 	return 0;
 }
 
-static void wl_escan_timeout(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	struct timer_list *t
-#else
-	unsigned long data
-#endif
-)
+static void
+wl_escan_timeout(unsigned long data)
 {
 	wl_event_msg_t msg;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	struct wl_escan_info *escan = from_timer(escan, t, scan_timeout);
-#else
 	struct wl_escan_info *escan = (struct wl_escan_info *)data;
-#endif
 	struct wl_scan_results *bss_list;
 	struct wl_bss_info *bi = NULL;
 	s32 i;
 	u32 channel;
 
-	bss_list = wl_escan_get_buf(escan);
-	if (!bss_list) {
-		ESCAN_ERROR(("bss_list is null. Didn't receive any partial scan results\n"));
-	} else {
-		ESCAN_ERROR(("%s: scanned AP count (%d)\n", __FUNCTION__, bss_list->count));
-		bi = next_bss(bss_list, bi);
-		for_each_bss(bss_list, bi, i) {
-			channel = wf_chspec_ctlchan(wl_chspec_driver_to_host(escan->ioctl_ver, bi->chanspec));
-			ESCAN_ERROR(("SSID :%s  Channel :%d\n", bi->SSID, channel));
-		}
-	}
-
 	if (!escan->dev) {
-		ESCAN_ERROR(("No dev present\n"));
+		ESCAN_ERROR("wlan", "No dev present\n");
 		return;
 	}
 
-	bzero(&msg, sizeof(wl_event_msg_t));
-	ESCAN_ERROR(("timer expired\n"));
+	bss_list = wl_escan_get_buf(escan);
+	if (!bss_list) {
+		ESCAN_ERROR(escan->dev->name,
+			"bss_list is null. Didn't receive any partial scan results\n");
+	} else {
+		ESCAN_ERROR(escan->dev->name, "scanned AP count (%d)\n", bss_list->count);
+		bi = next_bss(bss_list, bi);
+		for_each_bss(bss_list, bi, i) {
+			channel = wf_chspec_ctlchan(wl_chspec_driver_to_host(escan->ioctl_ver,
+				bi->chanspec));
+			ESCAN_ERROR(escan->dev->name, "SSID :%s  Channel :%d\n", bi->SSID, channel);
+		}
+	}
 
+	bzero(&msg, sizeof(wl_event_msg_t));
+	ESCAN_ERROR(escan->dev->name, "timer expired\n");
+
+	msg.ifidx = dhd_net2idx(escan->pub->info, escan->dev);
 	msg.event_type = hton32(WLC_E_ESCAN_RESULT);
 	msg.status = hton32(WLC_E_STATUS_TIMEOUT);
 	msg.reason = 0xFFFFFFFF;
-	wl_escan_event(escan->dev, &msg, NULL);
-
-	// terence 20130729: workaround to fix out of memory in firmware
-//	if (dhd_conf_get_chip(dhd_get_pub(dev)) == BCM43362_CHIP_ID) {
-//		ESCAN_ERROR(("Send hang event\n"));
-//		net_os_send_hang_message(dev);
-//	}
+	wl_ext_event_send(escan->pub->event_params, &msg, NULL);
 }
 
 int
-wl_escan_set_scan(
-	struct net_device *dev,
-	struct iw_request_info *info,
-	union iwreq_data *wrqu,
-	char *extra
-)
+wl_escan_set_scan(struct net_device *dev, dhd_pub_t *dhdp,
+	wlc_ssid_t *ssid, uint16 channel, bool bcast)
 {
-	struct dhd_pub *dhd = dhd_get_pub(dev);
-	struct wl_escan_info *escan = dhd->escan;
+	struct wl_escan_info *escan = dhdp->escan;
 	s32 err = BCME_OK;
 	s32 params_size = (WL_SCAN_PARAMS_FIXED_SIZE + OFFSETOF(wl_escan_params_t, params));
 	wl_escan_params_t *params = NULL;
 	scb_val_t scbval;
 	static int cnt = 0;
-	wlc_ssid_t ssid;
 	u32 n_channels = 0;
 	wl_uint32_list_t *list;
 	u8 valid_chan_list[sizeof(u32)*(WL_NUMCHANNELS + 1)];
-	s32 val = 0;
 
-	ESCAN_TRACE(("Enter \n"));
-
-	if (!escan) {
-		ESCAN_ERROR(("device is not ready\n"));
-		return -EIO;
-	}
 	mutex_lock(&escan->usr_sync);
-
-	if (!escan->ioctl_ver) {
-		val = 1;
-		if ((err = wldev_ioctl(dev, WLC_GET_VERSION, &val, sizeof(int), false) < 0)) {
-			ANDROID_ERROR(("WLC_GET_VERSION failed, err=%d\n", err));
-			goto exit;
-		}
-		val = dtoh32(val);
-		if (val != WLC_IOCTL_VERSION && val != 1) {
-			ANDROID_ERROR(("Version mismatch, please upgrade. Got %d, expected %d or 1\n",
-				val, WLC_IOCTL_VERSION));
-			goto exit;
-		}
-		escan->ioctl_ver = val;
-		printf("%s: ioctl_ver=%d\n", __FUNCTION__, val);
-	}
-
-	/* default Broadcast scan */
-	memset(&ssid, 0, sizeof(ssid));
-
-#if WIRELESS_EXT > 17
-	/* check for given essid */
-	if (wrqu->data.length == sizeof(struct iw_scan_req)) {
-		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
-			struct iw_scan_req *req = (struct iw_scan_req *)extra;
-			ssid.SSID_len = MIN(sizeof(ssid.SSID), req->essid_len);
-			memcpy(ssid.SSID, req->essid, ssid.SSID_len);
-			ssid.SSID_len = htod32(ssid.SSID_len);
-		}
-	}
-#endif
-	if (escan->escan_state == ESCAN_STATE_SCANING) {
-		ESCAN_ERROR(("Scanning already\n"));
+	if (escan->escan_state == ESCAN_STATE_DOWN) {
+		ESCAN_ERROR(dev->name, "STATE is down\n");
+		err = -EIO;
 		goto exit;
 	}
+
+	if (wl_ext_check_scan(dev, dhdp)) {
+		err = -EBUSY;
+		goto exit;
+	}
+
+	ESCAN_TRACE(dev->name, "Enter \n");
 
 	/* if scan request is not empty parse scan request paramters */
 	memset(valid_chan_list, 0, sizeof(valid_chan_list));
 	list = (wl_uint32_list_t *)(void *) valid_chan_list;
-	list->count = htod32(WL_NUMCHANNELS);
-	err = wldev_ioctl(escan->dev, WLC_GET_VALID_CHANNELS, valid_chan_list, sizeof(valid_chan_list), false);
-	if (err != 0) {
-		ESCAN_ERROR(("%s: get channels failed with %d\n", __FUNCTION__, err));
-		goto exit;
+
+	if (channel) {
+		list->count = htod32(1);
+		list->element[0] = htod32(channel);
+	} else {
+		list->count = htod32(WL_NUMCHANNELS);
+		err = wldev_ioctl(dev, WLC_GET_VALID_CHANNELS, valid_chan_list,
+			sizeof(valid_chan_list), false);
+		if (err != 0) {
+			ESCAN_ERROR(dev->name, "get channels failed with %d\n", err);
+			goto exit;
+		}
 	}
+
 	n_channels = dtoh32(list->count);
 	/* Allocate space for populating ssids in wl_escan_params_t struct */
 	if (dtoh32(list->count) % 2)
@@ -1125,7 +857,7 @@ wl_escan_set_scan(
 		params_size += sizeof(u16) * (n_channels + 1);
 	else
 		params_size += sizeof(u16) * n_channels;
-	if (ssid.SSID_len) {
+	if (ssid && ssid->SSID_len) {
 		params_size += sizeof(struct wlc_ssid) * 2;
 	}
 
@@ -1134,62 +866,81 @@ wl_escan_set_scan(
 		err = -ENOMEM;
 		goto exit;
 	}
-	wl_escan_prep(escan, list, &params->params, &ssid);
+	wl_escan_prep(dev, escan, list, &params->params, ssid, bcast);
 
 	params->version = htod32(ESCAN_REQ_VERSION);
 	params->action =  htod16(WL_SCAN_ACTION_START);
 	wl_escan_set_sync_id(params->sync_id);
 	if (params_size + sizeof("escan") >= WLC_IOCTL_MEDLEN) {
-		ESCAN_ERROR(("ioctl buffer length not sufficient\n"));
+		ESCAN_ERROR(dev->name, "ioctl buffer length not sufficient\n");
 		kfree(params);
 		err = -ENOMEM;
 		goto exit;
 	}
 	params->params.scan_type = DOT11_SCANTYPE_ACTIVE;
-	ESCAN_TRACE(("Passive scan_type %d\n", params->params.scan_type));
+	ESCAN_SCAN(dev->name, "Passive scan_type %d\n", params->params.scan_type);
 
+	WL_MSG(dev->name, "LEGACY_SCAN\n");
 	err = wldev_iovar_setbuf(dev, "escan", params, params_size,
 		escan->escan_ioctl_buf, WLC_IOCTL_MEDLEN, NULL);
-	printf("%s: LEGACY_SCAN\n", __FUNCTION__);
 	if (unlikely(err)) {
 		if (err == BCME_EPERM)
 			/* Scan Not permitted at this point of time */
-			ESCAN_TRACE(("Escan not permitted at this time (%d)\n", err));
+			ESCAN_TRACE(dev->name, "Escan not permitted at this time (%d)\n", err);
 		else
-			ESCAN_ERROR(("Escan set error (%d)\n", err));
-		wl_escan_reset(escan);
+			ESCAN_ERROR(dev->name, "Escan set error (%d)\n", err);
 	}
 	kfree(params);
 
-exit:
 	if (unlikely(err)) {
 		/* Don't print Error incase of Scan suppress */
 		if ((err == BCME_EPERM))
-			ESCAN_TRACE(("Escan failed: Scan Suppressed \n"));
+			ESCAN_TRACE(dev->name, "Escan failed: Scan Suppressed\n");
 		else {
 			cnt++;
-			ESCAN_ERROR(("error (%d), cnt=%d\n", err, cnt));
+			ESCAN_ERROR(dev->name, "error (%d), cnt=%d\n", err, cnt);
 			// terence 20140111: send disassoc to firmware
 			if (cnt >= 4) {
 				memset(&scbval, 0, sizeof(scb_val_t));
 				wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), true);
-				ESCAN_ERROR(("Send disassoc to break the busy dev=%p\n", dev));
+				ESCAN_ERROR(dev->name, "Send disassoc to break the busy\n");
 				cnt = 0;
 			}
 		}
 	} else {
 		cnt = 0;
+		escan->dev = dev;
+	}
+exit:
+	if (unlikely(err)) {
+		wl_escan_reset(escan);
 	}
 	mutex_unlock(&escan->usr_sync);
 	return err;
 }
 
-int
-wl_escan_merge_scan_results(struct net_device *dev, struct iw_request_info *info,
-	char *extra, wl_bss_info_t *bi, int *len, int max_size)
+#if defined(WL_WIRELESS_EXT)
+static int
+rssi_to_qual(int rssi)
 {
-	struct dhd_pub *dhd = dhd_get_pub(dev);
-	struct wl_escan_info *escan = dhd->escan;
+	if (rssi <= WL_IW_RSSI_NO_SIGNAL)
+		return 0;
+	else if (rssi <= WL_IW_RSSI_VERY_LOW)
+		return 1;
+	else if (rssi <= WL_IW_RSSI_LOW)
+		return 2;
+	else if (rssi <= WL_IW_RSSI_GOOD)
+		return 3;
+	else if (rssi <= WL_IW_RSSI_VERY_GOOD)
+		return 4;
+	else
+		return 5;
+}
+
+static int
+wl_escan_merge_scan_results(struct net_device *dev, struct wl_escan_info *escan,
+	struct iw_request_info *info, char *extra, wl_bss_info_t *bi, int *len, int max_size)
+{
 	s32 err = BCME_OK;
 	struct iw_event	iwe;
 	int j;
@@ -1213,8 +964,8 @@ wl_escan_merge_scan_results(struct net_device *dev, struct iw_request_info *info
 	rssi = MIN(dtoh16(bi->RSSI), RSSI_MAXVAL);
 #endif
 	channel = wf_chspec_ctlchan(wl_chspec_driver_to_host(escan->ioctl_ver, bi->chanspec));
-	ESCAN_SCAN(("BSSID="MACSTR", channel=%d, RSSI=%d, SSID=\"%s\"\n",
-		MAC2STR(bi->BSSID.octet), channel, rssi, bi->SSID));
+	ESCAN_SCAN(dev->name, "BSSID=%pM, channel=%3d, RSSI=%3d, SSID=\"%s\"\n",
+		&bi->BSSID, channel, rssi, bi->SSID);
 
 	/* First entry must be the BSSID */
 	iwe.cmd = SIOCGIWAP;
@@ -1289,18 +1040,17 @@ wl_escan_merge_scan_results(struct net_device *dev, struct iw_request_info *info
 	}
 	*len = event - extra;
 	if (*len < 0)
-		ESCAN_ERROR(("==> Wrong size\n"));
+		ESCAN_ERROR(dev->name, "==> Wrong size\n");
 
 exit:
 	return err;
 }
 
 int
-wl_escan_get_scan(struct net_device *dev, struct iw_request_info *info,
-	struct iw_point *dwrq, char *extra)
+wl_escan_get_scan(struct net_device *dev, dhd_pub_t *dhdp,
+	struct iw_request_info *info, struct iw_point *dwrq, char *extra)
 {
-	struct dhd_pub *dhd = dhd_get_pub(dev);
-	struct wl_escan_info *escan = dhd->escan;
+	struct wl_escan_info *escan = dhdp->escan;
 	s32 err = BCME_OK;
 	int i = 0;
 	int len_prep = 0, len_ret = 0;
@@ -1313,43 +1063,50 @@ wl_escan_get_scan(struct net_device *dev, struct iw_request_info *info,
 	char *buf = NULL;
 	struct ether_addr cur_bssid;
 
-	ESCAN_TRACE(("%s: %s SIOCGIWSCAN, len=%d\n", __FUNCTION__, dev->name, dwrq->length));
-
-	if (!extra)
+	if (!extra) {
+		ESCAN_TRACE(dev->name, "extra is null\n");
 		return -EINVAL;
+	}
 
 	mutex_lock(&escan->usr_sync);
 
 	/* Check for scan in progress */
 	if (escan->escan_state == ESCAN_STATE_SCANING) {
-		ESCAN_TRACE(("%s: SIOCGIWSCAN GET still scanning\n", dev->name));
+		ESCAN_DBG(dev->name, "SIOCGIWSCAN GET still scanning\n");
 		err = -EAGAIN;
 		goto exit;
 	}
 	if (!escan->bss_list) {
-		ESCAN_ERROR(("%s: scan not ready\n", dev->name));
+		ESCAN_ERROR(dev->name, "scan not ready\n");
 		err = -EAGAIN;
 		goto exit;
 	}
+	if (dev != escan->dev) {
+		ESCAN_ERROR(dev->name, "not my scan from %s\n", escan->dev->name);
+		err = -EINVAL;
+		goto exit;
+	}
+
+	ESCAN_SCAN(dev->name, "SIOCGIWSCAN, len=%d\n", dwrq->length);
 
 	err = wldev_ioctl(dev, WLC_GET_BSSID, &cur_bssid, sizeof(cur_bssid), false);
 	if (err != BCME_NOTASSOCIATED && memcmp(&ether_null, &cur_bssid, ETHER_ADDR_LEN)) {
 		// merge current connected bss
 		buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_ATOMIC);
 		if (!buf) {
-			ESCAN_ERROR(("buffer alloc failed.\n"));
+			ESCAN_ERROR(dev->name, "buffer alloc failed.\n");
 			err = BCME_NOMEM;
 			goto exit;
 		}
 		*(u32 *)buf = htod32(WL_EXTRA_BUF_MAX);
 		err = wldev_ioctl(dev, WLC_GET_BSS_INFO, buf, WL_EXTRA_BUF_MAX, false);
 		if (unlikely(err)) {
-			ESCAN_ERROR(("Could not get bss info %d\n", err));
+			ESCAN_ERROR(dev->name, "Could not get bss info %d\n", err);
 			goto exit;
 		}
 		bi = (struct wl_bss_info *)(buf + 4);
 		len_prep = 0;
-		err = wl_escan_merge_scan_results(dev, info, extra+len_ret, bi,
+		err = wl_escan_merge_scan_results(dev, escan, info, extra+len_ret, bi,
 			&len_prep, buflen_from_user-len_ret);
 		len_ret += len_prep;
 		if (err)
@@ -1371,14 +1128,14 @@ wl_escan_get_scan(struct net_device *dev, struct iw_request_info *info,
 		bi = node->results.bss_info;
 #endif
 		if (!memcmp(&bi->BSSID, &cur_bssid, ETHER_ADDR_LEN)) {
-			ESCAN_SCAN(("skip connected AP %pM\n", &cur_bssid));
+			ESCAN_SCAN(dev->name, "skip connected AP %pM\n", &cur_bssid);
 #if defined(BSSCACHE)
 			node = node->next;
 #endif
 			continue;
 		}
 		len_prep = 0;
-		err = wl_escan_merge_scan_results(dev, info, extra+len_ret, bi,
+		err = wl_escan_merge_scan_results(dev, escan, info, extra+len_ret, bi,
 			&len_prep, buflen_from_user-len_ret);
 		len_ret += len_prep;
 		if (err)
@@ -1392,67 +1149,265 @@ wl_escan_get_scan(struct net_device *dev, struct iw_request_info *info,
 		dwrq->length = len_ret;
 
 	dwrq->flags = 0;	/* todo */
+	ESCAN_SCAN(dev->name, "scanned AP count (%d)\n", i);
 exit:
 	kfree(buf);
 	dwrq->length = len_ret;
-	ESCAN_SCAN(("scanned AP count (%d)\n", i));
+	mutex_unlock(&escan->usr_sync);
+	return err;
+}
+#endif /* WL_WIRELESS_EXT */
+
+#ifdef WLMESH
+bool
+wl_escan_meshid_ie(u8 *parse, u32 len, wlc_ssid_t *mesh_id)
+{
+	bcm_tlv_t *ie;
+
+	if((ie = bcm_parse_tlvs(parse, (int)len, DOT11_MNG_MESH_ID)) != NULL) {
+		mesh_id->SSID_len = ie->len;
+		if (ie->len) {
+			strncpy(mesh_id->SSID, ie->data, ie->len);
+		}
+		return TRUE;
+	}
+	return FALSE;
+}
+
+bool
+wl_escan_rsn_ie(u8 *parse, u32 len)
+{
+	if (bcm_parse_tlvs(parse, (u32)len, DOT11_MNG_RSN_ID)) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+void
+wl_escan_mesh_info_ie(u8 *parse, u32 len, struct wl_mesh_params *mesh_info)
+{
+	bcm_tlv_t *ie;
+	uchar mesh_oui[]={0x00, 0x22, 0xf4};
+	int totl_len;
+	uint8 *pie;
+
+	if((ie = bcm_parse_tlvs(parse, (int)len, DOT11_MNG_VS_ID)) != NULL) {
+		totl_len = ie->len;
+		if (!memcmp(ie->data, &mesh_oui, sizeof(mesh_oui))) {
+			pie = ie->data + sizeof(mesh_oui);
+			ie = (bcm_tlv_t *)pie;
+			totl_len -= sizeof(mesh_oui);
+			while (totl_len > 2 && ie->len) {
+				if (ie->id == MESH_INFO_MASTER_BSSID && ie->len == ETHER_ADDR_LEN) {
+					memcpy(&mesh_info->master_bssid, ie->data, ETHER_ADDR_LEN);
+				} else if (ie->id == MESH_INFO_MASTER_CHANNEL) {
+					mesh_info->master_channel = ie->data[0];
+				} else if (ie->id == MESH_INFO_HOP_CNT) {
+					mesh_info->hop_cnt = ie->data[0];
+				} else if (ie->id == MESH_INFO_PEER_BSSID) {
+					memcpy(&mesh_info->peer_bssid, ie->data, ETHER_ADDR_LEN);
+				}
+				totl_len -= (ie->len + 2);
+				pie = ie->data + ie->len;
+				ie = (bcm_tlv_t *)pie;
+			}
+		}
+	}
+}
+
+int
+wl_escan_mesh_info(struct net_device *dev, struct wl_escan_info *escan, 
+	struct ether_addr *peer_bssid, struct wl_mesh_params *mesh_info)
+{
+	s32 err = BCME_OK;
+	int i = 0;
+	wl_bss_info_t *bi = NULL;
+	struct wl_scan_results *bss_list;
+	int16 bi_rssi, bi_chan;
+	wlc_ssid_t bi_meshid;
+	bool is_mesh_peer = FALSE;
+	struct wl_mesh_params peer_mesh_info;
+
+	mutex_lock(&escan->usr_sync);
+
+	/* Check for scan in progress */
+	if (escan->escan_state == ESCAN_STATE_SCANING) {
+		ESCAN_ERROR(dev->name, "SIOCGIWSCAN GET still scanning\n");
+		err = -EAGAIN;
+		goto exit;
+	}
+	if (!escan->bss_list) {
+		ESCAN_ERROR(dev->name, "scan not ready\n");
+		err = -EAGAIN;
+		goto exit;
+	}
+	if (dev != escan->dev) {
+		ESCAN_ERROR(dev->name, "not my scan from %s\n", escan->dev->name);
+		err = -EINVAL;
+		goto exit;
+	}
+
+	bss_list = escan->bss_list;
+	bi = next_bss(bss_list, bi);
+	ESCAN_SCAN(dev->name, "scanned AP/Mesh count (%d)\n", bss_list->count);
+	for_each_bss(bss_list, bi, i)
+	{
+		memset(&bi_meshid, 0, sizeof(bi_meshid));
+		is_mesh_peer = FALSE;
+		bi_chan = wf_chspec_ctlchan(
+			wl_chspec_driver_to_host(escan->ioctl_ver, bi->chanspec));
+		bi_rssi = MIN(dtoh16(bi->RSSI), RSSI_MAXVAL);
+		is_mesh_peer = wl_escan_meshid_ie(((u8*)bi)+bi->ie_offset,
+			bi->ie_length, &bi_meshid);
+		if (!(bi->capability & (DOT11_CAP_ESS|DOT11_CAP_IBSS)) && is_mesh_peer) {
+			bool bi_sae = FALSE, bss_found = FALSE;
+			if (!memcmp(peer_bssid, &bi->BSSID, ETHER_ADDR_LEN)) {
+				bi_sae = wl_escan_rsn_ie(((u8*)bi)+bi->ie_offset, bi->ie_length);
+				memset(&peer_mesh_info, 0, sizeof(peer_mesh_info));
+				wl_escan_mesh_info_ie(((u8*)bi)+bi->ie_offset, bi->ie_length,
+					&peer_mesh_info);
+				if (peer_mesh_info.hop_cnt) {
+					memcpy(&mesh_info->master_bssid, &peer_mesh_info.master_bssid,
+						ETHER_ADDR_LEN);
+					mesh_info->master_channel = peer_mesh_info.master_channel;
+					mesh_info->hop_cnt = peer_mesh_info.hop_cnt;
+					memcpy(&mesh_info->peer_bssid, &peer_mesh_info.peer_bssid,
+						ETHER_ADDR_LEN);
+					mesh_info->channel = bi_chan;
+					bss_found = TRUE;
+				}
+			}
+			ESCAN_SCAN(dev->name,
+				"%s[Mesh] BSSID=%pM, channel=%d, RSSI=%d, sec=%s, "
+				"mbssid=%pM, mchannel=%d, hop=%d, pbssid=%pM, MeshID=\"%s\"\n",
+				bss_found?"*":" ", &bi->BSSID, bi_chan, bi_rssi, bi_sae?"SAE":"OPEN",
+				&peer_mesh_info.master_bssid, peer_mesh_info.master_channel,
+				peer_mesh_info.hop_cnt, &peer_mesh_info.peer_bssid, bi_meshid.SSID);
+		}
+	}
+
+exit:
 	mutex_unlock(&escan->usr_sync);
 	return err;
 }
 
-s32 wl_escan_autochannel(struct net_device *dev, char* command, int total_len)
+int
+wl_escan_mesh_peer(struct net_device *dev, struct wl_escan_info *escan, 
+	wlc_ssid_t *cur_ssid, uint16 cur_chan, bool sae,
+	struct wl_mesh_params *mesh_info)
 {
-	struct dhd_pub *dhd = dhd_get_pub(dev);
-	struct wl_escan_info *escan = dhd->escan;
-	int ret = 0;
-	int bytes_written = -1;
+	s32 err = BCME_OK;
+	int i = 0;
+	wl_bss_info_t *bi = NULL;
+	struct wl_scan_results *bss_list;
+	int16 bi_rssi, bi_chan, max_rssi = -100;
+	uint min_hop_cnt = 255;
+	wlc_ssid_t bi_meshid;
+	bool is_mesh_peer = FALSE, chan_matched = FALSE;
+	struct wl_mesh_params peer_mesh_info;
 
-	sscanf(command, "%*s %d", &escan->autochannel);
+	mutex_lock(&escan->usr_sync);
 
-	if (escan->autochannel == 0) {
-		escan->best_2g_ch = 0;
-		escan->best_5g_ch = 0;
-	} else if (escan->autochannel == 2) {
-		bytes_written = snprintf(command, total_len, "2g=%d 5g=%d",
-			escan->best_2g_ch, escan->best_5g_ch);
-		ANDROID_TRACE(("%s: command result is %s\n", __FUNCTION__, command));
-		ret = bytes_written;
+	/* Check for scan in progress */
+	if (escan->escan_state == ESCAN_STATE_SCANING) {
+		ESCAN_ERROR(dev->name, "SIOCGIWSCAN GET still scanning\n");
+		err = -EAGAIN;
+		goto exit;
+	}
+	if (!escan->bss_list) {
+		ESCAN_ERROR(dev->name, "scan not ready\n");
+		err = -EAGAIN;
+		goto exit;
+	}
+	if (dev != escan->dev) {
+		ESCAN_ERROR(dev->name, "not my scan from %s\n", escan->dev->name);
+		err = -EINVAL;
+		goto exit;
 	}
 
-	return ret;
-}
+	bss_list = escan->bss_list;
+	bi = next_bss(bss_list, bi);
+	ESCAN_SCAN(dev->name, "scanned AP/Mesh count (%d)\n", bss_list->count);
+	for_each_bss(bss_list, bi, i)
+	{
+		memset(&bi_meshid, 0, sizeof(bi_meshid));
+		is_mesh_peer = FALSE;
+		bi_chan = wf_chspec_ctlchan(
+			wl_chspec_driver_to_host(escan->ioctl_ver, bi->chanspec));
+		bi_rssi = MIN(dtoh16(bi->RSSI), RSSI_MAXVAL);
+		is_mesh_peer = wl_escan_meshid_ie(((u8*)bi)+bi->ie_offset,
+			bi->ie_length, &bi_meshid);
+		if (!(bi->capability & (DOT11_CAP_ESS|DOT11_CAP_IBSS)) && is_mesh_peer) {
+			bool meshid_matched = FALSE, sec_matched = FALSE, bi_sae = FALSE,
+				bss_found = FALSE;
 
-static s32 wl_create_event_handler(struct wl_escan_info *escan)
-{
-	int ret = 0;
-	ESCAN_TRACE(("Enter \n"));
+			if (cur_ssid->SSID_len && cur_ssid->SSID_len == bi_meshid.SSID_len &&
+					!memcmp(cur_ssid->SSID, bi_meshid.SSID, bi_meshid.SSID_len))
+				meshid_matched = TRUE;
 
-	/* Do not use DHD in cfg driver */
-	escan->event_tsk.thr_pid = -1;
+			bi_sae = wl_escan_rsn_ie(((u8*)bi)+bi->ie_offset, bi->ie_length);
+			if (bi_sae == sae)
+				sec_matched = TRUE;
 
-	PROC_START(wl_escan_event_handler, escan, &escan->event_tsk, 0, "wl_escan_handler");
-	if (escan->event_tsk.thr_pid < 0)
-		ret = -ENOMEM;
-	return ret;
-}
+			memset(&peer_mesh_info, 0, sizeof(peer_mesh_info));
+			wl_escan_mesh_info_ie(((u8*)bi)+bi->ie_offset, bi->ie_length,
+				&peer_mesh_info);
 
-static void wl_destroy_event_handler(struct wl_escan_info *escan)
-{
-	if (escan->event_tsk.thr_pid >= 0)
-		PROC_STOP(&escan->event_tsk);
-}
+			if (meshid_matched && sec_matched && peer_mesh_info.hop_cnt &&
+					(cur_chan == bi_chan)) {
+				if (peer_mesh_info.hop_cnt < min_hop_cnt) {
+					memcpy(&mesh_info->master_bssid, &peer_mesh_info.master_bssid,
+						ETHER_ADDR_LEN);
+					mesh_info->master_channel = peer_mesh_info.master_channel;
+					mesh_info->hop_cnt = peer_mesh_info.hop_cnt;
+					memcpy(&mesh_info->peer_bssid, &peer_mesh_info.peer_bssid,
+						ETHER_ADDR_LEN);
+					mesh_info->channel = bi_chan;
+					min_hop_cnt = peer_mesh_info.hop_cnt;
+					bss_found = TRUE;
+					chan_matched = TRUE;
+				}
+			} else if (meshid_matched && sec_matched && peer_mesh_info.hop_cnt &&
+					(cur_chan != bi_chan) && !chan_matched) {
+				if (bi_rssi > max_rssi) {
+					memcpy(&mesh_info->master_bssid, &peer_mesh_info.master_bssid,
+						ETHER_ADDR_LEN);
+					mesh_info->master_channel = peer_mesh_info.master_channel;
+					mesh_info->hop_cnt = peer_mesh_info.hop_cnt;
+					memcpy(&mesh_info->peer_bssid, &peer_mesh_info.peer_bssid,
+						ETHER_ADDR_LEN);
+					mesh_info->channel = bi_chan;
+					max_rssi = bi_rssi;
+					bss_found = TRUE;
+				}
+			}
 
-static void wl_escan_deinit(struct wl_escan_info *escan)
-{
-	printf("%s: Enter\n", __FUNCTION__);
-	if (!escan) {
-		ESCAN_ERROR(("device is not ready\n"));
-		return;
+			ESCAN_SCAN(dev->name,
+				"%s[Mesh] BSSID=%pM, channel=%d, RSSI=%d, sec=%s, "
+				"mbssid=%pM, mchannel=%d, hop=%d, pbssid=%pM, MeshID=\"%s\"\n",
+				bss_found?"*":" ", &bi->BSSID, bi_chan, bi_rssi, bi_sae?"SAE":"OPEN",
+				&peer_mesh_info.master_bssid, peer_mesh_info.master_channel,
+				peer_mesh_info.hop_cnt, &peer_mesh_info.peer_bssid, bi_meshid.SSID);
+		} else {
+			ESCAN_SCAN(dev->name,
+				"[AP] BSSID=%pM, channel=%d, RSSI=%d, SSID=\"%s\"\n",
+				&bi->BSSID, bi_chan, bi_rssi, bi->SSID);
+		}
 	}
-	wl_destroy_event_handler(escan);
-	wl_flush_eq(escan);
+
+exit:
+	mutex_unlock(&escan->usr_sync);
+	return err;
+}
+#endif /* WLMESH */
+
+static void
+wl_escan_deinit(struct net_device *dev, struct wl_escan_info *escan)
+{
+	ESCAN_TRACE(dev->name, "Enter\n");
+
 	del_timer_sync(&escan->scan_timeout);
-	escan->escan_state = ESCAN_STATE_IDLE;
+	escan->escan_state = ESCAN_STATE_DOWN;
 
 #if defined(RSSIAVG)
 	wl_free_rssi_cache(&escan->g_rssi_cache_ctrl);
@@ -1462,59 +1417,123 @@ static void wl_escan_deinit(struct wl_escan_info *escan)
 #endif
 }
 
-static s32 wl_escan_init(struct wl_escan_info *escan)
+static s32
+wl_escan_init(struct net_device *dev, struct wl_escan_info *escan)
 {
-	int err = 0;
-
-	printf("%s: Enter\n", __FUNCTION__);
-	if (!escan) {
-		ESCAN_ERROR(("device is not ready\n"));
-		return -EIO;
-	}
+	ESCAN_TRACE(dev->name, "Enter\n");
 
 	/* Init scan_timeout timer */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	timer_setup(&escan->scan_timeout, wl_escan_timeout, 0);
-#else
-	init_timer(&escan->scan_timeout);
-	escan->scan_timeout.data = (unsigned long) escan;
-	escan->scan_timeout.function = wl_escan_timeout;
-#endif
-
-	if (wl_create_event_handler(escan)) {
-		err = -ENOMEM;
-		goto err;
-	}
-	memset(escan->evt_handler, 0, sizeof(escan->evt_handler));
-
-	escan->evt_handler[WLC_E_ESCAN_RESULT] = wl_escan_handler;
+	init_timer_compat(&escan->scan_timeout, wl_escan_timeout, escan);
 	escan->escan_state = ESCAN_STATE_IDLE;
 
-	mutex_init(&escan->usr_sync);
-
 	return 0;
-err:
-	wl_escan_deinit(escan);
-	return err;
 }
 
-void wl_escan_detach(dhd_pub_t *dhdp)
+void
+wl_escan_down(struct net_device *dev, dhd_pub_t *dhdp)
 {
 	struct wl_escan_info *escan = dhdp->escan;
 
-	printf("%s: Enter\n", __FUNCTION__);
-
+	ESCAN_TRACE(dev->name, "Enter\n");
 	if (!escan) {
-		ESCAN_ERROR(("device is not ready\n"));
+		ESCAN_ERROR(dev->name, "escan is NULL\n");
 		return;
 	}
 
-	wl_escan_deinit(escan);
+	wl_escan_deinit(dev, escan);
+}
 
+int
+wl_escan_up(struct net_device *dev, dhd_pub_t *dhdp)
+{
+	struct wl_escan_info *escan = dhdp->escan;
+	s32 val = 0;
+	int ret = -1;
+
+	ESCAN_TRACE(dev->name, "Enter\n");
+	if (!escan) {
+		ESCAN_ERROR(dev->name, "escan is NULL\n");
+		return ret;
+	}
+
+	ret = wl_escan_init(dev, escan);
+	if (ret) {
+		ESCAN_ERROR(dev->name, "wl_escan_init ret %d\n", ret);
+		return ret;
+	}
+
+	if (!escan->ioctl_ver) {
+		val = 1;
+		if ((ret = wldev_ioctl(dev, WLC_GET_VERSION, &val, sizeof(int), false) < 0)) {
+			ESCAN_ERROR(dev->name, "WLC_GET_VERSION failed, ret=%d\n", ret);
+			return ret;
+		}
+		val = dtoh32(val);
+		if (val != WLC_IOCTL_VERSION && val != 1) {
+			ESCAN_ERROR(dev->name,
+				"Version mismatch, please upgrade. Got %d, expected %d or 1\n",
+				val, WLC_IOCTL_VERSION);
+			return ret;
+		}
+		escan->ioctl_ver = val;
+	}
+
+	return 0;
+}
+
+int
+wl_escan_event_dettach(struct net_device *dev, dhd_pub_t *dhdp)
+{
+	struct wl_escan_info *escan = dhdp->escan;
+	int ret = -1;
+
+	if (!escan) {
+		ESCAN_ERROR(dev->name, "escan is NULL\n");
+		return ret;
+	}
+
+	wl_ext_event_deregister(dev, dhdp, WLC_E_ESCAN_RESULT, wl_escan_handler);
+
+	return 0;
+}
+
+int
+wl_escan_event_attach(struct net_device *dev, dhd_pub_t *dhdp)
+{
+	struct wl_escan_info *escan = dhdp->escan;
+	int ret = -1;
+
+	if (!escan) {
+		ESCAN_ERROR(dev->name, "escan is NULL\n");
+		return ret;
+	}
+
+	ret = wl_ext_event_register(dev, dhdp, WLC_E_ESCAN_RESULT, wl_escan_handler,
+		escan, PRIO_EVENT_ESCAN);
+	if (ret) {
+		ESCAN_ERROR(dev->name, "wl_ext_event_register err %d\n", ret);
+	}
+
+	return ret;
+}
+
+void
+wl_escan_detach(struct net_device *dev, dhd_pub_t *dhdp)
+{
+	struct wl_escan_info *escan = dhdp->escan;
+
+	ESCAN_TRACE(dev->name, "Enter\n");
+
+	if (!escan)
+		return;
+
+	wl_escan_deinit(dev, escan);
 	if (escan->escan_ioctl_buf) {
 		kfree(escan->escan_ioctl_buf);
 		escan->escan_ioctl_buf = NULL;
 	}
+	wl_ext_event_deregister(dev, dhdp, WLC_E_ESCAN_RESULT, wl_escan_handler);
+
 	DHD_OS_PREFREE(dhdp, escan, sizeof(struct wl_escan_info));
 	dhdp->escan = NULL;
 }
@@ -1523,34 +1542,40 @@ int
 wl_escan_attach(struct net_device *dev, dhd_pub_t *dhdp)
 {
 	struct wl_escan_info *escan = NULL;
+	int ret = 0;
 
-	printf("%s: Enter\n", __FUNCTION__);
+	ESCAN_TRACE(dev->name, "Enter\n");
 
-	if (!dev)
-		return 0;
-	escan = (wl_escan_info_t *)DHD_OS_PREALLOC(dhdp, DHD_PREALLOC_WL_ESCAN_INFO, sizeof(struct wl_escan_info));
+	escan = (struct wl_escan_info *)DHD_OS_PREALLOC(dhdp,
+		DHD_PREALLOC_WL_ESCAN, sizeof(struct wl_escan_info));
 	if (!escan)
 		return -ENOMEM;
-	dhdp->escan = (void *)escan;
 	memset(escan, 0, sizeof(struct wl_escan_info));
 
+	dhdp->escan = escan;
+
 	/* we only care about main interface so save a global here */
-	escan->dev = dev;
 	escan->pub = dhdp;
-	escan->escan_state = ESCAN_STATE_IDLE;
+	escan->escan_state = ESCAN_STATE_DOWN;
 
 	escan->escan_ioctl_buf = (void *)kzalloc(WLC_IOCTL_MAXLEN, GFP_KERNEL);
 	if (unlikely(!escan->escan_ioctl_buf)) {
-		ESCAN_ERROR(("Ioctl buf alloc failed\n"));
-		goto err ;
+		ESCAN_ERROR(dev->name, "Ioctl buf alloc failed\n");
+		ret = -ENOMEM;
+		goto exit;
 	}
-	wl_init_eq(escan);
-	wl_escan_init(escan);
+	ret = wl_escan_init(dev, escan);
+	if (ret) {
+		ESCAN_ERROR(dev->name, "wl_escan_init err %d\n", ret);
+		goto exit;
+	}
+	mutex_init(&escan->usr_sync);
 
 	return 0;
-err:
-	wl_escan_detach(dhdp);
-	return -ENOMEM;
+
+exit:
+	wl_escan_detach(dev, dhdp);
+	return ret;
 }
 
 #endif /* WL_ESCAN */

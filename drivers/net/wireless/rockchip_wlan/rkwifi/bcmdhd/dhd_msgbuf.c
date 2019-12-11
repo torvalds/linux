@@ -6023,7 +6023,7 @@ dhd_msgbuf_wait_ioctl_cmplt(dhd_pub_t *dhd, uint32 len, void *buf)
 		goto out;
 	}
 
-	timeleft = dhd_os_ioctl_resp_wait(dhd, (uint *)&prot->ioctl_received, false);
+	timeleft = dhd_os_ioctl_resp_wait(dhd, (uint *)&prot->ioctl_received);
 
 #ifdef DHD_RECOVER_TIMEOUT
 	if (prot->ioctl_received == 0) {
@@ -6064,10 +6064,11 @@ dhd_msgbuf_wait_ioctl_cmplt(dhd_pub_t *dhd, uint32 len, void *buf)
 			if (intstatus) {
 				DHD_ERROR(("%s: reschedule dhd_dpc, cnt=%d, intstatus=0x%x, intmask=0x%x\n",
 					__FUNCTION__, cnt, intstatus, intmask));
+				dhd->bus->intstatus = intstatus;
 				dhd->bus->ipend = TRUE;
 				dhd->bus->dpc_sched = TRUE;
 				dhd_sched_dpc(dhd);
-				timeleft = dhd_os_ioctl_resp_wait(dhd, &prot->ioctl_received, true);
+				timeleft = dhd_os_ioctl_resp_wait(dhd, &prot->ioctl_received);
 			}
 		}
 	} else {

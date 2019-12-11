@@ -347,6 +347,42 @@ static inline void pci_free_consistent(struct pci_dev *hwdev, size_t size,
 
 #endif /* DMA mapping */
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+
+typedef struct timer_list timer_list_compat_t;
+
+#define init_timer_compat(timer_compat, cb, priv) \
+	init_timer(timer_compat); \
+	(timer_compat)->data = (ulong)priv; \
+	(timer_compat)->function = cb
+#define timer_set_private(timer_compat, priv) (timer_compat)->data = (ulong)priv
+#define timer_expires(timer_compat) (timer_compat)->expires
+
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0) */
+
+typedef struct timer_list_compat {
+	struct timer_list timer;
+	void *arg;
+	void (*callback)(ulong arg);
+} timer_list_compat_t;
+
+extern void timer_cb_compat(struct timer_list *tl);
+
+#define init_timer_compat(timer_compat, cb, priv) \
+	(timer_compat)->arg = priv; \
+	(timer_compat)->callback = cb; \
+	timer_setup(&(timer_compat)->timer, timer_cb_compat, 0);
+#define timer_set_private(timer_compat, priv) (timer_compat)->arg = priv
+#define timer_expires(timer_compat) (timer_compat)->timer.expires
+
+#define del_timer(t) del_timer(&((t)->timer))
+#define del_timer_sync(t) del_timer_sync(&((t)->timer))
+#define timer_pending(t) timer_pending(&((t)->timer))
+#define add_timer(t) add_timer(&((t)->timer))
+#define mod_timer(t, j) mod_timer(&((t)->timer), j)
+
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0) */
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 3, 43))
 
 #define dev_kfree_skb_any(a)		dev_kfree_skb(a)
@@ -765,6 +801,7 @@ not match our unaligned address for < 2.6.24
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0))
+#include <linux/fs.h>
 static inline struct inode *file_inode(const struct file *f)
 {
 	return f->f_dentry->d_inode;

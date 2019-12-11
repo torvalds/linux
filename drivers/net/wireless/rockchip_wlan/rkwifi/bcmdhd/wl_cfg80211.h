@@ -52,6 +52,9 @@ struct bcm_cfg80211;
 struct wl_security;
 struct wl_ibss;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+#undef WL_SAE
+#endif // endif
 
 #define htod32(i) (i)
 #define htod16(i) (i)
@@ -84,116 +87,135 @@ extern char *dhd_log_dump_get_timestamp(void);
 #define WL_DBG_LEVEL 0xFF
 
 #ifdef CUSTOMER_HW4_DEBUG
-#define CFG80211_ERROR_TEXT		"CFG80211-INFO2) "
+#define CFG80211_ERROR_TEXT		"[dhd] CFG80211-INFO2) "
 #else
-#define CFG80211_ERROR_TEXT		"CFG80211-ERROR) "
+#define CFG80211_ERROR_TEXT		"[dhd] CFG80211-ERROR) "
 #endif /* CUSTOMER_HW4_DEBUG */
 
 #if defined(DHD_DEBUG)
 #ifdef DHD_LOG_DUMP
-#define	WL_ERR(args)	\
+#define	WL_ERR_MSG(x, args...)	\
 do {	\
 	if (wl_dbg_level & WL_DBG_ERR) {	\
-		printk(KERN_INFO CFG80211_ERROR_TEXT "%s : ", __func__);	\
-		printk args;	\
+		printk(KERN_INFO CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
 		DHD_LOG_DUMP_WRITE("[%s] %s: ", dhd_log_dump_get_timestamp(), __func__);	\
-		DHD_LOG_DUMP_WRITE args;	\
+		DHD_LOG_DUMP_WRITE(x, ## args);	\
 	}	\
 } while (0)
 #define	WL_ERR_MEM(args)	\
 do {	\
 	if (wl_dbg_level & WL_DBG_ERR) {	\
 		DHD_LOG_DUMP_WRITE("[%s] %s: ", dhd_log_dump_get_timestamp(), __func__);	\
-		DHD_LOG_DUMP_WRITE args;	\
+		DHD_LOG_DUMP_WRITE(x, ## args);	\
 	}	\
 } while (0)
-#define	WL_ERR_EX(args)	\
+#define	WL_ERR_EX_MSG(x, args...)	\
 do {	\
 	if (wl_dbg_level & WL_DBG_ERR) {	\
-		printk(KERN_INFO CFG80211_ERROR_TEXT "%s : ", __func__);	\
-		printk args;	\
-		DHD_LOG_DUMP_WRITE_EX("[%s] %s: ", dhd_log_dump_get_timestamp(), __func__);	\
-		DHD_LOG_DUMP_WRITE_EX args;	\
+		printk(KERN_INFO CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
+		DHD_LOG_DUMP_WRITE_EX("[%s] %s: ", dhd_log_dump_get_timestamp(), __func__); \
+		DHD_LOG_DUMP_WRITE_EX(x, ## args); \
 	}	\
 } while (0)
+#define WL_ERR(x) WL_ERR_MSG x
+#define WL_ERR_EX(args) WL_ERR_EX_MSG(args)
 #else
-#define	WL_ERR(args)									\
+#define	WL_ERR_MSG(x, args...)									\
 do {										\
 	if (wl_dbg_level & WL_DBG_ERR) {				\
-			printk(KERN_INFO CFG80211_ERROR_TEXT "%s : ", __func__);	\
-			printk args;						\
-		}								\
+		printk(KERN_INFO CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
+	}								\
 } while (0)
+#define WL_ERR(x) WL_ERR_MSG x
 #define WL_ERR_MEM(args) WL_ERR(args)
 #define WL_ERR_EX(args) WL_ERR(args)
 #endif /* DHD_LOG_DUMP */
 #else /* defined(DHD_DEBUG) */
-#define	WL_ERR(args)									\
+#define	WL_ERR_MSG(x, args...)									\
 do {										\
 	if ((wl_dbg_level & WL_DBG_ERR) && net_ratelimit()) {				\
-			printk(KERN_INFO CFG80211_ERROR_TEXT "%s : ", __func__);	\
-			printk args;						\
-		}								\
+		printk(KERN_INFO CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
+	}								\
 } while (0)
+#define WL_ERR(x) WL_ERR_MSG x
 #define WL_ERR_MEM(args) WL_ERR(args)
 #define WL_ERR_EX(args) WL_ERR(args)
 #endif /* defined(DHD_DEBUG) */
+
+#define WL_PRINT_RATE_LIMIT_PERIOD 4000000000u /* 4s in units of ns */
+#define WL_ERR_RLMT(args) \
+do {	\
+	if (wl_dbg_level & WL_DBG_ERR) {	\
+		static uint64 __err_ts = 0; \
+		static uint32 __err_cnt = 0; \
+		uint64 __cur_ts = 0; \
+		__cur_ts = local_clock(); \
+		if (__err_ts == 0 || (__cur_ts > __err_ts && \
+		(__cur_ts - __err_ts > WL_PRINT_RATE_LIMIT_PERIOD))) { \
+			__err_ts = __cur_ts; \
+			WL_ERR(args);	\
+			WL_ERR(("[Repeats %u times]\n", __err_cnt)); \
+			__err_cnt = 0; \
+		} else { \
+			++__err_cnt; \
+		} \
+	}	\
+} while (0)
 
 #ifdef WL_INFORM
 #undef WL_INFORM
 #endif
 
-#define	WL_INFORM(args)									\
+#define	WL_INFORM_MSG(x, args...)									\
 do {										\
 	if (wl_dbg_level & WL_DBG_INFO) {				\
-			printk(KERN_INFO "CFG80211-INFO) %s : ", __func__);	\
-			printk args;						\
-		}								\
+		printk(KERN_INFO "[dhd] CFG80211-INFO) %s : " x, __func__, ## args);	\
+	}								\
 } while (0)
-
+#define WL_INFORM(x) WL_INFORM_MSG x
 
 #ifdef WL_SCAN
 #undef WL_SCAN
 #endif
-#define	WL_SCAN(args)								\
+#define	WL_SCAN_MSG(x, args...)								\
 do {									\
 	if (wl_dbg_level & WL_DBG_SCAN) {			\
-		printk(KERN_INFO "CFG80211-SCAN) %s :", __func__);	\
-		printk args;							\
+		printk(KERN_INFO "[dhd] CFG80211-SCAN) %s :" x, __func__, ## args);	\
 	}									\
 } while (0)
+#define WL_SCAN(x) WL_SCAN_MSG x
 #ifdef WL_TRACE
 #undef WL_TRACE
 #endif
-#define	WL_TRACE(args)								\
+#define	WL_TRACE_MSG(x, args...)								\
 do {									\
 	if (wl_dbg_level & WL_DBG_TRACE) {			\
-		printk(KERN_INFO "CFG80211-TRACE) %s :", __func__);	\
-		printk args;							\
+		printk(KERN_INFO "[dhd] CFG80211-TRACE) %s :" x, __func__, ## args);	\
 	}									\
 } while (0)
+#define WL_TRACE(x) WL_TRACE_MSG x
 #ifdef WL_TRACE_HW4
 #undef WL_TRACE_HW4
 #endif
 #ifdef CUSTOMER_HW4_DEBUG
-#define	WL_TRACE_HW4(args)					\
+#define	WL_TRACE_HW4_MSG(x, args...)					\
 do {										\
 	if (wl_dbg_level & WL_DBG_ERR) {				\
-			printk(KERN_INFO "CFG80211-TRACE) %s : ", __func__);	\
-			printk args;						\
-		} 								\
+		printk(KERN_INFO "[dhd] CFG80211-TRACE) %s : " x, __func__, ## args);	\
+	} 								\
 } while (0)
+#define WL_TRACE_HW4(x) WL_TRACE_HW4_MSG x
 #else
 #define	WL_TRACE_HW4			WL_TRACE
 #endif /* CUSTOMER_HW4_DEBUG */
 #if (WL_DBG_LEVEL > 0)
-#define	WL_DBG(args)								\
+#define	WL_DBG_MSG(x, args...)								\
 do {									\
 	if (wl_dbg_level & WL_DBG_DBG) {			\
-		printk(KERN_INFO "CFG80211-DEBUG) %s :", __func__);	\
-		printk args;							\
+		printk(KERN_INFO "[dhd] CFG80211-DEBUG) %s :" x, __func__, ## args);	\
 	}									\
 } while (0)
+#define WL_DBG(x) WL_DBG_MSG x
 #else				/* !(WL_DBG_LEVEL > 0) */
 #define	WL_DBG(args)
 #endif				/* (WL_DBG_LEVEL > 0) */
@@ -207,8 +229,8 @@ do {									\
 #define IEEE80211_NUM_BANDS NUM_NL80211_BANDS
 #endif
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0))
-#ifdef WLMESH
-#undef WLMESH
+#ifdef WLMESH_CFG80211
+#undef WLMESH_CFG80211
 #endif
 #endif
 
@@ -341,26 +363,12 @@ enum wl_status {
 	WL_STATUS_NESTED_CONNECT
 };
 
-enum wl_ext_status {
-	WL_EXT_STATUS_DISCONNECTING = 0,
-	WL_EXT_STATUS_DISCONNECTED,
-	WL_EXT_STATUS_SCAN,
-	WL_EXT_STATUS_CONNECTING,
-	WL_EXT_STATUS_CONNECTED,
-	WL_EXT_STATUS_ADD_KEY,
-	WL_EXT_STATUS_AP_ENABLED,
-	WL_EXT_STATUS_DELETE_STA,
-	WL_EXT_STATUS_STA_DISCONNECTED,
-	WL_EXT_STATUS_STA_CONNECTED,
-	WL_EXT_STATUS_AP_DISABLED
-};
-
 /* wi-fi mode */
 enum wl_mode {
 	WL_MODE_BSS,
 	WL_MODE_IBSS,
 	WL_MODE_AP,
-#ifdef WLMESH
+#ifdef WLMESH_CFG80211
 	WL_MODE_MESH
 #endif
 };
@@ -631,6 +639,9 @@ typedef struct {
 /* Max length of Interworking element */
 #define IW_IES_MAX_BUF_LEN 		9
 #endif
+#ifdef WLFBT
+#define FBT_KEYLEN		32
+#endif
 #define MAX_EVENT_BUF_NUM 16
 typedef struct wl_eventmsg_buf {
 	u16 num;
@@ -783,7 +794,7 @@ struct bcm_cfg80211 {
 	struct p2p_info *p2p;
 	bool p2p_supported;
 	void *btcoex_info;
-	struct timer_list scan_timeout;   /* Timer for catch scan event timeout */
+	timer_list_compat_t scan_timeout;   /* Timer for catch scan event timeout */
 #if defined(P2P_IE_MISSING_FIX)
 	bool p2p_prb_noti;
 #endif
@@ -797,7 +808,7 @@ struct bcm_cfg80211 {
 	bool sched_scan_running;	/* scheduled scan req status */
 	struct cfg80211_sched_scan_request *sched_scan_req;	/* scheduled scan req */
 	bool scan_suppressed;
-	struct timer_list scan_supp_timer;
+	timer_list_compat_t scan_supp_timer;
 	struct work_struct wlan_work;
 	struct mutex event_sync;	/* maily for up/down synchronization */
 	bool disable_roam_event;
@@ -817,6 +828,9 @@ struct bcm_cfg80211 {
 	bcm_struct_cfgdev *ibss_cfgdev; /* For AIBSS */
 #endif /* WLAIBSS_MCHAN */
 	bool bss_pending_op;		/* indicate where there is a pending IF operation */
+#ifdef WLFBT
+	uint8 fbt_key[FBT_KEYLEN];
+#endif
 	int roam_offload;
 #ifdef WL_CFG80211_P2P_DEV_IF
 	bool down_disc_if;
@@ -847,7 +861,7 @@ struct bcm_cfg80211 {
 	bool random_mac_enabled;
 #endif /* SUPPORT_RANDOM_MAC_SCAN */
 #ifdef DHD_LOSSLESS_ROAMING
-	struct timer_list roam_timeout;   /* Timer for catch roam timeout */
+	timer_list_compat_t roam_timeout;   /* Timer for catch roam timeout */
 #endif
 	uint16 escan_sync_id_cntr;
 #ifdef WLTDLS
@@ -869,10 +883,10 @@ struct bcm_cfg80211 {
 #ifdef STAT_REPORT
 	void *stat_report_info;
 #endif
-#ifdef WLMESH
+#ifdef WLMESH_CFG80211
 	char sae_password[SAE_MAX_PASSWD_LEN];
 	uint sae_password_len;
-#endif /* WLMESH */
+#endif /* WLMESH_CFG80211 */
 #if defined(RSSIAVG)
 	wl_rssi_cache_ctrl_t g_rssi_cache_ctrl;
 	wl_rssi_cache_ctrl_t g_connected_rssi_cache_ctrl;
@@ -886,11 +900,22 @@ struct bcm_cfg80211 {
 	int best_2g_ch;
 	int best_5g_ch;
 	uint handshaking;
+	int btc_mode;
 	bool wps_done;
 	wait_queue_head_t wps_done_event;
 	struct mutex in4way_sync;
 	ulong disconnected_jiffies;
 };
+
+#ifdef WL_SAE
+typedef struct wl_sae_key_info {
+	uint8 peer_mac[ETHER_ADDR_LEN];
+	uint16 pmk_len;
+	uint16 pmkid_len;
+	const uint8 *pmk;
+	const uint8 *pmkid;
+} wl_sae_key_info_t;
+#endif /* WL_SAE */
 
 #if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == \
 	4 && __GNUC_MINOR__ >= 6))
@@ -1447,7 +1472,20 @@ wl_get_netinfo_by_wdev(struct bcm_cfg80211 *cfg, struct wireless_dev *wdev)
 	 (!_sme->crypto.n_ciphers_pairwise) && \
 	 (!_sme->crypto.cipher_group))
 
+#ifdef WLFBT
+#if defined(WLAN_AKM_SUITE_FT_8021X) && defined(WLAN_AKM_SUITE_FT_PSK)
+#define IS_AKM_SUITE_FT(sec) (sec->wpa_auth == WLAN_AKM_SUITE_FT_8021X || \
+		sec->wpa_auth == WLAN_AKM_SUITE_FT_PSK)
+#elif defined(WLAN_AKM_SUITE_FT_8021X)
+#define IS_AKM_SUITE_FT(sec) (sec->wpa_auth == WLAN_AKM_SUITE_FT_8021X)
+#elif defined(WLAN_AKM_SUITE_FT_PSK)
+#define IS_AKM_SUITE_FT(sec) (sec->wpa_auth == WLAN_AKM_SUITE_FT_PSK)
+#else
 #define IS_AKM_SUITE_FT(sec) ({BCM_REFERENCE(sec); FALSE;})
+#endif /* WLAN_AKM_SUITE_FT_8021X && WLAN_AKM_SUITE_FT_PSK */
+#else
+#define IS_AKM_SUITE_FT(sec) ({BCM_REFERENCE(sec); FALSE;})
+#endif /* WLFBT */
 
 #define IS_AKM_SUITE_CCKM(sec) ({BCM_REFERENCE(sec); FALSE;})
 
@@ -1504,7 +1542,7 @@ extern s32 wl_cfg80211_set_wps_p2p_ie(struct net_device *net, char *buf, int len
 extern s32 wl_cfg80211_set_p2p_ps(struct net_device *net, char* buf, int len);
 extern s32 wl_cfg80211_set_p2p_ecsa(struct net_device *net, char* buf, int len);
 extern s32 wl_cfg80211_increase_p2p_bw(struct net_device *net, char* buf, int len);
-#ifdef WLMESH
+#ifdef WLMESH_CFG80211
 extern s32 wl_cfg80211_set_sae_password(struct net_device *net, char* buf, int len);
 #endif
 #ifdef WL11ULB
@@ -1586,6 +1624,9 @@ extern int wl_cfg80211_set_mgmt_vndr_ies(struct bcm_cfg80211 *cfg,
 	bcm_struct_cfgdev *cfgdev, s32 bssidx, s32 pktflag,
 	const u8 *vndr_ie, u32 vndr_ie_len);
 
+#ifdef WLFBT
+extern int wl_cfg80211_get_fbt_key(struct net_device *dev, uint8 *key, int total_len);
+#endif
 
 /* Action frame specific functions */
 extern u8 wl_get_action_category(void *frame, u32 frame_len);

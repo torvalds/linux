@@ -45,14 +45,15 @@ dhd_wlan_set_power(int on
 		}
 		rockchip_wifi_power(1);
 #if defined(BUS_POWER_RESTORE)
-#if defined(BCMSDIO)
+#if defined(BCMSDIO) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0))
 		if (adapter->sdio_func && adapter->sdio_func->card && adapter->sdio_func->card->host) {
+			mdelay(100);
 			printf("======== mmc_power_restore_host! ========\n");
 			mmc_power_restore_host(adapter->sdio_func->card->host);
 		}
 #elif defined(BCMPCIE)
-		OSL_SLEEP(50); /* delay needed to be able to restore PCIe configuration registers */
 		if (adapter->pci_dev) {
+			mdelay(100);
 			printf("======== pci_set_power_state PCI_D0! ========\n");
 			pci_set_power_state(adapter->pci_dev, PCI_D0);
 			if (adapter->pci_saved_state)
@@ -69,7 +70,7 @@ dhd_wlan_set_power(int on
 		mdelay(100);
 	} else {
 #if defined(BUS_POWER_RESTORE)
-#if defined(BCMSDIO)
+#if defined(BCMSDIO) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0))
 		if (adapter->sdio_func && adapter->sdio_func->card && adapter->sdio_func->card->host) {
 			printf("======== mmc_power_save_host! ========\n");
 			mmc_power_save_host(adapter->sdio_func->card->host);

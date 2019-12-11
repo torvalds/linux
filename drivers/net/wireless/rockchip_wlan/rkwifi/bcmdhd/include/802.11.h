@@ -4353,6 +4353,8 @@ typedef struct vht_features_ie_hdr vht_features_ie_hdr_t;
 #define RSN_AKM_SHA256_1X	5	/* SHA256 key derivation, using 802.1X */
 #define RSN_AKM_SHA256_PSK	6	/* SHA256 key derivation, using Pre-shared Key */
 #define RSN_AKM_TPK		7	/* TPK(TDLS Peer Key) handshake */
+#define RSN_AKM_SAE_PSK         8       /* AKM for SAE with 4-way handshake */
+#define RSN_AKM_SAE_FBT         9       /* AKM for SAE with FBT */
 #define RSN_AKM_FILS_SHA256	14	/* SHA256 key derivation, using FILS */
 #define RSN_AKM_FILS_SHA384	15	/* SHA384 key derivation, using FILS */
 
@@ -4395,6 +4397,10 @@ typedef struct vht_features_ie_hdr vht_features_ie_hdr_t;
 #define WCN_OUI			"\x00\x50\xf2"	/* WCN OUI */
 #define WCN_TYPE		4	/* WCN type */
 
+#ifdef BCMWAPI_WPI
+#define SMS4_KEY_LEN        16
+#define SMS4_WPI_CBC_MAC_LEN    16
+#endif
 
 /* 802.11r protocol definitions */
 
@@ -4473,6 +4479,13 @@ typedef struct dot11_ft_rrb_frame dot11_ft_rrb_frame_t;
 #define BSSID_INVALID           "\x00\x00\x00\x00\x00\x00"
 #define BSSID_BROADCAST         "\xFF\xFF\xFF\xFF\xFF\xFF"
 
+#ifdef BCMWAPI_WAI
+#define WAPI_IE_MIN_LEN 	20	/* WAPI IE min length */
+#define WAPI_VERSION		1	/* WAPI version */
+#define WAPI_VERSION_LEN	2	/* WAPI version length */
+#define WAPI_OUI		"\x00\x14\x72"	/* WAPI OUI */
+#define WAPI_OUI_LEN		DOT11_OUI_LEN	/* WAPI OUI length */
+#endif /* BCMWAPI_WAI */
 
 /* ************* WMM Parameter definitions. ************* */
 #define WMM_OUI			"\x00\x50\xF2"	/* WNN OUI */

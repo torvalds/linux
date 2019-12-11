@@ -334,9 +334,6 @@ wl_cfgp2p_init_priv(struct bcm_cfg80211 *cfg)
 		return -ENOMEM;
 	}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	cfg->p2p->cfg = cfg;
-#endif
 	wl_to_p2p_bss_ndev(cfg, P2PAPI_BSSCFG_PRIMARY) = bcmcfg_to_prmry_ndev(cfg);
 	wl_to_p2p_bss_bssidx(cfg, P2PAPI_BSSCFG_PRIMARY) = 0;
 	wl_to_p2p_bss_ndev(cfg, P2PAPI_BSSCFG_DEVICE) = NULL;
@@ -1389,21 +1386,10 @@ wl_cfgp2p_listen_complete(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
  *  so lets do it from thread context.
  */
 void
-wl_cfgp2p_listen_expired(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	struct timer_list *t
-#else
-	ulong data
-#endif
-)
+wl_cfgp2p_listen_expired(unsigned long data)
 {
 	wl_event_msg_t msg;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	struct p2p_info *p2p = from_timer(p2p, t, listen_timer);
-	struct bcm_cfg80211 *cfg = p2p->cfg;
-#else
 	struct bcm_cfg80211 *cfg = (struct bcm_cfg80211 *) data;
-#endif
 	struct net_device *ndev;
 	CFGP2P_DBG((" Enter\n"));
 
@@ -1469,7 +1455,7 @@ wl_cfgp2p_discover_listen(struct bcm_cfg80211 *cfg, s32 channel, u32 duration_ms
 {
 #define EXTRA_DELAY_TIME	100
 	s32 ret = BCME_OK;
-	struct timer_list *_timer;
+	timer_list_compat_t *_timer;
 	s32 extra_delay;
 	struct net_device *netdev = bcmcfg_to_prmry_ndev(cfg);
 

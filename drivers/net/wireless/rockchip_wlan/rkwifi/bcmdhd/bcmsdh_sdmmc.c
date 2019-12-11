@@ -84,11 +84,6 @@ static void IRQHandlerF2(struct sdio_func *func);
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
 #if defined(ENABLE_INSMOD_NO_FW_LOAD) && !defined(BUS_POWER_RESTORE)
 extern int sdio_reset_comm(struct mmc_card *card);
-#else
-int sdio_reset_comm(struct mmc_card *card)
-{
-	return 0;
-}
 #endif
 #ifdef GLOBAL_SDMMC_INSTANCE
 extern PBCMSDH_SDMMC_INSTANCE gInstance;
@@ -599,6 +594,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		/* Now set it */
 		si->client_block_size[func] = blksize;
 
+#ifdef USE_DYNAMIC_F2_BLKSIZE
 		if (si->func[func] == NULL) {
 			sd_err(("%s: SDIO Device not present\n", __FUNCTION__));
 			bcmerror = BCME_NORESOURCE;
@@ -610,6 +606,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 			sd_err(("%s: Failed to set F%d blocksize to %d(%d)\n",
 				__FUNCTION__, func, blksize, bcmerror));
 		sdio_release_host(si->func[func]);
+#endif /* USE_DYNAMIC_F2_BLKSIZE */
 		break;
 	}
 
@@ -835,10 +832,10 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 #if defined(MMC_SDIO_ABORT)
 	int sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
 #endif
-	struct timespec now, before = {};
+	struct osl_timespec now, before;
 
 	if (sd_msglevel & SDH_COST_VAL)
-		getnstimeofday(&before);
+		osl_do_gettimeofday(&before);
 
 	sd_info(("%s: rw=%d, func=%d, addr=0x%05x\n", __FUNCTION__, rw, func, regaddr));
 
@@ -939,6 +936,26 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 				}
 			}
 #endif /* MMC_SDIO_ABORT */
+			/* to allow abort command through F1 */
+#if defined(SDIO_ISR_THREAD)
+			else if (regaddr == SDIOD_CCCR_INTR_EXTN) {
+				while (sdio_abort_retry--) {
+					if (sd->func[func]) {
+						sdio_claim_host(sd->func[func]);
+						/*
+						 * this sdio_f0_writeb() can be replaced with
+						 * another api depending upon MMC driver change.
+						 * As of this time, this is temporaray one
+						 */
+						sdio_writeb(sd->func[func],
+							*byte, regaddr, &err_ret);
+						sdio_release_host(sd->func[func]);
+					}
+					if (!err_ret)
+						break;
+				}
+			}
+#endif
 			else if (regaddr < 0xF0) {
 				sd_err(("bcmsdh_sdmmc: F0 Wr:0x%02x: write disallowed\n", regaddr));
 			} else {
@@ -980,7 +997,7 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 	}
 
 	if (sd_msglevel & SDH_COST_VAL) {
-		getnstimeofday(&now);
+		osl_do_gettimeofday(&now);
 		sd_cost(("%s: rw=%d len=1 cost=%lds %luus\n", __FUNCTION__,
 			rw, now.tv_sec-before.tv_sec, now.tv_nsec/1000-before.tv_nsec/1000));
 	}
@@ -1008,10 +1025,10 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 #if defined(MMC_SDIO_ABORT)
 	int sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
 #endif
-	struct timespec now, before = {};
+	struct osl_timespec now, before;
 
 	if (sd_msglevel & SDH_COST_VAL)
-		getnstimeofday(&before);
+		osl_do_gettimeofday(&before);
 
 	if (func == 0) {
 		sd_err(("%s: Only CMD52 allowed to F0.\n", __FUNCTION__));
@@ -1074,7 +1091,7 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 	}
 
 	if (sd_msglevel & SDH_COST_VAL) {
-		getnstimeofday(&now);
+		osl_do_gettimeofday(&now);
 		sd_cost(("%s: rw=%d, len=%d cost=%lds %luus\n", __FUNCTION__,
 			rw, nbytes, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
 	}
@@ -1104,7 +1121,7 @@ sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func
 	uint8 *localbuf = NULL;
 	uint local_plen = 0;
 	uint pkt_len = 0;
-	struct timespec now, before = {};
+	struct osl_timespec now, before;
 
 	sd_trace(("%s: Enter\n", __FUNCTION__));
 	ASSERT(pkt);
@@ -1112,7 +1129,7 @@ sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 
 	if (sd_msglevel & SDH_COST_VAL)
-		getnstimeofday(&before);
+		osl_do_gettimeofday(&before);
 
 	blk_size = sd->client_block_size[func];
 	max_blk_count = min(host->max_blk_count, (uint)MAX_IO_RW_EXTENDED_BLK);
@@ -1229,10 +1246,10 @@ sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func
 					goto txglomfail;
 				}
 			}
-			
+
 			bcopy(buf, (localbuf + local_plen), pkt_len);
 			local_plen += pkt_len;
-			if (PKTNEXT(sd->osh, pnext)) 	
+			if (PKTNEXT(sd->osh, pnext))
 				continue;
 
 			buf = localbuf;
@@ -1286,7 +1303,7 @@ txglomfail:
 		MFREE(sd->osh, localbuf, ttl_len);
 
 	if (sd_msglevel & SDH_COST_VAL) {
-		getnstimeofday(&now);
+		osl_do_gettimeofday(&now);
 		sd_cost(("%s: rw=%d, ttl_len=%d, cost=%lds %luus\n", __FUNCTION__,
 			write, ttl_len, now.tv_sec-before.tv_sec, now.tv_nsec/1000-before.tv_nsec/1000));
 	}
@@ -1302,13 +1319,13 @@ sdioh_buffer_tofrom_bus(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 {
 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
 	int err_ret = 0;
-	struct timespec now, before = {};
+	struct osl_timespec now, before;
 
 	sd_trace(("%s: Enter\n", __FUNCTION__));
 	ASSERT(buf);
 
 	if (sd_msglevel & SDH_COST_VAL)
-		getnstimeofday(&before);
+		osl_do_gettimeofday(&before);
 
 	/* NOTE:
 	 * For all writes, each packet length is aligned to 32 (or 4)
@@ -1342,7 +1359,7 @@ sdioh_buffer_tofrom_bus(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 	sd_trace(("%s: Exit\n", __FUNCTION__));
 
 	if (sd_msglevel & SDH_COST_VAL) {
-		getnstimeofday(&now);
+		osl_do_gettimeofday(&now);
 		sd_cost(("%s: rw=%d, len=%d cost=%lds %luus\n", __FUNCTION__,
 			write, len, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
 	}
@@ -1368,14 +1385,14 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, u
 {
 	SDIOH_API_RC status;
 	void *tmppkt;
-	struct timespec now, before = {};
+	struct osl_timespec now, before;
 
 	sd_trace(("%s: Enter\n", __FUNCTION__));
 	DHD_PM_RESUME_WAIT(sdioh_request_buffer_wait);
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 
 	if (sd_msglevel & SDH_COST_VAL)
-		getnstimeofday(&before);
+		osl_do_gettimeofday(&before);
 
 	if (pkt) {
 #ifdef BCMSDIOH_TXGLOM
@@ -1420,7 +1437,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, u
 	PKTFREE_STATIC(sd->osh, tmppkt, write ? TRUE : FALSE);
 
 	if (sd_msglevel & SDH_COST_VAL) {
-		getnstimeofday(&now);
+		osl_do_gettimeofday(&now);
 		sd_cost(("%s: len=%d cost=%lds %luus\n", __FUNCTION__,
 			buf_len, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
 	}
@@ -1583,11 +1600,13 @@ sdioh_start(sdioh_info_t *sd, int stage)
 		   2.6.27. The implementation prior to that is buggy, and needs broadcom's
 		   patch for it
 		*/
+#if defined(ENABLE_INSMOD_NO_FW_LOAD) && !defined(BUS_POWER_RESTORE)
 		if ((ret = sdio_reset_comm(sd->func[0]->card))) {
 			sd_err(("%s Failed, error = %d\n", __FUNCTION__, ret));
 			return ret;
-		}
-		else {
+		} else
+#endif
+		{
 			sd->num_funcs = 2;
 			sd->sd_blockmode = TRUE;
 			sd->use_client_ints = TRUE;

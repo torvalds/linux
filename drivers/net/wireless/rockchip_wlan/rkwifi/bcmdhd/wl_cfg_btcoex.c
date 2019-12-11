@@ -45,7 +45,7 @@ extern void dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable,
 #endif
 
 struct btcoex_info {
-	struct timer_list timer;
+	timer_list_compat_t timer;
 	u32 timer_ms;
 	u32 timer_on;
 	u32 ts_dhcp_start;	/* ms ts ecord time stats */
@@ -294,19 +294,9 @@ wl_cfg80211_bt_setflag(struct net_device *dev, bool set)
 #endif
 }
 
-static void wl_cfg80211_bt_timerfunc(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	struct timer_list *t
-#else
-	unsigned long data
-#endif
-)
+static void wl_cfg80211_bt_timerfunc(ulong data)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	struct btcoex_info *bt_local = from_timer(bt_local, t, timer);
-#else
 	struct btcoex_info *bt_local = (struct btcoex_info *)data;
-#endif
 	WL_TRACE(("Enter\n"));
 	bt_local->timer_on = 0;
 	schedule_work(&bt_local->work);
@@ -403,13 +393,7 @@ void* wl_cfg80211_btcoex_init(struct net_device *ndev)
 	btco_inf->ts_dhcp_ok = 0;
 	/* Set up timer for BT  */
 	btco_inf->timer_ms = 10;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	timer_setup(&btco_inf->timer, wl_cfg80211_bt_timerfunc, 0);
-#else
-	init_timer(&btco_inf->timer);
-	btco_inf->timer.data = (ulong)btco_inf;
-	btco_inf->timer.function = wl_cfg80211_bt_timerfunc;
-#endif
+	init_timer_compat(&btco_inf->timer, wl_cfg80211_bt_timerfunc, btco_inf);
 
 	btco_inf->dev = ndev;
 
@@ -506,7 +490,8 @@ int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, dhd_pub_t *dhd, char *co
 
 					btco_inf->bt_state = BT_DHCP_START;
 					btco_inf->timer_on = 1;
-					mod_timer(&btco_inf->timer, btco_inf->timer.expires);
+					mod_timer(&btco_inf->timer,
+						timer_expires(&btco_inf->timer));
 					WL_TRACE(("enable BT DHCP Timer\n"));
 				}
 		}

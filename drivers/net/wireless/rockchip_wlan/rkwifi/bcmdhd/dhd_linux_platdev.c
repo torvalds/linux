@@ -307,7 +307,7 @@ wifi_platform_get_country_code(wifi_adapter_info_t *adapter, char *ccode)
 
 	DHD_TRACE(("%s\n", __FUNCTION__));
 	if (plat_data->get_country_code) {
-#ifdef CUSTOM_COUNTRY_CODE
+#ifdef CUSTOM_FORCE_NODFS_FLAG
 		return plat_data->get_country_code(ccode, flags);
 #else
 		return plat_data->get_country_code(ccode);
@@ -892,6 +892,9 @@ fail:
 		wifi_platform_set_power(adapter, FALSE, WIFI_TURNOFF_DELAY);
 		wifi_platform_bus_enumerate(adapter, FALSE);
 	}
+#else
+	/* x86 bring-up PC needs no power-up operations */
+	err = dhd_bus_register();
 #endif 
 
 	return err;
@@ -906,11 +909,13 @@ static int dhd_wifi_platform_load_sdio(void)
 #ifdef BCMDBUS
 static int dhd_wifi_platform_load_usb(void)
 {
+	int err = 0;
+#if !defined(DHD_PRELOAD)
 	wifi_adapter_info_t *adapter;
 	s32 timeout = -1;
 	int i;
-	int err = 0;
 	enum wifi_adapter_status wait_status;
+#endif
 
 	err = dhd_bus_register();
 	if (err) {
@@ -918,6 +923,7 @@ static int dhd_wifi_platform_load_usb(void)
 		goto exit;
 	}
 
+#if !defined(DHD_PRELOAD)
 	/* power up all adapters */
 	for (i = 0; i < dhd_wifi_platdata->num_adapters; i++) {
 		adapter = &dhd_wifi_platdata->adapters[i];
@@ -944,10 +950,12 @@ static int dhd_wifi_platform_load_usb(void)
 			goto fail;
 		}
 	}
+#endif
 
 exit:
 	return err;
 
+#if !defined(DHD_PRELOAD)
 fail:
 	dhd_bus_unregister();
 	/* power down all adapters */
@@ -957,6 +965,7 @@ fail:
 	}
 
 	return err;
+#endif
 }
 #else /* BCMDBUS */
 static int dhd_wifi_platform_load_usb(void)

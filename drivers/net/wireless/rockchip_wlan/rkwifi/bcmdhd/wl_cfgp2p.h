@@ -71,16 +71,13 @@ struct p2p_bss {
 };
 
 struct p2p_info {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	struct bcm_cfg80211 *cfg;
-#endif
 	bool on;    /**< p2p on/off switch */
 	bool scan;
 	int16 search_state;
 	s8 vir_ifname[IFNAMSIZ];
 	unsigned long status;
 	struct p2p_bss bss[P2PAPI_BSSCFG_MAX];
-	struct timer_list listen_timer;
+	timer_list_compat_t listen_timer;
 	wl_p2p_sched_t noa;
 	wl_p2p_ops_t ops;
 	wlc_ssid_t ssid;
@@ -186,23 +183,13 @@ enum wl_cfgp2p_status {
 			printk args;							\
 		}									\
 	} while (0)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+
 #define INIT_TIMER(timer, func, duration, extra_delay)	\
 	do {				   \
-		timer_setup(timer, func, 0); \
-		timer->expires = jiffies + msecs_to_jiffies(duration + extra_delay); \
+		init_timer_compat(timer, func, cfg); \
+		timer_expires(timer) = jiffies + msecs_to_jiffies(duration + extra_delay); \
 		add_timer(timer); \
 	} while (0);
-#else
-#define INIT_TIMER(timer, func, duration, extra_delay)	\
-	do {				   \
-		init_timer(timer); \
-		timer->function = func; \
-		timer->expires = jiffies + msecs_to_jiffies(duration + extra_delay); \
-		timer->data = (unsigned long) cfg; \
-		add_timer(timer); \
-	} while (0);
-#endif
 
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 0, 8))
 #ifdef WL_SUPPORT_BACKPORTED_KPATCHES
@@ -257,13 +244,7 @@ enum wl_cfgp2p_status {
 #define P2P_ECSA_CNT 50
 
 extern void
-wl_cfgp2p_listen_expired(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	struct timer_list *t
-#else
-	ulong data
-#endif
-);
+wl_cfgp2p_listen_expired(ulong data);
 extern bool
 wl_cfgp2p_is_pub_action(void *frame, u32 frame_len);
 extern bool

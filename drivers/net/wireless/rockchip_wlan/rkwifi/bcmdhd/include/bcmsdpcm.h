@@ -283,6 +283,7 @@ typedef volatile struct {
 #define SDPCM_SHARED_SET_BRPT      0x1000
 #define SDPCM_SHARED_PENDING_BRPT  0x2000
 #define SDPCM_SHARED_FATAL_LOGBUF_VALID	0x100000
+#define SDPCM_SHARED_RXLIM_POST    0x4000
 
 typedef struct {
 	uint32	flags;

@@ -1272,7 +1272,7 @@ dhd_dbg_set_event_log_tag(dhd_pub_t *dhdp, uint16 tag, uint8 set)
 
 	ret = dhd_wl_ioctl_cmd(dhdp, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 	if (ret) {
-		DHD_ERROR(("%s set log tag iovar failed %d\n", __FUNCTION__, ret));
+		/* DHD_ERROR(("%s set log tag iovar failed %d\n", __FUNCTION__, ret)); */
 	}
 }
 
@@ -1473,9 +1473,9 @@ __dhd_dbg_pkt_hash(uintptr_t pkt, uint32 pktid)
 uint32
 __dhd_dbg_driver_ts_usec(void)
 {
-	struct timespec ts;
+	struct osl_timespec ts;
 
-	get_monotonic_boottime(&ts);
+	osl_get_monotonic_boottime(&ts);
 	return ((uint32)(__TIMESPEC_TO_US(ts)));
 }
 

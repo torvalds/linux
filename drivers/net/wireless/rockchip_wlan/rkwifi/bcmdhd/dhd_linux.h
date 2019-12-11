@@ -107,9 +107,9 @@ struct wifi_platform_data {
 	int (*set_carddetect)(int val);
 	void *(*mem_prealloc)(int section, unsigned long size);
 	int (*get_mac_addr)(unsigned char *buf);
-#if defined(CUSTOM_COUNTRY_CODE)
+#ifdef CUSTOM_FORCE_NODFS_FLAG
 	void *(*get_country_code)(char *ccode, u32 flags);
-#else /* defined (CUSTOM_COUNTRY_CODE) */
+#else /* defined (CUSTOM_FORCE_NODFS_FLAG) */
 	void *(*get_country_code)(char *ccode);
 #endif
 };

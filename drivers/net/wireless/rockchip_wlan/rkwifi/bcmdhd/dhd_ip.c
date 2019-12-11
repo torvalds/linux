@@ -127,7 +127,7 @@ typedef struct {
 	int ifidx;
 	uint8 supp_cnt;
 	dhd_pub_t *dhdp;
-	struct timer_list timer;
+	timer_list_compat_t timer;
 } tcpack_info_t;
 
 typedef struct _tdata_psh_info_t {
@@ -287,20 +287,10 @@ static void _tdata_psh_info_pool_deinit(dhd_pub_t *dhdp,
 	return;
 }
 
-static void dhd_tcpack_send(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	struct timer_list *t
-#else
-	ulong data
-#endif
-)
+static void dhd_tcpack_send(ulong data)
 {
 	tcpack_sup_module_t *tcpack_sup_mod;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	tcpack_info_t *cur_tbl = from_timer(cur_tbl, t, timer);
-#else
 	tcpack_info_t *cur_tbl = (tcpack_info_t *)data;
-#endif
 	dhd_pub_t *dhdp;
 	int ifidx;
 	void* pkt;
@@ -474,13 +464,7 @@ int dhd_tcpack_suppress_set(dhd_pub_t *dhdp, uint8 mode)
 				tcpack_info_t *tcpack_info_tbl =
 					&tcpack_sup_module->tcpack_info_tbl[i];
 				tcpack_info_tbl->dhdp = dhdp;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-				timer_setup(&tcpack_info_tbl->timer, dhd_tcpack_send, 0);
-#else
-				init_timer(&tcpack_info_tbl->timer);
-				tcpack_info_tbl->timer.data = (ulong)tcpack_info_tbl;
-				tcpack_info_tbl->timer.function = dhd_tcpack_send;
-#endif
+				init_timer_compat(&tcpack_info_tbl->timer, dhd_tcpack_send, tcpack_info_tbl);
 			}
 			break;
 	}
