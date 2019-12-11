@@ -567,34 +567,6 @@ void rtl92c_set_min_space(struct ieee80211_hw *hw, bool is2T)
 
 /*==============================================================*/
 
-static long _rtl92c_signal_scale_mapping(struct ieee80211_hw *hw,
-		long currsig)
-{
-	long retsig;
-
-	if (currsig >= 61 && currsig <= 100)
-		retsig = 90 + ((currsig - 60) / 4);
-	else if (currsig >= 41 && currsig <= 60)
-		retsig = 78 + ((currsig - 40) / 2);
-	else if (currsig >= 31 && currsig <= 40)
-		retsig = 66 + (currsig - 30);
-	else if (currsig >= 21 && currsig <= 30)
-		retsig = 54 + (currsig - 20);
-	else if (currsig >= 5 && currsig <= 20)
-		retsig = 42 + (((currsig - 5) * 2) / 3);
-	else if (currsig == 4)
-		retsig = 36;
-	else if (currsig == 3)
-		retsig = 27;
-	else if (currsig == 2)
-		retsig = 18;
-	else if (currsig == 1)
-		retsig = 9;
-	else
-		retsig = currsig;
-	return retsig;
-}
-
 static void _rtl92c_query_rxphystatus(struct ieee80211_hw *hw,
 				      struct rtl_stats *pstats,
 				      struct rx_desc_92c *p_desc,
@@ -729,11 +701,10 @@ static void _rtl92c_query_rxphystatus(struct ieee80211_hw *hw,
 	}
 	if (is_cck_rate)
 		pstats->signalstrength =
-		    (u8) (_rtl92c_signal_scale_mapping(hw, pwdb_all));
+		    (u8)(rtl_signal_scale_mapping(hw, pwdb_all));
 	else if (rf_rx_num != 0)
 		pstats->signalstrength =
-		    (u8) (_rtl92c_signal_scale_mapping
-			  (hw, total_rssi /= rf_rx_num));
+		    (u8)(rtl_signal_scale_mapping(hw, total_rssi /= rf_rx_num));
 }
 
 void rtl92c_translate_rx_signal_stuff(struct ieee80211_hw *hw,
