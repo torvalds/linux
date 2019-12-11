@@ -790,7 +790,6 @@ static void pulse8_ping_eeprom_work_handler(struct work_struct *work)
 		container_of(work, struct pulse8, ping_eeprom_work.work);
 	u8 cmd;
 
-	schedule_delayed_work(&pulse8->ping_eeprom_work, PING_PERIOD);
 	mutex_lock(&pulse8->lock);
 	cmd = MSGCODE_PING;
 	pulse8_send_and_wait(pulse8, &cmd, 1,
@@ -809,6 +808,7 @@ static void pulse8_ping_eeprom_work_handler(struct work_struct *work)
 			pulse8->config_pending = false;
 	}
 unlock:
+	schedule_delayed_work(&pulse8->ping_eeprom_work, PING_PERIOD);
 	mutex_unlock(&pulse8->lock);
 }
 
