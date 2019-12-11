@@ -5451,7 +5451,7 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 }
 
-static u8 ext_evt_type_to_legacy(u16 evt_type)
+static u8 ext_evt_type_to_legacy(struct hci_dev *hdev, u16 evt_type)
 {
 	if (evt_type & LE_EXT_ADV_LEGACY_PDU) {
 		switch (evt_type) {
@@ -5468,10 +5468,7 @@ static u8 ext_evt_type_to_legacy(u16 evt_type)
 			return LE_ADV_SCAN_RSP;
 		}
 
-		BT_ERR_RATELIMITED("Unknown advertising packet type: 0x%02x",
-				   evt_type);
-
-		return LE_ADV_INVALID;
+		goto invalid;
 	}
 
 	if (evt_type & LE_EXT_ADV_CONN_IND) {
@@ -5491,8 +5488,9 @@ static u8 ext_evt_type_to_legacy(u16 evt_type)
 	    evt_type & LE_EXT_ADV_DIRECT_IND)
 		return LE_ADV_NONCONN_IND;
 
-	BT_ERR_RATELIMITED("Unknown advertising packet type: 0x%02x",
-				   evt_type);
+invalid:
+	bt_dev_err_ratelimited(hdev, "Unknown advertising packet type: 0x%02x",
+			       evt_type);
 
 	return LE_ADV_INVALID;
 }
@@ -5510,7 +5508,7 @@ static void hci_le_ext_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		u16 evt_type;
 
 		evt_type = __le16_to_cpu(ev->evt_type);
-		legacy_evt_type = ext_evt_type_to_legacy(evt_type);
+		legacy_evt_type = ext_evt_type_to_legacy(hdev, evt_type);
 		if (legacy_evt_type != LE_ADV_INVALID) {
 			process_adv_report(hdev, legacy_evt_type, &ev->bdaddr,
 					   ev->bdaddr_type, NULL, 0, ev->rssi,
