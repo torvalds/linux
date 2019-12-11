@@ -1138,13 +1138,7 @@ static int snd_ali_playback_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ali_voice *pvoice = runtime->private_data;
 	struct snd_ali_voice *evoice = pvoice->extra;
-	int err;
 
-	err = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
-	
 	/* voice management */
 
 	if (params_buffer_size(hw_params) / 2 !=
@@ -1175,24 +1169,11 @@ static int snd_ali_playback_hw_free(struct snd_pcm_substream *substream)
 	struct snd_ali_voice *pvoice = runtime->private_data;
 	struct snd_ali_voice *evoice = pvoice ? pvoice->extra : NULL;
 
-	snd_pcm_lib_free_pages(substream);
 	if (evoice) {
 		snd_ali_free_voice(codec, evoice);
 		pvoice->extra = NULL;
 	}
 	return 0;
-}
-
-static int snd_ali_hw_params(struct snd_pcm_substream *substream,
-			     struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
-static int snd_ali_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int snd_ali_playback_prepare(struct snd_pcm_substream *substream)
@@ -1526,7 +1507,6 @@ static int snd_ali_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_ali_playback_ops = {
 	.open =		snd_ali_playback_open,
 	.close =	snd_ali_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_ali_playback_hw_params,
 	.hw_free =	snd_ali_playback_hw_free,
 	.prepare =	snd_ali_playback_prepare,
@@ -1537,9 +1517,6 @@ static const struct snd_pcm_ops snd_ali_playback_ops = {
 static const struct snd_pcm_ops snd_ali_capture_ops = {
 	.open =		snd_ali_capture_open,
 	.close =	snd_ali_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_ali_hw_params,
-	.hw_free =	snd_ali_hw_free,
 	.prepare =	snd_ali_prepare,
 	.trigger =	snd_ali_trigger,
 	.pointer =	snd_ali_pointer,
@@ -1557,7 +1534,7 @@ static int snd_ali_modem_hw_params(struct snd_pcm_substream *substream,
 	snd_ac97_write(chip->ac97[modem_num], AC97_LINE1_RATE,
 		       params_rate(hw_params));
 	snd_ac97_write(chip->ac97[modem_num], AC97_LINE1_LEVEL, 0);
-	return snd_ali_hw_params(substream, hw_params);
+	return 0;
 }
 
 static struct snd_pcm_hardware snd_ali_modem =
@@ -1612,9 +1589,7 @@ static int snd_ali_modem_capture_open(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_ali_modem_playback_ops = {
 	.open =		snd_ali_modem_playback_open,
 	.close =	snd_ali_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_ali_modem_hw_params,
-	.hw_free =	snd_ali_hw_free,
 	.prepare =	snd_ali_prepare,
 	.trigger =	snd_ali_trigger,
 	.pointer =	snd_ali_pointer,
@@ -1623,9 +1598,7 @@ static const struct snd_pcm_ops snd_ali_modem_playback_ops = {
 static const struct snd_pcm_ops snd_ali_modem_capture_ops = {
 	.open =		snd_ali_modem_capture_open,
 	.close =	snd_ali_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_ali_modem_hw_params,
-	.hw_free =	snd_ali_hw_free,
 	.prepare =	snd_ali_prepare,
 	.trigger =	snd_ali_trigger,
 	.pointer =	snd_ali_pointer,
@@ -1671,9 +1644,8 @@ static int snd_ali_pcm(struct snd_ali *codec, int device,
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 				desc->capture_ops);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &codec->pci->dev,
-					      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &codec->pci->dev, 64*1024, 128*1024);
 
 	pcm->info_flags = 0;
 	pcm->dev_class = desc->class;
@@ -2054,6 +2026,7 @@ static int snd_ali_resources(struct snd_ali *codec)
 		return -EBUSY;
 	}
 	codec->irq = codec->pci->irq;
+	codec->card->sync_irq = codec->irq;
 	dev_dbg(codec->card->dev, "resources allocated.\n");
 	return 0;
 }
@@ -2126,8 +2099,6 @@ static int snd_ali_create(struct snd_card *card,
 		snd_ali_free(codec);
 		return -EBUSY;
 	}
-
-	synchronize_irq(pci->irq);
 
 	codec->synth.chmap = 0;
 	codec->synth.chcnt = 0;

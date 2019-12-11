@@ -178,15 +178,10 @@ static int ct_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct ct_atc *atc = snd_pcm_substream_chip(substream);
 	struct ct_atc_pcm *apcm = substream->runtime->private_data;
-	int err;
 
-	err = snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
 	/* clear previous resources */
 	atc->pcm_release_resources(atc, apcm);
-	return err;
+	return 0;
 }
 
 static int ct_pcm_hw_free(struct snd_pcm_substream *substream)
@@ -196,8 +191,7 @@ static int ct_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	/* clear previous resources */
 	atc->pcm_release_resources(atc, apcm);
-	/* Free snd-allocated pages */
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 
@@ -373,7 +367,6 @@ ct_pcm_capture_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops ct_pcm_playback_ops = {
 	.open	 	= ct_pcm_playback_open,
 	.close		= ct_pcm_playback_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= ct_pcm_hw_params,
 	.hw_free	= ct_pcm_hw_free,
 	.prepare	= ct_pcm_playback_prepare,
@@ -385,7 +378,6 @@ static const struct snd_pcm_ops ct_pcm_playback_ops = {
 static const struct snd_pcm_ops ct_pcm_capture_ops = {
 	.open	 	= ct_pcm_capture_open,
 	.close		= ct_pcm_capture_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= ct_pcm_hw_params,
 	.hw_free	= ct_pcm_hw_free,
 	.prepare	= ct_pcm_capture_prepare,
@@ -449,9 +441,8 @@ int ct_alsa_pcm_create(struct ct_atc *atc,
 		snd_pcm_set_ops(pcm,
 				SNDRV_PCM_STREAM_CAPTURE, &ct_pcm_capture_ops);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-					      &atc->pci->dev,
-					      128*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+				       &atc->pci->dev, 128*1024, 128*1024);
 
 	chs = 2;
 	switch (device) {

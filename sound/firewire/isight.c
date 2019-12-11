@@ -286,11 +286,6 @@ static int isight_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *hw_params)
 {
 	struct isight *isight = substream->private_data;
-	int err;
-
-	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
 
 	WRITE_ONCE(isight->pcm_active, true);
 
@@ -336,7 +331,7 @@ static int isight_hw_free(struct snd_pcm_substream *substream)
 	isight_stop_streaming(isight);
 	mutex_unlock(&isight->mutex);
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int isight_start_streaming(struct isight *isight)
@@ -446,7 +441,6 @@ static int isight_create_pcm(struct isight *isight)
 	static const struct snd_pcm_ops ops = {
 		.open      = isight_open,
 		.close     = isight_close,
-		.ioctl     = snd_pcm_lib_ioctl,
 		.hw_params = isight_hw_params,
 		.hw_free   = isight_hw_free,
 		.prepare   = isight_prepare,
@@ -463,8 +457,7 @@ static int isight_create_pcm(struct isight *isight)
 	strcpy(pcm->name, "iSight");
 	isight->pcm = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
 	isight->pcm->ops = &ops;
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
-					      NULL, 0, 0);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
 
 	return 0;
 }

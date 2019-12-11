@@ -667,6 +667,7 @@ static int snd_interwave_probe(struct snd_card *card, int dev)
 		return -EBUSY;
 	}
 	iwcard->irq = xirq;
+	card->sync_irq = iwcard->irq;
 
 	err = snd_wss_create(card,
 			     gus->gf1.port + 0x10c, -1, xirq,
