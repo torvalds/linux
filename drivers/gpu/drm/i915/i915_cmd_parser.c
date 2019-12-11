@@ -1151,13 +1151,12 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 	}
 
 	src = ERR_PTR(-ENODEV);
-	if (src_needs_clflush &&
-	    i915_can_memcpy_from_wc(NULL, offset, 0)) {
+	if (src_needs_clflush && i915_has_memcpy_from_wc()) {
 		src = i915_gem_object_pin_map(src_obj, I915_MAP_WC);
 		if (!IS_ERR(src)) {
-			i915_memcpy_from_wc(dst,
-					    src + offset,
-					    ALIGN(length, 16));
+			i915_unaligned_memcpy_from_wc(dst,
+						      src + offset,
+						      length);
 			i915_gem_object_unpin_map(src_obj);
 		}
 	}
