@@ -174,6 +174,7 @@ struct pulse8 {
 	u8 work_result;
 	struct delayed_work ping_eeprom_work;
 	struct cec_msg rx_msg;
+	u32 tx_done_status;
 	u8 data[DATA_SIZE];
 	unsigned int len;
 	u8 buf[DATA_SIZE];
@@ -266,30 +267,20 @@ static void pulse8_irq_work_handler(struct work_struct *work)
 	struct pulse8 *pulse8 =
 		container_of(work, struct pulse8, work);
 	u8 result = pulse8->work_result;
+	u32 status;
 
 	pulse8->work_result = 0;
 	switch (result & 0x3f) {
 	case MSGCODE_FRAME_DATA:
 		cec_received_msg(pulse8->adap, &pulse8->rx_msg);
 		break;
-	case MSGCODE_TRANSMIT_SUCCEEDED:
-		mutex_lock(&pulse8->lock);
-		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_OK);
-		mutex_unlock(&pulse8->lock);
-		break;
-	case MSGCODE_TRANSMIT_FAILED_ACK:
-		mutex_lock(&pulse8->lock);
-		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_NACK);
-		mutex_unlock(&pulse8->lock);
-		break;
-	case MSGCODE_TRANSMIT_FAILED_LINE:
-	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_DATA:
-	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_LINE:
-		mutex_lock(&pulse8->lock);
-		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_ERROR);
-		mutex_unlock(&pulse8->lock);
-		break;
 	}
+	mutex_lock(&pulse8->lock);
+	status = pulse8->tx_done_status;
+	pulse8->tx_done_status = 0;
+	mutex_unlock(&pulse8->lock);
+	if (status)
+		cec_transmit_attempt_done(pulse8->adap, status);
 }
 
 static irqreturn_t pulse8_interrupt(struct serio *serio, unsigned char data,
@@ -331,12 +322,20 @@ static irqreturn_t pulse8_interrupt(struct serio *serio, unsigned char data,
 			}
 			break;
 		case MSGCODE_TRANSMIT_SUCCEEDED:
-		case MSGCODE_TRANSMIT_FAILED_LINE:
+			WARN_ON(pulse8->tx_done_status);
+			pulse8->tx_done_status = CEC_TX_STATUS_OK;
+			schedule_work(&pulse8->work);
+			break;
 		case MSGCODE_TRANSMIT_FAILED_ACK:
+			WARN_ON(pulse8->tx_done_status);
+			pulse8->tx_done_status = CEC_TX_STATUS_NACK;
+			schedule_work(&pulse8->work);
+			break;
+		case MSGCODE_TRANSMIT_FAILED_LINE:
 		case MSGCODE_TRANSMIT_FAILED_TIMEOUT_DATA:
 		case MSGCODE_TRANSMIT_FAILED_TIMEOUT_LINE:
-			WARN_ON(pulse8->work_result);
-			pulse8->work_result = msgcode;
+			WARN_ON(pulse8->tx_done_status);
+			pulse8->tx_done_status = CEC_TX_STATUS_ERROR;
 			schedule_work(&pulse8->work);
 			break;
 		case MSGCODE_HIGH_ERROR:
@@ -383,6 +382,8 @@ static int pulse8_cec_adap_enable(struct cec_adapter *adap, bool enable)
 	cmd[1] = enable;
 	err = pulse8_send_and_wait(pulse8, cmd, 2,
 				   MSGCODE_COMMAND_ACCEPTED, 1);
+	if (!enable)
+		pulse8->tx_done_status = 0;
 	mutex_unlock(&pulse8->lock);
 	return enable ? err : 0;
 }
