@@ -654,7 +654,6 @@
 
 		aes1_target: target-module@4b500000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "aes1";
 			reg = <0x4b500080 0x4>,
 			      <0x4b500084 0x4>,
 			      <0x4b500088 0x4>;
@@ -686,7 +685,6 @@
 
 		aes2_target: target-module@4b700000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "aes2";
 			reg = <0x4b700080 0x4>,
 			      <0x4b700084 0x4>,
 			      <0x4b700088 0x4>;
