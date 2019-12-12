@@ -844,8 +844,7 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	ice_vsi_link_event(vsi, link_up);
 	ice_print_link_msg(vsi, link_up);
 
-	if (pf->num_alloc_vfs)
-		ice_vc_notify_link_state(pf);
+	ice_vc_notify_link_state(pf);
 
 	return result;
 }
