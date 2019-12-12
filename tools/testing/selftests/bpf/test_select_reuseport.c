@@ -674,12 +674,34 @@ static void cleanup(void)
 	bpf_object__close(obj);
 }
 
+static const char *family_str(sa_family_t family)
+{
+	switch (family) {
+	case AF_INET:
+		return "IPv4";
+	case AF_INET6:
+		return "IPv6";
+	default:
+		return "unknown";
+	}
+}
+
+static const char *sotype_str(int sotype)
+{
+	switch (sotype) {
+	case SOCK_STREAM:
+		return "TCP";
+	case SOCK_DGRAM:
+		return "UDP";
+	default:
+		return "unknown";
+	}
+}
+
 static void test_all(void)
 {
 	/* Extra SOCK_STREAM to test bind_inany==true */
 	const int types[] = { SOCK_STREAM, SOCK_DGRAM, SOCK_STREAM };
-	const char * const type_strings[] = { "TCP", "UDP", "TCP" };
-	const char * const family_strings[] = { "IPv6", "IPv4" };
 	const sa_family_t families[] = { AF_INET6, AF_INET };
 	const bool bind_inany[] = { false, false, true };
 	int t, f, err;
@@ -692,7 +714,7 @@ static void test_all(void)
 			int type = types[t];
 
 			printf("######## %s/%s %s ########\n",
-			       family_strings[f], type_strings[t],
+			       family_str(family), sotype_str(type),
 				inany ? " INANY  " : "LOOPBACK");
 
 			setup_per_test(type, family, inany);
