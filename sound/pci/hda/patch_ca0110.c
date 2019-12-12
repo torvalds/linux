@@ -53,7 +53,7 @@ static int patch_ca0110(struct hda_codec *codec)
 	codec->patch_ops = ca0110_patch_ops;
 
 	spec->multi_cap_vol = 1;
-	codec->bus->needs_damn_long_delay = 1;
+	codec->bus->core.needs_damn_long_delay = 1;
 
 	err = ca0110_parse_auto_config(codec);
 	if (err < 0)

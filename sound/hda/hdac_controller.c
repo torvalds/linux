@@ -242,6 +242,7 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 	unsigned long timeout;
 	unsigned long loopcounter;
 	wait_queue_entry_t wait;
+	bool warned = false;
 
 	init_wait_entry(&wait, 0);
 	timeout = jiffies + msecs_to_jiffies(1000);
@@ -264,9 +265,17 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 		spin_unlock_irq(&bus->reg_lock);
 		if (time_after(jiffies, timeout))
 			break;
+#define LOOP_COUNT_MAX	3000
 		if (!bus->polling_mode) {
 			schedule_timeout(msecs_to_jiffies(2));
-		} else if (loopcounter > 3000) {
+		} else if (bus->needs_damn_long_delay ||
+			   loopcounter > LOOP_COUNT_MAX) {
+			if (loopcounter > LOOP_COUNT_MAX && !warned) {
+				dev_dbg_ratelimited(bus->dev,
+						    "too slow response, last cmd=%#08x\n",
+						    bus->last_cmd[addr]);
+				warned = true;
+			}
 			msleep(2); /* temporary workaround */
 		} else {
 			udelay(10);
