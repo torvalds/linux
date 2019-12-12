@@ -6335,6 +6335,35 @@ static const struct ib_device_ops mlx5_ib_dev_dm_ops = {
 	.reg_dm_mr = mlx5_ib_reg_dm_mr,
 };
 
+static int mlx5_ib_init_var_table(struct mlx5_ib_dev *dev)
+{
+	struct mlx5_core_dev *mdev = dev->mdev;
+	struct mlx5_var_table *var_table = &dev->var_table;
+	u8 log_doorbell_bar_size;
+	u8 log_doorbell_stride;
+	u64 bar_size;
+
+	log_doorbell_bar_size = MLX5_CAP_DEV_VDPA_EMULATION(mdev,
+					log_doorbell_bar_size);
+	log_doorbell_stride = MLX5_CAP_DEV_VDPA_EMULATION(mdev,
+					log_doorbell_stride);
+	var_table->hw_start_addr = dev->mdev->bar_addr +
+				MLX5_CAP64_DEV_VDPA_EMULATION(mdev,
+					doorbell_bar_offset);
+	bar_size = (1ULL << log_doorbell_bar_size) * 4096;
+	var_table->stride_size = 1ULL << log_doorbell_stride;
+	var_table->num_var_hw_entries = bar_size / var_table->stride_size;
+	mutex_init(&var_table->bitmap_lock);
+	var_table->bitmap = bitmap_zalloc(var_table->num_var_hw_entries,
+					  GFP_KERNEL);
+	return (var_table->bitmap) ? 0 : -ENOMEM;
+}
+
+static void mlx5_ib_stage_caps_cleanup(struct mlx5_ib_dev *dev)
+{
+	bitmap_free(dev->var_table.bitmap);
+}
+
 static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
@@ -6421,6 +6450,13 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	    (MLX5_CAP_GEN(dev->mdev, disable_local_lb_uc) ||
 	     MLX5_CAP_GEN(dev->mdev, disable_local_lb_mc)))
 		mutex_init(&dev->lb.mutex);
+
+	if (MLX5_CAP_GEN_64(dev->mdev, general_obj_types) &
+			MLX5_GENERAL_OBJ_TYPES_CAP_VIRTIO_NET_Q) {
+		err = mlx5_ib_init_var_table(dev);
+		if (err)
+			return err;
+	}
 
 	dev->ib_dev.use_cq_dim = true;
 
@@ -6772,7 +6808,7 @@ static const struct mlx5_ib_profile pf_profile = {
 		     mlx5_ib_stage_flow_db_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_CAPS,
 		     mlx5_ib_stage_caps_init,
-		     NULL),
+		     mlx5_ib_stage_caps_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_NON_DEFAULT_CB,
 		     mlx5_ib_stage_non_default_cb,
 		     NULL),
@@ -6829,7 +6865,7 @@ const struct mlx5_ib_profile raw_eth_profile = {
 		     mlx5_ib_stage_flow_db_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_CAPS,
 		     mlx5_ib_stage_caps_init,
-		     NULL),
+		     mlx5_ib_stage_caps_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_NON_DEFAULT_CB,
 		     mlx5_ib_stage_raw_eth_non_default_cb,
 		     NULL),
