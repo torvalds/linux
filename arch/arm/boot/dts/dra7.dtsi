@@ -716,17 +716,6 @@
 			};
 		};
 
-		des: des@480a5000 {
-			compatible = "ti,omap4-des";
-			ti,hwmods = "des";
-			reg = <0x480a5000 0xa0>;
-			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&sdma_xbar 117>, <&sdma_xbar 116>;
-			dma-names = "tx", "rx";
-			clocks = <&l3_iclk_div>;
-			clock-names = "fck";
-		};
-
 		sham_target: target-module@4b101000 {
 			compatible = "ti,sysc-omap3-sham", "ti,sysc";
 			ti,hwmods = "sham";
