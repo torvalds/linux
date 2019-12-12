@@ -2527,6 +2527,26 @@ add_dso_opt(struct hist_browser *browser, struct popup_action *act,
 	return 1;
 }
 
+static int do_toggle_callchain(struct hist_browser *browser, struct popup_action *act __maybe_unused)
+{
+	hist_browser__toggle_fold(browser);
+	return 0;
+}
+
+static int add_callchain_toggle_opt(struct hist_browser *browser, struct popup_action *act, char **optstr)
+{
+	struct hist_entry *he = browser->he_selection;
+
+        if (!he->has_children)
+                return 0;
+
+	if (asprintf(optstr, "Expand/Collapse callchain") < 0)
+		return 0;
+
+	act->fn = do_toggle_callchain;
+	return 1;
+}
+
 static int
 do_browse_map(struct hist_browser *browser __maybe_unused,
 	      struct popup_action *act)
@@ -3137,6 +3157,7 @@ skip_annotation:
 					     &options[nr_options], thread);
 		nr_options += add_dso_opt(browser, &actions[nr_options],
 					  &options[nr_options], map);
+		nr_options += add_callchain_toggle_opt(browser, &actions[nr_options], &options[nr_options]);
 		nr_options += add_map_opt(browser, &actions[nr_options],
 					  &options[nr_options],
 					  browser->selection ?
