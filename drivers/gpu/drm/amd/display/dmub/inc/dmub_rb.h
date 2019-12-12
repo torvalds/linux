@@ -113,6 +113,23 @@ static inline bool dmub_rb_pop_front(struct dmub_rb *rb)
 	return true;
 }
 
+static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
+{
+	uint8_t buf[DMUB_RB_CMD_SIZE];
+	uint32_t rptr = rb->rptr;
+	uint32_t wptr = rb->wrpt;
+
+	while (rptr != wptr) {
+		const uint8_t *data = (const uint8_t *)rb->base_address + rptr;
+
+		dmub_memcpy(buf, data, DMUB_RB_CMD_SIZE);
+
+		rptr += DMUB_RB_CMD_SIZE;
+		if (rptr >= rb->capacity)
+			rptr %= rb->capacity;
+	}
+}
+
 static inline void dmub_rb_init(struct dmub_rb *rb,
 				struct dmub_rb_init_params *init_params)
 {

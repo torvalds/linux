@@ -405,31 +405,15 @@ enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
 
+	/**
+	 * Read back all the queued commands to ensure that they've
+	 * been flushed to framebuffer memory. Otherwise DMCUB might
+	 * read back stale, fully invalid or partially invalid data.
+	 */
+	dmub_rb_flush_pending(&dmub->inbox1_rb);
+
 	dmub->hw_funcs.set_inbox1_wptr(dmub, dmub->inbox1_rb.wrpt);
 	return DMUB_STATUS_OK;
-}
-
-enum dmub_status dmub_srv_cmd_submit(struct dmub_srv *dmub,
-				     const struct dmub_cmd_header *cmd,
-				     uint32_t timeout_us)
-{
-	uint32_t i = 0;
-
-	if (!dmub->hw_init)
-		return DMUB_STATUS_INVALID;
-
-	for (i = 0; i <= timeout_us; ++i) {
-		dmub->inbox1_rb.rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
-		if (dmub_rb_push_front(&dmub->inbox1_rb, cmd)) {
-			dmub->hw_funcs.set_inbox1_wptr(dmub,
-						       dmub->inbox1_rb.wrpt);
-			return DMUB_STATUS_OK;
-		}
-
-		udelay(1);
-	}
-
-	return DMUB_STATUS_TIMEOUT;
 }
 
 enum dmub_status dmub_srv_wait_for_auto_load(struct dmub_srv *dmub,
