@@ -491,6 +491,10 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			bio->bi_opf = REQ_OP_WRITE | write_flags;
 			bio->bi_private = cb;
 			bio->bi_end_io = end_compressed_bio_write;
+			if (blkcg_css) {
+				bio->bi_opf |= REQ_CGROUP_PUNT;
+				bio_associate_blkg_from_css(bio, blkcg_css);
+			}
 			bio_add_page(bio, page, PAGE_SIZE, 0);
 		}
 		if (bytes_left < PAGE_SIZE) {
