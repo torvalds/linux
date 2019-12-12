@@ -56,6 +56,9 @@
 #define VCN_VID_IP_ADDRESS_2_0		0x0
 #define VCN_AON_IP_ADDRESS_2_0		0x30000
 
+/* 1 second timeout */
+#define VCN_IDLE_TIMEOUT	msecs_to_jiffies(1000)
+
 #define RREG32_SOC15_DPG_MODE(ip, inst, reg, mask, sram_sel) 				\
 	({	WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask); 			\
 		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_CTL, 				\
