@@ -5946,7 +5946,7 @@ struct perf_buffer {
 	size_t mmap_size;
 	struct perf_cpu_buf **cpu_bufs;
 	struct epoll_event *events;
-	int cpu_cnt;
+	int cpu_cnt; /* number of allocated CPU buffers */
 	int epoll_fd; /* perf event FD */
 	int map_fd; /* BPF_MAP_TYPE_PERF_EVENT_ARRAY BPF map FD */
 };
@@ -6080,11 +6080,13 @@ perf_buffer__new_raw(int map_fd, size_t page_cnt,
 static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
 					      struct perf_buffer_params *p)
 {
+	const char *online_cpus_file = "/sys/devices/system/cpu/online";
 	struct bpf_map_info map = {};
 	char msg[STRERR_BUFSIZE];
 	struct perf_buffer *pb;
+	bool *online = NULL;
 	__u32 map_info_len;
-	int err, i;
+	int err, i, j, n;
 
 	if (page_cnt & (page_cnt - 1)) {
 		pr_warn("page count should be power of two, but is %zu\n",
@@ -6153,12 +6155,24 @@ static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
 		goto error;
 	}
 
-	for (i = 0; i < pb->cpu_cnt; i++) {
+	err = parse_cpu_mask_file(online_cpus_file, &online, &n);
+	if (err) {
+		pr_warn("failed to get online CPU mask: %d\n", err);
+		goto error;
+	}
+
+	for (i = 0, j = 0; i < pb->cpu_cnt; i++) {
 		struct perf_cpu_buf *cpu_buf;
 		int cpu, map_key;
 
 		cpu = p->cpu_cnt > 0 ? p->cpus[i] : i;
 		map_key = p->cpu_cnt > 0 ? p->map_keys[i] : i;
+
+		/* in case user didn't explicitly requested particular CPUs to
+		 * be attached to, skip offline/not present CPUs
+		 */
+		if (p->cpu_cnt <= 0 && (cpu >= n || !online[cpu]))
+			continue;
 
 		cpu_buf = perf_buffer__open_cpu_buf(pb, p->attr, cpu, map_key);
 		if (IS_ERR(cpu_buf)) {
@@ -6166,7 +6180,7 @@ static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
 			goto error;
 		}
 
-		pb->cpu_bufs[i] = cpu_buf;
+		pb->cpu_bufs[j] = cpu_buf;
 
 		err = bpf_map_update_elem(pb->map_fd, &map_key,
 					  &cpu_buf->fd, 0);
@@ -6178,21 +6192,25 @@ static struct perf_buffer *__perf_buffer__new(int map_fd, size_t page_cnt,
 			goto error;
 		}
 
-		pb->events[i].events = EPOLLIN;
-		pb->events[i].data.ptr = cpu_buf;
+		pb->events[j].events = EPOLLIN;
+		pb->events[j].data.ptr = cpu_buf;
 		if (epoll_ctl(pb->epoll_fd, EPOLL_CTL_ADD, cpu_buf->fd,
-			      &pb->events[i]) < 0) {
+			      &pb->events[j]) < 0) {
 			err = -errno;
 			pr_warn("failed to epoll_ctl cpu #%d perf FD %d: %s\n",
 				cpu, cpu_buf->fd,
 				libbpf_strerror_r(err, msg, sizeof(msg)));
 			goto error;
 		}
+		j++;
 	}
+	pb->cpu_cnt = j;
+	free(online);
 
 	return pb;
 
 error:
+	free(online);
 	if (pb)
 		perf_buffer__free(pb);
 	return ERR_PTR(err);
