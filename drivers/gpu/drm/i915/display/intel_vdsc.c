@@ -469,25 +469,27 @@ int intel_dsc_compute_params(struct intel_encoder *encoder,
 enum intel_display_power_domain
 intel_dsc_power_domain(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 
 	/*
-	 * On ICL VDSC/joining for eDP transcoder uses a separate power well,
-	 * PW2. This requires POWER_DOMAIN_TRANSCODER_VDSC_PW2 power domain.
-	 * For any other transcoder, VDSC/joining uses the power well associated
-	 * with the pipe/transcoder in use. Hence another reference on the
-	 * transcoder power domain will suffice.
+	 * VDSC/joining uses a separate power well, PW2, and requires
+	 * POWER_DOMAIN_TRANSCODER_VDSC_PW2 power domain in two cases:
 	 *
-	 * On TGL we have the same mapping, but for transcoder A (the special
-	 * TRANSCODER_EDP is gone).
+	 *  - ICL eDP/DSI transcoder
+	 *  - TGL pipe A
+	 *
+	 * For any other pipe, VDSC/joining uses the power well associated with
+	 * the pipe in use. Hence another reference on the pipe power domain
+	 * will suffice. (Except no VDSC/joining on ICL pipe A.)
 	 */
-	if (INTEL_GEN(i915) >= 12 && cpu_transcoder == TRANSCODER_A)
+	if (INTEL_GEN(i915) >= 12 && pipe == PIPE_A)
 		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
-	else if (cpu_transcoder == TRANSCODER_EDP)
-		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
+	else if (is_pipe_dsc(crtc_state))
+		return POWER_DOMAIN_PIPE(pipe);
 	else
-		return POWER_DOMAIN_TRANSCODER(cpu_transcoder);
+		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
 }
 
 static void intel_dsc_pps_configure(struct intel_encoder *encoder,
