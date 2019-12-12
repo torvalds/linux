@@ -576,6 +576,7 @@ void intel_rc6_enable(struct intel_rc6 *rc6)
 	else if (INTEL_GEN(i915) >= 6)
 		gen6_rc6_enable(rc6);
 
+	rc6->manual = rc6->ctl_enable & GEN6_RC_CTL_RC6_ENABLE;
 	if (NEEDS_RC6_CTX_CORRUPTION_WA(i915))
 		rc6->ctl_enable = 0;
 
@@ -612,7 +613,7 @@ void intel_rc6_park(struct intel_rc6 *rc6)
 		return;
 	}
 
-	if (!(rc6->ctl_enable & GEN6_RC_CTL_RC6_ENABLE))
+	if (!rc6->manual)
 		return;
 
 	/* Turn off the HW timers and go directly to rc6 */

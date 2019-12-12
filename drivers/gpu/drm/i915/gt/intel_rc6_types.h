@@ -24,6 +24,7 @@ struct intel_rc6 {
 
 	bool supported : 1;
 	bool enabled : 1;
+	bool manual : 1;
 	bool wakeref : 1;
 };
 
