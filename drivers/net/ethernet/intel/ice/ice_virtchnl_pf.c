@@ -78,10 +78,11 @@ ice_vc_vf_broadcast(struct ice_pf *pf, enum virtchnl_ops v_opcode,
 		    enum virtchnl_status_code v_retval, u8 *msg, u16 msglen)
 {
 	struct ice_hw *hw = &pf->hw;
-	struct ice_vf *vf = pf->vf;
 	int i;
 
-	for (i = 0; i < pf->num_alloc_vfs; i++, vf++) {
+	ice_for_each_vf(pf, i) {
+		struct ice_vf *vf = &pf->vf[i];
+
 		/* Not all vfs are enabled so skip the ones that are not */
 		if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states) &&
 		    !test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states))
@@ -331,7 +332,7 @@ void ice_free_vfs(struct ice_pf *pf)
 		usleep_range(1000, 2000);
 
 	/* Avoid wait time by stopping all VFs at the same time */
-	for (i = 0; i < pf->num_alloc_vfs; i++)
+	ice_for_each_vf(pf, i)
 		if (test_bit(ICE_VF_STATE_QS_ENA, pf->vf[i].vf_states))
 			ice_dis_vf_qs(&pf->vf[i]);
 
@@ -1077,7 +1078,7 @@ static bool ice_config_res_vfs(struct ice_pf *pf)
 		ice_irq_dynamic_ena(hw, NULL, NULL);
 
 	/* Finish resetting each VF and allocate resources */
-	for (v = 0; v < pf->num_alloc_vfs; v++) {
+	ice_for_each_vf(pf, v) {
 		struct ice_vf *vf = &pf->vf[v];
 
 		vf->num_vf_qs = pf->num_vf_qps;
@@ -1120,10 +1121,10 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 		return false;
 
 	/* Begin reset on all VFs at once */
-	for (v = 0; v < pf->num_alloc_vfs; v++)
+	ice_for_each_vf(pf, v)
 		ice_trigger_vf_reset(&pf->vf[v], is_vflr, true);
 
-	for (v = 0; v < pf->num_alloc_vfs; v++) {
+	ice_for_each_vf(pf, v) {
 		struct ice_vsi *vsi;
 
 		vf = &pf->vf[v];
@@ -1168,7 +1169,7 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 		dev_warn(dev, "VF reset check timeout\n");
 
 	/* free VF resources to begin resetting the VSI state */
-	for (v = 0; v < pf->num_alloc_vfs; v++) {
+	ice_for_each_vf(pf, v) {
 		vf = &pf->vf[v];
 
 		ice_free_vf_res(vf);
@@ -1308,7 +1309,7 @@ void ice_vc_notify_link_state(struct ice_pf *pf)
 {
 	int i;
 
-	for (i = 0; i < pf->num_alloc_vfs; i++)
+	ice_for_each_vf(pf, i)
 		ice_vc_notify_vf_link_state(&pf->vf[i]);
 }
 
@@ -1392,9 +1393,10 @@ static int ice_alloc_vfs(struct ice_pf *pf, u16 num_alloc_vfs)
 		goto err_pci_disable_sriov;
 	}
 	pf->vf = vfs;
+	pf->num_alloc_vfs = num_alloc_vfs;
 
 	/* apply default profile */
-	for (i = 0; i < num_alloc_vfs; i++) {
+	ice_for_each_vf(pf, i) {
 		vfs[i].pf = pf;
 		vfs[i].vf_sw_id = pf->first_sw;
 		vfs[i].vf_id = i;
@@ -1403,7 +1405,6 @@ static int ice_alloc_vfs(struct ice_pf *pf, u16 num_alloc_vfs)
 		set_bit(ICE_VIRTCHNL_VF_CAP_L2, &vfs[i].vf_caps);
 		vfs[i].spoofchk = true;
 	}
-	pf->num_alloc_vfs = num_alloc_vfs;
 
 	/* VF resources get allocated with initialization */
 	if (!ice_config_res_vfs(pf)) {
@@ -1542,7 +1543,7 @@ void ice_process_vflr_event(struct ice_pf *pf)
 	    !pf->num_alloc_vfs)
 		return;
 
-	for (vf_id = 0; vf_id < pf->num_alloc_vfs; vf_id++) {
+	ice_for_each_vf(pf, vf_id) {
 		struct ice_vf *vf = &pf->vf[vf_id];
 		u32 reg_idx, bit_idx;
 

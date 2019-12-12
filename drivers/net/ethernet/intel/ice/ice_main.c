@@ -476,7 +476,7 @@ ice_prepare_for_reset(struct ice_pf *pf)
 		ice_vc_notify_reset(pf);
 
 	/* Disable VFs until reset is completed */
-	for (i = 0; i < pf->num_alloc_vfs; i++)
+	ice_for_each_vf(pf, i)
 		ice_set_vf_state_qs_dis(&pf->vf[i]);
 
 	/* clear SW filtering DB */
@@ -1295,7 +1295,7 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 	}
 
 	/* check to see if one of the VFs caused the MDD */
-	for (i = 0; i < pf->num_alloc_vfs; i++) {
+	ice_for_each_vf(pf, i) {
 		struct ice_vf *vf = &pf->vf[i];
 
 		bool vf_mdd_detected = false;

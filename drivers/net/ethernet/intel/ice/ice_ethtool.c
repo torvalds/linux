@@ -283,12 +283,15 @@ out:
  */
 static bool ice_active_vfs(struct ice_pf *pf)
 {
-	struct ice_vf *vf = pf->vf;
 	int i;
 
-	for (i = 0; i < pf->num_alloc_vfs; i++, vf++)
+	ice_for_each_vf(pf, i) {
+		struct ice_vf *vf = &pf->vf[i];
+
 		if (test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states))
 			return true;
+	}
+
 	return false;
 }
 
