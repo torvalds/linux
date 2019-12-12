@@ -83,6 +83,7 @@
 #include "dcn21_resource.h"
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
+#include "../dce/dmub_psr.h"
 
 #define SOC_BOUNDING_BOX_VALID false
 #define DC_LOGGER_INIT(logger)
@@ -1743,6 +1744,10 @@ static bool dcn21_resource_construct(
 		BREAK_TO_DEBUGGER();
 		goto create_fail;
 	}
+
+	// Leave as NULL to not affect current dmcu psr programming sequence
+	// Will be uncommented when functionality is confirmed to be working
+	pool->base.psr = NULL;
 
 	pool->base.abm = dce_abm_create(ctx,
 			&abm_regs,

@@ -45,6 +45,7 @@
 #include "dpcd_defs.h"
 #include "dmcu.h"
 #include "hw/clk_mgr.h"
+#include "../dce/dmub_psr.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -2404,10 +2405,11 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool 
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
+	struct dmub_psr *psr = dc->res_pool->psr;
 
-
-
-	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_feature_enabled)
+	if ((psr != NULL) && link->psr_feature_enabled)
+		psr->funcs->set_psr_enable(psr, allow_active);
+	else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_feature_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
 
 	link->psr_allow_active = allow_active;
@@ -2419,8 +2421,11 @@ bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
+	struct dmub_psr *psr = dc->res_pool->psr;
 
-	if (dmcu != NULL && link->psr_feature_enabled)
+	if (psr != NULL && link->psr_feature_enabled)
+		psr->funcs->get_psr_state(psr_state);
+	else if (dmcu != NULL && link->psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, psr_state);
 
 	return true;
@@ -2467,6 +2472,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 {
 	struct dc *dc;
 	struct dmcu *dmcu;
+	struct dmub_psr *psr;
 	int i;
 	/* updateSinkPsrDpcdConfig*/
 	union dpcd_psr_configuration psr_configuration;
@@ -2478,8 +2484,9 @@ bool dc_link_setup_psr(struct dc_link *link,
 
 	dc = link->ctx->dc;
 	dmcu = dc->res_pool->dmcu;
+	psr = dc->res_pool->psr;
 
-	if (!dmcu)
+	if (!dmcu && !psr)
 		return false;
 
 
@@ -2588,7 +2595,10 @@ bool dc_link_setup_psr(struct dc_link *link,
 	 */
 	psr_context->frame_delay = 0;
 
-	link->psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
+	if (psr)
+		link->psr_feature_enabled = psr->funcs->setup_psr(psr, link, psr_context);
+	else
+		link->psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 
 	/* psr_enabled == 0 indicates setup_psr did not succeed, but this
 	 * should not happen since firmware should be running at this point

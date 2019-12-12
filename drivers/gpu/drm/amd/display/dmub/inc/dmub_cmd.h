@@ -187,9 +187,28 @@ struct dmub_rb_cmd_dpphy_init {
 };
 
 struct dmub_cmd_psr_copy_settings_data {
-	uint32_t reg1;
-	uint32_t reg2;
-	uint32_t reg3;
+	uint16_t psr_level;
+	uint8_t hubp_inst;
+	uint8_t dpp_inst;
+	uint8_t mpcc_inst;
+	uint8_t opp_inst;
+	uint8_t otg_inst;
+	uint8_t digfe_inst;
+	uint8_t digbe_inst;
+	uint8_t dpphy_inst;
+	uint8_t aux_inst;
+	uint8_t hyst_frames;
+	uint8_t hyst_lines;
+	uint8_t phy_num;
+	uint8_t phy_type;
+	uint8_t aux_repeat;
+	uint8_t smu_optimizations_en;
+	uint8_t skip_wait_for_pll_lock;
+	uint8_t frame_delay;
+	uint8_t smu_phy_id;
+	uint8_t num_of_controllers;
+	uint8_t link_rate;
+	uint8_t frame_cap_ind;
 };
 
 struct dmub_rb_cmd_psr_copy_settings {
@@ -206,10 +225,6 @@ struct dmub_rb_cmd_psr_set_level {
 	struct dmub_cmd_psr_set_level_data psr_set_level_data;
 };
 
-struct dmub_rb_cmd_psr_disable {
-	struct dmub_cmd_header header;
-};
-
 struct dmub_rb_cmd_psr_enable {
 	struct dmub_cmd_header header;
 };
@@ -224,8 +239,8 @@ struct dmub_rb_cmd_notify_vblank {
 };
 
 struct dmub_cmd_psr_notify_static_state_data {
-	uint32_t ss_int;   // Which static screen interrupt was triggered
-	uint32_t ss_enter; // Enter (1) or exit (0) static screen
+	uint32_t ss_int;	// Which static screen interrupt was triggered
+	uint32_t ss_enter;	// Enter (1) or exit (0) static screen
 };
 
 struct dmub_rb_cmd_psr_notify_static_state {
@@ -245,7 +260,6 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_dpphy_init dpphy_init;
 	struct dmub_rb_cmd_dig1_transmitter_control dig1_transmitter_control;
 	struct dmub_rb_cmd_psr_enable psr_enable;
-	struct dmub_rb_cmd_psr_disable psr_disable;
 	struct dmub_rb_cmd_psr_copy_settings psr_copy_settings;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
 };
