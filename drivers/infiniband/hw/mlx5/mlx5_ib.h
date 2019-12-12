@@ -72,6 +72,11 @@
 #define MLX5_MKEY_PAGE_SHIFT_MASK __mlx5_mask(mkc, log_page_size)
 
 enum {
+	MLX5_IB_MMAP_OFFSET_START = 9,
+	MLX5_IB_MMAP_OFFSET_END = 255,
+};
+
+enum {
 	MLX5_IB_MMAP_CMD_SHIFT	= 8,
 	MLX5_IB_MMAP_CMD_MASK	= 0xff,
 };
@@ -120,6 +125,7 @@ enum {
 
 enum mlx5_ib_mmap_type {
 	MLX5_IB_MMAP_TYPE_MEMIC = 1,
+	MLX5_IB_MMAP_TYPE_VAR = 2,
 };
 
 #define MLX5_LOG_SW_ICM_BLOCK_SIZE(dev)                                        \
@@ -563,6 +569,7 @@ struct mlx5_user_mmap_entry {
 	struct rdma_user_mmap_entry rdma_entry;
 	u8 mmap_flag;
 	u64 address;
+	u32 page_idx;
 };
 
 struct mlx5_ib_dm {
