@@ -2918,7 +2918,7 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 
 	if (context->bw_ctx.dml.soc.dummy_pstate_latency_us == 0 ||
 		(voltage_supported && full_pstate_supported)) {
-		context->bw_ctx.bw.dcn.clk.p_state_change_support = true;
+		context->bw_ctx.bw.dcn.clk.p_state_change_support = full_pstate_supported;
 		goto restore_dml_state;
 	}
 
