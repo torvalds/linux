@@ -36,7 +36,7 @@ Additional requirements are listed below based on patch type
 
         Signed-off-by: Fred Jones <fred.jones@foo.org>
 ```
-        - then Joe Smith would upload the patch for the common kernel as
+>- then Joe Smith would upload the patch for the common kernel as
 ```
         UPSTREAM: important patch from upstream
 
@@ -86,7 +86,7 @@ must be a stable maintainer branch (not rebased, so don't use `linux-next` for e
 
         Signed-off-by: Fred Jones <fred.jones@foo.org>
 ```
-        - then Joe Smith would upload the patch for the common kernel as
+>- then Joe Smith would upload the patch for the common kernel as
 ```
         FROMGIT: important patch from upstream
 
