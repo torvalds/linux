@@ -3003,10 +3003,8 @@ static int coda_probe(struct platform_device *pdev)
 	irq = platform_get_irq_byname(pdev, "bit");
 	if (irq < 0)
 		irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, irq, coda_irq_handler, 0,
 			       dev_name(&pdev->dev), dev);
