@@ -268,11 +268,3 @@ struct omap_hwmod_ocp_if am33xx_l3_main__ocmc = {
 	.slave		= &am33xx_ocmcram_hwmod,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
-
-/* l3 main -> AES0 HIB2 */
-struct omap_hwmod_ocp_if am33xx_l3_main__aes0 = {
-	.master		= &am33xx_l3_main_hwmod,
-	.slave		= &am33xx_aes0_hwmod,
-	.clk		= "aes0_fck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
