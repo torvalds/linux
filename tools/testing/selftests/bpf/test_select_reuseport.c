@@ -698,47 +698,56 @@ static const char *sotype_str(int sotype)
 	}
 }
 
+static void test_config(int type, sa_family_t family, bool inany)
+{
+	int err;
+
+	printf("######## %s/%s %s ########\n",
+	       family_str(family), sotype_str(type),
+	       inany ? " INANY  " : "LOOPBACK");
+
+	setup_per_test(type, family, inany);
+
+	test_err_inner_map(type, family);
+
+	/* Install reuseport_array to the outer_map */
+	err = bpf_map_update_elem(outer_map, &index_zero,
+				  &reuseport_array, BPF_ANY);
+	CHECK(err == -1, "update_elem(outer_map)",
+	      "err:%d errno:%d\n", err, errno);
+
+	test_err_skb_data(type, family);
+	test_err_sk_select_port(type, family);
+	test_pass(type, family);
+	test_syncookie(type, family);
+	test_pass_on_err(type, family);
+	/* Must be the last test */
+	test_detach_bpf(type, family);
+
+	cleanup_per_test();
+	printf("\n");
+}
+
+#define BIND_INANY true
+
 static void test_all(void)
 {
-	/* Extra SOCK_STREAM to test bind_inany==true */
-	const int types[] = { SOCK_STREAM, SOCK_DGRAM, SOCK_STREAM };
-	const sa_family_t families[] = { AF_INET6, AF_INET };
-	const bool bind_inany[] = { false, false, true };
-	int t, f, err;
+	const struct config {
+		int sotype;
+		sa_family_t family;
+		bool inany;
+	} configs[] = {
+		{ SOCK_STREAM, AF_INET },
+		{ SOCK_STREAM, AF_INET, BIND_INANY },
+		{ SOCK_STREAM, AF_INET6 },
+		{ SOCK_STREAM, AF_INET6, BIND_INANY },
+		{ SOCK_DGRAM, AF_INET },
+		{ SOCK_DGRAM, AF_INET6 },
+	};
+	const struct config *c;
 
-	for (f = 0; f < ARRAY_SIZE(families); f++) {
-		sa_family_t family = families[f];
-
-		for (t = 0; t < ARRAY_SIZE(types); t++) {
-			bool inany = bind_inany[t];
-			int type = types[t];
-
-			printf("######## %s/%s %s ########\n",
-			       family_str(family), sotype_str(type),
-				inany ? " INANY  " : "LOOPBACK");
-
-			setup_per_test(type, family, inany);
-
-			test_err_inner_map(type, family);
-
-			/* Install reuseport_array to the outer_map */
-			err = bpf_map_update_elem(outer_map, &index_zero,
-						  &reuseport_array, BPF_ANY);
-			CHECK(err == -1, "update_elem(outer_map)",
-			      "err:%d errno:%d\n", err, errno);
-
-			test_err_skb_data(type, family);
-			test_err_sk_select_port(type, family);
-			test_pass(type, family);
-			test_syncookie(type, family);
-			test_pass_on_err(type, family);
-			/* Must be the last test */
-			test_detach_bpf(type, family);
-
-			cleanup_per_test();
-			printf("\n");
-		}
-	}
+	for (c = configs; c < configs + ARRAY_SIZE(configs); c++)
+		test_config(c->sotype, c->family, c->inany);
 }
 
 int main(int argc, const char **argv)
