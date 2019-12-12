@@ -53,6 +53,12 @@ struct hdcp_workqueue {
 
 	enum mod_hdcp_encryption_status encryption_status;
 	uint8_t max_link;
+
+	uint8_t *srm;
+	uint8_t *srm_temp;
+	uint32_t srm_version;
+	uint32_t srm_size;
+	struct bin_attribute attr;
 };
 
 void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
