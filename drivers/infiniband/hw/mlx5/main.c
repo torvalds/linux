@@ -2253,7 +2253,10 @@ static int mlx5_ib_mmap_offset(struct mlx5_ib_dev *dev,
 
 	mentry = to_mmmap(entry);
 	pfn = (mentry->address >> PAGE_SHIFT);
-	prot = pgprot_writecombine(vma->vm_page_prot);
+	if (mentry->mmap_flag == MLX5_IB_MMAP_TYPE_VAR)
+		prot = pgprot_noncached(vma->vm_page_prot);
+	else
+		prot = pgprot_writecombine(vma->vm_page_prot);
 	ret = rdma_user_mmap_io(ucontext, vma, pfn,
 				entry->npages * PAGE_SIZE,
 				prot,
