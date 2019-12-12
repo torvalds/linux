@@ -2168,16 +2168,21 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	} else {
 		if (dev->devtype->product == CODA_960) {
 			/*
-			 * The CODA960 seems to have an internal list of
-			 * buffers with 64 entries that includes the
-			 * registered frame buffers as well as the rotator
-			 * buffer output.
-			 *
-			 * ROT_INDEX needs to be < 0x40, but >
-			 * ctx->num_internal_frames.
+			 * It was previously assumed that the CODA960 has an
+			 * internal list of 64 buffer entries that contains
+			 * both the registered internal frame buffers as well
+			 * as the rotator buffer output, and that the ROT_INDEX
+			 * register must be set to a value between the last
+			 * internal frame buffers' index and 64.
+			 * At least on firmware version 3.1.1 it turns out that
+			 * setting ROT_INDEX to any value >= 32 causes CODA
+			 * hangups that it can not recover from with the SRC VPU
+			 * reset.
+			 * It does appear to work however, to just set it to a
+			 * fixed value in the [ctx->num_internal_frames, 31]
+			 * range, for example CODA_MAX_FRAMEBUFFERS.
 			 */
-			coda_write(dev,
-				   CODA_MAX_FRAMEBUFFERS + dst_buf->vb2_buf.index,
+			coda_write(dev, CODA_MAX_FRAMEBUFFERS,
 				   CODA9_CMD_DEC_PIC_ROT_INDEX);
 
 			reg_addr = CODA9_CMD_DEC_PIC_ROT_ADDR_Y;
