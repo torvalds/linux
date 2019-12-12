@@ -122,6 +122,8 @@ struct sdw_intel_res {
 int sdw_intel_acpi_scan(acpi_handle *parent_handle,
 			struct sdw_intel_acpi_info *info);
 
+void sdw_intel_process_wakeen_event(struct sdw_intel_ctx *ctx);
+
 struct sdw_intel_ctx *
 sdw_intel_probe(struct sdw_intel_res *res);
 
