@@ -349,7 +349,6 @@
 
 		target-module@66000 {			/* 0x4a066000, ap 23 0a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mmu_dsp";
 			reg = <0x66000 0x4>,
 			      <0x66010 0x4>,
 			      <0x66014 0x4>;
@@ -364,12 +363,18 @@
 			/* Domains (V, P, C): mm, dsp_pwrdm, dsp_clkdm */
 			clocks = <&dsp_clkctrl OMAP5_MMU_DSP_CLKCTRL 0>;
 			clock-names = "fck";
+			resets = <&prm_dsp 1>;
+			reset-names = "rstctrl";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x66000 0x1000>;
 
-			/* mmu_dsp cannot be moved before reset driver */
-			status = "disabled";
+			mmu_dsp: mmu@0 {
+				compatible = "ti,omap4-iommu";
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+				#iommu-cells = <0>;
+			};
 		};
 
 		target-module@70000 {			/* 0x4a070000, ap 79 2e.0 */
