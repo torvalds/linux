@@ -643,7 +643,8 @@ static void prepare_sk_fds(int type, sa_family_t family, bool inany)
 	}
 }
 
-static void setup_per_test(int type, sa_family_t family, bool inany)
+static void setup_per_test(int type, sa_family_t family, bool inany,
+			   bool no_inner_map)
 {
 	int ovr = -1, err;
 
@@ -652,15 +653,28 @@ static void setup_per_test(int type, sa_family_t family, bool inany)
 				  BPF_ANY);
 	CHECK(err == -1, "update_elem(tmp_index_ovr_map, 0, -1)",
 	      "err:%d errno:%d\n", err, errno);
+
+	/* Install reuseport_array to outer_map? */
+	if (no_inner_map)
+		return;
+
+	err = bpf_map_update_elem(outer_map, &index_zero, &reuseport_array,
+				  BPF_ANY);
+	CHECK(err == -1, "update_elem(outer_map, 0, reuseport_array)",
+	      "err:%d errno:%d\n", err, errno);
 }
 
-static void cleanup_per_test(void)
+static void cleanup_per_test(bool no_inner_map)
 {
 	int i, err;
 
 	for (i = 0; i < REUSEPORT_ARRAY_SIZE; i++)
 		close(sk_fds[i]);
 	close(epfd);
+
+	/* Delete reuseport_array from outer_map? */
+	if (no_inner_map)
+		return;
 
 	err = bpf_map_delete_elem(outer_map, &index_zero);
 	CHECK(err == -1, "delete_elem(outer_map)",
@@ -700,31 +714,30 @@ static const char *sotype_str(int sotype)
 
 static void test_config(int type, sa_family_t family, bool inany)
 {
-	int err;
+	const struct test {
+		void (*fn)(int sotype, sa_family_t family);
+		bool no_inner_map;
+	} tests[] = {
+		{ test_err_inner_map, true /* no_inner_map */ },
+		{ test_err_skb_data },
+		{ test_err_sk_select_port },
+		{ test_pass },
+		{ test_syncookie },
+		{ test_pass_on_err },
+		{ test_detach_bpf },
+	};
+	const struct test *t;
 
 	printf("######## %s/%s %s ########\n",
 	       family_str(family), sotype_str(type),
 	       inany ? " INANY  " : "LOOPBACK");
 
-	setup_per_test(type, family, inany);
+	for (t = tests; t < tests + ARRAY_SIZE(tests); t++) {
+		setup_per_test(type, family, inany, t->no_inner_map);
+		t->fn(type, family);
+		cleanup_per_test(t->no_inner_map);
+	}
 
-	test_err_inner_map(type, family);
-
-	/* Install reuseport_array to the outer_map */
-	err = bpf_map_update_elem(outer_map, &index_zero,
-				  &reuseport_array, BPF_ANY);
-	CHECK(err == -1, "update_elem(outer_map)",
-	      "err:%d errno:%d\n", err, errno);
-
-	test_err_skb_data(type, family);
-	test_err_sk_select_port(type, family);
-	test_pass(type, family);
-	test_syncookie(type, family);
-	test_pass_on_err(type, family);
-	/* Must be the last test */
-	test_detach_bpf(type, family);
-
-	cleanup_per_test();
 	printf("\n");
 }
 
