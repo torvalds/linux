@@ -151,7 +151,7 @@ static int nand_dev_transfer(struct nand_blk_dev *dev,
 	if (dev->disable_access ||
 	    ((cmd == WRITE) && dev->readonly) ||
 	    ((cmd == READ) && dev->writeonly)) {
-		return -EIO;
+		return BLK_STS_IOERR;
 	}
 
 	start += dev->off_size;
@@ -163,7 +163,7 @@ static int nand_dev_transfer(struct nand_blk_dev *dev,
 		totle_read_count++;
 		ret = FtlRead(0, start, nsector, buf);
 		if (ret)
-			ret = -EIO;
+			ret = BLK_STS_IOERR;
 		break;
 
 	case WRITE:
@@ -171,11 +171,11 @@ static int nand_dev_transfer(struct nand_blk_dev *dev,
 		totle_write_count++;
 		ret = FtlWrite(0, start, nsector, buf);
 		if (ret)
-			ret = -EIO;
+			ret = BLK_STS_IOERR;
 		break;
 
 	default:
-		ret = -EIO;
+		ret = BLK_STS_IOERR;
 		break;
 	}
 
@@ -300,7 +300,7 @@ static int nand_blktrans_thread(void *arg)
 			rknand_device_lock();
 			if (FtlDiscard(blk_rq_pos(req) +
 				       dev->off_size, totle_nsect))
-				res = -EIO;
+				res = BLK_STS_IOERR;
 			rknand_device_unlock();
 			spin_lock_irq(rq->queue_lock);
 			if (!__blk_end_request_cur(req, res))
@@ -320,7 +320,7 @@ static int nand_blktrans_thread(void *arg)
 		} else if (op == REQ_OP_WRITE) {
 			rw_flag = WRITE;
 		} else {
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 			req = NULL;
 			continue;
 		}
@@ -389,10 +389,10 @@ static int nand_blktrans_thread(void *arg)
 	pr_info("nand th quited\n");
 	nandr->nand_th_quited = 1;
 	if (req)
-		__blk_end_request_all(req, -EIO);
+		__blk_end_request_all(req, BLK_STS_IOERR);
 	rk_nand_schedule_enable_config(0);
 	while ((req = blk_fetch_request(rq)) != NULL)
-		__blk_end_request_all(req, -ENODEV);
+		__blk_end_request_all(req, BLK_STS_IOERR);
 	spin_unlock_irq(rq->queue_lock);
 	complete_and_exit(&nandr->thread_exit, 0);
 	return 0;
@@ -405,7 +405,7 @@ static void nand_blk_request(struct request_queue *rq)
 
 	if (nandr->nand_th_quited) {
 		while ((req = blk_fetch_request(rq)) != NULL)
-			__blk_end_request_all(req, -ENODEV);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 		return;
 	}
 	rk_ftl_gc_do = 1;
