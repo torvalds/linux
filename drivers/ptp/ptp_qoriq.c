@@ -81,7 +81,7 @@ static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
 	struct ptp_clock_event event;
 	void __iomem *reg_etts_l;
 	void __iomem *reg_etts_h;
-	u32 valid, stat, lo, hi;
+	u32 valid, lo, hi;
 
 	switch (index) {
 	case 0:
@@ -101,6 +101,10 @@ static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
 	event.type = PTP_CLOCK_EXTTS;
 	event.index = index;
 
+	if (ptp_qoriq->extts_fifo_support)
+		if (!(ptp_qoriq->read(&regs->ctrl_regs->tmr_stat) & valid))
+			return 0;
+
 	do {
 		lo = ptp_qoriq->read(reg_etts_l);
 		hi = ptp_qoriq->read(reg_etts_h);
@@ -111,8 +115,9 @@ static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
 			ptp_clock_event(ptp_qoriq->clock, &event);
 		}
 
-		stat = ptp_qoriq->read(&regs->ctrl_regs->tmr_stat);
-	} while (ptp_qoriq->extts_fifo_support && (stat & valid));
+		if (!ptp_qoriq->extts_fifo_support)
+			break;
+	} while (ptp_qoriq->read(&regs->ctrl_regs->tmr_stat) & valid);
 
 	return 0;
 }
