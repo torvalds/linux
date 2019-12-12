@@ -718,7 +718,6 @@
 
 		sham_target: target-module@4b101000 {
 			compatible = "ti,sysc-omap3-sham", "ti,sysc";
-			ti,hwmods = "sham";
 			reg = <0x4b101100 0x4>,
 			      <0x4b101110 0x4>,
 			      <0x4b101114 0x4>;
