@@ -78,6 +78,8 @@ static void evt_str(struct komeda_str *str, u64 events)
 
 	/* LPU errors or events */
 	evt_sprintf(str, events & KOMEDA_EVENT_IBSY, "IBSY|");
+	evt_sprintf(str, events & KOMEDA_EVENT_EMPTY, "EMPTY|");
+	evt_sprintf(str, events & KOMEDA_EVENT_FULL, "FULL|");
 	evt_sprintf(str, events & KOMEDA_ERR_AXIE, "AXIE|");
 	evt_sprintf(str, events & KOMEDA_ERR_ACE0, "ACE0|");
 	evt_sprintf(str, events & KOMEDA_ERR_ACE1, "ACE1|");
