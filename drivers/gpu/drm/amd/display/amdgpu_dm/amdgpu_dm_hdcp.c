@@ -338,7 +338,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	hdcp_update_display(hdcp_work, link_index, aconnector, DRM_MODE_HDCP_CONTENT_TYPE0, false);
 }
 
-struct hdcp_workqueue *hdcp_create_workqueue(void *psp_context, struct cp_psp *cp_psp, struct dc *dc)
+struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct cp_psp *cp_psp, struct dc *dc)
 {
 
 	int max_caps = dc->caps.max_links;
@@ -360,7 +360,7 @@ struct hdcp_workqueue *hdcp_create_workqueue(void *psp_context, struct cp_psp *c
 		INIT_DELAYED_WORK(&hdcp_work[i].watchdog_timer_dwork, event_watchdog_timer);
 		INIT_DELAYED_WORK(&hdcp_work[i].property_validate_dwork, event_property_validate);
 
-		hdcp_work[i].hdcp.config.psp.handle =  psp_context;
+		hdcp_work[i].hdcp.config.psp.handle = &adev->psp;
 		hdcp_work[i].hdcp.config.ddc.handle = dc_get_link_at_index(dc, i);
 		hdcp_work[i].hdcp.config.ddc.funcs.write_i2c = lp_write_i2c;
 		hdcp_work[i].hdcp.config.ddc.funcs.read_i2c = lp_read_i2c;
