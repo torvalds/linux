@@ -316,14 +316,35 @@
 			};
 		};
 
-		des: des@53701000 {
-			compatible = "ti,omap4-des";
+		des_target: target-module@53701000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
 			ti,hwmods = "des";
-			reg = <0x53701000 0xa0>;
-			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&edma 34 0>,
-				<&edma 33 0>;
-			dma-names = "tx", "rx";
+			reg = <0x53701030 0x4>,
+			      <0x53701034 0x4>,
+			      <0x53701038 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (P, C): per_pwrdm, l3_clkdm */
+			clocks = <&l3_clkctrl AM4_L3_DES_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x53701000 0x1000>;
+
+			des: des@0 {
+				compatible = "ti,omap4-des";
+				reg = <0 0xa0>;
+				interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&edma 34 0>,
+				       <&edma 33 0>;
+				dma-names = "tx", "rx";
+			};
 		};
 
 		gpmc: gpmc@50000000 {
