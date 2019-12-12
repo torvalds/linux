@@ -1421,7 +1421,7 @@ static void coda_pic_run_work(struct work_struct *work)
 
 		if (ctx->ops->run_timeout)
 			ctx->ops->run_timeout(ctx);
-	} else if (!ctx->aborting) {
+	} else {
 		ctx->ops->finish_run(ctx);
 	}
 

@@ -1629,6 +1629,9 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	struct coda_dev *dev = ctx->dev;
 	u32 wr_ptr, start_ptr;
 
+	if (ctx->aborting)
+		return;
+
 	/*
 	 * Lock to make sure that an encoder stop command running in parallel
 	 * will either already have marked src_buf as last, or it will wake up
@@ -2265,6 +2268,9 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	u32 err_mb;
 	int err_vdoa = 0;
 	u32 val;
+
+	if (ctx->aborting)
+		return;
 
 	/* Update kfifo out pointer from coda bitstream read pointer */
 	coda_kfifo_sync_from_device(ctx);
