@@ -1162,9 +1162,9 @@ static int byt_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	raw_spin_unlock_irqrestore(&byt_lock, flags);
 
 	if (!(value & BYT_OUTPUT_EN))
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 	if (!(value & BYT_INPUT_EN))
-		return 1;
+		return GPIO_LINE_DIRECTION_IN;
 
 	return -EINVAL;
 }
