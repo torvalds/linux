@@ -5153,6 +5153,12 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/bochs/
 
+DRM DRIVER FOR BOE HIMAX8279D PANELS
+M:	Jerry Han <hanxu5@huaqin.corp-partner.google.com>
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-boe-himax8279d.c
+F:	Documentation/devicetree/bindings/display/panel/boe,himax8279d.txt
+
 DRM DRIVER FOR FARADAY TVE200 TV ENCODER
 M:	Linus Walleij <linus.walleij@linaro.org>
 T:	git git://anongit.freedesktop.org/drm/drm-misc
