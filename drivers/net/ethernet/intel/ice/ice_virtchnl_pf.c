@@ -35,37 +35,6 @@ static int ice_check_vf_init(struct ice_pf *pf, struct ice_vf *vf)
 }
 
 /**
- * ice_err_to_virt err - translate errors for VF return code
- * @ice_err: error return code
- */
-static enum virtchnl_status_code ice_err_to_virt_err(enum ice_status ice_err)
-{
-	switch (ice_err) {
-	case ICE_SUCCESS:
-		return VIRTCHNL_STATUS_SUCCESS;
-	case ICE_ERR_BAD_PTR:
-	case ICE_ERR_INVAL_SIZE:
-	case ICE_ERR_DEVICE_NOT_SUPPORTED:
-	case ICE_ERR_PARAM:
-	case ICE_ERR_CFG:
-		return VIRTCHNL_STATUS_ERR_PARAM;
-	case ICE_ERR_NO_MEMORY:
-		return VIRTCHNL_STATUS_ERR_NO_MEMORY;
-	case ICE_ERR_NOT_READY:
-	case ICE_ERR_RESET_FAILED:
-	case ICE_ERR_FW_API_VER:
-	case ICE_ERR_AQ_ERROR:
-	case ICE_ERR_AQ_TIMEOUT:
-	case ICE_ERR_AQ_FULL:
-	case ICE_ERR_AQ_NO_WORK:
-	case ICE_ERR_AQ_EMPTY:
-		return VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
-	default:
-		return VIRTCHNL_STATUS_ERR_NOT_SUPPORTED;
-	}
-}
-
-/**
  * ice_vc_vf_broadcast - Broadcast a message to all VFs on PF
  * @pf: pointer to the PF structure
  * @v_opcode: operation code
@@ -2484,6 +2453,83 @@ static bool ice_can_vf_change_mac(struct ice_vf *vf)
 }
 
 /**
+ * ice_vc_add_mac_addr - attempt to add the MAC address passed in
+ * @vf: pointer to the VF info
+ * @vsi: pointer to the VF's VSI
+ * @mac_addr: MAC address to add
+ */
+static int
+ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi, u8 *mac_addr)
+{
+	struct device *dev = ice_pf_to_dev(vf->pf);
+	enum ice_status status;
+
+	/* default unicast MAC already added */
+	if (ether_addr_equal(mac_addr, vf->dflt_lan_addr.addr))
+		return 0;
+
+	if (is_unicast_ether_addr(mac_addr) && !ice_can_vf_change_mac(vf)) {
+		dev_err(dev, "VF attempting to override administratively set MAC address, bring down and up the VF interface to resume normal operation\n");
+		return -EPERM;
+	}
+
+	status = ice_vsi_cfg_mac_fltr(vsi, mac_addr, true);
+	if (status == ICE_ERR_ALREADY_EXISTS) {
+		dev_err(dev, "MAC %pM already exists for VF %d\n", mac_addr,
+			vf->vf_id);
+		return -EEXIST;
+	} else if (status) {
+		dev_err(dev, "Failed to add MAC %pM for VF %d\n, error %d\n",
+			mac_addr, vf->vf_id, status);
+		return -EIO;
+	}
+
+	/* only set dflt_lan_addr once */
+	if (is_zero_ether_addr(vf->dflt_lan_addr.addr) &&
+	    is_unicast_ether_addr(mac_addr))
+		ether_addr_copy(vf->dflt_lan_addr.addr, mac_addr);
+
+	vf->num_mac++;
+
+	return 0;
+}
+
+/**
+ * ice_vc_del_mac_addr - attempt to delete the MAC address passed in
+ * @vf: pointer to the VF info
+ * @vsi: pointer to the VF's VSI
+ * @mac_addr: MAC address to delete
+ */
+static int
+ice_vc_del_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi, u8 *mac_addr)
+{
+	struct device *dev = ice_pf_to_dev(vf->pf);
+	enum ice_status status;
+
+	if (!ice_can_vf_change_mac(vf) &&
+	    ether_addr_equal(mac_addr, vf->dflt_lan_addr.addr))
+		return 0;
+
+	status = ice_vsi_cfg_mac_fltr(vsi, mac_addr, false);
+	if (status == ICE_ERR_DOES_NOT_EXIST) {
+		dev_err(dev, "MAC %pM does not exist for VF %d\n", mac_addr,
+			vf->vf_id);
+		return -ENOENT;
+	} else if (status) {
+		dev_err(dev, "Failed to delete MAC %pM for VF %d, error %d\n",
+			mac_addr, vf->vf_id, status);
+		return -EIO;
+	}
+
+	if (ether_addr_equal(mac_addr, vf->dflt_lan_addr.addr))
+		eth_zero_addr(vf->dflt_lan_addr.addr);
+
+	vf->num_mac--;
+
+	return 0;
+}
+
+/**
  * ice_vc_handle_mac_addr_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
@@ -2494,23 +2540,23 @@ static bool ice_can_vf_change_mac(struct ice_vf *vf)
 static int
 ice_vc_handle_mac_addr_msg(struct ice_vf *vf, u8 *msg, bool set)
 {
+	int (*ice_vc_cfg_mac)
+		(struct ice_vf *vf, struct ice_vsi *vsi, u8 *mac_addr);
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_ether_addr_list *al =
 	    (struct virtchnl_ether_addr_list *)msg;
 	struct ice_pf *pf = vf->pf;
 	enum virtchnl_ops vc_op;
-	enum ice_status status;
 	struct ice_vsi *vsi;
-	struct device *dev;
-	int mac_count = 0;
 	int i;
 
-	dev = ice_pf_to_dev(pf);
-
-	if (set)
+	if (set) {
 		vc_op = VIRTCHNL_OP_ADD_ETH_ADDR;
-	else
+		ice_vc_cfg_mac = ice_vc_add_mac_addr;
+	} else {
 		vc_op = VIRTCHNL_OP_DEL_ETH_ADDR;
+		ice_vc_cfg_mac = ice_vc_del_mac_addr;
+	}
 
 	if (!test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states) ||
 	    !ice_vc_isvalid_vsi_id(vf, al->vsi_id)) {
@@ -2518,14 +2564,15 @@ ice_vc_handle_mac_addr_msg(struct ice_vf *vf, u8 *msg, bool set)
 		goto handle_mac_exit;
 	}
 
+	/* If this VF is not privileged, then we can't add more than a
+	 * limited number of addresses. Check to make sure that the
+	 * additions do not push us over the limit.
+	 */
 	if (set && !ice_is_vf_trusted(vf) &&
 	    (vf->num_mac + al->num_elements) > ICE_MAX_MACADDR_PER_VF) {
-		dev_err(dev,
+		dev_err(ice_pf_to_dev(pf),
 			"Can't add more MAC addresses, because VF-%d is not trusted, switch the VF to trusted mode in order to add more functionalities\n",
 			vf->vf_id);
-		/* There is no need to let VF know about not being trusted
-		 * to add more MAC addr, so we can just return success message.
-		 */
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 		goto handle_mac_exit;
 	}
@@ -2537,69 +2584,21 @@ ice_vc_handle_mac_addr_msg(struct ice_vf *vf, u8 *msg, bool set)
 	}
 
 	for (i = 0; i < al->num_elements; i++) {
-		u8 *maddr = al->list[i].addr;
+		u8 *mac_addr = al->list[i].addr;
+		int result;
 
-		if (ether_addr_equal(maddr, vf->dflt_lan_addr.addr) ||
-		    is_broadcast_ether_addr(maddr)) {
-			if (set) {
-				/* VF is trying to add filters that the PF
-				 * already added. Just continue.
-				 */
-				dev_info(dev,
-					 "MAC %pM already set for VF %d\n",
-					 maddr, vf->vf_id);
-				continue;
-			} else {
-				/* VF can't remove dflt_lan_addr/bcast MAC */
-				dev_err(dev,
-					"VF can't remove default MAC address or MAC %pM programmed by PF for VF %d\n",
-					maddr, vf->vf_id);
-				continue;
-			}
-		}
+		if (is_broadcast_ether_addr(mac_addr) ||
+		    is_zero_ether_addr(mac_addr))
+			continue;
 
-		/* check for the invalid cases and bail if necessary */
-		if (is_zero_ether_addr(maddr)) {
-			dev_err(dev,
-				"invalid MAC %pM provided for VF %d\n",
-				maddr, vf->vf_id);
-			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		result = ice_vc_cfg_mac(vf, vsi, mac_addr);
+		if (result == -EEXIST || result == -ENOENT) {
+			continue;
+		} else if (result) {
+			v_ret = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
 			goto handle_mac_exit;
 		}
-
-		if (is_unicast_ether_addr(maddr) &&
-		    !ice_can_vf_change_mac(vf)) {
-			dev_err(dev,
-				"can't change unicast MAC for untrusted VF %d\n",
-				vf->vf_id);
-			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
-			goto handle_mac_exit;
-		}
-
-		/* program the updated filter list */
-		status = ice_vsi_cfg_mac_fltr(vsi, maddr, set);
-		if (status == ICE_ERR_DOES_NOT_EXIST ||
-		    status == ICE_ERR_ALREADY_EXISTS) {
-			dev_info(dev,
-				 "can't %s MAC filters %pM for VF %d, error %d\n",
-				 set ? "add" : "remove", maddr, vf->vf_id,
-				 status);
-		} else if (status) {
-			dev_err(dev,
-				"can't %s MAC filters for VF %d, error %d\n",
-				set ? "add" : "remove", vf->vf_id, status);
-			v_ret = ice_err_to_virt_err(status);
-			goto handle_mac_exit;
-		}
-
-		mac_count++;
 	}
-
-	/* Track number of MAC filters programmed for the VF VSI */
-	if (set)
-		vf->num_mac += mac_count;
-	else
-		vf->num_mac -= mac_count;
 
 handle_mac_exit:
 	/* send the response to the VF */
