@@ -643,7 +643,7 @@ static void prepare_sk_fds(int type, sa_family_t family, bool inany)
 	}
 }
 
-static void setup_per_test(int type, unsigned short family, bool inany)
+static void setup_per_test(int type, sa_family_t family, bool inany)
 {
 	int ovr = -1, err;
 
@@ -680,12 +680,12 @@ static void test_all(void)
 	const int types[] = { SOCK_STREAM, SOCK_DGRAM, SOCK_STREAM };
 	const char * const type_strings[] = { "TCP", "UDP", "TCP" };
 	const char * const family_strings[] = { "IPv6", "IPv4" };
-	const unsigned short families[] = { AF_INET6, AF_INET };
+	const sa_family_t families[] = { AF_INET6, AF_INET };
 	const bool bind_inany[] = { false, false, true };
 	int t, f, err;
 
 	for (f = 0; f < ARRAY_SIZE(families); f++) {
-		unsigned short family = families[f];
+		sa_family_t family = families[f];
 
 		for (t = 0; t < ARRAY_SIZE(types); t++) {
 			bool inany = bind_inany[t];
