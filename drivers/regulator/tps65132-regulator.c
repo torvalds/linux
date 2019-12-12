@@ -137,7 +137,8 @@ static int tps65132_of_parse_cb(struct device_node *np,
 	int ret;
 
 	rpdata->en_gpiod = devm_fwnode_get_index_gpiod_from_child(tps->dev,
-					"enable", 0, &np->fwnode, 0, "enable");
+					"enable", 0, &np->fwnode,
+					GPIOD_OUT_HIGH, "enable");
 	if (IS_ERR_OR_NULL(rpdata->en_gpiod)) {
 		ret = PTR_ERR(rpdata->en_gpiod);
 
