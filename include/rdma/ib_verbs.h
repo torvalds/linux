@@ -2152,10 +2152,6 @@ struct ib_port_cache {
 	enum ib_port_state     port_state;
 };
 
-struct ib_cache {
-	rwlock_t                lock;
-};
-
 struct ib_port_immutable {
 	int                           pkey_tbl_len;
 	int                           gid_tbl_len;
@@ -2641,7 +2637,8 @@ struct ib_device {
 	struct xarray                 client_data;
 	struct mutex                  unregistration_lock;
 
-	struct ib_cache               cache;
+	/* Synchronize GID, Pkey cache entries, subnet prefix, LMC */
+	rwlock_t cache_lock;
 	/**
 	 * port_data is indexed by port number
 	 */

@@ -1033,7 +1033,7 @@ int ib_get_cached_pkey(struct ib_device *device,
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	read_lock_irqsave(&device->cache.lock, flags);
+	read_lock_irqsave(&device->cache_lock, flags);
 
 	cache = device->port_data[port_num].cache.pkey;
 
@@ -1042,7 +1042,7 @@ int ib_get_cached_pkey(struct ib_device *device,
 	else
 		*pkey = cache->table[index];
 
-	read_unlock_irqrestore(&device->cache.lock, flags);
+	read_unlock_irqrestore(&device->cache_lock, flags);
 
 	return ret;
 }
@@ -1057,9 +1057,9 @@ int ib_get_cached_subnet_prefix(struct ib_device *device,
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	read_lock_irqsave(&device->cache.lock, flags);
+	read_lock_irqsave(&device->cache_lock, flags);
 	*sn_pfx = device->port_data[port_num].cache.subnet_prefix;
-	read_unlock_irqrestore(&device->cache.lock, flags);
+	read_unlock_irqrestore(&device->cache_lock, flags);
 
 	return 0;
 }
@@ -1079,7 +1079,7 @@ int ib_find_cached_pkey(struct ib_device *device,
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	read_lock_irqsave(&device->cache.lock, flags);
+	read_lock_irqsave(&device->cache_lock, flags);
 
 	cache = device->port_data[port_num].cache.pkey;
 
@@ -1100,7 +1100,7 @@ int ib_find_cached_pkey(struct ib_device *device,
 		ret = 0;
 	}
 
-	read_unlock_irqrestore(&device->cache.lock, flags);
+	read_unlock_irqrestore(&device->cache_lock, flags);
 
 	return ret;
 }
@@ -1119,7 +1119,7 @@ int ib_find_exact_cached_pkey(struct ib_device *device,
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	read_lock_irqsave(&device->cache.lock, flags);
+	read_lock_irqsave(&device->cache_lock, flags);
 
 	cache = device->port_data[port_num].cache.pkey;
 
@@ -1132,7 +1132,7 @@ int ib_find_exact_cached_pkey(struct ib_device *device,
 			break;
 		}
 
-	read_unlock_irqrestore(&device->cache.lock, flags);
+	read_unlock_irqrestore(&device->cache_lock, flags);
 
 	return ret;
 }
@@ -1148,9 +1148,9 @@ int ib_get_cached_lmc(struct ib_device *device,
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	read_lock_irqsave(&device->cache.lock, flags);
+	read_lock_irqsave(&device->cache_lock, flags);
 	*lmc = device->port_data[port_num].cache.lmc;
-	read_unlock_irqrestore(&device->cache.lock, flags);
+	read_unlock_irqrestore(&device->cache_lock, flags);
 
 	return ret;
 }
@@ -1166,9 +1166,9 @@ int ib_get_cached_port_state(struct ib_device   *device,
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	read_lock_irqsave(&device->cache.lock, flags);
+	read_lock_irqsave(&device->cache_lock, flags);
 	*port_state = device->port_data[port_num].cache.port_state;
-	read_unlock_irqrestore(&device->cache.lock, flags);
+	read_unlock_irqrestore(&device->cache_lock, flags);
 
 	return ret;
 }
@@ -1428,7 +1428,7 @@ ib_cache_update(struct ib_device *device, u8 port, bool enforce_security)
 		}
 	}
 
-	write_lock_irq(&device->cache.lock);
+	write_lock_irq(&device->cache_lock);
 
 	old_pkey_cache = device->port_data[port].cache.pkey;
 
@@ -1437,7 +1437,7 @@ ib_cache_update(struct ib_device *device, u8 port, bool enforce_security)
 	device->port_data[port].cache.port_state = tprops->state;
 
 	device->port_data[port].cache.subnet_prefix = tprops->subnet_prefix;
-	write_unlock_irq(&device->cache.lock);
+	write_unlock_irq(&device->cache_lock);
 
 	if (enforce_security)
 		ib_security_cache_change(device,
@@ -1530,7 +1530,7 @@ int ib_cache_setup_one(struct ib_device *device)
 	unsigned int p;
 	int err;
 
-	rwlock_init(&device->cache.lock);
+	rwlock_init(&device->cache_lock);
 
 	err = gid_table_setup_one(device);
 	if (err)
