@@ -461,6 +461,7 @@ struct bpf_trampoline {
 	struct {
 		struct btf_func_model model;
 		void *addr;
+		bool ftrace_managed;
 	} func;
 	/* list of BPF programs using this trampoline */
 	struct hlist_head progs_hlist[BPF_TRAMP_MAX];

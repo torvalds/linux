@@ -3470,6 +3470,7 @@ static u8 bpf_ctx_convert_map[] = {
 	[_id] = __ctx_convert##_id,
 #include <linux/bpf_types.h>
 #undef BPF_PROG_TYPE
+	0, /* avoid empty array */
 };
 #undef BPF_MAP_TYPE
 
