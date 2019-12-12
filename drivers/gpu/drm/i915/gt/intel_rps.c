@@ -1723,7 +1723,7 @@ void intel_rps_driver_register(struct intel_rps *rps)
 
 void intel_rps_driver_unregister(struct intel_rps *rps)
 {
-	if (ips_mchdev == rps_to_i915(rps))
+	if (rcu_access_pointer(ips_mchdev) == rps_to_i915(rps))
 		rcu_assign_pointer(ips_mchdev, NULL);
 }
 
