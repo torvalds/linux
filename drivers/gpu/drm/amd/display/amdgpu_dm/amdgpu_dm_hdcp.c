@@ -30,6 +30,11 @@
 #include <drm/drm_hdcp.h>
 #include "hdcp_psp.h"
 
+/*
+ * If the SRM version being loaded is less than or equal to the
+ * currently loaded SRM, psp will return 0xFFFF as the version
+ */
+#define PSP_SRM_VERSION_MAX 0xFFFF
 
 static bool
 lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
@@ -71,11 +76,54 @@ lp_read_dpcd(void *handle, uint32_t address, uint8_t *data, uint32_t size)
 
 static uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *srm_size)
 {
-	return NULL;
+
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+
+	if (!psp->hdcp_context.hdcp_initialized) {
+		DRM_WARN("Failed to get hdcp srm. HDCP TA is not initialized.");
+		return NULL;
+	}
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP_GET_SRM;
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS)
+		return NULL;
+
+	*srm_version = hdcp_cmd->out_msg.hdcp_get_srm.srm_version;
+	*srm_size = hdcp_cmd->out_msg.hdcp_get_srm.srm_buf_size;
+
+
+	return hdcp_cmd->out_msg.hdcp_get_srm.srm_buf;
 }
 
 static int psp_set_srm(struct psp_context *psp, uint8_t *srm, uint32_t srm_size, uint32_t *srm_version)
 {
+
+	struct ta_hdcp_shared_memory *hdcp_cmd;
+
+	if (!psp->hdcp_context.hdcp_initialized) {
+		DRM_WARN("Failed to get hdcp srm. HDCP TA is not initialized.");
+		return -EINVAL;
+	}
+
+	hdcp_cmd = (struct ta_hdcp_shared_memory *)psp->hdcp_context.hdcp_shared_buf;
+	memset(hdcp_cmd, 0, sizeof(struct ta_hdcp_shared_memory));
+
+	memcpy(hdcp_cmd->in_msg.hdcp_set_srm.srm_buf, srm, srm_size);
+	hdcp_cmd->in_msg.hdcp_set_srm.srm_buf_size = srm_size;
+	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP_SET_SRM;
+
+	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
+
+	if (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS || hdcp_cmd->out_msg.hdcp_set_srm.valid_signature != 1 ||
+	    hdcp_cmd->out_msg.hdcp_set_srm.srm_version == PSP_SRM_VERSION_MAX)
+		return -EINVAL;
+
+	*srm_version = hdcp_cmd->out_msg.hdcp_set_srm.srm_version;
 	return 0;
 }
 
