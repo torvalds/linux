@@ -10,6 +10,7 @@
 #include <linux/of_graph.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -27,11 +28,15 @@ static int komeda_register_show(struct seq_file *sf, void *x)
 
 	seq_puts(sf, "\n====== Komeda register dump =========\n");
 
+	pm_runtime_get_sync(mdev->dev);
+
 	if (mdev->funcs->dump_register)
 		mdev->funcs->dump_register(mdev, sf);
 
 	for (i = 0; i < mdev->n_pipelines; i++)
 		komeda_pipeline_dump_register(mdev->pipelines[i], sf);
+
+	pm_runtime_put(mdev->dev);
 
 	return 0;
 }
@@ -263,15 +268,6 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 	if (!mdev->iommu)
 		DRM_INFO("continue without IOMMU support!\n");
 
-	if (mdev->iommu && mdev->funcs->connect_iommu) {
-		err = mdev->funcs->connect_iommu(mdev);
-		if (err) {
-			DRM_ERROR("connect iommu failed.\n");
-			mdev->iommu = NULL;
-			goto disable_clk;
-		}
-	}
-
 	clk_disable_unprepare(mdev->aclk);
 
 	err = sysfs_create_group(&dev->kobj, &komeda_sysfs_attr_group);
@@ -310,11 +306,6 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 	if (mdev->aclk)
 		clk_prepare_enable(mdev->aclk);
 
-	if (mdev->iommu && mdev->funcs->disconnect_iommu)
-		if (mdev->funcs->disconnect_iommu(mdev))
-			DRM_ERROR("disconnect iommu failed.\n");
-	mdev->iommu = NULL;
-
 	for (i = 0; i < mdev->n_pipelines; i++) {
 		komeda_pipeline_destroy(mdev, mdev->pipelines[i]);
 		mdev->pipelines[i] = NULL;
@@ -343,44 +334,26 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 
 int komeda_dev_resume(struct komeda_dev *mdev)
 {
-	int ret = 0;
-
 	clk_prepare_enable(mdev->aclk);
 
-	if (mdev->iommu && mdev->funcs->connect_iommu) {
-		ret = mdev->funcs->connect_iommu(mdev);
-		if (ret < 0) {
+	mdev->funcs->enable_irq(mdev);
+
+	if (mdev->iommu && mdev->funcs->connect_iommu)
+		if (mdev->funcs->connect_iommu(mdev))
 			DRM_ERROR("connect iommu failed.\n");
-			goto disable_clk;
-		}
-	}
 
-	ret = mdev->funcs->enable_irq(mdev);
-
-disable_clk:
-	clk_disable_unprepare(mdev->aclk);
-
-	return ret;
+	return 0;
 }
 
 int komeda_dev_suspend(struct komeda_dev *mdev)
 {
-	int ret = 0;
-
-	clk_prepare_enable(mdev->aclk);
-
-	if (mdev->iommu && mdev->funcs->disconnect_iommu) {
-		ret = mdev->funcs->disconnect_iommu(mdev);
-		if (ret < 0) {
+	if (mdev->iommu && mdev->funcs->disconnect_iommu)
+		if (mdev->funcs->disconnect_iommu(mdev))
 			DRM_ERROR("disconnect iommu failed.\n");
-			goto disable_clk;
-		}
-	}
 
-	ret = mdev->funcs->disable_irq(mdev);
+	mdev->funcs->disable_irq(mdev);
 
-disable_clk:
 	clk_disable_unprepare(mdev->aclk);
 
-	return ret;
+	return 0;
 }
