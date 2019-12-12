@@ -91,7 +91,6 @@ struct ice_vf {
 	unsigned long vf_caps;		/* VF's adv. capabilities */
 	u8 num_req_qs;			/* num of queue pairs requested by VF */
 	u16 num_mac;
-	u16 num_vlan;
 	u16 num_vf_qs;			/* num of queue configured per VF */
 	u16 num_qs_ena;			/* total num of Tx/Rx queue enabled */
 };
