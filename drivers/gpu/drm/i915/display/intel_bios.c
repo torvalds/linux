@@ -340,7 +340,7 @@ parse_generic_dtd(struct drm_i915_private *dev_priv,
 
 	num_dtd = (get_blocksize(generic_dtd) -
 		   sizeof(struct bdb_generic_dtd)) / generic_dtd->gdtd_size;
-	if (dev_priv->vbt.panel_type > num_dtd) {
+	if (dev_priv->vbt.panel_type >= num_dtd) {
 		DRM_ERROR("Panel type %d not found in table of %d DTD's\n",
 			  dev_priv->vbt.panel_type, num_dtd);
 		return;
