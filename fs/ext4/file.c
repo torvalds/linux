@@ -392,8 +392,8 @@ static const struct iomap_dio_ops ext4_dio_write_ops = {
  * - For extending writes case we don't take the shared lock, since it requires
  *   updating inode i_disksize and/or orphan handling with exclusive lock.
  *
- * - shared locking will only be true mostly with overwrites in dioread_nolock
- *   mode. Otherwise we will switch to exclusive i_rwsem lock.
+ * - shared locking will only be true mostly with overwrites. Otherwise we will
+ *   switch to exclusive i_rwsem lock.
  */
 static ssize_t ext4_dio_write_checks(struct kiocb *iocb, struct iov_iter *from,
 				     bool *ilock_shared, bool *extend)
@@ -415,14 +415,11 @@ restart:
 		*extend = true;
 	/*
 	 * Determine whether the IO operation will overwrite allocated
-	 * and initialized blocks. If so, check to see whether it is
-	 * possible to take the dioread_nolock path.
-	 *
+	 * and initialized blocks.
 	 * We need exclusive i_rwsem for changing security info
 	 * in file_modified().
 	 */
 	if (*ilock_shared && (!IS_NOSEC(inode) || *extend ||
-	     !ext4_should_dioread_nolock(inode) ||
 	     !ext4_overwrite_io(inode, offset, count))) {
 		inode_unlock_shared(inode);
 		*ilock_shared = false;
