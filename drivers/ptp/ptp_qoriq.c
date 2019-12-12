@@ -74,8 +74,7 @@ static void set_fipers(struct ptp_qoriq *ptp_qoriq)
 	ptp_qoriq->write(&regs->fiper_regs->tmr_fiper2, ptp_qoriq->tmr_fiper2);
 }
 
-static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
-			  bool update_event)
+int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index, bool update_event)
 {
 	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 	struct ptp_clock_event event;
@@ -121,6 +120,7 @@ static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(extts_clean_up);
 
 /*
  * Interrupt service routine
