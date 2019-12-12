@@ -302,6 +302,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 
 	if (ring->vsi->type == ICE_VSI_PF) {
 		if (!xdp_rxq_info_is_reg(&ring->xdp_rxq))
+			/* coverity[check_return] */
 			xdp_rxq_info_reg(&ring->xdp_rxq, ring->netdev,
 					 ring->q_index);
 
@@ -328,6 +329,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 		} else {
 			ring->zca.free = NULL;
 			if (!xdp_rxq_info_is_reg(&ring->xdp_rxq))
+				/* coverity[check_return] */
 				xdp_rxq_info_reg(&ring->xdp_rxq,
 						 ring->netdev,
 						 ring->q_index);
