@@ -4836,7 +4836,7 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 		}
 	}
 
-	netdev_info(netdev, "changed MTU to %d\n", new_mtu);
+	netdev_dbg(netdev, "changed MTU to %d\n", new_mtu);
 	return 0;
 }
 
