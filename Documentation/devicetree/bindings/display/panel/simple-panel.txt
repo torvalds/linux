@@ -12,6 +12,8 @@ Required properties:
 - power-supply: See panel-common.txt
 
 Optional properties:
+- vsp-supply: positive voltage supply
+- vsn-supply: negative voltage supply
 - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
 - enable-gpios: GPIO pin to enable or disable the panel
 - reset-gpios: GPIO pin to reset the panel
