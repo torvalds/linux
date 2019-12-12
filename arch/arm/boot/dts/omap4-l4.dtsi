@@ -2187,7 +2187,6 @@
 
 		des_target: target-module@a5000 {	/* 0x480a5000 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "des";
 			reg = <0xa5030 0x4>,
 			      <0xa5034 0x4>,
 			      <0xa5038 0x4>;
