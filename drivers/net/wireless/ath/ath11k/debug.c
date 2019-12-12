@@ -541,7 +541,7 @@ static ssize_t ath11k_write_simulate_fw_crash(struct file *file,
 	struct ath11k *ar = ab->pdevs[0].ar;
 	char buf[32] = {0};
 	ssize_t rc;
-	int i, ret, radioup;
+	int i, ret, radioup = 0;
 
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
