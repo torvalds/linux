@@ -860,13 +860,16 @@ int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn,
 		return 0;
 	}
 
-	phy_dev = of_phy_attach(pl->netdev, phy_node, flags,
-				pl->link_interface);
+	phy_dev = of_phy_find_device(phy_node);
 	/* We're done with the phy_node handle */
 	of_node_put(phy_node);
-
 	if (!phy_dev)
 		return -ENODEV;
+
+	ret = phy_attach_direct(pl->netdev, phy_dev, flags,
+				pl->link_interface);
+	if (ret)
+		return ret;
 
 	ret = phylink_bringup_phy(pl, phy_dev, pl->link_config.interface);
 	if (ret)
