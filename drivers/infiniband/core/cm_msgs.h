@@ -651,42 +651,9 @@ struct cm_lap_msg {
 	u8 private_data[IB_CM_LAP_PRIVATE_DATA_SIZE];
 } __packed;
 
-static inline __be32 cm_lap_get_remote_qpn(struct cm_lap_msg *lap_msg)
-{
-	return cpu_to_be32(be32_to_cpu(lap_msg->offset12) >> 8);
-}
-
-static inline void cm_lap_set_remote_qpn(struct cm_lap_msg *lap_msg, __be32 qpn)
-{
-	lap_msg->offset12 = cpu_to_be32((be32_to_cpu(qpn) << 8) |
-					 (be32_to_cpu(lap_msg->offset12) &
-					  0x000000FF));
-}
-
-static inline u8 cm_lap_get_remote_resp_timeout(struct cm_lap_msg *lap_msg)
-{
-	return (u8) ((be32_to_cpu(lap_msg->offset12) & 0xF8) >> 3);
-}
-
-static inline void cm_lap_set_remote_resp_timeout(struct cm_lap_msg *lap_msg,
-						  u8 resp_timeout)
-{
-	lap_msg->offset12 = cpu_to_be32((resp_timeout << 3) |
-					 (be32_to_cpu(lap_msg->offset12) &
-					  0xFFFFFF07));
-}
-
 static inline __be32 cm_lap_get_flow_label(struct cm_lap_msg *lap_msg)
 {
 	return cpu_to_be32(be32_to_cpu(lap_msg->offset56) >> 12);
-}
-
-static inline void cm_lap_set_flow_label(struct cm_lap_msg *lap_msg,
-					 __be32 flow_label)
-{
-	lap_msg->offset56 = cpu_to_be32(
-				 (be32_to_cpu(lap_msg->offset56) & 0x00000FFF) |
-				 (be32_to_cpu(flow_label) << 12));
 }
 
 static inline u8 cm_lap_get_traffic_class(struct cm_lap_msg *lap_msg)
@@ -694,23 +661,9 @@ static inline u8 cm_lap_get_traffic_class(struct cm_lap_msg *lap_msg)
 	return (u8) be32_to_cpu(lap_msg->offset56);
 }
 
-static inline void cm_lap_set_traffic_class(struct cm_lap_msg *lap_msg,
-					    u8 traffic_class)
-{
-	lap_msg->offset56 = cpu_to_be32(traffic_class |
-					 (be32_to_cpu(lap_msg->offset56) &
-					  0xFFFFFF00));
-}
-
 static inline u8 cm_lap_get_packet_rate(struct cm_lap_msg *lap_msg)
 {
 	return lap_msg->offset61 & 0x3F;
-}
-
-static inline void cm_lap_set_packet_rate(struct cm_lap_msg *lap_msg,
-					  u8 packet_rate)
-{
-	lap_msg->offset61 = (packet_rate & 0x3F) | (lap_msg->offset61 & 0xC0);
 }
 
 static inline u8 cm_lap_get_sl(struct cm_lap_msg *lap_msg)
@@ -718,32 +671,9 @@ static inline u8 cm_lap_get_sl(struct cm_lap_msg *lap_msg)
 	return lap_msg->offset62 >> 4;
 }
 
-static inline void cm_lap_set_sl(struct cm_lap_msg *lap_msg, u8 sl)
-{
-	lap_msg->offset62 = (sl << 4) | (lap_msg->offset62 & 0x0F);
-}
-
-static inline u8 cm_lap_get_subnet_local(struct cm_lap_msg *lap_msg)
-{
-	return (lap_msg->offset62 >> 3) & 0x1;
-}
-
-static inline void cm_lap_set_subnet_local(struct cm_lap_msg *lap_msg,
-					   u8 subnet_local)
-{
-	lap_msg->offset62 = ((subnet_local & 0x1) << 3) |
-			     (lap_msg->offset61 & 0xF7);
-}
 static inline u8 cm_lap_get_local_ack_timeout(struct cm_lap_msg *lap_msg)
 {
 	return lap_msg->offset63 >> 3;
-}
-
-static inline void cm_lap_set_local_ack_timeout(struct cm_lap_msg *lap_msg,
-						u8 local_ack_timeout)
-{
-	lap_msg->offset63 = (local_ack_timeout << 3) |
-			    (lap_msg->offset63 & 0x07);
 }
 
 struct cm_apr_msg {
