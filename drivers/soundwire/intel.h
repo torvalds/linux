@@ -14,7 +14,7 @@
  * @alh: ALH (Audio Link Hub) pointer
  * @irq: Interrupt line
  * @ops: Shim callback ops
- * @arg: Shim callback ops argument
+ * @dev: device implementing hw_params and free callbacks
  */
 struct sdw_intel_link_res {
 	struct platform_device *pdev;
@@ -24,7 +24,7 @@ struct sdw_intel_link_res {
 	void __iomem *alh;
 	int irq;
 	const struct sdw_intel_ops *ops;
-	void *arg;
+	struct device *dev;
 };
 
 #endif /* __SDW_INTEL_LOCAL_H */
