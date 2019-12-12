@@ -2631,7 +2631,7 @@ struct ib_device {
 	struct rw_semaphore event_handler_rwsem;
 
 	/* Protects QP's event_handler calls and open_qp list */
-	spinlock_t event_handler_lock;
+	spinlock_t qp_open_list_lock;
 
 	struct rw_semaphore	      client_data_rwsem;
 	struct xarray                 client_data;
