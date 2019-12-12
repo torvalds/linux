@@ -213,7 +213,7 @@ struct pmc_bit_map {
  * captures them to have a common implementation.
  */
 struct pmc_reg_map {
-	const struct pmc_bit_map *pfear_sts;
+	const struct pmc_bit_map **pfear_sts;
 	const struct pmc_bit_map *mphy_sts;
 	const struct pmc_bit_map *pll_sts;
 	const struct pmc_bit_map **slps0_dbg_maps;

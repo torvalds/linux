@@ -116,6 +116,11 @@ static const struct pmc_bit_map spt_pfear_map[] = {
 	{}
 };
 
+static const struct pmc_bit_map *ext_spt_pfear_map[] = {
+	spt_pfear_map,
+	NULL
+};
+
 static const struct pmc_bit_map spt_ltr_show_map[] = {
 	{"SOUTHPORT_A",		SPT_PMC_LTR_SPA},
 	{"SOUTHPORT_B",		SPT_PMC_LTR_SPB},
@@ -142,7 +147,7 @@ static const struct pmc_bit_map spt_ltr_show_map[] = {
 };
 
 static const struct pmc_reg_map spt_reg_map = {
-	.pfear_sts = spt_pfear_map,
+	.pfear_sts = ext_spt_pfear_map,
 	.mphy_sts = spt_mphy_map,
 	.pll_sts = spt_pll_map,
 	.ltr_show_sts = spt_ltr_show_map,
@@ -234,7 +239,15 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"PSF6",		BIT(5)},
 	{"PSF7",		BIT(6)},
 	{"PSF8",		BIT(7)},
+	{}
+};
 
+static const struct pmc_bit_map *ext_cnp_pfear_map[] = {
+	cnp_pfear_map,
+	NULL
+};
+
+static const struct pmc_bit_map icl_pfear_map[] = {
 	/* Ice Lake generation onwards only */
 	{"RES_65",		BIT(0)},
 	{"RES_66",		BIT(1)},
@@ -245,6 +258,12 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"RES_71",		BIT(6)},
 	{"RES_72",		BIT(7)},
 	{}
+};
+
+static const struct pmc_bit_map *ext_icl_pfear_map[] = {
+	cnp_pfear_map,
+	icl_pfear_map,
+	NULL
 };
 
 static const struct pmc_bit_map cnp_slps0_dbg0_map[] = {
@@ -334,7 +353,7 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 };
 
 static const struct pmc_reg_map cnp_reg_map = {
-	.pfear_sts = cnp_pfear_map,
+	.pfear_sts = ext_cnp_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
@@ -350,7 +369,7 @@ static const struct pmc_reg_map cnp_reg_map = {
 };
 
 static const struct pmc_reg_map icl_reg_map = {
-	.pfear_sts = cnp_pfear_map,
+	.pfear_sts = ext_icl_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
@@ -412,20 +431,20 @@ static int pmc_core_check_read_lock_bit(void)
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 static bool slps0_dbg_latch;
 
-static void pmc_core_display_map(struct seq_file *s, int index,
-				 u8 pf_reg, const struct pmc_bit_map *pf_map)
+static void pmc_core_display_map(struct seq_file *s, int index, int idx, int ip,
+				 u8 pf_reg, const struct pmc_bit_map **pf_map)
 {
 	seq_printf(s, "PCH IP: %-2d - %-32s\tState: %s\n",
-		   index, pf_map[index].name,
-		   pf_map[index].bit_mask & pf_reg ? "Off" : "On");
+		   ip, pf_map[idx][index].name,
+		   pf_map[idx][index].bit_mask & pf_reg ? "Off" : "On");
 }
 
 static int pmc_core_ppfear_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
-	const struct pmc_bit_map *map = pmcdev->map->pfear_sts;
+	const struct pmc_bit_map **maps = pmcdev->map->pfear_sts;
 	u8 pf_regs[PPFEAR_MAX_NUM_ENTRIES];
-	int index, iter;
+	int index, iter, idx, ip = 0;
 
 	iter = pmcdev->map->ppfear0_offset;
 
@@ -433,9 +452,12 @@ static int pmc_core_ppfear_show(struct seq_file *s, void *unused)
 	     index < PPFEAR_MAX_NUM_ENTRIES; index++, iter++)
 		pf_regs[index] = pmc_core_reg_read_byte(pmcdev, iter);
 
-	for (index = 0; map[index].name &&
-	     index < pmcdev->map->ppfear_buckets * 8; index++)
-		pmc_core_display_map(s, index, pf_regs[index / 8], map);
+	for (idx = 0; maps[idx]; idx++) {
+		for (index = 0; maps[idx][index].name &&
+		     index < pmcdev->map->ppfear_buckets * 8; ip++, index++)
+			pmc_core_display_map(s, index, idx, ip,
+					     pf_regs[index / 8], maps);
+	}
 
 	return 0;
 }
