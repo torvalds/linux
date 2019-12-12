@@ -41,7 +41,7 @@ static struct smc_lgr_list smc_lgr_list = {	/* established link groups */
 	.num = 0,
 };
 
-static atomic_t lgr_cnt;		/* number of existing link groups */
+static atomic_t lgr_cnt = ATOMIC_INIT(0); /* number of existing link groups */
 static DECLARE_WAIT_QUEUE_HEAD(lgrs_deleted);
 
 static void smc_buf_free(struct smc_link_group *lgr, bool is_rmb,
@@ -1297,7 +1297,6 @@ static struct notifier_block smc_reboot_notifier = {
 
 int __init smc_core_init(void)
 {
-	atomic_set(&lgr_cnt, 0);
 	return register_reboot_notifier(&smc_reboot_notifier);
 }
 
