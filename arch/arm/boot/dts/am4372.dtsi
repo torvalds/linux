@@ -316,7 +316,6 @@
 
 		des_target: target-module@53701000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "des";
 			reg = <0x53701030 0x4>,
 			      <0x53701034 0x4>,
 			      <0x53701038 0x4>;
