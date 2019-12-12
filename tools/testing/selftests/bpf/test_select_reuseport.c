@@ -87,18 +87,10 @@ static void prepare_bpf_obj(void)
 	struct bpf_program *prog;
 	struct bpf_map *map;
 	int err;
-	struct bpf_object_open_attr attr = {
-		.file = "test_select_reuseport_kern.o",
-		.prog_type = BPF_PROG_TYPE_SK_REUSEPORT,
-	};
 
-	obj = bpf_object__open_xattr(&attr);
+	obj = bpf_object__open("test_select_reuseport_kern.o");
 	CHECK(IS_ERR_OR_NULL(obj), "open test_select_reuseport_kern.o",
 	      "obj:%p PTR_ERR(obj):%ld\n", obj, PTR_ERR(obj));
-
-	prog = bpf_program__next(NULL, obj);
-	CHECK(!prog, "get first bpf_program", "!prog\n");
-	bpf_program__set_type(prog, attr.prog_type);
 
 	map = bpf_object__find_map_by_name(obj, "outer_map");
 	CHECK(!map, "find outer_map", "!map\n");
@@ -108,6 +100,8 @@ static void prepare_bpf_obj(void)
 	err = bpf_object__load(obj);
 	CHECK(err, "load bpf_object", "err:%d\n", err);
 
+	prog = bpf_program__next(NULL, obj);
+	CHECK(!prog, "get first bpf_program", "!prog\n");
 	select_by_skb_data_prog = bpf_program__fd(prog);
 	CHECK(select_by_skb_data_prog == -1, "get prog fd",
 	      "select_by_skb_data_prog:%d\n", select_by_skb_data_prog);
