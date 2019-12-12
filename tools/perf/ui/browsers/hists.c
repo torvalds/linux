@@ -18,7 +18,9 @@
 #include "../../util/evlist.h"
 #include "../../util/header.h"
 #include "../../util/hist.h"
+#include "../../util/machine.h"
 #include "../../util/map.h"
+#include "../../util/maps.h"
 #include "../../util/symbol.h"
 #include "../../util/map_symbol.h"
 #include "../../util/branch.h"
@@ -2566,7 +2568,7 @@ add_dso_opt(struct hist_browser *browser, struct popup_action *act,
 	if (!hists__has(browser->hists, dso) || map == NULL)
 		return 0;
 
-	if (asprintf(optstr, "Zoom %s %s DSO",
+	if (asprintf(optstr, "Zoom %s %s DSO (use the 'k' hotkey to zoom directly into the kernel)",
 		     browser->hists->dso_filter ? "out of" : "into",
 		     __map__is_kernel(map) ? "the Kernel" : map->dso->short_name) < 0)
 		return 0;
@@ -2936,6 +2938,7 @@ static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 	"E             Expand all callchains\n"				\
 	"F             Toggle percentage of filtered entries\n"		\
 	"H             Display column headers\n"			\
+	"k             Zoom into the kernel map\n"			\
 	"L             Change percent limit\n"				\
 	"m             Display context menu\n"				\
 	"S             Zoom into current Processor Socket\n"		\
@@ -3032,6 +3035,10 @@ static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 		case 'd':
 			actions->ms.map = map;
 			do_zoom_dso(browser, actions);
+			continue;
+		case 'k':
+			if (browser->selection != NULL)
+				hists_browser__zoom_map(browser, browser->selection->maps->machine->vmlinux_map);
 			continue;
 		case 'V':
 			verbose = (verbose + 1) % 4;
