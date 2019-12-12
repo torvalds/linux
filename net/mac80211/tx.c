@@ -3677,7 +3677,7 @@ begin:
 
 	IEEE80211_SKB_CB(skb)->control.vif = vif;
 
-	if (local->airtime_flags & AIRTIME_USE_AQL) {
+	if (wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL)) {
 		u32 airtime;
 
 		airtime = ieee80211_calc_expected_tx_airtime(hw, vif, txq->sta,
@@ -3799,7 +3799,7 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
 	struct sta_info *sta;
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (!(local->airtime_flags & AIRTIME_USE_AQL))
+	if (!wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL))
 		return true;
 
 	if (!txq->sta)
