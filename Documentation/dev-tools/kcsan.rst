@@ -101,18 +101,28 @@ instrumentation or e.g. DMA accesses.
 Selective analysis
 ~~~~~~~~~~~~~~~~~~
 
-To disable KCSAN data race detection for an entire subsystem, add to the
-respective ``Makefile``::
+It may be desirable to disable data race detection for specific accesses,
+functions, compilation units, or entire subsystems.  For static blacklisting,
+the below options are available:
 
-    KCSAN_SANITIZE := n
+* KCSAN understands the ``data_race(expr)`` annotation, which tells KCSAN that
+  any data races due to accesses in ``expr`` should be ignored and resulting
+  behaviour when encountering a data race is deemed safe.
 
-To disable KCSAN on a per-file basis, add to the ``Makefile``::
+* Disabling data race detection for entire functions can be accomplished by
+  using the function attribute ``__no_kcsan`` (or ``__no_kcsan_or_inline`` for
+  ``__always_inline`` functions). To dynamically control for which functions
+  data races are reported, see the `debugfs`_ blacklist/whitelist feature.
+
+* To disable data race detection for a particular compilation unit, add to the
+  ``Makefile``::
 
     KCSAN_SANITIZE_file.o := n
 
-KCSAN also understands the ``data_race(expr)`` annotation, which tells KCSAN
-that any data races due to accesses in ``expr`` should be ignored and resulting
-behaviour when encountering a data race is deemed safe.
+* To disable data race detection for all compilation units listed in a
+  ``Makefile``, add to the respective ``Makefile``::
+
+    KCSAN_SANITIZE := n
 
 debugfs
 ~~~~~~~
