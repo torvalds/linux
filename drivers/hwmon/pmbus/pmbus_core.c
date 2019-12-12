@@ -1088,6 +1088,9 @@ static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
 		snprintf(sensor->name, sizeof(sensor->name), "%s%d",
 			 name, seq);
 
+	if (data->flags & PMBUS_WRITE_PROTECTED)
+		readonly = true;
+
 	sensor->page = page;
 	sensor->reg = reg;
 	sensor->class = class;
@@ -2140,6 +2143,15 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 	ret = i2c_smbus_read_byte_data(client, PMBUS_CAPABILITY);
 	if (ret >= 0 && (ret & PB_CAPABILITY_ERROR_CHECK))
 		client->flags |= I2C_CLIENT_PEC;
+
+	/*
+	 * Check if the chip is write protected. If it is, we can not clear
+	 * faults, and we should not try it. Also, in that case, writes into
+	 * limit registers need to be disabled.
+	 */
+	ret = i2c_smbus_read_byte_data(client, PMBUS_WRITE_PROTECT);
+	if (ret > 0 && (ret & PB_WP_ANY))
+		data->flags |= PMBUS_WRITE_PROTECTED | PMBUS_SKIP_STATUS_CHECK;
 
 	if (data->info->pages)
 		pmbus_clear_faults(client);

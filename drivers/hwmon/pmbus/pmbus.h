@@ -22,6 +22,8 @@ enum pmbus_regs {
 	PMBUS_CLEAR_FAULTS		= 0x03,
 	PMBUS_PHASE			= 0x04,
 
+	PMBUS_WRITE_PROTECT		= 0x10,
+
 	PMBUS_CAPABILITY		= 0x19,
 	PMBUS_QUERY			= 0x1A,
 
@@ -224,6 +226,15 @@ enum pmbus_regs {
  * OPERATION
  */
 #define PB_OPERATION_CONTROL_ON		BIT(7)
+
+/*
+ * WRITE_PROTECT
+ */
+#define PB_WP_ALL	BIT(7)	/* all but WRITE_PROTECT */
+#define PB_WP_OP	BIT(6)	/* all but WP, OPERATION, PAGE */
+#define PB_WP_VOUT	BIT(5)	/* all but WP, OPERATION, PAGE, VOUT, ON_OFF */
+
+#define PB_WP_ANY	(PB_WP_ALL | PB_WP_OP | PB_WP_VOUT)
 
 /*
  * CAPABILITY
