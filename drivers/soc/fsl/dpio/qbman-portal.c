@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
- * Copyright 2016 NXP
+ * Copyright 2016-2019 NXP
  *
  */
 
@@ -11,13 +11,6 @@
 #include <soc/fsl/dpaa2-global.h>
 
 #include "qbman-portal.h"
-
-#define QMAN_REV_4000   0x04000000
-#define QMAN_REV_4100   0x04010000
-#define QMAN_REV_4101   0x04010001
-#define QMAN_REV_5000   0x05000000
-
-#define QMAN_REV_MASK   0xffff0000
 
 /* All QBMan command and result structures use this "valid bit" encoding */
 #define QB_VALID_BIT ((u32)0x80)
@@ -156,7 +149,7 @@ static inline u32 qbman_set_swp_cfg(u8 max_fill, u8 wn,	u8 est, u8 rpm, u8 dcm,
  */
 struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
 {
-	struct qbman_swp *p = kmalloc(sizeof(*p), GFP_KERNEL);
+	struct qbman_swp *p = kzalloc(sizeof(*p), GFP_KERNEL);
 	u32 reg;
 
 	if (!p)
@@ -467,27 +460,91 @@ static inline void qbman_write_eqcr_am_rt_register(struct qbman_swp *p,
 int qbman_swp_enqueue(struct qbman_swp *s, const struct qbman_eq_desc *d,
 		      const struct dpaa2_fd *fd)
 {
-	struct qbman_eq_desc *p;
+	struct qbman_eq_desc_with_fd *p;
 	u32 eqar = qbman_read_register(s, QBMAN_CINH_SWP_EQAR);
 
 	if (!EQAR_SUCCESS(eqar))
 		return -EBUSY;
 
 	p = qbman_get_cmd(s, QBMAN_CENA_SWP_EQCR(EQAR_IDX(eqar)));
-	memcpy(&p->dca, &d->dca, 31);
+	/* This is mapped as DEVICE type memory, writes are
+	 * with address alignment:
+	 * desc.dca address alignment = 1
+	 * desc.seqnum address alignment = 2
+	 * desc.orpid address alignment = 4
+	 * desc.tgtid address alignment = 8
+	 */
+	p->desc.dca = d->dca;
+	p->desc.seqnum = d->seqnum;
+	p->desc.orpid = d->orpid;
+	memcpy(&p->desc.tgtid, &d->tgtid, 24);
 	memcpy(&p->fd, fd, sizeof(*fd));
 
 	if ((s->desc->qman_version & QMAN_REV_MASK) < QMAN_REV_5000) {
 		/* Set the verb byte, have to substitute in the valid-bit */
 		dma_wmb();
-		p->verb = d->verb | EQAR_VB(eqar);
+		p->desc.verb = d->verb | EQAR_VB(eqar);
 	} else {
-		p->verb = d->verb | EQAR_VB(eqar);
+		p->desc.verb = d->verb | EQAR_VB(eqar);
 		dma_wmb();
 		qbman_write_eqcr_am_rt_register(s, EQAR_IDX(eqar));
 	}
 
 	return 0;
+}
+
+/**
+ * qbman_swp_enqueue_multiple() - Issue a multi enqueue command
+ * using one enqueue descriptor
+ * @s:  the software portal used for enqueue
+ * @d:  the enqueue descriptor
+ * @fd: table pointer of frame descriptor table to be enqueued
+ * @flags: table pointer of flags, not used for the moment
+ * @num_frames: number of fd to be enqueued
+ *
+ * Return the number of fd enqueued, or a negative error number.
+ */
+int qbman_swp_enqueue_multiple(struct qbman_swp *s,
+			       const struct qbman_eq_desc *d,
+			       const struct dpaa2_fd *fd,
+			       uint32_t *flags,
+			       int num_frames)
+{
+	int count = 0;
+
+	while (count < num_frames) {
+		if (qbman_swp_enqueue(s, d, fd) != 0)
+			break;
+		count++;
+	}
+
+	return count;
+}
+
+/**
+ * qbman_swp_enqueue_multiple_desc() - Issue a multi enqueue command
+ * using multiple enqueue descriptor
+ * @s:  the software portal used for enqueue
+ * @d:  table of minimal enqueue descriptor
+ * @fd: table pointer of frame descriptor table to be enqueued
+ * @num_frames: number of fd to be enqueued
+ *
+ * Return the number of fd enqueued, or a negative error number.
+ */
+int qbman_swp_enqueue_multiple_desc(struct qbman_swp *s,
+				    const struct qbman_eq_desc *d,
+				    const struct dpaa2_fd *fd,
+				    int num_frames)
+{
+	int count = 0;
+
+	while (count < num_frames) {
+		if (qbman_swp_enqueue(s, &(d[count]), fd) != 0)
+			break;
+		count++;
+	}
+
+	return count;
 }
 
 /* Static (push) dequeue */

@@ -9,6 +9,13 @@
 
 #include <soc/fsl/dpaa2-fd.h>
 
+#define QMAN_REV_4000   0x04000000
+#define QMAN_REV_4100   0x04010000
+#define QMAN_REV_4101   0x04010001
+#define QMAN_REV_5000   0x05000000
+
+#define QMAN_REV_MASK   0xffff0000
+
 struct dpaa2_dq;
 struct qbman_swp;
 
@@ -81,6 +88,10 @@ struct qbman_eq_desc {
 	u8 wae;
 	u8 rspid;
 	__le64 rsp_addr;
+};
+
+struct qbman_eq_desc_with_fd {
+	struct qbman_eq_desc desc;
 	u8 fd[32];
 };
 
@@ -192,6 +203,19 @@ int qbman_swp_CDAN_set(struct qbman_swp *s, u16 channelid,
 void *qbman_swp_mc_start(struct qbman_swp *p);
 void qbman_swp_mc_submit(struct qbman_swp *p, void *cmd, u8 cmd_verb);
 void *qbman_swp_mc_result(struct qbman_swp *p);
+
+int
+qbman_swp_enqueue_multiple(struct qbman_swp *s,
+			   const struct qbman_eq_desc *d,
+			   const struct dpaa2_fd *fd,
+			   uint32_t *flags,
+			   int num_frames);
+
+int
+qbman_swp_enqueue_multiple_desc(struct qbman_swp *s,
+				const struct qbman_eq_desc *d,
+				const struct dpaa2_fd *fd,
+				int num_frames);
 
 /**
  * qbman_result_is_DQ() - check if the dequeue result is a dequeue response
