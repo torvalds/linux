@@ -186,6 +186,8 @@ enum ppfear_regs {
 #define ICL_NUM_IP_IGN_ALLOWED			20
 #define ICL_PMC_LTR_WIGIG			0x1BFC
 
+#define TGL_NUM_IP_IGN_ALLOWED			22
+
 struct pmc_bit_map {
 	const char *name;
 	u32 bit_mask;
