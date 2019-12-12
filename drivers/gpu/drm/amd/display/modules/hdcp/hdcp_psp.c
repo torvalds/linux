@@ -794,7 +794,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_stream_ready(struct mod_hdcp *hdcp)
 	hdcp_cmd->cmd_id = TA_HDCP_COMMAND__HDCP2_PREPARE_PROCESS_AUTHENTICATION_MSG_V2;
 	psp_hdcp_invoke(psp, hdcp_cmd->cmd_id);
 
-	return (hdcp_cmd->hdcp_status != TA_HDCP_STATUS__SUCCESS) &&
+	return (hdcp_cmd->hdcp_status == TA_HDCP_STATUS__SUCCESS) &&
 			       (msg_out->process.msg1_status == TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS)
 		       ? MOD_HDCP_STATUS_SUCCESS
 		       : MOD_HDCP_STATUS_HDCP2_VALIDATE_STREAM_READY_FAILURE;
