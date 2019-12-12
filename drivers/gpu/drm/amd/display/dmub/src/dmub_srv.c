@@ -67,6 +67,26 @@ static inline uint32_t dmub_align(uint32_t val, uint32_t factor)
 	return (val + factor - 1) / factor * factor;
 }
 
+static void dmub_flush_buffer_mem(const struct dmub_fb *fb)
+{
+	const uint8_t *base = (const uint8_t *)fb->cpu_addr;
+	uint8_t buf[64];
+	uint32_t pos, end;
+
+	/**
+	 * Read 64-byte chunks since we don't want to store a
+	 * large temporary buffer for this purpose.
+	 */
+	end = fb->size / sizeof(buf) * sizeof(buf);
+
+	for (pos = 0; pos < end; pos += sizeof(buf))
+		dmub_memcpy(buf, base + pos, sizeof(buf));
+
+	/* Read anything leftover into the buffer. */
+	if (end < fb->size)
+		dmub_memcpy(buf, base + pos, fb->size - end);
+}
+
 static const struct dmub_fw_meta_info *
 dmub_get_fw_meta_info(const uint8_t *fw_bss_data, uint32_t fw_bss_data_size)
 {
@@ -328,6 +348,13 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		cw1.offset.quad_part = stack_fb->gpu_addr;
 		cw1.region.base = DMUB_CW1_BASE;
 		cw1.region.top = cw1.region.base + stack_fb->size - 1;
+
+		/**
+		 * Read back all the instruction memory so we don't hang the
+		 * DMCUB when backdoor loading if the write from x86 hasn't been
+		 * flushed yet. This only occurs in backdoor loading.
+		 */
+		dmub_flush_buffer_mem(inst_fb);
 
 		if (params->load_inst_const && dmub->hw_funcs.backdoor_load)
 			dmub->hw_funcs.backdoor_load(dmub, &cw0, &cw1);
