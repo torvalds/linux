@@ -14,7 +14,7 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. SC7180 IDP";
-	compatible = "qcom,sc7180-idp";
+	compatible = "qcom,sc7180-idp", "qcom,sc7180";
 
 	aliases {
 		hsuart0 = &uart3;
