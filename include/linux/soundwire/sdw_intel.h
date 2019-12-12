@@ -4,6 +4,8 @@
 #ifndef __SDW_INTEL_H
 #define __SDW_INTEL_H
 
+#include <linux/irqreturn.h>
+
 /**
  * struct sdw_intel_stream_params_data: configuration passed during
  * the @params_stream callback, e.g. for interaction with DSP
@@ -126,5 +128,7 @@ int sdw_intel_startup(struct sdw_intel_ctx *ctx);
 void sdw_intel_exit(struct sdw_intel_ctx *ctx);
 
 void sdw_intel_enable_irq(void __iomem *mmio_base, bool enable);
+
+irqreturn_t sdw_intel_thread(int irq, void *dev_id);
 
 #endif
