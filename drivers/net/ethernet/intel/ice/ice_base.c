@@ -326,6 +326,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 			dev_info(&vsi->back->pdev->dev, "Registered XDP mem model MEM_TYPE_ZERO_COPY on Rx ring %d\n",
 				 ring->q_index);
 		} else {
+			ring->zca.free = NULL;
 			if (!xdp_rxq_info_is_reg(&ring->xdp_rxq))
 				xdp_rxq_info_reg(&ring->xdp_rxq,
 						 ring->netdev,
