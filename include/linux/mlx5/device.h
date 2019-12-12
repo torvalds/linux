@@ -1105,6 +1105,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_DEV_MEM,
 	MLX5_CAP_RESERVED_16,
 	MLX5_CAP_TLS,
+	MLX5_CAP_VDPA_EMULATION = 0x13,
 	MLX5_CAP_DEV_EVENT = 0x14,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
@@ -1296,6 +1297,14 @@ enum mlx5_qcam_feature_groups {
 
 #define MLX5_CAP_DEV_EVENT(mdev, cap)\
 	MLX5_ADDR_OF(device_event_cap, (mdev)->caps.hca_cur[MLX5_CAP_DEV_EVENT], cap)
+
+#define MLX5_CAP_DEV_VDPA_EMULATION(mdev, cap)\
+	MLX5_GET(device_virtio_emulation_cap, \
+		(mdev)->caps.hca_cur[MLX5_CAP_VDPA_EMULATION], cap)
+
+#define MLX5_CAP64_DEV_VDPA_EMULATION(mdev, cap)\
+	MLX5_GET64(device_virtio_emulation_cap, \
+		(mdev)->caps.hca_cur[MLX5_CAP_VDPA_EMULATION], cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,
