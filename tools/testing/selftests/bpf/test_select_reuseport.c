@@ -441,7 +441,6 @@ static void test_err_inner_map(int type, sa_family_t family)
 		.pass_on_failure = 0,
 	};
 
-	printf("%s: ", __func__);
 	expected_results[DROP_ERR_INNER_MAP]++;
 	do_test(type, family, &cmd, DROP_ERR_INNER_MAP);
 	printf("OK\n");
@@ -449,7 +448,6 @@ static void test_err_inner_map(int type, sa_family_t family)
 
 static void test_err_skb_data(int type, sa_family_t family)
 {
-	printf("%s: ", __func__);
 	expected_results[DROP_ERR_SKB_DATA]++;
 	do_test(type, family, NULL, DROP_ERR_SKB_DATA);
 	printf("OK\n");
@@ -462,7 +460,6 @@ static void test_err_sk_select_port(int type, sa_family_t family)
 		.pass_on_failure = 0,
 	};
 
-	printf("%s: ", __func__);
 	expected_results[DROP_ERR_SK_SELECT_REUSEPORT]++;
 	do_test(type, family, &cmd, DROP_ERR_SK_SELECT_REUSEPORT);
 	printf("OK\n");
@@ -473,7 +470,6 @@ static void test_pass(int type, sa_family_t family)
 	struct cmd cmd;
 	int i;
 
-	printf("%s: ", __func__);
 	cmd.pass_on_failure = 0;
 	for (i = 0; i < REUSEPORT_ARRAY_SIZE; i++) {
 		expected_results[PASS]++;
@@ -494,7 +490,6 @@ static void test_syncookie(int type, sa_family_t family)
 	if (type != SOCK_STREAM)
 		return;
 
-	printf("%s: ", __func__);
 	/*
 	 * +1 for TCP-SYN and
 	 * +1 for the TCP-ACK (ack the syncookie)
@@ -530,7 +525,6 @@ static void test_pass_on_err(int type, sa_family_t family)
 		.pass_on_failure = 1,
 	};
 
-	printf("%s: ", __func__);
 	expected_results[PASS_ERR_SK_SELECT_REUSEPORT] += 1;
 	do_test(type, family, &cmd, PASS_ERR_SK_SELECT_REUSEPORT);
 	printf("OK\n");
@@ -545,7 +539,6 @@ static void test_detach_bpf(int type, sa_family_t family)
 	struct cmd cmd = {};
 	int optvalue = 0;
 
-	printf("%s: ", __func__);
 	err = setsockopt(sk_fds[0], SOL_SOCKET, SO_DETACH_REUSEPORT_BPF,
 			 &optvalue, sizeof(optvalue));
 	CHECK(err == -1, "setsockopt(SO_DETACH_REUSEPORT_BPF)",
@@ -584,7 +577,7 @@ static void test_detach_bpf(int type, sa_family_t family)
 	printf("OK\n");
 	close(cli_fd);
 #else
-	printf("%s: SKIP\n", __func__);
+	printf("SKIP\n");
 #endif
 }
 
@@ -734,19 +727,22 @@ static const char *sotype_str(int sotype)
 	}
 }
 
+#define TEST_INIT(fn, ...) { fn, #fn, __VA_ARGS__ }
+
 static void test_config(int type, sa_family_t family, bool inany)
 {
 	const struct test {
 		void (*fn)(int sotype, sa_family_t family);
+		const char *name;
 		bool no_inner_map;
 	} tests[] = {
-		{ test_err_inner_map, true /* no_inner_map */ },
-		{ test_err_skb_data },
-		{ test_err_sk_select_port },
-		{ test_pass },
-		{ test_syncookie },
-		{ test_pass_on_err },
-		{ test_detach_bpf },
+		TEST_INIT(test_err_inner_map, true /* no_inner_map */),
+		TEST_INIT(test_err_skb_data),
+		TEST_INIT(test_err_sk_select_port),
+		TEST_INIT(test_pass),
+		TEST_INIT(test_syncookie),
+		TEST_INIT(test_pass_on_err),
+		TEST_INIT(test_detach_bpf),
 	};
 	const struct test *t;
 
@@ -756,6 +752,7 @@ static void test_config(int type, sa_family_t family, bool inany)
 
 	for (t = tests; t < tests + ARRAY_SIZE(tests); t++) {
 		setup_per_test(type, family, inany, t->no_inner_map);
+		printf("%s: ", t->name);
 		t->fn(type, family);
 		cleanup_per_test(t->no_inner_map);
 	}
