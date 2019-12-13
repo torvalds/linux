@@ -830,12 +830,12 @@ int sdw_bus_prep_clk_stop(struct sdw_bus *bus)
 		if (!slave->dev_num)
 			continue;
 
-		/* Identify if Slave(s) are available on Bus */
-		is_slave = true;
-
 		if (slave->status != SDW_SLAVE_ATTACHED &&
 		    slave->status != SDW_SLAVE_ALERT)
 			continue;
+
+		/* Identify if Slave(s) are available on Bus */
+		is_slave = true;
 
 		slave_mode = sdw_get_clk_stop_mode(slave);
 		slave->curr_clk_stop_mode = slave_mode;
@@ -952,12 +952,12 @@ int sdw_bus_exit_clk_stop(struct sdw_bus *bus)
 		if (!slave->dev_num)
 			continue;
 
-		/* Identify if Slave(s) are available on Bus */
-		is_slave = true;
-
 		if (slave->status != SDW_SLAVE_ATTACHED &&
 		    slave->status != SDW_SLAVE_ALERT)
 			continue;
+
+		/* Identify if Slave(s) are available on Bus */
+		is_slave = true;
 
 		mode = slave->curr_clk_stop_mode;
 
