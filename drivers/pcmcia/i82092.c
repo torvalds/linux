@@ -187,6 +187,7 @@ static unsigned char indirect_read(int socket, unsigned short reg)
 	unsigned short int port;
 	unsigned char val;
 	unsigned long flags;
+
 	spin_lock_irqsave(&port_lock, flags);
 	reg += socket * 0x40;
 	port = sockets[socket].io_base;
@@ -202,6 +203,7 @@ static unsigned short indirect_read16(int socket, unsigned short reg)
 	unsigned short int port;
 	unsigned short tmp;
 	unsigned long flags;
+
 	spin_lock_irqsave(&port_lock, flags);
 	reg  = reg + socket * 0x40;
 	port = sockets[socket].io_base;
@@ -219,6 +221,7 @@ static void indirect_write(int socket, unsigned short reg, unsigned char value)
 {
 	unsigned short int port;
 	unsigned long flags;
+
 	spin_lock_irqsave(&port_lock, flags);
 	reg = reg + socket * 0x40;
 	port = sockets[socket].io_base;
@@ -232,6 +235,7 @@ static void indirect_setbit(int socket, unsigned short reg, unsigned char mask)
 	unsigned short int port;
 	unsigned char val;
 	unsigned long flags;
+
 	spin_lock_irqsave(&port_lock, flags);
 	reg = reg + socket * 0x40;
 	port = sockets[socket].io_base;
@@ -249,6 +253,7 @@ static void indirect_resetbit(int socket, unsigned short reg, unsigned char mask
 	unsigned short int port;
 	unsigned char val;
 	unsigned long flags;
+
 	spin_lock_irqsave(&port_lock, flags);
 	reg = reg + socket * 0x40;
 	port = sockets[socket].io_base;
@@ -265,6 +270,7 @@ static void indirect_write16(int socket, unsigned short reg, unsigned short valu
 	unsigned short int port;
 	unsigned char val;
 	unsigned long flags;
+
 	spin_lock_irqsave(&port_lock, flags);
 	reg = reg + socket * 0x40;
 	port = sockets[socket].io_base;
@@ -317,6 +323,7 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 
 		for (i = 0; i < socket_count; i++) {
 			int csc;
+
 			if (sockets[i].card_state == 0) /* Inactive socket, should not happen */
 				continue;
 
@@ -362,6 +369,7 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 static int card_present(int socketno)
 {
 	unsigned int val;
+
 	enter("card_present");
 
 	if ((socketno < 0) || (socketno >= MAX_SOCKETS))
