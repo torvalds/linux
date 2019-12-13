@@ -247,7 +247,7 @@ static struct snd_soc_aux_dev speyside_aux_dev[] = {
 
 static struct snd_soc_codec_conf speyside_codec_conf[] = {
 	{
-		.dev_name = "wm9081.1-006c",
+		.dlc = COMP_CODEC_CONF("wm9081.1-006c"),
 		.name_prefix = "Sub",
 	},
 };
