@@ -651,7 +651,7 @@ static void ath11k_core_restart(struct work_struct *work)
 		idr_destroy(&ar->txmgmt_idr);
 	}
 
-	wake_up(&ab->wmi_sc.tx_credits_wq);
+	wake_up(&ab->wmi_ab.tx_credits_wq);
 	wake_up(&ab->peer_mapping_wq);
 
 	ret = ath11k_core_reconfigure_on_crash(ab);
@@ -761,7 +761,7 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev)
 
 	INIT_LIST_HEAD(&ab->peers);
 	init_waitqueue_head(&ab->peer_mapping_wq);
-	init_waitqueue_head(&ab->wmi_sc.tx_credits_wq);
+	init_waitqueue_head(&ab->wmi_ab.tx_credits_wq);
 	INIT_WORK(&ab->restart_work, ath11k_core_restart);
 	timer_setup(&ab->rx_replenish_retry, ath11k_ce_rx_replenish_retry, 0);
 	ab->dev = dev;

@@ -150,7 +150,7 @@ static int ath11k_tm_cmd_wmi(struct ath11k *ar, struct nlattr *tb[])
 
 	ath11k_dbg_dump(ar->ab, ATH11K_DBG_TESTMODE, NULL, "", buf, buf_len);
 
-	skb = ath11k_wmi_alloc_skb(wmi->wmi_sc, buf_len);
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, buf_len);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out;

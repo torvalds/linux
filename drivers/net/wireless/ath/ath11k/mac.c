@@ -5320,7 +5320,7 @@ ath11k_mac_update_bss_chan_survey(struct ath11k *ar,
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	if (!test_bit(WMI_TLV_SERVICE_BSS_CHANNEL_INFO_64, ar->ab->wmi_sc.svc_map) ||
+	if (!test_bit(WMI_TLV_SERVICE_BSS_CHANNEL_INFO_64, ar->ab->wmi_ab.svc_map) ||
 	    ar->rx_channel != channel)
 		return;
 
@@ -5838,7 +5838,7 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
 		ar->pdev_idx = i;
 		ar->lmac_id = ath11k_core_get_hw_mac_id(ab, i);
 
-		ar->wmi = &ab->wmi_sc.wmi[i];
+		ar->wmi = &ab->wmi_ab.wmi[i];
 		/* FIXME wmi[0] is already initialized during attach,
 		 * Should we do this again?
 		 */

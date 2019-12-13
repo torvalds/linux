@@ -2354,7 +2354,7 @@ struct wmi_service_available_event {
 } __packed;
 
 struct ath11k_pdev_wmi {
-	struct ath11k_wmi_base *wmi_sc;
+	struct ath11k_wmi_base *wmi_ab;
 	enum ath11k_htc_ep_id eid;
 	const struct wmi_peer_flags_map *peer_flags;
 	u32 rx_decap_mode;
