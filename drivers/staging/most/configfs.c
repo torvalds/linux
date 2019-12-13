@@ -12,6 +12,8 @@
 #include <linux/configfs.h>
 #include <most/most.h>
 
+#define MAX_STRING_SIZE 80
+
 struct mdev_link {
 	struct config_item item;
 	struct list_head list;
@@ -22,13 +24,13 @@ struct mdev_link {
 	u16 subbuffer_size;
 	u16 packets_per_xact;
 	u16 dbr_size;
-	char datatype[PAGE_SIZE];
-	char direction[PAGE_SIZE];
-	char name[PAGE_SIZE];
-	char device[PAGE_SIZE];
-	char channel[PAGE_SIZE];
-	char comp[PAGE_SIZE];
-	char comp_params[PAGE_SIZE];
+	char datatype[MAX_STRING_SIZE];
+	char direction[MAX_STRING_SIZE];
+	char name[MAX_STRING_SIZE];
+	char device[MAX_STRING_SIZE];
+	char channel[MAX_STRING_SIZE];
+	char comp[MAX_STRING_SIZE];
+	char comp_params[MAX_STRING_SIZE];
 };
 
 static struct list_head mdev_link_list;
