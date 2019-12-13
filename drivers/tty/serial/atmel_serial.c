@@ -51,10 +51,6 @@
 #define ATMEL_RTS_HIGH_OFFSET	16
 #define ATMEL_RTS_LOW_OFFSET	20
 
-#if defined(CONFIG_SERIAL_ATMEL_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/serial_core.h>
 
 #include "serial_mctrl_gpio.h"
@@ -195,10 +191,6 @@ struct atmel_uart_port {
 
 static struct atmel_uart_port atmel_ports[ATMEL_MAX_UART];
 static DECLARE_BITMAP(atmel_ports_in_use, ATMEL_MAX_UART);
-
-#ifdef SUPPORT_SYSRQ
-static struct console atmel_console;
-#endif
 
 #if defined(CONFIG_OF)
 static const struct of_device_id atmel_serial_dt_ids[] = {
@@ -2877,6 +2869,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	atmel_port = &atmel_ports[ret];
 	atmel_port->backup_imr = 0;
 	atmel_port->uart.line = ret;
+	atmel_port->uart.has_sysrq = IS_ENABLED(CONFIG_SERIAL_ATMEL_CONSOLE);
 	atmel_serial_probe_fifos(atmel_port, pdev);
 
 	atomic_set(&atmel_port->tasklet_shutdown, 0);
