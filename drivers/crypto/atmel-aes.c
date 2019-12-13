@@ -2270,8 +2270,7 @@ static void atmel_aes_buff_cleanup(struct atmel_aes_dev *dd)
 	free_page((unsigned long)dd->buf);
 }
 
-static int atmel_aes_dma_init(struct atmel_aes_dev *dd,
-			      struct crypto_platform_data *pdata)
+static int atmel_aes_dma_init(struct atmel_aes_dev *dd)
 {
 	int ret;
 
@@ -2598,7 +2597,7 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	if (err)
 		goto err_iclk_unprepare;
 
-	err = atmel_aes_dma_init(aes_dd, pdata);
+	err = atmel_aes_dma_init(aes_dd);
 	if (err)
 		goto err_buff_cleanup;
 

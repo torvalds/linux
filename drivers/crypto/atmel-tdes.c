@@ -741,8 +741,7 @@ static int atmel_tdes_crypt(struct skcipher_request *req, unsigned long mode)
 	return atmel_tdes_handle_queue(ctx->dd, req);
 }
 
-static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd,
-			struct crypto_platform_data *pdata)
+static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd)
 {
 	int ret;
 
@@ -1268,7 +1267,7 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 			}
 		}
 
-		err = atmel_tdes_dma_init(tdes_dd, pdata);
+		err = atmel_tdes_dma_init(tdes_dd);
 		if (err)
 			goto err_buff_cleanup;
 

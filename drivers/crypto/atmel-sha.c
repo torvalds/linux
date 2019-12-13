@@ -2481,8 +2481,7 @@ err_sha_1_256_algs:
 	return err;
 }
 
-static int atmel_sha_dma_init(struct atmel_sha_dev *dd,
-				struct crypto_platform_data *pdata)
+static int atmel_sha_dma_init(struct atmel_sha_dev *dd)
 {
 	dd->dma_lch_in.chan = dma_request_chan(dd->dev, "tx");
 	if (IS_ERR(dd->dma_lch_in.chan)) {
@@ -2674,7 +2673,7 @@ static int atmel_sha_probe(struct platform_device *pdev)
 			}
 		}
 
-		err = atmel_sha_dma_init(sha_dd, pdata);
+		err = atmel_sha_dma_init(sha_dd);
 		if (err)
 			goto err_iclk_unprepare;
 
