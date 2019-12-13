@@ -62,7 +62,7 @@ struct {
 	goto done;				\
 })
 
-SEC("select_by_skb_data")
+SEC("sk_reuseport")
 int _select_by_skb_data(struct sk_reuseport_md *reuse_md)
 {
 	__u32 linum, index = 0, flags = 0, index_zero = 0;
