@@ -46,7 +46,8 @@ struct am33xx_pm_sram_addr {
 };
 
 struct am33xx_pm_platform_data {
-	int	(*init)(void);
+	int     (*init)(int (*idle)(u32 wfi_flags));
+	int     (*deinit)(void);
 	int	(*soc_suspend)(unsigned int state, int (*fn)(unsigned long),
 			       unsigned long args);
 	int	(*cpu_suspend)(int (*fn)(unsigned long), unsigned long args);
