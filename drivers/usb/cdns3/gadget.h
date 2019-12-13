@@ -599,6 +599,7 @@ struct cdns3_usb_regs {
 #define EP_CMD_TDL_MASK		GENMASK(15, 9)
 #define EP_CMD_TDL_SET(p)	(((p) << 9) & EP_CMD_TDL_MASK)
 #define EP_CMD_TDL_GET(p)	(((p) & EP_CMD_TDL_MASK) >> 9)
+#define EP_CMD_TDL_MAX		(EP_CMD_TDL_MASK >> 9)
 
 /* ERDY Stream ID value (used in SS mode). */
 #define EP_CMD_ERDY_SID_MASK	GENMASK(31, 16)
@@ -969,8 +970,16 @@ struct cdns3_usb_regs {
 
 #define ISO_MAX_INTERVAL	10
 
+#define MAX_TRB_LENGTH          BIT(16)
+
 #if TRBS_PER_SEGMENT < 2
 #error "Incorrect TRBS_PER_SEGMENT. Minimal Transfer Ring size is 2."
+#endif
+
+#define TRBS_PER_STREAM_SEGMENT 2
+
+#if TRBS_PER_STREAM_SEGMENT < 2
+#error "Incorrect TRBS_PER_STREAMS_SEGMENT. Minimal Transfer Ring size is 2."
 #endif
 
 /*
@@ -1000,6 +1009,7 @@ struct cdns3_trb {
 
 #define TRB_SIZE		(sizeof(struct cdns3_trb))
 #define TRB_RING_SIZE		(TRB_SIZE * TRBS_PER_SEGMENT)
+#define TRB_STREAM_RING_SIZE	(TRB_SIZE * TRBS_PER_STREAM_SEGMENT)
 #define TRB_ISO_RING_SIZE	(TRB_SIZE * TRBS_PER_ISOC_SEGMENT)
 #define TRB_CTRL_RING_SIZE	(TRB_SIZE * 2)
 
@@ -1078,7 +1088,7 @@ struct cdns3_trb {
 #define CDNS3_ENDPOINTS_MAX_COUNT	32
 #define CDNS3_EP_ZLP_BUF_SIZE		1024
 
-#define CDNS3_EP_BUF_SIZE		2	/* KB */
+#define CDNS3_EP_BUF_SIZE		4	/* KB */
 #define CDNS3_EP_ISO_HS_MULT		3
 #define CDNS3_EP_ISO_SS_BURST		3
 #define CDNS3_MAX_NUM_DESCMISS_BUF	32
@@ -1109,6 +1119,7 @@ struct cdns3_device;
  * @interval: interval between packets used for ISOC endpoint.
  * @free_trbs: number of free TRBs in transfer ring
  * @num_trbs: number of all TRBs in transfer ring
+ * @alloc_ring_size: size of the allocated TRB ring
  * @pcs: producer cycle state
  * @ccs: consumer cycle state
  * @enqueue: enqueue index in transfer ring
@@ -1142,6 +1153,7 @@ struct cdns3_endpoint {
 #define EP_QUIRK_END_TRANSFER	BIT(11)
 #define EP_QUIRK_EXTRA_BUF_DET	BIT(12)
 #define EP_QUIRK_EXTRA_BUF_EN	BIT(13)
+#define EP_TDLCHK_EN		BIT(15)
 	u32			flags;
 
 	struct cdns3_request	*descmis_req;
@@ -1153,6 +1165,7 @@ struct cdns3_endpoint {
 
 	int			free_trbs;
 	int			num_trbs;
+	int			alloc_ring_size;
 	u8			pcs;
 	u8			ccs;
 	int			enqueue;
@@ -1163,6 +1176,14 @@ struct cdns3_endpoint {
 	struct cdns3_trb	*wa1_trb;
 	unsigned int		wa1_trb_index;
 	unsigned int		wa1_cycle_bit:1;
+
+	/* Stream related */
+	unsigned int		use_streams:1;
+	unsigned int		prime_flag:1;
+	u32			ep_sts_pending;
+	u16			last_stream_id;
+	u16			pending_tdl;
+	unsigned int		stream_sg_idx;
 };
 
 /**
@@ -1290,6 +1311,7 @@ struct cdns3_device {
 	int				hw_configured_flag:1;
 	int				wake_up_flag:1;
 	unsigned			status_completion_no_call:1;
+	unsigned			using_streams:1;
 	int				out_mem_is_allocated;
 
 	struct work_struct		pending_status_wq;
@@ -1310,8 +1332,6 @@ void cdns3_set_hw_configuration(struct cdns3_device *priv_dev);
 void cdns3_select_ep(struct cdns3_device *priv_dev, u32 ep);
 void cdns3_allow_enable_l1(struct cdns3_device *priv_dev, int enable);
 struct usb_request *cdns3_next_request(struct list_head *list);
-int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
-			  struct usb_request *request);
 void cdns3_rearm_transfer(struct cdns3_endpoint *priv_ep, u8 rearm);
 int cdns3_allocate_trb_pool(struct cdns3_endpoint *priv_ep);
 u8 cdns3_ep_addr_to_index(u8 ep_addr);
