@@ -736,7 +736,19 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 	memset(&config, 0, sizeof(config));
 	linkmode_copy(supported, phy->supported);
 	linkmode_copy(config.advertising, phy->advertising);
-	config.interface = interface;
+
+	/* Clause 45 PHYs switch their Serdes lane between several different
+	 * modes, normally 10GBASE-R, SGMII. Some use 2500BASE-X for 2.5G
+	 * speeds. We really need to know which interface modes the PHY and
+	 * MAC supports to properly work out which linkmodes can be supported.
+	 */
+	if (phy->is_c45 &&
+	    interface != PHY_INTERFACE_MODE_RXAUI &&
+	    interface != PHY_INTERFACE_MODE_XAUI &&
+	    interface != PHY_INTERFACE_MODE_USXGMII)
+		config.interface = PHY_INTERFACE_MODE_NA;
+	else
+		config.interface = interface;
 
 	ret = phylink_validate(pl, supported, &config);
 	if (ret)
@@ -1901,14 +1913,6 @@ static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 	ret = phylink_attach_phy(pl, phy, interface);
 	if (ret < 0)
 		return ret;
-
-	/* Clause 45 PHYs switch their Serdes lane between several different
-	 * modes, normally 10GBASE-R, SGMII. Some use 2500BASE-X for 2.5G
-	 * speeds.  We really need to know which interface modes the PHY and
-	 * MAC supports to properly work out which linkmodes can be supported.
-	 */
-	if (phy->is_c45)
-		interface = PHY_INTERFACE_MODE_NA;
 
 	ret = phylink_bringup_phy(pl, phy, interface);
 	if (ret)
