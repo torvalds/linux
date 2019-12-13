@@ -381,7 +381,7 @@ static struct snd_soc_dai_link bells_dai_wm5110[] = {
 
 static struct snd_soc_codec_conf bells_codec_conf[] = {
 	{
-		.dev_name = "wm9081.1-006c",
+		.dlc = COMP_CODEC_CONF("wm9081.1-006c"),
 		.name_prefix = "Sub",
 	},
 };
