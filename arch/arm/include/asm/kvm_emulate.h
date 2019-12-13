@@ -9,7 +9,6 @@
 
 #include <linux/kvm_host.h>
 #include <asm/kvm_asm.h>
-#include <asm/kvm_mmio.h>
 #include <asm/kvm_arm.h>
 #include <asm/cputype.h>
 
@@ -220,7 +219,7 @@ static inline bool kvm_vcpu_dabt_is_cm(struct kvm_vcpu *vcpu)
 }
 
 /* Get Access Size from a data abort */
-static inline int kvm_vcpu_dabt_get_as(struct kvm_vcpu *vcpu)
+static inline unsigned int kvm_vcpu_dabt_get_as(struct kvm_vcpu *vcpu)
 {
 	switch ((kvm_vcpu_get_hsr(vcpu) >> 22) & 0x3) {
 	case 0:
@@ -231,7 +230,7 @@ static inline int kvm_vcpu_dabt_get_as(struct kvm_vcpu *vcpu)
 		return 4;
 	default:
 		kvm_err("Hardware is weird: SAS 0b11 is reserved\n");
-		return -EFAULT;
+		return 4;
 	}
 }
 
