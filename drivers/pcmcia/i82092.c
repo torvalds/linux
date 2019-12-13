@@ -70,7 +70,8 @@ static struct socket_info sockets[MAX_SOCKETS];
 static int socket_count;	/* shortcut */
 
 
-static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int i82092aa_pci_probe(struct pci_dev *dev,
+			      const struct pci_device_id *id)
 {
 	unsigned char configbyte;
 	int i, ret;
@@ -81,7 +82,9 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 	if (ret)
 		return ret;
 
-	pci_read_config_byte(dev, 0x40, &configbyte);  /* PCI Configuration Control */
+	/* PCI Configuration Control */
+	pci_read_config_byte(dev, 0x40, &configbyte);
+
 	switch (configbyte&6) {
 	case 0:
 		socket_count = 2;
@@ -128,9 +131,13 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 		}
 	}
 
-	/* Now, specifiy that all interrupts are to be done as PCI interrupts */
-	configbyte = 0xFF; /* bitmask, one bit per event, 1 = PCI interrupt, 0 = ISA interrupt */
-	pci_write_config_byte(dev, 0x50, configbyte); /* PCI Interrupt Routing Register */
+	/* Now, specifiy that all interrupts are to be done as PCI interrupts
+	 * bitmask, one bit per event, 1 = PCI interrupt, 0 = ISA interrupt
+	 */
+	configbyte = 0xFF;
+
+	/* PCI Interrupt Routing Register */
+	pci_write_config_byte(dev, 0x50, configbyte);
 
 	/* Register the interrupt handler */
 	dev_dbg(&dev->dev, "Requesting interrupt %i\n", dev->irq);
@@ -251,7 +258,8 @@ static void indirect_setbit(int socket, unsigned short reg, unsigned char mask)
 }
 
 
-static void indirect_resetbit(int socket, unsigned short reg, unsigned char mask)
+static void indirect_resetbit(int socket,
+			      unsigned short reg, unsigned char mask)
 {
 	unsigned short int port;
 	unsigned char val;
@@ -268,7 +276,8 @@ static void indirect_resetbit(int socket, unsigned short reg, unsigned char mask
 	spin_unlock_irqrestore(&port_lock, flags);
 }
 
-static void indirect_write16(int socket, unsigned short reg, unsigned short value)
+static void indirect_write16(int socket,
+			     unsigned short reg, unsigned short value)
 {
 	unsigned short int port;
 	unsigned char val;
@@ -327,10 +336,12 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 		for (i = 0; i < socket_count; i++) {
 			int csc;
 
-			if (sockets[i].card_state == 0) /* Inactive socket, should not happen */
+			/* Inactive socket, should not happen */
+			if (sockets[i].card_state == 0)
 				continue;
 
-			csc = indirect_read(i, I365_CSC); /* card status change register */
+			/* card status change register */
+			csc = indirect_read(i, I365_CSC);
 
 			if (csc == 0)  /* no events on this socket */
 				continue;
@@ -345,12 +356,16 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 
 			if (indirect_read(i, I365_INTCTL) & I365_PC_IOCARD) {
 				/* For IO/CARDS, bit 0 means "read the card" */
-				events |= (csc & I365_CSC_STSCHG) ? SS_STSCHG : 0;
+				if (csc & I365_CSC_STSCHG)
+					events |= SS_STSCHG;
 			} else {
 				/* Check for battery/ready events */
-				events |= (csc & I365_CSC_BVD1) ? SS_BATDEAD : 0;
-				events |= (csc & I365_CSC_BVD2) ? SS_BATWARN : 0;
-				events |= (csc & I365_CSC_READY) ? SS_READY : 0;
+				if (csc & I365_CSC_BVD1)
+					events |= SS_BATDEAD;
+				if (csc & I365_CSC_BVD2)
+					events |= SS_BATWARN;
+				if (csc & I365_CSC_READY)
+					events |= SS_READY;
 			}
 
 			if (events)
@@ -426,12 +441,15 @@ static int i82092aa_init(struct pcmcia_socket *sock)
 
 static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 {
-	unsigned int sock = container_of(socket, struct socket_info, socket)->number;
+	unsigned int sock = container_of(socket,
+				struct socket_info, socket)->number;
 	unsigned int status;
 	
 	enter("i82092aa_get_status");
-	
-	status = indirect_read(sock, I365_STATUS); /* Interface Status Register */
+
+	/* Interface Status Register */
+	status = indirect_read(sock, I365_STATUS);
+
 	*value = 0;
 
 	if ((status & I365_CS_DETECT) == I365_CS_DETECT)
@@ -464,7 +482,8 @@ static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 }
 
 
-static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *state)
+static int i82092aa_set_socket(struct pcmcia_socket *socket,
+			       socket_state_t *state)
 {
 	struct socket_info *sock_info = container_of(socket, struct socket_info,
 						     socket);
@@ -480,12 +499,15 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 	/* Values for the IGENC register */
 
 	reg = 0;
-	if (!(state->flags & SS_RESET))	/* The reset bit has "inverse" logic */
+
+	/* The reset bit has "inverse" logic */
+	if (!(state->flags & SS_RESET))
 		reg = reg | I365_PC_RESET;
 	if (state->flags & SS_IOCARD)
 		reg = reg | I365_PC_IOCARD;
 
-	indirect_write(sock, I365_INTCTL, reg); /* IGENC, Interrupt and General Control Register */
+	/* IGENC, Interrupt and General Control Register */
+	indirect_write(sock, I365_INTCTL, reg);
 
 	/* Power registers */
 
@@ -560,7 +582,9 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 
 	}
 
-	/* now write the value and clear the (probably bogus) pending stuff by doing a dummy read*/
+	/* now write the value and clear the (probably bogus) pending stuff
+	 * by doing a dummy read
+	 */
 
 	indirect_write(sock, I365_CSCINT, reg);
 	(void)indirect_read(sock, I365_CSC);
@@ -569,7 +593,8 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 	return 0;
 }
 
-static int i82092aa_set_io_map(struct pcmcia_socket *socket, struct pccard_io_map *io)
+static int i82092aa_set_io_map(struct pcmcia_socket *socket,
+			       struct pccard_io_map *io)
 {
 	struct socket_info *sock_info = container_of(socket, struct socket_info,
 						     socket);
@@ -585,7 +610,8 @@ static int i82092aa_set_io_map(struct pcmcia_socket *socket, struct pccard_io_ma
 		leave("i82092aa_set_io_map with invalid map");
 		return -EINVAL;
 	}
-	if ((io->start > 0xffff) || (io->stop > 0xffff) || (io->stop < io->start)) {
+	if ((io->start > 0xffff) || (io->stop > 0xffff)
+				 || (io->stop < io->start)) {
 		leave("i82092aa_set_io_map with invalid io");
 		return -EINVAL;
 	}
@@ -613,9 +639,11 @@ static int i82092aa_set_io_map(struct pcmcia_socket *socket, struct pccard_io_ma
 	return 0;
 }
 
-static int i82092aa_set_mem_map(struct pcmcia_socket *socket, struct pccard_mem_map *mem)
+static int i82092aa_set_mem_map(struct pcmcia_socket *socket,
+				struct pccard_mem_map *mem)
 {
-	struct socket_info *sock_info = container_of(socket, struct socket_info, socket);
+	struct socket_info *sock_info = container_of(socket, struct socket_info,
+						     socket);
 	unsigned int sock = sock_info->number;
 	struct pci_bus_region region;
 	unsigned short base, i;
@@ -636,8 +664,7 @@ static int i82092aa_set_mem_map(struct pcmcia_socket *socket, struct pccard_mem_
 	     (mem->speed > 1000)) {
 		leave("i82092aa_set_mem_map: invalid address / speed");
 		dev_err(&sock_info->dev->dev,
-			"invalid mem map for socket %i: %llx to %llx with a "
-			"start of %x\n",
+			"invalid mem map for socket %i: %llx to %llx with a start of %x\n",
 			sock,
 			(unsigned long long)region.start,
 			(unsigned long long)region.end,
