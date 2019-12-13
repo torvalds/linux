@@ -15,7 +15,7 @@
 #include <trace/events/bpf_test_run.h>
 
 static int bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat,
-			u32 *retval, u32 *time)
+			u32 *retval, u32 *time, bool xdp)
 {
 	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE] = { NULL };
 	enum bpf_cgroup_storage_type stype;
@@ -41,7 +41,11 @@ static int bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat,
 	time_start = ktime_get_ns();
 	for (i = 0; i < repeat; i++) {
 		bpf_cgroup_storage_set(storage);
-		*retval = BPF_PROG_RUN(prog, ctx);
+
+		if (xdp)
+			*retval = bpf_prog_run_xdp(prog, ctx);
+		else
+			*retval = BPF_PROG_RUN(prog, ctx);
 
 		if (signal_pending(current)) {
 			ret = -EINTR;
@@ -359,7 +363,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 	ret = convert___skb_to_skb(skb, ctx);
 	if (ret)
 		goto out;
-	ret = bpf_test_run(prog, skb, repeat, &retval, &duration);
+	ret = bpf_test_run(prog, skb, repeat, &retval, &duration, false);
 	if (ret)
 		goto out;
 	if (!is_l2) {
@@ -416,8 +420,8 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 
 	rxqueue = __netif_get_rx_queue(current->nsproxy->net_ns->loopback_dev, 0);
 	xdp.rxq = &rxqueue->xdp_rxq;
-
-	ret = bpf_test_run(prog, &xdp, repeat, &retval, &duration);
+	bpf_prog_change_xdp(NULL, prog);
+	ret = bpf_test_run(prog, &xdp, repeat, &retval, &duration, true);
 	if (ret)
 		goto out;
 	if (xdp.data != data + XDP_PACKET_HEADROOM + NET_IP_ALIGN ||
@@ -425,6 +429,7 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 		size = xdp.data_end - xdp.data;
 	ret = bpf_test_finish(kattr, uattr, xdp.data, size, retval, duration);
 out:
+	bpf_prog_change_xdp(prog, NULL);
 	kfree(data);
 	return ret;
 }
