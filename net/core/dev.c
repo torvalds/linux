@@ -10165,7 +10165,7 @@ static struct hlist_head * __net_init netdev_create_hash(void)
 static int __net_init netdev_init(struct net *net)
 {
 	BUILD_BUG_ON(GRO_HASH_BUCKETS >
-		     8 * FIELD_SIZEOF(struct napi_struct, gro_bitmask));
+		     8 * sizeof_field(struct napi_struct, gro_bitmask));
 
 	if (net != &init_net)
 		INIT_LIST_HEAD(&net->dev_base_head);

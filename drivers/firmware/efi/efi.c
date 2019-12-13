@@ -681,7 +681,7 @@ device_initcall(efi_load_efivars);
 		{ name },				   \
 		{ prop },				   \
 		offsetof(struct efi_fdt_params, field),    \
-		FIELD_SIZEOF(struct efi_fdt_params, field) \
+		sizeof_field(struct efi_fdt_params, field) \
 	}
 
 struct params {

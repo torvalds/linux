@@ -2746,7 +2746,7 @@ static int __init libcxgbi_init_module(void)
 {
 	pr_info("%s", version);
 
-	BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, cb) <
+	BUILD_BUG_ON(sizeof_field(struct sk_buff, cb) <
 		     sizeof(struct cxgbi_skb_cb));
 	return 0;
 }

@@ -1341,7 +1341,7 @@ static u32 sysctl_convert_ctx_access(enum bpf_access_type type,
 		*insn++ = BPF_LDX_MEM(
 			BPF_SIZE(si->code), si->dst_reg, si->src_reg,
 			bpf_target_off(struct bpf_sysctl_kern, write,
-				       FIELD_SIZEOF(struct bpf_sysctl_kern,
+				       sizeof_field(struct bpf_sysctl_kern,
 						    write),
 				       target_size));
 		break;
