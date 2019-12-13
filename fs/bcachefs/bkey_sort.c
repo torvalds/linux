@@ -530,28 +530,6 @@ unsigned bch2_sort_extents(struct bkey_packed *dst,
 	return (u64 *) out - (u64 *) dst;
 }
 
-static inline int sort_key_whiteouts_cmp(struct btree *b,
-					 struct bkey_packed *l,
-					 struct bkey_packed *r)
-{
-	return bkey_cmp_packed(b, l, r);
-}
-
-unsigned bch2_sort_key_whiteouts(struct bkey_packed *dst,
-				 struct sort_iter *iter)
-{
-	struct bkey_packed *in, *out = dst;
-
-	sort_iter_sort(iter, sort_key_whiteouts_cmp);
-
-	while ((in = sort_iter_next(iter, sort_key_whiteouts_cmp))) {
-		bkey_copy(out, in);
-		out = bkey_next(out);
-	}
-
-	return (u64 *) out - (u64 *) dst;
-}
-
 static inline int sort_extent_whiteouts_cmp(struct btree *b,
 					    struct bkey_packed *l,
 					    struct bkey_packed *r)

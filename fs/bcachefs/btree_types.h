@@ -423,6 +423,11 @@ static inline unsigned bset_u64s(struct bset_tree *t)
 		sizeof(struct bset) / sizeof(u64);
 }
 
+static inline unsigned bset_dead_u64s(struct btree *b, struct bset_tree *t)
+{
+	return bset_u64s(t) - b->nr.bset_u64s[t - b->set];
+}
+
 static inline unsigned bset_byte_offset(struct btree *b, void *i)
 {
 	return i - (void *) b->data;

@@ -54,16 +54,17 @@ static inline bool btree_node_may_write(struct btree *b)
 
 enum compact_mode {
 	COMPACT_LAZY,
-	COMPACT_WRITTEN,
-	COMPACT_WRITTEN_NO_WRITE_LOCK,
+	COMPACT_ALL,
 };
 
-bool __bch2_compact_whiteouts(struct bch_fs *, struct btree *, enum compact_mode);
+bool bch2_compact_whiteouts(struct bch_fs *, struct btree *,
+			    enum compact_mode);
 
-static inline unsigned should_compact_bset_lazy(struct btree *b, struct bset_tree *t)
+static inline bool should_compact_bset_lazy(struct btree *b,
+					    struct bset_tree *t)
 {
 	unsigned total_u64s = bset_u64s(t);
-	unsigned dead_u64s = total_u64s - b->nr.bset_u64s[t - b->set];
+	unsigned dead_u64s = bset_dead_u64s(b, t);
 
 	return dead_u64s > 64 && dead_u64s * 3 > total_u64s;
 }
@@ -74,7 +75,7 @@ static inline bool bch2_maybe_compact_whiteouts(struct bch_fs *c, struct btree *
 
 	for_each_bset(b, t)
 		if (should_compact_bset_lazy(b, t))
-			return __bch2_compact_whiteouts(c, b, COMPACT_LAZY);
+			return bch2_compact_whiteouts(c, b, COMPACT_LAZY);
 
 	return false;
 }

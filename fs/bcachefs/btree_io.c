@@ -154,27 +154,26 @@ static void bch2_sort_whiteouts(struct bch_fs *c, struct btree *b)
 	btree_bounce_free(c, order, used_mempool1, new_whiteouts);
 }
 
-static unsigned should_compact_bset(struct btree *b, struct bset_tree *t,
-				    bool compacting,
-				    enum compact_mode mode)
+static bool should_compact_bset(struct btree *b, struct bset_tree *t,
+				bool compacting, enum compact_mode mode)
 {
-	unsigned bset_u64s = le16_to_cpu(bset(b, t)->u64s);
-	unsigned dead_u64s = bset_u64s - b->nr.bset_u64s[t - b->set];
+	if (!bset_dead_u64s(b, t))
+		return false;
 
-	if (mode == COMPACT_LAZY) {
-		if (should_compact_bset_lazy(b, t) ||
-		    (compacting && !bset_written(b, bset(b, t))))
-			return dead_u64s;
-	} else {
-		if (bset_written(b, bset(b, t)))
-			return dead_u64s;
+	switch (mode) {
+	case COMPACT_LAZY:
+		return should_compact_bset_lazy(b, t) ||
+			(compacting && !bset_written(b, bset(b, t)));
+	case COMPACT_ALL:
+		return true;
+	default:
+		BUG();
 	}
-
-	return 0;
 }
 
-bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
-			     enum compact_mode mode)
+static bool bch2_compact_extent_whiteouts(struct bch_fs *c,
+					  struct btree *b,
+					  enum compact_mode mode)
 {
 	const struct bkey_format *f = &b->format;
 	struct bset_tree *t;
@@ -184,9 +183,11 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 	unsigned order, whiteout_u64s = 0, u64s;
 	bool used_mempool, compacting = false;
 
+	BUG_ON(!btree_node_is_extents(b));
+
 	for_each_bset(b, t)
-		whiteout_u64s += should_compact_bset(b, t,
-					whiteout_u64s != 0, mode);
+		if (should_compact_bset(b, t, whiteout_u64s != 0, mode))
+			whiteout_u64s += bset_dead_u64s(b, t);
 
 	if (!whiteout_u64s)
 		return false;
@@ -215,8 +216,11 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 		if (t != b->set && !bset_written(b, i)) {
 			src = container_of(i, struct btree_node_entry, keys);
 			dst = max(write_block(b),
-				  (void *) btree_bkey_last(b, t -1));
+				  (void *) btree_bkey_last(b, t - 1));
 		}
+
+		if (src != dst)
+			compacting = true;
 
 		if (!should_compact_bset(b, t, compacting, mode)) {
 			if (src != dst) {
@@ -245,7 +249,7 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 		for (k = start; k != end; k = n) {
 			n = bkey_next_skip_noops(k, end);
 
-			if (bkey_deleted(k) && btree_node_is_extents(b))
+			if (bkey_deleted(k))
 				continue;
 
 			BUG_ON(bkey_whiteout(k) &&
@@ -259,7 +263,7 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 				memcpy_u64s(u_pos, k, bkeyp_key_u64s(f, k));
 				set_bkeyp_val_u64s(f, u_pos, 0);
 				u_pos = bkey_next(u_pos);
-			} else if (mode != COMPACT_WRITTEN_NO_WRITE_LOCK) {
+			} else {
 				bkey_copy(out, k);
 				out = bkey_next(out);
 			}
@@ -267,11 +271,9 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 
 		sort_iter_add(&sort_iter, u_start, u_pos);
 
-		if (mode != COMPACT_WRITTEN_NO_WRITE_LOCK) {
-			i->u64s = cpu_to_le16((u64 *) out - i->_data);
-			set_btree_bset_end(b, t);
-			bch2_bset_set_no_aux_tree(b, t);
-		}
+		i->u64s = cpu_to_le16((u64 *) out - i->_data);
+		set_btree_bset_end(b, t);
+		bch2_bset_set_no_aux_tree(b, t);
 	}
 
 	b->whiteout_u64s = (u64 *) u_pos - (u64 *) whiteouts;
@@ -279,13 +281,10 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 	BUG_ON((void *) unwritten_whiteouts_start(c, b) <
 	       (void *) btree_bkey_last(b, bset_tree_last(b)));
 
-	u64s = (btree_node_is_extents(b)
-		? bch2_sort_extent_whiteouts
-		: bch2_sort_key_whiteouts)(unwritten_whiteouts_start(c, b),
-					   &sort_iter);
+	u64s = bch2_sort_extent_whiteouts(unwritten_whiteouts_start(c, b),
+					  &sort_iter);
 
 	BUG_ON(u64s > b->whiteout_u64s);
-	BUG_ON(u64s != b->whiteout_u64s && !btree_node_is_extents(b));
 	BUG_ON(u_pos != whiteouts && !u64s);
 
 	if (u64s != b->whiteout_u64s) {
@@ -301,8 +300,7 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 
 	btree_bounce_free(c, order, used_mempool, whiteouts);
 
-	if (mode != COMPACT_WRITTEN_NO_WRITE_LOCK)
-		bch2_btree_build_aux_trees(b);
+	bch2_btree_build_aux_trees(b);
 
 	bch_btree_keys_u64s_remaining(c, b);
 	bch2_verify_btree_nr_keys(b);
@@ -310,7 +308,7 @@ bool __bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 	return true;
 }
 
-static bool bch2_drop_whiteouts(struct btree *b)
+static bool bch2_drop_whiteouts(struct btree *b, enum compact_mode mode)
 {
 	struct bset_tree *t;
 	bool ret = false;
@@ -318,21 +316,34 @@ static bool bch2_drop_whiteouts(struct btree *b)
 	for_each_bset(b, t) {
 		struct bset *i = bset(b, t);
 		struct bkey_packed *k, *n, *out, *start, *end;
+		struct btree_node_entry *src = NULL, *dst = NULL;
 
-		if (!should_compact_bset(b, t, true, COMPACT_WRITTEN))
+		if (t != b->set && !bset_written(b, i)) {
+			src = container_of(i, struct btree_node_entry, keys);
+			dst = max(write_block(b),
+				  (void *) btree_bkey_last(b, t - 1));
+		}
+
+		if (src != dst)
+			ret = true;
+
+		if (!should_compact_bset(b, t, ret, mode)) {
+			if (src != dst) {
+				memmove(dst, src, sizeof(*src) +
+					le16_to_cpu(src->keys.u64s) *
+					sizeof(u64));
+				i = &dst->keys;
+				set_btree_bset(b, t, i);
+			}
 			continue;
+		}
 
 		start	= btree_bkey_first(b, t);
 		end	= btree_bkey_last(b, t);
 
-		if (!bset_written(b, i) &&
-		    t != b->set) {
-			struct bset *dst =
-			       max_t(struct bset *, write_block(b),
-				     (void *) btree_bkey_last(b, t -1));
-
-			memmove(dst, i, sizeof(struct bset));
-			i = dst;
+		if (src != dst) {
+			memmove(dst, src, sizeof(*src));
+			i = &dst->keys;
 			set_btree_bset(b, t, i);
 		}
 
@@ -344,17 +355,30 @@ static bool bch2_drop_whiteouts(struct btree *b)
 			if (!bkey_whiteout(k)) {
 				bkey_copy(out, k);
 				out = bkey_next(out);
+			} else {
+				BUG_ON(k->needs_whiteout);
 			}
 		}
 
 		i->u64s = cpu_to_le16((u64 *) out - i->_data);
+		set_btree_bset_end(b, t);
 		bch2_bset_set_no_aux_tree(b, t);
 		ret = true;
 	}
 
 	bch2_verify_btree_nr_keys(b);
 
+	bch2_btree_build_aux_trees(b);
+
 	return ret;
+}
+
+bool bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
+			    enum compact_mode mode)
+{
+	return !btree_node_is_extents(b)
+		? bch2_drop_whiteouts(b, mode)
+		: bch2_compact_extent_whiteouts(c, b, mode);
 }
 
 static void btree_node_sort(struct bch_fs *c, struct btree *b,
@@ -1631,7 +1655,7 @@ bool bch2_btree_post_write_cleanup(struct bch_fs *c, struct btree *b)
 		btree_node_sort(c, b, NULL, 0, b->nsets, true);
 		invalidated_iter = true;
 	} else {
-		invalidated_iter = bch2_drop_whiteouts(b);
+		invalidated_iter = bch2_drop_whiteouts(b, COMPACT_ALL);
 	}
 
 	for_each_bset(b, t)

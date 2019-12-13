@@ -61,8 +61,6 @@ unsigned bch2_sort_keys(struct bkey_packed *,
 unsigned bch2_sort_extents(struct bkey_packed *,
 			   struct sort_iter *, bool);
 
-unsigned bch2_sort_key_whiteouts(struct bkey_packed *,
-				 struct sort_iter *);
 unsigned bch2_sort_extent_whiteouts(struct bkey_packed *,
 				    struct sort_iter *);
 
