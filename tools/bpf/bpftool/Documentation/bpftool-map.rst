@@ -41,7 +41,7 @@ MAP COMMANDS
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
 |	*DATA* := { [**hex**] *BYTES* }
-|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 |	*VALUE* := { *DATA* | *MAP* | *PROG* }
 |	*UPDATE_FLAGS* := { **any** | **exist** | **noexist** }
 |	*TYPE* := { **hash** | **array** | **prog_array** | **perf_event_array** | **percpu_hash**

@@ -33,7 +33,7 @@ PROG COMMANDS
 |	**bpftool** **prog help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
-|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 |	*TYPE* := {
 |		**socket** | **kprobe** | **kretprobe** | **classifier** | **action** |
 |		**tracepoint** | **raw_tracepoint** | **xdp** | **perf_event** | **cgroup/skb** |
@@ -55,8 +55,8 @@ DESCRIPTION
 		  Show information about loaded programs.  If *PROG* is
 		  specified show information only about given programs,
 		  otherwise list all programs currently loaded on the system.
-		  In case of **tag**, *PROG* may match several programs which
-		  will all be shown.
+		  In case of **tag** or **name**, *PROG* may match several
+		  programs which will all be shown.
 
 		  Output will start with program ID followed by program type and
 		  zero or more named attributes (depending on kernel version).
@@ -75,9 +75,9 @@ DESCRIPTION
 		  output in human-readable format. In this case, **opcodes**
 		  controls if raw opcodes should be printed as well.
 
-		  In case of **tag**, *PROG* may match several programs which
-		  will all be dumped.  However, if **file** or **visual** is
-		  specified, *PROG* must match a single program.
+		  In case of **tag** or **name**, *PROG* may match several
+		  programs which will all be dumped.  However, if **file** or
+		  **visual** is specified, *PROG* must match a single program.
 
 		  If **file** is specified, the binary image will instead be
 		  written to *FILE*.

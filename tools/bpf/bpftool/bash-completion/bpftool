@@ -71,6 +71,12 @@ _bpftool_get_prog_tags()
         command sed -n 's/.*"tag": "\(.*\)",$/\1/p' )" -- "$cur" ) )
 }
 
+_bpftool_get_prog_names()
+{
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp prog 2>&1 | \
+        command sed -n 's/.*"name": "\(.*\)",$/\1/p' )" -- "$cur" ) )
+}
+
 _bpftool_get_btf_ids()
 {
     COMPREPLY+=( $( compgen -W "$( bpftool -jp btf 2>&1 | \
@@ -201,6 +207,10 @@ _bpftool()
             _bpftool_get_prog_tags
             return 0
             ;;
+        name)
+            _bpftool_get_prog_names
+            return 0
+            ;;
         dev)
             _sysfs_get_netdevs
             return 0
@@ -263,7 +273,7 @@ _bpftool()
                     ;;
             esac
 
-            local PROG_TYPE='id pinned tag'
+            local PROG_TYPE='id pinned tag name'
             local MAP_TYPE='id pinned'
             case $command in
                 show|list)
@@ -559,7 +569,7 @@ _bpftool()
                                     return 0
                                     ;;
                                 prog_array)
-                                    local PROG_TYPE='id pinned tag'
+                                    local PROG_TYPE='id pinned tag name'
                                     COMPREPLY+=( $( compgen -W "$PROG_TYPE" \
                                         -- "$cur" ) )
                                     return 0
@@ -644,7 +654,7 @@ _bpftool()
             esac
             ;;
         btf)
-            local PROG_TYPE='id pinned tag'
+            local PROG_TYPE='id pinned tag name'
             local MAP_TYPE='id pinned'
             case $command in
                 dump)
@@ -735,7 +745,7 @@ _bpftool()
                         connect6 sendmsg4 sendmsg6 recvmsg4 recvmsg6 sysctl \
                         getsockopt setsockopt'
                     local ATTACH_FLAGS='multi override'
-                    local PROG_TYPE='id pinned tag'
+                    local PROG_TYPE='id pinned tag name'
                     case $prev in
                         $command)
                             _filedir
@@ -760,7 +770,7 @@ _bpftool()
                             elif [[ "$command" == "attach" ]]; then
                                 # We have an attach type on the command line,
                                 # but it is not the previous word, or
-                                # "id|pinned|tag" (we already checked for
+                                # "id|pinned|tag|name" (we already checked for
                                 # that). This should only leave the case when
                                 # we need attach flags for "attach" commamnd.
                                 _bpftool_one_of_list "$ATTACH_FLAGS"
@@ -786,7 +796,7 @@ _bpftool()
             esac
             ;;
         net)
-            local PROG_TYPE='id pinned tag'
+            local PROG_TYPE='id pinned tag name'
             local ATTACH_TYPES='xdp xdpgeneric xdpdrv xdpoffload'
             case $command in
                 show|list)
