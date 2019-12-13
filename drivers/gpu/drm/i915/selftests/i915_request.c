@@ -1086,8 +1086,7 @@ static int __live_parallel_engine1(void *arg)
 		rq = i915_request_create(engine->kernel_context);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			if (err)
-				break;
+			break;
 		}
 
 		i915_request_get(rq);
