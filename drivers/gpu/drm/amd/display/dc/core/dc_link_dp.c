@@ -3611,6 +3611,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			struct pipe_ctx *odm_pipe;
 			enum controller_dp_color_space controller_color_space;
 			int opp_cnt = 1;
+			uint8_t count = 0;
 
 			switch (test_pattern_color_space) {
 			case DP_TEST_PATTERN_COLOR_SPACE_RGB:
@@ -3646,6 +3647,12 @@ static void set_crtc_test_pattern(struct dc_link *link,
 					NULL,
 					width,
 					height);
+				/* wait for dpg to blank pixel data with test pattern */
+				for (count = 0; count < 1000; count++)
+					if (odm_opp->funcs->dpg_is_blanked(odm_opp))
+						break;
+					else
+						udelay(100);
 			}
 			opp->funcs->opp_set_disp_pattern_generator(opp,
 				controller_test_pattern,
@@ -3654,6 +3661,12 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				NULL,
 				width,
 				height);
+			/* wait for dpg to blank pixel data with test pattern */
+			for (count = 0; count < 1000; count++)
+				if (opp->funcs->dpg_is_blanked(opp))
+					break;
+				else
+					udelay(100);
 		}
 	}
 	break;
