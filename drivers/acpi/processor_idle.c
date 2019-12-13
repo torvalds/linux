@@ -297,21 +297,17 @@ static int acpi_processor_get_power_info_default(struct acpi_processor *pr)
 	return 0;
 }
 
-static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
+static int acpi_processor_evaluate_cst(acpi_handle handle, u32 cpu,
+				       struct acpi_processor_power *info)
 {
-	acpi_status status;
-	u64 count;
-	int current_count;
-	int i, ret = 0;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *cst;
+	acpi_status status;
+	u64 count;
+	int current_count = 0;
+	int i, ret = 0;
 
-	if (nocst)
-		return -ENODEV;
-
-	current_count = 0;
-
-	status = acpi_evaluate_object(pr->handle, "_CST", NULL, &buffer);
+	status = acpi_evaluate_object(handle, "_CST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No _CST, giving up\n"));
 		return -ENODEV;
@@ -334,9 +330,6 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		ret = -EFAULT;
 		goto end;
 	}
-
-	/* Tell driver that at least _CST is supported. */
-	pr->flags.has_cst = 1;
 
 	for (i = 1; i <= count; i++) {
 		union acpi_object *element;
@@ -383,7 +376,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		cx.entry_method = ACPI_CSTATE_SYSTEMIO;
 		if (reg->space_id == ACPI_ADR_SPACE_FIXED_HARDWARE) {
 			if (acpi_processor_ffh_cstate_probe
-					(pr->id, &cx, reg) == 0) {
+					(cpu, &cx, reg) == 0) {
 				cx.entry_method = ACPI_CSTATE_FFH;
 			} else if (cx.type == ACPI_STATE_C1) {
 				/*
@@ -432,7 +425,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 			continue;
 
 		current_count++;
-		memcpy(&(pr->power.states[current_count]), &cx, sizeof(cx));
+		memcpy(&info->states[current_count], &cx, sizeof(cx));
 
 		/*
 		 * We support total ACPI_PROCESSOR_MAX_POWER - 1
@@ -446,17 +439,36 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %d power states\n",
-			  current_count));
+	acpi_handle_info(handle, "Found %d idle states\n", current_count);
 
-	/* Validate number of power states discovered */
-	if (current_count < 2)
-		ret = -EFAULT;
+	info->count = current_count;
 
       end:
 	kfree(buffer.pointer);
 
 	return ret;
+}
+
+static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
+{
+	int ret;
+
+	if (nocst)
+		return -ENODEV;
+
+	ret = acpi_processor_evaluate_cst(pr->handle, pr->id, &pr->power);
+	if (ret)
+		return ret;
+
+	/*
+	 * It is expected that there will be at least 2 states, C1 and
+	 * something else (C2 or C3), so fail if that is not the case.
+	 */
+	if (pr->power.count < 2)
+		return -EFAULT;
+
+	pr->flags.has_cst = 1;
+	return 0;
 }
 
 static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
