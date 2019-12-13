@@ -21,7 +21,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 
-#include "most/most.h"
+#include <most/most.h>
 #include "hal.h"
 #include "errors.h"
 #include "sysfs.h"
