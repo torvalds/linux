@@ -230,28 +230,25 @@ static void mtk_dsi_mask(struct mtk_dsi *dsi, u32 offset, u32 mask, u32 data)
 static void mtk_dsi_phy_timconfig(struct mtk_dsi *dsi)
 {
 	u32 timcon0, timcon1, timcon2, timcon3;
-	u32 ui, cycle_time;
+	u32 data_rate_mhz = DIV_ROUND_UP(dsi->data_rate, 1000000);
 	struct mtk_phy_timing *timing = &dsi->phy_timing;
 
-	ui = DIV_ROUND_UP(1000000000, dsi->data_rate);
-	cycle_time = div_u64(8000000000ULL, dsi->data_rate);
+	timing->lpx = (60 * data_rate_mhz / (8 * 1000)) + 1;
+	timing->da_hs_prepare = (80 * data_rate_mhz + 4 * 1000) / 8000;
+	timing->da_hs_zero = (170 * data_rate_mhz + 10 * 1000) / 8000 + 1 -
+			     timing->da_hs_prepare;
+	timing->da_hs_trail = timing->da_hs_prepare + 1;
 
-	timing->lpx = NS_TO_CYCLE(60, cycle_time);
-	timing->da_hs_prepare = NS_TO_CYCLE(50 + 5 * ui, cycle_time);
-	timing->da_hs_zero = NS_TO_CYCLE(110 + 6 * ui, cycle_time);
-	timing->da_hs_trail = NS_TO_CYCLE(77 + 4 * ui, cycle_time);
+	timing->ta_go = 4 * timing->lpx - 2;
+	timing->ta_sure = timing->lpx + 2;
+	timing->ta_get = 4 * timing->lpx;
+	timing->da_hs_exit = 2 * timing->lpx + 1;
 
-	timing->ta_go = 4 * timing->lpx;
-	timing->ta_sure = 3 * timing->lpx / 2;
-	timing->ta_get = 5 * timing->lpx;
-	timing->da_hs_exit = 2 * timing->lpx;
-
-	timing->clk_hs_zero = NS_TO_CYCLE(336, cycle_time);
-	timing->clk_hs_trail = NS_TO_CYCLE(100, cycle_time) + 10;
-
-	timing->clk_hs_prepare = NS_TO_CYCLE(64, cycle_time);
-	timing->clk_hs_post = NS_TO_CYCLE(80 + 52 * ui, cycle_time);
-	timing->clk_hs_exit = 2 * timing->lpx;
+	timing->clk_hs_prepare = 70 * data_rate_mhz / (8 * 1000);
+	timing->clk_hs_post = timing->clk_hs_prepare + 8;
+	timing->clk_hs_trail = timing->clk_hs_prepare;
+	timing->clk_hs_zero = timing->clk_hs_trail * 4;
+	timing->clk_hs_exit = 2 * timing->clk_hs_trail;
 
 	timcon0 = timing->lpx | timing->da_hs_prepare << 8 |
 		  timing->da_hs_zero << 16 | timing->da_hs_trail << 24;
@@ -482,27 +479,39 @@ static void mtk_dsi_config_vdo_timing(struct mtk_dsi *dsi)
 			dsi_tmp_buf_bpp - 10);
 
 	data_phy_cycles = timing->lpx + timing->da_hs_prepare +
-				  timing->da_hs_zero + timing->da_hs_exit + 2;
+			  timing->da_hs_zero + timing->da_hs_exit + 3;
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
-		if (vm->hfront_porch * dsi_tmp_buf_bpp >
+		if ((vm->hfront_porch + vm->hback_porch) * dsi_tmp_buf_bpp >
 		    data_phy_cycles * dsi->lanes + 18) {
-			horizontal_frontporch_byte = vm->hfront_porch *
-						     dsi_tmp_buf_bpp -
-						     data_phy_cycles *
-						     dsi->lanes - 18;
+			horizontal_frontporch_byte =
+				vm->hfront_porch * dsi_tmp_buf_bpp -
+				(data_phy_cycles * dsi->lanes + 18) *
+				vm->hfront_porch /
+				(vm->hfront_porch + vm->hback_porch);
+
+			horizontal_backporch_byte =
+				horizontal_backporch_byte -
+				(data_phy_cycles * dsi->lanes + 18) *
+				vm->hback_porch /
+				(vm->hfront_porch + vm->hback_porch);
 		} else {
 			DRM_WARN("HFP less than d-phy, FPS will under 60Hz\n");
 			horizontal_frontporch_byte = vm->hfront_porch *
 						     dsi_tmp_buf_bpp;
 		}
 	} else {
-		if (vm->hfront_porch * dsi_tmp_buf_bpp >
+		if ((vm->hfront_porch + vm->hback_porch) * dsi_tmp_buf_bpp >
 		    data_phy_cycles * dsi->lanes + 12) {
-			horizontal_frontporch_byte = vm->hfront_porch *
-						     dsi_tmp_buf_bpp -
-						     data_phy_cycles *
-						     dsi->lanes - 12;
+			horizontal_frontporch_byte =
+				vm->hfront_porch * dsi_tmp_buf_bpp -
+				(data_phy_cycles * dsi->lanes + 12) *
+				vm->hfront_porch /
+				(vm->hfront_porch + vm->hback_porch);
+			horizontal_backporch_byte = horizontal_backporch_byte -
+				(data_phy_cycles * dsi->lanes + 12) *
+				vm->hback_porch /
+				(vm->hfront_porch + vm->hback_porch);
 		} else {
 			DRM_WARN("HFP less than d-phy, FPS will under 60Hz\n");
 			horizontal_frontporch_byte = vm->hfront_porch *
