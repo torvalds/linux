@@ -61,11 +61,9 @@ struct hal_tx_status {
 
 void ath11k_hal_tx_cmd_desc_setup(struct ath11k_base *ab, void *cmd,
 				  struct hal_tx_info *ti);
-void ath11k_hal_tx_desc_sync(void *tx_desc_cached, void *hw_desc);
 void ath11k_hal_tx_status_parse(struct ath11k_base *ab,
 				struct hal_wbm_release_ring *desc,
 				struct hal_tx_status *ts);
-void ath11k_hal_tx_status_desc_sync(void *hw_desc, void *local_desc);
 void ath11k_hal_tx_set_dscp_tid_map(struct ath11k_base *ab, int id);
 int ath11k_hal_reo_cmd_send(struct ath11k_base *ab, struct hal_srng *srng,
 			    enum hal_reo_cmd_type type,
