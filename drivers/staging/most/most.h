@@ -47,7 +47,7 @@ enum most_channel_data_type {
 	MOST_CH_SYNC = 1 << 5,
 };
 
-enum mbo_status_flags {
+enum most_status_flags {
 	/* MBO was processed successfully (data was send or received )*/
 	MBO_SUCCESS = 0,
 	/* The MBO contains wrong or missing information.  */
@@ -184,7 +184,7 @@ struct mbo {
 	dma_addr_t bus_address;
 	u16 buffer_length;
 	u16 processed_length;
-	enum mbo_status_flags status;
+	enum most_status_flags status;
 	void (*complete)(struct mbo *mbo);
 };
 
