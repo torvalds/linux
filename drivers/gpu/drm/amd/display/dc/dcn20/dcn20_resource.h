@@ -49,6 +49,7 @@ unsigned int dcn20_calc_max_scaled_time(
 		unsigned int time_per_pixel,
 		enum mmhubbub_wbif_mode mode,
 		unsigned int urgent_watermark);
+int get_num_odm_splits(struct pipe_ctx *pipe);
 int dcn20_populate_dml_pipes_from_context(
 		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes);
 struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(

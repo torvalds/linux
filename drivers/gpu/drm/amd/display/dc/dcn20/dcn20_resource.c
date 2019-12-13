@@ -1861,20 +1861,20 @@ void dcn20_populate_dml_writeback_from_context(
 
 }
 
-static int get_num_odm_heads(struct pipe_ctx *pipe)
+int get_num_odm_splits(struct pipe_ctx *pipe)
 {
-	int odm_head_count = 0;
+	int odm_split_count = 0;
 	struct pipe_ctx *next_pipe = pipe->next_odm_pipe;
 	while (next_pipe) {
-		odm_head_count++;
+		odm_split_count++;
 		next_pipe = next_pipe->next_odm_pipe;
 	}
 	pipe = pipe->prev_odm_pipe;
 	while (pipe) {
-		odm_head_count++;
+		odm_split_count++;
 		pipe = pipe->prev_odm_pipe;
 	}
-	return odm_head_count ? odm_head_count + 1 : 0;
+	return odm_split_count;
 }
 
 int dcn20_populate_dml_pipes_from_context(
@@ -1956,8 +1956,8 @@ int dcn20_populate_dml_pipes_from_context(
 		pipes[pipe_cnt].dout.dp_lanes = 4;
 		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
 		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
-		switch (get_num_odm_heads(&res_ctx->pipe_ctx[i])) {
-		case 2:
+		switch (get_num_odm_splits(&res_ctx->pipe_ctx[i])) {
+		case 1:
 			pipes[pipe_cnt].pipe.dest.odm_combine = dm_odm_combine_mode_2to1;
 			break;
 		default:
@@ -2124,18 +2124,22 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.src.dcc = pln->dcc.enable;
 			pipes[pipe_cnt].pipe.dest.recout_width = scl->recout.width;
 			pipes[pipe_cnt].pipe.dest.recout_height = scl->recout.height;
-			pipes[pipe_cnt].pipe.dest.full_recout_width = scl->recout.width;
 			pipes[pipe_cnt].pipe.dest.full_recout_height = scl->recout.height;
-			if (res_ctx->pipe_ctx[i].bottom_pipe && res_ctx->pipe_ctx[i].bottom_pipe->plane_state == pln) {
-				pipes[pipe_cnt].pipe.dest.full_recout_width +=
-						res_ctx->pipe_ctx[i].bottom_pipe->plane_res.scl_data.recout.width;
-				pipes[pipe_cnt].pipe.dest.full_recout_height +=
-						res_ctx->pipe_ctx[i].bottom_pipe->plane_res.scl_data.recout.height;
-			} else if (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state == pln) {
-				pipes[pipe_cnt].pipe.dest.full_recout_width +=
-						res_ctx->pipe_ctx[i].top_pipe->plane_res.scl_data.recout.width;
-				pipes[pipe_cnt].pipe.dest.full_recout_height +=
-						res_ctx->pipe_ctx[i].top_pipe->plane_res.scl_data.recout.height;
+			pipes[pipe_cnt].pipe.dest.full_recout_width = scl->recout.width;
+			if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_2to1)
+				pipes[pipe_cnt].pipe.dest.full_recout_width *= 2;
+			else {
+				struct pipe_ctx *split_pipe = res_ctx->pipe_ctx[i].bottom_pipe;
+
+				while (split_pipe && split_pipe->plane_state == pln) {
+					pipes[pipe_cnt].pipe.dest.full_recout_width += split_pipe->plane_res.scl_data.recout.width;
+					split_pipe = split_pipe->bottom_pipe;
+				}
+				split_pipe = res_ctx->pipe_ctx[i].top_pipe;
+				while (split_pipe && split_pipe->plane_state == pln) {
+					pipes[pipe_cnt].pipe.dest.full_recout_width += split_pipe->plane_res.scl_data.recout.width;
+					split_pipe = split_pipe->top_pipe;
+				}
 			}
 
 			pipes[pipe_cnt].pipe.scale_ratio_depth.lb_depth = dm_lb_16;
