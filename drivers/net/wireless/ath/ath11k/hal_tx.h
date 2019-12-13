@@ -48,7 +48,6 @@ struct hal_tx_info {
 /* Tx status parsed from srng desc */
 struct hal_tx_status {
 	enum hal_wbm_rel_src_module buf_rel_source;
-	u32 desc_id;
 	enum hal_wbm_tqm_rel_reason status;
 	u8 ack_rssi;
 	u32 flags; /* %HAL_TX_STATUS_FLAGS_ */
@@ -61,9 +60,6 @@ struct hal_tx_status {
 
 void ath11k_hal_tx_cmd_desc_setup(struct ath11k_base *ab, void *cmd,
 				  struct hal_tx_info *ti);
-void ath11k_hal_tx_status_parse(struct ath11k_base *ab,
-				struct hal_wbm_release_ring *desc,
-				struct hal_tx_status *ts);
 void ath11k_hal_tx_set_dscp_tid_map(struct ath11k_base *ab, int id);
 int ath11k_hal_reo_cmd_send(struct ath11k_base *ab, struct hal_srng *srng,
 			    enum hal_reo_cmd_type type,

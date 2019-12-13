@@ -423,6 +423,37 @@ exit:
 	rcu_read_unlock();
 }
 
+static inline void ath11k_dp_tx_status_parse(struct ath11k_base *ab,
+					     struct hal_wbm_release_ring *desc,
+					     struct hal_tx_status *ts)
+{
+	ts->buf_rel_source =
+		FIELD_GET(HAL_WBM_RELEASE_INFO0_REL_SRC_MODULE, desc->info0);
+	if (ts->buf_rel_source != HAL_WBM_REL_SRC_MODULE_FW &&
+	    ts->buf_rel_source != HAL_WBM_REL_SRC_MODULE_TQM)
+		return;
+
+	if (ts->buf_rel_source == HAL_WBM_REL_SRC_MODULE_FW)
+		return;
+
+	ts->status = FIELD_GET(HAL_WBM_RELEASE_INFO0_TQM_RELEASE_REASON,
+			       desc->info0);
+	ts->ppdu_id = FIELD_GET(HAL_WBM_RELEASE_INFO1_TQM_STATUS_NUMBER,
+				desc->info1);
+	ts->try_cnt = FIELD_GET(HAL_WBM_RELEASE_INFO1_TRANSMIT_COUNT,
+				desc->info1);
+	ts->ack_rssi = FIELD_GET(HAL_WBM_RELEASE_INFO2_ACK_FRAME_RSSI,
+				 desc->info2);
+	if (desc->info2 & HAL_WBM_RELEASE_INFO2_FIRST_MSDU)
+		ts->flags |= HAL_TX_STATUS_FLAGS_FIRST_MSDU;
+	ts->peer_id = FIELD_GET(HAL_WBM_RELEASE_INFO3_PEER_ID, desc->info3);
+	ts->tid = FIELD_GET(HAL_WBM_RELEASE_INFO3_TID, desc->info3);
+	if (desc->rate_stats.info0 & HAL_TX_RATE_STATS_INFO0_VALID)
+		ts->rate_stats = desc->rate_stats.info0;
+	else
+		ts->rate_stats = 0;
+}
+
 void ath11k_dp_tx_completion_handler(struct ath11k_base *ab, int ring_id)
 {
 	struct ath11k *ar;
@@ -457,14 +488,17 @@ void ath11k_dp_tx_completion_handler(struct ath11k_base *ab, int ring_id)
 
 	while (ATH11K_TX_COMPL_NEXT(tx_ring->tx_status_tail) != tx_ring->tx_status_head) {
 		struct hal_wbm_release_ring *tx_status;
+		u32 desc_id;
 
 		tx_ring->tx_status_tail =
 			ATH11K_TX_COMPL_NEXT(tx_ring->tx_status_tail);
 		tx_status = &tx_ring->tx_status[tx_ring->tx_status_tail];
-		ath11k_hal_tx_status_parse(ab, tx_status, &ts);
+		ath11k_dp_tx_status_parse(ab, tx_status, &ts);
 
-		mac_id = FIELD_GET(DP_TX_DESC_ID_MAC_ID, ts.desc_id);
-		msdu_id = FIELD_GET(DP_TX_DESC_ID_MSDU_ID, ts.desc_id);
+		desc_id = FIELD_GET(BUFFER_ADDR_INFO1_SW_COOKIE,
+				    tx_status->buf_addr_info.info1);
+		mac_id = FIELD_GET(DP_TX_DESC_ID_MAC_ID, desc_id);
+		msdu_id = FIELD_GET(DP_TX_DESC_ID_MSDU_ID, desc_id);
 
 		if (ts.buf_rel_source == HAL_WBM_REL_SRC_MODULE_FW) {
 			ath11k_dp_tx_process_htt_tx_complete(ab,

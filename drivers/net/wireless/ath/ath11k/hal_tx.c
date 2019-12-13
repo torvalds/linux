@@ -74,49 +74,6 @@ void ath11k_hal_tx_cmd_desc_setup(struct ath11k_base *ab, void *cmd,
 	tcl_cmd->info4 = 0;
 }
 
-void ath11k_hal_tx_status_parse(struct ath11k_base *ab,
-				struct hal_wbm_release_ring *desc,
-				struct hal_tx_status *ts)
-{
-	ts->buf_rel_source =
-		FIELD_GET(HAL_WBM_RELEASE_INFO0_REL_SRC_MODULE, desc->info0);
-	if (ts->buf_rel_source != HAL_WBM_REL_SRC_MODULE_FW &&
-	    ts->buf_rel_source != HAL_WBM_REL_SRC_MODULE_TQM)
-		return;
-
-	ts->desc_id = FIELD_GET(BUFFER_ADDR_INFO1_SW_COOKIE,
-				desc->buf_addr_info.info1);
-
-	if (ts->buf_rel_source == HAL_WBM_REL_SRC_MODULE_FW)
-		return;
-
-	ts->status = FIELD_GET(HAL_WBM_RELEASE_INFO0_TQM_RELEASE_REASON,
-			       desc->info0);
-	ts->ppdu_id = FIELD_GET(HAL_WBM_RELEASE_INFO1_TQM_STATUS_NUMBER,
-				desc->info1);
-	ts->try_cnt = FIELD_GET(HAL_WBM_RELEASE_INFO1_TRANSMIT_COUNT,
-				desc->info1);
-
-	ts->ack_rssi = FIELD_GET(HAL_WBM_RELEASE_INFO2_ACK_FRAME_RSSI,
-				 desc->info2);
-	if (desc->info2 & HAL_WBM_RELEASE_INFO2_FIRST_MSDU)
-		ts->flags |= HAL_TX_STATUS_FLAGS_FIRST_MSDU;
-
-	if (desc->info2 & HAL_WBM_RELEASE_INFO2_LAST_MSDU)
-		ts->flags |= HAL_TX_STATUS_FLAGS_LAST_MSDU;
-
-	if (desc->info2 & HAL_WBM_RELEASE_INFO2_MSDU_IN_AMSDU)
-		ts->flags |= HAL_TX_STATUS_FLAGS_MSDU_IN_AMSDU;
-
-	ts->peer_id = FIELD_GET(HAL_WBM_RELEASE_INFO3_PEER_ID, desc->info3);
-	ts->tid = FIELD_GET(HAL_WBM_RELEASE_INFO3_TID, desc->info3);
-
-	if (!(desc->rate_stats.info0 & HAL_TX_RATE_STATS_INFO0_VALID))
-		return;
-
-	ts->rate_stats = desc->rate_stats.info0;
-}
-
 void ath11k_hal_tx_set_dscp_tid_map(struct ath11k_base *ab, int id)
 {
 	u32 ctrl_reg_val;
