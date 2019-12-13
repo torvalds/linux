@@ -472,7 +472,7 @@ struct bpf_trampoline {
 	u64 selector;
 };
 
-#define BPF_DISPATCHER_MAX 64 /* Fits in 2048B */
+#define BPF_DISPATCHER_MAX 48 /* Fits in 2048B */
 
 struct bpf_dispatcher_prog {
 	struct bpf_prog *prog;
