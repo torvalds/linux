@@ -960,9 +960,6 @@ struct snd_soc_codec_conf {
 	 * specify device either by device name, or by
 	 * DT/OF node, but not both.
 	 */
-	const char *dev_name;
-	struct device_node *of_node;
-
 	struct snd_soc_dai_link_component dlc;
 
 	/*
