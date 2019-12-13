@@ -905,7 +905,7 @@
 		};
 
 		watchdog@b017000 {
-			compatible = "qcom,kpss-wdt";
+			compatible = "qcom,apss-wdt-qcs404", "qcom,kpss-wdt";
 			reg = <0x0b017000 0x1000>;
 			clocks = <&sleep_clk>;
 		};
