@@ -7,6 +7,7 @@
  * Copyright (C) 2018 Bootlin
  */
 
+#include <linux/delay.h>
 #include <linux/types.h>
 
 #include <media/videobuf2-dma-contig.h>
@@ -220,6 +221,23 @@ static void cedrus_h265_pred_weight_write(struct cedrus_dev *dev,
 	}
 }
 
+static void cedrus_h265_skip_bits(struct cedrus_dev *dev, int num)
+{
+	int count = 0;
+
+	while (count < num) {
+		int tmp = min(num - count, 32);
+
+		cedrus_write(dev, VE_DEC_H265_TRIGGER,
+			     VE_DEC_H265_TRIGGER_FLUSH_BITS |
+			     VE_DEC_H265_TRIGGER_TYPE_N_BITS(tmp));
+		while (cedrus_read(dev, VE_DEC_H265_STATUS) & VE_DEC_H265_STATUS_VLD_BUSY)
+			udelay(1);
+
+		count += tmp;
+	}
+}
+
 static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 			      struct cedrus_run *run)
 {
@@ -280,10 +298,9 @@ static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 
 	/* Source offset and length in bits. */
 
-	reg = slice_params->data_bit_offset;
-	cedrus_write(dev, VE_DEC_H265_BITS_OFFSET, reg);
+	cedrus_write(dev, VE_DEC_H265_BITS_OFFSET, 0);
 
-	reg = slice_params->bit_size - slice_params->data_bit_offset;
+	reg = slice_params->bit_size;
 	cedrus_write(dev, VE_DEC_H265_BITS_LEN, reg);
 
 	/* Source beginning and end addresses. */
@@ -315,6 +332,8 @@ static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 
 	/* Initialize bitstream access. */
 	cedrus_write(dev, VE_DEC_H265_TRIGGER, VE_DEC_H265_TRIGGER_INIT_SWDEC);
+
+	cedrus_h265_skip_bits(dev, slice_params->data_bit_offset);
 
 	/* Bitstream parameters. */
 
