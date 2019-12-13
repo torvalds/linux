@@ -39,7 +39,7 @@ static struct mostcore {
 #define to_driver(d) container_of(d, struct mostcore, drv)
 
 struct pipe {
-	struct core_component *comp;
+	struct most_component *comp;
 	int refs;
 	int num_buffers;
 };
@@ -454,9 +454,9 @@ static const struct attribute_group *interface_attr_groups[] = {
 	NULL,
 };
 
-static struct core_component *match_component(char *name)
+static struct most_component *match_component(char *name)
 {
-	struct core_component *comp;
+	struct most_component *comp;
 
 	list_for_each_entry(comp, &mc.comp_list, list) {
 		if (!strcmp(comp->name, name))
@@ -510,7 +510,7 @@ static ssize_t links_show(struct device_driver *drv, char *buf)
 
 static ssize_t components_show(struct device_driver *drv, char *buf)
 {
-	struct core_component *comp;
+	struct most_component *comp;
 	int offs = 0;
 
 	list_for_each_entry(comp, &mc.comp_list, list) {
@@ -544,12 +544,12 @@ static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 
 static
 inline int link_channel_to_component(struct most_channel *c,
-				     struct core_component *comp,
+				     struct most_component *comp,
 				     char *name,
 				     char *comp_param)
 {
 	int ret;
-	struct core_component **comp_ptr;
+	struct most_component **comp_ptr;
 
 	if (!c->pipe0.comp)
 		comp_ptr = &c->pipe0.comp;
@@ -660,7 +660,7 @@ int most_set_cfg_packets_xact(char *mdev, char *mdev_ch, u16 val)
 
 int most_cfg_complete(char *comp_name)
 {
-	struct core_component *comp;
+	struct most_component *comp;
 
 	comp = match_component(comp_name);
 	if (!comp)
@@ -673,7 +673,7 @@ int most_add_link(char *mdev, char *mdev_ch, char *comp_name, char *link_name,
 		  char *comp_param)
 {
 	struct most_channel *c = get_channel(mdev, mdev_ch);
-	struct core_component *comp = match_component(comp_name);
+	struct most_component *comp = match_component(comp_name);
 
 	if (!c || !comp)
 		return -ENODEV;
@@ -684,7 +684,7 @@ int most_add_link(char *mdev, char *mdev_ch, char *comp_name, char *link_name,
 int most_remove_link(char *mdev, char *mdev_ch, char *comp_name)
 {
 	struct most_channel *c;
-	struct core_component *comp;
+	struct most_component *comp;
 
 	comp = match_component(comp_name);
 	if (!comp)
@@ -950,7 +950,7 @@ static void most_write_completion(struct mbo *mbo)
 }
 
 int channel_has_mbo(struct most_interface *iface, int id,
-		    struct core_component *comp)
+		    struct most_component *comp)
 {
 	struct most_channel *c = iface->p->channel[id];
 	unsigned long flags;
@@ -981,7 +981,7 @@ EXPORT_SYMBOL_GPL(channel_has_mbo);
  * Returns a pointer to MBO on success or NULL otherwise.
  */
 struct mbo *most_get_mbo(struct most_interface *iface, int id,
-			 struct core_component *comp)
+			 struct most_component *comp)
 {
 	struct mbo *mbo;
 	struct most_channel *c;
@@ -1087,7 +1087,7 @@ static void most_read_completion(struct mbo *mbo)
  * Returns 0 on success or error code otherwise.
  */
 int most_start_channel(struct most_interface *iface, int id,
-		       struct core_component *comp)
+		       struct most_component *comp)
 {
 	int num_buffer;
 	int ret;
@@ -1157,7 +1157,7 @@ EXPORT_SYMBOL_GPL(most_start_channel);
  * @comp: driver component
  */
 int most_stop_channel(struct most_interface *iface, int id,
-		      struct core_component *comp)
+		      struct most_component *comp)
 {
 	struct most_channel *c;
 
@@ -1215,7 +1215,7 @@ EXPORT_SYMBOL_GPL(most_stop_channel);
  * most_register_component - registers a driver component with the core
  * @comp: driver component
  */
-int most_register_component(struct core_component *comp)
+int most_register_component(struct most_component *comp)
 {
 	if (!comp) {
 		pr_err("Bad component\n");
@@ -1231,7 +1231,7 @@ static int disconnect_channels(struct device *dev, void *data)
 {
 	struct most_interface *iface;
 	struct most_channel *c, *tmp;
-	struct core_component *comp = data;
+	struct most_component *comp = data;
 
 	iface = to_most_interface(dev);
 	list_for_each_entry_safe(c, tmp, &iface->p->channel_list, list) {
@@ -1249,7 +1249,7 @@ static int disconnect_channels(struct device *dev, void *data)
  * most_deregister_component - deregisters a driver component with the core
  * @comp: driver component
  */
-int most_deregister_component(struct core_component *comp)
+int most_deregister_component(struct most_component *comp)
 {
 	if (!comp) {
 		pr_err("Bad component\n");

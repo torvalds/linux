@@ -25,7 +25,7 @@ static struct cdev_component {
 	struct ida minor_id;
 	unsigned int major;
 	struct class *class;
-	struct core_component cc;
+	struct most_component cc;
 } comp;
 
 struct comp_channel {

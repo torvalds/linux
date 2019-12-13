@@ -25,7 +25,7 @@
 
 #define V4L2_CMP_MAX_INPUT  1
 
-static struct core_component comp;
+static struct most_component comp;
 
 struct most_video_dev {
 	struct most_interface *iface;
@@ -527,7 +527,7 @@ static int comp_disconnect_channel(struct most_interface *iface,
 	return 0;
 }
 
-static struct core_component comp = {
+static struct most_component comp = {
 	.mod = THIS_MODULE,
 	.name = "video",
 	.probe_channel = comp_probe_channel,

@@ -630,7 +630,7 @@ static struct most_sound most_sound_subsys = {
 	},
 };
 
-int most_register_configfs_subsys(struct core_component *c)
+int most_register_configfs_subsys(struct most_component *c)
 {
 	int ret;
 
@@ -674,7 +674,7 @@ void most_interface_register_notify(const char *mdev)
 		most_cfg_complete("sound");
 }
 
-void most_deregister_configfs_subsys(struct core_component *c)
+void most_deregister_configfs_subsys(struct most_component *c)
 {
 	if (!strcmp(c->name, "cdev"))
 		configfs_unregister_subsystem(&most_cdev.subsys);

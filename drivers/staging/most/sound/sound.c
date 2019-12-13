@@ -22,7 +22,7 @@
 #define DRIVER_NAME "sound"
 #define STRING_SIZE	80
 
-static struct core_component comp;
+static struct most_component comp;
 
 /**
  * struct channel - private structure to keep channel specific data
@@ -736,9 +736,9 @@ static int audio_tx_completion(struct most_interface *iface, int channel_id)
 }
 
 /**
- * Initialization of the struct core_component
+ * Initialization of the struct most_component
  */
-static struct core_component comp = {
+static struct most_component comp = {
 	.mod = THIS_MODULE,
 	.name = DRIVER_NAME,
 	.probe_channel = audio_probe_channel,
