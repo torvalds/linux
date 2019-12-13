@@ -177,18 +177,14 @@ static int pcm_open(struct snd_pcm_substream *substream)
 			err = snd_pcm_hw_constraint_minmax(substream->runtime,
 					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 					frames_per_period, frames_per_period);
-			if (err < 0) {
-				mutex_unlock(&motu->mutex);
+			if (err < 0)
 				goto err_locked;
-			}
 
 			err = snd_pcm_hw_constraint_minmax(substream->runtime,
 					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
 					frames_per_buffer, frames_per_buffer);
-			if (err < 0) {
-				mutex_unlock(&motu->mutex);
+			if (err < 0)
 				goto err_locked;
-			}
 		}
 	}
 
