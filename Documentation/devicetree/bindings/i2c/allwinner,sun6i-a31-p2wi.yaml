@@ -8,7 +8,7 @@ title: Allwinner A31 P2WI (Push/Pull 2 Wires Interface) Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 allOf:
   - $ref: /schemas/i2c/i2c-controller.yaml#
