@@ -4007,10 +4007,8 @@ static void dw_hdmi_reg_initial(struct dw_hdmi *hdmi)
 	}
 }
 
-void dw_hdmi_suspend(struct device *dev)
+void dw_hdmi_suspend(struct device *dev, struct dw_hdmi *hdmi)
 {
-	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
-
 	if (!hdmi) {
 		dev_warn(dev, "Hdmi has not been initialized\n");
 		return;
@@ -4039,10 +4037,8 @@ void dw_hdmi_suspend(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_suspend);
 
-void dw_hdmi_resume(struct device *dev)
+void dw_hdmi_resume(struct device *dev, struct dw_hdmi *hdmi)
 {
-	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
-
 	if (!hdmi) {
 		dev_warn(dev, "Hdmi has not been initialized\n");
 		return;

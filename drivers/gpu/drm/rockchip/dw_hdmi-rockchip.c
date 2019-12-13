@@ -1397,7 +1397,9 @@ static int dw_hdmi_rockchip_probe(struct platform_device *pdev)
 
 static void dw_hdmi_rockchip_shutdown(struct platform_device *pdev)
 {
-	dw_hdmi_suspend(&pdev->dev);
+	struct rockchip_hdmi *hdmi = platform_get_drvdata(pdev);
+
+	dw_hdmi_suspend(&pdev->dev, hdmi->hdmi);
 	pm_runtime_put_sync(&pdev->dev);
 }
 
@@ -1411,7 +1413,9 @@ static int dw_hdmi_rockchip_remove(struct platform_device *pdev)
 
 static int dw_hdmi_rockchip_suspend(struct device *dev)
 {
-	dw_hdmi_suspend(dev);
+	struct rockchip_hdmi *hdmi = dev_get_drvdata(dev);
+
+	dw_hdmi_suspend(dev, hdmi->hdmi);
 	pm_runtime_put_sync(dev);
 
 	return 0;
@@ -1419,8 +1423,10 @@ static int dw_hdmi_rockchip_suspend(struct device *dev)
 
 static int dw_hdmi_rockchip_resume(struct device *dev)
 {
+	struct rockchip_hdmi *hdmi = dev_get_drvdata(dev);
+
 	pm_runtime_get_sync(dev);
-	dw_hdmi_resume(dev);
+	dw_hdmi_resume(dev, hdmi->hdmi);
 
 	return  0;
 }
