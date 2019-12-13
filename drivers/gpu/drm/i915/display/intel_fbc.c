@@ -41,6 +41,7 @@
 #include <drm/drm_fourcc.h>
 
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
@@ -200,6 +201,10 @@ static bool g4x_fbc_is_active(struct drm_i915_private *dev_priv)
 /* This function forces a CFB recompression through the nuke operation. */
 static void intel_fbc_recompress(struct drm_i915_private *dev_priv)
 {
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	trace_intel_fbc_nuke(fbc->crtc);
+
 	I915_WRITE(MSG_FBC_REND_STATE, FBC_REND_NUKE);
 	POSTING_READ(MSG_FBC_REND_STATE);
 }
@@ -356,6 +361,8 @@ static void intel_fbc_hw_activate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
+	trace_intel_fbc_activate(fbc->crtc);
+
 	fbc->active = true;
 	fbc->activated = true;
 
@@ -372,6 +379,8 @@ static void intel_fbc_hw_activate(struct drm_i915_private *dev_priv)
 static void intel_fbc_hw_deactivate(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	trace_intel_fbc_deactivate(fbc->crtc);
 
 	fbc->active = false;
 
