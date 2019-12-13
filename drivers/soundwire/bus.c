@@ -790,18 +790,15 @@ static int sdw_bus_wait_for_clk_prep_deprep(struct sdw_bus *bus, u16 dev_num)
 	do {
 		val = sdw_bread_no_pm(bus, dev_num, SDW_SCP_STAT) &
 			SDW_SCP_STAT_CLK_STP_NF;
-		if (!val)
-			break;
+		if (!val) {
+			dev_info(bus->dev, "clock stop prep/de-prep done slave:%d",
+				 dev_num);
+			return 0;
+		}
 
 		usleep_range(1000, 1500);
 		retry--;
 	} while (retry);
-
-	if (retry && !val) {
-		dev_info(bus->dev, "clock stop prep/de-prep done slave:%d",
-			 dev_num);
-		return 0;
-	}
 
 	dev_err(bus->dev, "clock stop prep/de-prep failed slave:%d",
 		dev_num);
