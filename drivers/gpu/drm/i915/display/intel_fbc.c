@@ -867,16 +867,23 @@ static bool intel_fbc_can_flip_nuke(const struct intel_crtc_state *crtc_state)
 	return true;
 }
 
-bool intel_fbc_pre_update(struct intel_crtc *crtc,
-			  const struct intel_crtc_state *crtc_state,
-			  const struct intel_plane_state *plane_state)
+bool intel_fbc_pre_update(struct intel_atomic_state *state,
+			  struct intel_crtc *crtc)
 {
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_plane_state *plane_state =
+		intel_atomic_get_new_plane_state(state, plane);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	const char *reason = "update pending";
 	bool need_vblank_wait = false;
 
 	if (!fbc_supported(dev_priv))
+		return need_vblank_wait;
+
+	if (!plane_state)
 		return need_vblank_wait;
 
 	mutex_lock(&fbc->lock);
@@ -967,12 +974,19 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 		intel_fbc_deactivate(dev_priv, "frontbuffer write");
 }
 
-void intel_fbc_post_update(struct intel_crtc *crtc)
+void intel_fbc_post_update(struct intel_atomic_state *state,
+			   struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	const struct intel_plane_state *plane_state =
+		intel_atomic_get_new_plane_state(state, plane);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (!fbc_supported(dev_priv))
+		return;
+
+	if (!plane_state)
 		return;
 
 	mutex_lock(&fbc->lock);
@@ -1107,16 +1121,22 @@ out:
  * intel_fbc_enable multiple times for the same pipe without an
  * intel_fbc_disable in the middle, as long as it is deactivated.
  */
-void intel_fbc_enable(struct intel_crtc *crtc,
-		      const struct intel_crtc_state *crtc_state,
-		      const struct intel_plane_state *plane_state)
+void intel_fbc_enable(struct intel_atomic_state *state,
+		      struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_plane_state *plane_state =
+		intel_atomic_get_new_plane_state(state, plane);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
 
 	if (!fbc_supported(dev_priv))
+		return;
+
+	if (!plane_state)
 		return;
 
 	mutex_lock(&fbc->lock);
@@ -1139,14 +1159,14 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 
 	if (intel_fbc_alloc_cfb(dev_priv,
 				intel_fbc_calculate_cfb_size(dev_priv, cache),
-				fb->format->cpp[0])) {
+				plane_state->hw.fb->format->cpp[0])) {
 		cache->plane.visible = false;
 		fbc->no_fbc_reason = "not enough stolen memory";
 		goto out;
 	}
 
 	if ((IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) &&
-	    fb->modifier != I915_FORMAT_MOD_X_TILED)
+	    plane_state->hw.fb->modifier != I915_FORMAT_MOD_X_TILED)
 		cache->gen9_wa_cfb_stride =
 			DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->threshold) * 8;
 	else

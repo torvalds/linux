@@ -6382,13 +6382,10 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_plane *primary = to_intel_plane(crtc->base.primary);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	const struct intel_plane_state *new_primary_state =
-		intel_atomic_get_new_plane_state(state, primary);
 	enum pipe pipe = crtc->pipe;
 
 	intel_frontbuffer_flip(dev_priv, new_crtc_state->fb_bits);
@@ -6399,8 +6396,7 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 	if (hsw_post_update_enable_ips(old_crtc_state, new_crtc_state))
 		hsw_enable_ips(new_crtc_state);
 
-	if (new_primary_state)
-		intel_fbc_post_update(crtc);
+	intel_fbc_post_update(state, crtc);
 
 	if (needs_nv12_wa(old_crtc_state) &&
 	    !needs_nv12_wa(new_crtc_state))
@@ -6415,20 +6411,16 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_plane *primary = to_intel_plane(crtc->base.primary);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	const struct intel_plane_state *new_primary_state =
-		intel_atomic_get_new_plane_state(state, primary);
 	enum pipe pipe = crtc->pipe;
 
 	if (hsw_pre_update_disable_ips(old_crtc_state, new_crtc_state))
 		hsw_disable_ips(old_crtc_state);
 
-	if (new_primary_state &&
-	    intel_fbc_pre_update(crtc, new_crtc_state, new_primary_state))
+	if (intel_fbc_pre_update(state, crtc))
 		intel_wait_for_vblank(dev_priv, pipe);
 
 	/* Display WA 827 */
@@ -14857,9 +14849,6 @@ static void intel_update_crtc(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	bool modeset = needs_modeset(new_crtc_state);
-	struct intel_plane_state *new_plane_state =
-		intel_atomic_get_new_plane_state(state,
-						 to_intel_plane(crtc->base.primary));
 
 	if (modeset) {
 		intel_crtc_update_active_timings(new_crtc_state);
@@ -14882,8 +14871,8 @@ static void intel_update_crtc(struct intel_crtc *crtc,
 
 	if (new_crtc_state->update_pipe && !new_crtc_state->enable_fbc)
 		intel_fbc_disable(crtc);
-	else if (new_plane_state)
-		intel_fbc_enable(crtc, new_crtc_state, new_plane_state);
+	else
+		intel_fbc_enable(state, crtc);
 
 	/* Perform vblank evasion around commit operation */
 	intel_pipe_update_start(new_crtc_state);
@@ -15045,15 +15034,12 @@ static void intel_post_crtc_enable_updates(struct intel_crtc *crtc,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
-	struct intel_plane_state *new_plane_state =
-		intel_atomic_get_new_plane_state(state,
-						 to_intel_plane(crtc->base.primary));
 	bool modeset = needs_modeset(new_crtc_state);
 
 	if (new_crtc_state->update_pipe && !new_crtc_state->enable_fbc)
 		intel_fbc_disable(crtc);
-	else if (new_plane_state)
-		intel_fbc_enable(crtc, new_crtc_state, new_plane_state);
+	else
+		intel_fbc_enable(state, crtc);
 
 	/* Perform vblank evasion around commit operation */
 	intel_pipe_update_start(new_crtc_state);
