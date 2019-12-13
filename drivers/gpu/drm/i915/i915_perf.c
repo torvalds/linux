@@ -387,6 +387,8 @@ struct i915_oa_config_bo {
 	struct i915_vma *vma;
 };
 
+static struct ctl_table_header *sysctl_header;
+
 static enum hrtimer_restart oa_poll_check_timer_cb(struct hrtimer *hrtimer);
 
 void i915_oa_config_release(struct kref *ref)
@@ -4228,7 +4230,7 @@ static struct ctl_table dev_root[] = {
 };
 
 /**
- * i915_perf_init - initialize i915-perf state on module load
+ * i915_perf_init - initialize i915-perf state on module bind
  * @i915: i915 device instance
  *
  * Initializes i915-perf state without exposing anything to userspace.
@@ -4345,7 +4347,6 @@ void i915_perf_init(struct drm_i915_private *i915)
 
 		oa_sample_rate_hard_limit = 1000 *
 			(RUNTIME_INFO(i915)->cs_timestamp_frequency_khz / 2);
-		perf->sysctl_header = register_sysctl_table(dev_root);
 
 		mutex_init(&perf->metrics_lock);
 		idr_init(&perf->metrics_idr);
@@ -4381,6 +4382,16 @@ static int destroy_config(int id, void *p, void *data)
 	return 0;
 }
 
+void i915_perf_sysctl_register(void)
+{
+	sysctl_header = register_sysctl_table(dev_root);
+}
+
+void i915_perf_sysctl_unregister(void)
+{
+	unregister_sysctl_table(sysctl_header);
+}
+
 /**
  * i915_perf_fini - Counter part to i915_perf_init()
  * @i915: i915 device instance
@@ -4394,8 +4405,6 @@ void i915_perf_fini(struct drm_i915_private *i915)
 
 	idr_for_each(&perf->metrics_idr, destroy_config, perf);
 	idr_destroy(&perf->metrics_idr);
-
-	unregister_sysctl_table(perf->sysctl_header);
 
 	memset(&perf->ops, 0, sizeof(perf->ops));
 	perf->i915 = NULL;
