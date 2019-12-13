@@ -466,10 +466,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 	if (!IS_ENABLED(CONFIG_MAGIC_SYSRQ_SERIAL))
 		return 0;
 
-	if (!port->has_sysrq && !IS_ENABLED(SUPPORT_SYSRQ))
-		return 0;
-
-	if (!port->sysrq)
+	if (!port->has_sysrq || !port->sysrq)
 		return 0;
 
 	if (ch && time_before(jiffies, port->sysrq)) {
@@ -487,10 +484,7 @@ uart_prepare_sysrq_char(struct uart_port *port, unsigned int ch)
 	if (!IS_ENABLED(CONFIG_MAGIC_SYSRQ_SERIAL))
 		return 0;
 
-	if (!port->has_sysrq && !IS_ENABLED(SUPPORT_SYSRQ))
-		return 0;
-
-	if (!port->sysrq)
+	if (!port->has_sysrq || !port->sysrq)
 		return 0;
 
 	if (ch && time_before(jiffies, port->sysrq)) {
@@ -507,7 +501,7 @@ uart_unlock_and_check_sysrq(struct uart_port *port, unsigned long irqflags)
 {
 	int sysrq_ch;
 
-	if (!port->has_sysrq && !IS_ENABLED(SUPPORT_SYSRQ)) {
+	if (!port->has_sysrq) {
 		spin_unlock_irqrestore(&port->lock, irqflags);
 		return;
 	}
@@ -531,7 +525,7 @@ static inline int uart_handle_break(struct uart_port *port)
 	if (port->handle_break)
 		port->handle_break(port);
 
-	if (port->has_sysrq || IS_ENABLED(SUPPORT_SYSRQ)) {
+	if (port->has_sysrq) {
 		if (port->cons && port->cons->index == port->line) {
 			if (!port->sysrq) {
 				port->sysrq = jiffies + HZ*5;
