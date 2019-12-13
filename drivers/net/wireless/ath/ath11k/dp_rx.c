@@ -1225,12 +1225,12 @@ static
 struct htt_ppdu_stats_info *ath11k_dp_htt_get_ppdu_desc(struct ath11k *ar,
 							u32 ppdu_id)
 {
-	struct htt_ppdu_stats_info *ppdu_info = NULL;
+	struct htt_ppdu_stats_info *ppdu_info;
 
 	spin_lock_bh(&ar->data_lock);
 	if (!list_empty(&ar->ppdu_stats_info)) {
 		list_for_each_entry(ppdu_info, &ar->ppdu_stats_info, list) {
-			if (ppdu_info && ppdu_info->ppdu_id == ppdu_id) {
+			if (ppdu_info->ppdu_id == ppdu_id) {
 				spin_unlock_bh(&ar->data_lock);
 				return ppdu_info;
 			}
