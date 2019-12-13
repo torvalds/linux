@@ -179,8 +179,7 @@
 
 		gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi1: regulator-vcc-sdhi1 {
@@ -203,8 +202,7 @@
 
 		gpios = <&gpio2 13 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi2: regulator-vcc-sdhi2 {
@@ -227,8 +225,7 @@
 
 		gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	audio_clock: audio_clock {
