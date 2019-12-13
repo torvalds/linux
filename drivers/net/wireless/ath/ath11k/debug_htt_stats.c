@@ -4287,7 +4287,6 @@ int ath11k_dbg_htt_stats_req(struct ath11k *ar)
 	ret = ath11k_dp_tx_htt_h2t_ext_stats_req(ar, type, &cfg_params, cookie);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to send htt stats request: %d\n", ret);
-		mutex_unlock(&ar->conf_mutex);
 		return ret;
 	}
 
