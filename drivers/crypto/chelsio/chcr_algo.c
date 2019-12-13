@@ -1379,7 +1379,8 @@ static int chcr_device_init(struct chcr_context *ctx)
 		txq_perchan = ntxq / u_ctx->lldi.nchan;
 		spin_lock(&ctx->dev->lock_chcr_dev);
 		ctx->tx_chan_id = ctx->dev->tx_channel_id;
-		ctx->dev->tx_channel_id = !ctx->dev->tx_channel_id;
+		ctx->dev->tx_channel_id =
+			(ctx->dev->tx_channel_id + 1) %  u_ctx->lldi.nchan;
 		spin_unlock(&ctx->dev->lock_chcr_dev);
 		rxq_idx = ctx->tx_chan_id * rxq_perchan;
 		rxq_idx += id % rxq_perchan;
