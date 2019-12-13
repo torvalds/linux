@@ -441,6 +441,7 @@ static int ath11k_ce_alloc_pipe(struct ath11k_base *ab, int ce_id)
 {
 	struct ath11k_ce_pipe *pipe = &ab->ce.ce_pipe[ce_id];
 	const struct ce_attr *attr = &host_ce_config_wlan[ce_id];
+	struct ath11k_ce_ring *ring;
 	int nentries;
 	int desc_sz;
 
@@ -450,24 +451,26 @@ static int ath11k_ce_alloc_pipe(struct ath11k_base *ab, int ce_id)
 		pipe->send_cb = ath11k_ce_send_done_cb;
 		nentries = roundup_pow_of_two(attr->src_nentries);
 		desc_sz = ath11k_hal_ce_get_desc_size(HAL_CE_DESC_SRC);
-		pipe->src_ring = ath11k_ce_alloc_ring(ab, nentries, desc_sz);
-		if (!pipe->src_ring)
-			return -ENOMEM;
+		ring = ath11k_ce_alloc_ring(ab, nentries, desc_sz);
+		if (IS_ERR(ring))
+			return PTR_ERR(ring);
+		pipe->src_ring = ring;
 	}
 
 	if (attr->dest_nentries) {
 		pipe->recv_cb = attr->recv_cb;
 		nentries = roundup_pow_of_two(attr->dest_nentries);
 		desc_sz = ath11k_hal_ce_get_desc_size(HAL_CE_DESC_DST);
-		pipe->dest_ring = ath11k_ce_alloc_ring(ab, nentries, desc_sz);
-
-		if (!pipe->dest_ring)
-			return -ENOMEM;
+		ring = ath11k_ce_alloc_ring(ab, nentries, desc_sz);
+		if (IS_ERR(ring))
+			return PTR_ERR(ring);
+		pipe->dest_ring = ring;
 
 		desc_sz = ath11k_hal_ce_get_desc_size(HAL_CE_DESC_DST_STATUS);
-		pipe->status_ring = ath11k_ce_alloc_ring(ab, nentries, desc_sz);
-		if (!pipe->status_ring)
-			return -ENOMEM;
+		ring = ath11k_ce_alloc_ring(ab, nentries, desc_sz);
+		if (IS_ERR(ring))
+			return PTR_ERR(ring);
+		pipe->status_ring = ring;
 	}
 
 	return 0;
