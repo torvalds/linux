@@ -16672,8 +16672,6 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	} else if (IS_IVYBRIDGE(dev_priv)) {
 		/* FIXME: detect B0+ stepping and use auto training */
 		dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9)

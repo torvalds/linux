@@ -278,7 +278,7 @@ static void hsw_pre_enable_crt(struct intel_encoder *encoder,
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	dev_priv->display.fdi_link_train(crtc, crtc_state);
+	hsw_fdi_link_train(encoder, crtc_state);
 
 	intel_ddi_enable_pipe_clock(crtc_state);
 }

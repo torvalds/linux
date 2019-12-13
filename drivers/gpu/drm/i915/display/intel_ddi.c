@@ -1107,18 +1107,14 @@ static u32 icl_pll_to_ddi_clk_sel(struct intel_encoder *encoder,
  * DDI A (which is used for eDP)
  */
 
-void hsw_fdi_link_train(struct intel_crtc *crtc,
+void hsw_fdi_link_train(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_encoder *encoder;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 temp, i, rx_ctl_val, ddi_pll_sel;
 
-	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
-		WARN_ON(encoder->type != INTEL_OUTPUT_ANALOG);
-		intel_prepare_dp_ddi_buffers(encoder, crtc_state);
-	}
+	intel_prepare_dp_ddi_buffers(encoder, crtc_state);
 
 	/* Set the FDI_RX_MISC pwrdn lanes and the 2 workarounds listed at the
 	 * mode set "sequence for CRT port" document:
