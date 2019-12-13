@@ -71,32 +71,56 @@ static uint32_t get_sdma_rlc_reg_offset(struct amdgpu_device *adev,
 				unsigned int engine_id,
 				unsigned int queue_id)
 {
-	uint32_t sdma_engine_reg_base[8] = {
-		SOC15_REG_OFFSET(SDMA0, 0,
-				 mmSDMA0_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL,
-		SOC15_REG_OFFSET(SDMA1, 0,
-				 mmSDMA1_RLC0_RB_CNTL) - mmSDMA1_RLC0_RB_CNTL,
-		SOC15_REG_OFFSET(SDMA2, 0,
-				 mmSDMA2_RLC0_RB_CNTL) - mmSDMA2_RLC0_RB_CNTL,
-		SOC15_REG_OFFSET(SDMA3, 0,
-				 mmSDMA3_RLC0_RB_CNTL) - mmSDMA3_RLC0_RB_CNTL,
-		SOC15_REG_OFFSET(SDMA4, 0,
-				 mmSDMA4_RLC0_RB_CNTL) - mmSDMA4_RLC0_RB_CNTL,
-		SOC15_REG_OFFSET(SDMA5, 0,
-				 mmSDMA5_RLC0_RB_CNTL) - mmSDMA5_RLC0_RB_CNTL,
-		SOC15_REG_OFFSET(SDMA6, 0,
-				 mmSDMA6_RLC0_RB_CNTL) - mmSDMA6_RLC0_RB_CNTL,
-		SOC15_REG_OFFSET(SDMA7, 0,
-				 mmSDMA7_RLC0_RB_CNTL) - mmSDMA7_RLC0_RB_CNTL
-	};
+	uint32_t sdma_engine_reg_base = 0;
+	uint32_t sdma_rlc_reg_offset;
 
-	uint32_t retval = sdma_engine_reg_base[engine_id]
+	switch (engine_id) {
+	default:
+		dev_warn(adev->dev,
+			 "Invalid sdma engine id (%d), using engine id 0\n",
+			 engine_id);
+		/* fall through */
+	case 0:
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA0, 0,
+				mmSDMA0_RLC0_RB_CNTL) - mmSDMA0_RLC0_RB_CNTL;
+		break;
+	case 1:
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA1, 0,
+				mmSDMA1_RLC0_RB_CNTL) - mmSDMA1_RLC0_RB_CNTL;
+		break;
+	case 2:
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA2, 0,
+				mmSDMA2_RLC0_RB_CNTL) - mmSDMA2_RLC0_RB_CNTL;
+		break;
+	case 3:
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA3, 0,
+				mmSDMA3_RLC0_RB_CNTL) - mmSDMA3_RLC0_RB_CNTL;
+		break;
+	case 4:
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA4, 0,
+				mmSDMA4_RLC0_RB_CNTL) - mmSDMA4_RLC0_RB_CNTL;
+		break;
+	case 5:
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA5, 0,
+				mmSDMA5_RLC0_RB_CNTL) - mmSDMA5_RLC0_RB_CNTL;
+		break;
+	case 6:
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA6, 0,
+				mmSDMA6_RLC0_RB_CNTL) - mmSDMA6_RLC0_RB_CNTL;
+		break;
+	case 7:
+		sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA7, 0,
+				mmSDMA7_RLC0_RB_CNTL) - mmSDMA7_RLC0_RB_CNTL;
+		break;
+	}
+
+	sdma_rlc_reg_offset = sdma_engine_reg_base
 		+ queue_id * (mmSDMA0_RLC1_RB_CNTL - mmSDMA0_RLC0_RB_CNTL);
 
 	pr_debug("RLC register offset for SDMA%d RLC%d: 0x%x\n", engine_id,
-			queue_id, retval);
+			queue_id, sdma_rlc_reg_offset);
 
-	return retval;
+	return sdma_rlc_reg_offset;
 }
 
 static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
