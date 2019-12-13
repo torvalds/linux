@@ -17,7 +17,7 @@
 #include <sound/pcm_params.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
-#include <most/core.h>
+#include <most/most.h>
 
 #define DRIVER_NAME "sound"
 #define STRING_SIZE	80

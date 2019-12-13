@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/configfs.h>
-#include <most/core.h>
+#include <most/most.h>
 
 struct mdev_link {
 	struct config_item item;

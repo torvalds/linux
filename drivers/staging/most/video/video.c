@@ -21,7 +21,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
 
-#include "most/core.h"
+#include "most/most.h"
 
 #define V4L2_CMP_MAX_INPUT  1
 
