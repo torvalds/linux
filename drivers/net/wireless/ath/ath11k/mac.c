@@ -1917,9 +1917,9 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_TWT) {
 		if (info->twt_requester || info->twt_responder)
-			ath11k_wmi_send_twt_enable_cmd(ar, ar->pdev_idx);
+			ath11k_wmi_send_twt_enable_cmd(ar, ar->pdev->pdev_id);
 		else
-			ath11k_wmi_send_twt_disable_cmd(ar, ar->pdev_idx);
+			ath11k_wmi_send_twt_disable_cmd(ar, ar->pdev->pdev_id);
 	}
 
 	if (changed & BSS_CHANGED_HE_OBSS_PD)
