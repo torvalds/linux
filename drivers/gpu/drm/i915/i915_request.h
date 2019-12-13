@@ -49,6 +49,13 @@ struct i915_capture_list {
 	struct i915_vma *vma;
 };
 
+#define RQ_TRACE(rq, fmt, ...) do {					\
+	const struct i915_request *rq__ = (rq);				\
+	ENGINE_TRACE(rq__->engine, "fence %llx:%lld, current %d" fmt,	\
+		     rq__->fence.context, rq__->fence.seqno,		\
+		     hwsp_seqno(rq__), ##__VA_ARGS__);			\
+} while (0)
+
 enum {
 	/*
 	 * I915_FENCE_FLAG_ACTIVE - this request is currently submitted to HW.

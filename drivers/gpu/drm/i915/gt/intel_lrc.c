@@ -1069,8 +1069,8 @@ static void reset_active(struct i915_request *rq,
 	 * remain correctly ordered. And we defer to __i915_request_submit()
 	 * so that all asynchronous waits are correctly handled.
 	 */
-	GEM_TRACE("%s(%s): { rq=%llx:%lld }\n",
-		  __func__, engine->name, rq->fence.context, rq->fence.seqno);
+	ENGINE_TRACE(engine, "{ rq=%llx:%lld }\n",
+		     rq->fence.context, rq->fence.seqno);
 
 	/* On resubmission of the active request, payload will be scrubbed */
 	if (i915_request_completed(rq))
@@ -1274,15 +1274,14 @@ trace_ports(const struct intel_engine_execlists *execlists,
 	if (!ports[0])
 		return;
 
-	GEM_TRACE("%s: %s { %llx:%lld%s, %llx:%lld }\n",
-		  engine->name, msg,
-		  ports[0]->fence.context,
-		  ports[0]->fence.seqno,
-		  i915_request_completed(ports[0]) ? "!" :
-		  i915_request_started(ports[0]) ? "*" :
-		  "",
-		  ports[1] ? ports[1]->fence.context : 0,
-		  ports[1] ? ports[1]->fence.seqno : 0);
+	ENGINE_TRACE(engine, "%s { %llx:%lld%s, %llx:%lld }\n", msg,
+		     ports[0]->fence.context,
+		     ports[0]->fence.seqno,
+		     i915_request_completed(ports[0]) ? "!" :
+		     i915_request_started(ports[0]) ? "*" :
+		     "",
+		     ports[1] ? ports[1]->fence.context : 0,
+		     ports[1] ? ports[1]->fence.seqno : 0);
 }
 
 static __maybe_unused bool
@@ -1700,12 +1699,12 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	last = last_active(execlists);
 	if (last) {
 		if (need_preempt(engine, last, rb)) {
-			GEM_TRACE("%s: preempting last=%llx:%lld, prio=%d, hint=%d\n",
-				  engine->name,
-				  last->fence.context,
-				  last->fence.seqno,
-				  last->sched.attr.priority,
-				  execlists->queue_priority_hint);
+			ENGINE_TRACE(engine,
+				     "preempting last=%llx:%lld, prio=%d, hint=%d\n",
+				     last->fence.context,
+				     last->fence.seqno,
+				     last->sched.attr.priority,
+				     execlists->queue_priority_hint);
 			record_preemption(execlists);
 
 			/*
@@ -1735,12 +1734,12 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			last = NULL;
 		} else if (need_timeslice(engine, last) &&
 			   timer_expired(&engine->execlists.timer)) {
-			GEM_TRACE("%s: expired last=%llx:%lld, prio=%d, hint=%d\n",
-				  engine->name,
-				  last->fence.context,
-				  last->fence.seqno,
-				  last->sched.attr.priority,
-				  execlists->queue_priority_hint);
+			ENGINE_TRACE(engine,
+				     "expired last=%llx:%lld, prio=%d, hint=%d\n",
+				     last->fence.context,
+				     last->fence.seqno,
+				     last->sched.attr.priority,
+				     execlists->queue_priority_hint);
 
 			ring_set_paused(engine, 1);
 			defer_active(engine);
@@ -1817,14 +1816,14 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				return; /* leave this for another */
 			}
 
-			GEM_TRACE("%s: virtual rq=%llx:%lld%s, new engine? %s\n",
-				  engine->name,
-				  rq->fence.context,
-				  rq->fence.seqno,
-				  i915_request_completed(rq) ? "!" :
-				  i915_request_started(rq) ? "*" :
-				  "",
-				  yesno(engine != ve->siblings[0]));
+			ENGINE_TRACE(engine,
+				     "virtual rq=%llx:%lld%s, new engine? %s\n",
+				     rq->fence.context,
+				     rq->fence.seqno,
+				     i915_request_completed(rq) ? "!" :
+				     i915_request_started(rq) ? "*" :
+				     "",
+				     yesno(engine != ve->siblings[0]));
 
 			ve->request = NULL;
 			ve->base.execlists.queue_priority_hint = INT_MIN;
@@ -1980,9 +1979,6 @@ done:
 	 * interrupt for secondary ports).
 	 */
 	execlists->queue_priority_hint = queue_prio(execlists);
-	GEM_TRACE("%s: queue_priority_hint:%d, submit:%s\n",
-		  engine->name, execlists->queue_priority_hint,
-		  yesno(submit));
 
 	if (submit) {
 		*port = execlists_schedule_in(last, port - execlists->pending);
@@ -2131,7 +2127,7 @@ static void process_csb(struct intel_engine_cs *engine)
 	 */
 	head = execlists->csb_head;
 	tail = READ_ONCE(*execlists->csb_write);
-	GEM_TRACE("%s cs-irq head=%d, tail=%d\n", engine->name, head, tail);
+	ENGINE_TRACE(engine, "cs-irq head=%d, tail=%d\n", head, tail);
 	if (unlikely(head == tail))
 		return;
 
@@ -2169,9 +2165,8 @@ static void process_csb(struct intel_engine_cs *engine)
 		 * status notifier.
 		 */
 
-		GEM_TRACE("%s csb[%d]: status=0x%08x:0x%08x\n",
-			  engine->name, head,
-			  buf[2 * head + 0], buf[2 * head + 1]);
+		ENGINE_TRACE(engine, "csb[%d]: status=0x%08x:0x%08x\n",
+			     head, buf[2 * head + 0], buf[2 * head + 1]);
 
 		if (INTEL_GEN(engine->i915) >= 12)
 			promote = gen12_csb_parse(execlists, buf + 2 * head);
@@ -2262,10 +2257,9 @@ static noinline void preempt_reset(struct intel_engine_cs *engine)
 	/* Mark this tasklet as disabled to avoid waiting for it to complete */
 	tasklet_disable_nosync(&engine->execlists.tasklet);
 
-	GEM_TRACE("%s: preempt timeout %lu+%ums\n",
-		  engine->name,
-		  READ_ONCE(engine->props.preempt_timeout_ms),
-		  jiffies_to_msecs(jiffies - engine->execlists.preempt.expires));
+	ENGINE_TRACE(engine, "preempt timeout %lu+%ums\n",
+		     READ_ONCE(engine->props.preempt_timeout_ms),
+		     jiffies_to_msecs(jiffies - engine->execlists.preempt.expires));
 	intel_engine_reset(engine, "preemption time out");
 
 	tasklet_enable(&engine->execlists.tasklet);
@@ -2971,8 +2965,8 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	unsigned long flags;
 
-	GEM_TRACE("%s: depth<-%d\n", engine->name,
-		  atomic_read(&execlists->tasklet.count));
+	ENGINE_TRACE(engine, "depth<-%d\n",
+		     atomic_read(&execlists->tasklet.count));
 
 	/*
 	 * Prevent request submission to the hardware until we have
@@ -3134,8 +3128,8 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	restore_default_state(ce, engine);
 
 out_replay:
-	GEM_TRACE("%s replay {head:%04x, tail:%04x}\n",
-		  engine->name, ce->ring->head, ce->ring->tail);
+	ENGINE_TRACE(engine, "replay {head:%04x, tail:%04x}\n",
+		     ce->ring->head, ce->ring->tail);
 	intel_ring_update_space(ce->ring);
 	__execlists_reset_reg_state(ce, engine);
 	__execlists_update_reg_state(ce, engine);
@@ -3151,7 +3145,7 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 {
 	unsigned long flags;
 
-	GEM_TRACE("%s\n", engine->name);
+	ENGINE_TRACE(engine, "\n");
 
 	spin_lock_irqsave(&engine->active.lock, flags);
 
@@ -3172,7 +3166,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	struct rb_node *rb;
 	unsigned long flags;
 
-	GEM_TRACE("%s\n", engine->name);
+	ENGINE_TRACE(engine, "\n");
 
 	/*
 	 * Before we call engine->cancel_requests(), we should have exclusive
@@ -3259,8 +3253,8 @@ static void execlists_reset_finish(struct intel_engine_cs *engine)
 	if (__tasklet_enable(&execlists->tasklet))
 		/* And kick in case we missed a new request submission. */
 		tasklet_hi_schedule(&execlists->tasklet);
-	GEM_TRACE("%s: depth->%d\n", engine->name,
-		  atomic_read(&execlists->tasklet.count));
+	ENGINE_TRACE(engine, "depth->%d\n",
+		     atomic_read(&execlists->tasklet.count));
 }
 
 static int gen8_emit_bb_start(struct i915_request *rq,
@@ -4309,10 +4303,9 @@ static intel_engine_mask_t virtual_submission_mask(struct virtual_engine *ve)
 		mask = ve->siblings[0]->mask;
 	}
 
-	GEM_TRACE("%s: rq=%llx:%lld, mask=%x, prio=%d\n",
-		  ve->base.name,
-		  rq->fence.context, rq->fence.seqno,
-		  mask, ve->base.execlists.queue_priority_hint);
+	ENGINE_TRACE(&ve->base, "rq=%llx:%lld, mask=%x, prio=%d\n",
+		     rq->fence.context, rq->fence.seqno,
+		     mask, ve->base.execlists.queue_priority_hint);
 
 	return mask;
 }
@@ -4403,10 +4396,9 @@ static void virtual_submit_request(struct i915_request *rq)
 	struct i915_request *old;
 	unsigned long flags;
 
-	GEM_TRACE("%s: rq=%llx:%lld\n",
-		  ve->base.name,
-		  rq->fence.context,
-		  rq->fence.seqno);
+	ENGINE_TRACE(&ve->base, "rq=%llx:%lld\n",
+		     rq->fence.context,
+		     rq->fence.seqno);
 
 	GEM_BUG_ON(ve->base.submit_request != virtual_submit_request);
 

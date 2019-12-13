@@ -29,6 +29,13 @@ struct intel_gt;
 #define CACHELINE_BYTES 64
 #define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(u32))
 
+#define ENGINE_TRACE(e, fmt, ...) do {					\
+	const struct intel_engine_cs *e__ __maybe_unused = (e);		\
+	GEM_TRACE("%s %s: " fmt,					\
+		  dev_name(e__->i915->drm.dev), e__->name,		\
+		  ##__VA_ARGS__);					\
+} while (0)
+
 /*
  * The register defines to be used with the following macros need to accept a
  * base param, e.g:

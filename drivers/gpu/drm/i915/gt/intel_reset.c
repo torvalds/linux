@@ -1089,7 +1089,7 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 	bool uses_guc = intel_engine_in_guc_submission_mode(engine);
 	int ret;
 
-	GEM_TRACE("%s flags=%lx\n", engine->name, gt->reset.flags);
+	ENGINE_TRACE(engine, "flags=%lx\n", gt->reset.flags);
 	GEM_BUG_ON(!test_bit(I915_RESET_ENGINE + engine->id, &gt->reset.flags));
 
 	if (!intel_engine_pm_get_if_awake(engine))

@@ -13,7 +13,7 @@
 
 void i915_gem_suspend(struct drm_i915_private *i915)
 {
-	GEM_TRACE("\n");
+	GEM_TRACE("%s\n", dev_name(i915->drm.dev));
 
 	intel_wakeref_auto(&i915->ggtt.userfault_wakeref, 0);
 	flush_workqueue(i915->wq);
@@ -99,7 +99,7 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 
 void i915_gem_resume(struct drm_i915_private *i915)
 {
-	GEM_TRACE("\n");
+	GEM_TRACE("%s\n", dev_name(i915->drm.dev));
 
 	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 

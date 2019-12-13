@@ -632,8 +632,8 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	struct intel_ring *ring = engine->legacy.ring;
 	int ret = 0;
 
-	GEM_TRACE("%s: ring:{HEAD:%04x, TAIL:%04x}\n",
-		  engine->name, ring->head, ring->tail);
+	ENGINE_TRACE(engine, "ring:{HEAD:%04x, TAIL:%04x}\n",
+		     ring->head, ring->tail);
 
 	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
 
@@ -746,10 +746,10 @@ static void reset_prepare(struct intel_engine_cs *engine)
 	 *
 	 * FIXME: Wa for more modern gens needs to be validated
 	 */
-	GEM_TRACE("%s\n", engine->name);
+	ENGINE_TRACE(engine, "\n");
 
 	if (intel_engine_stop_cs(engine))
-		GEM_TRACE("%s: timed out on STOP_RING\n", engine->name);
+		ENGINE_TRACE(engine, "timed out on STOP_RING\n");
 
 	intel_uncore_write_fw(uncore,
 			      RING_HEAD(base),
@@ -765,9 +765,8 @@ static void reset_prepare(struct intel_engine_cs *engine)
 
 	/* Check acts as a post */
 	if (intel_uncore_read_fw(uncore, RING_HEAD(base)))
-		GEM_TRACE("%s: ring head [%x] not parked\n",
-			  engine->name,
-			  intel_uncore_read_fw(uncore, RING_HEAD(base)));
+		ENGINE_TRACE(engine, "ring head [%x] not parked\n",
+			     intel_uncore_read_fw(uncore, RING_HEAD(base)));
 }
 
 static void reset_ring(struct intel_engine_cs *engine, bool stalled)

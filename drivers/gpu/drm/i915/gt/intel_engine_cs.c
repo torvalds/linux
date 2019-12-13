@@ -912,7 +912,7 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 	if (INTEL_GEN(engine->i915) < 3)
 		return -ENODEV;
 
-	GEM_TRACE("%s\n", engine->name);
+	ENGINE_TRACE(engine, "\n");
 
 	intel_uncore_write_fw(uncore, mode, _MASKED_BIT_ENABLE(STOP_RING));
 
@@ -921,7 +921,7 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 					 mode, MODE_IDLE, MODE_IDLE,
 					 1000, stop_timeout(engine),
 					 NULL)) {
-		GEM_TRACE("%s: timed out on STOP_RING -> IDLE\n", engine->name);
+		ENGINE_TRACE(engine, "timed out on STOP_RING -> IDLE\n");
 		err = -ETIMEDOUT;
 	}
 
@@ -933,7 +933,7 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 
 void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine)
 {
-	GEM_TRACE("%s\n", engine->name);
+	ENGINE_TRACE(engine, "\n");
 
 	ENGINE_WRITE_FW(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
 }

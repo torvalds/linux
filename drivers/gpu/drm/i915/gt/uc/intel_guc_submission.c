@@ -375,7 +375,7 @@ static void guc_reset_prepare(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
-	GEM_TRACE("%s\n", engine->name);
+	ENGINE_TRACE(engine, "\n");
 
 	/*
 	 * Prevent request submission to the hardware until we have
@@ -434,7 +434,7 @@ static void guc_cancel_requests(struct intel_engine_cs *engine)
 	struct rb_node *rb;
 	unsigned long flags;
 
-	GEM_TRACE("%s\n", engine->name);
+	ENGINE_TRACE(engine, "\n");
 
 	/*
 	 * Before we call engine->cancel_requests(), we should have exclusive
@@ -495,8 +495,8 @@ static void guc_reset_finish(struct intel_engine_cs *engine)
 		/* And kick in case we missed a new request submission. */
 		tasklet_hi_schedule(&execlists->tasklet);
 
-	GEM_TRACE("%s: depth->%d\n", engine->name,
-		  atomic_read(&execlists->tasklet.count));
+	ENGINE_TRACE(engine, "depth->%d\n",
+		     atomic_read(&execlists->tasklet.count));
 }
 
 /*

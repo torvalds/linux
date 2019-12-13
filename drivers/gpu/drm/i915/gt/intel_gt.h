@@ -12,6 +12,12 @@
 
 struct drm_i915_private;
 
+#define GT_TRACE(gt__, fmt, ...) do {					\
+	typecheck(struct intel_gt, *(gt__));				\
+	GEM_TRACE("%s  " fmt, dev_name(gt->i915->drm.dev),		\
+		  ##__VA_ARGS__);					\
+} while (0)
+
 static inline struct intel_gt *uc_to_gt(struct intel_uc *uc)
 {
 	return container_of(uc, struct intel_gt, uc);
