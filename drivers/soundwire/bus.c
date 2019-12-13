@@ -867,6 +867,10 @@ int sdw_bus_prep_clk_stop(struct sdw_bus *bus)
 			return ret;
 	}
 
+	/* Don't need to inform slaves if there is no slave attached */
+	if (!is_slave)
+		return ret;
+
 	/* Inform slaves that prep is done */
 	list_for_each_entry(slave, &bus->slaves, node) {
 		if (!slave->dev_num)
@@ -982,6 +986,13 @@ int sdw_bus_exit_clk_stop(struct sdw_bus *bus)
 
 	if (is_slave && !simple_clk_stop)
 		sdw_bus_wait_for_clk_prep_deprep(bus, SDW_BROADCAST_DEV_NUM);
+
+	/*
+	 * Don't need to call slave callback function if there is no slave
+	 * attached
+	 */
+	if (!is_slave)
+		return 0;
 
 	list_for_each_entry(slave, &bus->slaves, node) {
 		if (!slave->dev_num)
