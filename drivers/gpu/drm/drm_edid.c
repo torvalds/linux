@@ -714,9 +714,7 @@ static const struct minimode extra_modes[] = {
  *
  * Do not access directly, instead always use cea_mode_for_vic().
  */
-static const struct drm_display_mode edid_cea_modes_0[] = {
-	/* 0 - dummy, VICs start at 1 */
-	{ },
+static const struct drm_display_mode edid_cea_modes_1[] = {
 	/* 1 - 640x480@60Hz 4:3 */
 	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25175, 640, 656,
 		   752, 800, 0, 480, 490, 492, 525, 0,
@@ -3215,10 +3213,8 @@ static u8 *drm_find_cea_extension(const struct edid *edid)
 
 static const struct drm_display_mode *cea_mode_for_vic(u8 vic)
 {
-	if (!vic)
-		return NULL;
-	if (vic < ARRAY_SIZE(edid_cea_modes_0))
-		return &edid_cea_modes_0[vic];
+	if (vic >= 1 && vic < 1 + ARRAY_SIZE(edid_cea_modes_1))
+		return &edid_cea_modes_1[vic - 1];
 	if (vic >= 193 && vic < 193 + ARRAY_SIZE(edid_cea_modes_193))
 		return &edid_cea_modes_193[vic - 193];
 	return NULL;
@@ -3231,7 +3227,7 @@ static u8 cea_num_vics(void)
 
 static u8 cea_next_vic(u8 vic)
 {
-	if (++vic == ARRAY_SIZE(edid_cea_modes_0))
+	if (++vic == 1 + ARRAY_SIZE(edid_cea_modes_1))
 		vic = 193;
 	return vic;
 }
