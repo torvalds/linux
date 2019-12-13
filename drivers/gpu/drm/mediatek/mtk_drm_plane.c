@@ -87,7 +87,7 @@ static int mtk_plane_atomic_check(struct drm_plane *plane,
 	if (!fb)
 		return 0;
 
-	if (!state->crtc)
+	if (WARN_ON(!state->crtc))
 		return 0;
 
 	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
