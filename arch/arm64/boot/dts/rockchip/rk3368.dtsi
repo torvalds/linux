@@ -401,21 +401,6 @@
 		};
 	};
 
-	arm-pmu {
-		compatible = "arm,armv8-pmuv3";
-		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-affinity = <&cpu_l0>, <&cpu_l1>, <&cpu_l2>,
-				     <&cpu_l3>, <&cpu_b0>, <&cpu_b1>,
-				     <&cpu_b2>, <&cpu_b3>;
-	};
-
 	amba {
 		compatible = "simple-bus";
 		#address-cells = <2>;
