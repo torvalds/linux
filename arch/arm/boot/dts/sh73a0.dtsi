@@ -619,19 +619,25 @@
 		extal2_clk: extal2 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			/* This value must be overridden by the board. */
+			clock-frequency = <0>;
 		};
 		extcki_clk: extcki {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			/* This value can be overridden by the board. */
+			clock-frequency = <0>;
 		};
 		fsiack_clk: fsiack {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			/* This value can be overridden by the board. */
 			clock-frequency = <0>;
 		};
 		fsibck_clk: fsibck {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			/* This value can be overridden by the board. */
 			clock-frequency = <0>;
 		};
 
