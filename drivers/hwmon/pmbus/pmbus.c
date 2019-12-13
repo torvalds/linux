@@ -210,6 +210,7 @@ static const struct i2c_device_id pmbus_id[] = {
 	{"dps460", (kernel_ulong_t)&pmbus_info_one_skip},
 	{"dps650ab", (kernel_ulong_t)&pmbus_info_one_skip},
 	{"dps800", (kernel_ulong_t)&pmbus_info_one_skip},
+	{"max20796", (kernel_ulong_t)&pmbus_info_one},
 	{"mdt040", (kernel_ulong_t)&pmbus_info_one},
 	{"ncp4200", (kernel_ulong_t)&pmbus_info_one},
 	{"ncp4208", (kernel_ulong_t)&pmbus_info_one},
