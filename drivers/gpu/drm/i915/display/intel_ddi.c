@@ -3856,6 +3856,9 @@ static void intel_ddi_post_disable(struct intel_encoder *encoder,
 				   const struct drm_connector_state *old_conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
+	bool is_tc_port = intel_phy_is_tc(dev_priv, phy);
 
 	/*
 	 * When called from DP MST code:
@@ -3879,6 +3882,13 @@ static void intel_ddi_post_disable(struct intel_encoder *encoder,
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_unmap_plls_to_ports(encoder);
+
+	if (intel_crtc_has_dp_encoder(old_crtc_state) || is_tc_port)
+		intel_display_power_put_unchecked(dev_priv,
+						  intel_ddi_main_link_aux_domain(dig_port));
+
+	if (is_tc_port)
+		intel_tc_port_put_link(dig_port);
 }
 
 void intel_ddi_fdi_post_disable(struct intel_encoder *encoder,
@@ -4189,24 +4199,6 @@ intel_ddi_pre_pll_enable(struct intel_encoder *encoder,
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_phy_set_lane_optim_mask(encoder,
 						crtc_state->lane_lat_optim_mask);
-}
-
-static void
-intel_ddi_post_pll_disable(struct intel_encoder *encoder,
-			   const struct intel_crtc_state *crtc_state,
-			   const struct drm_connector_state *conn_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
-	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
-	bool is_tc_port = intel_phy_is_tc(dev_priv, phy);
-
-	if (intel_crtc_has_dp_encoder(crtc_state) || is_tc_port)
-		intel_display_power_put_unchecked(dev_priv,
-						  intel_ddi_main_link_aux_domain(dig_port));
-
-	if (is_tc_port)
-		intel_tc_port_put_link(dig_port);
 }
 
 static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
@@ -4795,7 +4787,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->compute_config = intel_ddi_compute_config;
 	encoder->enable = intel_enable_ddi;
 	encoder->pre_pll_enable = intel_ddi_pre_pll_enable;
-	encoder->post_pll_disable = intel_ddi_post_pll_disable;
 	encoder->pre_enable = intel_ddi_pre_enable;
 	encoder->disable = intel_disable_ddi;
 	encoder->post_disable = intel_ddi_post_disable;
