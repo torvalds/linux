@@ -783,8 +783,7 @@ static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd)
 err_dma_out:
 	dma_release_channel(dd->dma_lch_in.chan);
 err_dma_in:
-	if (ret != -EPROBE_DEFER)
-		dev_warn(dd->dev, "no DMA channel available\n");
+	dev_err(dd->dev, "no DMA channel available\n");
 	return ret;
 }
 

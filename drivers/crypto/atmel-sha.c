@@ -2485,11 +2485,8 @@ static int atmel_sha_dma_init(struct atmel_sha_dev *dd)
 {
 	dd->dma_lch_in.chan = dma_request_chan(dd->dev, "tx");
 	if (IS_ERR(dd->dma_lch_in.chan)) {
-		int ret = PTR_ERR(dd->dma_lch_in.chan);
-
-		if (ret != -EPROBE_DEFER)
-			dev_warn(dd->dev, "no DMA channel available\n");
-		return ret;
+		dev_err(dd->dev, "DMA channel is not available\n");
+		return PTR_ERR(dd->dma_lch_in.chan);
 	}
 
 	dd->dma_lch_in.dma_conf.dst_addr = dd->phys_base +

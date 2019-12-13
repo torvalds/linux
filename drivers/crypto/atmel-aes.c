@@ -2292,7 +2292,7 @@ static int atmel_aes_dma_init(struct atmel_aes_dev *dd)
 err_dma_out:
 	dma_release_channel(dd->src.chan);
 err_dma_in:
-	dev_warn(dd->dev, "no DMA channel available\n");
+	dev_err(dd->dev, "no DMA channel available\n");
 	return ret;
 }
 
