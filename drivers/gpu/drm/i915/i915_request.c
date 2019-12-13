@@ -771,7 +771,7 @@ i915_request_await_start(struct i915_request *rq, struct i915_request *signal)
 	if (!tl) /* already started or maybe even completed */
 		return 0;
 
-	fence = ERR_PTR(-EBUSY);
+	fence = ERR_PTR(-EAGAIN);
 	if (mutex_trylock(&tl->mutex)) {
 		fence = NULL;
 		if (!i915_request_started(signal) &&

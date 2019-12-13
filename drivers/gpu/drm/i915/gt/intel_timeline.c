@@ -527,7 +527,7 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 
 	GEM_BUG_ON(rcu_access_pointer(to->timeline) == tl);
 
-	err = -EBUSY;
+	err = -EAGAIN;
 	if (mutex_trylock(&tl->mutex)) {
 		struct intel_timeline_cacheline *cl = from->hwsp_cacheline;
 
