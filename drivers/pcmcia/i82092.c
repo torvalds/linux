@@ -92,11 +92,13 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 			break;
 			
 		default:
-			printk(KERN_ERR "i82092aa: Oops, you did something we didn't think of.\n");
+			dev_err(&dev->dev,
+				"Oops, you did something we didn't think of.\n");
 			ret = -EIO;
 			goto err_out_disable;
 	}
-	printk(KERN_INFO "i82092aa: configured as a %d socket device.\n", socket_count);
+	dev_info(&dev->dev, "configured as a %d socket device.\n",
+		 socket_count);
 
 	if (!request_region(pci_resource_start(dev, 0), 2, "i82092aa")) {
 		ret = -EBUSY;
@@ -117,9 +119,9 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 		
 		if (card_present(i)) {
 			sockets[i].card_state = 3;
-			dev_dbg(&dev->dev, "i82092aa: slot %i is occupied\n", i);
+			dev_dbg(&dev->dev, "slot %i is occupied\n", i);
 		} else {
-			dev_dbg(&dev->dev, "i82092aa: slot %i is vacant\n", i);
+			dev_dbg(&dev->dev, "slot %i is vacant\n", i);
 		}
 	}
 		
@@ -130,7 +132,8 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 	/* Register the interrupt handler */
 	dev_dbg(&dev->dev, "Requesting interrupt %i\n", dev->irq);
 	if ((ret = request_irq(dev->irq, i82092aa_interrupt, IRQF_SHARED, "i82092aa", i82092aa_interrupt))) {
-		printk(KERN_ERR "i82092aa: Failed to register IRQ %d, aborting\n", dev->irq);
+		dev_err(&dev->dev, "Failed to register IRQ %d, aborting\n",
+			dev->irq);
 		goto err_out_free_res;
 	}
 
@@ -306,7 +309,7 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 	while (1) {
 		loopcount++;
 		if (loopcount>20) {
-			printk(KERN_ERR "i82092aa: infinite eventloop in interrupt \n");
+			pr_err("i82092aa: infinite eventloop in interrupt\n");
 			break;
 		}
 		
@@ -326,7 +329,8 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 			 
 			if (csc & I365_CSC_DETECT) {
 				events |= SS_DETECT;
-				printk("Card detected in socket %i!\n",i);
+				dev_info(&sockets[i].dev->dev,
+					 "Card detected in socket %i!\n", i);
 			 }
 			
 			if (indirect_read(i,I365_INTCTL) & I365_PC_IOCARD) { 
@@ -458,7 +462,9 @@ static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 
 static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *state) 
 {
-	unsigned int sock = container_of(socket, struct socket_info, socket)->number;
+	struct socket_info *sock_info = container_of(socket, struct socket_info,
+						     socket);
+	unsigned int sock = sock_info->number;
 	unsigned char reg;
 	
 	enter("i82092aa_set_socket");
@@ -482,11 +488,11 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 	reg = I365_PWR_NORESET; /* default: disable resetdrv on resume */
 	
 	if (state->flags & SS_PWR_AUTO) {
-		printk("Auto power\n");
+		dev_info(&sock_info->dev->dev, "Auto power\n");
 		reg |= I365_PWR_AUTO;	/* automatic power mngmnt */
 	}
 	if (state->flags & SS_OUTPUT_ENA) {
-		printk("Power Enabled \n");
+		dev_info(&sock_info->dev->dev, "Power Enabled\n");
 		reg |= I365_PWR_OUT;	/* enable power */
 	}
 	
@@ -494,11 +500,15 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 		case 0:	
 			break;
 		case 50: 
-			printk("setting voltage to Vcc to 5V on socket %i\n",sock);
+			dev_info(&sock_info->dev->dev,
+				 "setting voltage to Vcc to 5V on socket %i\n",
+				 sock);
 			reg |= I365_VCC_5V;
 			break;
 		default:
-			printk("i82092aa: i82092aa_set_socket called with invalid VCC power value: %i ", state->Vcc);
+			dev_err(&sock_info->dev->dev,
+				"%s called with invalid VCC power value: %i",
+				__func__, state->Vcc);
 			leave("i82092aa_set_socket");
 			return -EINVAL;
 	}
@@ -506,18 +516,22 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 	
 	switch (state->Vpp) {
 		case 0:	
-			printk("not setting Vpp on socket %i\n",sock);
+			dev_info(&sock_info->dev->dev,
+				 "not setting Vpp on socket %i\n", sock);
 			break;
 		case 50: 
-			printk("setting Vpp to 5.0 for socket %i\n",sock);
+			dev_info(&sock_info->dev->dev,
+				 "setting Vpp to 5.0 for socket %i\n", sock);
 			reg |= I365_VPP1_5V | I365_VPP2_5V;
 			break;
 		case 120: 
-			printk("setting Vpp to 12.0\n");
+			dev_info(&sock_info->dev->dev, "setting Vpp to 12.0\n");
 			reg |= I365_VPP1_12V | I365_VPP2_12V;
 			break;
 		default:
-			printk("i82092aa: i82092aa_set_socket called with invalid VPP power value: %i ", state->Vcc);
+			dev_err(&sock_info->dev->dev,
+				"%s called with invalid VPP power value: %i",
+				__func__, state->Vcc);
 			leave("i82092aa_set_socket");
 			return -EINVAL;
 	}
@@ -555,7 +569,9 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 
 static int i82092aa_set_io_map(struct pcmcia_socket *socket, struct pccard_io_map *io)
 {
-	unsigned int sock = container_of(socket, struct socket_info, socket)->number;
+	struct socket_info *sock_info = container_of(socket, struct socket_info,
+						     socket);
+	unsigned int sock = sock_info->number;
 	unsigned char map, ioctl;
 	
 	enter("i82092aa_set_io_map");
@@ -576,8 +592,6 @@ static int i82092aa_set_io_map(struct pcmcia_socket *socket, struct pccard_io_ma
 	if (indirect_read(sock, I365_ADDRWIN) & I365_ENA_IO(map))
 		indirect_resetbit(sock, I365_ADDRWIN, I365_ENA_IO(map));
 
-/*	printk("set_io_map: Setting range to %x - %x \n",io->start,io->stop);  */
-	
 	/* write the new values */
 	indirect_write16(sock,I365_IO(map)+I365_W_START,io->start);            	
 	indirect_write16(sock,I365_IO(map)+I365_W_STOP,io->stop);            	
@@ -619,7 +633,8 @@ static int i82092aa_set_mem_map(struct pcmcia_socket *socket, struct pccard_mem_
 	if ( (mem->card_start > 0x3ffffff) || (region.start > region.end) ||
 	     (mem->speed > 1000) ) {
 		leave("i82092aa_set_mem_map: invalid address / speed");
-		printk("invalid mem map for socket %i: %llx to %llx with a "
+		dev_err(&sock_info->dev->dev,
+			"invalid mem map for socket %i: %llx to %llx with a "
 			"start of %x\n",
 			sock,
 			(unsigned long long)region.start,
@@ -633,8 +648,6 @@ static int i82092aa_set_mem_map(struct pcmcia_socket *socket, struct pccard_mem_
 	              indirect_resetbit(sock, I365_ADDRWIN, I365_ENA_MEM(map));
 	                 
 	                 
-/* 	printk("set_mem_map: Setting map %i range to %x - %x on socket %i, speed is %i, active = %i \n",map, region.start,region.end,sock,mem->speed,mem->flags & MAP_ACTIVE);  */
-
 	/* write the start address */
 	base = I365_MEM(map);
 	i = (region.start >> 12) & 0x0fff;
@@ -668,12 +681,8 @@ static int i82092aa_set_mem_map(struct pcmcia_socket *socket, struct pccard_mem_
 	i = ((mem->card_start - region.start) >> 12) & 0x3fff;
 	if (mem->flags & MAP_WRPROT)
 		i |= I365_MEM_WRPROT;
-	if (mem->flags & MAP_ATTRIB) {
-/*		printk("requesting attribute memory for socket %i\n",sock);*/
+	if (mem->flags & MAP_ATTRIB)
 		i |= I365_MEM_REG;
-	} else {
-/*		printk("requesting normal memory for socket %i\n",sock);*/
-	}
 	indirect_write16(sock,base+I365_W_OFF,i);
 	
 	/* Enable the window if necessary */
