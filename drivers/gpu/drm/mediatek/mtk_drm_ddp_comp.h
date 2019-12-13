@@ -90,6 +90,8 @@ struct mtk_ddp_comp_funcs {
 			  struct drm_crtc_state *state);
 	void (*bgclr_in_on)(struct mtk_ddp_comp *comp);
 	void (*bgclr_in_off)(struct mtk_ddp_comp *comp);
+	void (*ctm_set)(struct mtk_ddp_comp *comp,
+			struct drm_crtc_state *state);
 };
 
 struct mtk_ddp_comp {
@@ -189,6 +191,13 @@ static inline void mtk_ddp_comp_bgclr_in_off(struct mtk_ddp_comp *comp)
 {
 	if (comp->funcs && comp->funcs->bgclr_in_off)
 		comp->funcs->bgclr_in_off(comp);
+}
+
+static inline void mtk_ddp_ctm_set(struct mtk_ddp_comp *comp,
+				   struct drm_crtc_state *state)
+{
+	if (comp->funcs && comp->funcs->ctm_set)
+		comp->funcs->ctm_set(comp, state);
 }
 
 int mtk_ddp_comp_get_id(struct device_node *node,
