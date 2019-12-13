@@ -235,7 +235,7 @@ static const struct drm_i915_cmd_descriptor gen7_common_cmds[] = {
 	/*
 	 * MI_BATCH_BUFFER_START requires some special handling. It's not
 	 * really a 'skip' action but it doesn't seem like it's worth adding
-	 * a new action. See i915_parse_cmds().
+	 * a new action. See intel_engine_cmd_parser().
 	 */
 	CMD(  MI_BATCH_BUFFER_START,            SMI,   !F,  0xFF,   S  ),
 };
