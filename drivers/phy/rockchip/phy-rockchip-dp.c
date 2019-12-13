@@ -10,6 +10,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -38,7 +39,8 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 	struct rockchip_dp_phy *dp = phy_get_drvdata(phy);
 	const struct rockchip_dp_phy_data *data = dp->data;
 
-	clk_prepare_enable(dp->phy_24m);
+	if (!__clk_is_enabled(dp->phy_24m))
+		clk_prepare_enable(dp->phy_24m);
 
 	if (dp->rst) {
 		/* EDP 24m clock domain software reset */
@@ -61,7 +63,8 @@ static int rockchip_dp_phy_power_off(struct phy *phy)
 	regmap_write(dp->grf, data->grf_reg_offset,
 		     BIT(data->iddq_shift) | BIT(16 + data->iddq_shift));
 
-	clk_disable_unprepare(dp->phy_24m);
+	if (__clk_is_enabled(dp->phy_24m))
+		clk_disable_unprepare(dp->phy_24m);
 
 	return 0;
 }
@@ -104,6 +107,12 @@ static int rockchip_dp_phy_probe(struct platform_device *pdev)
 	ret = clk_set_rate(dp->phy_24m, 24000000);
 	if (ret < 0) {
 		dev_err(dp->dev, "cannot set clock phy_24m %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(dp->phy_24m);
+	if (ret) {
+		dev_err(dev, "failed to enable phy 24m clock: %d\n", ret);
 		return ret;
 	}
 
