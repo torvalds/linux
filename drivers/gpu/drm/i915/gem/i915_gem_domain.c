@@ -190,6 +190,13 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	if (obj->cache_level == cache_level)
 		return 0;
 
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_ALL,
+				   MAX_SCHEDULE_TIMEOUT);
+	if (ret)
+		return ret;
+
 	ret = i915_gem_object_lock_interruptible(obj);
 	if (ret)
 		return ret;
