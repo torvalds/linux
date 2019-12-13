@@ -128,6 +128,7 @@ static ssize_t sock_sendpage(struct file *file, struct page *page,
 static ssize_t sock_splice_read(struct file *file, loff_t *ppos,
 				struct pipe_inode_info *pipe, size_t len,
 				unsigned int flags);
+static void sock_show_fdinfo(struct seq_file *m, struct file *f);
 
 /*
  *	Socket files have a set of 'special' operations as well as the generic file ones. These don't appear
@@ -150,6 +151,9 @@ static const struct file_operations socket_file_ops = {
 	.sendpage =	sock_sendpage,
 	.splice_write = generic_splice_sendpage,
 	.splice_read =	sock_splice_read,
+#ifdef CONFIG_PROC_FS
+	.show_fdinfo =	sock_show_fdinfo,
+#endif
 };
 
 /*
@@ -991,6 +995,14 @@ static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	res = sock_sendmsg(sock, &msg);
 	*from = msg.msg_iter;
 	return res;
+}
+
+static void sock_show_fdinfo(struct seq_file *m, struct file *f)
+{
+	struct socket *sock = f->private_data;
+
+	if (sock->ops->show_fdinfo)
+		sock->ops->show_fdinfo(m, sock);
 }
 
 /*
