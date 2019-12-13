@@ -1138,6 +1138,10 @@ static bool intel_idle_max_cstate_reached(int cstate)
 #ifdef CONFIG_ACPI_PROCESSOR_CSTATE
 #include <acpi/processor.h>
 
+static bool no_acpi __read_mostly;
+module_param(no_acpi, bool, 0444);
+MODULE_PARM_DESC(no_acpi, "Do not use ACPI _CST for building the idle states list");
+
 static struct acpi_processor_power acpi_state_table;
 
 /**
@@ -1166,6 +1170,11 @@ static bool intel_idle_cst_usable(void)
 static bool intel_idle_acpi_cst_extract(void)
 {
 	unsigned int cpu;
+
+	if (no_acpi) {
+		pr_debug("Not allowed to use ACPI _CST\n");
+		return false;
+	}
 
 	for_each_possible_cpu(cpu) {
 		struct acpi_processor *pr = per_cpu(processors, cpu);
