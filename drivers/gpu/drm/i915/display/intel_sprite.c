@@ -120,7 +120,7 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 
 	crtc->debug.min_vbl = min;
 	crtc->debug.max_vbl = max;
-	trace_i915_pipe_update_start(crtc);
+	trace_intel_pipe_update_start(crtc);
 
 	for (;;) {
 		/*
@@ -173,7 +173,7 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	crtc->debug.start_vbl_time = ktime_get();
 	crtc->debug.start_vbl_count = intel_crtc_get_vblank_counter(crtc);
 
-	trace_i915_pipe_update_vblank_evaded(crtc);
+	trace_intel_pipe_update_vblank_evaded(crtc);
 	return;
 
 irq_disable:
@@ -197,7 +197,7 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	ktime_t end_vbl_time = ktime_get();
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	trace_i915_pipe_update_end(crtc, end_vbl_count, scanline_end);
+	trace_intel_pipe_update_end(crtc, end_vbl_count, scanline_end);
 
 	/* We're still in the vblank-evade critical section, this can't race.
 	 * Would be slightly nice to just grab the vblank count and arm the
