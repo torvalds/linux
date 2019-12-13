@@ -72,6 +72,28 @@ Contact: Ville Syrjälä, Daniel Vetter, driver maintainers
 
 Level: Advanced
 
+Improve plane atomic_check helpers
+----------------------------------
+
+Aside from the clipped coordinates right above there's a few suboptimal things
+with the current helpers:
+
+- drm_plane_helper_funcs->atomic_check gets called for enabled or disabled
+  planes. At best this seems to confuse drivers, worst it means they blow up
+  when the plane is disabled without the CRTC. The only special handling is
+  resetting values in the plane state structures, which instead should be moved
+  into the drm_plane_funcs->atomic_duplicate_state functions.
+
+- Once that's done, helpers could stop calling ->atomic_check for disabled
+  planes.
+
+- Then we could go through all the drivers and remove the more-or-less confused
+  checks for plane_state->fb and plane_state->crtc.
+
+Contact: Daniel Vetter
+
+Level: Advanced
+
 Convert early atomic drivers to async commit helpers
 ----------------------------------------------------
 
