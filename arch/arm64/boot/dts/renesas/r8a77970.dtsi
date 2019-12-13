@@ -302,8 +302,8 @@
 
 		thermal: thermal@e6190000 {
 			compatible = "renesas,thermal-r8a77970";
-			reg =  <0 0xe6190000 0 0x10
-				0 0xe6190100 0 0x120>;
+			reg = <0 0xe6190000 0 0x10>,
+			      <0 0xe6190100 0 0x120>;
 			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
