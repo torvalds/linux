@@ -31,7 +31,7 @@ struct selinux_ss {
 	struct selinux_map map;
 	struct page *status_page;
 	struct mutex status_lock;
-};
+} __randomize_layout;
 
 void services_compute_xperms_drivers(struct extended_perms *xperms,
 				struct avtab_node *node);
