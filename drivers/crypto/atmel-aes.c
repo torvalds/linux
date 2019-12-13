@@ -120,7 +120,7 @@ struct atmel_aes_ctr_ctx {
 	size_t			offset;
 	struct scatterlist	src[2];
 	struct scatterlist	dst[2];
-	u16			blocks;
+	u32			blocks;
 };
 
 struct atmel_aes_gcm_ctx {
@@ -527,6 +527,12 @@ static void atmel_aes_ctr_update_req_iv(struct atmel_aes_dev *dd)
 	unsigned int ivsize = crypto_skcipher_ivsize(skcipher);
 	int i;
 
+	/*
+	 * The CTR transfer works in fragments of data of maximum 1 MByte
+	 * because of the 16 bit CTR counter embedded in the IP. When reaching
+	 * here, ctx->blocks contains the number of blocks of the last fragment
+	 * processed, there is no need to explicit cast it to u16.
+	 */
 	for (i = 0; i < ctx->blocks; i++)
 		crypto_inc((u8 *)ctx->iv, AES_BLOCK_SIZE);
 
