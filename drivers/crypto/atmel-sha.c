@@ -2493,7 +2493,6 @@ static int atmel_sha_dma_init(struct atmel_sha_dev *dd,
 		return ret;
 	}
 
-	dd->dma_lch_in.dma_conf.direction = DMA_MEM_TO_DEV;
 	dd->dma_lch_in.dma_conf.dst_addr = dd->phys_base +
 		SHA_REG_DIN(0);
 	dd->dma_lch_in.dma_conf.src_maxburst = 1;

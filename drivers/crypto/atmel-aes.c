@@ -817,7 +817,6 @@ static int atmel_aes_dma_transfer_start(struct atmel_aes_dev *dd,
 	int err;
 
 	memset(&config, 0, sizeof(config));
-	config.direction = dir;
 	config.src_addr_width = addr_width;
 	config.dst_addr_width = addr_width;
 	config.src_maxburst = maxburst;

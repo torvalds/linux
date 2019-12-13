@@ -753,7 +753,6 @@ static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd,
 		goto err_dma_in;
 	}
 
-	dd->dma_lch_in.dma_conf.direction = DMA_MEM_TO_DEV;
 	dd->dma_lch_in.dma_conf.dst_addr = dd->phys_base +
 		TDES_IDATA1R;
 	dd->dma_lch_in.dma_conf.src_maxburst = 1;
@@ -770,7 +769,6 @@ static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd,
 		goto err_dma_out;
 	}
 
-	dd->dma_lch_out.dma_conf.direction = DMA_DEV_TO_MEM;
 	dd->dma_lch_out.dma_conf.src_addr = dd->phys_base +
 		TDES_ODATA1R;
 	dd->dma_lch_out.dma_conf.src_maxburst = 1;
