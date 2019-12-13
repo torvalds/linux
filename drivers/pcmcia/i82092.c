@@ -144,9 +144,8 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 		sockets[i].socket.ops = &i82092aa_operations;
 		sockets[i].socket.resource_ops = &pccard_nonstatic_ops;
 		ret = pcmcia_register_socket(&sockets[i].socket);
-		if (ret) {
+		if (ret)
 			goto err_out_free_sockets;
-		}
 	}
 
 	leave("i82092aa_pci_probe");
@@ -154,9 +153,8 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 
 err_out_free_sockets:
 	if (i) {
-		for (i--; i >= 0; i--) {
+		for (i--; i >= 0; i--)
 			pcmcia_unregister_socket(&sockets[i].socket);
-		}
 	}
 	free_irq(dev->irq, i82092aa_interrupt);
 err_out_free_res:
@@ -345,9 +343,8 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 				events |= (csc & I365_CSC_READY) ? SS_READY : 0;
 			}
 
-			if (events) {
+			if (events)
 				pcmcia_parse_events(&sockets[i].socket, events);
-			}
 			active |= events;
 		}
 
@@ -426,9 +423,8 @@ static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 	status = indirect_read(sock, I365_STATUS); /* Interface Status Register */
 	*value = 0;
 
-	if ((status & I365_CS_DETECT) == I365_CS_DETECT) {
+	if ((status & I365_CS_DETECT) == I365_CS_DETECT)
 		*value |= SS_DETECT;
-	}
 
 	/* IO cards have a different meaning of bits 0,1 */
 	/* Also notice the inverse-logic on the bits */
@@ -538,9 +534,8 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 	/* Enable specific interrupt events */
 
 	reg = 0x00;
-	if (state->csc_mask & SS_DETECT) {
+	if (state->csc_mask & SS_DETECT)
 		reg |= I365_CSC_DETECT;
-	}
 	if (state->flags & SS_IOCARD) {
 		if (state->csc_mask & SS_STSCHG)
 			reg |= I365_CSC_STSCHG;
