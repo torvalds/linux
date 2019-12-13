@@ -1823,8 +1823,10 @@ static void intel_crtc_vblank_on(const struct intel_crtc_state *crtc_state)
 	drm_crtc_vblank_on(&crtc->base);
 }
 
-static void intel_crtc_vblank_off(struct intel_crtc *crtc)
+static void intel_crtc_vblank_off(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
 	drm_crtc_vblank_off(&crtc->base);
 	assert_vblank_disabled(&crtc->base);
 }
@@ -6697,7 +6699,7 @@ static void ironlake_crtc_disable(struct intel_atomic_state *state,
 
 	intel_encoders_disable(state, crtc);
 
-	intel_crtc_vblank_off(crtc);
+	intel_crtc_vblank_off(old_crtc_state);
 
 	intel_disable_pipe(old_crtc_state);
 
@@ -6746,7 +6748,7 @@ static void haswell_crtc_disable(struct intel_atomic_state *state,
 
 	intel_encoders_disable(state, crtc);
 
-	intel_crtc_vblank_off(crtc);
+	intel_crtc_vblank_off(old_crtc_state);
 
 	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
 	if (!transcoder_is_dsi(cpu_transcoder))
@@ -7111,7 +7113,7 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 
 	intel_encoders_disable(state, crtc);
 
-	intel_crtc_vblank_off(crtc);
+	intel_crtc_vblank_off(old_crtc_state);
 
 	intel_disable_pipe(old_crtc_state);
 
