@@ -32,10 +32,10 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 {
 	struct trace_event_call *call = &event_branch;
 	struct trace_array *tr = branch_tracer;
+	struct trace_buffer *buffer;
 	struct trace_array_cpu *data;
 	struct ring_buffer_event *event;
 	struct trace_branch *entry;
-	struct ring_buffer *buffer;
 	unsigned long flags;
 	int pc;
 	const char *p;

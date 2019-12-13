@@ -570,7 +570,7 @@ static inline notrace int trace_event_get_offsets_##call(		\
  *	enum event_trigger_type __tt = ETT_NONE;
  *	struct ring_buffer_event *event;
  *	struct trace_event_raw_<call> *entry; <-- defined in stage 1
- *	struct ring_buffer *buffer;
+ *	struct trace_buffer *buffer;
  *	unsigned long irq_flags;
  *	int __data_size;
  *	int pc;

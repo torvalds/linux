@@ -153,7 +153,7 @@ void tracing_generic_entry_update(struct trace_entry *entry,
 struct trace_event_file;
 
 struct ring_buffer_event *
-trace_event_buffer_lock_reserve(struct ring_buffer **current_buffer,
+trace_event_buffer_lock_reserve(struct trace_buffer **current_buffer,
 				struct trace_event_file *trace_file,
 				int type, unsigned long len,
 				unsigned long flags, int pc);
@@ -210,7 +210,7 @@ extern int trace_event_reg(struct trace_event_call *event,
 			    enum trace_reg type, void *data);
 
 struct trace_event_buffer {
-	struct ring_buffer		*buffer;
+	struct trace_buffer		*buffer;
 	struct ring_buffer_event	*event;
 	struct trace_event_file		*trace_file;
 	void				*entry;

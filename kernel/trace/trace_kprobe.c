@@ -1175,8 +1175,8 @@ __kprobe_trace_func(struct trace_kprobe *tk, struct pt_regs *regs,
 		    struct trace_event_file *trace_file)
 {
 	struct kprobe_trace_entry_head *entry;
+	struct trace_buffer *buffer;
 	struct ring_buffer_event *event;
-	struct ring_buffer *buffer;
 	int size, dsize, pc;
 	unsigned long irq_flags;
 	struct trace_event_call *call = trace_probe_event_call(&tk->tp);
@@ -1223,8 +1223,8 @@ __kretprobe_trace_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 		       struct trace_event_file *trace_file)
 {
 	struct kretprobe_trace_entry_head *entry;
+	struct trace_buffer *buffer;
 	struct ring_buffer_event *event;
-	struct ring_buffer *buffer;
 	int size, pc, dsize;
 	unsigned long irq_flags;
 	struct trace_event_call *call = trace_probe_event_call(&tk->tp);
