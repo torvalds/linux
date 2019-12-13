@@ -71,6 +71,7 @@ void ath11k_hal_tx_cmd_desc_setup(struct ath11k_base *ab, void *cmd,
 				    ti->dscp_tid_tbl_idx) |
 			 FIELD_PREP(HAL_TCL_DATA_CMD_INFO3_SEARCH_INDEX,
 				    ti->bss_ast_hash);
+	tcl_cmd->info4 = 0;
 }
 
 /* Commit the descriptor to hardware */

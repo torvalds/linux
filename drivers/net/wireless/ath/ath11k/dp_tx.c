@@ -167,8 +167,6 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	skb_cb->vif = arvif->vif;
 	skb_cb->ar = ar;
 
-	memset(cached_desc, 0, HAL_TCL_DESC_LEN);
-
 	ath11k_hal_tx_cmd_desc_setup(ab, cached_desc, &ti);
 
 	hal_ring_id = tx_ring->tcl_data_ring.ring_id;
