@@ -4810,8 +4810,8 @@ int drm_dp_mst_atomic_check_bw_limit(struct drm_dp_mst_branch *branch,
 }
 
 static inline int
-drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
-				       struct drm_dp_mst_topology_state *mst_state)
+drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
+					 struct drm_dp_mst_topology_state *mst_state)
 {
 	struct drm_dp_vcpi_allocation *vcpi;
 	int avail_slots = 63, payload_count = 0;
@@ -4937,7 +4937,7 @@ int drm_dp_mst_atomic_check(struct drm_atomic_state *state)
 	int i, ret = 0;
 
 	for_each_new_mst_mgr_in_state(state, mgr, mst_state, i) {
-		ret = drm_dp_mst_atomic_check_topology_state(mgr, mst_state);
+		ret = drm_dp_mst_atomic_check_vcpi_alloc_limit(mgr, mst_state);
 		if (ret)
 			break;
 		ret = drm_dp_mst_atomic_check_bw_limit(mgr->mst_primary, mst_state);
