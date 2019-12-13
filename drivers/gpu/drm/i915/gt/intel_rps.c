@@ -1667,19 +1667,49 @@ void intel_rps_init(struct intel_rps *rps)
 		rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 }
 
-u32 intel_get_cagf(struct intel_rps *rps, u32 rpstat)
+u32 intel_rps_get_cagf(struct intel_rps *rps, u32 rpstat)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	u32 cagf;
 
-	if (INTEL_GEN(i915) >= 9)
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+		cagf = (rpstat >> 8) & 0xff;
+	else if (INTEL_GEN(i915) >= 9)
 		cagf = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
 	else if (IS_HASWELL(i915) || IS_BROADWELL(i915))
 		cagf = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
 	else
 		cagf = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
 
-	return  cagf;
+	return cagf;
+}
+
+static u32 read_cagf(struct intel_rps *rps)
+{
+	struct drm_i915_private *i915 = rps_to_i915(rps);
+	u32 freq;
+
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+		vlv_punit_get(i915);
+		freq = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
+		vlv_punit_put(i915);
+	} else {
+		freq = intel_uncore_read(rps_to_gt(rps)->uncore, GEN6_RPSTAT1);
+	}
+
+	return intel_rps_get_cagf(rps, freq);
+}
+
+u32 intel_rps_read_actual_frequency(struct intel_rps *rps)
+{
+	struct intel_runtime_pm *rpm = rps_to_gt(rps)->uncore->rpm;
+	intel_wakeref_t wakeref;
+	u32 freq = 0;
+
+	with_intel_runtime_pm_if_in_use(rpm, wakeref)
+		freq = intel_gpu_freq(rps, read_cagf(rps));
+
+	return freq;
 }
 
 /* External interface for intel_ips.ko */

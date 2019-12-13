@@ -881,7 +881,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI) & GEN6_CURIAVG_MASK;
 		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN) & GEN6_CURBSYTAVG_MASK;
 		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN) & GEN6_CURBSYTAVG_MASK;
-		cagf = intel_gpu_freq(rps, intel_get_cagf(rps, rpstat));
+		cagf = intel_rps_read_actual_frequency(rps);
 
 		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
@@ -1623,21 +1623,6 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_rps *rps = &dev_priv->gt.rps;
-	u32 act_freq = rps->cur_freq;
-	intel_wakeref_t wakeref;
-
-	with_intel_runtime_pm_if_in_use(&dev_priv->runtime_pm, wakeref) {
-		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-			vlv_punit_get(dev_priv);
-			act_freq = vlv_punit_read(dev_priv,
-						  PUNIT_REG_GPU_FREQ_STS);
-			vlv_punit_put(dev_priv);
-			act_freq = (act_freq >> 8) & 0xff;
-		} else {
-			act_freq = intel_get_cagf(rps,
-						  I915_READ(GEN6_RPSTAT1));
-		}
-	}
 
 	seq_printf(m, "RPS enabled? %d\n", rps->enabled);
 	seq_printf(m, "GPU busy? %s\n", yesno(dev_priv->gt.awake));
@@ -1646,7 +1631,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	seq_printf(m, "Interactive? %d\n", READ_ONCE(rps->power.interactive));
 	seq_printf(m, "Frequency requested %d, actual %d\n",
 		   intel_gpu_freq(rps, rps->cur_freq),
-		   intel_gpu_freq(rps, act_freq));
+		   intel_rps_read_actual_frequency(rps));
 	seq_printf(m, "  min hard:%d, soft:%d; max soft:%d, hard:%d\n",
 		   intel_gpu_freq(rps, rps->min_freq),
 		   intel_gpu_freq(rps, rps->min_freq_softlimit),

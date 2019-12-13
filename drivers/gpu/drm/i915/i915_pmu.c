@@ -406,7 +406,7 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 		 */
 		val = intel_uncore_read_fw(uncore, GEN6_RPSTAT1);
 		if (val)
-			val = intel_get_cagf(rps, val);
+			val = intel_rps_get_cagf(rps, val);
 		else
 			val = rps->cur_freq;
 
