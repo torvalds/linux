@@ -289,7 +289,7 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		priv->dai[num_dai + i].ignore_pmdown_time = 1;
 		priv->dai[num_dai + i].ops = &imx_audmix_be_ops;
 
-		priv->dai_conf[i].of_node = args.np;
+		priv->dai_conf[i].dlc.of_node = args.np;
 		priv->dai_conf[i].name_prefix = dai_name;
 
 		priv->dapm_routes[i].source =
