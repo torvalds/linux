@@ -80,6 +80,7 @@ struct idle_cpu {
 	unsigned long auto_demotion_disable_flags;
 	bool byt_auto_demotion_disable_flag;
 	bool disable_promotion_to_c1e;
+	bool use_acpi;
 };
 
 static const struct idle_cpu *icpu;
@@ -89,6 +90,11 @@ static int intel_idle(struct cpuidle_device *dev,
 static void intel_idle_s2idle(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv, int index);
 static struct cpuidle_state *cpuidle_state_table;
+
+/*
+ * Enable this state by default even if the ACPI _CST does not list it.
+ */
+#define CPUIDLE_FLAG_ALWAYS_ENABLE	BIT(15)
 
 /*
  * Set this flag for states where the HW flushes the TLB for us
@@ -1230,9 +1236,33 @@ static void intel_idle_init_cstates_acpi(struct cpuidle_driver *drv)
 		state->enter_s2idle = intel_idle_s2idle;
 	}
 }
+
+static bool intel_idle_off_by_default(u32 mwait_hint)
+{
+	int cstate, limit;
+
+	/*
+	 * If there are no _CST C-states, do not disable any C-states by
+	 * default.
+	 */
+	if (!acpi_state_table.count)
+		return false;
+
+	limit = min_t(int, CPUIDLE_STATE_MAX, acpi_state_table.count);
+	/*
+	 * If limit > 0, intel_idle_cst_usable() has returned 'true', so all of
+	 * the interesting states are ACPI_CSTATE_FFH.
+	 */
+	for (cstate = 1; cstate < limit; cstate++) {
+		if (acpi_state_table.states[cstate].address == mwait_hint)
+			return false;
+	}
+	return true;
+}
 #else /* !CONFIG_ACPI_PROCESSOR_CSTATE */
 static inline bool intel_idle_acpi_cst_extract(void) { return false; }
 static inline void intel_idle_init_cstates_acpi(struct cpuidle_driver *drv) { }
+static inline bool intel_idle_off_by_default(u32 mwait_hint) { return false; }
 #endif /* !CONFIG_ACPI_PROCESSOR_CSTATE */
 
 /*
@@ -1273,10 +1303,13 @@ static int __init intel_idle_probe(void)
 	pr_debug("MWAIT substates: 0x%x\n", mwait_substates);
 
 	icpu = (const struct idle_cpu *)id->driver_data;
-	if (icpu)
+	if (icpu) {
 		cpuidle_state_table = icpu->state_table;
-	else if (!intel_idle_acpi_cst_extract())
+		if (icpu->use_acpi)
+			intel_idle_acpi_cst_extract();
+	} else if (!intel_idle_acpi_cst_extract()) {
 		return -ENODEV;
+	}
 
 	pr_debug("v" INTEL_IDLE_VERSION " model 0x%X\n",
 		 boot_cpu_data.x86_model);
@@ -1484,7 +1517,13 @@ static void intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 			continue;
 
 		/* Structure copy. */
-		drv->states[drv->state_count++] = cpuidle_state_table[cstate];
+		drv->states[drv->state_count] = cpuidle_state_table[cstate];
+
+		if (icpu->use_acpi && intel_idle_off_by_default(mwait_hint) &&
+		    !(cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_ALWAYS_ENABLE))
+			drv->states[drv->state_count].flags |= CPUIDLE_FLAG_OFF;
+
+		drv->state_count++;
 	}
 
 	if (icpu->byt_auto_demotion_disable_flag) {
