@@ -7684,8 +7684,7 @@ static int ufshcd_link_state_transition(struct ufs_hba *hba,
 	 * turning off the link would also turn off the device.
 	 */
 	else if ((req_link_state == UIC_LINK_OFF_STATE) &&
-		   (!check_for_bkops || (check_for_bkops &&
-		    !hba->auto_bkops_enabled))) {
+		 (!check_for_bkops || !hba->auto_bkops_enabled)) {
 		/*
 		 * Let's make sure that link is in low power mode, we are doing
 		 * this currently by putting the link in Hibern8. Otherway to
