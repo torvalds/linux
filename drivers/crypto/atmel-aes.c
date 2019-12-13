@@ -857,27 +857,6 @@ static int atmel_aes_dma_transfer_start(struct atmel_aes_dev *dd,
 	return 0;
 }
 
-static void atmel_aes_dma_transfer_stop(struct atmel_aes_dev *dd,
-					enum dma_transfer_direction dir)
-{
-	struct atmel_aes_dma *dma;
-
-	switch (dir) {
-	case DMA_MEM_TO_DEV:
-		dma = &dd->src;
-		break;
-
-	case DMA_DEV_TO_MEM:
-		dma = &dd->dst;
-		break;
-
-	default:
-		return;
-	}
-
-	dmaengine_terminate_all(dma->chan);
-}
-
 static int atmel_aes_dma_start(struct atmel_aes_dev *dd,
 			       struct scatterlist *src,
 			       struct scatterlist *dst,
@@ -936,25 +915,18 @@ static int atmel_aes_dma_start(struct atmel_aes_dev *dd,
 	return -EINPROGRESS;
 
 output_transfer_stop:
-	atmel_aes_dma_transfer_stop(dd, DMA_DEV_TO_MEM);
+	dmaengine_terminate_sync(dd->dst.chan);
 unmap:
 	atmel_aes_unmap(dd);
 exit:
 	return atmel_aes_complete(dd, err);
 }
 
-static void atmel_aes_dma_stop(struct atmel_aes_dev *dd)
-{
-	atmel_aes_dma_transfer_stop(dd, DMA_MEM_TO_DEV);
-	atmel_aes_dma_transfer_stop(dd, DMA_DEV_TO_MEM);
-	atmel_aes_unmap(dd);
-}
-
 static void atmel_aes_dma_callback(void *data)
 {
 	struct atmel_aes_dev *dd = data;
 
-	atmel_aes_dma_stop(dd);
+	atmel_aes_unmap(dd);
 	dd->is_async = true;
 	(void)dd->resume(dd);
 }

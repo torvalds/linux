@@ -1429,7 +1429,6 @@ static void atmel_sha_dma_callback2(void *data)
 	struct scatterlist *sg;
 	int nents;
 
-	dmaengine_terminate_all(dma->chan);
 	dma_unmap_sg(dd->dev, dma->sg, dma->nents, DMA_TO_DEVICE);
 
 	sg = dma->sg;
