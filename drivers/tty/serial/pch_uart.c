@@ -584,10 +584,8 @@ static int pch_uart_hal_read(struct eg20t_port *priv, unsigned char *buf,
 			if (uart_handle_break(port))
 				continue;
 		}
-		if (port->sysrq) {
-			if (uart_handle_sysrq_char(port, rbr))
-				continue;
-		}
+		if (uart_handle_sysrq_char(port, rbr))
+			continue;
 
 		buf[i++] = rbr;
 	}
