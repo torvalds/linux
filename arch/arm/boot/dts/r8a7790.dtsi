@@ -1388,7 +1388,7 @@
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			ranges = <0x02000000 0 0xee080000 0 0xee080000 0 0x00010000>;
-			interrupt-map-mask = <0xff00 0 0 0x7>;
+			interrupt-map-mask = <0xf800 0 0 0x7>;
 			interrupt-map = <0x0000 0 0 1 &gic GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
 					<0x0800 0 0 1 &gic GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
 					<0x1000 0 0 2 &gic GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
@@ -1423,7 +1423,7 @@
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			ranges = <0x02000000 0 0xee0a0000 0 0xee0a0000 0 0x00010000>;
-			interrupt-map-mask = <0xff00 0 0 0x7>;
+			interrupt-map-mask = <0xf800 0 0 0x7>;
 			interrupt-map = <0x0000 0 0 1 &gic GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
 					<0x0800 0 0 1 &gic GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
 					<0x1000 0 0 2 &gic GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
@@ -1446,7 +1446,7 @@
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			ranges = <0x02000000 0 0xee0c0000 0 0xee0c0000 0 0x00010000>;
-			interrupt-map-mask = <0xff00 0 0 0x7>;
+			interrupt-map-mask = <0xf800 0 0 0x7>;
 			interrupt-map = <0x0000 0 0 1 &gic GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
 					<0x0800 0 0 1 &gic GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
 					<0x1000 0 0 2 &gic GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
