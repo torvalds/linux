@@ -49,8 +49,7 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	if (blocks)
 		tr->tr_reserved += 6 + blocks;
 	if (revokes)
-		tr->tr_reserved += gfs2_struct2blk(sdp, revokes,
-						   sizeof(u64));
+		tr->tr_reserved += gfs2_struct2blk(sdp, revokes);
 	INIT_LIST_HEAD(&tr->tr_databuf);
 	INIT_LIST_HEAD(&tr->tr_buf);
 

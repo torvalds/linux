@@ -37,7 +37,6 @@ static void gfs2_log_shutdown(struct gfs2_sbd *sdp);
  * gfs2_struct2blk - compute stuff
  * @sdp: the filesystem
  * @nstruct: the number of structures
- * @ssize: the size of the structures
  *
  * Compute the number of log descriptor blocks needed to hold a certain number
  * of structures of a certain size.
@@ -45,18 +44,16 @@ static void gfs2_log_shutdown(struct gfs2_sbd *sdp);
  * Returns: the number of blocks needed (minimum is always 1)
  */
 
-unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
-			     unsigned int ssize)
+unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct)
 {
 	unsigned int blks;
 	unsigned int first, second;
 
 	blks = 1;
-	first = (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_log_descriptor)) / ssize;
+	first = sdp->sd_ldptrs;
 
 	if (nstruct > first) {
-		second = (sdp->sd_sb.sb_bsize -
-			  sizeof(struct gfs2_meta_header)) / ssize;
+		second = sdp->sd_inptrs;
 		blks += DIV_ROUND_UP(nstruct - first, second);
 	}
 
@@ -473,8 +470,7 @@ static unsigned int calc_reserved(struct gfs2_sbd *sdp)
 	}
 
 	if (sdp->sd_log_commited_revoke > 0)
-		reserved += gfs2_struct2blk(sdp, sdp->sd_log_commited_revoke,
-					  sizeof(u64));
+		reserved += gfs2_struct2blk(sdp, sdp->sd_log_commited_revoke);
 	/* One for the overall header */
 	if (reserved)
 		reserved++;

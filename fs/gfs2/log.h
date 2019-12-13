@@ -60,9 +60,9 @@ static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
 		spin_unlock(&sdp->sd_ordered_lock);
 	}
 }
+
 extern void gfs2_ordered_del_inode(struct gfs2_inode *ip);
-extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
-			    unsigned int ssize);
+extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct);
 
 extern void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
 extern int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks);
