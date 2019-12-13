@@ -197,7 +197,7 @@ static ssize_t mdev_link_device_store(struct config_item *item,
 {
 	struct mdev_link *mdev_link = to_mdev_link(item);
 
-	strcpy(mdev_link->device, page);
+	strlcpy(mdev_link->device, page, sizeof(mdev_link->device));
 	strim(mdev_link->device);
 	return count;
 }
@@ -212,7 +212,7 @@ static ssize_t mdev_link_channel_store(struct config_item *item,
 {
 	struct mdev_link *mdev_link = to_mdev_link(item);
 
-	strcpy(mdev_link->channel, page);
+	strlcpy(mdev_link->channel, page, sizeof(mdev_link->channel));
 	strim(mdev_link->channel);
 	return count;
 }
@@ -227,7 +227,8 @@ static ssize_t mdev_link_comp_store(struct config_item *item,
 {
 	struct mdev_link *mdev_link = to_mdev_link(item);
 
-	strcpy(mdev_link->comp, page);
+	strlcpy(mdev_link->comp, page, sizeof(mdev_link->comp));
+	strim(mdev_link->comp);
 	return count;
 }
 
@@ -242,7 +243,8 @@ static ssize_t mdev_link_comp_params_store(struct config_item *item,
 {
 	struct mdev_link *mdev_link = to_mdev_link(item);
 
-	strcpy(mdev_link->comp_params, page);
+	strlcpy(mdev_link->comp_params, page, sizeof(mdev_link->comp_params));
+	strim(mdev_link->comp_params);
 	return count;
 }
 
