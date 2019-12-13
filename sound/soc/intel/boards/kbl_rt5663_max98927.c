@@ -229,11 +229,11 @@ static const struct snd_soc_dapm_route kabylake_5663_map[] = {
 
 static struct snd_soc_codec_conf max98927_codec_conf[] = {
 	{
-		.dev_name = MAXIM_DEV0_NAME,
+		.dlc = COMP_CODEC_CONF(MAXIM_DEV0_NAME),
 		.name_prefix = "Right",
 	},
 	{
-		.dev_name = MAXIM_DEV1_NAME,
+		.dlc = COMP_CODEC_CONF(MAXIM_DEV1_NAME),
 		.name_prefix = "Left",
 	},
 };
