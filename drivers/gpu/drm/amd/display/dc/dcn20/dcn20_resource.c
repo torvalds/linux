@@ -638,6 +638,7 @@ static const struct dce110_aux_registers aux_engine_regs[] = {
 #define tf_regs(id)\
 [id] = {\
 	TF_REG_LIST_DCN20(id),\
+	TF_REG_LIST_DCN20_COMMON_APPEND(id),\
 }
 
 static const struct dcn2_dpp_registers tf_regs[] = {

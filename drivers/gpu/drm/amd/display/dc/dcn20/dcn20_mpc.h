@@ -185,9 +185,11 @@
 /*
  *	DCN2 MPC_OCSC debug status register:
  *
- *		Field describing current OCSC Mode has index 1 [1..0]
+ *		Status index including current OCSC Mode is 1
+ *			OCSC Mode: [1..0]
  */
-#define MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE_IDX 1
+#define MPC_OCSC_TEST_DEBUG_DATA_STATUS_IDX 1
+#define MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE_MASK 0x3
 
 #define MPC_REG_FIELD_LIST_DCN2_0(type) \
 	MPC_REG_FIELD_LIST(type)\

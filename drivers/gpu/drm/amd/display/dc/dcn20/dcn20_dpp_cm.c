@@ -36,15 +36,15 @@
 #define REG(reg)\
 	dpp->tf_regs->reg
 
+#define IND_REG(index) \
+	(index)
+
 #define CTX \
 	dpp->base.ctx
 
 #undef FN
 #define FN(reg_name, field_name) \
 	dpp->tf_shift->field_name, dpp->tf_mask->field_name
-
-
-
 
 
 static void dpp2_enable_cm_block(
@@ -156,6 +156,83 @@ void dpp2_set_degamma(
 		BREAK_TO_DEBUGGER();
 		break;
 	}
+}
+
+void dpp2_program_input_csc(
+		struct dpp *dpp_base,
+		enum dc_color_space color_space,
+		enum dcn20_input_csc_select input_select,
+		const struct out_csc_color_matrix *tbl_entry)
+{
+	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
+	int i;
+	int arr_size = sizeof(dpp_input_csc_matrix)/sizeof(struct dpp_input_csc_matrix);
+	const uint16_t *regval = NULL;
+	uint32_t cur_select = 0;
+	enum dcn20_input_csc_select select;
+	struct color_matrices_reg icsc_regs;
+
+	if (input_select == DCN2_ICSC_SELECT_BYPASS) {
+		REG_SET(CM_ICSC_CONTROL, 0, CM_ICSC_MODE, 0);
+		return;
+	}
+
+	if (tbl_entry == NULL) {
+		for (i = 0; i < arr_size; i++)
+			if (dpp_input_csc_matrix[i].color_space == color_space) {
+				regval = dpp_input_csc_matrix[i].regval;
+				break;
+			}
+
+		if (regval == NULL) {
+			BREAK_TO_DEBUGGER();
+			return;
+		}
+	} else {
+		regval = tbl_entry->regval;
+	}
+
+	/* determine which CSC coefficients (A or B) we are using
+	 * currently.  select the alternate set to double buffer
+	 * the CSC update so CSC is updated on frame boundary
+	 */
+	cur_select = IX_REG_READ(CM_TEST_DEBUG_INDEX, CM_TEST_DEBUG_DATA,
+					CM_TEST_DEBUG_DATA_STATUS_IDX);
+
+	/* IX_REG_READ reads whole reg, so isolate part we want [5..4] */
+	cur_select = (cur_select >> CM_TEST_DEBUG_DATA_ICSC_MODE_SH)
+					& CM_TEST_DEBUG_DATA_ICSC_MODE_MASK;
+
+	/* value stored in dbg reg will be 1 greater than mode we want */
+	if (cur_select - 1 != DCN2_ICSC_SELECT_ICSC_A)
+		select = DCN2_ICSC_SELECT_ICSC_A;
+	else
+		select = DCN2_ICSC_SELECT_ICSC_B;
+
+	icsc_regs.shifts.csc_c11 = dpp->tf_shift->CM_ICSC_C11;
+	icsc_regs.masks.csc_c11  = dpp->tf_mask->CM_ICSC_C11;
+	icsc_regs.shifts.csc_c12 = dpp->tf_shift->CM_ICSC_C12;
+	icsc_regs.masks.csc_c12 = dpp->tf_mask->CM_ICSC_C12;
+
+	if (select == DCN2_ICSC_SELECT_ICSC_A) {
+
+		icsc_regs.csc_c11_c12 = REG(CM_ICSC_C11_C12);
+		icsc_regs.csc_c33_c34 = REG(CM_ICSC_C33_C34);
+
+	} else {
+
+		icsc_regs.csc_c11_c12 = REG(CM_ICSC_B_C11_C12);
+		icsc_regs.csc_c33_c34 = REG(CM_ICSC_B_C33_C34);
+
+	}
+
+	cm_helper_program_color_matrices(
+			dpp->base.ctx,
+			regval,
+			&icsc_regs);
+
+	REG_SET(CM_ICSC_CONTROL, 0,
+				CM_ICSC_MODE, select);
 }
 
 static void dpp20_power_on_blnd_lut(

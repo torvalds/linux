@@ -154,7 +154,10 @@ void mpc2_set_output_csc(
 	 * the CSC update so CSC is updated on frame boundary
 	 */
 	cur_mode = IX_REG_READ(MPC_OCSC_TEST_DEBUG_INDEX, MPC_OCSC_TEST_DEBUG_DATA,
-						MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE_IDX);
+						MPC_OCSC_TEST_DEBUG_DATA_STATUS_IDX);
+
+	/* Isolate part of reg data we want [1..0] */
+	cur_mode = cur_mode & MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE_MASK;
 
 	if (cur_mode != MPC_OUTPUT_CSC_COEF_A)
 		ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
@@ -211,7 +214,10 @@ void mpc2_set_ocsc_default(
 	 * the CSC update so CSC is updated on frame boundary
 	 */
 	cur_mode = IX_REG_READ(MPC_OCSC_TEST_DEBUG_INDEX, MPC_OCSC_TEST_DEBUG_DATA,
-						MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE_IDX);
+						MPC_OCSC_TEST_DEBUG_DATA_STATUS_IDX);
+
+	/* Isolate part of reg data we want [1..0] */
+	cur_mode = cur_mode & MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE_MASK;
 
 	if (cur_mode != MPC_OUTPUT_CSC_COEF_A)
 		ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
