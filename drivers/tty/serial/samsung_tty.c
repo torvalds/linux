@@ -21,10 +21,6 @@
  * BJD, 04-Nov-2004
  */
 
-#if defined(CONFIG_SERIAL_SAMSUNG_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -2012,6 +2008,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 		ourport->port.fifosize = ourport->drv_data->fifosize[index];
 	else if (ourport->info->fifosize)
 		ourport->port.fifosize = ourport->info->fifosize;
+	ourport->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_SAMSUNG_CONSOLE);
 
 	/*
 	 * DMA transfers must be aligned at least to cache line size,
