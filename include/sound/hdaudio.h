@@ -338,6 +338,7 @@ struct hdac_bus {
 	bool reverse_assign:1;		/* assign devices in reverse order */
 	bool corbrp_self_clear:1;	/* CORBRP clears itself after reset */
 	bool polling_mode:1;
+	bool needs_damn_long_delay:1;
 
 	int poll_count;
 
