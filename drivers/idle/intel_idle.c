@@ -41,6 +41,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/cpuidle.h>
 #include <linux/tick.h>
@@ -1111,6 +1112,129 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	{}
 };
 
+#define INTEL_CPU_FAM6_MWAIT \
+	{ X86_VENDOR_INTEL, 6, X86_MODEL_ANY, X86_FEATURE_MWAIT, 0 }
+
+static const struct x86_cpu_id intel_mwait_ids[] __initconst = {
+	INTEL_CPU_FAM6_MWAIT,
+	{}
+};
+
+static bool intel_idle_max_cstate_reached(int cstate)
+{
+	if (cstate + 1 > max_cstate) {
+		pr_info("max_cstate %d reached\n", max_cstate);
+		return true;
+	}
+	return false;
+}
+
+#ifdef CONFIG_ACPI_PROCESSOR_CSTATE
+#include <acpi/processor.h>
+
+static struct acpi_processor_power acpi_state_table;
+
+/**
+ * intel_idle_cst_usable - Check if the _CST information can be used.
+ *
+ * Check if all of the C-states listed by _CST in the max_cstate range are
+ * ACPI_CSTATE_FFH, which means that they should be entered via MWAIT.
+ */
+static bool intel_idle_cst_usable(void)
+{
+	int cstate, limit;
+
+	limit = min_t(int, min_t(int, CPUIDLE_STATE_MAX, max_cstate + 1),
+		      acpi_state_table.count);
+
+	for (cstate = 1; cstate < limit; cstate++) {
+		struct acpi_processor_cx *cx = &acpi_state_table.states[cstate];
+
+		if (cx->entry_method != ACPI_CSTATE_FFH)
+			return false;
+	}
+
+	return true;
+}
+
+static bool intel_idle_acpi_cst_extract(void)
+{
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct acpi_processor *pr = per_cpu(processors, cpu);
+
+		if (!pr)
+			continue;
+
+		if (acpi_processor_evaluate_cst(pr->handle, cpu, &acpi_state_table))
+			continue;
+
+		acpi_state_table.count++;
+
+		if (!intel_idle_cst_usable())
+			continue;
+
+		if (!acpi_processor_claim_cst_control()) {
+			acpi_state_table.count = 0;
+			return false;
+		}
+
+		return true;
+	}
+
+	pr_debug("ACPI _CST not found or not usable\n");
+	return false;
+}
+
+static void intel_idle_init_cstates_acpi(struct cpuidle_driver *drv)
+{
+	int cstate, limit = min_t(int, CPUIDLE_STATE_MAX, acpi_state_table.count);
+
+	/*
+	 * If limit > 0, intel_idle_cst_usable() has returned 'true', so all of
+	 * the interesting states are ACPI_CSTATE_FFH.
+	 */
+	for (cstate = 1; cstate < limit; cstate++) {
+		struct acpi_processor_cx *cx;
+		struct cpuidle_state *state;
+
+		if (intel_idle_max_cstate_reached(cstate))
+			break;
+
+		cx = &acpi_state_table.states[cstate];
+
+		state = &drv->states[drv->state_count++];
+
+		snprintf(state->name, CPUIDLE_NAME_LEN, "C%d_ACPI", cstate);
+		strlcpy(state->desc, cx->desc, CPUIDLE_DESC_LEN);
+		state->exit_latency = cx->latency;
+		/*
+		 * For C1-type C-states use the same number for both the exit
+		 * latency and target residency, because that is the case for
+		 * C1 in the majority of the static C-states tables above.
+		 * For the other types of C-states, however, set the target
+		 * residency to 3 times the exit latency which should lead to
+		 * a reasonable balance between energy-efficiency and
+		 * performance in the majority of interesting cases.
+		 */
+		state->target_residency = cx->latency;
+		if (cx->type > ACPI_STATE_C1)
+			state->target_residency *= 3;
+
+		state->flags = MWAIT2flg(cx->address);
+		if (cx->type > ACPI_STATE_C2)
+			state->flags |= CPUIDLE_FLAG_TLB_FLUSHED;
+
+		state->enter = intel_idle;
+		state->enter_s2idle = intel_idle_s2idle;
+	}
+}
+#else /* !CONFIG_ACPI_PROCESSOR_CSTATE */
+static inline bool intel_idle_acpi_cst_extract(void) { return false; }
+static inline void intel_idle_init_cstates_acpi(struct cpuidle_driver *drv) { }
+#endif /* !CONFIG_ACPI_PROCESSOR_CSTATE */
+
 /*
  * intel_idle_probe()
  */
@@ -1125,17 +1249,15 @@ static int __init intel_idle_probe(void)
 	}
 
 	id = x86_match_cpu(intel_idle_ids);
-	if (!id) {
-		if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
-		    boot_cpu_data.x86 == 6)
-			pr_debug("does not run on family %d model %d\n",
-				 boot_cpu_data.x86, boot_cpu_data.x86_model);
-		return -ENODEV;
-	}
-
-	if (!boot_cpu_has(X86_FEATURE_MWAIT)) {
-		pr_debug("Please enable MWAIT in BIOS SETUP\n");
-		return -ENODEV;
+	if (id) {
+		if (!boot_cpu_has(X86_FEATURE_MWAIT)) {
+			pr_debug("Please enable MWAIT in BIOS SETUP\n");
+			return -ENODEV;
+		}
+	} else {
+		id = x86_match_cpu(intel_mwait_ids);
+		if (!id)
+			return -ENODEV;
 	}
 
 	if (boot_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
@@ -1151,7 +1273,10 @@ static int __init intel_idle_probe(void)
 	pr_debug("MWAIT substates: 0x%x\n", mwait_substates);
 
 	icpu = (const struct idle_cpu *)id->driver_data;
-	cpuidle_state_table = icpu->state_table;
+	if (icpu)
+		cpuidle_state_table = icpu->state_table;
+	else if (!intel_idle_acpi_cst_extract())
+		return -ENODEV;
 
 	pr_debug("v" INTEL_IDLE_VERSION " model 0x%X\n",
 		 boot_cpu_data.x86_model);
@@ -1333,31 +1458,19 @@ static void intel_idle_state_table_update(void)
 	}
 }
 
-/*
- * intel_idle_cpuidle_driver_init()
- * allocate, initialize cpuidle_states
- */
-static void __init intel_idle_cpuidle_driver_init(void)
+static void intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 {
 	int cstate;
-	struct cpuidle_driver *drv = &intel_idle_driver;
-
-	intel_idle_state_table_update();
-
-	cpuidle_poll_state_init(drv);
-	drv->state_count = 1;
 
 	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
 		unsigned int mwait_hint;
 
+		if (intel_idle_max_cstate_reached(cstate))
+			break;
+
 		if (!cpuidle_state_table[cstate].enter &&
 		    !cpuidle_state_table[cstate].enter_s2idle)
 			break;
-
-		if (cstate + 1 > max_cstate) {
-			pr_info("max_cstate %d reached\n", max_cstate);
-			break;
-		}
 
 		/* If marked as unusable, skip this state. */
 		if (cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_UNUSABLE) {
@@ -1380,6 +1493,24 @@ static void __init intel_idle_cpuidle_driver_init(void)
 	}
 }
 
+/*
+ * intel_idle_cpuidle_driver_init()
+ * allocate, initialize cpuidle_states
+ */
+static void __init intel_idle_cpuidle_driver_init(void)
+{
+	struct cpuidle_driver *drv = &intel_idle_driver;
+
+	intel_idle_state_table_update();
+
+	cpuidle_poll_state_init(drv);
+	drv->state_count = 1;
+
+	if (icpu)
+		intel_idle_init_cstates_icpu(drv);
+	else
+		intel_idle_init_cstates_acpi(drv);
+}
 
 /*
  * intel_idle_cpu_init()
@@ -1397,6 +1528,9 @@ static int intel_idle_cpu_init(unsigned int cpu)
 		pr_debug("cpuidle_register_device %d failed!\n", cpu);
 		return -EIO;
 	}
+
+	if (!icpu)
+		return 0;
 
 	if (icpu->auto_demotion_disable_flags)
 		auto_demotion_disable();
