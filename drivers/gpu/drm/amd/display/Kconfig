@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: MIT
 menu "Display Engine Configuration"
 	depends on DRM && DRM_AMDGPU
 

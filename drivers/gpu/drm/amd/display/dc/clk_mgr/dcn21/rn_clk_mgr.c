@@ -471,12 +471,28 @@ static void rn_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 
 }
 
+static bool rn_are_clock_states_equal(struct dc_clocks *a,
+		struct dc_clocks *b)
+{
+	if (a->dispclk_khz != b->dispclk_khz)
+		return false;
+	else if (a->dppclk_khz != b->dppclk_khz)
+		return false;
+	else if (a->dcfclk_khz != b->dcfclk_khz)
+		return false;
+	else if (a->dcfclk_deep_sleep_khz != b->dcfclk_deep_sleep_khz)
+		return false;
+
+	return true;
+}
+
+
 static struct clk_mgr_funcs dcn21_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = rn_update_clocks,
 	.init_clocks = rn_init_clocks,
 	.enable_pme_wa = rn_enable_pme_wa,
-	/* .dump_clk_registers = rn_dump_clk_registers, */
+	.are_clock_states_equal = rn_are_clock_states_equal,
 	.notify_wm_ranges = rn_notify_wm_ranges
 };
 
@@ -518,35 +534,82 @@ struct clk_bw_params rn_bw_params = {
 		.num_entries = 4,
 	},
 
-	.wm_table = {
-		.entries = {
-			{
-				.wm_inst = WM_A,
-				.wm_type = WM_TYPE_PSTATE_CHG,
-				.pstate_latency_us = 23.84,
-				.valid = true,
-			},
-			{
-				.wm_inst = WM_B,
-				.wm_type = WM_TYPE_PSTATE_CHG,
-				.pstate_latency_us = 23.84,
-				.valid = true,
-			},
-			{
-				.wm_inst = WM_C,
-				.wm_type = WM_TYPE_PSTATE_CHG,
-				.pstate_latency_us = 23.84,
-				.valid = true,
-			},
-			{
-				.wm_inst = WM_D,
-				.wm_type = WM_TYPE_PSTATE_CHG,
-				.pstate_latency_us = 23.84,
-				.valid = true,
-			},
+};
+
+struct wm_table ddr4_wm_table = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 6.09,
+			.sr_enter_plus_exit_time_us = 7.14,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
 		},
 	}
 };
+
+struct wm_table lpddr4_wm_table = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 23.84,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 17.0,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 23.84,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 17.0,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 23.84,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 17.0,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 23.84,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 17.0,
+			.valid = true,
+		},
+	}
+};
+
 
 static unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
 {
@@ -561,7 +624,7 @@ static unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsi
 	return 0;
 }
 
-static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct hw_asic_id *asic_id)
+static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct integrated_info *bios_info)
 {
 	int i, j = 0;
 
@@ -593,8 +656,8 @@ static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params
 		bw_params->clk_table.entries[i].dcfclk_mhz = find_dcfclk_for_voltage(clock_table, clock_table->FClocks[j].Vol);
 	}
 
-	bw_params->vram_type = asic_id->vram_type;
-	bw_params->num_channels = asic_id->vram_width / DDR4_DRAM_WIDTH;
+	bw_params->vram_type = bios_info->memory_type;
+	bw_params->num_channels = bios_info->ma_channel_number;
 
 	for (i = 0; i < WM_SET_COUNT; i++) {
 		bw_params->wm_table.entries[i].wm_inst = i;
@@ -669,15 +732,24 @@ void rn_clk_mgr_construct(
 			ASSERT(clk_mgr->base.dprefclk_khz == 600000);
 			clk_mgr->base.dprefclk_khz = 600000;
 		}
+
+		if (ctx->dc_bios->integrated_info->memory_type == LpDdr4MemType) {
+			rn_bw_params.wm_table = lpddr4_wm_table;
+		} else {
+			rn_bw_params.wm_table = ddr4_wm_table;
+		}
 	}
 
 	dce_clock_read_ss_info(clk_mgr);
+
 
 	clk_mgr->base.bw_params = &rn_bw_params;
 
 	if (pp_smu && pp_smu->rn_funcs.get_dpm_clock_table) {
 		pp_smu->rn_funcs.get_dpm_clock_table(&pp_smu->rn_funcs.pp_smu, &clock_table);
-		rn_clk_mgr_helper_populate_bw_params(clk_mgr->base.bw_params, &clock_table, &ctx->asic_id);
+		if (ctx->dc_bios && ctx->dc_bios->integrated_info) {
+			rn_clk_mgr_helper_populate_bw_params (clk_mgr->base.bw_params, &clock_table, ctx->dc_bios->integrated_info);
+		}
 	}
 
 	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment) && clk_mgr->smu_ver >= 0x00371500) {
