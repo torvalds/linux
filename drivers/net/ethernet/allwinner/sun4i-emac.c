@@ -407,7 +407,7 @@ static void emac_init_device(struct net_device *dev)
 }
 
 /* Our watchdog timed out. Called by the networking layer */
-static void emac_timeout(struct net_device *dev)
+static void emac_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct emac_board_info *db = netdev_priv(dev);
 	unsigned long flags;

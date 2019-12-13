@@ -1572,7 +1572,7 @@ static int sxgbe_poll(struct napi_struct *napi, int budget)
  *   netdev structure and arrange for the device to be reset to a sane state
  *   in order to transmit a new packet.
  */
-static void sxgbe_tx_timeout(struct net_device *dev)
+static void sxgbe_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 

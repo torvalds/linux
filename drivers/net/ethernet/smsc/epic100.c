@@ -291,7 +291,7 @@ static int mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *dev, int phy_id, int loc, int val);
 static void epic_restart(struct net_device *dev);
 static void epic_timer(struct timer_list *t);
-static void epic_tx_timeout(struct net_device *dev);
+static void epic_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void epic_init_ring(struct net_device *dev);
 static netdev_tx_t epic_start_xmit(struct sk_buff *skb,
 				   struct net_device *dev);
@@ -861,7 +861,7 @@ static void epic_timer(struct timer_list *t)
 	add_timer(&ep->timer);
 }
 
-static void epic_tx_timeout(struct net_device *dev)
+static void epic_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct epic_private *ep = netdev_priv(dev);
 	void __iomem *ioaddr = ep->ioaddr;

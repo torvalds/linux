@@ -84,7 +84,7 @@ static int debug = -1;	/* the above default */
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "debugging messages level");
 
-static void mpc52xx_fec_tx_timeout(struct net_device *dev)
+static void mpc52xx_fec_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 	unsigned long flags;

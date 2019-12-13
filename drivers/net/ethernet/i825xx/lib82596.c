@@ -351,7 +351,7 @@ static netdev_tx_t i596_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t i596_interrupt(int irq, void *dev_id);
 static int i596_close(struct net_device *dev);
 static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd);
-static void i596_tx_timeout (struct net_device *dev);
+static void i596_tx_timeout (struct net_device *dev, unsigned int txqueue);
 static void print_eth(unsigned char *buf, char *str);
 static void set_multicast_list(struct net_device *dev);
 static inline void ca(struct net_device *dev);
@@ -936,7 +936,7 @@ out_remove_rx_bufs:
 	return -EAGAIN;
 }
 
-static void i596_tx_timeout (struct net_device *dev)
+static void i596_tx_timeout (struct net_device *dev, unsigned int txqueue)
 {
 	struct i596_private *lp = netdev_priv(dev);
 

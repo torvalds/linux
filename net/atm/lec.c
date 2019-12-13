@@ -194,7 +194,7 @@ lec_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	dev->stats.tx_bytes += skb->len;
 }
 
-static void lec_tx_timeout(struct net_device *dev)
+static void lec_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	pr_info("%s\n", dev->name);
 	netif_trans_update(dev);

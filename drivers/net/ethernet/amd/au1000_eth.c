@@ -1014,7 +1014,7 @@ static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
  * The Tx ring has been full longer than the watchdog timeout
  * value. The transmitter must be hung?
  */
-static void au1000_tx_timeout(struct net_device *dev)
+static void au1000_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	netdev_err(dev, "au1000_tx_timeout: dev=%p\n", dev);
 	au1000_reset_mac(dev);

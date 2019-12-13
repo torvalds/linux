@@ -267,7 +267,7 @@ static short _rtl92e_check_nic_enough_desc(struct net_device *dev, int prio)
 	return 0;
 }
 
-static void _rtl92e_tx_timeout(struct net_device *dev)
+static void _rtl92e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 

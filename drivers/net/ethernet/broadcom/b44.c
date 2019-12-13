@@ -948,7 +948,7 @@ irq_ack:
 	return IRQ_RETVAL(handled);
 }
 
-static void b44_tx_timeout(struct net_device *dev)
+static void b44_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct b44 *bp = netdev_priv(dev);
 

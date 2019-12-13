@@ -2108,7 +2108,7 @@ static void ef4_net_stats(struct net_device *net_dev,
 }
 
 /* Context: netif_tx_lock held, BHs disabled. */
-static void ef4_watchdog(struct net_device *net_dev)
+static void ef4_watchdog(struct net_device *net_dev, unsigned int txqueue)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 

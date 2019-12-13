@@ -742,7 +742,7 @@ txq_reclaim_end:
 	return released;
 }
 
-static void pxa168_eth_tx_timeout(struct net_device *dev)
+static void pxa168_eth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 

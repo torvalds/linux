@@ -2739,7 +2739,7 @@ static int nv_tx_done_optimized(struct net_device *dev, int limit)
  * nv_tx_timeout: dev->tx_timeout function
  * Called with netif_tx_lock held.
  */
-static void nv_tx_timeout(struct net_device *dev)
+static void nv_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);

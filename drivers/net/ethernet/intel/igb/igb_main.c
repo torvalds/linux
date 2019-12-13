@@ -146,7 +146,7 @@ static int igb_poll(struct napi_struct *, int);
 static bool igb_clean_tx_irq(struct igb_q_vector *, int);
 static int igb_clean_rx_irq(struct igb_q_vector *, int);
 static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
-static void igb_tx_timeout(struct net_device *);
+static void igb_tx_timeout(struct net_device *, unsigned int txqueue);
 static void igb_reset_task(struct work_struct *);
 static void igb_vlan_mode(struct net_device *netdev,
 			  netdev_features_t features);
@@ -6184,7 +6184,7 @@ static netdev_tx_t igb_xmit_frame(struct sk_buff *skb,
  *  igb_tx_timeout - Respond to a Tx Hang
  *  @netdev: network interface device structure
  **/
-static void igb_tx_timeout(struct net_device *netdev)
+static void igb_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;

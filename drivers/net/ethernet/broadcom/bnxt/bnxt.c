@@ -9976,7 +9976,7 @@ static void bnxt_reset_task(struct bnxt *bp, bool silent)
 	}
 }
 
-static void bnxt_tx_timeout(struct net_device *dev)
+static void bnxt_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct bnxt *bp = netdev_priv(dev);
 

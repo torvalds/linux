@@ -697,7 +697,7 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
  * fm10k_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  **/
-static void fm10k_tx_timeout(struct net_device *netdev)
+static void fm10k_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	bool real_tx_hang = false;

@@ -766,7 +766,7 @@ static void hinic_set_rx_mode(struct net_device *netdev)
 	queue_work(nic_dev->workq, &rx_mode_work->work);
 }
 
-static void hinic_tx_timeout(struct net_device *netdev)
+static void hinic_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 

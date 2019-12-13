@@ -114,7 +114,7 @@ struct ioc3_private {
 static int ioc3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void ioc3_set_multicast_list(struct net_device *dev);
 static netdev_tx_t ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static void ioc3_timeout(struct net_device *dev);
+static void ioc3_timeout(struct net_device *dev, unsigned int txqueue);
 static inline unsigned int ioc3_hash(const unsigned char *addr);
 static void ioc3_start(struct ioc3_private *ip);
 static inline void ioc3_stop(struct ioc3_private *ip);
@@ -1479,7 +1479,7 @@ drop_packet:
 	return NETDEV_TX_OK;
 }
 
-static void ioc3_timeout(struct net_device *dev)
+static void ioc3_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 

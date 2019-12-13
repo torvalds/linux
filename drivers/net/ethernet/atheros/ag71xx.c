@@ -1409,7 +1409,7 @@ static void ag71xx_oom_timer_handler(struct timer_list *t)
 	napi_schedule(&ag->napi);
 }
 
-static void ag71xx_tx_timeout(struct net_device *ndev)
+static void ag71xx_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct ag71xx *ag = netdev_priv(ndev);
 

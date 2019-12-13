@@ -3055,7 +3055,7 @@ static void bcmgenet_dump_tx_queue(struct bcmgenet_tx_ring *ring)
 		  ring->cb_ptr, ring->end_ptr);
 }
 
-static void bcmgenet_timeout(struct net_device *dev)
+static void bcmgenet_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	u32 int0_enable = 0;

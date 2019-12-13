@@ -66,7 +66,7 @@ static netdev_tx_t ether1_sendpacket(struct sk_buff *skb,
 static irqreturn_t ether1_interrupt(int irq, void *dev_id);
 static int ether1_close(struct net_device *dev);
 static void ether1_setmulticastlist(struct net_device *dev);
-static void ether1_timeout(struct net_device *dev);
+static void ether1_timeout(struct net_device *dev, unsigned int txqueue);
 
 /* ------------------------------------------------------------------------- */
 
@@ -650,7 +650,7 @@ ether1_open (struct net_device *dev)
 }
 
 static void
-ether1_timeout(struct net_device *dev)
+ether1_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	printk(KERN_WARNING "%s: transmit timeout, network cable problem?\n",
 		dev->name);

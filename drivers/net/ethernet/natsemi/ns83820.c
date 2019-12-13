@@ -1549,7 +1549,7 @@ static int ns83820_stop(struct net_device *ndev)
 	return 0;
 }
 
-static void ns83820_tx_timeout(struct net_device *ndev)
+static void ns83820_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct ns83820 *dev = PRIV(ndev);
         u32 tx_done_idx;
@@ -1603,7 +1603,7 @@ static void ns83820_tx_watch(struct timer_list *t)
 			ndev->name,
 			dev->tx_done_idx, dev->tx_free_idx,
 			atomic_read(&dev->nr_tx_skbs));
-		ns83820_tx_timeout(ndev);
+		ns83820_tx_timeout(ndev, UINT_MAX);
 	}
 
 	mod_timer(&dev->tx_watchdog, jiffies + 2*HZ);
