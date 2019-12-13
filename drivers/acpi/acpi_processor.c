@@ -705,3 +705,28 @@ void __init acpi_processor_init(void)
 	acpi_scan_add_handler_with_hotplug(&processor_handler, "processor");
 	acpi_scan_add_handler(&processor_container_handler);
 }
+
+#ifdef CONFIG_ACPI_PROCESSOR_CSTATE
+/**
+ * acpi_processor_claim_cst_control - Request _CST control from the platform.
+ */
+bool acpi_processor_claim_cst_control(void)
+{
+	static bool cst_control_claimed;
+	acpi_status status;
+
+	if (!acpi_gbl_FADT.cst_control || cst_control_claimed)
+		return true;
+
+	status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
+				    acpi_gbl_FADT.cst_control, 8);
+	if (ACPI_FAILURE(status)) {
+		pr_warn("ACPI: Failed to claim processor _CST control\n");
+		return false;
+	}
+
+	cst_control_claimed = true;
+	return true;
+}
+EXPORT_SYMBOL_GPL(acpi_processor_claim_cst_control);
+#endif /* CONFIG_ACPI_PROCESSOR_CSTATE */

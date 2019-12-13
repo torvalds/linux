@@ -909,7 +909,6 @@ static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 
 static inline void acpi_processor_cstate_first_run_checks(void)
 {
-	acpi_status status;
 	static int first_run;
 
 	if (first_run)
@@ -921,13 +920,10 @@ static inline void acpi_processor_cstate_first_run_checks(void)
 			  max_cstate);
 	first_run++;
 
-	if (acpi_gbl_FADT.cst_control && !nocst) {
-		status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
-					    acpi_gbl_FADT.cst_control, 8);
-		if (ACPI_FAILURE(status))
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Notifying BIOS of _CST ability failed"));
-	}
+	if (nocst)
+		return;
+
+	acpi_processor_claim_cst_control();
 }
 #else
 
