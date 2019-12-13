@@ -6043,9 +6043,6 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	    intel_fbc_pre_update(crtc, new_crtc_state, new_primary_state))
 		intel_wait_for_vblank(dev_priv, pipe);
 
-	if (new_primary_state)
-		intel_fbc_pre_update(crtc, new_crtc_state, new_primary_state);
-
 	/* Display WA 827 */
 	if (!needs_nv12_wa(old_crtc_state) &&
 	    needs_nv12_wa(new_crtc_state))
