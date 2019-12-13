@@ -18,5 +18,10 @@ int process(struct __sk_buff *skb)
 	skb->priority++;
 	skb->tstamp++;
 
+	if (skb->wire_len != 100)
+		return 1;
+	if (skb->gso_segs != 8)
+		return 1;
+
 	return 0;
 }

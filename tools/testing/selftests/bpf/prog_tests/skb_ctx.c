@@ -11,6 +11,8 @@ void test_skb_ctx(void)
 		.cb[4] = 5,
 		.priority = 6,
 		.tstamp = 7,
+		.wire_len = 100,
+		.gso_segs = 8,
 	};
 	struct bpf_prog_test_run_attr tattr = {
 		.data_in = &pkt_v4,
