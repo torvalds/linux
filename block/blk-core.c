@@ -1310,7 +1310,7 @@ EXPORT_SYMBOL_GPL(blk_rq_err_bytes);
 
 void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
-	if (blk_do_io_stat(req)) {
+	if (req->part && blk_do_io_stat(req)) {
 		const int sgrp = op_stat_group(req_op(req));
 		struct hd_struct *part;
 
@@ -1328,7 +1328,8 @@ void blk_account_io_done(struct request *req, u64 now)
 	 * normal IO on queueing nor completion.  Accounting the
 	 * containing request is enough.
 	 */
-	if (blk_do_io_stat(req) && !(req->rq_flags & RQF_FLUSH_SEQ)) {
+	if (req->part && blk_do_io_stat(req) &&
+	    !(req->rq_flags & RQF_FLUSH_SEQ)) {
 		const int sgrp = op_stat_group(req_op(req));
 		struct hd_struct *part;
 
