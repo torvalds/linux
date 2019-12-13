@@ -51,17 +51,12 @@ struct hal_tx_status {
 	u32 desc_id;
 	enum hal_wbm_tqm_rel_reason status;
 	u8 ack_rssi;
-	enum hal_tx_rate_stats_bw bw;
-	enum hal_tx_rate_stats_pkt_type pkt_type;
-	enum hal_tx_rate_stats_sgi sgi;
-	u8 mcs;
-	u16 num_tones_in_ru;
 	u32 flags; /* %HAL_TX_STATUS_FLAGS_ */
-	u32 tsf;
 	u32 ppdu_id;
 	u8 try_cnt;
 	u8 tid;
 	u16 peer_id;
+	u32 rate_stats;
 };
 
 void ath11k_hal_tx_cmd_desc_setup(struct ath11k_base *ab, void *cmd,

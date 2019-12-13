@@ -127,24 +127,7 @@ void ath11k_hal_tx_status_parse(struct ath11k_base *ab,
 	if (!(desc->rate_stats.info0 & HAL_TX_RATE_STATS_INFO0_VALID))
 		return;
 
-	ts->flags |= HAL_TX_STATUS_FLAGS_RATE_STATS_VALID;
-	ts->tsf = desc->rate_stats.tsf;
-	ts->bw = FIELD_GET(HAL_TX_RATE_STATS_INFO0_BW, desc->rate_stats.info0);
-	ts->pkt_type = FIELD_GET(HAL_TX_RATE_STATS_INFO0_PKT_TYPE,
-				 desc->rate_stats.info0);
-	if (desc->rate_stats.info0 & HAL_TX_RATE_STATS_INFO0_STBC)
-		ts->flags |= HAL_TX_STATUS_FLAGS_RATE_STBC;
-	if (desc->rate_stats.info0 & HAL_TX_RATE_STATS_INFO0_LDPC)
-		ts->flags |= HAL_TX_STATUS_FLAGS_RATE_LDPC;
-	if (desc->rate_stats.info0 & HAL_TX_RATE_STATS_INFO0_OFDMA_TX)
-		ts->flags |= HAL_TX_STATUS_FLAGS_OFDMA;
-
-	ts->sgi = FIELD_GET(HAL_TX_RATE_STATS_INFO0_SGI,
-			    desc->rate_stats.info0);
-	ts->mcs = FIELD_GET(HAL_TX_RATE_STATS_INFO0_MCS,
-			    desc->rate_stats.info0);
-	ts->num_tones_in_ru = FIELD_GET(HAL_TX_RATE_STATS_INFO0_TONES_IN_RU,
-					desc->rate_stats.info0);
+	ts->rate_stats = desc->rate_stats.info0;
 }
 
 void ath11k_hal_tx_set_dscp_tid_map(struct ath11k_base *ab, int id)
