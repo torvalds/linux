@@ -571,12 +571,12 @@ static struct snd_soc_ops skylake_refcap_ops = {
 static struct snd_soc_codec_conf max98927_codec_conf[] = {
 
 	{
-		.dev_name = MAX98927_DEV0_NAME,
+		.dlc = COMP_CODEC_CONF(MAX98927_DEV0_NAME),
 		.name_prefix = "Right",
 	},
 
 	{
-		.dev_name = MAX98927_DEV1_NAME,
+		.dlc = COMP_CODEC_CONF(MAX98927_DEV1_NAME),
 		.name_prefix = "Left",
 	},
 };
@@ -584,12 +584,12 @@ static struct snd_soc_codec_conf max98927_codec_conf[] = {
 static struct snd_soc_codec_conf max98373_codec_conf[] = {
 
 	{
-		.dev_name = MAX98373_DEV0_NAME,
+		.dlc = COMP_CODEC_CONF(MAX98373_DEV0_NAME),
 		.name_prefix = "Right",
 	},
 
 	{
-		.dev_name = MAX98373_DEV1_NAME,
+		.dlc = COMP_CODEC_CONF(MAX98373_DEV1_NAME),
 		.name_prefix = "Left",
 	},
 };
