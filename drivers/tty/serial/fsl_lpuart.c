@@ -5,10 +5,6 @@
  *  Copyright 2012-2014 Freescale Semiconductor, Inc.
  */
 
-#if defined(CONFIG_SERIAL_FSL_LPUART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/dma-mapping.h>
@@ -864,9 +860,7 @@ static void lpuart_rxint(struct lpuart_port *sport)
 			if (sr & UARTSR1_OR)
 				flg = TTY_OVERRUN;
 
-#ifdef SUPPORT_SYSRQ
 			sport->port.sysrq = 0;
-#endif
 		}
 
 		tty_insert_flip_char(port, rx, flg);
@@ -946,9 +940,7 @@ static void lpuart32_rxint(struct lpuart_port *sport)
 			if (sr & UARTSTAT_OR)
 				flg = TTY_OVERRUN;
 
-#ifdef SUPPORT_SYSRQ
 			sport->port.sysrq = 0;
-#endif
 		}
 
 		tty_insert_flip_char(port, rx, flg);
@@ -2461,6 +2453,7 @@ static int lpuart_probe(struct platform_device *pdev)
 		sport->port.ops = &lpuart32_pops;
 	else
 		sport->port.ops = &lpuart_pops;
+	sport->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_FSL_LPUART_CONSOLE);
 	sport->port.flags = UPF_BOOT_AUTOCONF;
 
 	if (lpuart_is_32(sport))
