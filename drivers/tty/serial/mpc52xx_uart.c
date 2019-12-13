@@ -1378,10 +1378,8 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 		ch = psc_ops->read_char(port);
 
 		/* Handle sysreq char */
-		if (uart_handle_sysrq_char(port, ch)) {
-			port->sysrq = 0;
+		if (uart_handle_sysrq_char(port, ch))
 			continue;
-		}
 
 		/* Store it */
 
