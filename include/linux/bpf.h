@@ -470,12 +470,61 @@ struct bpf_trampoline {
 	void *image;
 	u64 selector;
 };
+
+#define BPF_DISPATCHER_MAX 64 /* Fits in 2048B */
+
+struct bpf_dispatcher_prog {
+	struct bpf_prog *prog;
+	refcount_t users;
+};
+
+struct bpf_dispatcher {
+	/* dispatcher mutex */
+	struct mutex mutex;
+	void *func;
+	struct bpf_dispatcher_prog progs[BPF_DISPATCHER_MAX];
+	int num_progs;
+	void *image;
+	u32 image_off;
+};
+
 #ifdef CONFIG_BPF_JIT
 struct bpf_trampoline *bpf_trampoline_lookup(u64 key);
 int bpf_trampoline_link_prog(struct bpf_prog *prog);
 int bpf_trampoline_unlink_prog(struct bpf_prog *prog);
 void bpf_trampoline_put(struct bpf_trampoline *tr);
 void *bpf_jit_alloc_exec_page(void);
+#define BPF_DISPATCHER_INIT(name) {			\
+	.mutex = __MUTEX_INITIALIZER(name.mutex),	\
+	.func = &name##func,				\
+	.progs = {},					\
+	.num_progs = 0,					\
+	.image = NULL,					\
+	.image_off = 0					\
+}
+
+#define DEFINE_BPF_DISPATCHER(name)					\
+	noinline unsigned int name##func(				\
+		const void *ctx,					\
+		const struct bpf_insn *insnsi,				\
+		unsigned int (*bpf_func)(const void *,			\
+					 const struct bpf_insn *))	\
+	{								\
+		return bpf_func(ctx, insnsi);				\
+	}								\
+	EXPORT_SYMBOL(name##func);			\
+	struct bpf_dispatcher name = BPF_DISPATCHER_INIT(name);
+#define DECLARE_BPF_DISPATCHER(name)					\
+	unsigned int name##func(					\
+		const void *ctx,					\
+		const struct bpf_insn *insnsi,				\
+		unsigned int (*bpf_func)(const void *,			\
+					 const struct bpf_insn *));	\
+	extern struct bpf_dispatcher name;
+#define BPF_DISPATCHER_FUNC(name) name##func
+#define BPF_DISPATCHER_PTR(name) (&name)
+void bpf_dispatcher_change_prog(struct bpf_dispatcher *d, struct bpf_prog *from,
+				struct bpf_prog *to);
 #else
 static inline struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 {
@@ -490,6 +539,13 @@ static inline int bpf_trampoline_unlink_prog(struct bpf_prog *prog)
 	return -ENOTSUPP;
 }
 static inline void bpf_trampoline_put(struct bpf_trampoline *tr) {}
+#define DEFINE_BPF_DISPATCHER(name)
+#define DECLARE_BPF_DISPATCHER(name)
+#define BPF_DISPATCHER_FUNC(name) bpf_dispatcher_nopfunc
+#define BPF_DISPATCHER_PTR(name) NULL
+static inline void bpf_dispatcher_change_prog(struct bpf_dispatcher *d,
+					      struct bpf_prog *from,
+					      struct bpf_prog *to) {}
 #endif
 
 struct bpf_func_info_aux {
