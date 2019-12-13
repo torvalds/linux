@@ -546,7 +546,7 @@ static inline int atmel_aes_complete(struct atmel_aes_dev *dd, int err)
 	clk_disable(dd->iclk);
 	dd->flags &= ~AES_FLAGS_BUSY;
 
-	if (!dd->ctx->is_aead &&
+	if (!err && !dd->ctx->is_aead &&
 	    (rctx->mode & AES_FLAGS_OPMODE_MASK) != AES_FLAGS_ECB) {
 		if ((rctx->mode & AES_FLAGS_OPMODE_MASK) != AES_FLAGS_CTR)
 			atmel_aes_set_iv_as_last_ciphertext_block(dd);

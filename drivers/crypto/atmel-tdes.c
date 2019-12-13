@@ -597,7 +597,7 @@ static void atmel_tdes_finish_req(struct atmel_tdes_dev *dd, int err)
 
 	dd->flags &= ~TDES_FLAGS_BUSY;
 
-	if ((rctx->mode & TDES_FLAGS_OPMODE_MASK) != TDES_FLAGS_ECB)
+	if (!err && (rctx->mode & TDES_FLAGS_OPMODE_MASK) != TDES_FLAGS_ECB)
 		atmel_tdes_set_iv_as_last_ciphertext_block(dd);
 
 	req->base.complete(&req->base, err);
