@@ -47,7 +47,7 @@
 	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} |\n"	\
 	"\t            {-m|--mapcompat} | {-n|--nomount} }"
 #define HELP_SPEC_MAP							\
-	"MAP := { id MAP_ID | pinned FILE }"
+	"MAP := { id MAP_ID | pinned FILE | name MAP_NAME }"
 
 static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_UNSPEC]			= "unspec",
