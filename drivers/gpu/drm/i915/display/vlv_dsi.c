@@ -882,8 +882,8 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 }
 
 static void intel_dsi_post_disable(struct intel_encoder *encoder,
-				   const struct intel_crtc_state *pipe_config,
-				   const struct drm_connector_state *conn_state)
+				   const struct intel_crtc_state *old_crtc_state,
+				   const struct drm_connector_state *old_conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -891,6 +891,12 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	u32 val;
 
 	DRM_DEBUG_KMS("\n");
+
+	if (IS_GEN9_LP(dev_priv)) {
+		intel_crtc_vblank_off(old_crtc_state);
+
+		skylake_scaler_disable(old_crtc_state);
+	}
 
 	if (is_vid_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports)

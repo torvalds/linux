@@ -241,6 +241,14 @@ static void hsw_post_disable_crt(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
+	intel_crtc_vblank_off(old_crtc_state);
+
+	intel_disable_pipe(old_crtc_state);
+
+	intel_ddi_disable_transcoder_func(old_crtc_state);
+
+	ironlake_pfit_disable(old_crtc_state);
+
 	intel_ddi_disable_pipe_clock(old_crtc_state);
 
 	pch_post_disable_crt(encoder, old_crtc_state, old_conn_state);
