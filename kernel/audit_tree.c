@@ -24,6 +24,7 @@ struct audit_tree {
 
 struct audit_chunk {
 	struct list_head hash;
+	unsigned long key;
 	struct fsnotify_mark mark;
 	struct list_head trees;		/* with root here */
 	int dead;
@@ -172,21 +173,6 @@ static unsigned long inode_to_key(const struct inode *inode)
 	return (unsigned long)&inode->i_fsnotify_marks;
 }
 
-/*
- * Function to return search key in our hash from chunk. Key 0 is special and
- * should never be present in the hash.
- */
-static unsigned long chunk_to_key(struct audit_chunk *chunk)
-{
-	/*
-	 * We have a reference to the mark so it should be attached to a
-	 * connector.
-	 */
-	if (WARN_ON_ONCE(!chunk->mark.connector))
-		return 0;
-	return (unsigned long)chunk->mark.connector->obj;
-}
-
 static inline struct list_head *chunk_hash(unsigned long key)
 {
 	unsigned long n = key / L1_CACHE_BYTES;
@@ -196,12 +182,12 @@ static inline struct list_head *chunk_hash(unsigned long key)
 /* hash_lock & entry->lock is held by caller */
 static void insert_hash(struct audit_chunk *chunk)
 {
-	unsigned long key = chunk_to_key(chunk);
 	struct list_head *list;
 
 	if (!(chunk->mark.flags & FSNOTIFY_MARK_FLAG_ATTACHED))
 		return;
-	list = chunk_hash(key);
+	WARN_ON_ONCE(!chunk->key);
+	list = chunk_hash(chunk->key);
 	list_add_rcu(&chunk->hash, list);
 }
 
@@ -213,7 +199,7 @@ struct audit_chunk *audit_tree_lookup(const struct inode *inode)
 	struct audit_chunk *p;
 
 	list_for_each_entry_rcu(p, list, hash) {
-		if (chunk_to_key(p) == key) {
+		if (p->key == key) {
 			atomic_long_inc(&p->refs);
 			return p;
 		}
@@ -297,6 +283,7 @@ static void untag_chunk(struct node *p)
 
 	chunk->dead = 1;
 	spin_lock(&hash_lock);
+	new->key = chunk->key;
 	list_replace_init(&chunk->trees, &new->trees);
 	if (owner->root == chunk) {
 		list_del_init(&owner->same_root);
@@ -378,6 +365,7 @@ static int create_chunk(struct inode *inode, struct audit_tree *tree)
 		tree->root = chunk;
 		list_add(&tree->same_root, &chunk->trees);
 	}
+	chunk->key = inode_to_key(inode);
 	insert_hash(chunk);
 	spin_unlock(&hash_lock);
 	spin_unlock(&entry->lock);
@@ -462,6 +450,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 		fsnotify_put_mark(old_entry);
 		return 0;
 	}
+	chunk->key = old->key;
 	list_replace_init(&old->trees, &chunk->trees);
 	for (n = 0, p = chunk->owners; n < old->count; n++, p++) {
 		struct audit_tree *s = old->owners[n].owner;
@@ -661,7 +650,7 @@ void audit_trim_trees(void)
 			/* this could be NULL if the watch is dying else where... */
 			node->index |= 1U<<31;
 			if (iterate_mounts(compare_root,
-					   (void *)chunk_to_key(chunk),
+					   (void *)(chunk->key),
 					   root_mnt))
 				node->index &= ~(1U<<31);
 		}

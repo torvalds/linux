@@ -14,14 +14,13 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
 #define MBOX_MSG(chan, data28)		(((data28) & ~0xf) | ((chan) & 0xf))
 #define MBOX_CHAN(msg)			((msg) & 0xf)
 #define MBOX_DATA28(msg)		((msg) & ~0xf)
 #define MBOX_CHAN_PROPERTY		8
-
-#define MAX_RPI_FW_PROP_BUF_SIZE	32
 
 static struct platform_device *rpi_hwmon;
 
@@ -144,28 +143,30 @@ EXPORT_SYMBOL_GPL(rpi_firmware_property_list);
 int rpi_firmware_property(struct rpi_firmware *fw,
 			  u32 tag, void *tag_data, size_t buf_size)
 {
-	/* Single tags are very small (generally 8 bytes), so the
-	 * stack should be safe.
-	 */
-	u8 data[sizeof(struct rpi_firmware_property_tag_header) +
-		MAX_RPI_FW_PROP_BUF_SIZE];
-	struct rpi_firmware_property_tag_header *header =
-		(struct rpi_firmware_property_tag_header *)data;
+	struct rpi_firmware_property_tag_header *header;
 	int ret;
 
-	if (WARN_ON(buf_size > sizeof(data) - sizeof(*header)))
-		return -EINVAL;
+	/* Some mailboxes can use over 1k bytes. Rather than checking
+	 * size and using stack or kmalloc depending on requirements,
+	 * just use kmalloc. Mailboxes don't get called enough to worry
+	 * too much about the time taken in the allocation.
+	 */
+	void *data = kmalloc(sizeof(*header) + buf_size, GFP_KERNEL);
 
+	if (!data)
+		return -ENOMEM;
+
+	header = data;
 	header->tag = tag;
 	header->buf_size = buf_size;
 	header->req_resp_size = 0;
-	memcpy(data + sizeof(struct rpi_firmware_property_tag_header),
-	       tag_data, buf_size);
+	memcpy(data + sizeof(*header), tag_data, buf_size);
 
-	ret = rpi_firmware_property_list(fw, &data, buf_size + sizeof(*header));
-	memcpy(tag_data,
-	       data + sizeof(struct rpi_firmware_property_tag_header),
-	       buf_size);
+	ret = rpi_firmware_property_list(fw, data, buf_size + sizeof(*header));
+
+	memcpy(tag_data, data + sizeof(*header), buf_size);
+
+	kfree(data);
 
 	return ret;
 }

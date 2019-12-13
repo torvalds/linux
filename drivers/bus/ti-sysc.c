@@ -217,8 +217,13 @@ static int sysc_get_clocks(struct sysc *ddata)
 	if (!ddata->clocks)
 		return -ENOMEM;
 
-	for (i = 0; i < ddata->nr_clocks; i++) {
-		error = sysc_get_one_clock(ddata, ddata->clock_roles[i]);
+	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
+		const char *name = ddata->clock_roles[i];
+
+		if (!name)
+			continue;
+
+		error = sysc_get_one_clock(ddata, name);
 		if (error && error != -ENOENT)
 			return error;
 	}

@@ -59,7 +59,7 @@ static inline u32 host1x_uclass_incr_syncpt_r(void)
 	host1x_uclass_incr_syncpt_r()
 static inline u32 host1x_uclass_incr_syncpt_cond_f(u32 v)
 {
-	return (v & 0xff) << 8;
+	return (v & 0xff) << 10;
 }
 #define HOST1X_UCLASS_INCR_SYNCPT_COND_F(v) \
 	host1x_uclass_incr_syncpt_cond_f(v)

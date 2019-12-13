@@ -798,8 +798,8 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_tc_info *vti =
 				(struct virtchnl_tc_info *)msg;
-			valid_len += vti->num_tc *
-				sizeof(struct virtchnl_channel_info);
+			valid_len += (vti->num_tc - 1) *
+				     sizeof(struct virtchnl_channel_info);
 			if (vti->num_tc == 0)
 				err_msg_format = true;
 		}

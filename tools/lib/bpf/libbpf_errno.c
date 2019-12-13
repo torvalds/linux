@@ -20,6 +20,7 @@
  * License along with this program; if not,  see <http://www.gnu.org/licenses>
  */
 
+#undef _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 
