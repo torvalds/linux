@@ -949,6 +949,7 @@ struct snd_soc_dai_link {
 #define COMP_CODEC(_name, _dai)		{ .name = _name, .dai_name = _dai, }
 #define COMP_PLATFORM(_name)		{ .name = _name }
 #define COMP_AUX(_name)			{ .name = _name }
+#define COMP_CODEC_CONF(_name)		{ .name = _name }
 #define COMP_DUMMY()			{ .name = "snd-soc-dummy", .dai_name = "snd-soc-dummy-dai", }
 
 extern struct snd_soc_dai_link_component null_dailink_component[0];
@@ -961,6 +962,8 @@ struct snd_soc_codec_conf {
 	 */
 	const char *dev_name;
 	struct device_node *of_node;
+
+	struct snd_soc_dai_link_component dlc;
 
 	/*
 	 * optional map of kcontrol, widget and path name prefixes that are

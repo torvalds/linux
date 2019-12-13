@@ -1185,12 +1185,16 @@ static void soc_set_name_prefix(struct snd_soc_card *card,
 	for (i = 0; i < card->num_configs; i++) {
 		struct snd_soc_codec_conf *map = &card->codec_conf[i];
 
-		if (map->of_node && of_node != map->of_node)
-			continue;
-		if (map->dev_name && strcmp(component->name, map->dev_name))
-			continue;
-		component->name_prefix = map->name_prefix;
-		return;
+		/* fixme */
+		if (map->dev_name)
+			map->dlc.name = map->dev_name;
+		if (map->of_node)
+			map->dlc.of_node = map->of_node;
+
+		if (snd_soc_is_matching_component(&map->dlc, component)) {
+			component->name_prefix = map->name_prefix;
+			return;
+		}
 	}
 
 	/*
@@ -2915,7 +2919,7 @@ void snd_soc_of_parse_node_prefix(struct device_node *np,
 		return;
 	}
 
-	codec_conf->of_node	= of_node;
+	codec_conf->dlc.of_node	= of_node;
 	codec_conf->name_prefix	= str;
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_node_prefix);
