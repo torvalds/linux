@@ -82,22 +82,22 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 
 	pci_read_config_byte(dev, 0x40, &configbyte);  /* PCI Configuration Control */
 	switch (configbyte&6) {
-		case 0:
-			socket_count = 2;
-			break;
-		case 2:
-			socket_count = 1;
-			break;
-		case 4:
-		case 6:
-			socket_count = 4;
-			break;
+	case 0:
+		socket_count = 2;
+		break;
+	case 2:
+		socket_count = 1;
+		break;
+	case 4:
+	case 6:
+		socket_count = 4;
+		break;
 
-		default:
-			dev_err(&dev->dev,
-				"Oops, you did something we didn't think of.\n");
-			ret = -EIO;
-			goto err_out_disable;
+	default:
+		dev_err(&dev->dev,
+			"Oops, you did something we didn't think of.\n");
+		ret = -EIO;
+		goto err_out_disable;
 	}
 	dev_info(&dev->dev, "configured as a %d socket device.\n",
 		 socket_count);
@@ -498,42 +498,42 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 	}
 
 	switch (state->Vcc) {
-		case 0:
-			break;
-		case 50:
-			dev_info(&sock_info->dev->dev,
-				 "setting voltage to Vcc to 5V on socket %i\n",
-				 sock);
-			reg |= I365_VCC_5V;
-			break;
-		default:
-			dev_err(&sock_info->dev->dev,
-				"%s called with invalid VCC power value: %i",
-				__func__, state->Vcc);
-			leave("i82092aa_set_socket");
-			return -EINVAL;
+	case 0:
+		break;
+	case 50:
+		dev_info(&sock_info->dev->dev,
+			 "setting voltage to Vcc to 5V on socket %i\n",
+			 sock);
+		reg |= I365_VCC_5V;
+		break;
+	default:
+		dev_err(&sock_info->dev->dev,
+			"%s called with invalid VCC power value: %i",
+			__func__, state->Vcc);
+		leave("i82092aa_set_socket");
+		return -EINVAL;
 	}
 
 	switch (state->Vpp) {
-		case 0:
-			dev_info(&sock_info->dev->dev,
-				 "not setting Vpp on socket %i\n", sock);
-			break;
-		case 50:
-			dev_info(&sock_info->dev->dev,
-				 "setting Vpp to 5.0 for socket %i\n", sock);
-			reg |= I365_VPP1_5V | I365_VPP2_5V;
-			break;
-		case 120:
-			dev_info(&sock_info->dev->dev, "setting Vpp to 12.0\n");
-			reg |= I365_VPP1_12V | I365_VPP2_12V;
-			break;
-		default:
-			dev_err(&sock_info->dev->dev,
-				"%s called with invalid VPP power value: %i",
-				__func__, state->Vcc);
-			leave("i82092aa_set_socket");
-			return -EINVAL;
+	case 0:
+		dev_info(&sock_info->dev->dev,
+			 "not setting Vpp on socket %i\n", sock);
+		break;
+	case 50:
+		dev_info(&sock_info->dev->dev,
+			 "setting Vpp to 5.0 for socket %i\n", sock);
+		reg |= I365_VPP1_5V | I365_VPP2_5V;
+		break;
+	case 120:
+		dev_info(&sock_info->dev->dev, "setting Vpp to 12.0\n");
+		reg |= I365_VPP1_12V | I365_VPP2_12V;
+		break;
+	default:
+		dev_err(&sock_info->dev->dev,
+			"%s called with invalid VPP power value: %i",
+			__func__, state->Vcc);
+		leave("i82092aa_set_socket");
+		return -EINVAL;
 	}
 
 	if (reg != indirect_read(sock, I365_POWER)) /* only write if changed */
@@ -659,17 +659,17 @@ static int i82092aa_set_mem_map(struct pcmcia_socket *socket, struct pccard_mem_
 
 	i = (region.end >> 12) & 0x0fff;
 	switch (to_cycles(mem->speed)) {
-		case 0:
-			break;
-		case 1:
-			i |= I365_MEM_WS0;
-			break;
-		case 2:
-			i |= I365_MEM_WS1;
-			break;
-		default:
-			i |= I365_MEM_WS1 | I365_MEM_WS0;
-			break;
+	case 0:
+		break;
+	case 1:
+		i |= I365_MEM_WS0;
+		break;
+	case 2:
+		i |= I365_MEM_WS1;
+		break;
+	default:
+		i |= I365_MEM_WS1 | I365_MEM_WS0;
+		break;
 	}
 
 	indirect_write16(sock, base+I365_W_STOP, i);
@@ -701,7 +701,7 @@ static void i82092aa_module_exit(void)
 	enter("i82092aa_module_exit");
 	pci_unregister_driver(&i82092aa_pci_driver);
 	if (sockets[0].io_base > 0)
-			 release_region(sockets[0].io_base, 2);
+		release_region(sockets[0].io_base, 2);
 	leave("i82092aa_module_exit");
 }
 
