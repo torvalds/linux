@@ -11,10 +11,6 @@
  *  membase is an 'ioremapped' cookie.
  */
 
-#if defined(CONFIG_SERIAL_8250_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/ioport.h>
@@ -3055,6 +3051,7 @@ void serial8250_init_port(struct uart_8250_port *up)
 
 	spin_lock_init(&port->lock);
 	port->ops = &serial8250_pops;
+	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
 
 	up->cur_iotype = 0xFF;
 }
