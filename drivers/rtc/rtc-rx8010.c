@@ -399,11 +399,8 @@ static int rx8010_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		if (flagreg < 0)
 			return flagreg;
 
-		tmp = !!(flagreg & RX8010_FLAG_VLF);
-		if (copy_to_user((void __user *)arg, &tmp, sizeof(int)))
-			return -EFAULT;
-
-		return 0;
+		tmp = flagreg & RX8010_FLAG_VLF ? RTC_VL_DATA_INVALID : 0;
+		return put_user(tmp, (unsigned int __user *)arg);
 
 	default:
 		return -ENOIOCTLCMD;
