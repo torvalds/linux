@@ -2332,6 +2332,7 @@ int esw_offloads_enable(struct mlx5_eswitch *esw)
 	else
 		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 
+	mutex_init(&esw->offloads.termtbl_mutex);
 	mlx5_rdma_enable_roce(esw->dev);
 	err = esw_offloads_steering_init(esw);
 	if (err)
@@ -2355,7 +2356,6 @@ int esw_offloads_enable(struct mlx5_eswitch *esw)
 		goto err_vports;
 
 	esw_offloads_devcom_init(esw);
-	mutex_init(&esw->offloads.termtbl_mutex);
 
 	return 0;
 
@@ -2367,6 +2367,7 @@ err_vport_metadata:
 	esw_offloads_steering_cleanup(esw);
 err_steering_init:
 	mlx5_rdma_disable_roce(esw->dev);
+	mutex_destroy(&esw->offloads.termtbl_mutex);
 	return err;
 }
 
@@ -2397,6 +2398,7 @@ void esw_offloads_disable(struct mlx5_eswitch *esw)
 	esw_set_passing_vport_metadata(esw, false);
 	esw_offloads_steering_cleanup(esw);
 	mlx5_rdma_disable_roce(esw->dev);
+	mutex_destroy(&esw->offloads.termtbl_mutex);
 	esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 }
 
