@@ -299,12 +299,6 @@ static int pcf85063_ioctl(struct device *dev, unsigned int cmd,
 
 		return 0;
 
-	case RTC_VL_CLR:
-		ret = regmap_update_bits(pcf85063->regmap, PCF85063_REG_SC,
-					 PCF85063_REG_SC_OS, 0);
-
-		return ret;
-
 	default:
 		return -ENOIOCTLCMD;
 	}
