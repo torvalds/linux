@@ -616,6 +616,7 @@ smb2_close_cached_fid(struct kref *ref)
 			   cfid->fid->volatile_fid);
 		cfid->is_valid = false;
 		cfid->file_all_info_is_valid = false;
+		cfid->has_lease = false;
 	}
 }
 
@@ -626,13 +627,28 @@ void close_shroot(struct cached_fid *cfid)
 	mutex_unlock(&cfid->fid_mutex);
 }
 
+void close_shroot_lease_locked(struct cached_fid *cfid)
+{
+	if (cfid->has_lease) {
+		cfid->has_lease = false;
+		kref_put(&cfid->refcount, smb2_close_cached_fid);
+	}
+}
+
+void close_shroot_lease(struct cached_fid *cfid)
+{
+	mutex_lock(&cfid->fid_mutex);
+	close_shroot_lease_locked(cfid);
+	mutex_unlock(&cfid->fid_mutex);
+}
+
 void
 smb2_cached_lease_break(struct work_struct *work)
 {
 	struct cached_fid *cfid = container_of(work,
 				struct cached_fid, lease_break);
 
-	close_shroot(cfid);
+	close_shroot_lease(cfid);
 }
 
 /*
@@ -773,6 +789,7 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 	/* BB TBD check to see if oplock level check can be removed below */
 	if (o_rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE) {
 		kref_get(&tcon->crfid.refcount);
+		tcon->crfid.has_lease = true;
 		smb2_parse_contexts(server, o_rsp,
 				&oparms.fid->epoch,
 				oparms.fid->lease_key, &oplock, NULL);
