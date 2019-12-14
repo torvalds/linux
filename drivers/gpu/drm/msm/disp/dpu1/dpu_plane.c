@@ -751,7 +751,7 @@ done:
 	} else {
 		pstate[R0]->multirect_index = DPU_SSPP_RECT_0;
 		pstate[R1]->multirect_index = DPU_SSPP_RECT_1;
-	};
+	}
 
 	DPU_DEBUG_PLANE(dpu_plane[R0], "R0: %d - %d\n",
 		pstate[R0]->multirect_mode, pstate[R0]->multirect_index);
