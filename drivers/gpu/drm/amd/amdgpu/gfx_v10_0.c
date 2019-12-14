@@ -1951,7 +1951,7 @@ static int gfx_v10_0_parse_rlc_toc(struct amdgpu_device *adev)
 		rlc_autoload_info[rlc_toc->id].size = rlc_toc->size * 4;
 
 		rlc_toc++;
-	};
+	}
 
 	return 0;
 }
