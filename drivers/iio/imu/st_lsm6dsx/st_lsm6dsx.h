@@ -197,7 +197,10 @@ struct st_lsm6dsx_shub_settings {
 	struct st_lsm6dsx_reg aux_sens;
 	struct st_lsm6dsx_reg wr_once;
 	u8 num_ext_dev;
-	u8 shub_out;
+	struct {
+		bool sec_page;
+		u8 addr;
+	} shub_out;
 	u8 slv0_addr;
 	u8 dw_slv0_addr;
 	u8 batch_en;

@@ -105,20 +105,27 @@ static void st_lsm6dsx_shub_wait_complete(struct st_lsm6dsx_hw *hw)
  *
  * Read st_lsm6dsx i2c controller register
  */
-static int st_lsm6dsx_shub_read_reg(struct st_lsm6dsx_hw *hw, u8 addr,
-				    u8 *data, int len)
+static int
+st_lsm6dsx_shub_read_reg(struct st_lsm6dsx_hw *hw, u8 *data,
+			 int len)
 {
+	const struct st_lsm6dsx_shub_settings *hub_settings;
 	int err;
 
 	mutex_lock(&hw->page_lock);
 
-	err = st_lsm6dsx_set_page(hw, true);
-	if (err < 0)
-		goto out;
+	hub_settings = &hw->settings->shub_settings;
+	if (hub_settings->shub_out.sec_page) {
+		err = st_lsm6dsx_set_page(hw, true);
+		if (err < 0)
+			goto out;
+	}
 
-	err = regmap_bulk_read(hw->regmap, addr, data, len);
+	err = regmap_bulk_read(hw->regmap, hub_settings->shub_out.addr,
+			       data, len);
 
-	st_lsm6dsx_set_page(hw, false);
+	if (hub_settings->shub_out.sec_page)
+		st_lsm6dsx_set_page(hw, false);
 out:
 	mutex_unlock(&hw->page_lock);
 
@@ -236,8 +243,7 @@ st_lsm6dsx_shub_read(struct st_lsm6dsx_sensor *sensor, u8 addr,
 
 	st_lsm6dsx_shub_wait_complete(hw);
 
-	err = st_lsm6dsx_shub_read_reg(hw, hub_settings->shub_out, data,
-				       len & ST_LS6DSX_READ_OP_MASK);
+	err = st_lsm6dsx_shub_read_reg(hw, data, len & ST_LS6DSX_READ_OP_MASK);
 
 	st_lsm6dsx_shub_master_enable(sensor, false);
 
@@ -719,9 +725,7 @@ st_lsm6dsx_shub_check_wai(struct st_lsm6dsx_hw *hw, u8 *i2c_addr,
 
 		st_lsm6dsx_shub_wait_complete(hw);
 
-		err = st_lsm6dsx_shub_read_reg(hw,
-					       hub_settings->shub_out,
-					       &data, sizeof(data));
+		err = st_lsm6dsx_shub_read_reg(hw, &data, sizeof(data));
 
 		st_lsm6dsx_shub_master_enable(sensor, false);
 

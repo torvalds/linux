@@ -886,7 +886,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = BIT(6),
 			},
 			.num_ext_dev = 3,
-			.shub_out = 0x02,
+			.shub_out = {
+				.sec_page = true,
+				.addr = 0x02,
+			},
 			.slv0_addr = 0x15,
 			.dw_slv0_addr = 0x21,
 			.batch_en = BIT(3),
@@ -1263,7 +1266,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = BIT(6),
 			},
 			.num_ext_dev = 3,
-			.shub_out = 0x02,
+			.shub_out = {
+				.sec_page = true,
+				.addr = 0x02,
+			},
 			.slv0_addr = 0x15,
 			.dw_slv0_addr = 0x21,
 			.batch_en = BIT(3),
