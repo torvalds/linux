@@ -159,20 +159,21 @@ static int rv3029_eeprom_enter(struct rv3029_data *rv3029)
 	ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
 	if (ret < 0)
 		return ret;
-	if (sr & (RV3029_STATUS_VLOW1 | RV3029_STATUS_VLOW2)) {
+	if (sr & RV3029_STATUS_VLOW2)
+		return -ENODEV;
+	if (sr & RV3029_STATUS_VLOW1) {
 		/* We clear the bits and retry once just in case
 		 * we had a brown out in early startup.
 		 */
 		ret = regmap_update_bits(rv3029->regmap, RV3029_STATUS,
-					 RV3029_STATUS_VLOW1 |
-					 RV3029_STATUS_VLOW2, 0);
+					 RV3029_STATUS_VLOW1, 0);
 		if (ret < 0)
 			return ret;
 		usleep_range(1000, 10000);
 		ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
 		if (ret < 0)
 			return ret;
-		if (sr & (RV3029_STATUS_VLOW1 | RV3029_STATUS_VLOW2)) {
+		if (sr & RV3029_STATUS_VLOW1) {
 			dev_err(rv3029->dev,
 				"Supply voltage is too low to safely access the EEPROM.\n");
 			return -ENODEV;
@@ -306,8 +307,16 @@ static irqreturn_t rv3029_handle_irq(int irq, void *dev_id)
 static int rv3029_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
+	unsigned int sr;
 	int ret;
 	u8 regs[RV3029_WATCH_SECTION_LEN] = { 0, };
+
+	ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
+	if (ret < 0)
+		return ret;
+
+	if (sr & (RV3029_STATUS_VLOW2 | RV3029_STATUS_PON))
+		return -EINVAL;
 
 	ret = regmap_bulk_read(rv3029->regmap, RV3029_W_SEC, regs,
 			       RV3029_WATCH_SECTION_LEN);
@@ -454,9 +463,9 @@ static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
 	if (ret < 0)
 		return ret;
 
-	/* clear PON bit */
+	/* clear PON and VLOW2 bits */
 	return regmap_update_bits(rv3029->regmap, RV3029_STATUS,
-				  RV3029_STATUS_PON, 0);
+				  RV3029_STATUS_PON | RV3029_STATUS_VLOW2, 0);
 }
 
 static int rv3029_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
