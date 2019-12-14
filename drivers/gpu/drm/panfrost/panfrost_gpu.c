@@ -346,7 +346,7 @@ int panfrost_gpu_init(struct panfrost_device *pfdev)
 		return -ENODEV;
 
 	err = devm_request_irq(pfdev->dev, irq, panfrost_gpu_irq_handler,
-			       IRQF_SHARED, "gpu", pfdev);
+			       IRQF_SHARED, KBUILD_MODNAME "-gpu", pfdev);
 	if (err) {
 		dev_err(pfdev->dev, "failed to request gpu irq");
 		return err;
