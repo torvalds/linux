@@ -2,20 +2,10 @@
 #ifndef _BCACHEFS_BKEY_SORT_H
 #define _BCACHEFS_BKEY_SORT_H
 
-struct btree_node_iter_large {
-	u16		used;
-
-	struct btree_node_iter_set data[MAX_BSETS];
-};
-
-void bch2_btree_node_iter_large_push(struct btree_node_iter_large *,
-				     struct btree *,
-				     const struct bkey_packed *,
-				     const struct bkey_packed *);
-
 struct sort_iter {
-	struct btree	*b;
+	struct btree		*b;
 	unsigned		used;
+	unsigned		size;
 
 	struct sort_iter_set {
 		struct bkey_packed *k, *end;
@@ -24,27 +14,27 @@ struct sort_iter {
 
 static inline void sort_iter_init(struct sort_iter *iter, struct btree *b)
 {
-	memset(iter, 0, sizeof(*iter));
 	iter->b = b;
+	iter->used = 0;
+	iter->size = ARRAY_SIZE(iter->data);
 }
 
 static inline void sort_iter_add(struct sort_iter *iter,
 				 struct bkey_packed *k,
 				 struct bkey_packed *end)
 {
-	BUG_ON(iter->used >= ARRAY_SIZE(iter->data));
+	BUG_ON(iter->used >= iter->size);
 
 	if (k != end)
 		iter->data[iter->used++] = (struct sort_iter_set) { k, end };
 }
 
 struct btree_nr_keys
-bch2_key_sort_fix_overlapping(struct bset *, struct btree *,
-			      struct btree_node_iter_large *);
+bch2_key_sort_fix_overlapping(struct bch_fs *, struct bset *,
+			      struct sort_iter *);
 struct btree_nr_keys
 bch2_extent_sort_fix_overlapping(struct bch_fs *, struct bset *,
-				 struct btree *,
-				 struct btree_node_iter_large *);
+				 struct sort_iter *);
 
 struct btree_nr_keys
 bch2_sort_repack(struct bset *, struct btree *,

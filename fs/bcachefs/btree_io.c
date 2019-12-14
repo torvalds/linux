@@ -862,7 +862,7 @@ fsck_err:
 int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry)
 {
 	struct btree_node_entry *bne;
-	struct btree_node_iter_large *iter;
+	struct sort_iter *iter;
 	struct btree_node *sorted;
 	struct bkey_packed *k;
 	struct bset *i;
@@ -871,7 +871,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 	int ret, retry_read = 0, write = READ;
 
 	iter = mempool_alloc(&c->fill_iter, GFP_NOIO);
-	iter->used = 0;
+	sort_iter_init(iter, b);
+	iter->size = (btree_blocks(c) + 1) * 2;
 
 	if (bch2_meta_read_fault("btree"))
 		btree_err(BTREE_ERR_MUST_RETRY, c, b, NULL,
@@ -950,13 +951,12 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 		if (blacklisted && !first)
 			continue;
 
-		bch2_btree_node_iter_large_push(iter, b,
-					   i->start,
-					   vstruct_idx(i, whiteout_u64s));
+		sort_iter_add(iter, i->start,
+			      vstruct_idx(i, whiteout_u64s));
 
-		bch2_btree_node_iter_large_push(iter, b,
-					   vstruct_idx(i, whiteout_u64s),
-					   vstruct_last(i));
+		sort_iter_add(iter,
+			      vstruct_idx(i, whiteout_u64s),
+			      vstruct_last(i));
 	}
 
 	for (bne = write_block(b);
@@ -971,9 +971,9 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 
 	set_btree_bset(b, b->set, &b->data->keys);
 
-	b->nr = btree_node_is_extents(b)
-		? bch2_extent_sort_fix_overlapping(c, &sorted->keys, b, iter)
-		: bch2_key_sort_fix_overlapping(&sorted->keys, b, iter);
+	b->nr = (btree_node_is_extents(b)
+		 ? bch2_extent_sort_fix_overlapping
+		 : bch2_key_sort_fix_overlapping)(c, &sorted->keys, iter);
 
 	u64s = le16_to_cpu(sorted->keys.u64s);
 	*sorted = *b->data;
