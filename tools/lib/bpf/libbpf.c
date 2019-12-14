@@ -44,6 +44,7 @@
 #include <tools/libc_compat.h>
 #include <libelf.h>
 #include <gelf.h>
+#include <zlib.h>
 
 #include "libbpf.h"
 #include "bpf.h"
@@ -139,6 +140,20 @@ struct bpf_capabilities {
 	__u32 array_mmap:1;
 };
 
+enum reloc_type {
+	RELO_LD64,
+	RELO_CALL,
+	RELO_DATA,
+	RELO_EXTERN,
+};
+
+struct reloc_desc {
+	enum reloc_type type;
+	int insn_idx;
+	int map_idx;
+	int sym_off;
+};
+
 /*
  * bpf_prog should be a better name but it has been used in
  * linux/filter.h.
@@ -157,16 +172,7 @@ struct bpf_program {
 	size_t insns_cnt, main_prog_cnt;
 	enum bpf_prog_type type;
 
-	struct reloc_desc {
-		enum {
-			RELO_LD64,
-			RELO_CALL,
-			RELO_DATA,
-		} type;
-		int insn_idx;
-		int map_idx;
-		int sym_off;
-	} *reloc_desc;
+	struct reloc_desc *reloc_desc;
 	int nr_reloc;
 	int log_level;
 
@@ -198,18 +204,21 @@ struct bpf_program {
 #define DATA_SEC ".data"
 #define BSS_SEC ".bss"
 #define RODATA_SEC ".rodata"
+#define EXTERN_SEC ".extern"
 
 enum libbpf_map_type {
 	LIBBPF_MAP_UNSPEC,
 	LIBBPF_MAP_DATA,
 	LIBBPF_MAP_BSS,
 	LIBBPF_MAP_RODATA,
+	LIBBPF_MAP_EXTERN,
 };
 
 static const char * const libbpf_type_to_btf_name[] = {
 	[LIBBPF_MAP_DATA]	= DATA_SEC,
 	[LIBBPF_MAP_BSS]	= BSS_SEC,
 	[LIBBPF_MAP_RODATA]	= RODATA_SEC,
+	[LIBBPF_MAP_EXTERN]	= EXTERN_SEC,
 };
 
 struct bpf_map {
@@ -231,6 +240,28 @@ struct bpf_map {
 	bool reused;
 };
 
+enum extern_type {
+	EXT_UNKNOWN,
+	EXT_CHAR,
+	EXT_BOOL,
+	EXT_INT,
+	EXT_TRISTATE,
+	EXT_CHAR_ARR,
+};
+
+struct extern_desc {
+	const char *name;
+	int sym_idx;
+	int btf_id;
+	enum extern_type type;
+	int sz;
+	int align;
+	int data_off;
+	bool is_signed;
+	bool is_weak;
+	bool is_set;
+};
+
 static LIST_HEAD(bpf_objects_list);
 
 struct bpf_object {
@@ -243,6 +274,11 @@ struct bpf_object {
 	struct bpf_map *maps;
 	size_t nr_maps;
 	size_t maps_cap;
+
+	char *kconfig_path;
+	struct extern_desc *externs;
+	int nr_extern;
+	int extern_map_idx;
 
 	bool loaded;
 	bool has_pseudo_calls;
@@ -271,6 +307,7 @@ struct bpf_object {
 		int maps_shndx;
 		int btf_maps_shndx;
 		int text_shndx;
+		int symbols_shndx;
 		int data_shndx;
 		int rodata_shndx;
 		int bss_shndx;
@@ -542,6 +579,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 	obj->efile.data_shndx = -1;
 	obj->efile.rodata_shndx = -1;
 	obj->efile.bss_shndx = -1;
+	obj->extern_map_idx = -1;
 
 	obj->kern_version = get_kernel_version();
 	obj->loaded = false;
@@ -866,7 +904,8 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	def->key_size = sizeof(int);
 	def->value_size = data_sz;
 	def->max_entries = 1;
-	def->map_flags = type == LIBBPF_MAP_RODATA ? BPF_F_RDONLY_PROG : 0;
+	def->map_flags = type == LIBBPF_MAP_RODATA || type == LIBBPF_MAP_EXTERN
+			 ? BPF_F_RDONLY_PROG : 0;
 	def->map_flags |= BPF_F_MMAPABLE;
 
 	pr_debug("map '%s' (global data): at sec_idx %d, offset %zu, flags %x.\n",
@@ -883,7 +922,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 		return err;
 	}
 
-	if (type != LIBBPF_MAP_BSS)
+	if (data)
 		memcpy(map->mmaped, data, data_sz);
 
 	pr_debug("map %td is \"%s\"\n", map - obj->maps, map->name);
@@ -921,6 +960,271 @@ static int bpf_object__init_global_data_maps(struct bpf_object *obj)
 		if (err)
 			return err;
 	}
+	return 0;
+}
+
+
+static struct extern_desc *find_extern_by_name(const struct bpf_object *obj,
+					       const void *name)
+{
+	int i;
+
+	for (i = 0; i < obj->nr_extern; i++) {
+		if (strcmp(obj->externs[i].name, name) == 0)
+			return &obj->externs[i];
+	}
+	return NULL;
+}
+
+static int set_ext_value_tri(struct extern_desc *ext, void *ext_val,
+			     char value)
+{
+	switch (ext->type) {
+	case EXT_BOOL:
+		if (value == 'm') {
+			pr_warn("extern %s=%c should be tristate or char\n",
+				ext->name, value);
+			return -EINVAL;
+		}
+		*(bool *)ext_val = value == 'y' ? true : false;
+		break;
+	case EXT_TRISTATE:
+		if (value == 'y')
+			*(enum libbpf_tristate *)ext_val = TRI_YES;
+		else if (value == 'm')
+			*(enum libbpf_tristate *)ext_val = TRI_MODULE;
+		else /* value == 'n' */
+			*(enum libbpf_tristate *)ext_val = TRI_NO;
+		break;
+	case EXT_CHAR:
+		*(char *)ext_val = value;
+		break;
+	case EXT_UNKNOWN:
+	case EXT_INT:
+	case EXT_CHAR_ARR:
+	default:
+		pr_warn("extern %s=%c should be bool, tristate, or char\n",
+			ext->name, value);
+		return -EINVAL;
+	}
+	ext->is_set = true;
+	return 0;
+}
+
+static int set_ext_value_str(struct extern_desc *ext, char *ext_val,
+			     const char *value)
+{
+	size_t len;
+
+	if (ext->type != EXT_CHAR_ARR) {
+		pr_warn("extern %s=%s should char array\n", ext->name, value);
+		return -EINVAL;
+	}
+
+	len = strlen(value);
+	if (value[len - 1] != '"') {
+		pr_warn("extern '%s': invalid string config '%s'\n",
+			ext->name, value);
+		return -EINVAL;
+	}
+
+	/* strip quotes */
+	len -= 2;
+	if (len >= ext->sz) {
+		pr_warn("extern '%s': long string config %s of (%zu bytes) truncated to %d bytes\n",
+			ext->name, value, len, ext->sz - 1);
+		len = ext->sz - 1;
+	}
+	memcpy(ext_val, value + 1, len);
+	ext_val[len] = '\0';
+	ext->is_set = true;
+	return 0;
+}
+
+static int parse_u64(const char *value, __u64 *res)
+{
+	char *value_end;
+	int err;
+
+	errno = 0;
+	*res = strtoull(value, &value_end, 0);
+	if (errno) {
+		err = -errno;
+		pr_warn("failed to parse '%s' as integer: %d\n", value, err);
+		return err;
+	}
+	if (*value_end) {
+		pr_warn("failed to parse '%s' as integer completely\n", value);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static bool is_ext_value_in_range(const struct extern_desc *ext, __u64 v)
+{
+	int bit_sz = ext->sz * 8;
+
+	if (ext->sz == 8)
+		return true;
+
+	/* Validate that value stored in u64 fits in integer of `ext->sz`
+	 * bytes size without any loss of information. If the target integer
+	 * is signed, we rely on the following limits of integer type of
+	 * Y bits and subsequent transformation:
+	 *
+	 *     -2^(Y-1) <= X           <= 2^(Y-1) - 1
+	 *            0 <= X + 2^(Y-1) <= 2^Y - 1
+	 *            0 <= X + 2^(Y-1) <  2^Y
+	 *
+	 *  For unsigned target integer, check that all the (64 - Y) bits are
+	 *  zero.
+	 */
+	if (ext->is_signed)
+		return v + (1ULL << (bit_sz - 1)) < (1ULL << bit_sz);
+	else
+		return (v >> bit_sz) == 0;
+}
+
+static int set_ext_value_num(struct extern_desc *ext, void *ext_val,
+			     __u64 value)
+{
+	if (ext->type != EXT_INT && ext->type != EXT_CHAR) {
+		pr_warn("extern %s=%llu should be integer\n",
+			ext->name, value);
+		return -EINVAL;
+	}
+	if (!is_ext_value_in_range(ext, value)) {
+		pr_warn("extern %s=%llu value doesn't fit in %d bytes\n",
+			ext->name, value, ext->sz);
+		return -ERANGE;
+	}
+	switch (ext->sz) {
+		case 1: *(__u8 *)ext_val = value; break;
+		case 2: *(__u16 *)ext_val = value; break;
+		case 4: *(__u32 *)ext_val = value; break;
+		case 8: *(__u64 *)ext_val = value; break;
+		default:
+			return -EINVAL;
+	}
+	ext->is_set = true;
+	return 0;
+}
+
+static int bpf_object__read_kernel_config(struct bpf_object *obj,
+					  const char *config_path,
+					  void *data)
+{
+	char buf[PATH_MAX], *sep, *value;
+	struct extern_desc *ext;
+	int len, err = 0;
+	void *ext_val;
+	__u64 num;
+	gzFile file;
+
+	if (config_path) {
+		file = gzopen(config_path, "r");
+	} else {
+		struct utsname uts;
+
+		uname(&uts);
+		len = snprintf(buf, PATH_MAX, "/boot/config-%s", uts.release);
+		if (len < 0)
+			return -EINVAL;
+		else if (len >= PATH_MAX)
+			return -ENAMETOOLONG;
+		/* gzopen also accepts uncompressed files. */
+		file = gzopen(buf, "r");
+		if (!file)
+			file = gzopen("/proc/config.gz", "r");
+	}
+	if (!file) {
+		pr_warn("failed to read kernel config at '%s'\n", config_path);
+		return -ENOENT;
+	}
+
+	while (gzgets(file, buf, sizeof(buf))) {
+		if (strncmp(buf, "CONFIG_", 7))
+			continue;
+
+		sep = strchr(buf, '=');
+		if (!sep) {
+			err = -EINVAL;
+			pr_warn("failed to parse '%s': no separator\n", buf);
+			goto out;
+		}
+		/* Trim ending '\n' */
+		len = strlen(buf);
+		if (buf[len - 1] == '\n')
+			buf[len - 1] = '\0';
+		/* Split on '=' and ensure that a value is present. */
+		*sep = '\0';
+		if (!sep[1]) {
+			err = -EINVAL;
+			*sep = '=';
+			pr_warn("failed to parse '%s': no value\n", buf);
+			goto out;
+		}
+
+		ext = find_extern_by_name(obj, buf);
+		if (!ext)
+			continue;
+		if (ext->is_set) {
+			err = -EINVAL;
+			pr_warn("re-defining extern '%s' not allowed\n", buf);
+			goto out;
+		}
+
+		ext_val = data + ext->data_off;
+		value = sep + 1;
+
+		switch (*value) {
+		case 'y': case 'n': case 'm':
+			err = set_ext_value_tri(ext, ext_val, *value);
+			break;
+		case '"':
+			err = set_ext_value_str(ext, ext_val, value);
+			break;
+		default:
+			/* assume integer */
+			err = parse_u64(value, &num);
+			if (err) {
+				pr_warn("extern %s=%s should be integer\n",
+					ext->name, value);
+				goto out;
+			}
+			err = set_ext_value_num(ext, ext_val, num);
+			break;
+		}
+		if (err)
+			goto out;
+		pr_debug("extern %s=%s\n", ext->name, value);
+	}
+
+out:
+	gzclose(file);
+	return err;
+}
+
+static int bpf_object__init_extern_map(struct bpf_object *obj)
+{
+	struct extern_desc *last_ext;
+	size_t map_sz;
+	int err;
+
+	if (obj->nr_extern == 0)
+		return 0;
+
+	last_ext = &obj->externs[obj->nr_extern - 1];
+	map_sz = last_ext->data_off + last_ext->sz;
+
+	err = bpf_object__init_internal_map(obj, LIBBPF_MAP_EXTERN,
+					    obj->efile.symbols_shndx,
+					    NULL, map_sz);
+	if (err)
+		return err;
+
+	obj->extern_map_idx = obj->nr_maps - 1;
+
 	return 0;
 }
 
@@ -1401,19 +1705,17 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
 static int bpf_object__init_maps(struct bpf_object *obj,
 				 const struct bpf_object_open_opts *opts)
 {
-	const char *pin_root_path = OPTS_GET(opts, pin_root_path, NULL);
-	bool strict = !OPTS_GET(opts, relaxed_maps, false);
+	const char *pin_root_path;
+	bool strict;
 	int err;
 
+	strict = !OPTS_GET(opts, relaxed_maps, false);
+	pin_root_path = OPTS_GET(opts, pin_root_path, NULL);
+
 	err = bpf_object__init_user_maps(obj, strict);
-	if (err)
-		return err;
-
-	err = bpf_object__init_user_btf_maps(obj, strict, pin_root_path);
-	if (err)
-		return err;
-
-	err = bpf_object__init_global_data_maps(obj);
+	err = err ?: bpf_object__init_user_btf_maps(obj, strict, pin_root_path);
+	err = err ?: bpf_object__init_global_data_maps(obj);
+	err = err ?: bpf_object__init_extern_map(obj);
 	if (err)
 		return err;
 
@@ -1532,11 +1834,6 @@ static int bpf_object__init_btf(struct bpf_object *obj,
 				BTF_ELF_SEC, err);
 			goto out;
 		}
-		err = btf__finalize_data(obj, obj->btf);
-		if (err) {
-			pr_warn("Error finalizing %s: %d.\n", BTF_ELF_SEC, err);
-			goto out;
-		}
 	}
 	if (btf_ext_data) {
 		if (!obj->btf) {
@@ -1566,6 +1863,30 @@ out:
 	if (btf_required && !obj->btf) {
 		pr_warn("BTF is required, but is missing or corrupted.\n");
 		return err == 0 ? -ENOENT : err;
+	}
+	return 0;
+}
+
+static int bpf_object__finalize_btf(struct bpf_object *obj)
+{
+	int err;
+
+	if (!obj->btf)
+		return 0;
+
+	err = btf__finalize_data(obj, obj->btf);
+	if (!err)
+		return 0;
+
+	pr_warn("Error finalizing %s: %d.\n", BTF_ELF_SEC, err);
+	btf__free(obj->btf);
+	obj->btf = NULL;
+	btf_ext__free(obj->btf_ext);
+	obj->btf_ext = NULL;
+
+	if (bpf_object__is_btf_mandatory(obj)) {
+		pr_warn("BTF is required, but is missing or corrupted.\n");
+		return -ENOENT;
 	}
 	return 0;
 }
@@ -1670,6 +1991,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				return -LIBBPF_ERRNO__FORMAT;
 			}
 			obj->efile.symbols = data;
+			obj->efile.symbols_shndx = idx;
 			obj->efile.strtabidx = sh.sh_link;
 		} else if (sh.sh_type == SHT_PROGBITS && data->d_size > 0) {
 			if (sh.sh_flags & SHF_EXECINSTR) {
@@ -1737,6 +2059,216 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 	return bpf_object__init_btf(obj, btf_data, btf_ext_data);
 }
 
+static bool sym_is_extern(const GElf_Sym *sym)
+{
+	int bind = GELF_ST_BIND(sym->st_info);
+	/* externs are symbols w/ type=NOTYPE, bind=GLOBAL|WEAK, section=UND */
+	return sym->st_shndx == SHN_UNDEF &&
+	       (bind == STB_GLOBAL || bind == STB_WEAK) &&
+	       GELF_ST_TYPE(sym->st_info) == STT_NOTYPE;
+}
+
+static int find_extern_btf_id(const struct btf *btf, const char *ext_name)
+{
+	const struct btf_type *t;
+	const char *var_name;
+	int i, n;
+
+	if (!btf)
+		return -ESRCH;
+
+	n = btf__get_nr_types(btf);
+	for (i = 1; i <= n; i++) {
+		t = btf__type_by_id(btf, i);
+
+		if (!btf_is_var(t))
+			continue;
+
+		var_name = btf__name_by_offset(btf, t->name_off);
+		if (strcmp(var_name, ext_name))
+			continue;
+
+		if (btf_var(t)->linkage != BTF_VAR_GLOBAL_EXTERN)
+			return -EINVAL;
+
+		return i;
+	}
+
+	return -ENOENT;
+}
+
+static enum extern_type find_extern_type(const struct btf *btf, int id,
+					 bool *is_signed)
+{
+	const struct btf_type *t;
+	const char *name;
+
+	t = skip_mods_and_typedefs(btf, id, NULL);
+	name = btf__name_by_offset(btf, t->name_off);
+
+	if (is_signed)
+		*is_signed = false;
+	switch (btf_kind(t)) {
+	case BTF_KIND_INT: {
+		int enc = btf_int_encoding(t);
+
+		if (enc & BTF_INT_BOOL)
+			return t->size == 1 ? EXT_BOOL : EXT_UNKNOWN;
+		if (is_signed)
+			*is_signed = enc & BTF_INT_SIGNED;
+		if (t->size == 1)
+			return EXT_CHAR;
+		if (t->size < 1 || t->size > 8 || (t->size & (t->size - 1)))
+			return EXT_UNKNOWN;
+		return EXT_INT;
+	}
+	case BTF_KIND_ENUM:
+		if (t->size != 4)
+			return EXT_UNKNOWN;
+		if (strcmp(name, "libbpf_tristate"))
+			return EXT_UNKNOWN;
+		return EXT_TRISTATE;
+	case BTF_KIND_ARRAY:
+		if (btf_array(t)->nelems == 0)
+			return EXT_UNKNOWN;
+		if (find_extern_type(btf, btf_array(t)->type, NULL) != EXT_CHAR)
+			return EXT_UNKNOWN;
+		return EXT_CHAR_ARR;
+	default:
+		return EXT_UNKNOWN;
+	}
+}
+
+static int cmp_externs(const void *_a, const void *_b)
+{
+	const struct extern_desc *a = _a;
+	const struct extern_desc *b = _b;
+
+	/* descending order by alignment requirements */
+	if (a->align != b->align)
+		return a->align > b->align ? -1 : 1;
+	/* ascending order by size, within same alignment class */
+	if (a->sz != b->sz)
+		return a->sz < b->sz ? -1 : 1;
+	/* resolve ties by name */
+	return strcmp(a->name, b->name);
+}
+
+static int bpf_object__collect_externs(struct bpf_object *obj)
+{
+	const struct btf_type *t;
+	struct extern_desc *ext;
+	int i, n, off, btf_id;
+	struct btf_type *sec;
+	const char *ext_name;
+	Elf_Scn *scn;
+	GElf_Shdr sh;
+
+	if (!obj->efile.symbols)
+		return 0;
+
+	scn = elf_getscn(obj->efile.elf, obj->efile.symbols_shndx);
+	if (!scn)
+		return -LIBBPF_ERRNO__FORMAT;
+	if (gelf_getshdr(scn, &sh) != &sh)
+		return -LIBBPF_ERRNO__FORMAT;
+	n = sh.sh_size / sh.sh_entsize;
+
+	pr_debug("looking for externs among %d symbols...\n", n);
+	for (i = 0; i < n; i++) {
+		GElf_Sym sym;
+
+		if (!gelf_getsym(obj->efile.symbols, i, &sym))
+			return -LIBBPF_ERRNO__FORMAT;
+		if (!sym_is_extern(&sym))
+			continue;
+		ext_name = elf_strptr(obj->efile.elf, obj->efile.strtabidx,
+				      sym.st_name);
+		if (!ext_name || !ext_name[0])
+			continue;
+
+		ext = obj->externs;
+		ext = reallocarray(ext, obj->nr_extern + 1, sizeof(*ext));
+		if (!ext)
+			return -ENOMEM;
+		obj->externs = ext;
+		ext = &ext[obj->nr_extern];
+		memset(ext, 0, sizeof(*ext));
+		obj->nr_extern++;
+
+		ext->btf_id = find_extern_btf_id(obj->btf, ext_name);
+		if (ext->btf_id <= 0) {
+			pr_warn("failed to find BTF for extern '%s': %d\n",
+				ext_name, ext->btf_id);
+			return ext->btf_id;
+		}
+		t = btf__type_by_id(obj->btf, ext->btf_id);
+		ext->name = btf__name_by_offset(obj->btf, t->name_off);
+		ext->sym_idx = i;
+		ext->is_weak = GELF_ST_BIND(sym.st_info) == STB_WEAK;
+		ext->sz = btf__resolve_size(obj->btf, t->type);
+		if (ext->sz <= 0) {
+			pr_warn("failed to resolve size of extern '%s': %d\n",
+				ext_name, ext->sz);
+			return ext->sz;
+		}
+		ext->align = btf__align_of(obj->btf, t->type);
+		if (ext->align <= 0) {
+			pr_warn("failed to determine alignment of extern '%s': %d\n",
+				ext_name, ext->align);
+			return -EINVAL;
+		}
+		ext->type = find_extern_type(obj->btf, t->type,
+					     &ext->is_signed);
+		if (ext->type == EXT_UNKNOWN) {
+			pr_warn("extern '%s' type is unsupported\n", ext_name);
+			return -ENOTSUP;
+		}
+	}
+	pr_debug("collected %d externs total\n", obj->nr_extern);
+
+	if (!obj->nr_extern)
+		return 0;
+
+	/* sort externs by (alignment, size, name) and calculate their offsets
+	 * within a map */
+	qsort(obj->externs, obj->nr_extern, sizeof(*ext), cmp_externs);
+	off = 0;
+	for (i = 0; i < obj->nr_extern; i++) {
+		ext = &obj->externs[i];
+		ext->data_off = roundup(off, ext->align);
+		off = ext->data_off + ext->sz;
+		pr_debug("extern #%d: symbol %d, off %u, name %s\n",
+			 i, ext->sym_idx, ext->data_off, ext->name);
+	}
+
+	btf_id = btf__find_by_name(obj->btf, EXTERN_SEC);
+	if (btf_id <= 0) {
+		pr_warn("no BTF info found for '%s' datasec\n", EXTERN_SEC);
+		return -ESRCH;
+	}
+
+	sec = (struct btf_type *)btf__type_by_id(obj->btf, btf_id);
+	sec->size = off;
+	n = btf_vlen(sec);
+	for (i = 0; i < n; i++) {
+		struct btf_var_secinfo *vs = btf_var_secinfos(sec) + i;
+
+		t = btf__type_by_id(obj->btf, vs->type);
+		ext_name = btf__name_by_offset(obj->btf, t->name_off);
+		ext = find_extern_by_name(obj, ext_name);
+		if (!ext) {
+			pr_warn("failed to find extern definition for BTF var '%s'\n",
+				ext_name);
+			return -ESRCH;
+		}
+		vs->offset = ext->data_off;
+		btf_var(t)->linkage = BTF_VAR_GLOBAL_ALLOCATED;
+	}
+
+	return 0;
+}
+
 static struct bpf_program *
 bpf_object__find_prog_by_idx(struct bpf_object *obj, int idx)
 {
@@ -1801,6 +2333,8 @@ bpf_object__section_to_libbpf_map_type(const struct bpf_object *obj, int shndx)
 		return LIBBPF_MAP_BSS;
 	else if (shndx == obj->efile.rodata_shndx)
 		return LIBBPF_MAP_RODATA;
+	else if (shndx == obj->efile.symbols_shndx)
+		return LIBBPF_MAP_EXTERN;
 	else
 		return LIBBPF_MAP_UNSPEC;
 }
@@ -1845,6 +2379,30 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 			insn_idx, insn->code);
 		return -LIBBPF_ERRNO__RELOC;
 	}
+
+	if (sym_is_extern(sym)) {
+		int sym_idx = GELF_R_SYM(rel->r_info);
+		int i, n = obj->nr_extern;
+		struct extern_desc *ext;
+
+		for (i = 0; i < n; i++) {
+			ext = &obj->externs[i];
+			if (ext->sym_idx == sym_idx)
+				break;
+		}
+		if (i >= n) {
+			pr_warn("extern relo failed to find extern for sym %d\n",
+				sym_idx);
+			return -LIBBPF_ERRNO__RELOC;
+		}
+		pr_debug("found extern #%d '%s' (sym %d, off %u) for insn %u\n",
+			 i, ext->name, ext->sym_idx, ext->data_off, insn_idx);
+		reloc_desc->type = RELO_EXTERN;
+		reloc_desc->insn_idx = insn_idx;
+		reloc_desc->sym_off = ext->data_off;
+		return 0;
+	}
+
 	if (!shdr_idx || shdr_idx >= SHN_LORESERVE) {
 		pr_warn("invalid relo for \'%s\' in special section 0x%x; forgot to initialize global var?..\n",
 			name, shdr_idx);
@@ -2306,11 +2864,12 @@ bpf_object__reuse_map(struct bpf_map *map)
 static int
 bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 {
+	enum libbpf_map_type map_type = map->libbpf_type;
 	char *cp, errmsg[STRERR_BUFSIZE];
 	int err, zero = 0;
 
-	/* Nothing to do here since kernel already zero-initializes .bss map. */
-	if (map->libbpf_type == LIBBPF_MAP_BSS)
+	/* kernel already zero-initializes .bss map. */
+	if (map_type == LIBBPF_MAP_BSS)
 		return 0;
 
 	err = bpf_map_update_elem(map->fd, &zero, map->mmaped, 0);
@@ -2322,8 +2881,8 @@ bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 		return err;
 	}
 
-	/* Freeze .rodata map as read-only from syscall side. */
-	if (map->libbpf_type == LIBBPF_MAP_RODATA) {
+	/* Freeze .rodata and .extern map as read-only from syscall side. */
+	if (map_type == LIBBPF_MAP_RODATA || map_type == LIBBPF_MAP_EXTERN) {
 		err = bpf_map_freeze(map->fd);
 		if (err) {
 			err = -errno;
@@ -3572,9 +4131,6 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 	size_t new_cnt;
 	int err;
 
-	if (relo->type != RELO_CALL)
-		return -LIBBPF_ERRNO__RELOC;
-
 	if (prog->idx == obj->efile.text_shndx) {
 		pr_warn("relo in .text insn %d into off %d (insn #%d)\n",
 			relo->insn_idx, relo->sym_off, relo->sym_off / 8);
@@ -3636,27 +4192,37 @@ bpf_program__relocate(struct bpf_program *prog, struct bpf_object *obj)
 
 	for (i = 0; i < prog->nr_reloc; i++) {
 		struct reloc_desc *relo = &prog->reloc_desc[i];
+		struct bpf_insn *insn = &prog->insns[relo->insn_idx];
 
-		if (relo->type == RELO_LD64 || relo->type == RELO_DATA) {
-			struct bpf_insn *insn = &prog->insns[relo->insn_idx];
+		if (relo->insn_idx + 1 >= (int)prog->insns_cnt) {
+			pr_warn("relocation out of range: '%s'\n",
+				prog->section_name);
+			return -LIBBPF_ERRNO__RELOC;
+		}
 
-			if (relo->insn_idx + 1 >= (int)prog->insns_cnt) {
-				pr_warn("relocation out of range: '%s'\n",
-					prog->section_name);
-				return -LIBBPF_ERRNO__RELOC;
-			}
-
-			if (relo->type != RELO_DATA) {
-				insn[0].src_reg = BPF_PSEUDO_MAP_FD;
-			} else {
-				insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
-				insn[1].imm = insn[0].imm + relo->sym_off;
-			}
+		switch (relo->type) {
+		case RELO_LD64:
+			insn[0].src_reg = BPF_PSEUDO_MAP_FD;
 			insn[0].imm = obj->maps[relo->map_idx].fd;
-		} else if (relo->type == RELO_CALL) {
+			break;
+		case RELO_DATA:
+			insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
+			insn[1].imm = insn[0].imm + relo->sym_off;
+			insn[0].imm = obj->maps[relo->map_idx].fd;
+			break;
+		case RELO_EXTERN:
+			insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
+			insn[0].imm = obj->maps[obj->extern_map_idx].fd;
+			insn[1].imm = relo->sym_off;
+			break;
+		case RELO_CALL:
 			err = bpf_program__reloc_text(prog, obj, relo);
 			if (err)
 				return err;
+			break;
+		default:
+			pr_warn("relo #%d: bad relo type %d\n", i, relo->type);
+			return -EINVAL;
 		}
 	}
 
@@ -3936,11 +4502,10 @@ static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		   const struct bpf_object_open_opts *opts)
 {
+	const char *obj_name, *kconfig_path;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
-	const char *obj_name;
 	char tmp_name[64];
-	__u32 attach_prog_fd;
 	int err;
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
@@ -3969,11 +4534,18 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		return obj;
 
 	obj->relaxed_core_relocs = OPTS_GET(opts, relaxed_core_relocs, false);
-	attach_prog_fd = OPTS_GET(opts, attach_prog_fd, 0);
+	kconfig_path = OPTS_GET(opts, kconfig_path, NULL);
+	if (kconfig_path) {
+		obj->kconfig_path = strdup(kconfig_path);
+		if (!obj->kconfig_path)
+			return ERR_PTR(-ENOMEM);
+	}
 
 	err = bpf_object__elf_init(obj);
 	err = err ? : bpf_object__check_endianness(obj);
 	err = err ? : bpf_object__elf_collect(obj);
+	err = err ? : bpf_object__collect_externs(obj);
+	err = err ? : bpf_object__finalize_btf(obj);
 	err = err ? : bpf_object__init_maps(obj, opts);
 	err = err ? : bpf_object__init_prog_names(obj);
 	err = err ? : bpf_object__collect_reloc(obj);
@@ -3996,7 +4568,7 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		bpf_program__set_type(prog, prog_type);
 		bpf_program__set_expected_attach_type(prog, attach_type);
 		if (prog_type == BPF_PROG_TYPE_TRACING)
-			prog->attach_prog_fd = attach_prog_fd;
+			prog->attach_prog_fd = OPTS_GET(opts, attach_prog_fd, 0);
 	}
 
 	return obj;
@@ -4107,6 +4679,61 @@ static int bpf_object__sanitize_maps(struct bpf_object *obj)
 	return 0;
 }
 
+static int bpf_object__resolve_externs(struct bpf_object *obj,
+				       const char *config_path)
+{
+	bool need_config = false;
+	struct extern_desc *ext;
+	int err, i;
+	void *data;
+
+	if (obj->nr_extern == 0)
+		return 0;
+
+	data = obj->maps[obj->extern_map_idx].mmaped;
+
+	for (i = 0; i < obj->nr_extern; i++) {
+		ext = &obj->externs[i];
+
+		if (strcmp(ext->name, "LINUX_KERNEL_VERSION") == 0) {
+			void *ext_val = data + ext->data_off;
+			__u32 kver = get_kernel_version();
+
+			if (!kver) {
+				pr_warn("failed to get kernel version\n");
+				return -EINVAL;
+			}
+			err = set_ext_value_num(ext, ext_val, kver);
+			if (err)
+				return err;
+			pr_debug("extern %s=0x%x\n", ext->name, kver);
+		} else if (strncmp(ext->name, "CONFIG_", 7) == 0) {
+			need_config = true;
+		} else {
+			pr_warn("unrecognized extern '%s'\n", ext->name);
+			return -EINVAL;
+		}
+	}
+	if (need_config) {
+		err = bpf_object__read_kernel_config(obj, config_path, data);
+		if (err)
+			return -EINVAL;
+	}
+	for (i = 0; i < obj->nr_extern; i++) {
+		ext = &obj->externs[i];
+
+		if (!ext->is_set && !ext->is_weak) {
+			pr_warn("extern %s (strong) not resolved\n", ext->name);
+			return -ESRCH;
+		} else if (!ext->is_set) {
+			pr_debug("extern %s (weak) not resolved, defaulting to zero\n",
+				 ext->name);
+		}
+	}
+
+	return 0;
+}
+
 int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 {
 	struct bpf_object *obj;
@@ -4126,6 +4753,7 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	obj->loaded = true;
 
 	err = bpf_object__probe_caps(obj);
+	err = err ? : bpf_object__resolve_externs(obj, obj->kconfig_path);
 	err = err ? : bpf_object__sanitize_and_load_btf(obj);
 	err = err ? : bpf_object__sanitize_maps(obj);
 	err = err ? : bpf_object__create_maps(obj);
@@ -4718,6 +5346,10 @@ void bpf_object__close(struct bpf_object *obj)
 		zfree(&map->name);
 		zfree(&map->pin_path);
 	}
+
+	zfree(&obj->kconfig_path);
+	zfree(&obj->externs);
+	obj->nr_extern = 0;
 
 	zfree(&obj->maps);
 	obj->nr_maps = 0;

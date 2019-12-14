@@ -85,8 +85,12 @@ struct bpf_object_open_opts {
 	 */
 	const char *pin_root_path;
 	__u32 attach_prog_fd;
+	/* kernel config file path override (for CONFIG_ externs); can point
+	 * to either uncompressed text file or .gz file
+	 */
+	const char *kconfig_path;
 };
-#define bpf_object_open_opts__last_field attach_prog_fd
+#define bpf_object_open_opts__last_field kconfig_path
 
 LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
 LIBBPF_API struct bpf_object *
@@ -668,6 +672,12 @@ LIBBPF_API int bpf_object__load_skeleton(struct bpf_object_skeleton *s);
 LIBBPF_API int bpf_object__attach_skeleton(struct bpf_object_skeleton *s);
 LIBBPF_API void bpf_object__detach_skeleton(struct bpf_object_skeleton *s);
 LIBBPF_API void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s);
+
+enum libbpf_tristate {
+	TRI_NO = 0,
+	TRI_YES = 1,
+	TRI_MODULE = 2,
+};
 
 #ifdef __cplusplus
 } /* extern "C" */
