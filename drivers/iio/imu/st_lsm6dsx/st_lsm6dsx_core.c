@@ -656,6 +656,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x08,
 				.mask = GENMASK(5, 3),
 			},
+			[ST_LSM6DSX_ID_EXT0] = {
+				.addr = 0x09,
+				.mask = GENMASK(2, 0),
+			},
 		},
 		.fifo_ops = {
 			.update_fifo = st_lsm6dsx_update_fifo,
@@ -687,6 +691,39 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x09,
 				.mask = GENMASK(5, 3),
 			},
+		},
+		.shub_settings = {
+			.page_mux = {
+				.addr = 0x01,
+				.mask = BIT(7),
+			},
+			.master_en = {
+				.addr = 0x1a,
+				.mask = BIT(0),
+			},
+			.pullup_en = {
+				.addr = 0x1a,
+				.mask = BIT(3),
+			},
+			.aux_sens = {
+				.addr = 0x04,
+				.mask = GENMASK(5, 4),
+			},
+			.wr_once = {
+				.addr = 0x07,
+				.mask = BIT(5),
+			},
+			.emb_func = {
+				.addr = 0x19,
+				.mask = BIT(2),
+			},
+			.num_ext_dev = 1,
+			.shub_out = {
+				.addr = 0x2e,
+			},
+			.slv0_addr = 0x02,
+			.dw_slv0_addr = 0x0e,
+			.pause = 0x7,
 		},
 		.event_settings = {
 			.enable_reg = {
@@ -1902,6 +1939,16 @@ static int st_lsm6dsx_init_shub(struct st_lsm6dsx_hw *hw)
 					 hub_settings->aux_sens.mask, data);
 
 		st_lsm6dsx_set_page(hw, false);
+
+		if (err < 0)
+			return err;
+	}
+
+	if (hub_settings->emb_func.addr) {
+		data = ST_LSM6DSX_SHIFT_VAL(1, hub_settings->emb_func.mask);
+		err = regmap_update_bits(hw->regmap,
+					 hub_settings->emb_func.addr,
+					 hub_settings->emb_func.mask, data);
 	}
 
 	return err;

@@ -221,16 +221,21 @@ st_lsm6dsx_shub_read(struct st_lsm6dsx_sensor *sensor, u8 addr,
 		     u8 *data, int len)
 {
 	const struct st_lsm6dsx_shub_settings *hub_settings;
+	u8 config[3], slv_addr, slv_config = 0;
 	struct st_lsm6dsx_hw *hw = sensor->hw;
-	u8 config[3], slv_addr;
+	const struct st_lsm6dsx_reg *aux_sens;
 	int err;
 
 	hub_settings = &hw->settings->shub_settings;
 	slv_addr = ST_LSM6DSX_SLV_ADDR(0, hub_settings->slv0_addr);
+	aux_sens = &hw->settings->shub_settings.aux_sens;
+	/* do not overwrite aux_sens */
+	if (slv_addr + 2 == aux_sens->addr)
+		slv_config = ST_LSM6DSX_SHIFT_VAL(3, aux_sens->mask);
 
 	config[0] = (sensor->ext_info.addr << 1) | 1;
 	config[1] = addr;
-	config[2] = len & ST_LS6DSX_READ_OP_MASK;
+	config[2] = (len & ST_LS6DSX_READ_OP_MASK) | slv_config;
 
 	err = st_lsm6dsx_shub_write_reg(hw, slv_addr, config,
 					sizeof(config));
@@ -248,7 +253,9 @@ st_lsm6dsx_shub_read(struct st_lsm6dsx_sensor *sensor, u8 addr,
 
 	st_lsm6dsx_shub_master_enable(sensor, false);
 
-	memset(config, 0, sizeof(config));
+	config[0] = hub_settings->pause;
+	config[1] = 0;
+	config[2] = slv_config;
 	return st_lsm6dsx_shub_write_reg(hw, slv_addr, config,
 					 sizeof(config));
 }
@@ -305,7 +312,8 @@ st_lsm6dsx_shub_write(struct st_lsm6dsx_sensor *sensor, u8 addr,
 		st_lsm6dsx_shub_master_enable(sensor, false);
 	}
 
-	memset(config, 0, sizeof(config));
+	config[0] = hub_settings->pause;
+	config[1] = 0;
 	return st_lsm6dsx_shub_write_reg(hw, slv_addr, config, sizeof(config));
 }
 
@@ -697,14 +705,19 @@ st_lsm6dsx_shub_check_wai(struct st_lsm6dsx_hw *hw, u8 *i2c_addr,
 			  const struct st_lsm6dsx_ext_dev_settings *settings)
 {
 	const struct st_lsm6dsx_shub_settings *hub_settings;
+	u8 config[3], data, slv_addr, slv_config = 0;
+	const struct st_lsm6dsx_reg *aux_sens;
 	struct st_lsm6dsx_sensor *sensor;
-	u8 config[3], data, slv_addr;
 	bool found = false;
 	int i, err;
 
-	hub_settings = &hw->settings->shub_settings;
-	slv_addr = ST_LSM6DSX_SLV_ADDR(0, hub_settings->slv0_addr);
 	sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_ACC]);
+	hub_settings = &hw->settings->shub_settings;
+	aux_sens = &hw->settings->shub_settings.aux_sens;
+	slv_addr = ST_LSM6DSX_SLV_ADDR(0, hub_settings->slv0_addr);
+	/* do not overwrite aux_sens */
+	if (slv_addr + 2 == aux_sens->addr)
+		slv_config = ST_LSM6DSX_SHIFT_VAL(3, aux_sens->mask);
 
 	for (i = 0; i < ARRAY_SIZE(settings->i2c_addr); i++) {
 		if (!settings->i2c_addr[i])
@@ -713,7 +726,7 @@ st_lsm6dsx_shub_check_wai(struct st_lsm6dsx_hw *hw, u8 *i2c_addr,
 		/* read wai slave register */
 		config[0] = (settings->i2c_addr[i] << 1) | 0x1;
 		config[1] = settings->wai.addr;
-		config[2] = 0x1;
+		config[2] = 0x1 | slv_config;
 
 		err = st_lsm6dsx_shub_write_reg(hw, slv_addr, config,
 						sizeof(config));
@@ -742,7 +755,9 @@ st_lsm6dsx_shub_check_wai(struct st_lsm6dsx_hw *hw, u8 *i2c_addr,
 	}
 
 	/* reset SLV0 channel */
-	memset(config, 0, sizeof(config));
+	config[0] = hub_settings->pause;
+	config[1] = 0;
+	config[2] = slv_config;
 	err = st_lsm6dsx_shub_write_reg(hw, slv_addr, config,
 					sizeof(config));
 	if (err < 0)
