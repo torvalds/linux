@@ -176,6 +176,7 @@ struct st_lsm6dsx_hw_ts_settings {
  * @pullup_en: i2c controller pull-up register info (addr + mask).
  * @aux_sens: aux sensor register info (addr + mask).
  * @wr_once: write_once register info (addr + mask).
+ * @num_ext_dev: max number of slave devices.
  * @shub_out: sensor hub first output register info.
  * @slv0_addr: slave0 address in secondary page.
  * @dw_slv0_addr: slave0 write register address in secondary page.
@@ -187,6 +188,7 @@ struct st_lsm6dsx_shub_settings {
 	struct st_lsm6dsx_reg pullup_en;
 	struct st_lsm6dsx_reg aux_sens;
 	struct st_lsm6dsx_reg wr_once;
+	u8 num_ext_dev;
 	u8 shub_out;
 	u8 slv0_addr;
 	u8 dw_slv0_addr;

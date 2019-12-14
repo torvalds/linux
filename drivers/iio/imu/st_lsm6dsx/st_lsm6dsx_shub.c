@@ -30,7 +30,6 @@
 
 #include "st_lsm6dsx.h"
 
-#define ST_LSM6DSX_MAX_SLV_NUM			3
 #define ST_LSM6DSX_SLV_ADDR(n, base)		((base) + (n) * 3)
 #define ST_LSM6DSX_SLV_SUB_ADDR(n, base)	((base) + 1 + (n) * 3)
 #define ST_LSM6DSX_SLV_CONFIG(n, base)		((base) + 2 + (n) * 3)
@@ -770,7 +769,7 @@ int st_lsm6dsx_shub_probe(struct st_lsm6dsx_hw *hw, const char *name)
 		if (err < 0)
 			return err;
 
-		if (++num_ext_dev >= ST_LSM6DSX_MAX_SLV_NUM)
+		if (++num_ext_dev >= hw->settings->shub_settings.num_ext_dev)
 			break;
 		id++;
 	}
