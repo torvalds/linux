@@ -1222,6 +1222,17 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			new_fa->tb_id = tb->tb_id;
 			new_fa->fa_default = -1;
 
+			if (fib_find_alias(&l->leaf, fa->fa_slen, 0, 0,
+					   tb->tb_id, true) == fa) {
+				enum fib_event_type fib_event;
+
+				fib_event = FIB_EVENT_ENTRY_REPLACE_TMP;
+				err = call_fib_entry_notifiers(net, fib_event,
+							       key, plen,
+							       new_fa, extack);
+				if (err)
+					goto out_free_new_fa;
+			}
 			err = call_fib_entry_notifiers(net,
 						       FIB_EVENT_ENTRY_REPLACE,
 						       key, plen, new_fa,
