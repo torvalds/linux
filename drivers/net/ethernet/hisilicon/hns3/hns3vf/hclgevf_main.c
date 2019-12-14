@@ -16,6 +16,8 @@
 static int hclgevf_reset_hdev(struct hclgevf_dev *hdev);
 static struct hnae3_ae_algo ae_algovf;
 
+static struct workqueue_struct *hclgevf_wq;
+
 static const struct pci_device_id ae_algovf_pci_tbl[] = {
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_VF), 0},
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_DCB_PFC_VF), 0},
@@ -1775,7 +1777,7 @@ void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev)
 	if (!test_bit(HCLGEVF_STATE_REMOVING, &hdev->state) &&
 	    !test_and_set_bit(HCLGEVF_STATE_RST_SERVICE_SCHED,
 			      &hdev->state))
-		mod_delayed_work(system_wq, &hdev->service_task, 0);
+		mod_delayed_work(hclgevf_wq, &hdev->service_task, 0);
 }
 
 void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev)
@@ -1783,14 +1785,14 @@ void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev)
 	if (!test_bit(HCLGEVF_STATE_REMOVING, &hdev->state) &&
 	    !test_and_set_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED,
 			      &hdev->state))
-		mod_delayed_work(system_wq, &hdev->service_task, 0);
+		mod_delayed_work(hclgevf_wq, &hdev->service_task, 0);
 }
 
 static void hclgevf_task_schedule(struct hclgevf_dev *hdev,
 				  unsigned long delay)
 {
 	if (!test_bit(HCLGEVF_STATE_REMOVING, &hdev->state))
-		mod_delayed_work(system_wq, &hdev->service_task, delay);
+		mod_delayed_work(hclgevf_wq, &hdev->service_task, delay);
 }
 
 static void hclgevf_reset_service_task(struct hclgevf_dev *hdev)
@@ -3197,6 +3199,12 @@ static int hclgevf_init(void)
 {
 	pr_info("%s is initializing\n", HCLGEVF_NAME);
 
+	hclgevf_wq = alloc_workqueue("%s", WQ_MEM_RECLAIM, 0, HCLGEVF_NAME);
+	if (!hclgevf_wq) {
+		pr_err("%s: failed to create workqueue\n", HCLGEVF_NAME);
+		return -ENOMEM;
+	}
+
 	hnae3_register_ae_algo(&ae_algovf);
 
 	return 0;
@@ -3205,6 +3213,7 @@ static int hclgevf_init(void)
 static void hclgevf_exit(void)
 {
 	hnae3_unregister_ae_algo(&ae_algovf);
+	destroy_workqueue(hclgevf_wq);
 }
 module_init(hclgevf_init);
 module_exit(hclgevf_exit);
