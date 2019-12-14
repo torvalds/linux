@@ -2240,7 +2240,7 @@ int dpu_encoder_wait_for_event(struct drm_encoder *drm_enc,
 			DPU_ERROR_ENC(dpu_enc, "unknown wait event %d\n",
 					event);
 			return -EINVAL;
-		};
+		}
 
 		if (fn_wait) {
 			DPU_ATRACE_BEGIN("wait_for_completion_event");
