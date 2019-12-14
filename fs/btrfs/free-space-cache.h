@@ -8,10 +8,16 @@
 
 /*
  * This is the trim state of an extent or bitmap.
+ *
+ * BTRFS_TRIM_STATE_TRIMMING is special and used to maintain the state of a
+ * bitmap as we may need several trims to fully trim a single bitmap entry.
+ * This is reset should any free space other than trimmed space be added to the
+ * bitmap.
  */
 enum btrfs_trim_state {
 	BTRFS_TRIM_STATE_UNTRIMMED,
 	BTRFS_TRIM_STATE_TRIMMED,
+	BTRFS_TRIM_STATE_TRIMMING,
 };
 
 struct btrfs_free_space {
@@ -27,6 +33,12 @@ struct btrfs_free_space {
 static inline bool btrfs_free_space_trimmed(struct btrfs_free_space *info)
 {
 	return (info->trim_state == BTRFS_TRIM_STATE_TRIMMED);
+}
+
+static inline bool btrfs_free_space_trimming_bitmap(
+					    struct btrfs_free_space *info)
+{
+	return (info->trim_state == BTRFS_TRIM_STATE_TRIMMING);
 }
 
 struct btrfs_free_space_ctl {
