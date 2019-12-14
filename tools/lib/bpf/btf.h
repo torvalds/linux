@@ -8,12 +8,10 @@
 #include <linux/btf.h>
 #include <linux/types.h>
 
+#include "libbpf_common.h"
+
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifndef LIBBPF_API
-#define LIBBPF_API __attribute__((visibility("default")))
 #endif
 
 #define BTF_ELF_SEC ".BTF"

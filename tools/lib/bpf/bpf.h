@@ -28,12 +28,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "libbpf_common.h"
+
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifndef LIBBPF_API
-#define LIBBPF_API __attribute__((visibility("default")))
 #endif
 
 struct bpf_create_map_attr {
