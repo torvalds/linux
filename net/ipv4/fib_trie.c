@@ -1063,9 +1063,6 @@ noleaf:
 	return -ENOMEM;
 }
 
-/* fib notifier for ADD is sent before calling fib_insert_alias with
- * the expectation that the only possible failure ENOMEM
- */
 static int fib_insert_alias(struct trie *t, struct key_vector *tp,
 			    struct key_vector *l, struct fib_alias *new,
 			    struct fib_alias *fa, t_key key)
@@ -1117,6 +1114,9 @@ static bool fib_valid_key_len(u32 key, u8 plen, struct netlink_ext_ack *extack)
 
 	return true;
 }
+
+static void fib_remove_alias(struct trie *t, struct key_vector *tp,
+			     struct key_vector *l, struct fib_alias *old);
 
 /* Caller must hold RTNL. */
 int fib_table_insert(struct net *net, struct fib_table *tb,
@@ -1269,14 +1269,19 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	new_fa->tb_id = tb->tb_id;
 	new_fa->fa_default = -1;
 
-	err = call_fib_entry_notifiers(net, event, key, plen, new_fa, extack);
-	if (err)
-		goto out_free_new_fa;
-
 	/* Insert new entry to the list. */
 	err = fib_insert_alias(t, tp, l, new_fa, fa, key);
 	if (err)
-		goto out_fib_notif;
+		goto out_free_new_fa;
+
+	/* The alias was already inserted, so the node must exist. */
+	l = l ? l : fib_find_node(t, &tp, key);
+	if (WARN_ON_ONCE(!l))
+		goto out_free_new_fa;
+
+	err = call_fib_entry_notifiers(net, event, key, plen, new_fa, extack);
+	if (err)
+		goto out_remove_new_fa;
 
 	if (!plen)
 		tb->tb_num_default++;
@@ -1287,14 +1292,8 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 succeeded:
 	return 0;
 
-out_fib_notif:
-	/* notifier was sent that entry would be added to trie, but
-	 * the add failed and need to recover. Only failure for
-	 * fib_insert_alias is ENOMEM.
-	 */
-	NL_SET_ERR_MSG(extack, "Failed to insert route into trie");
-	call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, key,
-				 plen, new_fa, NULL);
+out_remove_new_fa:
+	fib_remove_alias(t, tp, l, new_fa);
 out_free_new_fa:
 	kmem_cache_free(fn_alias_kmem, new_fa);
 out:
