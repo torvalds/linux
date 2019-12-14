@@ -356,6 +356,7 @@ void btrfs_discard_update_discardable(struct btrfs_block_group *block_group,
 {
 	struct btrfs_discard_ctl *discard_ctl;
 	s32 extents_delta;
+	s64 bytes_delta;
 
 	if (!block_group || !btrfs_test_opt(block_group->fs_info, DISCARD_ASYNC))
 		return;
@@ -368,6 +369,14 @@ void btrfs_discard_update_discardable(struct btrfs_block_group *block_group,
 		atomic_add(extents_delta, &discard_ctl->discardable_extents);
 		ctl->discardable_extents[BTRFS_STAT_PREV] =
 			ctl->discardable_extents[BTRFS_STAT_CURR];
+	}
+
+	bytes_delta = ctl->discardable_bytes[BTRFS_STAT_CURR] -
+		      ctl->discardable_bytes[BTRFS_STAT_PREV];
+	if (bytes_delta) {
+		atomic64_add(bytes_delta, &discard_ctl->discardable_bytes);
+		ctl->discardable_bytes[BTRFS_STAT_PREV] =
+			ctl->discardable_bytes[BTRFS_STAT_CURR];
 	}
 }
 
@@ -454,6 +463,7 @@ void btrfs_discard_init(struct btrfs_fs_info *fs_info)
 		INIT_LIST_HEAD(&discard_ctl->discard_list[i]);
 
 	atomic_set(&discard_ctl->discardable_extents, 0);
+	atomic64_set(&discard_ctl->discardable_bytes, 0);
 }
 
 void btrfs_discard_cleanup(struct btrfs_fs_info *fs_info)
