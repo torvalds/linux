@@ -28,6 +28,7 @@ struct btrfs_free_space {
 	unsigned long *bitmap;
 	struct list_head list;
 	enum btrfs_trim_state trim_state;
+	s32 bitmap_extents;
 };
 
 static inline bool btrfs_free_space_trimmed(struct btrfs_free_space *info)
@@ -50,6 +51,7 @@ struct btrfs_free_space_ctl {
 	int total_bitmaps;
 	int unit;
 	u64 start;
+	s32 discardable_extents[BTRFS_STAT_NR_ENTRIES];
 	const struct btrfs_free_space_op *op;
 	void *private;
 	struct mutex cache_writeout_mutex;

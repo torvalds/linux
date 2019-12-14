@@ -16,6 +16,10 @@ void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 				 bool override);
 bool btrfs_run_discard_work(struct btrfs_discard_ctl *discard_ctl);
 
+/* Update operations */
+void btrfs_discard_update_discardable(struct btrfs_block_group *block_group,
+				      struct btrfs_free_space_ctl *ctl);
+
 /* Setup/cleanup operations */
 void btrfs_discard_punt_unused_bgs_list(struct btrfs_fs_info *fs_info);
 void btrfs_discard_resume(struct btrfs_fs_info *fs_info);
