@@ -101,7 +101,7 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 
 				gpiod_set_value_cansleep(gpio.gpiod, value);
 			}
-		};
+		}
 
 		DBG("gpio off");
 	}
