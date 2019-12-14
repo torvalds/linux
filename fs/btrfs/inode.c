@@ -2584,7 +2584,7 @@ out:
 			 * Discard the range before returning it back to the
 			 * free space pool
 			 */
-			if (ret && btrfs_test_opt(fs_info, DISCARD))
+			if (ret && btrfs_test_opt(fs_info, DISCARD_SYNC))
 				btrfs_discard_extent(fs_info,
 						ordered_extent->disk_bytenr,
 						ordered_extent->disk_num_bytes,
