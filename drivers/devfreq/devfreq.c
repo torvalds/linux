@@ -1852,7 +1852,7 @@ static void devm_devfreq_notifier_release(struct device *dev, void *res)
 
 /**
  * devm_devfreq_register_notifier()
-	- Resource-managed devfreq_register_notifier()
+ *	- Resource-managed devfreq_register_notifier()
  * @dev:	The devfreq user device. (parent of devfreq)
  * @devfreq:	The devfreq object.
  * @nb:		The notifier block to be unregistered.
@@ -1888,7 +1888,7 @@ EXPORT_SYMBOL(devm_devfreq_register_notifier);
 
 /**
  * devm_devfreq_unregister_notifier()
-	- Resource-managed devfreq_unregister_notifier()
+ *	- Resource-managed devfreq_unregister_notifier()
  * @dev:	The devfreq user device. (parent of devfreq)
  * @devfreq:	The devfreq object.
  * @nb:		The notifier block to be unregistered.
