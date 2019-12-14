@@ -883,7 +883,7 @@ MODULE_DEVICE_TABLE(of, rv3029_of_match);
 
 static struct i2c_driver rv3029_driver = {
 	.driver = {
-		.name = "rtc-rv3029c2",
+		.name = "rv3029",
 		.of_match_table = of_match_ptr(rv3029_of_match),
 	},
 	.probe		= rv3029_i2c_probe,
