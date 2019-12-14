@@ -276,11 +276,9 @@ static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 				9 - PCF8563_REG_SC, buf + PCF8563_REG_SC);
 }
 
-#ifdef CONFIG_RTC_INTF_DEV
 static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
 	struct pcf8563 *pcf8563 = i2c_get_clientdata(to_i2c_client(dev));
-	struct rtc_time tm;
 
 	switch (cmd) {
 	case RTC_VL_READ:
@@ -295,9 +293,6 @@ static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long
 		return -ENOIOCTLCMD;
 	}
 }
-#else
-#define pcf8563_rtc_ioctl NULL
-#endif
 
 static int pcf8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *tm)
 {
