@@ -14,6 +14,7 @@
 #include "sysfs.h"
 #include "tree-log.h"
 #include "delalloc-space.h"
+#include "discard.h"
 
 /*
  * Return target flags in extended format or 0 if restripe for this chunk_type
@@ -130,6 +131,15 @@ void btrfs_put_block_group(struct btrfs_block_group *cache)
 	if (atomic_dec_and_test(&cache->count)) {
 		WARN_ON(cache->pinned > 0);
 		WARN_ON(cache->reserved > 0);
+
+		/*
+		 * A block_group shouldn't be on the discard_list anymore.
+		 * Remove the block_group from the discard_list to prevent us
+		 * from causing a panic due to NULL pointer dereference.
+		 */
+		if (WARN_ON(!list_empty(&cache->discard_list)))
+			btrfs_discard_cancel_work(&cache->fs_info->discard_ctl,
+						  cache);
 
 		/*
 		 * If not empty, someone is still holding mutex of
@@ -466,8 +476,8 @@ u64 add_new_free_space(struct btrfs_block_group *block_group, u64 start, u64 end
 		} else if (extent_start > start && extent_start < end) {
 			size = extent_start - start;
 			total_added += size;
-			ret = btrfs_add_free_space(block_group, start,
-						   size);
+			ret = btrfs_add_free_space_async_trimmed(block_group,
+								 start, size);
 			BUG_ON(ret); /* -ENOMEM or logic error */
 			start = extent_end + 1;
 		} else {
@@ -478,7 +488,8 @@ u64 add_new_free_space(struct btrfs_block_group *block_group, u64 start, u64 end
 	if (start < end) {
 		size = end - start;
 		total_added += size;
-		ret = btrfs_add_free_space(block_group, start, size);
+		ret = btrfs_add_free_space_async_trimmed(block_group, start,
+							 size);
 		BUG_ON(ret); /* -ENOMEM or logic error */
 	}
 
@@ -1258,6 +1269,8 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		}
 		spin_unlock(&fs_info->unused_bgs_lock);
 
+		btrfs_discard_cancel_work(&fs_info->discard_ctl, block_group);
+
 		mutex_lock(&fs_info->delete_unused_bgs_mutex);
 
 		/* Don't want to race with allocators so take the groups_sem */
@@ -1332,6 +1345,23 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 			goto end_trans;
 		}
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
+
+		/*
+		 * At this point, the block_group is read only and should fail
+		 * new allocations.  However, btrfs_finish_extent_commit() can
+		 * cause this block_group to be placed back on the discard
+		 * lists because now the block_group isn't fully discarded.
+		 * Bail here and try again later after discarding everything.
+		 */
+		spin_lock(&fs_info->discard_ctl.lock);
+		if (!list_empty(&block_group->discard_list)) {
+			spin_unlock(&fs_info->discard_ctl.lock);
+			btrfs_dec_block_group_ro(block_group);
+			btrfs_discard_queue_work(&fs_info->discard_ctl,
+						 block_group);
+			goto end_trans;
+		}
+		spin_unlock(&fs_info->discard_ctl.lock);
 
 		/* Reset pinned so btrfs_put_block_group doesn't complain */
 		spin_lock(&space_info->lock);
@@ -1603,6 +1633,7 @@ static struct btrfs_block_group *btrfs_create_block_group_cache(
 	INIT_LIST_HEAD(&cache->cluster_list);
 	INIT_LIST_HEAD(&cache->bg_list);
 	INIT_LIST_HEAD(&cache->ro_list);
+	INIT_LIST_HEAD(&cache->discard_list);
 	INIT_LIST_HEAD(&cache->dirty_list);
 	INIT_LIST_HEAD(&cache->io_list);
 	btrfs_init_free_space_ctl(cache);

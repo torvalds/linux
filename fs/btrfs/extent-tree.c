@@ -32,6 +32,7 @@
 #include "block-rsv.h"
 #include "delalloc-space.h"
 #include "block-group.h"
+#include "discard.h"
 
 #undef SCRAMBLE_DELAYED_REFS
 
@@ -2933,6 +2934,9 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 		free_extent_state(cached_state);
 		cond_resched();
 	}
+
+	if (btrfs_test_opt(fs_info, DISCARD_ASYNC))
+		btrfs_discard_schedule_work(&fs_info->discard_ctl, true);
 
 	/*
 	 * Transaction is finished.  We don't need the lock anymore.  We
