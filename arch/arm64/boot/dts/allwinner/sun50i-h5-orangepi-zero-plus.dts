@@ -2,7 +2,7 @@
  * Copyright (C) 2016 ARM Ltd.
  * Copyright (C) 2018 Hauke Mehrtens <hauke@hauke-m.de>
  *
- * SPDX-License-Identifier: (GPL-2.0+ OR X11)
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
 /dts-v1/;
