@@ -118,30 +118,32 @@ static void sort_bkey_ptrs(const struct btree *bt,
 
 static void bch2_sort_whiteouts(struct bch_fs *c, struct btree *b)
 {
-	struct bkey_packed *new_whiteouts, **whiteout_ptrs, *k;
-	bool used_mempool1 = false, used_mempool2 = false;
-	unsigned order, i, nr = 0;
+	struct bkey_packed *new_whiteouts, **ptrs, **ptrs_end, *k;
+	bool used_mempool = false;
+	unsigned order;
 
 	if (!b->whiteout_u64s)
 		return;
 
 	order = get_order(b->whiteout_u64s * sizeof(u64));
 
-	new_whiteouts = btree_bounce_alloc(c, order, &used_mempool1);
-	whiteout_ptrs = btree_bounce_alloc(c, order, &used_mempool2);
+	new_whiteouts = btree_bounce_alloc(c, order, &used_mempool);
+
+	ptrs = ptrs_end = ((void *) new_whiteouts + (PAGE_SIZE << order));
 
 	for (k = unwritten_whiteouts_start(c, b);
 	     k != unwritten_whiteouts_end(c, b);
 	     k = bkey_next(k))
-		whiteout_ptrs[nr++] = k;
+		*--ptrs = k;
 
-	sort_bkey_ptrs(b, whiteout_ptrs, nr);
+	sort_bkey_ptrs(b, ptrs, ptrs_end - ptrs);
 
 	k = new_whiteouts;
 
-	for (i = 0; i < nr; i++) {
-		bkey_copy(k, whiteout_ptrs[i]);
+	while (ptrs != ptrs_end) {
+		bkey_copy(k, *ptrs);
 		k = bkey_next(k);
+		ptrs++;
 	}
 
 	verify_no_dups(b, new_whiteouts,
@@ -150,8 +152,7 @@ static void bch2_sort_whiteouts(struct bch_fs *c, struct btree *b)
 	memcpy_u64s(unwritten_whiteouts_start(c, b),
 		    new_whiteouts, b->whiteout_u64s);
 
-	btree_bounce_free(c, order, used_mempool2, whiteout_ptrs);
-	btree_bounce_free(c, order, used_mempool1, new_whiteouts);
+	btree_bounce_free(c, order, used_mempool, new_whiteouts);
 }
 
 static bool should_compact_bset(struct btree *b, struct bset_tree *t,
