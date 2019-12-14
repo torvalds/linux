@@ -221,14 +221,10 @@ struct bpf_map {
 	void *priv;
 	bpf_map_clear_priv_t clear_priv;
 	enum libbpf_map_type libbpf_type;
+	void *mmaped;
 	char *pin_path;
 	bool pinned;
 	bool reused;
-};
-
-struct bpf_secdata {
-	void *rodata;
-	void *data;
 };
 
 static LIST_HEAD(bpf_objects_list);
@@ -243,7 +239,6 @@ struct bpf_object {
 	struct bpf_map *maps;
 	size_t nr_maps;
 	size_t maps_cap;
-	struct bpf_secdata sections;
 
 	bool loaded;
 	bool has_pseudo_calls;
@@ -828,13 +823,24 @@ static struct bpf_map *bpf_object__add_map(struct bpf_object *obj)
 	return &obj->maps[obj->nr_maps++];
 }
 
+static size_t bpf_map_mmap_sz(const struct bpf_map *map)
+{
+	long page_sz = sysconf(_SC_PAGE_SIZE);
+	size_t map_sz;
+
+	map_sz = roundup(map->def.value_size, 8) * map->def.max_entries;
+	map_sz = roundup(map_sz, page_sz);
+	return map_sz;
+}
+
 static int
 bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
-			      int sec_idx, Elf_Data *data, void **data_buff)
+			      int sec_idx, void *data, size_t data_sz)
 {
 	char map_name[BPF_OBJ_NAME_LEN];
 	struct bpf_map_def *def;
 	struct bpf_map *map;
+	int err;
 
 	map = bpf_object__add_map(obj);
 	if (IS_ERR(map))
@@ -854,7 +860,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	def = &map->def;
 	def->type = BPF_MAP_TYPE_ARRAY;
 	def->key_size = sizeof(int);
-	def->value_size = data->d_size;
+	def->value_size = data_sz;
 	def->max_entries = 1;
 	def->map_flags = type == LIBBPF_MAP_RODATA ? BPF_F_RDONLY_PROG : 0;
 	def->map_flags |= BPF_F_MMAPABLE;
@@ -862,15 +868,19 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	pr_debug("map '%s' (global data): at sec_idx %d, offset %zu, flags %x.\n",
 		 map_name, map->sec_idx, map->sec_offset, def->map_flags);
 
-	if (data_buff) {
-		*data_buff = malloc(data->d_size);
-		if (!*data_buff) {
-			zfree(&map->name);
-			pr_warn("failed to alloc map content buffer\n");
-			return -ENOMEM;
-		}
-		memcpy(*data_buff, data->d_buf, data->d_size);
+	map->mmaped = mmap(NULL, bpf_map_mmap_sz(map), PROT_READ | PROT_WRITE,
+			   MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	if (map->mmaped == MAP_FAILED) {
+		err = -errno;
+		map->mmaped = NULL;
+		pr_warn("failed to alloc map '%s' content buffer: %d\n",
+			map->name, err);
+		zfree(&map->name);
+		return err;
 	}
+
+	if (type != LIBBPF_MAP_BSS)
+		memcpy(map->mmaped, data, data_sz);
 
 	pr_debug("map %td is \"%s\"\n", map - obj->maps, map->name);
 	return 0;
@@ -886,23 +896,24 @@ static int bpf_object__init_global_data_maps(struct bpf_object *obj)
 	if (obj->efile.data_shndx >= 0) {
 		err = bpf_object__init_internal_map(obj, LIBBPF_MAP_DATA,
 						    obj->efile.data_shndx,
-						    obj->efile.data,
-						    &obj->sections.data);
+						    obj->efile.data->d_buf,
+						    obj->efile.data->d_size);
 		if (err)
 			return err;
 	}
 	if (obj->efile.rodata_shndx >= 0) {
 		err = bpf_object__init_internal_map(obj, LIBBPF_MAP_RODATA,
 						    obj->efile.rodata_shndx,
-						    obj->efile.rodata,
-						    &obj->sections.rodata);
+						    obj->efile.rodata->d_buf,
+						    obj->efile.rodata->d_size);
 		if (err)
 			return err;
 	}
 	if (obj->efile.bss_shndx >= 0) {
 		err = bpf_object__init_internal_map(obj, LIBBPF_MAP_BSS,
 						    obj->efile.bss_shndx,
-						    obj->efile.bss, NULL);
+						    NULL,
+						    obj->efile.bss->d_size);
 		if (err)
 			return err;
 	}
@@ -2292,27 +2303,32 @@ bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 {
 	char *cp, errmsg[STRERR_BUFSIZE];
 	int err, zero = 0;
-	__u8 *data;
 
 	/* Nothing to do here since kernel already zero-initializes .bss map. */
 	if (map->libbpf_type == LIBBPF_MAP_BSS)
 		return 0;
 
-	data = map->libbpf_type == LIBBPF_MAP_DATA ?
-	       obj->sections.data : obj->sections.rodata;
+	err = bpf_map_update_elem(map->fd, &zero, map->mmaped, 0);
+	if (err) {
+		err = -errno;
+		cp = libbpf_strerror_r(err, errmsg, sizeof(errmsg));
+		pr_warn("Error setting initial map(%s) contents: %s\n",
+			map->name, cp);
+		return err;
+	}
 
-	err = bpf_map_update_elem(map->fd, &zero, data, 0);
 	/* Freeze .rodata map as read-only from syscall side. */
-	if (!err && map->libbpf_type == LIBBPF_MAP_RODATA) {
+	if (map->libbpf_type == LIBBPF_MAP_RODATA) {
 		err = bpf_map_freeze(map->fd);
 		if (err) {
-			cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
+			err = -errno;
+			cp = libbpf_strerror_r(err, errmsg, sizeof(errmsg));
 			pr_warn("Error freezing map(%s) as read-only: %s\n",
 				map->name, cp);
-			err = 0;
+			return err;
 		}
 	}
-	return err;
+	return 0;
 }
 
 static int
@@ -4683,17 +4699,22 @@ void bpf_object__close(struct bpf_object *obj)
 	btf_ext__free(obj->btf_ext);
 
 	for (i = 0; i < obj->nr_maps; i++) {
-		zfree(&obj->maps[i].name);
-		zfree(&obj->maps[i].pin_path);
-		if (obj->maps[i].clear_priv)
-			obj->maps[i].clear_priv(&obj->maps[i],
-						obj->maps[i].priv);
-		obj->maps[i].priv = NULL;
-		obj->maps[i].clear_priv = NULL;
+		struct bpf_map *map = &obj->maps[i];
+
+		if (map->clear_priv)
+			map->clear_priv(map, map->priv);
+		map->priv = NULL;
+		map->clear_priv = NULL;
+
+		if (map->mmaped) {
+			munmap(map->mmaped, bpf_map_mmap_sz(map));
+			map->mmaped = NULL;
+		}
+
+		zfree(&map->name);
+		zfree(&map->pin_path);
 	}
 
-	zfree(&obj->sections.rodata);
-	zfree(&obj->sections.data);
 	zfree(&obj->maps);
 	obj->nr_maps = 0;
 
