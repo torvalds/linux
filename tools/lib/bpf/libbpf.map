@@ -213,6 +213,11 @@ LIBBPF_0.0.7 {
 	global:
 		btf_dump__emit_type_decl;
 		bpf_object__find_program_by_name;
+		bpf_object__attach_skeleton;
+		bpf_object__destroy_skeleton;
+		bpf_object__detach_skeleton;
+		bpf_object__load_skeleton;
+		bpf_object__open_skeleton;
 		bpf_program__attach;
 		bpf_program__name;
 		btf__align_of;
