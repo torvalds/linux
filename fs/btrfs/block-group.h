@@ -13,6 +13,19 @@ enum btrfs_disk_cache_state {
 };
 
 /*
+ * This describes the state of the block_group for async discard.  This is due
+ * to the two pass nature of it where extent discarding is prioritized over
+ * bitmap discarding.  BTRFS_DISCARD_RESET_CURSOR is set when we are resetting
+ * between lists to prevent contention for discard state variables
+ * (eg. discard_cursor).
+ */
+enum btrfs_discard_state {
+	BTRFS_DISCARD_EXTENTS,
+	BTRFS_DISCARD_BITMAPS,
+	BTRFS_DISCARD_RESET_CURSOR,
+};
+
+/*
  * Control flags for do_chunk_alloc's force field CHUNK_ALLOC_NO_FORCE means to
  * only allocate a chunk if we really need one.
  *
@@ -121,6 +134,8 @@ struct btrfs_block_group {
 	struct list_head discard_list;
 	int discard_index;
 	u64 discard_eligible_time;
+	u64 discard_cursor;
+	enum btrfs_discard_state discard_state;
 
 	/* For dirty block groups */
 	struct list_head dirty_list;

@@ -3322,8 +3322,12 @@ static int do_trimming(struct btrfs_block_group *block_group,
 	return ret;
 }
 
+/*
+ * If @async is set, then we will trim 1 region and return.
+ */
 static int trim_no_bitmap(struct btrfs_block_group *block_group,
-			  u64 *total_trimmed, u64 start, u64 end, u64 minlen)
+			  u64 *total_trimmed, u64 start, u64 end, u64 minlen,
+			  bool async)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct btrfs_free_space *entry;
@@ -3340,36 +3344,25 @@ static int trim_no_bitmap(struct btrfs_block_group *block_group,
 		mutex_lock(&ctl->cache_writeout_mutex);
 		spin_lock(&ctl->tree_lock);
 
-		if (ctl->free_space < minlen) {
-			spin_unlock(&ctl->tree_lock);
-			mutex_unlock(&ctl->cache_writeout_mutex);
-			break;
-		}
+		if (ctl->free_space < minlen)
+			goto out_unlock;
 
 		entry = tree_search_offset(ctl, start, 0, 1);
-		if (!entry) {
-			spin_unlock(&ctl->tree_lock);
-			mutex_unlock(&ctl->cache_writeout_mutex);
-			break;
-		}
+		if (!entry)
+			goto out_unlock;
 
-		/* skip bitmaps */
-		while (entry->bitmap) {
+		/* Skip bitmaps and if async, already trimmed entries */
+		while (entry->bitmap ||
+		       (async && btrfs_free_space_trimmed(entry))) {
 			node = rb_next(&entry->offset_index);
-			if (!node) {
-				spin_unlock(&ctl->tree_lock);
-				mutex_unlock(&ctl->cache_writeout_mutex);
-				goto out;
-			}
+			if (!node)
+				goto out_unlock;
 			entry = rb_entry(node, struct btrfs_free_space,
 					 offset_index);
 		}
 
-		if (entry->offset >= end) {
-			spin_unlock(&ctl->tree_lock);
-			mutex_unlock(&ctl->cache_writeout_mutex);
-			break;
-		}
+		if (entry->offset >= end)
+			goto out_unlock;
 
 		extent_start = entry->offset;
 		extent_bytes = entry->bytes;
@@ -3394,10 +3387,15 @@ static int trim_no_bitmap(struct btrfs_block_group *block_group,
 		ret = do_trimming(block_group, total_trimmed, start, bytes,
 				  extent_start, extent_bytes, extent_trim_state,
 				  &trim_entry);
-		if (ret)
+		if (ret) {
+			block_group->discard_cursor = start + bytes;
 			break;
+		}
 next:
 		start += bytes;
+		block_group->discard_cursor = start;
+		if (async && *total_trimmed)
+			break;
 
 		if (fatal_signal_pending(current)) {
 			ret = -ERESTARTSYS;
@@ -3406,7 +3404,14 @@ next:
 
 		cond_resched();
 	}
-out:
+
+	return ret;
+
+out_unlock:
+	block_group->discard_cursor = btrfs_block_group_end(block_group);
+	spin_unlock(&ctl->tree_lock);
+	mutex_unlock(&ctl->cache_writeout_mutex);
+
 	return ret;
 }
 
@@ -3441,8 +3446,12 @@ static void end_trimming_bitmap(struct btrfs_free_space *entry)
 		entry->trim_state = BTRFS_TRIM_STATE_TRIMMED;
 }
 
+/*
+ * If @async is set, then we will trim 1 region and return.
+ */
 static int trim_bitmaps(struct btrfs_block_group *block_group,
-			u64 *total_trimmed, u64 start, u64 end, u64 minlen)
+			u64 *total_trimmed, u64 start, u64 end, u64 minlen,
+			bool async)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct btrfs_free_space *entry;
@@ -3459,13 +3468,16 @@ static int trim_bitmaps(struct btrfs_block_group *block_group,
 		spin_lock(&ctl->tree_lock);
 
 		if (ctl->free_space < minlen) {
+			block_group->discard_cursor =
+				btrfs_block_group_end(block_group);
 			spin_unlock(&ctl->tree_lock);
 			mutex_unlock(&ctl->cache_writeout_mutex);
 			break;
 		}
 
 		entry = tree_search_offset(ctl, offset, 1, 0);
-		if (!entry || btrfs_free_space_trimmed(entry)) {
+		if (!entry || (async && start == offset &&
+			       btrfs_free_space_trimmed(entry))) {
 			spin_unlock(&ctl->tree_lock);
 			mutex_unlock(&ctl->cache_writeout_mutex);
 			next_bitmap = true;
@@ -3498,6 +3510,16 @@ static int trim_bitmaps(struct btrfs_block_group *block_group,
 			goto next;
 		}
 
+		/*
+		 * We already trimmed a region, but are using the locking above
+		 * to reset the trim_state.
+		 */
+		if (async && *total_trimmed) {
+			spin_unlock(&ctl->tree_lock);
+			mutex_unlock(&ctl->cache_writeout_mutex);
+			goto out;
+		}
+
 		bytes = min(bytes, end - start);
 		if (bytes < minlen) {
 			entry->trim_state = BTRFS_TRIM_STATE_UNTRIMMED;
@@ -3520,6 +3542,8 @@ static int trim_bitmaps(struct btrfs_block_group *block_group,
 				  start, bytes, 0, &trim_entry);
 		if (ret) {
 			reset_trimming_bitmap(ctl, offset);
+			block_group->discard_cursor =
+				btrfs_block_group_end(block_group);
 			break;
 		}
 next:
@@ -3529,6 +3553,7 @@ next:
 		} else {
 			start += bytes;
 		}
+		block_group->discard_cursor = start;
 
 		if (fatal_signal_pending(current)) {
 			if (start != offset)
@@ -3540,6 +3565,10 @@ next:
 		cond_resched();
 	}
 
+	if (offset >= end)
+		block_group->discard_cursor = end;
+
+out:
 	return ret;
 }
 
@@ -3600,17 +3629,61 @@ int btrfs_trim_block_group(struct btrfs_block_group *block_group,
 	btrfs_get_block_group_trimming(block_group);
 	spin_unlock(&block_group->lock);
 
-	ret = trim_no_bitmap(block_group, trimmed, start, end, minlen);
+	ret = trim_no_bitmap(block_group, trimmed, start, end, minlen, false);
 	if (ret)
 		goto out;
 
-	ret = trim_bitmaps(block_group, trimmed, start, end, minlen);
+	ret = trim_bitmaps(block_group, trimmed, start, end, minlen, false);
 	div64_u64_rem(end, BITS_PER_BITMAP * ctl->unit, &rem);
 	/* If we ended in the middle of a bitmap, reset the trimming flag */
 	if (rem)
 		reset_trimming_bitmap(ctl, offset_to_bitmap(ctl, end));
 out:
 	btrfs_put_block_group_trimming(block_group);
+	return ret;
+}
+
+int btrfs_trim_block_group_extents(struct btrfs_block_group *block_group,
+				   u64 *trimmed, u64 start, u64 end, u64 minlen,
+				   bool async)
+{
+	int ret;
+
+	*trimmed = 0;
+
+	spin_lock(&block_group->lock);
+	if (block_group->removed) {
+		spin_unlock(&block_group->lock);
+		return 0;
+	}
+	btrfs_get_block_group_trimming(block_group);
+	spin_unlock(&block_group->lock);
+
+	ret = trim_no_bitmap(block_group, trimmed, start, end, minlen, async);
+	btrfs_put_block_group_trimming(block_group);
+
+	return ret;
+}
+
+int btrfs_trim_block_group_bitmaps(struct btrfs_block_group *block_group,
+				   u64 *trimmed, u64 start, u64 end, u64 minlen,
+				   bool async)
+{
+	int ret;
+
+	*trimmed = 0;
+
+	spin_lock(&block_group->lock);
+	if (block_group->removed) {
+		spin_unlock(&block_group->lock);
+		return 0;
+	}
+	btrfs_get_block_group_trimming(block_group);
+	spin_unlock(&block_group->lock);
+
+	ret = trim_bitmaps(block_group, trimmed, start, end, minlen, async);
+	btrfs_put_block_group_trimming(block_group);
+
 	return ret;
 }
 

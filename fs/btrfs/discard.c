@@ -21,15 +21,11 @@ static struct list_head *get_discard_list(struct btrfs_discard_ctl *discard_ctl,
 	return &discard_ctl->discard_list[block_group->discard_index];
 }
 
-static void add_to_discard_list(struct btrfs_discard_ctl *discard_ctl,
-				struct btrfs_block_group *block_group)
+static void __add_to_discard_list(struct btrfs_discard_ctl *discard_ctl,
+				  struct btrfs_block_group *block_group)
 {
-	spin_lock(&discard_ctl->lock);
-
-	if (!btrfs_run_discard_work(discard_ctl)) {
-		spin_unlock(&discard_ctl->lock);
+	if (!btrfs_run_discard_work(discard_ctl))
 		return;
-	}
 
 	if (list_empty(&block_group->discard_list) ||
 	    block_group->discard_index == BTRFS_DISCARD_INDEX_UNUSED) {
@@ -37,11 +33,18 @@ static void add_to_discard_list(struct btrfs_discard_ctl *discard_ctl,
 			block_group->discard_index = BTRFS_DISCARD_INDEX_START;
 		block_group->discard_eligible_time = (ktime_get_ns() +
 						      BTRFS_DISCARD_DELAY);
+		block_group->discard_state = BTRFS_DISCARD_RESET_CURSOR;
 	}
 
 	list_move_tail(&block_group->discard_list,
 		       get_discard_list(discard_ctl, block_group));
+}
 
+static void add_to_discard_list(struct btrfs_discard_ctl *discard_ctl,
+				struct btrfs_block_group *block_group)
+{
+	spin_lock(&discard_ctl->lock);
+	__add_to_discard_list(discard_ctl, block_group);
 	spin_unlock(&discard_ctl->lock);
 }
 
@@ -60,6 +63,7 @@ static void add_to_discard_unused_list(struct btrfs_discard_ctl *discard_ctl,
 	block_group->discard_index = BTRFS_DISCARD_INDEX_UNUSED;
 	block_group->discard_eligible_time = (ktime_get_ns() +
 					      BTRFS_DISCARD_UNUSED_DELAY);
+	block_group->discard_state = BTRFS_DISCARD_RESET_CURSOR;
 	list_add_tail(&block_group->discard_list,
 		      &discard_ctl->discard_list[BTRFS_DISCARD_INDEX_UNUSED]);
 
@@ -127,23 +131,40 @@ static struct btrfs_block_group *find_next_block_group(
 /**
  * peek_discard_list - wrap find_next_block_group()
  * @discard_ctl: discard control
+ * @discard_state: the discard_state of the block_group after state management
  *
  * This wraps find_next_block_group() and sets the block_group to be in use.
+ * discard_state's control flow is managed here.  Variables related to
+ * discard_state are reset here as needed (eg. discard_cursor).  @discard_state
+ * is remembered as it may change while we're discarding, but we want the
+ * discard to execute in the context determined here.
  */
 static struct btrfs_block_group *peek_discard_list(
-					struct btrfs_discard_ctl *discard_ctl)
+					struct btrfs_discard_ctl *discard_ctl,
+					enum btrfs_discard_state *discard_state)
 {
 	struct btrfs_block_group *block_group;
 	const u64 now = ktime_get_ns();
 
 	spin_lock(&discard_ctl->lock);
-
+again:
 	block_group = find_next_block_group(discard_ctl, now);
 
-	if (block_group && now < block_group->discard_eligible_time)
+	if (block_group && now > block_group->discard_eligible_time) {
+		if (block_group->discard_index == BTRFS_DISCARD_INDEX_UNUSED &&
+		    block_group->used != 0) {
+			__add_to_discard_list(discard_ctl, block_group);
+			goto again;
+		}
+		if (block_group->discard_state == BTRFS_DISCARD_RESET_CURSOR) {
+			block_group->discard_cursor = block_group->start;
+			block_group->discard_state = BTRFS_DISCARD_EXTENTS;
+		}
+		discard_ctl->block_group = block_group;
+		*discard_state = block_group->discard_state;
+	} else {
 		block_group = NULL;
-
-	discard_ctl->block_group = block_group;
+	}
 
 	spin_unlock(&discard_ctl->lock);
 
@@ -254,24 +275,54 @@ static void btrfs_finish_discard_pass(struct btrfs_discard_ctl *discard_ctl,
  * btrfs_discard_workfn - discard work function
  * @work: work
  *
- * This finds the next block_group to start discarding and then discards it.
+ * This finds the next block_group to start discarding and then discards a
+ * single region.  It does this in a two-pass fashion: first extents and second
+ * bitmaps.  Completely discarded block groups are sent to the unused_bgs path.
  */
 static void btrfs_discard_workfn(struct work_struct *work)
 {
 	struct btrfs_discard_ctl *discard_ctl;
 	struct btrfs_block_group *block_group;
+	enum btrfs_discard_state discard_state;
 	u64 trimmed = 0;
 
 	discard_ctl = container_of(work, struct btrfs_discard_ctl, work.work);
 
-	block_group = peek_discard_list(discard_ctl);
+	block_group = peek_discard_list(discard_ctl, &discard_state);
 	if (!block_group || !btrfs_run_discard_work(discard_ctl))
 		return;
 
-	btrfs_trim_block_group(block_group, &trimmed, block_group->start,
-			       btrfs_block_group_end(block_group), 0);
+	/* Perform discarding */
+	if (discard_state == BTRFS_DISCARD_BITMAPS)
+		btrfs_trim_block_group_bitmaps(block_group, &trimmed,
+				       block_group->discard_cursor,
+				       btrfs_block_group_end(block_group),
+				       0, true);
+	else
+		btrfs_trim_block_group_extents(block_group, &trimmed,
+				       block_group->discard_cursor,
+				       btrfs_block_group_end(block_group),
+				       0, true);
 
-	btrfs_finish_discard_pass(discard_ctl, block_group);
+	/* Determine next steps for a block_group */
+	if (block_group->discard_cursor >= btrfs_block_group_end(block_group)) {
+		if (discard_state == BTRFS_DISCARD_BITMAPS) {
+			btrfs_finish_discard_pass(discard_ctl, block_group);
+		} else {
+			block_group->discard_cursor = block_group->start;
+			spin_lock(&discard_ctl->lock);
+			if (block_group->discard_state !=
+			    BTRFS_DISCARD_RESET_CURSOR)
+				block_group->discard_state =
+							BTRFS_DISCARD_BITMAPS;
+			spin_unlock(&discard_ctl->lock);
+		}
+	}
+
+	spin_lock(&discard_ctl->lock);
+	discard_ctl->block_group = NULL;
+	spin_unlock(&discard_ctl->lock);
+
 	btrfs_discard_schedule_work(discard_ctl, false);
 }
 
