@@ -126,6 +126,28 @@ LIBBPF_API void btf_dump__free(struct btf_dump *d);
 
 LIBBPF_API int btf_dump__dump_type(struct btf_dump *d, __u32 id);
 
+struct btf_dump_emit_type_decl_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* optional field name for type declaration, e.g.:
+	 * - struct my_struct <FNAME>
+	 * - void (*<FNAME>)(int)
+	 * - char (*<FNAME>)[123]
+	 */
+	const char *field_name;
+	/* extra indentation level (in number of tabs) to emit for multi-line
+	 * type declarations (e.g., anonymous struct); applies for lines
+	 * starting from the second one (first line is assumed to have
+	 * necessary indentation already
+	 */
+	int indent_level;
+};
+#define btf_dump_emit_type_decl_opts__last_field indent_level
+
+LIBBPF_API int
+btf_dump__emit_type_decl(struct btf_dump *d, __u32 id,
+			 const struct btf_dump_emit_type_decl_opts *opts);
+
 /*
  * A set of helpers for easier BTF types handling
  */

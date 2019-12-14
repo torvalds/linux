@@ -211,6 +211,7 @@ LIBBPF_0.0.6 {
 
 LIBBPF_0.0.7 {
 	global:
+		btf_dump__emit_type_decl;
 		bpf_program__attach;
 		btf__align_of;
 } LIBBPF_0.0.6;

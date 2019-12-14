@@ -116,6 +116,8 @@ static void btf_dump_printf(const struct btf_dump *d, const char *fmt, ...)
 	va_end(args);
 }
 
+static int btf_dump_mark_referenced(struct btf_dump *d);
+
 struct btf_dump *btf_dump__new(const struct btf *btf,
 			       const struct btf_ext *btf_ext,
 			       const struct btf_dump_opts *opts,
@@ -137,18 +139,39 @@ struct btf_dump *btf_dump__new(const struct btf *btf,
 	if (IS_ERR(d->type_names)) {
 		err = PTR_ERR(d->type_names);
 		d->type_names = NULL;
-		btf_dump__free(d);
-		return ERR_PTR(err);
 	}
 	d->ident_names = hashmap__new(str_hash_fn, str_equal_fn, NULL);
 	if (IS_ERR(d->ident_names)) {
 		err = PTR_ERR(d->ident_names);
 		d->ident_names = NULL;
-		btf_dump__free(d);
-		return ERR_PTR(err);
+		goto err;
+	}
+	d->type_states = calloc(1 + btf__get_nr_types(d->btf),
+				sizeof(d->type_states[0]));
+	if (!d->type_states) {
+		err = -ENOMEM;
+		goto err;
+	}
+	d->cached_names = calloc(1 + btf__get_nr_types(d->btf),
+				 sizeof(d->cached_names[0]));
+	if (!d->cached_names) {
+		err = -ENOMEM;
+		goto err;
 	}
 
+	/* VOID is special */
+	d->type_states[0].order_state = ORDERED;
+	d->type_states[0].emit_state = EMITTED;
+
+	/* eagerly determine referenced types for anon enums */
+	err = btf_dump_mark_referenced(d);
+	if (err)
+		goto err;
+
 	return d;
+err:
+	btf_dump__free(d);
+	return ERR_PTR(err);
 }
 
 void btf_dump__free(struct btf_dump *d)
@@ -175,7 +198,6 @@ void btf_dump__free(struct btf_dump *d)
 	free(d);
 }
 
-static int btf_dump_mark_referenced(struct btf_dump *d);
 static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr);
 static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id);
 
@@ -201,27 +223,6 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
 
 	if (id > btf__get_nr_types(d->btf))
 		return -EINVAL;
-
-	/* type states are lazily allocated, as they might not be needed */
-	if (!d->type_states) {
-		d->type_states = calloc(1 + btf__get_nr_types(d->btf),
-					sizeof(d->type_states[0]));
-		if (!d->type_states)
-			return -ENOMEM;
-		d->cached_names = calloc(1 + btf__get_nr_types(d->btf),
-					 sizeof(d->cached_names[0]));
-		if (!d->cached_names)
-			return -ENOMEM;
-
-		/* VOID is special */
-		d->type_states[0].order_state = ORDERED;
-		d->type_states[0].emit_state = EMITTED;
-
-		/* eagerly determine referenced types for anon enums */
-		err = btf_dump_mark_referenced(d);
-		if (err)
-			return err;
-	}
 
 	d->emit_queue_cnt = 0;
 	err = btf_dump_order_type(d, id, false);
@@ -1016,6 +1017,21 @@ static int btf_dump_push_decl_stack_id(struct btf_dump *d, __u32 id)
  * of a stack frame. Some care is required to "pop" stack frames after
  * processing type declaration chain.
  */
+int btf_dump__emit_type_decl(struct btf_dump *d, __u32 id,
+			     const struct btf_dump_emit_type_decl_opts *opts)
+{
+	const char *fname;
+	int lvl;
+
+	if (!OPTS_VALID(opts, btf_dump_emit_type_decl_opts))
+		return -EINVAL;
+
+	fname = OPTS_GET(opts, field_name, NULL);
+	lvl = OPTS_GET(opts, indent_level, 0);
+	btf_dump_emit_type_decl(d, id, fname, lvl);
+	return 0;
+}
+
 static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 				    const char *fname, int lvl)
 {
