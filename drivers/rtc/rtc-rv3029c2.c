@@ -459,6 +459,35 @@ static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
 				  RV3029_STATUS_PON, 0);
 }
 
+static int rv3029_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
+{
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
+	unsigned long vl = 0;
+	int sr, ret = 0;
+
+	switch (cmd) {
+	case RTC_VL_READ:
+		ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
+		if (ret < 0)
+			return ret;
+
+		if (sr & RV3029_STATUS_VLOW1)
+			vl = RTC_VL_ACCURACY_LOW;
+
+		if (sr & (RV3029_STATUS_VLOW2 | RV3029_STATUS_PON))
+			vl |= RTC_VL_DATA_INVALID;
+
+		return put_user(vl, (unsigned int __user *)arg);
+
+	case RTC_VL_CLR:
+		return regmap_update_bits(rv3029->regmap, RV3029_STATUS,
+					  RV3029_STATUS_VLOW1, 0);
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
 static const struct rv3029_trickle_tab_elem {
 	u32 r;		/* resistance in ohms */
 	u8 conf;	/* trickle config bits */
@@ -672,6 +701,7 @@ static void rv3029_hwmon_register(struct device *dev, const char *name)
 static struct rtc_class_ops rv3029_rtc_ops = {
 	.read_time	= rv3029_read_time,
 	.set_time	= rv3029_set_time,
+	.ioctl		= rv3029_ioctl,
 };
 
 static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
