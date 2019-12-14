@@ -2683,7 +2683,8 @@ static void hclge_reset_task_schedule(struct hclge_dev *hdev)
 
 void hclge_task_schedule(struct hclge_dev *hdev, unsigned long delay_time)
 {
-	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state))
+	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
+	    !test_bit(HCLGE_STATE_RST_FAIL, &hdev->state))
 		mod_delayed_work_on(cpumask_first(&hdev->affinity_mask),
 				    hclge_wq, &hdev->service_task,
 				    delay_time);
@@ -3690,6 +3691,8 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev)
 
 	hclge_dbg_dump_rst_info(hdev);
 
+	set_bit(HCLGE_STATE_RST_FAIL, &hdev->state);
+
 	return false;
 }
 
@@ -3843,6 +3846,7 @@ static void hclge_reset(struct hclge_dev *hdev)
 	hdev->rst_stats.reset_fail_cnt = 0;
 	hdev->rst_stats.reset_done_cnt++;
 	ae_dev->reset_type = HNAE3_NONE_RESET;
+	clear_bit(HCLGE_STATE_RST_FAIL, &hdev->state);
 
 	/* if default_reset_request has a higher level reset request,
 	 * it should be handled as soon as possible. since some errors
@@ -9303,6 +9307,7 @@ static void hclge_state_init(struct hclge_dev *hdev)
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
 	clear_bit(HCLGE_STATE_RST_SERVICE_SCHED, &hdev->state);
 	clear_bit(HCLGE_STATE_RST_HANDLING, &hdev->state);
+	clear_bit(HCLGE_STATE_RST_FAIL, &hdev->state);
 	clear_bit(HCLGE_STATE_MBX_SERVICE_SCHED, &hdev->state);
 	clear_bit(HCLGE_STATE_MBX_HANDLING, &hdev->state);
 }

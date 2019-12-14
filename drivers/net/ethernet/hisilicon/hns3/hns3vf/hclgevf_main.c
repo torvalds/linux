@@ -1598,6 +1598,7 @@ static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 		hclgevf_reset_task_schedule(hdev);
 	} else {
+		set_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state);
 		hclgevf_dump_rst_info(hdev);
 	}
 }
@@ -1659,6 +1660,7 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 	ae_dev->reset_type = HNAE3_NONE_RESET;
 	hdev->rst_stats.rst_done_cnt++;
 	hdev->rst_stats.rst_fail_cnt = 0;
+	clear_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state);
 
 	return ret;
 err_reset_lock:
@@ -1791,7 +1793,8 @@ void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev)
 static void hclgevf_task_schedule(struct hclgevf_dev *hdev,
 				  unsigned long delay)
 {
-	if (!test_bit(HCLGEVF_STATE_REMOVING, &hdev->state))
+	if (!test_bit(HCLGEVF_STATE_REMOVING, &hdev->state) &&
+	    !test_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state))
 		mod_delayed_work(hclgevf_wq, &hdev->service_task, delay);
 }
 
@@ -2283,6 +2286,7 @@ static void hclgevf_state_init(struct hclgevf_dev *hdev)
 {
 	clear_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
 	clear_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state);
+	clear_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state);
 
 	INIT_DELAYED_WORK(&hdev->service_task, hclgevf_service_task);
 
