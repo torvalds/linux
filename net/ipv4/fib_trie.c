@@ -1295,6 +1295,16 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	if (WARN_ON_ONCE(!l))
 		goto out_free_new_fa;
 
+	if (fib_find_alias(&l->leaf, new_fa->fa_slen, 0, 0, tb->tb_id, true) ==
+	    new_fa) {
+		enum fib_event_type fib_event;
+
+		fib_event = FIB_EVENT_ENTRY_REPLACE_TMP;
+		err = call_fib_entry_notifiers(net, fib_event, key, plen,
+					       new_fa, extack);
+		if (err)
+			goto out_remove_new_fa;
+	}
 	err = call_fib_entry_notifiers(net, event, key, plen, new_fa, extack);
 	if (err)
 		goto out_remove_new_fa;
