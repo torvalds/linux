@@ -185,15 +185,18 @@ static int st_lsm6dsx_shub_master_enable(struct st_lsm6dsx_sensor *sensor,
 	mutex_lock(&hw->page_lock);
 
 	hub_settings = &hw->settings->shub_settings;
-	err = st_lsm6dsx_set_page(hw, true);
-	if (err < 0)
-		goto out;
+	if (hub_settings->master_en.sec_page) {
+		err = st_lsm6dsx_set_page(hw, true);
+		if (err < 0)
+			goto out;
+	}
 
 	data = ST_LSM6DSX_SHIFT_VAL(enable, hub_settings->master_en.mask);
 	err = regmap_update_bits(hw->regmap, hub_settings->master_en.addr,
 				 hub_settings->master_en.mask, data);
 
-	st_lsm6dsx_set_page(hw, false);
+	if (hub_settings->master_en.sec_page)
+		st_lsm6dsx_set_page(hw, false);
 out:
 	mutex_unlock(&hw->page_lock);
 

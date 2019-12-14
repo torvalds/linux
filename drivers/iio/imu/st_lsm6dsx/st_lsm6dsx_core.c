@@ -868,6 +868,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = BIT(6),
 			},
 			.master_en = {
+				.sec_page = true,
 				.addr = 0x14,
 				.mask = BIT(2),
 			},
@@ -1243,6 +1244,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = BIT(6),
 			},
 			.master_en = {
+				.sec_page = true,
 				.addr = 0x14,
 				.mask = BIT(2),
 			},

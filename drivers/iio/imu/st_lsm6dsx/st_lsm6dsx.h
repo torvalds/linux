@@ -184,7 +184,11 @@ struct st_lsm6dsx_hw_ts_settings {
  */
 struct st_lsm6dsx_shub_settings {
 	struct st_lsm6dsx_reg page_mux;
-	struct st_lsm6dsx_reg master_en;
+	struct {
+		bool sec_page;
+		u8 addr;
+		u8 mask;
+	} master_en;
 	struct st_lsm6dsx_reg pullup_en;
 	struct st_lsm6dsx_reg aux_sens;
 	struct st_lsm6dsx_reg wr_once;
