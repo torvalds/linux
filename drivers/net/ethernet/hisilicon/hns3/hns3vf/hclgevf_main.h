@@ -142,12 +142,12 @@ enum hclgevf_states {
 	HCLGEVF_STATE_REMOVING,
 	HCLGEVF_STATE_NIC_REGISTERED,
 	/* task states */
-	HCLGEVF_STATE_SERVICE_SCHED,
 	HCLGEVF_STATE_RST_SERVICE_SCHED,
 	HCLGEVF_STATE_RST_HANDLING,
 	HCLGEVF_STATE_MBX_SERVICE_SCHED,
 	HCLGEVF_STATE_MBX_HANDLING,
 	HCLGEVF_STATE_CMD_DISABLE,
+	HCLGEVF_STATE_LINK_UPDATING,
 };
 
 struct hclgevf_mac {
@@ -283,11 +283,7 @@ struct hclgevf_dev {
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
 	struct hclgevf_mbx_arq_ring arq; /* mailbox async rx queue */
 
-	struct timer_list keep_alive_timer;
 	struct delayed_work service_task;
-	struct work_struct keep_alive_task;
-	struct work_struct rst_service_task;
-	struct work_struct mbx_service_task;
 
 	struct hclgevf_tqp *htqp;
 
@@ -297,7 +293,8 @@ struct hclgevf_dev {
 	struct hnae3_client *nic_client;
 	struct hnae3_client *roce_client;
 	u32 flag;
-	u32 stats_timer;
+	unsigned long serv_processed_cnt;
+	unsigned long last_serv_processed;
 };
 
 static inline bool hclgevf_is_reset_pending(struct hclgevf_dev *hdev)
