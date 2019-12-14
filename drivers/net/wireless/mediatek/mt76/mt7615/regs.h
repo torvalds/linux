@@ -104,6 +104,9 @@
 #define MT_WF_PHY_B1_PD_OFDM(v)		((v) << 16)
 #define MT_WF_PHY_B1_PD_BLK		BIT(25)
 
+#define MT_WF_PHY_RXTD_BASE		MT_WF_PHY(0x2200)
+#define MT_WF_PHY_RXTD(_n)		(MT_WF_PHY_RXTD_BASE + ((_n) << 2))
+
 #define MT_WF_PHY_B0_RXTD_CCK_PD	MT_WF_PHY(0x2310)
 #define MT_WF_PHY_B0_PD_CCK_MASK	GENMASK(8, 1)
 #define MT_WF_PHY_B0_PD_CCK(v)		((v) << 1)
@@ -111,6 +114,9 @@
 #define MT_WF_PHY_B1_RXTD_CCK_PD	MT_WF_PHY(0x2314)
 #define MT_WF_PHY_B1_PD_CCK_MASK	GENMASK(31, 24)
 #define MT_WF_PHY_B1_PD_CCK(v)		((v) << 24)
+
+#define MT_WF_PHY_RXTD2_BASE		MT_WF_PHY(0x2a00)
+#define MT_WF_PHY_RXTD2(_n)		(MT_WF_PHY_RXTD2_BASE + ((_n) << 2))
 
 #define MT_WF_CFG_BASE			0x20200
 #define MT_WF_CFG(ofs)			(MT_WF_CFG_BASE + (ofs))

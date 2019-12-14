@@ -1379,6 +1379,19 @@ out:
 	mutex_unlock(&dev->mt76.mutex);
 }
 
+void mt7615_mac_enable_nf(struct mt7615_dev *dev, bool ext_phy)
+{
+	u32 rxtd;
+
+	if (ext_phy)
+		rxtd = MT_WF_PHY_RXTD2(10);
+	else
+		rxtd = MT_WF_PHY_RXTD(12);
+
+	mt76_set(dev, rxtd, BIT(18) | BIT(29));
+	mt76_set(dev, MT_WF_PHY_R0_PHYMUX_5(ext_phy), 0x5 << 12);
+}
+
 void mt7615_mac_cca_stats_reset(struct mt7615_phy *phy)
 {
 	struct mt7615_dev *dev = phy->dev;
@@ -1511,13 +1524,35 @@ mt7615_mac_scs_check(struct mt7615_phy *phy)
 		mt7615_mac_set_default_sensitivity(phy);
 }
 
+static u8
+mt7615_phy_get_nf(struct mt7615_dev *dev, int idx)
+{
+	static const u8 nf_power[] = { 92, 89, 86, 83, 80, 75, 70, 65, 60, 55, 52 };
+	u32 reg = idx ? MT_WF_PHY_RXTD2(17) : MT_WF_PHY_RXTD(20);
+	u32 val, sum = 0, n = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nf_power); i++, reg += 4) {
+		val = mt76_rr(dev, reg);
+		sum += val * nf_power[i];
+		n += val;
+	}
+
+	if (!n)
+		return 0;
+
+	return sum / n;
+}
+
 static void
 mt7615_phy_update_channel(struct mt76_phy *mphy, int idx)
 {
 	struct mt7615_dev *dev = container_of(mphy->dev, struct mt7615_dev, mt76);
+	struct mt7615_phy *phy = mphy->priv;
 	struct mt76_channel_state *state;
 	u64 busy_time, tx_time, rx_time, obss_time;
 	u32 obss_reg = idx ? MT_WF_RMAC_MIB_TIME6 : MT_WF_RMAC_MIB_TIME5;
+	int nf;
 
 	busy_time = mt76_get_field(dev, MT_MIB_SDR9(idx),
 				   MT_MIB_SDR9_BUSY_MASK);
@@ -1527,11 +1562,18 @@ mt7615_phy_update_channel(struct mt76_phy *mphy, int idx)
 				 MT_MIB_SDR37_RXTIME_MASK);
 	obss_time = mt76_get_field(dev, obss_reg, MT_MIB_OBSSTIME_MASK);
 
+	nf = mt7615_phy_get_nf(dev, idx);
+	if (!phy->noise)
+		phy->noise = nf << 4;
+	else if (nf)
+		phy->noise += nf - (phy->noise >> 4);
+
 	state = mphy->chan_state;
 	state->cc_busy += busy_time;
 	state->cc_tx += tx_time;
 	state->cc_rx += rx_time + obss_time;
 	state->cc_bss_rx += rx_time;
+	state->noise = -(phy->noise >> 4);
 }
 
 void mt7615_update_channel(struct mt76_dev *mdev)

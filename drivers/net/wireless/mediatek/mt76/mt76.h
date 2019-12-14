@@ -328,6 +328,8 @@ struct mt76_channel_state {
 	u64 cc_rx;
 	u64 cc_bss_rx;
 	u64 cc_tx;
+
+	s8 noise;
 };
 
 struct mt76_sband {

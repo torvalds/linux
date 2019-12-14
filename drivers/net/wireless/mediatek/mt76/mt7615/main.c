@@ -40,11 +40,13 @@ static int mt7615_start(struct ieee80211_hw *hw)
 	if (!running) {
 		mt7615_mcu_ctrl_pm_state(dev, 0, 0);
 		mt7615_mcu_set_mac_enable(dev, 0, true);
+		mt7615_mac_enable_nf(dev, 0);
 	}
 
 	if (phy != &dev->phy) {
 		mt7615_mcu_ctrl_pm_state(dev, 1, 0);
 		mt7615_mcu_set_mac_enable(dev, 1, true);
+		mt7615_mac_enable_nf(dev, 1);
 	}
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
@@ -238,6 +240,7 @@ static int mt7615_set_channel(struct mt7615_phy *phy)
 	mt7615_mac_cca_stats_reset(phy);
 
 	mt7615_mac_reset_counters(dev);
+	phy->noise = 0;
 
 out:
 	clear_bit(MT76_RESET, &phy->mt76->state);
