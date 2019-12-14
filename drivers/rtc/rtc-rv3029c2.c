@@ -399,28 +399,11 @@ static int rv3029_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 static int rv3029_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
-	int ret;
-	u8 controls;
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 
-	ret = rv3029_read_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
-	if (ret < 0) {
-		dev_warn(dev, "Read IRQ Control Register error %d\n", ret);
-		return ret;
-	}
-
-	/* enable/disable AIE irq */
-	if (enable)
-		controls |= RV3029_IRQ_CTRL_AIE;
-	else
-		controls &= ~RV3029_IRQ_CTRL_AIE;
-
-	ret = rv3029_write_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
-	if (ret < 0) {
-		dev_err(dev, "can't update INT reg\n");
-		return ret;
-	}
-
-	return 0;
+	return regmap_update_bits(rv3029->regmap, RV3029_IRQ_CTRL,
+				  RV3029_IRQ_CTRL_AIE,
+				  enable ? RV3029_IRQ_CTRL_AIE : 0);
 }
 
 static int rv3029_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
