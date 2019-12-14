@@ -126,10 +126,6 @@ static int rv3029_read_regs(struct device *dev, u8 reg, u8 *buf,
 {
 	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 
-	if ((reg > RV3029_USR1_RAM_PAGE + 7) ||
-	    (reg + len > RV3029_USR1_RAM_PAGE + 8))
-		return -EINVAL;
-
 	return regmap_bulk_read(rv3029->regmap, reg, buf, len);
 }
 
@@ -137,10 +133,6 @@ static int rv3029_write_regs(struct device *dev, u8 reg, u8 const buf[],
 			     unsigned int len)
 {
 	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
-
-	if ((reg > RV3029_USR1_RAM_PAGE + 7) ||
-	    (reg + len > RV3029_USR1_RAM_PAGE + 8))
-		return -EINVAL;
 
 	return regmap_bulk_write(rv3029->regmap, reg, buf, len);
 }
@@ -837,17 +829,34 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 	return 0;
 }
 
+static const struct regmap_range rv3029_holes_range[] = {
+	regmap_reg_range(0x05, 0x07),
+	regmap_reg_range(0x0f, 0x0f),
+	regmap_reg_range(0x17, 0x17),
+	regmap_reg_range(0x1a, 0x1f),
+	regmap_reg_range(0x21, 0x27),
+	regmap_reg_range(0x34, 0x37),
+};
+
+static const struct regmap_access_table rv3029_regs = {
+	.no_ranges =	rv3029_holes_range,
+	.n_no_ranges =	ARRAY_SIZE(rv3029_holes_range),
+};
+
+static const struct regmap_config config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.rd_table = &rv3029_regs,
+	.wr_table = &rv3029_regs,
+	.max_register = 0x3f,
+};
+
 #if IS_ENABLED(CONFIG_I2C)
 
 static int rv3029_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
 	struct regmap *regmap;
-	static const struct regmap_config config = {
-		.reg_bits = 8,
-		.val_bits = 8,
-	};
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK |
 				     I2C_FUNC_SMBUS_BYTE)) {
 		dev_err(&client->dev, "Adapter does not support SMBUS_I2C_BLOCK or SMBUS_I2C_BYTE\n");
@@ -917,10 +926,6 @@ static void rv3029_unregister_driver(void)
 
 static int rv3049_probe(struct spi_device *spi)
 {
-	static const struct regmap_config config = {
-		.reg_bits = 8,
-		.val_bits = 8,
-	};
 	struct regmap *regmap;
 
 	regmap = devm_regmap_init_spi(spi, &config);
