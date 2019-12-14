@@ -1246,6 +1246,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 	struct btrfs_block_group *block_group;
 	struct btrfs_space_info *space_info;
 	struct btrfs_trans_handle *trans;
+	const bool async_trim_enabled = btrfs_test_opt(fs_info, DISCARD_ASYNC);
 	int ret = 0;
 
 	if (!test_bit(BTRFS_FS_OPEN, &fs_info->flags))
@@ -1275,6 +1276,22 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 
 		/* Don't want to race with allocators so take the groups_sem */
 		down_write(&space_info->groups_sem);
+
+		/*
+		 * Async discard moves the final block group discard to be prior
+		 * to the unused_bgs code path.  Therefore, if it's not fully
+		 * trimmed, punt it back to the async discard lists.
+		 */
+		if (btrfs_test_opt(fs_info, DISCARD_ASYNC) &&
+		    !btrfs_is_free_space_trimmed(block_group)) {
+			trace_btrfs_skip_unused_block_group(block_group);
+			up_write(&space_info->groups_sem);
+			/* Requeue if we failed because of async discard */
+			btrfs_discard_queue_work(&fs_info->discard_ctl,
+						 block_group);
+			goto next;
+		}
+
 		spin_lock(&block_group->lock);
 		if (block_group->reserved || block_group->pinned ||
 		    block_group->used || block_group->ro ||
@@ -1378,6 +1395,16 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		spin_unlock(&block_group->lock);
 		spin_unlock(&space_info->lock);
 
+		/*
+		 * The normal path here is an unused block group is passed here,
+		 * then trimming is handled in the transaction commit path.
+		 * Async discard interposes before this to do the trimming
+		 * before coming down the unused block group path as trimming
+		 * will no longer be done later in the transaction commit path.
+		 */
+		if (!async_trim_enabled && btrfs_test_opt(fs_info, DISCARD_ASYNC))
+			goto flip_async;
+
 		/* DISCARD can flip during remount */
 		trimming = btrfs_test_opt(fs_info, DISCARD_SYNC);
 
@@ -1422,6 +1449,13 @@ next:
 		spin_lock(&fs_info->unused_bgs_lock);
 	}
 	spin_unlock(&fs_info->unused_bgs_lock);
+	return;
+
+flip_async:
+	btrfs_end_transaction(trans);
+	mutex_unlock(&fs_info->delete_unused_bgs_mutex);
+	btrfs_put_block_group(block_group);
+	btrfs_discard_punt_unused_bgs_list(fs_info);
 }
 
 void btrfs_mark_bg_unused(struct btrfs_block_group *bg)
@@ -1626,6 +1660,8 @@ static struct btrfs_block_group *btrfs_create_block_group_cache(
 	cache->full_stripe_len = btrfs_full_stripe_len(fs_info, start);
 	set_free_space_tree_thresholds(cache);
 
+	cache->discard_index = BTRFS_DISCARD_INDEX_UNUSED;
+
 	atomic_set(&cache->count, 1);
 	spin_lock_init(&cache->lock);
 	init_rwsem(&cache->data_rwsem);
@@ -1792,7 +1828,10 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 		inc_block_group_ro(cache, 1);
 	} else if (cache->used == 0) {
 		ASSERT(list_empty(&cache->bg_list));
-		btrfs_mark_bg_unused(cache);
+		if (btrfs_test_opt(info, DISCARD_ASYNC))
+			btrfs_discard_queue_work(&info->discard_ctl, cache);
+		else
+			btrfs_mark_bg_unused(cache);
 	}
 	return 0;
 error:
@@ -2755,8 +2794,10 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 		 * dirty list to avoid races between cleaner kthread and space
 		 * cache writeout.
 		 */
-		if (!alloc && old_val == 0)
-			btrfs_mark_bg_unused(cache);
+		if (!alloc && old_val == 0) {
+			if (!btrfs_test_opt(info, DISCARD_ASYNC))
+				btrfs_mark_bg_unused(cache);
+		}
 
 		btrfs_put_block_group(cache);
 		total -= num_bytes;

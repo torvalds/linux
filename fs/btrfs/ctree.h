@@ -443,9 +443,14 @@ struct btrfs_full_stripe_locks_tree {
 /* Discard control. */
 /*
  * Async discard uses multiple lists to differentiate the discard filter
- * parameters.
+ * parameters.  Index 0 is for completely free block groups where we need to
+ * ensure the entire block group is trimmed without being lossy.  Indices
+ * afterwards represent monotonically decreasing discard filter sizes to
+ * prioritize what should be discarded next.
  */
-#define BTRFS_NR_DISCARD_LISTS		1
+#define BTRFS_NR_DISCARD_LISTS		2
+#define BTRFS_DISCARD_INDEX_UNUSED	0
+#define BTRFS_DISCARD_INDEX_START	1
 
 struct btrfs_discard_ctl {
 	struct workqueue_struct *discard_workers;

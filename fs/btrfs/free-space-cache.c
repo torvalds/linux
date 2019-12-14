@@ -2707,6 +2707,37 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group *block_group)
 
 }
 
+/**
+ * btrfs_is_free_space_trimmed - see if everything is trimmed
+ * @block_group: block_group of interest
+ *
+ * Walk @block_group's free space rb_tree to determine if everything is trimmed.
+ */
+bool btrfs_is_free_space_trimmed(struct btrfs_block_group *block_group)
+{
+	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
+	struct btrfs_free_space *info;
+	struct rb_node *node;
+	bool ret = true;
+
+	spin_lock(&ctl->tree_lock);
+	node = rb_first(&ctl->free_space_offset);
+
+	while (node) {
+		info = rb_entry(node, struct btrfs_free_space, offset_index);
+
+		if (!btrfs_free_space_trimmed(info)) {
+			ret = false;
+			break;
+		}
+
+		node = rb_next(node);
+	}
+
+	spin_unlock(&ctl->tree_lock);
+	return ret;
+}
+
 u64 btrfs_find_space_for_alloc(struct btrfs_block_group *block_group,
 			       u64 offset, u64 bytes, u64 empty_size,
 			       u64 *max_extent_size)
@@ -2792,6 +2823,8 @@ int btrfs_return_cluster_to_free_space(
 	spin_lock(&ctl->tree_lock);
 	ret = __btrfs_return_cluster_to_free_space(block_group, cluster);
 	spin_unlock(&ctl->tree_lock);
+
+	btrfs_discard_queue_work(&block_group->fs_info->discard_ctl, block_group);
 
 	/* finally drop our ref */
 	btrfs_put_block_group(block_group);
