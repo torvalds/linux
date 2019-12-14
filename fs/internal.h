@@ -190,3 +190,9 @@ extern int do_vfs_ioctl(struct file *file, unsigned int fd, unsigned int cmd,
 
 /* direct-io.c: */
 int sb_init_dio_done_wq(struct super_block *sb);
+
+/*
+ * fs/stat.c:
+ */
+unsigned vfs_stat_set_lookup_flags(unsigned *lookup_flags, int flags);
+int cp_statx(const struct kstat *stat, struct statx __user *buffer);
