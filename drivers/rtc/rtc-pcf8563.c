@@ -291,21 +291,6 @@ static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long
 					sizeof(int)))
 			return -EFAULT;
 		return 0;
-	case RTC_VL_CLR:
-		/*
-		 * Clear the VL bit in the seconds register in case
-		 * the time has not been set already (which would
-		 * have cleared it). This does not really matter
-		 * because of the cached voltage_low value but do it
-		 * anyway for consistency.
-		 */
-		if (pcf8563_rtc_read_time(dev, &tm))
-			pcf8563_rtc_set_time(dev, &tm);
-
-		/* Clear the cached value. */
-		pcf8563->voltage_low = 0;
-
-		return 0;
 	default:
 		return -ENOIOCTLCMD;
 	}
