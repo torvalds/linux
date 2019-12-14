@@ -189,7 +189,11 @@ struct st_lsm6dsx_shub_settings {
 		u8 addr;
 		u8 mask;
 	} master_en;
-	struct st_lsm6dsx_reg pullup_en;
+	struct {
+		bool sec_page;
+		u8 addr;
+		u8 mask;
+	} pullup_en;
 	struct st_lsm6dsx_reg aux_sens;
 	struct st_lsm6dsx_reg wr_once;
 	u8 num_ext_dev;

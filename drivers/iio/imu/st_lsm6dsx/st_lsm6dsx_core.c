@@ -873,6 +873,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = BIT(2),
 			},
 			.pullup_en = {
+				.sec_page = true,
 				.addr = 0x14,
 				.mask = BIT(3),
 			},
@@ -1249,6 +1250,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = BIT(2),
 			},
 			.pullup_en = {
+				.sec_page = true,
 				.addr = 0x14,
 				.mask = BIT(3),
 			},
@@ -1864,16 +1866,19 @@ static int st_lsm6dsx_init_shub(struct st_lsm6dsx_hw *hw)
 	pdata = (struct st_sensors_platform_data *)dev->platform_data;
 	if ((dev_fwnode(dev) && device_property_read_bool(dev, "st,pullups")) ||
 	    (pdata && pdata->pullups)) {
-		err = st_lsm6dsx_set_page(hw, true);
-		if (err < 0)
-			return err;
+		if (hub_settings->pullup_en.sec_page) {
+			err = st_lsm6dsx_set_page(hw, true);
+			if (err < 0)
+				return err;
+		}
 
 		data = ST_LSM6DSX_SHIFT_VAL(1, hub_settings->pullup_en.mask);
 		err = regmap_update_bits(hw->regmap,
 					 hub_settings->pullup_en.addr,
 					 hub_settings->pullup_en.mask, data);
 
-		st_lsm6dsx_set_page(hw, false);
+		if (hub_settings->pullup_en.sec_page)
+			st_lsm6dsx_set_page(hw, false);
 
 		if (err < 0)
 			return err;
