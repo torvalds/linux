@@ -7472,7 +7472,8 @@ int bpf_object__open_skeleton(struct bpf_object_skeleton *s,
 			return -ESRCH;
 		}
 
-		if (mmaped)
+		/* externs shouldn't be pre-setup from user code */
+		if (mmaped && (*map)->libbpf_type != LIBBPF_MAP_EXTERN)
 			*mmaped = (*map)->mmaped;
 	}
 
@@ -7505,7 +7506,6 @@ int bpf_object__load_skeleton(struct bpf_object_skeleton *s)
 		size_t mmap_sz = bpf_map_mmap_sz(map);
 		int prot, map_fd = bpf_map__fd(map);
 		void **mmaped = s->maps[i].mmaped;
-		void *remapped;
 
 		if (!mmaped)
 			continue;
@@ -7530,9 +7530,9 @@ int bpf_object__load_skeleton(struct bpf_object_skeleton *s)
 		 * as per normal clean up procedure, so we don't need to worry
 		 * about it from skeleton's clean up perspective.
 		 */
-		remapped = mmap(*mmaped, mmap_sz, prot, MAP_SHARED | MAP_FIXED,
-				map_fd, 0);
-		if (remapped == MAP_FAILED) {
+		*mmaped = mmap(map->mmaped, mmap_sz, prot,
+				MAP_SHARED | MAP_FIXED, map_fd, 0);
+		if (*mmaped == MAP_FAILED) {
 			err = -errno;
 			*mmaped = NULL;
 			pr_warn("failed to re-mmap() map '%s': %d\n",
