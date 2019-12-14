@@ -731,12 +731,9 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 	rv3029_trickle_config(dev);
 	rv3029_hwmon_register(dev, name);
 
-	rv3029->rtc = devm_rtc_device_register(dev, name, &rv3029_rtc_ops,
-					       THIS_MODULE);
-	if (IS_ERR(rv3029->rtc)) {
-		dev_err(dev, "unable to register the class device\n");
+	rv3029->rtc = devm_rtc_allocate_device(dev);
+	if (IS_ERR(rv3029->rtc))
 		return PTR_ERR(rv3029->rtc);
-	}
 
 	if (rv3029->irq > 0) {
 		rc = devm_request_threaded_irq(dev, rv3029->irq,
@@ -753,7 +750,9 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 		}
 	}
 
-	return 0;
+	rv3029->rtc->ops = &rv3029_rtc_ops;
+
+	return rtc_register_device(rv3029->rtc);
 }
 
 static const struct regmap_range rv3029_holes_range[] = {
