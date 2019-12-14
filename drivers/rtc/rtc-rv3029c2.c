@@ -405,14 +405,6 @@ static int rv3029_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	int ret;
 	u8 regs[8];
 
-	/*
-	 * The clock has an 8 bit wide bcd-coded register (they never learn)
-	 * for the year. tm_year is an offset from 1900 and we are interested
-	 * in the 2000-2099 range, so any value less than 100 is invalid.
-	*/
-	if (tm->tm_year < 100)
-		return -EINVAL;
-
 	/* Activate all the alarms with AE_x bit */
 	regs[RV3029_A_SC - RV3029_A_SC] = bin2bcd(tm->tm_sec) | RV3029_A_AE_X;
 	regs[RV3029_A_MN - RV3029_A_SC] = bin2bcd(tm->tm_min) | RV3029_A_AE_X;
@@ -441,14 +433,6 @@ static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
 	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 	u8 regs[8];
 	int ret;
-
-	/*
-	 * The clock has an 8 bit wide bcd-coded register (they never learn)
-	 * for the year. tm_year is an offset from 1900 and we are interested
-	 * in the 2000-2099 range, so any value less than 100 is invalid.
-	*/
-	if (tm->tm_year < 100)
-		return -EINVAL;
 
 	regs[RV3029_W_SEC - RV3029_W_SEC] = bin2bcd(tm->tm_sec);
 	regs[RV3029_W_MINUTES - RV3029_W_SEC] = bin2bcd(tm->tm_min);
@@ -751,6 +735,8 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 	}
 
 	rv3029->rtc->ops = &rv3029_rtc_ops;
+	rv3029->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rv3029->rtc->range_max = RTC_TIMESTAMP_END_2079;
 
 	return rtc_register_device(rv3029->rtc);
 }
