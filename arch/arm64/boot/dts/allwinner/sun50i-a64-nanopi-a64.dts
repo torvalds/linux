@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright (C) 2017 Jagan Teki <jteki@openedev.com>
- */
+// Copyright (C) 2017 Jagan Teki <jteki@openedev.com>
 
 /dts-v1/;
 

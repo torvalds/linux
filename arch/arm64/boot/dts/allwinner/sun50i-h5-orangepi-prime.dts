@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.xyz>
- *
- * Based on sun50i-h5-orangepi-pc2.dts, which is:
- *   Copyright (C) 2016 ARM Ltd.
- */
+// Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.xyz>
+// Based on sun50i-h5-orangepi-pc2.dts, which is:
+//   Copyright (C) 2016 ARM Ltd.
 
 /dts-v1/;
 #include "sun50i-h5.dtsi"

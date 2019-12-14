@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright (C) 2016 ARM Ltd.
- */
+// Copyright (C) 2016 ARM Ltd.
 
 #include <arm/sunxi-h3-h5.dtsi>
 

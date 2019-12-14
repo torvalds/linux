@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright (c) 2016 ARM Ltd.
- */
+// Copyright (c) 2016 ARM Ltd.
 
 /dts-v1/;
 

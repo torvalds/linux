@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright 2017 Icenowy Zheng <icenowy@aosc.xyz>
- */
+// Copyright 2017 Icenowy Zheng <icenowy@aosc.xyz>
 
 /*
  * AXP803 Integrated Power Management Chip

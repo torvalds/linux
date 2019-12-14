@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright (C) 2018 Amarula Solutions B.V.
- * Author: Jagan Teki <jagan@amarulasolutions.com>
- */
+// Copyright (C) 2018 Amarula Solutions B.V.
+// Author: Jagan Teki <jagan@amarulasolutions.com>
 
 /dts-v1/;
 

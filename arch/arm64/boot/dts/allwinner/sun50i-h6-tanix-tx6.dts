@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Copyright (c) 2019 Jernej Skrabec <jernej.skrabec@siol.net>
- */
+// Copyright (c) 2019 Jernej Skrabec <jernej.skrabec@siol.net>
 
 /dts-v1/;
 
