@@ -389,9 +389,8 @@ static int rx8010_alarm_irq_enable(struct device *dev,
 
 static int rx8010_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
-	struct i2c_client *client = to_i2c_client(dev);
 	struct rx8010_data *rx8010 = dev_get_drvdata(dev);
-	int ret, tmp;
+	int tmp;
 	int flagreg;
 
 	switch (cmd) {
@@ -403,19 +402,6 @@ static int rx8010_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		tmp = !!(flagreg & RX8010_FLAG_VLF);
 		if (copy_to_user((void __user *)arg, &tmp, sizeof(int)))
 			return -EFAULT;
-
-		return 0;
-
-	case RTC_VL_CLR:
-		flagreg = i2c_smbus_read_byte_data(rx8010->client, RX8010_FLAG);
-		if (flagreg < 0) {
-			return flagreg;
-		}
-
-		flagreg &= ~RX8010_FLAG_VLF;
-		ret = i2c_smbus_write_byte_data(client, RX8010_FLAG, flagreg);
-		if (ret < 0)
-			return ret;
 
 		return 0;
 
