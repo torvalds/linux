@@ -1786,8 +1786,11 @@ void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev)
 static void hclgevf_task_schedule(struct hclgevf_dev *hdev)
 {
 	if (!test_bit(HCLGEVF_STATE_DOWN, &hdev->state)  &&
-	    !test_and_set_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state))
-		schedule_work(&hdev->service_task);
+	    !test_and_set_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state)) {
+		mod_delayed_work(system_wq, &hdev->service_task,
+				 round_jiffies_relative(HZ));
+		hdev->stats_timer++;
+	}
 }
 
 static void hclgevf_deferred_task_schedule(struct hclgevf_dev *hdev)
@@ -1798,17 +1801,6 @@ static void hclgevf_deferred_task_schedule(struct hclgevf_dev *hdev)
 
 	if (test_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state))
 		hclgevf_reset_task_schedule(hdev);
-}
-
-static void hclgevf_service_timer(struct timer_list *t)
-{
-	struct hclgevf_dev *hdev = from_timer(hdev, t, service_timer);
-
-	mod_timer(&hdev->service_timer, jiffies +
-		  HCLGEVF_GENERAL_TASK_INTERVAL * HZ);
-
-	hdev->stats_timer++;
-	hclgevf_task_schedule(hdev);
 }
 
 static void hclgevf_reset_service_task(struct work_struct *work)
@@ -1933,7 +1925,7 @@ static void hclgevf_service_task(struct work_struct *work)
 	struct hnae3_handle *handle;
 	struct hclgevf_dev *hdev;
 
-	hdev = container_of(work, struct hclgevf_dev, service_task);
+	hdev = container_of(work, struct hclgevf_dev, service_task.work);
 	handle = &hdev->nic;
 
 	if (hdev->stats_timer >= HCLGEVF_STATS_TIMER_INTERVAL) {
@@ -1953,6 +1945,8 @@ static void hclgevf_service_task(struct work_struct *work)
 	hclgevf_deferred_task_schedule(hdev);
 
 	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
+
+	hclgevf_task_schedule(hdev);
 }
 
 static void hclgevf_clear_event_cause(struct hclgevf_dev *hdev, u32 regclr)
@@ -2194,10 +2188,10 @@ static void hclgevf_set_timer_task(struct hnae3_handle *handle, bool enable)
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
 	if (enable) {
-		mod_timer(&hdev->service_timer, jiffies + HZ);
+		hclgevf_task_schedule(hdev);
 	} else {
-		del_timer_sync(&hdev->service_timer);
-		cancel_work_sync(&hdev->service_task);
+		set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
+		cancel_delayed_work_sync(&hdev->service_task);
 		clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
 	}
 }
@@ -2279,10 +2273,7 @@ static void hclgevf_state_init(struct hclgevf_dev *hdev)
 	clear_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
 	clear_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state);
 
-	/* setup tasks for service timer */
-	timer_setup(&hdev->service_timer, hclgevf_service_timer, 0);
-
-	INIT_WORK(&hdev->service_task, hclgevf_service_task);
+	INIT_DELAYED_WORK(&hdev->service_task, hclgevf_service_task);
 	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
 
 	INIT_WORK(&hdev->rst_service_task, hclgevf_reset_service_task);
@@ -2302,10 +2293,8 @@ static void hclgevf_state_uninit(struct hclgevf_dev *hdev)
 		del_timer_sync(&hdev->keep_alive_timer);
 	if (hdev->keep_alive_task.func)
 		cancel_work_sync(&hdev->keep_alive_task);
-	if (hdev->service_timer.function)
-		del_timer_sync(&hdev->service_timer);
-	if (hdev->service_task.func)
-		cancel_work_sync(&hdev->service_task);
+	if (hdev->service_task.work.func)
+		cancel_delayed_work_sync(&hdev->service_task);
 	if (hdev->mbx_service_task.func)
 		cancel_work_sync(&hdev->mbx_service_task);
 	if (hdev->rst_service_task.func)
