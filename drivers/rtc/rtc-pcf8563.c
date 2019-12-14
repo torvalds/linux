@@ -277,20 +277,16 @@ static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	int vl, ret;
+	int ret;
 
 	switch (cmd) {
 	case RTC_VL_READ:
-
 		ret = i2c_smbus_read_byte_data(client, PCF8563_REG_SC);
 		if (ret < 0)
 			return ret;
 
-		vl = ret & PCF8563_SC_LV ? 1 : 0;
-
-		if (copy_to_user((void __user *)arg, &vl, sizeof(int)))
-			return -EFAULT;
-		return 0;
+		return put_user(ret & PCF8563_SC_LV ? RTC_VL_DATA_INVALID : 0,
+				(unsigned int __user *)arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
