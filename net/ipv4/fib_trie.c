@@ -980,9 +980,12 @@ static struct key_vector *fib_find_node(struct trie *t,
 
 /* Return the first fib alias matching TOS with
  * priority less than or equal to PRIO.
+ * If 'find_first' is set, return the first matching
+ * fib alias, regardless of TOS and priority.
  */
 static struct fib_alias *fib_find_alias(struct hlist_head *fah, u8 slen,
-					u8 tos, u32 prio, u32 tb_id)
+					u8 tos, u32 prio, u32 tb_id,
+					bool find_first)
 {
 	struct fib_alias *fa;
 
@@ -998,6 +1001,8 @@ static struct fib_alias *fib_find_alias(struct hlist_head *fah, u8 slen,
 			continue;
 		if (fa->tb_id != tb_id)
 			break;
+		if (find_first)
+			return fa;
 		if (fa->fa_tos > tos)
 			continue;
 		if (fa->fa_info->fib_priority >= prio || fa->fa_tos < tos)
@@ -1149,7 +1154,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 
 	l = fib_find_node(t, &tp, key);
 	fa = l ? fib_find_alias(&l->leaf, slen, tos, fi->fib_priority,
-				tb->tb_id) : NULL;
+				tb->tb_id, false) : NULL;
 
 	/* Now fa, if non-NULL, points to the first fib alias
 	 * with the same keys [prefix,tos,priority], if such key already
@@ -1565,7 +1570,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	if (!l)
 		return -ESRCH;
 
-	fa = fib_find_alias(&l->leaf, slen, tos, 0, tb->tb_id);
+	fa = fib_find_alias(&l->leaf, slen, tos, 0, tb->tb_id, false);
 	if (!fa)
 		return -ESRCH;
 
