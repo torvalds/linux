@@ -440,7 +440,7 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 			return flags;
 		}
 
-		flags &= ~(RV8803_FLAG_V1F | RV8803_FLAG_V2F);
+		flags &= ~RV8803_FLAG_V1F;
 		ret = rv8803_write_reg(client, RV8803_FLAG, flags);
 		mutex_unlock(&rv8803->flags_lock);
 		if (ret)
