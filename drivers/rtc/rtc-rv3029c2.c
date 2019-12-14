@@ -333,15 +333,8 @@ static irqreturn_t rv3029_handle_irq(int irq, void *dev_id)
 
 static int rv3029_read_time(struct device *dev, struct rtc_time *tm)
 {
-	u8 buf[1];
 	int ret;
 	u8 regs[RV3029_WATCH_SECTION_LEN] = { 0, };
-
-	ret = rv3029_get_sr(dev, buf);
-	if (ret < 0) {
-		dev_err(dev, "%s: reading SR failed\n", __func__);
-		return -EIO;
-	}
 
 	ret = rv3029_read_regs(dev, RV3029_W_SEC, regs,
 			       RV3029_WATCH_SECTION_LEN);
@@ -379,12 +372,6 @@ static int rv3029_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	struct rtc_time *const tm = &alarm->time;
 	int ret;
 	u8 regs[8], controls, flags;
-
-	ret = rv3029_get_sr(dev, regs);
-	if (ret < 0) {
-		dev_err(dev, "%s: reading SR failed\n", __func__);
-		return -EIO;
-	}
 
 	ret = rv3029_read_regs(dev, RV3029_A_SC, regs,
 			       RV3029_ALARM_SECTION_LEN);
@@ -458,12 +445,6 @@ static int rv3029_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	*/
 	if (tm->tm_year < 100)
 		return -EINVAL;
-
-	ret = rv3029_get_sr(dev, regs);
-	if (ret < 0) {
-		dev_err(dev, "%s: reading SR failed\n", __func__);
-		return -EIO;
-	}
 
 	/* Activate all the alarms with AE_x bit */
 	regs[RV3029_A_SC - RV3029_A_SC] = bin2bcd(tm->tm_sec) | RV3029_A_AE_X;
@@ -748,7 +729,6 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 {
 	struct rv3029_data *rv3029;
 	int rc = 0;
-	u8 buf[1];
 
 	rv3029 = devm_kzalloc(dev, sizeof(*rv3029), GFP_KERNEL);
 	if (!rv3029)
@@ -758,12 +738,6 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 	rv3029->irq = irq;
 	rv3029->dev = dev;
 	dev_set_drvdata(dev, rv3029);
-
-	rc = rv3029_get_sr(dev, buf);
-	if (rc < 0) {
-		dev_err(dev, "reading status failed\n");
-		return rc;
-	}
 
 	rv3029_trickle_config(dev);
 	rv3029_hwmon_register(dev, name);
