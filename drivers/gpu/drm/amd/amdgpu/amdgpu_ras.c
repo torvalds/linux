@@ -315,7 +315,7 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	default:
 		ret = -EINVAL;
 		break;
-	};
+	}
 
 	if (ret)
 		return -EINVAL;
