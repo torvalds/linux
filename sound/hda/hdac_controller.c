@@ -181,6 +181,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_send_cmd);
  * @bus: HD-audio core bus
  *
  * Usually called from interrupt handler.
+ * The caller needs bus->reg_lock spinlock before calling this.
  */
 void snd_hdac_bus_update_rirb(struct hdac_bus *bus)
 {
