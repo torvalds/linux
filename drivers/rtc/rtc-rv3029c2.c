@@ -137,23 +137,13 @@ static int rv3029_write_regs(struct device *dev, u8 reg, u8 const buf[],
 	return regmap_bulk_write(rv3029->regmap, reg, buf, len);
 }
 
-static int rv3029_get_sr(struct device *dev, u8 *buf)
+static int rv3029_eeprom_busywait(struct rv3029_data *rv3029)
 {
-	int ret = rv3029_read_regs(dev, RV3029_STATUS, buf, 1);
-
-	if (ret < 0)
-		return -EIO;
-	dev_dbg(dev, "status = 0x%.2x (%d)\n", buf[0], buf[0]);
-	return 0;
-}
-
-static int rv3029_eeprom_busywait(struct device *dev)
-{
+	unsigned int sr;
 	int i, ret;
-	u8 sr;
 
 	for (i = 100; i > 0; i--) {
-		ret = rv3029_get_sr(dev, &sr);
+		ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
 		if (ret < 0)
 			break;
 		if (!(sr & RV3029_STATUS_EEBUSY))
@@ -161,7 +151,7 @@ static int rv3029_eeprom_busywait(struct device *dev)
 		usleep_range(1000, 10000);
 	}
 	if (i <= 0) {
-		dev_err(dev, "EEPROM busy wait timeout.\n");
+		dev_err(rv3029->dev, "EEPROM busy wait timeout.\n");
 		return -ETIMEDOUT;
 	}
 
@@ -181,11 +171,11 @@ static int rv3029_eeprom_exit(struct device *dev)
 static int rv3029_eeprom_enter(struct device *dev)
 {
 	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
+	unsigned int sr;
 	int ret;
-	u8 sr;
 
 	/* Check whether we are in the allowed voltage range. */
-	ret = rv3029_get_sr(dev, &sr);
+	ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
 	if (ret < 0)
 		return ret;
 	if (sr & (RV3029_STATUS_VLOW1 | RV3029_STATUS_VLOW2)) {
@@ -198,7 +188,7 @@ static int rv3029_eeprom_enter(struct device *dev)
 		if (ret < 0)
 			return ret;
 		usleep_range(1000, 10000);
-		ret = rv3029_get_sr(dev, &sr);
+		ret = regmap_read(rv3029->regmap, RV3029_STATUS, &sr);
 		if (ret < 0)
 			return ret;
 		if (sr & (RV3029_STATUS_VLOW1 | RV3029_STATUS_VLOW2)) {
@@ -215,7 +205,7 @@ static int rv3029_eeprom_enter(struct device *dev)
 		return ret;
 
 	/* Wait for any previous eeprom accesses to finish. */
-	ret = rv3029_eeprom_busywait(dev);
+	ret = rv3029_eeprom_busywait(rv3029);
 	if (ret < 0)
 		rv3029_eeprom_exit(dev);
 
@@ -243,6 +233,7 @@ static int rv3029_eeprom_read(struct device *dev, u8 reg,
 static int rv3029_eeprom_write(struct device *dev, u8 reg,
 			       u8 const buf[], size_t len)
 {
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 	int ret, err;
 	size_t i;
 	u8 tmp;
@@ -260,7 +251,7 @@ static int rv3029_eeprom_write(struct device *dev, u8 reg,
 			if (ret < 0)
 				break;
 		}
-		ret = rv3029_eeprom_busywait(dev);
+		ret = rv3029_eeprom_busywait(rv3029);
 		if (ret < 0)
 			break;
 	}
