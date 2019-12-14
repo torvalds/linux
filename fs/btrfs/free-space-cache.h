@@ -6,6 +6,14 @@
 #ifndef BTRFS_FREE_SPACE_CACHE_H
 #define BTRFS_FREE_SPACE_CACHE_H
 
+/*
+ * This is the trim state of an extent or bitmap.
+ */
+enum btrfs_trim_state {
+	BTRFS_TRIM_STATE_UNTRIMMED,
+	BTRFS_TRIM_STATE_TRIMMED,
+};
+
 struct btrfs_free_space {
 	struct rb_node offset_index;
 	u64 offset;
@@ -13,7 +21,13 @@ struct btrfs_free_space {
 	u64 max_extent_size;
 	unsigned long *bitmap;
 	struct list_head list;
+	enum btrfs_trim_state trim_state;
 };
+
+static inline bool btrfs_free_space_trimmed(struct btrfs_free_space *info)
+{
+	return (info->trim_state == BTRFS_TRIM_STATE_TRIMMED);
+}
 
 struct btrfs_free_space_ctl {
 	spinlock_t tree_lock;
@@ -83,7 +97,8 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 void btrfs_init_free_space_ctl(struct btrfs_block_group *block_group);
 int __btrfs_add_free_space(struct btrfs_fs_info *fs_info,
 			   struct btrfs_free_space_ctl *ctl,
-			   u64 bytenr, u64 size);
+			   u64 bytenr, u64 size,
+			   enum btrfs_trim_state trim_state);
 int btrfs_add_free_space(struct btrfs_block_group *block_group,
 			 u64 bytenr, u64 size);
 int btrfs_remove_free_space(struct btrfs_block_group *block_group,
