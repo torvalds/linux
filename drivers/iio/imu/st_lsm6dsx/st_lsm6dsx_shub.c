@@ -101,13 +101,13 @@ static void st_lsm6dsx_shub_wait_complete(struct st_lsm6dsx_hw *hw)
 }
 
 /**
- * st_lsm6dsx_shub_read_reg - read i2c controller register
+ * st_lsm6dsx_shub_read_output - read i2c controller register
  *
  * Read st_lsm6dsx i2c controller register
  */
 static int
-st_lsm6dsx_shub_read_reg(struct st_lsm6dsx_hw *hw, u8 *data,
-			 int len)
+st_lsm6dsx_shub_read_output(struct st_lsm6dsx_hw *hw, u8 *data,
+			    int len)
 {
 	const struct st_lsm6dsx_shub_settings *hub_settings;
 	int err;
@@ -243,7 +243,8 @@ st_lsm6dsx_shub_read(struct st_lsm6dsx_sensor *sensor, u8 addr,
 
 	st_lsm6dsx_shub_wait_complete(hw);
 
-	err = st_lsm6dsx_shub_read_reg(hw, data, len & ST_LS6DSX_READ_OP_MASK);
+	err = st_lsm6dsx_shub_read_output(hw, data,
+					  len & ST_LS6DSX_READ_OP_MASK);
 
 	st_lsm6dsx_shub_master_enable(sensor, false);
 
@@ -725,7 +726,7 @@ st_lsm6dsx_shub_check_wai(struct st_lsm6dsx_hw *hw, u8 *i2c_addr,
 
 		st_lsm6dsx_shub_wait_complete(hw);
 
-		err = st_lsm6dsx_shub_read_reg(hw, &data, sizeof(data));
+		err = st_lsm6dsx_shub_read_output(hw, &data, sizeof(data));
 
 		st_lsm6dsx_shub_master_enable(sensor, false);
 
