@@ -438,12 +438,6 @@ static int rv3028_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 
 		return 0;
 
-	case RTC_VL_CLR:
-		ret = regmap_update_bits(rv3028->regmap, RV3028_STATUS,
-					 RV3028_STATUS_PORF, 0);
-
-		return ret;
-
 	default:
 		return -ENOIOCTLCMD;
 	}
