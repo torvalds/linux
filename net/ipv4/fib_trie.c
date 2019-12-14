@@ -1979,6 +1979,8 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 				continue;
 			}
 
+			fib_notify_alias_delete(net, n->key, &n->leaf, fa,
+						NULL);
 			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL,
 						 n->key,
 						 KEYLENGTH - fa->fa_slen, fa,
