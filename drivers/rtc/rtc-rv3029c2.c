@@ -440,19 +440,7 @@ static int rv3029_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (ret < 0)
 		return ret;
 
-	if (alarm->enabled) {
-		/* enable AIE irq */
-		ret = rv3029_alarm_irq_enable(dev, 1);
-		if (ret)
-			return ret;
-	} else {
-		/* disable AIE irq */
-		ret = rv3029_alarm_irq_enable(dev, 0);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return rv3029_alarm_irq_enable(dev, alarm->enabled);
 }
 
 static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
