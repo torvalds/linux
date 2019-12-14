@@ -210,4 +210,6 @@ LIBBPF_0.0.6 {
 } LIBBPF_0.0.5;
 
 LIBBPF_0.0.7 {
+	global:
+		bpf_program__attach;
 } LIBBPF_0.0.6;
