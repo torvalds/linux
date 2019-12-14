@@ -242,6 +242,8 @@ struct mt76_rx_tid {
 	u8 size;
 	u8 nframes;
 
+	u8 num;
+
 	u8 started:1, stopped:1, timer_pending:1;
 
 	struct sk_buff *reorder_buf[];
