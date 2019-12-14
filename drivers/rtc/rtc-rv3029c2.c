@@ -147,19 +147,6 @@ static int rv3029_get_sr(struct device *dev, u8 *buf)
 	return 0;
 }
 
-static int rv3029_set_sr(struct device *dev, u8 val)
-{
-	u8 buf[1];
-	int sr;
-
-	buf[0] = val;
-	sr = rv3029_write_regs(dev, RV3029_STATUS, buf, 1);
-	dev_dbg(dev, "status = 0x%.2x (%d)\n", buf[0], buf[0]);
-	if (sr < 0)
-		return -EIO;
-	return 0;
-}
-
 static int rv3029_eeprom_busywait(struct device *dev)
 {
 	int i, ret;
@@ -205,9 +192,9 @@ static int rv3029_eeprom_enter(struct device *dev)
 		/* We clear the bits and retry once just in case
 		 * we had a brown out in early startup.
 		 */
-		sr &= ~RV3029_STATUS_VLOW1;
-		sr &= ~RV3029_STATUS_VLOW2;
-		ret = rv3029_set_sr(dev, sr);
+		ret = regmap_update_bits(rv3029->regmap, RV3029_STATUS,
+					 RV3029_STATUS_VLOW1 |
+					 RV3029_STATUS_VLOW2, 0);
 		if (ret < 0)
 			return ret;
 		usleep_range(1000, 10000);
@@ -515,6 +502,7 @@ static int rv3029_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 	u8 regs[8];
 	int ret;
 
@@ -539,19 +527,9 @@ static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
 	if (ret < 0)
 		return ret;
 
-	ret = rv3029_get_sr(dev, regs);
-	if (ret < 0) {
-		dev_err(dev, "%s: reading SR failed\n", __func__);
-		return ret;
-	}
 	/* clear PON bit */
-	ret = rv3029_set_sr(dev, (regs[0] & ~RV3029_STATUS_PON));
-	if (ret < 0) {
-		dev_err(dev, "%s: reading SR failed\n", __func__);
-		return ret;
-	}
-
-	return 0;
+	return regmap_update_bits(rv3029->regmap, RV3029_STATUS,
+				  RV3029_STATUS_PON, 0);
 }
 
 static const struct rv3029_trickle_tab_elem {
