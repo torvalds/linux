@@ -109,10 +109,8 @@
 #define RV3029_CONTROL_E2P_TOV_MASK	0x3F /* XTAL turnover temp mask */
 
 /* user ram section */
-#define RV3029_USR1_RAM_PAGE		0x38
-#define RV3029_USR1_SECTION_LEN		0x04
-#define RV3029_USR2_RAM_PAGE		0x3C
-#define RV3029_USR2_SECTION_LEN		0x04
+#define RV3029_RAM_PAGE			0x38
+#define RV3029_RAM_SECTION_LEN		8
 
 struct rv3029_data {
 	struct device		*dev;
@@ -481,6 +479,18 @@ static int rv3029_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	}
 }
 
+static int rv3029_nvram_write(void *priv, unsigned int offset, void *val,
+			      size_t bytes)
+{
+	return regmap_bulk_write(priv, RV3029_RAM_PAGE + offset, val, bytes);
+}
+
+static int rv3029_nvram_read(void *priv, unsigned int offset, void *val,
+			     size_t bytes)
+{
+	return regmap_bulk_read(priv, RV3029_RAM_PAGE + offset, val, bytes);
+}
+
 static const struct rv3029_trickle_tab_elem {
 	u32 r;		/* resistance in ohms */
 	u8 conf;	/* trickle config bits */
@@ -701,6 +711,15 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 			const char *name)
 {
 	struct rv3029_data *rv3029;
+	struct nvmem_config nvmem_cfg = {
+		.name = "rv3029_nvram",
+		.word_size = 1,
+		.stride = 1,
+		.size = RV3029_RAM_SECTION_LEN,
+		.type = NVMEM_TYPE_BATTERY_BACKED,
+		.reg_read = rv3029_nvram_read,
+		.reg_write = rv3029_nvram_write,
+	};
 	int rc = 0;
 
 	rv3029 = devm_kzalloc(dev, sizeof(*rv3029), GFP_KERNEL);
@@ -738,7 +757,14 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 	rv3029->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rv3029->rtc->range_max = RTC_TIMESTAMP_END_2079;
 
-	return rtc_register_device(rv3029->rtc);
+	rc = rtc_register_device(rv3029->rtc);
+	if (rc)
+		return rc;
+
+	nvmem_cfg.priv = rv3029->regmap;
+	rtc_nvmem_register(rv3029->rtc, &nvmem_cfg);
+
+	return 0;
 }
 
 static const struct regmap_range rv3029_holes_range[] = {
