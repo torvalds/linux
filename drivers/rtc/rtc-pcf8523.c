@@ -282,11 +282,11 @@ static int pcf8523_rtc_ioctl(struct device *dev, unsigned int cmd,
 		ret = pcf8523_voltage_low(client);
 		if (ret < 0)
 			return ret;
+		if (ret)
+			ret = RTC_VL_BACKUP_LOW;
 
-		if (copy_to_user((void __user *)arg, &ret, sizeof(int)))
-			return -EFAULT;
+		return put_user(ret, (unsigned int __user *)arg);
 
-		return 0;
 	default:
 		return -ENOIOCTLCMD;
 	}
