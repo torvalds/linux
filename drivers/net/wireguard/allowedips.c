@@ -31,11 +31,6 @@ static void copy_and_assign_cidr(struct allowedips_node *node, const u8 *src,
 #define CHOOSE_NODE(parent, key) \
 	parent->bit[(key[parent->bit_at_a] >> parent->bit_at_b) & 1]
 
-static void node_free_rcu(struct rcu_head *rcu)
-{
-	kfree(container_of(rcu, struct allowedips_node, rcu));
-}
-
 static void push_rcu(struct allowedips_node **stack,
 		     struct allowedips_node __rcu *p, unsigned int *len)
 {
@@ -112,7 +107,7 @@ static void walk_remove_by_peer(struct allowedips_node __rcu **top,
 				if (!node->bit[0] || !node->bit[1]) {
 					rcu_assign_pointer(*nptr, DEREF(
 					       &node->bit[!REF(node->bit[0])]));
-					call_rcu(&node->rcu, node_free_rcu);
+					kfree_rcu(node, rcu);
 					node = DEREF(nptr);
 				}
 			}
