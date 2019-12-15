@@ -1666,11 +1666,11 @@ extern bool kill_device(struct device *dev);
 #ifdef CONFIG_DEVTMPFS
 extern int devtmpfs_create_node(struct device *dev);
 extern int devtmpfs_delete_node(struct device *dev);
-extern int devtmpfs_mount(const char *mntdir);
+extern int devtmpfs_mount(void);
 #else
 static inline int devtmpfs_create_node(struct device *dev) { return 0; }
 static inline int devtmpfs_delete_node(struct device *dev) { return 0; }
-static inline int devtmpfs_mount(const char *mountpoint) { return 0; }
+static inline int devtmpfs_mount(void) { return 0; }
 #endif
 
 /* drivers/base/power/shutdown.c */
