@@ -59,6 +59,7 @@ static void touch_cap_buf_queue(struct vb2_buffer *vb)
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
 	struct vivid_buffer *buf = container_of(vbuf, struct vivid_buffer, vb);
 
+	vbuf->field = V4L2_FIELD_NONE;
 	spin_lock(&dev->slock);
 	list_add_tail(&buf->list, &dev->touch_cap_active);
 	spin_unlock(&dev->slock);
