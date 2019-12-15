@@ -12,7 +12,6 @@
 
 #include <uapi/linux/wireguard.h>
 
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/genetlink.h>
