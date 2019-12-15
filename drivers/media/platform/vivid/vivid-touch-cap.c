@@ -5,6 +5,7 @@
 
 #include "vivid-core.h"
 #include "vivid-kthread-touch.h"
+#include "vivid-vid-common.h"
 #include "vivid-touch-cap.h"
 
 static int touch_cap_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
@@ -129,7 +130,22 @@ int vivid_g_fmt_tch(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 
+	if (dev->multiplanar)
+		return -ENOTTY;
 	f->fmt.pix = dev->tch_format;
+	return 0;
+}
+
+int vivid_g_fmt_tch_mplane(struct file *file, void *priv, struct v4l2_format *f)
+{
+	struct vivid_dev *dev = video_drvdata(file);
+	struct v4l2_format sp_fmt;
+
+	if (!dev->multiplanar)
+		return -ENOTTY;
+	sp_fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	sp_fmt.fmt.pix = dev->tch_format;
+	fmt_sp2mp(&sp_fmt, f);
 	return 0;
 }
 
@@ -138,7 +154,9 @@ int vivid_g_parm_tch(struct file *file, void *priv,
 {
 	struct vivid_dev *dev = video_drvdata(file);
 
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (parm->type != (dev->multiplanar ?
+			   V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE :
+			   V4L2_BUF_TYPE_VIDEO_CAPTURE))
 		return -EINVAL;
 
 	parm->parm.capture.capability   = V4L2_CAP_TIMEPERFRAME;

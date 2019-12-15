@@ -28,6 +28,7 @@ extern const struct vb2_ops vivid_touch_cap_qops;
 
 int vivid_enum_fmt_tch(struct file *file, void  *priv, struct v4l2_fmtdesc *f);
 int vivid_g_fmt_tch(struct file *file, void *priv, struct v4l2_format *f);
+int vivid_g_fmt_tch_mplane(struct file *file, void *priv, struct v4l2_format *f);
 int vivid_enum_input_tch(struct file *file, void *priv, struct v4l2_input *inp);
 int vivid_g_input_tch(struct file *file, void *priv, unsigned int *i);
 int vivid_s_input_tch(struct file *file, void *priv, unsigned int i);

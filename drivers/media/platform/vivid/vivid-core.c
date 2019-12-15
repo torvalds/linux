@@ -509,6 +509,36 @@ static int vivid_s_fmt_cap(struct file *file, void *priv,
 	return vidioc_s_fmt_vid_cap(file, priv, f);
 }
 
+static int vivid_g_fmt_cap_mplane(struct file *file, void *priv,
+				  struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_fmt_tch_mplane(file, priv, f);
+	return vidioc_g_fmt_vid_cap_mplane(file, priv, f);
+}
+
+static int vivid_try_fmt_cap_mplane(struct file *file, void *priv,
+				    struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_fmt_tch_mplane(file, priv, f);
+	return vidioc_try_fmt_vid_cap_mplane(file, priv, f);
+}
+
+static int vivid_s_fmt_cap_mplane(struct file *file, void *priv,
+				  struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vdev->vfl_type == VFL_TYPE_TOUCH)
+		return vivid_g_fmt_tch_mplane(file, priv, f);
+	return vidioc_s_fmt_vid_cap_mplane(file, priv, f);
+}
+
 static bool vivid_is_in_use(struct video_device *vdev)
 {
 	unsigned long flags;
@@ -605,9 +635,9 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap		= vivid_g_fmt_cap,
 	.vidioc_try_fmt_vid_cap		= vivid_try_fmt_cap,
 	.vidioc_s_fmt_vid_cap		= vivid_s_fmt_cap,
-	.vidioc_g_fmt_vid_cap_mplane	= vidioc_g_fmt_vid_cap_mplane,
-	.vidioc_try_fmt_vid_cap_mplane	= vidioc_try_fmt_vid_cap_mplane,
-	.vidioc_s_fmt_vid_cap_mplane	= vidioc_s_fmt_vid_cap_mplane,
+	.vidioc_g_fmt_vid_cap_mplane	= vivid_g_fmt_cap_mplane,
+	.vidioc_try_fmt_vid_cap_mplane	= vivid_try_fmt_cap_mplane,
+	.vidioc_s_fmt_vid_cap_mplane	= vivid_s_fmt_cap_mplane,
 
 	.vidioc_enum_fmt_vid_out	= vivid_enum_fmt_vid,
 	.vidioc_g_fmt_vid_out		= vidioc_g_fmt_vid_out,
@@ -1077,9 +1107,12 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 			dev->meta_out_caps |= V4L2_CAP_AUDIO;
 	}
 	/* set up the capabilities of the touch capture device */
-	if (dev->has_touch_cap)
-		dev->touch_cap_caps = V4L2_CAP_TOUCH | V4L2_CAP_VIDEO_CAPTURE |
-				      V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+	if (dev->has_touch_cap) {
+		dev->touch_cap_caps = V4L2_CAP_TOUCH | V4L2_CAP_STREAMING |
+				      V4L2_CAP_READWRITE;
+		dev->touch_cap_caps |= dev->multiplanar ?
+			V4L2_CAP_VIDEO_CAPTURE_MPLANE : V4L2_CAP_VIDEO_CAPTURE;
+	}
 
 	ret = -ENOMEM;
 	/* initialize the test pattern generator */
