@@ -1780,6 +1780,15 @@ static int throttle_thermal_policy_write(struct asus_wmi *asus)
 	return 0;
 }
 
+static int throttle_thermal_policy_set_default(struct asus_wmi *asus)
+{
+	if (!asus->throttle_thermal_policy_available)
+		return 0;
+
+	asus->throttle_thermal_policy_mode = ASUS_THROTTLE_THERMAL_POLICY_DEFAULT;
+	return throttle_thermal_policy_write(asus);
+}
+
 static int throttle_thermal_policy_switch_next(struct asus_wmi *asus)
 {
 	u8 new_mode = asus->throttle_thermal_policy_mode + 1;
@@ -2548,6 +2557,8 @@ static int asus_wmi_add(struct platform_device *pdev)
 	err = throttle_thermal_policy_check_present(asus);
 	if (err)
 		goto fail_throttle_thermal_policy;
+	else
+		throttle_thermal_policy_set_default(asus);
 
 	err = asus_wmi_sysfs_init(asus->platform_device);
 	if (err)
