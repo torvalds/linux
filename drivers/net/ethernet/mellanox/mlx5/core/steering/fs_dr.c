@@ -184,13 +184,13 @@ static struct mlx5dr_action *create_vport_action(struct mlx5dr_domain *domain,
 					       dest_attr->vport.vhca_id);
 }
 
-static struct mlx5dr_action *create_ft_action(struct mlx5_core_dev *dev,
+static struct mlx5dr_action *create_ft_action(struct mlx5dr_domain *domain,
 					      struct mlx5_flow_rule *dst)
 {
 	struct mlx5_flow_table *dest_ft = dst->dest_attr.ft;
 
 	if (mlx5_dr_is_fw_table(dest_ft->flags))
-		return mlx5dr_create_action_dest_flow_fw_table(dest_ft, dev);
+		return mlx5dr_action_create_dest_flow_fw_table(domain, dest_ft);
 	return mlx5dr_action_create_dest_table(dest_ft->fs_dr_table.dr_table);
 }
 
@@ -373,7 +373,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 				actions[num_actions++] = tmp_action;
 				break;
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
-				tmp_action = create_ft_action(dev, dst);
+				tmp_action = create_ft_action(domain, dst);
 				if (!tmp_action) {
 					err = -ENOMEM;
 					goto free_actions;

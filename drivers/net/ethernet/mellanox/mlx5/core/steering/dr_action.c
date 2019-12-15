@@ -690,9 +690,9 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 
 				/* get the relevant addresses */
 				if (!action->dest_tbl.fw_tbl.rx_icm_addr) {
-					ret = mlx5dr_cmd_query_flow_table(action->dest_tbl.fw_tbl.mdev,
-									  action->dest_tbl.fw_tbl.ft->type,
-									  action->dest_tbl.fw_tbl.ft->id,
+					ret = mlx5dr_cmd_query_flow_table(dmn->mdev,
+									  action->dest_tbl.fw_tbl.type,
+									  action->dest_tbl.fw_tbl.id,
 									  &output);
 					if (!ret) {
 						action->dest_tbl.fw_tbl.tx_icm_addr =
@@ -982,8 +982,8 @@ dec_ref:
 }
 
 struct mlx5dr_action *
-mlx5dr_create_action_dest_flow_fw_table(struct mlx5_flow_table *ft,
-					struct mlx5_core_dev *mdev)
+mlx5dr_action_create_dest_flow_fw_table(struct mlx5dr_domain *dmn,
+					struct mlx5_flow_table *ft)
 {
 	struct mlx5dr_action *action;
 
@@ -992,8 +992,11 @@ mlx5dr_create_action_dest_flow_fw_table(struct mlx5_flow_table *ft,
 		return NULL;
 
 	action->dest_tbl.is_fw_tbl = 1;
-	action->dest_tbl.fw_tbl.ft = ft;
-	action->dest_tbl.fw_tbl.mdev = mdev;
+	action->dest_tbl.fw_tbl.type = ft->type;
+	action->dest_tbl.fw_tbl.id = ft->id;
+	action->dest_tbl.fw_tbl.dmn = dmn;
+
+	refcount_inc(&dmn->refcount);
 
 	return action;
 }
@@ -1559,7 +1562,9 @@ int mlx5dr_action_destroy(struct mlx5dr_action *action)
 
 	switch (action->action_type) {
 	case DR_ACTION_TYP_FT:
-		if (!action->dest_tbl.is_fw_tbl)
+		if (action->dest_tbl.is_fw_tbl)
+			refcount_dec(&action->dest_tbl.fw_tbl.dmn->refcount);
+		else
 			refcount_dec(&action->dest_tbl.tbl->refcount);
 		break;
 	case DR_ACTION_TYP_TNL_L2_TO_L2:

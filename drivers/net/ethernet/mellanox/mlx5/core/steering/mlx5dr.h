@@ -75,8 +75,8 @@ struct mlx5dr_action *
 mlx5dr_action_create_dest_table(struct mlx5dr_table *table);
 
 struct mlx5dr_action *
-mlx5dr_create_action_dest_flow_fw_table(struct mlx5_flow_table *ft,
-					struct mlx5_core_dev *mdev);
+mlx5dr_action_create_dest_flow_fw_table(struct mlx5dr_domain *domain,
+					struct mlx5_flow_table *ft);
 
 struct mlx5dr_action *
 mlx5dr_action_create_dest_vport(struct mlx5dr_domain *domain,
@@ -165,8 +165,8 @@ static inline struct mlx5dr_action *
 mlx5dr_action_create_dest_table(struct mlx5dr_table *table) { return NULL; }
 
 static inline struct mlx5dr_action *
-mlx5dr_create_action_dest_flow_fw_table(struct mlx5_flow_table *ft,
-					struct mlx5_core_dev *mdev) { return NULL; }
+mlx5dr_action_create_dest_flow_fw_table(struct mlx5dr_domain *domain,
+					struct mlx5_flow_table *ft) { return NULL; }
 
 static inline struct mlx5dr_action *
 mlx5dr_action_create_dest_vport(struct mlx5dr_domain *domain,
