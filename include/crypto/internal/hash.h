@@ -70,7 +70,7 @@ static inline int crypto_ahash_walk_last(struct crypto_hash_walk *walk)
 }
 
 int crypto_register_ahash(struct ahash_alg *alg);
-int crypto_unregister_ahash(struct ahash_alg *alg);
+void crypto_unregister_ahash(struct ahash_alg *alg);
 int crypto_register_ahashes(struct ahash_alg *algs, int count);
 void crypto_unregister_ahashes(struct ahash_alg *algs, int count);
 int ahash_register_instance(struct crypto_template *tmpl,
@@ -105,9 +105,9 @@ static inline void crypto_drop_ahash(struct crypto_ahash_spawn *spawn)
 struct hash_alg_common *ahash_attr_alg(struct rtattr *rta, u32 type, u32 mask);
 
 int crypto_register_shash(struct shash_alg *alg);
-int crypto_unregister_shash(struct shash_alg *alg);
+void crypto_unregister_shash(struct shash_alg *alg);
 int crypto_register_shashes(struct shash_alg *algs, int count);
-int crypto_unregister_shashes(struct shash_alg *algs, int count);
+void crypto_unregister_shashes(struct shash_alg *algs, int count);
 int shash_register_instance(struct crypto_template *tmpl,
 			    struct shash_instance *inst);
 void shash_free_instance(struct crypto_instance *inst);

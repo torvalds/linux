@@ -598,9 +598,9 @@ int crypto_register_ahash(struct ahash_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_register_ahash);
 
-int crypto_unregister_ahash(struct ahash_alg *alg)
+void crypto_unregister_ahash(struct ahash_alg *alg)
 {
-	return crypto_unregister_alg(&alg->halg.base);
+	crypto_unregister_alg(&alg->halg.base);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_ahash);
 

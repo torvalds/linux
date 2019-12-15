@@ -520,9 +520,9 @@ int crypto_register_shash(struct shash_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_register_shash);
 
-int crypto_unregister_shash(struct shash_alg *alg)
+void crypto_unregister_shash(struct shash_alg *alg)
 {
-	return crypto_unregister_alg(&alg->base);
+	crypto_unregister_alg(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_shash);
 
@@ -546,19 +546,12 @@ err:
 }
 EXPORT_SYMBOL_GPL(crypto_register_shashes);
 
-int crypto_unregister_shashes(struct shash_alg *algs, int count)
+void crypto_unregister_shashes(struct shash_alg *algs, int count)
 {
-	int i, ret;
+	int i;
 
-	for (i = count - 1; i >= 0; --i) {
-		ret = crypto_unregister_shash(&algs[i]);
-		if (ret)
-			pr_err("Failed to unregister %s %s: %d\n",
-			       algs[i].base.cra_driver_name,
-			       algs[i].base.cra_name, ret);
-	}
-
-	return 0;
+	for (i = count - 1; i >= 0; --i)
+		crypto_unregister_shash(&algs[i]);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_shashes);
 
