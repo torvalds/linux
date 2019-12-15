@@ -22,6 +22,9 @@ properties:
       - items:
         - const: allwinner,sun7i-a20-csi1
         - const: allwinner,sun4i-a10-csi1
+      - items:
+        - const: allwinner,sun8i-r40-csi0
+        - const: allwinner,sun7i-a20-csi0
 
   reg:
     maxItems: 1
