@@ -12,12 +12,10 @@
  * Chris Zankel <chris@zankel.net>
  */
 
+#include <linux/printk.h>
 #include <linux/types.h>
-#include <linux/pci.h>
-#include <linux/time.h>
 #include <asm/platform.h>
 #include <asm/timex.h>
-#include <asm/param.h>		/* HZ */
 
 #define _F(r,f,a,b)							\
 	r __platform_##f a b;                                   	\

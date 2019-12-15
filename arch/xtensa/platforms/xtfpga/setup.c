@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 
 #include <asm/timex.h>
 #include <asm/processor.h>
