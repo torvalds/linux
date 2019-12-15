@@ -34,12 +34,12 @@ static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
  *
  * Return: 0 on success, -errno on failure
  */
-int fname_encrypt(struct inode *inode, const struct qstr *iname,
+int fname_encrypt(const struct inode *inode, const struct qstr *iname,
 		  u8 *out, unsigned int olen)
 {
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
-	struct fscrypt_info *ci = inode->i_crypt_info;
+	const struct fscrypt_info *ci = inode->i_crypt_info;
 	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	union fscrypt_iv iv;
 	struct scatterlist sg;
@@ -85,14 +85,14 @@ int fname_encrypt(struct inode *inode, const struct qstr *iname,
  *
  * Return: 0 on success, -errno on failure
  */
-static int fname_decrypt(struct inode *inode,
-				const struct fscrypt_str *iname,
-				struct fscrypt_str *oname)
+static int fname_decrypt(const struct inode *inode,
+			 const struct fscrypt_str *iname,
+			 struct fscrypt_str *oname)
 {
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist src_sg, dst_sg;
-	struct fscrypt_info *ci = inode->i_crypt_info;
+	const struct fscrypt_info *ci = inode->i_crypt_info;
 	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	union fscrypt_iv iv;
 	int res;
@@ -247,10 +247,10 @@ EXPORT_SYMBOL(fscrypt_fname_free_buffer);
  *
  * Return: 0 on success, -errno on failure
  */
-int fscrypt_fname_disk_to_usr(struct inode *inode,
-			u32 hash, u32 minor_hash,
-			const struct fscrypt_str *iname,
-			struct fscrypt_str *oname)
+int fscrypt_fname_disk_to_usr(const struct inode *inode,
+			      u32 hash, u32 minor_hash,
+			      const struct fscrypt_str *iname,
+			      struct fscrypt_str *oname)
 {
 	const struct qstr qname = FSTR_TO_QSTR(iname);
 	struct fscrypt_digested_name digested_name;

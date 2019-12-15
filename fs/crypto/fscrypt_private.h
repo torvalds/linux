@@ -260,7 +260,7 @@ void fscrypt_generate_iv(union fscrypt_iv *iv, u64 lblk_num,
 			 const struct fscrypt_info *ci);
 
 /* fname.c */
-extern int fname_encrypt(struct inode *inode, const struct qstr *iname,
+extern int fname_encrypt(const struct inode *inode, const struct qstr *iname,
 			 u8 *out, unsigned int olen);
 extern bool fscrypt_fname_encrypted_size(const struct inode *inode,
 					 u32 orig_len, u32 max_len,

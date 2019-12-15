@@ -153,8 +153,10 @@ static inline void fscrypt_free_filename(struct fscrypt_name *fname)
 extern int fscrypt_fname_alloc_buffer(const struct inode *, u32,
 				struct fscrypt_str *);
 extern void fscrypt_fname_free_buffer(struct fscrypt_str *);
-extern int fscrypt_fname_disk_to_usr(struct inode *, u32, u32,
-			const struct fscrypt_str *, struct fscrypt_str *);
+extern int fscrypt_fname_disk_to_usr(const struct inode *inode,
+				     u32 hash, u32 minor_hash,
+				     const struct fscrypt_str *iname,
+				     struct fscrypt_str *oname);
 
 #define FSCRYPT_FNAME_MAX_UNDIGESTED_SIZE	32
 
@@ -433,7 +435,7 @@ static inline void fscrypt_fname_free_buffer(struct fscrypt_str *crypto_str)
 	return;
 }
 
-static inline int fscrypt_fname_disk_to_usr(struct inode *inode,
+static inline int fscrypt_fname_disk_to_usr(const struct inode *inode,
 					    u32 hash, u32 minor_hash,
 					    const struct fscrypt_str *iname,
 					    struct fscrypt_str *oname)
