@@ -278,6 +278,45 @@ done:
 	return nelems * size;
 }
 
+int btf__align_of(const struct btf *btf, __u32 id)
+{
+	const struct btf_type *t = btf__type_by_id(btf, id);
+	__u16 kind = btf_kind(t);
+
+	switch (kind) {
+	case BTF_KIND_INT:
+	case BTF_KIND_ENUM:
+		return min(sizeof(void *), t->size);
+	case BTF_KIND_PTR:
+		return sizeof(void *);
+	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_VOLATILE:
+	case BTF_KIND_CONST:
+	case BTF_KIND_RESTRICT:
+		return btf__align_of(btf, t->type);
+	case BTF_KIND_ARRAY:
+		return btf__align_of(btf, btf_array(t)->type);
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION: {
+		const struct btf_member *m = btf_members(t);
+		__u16 vlen = btf_vlen(t);
+		int i, align = 1, t;
+
+		for (i = 0; i < vlen; i++, m++) {
+			t = btf__align_of(btf, m->type);
+			if (t <= 0)
+				return t;
+			align = max(align, t);
+		}
+
+		return align;
+	}
+	default:
+		pr_warn("unsupported BTF_KIND:%u\n", btf_kind(t));
+		return 0;
+	}
+}
+
 int btf__resolve_type(const struct btf *btf, __u32 type_id)
 {
 	const struct btf_type *t;

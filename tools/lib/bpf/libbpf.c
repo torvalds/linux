@@ -101,13 +101,6 @@ void libbpf_print(enum libbpf_print_level level, const char *format, ...)
 
 #define STRERR_BUFSIZE  128
 
-#define CHECK_ERR(action, err, out) do {	\
-	err = action;			\
-	if (err)			\
-		goto out;		\
-} while (0)
-
-
 /* Copied from tools/perf/util/util.h */
 #ifndef zfree
 # define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
@@ -216,8 +209,8 @@ static const char * const libbpf_type_to_btf_name[] = {
 };
 
 struct bpf_map {
-	int fd;
 	char *name;
+	int fd;
 	int sec_idx;
 	size_t sec_offset;
 	int map_ifindex;
@@ -228,14 +221,10 @@ struct bpf_map {
 	void *priv;
 	bpf_map_clear_priv_t clear_priv;
 	enum libbpf_map_type libbpf_type;
+	void *mmaped;
 	char *pin_path;
 	bool pinned;
 	bool reused;
-};
-
-struct bpf_secdata {
-	void *rodata;
-	void *data;
 };
 
 static LIST_HEAD(bpf_objects_list);
@@ -250,7 +239,6 @@ struct bpf_object {
 	struct bpf_map *maps;
 	size_t nr_maps;
 	size_t maps_cap;
-	struct bpf_secdata sections;
 
 	bool loaded;
 	bool has_pseudo_calls;
@@ -835,13 +823,24 @@ static struct bpf_map *bpf_object__add_map(struct bpf_object *obj)
 	return &obj->maps[obj->nr_maps++];
 }
 
+static size_t bpf_map_mmap_sz(const struct bpf_map *map)
+{
+	long page_sz = sysconf(_SC_PAGE_SIZE);
+	size_t map_sz;
+
+	map_sz = roundup(map->def.value_size, 8) * map->def.max_entries;
+	map_sz = roundup(map_sz, page_sz);
+	return map_sz;
+}
+
 static int
 bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
-			      int sec_idx, Elf_Data *data, void **data_buff)
+			      int sec_idx, void *data, size_t data_sz)
 {
 	char map_name[BPF_OBJ_NAME_LEN];
 	struct bpf_map_def *def;
 	struct bpf_map *map;
+	int err;
 
 	map = bpf_object__add_map(obj);
 	if (IS_ERR(map))
@@ -861,24 +860,27 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	def = &map->def;
 	def->type = BPF_MAP_TYPE_ARRAY;
 	def->key_size = sizeof(int);
-	def->value_size = data->d_size;
+	def->value_size = data_sz;
 	def->max_entries = 1;
 	def->map_flags = type == LIBBPF_MAP_RODATA ? BPF_F_RDONLY_PROG : 0;
-	if (obj->caps.array_mmap)
-		def->map_flags |= BPF_F_MMAPABLE;
+	def->map_flags |= BPF_F_MMAPABLE;
 
 	pr_debug("map '%s' (global data): at sec_idx %d, offset %zu, flags %x.\n",
 		 map_name, map->sec_idx, map->sec_offset, def->map_flags);
 
-	if (data_buff) {
-		*data_buff = malloc(data->d_size);
-		if (!*data_buff) {
-			zfree(&map->name);
-			pr_warn("failed to alloc map content buffer\n");
-			return -ENOMEM;
-		}
-		memcpy(*data_buff, data->d_buf, data->d_size);
+	map->mmaped = mmap(NULL, bpf_map_mmap_sz(map), PROT_READ | PROT_WRITE,
+			   MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	if (map->mmaped == MAP_FAILED) {
+		err = -errno;
+		map->mmaped = NULL;
+		pr_warn("failed to alloc map '%s' content buffer: %d\n",
+			map->name, err);
+		zfree(&map->name);
+		return err;
 	}
+
+	if (type != LIBBPF_MAP_BSS)
+		memcpy(map->mmaped, data, data_sz);
 
 	pr_debug("map %td is \"%s\"\n", map - obj->maps, map->name);
 	return 0;
@@ -888,31 +890,30 @@ static int bpf_object__init_global_data_maps(struct bpf_object *obj)
 {
 	int err;
 
-	if (!obj->caps.global_data)
-		return 0;
 	/*
 	 * Populate obj->maps with libbpf internal maps.
 	 */
 	if (obj->efile.data_shndx >= 0) {
 		err = bpf_object__init_internal_map(obj, LIBBPF_MAP_DATA,
 						    obj->efile.data_shndx,
-						    obj->efile.data,
-						    &obj->sections.data);
+						    obj->efile.data->d_buf,
+						    obj->efile.data->d_size);
 		if (err)
 			return err;
 	}
 	if (obj->efile.rodata_shndx >= 0) {
 		err = bpf_object__init_internal_map(obj, LIBBPF_MAP_RODATA,
 						    obj->efile.rodata_shndx,
-						    obj->efile.rodata,
-						    &obj->sections.rodata);
+						    obj->efile.rodata->d_buf,
+						    obj->efile.rodata->d_size);
 		if (err)
 			return err;
 	}
 	if (obj->efile.bss_shndx >= 0) {
 		err = bpf_object__init_internal_map(obj, LIBBPF_MAP_BSS,
 						    obj->efile.bss_shndx,
-						    obj->efile.bss, NULL);
+						    NULL,
+						    obj->efile.bss->d_size);
 		if (err)
 			return err;
 	}
@@ -1393,10 +1394,11 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
 	return 0;
 }
 
-static int bpf_object__init_maps(struct bpf_object *obj, bool relaxed_maps,
-				 const char *pin_root_path)
+static int bpf_object__init_maps(struct bpf_object *obj,
+				 const struct bpf_object_open_opts *opts)
 {
-	bool strict = !relaxed_maps;
+	const char *pin_root_path = OPTS_GET(opts, pin_root_path, NULL);
+	bool strict = !OPTS_GET(opts, relaxed_maps, false);
 	int err;
 
 	err = bpf_object__init_user_maps(obj, strict);
@@ -1592,8 +1594,7 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 	return 0;
 }
 
-static int bpf_object__elf_collect(struct bpf_object *obj, bool relaxed_maps,
-				   const char *pin_root_path)
+static int bpf_object__elf_collect(struct bpf_object *obj)
 {
 	Elf *elf = obj->efile.elf;
 	GElf_Ehdr *ep = &obj->efile.ehdr;
@@ -1728,14 +1729,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, bool relaxed_maps,
 		pr_warn("Corrupted ELF file: index of strtab invalid\n");
 		return -LIBBPF_ERRNO__FORMAT;
 	}
-	err = bpf_object__init_btf(obj, btf_data, btf_ext_data);
-	if (!err)
-		err = bpf_object__init_maps(obj, relaxed_maps, pin_root_path);
-	if (!err)
-		err = bpf_object__sanitize_and_load_btf(obj);
-	if (!err)
-		err = bpf_object__init_prog_names(obj);
-	return err;
+	return bpf_object__init_btf(obj, btf_data, btf_ext_data);
 }
 
 static struct bpf_program *
@@ -1761,6 +1755,19 @@ bpf_object__find_program_by_title(const struct bpf_object *obj,
 	bpf_object__for_each_program(pos, obj) {
 		if (pos->section_name && !strcmp(pos->section_name, title))
 			return pos;
+	}
+	return NULL;
+}
+
+struct bpf_program *
+bpf_object__find_program_by_name(const struct bpf_object *obj,
+				 const char *name)
+{
+	struct bpf_program *prog;
+
+	bpf_object__for_each_program(prog, obj) {
+		if (!strcmp(prog->name, name))
+			return prog;
 	}
 	return NULL;
 }
@@ -1874,11 +1881,6 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 	/* global data map relocation */
 	if (!bpf_object__shndx_is_data(obj, shdr_idx)) {
 		pr_warn("bad data relo against section %u\n", shdr_idx);
-		return -LIBBPF_ERRNO__RELOC;
-	}
-	if (!obj->caps.global_data) {
-		pr_warn("relocation: kernel does not support global \'%s\' variable access in insns[%d]\n",
-			name, insn_idx);
 		return -LIBBPF_ERRNO__RELOC;
 	}
 	for (map_idx = 0; map_idx < nr_maps; map_idx++) {
@@ -2301,27 +2303,32 @@ bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 {
 	char *cp, errmsg[STRERR_BUFSIZE];
 	int err, zero = 0;
-	__u8 *data;
 
 	/* Nothing to do here since kernel already zero-initializes .bss map. */
 	if (map->libbpf_type == LIBBPF_MAP_BSS)
 		return 0;
 
-	data = map->libbpf_type == LIBBPF_MAP_DATA ?
-	       obj->sections.data : obj->sections.rodata;
+	err = bpf_map_update_elem(map->fd, &zero, map->mmaped, 0);
+	if (err) {
+		err = -errno;
+		cp = libbpf_strerror_r(err, errmsg, sizeof(errmsg));
+		pr_warn("Error setting initial map(%s) contents: %s\n",
+			map->name, cp);
+		return err;
+	}
 
-	err = bpf_map_update_elem(map->fd, &zero, data, 0);
 	/* Freeze .rodata map as read-only from syscall side. */
-	if (!err && map->libbpf_type == LIBBPF_MAP_RODATA) {
+	if (map->libbpf_type == LIBBPF_MAP_RODATA) {
 		err = bpf_map_freeze(map->fd);
 		if (err) {
-			cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
+			err = -errno;
+			cp = libbpf_strerror_r(err, errmsg, sizeof(errmsg));
 			pr_warn("Error freezing map(%s) as read-only: %s\n",
 				map->name, cp);
-			err = 0;
+			return err;
 		}
 	}
-	return err;
+	return 0;
 }
 
 static int
@@ -3808,11 +3815,22 @@ out:
 	return ret;
 }
 
-int
-bpf_program__load(struct bpf_program *prog,
-		  char *license, __u32 kern_version)
+static int libbpf_find_attach_btf_id(const char *name,
+				     enum bpf_attach_type attach_type,
+				     __u32 attach_prog_fd);
+
+int bpf_program__load(struct bpf_program *prog, char *license, __u32 kern_ver)
 {
-	int err = 0, fd, i;
+	int err = 0, fd, i, btf_id;
+
+	if (prog->type == BPF_PROG_TYPE_TRACING) {
+		btf_id = libbpf_find_attach_btf_id(prog->section_name,
+						   prog->expected_attach_type,
+						   prog->attach_prog_fd);
+		if (btf_id <= 0)
+			return btf_id;
+		prog->attach_btf_id = btf_id;
+	}
 
 	if (prog->instances.nr < 0 || !prog->instances.fds) {
 		if (prog->preprocessor) {
@@ -3836,7 +3854,7 @@ bpf_program__load(struct bpf_program *prog,
 				prog->section_name, prog->instances.nr);
 		}
 		err = load_program(prog, prog->insns, prog->insns_cnt,
-				   license, kern_version, &fd);
+				   license, kern_ver, &fd);
 		if (!err)
 			prog->instances.fds[0] = fd;
 		goto out;
@@ -3865,9 +3883,7 @@ bpf_program__load(struct bpf_program *prog,
 		}
 
 		err = load_program(prog, result.new_insn_ptr,
-				   result.new_insn_cnt,
-				   license, kern_version, &fd);
-
+				   result.new_insn_cnt, license, kern_ver, &fd);
 		if (err) {
 			pr_warn("Loading the %dth instance of program '%s' failed\n",
 				i, prog->section_name);
@@ -3911,19 +3927,14 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 	return 0;
 }
 
-static int libbpf_find_attach_btf_id(const char *name,
-				     enum bpf_attach_type attach_type,
-				     __u32 attach_prog_fd);
 static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
-		   struct bpf_object_open_opts *opts)
+		   const struct bpf_object_open_opts *opts)
 {
-	const char *pin_root_path;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	const char *obj_name;
 	char tmp_name[64];
-	bool relaxed_maps;
 	__u32 attach_prog_fd;
 	int err;
 
@@ -3953,16 +3964,16 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		return obj;
 
 	obj->relaxed_core_relocs = OPTS_GET(opts, relaxed_core_relocs, false);
-	relaxed_maps = OPTS_GET(opts, relaxed_maps, false);
-	pin_root_path = OPTS_GET(opts, pin_root_path, NULL);
 	attach_prog_fd = OPTS_GET(opts, attach_prog_fd, 0);
 
-	CHECK_ERR(bpf_object__elf_init(obj), err, out);
-	CHECK_ERR(bpf_object__check_endianness(obj), err, out);
-	CHECK_ERR(bpf_object__probe_caps(obj), err, out);
-	CHECK_ERR(bpf_object__elf_collect(obj, relaxed_maps, pin_root_path),
-		  err, out);
-	CHECK_ERR(bpf_object__collect_reloc(obj), err, out);
+	err = bpf_object__elf_init(obj);
+	err = err ? : bpf_object__check_endianness(obj);
+	err = err ? : bpf_object__elf_collect(obj);
+	err = err ? : bpf_object__init_maps(obj, opts);
+	err = err ? : bpf_object__init_prog_names(obj);
+	err = err ? : bpf_object__collect_reloc(obj);
+	if (err)
+		goto out;
 	bpf_object__elf_finish(obj);
 
 	bpf_object__for_each_program(prog, obj) {
@@ -3979,15 +3990,8 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 
 		bpf_program__set_type(prog, prog_type);
 		bpf_program__set_expected_attach_type(prog, attach_type);
-		if (prog_type == BPF_PROG_TYPE_TRACING) {
-			err = libbpf_find_attach_btf_id(prog->section_name,
-							attach_type,
-							attach_prog_fd);
-			if (err <= 0)
-				goto out;
-			prog->attach_btf_id = err;
+		if (prog_type == BPF_PROG_TYPE_TRACING)
 			prog->attach_prog_fd = attach_prog_fd;
-		}
 	}
 
 	return obj;
@@ -4027,7 +4031,7 @@ struct bpf_object *bpf_object__open(const char *path)
 }
 
 struct bpf_object *
-bpf_object__open_file(const char *path, struct bpf_object_open_opts *opts)
+bpf_object__open_file(const char *path, const struct bpf_object_open_opts *opts)
 {
 	if (!path)
 		return ERR_PTR(-EINVAL);
@@ -4039,7 +4043,7 @@ bpf_object__open_file(const char *path, struct bpf_object_open_opts *opts)
 
 struct bpf_object *
 bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
-		     struct bpf_object_open_opts *opts)
+		     const struct bpf_object_open_opts *opts)
 {
 	if (!obj_buf || obj_buf_sz == 0)
 		return ERR_PTR(-EINVAL);
@@ -4080,6 +4084,24 @@ int bpf_object__unload(struct bpf_object *obj)
 	return 0;
 }
 
+static int bpf_object__sanitize_maps(struct bpf_object *obj)
+{
+	struct bpf_map *m;
+
+	bpf_object__for_each_map(m, obj) {
+		if (!bpf_map__is_internal(m))
+			continue;
+		if (!obj->caps.global_data) {
+			pr_warn("kernel doesn't support global data\n");
+			return -ENOTSUP;
+		}
+		if (!obj->caps.array_mmap)
+			m->def.map_flags ^= BPF_F_MMAPABLE;
+	}
+
+	return 0;
+}
+
 int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 {
 	struct bpf_object *obj;
@@ -4098,9 +4120,14 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 
 	obj->loaded = true;
 
-	CHECK_ERR(bpf_object__create_maps(obj), err, out);
-	CHECK_ERR(bpf_object__relocate(obj, attr->target_btf_path), err, out);
-	CHECK_ERR(bpf_object__load_progs(obj, attr->log_level), err, out);
+	err = bpf_object__probe_caps(obj);
+	err = err ? : bpf_object__sanitize_and_load_btf(obj);
+	err = err ? : bpf_object__sanitize_maps(obj);
+	err = err ? : bpf_object__create_maps(obj);
+	err = err ? : bpf_object__relocate(obj, attr->target_btf_path);
+	err = err ? : bpf_object__load_progs(obj, attr->log_level);
+	if (err)
+		goto out;
 
 	return 0;
 out:
@@ -4671,17 +4698,22 @@ void bpf_object__close(struct bpf_object *obj)
 	btf_ext__free(obj->btf_ext);
 
 	for (i = 0; i < obj->nr_maps; i++) {
-		zfree(&obj->maps[i].name);
-		zfree(&obj->maps[i].pin_path);
-		if (obj->maps[i].clear_priv)
-			obj->maps[i].clear_priv(&obj->maps[i],
-						obj->maps[i].priv);
-		obj->maps[i].priv = NULL;
-		obj->maps[i].clear_priv = NULL;
+		struct bpf_map *map = &obj->maps[i];
+
+		if (map->clear_priv)
+			map->clear_priv(map, map->priv);
+		map->priv = NULL;
+		map->clear_priv = NULL;
+
+		if (map->mmaped) {
+			munmap(map->mmaped, bpf_map_mmap_sz(map));
+			map->mmaped = NULL;
+		}
+
+		zfree(&map->name);
+		zfree(&map->pin_path);
 	}
 
-	zfree(&obj->sections.rodata);
-	zfree(&obj->sections.data);
 	zfree(&obj->maps);
 	obj->nr_maps = 0;
 
@@ -4819,6 +4851,11 @@ void *bpf_program__priv(const struct bpf_program *prog)
 void bpf_program__set_ifindex(struct bpf_program *prog, __u32 ifindex)
 {
 	prog->prog_ifindex = ifindex;
+}
+
+const char *bpf_program__name(const struct bpf_program *prog)
+{
+	return prog->name;
 }
 
 const char *bpf_program__title(const struct bpf_program *prog, bool needs_copy)
@@ -4973,7 +5010,28 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
  */
 #define BPF_APROG_COMPAT(string, ptype) BPF_PROG_SEC(string, ptype)
 
-static const struct {
+#define SEC_DEF(sec_pfx, ptype, ...) {					    \
+	.sec = sec_pfx,							    \
+	.len = sizeof(sec_pfx) - 1,					    \
+	.prog_type = BPF_PROG_TYPE_##ptype,				    \
+	__VA_ARGS__							    \
+}
+
+struct bpf_sec_def;
+
+typedef struct bpf_link *(*attach_fn_t)(const struct bpf_sec_def *sec,
+					struct bpf_program *prog);
+
+static struct bpf_link *attach_kprobe(const struct bpf_sec_def *sec,
+				      struct bpf_program *prog);
+static struct bpf_link *attach_tp(const struct bpf_sec_def *sec,
+				  struct bpf_program *prog);
+static struct bpf_link *attach_raw_tp(const struct bpf_sec_def *sec,
+				      struct bpf_program *prog);
+static struct bpf_link *attach_trace(const struct bpf_sec_def *sec,
+				     struct bpf_program *prog);
+
+struct bpf_sec_def {
 	const char *sec;
 	size_t len;
 	enum bpf_prog_type prog_type;
@@ -4981,25 +5039,40 @@ static const struct {
 	bool is_attachable;
 	bool is_attach_btf;
 	enum bpf_attach_type attach_type;
-} section_names[] = {
+	attach_fn_t attach_fn;
+};
+
+static const struct bpf_sec_def section_defs[] = {
 	BPF_PROG_SEC("socket",			BPF_PROG_TYPE_SOCKET_FILTER),
 	BPF_PROG_SEC("sk_reuseport",		BPF_PROG_TYPE_SK_REUSEPORT),
-	BPF_PROG_SEC("kprobe/",			BPF_PROG_TYPE_KPROBE),
+	SEC_DEF("kprobe/", KPROBE,
+		.attach_fn = attach_kprobe),
 	BPF_PROG_SEC("uprobe/",			BPF_PROG_TYPE_KPROBE),
-	BPF_PROG_SEC("kretprobe/",		BPF_PROG_TYPE_KPROBE),
+	SEC_DEF("kretprobe/", KPROBE,
+		.attach_fn = attach_kprobe),
 	BPF_PROG_SEC("uretprobe/",		BPF_PROG_TYPE_KPROBE),
 	BPF_PROG_SEC("classifier",		BPF_PROG_TYPE_SCHED_CLS),
 	BPF_PROG_SEC("action",			BPF_PROG_TYPE_SCHED_ACT),
-	BPF_PROG_SEC("tracepoint/",		BPF_PROG_TYPE_TRACEPOINT),
-	BPF_PROG_SEC("tp/",			BPF_PROG_TYPE_TRACEPOINT),
-	BPF_PROG_SEC("raw_tracepoint/",		BPF_PROG_TYPE_RAW_TRACEPOINT),
-	BPF_PROG_SEC("raw_tp/",			BPF_PROG_TYPE_RAW_TRACEPOINT),
-	BPF_PROG_BTF("tp_btf/",			BPF_PROG_TYPE_TRACING,
-						BPF_TRACE_RAW_TP),
-	BPF_PROG_BTF("fentry/",			BPF_PROG_TYPE_TRACING,
-						BPF_TRACE_FENTRY),
-	BPF_PROG_BTF("fexit/",			BPF_PROG_TYPE_TRACING,
-						BPF_TRACE_FEXIT),
+	SEC_DEF("tracepoint/", TRACEPOINT,
+		.attach_fn = attach_tp),
+	SEC_DEF("tp/", TRACEPOINT,
+		.attach_fn = attach_tp),
+	SEC_DEF("raw_tracepoint/", RAW_TRACEPOINT,
+		.attach_fn = attach_raw_tp),
+	SEC_DEF("raw_tp/", RAW_TRACEPOINT,
+		.attach_fn = attach_raw_tp),
+	SEC_DEF("tp_btf/", TRACING,
+		.expected_attach_type = BPF_TRACE_RAW_TP,
+		.is_attach_btf = true,
+		.attach_fn = attach_trace),
+	SEC_DEF("fentry/", TRACING,
+		.expected_attach_type = BPF_TRACE_FENTRY,
+		.is_attach_btf = true,
+		.attach_fn = attach_trace),
+	SEC_DEF("fexit/", TRACING,
+		.expected_attach_type = BPF_TRACE_FEXIT,
+		.is_attach_btf = true,
+		.attach_fn = attach_trace),
 	BPF_PROG_SEC("xdp",			BPF_PROG_TYPE_XDP),
 	BPF_PROG_SEC("perf_event",		BPF_PROG_TYPE_PERF_EVENT),
 	BPF_PROG_SEC("lwt_in",			BPF_PROG_TYPE_LWT_IN),
@@ -5061,12 +5134,26 @@ static const struct {
 #undef BPF_APROG_SEC
 #undef BPF_EAPROG_SEC
 #undef BPF_APROG_COMPAT
+#undef SEC_DEF
 
 #define MAX_TYPE_NAME_SIZE 32
 
+static const struct bpf_sec_def *find_sec_def(const char *sec_name)
+{
+	int i, n = ARRAY_SIZE(section_defs);
+
+	for (i = 0; i < n; i++) {
+		if (strncmp(sec_name,
+			    section_defs[i].sec, section_defs[i].len))
+			continue;
+		return &section_defs[i];
+	}
+	return NULL;
+}
+
 static char *libbpf_get_type_names(bool attach_type)
 {
-	int i, len = ARRAY_SIZE(section_names) * MAX_TYPE_NAME_SIZE;
+	int i, len = ARRAY_SIZE(section_defs) * MAX_TYPE_NAME_SIZE;
 	char *buf;
 
 	buf = malloc(len);
@@ -5075,16 +5162,16 @@ static char *libbpf_get_type_names(bool attach_type)
 
 	buf[0] = '\0';
 	/* Forge string buf with all available names */
-	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
-		if (attach_type && !section_names[i].is_attachable)
+	for (i = 0; i < ARRAY_SIZE(section_defs); i++) {
+		if (attach_type && !section_defs[i].is_attachable)
 			continue;
 
-		if (strlen(buf) + strlen(section_names[i].sec) + 2 > len) {
+		if (strlen(buf) + strlen(section_defs[i].sec) + 2 > len) {
 			free(buf);
 			return NULL;
 		}
 		strcat(buf, " ");
-		strcat(buf, section_names[i].sec);
+		strcat(buf, section_defs[i].sec);
 	}
 
 	return buf;
@@ -5093,23 +5180,23 @@ static char *libbpf_get_type_names(bool attach_type)
 int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			     enum bpf_attach_type *expected_attach_type)
 {
+	const struct bpf_sec_def *sec_def;
 	char *type_names;
-	int i;
 
 	if (!name)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
-		if (strncmp(name, section_names[i].sec, section_names[i].len))
-			continue;
-		*prog_type = section_names[i].prog_type;
-		*expected_attach_type = section_names[i].expected_attach_type;
+	sec_def = find_sec_def(name);
+	if (sec_def) {
+		*prog_type = sec_def->prog_type;
+		*expected_attach_type = sec_def->expected_attach_type;
 		return 0;
 	}
+
 	pr_warn("failed to guess program type from ELF section '%s'\n", name);
 	type_names = libbpf_get_type_names(false);
 	if (type_names != NULL) {
-		pr_info("supported section(type) names are:%s\n", type_names);
+		pr_debug("supported section(type) names are:%s\n", type_names);
 		free(type_names);
 	}
 
@@ -5188,16 +5275,16 @@ static int libbpf_find_attach_btf_id(const char *name,
 	if (!name)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
-		if (!section_names[i].is_attach_btf)
+	for (i = 0; i < ARRAY_SIZE(section_defs); i++) {
+		if (!section_defs[i].is_attach_btf)
 			continue;
-		if (strncmp(name, section_names[i].sec, section_names[i].len))
+		if (strncmp(name, section_defs[i].sec, section_defs[i].len))
 			continue;
 		if (attach_prog_fd)
-			err = libbpf_find_prog_btf_id(name + section_names[i].len,
+			err = libbpf_find_prog_btf_id(name + section_defs[i].len,
 						      attach_prog_fd);
 		else
-			err = libbpf_find_vmlinux_btf_id(name + section_names[i].len,
+			err = libbpf_find_vmlinux_btf_id(name + section_defs[i].len,
 							 attach_type);
 		if (err <= 0)
 			pr_warn("%s is not found in vmlinux BTF\n", name);
@@ -5216,12 +5303,12 @@ int libbpf_attach_type_by_name(const char *name,
 	if (!name)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
-		if (strncmp(name, section_names[i].sec, section_names[i].len))
+	for (i = 0; i < ARRAY_SIZE(section_defs); i++) {
+		if (strncmp(name, section_defs[i].sec, section_defs[i].len))
 			continue;
-		if (!section_names[i].is_attachable)
+		if (!section_defs[i].is_attachable)
 			return -EINVAL;
-		*attach_type = section_names[i].attach_type;
+		*attach_type = section_defs[i].attach_type;
 		return 0;
 	}
 	pr_warn("failed to guess attach type based on ELF section name '%s'\n", name);
@@ -5681,6 +5768,18 @@ struct bpf_link *bpf_program__attach_kprobe(struct bpf_program *prog,
 	return link;
 }
 
+static struct bpf_link *attach_kprobe(const struct bpf_sec_def *sec,
+				      struct bpf_program *prog)
+{
+	const char *func_name;
+	bool retprobe;
+
+	func_name = bpf_program__title(prog, false) + sec->len;
+	retprobe = strcmp(sec->sec, "kretprobe/") == 0;
+
+	return bpf_program__attach_kprobe(prog, retprobe, func_name);
+}
+
 struct bpf_link *bpf_program__attach_uprobe(struct bpf_program *prog,
 					    bool retprobe, pid_t pid,
 					    const char *binary_path,
@@ -5793,6 +5892,32 @@ struct bpf_link *bpf_program__attach_tracepoint(struct bpf_program *prog,
 	return link;
 }
 
+static struct bpf_link *attach_tp(const struct bpf_sec_def *sec,
+				  struct bpf_program *prog)
+{
+	char *sec_name, *tp_cat, *tp_name;
+	struct bpf_link *link;
+
+	sec_name = strdup(bpf_program__title(prog, false));
+	if (!sec_name)
+		return ERR_PTR(-ENOMEM);
+
+	/* extract "tp/<category>/<name>" */
+	tp_cat = sec_name + sec->len;
+	tp_name = strchr(tp_cat, '/');
+	if (!tp_name) {
+		link = ERR_PTR(-EINVAL);
+		goto out;
+	}
+	*tp_name = '\0';
+	tp_name++;
+
+	link = bpf_program__attach_tracepoint(prog, tp_cat, tp_name);
+out:
+	free(sec_name);
+	return link;
+}
+
 static int bpf_link__destroy_fd(struct bpf_link *link)
 {
 	struct bpf_link_fd *l = (void *)link;
@@ -5832,6 +5957,14 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 	return (struct bpf_link *)link;
 }
 
+static struct bpf_link *attach_raw_tp(const struct bpf_sec_def *sec,
+				      struct bpf_program *prog)
+{
+	const char *tp_name = bpf_program__title(prog, false) + sec->len;
+
+	return bpf_program__attach_raw_tracepoint(prog, tp_name);
+}
+
 struct bpf_link *bpf_program__attach_trace(struct bpf_program *prog)
 {
 	char errmsg[STRERR_BUFSIZE];
@@ -5861,6 +5994,23 @@ struct bpf_link *bpf_program__attach_trace(struct bpf_program *prog)
 	}
 	link->fd = pfd;
 	return (struct bpf_link *)link;
+}
+
+static struct bpf_link *attach_trace(const struct bpf_sec_def *sec,
+				     struct bpf_program *prog)
+{
+	return bpf_program__attach_trace(prog);
+}
+
+struct bpf_link *bpf_program__attach(struct bpf_program *prog)
+{
+	const struct bpf_sec_def *sec_def;
+
+	sec_def = find_sec_def(bpf_program__title(prog, false));
+	if (!sec_def || !sec_def->attach_fn)
+		return ERR_PTR(-ESRCH);
+
+	return sec_def->attach_fn(sec_def, prog);
 }
 
 enum bpf_perf_event_ret
@@ -6642,4 +6792,166 @@ int libbpf_num_possible_cpus(void)
 
 	WRITE_ONCE(cpus, tmp_cpus);
 	return tmp_cpus;
+}
+
+int bpf_object__open_skeleton(struct bpf_object_skeleton *s,
+			      const struct bpf_object_open_opts *opts)
+{
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, skel_opts,
+		.object_name = s->name,
+	);
+	struct bpf_object *obj;
+	int i;
+
+	/* Attempt to preserve opts->object_name, unless overriden by user
+	 * explicitly. Overwriting object name for skeletons is discouraged,
+	 * as it breaks global data maps, because they contain object name
+	 * prefix as their own map name prefix. When skeleton is generated,
+	 * bpftool is making an assumption that this name will stay the same.
+	 */
+	if (opts) {
+		memcpy(&skel_opts, opts, sizeof(*opts));
+		if (!opts->object_name)
+			skel_opts.object_name = s->name;
+	}
+
+	obj = bpf_object__open_mem(s->data, s->data_sz, &skel_opts);
+	if (IS_ERR(obj)) {
+		pr_warn("failed to initialize skeleton BPF object '%s': %ld\n",
+			s->name, PTR_ERR(obj));
+		return PTR_ERR(obj);
+	}
+
+	*s->obj = obj;
+
+	for (i = 0; i < s->map_cnt; i++) {
+		struct bpf_map **map = s->maps[i].map;
+		const char *name = s->maps[i].name;
+		void **mmaped = s->maps[i].mmaped;
+
+		*map = bpf_object__find_map_by_name(obj, name);
+		if (!*map) {
+			pr_warn("failed to find skeleton map '%s'\n", name);
+			return -ESRCH;
+		}
+
+		if (mmaped)
+			*mmaped = (*map)->mmaped;
+	}
+
+	for (i = 0; i < s->prog_cnt; i++) {
+		struct bpf_program **prog = s->progs[i].prog;
+		const char *name = s->progs[i].name;
+
+		*prog = bpf_object__find_program_by_name(obj, name);
+		if (!*prog) {
+			pr_warn("failed to find skeleton program '%s'\n", name);
+			return -ESRCH;
+		}
+	}
+
+	return 0;
+}
+
+int bpf_object__load_skeleton(struct bpf_object_skeleton *s)
+{
+	int i, err;
+
+	err = bpf_object__load(*s->obj);
+	if (err) {
+		pr_warn("failed to load BPF skeleton '%s': %d\n", s->name, err);
+		return err;
+	}
+
+	for (i = 0; i < s->map_cnt; i++) {
+		struct bpf_map *map = *s->maps[i].map;
+		size_t mmap_sz = bpf_map_mmap_sz(map);
+		int prot, map_fd = bpf_map__fd(map);
+		void **mmaped = s->maps[i].mmaped;
+		void *remapped;
+
+		if (!mmaped)
+			continue;
+
+		if (!(map->def.map_flags & BPF_F_MMAPABLE)) {
+			*mmaped = NULL;
+			continue;
+		}
+
+		if (map->def.map_flags & BPF_F_RDONLY_PROG)
+			prot = PROT_READ;
+		else
+			prot = PROT_READ | PROT_WRITE;
+
+		/* Remap anonymous mmap()-ed "map initialization image" as
+		 * a BPF map-backed mmap()-ed memory, but preserving the same
+		 * memory address. This will cause kernel to change process'
+		 * page table to point to a different piece of kernel memory,
+		 * but from userspace point of view memory address (and its
+		 * contents, being identical at this point) will stay the
+		 * same. This mapping will be released by bpf_object__close()
+		 * as per normal clean up procedure, so we don't need to worry
+		 * about it from skeleton's clean up perspective.
+		 */
+		remapped = mmap(*mmaped, mmap_sz, prot, MAP_SHARED | MAP_FIXED,
+				map_fd, 0);
+		if (remapped == MAP_FAILED) {
+			err = -errno;
+			*mmaped = NULL;
+			pr_warn("failed to re-mmap() map '%s': %d\n",
+				 bpf_map__name(map), err);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+int bpf_object__attach_skeleton(struct bpf_object_skeleton *s)
+{
+	int i;
+
+	for (i = 0; i < s->prog_cnt; i++) {
+		struct bpf_program *prog = *s->progs[i].prog;
+		struct bpf_link **link = s->progs[i].link;
+		const struct bpf_sec_def *sec_def;
+		const char *sec_name = bpf_program__title(prog, false);
+
+		sec_def = find_sec_def(sec_name);
+		if (!sec_def || !sec_def->attach_fn)
+			continue;
+
+		*link = sec_def->attach_fn(sec_def, prog);
+		if (IS_ERR(*link)) {
+			pr_warn("failed to auto-attach program '%s': %ld\n",
+				bpf_program__name(prog), PTR_ERR(*link));
+			return PTR_ERR(*link);
+		}
+	}
+
+	return 0;
+}
+
+void bpf_object__detach_skeleton(struct bpf_object_skeleton *s)
+{
+	int i;
+
+	for (i = 0; i < s->prog_cnt; i++) {
+		struct bpf_link **link = s->progs[i].link;
+
+		if (!IS_ERR_OR_NULL(*link))
+			bpf_link__destroy(*link);
+		*link = NULL;
+	}
+}
+
+void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s)
+{
+	if (s->progs)
+		bpf_object__detach_skeleton(s);
+	if (s->obj)
+		bpf_object__close(*s->obj);
+	free(s->maps);
+	free(s->progs);
+	free(s);
 }
