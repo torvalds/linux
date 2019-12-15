@@ -33,6 +33,11 @@ struct mlx5dr_match_parameters {
 	u64 *match_buf; /* Device spec format */
 };
 
+struct mlx5dr_action_dest {
+	struct mlx5dr_action *dest;
+	struct mlx5dr_action *reformat;
+};
+
 #ifdef CONFIG_MLX5_SW_STEERING
 
 struct mlx5dr_domain *
@@ -82,6 +87,11 @@ struct mlx5dr_action *
 mlx5dr_action_create_dest_vport(struct mlx5dr_domain *domain,
 				u32 vport, u8 vhca_id_valid,
 				u16 vhca_id);
+
+struct mlx5dr_action *
+mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
+				   struct mlx5dr_action_dest *dests,
+				   u32 num_of_dests);
 
 struct mlx5dr_action *mlx5dr_action_create_drop(void);
 
@@ -172,6 +182,11 @@ static inline struct mlx5dr_action *
 mlx5dr_action_create_dest_vport(struct mlx5dr_domain *domain,
 				u32 vport, u8 vhca_id_valid,
 				u16 vhca_id) { return NULL; }
+
+static inline struct mlx5dr_action *
+mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
+				   struct mlx5dr_action_dest *dests,
+				   u32 num_of_dests)  { return NULL; }
 
 static inline struct mlx5dr_action *
 mlx5dr_action_create_drop(void) { return NULL; }

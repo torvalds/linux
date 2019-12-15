@@ -745,9 +745,12 @@ struct mlx5dr_action {
 				struct {
 					struct mlx5dr_domain *dmn;
 					u32 id;
+					u32 group_id;
 					enum fs_flow_table_type type;
 					u64 rx_icm_addr;
 					u64 tx_icm_addr;
+					struct mlx5dr_action **ref_actions;
+					u32 num_of_ref_actions;
 				} fw_tbl;
 			};
 		} dest_tbl;

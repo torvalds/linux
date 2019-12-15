@@ -982,6 +982,104 @@ dec_ref:
 }
 
 struct mlx5dr_action *
+mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
+				   struct mlx5dr_action_dest *dests,
+				   u32 num_of_dests)
+{
+	struct mlx5dr_cmd_flow_destination_hw_info *hw_dests;
+	struct mlx5dr_action **ref_actions;
+	struct mlx5dr_action *action;
+	bool reformat_req = false;
+	u32 num_of_ref = 0;
+	int ret;
+	int i;
+
+	if (dmn->type != MLX5DR_DOMAIN_TYPE_FDB) {
+		mlx5dr_err(dmn, "Multiple destination support is for FDB only\n");
+		return NULL;
+	}
+
+	hw_dests = kzalloc(sizeof(*hw_dests) * num_of_dests, GFP_KERNEL);
+	if (!hw_dests)
+		return NULL;
+
+	ref_actions = kzalloc(sizeof(*ref_actions) * num_of_dests * 2, GFP_KERNEL);
+	if (!ref_actions)
+		goto free_hw_dests;
+
+	for (i = 0; i < num_of_dests; i++) {
+		struct mlx5dr_action *reformat_action = dests[i].reformat;
+		struct mlx5dr_action *dest_action = dests[i].dest;
+
+		ref_actions[num_of_ref++] = dest_action;
+
+		switch (dest_action->action_type) {
+		case DR_ACTION_TYP_VPORT:
+			hw_dests[i].vport.flags = MLX5_FLOW_DEST_VPORT_VHCA_ID;
+			hw_dests[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
+			hw_dests[i].vport.num = dest_action->vport.caps->num;
+			hw_dests[i].vport.vhca_id = dest_action->vport.caps->vhca_gvmi;
+			if (reformat_action) {
+				reformat_req = true;
+				hw_dests[i].vport.reformat_id =
+					reformat_action->reformat.reformat_id;
+				ref_actions[num_of_ref++] = reformat_action;
+				hw_dests[i].vport.flags |= MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
+			}
+			break;
+
+		case DR_ACTION_TYP_FT:
+			hw_dests[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+			if (dest_action->dest_tbl.is_fw_tbl)
+				hw_dests[i].ft_id = dest_action->dest_tbl.fw_tbl.id;
+			else
+				hw_dests[i].ft_id = dest_action->dest_tbl.tbl->table_id;
+			break;
+
+		default:
+			mlx5dr_dbg(dmn, "Invalid multiple destinations action\n");
+			goto free_ref_actions;
+		}
+	}
+
+	action = dr_action_create_generic(DR_ACTION_TYP_FT);
+	if (!action)
+		goto free_ref_actions;
+
+	ret = mlx5dr_fw_create_md_tbl(dmn,
+				      hw_dests,
+				      num_of_dests,
+				      reformat_req,
+				      &action->dest_tbl.fw_tbl.id,
+				      &action->dest_tbl.fw_tbl.group_id);
+	if (ret)
+		goto free_action;
+
+	refcount_inc(&dmn->refcount);
+
+	for (i = 0; i < num_of_ref; i++)
+		refcount_inc(&ref_actions[i]->refcount);
+
+	action->dest_tbl.is_fw_tbl = true;
+	action->dest_tbl.fw_tbl.dmn = dmn;
+	action->dest_tbl.fw_tbl.type = FS_FT_FDB;
+	action->dest_tbl.fw_tbl.ref_actions = ref_actions;
+	action->dest_tbl.fw_tbl.num_of_ref_actions = num_of_ref;
+
+	kfree(hw_dests);
+
+	return action;
+
+free_action:
+	kfree(action);
+free_ref_actions:
+	kfree(ref_actions);
+free_hw_dests:
+	kfree(hw_dests);
+	return NULL;
+}
+
+struct mlx5dr_action *
 mlx5dr_action_create_dest_flow_fw_table(struct mlx5dr_domain *dmn,
 					struct mlx5_flow_table *ft)
 {
@@ -1566,6 +1664,22 @@ int mlx5dr_action_destroy(struct mlx5dr_action *action)
 			refcount_dec(&action->dest_tbl.fw_tbl.dmn->refcount);
 		else
 			refcount_dec(&action->dest_tbl.tbl->refcount);
+
+		if (action->dest_tbl.is_fw_tbl &&
+		    action->dest_tbl.fw_tbl.num_of_ref_actions) {
+			struct mlx5dr_action **ref_actions;
+			int i;
+
+			ref_actions = action->dest_tbl.fw_tbl.ref_actions;
+			for (i = 0; i < action->dest_tbl.fw_tbl.num_of_ref_actions; i++)
+				refcount_dec(&ref_actions[i]->refcount);
+
+			kfree(ref_actions);
+
+			mlx5dr_fw_destroy_md_tbl(action->dest_tbl.fw_tbl.dmn,
+						 action->dest_tbl.fw_tbl.id,
+						 action->dest_tbl.fw_tbl.group_id);
+		}
 		break;
 	case DR_ACTION_TYP_TNL_L2_TO_L2:
 		refcount_dec(&action->reformat.dmn->refcount);
