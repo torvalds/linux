@@ -26,6 +26,7 @@
  * (Please, refer to include/asm-xtensa/platform.h for more information)
  */
 
+_F(void, init, (bp_tag_t *first), { });
 _F(void, setup, (char** cmd), { });
 _F(void, restart, (void), { while(1); });
 _F(void, halt, (void), { while(1); });

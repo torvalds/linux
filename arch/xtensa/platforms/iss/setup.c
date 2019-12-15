@@ -23,10 +23,6 @@
 #include <platform/simcall.h>
 
 
-void __init platform_init(bp_tag_t* bootparam)
-{
-}
-
 void platform_halt(void)
 {
 	pr_info(" ** Called platform_halt() **\n");
@@ -38,16 +34,13 @@ void platform_power_off(void)
 	pr_info(" ** Called platform_power_off() **\n");
 	simc_exit(0);
 }
+
 void platform_restart(void)
 {
 	/* Flush and reset the mmu, simulate a processor reset, and
 	 * jump to the reset vector. */
 	cpu_reset();
 	/* control never gets here */
-}
-
-void platform_heartbeat(void)
-{
 }
 
 static int

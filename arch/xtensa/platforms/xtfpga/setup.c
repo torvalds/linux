@@ -57,22 +57,6 @@ void platform_restart(void)
 	/* control never gets here */
 }
 
-void __init platform_setup(char **cmdline)
-{
-}
-
-/* early initialization */
-
-void __init platform_init(bp_tag_t *first)
-{
-}
-
-/* Heartbeat. */
-
-void platform_heartbeat(void)
-{
-}
-
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 
 void __init platform_calibrate_ccount(void)
