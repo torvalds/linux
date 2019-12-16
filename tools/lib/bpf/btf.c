@@ -300,16 +300,16 @@ int btf__align_of(const struct btf *btf, __u32 id)
 	case BTF_KIND_UNION: {
 		const struct btf_member *m = btf_members(t);
 		__u16 vlen = btf_vlen(t);
-		int i, align = 1, t;
+		int i, max_align = 1, align;
 
 		for (i = 0; i < vlen; i++, m++) {
-			t = btf__align_of(btf, m->type);
-			if (t <= 0)
-				return t;
-			align = max(align, t);
+			align = btf__align_of(btf, m->type);
+			if (align <= 0)
+				return align;
+			max_align = max(max_align, align);
 		}
 
-		return align;
+		return max_align;
 	}
 	default:
 		pr_warn("unsupported BTF_KIND:%u\n", btf_kind(t));
