@@ -735,13 +735,13 @@ static int anx6345_i2c_probe(struct i2c_client *client,
 	/* Map slave addresses of ANX6345 */
 	for (i = 0; i < I2C_NUM_ADDRESSES; i++) {
 		if (anx6345_i2c_addresses[i] >> 1 != client->addr)
-			anx6345->i2c_clients[i] = i2c_new_dummy(client->adapter,
+			anx6345->i2c_clients[i] = i2c_new_dummy_device(client->adapter,
 						anx6345_i2c_addresses[i] >> 1);
 		else
 			anx6345->i2c_clients[i] = client;
 
-		if (!anx6345->i2c_clients[i]) {
-			err = -ENOMEM;
+		if (IS_ERR(anx6345->i2c_clients[i])) {
+			err = PTR_ERR(anx6345->i2c_clients[i]);
 			DRM_ERROR("Failed to reserve I2C bus %02x\n",
 				  anx6345_i2c_addresses[i]);
 			goto err_unregister_i2c;
