@@ -12,9 +12,9 @@
 
 struct drm_i915_private;
 
-#define GT_TRACE(gt__, fmt, ...) do {					\
-	typecheck(struct intel_gt, *(gt__));				\
-	GEM_TRACE("%s  " fmt, dev_name(gt->i915->drm.dev),		\
+#define GT_TRACE(gt, fmt, ...) do {					\
+	const struct intel_gt *gt__ __maybe_unused = (gt);		\
+	GEM_TRACE("%s  " fmt, dev_name(gt__->i915->drm.dev),		\
 		  ##__VA_ARGS__);					\
 } while (0)
 
