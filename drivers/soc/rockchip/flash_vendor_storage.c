@@ -316,8 +316,11 @@ static int __init vendor_storage_init(void)
 
 static __exit void vendor_storage_deinit(void)
 {
-	if (g_vendor)
+	if (g_vendor) {
 		misc_deregister(&vender_storage_dev);
+		kfree(g_vendor);
+		g_vendor = NULL;
+	}
 }
 
 device_initcall_sync(vendor_storage_init);
