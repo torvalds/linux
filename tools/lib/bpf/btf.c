@@ -578,6 +578,12 @@ static int btf_fixup_datasec(struct bpf_object *obj, struct btf *btf,
 		return -ENOENT;
 	}
 
+	/* .extern datasec size and var offsets were set correctly during
+	 * extern collection step, so just skip straight to sorting variables
+	 */
+	if (t->size)
+		goto sort_vars;
+
 	ret = bpf_object__section_size(obj, name, &size);
 	if (ret || !size || (t->size && t->size != size)) {
 		pr_debug("Invalid size for section %s: %u bytes\n", name, size);
@@ -614,7 +620,8 @@ static int btf_fixup_datasec(struct bpf_object *obj, struct btf *btf,
 		vsi->offset = off;
 	}
 
-	qsort(t + 1, vars, sizeof(*vsi), compare_vsi_off);
+sort_vars:
+	qsort(btf_var_secinfos(t), vars, sizeof(*vsi), compare_vsi_off);
 	return 0;
 }
 

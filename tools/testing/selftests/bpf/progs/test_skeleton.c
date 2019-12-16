@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook */
 
+#include <stdbool.h>
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
 
@@ -20,6 +21,10 @@ char out3 = 0;
 long long out4 = 0;
 int out1 = 0;
 
+extern bool CONFIG_BPF_SYSCALL;
+extern int LINUX_KERNEL_VERSION;
+bool bpf_syscall = 0;
+int kern_ver = 0;
 
 SEC("raw_tp/sys_enter")
 int handler(const void *ctx)
@@ -31,6 +36,10 @@ int handler(const void *ctx)
 	out3 = in3;
 	out4 = in4;
 	out5 = in5;
+
+	bpf_syscall = CONFIG_BPF_SYSCALL;
+	kern_ver = LINUX_KERNEL_VERSION;
+
 	return 0;
 }
 
