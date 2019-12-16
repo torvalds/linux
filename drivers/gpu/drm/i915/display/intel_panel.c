@@ -1840,13 +1840,22 @@ static int pwm_setup_backlight(struct intel_connector *connector,
 			       enum pipe pipe)
 {
 	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_panel *panel = &connector->panel;
+	const char *desc;
 	int retval;
 
-	/* Get the PWM chip for backlight control */
-	panel->backlight.pwm = pwm_get(dev->dev, "pwm_backlight");
+	/* Get the right PWM chip for DSI backlight according to VBT */
+	if (dev_priv->vbt.dsi.config->pwm_blc == PPS_BLC_PMIC) {
+		panel->backlight.pwm = pwm_get(dev->dev, "pwm_pmic_backlight");
+		desc = "PMIC";
+	} else {
+		panel->backlight.pwm = pwm_get(dev->dev, "pwm_soc_backlight");
+		desc = "SoC";
+	}
+
 	if (IS_ERR(panel->backlight.pwm)) {
-		DRM_ERROR("Failed to own the pwm chip\n");
+		DRM_ERROR("Failed to get the %s PWM chip\n", desc);
 		panel->backlight.pwm = NULL;
 		return -ENODEV;
 	}
@@ -1873,6 +1882,7 @@ static int pwm_setup_backlight(struct intel_connector *connector,
 				 CRC_PMIC_PWM_PERIOD_NS);
 	panel->backlight.enabled = panel->backlight.level != 0;
 
+	DRM_INFO("Using %s PWM for LCD backlight control\n", desc);
 	return 0;
 }
 
