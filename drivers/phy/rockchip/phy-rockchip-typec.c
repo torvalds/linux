@@ -1235,6 +1235,18 @@ static void tcphy_dp_aux_calibration(struct rockchip_typec_phy *tcphy)
 	writel(val, tcphy->base + TX_DIG_CTRL_REG_2);
 }
 
+static int tcphy_cfg_usb3_to_usb2_only(struct rockchip_typec_phy *tcphy,
+				       bool value)
+{
+	const struct rockchip_usb3phy_port_cfg *cfg = tcphy->port_cfgs;
+
+	property_enable(tcphy, &cfg->usb3tousb2_en, value);
+	property_enable(tcphy, &cfg->usb3_host_disable, value);
+	property_enable(tcphy, &cfg->usb3_host_port, !value);
+
+	return 0;
+}
+
 static int tcphy_phy_init(struct rockchip_typec_phy *tcphy, u8 mode)
 {
 	const struct rockchip_usb3phy_port_cfg *cfg = tcphy->port_cfgs;
@@ -1262,6 +1274,7 @@ static int tcphy_phy_init(struct rockchip_typec_phy *tcphy, u8 mode)
 	tcphy_set_lane_mapping(tcphy, mode);
 
 	if (mode == MODE_DFP_DP) {
+		tcphy_cfg_usb3_to_usb2_only(tcphy, true);
 		tcphy_cfg_dp_pll(tcphy, DP_DEFAULT_RATE);
 		for (i = 0; i < 4; i++)
 			tcphy_dp_cfg_lane(tcphy, DP_DEFAULT_RATE, 0, 0, i);
@@ -1365,18 +1378,6 @@ static int tcphy_get_mode(struct rockchip_typec_phy *tcphy)
 	tcphy->flip = property.intval ? 1 : 0;
 
 	return mode;
-}
-
-static int tcphy_cfg_usb3_to_usb2_only(struct rockchip_typec_phy *tcphy,
-				       bool value)
-{
-	const struct rockchip_usb3phy_port_cfg *cfg = tcphy->port_cfgs;
-
-	property_enable(tcphy, &cfg->usb3tousb2_en, value);
-	property_enable(tcphy, &cfg->usb3_host_disable, value);
-	property_enable(tcphy, &cfg->usb3_host_port, !value);
-
-	return 0;
 }
 
 static int _rockchip_usb3_phy_power_on(struct rockchip_typec_phy *tcphy)
