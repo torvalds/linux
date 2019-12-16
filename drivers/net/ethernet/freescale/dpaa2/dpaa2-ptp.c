@@ -27,6 +27,20 @@ static int dpaa2_ptp_enable(struct ptp_clock_info *ptp,
 	mc_dev = to_fsl_mc_device(dev);
 
 	switch (rq->type) {
+	case PTP_CLK_REQ_EXTTS:
+		switch (rq->extts.index) {
+		case 0:
+			bit = DPRTC_EVENT_ETS1;
+			break;
+		case 1:
+			bit = DPRTC_EVENT_ETS2;
+			break;
+		default:
+			return -EINVAL;
+		}
+		if (on)
+			extts_clean_up(ptp_qoriq, rq->extts.index, false);
+		break;
 	case PTP_CLK_REQ_PPS:
 		bit = DPRTC_EVENT_PPS;
 		break;
@@ -95,6 +109,12 @@ static irqreturn_t dpaa2_ptp_irq_handler_thread(int irq, void *priv)
 		event.type = PTP_CLOCK_PPS;
 		ptp_clock_event(ptp_qoriq->clock, &event);
 	}
+
+	if (status & DPRTC_EVENT_ETS1)
+		extts_clean_up(ptp_qoriq, 0, true);
+
+	if (status & DPRTC_EVENT_ETS2)
+		extts_clean_up(ptp_qoriq, 1, true);
 
 	err = dprtc_clear_irq_status(mc_dev->mc_io, 0, mc_dev->mc_handle,
 				     DPRTC_IRQ_INDEX, status);
