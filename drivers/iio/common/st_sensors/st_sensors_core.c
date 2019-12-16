@@ -14,8 +14,6 @@
 #include <linux/iio/iio.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <asm/unaligned.h>
 #include <linux/iio/common/st_sensors.h>
@@ -320,34 +318,25 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	return 0;
 }
 
-#ifdef CONFIG_OF
-static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
+static struct st_sensors_platform_data *st_sensors_dev_probe(struct device *dev,
 		struct st_sensors_platform_data *defdata)
 {
 	struct st_sensors_platform_data *pdata;
-	struct device_node *np = dev->of_node;
 	u32 val;
 
-	if (!np)
+	if (!dev_fwnode(dev))
 		return NULL;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!of_property_read_u32(np, "st,drdy-int-pin", &val) && (val <= 2))
+	if (!device_property_read_u32(dev, "st,drdy-int-pin", &val) && (val <= 2))
 		pdata->drdy_int_pin = (u8) val;
 	else
 		pdata->drdy_int_pin = defdata ? defdata->drdy_int_pin : 0;
 
-	pdata->open_drain = of_property_read_bool(np, "drive-open-drain");
+	pdata->open_drain = device_property_read_bool(dev, "drive-open-drain");
 
 	return pdata;
 }
-#else
-static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
-		struct st_sensors_platform_data *defdata)
-{
-	return NULL;
-}
-#endif
 
 /**
  * st_sensors_dev_name_probe() - device probe for ST sensor name
@@ -381,7 +370,7 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 	int err = 0;
 
 	/* If OF/DT pdata exists, it will take precedence of anything else */
-	of_pdata = st_sensors_of_probe(indio_dev->dev.parent, pdata);
+	of_pdata = st_sensors_dev_probe(indio_dev->dev.parent, pdata);
 	if (of_pdata)
 		pdata = of_pdata;
 

@@ -17,7 +17,6 @@
 #include <linux/iio/common/st_sensors_spi.h>
 #include "st_pressure.h"
 
-#ifdef CONFIG_OF
 /*
  * For new single-chip sensors use <device_name> as compatible string.
  * For old single-chip devices keep <device_name>-press to maintain
@@ -55,9 +54,6 @@ static const struct of_device_id st_press_of_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_press_of_match);
-#else
-#define st_press_of_match	NULL
-#endif
 
 static int st_press_spi_probe(struct spi_device *spi)
 {
@@ -115,7 +111,7 @@ MODULE_DEVICE_TABLE(spi, st_press_id_table);
 static struct spi_driver st_press_driver = {
 	.driver = {
 		.name = "st-press-spi",
-		.of_match_table = of_match_ptr(st_press_of_match),
+		.of_match_table = st_press_of_match,
 	},
 	.probe = st_press_spi_probe,
 	.remove = st_press_spi_remove,
