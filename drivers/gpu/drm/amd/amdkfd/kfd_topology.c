@@ -486,6 +486,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.num_sdma_engines);
 	sysfs_show_32bit_prop(buffer, "num_sdma_xgmi_engines",
 			dev->node_props.num_sdma_xgmi_engines);
+	sysfs_show_32bit_prop(buffer, "num_sdma_queues_per_engine",
+			dev->node_props.num_sdma_queues_per_engine);
 
 	if (dev->gpu) {
 		log_max_watch_addr =
@@ -1309,6 +1311,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	dev->node_props.num_sdma_engines = gpu->device_info->num_sdma_engines;
 	dev->node_props.num_sdma_xgmi_engines =
 				gpu->device_info->num_xgmi_sdma_engines;
+	dev->node_props.num_sdma_queues_per_engine =
+				gpu->device_info->num_sdma_queues_per_engine;
 	dev->node_props.num_gws = (hws_gws_support &&
 		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
 		amdgpu_amdkfd_get_num_gws(dev->gpu->kgd) : 0;
