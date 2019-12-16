@@ -777,9 +777,17 @@ static int renoir_set_watermarks_table(
 	}
 
 	/* pass data to smu controller */
-	ret = smu_write_watermarks_table(smu);
+	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
+			!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
+		ret = smu_write_watermarks_table(smu);
+		if (ret) {
+			pr_err("Failed to update WMTABLE!");
+			return ret;
+		}
+		smu->watermarks_bitmap |= WATERMARKS_LOADED;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int renoir_get_power_profile_mode(struct smu_context *smu,
