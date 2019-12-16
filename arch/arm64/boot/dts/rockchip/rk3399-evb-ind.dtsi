@@ -273,11 +273,11 @@
 };
 
 &dfi {
-	status = "disabled";
+	status = "okay";
 };
 
 &dmc {
-	status = "disabled";
+	status = "okay";
 	center-supply = <&vdd_center>;
 	upthreshold = <40>;
 	downdifferential = <20>;
@@ -302,7 +302,7 @@
 	>;
 
 	auto-min-freq = <328000>;
-	auto-freq-en = <1>;
+	auto-freq-en = <0>;
 };
 
 &dmc_opp_table {
