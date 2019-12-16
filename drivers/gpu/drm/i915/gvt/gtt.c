@@ -1282,7 +1282,7 @@ static int ppgtt_populate_shadow_entry(struct intel_vgpu *vgpu,
 		return -EINVAL;
 	default:
 		GEM_BUG_ON(1);
-	};
+	}
 
 	/* direct shadow */
 	ret = intel_gvt_hypervisor_dma_map_guest_page(vgpu, gfn, page_size,
