@@ -109,7 +109,7 @@ static int system_heap_create(void)
 	struct dma_heap_export_info exp_info;
 	int ret = 0;
 
-	exp_info.name = "system_heap";
+	exp_info.name = "system";
 	exp_info.ops = &system_heap_ops;
 	exp_info.priv = NULL;
 
