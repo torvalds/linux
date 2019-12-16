@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * atlas-ph-sensor.c - Support for Atlas Scientific OEM pH-SM sensor
+ * atlas-sensor.c - Support for Atlas Scientific OEM SM sensors
  *
- * Copyright (C) 2015-2018 Matt Ranostay
+ * Copyright (C) 2015-2019 Konsulko Group
  * Author: Matt Ranostay <matt.ranostay@konsulko.com>
  */
 
@@ -24,8 +24,8 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/pm_runtime.h>
 
-#define ATLAS_REGMAP_NAME	"atlas_ph_regmap"
-#define ATLAS_DRV_NAME		"atlas_ph"
+#define ATLAS_REGMAP_NAME	"atlas_regmap"
+#define ATLAS_DRV_NAME		"atlas"
 
 #define ATLAS_REG_DEV_TYPE		0x00
 #define ATLAS_REG_DEV_VERSION		0x01
@@ -680,5 +680,5 @@ static struct i2c_driver atlas_driver = {
 module_i2c_driver(atlas_driver);
 
 MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
-MODULE_DESCRIPTION("Atlas Scientific pH-SM sensor");
+MODULE_DESCRIPTION("Atlas Scientific SM sensors");
 MODULE_LICENSE("GPL");
