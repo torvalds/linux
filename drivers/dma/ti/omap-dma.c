@@ -27,6 +27,7 @@
 struct omap_dma_config {
 	int lch_end;
 	unsigned int rw_priority:1;
+	unsigned int needs_busy_check:1;
 	unsigned int may_lose_context:1;
 	unsigned int needs_lch_clear:1;
 };
@@ -1521,6 +1522,38 @@ static void omap_dma_free(struct omap_dmadev *od)
 	}
 }
 
+/* Currently only used for omap2. For omap1, also a check for lcd_dma is needed */
+static int omap_dma_busy_notifier(struct notifier_block *nb,
+				  unsigned long cmd, void *v)
+{
+	struct omap_dmadev *od;
+	struct omap_chan *c;
+	int lch = -1;
+
+	od = container_of(nb, struct omap_dmadev, nb);
+
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		while (1) {
+			lch = find_next_bit(od->lch_bitmap, od->lch_count,
+					    lch + 1);
+			if (lch >= od->lch_count)
+				break;
+			c = od->lch_map[lch];
+			if (!c)
+				continue;
+			if (omap_dma_chan_read(c, CCR) & CCR_ENABLE)
+				return NOTIFY_BAD;
+		}
+		break;
+	case CPU_CLUSTER_PM_ENTER_FAILED:
+	case CPU_CLUSTER_PM_EXIT:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 /*
  * We are using IRQENABLE_L1, and legacy DMA code was using IRQENABLE_L0.
  * As the DSP may be using IRQENABLE_L2 and L3, let's not touch those for
@@ -1778,7 +1811,10 @@ static int omap_dma_probe(struct platform_device *pdev)
 
 	omap_dma_init_gcr(od, DMA_DEFAULT_ARB_RATE, DMA_DEFAULT_FIFO_DEPTH, 0);
 
-	if (od->cfg->may_lose_context) {
+	if (od->cfg->needs_busy_check) {
+		od->nb.notifier_call = omap_dma_busy_notifier;
+		cpu_pm_register_notifier(&od->nb);
+	} else if (od->cfg->may_lose_context) {
 		od->nb.notifier_call = omap_dma_context_notifier;
 		cpu_pm_register_notifier(&od->nb);
 	}
@@ -1822,6 +1858,7 @@ static const struct omap_dma_config omap2420_data = {
 	.lch_end = CCFN,
 	.rw_priority = true,
 	.needs_lch_clear = true,
+	.needs_busy_check = true,
 };
 
 static const struct omap_dma_config omap2430_data = {
