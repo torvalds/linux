@@ -79,7 +79,7 @@ void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
 	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
-		.opcode     = MLX5_OPCODE_NOP,
+		.wqe_type   = MLX5E_ICOSQ_WQE_NOP,
 		.num_wqebbs = 1,
 	};
 

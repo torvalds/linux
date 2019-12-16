@@ -27,6 +27,11 @@
 
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
 
+enum mlx5e_icosq_wqe_type {
+	MLX5E_ICOSQ_WQE_NOP,
+	MLX5E_ICOSQ_WQE_UMR_RX,
+};
+
 static inline bool
 mlx5e_wqc_has_room_for(struct mlx5_wq_cyc *wq, u16 cc, u16 pc, u16 n)
 {
@@ -120,10 +125,10 @@ static inline u16 mlx5e_txqsq_get_next_pi(struct mlx5e_txqsq *sq, u16 size)
 }
 
 struct mlx5e_icosq_wqe_info {
-	u8 opcode;
+	u8 wqe_type;
 	u8 num_wqebbs;
 
-	/* Auxiliary data for different opcodes. */
+	/* Auxiliary data for different wqe types. */
 	union {
 		struct {
 			struct mlx5e_rq *rq;
@@ -147,7 +152,7 @@ static inline u16 mlx5e_icosq_get_next_pi(struct mlx5e_icosq *sq, u16 size)
 		/* Fill SQ frag edge with NOPs to avoid WQE wrapping two pages. */
 		for (; wi < edge_wi; wi++) {
 			*wi = (struct mlx5e_icosq_wqe_info) {
-				.opcode = MLX5_OPCODE_NOP,
+				.wqe_type   = MLX5E_ICOSQ_WQE_NOP,
 				.num_wqebbs = 1,
 			};
 			mlx5e_post_nop(wq, sq->sqn, &sq->pc);
