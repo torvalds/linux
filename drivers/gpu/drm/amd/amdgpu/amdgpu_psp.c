@@ -1310,6 +1310,9 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_VCN:
 		*type = GFX_FW_TYPE_VCN;
 		break;
+	case AMDGPU_UCODE_ID_VCN1:
+		*type = GFX_FW_TYPE_VCN1;
+		break;
 	case AMDGPU_UCODE_ID_DMCU_ERAM:
 		*type = GFX_FW_TYPE_DMCU_ERAM;
 		break;
