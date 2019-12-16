@@ -821,7 +821,7 @@ static void v4l_print_event(const void *arg, bool write_only)
 	const struct v4l2_event *p = arg;
 	const struct v4l2_event_ctrl *c;
 
-	pr_cont("type=0x%x, pending=%u, sequence=%u, id=%u, timestamp=%lu.%9.9lu\n",
+	pr_cont("type=0x%x, pending=%u, sequence=%u, id=%u, timestamp=%llu.%9.9llu\n",
 			p->type, p->pending, p->sequence, p->id,
 			p->timestamp.tv_sec, p->timestamp.tv_nsec);
 	switch (p->type) {
@@ -3025,6 +3025,13 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 
 static unsigned int video_translate_cmd(unsigned int cmd)
 {
+	switch (cmd) {
+#ifdef CONFIG_COMPAT_32BIT_TIME
+	case VIDIOC_DQEVENT_TIME32:
+		return VIDIOC_DQEVENT;
+#endif
+	}
+
 	return cmd;
 }
 
@@ -3074,6 +3081,26 @@ static int video_put_user(void __user *arg, void *parg, unsigned int cmd)
 		return 0;
 
 	switch (cmd) {
+#ifdef CONFIG_COMPAT_32BIT_TIME
+	case VIDIOC_DQEVENT_TIME32: {
+		struct v4l2_event *ev = parg;
+		struct v4l2_event_time32 ev32 = {
+			.type		= ev->type,
+			.pending	= ev->pending,
+			.sequence	= ev->sequence,
+			.timestamp.tv_sec  = ev->timestamp.tv_sec,
+			.timestamp.tv_nsec = ev->timestamp.tv_nsec,
+			.id		= ev->id,
+		};
+
+		memcpy(&ev32.u, &ev->u, sizeof(ev->u));
+		memcpy(&ev32.reserved, &ev->reserved, sizeof(ev->reserved));
+
+		if (copy_to_user(arg, &ev32, sizeof(ev32)))
+			return -EFAULT;
+		break;
+	}
+#endif
 	default:
 		/*  Copy results into user buffer  */
 		if (copy_to_user(arg, parg, _IOC_SIZE(cmd)))
