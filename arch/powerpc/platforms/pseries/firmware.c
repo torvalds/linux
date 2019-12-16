@@ -22,6 +22,7 @@
 #include <asm/firmware.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
+#include <asm/svm.h>
 
 #include "pseries.h"
 
@@ -99,6 +100,12 @@ static void __init fw_hypertas_feature_init(const char *hypertas,
 				hypertas_fw_features_table[i].val;
 			break;
 		}
+	}
+
+	if (is_secure_guest() &&
+	    (powerpc_firmware_features & FW_FEATURE_PUT_TCE_IND)) {
+		powerpc_firmware_features &= ~FW_FEATURE_PUT_TCE_IND;
+		pr_debug("SVM: disabling PUT_TCE_IND firmware feature\n");
 	}
 
 	pr_debug(" <- fw_hypertas_feature_init()\n");
