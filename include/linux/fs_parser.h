@@ -56,11 +56,6 @@ struct fs_parameter_spec {
 	const void		*data;
 };
 
-struct fs_parameter_enum {
-	const char	*name;
-	u8		value;
-};
-
 struct fs_parameter_description {
 	const char	name[16];		/* Name for logging purposes */
 	const struct fs_parameter_spec *specs;	/* List of param specifications */

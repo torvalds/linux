@@ -1271,7 +1271,7 @@ enum opt_quota {
 	Opt_quota_on,
 };
 
-static const struct fs_parameter_enum gfs2_param_quota[] = {
+static const struct constant_table gfs2_param_quota[] = {
 	{"off",        Opt_quota_off },
 	{"account",    Opt_quota_account },
 	{"on",         Opt_quota_on },
@@ -1289,7 +1289,7 @@ enum opt_data {
 	Opt_data_ordered   = GFS2_DATA_ORDERED,
 };
 
-static const struct fs_parameter_enum gfs2_param_data[] = {
+static const struct constant_table gfs2_param_data[] = {
 	{"writeback",  Opt_data_writeback },
 	{"ordered",    Opt_data_ordered },
 	{}
@@ -1300,7 +1300,7 @@ enum opt_errors {
 	Opt_errors_panic    = GFS2_ERRORS_PANIC,
 };
 
-static const struct fs_parameter_enum gfs2_param_errors[] = {
+static const struct constant_table gfs2_param_errors[] = {
 	{"withdraw",   Opt_errors_withdraw },
 	{"panic",      Opt_errors_panic },
 	{}

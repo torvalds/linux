@@ -73,7 +73,7 @@ enum afs_param {
 	Opt_source,
 };
 
-static const struct fs_parameter_enum afs_param_flock[] = {
+static const struct constant_table afs_param_flock[] = {
 	{"local",	afs_flock_mode_local },
 	{"openafs",	afs_flock_mode_openafs },
 	{"strict",	afs_flock_mode_strict },

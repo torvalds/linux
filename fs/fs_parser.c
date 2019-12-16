@@ -82,7 +82,7 @@ int fs_parse(struct fs_context *fc,
 	     struct fs_parse_result *result)
 {
 	const struct fs_parameter_spec *p;
-	const struct fs_parameter_enum *e;
+	const struct constant_table *e;
 	int ret = -ENOPARAM, b;
 
 	result->negated = false;
@@ -380,7 +380,7 @@ bool fs_validate_description(const struct fs_parameter_description *desc)
 				       name, param->name, t);
 				good = false;
 			} else if (t == fs_param_is_enum) {
-				const struct fs_parameter_enum *e = param->data;
+				const struct constant_table *e = param->data;
 				if (!e || !e->name) {
 					pr_err("VALIDATE %s: PARAM[%s] enum with no values\n",
 					       name, param->name);

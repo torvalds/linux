@@ -3381,7 +3381,7 @@ enum shmem_param {
 	Opt_uid,
 };
 
-static const struct fs_parameter_enum shmem_param_enums_huge[] = {
+static const struct constant_table shmem_param_enums_huge[] = {
 	{"never",	SHMEM_HUGE_NEVER },
 	{"always",	SHMEM_HUGE_ALWAYS },
 	{"within_size",	SHMEM_HUGE_WITHIN_SIZE },

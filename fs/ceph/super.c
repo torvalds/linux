@@ -163,7 +163,7 @@ enum ceph_recover_session_mode {
 	ceph_recover_session_clean
 };
 
-static const struct fs_parameter_enum ceph_param_recover[] = {
+static const struct constant_table ceph_param_recover[] = {
 	{ "no",		ceph_recover_session_no },
 	{ "clean",	ceph_recover_session_clean },
 	{}

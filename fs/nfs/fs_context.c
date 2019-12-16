@@ -90,7 +90,7 @@ enum {
 	Opt_local_lock_posix,
 };
 
-static const struct fs_parameter_enum nfs_param_enums_local_lock[] = {
+static const struct constant_table nfs_param_enums_local_lock[] = {
 	{ "all",		Opt_local_lock_all },
 	{ "flock",	Opt_local_lock_flock },
 	{ "none",		Opt_local_lock_none },
@@ -103,7 +103,7 @@ enum {
 	Opt_lookupcache_positive,
 };
 
-static const struct fs_parameter_enum nfs_param_enums_lookupcache[] = {
+static const struct constant_table nfs_param_enums_lookupcache[] = {
 	{ "all",		Opt_lookupcache_all },
 	{ "none",		Opt_lookupcache_none },
 	{ "pos",		Opt_lookupcache_positive },

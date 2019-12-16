@@ -167,7 +167,7 @@ enum {
 	Opt_rp_size,
 };
 
-static const struct fs_parameter_enum jffs2_param_compr[] = {
+static const struct constant_table jffs2_param_compr[] = {
 	{"none",	JFFS2_COMPR_MODE_NONE },
 #ifdef CONFIG_JFFS2_LZO
 	{"lzo",		JFFS2_COMPR_MODE_FORCELZO },
