@@ -115,16 +115,8 @@ void vchan_dma_desc_free_list(struct virt_dma_chan *vc, struct list_head *head)
 	struct virt_dma_desc *vd, *_vd;
 
 	list_for_each_entry_safe(vd, _vd, head, node) {
-		if (dmaengine_desc_test_reuse(&vd->tx)) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&vc->lock, flags);
-			list_move_tail(&vd->node, &vc->desc_allocated);
-			spin_unlock_irqrestore(&vc->lock, flags);
-		} else {
-			list_del(&vd->node);
-			vc->desc_free(vd);
-		}
+		list_del(&vd->node);
+		vchan_vdesc_fini(vd);
 	}
 }
 EXPORT_SYMBOL_GPL(vchan_dma_desc_free_list);
