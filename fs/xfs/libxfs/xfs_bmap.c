@@ -4561,7 +4561,7 @@ xfs_bmapi_convert_delalloc(
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	struct xfs_bmalloca	bma = { NULL };
-	u16			flags = 0;
+	uint16_t		flags = 0;
 	struct xfs_trans	*tp;
 	int			error;
 
