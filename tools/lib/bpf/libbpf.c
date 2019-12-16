@@ -41,6 +41,7 @@
 #include <sys/types.h>
 #include <sys/vfs.h>
 #include <sys/utsname.h>
+#include <sys/resource.h>
 #include <tools/libc_compat.h>
 #include <libelf.h>
 #include <gelf.h>
@@ -98,6 +99,32 @@ void libbpf_print(enum libbpf_print_level level, const char *format, ...)
 	va_start(args, format);
 	__libbpf_pr(level, format, args);
 	va_end(args);
+}
+
+static void pr_perm_msg(int err)
+{
+	struct rlimit limit;
+	char buf[100];
+
+	if (err != -EPERM || geteuid() != 0)
+		return;
+
+	err = getrlimit(RLIMIT_MEMLOCK, &limit);
+	if (err)
+		return;
+
+	if (limit.rlim_cur == RLIM_INFINITY)
+		return;
+
+	if (limit.rlim_cur < 1024)
+		snprintf(buf, sizeof(buf), "%lu bytes", limit.rlim_cur);
+	else if (limit.rlim_cur < 1024*1024)
+		snprintf(buf, sizeof(buf), "%.1f KiB", (double)limit.rlim_cur / 1024);
+	else
+		snprintf(buf, sizeof(buf), "%.1f MiB", (double)limit.rlim_cur / (1024*1024));
+
+	pr_warn("permission error while running as root; try raising 'ulimit -l'? current value: %s\n",
+		buf);
 }
 
 #define STRERR_BUFSIZE  128
@@ -2983,6 +3010,7 @@ err_out:
 			cp = libbpf_strerror_r(err, errmsg, sizeof(errmsg));
 			pr_warn("failed to create map (name: '%s'): %s(%d)\n",
 				map->name, cp, err);
+			pr_perm_msg(err);
 			for (j = 0; j < i; j++)
 				zclose(obj->maps[j].fd);
 			return err;
@@ -4381,6 +4409,7 @@ retry_load:
 	ret = -errno;
 	cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 	pr_warn("load bpf program failed: %s\n", cp);
+	pr_perm_msg(ret);
 
 	if (log_buf && log_buf[0] != '\0') {
 		ret = -LIBBPF_ERRNO__VERIFY;
