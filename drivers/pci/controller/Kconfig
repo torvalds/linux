@@ -257,6 +257,7 @@ config PCIE_BRCMSTB
 	tristate "Broadcom Brcmstb PCIe host controller"
 	depends on ARCH_BCM2835 || COMPILE_TEST
 	depends on OF
+	depends on PCI_MSI_IRQ_DOMAIN
 	help
 	  Say Y here to enable PCIe host controller support for
 	  Broadcom STB based SoCs, like the Raspberry Pi 4.
