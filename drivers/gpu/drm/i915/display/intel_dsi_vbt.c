@@ -27,6 +27,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/mfd/intel_soc_pmic.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/slab.h>
 
 #include <asm/intel-mid.h>
@@ -525,11 +527,15 @@ void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 {
 	if (seq_id == MIPI_SEQ_POWER_ON && intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 1);
+	if (seq_id == MIPI_SEQ_BACKLIGHT_ON && intel_dsi->gpio_backlight)
+		gpiod_set_value_cansleep(intel_dsi->gpio_backlight, 1);
 
 	intel_dsi_vbt_exec(intel_dsi, seq_id);
 
 	if (seq_id == MIPI_SEQ_POWER_OFF && intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 0);
+	if (seq_id == MIPI_SEQ_BACKLIGHT_OFF && intel_dsi->gpio_backlight)
+		gpiod_set_value_cansleep(intel_dsi->gpio_backlight, 0);
 }
 
 void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
@@ -688,6 +694,8 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 /*
  * On some BYT/CHT devs some sequences are incomplete and we need to manually
  * control some GPIOs. We need to add a GPIO lookup table before we get these.
+ * If the GOP did not initialize the panel (HDMI inserted) we may need to also
+ * change the pinmux for the SoC's PWM0 pin from GPIO to PWM.
  */
 static struct gpiod_lookup_table pmic_panel_gpio_table = {
 	/* Intel GFX is consumer */
@@ -699,21 +707,67 @@ static struct gpiod_lookup_table pmic_panel_gpio_table = {
 	},
 };
 
+static struct gpiod_lookup_table soc_panel_gpio_table = {
+	.dev_id = "0000:00:02.0",
+	.table = {
+		GPIO_LOOKUP("INT33FC:01", 10, "backlight", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("INT33FC:01", 11, "panel", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
+static const struct pinctrl_map soc_pwm_pinctrl_map[] = {
+	PIN_MAP_MUX_GROUP("0000:00:02.0", "soc_pwm0", "INT33FC:00",
+			  "pwm0_grp", "pwm"),
+};
+
 void intel_dsi_vbt_gpio_init(struct intel_dsi *intel_dsi, bool panel_is_on)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
 	enum gpiod_flags flags = panel_is_on ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
+	bool want_backlight_gpio = false;
+	bool want_panel_gpio = false;
+	struct pinctrl *pinctrl;
+	int ret;
 
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    mipi_config->pwm_blc == PPS_BLC_PMIC) {
 		gpiod_add_lookup_table(&pmic_panel_gpio_table);
+		want_panel_gpio = true;
+	}
 
+	if (IS_VALLEYVIEW(dev_priv) && mipi_config->pwm_blc == PPS_BLC_SOC) {
+		gpiod_add_lookup_table(&soc_panel_gpio_table);
+		want_panel_gpio = true;
+		want_backlight_gpio = true;
+
+		/* Ensure PWM0 pin is muxed as PWM instead of GPIO */
+		ret = pinctrl_register_mappings(soc_pwm_pinctrl_map,
+					     ARRAY_SIZE(soc_pwm_pinctrl_map));
+		if (ret)
+			DRM_ERROR("Failed to register pwm0 pinmux mapping\n");
+
+		pinctrl = devm_pinctrl_get_select(dev->dev, "soc_pwm0");
+		if (IS_ERR(pinctrl))
+			DRM_ERROR("Failed to set pinmux to PWM\n");
+	}
+
+	if (want_panel_gpio) {
 		intel_dsi->gpio_panel = gpiod_get(dev->dev, "panel", flags);
 		if (IS_ERR(intel_dsi->gpio_panel)) {
 			DRM_ERROR("Failed to own gpio for panel control\n");
 			intel_dsi->gpio_panel = NULL;
+		}
+	}
+
+	if (want_backlight_gpio) {
+		intel_dsi->gpio_backlight =
+			gpiod_get(dev->dev, "backlight", flags);
+		if (IS_ERR(intel_dsi->gpio_backlight)) {
+			DRM_ERROR("Failed to own gpio for backlight control\n");
+			intel_dsi->gpio_backlight = NULL;
 		}
 	}
 }
@@ -729,7 +783,17 @@ void intel_dsi_vbt_gpio_cleanup(struct intel_dsi *intel_dsi)
 		intel_dsi->gpio_panel = NULL;
 	}
 
+	if (intel_dsi->gpio_backlight) {
+		gpiod_put(intel_dsi->gpio_backlight);
+		intel_dsi->gpio_backlight = NULL;
+	}
+
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    mipi_config->pwm_blc == PPS_BLC_PMIC)
 		gpiod_remove_lookup_table(&pmic_panel_gpio_table);
+
+	if (IS_VALLEYVIEW(dev_priv) && mipi_config->pwm_blc == PPS_BLC_SOC) {
+		pinctrl_unregister_mappings(soc_pwm_pinctrl_map);
+		gpiod_remove_lookup_table(&soc_panel_gpio_table);
+	}
 }
