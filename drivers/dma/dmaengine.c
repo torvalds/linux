@@ -250,7 +250,6 @@ static void dma_chan_put(struct dma_chan *chan)
 		return;
 
 	chan->client_count--;
-	module_put(dma_chan_to_owner(chan));
 
 	/* This channel is not in use anymore, free it */
 	if (!chan->client_count && chan->device->device_free_chan_resources) {
@@ -258,6 +257,8 @@ static void dma_chan_put(struct dma_chan *chan)
 		dmaengine_synchronize(chan);
 		chan->device->device_free_chan_resources(chan);
 	}
+
+	module_put(dma_chan_to_owner(chan));
 
 	/* If the channel is used via a DMA request router, free the mapping */
 	if (chan->router && chan->router->route_free) {
