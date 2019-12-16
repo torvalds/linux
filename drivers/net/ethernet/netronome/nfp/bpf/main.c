@@ -15,7 +15,7 @@
 
 const struct rhashtable_params nfp_bpf_maps_neutral_params = {
 	.nelem_hint		= 4,
-	.key_len		= FIELD_SIZEOF(struct bpf_map, id),
+	.key_len		= sizeof_field(struct bpf_map, id),
 	.key_offset		= offsetof(struct nfp_bpf_neutral_map, map_id),
 	.head_offset		= offsetof(struct nfp_bpf_neutral_map, l),
 	.automatic_shrinking	= true,

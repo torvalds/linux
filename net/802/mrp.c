@@ -523,7 +523,7 @@ int mrp_request_join(const struct net_device *dev,
 	struct mrp_attr *attr;
 
 	if (sizeof(struct mrp_skb_cb) + len >
-	    FIELD_SIZEOF(struct sk_buff, cb))
+	    sizeof_field(struct sk_buff, cb))
 		return -ENOMEM;
 
 	spin_lock_bh(&app->lock);
@@ -548,7 +548,7 @@ void mrp_request_leave(const struct net_device *dev,
 	struct mrp_attr *attr;
 
 	if (sizeof(struct mrp_skb_cb) + len >
-	    FIELD_SIZEOF(struct sk_buff, cb))
+	    sizeof_field(struct sk_buff, cb))
 		return;
 
 	spin_lock_bh(&app->lock);
@@ -692,7 +692,7 @@ static int mrp_pdu_parse_vecattr(struct mrp_applicant *app,
 	 * advance to the next event in its Vector.
 	 */
 	if (sizeof(struct mrp_skb_cb) + mrp_cb(skb)->mh->attrlen >
-	    FIELD_SIZEOF(struct sk_buff, cb))
+	    sizeof_field(struct sk_buff, cb))
 		return -1;
 	if (skb_copy_bits(skb, *offset, mrp_cb(skb)->attrvalue,
 			  mrp_cb(skb)->mh->attrlen) < 0)

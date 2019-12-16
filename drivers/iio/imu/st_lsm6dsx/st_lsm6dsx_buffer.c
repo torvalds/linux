@@ -78,14 +78,20 @@ struct st_lsm6dsx_decimator_entry st_lsm6dsx_decimator_table[] = {
 	{ 32, 0x7 },
 };
 
-static int st_lsm6dsx_get_decimator_val(u8 val)
+static int
+st_lsm6dsx_get_decimator_val(struct st_lsm6dsx_sensor *sensor, u32 max_odr)
 {
 	const int max_size = ARRAY_SIZE(st_lsm6dsx_decimator_table);
+	u32 decimator =  max_odr / sensor->odr;
 	int i;
 
-	for (i = 0; i < max_size; i++)
-		if (st_lsm6dsx_decimator_table[i].decimator == val)
+	if (decimator > 1)
+		decimator = round_down(decimator, 2);
+
+	for (i = 0; i < max_size; i++) {
+		if (st_lsm6dsx_decimator_table[i].decimator == decimator)
 			break;
+	}
 
 	return i == max_size ? 0 : st_lsm6dsx_decimator_table[i].val;
 }
@@ -111,6 +117,13 @@ static void st_lsm6dsx_get_max_min_odr(struct st_lsm6dsx_hw *hw,
 	}
 }
 
+static u8 st_lsm6dsx_get_sip(struct st_lsm6dsx_sensor *sensor, u32 min_odr)
+{
+	u8 sip = sensor->odr / min_odr;
+
+	return sip > 1 ? round_down(sip, 2) : sip;
+}
+
 static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 {
 	const struct st_lsm6dsx_reg *ts_dec_reg;
@@ -131,12 +144,10 @@ static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 		sensor = iio_priv(hw->iio_devs[i]);
 		/* update fifo decimators and sample in pattern */
 		if (hw->enable_mask & BIT(sensor->id)) {
-			sensor->sip = sensor->odr / min_odr;
-			sensor->decimator = max_odr / sensor->odr;
-			data = st_lsm6dsx_get_decimator_val(sensor->decimator);
+			sensor->sip = st_lsm6dsx_get_sip(sensor, min_odr);
+			data = st_lsm6dsx_get_decimator_val(sensor, max_odr);
 		} else {
 			sensor->sip = 0;
-			sensor->decimator = 0;
 			data = 0;
 		}
 		ts_sip = max_t(u16, ts_sip, sensor->sip);
@@ -176,17 +187,10 @@ int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
 			     enum st_lsm6dsx_fifo_mode fifo_mode)
 {
 	unsigned int data;
-	int err;
 
 	data = FIELD_PREP(ST_LSM6DSX_FIFO_MODE_MASK, fifo_mode);
-	err = st_lsm6dsx_update_bits_locked(hw, ST_LSM6DSX_REG_FIFO_MODE_ADDR,
-					    ST_LSM6DSX_FIFO_MODE_MASK, data);
-	if (err < 0)
-		return err;
-
-	hw->fifo_mode = fifo_mode;
-
-	return 0;
+	return st_lsm6dsx_update_bits_locked(hw, ST_LSM6DSX_REG_FIFO_MODE_ADDR,
+					     ST_LSM6DSX_FIFO_MODE_MASK, data);
 }
 
 static int st_lsm6dsx_set_fifo_odr(struct st_lsm6dsx_sensor *sensor,
@@ -608,11 +612,17 @@ int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw)
 int st_lsm6dsx_update_fifo(struct st_lsm6dsx_sensor *sensor, bool enable)
 {
 	struct st_lsm6dsx_hw *hw = sensor->hw;
+	u8 fifo_mask;
 	int err;
 
 	mutex_lock(&hw->conf_lock);
 
-	if (hw->fifo_mode != ST_LSM6DSX_FIFO_BYPASS) {
+	if (enable)
+		fifo_mask = hw->fifo_mask | BIT(sensor->id);
+	else
+		fifo_mask = hw->fifo_mask & ~BIT(sensor->id);
+
+	if (hw->fifo_mask) {
 		err = st_lsm6dsx_flush_fifo(hw);
 		if (err < 0)
 			goto out;
@@ -642,14 +652,18 @@ int st_lsm6dsx_update_fifo(struct st_lsm6dsx_sensor *sensor, bool enable)
 	if (err < 0)
 		goto out;
 
-	if (hw->enable_mask) {
+	if (fifo_mask) {
 		/* reset hw ts counter */
 		err = st_lsm6dsx_reset_hw_ts(hw);
 		if (err < 0)
 			goto out;
 
 		err = st_lsm6dsx_set_fifo_mode(hw, ST_LSM6DSX_FIFO_CONT);
+		if (err < 0)
+			goto out;
 	}
+
+	hw->fifo_mask = fifo_mask;
 
 out:
 	mutex_unlock(&hw->conf_lock);
