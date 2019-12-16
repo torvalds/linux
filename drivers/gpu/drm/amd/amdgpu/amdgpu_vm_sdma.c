@@ -80,7 +80,7 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 		return 0;
 
 	return amdgpu_sync_resv(p->adev, &p->job->sync, root->tbo.base.resv,
-				owner, false);
+				AMDGPU_SYNC_NE_OWNER, owner);
 }
 
 /**

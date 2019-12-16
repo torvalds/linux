@@ -202,18 +202,17 @@ int amdgpu_sync_vm_fence(struct amdgpu_sync *sync, struct dma_fence *fence)
  *
  * @sync: sync object to add fences from reservation object to
  * @resv: reservation object with embedded fence
- * @explicit_sync: true if we should only sync to the exclusive fence
+ * @mode: how owner affects which fences we sync to
+ * @owner: owner of the planned job submission
  *
  * Sync to the fence
  */
-int amdgpu_sync_resv(struct amdgpu_device *adev,
-		     struct amdgpu_sync *sync,
-		     struct dma_resv *resv,
-		     void *owner, bool explicit_sync)
+int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
+		     struct dma_resv *resv, enum amdgpu_sync_mode mode,
+		     void *owner)
 {
 	struct dma_resv_list *flist;
 	struct dma_fence *f;
-	void *fence_owner;
 	unsigned i;
 	int r = 0;
 
@@ -229,6 +228,8 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 		return r;
 
 	for (i = 0; i < flist->shared_count; ++i) {
+		void *fence_owner;
+
 		f = rcu_dereference_protected(flist->shared[i],
 					      dma_resv_held(resv));
 		/* We only want to trigger KFD eviction fences on
@@ -239,20 +240,34 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 		    owner != AMDGPU_FENCE_OWNER_UNDEFINED)
 			continue;
 
-		if (amdgpu_sync_same_dev(adev, f)) {
-			/* VM updates only sync with moves but not with user
-			 * command submissions or KFD evictions fences
-			 */
-			if (owner == AMDGPU_FENCE_OWNER_VM &&
-			    fence_owner != AMDGPU_FENCE_OWNER_UNDEFINED)
-				continue;
+		/* VM updates only sync with moves but not with user
+		 * command submissions or KFD evictions fences
+		 */
+		if (fence_owner != AMDGPU_FENCE_OWNER_UNDEFINED &&
+		    owner == AMDGPU_FENCE_OWNER_VM)
+			continue;
 
-			/* Ignore fence from the same owner and explicit one as
-			 * long as it isn't undefined.
-			 */
-			if (owner != AMDGPU_FENCE_OWNER_UNDEFINED &&
-			    (fence_owner == owner || explicit_sync))
+		/* Ignore fences depending on the sync mode */
+		switch (mode) {
+		case AMDGPU_SYNC_ALWAYS:
+			break;
+
+		case AMDGPU_SYNC_NE_OWNER:
+			if (amdgpu_sync_same_dev(adev, f) &&
+			    fence_owner == owner)
 				continue;
+			break;
+
+		case AMDGPU_SYNC_EQ_OWNER:
+			if (amdgpu_sync_same_dev(adev, f) &&
+			    fence_owner != owner)
+				continue;
+			break;
+
+		case AMDGPU_SYNC_EXPLICIT:
+			if (owner != AMDGPU_FENCE_OWNER_UNDEFINED)
+				continue;
+			break;
 		}
 
 		r = amdgpu_sync_fence(sync, f, false);
