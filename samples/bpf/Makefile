@@ -198,7 +198,7 @@ endif
 
 TPROGCFLAGS_bpf_load.o += -Wno-unused-variable
 
-TPROGS_LDLIBS			+= $(LIBBPF) -lelf
+TPROGS_LDLIBS			+= $(LIBBPF) -lelf -lz
 TPROGLDLIBS_tracex4		+= -lrt
 TPROGLDLIBS_trace_output	+= -lrt
 TPROGLDLIBS_map_perf_test	+= -lrt
