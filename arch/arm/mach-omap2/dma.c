@@ -217,7 +217,7 @@ static struct omap_dma_dev_attr dma_attr = {
 	.lch_count = 32,
 };
 
-static struct omap_system_dma_plat_info dma_plat_info __initdata = {
+struct omap_system_dma_plat_info dma_plat_info = {
 	.reg_map	= reg_map,
 	.channel_stride	= 0x60,
 	.dma_attr	= &dma_attr,

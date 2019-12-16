@@ -1585,14 +1585,18 @@ static int omap_dma_probe(struct platform_device *pdev)
 		return PTR_ERR(od->base);
 
 	conf = of_device_get_match_data(&pdev->dev);
-	if (conf)
+	if (conf) {
 		od->cfg = conf;
-	else
+		od->plat = dev_get_platdata(&pdev->dev);
+		if (!od->plat)
+			dev_warn(&pdev->dev, "no sdma auxdata needed?\n");
+	} else {
 		od->cfg = &default_cfg;
 
-	od->plat = omap_get_plat_info();
-	if (!od->plat)
-		return -EPROBE_DEFER;
+		od->plat = omap_get_plat_info();
+		if (!od->plat)
+			return -EPROBE_DEFER;
+	}
 
 	od->reg_map = od->plat->reg_map;
 
