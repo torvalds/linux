@@ -231,6 +231,7 @@ mt7615_ext_phy(struct mt7615_dev *dev)
 extern const struct ieee80211_ops mt7615_ops;
 extern struct pci_driver mt7615_pci_driver;
 
+int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base, int irq);
 u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
 
 int mt7615_register_device(struct mt7615_dev *dev);
