@@ -411,13 +411,6 @@ static struct omap_hwmod_class dra7xx_dma_hwmod_class = {
 	.sysc	= &dra7xx_dma_sysc,
 };
 
-/* dma dev_attr */
-static struct omap_dma_dev_attr dma_dev_attr = {
-	.dev_caps	= RESERVE_CHANNEL | DMA_LINKED_LCH | GLOBAL_PRIORITY |
-			  IS_CSSA_32 | IS_CDSA_32 | IS_RW_PRIORITY,
-	.lch_count	= 32,
-};
-
 /* dma_system */
 static struct omap_hwmod dra7xx_dma_system_hwmod = {
 	.name		= "dma_system",
@@ -430,7 +423,6 @@ static struct omap_hwmod dra7xx_dma_system_hwmod = {
 			.context_offs = DRA7XX_RM_DMA_DMA_SYSTEM_CONTEXT_OFFSET,
 		},
 	},
-	.dev_attr	= &dma_dev_attr,
 };
 
 /*

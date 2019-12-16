@@ -211,9 +211,16 @@ static const struct dma_slave_map omap24xx_sdma_dt_map[] = {
 	{ "musb-hdrc.1.auto", "dmareq5", SDMA_FILTER_PARAM(64) }, /* OMAP2420 only */
 };
 
+static struct omap_dma_dev_attr dma_attr = {
+	.dev_caps = RESERVE_CHANNEL | DMA_LINKED_LCH | GLOBAL_PRIORITY |
+		    IS_CSSA_32 | IS_CDSA_32,
+	.lch_count = 32,
+};
+
 static struct omap_system_dma_plat_info dma_plat_info __initdata = {
 	.reg_map	= reg_map,
 	.channel_stride	= 0x60,
+	.dma_attr	= &dma_attr,
 	.show_dma_caps	= omap2_show_dma_caps,
 	.clear_dma	= omap2_clear_dma,
 	.dma_write	= dma_write,
@@ -230,22 +237,25 @@ static struct platform_device_info omap_dma_dev_info __initdata = {
 static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 {
 	struct platform_device			*pdev;
-	struct omap_system_dma_plat_info	p;
-	struct omap_dma_dev_attr		*d;
 	struct resource				*mem;
 	char					*name = "omap_dma_system";
 
-	p = dma_plat_info;
-	p.dma_attr = (struct omap_dma_dev_attr *)oh->dev_attr;
-	p.errata = configure_dma_errata();
+	dma_plat_info.errata = configure_dma_errata();
 
 	if (soc_is_omap24xx()) {
 		/* DMA slave map for drivers not yet converted to DT */
-		p.slave_map = omap24xx_sdma_dt_map;
-		p.slavecnt = ARRAY_SIZE(omap24xx_sdma_dt_map);
+		dma_plat_info.slave_map = omap24xx_sdma_dt_map;
+		dma_plat_info.slavecnt = ARRAY_SIZE(omap24xx_sdma_dt_map);
 	}
 
-	pdev = omap_device_build(name, 0, oh, &p, sizeof(p));
+	if (!soc_is_omap242x())
+		dma_attr.dev_caps |= IS_RW_PRIORITY;
+
+	if (soc_is_omap34xx() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
+		dma_attr.dev_caps |= HS_CHANNELS_RESERVED;
+
+	pdev = omap_device_build(name, 0, oh, &dma_plat_info,
+				 sizeof(dma_plat_info));
 	if (IS_ERR(pdev)) {
 		pr_err("%s: Can't build omap_device for %s:%s.\n",
 			__func__, name, oh->name);
@@ -266,11 +276,6 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 		dev_err(&pdev->dev, "%s: ioremap fail\n", __func__);
 		return -ENOMEM;
 	}
-
-	d = oh->dev_attr;
-
-	if (cpu_is_omap34xx() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
-		d->dev_caps |= HS_CHANNELS_RESERVED;
 
 	/* Check the capabilities register for descriptor loading feature */
 	if (soc_is_omap24xx() || soc_is_omap34xx() || soc_is_am35xx())

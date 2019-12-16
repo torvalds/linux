@@ -833,13 +833,6 @@ static struct omap_hwmod omap3xxx_gpio6_hwmod = {
 	.class		= &omap3xxx_gpio_hwmod_class,
 };
 
-/* dma attributes */
-static struct omap_dma_dev_attr dma_dev_attr = {
-	.dev_caps  = RESERVE_CHANNEL | DMA_LINKED_LCH | GLOBAL_PRIORITY |
-				IS_CSSA_32 | IS_CDSA_32 | IS_RW_PRIORITY,
-	.lch_count = 32,
-};
-
 static struct omap_hwmod_class_sysconfig omap3xxx_dma_sysc = {
 	.rev_offs	= 0x0000,
 	.sysc_offs	= 0x002c,
@@ -870,7 +863,6 @@ static struct omap_hwmod omap3xxx_dma_system_hwmod = {
 			.idlest_idle_bit	= OMAP3430_ST_SDMA_SHIFT,
 		},
 	},
-	.dev_attr	= &dma_dev_attr,
 	.flags		= HWMOD_NO_IDLEST,
 };
 

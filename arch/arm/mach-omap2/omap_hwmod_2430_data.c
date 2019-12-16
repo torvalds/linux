@@ -121,18 +121,10 @@ static struct omap_hwmod omap2430_gpio5_hwmod = {
 	.class		= &omap2xxx_gpio_hwmod_class,
 };
 
-/* dma attributes */
-static struct omap_dma_dev_attr dma_dev_attr = {
-	.dev_caps  = RESERVE_CHANNEL | DMA_LINKED_LCH | GLOBAL_PRIORITY |
-				IS_CSSA_32 | IS_CDSA_32 | IS_RW_PRIORITY,
-	.lch_count = 32,
-};
-
 static struct omap_hwmod omap2430_dma_system_hwmod = {
 	.name		= "dma",
 	.class		= &omap2xxx_dma_hwmod_class,
 	.main_clk	= "core_l3_ck",
-	.dev_attr	= &dma_dev_attr,
 	.flags		= HWMOD_NO_IDLEST,
 };
 
