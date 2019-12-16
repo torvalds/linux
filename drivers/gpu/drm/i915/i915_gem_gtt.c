@@ -1709,8 +1709,10 @@ static void gen6_flush_pd(struct gen6_ppgtt *ppgtt, u64 start, u64 end)
 	gen6_for_each_pde(pt, pd, start, end, pde)
 		gen6_write_pde(ppgtt, pde, pt);
 
+	mb();
 	ioread32(ppgtt->pd_addr + pde - 1);
 	gen6_ggtt_invalidate(ppgtt->base.vm.gt->ggtt);
+	mb();
 
 	mutex_unlock(&ppgtt->flush);
 }

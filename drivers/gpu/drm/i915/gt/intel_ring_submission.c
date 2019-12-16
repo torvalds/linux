@@ -362,6 +362,12 @@ gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 	 */
 	flags |= PIPE_CONTROL_CS_STALL;
 
+	/*
+	 * CS_STALL suggests at least a post-sync write.
+	 */
+	flags |= PIPE_CONTROL_QW_WRITE;
+	flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
+
 	/* Just flush everything.  Experiments have shown that reducing the
 	 * number of bits based on the write domains has little performance
 	 * impact.
@@ -380,13 +386,6 @@ gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 		flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_MEDIA_STATE_CLEAR;
-		/*
-		 * TLB invalidate requires a post-sync write.
-		 */
-		flags |= PIPE_CONTROL_QW_WRITE;
-		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
-
-		flags |= PIPE_CONTROL_STALL_AT_SCOREBOARD;
 
 		/* Workaround: we must issue a pipe_control with CS-stall bit
 		 * set before a pipe_control command that has the state cache
@@ -1371,48 +1370,24 @@ static int load_pd_dir(struct i915_request *rq,
 	const struct intel_engine_cs * const engine = rq->engine;
 	u32 *cs;
 
-	cs = intel_ring_begin(rq, 12);
+	cs = intel_ring_begin(rq, 10);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = MI_LOAD_REGISTER_IMM(3);
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine->mmio_base));
 	*cs++ = valid;
-
-	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
-	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine->mmio_base));
-	*cs++ = intel_gt_scratch_offset(rq->engine->gt,
-					INTEL_GT_SCRATCH_FIELD_DEFAULT);
-
-	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
 	*cs++ = px_base(ppgtt->pd)->ggtt_offset << 10;
+	*cs++ = i915_mmio_reg_offset(RING_INSTPM(engine->mmio_base));
+	*cs++ = _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE);
 
 	/* Stall until the page table load is complete? */
 	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
-	*cs++ = intel_gt_scratch_offset(rq->engine->gt,
+	*cs++ = intel_gt_scratch_offset(engine->gt,
 					INTEL_GT_SCRATCH_FIELD_DEFAULT);
 
-	intel_ring_advance(rq, cs);
-
-	return rq->engine->emit_flush(rq, EMIT_FLUSH);
-}
-
-static int flush_tlb(struct i915_request *rq)
-{
-	const struct intel_engine_cs * const engine = rq->engine;
-	u32 *cs;
-
-	cs = intel_ring_begin(rq, 4);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	*cs++ = MI_LOAD_REGISTER_IMM(1);
-	*cs++ = i915_mmio_reg_offset(RING_INSTPM(engine->mmio_base));
-	*cs++ = _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE);
-
-	*cs++ = MI_NOOP;
 	intel_ring_advance(rq, cs);
 
 	return 0;
@@ -1590,52 +1565,49 @@ static int remap_l3(struct i915_request *rq)
 	return 0;
 }
 
+static int switch_mm(struct i915_request *rq, struct i915_address_space *vm)
+{
+	int ret;
+
+	if (!vm)
+		return 0;
+
+	ret = rq->engine->emit_flush(rq, EMIT_FLUSH);
+	if (ret)
+		return ret;
+
+	/*
+	 * Not only do we need a full barrier (post-sync write) after
+	 * invalidating the TLBs, but we need to wait a little bit
+	 * longer. Whether this is merely delaying us, or the
+	 * subsequent flush is a key part of serialising with the
+	 * post-sync op, this extra pass appears vital before a
+	 * mm switch!
+	 */
+	ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm), PP_DIR_DCLV_2G);
+	if (ret)
+		return ret;
+
+	return rq->engine->emit_flush(rq, EMIT_FLUSH);
+}
+
 static int switch_context(struct i915_request *rq)
 {
 	struct intel_context *ce = rq->hw_context;
-	struct i915_address_space *vm = vm_alias(ce);
-	u32 hw_flags = 0;
 	int ret;
 
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
-	if (vm) {
-		/*
-		 * Not only do we need a full barrier (post-sync write) after
-		 * invalidating the TLBs, but we need to wait a little bit
-		 * longer. Whether this is merely delaying us, or the
-		 * subsequent flush is a key part of serialising with the
-		 * post-sync op, this extra pass appears vital before a
-		 * mm switch!
-		 */
-		ret = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
-		if (ret)
-			return ret;
-
-		ret = flush_tlb(rq);
-		if (ret)
-			return ret;
-
-		ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm), 0);
-		if (ret)
-			return ret;
-
-		ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm), PP_DIR_DCLV_2G);
-		if (ret)
-			return ret;
-
-		ret = flush_tlb(rq);
-		if (ret)
-			return ret;
-
-		ret = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
-		if (ret)
-			return ret;
-	}
+	ret = switch_mm(rq, vm_alias(ce));
+	if (ret)
+		return ret;
 
 	if (ce->state) {
+		u32 hw_flags;
+
 		GEM_BUG_ON(rq->engine->id != RCS0);
 
+		hw_flags = 0;
 		if (!test_bit(CONTEXT_VALID_BIT, &ce->flags))
 			hw_flags = MI_RESTORE_INHIBIT;
 
