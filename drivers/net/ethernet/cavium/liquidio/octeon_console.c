@@ -205,11 +205,11 @@ static int __cvmx_bootmem_check_version(struct octeon_device *oct,
 	major_version = (u32)__cvmx_bootmem_desc_get(
 			oct, oct->bootmem_desc_addr,
 			offsetof(struct cvmx_bootmem_desc, major_version),
-			FIELD_SIZEOF(struct cvmx_bootmem_desc, major_version));
+			sizeof_field(struct cvmx_bootmem_desc, major_version));
 	minor_version = (u32)__cvmx_bootmem_desc_get(
 			oct, oct->bootmem_desc_addr,
 			offsetof(struct cvmx_bootmem_desc, minor_version),
-			FIELD_SIZEOF(struct cvmx_bootmem_desc, minor_version));
+			sizeof_field(struct cvmx_bootmem_desc, minor_version));
 
 	dev_dbg(&oct->pci_dev->dev, "%s: major_version=%d\n", __func__,
 		major_version);
@@ -237,13 +237,13 @@ static const struct cvmx_bootmem_named_block_desc
 				oct, named_addr,
 				offsetof(struct cvmx_bootmem_named_block_desc,
 					 base_addr),
-				FIELD_SIZEOF(
+				sizeof_field(
 					struct cvmx_bootmem_named_block_desc,
 					base_addr));
 		desc->size = __cvmx_bootmem_desc_get(oct, named_addr,
 				offsetof(struct cvmx_bootmem_named_block_desc,
 					 size),
-				FIELD_SIZEOF(
+				sizeof_field(
 					struct cvmx_bootmem_named_block_desc,
 					size));
 
@@ -268,20 +268,20 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 					oct, oct->bootmem_desc_addr,
 					offsetof(struct cvmx_bootmem_desc,
 						 named_block_array_addr),
-					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+					sizeof_field(struct cvmx_bootmem_desc,
 						     named_block_array_addr));
 		u32 num_blocks = (u32)__cvmx_bootmem_desc_get(
 					oct, oct->bootmem_desc_addr,
 					offsetof(struct cvmx_bootmem_desc,
 						 nb_num_blocks),
-					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+					sizeof_field(struct cvmx_bootmem_desc,
 						     nb_num_blocks));
 
 		u32 name_length = (u32)__cvmx_bootmem_desc_get(
 					oct, oct->bootmem_desc_addr,
 					offsetof(struct cvmx_bootmem_desc,
 						 named_block_name_len),
-					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+					sizeof_field(struct cvmx_bootmem_desc,
 						     named_block_name_len));
 
 		u64 named_addr = named_block_array_addr;
@@ -292,7 +292,7 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 					 offsetof(
 					struct cvmx_bootmem_named_block_desc,
 					size),
-					 FIELD_SIZEOF(
+					 sizeof_field(
 					struct cvmx_bootmem_named_block_desc,
 					size));
 

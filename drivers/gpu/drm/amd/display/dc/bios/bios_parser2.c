@@ -1625,6 +1625,7 @@ static enum bp_result construct_integrated_info(
 		/* Don't need to check major revision as they are all 1 */
 		switch (revision.minor) {
 		case 11:
+		case 12:
 			result = get_integrated_info_v11(bp, info);
 			break;
 		default:

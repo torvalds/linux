@@ -23,7 +23,7 @@ struct be_ethtool_stat {
 };
 
 enum {DRVSTAT_TX, DRVSTAT_RX, DRVSTAT};
-#define FIELDINFO(_struct, field) FIELD_SIZEOF(_struct, field), \
+#define FIELDINFO(_struct, field) sizeof_field(_struct, field), \
 					offsetof(_struct, field)
 #define DRVSTAT_TX_INFO(field)	#field, DRVSTAT_TX,\
 					FIELDINFO(struct be_tx_stats, field)

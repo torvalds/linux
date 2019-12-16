@@ -1889,7 +1889,7 @@ int __init register_tracer(struct tracer *type)
 	}
 
 	if (security_locked_down(LOCKDOWN_TRACEFS)) {
-		pr_warning("Can not register tracer %s due to lockdown\n",
+		pr_warn("Can not register tracer %s due to lockdown\n",
 			   type->name);
 		return -EPERM;
 	}
@@ -8796,7 +8796,7 @@ struct dentry *tracing_init_dentry(void)
 	struct trace_array *tr = &global_trace;
 
 	if (security_locked_down(LOCKDOWN_TRACEFS)) {
-		pr_warning("Tracing disabled due to lockdown\n");
+		pr_warn("Tracing disabled due to lockdown\n");
 		return ERR_PTR(-EPERM);
 	}
 
@@ -9244,7 +9244,7 @@ __init static int tracer_alloc_buffers(void)
 
 
 	if (security_locked_down(LOCKDOWN_TRACEFS)) {
-		pr_warning("Tracing disabled due to lockdown\n");
+		pr_warn("Tracing disabled due to lockdown\n");
 		return -EPERM;
 	}
 

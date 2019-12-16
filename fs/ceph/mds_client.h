@@ -340,6 +340,14 @@ struct ceph_quotarealm_inode {
 	struct inode *inode;
 };
 
+struct cap_wait {
+	struct list_head	list;
+	unsigned long		ino;
+	pid_t			tgid;
+	int			need;
+	int			want;
+};
+
 /*
  * mds client state
  */
@@ -416,6 +424,7 @@ struct ceph_mds_client {
 	spinlock_t	caps_list_lock;
 	struct		list_head caps_list; /* unused (reserved or
 						unreserved) */
+	struct		list_head cap_wait_list;
 	int		caps_total_count;    /* total caps allocated */
 	int		caps_use_count;      /* in use */
 	int		caps_use_max;	     /* max used caps */

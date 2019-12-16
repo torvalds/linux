@@ -364,17 +364,39 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 			ret = -EAGAIN;
 			break;
 		}
-		if (signal_pending(current)) {
-			if (!ret)
-				ret = -ERESTARTSYS;
-			break;
-		}
 		__pipe_unlock(pipe);
-		if (was_full) {
+
+		/*
+		 * We only get here if we didn't actually read anything.
+		 *
+		 * However, we could have seen (and removed) a zero-sized
+		 * pipe buffer, and might have made space in the buffers
+		 * that way.
+		 *
+		 * You can't make zero-sized pipe buffers by doing an empty
+		 * write (not even in packet mode), but they can happen if
+		 * the writer gets an EFAULT when trying to fill a buffer
+		 * that already got allocated and inserted in the buffer
+		 * array.
+		 *
+		 * So we still need to wake up any pending writers in the
+		 * _very_ unlikely case that the pipe was full, but we got
+		 * no data.
+		 */
+		if (unlikely(was_full)) {
 			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
 			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 		}
-		wait_event_interruptible(pipe->wait, pipe_readable(pipe));
+
+		/*
+		 * But because we didn't read anything, at this point we can
+		 * just return directly with -ERESTARTSYS if we're interrupted,
+		 * since we've done any required wakeups and there's no need
+		 * to mark anything accessed. And we've dropped the lock.
+		 */
+		if (wait_event_interruptible(pipe->wait, pipe_readable(pipe)) < 0)
+			return -ERESTARTSYS;
+
 		__pipe_lock(pipe);
 		was_full = pipe_full(pipe->head, pipe->tail, pipe->max_usage);
 	}

@@ -10240,7 +10240,7 @@ static int hclge_get_dfx_reg_len(struct hclge_dev *hdev, int *len)
 		return ret;
 	}
 
-	data_len_per_desc = FIELD_SIZEOF(struct hclge_desc, data);
+	data_len_per_desc = sizeof_field(struct hclge_desc, data);
 	*len = 0;
 	for (i = 0; i < dfx_reg_type_num; i++) {
 		bd_num = bd_num_list[i];

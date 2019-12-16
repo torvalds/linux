@@ -35,7 +35,8 @@ static inline void wq_list_add_tail(struct io_wq_work_node *node,
 				    struct io_wq_work_list *list)
 {
 	if (!list->first) {
-		list->first = list->last = node;
+		list->last = node;
+		WRITE_ONCE(list->first, node);
 	} else {
 		list->last->next = node;
 		list->last = node;
@@ -47,7 +48,7 @@ static inline void wq_node_del(struct io_wq_work_list *list,
 			       struct io_wq_work_node *prev)
 {
 	if (node == list->first)
-		list->first = node->next;
+		WRITE_ONCE(list->first, node->next);
 	if (node == list->last)
 		list->last = prev;
 	if (prev)
@@ -58,7 +59,7 @@ static inline void wq_node_del(struct io_wq_work_list *list,
 #define wq_list_for_each(pos, prv, head)			\
 	for (pos = (head)->first, prv = NULL; pos; prv = pos, pos = (pos)->next)
 
-#define wq_list_empty(list)	((list)->first == NULL)
+#define wq_list_empty(list)	(READ_ONCE((list)->first) == NULL)
 #define INIT_WQ_LIST(list)	do {				\
 	(list)->first = NULL;					\
 	(list)->last = NULL;					\

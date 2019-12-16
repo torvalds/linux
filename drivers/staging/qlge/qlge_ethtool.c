@@ -41,7 +41,7 @@ struct ql_stats {
 	int stat_offset;
 };
 
-#define QL_SIZEOF(m) FIELD_SIZEOF(struct ql_adapter, m)
+#define QL_SIZEOF(m) sizeof_field(struct ql_adapter, m)
 #define QL_OFF(m) offsetof(struct ql_adapter, m)
 
 static const struct ql_stats ql_gstrings_stats[] = {

@@ -93,6 +93,7 @@
 #include <linux/rodata_test.h>
 #include <linux/jump_label.h>
 #include <linux/mem_encrypt.h>
+#include <linux/file.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -1155,6 +1156,30 @@ static int __ref kernel_init(void *unused)
 	      "See Linux Documentation/admin-guide/init.rst for guidance.");
 }
 
+void console_on_rootfs(void)
+{
+	struct file *file;
+	unsigned int i;
+
+	/* Open /dev/console in kernelspace, this should never fail */
+	file = filp_open("/dev/console", O_RDWR, 0);
+	if (!file)
+		goto err_out;
+
+	/* create stdin/stdout/stderr, this should never fail */
+	for (i = 0; i < 3; i++) {
+		if (f_dupfd(i, file, 0) != i)
+			goto err_out;
+	}
+
+	return;
+
+err_out:
+	/* no panic -- this might not be fatal */
+	pr_err("Warning: unable to open an initial console.\n");
+	return;
+}
+
 static noinline void __init kernel_init_freeable(void)
 {
 	/*
@@ -1190,12 +1215,8 @@ static noinline void __init kernel_init_freeable(void)
 
 	do_basic_setup();
 
-	/* Open the /dev/console on the rootfs, this should never fail */
-	if (ksys_open((const char __user *) "/dev/console", O_RDWR, 0) < 0)
-		pr_err("Warning: unable to open an initial console.\n");
+	console_on_rootfs();
 
-	(void) ksys_dup(0);
-	(void) ksys_dup(0);
 	/*
 	 * check if there is an early userspace init.  If yes, let it do all
 	 * the work
