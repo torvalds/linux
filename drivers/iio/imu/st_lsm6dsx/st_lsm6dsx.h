@@ -391,14 +391,17 @@ struct st_lsm6dsx_hw {
 	const struct st_lsm6dsx_settings *settings;
 };
 
-static const struct iio_event_spec st_lsm6dsx_event = {
+static __maybe_unused const struct iio_event_spec st_lsm6dsx_event = {
 	.type = IIO_EV_TYPE_THRESH,
 	.dir = IIO_EV_DIR_EITHER,
 	.mask_separate = BIT(IIO_EV_INFO_VALUE) |
 			 BIT(IIO_EV_INFO_ENABLE)
 };
 
-static const unsigned long st_lsm6dsx_available_scan_masks[] = {0x7, 0x0};
+static __maybe_unused const unsigned long st_lsm6dsx_available_scan_masks[] = {
+	0x7, 0x0,
+};
+
 extern const struct dev_pm_ops st_lsm6dsx_pm_ops;
 
 int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
