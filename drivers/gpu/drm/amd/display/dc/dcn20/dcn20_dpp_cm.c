@@ -158,6 +158,85 @@ void dpp2_set_degamma(
 	}
 }
 
+static void program_gamut_remap(
+		struct dcn20_dpp *dpp,
+		const uint16_t *regval,
+		enum dcn20_gamut_remap_select select)
+{
+	uint32_t cur_select = 0;
+	struct color_matrices_reg gam_regs;
+
+	if (regval == NULL || select == DCN2_GAMUT_REMAP_BYPASS) {
+		REG_SET(CM_GAMUT_REMAP_CONTROL, 0,
+				CM_GAMUT_REMAP_MODE, 0);
+		return;
+	}
+
+	/* determine which gamut_remap coefficients (A or B) we are using
+	 * currently. select the alternate set to double buffer
+	 * the update so gamut_remap is updated on frame boundary
+	 */
+	cur_select = IX_REG_READ(CM_TEST_DEBUG_INDEX, CM_TEST_DEBUG_DATA,
+					CM_TEST_DEBUG_DATA_STATUS_IDX);
+
+	/* IX_REG_READ reads whole reg, so isolate part we want [10..9] */
+	cur_select = (cur_select >> CM_TEST_DEBUG_DATA_GAMUT_REMAP_MODE_SH)
+					& CM_TEST_DEBUG_DATA_GAMUT_REMAP_MODE_MASK;
+
+	/* value stored in dbg reg will be 1 greater than mode we want */
+	if (cur_select != DCN2_GAMUT_REMAP_COEF_A)
+		select = DCN2_GAMUT_REMAP_COEF_A;
+	else
+		select = DCN2_GAMUT_REMAP_COEF_B;
+
+	gam_regs.shifts.csc_c11 = dpp->tf_shift->CM_GAMUT_REMAP_C11;
+	gam_regs.masks.csc_c11  = dpp->tf_mask->CM_GAMUT_REMAP_C11;
+	gam_regs.shifts.csc_c12 = dpp->tf_shift->CM_GAMUT_REMAP_C12;
+	gam_regs.masks.csc_c12 = dpp->tf_mask->CM_GAMUT_REMAP_C12;
+
+	if (select == DCN2_GAMUT_REMAP_COEF_A) {
+		gam_regs.csc_c11_c12 = REG(CM_GAMUT_REMAP_C11_C12);
+		gam_regs.csc_c33_c34 = REG(CM_GAMUT_REMAP_C33_C34);
+	} else {
+		gam_regs.csc_c11_c12 = REG(CM_GAMUT_REMAP_B_C11_C12);
+		gam_regs.csc_c33_c34 = REG(CM_GAMUT_REMAP_B_C33_C34);
+	}
+
+	cm_helper_program_color_matrices(
+				dpp->base.ctx,
+				regval,
+				&gam_regs);
+
+	REG_SET(
+			CM_GAMUT_REMAP_CONTROL, 0,
+			CM_GAMUT_REMAP_MODE, select);
+
+}
+
+void dpp2_cm_set_gamut_remap(
+	struct dpp *dpp_base,
+	const struct dpp_grph_csc_adjustment *adjust)
+{
+	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
+	int i = 0;
+
+	if (adjust->gamut_adjust_type != GRAPHICS_GAMUT_ADJUST_TYPE_SW)
+		/* Bypass if type is bypass or hw */
+		program_gamut_remap(dpp, NULL, DCN2_GAMUT_REMAP_BYPASS);
+	else {
+		struct fixed31_32 arr_matrix[12];
+		uint16_t arr_reg_val[12];
+
+		for (i = 0; i < 12; i++)
+			arr_matrix[i] = adjust->temperature_matrix[i];
+
+		convert_float_matrix(
+			arr_reg_val, arr_matrix, 12);
+
+		program_gamut_remap(dpp, arr_reg_val, DCN2_GAMUT_REMAP_COEF_A);
+	}
+}
+
 void dpp2_program_input_csc(
 		struct dpp *dpp_base,
 		enum dc_color_space color_space,
@@ -199,12 +278,11 @@ void dpp2_program_input_csc(
 	cur_select = IX_REG_READ(CM_TEST_DEBUG_INDEX, CM_TEST_DEBUG_DATA,
 					CM_TEST_DEBUG_DATA_STATUS_IDX);
 
-	/* IX_REG_READ reads whole reg, so isolate part we want [5..4] */
+	/* IX_REG_READ reads whole reg, so isolate part we want [4..3] */
 	cur_select = (cur_select >> CM_TEST_DEBUG_DATA_ICSC_MODE_SH)
 					& CM_TEST_DEBUG_DATA_ICSC_MODE_MASK;
 
-	/* value stored in dbg reg will be 1 greater than mode we want */
-	if (cur_select - 1 != DCN2_ICSC_SELECT_ICSC_A)
+	if (cur_select != DCN2_ICSC_SELECT_ICSC_A)
 		select = DCN2_ICSC_SELECT_ICSC_A;
 	else
 		select = DCN2_ICSC_SELECT_ICSC_B;

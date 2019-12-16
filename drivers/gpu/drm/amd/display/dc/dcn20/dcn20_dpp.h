@@ -151,6 +151,12 @@
 	SRI(CM_SHAPER_LUT_INDEX, CM, id)
 
 #define TF_REG_LIST_DCN20_COMMON_APPEND(id) \
+	SRI(CM_GAMUT_REMAP_B_C11_C12, CM, id),\
+	SRI(CM_GAMUT_REMAP_B_C13_C14, CM, id),\
+	SRI(CM_GAMUT_REMAP_B_C21_C22, CM, id),\
+	SRI(CM_GAMUT_REMAP_B_C23_C24, CM, id),\
+	SRI(CM_GAMUT_REMAP_B_C31_C32, CM, id),\
+	SRI(CM_GAMUT_REMAP_B_C33_C34, CM, id),\
 	SRI(CM_ICSC_B_C11_C12, CM, id), \
 	SRI(CM_ICSC_B_C33_C34, CM, id)
 
@@ -579,11 +585,14 @@
 /* DPP CM debug status register:
  *
  *		Status index including current ICSC, Gamut Remap Mode is 9
- *			ICSC Mode: [5..4]
+ *			ICSC Mode: [4..3]
+ *			Gamut Remap Mode: [10..9]
  */
 #define CM_TEST_DEBUG_DATA_STATUS_IDX 9
-#define CM_TEST_DEBUG_DATA_ICSC_MODE_SH 4
+#define CM_TEST_DEBUG_DATA_ICSC_MODE_SH 3
 #define CM_TEST_DEBUG_DATA_ICSC_MODE_MASK 0x3
+#define CM_TEST_DEBUG_DATA_GAMUT_REMAP_MODE_SH 9
+#define CM_TEST_DEBUG_DATA_GAMUT_REMAP_MODE_MASK 0x3
 
 #define TF_REG_FIELD_LIST_DCN2_0(type) \
 	TF_REG_FIELD_LIST(type) \
@@ -646,6 +655,12 @@ struct dcn2_dpp_mask {
 	uint32_t DSCL_MEM_PWR_CTRL
 
 #define DPP_DCN2_REG_VARIABLE_LIST_CM_APPEND \
+	uint32_t CM_GAMUT_REMAP_B_C11_C12; \
+	uint32_t CM_GAMUT_REMAP_B_C13_C14; \
+	uint32_t CM_GAMUT_REMAP_B_C21_C22; \
+	uint32_t CM_GAMUT_REMAP_B_C23_C24; \
+	uint32_t CM_GAMUT_REMAP_B_C31_C32; \
+	uint32_t CM_GAMUT_REMAP_B_C33_C34; \
 	uint32_t CM_ICSC_B_C11_C12; \
 	uint32_t CM_ICSC_B_C33_C34
 
@@ -679,6 +694,12 @@ enum dcn20_input_csc_select {
 	DCN2_ICSC_SELECT_ICSC_B = 2
 };
 
+enum dcn20_gamut_remap_select {
+	DCN2_GAMUT_REMAP_BYPASS = 0,
+	DCN2_GAMUT_REMAP_COEF_A = 1,
+	DCN2_GAMUT_REMAP_COEF_B = 2
+};
+
 void dpp20_read_state(struct dpp *dpp_base,
 		struct dcn_dpp_state *s);
 
@@ -689,6 +710,10 @@ void dpp2_set_degamma_pwl(
 void dpp2_set_degamma(
 		struct dpp *dpp_base,
 		enum ipp_degamma_mode mode);
+
+void dpp2_cm_set_gamut_remap(
+	struct dpp *dpp_base,
+	const struct dpp_grph_csc_adjustment *adjust);
 
 void dpp2_program_input_csc(
 		struct dpp *dpp_base,
