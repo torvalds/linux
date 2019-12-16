@@ -2,6 +2,7 @@
 /*
  * OMAP DMAengine support
  */
+#include <linux/cpu_pm.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -23,12 +24,28 @@
 #define OMAP_SDMA_REQUESTS	127
 #define OMAP_SDMA_CHANNELS	32
 
+struct omap_dma_config {
+	int lch_end;
+	unsigned int may_lose_context:1;
+};
+
+struct omap_dma_context {
+	u32 irqenable_l0;
+	u32 irqenable_l1;
+	u32 ocp_sysconfig;
+	u32 gcr;
+};
+
 struct omap_dmadev {
 	struct dma_device ddev;
 	spinlock_t lock;
 	void __iomem *base;
 	const struct omap_dma_reg *reg_map;
 	struct omap_system_dma_plat_info *plat;
+	const struct omap_dma_config *cfg;
+	struct notifier_block nb;
+	struct omap_dma_context context;
+	int lch_count;
 	bool legacy;
 	bool ll123_supported;
 	struct dma_pool *desc_pool;
@@ -376,6 +393,19 @@ static unsigned omap_dma_get_csr(struct omap_chan *c)
 	return val;
 }
 
+static void omap_dma_clear_lch(struct omap_dmadev *od, int lch)
+{
+	struct omap_chan *c;
+	int i;
+
+	c = od->lch_map[lch];
+	if (!c)
+		return;
+
+	for (i = CSDP; i <= od->cfg->lch_end; i++)
+		omap_dma_chan_write(c, i, 0);
+}
+
 static void omap_dma_assign(struct omap_dmadev *od, struct omap_chan *c,
 	unsigned lch)
 {
@@ -652,6 +682,7 @@ static int omap_dma_alloc_chan_resources(struct dma_chan *chan)
 
 	if (ret >= 0) {
 		omap_dma_assign(od, c, c->dma_ch);
+		pr_info("XXX %s: assigned lch: %i\n", __func__, c->dma_ch);
 
 		if (!od->legacy) {
 			unsigned val;
@@ -1453,16 +1484,74 @@ static void omap_dma_free(struct omap_dmadev *od)
 	}
 }
 
+/*
+ * We are using IRQENABLE_L1, and legacy DMA code was using IRQENABLE_L0.
+ * As the DSP may be using IRQENABLE_L2 and L3, let's not touch those for
+ * now. Context save seems to be only currently needed on omap3.
+ */
+static void omap_dma_context_save(struct omap_dmadev *od)
+{
+	od->context.irqenable_l0 = omap_dma_glbl_read(od, IRQENABLE_L0);
+	od->context.irqenable_l1 = omap_dma_glbl_read(od, IRQENABLE_L1);
+	od->context.ocp_sysconfig = omap_dma_glbl_read(od, OCP_SYSCONFIG);
+	od->context.gcr = omap_dma_glbl_read(od, GCR);
+}
+
+static void omap_dma_context_restore(struct omap_dmadev *od)
+{
+	int i;
+
+	omap_dma_glbl_write(od, GCR, od->context.gcr);
+	omap_dma_glbl_write(od, OCP_SYSCONFIG, od->context.ocp_sysconfig);
+	omap_dma_glbl_write(od, IRQENABLE_L0, od->context.irqenable_l0);
+	omap_dma_glbl_write(od, IRQENABLE_L1, od->context.irqenable_l1);
+
+	/* Clear IRQSTATUS_L0 as legacy DMA code is no longer doing it */
+	if (od->plat->errata & DMA_ROMCODE_BUG)
+		omap_dma_glbl_write(od, IRQSTATUS_L0, 0);
+
+	/* Clear dma channels */
+	for (i = 0; i < od->lch_count; i++)
+		omap_dma_clear_lch(od, i);
+}
+
+/* Currently only used for omap3 */
+static int omap_dma_context_notifier(struct notifier_block *nb,
+				     unsigned long cmd, void *v)
+{
+	struct omap_dmadev *od;
+
+	od = container_of(nb, struct omap_dmadev, nb);
+
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		omap_dma_context_save(od);
+		break;
+	case CPU_CLUSTER_PM_ENTER_FAILED:
+	case CPU_CLUSTER_PM_EXIT:
+		omap_dma_context_restore(od);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 #define OMAP_DMA_BUSWIDTHS	(BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
 
+/*
+ * No flags currently set for default configuration as omap1 is still
+ * using platform data.
+ */
+static const struct omap_dma_config default_cfg;
+
 static int omap_dma_probe(struct platform_device *pdev)
 {
+	const struct omap_dma_config *conf;
 	struct omap_dmadev *od;
 	struct resource *res;
 	int rc, i, irq;
-	u32 lch_count;
 
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
@@ -1472,6 +1561,12 @@ static int omap_dma_probe(struct platform_device *pdev)
 	od->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(od->base))
 		return PTR_ERR(od->base);
+
+	conf = of_device_get_match_data(&pdev->dev);
+	if (conf)
+		od->cfg = conf;
+	else
+		od->cfg = &default_cfg;
 
 	od->plat = omap_get_plat_info();
 	if (!od->plat)
@@ -1522,18 +1617,19 @@ static int omap_dma_probe(struct platform_device *pdev)
 
 	/* Number of available logical channels */
 	if (!pdev->dev.of_node) {
-		lch_count = od->plat->dma_attr->lch_count;
-		if (unlikely(!lch_count))
-			lch_count = OMAP_SDMA_CHANNELS;
+		od->lch_count = od->plat->dma_attr->lch_count;
+		if (unlikely(!od->lch_count))
+			od->lch_count = OMAP_SDMA_CHANNELS;
 	} else if (of_property_read_u32(pdev->dev.of_node, "dma-channels",
-					&lch_count)) {
+					&od->lch_count)) {
 		dev_info(&pdev->dev,
 			 "Missing dma-channels property, using %u.\n",
 			 OMAP_SDMA_CHANNELS);
-		lch_count = OMAP_SDMA_CHANNELS;
+		od->lch_count = OMAP_SDMA_CHANNELS;
 	}
 
-	od->lch_map = devm_kcalloc(&pdev->dev, lch_count, sizeof(*od->lch_map),
+	od->lch_map = devm_kcalloc(&pdev->dev, od->lch_count,
+				   sizeof(*od->lch_map),
 				   GFP_KERNEL);
 	if (!od->lch_map)
 		return -ENOMEM;
@@ -1605,6 +1701,11 @@ static int omap_dma_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (od->cfg->may_lose_context) {
+		od->nb.notifier_call = omap_dma_context_notifier;
+		cpu_pm_register_notifier(&od->nb);
+	}
+
 	dev_info(&pdev->dev, "OMAP DMA engine driver%s\n",
 		 od->ll123_supported ? " (LinkedList1/2/3 supported)" : "");
 
@@ -1615,6 +1716,9 @@ static int omap_dma_remove(struct platform_device *pdev)
 {
 	struct omap_dmadev *od = platform_get_drvdata(pdev);
 	int irq;
+
+	if (od->cfg->may_lose_context)
+		cpu_pm_unregister_notifier(&od->nb);
 
 	if (pdev->dev.of_node)
 		of_dma_controller_free(pdev->dev.of_node);
@@ -1637,12 +1741,34 @@ static int omap_dma_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct omap_dma_config omap2420_data = {
+	.lch_end = CCFN,
+};
+
+static const struct omap_dma_config omap2430_data = {
+	.lch_end = CCFN,
+};
+
+static const struct omap_dma_config omap3430_data = {
+	.lch_end = CCFN,
+	.may_lose_context = true,
+};
+
+static const struct omap_dma_config omap3630_data = {
+	.lch_end = CCDN,
+	.may_lose_context = true,
+};
+
+static const struct omap_dma_config omap4_data = {
+	.lch_end = CCDN,
+};
+
 static const struct of_device_id omap_dma_match[] = {
-	{ .compatible = "ti,omap2420-sdma", },
-	{ .compatible = "ti,omap2430-sdma", },
-	{ .compatible = "ti,omap3430-sdma", },
-	{ .compatible = "ti,omap3630-sdma", },
-	{ .compatible = "ti,omap4430-sdma", },
+	{ .compatible = "ti,omap2420-sdma", .data = &omap2420_data, },
+	{ .compatible = "ti,omap2430-sdma", .data = &omap2430_data, },
+	{ .compatible = "ti,omap3430-sdma", .data = &omap3430_data, },
+	{ .compatible = "ti,omap3630-sdma", .data = &omap3630_data, },
+	{ .compatible = "ti,omap4430-sdma", .data = &omap4_data, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_dma_match);
