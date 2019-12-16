@@ -1028,6 +1028,15 @@ static int put_v4l2_ext_controls32(struct file *file,
 	return 0;
 }
 
+#ifdef CONFIG_X86_64
+/*
+ * x86 is the only compat architecture with different struct alignment
+ * between 32-bit and 64-bit tasks.
+ *
+ * On all other architectures, v4l2_event32 and v4l2_event32_time32 are
+ * the same as v4l2_event and v4l2_event_time32, so we can use the native
+ * handlers, converting v4l2_event to v4l2_event_time32 if necessary.
+ */
 struct v4l2_event32 {
 	__u32				type;
 	union {
@@ -1036,7 +1045,23 @@ struct v4l2_event32 {
 	} u;
 	__u32				pending;
 	__u32				sequence;
-	struct compat_timespec		timestamp;
+	struct {
+		compat_s64		tv_sec;
+		compat_s64		tv_nsec;
+	} timestamp;
+	__u32				id;
+	__u32				reserved[8];
+};
+
+struct v4l2_event32_time32 {
+	__u32				type;
+	union {
+		compat_s64		value64;
+		__u8			data[64];
+	} u;
+	__u32				pending;
+	__u32				sequence;
+	struct old_timespec32		timestamp;
 	__u32				id;
 	__u32				reserved[8];
 };
@@ -1056,6 +1081,23 @@ static int put_v4l2_event32(struct v4l2_event __user *p64,
 		return -EFAULT;
 	return 0;
 }
+
+static int put_v4l2_event32_time32(struct v4l2_event_time32 __user *p64,
+				   struct v4l2_event32_time32 __user *p32)
+{
+	if (!access_ok(p32, sizeof(*p32)) ||
+	    assign_in_user(&p32->type, &p64->type) ||
+	    copy_in_user(&p32->u, &p64->u, sizeof(p64->u)) ||
+	    assign_in_user(&p32->pending, &p64->pending) ||
+	    assign_in_user(&p32->sequence, &p64->sequence) ||
+	    assign_in_user(&p32->timestamp.tv_sec, &p64->timestamp.tv_sec) ||
+	    assign_in_user(&p32->timestamp.tv_nsec, &p64->timestamp.tv_nsec) ||
+	    assign_in_user(&p32->id, &p64->id) ||
+	    copy_in_user(p32->reserved, p64->reserved, sizeof(p32->reserved)))
+		return -EFAULT;
+	return 0;
+}
+#endif
 
 struct v4l2_edid32 {
 	__u32 pad;
@@ -1121,6 +1163,7 @@ static int put_v4l2_edid32(struct v4l2_edid __user *p64,
 #define VIDIOC_S_EXT_CTRLS32    _IOWR('V', 72, struct v4l2_ext_controls32)
 #define VIDIOC_TRY_EXT_CTRLS32  _IOWR('V', 73, struct v4l2_ext_controls32)
 #define	VIDIOC_DQEVENT32	_IOR ('V', 89, struct v4l2_event32)
+#define	VIDIOC_DQEVENT32_TIME32	_IOR ('V', 89, struct v4l2_event32_time32)
 #define VIDIOC_CREATE_BUFS32	_IOWR('V', 92, struct v4l2_create_buffers32)
 #define VIDIOC_PREPARE_BUF32	_IOWR('V', 93, struct v4l2_buffer32)
 
@@ -1202,7 +1245,10 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	case VIDIOC_G_EXT_CTRLS32: ncmd = VIDIOC_G_EXT_CTRLS; break;
 	case VIDIOC_S_EXT_CTRLS32: ncmd = VIDIOC_S_EXT_CTRLS; break;
 	case VIDIOC_TRY_EXT_CTRLS32: ncmd = VIDIOC_TRY_EXT_CTRLS; break;
+#ifdef CONFIG_X86_64
 	case VIDIOC_DQEVENT32: ncmd = VIDIOC_DQEVENT; break;
+	case VIDIOC_DQEVENT32_TIME32: ncmd = VIDIOC_DQEVENT_TIME32; break;
+#endif
 	case VIDIOC_OVERLAY32: ncmd = VIDIOC_OVERLAY; break;
 	case VIDIOC_STREAMON32: ncmd = VIDIOC_STREAMON; break;
 	case VIDIOC_STREAMOFF32: ncmd = VIDIOC_STREAMOFF; break;
@@ -1336,10 +1382,16 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 		}
 		compatible_arg = 0;
 		break;
+#ifdef CONFIG_X86_64
 	case VIDIOC_DQEVENT32:
 		err = alloc_userspace(sizeof(struct v4l2_event), 0, &new_p64);
 		compatible_arg = 0;
 		break;
+	case VIDIOC_DQEVENT32_TIME32:
+		err = alloc_userspace(sizeof(struct v4l2_event_time32), 0, &new_p64);
+		compatible_arg = 0;
+		break;
+#endif
 	}
 	if (err)
 		return err;
@@ -1404,9 +1456,15 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 		err = put_v4l2_framebuffer32(new_p64, p32);
 		break;
 
+#ifdef CONFIG_X86_64
 	case VIDIOC_DQEVENT32:
 		err = put_v4l2_event32(new_p64, p32);
 		break;
+
+	case VIDIOC_DQEVENT32_TIME32:
+		err = put_v4l2_event32_time32(new_p64, p32);
+		break;
+#endif
 
 	case VIDIOC_G_EDID32:
 		err = put_v4l2_edid32(new_p64, p32);
