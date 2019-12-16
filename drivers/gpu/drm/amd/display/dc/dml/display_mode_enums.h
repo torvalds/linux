@@ -85,7 +85,7 @@ enum dm_swizzle_mode {
 	dm_sw_var_s_x = 29,
 	dm_sw_var_d_x = 30,
 	dm_sw_64kb_r_x,
-	dm_sw_gfx7_2d_thin_lvp,
+	dm_sw_gfx7_2d_thin_l_vp,
 	dm_sw_gfx7_2d_thin_gl,
 };
 enum lb_depth {
