@@ -756,34 +756,37 @@ err_unlock:
 static int
 i915_request_await_start(struct i915_request *rq, struct i915_request *signal)
 {
-	struct intel_timeline *tl;
 	struct dma_fence *fence;
 	int err;
 
 	GEM_BUG_ON(i915_request_timeline(rq) ==
 		   rcu_access_pointer(signal->timeline));
 
+	fence = NULL;
 	rcu_read_lock();
-	tl = rcu_dereference(signal->timeline);
-	if (i915_request_started(signal) || !kref_get_unless_zero(&tl->kref))
-		tl = NULL;
-	rcu_read_unlock();
-	if (!tl) /* already started or maybe even completed */
-		return 0;
+	spin_lock_irq(&signal->lock);
+	if (!i915_request_started(signal) &&
+	    !list_is_first(&signal->link,
+			   &rcu_dereference(signal->timeline)->requests)) {
+		struct i915_request *prev = list_prev_entry(signal, link);
 
-	fence = ERR_PTR(-EAGAIN);
-	if (mutex_trylock(&tl->mutex)) {
-		fence = NULL;
-		if (!i915_request_started(signal) &&
-		    !list_is_first(&signal->link, &tl->requests)) {
-			signal = list_prev_entry(signal, link);
-			fence = dma_fence_get(&signal->fence);
+		/*
+		 * Peek at the request before us in the timeline. That
+		 * request will only be valid before it is retired, so
+		 * after acquiring a reference to it, confirm that it is
+		 * still part of the signaler's timeline.
+		 */
+		if (i915_request_get_rcu(prev)) {
+			if (list_next_entry(prev, link) == signal)
+				fence = &prev->fence;
+			else
+				i915_request_put(prev);
 		}
-		mutex_unlock(&tl->mutex);
 	}
-	intel_timeline_put(tl);
-	if (IS_ERR_OR_NULL(fence))
-		return PTR_ERR_OR_ZERO(fence);
+	spin_unlock_irq(&signal->lock);
+	rcu_read_unlock();
+	if (!fence)
+		return 0;
 
 	err = 0;
 	if (intel_timeline_sync_is_later(i915_request_timeline(rq), fence))
