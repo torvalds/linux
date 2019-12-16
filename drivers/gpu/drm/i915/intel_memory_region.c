@@ -73,6 +73,9 @@ __intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
 		min_order = ilog2(size) - ilog2(mem->mm.chunk_size);
 	}
 
+	if (size > BIT(mem->mm.max_order) * mem->mm.chunk_size)
+		return -E2BIG;
+
 	n_pages = size >> ilog2(mem->mm.chunk_size);
 
 	mutex_lock(&mem->mm_lock);

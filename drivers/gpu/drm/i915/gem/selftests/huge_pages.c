@@ -1420,7 +1420,7 @@ try_again:
 
 		err = i915_gem_object_pin_pages(obj);
 		if (err) {
-			if (err == -ENXIO) {
+			if (err == -ENXIO || err == -E2BIG) {
 				i915_gem_object_put(obj);
 				size >>= 1;
 				goto try_again;
