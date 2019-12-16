@@ -199,7 +199,6 @@ struct usdhi6_host {
 
 	/* Pin control */
 	struct pinctrl *pinctrl;
-	struct pinctrl_state *pins_default;
 	struct pinctrl_state *pins_uhs;
 };
 
@@ -1162,8 +1161,7 @@ static int usdhi6_set_pinstates(struct usdhi6_host *host, int voltage)
 					    host->pins_uhs);
 
 	default:
-		return pinctrl_select_state(host->pinctrl,
-					    host->pins_default);
+		return pinctrl_select_default_state(mmc_dev(host->mmc));
 	}
 }
 
@@ -1770,17 +1768,6 @@ static int usdhi6_probe(struct platform_device *pdev)
 	}
 
 	host->pins_uhs = pinctrl_lookup_state(host->pinctrl, "state_uhs");
-	if (!IS_ERR(host->pins_uhs)) {
-		host->pins_default = pinctrl_lookup_state(host->pinctrl,
-							  PINCTRL_STATE_DEFAULT);
-
-		if (IS_ERR(host->pins_default)) {
-			dev_err(dev,
-				"UHS pinctrl requires a default pin state.\n");
-			ret = PTR_ERR(host->pins_default);
-			goto e_free_mmc;
-		}
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->base = devm_ioremap_resource(dev, res);

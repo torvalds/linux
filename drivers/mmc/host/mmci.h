@@ -404,7 +404,6 @@ struct mmci_host {
 	struct mmci_host_ops	*ops;
 	struct variant_data	*variant;
 	struct pinctrl		*pinctrl;
-	struct pinctrl_state	*pins_default;
 	struct pinctrl_state	*pins_opendrain;
 
 	u8			hw_designer;
