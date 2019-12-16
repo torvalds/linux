@@ -570,7 +570,7 @@ static inline int crypto_wait_req(int err, struct crypto_wait *wait)
 		reinit_completion(&wait->completion);
 		err = wait->err;
 		break;
-	};
+	}
 
 	return err;
 }
