@@ -72,9 +72,6 @@ int bch2_replicas_set_usage(struct bch_fs *,
 
 /* iterate over superblock replicas - used by userspace tools: */
 
-#define replicas_entry_bytes(_i)					\
-	(offsetof(typeof(*(_i)), devs) + (_i)->nr_devs)
-
 #define replicas_entry_next(_i)						\
 	((typeof(_i)) ((void *) (_i) + replicas_entry_bytes(_i)))
 

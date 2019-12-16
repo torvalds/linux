@@ -6,6 +6,7 @@
 #include "buckets.h"
 #include "chardev.h"
 #include "move.h"
+#include "replicas.h"
 #include "super.h"
 #include "super-io.h"
 
@@ -371,13 +372,85 @@ err:
 	return ret;
 }
 
-static long bch2_ioctl_usage(struct bch_fs *c,
-			     struct bch_ioctl_usage __user *user_arg)
+static long bch2_ioctl_fs_usage(struct bch_fs *c,
+				struct bch_ioctl_fs_usage __user *user_arg)
 {
-	struct bch_ioctl_usage arg;
+	struct bch_ioctl_fs_usage *arg = NULL;
+	struct bch_replicas_usage *dst_e, *dst_end;
+	struct bch_fs_usage_online *src;
+	u32 replica_entries_bytes;
+	unsigned i;
+	int ret = 0;
+
+	if (!test_bit(BCH_FS_STARTED, &c->flags))
+		return -EINVAL;
+
+	if (get_user(replica_entries_bytes, &user_arg->replica_entries_bytes))
+		return -EFAULT;
+
+	arg = kzalloc(sizeof(*arg) + replica_entries_bytes, GFP_KERNEL);
+	if (!arg)
+		return -ENOMEM;
+
+	src = bch2_fs_usage_read(c);
+	if (!src) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	arg->capacity		= c->capacity;
+	arg->used		= bch2_fs_sectors_used(c, src);
+	arg->online_reserved	= src->online_reserved;
+
+	for (i = 0; i < BCH_REPLICAS_MAX; i++)
+		arg->persistent_reserved[i] = src->u.persistent_reserved[i];
+
+	dst_e	= arg->replicas;
+	dst_end = (void *) arg->replicas + replica_entries_bytes;
+
+	for (i = 0; i < c->replicas.nr; i++) {
+		struct bch_replicas_entry *src_e =
+			cpu_replicas_entry(&c->replicas, i);
+
+		if (replicas_usage_next(dst_e) > dst_end) {
+			ret = -ERANGE;
+			break;
+		}
+
+		dst_e->sectors		= src->u.replicas[i];
+		dst_e->r		= *src_e;
+
+		/* recheck after setting nr_devs: */
+		if (replicas_usage_next(dst_e) > dst_end) {
+			ret = -ERANGE;
+			break;
+		}
+
+		memcpy(dst_e->r.devs, src_e->devs, src_e->nr_devs);
+
+		dst_e = replicas_usage_next(dst_e);
+	}
+
+	arg->replica_entries_bytes = (void *) dst_e - (void *) arg->replicas;
+
+	percpu_up_read(&c->mark_lock);
+	kfree(src);
+
+	if (!ret)
+		ret = copy_to_user(user_arg, arg,
+			sizeof(*arg) + arg->replica_entries_bytes);
+err:
+	kfree(arg);
+	return ret;
+}
+
+static long bch2_ioctl_dev_usage(struct bch_fs *c,
+				 struct bch_ioctl_dev_usage __user *user_arg)
+{
+	struct bch_ioctl_dev_usage arg;
+	struct bch_dev_usage src;
 	struct bch_dev *ca;
-	unsigned i, j;
-	int ret;
+	unsigned i;
 
 	if (!test_bit(BCH_FS_STARTED, &c->flags))
 		return -EINVAL;
@@ -385,75 +458,30 @@ static long bch2_ioctl_usage(struct bch_fs *c,
 	if (copy_from_user(&arg, user_arg, sizeof(arg)))
 		return -EFAULT;
 
-	for (i = 0; i < arg.nr_devices; i++) {
-		struct bch_ioctl_dev_usage dst = { .alive = 0 };
+	if ((arg.flags & ~BCH_BY_INDEX) ||
+	    arg.pad[0] ||
+	    arg.pad[1] ||
+	    arg.pad[2])
+		return -EINVAL;
 
-		ret = copy_to_user(&user_arg->devs[i], &dst, sizeof(dst));
-		if (ret)
-			return ret;
+	ca = bch2_device_lookup(c, arg.dev, arg.flags);
+	if (IS_ERR(ca))
+		return PTR_ERR(ca);
+
+	src = bch2_dev_usage_read(c, ca);
+
+	arg.state	= ca->mi.state;
+	arg.bucket_size	= ca->mi.bucket_size;
+	arg.nr_buckets	= ca->mi.nbuckets - ca->mi.first_bucket;
+
+	for (i = 0; i < BCH_DATA_NR; i++) {
+		arg.buckets[i] = src.buckets[i];
+		arg.sectors[i] = src.sectors[i];
 	}
 
-	{
-		struct bch_fs_usage_online *src;
-		struct bch_ioctl_fs_usage dst = {
-			.capacity		= c->capacity,
-		};
+	percpu_ref_put(&ca->ref);
 
-		src = bch2_fs_usage_read(c);
-		if (!src)
-			return -ENOMEM;
-
-		dst.used		= bch2_fs_sectors_used(c, src);
-		dst.online_reserved	= src->online_reserved;
-
-		percpu_up_read(&c->mark_lock);
-
-		for (i = 0; i < BCH_REPLICAS_MAX; i++) {
-			dst.persistent_reserved[i] =
-				src->u.persistent_reserved[i];
-#if 0
-			for (j = 0; j < BCH_DATA_NR; j++)
-				dst.sectors[j][i] = src.replicas[i].data[j];
-#endif
-		}
-
-		kfree(src);
-
-		ret = copy_to_user(&user_arg->fs, &dst, sizeof(dst));
-		if (ret)
-			return ret;
-	}
-
-	for_each_member_device(ca, c, i) {
-		struct bch_dev_usage src = bch2_dev_usage_read(c, ca);
-		struct bch_ioctl_dev_usage dst = {
-			.alive		= 1,
-			.state		= ca->mi.state,
-			.bucket_size	= ca->mi.bucket_size,
-			.nr_buckets	= ca->mi.nbuckets - ca->mi.first_bucket,
-		};
-
-		if (ca->dev_idx >= arg.nr_devices) {
-			percpu_ref_put(&ca->ref);
-			return -ERANGE;
-		}
-
-		if (percpu_ref_tryget(&ca->io_ref)) {
-			dst.dev = huge_encode_dev(ca->disk_sb.bdev->bd_dev);
-			percpu_ref_put(&ca->io_ref);
-		}
-
-		for (j = 0; j < BCH_DATA_NR; j++) {
-			dst.buckets[j] = src.buckets[j];
-			dst.sectors[j] = src.sectors[j];
-		}
-
-		ret = copy_to_user(&user_arg->devs[i], &dst, sizeof(dst));
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return copy_to_user(user_arg, &arg, sizeof(arg));
 }
 
 static long bch2_ioctl_read_super(struct bch_fs *c,
@@ -547,8 +575,10 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 	switch (cmd) {
 	case BCH_IOCTL_QUERY_UUID:
 		return bch2_ioctl_query_uuid(c, arg);
-	case BCH_IOCTL_USAGE:
-		return bch2_ioctl_usage(c, arg);
+	case BCH_IOCTL_FS_USAGE:
+		return bch2_ioctl_fs_usage(c, arg);
+	case BCH_IOCTL_DEV_USAGE:
+		return bch2_ioctl_dev_usage(c, arg);
 	}
 
 	if (!capable(CAP_SYS_ADMIN))

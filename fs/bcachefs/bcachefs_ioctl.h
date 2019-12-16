@@ -68,7 +68,8 @@ struct bch_ioctl_incremental {
 #define BCH_IOCTL_DISK_OFFLINE	_IOW(0xbc,	7,  struct bch_ioctl_disk)
 #define BCH_IOCTL_DISK_SET_STATE _IOW(0xbc,	8,  struct bch_ioctl_disk_set_state)
 #define BCH_IOCTL_DATA		_IOW(0xbc,	10, struct bch_ioctl_data)
-#define BCH_IOCTL_USAGE		_IOWR(0xbc,	11, struct bch_ioctl_usage)
+#define BCH_IOCTL_FS_USAGE	_IOWR(0xbc,	11, struct bch_ioctl_fs_usage)
+#define BCH_IOCTL_DEV_USAGE	_IOWR(0xbc,	11, struct bch_ioctl_dev_usage)
 #define BCH_IOCTL_READ_SUPER	_IOW(0xbc,	12, struct bch_ioctl_read_super)
 #define BCH_IOCTL_DISK_GET_IDX	_IOW(0xbc,	13,  struct bch_ioctl_disk_get_idx)
 #define BCH_IOCTL_DISK_RESIZE	_IOW(0xbc,	14,  struct bch_ioctl_disk_resize)
@@ -224,46 +225,59 @@ struct bch_ioctl_data_event {
 	};
 } __attribute__((packed, aligned(8)));
 
+struct bch_replicas_usage {
+	__u64			sectors;
+	struct bch_replicas_entry r;
+} __attribute__((packed));
+
+static inline struct bch_replicas_usage *
+replicas_usage_next(struct bch_replicas_usage *u)
+{
+	return (void *) u + replicas_entry_bytes(&u->r) + 8;
+}
+
+/*
+ * BCH_IOCTL_FS_USAGE: query filesystem disk space usage
+ *
+ * Returns disk space usage broken out by data type, number of replicas, and
+ * by component device
+ *
+ * @replica_entries_bytes - size, in bytes, allocated for replica usage entries
+ *
+ * On success, @replica_entries_bytes will be changed to indicate the number of
+ * bytes actually used.
+ *
+ * Returns -ERANGE if @replica_entries_bytes was too small
+ */
+struct bch_ioctl_fs_usage {
+	__u64			capacity;
+	__u64			used;
+	__u64			online_reserved;
+	__u64			persistent_reserved[BCH_REPLICAS_MAX];
+
+	__u32			replica_entries_bytes;
+	__u32			pad;
+
+	struct bch_replicas_usage replicas[0];
+};
+
+/*
+ * BCH_IOCTL_DEV_USAGE: query device disk space usage
+ *
+ * Returns disk space usage broken out by data type - both by buckets and
+ * sectors.
+ */
 struct bch_ioctl_dev_usage {
+	__u64			dev;
+	__u32			flags;
 	__u8			state;
-	__u8			alive;
-	__u8			pad[6];
-	__u32			dev;
+	__u8			pad[7];
 
 	__u32			bucket_size;
 	__u64			nr_buckets;
 
 	__u64			buckets[BCH_DATA_NR];
 	__u64			sectors[BCH_DATA_NR];
-};
-
-struct bch_ioctl_fs_usage {
-	__u64			capacity;
-	__u64			used;
-	__u64			online_reserved;
-	__u64			persistent_reserved[BCH_REPLICAS_MAX];
-	__u64			sectors[BCH_DATA_NR][BCH_REPLICAS_MAX];
-};
-
-/*
- * BCH_IOCTL_USAGE: query filesystem disk space usage
- *
- * Returns disk space usage broken out by data type, number of replicas, and
- * by component device
- *
- * @nr_devices	- number of devices userspace allocated space for in @devs
- *
- * On success, @fs and @devs will be filled out appropriately and devs[i].alive
- * will indicate if a device was present in that slot
- *
- * Returns -ERANGE if @nr_devices was too small
- */
-struct bch_ioctl_usage {
-	__u16			nr_devices;
-	__u16			pad[3];
-
-	struct bch_ioctl_fs_usage fs;
-	struct bch_ioctl_dev_usage devs[0];
 };
 
 /*

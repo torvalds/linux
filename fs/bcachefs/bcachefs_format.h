@@ -1084,6 +1084,9 @@ struct bch_replicas_entry {
 	__u8			devs[];
 } __attribute__((packed));
 
+#define replicas_entry_bytes(_i)					\
+	(offsetof(typeof(*(_i)), devs) + (_i)->nr_devs)
+
 struct bch_sb_field_replicas {
 	struct bch_sb_field	field;
 	struct bch_replicas_entry entries[];
