@@ -55,6 +55,7 @@ static void vcn_v2_5_set_enc_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v2_5_set_irq_funcs(struct amdgpu_device *adev);
 static int vcn_v2_5_set_powergating_state(void *handle,
 				enum amd_powergating_state state);
+static int vcn_v2_5_sriov_start(struct amdgpu_device *adev);
 
 static int amdgpu_ih_clientid_vcns[] = {
 	SOC15_IH_CLIENTID_VCN,
@@ -796,6 +797,148 @@ static int vcn_v2_5_mmsch_start(struct amdgpu_device *adev,
 	}
 
 	return 0;
+}
+
+static int vcn_v2_5_sriov_start(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	uint32_t offset, size, tmp, i, rb_bufsz;
+	uint32_t table_size = 0;
+	struct mmsch_v1_0_cmd_direct_write direct_wt = { { 0 } };
+	struct mmsch_v1_0_cmd_direct_read_modify_write direct_rd_mod_wt = { { 0 } };
+	struct mmsch_v1_0_cmd_direct_polling direct_poll = { { 0 } };
+	struct mmsch_v1_0_cmd_end end = { { 0 } };
+	uint32_t *init_table = adev->virt.mm_table.cpu_addr;
+	struct mmsch_v1_1_init_header *header = (struct mmsch_v1_1_init_header *)init_table;
+
+	direct_wt.cmd_header.command_type = MMSCH_COMMAND__DIRECT_REG_WRITE;
+	direct_rd_mod_wt.cmd_header.command_type = MMSCH_COMMAND__DIRECT_REG_READ_MODIFY_WRITE;
+	direct_poll.cmd_header.command_type = MMSCH_COMMAND__DIRECT_REG_POLLING;
+	end.cmd_header.command_type = MMSCH_COMMAND__END;
+
+	header->version = MMSCH_VERSION;
+	header->total_size = sizeof(struct mmsch_v1_1_init_header) >> 2;
+	init_table += header->total_size;
+
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		header->eng[i].table_offset = header->total_size;
+		header->eng[i].init_status = 0;
+		header->eng[i].table_size = 0;
+
+		table_size = 0;
+
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(
+			SOC15_REG_OFFSET(UVD, i, mmUVD_STATUS),
+			~UVD_STATUS__UVD_BUSY, UVD_STATUS__UVD_BUSY);
+
+		size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.fw->size + 4);
+		/* mc resume*/
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+			MMSCH_V1_0_INSERT_DIRECT_WT(
+				SOC15_REG_OFFSET(UVD, i,
+					mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
+				adev->firmware.ucode[AMDGPU_UCODE_ID_VCN + i].tmr_mc_addr_lo);
+			MMSCH_V1_0_INSERT_DIRECT_WT(
+				SOC15_REG_OFFSET(UVD, i,
+					mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
+				adev->firmware.ucode[AMDGPU_UCODE_ID_VCN + i].tmr_mc_addr_hi);
+			offset = 0;
+			MMSCH_V1_0_INSERT_DIRECT_WT(
+				SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CACHE_OFFSET0), 0);
+		} else {
+			MMSCH_V1_0_INSERT_DIRECT_WT(
+				SOC15_REG_OFFSET(UVD, i,
+					mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
+				lower_32_bits(adev->vcn.inst[i].gpu_addr));
+			MMSCH_V1_0_INSERT_DIRECT_WT(
+				SOC15_REG_OFFSET(UVD, i,
+					mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
+				upper_32_bits(adev->vcn.inst[i].gpu_addr));
+			offset = size;
+			MMSCH_V1_0_INSERT_DIRECT_WT(
+				SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CACHE_OFFSET0),
+				AMDGPU_UVD_FIRMWARE_OFFSET >> 3);
+		}
+
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CACHE_SIZE0),
+			size);
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i,
+				mmUVD_LMI_VCPU_CACHE1_64BIT_BAR_LOW),
+			lower_32_bits(adev->vcn.inst[i].gpu_addr + offset));
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i,
+				mmUVD_LMI_VCPU_CACHE1_64BIT_BAR_HIGH),
+			upper_32_bits(adev->vcn.inst[i].gpu_addr + offset));
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CACHE_OFFSET1),
+			0);
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CACHE_SIZE1),
+			AMDGPU_VCN_STACK_SIZE);
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i,
+				mmUVD_LMI_VCPU_CACHE2_64BIT_BAR_LOW),
+			lower_32_bits(adev->vcn.inst[i].gpu_addr + offset +
+				AMDGPU_VCN_STACK_SIZE));
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i,
+				mmUVD_LMI_VCPU_CACHE2_64BIT_BAR_HIGH),
+			upper_32_bits(adev->vcn.inst[i].gpu_addr + offset +
+				AMDGPU_VCN_STACK_SIZE));
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CACHE_OFFSET2),
+			0);
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i, mmUVD_VCPU_CACHE_SIZE2),
+			AMDGPU_VCN_CONTEXT_SIZE);
+
+		ring = &adev->vcn.inst[i].ring_enc[0];
+		ring->wptr = 0;
+
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i, mmUVD_RB_BASE_LO),
+			lower_32_bits(ring->gpu_addr));
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i, mmUVD_RB_BASE_HI),
+			upper_32_bits(ring->gpu_addr));
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i, mmUVD_RB_SIZE),
+			ring->ring_size / 4);
+
+		ring = &adev->vcn.inst[i].ring_dec;
+		ring->wptr = 0;
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i,
+				mmUVD_LMI_RBC_RB_64BIT_BAR_LOW),
+			lower_32_bits(ring->gpu_addr));
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i,
+				mmUVD_LMI_RBC_RB_64BIT_BAR_HIGH),
+			upper_32_bits(ring->gpu_addr));
+
+		/* force RBC into idle state */
+		rb_bufsz = order_base_2(ring->ring_size);
+		tmp = REG_SET_FIELD(0, UVD_RBC_RB_CNTL, RB_BUFSZ, rb_bufsz);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BLKSZ, 1);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_FETCH, 1);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_UPDATE, 1);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_RPTR_WR_EN, 1);
+		MMSCH_V1_0_INSERT_DIRECT_WT(
+			SOC15_REG_OFFSET(UVD, i, mmUVD_RBC_RB_CNTL), tmp);
+
+		/* add end packet */
+		memcpy((void *)init_table, &end, sizeof(struct mmsch_v1_0_cmd_end));
+		table_size += sizeof(struct mmsch_v1_0_cmd_end) / 4;
+		init_table += sizeof(struct mmsch_v1_0_cmd_end) / 4;
+
+		/* refine header */
+		header->eng[i].table_size = table_size;
+		header->total_size += table_size;
+	}
+
+	return vcn_v2_5_mmsch_start(adev, &adev->virt.mm_table);
 }
 
 static int vcn_v2_5_stop(struct amdgpu_device *adev)
