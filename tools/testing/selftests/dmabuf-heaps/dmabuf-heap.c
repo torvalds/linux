@@ -116,7 +116,7 @@ static int dmabuf_heap_alloc_fdflags(int fd, size_t len, unsigned int fd_flags,
 	if (!dmabuf_fd)
 		return -EINVAL;
 
-	ret = ioctl(fd, DMA_HEAP_IOC_ALLOC, &data);
+	ret = ioctl(fd, DMA_HEAP_IOCTL_ALLOC, &data);
 	if (ret < 0)
 		return ret;
 	*dmabuf_fd = (int)data.fd;

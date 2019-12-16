@@ -107,7 +107,7 @@ static long dma_heap_ioctl_allocate(struct file *file, void *data)
 }
 
 unsigned int dma_heap_ioctl_cmds[] = {
-	DMA_HEAP_IOC_ALLOC,
+	DMA_HEAP_IOCTL_ALLOC,
 };
 
 static long dma_heap_ioctl(struct file *file, unsigned int ucmd,
@@ -153,7 +153,7 @@ static long dma_heap_ioctl(struct file *file, unsigned int ucmd,
 		memset(kdata + in_size, 0, ksize - in_size);
 
 	switch (kcmd) {
-	case DMA_HEAP_IOC_ALLOC:
+	case DMA_HEAP_IOCTL_ALLOC:
 		ret = dma_heap_ioctl_allocate(file, kdata);
 		break;
 	default:
