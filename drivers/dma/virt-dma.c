@@ -122,7 +122,6 @@ void vchan_dma_desc_free_list(struct virt_dma_chan *vc, struct list_head *head)
 			list_move_tail(&vd->node, &vc->desc_allocated);
 			spin_unlock_irqrestore(&vc->lock, flags);
 		} else {
-			dev_dbg(vc->chan.device->dev, "txd %p: freeing\n", vd);
 			list_del(&vd->node);
 			vc->desc_free(vd);
 		}
