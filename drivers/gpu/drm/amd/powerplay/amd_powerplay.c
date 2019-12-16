@@ -278,9 +278,6 @@ static int pp_dpm_load_fw(void *handle)
 	if (!hwmgr || !hwmgr->smumgr_funcs || !hwmgr->smumgr_funcs->start_smu)
 		return -EINVAL;
 
-	if (!hwmgr->not_vf)
-		return 0;
-
 	if (hwmgr->smumgr_funcs->start_smu(hwmgr)) {
 		pr_err("fw load failed\n");
 		return -EINVAL;

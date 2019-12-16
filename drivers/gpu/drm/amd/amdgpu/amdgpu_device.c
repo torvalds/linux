@@ -1810,7 +1810,8 @@ static int amdgpu_device_fw_loading(struct amdgpu_device *adev)
 		}
 	}
 
-	r = amdgpu_pm_load_smu_firmware(adev, &smu_version);
+	if (!amdgpu_sriov_vf(adev) || adev->asic_type == CHIP_TONGA)
+		r = amdgpu_pm_load_smu_firmware(adev, &smu_version);
 
 	return r;
 }
