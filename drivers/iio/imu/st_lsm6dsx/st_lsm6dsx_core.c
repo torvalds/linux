@@ -54,6 +54,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/bitfield.h>
 
@@ -1804,14 +1805,14 @@ static const struct iio_info st_lsm6dsx_gyro_info = {
 	.hwfifo_set_watermark = st_lsm6dsx_set_watermark,
 };
 
-static int st_lsm6dsx_of_get_drdy_pin(struct st_lsm6dsx_hw *hw, int *drdy_pin)
+static int st_lsm6dsx_get_drdy_pin(struct st_lsm6dsx_hw *hw, int *drdy_pin)
 {
-	struct device_node *np = hw->dev->of_node;
+	struct device *dev = hw->dev;
 
-	if (!np)
+	if (!dev_fwnode(dev))
 		return -EINVAL;
 
-	return of_property_read_u32(np, "st,drdy-int-pin", drdy_pin);
+	return device_property_read_u32(dev, "st,drdy-int-pin", drdy_pin);
 }
 
 static int
@@ -1820,7 +1821,7 @@ st_lsm6dsx_get_drdy_reg(struct st_lsm6dsx_hw *hw,
 {
 	int err = 0, drdy_pin;
 
-	if (st_lsm6dsx_of_get_drdy_pin(hw, &drdy_pin) < 0) {
+	if (st_lsm6dsx_get_drdy_pin(hw, &drdy_pin) < 0) {
 		struct st_sensors_platform_data *pdata;
 		struct device *dev = hw->dev;
 
@@ -1849,15 +1850,15 @@ st_lsm6dsx_get_drdy_reg(struct st_lsm6dsx_hw *hw,
 static int st_lsm6dsx_init_shub(struct st_lsm6dsx_hw *hw)
 {
 	const struct st_lsm6dsx_shub_settings *hub_settings;
-	struct device_node *np = hw->dev->of_node;
 	struct st_sensors_platform_data *pdata;
+	struct device *dev = hw->dev;
 	unsigned int data;
 	int err = 0;
 
 	hub_settings = &hw->settings->shub_settings;
 
-	pdata = (struct st_sensors_platform_data *)hw->dev->platform_data;
-	if ((np && of_property_read_bool(np, "st,pullups")) ||
+	pdata = (struct st_sensors_platform_data *)dev->platform_data;
+	if ((dev_fwnode(dev) && device_property_read_bool(dev, "st,pullups")) ||
 	    (pdata && pdata->pullups)) {
 		err = st_lsm6dsx_set_page(hw, true);
 		if (err < 0)
@@ -2135,9 +2136,9 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 
 static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 {
-	struct device_node *np = hw->dev->of_node;
 	struct st_sensors_platform_data *pdata;
 	const struct st_lsm6dsx_reg *reg;
+	struct device *dev = hw->dev;
 	unsigned long irq_type;
 	bool irq_active_low;
 	int err;
@@ -2165,8 +2166,8 @@ static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 	if (err < 0)
 		return err;
 
-	pdata = (struct st_sensors_platform_data *)hw->dev->platform_data;
-	if ((np && of_property_read_bool(np, "drive-open-drain")) ||
+	pdata = (struct st_sensors_platform_data *)dev->platform_data;
+	if ((dev_fwnode(dev) && device_property_read_bool(dev, "drive-open-drain")) ||
 	    (pdata && pdata->open_drain)) {
 		reg = &hw->settings->irq_config.od;
 		err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
@@ -2196,7 +2197,6 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 {
 	struct st_sensors_platform_data *pdata = dev->platform_data;
 	const struct st_lsm6dsx_shub_settings *hub_settings;
-	struct device_node *np = dev->of_node;
 	struct st_lsm6dsx_hw *hw;
 	const char *name = NULL;
 	int i, err;
@@ -2259,7 +2259,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-	if ((np && of_property_read_bool(np, "wakeup-source")) ||
+	if ((dev_fwnode(dev) && device_property_read_bool(dev, "wakeup-source")) ||
 	    (pdata && pdata->wakeup_source))
 		device_init_wakeup(dev, true);
 
