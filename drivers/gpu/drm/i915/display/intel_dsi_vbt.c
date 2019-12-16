@@ -25,6 +25,7 @@
  */
 
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/slab.h>
 
@@ -686,8 +687,18 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 /*
  * On some BYT/CHT devs some sequences are incomplete and we need to manually
- * control some GPIOs.
+ * control some GPIOs. We need to add a GPIO lookup table before we get these.
  */
+static struct gpiod_lookup_table pmic_panel_gpio_table = {
+	/* Intel GFX is consumer */
+	.dev_id = "0000:00:02.0",
+	.table = {
+		/* Panel EN/DISABLE */
+		GPIO_LOOKUP("gpio_crystalcove", 94, "panel", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 void intel_dsi_vbt_gpio_init(struct intel_dsi *intel_dsi, bool panel_is_on)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
@@ -697,6 +708,8 @@ void intel_dsi_vbt_gpio_init(struct intel_dsi *intel_dsi, bool panel_is_on)
 
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    mipi_config->pwm_blc == PPS_BLC_PMIC) {
+		gpiod_add_lookup_table(&pmic_panel_gpio_table);
+
 		intel_dsi->gpio_panel = gpiod_get(dev->dev, "panel", flags);
 		if (IS_ERR(intel_dsi->gpio_panel)) {
 			DRM_ERROR("Failed to own gpio for panel control\n");
@@ -707,8 +720,16 @@ void intel_dsi_vbt_gpio_init(struct intel_dsi *intel_dsi, bool panel_is_on)
 
 void intel_dsi_vbt_gpio_cleanup(struct intel_dsi *intel_dsi)
 {
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
+
 	if (intel_dsi->gpio_panel) {
 		gpiod_put(intel_dsi->gpio_panel);
 		intel_dsi->gpio_panel = NULL;
 	}
+
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
+	    mipi_config->pwm_blc == PPS_BLC_PMIC)
+		gpiod_remove_lookup_table(&pmic_panel_gpio_table);
 }
