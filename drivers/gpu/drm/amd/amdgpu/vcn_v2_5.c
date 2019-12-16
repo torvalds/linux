@@ -1248,6 +1248,9 @@ static int vcn_v2_5_set_clockgating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	if (enable) {
 		if (vcn_v2_5_is_idle(handle))
 			return -EBUSY;
@@ -1264,6 +1267,9 @@ static int vcn_v2_5_set_powergating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
 	if(state == adev->vcn.cur_state)
 		return 0;
