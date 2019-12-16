@@ -87,8 +87,8 @@ int mlx5i_init(struct mlx5_core_dev *mdev,
 	mlx5e_set_netdev_mtu_boundaries(priv);
 	netdev->mtu = netdev->max_mtu;
 
-	mlx5e_build_nic_params(mdev, NULL, &priv->rss_params, &priv->channels.params,
-			       priv->max_nch, netdev->mtu);
+	mlx5e_build_nic_params(priv, NULL, &priv->rss_params, &priv->channels.params,
+			       netdev->mtu);
 	mlx5i_build_nic_params(mdev, &priv->channels.params);
 
 	mlx5e_timestamp_init(priv);

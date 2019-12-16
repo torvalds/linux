@@ -4739,17 +4739,19 @@ void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 			tirc_default_config[tt].rx_hash_fields;
 }
 
-void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
+void mlx5e_build_nic_params(struct mlx5e_priv *priv,
 			    struct mlx5e_xsk *xsk,
 			    struct mlx5e_rss_params *rss_params,
 			    struct mlx5e_params *params,
-			    u16 max_channels, u16 mtu)
+			    u16 mtu)
 {
+	struct mlx5_core_dev *mdev = priv->mdev;
 	u8 rx_cq_period_mode;
 
 	params->sw_mtu = mtu;
 	params->hard_mtu = MLX5E_ETH_HARD_MTU;
-	params->num_channels = max_channels;
+	params->num_channels = min_t(unsigned int, MLX5E_MAX_NUM_CHANNELS / 2,
+				     priv->max_nch);
 	params->num_tc       = 1;
 
 	/* SQ */
@@ -4986,8 +4988,8 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 	if (err)
 		return err;
 
-	mlx5e_build_nic_params(mdev, &priv->xsk, rss, &priv->channels.params,
-			       priv->max_nch, netdev->mtu);
+	mlx5e_build_nic_params(priv, &priv->xsk, rss, &priv->channels.params,
+			       netdev->mtu);
 
 	mlx5e_timestamp_init(priv);
 
