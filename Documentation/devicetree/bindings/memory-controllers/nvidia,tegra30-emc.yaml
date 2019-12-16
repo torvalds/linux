@@ -56,7 +56,8 @@ patternProperties:
             maximum: 900000000
 
           nvidia,emc-auto-cal-interval:
-            $ref: /schemas/types.yaml#/definitions/uint32
+            allOf:
+              - $ref: /schemas/types.yaml#/definitions/uint32
             description:
               Pad calibration interval in microseconds.
             minimum: 0
@@ -78,7 +79,8 @@ patternProperties:
               Mode Register 0.
 
           nvidia,emc-zcal-cnt-long:
-            $ref: /schemas/types.yaml#/definitions/uint32
+            allOf:
+              - $ref: /schemas/types.yaml#/definitions/uint32
             description:
               Number of EMC clocks to wait before issuing any commands after
               sending ZCAL_MRW_CMD.
@@ -96,7 +98,8 @@ patternProperties:
               FBIO "read" FIFO periodic resetting enabled.
 
           nvidia,emc-configuration:
-            $ref: /schemas/types.yaml#/definitions/uint32-array
+            allOf:
+              - $ref: /schemas/types.yaml#/definitions/uint32-array
             description:
               EMC timing characterization data. These are the registers
               (see section "18.13.2 EMC Registers" in the TRM) whose values

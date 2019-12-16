@@ -2414,9 +2414,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	intel_psr_compute_config(intel_dp, pipe_config);
 
-	intel_hdcp_transcoder_config(intel_connector,
-				     pipe_config->cpu_transcoder);
-
 	return 0;
 }
 

@@ -138,6 +138,14 @@ void __iomem *ioremap(unsigned long phys_addr, unsigned long size)
 				return NULL;
 	}
 
+	/*
+	 * Map uncached objects in the low part of address space to
+	 * CONFIG_NIOS2_IO_REGION_BASE
+	 */
+	if (IS_MAPPABLE_UNCACHEABLE(phys_addr) &&
+	    IS_MAPPABLE_UNCACHEABLE(last_addr))
+		return (void __iomem *)(CONFIG_NIOS2_IO_REGION_BASE + phys_addr);
+
 	/* Mappings have to be page-aligned */
 	offset = phys_addr & ~PAGE_MASK;
 	phys_addr &= PAGE_MASK;

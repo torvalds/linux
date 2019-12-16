@@ -97,12 +97,12 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 #ifdef CONFIG_SMP
 #ifdef CONFIG_PPC64
 #define PPC_BPF_LOAD_CPU(r)		\
-	do { BUILD_BUG_ON(FIELD_SIZEOF(struct paca_struct, paca_index) != 2);	\
+	do { BUILD_BUG_ON(sizeof_field(struct paca_struct, paca_index) != 2);	\
 		PPC_LHZ_OFFS(r, 13, offsetof(struct paca_struct, paca_index));	\
 	} while (0)
 #else
 #define PPC_BPF_LOAD_CPU(r)     \
-	do { BUILD_BUG_ON(FIELD_SIZEOF(struct task_struct, cpu) != 4);		\
+	do { BUILD_BUG_ON(sizeof_field(struct task_struct, cpu) != 4);		\
 		PPC_LHZ_OFFS(r, 2, offsetof(struct task_struct, cpu));		\
 	} while(0)
 #endif

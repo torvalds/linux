@@ -49,7 +49,6 @@ struct io_worker {
 	struct hlist_nulls_node nulls_node;
 	struct list_head all_list;
 	struct task_struct *task;
-	wait_queue_head_t wait;
 	struct io_wqe *wqe;
 
 	struct io_wq_work *cur_work;
@@ -258,7 +257,7 @@ static bool io_wqe_activate_free_worker(struct io_wqe *wqe)
 
 	worker = hlist_nulls_entry(n, struct io_worker, nulls_node);
 	if (io_worker_get(worker)) {
-		wake_up(&worker->wait);
+		wake_up_process(worker->task);
 		io_worker_release(worker);
 		return true;
 	}
@@ -492,28 +491,46 @@ next:
 	} while (1);
 }
 
+static inline void io_worker_spin_for_work(struct io_wqe *wqe)
+{
+	int i = 0;
+
+	while (++i < 1000) {
+		if (io_wqe_run_queue(wqe))
+			break;
+		if (need_resched())
+			break;
+		cpu_relax();
+	}
+}
+
 static int io_wqe_worker(void *data)
 {
 	struct io_worker *worker = data;
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wq *wq = wqe->wq;
-	DEFINE_WAIT(wait);
+	bool did_work;
 
 	io_worker_start(wqe, worker);
 
+	did_work = false;
 	while (!test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
-		prepare_to_wait(&worker->wait, &wait, TASK_INTERRUPTIBLE);
-
+		set_current_state(TASK_INTERRUPTIBLE);
+loop:
+		if (did_work)
+			io_worker_spin_for_work(wqe);
 		spin_lock_irq(&wqe->lock);
 		if (io_wqe_run_queue(wqe)) {
 			__set_current_state(TASK_RUNNING);
 			io_worker_handle_work(worker);
-			continue;
+			did_work = true;
+			goto loop;
 		}
+		did_work = false;
 		/* drops the lock on success, retry */
 		if (__io_worker_idle(wqe, worker)) {
 			__release(&wqe->lock);
-			continue;
+			goto loop;
 		}
 		spin_unlock_irq(&wqe->lock);
 		if (signal_pending(current))
@@ -525,8 +542,6 @@ static int io_wqe_worker(void *data)
 		    !(worker->flags & IO_WORKER_F_FIXED))
 			break;
 	}
-
-	finish_wait(&worker->wait, &wait);
 
 	if (test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
 		spin_lock_irq(&wqe->lock);
@@ -589,7 +604,6 @@ static bool create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 
 	refcount_set(&worker->ref, 1);
 	worker->nulls_node.pprev = NULL;
-	init_waitqueue_head(&worker->wait);
 	worker->wqe = wqe;
 	spin_lock_init(&worker->lock);
 

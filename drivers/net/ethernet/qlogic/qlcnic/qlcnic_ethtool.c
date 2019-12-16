@@ -20,7 +20,7 @@ struct qlcnic_stats {
 	int stat_offset;
 };
 
-#define QLC_SIZEOF(m) FIELD_SIZEOF(struct qlcnic_adapter, m)
+#define QLC_SIZEOF(m) sizeof_field(struct qlcnic_adapter, m)
 #define QLC_OFF(m) offsetof(struct qlcnic_adapter, m)
 static const u32 qlcnic_fw_dump_level[] = {
 	0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff

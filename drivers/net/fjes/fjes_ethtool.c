@@ -21,7 +21,7 @@ struct fjes_stats {
 
 #define FJES_STAT(name, stat) { \
 	.stat_string = name, \
-	.sizeof_stat = FIELD_SIZEOF(struct fjes_adapter, stat), \
+	.sizeof_stat = sizeof_field(struct fjes_adapter, stat), \
 	.stat_offset = offsetof(struct fjes_adapter, stat) \
 }
 
