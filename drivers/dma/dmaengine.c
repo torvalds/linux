@@ -190,7 +190,7 @@ __dma_device_satisfies_mask(struct dma_device *device,
 
 static struct module *dma_chan_to_owner(struct dma_chan *chan)
 {
-	return chan->device->dev->driver->owner;
+	return chan->device->owner;
 }
 
 /**
@@ -922,6 +922,8 @@ int dma_async_device_register(struct dma_device *device)
 		pr_err("DMAdevice must have dev\n");
 		return -EIO;
 	}
+
+	device->owner = device->dev->driver->owner;
 
 	if (dma_has_cap(DMA_MEMCPY, device->cap_mask) && !device->device_prep_dma_memcpy) {
 		dev_err(device->dev,
