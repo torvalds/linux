@@ -363,9 +363,9 @@ static void mt7603_led_set_config(struct mt76_dev *mt76, u8 delay_on,
 					      mt76);
 	u32 val, addr;
 
-	val = MT_LED_STATUS_DURATION(0xffff) |
-	      MT_LED_STATUS_OFF(delay_off) |
-	      MT_LED_STATUS_ON(delay_on);
+	val = FIELD_PREP(MT_LED_STATUS_DURATION, 0xffff) |
+	      FIELD_PREP(MT_LED_STATUS_OFF, delay_off) |
+	      FIELD_PREP(MT_LED_STATUS_ON, delay_on);
 
 	addr = mt7603_reg_map(dev, MT_LED_STATUS_0(mt76->led_pin));
 	mt76_wr(dev, addr, val);
