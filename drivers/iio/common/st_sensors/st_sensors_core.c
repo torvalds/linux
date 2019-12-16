@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -340,35 +341,6 @@ static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 
 	return pdata;
 }
-
-/**
- * st_sensors_of_name_probe() - device tree probe for ST sensor name
- * @dev: driver model representation of the device.
- * @match: the OF match table for the device, containing compatible strings
- *	but also a .data field with the corresponding internal kernel name
- *	used by this sensor.
- * @name: device name buffer reference.
- * @len: device name buffer length.
- *
- * In effect this function matches a compatible string to an internal kernel
- * name for a certain sensor device, so that the rest of the autodetection can
- * rely on that name from this point on. I2C/SPI devices will be renamed
- * to match the internal kernel convention.
- */
-void st_sensors_of_name_probe(struct device *dev,
-			      const struct of_device_id *match,
-			      char *name, int len)
-{
-	const struct of_device_id *of_id;
-
-	of_id = of_match_device(match, dev);
-	if (!of_id || !of_id->data)
-		return;
-
-	/* The name from the OF match takes precedence if present */
-	strlcpy(name, of_id->data, len);
-}
-EXPORT_SYMBOL(st_sensors_of_name_probe);
 #else
 static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 		struct st_sensors_platform_data *defdata)
@@ -376,6 +348,30 @@ static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 	return NULL;
 }
 #endif
+
+/**
+ * st_sensors_dev_name_probe() - device probe for ST sensor name
+ * @dev: driver model representation of the device.
+ * @name: device name buffer reference.
+ * @len: device name buffer length.
+ *
+ * In effect this function matches an ID to an internal kernel
+ * name for a certain sensor device, so that the rest of the autodetection can
+ * rely on that name from this point on. I2C/SPI devices will be renamed
+ * to match the internal kernel convention.
+ */
+void st_sensors_dev_name_probe(struct device *dev, char *name, int len)
+{
+	const void *match;
+
+	match = device_get_match_data(dev);
+	if (!match)
+		return;
+
+	/* The name from the match takes precedence if present */
+	strlcpy(name, match, len);
+}
+EXPORT_SYMBOL(st_sensors_dev_name_probe);
 
 int st_sensors_init_sensor(struct iio_dev *indio_dev,
 					struct st_sensors_platform_data *pdata)

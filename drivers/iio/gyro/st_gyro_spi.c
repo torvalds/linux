@@ -74,8 +74,7 @@ static int st_gyro_spi_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	int err;
 
-	st_sensors_of_name_probe(&spi->dev, st_gyro_of_match,
-				 spi->modalias, sizeof(spi->modalias));
+	st_sensors_dev_name_probe(&spi->dev, spi->modalias, sizeof(spi->modalias));
 
 	settings = st_gyro_get_settings(spi->modalias);
 	if (!settings) {

@@ -70,8 +70,7 @@ static int st_gyro_i2c_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int err;
 
-	st_sensors_of_name_probe(&client->dev, st_gyro_of_match,
-				 client->name, sizeof(client->name));
+	st_sensors_dev_name_probe(&client->dev, client->name, sizeof(client->name));
 
 	settings = st_gyro_get_settings(client->name);
 	if (!settings) {

@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 
@@ -83,18 +82,7 @@ static int st_press_i2c_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret;
 
-	if (client->dev.of_node) {
-		st_sensors_of_name_probe(&client->dev, st_press_of_match,
-					 client->name, sizeof(client->name));
-	} else if (ACPI_HANDLE(&client->dev)) {
-		ret = st_sensors_match_acpi_device(&client->dev);
-		if ((ret < 0) || (ret >= ST_PRESS_MAX))
-			return -ENODEV;
-
-		strlcpy(client->name, st_press_id_table[ret].name,
-			sizeof(client->name));
-	} else if (!id)
-		return -ENODEV;
+	st_sensors_dev_name_probe(&client->dev, client->name, sizeof(client->name));
 
 	settings = st_press_get_settings(client->name);
 	if (!settings) {

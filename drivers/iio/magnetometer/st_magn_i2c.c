@@ -62,8 +62,7 @@ static int st_magn_i2c_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int err;
 
-	st_sensors_of_name_probe(&client->dev, st_magn_of_match,
-				 client->name, sizeof(client->name));
+	st_sensors_dev_name_probe(&client->dev, client->name, sizeof(client->name));
 
 	settings = st_magn_get_settings(client->name);
 	if (!settings) {
