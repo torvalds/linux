@@ -830,8 +830,13 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		if (!amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
 
-		if (unlikely(adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT))
-			amdgpu_device_ip_block_add(adev, &vcn_v2_5_ip_block);
+		if (amdgpu_sriov_vf(adev)) {
+			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
+				amdgpu_device_ip_block_add(adev, &vcn_v2_5_ip_block);
+		} else {
+			if (unlikely(adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT))
+				amdgpu_device_ip_block_add(adev, &vcn_v2_5_ip_block);
+		}
 		if (!amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &jpeg_v2_5_ip_block);
 		break;

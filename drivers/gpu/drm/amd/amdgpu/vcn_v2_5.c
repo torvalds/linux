@@ -90,7 +90,13 @@ static int vcn_v2_5_early_init(void *handle)
 	} else
 		adev->vcn.num_vcn_inst = 1;
 
-	adev->vcn.num_enc_rings = 2;
+	if (amdgpu_sriov_vf(adev)) {
+		adev->vcn.num_vcn_inst = 2;
+		adev->vcn.harvest_config = 0;
+		adev->vcn.num_enc_rings = 1;
+	} else {
+		adev->vcn.num_enc_rings = 2;
+	}
 
 	vcn_v2_5_set_dec_ring_funcs(adev);
 	vcn_v2_5_set_enc_ring_funcs(adev);
@@ -178,7 +184,9 @@ static int vcn_v2_5_sw_init(void *handle)
 
 		ring = &adev->vcn.inst[j].ring_dec;
 		ring->use_doorbell = true;
-		ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 8*j;
+
+		ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) +
+				(amdgpu_sriov_vf(adev) ? 2*j : 8*j);
 		sprintf(ring->name, "vcn_dec_%d", j);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[j].irq, 0);
 		if (r)
@@ -187,12 +195,21 @@ static int vcn_v2_5_sw_init(void *handle)
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 			ring = &adev->vcn.inst[j].ring_enc[i];
 			ring->use_doorbell = true;
-			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 2 + i + 8*j;
+
+			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) +
+					(amdgpu_sriov_vf(adev) ? (1 + i + 2*j) : (2 + i + 8*j));
+
 			sprintf(ring->name, "vcn_enc_%d.%d", j, i);
 			r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[j].irq, 0);
 			if (r)
 				return r;
 		}
+	}
+
+	if (amdgpu_sriov_vf(adev)) {
+		r = amdgpu_virt_alloc_mm_table(adev);
+		if (r)
+			return r;
 	}
 
 	return 0;
@@ -209,6 +226,9 @@ static int vcn_v2_5_sw_fini(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_free_mm_table(adev);
 
 	r = amdgpu_vcn_suspend(adev);
 	if (r)
@@ -230,25 +250,37 @@ static int vcn_v2_5_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring;
-	int i, j, r;
+	int i, j, r = 0;
+
+	if (amdgpu_sriov_vf(adev))
+		r = vcn_v2_5_sriov_start(adev);
 
 	for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
 		if (adev->vcn.harvest_config & (1 << j))
 			continue;
-		ring = &adev->vcn.inst[j].ring_dec;
 
-		adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+		if (amdgpu_sriov_vf(adev)) {
+			adev->vcn.inst[j].ring_enc[0].sched.ready = true;
+			adev->vcn.inst[j].ring_enc[1].sched.ready = false;
+			adev->vcn.inst[j].ring_enc[2].sched.ready = false;
+			adev->vcn.inst[j].ring_dec.sched.ready = true;
+		} else {
+
+			ring = &adev->vcn.inst[j].ring_dec;
+
+			adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
 						     ring->doorbell_index, j);
 
-		r = amdgpu_ring_test_helper(ring);
-		if (r)
-			goto done;
-
-		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
-			ring = &adev->vcn.inst[j].ring_enc[i];
 			r = amdgpu_ring_test_helper(ring);
 			if (r)
 				goto done;
+
+			for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+				ring = &adev->vcn.inst[j].ring_enc[i];
+				r = amdgpu_ring_test_helper(ring);
+				if (r)
+					goto done;
+			}
 		}
 	}
 
