@@ -3108,6 +3108,21 @@ static bool str_is_empty(const char *s)
 	return !s || !s[0];
 }
 
+static bool is_flex_arr(const struct btf *btf,
+			const struct bpf_core_accessor *acc,
+			const struct btf_array *arr)
+{
+	const struct btf_type *t;
+
+	/* not a flexible array, if not inside a struct or has non-zero size */
+	if (!acc->name || arr->nelems > 0)
+		return false;
+
+	/* has to be the last member of enclosing struct */
+	t = btf__type_by_id(btf, acc->type_id);
+	return acc->idx == btf_vlen(t) - 1;
+}
+
 /*
  * Turn bpf_field_reloc into a low- and high-level spec representation,
  * validating correctness along the way, as well as calculating resulting
@@ -3145,6 +3160,7 @@ static int bpf_core_spec_parse(const struct btf *btf,
 			       struct bpf_core_spec *spec)
 {
 	int access_idx, parsed_len, i;
+	struct bpf_core_accessor *acc;
 	const struct btf_type *t;
 	const char *name;
 	__u32 id;
@@ -3192,6 +3208,7 @@ static int bpf_core_spec_parse(const struct btf *btf,
 			return -EINVAL;
 
 		access_idx = spec->raw_spec[i];
+		acc = &spec->spec[spec->len];
 
 		if (btf_is_composite(t)) {
 			const struct btf_member *m;
@@ -3209,18 +3226,23 @@ static int bpf_core_spec_parse(const struct btf *btf,
 				if (str_is_empty(name))
 					return -EINVAL;
 
-				spec->spec[spec->len].type_id = id;
-				spec->spec[spec->len].idx = access_idx;
-				spec->spec[spec->len].name = name;
+				acc->type_id = id;
+				acc->idx = access_idx;
+				acc->name = name;
 				spec->len++;
 			}
 
 			id = m->type;
 		} else if (btf_is_array(t)) {
 			const struct btf_array *a = btf_array(t);
+			bool flex;
 
 			t = skip_mods_and_typedefs(btf, a->type, &id);
-			if (!t || access_idx >= a->nelems)
+			if (!t)
+				return -EINVAL;
+
+			flex = is_flex_arr(btf, acc - 1, a);
+			if (!flex && access_idx >= a->nelems)
 				return -EINVAL;
 
 			spec->spec[spec->len].type_id = id;
@@ -3525,12 +3547,14 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 			 */
 			if (i > 0) {
 				const struct btf_array *a;
+				bool flex;
 
 				if (!btf_is_array(targ_type))
 					return 0;
 
 				a = btf_array(targ_type);
-				if (local_acc->idx >= a->nelems)
+				flex = is_flex_arr(targ_btf, targ_acc - 1, a);
+				if (!flex && local_acc->idx >= a->nelems)
 					return 0;
 				if (!skip_mods_and_typedefs(targ_btf, a->type,
 							    &targ_id))
