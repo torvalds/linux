@@ -208,6 +208,11 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 	uint64_t *pte;
 	int r;
 
+	/* Wait for PD/PT moves to be completed */
+	r = amdgpu_sync_fence(&p->job->sync, bo->tbo.moving, false);
+	if (r)
+		return r;
+
 	do {
 		ndw = p->num_dw_left;
 		ndw -= p->job->ibs->length_dw;

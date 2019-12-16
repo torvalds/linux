@@ -86,6 +86,13 @@ static int amdgpu_vm_cpu_update(struct amdgpu_vm_update_params *p,
 {
 	unsigned int i;
 	uint64_t value;
+	int r;
+
+	if (bo->tbo.moving) {
+		r = dma_fence_wait(bo->tbo.moving, true);
+		if (r)
+			return r;
+	}
 
 	pe += (unsigned long)amdgpu_bo_kptr(bo);
 
