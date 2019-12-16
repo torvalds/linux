@@ -273,10 +273,10 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 		d->dev_caps |= HS_CHANNELS_RESERVED;
 
 	/* Check the capabilities register for descriptor loading feature */
-	if (dma_read(CAPS_0, 0) & DMA_HAS_DESCRIPTOR_CAPS)
-		dma_common_ch_end = CCDN;
-	else
+	if (soc_is_omap24xx() || soc_is_omap34xx() || soc_is_am35xx())
 		dma_common_ch_end = CCFN;
+	else
+		dma_common_ch_end = CCDN;
 
 	return 0;
 }
