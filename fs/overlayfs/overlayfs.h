@@ -9,6 +9,9 @@
 #include <linux/fs.h>
 #include "ovl_entry.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt) "overlayfs: " fmt
+
 enum ovl_path_type {
 	__OVL_PATH_UPPER	= (1 << 0),
 	__OVL_PATH_MERGE	= (1 << 1),

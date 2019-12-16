@@ -100,7 +100,7 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat,
 		 * persistent for a given layer configuration.
 		 */
 		if (stat->ino >> shift) {
-			pr_warn_ratelimited("overlayfs: inode number too big (%pd2, ino=%llu, xinobits=%d)\n",
+			pr_warn_ratelimited("inode number too big (%pd2, ino=%llu, xinobits=%d)\n",
 					    dentry, stat->ino, xinobits);
 		} else {
 			if (lower_layer)
@@ -698,7 +698,7 @@ unsigned int ovl_get_nlink(struct dentry *lowerdentry,
 	return nlink;
 
 fail:
-	pr_warn_ratelimited("overlayfs: failed to get index nlink (%pd2, err=%i)\n",
+	pr_warn_ratelimited("failed to get index nlink (%pd2, err=%i)\n",
 			    upperdentry, err);
 	return fallback;
 }
@@ -969,7 +969,7 @@ out:
 	return inode;
 
 out_err:
-	pr_warn_ratelimited("overlayfs: failed to get inode (%i)\n", err);
+	pr_warn_ratelimited("failed to get inode (%i)\n", err);
 	inode = ERR_PTR(err);
 	goto out;
 }
