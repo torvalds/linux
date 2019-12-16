@@ -1125,7 +1125,7 @@ static int stk_vidioc_dqbuf(struct file *filp,
 	sbuf->v4lbuf.flags &= ~V4L2_BUF_FLAG_QUEUED;
 	sbuf->v4lbuf.flags |= V4L2_BUF_FLAG_DONE;
 	sbuf->v4lbuf.sequence = ++dev->sequence;
-	sbuf->v4lbuf.timestamp = ns_to_timeval(ktime_get_ns());
+	v4l2_buffer_set_timestamp(&sbuf->v4lbuf, ktime_get_ns());
 
 	*buf = sbuf->v4lbuf;
 	return 0;
