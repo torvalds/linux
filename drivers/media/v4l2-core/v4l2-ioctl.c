@@ -474,10 +474,10 @@ static void v4l_print_buffer(const void *arg, bool write_only)
 	const struct v4l2_plane *plane;
 	int i;
 
-	pr_cont("%02ld:%02d:%02d.%08ld index=%d, type=%s, request_fd=%d, flags=0x%08x, field=%s, sequence=%d, memory=%s",
-			p->timestamp.tv_sec / 3600,
-			(int)(p->timestamp.tv_sec / 60) % 60,
-			(int)(p->timestamp.tv_sec % 60),
+	pr_cont("%02d:%02d:%02d.%09ld index=%d, type=%s, request_fd=%d, flags=0x%08x, field=%s, sequence=%d, memory=%s",
+			(int)p->timestamp.tv_sec / 3600,
+			((int)p->timestamp.tv_sec / 60) % 60,
+			((int)p->timestamp.tv_sec % 60),
 			(long)p->timestamp.tv_usec,
 			p->index,
 			prt_names(p->type, v4l2_type_names), p->request_fd,
@@ -3029,6 +3029,14 @@ static unsigned int video_translate_cmd(unsigned int cmd)
 #ifdef CONFIG_COMPAT_32BIT_TIME
 	case VIDIOC_DQEVENT_TIME32:
 		return VIDIOC_DQEVENT;
+	case VIDIOC_QUERYBUF_TIME32:
+		return VIDIOC_QUERYBUF;
+	case VIDIOC_QBUF_TIME32:
+		return VIDIOC_QBUF;
+	case VIDIOC_DQBUF_TIME32:
+		return VIDIOC_DQBUF;
+	case VIDIOC_PREPARE_BUF_TIME32:
+		return VIDIOC_PREPARE_BUF;
 #endif
 	}
 
@@ -3047,6 +3055,39 @@ static int video_get_user(void __user *arg, void *parg, unsigned int cmd,
 	}
 
 	switch (cmd) {
+#ifdef CONFIG_COMPAT_32BIT_TIME
+	case VIDIOC_QUERYBUF_TIME32:
+	case VIDIOC_QBUF_TIME32:
+	case VIDIOC_DQBUF_TIME32:
+	case VIDIOC_PREPARE_BUF_TIME32: {
+		struct v4l2_buffer_time32 vb32;
+		struct v4l2_buffer *vb = parg;
+
+		if (copy_from_user(&vb32, arg, sizeof(vb32)))
+			return -EFAULT;
+
+		*vb = (struct v4l2_buffer) {
+			.index		= vb32.index,
+			.type		= vb32.type,
+			.bytesused	= vb32.bytesused,
+			.flags		= vb32.flags,
+			.field		= vb32.field,
+			.timestamp.tv_sec	= vb32.timestamp.tv_sec,
+			.timestamp.tv_usec	= vb32.timestamp.tv_usec,
+			.timecode	= vb32.timecode,
+			.sequence	= vb32.sequence,
+			.memory		= vb32.memory,
+			.m.userptr	= vb32.m.userptr,
+			.length		= vb32.length,
+			.request_fd	= vb32.request_fd,
+		};
+
+		if (cmd == VIDIOC_QUERYBUF_TIME32)
+			vb->request_fd = 0;
+
+		break;
+	}
+#endif
 	default:
 		/*
 		 * In some cases, only a few fields are used as input,
@@ -3097,6 +3138,31 @@ static int video_put_user(void __user *arg, void *parg, unsigned int cmd)
 		memcpy(&ev32.reserved, &ev->reserved, sizeof(ev->reserved));
 
 		if (copy_to_user(arg, &ev32, sizeof(ev32)))
+			return -EFAULT;
+		break;
+	}
+	case VIDIOC_QUERYBUF_TIME32:
+	case VIDIOC_QBUF_TIME32:
+	case VIDIOC_DQBUF_TIME32:
+	case VIDIOC_PREPARE_BUF_TIME32: {
+		struct v4l2_buffer *vb = parg;
+		struct v4l2_buffer_time32 vb32 = {
+			.index		= vb->index,
+			.type		= vb->type,
+			.bytesused	= vb->bytesused,
+			.flags		= vb->flags,
+			.field		= vb->field,
+			.timestamp.tv_sec	= vb->timestamp.tv_sec,
+			.timestamp.tv_usec	= vb->timestamp.tv_usec,
+			.timecode	= vb->timecode,
+			.sequence	= vb->sequence,
+			.memory		= vb->memory,
+			.m.userptr	= vb->m.userptr,
+			.length		= vb->length,
+			.request_fd	= vb->request_fd,
+		};
+
+		if (copy_to_user(arg, &vb32, sizeof(vb32)))
 			return -EFAULT;
 		break;
 	}
