@@ -93,10 +93,6 @@ static int emmc_vendor_storage_init(void)
 	u32 i, max_ver, max_index;
 	u8 *p_buf;
 
-	g_vendor = kmalloc(sizeof(*g_vendor), GFP_KERNEL | GFP_DMA);
-	if (!g_vendor)
-		return -ENOMEM;
-
 	max_ver = 0;
 	max_index = 0;
 	for (i = 0; i < EMMC_VENDOR_PART_NUM; i++) {
@@ -135,8 +131,6 @@ static int emmc_vendor_storage_init(void)
 	}
 	return 0;
 error_exit:
-	kfree(g_vendor);
-	g_vendor = NULL;
 	return -1;
 }
 
@@ -597,6 +591,10 @@ static int vendor_init_thread(void *arg)
 {
 	int ret, try_count = 5;
 
+	g_vendor = kmalloc(sizeof(*g_vendor), GFP_KERNEL | GFP_DMA);
+	if (!g_vendor)
+		return -ENOMEM;
+
 	do {
 		ret = emmc_vendor_storage_init();
 		if (!ret) {
@@ -609,6 +607,9 @@ static int vendor_init_thread(void *arg)
 	if (!ret) {
 		ret = misc_register(&vender_storage_dev);
 		rk_vendor_register(emmc_vendor_read, emmc_vendor_write);
+	} else {
+		kfree(g_vendor);
+		g_vendor = NULL;
 	}
 	pr_info("vendor storage:20190527 ret = %d\n", ret);
 	return ret;
@@ -623,8 +624,11 @@ static int __init vendor_storage_init(void)
 
 static __exit void vendor_storage_deinit(void)
 {
-	if (g_vendor)
+	if (g_vendor) {
 		misc_deregister(&vender_storage_dev);
+		kfree(g_vendor);
+		g_vendor = NULL;
+	}
 }
 
 device_initcall_sync(vendor_storage_init);
