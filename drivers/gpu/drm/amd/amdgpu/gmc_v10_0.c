@@ -46,6 +46,7 @@
 #include "gfxhub_v2_0.h"
 #include "gfxhub_v2_1.h"
 #include "mmhub_v2_0.h"
+#include "mmhub_v2_3.h"
 #include "athub_v2_0.h"
 #include "athub_v2_1.h"
 
@@ -631,7 +632,14 @@ static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 
 static void gmc_v10_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
-	adev->mmhub.funcs = &mmhub_v2_0_funcs;
+	switch (adev->asic_type) {
+	case CHIP_VANGOGH:
+		adev->mmhub.funcs = &mmhub_v2_3_funcs;
+		break;
+	default:
+		adev->mmhub.funcs = &mmhub_v2_0_funcs;
+		break;
+	}
 }
 
 static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
