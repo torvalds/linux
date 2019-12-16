@@ -28,16 +28,10 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <drm/drm.h>
-
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_vcn.h"
 #include "soc15d.h"
-#include "soc15_common.h"
-
-#include "vcn/vcn_1_0_offset.h"
-#include "vcn/vcn_1_0_sh_mask.h"
 
 /* Firmware Names */
 #define FIRMWARE_RAVEN		"amdgpu/raven_vcn.bin"
