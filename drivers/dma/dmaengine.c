@@ -342,6 +342,23 @@ static void balance_ref_count(struct dma_chan *chan)
 	}
 }
 
+static void dma_device_release(struct kref *ref)
+{
+	struct dma_device *device = container_of(ref, struct dma_device, ref);
+
+	list_del_rcu(&device->global_node);
+	dma_channel_rebalance();
+
+	if (device->device_release)
+		device->device_release(device);
+}
+
+static void dma_device_put(struct dma_device *device)
+{
+	lockdep_assert_held(&dma_list_mutex);
+	kref_put(&device->ref, dma_device_release);
+}
+
 /**
  * dma_chan_get - try to grab a dma channel's parent driver module
  * @chan - channel to grab
@@ -362,6 +379,12 @@ static int dma_chan_get(struct dma_chan *chan)
 	if (!try_module_get(owner))
 		return -ENODEV;
 
+	ret = kref_get_unless_zero(&chan->device->ref);
+	if (!ret) {
+		ret = -ENODEV;
+		goto module_put_out;
+	}
+
 	/* allocate upon first client reference */
 	if (chan->device->device_alloc_chan_resources) {
 		ret = chan->device->device_alloc_chan_resources(chan);
@@ -377,6 +400,8 @@ out:
 	return 0;
 
 err_out:
+	dma_device_put(chan->device);
+module_put_out:
 	module_put(owner);
 	return ret;
 }
@@ -402,6 +427,7 @@ static void dma_chan_put(struct dma_chan *chan)
 		chan->device->device_free_chan_resources(chan);
 	}
 
+	dma_device_put(chan->device);
 	module_put(dma_chan_to_owner(chan));
 
 	/* If the channel is used via a DMA request router, free the mapping */
@@ -837,14 +863,14 @@ EXPORT_SYMBOL(dmaengine_get);
  */
 void dmaengine_put(void)
 {
-	struct dma_device *device;
+	struct dma_device *device, *_d;
 	struct dma_chan *chan;
 
 	mutex_lock(&dma_list_mutex);
 	dmaengine_ref_count--;
 	BUG_ON(dmaengine_ref_count < 0);
 	/* drop channel references */
-	list_for_each_entry(device, &dma_device_list, global_node) {
+	list_for_each_entry_safe(device, _d, &dma_device_list, global_node) {
 		if (dma_has_cap(DMA_PRIVATE, device->cap_mask))
 			continue;
 		list_for_each_entry(chan, &device->channels, device_node)
@@ -906,6 +932,10 @@ static int get_dma_id(struct dma_device *device)
 /**
  * dma_async_device_register - registers DMA devices found
  * @device: &dma_device
+ *
+ * After calling this routine the structure should not be freed except in the
+ * device_release() callback which will be called after
+ * dma_async_device_unregister() is called and no further references are taken.
  */
 int dma_async_device_register(struct dma_device *device)
 {
@@ -998,6 +1028,12 @@ int dma_async_device_register(struct dma_device *device)
 		dev_err(device->dev, "Device issue_pending is not defined\n");
 		return -EIO;
 	}
+
+	if (!device->device_release)
+		dev_warn(device->dev,
+			 "WARN: Device release is not defined so it is not safe to unbind this driver while in use\n");
+
+	kref_init(&device->ref);
 
 	/* note: this only matters in the
 	 * CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH=n case
@@ -1115,13 +1151,8 @@ void dma_async_device_unregister(struct dma_device *device)
 {
 	struct dma_chan *chan;
 
-	mutex_lock(&dma_list_mutex);
-	list_del_rcu(&device->global_node);
-	dma_channel_rebalance();
-	mutex_unlock(&dma_list_mutex);
-
 	list_for_each_entry(chan, &device->channels, device_node) {
-		WARN_ONCE(chan->client_count,
+		WARN_ONCE(!device->device_release && chan->client_count,
 			  "%s called while %d clients hold a reference\n",
 			  __func__, chan->client_count);
 		mutex_lock(&dma_list_mutex);
@@ -1130,6 +1161,16 @@ void dma_async_device_unregister(struct dma_device *device)
 		device_unregister(&chan->dev->device);
 		free_percpu(chan->local);
 	}
+
+	mutex_lock(&dma_list_mutex);
+	/*
+	 * setting DMA_PRIVATE ensures the device being torn down will not
+	 * be used in the channel_table
+	 */
+	dma_cap_set(DMA_PRIVATE, device->cap_mask);
+	dma_channel_rebalance();
+	dma_device_put(device);
+	mutex_unlock(&dma_list_mutex);
 }
 EXPORT_SYMBOL(dma_async_device_unregister);
 
