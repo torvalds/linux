@@ -30,10 +30,6 @@
 #include <linux/omap-dma.h>
 
 #include "soc.h"
-#include "omap_hwmod.h"
-#include "omap_device.h"
-
-static enum omap_reg_offsets dma_common_ch_end;
 
 static const struct omap_dma_reg reg_map[] = {
 	[REVISION]	= { 0x0000, 0x00, OMAP_DMA_REG_32BIT },
@@ -80,42 +76,6 @@ static const struct omap_dma_reg reg_map[] = {
 	[CNDP]		= { 0x00d4, 0x60, OMAP_DMA_REG_32BIT },
 	[CCDN]		= { 0x00d8, 0x60, OMAP_DMA_REG_32BIT },
 };
-
-static void __iomem *dma_base;
-static inline void dma_write(u32 val, int reg, int lch)
-{
-	void __iomem *addr = dma_base;
-
-	addr += reg_map[reg].offset;
-	addr += reg_map[reg].stride * lch;
-
-	writel_relaxed(val, addr);
-}
-
-static inline u32 dma_read(int reg, int lch)
-{
-	void __iomem *addr = dma_base;
-
-	addr += reg_map[reg].offset;
-	addr += reg_map[reg].stride * lch;
-
-	return readl_relaxed(addr);
-}
-
-static void omap2_clear_dma(int lch)
-{
-	int i;
-
-	for (i = CSDP; i <= dma_common_ch_end; i += 1)
-		dma_write(0, i, lch);
-}
-
-static void omap2_show_dma_caps(void)
-{
-	u8 revision = dma_read(REVISION, 0) & 0xff;
-	printk(KERN_INFO "OMAP DMA hardware revision %d.%d\n",
-				revision >> 4, revision & 0xf);
-}
 
 static unsigned configure_dma_errata(void)
 {
@@ -221,25 +181,11 @@ struct omap_system_dma_plat_info dma_plat_info = {
 	.reg_map	= reg_map,
 	.channel_stride	= 0x60,
 	.dma_attr	= &dma_attr,
-	.show_dma_caps	= omap2_show_dma_caps,
-	.clear_dma	= omap2_clear_dma,
-	.dma_write	= dma_write,
-	.dma_read	= dma_read,
-};
-
-static struct platform_device_info omap_dma_dev_info __initdata = {
-	.name = "omap-dma-engine",
-	.id = -1,
-	.dma_mask = DMA_BIT_MASK(32),
 };
 
 /* One time initializations */
-static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
+static int __init omap2_system_dma_init(void)
 {
-	struct platform_device			*pdev;
-	struct resource				*mem;
-	char					*name = "omap_dma_system";
-
 	dma_plat_info.errata = configure_dma_errata();
 
 	if (soc_is_omap24xx()) {
@@ -254,41 +200,6 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 	if (soc_is_omap34xx() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
 		dma_attr.dev_caps |= HS_CHANNELS_RESERVED;
 
-	pdev = omap_device_build(name, 0, oh, &dma_plat_info,
-				 sizeof(dma_plat_info));
-	if (IS_ERR(pdev)) {
-		pr_err("%s: Can't build omap_device for %s:%s.\n",
-			__func__, name, oh->name);
-		return PTR_ERR(pdev);
-	}
-
-	omap_dma_dev_info.res = pdev->resource;
-	omap_dma_dev_info.num_res = pdev->num_resources;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "%s: no mem resource\n", __func__);
-		return -EINVAL;
-	}
-
-	dma_base = ioremap(mem->start, resource_size(mem));
-	if (!dma_base) {
-		dev_err(&pdev->dev, "%s: ioremap fail\n", __func__);
-		return -ENOMEM;
-	}
-
-	/* Check the capabilities register for descriptor loading feature */
-	if (soc_is_omap24xx() || soc_is_omap34xx() || soc_is_am35xx())
-		dma_common_ch_end = CCFN;
-	else
-		dma_common_ch_end = CCDN;
-
 	return 0;
-}
-
-static int __init omap2_system_dma_init(void)
-{
-	return omap_hwmod_for_each_by_class("dma",
-			omap2_system_dma_init_dev, NULL);
 }
 omap_arch_initcall(omap2_system_dma_init);
