@@ -496,16 +496,6 @@ static int is_12b_check(int off, int insn)
 	return 0;
 }
 
-static int is_13b_check(int off, int insn)
-{
-	if (!is_13b_int(off)) {
-		pr_err("bpf-jit: insn=%d 13b < offset=%d not supported yet!\n",
-		       insn, (int)off);
-		return -1;
-	}
-	return 0;
-}
-
 static int is_21b_check(int off, int insn)
 {
 	if (!is_21b_int(off)) {
@@ -744,18 +734,14 @@ static int emit_bpf_tail_call(int insn, struct rv_jit_context *ctx)
 		return -1;
 	emit(rv_lwu(RV_REG_T1, off, RV_REG_A1), ctx);
 	off = (tc_ninsn - (ctx->ninsns - start_insn)) << 2;
-	if (is_13b_check(off, insn))
-		return -1;
-	emit(rv_bgeu(RV_REG_A2, RV_REG_T1, off >> 1), ctx);
+	emit_branch(BPF_JGE, RV_REG_A2, RV_REG_T1, off, ctx);
 
 	/* if (--TCC < 0)
 	 *     goto out;
 	 */
 	emit(rv_addi(RV_REG_T1, tcc, -1), ctx);
 	off = (tc_ninsn - (ctx->ninsns - start_insn)) << 2;
-	if (is_13b_check(off, insn))
-		return -1;
-	emit(rv_blt(RV_REG_T1, RV_REG_ZERO, off >> 1), ctx);
+	emit_branch(BPF_JSLT, RV_REG_T1, RV_REG_ZERO, off, ctx);
 
 	/* prog = array->ptrs[index];
 	 * if (!prog)
@@ -768,9 +754,7 @@ static int emit_bpf_tail_call(int insn, struct rv_jit_context *ctx)
 		return -1;
 	emit(rv_ld(RV_REG_T2, off, RV_REG_T2), ctx);
 	off = (tc_ninsn - (ctx->ninsns - start_insn)) << 2;
-	if (is_13b_check(off, insn))
-		return -1;
-	emit(rv_beq(RV_REG_T2, RV_REG_ZERO, off >> 1), ctx);
+	emit_branch(BPF_JEQ, RV_REG_T2, RV_REG_ZERO, off, ctx);
 
 	/* goto *(prog->bpf_func + 4); */
 	off = offsetof(struct bpf_prog, bpf_func);
