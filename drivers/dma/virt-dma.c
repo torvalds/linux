@@ -138,6 +138,7 @@ void vchan_init(struct virt_dma_chan *vc, struct dma_device *dmadev)
 	INIT_LIST_HEAD(&vc->desc_submitted);
 	INIT_LIST_HEAD(&vc->desc_issued);
 	INIT_LIST_HEAD(&vc->desc_completed);
+	INIT_LIST_HEAD(&vc->desc_terminated);
 
 	tasklet_init(&vc->task, vchan_complete, (unsigned long)vc);
 
