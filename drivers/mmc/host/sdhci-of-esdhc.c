@@ -1228,7 +1228,8 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 		 * 1/2 peripheral clock.
 		 */
 		if (of_device_is_compatible(np, "fsl,ls1046a-esdhc") ||
-		    of_device_is_compatible(np, "fsl,ls1028a-esdhc"))
+		    of_device_is_compatible(np, "fsl,ls1028a-esdhc") ||
+		    of_device_is_compatible(np, "fsl,ls1088a-esdhc"))
 			esdhc->peripheral_clock = clk_get_rate(clk) / 2;
 		else
 			esdhc->peripheral_clock = clk_get_rate(clk);
