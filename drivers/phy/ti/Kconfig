@@ -33,6 +33,21 @@ config PHY_AM654_SERDES
 	  This option enables support for TI AM654 SerDes PHY used for
 	  PCIe.
 
+config PHY_J721E_WIZ
+	tristate "TI J721E WIZ (SERDES Wrapper) support"
+	depends on OF && ARCH_K3 || COMPILE_TEST
+	depends on COMMON_CLK
+	select GENERIC_PHY
+	select MULTIPLEXER
+	select REGMAP_MMIO
+	select MUX_MMIO
+	help
+	  This option enables support for WIZ module present in TI's J721E
+	  SoC. WIZ is a serdes wrapper used to configure some of the input
+	  signals to the SERDES (Sierra/Torrent). This driver configures
+	  three clock selects (pll0, pll1, dig) and resets for each of the
+	  lanes.
+
 config OMAP_CONTROL_PHY
 	tristate "OMAP CONTROL PHY Driver"
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
