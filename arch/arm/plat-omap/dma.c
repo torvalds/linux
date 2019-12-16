@@ -557,38 +557,6 @@ void omap_free_dma(int lch)
 }
 EXPORT_SYMBOL(omap_free_dma);
 
-/**
- * @brief omap_dma_set_global_params : Set global priority settings for dma
- *
- * @param arb_rate
- * @param max_fifo_depth
- * @param tparams - Number of threads to reserve : DMA_THREAD_RESERVE_NORM
- * 						   DMA_THREAD_RESERVE_ONET
- * 						   DMA_THREAD_RESERVE_TWOT
- * 						   DMA_THREAD_RESERVE_THREET
- */
-static void
-omap_dma_set_global_params(int arb_rate, int max_fifo_depth, int tparams)
-{
-	u32 reg;
-
-	if (dma_omap1()) {
-		printk(KERN_ERR "FIXME: no %s on 15xx/16xx\n", __func__);
-		return;
-	}
-
-	if (max_fifo_depth == 0)
-		max_fifo_depth = 1;
-	if (arb_rate == 0)
-		arb_rate = 1;
-
-	reg = 0xff & max_fifo_depth;
-	reg |= (0x3 & tparams) << 12;
-	reg |= (arb_rate & 0xff) << 16;
-
-	p->dma_write(reg, GCR, 0);
-}
-
 /*
  * Clears any DMA state so the DMA engine is ready to restart with new buffers
  * through omap_start_dma(). Any buffers in flight are discarded.
@@ -968,10 +936,6 @@ static int omap_system_dma_probe(struct platform_device *pdev)
 				goto exit_dma_irq_fail;
 		}
 	}
-
-	if (d->dev_caps & IS_RW_PRIORITY)
-		omap_dma_set_global_params(DMA_DEFAULT_ARB_RATE,
-				DMA_DEFAULT_FIFO_DEPTH, 0);
 
 	/* reserve dma channels 0 and 1 in high security devices on 34xx */
 	if (d->dev_caps & HS_CHANNELS_RESERVED) {

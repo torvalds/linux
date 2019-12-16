@@ -26,6 +26,7 @@
 
 struct omap_dma_config {
 	int lch_end;
+	unsigned int rw_priority:1;
 	unsigned int may_lose_context:1;
 };
 
@@ -1536,6 +1537,27 @@ static int omap_dma_context_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static void omap_dma_init_gcr(struct omap_dmadev *od, int arb_rate,
+			      int max_fifo_depth, int tparams)
+{
+	u32 val;
+
+	/* Set only for omap2430 and later */
+	if (!od->cfg->rw_priority)
+		return;
+
+	if (max_fifo_depth == 0)
+		max_fifo_depth = 1;
+	if (arb_rate == 0)
+		arb_rate = 1;
+
+	val = 0xff & max_fifo_depth;
+	val |= (0x3 & tparams) << 12;
+	val |= (arb_rate & 0xff) << 16;
+
+	omap_dma_glbl_write(od, GCR, val);
+}
+
 #define OMAP_DMA_BUSWIDTHS	(BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
@@ -1701,6 +1723,8 @@ static int omap_dma_probe(struct platform_device *pdev)
 		}
 	}
 
+	omap_dma_init_gcr(od, DMA_DEFAULT_ARB_RATE, DMA_DEFAULT_FIFO_DEPTH, 0);
+
 	if (od->cfg->may_lose_context) {
 		od->nb.notifier_call = omap_dma_context_notifier;
 		cpu_pm_register_notifier(&od->nb);
@@ -1743,24 +1767,29 @@ static int omap_dma_remove(struct platform_device *pdev)
 
 static const struct omap_dma_config omap2420_data = {
 	.lch_end = CCFN,
+	.rw_priority = true,
 };
 
 static const struct omap_dma_config omap2430_data = {
 	.lch_end = CCFN,
+	.rw_priority = true,
 };
 
 static const struct omap_dma_config omap3430_data = {
 	.lch_end = CCFN,
+	.rw_priority = true,
 	.may_lose_context = true,
 };
 
 static const struct omap_dma_config omap3630_data = {
 	.lch_end = CCDN,
+	.rw_priority = true,
 	.may_lose_context = true,
 };
 
 static const struct omap_dma_config omap4_data = {
 	.lch_end = CCDN,
+	.rw_priority = true,
 };
 
 static const struct of_device_id omap_dma_match[] = {
