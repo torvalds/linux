@@ -388,7 +388,7 @@ static int do_skeleton(int argc, char **argv)
 		);
 		i = 0;
 		bpf_object__for_each_map(map, obj) {
-			const char *ident = get_map_ident(map);
+			ident = get_map_ident(map);
 
 			if (!ident)
 				continue;
