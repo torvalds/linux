@@ -292,6 +292,7 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 struct i915_vma_work {
 	struct dma_fence_work base;
 	struct i915_vma *vma;
+	struct drm_i915_gem_object *pinned;
 	enum i915_cache_level cache_level;
 	unsigned int flags;
 };
@@ -306,15 +307,21 @@ static int __vma_bind(struct dma_fence_work *work)
 	if (err)
 		atomic_or(I915_VMA_ERROR, &vma->flags);
 
-	if (vma->obj)
-		__i915_gem_object_unpin_pages(vma->obj);
-
 	return err;
+}
+
+static void __vma_release(struct dma_fence_work *work)
+{
+	struct i915_vma_work *vw = container_of(work, typeof(*vw), base);
+
+	if (vw->pinned)
+		__i915_gem_object_unpin_pages(vw->pinned);
 }
 
 static const struct dma_fence_work_ops bind_ops = {
 	.name = "bind",
 	.work = __vma_bind,
+	.release = __vma_release,
 };
 
 struct i915_vma_work *i915_vma_work(void)
@@ -395,8 +402,10 @@ int i915_vma_bind(struct i915_vma *vma,
 		i915_active_set_exclusive(&vma->active, &work->base.dma);
 		work->base.dma.error = 0; /* enable the queue_work() */
 
-		if (vma->obj)
+		if (vma->obj) {
 			__i915_gem_object_pin_pages(vma->obj);
+			work->pinned = vma->obj;
+		}
 	} else {
 		GEM_BUG_ON((bind_flags & ~vma_flags) & vma->vm->bind_async_flags);
 		ret = vma->ops->bind_vma(vma, cache_level, bind_flags);
