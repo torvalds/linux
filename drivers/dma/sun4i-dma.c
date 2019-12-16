@@ -885,11 +885,12 @@ static int sun4i_dma_terminate_all(struct dma_chan *chan)
 	}
 
 	spin_lock_irqsave(&vchan->vc.lock, flags);
-	vchan_dma_desc_free_list(&vchan->vc, &head);
 	/* Clear these so the vchan is usable again */
 	vchan->processing = NULL;
 	vchan->pchan = NULL;
 	spin_unlock_irqrestore(&vchan->vc.lock, flags);
+
+	vchan_dma_desc_free_list(&vchan->vc, &head);
 
 	return 0;
 }
