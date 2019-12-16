@@ -652,6 +652,7 @@ struct sdw_md_driver {
 	int (*remove)(struct sdw_master_device *md);
 	int (*autonomous_clock_stop_enable)(struct sdw_master_device *md,
 					    bool state);
+	void (*process_wake_event)(struct sdw_master_device *md);
 	struct device_driver driver;
 };
 
