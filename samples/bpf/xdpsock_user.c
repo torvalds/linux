@@ -440,7 +440,7 @@ static void parse_command_line(int argc, char **argv)
 			opt_xdp_bind_flags |= XDP_COPY;
 			break;
 		case 'N':
-			opt_xdp_flags |= XDP_FLAGS_DRV_MODE;
+			/* default, set below */
 			break;
 		case 'n':
 			opt_interval = atoi(optarg);
@@ -473,6 +473,9 @@ static void parse_command_line(int argc, char **argv)
 			usage(basename(argv[0]));
 		}
 	}
+
+	if (!(opt_xdp_flags & XDP_FLAGS_SKB_MODE))
+		opt_xdp_flags |= XDP_FLAGS_DRV_MODE;
 
 	opt_ifindex = if_nametoindex(opt_if);
 	if (!opt_ifindex) {

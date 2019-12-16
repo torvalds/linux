@@ -662,6 +662,9 @@ int main(int ac, char **argv)
 		}
 	}
 
+	if (!(flags & XDP_FLAGS_SKB_MODE))
+		flags |= XDP_FLAGS_DRV_MODE;
+
 	if (optind == ac) {
 		usage(basename(argv[0]));
 		return 1;
