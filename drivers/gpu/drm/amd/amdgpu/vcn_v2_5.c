@@ -29,6 +29,7 @@
 #include "soc15.h"
 #include "soc15d.h"
 #include "vcn_v2_0.h"
+#include "mmsch_v1_0.h"
 
 #include "vcn/vcn_2_5_offset.h"
 #include "vcn/vcn_2_5_sh_mask.h"
@@ -736,6 +737,62 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 		WREG32_SOC15(UVD, i, mmUVD_RB_BASE_LO2, ring->gpu_addr);
 		WREG32_SOC15(UVD, i, mmUVD_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
 		WREG32_SOC15(UVD, i, mmUVD_RB_SIZE2, ring->ring_size / 4);
+	}
+
+	return 0;
+}
+
+static int vcn_v2_5_mmsch_start(struct amdgpu_device *adev,
+				struct amdgpu_mm_table *table)
+{
+	uint32_t data = 0, loop = 0, size = 0;
+	uint64_t addr = table->gpu_addr;
+	struct mmsch_v1_1_init_header *header = NULL;;
+
+	header = (struct mmsch_v1_1_init_header *)table->cpu_addr;
+	size = header->total_size;
+
+	/*
+	 * 1, write to vce_mmsch_vf_ctx_addr_lo/hi register with GPU mc addr of
+	 *  memory descriptor location
+	 */
+	WREG32_SOC15(UVD, 0, mmMMSCH_VF_CTX_ADDR_LO, lower_32_bits(addr));
+	WREG32_SOC15(UVD, 0, mmMMSCH_VF_CTX_ADDR_HI, upper_32_bits(addr));
+
+	/* 2, update vmid of descriptor */
+	data = RREG32_SOC15(UVD, 0, mmMMSCH_VF_VMID);
+	data &= ~MMSCH_VF_VMID__VF_CTX_VMID_MASK;
+	/* use domain0 for MM scheduler */
+	data |= (0 << MMSCH_VF_VMID__VF_CTX_VMID__SHIFT);
+	WREG32_SOC15(UVD, 0, mmMMSCH_VF_VMID, data);
+
+	/* 3, notify mmsch about the size of this descriptor */
+	WREG32_SOC15(UVD, 0, mmMMSCH_VF_CTX_SIZE, size);
+
+	/* 4, set resp to zero */
+	WREG32_SOC15(UVD, 0, mmMMSCH_VF_MAILBOX_RESP, 0);
+
+	/*
+	 * 5, kick off the initialization and wait until
+	 * VCE_MMSCH_VF_MAILBOX_RESP becomes non-zero
+	 */
+	WREG32_SOC15(UVD, 0, mmMMSCH_VF_MAILBOX_HOST, 0x10000001);
+
+	data = RREG32_SOC15(UVD, 0, mmMMSCH_VF_MAILBOX_RESP);
+	loop = 10;
+	while ((data & 0x10000002) != 0x10000002) {
+		udelay(100);
+		data = RREG32_SOC15(UVD, 0, mmMMSCH_VF_MAILBOX_RESP);
+		loop--;
+		if (!loop)
+			break;
+	}
+
+	if (!loop) {
+		dev_err(adev->dev,
+			"failed to init MMSCH, mmMMSCH_VF_MAILBOX_RESP = %x\n",
+			data);
+		return -EBUSY;
 	}
 
 	return 0;
