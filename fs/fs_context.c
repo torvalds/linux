@@ -45,6 +45,7 @@ static const struct constant_table common_set_sb_flag[] = {
 	{ "posixacl",	SB_POSIXACL },
 	{ "ro",		SB_RDONLY },
 	{ "sync",	SB_SYNCHRONOUS },
+	{ },
 };
 
 static const struct constant_table common_clear_sb_flag[] = {
@@ -53,6 +54,7 @@ static const struct constant_table common_clear_sb_flag[] = {
 	{ "nomand",	SB_MANDLOCK },
 	{ "rw",		SB_RDONLY },
 	{ "silent",	SB_SILENT },
+	{ },
 };
 
 static const char *const forbidden_sb_flag[] = {

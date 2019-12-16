@@ -83,9 +83,7 @@ extern int fs_lookup_param(struct fs_context *fc,
 			   bool want_bdev,
 			   struct path *_path);
 
-extern int __lookup_constant(const struct constant_table tbl[], size_t tbl_size,
-			     const char *name, int not_found);
-#define lookup_constant(t, n, nf) __lookup_constant(t, ARRAY_SIZE(t), (n), (nf))
+extern int lookup_constant(const struct constant_table tbl[], const char *name, int not_found);
 
 #ifdef CONFIG_VALIDATE_FS_PARSER
 extern bool validate_constant_table(const struct constant_table *tbl, size_t tbl_size,

@@ -20,27 +20,31 @@ static const struct constant_table bool_names[] = {
 	{ "no",		false },
 	{ "true",	true },
 	{ "yes",	true },
+	{ },
 };
+
+static const struct constant_table *
+__lookup_constant(const struct constant_table *tbl, const char *name)
+{
+	for ( ; tbl->name; tbl++)
+		if (strcmp(name, tbl->name) == 0)
+			return tbl;
+	return NULL;
+}
 
 /**
  * lookup_constant - Look up a constant by name in an ordered table
  * @tbl: The table of constants to search.
- * @tbl_size: The size of the table.
  * @name: The name to look up.
  * @not_found: The value to return if the name is not found.
  */
-int __lookup_constant(const struct constant_table *tbl, size_t tbl_size,
-		      const char *name, int not_found)
+int lookup_constant(const struct constant_table *tbl, const char *name, int not_found)
 {
-	unsigned int i;
+	const struct constant_table *p = __lookup_constant(tbl, name);
 
-	for (i = 0; i < tbl_size; i++)
-		if (strcmp(name, tbl[i].name) == 0)
-			return tbl[i].value;
-
-	return not_found;
+	return p ? p->value : not_found;
 }
-EXPORT_SYMBOL(__lookup_constant);
+EXPORT_SYMBOL(lookup_constant);
 
 static const struct fs_parameter_spec *fs_lookup_key(
 	const struct fs_parameter_description *desc,
@@ -189,11 +193,10 @@ int fs_parse(struct fs_context *fc,
 		goto maybe_okay;
 
 	case fs_param_is_enum:
-		for (e = p->data; e->name; e++) {
-			if (strcmp(e->name, param->string) == 0) {
-				result->uint_32 = e->value;
-				goto okay;
-			}
+		e = __lookup_constant(p->data, param->string);
+		if (e) {
+			result->uint_32 = e->value;
+			goto okay;
 		}
 		goto bad_value;
 
