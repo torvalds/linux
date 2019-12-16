@@ -1215,6 +1215,10 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 		}
 	} else {
 		nfs_set_mount_transport_protocol(ctx);
+#ifdef CONFIG_NFS_DISABLE_UDP_SUPPORT
+	       if (ctx->nfs_server.protocol == XPRT_TRANSPORT_UDP)
+		       goto out_invalid_transport_udp;
+#endif
 		if (ctx->nfs_server.protocol == XPRT_TRANSPORT_RDMA)
 			port = NFS_RDMA_PORT;
 	}

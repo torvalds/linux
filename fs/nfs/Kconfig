@@ -196,3 +196,12 @@ config NFS_DEBUG
 	depends on NFS_FS && SUNRPC_DEBUG
 	select CRC32
 	default y
+
+config NFS_DISABLE_UDP_SUPPORT
+       bool "NFS: Disable NFS UDP protocol support"
+       depends on NFS_FS
+       default y
+       help
+	 Choose Y here to disable the use of NFS over UDP. NFS over UDP
+	 on modern networks (1Gb+) can lead to data corruption caused by
+	 fragmentation during high loads.
