@@ -1670,7 +1670,7 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 	}
 
 	if (!skip_display_settings) {
-		ret = smu_notify_smc_dispaly_config(smu);
+		ret = smu_notify_smc_display_config(smu);
 		if (ret) {
 			pr_err("Failed to notify smc display config!");
 			return ret;

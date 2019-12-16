@@ -129,8 +129,8 @@ int smu_send_smc_msg(struct smu_context *smu, enum smu_message_type msg);
 	((smu)->ppt_funcs->display_config_changed ? (smu)->ppt_funcs->display_config_changed((smu)) : 0)
 #define smu_apply_clocks_adjust_rules(smu) \
 	((smu)->ppt_funcs->apply_clocks_adjust_rules ? (smu)->ppt_funcs->apply_clocks_adjust_rules((smu)) : 0)
-#define smu_notify_smc_dispaly_config(smu) \
-	((smu)->ppt_funcs->notify_smc_dispaly_config ? (smu)->ppt_funcs->notify_smc_dispaly_config((smu)) : 0)
+#define smu_notify_smc_display_config(smu) \
+	((smu)->ppt_funcs->notify_smc_display_config ? (smu)->ppt_funcs->notify_smc_display_config((smu)) : 0)
 #define smu_force_dpm_limit_value(smu, highest) \
 	((smu)->ppt_funcs->force_dpm_limit_value ? (smu)->ppt_funcs->force_dpm_limit_value((smu), (highest)) : 0)
 #define smu_unforce_dpm_levels(smu) \

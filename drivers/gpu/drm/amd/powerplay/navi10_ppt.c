@@ -1374,7 +1374,7 @@ static int navi10_get_profiling_clk_mask(struct smu_context *smu,
 	return ret;
 }
 
-static int navi10_notify_smc_dispaly_config(struct smu_context *smu)
+static int navi10_notify_smc_display_config(struct smu_context *smu)
 {
 	struct smu_clocks min_clocks = {0};
 	struct pp_display_clock_request clock_req;
@@ -2047,7 +2047,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_clock_by_type_with_latency = navi10_get_clock_by_type_with_latency,
 	.pre_display_config_changed = navi10_pre_display_config_changed,
 	.display_config_changed = navi10_display_config_changed,
-	.notify_smc_dispaly_config = navi10_notify_smc_dispaly_config,
+	.notify_smc_display_config = navi10_notify_smc_display_config,
 	.force_dpm_limit_value = navi10_force_dpm_limit_value,
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 	.is_dpm_running = navi10_is_dpm_running,

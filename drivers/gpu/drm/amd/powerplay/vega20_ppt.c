@@ -2232,7 +2232,7 @@ static int vega20_apply_clocks_adjust_rules(struct smu_context *smu)
 }
 
 static int
-vega20_notify_smc_dispaly_config(struct smu_context *smu)
+vega20_notify_smc_display_config(struct smu_context *smu)
 {
 	struct vega20_dpm_table *dpm_table = smu->smu_dpm.dpm_context;
 	struct vega20_single_dpm_table *memtable = &dpm_table->mem_table;
@@ -3200,7 +3200,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.pre_display_config_changed = vega20_pre_display_config_changed,
 	.display_config_changed = vega20_display_config_changed,
 	.apply_clocks_adjust_rules = vega20_apply_clocks_adjust_rules,
-	.notify_smc_dispaly_config = vega20_notify_smc_dispaly_config,
+	.notify_smc_display_config = vega20_notify_smc_display_config,
 	.force_dpm_limit_value = vega20_force_dpm_limit_value,
 	.unforce_dpm_levels = vega20_unforce_dpm_levels,
 	.get_profiling_clk_mask = vega20_get_profiling_clk_mask,
