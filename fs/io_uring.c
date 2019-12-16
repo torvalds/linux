@@ -304,6 +304,20 @@ struct io_timeout_data {
 	u32				seq_offset;
 };
 
+struct io_accept {
+	struct file			*file;
+	struct sockaddr __user		*addr;
+	int __user			*addr_len;
+	int				flags;
+};
+
+struct io_sync {
+	struct file			*file;
+	loff_t				len;
+	loff_t				off;
+	int				flags;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -343,6 +357,8 @@ struct io_kiocb {
 		struct file		*file;
 		struct kiocb		rw;
 		struct io_poll_iocb	poll;
+		struct io_accept	accept;
+		struct io_sync		sync;
 	};
 
 	const struct io_uring_sqe	*sqe;
@@ -378,6 +394,7 @@ struct io_kiocb {
 #define REQ_F_INFLIGHT		16384	/* on inflight list */
 #define REQ_F_COMP_LOCKED	32768	/* completion under lock */
 #define REQ_F_HARDLINK		65536	/* doesn't sever on completion < 0 */
+#define REQ_F_PREPPED		131072	/* request already opcode prepared */
 	u64			user_data;
 	u32			result;
 	u32			sequence;
@@ -1954,6 +1971,8 @@ static int io_prep_fsync(struct io_kiocb *req)
 	const struct io_uring_sqe *sqe = req->sqe;
 	struct io_ring_ctx *ctx = req->ctx;
 
+	if (req->flags & REQ_F_PREPPED)
+		return 0;
 	if (!req->file)
 		return -EBADF;
 
@@ -1962,39 +1981,70 @@ static int io_prep_fsync(struct io_kiocb *req)
 	if (unlikely(sqe->addr || sqe->ioprio || sqe->buf_index))
 		return -EINVAL;
 
+	req->sync.flags = READ_ONCE(sqe->fsync_flags);
+	if (unlikely(req->sync.flags & ~IORING_FSYNC_DATASYNC))
+		return -EINVAL;
+
+	req->sync.off = READ_ONCE(sqe->off);
+	req->sync.len = READ_ONCE(sqe->len);
+	req->flags |= REQ_F_PREPPED;
 	return 0;
+}
+
+static bool io_req_cancelled(struct io_kiocb *req)
+{
+	if (req->work.flags & IO_WQ_WORK_CANCEL) {
+		req_set_fail_links(req);
+		io_cqring_add_event(req, -ECANCELED);
+		io_put_req(req);
+		return true;
+	}
+
+	return false;
+}
+
+static void io_fsync_finish(struct io_wq_work **workptr)
+{
+	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
+	loff_t end = req->sync.off + req->sync.len;
+	struct io_kiocb *nxt = NULL;
+	int ret;
+
+	if (io_req_cancelled(req))
+		return;
+
+	ret = vfs_fsync_range(req->rw.ki_filp, req->sync.off,
+				end > 0 ? end : LLONG_MAX,
+				req->sync.flags & IORING_FSYNC_DATASYNC);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	io_put_req_find_next(req, &nxt);
+	if (nxt)
+		*workptr = &nxt->work;
 }
 
 static int io_fsync(struct io_kiocb *req, struct io_kiocb **nxt,
 		    bool force_nonblock)
 {
-	const struct io_uring_sqe *sqe = req->sqe;
-	loff_t sqe_off = READ_ONCE(sqe->off);
-	loff_t sqe_len = READ_ONCE(sqe->len);
-	loff_t end = sqe_off + sqe_len;
-	unsigned fsync_flags;
+	struct io_wq_work *work, *old_work;
 	int ret;
-
-	fsync_flags = READ_ONCE(sqe->fsync_flags);
-	if (unlikely(fsync_flags & ~IORING_FSYNC_DATASYNC))
-		return -EINVAL;
 
 	ret = io_prep_fsync(req);
 	if (ret)
 		return ret;
 
 	/* fsync always requires a blocking context */
-	if (force_nonblock)
+	if (force_nonblock) {
+		io_put_req(req);
+		req->work.func = io_fsync_finish;
 		return -EAGAIN;
+	}
 
-	ret = vfs_fsync_range(req->rw.ki_filp, sqe_off,
-				end > 0 ? end : LLONG_MAX,
-				fsync_flags & IORING_FSYNC_DATASYNC);
-
-	if (ret < 0)
-		req_set_fail_links(req);
-	io_cqring_add_event(req, ret);
-	io_put_req_find_next(req, nxt);
+	work = old_work = &req->work;
+	io_fsync_finish(&work);
+	if (work && work != old_work)
+		*nxt = container_of(work, struct io_kiocb, work);
 	return 0;
 }
 
@@ -2002,8 +2052,9 @@ static int io_prep_sfr(struct io_kiocb *req)
 {
 	const struct io_uring_sqe *sqe = req->sqe;
 	struct io_ring_ctx *ctx = req->ctx;
-	int ret = 0;
 
+	if (req->flags & REQ_F_PREPPED)
+		return 0;
 	if (!req->file)
 		return -EBADF;
 
@@ -2012,16 +2063,36 @@ static int io_prep_sfr(struct io_kiocb *req)
 	if (unlikely(sqe->addr || sqe->ioprio || sqe->buf_index))
 		return -EINVAL;
 
-	return ret;
+	req->sync.off = READ_ONCE(sqe->off);
+	req->sync.len = READ_ONCE(sqe->len);
+	req->sync.flags = READ_ONCE(sqe->sync_range_flags);
+	req->flags |= REQ_F_PREPPED;
+	return 0;
+}
+
+static void io_sync_file_range_finish(struct io_wq_work **workptr)
+{
+	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
+	struct io_kiocb *nxt = NULL;
+	int ret;
+
+	if (io_req_cancelled(req))
+		return;
+
+	ret = sync_file_range(req->rw.ki_filp, req->sync.off, req->sync.len,
+				req->sync.flags);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	io_put_req_find_next(req, &nxt);
+	if (nxt)
+		*workptr = &nxt->work;
 }
 
 static int io_sync_file_range(struct io_kiocb *req, struct io_kiocb **nxt,
 			      bool force_nonblock)
 {
-	const struct io_uring_sqe *sqe = req->sqe;
-	loff_t sqe_off;
-	loff_t sqe_len;
-	unsigned flags;
+	struct io_wq_work *work, *old_work;
 	int ret;
 
 	ret = io_prep_sfr(req);
@@ -2029,19 +2100,16 @@ static int io_sync_file_range(struct io_kiocb *req, struct io_kiocb **nxt,
 		return ret;
 
 	/* sync_file_range always requires a blocking context */
-	if (force_nonblock)
+	if (force_nonblock) {
+		io_put_req(req);
+		req->work.func = io_sync_file_range_finish;
 		return -EAGAIN;
+	}
 
-	sqe_off = READ_ONCE(sqe->off);
-	sqe_len = READ_ONCE(sqe->len);
-	flags = READ_ONCE(sqe->sync_range_flags);
-
-	ret = sync_file_range(req->rw.ki_filp, sqe_off, sqe_len, flags);
-
-	if (ret < 0)
-		req_set_fail_links(req);
-	io_cqring_add_event(req, ret);
-	io_put_req_find_next(req, nxt);
+	work = old_work = &req->work;
+	io_sync_file_range_finish(&work);
+	if (work && work != old_work)
+		*nxt = container_of(work, struct io_kiocb, work);
 	return 0;
 }
 
@@ -2226,37 +2294,83 @@ out:
 #endif
 }
 
-static int io_accept(struct io_kiocb *req, struct io_kiocb **nxt,
-		     bool force_nonblock)
+static int io_accept_prep(struct io_kiocb *req)
 {
 #if defined(CONFIG_NET)
 	const struct io_uring_sqe *sqe = req->sqe;
-	struct sockaddr __user *addr;
-	int __user *addr_len;
-	unsigned file_flags;
-	int flags, ret;
+	struct io_accept *accept = &req->accept;
+
+	if (req->flags & REQ_F_PREPPED)
+		return 0;
 
 	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
 		return -EINVAL;
 	if (sqe->ioprio || sqe->len || sqe->buf_index)
 		return -EINVAL;
 
-	addr = (struct sockaddr __user *) (unsigned long) READ_ONCE(sqe->addr);
-	addr_len = (int __user *) (unsigned long) READ_ONCE(sqe->addr2);
-	flags = READ_ONCE(sqe->accept_flags);
-	file_flags = force_nonblock ? O_NONBLOCK : 0;
+	accept->addr = (struct sockaddr __user *)
+				(unsigned long) READ_ONCE(sqe->addr);
+	accept->addr_len = (int __user *) (unsigned long) READ_ONCE(sqe->addr2);
+	accept->flags = READ_ONCE(sqe->accept_flags);
+	req->flags |= REQ_F_PREPPED;
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
 
-	ret = __sys_accept4_file(req->file, file_flags, addr, addr_len, flags);
-	if (ret == -EAGAIN && force_nonblock) {
-		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
+#if defined(CONFIG_NET)
+static int __io_accept(struct io_kiocb *req, struct io_kiocb **nxt,
+		       bool force_nonblock)
+{
+	struct io_accept *accept = &req->accept;
+	unsigned file_flags;
+	int ret;
+
+	file_flags = force_nonblock ? O_NONBLOCK : 0;
+	ret = __sys_accept4_file(req->file, file_flags, accept->addr,
+					accept->addr_len, accept->flags);
+	if (ret == -EAGAIN && force_nonblock)
 		return -EAGAIN;
-	}
 	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
 	if (ret < 0)
 		req_set_fail_links(req);
 	io_cqring_add_event(req, ret);
 	io_put_req_find_next(req, nxt);
+	return 0;
+}
+
+static void io_accept_finish(struct io_wq_work **workptr)
+{
+	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
+	struct io_kiocb *nxt = NULL;
+
+	if (io_req_cancelled(req))
+		return;
+	__io_accept(req, &nxt, false);
+	if (nxt)
+		*workptr = &nxt->work;
+}
+#endif
+
+static int io_accept(struct io_kiocb *req, struct io_kiocb **nxt,
+		     bool force_nonblock)
+{
+#if defined(CONFIG_NET)
+	int ret;
+
+	ret = io_accept_prep(req);
+	if (ret)
+		return ret;
+
+	ret = __io_accept(req, nxt, force_nonblock);
+	if (ret == -EAGAIN && force_nonblock) {
+		req->work.func = io_accept_finish;
+		req->work.flags |= IO_WQ_WORK_NEEDS_FILES;
+		io_put_req(req);
+		return -EAGAIN;
+	}
 	return 0;
 #else
 	return -EOPNOTSUPP;
@@ -2915,6 +3029,12 @@ static int io_req_defer_prep(struct io_kiocb *req)
 		io_req_map_rw(req, ret, iovec, inline_vecs, &iter);
 		ret = 0;
 		break;
+	case IORING_OP_FSYNC:
+		ret = io_prep_fsync(req);
+		break;
+	case IORING_OP_SYNC_FILE_RANGE:
+		ret = io_prep_sfr(req);
+		break;
 	case IORING_OP_SENDMSG:
 		ret = io_sendmsg_prep(req, io);
 		break;
@@ -2929,6 +3049,9 @@ static int io_req_defer_prep(struct io_kiocb *req)
 		break;
 	case IORING_OP_LINK_TIMEOUT:
 		ret = io_timeout_prep(req, io, true);
+		break;
+	case IORING_OP_ACCEPT:
+		ret = io_accept_prep(req);
 		break;
 	default:
 		ret = 0;
