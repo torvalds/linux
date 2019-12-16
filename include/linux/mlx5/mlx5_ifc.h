@@ -2180,7 +2180,9 @@ struct mlx5_ifc_eth_per_prio_grp_data_layout_bits {
 
 	u8         rx_pause_transition_low[0x20];
 
-	u8         reserved_at_3c0[0x40];
+	u8         rx_discards_high[0x20];
+
+	u8         rx_discards_low[0x20];
 
 	u8         device_stall_minor_watermark_cnt_high[0x20];
 
