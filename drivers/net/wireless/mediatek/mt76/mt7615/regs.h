@@ -37,7 +37,7 @@
 
 #define MT_INT_RX_DONE(_n)		BIT(_n)
 #define MT_INT_RX_DONE_ALL		GENMASK(1, 0)
-#define MT_INT_TX_DONE_ALL		GENMASK(7, 4)
+#define MT_INT_TX_DONE_ALL		GENMASK(19, 4)
 #define MT_INT_TX_DONE(_n)		BIT((_n) + 4)
 
 #define MT_WPDMA_GLO_CFG		MT_HIF(0x208)
