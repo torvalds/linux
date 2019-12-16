@@ -1148,7 +1148,8 @@ static int btree_iter_traverse_one(struct btree_iter *iter)
 	iter->uptodate = BTREE_ITER_NEED_PEEK;
 
 	bch2_btree_trans_verify_locks(iter->trans);
-	__bch2_btree_iter_verify(iter, iter->l[iter->level].b);
+	if (btree_iter_node(iter, iter->level))
+		__bch2_btree_iter_verify(iter, iter->l[iter->level].b);
 	return 0;
 }
 
