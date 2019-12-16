@@ -4073,10 +4073,10 @@ err_req:
 	 * conditions are true (normal request), then just queue it.
 	 */
 	if (*link) {
-		struct io_kiocb *prev = *link;
+		struct io_kiocb *head = *link;
 
 		if (sqe->flags & IOSQE_IO_DRAIN)
-			(*link)->flags |= REQ_F_DRAIN_LINK | REQ_F_IO_DRAIN;
+			head->flags |= REQ_F_DRAIN_LINK | REQ_F_IO_DRAIN;
 
 		if (sqe->flags & IOSQE_IO_HARDLINK)
 			req->flags |= REQ_F_HARDLINK;
@@ -4089,11 +4089,11 @@ err_req:
 		ret = io_req_defer_prep(req, sqe);
 		if (ret) {
 			/* fail even hard links since we don't submit */
-			prev->flags |= REQ_F_FAIL_LINK;
+			head->flags |= REQ_F_FAIL_LINK;
 			goto err_req;
 		}
-		trace_io_uring_link(ctx, req, prev);
-		list_add_tail(&req->link_list, &prev->link_list);
+		trace_io_uring_link(ctx, req, head);
+		list_add_tail(&req->link_list, &head->link_list);
 	} else if (sqe->flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK)) {
 		req->flags |= REQ_F_LINK;
 		if (sqe->flags & IOSQE_IO_HARDLINK)
