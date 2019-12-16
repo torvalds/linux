@@ -86,6 +86,12 @@ struct clone {
 
 	struct dm_clone_metadata *cmd;
 
+	/*
+	 * bio used to flush the destination device, before committing the
+	 * metadata.
+	 */
+	struct bio flush_bio;
+
 	/* Region hydration hash table */
 	struct hash_table_bucket *ht;
 
@@ -1108,9 +1114,12 @@ static bool need_commit_due_to_time(struct clone *clone)
 /*
  * A non-zero return indicates read-only or fail mode.
  */
-static int commit_metadata(struct clone *clone)
+static int commit_metadata(struct clone *clone, bool *dest_dev_flushed)
 {
 	int r = 0;
+
+	if (dest_dev_flushed)
+		*dest_dev_flushed = false;
 
 	mutex_lock(&clone->commit_lock);
 
@@ -1122,8 +1131,26 @@ static int commit_metadata(struct clone *clone)
 		goto out;
 	}
 
-	r = dm_clone_metadata_commit(clone->cmd);
+	r = dm_clone_metadata_pre_commit(clone->cmd);
+	if (unlikely(r)) {
+		__metadata_operation_failed(clone, "dm_clone_metadata_pre_commit", r);
+		goto out;
+	}
 
+	bio_reset(&clone->flush_bio);
+	bio_set_dev(&clone->flush_bio, clone->dest_dev->bdev);
+	clone->flush_bio.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
+
+	r = submit_bio_wait(&clone->flush_bio);
+	if (unlikely(r)) {
+		__metadata_operation_failed(clone, "flush destination device", r);
+		goto out;
+	}
+
+	if (dest_dev_flushed)
+		*dest_dev_flushed = true;
+
+	r = dm_clone_metadata_commit(clone->cmd);
 	if (unlikely(r)) {
 		__metadata_operation_failed(clone, "dm_clone_metadata_commit", r);
 		goto out;
@@ -1194,6 +1221,7 @@ static void process_deferred_bios(struct clone *clone)
 static void process_deferred_flush_bios(struct clone *clone)
 {
 	struct bio *bio;
+	bool dest_dev_flushed;
 	struct bio_list bios = BIO_EMPTY_LIST;
 	struct bio_list bio_completions = BIO_EMPTY_LIST;
 
@@ -1213,7 +1241,7 @@ static void process_deferred_flush_bios(struct clone *clone)
 	    !(dm_clone_changed_this_transaction(clone->cmd) && need_commit_due_to_time(clone)))
 		return;
 
-	if (commit_metadata(clone)) {
+	if (commit_metadata(clone, &dest_dev_flushed)) {
 		bio_list_merge(&bios, &bio_completions);
 
 		while ((bio = bio_list_pop(&bios)))
@@ -1227,8 +1255,17 @@ static void process_deferred_flush_bios(struct clone *clone)
 	while ((bio = bio_list_pop(&bio_completions)))
 		bio_endio(bio);
 
-	while ((bio = bio_list_pop(&bios)))
-		generic_make_request(bio);
+	while ((bio = bio_list_pop(&bios))) {
+		if ((bio->bi_opf & REQ_PREFLUSH) && dest_dev_flushed) {
+			/* We just flushed the destination device as part of
+			 * the metadata commit, so there is no reason to send
+			 * another flush.
+			 */
+			bio_endio(bio);
+		} else {
+			generic_make_request(bio);
+		}
+	}
 }
 
 static void do_worker(struct work_struct *work)
@@ -1400,7 +1437,7 @@ static void clone_status(struct dm_target *ti, status_type_t type,
 
 		/* Commit to ensure statistics aren't out-of-date */
 		if (!(status_flags & DM_STATUS_NOFLUSH_FLAG) && !dm_suspended(ti))
-			(void) commit_metadata(clone);
+			(void) commit_metadata(clone, NULL);
 
 		r = dm_clone_get_free_metadata_block_count(clone->cmd, &nr_free_metadata_blocks);
 
@@ -1834,6 +1871,7 @@ static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	bio_list_init(&clone->deferred_flush_completions);
 	clone->hydration_offset = 0;
 	atomic_set(&clone->hydrations_in_flight, 0);
+	bio_init(&clone->flush_bio, NULL, 0);
 
 	clone->wq = alloc_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM, 0);
 	if (!clone->wq) {
@@ -1907,6 +1945,7 @@ static void clone_dtr(struct dm_target *ti)
 	struct clone *clone = ti->private;
 
 	mutex_destroy(&clone->commit_lock);
+	bio_uninit(&clone->flush_bio);
 
 	for (i = 0; i < clone->nr_ctr_args; i++)
 		kfree(clone->ctr_args[i]);
@@ -1961,7 +2000,7 @@ static void clone_postsuspend(struct dm_target *ti)
 	wait_event(clone->hydration_stopped, !atomic_read(&clone->hydrations_in_flight));
 	flush_workqueue(clone->wq);
 
-	(void) commit_metadata(clone);
+	(void) commit_metadata(clone, NULL);
 }
 
 static void clone_resume(struct dm_target *ti)

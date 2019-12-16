@@ -2015,7 +2015,7 @@ void ceph_reclaim_caps_nr(struct ceph_mds_client *mdsc, int nr)
 	if (!nr)
 		return;
 	val = atomic_add_return(nr, &mdsc->cap_reclaim_pending);
-	if (!(val % CEPH_CAPS_PER_RELEASE)) {
+	if ((val % CEPH_CAPS_PER_RELEASE) < nr) {
 		atomic_set(&mdsc->cap_reclaim_pending, 0);
 		ceph_queue_cap_reclaim_work(mdsc);
 	}
@@ -2032,12 +2032,13 @@ int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 	struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
 	struct ceph_mount_options *opt = req->r_mdsc->fsc->mount_options;
 	size_t size = sizeof(struct ceph_mds_reply_dir_entry);
-	int order, num_entries;
+	unsigned int num_entries;
+	int order;
 
 	spin_lock(&ci->i_ceph_lock);
 	num_entries = ci->i_files + ci->i_subdirs;
 	spin_unlock(&ci->i_ceph_lock);
-	num_entries = max(num_entries, 1);
+	num_entries = max(num_entries, 1U);
 	num_entries = min(num_entries, opt->max_readdir);
 
 	order = get_order(size * num_entries);
@@ -4168,6 +4169,7 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	INIT_DELAYED_WORK(&mdsc->delayed_work, delayed_work);
 	mdsc->last_renew_caps = jiffies;
 	INIT_LIST_HEAD(&mdsc->cap_delay_list);
+	INIT_LIST_HEAD(&mdsc->cap_wait_list);
 	spin_lock_init(&mdsc->cap_delay_lock);
 	INIT_LIST_HEAD(&mdsc->snap_flush_list);
 	spin_lock_init(&mdsc->snap_flush_lock);

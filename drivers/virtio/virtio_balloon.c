@@ -32,10 +32,11 @@
 #define VIRTIO_BALLOON_FREE_PAGE_ALLOC_FLAG (__GFP_NORETRY | __GFP_NOWARN | \
 					     __GFP_NOMEMALLOC)
 /* The order of free page blocks to report to host */
-#define VIRTIO_BALLOON_FREE_PAGE_ORDER (MAX_ORDER - 1)
+#define VIRTIO_BALLOON_HINT_BLOCK_ORDER (MAX_ORDER - 1)
 /* The size of a free page block in bytes */
-#define VIRTIO_BALLOON_FREE_PAGE_SIZE \
-	(1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
+#define VIRTIO_BALLOON_HINT_BLOCK_BYTES \
+	(1 << (VIRTIO_BALLOON_HINT_BLOCK_ORDER + PAGE_SHIFT))
+#define VIRTIO_BALLOON_HINT_BLOCK_PAGES (1 << VIRTIO_BALLOON_HINT_BLOCK_ORDER)
 
 #ifdef CONFIG_BALLOON_COMPACTION
 static struct vfsmount *balloon_mnt;
@@ -380,7 +381,7 @@ static unsigned long return_free_pages_to_mm(struct virtio_balloon *vb,
 		if (!page)
 			break;
 		free_pages((unsigned long)page_address(page),
-			   VIRTIO_BALLOON_FREE_PAGE_ORDER);
+			   VIRTIO_BALLOON_HINT_BLOCK_ORDER);
 	}
 	vb->num_free_page_blocks -= num_returned;
 	spin_unlock_irq(&vb->free_page_list_lock);
@@ -582,7 +583,7 @@ static int get_free_page_and_send(struct virtio_balloon *vb)
 		;
 
 	page = alloc_pages(VIRTIO_BALLOON_FREE_PAGE_ALLOC_FLAG,
-			   VIRTIO_BALLOON_FREE_PAGE_ORDER);
+			   VIRTIO_BALLOON_HINT_BLOCK_ORDER);
 	/*
 	 * When the allocation returns NULL, it indicates that we have got all
 	 * the possible free pages, so return -EINTR to stop.
@@ -591,13 +592,13 @@ static int get_free_page_and_send(struct virtio_balloon *vb)
 		return -EINTR;
 
 	p = page_address(page);
-	sg_init_one(&sg, p, VIRTIO_BALLOON_FREE_PAGE_SIZE);
+	sg_init_one(&sg, p, VIRTIO_BALLOON_HINT_BLOCK_BYTES);
 	/* There is always 1 entry reserved for the cmd id to use. */
 	if (vq->num_free > 1) {
 		err = virtqueue_add_inbuf(vq, &sg, 1, p, GFP_KERNEL);
 		if (unlikely(err)) {
 			free_pages((unsigned long)p,
-				   VIRTIO_BALLOON_FREE_PAGE_ORDER);
+				   VIRTIO_BALLOON_HINT_BLOCK_ORDER);
 			return err;
 		}
 		virtqueue_kick(vq);
@@ -610,7 +611,7 @@ static int get_free_page_and_send(struct virtio_balloon *vb)
 		 * The vq has no available entry to add this page block, so
 		 * just free it.
 		 */
-		free_pages((unsigned long)p, VIRTIO_BALLOON_FREE_PAGE_ORDER);
+		free_pages((unsigned long)p, VIRTIO_BALLOON_HINT_BLOCK_ORDER);
 	}
 
 	return 0;
@@ -721,6 +722,17 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
 
 	get_page(newpage); /* balloon reference */
 
+	/*
+	  * When we migrate a page to a different zone and adjusted the
+	  * managed page count when inflating, we have to fixup the count of
+	  * both involved zones.
+	  */
+	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM) &&
+	    page_zone(page) != page_zone(newpage)) {
+		adjust_managed_page_count(page, 1);
+		adjust_managed_page_count(newpage, -1);
+	}
+
 	/* balloon's page migration 1st step  -- inflate "newpage" */
 	spin_lock_irqsave(&vb_dev_info->pages_lock, flags);
 	balloon_page_insert(vb_dev_info, newpage);
@@ -765,11 +777,11 @@ static unsigned long shrink_free_pages(struct virtio_balloon *vb,
 	unsigned long blocks_to_free, blocks_freed;
 
 	pages_to_free = round_up(pages_to_free,
-				 1 << VIRTIO_BALLOON_FREE_PAGE_ORDER);
-	blocks_to_free = pages_to_free >> VIRTIO_BALLOON_FREE_PAGE_ORDER;
+				 VIRTIO_BALLOON_HINT_BLOCK_PAGES);
+	blocks_to_free = pages_to_free / VIRTIO_BALLOON_HINT_BLOCK_PAGES;
 	blocks_freed = return_free_pages_to_mm(vb, blocks_to_free);
 
-	return blocks_freed << VIRTIO_BALLOON_FREE_PAGE_ORDER;
+	return blocks_freed * VIRTIO_BALLOON_HINT_BLOCK_PAGES;
 }
 
 static unsigned long leak_balloon_pages(struct virtio_balloon *vb,
@@ -826,7 +838,7 @@ static unsigned long virtio_balloon_shrinker_count(struct shrinker *shrinker,
 	unsigned long count;
 
 	count = vb->num_pages / VIRTIO_BALLOON_PAGES_PER_PAGE;
-	count += vb->num_free_page_blocks << VIRTIO_BALLOON_FREE_PAGE_ORDER;
+	count += vb->num_free_page_blocks * VIRTIO_BALLOON_HINT_BLOCK_PAGES;
 
 	return count;
 }

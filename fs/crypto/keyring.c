@@ -153,7 +153,7 @@ static struct key *search_fscrypt_keyring(struct key *keyring,
 }
 
 #define FSCRYPT_FS_KEYRING_DESCRIPTION_SIZE	\
-	(CONST_STRLEN("fscrypt-") + FIELD_SIZEOF(struct super_block, s_id))
+	(CONST_STRLEN("fscrypt-") + sizeof_field(struct super_block, s_id))
 
 #define FSCRYPT_MK_DESCRIPTION_SIZE	(2 * FSCRYPT_KEY_IDENTIFIER_SIZE + 1)
 

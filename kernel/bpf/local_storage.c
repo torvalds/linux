@@ -357,7 +357,7 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
 	 * The first field must be a 64 bit integer at 0 offset.
 	 */
 	m = (struct btf_member *)(key_type + 1);
-	size = FIELD_SIZEOF(struct bpf_cgroup_storage_key, cgroup_inode_id);
+	size = sizeof_field(struct bpf_cgroup_storage_key, cgroup_inode_id);
 	if (!btf_member_is_reg_int(btf, key_type, m, 0, size))
 		return -EINVAL;
 
@@ -366,7 +366,7 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
 	 */
 	m++;
 	offset = offsetof(struct bpf_cgroup_storage_key, attach_type);
-	size = FIELD_SIZEOF(struct bpf_cgroup_storage_key, attach_type);
+	size = sizeof_field(struct bpf_cgroup_storage_key, attach_type);
 	if (!btf_member_is_reg_int(btf, key_type, m, offset, size))
 		return -EINVAL;
 

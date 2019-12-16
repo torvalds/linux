@@ -99,6 +99,12 @@ static int cdns_ufs_link_startup_notify(struct ufs_hba *hba,
 	 */
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_LOCAL_TX_LCC_ENABLE), 0);
 
+	/*
+	 * Disabling Autohibern8 feature in cadence UFS
+	 * to mask unexpected interrupt trigger.
+	 */
+	hba->ahit = 0;
+
 	return 0;
 }
 
