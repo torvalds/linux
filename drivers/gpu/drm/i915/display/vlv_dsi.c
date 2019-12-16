@@ -1815,6 +1815,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	struct drm_connector *connector;
 	struct drm_display_mode *current_mode, *fixed_mode;
 	enum port port;
+	enum pipe pipe;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -1913,7 +1914,8 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	vlv_dphy_param_init(intel_dsi);
 
-	intel_dsi_vbt_gpio_init(intel_dsi);
+	intel_dsi_vbt_gpio_init(intel_dsi,
+				intel_dsi_get_hw_state(intel_encoder, &pipe));
 
 	drm_connector_init(dev, connector, &intel_dsi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DSI);
