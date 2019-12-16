@@ -30,11 +30,12 @@
 #include "dmub_cmd_dal.h"
 #include "dmub_cmd_vbios.h"
 #include "atomfirmware.h"
-
+#include "dc_hw_types.h"
 #define DMUB_RB_CMD_SIZE 64
 #define DMUB_RB_MAX_ENTRY 128
 #define DMUB_RB_SIZE (DMUB_RB_CMD_SIZE * DMUB_RB_MAX_ENTRY)
 #define REG_SET_MASK 0xFFFF
+
 
 /*
  * Command IDs should be treated as stable ABI.
@@ -47,6 +48,7 @@ enum dmub_cmd_type {
 	DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ = 2,
 	DMUB_CMD__REG_SEQ_BURST_WRITE = 3,
 	DMUB_CMD__REG_REG_WAIT = 4,
+	DMUB_CMD__SURFACE_FLIP = 5,
 	DMUB_CMD__PSR = 64,
 	DMUB_CMD__VBIOS = 128,
 };
@@ -143,6 +145,37 @@ struct dmub_cmd_reg_wait_data {
 struct dmub_rb_cmd_reg_wait {
 	struct dmub_cmd_header header;
 	struct dmub_cmd_reg_wait_data reg_wait;
+};
+
+#ifndef PHYSICAL_ADDRESS_LOC
+#define PHYSICAL_ADDRESS_LOC union large_integer
+#endif
+
+struct dmub_cmd_surface_flip {
+	uint32_t DCSURF_SURFACE_CONTROL;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_C;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_C;
+	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS;
+	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS;
+	enum dc_plane_addr_type addr_type;
+	uint8_t hubp_inst;
+	bool tmz_surface;
+	bool immediate;
+	uint8_t vmid;
+	bool grph_stereo;
+};
+
+struct dmub_rb_cmd_flip {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_surface_flip flip;
 };
 
 struct dmub_cmd_digx_encoder_control_data {
@@ -262,6 +295,7 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_psr_enable psr_enable;
 	struct dmub_rb_cmd_psr_copy_settings psr_copy_settings;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
+	struct dmub_rb_cmd_flip surface_flip;
 };
 
 #pragma pack(pop)

@@ -420,6 +420,7 @@ struct dc_debug_options {
 	bool nv12_iflip_vm_wa;
 	bool disable_dram_clock_change_vactive_support;
 	bool validate_dml_output;
+	bool enable_dmcub_surface_flip;
 };
 
 struct dc_debug_data {
