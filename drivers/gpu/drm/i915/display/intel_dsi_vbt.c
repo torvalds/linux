@@ -453,8 +453,8 @@ static const char *sequence_name(enum mipi_seq seq_id)
 		return "(unknown)";
 }
 
-void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
-				 enum mipi_seq seq_id)
+static void intel_dsi_vbt_exec(struct intel_dsi *intel_dsi,
+			       enum mipi_seq seq_id)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
 	const u8 *data;
@@ -517,6 +517,18 @@ void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 			return;
 		}
 	}
+}
+
+void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
+				 enum mipi_seq seq_id)
+{
+	if (seq_id == MIPI_SEQ_POWER_ON && intel_dsi->gpio_panel)
+		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 1);
+
+	intel_dsi_vbt_exec(intel_dsi, seq_id);
+
+	if (seq_id == MIPI_SEQ_POWER_OFF && intel_dsi->gpio_panel)
+		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 0);
 }
 
 void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
@@ -670,4 +682,34 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	}
 
 	return true;
+}
+
+/*
+ * On some BYT/CHT devs some sequences are incomplete and we need to manually
+ * control some GPIOs.
+ */
+void intel_dsi_vbt_gpio_init(struct intel_dsi *intel_dsi)
+{
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
+
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
+	    mipi_config->pwm_blc == PPS_BLC_PMIC) {
+		intel_dsi->gpio_panel =
+			gpiod_get(dev->dev, "panel", GPIOD_OUT_HIGH);
+
+		if (IS_ERR(intel_dsi->gpio_panel)) {
+			DRM_ERROR("Failed to own gpio for panel control\n");
+			intel_dsi->gpio_panel = NULL;
+		}
+	}
+}
+
+void intel_dsi_vbt_gpio_cleanup(struct intel_dsi *intel_dsi)
+{
+	if (intel_dsi->gpio_panel) {
+		gpiod_put(intel_dsi->gpio_panel);
+		intel_dsi->gpio_panel = NULL;
+	}
 }
