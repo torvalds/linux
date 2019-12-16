@@ -448,6 +448,10 @@ struct snd_soc_dai_driver skl_dai[] = {
 	.ops = &hda_link_dai_ops,
 },
 {
+	.name = "iDisp4 Pin",
+	.ops = &hda_link_dai_ops,
+},
+{
 	.name = "Analog CPU DAI",
 	.ops = &hda_link_dai_ops,
 },
