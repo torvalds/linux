@@ -129,6 +129,8 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 		spin_unlock(&job->user_cb->lock);
 		hl_cb_put(job->user_cb);
 		job->user_cb = NULL;
+	} else if (!rc) {
+		job->job_cb_size = job->user_cb_size;
 	}
 
 	return rc;
@@ -585,10 +587,6 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 		job->cs = cs;
 		job->user_cb = cb;
 		job->user_cb_size = chunk->cb_size;
-		if (is_kernel_allocated_cb)
-			job->job_cb_size = cb->size;
-		else
-			job->job_cb_size = chunk->cb_size;
 		job->hw_queue_id = chunk->queue_index;
 
 		cs->jobs_in_queue_cnt[job->hw_queue_id]++;
