@@ -3036,6 +3036,8 @@ fence_driver_init:
 			adev->gfx.config.max_cu_per_sh,
 			adev->gfx.cu_info.number);
 
+	amdgpu_ctx_init_sched(adev);
+
 	adev->accel_working = true;
 
 	amdgpu_vm_check_compute_bug(adev);
