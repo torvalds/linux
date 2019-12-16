@@ -82,6 +82,7 @@ struct kfd_node_properties {
 	uint32_t num_sdma_engines;
 	uint32_t num_sdma_xgmi_engines;
 	uint32_t num_sdma_queues_per_engine;
+	uint32_t num_cp_queues;
 	char name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
 };
 
