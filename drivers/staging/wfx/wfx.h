@@ -125,7 +125,6 @@ struct wfx_vif {
 
 	struct wfx_scan		scan;
 
-	struct hif_req_set_pm_mode powersave_mode;
 	struct completion	set_pm_mode_complete;
 
 	struct list_head	event_queue;

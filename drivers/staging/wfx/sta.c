@@ -328,11 +328,22 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 
 static int wfx_update_pm(struct wfx_vif *wvif)
 {
-	struct hif_req_set_pm_mode pm = wvif->powersave_mode;
+	struct ieee80211_conf *conf = &wvif->wdev->hw->conf;
+	struct hif_req_set_pm_mode pm;
 	u16 uapsd_flags;
 
 	if (wvif->state != WFX_STATE_STA || !wvif->bss_params.aid)
 		return 0;
+
+	memset(&pm, 0, sizeof(pm));
+	if (conf->flags & IEEE80211_CONF_PS) {
+		pm.pm_mode.enter_psm = 1;
+		// Firmware does not support more than 128ms
+		pm.fast_psm_idle_period =
+			min(conf->dynamic_ps_timeout * 2, 255);
+		if (pm.fast_psm_idle_period)
+			pm.pm_mode.fast_psm = 1;
+	}
 
 	memcpy(&uapsd_flags, &wvif->uapsd_info, sizeof(uapsd_flags));
 
@@ -1432,24 +1443,8 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		wvif = NULL;
-		while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-			memset(&wvif->powersave_mode, 0,
-			       sizeof(wvif->powersave_mode));
-			if (conf->flags & IEEE80211_CONF_PS) {
-				wvif->powersave_mode.pm_mode.enter_psm = 1;
-				if (conf->dynamic_ps_timeout > 0) {
-					wvif->powersave_mode.pm_mode.fast_psm = 1;
-					/*
-					 * Firmware does not support more than
-					 * 128ms
-					 */
-					wvif->powersave_mode.fast_psm_idle_period =
-						min(conf->dynamic_ps_timeout *
-						    2, 255);
-				}
-			}
+		while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
 			wfx_update_pm(wvif);
-		}
 		wvif = wdev_to_wvif(wdev, 0);
 	}
 
