@@ -113,7 +113,8 @@ struct wfx_vif {
 	int			cqm_rssi_thold;
 	bool			setbssparams_done;
 	struct wfx_ht_info	ht_info;
-	struct wfx_edca_params	edca;
+	unsigned long		uapsd_mask;
+	struct hif_req_edca_queue_params edca_params[IEEE80211_NUM_ACS];
 	struct hif_req_set_bss_params bss_params;
 	struct work_struct	bss_params_work;
 	struct work_struct	set_cts_work;

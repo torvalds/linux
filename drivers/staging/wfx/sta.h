@@ -34,12 +34,6 @@ struct wfx_hif_event {
 	struct hif_ind_event evt;
 };
 
-struct wfx_edca_params {
-	/* NOTE: index is a linux queue id. */
-	struct hif_req_edca_queue_params params[IEEE80211_NUM_ACS];
-	unsigned long uapsd_mask;
-};
-
 struct wfx_grp_addr_table {
 	bool enable;
 	int num_addresses;

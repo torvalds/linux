@@ -299,7 +299,7 @@ static int wfx_update_pm(struct wfx_vif *wvif)
 		return 0;
 	if (!ps)
 		ps_timeout = 0;
-	if (wvif->edca.uapsd_mask)
+	if (wvif->uapsd_mask)
 		ps_timeout = 0;
 
 	// Kernel disable PowerSave when multiple vifs are in use. In contrary,
@@ -327,8 +327,8 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	WARN_ON(queue >= hw->queues);
 
 	mutex_lock(&wdev->conf_mutex);
-	assign_bit(queue, &wvif->edca.uapsd_mask, params->uapsd);
-	edca = &wvif->edca.params[queue];
+	assign_bit(queue, &wvif->uapsd_mask, params->uapsd);
+	edca = &wvif->edca_params[queue];
 	edca->aifsn = params->aifs;
 	edca->cw_min = params->cw_min;
 	edca->cw_max = params->cw_max;
@@ -337,7 +337,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	hif_set_edca_queue_params(wvif, edca);
 
 	if (wvif->vif->type == NL80211_IFTYPE_STATION) {
-		hif_set_uapsd_info(wvif, wvif->edca.uapsd_mask);
+		hif_set_uapsd_info(wvif, wvif->uapsd_mask);
 		if (wvif->setbssparams_done && wvif->state == WFX_STATE_STA)
 			wfx_update_pm(wvif);
 	}
@@ -1426,7 +1426,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		},
 	};
 
-	BUILD_BUG_ON(ARRAY_SIZE(default_edca_params) != ARRAY_SIZE(wvif->edca.params));
+	BUILD_BUG_ON(ARRAY_SIZE(default_edca_params) != ARRAY_SIZE(wvif->edca_params));
 	if (wfx_api_older_than(wdev, 2, 0)) {
 		default_edca_params[IEEE80211_AC_BE].queue_id = HIF_QUEUE_ID_BACKGROUND;
 		default_edca_params[IEEE80211_AC_BK].queue_id = HIF_QUEUE_ID_BESTEFFORT;
@@ -1502,12 +1502,12 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	hif_set_macaddr(wvif, vif->addr);
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		memcpy(&wvif->edca.params[i], &default_edca_params[i],
+		memcpy(&wvif->edca_params[i], &default_edca_params[i],
 		       sizeof(default_edca_params[i]));
-		hif_set_edca_queue_params(wvif, &wvif->edca.params[i]);
+		hif_set_edca_queue_params(wvif, &wvif->edca_params[i]);
 	}
-	wvif->edca.uapsd_mask = 0;
-	hif_set_uapsd_info(wvif, wvif->edca.uapsd_mask);
+	wvif->uapsd_mask = 0;
+	hif_set_uapsd_info(wvif, wvif->uapsd_mask);
 
 	wfx_tx_policy_init(wvif);
 	wvif = NULL;
