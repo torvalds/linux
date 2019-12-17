@@ -1448,8 +1448,7 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 						    2, 255);
 				}
 			}
-			if (wvif->state == WFX_STATE_STA && wvif->bss_params.aid)
-				wfx_update_pm(wvif);
+			wfx_update_pm(wvif);
 		}
 		wvif = wdev_to_wvif(wdev, 0);
 	}
