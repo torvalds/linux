@@ -644,7 +644,6 @@ static void wfx_set_mfp(struct wfx_vif *wvif,
 	hif_set_mfp(wvif, mfpc, mfpr);
 }
 
-/* MUST be called with tx_lock held!  It will be unlocked for us. */
 static void wfx_do_join(struct wfx_vif *wvif)
 {
 	const u8 *bssid;
@@ -658,6 +657,8 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		.basic_rate_set = wfx_rate_mask_to_hw(wvif->wdev,
 						      conf->basic_rates),
 	};
+
+	wfx_tx_lock_flush(wvif->wdev);
 
 	if (wvif->channel->flags & IEEE80211_CHAN_NO_IR)
 		join.probe_for_join = 0;
@@ -1180,10 +1181,8 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	}
 	mutex_unlock(&wdev->conf_mutex);
 
-	if (do_join) {
-		wfx_tx_lock_flush(wdev);
-		wfx_do_join(wvif); /* Will unlock it for us */
-	}
+	if (do_join)
+		wfx_do_join(wvif);
 }
 
 static void wfx_ps_notify(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd,
