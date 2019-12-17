@@ -996,7 +996,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	association_mode.spacing = 1;
 	association_mode.short_preamble = info->use_short_preamble;
 	association_mode.basic_rate_set = cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, info->basic_rates));
-	association_mode.mixed_or_greenfield_type = wfx_ht_greenfield(&wvif->ht_info);
+	association_mode.greenfield = wfx_ht_greenfield(&wvif->ht_info);
 	association_mode.mpdu_start_spacing = wfx_ht_ampdu_density(&wvif->ht_info);
 
 	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
