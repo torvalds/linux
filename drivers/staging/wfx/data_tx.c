@@ -249,7 +249,7 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 	return 0;
 }
 
-static void wfx_tx_policy_upload_work(struct work_struct *work)
+void wfx_tx_policy_upload_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif =
 		container_of(work, struct wfx_vif, tx_policy_upload_work);
@@ -270,7 +270,6 @@ void wfx_tx_policy_init(struct wfx_vif *wvif)
 	spin_lock_init(&cache->lock);
 	INIT_LIST_HEAD(&cache->used);
 	INIT_LIST_HEAD(&cache->free);
-	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 
 	for (i = 0; i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES; ++i)
 		list_add(&cache->cache[i].link, &cache->free);
