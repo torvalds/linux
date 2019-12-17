@@ -823,7 +823,6 @@ typedef struct {
   uint32_t MmHubPadding[8]; // SMU internal use
 } AvfsFuseOverride_t;
 
-/* NOT CURRENTLY USED
 typedef struct {
   uint8_t   Gfx_ActiveHystLimit;
   uint8_t   Gfx_IdleHystLimit;
@@ -866,7 +865,6 @@ typedef struct {
 
   uint32_t  MmHubPadding[8]; // SMU internal use
 } DpmActivityMonitorCoeffInt_t;
-*/
 
 // These defines are used with the following messages:
 // SMC_MSG_TransferTableDram2Smu
@@ -878,11 +876,11 @@ typedef struct {
 #define TABLE_PMSTATUSLOG             4
 #define TABLE_SMU_METRICS             5
 #define TABLE_DRIVER_SMU_CONFIG       6
-//#define TABLE_ACTIVITY_MONITOR_COEFF  7
 #define TABLE_OVERDRIVE               7
 #define TABLE_WAFL_XGMI_TOPOLOGY      8
 #define TABLE_I2C_COMMANDS            9
-#define TABLE_COUNT                   10
+#define TABLE_ACTIVITY_MONITOR_COEFF  10
+#define TABLE_COUNT                   11
 
 // These defines are used with the SMC_MSG_SetUclkFastSwitch message.
 typedef enum {
