@@ -65,8 +65,13 @@ void intel_guc_ct_fini(struct intel_guc_ct *ct);
 int intel_guc_ct_enable(struct intel_guc_ct *ct);
 void intel_guc_ct_disable(struct intel_guc_ct *ct);
 
-int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len,
+static inline bool intel_guc_ct_enabled(struct intel_guc_ct *ct)
+{
+	return ct->enabled;
+}
+
+int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
 		      u32 *response_buf, u32 response_buf_size);
-void intel_guc_to_host_event_handler_ct(struct intel_guc *guc);
+void intel_guc_ct_event_handler(struct intel_guc_ct *ct);
 
 #endif /* _INTEL_GUC_CT_H_ */

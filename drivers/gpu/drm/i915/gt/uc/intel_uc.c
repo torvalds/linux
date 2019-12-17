@@ -123,6 +123,11 @@ static void __uc_free_load_err_log(struct intel_uc *uc)
 		i915_gem_object_put(log);
 }
 
+static inline bool guc_communication_enabled(struct intel_guc *guc)
+{
+	return intel_guc_ct_enabled(&guc->ct);
+}
+
 /*
  * Events triggered while CT buffers are disabled are logged in the SCRATCH_15
  * register using the same bits used in the CT message payload. Since our
@@ -158,7 +163,7 @@ static void guc_handle_mmio_msg(struct intel_guc *guc)
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 
 	/* we need communication to be enabled to reply to GuC */
-	GEM_BUG_ON(guc->handler == intel_guc_to_host_event_handler_nop);
+	GEM_BUG_ON(!guc_communication_enabled(guc));
 
 	if (!guc->mmio_msg)
 		return;
@@ -185,11 +190,6 @@ static void guc_disable_interrupts(struct intel_guc *guc)
 	guc->interrupts.disable(guc);
 }
 
-static inline bool guc_communication_enabled(struct intel_guc *guc)
-{
-	return guc->send != intel_guc_send_nop;
-}
-
 static int guc_enable_communication(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
@@ -205,9 +205,6 @@ static int guc_enable_communication(struct intel_guc *guc)
 	if (ret)
 		return ret;
 
-	guc->send = intel_guc_send_ct;
-	guc->handler = intel_guc_to_host_event_handler_ct;
-
 	/* check for mmio messages received before/during the CT enable */
 	guc_get_mmio_msg(guc);
 	guc_handle_mmio_msg(guc);
@@ -216,7 +213,7 @@ static int guc_enable_communication(struct intel_guc *guc)
 
 	/* check for CT messages received before we enabled interrupts */
 	spin_lock_irq(&i915->irq_lock);
-	intel_guc_to_host_event_handler_ct(guc);
+	intel_guc_ct_event_handler(&guc->ct);
 	spin_unlock_irq(&i915->irq_lock);
 
 	DRM_INFO("GuC communication enabled\n");
@@ -234,9 +231,6 @@ static void guc_disable_communication(struct intel_guc *guc)
 	guc_clear_mmio_msg(guc);
 
 	guc_disable_interrupts(guc);
-
-	guc->send = intel_guc_send_nop;
-	guc->handler = intel_guc_to_host_event_handler_nop;
 
 	intel_guc_ct_disable(&guc->ct);
 

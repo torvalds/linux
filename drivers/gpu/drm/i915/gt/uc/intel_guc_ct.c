@@ -510,12 +510,17 @@ unlink:
 /*
  * Command Transport (CT) buffer based GuC send function.
  */
-int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len,
+int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
 		      u32 *response_buf, u32 response_buf_size)
 {
-	struct intel_guc_ct *ct = &guc->ct;
+	struct intel_guc *guc = ct_to_guc(ct);
 	u32 status = ~0; /* undefined */
 	int ret;
+
+	if (unlikely(!ct->enabled)) {
+		WARN(1, "Unexpected send: action=%#x\n", *action);
+		return -ENODEV;
+	}
 
 	mutex_lock(&guc->send_mutex);
 
@@ -787,15 +792,16 @@ static int ct_handle_request(struct intel_guc_ct *ct, const u32 *msg)
  * When we're communicating with the GuC over CT, GuC uses events
  * to notify us about new messages being posted on the RECV buffer.
  */
-void intel_guc_to_host_event_handler_ct(struct intel_guc *guc)
+void intel_guc_ct_event_handler(struct intel_guc_ct *ct)
 {
-	struct intel_guc_ct *ct = &guc->ct;
 	struct intel_guc_ct_buffer *ctb = &ct->ctbs[CTB_RECV];
 	u32 msg[GUC_CT_MSG_LEN_MASK + 1]; /* one extra dw for the header */
 	int err = 0;
 
-	if (!ct->enabled)
+	if (unlikely(!ct->enabled)) {
+		WARN(1, "Unexpected GuC event received while CT disabled!\n");
 		return;
+	}
 
 	do {
 		err = ctb_read(ctb, msg);

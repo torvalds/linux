@@ -43,7 +43,6 @@
  * Firmware writes a success/fail code back to the action register after
  * processes the request. The kernel driver polls waiting for this update and
  * then proceeds.
- * See intel_guc_send()
  *
  * Work Items:
  * There are several types of work items that the host may place into a

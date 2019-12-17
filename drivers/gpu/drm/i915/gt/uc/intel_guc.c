@@ -177,8 +177,6 @@ void intel_guc_init_early(struct intel_guc *guc)
 
 	mutex_init(&guc->send_mutex);
 	spin_lock_init(&guc->irq_lock);
-	guc->send = intel_guc_send_nop;
-	guc->handler = intel_guc_to_host_event_handler_nop;
 	if (INTEL_GEN(i915) >= 11) {
 		guc->notify = gen11_guc_raise_irq;
 		guc->interrupts.reset = gen11_reset_guc_interrupts;
@@ -401,18 +399,6 @@ void intel_guc_fini(struct intel_guc *guc)
 	intel_guc_log_destroy(&guc->log);
 	intel_uc_fw_fini(&guc->fw);
 	intel_uc_fw_cleanup_fetch(&guc->fw);
-}
-
-int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
-		       u32 *response_buf, u32 response_buf_size)
-{
-	WARN(1, "Unexpected send: action=%#x\n", *action);
-	return -ENODEV;
-}
-
-void intel_guc_to_host_event_handler_nop(struct intel_guc *guc)
-{
-	WARN(1, "Unexpected event: no suitable handler\n");
 }
 
 /*

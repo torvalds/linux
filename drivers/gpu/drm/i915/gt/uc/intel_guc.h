@@ -70,13 +70,6 @@ struct intel_guc {
 	/* To serialize the intel_guc_send actions */
 	struct mutex send_mutex;
 
-	/* GuC's FW specific send function */
-	int (*send)(struct intel_guc *guc, const u32 *data, u32 len,
-		    u32 *response_buf, u32 response_buf_size);
-
-	/* GuC's FW specific event handler function */
-	void (*handler)(struct intel_guc *guc);
-
 	/* GuC's FW specific notify function */
 	void (*notify)(struct intel_guc *guc);
 };
@@ -84,14 +77,15 @@ struct intel_guc {
 static
 inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 {
-	return guc->send(guc, action, len, NULL, 0);
+	return intel_guc_ct_send(&guc->ct, action, len, NULL, 0);
 }
 
 static inline int
 intel_guc_send_and_receive(struct intel_guc *guc, const u32 *action, u32 len,
 			   u32 *response_buf, u32 response_buf_size)
 {
-	return guc->send(guc, action, len, response_buf, response_buf_size);
+	return intel_guc_ct_send(&guc->ct, action, len,
+				 response_buf, response_buf_size);
 }
 
 static inline void intel_guc_notify(struct intel_guc *guc)
@@ -101,7 +95,7 @@ static inline void intel_guc_notify(struct intel_guc *guc)
 
 static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)
 {
-	guc->handler(guc);
+	intel_guc_ct_event_handler(&guc->ct);
 }
 
 /* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
@@ -136,12 +130,8 @@ void intel_guc_init_send_regs(struct intel_guc *guc);
 void intel_guc_write_params(struct intel_guc *guc);
 int intel_guc_init(struct intel_guc *guc);
 void intel_guc_fini(struct intel_guc *guc);
-int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
-		       u32 *response_buf, u32 response_buf_size);
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 			u32 *response_buf, u32 response_buf_size);
-void intel_guc_to_host_event_handler(struct intel_guc *guc);
-void intel_guc_to_host_event_handler_nop(struct intel_guc *guc);
 int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
 				       const u32 *payload, u32 len);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
