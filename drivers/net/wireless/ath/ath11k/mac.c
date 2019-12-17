@@ -4212,12 +4212,6 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 			    arvif->vdev_id, ret);
 	}
 
-	ret = ath11k_mac_set_txbf_conf(arvif);
-	if (ret) {
-		ath11k_warn(ar->ab, "failed to set txbf conf for vdev %d: %d\n",
-			    arvif->vdev_id, ret);
-	}
-
 	ath11k_dp_vdev_tx_attach(ar, arvif);
 
 	mutex_unlock(&ar->conf_mutex);
@@ -4566,6 +4560,11 @@ ath11k_mac_vdev_start_restart(struct ath11k_vif *arvif,
 			   "CAC Started in chan_freq %d for vdev %d\n",
 			   arg.channel.freq, arg.vdev_id);
 	}
+
+	ret = ath11k_mac_set_txbf_conf(arvif);
+	if (ret)
+		ath11k_warn(ab, "failed to set txbf conf for vdev %d: %d\n",
+			    arvif->vdev_id, ret);
 
 	return 0;
 }
