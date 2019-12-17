@@ -5,6 +5,9 @@
 #if !defined(__x86_64__) || !defined(__ILP32__)
 #include <asm-generic/msgbuf.h>
 #else
+
+#include <asm/ipcbuf.h>
+
 /*
  * The msqid64_ds structure for x86 architecture with x32 ABI.
  *

@@ -733,10 +733,20 @@ static bool aac_is_ctrl_up_and_running(struct aac_dev *dev)
 	return ctrl_up;
 }
 
+static void aac_src_drop_io(struct aac_dev *dev)
+{
+	if (!dev->soft_reset_support)
+		return;
+
+	aac_adapter_sync_cmd(dev, DROP_IO,
+			0, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
+}
+
 static void aac_notify_fw_of_iop_reset(struct aac_dev *dev)
 {
 	aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS, 0, 0, 0, 0, 0, 0, NULL,
 						NULL, NULL, NULL, NULL);
+	aac_src_drop_io(dev);
 }
 
 static void aac_send_iop_reset(struct aac_dev *dev)

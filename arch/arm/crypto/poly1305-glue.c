@@ -249,16 +249,19 @@ static int __init arm_poly1305_mod_init(void)
 	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
 	    (elf_hwcap & HWCAP_NEON))
 		static_branch_enable(&have_neon);
-	else
+	else if (IS_REACHABLE(CONFIG_CRYPTO_HASH))
 		/* register only the first entry */
 		return crypto_register_shash(&arm_poly1305_algs[0]);
 
-	return crypto_register_shashes(arm_poly1305_algs,
-				       ARRAY_SIZE(arm_poly1305_algs));
+	return IS_REACHABLE(CONFIG_CRYPTO_HASH) ?
+		crypto_register_shashes(arm_poly1305_algs,
+					ARRAY_SIZE(arm_poly1305_algs)) : 0;
 }
 
 static void __exit arm_poly1305_mod_exit(void)
 {
+	if (!IS_REACHABLE(CONFIG_CRYPTO_HASH))
+		return;
 	if (!static_branch_likely(&have_neon)) {
 		crypto_unregister_shash(&arm_poly1305_algs[0]);
 		return;

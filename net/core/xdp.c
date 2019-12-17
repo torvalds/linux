@@ -80,18 +80,16 @@ static void mem_xa_remove(struct xdp_mem_allocator *xa)
 {
 	trace_mem_disconnect(xa);
 
-	mutex_lock(&mem_id_lock);
-
 	if (!rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
 		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
-
-	mutex_unlock(&mem_id_lock);
 }
 
 static void mem_allocator_disconnect(void *allocator)
 {
 	struct xdp_mem_allocator *xa;
 	struct rhashtable_iter iter;
+
+	mutex_lock(&mem_id_lock);
 
 	rhashtable_walk_enter(mem_id_ht, &iter);
 	do {
@@ -106,6 +104,8 @@ static void mem_allocator_disconnect(void *allocator)
 
 	} while (xa == ERR_PTR(-EAGAIN));
 	rhashtable_walk_exit(&iter);
+
+	mutex_unlock(&mem_id_lock);
 }
 
 static void mem_id_disconnect(int id)

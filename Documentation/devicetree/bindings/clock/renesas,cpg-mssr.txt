@@ -62,7 +62,7 @@ Required Properties:
 	power-managed through Module Standby should refer to the CPG device
 	node in their "power-domains" property, as documented by the generic PM
 	Domain bindings in
-	Documentation/devicetree/bindings/power/power_domain.txt.
+	Documentation/devicetree/bindings/power/power-domain.yaml.
 
   - #reset-cells: Must be 1
       - The single reset specifier cell must be the module number, as defined

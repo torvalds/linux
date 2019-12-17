@@ -22,7 +22,6 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
-#include <linux/pm_runtime.h>
 
 #define ULITE_NAME		"ttyUL"
 #define ULITE_MAJOR		204
@@ -55,7 +54,6 @@
 #define ULITE_CONTROL_RST_TX	0x01
 #define ULITE_CONTROL_RST_RX	0x02
 #define ULITE_CONTROL_IE	0x10
-#define UART_AUTOSUSPEND_TIMEOUT	3000
 
 /* Static pointer to console port */
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
@@ -65,7 +63,6 @@ static struct uart_port *console_port;
 struct uartlite_data {
 	const struct uartlite_reg_ops *reg_ops;
 	struct clk *clk;
-	struct uart_driver *ulite_uart_driver;
 };
 
 struct uartlite_reg_ops {
@@ -393,12 +390,12 @@ static int ulite_verify_port(struct uart_port *port, struct serial_struct *ser)
 static void ulite_pm(struct uart_port *port, unsigned int state,
 		     unsigned int oldstate)
 {
-	if (!state) {
-		pm_runtime_get_sync(port->dev);
-	} else {
-		pm_runtime_mark_last_busy(port->dev);
-		pm_runtime_put_autosuspend(port->dev);
-	}
+	struct uartlite_data *pdata = port->private_data;
+
+	if (!state)
+		clk_enable(pdata->clk);
+	else
+		clk_disable(pdata->clk);
 }
 
 #ifdef CONFIG_CONSOLE_POLL
@@ -697,9 +694,7 @@ static int ulite_release(struct device *dev)
 	int rc = 0;
 
 	if (port) {
-		struct uartlite_data *pdata = port->private_data;
-
-		rc = uart_remove_one_port(pdata->ulite_uart_driver, port);
+		rc = uart_remove_one_port(&ulite_uart_driver, port);
 		dev_set_drvdata(dev, NULL);
 		port->mapbase = 0;
 	}
@@ -717,11 +712,8 @@ static int __maybe_unused ulite_suspend(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 
-	if (port) {
-		struct uartlite_data *pdata = port->private_data;
-
-		uart_suspend_port(pdata->ulite_uart_driver, port);
-	}
+	if (port)
+		uart_suspend_port(&ulite_uart_driver, port);
 
 	return 0;
 }
@@ -736,41 +728,17 @@ static int __maybe_unused ulite_resume(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 
-	if (port) {
-		struct uartlite_data *pdata = port->private_data;
-
-		uart_resume_port(pdata->ulite_uart_driver, port);
-	}
+	if (port)
+		uart_resume_port(&ulite_uart_driver, port);
 
 	return 0;
 }
 
-static int __maybe_unused ulite_runtime_suspend(struct device *dev)
-{
-	struct uart_port *port = dev_get_drvdata(dev);
-	struct uartlite_data *pdata = port->private_data;
-
-	clk_disable(pdata->clk);
-	return 0;
-};
-
-static int __maybe_unused ulite_runtime_resume(struct device *dev)
-{
-	struct uart_port *port = dev_get_drvdata(dev);
-	struct uartlite_data *pdata = port->private_data;
-
-	clk_enable(pdata->clk);
-	return 0;
-}
 /* ---------------------------------------------------------------------
  * Platform bus binding
  */
 
-static const struct dev_pm_ops ulite_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ulite_suspend, ulite_resume)
-	SET_RUNTIME_PM_OPS(ulite_runtime_suspend,
-			   ulite_runtime_resume, NULL)
-};
+static SIMPLE_DEV_PM_OPS(ulite_pm_ops, ulite_suspend, ulite_resume);
 
 #if defined(CONFIG_OF)
 /* Match table for of_platform binding */
@@ -795,22 +763,6 @@ static int ulite_probe(struct platform_device *pdev)
 	if (prop)
 		id = be32_to_cpup(prop);
 #endif
-	if (id < 0) {
-		/* Look for a serialN alias */
-		id = of_alias_get_id(pdev->dev.of_node, "serial");
-		if (id < 0)
-			id = 0;
-	}
-
-	if (!ulite_uart_driver.state) {
-		dev_dbg(&pdev->dev, "uartlite: calling uart_register_driver()\n");
-		ret = uart_register_driver(&ulite_uart_driver);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Failed to register driver\n");
-			return ret;
-		}
-	}
-
 	pdata = devm_kzalloc(&pdev->dev, sizeof(struct uartlite_data),
 			     GFP_KERNEL);
 	if (!pdata)
@@ -836,22 +788,24 @@ static int ulite_probe(struct platform_device *pdev)
 		pdata->clk = NULL;
 	}
 
-	pdata->ulite_uart_driver = &ulite_uart_driver;
 	ret = clk_prepare_enable(pdata->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare clock\n");
 		return ret;
 	}
 
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, UART_AUTOSUSPEND_TIMEOUT);
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
+	if (!ulite_uart_driver.state) {
+		dev_dbg(&pdev->dev, "uartlite: calling uart_register_driver()\n");
+		ret = uart_register_driver(&ulite_uart_driver);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to register driver\n");
+			return ret;
+		}
+	}
 
 	ret = ulite_assign(&pdev->dev, id, res->start, irq, pdata);
 
-	pm_runtime_mark_last_busy(&pdev->dev);
-	pm_runtime_put_autosuspend(&pdev->dev);
+	clk_disable(pdata->clk);
 
 	return ret;
 }
@@ -860,14 +814,9 @@ static int ulite_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = dev_get_drvdata(&pdev->dev);
 	struct uartlite_data *pdata = port->private_data;
-	int rc;
 
-	clk_unprepare(pdata->clk);
-	rc = ulite_release(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	return rc;
+	clk_disable_unprepare(pdata->clk);
+	return ulite_release(&pdev->dev);
 }
 
 /* work with hotplug and coldplug */

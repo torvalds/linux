@@ -38,7 +38,6 @@ struct pipe_buffer {
  *	@readers: number of current readers of this pipe
  *	@writers: number of current writers of this pipe
  *	@files: number of struct file referring this pipe (protected by ->i_lock)
- *	@waiting_writers: number of writers blocked waiting for room
  *	@r_counter: reader counter
  *	@w_counter: writer counter
  *	@fasync_readers: reader side fasync
@@ -56,7 +55,6 @@ struct pipe_inode_info {
 	unsigned int readers;
 	unsigned int writers;
 	unsigned int files;
-	unsigned int waiting_writers;
 	unsigned int r_counter;
 	unsigned int w_counter;
 	struct page *tmp_page;

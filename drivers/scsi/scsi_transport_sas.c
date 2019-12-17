@@ -1391,9 +1391,6 @@ static void sas_expander_release(struct device *dev)
 	struct sas_rphy *rphy = dev_to_rphy(dev);
 	struct sas_expander_device *edev = rphy_to_expander_device(rphy);
 
-	if (rphy->q)
-		blk_cleanup_queue(rphy->q);
-
 	put_device(dev->parent);
 	kfree(edev);
 }
@@ -1402,9 +1399,6 @@ static void sas_end_device_release(struct device *dev)
 {
 	struct sas_rphy *rphy = dev_to_rphy(dev);
 	struct sas_end_device *edev = rphy_to_end_device(rphy);
-
-	if (rphy->q)
-		blk_cleanup_queue(rphy->q);
 
 	put_device(dev->parent);
 	kfree(edev);
@@ -1634,8 +1628,7 @@ sas_rphy_remove(struct sas_rphy *rphy)
 	}
 
 	sas_rphy_unlink(rphy);
-	if (rphy->q)
-		bsg_unregister_queue(rphy->q);
+	bsg_remove_queue(rphy->q);
 	transport_remove_device(dev);
 	device_del(dev);
 }

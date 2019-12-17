@@ -9,6 +9,7 @@ Device Mapper
     cache
     delay
     dm-crypt
+    dm-dust
     dm-flakey
     dm-init
     dm-integrity

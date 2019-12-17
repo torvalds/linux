@@ -129,6 +129,17 @@ static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
 				goto unpin;
 			}
 
+			/*
+			 * The display controller needs contiguous memory, so
+			 * fail if the buffer is discontiguous and we fail to
+			 * map its SG table to a single contiguous chunk of
+			 * I/O virtual memory.
+			 */
+			if (err > 1) {
+				err = -EINVAL;
+				goto unpin;
+			}
+
 			state->iova[i] = sg_dma_address(sgt->sgl);
 			state->sgt[i] = sgt;
 		} else {
