@@ -220,41 +220,59 @@ int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val,
 	return ret;
 }
 
-int hif_scan(struct wfx_vif *wvif, const struct wfx_scan_params *arg)
+int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
+	     int chan_start_idx, int chan_num)
 {
 	int ret, i;
 	struct hif_msg *hif;
-	struct hif_ssid_def *ssids;
-	size_t buf_len = sizeof(struct hif_req_start_scan) +
-		arg->scan_req.num_of_channels * sizeof(u8) +
-		arg->scan_req.num_of_ssids * sizeof(struct hif_ssid_def);
-	struct hif_req_start_scan *body = wfx_alloc_hif(buf_len, &hif);
-	u8 *ptr = (u8 *) body + sizeof(*body);
+	size_t buf_len =
+		sizeof(struct hif_req_start_scan_alt) + chan_num * sizeof(u8);
+	struct hif_req_start_scan_alt *body = wfx_alloc_hif(buf_len, &hif);
+	int tmo_chan_fg, tmo_chan_bg, tmo;
 
-	WARN(arg->scan_req.num_of_channels > HIF_API_MAX_NB_CHANNELS, "invalid params");
-	WARN(arg->scan_req.num_of_ssids > 2, "invalid params");
-	WARN(arg->scan_req.band > 1, "invalid params");
+	WARN(chan_num > HIF_API_MAX_NB_CHANNELS, "invalid params");
+	WARN(req->n_ssids > HIF_API_MAX_NB_SSIDS, "invalid params");
 
-	// FIXME: This API is unnecessary complex, fixing NumOfChannels and
-	// adding a member SsidDef at end of struct hif_req_start_scan would
-	// simplify that a lot.
-	memcpy(body, &arg->scan_req, sizeof(*body));
-	cpu_to_le32s(&body->min_channel_time);
-	cpu_to_le32s(&body->max_channel_time);
-	cpu_to_le32s(&body->tx_power_level);
-	memcpy(ptr, arg->ssids,
-	       arg->scan_req.num_of_ssids * sizeof(struct hif_ssid_def));
-	ssids = (struct hif_ssid_def *) ptr;
-	for (i = 0; i < body->num_of_ssids; ++i)
-		cpu_to_le32s(&ssids[i].ssid_length);
-	ptr += arg->scan_req.num_of_ssids * sizeof(struct hif_ssid_def);
-	memcpy(ptr, arg->ch, arg->scan_req.num_of_channels * sizeof(u8));
-	ptr += arg->scan_req.num_of_channels * sizeof(u8);
-	WARN(buf_len != ptr - (u8 *) body, "allocation size mismatch");
+	compiletime_assert(IEEE80211_MAX_SSID_LEN == HIF_API_SSID_SIZE,
+			   "API inconsistency");
+	for (i = 0; i < req->n_ssids; i++) {
+		memcpy(body->ssid_def[i].ssid, req->ssids[i].ssid,
+		       IEEE80211_MAX_SSID_LEN);
+		body->ssid_def[i].ssid_length =
+			cpu_to_le32(req->ssids[i].ssid_len);
+	}
+	body->num_of_ssids = HIF_API_MAX_NB_SSIDS;
+	// Background scan is always a good idea
+	body->scan_type.type = 1;
+	body->scan_flags.fbg = 1;
+	body->tx_power_level =
+		cpu_to_le32(req->channels[chan_start_idx]->max_power);
+	body->num_of_channels = chan_num;
+	for (i = 0; i < chan_num; i++)
+		body->channel_list[i] =
+			req->channels[i + chan_start_idx]->hw_value;
+	if (req->no_cck)
+		body->max_transmit_rate = API_RATE_INDEX_G_6MBPS;
+	else
+		body->max_transmit_rate = API_RATE_INDEX_B_1MBPS;
+	if (req->channels[chan_start_idx]->flags & IEEE80211_CHAN_NO_IR) {
+		body->min_channel_time = cpu_to_le32(50);
+		body->max_channel_time = cpu_to_le32(150);
+	} else {
+		body->min_channel_time = cpu_to_le32(10);
+		body->max_channel_time = cpu_to_le32(50);
+		body->num_of_probe_requests = 2;
+		body->probe_delay = 100;
+	}
+	tmo_chan_bg = le32_to_cpu(body->max_channel_time) * USEC_PER_TU;
+	tmo_chan_fg = 512 * USEC_PER_TU + body->probe_delay;
+	tmo_chan_fg *= body->num_of_probe_requests;
+	tmo = chan_num * max(tmo_chan_bg, tmo_chan_fg);
+
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_START_SCAN, buf_len);
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);
-	return ret;
+	return ret ? ret : usecs_to_jiffies(tmo);
 }
 
 int hif_stop_scan(struct wfx_vif *wvif)

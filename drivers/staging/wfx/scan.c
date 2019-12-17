@@ -34,19 +34,18 @@ static void wfx_scan_restart_delayed(struct wfx_vif *wvif)
 	}
 }
 
-static int wfx_scan_start(struct wfx_vif *wvif, struct wfx_scan_params *scan)
+static int wfx_scan_start(struct wfx_vif *wvif,
+			  int chan_start_idx, int chan_num)
 {
-	int tmo = 500;
+	int tmo;
 
 	if (wvif->state == WFX_STATE_PRE_STA)
 		return -EBUSY;
 
-	tmo += scan->scan_req.num_of_channels *
-	       ((20 * (scan->scan_req.max_channel_time)) + 10);
 	atomic_set(&wvif->scan.in_progress, 1);
 
-	schedule_delayed_work(&wvif->scan.timeout, msecs_to_jiffies(tmo));
-	hif_scan(wvif, scan);
+	tmo = hif_scan(wvif, wvif->scan.req, chan_start_idx, chan_num);
+	schedule_delayed_work(&wvif->scan.timeout, tmo);
 	return 0;
 }
 
@@ -128,9 +127,6 @@ void wfx_scan_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif = container_of(work, struct wfx_vif, scan.work);
 	struct ieee80211_channel **it;
-	struct wfx_scan_params scan = {
-		.scan_req.scan_type.type = 0,    /* Foreground */
-	};
 	struct ieee80211_channel *first;
 	int i;
 
@@ -173,48 +169,14 @@ void wfx_scan_work(struct work_struct *work)
 		    (*it)->max_power != first->max_power)
 			break;
 	}
-	scan.scan_req.band = first->band;
-
-	if (wvif->scan.req->no_cck)
-		scan.scan_req.max_transmit_rate = API_RATE_INDEX_G_6MBPS;
-	else
-		scan.scan_req.max_transmit_rate = API_RATE_INDEX_B_1MBPS;
-	scan.scan_req.num_of_probe_requests =
-		(first->flags & IEEE80211_CHAN_NO_IR) ? 0 : 2;
-	scan.scan_req.num_of_ssids = wvif->scan.n_ssids;
-	scan.ssids = &wvif->scan.ssids[0];
-	scan.scan_req.num_of_channels = it - wvif->scan.curr;
-	scan.scan_req.probe_delay = 100;
-	// FIXME: Check if FW can do active scan while joined.
-	if (wvif->state == WFX_STATE_STA) {
-		scan.scan_req.scan_type.type = 1;
-		scan.scan_req.scan_flags.fbg = 1;
-	}
-
-	scan.ch = kcalloc(scan.scan_req.num_of_channels,
-			  sizeof(u8), GFP_KERNEL);
-
-	if (!scan.ch) {
-		wvif->scan.status = -ENOMEM;
-		goto fail;
-	}
-	for (i = 0; i < scan.scan_req.num_of_channels; ++i)
-		scan.ch[i] = wvif->scan.curr[i]->hw_value;
-
-	if (wvif->scan.curr[0]->flags & IEEE80211_CHAN_NO_IR) {
-		scan.scan_req.min_channel_time = 50;
-		scan.scan_req.max_channel_time = 150;
-	} else {
-		scan.scan_req.min_channel_time = 10;
-		scan.scan_req.max_channel_time = 50;
-	}
 	if (!(first->flags & IEEE80211_CHAN_NO_IR) &&
 	    wvif->scan.output_power != first->max_power) {
 		wvif->scan.output_power = first->max_power;
 		hif_set_output_power(wvif, wvif->scan.output_power * 10);
 	}
-	wvif->scan.status = wfx_scan_start(wvif, &scan);
-	kfree(scan.ch);
+	wvif->scan.status = wfx_scan_start(wvif,
+					   wvif->scan.curr - wvif->scan.begin,
+					   it - wvif->scan.curr);
 	if (wvif->scan.status)
 		goto fail;
 	wvif->scan.curr = it;

@@ -13,14 +13,9 @@
 #include "hif_api_cmd.h"
 
 struct ieee80211_tx_queue_params;
+struct cfg80211_scan_request;
 struct wfx_dev;
 struct wfx_vif;
-
-struct wfx_scan_params {
-	struct hif_req_start_scan scan_req;
-	struct hif_ssid_def *ssids;
-	u8 *ch;
-};
 
 struct wfx_hif_cmd {
 	struct mutex      lock;
@@ -45,7 +40,8 @@ int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
 		 void *buf, size_t buf_size);
 int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
 		  void *buf, size_t buf_size);
-int hif_scan(struct wfx_vif *wvif, const struct wfx_scan_params *arg);
+int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req80211,
+	     int chan_start, int chan_num);
 int hif_stop_scan(struct wfx_vif *wvif);
 int hif_join(struct wfx_vif *wvif, const struct hif_req_join *arg);
 int hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout);
