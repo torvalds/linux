@@ -84,7 +84,6 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 	unsigned int cdev = 0;
 	u32 mnistat, tnistat, tstatus, mcmd;
 	u16 tnicmd, mnicmd;
-	u8 mcapndx;
 	u32 tot_bw = 0, tot_n = 0, tot_rq = 0, y_max, rq_isoch, rq_async;
 	u32 step, rem, rem_isoch, rem_async;
 	int ret = 0;
@@ -137,8 +136,6 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 	list_for_each(pos, head) {
 		cur = list_entry(pos, struct agp_3_5_dev, list);
 		dev = cur->dev;
-
-		mcapndx = cur->capndx;
 
 		pci_read_config_dword(dev, cur->capndx+AGPNISTAT, &mnistat);
 
@@ -250,8 +247,6 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 	for (cdev=0; cdev<ndevs; cdev++) {
 		cur = master[cdev].dev;
 		dev = cur->dev;
-
-		mcapndx = cur->capndx;
 
 		master[cdev].rq += (cdev == ndevs - 1)
 		              ? (rem_async + rem_isoch) : step;
