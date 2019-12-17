@@ -487,6 +487,37 @@ err_free:
 	return ret;
 }
 
+static int usb4_copy_host_drom(struct tb_switch *sw, u16 *size)
+{
+	int ret;
+
+	ret = usb4_switch_drom_read(sw, 14, size, sizeof(*size));
+	if (ret)
+		return ret;
+
+	/* Size includes CRC8 + UID + CRC32 */
+	*size += 1 + 8 + 4;
+	sw->drom = kzalloc(*size, GFP_KERNEL);
+	if (!sw->drom)
+		return -ENOMEM;
+
+	ret = usb4_switch_drom_read(sw, 0, sw->drom, *size);
+	if (ret) {
+		kfree(sw->drom);
+		sw->drom = NULL;
+	}
+
+	return ret;
+}
+
+static int tb_drom_read_n(struct tb_switch *sw, u16 offset, u8 *val,
+			  size_t count)
+{
+	if (tb_switch_is_usb4(sw))
+		return usb4_switch_drom_read(sw, offset, val, count);
+	return tb_eeprom_read_n(sw, offset, val, count);
+}
+
 /**
  * tb_drom_read - copy drom to sw->drom and parse it
  */
@@ -512,14 +543,26 @@ int tb_drom_read(struct tb_switch *sw)
 			goto parse;
 
 		/*
-		 * The root switch contains only a dummy drom (header only,
-		 * no entries). Hardcode the configuration here.
+		 * USB4 hosts may support reading DROM through router
+		 * operations.
 		 */
-		tb_drom_read_uid_only(sw, &sw->uid);
+		if (tb_switch_is_usb4(sw)) {
+			usb4_switch_read_uid(sw, &sw->uid);
+			if (!usb4_copy_host_drom(sw, &size))
+				goto parse;
+		} else {
+			/*
+			 * The root switch contains only a dummy drom
+			 * (header only, no entries). Hardcode the
+			 * configuration here.
+			 */
+			tb_drom_read_uid_only(sw, &sw->uid);
+		}
+
 		return 0;
 	}
 
-	res = tb_eeprom_read_n(sw, 14, (u8 *) &size, 2);
+	res = tb_drom_read_n(sw, 14, (u8 *) &size, 2);
 	if (res)
 		return res;
 	size &= 0x3ff;
@@ -533,7 +576,7 @@ int tb_drom_read(struct tb_switch *sw)
 	sw->drom = kzalloc(size, GFP_KERNEL);
 	if (!sw->drom)
 		return -ENOMEM;
-	res = tb_eeprom_read_n(sw, 0, sw->drom, size);
+	res = tb_drom_read_n(sw, 0, sw->drom, size);
 	if (res)
 		goto err;
 

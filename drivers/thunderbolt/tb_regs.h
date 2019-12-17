@@ -41,6 +41,7 @@ enum tb_port_cap {
 	TB_PORT_CAP_TIME1		= 0x03,
 	TB_PORT_CAP_ADAP		= 0x04,
 	TB_PORT_CAP_VSE			= 0x05,
+	TB_PORT_CAP_USB4		= 0x06,
 };
 
 enum tb_port_state {
@@ -164,9 +165,35 @@ struct tb_regs_switch_header {
 				  * milliseconds. Writing 0x00 is interpreted
 				  * as 255ms.
 				  */
-	u32 __unknown4:16;
+	u32 cmuv:8;
+	u32 __unknown4:8;
 	u32 thunderbolt_version:8;
 } __packed;
+
+/* USB4 version 1.0 */
+#define USB4_VERSION_1_0			0x20
+
+#define ROUTER_CS_1				0x01
+#define ROUTER_CS_4				0x04
+#define ROUTER_CS_5				0x05
+#define ROUTER_CS_5_SLP				BIT(0)
+#define ROUTER_CS_5_C3S				BIT(23)
+#define ROUTER_CS_5_PTO				BIT(24)
+#define ROUTER_CS_5_HCO				BIT(26)
+#define ROUTER_CS_5_CV				BIT(31)
+#define ROUTER_CS_6				0x06
+#define ROUTER_CS_6_SLPR			BIT(0)
+#define ROUTER_CS_6_TNS				BIT(1)
+#define ROUTER_CS_6_HCI				BIT(18)
+#define ROUTER_CS_6_CR				BIT(25)
+#define ROUTER_CS_7				0x07
+#define ROUTER_CS_9				0x09
+#define ROUTER_CS_25				0x19
+#define ROUTER_CS_26				0x1a
+#define ROUTER_CS_26_STATUS_MASK		GENMASK(29, 24)
+#define ROUTER_CS_26_STATUS_SHIFT		24
+#define ROUTER_CS_26_ONS			BIT(30)
+#define ROUTER_CS_26_OV				BIT(31)
 
 enum tb_port_type {
 	TB_TYPE_INACTIVE	= 0x000000,
@@ -216,6 +243,7 @@ struct tb_regs_port_header {
 #define ADP_CS_4_NFC_BUFFERS_MASK		GENMASK(9, 0)
 #define ADP_CS_4_TOTAL_BUFFERS_MASK		GENMASK(29, 20)
 #define ADP_CS_4_TOTAL_BUFFERS_SHIFT		20
+#define ADP_CS_4_LCK				BIT(31)
 #define ADP_CS_5				0x05
 #define ADP_CS_5_LCA_MASK			GENMASK(28, 22)
 #define ADP_CS_5_LCA_SHIFT			22
@@ -236,6 +264,12 @@ struct tb_regs_port_header {
 #define LANE_ADP_CS_1_CURRENT_SPEED_GEN3	0x4
 #define LANE_ADP_CS_1_CURRENT_WIDTH_MASK	GENMASK(25, 20)
 #define LANE_ADP_CS_1_CURRENT_WIDTH_SHIFT	20
+
+/* USB4 port registers */
+#define PORT_CS_18				0x12
+#define PORT_CS_18_BE				BIT(8)
+#define PORT_CS_19				0x13
+#define PORT_CS_19_PC				BIT(3)
 
 /* Display Port adapter registers */
 #define ADP_DP_CS_0				0x00

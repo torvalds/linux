@@ -365,12 +365,15 @@ static struct tb_port *tb_find_unused_port(struct tb_switch *sw,
 static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
 					 const struct tb_port *port)
 {
+	struct tb_port *down = NULL;
+
 	/*
 	 * To keep plugging devices consistently in the same PCIe
-	 * hierarchy, do mapping here for root switch downstream PCIe
-	 * ports.
+	 * hierarchy, do mapping here for switch downstream PCIe ports.
 	 */
-	if (!tb_route(sw)) {
+	if (tb_switch_is_usb4(sw)) {
+		down = usb4_switch_map_pcie_down(sw, port);
+	} else if (!tb_route(sw)) {
 		int phy_port = tb_phy_port_from_link(port->port);
 		int index;
 
@@ -391,12 +394,17 @@ static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
 		/* Validate the hard-coding */
 		if (WARN_ON(index > sw->config.max_port_number))
 			goto out;
-		if (WARN_ON(!tb_port_is_pcie_down(&sw->ports[index])))
+
+		down = &sw->ports[index];
+	}
+
+	if (down) {
+		if (WARN_ON(!tb_port_is_pcie_down(down)))
 			goto out;
-		if (WARN_ON(tb_pci_port_is_enabled(&sw->ports[index])))
+		if (WARN_ON(tb_pci_port_is_enabled(down)))
 			goto out;
 
-		return &sw->ports[index];
+		return down;
 	}
 
 out:

@@ -243,6 +243,12 @@ struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 	return tunnel;
 }
 
+static bool tb_dp_is_usb4(const struct tb_switch *sw)
+{
+	/* Titan Ridge DP adapters need the same treatment as USB4 */
+	return tb_switch_is_usb4(sw) || tb_switch_is_titan_ridge(sw);
+}
+
 static int tb_dp_cm_handshake(struct tb_port *in, struct tb_port *out)
 {
 	int timeout = 10;
@@ -250,8 +256,7 @@ static int tb_dp_cm_handshake(struct tb_port *in, struct tb_port *out)
 	int ret;
 
 	/* Both ends need to support this */
-	if (!tb_switch_is_titan_ridge(in->sw) ||
-	    !tb_switch_is_titan_ridge(out->sw))
+	if (!tb_dp_is_usb4(in->sw) || !tb_dp_is_usb4(out->sw))
 		return 0;
 
 	ret = tb_port_read(out, &val, TB_CFG_PORT,
@@ -531,7 +536,7 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel)
 	u32 val, rate = 0, lanes = 0;
 	int ret;
 
-	if (tb_switch_is_titan_ridge(sw)) {
+	if (tb_dp_is_usb4(sw)) {
 		int timeout = 10;
 
 		/*
