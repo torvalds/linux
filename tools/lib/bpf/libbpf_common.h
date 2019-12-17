@@ -9,6 +9,8 @@
 #ifndef __LIBBPF_LIBBPF_COMMON_H
 #define __LIBBPF_LIBBPF_COMMON_H
 
+#include <string.h>
+
 #ifndef LIBBPF_API
 #define LIBBPF_API __attribute__((visibility("default")))
 #endif
