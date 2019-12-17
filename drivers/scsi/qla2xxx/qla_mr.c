@@ -1212,7 +1212,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 				    fcport->old_tgt_id);
 				qla2x00_mark_device_lost(vha, fcport, 0);
 				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-				kfree(new_fcport);
+				qla2x00_free_fcport(new_fcport);
 				return rval;
 			}
 			break;
@@ -1230,7 +1230,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 			return QLA_MEMORY_ALLOC_FAILED;
 	}
 
-	kfree(new_fcport);
+	qla2x00_free_fcport(new_fcport);
 	return rval;
 }
 
@@ -1298,7 +1298,7 @@ qlafx00_configure_all_targets(scsi_qla_host_t *vha)
 	/* Free all new device structures not processed. */
 	list_for_each_entry_safe(fcport, rmptemp, &new_fcports, list) {
 		list_del(&fcport->list);
-		kfree(fcport);
+		qla2x00_free_fcport(fcport);
 	}
 
 	return rval;

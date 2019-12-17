@@ -198,6 +198,7 @@ extern void qla2x00_free_host(struct scsi_qla_host *);
 extern void qla2x00_relogin(struct scsi_qla_host *);
 extern void qla2x00_do_work(struct scsi_qla_host *);
 extern void qla2x00_free_fcports(struct scsi_qla_host *);
+extern void qla2x00_free_fcport(fc_port_t *);
 
 extern void qla83xx_schedule_work(scsi_qla_host_t *, int);
 extern void qla83xx_service_idc_aen(struct work_struct *);
