@@ -539,6 +539,7 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 		goto err_free_mask;
 
 	flow_pay->nfp_tun_ipv4_addr = 0;
+	flow_pay->nfp_tun_ipv6 = NULL;
 	flow_pay->meta.flags = 0;
 	INIT_LIST_HEAD(&flow_pay->linked_flows);
 	flow_pay->in_hw = false;
@@ -1243,6 +1244,8 @@ err_remove_rhash:
 err_release_metadata:
 	nfp_modify_flow_metadata(app, flow_pay);
 err_destroy_flow:
+	if (flow_pay->nfp_tun_ipv6)
+		nfp_tunnel_put_ipv6_off(app, flow_pay->nfp_tun_ipv6);
 	kfree(flow_pay->action_data);
 	kfree(flow_pay->mask_data);
 	kfree(flow_pay->unmasked_data);
@@ -1358,6 +1361,9 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 
 	if (nfp_flow->nfp_tun_ipv4_addr)
 		nfp_tunnel_del_ipv4_off(app, nfp_flow->nfp_tun_ipv4_addr);
+
+	if (nfp_flow->nfp_tun_ipv6)
+		nfp_tunnel_put_ipv6_off(app, nfp_flow->nfp_tun_ipv6);
 
 	if (!nfp_flow->in_hw) {
 		err = 0;

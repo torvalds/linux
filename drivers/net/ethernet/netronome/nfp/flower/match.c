@@ -494,10 +494,22 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 
 	if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_GRE) {
 		if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_TUN_IPV6) {
+			struct nfp_flower_ipv6_gre_tun *gre_match;
+			struct nfp_ipv6_addr_entry *entry;
+			struct in6_addr *dst;
+
 			nfp_flower_compile_ipv6_gre_tun((void *)ext,
 							(void *)msk, rule);
+			gre_match = (struct nfp_flower_ipv6_gre_tun *)ext;
+			dst = &gre_match->ipv6.dst;
 			ext += sizeof(struct nfp_flower_ipv6_gre_tun);
 			msk += sizeof(struct nfp_flower_ipv6_gre_tun);
+
+			entry = nfp_tunnel_add_ipv6_off(app, dst);
+			if (!entry)
+				return -EOPNOTSUPP;
+
+			nfp_flow->nfp_tun_ipv6 = entry;
 		} else {
 			__be32 dst;
 
@@ -518,10 +530,22 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN ||
 	    key_ls->key_layer_two & NFP_FLOWER_LAYER2_GENEVE) {
 		if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_TUN_IPV6) {
+			struct nfp_flower_ipv6_udp_tun *udp_match;
+			struct nfp_ipv6_addr_entry *entry;
+			struct in6_addr *dst;
+
 			nfp_flower_compile_ipv6_udp_tun((void *)ext,
 							(void *)msk, rule);
+			udp_match = (struct nfp_flower_ipv6_udp_tun *)ext;
+			dst = &udp_match->ipv6.dst;
 			ext += sizeof(struct nfp_flower_ipv6_udp_tun);
 			msk += sizeof(struct nfp_flower_ipv6_udp_tun);
+
+			entry = nfp_tunnel_add_ipv6_off(app, dst);
+			if (!entry)
+				return -EOPNOTSUPP;
+
+			nfp_flow->nfp_tun_ipv6 = entry;
 		} else {
 			__be32 dst;
 

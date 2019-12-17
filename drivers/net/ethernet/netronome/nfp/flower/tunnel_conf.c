@@ -116,6 +116,18 @@ struct nfp_ipv4_addr_entry {
 	struct list_head list;
 };
 
+#define NFP_FL_IPV6_ADDRS_MAX        4
+
+/**
+ * struct nfp_tun_ipv6_addr - set the IP address list on the NFP
+ * @count:	number of IPs populated in the array
+ * @ipv6_addr:	array of IPV6_ADDRS_MAX 128 bit IPv6 addresses
+ */
+struct nfp_tun_ipv6_addr {
+	__be32 count;
+	struct in6_addr ipv6_addr[NFP_FL_IPV6_ADDRS_MAX];
+};
+
 #define NFP_TUN_MAC_OFFLOAD_DEL_FLAG	0x2
 
 /**
@@ -500,6 +512,78 @@ void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4)
 	mutex_unlock(&priv->tun.ipv4_off_lock);
 
 	nfp_tun_write_ipv4_list(app);
+}
+
+static void nfp_tun_write_ipv6_list(struct nfp_app *app)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_ipv6_addr_entry *entry;
+	struct nfp_tun_ipv6_addr payload;
+	int count = 0;
+
+	memset(&payload, 0, sizeof(struct nfp_tun_ipv6_addr));
+	mutex_lock(&priv->tun.ipv6_off_lock);
+	list_for_each_entry(entry, &priv->tun.ipv6_off_list, list) {
+		if (count >= NFP_FL_IPV6_ADDRS_MAX) {
+			nfp_flower_cmsg_warn(app, "Too many IPv6 tunnel endpoint addresses, some cannot be offloaded.\n");
+			break;
+		}
+		payload.ipv6_addr[count++] = entry->ipv6_addr;
+	}
+	mutex_unlock(&priv->tun.ipv6_off_lock);
+	payload.count = cpu_to_be32(count);
+
+	nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_IPS_V6,
+				 sizeof(struct nfp_tun_ipv6_addr),
+				 &payload, GFP_KERNEL);
+}
+
+struct nfp_ipv6_addr_entry *
+nfp_tunnel_add_ipv6_off(struct nfp_app *app, struct in6_addr *ipv6)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_ipv6_addr_entry *entry;
+
+	mutex_lock(&priv->tun.ipv6_off_lock);
+	list_for_each_entry(entry, &priv->tun.ipv6_off_list, list)
+		if (!memcmp(&entry->ipv6_addr, ipv6, sizeof(*ipv6))) {
+			entry->ref_count++;
+			mutex_unlock(&priv->tun.ipv6_off_lock);
+			return entry;
+		}
+
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		mutex_unlock(&priv->tun.ipv6_off_lock);
+		nfp_flower_cmsg_warn(app, "Mem error when offloading IP address.\n");
+		return NULL;
+	}
+	entry->ipv6_addr = *ipv6;
+	entry->ref_count = 1;
+	list_add_tail(&entry->list, &priv->tun.ipv6_off_list);
+	mutex_unlock(&priv->tun.ipv6_off_lock);
+
+	nfp_tun_write_ipv6_list(app);
+
+	return entry;
+}
+
+void
+nfp_tunnel_put_ipv6_off(struct nfp_app *app, struct nfp_ipv6_addr_entry *entry)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	bool freed = false;
+
+	mutex_lock(&priv->tun.ipv6_off_lock);
+	if (!--entry->ref_count) {
+		list_del(&entry->list);
+		kfree(entry);
+		freed = true;
+	}
+	mutex_unlock(&priv->tun.ipv6_off_lock);
+
+	if (freed)
+		nfp_tun_write_ipv6_list(app);
 }
 
 static int
@@ -1013,9 +1097,11 @@ int nfp_tunnel_config_start(struct nfp_app *app)
 
 	ida_init(&priv->tun.mac_off_ids);
 
-	/* Initialise priv data for IPv4 offloading. */
+	/* Initialise priv data for IPv4/v6 offloading. */
 	mutex_init(&priv->tun.ipv4_off_lock);
 	INIT_LIST_HEAD(&priv->tun.ipv4_off_list);
+	mutex_init(&priv->tun.ipv6_off_lock);
+	INIT_LIST_HEAD(&priv->tun.ipv6_off_list);
 
 	/* Initialise priv data for neighbour offloading. */
 	spin_lock_init(&priv->tun.neigh_off_lock);
@@ -1049,6 +1135,8 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 		list_del(&ip_entry->list);
 		kfree(ip_entry);
 	}
+
+	mutex_destroy(&priv->tun.ipv6_off_lock);
 
 	/* Free any memory that may be occupied by the route list. */
 	list_for_each_safe(ptr, storage, &priv->tun.neigh_off_list) {
