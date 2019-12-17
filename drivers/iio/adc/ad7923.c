@@ -29,10 +29,6 @@
 #define AD7923_PM_MODE_AS	(1)		/* auto shutdown */
 #define AD7923_PM_MODE_FS	(2)		/* full shutdown */
 #define AD7923_PM_MODE_OPS	(3)		/* normal operation */
-#define AD7923_CHANNEL_0	(0)		/* analog input 0 */
-#define AD7923_CHANNEL_1	(1)		/* analog input 1 */
-#define AD7923_CHANNEL_2	(2)		/* analog input 2 */
-#define AD7923_CHANNEL_3	(3)		/* analog input 3 */
 #define AD7923_SEQUENCE_OFF	(0)		/* no sequence fonction */
 #define AD7923_SEQUENCE_PROTECT	(2)		/* no interrupt write cycle */
 #define AD7923_SEQUENCE_ON	(3)		/* continuous sequence */
