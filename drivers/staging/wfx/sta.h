@@ -37,7 +37,7 @@ struct wfx_hif_event {
 struct wfx_edca_params {
 	/* NOTE: index is a linux queue id. */
 	struct hif_req_edca_queue_params params[IEEE80211_NUM_ACS];
-	bool uapsd_enable[IEEE80211_NUM_ACS];
+	unsigned long uapsd_mask;
 };
 
 struct wfx_grp_addr_table {

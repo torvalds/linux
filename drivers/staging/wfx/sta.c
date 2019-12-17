@@ -119,22 +119,22 @@ static int wfx_set_uapsd_param(struct wfx_vif *wvif,
 	 *  VO [0,3], VI [1, 2], BE [2, 1], BK [3, 0]
 	 */
 
-	if (arg->uapsd_enable[IEEE80211_AC_VO])
+	if (arg->uapsd_mask & BIT(IEEE80211_AC_VO))
 		wvif->uapsd_info.trig_voice = 1;
 	else
 		wvif->uapsd_info.trig_voice = 0;
 
-	if (arg->uapsd_enable[IEEE80211_AC_VI])
+	if (arg->uapsd_mask & BIT(IEEE80211_AC_VI))
 		wvif->uapsd_info.trig_video = 1;
 	else
 		wvif->uapsd_info.trig_video = 0;
 
-	if (arg->uapsd_enable[IEEE80211_AC_BE])
+	if (arg->uapsd_mask & BIT(IEEE80211_AC_BE))
 		wvif->uapsd_info.trig_be = 1;
 	else
 		wvif->uapsd_info.trig_be = 0;
 
-	if (arg->uapsd_enable[IEEE80211_AC_BK])
+	if (arg->uapsd_mask & BIT(IEEE80211_AC_BK))
 		wvif->uapsd_info.trig_bckgrnd = 1;
 	else
 		wvif->uapsd_info.trig_bckgrnd = 0;
@@ -330,7 +330,6 @@ static int wfx_update_pm(struct wfx_vif *wvif)
 {
 	struct ieee80211_conf *conf = &wvif->wdev->hw->conf;
 	struct hif_req_set_pm_mode pm;
-	u16 uapsd_flags;
 
 	if (wvif->state != WFX_STATE_STA || !wvif->bss_params.aid)
 		return 0;
@@ -345,9 +344,7 @@ static int wfx_update_pm(struct wfx_vif *wvif)
 			pm.pm_mode.fast_psm = 1;
 	}
 
-	memcpy(&uapsd_flags, &wvif->uapsd_info, sizeof(uapsd_flags));
-
-	if (uapsd_flags != 0)
+	if (wvif->edca.uapsd_mask)
 		pm.pm_mode.fast_psm = 0;
 
 	// Kernel disable PowerSave when multiple vifs are in use. In contrary,
@@ -375,7 +372,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	WARN_ON(queue >= hw->queues);
 
 	mutex_lock(&wdev->conf_mutex);
-	wvif->edca.uapsd_enable[queue] = params->uapsd;
+	assign_bit(queue, &wvif->edca.uapsd_mask, params->uapsd);
 	edca = &wvif->edca.params[queue];
 	edca->aifsn = params->aifs;
 	edca->cw_min = params->cw_min;
@@ -1552,9 +1549,9 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		memcpy(&wvif->edca.params[i], &default_edca_params[i],
 		       sizeof(default_edca_params[i]));
-		wvif->edca.uapsd_enable[i] = false;
 		hif_set_edca_queue_params(wvif, &wvif->edca.params[i]);
 	}
+	wvif->edca.uapsd_mask = 0;
 	wfx_set_uapsd_param(wvif, &wvif->edca);
 
 	wfx_tx_policy_init(wvif);
