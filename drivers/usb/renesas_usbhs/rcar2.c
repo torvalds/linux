@@ -6,8 +6,6 @@
  * Copyright (C) 2019 Renesas Electronics Corporation
  */
 
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
 #include <linux/phy/phy.h>
 #include "common.h"
 #include "rcar2.h"
