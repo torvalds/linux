@@ -97,7 +97,7 @@ Blk-crypto ensures that:
 
 - The bio's encryption context is programmed into a keyslot in the KSM of the
   request queue that the bio is being submitted to (or the crypto API fallback
-  KSM if the request queue doesn't have a KSM), and that the ``processing_ksm``
+  KSM if the request queue doesn't have a KSM), and that the ``bc_ksm``
   in the ``bi_crypt_context`` is set to this KSM
 
 - That the bio has its own individual reference to the keyslot in this KSM.
@@ -107,7 +107,7 @@ Blk-crypto ensures that:
   ensuring that the bio has a valid reference to the keyslot when, for e.g., the
   crypto API fallback KSM in blk-crypto performs crypto on the device's behalf.
   The individual references are ensured by increasing the refcount for the
-  keyslot in the ``processing_ksm`` when a bio with a programmed encryption
+  keyslot in the ``bc_ksm`` when a bio with a programmed encryption
   context is cloned.
 
 
@@ -120,7 +120,7 @@ been programmed into any keyslot in any KSM (for e.g. a bio from the FS).
   request queue the bio is being submitted to (and if this KSM does not exist,
   then it will program it into blk-crypto's internal KSM for crypto API
   fallback). The KSM that this encryption context was programmed into is stored
-  as the ``processing_ksm`` in the bio's ``bi_crypt_context``.
+  as the ``bc_ksm`` in the bio's ``bi_crypt_context``.
 
 **Case 2:** blk-crypto is given a bio whose encryption context has already been
 programmed into a keyslot in the *crypto API fallback* KSM.
@@ -138,7 +138,7 @@ KSM).
 This way, when a device driver is processing a bio, it can be sure that
 the bio's encryption context has been programmed into some KSM (either the
 device driver's request queue's KSM, or blk-crypto's crypto API fallback KSM).
-It then simply needs to check if the bio's processing_ksm is the device's
+It then simply needs to check if the bio's ``bc_ksm`` is the device's
 request queue's KSM. If so, then it should proceed with IE. If not, it should
 simply do nothing with respect to crypto, because some other KSM (perhaps the
 blk-crypto crypto API fallback KSM) is handling the en/decryption.

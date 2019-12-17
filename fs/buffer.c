@@ -3069,7 +3069,7 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 	 */
 	bio = bio_alloc(GFP_NOIO, 1);
 
-	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO | __GFP_NOFAIL);
+	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
 
 	if (wbc) {
 		wbc_init_bio(wbc, bio);

@@ -362,16 +362,11 @@ static int io_submit_init_bio(struct ext4_io_submit *io,
 			      struct buffer_head *bh)
 {
 	struct bio *bio;
-	int err;
 
 	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
 	if (!bio)
 		return -ENOMEM;
-	err = fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
-	if (err) {
-		bio_put(bio);
-		return err;
-	}
+	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
 	wbc_init_bio(io->io_wbc, bio);
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio_set_dev(bio, bh->b_bdev);
