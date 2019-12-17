@@ -534,26 +534,7 @@ static int marvell_config_aneg_fiber(struct phy_device *phydev)
 	if (err > 0)
 		changed = 1;
 
-	if (changed == 0) {
-		/* Advertisement hasn't changed, but maybe aneg was never on to
-		 * begin with?	Or maybe phy was isolated?
-		 */
-		int ctl = phy_read(phydev, MII_BMCR);
-
-		if (ctl < 0)
-			return ctl;
-
-		if (!(ctl & BMCR_ANENABLE) || (ctl & BMCR_ISOLATE))
-			changed = 1; /* do restart aneg */
-	}
-
-	/* Only restart aneg if we are advertising something different
-	 * than we were before.
-	 */
-	if (changed > 0)
-		changed = genphy_restart_aneg(phydev);
-
-	return changed;
+	return genphy_check_and_restart_aneg(phydev, changed);
 }
 
 static int m88e1510_config_aneg(struct phy_device *phydev)
