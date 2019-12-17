@@ -339,24 +339,6 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 }
 
 /**
- * tb_find_port() - return the first port of @type on @sw or NULL
- * @sw: Switch to find the port from
- * @type: Port type to look for
- */
-static struct tb_port *tb_find_port(struct tb_switch *sw,
-				    enum tb_port_type type)
-{
-	struct tb_port *port;
-
-	tb_switch_for_each_port(sw, port) {
-		if (port->config.type == type)
-			return port;
-	}
-
-	return NULL;
-}
-
-/**
  * tb_find_unused_port() - return the first inactive port on @sw
  * @sw: Switch to find the port on
  * @type: Port type to look for
@@ -586,7 +568,7 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 	struct tb_switch *parent_sw;
 	struct tb_tunnel *tunnel;
 
-	up = tb_find_port(sw, TB_TYPE_PCIE_UP);
+	up = tb_switch_find_port(sw, TB_TYPE_PCIE_UP);
 	if (!up)
 		return 0;
 
@@ -624,7 +606,7 @@ static int tb_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 
 	sw = tb_to_switch(xd->dev.parent);
 	dst_port = tb_port_at(xd->route, sw);
-	nhi_port = tb_find_port(tb->root_switch, TB_TYPE_NHI);
+	nhi_port = tb_switch_find_port(tb->root_switch, TB_TYPE_NHI);
 
 	mutex_lock(&tb->lock);
 	tunnel = tb_tunnel_alloc_dma(tb, nhi_port, dst_port, xd->transmit_ring,

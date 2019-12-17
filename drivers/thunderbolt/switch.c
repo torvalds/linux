@@ -2517,6 +2517,24 @@ struct tb_switch *tb_switch_find_by_route(struct tb *tb, u64 route)
 	return NULL;
 }
 
+/**
+ * tb_switch_find_port() - return the first port of @type on @sw or NULL
+ * @sw: Switch to find the port from
+ * @type: Port type to look for
+ */
+struct tb_port *tb_switch_find_port(struct tb_switch *sw,
+				    enum tb_port_type type)
+{
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port) {
+		if (port->config.type == type)
+			return port;
+	}
+
+	return NULL;
+}
+
 void tb_switch_exit(void)
 {
 	ida_destroy(&nvm_ida);
