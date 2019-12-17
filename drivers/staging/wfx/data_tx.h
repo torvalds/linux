@@ -39,8 +39,8 @@ struct wfx_link_entry {
 
 struct tx_policy {
 	struct list_head link;
+	int usage_count;
 	u8 rates[12];
-	u8 usage_count;
 	u8 uploaded;
 };
 
