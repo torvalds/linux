@@ -768,8 +768,7 @@ static void tb_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 
 	route = tb_cfg_get_route(&pkg->header);
 
-	if (tb_cfg_error(tb->ctl, route, pkg->port,
-			 TB_CFG_ERROR_ACK_PLUG_EVENT)) {
+	if (tb_cfg_ack_plug(tb->ctl, route, pkg->port, pkg->unplug)) {
 		tb_warn(tb, "could not ack plug event on %llx:%x\n", route,
 			pkg->port);
 	}
