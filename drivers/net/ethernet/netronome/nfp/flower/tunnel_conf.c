@@ -55,6 +55,25 @@ struct nfp_tun_active_tuns {
 };
 
 /**
+ * struct nfp_tun_active_tuns_v6 - periodic message of active IPv6 tunnels
+ * @seq:		sequence number of the message
+ * @count:		number of tunnels report in message
+ * @flags:		options part of the request
+ * @tun_info.ipv6:		dest IPv6 address of active route
+ * @tun_info.egress_port:	port the encapsulated packet egressed
+ * @tun_info:		tunnels that have sent traffic in reported period
+ */
+struct nfp_tun_active_tuns_v6 {
+	__be32 seq;
+	__be32 count;
+	__be32 flags;
+	struct route_ip_info_v6 {
+		struct in6_addr ipv6;
+		__be32 egress_port;
+	} tun_info[];
+};
+
+/**
  * struct nfp_tun_neigh - neighbour/route entry on the NFP
  * @dst_ipv4:	destination IPv4 address
  * @src_ipv4:	source IPv4 address
@@ -242,6 +261,49 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 		neigh_release(n);
 	}
 	rcu_read_unlock();
+}
+
+void nfp_tunnel_keep_alive_v6(struct nfp_app *app, struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	struct nfp_tun_active_tuns_v6 *payload;
+	struct net_device *netdev;
+	int count, i, pay_len;
+	struct neighbour *n;
+	void *ipv6_add;
+	u32 port;
+
+	payload = nfp_flower_cmsg_get_data(skb);
+	count = be32_to_cpu(payload->count);
+	if (count > NFP_FL_IPV6_ADDRS_MAX) {
+		nfp_flower_cmsg_warn(app, "IPv6 tunnel keep-alive request exceeds max routes.\n");
+		return;
+	}
+
+	pay_len = nfp_flower_cmsg_get_data_len(skb);
+	if (pay_len != struct_size(payload, tun_info, count)) {
+		nfp_flower_cmsg_warn(app, "Corruption in tunnel keep-alive message.\n");
+		return;
+	}
+
+	rcu_read_lock();
+	for (i = 0; i < count; i++) {
+		ipv6_add = &payload->tun_info[i].ipv6;
+		port = be32_to_cpu(payload->tun_info[i].egress_port);
+		netdev = nfp_app_dev_get(app, port, NULL);
+		if (!netdev)
+			continue;
+
+		n = neigh_lookup(&nd_tbl, ipv6_add, netdev);
+		if (!n)
+			continue;
+
+		/* Update the used timestamp of neighbour */
+		neigh_event_send(n, NULL);
+		neigh_release(n);
+	}
+	rcu_read_unlock();
+#endif
 }
 
 static int
