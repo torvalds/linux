@@ -724,6 +724,7 @@ static bool io_wq_can_queue(struct io_wqe *wqe, struct io_wqe_acct *acct,
 static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 {
 	struct io_wqe_acct *acct = io_work_get_acct(wqe, work);
+	int work_flags;
 	unsigned long flags;
 
 	/*
@@ -738,12 +739,14 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 		return;
 	}
 
+	work_flags = work->flags;
 	spin_lock_irqsave(&wqe->lock, flags);
 	wq_list_add_tail(&work->list, &wqe->work_list);
 	wqe->flags &= ~IO_WQE_FLAG_STALLED;
 	spin_unlock_irqrestore(&wqe->lock, flags);
 
-	if (!atomic_read(&acct->nr_running))
+	if ((work_flags & IO_WQ_WORK_CONCURRENT) ||
+	    !atomic_read(&acct->nr_running))
 		io_wqe_wake_worker(wqe, acct);
 }
 
