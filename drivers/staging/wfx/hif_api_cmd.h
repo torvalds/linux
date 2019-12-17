@@ -188,7 +188,7 @@ struct hif_req_start_scan {
 	u8    ssid_and_channel_lists[];
 } __packed;
 
-struct hif_start_scan_req_cstnbssid_body {
+struct hif_req_start_scan_alt {
 	u8    band;
 	struct hif_scan_type scan_type;
 	struct hif_scan_flags scan_flags;
