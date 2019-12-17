@@ -992,11 +992,6 @@ static int netback_probe(struct xenbus_device *dev,
 	be->dev = dev;
 	dev_set_drvdata(&dev->dev, be);
 
-	be->state = XenbusStateInitialising;
-	err = xenbus_switch_state(dev, XenbusStateInitialising);
-	if (err)
-		goto fail;
-
 	sg = 1;
 
 	do {
@@ -1097,6 +1092,8 @@ static int netback_probe(struct xenbus_device *dev,
 			    "%u", true);
 	if (err)
 		pr_debug("Error writing feature-ctrl-ring\n");
+
+	backend_switch_state(be, XenbusStateInitWait);
 
 	script = xenbus_read(XBT_NIL, dev->nodename, "script", NULL);
 	if (IS_ERR(script)) {
