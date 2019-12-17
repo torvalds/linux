@@ -44,7 +44,6 @@ static int wfx_scan_start(struct wfx_vif *wvif, struct wfx_scan_params *scan)
 	tmo += scan->scan_req.num_of_channels *
 	       ((20 * (scan->scan_req.max_channel_time)) + 10);
 	atomic_set(&wvif->scan.in_progress, 1);
-	atomic_set(&wvif->wdev->scan_in_progress, 1);
 
 	schedule_delayed_work(&wvif->scan.timeout, msecs_to_jiffies(tmo));
 	hif_scan(wvif, scan);
@@ -232,8 +231,6 @@ fail:
 static void wfx_scan_complete(struct wfx_vif *wvif)
 {
 	up(&wvif->scan.lock);
-	atomic_set(&wvif->wdev->scan_in_progress, 0);
-
 	wfx_scan_work(&wvif->scan.work);
 }
 
