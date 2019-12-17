@@ -77,7 +77,7 @@ static void advance(struct i915_request *request)
 	i915_request_mark_complete(request);
 	GEM_BUG_ON(!i915_request_completed(request));
 
-	intel_engine_queue_breadcrumbs(request->engine);
+	intel_engine_signal_breadcrumbs(request->engine);
 }
 
 static void hw_delay_complete(struct timer_list *t)

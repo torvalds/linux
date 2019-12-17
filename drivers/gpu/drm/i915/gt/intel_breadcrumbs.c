@@ -130,16 +130,15 @@ __dma_fence_signal__notify(struct dma_fence *fence,
 	}
 }
 
-void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
+static void signal_irq_work(struct irq_work *work)
 {
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct intel_breadcrumbs *b = container_of(work, typeof(*b), irq_work);
 	const ktime_t timestamp = ktime_get();
 	struct intel_context *ce, *cn;
 	struct list_head *pos, *next;
-	unsigned long flags;
 	LIST_HEAD(signal);
 
-	spin_lock_irqsave(&b->irq_lock, flags);
+	spin_lock(&b->irq_lock);
 
 	if (b->irq_armed && list_empty(&b->signalers))
 		__intel_breadcrumbs_disarm_irq(b);
@@ -185,29 +184,21 @@ void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
 		}
 	}
 
-	spin_unlock_irqrestore(&b->irq_lock, flags);
+	spin_unlock(&b->irq_lock);
 
 	list_for_each_safe(pos, next, &signal) {
 		struct i915_request *rq =
 			list_entry(pos, typeof(*rq), signal_link);
 		struct list_head cb_list;
 
-		spin_lock_irqsave(&rq->lock, flags);
+		spin_lock(&rq->lock);
 		list_replace(&rq->fence.cb_list, &cb_list);
 		__dma_fence_signal__timestamp(&rq->fence, timestamp);
 		__dma_fence_signal__notify(&rq->fence, &cb_list);
-		spin_unlock_irqrestore(&rq->lock, flags);
+		spin_unlock(&rq->lock);
 
 		i915_request_put(rq);
 	}
-}
-
-static void signal_irq_work(struct irq_work *work)
-{
-	struct intel_engine_cs *engine =
-		container_of(work, typeof(*engine), breadcrumbs.irq_work);
-
-	intel_engine_breadcrumbs_irq(engine);
 }
 
 static bool __intel_breadcrumbs_arm_irq(struct intel_breadcrumbs *b)
@@ -290,9 +281,9 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 
 		/*
 		 * We keep the seqno in retirement order, so we can break
-		 * inside intel_engine_breadcrumbs_irq as soon as we've passed
-		 * the last completed request (or seen a request that hasn't
-		 * event started). We could iterate the timeline->requests list,
+		 * inside intel_engine_signal_breadcrumbs as soon as we've
+		 * passed the last completed request (or seen a request that
+		 * hasn't event started). We could walk the timeline->requests,
 		 * but keeping a separate signalers_list has the advantage of
 		 * hopefully being much smaller than the full list and so
 		 * provides faster iteration and detection when there are no

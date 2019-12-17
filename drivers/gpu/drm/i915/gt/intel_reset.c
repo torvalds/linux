@@ -742,7 +742,7 @@ static void reset_finish_engine(struct intel_engine_cs *engine)
 	engine->reset.finish(engine);
 	intel_uncore_forcewake_put(engine->uncore, FORCEWAKE_ALL);
 
-	intel_engine_breadcrumbs_irq(engine);
+	intel_engine_signal_breadcrumbs(engine);
 }
 
 static void reset_finish(struct intel_gt *gt, intel_engine_mask_t awake)
@@ -771,7 +771,7 @@ static void nop_submit_request(struct i915_request *request)
 	i915_request_mark_complete(request);
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 
-	intel_engine_queue_breadcrumbs(engine);
+	intel_engine_signal_breadcrumbs(engine);
 }
 
 static void __intel_gt_set_wedged(struct intel_gt *gt)

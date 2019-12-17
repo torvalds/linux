@@ -719,7 +719,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	}
 
 	/* Papering over lost _interrupts_ immediately following the restart */
-	intel_engine_queue_breadcrumbs(engine);
+	intel_engine_signal_breadcrumbs(engine);
 out:
 	intel_uncore_forcewake_put(engine->uncore, FORCEWAKE_ALL);
 
