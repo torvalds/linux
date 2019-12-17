@@ -30,7 +30,7 @@
 #include "dmub_cmd_dal.h"
 #include "dmub_cmd_vbios.h"
 #include "atomfirmware.h"
-#include "dc_hw_types.h"
+
 #define DMUB_RB_CMD_SIZE 64
 #define DMUB_RB_MAX_ENTRY 128
 #define DMUB_RB_SIZE (DMUB_RB_CMD_SIZE * DMUB_RB_MAX_ENTRY)
@@ -165,12 +165,14 @@ struct dmub_cmd_surface_flip {
 	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS;
 	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH;
 	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS;
-	enum dc_plane_addr_type addr_type;
-	uint8_t hubp_inst;
-	bool tmz_surface;
-	bool immediate;
-	uint8_t vmid;
-	bool grph_stereo;
+	struct {
+		uint8_t hubp_inst : 4;
+		uint8_t tmz_surface : 1;
+		uint8_t immediate :1;
+		uint8_t vmid : 4;
+		uint8_t grph_stereo : 1;
+		uint32_t reserved : 21;
+	} flip_params;
 };
 
 struct dmub_rb_cmd_flip {
