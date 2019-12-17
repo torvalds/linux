@@ -2440,23 +2440,23 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	pcdev->base = base;
 
 	/* request dma */
-	pcdev->dma_chans[0] = dma_request_slave_channel(&pdev->dev, "CI_Y");
-	if (!pcdev->dma_chans[0]) {
+	pcdev->dma_chans[0] = dma_request_chan(&pdev->dev, "CI_Y");
+	if (IS_ERR(pcdev->dma_chans[0])) {
 		dev_err(&pdev->dev, "Can't request DMA for Y\n");
-		return -ENODEV;
+		return PTR_ERR(pcdev->dma_chans[0]);
 	}
 
-	pcdev->dma_chans[1] = dma_request_slave_channel(&pdev->dev, "CI_U");
-	if (!pcdev->dma_chans[1]) {
-		dev_err(&pdev->dev, "Can't request DMA for Y\n");
-		err = -ENODEV;
+	pcdev->dma_chans[1] = dma_request_chan(&pdev->dev, "CI_U");
+	if (IS_ERR(pcdev->dma_chans[1])) {
+		dev_err(&pdev->dev, "Can't request DMA for U\n");
+		err = PTR_ERR(pcdev->dma_chans[1]);
 		goto exit_free_dma_y;
 	}
 
-	pcdev->dma_chans[2] = dma_request_slave_channel(&pdev->dev, "CI_V");
-	if (!pcdev->dma_chans[2]) {
+	pcdev->dma_chans[2] = dma_request_chan(&pdev->dev, "CI_V");
+	if (IS_ERR(pcdev->dma_chans[2])) {
 		dev_err(&pdev->dev, "Can't request DMA for V\n");
-		err = -ENODEV;
+		err = PTR_ERR(pcdev->dma_chans[2]);
 		goto exit_free_dma_u;
 	}
 
