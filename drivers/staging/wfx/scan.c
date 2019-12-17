@@ -54,6 +54,7 @@ static int send_scan_req(struct wfx_vif *wvif,
 			break;
 	}
 	wfx_tx_lock_flush(wvif->wdev);
+	wvif->scan_abort = false;
 	reinit_completion(&wvif->scan_complete);
 	ret = hif_scan(wvif, req, start_idx, i - start_idx);
 	if (ret < 0)
@@ -67,6 +68,10 @@ static int send_scan_req(struct wfx_vif *wvif,
 		dev_notice(wvif->wdev->dev, "scan timeout\n");
 		hif_stop_scan(wvif);
 		return -ETIMEDOUT;
+	}
+	if (wvif->scan_abort) {
+		dev_notice(wvif->wdev->dev, "scan abort\n");
+		return -ECONNABORTED;
 	}
 	return i - start_idx;
 }
@@ -113,6 +118,14 @@ int wfx_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	wvif->scan_req = hw_req;
 	schedule_work(&wvif->scan_work);
 	return 0;
+}
+
+void wfx_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+
+	wvif->scan_abort = true;
+	hif_stop_scan(wvif);
 }
 
 void wfx_scan_complete(struct wfx_vif *wvif,
