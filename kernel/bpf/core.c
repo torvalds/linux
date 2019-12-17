@@ -2043,8 +2043,7 @@ static void bpf_free_cgroup_storage(struct bpf_prog_aux *aux)
 	for_each_cgroup_storage_type(stype) {
 		if (!aux->cgroup_storage[stype])
 			continue;
-		bpf_cgroup_storage_release(aux->prog,
-					   aux->cgroup_storage[stype]);
+		bpf_cgroup_storage_release(aux, aux->cgroup_storage[stype]);
 	}
 }
 
