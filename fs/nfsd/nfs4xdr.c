@@ -4649,8 +4649,6 @@ nfsd4_encode_replay(struct xdr_stream *xdr, struct nfsd4_op *op)
 	__be32 *p;
 	struct nfs4_replay *rp = op->replay;
 
-	BUG_ON(!rp);
-
 	p = xdr_reserve_space(xdr, 8 + rp->rp_buflen);
 	if (!p) {
 		WARN_ON_ONCE(1);
