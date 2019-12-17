@@ -862,9 +862,6 @@ int intel_guc_ct_enable(struct intel_guc_ct *ct)
 	struct intel_guc *guc = ct_to_guc(ct);
 	struct intel_guc_ct_channel *ctch = &ct->host_channel;
 
-	if (ctch->enabled)
-		return 0;
-
 	return ctch_enable(guc, ctch);
 }
 
@@ -876,9 +873,6 @@ void intel_guc_ct_disable(struct intel_guc_ct *ct)
 {
 	struct intel_guc *guc = ct_to_guc(ct);
 	struct intel_guc_ct_channel *ctch = &ct->host_channel;
-
-	if (!ctch->enabled)
-		return;
 
 	ctch_disable(guc, ctch);
 }
