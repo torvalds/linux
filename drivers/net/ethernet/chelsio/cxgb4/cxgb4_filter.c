@@ -369,12 +369,16 @@ static int get_filter_count(struct adapter *adapter, unsigned int fidx,
 			return -E2BIG;
 		}
 	} else {
-		if ((fidx != (adapter->tids.nftids +
-			      adapter->tids.nsftids - 1)) &&
-		    fidx >= adapter->tids.nftids)
+		if ((fidx != (adapter->tids.nftids + adapter->tids.nsftids +
+			      adapter->tids.nhpftids - 1)) &&
+		    fidx >= (adapter->tids.nftids + adapter->tids.nhpftids))
 			return -E2BIG;
 
-		f = &adapter->tids.ftid_tab[fidx];
+		if (fidx < adapter->tids.nhpftids)
+			f = &adapter->tids.hpftid_tab[fidx];
+		else
+			f = &adapter->tids.ftid_tab[fidx -
+						    adapter->tids.nhpftids];
 		if (!f->valid)
 			return -EINVAL;
 	}
@@ -480,6 +484,7 @@ int cxgb4_get_free_ftid(struct net_device *dev, int family)
 		ftid -= n;
 	}
 	spin_unlock_bh(&t->ftid_lock);
+	ftid += t->nhpftids;
 
 	return found ? ftid : -ENOMEM;
 }
@@ -815,10 +820,14 @@ int delete_filter(struct adapter *adapter, unsigned int fidx)
 	struct filter_entry *f;
 	int ret;
 
-	if (fidx >= adapter->tids.nftids + adapter->tids.nsftids)
+	if (fidx >= adapter->tids.nftids + adapter->tids.nsftids +
+		    adapter->tids.nhpftids)
 		return -EINVAL;
 
-	f = &adapter->tids.ftid_tab[fidx];
+	if (fidx < adapter->tids.nhpftids)
+		f = &adapter->tids.hpftid_tab[fidx];
+	else
+		f = &adapter->tids.ftid_tab[fidx - adapter->tids.nhpftids];
 	ret = writable_filter(f);
 	if (ret)
 		return ret;
