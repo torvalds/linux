@@ -1252,11 +1252,33 @@ global_port_update:
 
 	case MBA_DPORT_DIAGNOSTICS:
 		ql_dbg(ql_dbg_async, vha, 0x5052,
-		    "D-Port Diagnostics: %04x result=%s\n",
-		    mb[0],
-		    mb[1] == 0 ? "start" :
-		    mb[1] == 1 ? "done (pass)" :
-		    mb[1] == 2 ? "done (error)" : "other");
+		    "D-Port Diagnostics: %04x %04x %04x %04x\n",
+		    mb[0], mb[1], mb[2], mb[3]);
+		if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+			static char *results[] = {
+			    "start", "done(pass)", "done(error)", "undefined" };
+			static char *types[] = {
+			    "none", "dynamic", "static", "other" };
+			uint result = mb[1] >> 0 & 0x3;
+			uint type = mb[1] >> 6 & 0x3;
+			uint sw = mb[1] >> 15 & 0x1;
+			ql_dbg(ql_dbg_async, vha, 0x5052,
+			    "D-Port Diagnostics: result=%s type=%s [sw=%u]\n",
+			    results[result], types[type], sw);
+			if (result == 2) {
+				static char *reasons[] = {
+				    "reserved", "unexpected reject",
+				    "unexpected phase", "retry exceeded",
+				    "timed out", "not supported",
+				    "user stopped" };
+				uint reason = mb[2] >> 0 & 0xf;
+				uint phase = mb[2] >> 12 & 0xf;
+				ql_dbg(ql_dbg_async, vha, 0x5052,
+				    "D-Port Diagnostics: reason=%s phase=%u \n",
+				    reason < 7 ? reasons[reason] : "other",
+				    phase >> 1);
+			}
+		}
 		break;
 
 	case MBA_TEMPERATURE_ALERT:
