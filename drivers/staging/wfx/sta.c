@@ -831,32 +831,20 @@ static int wfx_update_beaconing(struct wfx_vif *wvif)
 
 static int wfx_upload_beacon(struct wfx_vif *wvif)
 {
-	int ret = 0;
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	struct hif_mib_template_frame *p;
 
 	if (wvif->vif->type == NL80211_IFTYPE_STATION ||
 	    wvif->vif->type == NL80211_IFTYPE_MONITOR ||
 	    wvif->vif->type == NL80211_IFTYPE_UNSPECIFIED)
-		goto done;
+		return 0;
 
 	skb = ieee80211_beacon_get(wvif->wdev->hw, wvif->vif);
-
 	if (!skb)
 		return -ENOMEM;
+	hif_set_template_frame(wvif, skb, HIF_TMPLT_BCN,
+			       API_RATE_INDEX_B_1MBPS);
 
-	p = (struct hif_mib_template_frame *) skb_push(skb, 4);
-	p->frame_type = HIF_TMPLT_BCN;
-	p->init_rate = API_RATE_INDEX_B_1MBPS; /* 1Mbps DSSS */
-	p->frame_length = cpu_to_le16(skb->len - 4);
-
-	ret = hif_set_template_frame(wvif, p);
-
-	skb_pull(skb, 4);
-
-	if (ret)
-		goto done;
 	/* TODO: Distill probe resp; remove TIM and any other beacon-specific
 	 * IEs
 	 */
@@ -864,14 +852,11 @@ static int wfx_upload_beacon(struct wfx_vif *wvif)
 	mgmt->frame_control =
 		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP);
 
-	p->frame_type = HIF_TMPLT_PRBRES;
-
-	ret = hif_set_template_frame(wvif, p);
+	hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBRES,
+			       API_RATE_INDEX_B_1MBPS);
 	wfx_fwd_probe_req(wvif, false);
-
-done:
 	dev_kfree_skb(skb);
-	return ret;
+	return 0;
 }
 
 static int wfx_is_ht(const struct wfx_ht_info *ht_info)
