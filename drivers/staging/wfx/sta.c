@@ -371,14 +371,11 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	int ret = 0;
-	/* To prevent re-applying PM request OID again and again*/
-	u16 old_uapsd_flags, new_uapsd_flags;
 	struct hif_req_edca_queue_params *edca;
 
 	mutex_lock(&wdev->conf_mutex);
 
 	if (queue < hw->queues) {
-		old_uapsd_flags = *((u16 *) &wvif->uapsd_info);
 		edca = &wvif->edca.params[queue];
 
 		wvif->edca.uapsd_enable[queue] = params->uapsd;
@@ -395,10 +392,8 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 		if (wvif->vif->type == NL80211_IFTYPE_STATION) {
 			ret = wfx_set_uapsd_param(wvif, &wvif->edca);
-			new_uapsd_flags = *((u16 *) &wvif->uapsd_info);
 			if (!ret && wvif->setbssparams_done &&
-			    wvif->state == WFX_STATE_STA &&
-			    old_uapsd_flags != new_uapsd_flags)
+			    wvif->state == WFX_STATE_STA)
 				ret = wfx_update_pm(wvif);
 		}
 	} else {
