@@ -127,11 +127,27 @@ void menu_set_type(int type)
 static struct property *menu_add_prop(enum prop_type type, struct expr *expr,
 				      struct expr *dep)
 {
-	struct property *prop = prop_alloc(type, current_entry->sym);
+	struct property *prop;
 
+	prop = xmalloc(sizeof(*prop));
+	memset(prop, 0, sizeof(*prop));
+	prop->type = type;
+	prop->file = current_file;
+	prop->lineno = zconf_lineno();
 	prop->menu = current_entry;
 	prop->expr = expr;
 	prop->visible.expr = dep;
+
+	/* append property to the prop list of symbol */
+	if (current_entry->sym) {
+		struct property **propp;
+
+		for (propp = &current_entry->sym->prop;
+		     *propp;
+		     propp = &(*propp)->next)
+			;
+		*propp = prop;
+	}
 
 	return prop;
 }
