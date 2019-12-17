@@ -26,6 +26,7 @@
 #define TB_MAX_CONFIG_RW_LENGTH 60
 
 enum tb_switch_cap {
+	TB_SWITCH_CAP_TMU		= 0x03,
 	TB_SWITCH_CAP_VSE		= 0x05,
 };
 
@@ -195,6 +196,21 @@ struct tb_regs_switch_header {
 #define ROUTER_CS_26_ONS			BIT(30)
 #define ROUTER_CS_26_OV				BIT(31)
 
+/* Router TMU configuration */
+#define TMU_RTR_CS_0				0x00
+#define TMU_RTR_CS_0_TD				BIT(27)
+#define TMU_RTR_CS_0_UCAP			BIT(30)
+#define TMU_RTR_CS_1				0x01
+#define TMU_RTR_CS_1_LOCAL_TIME_NS_MASK		GENMASK(31, 16)
+#define TMU_RTR_CS_1_LOCAL_TIME_NS_SHIFT	16
+#define TMU_RTR_CS_2				0x02
+#define TMU_RTR_CS_3				0x03
+#define TMU_RTR_CS_3_LOCAL_TIME_NS_MASK		GENMASK(15, 0)
+#define TMU_RTR_CS_3_TS_PACKET_INTERVAL_MASK	GENMASK(31, 16)
+#define TMU_RTR_CS_3_TS_PACKET_INTERVAL_SHIFT	16
+#define TMU_RTR_CS_22				0x16
+#define TMU_RTR_CS_24				0x18
+
 enum tb_port_type {
 	TB_TYPE_INACTIVE	= 0x000000,
 	TB_TYPE_PORT		= 0x000001,
@@ -247,6 +263,10 @@ struct tb_regs_port_header {
 #define ADP_CS_5				0x05
 #define ADP_CS_5_LCA_MASK			GENMASK(28, 22)
 #define ADP_CS_5_LCA_SHIFT			22
+
+/* TMU adapter registers */
+#define TMU_ADP_CS_3				0x03
+#define TMU_ADP_CS_3_UDM			BIT(29)
 
 /* Lane adapter registers */
 #define LANE_ADP_CS_0				0x00

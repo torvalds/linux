@@ -158,6 +158,25 @@ static void tb_scan_xdomain(struct tb_port *port)
 	}
 }
 
+static int tb_enable_tmu(struct tb_switch *sw)
+{
+	int ret;
+
+	/* If it is already enabled in correct mode, don't touch it */
+	if (tb_switch_tmu_is_enabled(sw))
+		return 0;
+
+	ret = tb_switch_tmu_disable(sw);
+	if (ret)
+		return ret;
+
+	ret = tb_switch_tmu_post_time(sw);
+	if (ret)
+		return ret;
+
+	return tb_switch_tmu_enable(sw);
+}
+
 static void tb_scan_port(struct tb_port *port);
 
 /**
@@ -256,6 +275,9 @@ static void tb_scan_port(struct tb_port *port)
 	/* Enable lane bonding if supported */
 	if (tb_switch_lane_bonding_enable(sw))
 		tb_sw_warn(sw, "failed to enable lane bonding\n");
+
+	if (tb_enable_tmu(sw))
+		tb_sw_warn(sw, "failed to enable TMU\n");
 
 	tb_scan_switch(sw);
 }
@@ -709,6 +731,7 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_sw_set_unplugged(port->remote->sw);
 			tb_free_invalid_tunnels(tb);
 			tb_remove_dp_resources(port->remote->sw);
+			tb_switch_tmu_disable(port->remote->sw);
 			tb_switch_lane_bonding_disable(port->remote->sw);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
@@ -855,6 +878,8 @@ static int tb_start(struct tb *tb)
 		return ret;
 	}
 
+	/* Enable TMU if it is off */
+	tb_switch_tmu_enable(tb->root_switch);
 	/* Full scan to discover devices added before the driver was loaded. */
 	tb_scan_switch(tb->root_switch);
 	/* Find out tunnels created by the boot firmware */
@@ -885,6 +910,9 @@ static int tb_suspend_noirq(struct tb *tb)
 static void tb_restore_children(struct tb_switch *sw)
 {
 	struct tb_port *port;
+
+	if (tb_enable_tmu(sw))
+		tb_sw_warn(sw, "failed to restore TMU configuration\n");
 
 	tb_switch_for_each_port(sw, port) {
 		if (!tb_port_has_remote(port))

@@ -47,6 +47,38 @@ struct tb_switch_nvm {
 #define USB4_SWITCH_MAX_DEPTH		5
 
 /**
+ * enum tb_switch_tmu_rate - TMU refresh rate
+ * @TB_SWITCH_TMU_RATE_OFF: %0 (Disable Time Sync handshake)
+ * @TB_SWITCH_TMU_RATE_HIFI: %16 us time interval between successive
+ *			     transmission of the Delay Request TSNOS
+ *			     (Time Sync Notification Ordered Set) on a Link
+ * @TB_SWITCH_TMU_RATE_NORMAL: %1 ms time interval between successive
+ *			       transmission of the Delay Request TSNOS on
+ *			       a Link
+ */
+enum tb_switch_tmu_rate {
+	TB_SWITCH_TMU_RATE_OFF = 0,
+	TB_SWITCH_TMU_RATE_HIFI = 16,
+	TB_SWITCH_TMU_RATE_NORMAL = 1000,
+};
+
+/**
+ * struct tb_switch_tmu - Structure holding switch TMU configuration
+ * @cap: Offset to the TMU capability (%0 if not found)
+ * @has_ucap: Does the switch support uni-directional mode
+ * @rate: TMU refresh rate related to upstream switch. In case of root
+ *	  switch this holds the domain rate.
+ * @unidirectional: Is the TMU in uni-directional or bi-directional mode
+ *		    related to upstream switch. Don't case for root switch.
+ */
+struct tb_switch_tmu {
+	int cap;
+	bool has_ucap;
+	enum tb_switch_tmu_rate rate;
+	bool unidirectional;
+};
+
+/**
  * struct tb_switch - a thunderbolt switch
  * @dev: Device for the switch
  * @config: Switch configuration
@@ -55,6 +87,7 @@ struct tb_switch_nvm {
  *	      mailbox this will hold the pointer to that (%NULL
  *	      otherwise). If set it also means the switch has
  *	      upgradeable NVM.
+ * @tmu: The switch TMU configuration
  * @tb: Pointer to the domain the switch belongs to
  * @uid: Unique ID of the switch
  * @uuid: UUID of the switch (or %NULL if not supported)
@@ -93,6 +126,7 @@ struct tb_switch {
 	struct tb_regs_switch_header config;
 	struct tb_port *ports;
 	struct tb_dma_port *dma_port;
+	struct tb_switch_tmu tmu;
 	struct tb *tb;
 	u64 uid;
 	uuid_t *uuid;
@@ -129,6 +163,7 @@ struct tb_switch {
  * @remote: Remote port (%NULL if not connected)
  * @xdomain: Remote host (%NULL if not connected)
  * @cap_phy: Offset, zero if not found
+ * @cap_tmu: Offset of the adapter specific TMU capability (%0 if not present)
  * @cap_adap: Offset of the adapter specific capability (%0 if not present)
  * @cap_usb4: Offset to the USB4 port capability (%0 if not present)
  * @port: Port number on switch
@@ -147,6 +182,7 @@ struct tb_port {
 	struct tb_port *remote;
 	struct tb_xdomain *xdomain;
 	int cap_phy;
+	int cap_tmu;
 	int cap_adap;
 	int cap_usb4;
 	u8 port;
@@ -671,6 +707,17 @@ void tb_switch_lane_bonding_disable(struct tb_switch *sw);
 bool tb_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int tb_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
 void tb_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
+
+int tb_switch_tmu_init(struct tb_switch *sw);
+int tb_switch_tmu_post_time(struct tb_switch *sw);
+int tb_switch_tmu_disable(struct tb_switch *sw);
+int tb_switch_tmu_enable(struct tb_switch *sw);
+
+static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw)
+{
+	return sw->tmu.rate == TB_SWITCH_TMU_RATE_HIFI &&
+	       !sw->tmu.unidirectional;
+}
 
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
