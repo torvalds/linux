@@ -77,6 +77,24 @@ TEST_GEN_PROGS_EXTENDED = test_sock_addr test_skb_cgroup_id_user \
 
 TEST_CUSTOM_PROGS = urandom_read
 
+# Emit succinct information message describing current building step
+# $1 - generic step name (e.g., CC, LINK, etc);
+# $2 - optional "flavor" specifier; if provided, will be emitted as [flavor];
+# $3 - target (assumed to be file); only file name will be emitted;
+# $4 - optional extra arg, emitted as-is, if provided.
+ifeq ($(V),1)
+msg =
+else
+msg = @$(info $(1)$(if $(2), [$(2)]) $(notdir $(3)))$(if $(4), $(4))
+endif
+
+# override lib.mk's default rules
+OVERRIDE_TARGETS := 1
+override define CLEAN
+	$(call msg,    CLEAN)
+	$(RM) -r $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES) $(EXTRA_CLEAN)
+endef
+
 include ../lib.mk
 
 # Define simple and short `make test_progs`, `make test_sysctl`, etc targets
@@ -89,10 +107,16 @@ $(notdir $(TEST_GEN_PROGS)						\
 	 $(TEST_GEN_PROGS_EXTENDED)					\
 	 $(TEST_CUSTOM_PROGS)): %: $(OUTPUT)/% ;
 
+$(OUTPUT)/%:%.c
+	$(call msg,     BINARY,,$@)
+	$(LINK.c) $^ $(LDLIBS) -o $@
+
 $(OUTPUT)/urandom_read: urandom_read.c
+	$(call msg,     BINARY,,$@)
 	$(CC) -o $@ $< -Wl,--build-id
 
 $(OUTPUT)/test_stub.o: test_stub.c
+	$(call msg,         CC,,$@)
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 BPFOBJ := $(OUTPUT)/libbpf.a
@@ -167,24 +191,28 @@ $(OUTPUT)/flow_dissector_load.o: flow_dissector_load.h
 # $3 - CFLAGS
 # $4 - LDFLAGS
 define CLANG_BPF_BUILD_RULE
+	$(call msg,  CLANG-LLC,$(TRUNNER_BINARY),$2)
 	($(CLANG) $3 -O2 -target bpf -emit-llvm				\
 		-c $1 -o - || echo "BPF obj compilation failed") | 	\
 	$(LLC) -mattr=dwarfris -march=bpf -mcpu=probe $4 -filetype=obj -o $2
 endef
 # Similar to CLANG_BPF_BUILD_RULE, but with disabled alu32
 define CLANG_NOALU32_BPF_BUILD_RULE
+	$(call msg,  CLANG-LLC,$(TRUNNER_BINARY),$2)
 	($(CLANG) $3 -O2 -target bpf -emit-llvm				\
 		-c $1 -o - || echo "BPF obj compilation failed") | 	\
 	$(LLC) -march=bpf -mcpu=v2 $4 -filetype=obj -o $2
 endef
 # Similar to CLANG_BPF_BUILD_RULE, but using native Clang and bpf LLC
 define CLANG_NATIVE_BPF_BUILD_RULE
+	$(call msg,  CLANG-BPF,$(TRUNNER_BINARY),$2)
 	($(CLANG) $3 -O2 -emit-llvm					\
 		-c $1 -o - || echo "BPF obj compilation failed") | 	\
 	$(LLC) -march=bpf -mcpu=probe $4 -filetype=obj -o $2
 endef
 # Build BPF object using GCC
 define GCC_BPF_BUILD_RULE
+	$(call msg,    GCC-BPF,$(TRUNNER_BINARY),$2)
 	$(BPF_GCC) $3 $4 -O2 -c $1 -o $2
 endef
 
@@ -243,6 +271,7 @@ $(TRUNNER_BPF_OBJS): $(TRUNNER_OUTPUT)/%.o:				\
 $(TRUNNER_BPF_SKELS): $(TRUNNER_OUTPUT)/%.skel.h:			\
 		      $(TRUNNER_OUTPUT)/%.o				\
 		      | $(BPFTOOL) $(TRUNNER_OUTPUT)
+	$$(call msg,   GEN-SKEL,$(TRUNNER_BINARY),$$@)
 	$$(BPFTOOL) gen skeleton $$< > $$@
 endif
 
@@ -250,6 +279,7 @@ endif
 ifeq ($($(TRUNNER_TESTS_DIR)-tests-hdr),)
 $(TRUNNER_TESTS_DIR)-tests-hdr := y
 $(TRUNNER_TESTS_HDR): $(TRUNNER_TESTS_DIR)/*.c
+	$$(call msg,   TEST-HDR,$(TRUNNER_BINARY),$$@)
 	$$(shell ( cd $(TRUNNER_TESTS_DIR);				\
 		  echo '/* Generated header, do not edit */';		\
 		  ls *.c 2> /dev/null |					\
@@ -265,6 +295,7 @@ $(TRUNNER_TEST_OBJS): $(TRUNNER_OUTPUT)/%.test.o:			\
 		      $(TRUNNER_BPF_OBJS)				\
 		      $(TRUNNER_BPF_SKELS)				\
 		      $$(BPFOBJ) | $(TRUNNER_OUTPUT)
+	$$(call msg,   TEST-OBJ,$(TRUNNER_BINARY),$$@)
 	cd $$(@D) && $$(CC) $$(CFLAGS) -c $(CURDIR)/$$< $$(LDLIBS) -o $$(@F)
 
 $(TRUNNER_EXTRA_OBJS): $(TRUNNER_OUTPUT)/%.o:				\
@@ -272,17 +303,20 @@ $(TRUNNER_EXTRA_OBJS): $(TRUNNER_OUTPUT)/%.o:				\
 		       $(TRUNNER_EXTRA_HDRS)				\
 		       $(TRUNNER_TESTS_HDR)				\
 		       $$(BPFOBJ) | $(TRUNNER_OUTPUT)
+	$$(call msg,  EXTRA-OBJ,$(TRUNNER_BINARY),$$@)
 	$$(CC) $$(CFLAGS) -c $$< $$(LDLIBS) -o $$@
 
 # only copy extra resources if in flavored build
 $(TRUNNER_BINARY)-extras: $(TRUNNER_EXTRA_FILES) | $(TRUNNER_OUTPUT)
 ifneq ($2,)
+	$$(call msg,  EXTRAS-CP,$(TRUNNER_BINARY),$(TRUNNER_EXTRA_FILES))
 	cp -a $$^ $(TRUNNER_OUTPUT)/
 endif
 
 $(OUTPUT)/$(TRUNNER_BINARY): $(TRUNNER_TEST_OBJS)			\
 			     $(TRUNNER_EXTRA_OBJS) $$(BPFOBJ)		\
 			     | $(TRUNNER_BINARY)-extras
+	$$(call msg,     BINARY,,$$@)
 	$$(CC) $$(CFLAGS) $$(filter %.a %.o,$$^) $$(LDLIBS) -o $$@
 
 endef
@@ -334,10 +368,12 @@ verifier/tests.h: verifier/*.c
 		  echo '#endif' \
 		) > verifier/tests.h)
 $(OUTPUT)/test_verifier: test_verifier.c verifier/tests.h $(BPFOBJ) | $(OUTPUT)
+	$(call msg,     BINARY,,$@)
 	$(CC) $(CFLAGS) $(filter %.a %.o %.c,$^) $(LDLIBS) -o $@
 
 # Make sure we are able to include and link libbpf against c++.
 $(OUTPUT)/test_cpp: test_cpp.cpp $(BPFOBJ)
+	$(call msg,        CXX,,$@)
 	$(CXX) $(CFLAGS) $^ $(LDLIBS) -o $@
 
 EXTRA_CLEAN := $(TEST_CUSTOM_PROGS)					\
