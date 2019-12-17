@@ -635,7 +635,6 @@ static void hclge_handle_link_change_event(struct hclge_dev *hdev,
 #define LINK_STATUS_OFFSET	1
 #define LINK_FAIL_CODE_OFFSET	2
 
-	clear_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state);
 	hclge_task_schedule(hdev, 0);
 
 	if (!req->msg[LINK_STATUS_OFFSET])

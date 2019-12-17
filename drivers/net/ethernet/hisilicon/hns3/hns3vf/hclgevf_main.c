@@ -16,6 +16,8 @@
 static int hclgevf_reset_hdev(struct hclgevf_dev *hdev);
 static struct hnae3_ae_algo ae_algovf;
 
+static struct workqueue_struct *hclgevf_wq;
+
 static const struct pci_device_id ae_algovf_pci_tbl[] = {
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_VF), 0},
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_DCB_PFC_VF), 0},
@@ -440,6 +442,9 @@ void hclgevf_update_link_status(struct hclgevf_dev *hdev, int link_state)
 	struct hnae3_client *rclient;
 	struct hnae3_client *client;
 
+	if (test_and_set_bit(HCLGEVF_STATE_LINK_UPDATING, &hdev->state))
+		return;
+
 	client = handle->client;
 	rclient = hdev->roce_client;
 
@@ -452,6 +457,8 @@ void hclgevf_update_link_status(struct hclgevf_dev *hdev, int link_state)
 			rclient->ops->link_status_change(rhandle, !!link_state);
 		hdev->hw.mac.link = link_state;
 	}
+
+	clear_bit(HCLGEVF_STATE_LINK_UPDATING, &hdev->state);
 }
 
 static void hclgevf_update_link_mode(struct hclgevf_dev *hdev)
@@ -1591,6 +1598,7 @@ static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 		hclgevf_reset_task_schedule(hdev);
 	} else {
+		set_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state);
 		hclgevf_dump_rst_info(hdev);
 	}
 }
@@ -1652,6 +1660,7 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 	ae_dev->reset_type = HNAE3_NONE_RESET;
 	hdev->rst_stats.rst_done_cnt++;
 	hdev->rst_stats.rst_fail_cnt = 0;
+	clear_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state);
 
 	return ret;
 err_reset_lock:
@@ -1767,62 +1776,39 @@ static void hclgevf_get_misc_vector(struct hclgevf_dev *hdev)
 
 void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev)
 {
-	if (!test_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state) &&
-	    !test_bit(HCLGEVF_STATE_REMOVING, &hdev->state)) {
-		set_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state);
-		schedule_work(&hdev->rst_service_task);
-	}
+	if (!test_bit(HCLGEVF_STATE_REMOVING, &hdev->state) &&
+	    !test_and_set_bit(HCLGEVF_STATE_RST_SERVICE_SCHED,
+			      &hdev->state))
+		mod_delayed_work(hclgevf_wq, &hdev->service_task, 0);
 }
 
 void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev)
 {
-	if (!test_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state) &&
-	    !test_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state)) {
-		set_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
-		schedule_work(&hdev->mbx_service_task);
-	}
+	if (!test_bit(HCLGEVF_STATE_REMOVING, &hdev->state) &&
+	    !test_and_set_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED,
+			      &hdev->state))
+		mod_delayed_work(hclgevf_wq, &hdev->service_task, 0);
 }
 
-static void hclgevf_task_schedule(struct hclgevf_dev *hdev)
+static void hclgevf_task_schedule(struct hclgevf_dev *hdev,
+				  unsigned long delay)
 {
-	if (!test_bit(HCLGEVF_STATE_DOWN, &hdev->state)  &&
-	    !test_and_set_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state))
-		schedule_work(&hdev->service_task);
+	if (!test_bit(HCLGEVF_STATE_REMOVING, &hdev->state) &&
+	    !test_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state))
+		mod_delayed_work(hclgevf_wq, &hdev->service_task, delay);
 }
 
-static void hclgevf_deferred_task_schedule(struct hclgevf_dev *hdev)
-{
-	/* if we have any pending mailbox event then schedule the mbx task */
-	if (hdev->mbx_event_pending)
-		hclgevf_mbx_task_schedule(hdev);
-
-	if (test_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state))
-		hclgevf_reset_task_schedule(hdev);
-}
-
-static void hclgevf_service_timer(struct timer_list *t)
-{
-	struct hclgevf_dev *hdev = from_timer(hdev, t, service_timer);
-
-	mod_timer(&hdev->service_timer, jiffies +
-		  HCLGEVF_GENERAL_TASK_INTERVAL * HZ);
-
-	hdev->stats_timer++;
-	hclgevf_task_schedule(hdev);
-}
-
-static void hclgevf_reset_service_task(struct work_struct *work)
+static void hclgevf_reset_service_task(struct hclgevf_dev *hdev)
 {
 #define	HCLGEVF_MAX_RESET_ATTEMPTS_CNT	3
 
-	struct hclgevf_dev *hdev =
-		container_of(work, struct hclgevf_dev, rst_service_task);
 	int ret;
+
+	if (!test_and_clear_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state))
+		return;
 
 	if (test_and_set_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state))
 		return;
-
-	clear_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state);
 
 	if (test_and_clear_bit(HCLGEVF_RESET_PENDING,
 			       &hdev->reset_state)) {
@@ -1885,38 +1871,23 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 	clear_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
 }
 
-static void hclgevf_mailbox_service_task(struct work_struct *work)
+static void hclgevf_mailbox_service_task(struct hclgevf_dev *hdev)
 {
-	struct hclgevf_dev *hdev;
-
-	hdev = container_of(work, struct hclgevf_dev, mbx_service_task);
+	if (!test_and_clear_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state))
+		return;
 
 	if (test_and_set_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state))
 		return;
-
-	clear_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
 
 	hclgevf_mbx_async_handler(hdev);
 
 	clear_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state);
 }
 
-static void hclgevf_keep_alive_timer(struct timer_list *t)
+static void hclgevf_keep_alive(struct hclgevf_dev *hdev)
 {
-	struct hclgevf_dev *hdev = from_timer(hdev, t, keep_alive_timer);
-
-	schedule_work(&hdev->keep_alive_task);
-	mod_timer(&hdev->keep_alive_timer, jiffies +
-		  HCLGEVF_KEEP_ALIVE_TASK_INTERVAL * HZ);
-}
-
-static void hclgevf_keep_alive_task(struct work_struct *work)
-{
-	struct hclgevf_dev *hdev;
 	u8 respmsg;
 	int ret;
-
-	hdev = container_of(work, struct hclgevf_dev, keep_alive_task);
 
 	if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state))
 		return;
@@ -1928,18 +1899,31 @@ static void hclgevf_keep_alive_task(struct work_struct *work)
 			"VF sends keep alive cmd failed(=%d)\n", ret);
 }
 
-static void hclgevf_service_task(struct work_struct *work)
+static void hclgevf_periodic_service_task(struct hclgevf_dev *hdev)
 {
-	struct hnae3_handle *handle;
-	struct hclgevf_dev *hdev;
+	unsigned long delta = round_jiffies_relative(HZ);
+	struct hnae3_handle *handle = &hdev->nic;
 
-	hdev = container_of(work, struct hclgevf_dev, service_task);
-	handle = &hdev->nic;
+	if (time_is_after_jiffies(hdev->last_serv_processed + HZ)) {
+		delta = jiffies - hdev->last_serv_processed;
 
-	if (hdev->stats_timer >= HCLGEVF_STATS_TIMER_INTERVAL) {
-		hclgevf_tqps_update_stats(handle);
-		hdev->stats_timer = 0;
+		if (delta < round_jiffies_relative(HZ)) {
+			delta = round_jiffies_relative(HZ) - delta;
+			goto out;
+		}
 	}
+
+	hdev->serv_processed_cnt++;
+	if (!(hdev->serv_processed_cnt % HCLGEVF_KEEP_ALIVE_TASK_INTERVAL))
+		hclgevf_keep_alive(hdev);
+
+	if (test_bit(HCLGEVF_STATE_DOWN, &hdev->state)) {
+		hdev->last_serv_processed = jiffies;
+		goto out;
+	}
+
+	if (!(hdev->serv_processed_cnt % HCLGEVF_STATS_TIMER_INTERVAL))
+		hclgevf_tqps_update_stats(handle);
 
 	/* request the link status from the PF. PF would be able to tell VF
 	 * about such updates in future so we might remove this later
@@ -1950,9 +1934,27 @@ static void hclgevf_service_task(struct work_struct *work)
 
 	hclgevf_sync_vlan_filter(hdev);
 
-	hclgevf_deferred_task_schedule(hdev);
+	hdev->last_serv_processed = jiffies;
 
-	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
+out:
+	hclgevf_task_schedule(hdev, delta);
+}
+
+static void hclgevf_service_task(struct work_struct *work)
+{
+	struct hclgevf_dev *hdev = container_of(work, struct hclgevf_dev,
+						service_task.work);
+
+	hclgevf_reset_service_task(hdev);
+	hclgevf_mailbox_service_task(hdev);
+	hclgevf_periodic_service_task(hdev);
+
+	/* Handle reset and mbx again in case periodical task delays the
+	 * handling by calling hclgevf_task_schedule() in
+	 * hclgevf_periodic_service_task()
+	 */
+	hclgevf_reset_service_task(hdev);
+	hclgevf_mailbox_service_task(hdev);
 }
 
 static void hclgevf_clear_event_cause(struct hclgevf_dev *hdev, u32 regclr)
@@ -2189,16 +2191,31 @@ static int hclgevf_init_vlan_config(struct hclgevf_dev *hdev)
 				       false);
 }
 
+static void hclgevf_flush_link_update(struct hclgevf_dev *hdev)
+{
+#define HCLGEVF_FLUSH_LINK_TIMEOUT	100000
+
+	unsigned long last = hdev->serv_processed_cnt;
+	int i = 0;
+
+	while (test_bit(HCLGEVF_STATE_LINK_UPDATING, &hdev->state) &&
+	       i++ < HCLGEVF_FLUSH_LINK_TIMEOUT &&
+	       last == hdev->serv_processed_cnt)
+		usleep_range(1, 1);
+}
+
 static void hclgevf_set_timer_task(struct hnae3_handle *handle, bool enable)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
 	if (enable) {
-		mod_timer(&hdev->service_timer, jiffies + HZ);
+		hclgevf_task_schedule(hdev, 0);
 	} else {
-		del_timer_sync(&hdev->service_timer);
-		cancel_work_sync(&hdev->service_task);
-		clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
+		set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
+
+		/* flush memory to make sure DOWN is seen by service task */
+		smp_mb__before_atomic();
+		hclgevf_flush_link_update(hdev);
 	}
 }
 
@@ -2245,15 +2262,11 @@ static int hclgevf_set_alive(struct hnae3_handle *handle, bool alive)
 
 static int hclgevf_client_start(struct hnae3_handle *handle)
 {
-	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	int ret;
 
 	ret = hclgevf_set_alive(handle, true);
 	if (ret)
 		return ret;
-
-	mod_timer(&hdev->keep_alive_timer, jiffies +
-		  HCLGEVF_KEEP_ALIVE_TASK_INTERVAL * HZ);
 
 	return 0;
 }
@@ -2267,25 +2280,15 @@ static void hclgevf_client_stop(struct hnae3_handle *handle)
 	if (ret)
 		dev_warn(&hdev->pdev->dev,
 			 "%s failed %d\n", __func__, ret);
-
-	del_timer_sync(&hdev->keep_alive_timer);
-	cancel_work_sync(&hdev->keep_alive_task);
 }
 
 static void hclgevf_state_init(struct hclgevf_dev *hdev)
 {
-	/* setup tasks for the MBX */
-	INIT_WORK(&hdev->mbx_service_task, hclgevf_mailbox_service_task);
 	clear_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
 	clear_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state);
+	clear_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state);
 
-	/* setup tasks for service timer */
-	timer_setup(&hdev->service_timer, hclgevf_service_timer, 0);
-
-	INIT_WORK(&hdev->service_task, hclgevf_service_task);
-	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
-
-	INIT_WORK(&hdev->rst_service_task, hclgevf_reset_service_task);
+	INIT_DELAYED_WORK(&hdev->service_task, hclgevf_service_task);
 
 	mutex_init(&hdev->mbx_resp.mbx_mutex);
 
@@ -2298,18 +2301,8 @@ static void hclgevf_state_uninit(struct hclgevf_dev *hdev)
 	set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
 	set_bit(HCLGEVF_STATE_REMOVING, &hdev->state);
 
-	if (hdev->keep_alive_timer.function)
-		del_timer_sync(&hdev->keep_alive_timer);
-	if (hdev->keep_alive_task.func)
-		cancel_work_sync(&hdev->keep_alive_task);
-	if (hdev->service_timer.function)
-		del_timer_sync(&hdev->service_timer);
-	if (hdev->service_task.func)
-		cancel_work_sync(&hdev->service_task);
-	if (hdev->mbx_service_task.func)
-		cancel_work_sync(&hdev->mbx_service_task);
-	if (hdev->rst_service_task.func)
-		cancel_work_sync(&hdev->rst_service_task);
+	if (hdev->service_task.work.func)
+		cancel_delayed_work_sync(&hdev->service_task);
 
 	mutex_destroy(&hdev->mbx_resp.mbx_mutex);
 }
@@ -2807,6 +2800,8 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	dev_info(&hdev->pdev->dev, "finished initializing %s driver\n",
 		 HCLGEVF_DRIVER_NAME);
 
+	hclgevf_task_schedule(hdev, round_jiffies_relative(HZ));
+
 	return 0;
 
 err_config:
@@ -2838,7 +2833,6 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 static int hclgevf_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	struct pci_dev *pdev = ae_dev->pdev;
-	struct hclgevf_dev *hdev;
 	int ret;
 
 	ret = hclgevf_alloc_hdev(ae_dev);
@@ -2852,10 +2846,6 @@ static int hclgevf_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		dev_err(&pdev->dev, "hclge device initialization failed\n");
 		return ret;
 	}
-
-	hdev = ae_dev->priv;
-	timer_setup(&hdev->keep_alive_timer, hclgevf_keep_alive_timer, 0);
-	INIT_WORK(&hdev->keep_alive_task, hclgevf_keep_alive_task);
 
 	return 0;
 }
@@ -3213,6 +3203,12 @@ static int hclgevf_init(void)
 {
 	pr_info("%s is initializing\n", HCLGEVF_NAME);
 
+	hclgevf_wq = alloc_workqueue("%s", WQ_MEM_RECLAIM, 0, HCLGEVF_NAME);
+	if (!hclgevf_wq) {
+		pr_err("%s: failed to create workqueue\n", HCLGEVF_NAME);
+		return -ENOMEM;
+	}
+
 	hnae3_register_ae_algo(&ae_algovf);
 
 	return 0;
@@ -3221,6 +3217,7 @@ static int hclgevf_init(void)
 static void hclgevf_exit(void)
 {
 	hnae3_unregister_ae_algo(&ae_algovf);
+	destroy_workqueue(hclgevf_wq);
 }
 module_init(hclgevf_init);
 module_exit(hclgevf_exit);

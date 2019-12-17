@@ -976,6 +976,14 @@ void hclge_dbg_dump_rst_info(struct hclge_dev *hdev)
 	dev_info(&hdev->pdev->dev, "hdev state: 0x%lx\n", hdev->state);
 }
 
+static void hclge_dbg_dump_serv_info(struct hclge_dev *hdev)
+{
+	dev_info(&hdev->pdev->dev, "last_serv_processed: %lu\n",
+		 hdev->last_serv_processed);
+	dev_info(&hdev->pdev->dev, "last_serv_cnt: %lu\n",
+		 hdev->serv_processed_cnt);
+}
+
 static void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)
 {
 	struct hclge_desc *desc_src, *desc_tmp;
@@ -1227,6 +1235,8 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_reg_cmd(hdev, &cmd_buf[sizeof(DUMP_REG)]);
 	} else if (strncmp(cmd_buf, "dump reset info", 15) == 0) {
 		hclge_dbg_dump_rst_info(hdev);
+	} else if (strncmp(cmd_buf, "dump serv info", 14) == 0) {
+		hclge_dbg_dump_serv_info(hdev);
 	} else if (strncmp(cmd_buf, "dump m7 info", 12) == 0) {
 		hclge_dbg_get_m7_stats_info(hdev);
 	} else if (strncmp(cmd_buf, "dump ncl_config", 15) == 0) {
