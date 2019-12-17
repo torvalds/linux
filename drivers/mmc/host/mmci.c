@@ -715,10 +715,20 @@ int mmci_dmae_setup(struct mmci_host *host)
 
 	host->dma_priv = dmae;
 
-	dmae->rx_channel = dma_request_slave_channel(mmc_dev(host->mmc),
-						     "rx");
-	dmae->tx_channel = dma_request_slave_channel(mmc_dev(host->mmc),
-						     "tx");
+	dmae->rx_channel = dma_request_chan(mmc_dev(host->mmc), "rx");
+	if (IS_ERR(dmae->rx_channel)) {
+		int ret = PTR_ERR(dmae->rx_channel);
+		dmae->rx_channel = NULL;
+		return ret;
+	}
+
+	dmae->tx_channel = dma_request_chan(mmc_dev(host->mmc), "tx");
+	if (IS_ERR(dmae->tx_channel)) {
+		if (PTR_ERR(dmae->tx_channel) == -EPROBE_DEFER)
+			dev_warn(mmc_dev(host->mmc),
+				 "Deferred probe for TX channel ignored\n");
+		dmae->tx_channel = NULL;
+	}
 
 	/*
 	 * If only an RX channel is specified, the driver will
