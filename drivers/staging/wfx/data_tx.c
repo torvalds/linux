@@ -538,6 +538,17 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 			}
 		}
 	} while (!finished);
+	// Ensure that MCS0 or 1Mbps is present at the end of the retry list
+	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+		if (rates[i].idx == 0)
+			break;
+		if (rates[i].idx == -1) {
+			rates[i].idx = 0;
+			rates[i].count = 8; // == hw->max_rate_tries
+			rates[i].flags = rates[i - 1].flags & IEEE80211_TX_RC_MCS;
+			break;
+		}
+	}
 	// All retries use long GI
 	for (i = 1; i < IEEE80211_TX_MAX_RATES; i++)
 		rates[i].flags &= ~IEEE80211_TX_RC_SHORT_GI;
