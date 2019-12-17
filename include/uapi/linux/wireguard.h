@@ -18,13 +18,13 @@
  * one but not both of:
  *
  *    WGDEVICE_A_IFINDEX: NLA_U32
- *    WGDEVICE_A_IFNAME: NLA_NUL_STRING, maxlen IFNAMESIZ - 1
+ *    WGDEVICE_A_IFNAME: NLA_NUL_STRING, maxlen IFNAMSIZ - 1
  *
  * The kernel will then return several messages (NLM_F_MULTI) containing the
  * following tree of nested items:
  *
  *    WGDEVICE_A_IFINDEX: NLA_U32
- *    WGDEVICE_A_IFNAME: NLA_NUL_STRING, maxlen IFNAMESIZ - 1
+ *    WGDEVICE_A_IFNAME: NLA_NUL_STRING, maxlen IFNAMSIZ - 1
  *    WGDEVICE_A_PRIVATE_KEY: NLA_EXACT_LEN, len WG_KEY_LEN
  *    WGDEVICE_A_PUBLIC_KEY: NLA_EXACT_LEN, len WG_KEY_LEN
  *    WGDEVICE_A_LISTEN_PORT: NLA_U16
@@ -77,7 +77,7 @@
  * WGDEVICE_A_IFINDEX and WGDEVICE_A_IFNAME:
  *
  *    WGDEVICE_A_IFINDEX: NLA_U32
- *    WGDEVICE_A_IFNAME: NLA_NUL_STRING, maxlen IFNAMESIZ - 1
+ *    WGDEVICE_A_IFNAME: NLA_NUL_STRING, maxlen IFNAMSIZ - 1
  *    WGDEVICE_A_FLAGS: NLA_U32, 0 or WGDEVICE_F_REPLACE_PEERS if all current
  *                      peers should be removed prior to adding the list below.
  *    WGDEVICE_A_PRIVATE_KEY: len WG_KEY_LEN, all zeros to remove
@@ -121,7 +121,7 @@
  * filling in information not contained in the prior. Note that if
  * WGDEVICE_F_REPLACE_PEERS is specified in the first message, it probably
  * should not be specified in fragments that come after, so that the list
- * of peers is only cleared the first time but appened after. Likewise for
+ * of peers is only cleared the first time but appended after. Likewise for
  * peers, if WGPEER_F_REPLACE_ALLOWEDIPS is specified in the first message
  * of a peer, it likely should not be specified in subsequent fragments.
  *
