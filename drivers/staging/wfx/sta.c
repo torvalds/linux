@@ -17,7 +17,6 @@
 #include "hif_tx.h"
 #include "hif_tx_mib.h"
 
-#define TXOP_UNIT 32
 #define HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES 2
 
 static u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates)
@@ -322,26 +321,13 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
-	struct hif_req_edca_queue_params *edca;
 
 	WARN_ON(queue >= hw->queues);
 
 	mutex_lock(&wdev->conf_mutex);
 	assign_bit(queue, &wvif->uapsd_mask, params->uapsd);
-	edca = &wvif->edca_params[queue];
-	edca->aifsn = params->aifs;
-	edca->cw_min = params->cw_min;
-	edca->cw_max = params->cw_max;
-	edca->tx_op_limit = params->txop * TXOP_UNIT;
-	edca->allowed_medium_time = 0;
-	edca->queue_id = 3 - queue;
-	// API 2.0 has changed queue IDs values
-	if (wfx_api_older_than(wdev, 2, 0) && queue == IEEE80211_AC_BE)
-		edca->queue_id = HIF_QUEUE_ID_BACKGROUND;
-	if (wfx_api_older_than(wdev, 2, 0) && queue == IEEE80211_AC_BK)
-		edca->queue_id = HIF_QUEUE_ID_BESTEFFORT;
-	hif_set_edca_queue_params(wvif, edca);
-
+	memcpy(&wvif->edca_params[queue], params, sizeof(*params));
+	hif_set_edca_queue_params(wvif, queue, params);
 	if (wvif->vif->type == NL80211_IFTYPE_STATION) {
 		hif_set_uapsd_info(wvif, wvif->uapsd_mask);
 		if (wvif->setbssparams_done && wvif->state == WFX_STATE_STA)

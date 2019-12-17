@@ -443,7 +443,7 @@ static int wfx_get_prio_queue(struct wfx_vif *wvif,
 {
 	static const int urgent = BIT(WFX_LINK_ID_AFTER_DTIM) |
 		BIT(WFX_LINK_ID_UAPSD);
-	struct hif_req_edca_queue_params *edca;
+	const struct ieee80211_tx_queue_params *edca;
 	unsigned int score, best = -1;
 	int winner = -1;
 	int i;
@@ -458,7 +458,7 @@ static int wfx_get_prio_queue(struct wfx_vif *wvif,
 		if (!queued)
 			continue;
 		*total += queued;
-		score = ((edca->aifsn + edca->cw_min) << 16) +
+		score = ((edca->aifs + edca->cw_min) << 16) +
 			((edca->cw_max - edca->cw_min) *
 			 (get_random_int() & 0xFFFF));
 		if (score < best && (winner < 0 || i != 3)) {
@@ -595,7 +595,7 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 		wvif->pspoll_mask &= ~BIT(tx_priv->raw_link_id);
 
 		/* allow bursting if txop is set */
-		if (wvif->edca_params[queue_num].tx_op_limit)
+		if (wvif->edca_params[queue_num].txop)
 			burst = (int)wfx_tx_queue_get_num_queued(queue, tx_allowed_mask) + 1;
 		else
 			burst = 1;

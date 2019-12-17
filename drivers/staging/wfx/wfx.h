@@ -26,6 +26,8 @@
 #include "hif_tx.h"
 #include "hif_api_general.h"
 
+#define USEC_PER_TXOP 32 // see struct ieee80211_tx_queue_params
+
 struct hwbus_ops;
 
 struct wfx_dev {
@@ -114,7 +116,7 @@ struct wfx_vif {
 	bool			setbssparams_done;
 	struct wfx_ht_info	ht_info;
 	unsigned long		uapsd_mask;
-	struct hif_req_edca_queue_params edca_params[IEEE80211_NUM_ACS];
+	struct ieee80211_tx_queue_params edca_params[IEEE80211_NUM_ACS];
 	struct hif_req_set_bss_params bss_params;
 	struct work_struct	bss_params_work;
 	struct work_struct	set_cts_work;

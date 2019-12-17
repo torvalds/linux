@@ -340,19 +340,25 @@ int hif_remove_key(struct wfx_dev *wdev, int idx)
 	return ret;
 }
 
-int hif_set_edca_queue_params(struct wfx_vif *wvif,
-			      const struct hif_req_edca_queue_params *arg)
+int hif_set_edca_queue_params(struct wfx_vif *wvif, u16 queue,
+			      const struct ieee80211_tx_queue_params *arg)
 {
 	int ret;
 	struct hif_msg *hif;
 	struct hif_req_edca_queue_params *body = wfx_alloc_hif(sizeof(*body),
 							       &hif);
 
-	// NOTE: queues numerotation are not the same between WFx and Linux
-	memcpy(body, arg, sizeof(*body));
-	cpu_to_le16s(&body->cw_min);
-	cpu_to_le16s(&body->cw_max);
-	cpu_to_le16s(&body->tx_op_limit);
+	WARN_ON(arg->aifs > 255);
+	body->aifsn = arg->aifs;
+	body->cw_min = cpu_to_le16(arg->cw_min);
+	body->cw_max = cpu_to_le16(arg->cw_max);
+	body->tx_op_limit = cpu_to_le16(arg->txop * USEC_PER_TXOP);
+	body->queue_id = 3 - queue;
+	// API 2.0 has changed queue IDs values
+	if (wfx_api_older_than(wvif->wdev, 2, 0) && queue == IEEE80211_AC_BE)
+		body->queue_id = HIF_QUEUE_ID_BACKGROUND;
+	if (wfx_api_older_than(wvif->wdev, 2, 0) && queue == IEEE80211_AC_BK)
+		body->queue_id = HIF_QUEUE_ID_BESTEFFORT;
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_EDCA_QUEUE_PARAMS,
 			sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
