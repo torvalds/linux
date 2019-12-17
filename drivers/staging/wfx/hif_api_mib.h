@@ -471,8 +471,9 @@ struct hif_mib_set_association_mode {
 	u8    mode:1;
 	u8    rateset:1;
 	u8    spacing:1;
-	u8    reserved:4;
-	u8    preamble_type;
+	u8    reserved1:4;
+	u8    short_preamble:1;
+	u8    reserved2:7;
 	u8    mixed_or_greenfield_type;
 	u8    mpdu_start_spacing;
 	u32   basic_rate_set;

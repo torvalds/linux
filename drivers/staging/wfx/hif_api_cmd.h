@@ -377,12 +377,6 @@ struct hif_cnf_edca_queue_params {
 	u32   status;
 } __packed;
 
-enum hif_preamble {
-	HIF_PREAMBLE_LONG                          = 0x0,
-	HIF_PREAMBLE_SHORT                         = 0x1,
-	HIF_PREAMBLE_SHORT_LONG12                  = 0x2
-};
-
 struct hif_join_flags {
 	u8    reserved1:2;
 	u8    force_no_beacon:1;
@@ -397,9 +391,10 @@ struct hif_req_join {
 	u16   channel_number;
 	u8    bssid[ETH_ALEN];
 	u16   atim_window;
-	u8    preamble_type;
+	u8    short_preamble:1;
+	u8    reserved2:7;
 	u8    probe_for_join;
-	u8    reserved;
+	u8    reserved3;
 	struct hif_join_flags join_flags;
 	u32   ssid_length;
 	u8    ssid[HIF_API_SSID_SIZE];
@@ -462,8 +457,9 @@ struct hif_req_start {
 	u32   reserved1;
 	u32   beacon_interval;
 	u8    dtim_period;
-	u8    preamble_type;
-	u8    reserved2;
+	u8    short_preamble:1;
+	u8    reserved2:7;
+	u8    reserved3;
 	u8    ssid_length;
 	u8    ssid[HIF_API_SSID_SIZE];
 	u32   basic_rate_set;

@@ -652,7 +652,7 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	struct cfg80211_bss *bss = NULL;
 	struct hif_req_join join = {
 		.infrastructure_bss_mode = !conf->ibss_joined,
-		.preamble_type = conf->use_short_preamble ? HIF_PREAMBLE_SHORT : HIF_PREAMBLE_LONG,
+		.short_preamble = conf->use_short_preamble,
 		.probe_for_join = 1,
 		.atim_window = 0,
 		.basic_rate_set = wfx_rate_mask_to_hw(wvif->wdev,
@@ -843,7 +843,7 @@ static int wfx_start_ap(struct wfx_vif *wvif)
 		.channel_number = wvif->channel->hw_value,
 		.beacon_interval = conf->beacon_int,
 		.dtim_period = conf->dtim_period,
-		.preamble_type = conf->use_short_preamble ? HIF_PREAMBLE_SHORT : HIF_PREAMBLE_LONG,
+		.short_preamble = conf->use_short_preamble,
 		.basic_rate_set = wfx_rate_mask_to_hw(wvif->wdev,
 						      conf->basic_rates),
 	};
@@ -994,7 +994,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	association_mode.mode = 1;
 	association_mode.rateset = 1;
 	association_mode.spacing = 1;
-	association_mode.preamble_type = info->use_short_preamble ? HIF_PREAMBLE_SHORT : HIF_PREAMBLE_LONG;
+	association_mode.short_preamble = info->use_short_preamble;
 	association_mode.basic_rate_set = cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, info->basic_rates));
 	association_mode.mixed_or_greenfield_type = wfx_ht_greenfield(&wvif->ht_info);
 	association_mode.mpdu_start_spacing = wfx_ht_ampdu_density(&wvif->ht_info);
