@@ -23,6 +23,33 @@ properties:
        - qcom,mmcc-msm8960
        - qcom,mmcc-msm8974
        - qcom,mmcc-msm8996
+       - qcom,mmcc-msm8998
+
+  clocks:
+    items:
+      - description: Board XO source
+      - description: Board sleep source
+      - description: Global PLL 0 clock
+      - description: DSI phy instance 0 dsi clock
+      - description: DSI phy instance 0 byte clock
+      - description: DSI phy instance 1 dsi clock
+      - description: DSI phy instance 1 byte clock
+      - description: HDMI phy PLL clock
+      - description: DisplayPort phy PLL vco clock
+      - description: DisplayPort phy PLL link clock
+
+  clock-names:
+    items:
+      - const: xo
+      - const: sleep
+      - const: gpll0
+      - const: dsi0dsi
+      - const: dsi0byte
+      - const: dsi1dsi
+      - const: dsi1byte
+      - const: hdmipll
+      - const: dpvco
+      - const: dplink
 
   '#clock-cells':
     const: 1
@@ -46,6 +73,17 @@ required:
   - '#clock-cells'
   - '#reset-cells'
   - '#power-domain-cells'
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: qcom,mmcc-msm8998
+
+then:
+  required:
+    - clocks
+    - clock-names
 
 examples:
   # Example for MMCC for MSM8960:
