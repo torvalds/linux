@@ -7,6 +7,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 
@@ -17,6 +18,7 @@ struct lvds_codec {
 	struct drm_bridge bridge;
 	struct drm_bridge *panel_bridge;
 	struct gpio_desc *powerdown_gpio;
+	u32 connector_type;
 };
 
 static int lvds_codec_attach(struct drm_bridge *bridge)
@@ -65,6 +67,7 @@ static int lvds_codec_probe(struct platform_device *pdev)
 	if (!lvds_codec)
 		return -ENOMEM;
 
+	lvds_codec->connector_type = (uintptr_t)of_device_get_match_data(dev);
 	lvds_codec->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
 							     GPIOD_OUT_HIGH);
 	if (IS_ERR(lvds_codec->powerdown_gpio)) {
@@ -105,7 +108,7 @@ static int lvds_codec_probe(struct platform_device *pdev)
 
 	lvds_codec->panel_bridge =
 		devm_drm_panel_bridge_add_typed(dev, panel,
-						DRM_MODE_CONNECTOR_LVDS);
+						lvds_codec->connector_type);
 	if (IS_ERR(lvds_codec->panel_bridge))
 		return PTR_ERR(lvds_codec->panel_bridge);
 
@@ -133,8 +136,18 @@ static int lvds_codec_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id lvds_codec_match[] = {
-	{ .compatible = "lvds-encoder" },
-	{ .compatible = "thine,thc63lvdm83d" },
+	{
+		.compatible = "lvds-decoder",
+		.data = (void *)DRM_MODE_CONNECTOR_DPI,
+	},
+	{
+		.compatible = "lvds-encoder",
+		.data = (void *)DRM_MODE_CONNECTOR_LVDS,
+	},
+	{
+		.compatible = "thine,thc63lvdm83d",
+		.data = (void *)DRM_MODE_CONNECTOR_LVDS,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, lvds_codec_match);
