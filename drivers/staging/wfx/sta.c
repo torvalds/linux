@@ -1055,9 +1055,11 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (changed &
-	    (BSS_CHANGED_BEACON | BSS_CHANGED_AP_PROBE_RESP |
-	     BSS_CHANGED_BSSID | BSS_CHANGED_SSID | BSS_CHANGED_IBSS)) {
+	if (changed & BSS_CHANGED_BEACON ||
+	    changed & BSS_CHANGED_AP_PROBE_RESP ||
+	    changed & BSS_CHANGED_BSSID ||
+	    changed & BSS_CHANGED_SSID ||
+	    changed & BSS_CHANGED_IBSS) {
 		wvif->beacon_int = info->beacon_int;
 		wfx_update_beaconing(wvif);
 		wfx_upload_beacon(wvif);
@@ -1095,10 +1097,11 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 		if (changed & BSS_CHANGED_BSSID)
 			do_join = true;
 
-		if (changed &
-		    (BSS_CHANGED_ASSOC | BSS_CHANGED_BSSID |
-		     BSS_CHANGED_IBSS | BSS_CHANGED_BASIC_RATES |
-		     BSS_CHANGED_HT)) {
+		if (changed & BSS_CHANGED_ASSOC ||
+		    changed & BSS_CHANGED_BSSID ||
+		    changed & BSS_CHANGED_IBSS ||
+		    changed & BSS_CHANGED_BASIC_RATES ||
+		    changed & BSS_CHANGED_HT) {
 			if (info->assoc) {
 				if (wvif->state < WFX_STATE_PRE_STA) {
 					ieee80211_connection_loss(vif);
@@ -1120,9 +1123,9 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	/* ERP Protection */
-	if (changed & (BSS_CHANGED_ASSOC |
-		       BSS_CHANGED_ERP_CTS_PROT |
-		       BSS_CHANGED_ERP_PREAMBLE)) {
+	if (changed & BSS_CHANGED_ASSOC ||
+	    changed & BSS_CHANGED_ERP_CTS_PROT ||
+	    changed & BSS_CHANGED_ERP_PREAMBLE) {
 		u32 prev_erp_info = wvif->erp_info;
 
 		if (info->use_cts_prot)
@@ -1139,10 +1142,10 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 			schedule_work(&wvif->set_cts_work);
 	}
 
-	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_ERP_SLOT))
+	if (changed & BSS_CHANGED_ASSOC || changed & BSS_CHANGED_ERP_SLOT)
 		hif_slot_time(wvif, info->use_short_slot ? 9 : 20);
 
-	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_CQM)) {
+	if (changed & BSS_CHANGED_ASSOC || changed & BSS_CHANGED_CQM) {
 		struct hif_mib_rcpi_rssi_threshold th = {
 			.rolling_average_count = 8,
 			.detection = 1,
