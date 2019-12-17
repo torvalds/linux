@@ -112,44 +112,6 @@ end:
 	mutex_unlock(&wvif->bss_loss_lock);
 }
 
-static int wfx_set_uapsd_param(struct wfx_vif *wvif,
-			   const struct wfx_edca_params *arg)
-{
-	/* Here's the mapping AC [queue, bit]
-	 *  VO [0,3], VI [1, 2], BE [2, 1], BK [3, 0]
-	 */
-
-	if (arg->uapsd_mask & BIT(IEEE80211_AC_VO))
-		wvif->uapsd_info.trig_voice = 1;
-	else
-		wvif->uapsd_info.trig_voice = 0;
-
-	if (arg->uapsd_mask & BIT(IEEE80211_AC_VI))
-		wvif->uapsd_info.trig_video = 1;
-	else
-		wvif->uapsd_info.trig_video = 0;
-
-	if (arg->uapsd_mask & BIT(IEEE80211_AC_BE))
-		wvif->uapsd_info.trig_be = 1;
-	else
-		wvif->uapsd_info.trig_be = 0;
-
-	if (arg->uapsd_mask & BIT(IEEE80211_AC_BK))
-		wvif->uapsd_info.trig_bckgrnd = 1;
-	else
-		wvif->uapsd_info.trig_bckgrnd = 0;
-
-	/* Currently pseudo U-APSD operation is not supported, so setting
-	 * MinAutoTriggerInterval, MaxAutoTriggerInterval and
-	 * AutoTriggerStep to 0
-	 */
-	wvif->uapsd_info.min_auto_trigger_interval = 0;
-	wvif->uapsd_info.max_auto_trigger_interval = 0;
-	wvif->uapsd_info.auto_trigger_step = 0;
-
-	return hif_set_uapsd_info(wvif, &wvif->uapsd_info);
-}
-
 int wfx_fwd_probe_req(struct wfx_vif *wvif, bool enable)
 {
 	wvif->fwd_probe_req = enable;
@@ -382,7 +344,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	hif_set_edca_queue_params(wvif, edca);
 
 	if (wvif->vif->type == NL80211_IFTYPE_STATION) {
-		wfx_set_uapsd_param(wvif, &wvif->edca);
+		hif_set_uapsd_info(wvif, wvif->edca.uapsd_mask);
 		if (wvif->setbssparams_done && wvif->state == WFX_STATE_STA)
 			wfx_update_pm(wvif);
 	}
@@ -1552,7 +1514,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		hif_set_edca_queue_params(wvif, &wvif->edca.params[i]);
 	}
 	wvif->edca.uapsd_mask = 0;
-	wfx_set_uapsd_param(wvif, &wvif->edca);
+	hif_set_uapsd_info(wvif, wvif->edca.uapsd_mask);
 
 	wfx_tx_policy_init(wvif);
 	wvif = NULL;

@@ -238,12 +238,21 @@ static inline int hif_use_multi_tx_conf(struct wfx_dev *wdev,
 			     &arg, sizeof(arg));
 }
 
-static inline int hif_set_uapsd_info(struct wfx_vif *wvif,
-				     struct hif_mib_set_uapsd_information *arg)
+static inline int hif_set_uapsd_info(struct wfx_vif *wvif, unsigned long val)
 {
+	struct hif_mib_set_uapsd_information arg = { };
+
+	if (val & BIT(IEEE80211_AC_VO))
+		arg.trig_voice = 1;
+	if (val & BIT(IEEE80211_AC_VI))
+		arg.trig_video = 1;
+	if (val & BIT(IEEE80211_AC_BE))
+		arg.trig_be = 1;
+	if (val & BIT(IEEE80211_AC_BK))
+		arg.trig_bckgrnd = 1;
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_SET_UAPSD_INFORMATION,
-			     arg, sizeof(*arg));
+			     &arg, sizeof(arg));
 }
 
 static inline int hif_erp_use_protection(struct wfx_vif *wvif, bool enable)

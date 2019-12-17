@@ -114,7 +114,6 @@ struct wfx_vif {
 	bool			setbssparams_done;
 	struct wfx_ht_info	ht_info;
 	struct wfx_edca_params	edca;
-	struct hif_mib_set_uapsd_information uapsd_info;
 	struct hif_req_set_bss_params bss_params;
 	struct work_struct	bss_params_work;
 	struct work_struct	set_cts_work;
