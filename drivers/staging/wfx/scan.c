@@ -36,7 +36,6 @@ static void wfx_scan_restart_delayed(struct wfx_vif *wvif)
 
 static int wfx_scan_start(struct wfx_vif *wvif, struct wfx_scan_params *scan)
 {
-	int ret;
 	int tmo = 500;
 
 	if (wvif->state == WFX_STATE_PRE_STA)
@@ -48,15 +47,8 @@ static int wfx_scan_start(struct wfx_vif *wvif, struct wfx_scan_params *scan)
 	atomic_set(&wvif->wdev->scan_in_progress, 1);
 
 	schedule_delayed_work(&wvif->scan.timeout, msecs_to_jiffies(tmo));
-	ret = hif_scan(wvif, scan);
-	if (ret) {
-		wfx_scan_failed_cb(wvif);
-		atomic_set(&wvif->scan.in_progress, 0);
-		atomic_set(&wvif->wdev->scan_in_progress, 0);
-		cancel_delayed_work_sync(&wvif->scan.timeout);
-		wfx_scan_restart_delayed(wvif);
-	}
-	return ret;
+	hif_scan(wvif, scan);
+	return 0;
 }
 
 int wfx_hw_scan(struct ieee80211_hw *hw,
@@ -243,14 +235,6 @@ static void wfx_scan_complete(struct wfx_vif *wvif)
 	atomic_set(&wvif->wdev->scan_in_progress, 0);
 
 	wfx_scan_work(&wvif->scan.work);
-}
-
-void wfx_scan_failed_cb(struct wfx_vif *wvif)
-{
-	if (cancel_delayed_work_sync(&wvif->scan.timeout) > 0) {
-		wvif->scan.status = -EIO;
-		schedule_work(&wvif->scan.timeout.work);
-	}
 }
 
 void wfx_scan_complete_cb(struct wfx_vif *wvif,

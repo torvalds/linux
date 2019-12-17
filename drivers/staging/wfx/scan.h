@@ -38,6 +38,5 @@ void wfx_scan_work(struct work_struct *work);
 void wfx_scan_timeout(struct work_struct *work);
 void wfx_scan_complete_cb(struct wfx_vif *wvif,
 			  const struct hif_ind_scan_cmpl *arg);
-void wfx_scan_failed_cb(struct wfx_vif *wvif);
 
 #endif /* WFX_SCAN_H */
