@@ -291,37 +291,30 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 static int wfx_update_pm(struct wfx_vif *wvif)
 {
 	struct ieee80211_conf *conf = &wvif->wdev->hw->conf;
-	struct hif_req_set_pm_mode pm;
+	bool ps = conf->flags & IEEE80211_CONF_PS;
+	int ps_timeout = conf->dynamic_ps_timeout;
 
+	WARN_ON(conf->dynamic_ps_timeout < 0);
 	if (wvif->state != WFX_STATE_STA || !wvif->bss_params.aid)
 		return 0;
-
-	memset(&pm, 0, sizeof(pm));
-	if (conf->flags & IEEE80211_CONF_PS) {
-		pm.pm_mode.enter_psm = 1;
-		// Firmware does not support more than 128ms
-		pm.fast_psm_idle_period =
-			min(conf->dynamic_ps_timeout * 2, 255);
-		if (pm.fast_psm_idle_period)
-			pm.pm_mode.fast_psm = 1;
-	}
-
+	if (!ps)
+		ps_timeout = 0;
 	if (wvif->edca.uapsd_mask)
-		pm.pm_mode.fast_psm = 0;
+		ps_timeout = 0;
 
 	// Kernel disable PowerSave when multiple vifs are in use. In contrary,
 	// it is absolutly necessary to enable PowerSave for WF200
 	// FIXME: only if channel vif0 != channel vif1
 	if (wvif_count(wvif->wdev) > 1) {
-		pm.pm_mode.enter_psm = 1;
-		pm.pm_mode.fast_psm = 0;
+		ps = true;
+		ps_timeout = 0;
 	}
 
 	if (!wait_for_completion_timeout(&wvif->set_pm_mode_complete,
 					 TU_TO_JIFFIES(512)))
 		dev_warn(wvif->wdev->dev,
 			 "timeout while waiting of set_pm_mode_complete\n");
-	return hif_set_pm(wvif, &pm);
+	return hif_set_pm(wvif, ps, ps_timeout);
 }
 
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

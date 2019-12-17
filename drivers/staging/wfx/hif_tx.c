@@ -360,13 +360,19 @@ int hif_set_edca_queue_params(struct wfx_vif *wvif,
 	return ret;
 }
 
-int hif_set_pm(struct wfx_vif *wvif, const struct hif_req_set_pm_mode *arg)
+int hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout)
 {
 	int ret;
 	struct hif_msg *hif;
 	struct hif_req_set_pm_mode *body = wfx_alloc_hif(sizeof(*body), &hif);
 
-	memcpy(body, arg, sizeof(*body));
+	if (ps) {
+		body->pm_mode.enter_psm = 1;
+		// Firmware does not support more than 128ms
+		body->fast_psm_idle_period = min(dynamic_ps_timeout * 2, 255);
+		if (body->fast_psm_idle_period)
+			body->pm_mode.fast_psm = 1;
+	}
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_SET_PM_MODE, sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);
