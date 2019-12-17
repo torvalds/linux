@@ -41,7 +41,7 @@ struct tx_policy {
 	struct list_head link;
 	int usage_count;
 	u8 rates[12];
-	u8 uploaded;
+	bool uploaded;
 };
 
 struct tx_policy_cache {
