@@ -66,10 +66,6 @@ void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad)
 	wvif->delayed_link_loss = 0;
 	cancel_work_sync(&wvif->bss_params_work);
 
-	/* If we have a pending unjoin */
-	if (wvif->delayed_unjoin)
-		goto end;
-
 	if (init) {
 		schedule_delayed_work(&wvif->bss_loss_work, HZ);
 		wvif->bss_loss_state = 0;
@@ -500,16 +496,6 @@ static void wfx_set_beacon_wakeup_period_work(struct work_struct *work)
 static void wfx_do_unjoin(struct wfx_vif *wvif)
 {
 	mutex_lock(&wvif->wdev->conf_mutex);
-
-	if (!mutex_trylock(&wvif->scan_lock)) {
-		if (wvif->delayed_unjoin)
-			dev_dbg(wvif->wdev->dev,
-				"delayed unjoin is already scheduled\n");
-		else
-			wvif->delayed_unjoin = true;
-		goto done;
-	}
-	mutex_unlock(&wvif->scan_lock);
 
 	wvif->delayed_link_loss = false;
 
