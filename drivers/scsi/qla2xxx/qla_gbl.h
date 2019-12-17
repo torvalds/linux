@@ -80,6 +80,7 @@ extern int qla24xx_async_gnl(struct scsi_qla_host *, fc_port_t *);
 int qla2x00_post_work(struct scsi_qla_host *vha, struct qla_work_evt *e);
 extern void *qla2x00_alloc_iocbs_ready(struct qla_qpair *, srb_t *);
 extern int qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *, fc_port_t *);
+extern int qla24xx_async_abort_cmd(srb_t *, bool);
 
 extern void qla2x00_set_fcport_state(fc_port_t *fcport, int state);
 extern fc_port_t *
