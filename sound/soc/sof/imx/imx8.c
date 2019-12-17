@@ -304,6 +304,9 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 	}
 	sdev->mailbox_bar = SOF_FW_BLK_TYPE_SRAM;
 
+	/* set default mailbox offset for FW ready message */
+	sdev->dsp_box.offset = MBOX_OFFSET;
+
 	return 0;
 
 exit_pdev_unregister:
