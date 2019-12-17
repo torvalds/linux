@@ -241,3 +241,4 @@ module_platform_driver(snd_sof_acpi_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_IMPORT_NS(SND_SOC_SOF_BAYTRAIL);
+MODULE_IMPORT_NS(SND_SOC_SOF_BROADWELL);
