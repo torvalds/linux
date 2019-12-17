@@ -183,7 +183,7 @@ static int wfx_spi_probe(struct spi_device *func)
 	if (func->bits_per_word != 16 && func->bits_per_word != 8)
 		dev_warn(&func->dev, "unusual bits/word value: %d\n",
 			 func->bits_per_word);
-	if (func->max_speed_hz > 49000000)
+	if (func->max_speed_hz > 50000000)
 		dev_warn(&func->dev, "%dHz is a very high speed\n",
 			 func->max_speed_hz);
 
