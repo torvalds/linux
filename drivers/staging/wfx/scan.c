@@ -267,7 +267,8 @@ void wfx_scan_failed_cb(struct wfx_vif *wvif)
 	}
 }
 
-void wfx_scan_complete_cb(struct wfx_vif *wvif, struct hif_ind_scan_cmpl *arg)
+void wfx_scan_complete_cb(struct wfx_vif *wvif,
+			  const struct hif_ind_scan_cmpl *arg)
 {
 	if (cancel_delayed_work_sync(&wvif->scan.timeout) > 0) {
 		wvif->scan.status = 1;

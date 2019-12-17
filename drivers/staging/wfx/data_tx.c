@@ -720,7 +720,7 @@ drop:
 	ieee80211_tx_status_irqsafe(wdev->hw, skb);
 }
 
-void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
+void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 {
 	int i;
 	int tx_count;

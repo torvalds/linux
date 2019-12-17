@@ -1345,7 +1345,7 @@ int wfx_ampdu_action(struct ieee80211_hw *hw,
 }
 
 void wfx_suspend_resume(struct wfx_vif *wvif,
-			struct hif_ind_suspend_resume_tx *arg)
+			const struct hif_ind_suspend_resume_tx *arg)
 {
 	if (arg->suspend_resume_flags.bc_mc_only) {
 		bool cancel_tmo = false;

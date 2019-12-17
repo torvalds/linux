@@ -92,7 +92,7 @@ void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 // WSM Callbacks
 void wfx_suspend_resume(struct wfx_vif *wvif,
-			struct hif_ind_suspend_resume_tx *arg);
+			const struct hif_ind_suspend_resume_tx *arg);
 
 // Other Helpers
 void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad);
