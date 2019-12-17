@@ -280,10 +280,8 @@ static int arcturus_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER
 		return -EINVAL;
 
 	mapping = arcturus_workload_map[profile];
-	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU power source: %d\n", profile);
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
-	}
 
 	return mapping.map_to;
 }
@@ -495,6 +493,7 @@ static int arcturus_store_powerplay_table(struct smu_context *smu)
 {
 	struct smu_11_0_powerplay_table *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
 	int ret = 0;
 
 	if (!table_context->power_play_table)
@@ -506,6 +505,12 @@ static int arcturus_store_powerplay_table(struct smu_context *smu)
 	       sizeof(PPTable_t));
 
 	table_context->thermal_controller_type = powerplay_table->thermal_controller_type;
+
+	mutex_lock(&smu_baco->mutex);
+	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
+	    powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_MACO)
+		smu_baco->platform_support = true;
+	mutex_unlock(&smu_baco->mutex);
 
 	return ret;
 }
@@ -2160,7 +2165,8 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.baco_is_support= smu_v11_0_baco_is_support,
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
-	.baco_reset = smu_v11_0_baco_reset,
+	.baco_enter = smu_v11_0_baco_enter,
+	.baco_exit = smu_v11_0_baco_exit,
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,

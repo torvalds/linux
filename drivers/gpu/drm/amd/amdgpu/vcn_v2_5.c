@@ -47,13 +47,10 @@
 #define mmUVD_LMI_RBC_IB_64BIT_BAR_HIGH_INTERNAL_OFFSET 	0x3b5
 #define mmUVD_RBC_IB_SIZE_INTERNAL_OFFSET			0x25c
 
-#define mmUVD_JPEG_PITCH_INTERNAL_OFFSET			0x401f
-
-#define VCN25_MAX_HW_INSTANCES_ARCTURUS				2
+#define VCN25_MAX_HW_INSTANCES_ARCTURUS			2
 
 static void vcn_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v2_5_set_enc_ring_funcs(struct amdgpu_device *adev);
-static void vcn_v2_5_set_jpeg_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v2_5_set_irq_funcs(struct amdgpu_device *adev);
 static int vcn_v2_5_set_powergating_state(void *handle,
 				enum amd_powergating_state state);
@@ -95,7 +92,6 @@ static int vcn_v2_5_early_init(void *handle)
 
 	vcn_v2_5_set_dec_ring_funcs(adev);
 	vcn_v2_5_set_enc_ring_funcs(adev);
-	vcn_v2_5_set_jpeg_ring_funcs(adev);
 	vcn_v2_5_set_irq_funcs(adev);
 
 	return 0;
@@ -130,12 +126,6 @@ static int vcn_v2_5_sw_init(void *handle)
 			if (r)
 				return r;
 		}
-
-		/* VCN JPEG TRAP */
-		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[j],
-				VCN_2_0__SRCID__JPEG_DECODE, &adev->vcn.inst[j].irq);
-		if (r)
-			return r;
 	}
 
 	r = amdgpu_vcn_sw_init(adev);
@@ -184,9 +174,6 @@ static int vcn_v2_5_sw_init(void *handle)
 		adev->vcn.internal.nop = mmUVD_NO_OP_INTERNAL_OFFSET;
 		adev->vcn.inst[j].external.nop = SOC15_REG_OFFSET(UVD, j, mmUVD_NO_OP);
 
-		adev->vcn.internal.jpeg_pitch = mmUVD_JPEG_PITCH_INTERNAL_OFFSET;
-		adev->vcn.inst[j].external.jpeg_pitch = SOC15_REG_OFFSET(UVD, j, mmUVD_JPEG_PITCH);
-
 		ring = &adev->vcn.inst[j].ring_dec;
 		ring->use_doorbell = true;
 		ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 8*j;
@@ -204,14 +191,6 @@ static int vcn_v2_5_sw_init(void *handle)
 			if (r)
 				return r;
 		}
-
-		ring = &adev->vcn.inst[j].ring_jpeg;
-		ring->use_doorbell = true;
-		ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 1 + 8*j;
-		sprintf(ring->name, "vcn_jpeg_%d", j);
-		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[j].irq, 0);
-		if (r)
-			return r;
 	}
 
 	return 0;
@@ -269,12 +248,8 @@ static int vcn_v2_5_hw_init(void *handle)
 			if (r)
 				goto done;
 		}
-
-		ring = &adev->vcn.inst[j].ring_jpeg;
-		r = amdgpu_ring_test_helper(ring);
-		if (r)
-			goto done;
 	}
+
 done:
 	if (!r)
 		DRM_INFO("VCN decode and encode initialized successfully.\n");
@@ -309,9 +284,6 @@ static int vcn_v2_5_hw_fini(void *handle)
 			ring = &adev->vcn.inst[i].ring_enc[j];
 			ring->sched.ready = false;
 		}
-
-		ring = &adev->vcn.inst[i].ring_jpeg;
-		ring->sched.ready = false;
 	}
 
 	return 0;
@@ -592,115 +564,6 @@ static void vcn_v2_5_enable_clock_gating(struct amdgpu_device *adev)
 	}
 }
 
-/**
- * jpeg_v2_5_start - start JPEG block
- *
- * @adev: amdgpu_device pointer
- *
- * Setup and start the JPEG block
- */
-static int jpeg_v2_5_start(struct amdgpu_device *adev)
-{
-	struct amdgpu_ring *ring;
-	uint32_t tmp;
-	int i;
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		if (adev->vcn.harvest_config & (1 << i))
-			continue;
-		ring = &adev->vcn.inst[i].ring_jpeg;
-		/* disable anti hang mechanism */
-		WREG32_P(SOC15_REG_OFFSET(UVD, i, mmUVD_JPEG_POWER_STATUS), 0,
-			~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
-
-		/* JPEG disable CGC */
-		tmp = RREG32_SOC15(VCN, i, mmJPEG_CGC_CTRL);
-		tmp |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
-		tmp |= 1 << JPEG_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
-		tmp |= 4 << JPEG_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
-		WREG32_SOC15(VCN, i, mmJPEG_CGC_CTRL, tmp);
-
-		tmp = RREG32_SOC15(VCN, i, mmJPEG_CGC_GATE);
-		tmp &= ~(JPEG_CGC_GATE__JPEG_DEC_MASK
-			| JPEG_CGC_GATE__JPEG2_DEC_MASK
-			| JPEG_CGC_GATE__JMCIF_MASK
-			| JPEG_CGC_GATE__JRBBM_MASK);
-		WREG32_SOC15(VCN, i, mmJPEG_CGC_GATE, tmp);
-
-		tmp = RREG32_SOC15(VCN, i, mmJPEG_CGC_CTRL);
-		tmp &= ~(JPEG_CGC_CTRL__JPEG_DEC_MODE_MASK
-			| JPEG_CGC_CTRL__JPEG2_DEC_MODE_MASK
-			| JPEG_CGC_CTRL__JMCIF_MODE_MASK
-			| JPEG_CGC_CTRL__JRBBM_MODE_MASK);
-		WREG32_SOC15(VCN, i, mmJPEG_CGC_CTRL, tmp);
-
-		/* MJPEG global tiling registers */
-		WREG32_SOC15(UVD, i, mmJPEG_DEC_GFX8_ADDR_CONFIG,
-			adev->gfx.config.gb_addr_config);
-		WREG32_SOC15(UVD, i, mmJPEG_DEC_GFX10_ADDR_CONFIG,
-			adev->gfx.config.gb_addr_config);
-
-		/* enable JMI channel */
-		WREG32_P(SOC15_REG_OFFSET(UVD, i, mmUVD_JMI_CNTL), 0,
-			~UVD_JMI_CNTL__SOFT_RESET_MASK);
-
-		/* enable System Interrupt for JRBC */
-		WREG32_P(SOC15_REG_OFFSET(VCN, i, mmJPEG_SYS_INT_EN),
-			JPEG_SYS_INT_EN__DJRBC_MASK,
-			~JPEG_SYS_INT_EN__DJRBC_MASK);
-
-		WREG32_SOC15(UVD, i, mmUVD_LMI_JRBC_RB_VMID, 0);
-		WREG32_SOC15(UVD, i, mmUVD_JRBC_RB_CNTL, (0x00000001L | 0x00000002L));
-		WREG32_SOC15(UVD, i, mmUVD_LMI_JRBC_RB_64BIT_BAR_LOW,
-			lower_32_bits(ring->gpu_addr));
-		WREG32_SOC15(UVD, i, mmUVD_LMI_JRBC_RB_64BIT_BAR_HIGH,
-			upper_32_bits(ring->gpu_addr));
-		WREG32_SOC15(UVD, i, mmUVD_JRBC_RB_RPTR, 0);
-		WREG32_SOC15(UVD, i, mmUVD_JRBC_RB_WPTR, 0);
-		WREG32_SOC15(UVD, i, mmUVD_JRBC_RB_CNTL, 0x00000002L);
-		WREG32_SOC15(UVD, i, mmUVD_JRBC_RB_SIZE, ring->ring_size / 4);
-		ring->wptr = RREG32_SOC15(UVD, i, mmUVD_JRBC_RB_WPTR);
-	}
-
-	return 0;
-}
-
-/**
- * jpeg_v2_5_stop - stop JPEG block
- *
- * @adev: amdgpu_device pointer
- *
- * stop the JPEG block
- */
-static int jpeg_v2_5_stop(struct amdgpu_device *adev)
-{
-	uint32_t tmp;
-	int i;
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		if (adev->vcn.harvest_config & (1 << i))
-			continue;
-		/* reset JMI */
-		WREG32_P(SOC15_REG_OFFSET(UVD, i, mmUVD_JMI_CNTL),
-			UVD_JMI_CNTL__SOFT_RESET_MASK,
-			~UVD_JMI_CNTL__SOFT_RESET_MASK);
-
-		tmp = RREG32_SOC15(VCN, i, mmJPEG_CGC_GATE);
-		tmp |= (JPEG_CGC_GATE__JPEG_DEC_MASK
-			|JPEG_CGC_GATE__JPEG2_DEC_MASK
-			|JPEG_CGC_GATE__JMCIF_MASK
-			|JPEG_CGC_GATE__JRBBM_MASK);
-		WREG32_SOC15(VCN, i, mmJPEG_CGC_GATE, tmp);
-
-		/* enable anti hang mechanism */
-		WREG32_P(SOC15_REG_OFFSET(UVD, i, mmUVD_JPEG_POWER_STATUS),
-			UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK,
-			~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
-	}
-
-	return 0;
-}
-
 static int vcn_v2_5_start(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
@@ -874,19 +737,14 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 		WREG32_SOC15(UVD, i, mmUVD_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
 		WREG32_SOC15(UVD, i, mmUVD_RB_SIZE2, ring->ring_size / 4);
 	}
-	r = jpeg_v2_5_start(adev);
 
-	return r;
+	return 0;
 }
 
 static int vcn_v2_5_stop(struct amdgpu_device *adev)
 {
 	uint32_t tmp;
-	int i, r;
-
-	r = jpeg_v2_5_stop(adev);
-	if (r)
-		return r;
+	int i, r = 0;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		if (adev->vcn.harvest_config & (1 << i))
@@ -1125,86 +983,6 @@ static const struct amdgpu_ring_funcs vcn_v2_5_enc_ring_vm_funcs = {
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
-/**
- * vcn_v2_5_jpeg_ring_get_rptr - get read pointer
- *
- * @ring: amdgpu_ring pointer
- *
- * Returns the current hardware read pointer
- */
-static uint64_t vcn_v2_5_jpeg_ring_get_rptr(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-
-	return RREG32_SOC15(UVD, ring->me, mmUVD_JRBC_RB_RPTR);
-}
-
-/**
- * vcn_v2_5_jpeg_ring_get_wptr - get write pointer
- *
- * @ring: amdgpu_ring pointer
- *
- * Returns the current hardware write pointer
- */
-static uint64_t vcn_v2_5_jpeg_ring_get_wptr(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-
-	if (ring->use_doorbell)
-		return adev->wb.wb[ring->wptr_offs];
-	else
-		return RREG32_SOC15(UVD, ring->me, mmUVD_JRBC_RB_WPTR);
-}
-
-/**
- * vcn_v2_5_jpeg_ring_set_wptr - set write pointer
- *
- * @ring: amdgpu_ring pointer
- *
- * Commits the write pointer to the hardware
- */
-static void vcn_v2_5_jpeg_ring_set_wptr(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-
-	if (ring->use_doorbell) {
-		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
-		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
-	} else {
-		WREG32_SOC15(UVD, ring->me, mmUVD_JRBC_RB_WPTR, lower_32_bits(ring->wptr));
-	}
-}
-
-static const struct amdgpu_ring_funcs vcn_v2_5_jpeg_ring_vm_funcs = {
-	.type = AMDGPU_RING_TYPE_VCN_JPEG,
-	.align_mask = 0xf,
-	.vmhub = AMDGPU_MMHUB_1,
-	.get_rptr = vcn_v2_5_jpeg_ring_get_rptr,
-	.get_wptr = vcn_v2_5_jpeg_ring_get_wptr,
-	.set_wptr = vcn_v2_5_jpeg_ring_set_wptr,
-	.emit_frame_size =
-		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
-		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
-		8 + /* vcn_v2_0_jpeg_ring_emit_vm_flush */
-		18 + 18 + /* vcn_v2_0_jpeg_ring_emit_fence x2 vm fence */
-		8 + 16,
-	.emit_ib_size = 22, /* vcn_v2_0_jpeg_ring_emit_ib */
-	.emit_ib = vcn_v2_0_jpeg_ring_emit_ib,
-	.emit_fence = vcn_v2_0_jpeg_ring_emit_fence,
-	.emit_vm_flush = vcn_v2_0_jpeg_ring_emit_vm_flush,
-	.test_ring = amdgpu_vcn_jpeg_ring_test_ring,
-	.test_ib = amdgpu_vcn_jpeg_ring_test_ib,
-	.insert_nop = vcn_v2_0_jpeg_ring_nop,
-	.insert_start = vcn_v2_0_jpeg_ring_insert_start,
-	.insert_end = vcn_v2_0_jpeg_ring_insert_end,
-	.pad_ib = amdgpu_ring_generic_pad_ib,
-	.begin_use = amdgpu_vcn_ring_begin_use,
-	.end_use = amdgpu_vcn_ring_end_use,
-	.emit_wreg = vcn_v2_0_jpeg_ring_emit_wreg,
-	.emit_reg_wait = vcn_v2_0_jpeg_ring_emit_reg_wait,
-	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
-};
-
 static void vcn_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
@@ -1230,19 +1008,6 @@ static void vcn_v2_5_set_enc_ring_funcs(struct amdgpu_device *adev)
 			adev->vcn.inst[j].ring_enc[i].me = j;
 		}
 		DRM_INFO("VCN(%d) encode is enabled in VM mode\n", j);
-	}
-}
-
-static void vcn_v2_5_set_jpeg_ring_funcs(struct amdgpu_device *adev)
-{
-	int i;
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		if (adev->vcn.harvest_config & (1 << i))
-			continue;
-		adev->vcn.inst[i].ring_jpeg.funcs = &vcn_v2_5_jpeg_ring_vm_funcs;
-		adev->vcn.inst[i].ring_jpeg.me = i;
-		DRM_INFO("VCN(%d) jpeg decode is enabled in VM mode\n", i);
 	}
 }
 
@@ -1352,9 +1117,6 @@ static int vcn_v2_5_process_interrupt(struct amdgpu_device *adev,
 	case VCN_2_0__SRCID__UVD_ENC_LOW_LATENCY:
 		amdgpu_fence_process(&adev->vcn.inst[ip_instance].ring_enc[1]);
 		break;
-	case VCN_2_0__SRCID__JPEG_DECODE:
-		amdgpu_fence_process(&adev->vcn.inst[ip_instance].ring_jpeg);
-		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
 			  entry->src_id, entry->src_data[0]);
@@ -1376,7 +1138,7 @@ static void vcn_v2_5_set_irq_funcs(struct amdgpu_device *adev)
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
-		adev->vcn.inst[i].irq.num_types = adev->vcn.num_enc_rings + 2;
+		adev->vcn.inst[i].irq.num_types = adev->vcn.num_enc_rings + 1;
 		adev->vcn.inst[i].irq.funcs = &vcn_v2_5_irq_funcs;
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,35 +19,15 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
 
-#include "kfd_kernel_queue.h"
+#ifndef __DC_DCN20_INIT_H__
+#define __DC_DCN20_INIT_H__
 
-static bool initialize_cik(struct kernel_queue *kq, struct kfd_dev *dev,
-			enum kfd_queue_type type, unsigned int queue_size);
-static void uninitialize_cik(struct kernel_queue *kq);
-static void submit_packet_cik(struct kernel_queue *kq);
+struct dc;
 
-void kernel_queue_init_cik(struct kernel_queue_ops *ops)
-{
-	ops->initialize = initialize_cik;
-	ops->uninitialize = uninitialize_cik;
-	ops->submit_packet = submit_packet_cik;
-}
+void dcn20_hw_sequencer_construct(struct dc *dc);
 
-static bool initialize_cik(struct kernel_queue *kq, struct kfd_dev *dev,
-			enum kfd_queue_type type, unsigned int queue_size)
-{
-	return true;
-}
-
-static void uninitialize_cik(struct kernel_queue *kq)
-{
-}
-
-static void submit_packet_cik(struct kernel_queue *kq)
-{
-	*kq->wptr_kernel = kq->pending_wptr;
-	write_kernel_doorbell(kq->queue->properties.doorbell_ptr,
-				kq->pending_wptr);
-}
+#endif /* __DC_DCN20_INIT_H__ */

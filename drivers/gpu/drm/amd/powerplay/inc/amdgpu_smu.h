@@ -282,6 +282,7 @@ struct smu_power_gate {
 	bool uvd_gated;
 	bool vce_gated;
 	bool vcn_gated;
+	bool jpeg_gated;
 };
 
 struct smu_power_context {
@@ -436,6 +437,7 @@ struct pptable_funcs {
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
 	int (*dpm_set_uvd_enable)(struct smu_context *smu, bool enable);
 	int (*dpm_set_vce_enable)(struct smu_context *smu, bool enable);
+	int (*dpm_set_jpeg_enable)(struct smu_context *smu, bool enable);
 	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
 	int (*pre_display_config_changed)(struct smu_context *smu);
@@ -490,6 +492,7 @@ struct pptable_funcs {
 	int (*check_fw_version)(struct smu_context *smu);
 	int (*powergate_sdma)(struct smu_context *smu, bool gate);
 	int (*powergate_vcn)(struct smu_context *smu, bool gate);
+	int (*powergate_jpeg)(struct smu_context *smu, bool gate);
 	int (*set_gfx_cgpg)(struct smu_context *smu, bool enable);
 	int (*write_pptable)(struct smu_context *smu);
 	int (*set_min_dcef_deep_sleep)(struct smu_context *smu);
@@ -543,7 +546,8 @@ struct pptable_funcs {
 	bool (*baco_is_support)(struct smu_context *smu);
 	enum smu_baco_state (*baco_get_state)(struct smu_context *smu);
 	int (*baco_set_state)(struct smu_context *smu, enum smu_baco_state state);
-	int (*baco_reset)(struct smu_context *smu);
+	int (*baco_enter)(struct smu_context *smu);
+	int (*baco_exit)(struct smu_context *smu);
 	int (*mode2_reset)(struct smu_context *smu);
 	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
 	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
@@ -625,7 +629,8 @@ bool smu_baco_is_support(struct smu_context *smu);
 
 int smu_baco_get_state(struct smu_context *smu, enum smu_baco_state *state);
 
-int smu_baco_reset(struct smu_context *smu);
+int smu_baco_enter(struct smu_context *smu);
+int smu_baco_exit(struct smu_context *smu);
 
 int smu_mode2_reset(struct smu_context *smu);
 

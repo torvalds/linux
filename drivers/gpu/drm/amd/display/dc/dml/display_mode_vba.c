@@ -23,7 +23,6 @@
  *
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 
 #include "display_mode_lib.h"
 #include "display_mode_vba.h"
@@ -222,13 +221,17 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.SRExitTime = soc->sr_exit_time_us;
 	mode_lib->vba.SREnterPlusExitTime = soc->sr_enter_plus_exit_time_us;
 	mode_lib->vba.DRAMClockChangeLatency = soc->dram_clock_change_latency_us;
+	mode_lib->vba.DummyPStateCheck = soc->dram_clock_change_latency_us == soc->dummy_pstate_latency_us;
+	mode_lib->vba.DRAMClockChangeSupportsVActive = !soc->disable_dram_clock_change_vactive_support ||
+			mode_lib->vba.DummyPStateCheck;
+
 	mode_lib->vba.Downspreading = soc->downspread_percent;
 	mode_lib->vba.DRAMChannelWidth = soc->dram_channel_width_bytes;   // new!
 	mode_lib->vba.FabricDatapathToDCNDataReturn = soc->fabric_datapath_to_dcn_data_return_bytes; // new!
 	mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading = soc->dcn_downspread_percent;   // new
 	mode_lib->vba.DISPCLKDPPCLKVCOSpeed = soc->dispclk_dppclk_vco_speed_mhz;   // new
 	mode_lib->vba.VMMPageSize = soc->vmm_page_size_bytes;
-	mode_lib->vba.GPUVMMinPageSize = soc->vmm_page_size_bytes / 1024;
+	mode_lib->vba.GPUVMMinPageSize = soc->gpuvm_min_page_size_bytes / 1024;
 	mode_lib->vba.HostVMMinPageSize = soc->hostvm_min_page_size_bytes / 1024;
 	// Set the voltage scaling clocks as the defaults. Most of these will
 	// be set to different values by the test
@@ -858,4 +861,3 @@ double CalculateWriteBackDISPCLK(
 	return CalculateWriteBackDISPCLK;
 }
 
-#endif

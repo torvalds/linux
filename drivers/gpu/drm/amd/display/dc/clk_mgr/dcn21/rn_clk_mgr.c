@@ -578,33 +578,33 @@ struct wm_table lpddr4_wm_table = {
 		{
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 23.84,
-			.sr_exit_time_us = 12.5,
-			.sr_enter_plus_exit_time_us = 17.0,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 5.32,
+			.sr_enter_plus_exit_time_us = 6.38,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_B,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 23.84,
-			.sr_exit_time_us = 12.5,
-			.sr_enter_plus_exit_time_us = 17.0,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.82,
+			.sr_enter_plus_exit_time_us = 11.196,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_C,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 23.84,
-			.sr_exit_time_us = 12.5,
-			.sr_enter_plus_exit_time_us = 17.0,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.89,
+			.sr_enter_plus_exit_time_us = 11.24,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_D,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 23.84,
-			.sr_exit_time_us = 12.5,
-			.sr_enter_plus_exit_time_us = 17.0,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.748,
+			.sr_enter_plus_exit_time_us = 11.102,
 			.valid = true,
 		},
 	}
@@ -691,7 +691,6 @@ void rn_clk_mgr_construct(
 {
 	struct dc_debug_options *debug = &ctx->dc->debug;
 	struct dpm_clocks clock_table = { 0 };
-	struct clk_state_registers_and_bypass s = { 0 };
 
 	clk_mgr->base.ctx = ctx;
 	clk_mgr->base.funcs = &dcn21_funcs;
@@ -711,7 +710,6 @@ void rn_clk_mgr_construct(
 	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
 		dcn21_funcs.update_clocks = dcn2_update_clocks_fpga;
 		clk_mgr->base.dentist_vco_freq_khz = 3600000;
-		clk_mgr->base.dprefclk_khz = 600000;
 	} else {
 		struct clk_log_info log_info = {0};
 
@@ -722,24 +720,16 @@ void rn_clk_mgr_construct(
 		if (clk_mgr->base.dentist_vco_freq_khz == 0)
 			clk_mgr->base.dentist_vco_freq_khz = 3600000;
 
-		rn_dump_clk_registers(&s, &clk_mgr->base, &log_info);
-		/* Convert dprefclk units from MHz to KHz */
-		/* Value already divided by 10, some resolution lost */
-		clk_mgr->base.dprefclk_khz = s.dprefclk * 1000;
-
-		/* in case we don't get a value from the register, use default */
-		if (clk_mgr->base.dprefclk_khz == 0) {
-			ASSERT(clk_mgr->base.dprefclk_khz == 600000);
-			clk_mgr->base.dprefclk_khz = 600000;
-		}
-
 		if (ctx->dc_bios->integrated_info->memory_type == LpDdr4MemType) {
 			rn_bw_params.wm_table = lpddr4_wm_table;
 		} else {
 			rn_bw_params.wm_table = ddr4_wm_table;
 		}
+		/* Saved clocks configured at boot for debug purposes */
+		rn_dump_clk_registers(&clk_mgr->base.boot_snapshot, &clk_mgr->base, &log_info);
 	}
 
+	clk_mgr->base.dprefclk_khz = 600000;
 	dce_clock_read_ss_info(clk_mgr);
 
 

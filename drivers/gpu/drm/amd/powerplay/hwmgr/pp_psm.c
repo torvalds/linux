@@ -262,20 +262,22 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip_display_set
 	uint32_t index;
 	long workload;
 
-	if (!skip_display_settings)
-		phm_display_configuration_changed(hwmgr);
+	if (hwmgr->not_vf) {
+		if (!skip_display_settings)
+			phm_display_configuration_changed(hwmgr);
 
-	if (hwmgr->ps)
-		power_state_management(hwmgr, new_ps);
-	else
-		/*
-		 * for vega12/vega20 which does not support power state manager
-		 * DAL clock limits should also be honoured
-		 */
-		phm_apply_clock_adjust_rules(hwmgr);
+		if (hwmgr->ps)
+			power_state_management(hwmgr, new_ps);
+		else
+			/*
+			 * for vega12/vega20 which does not support power state manager
+			 * DAL clock limits should also be honoured
+			 */
+			phm_apply_clock_adjust_rules(hwmgr);
 
-	if (!skip_display_settings)
-		phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
+		if (!skip_display_settings)
+			phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
+	}
 
 	if (!phm_force_dpm_levels(hwmgr, hwmgr->request_dpm_level))
 		hwmgr->dpm_level = hwmgr->request_dpm_level;

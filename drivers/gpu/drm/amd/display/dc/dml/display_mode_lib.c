@@ -25,18 +25,13 @@
 
 #include "display_mode_lib.h"
 #include "dc_features.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #include "dcn20/display_mode_vba_20.h"
 #include "dcn20/display_rq_dlg_calc_20.h"
 #include "dcn20/display_mode_vba_20v2.h"
 #include "dcn20/display_rq_dlg_calc_20v2.h"
-#endif
-#ifdef CONFIG_DRM_AMD_DC_DCN2_1
 #include "dcn21/display_mode_vba_21.h"
 #include "dcn21/display_rq_dlg_calc_21.h"
-#endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 const struct dml_funcs dml20_funcs = {
 	.validate = dml20_ModeSupportAndSystemConfigurationFull,
 	.recalculate = dml20_recalculate,
@@ -50,16 +45,13 @@ const struct dml_funcs dml20v2_funcs = {
 	.rq_dlg_get_dlg_reg = dml20v2_rq_dlg_get_dlg_reg,
 	.rq_dlg_get_rq_reg = dml20v2_rq_dlg_get_rq_reg
 };
-#endif
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_1
 const struct dml_funcs dml21_funcs = {
         .validate = dml21_ModeSupportAndSystemConfigurationFull,
         .recalculate = dml21_recalculate,
         .rq_dlg_get_dlg_reg = dml21_rq_dlg_get_dlg_reg,
         .rq_dlg_get_rq_reg = dml21_rq_dlg_get_rq_reg
 };
-#endif
 
 void dml_init_instance(struct display_mode_lib *lib,
 		const struct _vcs_dpi_soc_bounding_box_st *soc_bb,
@@ -70,19 +62,15 @@ void dml_init_instance(struct display_mode_lib *lib,
 	lib->ip = *ip_params;
 	lib->project = project;
 	switch (project) {
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	case DML_PROJECT_NAVI10:
 		lib->funcs = dml20_funcs;
 		break;
 	case DML_PROJECT_NAVI10v2:
 		lib->funcs = dml20v2_funcs;
 		break;
-#endif
-#ifdef CONFIG_DRM_AMD_DC_DCN2_1
         case DML_PROJECT_DCN21:
                 lib->funcs = dml21_funcs;
                 break;
-#endif
 
 	default:
 		break;

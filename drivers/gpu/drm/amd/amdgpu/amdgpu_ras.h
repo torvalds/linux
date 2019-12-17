@@ -611,11 +611,19 @@ int amdgpu_ras_interrupt_remove_handler(struct amdgpu_device *adev,
 int amdgpu_ras_interrupt_dispatch(struct amdgpu_device *adev,
 		struct ras_dispatch_if *info);
 
+struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
+		struct ras_common_if *head);
+
 extern atomic_t amdgpu_ras_in_intr;
 
 static inline bool amdgpu_ras_intr_triggered(void)
 {
 	return !!atomic_read(&amdgpu_ras_in_intr);
+}
+
+static inline void amdgpu_ras_intr_cleared(void)
+{
+	atomic_set(&amdgpu_ras_in_intr, 0);
 }
 
 void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev);

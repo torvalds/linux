@@ -221,6 +221,9 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
+	hwmgr->pp_one_vf = amdgpu_sriov_is_pp_one_vf((struct amdgpu_device *)hwmgr->adev);
+	hwmgr->pm_en = (amdgpu_dpm && (hwmgr->not_vf || hwmgr->pp_one_vf))
+			? true : false;
 	if (!hwmgr->pm_en)
 		return 0;
 
@@ -279,6 +282,9 @@ err:
 
 int hwmgr_hw_fini(struct pp_hwmgr *hwmgr)
 {
+	if (!hwmgr->not_vf)
+		return 0;
+
 	if (!hwmgr || !hwmgr->pm_en)
 		return 0;
 
@@ -299,6 +305,9 @@ int hwmgr_suspend(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
+	if (!hwmgr->not_vf)
+		return 0;
+
 	if (!hwmgr || !hwmgr->pm_en)
 		return 0;
 
@@ -317,6 +326,9 @@ int hwmgr_suspend(struct pp_hwmgr *hwmgr)
 int hwmgr_resume(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
+
+	if (!hwmgr->not_vf)
+		return 0;
 
 	if (!hwmgr)
 		return -EINVAL;
@@ -365,6 +377,8 @@ int hwmgr_handle_task(struct pp_hwmgr *hwmgr, enum amd_pp_task task_id,
 
 	switch (task_id) {
 	case AMD_PP_TASK_DISPLAY_CONFIG_CHANGE:
+		if (!hwmgr->not_vf)
+			return ret;
 		ret = phm_pre_display_configuration_changed(hwmgr);
 		if (ret)
 			return ret;
@@ -381,6 +395,8 @@ int hwmgr_handle_task(struct pp_hwmgr *hwmgr, enum amd_pp_task task_id,
 		enum PP_StateUILabel requested_ui_label;
 		struct pp_power_state *requested_ps = NULL;
 
+		if (!hwmgr->not_vf)
+			return ret;
 		if (user_state == NULL) {
 			ret = -EINVAL;
 			break;

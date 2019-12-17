@@ -29,6 +29,8 @@
 #include "dm_services.h"
 #include "reg_helper.h"
 
+#define DC_LOGGER_INIT(logger)
+
 #define REG(reg)\
 	hubp21->hubp_regs->reg
 
@@ -164,6 +166,72 @@ static void hubp21_setup(
 
 }
 
+void hubp21_set_viewport(
+	struct hubp *hubp,
+	const struct rect *viewport,
+	const struct rect *viewport_c,
+	enum dc_rotation_angle rotation)
+{
+	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
+	int patched_viewport_height = 0;
+	struct dc_debug_options *debug = &hubp->ctx->dc->debug;
+
+	REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION, 0,
+		  PRI_VIEWPORT_WIDTH, viewport->width,
+		  PRI_VIEWPORT_HEIGHT, viewport->height);
+
+	REG_SET_2(DCSURF_PRI_VIEWPORT_START, 0,
+		  PRI_VIEWPORT_X_START, viewport->x,
+		  PRI_VIEWPORT_Y_START, viewport->y);
+
+	/*for stereo*/
+	REG_SET_2(DCSURF_SEC_VIEWPORT_DIMENSION, 0,
+		  SEC_VIEWPORT_WIDTH, viewport->width,
+		  SEC_VIEWPORT_HEIGHT, viewport->height);
+
+	REG_SET_2(DCSURF_SEC_VIEWPORT_START, 0,
+		  SEC_VIEWPORT_X_START, viewport->x,
+		  SEC_VIEWPORT_Y_START, viewport->y);
+
+	/*
+	 *	Work around for underflow issue with NV12 + rIOMMU translation
+	 *	+ immediate flip. This will cause hubp underflow, but will not
+	 *	be user visible since underflow is in blank region
+	 *	Disable w/a when rotated 180 degrees, causes vertical chroma offset
+	 */
+	patched_viewport_height = viewport_c->height;
+	if (debug->nv12_iflip_vm_wa && viewport_c->height > 512 &&
+			rotation != ROTATION_ANGLE_180) {
+		int pte_row_height = 0;
+		int pte_rows = 0;
+
+		REG_GET(DCHUBP_REQ_SIZE_CONFIG_C,
+			PTE_ROW_HEIGHT_LINEAR_C, &pte_row_height);
+
+		pte_row_height = 1 << (pte_row_height + 3);
+		pte_rows = (viewport_c->height / pte_row_height) + 1;
+		patched_viewport_height = pte_rows * pte_row_height + 1;
+	}
+
+
+	/* DC supports NV12 only at the moment */
+	REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION_C, 0,
+		  PRI_VIEWPORT_WIDTH_C, viewport_c->width,
+		  PRI_VIEWPORT_HEIGHT_C, patched_viewport_height);
+
+	REG_SET_2(DCSURF_PRI_VIEWPORT_START_C, 0,
+		  PRI_VIEWPORT_X_START_C, viewport_c->x,
+		  PRI_VIEWPORT_Y_START_C, viewport_c->y);
+
+	REG_SET_2(DCSURF_SEC_VIEWPORT_DIMENSION_C, 0,
+		  SEC_VIEWPORT_WIDTH_C, viewport_c->width,
+		  SEC_VIEWPORT_HEIGHT_C, patched_viewport_height);
+
+	REG_SET_2(DCSURF_SEC_VIEWPORT_START_C, 0,
+		  SEC_VIEWPORT_X_START_C, viewport_c->x,
+		  SEC_VIEWPORT_Y_START_C, viewport_c->y);
+}
+
 void hubp21_set_vm_system_aperture_settings(struct hubp *hubp,
 		struct vm_system_aperture_param *apt)
 {
@@ -191,6 +259,349 @@ void hubp21_set_vm_system_aperture_settings(struct hubp *hubp,
 			SYSTEM_ACCESS_MODE, 0x3);
 }
 
+void hubp21_validate_dml_output(struct hubp *hubp,
+		struct dc_context *ctx,
+		struct _vcs_dpi_display_rq_regs_st *dml_rq_regs,
+		struct _vcs_dpi_display_dlg_regs_st *dml_dlg_attr,
+		struct _vcs_dpi_display_ttu_regs_st *dml_ttu_attr)
+{
+	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
+	struct _vcs_dpi_display_rq_regs_st rq_regs = {0};
+	struct _vcs_dpi_display_dlg_regs_st dlg_attr = {0};
+	struct _vcs_dpi_display_ttu_regs_st ttu_attr = {0};
+	DC_LOGGER_INIT(ctx->logger);
+	DC_LOG_DEBUG("DML Validation | Running Validation");
+
+	/* Requester - Per hubp */
+	REG_GET(HUBPRET_CONTROL,
+		DET_BUF_PLANE1_BASE_ADDRESS, &rq_regs.plane1_base_address);
+	REG_GET_4(DCN_EXPANSION_MODE,
+		DRQ_EXPANSION_MODE, &rq_regs.drq_expansion_mode,
+		PRQ_EXPANSION_MODE, &rq_regs.prq_expansion_mode,
+		MRQ_EXPANSION_MODE, &rq_regs.mrq_expansion_mode,
+		CRQ_EXPANSION_MODE, &rq_regs.crq_expansion_mode);
+	REG_GET_8(DCHUBP_REQ_SIZE_CONFIG,
+		CHUNK_SIZE, &rq_regs.rq_regs_l.chunk_size,
+		MIN_CHUNK_SIZE, &rq_regs.rq_regs_l.min_chunk_size,
+		META_CHUNK_SIZE, &rq_regs.rq_regs_l.meta_chunk_size,
+		MIN_META_CHUNK_SIZE, &rq_regs.rq_regs_l.min_meta_chunk_size,
+		DPTE_GROUP_SIZE, &rq_regs.rq_regs_l.dpte_group_size,
+		VM_GROUP_SIZE, &rq_regs.rq_regs_l.mpte_group_size,
+		SWATH_HEIGHT, &rq_regs.rq_regs_l.swath_height,
+		PTE_ROW_HEIGHT_LINEAR, &rq_regs.rq_regs_l.pte_row_height_linear);
+	REG_GET_7(DCHUBP_REQ_SIZE_CONFIG_C,
+		CHUNK_SIZE_C, &rq_regs.rq_regs_c.chunk_size,
+		MIN_CHUNK_SIZE_C, &rq_regs.rq_regs_c.min_chunk_size,
+		META_CHUNK_SIZE_C, &rq_regs.rq_regs_c.meta_chunk_size,
+		MIN_META_CHUNK_SIZE_C, &rq_regs.rq_regs_c.min_meta_chunk_size,
+		DPTE_GROUP_SIZE_C, &rq_regs.rq_regs_c.dpte_group_size,
+		SWATH_HEIGHT_C, &rq_regs.rq_regs_c.swath_height,
+		PTE_ROW_HEIGHT_LINEAR_C, &rq_regs.rq_regs_c.pte_row_height_linear);
+
+	if (rq_regs.plane1_base_address != dml_rq_regs->plane1_base_address)
+		DC_LOG_DEBUG("DML Validation | HUBPRET_CONTROL:DET_BUF_PLANE1_BASE_ADDRESS - Expected: %u  Actual: %u\n",
+				dml_rq_regs->plane1_base_address, rq_regs.plane1_base_address);
+	if (rq_regs.drq_expansion_mode != dml_rq_regs->drq_expansion_mode)
+		DC_LOG_DEBUG("DML Validation | DCN_EXPANSION_MODE:DRQ_EXPANSION_MODE - Expected: %u  Actual: %u\n",
+				dml_rq_regs->drq_expansion_mode, rq_regs.drq_expansion_mode);
+	if (rq_regs.prq_expansion_mode != dml_rq_regs->prq_expansion_mode)
+		DC_LOG_DEBUG("DML Validation | DCN_EXPANSION_MODE:MRQ_EXPANSION_MODE - Expected: %u  Actual: %u\n",
+				dml_rq_regs->prq_expansion_mode, rq_regs.prq_expansion_mode);
+	if (rq_regs.mrq_expansion_mode != dml_rq_regs->mrq_expansion_mode)
+		DC_LOG_DEBUG("DML Validation | DCN_EXPANSION_MODE:DET_BUF_PLANE1_BASE_ADDRESS - Expected: %u  Actual: %u\n",
+				dml_rq_regs->mrq_expansion_mode, rq_regs.mrq_expansion_mode);
+	if (rq_regs.crq_expansion_mode != dml_rq_regs->crq_expansion_mode)
+		DC_LOG_DEBUG("DML Validation | DCN_EXPANSION_MODE:CRQ_EXPANSION_MODE - Expected: %u  Actual: %u\n",
+				dml_rq_regs->crq_expansion_mode, rq_regs.crq_expansion_mode);
+
+	if (rq_regs.rq_regs_l.chunk_size != dml_rq_regs->rq_regs_l.chunk_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG_C:CHUNK_SIZE - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_l.chunk_size, rq_regs.rq_regs_l.chunk_size);
+	if (rq_regs.rq_regs_l.min_chunk_size != dml_rq_regs->rq_regs_l.min_chunk_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG_C:MIN_CHUNK_SIZE - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_l.min_chunk_size, rq_regs.rq_regs_l.min_chunk_size);
+	if (rq_regs.rq_regs_l.meta_chunk_size != dml_rq_regs->rq_regs_l.meta_chunk_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG_C:META_CHUNK_SIZE - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_l.meta_chunk_size, rq_regs.rq_regs_l.meta_chunk_size);
+	if (rq_regs.rq_regs_l.min_meta_chunk_size != dml_rq_regs->rq_regs_l.min_meta_chunk_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG_C:MIN_META_CHUNK_SIZE - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_l.min_meta_chunk_size, rq_regs.rq_regs_l.min_meta_chunk_size);
+	if (rq_regs.rq_regs_l.dpte_group_size != dml_rq_regs->rq_regs_l.dpte_group_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG_C:DPTE_GROUP_SIZE - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_l.dpte_group_size, rq_regs.rq_regs_l.dpte_group_size);
+	if (rq_regs.rq_regs_l.mpte_group_size != dml_rq_regs->rq_regs_l.mpte_group_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG_C:VM_GROUP_SIZE - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_l.mpte_group_size, rq_regs.rq_regs_l.mpte_group_size);
+	if (rq_regs.rq_regs_l.swath_height != dml_rq_regs->rq_regs_l.swath_height)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG_C:SWATH_HEIGHT - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_l.swath_height, rq_regs.rq_regs_l.swath_height);
+	if (rq_regs.rq_regs_l.pte_row_height_linear != dml_rq_regs->rq_regs_l.pte_row_height_linear)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG_C:PTE_ROW_HEIGHT_LINEAR - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_l.pte_row_height_linear, rq_regs.rq_regs_l.pte_row_height_linear);
+
+	if (rq_regs.rq_regs_c.chunk_size != dml_rq_regs->rq_regs_c.chunk_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG:CHUNK_SIZE_C - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_c.chunk_size, rq_regs.rq_regs_c.chunk_size);
+	if (rq_regs.rq_regs_c.min_chunk_size != dml_rq_regs->rq_regs_c.min_chunk_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG:MIN_CHUNK_SIZE_C - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_c.min_chunk_size, rq_regs.rq_regs_c.min_chunk_size);
+	if (rq_regs.rq_regs_c.meta_chunk_size != dml_rq_regs->rq_regs_c.meta_chunk_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG:META_CHUNK_SIZE_C - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_c.meta_chunk_size, rq_regs.rq_regs_c.meta_chunk_size);
+	if (rq_regs.rq_regs_c.min_meta_chunk_size != dml_rq_regs->rq_regs_c.min_meta_chunk_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG:MIN_META_CHUNK_SIZE_C - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_c.min_meta_chunk_size, rq_regs.rq_regs_c.min_meta_chunk_size);
+	if (rq_regs.rq_regs_c.dpte_group_size != dml_rq_regs->rq_regs_c.dpte_group_size)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG:DPTE_GROUP_SIZE_C - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_c.dpte_group_size, rq_regs.rq_regs_c.dpte_group_size);
+	if (rq_regs.rq_regs_c.swath_height != dml_rq_regs->rq_regs_c.swath_height)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG:SWATH_HEIGHT_C - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_c.swath_height, rq_regs.rq_regs_c.swath_height);
+	if (rq_regs.rq_regs_c.pte_row_height_linear != dml_rq_regs->rq_regs_c.pte_row_height_linear)
+		DC_LOG_DEBUG("DML Validation | DCHUBP_REQ_SIZE_CONFIG:PTE_ROW_HEIGHT_LINEAR_C - Expected: %u  Actual: %u\n",
+				dml_rq_regs->rq_regs_c.pte_row_height_linear, rq_regs.rq_regs_c.pte_row_height_linear);
+
+
+	/* DLG - Per hubp */
+	REG_GET_2(BLANK_OFFSET_0,
+		REFCYC_H_BLANK_END, &dlg_attr.refcyc_h_blank_end,
+		DLG_V_BLANK_END, &dlg_attr.dlg_vblank_end);
+	REG_GET(BLANK_OFFSET_1,
+		MIN_DST_Y_NEXT_START, &dlg_attr.min_dst_y_next_start);
+	REG_GET(DST_DIMENSIONS,
+		REFCYC_PER_HTOTAL, &dlg_attr.refcyc_per_htotal);
+	REG_GET_2(DST_AFTER_SCALER,
+		REFCYC_X_AFTER_SCALER, &dlg_attr.refcyc_x_after_scaler,
+		DST_Y_AFTER_SCALER, &dlg_attr.dst_y_after_scaler);
+	REG_GET(REF_FREQ_TO_PIX_FREQ,
+		REF_FREQ_TO_PIX_FREQ, &dlg_attr.ref_freq_to_pix_freq);
+
+	if (dlg_attr.refcyc_h_blank_end != dml_dlg_attr->refcyc_h_blank_end)
+		DC_LOG_DEBUG("DML Validation | BLANK_OFFSET_0:REFCYC_H_BLANK_END - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_h_blank_end, dlg_attr.refcyc_h_blank_end);
+	if (dlg_attr.dlg_vblank_end != dml_dlg_attr->dlg_vblank_end)
+		DC_LOG_DEBUG("DML Validation | BLANK_OFFSET_0:DLG_V_BLANK_END - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dlg_vblank_end, dlg_attr.dlg_vblank_end);
+	if (dlg_attr.min_dst_y_next_start != dml_dlg_attr->min_dst_y_next_start)
+		DC_LOG_DEBUG("DML Validation | BLANK_OFFSET_1:MIN_DST_Y_NEXT_START - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->min_dst_y_next_start, dlg_attr.min_dst_y_next_start);
+	if (dlg_attr.refcyc_per_htotal != dml_dlg_attr->refcyc_per_htotal)
+		DC_LOG_DEBUG("DML Validation | DST_DIMENSIONS:REFCYC_PER_HTOTAL - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_htotal, dlg_attr.refcyc_per_htotal);
+	if (dlg_attr.refcyc_x_after_scaler != dml_dlg_attr->refcyc_x_after_scaler)
+		DC_LOG_DEBUG("DML Validation | DST_AFTER_SCALER:REFCYC_X_AFTER_SCALER - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_x_after_scaler, dlg_attr.refcyc_x_after_scaler);
+	if (dlg_attr.dst_y_after_scaler != dml_dlg_attr->dst_y_after_scaler)
+		DC_LOG_DEBUG("DML Validation | DST_AFTER_SCALER:DST_Y_AFTER_SCALER - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_after_scaler, dlg_attr.dst_y_after_scaler);
+	if (dlg_attr.ref_freq_to_pix_freq != dml_dlg_attr->ref_freq_to_pix_freq)
+		DC_LOG_DEBUG("DML Validation | REF_FREQ_TO_PIX_FREQ:REF_FREQ_TO_PIX_FREQ - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->ref_freq_to_pix_freq, dlg_attr.ref_freq_to_pix_freq);
+
+	/* DLG - Per luma/chroma */
+	REG_GET(VBLANK_PARAMETERS_1,
+		REFCYC_PER_PTE_GROUP_VBLANK_L, &dlg_attr.refcyc_per_pte_group_vblank_l);
+	if (REG(NOM_PARAMETERS_0))
+		REG_GET(NOM_PARAMETERS_0,
+			DST_Y_PER_PTE_ROW_NOM_L, &dlg_attr.dst_y_per_pte_row_nom_l);
+	if (REG(NOM_PARAMETERS_1))
+		REG_GET(NOM_PARAMETERS_1,
+			REFCYC_PER_PTE_GROUP_NOM_L, &dlg_attr.refcyc_per_pte_group_nom_l);
+	REG_GET(NOM_PARAMETERS_4,
+		DST_Y_PER_META_ROW_NOM_L, &dlg_attr.dst_y_per_meta_row_nom_l);
+	REG_GET(NOM_PARAMETERS_5,
+		REFCYC_PER_META_CHUNK_NOM_L, &dlg_attr.refcyc_per_meta_chunk_nom_l);
+	REG_GET_2(PER_LINE_DELIVERY,
+		REFCYC_PER_LINE_DELIVERY_L, &dlg_attr.refcyc_per_line_delivery_l,
+		REFCYC_PER_LINE_DELIVERY_C, &dlg_attr.refcyc_per_line_delivery_c);
+	REG_GET_2(PER_LINE_DELIVERY_PRE,
+		REFCYC_PER_LINE_DELIVERY_PRE_L, &dlg_attr.refcyc_per_line_delivery_pre_l,
+		REFCYC_PER_LINE_DELIVERY_PRE_C, &dlg_attr.refcyc_per_line_delivery_pre_c);
+	REG_GET(VBLANK_PARAMETERS_2,
+		REFCYC_PER_PTE_GROUP_VBLANK_C, &dlg_attr.refcyc_per_pte_group_vblank_c);
+	if (REG(NOM_PARAMETERS_2))
+		REG_GET(NOM_PARAMETERS_2,
+			DST_Y_PER_PTE_ROW_NOM_C, &dlg_attr.dst_y_per_pte_row_nom_c);
+	if (REG(NOM_PARAMETERS_3))
+		REG_GET(NOM_PARAMETERS_3,
+			REFCYC_PER_PTE_GROUP_NOM_C, &dlg_attr.refcyc_per_pte_group_nom_c);
+	REG_GET(NOM_PARAMETERS_6,
+		DST_Y_PER_META_ROW_NOM_C, &dlg_attr.dst_y_per_meta_row_nom_c);
+	REG_GET(NOM_PARAMETERS_7,
+		REFCYC_PER_META_CHUNK_NOM_C, &dlg_attr.refcyc_per_meta_chunk_nom_c);
+	REG_GET(VBLANK_PARAMETERS_3,
+			REFCYC_PER_META_CHUNK_VBLANK_L, &dlg_attr.refcyc_per_meta_chunk_vblank_l);
+	REG_GET(VBLANK_PARAMETERS_4,
+			REFCYC_PER_META_CHUNK_VBLANK_C, &dlg_attr.refcyc_per_meta_chunk_vblank_c);
+
+	if (dlg_attr.refcyc_per_pte_group_vblank_l != dml_dlg_attr->refcyc_per_pte_group_vblank_l)
+		DC_LOG_DEBUG("DML Validation | VBLANK_PARAMETERS_1:REFCYC_PER_PTE_GROUP_VBLANK_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_pte_group_vblank_l, dlg_attr.refcyc_per_pte_group_vblank_l);
+	if (dlg_attr.dst_y_per_pte_row_nom_l != dml_dlg_attr->dst_y_per_pte_row_nom_l)
+		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_0:DST_Y_PER_PTE_ROW_NOM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_pte_row_nom_l, dlg_attr.dst_y_per_pte_row_nom_l);
+	if (dlg_attr.refcyc_per_pte_group_nom_l != dml_dlg_attr->refcyc_per_pte_group_nom_l)
+		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_1:REFCYC_PER_PTE_GROUP_NOM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_pte_group_nom_l, dlg_attr.refcyc_per_pte_group_nom_l);
+	if (dlg_attr.dst_y_per_meta_row_nom_l != dml_dlg_attr->dst_y_per_meta_row_nom_l)
+		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_4:DST_Y_PER_META_ROW_NOM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_meta_row_nom_l, dlg_attr.dst_y_per_meta_row_nom_l);
+	if (dlg_attr.refcyc_per_meta_chunk_nom_l != dml_dlg_attr->refcyc_per_meta_chunk_nom_l)
+		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_5:REFCYC_PER_META_CHUNK_NOM_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_meta_chunk_nom_l, dlg_attr.refcyc_per_meta_chunk_nom_l);
+	if (dlg_attr.refcyc_per_line_delivery_l != dml_dlg_attr->refcyc_per_line_delivery_l)
+		DC_LOG_DEBUG("DML Validation | PER_LINE_DELIVERY:REFCYC_PER_LINE_DELIVERY_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_line_delivery_l, dlg_attr.refcyc_per_line_delivery_l);
+	if (dlg_attr.refcyc_per_line_delivery_c != dml_dlg_attr->refcyc_per_line_delivery_c)
+		DC_LOG_DEBUG("DML Validation | PER_LINE_DELIVERY:REFCYC_PER_LINE_DELIVERY_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_line_delivery_c, dlg_attr.refcyc_per_line_delivery_c);
+	if (dlg_attr.refcyc_per_pte_group_vblank_c != dml_dlg_attr->refcyc_per_pte_group_vblank_c)
+		DC_LOG_DEBUG("DML Validation | VBLANK_PARAMETERS_2:REFCYC_PER_PTE_GROUP_VBLANK_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_pte_group_vblank_c, dlg_attr.refcyc_per_pte_group_vblank_c);
+	if (dlg_attr.dst_y_per_pte_row_nom_c != dml_dlg_attr->dst_y_per_pte_row_nom_c)
+		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_2:DST_Y_PER_PTE_ROW_NOM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_pte_row_nom_c, dlg_attr.dst_y_per_pte_row_nom_c);
+	if (dlg_attr.refcyc_per_pte_group_nom_c != dml_dlg_attr->refcyc_per_pte_group_nom_c)
+		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_3:REFCYC_PER_PTE_GROUP_NOM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_pte_group_nom_c, dlg_attr.refcyc_per_pte_group_nom_c);
+	if (dlg_attr.dst_y_per_meta_row_nom_c != dml_dlg_attr->dst_y_per_meta_row_nom_c)
+		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_6:DST_Y_PER_META_ROW_NOM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->dst_y_per_meta_row_nom_c, dlg_attr.dst_y_per_meta_row_nom_c);
+	if (dlg_attr.refcyc_per_meta_chunk_nom_c != dml_dlg_attr->refcyc_per_meta_chunk_nom_c)
+		DC_LOG_DEBUG("DML Validation | NOM_PARAMETERS_7:REFCYC_PER_META_CHUNK_NOM_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_meta_chunk_nom_c, dlg_attr.refcyc_per_meta_chunk_nom_c);
+	if (dlg_attr.refcyc_per_line_delivery_pre_l != dml_dlg_attr->refcyc_per_line_delivery_pre_l)
+		DC_LOG_DEBUG("DML Validation | PER_LINE_DELIVERY_PRE:REFCYC_PER_LINE_DELIVERY_PRE_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_line_delivery_pre_l, dlg_attr.refcyc_per_line_delivery_pre_l);
+	if (dlg_attr.refcyc_per_line_delivery_pre_c != dml_dlg_attr->refcyc_per_line_delivery_pre_c)
+		DC_LOG_DEBUG("DML Validation | PER_LINE_DELIVERY_PRE:REFCYC_PER_LINE_DELIVERY_PRE_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_line_delivery_pre_c, dlg_attr.refcyc_per_line_delivery_pre_c);
+	if (dlg_attr.refcyc_per_meta_chunk_vblank_l != dml_dlg_attr->refcyc_per_meta_chunk_vblank_l)
+		DC_LOG_DEBUG("DML Validation | VBLANK_PARAMETERS_3:REFCYC_PER_META_CHUNK_VBLANK_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_meta_chunk_vblank_l, dlg_attr.refcyc_per_meta_chunk_vblank_l);
+	if (dlg_attr.refcyc_per_meta_chunk_vblank_c != dml_dlg_attr->refcyc_per_meta_chunk_vblank_c)
+		DC_LOG_DEBUG("DML Validation | VBLANK_PARAMETERS_4:REFCYC_PER_META_CHUNK_VBLANK_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_meta_chunk_vblank_c, dlg_attr.refcyc_per_meta_chunk_vblank_c);
+
+	/* TTU - per hubp */
+	REG_GET_2(DCN_TTU_QOS_WM,
+		QoS_LEVEL_LOW_WM, &ttu_attr.qos_level_low_wm,
+		QoS_LEVEL_HIGH_WM, &ttu_attr.qos_level_high_wm);
+
+	if (ttu_attr.qos_level_low_wm != dml_ttu_attr->qos_level_low_wm)
+		DC_LOG_DEBUG("DML Validation | DCN_TTU_QOS_WM:QoS_LEVEL_LOW_WM - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->qos_level_low_wm, ttu_attr.qos_level_low_wm);
+	if (ttu_attr.qos_level_high_wm != dml_ttu_attr->qos_level_high_wm)
+		DC_LOG_DEBUG("DML Validation | DCN_TTU_QOS_WM:QoS_LEVEL_HIGH_WM - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->qos_level_high_wm, ttu_attr.qos_level_high_wm);
+
+	/* TTU - per luma/chroma */
+	/* Assumed surf0 is luma and 1 is chroma */
+	REG_GET_3(DCN_SURF0_TTU_CNTL0,
+		REFCYC_PER_REQ_DELIVERY, &ttu_attr.refcyc_per_req_delivery_l,
+		QoS_LEVEL_FIXED, &ttu_attr.qos_level_fixed_l,
+		QoS_RAMP_DISABLE, &ttu_attr.qos_ramp_disable_l);
+	REG_GET_3(DCN_SURF1_TTU_CNTL0,
+		REFCYC_PER_REQ_DELIVERY, &ttu_attr.refcyc_per_req_delivery_c,
+		QoS_LEVEL_FIXED, &ttu_attr.qos_level_fixed_c,
+		QoS_RAMP_DISABLE, &ttu_attr.qos_ramp_disable_c);
+	REG_GET_3(DCN_CUR0_TTU_CNTL0,
+		REFCYC_PER_REQ_DELIVERY, &ttu_attr.refcyc_per_req_delivery_cur0,
+		QoS_LEVEL_FIXED, &ttu_attr.qos_level_fixed_cur0,
+		QoS_RAMP_DISABLE, &ttu_attr.qos_ramp_disable_cur0);
+	REG_GET(FLIP_PARAMETERS_1,
+		REFCYC_PER_PTE_GROUP_FLIP_L, &dlg_attr.refcyc_per_pte_group_flip_l);
+	REG_GET(DCN_CUR0_TTU_CNTL1,
+			REFCYC_PER_REQ_DELIVERY_PRE, &ttu_attr.refcyc_per_req_delivery_pre_cur0);
+	REG_GET(DCN_CUR1_TTU_CNTL1,
+			REFCYC_PER_REQ_DELIVERY_PRE, &ttu_attr.refcyc_per_req_delivery_pre_cur1);
+	REG_GET(DCN_SURF0_TTU_CNTL1,
+			REFCYC_PER_REQ_DELIVERY_PRE, &ttu_attr.refcyc_per_req_delivery_pre_l);
+	REG_GET(DCN_SURF1_TTU_CNTL1,
+			REFCYC_PER_REQ_DELIVERY_PRE, &ttu_attr.refcyc_per_req_delivery_pre_c);
+
+	if (ttu_attr.refcyc_per_req_delivery_l != dml_ttu_attr->refcyc_per_req_delivery_l)
+		DC_LOG_DEBUG("DML Validation | DCN_SURF0_TTU_CNTL0:REFCYC_PER_REQ_DELIVERY - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->refcyc_per_req_delivery_l, ttu_attr.refcyc_per_req_delivery_l);
+	if (ttu_attr.qos_level_fixed_l != dml_ttu_attr->qos_level_fixed_l)
+		DC_LOG_DEBUG("DML Validation | DCN_SURF0_TTU_CNTL0:QoS_LEVEL_FIXED - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->qos_level_fixed_l, ttu_attr.qos_level_fixed_l);
+	if (ttu_attr.qos_ramp_disable_l != dml_ttu_attr->qos_ramp_disable_l)
+		DC_LOG_DEBUG("DML Validation | DCN_SURF0_TTU_CNTL0:QoS_RAMP_DISABLE - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->qos_ramp_disable_l, ttu_attr.qos_ramp_disable_l);
+	if (ttu_attr.refcyc_per_req_delivery_c != dml_ttu_attr->refcyc_per_req_delivery_c)
+		DC_LOG_DEBUG("DML Validation | DCN_SURF1_TTU_CNTL0:REFCYC_PER_REQ_DELIVERY - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->refcyc_per_req_delivery_c, ttu_attr.refcyc_per_req_delivery_c);
+	if (ttu_attr.qos_level_fixed_c != dml_ttu_attr->qos_level_fixed_c)
+		DC_LOG_DEBUG("DML Validation | DCN_SURF1_TTU_CNTL0:QoS_LEVEL_FIXED - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->qos_level_fixed_c, ttu_attr.qos_level_fixed_c);
+	if (ttu_attr.qos_ramp_disable_c != dml_ttu_attr->qos_ramp_disable_c)
+		DC_LOG_DEBUG("DML Validation | DCN_SURF1_TTU_CNTL0:QoS_RAMP_DISABLE - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->qos_ramp_disable_c, ttu_attr.qos_ramp_disable_c);
+	if (ttu_attr.refcyc_per_req_delivery_cur0 != dml_ttu_attr->refcyc_per_req_delivery_cur0)
+		DC_LOG_DEBUG("DML Validation | DCN_CUR0_TTU_CNTL0:REFCYC_PER_REQ_DELIVERY - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->refcyc_per_req_delivery_cur0, ttu_attr.refcyc_per_req_delivery_cur0);
+	if (ttu_attr.qos_level_fixed_cur0 != dml_ttu_attr->qos_level_fixed_cur0)
+		DC_LOG_DEBUG("DML Validation | DCN_CUR0_TTU_CNTL0:QoS_LEVEL_FIXED - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->qos_level_fixed_cur0, ttu_attr.qos_level_fixed_cur0);
+	if (ttu_attr.qos_ramp_disable_cur0 != dml_ttu_attr->qos_ramp_disable_cur0)
+		DC_LOG_DEBUG("DML Validation | DCN_CUR0_TTU_CNTL0:QoS_RAMP_DISABLE - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->qos_ramp_disable_cur0, ttu_attr.qos_ramp_disable_cur0);
+	if (dlg_attr.refcyc_per_pte_group_flip_l != dml_dlg_attr->refcyc_per_pte_group_flip_l)
+		DC_LOG_DEBUG("DML Validation | FLIP_PARAMETERS_1:REFCYC_PER_PTE_GROUP_FLIP_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_pte_group_flip_l, dlg_attr.refcyc_per_pte_group_flip_l);
+	if (ttu_attr.refcyc_per_req_delivery_pre_cur0 != dml_ttu_attr->refcyc_per_req_delivery_pre_cur0)
+		DC_LOG_DEBUG("DML Validation | DCN_CUR0_TTU_CNTL1:REFCYC_PER_REQ_DELIVERY_PRE - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->refcyc_per_req_delivery_pre_cur0, ttu_attr.refcyc_per_req_delivery_pre_cur0);
+	if (ttu_attr.refcyc_per_req_delivery_pre_cur1 != dml_ttu_attr->refcyc_per_req_delivery_pre_cur1)
+		DC_LOG_DEBUG("DML Validation | DCN_CUR1_TTU_CNTL1:REFCYC_PER_REQ_DELIVERY_PRE - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->refcyc_per_req_delivery_pre_cur1, ttu_attr.refcyc_per_req_delivery_pre_cur1);
+	if (ttu_attr.refcyc_per_req_delivery_pre_l != dml_ttu_attr->refcyc_per_req_delivery_pre_l)
+		DC_LOG_DEBUG("DML Validation | DCN_SURF0_TTU_CNTL1:REFCYC_PER_REQ_DELIVERY_PRE - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->refcyc_per_req_delivery_pre_l, ttu_attr.refcyc_per_req_delivery_pre_l);
+	if (ttu_attr.refcyc_per_req_delivery_pre_c != dml_ttu_attr->refcyc_per_req_delivery_pre_c)
+		DC_LOG_DEBUG("DML Validation | DCN_SURF1_TTU_CNTL1:REFCYC_PER_REQ_DELIVERY_PRE - Expected: %u  Actual: %u\n",
+				dml_ttu_attr->refcyc_per_req_delivery_pre_c, ttu_attr.refcyc_per_req_delivery_pre_c);
+
+	/* Host VM deadline regs */
+	REG_GET(VBLANK_PARAMETERS_5,
+		REFCYC_PER_VM_GROUP_VBLANK, &dlg_attr.refcyc_per_vm_group_vblank);
+	REG_GET(VBLANK_PARAMETERS_6,
+		REFCYC_PER_VM_REQ_VBLANK, &dlg_attr.refcyc_per_vm_req_vblank);
+	REG_GET(FLIP_PARAMETERS_3,
+		REFCYC_PER_VM_GROUP_FLIP, &dlg_attr.refcyc_per_vm_group_flip);
+	REG_GET(FLIP_PARAMETERS_4,
+		REFCYC_PER_VM_REQ_FLIP, &dlg_attr.refcyc_per_vm_req_flip);
+	REG_GET(FLIP_PARAMETERS_5,
+		REFCYC_PER_PTE_GROUP_FLIP_C, &dlg_attr.refcyc_per_pte_group_flip_c);
+	REG_GET(FLIP_PARAMETERS_6,
+		REFCYC_PER_META_CHUNK_FLIP_C, &dlg_attr.refcyc_per_meta_chunk_flip_c);
+	REG_GET(FLIP_PARAMETERS_2,
+		REFCYC_PER_META_CHUNK_FLIP_L, &dlg_attr.refcyc_per_meta_chunk_flip_l);
+
+	if (dlg_attr.refcyc_per_vm_group_vblank != dml_dlg_attr->refcyc_per_vm_group_vblank)
+		DC_LOG_DEBUG("DML Validation | VBLANK_PARAMETERS_5:REFCYC_PER_VM_GROUP_VBLANK - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_vm_group_vblank, dlg_attr.refcyc_per_vm_group_vblank);
+	if (dlg_attr.refcyc_per_vm_req_vblank != dml_dlg_attr->refcyc_per_vm_req_vblank)
+		DC_LOG_DEBUG("DML Validation | VBLANK_PARAMETERS_6:REFCYC_PER_VM_REQ_VBLANK - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_vm_req_vblank, dlg_attr.refcyc_per_vm_req_vblank);
+	if (dlg_attr.refcyc_per_vm_group_flip != dml_dlg_attr->refcyc_per_vm_group_flip)
+		DC_LOG_DEBUG("DML Validation | FLIP_PARAMETERS_3:REFCYC_PER_VM_GROUP_FLIP - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_vm_group_flip, dlg_attr.refcyc_per_vm_group_flip);
+	if (dlg_attr.refcyc_per_vm_req_flip != dml_dlg_attr->refcyc_per_vm_req_flip)
+		DC_LOG_DEBUG("DML Validation | FLIP_PARAMETERS_4:REFCYC_PER_VM_REQ_FLIP - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_vm_req_flip, dlg_attr.refcyc_per_vm_req_flip);
+	if (dlg_attr.refcyc_per_pte_group_flip_c != dml_dlg_attr->refcyc_per_pte_group_flip_c)
+		DC_LOG_DEBUG("DML Validation | FLIP_PARAMETERS_5:REFCYC_PER_PTE_GROUP_FLIP_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_pte_group_flip_c, dlg_attr.refcyc_per_pte_group_flip_c);
+	if (dlg_attr.refcyc_per_meta_chunk_flip_c != dml_dlg_attr->refcyc_per_meta_chunk_flip_c)
+		DC_LOG_DEBUG("DML Validation | FLIP_PARAMETERS_6:REFCYC_PER_META_CHUNK_FLIP_C - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_meta_chunk_flip_c, dlg_attr.refcyc_per_meta_chunk_flip_c);
+	if (dlg_attr.refcyc_per_meta_chunk_flip_l != dml_dlg_attr->refcyc_per_meta_chunk_flip_l)
+		DC_LOG_DEBUG("DML Validation | FLIP_PARAMETERS_2:REFCYC_PER_META_CHUNK_FLIP_L - Expected: %u  Actual: %u\n",
+				dml_dlg_attr->refcyc_per_meta_chunk_flip_l, dlg_attr.refcyc_per_meta_chunk_flip_l);
+}
+
 void hubp21_init(struct hubp *hubp)
 {
 	// DEDCN21-133: Inconsistent row starting line for flip between DPTE and Meta
@@ -211,7 +622,7 @@ static struct hubp_funcs dcn21_hubp_funcs = {
 	.hubp_set_vm_system_aperture_settings = hubp21_set_vm_system_aperture_settings,
 	.set_blank = hubp1_set_blank,
 	.dcc_control = hubp1_dcc_control,
-	.mem_program_viewport = min_set_viewport,
+	.mem_program_viewport = hubp21_set_viewport,
 	.set_cursor_attributes	= hubp2_cursor_set_attributes,
 	.set_cursor_position	= hubp1_cursor_set_position,
 	.hubp_clk_cntl = hubp1_clk_cntl,
@@ -223,6 +634,7 @@ static struct hubp_funcs dcn21_hubp_funcs = {
 	.hubp_clear_underflow = hubp1_clear_underflow,
 	.hubp_set_flip_control_surface_gsl = hubp2_set_flip_control_surface_gsl,
 	.hubp_init = hubp21_init,
+	.validate_dml_output = hubp21_validate_dml_output,
 };
 
 bool hubp21_construct(

@@ -40,7 +40,7 @@
 #include "soc15d.h"
 #include "mmhub_v1_0.h"
 #include "gfxhub_v1_0.h"
-#include "gmc_v9_0.h"
+#include "mmhub_v9_4.h"
 
 
 enum hqd_dequeue_request_type {
@@ -774,9 +774,7 @@ void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmi
 	 * on GFX8 and older.
 	 */
 	if (adev->asic_type == CHIP_ARCTURUS) {
-		/* Two MMHUBs */
-		mmhub_v9_4_setup_vm_pt_regs(adev, 0, vmid, page_table_base);
-		mmhub_v9_4_setup_vm_pt_regs(adev, 1, vmid, page_table_base);
+		mmhub_v9_4_setup_vm_pt_regs(adev, vmid, page_table_base);
 	} else
 		mmhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 

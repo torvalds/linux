@@ -27,8 +27,8 @@
 #define __DC_HWSS_DCE110_H__
 
 #include "core_types.h"
+#include "hw_sequencer_private.h"
 
-#define GAMMA_HW_POINTS_NUM 256
 struct dc;
 struct dc_state;
 struct dm_pp_display_configuration;

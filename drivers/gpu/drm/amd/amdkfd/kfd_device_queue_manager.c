@@ -170,7 +170,7 @@ static int allocate_doorbell(struct qcm_process_device *qpd, struct queue *q)
 	}
 
 	q->properties.doorbell_off =
-		kfd_doorbell_id_to_offset(dev, q->process,
+		kfd_get_doorbell_dw_offset_in_bar(dev, q->process,
 					  q->doorbell_id);
 
 	return 0;
@@ -1595,7 +1595,7 @@ static int get_wave_state(struct device_queue_manager *dqm,
 		goto dqm_unlock;
 	}
 
-	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_COMPUTE];
+	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_CP];
 
 	if (!mqd_mgr->get_wave_state) {
 		r = -EINVAL;

@@ -715,7 +715,15 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.max_ras_err_cnt_per_query = UMC_V6_1_TOTAL_CHANNEL_NUM;
 		adev->umc.channel_inst_num = UMC_V6_1_CHANNEL_INSTANCE_NUM;
 		adev->umc.umc_inst_num = UMC_V6_1_UMC_INSTANCE_NUM;
-		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET;
+		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET_VG20;
+		adev->umc.channel_idx_tbl = &umc_v6_1_channel_idx_tbl[0][0];
+		adev->umc.funcs = &umc_v6_1_funcs;
+		break;
+	case CHIP_ARCTURUS:
+		adev->umc.max_ras_err_cnt_per_query = UMC_V6_1_TOTAL_CHANNEL_NUM;
+		adev->umc.channel_inst_num = UMC_V6_1_CHANNEL_INSTANCE_NUM;
+		adev->umc.umc_inst_num = UMC_V6_1_UMC_INSTANCE_NUM;
+		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET_ARCT;
 		adev->umc.channel_idx_tbl = &umc_v6_1_channel_idx_tbl[0][0];
 		adev->umc.funcs = &umc_v6_1_funcs;
 		break;
@@ -729,6 +737,9 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 		adev->mmhub.funcs = &mmhub_v1_0_funcs;
+		break;
+	case CHIP_ARCTURUS:
+		adev->mmhub.funcs = &mmhub_v9_4_funcs;
 		break;
 	default:
 		break;
@@ -825,6 +836,7 @@ static int gmc_v9_0_late_init(void *handle)
 		switch (adev->asic_type) {
 		case CHIP_VEGA10:
 		case CHIP_VEGA20:
+		case CHIP_ARCTURUS:
 			r = amdgpu_atomfirmware_mem_ecc_supported(adev);
 			if (!r) {
 				DRM_INFO("ECC is not present.\n");

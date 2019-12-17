@@ -99,6 +99,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 	unsigned int num_chans;
 	unsigned int vmm_page_size_bytes;
 	unsigned int hostvm_min_page_size_bytes;
+	unsigned int gpuvm_min_page_size_bytes;
 	double dram_clock_change_latency_us;
 	double dummy_pstate_latency_us;
 	double writeback_dram_clock_change_latency_us;
@@ -112,6 +113,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 	bool do_urgent_latency_adjustment;
 	double urgent_latency_adjustment_fabric_clock_component_us;
 	double urgent_latency_adjustment_fabric_clock_reference_mhz;
+	bool disable_dram_clock_change_vactive_support;
 };
 
 struct _vcs_dpi_ip_params_st {
@@ -145,7 +147,6 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int writeback_interface_buffer_size_kbytes;
 	unsigned int writeback_line_buffer_buffer_size;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	unsigned int writeback_10bpc420_supported;
 	double writeback_max_hscl_ratio;
 	double writeback_max_vscl_ratio;
@@ -155,7 +156,6 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int writeback_max_vscl_taps;
 	unsigned int writeback_line_buffer_luma_buffer_size;
 	unsigned int writeback_line_buffer_chroma_buffer_size;
-#endif
 
 	unsigned int max_page_table_levels;
 	unsigned int max_num_dpp;
@@ -225,6 +225,7 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	int source_scan;
 	int sw_mode;
 	int macro_tile_size;
+	unsigned int surface_height_y;
 	unsigned int viewport_width;
 	unsigned int viewport_height;
 	unsigned int viewport_y_y;
@@ -401,6 +402,7 @@ struct _vcs_dpi_display_rq_misc_params_st {
 struct _vcs_dpi_display_rq_params_st {
 	unsigned char yuv420;
 	unsigned char yuv420_10bpc;
+	unsigned char rgbe_alpha;
 	display_rq_misc_params_st misc;
 	display_rq_sizing_params_st sizing;
 	display_rq_dlg_params_st dlg;

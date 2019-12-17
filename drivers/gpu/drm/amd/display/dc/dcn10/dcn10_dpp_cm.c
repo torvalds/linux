@@ -352,6 +352,8 @@ void dpp1_cm_program_regamma_lut(struct dpp *dpp_base,
 	uint32_t i;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
+	REG_SEQ_START();
+
 	for (i = 0 ; i < num; i++) {
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].green_reg);
@@ -626,10 +628,16 @@ void dpp1_set_degamma(
 	case IPP_DEGAMMA_MODE_HW_xvYCC:
 		REG_UPDATE(CM_DGAM_CONTROL, CM_DGAM_LUT_MODE, 2);
 			break;
+	case IPP_DEGAMMA_MODE_USER_PWL:
+		REG_UPDATE(CM_DGAM_CONTROL, CM_DGAM_LUT_MODE, 3);
+		break;
 	default:
 		BREAK_TO_DEBUGGER();
 		break;
 	}
+
+	REG_SEQ_SUBMIT();
+	REG_SEQ_WAIT_DONE();
 }
 
 void dpp1_degamma_ram_select(
@@ -731,10 +739,8 @@ void dpp1_full_bypass(struct dpp *dpp_base)
 	/* COLOR_KEYER_CONTROL.COLOR_KEYER_EN = 0 this should be default */
 	if (dpp->tf_mask->CM_BYPASS_EN)
 		REG_SET(CM_CONTROL, 0, CM_BYPASS_EN, 1);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	else
 		REG_SET(CM_CONTROL, 0, CM_BYPASS, 1);
-#endif
 
 	/* Setting degamma bypass for now */
 	REG_SET(CM_DGAM_CONTROL, 0, CM_DGAM_LUT_MODE, 0);

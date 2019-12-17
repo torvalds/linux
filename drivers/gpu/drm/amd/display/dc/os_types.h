@@ -29,6 +29,7 @@
 #include <linux/kgdb.h>
 #include <linux/kref.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 
 #include <asm/byteorder.h>
 
@@ -48,7 +49,7 @@
 
 #define dm_error(fmt, ...) DRM_ERROR(fmt, ##__VA_ARGS__)
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include <asm/fpu/api.h>
 #endif
 

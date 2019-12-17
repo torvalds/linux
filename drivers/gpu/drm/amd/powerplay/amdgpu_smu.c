@@ -415,6 +415,9 @@ int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 	case AMD_IP_BLOCK_TYPE_SDMA:
 		ret = smu_powergate_sdma(smu, gate);
 		break;
+	case AMD_IP_BLOCK_TYPE_JPEG:
+		ret = smu_dpm_set_jpeg_enable(smu, gate);
+		break;
 	default:
 		break;
 	}
@@ -527,9 +530,12 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 {
 	if (adev->asic_type == CHIP_VEGA20)
 		return (amdgpu_dpm == 2) ? true : false;
-	else if (adev->asic_type >= CHIP_ARCTURUS)
-		return true;
-	else
+	else if (adev->asic_type >= CHIP_ARCTURUS) {
+		if (amdgpu_sriov_vf(adev))
+			return false;
+		else
+			return true;
+	} else
 		return false;
 }
 
@@ -1186,10 +1192,9 @@ static int smu_free_memory_pool(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *memory_pool = &smu_table->memory_pool;
-	int ret = 0;
 
 	if (memory_pool->size == SMU_MEMORY_POOL_SIZE_ZERO)
-		return ret;
+		return 0;
 
 	amdgpu_bo_free_kernel(&memory_pool->bo,
 			      &memory_pool->mc_address,
@@ -1197,7 +1202,7 @@ static int smu_free_memory_pool(struct smu_context *smu)
 
 	memset(memory_pool, 0, sizeof(struct smu_table));
 
-	return ret;
+	return 0;
 }
 
 static int smu_start_smc_engine(struct smu_context *smu)
@@ -1239,6 +1244,7 @@ static int smu_hw_init(void *handle)
 	if (adev->flags & AMD_IS_APU) {
 		smu_powergate_sdma(&adev->smu, false);
 		smu_powergate_vcn(&adev->smu, false);
+		smu_powergate_jpeg(&adev->smu, false);
 		smu_set_gfx_cgpg(&adev->smu, true);
 	}
 
@@ -1297,6 +1303,7 @@ static int smu_hw_fini(void *handle)
 	if (adev->flags & AMD_IS_APU) {
 		smu_powergate_sdma(&adev->smu, true);
 		smu_powergate_vcn(&adev->smu, true);
+		smu_powergate_jpeg(&adev->smu, true);
 	}
 
 	ret = smu_stop_thermal_control(smu);
@@ -1376,7 +1383,7 @@ static int smu_suspend(void *handle)
 	if (ret)
 		return ret;
 
-	if (adev->in_gpu_reset && baco_feature_is_enabled) {
+	if (baco_feature_is_enabled) {
 		ret = smu_feature_set_enabled(smu, SMU_FEATURE_BACO_BIT, true);
 		if (ret) {
 			pr_warn("set BACO feature enabled failed, return %d\n", ret);
@@ -1937,7 +1944,6 @@ int smu_write_watermarks_table(struct smu_context *smu)
 int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
 {
-	int ret = 0;
 	struct smu_table *watermarks = &smu->smu_table.tables[SMU_TABLE_WATERMARKS];
 	void *table = watermarks->cpu_addr;
 
@@ -1953,7 +1959,7 @@ int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 
 	mutex_unlock(&smu->mutex);
 
-	return ret;
+	return 0;
 }
 
 const struct amd_ip_funcs smu_ip_funcs = {
@@ -2451,14 +2457,28 @@ int smu_baco_get_state(struct smu_context *smu, enum smu_baco_state *state)
 	return 0;
 }
 
-int smu_baco_reset(struct smu_context *smu)
+int smu_baco_enter(struct smu_context *smu)
 {
 	int ret = 0;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->baco_reset)
-		ret = smu->ppt_funcs->baco_reset(smu);
+	if (smu->ppt_funcs->baco_enter)
+		ret = smu->ppt_funcs->baco_enter(smu);
+
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
+int smu_baco_exit(struct smu_context *smu)
+{
+	int ret = 0;
+
+	mutex_lock(&smu->mutex);
+
+	if (smu->ppt_funcs->baco_exit)
+		ret = smu->ppt_funcs->baco_exit(smu);
 
 	mutex_unlock(&smu->mutex);
 

@@ -214,8 +214,6 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->vcn.inst[j].ring_enc[i]);
-
-		amdgpu_ring_fini(&adev->vcn.inst[j].ring_jpeg);
 	}
 
 	release_firmware(adev->vcn.fw);
@@ -308,7 +306,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 			else
 				new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
 
-			if (amdgpu_fence_count_emitted(&adev->vcn.inst[j].ring_jpeg))
+			if (amdgpu_fence_count_emitted(&adev->jpeg.inst[j].ring_dec))
 				new_state.jpeg = VCN_DPG_STATE__PAUSE;
 			else
 				new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
@@ -316,7 +314,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 			adev->vcn.pause_dpg_mode(adev, &new_state);
 		}
 
-		fence[j] += amdgpu_fence_count_emitted(&adev->vcn.inst[j].ring_jpeg);
+		fence[j] += amdgpu_fence_count_emitted(&adev->jpeg.inst[j].ring_dec);
 		fence[j] += amdgpu_fence_count_emitted(&adev->vcn.inst[j].ring_dec);
 		fences += fence[j];
 	}
@@ -360,7 +358,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 		else
 			new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
 
-		if (amdgpu_fence_count_emitted(&adev->vcn.inst[ring->me].ring_jpeg))
+		if (amdgpu_fence_count_emitted(&adev->jpeg.inst[ring->me].ring_dec))
 			new_state.jpeg = VCN_DPG_STATE__PAUSE;
 		else
 			new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
@@ -706,110 +704,5 @@ error:
 	dma_fence_put(fence);
 	amdgpu_bo_unreserve(bo);
 	amdgpu_bo_unref(&bo);
-	return r;
-}
-
-int amdgpu_vcn_jpeg_ring_test_ring(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	uint32_t tmp = 0;
-	unsigned i;
-	int r;
-
-	WREG32(adev->vcn.inst[ring->me].external.jpeg_pitch, 0xCAFEDEAD);
-	r = amdgpu_ring_alloc(ring, 3);
-	if (r)
-		return r;
-
-	amdgpu_ring_write(ring, PACKET0(adev->vcn.internal.jpeg_pitch, 0));
-	amdgpu_ring_write(ring, 0xDEADBEEF);
-	amdgpu_ring_commit(ring);
-
-	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(adev->vcn.inst[ring->me].external.jpeg_pitch);
-		if (tmp == 0xDEADBEEF)
-			break;
-		udelay(1);
-	}
-
-	if (i >= adev->usec_timeout)
-		r = -ETIMEDOUT;
-
-	return r;
-}
-
-static int amdgpu_vcn_jpeg_set_reg(struct amdgpu_ring *ring, uint32_t handle,
-		struct dma_fence **fence)
-{
-	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_job *job;
-	struct amdgpu_ib *ib;
-	struct dma_fence *f = NULL;
-	const unsigned ib_size_dw = 16;
-	int i, r;
-
-	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
-	if (r)
-		return r;
-
-	ib = &job->ibs[0];
-
-	ib->ptr[0] = PACKETJ(adev->vcn.internal.jpeg_pitch, 0, 0, PACKETJ_TYPE0);
-	ib->ptr[1] = 0xDEADBEEF;
-	for (i = 2; i < 16; i += 2) {
-		ib->ptr[i] = PACKETJ(0, 0, 0, PACKETJ_TYPE6);
-		ib->ptr[i+1] = 0;
-	}
-	ib->length_dw = 16;
-
-	r = amdgpu_job_submit_direct(job, ring, &f);
-	if (r)
-		goto err;
-
-	if (fence)
-		*fence = dma_fence_get(f);
-	dma_fence_put(f);
-
-	return 0;
-
-err:
-	amdgpu_job_free(job);
-	return r;
-}
-
-int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout)
-{
-	struct amdgpu_device *adev = ring->adev;
-	uint32_t tmp = 0;
-	unsigned i;
-	struct dma_fence *fence = NULL;
-	long r = 0;
-
-	r = amdgpu_vcn_jpeg_set_reg(ring, 1, &fence);
-	if (r)
-		goto error;
-
-	r = dma_fence_wait_timeout(fence, false, timeout);
-	if (r == 0) {
-		r = -ETIMEDOUT;
-		goto error;
-	} else if (r < 0) {
-		goto error;
-	} else {
-		r = 0;
-	}
-
-	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(adev->vcn.inst[ring->me].external.jpeg_pitch);
-		if (tmp == 0xDEADBEEF)
-			break;
-		udelay(1);
-	}
-
-	if (i >= adev->usec_timeout)
-		r = -ETIMEDOUT;
-
-	dma_fence_put(fence);
-error:
 	return r;
 }

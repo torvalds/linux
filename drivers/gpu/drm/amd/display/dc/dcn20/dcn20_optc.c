@@ -59,10 +59,15 @@ bool optc2_enable_crtc(struct timing_generator *optc)
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 1);
 
+	REG_SEQ_START();
+
 	/* Enable CRTC */
 	REG_UPDATE_2(OTG_CONTROL,
 			OTG_DISABLE_POINT_CNTL, 3,
 			OTG_MASTER_EN, 1);
+
+	REG_SEQ_SUBMIT();
+	REG_SEQ_WAIT_DONE();
 
 	return true;
 }
@@ -167,7 +172,6 @@ void optc2_set_gsl_source_select(
 	}
 }
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 /* DSC encoder frame start controls: x = h position, line_num = # of lines from vstartup */
 void optc2_set_dsc_encoder_frame_start(struct timing_generator *optc,
 					int x_position,
@@ -201,13 +205,12 @@ void optc2_set_dsc_config(struct timing_generator *optc,
 	REG_UPDATE(OPTC_WIDTH_CONTROL,
 		OPTC_DSC_SLICE_WIDTH, dsc_slice_width);
 }
-#endif
 
-/**
- * PTI i think is already done somewhere else for 2ka
- * (opp?, please double check.
- * OPTC side only has 1 register to set for PTI_ENABLE)
- */
+/*TEMP: Need to figure out inheritance model here.*/
+bool optc2_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
+{
+	return optc1_is_two_pixels_per_containter(timing);
+}
 
 void optc2_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing)
@@ -221,7 +224,7 @@ void optc2_set_odm_bypass(struct timing_generator *optc,
 			OPTC_SEG1_SRC_SEL, 0xf);
 	REG_WRITE(OTG_H_TIMING_CNTL, 0);
 
-	h_div_2 = optc1_is_two_pixels_per_containter(dc_crtc_timing);
+	h_div_2 = optc2_is_two_pixels_per_containter(dc_crtc_timing);
 	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_BY2, h_div_2);
 	REG_SET(OPTC_MEMORY_CONFIG, 0,
@@ -448,9 +451,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.setup_global_swap_lock = NULL,
 		.get_crc = optc1_get_crc,
 		.configure_crc = optc1_configure_crc,
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 		.set_dsc_config = optc2_set_dsc_config,
-#endif
 		.set_dwb_source = optc2_set_dwb_source,
 		.set_odm_bypass = optc2_set_odm_bypass,
 		.set_odm_combine = optc2_set_odm_combine,

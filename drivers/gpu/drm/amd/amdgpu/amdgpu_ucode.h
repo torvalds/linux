@@ -251,6 +251,13 @@ struct dmcu_firmware_header_v1_0 {
 	uint32_t intv_size_bytes;  /* size of interrupt vectors, in bytes */
 };
 
+/* version_major=1, version_minor=0 */
+struct dmcub_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t inst_const_bytes; /* size of instruction region, in bytes */
+	uint32_t bss_data_bytes; /* size of bss/data region, in bytes */
+};
+
 /* header is fixed size */
 union amdgpu_firmware_header {
 	struct common_firmware_header common;
@@ -268,6 +275,7 @@ union amdgpu_firmware_header {
 	struct sdma_firmware_header_v1_1 sdma_v1_1;
 	struct gpu_info_firmware_header_v1_0 gpu_info;
 	struct dmcu_firmware_header_v1_0 dmcu;
+	struct dmcub_firmware_header_v1_0 dmcub;
 	uint8_t raw[0x100];
 };
 
@@ -307,6 +315,7 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_DMCU_INTV,
 	AMDGPU_UCODE_ID_VCN0_RAM,
 	AMDGPU_UCODE_ID_VCN1_RAM,
+	AMDGPU_UCODE_ID_DMCUB,
 	AMDGPU_UCODE_ID_MAXIMUM,
 };
 
