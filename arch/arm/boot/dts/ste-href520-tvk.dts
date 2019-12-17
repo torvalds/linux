@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Device Tree for the HREF520 version with the TVK1281618 UIB
+ */
+
+/dts-v1/;
+#include "ste-db8520.dtsi"
+#include "ste-hrefv60plus.dtsi"
+#include "ste-href-tvk1281618-r3.dtsi"
+
+/ {
+	model = "ST-Ericsson HREF520 and TVK1281618 UIB";
+	compatible = "st-ericsson,href520", "st-ericsson,u8500";
+
+	soc {
+		vmmci: regulator-gpio {
+			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+			enable-gpio = <&gpio2 14 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+	};
+};
