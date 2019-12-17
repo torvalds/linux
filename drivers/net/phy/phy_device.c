@@ -2575,7 +2575,6 @@ static struct phy_driver genphy_driver = {
 	.name		= "Generic PHY",
 	.soft_reset	= genphy_no_soft_reset,
 	.get_features	= genphy_read_abilities,
-	.aneg_done	= genphy_aneg_done,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 	.set_loopback   = genphy_loopback,
