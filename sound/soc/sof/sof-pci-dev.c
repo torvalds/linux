@@ -50,7 +50,6 @@ static const struct sof_dev_desc bxt_desc = {
 	.default_fw_filename = "sof-apl.ri",
 	.nocodec_tplg_filename = "sof-apl-nocodec.tplg",
 	.ops = &sof_apl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -68,7 +67,6 @@ static const struct sof_dev_desc glk_desc = {
 	.default_fw_filename = "sof-glk.ri",
 	.nocodec_tplg_filename = "sof-glk-nocodec.tplg",
 	.ops = &sof_apl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -96,7 +94,6 @@ static const struct sof_dev_desc tng_desc = {
 	.default_fw_filename = "sof-byt.ri",
 	.nocodec_tplg_filename = "sof-byt.tplg",
 	.ops = &sof_tng_ops,
-	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -114,7 +111,6 @@ static const struct sof_dev_desc cnl_desc = {
 	.default_fw_filename = "sof-cnl.ri",
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -132,7 +128,6 @@ static const struct sof_dev_desc cfl_desc = {
 	.default_fw_filename = "sof-cfl.ri",
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -152,7 +147,6 @@ static const struct sof_dev_desc cml_desc = {
 	.default_fw_filename = "sof-cml.ri",
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -170,7 +164,6 @@ static const struct sof_dev_desc icl_desc = {
 	.default_fw_filename = "sof-icl.ri",
 	.nocodec_tplg_filename = "sof-icl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -188,7 +181,6 @@ static const struct sof_dev_desc tgl_desc = {
 	.default_fw_filename = "sof-tgl.ri",
 	.nocodec_tplg_filename = "sof-tgl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -206,7 +198,6 @@ static const struct sof_dev_desc ehl_desc = {
 	.default_fw_filename = "sof-ehl.ri",
 	.nocodec_tplg_filename = "sof-ehl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
@@ -223,7 +214,6 @@ static const struct sof_dev_desc jsl_desc = {
 	.default_tplg_path = "intel/sof-tplg",
 	.nocodec_tplg_filename = "sof-jsl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
-	.arch_ops = &sof_xtensa_arch_ops
 };
 #endif
 
