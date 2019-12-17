@@ -25,6 +25,7 @@
 #ifndef ATOM_H
 #define ATOM_H
 
+#include <linux/mutex.h>
 #include <linux/types.h>
 
 #define ATOM_BIOS_MAGIC		0xAA55

@@ -91,7 +91,7 @@ static int rcar_lvds_connector_get_modes(struct drm_connector *connector)
 {
 	struct rcar_lvds *lvds = connector_to_rcar_lvds(connector);
 
-	return drm_panel_get_modes(lvds->panel);
+	return drm_panel_get_modes(lvds->panel, connector);
 }
 
 static int rcar_lvds_connector_atomic_check(struct drm_connector *connector,

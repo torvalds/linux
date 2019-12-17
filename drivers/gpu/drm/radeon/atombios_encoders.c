@@ -26,10 +26,10 @@
 
 #include <linux/backlight.h>
 #include <linux/dmi.h>
+#include <linux/pci.h>
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_file.h>
-#include <drm/drm_pci.h>
 #include <drm/radeon_drm.h>
 
 #include "atom.h"

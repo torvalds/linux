@@ -39,7 +39,6 @@ struct mcde_dsi {
 	struct device *dev;
 	struct mcde *mcde;
 	struct drm_bridge bridge;
-	struct drm_connector connector;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge_out;
 	struct mipi_dsi_host dsi_host;
@@ -62,11 +61,6 @@ static inline struct mcde_dsi *bridge_to_mcde_dsi(struct drm_bridge *bridge)
 static inline struct mcde_dsi *host_to_mcde_dsi(struct mipi_dsi_host *h)
 {
 	return container_of(h, struct mcde_dsi, dsi_host);
-}
-
-static inline struct mcde_dsi *connector_to_mcde_dsi(struct drm_connector *c)
-{
-	return container_of(c, struct mcde_dsi, connector);
 }
 
 bool mcde_dsi_irq(struct mipi_dsi_device *mdsi)
@@ -124,10 +118,39 @@ bool mcde_dsi_irq(struct mipi_dsi_device *mdsi)
 
 	val = readl(d->regs + DSI_VID_MODE_STS_FLAG);
 	if (val)
-		dev_err(d->dev, "some video mode error status\n");
+		dev_dbg(d->dev, "DSI_VID_MODE_STS_FLAG = %08x\n", val);
+	if (val & DSI_VID_MODE_STS_VSG_RUNNING)
+		dev_dbg(d->dev, "VID mode VSG running\n");
+	if (val & DSI_VID_MODE_STS_ERR_MISSING_DATA)
+		dev_err(d->dev, "VID mode missing data\n");
+	if (val & DSI_VID_MODE_STS_ERR_MISSING_HSYNC)
+		dev_err(d->dev, "VID mode missing HSYNC\n");
+	if (val & DSI_VID_MODE_STS_ERR_MISSING_VSYNC)
+		dev_err(d->dev, "VID mode missing VSYNC\n");
+	if (val & DSI_VID_MODE_STS_REG_ERR_SMALL_LENGTH)
+		dev_err(d->dev, "VID mode less bytes than expected between two HSYNC\n");
+	if (val & DSI_VID_MODE_STS_REG_ERR_SMALL_HEIGHT)
+		dev_err(d->dev, "VID mode less lines than expected between two VSYNC\n");
+	if (val & (DSI_VID_MODE_STS_ERR_BURSTWRITE |
+		   DSI_VID_MODE_STS_ERR_LINEWRITE |
+		   DSI_VID_MODE_STS_ERR_LONGREAD))
+		dev_err(d->dev, "VID mode read/write error\n");
+	if (val & DSI_VID_MODE_STS_ERR_VRS_WRONG_LENGTH)
+		dev_err(d->dev, "VID mode received packets differ from expected size\n");
+	if (val & DSI_VID_MODE_STS_VSG_RECOVERY)
+		dev_err(d->dev, "VID mode VSG in recovery mode\n");
 	writel(val, d->regs + DSI_VID_MODE_STS_CLR);
 
 	return te_received;
+}
+
+static void mcde_dsi_attach_to_mcde(struct mcde_dsi *d)
+{
+	d->mcde->mdsi = d->mdsi;
+
+	d->mcde->video_mode = !!(d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO);
+	/* Enable use of the TE signal for all command mode panels */
+	d->mcde->te_sync = !d->mcde->video_mode;
 }
 
 static int mcde_dsi_host_attach(struct mipi_dsi_host *host,
@@ -148,7 +171,7 @@ static int mcde_dsi_host_attach(struct mipi_dsi_host *host,
 
 	d->mdsi = mdsi;
 	if (d->mcde)
-		d->mcde->mdsi = mdsi;
+		mcde_dsi_attach_to_mcde(d);
 
 	return 0;
 }
@@ -223,25 +246,25 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 	if (txlen > 0) {
 		val = 0;
 		for (i = 0; i < 4 && i < txlen; i++)
-			val |= tx[i] << (i & 3) * 8;
+			val |= tx[i] << (i * 8);
 	}
 	writel(val, d->regs + DSI_DIRECT_CMD_WRDAT0);
 	if (txlen > 4) {
 		val = 0;
 		for (i = 0; i < 4 && (i + 4) < txlen; i++)
-			val |= tx[i + 4] << (i & 3) * 8;
+			val |= tx[i + 4] << (i * 8);
 		writel(val, d->regs + DSI_DIRECT_CMD_WRDAT1);
 	}
 	if (txlen > 8) {
 		val = 0;
 		for (i = 0; i < 4 && (i + 8) < txlen; i++)
-			val |= tx[i + 8] << (i & 3) * 8;
+			val |= tx[i + 8] << (i * 8);
 		writel(val, d->regs + DSI_DIRECT_CMD_WRDAT2);
 	}
 	if (txlen > 12) {
 		val = 0;
 		for (i = 0; i < 4 && (i + 12) < txlen; i++)
-			val |= tx[i + 12] << (i & 3) * 8;
+			val |= tx[i + 12] << (i * 8);
 		writel(val, d->regs + DSI_DIRECT_CMD_WRDAT3);
 	}
 
@@ -336,7 +359,7 @@ void mcde_dsi_te_request(struct mipi_dsi_device *mdsi)
 	val |= 0 << DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_ID_SHIFT;
 	val |= 2 << DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_SIZE_SHIFT;
 	val |= DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_LP_EN;
-	val |= DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_HEAD_DCS_SHORT_WRITE_1 <<
+	val |= MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM <<
 		DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_HEAD_SHIFT;
 	writel(val, d->regs + DSI_DIRECT_CMD_MAIN_SETTINGS);
 
@@ -539,26 +562,6 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 		DSI_VID_VCA_SETTING2_EXACT_BURST_LIMIT_SHIFT;
 	writel(val, d->regs + DSI_VID_VCA_SETTING2);
 
-	/* Put IF1 into video mode */
-	val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
-	val |= DSI_MCTL_MAIN_DATA_CTL_IF1_MODE;
-	writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
-
-	/* Disable command mode on IF1 */
-	val = readl(d->regs + DSI_CMD_MODE_CTL);
-	val &= ~DSI_CMD_MODE_CTL_IF1_LP_EN;
-	writel(val, d->regs + DSI_CMD_MODE_CTL);
-
-	/* Enable some error interrupts */
-	val = readl(d->regs + DSI_VID_MODE_STS_CTL);
-	val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_VSYNC;
-	val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_DATA;
-	writel(val, d->regs + DSI_VID_MODE_STS_CTL);
-
-	/* Enable video mode */
-	val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
-	val |= DSI_MCTL_MAIN_DATA_CTL_VID_EN;
-	writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
 }
 
 static void mcde_dsi_start(struct mcde_dsi *d)
@@ -670,29 +673,24 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 static void mcde_dsi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
+	u32 val;
+
+	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
+		/* Enable video mode */
+		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
+		val |= DSI_MCTL_MAIN_DATA_CTL_VID_EN;
+		writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
+	}
 
 	dev_info(d->dev, "enable DSI master\n");
 };
 
-static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
-				     const struct drm_display_mode *mode,
-				     const struct drm_display_mode *adj)
+static void mcde_dsi_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
-	unsigned long pixel_clock_hz = mode->clock * 1000;
 	unsigned long hs_freq, lp_freq;
 	u32 val;
 	int ret;
-
-	if (!d->mdsi) {
-		dev_err(d->dev, "no DSI device attached to encoder!\n");
-		return;
-	}
-
-	dev_info(d->dev, "set DSI master to %dx%d %lu Hz %s mode\n",
-		 mode->hdisplay, mode->vdisplay, pixel_clock_hz,
-		 (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) ? "VIDEO" : "CMD"
-		);
 
 	/* Copy maximum clock frequencies */
 	if (d->mdsi->lp_rate)
@@ -732,7 +730,21 @@ static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
 			 d->hs_freq);
 
 	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
-		mcde_dsi_setup_video_mode(d, mode);
+		/* Put IF1 into video mode */
+		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
+		val |= DSI_MCTL_MAIN_DATA_CTL_IF1_MODE;
+		writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
+
+		/* Disable command mode on IF1 */
+		val = readl(d->regs + DSI_CMD_MODE_CTL);
+		val &= ~DSI_CMD_MODE_CTL_IF1_LP_EN;
+		writel(val, d->regs + DSI_CMD_MODE_CTL);
+
+		/* Enable some error interrupts */
+		val = readl(d->regs + DSI_VID_MODE_STS_CTL);
+		val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_VSYNC;
+		val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_DATA;
+		writel(val, d->regs + DSI_VID_MODE_STS_CTL);
 	} else {
 		/* Command mode, clear IF1 ID */
 		val = readl(d->regs + DSI_CMD_MODE_CTL);
@@ -744,6 +756,26 @@ static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
 		val &= ~DSI_CMD_MODE_CTL_IF1_ID_MASK;
 		writel(val, d->regs + DSI_CMD_MODE_CTL);
 	}
+}
+
+static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
+				     const struct drm_display_mode *mode,
+				     const struct drm_display_mode *adj)
+{
+	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
+
+	if (!d->mdsi) {
+		dev_err(d->dev, "no DSI device attached to encoder!\n");
+		return;
+	}
+
+	dev_info(d->dev, "set DSI master to %dx%d %u Hz %s mode\n",
+		 mode->hdisplay, mode->vdisplay, mode->clock * 1000,
+		 (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) ? "VIDEO" : "CMD"
+		);
+
+	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO)
+		mcde_dsi_setup_video_mode(d, mode);
 }
 
 static void mcde_dsi_wait_for_command_mode_stop(struct mcde_dsi *d)
@@ -811,67 +843,23 @@ static void mcde_dsi_bridge_disable(struct drm_bridge *bridge)
 	clk_disable_unprepare(d->lp_clk);
 }
 
-/*
- * This connector needs no special handling, just use the default
- * helpers for everything. It's pretty dummy.
- */
-static const struct drm_connector_funcs mcde_dsi_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = drm_connector_cleanup,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static int mcde_dsi_get_modes(struct drm_connector *connector)
-{
-	struct mcde_dsi *d = connector_to_mcde_dsi(connector);
-
-	/* Just pass the question to the panel */
-	if (d->panel)
-		return drm_panel_get_modes(d->panel);
-
-	/* TODO: deal with bridges */
-
-	return 0;
-}
-
-static const struct drm_connector_helper_funcs
-mcde_dsi_connector_helper_funcs = {
-	.get_modes = mcde_dsi_get_modes,
-};
-
 static int mcde_dsi_bridge_attach(struct drm_bridge *bridge)
 {
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
 	struct drm_device *drm = bridge->dev;
 	int ret;
 
-	drm_connector_helper_add(&d->connector,
-				 &mcde_dsi_connector_helper_funcs);
-
 	if (!drm_core_check_feature(drm, DRIVER_ATOMIC)) {
 		dev_err(d->dev, "we need atomic updates\n");
 		return -ENOTSUPP;
 	}
 
-	ret = drm_connector_init(drm, &d->connector,
-				 &mcde_dsi_connector_funcs,
-				 DRM_MODE_CONNECTOR_DSI);
-	if (ret) {
-		dev_err(d->dev, "failed to initialize DSI bridge connector\n");
-		return ret;
-	}
-	d->connector.polled = DRM_CONNECTOR_POLL_CONNECT;
-	/* The encoder in the bridge attached to the DSI bridge */
-	drm_connector_attach_encoder(&d->connector, bridge->encoder);
-	/* Then we attach the DSI bridge to the output (panel etc) bridge */
+	/* Attach the DSI bridge to the output (panel etc) bridge */
 	ret = drm_bridge_attach(bridge->encoder, d->bridge_out, bridge);
 	if (ret) {
 		dev_err(d->dev, "failed to attach the DSI bridge\n");
 		return ret;
 	}
-	d->connector.status = connector_status_connected;
 
 	return 0;
 }
@@ -881,6 +869,7 @@ static const struct drm_bridge_funcs mcde_dsi_bridge_funcs = {
 	.mode_set = mcde_dsi_bridge_mode_set,
 	.disable = mcde_dsi_bridge_disable,
 	.enable = mcde_dsi_bridge_enable,
+	.pre_enable = mcde_dsi_bridge_pre_enable,
 };
 
 static int mcde_dsi_bind(struct device *dev, struct device *master,
@@ -901,7 +890,7 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 	d->mcde = mcde;
 	/* If the display attached before binding, set this up */
 	if (d->mdsi)
-		d->mcde->mdsi = d->mdsi;
+		mcde_dsi_attach_to_mcde(d);
 
 	/* Obtain the clocks */
 	d->hs_clk = devm_clk_get(dev, "hs");

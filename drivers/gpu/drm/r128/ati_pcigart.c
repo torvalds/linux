@@ -33,10 +33,11 @@
 
 #include <linux/export.h>
 
-#include <drm/ati_pcigart.h>
 #include <drm/drm_device.h>
 #include <drm/drm_pci.h>
 #include <drm/drm_print.h>
+
+#include "ati_pcigart.h"
 
 # define ATI_PCIGART_PAGE_SIZE		4096	/**< PCI GART page size */
 
@@ -95,7 +96,6 @@ int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info 
 
 	return 1;
 }
-EXPORT_SYMBOL(drm_ati_pcigart_cleanup);
 
 int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *gart_info)
 {
@@ -207,4 +207,3 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	gart_info->bus_addr = bus_address;
 	return ret;
 }
-EXPORT_SYMBOL(drm_ati_pcigart_init);

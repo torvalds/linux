@@ -24,9 +24,9 @@ Driver Initialization
 At the core of every DRM driver is a :c:type:`struct drm_driver
 <drm_driver>` structure. Drivers typically statically initialize
 a drm_driver structure, and then pass it to
-:c:func:`drm_dev_alloc()` to allocate a device instance. After the
+drm_dev_alloc() to allocate a device instance. After the
 device instance is fully initialized it can be registered (which makes
-it accessible from userspace) using :c:func:`drm_dev_register()`.
+it accessible from userspace) using drm_dev_register().
 
 The :c:type:`struct drm_driver <drm_driver>` structure
 contains static information that describes the driver and features it

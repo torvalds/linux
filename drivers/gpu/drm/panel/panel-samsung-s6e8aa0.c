@@ -920,9 +920,9 @@ static int s6e8aa0_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int s6e8aa0_get_modes(struct drm_panel *panel)
+static int s6e8aa0_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct s6e8aa0 *ctx = panel_to_s6e8aa0(panel);
 	struct drm_display_mode *mode;
 

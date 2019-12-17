@@ -5,7 +5,7 @@
  * Author: Christopher Harvey <charvey@matrox.com>
  */
 
-#include <drm/drm_pci.h>
+#include <linux/pci.h>
 
 #include "mgag200_drv.h"
 

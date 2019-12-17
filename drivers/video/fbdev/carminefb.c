@@ -527,7 +527,7 @@ static int init_hardware(struct carmine_hw *hw)
 	return 0;
 }
 
-static struct fb_ops carminefb_ops = {
+static const struct fb_ops carminefb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,

@@ -22,7 +22,7 @@
  * Authors: Alex Deucher
  */
 
-#include <drm/drm_pci.h>
+#include <linux/pci.h>
 
 #include "atom.h"
 #include "cypress_dpm.h"

@@ -123,15 +123,9 @@ static int komeda_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct komeda_product_data komeda_products[] = {
-	[MALI_D71] = {
-		.product_id = MALIDP_D71_PRODUCT_ID,
-		.identify = d71_identify,
-	},
-};
-
 static const struct of_device_id komeda_of_match[] = {
-	{ .compatible = "arm,mali-d71", .data = &komeda_products[MALI_D71], },
+	{ .compatible = "arm,mali-d71", .data = d71_identify, },
+	{ .compatible = "arm,mali-d32", .data = d71_identify, },
 	{},
 };
 

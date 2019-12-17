@@ -95,10 +95,6 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  * It will automatically set up deferred I/O if the driver requires a shadow
  * buffer.
  *
- * For other drivers, setup fbdev emulation by calling
- * drm_fb_helper_fbdev_setup() and tear it down by calling
- * drm_fb_helper_fbdev_teardown().
- *
  * At runtime drivers should restore the fbdev console by using
  * drm_fb_helper_lastclose() as their &drm_driver.lastclose callback.
  * They should also notify the fb helper code from updates to the output
@@ -567,8 +563,7 @@ EXPORT_SYMBOL(drm_fb_helper_unregister_fbi);
  * drm_fb_helper_fini - finialize a &struct drm_fb_helper
  * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
- * This cleans up all remaining resources associated with @fb_helper. Must be
- * called after drm_fb_helper_unlink_fbi() was called.
+ * This cleans up all remaining resources associated with @fb_helper.
  */
 void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
@@ -607,19 +602,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 		drm_client_release(&fb_helper->client);
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
-
-/**
- * drm_fb_helper_unlink_fbi - wrapper around unlink_framebuffer
- * @fb_helper: driver-allocated fbdev helper, can be NULL
- *
- * A wrapper around unlink_framebuffer implemented by fbdev core
- */
-void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper)
-{
-	if (fb_helper && fb_helper->fbdev)
-		unlink_framebuffer(fb_helper->fbdev);
-}
-EXPORT_SYMBOL(drm_fb_helper_unlink_fbi);
 
 static bool drm_fbdev_use_shadow_fb(struct drm_fb_helper *fb_helper)
 {
@@ -1920,108 +1902,6 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
 
 /**
- * drm_fb_helper_fbdev_setup() - Setup fbdev emulation
- * @dev: DRM device
- * @fb_helper: fbdev helper structure to set up
- * @funcs: fbdev helper functions
- * @preferred_bpp: Preferred bits per pixel for the device.
- *                 @dev->mode_config.preferred_depth is used if this is zero.
- * @max_conn_count: Maximum number of connectors (not used)
- *
- * This function sets up fbdev emulation and registers fbdev for access by
- * userspace. If all connectors are disconnected, setup is deferred to the next
- * time drm_fb_helper_hotplug_event() is called.
- * The caller must to provide a &drm_fb_helper_funcs->fb_probe callback
- * function.
- *
- * Use drm_fb_helper_fbdev_teardown() to destroy the fbdev.
- *
- * See also: drm_fb_helper_initial_config(), drm_fbdev_generic_setup().
- *
- * Returns:
- * Zero on success or negative error code on failure.
- */
-int drm_fb_helper_fbdev_setup(struct drm_device *dev,
-			      struct drm_fb_helper *fb_helper,
-			      const struct drm_fb_helper_funcs *funcs,
-			      unsigned int preferred_bpp,
-			      unsigned int max_conn_count)
-{
-	int ret;
-
-	if (!preferred_bpp)
-		preferred_bpp = dev->mode_config.preferred_depth;
-	if (!preferred_bpp)
-		preferred_bpp = 32;
-
-	drm_fb_helper_prepare(dev, fb_helper, funcs);
-
-	ret = drm_fb_helper_init(dev, fb_helper, 0);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dev->dev, "fbdev: Failed to initialize (ret=%d)\n", ret);
-		return ret;
-	}
-
-	if (!drm_drv_uses_atomic_modeset(dev))
-		drm_helper_disable_unused_functions(dev);
-
-	ret = drm_fb_helper_initial_config(fb_helper, preferred_bpp);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dev->dev, "fbdev: Failed to set configuration (ret=%d)\n", ret);
-		goto err_drm_fb_helper_fini;
-	}
-
-	return 0;
-
-err_drm_fb_helper_fini:
-	drm_fb_helper_fbdev_teardown(dev);
-
-	return ret;
-}
-EXPORT_SYMBOL(drm_fb_helper_fbdev_setup);
-
-/**
- * drm_fb_helper_fbdev_teardown - Tear down fbdev emulation
- * @dev: DRM device
- *
- * This function unregisters fbdev if not already done and cleans up the
- * associated resources including the &drm_framebuffer.
- * The driver is responsible for freeing the &drm_fb_helper structure which is
- * stored in &drm_device->fb_helper. Do note that this pointer has been cleared
- * when this function returns.
- *
- * In order to support device removal/unplug while file handles are still open,
- * drm_fb_helper_unregister_fbi() should be called on device removal and
- * drm_fb_helper_fbdev_teardown() in the &drm_driver->release callback when
- * file handles are closed.
- */
-void drm_fb_helper_fbdev_teardown(struct drm_device *dev)
-{
-	struct drm_fb_helper *fb_helper = dev->fb_helper;
-	struct fb_ops *fbops = NULL;
-
-	if (!fb_helper)
-		return;
-
-	/* Unregister if it hasn't been done already */
-	if (fb_helper->fbdev && fb_helper->fbdev->dev)
-		drm_fb_helper_unregister_fbi(fb_helper);
-
-	if (fb_helper->fbdev && fb_helper->fbdev->fbdefio) {
-		fb_deferred_io_cleanup(fb_helper->fbdev);
-		kfree(fb_helper->fbdev->fbdefio);
-		fbops = fb_helper->fbdev->fbops;
-	}
-
-	drm_fb_helper_fini(fb_helper);
-	kfree(fbops);
-
-	if (fb_helper->fb)
-		drm_framebuffer_remove(fb_helper->fb);
-}
-EXPORT_SYMBOL(drm_fb_helper_fbdev_teardown);
-
-/**
  * drm_fb_helper_lastclose - DRM driver lastclose helper for fbdev emulation
  * @dev: DRM device
  *
@@ -2074,7 +1954,6 @@ static int drm_fbdev_fb_release(struct fb_info *info, int user)
 static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 {
 	struct fb_info *fbi = fb_helper->fbdev;
-	struct fb_ops *fbops = NULL;
 	void *shadow = NULL;
 
 	if (!fb_helper->dev)
@@ -2083,15 +1962,11 @@ static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 	if (fbi && fbi->fbdefio) {
 		fb_deferred_io_cleanup(fbi);
 		shadow = fbi->screen_buffer;
-		fbops = fbi->fbops;
 	}
 
 	drm_fb_helper_fini(fb_helper);
 
-	if (shadow) {
-		vfree(shadow);
-		kfree(fbops);
-	}
+	vfree(shadow);
 
 	drm_client_framebuffer_delete(fb_helper->buffer);
 }
@@ -2122,7 +1997,7 @@ static int drm_fbdev_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 		return -ENODEV;
 }
 
-static struct fb_ops drm_fbdev_fb_ops = {
+static const struct fb_ops drm_fbdev_fb_ops = {
 	.owner		= THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_open	= drm_fbdev_fb_open,
@@ -2141,21 +2016,14 @@ static struct fb_deferred_io drm_fbdev_defio = {
 	.deferred_io	= drm_fb_helper_deferred_io,
 };
 
-/**
- * drm_fb_helper_generic_probe - Generic fbdev emulation probe helper
- * @fb_helper: fbdev helper structure
- * @sizes: describes fbdev size and scanout surface size
- *
+/*
  * This function uses the client API to create a framebuffer backed by a dumb buffer.
  *
  * The _sys_ versions are used for &fb_ops.fb_read, fb_write, fb_fillrect,
  * fb_copyarea, fb_imageblit.
- *
- * Returns:
- * Zero on success or negative error code on failure.
  */
-int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
-				struct drm_fb_helper_surface_size *sizes)
+static int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
+				       struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_client_buffer *buffer;
@@ -2189,24 +2057,10 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	drm_fb_helper_fill_info(fbi, fb_helper, sizes);
 
 	if (drm_fbdev_use_shadow_fb(fb_helper)) {
-		struct fb_ops *fbops;
-		void *shadow;
-
-		/*
-		 * fb_deferred_io_cleanup() clears &fbops->fb_mmap so a per
-		 * instance version is necessary.
-		 */
-		fbops = kzalloc(sizeof(*fbops), GFP_KERNEL);
-		shadow = vzalloc(fbi->screen_size);
-		if (!fbops || !shadow) {
-			kfree(fbops);
-			vfree(shadow);
+		fbi->screen_buffer = vzalloc(fbi->screen_size);
+		if (!fbi->screen_buffer)
 			return -ENOMEM;
-		}
 
-		*fbops = *fbi->fbops;
-		fbi->fbops = fbops;
-		fbi->screen_buffer = shadow;
 		fbi->fbdefio = &drm_fbdev_defio;
 
 		fb_deferred_io_init(fbi);
@@ -2227,7 +2081,6 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_fb_helper_generic_probe);
 
 static const struct drm_fb_helper_funcs drm_fb_helper_generic_funcs = {
 	.fb_probe = drm_fb_helper_generic_probe,
@@ -2309,8 +2162,7 @@ static const struct drm_client_funcs drm_fbdev_client_funcs = {
  *                 @dev->mode_config.preferred_depth is used if this is zero.
  *
  * This function sets up generic fbdev emulation for drivers that supports
- * dumb buffers with a virtual address and that can be mmap'ed. If the driver
- * does not support these functions, it could use drm_fb_helper_fbdev_setup().
+ * dumb buffers with a virtual address and that can be mmap'ed.
  *
  * Restore, hotplug events and teardown are all taken care of. Drivers that do
  * suspend/resume need to call drm_fb_helper_set_suspend_unlocked() themselves.

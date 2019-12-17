@@ -26,14 +26,14 @@
  *          Jerome Glisse
  */
 
-#include <linux/slab.h>
-#include <linux/seq_file.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
+#include <linux/seq_file.h>
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_vblank.h>
 #include <drm/radeon_drm.h>
 

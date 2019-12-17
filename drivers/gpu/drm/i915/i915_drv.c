@@ -1385,7 +1385,7 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 
 static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 {
-	if (drm_debug & DRM_UT_DRIVER) {
+	if (drm_debug_enabled(DRM_UT_DRIVER)) {
 		struct drm_printer p = drm_debug_printer("i915 device info:");
 
 		drm_printf(&p, "pciid=0x%04x rev=0x%02x platform=%s (subplatform=0x%x) gen=%i\n",

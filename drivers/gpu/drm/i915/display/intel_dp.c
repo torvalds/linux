@@ -1814,7 +1814,7 @@ static void intel_dp_print_rates(struct intel_dp *intel_dp)
 {
 	char str[128]; /* FIXME: too big for stack? */
 
-	if ((drm_debug & DRM_UT_KMS) == 0)
+	if (!drm_debug_enabled(DRM_UT_KMS))
 		return;
 
 	snprintf_int_array(str, sizeof(str),

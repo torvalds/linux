@@ -60,8 +60,8 @@
  * 	wait for flip_done		<----
  * 	clean up atomic state
  *
- * The important bit to know is that cleanup_done is the terminal event, but the
- * ordering between flip_done and hw_done is entirely up to the specific driver
+ * The important bit to know is that &cleanup_done is the terminal event, but the
+ * ordering between &flip_done and &hw_done is entirely up to the specific driver
  * and modeset state change.
  *
  * For an implementation of how to use this look at
@@ -92,6 +92,9 @@ struct drm_crtc_commit {
 	 * commit is sent to userspace, or when an out-fence is singalled. Note
 	 * that for most hardware, in most cases this happens after @hw_done is
 	 * signalled.
+	 *
+	 * Completion of this stage is signalled implicitly by calling
+	 * drm_crtc_send_vblank_event() on &drm_crtc_state.event.
 	 */
 	struct completion flip_done;
 
@@ -107,6 +110,9 @@ struct drm_crtc_commit {
 	 * Note that this does not need to include separately reference-counted
 	 * resources like backing storage buffer pinning, or runtime pm
 	 * management.
+	 *
+	 * Drivers should call drm_atomic_helper_commit_hw_done() to signal
+	 * completion of this stage.
 	 */
 	struct completion hw_done;
 
@@ -118,6 +124,9 @@ struct drm_crtc_commit {
 	 * a vblank wait completed it might be a bit later. This completion is
 	 * useful to throttle updates and avoid hardware updates getting ahead
 	 * of the buffer cleanup too much.
+	 *
+	 * Drivers should call drm_atomic_helper_commit_cleanup_done() to signal
+	 * completion of this stage.
 	 */
 	struct completion cleanup_done;
 
@@ -693,6 +702,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)								\
 		for_each_if ((__state)->connectors[__i].ptr &&			\
 			     ((connector) = (__state)->connectors[__i].ptr,	\
+			     (void)(connector) /* Only to avoid unused-but-set-variable warning */, \
 			     (old_connector_state) = (__state)->connectors[__i].old_state,	\
 			     (new_connector_state) = (__state)->connectors[__i].new_state, 1))
 
@@ -714,6 +724,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)								\
 		for_each_if ((__state)->connectors[__i].ptr &&			\
 			     ((connector) = (__state)->connectors[__i].ptr,	\
+			     (void)(connector) /* Only to avoid unused-but-set-variable warning */, \
 			     (old_connector_state) = (__state)->connectors[__i].old_state, 1))
 
 /**
@@ -734,7 +745,9 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)								\
 		for_each_if ((__state)->connectors[__i].ptr &&			\
 			     ((connector) = (__state)->connectors[__i].ptr,	\
-			     (new_connector_state) = (__state)->connectors[__i].new_state, 1))
+			     (void)(connector) /* Only to avoid unused-but-set-variable warning */, \
+			     (new_connector_state) = (__state)->connectors[__i].new_state, \
+			     (void)(new_connector_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_oldnew_crtc_in_state - iterate over all CRTCs in an atomic update
@@ -754,7 +767,9 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if ((__state)->crtcs[__i].ptr &&		\
 			     ((crtc) = (__state)->crtcs[__i].ptr,	\
+			      (void)(crtc) /* Only to avoid unused-but-set-variable warning */, \
 			     (old_crtc_state) = (__state)->crtcs[__i].old_state, \
+			     (void)(old_crtc_state) /* Only to avoid unused-but-set-variable warning */, \
 			     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1))
 
 /**
@@ -793,7 +808,9 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if ((__state)->crtcs[__i].ptr &&		\
 			     ((crtc) = (__state)->crtcs[__i].ptr,	\
-			     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1))
+			     (void)(crtc) /* Only to avoid unused-but-set-variable warning */, \
+			     (new_crtc_state) = (__state)->crtcs[__i].new_state, \
+			     (void)(new_crtc_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_oldnew_plane_in_state - iterate over all planes in an atomic update
@@ -813,6 +830,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if ((__state)->planes[__i].ptr &&		\
 			     ((plane) = (__state)->planes[__i].ptr,	\
+			      (void)(plane) /* Only to avoid unused-but-set-variable warning */, \
 			      (old_plane_state) = (__state)->planes[__i].old_state,\
 			      (new_plane_state) = (__state)->planes[__i].new_state, 1))
 
@@ -873,7 +891,9 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if ((__state)->planes[__i].ptr &&		\
 			     ((plane) = (__state)->planes[__i].ptr,	\
-			      (new_plane_state) = (__state)->planes[__i].new_state, 1))
+			      (void)(plane) /* Only to avoid unused-but-set-variable warning */, \
+			      (new_plane_state) = (__state)->planes[__i].new_state, \
+			      (void)(new_plane_state) /* Only to avoid unused-but-set-variable warning */, 1))
 
 /**
  * for_each_oldnew_private_obj_in_state - iterate over all private objects in an atomic update

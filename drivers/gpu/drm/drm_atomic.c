@@ -688,10 +688,12 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
  * associated state struct &drm_private_state.
  *
  * Similar to userspace-exposed objects, private state structures can be
- * acquired by calling drm_atomic_get_private_obj_state(). Since this function
- * does not take care of locking, drivers should wrap it for each type of
- * private state object they have with the required call to drm_modeset_lock()
- * for the corresponding &drm_modeset_lock.
+ * acquired by calling drm_atomic_get_private_obj_state(). This also takes care
+ * of locking, hence drivers should not have a need to call drm_modeset_lock()
+ * directly. Sequence of the actual hardware state commit is not handled,
+ * drivers might need to keep track of struct drm_crtc_commit within subclassed
+ * structure of &drm_private_state as necessary, e.g. similar to
+ * &drm_plane_state.commit. See also &drm_atomic_state.fake_commit.
  *
  * All private state structures contained in a &drm_atomic_state update can be
  * iterated using for_each_oldnew_private_obj_in_state(),

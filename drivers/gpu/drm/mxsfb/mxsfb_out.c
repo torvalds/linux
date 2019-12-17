@@ -31,7 +31,7 @@ static int mxsfb_panel_get_modes(struct drm_connector *connector)
 			drm_connector_to_mxsfb_drm_private(connector);
 
 	if (mxsfb->panel)
-		return drm_panel_get_modes(mxsfb->panel);
+		return drm_panel_get_modes(mxsfb->panel, connector);
 
 	return 0;
 }

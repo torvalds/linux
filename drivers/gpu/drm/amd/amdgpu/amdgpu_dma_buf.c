@@ -360,10 +360,8 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_gem_object *gobj,
 		return ERR_PTR(-EPERM);
 
 	buf = drm_gem_prime_export(gobj, flags);
-	if (!IS_ERR(buf)) {
-		buf->file->f_mapping = gobj->dev->anon_inode->i_mapping;
+	if (!IS_ERR(buf))
 		buf->ops = &amdgpu_dmabuf_ops;
-	}
 
 	return buf;
 }

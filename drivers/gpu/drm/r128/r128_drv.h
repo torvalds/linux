@@ -39,10 +39,11 @@
 #include <linux/io.h>
 #include <linux/irqreturn.h>
 
-#include <drm/ati_pcigart.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_legacy.h>
 #include <drm/r128_drm.h>
+
+#include "ati_pcigart.h"
 
 /* General customization:
  */
