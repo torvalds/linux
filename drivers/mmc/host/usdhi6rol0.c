@@ -676,12 +676,14 @@ static void usdhi6_dma_request(struct usdhi6_host *host, phys_addr_t start)
 	};
 	int ret;
 
-	host->chan_tx = dma_request_slave_channel(mmc_dev(host->mmc), "tx");
+	host->chan_tx = dma_request_chan(mmc_dev(host->mmc), "tx");
 	dev_dbg(mmc_dev(host->mmc), "%s: TX: got channel %p\n", __func__,
 		host->chan_tx);
 
-	if (!host->chan_tx)
+	if (IS_ERR(host->chan_tx)) {
+		host->chan_tx = NULL;
 		return;
+	}
 
 	cfg.direction = DMA_MEM_TO_DEV;
 	cfg.dst_addr = start + USDHI6_SD_BUF0;
@@ -691,12 +693,14 @@ static void usdhi6_dma_request(struct usdhi6_host *host, phys_addr_t start)
 	if (ret < 0)
 		goto e_release_tx;
 
-	host->chan_rx = dma_request_slave_channel(mmc_dev(host->mmc), "rx");
+	host->chan_rx = dma_request_chan(mmc_dev(host->mmc), "rx");
 	dev_dbg(mmc_dev(host->mmc), "%s: RX: got channel %p\n", __func__,
 		host->chan_rx);
 
-	if (!host->chan_rx)
+	if (IS_ERR(host->chan_rx)) {
+		host->chan_rx = NULL;
 		goto e_release_tx;
+	}
 
 	cfg.direction = DMA_DEV_TO_MEM;
 	cfg.src_addr = cfg.dst_addr;
