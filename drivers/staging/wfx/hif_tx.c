@@ -6,7 +6,6 @@
  * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
-#include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 
 #include "hif_tx.h"
