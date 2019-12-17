@@ -250,6 +250,7 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 #define SH_MOBILE_SDHI_SCC_CKSEL	0x006
 #define SH_MOBILE_SDHI_SCC_RVSCNTL	0x008
 #define SH_MOBILE_SDHI_SCC_RVSREQ	0x00A
+#define SH_MOBILE_SDHI_SCC_SMPCMP       0x00C
 #define SH_MOBILE_SDHI_SCC_TMPPORT2	0x00E
 
 /* Definitions for values the SH_MOBILE_SDHI_SCC_DTCNTL register */
@@ -265,6 +266,10 @@ static int renesas_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
 #define SH_MOBILE_SDHI_SCC_RVSREQ_RVSERR	BIT(2)
 #define SH_MOBILE_SDHI_SCC_RVSREQ_REQTAPUP	BIT(1)
 #define SH_MOBILE_SDHI_SCC_RVSREQ_REQTAPDOWN	BIT(0)
+/* Definitions for values the SH_MOBILE_SDHI_SCC_SMPCMP register */
+#define SH_MOBILE_SDHI_SCC_SMPCMP_CMD_ERR	(BIT(24) | BIT(8))
+#define SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQUP	BIT(24)
+#define SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQDOWN	BIT(8)
 /* Definitions for values the SH_MOBILE_SDHI_SCC_TMPPORT2 register */
 #define SH_MOBILE_SDHI_SCC_TMPPORT2_HS400OSEL	BIT(4)
 #define SH_MOBILE_SDHI_SCC_TMPPORT2_HS400EN	BIT(31)
@@ -494,6 +499,7 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 static bool renesas_sdhi_manual_correction(struct tmio_mmc_host *host, bool use_4tap)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
+	unsigned long new_tap = host->tap_set;
 	u32 val;
 
 	val = sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSREQ);
@@ -503,15 +509,34 @@ static bool renesas_sdhi_manual_correction(struct tmio_mmc_host *host, bool use_
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_RVSREQ, 0);
 
 	/* Change TAP position according to correction status */
-	if (val & SH_MOBILE_SDHI_SCC_RVSREQ_RVSERR)
-		return true;    /* Need re-tune */
-	else if (val & SH_MOBILE_SDHI_SCC_RVSREQ_REQTAPUP)
-		host->tap_set = (host->tap_set + 1) % host->tap_num;
-	else if (val & SH_MOBILE_SDHI_SCC_RVSREQ_REQTAPDOWN)
-		host->tap_set = (host->tap_set - 1) % host->tap_num;
-	else
-		return false;
+	if (sd_ctrl_read16(host, CTL_VERSION) == SDHI_VER_GEN3_SDMMC &&
+	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
+		/*
+		 * With HS400, the DAT signal is based on DS, not CLK.
+		 * Therefore, use only CMD status.
+		 */
+		u32 smpcmp = sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_SMPCMP) &
+					   SH_MOBILE_SDHI_SCC_SMPCMP_CMD_ERR;
+		if (!smpcmp)
+			return false;	/* no error in CMD signal */
+		else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQUP)
+			new_tap++;
+		else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQDOWN)
+			new_tap--;
+		else
+			return true;	/* need retune */
+	} else {
+		if (val & SH_MOBILE_SDHI_SCC_RVSREQ_RVSERR)
+			return true;    /* need retune */
+		else if (val & SH_MOBILE_SDHI_SCC_RVSREQ_REQTAPUP)
+			new_tap++;
+		else if (val & SH_MOBILE_SDHI_SCC_RVSREQ_REQTAPDOWN)
+			new_tap--;
+		else
+			return false;
+	}
 
+	host->tap_set = (new_tap % host->tap_num);
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET,
 		       host->tap_set / (use_4tap ? 2 : 1));
 
