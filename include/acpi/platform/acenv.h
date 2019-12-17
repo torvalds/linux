@@ -128,6 +128,17 @@
 #endif
 
 
+/*
+ * acpisrc CR\LF support
+ * Unix file line endings do not include the carriage return.
+ * If the acpisrc utility is being built using a microsoft compiler, it means
+ * that it will be running on a windows machine which means that the output is
+ * expected to have CR/LF newlines. If the acpisrc utility is built with
+ * anything else, it will likely run on a system with LF newlines. This flag
+ * tells the acpisrc utility that newlines will be in the LF format.
+ */
+#define ACPI_SRC_OS_LF_ONLY 0
+
 /*! [Begin] no source code translation */
 
 /******************************************************************************
