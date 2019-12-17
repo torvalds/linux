@@ -6,7 +6,7 @@
  * Copyright (C) 2018 Cogent Embedded, Inc.
  */
 
-#include "r8a77965-m3nulcb.dts"
+#include "r8a77965-ulcb.dts"
 #include "ulcb-kf.dtsi"
 
 / {
