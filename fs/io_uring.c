@@ -483,6 +483,7 @@ struct io_kiocb {
 #define REQ_F_INFLIGHT		16384	/* on inflight list */
 #define REQ_F_COMP_LOCKED	32768	/* completion under lock */
 #define REQ_F_HARDLINK		65536	/* doesn't sever on completion < 0 */
+#define REQ_F_FORCE_ASYNC	131072	/* IOSQE_ASYNC */
 	u64			user_data;
 	u32			result;
 	u32			sequence;
@@ -4017,8 +4018,17 @@ static void io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 			req_set_fail_links(req);
 			io_double_put_req(req);
 		}
-	} else
+	} else if ((req->flags & REQ_F_FORCE_ASYNC) &&
+		   !io_wq_current_is_worker()) {
+		/*
+		 * Never try inline submit of IOSQE_ASYNC is set, go straight
+		 * to async execution.
+		 */
+		req->work.flags |= IO_WQ_WORK_CONCURRENT;
+		io_queue_async_work(req);
+	} else {
 		__io_queue_sqe(req, sqe);
+	}
 }
 
 static inline void io_queue_link_head(struct io_kiocb *req)
@@ -4031,7 +4041,7 @@ static inline void io_queue_link_head(struct io_kiocb *req)
 }
 
 #define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
-				IOSQE_IO_HARDLINK)
+				IOSQE_IO_HARDLINK | IOSQE_ASYNC)
 
 static bool io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			  struct io_submit_state *state, struct io_kiocb **link)
@@ -4044,6 +4054,8 @@ static bool io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		ret = -EINVAL;
 		goto err_req;
 	}
+	if (sqe->flags & IOSQE_ASYNC)
+		req->flags |= REQ_F_FORCE_ASYNC;
 
 	ret = io_req_set_file(state, req, sqe);
 	if (unlikely(ret)) {

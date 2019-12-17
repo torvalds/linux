@@ -51,6 +51,7 @@ struct io_uring_sqe {
 #define IOSQE_IO_DRAIN		(1U << 1)	/* issue after inflight IO */
 #define IOSQE_IO_LINK		(1U << 2)	/* links next sqe */
 #define IOSQE_IO_HARDLINK	(1U << 3)	/* like LINK, but stronger */
+#define IOSQE_ASYNC		(1U << 4)	/* always go async */
 
 /*
  * io_uring_setup() flags
