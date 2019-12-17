@@ -491,6 +491,10 @@ static int mt7615_load_n9(struct mt7615_dev *dev, const char *name)
 		goto out;
 	}
 
+	snprintf(dev->mt76.hw->wiphy->fw_version,
+		 sizeof(dev->mt76.hw->wiphy->fw_version),
+		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
+
 out:
 	release_firmware(fw);
 	return ret;
@@ -527,10 +531,6 @@ static int mt7615_load_cr4(struct mt7615_dev *dev, const char *name)
 		dev_err(dev->mt76.dev, "Failed to start CR4 firmware\n");
 		goto out;
 	}
-
-	snprintf(dev->mt76.hw->wiphy->fw_version,
-		 sizeof(dev->mt76.hw->wiphy->fw_version),
-		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
 
 out:
 	release_firmware(fw);
