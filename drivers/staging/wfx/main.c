@@ -182,7 +182,7 @@ struct gpio_desc *wfx_get_gpio(struct device *dev, int override,
 	} else {
 		ret = devm_gpiod_get(dev, label, GPIOD_OUT_LOW);
 	}
-	if (IS_ERR(ret) || !ret) {
+	if (IS_ERR_OR_NULL(ret)) {
 		if (!ret || PTR_ERR(ret) == -ENOENT)
 			dev_warn(dev, "gpio %s is not defined\n", label);
 		else
