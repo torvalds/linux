@@ -370,39 +370,27 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
-	int ret = 0;
 	struct hif_req_edca_queue_params *edca;
 
+	WARN_ON(queue >= hw->queues);
+
 	mutex_lock(&wdev->conf_mutex);
+	wvif->edca.uapsd_enable[queue] = params->uapsd;
+	edca = &wvif->edca.params[queue];
+	edca->aifsn = params->aifs;
+	edca->cw_min = params->cw_min;
+	edca->cw_max = params->cw_max;
+	edca->tx_op_limit = params->txop * TXOP_UNIT;
+	edca->allowed_medium_time = 0;
+	hif_set_edca_queue_params(wvif, edca);
 
-	if (queue < hw->queues) {
-		edca = &wvif->edca.params[queue];
-
-		wvif->edca.uapsd_enable[queue] = params->uapsd;
-		edca->aifsn = params->aifs;
-		edca->cw_min = params->cw_min;
-		edca->cw_max = params->cw_max;
-		edca->tx_op_limit = params->txop * TXOP_UNIT;
-		edca->allowed_medium_time = 0;
-		ret = hif_set_edca_queue_params(wvif, edca);
-		if (ret) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (wvif->vif->type == NL80211_IFTYPE_STATION) {
-			ret = wfx_set_uapsd_param(wvif, &wvif->edca);
-			if (!ret && wvif->setbssparams_done &&
-			    wvif->state == WFX_STATE_STA)
-				ret = wfx_update_pm(wvif);
-		}
-	} else {
-		ret = -EINVAL;
+	if (wvif->vif->type == NL80211_IFTYPE_STATION) {
+		wfx_set_uapsd_param(wvif, &wvif->edca);
+		if (wvif->setbssparams_done && wvif->state == WFX_STATE_STA)
+			wfx_update_pm(wvif);
 	}
-
-out:
 	mutex_unlock(&wdev->conf_mutex);
-	return ret;
+	return 0;
 }
 
 int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
