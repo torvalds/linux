@@ -63,7 +63,6 @@ void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad)
 	int tx = 0;
 
 	mutex_lock(&wvif->bss_loss_lock);
-	wvif->delayed_link_loss = 0;
 	cancel_work_sync(&wvif->bss_params_work);
 
 	if (init) {
@@ -429,18 +428,9 @@ static void wfx_event_handler_work(struct work_struct *work)
 		switch (event->evt.event_id) {
 		case HIF_EVENT_IND_BSSLOST:
 			cancel_work_sync(&wvif->unjoin_work);
-			if (mutex_trylock(&wvif->scan_lock)) {
-				wfx_cqm_bssloss_sm(wvif, 1, 0, 0);
-				mutex_unlock(&wvif->scan_lock);
-			} else {
-				/* Scan is in progress. Delay reporting.
-				 * Scan complete will trigger bss_loss_work
-				 */
-				wvif->delayed_link_loss = 1;
-				/* Also start a watchdog. */
-				schedule_delayed_work(&wvif->bss_loss_work,
-						      5 * HZ);
-			}
+			mutex_lock(&wvif->scan_lock);
+			wfx_cqm_bssloss_sm(wvif, 1, 0, 0);
+			mutex_unlock(&wvif->scan_lock);
 			break;
 		case HIF_EVENT_IND_BSSREGAINED:
 			wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
@@ -496,8 +486,6 @@ static void wfx_set_beacon_wakeup_period_work(struct work_struct *work)
 static void wfx_do_unjoin(struct wfx_vif *wvif)
 {
 	mutex_lock(&wvif->wdev->conf_mutex);
-
-	wvif->delayed_link_loss = false;
 
 	if (!wvif->state)
 		goto done;

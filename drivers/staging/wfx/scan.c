@@ -95,10 +95,6 @@ void wfx_hw_scan_work(struct work_struct *work)
 	mutex_unlock(&wvif->wdev->conf_mutex);
 	mutex_unlock(&wvif->scan_lock);
 	__ieee80211_scan_completed_compat(wvif->wdev->hw, ret < 0);
-	if (wvif->delayed_link_loss) {
-		wvif->delayed_link_loss = false;
-		wfx_cqm_bssloss_sm(wvif, 1, 0, 0);
-	}
 }
 
 int wfx_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

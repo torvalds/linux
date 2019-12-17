@@ -70,7 +70,6 @@ struct wfx_vif {
 	int			id;
 	enum wfx_state		state;
 
-	int			delayed_link_loss;
 	int			bss_loss_state;
 	u32			bss_loss_confirm_id;
 	struct mutex		bss_loss_lock;
