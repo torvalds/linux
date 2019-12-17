@@ -708,7 +708,7 @@
 			qup_i2c2_default: qup-i2c2-default {
 				pinmux {
 					pins = "gpio15", "gpio16";
-					function = "qup02";
+					function = "qup02_i2c";
 				};
 			};
 
@@ -722,7 +722,7 @@
 			qup_i2c4_default: qup-i2c4-default {
 				pinmux {
 					pins = "gpio115", "gpio116";
-					function = "qup04";
+					function = "qup04_i2c";
 				};
 			};
 
@@ -743,7 +743,7 @@
 			qup_i2c7_default: qup-i2c7-default {
 				pinmux {
 					pins = "gpio6", "gpio7";
-					function = "qup11";
+					function = "qup11_i2c";
 				};
 			};
 
@@ -757,7 +757,7 @@
 			qup_i2c9_default: qup-i2c9-default {
 				pinmux {
 					pins = "gpio46", "gpio47";
-					function = "qup13";
+					function = "qup13_i2c";
 				};
 			};
 
@@ -858,7 +858,7 @@
 			qup_uart2_default: qup-uart2-default {
 				pinmux {
 					pins = "gpio15", "gpio16";
-					function = "qup02";
+					function = "qup02_uart";
 				};
 			};
 
@@ -873,7 +873,7 @@
 			qup_uart4_default: qup-uart4-default {
 				pinmux {
 					pins = "gpio115", "gpio116";
-					function = "qup04";
+					function = "qup04_uart";
 				};
 			};
 
@@ -896,7 +896,7 @@
 			qup_uart7_default: qup-uart7-default {
 				pinmux {
 					pins = "gpio6", "gpio7";
-					function = "qup11";
+					function = "qup11_uart";
 				};
 			};
 
@@ -910,7 +910,7 @@
 			qup_uart9_default: qup-uart9-default {
 				pinmux {
 					pins = "gpio46", "gpio47";
-					function = "qup13";
+					function = "qup13_uart";
 				};
 			};
 
