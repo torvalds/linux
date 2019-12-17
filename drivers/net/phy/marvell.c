@@ -162,17 +162,8 @@
 #define MII_88E1510_GEN_CTRL_REG_1_MODE_SGMII	0x1	/* SGMII to copper */
 #define MII_88E1510_GEN_CTRL_REG_1_RESET	0x8000	/* Soft reset */
 
-#define LPA_FIBER_1000HALF	0x40
-#define LPA_FIBER_1000FULL	0x20
-
 #define LPA_PAUSE_FIBER		0x180
 #define LPA_PAUSE_ASYM_FIBER	0x100
-
-#define ADVERTISE_FIBER_1000HALF	0x40
-#define ADVERTISE_FIBER_1000FULL	0x20
-
-#define ADVERTISE_PAUSE_FIBER		0x180
-#define ADVERTISE_PAUSE_ASYM_FIBER	0x100
 
 #define NB_FIBER_STATS	1
 
@@ -496,16 +487,15 @@ static inline u32 linkmode_adv_to_fiber_adv_t(unsigned long *advertise)
 	u32 result = 0;
 
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT, advertise))
-		result |= ADVERTISE_FIBER_1000HALF;
+		result |= ADVERTISE_1000XHALF;
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, advertise))
-		result |= ADVERTISE_FIBER_1000FULL;
+		result |= ADVERTISE_1000XFULL;
 
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, advertise) &&
 	    linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT, advertise))
-		result |= LPA_PAUSE_ASYM_FIBER;
+		result |= ADVERTISE_1000XPSE_ASYM;
 	else if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT, advertise))
-		result |= (ADVERTISE_PAUSE_FIBER
-			   & (~ADVERTISE_PAUSE_ASYM_FIBER));
+		result |= ADVERTISE_1000XPAUSE;
 
 	return result;
 }
@@ -538,8 +528,8 @@ static int marvell_config_aneg_fiber(struct phy_device *phydev)
 		return adv;
 
 	oldadv = adv;
-	adv &= ~(ADVERTISE_FIBER_1000HALF | ADVERTISE_FIBER_1000FULL
-		| LPA_PAUSE_FIBER);
+	adv &= ~(ADVERTISE_1000XHALF | ADVERTISE_1000XFULL |
+		 ADVERTISE_1000XPAUSE | ADVERTISE_1000XPSE_ASYM);
 	adv |= linkmode_adv_to_fiber_adv_t(phydev->advertising);
 
 	if (adv != oldadv) {
@@ -1301,10 +1291,10 @@ static int m88e6390_config_aneg(struct phy_device *phydev)
 static void fiber_lpa_mod_linkmode_lpa_t(unsigned long *advertising, u32 lpa)
 {
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-			 advertising, lpa & LPA_FIBER_1000HALF);
+			 advertising, lpa & LPA_1000XHALF);
 
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-			 advertising, lpa & LPA_FIBER_1000FULL);
+			 advertising, lpa & LPA_1000XFULL);
 }
 
 static int marvell_read_status_page_an(struct phy_device *phydev,
