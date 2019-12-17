@@ -3022,7 +3022,7 @@ static void icl_sanitize_port_clk_off(struct drm_i915_private *dev_priv,
 			continue;
 
 		DRM_NOTE("PHY %c is disabled/in DSI mode with an ungated DDI clock, gate it\n",
-			 phy_name(port));
+			 phy_name(phy));
 		val |= icl_dpclka_cfgcr0_clk_off(dev_priv, phy);
 		I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 	}
