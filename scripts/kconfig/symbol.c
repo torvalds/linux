@@ -1281,7 +1281,6 @@ struct property *prop_alloc(enum prop_type type, struct symbol *sym)
 	prop = xmalloc(sizeof(*prop));
 	memset(prop, 0, sizeof(*prop));
 	prop->type = type;
-	prop->sym = sym;
 	prop->file = current_file;
 	prop->lineno = zconf_lineno();
 
