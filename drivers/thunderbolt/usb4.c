@@ -226,10 +226,19 @@ int usb4_switch_setup(struct tb_switch *sw)
 
 	parent = tb_switch_parent(sw);
 
+	if (tb_switch_find_port(parent, TB_TYPE_USB3_DOWN)) {
+		val |= ROUTER_CS_5_UTO;
+		xhci = false;
+	}
+
 	/* Only enable PCIe tunneling if the parent router supports it */
 	if (tb_switch_find_port(parent, TB_TYPE_PCIE_DOWN)) {
 		val |= ROUTER_CS_5_PTO;
-		/* xHCI can be enabled if PCIe tunneling is supported */
+		/*
+		 * xHCI can be enabled if PCIe tunneling is supported
+		 * and the parent does not have any USB3 dowstream
+		 * adapters (so we cannot do USB 3.x tunneling).
+		 */
 		if (xhci & ROUTER_CS_6_HCI)
 			val |= ROUTER_CS_5_HCO;
 	}
@@ -698,6 +707,37 @@ struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
 			return p;
 
 		pcie_idx++;
+	}
+
+	return NULL;
+}
+
+/**
+ * usb4_switch_map_usb3_down() - Map USB4 port to a USB3 downstream adapter
+ * @sw: USB4 router
+ * @port: USB4 port
+ *
+ * USB4 routers have direct mapping between USB4 ports and USB 3.x
+ * downstream adapters where the USB 3.x topology is extended. This
+ * function returns the corresponding downstream USB 3.x adapter or
+ * %NULL if no such mapping was possible.
+ */
+struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
+					  const struct tb_port *port)
+{
+	int usb4_idx = usb4_port_idx(sw, port);
+	struct tb_port *p;
+	int usb_idx = 0;
+
+	/* Find USB3 down port matching usb4_port */
+	tb_switch_for_each_port(sw, p) {
+		if (!tb_port_is_usb3_down(p))
+			continue;
+
+		if (usb_idx == usb4_idx && !tb_usb3_port_is_enabled(p))
+			return p;
+
+		usb_idx++;
 	}
 
 	return NULL;

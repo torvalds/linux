@@ -432,6 +432,16 @@ static inline bool tb_port_is_dpout(const struct tb_port *port)
 	return port && port->config.type == TB_TYPE_DP_HDMI_OUT;
 }
 
+static inline bool tb_port_is_usb3_down(const struct tb_port *port)
+{
+	return port && port->config.type == TB_TYPE_USB3_DOWN;
+}
+
+static inline bool tb_port_is_usb3_up(const struct tb_port *port)
+{
+	return port && port->config.type == TB_TYPE_USB3_UP;
+}
+
 static inline int tb_sw_read(struct tb_switch *sw, void *buffer,
 			     enum tb_cfg_space space, u32 offset, u32 length)
 {
@@ -736,6 +746,9 @@ int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap);
 int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap);
 bool tb_port_is_enabled(struct tb_port *port);
 
+bool tb_usb3_port_is_enabled(struct tb_port *port);
+int tb_usb3_port_enable(struct tb_port *port, bool enable);
+
 bool tb_pci_port_is_enabled(struct tb_port *port);
 int tb_pci_port_enable(struct tb_port *port, bool enable);
 
@@ -817,6 +830,8 @@ bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
 struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
+					  const struct tb_port *port);
+struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 					  const struct tb_port *port);
 
 int usb4_port_unlock(struct tb_port *port);

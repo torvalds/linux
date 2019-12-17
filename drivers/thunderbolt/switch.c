@@ -1042,9 +1042,44 @@ bool tb_port_is_enabled(struct tb_port *port)
 	case TB_TYPE_DP_HDMI_OUT:
 		return tb_dp_port_is_enabled(port);
 
+	case TB_TYPE_USB3_UP:
+	case TB_TYPE_USB3_DOWN:
+		return tb_usb3_port_is_enabled(port);
+
 	default:
 		return false;
 	}
+}
+
+/**
+ * tb_usb3_port_is_enabled() - Is the USB3 adapter port enabled
+ * @port: USB3 adapter port to check
+ */
+bool tb_usb3_port_is_enabled(struct tb_port *port)
+{
+	u32 data;
+
+	if (tb_port_read(port, &data, TB_CFG_PORT,
+			 port->cap_adap + ADP_USB3_CS_0, 1))
+		return false;
+
+	return !!(data & ADP_USB3_CS_0_PE);
+}
+
+/**
+ * tb_usb3_port_enable() - Enable USB3 adapter port
+ * @port: USB3 adapter port to enable
+ * @enable: Enable/disable the USB3 adapter
+ */
+int tb_usb3_port_enable(struct tb_port *port, bool enable)
+{
+	u32 word = enable ? (ADP_USB3_CS_0_PE | ADP_USB3_CS_0_V)
+			  : ADP_USB3_CS_0_V;
+
+	if (!port->cap_adap)
+		return -ENXIO;
+	return tb_port_write(port, &word, TB_CFG_PORT,
+			     port->cap_adap + ADP_USB3_CS_0, 1);
 }
 
 /**

@@ -111,6 +111,10 @@ static void tb_discover_tunnels(struct tb_switch *sw)
 			tunnel = tb_tunnel_discover_pci(tb, port);
 			break;
 
+		case TB_TYPE_USB3_DOWN:
+			tunnel = tb_tunnel_discover_usb3(tb, port);
+			break;
+
 		default:
 			break;
 		}
@@ -175,6 +179,118 @@ static int tb_enable_tmu(struct tb_switch *sw)
 		return ret;
 
 	return tb_switch_tmu_enable(sw);
+}
+
+/**
+ * tb_find_unused_port() - return the first inactive port on @sw
+ * @sw: Switch to find the port on
+ * @type: Port type to look for
+ */
+static struct tb_port *tb_find_unused_port(struct tb_switch *sw,
+					   enum tb_port_type type)
+{
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port) {
+		if (tb_is_upstream_port(port))
+			continue;
+		if (port->config.type != type)
+			continue;
+		if (!port->cap_adap)
+			continue;
+		if (tb_port_is_enabled(port))
+			continue;
+		return port;
+	}
+	return NULL;
+}
+
+static struct tb_port *tb_find_usb3_down(struct tb_switch *sw,
+					const struct tb_port *port)
+{
+	struct tb_port *down;
+
+	down = usb4_switch_map_usb3_down(sw, port);
+	if (down) {
+		if (WARN_ON(!tb_port_is_usb3_down(down)))
+			goto out;
+		if (WARN_ON(tb_usb3_port_is_enabled(down)))
+			goto out;
+
+		return down;
+	}
+
+out:
+	return tb_find_unused_port(sw, TB_TYPE_USB3_DOWN);
+}
+
+static int tb_tunnel_usb3(struct tb *tb, struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_switch_parent(sw);
+	struct tb_port *up, *down, *port;
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_tunnel *tunnel;
+
+	up = tb_switch_find_port(sw, TB_TYPE_USB3_UP);
+	if (!up)
+		return 0;
+
+	/*
+	 * Look up available down port. Since we are chaining it should
+	 * be found right above this switch.
+	 */
+	port = tb_port_at(tb_route(sw), parent);
+	down = tb_find_usb3_down(parent, port);
+	if (!down)
+		return 0;
+
+	if (tb_route(parent)) {
+		struct tb_port *parent_up;
+		/*
+		 * Check first that the parent switch has its upstream USB3
+		 * port enabled. Otherwise the chain is not complete and
+		 * there is no point setting up a new tunnel.
+		 */
+		parent_up = tb_switch_find_port(parent, TB_TYPE_USB3_UP);
+		if (!parent_up || !tb_port_is_enabled(parent_up))
+			return 0;
+	}
+
+	tunnel = tb_tunnel_alloc_usb3(tb, up, down);
+	if (!tunnel)
+		return -ENOMEM;
+
+	if (tb_tunnel_activate(tunnel)) {
+		tb_port_info(up,
+			     "USB3 tunnel activation failed, aborting\n");
+		tb_tunnel_free(tunnel);
+		return -EIO;
+	}
+
+	list_add_tail(&tunnel->list, &tcm->tunnel_list);
+	return 0;
+}
+
+static int tb_create_usb3_tunnels(struct tb_switch *sw)
+{
+	struct tb_port *port;
+	int ret;
+
+	if (tb_route(sw)) {
+		ret = tb_tunnel_usb3(sw->tb, sw);
+		if (ret)
+			return ret;
+	}
+
+	tb_switch_for_each_port(sw, port) {
+		if (!tb_port_has_remote(port))
+			continue;
+		ret = tb_create_usb3_tunnels(port->remote->sw);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static void tb_scan_port(struct tb_port *port);
@@ -279,6 +395,15 @@ static void tb_scan_port(struct tb_port *port)
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to enable TMU\n");
 
+	/*
+	 * Create USB 3.x tunnels only when the switch is plugged to the
+	 * domain. This is because we scan the domain also during discovery
+	 * and want to discover existing USB 3.x tunnels before we create
+	 * any new.
+	 */
+	if (tcm->hotplug_active && tb_tunnel_usb3(sw->tb, sw))
+		tb_sw_warn(sw, "USB3 tunnel creation failed\n");
+
 	tb_scan_switch(sw);
 }
 
@@ -358,30 +483,6 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 			tb_free_unplugged_children(port->remote->sw);
 		}
 	}
-}
-
-/**
- * tb_find_unused_port() - return the first inactive port on @sw
- * @sw: Switch to find the port on
- * @type: Port type to look for
- */
-static struct tb_port *tb_find_unused_port(struct tb_switch *sw,
-					   enum tb_port_type type)
-{
-	struct tb_port *port;
-
-	tb_switch_for_each_port(sw, port) {
-		if (tb_is_upstream_port(port))
-			continue;
-		if (port->config.type != type)
-			continue;
-		if (port->cap_adap)
-			continue;
-		if (tb_port_is_enabled(port))
-			continue;
-		return port;
-	}
-	return NULL;
 }
 
 static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
@@ -884,6 +985,11 @@ static int tb_start(struct tb *tb)
 	tb_scan_switch(tb->root_switch);
 	/* Find out tunnels created by the boot firmware */
 	tb_discover_tunnels(tb->root_switch);
+	/*
+	 * If the boot firmware did not create USB 3.x tunnels create them
+	 * now for the whole topology.
+	 */
+	tb_create_usb3_tunnels(tb->root_switch);
 	/* Add DP IN resources for the root switch */
 	tb_add_dp_resources(tb->root_switch);
 	/* Make the discovered switches available to the userspace */

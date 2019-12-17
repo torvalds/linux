@@ -180,6 +180,7 @@ struct tb_regs_switch_header {
 #define ROUTER_CS_5_SLP				BIT(0)
 #define ROUTER_CS_5_C3S				BIT(23)
 #define ROUTER_CS_5_PTO				BIT(24)
+#define ROUTER_CS_5_UTO				BIT(25)
 #define ROUTER_CS_5_HCO				BIT(26)
 #define ROUTER_CS_5_CV				BIT(31)
 #define ROUTER_CS_6				0x06
@@ -221,7 +222,8 @@ enum tb_port_type {
 	TB_TYPE_DP_HDMI_OUT	= 0x0e0102,
 	TB_TYPE_PCIE_DOWN	= 0x100101,
 	TB_TYPE_PCIE_UP		= 0x100102,
-	/* TB_TYPE_USB		= 0x200000, lower order bits are not known */
+	TB_TYPE_USB3_DOWN	= 0x200101,
+	TB_TYPE_USB3_UP		= 0x200102,
 };
 
 /* Present on every port in TB_CF_PORT at address zero. */
@@ -330,6 +332,11 @@ struct tb_regs_port_header {
 /* PCIe adapter registers */
 #define ADP_PCIE_CS_0				0x00
 #define ADP_PCIE_CS_0_PE			BIT(31)
+
+/* USB adapter registers */
+#define ADP_USB3_CS_0				0x00
+#define ADP_USB3_CS_0_V				BIT(30)
+#define ADP_USB3_CS_0_PE			BIT(31)
 
 /* Hop register from TB_CFG_HOPS. 8 byte per entry. */
 struct tb_regs_hop {
