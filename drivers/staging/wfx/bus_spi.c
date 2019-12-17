@@ -223,8 +223,7 @@ static int wfx_spi_probe(struct spi_device *func)
 	return ret;
 }
 
-/* Disconnect Function to be called by SPI stack when device is disconnected */
-static int wfx_spi_disconnect(struct spi_device *func)
+static int wfx_spi_remove(struct spi_device *func)
 {
 	struct wfx_spi_priv *bus = spi_get_drvdata(func);
 
@@ -263,5 +262,5 @@ struct spi_driver wfx_spi_driver = {
 	},
 	.id_table = wfx_spi_id,
 	.probe = wfx_spi_probe,
-	.remove = wfx_spi_disconnect,
+	.remove = wfx_spi_remove,
 };
