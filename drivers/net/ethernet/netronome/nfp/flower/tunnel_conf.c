@@ -71,6 +71,22 @@ struct nfp_tun_neigh {
 };
 
 /**
+ * struct nfp_tun_neigh_v6 - neighbour/route entry on the NFP
+ * @dst_ipv6:	destination IPv6 address
+ * @src_ipv6:	source IPv6 address
+ * @dst_addr:	destination MAC address
+ * @src_addr:	source MAC address
+ * @port_id:	NFP port to output packet on - associated with source IPv6
+ */
+struct nfp_tun_neigh_v6 {
+	struct in6_addr dst_ipv6;
+	struct in6_addr src_ipv6;
+	u8 dst_addr[ETH_ALEN];
+	u8 src_addr[ETH_ALEN];
+	__be32 port_id;
+};
+
+/**
  * struct nfp_tun_req_route_ipv4 - NFP requests a route/neighbour lookup
  * @ingress_port:	ingress port of packet that signalled request
  * @ipv4_addr:		destination ipv4 address for route
@@ -80,6 +96,16 @@ struct nfp_tun_req_route_ipv4 {
 	__be32 ingress_port;
 	__be32 ipv4_addr;
 	__be32 reserved[2];
+};
+
+/**
+ * struct nfp_tun_req_route_ipv6 - NFP requests an IPv6 route/neighbour lookup
+ * @ingress_port:	ingress port of packet that signalled request
+ * @ipv6_addr:		destination ipv6 address for route
+ */
+struct nfp_tun_req_route_ipv6 {
+	__be32 ingress_port;
+	struct in6_addr ipv6_addr;
 };
 
 /**
@@ -299,8 +325,8 @@ static void nfp_tun_del_route_from_cache(struct nfp_app *app, __be32 ipv4_addr)
 }
 
 static void
-nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
-		    struct flowi4 *flow, struct neighbour *neigh, gfp_t flag)
+nfp_tun_write_neigh_v4(struct net_device *netdev, struct nfp_app *app,
+		       struct flowi4 *flow, struct neighbour *neigh, gfp_t flag)
 {
 	struct nfp_tun_neigh payload;
 	u32 port_id;
@@ -331,6 +357,39 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 send_msg:
 	nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_NEIGH,
 				 sizeof(struct nfp_tun_neigh),
+				 (unsigned char *)&payload, flag);
+}
+
+static void
+nfp_tun_write_neigh_v6(struct net_device *netdev, struct nfp_app *app,
+		       struct flowi6 *flow, struct neighbour *neigh, gfp_t flag)
+{
+	struct nfp_tun_neigh_v6 payload;
+	u32 port_id;
+
+	port_id = nfp_flower_get_port_id_from_netdev(app, netdev);
+	if (!port_id)
+		return;
+
+	memset(&payload, 0, sizeof(struct nfp_tun_neigh_v6));
+	payload.dst_ipv6 = flow->daddr;
+
+	/* If entry has expired send dst IP with all other fields 0. */
+	if (!(neigh->nud_state & NUD_VALID) || neigh->dead) {
+		/* Trigger probe to verify invalid neighbour state. */
+		neigh_event_send(neigh, NULL);
+		goto send_msg;
+	}
+
+	/* Have a valid neighbour so populate rest of entry. */
+	payload.src_ipv6 = flow->saddr;
+	ether_addr_copy(payload.src_addr, netdev->dev_addr);
+	neigh_ha_snapshot(payload.dst_addr, neigh, netdev);
+	payload.port_id = cpu_to_be32(port_id);
+
+send_msg:
+	nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6,
+				 sizeof(struct nfp_tun_neigh_v6),
 				 (unsigned char *)&payload, flag);
 }
 
@@ -384,12 +443,12 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 #endif
 
 	flow.flowi4_proto = IPPROTO_UDP;
-	nfp_tun_write_neigh(n->dev, app, &flow, n, GFP_ATOMIC);
+	nfp_tun_write_neigh_v4(n->dev, app, &flow, n, GFP_ATOMIC);
 
 	return NOTIFY_OK;
 }
 
-void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb)
+void nfp_tunnel_request_route_v4(struct nfp_app *app, struct sk_buff *skb)
 {
 	struct nfp_tun_req_route_ipv4 *payload;
 	struct net_device *netdev;
@@ -423,7 +482,7 @@ void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb)
 	ip_rt_put(rt);
 	if (!n)
 		goto fail_rcu_unlock;
-	nfp_tun_write_neigh(n->dev, app, &flow, n, GFP_ATOMIC);
+	nfp_tun_write_neigh_v4(n->dev, app, &flow, n, GFP_ATOMIC);
 	neigh_release(n);
 	rcu_read_unlock();
 	return;
@@ -431,6 +490,48 @@ void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb)
 fail_rcu_unlock:
 	rcu_read_unlock();
 	nfp_flower_cmsg_warn(app, "Requested route not found.\n");
+}
+
+void nfp_tunnel_request_route_v6(struct nfp_app *app, struct sk_buff *skb)
+{
+	struct nfp_tun_req_route_ipv6 *payload;
+	struct net_device *netdev;
+	struct flowi6 flow = {};
+	struct dst_entry *dst;
+	struct neighbour *n;
+
+	payload = nfp_flower_cmsg_get_data(skb);
+
+	rcu_read_lock();
+	netdev = nfp_app_dev_get(app, be32_to_cpu(payload->ingress_port), NULL);
+	if (!netdev)
+		goto fail_rcu_unlock;
+
+	flow.daddr = payload->ipv6_addr;
+	flow.flowi6_proto = IPPROTO_UDP;
+
+#if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
+	dst = ipv6_stub->ipv6_dst_lookup_flow(dev_net(netdev), NULL, &flow,
+					      NULL);
+	if (IS_ERR(dst))
+		goto fail_rcu_unlock;
+#else
+	goto fail_rcu_unlock;
+#endif
+
+	n = dst_neigh_lookup(dst, &flow.daddr);
+	dst_release(dst);
+	if (!n)
+		goto fail_rcu_unlock;
+
+	nfp_tun_write_neigh_v6(n->dev, app, &flow, n, GFP_ATOMIC);
+	neigh_release(n);
+	rcu_read_unlock();
+	return;
+
+fail_rcu_unlock:
+	rcu_read_unlock();
+	nfp_flower_cmsg_warn(app, "Requested IPv6 route not found.\n");
 }
 
 static void nfp_tun_write_ipv4_list(struct nfp_app *app)
