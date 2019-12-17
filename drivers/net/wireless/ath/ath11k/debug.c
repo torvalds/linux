@@ -931,7 +931,22 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 			    HTT_RX_FILTER_TLV_FLAGS_PACKET_HEADER |
 			    HTT_RX_FILTER_TLV_FLAGS_ATTENTION;
 	} else if (mode == ATH11K_PKTLOG_MODE_LITE) {
+		ret = ath11k_dp_tx_htt_h2t_ppdu_stats_req(ar,
+							  HTT_PPDU_STATS_TAG_PKTLOG);
+		if (ret) {
+			ath11k_err(ar->ab, "failed to enable pktlog lite: %d\n", ret);
+			goto out;
+		}
+
 		rx_filter = HTT_RX_FILTER_TLV_LITE_MODE;
+	} else {
+		ret = ath11k_dp_tx_htt_h2t_ppdu_stats_req(ar,
+							  HTT_PPDU_STATS_TAG_DEFAULT);
+		if (ret) {
+			ath11k_err(ar->ab, "failed to send htt ppdu stats req: %d\n",
+				   ret);
+			goto out;
+		}
 	}
 
 	tlv_filter.rx_filter = rx_filter;
