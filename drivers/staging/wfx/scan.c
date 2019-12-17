@@ -16,7 +16,7 @@ static void __ieee80211_scan_completed_compat(struct ieee80211_hw *hw,
 					      bool aborted)
 {
 	struct cfg80211_scan_info info = {
-		.aborted = aborted ? 1 : 0,
+		.aborted = aborted,
 	};
 
 	ieee80211_scan_completed(hw, &info);
