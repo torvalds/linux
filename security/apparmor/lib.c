@@ -327,11 +327,8 @@ void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
 		perms->kill = ALL_PERMS_MASK;
 	else if (COMPLAIN_MODE(profile))
 		perms->complain = ALL_PERMS_MASK;
-/*
- *  TODO:
- *	else if (PROMPT_MODE(profile))
- *		perms->prompt = ALL_PERMS_MASK;
- */
+	else if (USER_MODE(profile))
+		perms->prompt = ALL_PERMS_MASK;
 }
 
 /**

@@ -36,6 +36,7 @@ struct aa_load_ent *aa_load_ent_alloc(void);
 #define PACKED_MODE_COMPLAIN	1
 #define PACKED_MODE_KILL	2
 #define PACKED_MODE_UNCONFINED	3
+#define PACKED_MODE_USER	4
 
 struct aa_ns;
 

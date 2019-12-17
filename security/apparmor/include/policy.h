@@ -44,6 +44,8 @@ extern const char *const aa_profile_mode_names[];
 
 #define COMPLAIN_MODE(_profile)	PROFILE_MODE((_profile), APPARMOR_COMPLAIN)
 
+#define USER_MODE(_profile)	PROFILE_MODE((_profile), APPARMOR_USER)
+
 #define KILL_MODE(_profile) PROFILE_MODE((_profile), APPARMOR_KILL)
 
 #define PROFILE_IS_HAT(_profile) ((_profile)->label.flags & FLAG_HAT)
@@ -67,6 +69,7 @@ enum profile_mode {
 	APPARMOR_COMPLAIN,	/* allow and log access violations */
 	APPARMOR_KILL,		/* kill task on access violation */
 	APPARMOR_UNCONFINED,	/* profile set to unconfined */
+	APPARMOR_USER,		/* modified complain mode to userspace */
 };
 
 

@@ -761,6 +761,8 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	} else if (tmp == PACKED_MODE_UNCONFINED) {
 		profile->mode = APPARMOR_UNCONFINED;
 		profile->label.flags |= FLAG_UNCONFINED;
+	} else if (tmp == PACKED_MODE_USER) {
+		profile->mode = APPARMOR_USER;
 	} else {
 		goto fail;
 	}
