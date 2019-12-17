@@ -228,12 +228,6 @@ fail:
 	schedule_work(&wvif->scan.work);
 }
 
-static void wfx_scan_complete(struct wfx_vif *wvif)
-{
-	up(&wvif->scan.lock);
-	wfx_scan_work(&wvif->scan.work);
-}
-
 void wfx_scan_complete_cb(struct wfx_vif *wvif,
 			  const struct hif_ind_scan_cmpl *arg)
 {
@@ -257,6 +251,7 @@ void wfx_scan_timeout(struct work_struct *work)
 			wvif->scan.curr = wvif->scan.end;
 			hif_stop_scan(wvif);
 		}
-		wfx_scan_complete(wvif);
+		up(&wvif->scan.lock);
+		wfx_scan_work(&wvif->scan.work);
 	}
 }
