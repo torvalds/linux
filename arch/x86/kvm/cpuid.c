@@ -62,7 +62,7 @@ u64 kvm_supported_xcr0(void)
 	return xcr0;
 }
 
-#define F(x) bit(X86_FEATURE_##x)
+#define F feature_bit
 
 int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 {

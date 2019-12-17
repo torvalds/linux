@@ -80,11 +80,13 @@ static __always_inline void reverse_cpuid_check(unsigned x86_leaf)
  * "word" (stored in bits 31:5).  The word is used to index into arrays of
  * bit masks that hold the per-cpu feature capabilities, e.g. this_cpu_has().
  */
-static __always_inline u32 bit(int x86_feature)
+static __always_inline u32 __feature_bit(int x86_feature)
 {
 	reverse_cpuid_check(x86_feature / 32);
 	return 1 << (x86_feature & 31);
 }
+
+#define feature_bit(name)  __feature_bit(X86_FEATURE_##name)
 
 static __always_inline struct cpuid_reg x86_feature_cpuid(unsigned x86_feature)
 {
@@ -126,7 +128,7 @@ static __always_inline bool guest_cpuid_has(struct kvm_vcpu *vcpu, unsigned x86_
 	if (!reg)
 		return false;
 
-	return *reg & bit(x86_feature);
+	return *reg & __feature_bit(x86_feature);
 }
 
 static __always_inline void guest_cpuid_clear(struct kvm_vcpu *vcpu, unsigned x86_feature)
@@ -135,7 +137,7 @@ static __always_inline void guest_cpuid_clear(struct kvm_vcpu *vcpu, unsigned x8
 
 	reg = guest_cpuid_get_register(vcpu, x86_feature);
 	if (reg)
-		*reg &= ~bit(x86_feature);
+		*reg &= ~__feature_bit(x86_feature);
 }
 
 static inline bool guest_cpuid_is_amd(struct kvm_vcpu *vcpu)

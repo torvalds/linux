@@ -5929,14 +5929,14 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 	guest_cpuid_clear(vcpu, X86_FEATURE_X2APIC);
 }
 
-#define F(x) bit(X86_FEATURE_##x)
+#define F feature_bit
 
 static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 {
 	switch (func) {
 	case 0x1:
 		if (avic)
-			entry->ecx &= ~bit(X86_FEATURE_X2APIC);
+			entry->ecx &= ~F(X2APIC);
 		break;
 	case 0x80000001:
 		if (nested)
