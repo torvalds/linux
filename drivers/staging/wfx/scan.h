@@ -15,6 +15,7 @@
 struct wfx_dev;
 struct wfx_vif;
 
+void wfx_hw_scan_work(struct work_struct *work);
 int wfx_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_scan_request *req);
 void wfx_scan_complete(struct wfx_vif *wvif,

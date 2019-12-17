@@ -127,7 +127,9 @@ struct wfx_vif {
 
 	/* avoid some operations in parallel with scan */
 	struct mutex		scan_lock;
+	struct work_struct	scan_work;
 	struct completion	scan_complete;
+	struct ieee80211_scan_request *scan_req;
 
 	struct completion	set_pm_mode_complete;
 

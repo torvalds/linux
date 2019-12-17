@@ -1427,6 +1427,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mutex_init(&wvif->scan_lock);
 	init_completion(&wvif->scan_complete);
+	INIT_WORK(&wvif->scan_work, wfx_hw_scan_work);
 
 	mutex_unlock(&wdev->conf_mutex);
 

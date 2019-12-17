@@ -71,12 +71,45 @@ static int send_scan_req(struct wfx_vif *wvif,
 	return i - start_idx;
 }
 
+/*
+ * It is not really necessary to run scan request asynchronously. However,
+ * there is a bug in "iw scan" when ieee80211_scan_completed() is called before
+ * wfx_hw_scan() return
+ */
+void wfx_hw_scan_work(struct work_struct *work)
+{
+	struct wfx_vif *wvif = container_of(work, struct wfx_vif, scan_work);
+	struct ieee80211_scan_request *hw_req = wvif->scan_req;
+	int chan_cur, ret;
+
+	mutex_lock(&wvif->scan_lock);
+	mutex_lock(&wvif->wdev->conf_mutex);
+	update_probe_tmpl(wvif, &hw_req->req);
+	wfx_fwd_probe_req(wvif, true);
+	chan_cur = 0;
+	do {
+		ret = send_scan_req(wvif, &hw_req->req, chan_cur);
+		if (ret > 0)
+			chan_cur += ret;
+	} while (ret > 0 && chan_cur < hw_req->req.n_channels);
+	mutex_unlock(&wvif->wdev->conf_mutex);
+	mutex_unlock(&wvif->scan_lock);
+	__ieee80211_scan_completed_compat(wvif->wdev->hw, ret < 0);
+	if (wvif->delayed_unjoin) {
+		wvif->delayed_unjoin = false;
+		wfx_tx_lock(wvif->wdev);
+		if (!schedule_work(&wvif->unjoin_work))
+			wfx_tx_unlock(wvif->wdev);
+	} else if (wvif->delayed_link_loss) {
+		wvif->delayed_link_loss = false;
+		wfx_cqm_bssloss_sm(wvif, 1, 0, 0);
+	}
+}
+
 int wfx_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_scan_request *hw_req)
 {
-	struct wfx_dev *wdev = hw->priv;
-	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
-	int chan_cur, ret;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	WARN_ON(hw_req->req.n_channels > HIF_API_MAX_NB_CHANNELS);
 
@@ -86,28 +119,8 @@ int wfx_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (wvif->state == WFX_STATE_PRE_STA)
 		return -EBUSY;
 
-	mutex_lock(&wvif->scan_lock);
-	mutex_lock(&wdev->conf_mutex);
-	update_probe_tmpl(wvif, &hw_req->req);
-	wfx_fwd_probe_req(wvif, true);
-	chan_cur = 0;
-	do {
-		ret = send_scan_req(wvif, &hw_req->req, chan_cur);
-		if (ret > 0)
-			chan_cur += ret;
-	} while (ret > 0 && chan_cur < hw_req->req.n_channels);
-	__ieee80211_scan_completed_compat(hw, ret < 0);
-	mutex_unlock(&wdev->conf_mutex);
-	mutex_unlock(&wvif->scan_lock);
-	if (wvif->delayed_unjoin) {
-		wvif->delayed_unjoin = false;
-		wfx_tx_lock(wdev);
-		if (!schedule_work(&wvif->unjoin_work))
-			wfx_tx_unlock(wdev);
-	} else if (wvif->delayed_link_loss) {
-		wvif->delayed_link_loss = false;
-		wfx_cqm_bssloss_sm(wvif, 1, 0, 0);
-	}
+	wvif->scan_req = hw_req;
+	schedule_work(&wvif->scan_work);
 	return 0;
 }
 
