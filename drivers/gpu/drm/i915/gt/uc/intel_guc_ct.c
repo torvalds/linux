@@ -37,10 +37,10 @@ static void ct_incoming_request_worker_func(struct work_struct *w);
  */
 void intel_guc_ct_init_early(struct intel_guc_ct *ct)
 {
-	spin_lock_init(&ct->lock);
-	INIT_LIST_HEAD(&ct->pending_requests);
-	INIT_LIST_HEAD(&ct->incoming_requests);
-	INIT_WORK(&ct->worker, ct_incoming_request_worker_func);
+	spin_lock_init(&ct->requests.lock);
+	INIT_LIST_HEAD(&ct->requests.pending);
+	INIT_LIST_HEAD(&ct->requests.incoming);
+	INIT_WORK(&ct->requests.worker, ct_incoming_request_worker_func);
 }
 
 static inline struct intel_guc *ct_to_guc(struct intel_guc_ct *ct)
@@ -267,7 +267,7 @@ void intel_guc_ct_disable(struct intel_guc_ct *ct)
 static u32 ct_get_next_fence(struct intel_guc_ct *ct)
 {
 	/* For now it's trivial */
-	return ++ct->next_fence;
+	return ++ct->requests.next_fence;
 }
 
 /**
@@ -465,9 +465,9 @@ static int ct_send(struct intel_guc_ct *ct,
 	request.response_len = response_buf_size;
 	request.response_buf = response_buf;
 
-	spin_lock_irqsave(&ct->lock, flags);
-	list_add_tail(&request.link, &ct->pending_requests);
-	spin_unlock_irqrestore(&ct->lock, flags);
+	spin_lock_irqsave(&ct->requests.lock, flags);
+	list_add_tail(&request.link, &ct->requests.pending);
+	spin_unlock_irqrestore(&ct->requests.lock, flags);
 
 	err = ctb_write(ctb, action, len, fence, !!response_buf);
 	if (unlikely(err))
@@ -500,9 +500,9 @@ static int ct_send(struct intel_guc_ct *ct,
 	}
 
 unlink:
-	spin_lock_irqsave(&ct->lock, flags);
+	spin_lock_irqsave(&ct->requests.lock, flags);
 	list_del(&request.link);
-	spin_unlock_irqrestore(&ct->lock, flags);
+	spin_unlock_irqrestore(&ct->requests.lock, flags);
 
 	return err;
 }
@@ -650,8 +650,8 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 
 	CT_DEBUG_DRIVER("CT: response fence %u status %#x\n", fence, status);
 
-	spin_lock(&ct->lock);
-	list_for_each_entry(req, &ct->pending_requests, link) {
+	spin_lock(&ct->requests.lock);
+	list_for_each_entry(req, &ct->requests.pending, link) {
 		if (unlikely(fence != req->fence)) {
 			CT_DEBUG_DRIVER("CT: request %u awaits response\n",
 					req->fence);
@@ -669,7 +669,7 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 		found = true;
 		break;
 	}
-	spin_unlock(&ct->lock);
+	spin_unlock(&ct->requests.lock);
 
 	if (!found)
 		DRM_ERROR("CT: unsolicited response %*ph\n", 4 * msglen, msg);
@@ -707,13 +707,13 @@ static bool ct_process_incoming_requests(struct intel_guc_ct *ct)
 	u32 *payload;
 	bool done;
 
-	spin_lock_irqsave(&ct->lock, flags);
-	request = list_first_entry_or_null(&ct->incoming_requests,
+	spin_lock_irqsave(&ct->requests.lock, flags);
+	request = list_first_entry_or_null(&ct->requests.incoming,
 					   struct ct_incoming_request, link);
 	if (request)
 		list_del(&request->link);
-	done = !!list_empty(&ct->incoming_requests);
-	spin_unlock_irqrestore(&ct->lock, flags);
+	done = !!list_empty(&ct->requests.incoming);
+	spin_unlock_irqrestore(&ct->requests.lock, flags);
 
 	if (!request)
 		return true;
@@ -731,12 +731,13 @@ static bool ct_process_incoming_requests(struct intel_guc_ct *ct)
 
 static void ct_incoming_request_worker_func(struct work_struct *w)
 {
-	struct intel_guc_ct *ct = container_of(w, struct intel_guc_ct, worker);
+	struct intel_guc_ct *ct =
+		container_of(w, struct intel_guc_ct, requests.worker);
 	bool done;
 
 	done = ct_process_incoming_requests(ct);
 	if (!done)
-		queue_work(system_unbound_wq, &ct->worker);
+		queue_work(system_unbound_wq, &ct->requests.worker);
 }
 
 /**
@@ -774,11 +775,11 @@ static int ct_handle_request(struct intel_guc_ct *ct, const u32 *msg)
 	}
 	memcpy(request->msg, msg, 4 * msglen);
 
-	spin_lock_irqsave(&ct->lock, flags);
-	list_add_tail(&request->link, &ct->incoming_requests);
-	spin_unlock_irqrestore(&ct->lock, flags);
+	spin_lock_irqsave(&ct->requests.lock, flags);
+	list_add_tail(&request->link, &ct->requests.incoming);
+	spin_unlock_irqrestore(&ct->requests.lock, flags);
 
-	queue_work(system_unbound_wq, &ct->worker);
+	queue_work(system_unbound_wq, &ct->requests.worker);
 	return 0;
 }
 

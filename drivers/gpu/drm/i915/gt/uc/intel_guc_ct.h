@@ -48,12 +48,15 @@ struct intel_guc_ct {
 	/* buffers for sending(0) and receiving(1) commands */
 	struct intel_guc_ct_buffer ctbs[2];
 
-	u32 next_fence; /* fence to be used with next send command */
+	struct {
+		u32 next_fence; /* fence to be used with next request to send */
 
-	spinlock_t lock; /* protects pending requests list */
-	struct list_head pending_requests; /* requests waiting for response */
-	struct list_head incoming_requests; /* incoming requests */
-	struct work_struct worker; /* handler for incoming requests */
+		spinlock_t lock; /* protects pending requests list */
+		struct list_head pending; /* requests waiting for response */
+
+		struct list_head incoming; /* incoming requests */
+		struct work_struct worker; /* handler for incoming requests */
+	} requests;
 };
 
 void intel_guc_ct_init_early(struct intel_guc_ct *ct);
