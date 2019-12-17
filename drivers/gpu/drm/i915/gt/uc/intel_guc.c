@@ -32,18 +32,17 @@
  * just the HuC, but more are expected to land in the future).
  */
 
-static void gen8_guc_raise_irq(struct intel_guc *guc)
+void intel_guc_notify(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
-	intel_uncore_write(gt->uncore, GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
-}
-
-static void gen11_guc_raise_irq(struct intel_guc *guc)
-{
-	struct intel_gt *gt = guc_to_gt(guc);
-
-	intel_uncore_write(gt->uncore, GEN11_GUC_HOST_INTERRUPT, 0);
+	/*
+	 * On Gen11+, the value written to the register is passes as a payload
+	 * to the FW. However, the FW currently treats all values the same way
+	 * (H2G interrupt), so we can just write the value that the HW expects
+	 * on older gens.
+	 */
+	intel_uncore_write(gt->uncore, guc->notify_reg, GUC_SEND_TRIGGER);
 }
 
 static inline i915_reg_t guc_send_reg(struct intel_guc *guc, u32 i)
@@ -178,12 +177,12 @@ void intel_guc_init_early(struct intel_guc *guc)
 	mutex_init(&guc->send_mutex);
 	spin_lock_init(&guc->irq_lock);
 	if (INTEL_GEN(i915) >= 11) {
-		guc->notify = gen11_guc_raise_irq;
+		guc->notify_reg = GEN11_GUC_HOST_INTERRUPT;
 		guc->interrupts.reset = gen11_reset_guc_interrupts;
 		guc->interrupts.enable = gen11_enable_guc_interrupts;
 		guc->interrupts.disable = gen11_disable_guc_interrupts;
 	} else {
-		guc->notify = gen8_guc_raise_irq;
+		guc->notify_reg = GUC_SEND_INTERRUPT;
 		guc->interrupts.reset = gen9_reset_guc_interrupts;
 		guc->interrupts.enable = gen9_enable_guc_interrupts;
 		guc->interrupts.disable = gen9_disable_guc_interrupts;

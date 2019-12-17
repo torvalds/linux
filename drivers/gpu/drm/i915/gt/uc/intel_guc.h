@@ -64,14 +64,14 @@ struct intel_guc {
 		enum forcewake_domains fw_domains;
 	} send_regs;
 
+	/* register used to send interrupts to the GuC FW */
+	i915_reg_t notify_reg;
+
 	/* Store msg (e.g. log flush) that we see while CTBs are disabled */
 	u32 mmio_msg;
 
 	/* To serialize the intel_guc_send actions */
 	struct mutex send_mutex;
-
-	/* GuC's FW specific notify function */
-	void (*notify)(struct intel_guc *guc);
 };
 
 static
@@ -86,11 +86,6 @@ intel_guc_send_and_receive(struct intel_guc *guc, const u32 *action, u32 len,
 {
 	return intel_guc_ct_send(&guc->ct, action, len,
 				 response_buf, response_buf_size);
-}
-
-static inline void intel_guc_notify(struct intel_guc *guc)
-{
-	guc->notify(guc);
 }
 
 static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)
@@ -130,6 +125,7 @@ void intel_guc_init_send_regs(struct intel_guc *guc);
 void intel_guc_write_params(struct intel_guc *guc);
 int intel_guc_init(struct intel_guc *guc);
 void intel_guc_fini(struct intel_guc *guc);
+void intel_guc_notify(struct intel_guc *guc);
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 			u32 *response_buf, u32 response_buf_size);
 int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
