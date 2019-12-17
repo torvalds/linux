@@ -184,7 +184,7 @@ static int wfx_tx_policy_get(struct wfx_vif *wvif,
 		 */
 		entry = list_entry(cache->free.prev, struct tx_policy, link);
 		memcpy(entry->rates, wanted.rates, sizeof(entry->rates));
-		entry->uploaded = 0;
+		entry->uploaded = false;
 		entry->usage_count = 0;
 		idx = entry - cache->cache;
 	}
@@ -241,7 +241,7 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 			dst->terminate = 1;
 			dst->count_init = 1;
 			memcpy(&dst->rates, src->rates, sizeof(src->rates));
-			src->uploaded = 1;
+			src->uploaded = true;
 			arg->num_tx_rate_policies++;
 		}
 	}
