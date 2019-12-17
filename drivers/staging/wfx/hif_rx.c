@@ -358,7 +358,12 @@ void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
 			goto free;
 		}
 	}
-	dev_err(wdev->dev, "unsupported HIF ID %02x\n", hif_id);
+	if (hif_id & 0x80)
+		dev_err(wdev->dev, "unsupported HIF indication: ID %02x\n",
+			hif_id);
+	else
+		dev_err(wdev->dev, "unexpected HIF confirmation: ID %02x\n",
+			hif_id);
 free:
 	dev_kfree_skb(skb);
 }
