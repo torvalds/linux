@@ -16,7 +16,7 @@
 #include "traces.h"
 #include "hif_tx_mib.h"
 
-#define WFX_INVALID_RATE_ID (0xFF)
+#define WFX_INVALID_RATE_ID    15
 #define WFX_LINK_ID_NO_ASSOC   15
 #define WFX_LINK_ID_GC_TIMEOUT ((unsigned long)(10 * HZ))
 
@@ -202,6 +202,8 @@ static void wfx_tx_policy_put(struct wfx_vif *wvif, int idx)
 	int usage, locked;
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
 
+	if (idx == WFX_INVALID_RATE_ID)
+		return;
 	spin_lock_bh(&cache->lock);
 	locked = list_empty(&cache->free);
 	usage = wfx_tx_policy_release(cache, &cache->cache[idx]);
@@ -549,7 +551,8 @@ static u8 wfx_tx_get_rate_id(struct wfx_vif *wvif,
 
 	rate_id = wfx_tx_policy_get(wvif,
 				    tx_info->driver_rates, &tx_policy_renew);
-	WARN(rate_id == WFX_INVALID_RATE_ID, "unable to get a valid Tx policy");
+	if (rate_id == WFX_INVALID_RATE_ID)
+		dev_warn(wvif->wdev->dev, "unable to get a valid Tx policy");
 
 	if (tx_policy_renew) {
 		/* FIXME: It's not so optimal to stop TX queues every now and
