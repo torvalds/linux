@@ -146,6 +146,7 @@
 #define SYS_ID_ISAR4_EL1		sys_reg(3, 0, 0, 2, 4)
 #define SYS_ID_ISAR5_EL1		sys_reg(3, 0, 0, 2, 5)
 #define SYS_ID_MMFR4_EL1		sys_reg(3, 0, 0, 2, 6)
+#define SYS_ID_ISAR6_EL1		sys_reg(3, 0, 0, 2, 7)
 
 #define SYS_MVFR0_EL1			sys_reg(3, 0, 0, 3, 0)
 #define SYS_MVFR1_EL1			sys_reg(3, 0, 0, 3, 1)
@@ -690,6 +691,14 @@
 #define ID_ISAR5_SHA1_SHIFT		8
 #define ID_ISAR5_AES_SHIFT		4
 #define ID_ISAR5_SEVL_SHIFT		0
+
+#define ID_ISAR6_I8MM_SHIFT		24
+#define ID_ISAR6_BF16_SHIFT		20
+#define ID_ISAR6_SPECRES_SHIFT		16
+#define ID_ISAR6_SB_SHIFT		12
+#define ID_ISAR6_FHM_SHIFT		8
+#define ID_ISAR6_DP_SHIFT		4
+#define ID_ISAR6_JSCVT_SHIFT		0
 
 #define MVFR0_FPROUND_SHIFT		28
 #define MVFR0_FPSHVEC_SHIFT		24
