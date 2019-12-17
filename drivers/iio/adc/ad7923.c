@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * AD7904/AD7914/AD7923/AD7924 SPI ADC driver
+ * AD7904/AD7914/AD7923/AD7924/AD7908/AD7918/AD7928 SPI ADC driver
  *
  * Copyright 2011 Analog Devices Inc (from AD7923 Driver)
  * Copyright 2012 CS Systemes d'Information
@@ -33,7 +33,6 @@
 #define AD7923_SEQUENCE_PROTECT	(2)		/* no interrupt write cycle */
 #define AD7923_SEQUENCE_ON	(3)		/* continuous sequence */
 
-#define AD7923_MAX_CHAN		4
 
 #define AD7923_PM_MODE_WRITE(mode)	((mode) << 4)	 /* write mode */
 #define AD7923_CHANNEL_WRITE(channel)	((channel) << 6) /* write channel */
@@ -74,6 +73,9 @@ enum ad7923_id {
 	AD7904,
 	AD7914,
 	AD7924,
+	AD7908,
+	AD7918,
+	AD7928
 };
 
 #define AD7923_V_CHAN(index, bits)					\
@@ -102,9 +104,25 @@ const struct iio_chan_spec name ## _channels[] = { \
 	IIO_CHAN_SOFT_TIMESTAMP(4), \
 }
 
+#define DECLARE_AD7908_CHANNELS(name, bits) \
+const struct iio_chan_spec name ## _channels[] = { \
+	AD7923_V_CHAN(0, bits), \
+	AD7923_V_CHAN(1, bits), \
+	AD7923_V_CHAN(2, bits), \
+	AD7923_V_CHAN(3, bits), \
+	AD7923_V_CHAN(4, bits), \
+	AD7923_V_CHAN(5, bits), \
+	AD7923_V_CHAN(6, bits), \
+	AD7923_V_CHAN(7, bits), \
+	IIO_CHAN_SOFT_TIMESTAMP(8), \
+}
+
 static DECLARE_AD7923_CHANNELS(ad7904, 8);
 static DECLARE_AD7923_CHANNELS(ad7914, 10);
 static DECLARE_AD7923_CHANNELS(ad7924, 12);
+static DECLARE_AD7908_CHANNELS(ad7908, 8);
+static DECLARE_AD7908_CHANNELS(ad7918, 10);
+static DECLARE_AD7908_CHANNELS(ad7928, 12);
 
 static const struct ad7923_chip_info ad7923_chip_info[] = {
 	[AD7904] = {
@@ -119,6 +137,18 @@ static const struct ad7923_chip_info ad7923_chip_info[] = {
 		.channels = ad7924_channels,
 		.num_channels = ARRAY_SIZE(ad7924_channels),
 	},
+	[AD7908] = {
+		.channels = ad7908_channels,
+		.num_channels = ARRAY_SIZE(ad7908_channels),
+	},
+	[AD7918] = {
+		.channels = ad7918_channels,
+		.num_channels = ARRAY_SIZE(ad7918_channels),
+	},
+	[AD7928] = {
+		.channels = ad7928_channels,
+		.num_channels = ARRAY_SIZE(ad7928_channels),
+	},
 };
 
 /**
@@ -131,7 +161,11 @@ static int ad7923_update_scan_mode(struct iio_dev *indio_dev,
 	int i, cmd, len;
 
 	len = 0;
-	for_each_set_bit(i, active_scan_mask, AD7923_MAX_CHAN) {
+	/*
+	 * For this driver the last channel is always the software timestamp so
+	 * skip that one.
+	 */
+	for_each_set_bit(i, active_scan_mask, indio_dev->num_channels - 1) {
 		cmd = AD7923_WRITE_CR | AD7923_CHANNEL_WRITE(i) |
 			AD7923_SEQUENCE_WRITE(AD7923_SEQUENCE_OFF) |
 			st->settings;
@@ -344,6 +378,9 @@ static const struct spi_device_id ad7923_id[] = {
 	{"ad7914", AD7914},
 	{"ad7923", AD7924},
 	{"ad7924", AD7924},
+	{"ad7908", AD7908},
+	{"ad7918", AD7918},
+	{"ad7928", AD7928},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad7923_id);
@@ -353,6 +390,9 @@ static const struct of_device_id ad7923_of_match[] = {
 	{ .compatible = "adi,ad7914", },
 	{ .compatible = "adi,ad7923", },
 	{ .compatible = "adi,ad7924", },
+	{ .compatible = "adi,ad7908", },
+	{ .compatible = "adi,ad7918", },
+	{ .compatible = "adi,ad7928", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ad7923_of_match);
@@ -370,5 +410,5 @@ module_spi_driver(ad7923_driver);
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_AUTHOR("Patrick Vasseur <patrick.vasseur@c-s.fr>");
-MODULE_DESCRIPTION("Analog Devices AD7904/AD7914/AD7923/AD7924 ADC");
+MODULE_DESCRIPTION("Analog Devices AD7923 and similar ADC");
 MODULE_LICENSE("GPL v2");
