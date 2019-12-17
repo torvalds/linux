@@ -224,7 +224,7 @@ static int guc_enable_communication(struct intel_guc *guc)
 	return 0;
 }
 
-static void __guc_stop_communication(struct intel_guc *guc)
+static void guc_disable_communication(struct intel_guc *guc)
 {
 	/*
 	 * Events generated during or after CT disable are logged by guc in
@@ -237,20 +237,6 @@ static void __guc_stop_communication(struct intel_guc *guc)
 
 	guc->send = intel_guc_send_nop;
 	guc->handler = intel_guc_to_host_event_handler_nop;
-}
-
-static void guc_stop_communication(struct intel_guc *guc)
-{
-	intel_guc_ct_stop(&guc->ct);
-
-	__guc_stop_communication(guc);
-
-	DRM_INFO("GuC communication stopped\n");
-}
-
-static void guc_disable_communication(struct intel_guc *guc)
-{
-	__guc_stop_communication(guc);
 
 	intel_guc_ct_disable(&guc->ct);
 
@@ -556,7 +542,7 @@ void intel_uc_reset_prepare(struct intel_uc *uc)
 	if (!intel_guc_is_running(guc))
 		return;
 
-	guc_stop_communication(guc);
+	guc_disable_communication(guc);
 	__uc_sanitize(uc);
 }
 

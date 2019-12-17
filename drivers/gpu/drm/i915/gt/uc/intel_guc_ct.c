@@ -241,12 +241,14 @@ static void ctch_disable(struct intel_guc *guc,
 
 	ctch->enabled = false;
 
-	guc_action_deregister_ct_buffer(guc,
-					ctch->owner,
-					INTEL_GUC_CT_BUFFER_TYPE_SEND);
-	guc_action_deregister_ct_buffer(guc,
-					ctch->owner,
-					INTEL_GUC_CT_BUFFER_TYPE_RECV);
+	if (intel_guc_is_running(guc)) {
+		guc_action_deregister_ct_buffer(guc,
+						ctch->owner,
+						INTEL_GUC_CT_BUFFER_TYPE_SEND);
+		guc_action_deregister_ct_buffer(guc,
+						ctch->owner,
+						INTEL_GUC_CT_BUFFER_TYPE_RECV);
+	}
 }
 
 static u32 ctch_get_next_fence(struct intel_guc_ct_channel *ctch)
