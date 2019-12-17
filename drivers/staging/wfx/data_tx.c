@@ -524,9 +524,9 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 		for (i = 0; i < IEEE80211_TX_MAX_RATES - 1; i++) {
 			if (rates[i + 1].idx == rates[i].idx &&
 			    rates[i].idx != -1) {
-				rates[i].count =
-					max_t(int, rates[i].count,
-					      rates[i + 1].count);
+				rates[i].count += rates[i + 1].count;
+				if (rates[i].count > 15)
+					rates[i].count = 15;
 				rates[i + 1].idx = -1;
 				rates[i + 1].count = 0;
 
