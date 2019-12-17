@@ -29,6 +29,9 @@
 
 #include "common.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/scmi.h>
+
 #define MSG_ID_MASK		GENMASK(7, 0)
 #define MSG_XTRACT_ID(hdr)	FIELD_GET(MSG_ID_MASK, (hdr))
 #define MSG_TYPE_MASK		GENMASK(9, 8)
@@ -61,6 +64,8 @@ enum scmi_error_codes {
 static LIST_HEAD(scmi_list);
 /* Protection for the entire list */
 static DEFINE_MUTEX(scmi_list_mutex);
+/* Track the unique id for the transfers for debug & profiling purpose */
+static atomic_t transfer_last_id;
 
 /**
  * struct scmi_xfers_info - Structure to manage transfer information
@@ -304,6 +309,7 @@ static struct scmi_xfer *scmi_xfer_get(const struct scmi_handle *handle,
 	xfer = &minfo->xfer_block[xfer_id];
 	xfer->hdr.seq = xfer_id;
 	reinit_completion(&xfer->done);
+	xfer->transfer_id = atomic_inc_return(&transfer_last_id);
 
 	return xfer;
 }
@@ -374,6 +380,10 @@ static void scmi_rx_callback(struct mbox_client *cl, void *m)
 
 	scmi_fetch_response(xfer, mem);
 
+	trace_scmi_rx_done(xfer->transfer_id, xfer->hdr.id,
+			   xfer->hdr.protocol_id, xfer->hdr.seq,
+			   msg_type);
+
 	if (msg_type == MSG_TYPE_DELAYED_RESP)
 		complete(xfer->async_done);
 	else
@@ -439,6 +449,10 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	if (unlikely(!cinfo))
 		return -EINVAL;
 
+	trace_scmi_xfer_begin(xfer->transfer_id, xfer->hdr.id,
+			      xfer->hdr.protocol_id, xfer->hdr.seq,
+			      xfer->hdr.poll_completion);
+
 	ret = mbox_send_message(cinfo->chan, xfer);
 	if (ret < 0) {
 		dev_dbg(dev, "mbox send fail %d\n", ret);
@@ -477,6 +491,10 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	 * received our message.
 	 */
 	mbox_client_txdone(cinfo->chan, ret);
+
+	trace_scmi_xfer_end(xfer->transfer_id, xfer->hdr.id,
+			    xfer->hdr.protocol_id, xfer->hdr.seq,
+			    xfer->hdr.status);
 
 	return ret;
 }
