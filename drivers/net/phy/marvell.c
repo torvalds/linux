@@ -1343,52 +1343,30 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 {
 	int status;
 	int lpa;
-	int lpagb;
+	int err;
 
 	status = phy_read(phydev, MII_M1011_PHY_STATUS);
 	if (status < 0)
 		return status;
 
-	lpa = phy_read(phydev, MII_LPA);
-	if (lpa < 0)
-		return lpa;
-
-	lpagb = phy_read(phydev, MII_STAT1000);
-	if (lpagb < 0)
-		return lpagb;
-
-	if (status & MII_M1011_PHY_STATUS_FULLDUPLEX)
-		phydev->duplex = DUPLEX_FULL;
-	else
-		phydev->duplex = DUPLEX_HALF;
-
-	status = status & MII_M1011_PHY_STATUS_SPD_MASK;
-	phydev->pause = 0;
-	phydev->asym_pause = 0;
-
-	switch (status) {
-	case MII_M1011_PHY_STATUS_1000:
-		phydev->speed = SPEED_1000;
-		break;
-
-	case MII_M1011_PHY_STATUS_100:
-		phydev->speed = SPEED_100;
-		break;
-
-	default:
-		phydev->speed = SPEED_10;
-		break;
-	}
-
 	if (!fiber) {
-		mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);
-		mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising, lpagb);
+		err = genphy_read_lpa(phydev);
+		if (err < 0)
+			return err;
 
+		phydev->pause = 0;
+		phydev->asym_pause = 0;
 		phy_resolve_aneg_pause(phydev);
 	} else {
+		lpa = phy_read(phydev, MII_LPA);
+		if (lpa < 0)
+			return lpa;
+
 		/* The fiber link is only 1000M capable */
 		fiber_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, lpa);
 
+		phydev->pause = 0;
+		phydev->asym_pause = 0;
 		if (phydev->duplex == DUPLEX_FULL) {
 			if (!(lpa & LPA_PAUSE_FIBER)) {
 				phydev->pause = 0;
@@ -1402,6 +1380,26 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 			}
 		}
 	}
+
+	if (status & MII_M1011_PHY_STATUS_FULLDUPLEX)
+		phydev->duplex = DUPLEX_FULL;
+	else
+		phydev->duplex = DUPLEX_HALF;
+
+	switch (status & MII_M1011_PHY_STATUS_SPD_MASK) {
+	case MII_M1011_PHY_STATUS_1000:
+		phydev->speed = SPEED_1000;
+		break;
+
+	case MII_M1011_PHY_STATUS_100:
+		phydev->speed = SPEED_100;
+		break;
+
+	default:
+		phydev->speed = SPEED_10;
+		break;
+	}
+
 	return 0;
 }
 
