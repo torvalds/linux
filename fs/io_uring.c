@@ -4047,14 +4047,17 @@ static bool io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			  struct io_submit_state *state, struct io_kiocb **link)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	unsigned int sqe_flags;
 	int ret;
 
+	sqe_flags = READ_ONCE(sqe->flags);
+
 	/* enforce forwards compatibility on users */
-	if (unlikely(sqe->flags & ~SQE_VALID_FLAGS)) {
+	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS)) {
 		ret = -EINVAL;
 		goto err_req;
 	}
-	if (sqe->flags & IOSQE_ASYNC)
+	if (sqe_flags & IOSQE_ASYNC)
 		req->flags |= REQ_F_FORCE_ASYNC;
 
 	ret = io_req_set_file(state, req, sqe);
@@ -4075,10 +4078,10 @@ err_req:
 	if (*link) {
 		struct io_kiocb *head = *link;
 
-		if (sqe->flags & IOSQE_IO_DRAIN)
+		if (sqe_flags & IOSQE_IO_DRAIN)
 			head->flags |= REQ_F_DRAIN_LINK | REQ_F_IO_DRAIN;
 
-		if (sqe->flags & IOSQE_IO_HARDLINK)
+		if (sqe_flags & IOSQE_IO_HARDLINK)
 			req->flags |= REQ_F_HARDLINK;
 
 		if (io_alloc_async_ctx(req)) {
@@ -4094,9 +4097,15 @@ err_req:
 		}
 		trace_io_uring_link(ctx, req, head);
 		list_add_tail(&req->link_list, &head->link_list);
-	} else if (sqe->flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK)) {
+
+		/* last request of a link, enqueue the link */
+		if (!(sqe_flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK))) {
+			io_queue_link_head(head);
+			*link = NULL;
+		}
+	} else if (sqe_flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK)) {
 		req->flags |= REQ_F_LINK;
-		if (sqe->flags & IOSQE_IO_HARDLINK)
+		if (sqe_flags & IOSQE_IO_HARDLINK)
 			req->flags |= REQ_F_HARDLINK;
 
 		INIT_LIST_HEAD(&req->link_list);
@@ -4221,7 +4230,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 	for (i = 0; i < nr; i++) {
 		const struct io_uring_sqe *sqe;
 		struct io_kiocb *req;
-		unsigned int sqe_flags;
 
 		req = io_get_req(ctx, statep);
 		if (unlikely(!req)) {
@@ -4243,8 +4251,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 		}
 
 		submitted++;
-		sqe_flags = sqe->flags;
-
 		req->ring_file = ring_file;
 		req->ring_fd = ring_fd;
 		req->has_user = *mm != NULL;
@@ -4253,14 +4259,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 		trace_io_uring_submit_sqe(ctx, req->user_data, true, async);
 		if (!io_submit_sqe(req, sqe, statep, &link))
 			break;
-		/*
-		 * If previous wasn't linked and we have a linked command,
-		 * that's the end of the chain. Submit the previous link.
-		 */
-		if (!(sqe_flags & (IOSQE_IO_LINK|IOSQE_IO_HARDLINK)) && link) {
-			io_queue_link_head(link);
-			link = NULL;
-		}
 	}
 
 	if (link)
