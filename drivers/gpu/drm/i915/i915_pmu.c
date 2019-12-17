@@ -144,61 +144,40 @@ static inline s64 ktime_since(const ktime_t kt)
 	return ktime_to_ns(ktime_sub(ktime_get(), kt));
 }
 
-static u64 __pmu_estimate_rc6(struct i915_pmu *pmu)
-{
-	u64 val;
-
-	/*
-	 * We think we are runtime suspended.
-	 *
-	 * Report the delta from when the device was suspended to now,
-	 * on top of the last known real value, as the approximated RC6
-	 * counter value.
-	 */
-	val = ktime_since(pmu->sleep_last);
-	val += pmu->sample[__I915_SAMPLE_RC6].cur;
-
-	pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur = val;
-
-	return val;
-}
-
-static u64 __pmu_update_rc6(struct i915_pmu *pmu, u64 val)
-{
-	/*
-	 * If we are coming back from being runtime suspended we must
-	 * be careful not to report a larger value than returned
-	 * previously.
-	 */
-	if (val >= pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur) {
-		pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur = 0;
-		pmu->sample[__I915_SAMPLE_RC6].cur = val;
-	} else {
-		val = pmu->sample[__I915_SAMPLE_RC6_ESTIMATED].cur;
-	}
-
-	return val;
-}
-
 static u64 get_rc6(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
 	struct i915_pmu *pmu = &i915->pmu;
 	unsigned long flags;
+	bool awake = false;
 	u64 val;
 
-	val = 0;
 	if (intel_gt_pm_get_if_awake(gt)) {
 		val = __get_rc6(gt);
 		intel_gt_pm_put_async(gt);
+		awake = true;
 	}
 
 	spin_lock_irqsave(&pmu->lock, flags);
 
-	if (val)
-		val = __pmu_update_rc6(pmu, val);
+	if (awake) {
+		pmu->sample[__I915_SAMPLE_RC6].cur = val;
+	} else {
+		/*
+		 * We think we are runtime suspended.
+		 *
+		 * Report the delta from when the device was suspended to now,
+		 * on top of the last known real value, as the approximated RC6
+		 * counter value.
+		 */
+		val = ktime_since(pmu->sleep_last);
+		val += pmu->sample[__I915_SAMPLE_RC6].cur;
+	}
+
+	if (val < pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur)
+		val = pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur;
 	else
-		val = __pmu_estimate_rc6(pmu);
+		pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur = val;
 
 	spin_unlock_irqrestore(&pmu->lock, flags);
 
@@ -210,18 +189,9 @@ static void park_rc6(struct drm_i915_private *i915)
 	struct i915_pmu *pmu = &i915->pmu;
 
 	if (pmu->enable & config_enabled_mask(I915_PMU_RC6_RESIDENCY))
-		__pmu_update_rc6(pmu, __get_rc6(&i915->gt));
+		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
 
 	pmu->sleep_last = ktime_get();
-}
-
-static void unpark_rc6(struct drm_i915_private *i915)
-{
-	struct i915_pmu *pmu = &i915->pmu;
-
-	/* Estimate how long we slept and accumulate that into rc6 counters */
-	if (pmu->enable & config_enabled_mask(I915_PMU_RC6_RESIDENCY))
-		__pmu_estimate_rc6(pmu);
 }
 
 #else
@@ -232,7 +202,6 @@ static u64 get_rc6(struct intel_gt *gt)
 }
 
 static void park_rc6(struct drm_i915_private *i915) {}
-static void unpark_rc6(struct drm_i915_private *i915) {}
 
 #endif
 
@@ -280,8 +249,6 @@ void i915_pmu_gt_unparked(struct drm_i915_private *i915)
 	 * Re-enable sampling timer when GPU goes active.
 	 */
 	__i915_pmu_maybe_start_timer(pmu);
-
-	unpark_rc6(i915);
 
 	spin_unlock_irq(&pmu->lock);
 }
