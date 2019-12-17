@@ -1307,46 +1307,11 @@ static void fiber_lpa_mod_linkmode_lpa_t(unsigned long *advertising, u32 lpa)
 			 advertising, lpa & LPA_FIBER_1000FULL);
 }
 
-/**
- * marvell_update_link - update link status in real time in @phydev
- * @phydev: target phy_device struct
- *
- * Description: Update the value in phydev->link to reflect the
- *   current link value.
- */
-static int marvell_update_link(struct phy_device *phydev, int fiber)
-{
-	int status;
-
-	/* Use the generic register for copper link, or specific
-	 * register for fiber case
-	 */
-	if (fiber) {
-		status = phy_read(phydev, MII_M1011_PHY_STATUS);
-		if (status < 0)
-			return status;
-
-		if (status & MII_M1011_PHY_STATUS_LINK)
-			phydev->link = 1;
-		else
-			phydev->link = 0;
-	} else {
-		return genphy_update_link(phydev);
-	}
-
-	return 0;
-}
-
 static int marvell_read_status_page_an(struct phy_device *phydev,
-				       int fiber)
+				       int fiber, int status)
 {
-	int status;
 	int lpa;
 	int err;
-
-	status = phy_read(phydev, MII_M1011_PHY_STATUS);
-	if (status < 0)
-		return status;
 
 	if (!fiber) {
 		err = genphy_read_lpa(phydev);
@@ -1408,27 +1373,36 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
  */
 static int marvell_read_status_page(struct phy_device *phydev, int page)
 {
+	int status;
 	int fiber;
 	int err;
 
-	/* Detect and update the link, but return if there
-	 * was an error
+	status = phy_read(phydev, MII_M1011_PHY_STATUS);
+	if (status < 0)
+		return status;
+
+	/* Use the generic register for copper link status,
+	 * and the PHY status register for fiber link status.
 	 */
+	if (page == MII_MARVELL_FIBER_PAGE) {
+		phydev->link = !!(status & MII_M1011_PHY_STATUS_LINK);
+	} else {
+		err = genphy_update_link(phydev);
+		if (err)
+			return err;
+	}
+
 	if (page == MII_MARVELL_FIBER_PAGE)
 		fiber = 1;
 	else
 		fiber = 0;
-
-	err = marvell_update_link(phydev, fiber);
-	if (err)
-		return err;
 
 	linkmode_zero(phydev->lp_advertising);
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
 	if (phydev->autoneg == AUTONEG_ENABLE)
-		err = marvell_read_status_page_an(phydev, fiber);
+		err = marvell_read_status_page_an(phydev, fiber, status);
 	else
 		err = genphy_read_status_fixed(phydev);
 
