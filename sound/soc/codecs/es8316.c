@@ -12,9 +12,13 @@
 
 #include <linux/module.h>
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/extcon.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/mod_devicetable.h>
+#include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -23,6 +27,7 @@
 #include <sound/tlv.h>
 #include "es8316.h"
 
+#define ES8316_EXTCON_ID EXTCON_JACK_HEADPHONE
 /* In slave mode at single speed, the codec is documented as accepting 5
  * MCLK/LRCK ratios, but we also add ratio 400, which is commonly used on
  * Intel Cherry Trail platforms (19.2MHz MCLK, 48kHz LRCK).
@@ -36,6 +41,13 @@ struct es8316_priv {
 	unsigned int sysclk;
 	unsigned int allowed_rates[NR_SUPPORTED_MCLK_LRCK_RATIOS];
 	struct snd_pcm_hw_constraint_list sysclk_constraints;
+	struct clk *mclk;
+
+	struct gpio_desc *gpiod_spk_ctl;
+	bool muted;
+	bool hp_inserted;
+	struct notifier_block extcon_nb;
+	int pwr_count;
 };
 
 /*
@@ -494,10 +506,75 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static void es8316_enable_spk(struct es8316_priv *es8316, bool enable)
+{
+	if (!es8316 || !es8316->gpiod_spk_ctl)
+		return;
+	gpiod_set_value(es8316->gpiod_spk_ctl, enable);
+}
+
+static int es8316_extcon_notifier(struct notifier_block *self, unsigned long event, void *ptr)
+{
+	struct es8316_priv *es8316 = container_of(self, struct es8316_priv,
+						  extcon_nb);
+
+	if (event) {
+		es8316->hp_inserted = true;
+		es8316_enable_spk(es8316, false);
+	} else {
+		es8316->hp_inserted = false;
+	}
+	return NOTIFY_DONE;
+}
+
 static int es8316_mute(struct snd_soc_dai *dai, int mute)
 {
-	snd_soc_component_update_bits(dai->component, ES8316_DAC_SET1, 0x20,
-			    mute ? 0x20 : 0);
+	struct snd_soc_component *component = dai->component;
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+	unsigned int val = mute ? 0x20 : 0;
+
+	es8316->muted = mute;
+	if (mute) {
+		es8316_enable_spk(es8316, false);
+		msleep(100);
+		snd_soc_component_update_bits(dai->component, ES8316_DAC_SET1, 0x20, val);
+	} else {
+		snd_soc_component_update_bits(dai->component, ES8316_DAC_SET1, 0x20, val);
+		msleep(130);
+		if (!es8316->hp_inserted)
+			es8316_enable_spk(es8316, true);
+	}
+	return 0;
+}
+
+static int es8316_set_bias_level(struct snd_soc_component *component,
+				 enum snd_soc_bias_level level)
+{
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+		break;
+	case SND_SOC_BIAS_PREPARE:
+		if (IS_ERR(es8316->mclk))
+			break;
+
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
+			clk_disable_unprepare(es8316->mclk);
+		} else {
+			ret = clk_prepare_enable(es8316->mclk);
+			if (ret)
+				return ret;
+		}
+		break;
+
+	case SND_SOC_BIAS_STANDBY:
+		break;
+
+	case SND_SOC_BIAS_OFF:
+		break;
+	}
 	return 0;
 }
 
@@ -534,6 +611,17 @@ static struct snd_soc_dai_driver es8316_dai = {
 
 static int es8316_probe(struct snd_soc_component *component)
 {
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+	int ret = 0;
+
+	es8316->mclk = devm_clk_get(component->dev, "mclk");
+	if (PTR_ERR(es8316->mclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	ret = clk_prepare_enable(es8316->mclk);
+	if (ret)
+		return ret;
+
 	/* Reset codec and enable current state machine */
 	snd_soc_component_write(component, ES8316_RESET, 0x3f);
 	usleep_range(5000, 5500);
@@ -556,8 +644,17 @@ static int es8316_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+static void es8316_remove(struct snd_soc_component *component)
+{
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+
+	clk_disable_unprepare(es8316->mclk);
+}
+
 static const struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.probe			= es8316_probe,
+	.remove			= es8316_remove,
+	.set_bias_level		= es8316_set_bias_level,
 	.controls		= es8316_snd_controls,
 	.num_controls		= ARRAY_SIZE(es8316_snd_controls),
 	.dapm_widgets		= es8316_dapm_widgets,
@@ -580,22 +677,49 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 			    const struct i2c_device_id *id)
 {
 	struct es8316_priv *es8316;
+	struct extcon_dev *edev;
 	struct regmap *regmap;
+	int ret = -1;
 
 	es8316 = devm_kzalloc(&i2c_client->dev, sizeof(struct es8316_priv),
 			      GFP_KERNEL);
 	if (es8316 == NULL)
 		return -ENOMEM;
-
+	es8316->hp_inserted = false;
+	es8316->muted = true;
 	i2c_set_clientdata(i2c_client, es8316);
 
 	regmap = devm_regmap_init_i2c(i2c_client, &es8316_regmap);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-
+	es8316->gpiod_spk_ctl = devm_gpiod_get_optional(&i2c_client->dev,
+							"spk-con",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(es8316->gpiod_spk_ctl)) {
+		ret = IS_ERR(es8316->gpiod_spk_ctl);
+		es8316->gpiod_spk_ctl = NULL;
+		dev_warn(&i2c_client->dev, "cannot get spk-con-gpio %d\n", ret);
+	}
+	if (device_property_read_bool(&i2c_client->dev, "extcon")) {
+		edev = extcon_get_edev_by_phandle(&i2c_client->dev, 0);
+		if (IS_ERR(edev)) {
+			if (PTR_ERR(edev) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			dev_err(&i2c_client->dev, "Invalid or missing extcon\n");
+			return PTR_ERR(edev);
+		}
+		es8316->extcon_nb.notifier_call = es8316_extcon_notifier;
+		ret = devm_extcon_register_notifier(&i2c_client->dev, edev,
+						ES8316_EXTCON_ID,
+						&es8316->extcon_nb);
+		if (ret < 0) {
+			dev_err(&i2c_client->dev, "register notifier fail\n");
+			return ret;
+		}
+	}
 	return devm_snd_soc_register_component(&i2c_client->dev,
-				      &soc_component_dev_es8316,
-				      &es8316_dai, 1);
+					       &soc_component_dev_es8316,
+					       &es8316_dai, 1);
 }
 
 static const struct i2c_device_id es8316_i2c_id[] = {
