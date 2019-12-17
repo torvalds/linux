@@ -1354,8 +1354,6 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 		if (err < 0)
 			return err;
 
-		phydev->pause = 0;
-		phydev->asym_pause = 0;
 		phy_resolve_aneg_pause(phydev);
 	} else {
 		lpa = phy_read(phydev, MII_LPA);
@@ -1365,8 +1363,6 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 		/* The fiber link is only 1000M capable */
 		fiber_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, lpa);
 
-		phydev->pause = 0;
-		phydev->asym_pause = 0;
 		if (phydev->duplex == DUPLEX_FULL) {
 			if (!(lpa & LPA_PAUSE_FIBER)) {
 				phydev->pause = 0;
@@ -1403,21 +1399,6 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 	return 0;
 }
 
-static int marvell_read_status_page_fixed(struct phy_device *phydev)
-{
-	int err;
-
-	err = genphy_read_status_fixed(phydev);
-	if (err < 0)
-		return err;
-
-	phydev->pause = 0;
-	phydev->asym_pause = 0;
-	linkmode_zero(phydev->lp_advertising);
-
-	return 0;
-}
-
 /* marvell_read_status_page
  *
  * Description:
@@ -1443,10 +1424,14 @@ static int marvell_read_status_page(struct phy_device *phydev, int page)
 	if (err)
 		return err;
 
+	linkmode_zero(phydev->lp_advertising);
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
+
 	if (phydev->autoneg == AUTONEG_ENABLE)
 		err = marvell_read_status_page_an(phydev, fiber);
 	else
-		err = marvell_read_status_page_fixed(phydev);
+		err = genphy_read_status_fixed(phydev);
 
 	return err;
 }
