@@ -28,16 +28,9 @@
 #include "rsmu/rsmu_0_0_2_sh_mask.h"
 #include "umc/umc_6_1_1_offset.h"
 #include "umc/umc_6_1_1_sh_mask.h"
+#include "umc/umc_6_1_2_offset.h"
 
 #define smnMCA_UMC0_MCUMC_ADDRT0	0x50f10
-
-/* UMC 6_1_2 register offsets */
-#define mmUMCCH0_0_EccErrCntSel_ARCT                 0x0360
-#define mmUMCCH0_0_EccErrCntSel_ARCT_BASE_IDX        1
-#define mmUMCCH0_0_EccErrCnt_ARCT                    0x0361
-#define mmUMCCH0_0_EccErrCnt_ARCT_BASE_IDX           1
-#define mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT           0x03c2
-#define mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT_BASE_IDX  1
 
 /*
  * (addr / 256) * 8192, the higher 26 bits in ErrorAddr
@@ -105,7 +98,6 @@ static void umc_v6_1_query_correctable_error_count(struct amdgpu_device *adev,
 
 	if (adev->asic_type == CHIP_ARCTURUS) {
 		/* UMC 6_1_2 registers */
-
 		ecc_err_cnt_sel_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCntSel_ARCT);
 		ecc_err_cnt_addr =
@@ -114,7 +106,6 @@ static void umc_v6_1_query_correctable_error_count(struct amdgpu_device *adev,
 			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT);
 	} else {
 		/* UMC 6_1_1 registers */
-
 		ecc_err_cnt_sel_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCntSel);
 		ecc_err_cnt_addr =
@@ -164,12 +155,10 @@ static void umc_v6_1_querry_uncorrectable_error_count(struct amdgpu_device *adev
 
 	if (adev->asic_type == CHIP_ARCTURUS) {
 		/* UMC 6_1_2 registers */
-
 		mc_umc_status_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT);
 	} else {
 		/* UMC 6_1_1 registers */
-
 		mc_umc_status_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
 	}
@@ -211,12 +200,10 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 
 	if (adev->asic_type == CHIP_ARCTURUS) {
 		/* UMC 6_1_2 registers */
-
 		mc_umc_status_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT);
 	} else {
 		/* UMC 6_1_1 registers */
-
 		mc_umc_status_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
 	}
@@ -282,14 +269,12 @@ static void umc_v6_1_err_cnt_init_per_channel(struct amdgpu_device *adev,
 
 	if (adev->asic_type == CHIP_ARCTURUS) {
 		/* UMC 6_1_2 registers */
-
 		ecc_err_cnt_sel_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCntSel_ARCT);
 		ecc_err_cnt_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCnt_ARCT);
 	} else {
 		/* UMC 6_1_1 registers */
-
 		ecc_err_cnt_sel_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCntSel);
 		ecc_err_cnt_addr =
