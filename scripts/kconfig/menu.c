@@ -124,7 +124,8 @@ void menu_set_type(int type)
 		sym_type_name(sym->type), sym_type_name(type));
 }
 
-static struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *expr, struct expr *dep)
+static struct property *menu_add_prop(enum prop_type type, struct expr *expr,
+				      struct expr *dep)
 {
 	struct property *prop = prop_alloc(type, current_entry->sym);
 
@@ -138,7 +139,7 @@ static struct property *menu_add_prop(enum prop_type type, char *prompt, struct 
 struct property *menu_add_prompt(enum prop_type type, char *prompt,
 				 struct expr *dep)
 {
-	struct property *prop = menu_add_prop(type, prompt, NULL, dep);
+	struct property *prop = menu_add_prop(type, NULL, dep);
 
 	if (isspace(*prompt)) {
 		prop_warn(prop, "leading whitespace ignored");
@@ -185,12 +186,12 @@ void menu_add_visibility(struct expr *expr)
 
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep)
 {
-	menu_add_prop(type, NULL, expr, dep);
+	menu_add_prop(type, expr, dep);
 }
 
 void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep)
 {
-	menu_add_prop(type, NULL, expr_alloc_symbol(sym), dep);
+	menu_add_prop(type, expr_alloc_symbol(sym), dep);
 }
 
 void menu_add_option_modules(void)
