@@ -15,20 +15,15 @@
 #define ptr_set_bit(ptr, bit) ((typeof(ptr))((unsigned long)(ptr) | BIT(bit)))
 #define ptr_test_bit(ptr, bit) ((unsigned long)(ptr) & BIT(bit))
 
+#define CACHELINE_BITS 6
+#define CACHELINE_FREE CACHELINE_BITS
+
 struct intel_timeline_hwsp {
 	struct intel_gt *gt;
 	struct intel_gt_timelines *gt_timelines;
 	struct list_head free_link;
 	struct i915_vma *vma;
 	u64 free_bitmap;
-};
-
-struct intel_timeline_cacheline {
-	struct i915_active active;
-	struct intel_timeline_hwsp *hwsp;
-	void *vaddr;
-#define CACHELINE_BITS 6
-#define CACHELINE_FREE CACHELINE_BITS
 };
 
 static struct i915_vma *__hwsp_alloc(struct intel_gt *gt)
@@ -133,7 +128,7 @@ static void __idle_cacheline_free(struct intel_timeline_cacheline *cl)
 	__idle_hwsp_free(cl->hwsp, ptr_unmask_bits(cl->vaddr, CACHELINE_BITS));
 
 	i915_active_fini(&cl->active);
-	kfree(cl);
+	kfree_rcu(cl, rcu);
 }
 
 __i915_active_call
@@ -514,46 +509,35 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 			     struct i915_request *to,
 			     u32 *hwsp)
 {
-	struct intel_timeline *tl;
+	struct intel_timeline_cacheline *cl;
 	int err;
 
+	GEM_BUG_ON(!rcu_access_pointer(from->hwsp_cacheline));
+
 	rcu_read_lock();
-	tl = rcu_dereference(from->timeline);
-	if (i915_request_completed(from) || !kref_get_unless_zero(&tl->kref))
-		tl = NULL;
+	cl = rcu_dereference(from->hwsp_cacheline);
+	if (unlikely(!i915_active_acquire_if_busy(&cl->active)))
+		goto unlock; /* seqno wrapped and completed! */
+	if (unlikely(i915_request_completed(from)))
+		goto release;
 	rcu_read_unlock();
-	if (!tl) /* already completed */
-		return 1;
 
-	GEM_BUG_ON(rcu_access_pointer(to->timeline) == tl);
+	err = cacheline_ref(cl, to);
+	if (err)
+		goto out;
 
-	err = -EAGAIN;
-	if (mutex_trylock(&tl->mutex)) {
-		struct intel_timeline_cacheline *cl = from->hwsp_cacheline;
+	*hwsp = i915_ggtt_offset(cl->hwsp->vma) +
+		ptr_unmask_bits(cl->vaddr, CACHELINE_BITS) * CACHELINE_BYTES;
 
-		if (i915_request_completed(from)) {
-			err = 1;
-			goto unlock;
-		}
-
-		err = cacheline_ref(cl, to);
-		if (err)
-			goto unlock;
-
-		if (likely(cl == tl->hwsp_cacheline)) {
-			*hwsp = tl->hwsp_offset;
-		} else { /* across a seqno wrap, recover the original offset */
-			*hwsp = i915_ggtt_offset(cl->hwsp->vma) +
-				ptr_unmask_bits(cl->vaddr, CACHELINE_BITS) *
-				CACHELINE_BYTES;
-		}
-
-unlock:
-		mutex_unlock(&tl->mutex);
-	}
-	intel_timeline_put(tl);
-
+out:
+	i915_active_release(&cl->active);
 	return err;
+
+release:
+	i915_active_release(&cl->active);
+unlock:
+	rcu_read_unlock();
+	return 1;
 }
 
 void intel_timeline_unpin(struct intel_timeline *tl)

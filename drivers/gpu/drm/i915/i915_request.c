@@ -655,9 +655,9 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->execution_mask = ce->engine->mask;
 	rq->flags = 0;
 
-	rcu_assign_pointer(rq->timeline, tl);
+	RCU_INIT_POINTER(rq->timeline, tl);
+	RCU_INIT_POINTER(rq->hwsp_cacheline, tl->hwsp_cacheline);
 	rq->hwsp_seqno = tl->hwsp_seqno;
-	rq->hwsp_cacheline = tl->hwsp_cacheline;
 
 	rq->rcustate = get_state_synchronize_rcu(); /* acts as smp_mb() */
 

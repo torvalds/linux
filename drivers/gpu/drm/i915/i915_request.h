@@ -30,6 +30,7 @@
 
 #include "gt/intel_context_types.h"
 #include "gt/intel_engine_types.h"
+#include "gt/intel_timeline_types.h"
 
 #include "i915_gem.h"
 #include "i915_scheduler.h"
@@ -41,8 +42,6 @@
 struct drm_file;
 struct drm_i915_gem_object;
 struct i915_request;
-struct intel_timeline;
-struct intel_timeline_cacheline;
 
 struct i915_capture_list {
 	struct i915_capture_list *next;
@@ -183,7 +182,7 @@ struct i915_request {
 	 * inside the timeline's HWSP vma, but it is only valid while this
 	 * request has not completed and guarded by the timeline mutex.
 	 */
-	struct intel_timeline_cacheline *hwsp_cacheline;
+	struct intel_timeline_cacheline __rcu *hwsp_cacheline;
 
 	/** Position in the ring of the start of the request */
 	u32 head;
