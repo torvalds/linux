@@ -377,11 +377,6 @@ struct hif_cnf_edca_queue_params {
 	u32   status;
 } __packed;
 
-enum hif_ap_mode {
-	HIF_MODE_IBSS                              = 0x0,
-	HIF_MODE_BSS                               = 0x1
-};
-
 enum hif_preamble {
 	HIF_PREAMBLE_LONG                          = 0x0,
 	HIF_PREAMBLE_SHORT                         = 0x1,
@@ -396,7 +391,8 @@ struct hif_join_flags {
 } __packed;
 
 struct hif_req_join {
-	u8    mode;
+	u8    infrastructure_bss_mode:1;
+	u8    reserved1:7;
 	u8    band;
 	u16   channel_number;
 	u8    bssid[ETH_ALEN];

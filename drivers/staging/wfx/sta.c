@@ -651,7 +651,7 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	struct ieee80211_bss_conf *conf = &wvif->vif->bss_conf;
 	struct cfg80211_bss *bss = NULL;
 	struct hif_req_join join = {
-		.mode = conf->ibss_joined ? HIF_MODE_IBSS : HIF_MODE_BSS,
+		.infrastructure_bss_mode = !conf->ibss_joined,
 		.preamble_type = conf->use_short_preamble ? HIF_PREAMBLE_SHORT : HIF_PREAMBLE_LONG,
 		.probe_for_join = 1,
 		.atim_window = 0,
