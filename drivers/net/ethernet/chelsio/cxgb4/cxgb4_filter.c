@@ -361,13 +361,11 @@ static int get_filter_count(struct adapter *adapter, unsigned int fidx,
 
 	tcb_base = t4_read_reg(adapter, TP_CMM_TCB_BASE_A);
 	if (is_hashfilter(adapter) && hash) {
-		if (fidx < adapter->tids.ntids) {
-			f = adapter->tids.tid_tab[fidx];
-			if (!f)
-				return -EINVAL;
-		} else {
+		if (tid_out_of_range(&adapter->tids, fidx))
 			return -E2BIG;
-		}
+		f = adapter->tids.tid_tab[fidx - adapter->tids.tid_base];
+		if (!f)
+			return -EINVAL;
 	} else {
 		if ((fidx != (adapter->tids.nftids + adapter->tids.nsftids +
 			      adapter->tids.nhpftids - 1)) &&
@@ -1615,7 +1613,7 @@ static int cxgb4_del_hash_filter(struct net_device *dev, int filter_id,
 	netdev_dbg(dev, "%s: filter_id = %d ; nftids = %d\n",
 		   __func__, filter_id, adapter->tids.nftids);
 
-	if (filter_id > adapter->tids.ntids)
+	if (tid_out_of_range(t, filter_id))
 		return -E2BIG;
 
 	f = lookup_tid(t, filter_id);
