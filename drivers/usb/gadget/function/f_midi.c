@@ -1234,7 +1234,7 @@ static ssize_t alsa_show(struct device *dev,
 
 	if (fi_midi && fi_midi->f) {
 		midi = func_to_midi(fi_midi->f);
-		if (midi->rmidi && midi->rmidi->card)
+		if (midi->rmidi && midi->card && midi->rmidi->card)
 			return sprintf(buf, "%d %d\n",
 			midi->rmidi->card->number, midi->rmidi->device);
 	}
