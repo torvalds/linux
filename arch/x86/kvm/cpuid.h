@@ -55,6 +55,11 @@ static const struct cpuid_reg reverse_cpuid[] = {
 	[CPUID_7_EDX]         = {         7, 0, CPUID_EDX},
 };
 
+static inline u32 bit(int bitno)
+{
+	return BIT(bitno & 31);
+}
+
 static __always_inline struct cpuid_reg x86_feature_cpuid(unsigned x86_feature)
 {
 	unsigned x86_leaf = x86_feature / 32;

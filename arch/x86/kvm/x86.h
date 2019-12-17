@@ -144,11 +144,6 @@ static inline bool is_pae_paging(struct kvm_vcpu *vcpu)
 	return !is_long_mode(vcpu) && is_pae(vcpu) && is_paging(vcpu);
 }
 
-static inline u32 bit(int bitno)
-{
-	return 1 << (bitno & 31);
-}
-
 static inline u8 vcpu_virt_addr_bits(struct kvm_vcpu *vcpu)
 {
 	return kvm_read_cr4_bits(vcpu, X86_CR4_LA57) ? 57 : 48;
