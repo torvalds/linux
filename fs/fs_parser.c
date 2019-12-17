@@ -85,7 +85,6 @@ int fs_parse(struct fs_context *fc,
 	const struct fs_parameter_enum *e;
 	int ret = -ENOPARAM, b;
 
-	result->has_value = !!param->string;
 	result->negated = false;
 	result->uint_64 = 0;
 
@@ -95,7 +94,7 @@ int fs_parse(struct fs_context *fc,
 		 * "xxx" takes the "no"-form negative - but only if there
 		 * wasn't an value.
 		 */
-		if (result->has_value)
+		if (param->type != fs_value_is_flag)
 			goto unknown_parameter;
 		if (param->key[0] != 'n' || param->key[1] != 'o' || !param->key[2])
 			goto unknown_parameter;
@@ -127,14 +126,18 @@ int fs_parse(struct fs_context *fc,
 	case fs_param_is_u64:
 	case fs_param_is_enum:
 	case fs_param_is_string:
-		if (param->type != fs_value_is_string)
-			goto bad_value;
-		if (!result->has_value) {
+		if (param->type == fs_value_is_string) {
+			if (p->flags & fs_param_v_optional)
+				break;
+			if (!*param->string)
+				goto bad_value;
+			break;
+		}
+		if (param->type == fs_value_is_flag) {
 			if (p->flags & fs_param_v_optional)
 				goto okay;
-			goto bad_value;
 		}
-		/* Fall through */
+		goto bad_value;
 	default:
 		break;
 	}
@@ -144,8 +147,7 @@ int fs_parse(struct fs_context *fc,
 	 */
 	switch (p->type) {
 	case fs_param_is_flag:
-		if (param->type != fs_value_is_flag &&
-		    (param->type != fs_value_is_string || result->has_value))
+		if (param->type != fs_value_is_flag)
 			return invalf(fc, "%s: Unexpected value for '%s'",
 				      desc->name, param->key);
 		result->boolean = true;
@@ -206,9 +208,6 @@ int fs_parse(struct fs_context *fc,
 	case fs_param_is_fd: {
 		switch (param->type) {
 		case fs_value_is_string:
-			if (!result->has_value)
-				goto bad_value;
-
 			ret = kstrtouint(param->string, 0, &result->uint_32);
 			break;
 		case fs_value_is_file:

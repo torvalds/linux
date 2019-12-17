@@ -72,7 +72,6 @@ struct fs_parameter_description {
  */
 struct fs_parse_result {
 	bool			negated;	/* T if param was "noxxx" */
-	bool			has_value;	/* T if value supplied to param */
 	union {
 		bool		boolean;	/* For spec_bool */
 		int		int_32;		/* For spec_s32/spec_enum */

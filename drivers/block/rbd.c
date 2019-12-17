@@ -6433,7 +6433,7 @@ static int rbd_parse_options(char *options, struct rbd_parse_opts_ctx *pctx)
 		if (*key) {
 			struct fs_parameter param = {
 				.key	= key,
-				.type	= fs_value_is_string,
+				.type	= fs_value_is_flag,
 			};
 			char *value = strchr(key, '=');
 			size_t v_len = 0;
@@ -6443,14 +6443,11 @@ static int rbd_parse_options(char *options, struct rbd_parse_opts_ctx *pctx)
 					continue;
 				*value++ = 0;
 				v_len = strlen(value);
-			}
-
-
-			if (v_len > 0) {
 				param.string = kmemdup_nul(value, v_len,
 							   GFP_KERNEL);
 				if (!param.string)
 					return -ENOMEM;
+				param.type = fs_value_is_string;
 			}
 			param.size = v_len;
 

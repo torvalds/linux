@@ -175,14 +175,15 @@ int vfs_parse_fs_string(struct fs_context *fc, const char *key,
 
 	struct fs_parameter param = {
 		.key	= key,
-		.type	= fs_value_is_string,
+		.type	= fs_value_is_flag,
 		.size	= v_size,
 	};
 
-	if (v_size > 0) {
+	if (value) {
 		param.string = kmemdup_nul(value, v_size, GFP_KERNEL);
 		if (!param.string)
 			return -ENOMEM;
+		param.type = fs_value_is_string;
 	}
 
 	ret = vfs_parse_fs_param(fc, &param);
