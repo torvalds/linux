@@ -835,7 +835,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.scl_reset_length10 = true,
 		.sanity_checks = true,
 		.disable_48mhz_pwrdwn = false,
-		.nv12_iflip_vm_wa = true
+		.nv12_iflip_vm_wa = true,
+		.usbc_combo_phy_reset_wa = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {

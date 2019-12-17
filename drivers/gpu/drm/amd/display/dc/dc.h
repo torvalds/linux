@@ -421,6 +421,7 @@ struct dc_debug_options {
 	bool disable_dram_clock_change_vactive_support;
 	bool validate_dml_output;
 	bool enable_dmcub_surface_flip;
+	bool usbc_combo_phy_reset_wa;
 };
 
 struct dc_debug_data {
