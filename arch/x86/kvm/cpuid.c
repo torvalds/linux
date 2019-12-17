@@ -281,8 +281,9 @@ out:
 	return r;
 }
 
-static void cpuid_mask(u32 *word, int wordnum)
+static __always_inline void cpuid_mask(u32 *word, int wordnum)
 {
+	reverse_cpuid_check(wordnum);
 	*word &= boot_cpu_data.x86_capability[wordnum];
 }
 
