@@ -169,7 +169,8 @@ static int wfx_tx_policy_get(struct wfx_vif *wvif,
 	wfx_tx_policy_build(wvif, &wanted, rates);
 
 	spin_lock_bh(&cache->lock);
-	if (WARN_ON(list_empty(&cache->free))) {
+	if (list_empty(&cache->free)) {
+		WARN(1, "unable to get a valid Tx policy");
 		spin_unlock_bh(&cache->lock);
 		return WFX_INVALID_RATE_ID;
 	}
