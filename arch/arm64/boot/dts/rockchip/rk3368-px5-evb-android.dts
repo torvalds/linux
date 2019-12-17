@@ -864,10 +864,6 @@
 	status = "okay";
 };
 
-&dwc_control_usb {
-	otg_drv_gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
-};
-
 &lvds {
 	status = "okay";
 
