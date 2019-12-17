@@ -1210,7 +1210,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 				    " Existing TGT-ID %x did not get "
 				    " offline event from firmware.\n",
 				    fcport->old_tgt_id);
-				qla2x00_mark_device_lost(vha, fcport, 0, 0);
+				qla2x00_mark_device_lost(vha, fcport, 0);
 				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 				kfree(new_fcport);
 				return rval;
@@ -1274,7 +1274,7 @@ qlafx00_configure_all_targets(scsi_qla_host_t *vha)
 
 		if (atomic_read(&fcport->state) == FCS_DEVICE_LOST) {
 			if (fcport->port_type != FCT_INITIATOR)
-				qla2x00_mark_device_lost(vha, fcport, 0, 0);
+				qla2x00_mark_device_lost(vha, fcport, 0);
 		}
 	}
 
@@ -1706,7 +1706,7 @@ qlafx00_tgt_detach(struct scsi_qla_host *vha, int tgt_id)
 	if (!fcport)
 		return;
 
-	qla2x00_mark_device_lost(vha, fcport, 0, 0);
+	qla2x00_mark_device_lost(vha, fcport, 0);
 
 	return;
 }
@@ -1740,7 +1740,7 @@ qlafx00_process_aen(struct scsi_qla_host *vha, struct qla_work_evt *evt)
 				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 			} else if (evt->u.aenfx.mbx[2] == 2) {
 				vha->device_flags |= DFLG_NO_CABLE;
-				qla2x00_mark_all_devices_lost(vha, 1);
+				qla2x00_mark_all_devices_lost(vha);
 			}
 		}
 		break;
@@ -2513,7 +2513,7 @@ check_scsi_status:
 		    atomic_read(&fcport->state));
 
 		if (atomic_read(&fcport->state) == FCS_ONLINE)
-			qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
+			qla2x00_mark_device_lost(fcport->vha, fcport, 1);
 		break;
 
 	case CS_ABORTED:

@@ -3030,7 +3030,7 @@ qla8xxx_dev_failed_handler(scsi_qla_host_t *vha)
 	/* Set DEV_FAILED flag to disable timer */
 	vha->device_flags |= DFLG_DEV_FAILED;
 	qla2x00_abort_all_cmds(vha, DID_NO_CONNECT << 16);
-	qla2x00_mark_all_devices_lost(vha, 0);
+	qla2x00_mark_all_devices_lost(vha);
 	vha->flags.online = 0;
 	vha->flags.init_done = 0;
 }

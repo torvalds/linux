@@ -253,8 +253,8 @@ extern scsi_qla_host_t *qla24xx_create_vhost(struct fc_vport *);
 extern void qla2x00_sp_free_dma(srb_t *sp);
 extern char *qla2x00_get_fw_version_str(struct scsi_qla_host *, char *);
 
-extern void qla2x00_mark_device_lost(scsi_qla_host_t *, fc_port_t *, int, int);
-extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *, int);
+extern void qla2x00_mark_device_lost(scsi_qla_host_t *, fc_port_t *, int);
+extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *);
 
 extern struct fw_blob *qla2x00_request_firmware(scsi_qla_host_t *);
 
