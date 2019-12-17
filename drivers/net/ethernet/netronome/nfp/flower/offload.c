@@ -68,7 +68,8 @@
 #define NFP_FLOWER_PRE_TUN_RULE_FIELDS \
 	(NFP_FLOWER_LAYER_PORT | \
 	 NFP_FLOWER_LAYER_MAC | \
-	 NFP_FLOWER_LAYER_IPV4)
+	 NFP_FLOWER_LAYER_IPV4 | \
+	 NFP_FLOWER_LAYER_IPV6)
 
 struct nfp_flower_merge_check {
 	union {
@@ -566,10 +567,12 @@ nfp_flower_update_merge_with_actions(struct nfp_fl_payload *flow,
 	struct nfp_fl_set_ip4_addrs *ipv4_add;
 	struct nfp_fl_set_ipv6_addr *ipv6_add;
 	struct nfp_fl_push_vlan *push_vlan;
+	struct nfp_fl_pre_tunnel *pre_tun;
 	struct nfp_fl_set_tport *tport;
 	struct nfp_fl_set_eth *eth;
 	struct nfp_fl_act_head *a;
 	unsigned int act_off = 0;
+	bool ipv6_tun = false;
 	u8 act_id = 0;
 	u8 *ports;
 	int i;
@@ -597,8 +600,12 @@ nfp_flower_update_merge_with_actions(struct nfp_fl_payload *flow,
 			eth_broadcast_addr(&merge->l2.mac_src[0]);
 			memset(&merge->l4, 0xff,
 			       sizeof(struct nfp_flower_tp_ports));
-			memset(&merge->ipv4, 0xff,
-			       sizeof(struct nfp_flower_ipv4));
+			if (ipv6_tun)
+				memset(&merge->ipv6, 0xff,
+				       sizeof(struct nfp_flower_ipv6));
+			else
+				memset(&merge->ipv4, 0xff,
+				       sizeof(struct nfp_flower_ipv4));
 			break;
 		case NFP_FL_ACTION_OPCODE_SET_ETHERNET:
 			eth = (struct nfp_fl_set_eth *)a;
@@ -646,6 +653,10 @@ nfp_flower_update_merge_with_actions(struct nfp_fl_payload *flow,
 				ports[i] |= tport->tp_port_mask[i];
 			break;
 		case NFP_FL_ACTION_OPCODE_PRE_TUNNEL:
+			pre_tun = (struct nfp_fl_pre_tunnel *)a;
+			ipv6_tun = be16_to_cpu(pre_tun->flags) &
+					NFP_FL_PRE_TUN_IPV6;
+			break;
 		case NFP_FL_ACTION_OPCODE_PRE_LAG:
 		case NFP_FL_ACTION_OPCODE_PUSH_GENEVE:
 			break;
@@ -1107,15 +1118,22 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 		return -EOPNOTSUPP;
 	}
 
-	if (key_layer & NFP_FLOWER_LAYER_IPV4) {
+	if (key_layer & NFP_FLOWER_LAYER_IPV4 ||
+	    key_layer & NFP_FLOWER_LAYER_IPV6) {
+		/* Flags and proto fields have same offset in IPv4 and IPv6. */
 		int ip_flags = offsetof(struct nfp_flower_ipv4, ip_ext.flags);
 		int ip_proto = offsetof(struct nfp_flower_ipv4, ip_ext.proto);
+		int size;
 		int i;
+
+		size = key_layer & NFP_FLOWER_LAYER_IPV4 ?
+			sizeof(struct nfp_flower_ipv4) :
+			sizeof(struct nfp_flower_ipv6);
 
 		mask += sizeof(struct nfp_flower_mac_mpls);
 
 		/* Ensure proto and flags are the only IP layer fields. */
-		for (i = 0; i < sizeof(struct nfp_flower_ipv4); i++)
+		for (i = 0; i < size; i++)
 			if (mask[i] && i != ip_flags && i != ip_proto) {
 				NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: only flags and proto can be matched in ip header");
 				return -EOPNOTSUPP;
