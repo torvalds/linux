@@ -5425,6 +5425,16 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		port->phylink = NULL;
 	}
 
+	/* Cycle the comphy to power it down, saving 270mW per port -
+	 * don't worry about an error powering it up. When the comphy
+	 * driver does this, we can remove this code.
+	 */
+	if (port->comphy) {
+		err = mvpp22_comphy_init(port);
+		if (err == 0)
+			phy_power_off(port->comphy);
+	}
+
 	err = register_netdev(dev);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register netdev\n");
