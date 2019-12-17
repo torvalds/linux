@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "hdcp.h"
 
 static inline enum mod_hdcp_status check_receiver_id_list_ready(struct mod_hdcp *hdcp)
