@@ -348,9 +348,19 @@ static const struct spi_device_id ad7923_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, ad7923_id);
 
+static const struct of_device_id ad7923_of_match[] = {
+	{ .compatible = "adi,ad7904", },
+	{ .compatible = "adi,ad7914", },
+	{ .compatible = "adi,ad7923", },
+	{ .compatible = "adi,ad7924", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ad7923_of_match);
+
 static struct spi_driver ad7923_driver = {
 	.driver = {
 		.name	= "ad7923",
+		.of_match_table = ad7923_of_match,
 	},
 	.probe		= ad7923_probe,
 	.remove		= ad7923_remove,
