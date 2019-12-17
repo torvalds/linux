@@ -465,7 +465,7 @@ static int rx8010_probe(struct i2c_client *client,
 
 	rx8010->rtc->max_user_freq = 1;
 
-	return err;
+	return 0;
 }
 
 static struct i2c_driver rx8010_driver = {
