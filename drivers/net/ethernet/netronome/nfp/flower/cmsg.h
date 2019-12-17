@@ -72,7 +72,7 @@
 #define NFP_FL_ACTION_OPCODE_POP_VLAN		2
 #define NFP_FL_ACTION_OPCODE_PUSH_MPLS		3
 #define NFP_FL_ACTION_OPCODE_POP_MPLS		4
-#define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
+#define NFP_FL_ACTION_OPCODE_SET_TUNNEL		6
 #define NFP_FL_ACTION_OPCODE_SET_ETHERNET	7
 #define NFP_FL_ACTION_OPCODE_SET_MPLS		8
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS	9
@@ -101,8 +101,8 @@
 
 /* Tunnel ports */
 #define NFP_FL_PORT_TYPE_TUN		0x50000000
-#define NFP_FL_IPV4_TUNNEL_TYPE		GENMASK(7, 4)
-#define NFP_FL_IPV4_PRE_TUN_INDEX	GENMASK(2, 0)
+#define NFP_FL_TUNNEL_TYPE		GENMASK(7, 4)
+#define NFP_FL_PRE_TUN_INDEX		GENMASK(2, 0)
 
 #define NFP_FLOWER_WORKQ_MAX_SKBS	30000
 
@@ -208,13 +208,16 @@ struct nfp_fl_pre_lag {
 
 struct nfp_fl_pre_tunnel {
 	struct nfp_fl_act_head head;
-	__be16 reserved;
-	__be32 ipv4_dst;
-	/* reserved for use with IPv6 addresses */
-	__be32 extra[3];
+	__be16 flags;
+	union {
+		__be32 ipv4_dst;
+		struct in6_addr ipv6_dst;
+	};
 };
 
-struct nfp_fl_set_ipv4_tun {
+#define NFP_FL_PRE_TUN_IPV6	BIT(0)
+
+struct nfp_fl_set_tun {
 	struct nfp_fl_act_head head;
 	__be16 reserved;
 	__be64 tun_id __packed;

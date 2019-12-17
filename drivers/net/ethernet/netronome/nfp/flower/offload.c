@@ -591,7 +591,7 @@ nfp_flower_update_merge_with_actions(struct nfp_fl_payload *flow,
 		case NFP_FL_ACTION_OPCODE_POP_VLAN:
 			merge->tci = cpu_to_be16(0);
 			break;
-		case NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL:
+		case NFP_FL_ACTION_OPCODE_SET_TUNNEL:
 			/* New tunnel header means l2 to l4 can be matched. */
 			eth_broadcast_addr(&merge->l2.mac_dst[0]);
 			eth_broadcast_addr(&merge->l2.mac_src[0]);
@@ -814,15 +814,15 @@ nfp_fl_verify_post_tun_acts(char *acts, int len, struct nfp_fl_push_vlan **vlan)
 static int
 nfp_fl_push_vlan_after_tun(char *acts, int len, struct nfp_fl_push_vlan *vlan)
 {
-	struct nfp_fl_set_ipv4_tun *tun;
+	struct nfp_fl_set_tun *tun;
 	struct nfp_fl_act_head *a;
 	unsigned int act_off = 0;
 
 	while (act_off < len) {
 		a = (struct nfp_fl_act_head *)&acts[act_off];
 
-		if (a->jump_id == NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL) {
-			tun = (struct nfp_fl_set_ipv4_tun *)a;
+		if (a->jump_id == NFP_FL_ACTION_OPCODE_SET_TUNNEL) {
+			tun = (struct nfp_fl_set_tun *)a;
 			tun->outer_vlan_tpid = vlan->vlan_tpid;
 			tun->outer_vlan_tci = vlan->vlan_tci;
 
