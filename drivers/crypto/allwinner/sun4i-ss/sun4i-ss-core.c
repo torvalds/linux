@@ -282,7 +282,7 @@ err_enable:
 	return err;
 }
 
-const struct dev_pm_ops sun4i_ss_pm_ops = {
+static const struct dev_pm_ops sun4i_ss_pm_ops = {
 	SET_RUNTIME_PM_OPS(sun4i_ss_pm_suspend, sun4i_ss_pm_resume, NULL)
 };
 
