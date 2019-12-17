@@ -3008,12 +3008,10 @@ static void icl_sanitize_port_clk_off(struct drm_i915_private *dev_priv,
 	val = I915_READ(ICL_DPCLKA_CFGCR0);
 	for_each_port_masked(port, port_mask) {
 		enum phy phy = intel_port_to_phy(dev_priv, port);
+		bool ddi_clk_off = val & icl_dpclka_cfgcr0_clk_off(dev_priv,
+								   phy);
 
-		bool ddi_clk_ungated = !(val &
-					 icl_dpclka_cfgcr0_clk_off(dev_priv,
-								   phy));
-
-		if (ddi_clk_needed == ddi_clk_ungated)
+		if (ddi_clk_needed == !ddi_clk_off)
 			continue;
 
 		/*
