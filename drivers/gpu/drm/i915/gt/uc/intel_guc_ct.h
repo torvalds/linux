@@ -35,44 +35,25 @@ struct intel_guc_ct_buffer {
 	u32 *cmds;
 };
 
-/** Represents pair of command transport buffers.
- *
- * Buffers go in pairs to allow bi-directional communication.
- * To simplify the code we place both of them in the same vma.
- * Buffers from the same pair must share unique owner id.
- *
- * @vma: pointer to the vma with pair of CT buffers
- * @ctbs: buffers for sending(0) and receiving(1) commands
- * @owner: unique identifier
- * @next_fence: fence to be used with next send command
- */
-struct intel_guc_ct_channel {
-	struct i915_vma *vma;
-	struct intel_guc_ct_buffer ctbs[2];
-	u32 owner;
-	u32 next_fence;
-	bool enabled;
-};
 
-/** Holds all command transport channels.
+/** Top-level structure for Command Transport related data
  *
- * @host_channel: main channel used by the host
+ * Includes a pair of CT buffers for bi-directional communication and tracking
+ * for the H2G and G2H requests sent and received through the buffers.
  */
 struct intel_guc_ct {
-	struct intel_guc_ct_channel host_channel;
-	/* other channels are tbd */
+	struct i915_vma *vma;
+	bool enabled;
 
-	/** @lock: protects pending requests list */
-	spinlock_t lock;
+	/* buffers for sending(0) and receiving(1) commands */
+	struct intel_guc_ct_buffer ctbs[2];
 
-	/** @pending_requests: list of requests waiting for response */
-	struct list_head pending_requests;
+	u32 next_fence; /* fence to be used with next send command */
 
-	/** @incoming_requests: list of incoming requests */
-	struct list_head incoming_requests;
-
-	/** @worker: worker for handling incoming requests */
-	struct work_struct worker;
+	spinlock_t lock; /* protects pending requests list */
+	struct list_head pending_requests; /* requests waiting for response */
+	struct list_head incoming_requests; /* incoming requests */
+	struct work_struct worker; /* handler for incoming requests */
 };
 
 void intel_guc_ct_init_early(struct intel_guc_ct *ct);
