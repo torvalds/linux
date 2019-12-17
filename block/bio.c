@@ -237,6 +237,8 @@ void bio_uninit(struct bio *bio)
 
 	if (bio_integrity(bio))
 		bio_integrity_free(bio);
+
+	bio_crypt_free_ctx(bio);
 }
 EXPORT_SYMBOL(bio_uninit);
 
@@ -245,7 +247,6 @@ static void bio_free(struct bio *bio)
 	struct bio_set *bs = bio->bi_pool;
 	void *p;
 
-	bio_crypt_free_ctx(bio);
 	bio_uninit(bio);
 
 	if (bs) {
@@ -666,10 +667,7 @@ struct bio *bio_clone_fast(struct bio *bio, gfp_t gfp_mask, struct bio_set *bs)
 
 	__bio_clone_fast(b, bio);
 
-	if (bio_crypt_clone(b, bio, gfp_mask) < 0) {
-		bio_put(b);
-		return NULL;
-	}
+	bio_crypt_clone(b, bio, gfp_mask);
 
 	if (bio_integrity(bio) &&
 	    bio_integrity_clone(b, bio, gfp_mask) < 0) {

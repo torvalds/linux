@@ -309,7 +309,7 @@ static struct bio *__bio_alloc(struct f2fs_io_info *fio, int npages)
 	return bio;
 }
 
-static int f2fs_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
+static void f2fs_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
 				  pgoff_t first_idx,
 				  const struct f2fs_io_info *fio,
 				  gfp_t gfp_mask)
@@ -318,10 +318,8 @@ static int f2fs_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
 	 * The f2fs garbage collector sets ->encrypted_page when it wants to
 	 * read/write raw data without encryption.
 	 */
-	if (fio && fio->encrypted_page)
-		return 0;
-
-	return fscrypt_set_bio_crypt_ctx(bio, inode, first_idx, gfp_mask);
+	if (!fio || !fio->encrypted_page)
+		fscrypt_set_bio_crypt_ctx(bio, inode, first_idx, gfp_mask);
 }
 
 static bool f2fs_crypt_mergeable_bio(struct bio *bio, const struct inode *inode,
@@ -333,7 +331,7 @@ static bool f2fs_crypt_mergeable_bio(struct bio *bio, const struct inode *inode,
 	 * read/write raw data without encryption.
 	 */
 	if (fio && fio->encrypted_page)
-		return true;
+		return !bio_has_crypt_ctx(bio);
 
 	return fscrypt_mergeable_bio(bio, inode, next_idx);
 }
@@ -509,7 +507,6 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 	struct bio *bio;
 	struct page *page = fio->encrypted_page ?
 			fio->encrypted_page : fio->page;
-	int err;
 
 	if (!f2fs_is_valid_blkaddr(fio->sbi, fio->new_blkaddr,
 			fio->is_por ? META_POR : (__is_meta_io(fio) ?
@@ -522,12 +519,8 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 	/* Allocate a new bio */
 	bio = __bio_alloc(fio, 1);
 
-	err = f2fs_set_bio_crypt_ctx(bio, fio->page->mapping->host,
-				     fio->page->index, fio, GFP_NOIO);
-	if (err) {
-		bio_put(bio);
-		return err;
-	}
+	f2fs_set_bio_crypt_ctx(bio, fio->page->mapping->host,
+			       fio->page->index, fio, GFP_NOIO);
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
 		bio_put(bio);
@@ -726,7 +719,7 @@ alloc_new:
 		bio = __bio_alloc(fio, BIO_MAX_PAGES);
 		f2fs_set_bio_crypt_ctx(bio, fio->page->mapping->host,
 				       fio->page->index, fio,
-				       GFP_NOIO | __GFP_NOFAIL);
+				       GFP_NOIO);
 		bio_set_op_attrs(bio, fio->op, fio->op_flags);
 
 		add_bio_entry(fio->sbi, bio, page, fio->temp);
@@ -796,7 +789,7 @@ alloc_new:
 		io->bio = __bio_alloc(fio, BIO_MAX_PAGES);
 		f2fs_set_bio_crypt_ctx(io->bio, fio->page->mapping->host,
 				       fio->page->index, fio,
-				       GFP_NOIO | __GFP_NOFAIL);
+				       GFP_NOIO);
 		io->fio = *fio;
 	}
 
@@ -836,17 +829,12 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
 	struct bio *bio;
 	struct bio_post_read_ctx *ctx;
 	unsigned int post_read_steps = 0;
-	int err;
 
 	bio = f2fs_bio_alloc(sbi, min_t(int, nr_pages, BIO_MAX_PAGES), false);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
 
-	err = f2fs_set_bio_crypt_ctx(bio, inode, first_idx, NULL, GFP_NOFS);
-	if (err) {
-		bio_put(bio);
-		return ERR_PTR(err);
-	}
+	f2fs_set_bio_crypt_ctx(bio, inode, first_idx, NULL, GFP_NOFS);
 
 	f2fs_target_device(sbi, blkaddr, bio);
 	bio->bi_end_io = f2fs_read_end_io;

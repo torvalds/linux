@@ -6,221 +6,188 @@
 #define __LINUX_BIO_CRYPT_CTX_H
 
 enum blk_crypto_mode_num {
-	BLK_ENCRYPTION_MODE_INVALID	= 0,
-	BLK_ENCRYPTION_MODE_AES_256_XTS	= 1,
+	BLK_ENCRYPTION_MODE_INVALID,
+	BLK_ENCRYPTION_MODE_AES_256_XTS,
+	BLK_ENCRYPTION_MODE_AES_128_CBC_ESSIV,
+	BLK_ENCRYPTION_MODE_ADIANTUM,
+	BLK_ENCRYPTION_MODE_MAX,
 };
 
 #ifdef CONFIG_BLOCK
 #include <linux/blk_types.h>
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
-struct bio_crypt_ctx {
-	int keyslot;
-	const u8 *raw_key;
+
+#define BLK_CRYPTO_MAX_KEY_SIZE		64
+
+/**
+ * struct blk_crypto_key - an inline encryption key
+ * @crypto_mode: encryption algorithm this key is for
+ * @data_unit_size: the data unit size for all encryption/decryptions with this
+ *	key.  This is the size in bytes of each individual plaintext and
+ *	ciphertext.  This is always a power of 2.  It might be e.g. the
+ *	filesystem block size or the disk sector size.
+ * @data_unit_size_bits: log2 of data_unit_size
+ * @size: size of this key in bytes (determined by @crypto_mode)
+ * @hash: hash of this key, for keyslot manager use only
+ * @raw: the raw bytes of this key.  Only the first @size bytes are used.
+ *
+ * A blk_crypto_key is immutable once created, and many bios can reference it at
+ * the same time.  It must not be freed until all bios using it have completed.
+ */
+struct blk_crypto_key {
 	enum blk_crypto_mode_num crypto_mode;
-	u64 data_unit_num;
+	unsigned int data_unit_size;
 	unsigned int data_unit_size_bits;
+	unsigned int size;
+	unsigned int hash;
+	u8 raw[BLK_CRYPTO_MAX_KEY_SIZE];
+};
+
+#define BLK_CRYPTO_MAX_IV_SIZE		32
+#define BLK_CRYPTO_DUN_ARRAY_SIZE	(BLK_CRYPTO_MAX_IV_SIZE/sizeof(u64))
+
+/**
+ * struct bio_crypt_ctx - an inline encryption context
+ * @bc_key: the key, algorithm, and data unit size to use
+ * @bc_keyslot: the keyslot that has been assigned for this key in @bc_ksm,
+ *		or -1 if no keyslot has been assigned yet.
+ * @bc_dun: the data unit number (starting IV) to use
+ * @bc_ksm: the keyslot manager into which the key has been programmed with
+ *	    @bc_keyslot, or NULL if this key hasn't yet been programmed.
+ *
+ * A bio_crypt_ctx specifies that the contents of the bio will be encrypted (for
+ * write requests) or decrypted (for read requests) inline by the storage device
+ * or controller, or by the crypto API fallback.
+ */
+struct bio_crypt_ctx {
+	const struct blk_crypto_key	*bc_key;
+	int				bc_keyslot;
+
+	/* Data unit number */
+	u64				bc_dun[BLK_CRYPTO_DUN_ARRAY_SIZE];
 
 	/*
 	 * The keyslot manager where the key has been programmed
 	 * with keyslot.
 	 */
-	struct keyslot_manager *processing_ksm;
-
-	/*
-	 * Copy of the bvec_iter when this bio was submitted.
-	 * We only want to en/decrypt the part of the bio
-	 * as described by the bvec_iter upon submission because
-	 * bio might be split before being resubmitted
-	 */
-	struct bvec_iter crypt_iter;
-	u64 sw_data_unit_num;
+	struct keyslot_manager		*bc_ksm;
 };
 
-extern int bio_crypt_clone(struct bio *dst, struct bio *src,
-			   gfp_t gfp_mask);
+int bio_crypt_ctx_init(void);
+
+struct bio_crypt_ctx *bio_crypt_alloc_ctx(gfp_t gfp_mask);
+
+void bio_crypt_free_ctx(struct bio *bio);
 
 static inline bool bio_has_crypt_ctx(struct bio *bio)
 {
 	return bio->bi_crypt_context;
 }
 
-static inline void bio_crypt_advance(struct bio *bio, unsigned int bytes)
+void bio_crypt_clone(struct bio *dst, struct bio *src, gfp_t gfp_mask);
+
+static inline void bio_crypt_set_ctx(struct bio *bio,
+				     const struct blk_crypto_key *key,
+				     u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE],
+				     gfp_t gfp_mask)
 {
-	if (bio_has_crypt_ctx(bio)) {
-		bio->bi_crypt_context->data_unit_num +=
-			bytes >> bio->bi_crypt_context->data_unit_size_bits;
+	struct bio_crypt_ctx *bc = bio_crypt_alloc_ctx(gfp_mask);
+
+	bc->bc_key = key;
+	memcpy(bc->bc_dun, dun, sizeof(bc->bc_dun));
+	bc->bc_ksm = NULL;
+	bc->bc_keyslot = -1;
+
+	bio->bi_crypt_context = bc;
+}
+
+void bio_crypt_ctx_release_keyslot(struct bio_crypt_ctx *bc);
+
+int bio_crypt_ctx_acquire_keyslot(struct bio_crypt_ctx *bc,
+				  struct keyslot_manager *ksm);
+
+struct request;
+bool bio_crypt_should_process(struct request *rq);
+
+static inline bool bio_crypt_dun_is_contiguous(const struct bio_crypt_ctx *bc,
+					       unsigned int bytes,
+					u64 next_dun[BLK_CRYPTO_DUN_ARRAY_SIZE])
+{
+	int i = 0;
+	unsigned int inc = bytes >> bc->bc_key->data_unit_size_bits;
+
+	while (inc && i < BLK_CRYPTO_DUN_ARRAY_SIZE) {
+		if (bc->bc_dun[i] + inc != next_dun[i])
+			return false;
+		inc = ((bc->bc_dun[i] + inc)  < inc);
+		i++;
+	}
+
+	return true;
+}
+
+
+static inline void bio_crypt_dun_increment(u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE],
+					   unsigned int inc)
+{
+	int i = 0;
+
+	while (inc && i < BLK_CRYPTO_DUN_ARRAY_SIZE) {
+		dun[i] += inc;
+		inc = (dun[i] < inc);
+		i++;
 	}
 }
 
-extern bool bio_crypt_swhandled(struct bio *bio);
-
-static inline bool bio_crypt_has_keyslot(struct bio *bio)
+static inline void bio_crypt_advance(struct bio *bio, unsigned int bytes)
 {
-	return bio->bi_crypt_context->keyslot >= 0;
+	struct bio_crypt_ctx *bc = bio->bi_crypt_context;
+
+	if (!bc)
+		return;
+
+	bio_crypt_dun_increment(bc->bc_dun,
+				bytes >> bc->bc_key->data_unit_size_bits);
 }
 
-extern int bio_crypt_ctx_init(void);
+bool bio_crypt_ctx_compatible(struct bio *b_1, struct bio *b_2);
 
-extern struct bio_crypt_ctx *bio_crypt_alloc_ctx(gfp_t gfp_mask);
-
-extern void bio_crypt_free_ctx(struct bio *bio);
-
-static inline int bio_crypt_set_ctx(struct bio *bio,
-				    const u8 *raw_key,
-				    enum blk_crypto_mode_num crypto_mode,
-				    u64 dun,
-				    unsigned int dun_bits,
-				    gfp_t gfp_mask)
-{
-	struct bio_crypt_ctx *crypt_ctx;
-
-	crypt_ctx = bio_crypt_alloc_ctx(gfp_mask);
-	if (!crypt_ctx)
-		return -ENOMEM;
-
-	crypt_ctx->raw_key = raw_key;
-	crypt_ctx->data_unit_num = dun;
-	crypt_ctx->data_unit_size_bits = dun_bits;
-	crypt_ctx->crypto_mode = crypto_mode;
-	crypt_ctx->processing_ksm = NULL;
-	crypt_ctx->keyslot = -1;
-	bio->bi_crypt_context = crypt_ctx;
-
-	return 0;
-}
-
-static inline void bio_set_data_unit_num(struct bio *bio, u64 dun)
-{
-	bio->bi_crypt_context->data_unit_num = dun;
-}
-
-static inline int bio_crypt_get_keyslot(struct bio *bio)
-{
-	return bio->bi_crypt_context->keyslot;
-}
-
-static inline void bio_crypt_set_keyslot(struct bio *bio,
-					 unsigned int keyslot,
-					 struct keyslot_manager *ksm)
-{
-	bio->bi_crypt_context->keyslot = keyslot;
-	bio->bi_crypt_context->processing_ksm = ksm;
-}
-
-extern void bio_crypt_ctx_release_keyslot(struct bio *bio);
-
-extern int bio_crypt_ctx_acquire_keyslot(struct bio *bio,
-					 struct keyslot_manager *ksm);
-
-static inline const u8 *bio_crypt_raw_key(struct bio *bio)
-{
-	return bio->bi_crypt_context->raw_key;
-}
-
-static inline enum blk_crypto_mode_num bio_crypto_mode(struct bio *bio)
-{
-	return bio->bi_crypt_context->crypto_mode;
-}
-
-static inline u64 bio_crypt_data_unit_num(struct bio *bio)
-{
-	return bio->bi_crypt_context->data_unit_num;
-}
-
-static inline u64 bio_crypt_sw_data_unit_num(struct bio *bio)
-{
-	return bio->bi_crypt_context->sw_data_unit_num;
-}
-
-extern bool bio_crypt_should_process(struct bio *bio, struct request_queue *q);
-
-extern bool bio_crypt_ctx_compatible(struct bio *b_1, struct bio *b_2);
-
-extern bool bio_crypt_ctx_back_mergeable(struct bio *b_1,
-					 unsigned int b1_sectors,
-					 struct bio *b_2);
+bool bio_crypt_ctx_mergeable(struct bio *b_1, unsigned int b1_bytes,
+			     struct bio *b_2);
 
 #else /* CONFIG_BLK_INLINE_ENCRYPTION */
-struct keyslot_manager;
-
 static inline int bio_crypt_ctx_init(void)
 {
 	return 0;
 }
-
-static inline int bio_crypt_clone(struct bio *dst, struct bio *src,
-				  gfp_t gfp_mask)
-{
-	return 0;
-}
-
-static inline void bio_crypt_advance(struct bio *bio,
-				     unsigned int bytes) { }
 
 static inline bool bio_has_crypt_ctx(struct bio *bio)
 {
 	return false;
 }
 
+static inline void bio_crypt_clone(struct bio *dst, struct bio *src,
+				   gfp_t gfp_mask) { }
+
 static inline void bio_crypt_free_ctx(struct bio *bio) { }
 
-static inline void bio_crypt_set_ctx(struct bio *bio,
-				     u8 *raw_key,
-				     enum blk_crypto_mode_num crypto_mode,
-				     u64 dun,
-				     unsigned int dun_bits,
-				     gfp_t gfp_mask) { }
-
-static inline bool bio_crypt_swhandled(struct bio *bio)
-{
-	return false;
-}
-
-static inline void bio_set_data_unit_num(struct bio *bio, u64 dun) { }
-
-static inline bool bio_crypt_has_keyslot(struct bio *bio)
-{
-	return false;
-}
-
-static inline void bio_crypt_set_keyslot(struct bio *bio,
-					 unsigned int keyslot,
-					 struct keyslot_manager *ksm) { }
-
-static inline int bio_crypt_get_keyslot(struct bio *bio)
-{
-	return -1;
-}
-
-static inline u8 *bio_crypt_raw_key(struct bio *bio)
-{
-	return NULL;
-}
-
-static inline u64 bio_crypt_data_unit_num(struct bio *bio)
-{
-	return 0;
-}
-
-static inline bool bio_crypt_should_process(struct bio *bio,
-					    struct request_queue *q)
-{
-	return false;
-}
+static inline void bio_crypt_advance(struct bio *bio, unsigned int bytes) { }
 
 static inline bool bio_crypt_ctx_compatible(struct bio *b_1, struct bio *b_2)
 {
 	return true;
 }
 
-static inline bool bio_crypt_ctx_back_mergeable(struct bio *b_1,
-						unsigned int b1_sectors,
-						struct bio *b_2)
+static inline bool bio_crypt_ctx_mergeable(struct bio *b_1,
+					   unsigned int b1_bytes,
+					   struct bio *b_2)
 {
 	return true;
 }
 
 #endif /* CONFIG_BLK_INLINE_ENCRYPTION */
+
 #endif /* CONFIG_BLOCK */
+
 #endif /* __LINUX_BIO_CRYPT_CTX_H */

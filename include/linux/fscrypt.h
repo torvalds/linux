@@ -65,6 +65,9 @@ struct fscrypt_operations {
 	void (*get_ino_and_lblk_bits)(struct super_block *sb,
 				      int *ino_bits_ret, int *lblk_bits_ret);
 	bool (*inline_crypt_enabled)(struct super_block *sb);
+	int (*get_num_devices)(struct super_block *sb);
+	void (*get_devices)(struct super_block *sb,
+			    struct request_queue **devs);
 };
 
 static inline bool fscrypt_has_encryption_key(const struct inode *inode)
@@ -550,12 +553,13 @@ extern bool fscrypt_inode_uses_inline_crypto(const struct inode *inode);
 
 extern bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode);
 
-extern int fscrypt_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
-				     u64 first_lblk, gfp_t gfp_mask);
+extern void fscrypt_set_bio_crypt_ctx(struct bio *bio,
+				      const struct inode *inode,
+				      u64 first_lblk, gfp_t gfp_mask);
 
-extern int fscrypt_set_bio_crypt_ctx_bh(struct bio *bio,
-					const struct buffer_head *first_bh,
-					gfp_t gfp_mask);
+extern void fscrypt_set_bio_crypt_ctx_bh(struct bio *bio,
+					 const struct buffer_head *first_bh,
+					 gfp_t gfp_mask);
 
 extern bool fscrypt_mergeable_bio(struct bio *bio, const struct inode *inode,
 				  u64 next_lblk);
@@ -574,20 +578,14 @@ static inline bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode)
 	return IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode);
 }
 
-static inline int fscrypt_set_bio_crypt_ctx(struct bio *bio,
-					    const struct inode *inode,
-					    u64 first_lblk, gfp_t gfp_mask)
-{
-	return 0;
-}
+static inline void fscrypt_set_bio_crypt_ctx(struct bio *bio,
+					     const struct inode *inode,
+					     u64 first_lblk, gfp_t gfp_mask) { }
 
-static inline int fscrypt_set_bio_crypt_ctx_bh(
-					struct bio *bio,
-					const struct buffer_head *first_bh,
-					gfp_t gfp_mask)
-{
-	return 0;
-}
+static inline void fscrypt_set_bio_crypt_ctx_bh(
+					 struct bio *bio,
+					 const struct buffer_head *first_bh,
+					 gfp_t gfp_mask) { }
 
 static inline bool fscrypt_mergeable_bio(struct bio *bio,
 					 const struct inode *inode,
