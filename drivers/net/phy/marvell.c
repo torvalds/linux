@@ -174,7 +174,6 @@
 #define ADVERTISE_PAUSE_FIBER		0x180
 #define ADVERTISE_PAUSE_ASYM_FIBER	0x100
 
-#define REGISTER_LINK_STATUS	0x400
 #define NB_FIBER_STATS	1
 
 MODULE_DESCRIPTION("Marvell PHY driver");
@@ -1327,10 +1326,10 @@ static int marvell_update_link(struct phy_device *phydev, int fiber)
 		if (status < 0)
 			return status;
 
-		if ((status & REGISTER_LINK_STATUS) == 0)
-			phydev->link = 0;
-		else
+		if (status & MII_M1011_PHY_STATUS_LINK)
 			phydev->link = 1;
+		else
+			phydev->link = 0;
 	} else {
 		return genphy_update_link(phydev);
 	}
