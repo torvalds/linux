@@ -326,6 +326,36 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 	}
 }
 
+static int wfx_set_pm(struct wfx_vif *wvif,
+		      const struct hif_req_set_pm_mode *arg)
+{
+	struct hif_req_set_pm_mode pm = *arg;
+	u16 uapsd_flags;
+	int ret;
+
+	if (wvif->state != WFX_STATE_STA || !wvif->bss_params.aid)
+		return 0;
+
+	memcpy(&uapsd_flags, &wvif->uapsd_info, sizeof(uapsd_flags));
+
+	if (uapsd_flags != 0)
+		pm.pm_mode.fast_psm = 0;
+
+	// Kernel disable PowerSave when multiple vifs are in use. In contrary,
+	// it is absolutly necessary to enable PowerSave for WF200
+	// FIXME: only if channel vif0 != channel vif1
+	if (wvif_count(wvif->wdev) > 1) {
+		pm.pm_mode.enter_psm = 1;
+		pm.pm_mode.fast_psm = 0;
+	}
+
+	if (!wait_for_completion_timeout(&wvif->set_pm_mode_complete,
+					 msecs_to_jiffies(300)))
+		dev_warn(wvif->wdev->dev,
+			 "timeout while waiting of set_pm_mode_complete\n");
+	return hif_set_pm(wvif, &pm);
+}
+
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   u16 queue, const struct ieee80211_tx_queue_params *params)
 {
@@ -369,33 +399,6 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 out:
 	mutex_unlock(&wdev->conf_mutex);
 	return ret;
-}
-
-int wfx_set_pm(struct wfx_vif *wvif, const struct hif_req_set_pm_mode *arg)
-{
-	struct hif_req_set_pm_mode pm = *arg;
-	u16 uapsd_flags;
-
-	if (wvif->state != WFX_STATE_STA || !wvif->bss_params.aid)
-		return 0;
-
-	memcpy(&uapsd_flags, &wvif->uapsd_info, sizeof(uapsd_flags));
-
-	if (uapsd_flags != 0)
-		pm.pm_mode.fast_psm = 0;
-
-	// Kernel disable PowerSave when multiple vifs are in use. In contrary,
-	// it is absolutly necessary to enable PowerSave for WF200
-	if (wvif_count(wvif->wdev) > 1) {
-		pm.pm_mode.enter_psm = 1;
-		pm.pm_mode.fast_psm = 0;
-	}
-
-	if (!wait_for_completion_timeout(&wvif->set_pm_mode_complete,
-					 msecs_to_jiffies(300)))
-		dev_warn(wvif->wdev->dev,
-			 "timeout while waiting of set_pm_mode_complete\n");
-	return hif_set_pm(wvif, &pm);
 }
 
 int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)

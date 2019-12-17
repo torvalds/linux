@@ -97,7 +97,6 @@ void wfx_suspend_resume(struct wfx_vif *wvif,
 // Other Helpers
 void wfx_cqm_bssloss_sm(struct wfx_vif *wvif, int init, int good, int bad);
 void wfx_update_filtering(struct wfx_vif *wvif);
-int wfx_set_pm(struct wfx_vif *wvif, const struct hif_req_set_pm_mode *arg);
 int wfx_fwd_probe_req(struct wfx_vif *wvif, bool enable);
 
 #endif /* WFX_STA_H */
