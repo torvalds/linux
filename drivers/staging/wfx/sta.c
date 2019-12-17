@@ -277,13 +277,13 @@ void wfx_configure_filter(struct ieee80211_hw *hw,
 	*total_flags &= FIF_OTHER_BSS | FIF_FCSFAIL | FIF_PROBE_REQ;
 
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		down(&wvif->scan.lock);
+		mutex_lock(&wvif->scan_lock);
 		wvif->filter_bssid = (*total_flags &
 				      (FIF_OTHER_BSS | FIF_PROBE_REQ)) ? 0 : 1;
 		wvif->disable_beacon_filter = !(*total_flags & FIF_PROBE_REQ);
 		wfx_fwd_probe_req(wvif, true);
 		wfx_update_filtering(wvif);
-		up(&wvif->scan.lock);
+		mutex_unlock(&wvif->scan_lock);
 	}
 }
 
@@ -433,9 +433,9 @@ static void wfx_event_handler_work(struct work_struct *work)
 		switch (event->evt.event_id) {
 		case HIF_EVENT_IND_BSSLOST:
 			cancel_work_sync(&wvif->unjoin_work);
-			if (!down_trylock(&wvif->scan.lock)) {
+			if (mutex_trylock(&wvif->scan_lock)) {
 				wfx_cqm_bssloss_sm(wvif, 1, 0, 0);
-				up(&wvif->scan.lock);
+				mutex_unlock(&wvif->scan_lock);
 			} else {
 				/* Scan is in progress. Delay reporting.
 				 * Scan complete will trigger bss_loss_work
@@ -501,7 +501,7 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 {
 	mutex_lock(&wvif->wdev->conf_mutex);
 
-	if (atomic_read(&wvif->scan.in_progress)) {
+	if (!mutex_trylock(&wvif->scan_lock)) {
 		if (wvif->delayed_unjoin)
 			dev_dbg(wvif->wdev->dev,
 				"delayed unjoin is already scheduled\n");
@@ -509,6 +509,7 @@ static void wfx_do_unjoin(struct wfx_vif *wvif)
 			wvif->delayed_unjoin = true;
 		goto done;
 	}
+	mutex_unlock(&wvif->scan_lock);
 
 	wvif->delayed_link_loss = false;
 
@@ -613,14 +614,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 
 	mutex_lock(&wvif->wdev->conf_mutex);
 
-	/* Under the conf lock: check scan status and
-	 * bail out if it is in progress.
-	 */
-	if (atomic_read(&wvif->scan.in_progress)) {
-		wfx_tx_unlock(wvif->wdev);
-		goto done_put;
-	}
-
 	/* Sanity check basic rates */
 	if (!join.basic_rate_set)
 		join.basic_rate_set = 7;
@@ -684,7 +677,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	}
 	wfx_update_filtering(wvif);
 
-done_put:
 	mutex_unlock(&wvif->wdev->conf_mutex);
 	if (bss)
 		cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
@@ -1346,7 +1338,7 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 		return 0;
 	}
 
-	down(&wvif->scan.lock);
+	mutex_lock(&wvif->scan_lock);
 	mutex_lock(&wdev->conf_mutex);
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		wdev->output_power = conf->power_level;
@@ -1361,7 +1353,7 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	mutex_unlock(&wdev->conf_mutex);
-	up(&wvif->scan.lock);
+	mutex_unlock(&wvif->scan_lock);
 	return ret;
 }
 
@@ -1419,10 +1411,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wvif->wep_default_key_id = -1;
 	INIT_WORK(&wvif->wep_key_work, wfx_wep_key_work);
 
-	sema_init(&wvif->scan.lock, 1);
-	INIT_WORK(&wvif->scan.work, wfx_scan_work);
-	INIT_DELAYED_WORK(&wvif->scan.timeout, wfx_scan_timeout);
-
 	spin_lock_init(&wvif->event_queue_lock);
 	INIT_LIST_HEAD(&wvif->event_queue);
 	INIT_WORK(&wvif->event_handler_work, wfx_event_handler_work);
@@ -1435,8 +1423,11 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	INIT_WORK(&wvif->bss_params_work, wfx_bss_params_work);
 	INIT_WORK(&wvif->set_cts_work, wfx_set_cts_work);
 	INIT_WORK(&wvif->unjoin_work, wfx_unjoin_work);
-
 	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
+
+	mutex_init(&wvif->scan_lock);
+	init_completion(&wvif->scan_complete);
+
 	mutex_unlock(&wdev->conf_mutex);
 
 	hif_set_macaddr(wvif, vif->addr);
@@ -1462,10 +1453,6 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	int i;
 
-	// If scan is in progress, stop it
-	while (down_trylock(&wvif->scan.lock))
-		schedule();
-	up(&wvif->scan.lock);
 	wait_for_completion_timeout(&wvif->set_pm_mode_complete, msecs_to_jiffies(300));
 
 	mutex_lock(&wdev->conf_mutex);
@@ -1504,8 +1491,6 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 
 	/* FIXME: In add to reset MAC address, try to reset interface */
 	hif_set_macaddr(wvif, NULL);
-
-	cancel_delayed_work_sync(&wvif->scan.timeout);
 
 	wfx_cqm_bssloss_sm(wvif, 0, 0, 0);
 	cancel_work_sync(&wvif->unjoin_work);

@@ -206,7 +206,7 @@ static int hif_scan_complete_indication(struct wfx_dev *wdev,
 	const struct hif_ind_scan_cmpl *body = buf;
 
 	WARN_ON(!wvif);
-	wfx_scan_complete_cb(wvif, body);
+	wfx_scan_complete(wvif, body);
 
 	return 0;
 }

@@ -125,7 +125,9 @@ struct wfx_vif {
 	bool			delayed_unjoin;
 	struct work_struct	unjoin_work;
 
-	struct wfx_scan		scan;
+	/* avoid some operations in parallel with scan */
+	struct mutex		scan_lock;
+	struct completion	scan_complete;
 
 	struct completion	set_pm_mode_complete;
 
