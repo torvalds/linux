@@ -20,6 +20,7 @@
 #define MT7615_RATE_RETRY		2
 
 #define MT7615_TX_RING_SIZE		1024
+#define MT7615_TX_MGMT_RING_SIZE	128
 #define MT7615_TX_MCU_RING_SIZE		128
 #define MT7615_TX_FWDL_RING_SIZE	128
 
@@ -54,6 +55,16 @@ enum mt7615_hw_txq_id {
 	MT7615_TXQ_EXT,
 	MT7615_TXQ_MCU,
 	MT7615_TXQ_FWDL,
+};
+
+enum mt7622_hw_txq_id {
+	MT7622_TXQ_AC0,
+	MT7622_TXQ_AC1,
+	MT7622_TXQ_AC2,
+	MT7622_TXQ_FWDL = MT7615_TXQ_FWDL,
+	MT7622_TXQ_AC3,
+	MT7622_TXQ_MGMT,
+	MT7622_TXQ_MCU = 15,
 };
 
 struct mt7615_rate_set {
@@ -285,6 +296,11 @@ int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev);
 static inline bool is_mt7622(struct mt76_dev *dev)
 {
 	return mt76_chip(dev) == 0x7622;
+}
+
+static inline bool is_mt7615(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7615;
 }
 
 static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
