@@ -298,6 +298,38 @@ nfp_flower_compile_tun_ip_ext(struct nfp_flower_tun_ip_ext *ext,
 }
 
 static void
+nfp_flower_compile_tun_udp_key(__be32 *key, __be32 *key_msk,
+			       struct flow_rule *rule)
+{
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_match_enc_keyid match;
+		u32 vni;
+
+		flow_rule_match_enc_keyid(rule, &match);
+		vni = be32_to_cpu(match.key->keyid) << NFP_FL_TUN_VNI_OFFSET;
+		*key = cpu_to_be32(vni);
+		vni = be32_to_cpu(match.mask->keyid) << NFP_FL_TUN_VNI_OFFSET;
+		*key_msk = cpu_to_be32(vni);
+	}
+}
+
+static void
+nfp_flower_compile_tun_gre_key(__be32 *key, __be32 *key_msk, __be16 *flags,
+			       __be16 *flags_msk, struct flow_rule *rule)
+{
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_match_enc_keyid match;
+
+		flow_rule_match_enc_keyid(rule, &match);
+		*key = match.key->keyid;
+		*key_msk = match.mask->keyid;
+
+		*flags = cpu_to_be16(NFP_FL_GRE_FLAG_KEY);
+		*flags_msk = cpu_to_be16(NFP_FL_GRE_FLAG_KEY);
+	}
+}
+
+static void
 nfp_flower_compile_ipv4_gre_tun(struct nfp_flower_ipv4_gre_tun *ext,
 				struct nfp_flower_ipv4_gre_tun *msk,
 				struct flow_rule *rule)
@@ -309,19 +341,10 @@ nfp_flower_compile_ipv4_gre_tun(struct nfp_flower_ipv4_gre_tun *ext,
 	ext->ethertype = cpu_to_be16(ETH_P_TEB);
 	msk->ethertype = cpu_to_be16(~0);
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
-		struct flow_match_enc_keyid match;
-
-		flow_rule_match_enc_keyid(rule, &match);
-		ext->tun_key = match.key->keyid;
-		msk->tun_key = match.mask->keyid;
-
-		ext->tun_flags = cpu_to_be16(NFP_FL_GRE_FLAG_KEY);
-		msk->tun_flags = cpu_to_be16(NFP_FL_GRE_FLAG_KEY);
-	}
-
 	nfp_flower_compile_tun_ipv4_addrs(&ext->ipv4, &msk->ipv4, rule);
 	nfp_flower_compile_tun_ip_ext(&ext->ip_ext, &msk->ip_ext, rule);
+	nfp_flower_compile_tun_gre_key(&ext->tun_key, &msk->tun_key,
+				       &ext->tun_flags, &msk->tun_flags, rule);
 }
 
 static void
@@ -332,19 +355,9 @@ nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *ext,
 	memset(ext, 0, sizeof(struct nfp_flower_ipv4_udp_tun));
 	memset(msk, 0, sizeof(struct nfp_flower_ipv4_udp_tun));
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
-		struct flow_match_enc_keyid match;
-		u32 temp_vni;
-
-		flow_rule_match_enc_keyid(rule, &match);
-		temp_vni = be32_to_cpu(match.key->keyid) << NFP_FL_TUN_VNI_OFFSET;
-		ext->tun_id = cpu_to_be32(temp_vni);
-		temp_vni = be32_to_cpu(match.mask->keyid) << NFP_FL_TUN_VNI_OFFSET;
-		msk->tun_id = cpu_to_be32(temp_vni);
-	}
-
 	nfp_flower_compile_tun_ipv4_addrs(&ext->ipv4, &msk->ipv4, rule);
 	nfp_flower_compile_tun_ip_ext(&ext->ip_ext, &msk->ip_ext, rule);
+	nfp_flower_compile_tun_udp_key(&ext->tun_id, &msk->tun_id, rule);
 }
 
 int nfp_flower_compile_flow_match(struct nfp_app *app,
