@@ -748,7 +748,9 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 		rate = &tx_info->status.rates[i];
 		if (rate->idx < 0)
 			break;
-		if (tx_count < rate->count && arg->status && arg->ack_failures)
+		if (tx_count < rate->count &&
+		    arg->status == HIF_STATUS_RETRY_EXCEEDED &&
+		    arg->ack_failures)
 			dev_dbg(wvif->wdev->dev, "all retries were not consumed: %d != %d\n",
 				rate->count, tx_count);
 		if (tx_count <= rate->count && tx_count &&
