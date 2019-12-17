@@ -184,7 +184,7 @@ done:
 	return IRQ_HANDLED;
 }
 
-static int ad7923_scan_direct(struct ad7923_state *st, unsigned ch)
+static int ad7923_scan_direct(struct ad7923_state *st, unsigned int ch)
 {
 	int ret, cmd;
 
