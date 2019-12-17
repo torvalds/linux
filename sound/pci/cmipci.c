@@ -42,7 +42,7 @@ MODULE_SUPPORTED_DEVICE("{{C-Media,CMI8738},"
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable switches */
-static long mpu_port[SNDRV_CARDS];
+static long mpu_port[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 1};
 static long fm_port[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)]=1};
 static bool soft_ac3[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)]=1};
 #ifdef SUPPORT_JOYSTICK
@@ -3132,7 +3132,8 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 	if (cm->chip_version >= 39) {
 		val = snd_cmipci_read_b(cm, CM_REG_MPU_PCI + 1);
 		if (val != 0x00 && val != 0xff) {
-			iomidi = cm->iobase + CM_REG_MPU_PCI;
+			if (mpu_port[dev])
+				iomidi = cm->iobase + CM_REG_MPU_PCI;
 			integrated_midi = 1;
 		}
 	}
