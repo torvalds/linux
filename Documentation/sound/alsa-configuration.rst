@@ -495,7 +495,8 @@ Module for C-Media CMI8338/8738/8768/8770 PCI sound cards.
 mpu_port
     port address of MIDI interface (8338 only):
     0x300,0x310,0x320,0x330 = legacy port,
-    0 = disable (default)
+    1 = integrated PCI port (default on 8738),
+    0 = disable
 fm_port
     port address of OPL-3 FM synthesizer (8x38 only):
     0x388 = legacy port,
