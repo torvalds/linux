@@ -642,3 +642,4 @@ const struct sof_intel_dsp_desc bdw_chip_info = {
 EXPORT_SYMBOL(bdw_chip_info);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HIFI_EP_IPC);
