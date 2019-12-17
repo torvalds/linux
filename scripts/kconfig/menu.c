@@ -326,12 +326,10 @@ void menu_finalize(struct menu *parent)
 			 * choice value symbols.
 			 */
 			parentdep = expr_alloc_symbol(sym);
-		} else if (parent->prompt)
-			/* Menu node for 'menu' */
-			parentdep = parent->prompt->visible.expr;
-		else
-			/* Menu node for 'if' */
+		} else {
+			/* Menu node for 'menu', 'if' */
 			parentdep = parent->dep;
+		}
 
 		/* For each child menu node... */
 		for (menu = parent->list; menu; menu = menu->next) {
