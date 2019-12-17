@@ -1384,10 +1384,7 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 		mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);
 		mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising, lpagb);
 
-		if (phydev->duplex == DUPLEX_FULL) {
-			phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
-			phydev->asym_pause = lpa & LPA_PAUSE_ASYM ? 1 : 0;
-		}
+		phy_resolve_aneg_pause(phydev);
 	} else {
 		/* The fiber link is only 1000M capable */
 		fiber_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, lpa);
