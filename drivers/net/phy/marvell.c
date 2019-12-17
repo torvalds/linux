@@ -513,7 +513,7 @@ static int marvell_config_aneg_fiber(struct phy_device *phydev)
 {
 	int changed = 0;
 	int err;
-	int adv, oldadv;
+	u16 adv;
 
 	if (phydev->autoneg != AUTONEG_ENABLE)
 		return genphy_setup_forced(phydev);
@@ -522,23 +522,17 @@ static int marvell_config_aneg_fiber(struct phy_device *phydev)
 	linkmode_and(phydev->advertising, phydev->advertising,
 		     phydev->supported);
 
+	adv = linkmode_adv_to_fiber_adv_t(phydev->advertising);
+
 	/* Setup fiber advertisement */
-	adv = phy_read(phydev, MII_ADVERTISE);
-	if (adv < 0)
-		return adv;
-
-	oldadv = adv;
-	adv &= ~(ADVERTISE_1000XHALF | ADVERTISE_1000XFULL |
-		 ADVERTISE_1000XPAUSE | ADVERTISE_1000XPSE_ASYM);
-	adv |= linkmode_adv_to_fiber_adv_t(phydev->advertising);
-
-	if (adv != oldadv) {
-		err = phy_write(phydev, MII_ADVERTISE, adv);
-		if (err < 0)
-			return err;
-
+	err = phy_modify_changed(phydev, MII_ADVERTISE,
+				 ADVERTISE_1000XHALF | ADVERTISE_1000XFULL |
+				 ADVERTISE_1000XPAUSE | ADVERTISE_1000XPSE_ASYM,
+				 adv);
+	if (err < 0)
+		return err;
+	if (err > 0)
 		changed = 1;
-	}
 
 	if (changed == 0) {
 		/* Advertisement hasn't changed, but maybe aneg was never on to
