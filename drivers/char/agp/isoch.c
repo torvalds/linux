@@ -314,7 +314,7 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 {
 	struct pci_dev *td = bridge->dev, *dev = NULL;
 	u8 mcapndx;
-	u32 isoch, arqsz;
+	u32 isoch;
 	u32 tstatus, mstatus, ncapid;
 	u32 mmajor;
 	u16 mpstat;
@@ -328,8 +328,6 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 	isoch     = (tstatus >> 17) & 0x1;
 	if (isoch == 0)	/* isoch xfers not available, bail out. */
 		return -ENODEV;
-
-	arqsz     = (tstatus >> 13) & 0x7;
 
 	/*
 	 * Allocate a head for our AGP 3.5 device list
