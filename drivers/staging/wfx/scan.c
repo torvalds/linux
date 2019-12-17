@@ -204,7 +204,7 @@ void wfx_scan_work(struct work_struct *work)
 		scan.scan_req.max_transmit_rate = API_RATE_INDEX_B_1MBPS;
 	scan.scan_req.num_of_probe_requests =
 		(first->flags & IEEE80211_CHAN_NO_IR) ? 0 : 2;
-	scan.scan_req.num_of_ssi_ds = wvif->scan.n_ssids;
+	scan.scan_req.num_of_ssids = wvif->scan.n_ssids;
 	scan.ssids = &wvif->scan.ssids[0];
 	scan.scan_req.num_of_channels = it - wvif->scan.curr;
 	scan.scan_req.probe_delay = 100;

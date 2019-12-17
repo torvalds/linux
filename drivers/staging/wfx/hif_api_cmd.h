@@ -180,7 +180,7 @@ struct hif_req_start_scan {
 	struct hif_auto_scan_param auto_scan_param;
 	u8    num_of_probe_requests;
 	u8    probe_delay;
-	u8    num_of_ssi_ds;
+	u8    num_of_ssids;
 	u8    num_of_channels;
 	u32   min_channel_time;
 	u32   max_channel_time;
@@ -196,7 +196,7 @@ struct hif_start_scan_req_cstnbssid_body {
 	struct hif_auto_scan_param auto_scan_param;
 	u8    num_of_probe_requests;
 	u8    probe_delay;
-	u8    num_of_ssi_ds;
+	u8    num_of_ssids;
 	u8    num_of_channels;
 	u32   min_channel_time;
 	u32   max_channel_time;

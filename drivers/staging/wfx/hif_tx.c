@@ -227,12 +227,12 @@ int hif_scan(struct wfx_vif *wvif, const struct wfx_scan_params *arg)
 	struct hif_ssid_def *ssids;
 	size_t buf_len = sizeof(struct hif_req_start_scan) +
 		arg->scan_req.num_of_channels * sizeof(u8) +
-		arg->scan_req.num_of_ssi_ds * sizeof(struct hif_ssid_def);
+		arg->scan_req.num_of_ssids * sizeof(struct hif_ssid_def);
 	struct hif_req_start_scan *body = wfx_alloc_hif(buf_len, &hif);
 	u8 *ptr = (u8 *) body + sizeof(*body);
 
 	WARN(arg->scan_req.num_of_channels > HIF_API_MAX_NB_CHANNELS, "invalid params");
-	WARN(arg->scan_req.num_of_ssi_ds > 2, "invalid params");
+	WARN(arg->scan_req.num_of_ssids > 2, "invalid params");
 	WARN(arg->scan_req.band > 1, "invalid params");
 
 	// FIXME: This API is unnecessary complex, fixing NumOfChannels and
@@ -243,11 +243,11 @@ int hif_scan(struct wfx_vif *wvif, const struct wfx_scan_params *arg)
 	cpu_to_le32s(&body->max_channel_time);
 	cpu_to_le32s(&body->tx_power_level);
 	memcpy(ptr, arg->ssids,
-	       arg->scan_req.num_of_ssi_ds * sizeof(struct hif_ssid_def));
+	       arg->scan_req.num_of_ssids * sizeof(struct hif_ssid_def));
 	ssids = (struct hif_ssid_def *) ptr;
-	for (i = 0; i < body->num_of_ssi_ds; ++i)
+	for (i = 0; i < body->num_of_ssids; ++i)
 		cpu_to_le32s(&ssids[i].ssid_length);
-	ptr += arg->scan_req.num_of_ssi_ds * sizeof(struct hif_ssid_def);
+	ptr += arg->scan_req.num_of_ssids * sizeof(struct hif_ssid_def);
 	memcpy(ptr, arg->ch, arg->scan_req.num_of_channels * sizeof(u8));
 	ptr += arg->scan_req.num_of_channels * sizeof(u8);
 	WARN(buf_len != ptr - (u8 *) body, "allocation size mismatch");
