@@ -137,7 +137,7 @@ struct hif_ie_tlv {
 
 struct hif_req_update_ie {
 	struct hif_ie_flags ie_flags;
-	u16   num_i_es;
+	u16   num_ies;
 	struct hif_ie_tlv ie[];
 } __packed;
 
