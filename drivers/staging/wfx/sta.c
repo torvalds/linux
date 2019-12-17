@@ -375,7 +375,6 @@ int wfx_set_pm(struct wfx_vif *wvif, const struct hif_req_set_pm_mode *arg)
 {
 	struct hif_req_set_pm_mode pm = *arg;
 	u16 uapsd_flags;
-	int ret;
 
 	if (wvif->state != WFX_STATE_STA || !wvif->bss_params.aid)
 		return 0;
@@ -396,11 +395,7 @@ int wfx_set_pm(struct wfx_vif *wvif, const struct hif_req_set_pm_mode *arg)
 					 msecs_to_jiffies(300)))
 		dev_warn(wvif->wdev->dev,
 			 "timeout while waiting of set_pm_mode_complete\n");
-	ret = hif_set_pm(wvif, &pm);
-	// FIXME: why ?
-	if (-ETIMEDOUT == wvif->scan.status)
-		wvif->scan.status = 1;
-	return ret;
+	return hif_set_pm(wvif, &pm);
 }
 
 int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)

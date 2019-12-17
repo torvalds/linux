@@ -141,22 +141,11 @@ void wfx_scan_work(struct work_struct *work)
 		.scan_req.scan_type.type = 0,    /* Foreground */
 	};
 	struct ieee80211_channel *first;
-	bool first_run = (wvif->scan.begin == wvif->scan.curr &&
-			  wvif->scan.begin != wvif->scan.end);
 	int i;
 
 	down(&wvif->scan.lock);
 	mutex_lock(&wvif->wdev->conf_mutex);
 
-	if (first_run) {
-		if (wvif->state == WFX_STATE_STA &&
-		    !(wvif->powersave_mode.pm_mode.enter_psm)) {
-			struct hif_req_set_pm_mode pm = wvif->powersave_mode;
-
-			pm.pm_mode.enter_psm = 1;
-			wfx_set_pm(wvif, &pm);
-		}
-	}
 
 	if (!wvif->scan.req || wvif->scan.curr == wvif->scan.end) {
 		if (wvif->scan.output_power != wvif->wdev->output_power)
@@ -177,9 +166,6 @@ void wfx_scan_work(struct work_struct *work)
 		__ieee80211_scan_completed_compat(wvif->wdev->hw,
 						  wvif->scan.status ? 1 : 0);
 		up(&wvif->scan.lock);
-		if (wvif->state == WFX_STATE_STA &&
-		    !(wvif->powersave_mode.pm_mode.enter_psm))
-			wfx_set_pm(wvif, &wvif->powersave_mode);
 		return;
 	}
 	first = *wvif->scan.curr;
