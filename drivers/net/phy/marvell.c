@@ -1407,22 +1407,11 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 
 static int marvell_read_status_page_fixed(struct phy_device *phydev)
 {
-	int bmcr = phy_read(phydev, MII_BMCR);
+	int err;
 
-	if (bmcr < 0)
-		return bmcr;
-
-	if (bmcr & BMCR_FULLDPLX)
-		phydev->duplex = DUPLEX_FULL;
-	else
-		phydev->duplex = DUPLEX_HALF;
-
-	if (bmcr & BMCR_SPEED1000)
-		phydev->speed = SPEED_1000;
-	else if (bmcr & BMCR_SPEED100)
-		phydev->speed = SPEED_100;
-	else
-		phydev->speed = SPEED_10;
+	err = genphy_read_status_fixed(phydev);
+	if (err < 0)
+		return err;
 
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
