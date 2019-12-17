@@ -176,12 +176,9 @@ static void program_gamut_remap(
 	 * currently. select the alternate set to double buffer
 	 * the update so gamut_remap is updated on frame boundary
 	 */
-	cur_select = IX_REG_READ(CM_TEST_DEBUG_INDEX, CM_TEST_DEBUG_DATA,
-					CM_TEST_DEBUG_DATA_STATUS_IDX);
-
-	/* IX_REG_READ reads whole reg, so isolate part we want [10..9] */
-	cur_select = (cur_select >> CM_TEST_DEBUG_DATA_GAMUT_REMAP_MODE_SH)
-					& CM_TEST_DEBUG_DATA_GAMUT_REMAP_MODE_MASK;
+	IX_REG_GET(CM_TEST_DEBUG_INDEX, CM_TEST_DEBUG_DATA,
+					CM_TEST_DEBUG_DATA_STATUS_IDX,
+					CM_TEST_DEBUG_DATA_GAMUT_REMAP_MODE, &cur_select);
 
 	/* value stored in dbg reg will be 1 greater than mode we want */
 	if (cur_select != DCN2_GAMUT_REMAP_COEF_A)
@@ -275,12 +272,9 @@ void dpp2_program_input_csc(
 	 * currently.  select the alternate set to double buffer
 	 * the CSC update so CSC is updated on frame boundary
 	 */
-	cur_select = IX_REG_READ(CM_TEST_DEBUG_INDEX, CM_TEST_DEBUG_DATA,
-					CM_TEST_DEBUG_DATA_STATUS_IDX);
-
-	/* IX_REG_READ reads whole reg, so isolate part we want [4..3] */
-	cur_select = (cur_select >> CM_TEST_DEBUG_DATA_ICSC_MODE_SH)
-					& CM_TEST_DEBUG_DATA_ICSC_MODE_MASK;
+	IX_REG_GET(CM_TEST_DEBUG_INDEX, CM_TEST_DEBUG_DATA,
+					CM_TEST_DEBUG_DATA_STATUS_IDX,
+					CM_TEST_DEBUG_DATA_ICSC_MODE, &cur_select);
 
 	if (cur_select != DCN2_ICSC_SELECT_ICSC_A)
 		select = DCN2_ICSC_SELECT_ICSC_A;

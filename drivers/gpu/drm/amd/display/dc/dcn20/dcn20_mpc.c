@@ -153,11 +153,9 @@ void mpc2_set_output_csc(
 	 * currently.  select the alternate set to double buffer
 	 * the CSC update so CSC is updated on frame boundary
 	 */
-	cur_mode = IX_REG_READ(MPC_OCSC_TEST_DEBUG_INDEX, MPC_OCSC_TEST_DEBUG_DATA,
-						MPC_OCSC_TEST_DEBUG_DATA_STATUS_IDX);
-
-	/* Isolate part of reg data we want [1..0] */
-	cur_mode = cur_mode & MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE_MASK;
+	IX_REG_GET(MPC_OCSC_TEST_DEBUG_INDEX, MPC_OCSC_TEST_DEBUG_DATA,
+						MPC_OCSC_TEST_DEBUG_DATA_STATUS_IDX,
+						MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE, &cur_mode);
 
 	if (cur_mode != MPC_OUTPUT_CSC_COEF_A)
 		ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
@@ -213,11 +211,9 @@ void mpc2_set_ocsc_default(
 	 * currently.  select the alternate set to double buffer
 	 * the CSC update so CSC is updated on frame boundary
 	 */
-	cur_mode = IX_REG_READ(MPC_OCSC_TEST_DEBUG_INDEX, MPC_OCSC_TEST_DEBUG_DATA,
-						MPC_OCSC_TEST_DEBUG_DATA_STATUS_IDX);
-
-	/* Isolate part of reg data we want [1..0] */
-	cur_mode = cur_mode & MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE_MASK;
+	IX_REG_GET(MPC_OCSC_TEST_DEBUG_INDEX, MPC_OCSC_TEST_DEBUG_DATA,
+						MPC_OCSC_TEST_DEBUG_DATA_STATUS_IDX,
+						MPC_OCSC_TEST_DEBUG_DATA_OCSC_MODE, &cur_mode);
 
 	if (cur_mode != MPC_OUTPUT_CSC_COEF_A)
 		ocsc_mode = MPC_OUTPUT_CSC_COEF_A;

@@ -471,11 +471,13 @@ static const struct dcn20_mpc_registers mpc_regs = {
 };
 
 static const struct dcn20_mpc_shift mpc_shift = {
-	MPC_COMMON_MASK_SH_LIST_DCN2_0(__SHIFT)
+	MPC_COMMON_MASK_SH_LIST_DCN2_0(__SHIFT),
+	MPC_DEBUG_REG_LIST_SH_DCN20
 };
 
 static const struct dcn20_mpc_mask mpc_mask = {
-	MPC_COMMON_MASK_SH_LIST_DCN2_0(_MASK)
+	MPC_COMMON_MASK_SH_LIST_DCN2_0(_MASK),
+	MPC_DEBUG_REG_LIST_MASK_DCN20
 };
 
 #define hubp_regs(id)\
@@ -622,12 +624,12 @@ static const struct dcn2_dpp_registers tf_regs[] = {
 
 static const struct dcn2_dpp_shift tf_shift = {
 		TF_REG_LIST_SH_MASK_DCN20(__SHIFT),
-		TF_DEBUG_REG_LIST_SH_DCN10
+		TF_DEBUG_REG_LIST_SH_DCN20
 };
 
 static const struct dcn2_dpp_mask tf_mask = {
 		TF_REG_LIST_SH_MASK_DCN20(_MASK),
-		TF_DEBUG_REG_LIST_MASK_DCN10
+		TF_DEBUG_REG_LIST_MASK_DCN20
 };
 
 #define stream_enc_regs(id)\
