@@ -49,6 +49,27 @@ static int wfx_scan_start(struct wfx_vif *wvif,
 	return 0;
 }
 
+static int update_probe_tmpl(struct wfx_vif *wvif,
+			     struct cfg80211_scan_request *req)
+{
+	struct hif_mib_template_frame *tmpl;
+	struct sk_buff *skb;
+
+	skb = ieee80211_probereq_get(wvif->wdev->hw, wvif->vif->addr,
+				     NULL, 0, req->ie_len);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put_data(skb, req->ie, req->ie_len);
+	skb_push(skb, 4);
+	tmpl = (struct hif_mib_template_frame *)skb->data;
+	tmpl->frame_type = HIF_TMPLT_PRBREQ;
+	tmpl->frame_length = cpu_to_le16(skb->len - 4);
+	hif_set_template_frame(wvif, tmpl);
+	dev_kfree_skb(skb);
+	return 0;
+}
+
 int wfx_hw_scan(struct ieee80211_hw *hw,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_scan_request *hw_req)
@@ -56,9 +77,7 @@ int wfx_hw_scan(struct ieee80211_hw *hw,
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	struct cfg80211_scan_request *req = &hw_req->req;
-	struct sk_buff *skb;
 	int i, ret;
-	struct hif_mib_template_frame *p;
 
 	if (!wvif)
 		return -EINVAL;
@@ -72,29 +91,15 @@ int wfx_hw_scan(struct ieee80211_hw *hw,
 	if (req->n_ssids > HIF_API_MAX_NB_SSIDS)
 		return -EINVAL;
 
-	skb = ieee80211_probereq_get(hw, wvif->vif->addr, NULL, 0, req->ie_len);
-	if (!skb)
-		return -ENOMEM;
-
-	if (req->ie_len)
-		memcpy(skb_put(skb, req->ie_len), req->ie, req->ie_len);
-
 	mutex_lock(&wdev->conf_mutex);
 
-	p = (struct hif_mib_template_frame *)skb_push(skb, 4);
-	p->frame_type = HIF_TMPLT_PRBREQ;
-	p->frame_length = cpu_to_le16(skb->len - 4);
-	ret = hif_set_template_frame(wvif, p);
-	skb_pull(skb, 4);
+	ret = update_probe_tmpl(wvif, req);
+	if (ret)
+		goto failed;
 
-	if (!ret)
-		/* Host want to be the probe responder. */
-		ret = wfx_fwd_probe_req(wvif, true);
-	if (ret) {
-		mutex_unlock(&wdev->conf_mutex);
-		dev_kfree_skb(skb);
-		return ret;
-	}
+	ret = wfx_fwd_probe_req(wvif, true);
+	if (ret)
+		goto failed;
 
 	wfx_tx_lock_flush(wdev);
 
@@ -114,13 +119,11 @@ int wfx_hw_scan(struct ieee80211_hw *hw,
 		dst->ssid_length = req->ssids[i].ssid_len;
 		++wvif->scan.n_ssids;
 	}
-
-	mutex_unlock(&wdev->conf_mutex);
-
-	if (skb)
-		dev_kfree_skb(skb);
 	schedule_work(&wvif->scan.work);
-	return 0;
+
+failed:
+	mutex_unlock(&wdev->conf_mutex);
+	return ret;
 }
 
 void wfx_scan_work(struct work_struct *work)
