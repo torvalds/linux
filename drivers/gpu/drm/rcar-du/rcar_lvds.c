@@ -37,6 +37,12 @@ enum rcar_lvds_mode {
 	RCAR_LVDS_MODE_VESA = 4,
 };
 
+enum rcar_lvds_link_type {
+	RCAR_LVDS_SINGLE_LINK = 0,
+	RCAR_LVDS_DUAL_LINK_EVEN_ODD_PIXELS = 1,
+	RCAR_LVDS_DUAL_LINK_ODD_EVEN_PIXELS = 2,
+};
+
 #define RCAR_LVDS_QUIRK_LANES		BIT(0)	/* LVDS lanes 1 and 3 inverted */
 #define RCAR_LVDS_QUIRK_GEN3_LVEN	BIT(1)	/* LVEN bit needs to be set on R8A77970/R8A7799x */
 #define RCAR_LVDS_QUIRK_PWD		BIT(2)	/* PWD bit available (all of Gen3 but E3) */
@@ -67,7 +73,7 @@ struct rcar_lvds {
 	} clocks;
 
 	struct drm_bridge *companion;
-	bool dual_link;
+	enum rcar_lvds_link_type link_type;
 };
 
 #define bridge_to_rcar_lvds(b) \
@@ -456,7 +462,7 @@ static void __rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 		return;
 
 	/* Enable the companion LVDS encoder in dual-link mode. */
-	if (lvds->dual_link && lvds->companion)
+	if (lvds->link_type != RCAR_LVDS_SINGLE_LINK && lvds->companion)
 		__rcar_lvds_atomic_enable(lvds->companion, state, crtc,
 					  connector);
 
@@ -482,19 +488,38 @@ static void __rcar_lvds_atomic_enable(struct drm_bridge *bridge,
 	rcar_lvds_write(lvds, LVDCHCR, lvdhcr);
 
 	if (lvds->info->quirks & RCAR_LVDS_QUIRK_DUAL_LINK) {
-		/*
-		 * Configure vertical stripe based on the mode of operation of
-		 * the connected device.
-		 */
-		rcar_lvds_write(lvds, LVDSTRIPE,
-				lvds->dual_link ? LVDSTRIPE_ST_ON : 0);
+		u32 lvdstripe = 0;
+
+		if (lvds->link_type != RCAR_LVDS_SINGLE_LINK) {
+			/*
+			 * By default we generate even pixels from the primary
+			 * encoder and odd pixels from the companion encoder.
+			 * Swap pixels around if the sink requires odd pixels
+			 * from the primary encoder and even pixels from the
+			 * companion encoder.
+			 */
+			bool swap_pixels = lvds->link_type ==
+				RCAR_LVDS_DUAL_LINK_ODD_EVEN_PIXELS;
+
+			/*
+			 * Configure vertical stripe since we are dealing with
+			 * an LVDS dual-link connection.
+			 *
+			 * ST_SWAP is reserved for the companion encoder, only
+			 * set it in the primary encoder.
+			 */
+			lvdstripe = LVDSTRIPE_ST_ON
+				  | (lvds->companion && swap_pixels ?
+				     LVDSTRIPE_ST_SWAP : 0);
+		}
+		rcar_lvds_write(lvds, LVDSTRIPE, lvdstripe);
 	}
 
 	/*
 	 * PLL clock configuration on all instances but the companion in
 	 * dual-link mode.
 	 */
-	if (!lvds->dual_link || lvds->companion) {
+	if (lvds->link_type == RCAR_LVDS_SINGLE_LINK || lvds->companion) {
 		const struct drm_crtc_state *crtc_state =
 			drm_atomic_get_new_crtc_state(state, crtc);
 		const struct drm_display_mode *mode =
@@ -592,7 +617,7 @@ static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
 	rcar_lvds_write(lvds, LVDPLLCR, 0);
 
 	/* Disable the companion LVDS encoder in dual-link mode. */
-	if (lvds->dual_link && lvds->companion)
+	if (lvds->link_type != RCAR_LVDS_SINGLE_LINK && lvds->companion)
 		lvds->companion->funcs->atomic_disable(lvds->companion, state);
 
 	clk_disable_unprepare(lvds->clocks.mod);
@@ -666,7 +691,7 @@ bool rcar_lvds_dual_link(struct drm_bridge *bridge)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 
-	return lvds->dual_link;
+	return lvds->link_type != RCAR_LVDS_SINGLE_LINK;
 }
 EXPORT_SYMBOL_GPL(rcar_lvds_dual_link);
 
@@ -712,17 +737,28 @@ static int rcar_lvds_parse_dt_companion(struct rcar_lvds *lvds)
 	of_node_put(port0);
 	of_node_put(port1);
 
-	if (dual_link >= DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS)
-		lvds->dual_link = true;
-	else if (lvds->next_bridge && lvds->next_bridge->timings)
+	switch (dual_link) {
+	case DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS:
+		lvds->link_type = RCAR_LVDS_DUAL_LINK_ODD_EVEN_PIXELS;
+		break;
+	case DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS:
+		lvds->link_type = RCAR_LVDS_DUAL_LINK_EVEN_ODD_PIXELS;
+		break;
+	default:
 		/*
 		 * Early dual-link bridge specific implementations populate the
-		 * timings field of drm_bridge, read the dual_link flag off the
-		 * bridge directly for backward compatibility.
+		 * timings field of drm_bridge. If the flag is set, we assume
+		 * that we are expected to generate even pixels from the primary
+		 * encoder, and odd pixels from the companion encoder.
 		 */
-		lvds->dual_link = lvds->next_bridge->timings->dual_link;
+		if (lvds->next_bridge && lvds->next_bridge->timings &&
+		    lvds->next_bridge->timings->dual_link)
+			lvds->link_type = RCAR_LVDS_DUAL_LINK_EVEN_ODD_PIXELS;
+		else
+			lvds->link_type = RCAR_LVDS_SINGLE_LINK;
+	}
 
-	if (!lvds->dual_link) {
+	if (lvds->link_type == RCAR_LVDS_SINGLE_LINK) {
 		dev_dbg(dev, "Single-link configuration detected\n");
 		goto done;
 	}
@@ -737,6 +773,9 @@ static int rcar_lvds_parse_dt_companion(struct rcar_lvds *lvds)
 		"Dual-link configuration detected (companion encoder %pOF)\n",
 		companion);
 
+	if (lvds->link_type == RCAR_LVDS_DUAL_LINK_ODD_EVEN_PIXELS)
+		dev_dbg(dev, "Data swapping required\n");
+
 	/*
 	 * FIXME: We should not be messing with the companion encoder private
 	 * data from the primary encoder, we should rather let the companion
@@ -747,7 +786,7 @@ static int rcar_lvds_parse_dt_companion(struct rcar_lvds *lvds)
 	 * for the time being.
 	 */
 	companion_lvds = bridge_to_rcar_lvds(lvds->companion);
-	companion_lvds->dual_link = true;
+	companion_lvds->link_type = lvds->link_type;
 
 done:
 	of_node_put(companion);
