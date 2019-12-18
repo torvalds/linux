@@ -29,7 +29,8 @@ struct mt7615_fw_trailer {
 	__le32 len;
 } __packed;
 
-#define MCU_PATCH_ADDRESS		0x80000
+#define MT7615_PATCH_ADDRESS		0x80000
+#define MT7622_PATCH_ADDRESS		0x9c000
 
 #define N9_REGION_NUM			2
 #define CR4_REGION_NUM			1
@@ -333,19 +334,50 @@ static int mt7615_mcu_start_patch(struct mt7615_dev *dev)
 				   &req, sizeof(req), true);
 }
 
+static void mt7622_trigger_hif_int(struct mt7615_dev *dev, bool en)
+{
+	if (!is_mt7622(&dev->mt76))
+		return;
+
+	regmap_update_bits(dev->infracfg, MT_INFRACFG_MISC,
+			   MT_INFRACFG_MISC_AP2CONN_WAKE,
+			   !en * MT_INFRACFG_MISC_AP2CONN_WAKE);
+}
+
 static int mt7615_driver_own(struct mt7615_dev *dev)
 {
 	mt76_wr(dev, MT_CFG_LPCR_HOST, MT_CFG_LPCR_HOST_DRV_OWN);
+
+	mt7622_trigger_hif_int(dev, true);
 	if (!mt76_poll_msec(dev, MT_CFG_LPCR_HOST,
-			    MT_CFG_LPCR_HOST_FW_OWN, 0, 500)) {
+			    MT_CFG_LPCR_HOST_FW_OWN, 0, 3000)) {
 		dev_err(dev->mt76.dev, "Timeout for driver own\n");
 		return -EIO;
 	}
+	mt7622_trigger_hif_int(dev, false);
 
 	return 0;
 }
 
-static int mt7615_load_patch(struct mt7615_dev *dev, const char *name)
+static int mt7615_firmware_own(struct mt7615_dev *dev)
+{
+	mt7622_trigger_hif_int(dev, true);
+
+	mt76_wr(dev, MT_CFG_LPCR_HOST, MT_CFG_LPCR_HOST_FW_OWN);
+
+	if (is_mt7622(&dev->mt76) &&
+	    !mt76_poll_msec(dev, MT_CFG_LPCR_HOST,
+			    MT_CFG_LPCR_HOST_FW_OWN,
+			    MT_CFG_LPCR_HOST_FW_OWN, 3000)) {
+		dev_err(dev->mt76.dev, "Timeout for firmware own\n");
+		return -EIO;
+	}
+	mt7622_trigger_hif_int(dev, false);
+
+	return 0;
+}
+
+static int mt7615_load_patch(struct mt7615_dev *dev, u32 addr, const char *name)
 {
 	const struct mt7615_patch_hdr *hdr;
 	const struct firmware *fw = NULL;
@@ -379,8 +411,7 @@ static int mt7615_load_patch(struct mt7615_dev *dev, const char *name)
 
 	len = fw->size - sizeof(*hdr);
 
-	ret = mt7615_mcu_init_download(dev, MCU_PATCH_ADDRESS, len,
-				       DL_MODE_NEED_RSP);
+	ret = mt7615_mcu_init_download(dev, addr, len, DL_MODE_NEED_RSP);
 	if (ret) {
 		dev_err(dev->mt76.dev, "Download request failed\n");
 		goto out;
@@ -561,7 +592,7 @@ static int mt7615_load_firmware(struct mt7615_dev *dev)
 		return -EIO;
 	}
 
-	ret = mt7615_load_patch(dev, MT7615_ROM_PATCH);
+	ret = mt7615_load_patch(dev, MT7615_PATCH_ADDRESS, MT7615_ROM_PATCH);
 	if (ret)
 		return ret;
 
@@ -576,9 +607,38 @@ static int mt7615_load_firmware(struct mt7615_dev *dev)
 		return -EIO;
 	}
 
-	mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
+	return 0;
+}
 
-	dev_dbg(dev->mt76.dev, "Firmware init done\n");
+static int mt7622_load_firmware(struct mt7615_dev *dev)
+{
+	int ret;
+	u32 val;
+
+	mt76_set(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_BYPASS_TX_SCH);
+
+	val = mt76_get_field(dev, MT_TOP_OFF_RSV, MT_TOP_OFF_RSV_FW_STATE);
+	if (val != FW_STATE_FW_DOWNLOAD) {
+		dev_err(dev->mt76.dev, "Firmware is not ready for download\n");
+		return -EIO;
+	}
+
+	ret = mt7615_load_patch(dev, MT7622_PATCH_ADDRESS, MT7622_ROM_PATCH);
+	if (ret)
+		return ret;
+
+	ret = mt7615_load_n9(dev, MT7622_FIRMWARE_N9);
+	if (ret)
+		return ret;
+
+	if (!mt76_poll_msec(dev, MT_TOP_OFF_RSV, MT_TOP_OFF_RSV_FW_STATE,
+			    FIELD_PREP(MT_TOP_OFF_RSV_FW_STATE,
+				       FW_STATE_NORMAL_TRX), 1500)) {
+		dev_err(dev->mt76.dev, "Timeout for initializing firmware\n");
+		return -EIO;
+	}
+
+	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_BYPASS_TX_SCH);
 
 	return 0;
 }
@@ -597,10 +657,15 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt7615_load_firmware(dev);
+	if (is_mt7622(&dev->mt76))
+		ret = mt7622_load_firmware(dev);
+	else
+		ret = mt7615_load_firmware(dev);
 	if (ret)
 		return ret;
 
+	mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
+	dev_dbg(dev->mt76.dev, "Firmware init done\n");
 	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 
 	return 0;
@@ -609,7 +674,7 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 void mt7615_mcu_exit(struct mt7615_dev *dev)
 {
 	__mt76_mcu_restart(&dev->mt76);
-	mt76_wr(dev, MT_CFG_LPCR_HOST, MT_CFG_LPCR_HOST_FW_OWN);
+	mt7615_firmware_own(dev);
 	skb_queue_purge(&dev->mt76.mmio.mcu.res_q);
 }
 

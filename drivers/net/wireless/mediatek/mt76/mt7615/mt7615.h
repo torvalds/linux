@@ -6,6 +6,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/ktime.h>
+#include <linux/regmap.h>
 #include "../mt76.h"
 #include "regs.h"
 
@@ -30,6 +31,9 @@
 #define MT7615_FIRMWARE_CR4		"mediatek/mt7615_cr4.bin"
 #define MT7615_FIRMWARE_N9		"mediatek/mt7615_n9.bin"
 #define MT7615_ROM_PATCH		"mediatek/mt7615_rom_patch.bin"
+
+#define MT7622_FIRMWARE_N9		"mediatek/mt7622_n9.bin"
+#define MT7622_ROM_PATCH		"mediatek/mt7622_rom_patch.bin"
 
 #define MT7615_EEPROM_SIZE		1024
 #define MT7615_TOKEN_SIZE		4096
@@ -148,6 +152,8 @@ struct mt7615_dev {
 
 	u16 chainmask;
 
+	struct regmap *infracfg;
+
 	struct work_struct mcu_work;
 
 	struct list_head sta_poll_list;
@@ -241,6 +247,16 @@ mt7615_ext_phy(struct mt7615_dev *dev)
 
 extern const struct ieee80211_ops mt7615_ops;
 extern struct pci_driver mt7615_pci_driver;
+extern struct platform_driver mt7622_wmac_driver;
+
+#ifdef CONFIG_MT7622_WMAC
+int mt7622_wmac_init(struct mt7615_dev *dev);
+#else
+static inline int mt7622_wmac_init(struct mt7615_dev *dev)
+{
+	return 0;
+}
+#endif
 
 int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base, int irq);
 u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
@@ -295,6 +311,9 @@ int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev);
 
 static inline bool is_mt7622(struct mt76_dev *dev)
 {
+	if (!IS_ENABLED(CONFIG_MT7622_WMAC))
+		return false;
+
 	return mt76_chip(dev) == 0x7622;
 }
 

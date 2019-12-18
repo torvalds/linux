@@ -442,6 +442,10 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	INIT_LIST_HEAD(&dev->sta_poll_list);
 	spin_lock_init(&dev->sta_poll_lock);
 
+	ret = mt7622_wmac_init(dev);
+	if (ret)
+		return ret;
+
 	ret = mt7615_init_hardware(dev);
 	if (ret)
 		return ret;

@@ -53,10 +53,7 @@ struct pci_driver mt7615_pci_driver = {
 	.remove		= mt7615_pci_remove,
 };
 
-module_pci_driver(mt7615_pci_driver);
-
 MODULE_DEVICE_TABLE(pci, mt7615_pci_device_table);
 MODULE_FIRMWARE(MT7615_FIRMWARE_CR4);
 MODULE_FIRMWARE(MT7615_FIRMWARE_N9);
 MODULE_FIRMWARE(MT7615_ROM_PATCH);
-MODULE_LICENSE("Dual BSD/GPL");
