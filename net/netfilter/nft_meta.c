@@ -175,6 +175,30 @@ nft_meta_get_eval_cgroup(u32 *dest, const struct nft_pktinfo *pkt)
 }
 #endif
 
+static noinline bool nft_meta_get_eval_kind(enum nft_meta_keys key,
+					    u32 *dest,
+					    const struct nft_pktinfo *pkt)
+{
+	const struct net_device *in = nft_in(pkt), *out = nft_out(pkt);
+
+	switch (key) {
+	case NFT_META_IIFKIND:
+		if (!in || !in->rtnl_link_ops)
+			return false;
+		strncpy((char *)dest, in->rtnl_link_ops->kind, IFNAMSIZ);
+		break;
+	case NFT_META_OIFKIND:
+		if (!out || !out->rtnl_link_ops)
+			return false;
+		strncpy((char *)dest, out->rtnl_link_ops->kind, IFNAMSIZ);
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -286,14 +310,9 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		break;
 #endif
 	case NFT_META_IIFKIND:
-		if (in == NULL || in->rtnl_link_ops == NULL)
-			goto err;
-		strncpy((char *)dest, in->rtnl_link_ops->kind, IFNAMSIZ);
-		break;
 	case NFT_META_OIFKIND:
-		if (out == NULL || out->rtnl_link_ops == NULL)
+		if (!nft_meta_get_eval_kind(priv->key, dest, pkt))
 			goto err;
-		strncpy((char *)dest, out->rtnl_link_ops->kind, IFNAMSIZ);
 		break;
 	case NFT_META_TIME_NS:
 	case NFT_META_TIME_DAY:
