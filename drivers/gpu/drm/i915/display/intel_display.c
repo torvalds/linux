@@ -15186,7 +15186,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		return ret;
 
 	fb_obj_bump_render_priority(obj);
-	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_DIRTYFB);
+	i915_gem_object_flush_frontbuffer(obj, ORIGIN_DIRTYFB);
 
 	if (!new_plane_state->uapi.fence) { /* implicit fencing */
 		struct dma_fence *fence;

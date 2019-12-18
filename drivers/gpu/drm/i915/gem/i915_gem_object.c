@@ -313,7 +313,7 @@ i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,
 		}
 		spin_unlock(&obj->vma.lock);
 
-		intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
+		i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);
 		break;
 
 	case I915_GEM_DOMAIN_WC:
@@ -331,6 +331,30 @@ i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,
 	}
 
 	obj->write_domain = 0;
+}
+
+void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
+					 enum fb_op_origin origin)
+{
+	struct intel_frontbuffer *front;
+
+	front = __intel_frontbuffer_get(obj);
+	if (front) {
+		intel_frontbuffer_flush(front, origin);
+		intel_frontbuffer_put(front);
+	}
+}
+
+void __i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
+					      enum fb_op_origin origin)
+{
+	struct intel_frontbuffer *front;
+
+	front = __intel_frontbuffer_get(obj);
+	if (front) {
+		intel_frontbuffer_invalidate(front, origin);
+		intel_frontbuffer_put(front);
+	}
 }
 
 void i915_gem_init__objects(struct drm_i915_private *i915)
