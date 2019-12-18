@@ -144,6 +144,8 @@ struct bcmgenet_mib_counters {
 	u32	alloc_rx_buff_failed;
 	u32	rx_dma_failed;
 	u32	tx_dma_failed;
+	u32	tx_realloc_tsb;
+	u32	tx_realloc_tsb_failed;
 };
 
 #define UMAC_HD_BKP_CTRL		0x004

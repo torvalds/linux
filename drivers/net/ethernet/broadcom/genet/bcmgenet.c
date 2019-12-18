@@ -861,6 +861,9 @@ static const struct bcmgenet_stats bcmgenet_gstrings_stats[] = {
 	STAT_GENET_SOFT_MIB("alloc_rx_buff_failed", mib.alloc_rx_buff_failed),
 	STAT_GENET_SOFT_MIB("rx_dma_failed", mib.rx_dma_failed),
 	STAT_GENET_SOFT_MIB("tx_dma_failed", mib.tx_dma_failed),
+	STAT_GENET_SOFT_MIB("tx_realloc_tsb", mib.tx_realloc_tsb),
+	STAT_GENET_SOFT_MIB("tx_realloc_tsb_failed",
+			    mib.tx_realloc_tsb_failed),
 	/* Per TX queues */
 	STAT_GENET_Q(0),
 	STAT_GENET_Q(1),
@@ -1487,6 +1490,7 @@ static void bcmgenet_tx_reclaim_all(struct net_device *dev)
 static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
 					    struct sk_buff *skb)
 {
+	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct status_64 *status = NULL;
 	struct sk_buff *new_skb;
 	u16 offset;
@@ -1501,11 +1505,13 @@ static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
 		new_skb = skb_realloc_headroom(skb, sizeof(*status));
 		if (!new_skb) {
 			dev_kfree_skb_any(skb);
+			priv->mib.tx_realloc_tsb_failed++;
 			dev->stats.tx_dropped++;
 			return NULL;
 		}
 		dev_consume_skb_any(skb);
 		skb = new_skb;
+		priv->mib.tx_realloc_tsb++;
 	}
 
 	skb_push(skb, sizeof(*status));
