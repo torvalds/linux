@@ -326,6 +326,12 @@ struct io_cancel {
 	u64				addr;
 };
 
+struct io_timeout {
+	struct file			*file;
+	u64				addr;
+	int				flags;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -368,6 +374,7 @@ struct io_kiocb {
 		struct io_accept	accept;
 		struct io_sync		sync;
 		struct io_cancel	cancel;
+		struct io_timeout	timeout;
 	};
 
 	const struct io_uring_sqe	*sqe;
@@ -2818,26 +2825,40 @@ static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
 	return 0;
 }
 
+static int io_timeout_remove_prep(struct io_kiocb *req)
+{
+	const struct io_uring_sqe *sqe = req->sqe;
+
+	if (req->flags & REQ_F_PREPPED)
+		return 0;
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (sqe->flags || sqe->ioprio || sqe->buf_index || sqe->len)
+		return -EINVAL;
+
+	req->timeout.addr = READ_ONCE(sqe->addr);
+	req->timeout.flags = READ_ONCE(sqe->timeout_flags);
+	if (req->timeout.flags)
+		return -EINVAL;
+
+	req->flags |= REQ_F_PREPPED;
+	return 0;
+}
+
 /*
  * Remove or update an existing timeout command
  */
 static int io_timeout_remove(struct io_kiocb *req)
 {
-	const struct io_uring_sqe *sqe = req->sqe;
 	struct io_ring_ctx *ctx = req->ctx;
-	unsigned flags;
 	int ret;
 
-	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
-		return -EINVAL;
-	if (sqe->flags || sqe->ioprio || sqe->buf_index || sqe->len)
-		return -EINVAL;
-	flags = READ_ONCE(sqe->timeout_flags);
-	if (flags)
-		return -EINVAL;
+	ret = io_timeout_remove_prep(req);
+	if (ret)
+		return ret;
 
 	spin_lock_irq(&ctx->completion_lock);
-	ret = io_timeout_cancel(ctx, READ_ONCE(sqe->addr));
+	ret = io_timeout_cancel(ctx, req->timeout.addr);
 
 	io_cqring_fill_event(req, ret);
 	io_commit_cqring(ctx);
@@ -3107,6 +3128,9 @@ static int io_req_defer_prep(struct io_kiocb *req)
 		break;
 	case IORING_OP_TIMEOUT:
 		ret = io_timeout_prep(req, io, false);
+		break;
+	case IORING_OP_TIMEOUT_REMOVE:
+		ret = io_timeout_remove_prep(req);
 		break;
 	case IORING_OP_ASYNC_CANCEL:
 		ret = io_async_cancel_prep(req);
