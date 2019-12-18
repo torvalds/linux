@@ -251,6 +251,7 @@ struct bcmgenet_mib_counters {
 #define RBUF_CHK_CTRL			0x14
 #define  RBUF_RXCHK_EN			(1 << 0)
 #define  RBUF_SKIP_FCS			(1 << 4)
+#define  RBUF_L3_PARSE_DIS		(1 << 5)
 
 #define RBUF_ENERGY_CTRL		0x9c
 #define  RBUF_EEE_EN			(1 << 0)
@@ -663,7 +664,6 @@ struct bcmgenet_priv {
 	bool desc_rxchk_en;
 	bool crc_fwd_en;
 
-	unsigned int dma_rx_chk_bit;
 	u32 dma_max_burst_length;
 
 	u32 msg_enable;

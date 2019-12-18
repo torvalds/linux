@@ -521,7 +521,7 @@ static int bcmgenet_set_rx_csum(struct net_device *dev,
 
 	/* enable rx checksumming */
 	if (rx_csum_en)
-		rbuf_chk_ctrl |= RBUF_RXCHK_EN;
+		rbuf_chk_ctrl |= RBUF_RXCHK_EN | RBUF_L3_PARSE_DIS;
 	else
 		rbuf_chk_ctrl &= ~RBUF_RXCHK_EN;
 	priv->desc_rxchk_en = rx_csum_en;
@@ -1739,7 +1739,6 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 	unsigned int bytes_processed = 0;
 	unsigned int p_index, mask;
 	unsigned int discards;
-	unsigned int chksum_ok = 0;
 
 	/* Clear status before servicing to reduce spurious interrupts */
 	if (ring->index == DESC_INDEX) {
@@ -1790,9 +1789,15 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 				dmadesc_get_length_status(priv, cb->bd_addr);
 		} else {
 			struct status_64 *status;
+			__be16 rx_csum;
 
 			status = (struct status_64 *)skb->data;
 			dma_length_status = status->length_status;
+			rx_csum = (__force __be16)(status->rx_csum & 0xffff);
+			if (priv->desc_rxchk_en) {
+				skb->csum = (__force __wsum)ntohs(rx_csum);
+				skb->ip_summed = CHECKSUM_COMPLETE;
+			}
 		}
 
 		/* DMA flags and length are still valid no matter how
@@ -1835,17 +1840,11 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 			goto next;
 		} /* error packet */
 
-		chksum_ok = (dma_flag & priv->dma_rx_chk_bit) &&
-			     priv->desc_rxchk_en;
-
 		skb_put(skb, len);
 		if (priv->desc_64b_en) {
 			skb_pull(skb, 64);
 			len -= 64;
 		}
-
-		if (likely(chksum_ok))
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		/* remove hardware 2bytes added for IP alignment */
 		skb_pull(skb, 2);
@@ -3322,19 +3321,15 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	if (GENET_IS_V5(priv) || GENET_IS_V4(priv)) {
 		bcmgenet_dma_regs = bcmgenet_dma_regs_v3plus;
 		genet_dma_ring_regs = genet_dma_ring_regs_v4;
-		priv->dma_rx_chk_bit = DMA_RX_CHK_V3PLUS;
 	} else if (GENET_IS_V3(priv)) {
 		bcmgenet_dma_regs = bcmgenet_dma_regs_v3plus;
 		genet_dma_ring_regs = genet_dma_ring_regs_v123;
-		priv->dma_rx_chk_bit = DMA_RX_CHK_V3PLUS;
 	} else if (GENET_IS_V2(priv)) {
 		bcmgenet_dma_regs = bcmgenet_dma_regs_v2;
 		genet_dma_ring_regs = genet_dma_ring_regs_v123;
-		priv->dma_rx_chk_bit = DMA_RX_CHK_V12;
 	} else if (GENET_IS_V1(priv)) {
 		bcmgenet_dma_regs = bcmgenet_dma_regs_v1;
 		genet_dma_ring_regs = genet_dma_ring_regs_v123;
-		priv->dma_rx_chk_bit = DMA_RX_CHK_V12;
 	}
 
 	/* enum genet_version starts at 1 */
