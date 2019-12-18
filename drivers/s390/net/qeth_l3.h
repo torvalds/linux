@@ -23,7 +23,6 @@ struct qeth_ipaddr {
 	struct hlist_node hnode;
 	enum qeth_ip_types type;
 	u8 is_multicast:1;
-	u8 in_progress:1;
 	u8 disp_flag:2;
 	u8 ipato:1;			/* ucast only */
 

@@ -151,8 +151,6 @@ static int qeth_l3_delete_ip(struct qeth_card *card,
 	addr->ref_counter--;
 	if (addr->type == QETH_IP_TYPE_NORMAL && addr->ref_counter > 0)
 		return rc;
-	if (addr->in_progress)
-		return -EINPROGRESS;
 
 	if (qeth_card_hw_is_reachable(card))
 		rc = qeth_l3_deregister_addr_entry(card, addr);
@@ -213,29 +211,10 @@ static int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 			return 0;
 		}
 
-		/* qeth_l3_register_addr_entry can go to sleep
-		 * if we add a IPV4 addr. It is caused by the reason
-		 * that SETIP ipa cmd starts ARP staff for IPV4 addr.
-		 * Thus we should unlock spinlock, and make a protection
-		 * using in_progress variable to indicate that there is
-		 * an hardware operation with this IPV4 address
-		 */
-		if (addr->proto == QETH_PROT_IPV4) {
-			addr->in_progress = 1;
-			mutex_unlock(&card->ip_lock);
-			rc = qeth_l3_register_addr_entry(card, addr);
-			mutex_lock(&card->ip_lock);
-			addr->in_progress = 0;
-		} else
-			rc = qeth_l3_register_addr_entry(card, addr);
+		rc = qeth_l3_register_addr_entry(card, addr);
 
 		if (!rc || rc == -EADDRINUSE || rc == -ENETDOWN) {
 			addr->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
-			if (addr->ref_counter < 1) {
-				qeth_l3_deregister_addr_entry(card, addr);
-				hash_del(&addr->hnode);
-				kfree(addr);
-			}
 		} else {
 			hash_del(&addr->hnode);
 			kfree(addr);
@@ -303,19 +282,10 @@ static void qeth_l3_recover_ip(struct qeth_card *card)
 
 	hash_for_each_safe(card->ip_htable, i, tmp, addr, hnode) {
 		if (addr->disp_flag == QETH_DISP_ADDR_ADD) {
-			if (addr->proto == QETH_PROT_IPV4) {
-				addr->in_progress = 1;
-				mutex_unlock(&card->ip_lock);
-				rc = qeth_l3_register_addr_entry(card, addr);
-				mutex_lock(&card->ip_lock);
-				addr->in_progress = 0;
-			} else
-				rc = qeth_l3_register_addr_entry(card, addr);
+			rc = qeth_l3_register_addr_entry(card, addr);
 
 			if (!rc) {
 				addr->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
-				if (addr->ref_counter < 1)
-					qeth_l3_delete_ip(card, addr);
 			} else {
 				hash_del(&addr->hnode);
 				kfree(addr);
