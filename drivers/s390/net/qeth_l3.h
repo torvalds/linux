@@ -102,7 +102,8 @@ struct qeth_ipato_entry {
 
 extern const struct attribute_group *qeth_l3_attr_groups[];
 
-void qeth_l3_ipaddr_to_string(enum qeth_prot_versions, const __u8 *, char *);
+int qeth_l3_ipaddr_to_string(enum qeth_prot_versions proto, const u8 *addr,
+			     char *buf);
 int qeth_l3_create_device_attributes(struct device *);
 void qeth_l3_remove_device_attributes(struct device *);
 int qeth_l3_setrouting_v4(struct qeth_card *);

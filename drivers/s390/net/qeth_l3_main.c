@@ -44,23 +44,13 @@ static int qeth_l3_register_addr_entry(struct qeth_card *,
 static int qeth_l3_deregister_addr_entry(struct qeth_card *,
 		struct qeth_ipaddr *);
 
-static void qeth_l3_ipaddr4_to_string(const __u8 *addr, char *buf)
-{
-	sprintf(buf, "%pI4", addr);
-}
-
-static void qeth_l3_ipaddr6_to_string(const __u8 *addr, char *buf)
-{
-	sprintf(buf, "%pI6", addr);
-}
-
-void qeth_l3_ipaddr_to_string(enum qeth_prot_versions proto, const __u8 *addr,
-				char *buf)
+int qeth_l3_ipaddr_to_string(enum qeth_prot_versions proto, const u8 *addr,
+			     char *buf)
 {
 	if (proto == QETH_PROT_IPV4)
-		qeth_l3_ipaddr4_to_string(addr, buf);
-	else if (proto == QETH_PROT_IPV6)
-		qeth_l3_ipaddr6_to_string(addr, buf);
+		return sprintf(buf, "%pI4", addr);
+	else
+		return sprintf(buf, "%pI6", addr);
 }
 
 static struct qeth_ipaddr *qeth_l3_find_addr_by_ip(struct qeth_card *card,
