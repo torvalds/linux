@@ -22,8 +22,6 @@ ssize_t get_base_addr() {
 	return -EINVAL;
 }
 
-BPF_EMBED_OBJ(probe, "test_attach_probe.o");
-
 void test_attach_probe(void)
 {
 	int duration = 0;
@@ -39,7 +37,7 @@ void test_attach_probe(void)
 		return;
 	uprobe_offset = (size_t)&get_base_addr - base_addr;
 
-	skel = test_attach_probe__open_and_load(&probe_embed);
+	skel = test_attach_probe__open_and_load();
 	if (CHECK(!skel, "skel_open", "failed to open skeleton\n"))
 		return;
 	if (CHECK(!skel->bss, "check_bss", ".bss wasn't mmap()-ed\n"))

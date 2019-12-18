@@ -15,8 +15,6 @@ static __u64 read_perf_max_sample_freq(void)
 	return sample_freq;
 }
 
-BPF_EMBED_OBJ_DECLARE(stacktrace_build_id);
-
 void test_stacktrace_build_id_nmi(void)
 {
 	int control_map_fd, stackid_hmap_fd, stackmap_fd;
@@ -37,7 +35,7 @@ void test_stacktrace_build_id_nmi(void)
 	attr.sample_freq = read_perf_max_sample_freq();
 
 retry:
-	skel = test_stacktrace_build_id__open(&stacktrace_build_id_embed);
+	skel = test_stacktrace_build_id__open();
 	if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
 		return;
 

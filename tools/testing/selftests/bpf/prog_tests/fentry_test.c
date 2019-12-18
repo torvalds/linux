@@ -4,9 +4,6 @@
 #include "test_pkt_access.skel.h"
 #include "fentry_test.skel.h"
 
-BPF_EMBED_OBJ_DECLARE(pkt_access);
-BPF_EMBED_OBJ_DECLARE(fentry);
-
 void test_fentry_test(void)
 {
 	struct test_pkt_access *pkt_skel = NULL;
@@ -15,10 +12,10 @@ void test_fentry_test(void)
 	__u32 duration, retval;
 	__u64 *result;
 
-	pkt_skel = test_pkt_access__open_and_load(&pkt_access_embed);
+	pkt_skel = test_pkt_access__open_and_load();
 	if (CHECK(!pkt_skel, "pkt_skel_load", "pkt_access skeleton failed\n"))
 		return;
-	fentry_skel = fentry_test__open_and_load(&fentry_embed);
+	fentry_skel = fentry_test__open_and_load();
 	if (CHECK(!fentry_skel, "fentry_skel_load", "fentry skeleton failed\n"))
 		goto cleanup;
 

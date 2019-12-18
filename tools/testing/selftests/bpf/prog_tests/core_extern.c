@@ -124,8 +124,6 @@ static struct test_case {
 	{ .name = "u64 (max+1)", .fails = 1, .cfg = CFG"CONFIG_ULONG=0x10000000000000000" },
 };
 
-BPF_EMBED_OBJ(core_extern, "test_core_extern.o");
-
 void test_core_extern(void)
 {
 	const uint32_t kern_ver = get_kernel_version();
@@ -159,7 +157,7 @@ void test_core_extern(void)
 			opts.kconfig_path = tmp_cfg_path;
 		}
 
-		skel = test_core_extern__open_opts(&core_extern_embed, &opts);
+		skel = test_core_extern__open_opts(&opts);
 		if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
 			goto cleanup;
 		err = test_core_extern__load(skel);

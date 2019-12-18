@@ -10,8 +10,6 @@ struct s {
 
 #include "test_skeleton.skel.h"
 
-BPF_EMBED_OBJ(skeleton, "test_skeleton.o");
-
 void test_skeleton(void)
 {
 	int duration = 0, err;
@@ -19,7 +17,7 @@ void test_skeleton(void)
 	struct test_skeleton__bss *bss;
 	struct test_skeleton__externs *exts;
 
-	skel = test_skeleton__open(&skeleton_embed);
+	skel = test_skeleton__open();
 	if (CHECK(!skel, "skel_open", "failed to open skeleton\n"))
 		return;
 

@@ -2,8 +2,6 @@
 #include <test_progs.h>
 #include "test_stacktrace_build_id.skel.h"
 
-BPF_EMBED_OBJ(stacktrace_build_id, "test_stacktrace_build_id.o");
-
 void test_stacktrace_build_id(void)
 {
 
@@ -18,7 +16,7 @@ void test_stacktrace_build_id(void)
 	int retry = 1;
 
 retry:
-	skel = test_stacktrace_build_id__open_and_load(&stacktrace_build_id_embed);
+	skel = test_stacktrace_build_id__open_and_load();
 	if (CHECK(!skel, "skel_open_and_load", "skeleton open/load failed\n"))
 		return;
 

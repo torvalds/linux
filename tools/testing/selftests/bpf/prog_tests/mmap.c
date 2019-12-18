@@ -13,8 +13,6 @@ static size_t roundup_page(size_t sz)
 	return (sz + page_size - 1) / page_size * page_size;
 }
 
-BPF_EMBED_OBJ(test_mmap, "test_mmap.o");
-
 void test_mmap(void)
 {
 	const size_t bss_sz = roundup_page(sizeof(struct test_mmap__bss));
@@ -30,7 +28,7 @@ void test_mmap(void)
 	__u64 val = 0;
 
 
-	skel = test_mmap__open_and_load(&test_mmap_embed);
+	skel = test_mmap__open_and_load();
 	if (CHECK(!skel, "skel_open_and_load", "skeleton open/load failed\n"))
 		return;
 
