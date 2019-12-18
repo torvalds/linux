@@ -93,10 +93,11 @@ header-test- += asm-generic/%
 
 extra-y := $(patsubst $(obj)/%.h,%.hdrtest, $(shell find $(obj) -name '*.h' 2>/dev/null))
 
+# Include the header to detect missing include guard.
 quiet_cmd_hdrtest = HDRTEST $<
       cmd_hdrtest = \
 		$(CC) $(c_flags) -S -o /dev/null -x c /dev/null \
-			$(if $(filter-out $(header-test-), $*.h), -include $<); \
+			$(if $(filter-out $(header-test-), $*.h), -include $< -include $<); \
 		$(PERL) $(srctree)/scripts/headers_check.pl $(obj) $(SRCARCH) $<; \
 		touch $@
 
