@@ -409,6 +409,23 @@ config NET_SCH_PLUG
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_plug.
 
+config NET_SCH_ETS
+	tristate "Enhanced transmission selection scheduler (ETS)"
+	help
+          The Enhanced Transmission Selection scheduler is a classful
+          queuing discipline that merges functionality of PRIO and DRR
+          qdiscs in one scheduler. ETS makes it easy to configure a set of
+          strict and bandwidth-sharing bands to implement the transmission
+          selection described in 802.1Qaz.
+
+	  Say Y here if you want to use the ETS packet scheduling
+	  algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_ets.
+
+	  If unsure, say N.
+
 menuconfig NET_SCH_DEFAULT
 	bool "Allow override default queue discipline"
 	---help---
