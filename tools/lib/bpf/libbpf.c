@@ -6245,17 +6245,37 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 }
 
 struct bpf_link {
+	int (*detach)(struct bpf_link *link);
 	int (*destroy)(struct bpf_link *link);
+	bool disconnected;
 };
+
+/* Release "ownership" of underlying BPF resource (typically, BPF program
+ * attached to some BPF hook, e.g., tracepoint, kprobe, etc). Disconnected
+ * link, when destructed through bpf_link__destroy() call won't attempt to
+ * detach/unregisted that BPF resource. This is useful in situations where,
+ * say, attached BPF program has to outlive userspace program that attached it
+ * in the system. Depending on type of BPF program, though, there might be
+ * additional steps (like pinning BPF program in BPF FS) necessary to ensure
+ * exit of userspace program doesn't trigger automatic detachment and clean up
+ * inside the kernel.
+ */
+void bpf_link__disconnect(struct bpf_link *link)
+{
+	link->disconnected = true;
+}
 
 int bpf_link__destroy(struct bpf_link *link)
 {
-	int err;
+	int err = 0;
 
 	if (!link)
 		return 0;
 
-	err = link->destroy(link);
+	if (!link->disconnected && link->detach)
+		err = link->detach(link);
+	if (link->destroy)
+		link->destroy(link);
 	free(link);
 
 	return err;
@@ -6266,7 +6286,7 @@ struct bpf_link_fd {
 	int fd; /* hook FD */
 };
 
-static int bpf_link__destroy_perf_event(struct bpf_link *link)
+static int bpf_link__detach_perf_event(struct bpf_link *link)
 {
 	struct bpf_link_fd *l = (void *)link;
 	int err;
@@ -6298,10 +6318,10 @@ struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog,
 		return ERR_PTR(-EINVAL);
 	}
 
-	link = malloc(sizeof(*link));
+	link = calloc(1, sizeof(*link));
 	if (!link)
 		return ERR_PTR(-ENOMEM);
-	link->link.destroy = &bpf_link__destroy_perf_event;
+	link->link.detach = &bpf_link__detach_perf_event;
 	link->fd = pfd;
 
 	if (ioctl(pfd, PERF_EVENT_IOC_SET_BPF, prog_fd) < 0) {
@@ -6608,7 +6628,7 @@ out:
 	return link;
 }
 
-static int bpf_link__destroy_fd(struct bpf_link *link)
+static int bpf_link__detach_fd(struct bpf_link *link)
 {
 	struct bpf_link_fd *l = (void *)link;
 
@@ -6629,10 +6649,10 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 		return ERR_PTR(-EINVAL);
 	}
 
-	link = malloc(sizeof(*link));
+	link = calloc(1, sizeof(*link));
 	if (!link)
 		return ERR_PTR(-ENOMEM);
-	link->link.destroy = &bpf_link__destroy_fd;
+	link->link.detach = &bpf_link__detach_fd;
 
 	pfd = bpf_raw_tracepoint_open(tp_name, prog_fd);
 	if (pfd < 0) {
@@ -6668,10 +6688,10 @@ struct bpf_link *bpf_program__attach_trace(struct bpf_program *prog)
 		return ERR_PTR(-EINVAL);
 	}
 
-	link = malloc(sizeof(*link));
+	link = calloc(1, sizeof(*link));
 	if (!link)
 		return ERR_PTR(-ENOMEM);
-	link->link.destroy = &bpf_link__destroy_fd;
+	link->link.detach = &bpf_link__detach_fd;
 
 	pfd = bpf_raw_tracepoint_open(NULL, prog_fd);
 	if (pfd < 0) {
