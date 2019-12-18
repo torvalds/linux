@@ -310,12 +310,12 @@ static int kvmppc_core_vcpu_create_e500mc(struct kvm *kvm, struct kvm_vcpu *vcpu
 	BUILD_BUG_ON(offsetof(struct kvmppc_vcpu_e500, vcpu) != 0);
 	vcpu_e500 = to_e500(vcpu);
 
-	/* Invalid PIR value -- this LPID dosn't have valid state on any cpu */
-	vcpu->arch.oldpir = 0xffffffff;
-
 	err = kvm_vcpu_init(vcpu, kvm, id);
 	if (err)
 		return err;
+
+	/* Invalid PIR value -- this LPID dosn't have valid state on any cpu */
+	vcpu->arch.oldpir = 0xffffffff;
 
 	err = kvmppc_e500_tlb_init(vcpu_e500);
 	if (err)
