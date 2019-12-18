@@ -424,11 +424,6 @@ static const struct pmc_reg_map tgl_reg_map = {
 	.ltr_ignore_max = TGL_NUM_IP_IGN_ALLOWED,
 };
 
-static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
-{
-	return readb(pmcdev->regbase + offset);
-}
-
 static inline u32 pmc_core_reg_read(struct pmc_dev *pmcdev, int reg_offset)
 {
 	return readl(pmcdev->regbase + reg_offset);
@@ -470,6 +465,11 @@ static int pmc_core_check_read_lock_bit(void)
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 static bool slps0_dbg_latch;
+
+static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
+{
+	return readb(pmcdev->regbase + offset);
+}
 
 static void pmc_core_display_map(struct seq_file *s, int index, int idx, int ip,
 				 u8 pf_reg, const struct pmc_bit_map **pf_map)
