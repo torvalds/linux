@@ -549,7 +549,7 @@ static int bcmgenet_set_tx_csum(struct net_device *dev,
 	tbuf_ctrl = bcmgenet_tbuf_ctrl_get(priv);
 	rbuf_ctrl = bcmgenet_rbuf_readl(priv, RBUF_CTRL);
 
-	desc_64b_en = !!(wanted & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM));
+	desc_64b_en = !!(wanted & NETIF_F_HW_CSUM);
 
 	/* enable 64 bytes descriptor in both directions (RBUF and TBUF) */
 	if (desc_64b_en) {
@@ -574,7 +574,7 @@ static int bcmgenet_set_features(struct net_device *dev,
 	netdev_features_t wanted = dev->wanted_features;
 	int ret = 0;
 
-	if (changed & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM))
+	if (changed & NETIF_F_HW_CSUM)
 		ret = bcmgenet_set_tx_csum(dev, wanted);
 	if (changed & (NETIF_F_RXCSUM))
 		ret = bcmgenet_set_rx_csum(dev, wanted);
@@ -1516,24 +1516,19 @@ static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
 			ip_proto = ipv6_hdr(skb)->nexthdr;
 			break;
 		default:
-			return skb;
+			/* don't use UDP flag */
+			ip_proto = 0;
+			break;
 		}
 
 		offset = skb_checksum_start_offset(skb) - sizeof(*status);
 		tx_csum_info = (offset << STATUS_TX_CSUM_START_SHIFT) |
-				(offset + skb->csum_offset);
+				(offset + skb->csum_offset) |
+				STATUS_TX_CSUM_LV;
 
-		/* Set the length valid bit for TCP and UDP and just set
-		 * the special UDP flag for IPv4, else just set to 0.
-		 */
-		if (ip_proto == IPPROTO_TCP || ip_proto == IPPROTO_UDP) {
-			tx_csum_info |= STATUS_TX_CSUM_LV;
-			if (ip_proto == IPPROTO_UDP &&
-			    ip_ver == htons(ETH_P_IP))
-				tx_csum_info |= STATUS_TX_CSUM_PROTO_UDP;
-		} else {
-			tx_csum_info = 0;
-		}
+		/* Set the special UDP flag for UDP */
+		if (ip_proto == IPPROTO_UDP)
+			tx_csum_info |= STATUS_TX_CSUM_PROTO_UDP;
 
 		status->tx_csum_info = tx_csum_info;
 	}
@@ -3536,8 +3531,8 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	priv->msg_enable = netif_msg_init(-1, GENET_MSG_DEFAULT);
 
 	/* Set hardware features */
-	dev->hw_features |= NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA | NETIF_F_RXCSUM;
+	dev->hw_features |= NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_HW_CSUM |
+		NETIF_F_RXCSUM;
 
 	/* Request the WOL interrupt and advertise suspend if available */
 	priv->wol_irq_disabled = true;
