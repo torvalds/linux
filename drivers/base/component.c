@@ -11,7 +11,6 @@
 #include <linux/device.h>
 #include <linux/kref.h>
 #include <linux/list.h>
-#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
@@ -775,5 +774,3 @@ void component_del(struct device *dev, const struct component_ops *ops)
 	kfree(component);
 }
 EXPORT_SYMBOL_GPL(component_del);
-
-MODULE_LICENSE("GPL v2");
