@@ -2884,6 +2884,11 @@ static int bcmgenet_open(struct net_device *dev)
 
 	init_umac(priv);
 
+	/* Apply features again in case we changed them while interface was
+	 * down
+	 */
+	bcmgenet_set_features(dev, dev->features);
+
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
 	if (priv->internal_phy) {
@@ -3686,6 +3691,9 @@ static int bcmgenet_resume(struct device *d)
 	/* Speed settings must be restored */
 	genphy_config_aneg(dev->phydev);
 	bcmgenet_mii_config(priv->dev, false);
+
+	/* Restore enabled features */
+	bcmgenet_set_features(dev, dev->features);
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
