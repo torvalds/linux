@@ -1250,6 +1250,7 @@ enum gfs2_param {
 	Opt_upgrade,
 	Opt_acl,
 	Opt_quota,
+	Opt_quota_flag,
 	Opt_suiddir,
 	Opt_data,
 	Opt_meta,
@@ -1264,24 +1265,11 @@ enum gfs2_param {
 	Opt_loccookie,
 };
 
-enum opt_quota {
-	Opt_quota_unset = 0,
-	Opt_quota_off,
-	Opt_quota_account,
-	Opt_quota_on,
-};
-
 static const struct constant_table gfs2_param_quota[] = {
-	{"off",        Opt_quota_off },
-	{"account",    Opt_quota_account },
-	{"on",         Opt_quota_on },
+	{"off",        GFS2_QUOTA_OFF},
+	{"account",    GFS2_QUOTA_ACCOUNT},
+	{"on",         GFS2_QUOTA_ON},
 	{}
-};
-
-static const unsigned int opt_quota_values[] = {
-	[Opt_quota_off]     = GFS2_QUOTA_OFF,
-	[Opt_quota_account] = GFS2_QUOTA_ACCOUNT,
-	[Opt_quota_on]      = GFS2_QUOTA_ON,
 };
 
 enum opt_data {
@@ -1331,8 +1319,8 @@ static const struct fs_parameter_spec gfs2_fs_parameters[] = {
 	fsparam_flag_no("rgrplvb",            Opt_rgrplvb),
 	fsparam_flag_no("loccookie",          Opt_loccookie),
 	/* quota can be a flag or an enum so it gets special treatment */
-	__fsparam(fs_param_is_enum, "quota", Opt_quota,
-		fs_param_neg_with_no|fs_param_v_optional, gfs2_param_quota),
+	fsparam_flag_no("quota",	      Opt_quota_flag),
+	fsparam_enum("quota",		      Opt_quota, gfs2_param_quota),
 	{}
 };
 
@@ -1380,17 +1368,11 @@ static int gfs2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_acl:
 		args->ar_posix_acl = result.boolean;
 		break;
+	case Opt_quota_flag:
+		args->ar_quota = result.negated ? GFS2_QUOTA_OFF : GFS2_QUOTA_ON;
+		break;
 	case Opt_quota:
-		/* The quota option can be a flag or an enum. A non-zero int_32
-		   result means that we have an enum index. Otherwise we have
-		   to rely on the 'negated' flag to tell us whether 'quota' or
-		   'noquota' was specified. */
-		if (result.negated)
-			args->ar_quota = GFS2_QUOTA_OFF;
-		else if (result.int_32 > 0)
-			args->ar_quota = opt_quota_values[result.int_32];
-		else
-			args->ar_quota = GFS2_QUOTA_ON;
+		args->ar_quota = result.int_32;
 		break;
 	case Opt_suiddir:
 		args->ar_suiddir = result.boolean;

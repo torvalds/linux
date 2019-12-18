@@ -49,7 +49,6 @@ struct fs_parameter_spec {
 	u8			opt;	/* Option number (returned by fs_parse()) */
 	enum fs_parameter_type	type:8;	/* The desired parameter type */
 	unsigned short		flags;
-#define fs_param_v_optional	0x0001	/* The value is optional */
 #define fs_param_neg_with_no	0x0002	/* "noxxx" is negative param */
 #define fs_param_neg_with_empty	0x0004	/* "xxx=" is negative param */
 #define fs_param_deprecated	0x0008	/* The param is deprecated */

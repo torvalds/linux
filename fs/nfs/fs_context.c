@@ -45,6 +45,7 @@ enum nfs_param {
 	Opt_cto,
 	Opt_fg,
 	Opt_fscache,
+	Opt_fscache_flag,
 	Opt_hard,
 	Opt_intr,
 	Opt_local_lock,
@@ -125,8 +126,8 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_string("clientaddr",	Opt_clientaddr),
 	fsparam_flag_no("cto",		Opt_cto),
 	fsparam_flag  ("fg",		Opt_fg),
-	__fsparam(fs_param_is_string, "fsc",		Opt_fscache,
-		  fs_param_neg_with_no|fs_param_v_optional, NULL),
+	fsparam_flag_no("fsc",		Opt_fscache_flag),
+	fsparam_string("fsc",		Opt_fscache),
 	fsparam_flag  ("hard",		Opt_hard),
 	__fsparam(fs_param_is_flag, "intr",		Opt_intr,
 		  fs_param_neg_with_no|fs_param_deprecated, NULL),
@@ -537,14 +538,19 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		else
 			ctx->flags &= ~NFS_MOUNT_NORESVPORT;
 		break;
-	case Opt_fscache:
-		kfree(ctx->fscache_uniq);
-		ctx->fscache_uniq = param->string;
-		param->string = NULL;
+	case Opt_fscache_flag:
 		if (result.negated)
 			ctx->options &= ~NFS_OPTION_FSCACHE;
 		else
 			ctx->options |= NFS_OPTION_FSCACHE;
+		kfree(ctx->fscache_uniq);
+		ctx->fscache_uniq = NULL;
+		break;
+	case Opt_fscache:
+		ctx->options |= NFS_OPTION_FSCACHE;
+		kfree(ctx->fscache_uniq);
+		ctx->fscache_uniq = param->string;
+		param->string = NULL;
 		break;
 	case Opt_migration:
 		if (result.negated)

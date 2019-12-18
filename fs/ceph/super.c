@@ -179,8 +179,8 @@ static const struct fs_parameter_spec ceph_mount_parameters[] = {
 	fsparam_flag_no ("copyfrom",			Opt_copyfrom),
 	fsparam_flag_no ("dcache",			Opt_dcache),
 	fsparam_flag_no ("dirstat",			Opt_dirstat),
-	__fsparam	(fs_param_is_string, "fsc",	Opt_fscache,
-			 fs_param_neg_with_no | fs_param_v_optional, NULL),
+	fsparam_flag_no	("fsc",				Opt_fscache), // fsc|nofsc
+	fsparam_string	("fsc",				Opt_fscache), // fsc=...
 	fsparam_flag_no ("ino32",			Opt_ino32),
 	fsparam_string	("mds_namespace",		Opt_mds_namespace),
 	fsparam_flag_no ("poolperm",			Opt_poolperm),

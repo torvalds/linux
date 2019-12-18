@@ -46,19 +46,40 @@ int lookup_constant(const struct constant_table *tbl, const char *name, int not_
 }
 EXPORT_SYMBOL(lookup_constant);
 
+static inline bool is_flag(const struct fs_parameter_spec *p)
+{
+	return p->type == fs_param_is_flag;
+}
+
 static const struct fs_parameter_spec *fs_lookup_key(
 	const struct fs_parameter_spec *desc,
-	const char *name)
+	struct fs_parameter *param, bool *negated)
 {
-	const struct fs_parameter_spec *p;
-	if (!desc)
-		return NULL;
+	const struct fs_parameter_spec *p, *other = NULL;
+	const char *name = param->key;
+	bool want_flag = param->type == fs_value_is_flag;
 
-	for (p = desc; p->name; p++)
-		if (strcmp(p->name, name) == 0)
+	*negated = false;
+	for (p = desc; p->name; p++) {
+		if (strcmp(p->name, name) != 0)
+			continue;
+		if (likely(is_flag(p) == want_flag))
 			return p;
-
-	return NULL;
+		other = p;
+	}
+	if (want_flag) {
+		if (name[0] == 'n' && name[1] == 'o' && name[2]) {
+			for (p = desc; p->name; p++) {
+				if (strcmp(p->name, name + 2) != 0)
+					continue;
+				if (!(p->flags & fs_param_neg_with_no))
+					continue;
+				*negated = true;
+				return p;
+			}
+		}
+	}
+	return other;
 }
 
 /*
@@ -88,123 +109,77 @@ int __fs_parse(struct p_log *log,
 	const struct constant_table *e;
 	int ret = -ENOPARAM, b;
 
-	result->negated = false;
 	result->uint_64 = 0;
 
-	p = fs_lookup_key(desc, param->key);
-	if (!p) {
-		/* If we didn't find something that looks like "noxxx", see if
-		 * "xxx" takes the "no"-form negative - but only if there
-		 * wasn't an value.
-		 */
-		if (param->type != fs_value_is_flag)
-			goto unknown_parameter;
-		if (param->key[0] != 'n' || param->key[1] != 'o' || !param->key[2])
-			goto unknown_parameter;
-
-		p = fs_lookup_key(desc, param->key + 2);
-		if (!p)
-			goto unknown_parameter;
-		if (!(p->flags & fs_param_neg_with_no))
-			goto unknown_parameter;
-		result->boolean = false;
-		result->negated = true;
-	}
+	p = fs_lookup_key(desc, param, &result->negated);
+	if (!p)
+		return -ENOPARAM;
 
 	if (p->flags & fs_param_deprecated)
 		warn_plog(log, "Deprecated parameter '%s'", param->key);
-
-	if (result->negated)
-		goto okay;
-
-	/* Certain parameter types only take a string and convert it. */
-	switch (p->type) {
-	case __fs_param_wasnt_defined:
-		return -EINVAL;
-	case fs_param_is_u32:
-	case fs_param_is_u32_octal:
-	case fs_param_is_u32_hex:
-	case fs_param_is_s32:
-	case fs_param_is_u64:
-	case fs_param_is_enum:
-	case fs_param_is_string:
-		if (param->type == fs_value_is_string) {
-			if (p->flags & fs_param_v_optional)
-				break;
-			if (!*param->string)
-				goto bad_value;
-			break;
-		}
-		if (param->type == fs_value_is_flag) {
-			if (p->flags & fs_param_v_optional)
-				goto okay;
-		}
-		goto bad_value;
-	default:
-		break;
-	}
 
 	/* Try to turn the type we were given into the type desired by the
 	 * parameter and give an error if we can't.
 	 */
 	switch (p->type) {
+	case __fs_param_wasnt_defined:
+		return -EINVAL;
 	case fs_param_is_flag:
 		if (param->type != fs_value_is_flag)
 			return inval_plog(log, "Unexpected value for '%s'",
 				      param->key);
-		result->boolean = true;
+		result->boolean = !result->negated;
 		goto okay;
-
 	case fs_param_is_bool:
-		switch (param->type) {
-		case fs_value_is_flag:
-			result->boolean = true;
-			goto okay;
-		case fs_value_is_string:
-			if (param->size == 0) {
-				result->boolean = true;
-				goto okay;
-			}
-			b = lookup_constant(bool_names, param->string, -1);
-			if (b == -1)
-				goto bad_value;
-			result->boolean = b;
-			goto okay;
-		default:
+		if (param->type != fs_value_is_string)
 			goto bad_value;
-		}
-
+		b = lookup_constant(bool_names, param->string, -1);
+		if (b == -1)
+			goto bad_value;
+		result->boolean = b;
+		goto okay;
 	case fs_param_is_u32:
+		if (param->type != fs_value_is_string)
+			goto bad_value;
 		ret = kstrtouint(param->string, 0, &result->uint_32);
 		goto maybe_okay;
 	case fs_param_is_u32_octal:
+		if (param->type != fs_value_is_string)
+			goto bad_value;
 		ret = kstrtouint(param->string, 8, &result->uint_32);
 		goto maybe_okay;
 	case fs_param_is_u32_hex:
+		if (param->type != fs_value_is_string)
+			goto bad_value;
 		ret = kstrtouint(param->string, 16, &result->uint_32);
 		goto maybe_okay;
 	case fs_param_is_s32:
+		if (param->type != fs_value_is_string)
+			goto bad_value;
 		ret = kstrtoint(param->string, 0, &result->int_32);
 		goto maybe_okay;
 	case fs_param_is_u64:
+		if (param->type != fs_value_is_string)
+			goto bad_value;
 		ret = kstrtoull(param->string, 0, &result->uint_64);
 		goto maybe_okay;
-
 	case fs_param_is_enum:
+		if (param->type != fs_value_is_string)
+			goto bad_value;
 		e = __lookup_constant(p->data, param->string);
 		if (e) {
 			result->uint_32 = e->value;
 			goto okay;
 		}
 		goto bad_value;
-
 	case fs_param_is_string:
+		if (param->type != fs_value_is_string || !*param->string)
+			goto bad_value;
 		goto okay;
 	case fs_param_is_blob:
 		if (param->type != fs_value_is_blob)
 			goto bad_value;
 		goto okay;
-
 	case fs_param_is_fd: {
 		switch (param->type) {
 		case fs_value_is_string:
@@ -221,7 +196,6 @@ int __fs_parse(struct p_log *log,
 			goto bad_value;
 		goto maybe_okay;
 	}
-
 	case fs_param_is_blockdev:
 	case fs_param_is_path:
 		goto okay;
@@ -237,8 +211,6 @@ okay:
 
 bad_value:
 	return inval_plog(log, "Bad value for '%s'", param->key);
-unknown_parameter:
-	return -ENOPARAM;
 }
 EXPORT_SYMBOL(__fs_parse);
 
@@ -382,6 +354,8 @@ bool fs_validate_description(const char *name,
 		/* Check for duplicate parameter names */
 		for (p2 = desc; p2 < param; p2++) {
 			if (strcmp(param->name, p2->name) == 0) {
+				if (is_flag(param) != is_flag(p2))
+					continue;
 				pr_err("VALIDATE %s: PARAM[%s]: Duplicate\n",
 				       name, param->name);
 				good = false;
