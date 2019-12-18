@@ -5,6 +5,7 @@ Hyper-V.
 
 The following tests are available:
 
+  * vsock_test - core AF_VSOCK socket functionality
   * vsock_diag_test - vsock_diag.ko module for listing open sockets
 
 The following prerequisite steps are not automated and must be performed prior
