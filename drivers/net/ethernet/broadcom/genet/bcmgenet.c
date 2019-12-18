@@ -508,8 +508,8 @@ static int bcmgenet_set_link_ksettings(struct net_device *dev,
 	return phy_ethtool_ksettings_set(dev->phydev, cmd);
 }
 
-static int bcmgenet_set_rx_csum(struct net_device *dev,
-				netdev_features_t wanted)
+static void bcmgenet_set_rx_csum(struct net_device *dev,
+				 netdev_features_t wanted)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	u32 rbuf_chk_ctrl;
@@ -535,12 +535,10 @@ static int bcmgenet_set_rx_csum(struct net_device *dev,
 		rbuf_chk_ctrl &= ~RBUF_SKIP_FCS;
 
 	bcmgenet_rbuf_writel(priv, rbuf_chk_ctrl, RBUF_CHK_CTRL);
-
-	return 0;
 }
 
-static int bcmgenet_set_tx_csum(struct net_device *dev,
-				netdev_features_t wanted)
+static void bcmgenet_set_tx_csum(struct net_device *dev,
+				 netdev_features_t wanted)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	bool desc_64b_en;
@@ -563,21 +561,27 @@ static int bcmgenet_set_tx_csum(struct net_device *dev,
 
 	bcmgenet_tbuf_ctrl_set(priv, tbuf_ctrl);
 	bcmgenet_rbuf_writel(priv, rbuf_ctrl, RBUF_CTRL);
-
-	return 0;
 }
 
 static int bcmgenet_set_features(struct net_device *dev,
 				 netdev_features_t features)
 {
-	netdev_features_t changed = features ^ dev->features;
-	netdev_features_t wanted = dev->wanted_features;
-	int ret = 0;
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	u32 reg;
+	int ret;
 
-	if (changed & NETIF_F_HW_CSUM)
-		ret = bcmgenet_set_tx_csum(dev, wanted);
-	if (changed & (NETIF_F_RXCSUM))
-		ret = bcmgenet_set_rx_csum(dev, wanted);
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
+
+	/* Make sure we reflect the value of CRC_CMD_FWD */
+	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
+	priv->crc_fwd_en = !!(reg & CMD_CRC_FWD);
+
+	bcmgenet_set_tx_csum(dev, features);
+	bcmgenet_set_rx_csum(dev, features);
+
+	clk_disable_unprepare(priv->clk);
 
 	return ret;
 }
@@ -2879,10 +2883,6 @@ static int bcmgenet_open(struct net_device *dev)
 	bcmgenet_umac_reset(priv);
 
 	init_umac(priv);
-
-	/* Make sure we reflect the value of CRC_CMD_FWD */
-	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-	priv->crc_fwd_en = !!(reg & CMD_CRC_FWD);
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);
 
