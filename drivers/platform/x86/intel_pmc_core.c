@@ -895,7 +895,7 @@ static const struct pci_device_id pmc_pci_ids[] = {
 
 /*
  * This quirk can be used on those platforms where
- * the platform BIOS enforces 24Mhx Crystal to shutdown
+ * the platform BIOS enforces 24Mhz crystal to shutdown
  * before PMC can assert SLP_S0#.
  */
 static int quirk_xtal_ignore(const struct dmi_system_id *id)
