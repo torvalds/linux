@@ -3079,9 +3079,11 @@ static int io_req_defer_prep(struct io_kiocb *req)
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct io_async_ctx *io = req->io;
 	struct iov_iter iter;
-	ssize_t ret;
+	ssize_t ret = 0;
 
 	switch (req->opcode) {
+	case IORING_OP_NOP:
+		break;
 	case IORING_OP_READV:
 	case IORING_OP_READ_FIXED:
 		/* ensure prep does right import */
@@ -3141,7 +3143,9 @@ static int io_req_defer_prep(struct io_kiocb *req)
 		ret = io_accept_prep(req);
 		break;
 	default:
-		ret = 0;
+		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
+				req->opcode);
+		ret = -EINVAL;
 		break;
 	}
 
