@@ -520,11 +520,10 @@ static int __qeth_issue_next_read(struct qeth_card *card)
 	} else {
 		QETH_DBF_MESSAGE(2, "error %i on device %x when starting next read ccw!\n",
 				 rc, CARD_DEVID(card));
-		atomic_set(&channel->irq_pending, 0);
+		qeth_unlock_channel(card, channel);
 		qeth_put_cmd(iob);
 		card->read_or_write_problem = 1;
 		qeth_schedule_recovery(card);
-		wake_up(&card->wait_q);
 	}
 	return rc;
 }
@@ -1001,24 +1000,25 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 	}
 
 	channel->active_cmd = NULL;
+	qeth_unlock_channel(card, channel);
 
 	rc = qeth_check_irb_error(card, cdev, irb);
 	if (rc) {
 		/* IO was terminated, free its resources. */
 		if (iob)
 			qeth_cancel_cmd(iob, rc);
-		atomic_set(&channel->irq_pending, 0);
-		wake_up(&card->wait_q);
 		return;
 	}
 
-	atomic_set(&channel->irq_pending, 0);
-
-	if (irb->scsw.cmd.fctl & (SCSW_FCTL_CLEAR_FUNC))
+	if (irb->scsw.cmd.fctl & SCSW_FCTL_CLEAR_FUNC) {
 		channel->state = CH_STATE_STOPPED;
+		wake_up(&card->wait_q);
+	}
 
-	if (irb->scsw.cmd.fctl & (SCSW_FCTL_HALT_FUNC))
+	if (irb->scsw.cmd.fctl & SCSW_FCTL_HALT_FUNC) {
 		channel->state = CH_STATE_HALTED;
+		wake_up(&card->wait_q);
+	}
 
 	if (iob && (irb->scsw.cmd.fctl & (SCSW_FCTL_CLEAR_FUNC |
 					  SCSW_FCTL_HALT_FUNC))) {
@@ -1052,7 +1052,7 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 				qeth_cancel_cmd(iob, rc);
 			qeth_clear_ipacmd_list(card);
 			qeth_schedule_recovery(card);
-			goto out;
+			return;
 		}
 	}
 
@@ -1060,16 +1060,12 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 		/* sanity check: */
 		if (irb->scsw.cmd.count > iob->length) {
 			qeth_cancel_cmd(iob, -EIO);
-			goto out;
+			return;
 		}
 		if (iob->callback)
 			iob->callback(card, iob,
 				      iob->length - irb->scsw.cmd.count);
 	}
-
-out:
-	wake_up(&card->wait_q);
-	return;
 }
 
 static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
@@ -1780,8 +1776,7 @@ static int qeth_send_control_data(struct qeth_card *card,
 		QETH_CARD_TEXT_(card, 2, " err%d", rc);
 		qeth_dequeue_cmd(card, iob);
 		qeth_put_cmd(iob);
-		atomic_set(&channel->irq_pending, 0);
-		wake_up(&card->wait_q);
+		qeth_unlock_channel(card, channel);
 		goto out;
 	}
 

@@ -862,6 +862,13 @@ static inline bool qeth_card_hw_is_reachable(struct qeth_card *card)
 	return card->state == CARD_STATE_SOFTSETUP;
 }
 
+static inline void qeth_unlock_channel(struct qeth_card *card,
+				       struct qeth_channel *channel)
+{
+	atomic_set(&channel->irq_pending, 0);
+	wake_up(&card->wait_q);
+}
+
 struct qeth_trap_id {
 	__u16 lparnr;
 	char vmname[8];
