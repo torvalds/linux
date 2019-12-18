@@ -5,10 +5,6 @@
 #include "fentry_test.skel.h"
 #include "fexit_test.skel.h"
 
-BPF_EMBED_OBJ(pkt_access, "test_pkt_access.o");
-BPF_EMBED_OBJ(fentry, "fentry_test.o");
-BPF_EMBED_OBJ(fexit, "fexit_test.o");
-
 void test_fentry_fexit(void)
 {
 	struct test_pkt_access *pkt_skel = NULL;
@@ -18,13 +14,13 @@ void test_fentry_fexit(void)
 	__u32 duration = 0, retval;
 	int err, pkt_fd, i;
 
-	pkt_skel = test_pkt_access__open_and_load(&pkt_access_embed);
+	pkt_skel = test_pkt_access__open_and_load();
 	if (CHECK(!pkt_skel, "pkt_skel_load", "pkt_access skeleton failed\n"))
 		return;
-	fentry_skel = fentry_test__open_and_load(&fentry_embed);
+	fentry_skel = fentry_test__open_and_load();
 	if (CHECK(!fentry_skel, "fentry_skel_load", "fentry skeleton failed\n"))
 		goto close_prog;
-	fexit_skel = fexit_test__open_and_load(&fexit_embed);
+	fexit_skel = fexit_test__open_and_load();
 	if (CHECK(!fexit_skel, "fexit_skel_load", "fexit skeleton failed\n"))
 		goto close_prog;
 
