@@ -75,7 +75,6 @@ static const struct spi_device_id ds1343_id[] = {
 MODULE_DEVICE_TABLE(spi, ds1343_id);
 
 struct ds1343_priv {
-	struct spi_device *spi;
 	struct rtc_device *rtc;
 	struct regmap *map;
 	int irq;
@@ -361,8 +360,6 @@ static int ds1343_probe(struct spi_device *spi)
 	priv = devm_kzalloc(&spi->dev, sizeof(struct ds1343_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	priv->spi = spi;
 
 	/* RTC DS1347 works in spi mode 3 and
 	 * its chip select is active high. Active high should be defined as
