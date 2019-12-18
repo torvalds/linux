@@ -199,13 +199,79 @@ static noinline bool nft_meta_get_eval_kind(enum nft_meta_keys key,
 	return true;
 }
 
+static void nft_meta_store_ifindex(u32 *dest, const struct net_device *dev)
+{
+	*dest = dev ? dev->ifindex : 0;
+}
+
+static void nft_meta_store_ifname(u32 *dest, const struct net_device *dev)
+{
+	strncpy((char *)dest, dev ? dev->name : "", IFNAMSIZ);
+}
+
+static bool nft_meta_store_iftype(u32 *dest, const struct net_device *dev)
+{
+	if (!dev)
+		return false;
+
+	nft_reg_store16(dest, dev->type);
+	return true;
+}
+
+static bool nft_meta_store_ifgroup(u32 *dest, const struct net_device *dev)
+{
+	if (!dev)
+		return false;
+
+	*dest = dev->group;
+	return true;
+}
+
+static bool nft_meta_get_eval_ifname(enum nft_meta_keys key, u32 *dest,
+				     const struct nft_pktinfo *pkt)
+{
+	switch (key) {
+	case NFT_META_IIFNAME:
+		nft_meta_store_ifname(dest, nft_in(pkt));
+		break;
+	case NFT_META_OIFNAME:
+		nft_meta_store_ifname(dest, nft_out(pkt));
+		break;
+	case NFT_META_IIF:
+		nft_meta_store_ifindex(dest, nft_in(pkt));
+		break;
+	case NFT_META_OIF:
+		nft_meta_store_ifindex(dest, nft_out(pkt));
+		break;
+	case NFT_META_IIFTYPE:
+		if (!nft_meta_store_iftype(dest, nft_in(pkt)))
+			return false;
+		break;
+	case NFT_META_OIFTYPE:
+		if (!nft_meta_store_iftype(dest, nft_out(pkt)))
+			return false;
+		break;
+	case NFT_META_IIFGROUP:
+		if (!nft_meta_store_ifgroup(dest, nft_out(pkt)))
+			return false;
+		break;
+	case NFT_META_OIFGROUP:
+		if (!nft_meta_store_ifgroup(dest, nft_out(pkt)))
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
-	const struct net_device *in = nft_in(pkt), *out = nft_out(pkt);
 	u32 *dest = &regs->data[priv->dreg];
 
 	switch (priv->key) {
@@ -230,26 +296,15 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		*dest = skb->mark;
 		break;
 	case NFT_META_IIF:
-		*dest = in ? in->ifindex : 0;
-		break;
 	case NFT_META_OIF:
-		*dest = out ? out->ifindex : 0;
-		break;
 	case NFT_META_IIFNAME:
-		strncpy((char *)dest, in ? in->name : "", IFNAMSIZ);
-		break;
 	case NFT_META_OIFNAME:
-		strncpy((char *)dest, out ? out->name : "", IFNAMSIZ);
-		break;
 	case NFT_META_IIFTYPE:
-		if (in == NULL)
-			goto err;
-		nft_reg_store16(dest, in->type);
-		break;
 	case NFT_META_OIFTYPE:
-		if (out == NULL)
+	case NFT_META_IIFGROUP:
+	case NFT_META_OIFGROUP:
+		if (!nft_meta_get_eval_ifname(priv->key, dest, pkt))
 			goto err;
-		nft_reg_store16(dest, out->type);
 		break;
 	case NFT_META_SKUID:
 	case NFT_META_SKGID:
@@ -282,16 +337,6 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		break;
 	case NFT_META_CPU:
 		*dest = raw_smp_processor_id();
-		break;
-	case NFT_META_IIFGROUP:
-		if (in == NULL)
-			goto err;
-		*dest = in->group;
-		break;
-	case NFT_META_OIFGROUP:
-		if (out == NULL)
-			goto err;
-		*dest = out->group;
 		break;
 #ifdef CONFIG_CGROUP_NET_CLASSID
 	case NFT_META_CGROUP:
