@@ -1,0 +1,37 @@
+#
+# Platform Environment Control Interface (PECI) subsystem configuration
+#
+
+menu "PECI support"
+
+config PECI
+	tristate "PECI support"
+	select CRC8
+	help
+	  The Platform Environment Control Interface (PECI) is a one-wire bus
+	  interface that provides a communication channel from Intel processors
+	  and chipset components to external monitoring or control devices.
+
+	  If you want PECI support, you should say Y here and also to the
+	  specific driver for your bus adapter(s) below.
+
+	  This support is also available as a module. If so, the module
+	  will be called peci-core.
+
+if PECI
+
+config PECI_CHARDEV
+	tristate "PECI device interface"
+	help
+	  Say Y here to use peci-* device files, usually found in the /dev
+	  directory on your system. They make it possible to have user-space
+	  programs use the PECI bus.
+
+	  This support is also available as a module. If so, the module
+	  will be called peci-dev.
+
+source "drivers/peci/busses/Kconfig"
+
+endif # PECI
+
+endmenu

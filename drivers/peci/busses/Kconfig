@@ -1,0 +1,7 @@
+#
+# PECI hardware bus configuration
+#
+
+menu "PECI Hardware Bus support"
+
+endmenu
