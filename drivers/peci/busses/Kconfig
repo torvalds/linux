@@ -17,4 +17,18 @@ config PECI_ASPEED
 	  This support is also available as a module. If so, the module
 	  will be called peci-aspeed.
 
+config PECI_NPCM
+	tristate "Nuvoton NPCM PECI support"
+	select REGMAP_MMIO
+	depends on OF
+	depends on HAS_IOMEM
+	depends on ARCH_NPCM || COMPILE_TEST
+	depends on PECI
+	help
+	  Say Y here if you want support for the Platform Environment Control
+	  Interface (PECI) bus adapter driver on the Nuvoton NPCM SoCs.
+
+	  This support is also available as a module. If so, the module
+	  will be called peci-npcm.
+
 endmenu
