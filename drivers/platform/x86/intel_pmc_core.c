@@ -429,8 +429,8 @@ static inline u32 pmc_core_reg_read(struct pmc_dev *pmcdev, int reg_offset)
 	return readl(pmcdev->regbase + reg_offset);
 }
 
-static inline void pmc_core_reg_write(struct pmc_dev *pmcdev, int
-							reg_offset, u32 val)
+static inline void pmc_core_reg_write(struct pmc_dev *pmcdev, int reg_offset,
+				      u32 val)
 {
 	writel(val, pmcdev->regbase + reg_offset);
 }
@@ -623,8 +623,9 @@ out_unlock:
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pll);
 
-static ssize_t pmc_core_ltr_ignore_write(struct file *file, const char __user
-*userbuf, size_t count, loff_t *ppos)
+static ssize_t pmc_core_ltr_ignore_write(struct file *file,
+					 const char __user *userbuf,
+					 size_t count, loff_t *ppos)
 {
 	struct pmc_dev *pmcdev = &pmc;
 	const struct pmc_reg_map *map = pmcdev->map;
