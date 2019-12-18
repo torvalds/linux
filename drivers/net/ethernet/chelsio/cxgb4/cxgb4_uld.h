@@ -99,6 +99,7 @@ struct eotid_entry {
  */
 struct tid_info {
 	void **tid_tab;
+	unsigned int tid_base;
 	unsigned int ntids;
 
 	struct serv_entry *stid_tab;
@@ -152,7 +153,13 @@ struct tid_info {
 
 static inline void *lookup_tid(const struct tid_info *t, unsigned int tid)
 {
+	tid -= t->tid_base;
 	return tid < t->ntids ? t->tid_tab[tid] : NULL;
+}
+
+static inline bool tid_out_of_range(const struct tid_info *t, unsigned int tid)
+{
+	return ((tid - t->tid_base) >= t->ntids);
 }
 
 static inline void *lookup_atid(const struct tid_info *t, unsigned int atid)
@@ -176,7 +183,7 @@ static inline void *lookup_stid(const struct tid_info *t, unsigned int stid)
 static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
 				    unsigned int tid, unsigned short family)
 {
-	t->tid_tab[tid] = data;
+	t->tid_tab[tid - t->tid_base] = data;
 	if (t->hash_base && (tid >= t->hash_base)) {
 		if (family == AF_INET6)
 			atomic_add(2, &t->hash_tids_in_use);
