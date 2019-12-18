@@ -417,19 +417,10 @@ static void ti_sn_bridge_set_refclk_freq(struct ti_sn_bridge *pdata)
 			   REFCLK_FREQ(i));
 }
 
-/**
- * LUT index corresponds to register value and
- * LUT values corresponds to dp data rate supported
- * by the bridge in Mbps unit.
- */
-static const unsigned int ti_sn_bridge_dp_rate_lut[] = {
-	0, 1620, 2160, 2430, 2700, 3240, 4320, 5400
-};
-
-static void ti_sn_bridge_set_dsi_dp_rate(struct ti_sn_bridge *pdata)
+static void ti_sn_bridge_set_dsi_rate(struct ti_sn_bridge *pdata)
 {
-	unsigned int bit_rate_mhz, clk_freq_mhz, dp_rate_mhz;
-	unsigned int val, i;
+	unsigned int bit_rate_mhz, clk_freq_mhz;
+	unsigned int val;
 	struct drm_display_mode *mode =
 		&pdata->bridge.encoder->crtc->state->adjusted_mode;
 
@@ -442,6 +433,27 @@ static void ti_sn_bridge_set_dsi_dp_rate(struct ti_sn_bridge *pdata)
 	val = (MIN_DSI_CLK_FREQ_MHZ / 5) +
 		(((clk_freq_mhz - MIN_DSI_CLK_FREQ_MHZ) / 5) & 0xFF);
 	regmap_write(pdata->regmap, SN_DSIA_CLK_FREQ_REG, val);
+}
+
+/**
+ * LUT index corresponds to register value and
+ * LUT values corresponds to dp data rate supported
+ * by the bridge in Mbps unit.
+ */
+static const unsigned int ti_sn_bridge_dp_rate_lut[] = {
+	0, 1620, 2160, 2430, 2700, 3240, 4320, 5400
+};
+
+static void ti_sn_bridge_set_dp_rate(struct ti_sn_bridge *pdata)
+{
+	unsigned int bit_rate_mhz, dp_rate_mhz;
+	unsigned int i;
+	struct drm_display_mode *mode =
+		&pdata->bridge.encoder->crtc->state->adjusted_mode;
+
+	/* set DSIA clk frequency */
+	bit_rate_mhz = (mode->clock / 1000) *
+			mipi_dsi_pixel_format_to_bpp(pdata->dsi->format);
 
 	/* set DP data rate */
 	dp_rate_mhz = ((bit_rate_mhz / pdata->dsi->lanes) * DP_CLK_FUDGE_NUM) /
@@ -510,7 +522,8 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 			   val);
 
 	/* set dsi/dp clk frequency value */
-	ti_sn_bridge_set_dsi_dp_rate(pdata);
+	ti_sn_bridge_set_dsi_rate(pdata);
+	ti_sn_bridge_set_dp_rate(pdata);
 
 	/* enable DP PLL */
 	regmap_write(pdata->regmap, SN_PLL_ENABLE_REG, 1);
