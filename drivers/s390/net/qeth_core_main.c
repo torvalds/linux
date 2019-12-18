@@ -2862,7 +2862,7 @@ static int qeth_query_setadapterparms_cb(struct qeth_card *card,
 		      cmd->data.setadapterparms.data.query_cmds_supp.lan_type;
 		QETH_CARD_TEXT_(card, 2, "lnk %d", card->info.link_type);
 	}
-	card->options.adp.supported_funcs =
+	card->options.adp.supported =
 		cmd->data.setadapterparms.data.query_cmds_supp.supported_cmds;
 	return 0;
 }
@@ -2918,8 +2918,8 @@ static int qeth_query_ipassists_cb(struct qeth_card *card,
 	case IPA_RC_NOTSUPP:
 	case IPA_RC_L2_UNSUPPORTED_CMD:
 		QETH_CARD_TEXT(card, 2, "ipaunsup");
-		card->options.ipa4.supported_funcs |= IPA_SETADAPTERPARMS;
-		card->options.ipa6.supported_funcs |= IPA_SETADAPTERPARMS;
+		card->options.ipa4.supported |= IPA_SETADAPTERPARMS;
+		card->options.ipa6.supported |= IPA_SETADAPTERPARMS;
 		return -EOPNOTSUPP;
 	default:
 		QETH_DBF_MESSAGE(1, "IPA_CMD_QIPASSIST on device %x: Unhandled rc=%#x\n",
@@ -2927,13 +2927,11 @@ static int qeth_query_ipassists_cb(struct qeth_card *card,
 		return -EIO;
 	}
 
-	if (cmd->hdr.prot_version == QETH_PROT_IPV4) {
-		card->options.ipa4.supported_funcs = cmd->hdr.ipa_supported;
-		card->options.ipa4.enabled_funcs = cmd->hdr.ipa_enabled;
-	} else if (cmd->hdr.prot_version == QETH_PROT_IPV6) {
-		card->options.ipa6.supported_funcs = cmd->hdr.ipa_supported;
-		card->options.ipa6.enabled_funcs = cmd->hdr.ipa_enabled;
-	} else
+	if (cmd->hdr.prot_version == QETH_PROT_IPV4)
+		card->options.ipa4 = cmd->hdr.assists;
+	else if (cmd->hdr.prot_version == QETH_PROT_IPV6)
+		card->options.ipa6 = cmd->hdr.assists;
+	else
 		QETH_DBF_MESSAGE(1, "IPA_CMD_QIPASSIST on device %x: Flawed LIC detected\n",
 				 CARD_DEVID(card));
 	return 0;
@@ -5002,9 +5000,9 @@ retriable:
 		*carrier_ok = true;
 	}
 
-	card->options.ipa4.supported_funcs = 0;
-	card->options.ipa6.supported_funcs = 0;
-	card->options.adp.supported_funcs = 0;
+	card->options.ipa4.supported = 0;
+	card->options.ipa6.supported = 0;
+	card->options.adp.supported = 0;
 	card->options.sbp.supported_funcs = 0;
 	card->info.diagass_support = 0;
 	rc = qeth_query_ipassists(card, QETH_PROT_IPV4);
@@ -5421,9 +5419,9 @@ int qeth_setassparms_cb(struct qeth_card *card,
 
 	cmd->hdr.return_code = cmd->data.setassparms.hdr.return_code;
 	if (cmd->hdr.prot_version == QETH_PROT_IPV4)
-		card->options.ipa4.enabled_funcs = cmd->hdr.ipa_enabled;
+		card->options.ipa4.enabled = cmd->hdr.assists.enabled;
 	if (cmd->hdr.prot_version == QETH_PROT_IPV6)
-		card->options.ipa6.enabled_funcs = cmd->hdr.ipa_enabled;
+		card->options.ipa6.enabled = cmd->hdr.assists.enabled;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qeth_setassparms_cb);

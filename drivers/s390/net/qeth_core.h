@@ -125,12 +125,6 @@ struct qeth_routing_info {
 	enum qeth_routing_types type;
 };
 
-/* IPA stuff */
-struct qeth_ipa_info {
-	__u32 supported_funcs;
-	__u32 enabled_funcs;
-};
-
 /* SETBRIDGEPORT stuff */
 enum qeth_sbp_roles {
 	QETH_SBP_ROLE_NONE	= 0,
@@ -168,41 +162,6 @@ struct qeth_vnicc_info {
 	/* has user explicitly enabled rx_bcast while online? */
 	bool rx_bcast_enabled;
 };
-
-static inline int qeth_is_adp_supported(struct qeth_ipa_info *ipa,
-		enum qeth_ipa_setadp_cmd func)
-{
-	return (ipa->supported_funcs & func);
-}
-
-static inline int qeth_is_ipa_supported(struct qeth_ipa_info *ipa,
-		enum qeth_ipa_funcs func)
-{
-	return (ipa->supported_funcs & func);
-}
-
-static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
-		enum qeth_ipa_funcs func)
-{
-	return (ipa->supported_funcs & ipa->enabled_funcs & func);
-}
-
-#define qeth_adp_supported(c, f) \
-	qeth_is_adp_supported(&c->options.adp, f)
-#define qeth_is_supported(c, f) \
-	qeth_is_ipa_supported(&c->options.ipa4, f)
-#define qeth_is_enabled(c, f) \
-	qeth_is_ipa_enabled(&c->options.ipa4, f)
-#define qeth_is_supported6(c, f) \
-	qeth_is_ipa_supported(&c->options.ipa6, f)
-#define qeth_is_enabled6(c, f) \
-	qeth_is_ipa_enabled(&c->options.ipa6, f)
-#define qeth_is_ipafunc_supported(c, prot, f) \
-	 ((prot == QETH_PROT_IPV6) ? \
-		qeth_is_supported6(c, f) : qeth_is_supported(c, f))
-#define qeth_is_ipafunc_enabled(c, prot, f) \
-	 ((prot == QETH_PROT_IPV6) ? \
-		qeth_is_enabled6(c, f) : qeth_is_enabled(c, f))
 
 #define QETH_IDX_FUNC_LEVEL_OSD		 0x0101
 #define QETH_IDX_FUNC_LEVEL_IQD		 0x4108
@@ -735,11 +694,11 @@ enum qeth_discipline_id {
 };
 
 struct qeth_card_options {
+	struct qeth_ipa_caps ipa4;
+	struct qeth_ipa_caps ipa6;
 	struct qeth_routing_info route4;
-	struct qeth_ipa_info ipa4;
-	struct qeth_ipa_info adp; /*Adapter parameters*/
 	struct qeth_routing_info route6;
-	struct qeth_ipa_info ipa6;
+	struct qeth_ipa_caps adp; /* Adapter parameters */
 	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
 	struct qeth_vnicc_info vnicc; /* VNICC options */
 	int fake_broadcast;
