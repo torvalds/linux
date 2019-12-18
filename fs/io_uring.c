@@ -518,9 +518,7 @@ struct io_submit_state {
 
 static void io_wq_submit_work(struct io_wq_work **workptr);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
-static void __io_free_req(struct io_kiocb *req);
 static void io_put_req(struct io_kiocb *req);
-static void io_double_put_req(struct io_kiocb *req);
 static void __io_double_put_req(struct io_kiocb *req);
 static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
