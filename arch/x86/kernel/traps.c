@@ -619,7 +619,14 @@ dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code)
 				 "maybe for address",
 				 gp_addr);
 
-		die(desc, regs, error_code);
+		/*
+		 * KASAN is interested only in the non-canonical case, clear it
+		 * otherwise.
+		 */
+		if (hint != GP_NON_CANONICAL)
+			gp_addr = 0;
+
+		die_addr(desc, regs, error_code, gp_addr);
 		return;
 	}
 
