@@ -37,6 +37,11 @@ static u32 rps_pm_sanitize_mask(struct intel_rps *rps, u32 mask)
 	return mask & ~rps->pm_intrmsk_mbz;
 }
 
+static inline void set(struct intel_uncore *uncore, i915_reg_t reg, u32 val)
+{
+	intel_uncore_write_fw(uncore, reg, val);
+}
+
 static u32 rps_pm_mask(struct intel_rps *rps, u8 val)
 {
 	u32 mask = 0;
@@ -78,8 +83,7 @@ static void rps_enable_interrupts(struct intel_rps *rps)
 	gen6_gt_pm_enable_irq(gt, rps->pm_events);
 	spin_unlock_irq(&gt->irq_lock);
 
-	intel_uncore_write(gt->uncore, GEN6_PMINTRMSK,
-			   rps_pm_mask(rps, rps->cur_freq));
+	set(gt->uncore, GEN6_PMINTRMSK, rps_pm_mask(rps, rps->cur_freq));
 }
 
 static void gen6_rps_reset_interrupts(struct intel_rps *rps)
@@ -113,8 +117,7 @@ static void rps_disable_interrupts(struct intel_rps *rps)
 
 	rps->pm_events = 0;
 
-	intel_uncore_write(gt->uncore, GEN6_PMINTRMSK,
-			   rps_pm_sanitize_mask(rps, ~0u));
+	set(gt->uncore, GEN6_PMINTRMSK, rps_pm_sanitize_mask(rps, ~0u));
 
 	spin_lock_irq(&gt->irq_lock);
 	gen6_gt_pm_disable_irq(gt, GEN6_PM_RPS_EVENTS);
@@ -573,25 +576,21 @@ static void rps_set_power(struct intel_rps *rps, int new_power)
 	if (IS_VALLEYVIEW(i915))
 		goto skip_hw_write;
 
-	intel_uncore_write(uncore, GEN6_RP_UP_EI,
-			   GT_INTERVAL_FROM_US(i915, ei_up));
-	intel_uncore_write(uncore, GEN6_RP_UP_THRESHOLD,
-			   GT_INTERVAL_FROM_US(i915,
-					       ei_up * threshold_up / 100));
+	set(uncore, GEN6_RP_UP_EI, GT_INTERVAL_FROM_US(i915, ei_up));
+	set(uncore, GEN6_RP_UP_THRESHOLD,
+	    GT_INTERVAL_FROM_US(i915, ei_up * threshold_up / 100));
 
-	intel_uncore_write(uncore, GEN6_RP_DOWN_EI,
-			   GT_INTERVAL_FROM_US(i915, ei_down));
-	intel_uncore_write(uncore, GEN6_RP_DOWN_THRESHOLD,
-			   GT_INTERVAL_FROM_US(i915,
-					       ei_down * threshold_down / 100));
+	set(uncore, GEN6_RP_DOWN_EI, GT_INTERVAL_FROM_US(i915, ei_down));
+	set(uncore, GEN6_RP_DOWN_THRESHOLD,
+	    GT_INTERVAL_FROM_US(i915, ei_down * threshold_down / 100));
 
-	intel_uncore_write(uncore, GEN6_RP_CONTROL,
-			   (INTEL_GEN(i915) > 9 ? 0 : GEN6_RP_MEDIA_TURBO) |
-			   GEN6_RP_MEDIA_HW_NORMAL_MODE |
-			   GEN6_RP_MEDIA_IS_GFX |
-			   GEN6_RP_ENABLE |
-			   GEN6_RP_UP_BUSY_AVG |
-			   GEN6_RP_DOWN_IDLE_AVG);
+	set(uncore, GEN6_RP_CONTROL,
+	    (INTEL_GEN(i915) > 9 ? 0 : GEN6_RP_MEDIA_TURBO) |
+	    GEN6_RP_MEDIA_HW_NORMAL_MODE |
+	    GEN6_RP_MEDIA_IS_GFX |
+	    GEN6_RP_ENABLE |
+	    GEN6_RP_UP_BUSY_AVG |
+	    GEN6_RP_DOWN_IDLE_AVG);
 
 skip_hw_write:
 	rps->power.mode = new_power;
@@ -666,7 +665,7 @@ static int gen6_rps_set(struct intel_rps *rps, u8 val)
 		swreq = (GEN6_FREQUENCY(val) |
 			 GEN6_OFFSET(0) |
 			 GEN6_AGGRESSIVE_TURBO);
-	intel_uncore_write(uncore, GEN6_RPNSWREQ, swreq);
+	set(uncore, GEN6_RPNSWREQ, swreq);
 
 	return 0;
 }
@@ -790,7 +789,7 @@ void intel_rps_boost(struct i915_request *rq)
 
 int intel_rps_set(struct intel_rps *rps, u8 val)
 {
-	int err = 0;
+	int err;
 
 	lockdep_assert_held(&rps->lock);
 	GEM_BUG_ON(val > rps->max_freq);
@@ -798,6 +797,8 @@ int intel_rps_set(struct intel_rps *rps, u8 val)
 
 	if (rps->active) {
 		err = rps_set(rps, val);
+		if (err)
+			return err;
 
 		/*
 		 * Make sure we continue to get interrupts
@@ -806,18 +807,15 @@ int intel_rps_set(struct intel_rps *rps, u8 val)
 		if (INTEL_GEN(rps_to_i915(rps)) >= 6) {
 			struct intel_uncore *uncore = rps_to_uncore(rps);
 
-			intel_uncore_write(uncore, GEN6_RP_INTERRUPT_LIMITS,
-					   rps_limits(rps, val));
+			set(uncore,
+			    GEN6_RP_INTERRUPT_LIMITS, rps_limits(rps, val));
 
-			intel_uncore_write(uncore, GEN6_PMINTRMSK,
-					   rps_pm_mask(rps, val));
+			set(uncore, GEN6_PMINTRMSK, rps_pm_mask(rps, val));
 		}
 	}
 
-	if (err == 0)
-		rps->cur_freq = val;
-
-	return err;
+	rps->cur_freq = val;
+	return 0;
 }
 
 static void gen6_rps_init(struct intel_rps *rps)
@@ -1201,7 +1199,7 @@ void intel_rps_enable(struct intel_rps *rps)
 
 static void gen6_rps_disable(struct intel_rps *rps)
 {
-	intel_uncore_write(rps_to_uncore(rps), GEN6_RP_CONTROL, 0);
+	set(rps_to_uncore(rps), GEN6_RP_CONTROL, 0);
 }
 
 void intel_rps_disable(struct intel_rps *rps)
