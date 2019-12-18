@@ -273,6 +273,20 @@ static noinline u32 nft_prandom_u32(void)
 	return prandom_u32_state(state);
 }
 
+#ifdef CONFIG_IP_ROUTE_CLASSID
+static noinline bool
+nft_meta_get_eval_rtclassid(const struct sk_buff *skb, u32 *dest)
+{
+	const struct dst_entry *dst = skb_dst(skb);
+
+	if (!dst)
+		return false;
+
+	*dest = dst->tclassid;
+	return true;
+}
+#endif
+
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -319,14 +333,10 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 			goto err;
 		break;
 #ifdef CONFIG_IP_ROUTE_CLASSID
-	case NFT_META_RTCLASSID: {
-		const struct dst_entry *dst = skb_dst(skb);
-
-		if (dst == NULL)
+	case NFT_META_RTCLASSID:
+		if (!nft_meta_get_eval_rtclassid(skb, dest))
 			goto err;
-		*dest = dst->tclassid;
 		break;
-	}
 #endif
 #ifdef CONFIG_NETWORK_SECMARK
 	case NFT_META_SECMARK:
