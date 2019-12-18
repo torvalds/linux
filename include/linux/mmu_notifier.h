@@ -8,7 +8,7 @@
 #include <linux/srcu.h>
 #include <linux/interval_tree.h>
 
-struct mmu_notifier_mm;
+struct mmu_notifier_subscriptions;
 struct mmu_notifier;
 struct mmu_notifier_range;
 struct mmu_interval_notifier;
@@ -265,7 +265,7 @@ struct mmu_notifier_range {
 
 static inline int mm_has_notifiers(struct mm_struct *mm)
 {
-	return unlikely(mm->mmu_notifier_mm);
+	return unlikely(mm->notifier_subscriptions);
 }
 
 struct mmu_notifier *mmu_notifier_get_locked(const struct mmu_notifier_ops *ops,
@@ -364,7 +364,7 @@ static inline bool mmu_interval_check_retry(struct mmu_interval_notifier *mni,
 	return READ_ONCE(mni->invalidate_seq) != seq;
 }
 
-extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
+extern void __mmu_notifier_subscriptions_destroy(struct mm_struct *mm);
 extern void __mmu_notifier_release(struct mm_struct *mm);
 extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
 					  unsigned long start,
@@ -480,15 +480,15 @@ static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
 		__mmu_notifier_invalidate_range(mm, start, end);
 }
 
-static inline void mmu_notifier_mm_init(struct mm_struct *mm)
+static inline void mmu_notifier_subscriptions_init(struct mm_struct *mm)
 {
-	mm->mmu_notifier_mm = NULL;
+	mm->notifier_subscriptions = NULL;
 }
 
-static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
 {
 	if (mm_has_notifiers(mm))
-		__mmu_notifier_mm_destroy(mm);
+		__mmu_notifier_subscriptions_destroy(mm);
 }
 
 
@@ -692,11 +692,11 @@ static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
 {
 }
 
-static inline void mmu_notifier_mm_init(struct mm_struct *mm)
+static inline void mmu_notifier_subscriptions_init(struct mm_struct *mm)
 {
 }
 
-static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
 {
 }
 
