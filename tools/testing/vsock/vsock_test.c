@@ -66,7 +66,6 @@ static void test_stream_client_close_client(const struct test_opts *opts)
 
 	send_byte(fd, 1, 0);
 	close(fd);
-	control_writeln("CLOSED");
 }
 
 static void test_stream_client_close_server(const struct test_opts *opts)
@@ -79,7 +78,10 @@ static void test_stream_client_close_server(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	control_expectln("CLOSED");
+	/* Wait for the remote to close the connection, before check
+	 * -EPIPE error on send.
+	 */
+	vsock_wait_remote_close(fd);
 
 	send_byte(fd, -EPIPE, 0);
 	recv_byte(fd, 1, 0);
@@ -97,7 +99,10 @@ static void test_stream_server_close_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	control_expectln("CLOSED");
+	/* Wait for the remote to close the connection, before check
+	 * -EPIPE error on send.
+	 */
+	vsock_wait_remote_close(fd);
 
 	send_byte(fd, -EPIPE, 0);
 	recv_byte(fd, 1, 0);
@@ -117,7 +122,6 @@ static void test_stream_server_close_server(const struct test_opts *opts)
 
 	send_byte(fd, 1, 0);
 	close(fd);
-	control_writeln("CLOSED");
 }
 
 /* With the standard socket sizes, VMCI is able to support about 100
