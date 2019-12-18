@@ -48,7 +48,7 @@ EXPORT_SYMBOL(lookup_constant);
 
 static inline bool is_flag(const struct fs_parameter_spec *p)
 {
-	return p->type == fs_param_is_flag;
+	return p->type == NULL;
 }
 
 static const struct fs_parameter_spec *fs_lookup_key(
@@ -106,8 +106,6 @@ int __fs_parse(struct p_log *log,
 	     struct fs_parse_result *result)
 {
 	const struct fs_parameter_spec *p;
-	const struct constant_table *e;
-	int ret = -ENOPARAM, b;
 
 	result->uint_64 = 0;
 
@@ -121,96 +119,17 @@ int __fs_parse(struct p_log *log,
 	/* Try to turn the type we were given into the type desired by the
 	 * parameter and give an error if we can't.
 	 */
-	switch (p->type) {
-	case __fs_param_wasnt_defined:
-		return -EINVAL;
-	case fs_param_is_flag:
+	if (is_flag(p)) {
 		if (param->type != fs_value_is_flag)
 			return inval_plog(log, "Unexpected value for '%s'",
 				      param->key);
 		result->boolean = !result->negated;
-		goto okay;
-	case fs_param_is_bool:
-		if (param->type != fs_value_is_string)
-			goto bad_value;
-		b = lookup_constant(bool_names, param->string, -1);
-		if (b == -1)
-			goto bad_value;
-		result->boolean = b;
-		goto okay;
-	case fs_param_is_u32:
-		if (param->type != fs_value_is_string)
-			goto bad_value;
-		ret = kstrtouint(param->string, 0, &result->uint_32);
-		goto maybe_okay;
-	case fs_param_is_u32_octal:
-		if (param->type != fs_value_is_string)
-			goto bad_value;
-		ret = kstrtouint(param->string, 8, &result->uint_32);
-		goto maybe_okay;
-	case fs_param_is_u32_hex:
-		if (param->type != fs_value_is_string)
-			goto bad_value;
-		ret = kstrtouint(param->string, 16, &result->uint_32);
-		goto maybe_okay;
-	case fs_param_is_s32:
-		if (param->type != fs_value_is_string)
-			goto bad_value;
-		ret = kstrtoint(param->string, 0, &result->int_32);
-		goto maybe_okay;
-	case fs_param_is_u64:
-		if (param->type != fs_value_is_string)
-			goto bad_value;
-		ret = kstrtoull(param->string, 0, &result->uint_64);
-		goto maybe_okay;
-	case fs_param_is_enum:
-		if (param->type != fs_value_is_string)
-			goto bad_value;
-		e = __lookup_constant(p->data, param->string);
-		if (e) {
-			result->uint_32 = e->value;
-			goto okay;
-		}
-		goto bad_value;
-	case fs_param_is_string:
-		if (param->type != fs_value_is_string || !*param->string)
-			goto bad_value;
-		goto okay;
-	case fs_param_is_blob:
-		if (param->type != fs_value_is_blob)
-			goto bad_value;
-		goto okay;
-	case fs_param_is_fd: {
-		switch (param->type) {
-		case fs_value_is_string:
-			ret = kstrtouint(param->string, 0, &result->uint_32);
-			break;
-		case fs_value_is_file:
-			result->uint_32 = param->dirfd;
-			ret = 0;
-		default:
-			goto bad_value;
-		}
-
-		if (result->uint_32 > INT_MAX)
-			goto bad_value;
-		goto maybe_okay;
+	} else  {
+		int ret = p->type(log, p, param, result);
+		if (ret)
+			return ret;
 	}
-	case fs_param_is_blockdev:
-	case fs_param_is_path:
-		goto okay;
-	default:
-		BUG();
-	}
-
-maybe_okay:
-	if (ret < 0)
-		goto bad_value;
-okay:
 	return p->opt;
-
-bad_value:
-	return inval_plog(log, "Bad value for '%s'", param->key);
 }
 EXPORT_SYMBOL(__fs_parse);
 
@@ -269,6 +188,124 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(fs_lookup_param);
+
+int fs_param_bad_value(struct p_log *log, struct fs_parameter *param)
+{
+	return inval_plog(log, "Bad value for '%s'", param->key);
+}
+
+int fs_param_is_bool(struct p_log *log, const struct fs_parameter_spec *p,
+		     struct fs_parameter *param, struct fs_parse_result *result)
+{
+	int b;
+	if (param->type != fs_value_is_string)
+		return fs_param_bad_value(log, param);
+	b = lookup_constant(bool_names, param->string, -1);
+	if (b == -1)
+		return fs_param_bad_value(log, param);
+	result->boolean = b;
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_bool);
+
+int fs_param_is_u32(struct p_log *log, const struct fs_parameter_spec *p,
+		    struct fs_parameter *param, struct fs_parse_result *result)
+{
+	int base = (unsigned long)p->data;
+	if (param->type != fs_value_is_string ||
+	    kstrtouint(param->string, base, &result->uint_32) < 0)
+		return fs_param_bad_value(log, param);
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_u32);
+
+int fs_param_is_s32(struct p_log *log, const struct fs_parameter_spec *p,
+		    struct fs_parameter *param, struct fs_parse_result *result)
+{
+	if (param->type != fs_value_is_string ||
+	    kstrtoint(param->string, 0, &result->int_32) < 0)
+		return fs_param_bad_value(log, param);
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_s32);
+
+int fs_param_is_u64(struct p_log *log, const struct fs_parameter_spec *p,
+		    struct fs_parameter *param, struct fs_parse_result *result)
+{
+	if (param->type != fs_value_is_string ||
+	    kstrtoull(param->string, 0, &result->uint_64) < 0)
+		return fs_param_bad_value(log, param);
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_u64);
+
+int fs_param_is_enum(struct p_log *log, const struct fs_parameter_spec *p,
+		     struct fs_parameter *param, struct fs_parse_result *result)
+{
+	const struct constant_table *c;
+	if (param->type != fs_value_is_string)
+		return fs_param_bad_value(log, param);
+	c = __lookup_constant(p->data, param->string);
+	if (!c)
+		return fs_param_bad_value(log, param);
+	result->uint_32 = c->value;
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_enum);
+
+int fs_param_is_string(struct p_log *log, const struct fs_parameter_spec *p,
+		       struct fs_parameter *param, struct fs_parse_result *result)
+{
+	if (param->type != fs_value_is_string || !*param->string)
+		return fs_param_bad_value(log, param);
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_string);
+
+int fs_param_is_blob(struct p_log *log, const struct fs_parameter_spec *p,
+		     struct fs_parameter *param, struct fs_parse_result *result)
+{
+	if (param->type != fs_value_is_blob)
+		return fs_param_bad_value(log, param);
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_blob);
+
+int fs_param_is_fd(struct p_log *log, const struct fs_parameter_spec *p,
+		  struct fs_parameter *param, struct fs_parse_result *result)
+{
+	switch (param->type) {
+	case fs_value_is_string:
+		if (kstrtouint(param->string, 0, &result->uint_32) < 0)
+			break;
+		if (result->uint_32 <= INT_MAX)
+			return 0;
+		break;
+	case fs_value_is_file:
+		result->uint_32 = param->dirfd;
+		if (result->uint_32 <= INT_MAX)
+			return 0;
+		break;
+	default:
+		break;
+	}
+	return fs_param_bad_value(log, param);
+}
+EXPORT_SYMBOL(fs_param_is_fd);
+
+int fs_param_is_blockdev(struct p_log *log, const struct fs_parameter_spec *p,
+		  struct fs_parameter *param, struct fs_parse_result *result)
+{
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_blockdev);
+
+int fs_param_is_path(struct p_log *log, const struct fs_parameter_spec *p,
+		     struct fs_parameter *param, struct fs_parse_result *result)
+{
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_path);
 
 #ifdef CONFIG_VALIDATE_FS_PARSER
 /**
@@ -334,23 +371,6 @@ bool fs_validate_description(const char *name,
 	pr_notice("*** VALIDATE %s ***\n", name);
 
 	for (param = desc; param->name; param++) {
-		enum fs_parameter_type t = param->type;
-
-		/* Check that the type is in range */
-		if (t == __fs_param_wasnt_defined ||
-		    t >= nr__fs_parameter_type) {
-			pr_err("VALIDATE %s: PARAM[%s] Bad type %u\n",
-			       name, param->name, t);
-			good = false;
-		} else if (t == fs_param_is_enum) {
-			const struct constant_table *e = param->data;
-			if (!e || !e->name) {
-				pr_err("VALIDATE %s: PARAM[%s] enum with no values\n",
-				       name, param->name);
-				good = false;
-			}
-		}
-
 		/* Check for duplicate parameter names */
 		for (p2 = desc; p2 < param; p2++) {
 			if (strcmp(param->name, p2->name) == 0) {

@@ -129,7 +129,7 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_flag_no("fsc",		Opt_fscache_flag),
 	fsparam_string("fsc",		Opt_fscache),
 	fsparam_flag  ("hard",		Opt_hard),
-	__fsparam(fs_param_is_flag, "intr",		Opt_intr,
+	__fsparam(NULL, "intr",		Opt_intr,
 		  fs_param_neg_with_no|fs_param_deprecated, NULL),
 	fsparam_enum  ("local_lock",	Opt_local_lock, nfs_param_enums_local_lock),
 	fsparam_flag_no("lock",		Opt_lock),
