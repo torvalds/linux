@@ -888,6 +888,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	int rates_idx;
 	bool send_to_cooked;
 	bool acked;
+	bool noack_success;
 	struct ieee80211_bar *bar;
 	int shift = 0;
 	int tid = IEEE80211_NUM_TIDS;
@@ -906,6 +907,8 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 			clear_sta_flag(sta, WLAN_STA_SP);
 
 		acked = !!(info->flags & IEEE80211_TX_STAT_ACK);
+		noack_success = !!(info->flags &
+				   IEEE80211_TX_STAT_NOACK_TRANSMITTED);
 
 		/* mesh Peer Service Period support */
 		if (ieee80211_vif_is_mesh(&sta->sdata->vif) &&
@@ -970,12 +973,12 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 			ieee80211_handle_filtered_frame(local, sta, skb);
 			return;
 		} else {
-			if (!acked)
+			if (!acked && !noack_success)
 				sta->status_stats.retry_failed++;
 			sta->status_stats.retry_count += retry_count;
 
 			if (ieee80211_is_data_present(fc)) {
-				if (!acked)
+				if (!acked && !noack_success)
 					sta->status_stats.msdu_failed[tid]++;
 
 				sta->status_stats.msdu_retries[tid] +=
@@ -1013,7 +1016,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 		}
 
 		if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
-			if (info->flags & IEEE80211_TX_STAT_ACK) {
+			if (acked) {
 				if (sta->status_stats.lost_packets)
 					sta->status_stats.lost_packets = 0;
 
@@ -1021,6 +1024,8 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 				if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
 					sta->status_stats.last_tdls_pkt_time =
 						jiffies;
+			} else if (noack_success) {
+				/* nothing to do here, do not account as lost */
 			} else {
 				ieee80211_lost_packet(sta, info);
 			}
@@ -1141,7 +1146,7 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 
 		sta = container_of(pubsta, struct sta_info, sta);
 
-		if (!acked)
+		if (!acked && !noack_success)
 			sta->status_stats.retry_failed++;
 		sta->status_stats.retry_count += retry_count;
 
@@ -1156,6 +1161,8 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 				sta->status_stats.last_tdls_pkt_time = jiffies;
 		} else if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
 			return;
+		} else if (noack_success) {
+			/* nothing to do here, do not account as lost */
 		} else {
 			ieee80211_lost_packet(sta, info);
 		}
