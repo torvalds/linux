@@ -3027,6 +3027,9 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
 	unsigned long limit = rlimit(RLIMIT_FSIZE);
 	loff_t pos;
 
+	if (IS_SWAPFILE(inode))
+		return -ETXTBSY;
+
 	if (!iov_iter_count(from))
 		return 0;
 
