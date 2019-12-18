@@ -567,9 +567,9 @@ static int do_skeleton(int argc, char **argv)
 			return -1;					    \n\
 		}							    \n\
 									    \n\
-		#endif /* %2$s */					    \n\
+		#endif /* %s */						    \n\
 		",
-		obj_name, header_guard);
+		header_guard);
 	err = 0;
 out:
 	bpf_object__close(obj);
