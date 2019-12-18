@@ -723,12 +723,23 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
 	struct kvm_vcpu *vcpu;
-	vcpu = kvmppc_core_vcpu_create(kvm, id);
-	if (!IS_ERR(vcpu)) {
-		vcpu->arch.wqp = &vcpu->wq;
-		kvmppc_create_vcpu_debugfs(vcpu, id);
-	}
+	int err;
+
+	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
+	if (!vcpu)
+		return ERR_PTR(-ENOMEM);
+
+	err = kvmppc_core_vcpu_create(kvm, vcpu, id);
+	if (err)
+		goto free_vcpu;
+
+	vcpu->arch.wqp = &vcpu->wq;
+	kvmppc_create_vcpu_debugfs(vcpu, id);
 	return vcpu;
+
+free_vcpu:
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
+	return ERR_PTR(err);
 }
 
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
@@ -758,6 +769,8 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 	}
 
 	kvmppc_core_vcpu_free(vcpu);
+
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
 }
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
