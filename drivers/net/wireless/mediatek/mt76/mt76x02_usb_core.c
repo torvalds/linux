@@ -216,6 +216,13 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 		IEEE80211_IFACE_ITER_RESUME_ALL,
 		mt76x02_update_beacon_iter, dev);
 
+	mt76_csa_check(&dev->mt76);
+
+	if (dev->mt76.csa_complete) {
+		mt76_csa_finish(&dev->mt76);
+		goto out;
+	}
+
 	nbeacons = hweight8(dev->mt76.beacon_mask);
 	mt76x02_enqueue_buffered_bc(dev, &data, N_BCN_SLOTS - nbeacons);
 
@@ -224,6 +231,7 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 		mt76x02_mac_set_beacon(dev, skb);
 	}
 
+out:
 	mt76_wr(dev, MT_BCN_BYPASS_MASK,
 		0xff00 | ~(0xff00 >> dev->beacon_data_count));
 
