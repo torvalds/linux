@@ -389,7 +389,7 @@ enum mt76u_out_ep {
 struct mt76_usb {
 	struct mutex usb_ctrl_mtx;
 	union {
-		u8 data[32];
+		u8 data[128];
 		__le32 reg_val;
 	};
 
