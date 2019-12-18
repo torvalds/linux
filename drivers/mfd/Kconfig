@@ -676,6 +676,23 @@ config MFD_INTEL_LPSS_PCI
 	  I2C, SPI and HS-UART starting from Intel Sunrisepoint (Intel Skylake
 	  PCH) in PCI mode.
 
+config MFD_INTEL_PECI_CLIENT
+	tristate "Intel PECI client"
+	depends on (PECI || COMPILE_TEST)
+	select MFD_CORE
+	help
+	  If you say yes to this option, support will be included for the
+	  Intel PECI (Platform Environment Control Interface) client. PECI is a
+	  one-wire bus interface that provides a communication channel from PECI
+	  clients in Intel processors and chipset components to external
+	  monitoring or control devices.
+
+	  Additional drivers must be enabled in order to use the functionality
+	  of the device.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called intel-peci-client.
+
 config MFD_INTEL_PMC_BXT
 	tristate "Intel PMC Driver for Broxton"
 	depends on X86
