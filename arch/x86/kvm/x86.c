@@ -9181,11 +9181,12 @@ int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
 
 int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 {
-	return kvm_x86_ops->vcpu_create(vcpu);
-}
+	int ret;
 
-int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
-{
+	ret = kvm_x86_ops->vcpu_create(vcpu);
+	if (ret)
+		return ret;
+
 	vcpu->arch.arch_capabilities = kvm_get_arch_capabilities();
 	vcpu->arch.msr_platform_info = MSR_PLATFORM_INFO_CPUID_FAULT;
 	kvm_vcpu_mtrr_init(vcpu);
@@ -9193,6 +9194,11 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	kvm_vcpu_reset(vcpu, false);
 	kvm_init_mmu(vcpu, false);
 	vcpu_put(vcpu);
+	return 0;
+}
+
+int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
+{
 	return 0;
 }
 
