@@ -243,7 +243,7 @@ struct mt7615_txp {
 	u8 nbuf;
 	__le32 buf[MT_TXP_MAX_BUF_NUM];
 	__le16 len[MT_TXP_MAX_BUF_NUM];
-} __packed;
+} __packed __aligned(4);
 
 struct mt7615_tx_free {
 	__le16 rx_byte_cnt;
@@ -251,7 +251,7 @@ struct mt7615_tx_free {
 	u8 txd_cnt;
 	u8 rsv[3];
 	__le16 token[];
-} __packed;
+} __packed __aligned(4);
 
 #define MT_TX_FREE_MSDU_ID_CNT		GENMASK(6, 0)
 
