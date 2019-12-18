@@ -161,6 +161,20 @@ nft_meta_get_eval_skugid(enum nft_meta_keys key,
 	return true;
 }
 
+#ifdef CONFIG_CGROUP_NET_CLASSID
+static noinline bool
+nft_meta_get_eval_cgroup(u32 *dest, const struct nft_pktinfo *pkt)
+{
+	struct sock *sk = skb_to_full_sk(pkt->skb);
+
+	if (!sk || !sk_fullsock(sk) || !net_eq(nft_net(pkt), sock_net(sk)))
+		return false;
+
+	*dest = sock_cgroup_classid(&sk->sk_cgrp_data);
+	return true;
+}
+#endif
+
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -168,7 +182,6 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
 	const struct net_device *in = nft_in(pkt), *out = nft_out(pkt);
-	struct sock *sk;
 	u32 *dest = &regs->data[priv->dreg];
 
 	switch (priv->key) {
@@ -258,11 +271,8 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		break;
 #ifdef CONFIG_CGROUP_NET_CLASSID
 	case NFT_META_CGROUP:
-		sk = skb_to_full_sk(skb);
-		if (!sk || !sk_fullsock(sk) ||
-		    !net_eq(nft_net(pkt), sock_net(sk)))
+		if (!nft_meta_get_eval_cgroup(dest, pkt))
 			goto err;
-		*dest = sock_cgroup_classid(&sk->sk_cgrp_data);
 		break;
 #endif
 	case NFT_META_PRANDOM: {
