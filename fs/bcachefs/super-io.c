@@ -54,7 +54,9 @@ static struct bch_sb_field *__bch2_sb_field_resize(struct bch_sb_handle *sb,
 	BUG_ON(get_order(__vstruct_bytes(struct bch_sb, sb_u64s)) >
 	       sb->page_order);
 
-	if (!f) {
+	if (!f && !u64s) {
+		/* nothing to do: */
+	} else if (!f) {
 		f = vstruct_last(sb->sb);
 		memset(f, 0, sizeof(u64) * u64s);
 		f->u64s = cpu_to_le32(u64s);
