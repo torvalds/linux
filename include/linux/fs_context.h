@@ -54,7 +54,6 @@ enum fs_value_type {
 	fs_value_is_string,		/* Value is a string */
 	fs_value_is_blob,		/* Value is a binary blob */
 	fs_value_is_filename,		/* Value is a filename* + dirfd */
-	fs_value_is_filename_empty,	/* Value is a filename* + dirfd + AT_EMPTY_PATH */
 	fs_value_is_file,		/* Value is a file* */
 };
 

@@ -321,6 +321,7 @@ SYSCALL_DEFINE5(fsconfig,
 	struct fs_context *fc;
 	struct fd f;
 	int ret;
+	int lookup_flags = 0;
 
 	struct fs_parameter param = {
 		.type	= fs_value_is_undefined,
@@ -409,19 +410,12 @@ SYSCALL_DEFINE5(fsconfig,
 			goto out_key;
 		}
 		break;
+	case FSCONFIG_SET_PATH_EMPTY:
+		lookup_flags = LOOKUP_EMPTY;
+		/* fallthru */
 	case FSCONFIG_SET_PATH:
 		param.type = fs_value_is_filename;
-		param.name = getname_flags(_value, 0, NULL);
-		if (IS_ERR(param.name)) {
-			ret = PTR_ERR(param.name);
-			goto out_key;
-		}
-		param.dirfd = aux;
-		param.size = strlen(param.name->name);
-		break;
-	case FSCONFIG_SET_PATH_EMPTY:
-		param.type = fs_value_is_filename_empty;
-		param.name = getname_flags(_value, LOOKUP_EMPTY, NULL);
+		param.name = getname_flags(_value, lookup_flags, NULL);
 		if (IS_ERR(param.name)) {
 			ret = PTR_ERR(param.name);
 			goto out_key;

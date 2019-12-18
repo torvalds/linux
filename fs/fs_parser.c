@@ -268,9 +268,6 @@ int fs_lookup_param(struct fs_context *fc,
 			return PTR_ERR(f);
 		put_f = true;
 		break;
-	case fs_value_is_filename_empty:
-		flags = LOOKUP_EMPTY;
-		/* Fall through */
 	case fs_value_is_filename:
 		f = param->name;
 		put_f = false;
