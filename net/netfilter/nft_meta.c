@@ -17,6 +17,7 @@
 #include <linux/smp.h>
 #include <linux/static_key.h>
 #include <net/dst.h>
+#include <net/ip.h>
 #include <net/sock.h>
 #include <net/tcp_states.h> /* for TCP_TIME_WAIT */
 #include <net/netfilter/nf_tables.h>
@@ -287,6 +288,28 @@ nft_meta_get_eval_rtclassid(const struct sk_buff *skb, u32 *dest)
 }
 #endif
 
+static noinline u32 nft_meta_get_eval_sdif(const struct nft_pktinfo *pkt)
+{
+	switch (nft_pf(pkt)) {
+	case NFPROTO_IPV4:
+		return inet_sdif(pkt->skb);
+	case NFPROTO_IPV6:
+		return inet6_sdif(pkt->skb);
+	}
+
+	return 0;
+}
+
+static noinline void
+nft_meta_get_eval_sdifname(u32 *dest, const struct nft_pktinfo *pkt)
+{
+	u32 sdif = nft_meta_get_eval_sdif(pkt);
+	const struct net_device *dev;
+
+	dev = sdif ? dev_get_by_index_rcu(nft_net(pkt), sdif) : NULL;
+	nft_meta_store_ifname(dest, dev);
+}
+
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -379,6 +402,12 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	case NFT_META_TIME_HOUR:
 		nft_meta_get_eval_time(priv->key, dest);
 		break;
+	case NFT_META_SDIF:
+		*dest = nft_meta_get_eval_sdif(pkt);
+		break;
+	case NFT_META_SDIFNAME:
+		nft_meta_get_eval_sdifname(dest, pkt);
+		break;
 	default:
 		WARN_ON(1);
 		goto err;
@@ -459,6 +488,7 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 	case NFT_META_MARK:
 	case NFT_META_IIF:
 	case NFT_META_OIF:
+	case NFT_META_SDIF:
 	case NFT_META_SKUID:
 	case NFT_META_SKGID:
 #ifdef CONFIG_IP_ROUTE_CLASSID
@@ -480,6 +510,7 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 	case NFT_META_OIFNAME:
 	case NFT_META_IIFKIND:
 	case NFT_META_OIFKIND:
+	case NFT_META_SDIFNAME:
 		len = IFNAMSIZ;
 		break;
 	case NFT_META_PRANDOM:
@@ -510,16 +541,28 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 }
 EXPORT_SYMBOL_GPL(nft_meta_get_init);
 
-static int nft_meta_get_validate(const struct nft_ctx *ctx,
-				 const struct nft_expr *expr,
-				 const struct nft_data **data)
+static int nft_meta_get_validate_sdif(const struct nft_ctx *ctx)
 {
-#ifdef CONFIG_XFRM
-	const struct nft_meta *priv = nft_expr_priv(expr);
 	unsigned int hooks;
 
-	if (priv->key != NFT_META_SECPATH)
-		return 0;
+	switch (ctx->family) {
+	case NFPROTO_IPV4:
+	case NFPROTO_IPV6:
+	case NFPROTO_INET:
+		hooks = (1 << NF_INET_LOCAL_IN) |
+			(1 << NF_INET_FORWARD);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return nft_chain_validate_hooks(ctx->chain, hooks);
+}
+
+static int nft_meta_get_validate_xfrm(const struct nft_ctx *ctx)
+{
+#ifdef CONFIG_XFRM
+	unsigned int hooks;
 
 	switch (ctx->family) {
 	case NFPROTO_NETDEV:
@@ -540,6 +583,25 @@ static int nft_meta_get_validate(const struct nft_ctx *ctx,
 #else
 	return 0;
 #endif
+}
+
+static int nft_meta_get_validate(const struct nft_ctx *ctx,
+				 const struct nft_expr *expr,
+				 const struct nft_data **data)
+{
+	const struct nft_meta *priv = nft_expr_priv(expr);
+
+	switch (priv->key) {
+	case NFT_META_SECPATH:
+		return nft_meta_get_validate_xfrm(ctx);
+	case NFT_META_SDIF:
+	case NFT_META_SDIFNAME:
+		return nft_meta_get_validate_sdif(ctx);
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 int nft_meta_set_validate(const struct nft_ctx *ctx,
