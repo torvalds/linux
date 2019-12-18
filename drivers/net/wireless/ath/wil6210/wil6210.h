@@ -1059,6 +1059,7 @@ struct wil6210_priv {
 
 	u32 max_agg_wsize;
 	u32 max_ampdu_size;
+	u8 multicast_to_unicast;
 };
 
 #define wil_to_wiphy(i) (i->wiphy)
