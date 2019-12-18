@@ -475,39 +475,85 @@ static int ti_sn_bridge_calc_min_dp_rate_idx(struct ti_sn_bridge *pdata)
 	return i;
 }
 
-static int ti_sn_bridge_get_max_dp_rate_idx(struct ti_sn_bridge *pdata)
+static void ti_sn_bridge_read_valid_rates(struct ti_sn_bridge *pdata,
+					  bool rate_valid[])
 {
-	u8 data;
+	unsigned int rate_per_200khz;
+	unsigned int rate_mhz;
+	u8 dpcd_val;
 	int ret;
+	int i, j;
 
-	ret = drm_dp_dpcd_readb(&pdata->aux, DP_MAX_LINK_RATE, &data);
+	ret = drm_dp_dpcd_readb(&pdata->aux, DP_EDP_DPCD_REV, &dpcd_val);
+	if (ret != 1) {
+		DRM_DEV_ERROR(pdata->dev,
+			      "Can't read eDP rev (%d), assuming 1.1\n", ret);
+		dpcd_val = DP_EDP_11;
+	}
+
+	if (dpcd_val >= DP_EDP_14) {
+		/* eDP 1.4 devices must provide a custom table */
+		__le16 sink_rates[DP_MAX_SUPPORTED_RATES];
+
+		ret = drm_dp_dpcd_read(&pdata->aux, DP_SUPPORTED_LINK_RATES,
+				       sink_rates, sizeof(sink_rates));
+
+		if (ret != sizeof(sink_rates)) {
+			DRM_DEV_ERROR(pdata->dev,
+				"Can't read supported rate table (%d)\n", ret);
+
+			/* By zeroing we'll fall back to DP_MAX_LINK_RATE. */
+			memset(sink_rates, 0, sizeof(sink_rates));
+		}
+
+		for (i = 0; i < ARRAY_SIZE(sink_rates); i++) {
+			rate_per_200khz = le16_to_cpu(sink_rates[i]);
+
+			if (!rate_per_200khz)
+				break;
+
+			rate_mhz = rate_per_200khz * 200 / 1000;
+			for (j = 0;
+			     j < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut);
+			     j++) {
+				if (ti_sn_bridge_dp_rate_lut[j] == rate_mhz)
+					rate_valid[j] = true;
+			}
+		}
+
+		for (i = 0; i < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut); i++) {
+			if (rate_valid[i])
+				return;
+		}
+		DRM_DEV_ERROR(pdata->dev,
+			      "No matching eDP rates in table; falling back\n");
+	}
+
+	/* On older versions best we can do is use DP_MAX_LINK_RATE */
+	ret = drm_dp_dpcd_readb(&pdata->aux, DP_MAX_LINK_RATE, &dpcd_val);
 	if (ret != 1) {
 		DRM_DEV_ERROR(pdata->dev,
 			      "Can't read max rate (%d); assuming 5.4 GHz\n",
 			      ret);
-		return ARRAY_SIZE(ti_sn_bridge_dp_rate_lut) - 1;
+		dpcd_val = DP_LINK_BW_5_4;
 	}
 
-	/*
-	 * Return an index into ti_sn_bridge_dp_rate_lut.  Just hardcode
-	 * these indicies since it's not like the register spec is ever going
-	 * to change and a loop would just be more complicated.  Apparently
-	 * the DP sink can only return these few rates as supported even
-	 * though the bridge allows some rates in between.
-	 */
-	switch (data) {
-	case DP_LINK_BW_1_62:
-		return 1;
-	case DP_LINK_BW_2_7:
-		return 4;
+	switch (dpcd_val) {
+	default:
+		DRM_DEV_ERROR(pdata->dev,
+			      "Unexpected max rate (%#x); assuming 5.4 GHz\n",
+			      (int)dpcd_val);
+		/* fall through */
 	case DP_LINK_BW_5_4:
-		return 7;
+		rate_valid[7] = 1;
+		/* fall through */
+	case DP_LINK_BW_2_7:
+		rate_valid[4] = 1;
+		/* fall through */
+	case DP_LINK_BW_1_62:
+		rate_valid[1] = 1;
+		break;
 	}
-
-	DRM_DEV_ERROR(pdata->dev,
-		      "Unexpected max data rate (%#x); assuming 5.4 GHz\n",
-		      (int)data);
-	return ARRAY_SIZE(ti_sn_bridge_dp_rate_lut) - 1;
 }
 
 static void ti_sn_bridge_set_video_timings(struct ti_sn_bridge *pdata)
@@ -609,9 +655,9 @@ exit:
 static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 {
 	struct ti_sn_bridge *pdata = bridge_to_ti_sn_bridge(bridge);
+	bool rate_valid[ARRAY_SIZE(ti_sn_bridge_dp_rate_lut)] = { };
 	const char *last_err_str = "No supported DP rate";
 	int dp_rate_idx;
-	int max_dp_rate_idx;
 	unsigned int val;
 	int ret = -EINVAL;
 
@@ -655,11 +701,15 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 	regmap_update_bits(pdata->regmap, SN_SSC_CONFIG_REG, DP_NUM_LANES_MASK,
 			   val);
 
+	ti_sn_bridge_read_valid_rates(pdata, rate_valid);
+
 	/* Train until we run out of rates */
-	max_dp_rate_idx = ti_sn_bridge_get_max_dp_rate_idx(pdata);
 	for (dp_rate_idx = ti_sn_bridge_calc_min_dp_rate_idx(pdata);
-	     dp_rate_idx <= max_dp_rate_idx;
+	     dp_rate_idx < ARRAY_SIZE(ti_sn_bridge_dp_rate_lut);
 	     dp_rate_idx++) {
+		if (!rate_valid[dp_rate_idx])
+			continue;
+
 		ret = ti_sn_link_training(pdata, dp_rate_idx, &last_err_str);
 		if (!ret)
 			break;
