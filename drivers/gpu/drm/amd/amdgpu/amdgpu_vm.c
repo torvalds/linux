@@ -1442,15 +1442,15 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 		uint64_t incr, entry_end, pe_start;
 		struct amdgpu_bo *pt;
 
-		/* make sure that the page tables covering the address range are
-		 * actually allocated
-		 */
-		r = amdgpu_vm_alloc_pts(params->adev, params->vm, &cursor,
-					params->direct);
-		if (r)
-			return r;
-
-		pt = cursor.entry->base.bo;
+		if (flags & AMDGPU_PTE_VALID) {
+			/* make sure that the page tables covering the
+			 * address range are actually allocated
+			 */
+			r = amdgpu_vm_alloc_pts(params->adev, params->vm,
+						&cursor, params->direct);
+			if (r)
+				return r;
+		}
 
 		shift = amdgpu_vm_level_shift(adev, cursor.level);
 		parent_shift = amdgpu_vm_level_shift(adev, cursor.level - 1);
@@ -1478,6 +1478,10 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 				return -ENOENT;
 			continue;
 		}
+
+		pt = cursor.entry->base.bo;
+		if (!pt)
+			return -ENOENT;
 
 		/* Looks good so far, calculate parameters for the update */
 		incr = (uint64_t)AMDGPU_GPU_PAGE_SIZE << shift;
