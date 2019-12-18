@@ -4,4 +4,17 @@
 
 menu "PECI Hardware Bus support"
 
+config PECI_ASPEED
+	tristate "ASPEED PECI support"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on OF
+	depends on HAS_IOMEM
+	depends on PECI
+	help
+	  Say Y here if you want support for the Platform Environment Control
+	  Interface (PECI) bus adapter driver on the ASPEED SoCs.
+
+	  This support is also available as a module. If so, the module
+	  will be called peci-aspeed.
+
 endmenu

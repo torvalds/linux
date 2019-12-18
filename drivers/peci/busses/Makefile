@@ -2,3 +2,5 @@
 #
 # Makefile for the PECI hardware bus drivers.
 #
+
+obj-$(CONFIG_PECI_ASPEED)	+= peci-aspeed.o
