@@ -631,10 +631,30 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_prio = {
 	.clean_stats = mlxsw_sp_setup_tc_qdisc_prio_clean_stats,
 };
 
-/* Grafting is not supported in mlxsw. It will result in un-offloading of the
- * grafted qdisc as well as the qdisc in the qdisc new location.
- * (However, if the graft is to the location where the qdisc is already at, it
- * will be ignored completely and won't cause un-offloading).
+/* Linux allows linking of Qdiscs to arbitrary classes (so long as the resulting
+ * graph is free of cycles). These operations do not change the parent handle
+ * though, which means it can be incomplete (if there is more than one class
+ * where the Qdisc in question is grafted) or outright wrong (if the Qdisc was
+ * linked to a different class and then removed from the original class).
+ *
+ * E.g. consider this sequence of operations:
+ *
+ *  # tc qdisc add dev swp1 root handle 1: prio
+ *  # tc qdisc add dev swp1 parent 1:3 handle 13: red limit 1000000 avpkt 10000
+ *  RED: set bandwidth to 10Mbit
+ *  # tc qdisc link dev swp1 handle 13: parent 1:2
+ *
+ * At this point, both 1:2 and 1:3 have the same RED Qdisc instance as their
+ * child. But RED will still only claim that 1:3 is its parent. If it's removed
+ * from that band, its only parent will be 1:2, but it will continue to claim
+ * that it is in fact 1:3.
+ *
+ * The notification for child Qdisc replace (e.g. TC_RED_REPLACE) comes before
+ * the notification for parent graft (e.g. TC_PRIO_GRAFT). We take the replace
+ * notification to offload the child Qdisc, based on its parent handle, and use
+ * the graft operation to validate that the class where the child is actually
+ * grafted corresponds to the parent handle. If the two don't match, we
+ * unoffload the child.
  */
 static int
 mlxsw_sp_qdisc_prio_graft(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -644,9 +664,6 @@ mlxsw_sp_qdisc_prio_graft(struct mlxsw_sp_port *mlxsw_sp_port,
 	int tclass_num = MLXSW_SP_PRIO_BAND_TO_TCLASS(p->band);
 	struct mlxsw_sp_qdisc *old_qdisc;
 
-	/* Check if the grafted qdisc is already in its "new" location. If so -
-	 * nothing needs to be done.
-	 */
 	if (p->band < IEEE_8021QAZ_MAX_TCS &&
 	    mlxsw_sp_port->tclass_qdiscs[tclass_num].handle == p->child_handle)
 		return 0;
