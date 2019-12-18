@@ -6717,13 +6717,13 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		goto free_user_fpu;
 	}
 
-	vmx->vpid = allocate_vpid();
-
 	err = kvm_vcpu_init(&vmx->vcpu, kvm, id);
 	if (err)
 		goto free_vcpu;
 
 	err = -ENOMEM;
+
+	vmx->vpid = allocate_vpid();
 
 	/*
 	 * If PML is turned on, failure on enabling PML just results in failure
@@ -6835,8 +6835,8 @@ free_pml:
 	vmx_destroy_pml_buffer(vmx);
 uninit_vcpu:
 	kvm_vcpu_uninit(&vmx->vcpu);
-free_vcpu:
 	free_vpid(vmx->vpid);
+free_vcpu:
 	kmem_cache_free(x86_fpu_cache, vmx->vcpu.arch.guest_fpu);
 free_user_fpu:
 	kmem_cache_free(x86_fpu_cache, vmx->vcpu.arch.user_fpu);
