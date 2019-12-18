@@ -346,7 +346,10 @@ mt7615_init_wiphy(struct ieee80211_hw *hw)
 
 	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
 
-	hw->max_tx_fragments = MT_TXP_MAX_BUF_NUM;
+	if (is_mt7615(&phy->dev->mt76))
+		hw->max_tx_fragments = MT_TXP_MAX_BUF_NUM;
+	else
+		hw->max_tx_fragments = MT_HW_TXP_MAX_BUF_NUM;
 }
 
 static void
