@@ -352,18 +352,8 @@
 &i2c8 {
 	status = "okay";
 
-	ucd90320@b {
-		compatible = "ti,ucd90160";
-		reg = <0x0b>;
-	};
-
-	ucd90320@c {
-		compatible = "ti,ucd90160";
-		reg = <0x0c>;
-	};
-
 	ucd90320@11 {
-		compatible = "ti,ucd90160";
+		compatible = "ti,ucd90320";
 		reg = <0x11>;
 	};
 
