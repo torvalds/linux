@@ -112,13 +112,14 @@ DESCRIPTION
 
 		  If BPF object has global variables, corresponding structs
 		  with memory layout corresponding to global data data section
-		  layout will be created. Currently supported ones are: .data,
-		  .bss, .rodata, and .extern structs/data sections. These
-		  data sections/structs can be used to set up initial values of
-		  variables, if set before **example__load**. Afterwards, if
-		  target kernel supports memory-mapped BPF arrays, same
-		  structs can be used to fetch and update (non-read-only)
-		  data from userspace, with same simplicity as for BPF side.
+		  layout will be created. Currently supported ones are: *.data*,
+		  *.bss*, *.rodata*, and *.kconfig* structs/data sections.
+		  These data sections/structs can be used to set up initial
+		  values of variables, if set before **example__load**.
+		  Afterwards, if target kernel supports memory-mapped BPF
+		  arrays, same structs can be used to fetch and update
+		  (non-read-only) data from userspace, with same simplicity
+		  as for BPF side.
 
 	**bpftool gen help**
 		  Print short help message.
