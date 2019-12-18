@@ -35,7 +35,7 @@ struct qeth_ipaddr {
 	union {
 		struct {
 			__be32 addr;
-			unsigned int mask;
+			__be32 mask;
 		} a4;
 		struct {
 			struct in6_addr addr;

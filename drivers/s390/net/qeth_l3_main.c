@@ -369,17 +369,16 @@ static int qeth_l3_send_setdelmc(struct qeth_card *card,
 	return qeth_send_ipa_cmd(card, iob, qeth_l3_setdelip_cb, NULL);
 }
 
-static void qeth_l3_fill_netmask(u8 *netmask, unsigned int len)
+static void qeth_l3_set_ipv6_prefix(struct in6_addr *prefix, unsigned int len)
 {
-	int i, j;
-	for (i = 0; i < 16; i++) {
-		j = (len) - (i * 8);
-		if (j >= 8)
-			netmask[i] = 0xff;
-		else if (j > 0)
-			netmask[i] = (u8)(0xFF00 >> j);
-		else
-			netmask[i] = 0;
+	unsigned int i = 0;
+
+	while (len && i < 4) {
+		int mask_len = min_t(int, len, 32);
+
+		prefix->s6_addr32[i] = inet_make_mask(mask_len);
+		len -= mask_len;
+		i++;
 	}
 }
 
@@ -402,7 +401,6 @@ static int qeth_l3_send_setdelip(struct qeth_card *card,
 {
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipa_cmd *cmd;
-	__u8 netmask[16];
 	u32 flags;
 
 	QETH_CARD_TEXT(card, 4, "setdelip");
@@ -417,15 +415,13 @@ static int qeth_l3_send_setdelip(struct qeth_card *card,
 	QETH_CARD_TEXT_(card, 4, "flags%02X", flags);
 
 	if (addr->proto == QETH_PROT_IPV6) {
-		memcpy(cmd->data.setdelip6.ip_addr, &addr->u.a6.addr,
-		       sizeof(struct in6_addr));
-		qeth_l3_fill_netmask(netmask, addr->u.a6.pfxlen);
-		memcpy(cmd->data.setdelip6.mask, netmask,
-		       sizeof(struct in6_addr));
+		cmd->data.setdelip6.addr = addr->u.a6.addr;
+		qeth_l3_set_ipv6_prefix(&cmd->data.setdelip6.prefix,
+					addr->u.a6.pfxlen);
 		cmd->data.setdelip6.flags = flags;
 	} else {
-		memcpy(cmd->data.setdelip4.ip_addr, &addr->u.a4.addr, 4);
-		memcpy(cmd->data.setdelip4.mask, &addr->u.a4.mask, 4);
+		cmd->data.setdelip4.addr = addr->u.a4.addr;
+		cmd->data.setdelip4.mask = addr->u.a4.mask;
 		cmd->data.setdelip4.flags = flags;
 	}
 
@@ -2436,7 +2432,7 @@ static int qeth_l3_ip_event(struct notifier_block *this,
 
 	qeth_l3_init_ipaddr(&addr, QETH_IP_TYPE_NORMAL, QETH_PROT_IPV4);
 	addr.u.a4.addr = ifa->ifa_address;
-	addr.u.a4.mask = be32_to_cpu(ifa->ifa_mask);
+	addr.u.a4.mask = ifa->ifa_mask;
 
 	return qeth_l3_handle_ip_event(card, &addr, event);
 }
