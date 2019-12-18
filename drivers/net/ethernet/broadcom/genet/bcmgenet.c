@@ -1499,11 +1499,12 @@ static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
 		 * enough headroom for us to insert 64B status block.
 		 */
 		new_skb = skb_realloc_headroom(skb, sizeof(*status));
-		dev_kfree_skb(skb);
 		if (!new_skb) {
+			dev_kfree_skb_any(skb);
 			dev->stats.tx_dropped++;
 			return NULL;
 		}
+		dev_consume_skb_any(skb);
 		skb = new_skb;
 	}
 
