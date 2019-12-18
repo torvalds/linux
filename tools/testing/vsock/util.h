@@ -29,6 +29,8 @@ struct test_case {
 
 	/* Called when test mode is TEST_MODE_SERVER */
 	void (*run_server)(const struct test_opts *opts);
+
+	bool skip;
 };
 
 void init_signals(void);
@@ -41,5 +43,7 @@ void send_byte(int fd, int expected_ret, int flags);
 void recv_byte(int fd, int expected_ret, int flags);
 void run_tests(const struct test_case *test_cases,
 	       const struct test_opts *opts);
-
+void list_tests(const struct test_case *test_cases);
+void skip_test(struct test_case *test_cases, size_t test_cases_len,
+	       const char *test_id_str);
 #endif /* UTIL_H */

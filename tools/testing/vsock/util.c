@@ -299,32 +299,77 @@ void run_tests(const struct test_case *test_cases,
 
 	for (i = 0; test_cases[i].name; i++) {
 		void (*run)(const struct test_opts *opts);
+		char *line;
 
-		printf("%s...", test_cases[i].name);
+		printf("%d - %s...", i, test_cases[i].name);
 		fflush(stdout);
 
-		if (opts->mode == TEST_MODE_CLIENT) {
-			/* Full barrier before executing the next test.  This
-			 * ensures that client and server are executing the
-			 * same test case.  In particular, it means whoever is
-			 * faster will not see the peer still executing the
-			 * last test.  This is important because port numbers
-			 * can be used by multiple test cases.
-			 */
-			control_expectln("NEXT");
+		/* Full barrier before executing the next test.  This
+		 * ensures that client and server are executing the
+		 * same test case.  In particular, it means whoever is
+		 * faster will not see the peer still executing the
+		 * last test.  This is important because port numbers
+		 * can be used by multiple test cases.
+		 */
+		if (test_cases[i].skip)
+			control_writeln("SKIP");
+		else
 			control_writeln("NEXT");
 
-			run = test_cases[i].run_client;
-		} else {
-			control_writeln("NEXT");
-			control_expectln("NEXT");
+		line = control_readln();
+		if (control_cmpln(line, "SKIP", false) || test_cases[i].skip) {
 
-			run = test_cases[i].run_server;
+			printf("skipped\n");
+
+			free(line);
+			continue;
 		}
+
+		control_cmpln(line, "NEXT", true);
+		free(line);
+
+		if (opts->mode == TEST_MODE_CLIENT)
+			run = test_cases[i].run_client;
+		else
+			run = test_cases[i].run_server;
 
 		if (run)
 			run(opts);
 
 		printf("ok\n");
 	}
+}
+
+void list_tests(const struct test_case *test_cases)
+{
+	int i;
+
+	printf("ID\tTest name\n");
+
+	for (i = 0; test_cases[i].name; i++)
+		printf("%d\t%s\n", i, test_cases[i].name);
+
+	exit(EXIT_FAILURE);
+}
+
+void skip_test(struct test_case *test_cases, size_t test_cases_len,
+	       const char *test_id_str)
+{
+	unsigned long test_id;
+	char *endptr = NULL;
+
+	errno = 0;
+	test_id = strtoul(test_id_str, &endptr, 10);
+	if (errno || *endptr != '\0') {
+		fprintf(stderr, "malformed test ID \"%s\"\n", test_id_str);
+		exit(EXIT_FAILURE);
+	}
+
+	if (test_id >= test_cases_len) {
+		fprintf(stderr, "test ID (%lu) larger than the max allowed (%lu)\n",
+			test_id, test_cases_len - 1);
+		exit(EXIT_FAILURE);
+	}
+
+	test_cases[test_id].skip = true;
 }

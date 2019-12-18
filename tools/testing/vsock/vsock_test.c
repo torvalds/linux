@@ -13,6 +13,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <linux/kernel.h>
 
 #include "timeout.h"
 #include "control.h"
@@ -223,6 +224,16 @@ static const struct option longopts[] = {
 		.val = 'p',
 	},
 	{
+		.name = "list",
+		.has_arg = no_argument,
+		.val = 'l',
+	},
+	{
+		.name = "skip",
+		.has_arg = required_argument,
+		.val = 's',
+	},
+	{
 		.name = "help",
 		.has_arg = no_argument,
 		.val = '?',
@@ -232,7 +243,7 @@ static const struct option longopts[] = {
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: vsock_test [--help] [--control-host=<host>] --control-port=<port> --mode=client|server --peer-cid=<cid>\n"
+	fprintf(stderr, "Usage: vsock_test [--help] [--control-host=<host>] --control-port=<port> --mode=client|server --peer-cid=<cid> [--list] [--skip=<test_id>]\n"
 		"\n"
 		"  Server: vsock_test --control-port=1234 --mode=server --peer-cid=3\n"
 		"  Client: vsock_test --control-host=192.168.0.1 --control-port=1234 --mode=client --peer-cid=2\n"
@@ -286,6 +297,13 @@ int main(int argc, char **argv)
 			break;
 		case 'P':
 			control_port = optarg;
+			break;
+		case 'l':
+			list_tests(test_cases);
+			break;
+		case 's':
+			skip_test(test_cases, ARRAY_SIZE(test_cases) - 1,
+				  optarg);
 			break;
 		case '?':
 		default:
