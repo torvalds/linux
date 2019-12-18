@@ -110,22 +110,6 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
-	keys: gpio-keys {
-		compatible = "gpio-keys";
-		autorepeat;
-
-		power {
-			debounce-interval = <100>;
-			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
-			label = "GPIO Power";
-			linux,code = <KEY_POWER>;
-			linux,input-type = <1>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pwr_btn>;
-			wakeup-source;
-		};
-	};
-
 	dp_sound: dp-sound {
 		status = "disabled";
 		compatible = "rockchip,cdndp-sound";

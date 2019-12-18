@@ -14,6 +14,26 @@
 #include <dt-bindings/display/mipi_dsi.h>
 
 / {
+	adc_keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		vol-up-key {
+			label = "volume up";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <1000>;
+		};
+
+		vol-down-key {
+			label = "volume down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <170000>;
+		};
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 25000 0>;
@@ -180,23 +200,6 @@
 		BT,wake_gpio     = <&gpio2 RK_PD2 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 		status = "okay";
-	};
-};
-
-&adc_keys {
-	compatible = "adc-keys";
-	io-channels = <&saradc 1>;
-	keyup-threshold-microvolt = <1800000>;
-	vol-up-key {
-		label = "volume up";
-		linux,code = <KEY_VOLUMEUP>;
-		press-threshold-microvolt = <1000>;
-	};
-
-	vol-down-key {
-		label = "volume down";
-		linux,code = <KEY_VOLUMEDOWN>;
-		press-threshold-microvolt = <170000>;
 	};
 };
 
