@@ -19,6 +19,7 @@
 
 struct atmel_hlcdc_regmap {
 	void __iomem *regs;
+	struct device *dev;
 };
 
 static const struct mfd_cell atmel_hlcdc_cells[] = {
@@ -89,6 +90,8 @@ static int atmel_hlcdc_probe(struct platform_device *pdev)
 	hregmap->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hregmap->regs))
 		return PTR_ERR(hregmap->regs);
+
+	hregmap->dev = &pdev->dev;
 
 	hlcdc->irq = platform_get_irq(pdev, 0);
 	if (hlcdc->irq < 0)
