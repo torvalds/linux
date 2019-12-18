@@ -629,15 +629,15 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file, const char __user
 	struct pmc_dev *pmcdev = &pmc;
 	const struct pmc_reg_map *map = pmcdev->map;
 	u32 val, buf_size, fd;
-	int err = 0;
+	int err;
 
 	buf_size = count < 64 ? count : 64;
-	mutex_lock(&pmcdev->lock);
 
-	if (kstrtou32_from_user(userbuf, buf_size, 10, &val)) {
-		err = -EFAULT;
-		goto out_unlock;
-	}
+	err = kstrtou32_from_user(userbuf, buf_size, 10, &val);
+	if (err)
+		return err;
+
+	mutex_lock(&pmcdev->lock);
 
 	if (val > map->ltr_ignore_max) {
 		err = -EINVAL;
