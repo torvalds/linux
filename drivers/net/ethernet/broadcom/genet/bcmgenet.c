@@ -2,7 +2,7 @@
 /*
  * Broadcom GENET (Gigabit Ethernet) controller driver
  *
- * Copyright (c) 2014-2017 Broadcom
+ * Copyright (c) 2014-2019 Broadcom
  */
 
 #define pr_fmt(fmt)				"bcmgenet: " fmt
@@ -3537,7 +3537,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 
 	/* Set hardware features */
 	dev->hw_features |= NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM;
+		NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA | NETIF_F_RXCSUM;
 
 	/* Request the WOL interrupt and advertise suspend if available */
 	priv->wol_irq_disabled = true;
@@ -3573,6 +3573,14 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	clk_prepare_enable(priv->clk);
 
 	bcmgenet_set_hw_params(priv);
+
+	err = -EIO;
+	if (priv->hw_params->flags & GENET_HAS_40BITS)
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
+	if (err)
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (err)
+		goto err;
 
 	/* Mii wait queue */
 	init_waitqueue_head(&priv->wq);
