@@ -1107,6 +1107,230 @@ struct rk3399_dram_timing {
 	unsigned int phy_lpddr4_odt;
 };
 
+/* name rule: ddr4(pad_name)_ddr3_lpddr3_lpddr4_de-skew */
+static const char * const rv1126_dts_ca_timing[] = {
+	"a0_a3_a3_cke1-a_de-skew",
+	"a1_ba1_null_cke0-b_de-skew",
+	"a2_a9_a9_a4-a_de-skew",
+	"a3_a15_null_a5-b_de-skew",
+	"a4_a6_a6_ck-a_de-skew",
+	"a5_a12_null_odt0-b_de-skew",
+	"a6_ba2_null_a0-a_de-skew",
+	"a7_a4_a4_odt0-a_de-skew",
+	"a8_a1_a1_cke0-a_de-skew",
+	"a9_a5_a5_a5-a_de-skew",
+	"a10_a8_a8_clkb-a_de-skew",
+	"a11_a7_a7_ca2-a_de-skew",
+	"a12_rasn_null_ca1-a_de-skew",
+	"a13_a13_null_ca3-a_de-skew",
+	"a14_a14_null_csb1-b_de-skew",
+	"a15_a10_null_ca0-b_de-skew",
+	"a16_a11_null_csb0-b_de-skew",
+	"a17_null_null_null_de-skew",
+	"ba0_csb1_csb1_csb0-a_de-skew",
+	"ba1_wen_null_cke1-b_de-skew",
+	"bg0_odt1_odt1_csb1-a_de-skew",
+	"bg1_a2_a2_odt1-a_de-skew",
+	"cke0_casb_null_ca1-b_de-skew",
+	"ck_ck_ck_ck-b_de-skew",
+	"ckb_ckb_ckb_ckb-b_de-skew",
+	"csb0_odt0_odt0_ca2-b_de-skew",
+	"odt0_csb0_csb0_ca4-b_de-skew",
+	"resetn_resetn_null-resetn_de-skew",
+	"actn_cke_cke_ca3-b_de-skew",
+	"cke1_null_null_null_de-skew",
+	"csb1_ba0_null_null_de-skew",
+	"odt1_a0_a0_odt1-b_de-skew",
+};
+
+static const char * const rv1126_dts_cs0_a_timing[] = {
+	"cs0_dm0_rx_de-skew",
+	"cs0_dq0_rx_de-skew",
+	"cs0_dq1_rx_de-skew",
+	"cs0_dq2_rx_de-skew",
+	"cs0_dq3_rx_de-skew",
+	"cs0_dq4_rx_de-skew",
+	"cs0_dq5_rx_de-skew",
+	"cs0_dq6_rx_de-skew",
+	"cs0_dq7_rx_de-skew",
+	"cs0_dqs0p_rx_de-skew",
+	"cs0_dqs0n_rx_de-skew",
+	"cs0_dm1_rx_de-skew",
+	"cs0_dq8_rx_de-skew",
+	"cs0_dq9_rx_de-skew",
+	"cs0_dq10_rx_de-skew",
+	"cs0_dq11_rx_de-skew",
+	"cs0_dq12_rx_de-skew",
+	"cs0_dq13_rx_de-skew",
+	"cs0_dq14_rx_de-skew",
+	"cs0_dq15_rx_de-skew",
+	"cs0_dqs1p_rx_de-skew",
+	"cs0_dqs1n_rx_de-skew",
+	"cs0_dm0_tx_de-skew",
+	"cs0_dq0_tx_de-skew",
+	"cs0_dq1_tx_de-skew",
+	"cs0_dq2_tx_de-skew",
+	"cs0_dq3_tx_de-skew",
+	"cs0_dq4_tx_de-skew",
+	"cs0_dq5_tx_de-skew",
+	"cs0_dq6_tx_de-skew",
+	"cs0_dq7_tx_de-skew",
+	"cs0_dqs0p_tx_de-skew",
+	"cs0_dqs0n_tx_de-skew",
+	"cs0_dm1_tx_de-skew",
+	"cs0_dq8_tx_de-skew",
+	"cs0_dq9_tx_de-skew",
+	"cs0_dq10_tx_de-skew",
+	"cs0_dq11_tx_de-skew",
+	"cs0_dq12_tx_de-skew",
+	"cs0_dq13_tx_de-skew",
+	"cs0_dq14_tx_de-skew",
+	"cs0_dq15_tx_de-skew",
+	"cs0_dqs1p_tx_de-skew",
+	"cs0_dqs1n_tx_de-skew",
+};
+
+static const char * const rv1126_dts_cs0_b_timing[] = {
+	"cs0_dm2_rx_de-skew",
+	"cs0_dq16_rx_de-skew",
+	"cs0_dq17_rx_de-skew",
+	"cs0_dq18_rx_de-skew",
+	"cs0_dq19_rx_de-skew",
+	"cs0_dq20_rx_de-skew",
+	"cs0_dq21_rx_de-skew",
+	"cs0_dq22_rx_de-skew",
+	"cs0_dq23_rx_de-skew",
+	"cs0_dqs2p_rx_de-skew",
+	"cs0_dqs2n_rx_de-skew",
+	"cs0_dm3_rx_de-skew",
+	"cs0_dq24_rx_de-skew",
+	"cs0_dq25_rx_de-skew",
+	"cs0_dq26_rx_de-skew",
+	"cs0_dq27_rx_de-skew",
+	"cs0_dq28_rx_de-skew",
+	"cs0_dq29_rx_de-skew",
+	"cs0_dq30_rx_de-skew",
+	"cs0_dq31_rx_de-skew",
+	"cs0_dqs3p_rx_de-skew",
+	"cs0_dqs3n_rx_de-skew",
+	"cs0_dm2_tx_de-skew",
+	"cs0_dq16_tx_de-skew",
+	"cs0_dq17_tx_de-skew",
+	"cs0_dq18_tx_de-skew",
+	"cs0_dq19_tx_de-skew",
+	"cs0_dq20_tx_de-skew",
+	"cs0_dq21_tx_de-skew",
+	"cs0_dq22_tx_de-skew",
+	"cs0_dq23_tx_de-skew",
+	"cs0_dqs2p_tx_de-skew",
+	"cs0_dqs2n_tx_de-skew",
+	"cs0_dm3_tx_de-skew",
+	"cs0_dq24_tx_de-skew",
+	"cs0_dq25_tx_de-skew",
+	"cs0_dq26_tx_de-skew",
+	"cs0_dq27_tx_de-skew",
+	"cs0_dq28_tx_de-skew",
+	"cs0_dq29_tx_de-skew",
+	"cs0_dq30_tx_de-skew",
+	"cs0_dq31_tx_de-skew",
+	"cs0_dqs3p_tx_de-skew",
+	"cs0_dqs3n_tx_de-skew",
+};
+
+static const char * const rv1126_dts_cs1_a_timing[] = {
+	"cs1_dm0_rx_de-skew",
+	"cs1_dq0_rx_de-skew",
+	"cs1_dq1_rx_de-skew",
+	"cs1_dq2_rx_de-skew",
+	"cs1_dq3_rx_de-skew",
+	"cs1_dq4_rx_de-skew",
+	"cs1_dq5_rx_de-skew",
+	"cs1_dq6_rx_de-skew",
+	"cs1_dq7_rx_de-skew",
+	"cs1_dqs0p_rx_de-skew",
+	"cs1_dqs0n_rx_de-skew",
+	"cs1_dm1_rx_de-skew",
+	"cs1_dq8_rx_de-skew",
+	"cs1_dq9_rx_de-skew",
+	"cs1_dq10_rx_de-skew",
+	"cs1_dq11_rx_de-skew",
+	"cs1_dq12_rx_de-skew",
+	"cs1_dq13_rx_de-skew",
+	"cs1_dq14_rx_de-skew",
+	"cs1_dq15_rx_de-skew",
+	"cs1_dqs1p_rx_de-skew",
+	"cs1_dqs1n_rx_de-skew",
+	"cs1_dm0_tx_de-skew",
+	"cs1_dq0_tx_de-skew",
+	"cs1_dq1_tx_de-skew",
+	"cs1_dq2_tx_de-skew",
+	"cs1_dq3_tx_de-skew",
+	"cs1_dq4_tx_de-skew",
+	"cs1_dq5_tx_de-skew",
+	"cs1_dq6_tx_de-skew",
+	"cs1_dq7_tx_de-skew",
+	"cs1_dqs0p_tx_de-skew",
+	"cs1_dqs0n_tx_de-skew",
+	"cs1_dm1_tx_de-skew",
+	"cs1_dq8_tx_de-skew",
+	"cs1_dq9_tx_de-skew",
+	"cs1_dq10_tx_de-skew",
+	"cs1_dq11_tx_de-skew",
+	"cs1_dq12_tx_de-skew",
+	"cs1_dq13_tx_de-skew",
+	"cs1_dq14_tx_de-skew",
+	"cs1_dq15_tx_de-skew",
+	"cs1_dqs1p_tx_de-skew",
+	"cs1_dqs1n_tx_de-skew",
+};
+
+static const char * const rv1126_dts_cs1_b_timing[] = {
+	"cs1_dm2_rx_de-skew",
+	"cs1_dq16_rx_de-skew",
+	"cs1_dq17_rx_de-skew",
+	"cs1_dq18_rx_de-skew",
+	"cs1_dq19_rx_de-skew",
+	"cs1_dq20_rx_de-skew",
+	"cs1_dq21_rx_de-skew",
+	"cs1_dq22_rx_de-skew",
+	"cs1_dq23_rx_de-skew",
+	"cs1_dqs2p_rx_de-skew",
+	"cs1_dqs2n_rx_de-skew",
+	"cs1_dm3_rx_de-skew",
+	"cs1_dq24_rx_de-skew",
+	"cs1_dq25_rx_de-skew",
+	"cs1_dq26_rx_de-skew",
+	"cs1_dq27_rx_de-skew",
+	"cs1_dq28_rx_de-skew",
+	"cs1_dq29_rx_de-skew",
+	"cs1_dq30_rx_de-skew",
+	"cs1_dq31_rx_de-skew",
+	"cs1_dqs3p_rx_de-skew",
+	"cs1_dqs3n_rx_de-skew",
+	"cs1_dm2_tx_de-skew",
+	"cs1_dq16_tx_de-skew",
+	"cs1_dq17_tx_de-skew",
+	"cs1_dq18_tx_de-skew",
+	"cs1_dq19_tx_de-skew",
+	"cs1_dq20_tx_de-skew",
+	"cs1_dq21_tx_de-skew",
+	"cs1_dq22_tx_de-skew",
+	"cs1_dq23_tx_de-skew",
+	"cs1_dqs2p_tx_de-skew",
+	"cs1_dqs2n_tx_de-skew",
+	"cs1_dm3_tx_de-skew",
+	"cs1_dq24_tx_de-skew",
+	"cs1_dq25_tx_de-skew",
+	"cs1_dq26_tx_de-skew",
+	"cs1_dq27_tx_de-skew",
+	"cs1_dq28_tx_de-skew",
+	"cs1_dq29_tx_de-skew",
+	"cs1_dq30_tx_de-skew",
+	"cs1_dq31_tx_de-skew",
+	"cs1_dqs3p_tx_de-skew",
+	"cs1_dqs3n_tx_de-skew",
+};
+
 struct rockchip_dmcfreq {
 	struct device *dev;
 	struct devfreq *devfreq;
@@ -1778,6 +2002,67 @@ static void of_get_rk3328_timings(struct device *dev,
 	if (!ret)
 		rk3328_de_skew_setting_2_register(de_skew, dts_timing);
 	kfree(de_skew);
+end:
+	if (!ret) {
+		dts_timing->available = 1;
+	} else {
+		dts_timing->available = 0;
+		dev_err(dev, "of_get_ddr_timings: fail\n");
+	}
+
+	of_node_put(np_tim);
+}
+
+static void of_get_rv1126_timings(struct device *dev,
+				  struct device_node *np, uint32_t *timing)
+{
+	struct device_node *np_tim;
+	u32 *p;
+	struct rk1808_ddr_dts_config_timing *dts_timing;
+	int ret = 0;
+	u32 i;
+
+	dts_timing =
+		(struct rk1808_ddr_dts_config_timing *)(timing +
+							DTS_PAR_OFFSET / 4);
+
+	np_tim = of_parse_phandle(np, "ddr_timing", 0);
+	if (!np_tim) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	p = (u32 *)dts_timing;
+	for (i = 0; i < ARRAY_SIZE(px30_dts_timing); i++) {
+		ret |= of_property_read_u32(np_tim, px30_dts_timing[i],
+					p + i);
+	}
+	p = (u32 *)dts_timing->ca_de_skew;
+	for (i = 0; i < ARRAY_SIZE(rv1126_dts_ca_timing); i++) {
+		ret |= of_property_read_u32(np_tim, rv1126_dts_ca_timing[i],
+					p + i);
+	}
+	p = (u32 *)dts_timing->cs0_a_de_skew;
+	for (i = 0; i < ARRAY_SIZE(rv1126_dts_cs0_a_timing); i++) {
+		ret |= of_property_read_u32(np_tim, rv1126_dts_cs0_a_timing[i],
+					p + i);
+	}
+	p = (u32 *)dts_timing->cs0_b_de_skew;
+	for (i = 0; i < ARRAY_SIZE(rv1126_dts_cs0_b_timing); i++) {
+		ret |= of_property_read_u32(np_tim, rv1126_dts_cs0_b_timing[i],
+					p + i);
+	}
+	p = (u32 *)dts_timing->cs1_a_de_skew;
+	for (i = 0; i < ARRAY_SIZE(rv1126_dts_cs1_a_timing); i++) {
+		ret |= of_property_read_u32(np_tim, rv1126_dts_cs1_a_timing[i],
+					p + i);
+	}
+	p = (u32 *)dts_timing->cs1_b_de_skew;
+	for (i = 0; i < ARRAY_SIZE(rv1126_dts_cs1_b_timing); i++) {
+		ret |= of_property_read_u32(np_tim, rv1126_dts_cs1_b_timing[i],
+					p + i);
+	}
+
 end:
 	if (!ret) {
 		dts_timing->available = 1;
@@ -2544,6 +2829,49 @@ static __maybe_unused int rk3399_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
+static __maybe_unused int rv1126_dmc_init(struct platform_device *pdev,
+					  struct rockchip_dmcfreq *dmcfreq)
+{
+	struct arm_smccc_res res;
+	u32 size;
+
+	res = sip_smc_dram(0, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_GET_VERSION);
+	dev_notice(&pdev->dev, "current ATF version 0x%lx!\n", res.a1);
+	if (res.a0 || res.a1 < 0x100) {
+		dev_err(&pdev->dev,
+			"trusted firmware need to update or is invalid!\n");
+		return -ENXIO;
+	}
+
+	/*
+	 * first 4KB is used for interface parameters
+	 * after 4KB * N is dts parameters
+	 */
+	size = sizeof(struct rk1808_ddr_dts_config_timing);
+	res = sip_smc_request_share_mem(DIV_ROUND_UP(size, 4096) + 1,
+					SHARE_PAGE_TYPE_DDR);
+	if (res.a0 != 0) {
+		dev_err(&pdev->dev, "no ATF memory for init\n");
+		return -ENOMEM;
+	}
+	ddr_psci_param = (struct share_params *)res.a1;
+	of_get_rv1126_timings(&pdev->dev, pdev->dev.of_node,
+			      (uint32_t *)ddr_psci_param);
+
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
+	if (res.a0) {
+		dev_err(&pdev->dev, "rockchip_sip_config_dram_init error:%lx\n",
+			res.a0);
+		return -ENOMEM;
+	}
+
+	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
+
+	return 0;
+}
+
 static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 #ifdef CONFIG_CPU_PX30
 	{ .compatible = "rockchip,px30-dmc", .data = px30_dmc_init },
@@ -2571,6 +2899,9 @@ static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 #endif
 #ifdef CONFIG_CPU_RK3399
 	{ .compatible = "rockchip,rk3399-dmc", .data = rk3399_dmc_init },
+#endif
+#ifdef CONFIG_CPU_RV1126
+	{ .compatible = "rockchip,rv1126-dmc", .data = rv1126_dmc_init },
 #endif
 	{ },
 };
