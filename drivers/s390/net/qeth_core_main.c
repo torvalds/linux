@@ -520,11 +520,10 @@ static int __qeth_issue_next_read(struct qeth_card *card)
 	} else {
 		QETH_DBF_MESSAGE(2, "error %i on device %x when starting next read ccw!\n",
 				 rc, CARD_DEVID(card));
-		atomic_set(&channel->irq_pending, 0);
+		qeth_unlock_channel(card, channel);
 		qeth_put_cmd(iob);
 		card->read_or_write_problem = 1;
 		qeth_schedule_recovery(card);
-		wake_up(&card->wait_q);
 	}
 	return rc;
 }
@@ -972,8 +971,6 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 	/* while we hold the ccwdev lock, this stays valid: */
 	gdev = dev_get_drvdata(&cdev->dev);
 	card = dev_get_drvdata(&gdev->dev);
-	if (!card)
-		return;
 
 	QETH_CARD_TEXT(card, 5, "irq");
 
@@ -1003,24 +1000,25 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 	}
 
 	channel->active_cmd = NULL;
+	qeth_unlock_channel(card, channel);
 
 	rc = qeth_check_irb_error(card, cdev, irb);
 	if (rc) {
 		/* IO was terminated, free its resources. */
 		if (iob)
 			qeth_cancel_cmd(iob, rc);
-		atomic_set(&channel->irq_pending, 0);
-		wake_up(&card->wait_q);
 		return;
 	}
 
-	atomic_set(&channel->irq_pending, 0);
-
-	if (irb->scsw.cmd.fctl & (SCSW_FCTL_CLEAR_FUNC))
+	if (irb->scsw.cmd.fctl & SCSW_FCTL_CLEAR_FUNC) {
 		channel->state = CH_STATE_STOPPED;
+		wake_up(&card->wait_q);
+	}
 
-	if (irb->scsw.cmd.fctl & (SCSW_FCTL_HALT_FUNC))
+	if (irb->scsw.cmd.fctl & SCSW_FCTL_HALT_FUNC) {
 		channel->state = CH_STATE_HALTED;
+		wake_up(&card->wait_q);
+	}
 
 	if (iob && (irb->scsw.cmd.fctl & (SCSW_FCTL_CLEAR_FUNC |
 					  SCSW_FCTL_HALT_FUNC))) {
@@ -1054,7 +1052,7 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 				qeth_cancel_cmd(iob, rc);
 			qeth_clear_ipacmd_list(card);
 			qeth_schedule_recovery(card);
-			goto out;
+			return;
 		}
 	}
 
@@ -1062,16 +1060,12 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 		/* sanity check: */
 		if (irb->scsw.cmd.count > iob->length) {
 			qeth_cancel_cmd(iob, -EIO);
-			goto out;
+			return;
 		}
 		if (iob->callback)
 			iob->callback(card, iob,
 				      iob->length - irb->scsw.cmd.count);
 	}
-
-out:
-	wake_up(&card->wait_q);
-	return;
 }
 
 static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
@@ -1196,31 +1190,6 @@ static void qeth_free_buffer_pool(struct qeth_card *card)
 		list_del(&pool_entry->init_list);
 		kfree(pool_entry);
 	}
-}
-
-static void qeth_clean_channel(struct qeth_channel *channel)
-{
-	struct ccw_device *cdev = channel->ccwdev;
-
-	QETH_DBF_TEXT(SETUP, 2, "freech");
-
-	spin_lock_irq(get_ccwdev_lock(cdev));
-	cdev->handler = NULL;
-	spin_unlock_irq(get_ccwdev_lock(cdev));
-}
-
-static void qeth_setup_channel(struct qeth_channel *channel)
-{
-	struct ccw_device *cdev = channel->ccwdev;
-
-	QETH_DBF_TEXT(SETUP, 2, "setupch");
-
-	channel->state = CH_STATE_DOWN;
-	atomic_set(&channel->irq_pending, 0);
-
-	spin_lock_irq(get_ccwdev_lock(cdev));
-	cdev->handler = qeth_irq;
-	spin_unlock_irq(get_ccwdev_lock(cdev));
 }
 
 static int qeth_osa_set_output_queues(struct qeth_card *card, bool single)
@@ -1395,9 +1364,6 @@ static struct qeth_card *qeth_alloc_card(struct ccwgroup_device *gdev)
 	if (!card->read_cmd)
 		goto out_read_cmd;
 
-	qeth_setup_channel(&card->read);
-	qeth_setup_channel(&card->write);
-	qeth_setup_channel(&card->data);
 	card->qeth_service_level.seq_print = qeth_core_sl_print;
 	register_service_level(&card->qeth_service_level);
 	return card;
@@ -1467,11 +1433,37 @@ int qeth_stop_channel(struct qeth_channel *channel)
 			channel->active_cmd);
 		channel->active_cmd = NULL;
 	}
+	cdev->handler = NULL;
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 
 	return rc;
 }
 EXPORT_SYMBOL_GPL(qeth_stop_channel);
+
+static int qeth_start_channel(struct qeth_channel *channel)
+{
+	struct ccw_device *cdev = channel->ccwdev;
+	int rc;
+
+	channel->state = CH_STATE_DOWN;
+	atomic_set(&channel->irq_pending, 0);
+
+	spin_lock_irq(get_ccwdev_lock(cdev));
+	cdev->handler = qeth_irq;
+	spin_unlock_irq(get_ccwdev_lock(cdev));
+
+	rc = ccw_device_set_online(cdev);
+	if (rc)
+		goto err;
+
+	return 0;
+
+err:
+	spin_lock_irq(get_ccwdev_lock(cdev));
+	cdev->handler = NULL;
+	spin_unlock_irq(get_ccwdev_lock(cdev));
+	return rc;
+}
 
 static int qeth_halt_channels(struct qeth_card *card)
 {
@@ -1784,8 +1776,7 @@ static int qeth_send_control_data(struct qeth_card *card,
 		QETH_CARD_TEXT_(card, 2, " err%d", rc);
 		qeth_dequeue_cmd(card, iob);
 		qeth_put_cmd(iob);
-		atomic_set(&channel->irq_pending, 0);
-		wake_up(&card->wait_q);
+		qeth_unlock_channel(card, channel);
 		goto out;
 	}
 
@@ -2871,7 +2862,7 @@ static int qeth_query_setadapterparms_cb(struct qeth_card *card,
 		      cmd->data.setadapterparms.data.query_cmds_supp.lan_type;
 		QETH_CARD_TEXT_(card, 2, "lnk %d", card->info.link_type);
 	}
-	card->options.adp.supported_funcs =
+	card->options.adp.supported =
 		cmd->data.setadapterparms.data.query_cmds_supp.supported_cmds;
 	return 0;
 }
@@ -2927,8 +2918,8 @@ static int qeth_query_ipassists_cb(struct qeth_card *card,
 	case IPA_RC_NOTSUPP:
 	case IPA_RC_L2_UNSUPPORTED_CMD:
 		QETH_CARD_TEXT(card, 2, "ipaunsup");
-		card->options.ipa4.supported_funcs |= IPA_SETADAPTERPARMS;
-		card->options.ipa6.supported_funcs |= IPA_SETADAPTERPARMS;
+		card->options.ipa4.supported |= IPA_SETADAPTERPARMS;
+		card->options.ipa6.supported |= IPA_SETADAPTERPARMS;
 		return -EOPNOTSUPP;
 	default:
 		QETH_DBF_MESSAGE(1, "IPA_CMD_QIPASSIST on device %x: Unhandled rc=%#x\n",
@@ -2936,13 +2927,11 @@ static int qeth_query_ipassists_cb(struct qeth_card *card,
 		return -EIO;
 	}
 
-	if (cmd->hdr.prot_version == QETH_PROT_IPV4) {
-		card->options.ipa4.supported_funcs = cmd->hdr.ipa_supported;
-		card->options.ipa4.enabled_funcs = cmd->hdr.ipa_enabled;
-	} else if (cmd->hdr.prot_version == QETH_PROT_IPV6) {
-		card->options.ipa6.supported_funcs = cmd->hdr.ipa_supported;
-		card->options.ipa6.enabled_funcs = cmd->hdr.ipa_enabled;
-	} else
+	if (cmd->hdr.prot_version == QETH_PROT_IPV4)
+		card->options.ipa4 = cmd->hdr.assists;
+	else if (cmd->hdr.prot_version == QETH_PROT_IPV6)
+		card->options.ipa6 = cmd->hdr.assists;
+	else
 		QETH_DBF_MESSAGE(1, "IPA_CMD_QIPASSIST on device %x: Flawed LIC detected\n",
 				 CARD_DEVID(card));
 	return 0;
@@ -3413,7 +3402,7 @@ static void qeth_qdio_start_poll(struct ccw_device *ccwdev, int queue,
 	struct qeth_card *card = (struct qeth_card *)card_ptr;
 
 	if (card->dev->flags & IFF_UP)
-		napi_schedule(&card->napi);
+		napi_schedule_irqoff(&card->napi);
 }
 
 int qeth_configure_cq(struct qeth_card *card, enum qeth_cq cq)
@@ -4706,7 +4695,7 @@ static void qeth_determine_capabilities(struct qeth_card *card)
 	QETH_CARD_TEXT(card, 2, "detcapab");
 	if (!ddev->online) {
 		ddev_offline = 1;
-		rc = ccw_device_set_online(ddev);
+		rc = qeth_start_channel(channel);
 		if (rc) {
 			QETH_CARD_TEXT_(card, 2, "3err%d", rc);
 			goto out;
@@ -4881,9 +4870,6 @@ out_free_nothing:
 static void qeth_core_free_card(struct qeth_card *card)
 {
 	QETH_CARD_TEXT(card, 2, "freecrd");
-	qeth_clean_channel(&card->read);
-	qeth_clean_channel(&card->write);
-	qeth_clean_channel(&card->data);
 	qeth_put_cmd(card->read_cmd);
 	destroy_workqueue(card->event_wq);
 	unregister_service_level(&card->qeth_service_level);
@@ -4946,13 +4932,14 @@ retry:
 	qeth_stop_channel(&card->write);
 	qeth_stop_channel(&card->read);
 	qdio_free(CARD_DDEV(card));
-	rc = ccw_device_set_online(CARD_RDEV(card));
+
+	rc = qeth_start_channel(&card->read);
 	if (rc)
 		goto retriable;
-	rc = ccw_device_set_online(CARD_WDEV(card));
+	rc = qeth_start_channel(&card->write);
 	if (rc)
 		goto retriable;
-	rc = ccw_device_set_online(CARD_DDEV(card));
+	rc = qeth_start_channel(&card->data);
 	if (rc)
 		goto retriable;
 retriable:
@@ -5013,9 +5000,9 @@ retriable:
 		*carrier_ok = true;
 	}
 
-	card->options.ipa4.supported_funcs = 0;
-	card->options.ipa6.supported_funcs = 0;
-	card->options.adp.supported_funcs = 0;
+	card->options.ipa4.supported = 0;
+	card->options.ipa6.supported = 0;
+	card->options.adp.supported = 0;
 	card->options.sbp.supported_funcs = 0;
 	card->info.diagass_support = 0;
 	rc = qeth_query_ipassists(card, QETH_PROT_IPV4);
@@ -5432,9 +5419,9 @@ int qeth_setassparms_cb(struct qeth_card *card,
 
 	cmd->hdr.return_code = cmd->data.setassparms.hdr.return_code;
 	if (cmd->hdr.prot_version == QETH_PROT_IPV4)
-		card->options.ipa4.enabled_funcs = cmd->hdr.ipa_enabled;
+		card->options.ipa4.enabled = cmd->hdr.assists.enabled;
 	if (cmd->hdr.prot_version == QETH_PROT_IPV6)
-		card->options.ipa6.enabled_funcs = cmd->hdr.ipa_enabled;
+		card->options.ipa6.enabled = cmd->hdr.assists.enabled;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qeth_setassparms_cb);
