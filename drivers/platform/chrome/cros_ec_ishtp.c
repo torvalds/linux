@@ -76,7 +76,7 @@ struct cros_ish_in_msg {
  *
  * The writers are .reset() and .probe() function.
  */
-DECLARE_RWSEM(init_lock);
+static DECLARE_RWSEM(init_lock);
 
 /**
  * struct response_info - Encapsulate firmware response related
