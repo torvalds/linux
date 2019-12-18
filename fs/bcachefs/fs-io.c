@@ -2258,6 +2258,15 @@ int bch2_truncate(struct bch_inode_info *inode, struct iattr *iattr)
 	if (ret)
 		goto err;
 
+	/*
+	 * check this before next assertion; on filesystem error our normal
+	 * invariants are a bit broken (truncate has to truncate the page cache
+	 * before the inode).
+	 */
+	ret = bch2_journal_error(&c->journal);
+	if (ret)
+		goto err;
+
 	BUG_ON(inode->v.i_size < inode_u.bi_size);
 
 	if (iattr->ia_size > inode->v.i_size) {
