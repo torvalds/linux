@@ -466,8 +466,6 @@ static int psp_xgmi_load(struct psp_context *psp)
 	/*
 	 * TODO: bypass the loading in sriov for now
 	 */
-	if (amdgpu_sriov_vf(psp->adev))
-		return 0;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!cmd)
@@ -508,8 +506,6 @@ static int psp_xgmi_unload(struct psp_context *psp)
 	/*
 	 * TODO: bypass the unloading in sriov for now
 	 */
-	if (amdgpu_sriov_vf(psp->adev))
-		return 0;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!cmd)
@@ -540,11 +536,6 @@ int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
 
-	/*
-	 * TODO: bypass the loading in sriov for now
-	*/
-	if (amdgpu_sriov_vf(psp->adev))
-		return 0;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!cmd)
@@ -1506,16 +1497,13 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	if (!psp->cmd)
 		return -ENOMEM;
 
-	/* this fw pri bo is not used under SRIOV */
-	if (!amdgpu_sriov_vf(psp->adev)) {
-		ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
-					      AMDGPU_GEM_DOMAIN_GTT,
-					      &psp->fw_pri_bo,
-					      &psp->fw_pri_mc_addr,
-					      &psp->fw_pri_buf);
-		if (ret)
-			goto failed;
-	}
+	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
+					AMDGPU_GEM_DOMAIN_GTT,
+					&psp->fw_pri_bo,
+					&psp->fw_pri_mc_addr,
+					&psp->fw_pri_buf);
+	if (ret)
+		goto failed;
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_FENCE_BUFFER_SIZE, PAGE_SIZE,
 					AMDGPU_GEM_DOMAIN_VRAM,
