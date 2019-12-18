@@ -985,6 +985,7 @@ const struct stmmac_ops dwmac410_ops = {
 	.config_l3_filter = dwmac4_config_l3_filter,
 	.config_l4_filter = dwmac4_config_l4_filter,
 	.est_configure = dwmac5_est_configure,
+	.fpe_configure = dwmac5_fpe_configure,
 };
 
 const struct stmmac_ops dwmac510_ops = {
@@ -1029,6 +1030,7 @@ const struct stmmac_ops dwmac510_ops = {
 	.config_l3_filter = dwmac4_config_l3_filter,
 	.config_l4_filter = dwmac4_config_l4_filter,
 	.est_configure = dwmac5_est_configure,
+	.fpe_configure = dwmac5_fpe_configure,
 };
 
 int dwmac4_setup(struct stmmac_priv *priv)

@@ -11,6 +11,9 @@
 #define PRTYEN				BIT(1)
 #define TMOUTEN				BIT(0)
 
+#define MAC_FPE_CTRL_STS		0x00000234
+#define EFPE				BIT(0)
+
 #define MAC_PPS_CONTROL			0x00000b70
 #define PPS_MAXIDX(x)			((((x) + 1) * 8) - 1)
 #define PPS_MINIDX(x)			((x) * 8)
@@ -102,5 +105,7 @@ int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
 			   u32 sub_second_inc, u32 systime_flags);
 int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
 			 unsigned int ptp_rate);
+void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
+			  bool enable);
 
 #endif /* __DWMAC5_H__ */
