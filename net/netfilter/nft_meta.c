@@ -126,6 +126,41 @@ nft_meta_get_eval_pkttype_lo(const struct nft_pktinfo *pkt,
 	return true;
 }
 
+static noinline bool
+nft_meta_get_eval_skugid(enum nft_meta_keys key,
+			 u32 *dest,
+			 const struct nft_pktinfo *pkt)
+{
+	struct sock *sk = skb_to_full_sk(pkt->skb);
+	struct socket *sock;
+
+	if (!sk || !sk_fullsock(sk) || !net_eq(nft_net(pkt), sock_net(sk)))
+		return false;
+
+	read_lock_bh(&sk->sk_callback_lock);
+	sock = sk->sk_socket;
+	if (!sock || !sock->file) {
+		read_unlock_bh(&sk->sk_callback_lock);
+		return false;
+	}
+
+	switch (key) {
+	case NFT_META_SKUID:
+		*dest = from_kuid_munged(&init_user_ns,
+					 sock->file->f_cred->fsuid);
+		break;
+	case NFT_META_SKGID:
+		*dest =	from_kgid_munged(&init_user_ns,
+					 sock->file->f_cred->fsgid);
+		break;
+	default:
+		break;
+	}
+
+	read_unlock_bh(&sk->sk_callback_lock);
+	return true;
+}
+
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -180,37 +215,9 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		nft_reg_store16(dest, out->type);
 		break;
 	case NFT_META_SKUID:
-		sk = skb_to_full_sk(skb);
-		if (!sk || !sk_fullsock(sk) ||
-		    !net_eq(nft_net(pkt), sock_net(sk)))
-			goto err;
-
-		read_lock_bh(&sk->sk_callback_lock);
-		if (sk->sk_socket == NULL ||
-		    sk->sk_socket->file == NULL) {
-			read_unlock_bh(&sk->sk_callback_lock);
-			goto err;
-		}
-
-		*dest =	from_kuid_munged(&init_user_ns,
-				sk->sk_socket->file->f_cred->fsuid);
-		read_unlock_bh(&sk->sk_callback_lock);
-		break;
 	case NFT_META_SKGID:
-		sk = skb_to_full_sk(skb);
-		if (!sk || !sk_fullsock(sk) ||
-		    !net_eq(nft_net(pkt), sock_net(sk)))
+		if (!nft_meta_get_eval_skugid(priv->key, dest, pkt))
 			goto err;
-
-		read_lock_bh(&sk->sk_callback_lock);
-		if (sk->sk_socket == NULL ||
-		    sk->sk_socket->file == NULL) {
-			read_unlock_bh(&sk->sk_callback_lock);
-			goto err;
-		}
-		*dest =	from_kgid_munged(&init_user_ns,
-				 sk->sk_socket->file->f_cred->fsgid);
-		read_unlock_bh(&sk->sk_callback_lock);
 		break;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	case NFT_META_RTCLASSID: {
