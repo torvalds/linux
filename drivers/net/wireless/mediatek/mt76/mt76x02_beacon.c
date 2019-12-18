@@ -40,62 +40,21 @@ mt76x02_write_beacon(struct mt76x02_dev *dev, int offset, struct sk_buff *skb)
 	return 0;
 }
 
-static int
-__mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 bcn_idx,
-			 struct sk_buff *skb)
-{
-	int beacon_len = dev->beacon_ops->slot_size;
-	int beacon_addr = MT_BEACON_BASE + (beacon_len * bcn_idx);
-	int ret = 0;
-	int i;
-
-	/* Prevent corrupt transmissions during update */
-	mt76_set(dev, MT_BCN_BYPASS_MASK, BIT(bcn_idx));
-
-	if (skb) {
-		ret = mt76x02_write_beacon(dev, beacon_addr, skb);
-		if (!ret)
-			dev->beacon_data_mask |= BIT(bcn_idx);
-	} else {
-		dev->beacon_data_mask &= ~BIT(bcn_idx);
-	}
-
-	mt76_wr(dev, MT_BCN_BYPASS_MASK, 0xff00 | ~dev->beacon_data_mask);
-
-	return ret;
-}
-
-int mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 vif_idx,
+int mt76x02_mac_set_beacon(struct mt76x02_dev *dev,
 			   struct sk_buff *skb)
 {
-	bool force_update = false;
-	int bcn_idx = 0;
-	int i;
+	int bcn_len = dev->beacon_ops->slot_size;
+	int bcn_addr = MT_BEACON_BASE + (bcn_len * dev->beacon_data_count);
+	int ret = 0;
 
-	for (i = 0; i < ARRAY_SIZE(dev->beacons); i++) {
-		if (vif_idx == i) {
-			force_update = !!dev->beacons[i] ^ !!skb;
-			dev_kfree_skb(dev->beacons[i]);
-			dev->beacons[i] = skb;
-			__mt76x02_mac_set_beacon(dev, bcn_idx, skb);
-		} else if (force_update && dev->beacons[i]) {
-			__mt76x02_mac_set_beacon(dev, bcn_idx,
-						 dev->beacons[i]);
-		}
-
-		bcn_idx += !!dev->beacons[i];
+	if (skb) {
+		ret = mt76x02_write_beacon(dev, bcn_addr, skb);
+		if (!ret)
+			dev->beacon_data_count++;
 	}
 
-	for (i = bcn_idx; i < ARRAY_SIZE(dev->beacons); i++) {
-		if (!(dev->beacon_data_mask & BIT(i)))
-			break;
-
-		__mt76x02_mac_set_beacon(dev, i, NULL);
-	}
-
-	mt76_rmw_field(dev, MT_MAC_BSSID_DW1, MT_MAC_BSSID_DW1_MBEACON_N,
-		       bcn_idx - 1);
-	return 0;
+	dev_kfree_skb(skb);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_set_beacon);
 
@@ -114,7 +73,6 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 		dev->mt76.beacon_mask |= BIT(mvif->idx);
 	} else {
 		dev->mt76.beacon_mask &= ~BIT(mvif->idx);
-		mt76x02_mac_set_beacon(dev, mvif->idx, NULL);
 	}
 
 	if (!!old_mask == !!dev->mt76.beacon_mask)
@@ -180,7 +138,7 @@ mt76x02_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	if (!skb)
 		return;
 
-	mt76x02_mac_set_beacon(dev, mvif->idx, skb);
+	mt76x02_mac_set_beacon(dev, skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02_update_beacon_iter);
 
