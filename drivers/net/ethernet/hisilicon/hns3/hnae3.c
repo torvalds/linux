@@ -173,8 +173,12 @@ void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
 		if (!id)
 			continue;
 
-		/* ae_dev init should set flag */
+		if (!ae_algo->ops) {
+			dev_err(&ae_dev->pdev->dev, "ae_algo ops are null\n");
+			continue;
+		}
 		ae_dev->ops = ae_algo->ops;
+
 		ret = ae_algo->ops->init_ae_dev(ae_dev);
 		if (ret) {
 			dev_err(&ae_dev->pdev->dev,
@@ -182,6 +186,7 @@ void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
 			continue;
 		}
 
+		/* ae_dev init should set flag */
 		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 1);
 
 		/* check the client list for the match with this ae_dev type and
@@ -239,7 +244,7 @@ EXPORT_SYMBOL(hnae3_unregister_ae_algo);
  * @ae_dev: the AE device
  * NOTE: the duplicated name will not be checked
  */
-void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
+int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	const struct pci_device_id *id;
 	struct hnae3_ae_algo *ae_algo;
@@ -256,14 +261,13 @@ void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 		if (!id)
 			continue;
 
-		ae_dev->ops = ae_algo->ops;
-
-		if (!ae_dev->ops) {
-			dev_err(&ae_dev->pdev->dev, "ae_dev ops are null\n");
+		if (!ae_algo->ops) {
+			dev_err(&ae_dev->pdev->dev, "ae_algo ops are null\n");
+			ret = -EOPNOTSUPP;
 			goto out_err;
 		}
+		ae_dev->ops = ae_algo->ops;
 
-		/* ae_dev init should set flag */
 		ret = ae_dev->ops->init_ae_dev(ae_dev);
 		if (ret) {
 			dev_err(&ae_dev->pdev->dev,
@@ -271,6 +275,7 @@ void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 			goto out_err;
 		}
 
+		/* ae_dev init should set flag */
 		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 1);
 		break;
 	}
@@ -286,8 +291,15 @@ void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 				ret);
 	}
 
-out_err:
 	mutex_unlock(&hnae3_common_lock);
+
+	return 0;
+
+out_err:
+	list_del(&ae_dev->node);
+	mutex_unlock(&hnae3_common_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(hnae3_register_ae_dev);
 

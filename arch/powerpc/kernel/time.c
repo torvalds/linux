@@ -929,6 +929,7 @@ void update_vsyscall(struct timekeeper *tk)
 	vdso_data->wtom_clock_nsec = tk->wall_to_monotonic.tv_nsec;
 	vdso_data->stamp_xtime = xt;
 	vdso_data->stamp_sec_fraction = frac_sec;
+	vdso_data->hrtimer_res = hrtimer_resolution;
 	smp_wmb();
 	++(vdso_data->tb_update_count);
 }

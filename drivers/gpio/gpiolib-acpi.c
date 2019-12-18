@@ -1265,9 +1265,26 @@ late_initcall_sync(acpi_gpio_handle_deferred_request_irqs);
 
 static const struct dmi_system_id run_edge_events_on_boot_blacklist[] = {
 	{
+		/*
+		 * The Minix Neo Z83-4 has a micro-USB-B id-pin handler for
+		 * a non existing micro-USB-B connector which puts the HDMI
+		 * DDC pins in GPIO mode, breaking HDMI support.
+		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MINIX"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
+		}
+	},
+	{
+		/*
+		 * The Terra Pad 1061 has a micro-USB-B id-pin handler, which
+		 * instead of controlling the actual micro-USB-B turns the 5V
+		 * boost for its USB-A connector off. The actual micro-USB-B
+		 * connector is wired for charging only.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Wortmann_AG"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TERRA_PAD_1061"),
 		}
 	},
 	{} /* Terminating entry */

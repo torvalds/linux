@@ -552,6 +552,7 @@ static struct dmz_mblock *dmz_get_mblock(struct dmz_metadata *zmd,
 		       TASK_UNINTERRUPTIBLE);
 	if (test_bit(DMZ_META_ERROR, &mblk->state)) {
 		dmz_release_mblock(zmd, mblk);
+		dmz_check_bdev(zmd->dev);
 		return ERR_PTR(-EIO);
 	}
 
@@ -623,6 +624,8 @@ static int dmz_rdwr_block(struct dmz_metadata *zmd, int op, sector_t block,
 	ret = submit_bio_wait(bio);
 	bio_put(bio);
 
+	if (ret)
+		dmz_check_bdev(zmd->dev);
 	return ret;
 }
 
@@ -689,6 +692,7 @@ static int dmz_write_dirty_mblocks(struct dmz_metadata *zmd,
 			       TASK_UNINTERRUPTIBLE);
 		if (test_bit(DMZ_META_ERROR, &mblk->state)) {
 			clear_bit(DMZ_META_ERROR, &mblk->state);
+			dmz_check_bdev(zmd->dev);
 			ret = -EIO;
 		}
 		nr_mblks_submitted--;
@@ -766,7 +770,7 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 	/* If there are no dirty metadata blocks, just flush the device cache */
 	if (list_empty(&write_list)) {
 		ret = blkdev_issue_flush(zmd->dev->bdev, GFP_NOIO, NULL);
-		goto out;
+		goto err;
 	}
 
 	/*
@@ -776,7 +780,7 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 	 */
 	ret = dmz_log_dirty_mblocks(zmd, &write_list);
 	if (ret)
-		goto out;
+		goto err;
 
 	/*
 	 * The log is on disk. It is now safe to update in place
@@ -784,11 +788,11 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 	 */
 	ret = dmz_write_dirty_mblocks(zmd, &write_list, zmd->mblk_primary);
 	if (ret)
-		goto out;
+		goto err;
 
 	ret = dmz_write_sb(zmd, zmd->mblk_primary);
 	if (ret)
-		goto out;
+		goto err;
 
 	while (!list_empty(&write_list)) {
 		mblk = list_first_entry(&write_list, struct dmz_mblock, link);
@@ -803,16 +807,20 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 
 	zmd->sb_gen++;
 out:
-	if (ret && !list_empty(&write_list)) {
-		spin_lock(&zmd->mblk_lock);
-		list_splice(&write_list, &zmd->mblk_dirty_list);
-		spin_unlock(&zmd->mblk_lock);
-	}
-
 	dmz_unlock_flush(zmd);
 	up_write(&zmd->mblk_sem);
 
 	return ret;
+
+err:
+	if (!list_empty(&write_list)) {
+		spin_lock(&zmd->mblk_lock);
+		list_splice(&write_list, &zmd->mblk_dirty_list);
+		spin_unlock(&zmd->mblk_lock);
+	}
+	if (!dmz_check_bdev(zmd->dev))
+		ret = -EIO;
+	goto out;
 }
 
 /*
@@ -1235,6 +1243,7 @@ static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 	if (ret) {
 		dmz_dev_err(zmd->dev, "Get zone %u report failed",
 			    dmz_id(zmd, zone));
+		dmz_check_bdev(zmd->dev);
 		return ret;
 	}
 
