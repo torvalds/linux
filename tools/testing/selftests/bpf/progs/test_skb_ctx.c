@@ -17,6 +17,7 @@ int process(struct __sk_buff *skb)
 	}
 	skb->priority++;
 	skb->tstamp++;
+	skb->mark++;
 
 	if (skb->wire_len != 100)
 		return 1;
