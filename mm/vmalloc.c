@@ -3288,7 +3288,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
 	struct vmap_area **vas, *va;
 	struct vm_struct **vms;
 	int area, area2, last_area, term_area;
-	unsigned long base, start, size, end, last_end;
+	unsigned long base, start, size, end, last_end, orig_start, orig_end;
 	bool purged = false;
 	enum fit_type type;
 
@@ -3418,6 +3418,15 @@ retry:
 
 	spin_unlock(&free_vmap_area_lock);
 
+	/* populate the kasan shadow space */
+	for (area = 0; area < nr_vms; area++) {
+		if (kasan_populate_vmalloc(vas[area]->va_start, sizes[area]))
+			goto err_free_shadow;
+
+		kasan_unpoison_vmalloc((void *)vas[area]->va_start,
+				       sizes[area]);
+	}
+
 	/* insert all vm's */
 	spin_lock(&vmap_area_lock);
 	for (area = 0; area < nr_vms; area++) {
@@ -3427,13 +3436,6 @@ retry:
 				 pcpu_get_vm_areas);
 	}
 	spin_unlock(&vmap_area_lock);
-
-	/* populate the shadow space outside of the lock */
-	for (area = 0; area < nr_vms; area++) {
-		/* assume success here */
-		kasan_populate_vmalloc(vas[area]->va_start, sizes[area]);
-		kasan_unpoison_vmalloc((void *)vms[area]->addr, sizes[area]);
-	}
 
 	kfree(vas);
 	return vms;
@@ -3446,8 +3448,12 @@ recovery:
 	 * and when pcpu_get_vm_areas() is success.
 	 */
 	while (area--) {
-		merge_or_add_vmap_area(vas[area], &free_vmap_area_root,
-				       &free_vmap_area_list);
+		orig_start = vas[area]->va_start;
+		orig_end = vas[area]->va_end;
+		va = merge_or_add_vmap_area(vas[area], &free_vmap_area_root,
+					    &free_vmap_area_list);
+		kasan_release_vmalloc(orig_start, orig_end,
+				      va->va_start, va->va_end);
 		vas[area] = NULL;
 	}
 
@@ -3479,6 +3485,28 @@ err_free:
 		kfree(vms[area]);
 	}
 err_free2:
+	kfree(vas);
+	kfree(vms);
+	return NULL;
+
+err_free_shadow:
+	spin_lock(&free_vmap_area_lock);
+	/*
+	 * We release all the vmalloc shadows, even the ones for regions that
+	 * hadn't been successfully added. This relies on kasan_release_vmalloc
+	 * being able to tolerate this case.
+	 */
+	for (area = 0; area < nr_vms; area++) {
+		orig_start = vas[area]->va_start;
+		orig_end = vas[area]->va_end;
+		va = merge_or_add_vmap_area(vas[area], &free_vmap_area_root,
+					    &free_vmap_area_list);
+		kasan_release_vmalloc(orig_start, orig_end,
+				      va->va_start, va->va_end);
+		vas[area] = NULL;
+		kfree(vms[area]);
+	}
+	spin_unlock(&free_vmap_area_lock);
 	kfree(vas);
 	kfree(vms);
 	return NULL;
