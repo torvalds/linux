@@ -124,8 +124,6 @@ static void crypto_remove_instance(struct crypto_instance *inst,
 		return;
 
 	inst->alg.cra_flags |= CRYPTO_ALG_DEAD;
-	if (hlist_unhashed(&inst->list))
-		return;
 
 	if (!tmpl || !crypto_tmpl_get(tmpl))
 		return;
@@ -175,17 +173,26 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 						 list);
 			inst = spawn->inst;
 
-			BUG_ON(&inst->alg == alg);
-
 			list_move(&spawn->list, &stack);
+			spawn->dead = !spawn->registered || &inst->alg != nalg;
+
+			if (!spawn->registered)
+				break;
+
+			BUG_ON(&inst->alg == alg);
 
 			if (&inst->alg == nalg)
 				break;
 
-			spawn->dead = true;
 			spawns = &inst->alg.cra_users;
 
 			/*
+			 * Even if spawn->registered is true, the
+			 * instance itself may still be unregistered.
+			 * This is because it may have failed during
+			 * registration.  Therefore we still need to
+			 * make the following test.
+			 *
 			 * We may encounter an unregistered instance here, since
 			 * an instance's spawns are set up prior to the instance
 			 * being registered.  An unregistered instance will have
@@ -208,7 +215,7 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 	list_for_each_entry_safe(spawn, n, &secondary_spawns, list) {
 		if (!spawn->dead)
 			list_move(&spawn->list, &spawn->alg->cra_users);
-		else
+		else if (spawn->registered)
 			crypto_remove_instance(spawn->inst, list);
 	}
 }
@@ -599,6 +606,7 @@ int crypto_register_instance(struct crypto_template *tmpl,
 			     struct crypto_instance *inst)
 {
 	struct crypto_larval *larval;
+	struct crypto_spawn *spawn;
 	int err;
 
 	err = crypto_check_alg(&inst->alg);
@@ -609,6 +617,23 @@ int crypto_register_instance(struct crypto_template *tmpl,
 	inst->alg.cra_flags |= CRYPTO_ALG_INSTANCE;
 
 	down_write(&crypto_alg_sem);
+
+	larval = ERR_PTR(-EAGAIN);
+	for (spawn = inst->spawns; spawn;) {
+		struct crypto_spawn *next;
+
+		if (spawn->dead)
+			goto unlock;
+
+		next = spawn->next;
+		spawn->inst = inst;
+		spawn->registered = true;
+
+		if (spawn->dropref)
+			crypto_mod_put(spawn->alg);
+
+		spawn = next;
+	}
 
 	larval = __crypto_register_alg(&inst->alg);
 	if (IS_ERR(larval))
@@ -655,7 +680,9 @@ int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
 	if (WARN_ON_ONCE(inst == NULL))
 		return -EINVAL;
 
-	spawn->inst = inst;
+	spawn->next = inst->spawns;
+	inst->spawns = spawn;
+
 	spawn->mask = mask;
 
 	down_write(&crypto_alg_sem);
@@ -697,8 +724,10 @@ int crypto_grab_spawn(struct crypto_spawn *spawn, const char *name,
 	if (IS_ERR(alg))
 		return PTR_ERR(alg);
 
+	spawn->dropref = true;
 	err = crypto_init_spawn(spawn, alg, spawn->inst, mask);
-	crypto_mod_put(alg);
+	if (err)
+		crypto_mod_put(alg);
 	return err;
 }
 EXPORT_SYMBOL_GPL(crypto_grab_spawn);
@@ -709,6 +738,9 @@ void crypto_drop_spawn(struct crypto_spawn *spawn)
 	if (!spawn->dead)
 		list_del(&spawn->list);
 	up_write(&crypto_alg_sem);
+
+	if (spawn->dropref && !spawn->registered)
+		crypto_mod_put(spawn->alg);
 }
 EXPORT_SYMBOL_GPL(crypto_drop_spawn);
 
