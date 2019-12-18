@@ -512,7 +512,6 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	int init_core_mask;
 
 	init_waitqueue_head(&sdev->boot_wait);
-	sdev->boot_complete = false;
 
 	/* create read-only fw_version debugfs to store boot version info */
 	if (sdev->first_boot) {
@@ -544,19 +543,27 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 
 	init_core_mask = ret;
 
-	/* now wait for the DSP to boot */
-	ret = wait_event_timeout(sdev->boot_wait, sdev->boot_complete,
+	/*
+	 * now wait for the DSP to boot. There are 3 possible outcomes:
+	 * 1. Boot wait times out indicating FW boot failure.
+	 * 2. FW boots successfully and fw_ready op succeeds.
+	 * 3. FW boots but fw_ready op fails.
+	 */
+	ret = wait_event_timeout(sdev->boot_wait,
+				 sdev->fw_state > SOF_FW_BOOT_IN_PROGRESS,
 				 msecs_to_jiffies(sdev->boot_timeout));
 	if (ret == 0) {
 		dev_err(sdev->dev, "error: firmware boot failure\n");
 		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX |
 			SOF_DBG_TEXT | SOF_DBG_PCI);
-		/* after this point FW_READY msg should be ignored */
-		sdev->boot_complete = true;
+		sdev->fw_state = SOF_FW_BOOT_FAILED;
 		return -EIO;
 	}
 
-	dev_info(sdev->dev, "firmware boot complete\n");
+	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE)
+		dev_info(sdev->dev, "firmware boot complete\n");
+	else
+		return -EIO; /* FW boots but fw_ready op failed */
 
 	/* perform post fw run operations */
 	ret = snd_sof_dsp_post_fw_run(sdev);
