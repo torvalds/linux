@@ -257,7 +257,18 @@ static void usage(void)
 		"listen address and the client requires an address to\n"
 		"connect to.\n"
 		"\n"
-		"The CID of the other side must be given with --peer-cid=<cid>.\n");
+		"The CID of the other side must be given with --peer-cid=<cid>.\n"
+		"\n"
+		"Options:\n"
+		"  --help                 This help message\n"
+		"  --control-host <host>  Server IP address to connect to\n"
+		"  --control-port <port>  Server port to listen on/connect to\n"
+		"  --mode client|server   Server or client mode\n"
+		"  --peer-cid <cid>       CID of the other side\n"
+		"  --list                 List of tests that will be executed\n"
+		"  --skip <test_id>       Test ID to skip;\n"
+		"                         use multiple --skip options to skip more tests\n"
+		);
 	exit(EXIT_FAILURE);
 }
 
