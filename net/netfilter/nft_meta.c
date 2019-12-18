@@ -266,6 +266,13 @@ static bool nft_meta_get_eval_ifname(enum nft_meta_keys key, u32 *dest,
 	return true;
 }
 
+static noinline u32 nft_prandom_u32(void)
+{
+	struct rnd_state *state = this_cpu_ptr(&nft_prandom_state);
+
+	return prandom_u32_state(state);
+}
+
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -344,11 +351,9 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 			goto err;
 		break;
 #endif
-	case NFT_META_PRANDOM: {
-		struct rnd_state *state = this_cpu_ptr(&nft_prandom_state);
-		*dest = prandom_u32_state(state);
+	case NFT_META_PRANDOM:
+		*dest = nft_prandom_u32();
 		break;
-	}
 #ifdef CONFIG_XFRM
 	case NFT_META_SECPATH:
 		nft_reg_store8(dest, secpath_exists(skb));
