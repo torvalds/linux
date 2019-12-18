@@ -8320,14 +8320,6 @@ lpfc_map_topology(struct lpfc_hba *phba, struct lpfc_mbx_read_config *rd_config)
 	phba->hba_flag |= HBA_PERSISTENT_TOPO;
 	switch (phba->pcidev->device) {
 	case PCI_DEVICE_ID_LANCER_G7_FC:
-		if (tf || (pt == LINK_FLAGS_LOOP)) {
-			/* Invalid values from FW - use driver params */
-			phba->hba_flag &= ~HBA_PERSISTENT_TOPO;
-		} else {
-			/* Prism only supports PT2PT topology */
-			phba->cfg_topology = FLAGS_TOPOLOGY_MODE_PT_PT;
-		}
-		break;
 	case PCI_DEVICE_ID_LANCER_G6_FC:
 		if (!tf) {
 			phba->cfg_topology = ((pt == LINK_FLAGS_LOOP)
