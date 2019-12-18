@@ -265,6 +265,7 @@ config ROCKCHIP_THERMAL
 config RK_VIRTUAL_THERMAL
 	tristate "rk_virtual thermal driver"
 	depends on ROCKCHIP_THERMAL
+	select POWER_SUPPLY
 	help
 	  Rk virtual thermal driver provides virtual temperature support for
 	  SOCs without tsadc module. It supports one critical trip point.
