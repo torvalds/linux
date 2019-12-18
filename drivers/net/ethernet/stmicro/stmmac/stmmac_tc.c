@@ -599,6 +599,7 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 	struct timespec64 time;
 	bool fpe = false;
 	int i, ret = 0;
+	u64 ctr;
 
 	if (!priv->dma_cap.estsel)
 		return -EOPNOTSUPP;
@@ -694,8 +695,9 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 	priv->plat->est->btr[0] = (u32)time.tv_nsec;
 	priv->plat->est->btr[1] = (u32)time.tv_sec;
 
-	priv->plat->est->ctr[0] = (u32)(qopt->cycle_time % NSEC_PER_SEC);
-	priv->plat->est->ctr[1] = (u32)(qopt->cycle_time / NSEC_PER_SEC);
+	ctr = qopt->cycle_time;
+	priv->plat->est->ctr[0] = do_div(ctr, NSEC_PER_SEC);
+	priv->plat->est->ctr[1] = (u32)ctr;
 
 	if (fpe && !priv->dma_cap.fpesel)
 		return -EOPNOTSUPP;
