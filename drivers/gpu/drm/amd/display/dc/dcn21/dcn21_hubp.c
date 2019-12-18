@@ -690,86 +690,98 @@ void hubp21_validate_dml_output(struct hubp *hubp,
 				dml_dlg_attr->refcyc_per_meta_chunk_flip_l, dlg_attr.refcyc_per_meta_chunk_flip_l);
 }
 
-static void program_surface_flip_and_addr(struct hubp *hubp, struct dmub_rb_cmd_flip *surface_flip)
+static void program_surface_flip_and_addr(struct hubp *hubp, struct surface_flip_registers *flip_regs)
 {
 	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
 
 	REG_UPDATE_3(DCSURF_FLIP_CONTROL,
-					SURFACE_FLIP_TYPE, surface_flip->flip.flip_params.immediate,
-					SURFACE_FLIP_MODE_FOR_STEREOSYNC, surface_flip->flip.flip_params.grph_stereo,
-					SURFACE_FLIP_IN_STEREOSYNC, surface_flip->flip.flip_params.grph_stereo);
+					SURFACE_FLIP_TYPE, flip_regs->immediate,
+					SURFACE_FLIP_MODE_FOR_STEREOSYNC, flip_regs->grph_stereo,
+					SURFACE_FLIP_IN_STEREOSYNC, flip_regs->grph_stereo);
 
 	REG_UPDATE(VMID_SETTINGS_0,
-				VMID, surface_flip->flip.flip_params.vmid);
+				VMID, flip_regs->vmid);
 
 	REG_UPDATE_8(DCSURF_SURFACE_CONTROL,
-			PRIMARY_SURFACE_TMZ, surface_flip->flip.flip_params.tmz_surface,
-			PRIMARY_SURFACE_TMZ_C, surface_flip->flip.flip_params.tmz_surface,
-			PRIMARY_META_SURFACE_TMZ, surface_flip->flip.flip_params.tmz_surface,
-			PRIMARY_META_SURFACE_TMZ_C, surface_flip->flip.flip_params.tmz_surface,
-			SECONDARY_SURFACE_TMZ, surface_flip->flip.flip_params.tmz_surface,
-			SECONDARY_SURFACE_TMZ_C, surface_flip->flip.flip_params.tmz_surface,
-			SECONDARY_META_SURFACE_TMZ, surface_flip->flip.flip_params.tmz_surface,
-			SECONDARY_META_SURFACE_TMZ_C, surface_flip->flip.flip_params.tmz_surface);
+			PRIMARY_SURFACE_TMZ, flip_regs->tmz_surface,
+			PRIMARY_SURFACE_TMZ_C, flip_regs->tmz_surface,
+			PRIMARY_META_SURFACE_TMZ, flip_regs->tmz_surface,
+			PRIMARY_META_SURFACE_TMZ_C, flip_regs->tmz_surface,
+			SECONDARY_SURFACE_TMZ, flip_regs->tmz_surface,
+			SECONDARY_SURFACE_TMZ_C, flip_regs->tmz_surface,
+			SECONDARY_META_SURFACE_TMZ, flip_regs->tmz_surface,
+			SECONDARY_META_SURFACE_TMZ_C, flip_regs->tmz_surface);
 
 	REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C, 0,
 			PRIMARY_META_SURFACE_ADDRESS_HIGH_C,
-			 surface_flip->flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C);
+			flip_regs->DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C);
 
 	REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_C, 0,
 			PRIMARY_META_SURFACE_ADDRESS_C,
-			surface_flip->flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS_C);
+			flip_regs->DCSURF_PRIMARY_META_SURFACE_ADDRESS_C);
 
 	REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH, 0,
 			PRIMARY_META_SURFACE_ADDRESS_HIGH,
-			surface_flip->flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH);
+			flip_regs->DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH);
 
 	REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS, 0,
 			PRIMARY_META_SURFACE_ADDRESS,
-			surface_flip->flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS);
+			flip_regs->DCSURF_PRIMARY_META_SURFACE_ADDRESS);
 
 	REG_SET(DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH, 0,
 			SECONDARY_META_SURFACE_ADDRESS_HIGH,
-			surface_flip->flip.DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH);
+			flip_regs->DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH);
 
 	REG_SET(DCSURF_SECONDARY_META_SURFACE_ADDRESS, 0,
 			SECONDARY_META_SURFACE_ADDRESS,
-			surface_flip->flip.DCSURF_SECONDARY_META_SURFACE_ADDRESS);
+			flip_regs->DCSURF_SECONDARY_META_SURFACE_ADDRESS);
 
 
 	REG_SET(DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH, 0,
 			SECONDARY_SURFACE_ADDRESS_HIGH,
-			surface_flip->flip.DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH);
+			flip_regs->DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH);
 
 	REG_SET(DCSURF_SECONDARY_SURFACE_ADDRESS, 0,
 			SECONDARY_SURFACE_ADDRESS,
-			surface_flip->flip.DCSURF_SECONDARY_SURFACE_ADDRESS);
+			flip_regs->DCSURF_SECONDARY_SURFACE_ADDRESS);
 
 
 	REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C, 0,
 			PRIMARY_SURFACE_ADDRESS_HIGH_C,
-			surface_flip->flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C);
+			flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C);
 
 	REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_C, 0,
 			PRIMARY_SURFACE_ADDRESS_C,
-			surface_flip->flip.DCSURF_PRIMARY_SURFACE_ADDRESS_C);
+			flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_C);
 
 	REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH, 0,
 			PRIMARY_SURFACE_ADDRESS_HIGH,
-			surface_flip->flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH);
+			flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH);
 
 	REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS, 0,
 			PRIMARY_SURFACE_ADDRESS,
-			surface_flip->flip.DCSURF_PRIMARY_SURFACE_ADDRESS);
+			flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS);
 }
 
-void program_surface_flip_and_addr_dmcub(struct hubp *hubp, struct dmub_rb_cmd_flip *surface_flip)
+void dmcub_PLAT_54186_wa(struct hubp *hubp, struct surface_flip_registers *flip_regs)
 {
 	struct dc_dmub_srv *dmcub = hubp->ctx->dmub_srv;
 	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
+	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa = { 0 };
+
+	PLAT_54186_wa.header.type = DMUB_CMD__PLAT_54186_WA;
+	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS;
+	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_C = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_C;
+	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
+	PLAT_54186_wa.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C = flip_regs->DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
+	PLAT_54186_wa.flip.flip_params.grph_stereo = flip_regs->grph_stereo;
+	PLAT_54186_wa.flip.flip_params.hubp_inst = hubp->inst;
+	PLAT_54186_wa.flip.flip_params.immediate = flip_regs->immediate;
+	PLAT_54186_wa.flip.flip_params.tmz_surface = flip_regs->tmz_surface;
+	PLAT_54186_wa.flip.flip_params.vmid = flip_regs->vmid;
 
 	PERF_TRACE();  // TODO: remove after performance is stable.
-	dc_dmub_srv_cmd_queue(dmcub, &surface_flip->header);
+	dc_dmub_srv_cmd_queue(dmcub, &PLAT_54186_wa.header);
 	PERF_TRACE();  // TODO: remove after performance is stable.
 	dc_dmub_srv_cmd_execute(dmcub);
 	PERF_TRACE();  // TODO: remove after performance is stable.
@@ -782,15 +794,11 @@ bool hubp21_program_surface_flip_and_addr(
 		const struct dc_plane_address *address,
 		bool flip_immediate)
 {
-	struct dmub_rb_cmd_flip surface_flip = { 0 };
-	bool grph_stereo = false;
 	struct dc_debug_options *debug = &hubp->ctx->dc->debug;
 	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
+	struct surface_flip_registers flip_regs = { 0 };
 
-	surface_flip.header.type = DMUB_CMD__SURFACE_FLIP;
-
-	surface_flip.flip.flip_params.vmid = address->vmid;
-	surface_flip.flip.flip_params.hubp_inst = hubp->inst;
+	flip_regs.vmid = address->vmid;
 
 	switch (address->type) {
 	case PLN_ADDR_TYPE_GRAPHICS:
@@ -800,15 +808,15 @@ bool hubp21_program_surface_flip_and_addr(
 		}
 
 		if (address->grph.meta_addr.quad_part != 0) {
-			surface_flip.flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS =
+			flip_regs.DCSURF_PRIMARY_META_SURFACE_ADDRESS =
 					address->grph.meta_addr.low_part;
-			surface_flip.flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH =
+			flip_regs.DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH =
 					address->grph.meta_addr.high_part;
 		}
 
-		surface_flip.flip.DCSURF_PRIMARY_SURFACE_ADDRESS =
+		flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS =
 				address->grph.addr.low_part;
-		surface_flip.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH =
+		flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH =
 				address->grph.addr.high_part;
 		break;
 	case PLN_ADDR_TYPE_VIDEO_PROGRESSIVE:
@@ -817,30 +825,30 @@ bool hubp21_program_surface_flip_and_addr(
 			break;
 
 		if (address->video_progressive.luma_meta_addr.quad_part != 0) {
-			surface_flip.flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS =
+			flip_regs.DCSURF_PRIMARY_META_SURFACE_ADDRESS =
 					address->video_progressive.luma_meta_addr.low_part;
-			surface_flip.flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH =
+			flip_regs.DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH =
 					address->video_progressive.luma_meta_addr.high_part;
 
-			surface_flip.flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS_C =
+			flip_regs.DCSURF_PRIMARY_META_SURFACE_ADDRESS_C =
 					address->video_progressive.chroma_meta_addr.low_part;
-			surface_flip.flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C =
+			flip_regs.DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C =
 					address->video_progressive.chroma_meta_addr.high_part;
 		}
 
-		surface_flip.flip.DCSURF_PRIMARY_SURFACE_ADDRESS =
+		flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS =
 				address->video_progressive.luma_addr.low_part;
-		surface_flip.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH =
+		flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH =
 				address->video_progressive.luma_addr.high_part;
 
 		if (debug->nv12_iflip_vm_wa) {
-			surface_flip.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_C =
+			flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_C =
 					address->video_progressive.chroma_addr.low_part + hubp21->PLAT_54186_wa_chroma_addr_offset;
 		} else
-			surface_flip.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_C =
+			flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_C =
 					address->video_progressive.chroma_addr.low_part;
 
-		surface_flip.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C =
+		flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C =
 				address->video_progressive.chroma_addr.high_part;
 
 		break;
@@ -850,30 +858,30 @@ bool hubp21_program_surface_flip_and_addr(
 		if (address->grph_stereo.right_addr.quad_part == 0)
 			break;
 
-		grph_stereo = true;
+		flip_regs.grph_stereo = true;
 
 		if (address->grph_stereo.right_meta_addr.quad_part != 0) {
-			surface_flip.flip.DCSURF_SECONDARY_META_SURFACE_ADDRESS =
+			flip_regs.DCSURF_SECONDARY_META_SURFACE_ADDRESS =
 					address->grph_stereo.right_meta_addr.low_part;
-			surface_flip.flip.DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH =
+			flip_regs.DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH =
 					address->grph_stereo.right_meta_addr.high_part;
 		}
 
 		if (address->grph_stereo.left_meta_addr.quad_part != 0) {
-			surface_flip.flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS =
+			flip_regs.DCSURF_PRIMARY_META_SURFACE_ADDRESS =
 					address->grph_stereo.left_meta_addr.low_part;
-			surface_flip.flip.DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH =
+			flip_regs.DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH =
 					address->grph_stereo.left_meta_addr.high_part;
 		}
 
-		surface_flip.flip.DCSURF_PRIMARY_SURFACE_ADDRESS =
+		flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS =
 				address->grph_stereo.left_addr.low_part;
-		surface_flip.flip.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH =
+		flip_regs.DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH =
 				address->grph_stereo.left_addr.high_part;
 
-		surface_flip.flip.DCSURF_SECONDARY_SURFACE_ADDRESS =
+		flip_regs.DCSURF_SECONDARY_SURFACE_ADDRESS =
 				address->grph_stereo.right_addr.low_part;
-		surface_flip.flip.DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH =
+		flip_regs.DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH =
 				address->grph_stereo.right_addr.high_part;
 
 		break;
@@ -882,15 +890,13 @@ bool hubp21_program_surface_flip_and_addr(
 		break;
 	}
 
-	surface_flip.flip.flip_params.vmid = address->vmid;
-	surface_flip.flip.flip_params.grph_stereo = grph_stereo;
-	surface_flip.flip.flip_params.tmz_surface = address->tmz_surface;
-	surface_flip.flip.flip_params.immediate = flip_immediate;
+	flip_regs.tmz_surface = address->tmz_surface;
+	flip_regs.immediate = flip_immediate;
 
-	if (hubp->ctx->dc->debug.enable_dmcub_surface_flip)
-		program_surface_flip_and_addr_dmcub(hubp, &surface_flip);
+	if (hubp->ctx->dc->debug.enable_dmcub_surface_flip && address->type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+		dmcub_PLAT_54186_wa(hubp, &flip_regs);
 	else
-		program_surface_flip_and_addr(hubp, &surface_flip);
+		program_surface_flip_and_addr(hubp, &flip_regs);
 
 	hubp->request_address = *address;
 

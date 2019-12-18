@@ -48,7 +48,7 @@ enum dmub_cmd_type {
 	DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ = 2,
 	DMUB_CMD__REG_SEQ_BURST_WRITE = 3,
 	DMUB_CMD__REG_REG_WAIT = 4,
-	DMUB_CMD__SURFACE_FLIP = 5,
+	DMUB_CMD__PLAT_54186_WA = 5,
 	DMUB_CMD__PSR = 64,
 	DMUB_CMD__VBIOS = 128,
 };
@@ -151,20 +151,12 @@ struct dmub_rb_cmd_reg_wait {
 #define PHYSICAL_ADDRESS_LOC union large_integer
 #endif
 
-struct dmub_cmd_surface_flip {
+struct dmub_cmd_PLAT_54186_wa {
 	uint32_t DCSURF_SURFACE_CONTROL;
-	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH;
-	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS;
 	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
 	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS;
-	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C;
-	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_C;
 	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
 	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_C;
-	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH;
-	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS;
-	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH;
-	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS;
 	struct {
 		uint8_t hubp_inst : 4;
 		uint8_t tmz_surface : 1;
@@ -173,11 +165,12 @@ struct dmub_cmd_surface_flip {
 		uint8_t grph_stereo : 1;
 		uint32_t reserved : 21;
 	} flip_params;
+	uint32_t reserved[9];
 };
 
-struct dmub_rb_cmd_flip {
+struct dmub_rb_cmd_PLAT_54186_wa {
 	struct dmub_cmd_header header;
-	struct dmub_cmd_surface_flip flip;
+	struct dmub_cmd_PLAT_54186_wa flip;
 };
 
 struct dmub_cmd_digx_encoder_control_data {
@@ -287,7 +280,7 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_psr_enable psr_enable;
 	struct dmub_rb_cmd_psr_copy_settings psr_copy_settings;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
-	struct dmub_rb_cmd_flip surface_flip;
+	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa;
 	struct dmub_rb_cmd_psr_setup psr_setup;
 };
 
