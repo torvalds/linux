@@ -76,6 +76,56 @@ nft_meta_get_eval_time(enum nft_meta_keys key,
 	}
 }
 
+static noinline bool
+nft_meta_get_eval_pkttype_lo(const struct nft_pktinfo *pkt,
+			     u32 *dest)
+{
+	const struct sk_buff *skb = pkt->skb;
+
+	switch (nft_pf(pkt)) {
+	case NFPROTO_IPV4:
+		if (ipv4_is_multicast(ip_hdr(skb)->daddr))
+			nft_reg_store8(dest, PACKET_MULTICAST);
+		else
+			nft_reg_store8(dest, PACKET_BROADCAST);
+		break;
+	case NFPROTO_IPV6:
+		nft_reg_store8(dest, PACKET_MULTICAST);
+		break;
+	case NFPROTO_NETDEV:
+		switch (skb->protocol) {
+		case htons(ETH_P_IP): {
+			int noff = skb_network_offset(skb);
+			struct iphdr *iph, _iph;
+
+			iph = skb_header_pointer(skb, noff,
+						 sizeof(_iph), &_iph);
+			if (!iph)
+				return false;
+
+			if (ipv4_is_multicast(iph->daddr))
+				nft_reg_store8(dest, PACKET_MULTICAST);
+			else
+				nft_reg_store8(dest, PACKET_BROADCAST);
+
+			break;
+		}
+		case htons(ETH_P_IPV6):
+			nft_reg_store8(dest, PACKET_MULTICAST);
+			break;
+		default:
+			WARN_ON_ONCE(1);
+			return false;
+		}
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return false;
+	}
+
+	return true;
+}
+
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -183,46 +233,8 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 			break;
 		}
 
-		switch (nft_pf(pkt)) {
-		case NFPROTO_IPV4:
-			if (ipv4_is_multicast(ip_hdr(skb)->daddr))
-				nft_reg_store8(dest, PACKET_MULTICAST);
-			else
-				nft_reg_store8(dest, PACKET_BROADCAST);
-			break;
-		case NFPROTO_IPV6:
-			nft_reg_store8(dest, PACKET_MULTICAST);
-			break;
-		case NFPROTO_NETDEV:
-			switch (skb->protocol) {
-			case htons(ETH_P_IP): {
-				int noff = skb_network_offset(skb);
-				struct iphdr *iph, _iph;
-
-				iph = skb_header_pointer(skb, noff,
-							 sizeof(_iph), &_iph);
-				if (!iph)
-					goto err;
-
-				if (ipv4_is_multicast(iph->daddr))
-					nft_reg_store8(dest, PACKET_MULTICAST);
-				else
-					nft_reg_store8(dest, PACKET_BROADCAST);
-
-				break;
-			}
-			case htons(ETH_P_IPV6):
-				nft_reg_store8(dest, PACKET_MULTICAST);
-				break;
-			default:
-				WARN_ON_ONCE(1);
-				goto err;
-			}
-			break;
-		default:
-			WARN_ON_ONCE(1);
+		if (!nft_meta_get_eval_pkttype_lo(pkt, dest))
 			goto err;
-		}
 		break;
 	case NFT_META_CPU:
 		*dest = raw_smp_processor_id();
