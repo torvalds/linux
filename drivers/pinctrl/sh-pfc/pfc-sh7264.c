@@ -2020,18 +2020,18 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 
 	{ PINMUX_CFG_REG("PKIOR0", 0xfffe3932, 16, 1, GROUP(
 		0, 0, 0, 0, 0, 0, 0, 0,
-		PJ11_IN, PJ11_OUT,
-		PJ10_IN, PJ10_OUT,
-		PJ9_IN, PJ9_OUT,
-		PJ8_IN, PJ8_OUT,
-		PJ7_IN, PJ7_OUT,
-		PJ6_IN, PJ6_OUT,
-		PJ5_IN, PJ5_OUT,
-		PJ4_IN, PJ4_OUT,
-		PJ3_IN, PJ3_OUT,
-		PJ2_IN, PJ2_OUT,
-		PJ1_IN, PJ1_OUT,
-		PJ0_IN, PJ0_OUT ))
+		PK11_IN, PK11_OUT,
+		PK10_IN, PK10_OUT,
+		PK9_IN, PK9_OUT,
+		PK8_IN, PK8_OUT,
+		PK7_IN, PK7_OUT,
+		PK6_IN, PK6_OUT,
+		PK5_IN, PK5_OUT,
+		PK4_IN, PK4_OUT,
+		PK3_IN, PK3_OUT,
+		PK2_IN, PK2_OUT,
+		PK1_IN, PK1_OUT,
+		PK0_IN, PK0_OUT ))
 	},
 	{}
 };
