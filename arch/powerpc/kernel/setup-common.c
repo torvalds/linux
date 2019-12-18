@@ -949,9 +949,6 @@ void __init setup_arch(char **cmdline_p)
 
 	early_memtest(min_low_pfn << PAGE_SHIFT, max_low_pfn << PAGE_SHIFT);
 
-	if (IS_ENABLED(CONFIG_DUMMY_CONSOLE))
-		conswitchp = &dummy_con;
-
 	if (ppc_md.setup_arch)
 		ppc_md.setup_arch();
 

@@ -183,9 +183,6 @@ static void __init maple_setup_arch(void)
 	/* Lookup PCI hosts */
        	maple_pci_init();
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
 	maple_use_rtas_reboot_and_halt_if_present();
 
 	printk(KERN_DEBUG "Using native/NAP idle loop\n");
