@@ -516,6 +516,135 @@ struct io_submit_state {
 	unsigned int		ios_left;
 };
 
+struct io_op_def {
+	/* needs req->io allocated for deferral/async */
+	unsigned		async_ctx : 1;
+	/* needs current->mm setup, does mm access */
+	unsigned		needs_mm : 1;
+	/* needs req->file assigned */
+	unsigned		needs_file : 1;
+	/* needs req->file assigned IFF fd is >= 0 */
+	unsigned		fd_non_neg : 1;
+	/* hash wq insertion if file is a regular file */
+	unsigned		hash_reg_file : 1;
+	/* unbound wq insertion if file is a non-regular file */
+	unsigned		unbound_nonreg_file : 1;
+};
+
+static const struct io_op_def io_op_defs[] = {
+	{
+		/* IORING_OP_NOP */
+	},
+	{
+		/* IORING_OP_READV */
+		.async_ctx		= 1,
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_WRITEV */
+		.async_ctx		= 1,
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.hash_reg_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_FSYNC */
+		.needs_file		= 1,
+	},
+	{
+		/* IORING_OP_READ_FIXED */
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_WRITE_FIXED */
+		.needs_file		= 1,
+		.hash_reg_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_POLL_ADD */
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_POLL_REMOVE */
+	},
+	{
+		/* IORING_OP_SYNC_FILE_RANGE */
+		.needs_file		= 1,
+	},
+	{
+		/* IORING_OP_SENDMSG */
+		.async_ctx		= 1,
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_RECVMSG */
+		.async_ctx		= 1,
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_TIMEOUT */
+		.async_ctx		= 1,
+		.needs_mm		= 1,
+	},
+	{
+		/* IORING_OP_TIMEOUT_REMOVE */
+	},
+	{
+		/* IORING_OP_ACCEPT */
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_ASYNC_CANCEL */
+	},
+	{
+		/* IORING_OP_LINK_TIMEOUT */
+		.async_ctx		= 1,
+		.needs_mm		= 1,
+	},
+	{
+		/* IORING_OP_CONNECT */
+		.async_ctx		= 1,
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_FALLOCATE */
+		.needs_file		= 1,
+	},
+	{
+		/* IORING_OP_OPENAT */
+		.needs_file		= 1,
+		.fd_non_neg		= 1,
+	},
+	{
+		/* IORING_OP_CLOSE */
+		.needs_file		= 1,
+	},
+	{
+		/* IORING_OP_FILES_UPDATE */
+		.needs_mm		= 1,
+	},
+	{
+		/* IORING_OP_STATX */
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.fd_non_neg		= 1,
+	},
+};
+
 static void io_wq_submit_work(struct io_wq_work **workptr);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
 static void io_put_req(struct io_kiocb *req);
@@ -671,41 +800,20 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 	}
 }
 
-static inline bool io_req_needs_user(struct io_kiocb *req)
-{
-	return !(req->opcode == IORING_OP_READ_FIXED ||
-		 req->opcode == IORING_OP_WRITE_FIXED);
-}
-
 static inline bool io_prep_async_work(struct io_kiocb *req,
 				      struct io_kiocb **link)
 {
+	const struct io_op_def *def = &io_op_defs[req->opcode];
 	bool do_hashed = false;
 
-	switch (req->opcode) {
-	case IORING_OP_WRITEV:
-	case IORING_OP_WRITE_FIXED:
-		/* only regular files should be hashed for writes */
-		if (req->flags & REQ_F_ISREG)
+	if (req->flags & REQ_F_ISREG) {
+		if (def->hash_reg_file)
 			do_hashed = true;
-		/* fall-through */
-	case IORING_OP_READV:
-	case IORING_OP_READ_FIXED:
-	case IORING_OP_SENDMSG:
-	case IORING_OP_RECVMSG:
-	case IORING_OP_ACCEPT:
-	case IORING_OP_POLL_ADD:
-	case IORING_OP_CONNECT:
-		/*
-		 * We know REQ_F_ISREG is not set on some of these
-		 * opcodes, but this enables us to keep the check in
-		 * just one place.
-		 */
-		if (!(req->flags & REQ_F_ISREG))
+	} else {
+		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
-		break;
 	}
-	if (io_req_needs_user(req))
+	if (def->needs_mm)
 		req->work.flags |= IO_WQ_WORK_NEEDS_USER;
 
 	*link = io_prep_linked_timeout(req);
@@ -1826,6 +1934,8 @@ static void io_req_map_rw(struct io_kiocb *req, ssize_t io_size,
 
 static int io_alloc_async_ctx(struct io_kiocb *req)
 {
+	if (!io_op_defs[req->opcode].async_ctx)
+		return 0;
 	req->io = kmalloc(sizeof(*req->io), GFP_KERNEL);
 	return req->io == NULL;
 }
@@ -3765,29 +3875,13 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 		io_wq_assign_next(workptr, nxt);
 }
 
-static bool io_req_op_valid(int op)
-{
-	return op >= IORING_OP_NOP && op < IORING_OP_LAST;
-}
-
 static int io_req_needs_file(struct io_kiocb *req, int fd)
 {
-	switch (req->opcode) {
-	case IORING_OP_NOP:
-	case IORING_OP_POLL_REMOVE:
-	case IORING_OP_TIMEOUT:
-	case IORING_OP_TIMEOUT_REMOVE:
-	case IORING_OP_ASYNC_CANCEL:
-	case IORING_OP_LINK_TIMEOUT:
+	if (!io_op_defs[req->opcode].needs_file)
 		return 0;
-	case IORING_OP_OPENAT:
-	case IORING_OP_STATX:
-		return fd != -1;
-	default:
-		if (io_req_op_valid(req->opcode))
-			return 1;
-		return -EINVAL;
-	}
+	if (fd == -1 && io_op_defs[req->opcode].fd_non_neg)
+		return 0;
+	return 1;
 }
 
 static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
@@ -3804,7 +3898,7 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned flags;
-	int fd, ret;
+	int fd;
 
 	flags = READ_ONCE(sqe->flags);
 	fd = READ_ONCE(sqe->fd);
@@ -3812,9 +3906,8 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 	if (flags & IOSQE_IO_DRAIN)
 		req->flags |= REQ_F_IO_DRAIN;
 
-	ret = io_req_needs_file(req, fd);
-	if (ret <= 0)
-		return ret;
+	if (!io_req_needs_file(req, fd))
+		return 0;
 
 	if (flags & IOSQE_FIXED_FILE) {
 		if (unlikely(!ctx->file_data ||
@@ -4240,7 +4333,16 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 			break;
 		}
 
-		if (io_req_needs_user(req) && !*mm) {
+		/* will complete beyond this point, count as submitted */
+		submitted++;
+
+		if (unlikely(req->opcode >= IORING_OP_LAST)) {
+			io_cqring_add_event(req, -EINVAL);
+			io_double_put_req(req);
+			break;
+		}
+
+		if (io_op_defs[req->opcode].needs_mm && !*mm) {
 			mm_fault = mm_fault || !mmget_not_zero(ctx->sqo_mm);
 			if (!mm_fault) {
 				use_mm(ctx->sqo_mm);
@@ -4248,7 +4350,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 			}
 		}
 
-		submitted++;
 		req->ring_file = ring_file;
 		req->ring_fd = ring_fd;
 		req->has_user = *mm != NULL;
@@ -6104,6 +6205,7 @@ out_fput:
 
 static int __init io_uring_init(void)
 {
+	BUILD_BUG_ON(ARRAY_SIZE(io_op_defs) != IORING_OP_LAST);
 	req_cachep = KMEM_CACHE(io_kiocb, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
 	return 0;
 };
