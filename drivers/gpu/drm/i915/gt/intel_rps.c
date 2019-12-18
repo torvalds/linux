@@ -682,7 +682,7 @@ static int vlv_rps_set(struct intel_rps *rps, u8 val)
 	return err;
 }
 
-static int rps_set(struct intel_rps *rps, u8 val)
+static int rps_set(struct intel_rps *rps, u8 val, bool update)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	int err;
@@ -700,7 +700,8 @@ static int rps_set(struct intel_rps *rps, u8 val)
 	if (err)
 		return err;
 
-	gen6_rps_set_thresholds(rps, val);
+	if (update)
+		gen6_rps_set_thresholds(rps, val);
 	rps->last_freq = val;
 
 	return 0;
@@ -760,7 +761,7 @@ void intel_rps_park(struct intel_rps *rps)
 	 * power than the render powerwell.
 	 */
 	intel_uncore_forcewake_get(rps_to_uncore(rps), FORCEWAKE_MEDIA);
-	rps_set(rps, rps->idle_freq);
+	rps_set(rps, rps->idle_freq, false);
 	intel_uncore_forcewake_put(rps_to_uncore(rps), FORCEWAKE_MEDIA);
 }
 
@@ -796,7 +797,7 @@ int intel_rps_set(struct intel_rps *rps, u8 val)
 	GEM_BUG_ON(val < rps->min_freq);
 
 	if (rps->active) {
-		err = rps_set(rps, val);
+		err = rps_set(rps, val, true);
 		if (err)
 			return err;
 
@@ -876,7 +877,7 @@ static bool rps_reset(struct intel_rps *rps)
 	rps->power.mode = -1;
 	rps->last_freq = -1;
 
-	if (rps_set(rps, rps->min_freq)) {
+	if (rps_set(rps, rps->min_freq, true)) {
 		DRM_ERROR("Failed to reset RPS to initial values\n");
 		return false;
 	}
