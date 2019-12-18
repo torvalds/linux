@@ -2067,7 +2067,48 @@ static void mlx5_eswitch_get_devlink_param(struct mlx5_eswitch *esw)
 	}
 }
 
-int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
+static void
+mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, int num_vfs)
+{
+	const u32 *out;
+
+	WARN_ON_ONCE(esw->mode != MLX5_ESWITCH_NONE);
+
+	if (num_vfs < 0)
+		return;
+
+	if (!mlx5_core_is_ecpf_esw_manager(esw->dev)) {
+		esw->esw_funcs.num_vfs = num_vfs;
+		return;
+	}
+
+	out = mlx5_esw_query_functions(esw->dev);
+	if (IS_ERR(out))
+		return;
+
+	esw->esw_funcs.num_vfs = MLX5_GET(query_esw_functions_out, out,
+					  host_params_context.host_num_of_vfs);
+	kvfree(out);
+}
+
+/**
+ * mlx5_eswitch_enable - Enable eswitch
+ * @esw:	Pointer to eswitch
+ * @mode:	Eswitch mode to enable
+ * @num_vfs:	Enable eswitch for given number of VFs. This is optional.
+ *		Valid value are 0, > 0 and MLX5_ESWITCH_IGNORE_NUM_VFS.
+ *		Caller should pass num_vfs > 0 when enabling eswitch for
+ *		vf vports. Caller should pass num_vfs = 0, when eswitch
+ *		is enabled without sriov VFs or when caller
+ *		is unaware of the sriov state of the host PF on ECPF based
+ *		eswitch. Caller should pass < 0 when num_vfs should be
+ *		completely ignored. This is typically the case when eswitch
+ *		is enabled without sriov regardless of PF/ECPF system.
+ * mlx5_eswitch_enable() Enables eswitch in either legacy or offloads mode.
+ * If num_vfs >=0 is provided, it setup VF related eswitch vports. It returns
+ * 0 on success or error code on failure.
+ */
+int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode, int num_vfs)
 {
 	int err;
 
@@ -2084,6 +2125,8 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
 		esw_warn(esw->dev, "engress ACL is not supported by FW\n");
 
 	mlx5_eswitch_get_devlink_param(esw);
+
+	mlx5_eswitch_update_num_of_vfs(esw, num_vfs);
 
 	esw_create_tsar(esw);
 
@@ -2811,22 +2854,4 @@ bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 		dev1->priv.eswitch->mode == MLX5_ESWITCH_OFFLOADS);
 }
 
-void mlx5_eswitch_update_num_of_vfs(struct mlx5_eswitch *esw, const int num_vfs)
-{
-	const u32 *out;
 
-	WARN_ON_ONCE(esw->mode != MLX5_ESWITCH_NONE);
-
-	if (!mlx5_core_is_ecpf_esw_manager(esw->dev)) {
-		esw->esw_funcs.num_vfs = num_vfs;
-		return;
-	}
-
-	out = mlx5_esw_query_functions(esw->dev);
-	if (IS_ERR(out))
-		return;
-
-	esw->esw_funcs.num_vfs = MLX5_GET(query_esw_functions_out, out,
-					  host_params_context.host_num_of_vfs);
-	kvfree(out);
-}
