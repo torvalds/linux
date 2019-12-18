@@ -178,6 +178,35 @@ static void test_stream_multiconn_server(const struct test_opts *opts)
 		close(fds[i]);
 }
 
+static void test_stream_msg_peek_client(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	send_byte(fd, 1, 0);
+	close(fd);
+}
+
+static void test_stream_msg_peek_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	recv_byte(fd, 1, MSG_PEEK);
+	recv_byte(fd, 1, 0);
+	close(fd);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -197,6 +226,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM multiple connections",
 		.run_client = test_stream_multiconn_client,
 		.run_server = test_stream_multiconn_server,
+	},
+	{
+		.name = "SOCK_STREAM MSG_PEEK",
+		.run_client = test_stream_msg_peek_client,
+		.run_server = test_stream_msg_peek_server,
 	},
 	{},
 };
