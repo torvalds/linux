@@ -276,6 +276,7 @@ struct stmmac_safety_stats;
 struct stmmac_tc_entry;
 struct stmmac_pps_cfg;
 struct stmmac_rss;
+struct stmmac_est;
 
 /* Helpers to program the MAC core */
 struct stmmac_ops {
@@ -373,6 +374,8 @@ struct stmmac_ops {
 				bool en, bool udp, bool sa, bool inv,
 				u32 match);
 	void (*set_arp_offload)(struct mac_device_info *hw, bool en, u32 addr);
+	int (*est_configure)(void __iomem *ioaddr, struct stmmac_est *cfg,
+			     unsigned int ptp_rate);
 };
 
 #define stmmac_core_init(__priv, __args...) \
@@ -459,6 +462,8 @@ struct stmmac_ops {
 	stmmac_do_callback(__priv, mac, config_l4_filter, __args)
 #define stmmac_set_arp_offload(__priv, __args...) \
 	stmmac_do_void_callback(__priv, mac, set_arp_offload, __args)
+#define stmmac_est_configure(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, est_configure, __args)
 
 /* PTP and HW Timer helpers */
 struct stmmac_hwtimestamp {
