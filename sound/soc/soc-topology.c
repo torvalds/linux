@@ -548,14 +548,14 @@ static void remove_link(struct snd_soc_component *comp,
 	if (dobj->ops && dobj->ops->link_unload)
 		dobj->ops->link_unload(comp, dobj);
 
-	kfree(link->name);
-	kfree(link->stream_name);
-	kfree(link->cpus->dai_name);
-
 	list_del(&dobj->list);
 
 	snd_soc_remove_pcm_runtime(comp->card,
 			snd_soc_get_pcm_runtime(comp->card, link));
+
+	kfree(link->name);
+	kfree(link->stream_name);
+	kfree(link->cpus->dai_name);
 	kfree(link);
 }
 
