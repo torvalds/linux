@@ -321,6 +321,11 @@ struct io_sync {
 	int				flags;
 };
 
+struct io_cancel {
+	struct file			*file;
+	u64				addr;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -362,6 +367,7 @@ struct io_kiocb {
 		struct io_poll_iocb	poll;
 		struct io_accept	accept;
 		struct io_sync		sync;
+		struct io_cancel	cancel;
 	};
 
 	const struct io_uring_sqe	*sqe;
@@ -3018,18 +3024,33 @@ done:
 	io_put_req_find_next(req, nxt);
 }
 
-static int io_async_cancel(struct io_kiocb *req, struct io_kiocb **nxt)
+static int io_async_cancel_prep(struct io_kiocb *req)
 {
 	const struct io_uring_sqe *sqe = req->sqe;
-	struct io_ring_ctx *ctx = req->ctx;
 
-	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
+	if (req->flags & REQ_F_PREPPED)
+		return 0;
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 	if (sqe->flags || sqe->ioprio || sqe->off || sqe->len ||
 	    sqe->cancel_flags)
 		return -EINVAL;
 
-	io_async_find_and_cancel(ctx, req, READ_ONCE(sqe->addr), nxt, 0);
+	req->flags |= REQ_F_PREPPED;
+	req->cancel.addr = READ_ONCE(sqe->addr);
+	return 0;
+}
+
+static int io_async_cancel(struct io_kiocb *req, struct io_kiocb **nxt)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	int ret;
+
+	ret = io_async_cancel_prep(req);
+	if (ret)
+		return ret;
+
+	io_async_find_and_cancel(ctx, req, req->cancel.addr, nxt, 0);
 	return 0;
 }
 
@@ -3086,6 +3107,9 @@ static int io_req_defer_prep(struct io_kiocb *req)
 		break;
 	case IORING_OP_TIMEOUT:
 		ret = io_timeout_prep(req, io, false);
+		break;
+	case IORING_OP_ASYNC_CANCEL:
+		ret = io_async_cancel_prep(req);
 		break;
 	case IORING_OP_LINK_TIMEOUT:
 		ret = io_timeout_prep(req, io, true);
