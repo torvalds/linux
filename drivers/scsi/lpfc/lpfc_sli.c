@@ -4918,8 +4918,17 @@ static int
 lpfc_sli4_rb_setup(struct lpfc_hba *phba)
 {
 	phba->hbq_in_use = 1;
-	phba->hbqs[LPFC_ELS_HBQ].entry_count =
-		lpfc_hbq_defs[LPFC_ELS_HBQ]->entry_count;
+	/**
+	 * Specific case when the MDS diagnostics is enabled and supported.
+	 * The receive buffer count is truncated to manage the incoming
+	 * traffic.
+	 **/
+	if (phba->cfg_enable_mds_diags && phba->mds_diags_support)
+		phba->hbqs[LPFC_ELS_HBQ].entry_count =
+			lpfc_hbq_defs[LPFC_ELS_HBQ]->entry_count >> 1;
+	else
+		phba->hbqs[LPFC_ELS_HBQ].entry_count =
+			lpfc_hbq_defs[LPFC_ELS_HBQ]->entry_count;
 	phba->hbq_count = 1;
 	lpfc_sli_hbqbuf_init_hbqs(phba, LPFC_ELS_HBQ);
 	/* Initially populate or replenish the HBQs */
