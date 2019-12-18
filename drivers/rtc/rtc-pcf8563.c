@@ -22,8 +22,8 @@
 
 #define PCF8563_REG_ST1		0x00 /* status */
 #define PCF8563_REG_ST2		0x01
-#define PCF8563_BIT_AIE		(1 << 1)
-#define PCF8563_BIT_AF		(1 << 3)
+#define PCF8563_BIT_AIE		BIT(1)
+#define PCF8563_BIT_AF		BIT(3)
 #define PCF8563_BITS_ST2_N	(7 << 5)
 
 #define PCF8563_REG_SC		0x02 /* datetime */
