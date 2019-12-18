@@ -266,6 +266,129 @@ TRACE_EVENT(cq_free,
 	TP_printk("cq.id=%u", __entry->cq_id)
 );
 
+/**
+ ** Memory Region events
+ **/
+
+/*
+ * enum ib_mr_type, from include/rdma/ib_verbs.h
+ */
+#define IB_MR_TYPE_LIST				\
+	ib_mr_type_item(MEM_REG)		\
+	ib_mr_type_item(SG_GAPS)		\
+	ib_mr_type_item(DM)			\
+	ib_mr_type_item(USER)			\
+	ib_mr_type_item(DMA)			\
+	ib_mr_type_end(INTEGRITY)
+
+#undef ib_mr_type_item
+#undef ib_mr_type_end
+
+#define ib_mr_type_item(x)	TRACE_DEFINE_ENUM(IB_MR_TYPE_##x);
+#define ib_mr_type_end(x)	TRACE_DEFINE_ENUM(IB_MR_TYPE_##x);
+
+IB_MR_TYPE_LIST
+
+#undef ib_mr_type_item
+#undef ib_mr_type_end
+
+#define ib_mr_type_item(x)	{ IB_MR_TYPE_##x, #x },
+#define ib_mr_type_end(x)	{ IB_MR_TYPE_##x, #x }
+
+#define rdma_show_ib_mr_type(x) \
+		__print_symbolic(x, IB_MR_TYPE_LIST)
+
+TRACE_EVENT(mr_alloc,
+	TP_PROTO(
+		const struct ib_pd *pd,
+		enum ib_mr_type mr_type,
+		u32 max_num_sg,
+		const struct ib_mr *mr
+	),
+
+	TP_ARGS(pd, mr_type, max_num_sg, mr),
+
+	TP_STRUCT__entry(
+		__field(u32, pd_id)
+		__field(u32, mr_id)
+		__field(u32, max_num_sg)
+		__field(int, rc)
+		__field(unsigned long, mr_type)
+	),
+
+	TP_fast_assign(
+		__entry->pd_id = pd->res.id;
+		if (IS_ERR(mr)) {
+			__entry->mr_id = 0;
+			__entry->rc = PTR_ERR(mr);
+		} else {
+			__entry->mr_id = mr->res.id;
+			__entry->rc = 0;
+		}
+		__entry->max_num_sg = max_num_sg;
+		__entry->mr_type = mr_type;
+	),
+
+	TP_printk("pd.id=%u mr.id=%u type=%s max_num_sg=%u rc=%d",
+		__entry->pd_id, __entry->mr_id,
+		rdma_show_ib_mr_type(__entry->mr_type),
+		__entry->max_num_sg, __entry->rc)
+);
+
+TRACE_EVENT(mr_integ_alloc,
+	TP_PROTO(
+		const struct ib_pd *pd,
+		u32 max_num_data_sg,
+		u32 max_num_meta_sg,
+		const struct ib_mr *mr
+	),
+
+	TP_ARGS(pd, max_num_data_sg, max_num_meta_sg, mr),
+
+	TP_STRUCT__entry(
+		__field(u32, pd_id)
+		__field(u32, mr_id)
+		__field(u32, max_num_data_sg)
+		__field(u32, max_num_meta_sg)
+		__field(int, rc)
+	),
+
+	TP_fast_assign(
+		__entry->pd_id = pd->res.id;
+		if (IS_ERR(mr)) {
+			__entry->mr_id = 0;
+			__entry->rc = PTR_ERR(mr);
+		} else {
+			__entry->mr_id = mr->res.id;
+			__entry->rc = 0;
+		}
+		__entry->max_num_data_sg = max_num_data_sg;
+		__entry->max_num_meta_sg = max_num_meta_sg;
+	),
+
+	TP_printk("pd.id=%u mr.id=%u max_num_data_sg=%u max_num_meta_sg=%u rc=%d",
+		__entry->pd_id, __entry->mr_id, __entry->max_num_data_sg,
+		__entry->max_num_meta_sg, __entry->rc)
+);
+
+TRACE_EVENT(mr_dereg,
+	TP_PROTO(
+		const struct ib_mr *mr
+	),
+
+	TP_ARGS(mr),
+
+	TP_STRUCT__entry(
+		__field(u32, id)
+	),
+
+	TP_fast_assign(
+		__entry->id = mr->res.id;
+	),
+
+	TP_printk("mr.id=%u", __entry->id)
+);
+
 #endif /* _TRACE_RDMA_CORE_H */
 
 #include <trace/define_trace.h>
