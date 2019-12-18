@@ -1817,6 +1817,10 @@ static int io_read(struct io_kiocb *req, struct io_kiocb **nxt,
 			return ret;
 	}
 
+	/* Ensure we clear previously set non-block flag */
+	if (!force_nonblock)
+		req->rw.ki_flags &= ~IOCB_NOWAIT;
+
 	file = req->file;
 	io_size = ret;
 	if (req->flags & REQ_F_LINK)
@@ -1905,6 +1909,10 @@ static int io_write(struct io_kiocb *req, struct io_kiocb **nxt,
 		if (ret < 0)
 			return ret;
 	}
+
+	/* Ensure we clear previously set non-block flag */
+	if (!force_nonblock)
+		req->rw.ki_flags &= ~IOCB_NOWAIT;
 
 	file = kiocb->ki_filp;
 	io_size = ret;
@@ -3273,9 +3281,6 @@ static void io_wq_submit_work(struct io_wq_work **workptr)
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
 	struct io_kiocb *nxt = NULL;
 	int ret = 0;
-
-	/* Ensure we clear previously set non-block flag */
-	req->rw.ki_flags &= ~IOCB_NOWAIT;
 
 	if (work->flags & IO_WQ_WORK_CANCEL)
 		ret = -ECANCELED;
