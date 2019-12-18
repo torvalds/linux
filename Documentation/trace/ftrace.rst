@@ -95,7 +95,8 @@ of ftrace. Here is a list of some of the key files:
   current_tracer:
 
 	This is used to set or display the current tracer
-	that is configured.
+	that is configured. Changing the current tracer clears
+	the ring buffer content as well as the "snapshot" buffer.
 
   available_tracers:
 
@@ -126,7 +127,8 @@ of ftrace. Here is a list of some of the key files:
 	This file holds the output of the trace in a human
 	readable format (described below). Note, tracing is temporarily
 	disabled when the file is open for reading. Once all readers
-	are closed, tracing is re-enabled.
+	are closed, tracing is re-enabled. Opening this file for
+	writing with the O_TRUNC flag clears the ring buffer content.
 
   trace_pipe:
 
@@ -489,6 +491,9 @@ of ftrace. Here is a list of some of the key files:
 	To set a clock, simply echo the clock name into this file::
 
 	  # echo global > trace_clock
+
+	Setting a clock clears the ring buffer content as well as the
+	"snapshot" buffer.
 
   trace_marker:
 
