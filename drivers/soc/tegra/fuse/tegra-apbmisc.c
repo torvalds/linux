@@ -158,16 +158,20 @@ void __init tegra_init_apbmisc(void)
 	}
 
 	apbmisc_base = ioremap_nocache(apbmisc.start, resource_size(&apbmisc));
-	if (!apbmisc_base)
+	if (!apbmisc_base) {
 		pr_err("failed to map APBMISC registers\n");
-	else
+	} else {
 		chipid = readl_relaxed(apbmisc_base + 4);
+		iounmap(apbmisc_base);
+	}
 
 	strapping_base = ioremap_nocache(straps.start, resource_size(&straps));
-	if (!strapping_base)
+	if (!strapping_base) {
 		pr_err("failed to map strapping options registers\n");
-	else
+	} else {
 		strapping = readl_relaxed(strapping_base);
+		iounmap(strapping_base);
+	}
 
 	long_ram_code = of_property_read_bool(np, "nvidia,long-ram-code");
 }
