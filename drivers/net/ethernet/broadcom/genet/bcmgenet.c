@@ -3530,9 +3530,11 @@ static int bcmgenet_probe(struct platform_device *pdev)
 
 	priv->msg_enable = netif_msg_init(-1, GENET_MSG_DEFAULT);
 
-	/* Set hardware features */
-	dev->hw_features |= NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_HW_CSUM |
-		NETIF_F_RXCSUM;
+	/* Set default features */
+	dev->features |= NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_HW_CSUM |
+			 NETIF_F_RXCSUM;
+	dev->hw_features |= dev->features;
+	dev->vlan_features |= dev->features;
 
 	/* Request the WOL interrupt and advertise suspend if available */
 	priv->wol_irq_disabled = true;
