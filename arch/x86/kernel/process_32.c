@@ -124,7 +124,6 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
 	regs->flags		= X86_EFLAGS_IF;
-	force_iret();
 }
 EXPORT_SYMBOL_GPL(start_thread);
 
