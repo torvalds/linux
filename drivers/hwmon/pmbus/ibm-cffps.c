@@ -28,6 +28,7 @@
 #define CFFPS1_FW_NUM_BYTES			4
 #define CFFPS2_FW_NUM_WORDS			3
 #define CFFPS_SYS_CONFIG_CMD			0xDA
+#define CFFPS_12VCS_VOUT_CMD			0xDE
 
 #define CFFPS_INPUT_HISTORY_CMD			0xD6
 #define CFFPS_INPUT_HISTORY_SIZE		100
@@ -350,6 +351,9 @@ static int ibm_cffps_read_word_data(struct i2c_client *client, int page,
 		if (mfr & CFFPS_MFR_PS_KILL)
 			rc |= PB_STATUS_OFF;
 		break;
+	case PMBUS_VIRT_READ_VMON:
+		rc = pmbus_read_word_data(client, page, CFFPS_12VCS_VOUT_CMD);
+		break;
 	default:
 		rc = -ENODATA;
 		break;
@@ -453,7 +457,7 @@ static struct pmbus_driver_info ibm_cffps_info[] = {
 			PMBUS_HAVE_TEMP2 | PMBUS_HAVE_TEMP3 |
 			PMBUS_HAVE_STATUS_VOUT | PMBUS_HAVE_STATUS_IOUT |
 			PMBUS_HAVE_STATUS_INPUT | PMBUS_HAVE_STATUS_TEMP |
-			PMBUS_HAVE_STATUS_FAN12,
+			PMBUS_HAVE_STATUS_FAN12 | PMBUS_HAVE_VMON,
 		.func[1] = PMBUS_HAVE_VOUT | PMBUS_HAVE_IOUT |
 			PMBUS_HAVE_TEMP | PMBUS_HAVE_TEMP2 | PMBUS_HAVE_TEMP3 |
 			PMBUS_HAVE_STATUS_VOUT | PMBUS_HAVE_STATUS_IOUT,
