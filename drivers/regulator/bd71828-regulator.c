@@ -197,15 +197,9 @@ static const struct regulator_ops bd71828_ldo_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 };
 
-static int bd71828_ldo6_get_voltage(struct regulator_dev *rdev)
-{
-	return BD71828_LDO_6_VOLTAGE;
-}
-
 static const struct regulator_ops bd71828_ldo6_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
-	.get_voltage = bd71828_ldo6_get_voltage,
 	.is_enabled = regulator_is_enabled_regmap,
 };
 
@@ -697,6 +691,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			.id = BD71828_LDO6,
 			.ops = &bd71828_ldo6_ops,
 			.type = REGULATOR_VOLTAGE,
+			.fixed_uV = BD71828_LDO_6_VOLTAGE,
 			.n_voltages = 1,
 			.enable_reg = BD71828_REG_LDO6_EN,
 			.enable_mask = BD71828_MASK_RUN_EN,
