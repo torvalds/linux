@@ -193,6 +193,11 @@ enum rtw_rx_queue_type {
 	RTK_MAX_RX_QUEUE_NUM
 };
 
+enum rtw_fw_type {
+	RTW_NORMAL_FW = 0x0,
+	RTW_WOWLAN_FW = 0x1,
+};
+
 enum rtw_rate_index {
 	RTW_RATEID_BGN_40M_2SS	= 0,
 	RTW_RATEID_BGN_40M_1SS	= 1,
@@ -1030,6 +1035,8 @@ struct rtw_chip_info {
 	u8 bfer_su_max_num;
 	u8 bfer_mu_max_num;
 
+	const char *wow_fw_name;
+
 	/* coex paras */
 	u32 coex_para_ver;
 	u8 bt_desired_ver;
@@ -1456,6 +1463,7 @@ struct rtw_fifo_conf {
 
 struct rtw_fw_state {
 	const struct firmware *firmware;
+	struct rtw_dev *rtwdev;
 	struct completion completion;
 	u16 version;
 	u8 sub_version;
@@ -1579,6 +1587,8 @@ struct rtw_dev {
 	DECLARE_BITMAP(flags, NUM_OF_RTW_FLAGS);
 
 	u8 mp_mode;
+
+	struct rtw_fw_state wow_fw;
 
 	/* hci related data, must be last */
 	u8 priv[0] __aligned(sizeof(void *));

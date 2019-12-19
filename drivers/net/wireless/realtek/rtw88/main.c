@@ -793,6 +793,26 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 	rtw_fw_send_ra_info(rtwdev, si);
 }
 
+static int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_fw_state *fw;
+
+	fw = &rtwdev->fw;
+	wait_for_completion(&fw->completion);
+	if (!fw->firmware)
+		return -EINVAL;
+
+	if (chip->wow_fw_name) {
+		fw = &rtwdev->wow_fw;
+		wait_for_completion(&fw->completion);
+		if (!fw->firmware)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rtw_power_on(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -813,11 +833,10 @@ static int rtw_power_on(struct rtw_dev *rtwdev)
 		goto err;
 	}
 
-	wait_for_completion(&fw->completion);
-	if (!fw->firmware) {
-		ret = -EINVAL;
-		rtw_err(rtwdev, "failed to load firmware\n");
-		goto err;
+	ret = rtw_wait_firmware_completion(rtwdev);
+	if (ret) {
+		rtw_err(rtwdev, "failed to wait firmware completion\n");
+		goto err_off;
 	}
 
 	ret = rtw_download_firmware(rtwdev, fw);
@@ -1020,8 +1039,8 @@ static void rtw_unset_supported_band(struct ieee80211_hw *hw,
 
 static void rtw_load_firmware_cb(const struct firmware *firmware, void *context)
 {
-	struct rtw_dev *rtwdev = context;
-	struct rtw_fw_state *fw = &rtwdev->fw;
+	struct rtw_fw_state *fw = context;
+	struct rtw_dev *rtwdev = fw->rtwdev;
 	const struct rtw_fw_hdr *fw_hdr;
 
 	if (!firmware || !firmware->data) {
@@ -1043,17 +1062,35 @@ static void rtw_load_firmware_cb(const struct firmware *firmware, void *context)
 		 fw->version, fw->sub_version, fw->sub_index, fw->h2c_version);
 }
 
-static int rtw_load_firmware(struct rtw_dev *rtwdev, const char *fw_name)
+static int rtw_load_firmware(struct rtw_dev *rtwdev, enum rtw_fw_type type)
 {
-	struct rtw_fw_state *fw = &rtwdev->fw;
+	const char *fw_name;
+	struct rtw_fw_state *fw;
 	int ret;
 
+	switch (type) {
+	case RTW_WOWLAN_FW:
+		fw = &rtwdev->wow_fw;
+		fw_name = rtwdev->chip->wow_fw_name;
+		break;
+
+	case RTW_NORMAL_FW:
+		fw = &rtwdev->fw;
+		fw_name = rtwdev->chip->fw_name;
+		break;
+
+	default:
+		rtw_warn(rtwdev, "unsupported firmware type\n");
+		return -ENOENT;
+	}
+
+	fw->rtwdev = rtwdev;
 	init_completion(&fw->completion);
 
 	ret = request_firmware_nowait(THIS_MODULE, true, fw_name, rtwdev->dev,
-				      GFP_KERNEL, rtwdev, rtw_load_firmware_cb);
+				      GFP_KERNEL, fw, rtw_load_firmware_cb);
 	if (ret) {
-		rtw_err(rtwdev, "async firmware request failed\n");
+		rtw_err(rtwdev, "failed to async firmware request\n");
 		return ret;
 	}
 
@@ -1372,12 +1409,19 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 			  BIT_HTC_LOC_CTRL | BIT_APP_PHYSTS |
 			  BIT_AB | BIT_AM | BIT_APM;
 
-	ret = rtw_load_firmware(rtwdev, rtwdev->chip->fw_name);
+	ret = rtw_load_firmware(rtwdev, RTW_NORMAL_FW);
 	if (ret) {
 		rtw_warn(rtwdev, "no firmware loaded\n");
 		return ret;
 	}
 
+	if (chip->wow_fw_name) {
+		ret = rtw_load_firmware(rtwdev, RTW_WOWLAN_FW);
+		if (ret) {
+			rtw_warn(rtwdev, "no wow firmware loaded\n");
+			return ret;
+		}
+	}
 	return 0;
 }
 EXPORT_SYMBOL(rtw_core_init);
@@ -1385,11 +1429,15 @@ EXPORT_SYMBOL(rtw_core_init);
 void rtw_core_deinit(struct rtw_dev *rtwdev)
 {
 	struct rtw_fw_state *fw = &rtwdev->fw;
+	struct rtw_fw_state *wow_fw = &rtwdev->wow_fw;
 	struct rtw_rsvd_page *rsvd_pkt, *tmp;
 	unsigned long flags;
 
 	if (fw->firmware)
 		release_firmware(fw->firmware);
+
+	if (wow_fw->firmware)
+		release_firmware(wow_fw->firmware);
 
 	tasklet_kill(&rtwdev->tx_tasklet);
 	spin_lock_irqsave(&rtwdev->tx_report.q_lock, flags);
