@@ -3602,7 +3602,12 @@ static void hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 		if (!tqp_vector->rx_group.ring && !tqp_vector->tx_group.ring)
 			continue;
 
-		hns3_get_vector_ring_chain(tqp_vector, &vector_ring_chain);
+		/* Since the mapping can be overwritten, when fail to get the
+		 * chain between vector and ring, we should go on to deal with
+		 * the remaining options.
+		 */
+		if (hns3_get_vector_ring_chain(tqp_vector, &vector_ring_chain))
+			dev_warn(priv->dev, "failed to get ring chain\n");
 
 		h->ae_algo->ops->unmap_ring_from_vector(h,
 			tqp_vector->vector_irq, &vector_ring_chain);
