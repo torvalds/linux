@@ -7,6 +7,7 @@
 #ifndef __INTEL_ENGINE_TYPES__
 #define __INTEL_ENGINE_TYPES__
 
+#include <linux/average.h>
 #include <linux/hashtable.h>
 #include <linux/irq_work.h>
 #include <linux/kref.h>
@@ -118,6 +119,9 @@ enum intel_engine_id {
 	I915_NUM_ENGINES
 #define INVALID_ENGINE ((enum intel_engine_id)-1)
 };
+
+/* A simple estimator for the round-trip latency of an engine */
+DECLARE_EWMA(_engine_latency, 6, 4)
 
 struct st_preempt_hang {
 	struct completion completion;
@@ -315,6 +319,13 @@ struct intel_engine_cs {
 		struct intel_ring *ring;
 		struct intel_timeline *timeline;
 	} legacy;
+
+	/*
+	 * We track the average duration of the idle pulse on parking the
+	 * engine to keep an estimate of the how the fast the engine is
+	 * under ideal conditions.
+	 */
+	struct ewma__engine_latency latency;
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the

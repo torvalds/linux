@@ -150,6 +150,10 @@ struct i915_request {
 	union {
 		wait_queue_entry_t submitq;
 		struct i915_sw_dma_fence_cb dmaq;
+		struct i915_request_duration_cb {
+			struct dma_fence_cb cb;
+			ktime_t emitted;
+		} duration;
 	};
 	struct list_head execute_cb;
 	struct i915_sw_fence semaphore;
