@@ -27,6 +27,9 @@
 
 #include "virtgpu_drv.h"
 
+#define to_virtio_fence(x) \
+	container_of(x, struct virtio_gpu_fence, f)
+
 static const char *virtio_get_driver_name(struct dma_fence *f)
 {
 	return "virtio_gpu";
