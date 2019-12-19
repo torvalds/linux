@@ -27,7 +27,8 @@
 
 #include <drm/drm_file.h>
 
-struct drm_i915_private;
+#include "i915_drv.h"
+
 struct drm_file;
 struct file;
 
