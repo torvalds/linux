@@ -7,7 +7,7 @@
 #ifndef __MOCK_CONTEXT_H
 #define __MOCK_CONTEXT_H
 
-struct drm_file;
+struct file;
 struct drm_i915_private;
 
 void mock_init_contexts(struct drm_i915_private *i915);
