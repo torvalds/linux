@@ -999,6 +999,38 @@ static inline void of_thermal_free_zone(struct __thermal_zone *tz)
 }
 
 /**
+ * of_thermal_destroy_zones - remove all zones parsed and allocated resources
+ *
+ * Finds all zones parsed and added to the thermal framework and remove them
+ * from the system, together with their resources.
+ *
+ */
+static __init void of_thermal_destroy_zones(void)
+{
+	struct device_node *np, *child;
+
+	np = of_find_node_by_name(NULL, "thermal-zones");
+	if (!np) {
+		pr_debug("unable to find thermal zones\n");
+		return;
+	}
+
+	for_each_available_child_of_node(np, child) {
+		struct thermal_zone_device *zone;
+
+		zone = thermal_zone_get_zone_by_name(child->name);
+		if (IS_ERR(zone))
+			continue;
+
+		thermal_zone_device_unregister(zone);
+		kfree(zone->tzp);
+		kfree(zone->ops);
+		of_thermal_free_zone(zone->devdata);
+	}
+	of_node_put(np);
+}
+
+/**
  * of_parse_thermal_zones - parse device tree thermal data
  *
  * Initialization function that can be called by machine initialization
@@ -1086,36 +1118,4 @@ exit_free:
 	of_thermal_destroy_zones();
 
 	return -ENOMEM;
-}
-
-/**
- * of_thermal_destroy_zones - remove all zones parsed and allocated resources
- *
- * Finds all zones parsed and added to the thermal framework and remove them
- * from the system, together with their resources.
- *
- */
-void of_thermal_destroy_zones(void)
-{
-	struct device_node *np, *child;
-
-	np = of_find_node_by_name(NULL, "thermal-zones");
-	if (!np) {
-		pr_debug("unable to find thermal zones\n");
-		return;
-	}
-
-	for_each_available_child_of_node(np, child) {
-		struct thermal_zone_device *zone;
-
-		zone = thermal_zone_get_zone_by_name(child->name);
-		if (IS_ERR(zone))
-			continue;
-
-		thermal_zone_device_unregister(zone);
-		kfree(zone->tzp);
-		kfree(zone->ops);
-		of_thermal_free_zone(zone->devdata);
-	}
-	of_node_put(np);
 }
