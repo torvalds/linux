@@ -1726,23 +1726,29 @@ static int process_receive_invalid(struct hfi1_packet *packet)
 	return RHF_RCV_CONTINUE;
 }
 
+#define HFI1_RCVHDR_DUMP_MAX	5
+
 void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd)
 {
 	struct hfi1_packet packet;
 	struct ps_mdata mdata;
+	int i;
 
-	seq_printf(s, "Rcd %u: RcvHdr cnt %u entsize %u %s head %llu tail %llu\n",
+	seq_printf(s, "Rcd %u: RcvHdr cnt %u entsize %u %s ctrl 0x%08llx status 0x%08llx, head %llu tail %llu  sw head %u\n",
 		   rcd->ctxt, get_hdrq_cnt(rcd), get_hdrqentsize(rcd),
 		   get_dma_rtail_setting(rcd) ?
 		   "dma_rtail" : "nodma_rtail",
+		   read_kctxt_csr(rcd->dd, rcd->ctxt, RCV_CTXT_CTRL),
+		   read_kctxt_csr(rcd->dd, rcd->ctxt, RCV_CTXT_STATUS),
 		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_HEAD) &
 		   RCV_HDR_HEAD_HEAD_MASK,
-		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL));
+		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL),
+		   rcd->head);
 
 	init_packet(rcd, &packet);
 	init_ps_mdata(&mdata, &packet);
 
-	while (1) {
+	for (i = 0; i < HFI1_RCVHDR_DUMP_MAX; i++) {
 		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
 					 rcd->rhf_offset;
 		struct ib_header *hdr;
