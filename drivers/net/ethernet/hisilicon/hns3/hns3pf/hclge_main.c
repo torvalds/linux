@@ -3005,8 +3005,6 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 
 	/* check for vector0 msix event source */
 	if (msix_src_reg & HCLGE_VECTOR0_REG_MSIX_MASK) {
-		dev_info(&hdev->pdev->dev, "received event 0x%x\n",
-			 msix_src_reg);
 		*clearval = msix_src_reg;
 		return HCLGE_VECTOR0_EVENT_ERR;
 	}
@@ -3505,10 +3503,15 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hnae3_ae_dev *ae_dev,
 
 	/* first, resolve any unknown reset type to the known type(s) */
 	if (test_bit(HNAE3_UNKNOWN_RESET, addr)) {
+		u32 msix_sts_reg = hclge_read_dev(&hdev->hw,
+					HCLGE_VECTOR0_PF_OTHER_INT_STS_REG);
 		/* we will intentionally ignore any errors from this function
 		 *  as we will end up in *some* reset request in any case
 		 */
-		hclge_handle_hw_msix_error(hdev, addr);
+		if (hclge_handle_hw_msix_error(hdev, addr))
+			dev_info(&hdev->pdev->dev, "received msix interrupt 0x%x\n",
+				 msix_sts_reg);
+
 		clear_bit(HNAE3_UNKNOWN_RESET, addr);
 		/* We defered the clearing of the error event which caused
 		 * interrupt since it was not posssible to do that in
