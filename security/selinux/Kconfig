@@ -42,6 +42,9 @@ config SECURITY_SELINUX_DISABLE
 	  using the selinux=0 boot parameter instead of enabling this
 	  option.
 
+	  WARNING: this option is deprecated and will be removed in a future
+	  kernel release.
+
 	  If you are unsure how to answer this question, answer N.
 
 config SECURITY_SELINUX_DEVELOP
