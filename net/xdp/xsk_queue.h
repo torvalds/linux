@@ -11,7 +11,6 @@
 #include <net/xdp_sock.h>
 
 #define RX_BATCH_SIZE 16
-#define LAZY_UPDATE_THRESHOLD 128
 
 struct xdp_ring {
 	u32 producer ____cacheline_aligned_in_smp;
@@ -239,7 +238,7 @@ static inline int xskq_produce_addr_lazy(struct xsk_queue *q, u64 addr)
 {
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
 
-	if (xskq_nb_free(q, q->prod_head, LAZY_UPDATE_THRESHOLD) == 0)
+	if (xskq_nb_free(q, q->prod_head, 1) == 0)
 		return -ENOSPC;
 
 	/* A, matches D */
