@@ -4240,6 +4240,13 @@ static void virtual_engine_initial_hint(struct virtual_engine *ve)
 						ve->siblings[0]);
 }
 
+static int virtual_context_alloc(struct intel_context *ce)
+{
+	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
+
+	return __execlists_context_alloc(ce, ve->siblings[0]);
+}
+
 static int virtual_context_pin(struct intel_context *ce)
 {
 	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
@@ -4277,6 +4284,8 @@ static void virtual_context_exit(struct intel_context *ce)
 }
 
 static const struct intel_context_ops virtual_context_ops = {
+	.alloc = virtual_context_alloc,
+
 	.pin = virtual_context_pin,
 	.unpin = execlists_context_unpin,
 
@@ -4592,12 +4601,6 @@ intel_execlists_create_virtual(struct i915_gem_context *ctx,
 	}
 
 	ve->base.flags |= I915_ENGINE_IS_VIRTUAL;
-
-	err = __execlists_context_alloc(&ve->context, siblings[0]);
-	if (err)
-		goto err_put;
-
-	__set_bit(CONTEXT_ALLOC_BIT, &ve->context.flags);
 
 	return &ve->context;
 
