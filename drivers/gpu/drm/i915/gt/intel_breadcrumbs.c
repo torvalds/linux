@@ -131,6 +131,14 @@ __dma_fence_signal__notify(struct dma_fence *fence,
 	}
 }
 
+static void add_retire(struct intel_breadcrumbs *b, struct intel_timeline *tl)
+{
+	struct intel_engine_cs *engine =
+		container_of(b, struct intel_engine_cs, breadcrumbs);
+
+	intel_engine_add_retire(engine, tl);
+}
+
 static void signal_irq_work(struct irq_work *work)
 {
 	struct intel_breadcrumbs *b = container_of(work, typeof(*b), irq_work);
@@ -182,8 +190,7 @@ static void signal_irq_work(struct irq_work *work)
 			__list_del_many(&ce->signals, pos);
 			if (&ce->signals == pos) { /* now empty */
 				list_del_init(&ce->signal_link);
-				intel_engine_add_retire(ce->engine,
-							ce->timeline);
+				add_retire(b, ce->timeline);
 			}
 		}
 	}
