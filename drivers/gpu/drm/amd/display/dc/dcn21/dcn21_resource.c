@@ -1349,6 +1349,10 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 	}
 	dcn2_1_soc.clock_limits[i] = dcn2_1_soc.clock_limits[i - 1];
 	dcn2_1_soc.num_states = i;
+
+	// diags does not retrieve proper values from SMU, do not update DML instance for diags
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) && !IS_DIAG_DC(dc->ctx->dce_environment))
+		dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
 }
 
 /* Temporary Place holder until we can get them from fuse */
