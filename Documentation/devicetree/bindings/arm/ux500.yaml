@@ -29,3 +29,8 @@ properties:
         items:
           - const: calaosystems,snowball-a9500
           - const: st-ericsson,u9500
+
+      - description: Samsung Galaxy S III mini (GT-I8190)
+        items:
+          - const: samsung,golden
+          - const: st-ericsson,u8500
