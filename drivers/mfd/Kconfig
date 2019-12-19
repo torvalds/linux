@@ -1976,6 +1976,18 @@ config MFD_STMFX
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_WCD934X
+	tristate "Support for WCD9340/WCD9341 Codec"
+	depends on SLIMBUS
+	select REGMAP
+	select REGMAP_SLIMBUS
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  Support for the Qualcomm WCD9340/WCD9341 Codec.
+	  This driver provides common support WCD934x audio codec and its
+	  associated Pin Controller, Soundwire Controller and Audio codec.
+
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
 
