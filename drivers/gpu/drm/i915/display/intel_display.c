@@ -168,6 +168,7 @@ static void skylake_pfit_enable(const struct intel_crtc_state *crtc_state);
 static void ironlake_pfit_enable(const struct intel_crtc_state *crtc_state);
 static void intel_modeset_setup_hw_state(struct drm_device *dev,
 					 struct drm_modeset_acquire_ctx *ctx);
+static struct intel_crtc_state *intel_crtc_state_alloc(struct intel_crtc *crtc);
 
 struct intel_limit {
 	struct {
@@ -8051,11 +8052,10 @@ int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 	struct intel_crtc_state *pipe_config;
 
-	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
+	pipe_config = intel_crtc_state_alloc(crtc);
 	if (!pipe_config)
 		return -ENOMEM;
 
-	pipe_config->uapi.crtc = &crtc->base;
 	pipe_config->cpu_transcoder = (enum transcoder)pipe;
 	pipe_config->pixel_multiplier = 1;
 	pipe_config->dpll = *dpll;
@@ -11646,6 +11646,18 @@ static void intel_crtc_state_reset(struct intel_crtc_state *crtc_state,
 	crtc_state->scaler_state.scaler_id = -1;
 }
 
+static struct intel_crtc_state *intel_crtc_state_alloc(struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state;
+
+	crtc_state = kmalloc(sizeof(*crtc_state), GFP_KERNEL);
+
+	if (crtc_state)
+		intel_crtc_state_reset(crtc_state, crtc);
+
+	return crtc_state;
+}
+
 /* Returns the currently programmed mode of the given encoder. */
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder)
@@ -11665,13 +11677,11 @@ intel_encoder_current_mode(struct intel_encoder *encoder)
 	if (!mode)
 		return NULL;
 
-	crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+	crtc_state = intel_crtc_state_alloc(crtc);
 	if (!crtc_state) {
 		kfree(mode);
 		return NULL;
 	}
-
-	intel_crtc_state_reset(crtc_state, crtc);
 
 	if (!dev_priv->display.get_pipe_config(crtc, crtc_state)) {
 		kfree(crtc_state);
@@ -12609,11 +12619,11 @@ static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state
 static int
 intel_crtc_prepare_cleared_state(struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *saved_state;
 
-	saved_state = kzalloc(sizeof(*saved_state), GFP_KERNEL);
+	saved_state = intel_crtc_state_alloc(crtc);
 	if (!saved_state)
 		return -ENOMEM;
 
@@ -15734,13 +15744,11 @@ static struct intel_crtc *intel_crtc_alloc(void)
 	if (!crtc)
 		return ERR_PTR(-ENOMEM);
 
-	crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+	crtc_state = intel_crtc_state_alloc(crtc);
 	if (!crtc_state) {
 		kfree(crtc);
 		return ERR_PTR(-ENOMEM);
 	}
-
-	intel_crtc_state_reset(crtc_state, crtc);
 
 	crtc->base.state = &crtc_state->uapi;
 	crtc->config = crtc_state;
