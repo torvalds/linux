@@ -342,6 +342,7 @@ enum rtw_flags {
 	RTW_FLAG_LEISURE_PS_DEEP,
 	RTW_FLAG_DIG_DISABLE,
 	RTW_FLAG_BUSY_TRAFFIC,
+	RTW_FLAG_WOWLAN,
 
 	NUM_OF_RTW_FLAGS,
 };
@@ -370,6 +371,15 @@ enum rtw_snr {
 	RTW_SNR_2SS_D,
 	/* keep it last */
 	RTW_SNR_NUM
+};
+
+enum rtw_wow_flags {
+	RTW_WOW_FLAG_EN_MAGIC_PKT,
+	RTW_WOW_FLAG_EN_REKEY_PKT,
+	RTW_WOW_FLAG_EN_DISCONNECT,
+
+	/* keep it last */
+	RTW_WOW_FLAG_MAX,
 };
 
 /* the power index is represented by differences, which cck-1s & ht40-1s are
@@ -907,6 +917,12 @@ struct rtw_intf_phy_para {
 	u16 platform;
 };
 
+struct rtw_wow_param {
+	struct ieee80211_vif *wow_vif;
+	DECLARE_BITMAP(flags, RTW_WOW_FLAG_MAX);
+	u8 txpause;
+};
+
 struct rtw_intf_phy_para_table {
 	struct rtw_intf_phy_para *usb2_para;
 	struct rtw_intf_phy_para *usb3_para;
@@ -1036,6 +1052,7 @@ struct rtw_chip_info {
 	u8 bfer_mu_max_num;
 
 	const char *wow_fw_name;
+	const struct wiphy_wowlan_support *wowlan_stub;
 
 	/* coex paras */
 	u32 coex_para_ver;
@@ -1589,6 +1606,7 @@ struct rtw_dev {
 	u8 mp_mode;
 
 	struct rtw_fw_state wow_fw;
+	struct rtw_wow_param wow;
 
 	/* hci related data, must be last */
 	u8 priv[0] __aligned(sizeof(void *));

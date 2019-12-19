@@ -12,6 +12,7 @@
 #include "reg.h"
 #include "bf.h"
 #include "debug.h"
+#include "wow.h"
 
 static void rtw_ops_tx(struct ieee80211_hw *hw,
 		       struct ieee80211_tx_control *control,
@@ -735,6 +736,44 @@ static int rtw_ops_set_bitrate_mask(struct ieee80211_hw *hw,
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int rtw_ops_suspend(struct ieee80211_hw *hw,
+			   struct cfg80211_wowlan *wowlan)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	int ret;
+
+	mutex_lock(&rtwdev->mutex);
+	ret = rtw_wow_suspend(rtwdev, wowlan);
+	if (ret)
+		rtw_err(rtwdev, "failed to suspend for wow %d\n", ret);
+	mutex_unlock(&rtwdev->mutex);
+
+	return ret ? 1 : 0;
+}
+
+static int rtw_ops_resume(struct ieee80211_hw *hw)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	int ret;
+
+	mutex_lock(&rtwdev->mutex);
+	ret = rtw_wow_resume(rtwdev);
+	if (ret)
+		rtw_err(rtwdev, "failed to resume for wow %d\n", ret);
+	mutex_unlock(&rtwdev->mutex);
+
+	return ret ? 1 : 0;
+}
+
+static void rtw_ops_set_wakeup(struct ieee80211_hw *hw, bool enabled)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	device_set_wakeup_enable(rtwdev->dev, enabled);
+}
+#endif
+
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
 	.wake_tx_queue		= rtw_ops_wake_tx_queue,
@@ -757,5 +796,10 @@ const struct ieee80211_ops rtw_ops = {
 	.sta_statistics		= rtw_ops_sta_statistics,
 	.flush			= rtw_ops_flush,
 	.set_bitrate_mask	= rtw_ops_set_bitrate_mask,
+#ifdef CONFIG_PM
+	.suspend		= rtw_ops_suspend,
+	.resume			= rtw_ops_resume,
+	.set_wakeup		= rtw_ops_set_wakeup,
+#endif
 };
 EXPORT_SYMBOL(rtw_ops);
