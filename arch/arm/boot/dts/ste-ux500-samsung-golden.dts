@@ -1,0 +1,304 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/dts-v1/;
+
+#include "ste-db8500.dtsi"
+#include "ste-ab8505.dtsi"
+#include "ste-dbx5x0-pinctrl.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/*
+ * Note: This device tree cannot be booted directly with the Samsung bootloader.
+ * You need an intermediate, device-tree compatible bootloader
+ * that locks the L2 cache. Otherwise the kernel will crash after decompression.
+ *
+ * There is a port of (mainline) U-Boot, see
+ * https://wiki.postmarketos.org/wiki/ST-Ericsson_NovaThor_U8500#U-Boot
+ */
+/ {
+	model = "Samsung Galaxy S III mini (GT-I8190)";
+	compatible = "samsung,golden", "st-ericsson,u8500";
+
+	chosen {
+		stdout-path = &serial2;
+	};
+
+	soc {
+		/* External Micro SD card slot */
+		sdi0_per1@80126000 {
+			status = "okay";
+
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+
+			non-removable;
+			/*
+			 * Unfortunately, there is no way to enable the UHS
+			 * modes due to a limitation of the SD level translator:
+			 * It will either translate to 2.9V or disconnect the
+			 * DATA lines, so switching to 1.8V signal voltage fails.
+			 */
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			st,sig-pin-fbclk;
+			full-pwr-cycle;
+
+			vmmc-supply = <&ab8500_ldo_aux3_reg>;
+			vqmmc-supply = <&sd_level_translator>;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc0_a_2_default>;
+			pinctrl-1 = <&mc0_a_2_sleep>;
+		};
+
+		/* WLAN SDIO */
+		sdi1_per2@80118000 {
+			status = "okay";
+
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <50000000>;
+			bus-width = <4>;
+
+			non-removable;
+			cap-sd-highspeed;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc1_a_2_default>;
+			pinctrl-1 = <&mc1_a_2_sleep>;
+		};
+
+		/* eMMC */
+		sdi2_per3@80005000 {
+			status = "okay";
+
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <8>;
+
+			non-removable;
+			cap-mmc-highspeed;
+			mmc-ddr-1_8v;
+
+			vmmc-supply = <&vmem_3v3>;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc2_a_1_default>;
+			pinctrl-1 = <&mc2_a_1_sleep>;
+		};
+
+		/* BT UART */
+		uart@80120000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u0_a_1_default>;
+			pinctrl-1 = <&u0_a_1_sleep>;
+		};
+
+		/* GPF UART */
+		uart@80121000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u1rxtx_a_1_default &u1ctsrts_a_1_default>;
+			pinctrl-1 = <&u1rxtx_a_1_sleep &u1ctsrts_a_1_sleep>;
+		};
+
+		/* Debugging console UART */
+		uart@80007000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u2rxtx_c_1_default>;
+			pinctrl-1 = <&u2rxtx_c_1_sleep>;
+		};
+
+		prcmu@80157000 {
+			ab8505 {
+				ab8500_usb {
+					pinctrl-names = "default", "sleep";
+					pinctrl-0 = <&usb_a_1_default>;
+					pinctrl-1 = <&usb_a_1_sleep>;
+				};
+
+				ab8505-regulators {
+					ab8500_ldo_aux1 {
+						regulator-name = "sensor_3v";
+						regulator-min-microvolt = <3000000>;
+						regulator-max-microvolt = <3000000>;
+					};
+
+					ab8500_ldo_aux2 {
+						regulator-name = "vreg_tsp_a3v3";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux3 {
+						regulator-name = "vdd_tf_2v91";
+					};
+
+					ab8500_ldo_aux4 {
+						regulator-name = "key_led_3.3v";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux5 {
+						regulator-name = "vreg_tsp_1v8";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					ab8500_ldo_aux6 {
+						regulator-name = "touch_key_2.2v";
+						regulator-min-microvolt = <2200000>;
+						regulator-max-microvolt = <2200000>;
+					};
+
+					ab8500_ldo_aux8 {
+						regulator-name = "sensor_1v8";
+					};
+				};
+			};
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys_default>;
+
+		label = "GPIO Buttons";
+
+		volume-up {
+			label = "Volume Up";
+			/* GPIO67 (VOL_UP) */
+			gpios = <&gpio2 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+
+		volume-down {
+			label = "Volume Down";
+			/* GPIO92 (VOL_DOWN) */
+			gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+
+		home {
+			label = "Home";
+			/* GPIO91 (HOME_KEY) */
+			gpios = <&gpio2 27 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_HOMEPAGE>;
+		};
+	};
+
+	vibrator {
+		compatible = "gpio-vibrator";
+		/* GPIO195 (MOT_EN) */
+		enable-gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&vibrator_default>;
+	};
+
+	/* External LDO for eMMC */
+	vmem_3v3: regulator-vmem {
+		compatible = "regulator-fixed";
+
+		regulator-name = "vmem_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+
+		startup-delay-us = <200>;
+
+		/* GPIO223 (MEM_LDO_EN) */
+		gpio = <&gpio6 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&mem_ldo_default>;
+	};
+
+	/* TI TXS0206-29 level translator for 2.9 V */
+	sd_level_translator: regulator-sd-level-translator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "sd-level-translator";
+		regulator-min-microvolt = <2900000>;
+		regulator-max-microvolt = <2900000>;
+
+		startup-delay-us = <200>;
+
+		/* GPIO87 (TXS0206-29_EN) */
+		gpios = <&gpio2 23 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_level_translator_default>;
+	};
+};
+
+&pinctrl {
+	gpio-keys {
+		gpio_keys_default: gpio_keys_default {
+			golden_cfg1 {
+				pins = "GPIO67",	/* VOL_UP */
+				       "GPIO91",	/* HOME_KEY */
+				       "GPIO92";	/* VOL_DOWN */
+				ste,config = <&gpio_in_pu>;
+			};
+		};
+	};
+
+	sdi0 {
+		sd_level_translator_default: sd_level_translator_default {
+			golden_cfg1 {
+				pins = "GPIO87_B3";	/* TXS0206-29_EN */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+
+	sdi2 {
+		mem_ldo_default: mem_ldo_default {
+			golden_cfg1 {
+				pins = "GPIO223_AH9";	/* MEM_LDO_EN */
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+
+	vibrator {
+		vibrator_default: vibrator_default {
+			golden_cfg1 {
+				pins = "GPIO195_AG28";	/* MOT_EN */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+};
+
+&ab8505_gpio {
+	/* Hog a few default settings */
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpio_default>;
+
+	gpio {
+		gpio_default: gpio_default {
+			golden_mux {
+				/* Change unused pins to GPIO mode */
+				function = "gpio";
+				groups = "gpio3_a_1",	/* default: SysClkReq4 */
+					 "gpio14_a_1";	/* default: PWMOut1 */
+			};
+			golden_cfg1 {
+				pins = "GPIO11_B17", "GPIO13_D17", "GPIO50_L4";
+				bias-disable;
+			};
+		};
+	};
+};
