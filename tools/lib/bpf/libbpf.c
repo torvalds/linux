@@ -1887,7 +1887,8 @@ static void bpf_object__sanitize_btf_ext(struct bpf_object *obj)
 
 static bool bpf_object__is_btf_mandatory(const struct bpf_object *obj)
 {
-	return obj->efile.btf_maps_shndx >= 0;
+	return obj->efile.btf_maps_shndx >= 0 ||
+	       obj->nr_extern > 0;
 }
 
 static int bpf_object__init_btf(struct bpf_object *obj,
