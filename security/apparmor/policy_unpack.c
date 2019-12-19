@@ -748,10 +748,14 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		goto fail;
 	if (tmp == PACKED_MODE_COMPLAIN || (e->version & FORCE_COMPLAIN_FLAG))
 		profile->mode = APPARMOR_COMPLAIN;
+	else if (tmp == PACKED_MODE_ENFORCE)
+		profile->mode = APPARMOR_ENFORCE;
 	else if (tmp == PACKED_MODE_KILL)
 		profile->mode = APPARMOR_KILL;
 	else if (tmp == PACKED_MODE_UNCONFINED)
 		profile->mode = APPARMOR_UNCONFINED;
+	else
+		goto fail;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
 	if (tmp)
