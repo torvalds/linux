@@ -342,10 +342,6 @@ void virtio_gpu_disable_notify(struct virtio_gpu_device *vgdev);
 void virtio_gpu_enable_notify(struct virtio_gpu_device *vgdev);
 
 /* virtio_gpu_display.c */
-int virtio_gpu_framebuffer_init(struct drm_device *dev,
-				struct virtio_gpu_framebuffer *vgfb,
-				const struct drm_mode_fb_cmd2 *mode_cmd,
-				struct drm_gem_object *obj);
 void virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev);
 void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev);
 
