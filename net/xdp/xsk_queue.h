@@ -216,22 +216,17 @@ static inline void xskq_discard_addr(struct xsk_queue *q)
 	q->cons_tail++;
 }
 
-static inline int xskq_produce_addr(struct xsk_queue *q, u64 addr)
+static inline int xskq_prod_reserve(struct xsk_queue *q)
 {
-	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
-	unsigned int idx = q->ring->producer;
+	if (xskq_nb_free(q, 1) == 0)
+		return -ENOSPC;
 
 	/* A, matches D */
-	ring->desc[idx++ & q->ring_mask] = addr;
-
-	/* Order producer and data */
-	smp_wmb(); /* B, matches C */
-
-	WRITE_ONCE(q->ring->producer, idx);
+	q->cached_prod++;
 	return 0;
 }
 
-static inline int xskq_produce_addr_lazy(struct xsk_queue *q, u64 addr)
+static inline int xskq_prod_reserve_addr(struct xsk_queue *q, u64 addr)
 {
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
 
@@ -243,23 +238,32 @@ static inline int xskq_produce_addr_lazy(struct xsk_queue *q, u64 addr)
 	return 0;
 }
 
-static inline void xskq_produce_flush_addr_n(struct xsk_queue *q,
-					     u32 nb_entries)
+static inline void __xskq_prod_submit(struct xsk_queue *q, u32 idx)
 {
 	/* Order producer and data */
 	smp_wmb(); /* B, matches C */
 
-	WRITE_ONCE(q->ring->producer, q->ring->producer + nb_entries);
+	WRITE_ONCE(q->ring->producer, idx);
 }
 
-static inline int xskq_reserve_addr(struct xsk_queue *q)
+static inline void xskq_prod_submit(struct xsk_queue *q)
 {
-	if (xskq_nb_free(q, 1) == 0)
-		return -ENOSPC;
+	__xskq_prod_submit(q, q->cached_prod);
+}
 
-	/* A, matches D */
-	q->cached_prod++;
-	return 0;
+static inline void xskq_prod_submit_addr(struct xsk_queue *q, u64 addr)
+{
+	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
+	u32 idx = q->ring->producer;
+
+	ring->desc[idx++ & q->ring_mask] = addr;
+
+	__xskq_prod_submit(q, idx);
+}
+
+static inline void xskq_prod_submit_n(struct xsk_queue *q, u32 nb_entries)
+{
+	__xskq_prod_submit(q, q->ring->producer + nb_entries);
 }
 
 /* Rx/Tx queue */
@@ -330,11 +334,11 @@ static inline void xskq_discard_desc(struct xsk_queue *q)
 	q->cons_tail++;
 }
 
-static inline int xskq_produce_batch_desc(struct xsk_queue *q,
-					  u64 addr, u32 len)
+static inline int xskq_prod_reserve_desc(struct xsk_queue *q,
+					 u64 addr, u32 len)
 {
 	struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
-	unsigned int idx;
+	u32 idx;
 
 	if (xskq_nb_free(q, 1) == 0)
 		return -ENOSPC;
@@ -347,14 +351,6 @@ static inline int xskq_produce_batch_desc(struct xsk_queue *q,
 	return 0;
 }
 
-static inline void xskq_produce_flush_desc(struct xsk_queue *q)
-{
-	/* Order producer and data */
-	smp_wmb(); /* B, matches C */
-
-	WRITE_ONCE(q->ring->producer, q->cached_prod);
-}
-
 static inline bool xskq_full_desc(struct xsk_queue *q)
 {
 	/* No barriers needed since data is not accessed */
@@ -362,7 +358,7 @@ static inline bool xskq_full_desc(struct xsk_queue *q)
 		q->nentries;
 }
 
-static inline bool xskq_empty_desc(struct xsk_queue *q)
+static inline bool xskq_prod_is_empty(struct xsk_queue *q)
 {
 	/* No barriers needed since data is not accessed */
 	return READ_ONCE(q->ring->consumer) == READ_ONCE(q->ring->producer);
