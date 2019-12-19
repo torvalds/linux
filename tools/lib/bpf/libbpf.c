@@ -231,21 +231,21 @@ struct bpf_program {
 #define DATA_SEC ".data"
 #define BSS_SEC ".bss"
 #define RODATA_SEC ".rodata"
-#define EXTERN_SEC ".extern"
+#define KCONFIG_SEC ".kconfig"
 
 enum libbpf_map_type {
 	LIBBPF_MAP_UNSPEC,
 	LIBBPF_MAP_DATA,
 	LIBBPF_MAP_BSS,
 	LIBBPF_MAP_RODATA,
-	LIBBPF_MAP_EXTERN,
+	LIBBPF_MAP_KCONFIG,
 };
 
 static const char * const libbpf_type_to_btf_name[] = {
 	[LIBBPF_MAP_DATA]	= DATA_SEC,
 	[LIBBPF_MAP_BSS]	= BSS_SEC,
 	[LIBBPF_MAP_RODATA]	= RODATA_SEC,
-	[LIBBPF_MAP_EXTERN]	= EXTERN_SEC,
+	[LIBBPF_MAP_KCONFIG]	= KCONFIG_SEC,
 };
 
 struct bpf_map {
@@ -305,7 +305,7 @@ struct bpf_object {
 	char *kconfig_path;
 	struct extern_desc *externs;
 	int nr_extern;
-	int extern_map_idx;
+	int kconfig_map_idx;
 
 	bool loaded;
 	bool has_pseudo_calls;
@@ -606,7 +606,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 	obj->efile.data_shndx = -1;
 	obj->efile.rodata_shndx = -1;
 	obj->efile.bss_shndx = -1;
-	obj->extern_map_idx = -1;
+	obj->kconfig_map_idx = -1;
 
 	obj->kern_version = get_kernel_version();
 	obj->loaded = false;
@@ -902,11 +902,25 @@ static size_t bpf_map_mmap_sz(const struct bpf_map *map)
 	return map_sz;
 }
 
+static char *internal_map_name(struct bpf_object *obj,
+			       enum libbpf_map_type type)
+{
+	char map_name[BPF_OBJ_NAME_LEN];
+	const char *sfx = libbpf_type_to_btf_name[type];
+	int sfx_len = max((size_t)7, strlen(sfx));
+	int pfx_len = min((size_t)BPF_OBJ_NAME_LEN - sfx_len - 1,
+			  strlen(obj->name));
+
+	snprintf(map_name, sizeof(map_name), "%.*s%.*s", pfx_len, obj->name,
+		 sfx_len, libbpf_type_to_btf_name[type]);
+
+	return strdup(map_name);
+}
+
 static int
 bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 			      int sec_idx, void *data, size_t data_sz)
 {
-	char map_name[BPF_OBJ_NAME_LEN];
 	struct bpf_map_def *def;
 	struct bpf_map *map;
 	int err;
@@ -918,9 +932,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	map->libbpf_type = type;
 	map->sec_idx = sec_idx;
 	map->sec_offset = 0;
-	snprintf(map_name, sizeof(map_name), "%.8s%.7s", obj->name,
-		 libbpf_type_to_btf_name[type]);
-	map->name = strdup(map_name);
+	map->name = internal_map_name(obj, type);
 	if (!map->name) {
 		pr_warn("failed to alloc map name\n");
 		return -ENOMEM;
@@ -931,12 +943,12 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	def->key_size = sizeof(int);
 	def->value_size = data_sz;
 	def->max_entries = 1;
-	def->map_flags = type == LIBBPF_MAP_RODATA || type == LIBBPF_MAP_EXTERN
+	def->map_flags = type == LIBBPF_MAP_RODATA || type == LIBBPF_MAP_KCONFIG
 			 ? BPF_F_RDONLY_PROG : 0;
 	def->map_flags |= BPF_F_MMAPABLE;
 
 	pr_debug("map '%s' (global data): at sec_idx %d, offset %zu, flags %x.\n",
-		 map_name, map->sec_idx, map->sec_offset, def->map_flags);
+		 map->name, map->sec_idx, map->sec_offset, def->map_flags);
 
 	map->mmaped = mmap(NULL, bpf_map_mmap_sz(map), PROT_READ | PROT_WRITE,
 			   MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -1232,7 +1244,7 @@ out:
 	return err;
 }
 
-static int bpf_object__init_extern_map(struct bpf_object *obj)
+static int bpf_object__init_kconfig_map(struct bpf_object *obj)
 {
 	struct extern_desc *last_ext;
 	size_t map_sz;
@@ -1244,13 +1256,13 @@ static int bpf_object__init_extern_map(struct bpf_object *obj)
 	last_ext = &obj->externs[obj->nr_extern - 1];
 	map_sz = last_ext->data_off + last_ext->sz;
 
-	err = bpf_object__init_internal_map(obj, LIBBPF_MAP_EXTERN,
+	err = bpf_object__init_internal_map(obj, LIBBPF_MAP_KCONFIG,
 					    obj->efile.symbols_shndx,
 					    NULL, map_sz);
 	if (err)
 		return err;
 
-	obj->extern_map_idx = obj->nr_maps - 1;
+	obj->kconfig_map_idx = obj->nr_maps - 1;
 
 	return 0;
 }
@@ -1742,7 +1754,7 @@ static int bpf_object__init_maps(struct bpf_object *obj,
 	err = bpf_object__init_user_maps(obj, strict);
 	err = err ?: bpf_object__init_user_btf_maps(obj, strict, pin_root_path);
 	err = err ?: bpf_object__init_global_data_maps(obj);
-	err = err ?: bpf_object__init_extern_map(obj);
+	err = err ?: bpf_object__init_kconfig_map(obj);
 	if (err)
 		return err;
 
@@ -2269,9 +2281,9 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 			 i, ext->sym_idx, ext->data_off, ext->name);
 	}
 
-	btf_id = btf__find_by_name(obj->btf, EXTERN_SEC);
+	btf_id = btf__find_by_name(obj->btf, KCONFIG_SEC);
 	if (btf_id <= 0) {
-		pr_warn("no BTF info found for '%s' datasec\n", EXTERN_SEC);
+		pr_warn("no BTF info found for '%s' datasec\n", KCONFIG_SEC);
 		return -ESRCH;
 	}
 
@@ -2361,7 +2373,7 @@ bpf_object__section_to_libbpf_map_type(const struct bpf_object *obj, int shndx)
 	else if (shndx == obj->efile.rodata_shndx)
 		return LIBBPF_MAP_RODATA;
 	else if (shndx == obj->efile.symbols_shndx)
-		return LIBBPF_MAP_EXTERN;
+		return LIBBPF_MAP_KCONFIG;
 	else
 		return LIBBPF_MAP_UNSPEC;
 }
@@ -2908,8 +2920,8 @@ bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 		return err;
 	}
 
-	/* Freeze .rodata and .extern map as read-only from syscall side. */
-	if (map_type == LIBBPF_MAP_RODATA || map_type == LIBBPF_MAP_EXTERN) {
+	/* Freeze .rodata and .kconfig map as read-only from syscall side. */
+	if (map_type == LIBBPF_MAP_RODATA || map_type == LIBBPF_MAP_KCONFIG) {
 		err = bpf_map_freeze(map->fd);
 		if (err) {
 			err = -errno;
@@ -4264,7 +4276,7 @@ bpf_program__relocate(struct bpf_program *prog, struct bpf_object *obj)
 			break;
 		case RELO_EXTERN:
 			insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
-			insn[0].imm = obj->maps[obj->extern_map_idx].fd;
+			insn[0].imm = obj->maps[obj->kconfig_map_idx].fd;
 			insn[1].imm = relo->sym_off;
 			break;
 		case RELO_CALL:
@@ -4743,7 +4755,7 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 	if (obj->nr_extern == 0)
 		return 0;
 
-	data = obj->maps[obj->extern_map_idx].mmaped;
+	data = obj->maps[obj->kconfig_map_idx].mmaped;
 
 	for (i = 0; i < obj->nr_extern; i++) {
 		ext = &obj->externs[i];
@@ -7546,7 +7558,7 @@ int bpf_object__open_skeleton(struct bpf_object_skeleton *s,
 		}
 
 		/* externs shouldn't be pre-setup from user code */
-		if (mmaped && (*map)->libbpf_type != LIBBPF_MAP_EXTERN)
+		if (mmaped && (*map)->libbpf_type != LIBBPF_MAP_KCONFIG)
 			*mmaped = (*map)->mmaped;
 	}
 

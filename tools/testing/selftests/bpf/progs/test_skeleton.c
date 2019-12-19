@@ -21,8 +21,8 @@ char out3 = 0;
 long long out4 = 0;
 int out1 = 0;
 
-extern bool CONFIG_BPF_SYSCALL;
-extern int LINUX_KERNEL_VERSION;
+extern bool CONFIG_BPF_SYSCALL __kconfig;
+extern int LINUX_KERNEL_VERSION __kconfig;
 bool bpf_syscall = 0;
 int kern_ver = 0;
 
