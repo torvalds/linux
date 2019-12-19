@@ -142,14 +142,14 @@ Contact: Daniel Vetter, respective driver maintainers
 
 Level: Advanced
 
-Convert instances of dev_info/dev_err/dev_warn to their DRM_DEV_* equivalent
-----------------------------------------------------------------------------
+Convert logging to drm_* functions with drm_device paramater
+------------------------------------------------------------
 
 For drivers which could have multiple instances, it is necessary to
 differentiate between which is which in the logs. Since DRM_INFO/WARN/ERROR
 don't do this, drivers used dev_info/warn/err to make this differentiation. We
-now have DRM_DEV_* variants of the drm print macros, so we can start to convert
-those drivers back to using drm-formwatted specific log messages.
+now have drm_* variants of the drm print functions, so we can start to convert
+those drivers back to using drm-formatted specific log messages.
 
 Before you start this conversion please contact the relevant maintainers to make
 sure your work will be merged - not everyone agrees that the DRM dmesg macros
