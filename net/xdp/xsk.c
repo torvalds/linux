@@ -45,7 +45,7 @@ bool xsk_umem_has_addrs(struct xdp_umem *umem, u32 cnt)
 }
 EXPORT_SYMBOL(xsk_umem_has_addrs);
 
-u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr)
+bool xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr)
 {
 	return xskq_cons_peek_addr(umem->fq, addr, umem);
 }
@@ -126,7 +126,7 @@ static void __xsk_rcv_memcpy(struct xdp_umem *umem, u64 addr, void *from_buf,
 	void *to_buf = xdp_umem_get_data(umem, addr);
 
 	addr = xsk_umem_add_offset_to_addr(addr);
-	if (xskq_crosses_non_contig_pg(umem, addr, len + metalen)) {
+	if (xskq_cons_crosses_non_contig_pg(umem, addr, len + metalen)) {
 		void *next_pg_addr = umem->pages[(addr >> PAGE_SHIFT) + 1].addr;
 		u64 page_start = addr & ~(PAGE_SIZE - 1);
 		u64 first_len = PAGE_SIZE - (addr - page_start);
