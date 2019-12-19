@@ -31,9 +31,6 @@ CFLAGS_display/intel_fbdev.o = $(call cc-disable-warning, override-init)
 subdir-ccflags-y += \
 	$(call as-instr,movntdqa (%eax)$(comma)%xmm0,-DCONFIG_AS_MOVNTDQA)
 
-# Extra header tests
-header-test-pattern-$(CONFIG_DRM_I915_WERROR) := *.h
-
 subdir-ccflags-y += -I$(srctree)/$(src)
 
 # Please keep these build lists sorted!
@@ -73,7 +70,6 @@ i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o display/intel_pipe_crc.o
 i915-$(CONFIG_PERF_EVENTS) += i915_pmu.o
 
 # "Graphics Technology" (aka we talk to the gpu)
-obj-y += gt/
 gt-y += \
 	gt/debugfs_engines.o \
 	gt/debugfs_gt.o \
@@ -111,7 +107,6 @@ gt-y += \
 i915-y += $(gt-y)
 
 # GEM (Graphics Execution Management) code
-obj-y += gem/
 gem-y += \
 	gem/i915_gem_busy.o \
 	gem/i915_gem_clflush.o \
@@ -157,7 +152,6 @@ i915-y += \
 	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support
-obj-y += gt/uc/
 i915-y += gt/uc/intel_uc.o \
 	  gt/uc/intel_uc_fw.o \
 	  gt/uc/intel_guc.o \
@@ -170,7 +164,6 @@ i915-y += gt/uc/intel_uc.o \
 	  gt/uc/intel_huc_fw.o
 
 # modesetting core code
-obj-y += display/
 i915-y += \
 	display/intel_atomic.o \
 	display/intel_atomic_plane.o \
@@ -235,7 +228,6 @@ i915-y += \
 	display/vlv_dsi_pll.o
 
 # perf code
-obj-y += oa/
 i915-y += \
 	oa/i915_oa_hsw.o \
 	oa/i915_oa_bdw.o \
@@ -276,3 +268,33 @@ endif
 
 obj-$(CONFIG_DRM_I915) += i915.o
 obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o
+
+# header test
+
+# exclude some broken headers from the test coverage
+no-header-test := \
+	display/intel_vbt_defs.h \
+	gem/selftests/huge_gem_object.h \
+	gem/selftests/mock_gem_object.h \
+	gvt/execlist.h \
+	gvt/fb_decoder.h \
+	gvt/gtt.h \
+	gvt/gvt.h \
+	gvt/interrupt.h \
+	gvt/mmio_context.h \
+	gvt/mpt.h \
+	gvt/scheduler.h \
+	selftests/i915_live_selftests.h \
+	selftests/i915_mock_selftests.h \
+	selftests/i915_perf_selftests.h \
+	selftests/igt_live_test.h
+
+extra-$(CONFIG_DRM_I915_WERROR) += \
+	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \
+		$(shell cd $(srctree)/$(src) && find * -name '*.h')))
+
+quiet_cmd_hdrtest = HDRTEST $(patsubst %.hdrtest,%.h,$@)
+      cmd_hdrtest = $(CC) $(c_flags) -S -o /dev/null -x c /dev/null -include $<; touch $@
+
+$(obj)/%.hdrtest: $(src)/%.h FORCE
+	$(call if_changed_dep,hdrtest)
