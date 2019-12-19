@@ -387,16 +387,16 @@
 		usbphy2: phy@a01800 {
 			compatible = "allwinner,sun9i-a80-usb-phy";
 			reg = <0x00a01800 0x4>;
-			clocks = <&usb_clocks CLK_USB1_HSIC>,
+			clocks = <&usb_clocks CLK_USB1_PHY>,
 				 <&usb_clocks CLK_USB_HSIC>,
-				 <&usb_clocks CLK_USB1_PHY>;
-			clock-names = "hsic_480M",
+				 <&usb_clocks CLK_USB1_HSIC>;
+			clock-names = "phy",
 				      "hsic_12M",
-				      "phy";
-			resets = <&usb_clocks RST_USB1_HSIC>,
-				 <&usb_clocks RST_USB1_PHY>;
-			reset-names = "hsic",
-				      "phy";
+				      "hsic_480M";
+			resets = <&usb_clocks RST_USB1_PHY>,
+				 <&usb_clocks RST_USB1_HSIC>;
+			reset-names = "phy",
+				      "hsic";
 			status = "disabled";
 			#phy-cells = <0>;
 			/* usb1 is always used with HSIC */
@@ -429,16 +429,16 @@
 		usbphy3: phy@a02800 {
 			compatible = "allwinner,sun9i-a80-usb-phy";
 			reg = <0x00a02800 0x4>;
-			clocks = <&usb_clocks CLK_USB2_HSIC>,
+			clocks = <&usb_clocks CLK_USB2_PHY>,
 				 <&usb_clocks CLK_USB_HSIC>,
-				 <&usb_clocks CLK_USB2_PHY>;
-			clock-names = "hsic_480M",
+				 <&usb_clocks CLK_USB2_HSIC>;
+			clock-names = "phy",
 				      "hsic_12M",
-				      "phy";
-			resets = <&usb_clocks RST_USB2_HSIC>,
-				 <&usb_clocks RST_USB2_PHY>;
-			reset-names = "hsic",
-				      "phy";
+				      "hsic_480M";
+			resets = <&usb_clocks RST_USB2_PHY>,
+				 <&usb_clocks RST_USB2_HSIC>;
+			reset-names = "phy",
+				      "hsic";
 			status = "disabled";
 			#phy-cells = <0>;
 		};
