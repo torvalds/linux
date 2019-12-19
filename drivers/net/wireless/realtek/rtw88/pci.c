@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 #include "main.h"
 #include "pci.h"
+#include "reg.h"
 #include "tx.h"
 #include "rx.h"
 #include "fw.h"
@@ -1224,6 +1225,21 @@ static void rtw_pci_link_cfg(struct rtw_dev *rtwdev)
 	rtwpci->link_ctrl = link_ctrl;
 }
 
+static void rtw_pci_interface_cfg(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	switch (chip->id) {
+	case RTW_CHIP_TYPE_8822C:
+		if (rtwdev->hal.cut_version >= RTW_CHIP_VER_CUT_D)
+			rtw_write32_mask(rtwdev, REG_HCI_MIX_CFG,
+					 BIT_PCIE_EMAC_PDN_AUX_TO_FAST_CLK, 1);
+		break;
+	default:
+		break;
+	}
+}
+
 static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -1332,6 +1348,7 @@ static struct rtw_hci_ops rtw_pci_ops = {
 	.stop = rtw_pci_stop,
 	.deep_ps = rtw_pci_deep_ps,
 	.link_ps = rtw_pci_link_ps,
+	.interface_cfg = rtw_pci_interface_cfg,
 
 	.read8 = rtw_pci_read8,
 	.read16 = rtw_pci_read16,

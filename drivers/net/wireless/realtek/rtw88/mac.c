@@ -1034,5 +1034,7 @@ int rtw_mac_init(struct rtw_dev *rtwdev)
 	if (ret)
 		return ret;
 
+	rtw_hci_interface_cfg(rtwdev);
+
 	return 0;
 }
