@@ -183,7 +183,7 @@ static inline bool xskq_cons_read_addr(struct xsk_queue *q, u64 *addr,
 	while (q->cached_cons != q->cached_prod) {
 		u32 idx = q->cached_cons & q->ring_mask;
 
-		*addr = READ_ONCE(ring->desc[idx]) & q->chunk_mask;
+		*addr = ring->desc[idx] & q->chunk_mask;
 
 		if (umem->flags & XDP_UMEM_UNALIGNED_CHUNK_FLAG) {
 			if (xskq_cons_is_valid_unaligned(q, *addr,
@@ -308,7 +308,7 @@ static inline bool xskq_cons_read_desc(struct xsk_queue *q,
 		struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
 		u32 idx = q->cached_cons & q->ring_mask;
 
-		*desc = READ_ONCE(ring->desc[idx]);
+		*desc = ring->desc[idx];
 		if (xskq_cons_is_valid_desc(q, desc, umem))
 			return true;
 
