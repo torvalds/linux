@@ -133,8 +133,6 @@ struct virtio_gpu_output {
 };
 #define drm_crtc_to_virtio_gpu_output(x) \
 	container_of(x, struct virtio_gpu_output, crtc)
-#define drm_connector_to_virtio_gpu_output(x) \
-	container_of(x, struct virtio_gpu_output, conn)
 
 struct virtio_gpu_framebuffer {
 	struct drm_framebuffer base;
