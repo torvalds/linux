@@ -188,6 +188,7 @@ static void mt7622_dma_sched_init(struct mt7615_dev *dev)
 
 int mt7615_dma_init(struct mt7615_dev *dev)
 {
+	int rx_ring_size = MT7615_RX_RING_SIZE;
 	int ret;
 
 	mt76_dma_attach(&dev->mt76);
@@ -236,9 +237,11 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
+	if (!is_mt7615(&dev->mt76))
+	    rx_ring_size /= 2;
+
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN], 0,
-			       MT7615_RX_RING_SIZE, MT_RX_BUF_SIZE,
-			       MT_RX_RING_BASE);
+			       rx_ring_size, MT_RX_BUF_SIZE, MT_RX_RING_BASE);
 	if (ret)
 		return ret;
 
