@@ -80,7 +80,7 @@
 	};
 
 	soc {
-		romem: nvmem@1fff7800 {
+		romem: efuse@1fff7800 {
 			compatible = "st,stm32f4-otp";
 			reg = <0x1fff7800 0x400>;
 			#address-cells = <1>;
