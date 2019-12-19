@@ -2944,6 +2944,9 @@ static int hclge_get_vf_config(struct hnae3_handle *handle, int vf,
 	ivf->trusted = vport->vf_info.trusted;
 	ivf->min_tx_rate = 0;
 	ivf->max_tx_rate = vport->vf_info.max_tx_rate;
+	ivf->vlan = vport->port_base_vlan_cfg.vlan_info.vlan_tag;
+	ivf->vlan_proto = htons(vport->port_base_vlan_cfg.vlan_info.vlan_proto);
+	ivf->qos = vport->port_base_vlan_cfg.vlan_info.qos;
 	ether_addr_copy(ivf->mac, vport->vf_info.mac);
 
 	return 0;
