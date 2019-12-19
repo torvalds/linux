@@ -486,19 +486,22 @@ static void rtw_pci_disable_interrupt(struct rtw_dev *rtwdev,
 	rtwpci->irq_enabled = false;
 }
 
-static int rtw_pci_setup(struct rtw_dev *rtwdev)
-{
-	rtw_pci_reset_trx_ring(rtwdev);
-
-	return 0;
-}
-
 static void rtw_pci_dma_reset(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
 {
 	/* reset dma and rx tag */
 	rtw_write32_set(rtwdev, RTK_PCI_CTRL,
 			BIT_RST_TRXDMA_INTF | BIT_RX_TAG_EN);
 	rtwpci->rx_tag = 0;
+}
+
+static int rtw_pci_setup(struct rtw_dev *rtwdev)
+{
+	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+
+	rtw_pci_reset_trx_ring(rtwdev);
+	rtw_pci_dma_reset(rtwdev, rtwpci);
+
+	return 0;
 }
 
 static void rtw_pci_dma_release(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
@@ -517,8 +520,6 @@ static int rtw_pci_start(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 	unsigned long flags;
-
-	rtw_pci_dma_reset(rtwdev, rtwpci);
 
 	spin_lock_irqsave(&rtwpci->irq_lock, flags);
 	rtw_pci_enable_interrupt(rtwdev, rtwpci);
