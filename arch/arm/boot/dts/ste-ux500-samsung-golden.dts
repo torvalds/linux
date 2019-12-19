@@ -142,6 +142,26 @@
 			};
 		};
 
+		i2c@80110000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&i2c3_c_2_default>;
+			pinctrl-1 = <&i2c3_c_2_sleep>;
+
+			touchscreen@4a {
+				compatible = "atmel,maxtouch";
+				reg = <0x4a>;
+
+				/* GPIO218 (TSP_INT_1V8) */
+				interrupt-parent = <&gpio6>;
+				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&tsp_default>;
+			};
+		};
+
 		prcmu@80157000 {
 			ab8505 {
 				ab8500_usb {
@@ -161,6 +181,7 @@
 						regulator-name = "vreg_tsp_a3v3";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
+						regulator-always-on; /* FIXME */
 					};
 
 					ab8500_ldo_aux3 {
@@ -177,6 +198,7 @@
 						regulator-name = "vreg_tsp_1v8";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
+						regulator-always-on; /* FIXME */
 					};
 
 					ab8500_ldo_aux6 {
@@ -305,6 +327,15 @@
 			golden_cfg1 {
 				pins = "GPIO206_AG24";	/* ACC_INT */
 				ste,config = <&gpio_in_pd>;
+			};
+		};
+	};
+
+	tsp {
+		tsp_default: tsp_default {
+			golden_cfg1 {
+				pins = "GPIO218_AH11";	/* TSP_INT_1V8 */
+				ste,config = <&gpio_in_nopull>;
 			};
 		};
 	};
