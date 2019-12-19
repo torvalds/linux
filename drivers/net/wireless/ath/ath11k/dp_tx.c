@@ -79,7 +79,6 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	struct hal_srng *tcl_ring;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct dp_tx_ring *tx_ring;
-	u8 cached_desc[HAL_TCL_DESC_LEN];
 	void *hal_tcl_desc;
 	u8 pool_id;
 	u8 hal_ring_id;
@@ -167,10 +166,6 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	skb_cb->vif = arvif->vif;
 	skb_cb->ar = ar;
 
-	memset(cached_desc, 0, HAL_TCL_DESC_LEN);
-
-	ath11k_hal_tx_cmd_desc_setup(ab, cached_desc, &ti);
-
 	hal_ring_id = tx_ring->tcl_data_ring.ring_id;
 	tcl_ring = &ab->hal.srng_list[hal_ring_id];
 
@@ -190,7 +185,8 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 		goto fail_unmap_dma;
 	}
 
-	ath11k_hal_tx_desc_sync(cached_desc, hal_tcl_desc);
+	ath11k_hal_tx_cmd_desc_setup(ab, hal_tcl_desc +
+					 sizeof(struct hal_tlv_hdr), &ti);
 
 	ath11k_hal_srng_access_end(ab, tcl_ring);
 
@@ -427,6 +423,37 @@ exit:
 	rcu_read_unlock();
 }
 
+static inline void ath11k_dp_tx_status_parse(struct ath11k_base *ab,
+					     struct hal_wbm_release_ring *desc,
+					     struct hal_tx_status *ts)
+{
+	ts->buf_rel_source =
+		FIELD_GET(HAL_WBM_RELEASE_INFO0_REL_SRC_MODULE, desc->info0);
+	if (ts->buf_rel_source != HAL_WBM_REL_SRC_MODULE_FW &&
+	    ts->buf_rel_source != HAL_WBM_REL_SRC_MODULE_TQM)
+		return;
+
+	if (ts->buf_rel_source == HAL_WBM_REL_SRC_MODULE_FW)
+		return;
+
+	ts->status = FIELD_GET(HAL_WBM_RELEASE_INFO0_TQM_RELEASE_REASON,
+			       desc->info0);
+	ts->ppdu_id = FIELD_GET(HAL_WBM_RELEASE_INFO1_TQM_STATUS_NUMBER,
+				desc->info1);
+	ts->try_cnt = FIELD_GET(HAL_WBM_RELEASE_INFO1_TRANSMIT_COUNT,
+				desc->info1);
+	ts->ack_rssi = FIELD_GET(HAL_WBM_RELEASE_INFO2_ACK_FRAME_RSSI,
+				 desc->info2);
+	if (desc->info2 & HAL_WBM_RELEASE_INFO2_FIRST_MSDU)
+		ts->flags |= HAL_TX_STATUS_FLAGS_FIRST_MSDU;
+	ts->peer_id = FIELD_GET(HAL_WBM_RELEASE_INFO3_PEER_ID, desc->info3);
+	ts->tid = FIELD_GET(HAL_WBM_RELEASE_INFO3_TID, desc->info3);
+	if (desc->rate_stats.info0 & HAL_TX_RATE_STATS_INFO0_VALID)
+		ts->rate_stats = desc->rate_stats.info0;
+	else
+		ts->rate_stats = 0;
+}
+
 void ath11k_dp_tx_completion_handler(struct ath11k_base *ab, int ring_id)
 {
 	struct ath11k *ar;
@@ -434,47 +461,48 @@ void ath11k_dp_tx_completion_handler(struct ath11k_base *ab, int ring_id)
 	int hal_ring_id = dp->tx_ring[ring_id].tcl_comp_ring.ring_id;
 	struct hal_srng *status_ring = &ab->hal.srng_list[hal_ring_id];
 	struct sk_buff *msdu;
-	struct hal_wbm_release_ring tx_status;
 	struct hal_tx_status ts;
 	struct dp_tx_ring *tx_ring = &dp->tx_ring[ring_id];
 	u32 *desc;
 	u32 msdu_id;
 	u8 mac_id;
 
-	spin_lock_bh(&status_ring->lock);
-
 	ath11k_hal_srng_access_begin(ab, status_ring);
 
-	spin_lock_bh(&tx_ring->tx_status_lock);
-	while (!kfifo_is_full(&tx_ring->tx_status_fifo) &&
+	while ((ATH11K_TX_COMPL_NEXT(tx_ring->tx_status_head) !=
+		tx_ring->tx_status_tail) &&
 	       (desc = ath11k_hal_srng_dst_get_next_entry(ab, status_ring))) {
-		ath11k_hal_tx_status_desc_sync((void *)desc,
-					       (void *)&tx_status);
-		kfifo_put(&tx_ring->tx_status_fifo, tx_status);
+		memcpy(&tx_ring->tx_status[tx_ring->tx_status_head],
+		       desc, sizeof(struct hal_wbm_release_ring));
+		tx_ring->tx_status_head =
+			ATH11K_TX_COMPL_NEXT(tx_ring->tx_status_head);
 	}
 
 	if ((ath11k_hal_srng_dst_peek(ab, status_ring) != NULL) &&
-	    kfifo_is_full(&tx_ring->tx_status_fifo)) {
+	    (ATH11K_TX_COMPL_NEXT(tx_ring->tx_status_head) == tx_ring->tx_status_tail)) {
 		/* TODO: Process pending tx_status messages when kfifo_is_full() */
 		ath11k_warn(ab, "Unable to process some of the tx_status ring desc because status_fifo is full\n");
 	}
 
-	spin_unlock_bh(&tx_ring->tx_status_lock);
-
 	ath11k_hal_srng_access_end(ab, status_ring);
-	spin_unlock_bh(&status_ring->lock);
 
-	spin_lock_bh(&tx_ring->tx_status_lock);
-	while (kfifo_get(&tx_ring->tx_status_fifo, &tx_status)) {
-		memset(&ts, 0, sizeof(ts));
-		ath11k_hal_tx_status_parse(ab, &tx_status, &ts);
+	while (ATH11K_TX_COMPL_NEXT(tx_ring->tx_status_tail) != tx_ring->tx_status_head) {
+		struct hal_wbm_release_ring *tx_status;
+		u32 desc_id;
 
-		mac_id = FIELD_GET(DP_TX_DESC_ID_MAC_ID, ts.desc_id);
-		msdu_id = FIELD_GET(DP_TX_DESC_ID_MSDU_ID, ts.desc_id);
+		tx_ring->tx_status_tail =
+			ATH11K_TX_COMPL_NEXT(tx_ring->tx_status_tail);
+		tx_status = &tx_ring->tx_status[tx_ring->tx_status_tail];
+		ath11k_dp_tx_status_parse(ab, tx_status, &ts);
+
+		desc_id = FIELD_GET(BUFFER_ADDR_INFO1_SW_COOKIE,
+				    tx_status->buf_addr_info.info1);
+		mac_id = FIELD_GET(DP_TX_DESC_ID_MAC_ID, desc_id);
+		msdu_id = FIELD_GET(DP_TX_DESC_ID_MSDU_ID, desc_id);
 
 		if (ts.buf_rel_source == HAL_WBM_REL_SRC_MODULE_FW) {
 			ath11k_dp_tx_process_htt_tx_complete(ab,
-							     (void *)&tx_status,
+							     (void *)tx_status,
 							     mac_id, msdu_id,
 							     tx_ring);
 			continue;
@@ -496,12 +524,8 @@ void ath11k_dp_tx_completion_handler(struct ath11k_base *ab, int ring_id)
 		if (atomic_dec_and_test(&ar->dp.num_tx_pending))
 			wake_up(&ar->dp.tx_empty_waitq);
 
-		/* TODO: Locking optimization so that tx_completion for an msdu
-		 * is not called with tx_status_lock acquired
-		 */
 		ath11k_dp_tx_complete_msdu(ar, msdu, &ts);
 	}
-	spin_unlock_bh(&tx_ring->tx_status_lock);
 }
 
 int ath11k_dp_tx_send_reo_cmd(struct ath11k_base *ab, struct dp_rx_tid *rx_tid,
@@ -645,8 +669,10 @@ int ath11k_dp_tx_htt_srng_setup(struct ath11k_base *ab, u32 ring_id,
 				 HAL_ADDR_MSB_REG_SHIFT;
 
 	ret = ath11k_hal_srng_get_entrysize(ring_type);
-	if (ret < 0)
-		return -EINVAL;
+	if (ret < 0) {
+		ret = -EINVAL;
+		goto err_free;
+	}
 
 	ring_entry_sz = ret;
 

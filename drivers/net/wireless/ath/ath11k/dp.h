@@ -6,7 +6,6 @@
 #ifndef ATH11K_DP_H
 #define ATH11K_DP_H
 
-#include <linux/kfifo.h>
 #include "hal_rx.h"
 
 struct ath11k_base;
@@ -58,6 +57,8 @@ struct dp_rxdma_ring {
 	int bufs_max;
 };
 
+#define ATH11K_TX_COMPL_NEXT(x)	(((x) + 1) % DP_TX_COMP_RING_SIZE)
+
 struct dp_tx_ring {
 	u8 tcl_data_ring_id;
 	struct dp_srng tcl_data_ring;
@@ -65,11 +66,9 @@ struct dp_tx_ring {
 	struct idr txbuf_idr;
 	/* Protects txbuf_idr and num_pending */
 	spinlock_t tx_idr_lock;
-	DECLARE_KFIFO_PTR(tx_status_fifo, struct hal_wbm_release_ring);
-	/* lock to protect tx_status_fifo because tx_status_fifo can be
-	 * accessed concurrently.
-	 */
-	spinlock_t tx_status_lock;
+	struct hal_wbm_release_ring *tx_status;
+	int tx_status_head;
+	int tx_status_tail;
 };
 
 struct ath11k_pdev_mon_stats {

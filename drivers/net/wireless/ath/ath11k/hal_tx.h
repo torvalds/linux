@@ -48,29 +48,18 @@ struct hal_tx_info {
 /* Tx status parsed from srng desc */
 struct hal_tx_status {
 	enum hal_wbm_rel_src_module buf_rel_source;
-	u32 desc_id;
 	enum hal_wbm_tqm_rel_reason status;
 	u8 ack_rssi;
-	enum hal_tx_rate_stats_bw bw;
-	enum hal_tx_rate_stats_pkt_type pkt_type;
-	enum hal_tx_rate_stats_sgi sgi;
-	u8 mcs;
-	u16 num_tones_in_ru;
 	u32 flags; /* %HAL_TX_STATUS_FLAGS_ */
-	u32 tsf;
 	u32 ppdu_id;
 	u8 try_cnt;
 	u8 tid;
 	u16 peer_id;
+	u32 rate_stats;
 };
 
 void ath11k_hal_tx_cmd_desc_setup(struct ath11k_base *ab, void *cmd,
 				  struct hal_tx_info *ti);
-void ath11k_hal_tx_desc_sync(void *tx_desc_cached, void *hw_desc);
-void ath11k_hal_tx_status_parse(struct ath11k_base *ab,
-				struct hal_wbm_release_ring *desc,
-				struct hal_tx_status *ts);
-void ath11k_hal_tx_status_desc_sync(void *hw_desc, void *local_desc);
 void ath11k_hal_tx_set_dscp_tid_map(struct ath11k_base *ab, int id);
 int ath11k_hal_reo_cmd_send(struct ath11k_base *ab, struct hal_srng *srng,
 			    enum hal_reo_cmd_type type,

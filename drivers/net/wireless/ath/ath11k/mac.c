@@ -1758,6 +1758,20 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret)
 			ath11k_warn(ar->ab, "failed to update bcn template: %d\n",
 				    ret);
+
+		if (vif->bss_conf.he_support) {
+			ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
+							    WMI_VDEV_PARAM_BA_MODE,
+							    WMI_BA_MODE_BUFFER_SIZE_256);
+			if (ret)
+				ath11k_warn(ar->ab,
+					    "failed to set BA BUFFER SIZE 256 for vdev: %d\n",
+					    arvif->vdev_id);
+			else
+				ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+					   "Set BA BUFFER SIZE 256 for VDEV: %d\n",
+					   arvif->vdev_id);
+		}
 	}
 
 	if (changed & (BSS_CHANGED_BEACON_INFO | BSS_CHANGED_BEACON)) {
@@ -1917,9 +1931,9 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_TWT) {
 		if (info->twt_requester || info->twt_responder)
-			ath11k_wmi_send_twt_enable_cmd(ar, ar->pdev_idx);
+			ath11k_wmi_send_twt_enable_cmd(ar, ar->pdev->pdev_id);
 		else
-			ath11k_wmi_send_twt_disable_cmd(ar, ar->pdev_idx);
+			ath11k_wmi_send_twt_disable_cmd(ar, ar->pdev->pdev_id);
 	}
 
 	if (changed & BSS_CHANGED_HE_OBSS_PD)
@@ -3346,6 +3360,77 @@ static void ath11k_gen_ppe_thresh(struct ath11k_ppe_threshold *fw_ppet,
 	}
 }
 
+static void
+ath11k_mac_filter_he_cap_mesh(struct ieee80211_he_cap_elem *he_cap_elem)
+{
+	u8 m;
+
+	m = IEEE80211_HE_MAC_CAP0_TWT_RES |
+	    IEEE80211_HE_MAC_CAP0_TWT_REQ;
+	he_cap_elem->mac_cap_info[0] &= ~m;
+
+	m = IEEE80211_HE_MAC_CAP2_TRS |
+	    IEEE80211_HE_MAC_CAP2_BCAST_TWT |
+	    IEEE80211_HE_MAC_CAP2_MU_CASCADING;
+	he_cap_elem->mac_cap_info[2] &= ~m;
+
+	m = IEEE80211_HE_MAC_CAP3_FLEX_TWT_SCHED |
+	    IEEE80211_HE_MAC_CAP2_BCAST_TWT |
+	    IEEE80211_HE_MAC_CAP2_MU_CASCADING;
+	he_cap_elem->mac_cap_info[3] &= ~m;
+
+	m = IEEE80211_HE_MAC_CAP4_BSRP_BQRP_A_MPDU_AGG |
+	    IEEE80211_HE_MAC_CAP4_BQR;
+	he_cap_elem->mac_cap_info[4] &= ~m;
+
+	m = IEEE80211_HE_MAC_CAP5_SUBCHAN_SELECVITE_TRANSMISSION |
+	    IEEE80211_HE_MAC_CAP5_UL_2x996_TONE_RU |
+	    IEEE80211_HE_MAC_CAP5_PUNCTURED_SOUNDING |
+	    IEEE80211_HE_MAC_CAP5_HT_VHT_TRIG_FRAME_RX;
+	he_cap_elem->mac_cap_info[5] &= ~m;
+
+	m = IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO |
+	    IEEE80211_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO;
+	he_cap_elem->phy_cap_info[2] &= ~m;
+
+	m = IEEE80211_HE_PHY_CAP3_RX_HE_MU_PPDU_FROM_NON_AP_STA |
+	    IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK |
+	    IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK;
+	he_cap_elem->phy_cap_info[3] &= ~m;
+
+	m = IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER;
+	he_cap_elem->phy_cap_info[4] &= ~m;
+
+	m = IEEE80211_HE_PHY_CAP5_NG16_MU_FEEDBACK;
+	he_cap_elem->phy_cap_info[5] &= ~m;
+
+	m = IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_75_MU |
+	    IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMER_FB |
+	    IEEE80211_HE_PHY_CAP6_TRIG_CQI_FB |
+	    IEEE80211_HE_PHY_CAP6_PARTIAL_BANDWIDTH_DL_MUMIMO;
+	he_cap_elem->phy_cap_info[6] &= ~m;
+
+	m = IEEE80211_HE_PHY_CAP7_SRP_BASED_SR |
+	    IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_AR |
+	    IEEE80211_HE_PHY_CAP7_STBC_TX_ABOVE_80MHZ |
+	    IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ;
+	he_cap_elem->phy_cap_info[7] &= ~m;
+
+	m = IEEE80211_HE_PHY_CAP8_HE_ER_SU_PPDU_4XLTF_AND_08_US_GI |
+	    IEEE80211_HE_PHY_CAP8_20MHZ_IN_40MHZ_HE_PPDU_IN_2G |
+	    IEEE80211_HE_PHY_CAP8_20MHZ_IN_160MHZ_HE_PPDU |
+	    IEEE80211_HE_PHY_CAP8_80MHZ_IN_160MHZ_HE_PPDU;
+	he_cap_elem->phy_cap_info[8] &= ~m;
+
+	m = IEEE80211_HE_PHY_CAP9_LONGER_THAN_16_SIGB_OFDM_SYM |
+	    IEEE80211_HE_PHY_CAP9_NON_TRIGGERED_CQI_FEEDBACK |
+	    IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU |
+	    IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU |
+	    IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
+	    IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB;
+	he_cap_elem->phy_cap_info[9] &= ~m;
+}
+
 static int ath11k_mac_copy_he_cap(struct ath11k *ar,
 				  struct ath11k_pdev_cap *cap,
 				  struct ieee80211_sband_iftype_data *data,
@@ -3362,6 +3447,7 @@ static int ath11k_mac_copy_he_cap(struct ath11k *ar,
 		switch (i) {
 		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_MESH_POINT:
 			break;
 
 		default:
@@ -3401,6 +3487,9 @@ static int ath11k_mac_copy_he_cap(struct ath11k *ar,
 				IEEE80211_HE_MAC_CAP0_TWT_REQ;
 			he_cap_elem->phy_cap_info[9] |=
 				IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU;
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			ath11k_mac_filter_he_cap_mesh(he_cap_elem);
 			break;
 		}
 
@@ -4094,6 +4183,13 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 						  param_id, param_value);
 		if (ret) {
 			ath11k_warn(ar->ab, "failed to set vdev %d pspoll count: %d\n",
+				    arvif->vdev_id, ret);
+			goto err_peer_del;
+		}
+
+		ret = ath11k_wmi_pdev_set_ps_mode(ar, arvif->vdev_id, false);
+		if (ret) {
+			ath11k_warn(ar->ab, "failed to disable vdev %d ps mode: %d\n",
 				    arvif->vdev_id, ret);
 			goto err_peer_del;
 		}
@@ -5238,7 +5334,7 @@ ath11k_mac_update_bss_chan_survey(struct ath11k *ar,
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	if (!test_bit(WMI_TLV_SERVICE_BSS_CHANNEL_INFO_64, ar->ab->wmi_sc.svc_map) ||
+	if (!test_bit(WMI_TLV_SERVICE_BSS_CHANNEL_INFO_64, ar->ab->wmi_ab.svc_map) ||
 	    ar->rx_channel != channel)
 		return;
 
@@ -5756,7 +5852,7 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
 		ar->pdev_idx = i;
 		ar->lmac_id = ath11k_core_get_hw_mac_id(ab, i);
 
-		ar->wmi = &ab->wmi_sc.wmi[i];
+		ar->wmi = &ab->wmi_ab.wmi[i];
 		/* FIXME wmi[0] is already initialized during attach,
 		 * Should we do this again?
 		 */

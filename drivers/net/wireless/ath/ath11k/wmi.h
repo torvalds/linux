@@ -44,7 +44,7 @@ struct wmi_tlv {
 
 #define WMI_TLV_LEN	GENMASK(15, 0)
 #define WMI_TLV_TAG	GENMASK(31, 16)
-#define TLV_HDR_SIZE	FIELD_SIZEOF(struct wmi_tlv, header)
+#define TLV_HDR_SIZE	sizeof_field(struct wmi_tlv, header)
 
 #define WMI_CMD_HDR_CMD_ID      GENMASK(23, 0)
 #define WMI_MAX_MEM_REQS        32
@@ -54,6 +54,7 @@ struct wmi_tlv {
 #define WLAN_SCAN_PARAMS_MAX_BSSID   4
 #define WLAN_SCAN_PARAMS_MAX_IE_LEN  256
 
+#define WMI_BA_MODE_BUFFER_SIZE_256  3
 /*
  * HW mode config type replicated from FW header
  * @WMI_HOST_HW_MODE_SINGLE: Only one PHY is active.
@@ -1003,6 +1004,7 @@ enum wmi_tlv_vdev_param {
 	WMI_VDEV_PARAM_HE_RANGE_EXT,
 	WMI_VDEV_PARAM_ENABLE_BCAST_PROBE_RESPONSE,
 	WMI_VDEV_PARAM_FILS_MAX_CHANNEL_GUARD_TIME,
+	WMI_VDEV_PARAM_BA_MODE = 0x7e,
 	WMI_VDEV_PARAM_SET_HE_SOUNDING_MODE = 0x87,
 	WMI_VDEV_PARAM_PROTOTYPE = 0x8000,
 	WMI_VDEV_PARAM_BSS_COLOR,
@@ -2354,7 +2356,7 @@ struct wmi_service_available_event {
 } __packed;
 
 struct ath11k_pdev_wmi {
-	struct ath11k_wmi_base *wmi_sc;
+	struct ath11k_wmi_base *wmi_ab;
 	enum ath11k_htc_ep_id eid;
 	const struct wmi_peer_flags_map *peer_flags;
 	u32 rx_decap_mode;
@@ -2567,7 +2569,7 @@ static inline const char *ath11k_wmi_phymode_str(enum wmi_phy_mode mode)
 		/* no default handler to allow compiler to check that the
 		 * enum is fully handled
 		 */
-	};
+	}
 
 	return "<unknown>";
 }
@@ -2827,6 +2829,12 @@ struct wmi_pdev_set_param_cmd {
 	u32 param_value;
 } __packed;
 
+struct wmi_pdev_set_ps_mode_cmd {
+	u32 tlv_header;
+	u32 vdev_id;
+	u32 sta_ps_mode;
+} __packed;
+
 struct wmi_pdev_suspend_cmd {
 	u32 tlv_header;
 	u32 pdev_id;
@@ -2895,15 +2903,6 @@ struct wmi_bcn_offload_ctrl_cmd {
 	u32 vdev_id;
 	u32 bcn_ctrl_op;
 } __packed;
-
-enum scan_priority {
-	SCAN_PRIORITY_VERY_LOW,
-	SCAN_PRIORITY_LOW,
-	SCAN_PRIORITY_MEDIUM,
-	SCAN_PRIORITY_HIGH,
-	SCAN_PRIORITY_VERY_HIGH,
-	SCAN_PRIORITY_COUNT,
-};
 
 enum scan_dwelltime_adaptive_mode {
 	SCAN_DWELL_MODE_DEFAULT = 0,
@@ -3056,7 +3055,7 @@ struct scan_req_params {
 	u32 scan_req_id;
 	u32 vdev_id;
 	u32 pdev_id;
-	enum scan_priority scan_priority;
+	enum wmi_scan_priority scan_priority;
 	union {
 		struct {
 			u32 scan_ev_started:1,
@@ -4556,12 +4555,12 @@ struct wmi_twt_enable_params_cmd {
 	u32 mode_check_interval;
 	u32 add_sta_slot_interval;
 	u32 remove_sta_slot_interval;
-};
+} __packed;
 
 struct wmi_twt_disable_params_cmd {
 	u32 tlv_header;
 	u32 pdev_id;
-};
+} __packed;
 
 struct wmi_obss_spatial_reuse_params_cmd {
 	u32 tlv_header;
@@ -4570,7 +4569,7 @@ struct wmi_obss_spatial_reuse_params_cmd {
 	s32 obss_min;
 	s32 obss_max;
 	u32 vdev_id;
-};
+} __packed;
 
 struct target_resource_config {
 	u32 num_vdevs;
@@ -4682,6 +4681,7 @@ int ath11k_wmi_set_peer_param(struct ath11k *ar, const u8 *peer_addr,
 			      u32 vdev_id, u32 param_id, u32 param_val);
 int ath11k_wmi_pdev_set_param(struct ath11k *ar, u32 param_id,
 			      u32 param_value, u8 pdev_id);
+int ath11k_wmi_pdev_set_ps_mode(struct ath11k *ar, int vdev_id, u32 enable);
 int ath11k_wmi_wait_for_unified_ready(struct ath11k_base *ab);
 int ath11k_wmi_cmd_init(struct ath11k_base *ab);
 int ath11k_wmi_wait_for_service_ready(struct ath11k_base *ab);

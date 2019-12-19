@@ -578,7 +578,7 @@ struct ath11k_base {
 	struct platform_device *pdev;
 	struct device *dev;
 	struct ath11k_qmi qmi;
-	struct ath11k_wmi_base wmi_sc;
+	struct ath11k_wmi_base wmi_ab;
 	struct completion fw_ready;
 	struct rproc *tgt_rproc;
 	int num_radios;

@@ -903,6 +903,11 @@ again:
 	if (unlikely(!wil_val_in_range(buff_id, 1, wil->rx_buff_mgmt.size))) {
 		wil_err(wil, "Corrupt buff_id=%d, sring->swhead=%d\n",
 			buff_id, sring->swhead);
+		print_hex_dump(KERN_ERR, "RxS ", DUMP_PREFIX_OFFSET, 16, 1,
+			       msg, wil->use_compressed_rx_status ?
+			       sizeof(struct wil_rx_status_compressed) :
+			       sizeof(struct wil_rx_status_extended), false);
+
 		wil_rx_status_reset_buff_id(sring);
 		wil_sring_advance_swhead(sring);
 		sring->invalid_buff_id_cnt++;
@@ -963,6 +968,11 @@ again:
 
 	if (unlikely(dmalen > sz)) {
 		wil_err(wil, "Rx size too large: %d bytes!\n", dmalen);
+		print_hex_dump(KERN_ERR, "RxS ", DUMP_PREFIX_OFFSET, 16, 1,
+			       msg, wil->use_compressed_rx_status ?
+			       sizeof(struct wil_rx_status_compressed) :
+			       sizeof(struct wil_rx_status_extended), false);
+
 		stats->rx_large_frame++;
 		rxdata->skipping = true;
 	}

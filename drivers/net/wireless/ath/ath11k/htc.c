@@ -736,7 +736,7 @@ int ath11k_htc_init(struct ath11k_base *ab)
 
 	htc->ab = ab;
 
-	switch (ab->wmi_sc.preferred_hw_mode) {
+	switch (ab->wmi_ab.preferred_hw_mode) {
 	case WMI_HOST_HW_MODE_SINGLE:
 		htc->wmi_ep_count = 1;
 		break;
