@@ -6,6 +6,7 @@
 #include "ste-dbx5x0-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 /*
  * Note: This device tree cannot be booted directly with the Samsung bootloader.
@@ -112,6 +113,33 @@
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&u2rxtx_c_1_default>;
 			pinctrl-1 = <&u2rxtx_c_1_sleep>;
+		};
+
+		i2c@80128000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&i2c2_b_2_default>;
+			pinctrl-1 = <&i2c2_b_2_sleep>;
+
+			imu@68 {
+				compatible = "invensense,mpu6050";
+				reg = <0x68>;
+
+				/* GPIO206 (ACC_INT) */
+				interrupt-parent = <&gpio6>;
+				interrupts = <14 IRQ_TYPE_EDGE_RISING>;
+
+				mount-matrix = "0", "1", "0",
+					      "-1", "0", "0",
+					       "0", "0", "1";
+
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&ab8500_ldo_aux8_reg>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&imu_default>;
+			};
 		};
 
 		prcmu@80157000 {
@@ -268,6 +296,15 @@
 			golden_cfg1 {
 				pins = "GPIO223_AH9";	/* MEM_LDO_EN */
 				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+
+	imu {
+		imu_default: imu_default {
+			golden_cfg1 {
+				pins = "GPIO206_AG24";	/* ACC_INT */
+				ste,config = <&gpio_in_pd>;
 			};
 		};
 	};
