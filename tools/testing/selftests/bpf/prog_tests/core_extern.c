@@ -23,19 +23,13 @@ static uint32_t get_kernel_version(void)
 static struct test_case {
 	const char *name;
 	const char *cfg;
-	const char *cfg_path;
 	bool fails;
 	struct test_core_extern__data data;
 } test_cases[] = {
-	{ .name = "default search path", .cfg_path = NULL,
-	  .data = { .bpf_syscall = true } },
-	{ .name = "/proc/config.gz", .cfg_path = "/proc/config.gz",
-	  .data = { .bpf_syscall = true } },
-	{ .name = "missing config", .fails = true,
-	  .cfg_path = "/proc/invalid-config.gz" },
+	{ .name = "default search path", .data = { .bpf_syscall = true } },
 	{
 		.name = "custom values",
-		.cfg = "CONFIG_BPF_SYSCALL=y\n"
+		.cfg = "CONFIG_BPF_SYSCALL=n\n"
 		       "CONFIG_TRISTATE=m\n"
 		       "CONFIG_BOOL=y\n"
 		       "CONFIG_CHAR=100\n"
@@ -45,7 +39,7 @@ static struct test_case {
 		       "CONFIG_STR=\"abracad\"\n"
 		       "CONFIG_MISSING=0",
 		.data = {
-			.bpf_syscall = true,
+			.bpf_syscall = false,
 			.tristate_val = TRI_MODULE,
 			.bool_val = true,
 			.char_val = 100,
@@ -133,29 +127,13 @@ void test_core_extern(void)
 	int n = sizeof(*skel->data) / sizeof(uint64_t);
 
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
-		char tmp_cfg_path[] = "/tmp/test_core_extern_cfg.XXXXXX";
 		struct test_case *t = &test_cases[i];
 		DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
-			.kconfig_path = t->cfg_path,
+			.kconfig = t->cfg,
 		);
 
 		if (!test__start_subtest(t->name))
 			continue;
-
-		if (t->cfg) {
-			size_t n = strlen(t->cfg) + 1;
-			int fd = mkstemp(tmp_cfg_path);
-			int written;
-
-			if (CHECK(fd < 0, "mkstemp", "errno: %d\n", errno))
-				continue;
-			printf("using '%s' as config file\n", tmp_cfg_path);
-			written = write(fd, t->cfg, n);
-			close(fd);
-			if (CHECK_FAIL(written != n))
-				goto cleanup;
-			opts.kconfig_path = tmp_cfg_path;
-		}
 
 		skel = test_core_extern__open_opts(&opts);
 		if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
@@ -185,8 +163,6 @@ void test_core_extern(void)
 			       j, exp[j], got[j]);
 		}
 cleanup:
-		if (t->cfg)
-			unlink(tmp_cfg_path);
 		test_core_extern__destroy(skel);
 		skel = NULL;
 	}

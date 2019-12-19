@@ -302,7 +302,7 @@ struct bpf_object {
 	size_t nr_maps;
 	size_t maps_cap;
 
-	char *kconfig_path;
+	char *kconfig;
 	struct extern_desc *externs;
 	int nr_extern;
 	int kconfig_map_idx;
@@ -1149,98 +1149,129 @@ static int set_ext_value_num(struct extern_desc *ext, void *ext_val,
 	return 0;
 }
 
-static int bpf_object__read_kernel_config(struct bpf_object *obj,
-					  const char *config_path,
-					  void *data)
+static int bpf_object__process_kconfig_line(struct bpf_object *obj,
+					    char *buf, void *data)
 {
-	char buf[PATH_MAX], *sep, *value;
 	struct extern_desc *ext;
+	char *sep, *value;
 	int len, err = 0;
 	void *ext_val;
 	__u64 num;
+
+	if (strncmp(buf, "CONFIG_", 7))
+		return 0;
+
+	sep = strchr(buf, '=');
+	if (!sep) {
+		pr_warn("failed to parse '%s': no separator\n", buf);
+		return -EINVAL;
+	}
+
+	/* Trim ending '\n' */
+	len = strlen(buf);
+	if (buf[len - 1] == '\n')
+		buf[len - 1] = '\0';
+	/* Split on '=' and ensure that a value is present. */
+	*sep = '\0';
+	if (!sep[1]) {
+		*sep = '=';
+		pr_warn("failed to parse '%s': no value\n", buf);
+		return -EINVAL;
+	}
+
+	ext = find_extern_by_name(obj, buf);
+	if (!ext || ext->is_set)
+		return 0;
+
+	ext_val = data + ext->data_off;
+	value = sep + 1;
+
+	switch (*value) {
+	case 'y': case 'n': case 'm':
+		err = set_ext_value_tri(ext, ext_val, *value);
+		break;
+	case '"':
+		err = set_ext_value_str(ext, ext_val, value);
+		break;
+	default:
+		/* assume integer */
+		err = parse_u64(value, &num);
+		if (err) {
+			pr_warn("extern %s=%s should be integer\n",
+				ext->name, value);
+			return err;
+		}
+		err = set_ext_value_num(ext, ext_val, num);
+		break;
+	}
+	if (err)
+		return err;
+	pr_debug("extern %s=%s\n", ext->name, value);
+	return 0;
+}
+
+static int bpf_object__read_kconfig_file(struct bpf_object *obj, void *data)
+{
+	char buf[PATH_MAX];
+	struct utsname uts;
+	int len, err = 0;
 	gzFile file;
 
-	if (config_path) {
-		file = gzopen(config_path, "r");
-	} else {
-		struct utsname uts;
+	uname(&uts);
+	len = snprintf(buf, PATH_MAX, "/boot/config-%s", uts.release);
+	if (len < 0)
+		return -EINVAL;
+	else if (len >= PATH_MAX)
+		return -ENAMETOOLONG;
 
-		uname(&uts);
-		len = snprintf(buf, PATH_MAX, "/boot/config-%s", uts.release);
-		if (len < 0)
-			return -EINVAL;
-		else if (len >= PATH_MAX)
-			return -ENAMETOOLONG;
-		/* gzopen also accepts uncompressed files. */
-		file = gzopen(buf, "r");
-		if (!file)
-			file = gzopen("/proc/config.gz", "r");
-	}
+	/* gzopen also accepts uncompressed files. */
+	file = gzopen(buf, "r");
+	if (!file)
+		file = gzopen("/proc/config.gz", "r");
+
 	if (!file) {
-		pr_warn("failed to read kernel config at '%s'\n", config_path);
+		pr_warn("failed to open system Kconfig\n");
 		return -ENOENT;
 	}
 
 	while (gzgets(file, buf, sizeof(buf))) {
-		if (strncmp(buf, "CONFIG_", 7))
-			continue;
-
-		sep = strchr(buf, '=');
-		if (!sep) {
-			err = -EINVAL;
-			pr_warn("failed to parse '%s': no separator\n", buf);
+		err = bpf_object__process_kconfig_line(obj, buf, data);
+		if (err) {
+			pr_warn("error parsing system Kconfig line '%s': %d\n",
+				buf, err);
 			goto out;
 		}
-		/* Trim ending '\n' */
-		len = strlen(buf);
-		if (buf[len - 1] == '\n')
-			buf[len - 1] = '\0';
-		/* Split on '=' and ensure that a value is present. */
-		*sep = '\0';
-		if (!sep[1]) {
-			err = -EINVAL;
-			*sep = '=';
-			pr_warn("failed to parse '%s': no value\n", buf);
-			goto out;
-		}
-
-		ext = find_extern_by_name(obj, buf);
-		if (!ext)
-			continue;
-		if (ext->is_set) {
-			err = -EINVAL;
-			pr_warn("re-defining extern '%s' not allowed\n", buf);
-			goto out;
-		}
-
-		ext_val = data + ext->data_off;
-		value = sep + 1;
-
-		switch (*value) {
-		case 'y': case 'n': case 'm':
-			err = set_ext_value_tri(ext, ext_val, *value);
-			break;
-		case '"':
-			err = set_ext_value_str(ext, ext_val, value);
-			break;
-		default:
-			/* assume integer */
-			err = parse_u64(value, &num);
-			if (err) {
-				pr_warn("extern %s=%s should be integer\n",
-					ext->name, value);
-				goto out;
-			}
-			err = set_ext_value_num(ext, ext_val, num);
-			break;
-		}
-		if (err)
-			goto out;
-		pr_debug("extern %s=%s\n", ext->name, value);
 	}
 
 out:
 	gzclose(file);
+	return err;
+}
+
+static int bpf_object__read_kconfig_mem(struct bpf_object *obj,
+					const char *config, void *data)
+{
+	char buf[PATH_MAX];
+	int err = 0;
+	FILE *file;
+
+	file = fmemopen((void *)config, strlen(config), "r");
+	if (!file) {
+		err = -errno;
+		pr_warn("failed to open in-memory Kconfig: %d\n", err);
+		return err;
+	}
+
+	while (fgets(buf, sizeof(buf), file)) {
+		err = bpf_object__process_kconfig_line(obj, buf, data);
+		if (err) {
+			pr_warn("error parsing in-memory Kconfig line '%s': %d\n",
+				buf, err);
+			break;
+		}
+	}
+
+	fclose(file);
 	return err;
 }
 
@@ -4567,7 +4598,7 @@ static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		   const struct bpf_object_open_opts *opts)
 {
-	const char *obj_name, *kconfig_path;
+	const char *obj_name, *kconfig;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	char tmp_name[64];
@@ -4599,10 +4630,10 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		return obj;
 
 	obj->relaxed_core_relocs = OPTS_GET(opts, relaxed_core_relocs, false);
-	kconfig_path = OPTS_GET(opts, kconfig_path, NULL);
-	if (kconfig_path) {
-		obj->kconfig_path = strdup(kconfig_path);
-		if (!obj->kconfig_path)
+	kconfig = OPTS_GET(opts, kconfig, NULL);
+	if (kconfig) {
+		obj->kconfig = strdup(kconfig);
+		if (!obj->kconfig)
 			return ERR_PTR(-ENOMEM);
 	}
 
@@ -4745,7 +4776,7 @@ static int bpf_object__sanitize_maps(struct bpf_object *obj)
 }
 
 static int bpf_object__resolve_externs(struct bpf_object *obj,
-				       const char *config_path)
+				       const char *extra_kconfig)
 {
 	bool need_config = false;
 	struct extern_desc *ext;
@@ -4779,8 +4810,21 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 			return -EINVAL;
 		}
 	}
+	if (need_config && extra_kconfig) {
+		err = bpf_object__read_kconfig_mem(obj, extra_kconfig, data);
+		if (err)
+			return -EINVAL;
+		need_config = false;
+		for (i = 0; i < obj->nr_extern; i++) {
+			ext = &obj->externs[i];
+			if (!ext->is_set) {
+				need_config = true;
+				break;
+			}
+		}
+	}
 	if (need_config) {
-		err = bpf_object__read_kernel_config(obj, config_path, data);
+		err = bpf_object__read_kconfig_file(obj, data);
 		if (err)
 			return -EINVAL;
 	}
@@ -4818,7 +4862,7 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	obj->loaded = true;
 
 	err = bpf_object__probe_caps(obj);
-	err = err ? : bpf_object__resolve_externs(obj, obj->kconfig_path);
+	err = err ? : bpf_object__resolve_externs(obj, obj->kconfig);
 	err = err ? : bpf_object__sanitize_and_load_btf(obj);
 	err = err ? : bpf_object__sanitize_maps(obj);
 	err = err ? : bpf_object__create_maps(obj);
@@ -5412,7 +5456,7 @@ void bpf_object__close(struct bpf_object *obj)
 		zfree(&map->pin_path);
 	}
 
-	zfree(&obj->kconfig_path);
+	zfree(&obj->kconfig);
 	zfree(&obj->externs);
 	obj->nr_extern = 0;
 
