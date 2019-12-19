@@ -9,6 +9,8 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
+#include "rv1126-dram-default-timing.dtsi"
 
 / {
 	#address-cells = <1>;
@@ -766,6 +768,64 @@
 		clock-names = "pclk_mailbox";
 		#mbox-cells = <1>;
 		status = "disabled";
+	};
+
+	dfi: dfi@ff9c0000 {
+		reg = <0xff9c0000 0x400>;
+		compatible = "rockchip,rv1126-dfi";
+		rockchip,pmugrf = <&pmugrf>;
+		status = "disabled";
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,rv1126-dmc";
+		devfreq-events = <&dfi>;
+		clocks = <&cru SCLK_DDRCLK>;
+		clock-names = "dmc_clk";
+		operating-points-v2 = <&dmc_opp_table>;
+		ddr_timing = <&ddr_timing>;
+		upthreshold = <40>;
+		downdifferential = <20>;
+		system-status-freq = <
+			/*system status         freq(KHz)*/
+			SYS_STATUS_NORMAL       924000
+			SYS_STATUS_REBOOT       450000
+			SYS_STATUS_SUSPEND      328000
+			SYS_STATUS_VIDEO_1080P  924000
+			SYS_STATUS_BOOST        924000
+			SYS_STATUS_ISP          924000
+			SYS_STATUS_PERFORMANCE  924000
+		>;
+		auto-min-freq = <328000>;
+		auto-freq-en = <0>;
+		#cooling-cells = <2>;
+		status = "disabled";
+	};
+
+	dmc_opp_table: dmc-opp-table {
+		compatible = "operating-points-v2";
+
+		opp-328000000 {
+			opp-hz = /bits/ 64 <328000000>;
+			opp-microvolt = <800000>;
+		};
+		opp-450000000 {
+			opp-hz = /bits/ 64 <450000000>;
+			opp-microvolt = <800000>;
+		};
+		opp-664000000 {
+			opp-hz = /bits/ 64 <664000000>;
+			opp-microvolt = <800000>;
+		};
+		opp-924000000 {
+			opp-hz = /bits/ 64 <924000000>;
+			opp-microvolt = <800000>;
+		};
+		opp-1056000000 {
+			opp-hz = /bits/ 64 <1056000000>;
+			opp-microvolt = <800000>;
+			status = "disabled";
+		};
 	};
 
 	pvtm@ffc00000 {
