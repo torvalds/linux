@@ -62,19 +62,16 @@ static void engine_retire(struct work_struct *work)
 static bool add_retire(struct intel_engine_cs *engine,
 		       struct intel_timeline *tl)
 {
+#define STUB ((struct intel_timeline *)1)
 	struct intel_timeline *first;
 
 	/*
 	 * We open-code a llist here to include the additional tag [BIT(0)]
 	 * so that we know when the timeline is already on a
 	 * retirement queue: either this engine or another.
-	 *
-	 * However, we rely on that a timeline can only be active on a single
-	 * engine at any one time and that add_retire() is called before the
-	 * engine releases the timeline and transferred to another to retire.
 	 */
 
-	if (READ_ONCE(tl->retire)) /* already queued */
+	if (cmpxchg(&tl->retire, NULL, STUB)) /* already queued */
 		return false;
 
 	intel_timeline_get(tl);
