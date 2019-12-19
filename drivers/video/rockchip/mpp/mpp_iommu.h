@@ -16,7 +16,7 @@
 
 struct mpp_dma_buffer {
 	struct list_head list;
-	struct mpp_dma_session *session;
+	struct mpp_dma_session *dma;
 
 	/* DMABUF information */
 	struct dma_buf *dmabuf;
@@ -54,22 +54,22 @@ struct mpp_iommu_info {
 
 struct mpp_dma_session *
 mpp_dma_session_create(struct device *dev);
-int mpp_dma_session_destroy(struct mpp_dma_session *session);
+int mpp_dma_session_destroy(struct mpp_dma_session *dma);
 
 struct mpp_dma_buffer *
-mpp_dma_alloc(struct mpp_dma_session *session, size_t size);
-int mpp_dma_free(struct mpp_dma_session *session,
+mpp_dma_alloc(struct mpp_dma_session *dma, size_t size);
+int mpp_dma_free(struct mpp_dma_session *dma,
 		 struct mpp_dma_buffer *buffer);
 
 struct mpp_dma_buffer *
 mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
-		  struct mpp_dma_session *session, int fd);
-int mpp_dma_release_fd_direct(struct mpp_dma_session *session, int fd);
-int mpp_dma_release_fd(struct mpp_dma_session *session, int fd);
+		  struct mpp_dma_session *dma, int fd);
+int mpp_dma_release_fd_direct(struct mpp_dma_session *dma, int fd);
+int mpp_dma_release_fd(struct mpp_dma_session *dma, int fd);
 
-int mpp_dma_unmap_kernel(struct mpp_dma_session *session,
+int mpp_dma_unmap_kernel(struct mpp_dma_session *dma,
 			 struct mpp_dma_buffer *buffer);
-int mpp_dma_map_kernel(struct mpp_dma_session *session,
+int mpp_dma_map_kernel(struct mpp_dma_session *dma,
 		       struct mpp_dma_buffer *buffer);
 
 struct mpp_iommu_info *

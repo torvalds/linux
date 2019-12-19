@@ -21,7 +21,7 @@
 #include "mpp_iommu.h"
 
 static struct mpp_dma_buffer *
-mpp_dma_find_buffer_fd(struct mpp_dma_session *session, int fd)
+mpp_dma_find_buffer_fd(struct mpp_dma_session *dma, int fd)
 {
 	struct dma_buf *dmabuf;
 	struct mpp_dma_buffer *out = NULL;
@@ -32,7 +32,7 @@ mpp_dma_find_buffer_fd(struct mpp_dma_session *session, int fd)
 		return NULL;
 
 	list_for_each_entry_safe(buffer, n,
-				 &session->buffer_list, list) {
+				 &dma->buffer_list, list) {
 		/*
 		 * As long as the last reference is hold by the buffer pool,
 		 * the same fd won't be assigned to the other application.
@@ -54,10 +54,10 @@ static void mpp_dma_release_buffer(struct kref *ref)
 	struct mpp_dma_buffer *buffer =
 		container_of(ref, struct mpp_dma_buffer, ref);
 
-	mutex_lock(&buffer->session->list_mutex);
-	buffer->session->buffer_count--;
+	mutex_lock(&buffer->dma->list_mutex);
+	buffer->dma->buffer_count--;
 	list_del_init(&buffer->list);
-	mutex_unlock(&buffer->session->list_mutex);
+	mutex_unlock(&buffer->dma->list_mutex);
 
 	dma_buf_unmap_attachment(buffer->attach, buffer->sgt, buffer->dir);
 	dma_buf_detach(buffer->dmabuf, buffer->attach);
@@ -67,15 +67,15 @@ static void mpp_dma_release_buffer(struct kref *ref)
 
 /* Remove the oldest buffer when count more than the setting */
 static int
-mpp_dma_remove_extra_buffer(struct mpp_dma_session *session)
+mpp_dma_remove_extra_buffer(struct mpp_dma_session *dma)
 {
 	struct mpp_dma_buffer *n;
 	struct mpp_dma_buffer *oldest = NULL, *buffer = NULL;
 	ktime_t oldest_time = ktime_set(0, 0);
 
-	if (session->buffer_count > session->max_buffers) {
+	if (dma->buffer_count > dma->max_buffers) {
 		list_for_each_entry_safe(buffer, n,
-					 &session->buffer_list,
+					 &dma->buffer_list,
 					 list) {
 			if (ktime_to_ns(oldest_time) == 0 ||
 			    ktime_after(oldest_time, buffer->last_used)) {
@@ -89,12 +89,12 @@ mpp_dma_remove_extra_buffer(struct mpp_dma_session *session)
 	return 0;
 }
 
-int mpp_dma_release_fd_direct(struct mpp_dma_session *session, int fd)
+int mpp_dma_release_fd_direct(struct mpp_dma_session *dma, int fd)
 {
-	struct device *dev = session->dev;
+	struct device *dev = dma->dev;
 	struct mpp_dma_buffer *buffer = NULL;
 
-	buffer = mpp_dma_find_buffer_fd(session, fd);
+	buffer = mpp_dma_find_buffer_fd(dma, fd);
 	if (IS_ERR_OR_NULL(buffer)) {
 		dev_err(dev, "can not find %d buffer in list\n", fd);
 
@@ -106,12 +106,12 @@ int mpp_dma_release_fd_direct(struct mpp_dma_session *session, int fd)
 	return 0;
 }
 
-int mpp_dma_release_fd(struct mpp_dma_session *session, int fd)
+int mpp_dma_release_fd(struct mpp_dma_session *dma, int fd)
 {
-	struct device *dev = session->dev;
+	struct device *dev = dma->dev;
 	struct mpp_dma_buffer *buffer = NULL;
 
-	buffer = mpp_dma_find_buffer_fd(session, fd);
+	buffer = mpp_dma_find_buffer_fd(dma, fd);
 	if (IS_ERR_OR_NULL(buffer)) {
 		dev_err(dev, "can not find %d buffer in list\n", fd);
 
@@ -124,7 +124,7 @@ int mpp_dma_release_fd(struct mpp_dma_session *session, int fd)
 }
 
 struct mpp_dma_buffer *
-mpp_dma_alloc(struct mpp_dma_session *session, size_t size)
+mpp_dma_alloc(struct mpp_dma_session *dma, size_t size)
 {
 	size_t align_size;
 	dma_addr_t iova;
@@ -135,7 +135,7 @@ mpp_dma_alloc(struct mpp_dma_session *session, size_t size)
 		return NULL;
 
 	align_size = PAGE_ALIGN(size);
-	buffer->vaddr = dma_alloc_coherent(session->dev,
+	buffer->vaddr = dma_alloc_coherent(dma->dev,
 					   align_size,
 					   &iova,
 					   GFP_KERNEL);
@@ -151,10 +151,10 @@ fail_dma_alloc:
 	return NULL;
 }
 
-int mpp_dma_free(struct mpp_dma_session *session,
+int mpp_dma_free(struct mpp_dma_session *dma,
 		 struct mpp_dma_buffer *buffer)
 {
-	dma_free_coherent(session->dev, buffer->size,
+	dma_free_coherent(dma->dev, buffer->size,
 			  buffer->vaddr, buffer->iova);
 	buffer->vaddr = NULL;
 	buffer->iova = 0;
@@ -164,7 +164,7 @@ int mpp_dma_free(struct mpp_dma_session *session,
 }
 
 struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
-					 struct mpp_dma_session *session,
+					 struct mpp_dma_session *dma,
 					 int fd)
 {
 	int ret = 0;
@@ -173,22 +173,22 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	struct mpp_dma_buffer *buffer;
 	struct dma_buf_attachment *attach;
 
-	if (!session) {
-		mpp_err("session is null\n");
+	if (!dma) {
+		mpp_err("dma session is null\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	/* remove the oldest before add buffer */
-	mpp_dma_remove_extra_buffer(session);
+	mpp_dma_remove_extra_buffer(dma);
 
-	/* Check whether in session */
-	buffer = mpp_dma_find_buffer_fd(session, fd);
+	/* Check whether in dma session */
+	buffer = mpp_dma_find_buffer_fd(dma, fd);
 	if (!IS_ERR_OR_NULL(buffer)) {
 		if (kref_get_unless_zero(&buffer->ref)) {
 			buffer->last_used = ktime_get();
 			return buffer;
 		}
-		dev_dbg(session->dev, "missing the fd %d\n", fd);
+		dev_dbg(dma->dev, "missing the fd %d\n", fd);
 	}
 
 	dmabuf = dma_buf_get(fd);
@@ -208,7 +208,7 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	buffer->dir = DMA_BIDIRECTIONAL;
 	buffer->last_used = ktime_get();
 
-	attach = dma_buf_attach(buffer->dmabuf, session->dev);
+	attach = dma_buf_attach(buffer->dmabuf, dma->dev);
 	if (IS_ERR(attach)) {
 		ret = PTR_ERR(attach);
 		goto fail_attach;
@@ -223,17 +223,17 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	buffer->size = sg_dma_len(sgt->sgl);
 	buffer->attach = attach;
 	buffer->sgt = sgt;
-	buffer->session = session;
+	buffer->dma = dma;
 
 	kref_init(&buffer->ref);
 	/* Increase the reference for used outside the buffer pool */
 	kref_get(&buffer->ref);
 	INIT_LIST_HEAD(&buffer->list);
 
-	mutex_lock(&session->list_mutex);
-	session->buffer_count++;
-	list_add_tail(&buffer->list, &session->buffer_list);
-	mutex_unlock(&session->list_mutex);
+	mutex_lock(&dma->list_mutex);
+	dma->buffer_count++;
+	list_add_tail(&buffer->list, &dma->buffer_list);
+	mutex_unlock(&dma->list_mutex);
 
 	return buffer;
 
@@ -246,7 +246,7 @@ fail:
 	return ERR_PTR(ret);
 }
 
-int mpp_dma_unmap_kernel(struct mpp_dma_session *session,
+int mpp_dma_unmap_kernel(struct mpp_dma_session *dma,
 			 struct mpp_dma_buffer *buffer)
 {
 	void *vaddr = buffer->vaddr;
@@ -264,7 +264,7 @@ int mpp_dma_unmap_kernel(struct mpp_dma_session *session,
 	return 0;
 }
 
-int mpp_dma_map_kernel(struct mpp_dma_session *session,
+int mpp_dma_map_kernel(struct mpp_dma_session *dma,
 		       struct mpp_dma_buffer *buffer)
 {
 	int ret;
@@ -276,13 +276,13 @@ int mpp_dma_map_kernel(struct mpp_dma_session *session,
 
 	ret = dma_buf_begin_cpu_access(dmabuf, DMA_FROM_DEVICE);
 	if (ret) {
-		dev_dbg(session->dev, "can't access the dma buffer\n");
+		dev_dbg(dma->dev, "can't access the dma buffer\n");
 		goto failed_access;
 	}
 
 	vaddr = dma_buf_vmap(dmabuf);
 	if (!vaddr) {
-		dev_dbg(session->dev, "can't vmap the dma buffer\n");
+		dev_dbg(dma->dev, "can't vmap the dma buffer\n");
 		ret = -EIO;
 		goto failed_vmap;
 	}
@@ -298,20 +298,20 @@ failed_access:
 	return ret;
 }
 
-int mpp_dma_session_destroy(struct mpp_dma_session *session)
+int mpp_dma_session_destroy(struct mpp_dma_session *dma)
 {
 	struct mpp_dma_buffer *n, *buffer = NULL;
 
-	if (!session)
+	if (!dma)
 		return -EINVAL;
 
 	list_for_each_entry_safe(buffer, n,
-				 &session->buffer_list,
+				 &dma->buffer_list,
 				 list) {
 		mpp_dma_release_buffer(&buffer->ref);
 	}
 
-	kfree(session);
+	kfree(dma);
 
 	return 0;
 }
@@ -319,18 +319,18 @@ int mpp_dma_session_destroy(struct mpp_dma_session *session)
 struct mpp_dma_session *
 mpp_dma_session_create(struct device *dev)
 {
-	struct mpp_dma_session *session = NULL;
+	struct mpp_dma_session *dma = NULL;
 
-	session = kzalloc(sizeof(*session), GFP_KERNEL);
-	if (!session)
-		return session;
+	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
+	if (!dma)
+		return dma;
 
-	INIT_LIST_HEAD(&session->buffer_list);
-	mutex_init(&session->list_mutex);
+	INIT_LIST_HEAD(&dma->buffer_list);
+	mutex_init(&dma->list_mutex);
 
-	session->dev = dev;
+	dma->dev = dev;
 
-	return session;
+	return dma;
 }
 
 int mpp_iommu_detach(struct mpp_iommu_info *info)
