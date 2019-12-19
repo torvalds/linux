@@ -78,7 +78,8 @@ void test_cgroup_attach_multi(void)
 {
 	__u32 prog_ids[4], prog_cnt = 0, attach_flags, saved_prog_id;
 	int cg1 = 0, cg2 = 0, cg3 = 0, cg4 = 0, cg5 = 0, key = 0;
-	int allow_prog[6] = {-1};
+	DECLARE_LIBBPF_OPTS(bpf_prog_attach_opts, attach_opts);
+	int allow_prog[7] = {-1};
 	unsigned long long value;
 	__u32 duration = 0;
 	int i = 0;
@@ -189,6 +190,52 @@ void test_cgroup_attach_multi(void)
 	CHECK_FAIL(bpf_map_lookup_elem(map_fd, &key, &value));
 	CHECK_FAIL(value != 1 + 2 + 8 + 16);
 
+	/* test replace */
+
+	attach_opts.flags = BPF_F_ALLOW_OVERRIDE | BPF_F_REPLACE;
+	attach_opts.replace_prog_fd = allow_prog[0];
+	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+					 BPF_CGROUP_INET_EGRESS, &attach_opts),
+		  "fail_prog_replace_override", "unexpected success\n"))
+		goto err;
+	CHECK_FAIL(errno != EINVAL);
+
+	attach_opts.flags = BPF_F_REPLACE;
+	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+					 BPF_CGROUP_INET_EGRESS, &attach_opts),
+		  "fail_prog_replace_no_multi", "unexpected success\n"))
+		goto err;
+	CHECK_FAIL(errno != EINVAL);
+
+	attach_opts.flags = BPF_F_ALLOW_MULTI | BPF_F_REPLACE;
+	attach_opts.replace_prog_fd = -1;
+	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+					 BPF_CGROUP_INET_EGRESS, &attach_opts),
+		  "fail_prog_replace_bad_fd", "unexpected success\n"))
+		goto err;
+	CHECK_FAIL(errno != EBADF);
+
+	/* replacing a program that is not attached to cgroup should fail  */
+	attach_opts.replace_prog_fd = allow_prog[3];
+	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+					 BPF_CGROUP_INET_EGRESS, &attach_opts),
+		  "fail_prog_replace_no_ent", "unexpected success\n"))
+		goto err;
+	CHECK_FAIL(errno != ENOENT);
+
+	/* replace 1st from the top program */
+	attach_opts.replace_prog_fd = allow_prog[0];
+	if (CHECK(bpf_prog_attach_xattr(allow_prog[6], cg1,
+					BPF_CGROUP_INET_EGRESS, &attach_opts),
+		  "prog_replace", "errno=%d\n", errno))
+		goto err;
+
+	value = 0;
+	CHECK_FAIL(bpf_map_update_elem(map_fd, &key, &value, 0));
+	CHECK_FAIL(system(PING_CMD));
+	CHECK_FAIL(bpf_map_lookup_elem(map_fd, &key, &value));
+	CHECK_FAIL(value != 64 + 2 + 8 + 16);
+
 	/* detach 3rd from bottom program and ping again */
 	if (CHECK(!bpf_prog_detach2(0, cg3, BPF_CGROUP_INET_EGRESS),
 		  "fail_prog_detach_from_cg3", "unexpected success\n"))
@@ -202,7 +249,7 @@ void test_cgroup_attach_multi(void)
 	CHECK_FAIL(bpf_map_update_elem(map_fd, &key, &value, 0));
 	CHECK_FAIL(system(PING_CMD));
 	CHECK_FAIL(bpf_map_lookup_elem(map_fd, &key, &value));
-	CHECK_FAIL(value != 1 + 2 + 16);
+	CHECK_FAIL(value != 64 + 2 + 16);
 
 	/* detach 2nd from bottom program and ping again */
 	if (CHECK(bpf_prog_detach2(-1, cg4, BPF_CGROUP_INET_EGRESS),
@@ -213,7 +260,7 @@ void test_cgroup_attach_multi(void)
 	CHECK_FAIL(bpf_map_update_elem(map_fd, &key, &value, 0));
 	CHECK_FAIL(system(PING_CMD));
 	CHECK_FAIL(bpf_map_lookup_elem(map_fd, &key, &value));
-	CHECK_FAIL(value != 1 + 2 + 4);
+	CHECK_FAIL(value != 64 + 2 + 4);
 
 	prog_cnt = 4;
 	CHECK_FAIL(bpf_prog_query(cg5, BPF_CGROUP_INET_EGRESS,
