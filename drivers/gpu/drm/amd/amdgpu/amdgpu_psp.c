@@ -24,6 +24,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/dma-mapping.h>
 
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
@@ -37,6 +38,9 @@
 #include "amdgpu_ras.h"
 
 static void psp_set_funcs(struct amdgpu_device *adev);
+
+static int psp_sysfs_init(struct amdgpu_device *adev);
+static void psp_sysfs_fini(struct amdgpu_device *adev);
 
 /*
  * Due to DF Cstate management centralized to PMFW, the firmware
@@ -113,6 +117,16 @@ static int psp_early_init(void *handle)
 	return 0;
 }
 
+static int psp_late_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (adev->asic_type == CHIP_NAVI10)
+		return psp_sysfs_init(adev);
+
+	return 0;
+}
+
 static int psp_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -152,6 +166,10 @@ static int psp_sw_fini(void *handle)
 		release_firmware(adev->psp.ta_fw);
 		adev->psp.ta_fw = NULL;
 	}
+
+	if (adev->asic_type == CHIP_NAVI10)
+		psp_sysfs_fini(adev);
+
 	return 0;
 }
 
@@ -1816,10 +1834,85 @@ static int psp_set_powergating_state(void *handle,
 	return 0;
 }
 
+static ssize_t psp_usbc_pd_fw_sysfs_read(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	uint32_t fw_ver;
+	int ret;
+
+	mutex_lock(&adev->psp.mutex);
+	ret = psp_read_usbc_pd_fw(&adev->psp, &fw_ver);
+	mutex_unlock(&adev->psp.mutex);
+
+	if (ret) {
+		DRM_ERROR("Failed to read USBC PD FW, err = %d", ret);
+		return ret;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%x\n", fw_ver);
+}
+
+static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
+						       struct device_attribute *attr,
+						       const char *buf,
+						       size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	void *cpu_addr;
+	dma_addr_t dma_addr;
+	int ret;
+	char fw_name[100];
+	const struct firmware *usbc_pd_fw;
+
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s", buf);
+	ret = request_firmware(&usbc_pd_fw, fw_name, adev->dev);
+	if (ret)
+		goto fail;
+
+	/* We need contiguous physical mem to place the FW  for psp to access */
+	cpu_addr = dma_alloc_coherent(adev->dev, usbc_pd_fw->size, &dma_addr, GFP_KERNEL);
+
+	ret = dma_mapping_error(adev->dev, dma_addr);
+	if (ret)
+		goto rel_buf;
+
+	memcpy_toio(cpu_addr, usbc_pd_fw->data, usbc_pd_fw->size);
+
+	/*TODO Remove once PSP starts snooping CPU cache */
+	clflush_cache_range(cpu_addr, (usbc_pd_fw->size & ~(L1_CACHE_BYTES - 1)));
+
+	mutex_lock(&adev->psp.mutex);
+	ret = psp_load_usbc_pd_fw(&adev->psp, dma_addr);
+	mutex_unlock(&adev->psp.mutex);
+
+rel_buf:
+	dma_free_coherent(adev->dev, usbc_pd_fw->size, cpu_addr, dma_addr);
+	release_firmware(usbc_pd_fw);
+
+fail:
+	if (ret) {
+		DRM_ERROR("Failed to load USBC PD FW, err = %d", ret);
+		return ret;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(usbc_pd_fw, S_IRUGO | S_IWUSR,
+		   psp_usbc_pd_fw_sysfs_read,
+		   psp_usbc_pd_fw_sysfs_write);
+
+
+
 const struct amd_ip_funcs psp_ip_funcs = {
 	.name = "psp",
 	.early_init = psp_early_init,
-	.late_init = NULL,
+	.late_init = psp_late_init,
 	.sw_init = psp_sw_init,
 	.sw_fini = psp_sw_fini,
 	.hw_init = psp_hw_init,
@@ -1833,6 +1926,21 @@ const struct amd_ip_funcs psp_ip_funcs = {
 	.set_clockgating_state = psp_set_clockgating_state,
 	.set_powergating_state = psp_set_powergating_state,
 };
+
+static int psp_sysfs_init(struct amdgpu_device *adev)
+{
+	int ret = device_create_file(adev->dev, &dev_attr_usbc_pd_fw);
+
+	if (ret)
+		DRM_ERROR("Failed to create USBC PD FW control file!");
+
+	return ret;
+}
+
+static void psp_sysfs_fini(struct amdgpu_device *adev)
+{
+	device_remove_file(adev->dev, &dev_attr_usbc_pd_fw);
+}
 
 static const struct amdgpu_psp_funcs psp_funcs = {
 	.check_fw_loading_status = psp_check_fw_loading_status,
