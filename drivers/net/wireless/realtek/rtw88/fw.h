@@ -12,6 +12,8 @@
 #define FW_HDR_SIZE			64
 #define FW_HDR_CHKSUM_SIZE		8
 
+#define FW_NLO_INFO_CHECK_SIZE		4
+
 #define FIFO_PAGE_SIZE_SHIFT		12
 #define FIFO_PAGE_SIZE			4096
 #define RSVD_PAGE_START_ADDR		0x780
@@ -45,6 +47,9 @@ enum rtw_rsvd_packet_type {
 	RSVD_QOS_NULL,
 	RSVD_LPS_PG_DPK,
 	RSVD_LPS_PG_INFO,
+	RSVD_PROBE_REQ,
+	RSVD_NLO_INFO,
+	RSVD_CH_INFO,
 };
 
 enum rtw_fw_rf_type {
@@ -98,11 +103,30 @@ struct rtw_rsvd_page {
 	enum rtw_rsvd_packet_type type;
 	u8 page;
 	bool add_txdesc;
+	struct cfg80211_ssid *ssid;
 };
 
 enum rtw_keep_alive_pkt_type {
 	KEEP_ALIVE_NULL_PKT = 0,
 	KEEP_ALIVE_ARP_RSP = 1,
+};
+
+struct rtw_nlo_info_hdr {
+	u8 nlo_count;
+	u8 hidden_ap_count;
+	u8 rsvd1[2];
+	u8 pattern_check[FW_NLO_INFO_CHECK_SIZE];
+	u8 rsvd2[8];
+	u8 ssid_len[16];
+	u8 chiper[16];
+	u8 rsvd3[16];
+	u8 location[8];
+} __packed;
+
+enum rtw_packet_type {
+	RTW_PACKET_PROBE_REQ = 0x00,
+
+	RTW_PACKET_UNDEFINE = 0x7FFFFFFF,
 };
 
 struct rtw_fw_wow_keep_alive_para {
@@ -115,6 +139,21 @@ struct rtw_fw_wow_disconnect_para {
 	bool adopt;
 	u8 period;		/* unit: sec */
 	u8 retry_count;
+};
+
+struct rtw_ch_switch_option {
+	u8 periodic_option;
+	u32 tsf_high;
+	u32 tsf_low;
+	u8 dest_ch_en;
+	u8 absolute_time_en;
+	u8 dest_ch;
+	u8 normal_period;
+	u8 normal_period_sel;
+	u8 normal_cycle;
+	u8 slow_period;
+	u8 slow_period_sel;
+	u8 nlo_en;
 };
 
 struct rtw_fw_hdr {
@@ -163,6 +202,12 @@ struct rtw_fw_hdr {
 #define H2C_PKT_PHYDM_INFO 0x11
 #define H2C_PKT_IQK 0x0E
 
+#define H2C_PKT_CH_SWITCH 0x02
+#define H2C_PKT_UPDATE_PKT 0x0C
+
+#define H2C_PKT_CH_SWITCH_LEN 0x20
+#define H2C_PKT_UPDATE_PKT_LEN 0x4
+
 #define SET_PKT_H2C_CATEGORY(h2c_pkt, value)                                   \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(6, 0))
 #define SET_PKT_H2C_CMD_ID(h2c_pkt, value)                                     \
@@ -199,6 +244,57 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define IQK_SET_SEGMENT_IQK(h2c_pkt, value)                                    \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(1))
 
+#define CHSW_INFO_SET_CH(pkt, value)					       \
+	le32p_replace_bits((__le32 *)(pkt) + 0x00, value, GENMASK(7, 0))
+#define CHSW_INFO_SET_PRI_CH_IDX(pkt, value)				       \
+	le32p_replace_bits((__le32 *)(pkt) + 0x00, value, GENMASK(11, 8))
+#define CHSW_INFO_SET_BW(pkt, value)					       \
+	le32p_replace_bits((__le32 *)(pkt) + 0x00, value, GENMASK(15, 12))
+#define CHSW_INFO_SET_TIMEOUT(pkt, value)				       \
+	le32p_replace_bits((__le32 *)(pkt) + 0x00, value, GENMASK(23, 16))
+#define CHSW_INFO_SET_ACTION_ID(pkt, value)				       \
+	le32p_replace_bits((__le32 *)(pkt) + 0x00, value, GENMASK(30, 24))
+
+#define UPDATE_PKT_SET_SIZE(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(15, 0))
+#define UPDATE_PKT_SET_PKT_ID(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(23, 16))
+#define UPDATE_PKT_SET_LOCATION(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(31, 24))
+
+#define CH_SWITCH_SET_START(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(0))
+#define CH_SWITCH_SET_DEST_CH_EN(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(1))
+#define CH_SWITCH_SET_ABSOLUTE_TIME(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(2))
+#define CH_SWITCH_SET_PERIODIC_OPT(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(4, 3))
+#define CH_SWITCH_SET_INFO_LOC(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(15, 8))
+#define CH_SWITCH_SET_CH_NUM(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(23, 16))
+#define CH_SWITCH_SET_PRI_CH_IDX(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(27, 24))
+#define CH_SWITCH_SET_DEST_CH(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(7, 0))
+#define CH_SWITCH_SET_NORMAL_PERIOD(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(13, 8))
+#define CH_SWITCH_SET_NORMAL_PERIOD_SEL(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(15, 14))
+#define CH_SWITCH_SET_SLOW_PERIOD(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(21, 16))
+#define CH_SWITCH_SET_SLOW_PERIOD_SEL(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(23, 22))
+#define CH_SWITCH_SET_NORMAL_CYCLE(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(31, 24))
+#define CH_SWITCH_SET_TSF_HIGH(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x04, value, GENMASK(31, 0))
+#define CH_SWITCH_SET_TSF_LOW(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x05, value, GENMASK(31, 0))
+#define CH_SWITCH_SET_INFO_SIZE(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x06, value, GENMASK(15, 0))
+
 /* Command H2C */
 #define H2C_CMD_RSVD_PAGE		0x0
 #define H2C_CMD_MEDIA_STATUS_RPT	0x01
@@ -220,6 +316,8 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define H2C_CMD_WOWLAN			0x80
 #define H2C_CMD_REMOTE_WAKE_CTRL	0x81
 #define H2C_CMD_AOAC_GLOBAL_INFO	0x82
+#define H2C_CMD_NLO_INFO		0x8C
+
 #define SET_H2C_CMD_ID_CLASS(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(7, 0))
 
@@ -366,6 +464,15 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define SET_AOAC_GLOBAL_INFO_GROUP_ENC_ALG(h2c_pkt, value)		       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(23, 16))
 
+#define SET_NLO_FUN_EN(h2c_pkt, value)                                         \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
+#define SET_NLO_PS_32K(h2c_pkt, value)                                         \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(9))
+#define SET_NLO_IGNORE_SECURITY(h2c_pkt, value)                                \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(10))
+#define SET_NLO_LOC_NLO_INFO(h2c_pkt, value)                                   \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(23, 16))
+
 static inline struct rtw_c2h_cmd *get_c2h_from_skb(struct sk_buff *skb)
 {
 	u32 pkt_offset;
@@ -397,6 +504,8 @@ void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si);
 void rtw_fw_media_status_report(struct rtw_dev *rtwdev, u8 mac_id, bool conn);
 void rtw_add_rsvd_page(struct rtw_dev *rtwdev, enum rtw_rsvd_packet_type type,
 		       bool txdesc);
+void rtw_add_rsvd_page_probe_req(struct rtw_dev *rtwdev,
+				 struct cfg80211_ssid *ssid);
 int rtw_fw_write_data_rsvd_page(struct rtw_dev *rtwdev, u16 pg_addr,
 				u8 *buf, u32 size);
 void rtw_reset_rsvd_page(struct rtw_dev *rtwdev);
@@ -413,4 +522,8 @@ void rtw_fw_set_aoac_global_info_cmd(struct rtw_dev *rtwdev,
 				     u8 pairwise_key_enc,
 				     u8 group_key_enc);
 
+void rtw_fw_set_nlo_info(struct rtw_dev *rtwdev, bool enable);
+void rtw_fw_update_pkt_probe_req(struct rtw_dev *rtwdev,
+				 struct cfg80211_ssid *ssid);
+void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable);
 #endif

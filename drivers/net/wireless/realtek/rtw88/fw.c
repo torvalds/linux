@@ -567,6 +567,9 @@ void rtw_fw_set_remote_wake_ctrl_cmd(struct rtw_dev *rtwdev, bool enable)
 
 	SET_REMOTE_WAKECTRL_ENABLE(h2c_pkt, enable);
 
+	if (rtw_wow_no_link(rtwdev))
+		SET_REMOTE_WAKE_CTRL_NLO_OFFLOAD_EN(h2c_pkt, enable);
+
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
@@ -582,6 +585,26 @@ static u8 rtw_get_rsvd_page_location(struct rtw_dev *rtwdev,
 	}
 
 	return location;
+}
+
+void rtw_fw_set_nlo_info(struct rtw_dev *rtwdev, bool enable)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+	u8 loc_nlo;
+
+	loc_nlo = rtw_get_rsvd_page_location(rtwdev, RSVD_NLO_INFO);
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_NLO_INFO);
+
+	SET_NLO_FUN_EN(h2c_pkt, enable);
+	if (enable) {
+		if (rtw_fw_lps_deep_mode)
+			SET_NLO_PS_32K(h2c_pkt, enable);
+		SET_NLO_IGNORE_SECURITY(h2c_pkt, enable);
+		SET_NLO_LOC_NLO_INFO(h2c_pkt, loc_nlo);
+	}
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
 void rtw_fw_set_pg_info(struct rtw_dev *rtwdev)
@@ -601,6 +624,40 @@ void rtw_fw_set_pg_info(struct rtw_dev *rtwdev)
 	LPS_PG_PATTERN_CAM_EN(h2c_pkt, conf->pattern_cam_backup);
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+u8 rtw_get_rsvd_page_probe_req_location(struct rtw_dev *rtwdev,
+					struct cfg80211_ssid *ssid)
+{
+	struct rtw_rsvd_page *rsvd_pkt;
+	u8 location = 0;
+
+	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
+		if (rsvd_pkt->type != RSVD_PROBE_REQ)
+			continue;
+		if ((!ssid && !rsvd_pkt->ssid) ||
+		    rtw_ssid_equal(rsvd_pkt->ssid, ssid))
+			location = rsvd_pkt->page;
+	}
+
+	return location;
+}
+
+u16 rtw_get_rsvd_page_probe_req_size(struct rtw_dev *rtwdev,
+				     struct cfg80211_ssid *ssid)
+{
+	struct rtw_rsvd_page *rsvd_pkt;
+	u16 size = 0;
+
+	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
+		if (rsvd_pkt->type != RSVD_PROBE_REQ)
+			continue;
+		if ((!ssid && !rsvd_pkt->ssid) ||
+		    rtw_ssid_equal(rsvd_pkt->ssid, ssid))
+			size = rsvd_pkt->skb->len;
+	}
+
+	return size;
 }
 
 void rtw_send_rsvd_page_h2c(struct rtw_dev *rtwdev)
@@ -646,6 +703,95 @@ rtw_beacon_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	}
 
 	return skb_new;
+}
+
+static struct sk_buff *rtw_nlo_info_get(struct ieee80211_hw *hw)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_pno_request *pno_req = &rtwdev->wow.pno_req;
+	struct rtw_nlo_info_hdr *nlo_hdr;
+	struct cfg80211_ssid *ssid;
+	struct sk_buff *skb;
+	u8 *pos, loc;
+	u32 size;
+	int i;
+
+	if (!pno_req->inited || !pno_req->match_set_cnt)
+		return NULL;
+
+	size = sizeof(struct rtw_nlo_info_hdr) + pno_req->match_set_cnt *
+		      IEEE80211_MAX_SSID_LEN + chip->tx_pkt_desc_sz;
+
+	skb = alloc_skb(size, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, chip->tx_pkt_desc_sz);
+
+	nlo_hdr = skb_put_zero(skb, sizeof(struct rtw_nlo_info_hdr));
+
+	nlo_hdr->nlo_count = pno_req->match_set_cnt;
+	nlo_hdr->hidden_ap_count = pno_req->match_set_cnt;
+
+	/* pattern check for firmware */
+	memset(nlo_hdr->pattern_check, 0xA5, FW_NLO_INFO_CHECK_SIZE);
+
+	for (i = 0; i < pno_req->match_set_cnt; i++)
+		nlo_hdr->ssid_len[i] = pno_req->match_sets[i].ssid.ssid_len;
+
+	for (i = 0; i < pno_req->match_set_cnt; i++) {
+		ssid = &pno_req->match_sets[i].ssid;
+		loc  = rtw_get_rsvd_page_probe_req_location(rtwdev, ssid);
+		if (!loc) {
+			rtw_err(rtwdev, "failed to get probe req rsvd loc\n");
+			kfree(skb);
+			return NULL;
+		}
+		nlo_hdr->location[i] = loc;
+	}
+
+	for (i = 0; i < pno_req->match_set_cnt; i++) {
+		pos = skb_put_zero(skb, IEEE80211_MAX_SSID_LEN);
+		memcpy(pos, pno_req->match_sets[i].ssid.ssid,
+		       pno_req->match_sets[i].ssid.ssid_len);
+	}
+
+	return skb;
+}
+
+static struct sk_buff *rtw_cs_channel_info_get(struct ieee80211_hw *hw)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_pno_request *pno_req = &rtwdev->wow.pno_req;
+	struct ieee80211_channel *channels = pno_req->channels;
+	struct sk_buff *skb;
+	int count =  pno_req->channel_cnt;
+	u8 *pos;
+	int i = 0;
+
+	skb = alloc_skb(4 * count + chip->tx_pkt_desc_sz, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, chip->tx_pkt_desc_sz);
+
+	for (i = 0; i < count; i++) {
+		pos = skb_put_zero(skb, 4);
+
+		CHSW_INFO_SET_CH(pos, channels[i].hw_value);
+
+		if (channels[i].flags & IEEE80211_CHAN_RADAR)
+			CHSW_INFO_SET_ACTION_ID(pos, 0);
+		else
+			CHSW_INFO_SET_ACTION_ID(pos, 1);
+		CHSW_INFO_SET_TIMEOUT(pos, 1);
+		CHSW_INFO_SET_PRI_CH_IDX(pos, 1);
+		CHSW_INFO_SET_BW(pos, 0);
+	}
+
+	return skb;
 }
 
 static struct sk_buff *rtw_lps_pg_dpk_get(struct ieee80211_hw *hw)
@@ -705,11 +851,12 @@ static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw,
 
 static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif,
-					     enum rtw_rsvd_packet_type type)
+					     struct rtw_rsvd_page *rsvd_pkt)
 {
 	struct sk_buff *skb_new;
+	struct cfg80211_ssid *ssid;
 
-	switch (type) {
+	switch (rsvd_pkt->type) {
 	case RSVD_BEACON:
 		skb_new = rtw_beacon_get(hw, vif);
 		break;
@@ -730,6 +877,21 @@ static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 		break;
 	case RSVD_LPS_PG_INFO:
 		skb_new = rtw_lps_pg_info_get(hw, vif);
+		break;
+	case RSVD_PROBE_REQ:
+		ssid = (struct cfg80211_ssid *)rsvd_pkt->ssid;
+		if (ssid)
+			skb_new = ieee80211_probereq_get(hw, vif->addr,
+							 ssid->ssid,
+							 ssid->ssid_len, 0);
+		else
+			skb_new = ieee80211_probereq_get(hw, vif->addr, NULL, 0, 0);
+		break;
+	case RSVD_NLO_INFO:
+		skb_new = rtw_nlo_info_get(hw);
+		break;
+	case RSVD_CH_INFO:
+		skb_new = rtw_cs_channel_info_get(hw);
 		break;
 	default:
 		return NULL;
@@ -772,25 +934,53 @@ static void rtw_rsvd_page_list_to_buf(struct rtw_dev *rtwdev, u8 page_size,
 		memcpy(buf, skb->data, skb->len);
 }
 
+static struct rtw_rsvd_page *rtw_alloc_rsvd_page(struct rtw_dev *rtwdev,
+						 enum rtw_rsvd_packet_type type,
+						 bool txdesc)
+{
+	struct rtw_rsvd_page *rsvd_pkt = NULL;
+
+	rsvd_pkt = kzalloc(sizeof(*rsvd_pkt), GFP_KERNEL);
+
+	if (!rsvd_pkt)
+		return NULL;
+
+	rsvd_pkt->type = type;
+	rsvd_pkt->add_txdesc = txdesc;
+
+	return rsvd_pkt;
+}
+
+static void rtw_insert_rsvd_page(struct rtw_dev *rtwdev,
+				 struct rtw_rsvd_page *rsvd_pkt)
+{
+	lockdep_assert_held(&rtwdev->mutex);
+	list_add_tail(&rsvd_pkt->list, &rtwdev->rsvd_page_list);
+}
+
 void rtw_add_rsvd_page(struct rtw_dev *rtwdev, enum rtw_rsvd_packet_type type,
 		       bool txdesc)
 {
 	struct rtw_rsvd_page *rsvd_pkt;
 
-	lockdep_assert_held(&rtwdev->mutex);
-
-	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
-		if (rsvd_pkt->type == type)
-			return;
-	}
-
-	rsvd_pkt = kmalloc(sizeof(*rsvd_pkt), GFP_KERNEL);
+	rsvd_pkt = rtw_alloc_rsvd_page(rtwdev, type, txdesc);
 	if (!rsvd_pkt)
 		return;
 
-	rsvd_pkt->type = type;
-	rsvd_pkt->add_txdesc = txdesc;
-	list_add_tail(&rsvd_pkt->list, &rtwdev->rsvd_page_list);
+	rtw_insert_rsvd_page(rtwdev, rsvd_pkt);
+}
+
+void rtw_add_rsvd_page_probe_req(struct rtw_dev *rtwdev,
+				 struct cfg80211_ssid *ssid)
+{
+	struct rtw_rsvd_page *rsvd_pkt;
+
+	rsvd_pkt = rtw_alloc_rsvd_page(rtwdev, RSVD_PROBE_REQ, true);
+	if (!rsvd_pkt)
+		return;
+
+	rsvd_pkt->ssid = ssid;
+	rtw_insert_rsvd_page(rtwdev, rsvd_pkt);
 }
 
 void rtw_reset_rsvd_page(struct rtw_dev *rtwdev)
@@ -887,7 +1077,7 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 	page_margin = page_size - tx_desc_sz;
 
 	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
-		iter = rtw_get_rsvd_page_skb(hw, vif, rsvd_pkt->type);
+		iter = rtw_get_rsvd_page_skb(hw, vif, rsvd_pkt);
 		if (!iter) {
 			rtw_err(rtwdev, "failed to build rsvd packet\n");
 			goto release_skb;
@@ -1064,4 +1254,82 @@ out:
 	rtw_write16(rtwdev, REG_PKTBUF_DBG_CTRL, ctl);
 	rtw_write8(rtwdev, REG_RCR + 2, rcr);
 	return 0;
+}
+
+static void __rtw_fw_update_pkt(struct rtw_dev *rtwdev, u8 pkt_id, u16 size,
+				u8 location)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+	u16 total_size = H2C_PKT_HDR_SIZE + H2C_PKT_UPDATE_PKT_LEN;
+
+	rtw_h2c_pkt_set_header(h2c_pkt, H2C_PKT_UPDATE_PKT);
+
+	SET_PKT_H2C_TOTAL_LEN(h2c_pkt, total_size);
+	UPDATE_PKT_SET_PKT_ID(h2c_pkt, pkt_id);
+	UPDATE_PKT_SET_LOCATION(h2c_pkt, location);
+
+	/* include txdesc size */
+	UPDATE_PKT_SET_SIZE(h2c_pkt, size);
+
+	rtw_fw_send_h2c_packet(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_update_pkt_probe_req(struct rtw_dev *rtwdev,
+				 struct cfg80211_ssid *ssid)
+{
+	u8 loc;
+	u32 size;
+
+	loc = rtw_get_rsvd_page_probe_req_location(rtwdev, ssid);
+	if (!loc) {
+		rtw_err(rtwdev, "failed to get probe_req rsvd loc\n");
+		return;
+	}
+
+	size = rtw_get_rsvd_page_probe_req_size(rtwdev, ssid);
+	if (!size) {
+		rtw_err(rtwdev, "failed to get probe_req rsvd size\n");
+		return;
+	}
+
+	__rtw_fw_update_pkt(rtwdev, RTW_PACKET_PROBE_REQ, size, loc);
+}
+
+void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable)
+{
+	struct rtw_pno_request *rtw_pno_req = &rtwdev->wow.pno_req;
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+	u16 total_size = H2C_PKT_HDR_SIZE + H2C_PKT_CH_SWITCH_LEN;
+	u8 loc_ch_info;
+	const struct rtw_ch_switch_option cs_option = {
+		.dest_ch_en = 1,
+		.dest_ch = 1,
+		.periodic_option = 2,
+		.normal_period = 5,
+		.normal_period_sel = 0,
+		.normal_cycle = 10,
+		.slow_period = 1,
+		.slow_period_sel = 1,
+	};
+
+	rtw_h2c_pkt_set_header(h2c_pkt, H2C_PKT_CH_SWITCH);
+	SET_PKT_H2C_TOTAL_LEN(h2c_pkt, total_size);
+
+	CH_SWITCH_SET_START(h2c_pkt, enable);
+	CH_SWITCH_SET_DEST_CH_EN(h2c_pkt, cs_option.dest_ch_en);
+	CH_SWITCH_SET_DEST_CH(h2c_pkt, cs_option.dest_ch);
+	CH_SWITCH_SET_NORMAL_PERIOD(h2c_pkt, cs_option.normal_period);
+	CH_SWITCH_SET_NORMAL_PERIOD_SEL(h2c_pkt, cs_option.normal_period_sel);
+	CH_SWITCH_SET_SLOW_PERIOD(h2c_pkt, cs_option.slow_period);
+	CH_SWITCH_SET_SLOW_PERIOD_SEL(h2c_pkt, cs_option.slow_period_sel);
+	CH_SWITCH_SET_NORMAL_CYCLE(h2c_pkt, cs_option.normal_cycle);
+	CH_SWITCH_SET_PERIODIC_OPT(h2c_pkt, cs_option.periodic_option);
+
+	CH_SWITCH_SET_CH_NUM(h2c_pkt, rtw_pno_req->channel_cnt);
+	CH_SWITCH_SET_INFO_SIZE(h2c_pkt, rtw_pno_req->channel_cnt * 4);
+
+	loc_ch_info = rtw_get_rsvd_page_location(rtwdev, RSVD_CH_INFO);
+	CH_SWITCH_SET_INFO_LOC(h2c_pkt, loc_ch_info);
+
+	rtw_fw_send_h2c_packet(rtwdev, h2c_pkt);
 }

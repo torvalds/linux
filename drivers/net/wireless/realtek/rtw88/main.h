@@ -929,12 +929,24 @@ struct rtw_wow_pattern {
 	u8 mask[RTW_MAX_PATTERN_MASK_SIZE];
 };
 
+struct rtw_pno_request {
+	bool inited;
+	u32 match_set_cnt;
+	struct cfg80211_match_set *match_sets;
+	u8 channel_cnt;
+	struct ieee80211_channel *channels;
+	struct cfg80211_sched_scan_plan scan_plan;
+};
+
 struct rtw_wow_param {
 	struct ieee80211_vif *wow_vif;
 	DECLARE_BITMAP(flags, RTW_WOW_FLAG_MAX);
 	u8 txpause;
 	u8 pattern_cnt;
 	struct rtw_wow_pattern patterns[RTW_MAX_PATTERN_NUM];
+
+	bool ips_enabled;
+	struct rtw_pno_request pno_req;
 };
 
 struct rtw_intf_phy_para_table {
@@ -1067,6 +1079,7 @@ struct rtw_chip_info {
 
 	const char *wow_fw_name;
 	const struct wiphy_wowlan_support *wowlan_stub;
+	const u8 max_sched_scan_ssids;
 
 	/* coex paras */
 	u32 coex_para_ver;
@@ -1645,6 +1658,18 @@ static inline struct ieee80211_vif *rtwvif_to_vif(struct rtw_vif *rtwvif)
 	void *p = rtwvif;
 
 	return container_of(p, struct ieee80211_vif, drv_priv);
+}
+
+static inline bool rtw_ssid_equal(struct cfg80211_ssid *a,
+				  struct cfg80211_ssid *b)
+{
+	if (!a || !b || a->ssid_len != b->ssid_len)
+		return false;
+
+	if (memcmp(a->ssid, b->ssid, a->ssid_len))
+		return false;
+
+	return true;
 }
 
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,

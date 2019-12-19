@@ -28,6 +28,8 @@ static void rtw_wow_show_wakeup_reason(struct rtw_dev *rtwdev)
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx ptk rekey\n");
 	else if (reason == RTW_WOW_RSN_RX_PATTERN_MATCH)
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx pattern match packet\n");
+	else if (reason == RTW_WOW_RSN_RX_NLO)
+		rtw_dbg(rtwdev, RTW_DBG_WOW, "Rx NLO\n");
 	else
 		rtw_warn(rtwdev, "Unknown wakeup reason %x\n", reason);
 }
@@ -362,6 +364,10 @@ static int rtw_wow_fw_start(struct rtw_dev *rtwdev)
 		rtw_wow_fw_security_type(rtwdev);
 		rtw_fw_set_disconnect_decision_cmd(rtwdev, true);
 		rtw_fw_set_keep_alive_cmd(rtwdev, true);
+	} else if (rtw_wow_no_link(rtwdev)) {
+		rtw_fw_set_nlo_info(rtwdev, true);
+		rtw_fw_update_pkt_probe_req(rtwdev, NULL);
+		rtw_fw_channel_switch(rtwdev, true);
 	}
 
 	rtw_fw_set_wowlan_ctrl_cmd(rtwdev, true);
@@ -376,6 +382,9 @@ static int rtw_wow_fw_stop(struct rtw_dev *rtwdev)
 		rtw_fw_set_disconnect_decision_cmd(rtwdev, false);
 		rtw_fw_set_keep_alive_cmd(rtwdev, false);
 		rtw_wow_pattern_clear(rtwdev);
+	} else if (rtw_wow_no_link(rtwdev)) {
+		rtw_fw_channel_switch(rtwdev, false);
+		rtw_fw_set_nlo_info(rtwdev, false);
 	}
 
 	rtw_fw_set_wowlan_ctrl_cmd(rtwdev, false);
@@ -423,6 +432,22 @@ static void rtw_wow_fw_media_status(struct rtw_dev *rtwdev, bool connect)
 	rtw_iterate_stas_atomic(rtwdev, rtw_wow_fw_media_status_iter, &data);
 }
 
+static void rtw_wow_config_pno_rsvd_page(struct rtw_dev *rtwdev)
+{
+	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw_pno_request *rtw_pno_req = &rtw_wow->pno_req;
+	struct cfg80211_ssid *ssid;
+	int i;
+
+	for (i = 0 ; i < rtw_pno_req->match_set_cnt; i++) {
+		ssid = &rtw_pno_req->match_sets[i].ssid;
+		rtw_add_rsvd_page_probe_req(rtwdev, ssid);
+	}
+	rtw_add_rsvd_page_probe_req(rtwdev, NULL);
+	rtw_add_rsvd_page(rtwdev, RSVD_NLO_INFO, false);
+	rtw_add_rsvd_page(rtwdev, RSVD_CH_INFO, true);
+}
+
 static void rtw_wow_config_linked_rsvd_page(struct rtw_dev *rtwdev)
 {
 	rtw_add_rsvd_page(rtwdev, RSVD_PS_POLL, true);
@@ -436,8 +461,12 @@ static void rtw_wow_config_rsvd_page(struct rtw_dev *rtwdev)
 {
 	rtw_reset_rsvd_page(rtwdev);
 
-	if (rtw_wow_mgd_linked(rtwdev))
+	if (rtw_wow_mgd_linked(rtwdev)) {
 		rtw_wow_config_linked_rsvd_page(rtwdev);
+	} else if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags) &&
+		   rtw_wow_no_link(rtwdev)) {
+		rtw_wow_config_pno_rsvd_page(rtwdev);
+	}
 }
 
 static int rtw_wow_dl_fw_rsvd_page(struct rtw_dev *rtwdev)
@@ -480,10 +509,74 @@ out:
 	return ret;
 }
 
+static void rtw_wow_check_pno(struct rtw_dev *rtwdev,
+			      struct cfg80211_sched_scan_request *nd_config)
+{
+	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw_pno_request *pno_req = &rtw_wow->pno_req;
+	struct ieee80211_channel *channel;
+	int i, size;
+
+	if (!nd_config->n_match_sets || !nd_config->n_channels)
+		goto err;
+
+	pno_req->match_set_cnt = nd_config->n_match_sets;
+	size = sizeof(*pno_req->match_sets) * pno_req->match_set_cnt;
+	pno_req->match_sets = kmemdup(nd_config->match_sets, size, GFP_KERNEL);
+	if (!pno_req->match_sets)
+		goto err;
+
+	pno_req->channel_cnt = nd_config->n_channels;
+	size = sizeof(*nd_config->channels[0]) * nd_config->n_channels;
+	pno_req->channels = kmalloc(size, GFP_KERNEL);
+	if (!pno_req->channels)
+		goto channel_err;
+
+	for (i = 0 ; i < pno_req->channel_cnt; i++) {
+		channel = pno_req->channels + i;
+		memcpy(channel, nd_config->channels[i], sizeof(*channel));
+	}
+
+	pno_req->scan_plan = *nd_config->scan_plans;
+	pno_req->inited = true;
+
+	rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: net-detect is enabled\n");
+
+	return;
+
+channel_err:
+	kfree(pno_req->match_sets);
+
+err:
+	rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: net-detect is disabled\n");
+}
+
 static int rtw_wow_leave_linked_ps(struct rtw_dev *rtwdev)
 {
 	if (!test_bit(RTW_FLAG_WOWLAN, rtwdev->flags))
 		cancel_delayed_work_sync(&rtwdev->watch_dog_work);
+
+	rtw_leave_lps(rtwdev);
+
+	return 0;
+}
+
+static int rtw_wow_leave_no_link_ps(struct rtw_dev *rtwdev)
+{
+	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
+	int ret = 0;
+
+	if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags)) {
+		if (rtw_fw_lps_deep_mode)
+			rtw_leave_lps_deep(rtwdev);
+	} else {
+		if (test_bit(RTW_FLAG_INACTIVE_PS, rtwdev->flags)) {
+			rtw_wow->ips_enabled = true;
+			ret = rtw_leave_ips(rtwdev);
+			if (ret)
+				return ret;
+		}
+	}
 
 	return 0;
 }
@@ -494,6 +587,18 @@ static int rtw_wow_leave_ps(struct rtw_dev *rtwdev)
 
 	if (rtw_wow_mgd_linked(rtwdev))
 		ret = rtw_wow_leave_linked_ps(rtwdev);
+	else if (rtw_wow_no_link(rtwdev))
+		ret = rtw_wow_leave_no_link_ps(rtwdev);
+
+	return ret;
+}
+
+static int rtw_wow_restore_ps(struct rtw_dev *rtwdev)
+{
+	int ret = 0;
+
+	if (rtw_wow_no_link(rtwdev) && rtwdev->wow.ips_enabled)
+		ret = rtw_enter_ips(rtwdev);
 
 	return ret;
 }
@@ -509,12 +614,22 @@ static int rtw_wow_enter_linked_ps(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+static int rtw_wow_enter_no_link_ps(struct rtw_dev *rtwdev)
+{
+	/* firmware enters deep ps by itself if supported */
+	set_bit(RTW_FLAG_LEISURE_PS_DEEP, rtwdev->flags);
+
+	return 0;
+}
+
 static int rtw_wow_enter_ps(struct rtw_dev *rtwdev)
 {
 	int ret = 0;
 
 	if (rtw_wow_mgd_linked(rtwdev))
 		ret = rtw_wow_enter_linked_ps(rtwdev);
+	else if (rtw_wow_no_link(rtwdev) && rtw_fw_lps_deep_mode)
+		ret = rtw_wow_enter_no_link_ps(rtwdev);
 
 	return ret;
 }
@@ -653,6 +768,10 @@ static void rtw_wow_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	case RTW_NET_MGD_LINKED:
 		rtw_wow->wow_vif = vif;
 		break;
+	case RTW_NET_NO_LINK:
+		if (rtw_wow->pno_req.inited)
+			rtwdev->wow.wow_vif = vif;
+		break;
 	default:
 		break;
 	}
@@ -673,6 +792,9 @@ static int rtw_wow_set_wakeups(struct rtw_dev *rtwdev,
 	if (wowlan->gtk_rekey_failure)
 		set_bit(RTW_WOW_FLAG_EN_REKEY_PKT, rtw_wow->flags);
 
+	if (wowlan->nd_config)
+		rtw_wow_check_pno(rtwdev, wowlan->nd_config);
+
 	rtw_iterate_vifs_atomic(rtwdev, rtw_wow_vif_iter, rtwdev);
 	if (!rtw_wow->wow_vif)
 		return -EPERM;
@@ -692,6 +814,12 @@ static int rtw_wow_set_wakeups(struct rtw_dev *rtwdev,
 static void rtw_wow_clear_wakeups(struct rtw_dev *rtwdev)
 {
 	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw_pno_request *pno_req = &rtw_wow->pno_req;
+
+	if (pno_req->inited) {
+		kfree(pno_req->channels);
+		kfree(pno_req->match_sets);
+	}
 
 	memset(rtw_wow, 0, sizeof(rtwdev->wow));
 }
@@ -715,6 +843,7 @@ int rtw_wow_suspend(struct rtw_dev *rtwdev, struct cfg80211_wowlan *wowlan)
 	ret = rtw_wow_enable(rtwdev);
 	if (ret) {
 		rtw_err(rtwdev, "failed to enable wow\n");
+		rtw_wow_restore_ps(rtwdev);
 		goto out;
 	}
 
@@ -746,8 +875,14 @@ int rtw_wow_resume(struct rtw_dev *rtwdev)
 	rtw_wow_show_wakeup_reason(rtwdev);
 
 	ret = rtw_wow_disable(rtwdev);
-	if (ret)
+	if (ret) {
 		rtw_err(rtwdev, "failed to disable wow\n");
+		goto out;
+	}
+
+	ret = rtw_wow_restore_ps(rtwdev);
+	if (ret)
+		rtw_err(rtwdev, "failed to restore ps to normal mode\n");
 
 out:
 	rtw_wow_clear_wakeups(rtwdev);

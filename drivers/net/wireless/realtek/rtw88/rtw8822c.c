@@ -4063,10 +4063,12 @@ static const struct rtw_pwr_track_tbl rtw8822c_rtw_pwr_track_tbl = {
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8822c = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_GTK_REKEY_FAILURE |
-		 WIPHY_WOWLAN_DISCONNECT | WIPHY_WOWLAN_SUPPORTS_GTK_REKEY,
+		 WIPHY_WOWLAN_DISCONNECT | WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
+		 WIPHY_WOWLAN_NET_DETECT,
 	.n_patterns = RTW_MAX_PATTERN_NUM,
 	.pattern_max_len = RTW_MAX_PATTERN_SIZE,
 	.pattern_min_len = 1,
+	.max_nd_match_sets = 4,
 };
 #endif
 
@@ -4119,6 +4121,7 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 #ifdef CONFIG_PM
 	.wow_fw_name = "rtw88/rtw8822c_wow_fw.bin",
 	.wowlan_stub = &rtw_wowlan_stub_8822c,
+	.max_sched_scan_ssids = 4,
 #endif
 	.coex_para_ver = 0x19062706,
 	.bt_desired_ver = 0x6,
