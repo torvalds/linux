@@ -4064,6 +4064,9 @@ static const struct rtw_pwr_track_tbl rtw8822c_rtw_pwr_track_tbl = {
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8822c = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_GTK_REKEY_FAILURE |
 		 WIPHY_WOWLAN_DISCONNECT | WIPHY_WOWLAN_SUPPORTS_GTK_REKEY,
+	.n_patterns = RTW_MAX_PATTERN_NUM,
+	.pattern_max_len = RTW_MAX_PATTERN_SIZE,
+	.pattern_min_len = 1,
 };
 #endif
 

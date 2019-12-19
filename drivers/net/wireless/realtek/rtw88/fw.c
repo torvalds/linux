@@ -538,6 +538,8 @@ void rtw_fw_set_wowlan_ctrl_cmd(struct rtw_dev *rtwdev, bool enable)
 			SET_WOWLAN_DEAUTH_WAKEUP_ENABLE(h2c_pkt, enable);
 		if (test_bit(RTW_WOW_FLAG_EN_REKEY_PKT, rtw_wow->flags))
 			SET_WOWLAN_REKEY_WAKEUP_ENABLE(h2c_pkt, enable);
+		if (rtw_wow->pattern_cnt)
+			SET_WOWLAN_PATTERN_MATCH_ENABLE(h2c_pkt, enable);
 	}
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
@@ -596,6 +598,7 @@ void rtw_fw_set_pg_info(struct rtw_dev *rtwdev)
 	LPS_PG_INFO_LOC(h2c_pkt, loc_pg);
 	LPS_PG_DPK_LOC(h2c_pkt, loc_dpk);
 	LPS_PG_SEC_CAM_EN(h2c_pkt, conf->sec_cam_backup);
+	LPS_PG_PATTERN_CAM_EN(h2c_pkt, conf->pattern_cam_backup);
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
@@ -677,6 +680,7 @@ static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw,
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_lps_conf *conf = &rtwdev->lps_conf;
 	struct rtw_lps_pg_info_hdr *pg_info_hdr;
+	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
 	struct sk_buff *skb;
 	u32 size;
 
@@ -691,8 +695,10 @@ static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw,
 	pg_info_hdr->macid = find_first_bit(rtwdev->mac_id_map, RTW_MAX_MAC_ID_NUM);
 	pg_info_hdr->sec_cam_count =
 		rtw_sec_cam_pg_backup(rtwdev, pg_info_hdr->sec_cam);
+	pg_info_hdr->pattern_count = rtw_wow->pattern_cnt;
 
 	conf->sec_cam_backup = pg_info_hdr->sec_cam_count != 0;
+	conf->pattern_cam_backup = rtw_wow->pattern_cnt != 0;
 
 	return skb;
 }

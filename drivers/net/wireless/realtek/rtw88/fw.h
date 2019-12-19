@@ -246,6 +246,8 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(31, 24))
 #define LPS_PG_SEC_CAM_EN(h2c_pkt, value)                                      \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
+#define LPS_PG_PATTERN_CAM_EN(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(10))
 #define SET_RSSI_INFO_MACID(h2c_pkt, value)                                    \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(15, 8))
 #define SET_RSSI_INFO_RSSI(h2c_pkt, value)                                     \
@@ -343,6 +345,8 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 
 #define SET_WOWLAN_FUNC_ENABLE(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
+#define SET_WOWLAN_PATTERN_MATCH_ENABLE(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(9))
 #define SET_WOWLAN_MAGIC_PKT_ENABLE(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(10))
 #define SET_WOWLAN_UNICAST_PKT_ENABLE(h2c_pkt, value)			       \

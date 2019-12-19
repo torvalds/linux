@@ -5,12 +5,21 @@
 #ifndef __RTW_WOW_H__
 #define __RTW_WOW_H__
 
+enum rtw_wow_pattern_type {
+	RTW_PATTERN_BROADCAST = 0,
+	RTW_PATTERN_MULTICAST,
+	RTW_PATTERN_UNICAST,
+	RTW_PATTERN_VALID,
+	RTW_PATTERN_INVALID,
+};
+
 enum rtw_wake_reason {
 	RTW_WOW_RSN_RX_PTK_REKEY = 0x1,
 	RTW_WOW_RSN_RX_GTK_REKEY = 0x2,
 	RTW_WOW_RSN_RX_DEAUTH = 0x8,
 	RTW_WOW_RSN_DISCONNECT = 0x10,
 	RTW_WOW_RSN_RX_MAGIC_PKT = 0x21,
+	RTW_WOW_RSN_RX_PATTERN_MATCH = 0x23,
 };
 
 struct rtw_fw_media_status_iter_data {
