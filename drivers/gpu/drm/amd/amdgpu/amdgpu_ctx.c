@@ -127,7 +127,8 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 
 		switch (i) {
 		case AMDGPU_HW_IP_GFX:
-			scheds = adev->gfx.gfx_sched;
+			sched = &adev->gfx.gfx_ring[0].sched;
+			scheds = &sched;
 			num_scheds = 1;
 			break;
 		case AMDGPU_HW_IP_COMPUTE:
