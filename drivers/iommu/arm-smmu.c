@@ -2009,25 +2009,51 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static void arm_smmu_bus_init(void)
+static int arm_smmu_bus_init(struct iommu_ops *ops)
 {
+	int err;
+
 	/* Oh, for a proper bus abstraction */
-	if (!iommu_present(&platform_bus_type))
-		bus_set_iommu(&platform_bus_type, &arm_smmu_ops);
+	if (!iommu_present(&platform_bus_type)) {
+		err = bus_set_iommu(&platform_bus_type, ops);
+		if (err)
+			return err;
+	}
 #ifdef CONFIG_ARM_AMBA
-	if (!iommu_present(&amba_bustype))
-		bus_set_iommu(&amba_bustype, &arm_smmu_ops);
+	if (!iommu_present(&amba_bustype)) {
+		err = bus_set_iommu(&amba_bustype, ops);
+		if (err)
+			goto err_reset_platform_ops;
+	}
 #endif
 #ifdef CONFIG_PCI
 	if (!iommu_present(&pci_bus_type)) {
 		pci_request_acs();
-		bus_set_iommu(&pci_bus_type, &arm_smmu_ops);
+		err = bus_set_iommu(&pci_bus_type, ops);
+		if (err)
+			goto err_reset_amba_ops;
 	}
 #endif
 #ifdef CONFIG_FSL_MC_BUS
-	if (!iommu_present(&fsl_mc_bus_type))
-		bus_set_iommu(&fsl_mc_bus_type, &arm_smmu_ops);
+	if (!iommu_present(&fsl_mc_bus_type)) {
+		err = bus_set_iommu(&fsl_mc_bus_type, ops);
+		if (err)
+			goto err_reset_pci_ops;
+	}
 #endif
+	return 0;
+
+err_reset_pci_ops: __maybe_unused;
+#ifdef CONFIG_PCI
+	bus_set_iommu(&pci_bus_type, NULL);
+#endif
+err_reset_amba_ops: __maybe_unused;
+#ifdef CONFIG_ARM_AMBA
+	bus_set_iommu(&amba_bustype, NULL);
+#endif
+err_reset_platform_ops: __maybe_unused;
+	bus_set_iommu(&platform_bus_type, NULL);
+	return err;
 }
 
 static int arm_smmu_device_probe(struct platform_device *pdev)
@@ -2173,7 +2199,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	 * ready to handle default domain setup as soon as any SMMU exists.
 	 */
 	if (!using_legacy_binding)
-		arm_smmu_bus_init();
+		return arm_smmu_bus_init(&arm_smmu_ops);
 
 	return 0;
 }
@@ -2187,7 +2213,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 static int arm_smmu_legacy_bus_init(void)
 {
 	if (using_legacy_binding)
-		arm_smmu_bus_init();
+		return arm_smmu_bus_init(&arm_smmu_ops);
 	return 0;
 }
 device_initcall_sync(arm_smmu_legacy_bus_init);
@@ -2201,6 +2227,10 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 
 	if (!bitmap_empty(smmu->context_map, ARM_SMMU_MAX_CBS))
 		dev_err(&pdev->dev, "removing device with active domains!\n");
+
+	arm_smmu_bus_init(NULL);
+	iommu_device_unregister(&smmu->iommu);
+	iommu_device_sysfs_remove(&smmu->iommu);
 
 	arm_smmu_rpm_get(smmu);
 	/* Turn the thing off */
