@@ -275,6 +275,7 @@
 			compatible = "allwinner,sun5i-a13-tcon";
 			reg = <0x01c0c000 0x1000>;
 			interrupts = <44>;
+			dmas = <&dma SUN4I_DMA_DEDICATED 14>;
 			resets = <&ccu RST_LCD>;
 			reset-names = "lcd";
 			clocks = <&ccu CLK_AHB_LCD>,

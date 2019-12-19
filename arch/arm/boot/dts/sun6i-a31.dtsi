@@ -285,6 +285,7 @@
 			compatible = "allwinner,sun6i-a31-tcon";
 			reg = <0x01c0c000 0x1000>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dma 11>;
 			resets = <&ccu RST_AHB1_LCD0>;
 			reset-names = "lcd";
 			clocks = <&ccu CLK_AHB1_LCD0>,
@@ -334,6 +335,7 @@
 			compatible = "allwinner,sun6i-a31-tcon";
 			reg = <0x01c0d000 0x1000>;
 			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dma 12>;
 			resets = <&ccu RST_AHB1_LCD1>;
 			reset-names = "lcd";
 			clocks = <&ccu CLK_AHB1_LCD1>,

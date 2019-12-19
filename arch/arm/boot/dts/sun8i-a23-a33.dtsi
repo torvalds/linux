@@ -182,6 +182,7 @@
 			/* compatible gets set in SoC specific dtsi file */
 			reg = <0x01c0c000 0x1000>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dma 12>;
 			clocks = <&ccu CLK_BUS_LCD>,
 				 <&ccu CLK_LCD_CH0>;
 			clock-names = "ahb",
