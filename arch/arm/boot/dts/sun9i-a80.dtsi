@@ -530,9 +530,7 @@
 			compatible = "allwinner,sun9i-a80-mmc-config-clk";
 			reg = <0x01c13000 0x10>;
 			clocks = <&ccu CLK_BUS_MMC>;
-			clock-names = "ahb";
 			resets = <&ccu RST_BUS_MMC>;
-			reset-names = "ahb";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			clock-output-names = "mmc0_config", "mmc1_config",
