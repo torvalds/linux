@@ -169,11 +169,11 @@ nfs3_proc_lookup(struct inode *dir, const struct qstr *name,
 	};
 	int			status;
 
-	dprintk("NFS call  lookup %s\n", name->name);
 	res.dir_attr = nfs_alloc_fattr();
 	if (res.dir_attr == NULL)
 		return -ENOMEM;
 
+	dprintk("NFS call  lookup %s\n", name->name);
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_refresh_inode(dir, res.dir_attr);
