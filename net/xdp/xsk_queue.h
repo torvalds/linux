@@ -35,8 +35,7 @@ struct xsk_queue {
 	u64 size;
 	u32 ring_mask;
 	u32 nentries;
-	u32 prod_head;
-	u32 prod_tail;
+	u32 cached_prod;
 	u32 cons_head;
 	u32 cons_tail;
 	struct xdp_ring *ring;
@@ -94,39 +93,39 @@ static inline u64 xskq_nb_invalid_descs(struct xsk_queue *q)
 
 static inline u32 xskq_nb_avail(struct xsk_queue *q, u32 dcnt)
 {
-	u32 entries = q->prod_tail - q->cons_tail;
+	u32 entries = q->cached_prod - q->cons_tail;
 
 	if (entries == 0) {
 		/* Refresh the local pointer */
-		q->prod_tail = READ_ONCE(q->ring->producer);
-		entries = q->prod_tail - q->cons_tail;
+		q->cached_prod = READ_ONCE(q->ring->producer);
+		entries = q->cached_prod - q->cons_tail;
 	}
 
 	return (entries > dcnt) ? dcnt : entries;
 }
 
-static inline u32 xskq_nb_free(struct xsk_queue *q, u32 producer, u32 dcnt)
+static inline u32 xskq_nb_free(struct xsk_queue *q, u32 dcnt)
 {
-	u32 free_entries = q->nentries - (producer - q->cons_tail);
+	u32 free_entries = q->nentries - (q->cached_prod - q->cons_tail);
 
 	if (free_entries >= dcnt)
 		return free_entries;
 
 	/* Refresh the local tail pointer */
 	q->cons_tail = READ_ONCE(q->ring->consumer);
-	return q->nentries - (producer - q->cons_tail);
+	return q->nentries - (q->cached_prod - q->cons_tail);
 }
 
 static inline bool xskq_has_addrs(struct xsk_queue *q, u32 cnt)
 {
-	u32 entries = q->prod_tail - q->cons_tail;
+	u32 entries = q->cached_prod - q->cons_tail;
 
 	if (entries >= cnt)
 		return true;
 
 	/* Refresh the local pointer. */
-	q->prod_tail = READ_ONCE(q->ring->producer);
-	entries = q->prod_tail - q->cons_tail;
+	q->cached_prod = READ_ONCE(q->ring->producer);
+	entries = q->cached_prod - q->cons_tail;
 
 	return entries >= cnt;
 }
@@ -220,17 +219,15 @@ static inline void xskq_discard_addr(struct xsk_queue *q)
 static inline int xskq_produce_addr(struct xsk_queue *q, u64 addr)
 {
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
-
-	if (xskq_nb_free(q, q->prod_tail, 1) == 0)
-		return -ENOSPC;
+	unsigned int idx = q->ring->producer;
 
 	/* A, matches D */
-	ring->desc[q->prod_tail++ & q->ring_mask] = addr;
+	ring->desc[idx++ & q->ring_mask] = addr;
 
 	/* Order producer and data */
 	smp_wmb(); /* B, matches C */
 
-	WRITE_ONCE(q->ring->producer, q->prod_tail);
+	WRITE_ONCE(q->ring->producer, idx);
 	return 0;
 }
 
@@ -238,11 +235,11 @@ static inline int xskq_produce_addr_lazy(struct xsk_queue *q, u64 addr)
 {
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
 
-	if (xskq_nb_free(q, q->prod_head, 1) == 0)
+	if (xskq_nb_free(q, 1) == 0)
 		return -ENOSPC;
 
 	/* A, matches D */
-	ring->desc[q->prod_head++ & q->ring_mask] = addr;
+	ring->desc[q->cached_prod++ & q->ring_mask] = addr;
 	return 0;
 }
 
@@ -252,17 +249,16 @@ static inline void xskq_produce_flush_addr_n(struct xsk_queue *q,
 	/* Order producer and data */
 	smp_wmb(); /* B, matches C */
 
-	q->prod_tail += nb_entries;
-	WRITE_ONCE(q->ring->producer, q->prod_tail);
+	WRITE_ONCE(q->ring->producer, q->ring->producer + nb_entries);
 }
 
 static inline int xskq_reserve_addr(struct xsk_queue *q)
 {
-	if (xskq_nb_free(q, q->prod_head, 1) == 0)
+	if (xskq_nb_free(q, 1) == 0)
 		return -ENOSPC;
 
 	/* A, matches D */
-	q->prod_head++;
+	q->cached_prod++;
 	return 0;
 }
 
@@ -340,11 +336,11 @@ static inline int xskq_produce_batch_desc(struct xsk_queue *q,
 	struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
 	unsigned int idx;
 
-	if (xskq_nb_free(q, q->prod_head, 1) == 0)
+	if (xskq_nb_free(q, 1) == 0)
 		return -ENOSPC;
 
 	/* A, matches D */
-	idx = (q->prod_head++) & q->ring_mask;
+	idx = q->cached_prod++ & q->ring_mask;
 	ring->desc[idx].addr = addr;
 	ring->desc[idx].len = len;
 
@@ -356,8 +352,7 @@ static inline void xskq_produce_flush_desc(struct xsk_queue *q)
 	/* Order producer and data */
 	smp_wmb(); /* B, matches C */
 
-	q->prod_tail = q->prod_head;
-	WRITE_ONCE(q->ring->producer, q->prod_tail);
+	WRITE_ONCE(q->ring->producer, q->cached_prod);
 }
 
 static inline bool xskq_full_desc(struct xsk_queue *q)
