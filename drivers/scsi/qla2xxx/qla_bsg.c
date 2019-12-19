@@ -797,7 +797,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 
 	if (atomic_read(&vha->loop_state) == LOOP_READY &&
 	    (ha->current_topology == ISP_CFG_F ||
-	    (le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE &&
+	    (get_unaligned_le32(req_data) == ELS_OPCODE_BYTE &&
 	     req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
 	    elreq.options == EXTERNAL_LOOPBACK) {
 		type = "FC_BSG_HST_VENDOR_ECHO_DIAG";

@@ -2173,12 +2173,12 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 	 * swab32 of the "data" field in the beginning of qla2x00_status_entry()
 	 * would make guard field appear at offset 2
 	 */
-	a_guard   = le16_to_cpu(*(uint16_t *)(ap + 2));
-	a_app_tag = le16_to_cpu(*(uint16_t *)(ap + 0));
-	a_ref_tag = le32_to_cpu(*(uint32_t *)(ap + 4));
-	e_guard   = le16_to_cpu(*(uint16_t *)(ep + 2));
-	e_app_tag = le16_to_cpu(*(uint16_t *)(ep + 0));
-	e_ref_tag = le32_to_cpu(*(uint32_t *)(ep + 4));
+	a_guard   = get_unaligned_le16(ap + 2);
+	a_app_tag = get_unaligned_le16(ap + 0);
+	a_ref_tag = get_unaligned_le32(ap + 4);
+	e_guard   = get_unaligned_le16(ep + 2);
+	e_app_tag = get_unaligned_le16(ep + 0);
+	e_ref_tag = get_unaligned_le32(ep + 4);
 
 	ql_dbg(ql_dbg_io, vha, 0x3023,
 	    "iocb(s) %p Returned STATUS.\n", sts24);

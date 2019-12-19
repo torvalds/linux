@@ -1882,7 +1882,7 @@ qla82xx_set_product_offset(struct qla_hw_data *ha)
 static int
 qla82xx_validate_firmware_blob(scsi_qla_host_t *vha, uint8_t fw_type)
 {
-	__le32 val;
+	uint32_t val;
 	uint32_t min_size;
 	struct qla_hw_data *ha = vha->hw;
 	const struct firmware *fw = ha->hablob->fw;
@@ -1895,8 +1895,8 @@ qla82xx_validate_firmware_blob(scsi_qla_host_t *vha, uint8_t fw_type)
 
 		min_size = QLA82XX_URI_FW_MIN_SIZE;
 	} else {
-		val = cpu_to_le32(*(u32 *)&fw->data[QLA82XX_FW_MAGIC_OFFSET]);
-		if ((__force u32)val != QLA82XX_BDINFO_MAGIC)
+		val = get_unaligned_le32(&fw->data[QLA82XX_FW_MAGIC_OFFSET]);
+		if (val != QLA82XX_BDINFO_MAGIC)
 			return -EINVAL;
 
 		min_size = QLA82XX_FW_MIN_SIZE;
