@@ -41,19 +41,19 @@ bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 
 bool xsk_umem_has_addrs(struct xdp_umem *umem, u32 cnt)
 {
-	return xskq_has_addrs(umem->fq, cnt);
+	return xskq_cons_has_entries(umem->fq, cnt);
 }
 EXPORT_SYMBOL(xsk_umem_has_addrs);
 
 u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr)
 {
-	return xskq_peek_addr(umem->fq, addr, umem);
+	return xskq_cons_peek_addr(umem->fq, addr, umem);
 }
 EXPORT_SYMBOL(xsk_umem_peek_addr);
 
 void xsk_umem_discard_addr(struct xdp_umem *umem)
 {
-	xskq_discard_addr(umem->fq);
+	xskq_cons_release(umem->fq);
 }
 EXPORT_SYMBOL(xsk_umem_discard_addr);
 
@@ -148,7 +148,7 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 	u32 metalen;
 	int err;
 
-	if (!xskq_peek_addr(xs->umem->fq, &addr, xs->umem) ||
+	if (!xskq_cons_peek_addr(xs->umem->fq, &addr, xs->umem) ||
 	    len > xs->umem->chunk_size_nohr - XDP_PACKET_HEADROOM) {
 		xs->rx_dropped++;
 		return -ENOSPC;
@@ -169,7 +169,7 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 	addr = xsk_umem_adjust_offset(xs->umem, addr, offset);
 	err = xskq_prod_reserve_desc(xs->rx, addr, len);
 	if (!err) {
-		xskq_discard_addr(xs->umem->fq);
+		xskq_cons_release(xs->umem->fq);
 		xdp_return_buff(xdp);
 		return 0;
 	}
@@ -236,7 +236,7 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 		goto out_unlock;
 	}
 
-	if (!xskq_peek_addr(xs->umem->fq, &addr, xs->umem) ||
+	if (!xskq_cons_peek_addr(xs->umem->fq, &addr, xs->umem) ||
 	    len > xs->umem->chunk_size_nohr - XDP_PACKET_HEADROOM) {
 		err = -ENOSPC;
 		goto out_drop;
@@ -251,7 +251,7 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	if (err)
 		goto out_drop;
 
-	xskq_discard_addr(xs->umem->fq);
+	xskq_cons_release(xs->umem->fq);
 	xskq_prod_submit(xs->rx);
 
 	spin_unlock_bh(&xs->rx_lock);
@@ -316,13 +316,13 @@ bool xsk_umem_consume_tx(struct xdp_umem *umem, struct xdp_desc *desc)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(xs, &umem->xsk_list, list) {
-		if (!xskq_peek_desc(xs->tx, desc, umem))
+		if (!xskq_cons_peek_desc(xs->tx, desc, umem))
 			continue;
 
 		if (xskq_prod_reserve_addr(umem->cq, desc->addr))
 			goto out;
 
-		xskq_discard_desc(xs->tx);
+		xskq_cons_release(xs->tx);
 		rcu_read_unlock();
 		return true;
 	}
@@ -368,7 +368,7 @@ static int xsk_generic_xmit(struct sock *sk)
 	if (xs->queue_id >= xs->dev->real_num_tx_queues)
 		goto out;
 
-	while (xskq_peek_desc(xs->tx, &desc, xs->umem)) {
+	while (xskq_cons_peek_desc(xs->tx, &desc, xs->umem)) {
 		char *buffer;
 		u64 addr;
 		u32 len;
@@ -401,7 +401,7 @@ static int xsk_generic_xmit(struct sock *sk)
 		skb->destructor = xsk_destruct_skb;
 
 		err = dev_direct_xmit(skb, xs->queue_id);
-		xskq_discard_desc(xs->tx);
+		xskq_cons_release(xs->tx);
 		/* Ignore NET_XMIT_CN as packet might have been sent */
 		if (err == NET_XMIT_DROP || err == NETDEV_TX_BUSY) {
 			/* SKB completed but not sent */
@@ -472,7 +472,7 @@ static __poll_t xsk_poll(struct file *file, struct socket *sock,
 
 	if (xs->rx && !xskq_prod_is_empty(xs->rx))
 		mask |= EPOLLIN | EPOLLRDNORM;
-	if (xs->tx && !xskq_full_desc(xs->tx))
+	if (xs->tx && !xskq_cons_is_full(xs->tx))
 		mask |= EPOLLOUT | EPOLLWRNORM;
 
 	return mask;
