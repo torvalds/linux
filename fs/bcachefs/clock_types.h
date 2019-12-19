@@ -28,6 +28,7 @@ typedef HEAP(struct io_timer *)	io_timer_heap;
 struct io_clock {
 	atomic_long_t		now;
 	u16 __percpu		*pcpu_buf;
+	unsigned		max_slop;
 
 	spinlock_t		timer_lock;
 	io_timer_heap		timers;

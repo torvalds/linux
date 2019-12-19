@@ -18,6 +18,14 @@ void bch2_io_timer_add(struct io_clock *clock, struct io_timer *timer)
 	size_t i;
 
 	spin_lock(&clock->timer_lock);
+
+	if (time_after_eq((unsigned long) atomic_long_read(&clock->now),
+			  timer->expire)) {
+		spin_unlock(&clock->timer_lock);
+		timer->fn(timer);
+		return;
+	}
+
 	for (i = 0; i < clock->timers.used; i++)
 		if (clock->timers.data[i] == timer)
 			goto out;
@@ -135,26 +143,31 @@ static struct io_timer *get_expired_timer(struct io_clock *clock,
 	return ret;
 }
 
-void __bch2_increment_clock(struct io_clock *clock)
+void __bch2_increment_clock(struct io_clock *clock, unsigned sectors)
 {
 	struct io_timer *timer;
-	unsigned long now;
-	unsigned sectors;
-
-	/* Buffer up one megabyte worth of IO in the percpu counter */
-	preempt_disable();
-
-	if (this_cpu_read(*clock->pcpu_buf) < IO_CLOCK_PCPU_SECTORS) {
-		preempt_enable();
-		return;
-	}
-
-	sectors = this_cpu_xchg(*clock->pcpu_buf, 0);
-	preempt_enable();
-	now = atomic_long_add_return(sectors, &clock->now);
+	unsigned long now = atomic_long_add_return(sectors, &clock->now);
 
 	while ((timer = get_expired_timer(clock, now)))
 		timer->fn(timer);
+}
+
+ssize_t bch2_io_timers_show(struct io_clock *clock, char *buf)
+{
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
+	unsigned long now;
+	unsigned i;
+
+	spin_lock(&clock->timer_lock);
+	now = atomic_long_read(&clock->now);
+
+	for (i = 0; i < clock->timers.used; i++)
+		pr_buf(&out, "%pf:\t%li\n",
+		       clock->timers.data[i]->fn,
+		       clock->timers.data[i]->expire - now);
+	spin_unlock(&clock->timer_lock);
+
+	return out.pos - buf;
 }
 
 void bch2_io_clock_exit(struct io_clock *clock)
@@ -167,6 +180,8 @@ int bch2_io_clock_init(struct io_clock *clock)
 {
 	atomic_long_set(&clock->now, 0);
 	spin_lock_init(&clock->timer_lock);
+
+	clock->max_slop = IO_CLOCK_PCPU_SECTORS * num_possible_cpus();
 
 	clock->pcpu_buf = alloc_percpu(*clock->pcpu_buf);
 	if (!clock->pcpu_buf)
