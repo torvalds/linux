@@ -60,10 +60,6 @@ static void __init twr_p1025_pic_init(void)
  */
 static void __init twr_p1025_setup_arch(void)
 {
-#ifdef CONFIG_QUICC_ENGINE
-	struct device_node *np;
-#endif
-
 	if (ppc_md.progress)
 		ppc_md.progress("twr_p1025_setup_arch()", 0);
 
@@ -77,6 +73,7 @@ static void __init twr_p1025_setup_arch(void)
 #if IS_ENABLED(CONFIG_UCC_GETH) || IS_ENABLED(CONFIG_SERIAL_QE)
 	if (machine_is(twr_p1025)) {
 		struct ccsr_guts __iomem *guts;
+		struct device_node *np;
 
 		np = of_find_compatible_node(NULL, NULL, "fsl,p1021-guts");
 		if (np) {
