@@ -1319,6 +1319,9 @@
 			     <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "GPU", "MMU", "JOB";
 
+		upthreshold = <40>;
+		downdifferential = <10>;
+
 		clocks = <&cru SCLK_GPU>;
 		clock-names = "clk_mali";
 		power-domains = <&power PX30_PD_GPU>;
