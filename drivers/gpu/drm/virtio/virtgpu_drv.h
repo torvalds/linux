@@ -356,7 +356,6 @@ struct drm_plane *virtio_gpu_plane_init(struct virtio_gpu_device *vgdev,
 					int index);
 
 /* virtio_gpu_fence.c */
-bool virtio_fence_signaled(struct dma_fence *f);
 struct virtio_gpu_fence *virtio_gpu_fence_alloc(
 	struct virtio_gpu_device *vgdev);
 void virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,

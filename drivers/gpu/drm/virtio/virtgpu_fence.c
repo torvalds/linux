@@ -37,7 +37,7 @@ static const char *virtio_get_timeline_name(struct dma_fence *f)
 	return "controlq";
 }
 
-bool virtio_fence_signaled(struct dma_fence *f)
+static bool virtio_fence_signaled(struct dma_fence *f)
 {
 	struct virtio_gpu_fence *fence = to_virtio_fence(f);
 
