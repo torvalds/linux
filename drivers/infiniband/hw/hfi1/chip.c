@@ -6862,7 +6862,7 @@ static void rxe_kernel_unfreeze(struct hfi1_devdata *dd)
 		}
 		rcvmask = HFI1_RCVCTRL_CTXT_ENB;
 		/* HFI1_RCVCTRL_TAILUPD_[ENB|DIS] needs to be set explicitly */
-		rcvmask |= rcd->rcvhdrtail_kvaddr ?
+		rcvmask |= hfi1_rcvhdrtail_kvaddr(rcd) ?
 			HFI1_RCVCTRL_TAILUPD_ENB : HFI1_RCVCTRL_TAILUPD_DIS;
 		hfi1_rcvctrl(dd, rcvmask, rcd);
 		hfi1_rcd_put(rcd);
@@ -8394,20 +8394,13 @@ void force_recv_intr(struct hfi1_ctxtdata *rcd)
 static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
 {
 	u32 tail;
-	int present;
 
-	if (!rcd->rcvhdrtail_kvaddr)
-		present = (rcd->seq_cnt ==
-				rhf_rcv_seq(rhf_to_cpu(get_rhf_addr(rcd))));
-	else /* is RDMA rtail */
-		present = (rcd->head != get_rcvhdrtail(rcd));
-
-	if (present)
+	if (hfi1_packet_present(rcd))
 		return 1;
 
 	/* fall back to a CSR read, correct indpendent of DMA_RTAIL */
 	tail = (u32)read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL);
-	return rcd->head != tail;
+	return hfi1_rcd_head(rcd) != tail;
 }
 
 /*
@@ -10049,7 +10042,7 @@ u32 lrh_max_header_bytes(struct hfi1_devdata *dd)
 	 * the first kernel context would have been allocated by now so
 	 * we are guaranteed a valid value.
 	 */
-	return (dd->rcd[0]->rcvhdrqentsize - 2/*PBC/RHF*/ + 1/*ICRC*/) << 2;
+	return (get_hdrqentsize(dd->rcd[0]) - 2/*PBC/RHF*/ + 1/*ICRC*/) << 2;
 }
 
 /*
@@ -10094,7 +10087,7 @@ static void set_send_length(struct hfi1_pportdata *ppd)
 		thres = min(sc_percent_to_threshold(dd->vld[i].sc, 50),
 			    sc_mtu_to_threshold(dd->vld[i].sc,
 						dd->vld[i].mtu,
-						dd->rcd[0]->rcvhdrqentsize));
+						get_hdrqentsize(dd->rcd[0])));
 		for (j = 0; j < INIT_SC_PER_VL; j++)
 			sc_set_cr_threshold(
 					pio_select_send_context_vl(dd, j, i),
@@ -11821,7 +11814,7 @@ u32 hdrqempty(struct hfi1_ctxtdata *rcd)
 	head = (read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_HEAD)
 		& RCV_HDR_HEAD_HEAD_SMASK) >> RCV_HDR_HEAD_HEAD_SHIFT;
 
-	if (rcd->rcvhdrtail_kvaddr)
+	if (hfi1_rcvhdrtail_kvaddr(rcd))
 		tail = get_rcvhdrtail(rcd);
 	else
 		tail = read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL);
@@ -11886,13 +11879,13 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		/* reset the tail and hdr addresses, and sequence count */
 		write_kctxt_csr(dd, ctxt, RCV_HDR_ADDR,
 				rcd->rcvhdrq_dma);
-		if (rcd->rcvhdrtail_kvaddr)
+		if (hfi1_rcvhdrtail_kvaddr(rcd))
 			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
 					rcd->rcvhdrqtailaddr_dma);
-		rcd->seq_cnt = 1;
+		hfi1_set_seq_cnt(rcd, 1);
 
 		/* reset the cached receive header queue head value */
-		rcd->head = 0;
+		hfi1_set_rcd_head(rcd, 0);
 
 		/*
 		 * Zero the receive header queue so we don't get false
@@ -11972,7 +11965,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 			      IS_RCVAVAIL_START + rcd->ctxt, false);
 		rcvctrl &= ~RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
 	}
-	if ((op & HFI1_RCVCTRL_TAILUPD_ENB) && rcd->rcvhdrtail_kvaddr)
+	if ((op & HFI1_RCVCTRL_TAILUPD_ENB) && hfi1_rcvhdrtail_kvaddr(rcd))
 		rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 	if (op & HFI1_RCVCTRL_TAILUPD_DIS) {
 		/* See comment on RcvCtxtCtrl.TailUpd above */

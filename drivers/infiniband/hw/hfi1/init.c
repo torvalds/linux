@@ -154,7 +154,7 @@ static int hfi1_create_kctxt(struct hfi1_devdata *dd,
 	/* Control context must use DMA_RTAIL */
 	if (rcd->ctxt == HFI1_CTRL_CTXT)
 		rcd->flags |= HFI1_CAP_DMA_RTAIL;
-	rcd->seq_cnt = 1;
+	hfi1_set_seq_cnt(rcd, 1);
 
 	rcd->sc = sc_alloc(dd, SC_ACK, rcd->rcvhdrqentsize, dd->node);
 	if (!rcd->sc) {
@@ -1149,9 +1149,9 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 		dma_free_coherent(&dd->pcidev->dev, rcvhdrq_size(rcd),
 				  rcd->rcvhdrq, rcd->rcvhdrq_dma);
 		rcd->rcvhdrq = NULL;
-		if (rcd->rcvhdrtail_kvaddr) {
+		if (hfi1_rcvhdrtail_kvaddr(rcd)) {
 			dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
-					  (void *)rcd->rcvhdrtail_kvaddr,
+					  (void *)hfi1_rcvhdrtail_kvaddr(rcd),
 					  rcd->rcvhdrqtailaddr_dma);
 			rcd->rcvhdrtail_kvaddr = NULL;
 		}
