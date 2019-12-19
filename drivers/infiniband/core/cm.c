@@ -241,6 +241,7 @@ struct cm_id_private {
 	/* Number of clients sharing this ib_cm_id. Only valid for listeners.
 	 * Protected by the cm.lock spinlock. */
 	int listen_sharecount;
+	struct rcu_head rcu;
 
 	struct ib_mad_send_buf *msg;
 	struct cm_timewait_info *timewait_info;
@@ -593,28 +594,16 @@ static void cm_free_id(__be32 local_id)
 	xa_erase_irq(&cm.local_id_table, cm_local_id(local_id));
 }
 
-static struct cm_id_private * cm_get_id(__be32 local_id, __be32 remote_id)
+static struct cm_id_private *cm_acquire_id(__be32 local_id, __be32 remote_id)
 {
 	struct cm_id_private *cm_id_priv;
 
+	rcu_read_lock();
 	cm_id_priv = xa_load(&cm.local_id_table, cm_local_id(local_id));
-	if (cm_id_priv) {
-		if (cm_id_priv->id.remote_id == remote_id)
-			refcount_inc(&cm_id_priv->refcount);
-		else
-			cm_id_priv = NULL;
-	}
-
-	return cm_id_priv;
-}
-
-static struct cm_id_private * cm_acquire_id(__be32 local_id, __be32 remote_id)
-{
-	struct cm_id_private *cm_id_priv;
-
-	spin_lock_irq(&cm.lock);
-	cm_id_priv = cm_get_id(local_id, remote_id);
-	spin_unlock_irq(&cm.lock);
+	if (!cm_id_priv || cm_id_priv->id.remote_id != remote_id ||
+	    !refcount_inc_not_zero(&cm_id_priv->refcount))
+		cm_id_priv = NULL;
+	rcu_read_unlock();
 
 	return cm_id_priv;
 }
@@ -1089,7 +1078,7 @@ retest:
 	rdma_destroy_ah_attr(&cm_id_priv->av.ah_attr);
 	rdma_destroy_ah_attr(&cm_id_priv->alt_av.ah_attr);
 	kfree(cm_id_priv->private_data);
-	kfree(cm_id_priv);
+	kfree_rcu(cm_id_priv, rcu);
 }
 
 void ib_destroy_cm_id(struct ib_cm_id *cm_id)
@@ -1821,7 +1810,7 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 	spin_lock_irq(&cm.lock);
 	timewait_info = cm_insert_remote_id(cm_id_priv->timewait_info);
 	if (timewait_info) {
-		cur_cm_id_priv = cm_get_id(timewait_info->work.local_id,
+		cur_cm_id_priv = cm_acquire_id(timewait_info->work.local_id,
 					   timewait_info->work.remote_id);
 		spin_unlock_irq(&cm.lock);
 		if (cur_cm_id_priv) {
@@ -1835,7 +1824,7 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 	timewait_info = cm_insert_remote_qpn(cm_id_priv->timewait_info);
 	if (timewait_info) {
 		cm_cleanup_timewait(cm_id_priv->timewait_info);
-		cur_cm_id_priv = cm_get_id(timewait_info->work.local_id,
+		cur_cm_id_priv = cm_acquire_id(timewait_info->work.local_id,
 					   timewait_info->work.remote_id);
 
 		spin_unlock_irq(&cm.lock);
@@ -2293,7 +2282,7 @@ static int cm_rep_handler(struct cm_work *work)
 		rb_erase(&cm_id_priv->timewait_info->remote_id_node,
 			 &cm.remote_id_table);
 		cm_id_priv->timewait_info->inserted_remote_id = 0;
-		cur_cm_id_priv = cm_get_id(timewait_info->work.local_id,
+		cur_cm_id_priv = cm_acquire_id(timewait_info->work.local_id,
 					   timewait_info->work.remote_id);
 
 		spin_unlock(&cm.lock);
@@ -2788,14 +2777,8 @@ static struct cm_id_private * cm_acquire_rejected_id(struct cm_rej_msg *rej_msg)
 			spin_unlock_irq(&cm.lock);
 			return NULL;
 		}
-		cm_id_priv = xa_load(&cm.local_id_table,
-				cm_local_id(timewait_info->work.local_id));
-		if (cm_id_priv) {
-			if (cm_id_priv->id.remote_id == remote_id)
-				refcount_inc(&cm_id_priv->refcount);
-			else
-				cm_id_priv = NULL;
-		}
+		cm_id_priv =
+			cm_acquire_id(timewait_info->work.local_id, remote_id);
 		spin_unlock_irq(&cm.lock);
 	} else if (cm_rej_get_msg_rejected(rej_msg) == CM_MSG_RESPONSE_REQ)
 		cm_id_priv = cm_acquire_id(rej_msg->remote_comm_id, 0);
