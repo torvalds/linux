@@ -75,7 +75,6 @@ struct bpf_dtab_netdev {
 struct bpf_dtab {
 	struct bpf_map map;
 	struct bpf_dtab_netdev **netdev_map; /* DEVMAP type only */
-	struct list_head __percpu *flush_list;
 	struct list_head list;
 
 	/* these are only used for DEVMAP_HASH type maps */
@@ -85,6 +84,7 @@ struct bpf_dtab {
 	u32 n_buckets;
 };
 
+static DEFINE_PER_CPU(struct list_head, dev_map_flush_list);
 static DEFINE_SPINLOCK(dev_map_lock);
 static LIST_HEAD(dev_map_list);
 
@@ -109,8 +109,8 @@ static inline struct hlist_head *dev_map_index_hash(struct bpf_dtab *dtab,
 
 static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
 {
-	int err, cpu;
-	u64 cost;
+	u64 cost = 0;
+	int err;
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
@@ -124,9 +124,6 @@ static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
 
 
 	bpf_map_init_from_attr(&dtab->map, attr);
-
-	/* make sure page count doesn't overflow */
-	cost = (u64) sizeof(struct list_head) * num_possible_cpus();
 
 	if (attr->map_type == BPF_MAP_TYPE_DEVMAP_HASH) {
 		dtab->n_buckets = roundup_pow_of_two(dtab->map.max_entries);
@@ -143,17 +140,10 @@ static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
 	if (err)
 		return -EINVAL;
 
-	dtab->flush_list = alloc_percpu(struct list_head);
-	if (!dtab->flush_list)
-		goto free_charge;
-
-	for_each_possible_cpu(cpu)
-		INIT_LIST_HEAD(per_cpu_ptr(dtab->flush_list, cpu));
-
 	if (attr->map_type == BPF_MAP_TYPE_DEVMAP_HASH) {
 		dtab->dev_index_head = dev_map_create_hash(dtab->n_buckets);
 		if (!dtab->dev_index_head)
-			goto free_percpu;
+			goto free_charge;
 
 		spin_lock_init(&dtab->index_lock);
 	} else {
@@ -161,13 +151,11 @@ static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
 						      sizeof(struct bpf_dtab_netdev *),
 						      dtab->map.numa_node);
 		if (!dtab->netdev_map)
-			goto free_percpu;
+			goto free_charge;
 	}
 
 	return 0;
 
-free_percpu:
-	free_percpu(dtab->flush_list);
 free_charge:
 	bpf_map_charge_finish(&dtab->map.memory);
 	return -ENOMEM;
@@ -254,7 +242,6 @@ static void dev_map_free(struct bpf_map *map)
 		bpf_map_area_free(dtab->netdev_map);
 	}
 
-	free_percpu(dtab->flush_list);
 	kfree(dtab);
 }
 
@@ -384,10 +371,9 @@ error:
  * net device can be torn down. On devmap tear down we ensure the flush list
  * is empty before completing to ensure all flush operations have completed.
  */
-void __dev_map_flush(struct bpf_map *map)
+void __dev_map_flush(void)
 {
-	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
-	struct list_head *flush_list = this_cpu_ptr(dtab->flush_list);
+	struct list_head *flush_list = this_cpu_ptr(&dev_map_flush_list);
 	struct xdp_bulk_queue *bq, *tmp;
 
 	rcu_read_lock();
@@ -419,7 +405,7 @@ static int bq_enqueue(struct bpf_dtab_netdev *obj, struct xdp_frame *xdpf,
 		      struct net_device *dev_rx)
 
 {
-	struct list_head *flush_list = this_cpu_ptr(obj->dtab->flush_list);
+	struct list_head *flush_list = this_cpu_ptr(&dev_map_flush_list);
 	struct xdp_bulk_queue *bq = this_cpu_ptr(obj->bulkq);
 
 	if (unlikely(bq->count == DEV_MAP_BULK_SIZE))
@@ -777,10 +763,15 @@ static struct notifier_block dev_map_notifier = {
 
 static int __init dev_map_init(void)
 {
+	int cpu;
+
 	/* Assure tracepoint shadow struct _bpf_dtab_netdev is in sync */
 	BUILD_BUG_ON(offsetof(struct bpf_dtab_netdev, dev) !=
 		     offsetof(struct _bpf_dtab_netdev, dev));
 	register_netdevice_notifier(&dev_map_notifier);
+
+	for_each_possible_cpu(cpu)
+		INIT_LIST_HEAD(&per_cpu(dev_map_flush_list, cpu));
 	return 0;
 }
 
