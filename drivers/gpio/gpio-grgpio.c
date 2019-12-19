@@ -437,8 +437,6 @@ static int grgpio_remove(struct platform_device *ofdev)
 	int i;
 	int ret = 0;
 
-	spin_lock_irqsave(&priv->gc.bgpio_lock, flags);
-
 	if (priv->domain) {
 		for (i = 0; i < GRGPIO_MAX_NGPIO; i++) {
 			if (priv->uirqs[i].refcnt != 0) {
@@ -454,8 +452,6 @@ static int grgpio_remove(struct platform_device *ofdev)
 		irq_domain_remove(priv->domain);
 
 out:
-	spin_unlock_irqrestore(&priv->gc.bgpio_lock, flags);
-
 	return ret;
 }
 
