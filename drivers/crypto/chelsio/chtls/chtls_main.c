@@ -486,6 +486,7 @@ static int do_chtls_setsockopt(struct sock *sk, int optname,
 	struct tls_crypto_info *crypto_info, tmp_crypto_info;
 	struct chtls_sock *csk;
 	int keylen;
+	int cipher_type;
 	int rc = 0;
 
 	csk = rcu_dereference_sk_user_data(sk);
@@ -509,6 +510,9 @@ static int do_chtls_setsockopt(struct sock *sk, int optname,
 
 	crypto_info = (struct tls_crypto_info *)&csk->tlshws.crypto_info;
 
+	/* GCM mode of AES supports 128 and 256 bit encryption, so
+	 * copy keys from user based on GCM cipher type.
+	 */
 	switch (tmp_crypto_info.cipher_type) {
 	case TLS_CIPHER_AES_GCM_128: {
 		/* Obtain version and type from previous copy */
@@ -525,13 +529,30 @@ static int do_chtls_setsockopt(struct sock *sk, int optname,
 		}
 
 		keylen = TLS_CIPHER_AES_GCM_128_KEY_SIZE;
-		rc = chtls_setkey(csk, keylen, optname);
+		cipher_type = TLS_CIPHER_AES_GCM_128;
+		break;
+	}
+	case TLS_CIPHER_AES_GCM_256: {
+		crypto_info[0] = tmp_crypto_info;
+		rc = copy_from_user((char *)crypto_info + sizeof(*crypto_info),
+				    optval + sizeof(*crypto_info),
+				sizeof(struct tls12_crypto_info_aes_gcm_256)
+				- sizeof(*crypto_info));
+
+		if (rc) {
+			rc = -EFAULT;
+			goto out;
+		}
+
+		keylen = TLS_CIPHER_AES_GCM_256_KEY_SIZE;
+		cipher_type = TLS_CIPHER_AES_GCM_256;
 		break;
 	}
 	default:
 		rc = -EINVAL;
 		goto out;
 	}
+	rc = chtls_setkey(csk, keylen, optname, cipher_type);
 out:
 	return rc;
 }
