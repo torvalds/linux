@@ -83,8 +83,8 @@ static const char *get_map_ident(const struct bpf_map *map)
 		return "rodata";
 	else if (str_has_suffix(name, ".bss"))
 		return "bss";
-	else if (str_has_suffix(name, ".extern"))
-		return "externs"; /* extern is a C keyword */
+	else if (str_has_suffix(name, ".kconfig"))
+		return "kconfig";
 	else
 		return NULL;
 }
@@ -112,8 +112,8 @@ static int codegen_datasec_def(struct bpf_object *obj,
 		sec_ident = "bss";
 	else if (strcmp(sec_name, ".rodata") == 0)
 		sec_ident = "rodata";
-	else if (strcmp(sec_name, ".extern") == 0)
-		sec_ident = "externs"; /* extern is a C keyword */
+	else if (strcmp(sec_name, ".kconfig") == 0)
+		sec_ident = "kconfig";
 	else
 		return 0;
 

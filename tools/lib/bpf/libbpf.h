@@ -85,12 +85,12 @@ struct bpf_object_open_opts {
 	 */
 	const char *pin_root_path;
 	__u32 attach_prog_fd;
-	/* kernel config file path override (for CONFIG_ externs); can point
-	 * to either uncompressed text file or .gz file
+	/* Additional kernel config content that augments and overrides
+	 * system Kconfig for CONFIG_xxx externs.
 	 */
-	const char *kconfig_path;
+	const char *kconfig;
 };
-#define bpf_object_open_opts__last_field kconfig_path
+#define bpf_object_open_opts__last_field kconfig
 
 LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
 LIBBPF_API struct bpf_object *

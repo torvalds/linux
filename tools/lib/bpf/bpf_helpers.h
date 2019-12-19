@@ -53,4 +53,6 @@ enum libbpf_tristate {
 	TRI_MODULE = 2,
 };
 
+#define __kconfig __attribute__((section(".kconfig")))
+
 #endif

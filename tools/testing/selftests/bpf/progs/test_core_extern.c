@@ -10,16 +10,16 @@
 /* non-existing BPF helper, to test dead code elimination */
 static int (*bpf_missing_helper)(const void *arg1, int arg2) = (void *) 999;
 
-extern int LINUX_KERNEL_VERSION;
-extern bool CONFIG_BPF_SYSCALL; /* strong */
-extern enum libbpf_tristate CONFIG_TRISTATE __weak;
-extern bool CONFIG_BOOL __weak;
-extern char CONFIG_CHAR __weak;
-extern uint16_t CONFIG_USHORT __weak;
-extern int CONFIG_INT __weak;
-extern uint64_t CONFIG_ULONG __weak;
-extern const char CONFIG_STR[8] __weak;
-extern uint64_t CONFIG_MISSING __weak;
+extern int LINUX_KERNEL_VERSION __kconfig;
+extern bool CONFIG_BPF_SYSCALL __kconfig; /* strong */
+extern enum libbpf_tristate CONFIG_TRISTATE __kconfig __weak;
+extern bool CONFIG_BOOL __kconfig __weak;
+extern char CONFIG_CHAR __kconfig __weak;
+extern uint16_t CONFIG_USHORT __kconfig __weak;
+extern int CONFIG_INT __kconfig __weak;
+extern uint64_t CONFIG_ULONG __kconfig __weak;
+extern const char CONFIG_STR[8] __kconfig __weak;
+extern uint64_t CONFIG_MISSING __kconfig __weak;
 
 uint64_t kern_ver = -1;
 uint64_t bpf_syscall = -1;
