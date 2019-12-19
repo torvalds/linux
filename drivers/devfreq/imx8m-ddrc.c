@@ -15,12 +15,6 @@
 
 #define IMX_SIP_DDR_DVFS			0xc2000004
 
-/* Values starting from 0 switch to specific frequency */
-#define IMX_SIP_DDR_FREQ_SET_HIGH		0x00
-
-/* Deprecated after moving IRQ handling to ATF */
-#define IMX_SIP_DDR_DVFS_WAIT_CHANGE		0x0F
-
 /* Query available frequencies. */
 #define IMX_SIP_DDR_DVFS_GET_FREQ_COUNT		0x10
 #define IMX_SIP_DDR_DVFS_GET_FREQ_INFO		0x11
