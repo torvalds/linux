@@ -1129,12 +1129,12 @@ static int set_ext_value_num(struct extern_desc *ext, void *ext_val,
 {
 	if (ext->type != EXT_INT && ext->type != EXT_CHAR) {
 		pr_warn("extern %s=%llu should be integer\n",
-			ext->name, value);
+			ext->name, (unsigned long long)value);
 		return -EINVAL;
 	}
 	if (!is_ext_value_in_range(ext, value)) {
 		pr_warn("extern %s=%llu value doesn't fit in %d bytes\n",
-			ext->name, value, ext->sz);
+			ext->name, (unsigned long long)value, ext->sz);
 		return -ERANGE;
 	}
 	switch (ext->sz) {
