@@ -89,7 +89,7 @@ static inline u64 xskq_nb_invalid_descs(struct xsk_queue *q)
 	return q ? q->invalid_descs : 0;
 }
 
-static inline u32 xskq_nb_avail(struct xsk_queue *q, u32 dcnt)
+static inline u32 xskq_nb_avail(struct xsk_queue *q)
 {
 	u32 entries = q->cached_prod - q->cons_tail;
 
@@ -99,19 +99,21 @@ static inline u32 xskq_nb_avail(struct xsk_queue *q, u32 dcnt)
 		entries = q->cached_prod - q->cons_tail;
 	}
 
-	return (entries > dcnt) ? dcnt : entries;
+	return entries;
 }
 
-static inline u32 xskq_nb_free(struct xsk_queue *q, u32 dcnt)
+static inline bool xskq_prod_is_full(struct xsk_queue *q)
 {
 	u32 free_entries = q->nentries - (q->cached_prod - q->cons_tail);
 
-	if (free_entries >= dcnt)
-		return free_entries;
+	if (free_entries)
+		return false;
 
 	/* Refresh the local tail pointer */
 	q->cons_tail = READ_ONCE(q->ring->consumer);
-	return q->nentries - (q->cached_prod - q->cons_tail);
+	free_entries = q->nentries - (q->cached_prod - q->cons_tail);
+
+	return !free_entries;
 }
 
 static inline bool xskq_has_addrs(struct xsk_queue *q, u32 cnt)
@@ -200,7 +202,7 @@ static inline u64 *xskq_peek_addr(struct xsk_queue *q, u64 *addr,
 	if (q->cons_tail == q->cons_head) {
 		smp_mb(); /* D, matches A */
 		WRITE_ONCE(q->ring->consumer, q->cons_tail);
-		q->cons_head = q->cons_tail + xskq_nb_avail(q, 1);
+		q->cons_head = q->cons_tail + xskq_nb_avail(q);
 
 		/* Order consumer and data */
 		smp_rmb();
@@ -216,7 +218,7 @@ static inline void xskq_discard_addr(struct xsk_queue *q)
 
 static inline int xskq_prod_reserve(struct xsk_queue *q)
 {
-	if (xskq_nb_free(q, 1) == 0)
+	if (xskq_prod_is_full(q))
 		return -ENOSPC;
 
 	/* A, matches D */
@@ -228,7 +230,7 @@ static inline int xskq_prod_reserve_addr(struct xsk_queue *q, u64 addr)
 {
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
 
-	if (xskq_nb_free(q, 1) == 0)
+	if (xskq_prod_is_full(q))
 		return -ENOSPC;
 
 	/* A, matches D */
@@ -318,7 +320,7 @@ static inline struct xdp_desc *xskq_peek_desc(struct xsk_queue *q,
 	if (q->cons_tail == q->cons_head) {
 		smp_mb(); /* D, matches A */
 		WRITE_ONCE(q->ring->consumer, q->cons_tail);
-		q->cons_head = q->cons_tail + xskq_nb_avail(q, 1);
+		q->cons_head = q->cons_tail + xskq_nb_avail(q);
 
 		/* Order consumer and data */
 		smp_rmb(); /* C, matches B */
@@ -338,7 +340,7 @@ static inline int xskq_prod_reserve_desc(struct xsk_queue *q,
 	struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
 	u32 idx;
 
-	if (xskq_nb_free(q, 1) == 0)
+	if (xskq_prod_is_full(q))
 		return -ENOSPC;
 
 	/* A, matches D */
