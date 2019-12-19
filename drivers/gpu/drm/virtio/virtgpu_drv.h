@@ -365,18 +365,12 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 			     struct virtio_gpu_object_params *params,
 			     struct virtio_gpu_object **bo_ptr,
 			     struct virtio_gpu_fence *fence);
-
 /* virtgpu_prime.c */
 struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
 	struct drm_device *dev, struct dma_buf_attachment *attach,
 	struct sg_table *sgt);
 
-static inline u64 virtio_gpu_object_mmap_offset(struct virtio_gpu_object *bo)
-{
-	return drm_vma_node_offset_addr(&bo->base.base.vma_node);
-}
-
-/* virgl debufs */
+/* virgl debugfs */
 int virtio_gpu_debugfs_init(struct drm_minor *minor);
 
 #endif
