@@ -506,6 +506,7 @@ static void rtw_pci_dma_release(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci)
 	struct rtw_pci_tx_ring *tx_ring;
 	u8 queue;
 
+	rtw_pci_reset_trx_ring(rtwdev);
 	for (queue = 0; queue < RTK_MAX_TX_QUEUE_NUM; queue++) {
 		tx_ring = &rtwpci->tx_rings[queue];
 		rtw_pci_free_tx_ring_skbs(rtwdev, tx_ring);
