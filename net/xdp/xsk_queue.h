@@ -10,8 +10,6 @@
 #include <linux/if_xdp.h>
 #include <net/xdp_sock.h>
 
-#define RX_BATCH_SIZE 16
-
 struct xdp_ring {
 	u32 producer ____cacheline_aligned_in_smp;
 	u32 consumer ____cacheline_aligned_in_smp;
@@ -202,7 +200,7 @@ static inline u64 *xskq_peek_addr(struct xsk_queue *q, u64 *addr,
 	if (q->cons_tail == q->cons_head) {
 		smp_mb(); /* D, matches A */
 		WRITE_ONCE(q->ring->consumer, q->cons_tail);
-		q->cons_head = q->cons_tail + xskq_nb_avail(q, RX_BATCH_SIZE);
+		q->cons_head = q->cons_tail + xskq_nb_avail(q, 1);
 
 		/* Order consumer and data */
 		smp_rmb();
@@ -320,7 +318,7 @@ static inline struct xdp_desc *xskq_peek_desc(struct xsk_queue *q,
 	if (q->cons_tail == q->cons_head) {
 		smp_mb(); /* D, matches A */
 		WRITE_ONCE(q->ring->consumer, q->cons_tail);
-		q->cons_head = q->cons_tail + xskq_nb_avail(q, RX_BATCH_SIZE);
+		q->cons_head = q->cons_tail + xskq_nb_avail(q, 1);
 
 		/* Order consumer and data */
 		smp_rmb(); /* C, matches B */
