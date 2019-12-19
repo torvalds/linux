@@ -248,18 +248,14 @@ can_validate_bitrate(struct net_device *dev, struct can_bittiming *bt,
 		     const u32 *bitrate_const,
 		     const unsigned int bitrate_const_cnt)
 {
-	struct can_priv *priv = netdev_priv(dev);
 	unsigned int i;
 
 	for (i = 0; i < bitrate_const_cnt; i++) {
 		if (bt->bitrate == bitrate_const[i])
-			break;
+			return 0;
 	}
 
-	if (i >= priv->bitrate_const_cnt)
-		return -EINVAL;
-
-	return 0;
+	return -EINVAL;
 }
 
 int can_get_bittiming(struct net_device *dev, struct can_bittiming *bt,
