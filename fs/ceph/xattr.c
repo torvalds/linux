@@ -655,7 +655,7 @@ static int __build_xattrs(struct inode *inode)
 	u32 len;
 	const char *name, *val;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	int xattr_version;
+	u64 xattr_version;
 	struct ceph_inode_xattr **xattrs = NULL;
 	int err = 0;
 	int i;
