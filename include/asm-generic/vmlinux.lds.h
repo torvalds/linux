@@ -114,11 +114,14 @@
  * relation to each other.
  */
 #define SCHED_DATA				\
+	STRUCT_ALIGN();				\
+	__begin_sched_classes = .;		\
 	*(__idle_sched_class)			\
 	*(__fair_sched_class)			\
 	*(__rt_sched_class)			\
 	*(__dl_sched_class)			\
-	*(__stop_sched_class)
+	*(__stop_sched_class)			\
+	__end_sched_classes = .;
 
 /*
  * Align to a 32 byte boundary equal to the
