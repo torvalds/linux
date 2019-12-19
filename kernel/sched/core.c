@@ -1157,8 +1157,12 @@ static void __setscheduler_uclamp(struct task_struct *p,
 			continue;
 
 		/* By default, RT tasks always get 100% boost */
-		if (unlikely(rt_task(p) && clamp_id == UCLAMP_MIN))
+		if (sched_feat(SUGOV_RT_MAX_FREQ) &&
+			       unlikely(rt_task(p) &&
+			       clamp_id == UCLAMP_MIN)) {
+
 			clamp_value = uclamp_none(UCLAMP_MAX);
+		}
 
 		uclamp_se_set(uc_se, clamp_value, false);
 	}
@@ -1191,8 +1195,12 @@ static void uclamp_fork(struct task_struct *p)
 		unsigned int clamp_value = uclamp_none(clamp_id);
 
 		/* By default, RT tasks always get 100% boost */
-		if (unlikely(rt_task(p) && clamp_id == UCLAMP_MIN))
+		if (sched_feat(SUGOV_RT_MAX_FREQ) &&
+			       unlikely(rt_task(p) &&
+			       clamp_id == UCLAMP_MIN)) {
+
 			clamp_value = uclamp_none(UCLAMP_MAX);
+		}
 
 		uclamp_se_set(&p->uclamp_req[clamp_id], clamp_value, false);
 	}
