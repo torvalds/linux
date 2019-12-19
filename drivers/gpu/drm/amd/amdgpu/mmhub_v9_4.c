@@ -368,22 +368,6 @@ int mmhub_v9_4_gart_enable(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < MMHUB_NUM_INSTANCES; i++) {
-		if (amdgpu_sriov_vf(adev)) {
-			/*
-			 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase
-			 * they are VF copy registers so vbios post doesn't
-			 * program them, for SRIOV driver need to program them
-			 */
-			WREG32_SOC15_OFFSET(MMHUB, 0,
-				     mmVMSHAREDVC0_MC_VM_FB_LOCATION_BASE,
-				     i * MMHUB_INSTANCE_REGISTER_OFFSET,
-				     adev->gmc.vram_start >> 24);
-			WREG32_SOC15_OFFSET(MMHUB, 0,
-				     mmVMSHAREDVC0_MC_VM_FB_LOCATION_TOP,
-				     i * MMHUB_INSTANCE_REGISTER_OFFSET,
-				     adev->gmc.vram_end >> 24);
-		}
-
 		/* GART Enable. */
 		mmhub_v9_4_init_gart_aperture_regs(adev, i);
 		mmhub_v9_4_init_system_aperture_regs(adev, i);

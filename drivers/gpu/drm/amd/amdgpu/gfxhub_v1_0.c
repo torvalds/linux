@@ -264,7 +264,7 @@ static void gfxhub_v1_0_program_invalidation(struct amdgpu_device *adev)
 
 int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 {
-	if (amdgpu_sriov_vf(adev)) {
+	if (amdgpu_sriov_vf(adev) && adev->asic_type != CHIP_ARCTURUS) {
 		/*
 		 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase they are
 		 * VF copy registers so vbios post doesn't program them, for
