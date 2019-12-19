@@ -51,11 +51,11 @@ bool xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr)
 }
 EXPORT_SYMBOL(xsk_umem_peek_addr);
 
-void xsk_umem_discard_addr(struct xdp_umem *umem)
+void xsk_umem_release_addr(struct xdp_umem *umem)
 {
 	xskq_cons_release(umem->fq);
 }
-EXPORT_SYMBOL(xsk_umem_discard_addr);
+EXPORT_SYMBOL(xsk_umem_release_addr);
 
 void xsk_set_rx_need_wakeup(struct xdp_umem *umem)
 {
