@@ -468,6 +468,17 @@ static const char * const rk3288_cif_rsts[] = {
 	"rst_cif",
 };
 
+static const char * const rk3328_cif_clks[] = {
+	"aclk_cif",
+	"hclk_cif",
+};
+
+static const char * const rk3328_cif_rsts[] = {
+	"rst_cif_a",
+	"rst_cif_p",
+	"rst_cif_h",
+};
+
 static const struct cif_match_data px30_cif_match_data = {
 	.chip_id = CHIP_PX30_CIF,
 	.clks = px30_cif_clks,
@@ -500,6 +511,14 @@ static const struct cif_match_data rk3288_cif_match_data = {
 	.rsts_num = ARRAY_SIZE(rk3288_cif_rsts),
 };
 
+static const struct cif_match_data rk3328_cif_match_data = {
+	.chip_id = CHIP_RK3328_CIF,
+	.clks = rk3328_cif_clks,
+	.clks_num = ARRAY_SIZE(rk3328_cif_clks),
+	.rsts = rk3328_cif_rsts,
+	.rsts_num = ARRAY_SIZE(rk3328_cif_rsts),
+};
+
 static const struct of_device_id rkcif_plat_of_match[] = {
 	{
 		.compatible = "rockchip,px30-cif",
@@ -516,6 +535,10 @@ static const struct of_device_id rkcif_plat_of_match[] = {
 	{
 		.compatible = "rockchip,rk3288-cif",
 		.data = &rk3288_cif_match_data,
+	},
+	{
+		.compatible = "rockchip,rk3328-cif",
+		.data = &rk3328_cif_match_data,
 	},
 	{},
 };
