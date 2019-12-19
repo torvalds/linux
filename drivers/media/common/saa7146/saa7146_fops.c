@@ -97,8 +97,6 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 	DEB_EE("dev:%p, dmaq:%p, state:%d\n", dev, q, state);
 	DEB_EE("q->curr:%p\n", q->curr);
 
-	BUG_ON(!q->curr);
-
 	/* finish current buffer */
 	if (NULL == q->curr) {
 		DEB_D("aiii. no current buffer\n");
