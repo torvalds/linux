@@ -282,14 +282,17 @@ cleanup:
  *                         propagate the change to descendants
  * @cgrp: The cgroup which descendants to traverse
  * @prog: A program to attach
+ * @replace_prog: Previously attached program to replace if BPF_F_REPLACE is set
  * @type: Type of attach operation
  * @flags: Option flags
  *
  * Must be called with cgroup_mutex held.
  */
 int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
+			struct bpf_prog *replace_prog,
 			enum bpf_attach_type type, u32 flags)
 {
+	u32 saved_flags = (flags & (BPF_F_ALLOW_OVERRIDE | BPF_F_ALLOW_MULTI));
 	struct list_head *progs = &cgrp->bpf.progs[type];
 	struct bpf_prog *old_prog = NULL;
 	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE],
@@ -298,14 +301,15 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 	enum bpf_cgroup_storage_type stype;
 	int err;
 
-	if ((flags & BPF_F_ALLOW_OVERRIDE) && (flags & BPF_F_ALLOW_MULTI))
+	if (((flags & BPF_F_ALLOW_OVERRIDE) && (flags & BPF_F_ALLOW_MULTI)) ||
+	    ((flags & BPF_F_REPLACE) && !(flags & BPF_F_ALLOW_MULTI)))
 		/* invalid combination */
 		return -EINVAL;
 
 	if (!hierarchy_allows_attach(cgrp, type))
 		return -EPERM;
 
-	if (!list_empty(progs) && cgrp->bpf.flags[type] != flags)
+	if (!list_empty(progs) && cgrp->bpf.flags[type] != saved_flags)
 		/* Disallow attaching non-overridable on top
 		 * of existing overridable in this cgroup.
 		 * Disallow attaching multi-prog if overridable or none
@@ -320,7 +324,12 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 			if (pl->prog == prog)
 				/* disallow attaching the same prog twice */
 				return -EINVAL;
+			if (pl->prog == replace_prog)
+				replace_pl = pl;
 		}
+		if ((flags & BPF_F_REPLACE) && !replace_pl)
+			/* prog to replace not found for cgroup */
+			return -ENOENT;
 	} else if (!list_empty(progs)) {
 		replace_pl = list_first_entry(progs, typeof(*pl), node);
 	}
@@ -356,7 +365,7 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 	for_each_cgroup_storage_type(stype)
 		pl->storage[stype] = storage[stype];
 
-	cgrp->bpf.flags[type] = flags;
+	cgrp->bpf.flags[type] = saved_flags;
 
 	err = update_effective_progs(cgrp, type);
 	if (err)
@@ -522,6 +531,7 @@ int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 int cgroup_bpf_prog_attach(const union bpf_attr *attr,
 			   enum bpf_prog_type ptype, struct bpf_prog *prog)
 {
+	struct bpf_prog *replace_prog = NULL;
 	struct cgroup *cgrp;
 	int ret;
 
@@ -529,8 +539,20 @@ int cgroup_bpf_prog_attach(const union bpf_attr *attr,
 	if (IS_ERR(cgrp))
 		return PTR_ERR(cgrp);
 
-	ret = cgroup_bpf_attach(cgrp, prog, attr->attach_type,
+	if ((attr->attach_flags & BPF_F_ALLOW_MULTI) &&
+	    (attr->attach_flags & BPF_F_REPLACE)) {
+		replace_prog = bpf_prog_get_type(attr->replace_bpf_fd, ptype);
+		if (IS_ERR(replace_prog)) {
+			cgroup_put(cgrp);
+			return PTR_ERR(replace_prog);
+		}
+	}
+
+	ret = cgroup_bpf_attach(cgrp, prog, replace_prog, attr->attach_type,
 				attr->attach_flags);
+
+	if (replace_prog)
+		bpf_prog_put(replace_prog);
 	cgroup_put(cgrp);
 	return ret;
 }
