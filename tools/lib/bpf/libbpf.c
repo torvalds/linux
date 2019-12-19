@@ -117,7 +117,7 @@ static void pr_perm_msg(int err)
 		return;
 
 	if (limit.rlim_cur < 1024)
-		snprintf(buf, sizeof(buf), "%lu bytes", limit.rlim_cur);
+		snprintf(buf, sizeof(buf), "%zu bytes", (size_t)limit.rlim_cur);
 	else if (limit.rlim_cur < 1024*1024)
 		snprintf(buf, sizeof(buf), "%.1f KiB", (double)limit.rlim_cur / 1024);
 	else
