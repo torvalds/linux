@@ -3511,8 +3511,7 @@ err:
 
 static int __bpf_tx_xdp_map(struct net_device *dev_rx, void *fwd,
 			    struct bpf_map *map,
-			    struct xdp_buff *xdp,
-			    u32 index)
+			    struct xdp_buff *xdp)
 {
 	int err;
 
@@ -3537,7 +3536,7 @@ static int __bpf_tx_xdp_map(struct net_device *dev_rx, void *fwd,
 	case BPF_MAP_TYPE_XSKMAP: {
 		struct xdp_sock *xs = fwd;
 
-		err = __xsk_map_redirect(map, xdp, xs);
+		err = __xsk_map_redirect(xs, xdp);
 		return err;
 	}
 	default:
@@ -3562,7 +3561,7 @@ void xdp_do_flush_map(void)
 			__cpu_map_flush(map);
 			break;
 		case BPF_MAP_TYPE_XSKMAP:
-			__xsk_map_flush(map);
+			__xsk_map_flush();
 			break;
 		default:
 			break;
@@ -3619,7 +3618,7 @@ static int xdp_do_redirect_map(struct net_device *dev, struct xdp_buff *xdp,
 	if (ri->map_to_flush && unlikely(ri->map_to_flush != map))
 		xdp_do_flush_map();
 
-	err = __bpf_tx_xdp_map(dev, fwd, map, xdp, index);
+	err = __bpf_tx_xdp_map(dev, fwd, map, xdp);
 	if (unlikely(err))
 		goto err;
 
