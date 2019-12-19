@@ -3558,7 +3558,7 @@ void xdp_do_flush_map(void)
 			__dev_map_flush();
 			break;
 		case BPF_MAP_TYPE_CPUMAP:
-			__cpu_map_flush(map);
+			__cpu_map_flush();
 			break;
 		case BPF_MAP_TYPE_XSKMAP:
 			__xsk_map_flush();
