@@ -1346,9 +1346,11 @@ int sdw_cdns_clock_restart(struct sdw_cdns *cdns, bool bus_reset)
 
 	cdns_update_config(cdns);
 
-	ret = sdw_bus_exit_clk_stop(&cdns->bus);
-	if (ret < 0)
-		dev_err(cdns->dev, "bus failed to exit clock stop %d\n", ret);
+	if (!bus_reset) {
+		ret = sdw_bus_exit_clk_stop(&cdns->bus);
+		if (ret < 0)
+			dev_err(cdns->dev, "bus failed to exit clock stop %d\n", ret);
+	}
 
 	return ret;
 }
