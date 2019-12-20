@@ -69,6 +69,7 @@
 
 #include <drm/i915_drm.h>
 
+#include "gt/intel_context.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
@@ -424,15 +425,6 @@ static void kill_context(struct i915_gem_context *ctx)
 	struct intel_context *ce;
 
 	/*
-	 * If we are already banned, it was due to a guilty request causing
-	 * a reset and the entire context being evicted from the GPU.
-	 */
-	if (i915_gem_context_is_banned(ctx))
-		return;
-
-	i915_gem_context_set_banned(ctx);
-
-	/*
 	 * Map the user's engine back to the actual engines; one virtual
 	 * engine will be mapped to multiple engines, and using ctx->engine[]
 	 * the same engine may be have multiple instances in the user's map.
@@ -441,6 +433,9 @@ static void kill_context(struct i915_gem_context *ctx)
 	 */
 	for_each_gem_engine(ce, __context_engines_static(ctx), it) {
 		struct intel_engine_cs *engine;
+
+		if (intel_context_set_banned(ce))
+			continue;
 
 		/*
 		 * Check the current active state of this context; if we
@@ -1093,7 +1088,7 @@ static void set_ppgtt_barrier(void *data)
 
 static int emit_ppgtt_update(struct i915_request *rq, void *data)
 {
-	struct i915_address_space *vm = rq->hw_context->vm;
+	struct i915_address_space *vm = rq->context->vm;
 	struct intel_engine_cs *engine = rq->engine;
 	u32 base = engine->mmio_base;
 	u32 *cs;

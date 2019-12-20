@@ -730,9 +730,6 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 	unsigned int i, batch;
 	int err;
 
-	if (unlikely(i915_gem_context_is_banned(eb->gem_context)))
-		return -EIO;
-
 	INIT_LIST_HEAD(&eb->relocs);
 	INIT_LIST_HEAD(&eb->unbound);
 
@@ -2175,7 +2172,7 @@ static int eb_submit(struct i915_execbuffer *eb)
 			return err;
 	}
 
-	if (i915_gem_context_nopreempt(eb->gem_context))
+	if (intel_context_nopreempt(eb->context))
 		eb->request->flags |= I915_REQUEST_NOPREEMPT;
 
 	return 0;
@@ -2260,6 +2257,9 @@ static int __eb_pin_engine(struct i915_execbuffer *eb, struct intel_context *ce)
 	err = intel_gt_terminally_wedged(ce->engine->gt);
 	if (err)
 		return err;
+
+	if (unlikely(intel_context_is_banned(ce)))
+		return -EIO;
 
 	/*
 	 * Pinning the contexts may generate requests in order to acquire

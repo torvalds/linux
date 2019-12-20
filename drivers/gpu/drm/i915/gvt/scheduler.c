@@ -59,7 +59,7 @@ static void set_context_pdp_root_pointer(
 static void update_shadow_pdps(struct intel_vgpu_workload *workload)
 {
 	struct drm_i915_gem_object *ctx_obj =
-		workload->req->hw_context->state->obj;
+		workload->req->context->state->obj;
 	struct execlist_ring_context *shadow_ring_context;
 	struct page *page;
 
@@ -130,7 +130,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	struct intel_gvt *gvt = vgpu->gvt;
 	int ring_id = workload->ring_id;
 	struct drm_i915_gem_object *ctx_obj =
-		workload->req->hw_context->state->obj;
+		workload->req->context->state->obj;
 	struct execlist_ring_context *shadow_ring_context;
 	struct page *page;
 	void *dst;
@@ -205,9 +205,9 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	return 0;
 }
 
-static inline bool is_gvt_request(struct i915_request *req)
+static inline bool is_gvt_request(struct i915_request *rq)
 {
-	return i915_gem_context_force_single_submission(req->gem_context);
+	return intel_context_force_single_submission(rq->context);
 }
 
 static void save_ring_hw_state(struct intel_vgpu *vgpu, int ring_id)
@@ -307,7 +307,7 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	u32 *cs;
 	int err;
 
-	if (IS_GEN(req->i915, 9) && is_inhibit_context(req->hw_context))
+	if (IS_GEN(req->i915, 9) && is_inhibit_context(req->context))
 		intel_vgpu_restore_inhibit_context(vgpu, req);
 
 	/*
@@ -363,11 +363,10 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 }
 
 static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
-					  struct i915_gem_context *ctx)
+					  struct intel_context *ce)
 {
 	struct intel_vgpu_mm *mm = workload->shadow_mm;
-	struct i915_ppgtt *ppgtt =
-		i915_vm_to_ppgtt(i915_gem_context_get_vm_rcu(ctx));
+	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ce->vm);
 	int i = 0;
 
 	if (mm->ppgtt_mm.root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
@@ -380,8 +379,6 @@ static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 			px_dma(pd) = mm->ppgtt_mm.shadow_pdps[i];
 		}
 	}
-
-	i915_vm_put(&ppgtt->vm);
 }
 
 static int
@@ -529,7 +526,7 @@ static void update_wa_ctx_2_shadow_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 		container_of(wa_ctx, struct intel_vgpu_workload, wa_ctx);
 	struct i915_request *rq = workload->req;
 	struct execlist_ring_context *shadow_ring_context =
-		(struct execlist_ring_context *)rq->hw_context->lrc_reg_state;
+		(struct execlist_ring_context *)rq->context->lrc_reg_state;
 
 	shadow_ring_context->bb_per_ctx_ptr.val =
 		(shadow_ring_context->bb_per_ctx_ptr.val &
@@ -628,7 +625,7 @@ static int prepare_workload(struct intel_vgpu_workload *workload)
 
 	update_shadow_pdps(workload);
 
-	set_context_ppgtt_from_shadow(workload, s->shadow[ring]->gem_context);
+	set_context_ppgtt_from_shadow(workload, s->shadow[ring]);
 
 	ret = intel_vgpu_sync_oos_pages(workload->vgpu);
 	if (ret) {
@@ -787,7 +784,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 	struct i915_request *rq = workload->req;
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct intel_gvt *gvt = vgpu->gvt;
-	struct drm_i915_gem_object *ctx_obj = rq->hw_context->state->obj;
+	struct drm_i915_gem_object *ctx_obj = rq->context->state->obj;
 	struct execlist_ring_context *shadow_ring_context;
 	struct page *page;
 	void *src;
@@ -1232,8 +1229,6 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	i915_gem_context_set_force_single_submission(ctx);
-
 	ppgtt = i915_vm_to_ppgtt(i915_gem_context_get_vm_rcu(ctx));
 	i915_context_ppgtt_root_save(s, ppgtt);
 
@@ -1248,6 +1243,8 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 			ret = PTR_ERR(ce);
 			goto out_shadow_ctx;
 		}
+
+		intel_context_set_single_submission(ce);
 
 		if (!USES_GUC_SUBMISSION(i915)) { /* Max ring buffer size */
 			const unsigned int ring_size = 512 * SZ_4K;

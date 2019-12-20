@@ -7,7 +7,9 @@
 #ifndef __INTEL_CONTEXT_H__
 #define __INTEL_CONTEXT_H__
 
+#include <linux/bitops.h>
 #include <linux/lockdep.h>
+#include <linux/types.h>
 
 #include "i915_active.h"
 #include "intel_context_types.h"
@@ -158,6 +160,46 @@ struct i915_request *intel_context_create_request(struct intel_context *ce);
 static inline struct intel_ring *__intel_context_ring_size(u64 sz)
 {
 	return u64_to_ptr(struct intel_ring, sz);
+}
+
+static inline bool intel_context_is_banned(const struct intel_context *ce)
+{
+	return test_bit(CONTEXT_BANNED, &ce->flags);
+}
+
+static inline bool intel_context_set_banned(struct intel_context *ce)
+{
+	return test_and_set_bit(CONTEXT_BANNED, &ce->flags);
+}
+
+static inline bool
+intel_context_force_single_submission(const struct intel_context *ce)
+{
+	return test_bit(CONTEXT_FORCE_SINGLE_SUBMISSION, &ce->flags);
+}
+
+static inline void
+intel_context_set_single_submission(struct intel_context *ce)
+{
+	__set_bit(CONTEXT_FORCE_SINGLE_SUBMISSION, &ce->flags);
+}
+
+static inline bool
+intel_context_nopreempt(const struct intel_context *ce)
+{
+	return test_bit(CONTEXT_NOPREEMPT, &ce->flags);
+}
+
+static inline void
+intel_context_set_nopreempt(struct intel_context *ce)
+{
+	set_bit(CONTEXT_NOPREEMPT, &ce->flags);
+}
+
+static inline void
+intel_context_clear_nopreempt(struct intel_context *ce)
+{
+	clear_bit(CONTEXT_NOPREEMPT, &ce->flags);
 }
 
 #endif /* __INTEL_CONTEXT_H__ */

@@ -41,27 +41,30 @@ static void rmw_clear_fw(struct intel_uncore *uncore, i915_reg_t reg, u32 clr)
 static void engine_skip_context(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
-	struct i915_gem_context *hung_ctx = rq->gem_context;
+	struct intel_context *hung_ctx = rq->context;
 
 	if (!i915_request_is_active(rq))
 		return;
 
 	lockdep_assert_held(&engine->active.lock);
 	list_for_each_entry_continue(rq, &engine->active.requests, sched.link)
-		if (rq->gem_context == hung_ctx)
+		if (rq->context == hung_ctx)
 			i915_request_skip(rq, -EIO);
 }
 
-static void client_mark_guilty(struct drm_i915_file_private *file_priv,
-			       const struct i915_gem_context *ctx)
+static void client_mark_guilty(struct i915_request *rq, bool banned)
 {
-	unsigned int score;
+	struct i915_gem_context *ctx = rq->context->gem_context;
+	struct drm_i915_file_private *file_priv = ctx->file_priv;
 	unsigned long prev_hang;
+	unsigned int score;
 
-	if (i915_gem_context_is_banned(ctx))
+	if (IS_ERR_OR_NULL(file_priv))
+		return;
+
+	score = 0;
+	if (banned)
 		score = I915_CLIENT_SCORE_CONTEXT_BAN;
-	else
-		score = 0;
 
 	prev_hang = xchg(&file_priv->hang_timestamp, jiffies);
 	if (time_before(jiffies, prev_hang + I915_CLIENT_FAST_HANG_JIFFIES))
@@ -76,14 +79,15 @@ static void client_mark_guilty(struct drm_i915_file_private *file_priv,
 	}
 }
 
-static bool context_mark_guilty(struct i915_gem_context *ctx)
+static bool mark_guilty(struct i915_request *rq)
 {
+	struct i915_gem_context *ctx = rq->context->gem_context;
 	unsigned long prev_hang;
 	bool banned;
 	int i;
 
 	if (i915_gem_context_is_closed(ctx)) {
-		i915_gem_context_set_banned(ctx);
+		intel_context_set_banned(rq->context);
 		return true;
 	}
 
@@ -110,18 +114,17 @@ static bool context_mark_guilty(struct i915_gem_context *ctx)
 	if (banned) {
 		DRM_DEBUG_DRIVER("context %s: guilty %d, banned\n",
 				 ctx->name, atomic_read(&ctx->guilty_count));
-		i915_gem_context_set_banned(ctx);
+		intel_context_set_banned(rq->context);
 	}
 
-	if (!IS_ERR_OR_NULL(ctx->file_priv))
-		client_mark_guilty(ctx->file_priv, ctx);
+	client_mark_guilty(rq, banned);
 
 	return banned;
 }
 
-static void context_mark_innocent(struct i915_gem_context *ctx)
+static void mark_innocent(struct i915_request *rq)
 {
-	atomic_inc(&ctx->active_count);
+	atomic_inc(&rq->context->gem_context->active_count);
 }
 
 void __i915_request_reset(struct i915_request *rq, bool guilty)
@@ -137,11 +140,11 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 	rcu_read_lock(); /* protect the GEM context */
 	if (guilty) {
 		i915_request_skip(rq, -EIO);
-		if (context_mark_guilty(rq->gem_context))
+		if (mark_guilty(rq))
 			engine_skip_context(rq);
 	} else {
 		dma_fence_set_error(&rq->fence, -EAGAIN);
-		context_mark_innocent(rq->gem_context);
+		mark_innocent(rq);
 	}
 	rcu_read_unlock();
 }

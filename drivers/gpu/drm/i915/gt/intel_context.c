@@ -302,7 +302,7 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 	int err;
 
 	/* Only suitable for use in remotely modifying this context */
-	GEM_BUG_ON(rq->hw_context == ce);
+	GEM_BUG_ON(rq->context == ce);
 
 	if (rcu_access_pointer(rq->timeline) != tl) { /* timeline sharing! */
 		/* Queue this switch after current activity by this context. */

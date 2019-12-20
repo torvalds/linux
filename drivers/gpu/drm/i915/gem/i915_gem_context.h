@@ -91,26 +91,6 @@ static inline void i915_gem_context_clear_persistence(struct i915_gem_context *c
 	clear_bit(UCONTEXT_PERSISTENCE, &ctx->user_flags);
 }
 
-static inline bool i915_gem_context_is_banned(const struct i915_gem_context *ctx)
-{
-	return test_bit(CONTEXT_BANNED, &ctx->flags);
-}
-
-static inline void i915_gem_context_set_banned(struct i915_gem_context *ctx)
-{
-	set_bit(CONTEXT_BANNED, &ctx->flags);
-}
-
-static inline bool i915_gem_context_force_single_submission(const struct i915_gem_context *ctx)
-{
-	return test_bit(CONTEXT_FORCE_SINGLE_SUBMISSION, &ctx->flags);
-}
-
-static inline void i915_gem_context_set_force_single_submission(struct i915_gem_context *ctx)
-{
-	__set_bit(CONTEXT_FORCE_SINGLE_SUBMISSION, &ctx->flags);
-}
-
 static inline bool
 i915_gem_context_user_engines(const struct i915_gem_context *ctx)
 {
@@ -127,24 +107,6 @@ static inline void
 i915_gem_context_clear_user_engines(struct i915_gem_context *ctx)
 {
 	clear_bit(CONTEXT_USER_ENGINES, &ctx->flags);
-}
-
-static inline bool
-i915_gem_context_nopreempt(const struct i915_gem_context *ctx)
-{
-	return test_bit(CONTEXT_NOPREEMPT, &ctx->flags);
-}
-
-static inline void
-i915_gem_context_set_nopreempt(struct i915_gem_context *ctx)
-{
-	set_bit(CONTEXT_NOPREEMPT, &ctx->flags);
-}
-
-static inline void
-i915_gem_context_clear_nopreempt(struct i915_gem_context *ctx)
-{
-	clear_bit(CONTEXT_NOPREEMPT, &ctx->flags);
 }
 
 static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)

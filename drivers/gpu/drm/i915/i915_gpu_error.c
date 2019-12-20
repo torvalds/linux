@@ -1221,7 +1221,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 static void record_request(const struct i915_request *request,
 			   struct drm_i915_error_request *erq)
 {
-	const struct i915_gem_context *ctx = request->gem_context;
+	const struct i915_gem_context *ctx = request->context->gem_context;
 
 	erq->flags = request->fence.flags;
 	erq->context = request->fence.context;
@@ -1231,7 +1231,7 @@ static void record_request(const struct i915_request *request,
 	erq->start = i915_ggtt_offset(request->ring->vma);
 	erq->head = request->head;
 	erq->tail = request->tail;
-	erq->pid = ctx->pid ? pid_nr(ctx->pid) : 0;
+	erq->pid = ctx && ctx->pid ? pid_nr(ctx->pid) : 0;
 }
 
 static void engine_record_requests(struct intel_engine_cs *engine,
@@ -1298,7 +1298,10 @@ static void error_record_engine_execlists(const struct intel_engine_cs *engine,
 static bool record_context(struct drm_i915_error_context *e,
 			   const struct i915_request *rq)
 {
-	const struct i915_gem_context *ctx = rq->gem_context;
+	const struct i915_gem_context *ctx = rq->context->gem_context;
+
+	if (!ctx)
+		return false;
 
 	if (ctx->pid) {
 		struct task_struct *task;
@@ -1452,7 +1455,7 @@ gem_record_rings(struct i915_gpu_state *error, struct compress *compress)
 		capture = request_record_user_bo(request, ee, capture);
 
 		capture = capture_vma(capture,
-				      request->hw_context->state,
+				      request->context->state,
 				      &ee->ctx);
 
 		capture = capture_vma(capture,

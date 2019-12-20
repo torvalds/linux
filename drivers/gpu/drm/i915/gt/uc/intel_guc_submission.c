@@ -217,7 +217,7 @@ static void guc_wq_item_append(struct intel_guc *guc,
 static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
-	u32 ctx_desc = lower_32_bits(rq->hw_context->lrc_desc);
+	u32 ctx_desc = lower_32_bits(rq->context->lrc_desc);
 	u32 ring_tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
 
 	guc_wq_item_append(guc, engine->guc_id, ctx_desc,
@@ -315,7 +315,7 @@ static void __guc_dequeue(struct intel_engine_cs *engine)
 		int i;
 
 		priolist_for_each_request_consume(rq, rn, p, i) {
-			if (last && rq->hw_context != last->hw_context) {
+			if (last && rq->context != last->context) {
 				if (port == last_port)
 					goto done;
 
@@ -420,7 +420,7 @@ static void guc_reset(struct intel_engine_cs *engine, bool stalled)
 		stalled = false;
 
 	__i915_request_reset(rq, stalled);
-	intel_lr_context_reset(engine, rq->hw_context, rq->head, stalled);
+	intel_lr_context_reset(engine, rq->context, rq->head, stalled);
 
 out_unlock:
 	spin_unlock_irqrestore(&engine->active.lock, flags);

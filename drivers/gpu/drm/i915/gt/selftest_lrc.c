@@ -1195,13 +1195,13 @@ static int __cancel_active0(struct live_preempt_cancel *arg)
 				__func__, arg->engine->name))
 		return -EIO;
 
-	clear_bit(CONTEXT_BANNED, &arg->a.ctx->flags);
 	rq = spinner_create_request(&arg->a.spin,
 				    arg->a.ctx, arg->engine,
 				    MI_ARB_CHECK);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
+	clear_bit(CONTEXT_BANNED, &rq->context->flags);
 	i915_request_get(rq);
 	i915_request_add(rq);
 	if (!igt_wait_for_spinner(&arg->a.spin, rq)) {
@@ -1209,7 +1209,7 @@ static int __cancel_active0(struct live_preempt_cancel *arg)
 		goto out;
 	}
 
-	i915_gem_context_set_banned(arg->a.ctx);
+	intel_context_set_banned(rq->context);
 	err = intel_engine_pulse(arg->engine);
 	if (err)
 		goto out;
@@ -1244,13 +1244,13 @@ static int __cancel_active1(struct live_preempt_cancel *arg)
 				__func__, arg->engine->name))
 		return -EIO;
 
-	clear_bit(CONTEXT_BANNED, &arg->a.ctx->flags);
 	rq[0] = spinner_create_request(&arg->a.spin,
 				       arg->a.ctx, arg->engine,
 				       MI_NOOP); /* no preemption */
 	if (IS_ERR(rq[0]))
 		return PTR_ERR(rq[0]);
 
+	clear_bit(CONTEXT_BANNED, &rq[0]->context->flags);
 	i915_request_get(rq[0]);
 	i915_request_add(rq[0]);
 	if (!igt_wait_for_spinner(&arg->a.spin, rq[0])) {
@@ -1258,7 +1258,6 @@ static int __cancel_active1(struct live_preempt_cancel *arg)
 		goto out;
 	}
 
-	clear_bit(CONTEXT_BANNED, &arg->b.ctx->flags);
 	rq[1] = spinner_create_request(&arg->b.spin,
 				       arg->b.ctx, arg->engine,
 				       MI_ARB_CHECK);
@@ -1267,13 +1266,14 @@ static int __cancel_active1(struct live_preempt_cancel *arg)
 		goto out;
 	}
 
+	clear_bit(CONTEXT_BANNED, &rq[1]->context->flags);
 	i915_request_get(rq[1]);
 	err = i915_request_await_dma_fence(rq[1], &rq[0]->fence);
 	i915_request_add(rq[1]);
 	if (err)
 		goto out;
 
-	i915_gem_context_set_banned(arg->b.ctx);
+	intel_context_set_banned(rq[1]->context);
 	err = intel_engine_pulse(arg->engine);
 	if (err)
 		goto out;
@@ -1316,13 +1316,13 @@ static int __cancel_queued(struct live_preempt_cancel *arg)
 				__func__, arg->engine->name))
 		return -EIO;
 
-	clear_bit(CONTEXT_BANNED, &arg->a.ctx->flags);
 	rq[0] = spinner_create_request(&arg->a.spin,
 				       arg->a.ctx, arg->engine,
 				       MI_ARB_CHECK);
 	if (IS_ERR(rq[0]))
 		return PTR_ERR(rq[0]);
 
+	clear_bit(CONTEXT_BANNED, &rq[0]->context->flags);
 	i915_request_get(rq[0]);
 	i915_request_add(rq[0]);
 	if (!igt_wait_for_spinner(&arg->a.spin, rq[0])) {
@@ -1330,13 +1330,13 @@ static int __cancel_queued(struct live_preempt_cancel *arg)
 		goto out;
 	}
 
-	clear_bit(CONTEXT_BANNED, &arg->b.ctx->flags);
 	rq[1] = igt_request_alloc(arg->b.ctx, arg->engine);
 	if (IS_ERR(rq[1])) {
 		err = PTR_ERR(rq[1]);
 		goto out;
 	}
 
+	clear_bit(CONTEXT_BANNED, &rq[1]->context->flags);
 	i915_request_get(rq[1]);
 	err = i915_request_await_dma_fence(rq[1], &rq[0]->fence);
 	i915_request_add(rq[1]);
@@ -1357,7 +1357,7 @@ static int __cancel_queued(struct live_preempt_cancel *arg)
 	if (err)
 		goto out;
 
-	i915_gem_context_set_banned(arg->a.ctx);
+	intel_context_set_banned(rq[2]->context);
 	err = intel_engine_pulse(arg->engine);
 	if (err)
 		goto out;
@@ -1404,13 +1404,13 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 		return 0;
 
 	GEM_TRACE("%s(%s)\n", __func__, arg->engine->name);
-	clear_bit(CONTEXT_BANNED, &arg->a.ctx->flags);
 	rq = spinner_create_request(&arg->a.spin,
 				    arg->a.ctx, arg->engine,
 				    MI_NOOP); /* preemption disabled */
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
+	clear_bit(CONTEXT_BANNED, &rq->context->flags);
 	i915_request_get(rq);
 	i915_request_add(rq);
 	if (!igt_wait_for_spinner(&arg->a.spin, rq)) {
@@ -1418,7 +1418,7 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 		goto out;
 	}
 
-	i915_gem_context_set_banned(arg->a.ctx);
+	intel_context_set_banned(rq->context);
 	err = intel_engine_pulse(arg->engine); /* force reset */
 	if (err)
 		goto out;

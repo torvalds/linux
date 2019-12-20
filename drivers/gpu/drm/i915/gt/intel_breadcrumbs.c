@@ -281,7 +281,7 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 
 	if (test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags)) {
 		struct intel_breadcrumbs *b = &rq->engine->breadcrumbs;
-		struct intel_context *ce = rq->hw_context;
+		struct intel_context *ce = rq->context;
 		struct list_head *pos;
 
 		spin_lock(&b->irq_lock);
@@ -338,7 +338,7 @@ void i915_request_cancel_breadcrumb(struct i915_request *rq)
 	 */
 	spin_lock(&b->irq_lock);
 	if (test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags)) {
-		struct intel_context *ce = rq->hw_context;
+		struct intel_context *ce = rq->context;
 
 		list_del(&rq->signal_link);
 		if (list_empty(&ce->signals))

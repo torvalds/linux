@@ -1523,9 +1523,9 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 		print_request_ring(m, rq);
 
-		if (rq->hw_context->lrc_reg_state) {
+		if (rq->context->lrc_reg_state) {
 			drm_printf(m, "Logical Ring Context:\n");
-			hexdump(m, rq->hw_context->lrc_reg_state, PAGE_SIZE);
+			hexdump(m, rq->context->lrc_reg_state, PAGE_SIZE);
 		}
 	}
 	spin_unlock_irqrestore(&engine->active.lock, flags);
@@ -1586,7 +1586,7 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 
 		for (port = execlists->pending; (rq = *port); port++) {
 			/* Exclude any contexts already counted in active */
-			if (!intel_context_inflight_count(rq->hw_context))
+			if (!intel_context_inflight_count(rq->context))
 				engine->stats.active++;
 		}
 

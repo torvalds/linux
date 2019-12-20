@@ -1168,19 +1168,18 @@ err_rq:
 		if (!rq)
 			continue;
 
-		GEM_BUG_ON(!test_bit(CONTEXT_ALLOC_BIT,
-				     &rq->hw_context->flags));
-		state = rq->hw_context->state;
+		GEM_BUG_ON(!test_bit(CONTEXT_ALLOC_BIT, &rq->context->flags));
+		state = rq->context->state;
 		if (!state)
 			continue;
 
 		/* Serialise with retirement on another CPU */
-		err = __intel_context_flush_retire(rq->hw_context);
+		err = __intel_context_flush_retire(rq->context);
 		if (err)
 			goto out;
 
 		/* We want to be able to unbind the state from the GGTT */
-		GEM_BUG_ON(intel_context_is_pinned(rq->hw_context));
+		GEM_BUG_ON(intel_context_is_pinned(rq->context));
 
 		/*
 		 * As we will hold a reference to the logical state, it will
@@ -1230,7 +1229,7 @@ out:
 		if (!rq)
 			continue;
 
-		ce = rq->hw_context;
+		ce = rq->context;
 		i915_request_put(rq);
 		intel_context_put(ce);
 	}

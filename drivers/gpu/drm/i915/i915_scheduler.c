@@ -213,7 +213,7 @@ static void kick_submission(struct intel_engine_cs *engine,
 	 * If we are already the currently executing context, don't
 	 * bother evaluating if we should preempt ourselves.
 	 */
-	if (inflight->hw_context == rq->hw_context)
+	if (inflight->context == rq->context)
 		goto unlock;
 
 	engine->execlists.queue_priority_hint = prio;

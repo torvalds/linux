@@ -1480,7 +1480,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 
 	*cs++ = MI_NOOP;
 	*cs++ = MI_SET_CONTEXT;
-	*cs++ = i915_ggtt_offset(rq->hw_context->state) | flags;
+	*cs++ = i915_ggtt_offset(rq->context->state) | flags;
 	/*
 	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
 	 * WaMiSetContext_Hang:snb,ivb,vlv
@@ -1550,7 +1550,7 @@ static int remap_l3_slice(struct i915_request *rq, int slice)
 
 static int remap_l3(struct i915_request *rq)
 {
-	struct i915_gem_context *ctx = rq->gem_context;
+	struct i915_gem_context *ctx = rq->context->gem_context;
 	int i, err;
 
 	if (!ctx->remap_slice)
@@ -1597,7 +1597,7 @@ static int switch_mm(struct i915_request *rq, struct i915_address_space *vm)
 
 static int switch_context(struct i915_request *rq)
 {
-	struct intel_context *ce = rq->hw_context;
+	struct intel_context *ce = rq->context;
 	int ret;
 
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
@@ -1631,7 +1631,7 @@ static int ring_request_alloc(struct i915_request *request)
 {
 	int ret;
 
-	GEM_BUG_ON(!intel_context_is_pinned(request->hw_context));
+	GEM_BUG_ON(!intel_context_is_pinned(request->context));
 	GEM_BUG_ON(i915_request_timeline(request)->has_initial_breadcrumb);
 
 	/*

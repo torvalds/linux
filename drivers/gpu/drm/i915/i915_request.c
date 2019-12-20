@@ -62,6 +62,8 @@ static const char *i915_fence_get_driver_name(struct dma_fence *fence)
 
 static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
 {
+	const struct i915_gem_context *ctx;
+
 	/*
 	 * The timeline struct (as part of the ppgtt underneath a context)
 	 * may be freed when the request is no longer in use by the GPU.
@@ -74,7 +76,11 @@ static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return "signaled";
 
-	return to_request(fence)->gem_context->name ?: "[" DRIVER_NAME "]";
+	ctx = to_request(fence)->context->gem_context;
+	if (!ctx)
+		return "[" DRIVER_NAME "]";
+
+	return ctx->name;
 }
 
 static bool i915_fence_signaled(struct dma_fence *fence)
@@ -269,8 +275,8 @@ bool i915_request_retire(struct i915_request *rq)
 	remove_from_client(rq);
 	list_del(&rq->link);
 
-	intel_context_exit(rq->hw_context);
-	intel_context_unpin(rq->hw_context);
+	intel_context_exit(rq->context);
+	intel_context_unpin(rq->context);
 
 	free_capture_list(rq);
 	i915_sched_node_fini(&rq->sched);
@@ -369,7 +375,7 @@ bool __i915_request_submit(struct i915_request *request)
 	if (i915_request_completed(request))
 		goto xfer;
 
-	if (i915_gem_context_is_banned(request->gem_context))
+	if (intel_context_is_banned(request->context))
 		i915_request_skip(request, -EIO);
 
 	/*
@@ -648,8 +654,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 		goto err_free;
 
 	rq->i915 = ce->engine->i915;
-	rq->hw_context = ce;
-	rq->gem_context = ce->gem_context;
+	rq->context = ce;
 	rq->engine = ce->engine;
 	rq->ring = ce->ring;
 	rq->execution_mask = ce->engine->mask;
@@ -917,7 +922,7 @@ i915_request_await_request(struct i915_request *to, struct i915_request *from)
 						       &from->submit,
 						       I915_FENCE_GFP);
 	} else if (intel_engine_has_semaphores(to->engine) &&
-		   to->gem_context->sched.priority >= I915_PRIORITY_NORMAL) {
+		   to->context->gem_context->sched.priority >= I915_PRIORITY_NORMAL) {
 		ret = emit_semaphore_wait(to, from, I915_FENCE_GFP);
 	} else {
 		ret = i915_sw_fence_await_dma_fence(&to->submit,
@@ -1298,7 +1303,7 @@ void __i915_request_queue(struct i915_request *rq,
 
 void i915_request_add(struct i915_request *rq)
 {
-	struct i915_sched_attr attr = rq->gem_context->sched;
+	struct i915_sched_attr attr = rq->context->gem_context->sched;
 	struct intel_timeline * const tl = i915_request_timeline(rq);
 	struct i915_request *prev;
 
