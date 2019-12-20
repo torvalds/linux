@@ -97,13 +97,4 @@ struct hdsp_9632_aeb {
 
 #define SNDRV_HDSP_IOCTL_GET_9632_AEB _IOR('H', 0x45, struct hdsp_9632_aeb)
 
-/* typedefs for compatibility to user-space */
-typedef enum HDSP_IO_Type HDSP_IO_Type;
-typedef struct hdsp_peak_rms hdsp_peak_rms_t;
-typedef struct hdsp_config_info hdsp_config_info_t;
-typedef struct hdsp_firmware hdsp_firmware_t;
-typedef struct hdsp_version hdsp_version_t;
-typedef struct hdsp_mixer hdsp_mixer_t;
-typedef struct hdsp_9632_aeb hdsp_9632_aeb_t;
-
 #endif /* __SOUND_HDSP_H */
