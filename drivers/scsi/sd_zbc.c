@@ -325,14 +325,11 @@ static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
 }
 
 /**
- * sd_zbc_check_zones - Check the device capacity and zone sizes
+ * sd_zbc_check_zones - Check the device capacity and zone size
  * @sdkp: Target disk
  *
  * Check that the device capacity as reported by READ CAPACITY matches the
- * max_lba value (plus one)of the report zones command reply. Also check that
- * all zones of the device have an equal size, only allowing the last zone of
- * the disk to have a smaller size (runt zone). The zone size must also be a
- * power of two.
+ * max_lba value (plus one)of the report zones command reply.
  *
  * Returns the zone size in number of blocks upon success or an error code
  * upon failure.
@@ -366,14 +363,6 @@ static int sd_zbc_check_zones(struct scsi_disk *sdkp, unsigned char *buf,
 	/* Parse REPORT ZONES header */
 	rec = buf + 64;
 	zone_blocks = get_unaligned_be64(&rec[8]);
-	if (!zone_blocks || !is_power_of_2(zone_blocks)) {
-		if (sdkp->first_scan)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Devices with non power of 2 zone "
-				  "size are not supported\n");
-		return -ENODEV;
-	}
-
 	if (logical_to_sectors(sdkp->device, zone_blocks) > UINT_MAX) {
 		if (sdkp->first_scan)
 			sd_printk(KERN_NOTICE, sdkp,
