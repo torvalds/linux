@@ -2560,6 +2560,9 @@ static int virtnet_set_features(struct net_device *dev,
 	u64 offloads;
 	int err;
 
+	if (!vi->has_cvq)
+		return 0;
+
 	if ((dev->features ^ features) & NETIF_F_LRO) {
 		if (vi->xdp_queue_pairs)
 			return -EBUSY;
