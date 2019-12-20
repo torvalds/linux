@@ -1,27 +1,5 @@
 [
     {
-        "id": "e9a3",
-        "name": "Add u32 with source match",
-        "category": [
-            "filter",
-            "u32"
-        ],
-        "plugins": {
-                "requires": "nsPlugin"
-        },
-        "setup": [
-            "$TC qdisc add dev $DEV1 ingress"
-        ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: protocol ip prio 1 u32 match ip src 127.0.0.1/32 flowid 1:1 action ok",
-        "expExitCode": "0",
-        "verifyCmd": "$TC filter show dev $DEV1 parent ffff:",
-        "matchPattern": "match 7f000001/ffffffff at 12",
-        "matchCount": "1",
-        "teardown": [
-            "$TC qdisc del dev $DEV1 ingress"
-        ]
-    },
-    {
         "id": "2638",
         "name": "Add matchall and try to get it",
         "category": [
