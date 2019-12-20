@@ -489,7 +489,7 @@ static irqreturn_t ucs1002_alert_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int ucs1002_regulator_enable(struct regulator_dev *rdev)
+static int ucs1002_regulator_enable(struct regulator_dev *rdev)
 {
 	struct ucs1002_info *info = rdev_get_drvdata(rdev);
 
