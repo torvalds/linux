@@ -299,11 +299,6 @@ static inline void bch2_trans_begin(struct btree_trans *trans)
 	return bch2_trans_reset(trans, TRANS_RESET_ITERS|TRANS_RESET_MEM);
 }
 
-static inline void bch2_trans_begin_updates(struct btree_trans *trans)
-{
-	return bch2_trans_reset(trans, TRANS_RESET_MEM);
-}
-
 void *bch2_trans_kmalloc(struct btree_trans *, size_t);
 void bch2_trans_init(struct btree_trans *, struct bch_fs *, unsigned, size_t);
 int bch2_trans_exit(struct btree_trans *);

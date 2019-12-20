@@ -2650,6 +2650,8 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		struct bkey_i_reservation reservation;
 		struct bkey_s_c k;
 
+		bch2_trans_reset(&trans, TRANS_RESET_MEM);
+
 		k = bch2_btree_iter_peek_slot(iter);
 		if ((ret = bkey_err(k)))
 			goto bkey_err;
@@ -2695,8 +2697,6 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 
 			reservation.v.nr_replicas = disk_res.nr_replicas;
 		}
-
-		bch2_trans_begin_updates(&trans);
 
 		ret = bch2_extent_update(&trans, iter, &reservation.k_i,
 				&disk_res, &inode->ei_journal_seq,

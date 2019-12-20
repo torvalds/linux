@@ -185,7 +185,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 				       BTREE_ITER_INTENT);
 
 	while (1) {
-		bch2_trans_begin_updates(&trans);
+		bch2_trans_reset(&trans, TRANS_RESET_MEM);
+
 		trans.mem_top = 0;
 
 		if (fatal_signal_pending(current)) {

@@ -336,6 +336,8 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 			bch2_disk_reservation_init(c, 0);
 		struct bkey_i delete;
 
+		bch2_trans_reset(trans, TRANS_RESET_MEM);
+
 		ret = bkey_err(k);
 		if (ret)
 			goto btree_err;
@@ -346,8 +348,6 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 		/* create the biggest key we can */
 		bch2_key_resize(&delete.k, max_sectors);
 		bch2_cut_back(end, &delete);
-
-		bch2_trans_begin_updates(trans);
 
 		ret = bch2_extent_update(trans, iter, &delete,
 				&disk_res, journal_seq,
@@ -410,13 +410,13 @@ int bch2_write_index_default(struct bch_write_op *op)
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	do {
+		bch2_trans_reset(&trans, TRANS_RESET_MEM);
+
 		k = bch2_keylist_front(keys);
 
 		bkey_on_stack_realloc(&sk, c, k->k.u64s);
 		bkey_copy(sk.k, k);
 		bch2_cut_front(iter->pos, sk.k);
-
-		bch2_trans_begin_updates(&trans);
 
 		ret = bch2_extent_update(&trans, iter, sk.k,
 					 &op->res, op_journal_seq(op),
