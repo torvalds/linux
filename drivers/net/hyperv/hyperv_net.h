@@ -181,7 +181,6 @@ struct rndis_device {
 
 	u8 hw_mac_adr[ETH_ALEN];
 	u8 rss_key[NETVSC_HASH_KEYLEN];
-	u16 rx_table[ITAB_NUM];
 };
 
 
@@ -932,6 +931,8 @@ struct net_device_context {
 	u32 tx_checksum_mask;
 
 	u32 tx_table[VRSS_SEND_TAB_SIZE];
+
+	u16 rx_table[ITAB_NUM];
 
 	/* Ethtool settings */
 	u8 duplex;
