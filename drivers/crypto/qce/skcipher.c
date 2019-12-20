@@ -257,7 +257,14 @@ static int qce_skcipher_init(struct crypto_skcipher *tfm)
 
 	memset(ctx, 0, sizeof(*ctx));
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct qce_cipher_reqctx));
+	return 0;
+}
 
+static int qce_skcipher_init_fallback(struct crypto_skcipher *tfm)
+{
+	struct qce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
+
+	qce_skcipher_init(tfm);
 	ctx->fallback = crypto_alloc_sync_skcipher(crypto_tfm_alg_name(&tfm->base),
 						   0, CRYPTO_ALG_NEED_FALLBACK);
 	return PTR_ERR_OR_ZERO(ctx->fallback);
@@ -387,14 +394,18 @@ static int qce_skcipher_register_one(const struct qce_skcipher_def *def,
 
 	alg->base.cra_priority		= 300;
 	alg->base.cra_flags		= CRYPTO_ALG_ASYNC |
-					  CRYPTO_ALG_NEED_FALLBACK |
 					  CRYPTO_ALG_KERN_DRIVER_ONLY;
 	alg->base.cra_ctxsize		= sizeof(struct qce_cipher_ctx);
 	alg->base.cra_alignmask		= 0;
 	alg->base.cra_module		= THIS_MODULE;
 
-	alg->init			= qce_skcipher_init;
-	alg->exit			= qce_skcipher_exit;
+	if (IS_AES(def->flags)) {
+		alg->base.cra_flags    |= CRYPTO_ALG_NEED_FALLBACK;
+		alg->init		= qce_skcipher_init_fallback;
+		alg->exit		= qce_skcipher_exit;
+	} else {
+		alg->init		= qce_skcipher_init;
+	}
 
 	INIT_LIST_HEAD(&tmpl->entry);
 	tmpl->crypto_alg_type = CRYPTO_ALG_TYPE_SKCIPHER;
