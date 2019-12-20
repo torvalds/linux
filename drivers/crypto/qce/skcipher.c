@@ -154,12 +154,13 @@ static int qce_skcipher_setkey(struct crypto_skcipher *ablk, const u8 *key,
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ablk);
 	struct qce_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	unsigned long flags = to_cipher_tmpl(ablk)->alg_flags;
 	int ret;
 
 	if (!key || !keylen)
 		return -EINVAL;
 
-	switch (keylen) {
+	switch (IS_XTS(flags) ? keylen >> 1 : keylen) {
 	case AES_KEYSIZE_128:
 	case AES_KEYSIZE_256:
 		break;
@@ -213,13 +214,15 @@ static int qce_skcipher_crypt(struct skcipher_request *req, int encrypt)
 	struct qce_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct qce_cipher_reqctx *rctx = skcipher_request_ctx(req);
 	struct qce_alg_template *tmpl = to_cipher_tmpl(tfm);
+	int keylen;
 	int ret;
 
 	rctx->flags = tmpl->alg_flags;
 	rctx->flags |= encrypt ? QCE_ENCRYPT : QCE_DECRYPT;
+	keylen = IS_XTS(rctx->flags) ? ctx->enc_keylen >> 1 : ctx->enc_keylen;
 
-	if (IS_AES(rctx->flags) && ctx->enc_keylen != AES_KEYSIZE_128 &&
-	    ctx->enc_keylen != AES_KEYSIZE_256) {
+	if (IS_AES(rctx->flags) && keylen != AES_KEYSIZE_128 &&
+	    keylen != AES_KEYSIZE_256) {
 		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->fallback);
 
 		skcipher_request_set_sync_tfm(subreq, ctx->fallback);
@@ -311,8 +314,8 @@ static const struct qce_skcipher_def skcipher_def[] = {
 		.drv_name	= "xts-aes-qce",
 		.blocksize	= AES_BLOCK_SIZE,
 		.ivsize		= AES_BLOCK_SIZE,
-		.min_keysize	= AES_MIN_KEY_SIZE,
-		.max_keysize	= AES_MAX_KEY_SIZE,
+		.min_keysize	= AES_MIN_KEY_SIZE * 2,
+		.max_keysize	= AES_MAX_KEY_SIZE * 2,
 	},
 	{
 		.flags		= QCE_ALG_DES | QCE_MODE_ECB,
