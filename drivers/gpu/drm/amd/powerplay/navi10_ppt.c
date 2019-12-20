@@ -1628,6 +1628,9 @@ static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 			break;
 		}
 		break;
+	case CHIP_NAVI12:
+		sclk_freq = NAVI12_UMD_PSTATE_PEAK_GFXCLK;
+		break;
 	default:
 		ret = smu_get_dpm_level_count(smu, SMU_SCLK, &sclk_level);
 		if (ret)
