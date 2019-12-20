@@ -1302,14 +1302,21 @@ int denali_init(struct denali_controller *denali)
 
 	/*
 	 * Set how many bytes should be skipped before writing data in OOB.
+	 * If a non-zero value has already been configured, update it in HW.
 	 * If a non-zero value has already been set (by firmware or something),
 	 * just use it. Otherwise, set the driver's default.
 	 */
-	denali->oob_skip_bytes = ioread32(denali->reg + SPARE_AREA_SKIP_BYTES);
-	if (!denali->oob_skip_bytes) {
-		denali->oob_skip_bytes = DENALI_DEFAULT_OOB_SKIP_BYTES;
+	if (denali->oob_skip_bytes) {
 		iowrite32(denali->oob_skip_bytes,
 			  denali->reg + SPARE_AREA_SKIP_BYTES);
+	} else {
+		denali->oob_skip_bytes =
+			ioread32(denali->reg + SPARE_AREA_SKIP_BYTES);
+		if (!denali->oob_skip_bytes) {
+			denali->oob_skip_bytes = DENALI_DEFAULT_OOB_SKIP_BYTES;
+			iowrite32(denali->oob_skip_bytes,
+				  denali->reg + SPARE_AREA_SKIP_BYTES);
+		}
 	}
 
 	iowrite32(0, denali->reg + TRANSFER_SPARE_REG);
