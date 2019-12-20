@@ -153,7 +153,6 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	u8 bcn_ctrl = 0;
 
 	rtwvif->port = port;
-	rtwvif->vif = vif;
 	rtwvif->stats.tx_unicast = 0;
 	rtwvif->stats.rx_unicast = 0;
 	rtwvif->stats.tx_cnt = 0;
