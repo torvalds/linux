@@ -76,7 +76,7 @@ static bool benchmark_done;
 static u32 opt_batch_size = 64;
 static int opt_pkt_count;
 static u16 opt_pkt_size = MIN_PKT_SIZE;
-static u32 pkt_fill_pattern = 0x12345678;
+static u32 opt_pkt_fill_pattern = 0x12345678;
 static int opt_poll;
 static int opt_interval = 1;
 static u32 opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
@@ -517,7 +517,7 @@ static void gen_eth_hdr_data(void)
 	udp_hdr->len = htons(UDP_PKT_SIZE);
 
 	/* UDP data */
-	memset32_htonl(pkt_data + PKT_HDR_SIZE, pkt_fill_pattern,
+	memset32_htonl(pkt_data + PKT_HDR_SIZE, opt_pkt_fill_pattern,
 		       UDP_PKT_DATA_SIZE);
 
 	/* UDP header checksum */
@@ -630,6 +630,7 @@ static struct option long_options[] = {
 	{"batch-size", required_argument, 0, 'b'},
 	{"tx-pkt-count", required_argument, 0, 'C'},
 	{"tx-pkt-size", required_argument, 0, 's'},
+	{"tx-pkt-pattern", required_argument, 0, 'P'},
 	{0, 0, 0, 0}
 };
 
@@ -663,10 +664,11 @@ static void usage(const char *prog)
 		"  -s, --tx-pkt-size=n	Transmit packet size.\n"
 		"			(Default: %d bytes)\n"
 		"			Min size: %d, Max size %d.\n"
+		"  -P, --tx-pkt-pattern=nPacket fill pattern. Default: 0x%x\n"
 		"\n";
 	fprintf(stderr, str, prog, XSK_UMEM__DEFAULT_FRAME_SIZE,
 		opt_batch_size, MIN_PKT_SIZE, MIN_PKT_SIZE,
-		XSK_UMEM__DEFAULT_FRAME_SIZE);
+		XSK_UMEM__DEFAULT_FRAME_SIZE, opt_pkt_fill_pattern);
 
 	exit(EXIT_FAILURE);
 }
@@ -678,7 +680,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:",
+		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -755,6 +757,9 @@ static void parse_command_line(int argc, char **argv)
 					opt_pkt_size);
 				usage(basename(argv[0]));
 			}
+			break;
+		case 'P':
+			opt_pkt_fill_pattern = strtol(optarg, NULL, 16);
 			break;
 		default:
 			usage(basename(argv[0]));
