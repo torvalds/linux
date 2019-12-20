@@ -2237,6 +2237,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_profiling_clk_mask = arcturus_get_profiling_clk_mask,
 	.get_power_profile_mode = arcturus_get_power_profile_mode,
 	.set_power_profile_mode = arcturus_set_power_profile_mode,
+	.set_performance_level = smu_v11_0_set_performance_level,
 	/* debug (internal used) */
 	.dump_pptable = arcturus_dump_pptable,
 	.get_power_limit = arcturus_get_power_limit,

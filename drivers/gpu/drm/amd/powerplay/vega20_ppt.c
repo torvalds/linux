@@ -3194,6 +3194,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_od_percentage = vega20_get_od_percentage,
 	.get_power_profile_mode = vega20_get_power_profile_mode,
 	.set_power_profile_mode = vega20_set_power_profile_mode,
+	.set_performance_level = smu_v11_0_set_performance_level,
 	.set_od_percentage = vega20_set_od_percentage,
 	.set_default_od_settings = vega20_set_default_od_settings,
 	.od_edit_dpm_table = vega20_odn_edit_dpm_table,

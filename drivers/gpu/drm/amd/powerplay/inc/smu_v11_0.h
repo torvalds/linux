@@ -262,4 +262,7 @@ int smu_v11_0_set_default_od_settings(struct smu_context *smu, bool initialize, 
 
 uint32_t smu_v11_0_get_max_power_limit(struct smu_context *smu);
 
+int smu_v11_0_set_performance_level(struct smu_context *smu,
+				    enum amd_dpm_forced_level level);
+
 #endif
