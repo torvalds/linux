@@ -1587,7 +1587,7 @@ static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 	uint32_t sclk_freq = 0, uclk_freq = 0;
-	uint32_t uclk_level = 0;
+	uint32_t sclk_level = 0, uclk_level = 0;
 
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
@@ -1629,7 +1629,13 @@ static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 		}
 		break;
 	default:
-		return -EINVAL;
+		ret = smu_get_dpm_level_count(smu, SMU_SCLK, &sclk_level);
+		if (ret)
+			return ret;
+		ret = smu_get_dpm_freq_by_index(smu, SMU_SCLK, sclk_level - 1, &sclk_freq);
+		if (ret)
+			return ret;
+		break;
 	}
 
 	ret = smu_get_dpm_level_count(smu, SMU_UCLK, &uclk_level);
