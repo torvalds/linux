@@ -65,6 +65,9 @@ static u32 opt_xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static const char *opt_if = "";
 static int opt_ifindex;
 static int opt_queue;
+static unsigned long opt_duration;
+static unsigned long start_time;
+static bool benchmark_done;
 static int opt_poll;
 static int opt_interval = 1;
 static u32 opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
@@ -167,10 +170,21 @@ static void dump_stats(void)
 	}
 }
 
+static bool is_benchmark_done(void)
+{
+	if (opt_duration > 0) {
+		unsigned long dt = (get_nsecs() - start_time);
+
+		if (dt >= opt_duration)
+			benchmark_done = true;
+	}
+	return benchmark_done;
+}
+
 static void *poller(void *arg)
 {
 	(void)arg;
-	for (;;) {
+	while (!is_benchmark_done()) {
 		sleep(opt_interval);
 		dump_stats();
 	}
@@ -375,6 +389,7 @@ static struct option long_options[] = {
 	{"unaligned", no_argument, 0, 'u'},
 	{"shared-umem", no_argument, 0, 'M'},
 	{"force", no_argument, 0, 'F'},
+	{"duration", required_argument, 0, 'd'},
 	{0, 0, 0, 0}
 };
 
@@ -399,6 +414,8 @@ static void usage(const char *prog)
 		"  -u, --unaligned	Enable unaligned chunk placement\n"
 		"  -M, --shared-umem	Enable XDP_SHARED_UMEM\n"
 		"  -F, --force		Force loading the XDP prog\n"
+		"  -d, --duration=n	Duration in secs to run command.\n"
+		"			Default: forever.\n"
 		"\n";
 	fprintf(stderr, str, prog, XSK_UMEM__DEFAULT_FRAME_SIZE);
 	exit(EXIT_FAILURE);
@@ -411,7 +428,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "Frtli:q:psSNn:czf:muM",
+		c = getopt_long(argc, argv, "Frtli:q:psSNn:czf:muMd:",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -468,6 +485,10 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'M':
 			opt_num_xsks = MAX_SOCKS;
+			break;
+		case 'd':
+			opt_duration = atoi(optarg);
+			opt_duration *= 1000000000;
 			break;
 		default:
 			usage(basename(argv[0]));
@@ -622,6 +643,9 @@ static void rx_drop_all(void)
 
 		for (i = 0; i < num_socks; i++)
 			rx_drop(xsks[i], fds);
+
+		if (benchmark_done)
+			break;
 	}
 }
 
@@ -671,6 +695,9 @@ static void tx_only_all(void)
 
 		for (i = 0; i < num_socks; i++)
 			tx_only(xsks[i], frame_nb[i]);
+
+		if (benchmark_done)
+			break;
 	}
 }
 
@@ -739,6 +766,9 @@ static void l2fwd_all(void)
 
 		for (i = 0; i < num_socks; i++)
 			l2fwd(xsks[i], fds);
+
+		if (benchmark_done)
+			break;
 	}
 }
 
@@ -852,6 +882,7 @@ int main(int argc, char **argv)
 		exit_with_error(ret);
 
 	prev_time = get_nsecs();
+	start_time = prev_time;
 
 	if (opt_bench == BENCH_RXDROP)
 		rx_drop_all();
@@ -859,6 +890,8 @@ int main(int argc, char **argv)
 		tx_only_all();
 	else
 		l2fwd_all();
+
+	pthread_join(pt, NULL);
 
 	return 0;
 }
