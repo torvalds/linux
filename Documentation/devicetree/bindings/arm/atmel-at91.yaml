@@ -37,6 +37,16 @@ properties:
 
       - items:
           - enum:
+              - overkiz,kizboxmini-base # Overkiz kizbox Mini Base Board
+              - overkiz,kizboxmini-mb   # Overkiz kizbox Mini Mother Board
+              - overkiz,kizboxmini-rd   # Overkiz kizbox Mini RailDIN
+              - overkiz,smartkiz        # Overkiz SmartKiz Board
+          - const: atmel,at91sam9g25
+          - const: atmel,at91sam9x5
+          - const: atmel,at91sam9
+
+      - items:
+          - enum:
               - atmel,at91sam9g15
               - atmel,at91sam9g25
               - atmel,at91sam9g35
