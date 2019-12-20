@@ -728,6 +728,9 @@ int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 {
 	if (!kfd->init_complete)
 		return 0;
+
+	kfd->dqm->ops.pre_reset(kfd->dqm);
+
 	kgd2kfd_suspend(kfd);
 
 	kfd_signal_reset_event(kfd);
