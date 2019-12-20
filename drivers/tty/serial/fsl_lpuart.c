@@ -2368,7 +2368,9 @@ static int __init lpuart32_early_console_setup(struct earlycon_device *device,
 	if (!device->port.membase)
 		return -ENODEV;
 
-	device->port.iotype = UPIO_MEM32BE;
+	if (device->port.iotype != UPIO_MEM32)
+		device->port.iotype = UPIO_MEM32BE;
+
 	device->con->write = lpuart32_early_write;
 	return 0;
 }
