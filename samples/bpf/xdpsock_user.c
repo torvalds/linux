@@ -210,6 +210,11 @@ static void remove_xdp_program(void)
 
 static void int_exit(int sig)
 {
+	benchmark_done = true;
+}
+
+static void xdpsock_cleanup(void)
+{
 	struct xsk_umem *umem = xsks[0]->umem->umem;
 	int i;
 
@@ -218,8 +223,6 @@ static void int_exit(int sig)
 		xsk_socket__delete(xsks[i]->xsk);
 	(void)xsk_umem__delete(umem);
 	remove_xdp_program();
-
-	exit(EXIT_SUCCESS);
 }
 
 static void __exit_with_error(int error, const char *file, const char *func,
@@ -892,6 +895,8 @@ int main(int argc, char **argv)
 		l2fwd_all();
 
 	pthread_join(pt, NULL);
+
+	xdpsock_cleanup();
 
 	return 0;
 }
