@@ -1885,8 +1885,10 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	sw->config.enabled = 0;
 
 	/* Make sure we do not exceed maximum topology limit */
-	if (tb_switch_exceeds_max_depth(sw, depth))
-		return ERR_PTR(-EADDRNOTAVAIL);
+	if (tb_switch_exceeds_max_depth(sw, depth)) {
+		ret = -EADDRNOTAVAIL;
+		goto err_free_sw_ports;
+	}
 
 	/* initialize ports */
 	sw->ports = kcalloc(sw->config.max_port_number + 1, sizeof(*sw->ports),
