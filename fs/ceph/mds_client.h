@@ -452,15 +452,10 @@ extern const char *ceph_mds_op_name(int op);
 extern struct ceph_mds_session *
 __ceph_lookup_mds_session(struct ceph_mds_client *, int mds);
 
-static inline struct ceph_mds_session *
-ceph_get_mds_session(struct ceph_mds_session *s)
-{
-	refcount_inc(&s->s_ref);
-	return s;
-}
-
 extern const char *ceph_session_state_name(int s);
 
+extern struct ceph_mds_session *
+ceph_get_mds_session(struct ceph_mds_session *s);
 extern void ceph_put_mds_session(struct ceph_mds_session *s);
 
 extern int ceph_send_msg_mds(struct ceph_mds_client *mdsc,

@@ -538,7 +538,7 @@ const char *ceph_session_state_name(int s)
 	}
 }
 
-static struct ceph_mds_session *get_session(struct ceph_mds_session *s)
+struct ceph_mds_session *ceph_get_mds_session(struct ceph_mds_session *s)
 {
 	if (refcount_inc_not_zero(&s->s_ref)) {
 		dout("mdsc get_session %p %d -> %d\n", s,
@@ -569,7 +569,7 @@ struct ceph_mds_session *__ceph_lookup_mds_session(struct ceph_mds_client *mdsc,
 {
 	if (mds >= mdsc->max_sessions || !mdsc->sessions[mds])
 		return NULL;
-	return get_session(mdsc->sessions[mds]);
+	return ceph_get_mds_session(mdsc->sessions[mds]);
 }
 
 static bool __have_session(struct ceph_mds_client *mdsc, int mds)
@@ -1979,7 +1979,7 @@ void ceph_flush_cap_releases(struct ceph_mds_client *mdsc,
 	if (mdsc->stopping)
 		return;
 
-	get_session(session);
+	ceph_get_mds_session(session);
 	if (queue_work(mdsc->fsc->cap_wq,
 		       &session->s_cap_release_work)) {
 		dout("cap release work queued\n");
@@ -2615,7 +2615,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 			goto finish;
 		}
 	}
-	req->r_session = get_session(session);
+	req->r_session = ceph_get_mds_session(session);
 
 	dout("do_request mds%d session %p state %s\n", mds, session,
 	     ceph_session_state_name(session->s_state));
@@ -3139,7 +3139,7 @@ static void handle_session(struct ceph_mds_session *session,
 
 	mutex_lock(&mdsc->mutex);
 	if (op == CEPH_SESSION_CLOSE) {
-		get_session(session);
+		ceph_get_mds_session(session);
 		__unregister_session(mdsc, session);
 	}
 	/* FIXME: this ttl calculation is generous */
@@ -3801,7 +3801,7 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 
 		if (i >= newmap->possible_max_rank) {
 			/* force close session for stopped mds */
-			get_session(s);
+			ceph_get_mds_session(s);
 			__unregister_session(mdsc, s);
 			__wake_requests(mdsc, &s->s_waiting);
 			mutex_unlock(&mdsc->mutex);
@@ -4402,7 +4402,7 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 	mutex_lock(&mdsc->mutex);
 	for (i = 0; i < mdsc->max_sessions; i++) {
 		if (mdsc->sessions[i]) {
-			session = get_session(mdsc->sessions[i]);
+			session = ceph_get_mds_session(mdsc->sessions[i]);
 			__unregister_session(mdsc, session);
 			mutex_unlock(&mdsc->mutex);
 			mutex_lock(&session->s_mutex);
@@ -4630,7 +4630,7 @@ static struct ceph_connection *con_get(struct ceph_connection *con)
 {
 	struct ceph_mds_session *s = con->private;
 
-	if (get_session(s))
+	if (ceph_get_mds_session(s))
 		return con;
 	return NULL;
 }
