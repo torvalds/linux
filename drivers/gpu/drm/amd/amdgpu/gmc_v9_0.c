@@ -207,6 +207,11 @@ static int gmc_v9_0_ecc_interrupt_state(struct amdgpu_device *adev,
 {
 	u32 bits, i, tmp, reg;
 
+	/* Devices newer then VEGA10/12 shall have these programming
+	     sequences performed by PSP BL */
+	if (adev->asic_type >= CHIP_VEGA20)
+		return 0;
+
 	bits = 0x7f;
 
 	switch (state) {
