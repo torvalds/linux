@@ -2176,6 +2176,8 @@
 		#cooling-cells = <2>; /* min followed by max */
 		power-domains = <&power RK3399_PD_GPU>;
 		power-off-delay-ms = <200>;
+		upthreshold = <40>;
+		downdifferential = <10>;
 		status = "disabled";
 
 		gpu_power_model: power_model {
