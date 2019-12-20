@@ -1139,13 +1139,16 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 			page += rtw_len_to_page(rsvd_pkt->skb->len, page_size);
 
 		kfree_skb(rsvd_pkt->skb);
+		rsvd_pkt->skb = NULL;
 	}
 
 	return buf;
 
 release_skb:
-	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list)
+	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {
 		kfree_skb(rsvd_pkt->skb);
+		rsvd_pkt->skb = NULL;
+	}
 
 	return NULL;
 }
