@@ -270,6 +270,7 @@ struct qce_skcipher_def {
 	const char *name;
 	const char *drv_name;
 	unsigned int blocksize;
+	unsigned int chunksize;
 	unsigned int ivsize;
 	unsigned int min_keysize;
 	unsigned int max_keysize;
@@ -298,7 +299,8 @@ static const struct qce_skcipher_def skcipher_def[] = {
 		.flags		= QCE_ALG_AES | QCE_MODE_CTR,
 		.name		= "ctr(aes)",
 		.drv_name	= "ctr-aes-qce",
-		.blocksize	= AES_BLOCK_SIZE,
+		.blocksize	= 1,
+		.chunksize	= AES_BLOCK_SIZE,
 		.ivsize		= AES_BLOCK_SIZE,
 		.min_keysize	= AES_MIN_KEY_SIZE,
 		.max_keysize	= AES_MAX_KEY_SIZE,
@@ -368,6 +370,7 @@ static int qce_skcipher_register_one(const struct qce_skcipher_def *def,
 		 def->drv_name);
 
 	alg->base.cra_blocksize		= def->blocksize;
+	alg->chunksize			= def->chunksize;
 	alg->ivsize			= def->ivsize;
 	alg->min_keysize		= def->min_keysize;
 	alg->max_keysize		= def->max_keysize;
