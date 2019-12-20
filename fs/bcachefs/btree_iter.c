@@ -457,11 +457,6 @@ static void __bch2_btree_iter_verify(struct btree_iter *iter,
 		      "cur key  %s\n",
 		      iter->pos.inode, iter->pos.offset, buf);
 	}
-
-	BUG_ON(iter->uptodate == BTREE_ITER_UPTODATE &&
-	       btree_iter_type(iter) == BTREE_ITER_KEYS &&
-	       !bkey_whiteout(&iter->k) &&
-	       bch2_btree_node_iter_end(&l->iter));
 }
 
 void bch2_btree_iter_verify(struct btree_iter *iter, struct btree *b)
