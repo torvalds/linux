@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 #
 # Makefile for the 'dsc' sub-component of DAL.
 

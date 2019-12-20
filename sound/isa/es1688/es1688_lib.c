@@ -309,12 +309,6 @@ static void snd_es1688_set_rate(struct snd_es1688 *chip, struct snd_pcm_substrea
 	snd_es1688_write(chip, 0xa2, divider);
 }
 
-static int snd_es1688_ioctl(struct snd_pcm_substream *substream,
-			    unsigned int cmd, void *arg)
-{
-	return snd_pcm_lib_ioctl(substream, cmd, arg);
-}
-
 static int snd_es1688_trigger(struct snd_es1688 *chip, int cmd, unsigned char value)
 {
 	int val;
@@ -339,17 +333,6 @@ static int snd_es1688_trigger(struct snd_es1688 *chip, int cmd, unsigned char va
 	snd_es1688_write(chip, 0xb8, (val & 0xf0) | value);
 	spin_unlock(&chip->reg_lock);
 	return 0;
-}
-
-static int snd_es1688_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_es1688_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int snd_es1688_playback_prepare(struct snd_pcm_substream *substream)
@@ -655,6 +638,7 @@ int snd_es1688_create(struct snd_card *card,
 	}
 
 	chip->irq = irq;
+	card->sync_irq = chip->irq;
 	err = request_dma(dma8, "ES1688");
 
 	if (err < 0) {
@@ -692,9 +676,6 @@ exit:
 static const struct snd_pcm_ops snd_es1688_playback_ops = {
 	.open =			snd_es1688_playback_open,
 	.close =		snd_es1688_playback_close,
-	.ioctl =		snd_es1688_ioctl,
-	.hw_params =		snd_es1688_hw_params,
-	.hw_free =		snd_es1688_hw_free,
 	.prepare =		snd_es1688_playback_prepare,
 	.trigger =		snd_es1688_playback_trigger,
 	.pointer =		snd_es1688_playback_pointer,
@@ -703,9 +684,6 @@ static const struct snd_pcm_ops snd_es1688_playback_ops = {
 static const struct snd_pcm_ops snd_es1688_capture_ops = {
 	.open =			snd_es1688_capture_open,
 	.close =		snd_es1688_capture_close,
-	.ioctl =		snd_es1688_ioctl,
-	.hw_params =		snd_es1688_hw_params,
-	.hw_free =		snd_es1688_hw_free,
 	.prepare =		snd_es1688_capture_prepare,
 	.trigger =		snd_es1688_capture_trigger,
 	.pointer =		snd_es1688_capture_pointer,
@@ -728,9 +706,8 @@ int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip, int device)
 	strcpy(pcm->name, snd_es1688_chip_id(chip));
 	chip->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      card->dev,
-					      64*1024, 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, card->dev,
+				       64*1024, 64*1024);
 	return 0;
 }
 

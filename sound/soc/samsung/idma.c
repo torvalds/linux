@@ -394,7 +394,6 @@ EXPORT_SYMBOL_GPL(idma_reg_addr_init);
 static const struct snd_soc_component_driver asoc_idma_platform = {
 	.open		= idma_open,
 	.close		= idma_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.trigger	= idma_trigger,
 	.pointer	= idma_pointer,
 	.mmap		= idma_mmap,

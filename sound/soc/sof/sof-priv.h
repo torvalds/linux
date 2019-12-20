@@ -217,6 +217,8 @@ struct snd_sof_dsp_ops {
 
 	/* ALSA HW info flags, will be stored in snd_pcm_runtime.hw.info */
 	u32 hw_info;
+
+	const struct sof_arch_ops *arch_ops;
 };
 
 /* DSP architecture specific callbacks for oops and stack dumps */
@@ -226,7 +228,7 @@ struct sof_arch_ops {
 			  u32 *stack, u32 stack_words);
 };
 
-#define sof_arch_ops(sdev) ((sdev)->pdata->desc->arch_ops)
+#define sof_arch_ops(sdev) ((sdev)->pdata->desc->ops->arch_ops)
 
 /* DSP device HW descriptor mapping between bus ID and ops */
 struct sof_ops_table {

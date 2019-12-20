@@ -428,7 +428,6 @@ static void fsl_asrc_dma_pcm_free(struct snd_soc_component *component,
 
 struct snd_soc_component_driver fsl_asrc_component = {
 	.name		= DRV_NAME,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= fsl_asrc_dma_hw_params,
 	.hw_free	= fsl_asrc_dma_hw_free,
 	.trigger	= fsl_asrc_dma_trigger,

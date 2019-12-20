@@ -209,15 +209,7 @@ snd_vortex_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	vortex_t *chip = snd_pcm_substream_chip(substream);
 	stream_t *stream = (stream_t *) (substream->runtime->private_data);
-	int err;
 
-	// Alloc buffer memory.
-	err =
-	    snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-	if (err < 0) {
-		dev_err(chip->card->dev, "Vortex: pcm page alloc failed!\n");
-		return err;
-	}
 	/*
 	   pr_info( "Vortex: periods %d, period_bytes %d, channels = %d\n", params_periods(hw_params),
 	   params_period_bytes(hw_params), params_channels(hw_params));
@@ -304,7 +296,7 @@ static int snd_vortex_pcm_hw_free(struct snd_pcm_substream *substream)
 	substream->runtime->private_data = NULL;
 	spin_unlock_irq(&chip->lock);
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 /* prepare callback */
@@ -430,7 +422,6 @@ static snd_pcm_uframes_t snd_vortex_pcm_pointer(struct snd_pcm_substream *substr
 static const struct snd_pcm_ops snd_vortex_playback_ops = {
 	.open = snd_vortex_pcm_open,
 	.close = snd_vortex_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_vortex_pcm_hw_params,
 	.hw_free = snd_vortex_pcm_hw_free,
 	.prepare = snd_vortex_pcm_prepare,
@@ -636,9 +627,8 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 	
 	/* pre-allocation of Scatter-Gather buffers */
 	
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-					      &chip->pci_dev->dev,
-					      0x10000, 0x10000);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+				       &chip->pci_dev->dev, 0x10000, 0x10000);
 
 	switch (VORTEX_PCM_TYPE(pcm)) {
 	case VORTEX_PCM_ADB:

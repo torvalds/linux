@@ -2237,6 +2237,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
         }
 
         korg1212->irq = pci->irq;
+	card->sync_irq = korg1212->irq;
 
 	pci_set_master(korg1212->pci);
 

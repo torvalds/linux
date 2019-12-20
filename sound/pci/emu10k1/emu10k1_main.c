@@ -1984,6 +1984,7 @@ int snd_emu10k1_create(struct snd_card *card,
 		goto error;
 	}
 	emu->irq = pci->irq;
+	card->sync_irq = emu->irq;
 
 	/*
 	 *  Init to 0x02109204 :

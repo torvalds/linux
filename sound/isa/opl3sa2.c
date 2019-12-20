@@ -659,6 +659,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 		return -ENODEV;
 	}
 	chip->irq = xirq;
+	card->sync_irq = chip->irq;
 	err = snd_wss_create(card,
 			     wss_port[dev] + 4, -1,
 			     xirq, xdma1, xdma2,

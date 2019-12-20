@@ -880,7 +880,6 @@ static const struct snd_soc_component_driver q6asm_fe_dai_component = {
 	.open		= q6asm_dai_open,
 	.hw_params	= q6asm_dai_hw_params,
 	.close		= q6asm_dai_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.prepare	= q6asm_dai_prepare,
 	.trigger	= q6asm_dai_trigger,
 	.pointer	= q6asm_dai_pointer,

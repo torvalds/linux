@@ -869,6 +869,7 @@ static int snd_opti9xx_probe(struct snd_card *card)
 	}
 #endif
 	chip->irq = irq;
+	card->sync_irq = chip->irq;
 	strcpy(card->driver, chip->name);
 	sprintf(card->shortname, "OPTi %s", card->driver);
 #if defined(CS4231) || defined(OPTi93X)

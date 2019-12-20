@@ -89,6 +89,7 @@ static int ad7949_spi_read_channel(struct ad7949_adc_chip *ad7949_adc, int *val,
 				   unsigned int channel)
 {
 	int ret;
+	int i;
 	int bits_per_word = ad7949_adc->resolution;
 	int mask = GENMASK(ad7949_adc->resolution, 0);
 	struct spi_message msg;
@@ -100,12 +101,23 @@ static int ad7949_spi_read_channel(struct ad7949_adc_chip *ad7949_adc, int *val,
 		},
 	};
 
-	ret = ad7949_spi_write_cfg(ad7949_adc,
-				   channel << AD7949_OFFSET_CHANNEL_SEL,
-				   AD7949_MASK_CHANNEL_SEL);
-	if (ret)
-		return ret;
+	/*
+	 * 1: write CFG for sample N and read old data (sample N-2)
+	 * 2: if CFG was not changed since sample N-1 then we'll get good data
+	 *    at the next xfer, so we bail out now, otherwise we write something
+	 *    and we read garbage (sample N-1 configuration).
+	 */
+	for (i = 0; i < 2; i++) {
+		ret = ad7949_spi_write_cfg(ad7949_adc,
+					   channel << AD7949_OFFSET_CHANNEL_SEL,
+					   AD7949_MASK_CHANNEL_SEL);
+		if (ret)
+			return ret;
+		if (channel == ad7949_adc->current_channel)
+			break;
+	}
 
+	/* 3: write something and read actual data */
 	ad7949_adc->buffer = 0;
 	spi_message_init_with_transfers(&msg, tx, 1);
 	ret = spi_sync(ad7949_adc->spi, &msg);

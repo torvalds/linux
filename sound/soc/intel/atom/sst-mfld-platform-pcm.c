@@ -387,27 +387,6 @@ static int sst_media_prepare(struct snd_pcm_substream *substream,
 	return ret_val;
 }
 
-static int sst_media_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params,
-				struct snd_soc_dai *dai)
-{
-	int ret;
-
-	ret =
-		snd_pcm_lib_malloc_pages(substream,
-				params_buffer_bytes(params));
-	if (ret)
-		return ret;
-	memset(substream->runtime->dma_area, 0, params_buffer_bytes(params));
-	return 0;
-}
-
-static int sst_media_hw_free(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static int sst_enable_ssp(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
@@ -473,8 +452,6 @@ static const struct snd_soc_dai_ops sst_media_dai_ops = {
 	.startup = sst_media_open,
 	.shutdown = sst_media_close,
 	.prepare = sst_media_prepare,
-	.hw_params = sst_media_hw_params,
-	.hw_free = sst_media_hw_free,
 	.mute_stream = sst_media_digital_mute,
 };
 
@@ -677,7 +654,7 @@ static int sst_soc_pcm_new(struct snd_soc_component *component,
 
 	if (dai->driver->playback.channels_min ||
 			dai->driver->capture.channels_min) {
-		snd_pcm_lib_preallocate_pages_for_all(pcm,
+		snd_pcm_set_managed_buffer_all(pcm,
 			SNDRV_DMA_TYPE_CONTINUOUS,
 			snd_dma_continuous_data(GFP_DMA),
 			SST_MIN_BUFFER, SST_MAX_BUFFER);
@@ -705,7 +682,6 @@ static const struct snd_soc_component_driver sst_soc_platform_drv  = {
 	.probe		= sst_soc_probe,
 	.remove		= sst_soc_remove,
 	.open		= sst_soc_open,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.trigger	= sst_soc_trigger,
 	.pointer	= sst_soc_pointer,
 	.compr_ops	= &sst_platform_compr_ops,

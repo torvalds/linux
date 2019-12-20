@@ -132,7 +132,7 @@ const struct sof_arch_ops sof_xtensa_arch_ops = {
 	.dsp_oops = xtensa_dsp_oops,
 	.dsp_stack = xtensa_stack,
 };
-EXPORT_SYMBOL(sof_xtensa_arch_ops);
+EXPORT_SYMBOL_NS(sof_xtensa_arch_ops, SND_SOC_SOF_XTENSA);
 
 MODULE_DESCRIPTION("SOF Xtensa DSP support");
 MODULE_LICENSE("Dual BSD/GPL");

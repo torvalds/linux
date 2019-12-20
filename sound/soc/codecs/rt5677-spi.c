@@ -132,14 +132,12 @@ static int rt5677_spi_hw_params(
 {
 	struct rt5677_dsp *rt5677_dsp =
 			snd_soc_component_get_drvdata(component);
-	int ret;
 
 	mutex_lock(&rt5677_dsp->dma_lock);
-	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 	rt5677_dsp->substream = substream;
 	mutex_unlock(&rt5677_dsp->dma_lock);
 
-	return ret;
+	return 0;
 }
 
 static int rt5677_spi_hw_free(
@@ -153,7 +151,7 @@ static int rt5677_spi_hw_free(
 	rt5677_dsp->substream = NULL;
 	mutex_unlock(&rt5677_dsp->dma_lock);
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int rt5677_spi_prepare(
@@ -376,8 +374,8 @@ done:
 static int rt5677_spi_pcm_new(struct snd_soc_component *component,
 			      struct snd_soc_pcm_runtime *rtd)
 {
-	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm, SNDRV_DMA_TYPE_VMALLOC,
-					      NULL, 0, 0);
+	snd_pcm_set_managed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_VMALLOC,
+				       NULL, 0, 0);
 	return 0;
 }
 
