@@ -86,6 +86,10 @@
 #define BMA400_SCALE_MIN            38357
 #define BMA400_SCALE_MAX            306864
 
+#define BMA400_NUM_REGULATORS       2
+#define BMA400_VDD_REGULATOR        0
+#define BMA400_VDDIO_REGULATOR      1
+
 extern const struct regmap_config bma400_regmap_config;
 
 int bma400_probe(struct device *dev, struct regmap *regmap, const char *name);

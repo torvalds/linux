@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
 #include "bma400.h"
 
@@ -53,6 +54,7 @@ struct bma400_sample_freq {
 struct bma400_data {
 	struct device *dev;
 	struct regmap *regmap;
+	struct regulator_bulk_data regulators[BMA400_NUM_REGULATORS];
 	struct mutex mutex; /* data register lock */
 	struct iio_mount_matrix orientation;
 	enum bma400_power_mode power_mode;
@@ -576,17 +578,38 @@ static int bma400_init(struct bma400_data *data)
 		goto out;
 	}
 
+	data->regulators[BMA400_VDD_REGULATOR].supply = "vdd";
+	data->regulators[BMA400_VDDIO_REGULATOR].supply = "vddio";
+	ret = devm_regulator_bulk_get(data->dev,
+				      ARRAY_SIZE(data->regulators),
+				      data->regulators);
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(data->dev,
+				"Failed to get regulators: %d\n",
+				ret);
+
+		goto out;
+	}
+	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
+				    data->regulators);
+	if (ret) {
+		dev_err(data->dev, "Failed to enable regulators: %d\n",
+			ret);
+		goto out;
+	}
+
 	ret = bma400_get_power_mode(data);
 	if (ret) {
 		dev_err(data->dev, "Failed to get the initial power-mode\n");
-		goto out;
+		goto err_reg_disable;
 	}
 
 	if (data->power_mode != POWER_MODE_NORMAL) {
 		ret = bma400_set_power_mode(data, POWER_MODE_NORMAL);
 		if (ret) {
 			dev_err(data->dev, "Failed to wake up the device\n");
-			goto out;
+			goto err_reg_disable;
 		}
 		/*
 		 * TODO: The datasheet waits 1500us here in the example, but
@@ -599,15 +622,15 @@ static int bma400_init(struct bma400_data *data)
 
 	ret = bma400_get_accel_output_data_rate(data);
 	if (ret)
-		goto out;
+		goto err_reg_disable;
 
 	ret = bma400_get_accel_oversampling_ratio(data);
 	if (ret)
-		goto out;
+		goto err_reg_disable;
 
 	ret = bma400_get_accel_scale(data);
 	if (ret)
-		goto out;
+		goto err_reg_disable;
 
 	/*
 	 * Once the interrupt engine is supported we might use the
@@ -617,6 +640,9 @@ static int bma400_init(struct bma400_data *data)
 	 */
 	return regmap_write(data->regmap, BMA400_ACC_CONFIG2_REG, 0x00);
 
+err_reg_disable:
+	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
+			       data->regulators);
 out:
 	return ret;
 }
@@ -811,6 +837,9 @@ int bma400_remove(struct device *dev)
 	mutex_lock(&data->mutex);
 	ret = bma400_set_power_mode(data, POWER_MODE_SLEEP);
 	mutex_unlock(&data->mutex);
+
+	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
+			       data->regulators);
 
 	iio_device_unregister(indio_dev);
 
