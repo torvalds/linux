@@ -80,6 +80,9 @@ static int hibmc_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
+	if (!crtc_state->enable)
+		return 0;
+
 	if (state->crtc_x + state->crtc_w >
 	    crtc_state->adjusted_mode.hdisplay ||
 	    state->crtc_y + state->crtc_h >
