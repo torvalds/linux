@@ -187,6 +187,20 @@ static struct drm_plane *hibmc_plane_init(struct hibmc_drm_private *priv)
 	return plane;
 }
 
+static void hibmc_crtc_dpms(struct drm_crtc *crtc, int dpms)
+{
+	struct hibmc_drm_private *priv = crtc->dev->dev_private;
+	unsigned int reg;
+
+	reg = readl(priv->mmio + HIBMC_CRT_DISP_CTL);
+	reg &= ~HIBMC_CRT_DISP_CTL_DPMS_MASK;
+	reg |= HIBMC_FIELD(HIBMC_CRT_DISP_CTL_DPMS, dpms);
+	reg &= ~HIBMC_CRT_DISP_CTL_TIMING_MASK;
+	if (dpms == HIBMC_CRT_DPMS_ON)
+		reg |= HIBMC_CRT_DISP_CTL_TIMING(1);
+	writel(reg, priv->mmio + HIBMC_CRT_DISP_CTL);
+}
+
 static void hibmc_crtc_atomic_enable(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_state)
 {
@@ -203,6 +217,7 @@ static void hibmc_crtc_atomic_enable(struct drm_crtc *crtc,
 	reg |= HIBMC_CURR_GATE_DISPLAY(1);
 	hibmc_set_current_gate(priv, reg);
 	drm_crtc_vblank_on(crtc);
+	hibmc_crtc_dpms(crtc, HIBMC_CRT_DPMS_ON);
 }
 
 static void hibmc_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -211,6 +226,7 @@ static void hibmc_crtc_atomic_disable(struct drm_crtc *crtc,
 	unsigned int reg;
 	struct hibmc_drm_private *priv = crtc->dev->dev_private;
 
+	hibmc_crtc_dpms(crtc, HIBMC_CRT_DPMS_OFF);
 	drm_crtc_vblank_off(crtc);
 
 	hibmc_set_power_mode(priv, HIBMC_PW_MODE_CTL_MODE_SLEEP);
