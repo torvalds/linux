@@ -628,7 +628,7 @@ static int snd_emu10k1_code_peek(struct snd_emu10k1 *emu,
 }
 
 static struct snd_emu10k1_fx8010_ctl *
-snd_emu10k1_look_for_ctl(struct snd_emu10k1 *emu, struct snd_ctl_elem_id *id)
+snd_emu10k1_look_for_ctl(struct snd_emu10k1 *emu, struct emu10k1_ctl_elem_id *id)
 {
 	struct snd_emu10k1_fx8010_ctl *ctl;
 	struct snd_kcontrol *kcontrol;
@@ -714,15 +714,15 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 				       bool in_kernel)
 {
 	unsigned int i;
-	struct snd_ctl_elem_id __user *_id;
-	struct snd_ctl_elem_id id;
+	struct emu10k1_ctl_elem_id __user *_id;
+	struct emu10k1_ctl_elem_id id;
 	struct snd_emu10k1_fx8010_control_gpr *gctl;
 	int err;
 	
-	for (i = 0, _id = icode->gpr_del_controls;
-	     i < icode->gpr_del_control_count; i++, _id++) {
+	_id = (__force struct emu10k1_ctl_elem_id __user *)icode->gpr_del_controls;
+	for (i = 0; i < icode->gpr_del_control_count; i++, _id++) {
 		if (in_kernel)
-			id = *(__force struct snd_ctl_elem_id *)_id;
+			id = *(__force struct emu10k1_ctl_elem_id *)_id;
 		else if (copy_from_user(&id, _id, sizeof(id)))
 	     		return -EFAULT;
 		if (snd_emu10k1_look_for_ctl(emu, &id) == NULL)
@@ -741,7 +741,8 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 		if (snd_emu10k1_look_for_ctl(emu, &gctl->id))
 			continue;
 		down_read(&emu->card->controls_rwsem);
-		if (snd_ctl_find_id(emu->card, &gctl->id) != NULL) {
+		if (snd_ctl_find_id(emu->card,
+				    (struct snd_ctl_elem_id *)&gctl->id)) {
 			up_read(&emu->card->controls_rwsem);
 			err = -EEXIST;
 			goto __error;
@@ -876,15 +877,16 @@ static int snd_emu10k1_del_controls(struct snd_emu10k1 *emu,
 				    bool in_kernel)
 {
 	unsigned int i;
-	struct snd_ctl_elem_id id;
-	struct snd_ctl_elem_id __user *_id;
+	struct emu10k1_ctl_elem_id id;
+	struct emu10k1_ctl_elem_id __user *_id;
 	struct snd_emu10k1_fx8010_ctl *ctl;
 	struct snd_card *card = emu->card;
 	
-	for (i = 0, _id = icode->gpr_del_controls;
-	     i < icode->gpr_del_control_count; i++, _id++) {
+	_id = (__force struct emu10k1_ctl_elem_id __user *)icode->gpr_del_controls;
+
+	for (i = 0; i < icode->gpr_del_control_count; i++, _id++) {
 		if (in_kernel)
-			id = *(__force struct snd_ctl_elem_id *)_id;
+			id = *(__force struct emu10k1_ctl_elem_id *)_id;
 		else if (copy_from_user(&id, _id, sizeof(id)))
 			return -EFAULT;
 		down_write(&card->controls_rwsem);
