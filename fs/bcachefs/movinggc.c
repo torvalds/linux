@@ -212,14 +212,36 @@ static void bch2_copygc(struct bch_fs *c, struct bch_dev *ca)
 		     buckets_to_move, buckets_not_moved);
 }
 
+/*
+ * Copygc runs when the amount of fragmented data is above some arbitrary
+ * threshold:
+ *
+ * The threshold at the limit - when the device is full - is the amount of space
+ * we reserved in bch2_recalc_capacity; we can't have more than that amount of
+ * disk space stranded due to fragmentation and store everything we have
+ * promised to store.
+ *
+ * But we don't want to be running copygc unnecessarily when the device still
+ * has plenty of free space - rather, we want copygc to smoothly run every so
+ * often and continually reduce the amount of fragmented space as the device
+ * fills up. So, we increase the threshold by half the current free space.
+ */
+unsigned long bch2_copygc_wait_amount(struct bch_dev *ca)
+{
+	struct bch_fs *c = ca->fs;
+	struct bch_dev_usage usage = bch2_dev_usage_read(c, ca);
+	u64 fragmented_allowed = ca->copygc_threshold +
+		((__dev_buckets_available(ca, usage) * ca->mi.bucket_size) >> 1);
+
+	return max_t(s64, 0, fragmented_allowed - usage.sectors_fragmented);
+}
+
 static int bch2_copygc_thread(void *arg)
 {
 	struct bch_dev *ca = arg;
 	struct bch_fs *c = ca->fs;
 	struct io_clock *clock = &c->io_clock[WRITE];
-	struct bch_dev_usage usage;
-	unsigned long last;
-	u64 available, fragmented, reserve, next;
+	unsigned long last, wait;
 
 	set_freezable();
 
@@ -228,28 +250,10 @@ static int bch2_copygc_thread(void *arg)
 			break;
 
 		last = atomic_long_read(&clock->now);
+		wait = bch2_copygc_wait_amount(ca);
 
-		reserve = ca->copygc_threshold;
-
-		usage = bch2_dev_usage_read(c, ca);
-
-		available = __dev_buckets_available(ca, usage) *
-			ca->mi.bucket_size;
-		if (available > reserve) {
-			next = last + available - reserve;
-			bch2_kthread_io_clock_wait(clock, next,
-					MAX_SCHEDULE_TIMEOUT);
-			continue;
-		}
-
-		/*
-		 * don't start copygc until there's more than half the copygc
-		 * reserve of fragmented space:
-		 */
-		fragmented = usage.sectors_fragmented;
-		if (fragmented < reserve) {
-			next = last + reserve - fragmented;
-			bch2_kthread_io_clock_wait(clock, next,
+		if (wait > clock->max_slop) {
+			bch2_kthread_io_clock_wait(clock, last + wait,
 					MAX_SCHEDULE_TIMEOUT);
 			continue;
 		}
