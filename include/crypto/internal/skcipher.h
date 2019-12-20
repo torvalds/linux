@@ -214,9 +214,17 @@ skcipher_cipher_simple(struct crypto_skcipher *tfm)
 
 	return ctx->cipher;
 }
-struct skcipher_instance *
-skcipher_alloc_instance_simple(struct crypto_template *tmpl, struct rtattr **tb,
-			       struct crypto_alg **cipher_alg_ret);
+
+struct skcipher_instance *skcipher_alloc_instance_simple(
+	struct crypto_template *tmpl, struct rtattr **tb);
+
+static inline struct crypto_alg *skcipher_ialg_simple(
+	struct skcipher_instance *inst)
+{
+	struct crypto_spawn *spawn = skcipher_instance_ctx(inst);
+
+	return spawn->alg;
+}
 
 #endif	/* _CRYPTO_INTERNAL_SKCIPHER_H */
 

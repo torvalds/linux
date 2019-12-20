@@ -938,15 +938,12 @@ static void skcipher_free_instance_simple(struct skcipher_instance *inst)
  *
  * @tmpl: the template being instantiated
  * @tb: the template parameters
- * @cipher_alg_ret: on success, a pointer to the underlying cipher algorithm is
- *		    returned here.  It must be dropped with crypto_mod_put().
  *
  * Return: a pointer to the new instance, or an ERR_PTR().  The caller still
  *	   needs to register the instance.
  */
-struct skcipher_instance *
-skcipher_alloc_instance_simple(struct crypto_template *tmpl, struct rtattr **tb,
-			       struct crypto_alg **cipher_alg_ret)
+struct skcipher_instance *skcipher_alloc_instance_simple(
+	struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct crypto_attr_type *algt;
 	struct crypto_alg *cipher_alg;
@@ -982,6 +979,7 @@ skcipher_alloc_instance_simple(struct crypto_template *tmpl, struct rtattr **tb,
 	if (err)
 		goto err_free_inst;
 
+	spawn->dropref = true;
 	err = crypto_init_spawn(spawn, cipher_alg,
 				skcipher_crypto_instance(inst),
 				CRYPTO_ALG_TYPE_MASK);
@@ -1003,7 +1001,6 @@ skcipher_alloc_instance_simple(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.init = skcipher_init_tfm_simple;
 	inst->alg.exit = skcipher_exit_tfm_simple;
 
-	*cipher_alg_ret = cipher_alg;
 	return inst;
 
 err_free_inst:
