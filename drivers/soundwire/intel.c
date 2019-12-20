@@ -326,11 +326,11 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 	return 0;
 }
 
-static int intel_shim_init(struct sdw_intel *sdw)
+static int intel_shim_init(struct sdw_intel *sdw, bool clock_stop)
 {
 	void __iomem *shim = sdw->link_res->shim;
 	unsigned int link_id = sdw->instance;
-	int sync_reg, ret;
+	int sync_reg, ret = 0;
 	u16 ioctl = 0, act = 0;
 
 	mutex_lock(sdw->link_res->shim_lock);
@@ -370,19 +370,21 @@ static int intel_shim_init(struct sdw_intel *sdw)
 	act |= SDW_SHIM_CTMCTL_DODS;
 	intel_writew(shim, SDW_SHIM_CTMCTL(link_id), act);
 
-	/* Now set SyncPRD period */
-	sync_reg = intel_readl(shim, SDW_SHIM_SYNC);
-	sync_reg |= (SDW_SHIM_SYNC_SYNCPRD_VAL <<
-			SDW_REG_SHIFT(SDW_SHIM_SYNC_SYNCPRD));
+	if (!clock_stop) {
+		/* Now set SyncPRD period */
+		sync_reg = intel_readl(shim, SDW_SHIM_SYNC);
+		sync_reg |= (SDW_SHIM_SYNC_SYNCPRD_VAL <<
+			     SDW_REG_SHIFT(SDW_SHIM_SYNC_SYNCPRD));
 
-	/* Set SyncCPU bit */
-	sync_reg |= SDW_SHIM_SYNC_SYNCCPU;
-	ret = intel_clear_bit(shim, SDW_SHIM_SYNC, sync_reg,
-			      SDW_SHIM_SYNC_SYNCCPU);
+		/* Set SyncCPU bit */
+		sync_reg |= SDW_SHIM_SYNC_SYNCCPU;
+		ret = intel_clear_bit(shim, SDW_SHIM_SYNC, sync_reg,
+				      SDW_SHIM_SYNC_SYNCCPU);
+		if (ret < 0)
+			dev_err(sdw->cdns.dev, "Failed to set sync period: %d\n", ret);
+
+	}
 	mutex_unlock(sdw->link_res->shim_lock);
-
-	if (ret < 0)
-		dev_err(sdw->cdns.dev, "Failed to set sync period: %d\n", ret);
 
 	return ret;
 }
@@ -1270,11 +1272,16 @@ static struct sdw_master_ops sdw_intel_ops = {
 
 static int intel_init(struct sdw_intel *sdw)
 {
+	bool clock_stop;
+
 	/* Initialize shim and controller */
 	intel_link_power_up(sdw);
-	intel_shim_init(sdw);
 
-	if (sdw_cdns_is_clock_stop(&sdw->cdns))
+	clock_stop = sdw_cdns_is_clock_stop(&sdw->cdns);
+
+	intel_shim_init(sdw, clock_stop);
+
+	if (clock_stop)
 		return 0;
 
 	return sdw_cdns_init(&sdw->cdns);
