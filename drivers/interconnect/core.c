@@ -34,7 +34,7 @@ static void icc_summary_show_one(struct seq_file *s, struct icc_node *n)
 	if (!n)
 		return;
 
-	seq_printf(s, "%-30s %12u %12u\n",
+	seq_printf(s, "%-42s %12u %12u\n",
 		   n->name, n->avg_bw, n->peak_bw);
 }
 
@@ -42,8 +42,8 @@ static int icc_summary_show(struct seq_file *s, void *data)
 {
 	struct icc_provider *provider;
 
-	seq_puts(s, " node                                   avg         peak\n");
-	seq_puts(s, "--------------------------------------------------------\n");
+	seq_puts(s, " node                                  tag          avg         peak\n");
+	seq_puts(s, "--------------------------------------------------------------------\n");
 
 	mutex_lock(&icc_lock);
 
@@ -58,8 +58,8 @@ static int icc_summary_show(struct seq_file *s, void *data)
 				if (!r->dev)
 					continue;
 
-				seq_printf(s, "    %-26s %12u %12u\n",
-					   dev_name(r->dev), r->avg_bw,
+				seq_printf(s, "  %-27s %12u %12u %12u\n",
+					   dev_name(r->dev), r->tag, r->avg_bw,
 					   r->peak_bw);
 			}
 		}
