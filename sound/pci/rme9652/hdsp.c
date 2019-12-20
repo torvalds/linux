@@ -4817,7 +4817,7 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 			 "initializing firmware upload\n");
 		firmware = (struct hdsp_firmware __user *)argp;
 
-		if (get_user(firmware_data, &firmware->firmware_data))
+		if (get_user(firmware_data, (__force void __user **)&firmware->firmware_data))
 			return -EFAULT;
 
 		if (hdsp_check_for_iobox (hdsp))
