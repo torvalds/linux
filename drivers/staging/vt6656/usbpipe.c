@@ -76,6 +76,23 @@ int vnt_control_out_u8(struct vnt_private *priv, u8 reg, u8 reg_off, u8 data)
 			       reg_off, reg, sizeof(u8), &data);
 }
 
+int vnt_control_out_blocks(struct vnt_private *priv,
+			   u16 block, u8 reg, u16 length, u8 *data)
+{
+	int ret = 0, i;
+
+	for (i = 0; i < length; i += block) {
+		u16 len = min_t(int, length - i, block);
+
+		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE,
+				      i, reg, len, data + i);
+		if (ret)
+			goto end;
+	}
+end:
+	return ret;
+}
+
 int vnt_control_in(struct vnt_private *priv, u8 request, u16 value,
 		   u16 index, u16 length, u8 *buffer)
 {
