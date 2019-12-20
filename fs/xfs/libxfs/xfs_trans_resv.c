@@ -202,7 +202,7 @@ xfs_calc_inode_chunk_res(
  * blocks as needed to mark inuse MAXEXTLEN blocks' worth of realtime extents,
  * as well as the realtime summary block.
  */
-unsigned int
+static unsigned int
 xfs_rtalloc_log_count(
 	struct xfs_mount	*mp,
 	unsigned int		num_ops)
