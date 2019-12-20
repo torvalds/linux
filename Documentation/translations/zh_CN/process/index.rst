@@ -43,6 +43,7 @@
    stable-api-nonsense
    stable-kernel-rules
    management-style
+   embargoed-hardware-issues
 
 这些是一些总体技术指南，由于缺乏更好的地方，现在已经放在这里
 
