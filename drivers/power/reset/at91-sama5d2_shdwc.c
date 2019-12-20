@@ -74,8 +74,13 @@ struct shdwc_reg_config {
 	u8 sr_rttwk_shift;
 };
 
+struct pmc_reg_config {
+	u8 mckr;
+};
+
 struct reg_config {
 	struct shdwc_reg_config shdwc;
+	struct pmc_reg_config pmc;
 };
 
 struct shdwc {
@@ -136,9 +141,9 @@ static void at91_poweroff(void)
 		"	str	%1, [%0, #" __stringify(AT91_DDRSDRC_LPR) "]\n\t"
 
 		/* Switch the master clock source to slow clock. */
-		"1:	ldr	r6, [%4, #" __stringify(AT91_PMC_MCKR) "]\n\t"
+		"1:	ldr	r6, [%4, %5]\n\t"
 		"	bic	r6, r6,  #" __stringify(AT91_PMC_CSS) "\n\t"
-		"	str	r6, [%4, #" __stringify(AT91_PMC_MCKR) "]\n\t"
+		"	str	r6, [%4, %5]\n\t"
 		/* Wait for clock switch. */
 		"2:	ldr	r6, [%4, #" __stringify(AT91_PMC_SR) "]\n\t"
 		"	tst	r6, #"	    __stringify(AT91_PMC_MCKRDY) "\n\t"
@@ -153,7 +158,8 @@ static void at91_poweroff(void)
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPDDR2_PWOFF),
 		  "r" (at91_shdwc->shdwc_base),
 		  "r" cpu_to_le32(AT91_SHDW_KEY | AT91_SHDW_SHDW),
-		  "r" (at91_shdwc->pmc_base)
+		  "r" (at91_shdwc->pmc_base),
+		  "r" (at91_shdwc->rcfg->pmc.mckr)
 		: "r6");
 }
 
@@ -253,6 +259,9 @@ static const struct reg_config sama5d2_reg_config = {
 		.sr_rtcwk_shift = 5,
 		.sr_rttwk_shift = SHDW_CFG_NOT_USED,
 	},
+	.pmc = {
+		.mckr		= 0x30,
+	},
 };
 
 static const struct reg_config sam9x60_reg_config = {
@@ -262,6 +271,9 @@ static const struct reg_config sam9x60_reg_config = {
 		.mr_rttwk_shift = 16,
 		.sr_rtcwk_shift = 5,
 		.sr_rttwk_shift = 4,
+	},
+	.pmc = {
+		.mckr		= 0x28,
 	},
 };
 
