@@ -339,6 +339,12 @@ struct io_rw {
 	u64				len;
 };
 
+struct io_connect {
+	struct file			*file;
+	struct sockaddr __user		*addr;
+	int				addr_len;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -382,6 +388,7 @@ struct io_kiocb {
 		struct io_sync		sync;
 		struct io_cancel	cancel;
 		struct io_timeout	timeout;
+		struct io_connect	connect;
 	};
 
 	const struct io_uring_sqe	*sqe;
@@ -2406,14 +2413,18 @@ static int io_connect_prep(struct io_kiocb *req, struct io_async_ctx *io)
 {
 #if defined(CONFIG_NET)
 	const struct io_uring_sqe *sqe = req->sqe;
-	struct sockaddr __user *addr;
-	int addr_len;
 
-	addr = u64_to_user_ptr(READ_ONCE(sqe->addr));
-	addr_len = READ_ONCE(sqe->addr2);
-	return move_addr_to_kernel(addr, addr_len, &io->connect.address);
+	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
+		return -EINVAL;
+	if (sqe->ioprio || sqe->len || sqe->buf_index || sqe->rw_flags)
+		return -EINVAL;
+
+	req->connect.addr = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	req->connect.addr_len =  READ_ONCE(sqe->addr2);
+	return move_addr_to_kernel(req->connect.addr, req->connect.addr_len,
+					&io->connect.address);
 #else
-	return 0;
+	return -EOPNOTSUPP;
 #endif
 }
 
@@ -2421,18 +2432,9 @@ static int io_connect(struct io_kiocb *req, struct io_kiocb **nxt,
 		      bool force_nonblock)
 {
 #if defined(CONFIG_NET)
-	const struct io_uring_sqe *sqe = req->sqe;
 	struct io_async_ctx __io, *io;
 	unsigned file_flags;
-	int addr_len, ret;
-
-	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
-		return -EINVAL;
-	if (sqe->ioprio || sqe->len || sqe->buf_index || sqe->rw_flags)
-		return -EINVAL;
-
-	addr_len = READ_ONCE(sqe->addr2);
-	file_flags = force_nonblock ? O_NONBLOCK : 0;
+	int ret;
 
 	if (req->io) {
 		io = req->io;
@@ -2443,8 +2445,10 @@ static int io_connect(struct io_kiocb *req, struct io_kiocb **nxt,
 		io = &__io;
 	}
 
-	ret = __sys_connect_file(req->file, &io->connect.address, addr_len,
-					file_flags);
+	file_flags = force_nonblock ? O_NONBLOCK : 0;
+
+	ret = __sys_connect_file(req->file, &io->connect.address,
+					req->connect.addr_len, file_flags);
 	if ((ret == -EAGAIN || ret == -EINPROGRESS) && force_nonblock) {
 		if (req->io)
 			return -EAGAIN;
