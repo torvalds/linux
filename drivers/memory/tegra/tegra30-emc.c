@@ -346,7 +346,6 @@ struct tegra_emc {
 	bool vref_cal_toggle : 1;
 	bool zcal_long : 1;
 	bool dll_on : 1;
-	bool prepared : 1;
 	bool bad_state : 1;
 
 	struct {
@@ -758,9 +757,6 @@ static int emc_prepare_timing_change(struct tegra_emc *emc, unsigned long rate)
 	/* interrupt can be re-enabled now */
 	enable_irq(emc->irq);
 
-	emc->bad_state = false;
-	emc->prepared = true;
-
 	return 0;
 }
 
@@ -769,13 +765,12 @@ static int emc_complete_timing_change(struct tegra_emc *emc,
 {
 	struct emc_timing *timing = emc_find_timing(emc, rate);
 	unsigned long timeout;
-	int ret;
+	int err;
 
 	timeout = wait_for_completion_timeout(&emc->clk_handshake_complete,
 					      msecs_to_jiffies(100));
 	if (timeout == 0) {
 		dev_err(emc->dev, "emc-car handshake failed\n");
-		emc->bad_state = true;
 		return -EIO;
 	}
 
@@ -797,22 +792,23 @@ static int emc_complete_timing_change(struct tegra_emc *emc,
 
 	udelay(2);
 	/* update restored timing */
-	ret = emc_seq_update_timing(emc);
-	if (ret)
-		emc->bad_state = true;
+	err = emc_seq_update_timing(emc);
 
 	/* restore early ACK */
 	mc_writel(emc->mc, emc->mc_override, MC_EMEM_ARB_OVERRIDE);
 
-	emc->prepared = false;
+	if (err)
+		return err;
 
-	return ret;
+	emc->bad_state = false;
+
+	return 0;
 }
 
 static int emc_unprepare_timing_change(struct tegra_emc *emc,
 				       unsigned long rate)
 {
-	if (emc->prepared && !emc->bad_state) {
+	if (!emc->bad_state) {
 		/* shouldn't ever happen in practice */
 		dev_err(emc->dev, "timing configuration can't be reverted\n");
 		emc->bad_state = true;
@@ -1354,13 +1350,17 @@ unset_cb:
 static int tegra_emc_suspend(struct device *dev)
 {
 	struct tegra_emc *emc = dev_get_drvdata(dev);
+	int err;
 
-	/*
-	 * Suspending in a bad state will hang machine. The "prepared" var
-	 * shall be always false here unless it's a kernel bug that caused
-	 * suspending in a wrong order.
-	 */
-	if (WARN_ON(emc->prepared) || emc->bad_state)
+	/* take exclusive control over the clock's rate */
+	err = clk_rate_exclusive_get(emc->clk);
+	if (err) {
+		dev_err(emc->dev, "failed to acquire clk: %d\n", err);
+		return err;
+	}
+
+	/* suspending in a bad state will hang machine */
+	if (WARN(emc->bad_state, "hardware in a bad state\n"))
 		return -EINVAL;
 
 	emc->bad_state = true;
@@ -1374,6 +1374,8 @@ static int tegra_emc_resume(struct device *dev)
 
 	emc_setup_hw(emc);
 	emc->bad_state = false;
+
+	clk_rate_exclusive_put(emc->clk);
 
 	return 0;
 }
