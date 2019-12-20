@@ -618,6 +618,14 @@ config CRYPTO_DEV_QCE
 	tristate "Qualcomm crypto engine accelerator"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HAS_IOMEM
+	help
+	  This driver supports Qualcomm crypto engine accelerator
+	  hardware. To compile this driver as a module, choose M here. The
+	  module will be called qcrypto.
+
+config CRYPTO_DEV_QCE_SKCIPHER
+	bool
+	depends on CRYPTO_DEV_QCE
 	select CRYPTO_AES
 	select CRYPTO_LIB_DES
 	select CRYPTO_ECB
@@ -625,10 +633,57 @@ config CRYPTO_DEV_QCE
 	select CRYPTO_XTS
 	select CRYPTO_CTR
 	select CRYPTO_SKCIPHER
+
+config CRYPTO_DEV_QCE_SHA
+	bool
+	depends on CRYPTO_DEV_QCE
+
+choice
+	prompt "Algorithms enabled for QCE acceleration"
+	default CRYPTO_DEV_QCE_ENABLE_ALL
+	depends on CRYPTO_DEV_QCE
 	help
-	  This driver supports Qualcomm crypto engine accelerator
-	  hardware. To compile this driver as a module, choose M here. The
-	  module will be called qcrypto.
+	  This option allows to choose whether to build support for all algorihtms
+	  (default), hashes-only, or skciphers-only.
+
+	  The QCE engine does not appear to scale as well as the CPU to handle
+	  multiple crypto requests.  While the ipq40xx chips have 4-core CPUs, the
+	  QCE handles only 2 requests in parallel.
+
+	  Ipsec throughput seems to improve when disabling either family of
+	  algorithms, sharing the load with the CPU.  Enabling skciphers-only
+	  appears to work best.
+
+	config CRYPTO_DEV_QCE_ENABLE_ALL
+		bool "All supported algorithms"
+		select CRYPTO_DEV_QCE_SKCIPHER
+		select CRYPTO_DEV_QCE_SHA
+		help
+		  Enable all supported algorithms:
+			- AES (CBC, CTR, ECB, XTS)
+			- 3DES (CBC, ECB)
+			- DES (CBC, ECB)
+			- SHA1, HMAC-SHA1
+			- SHA256, HMAC-SHA256
+
+	config CRYPTO_DEV_QCE_ENABLE_SKCIPHER
+		bool "Symmetric-key ciphers only"
+		select CRYPTO_DEV_QCE_SKCIPHER
+		help
+		  Enable symmetric-key ciphers only:
+			- AES (CBC, CTR, ECB, XTS)
+			- 3DES (ECB, CBC)
+			- DES (ECB, CBC)
+
+	config CRYPTO_DEV_QCE_ENABLE_SHA
+		bool "Hash/HMAC only"
+		select CRYPTO_DEV_QCE_SHA
+		help
+		  Enable hashes/HMAC algorithms only:
+			- SHA1, HMAC-SHA1
+			- SHA256, HMAC-SHA256
+
+endchoice
 
 config CRYPTO_DEV_QCOM_RNG
 	tristate "Qualcomm Random Number Generator Driver"
