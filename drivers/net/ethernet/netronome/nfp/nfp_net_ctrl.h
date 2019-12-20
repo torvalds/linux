@@ -45,6 +45,7 @@
 #define NFP_NET_META_PORTID		5
 #define NFP_NET_META_CSUM		6 /* checksum complete type */
 #define NFP_NET_META_CONN_HANDLE	7
+#define NFP_NET_META_RESYNC_INFO	8 /* RX resync info request */
 
 #define NFP_META_PORT_ID_CTRL		~0U
 
@@ -479,6 +480,7 @@
  * 8 words, bitmaps of supported and enabled crypto operations.
  * First 16B (4 words) contains a bitmap of supported crypto operations,
  * and next 16B contain the enabled operations.
+ * This capability is made obsolete by ones with better sync methods.
  *
  * %NFP_NET_CFG_TLV_TYPE_VNIC_STATS:
  * Variable, per-vNIC statistics, data should be 8B aligned (FW should insert
@@ -490,6 +492,10 @@
  * This TLV overwrites %NFP_NET_CFG_STATS_* values (statistics in this TLV
  * duplicate the old ones, so driver should be careful not to unnecessarily
  * render both).
+ *
+ * %NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS_RX_SCAN:
+ * Same as %NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS, but crypto TLS does stream scan
+ * RX sync, rather than kernel-assisted sync.
  */
 #define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
 #define NFP_NET_CFG_TLV_TYPE_RESERVED		1
@@ -502,6 +508,7 @@
 #define NFP_NET_CFG_TLV_TYPE_MBOX_CMSG_TYPES	10
 #define NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS		11 /* see crypto/fw.h */
 #define NFP_NET_CFG_TLV_TYPE_VNIC_STATS		12
+#define NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS_RX_SCAN	13
 
 struct device;
 
@@ -516,6 +523,7 @@ struct device;
  * @crypto_enable_off:	offset of crypto ops enable region
  * @vnic_stats_off:	offset of vNIC stats area
  * @vnic_stats_cnt:	number of vNIC stats
+ * @tls_resync_ss:	TLS resync will be performed via stream scan
  */
 struct nfp_net_tlv_caps {
 	u32 me_freq_mhz;
@@ -527,6 +535,7 @@ struct nfp_net_tlv_caps {
 	unsigned int crypto_enable_off;
 	unsigned int vnic_stats_off;
 	unsigned int vnic_stats_cnt;
+	unsigned int tls_resync_ss:1;
 };
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,

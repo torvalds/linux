@@ -174,7 +174,7 @@ static const char nfp_tlv_stat_names[][ETH_GSTRING_LEN] = {
 #define NN_ET_SWITCH_STATS_LEN 9
 #define NN_RVEC_GATHER_STATS	13
 #define NN_RVEC_PER_Q_STATS	3
-#define NN_CTRL_PATH_STATS	1
+#define NN_CTRL_PATH_STATS	4
 
 #define SFP_SFF_REV_COMPLIANCE	1
 
@@ -476,6 +476,9 @@ static u8 *nfp_vnic_get_sw_stats_strings(struct net_device *netdev, u8 *data)
 	data = nfp_pr_et(data, "tx_tls_drop_no_sync_data");
 
 	data = nfp_pr_et(data, "hw_tls_no_space");
+	data = nfp_pr_et(data, "rx_tls_resync_req_ok");
+	data = nfp_pr_et(data, "rx_tls_resync_req_ign");
+	data = nfp_pr_et(data, "rx_tls_resync_sent");
 
 	return data;
 }
@@ -524,6 +527,9 @@ static u64 *nfp_vnic_get_sw_stats(struct net_device *netdev, u64 *data)
 		*data++ = gathered_stats[j];
 
 	*data++ = atomic_read(&nn->ktls_no_space);
+	*data++ = atomic_read(&nn->ktls_rx_resync_req);
+	*data++ = atomic_read(&nn->ktls_rx_resync_ign);
+	*data++ = atomic_read(&nn->ktls_rx_resync_sent);
 
 	return data;
 }
