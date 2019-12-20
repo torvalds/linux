@@ -233,6 +233,9 @@ intel_context_init(struct intel_context *ce,
 	rcu_read_unlock();
 	if (ctx->timeline)
 		ce->timeline = intel_timeline_get(ctx->timeline);
+	if (ctx->sched.priority >= I915_PRIORITY_NORMAL &&
+	    intel_engine_has_semaphores(engine))
+		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
 
 	ce->engine = engine;
 	ce->ops = engine->cops;

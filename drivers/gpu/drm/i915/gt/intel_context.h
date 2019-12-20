@@ -162,6 +162,21 @@ static inline struct intel_ring *__intel_context_ring_size(u64 sz)
 	return u64_to_ptr(struct intel_ring, sz);
 }
 
+static inline bool intel_context_use_semaphores(const struct intel_context *ce)
+{
+	return test_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
+}
+
+static inline void intel_context_set_use_semaphores(struct intel_context *ce)
+{
+	set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
+}
+
+static inline void intel_context_clear_use_semaphores(struct intel_context *ce)
+{
+	clear_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
+}
+
 static inline bool intel_context_is_banned(const struct intel_context *ce)
 {
 	return test_bit(CONTEXT_BANNED, &ce->flags);

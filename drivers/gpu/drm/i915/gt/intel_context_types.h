@@ -56,9 +56,10 @@ struct intel_context {
 	unsigned long flags;
 #define CONTEXT_ALLOC_BIT		0
 #define CONTEXT_VALID_BIT		1
-#define CONTEXT_BANNED			2
-#define CONTEXT_FORCE_SINGLE_SUBMISSION	3
-#define CONTEXT_NOPREEMPT		4
+#define CONTEXT_USE_SEMAPHORES		2
+#define CONTEXT_BANNED			3
+#define CONTEXT_FORCE_SINGLE_SUBMISSION	4
+#define CONTEXT_NOPREEMPT		5
 
 	u32 *lrc_reg_state;
 	u64 lrc_desc;

@@ -1852,6 +1852,44 @@ set_persistence(struct i915_gem_context *ctx,
 	return __context_set_persistence(ctx, args->value);
 }
 
+static void __apply_priority(struct intel_context *ce, void *arg)
+{
+	struct i915_gem_context *ctx = arg;
+
+	if (!intel_engine_has_semaphores(ce->engine))
+		return;
+
+	if (ctx->sched.priority >= I915_PRIORITY_NORMAL)
+		intel_context_set_use_semaphores(ce);
+	else
+		intel_context_clear_use_semaphores(ce);
+}
+
+static int set_priority(struct i915_gem_context *ctx,
+			const struct drm_i915_gem_context_param *args)
+{
+	s64 priority = args->value;
+
+	if (args->size)
+		return -EINVAL;
+
+	if (!(ctx->i915->caps.scheduler & I915_SCHEDULER_CAP_PRIORITY))
+		return -ENODEV;
+
+	if (priority > I915_CONTEXT_MAX_USER_PRIORITY ||
+	    priority < I915_CONTEXT_MIN_USER_PRIORITY)
+		return -EINVAL;
+
+	if (priority > I915_CONTEXT_DEFAULT_PRIORITY &&
+	    !capable(CAP_SYS_NICE))
+		return -EPERM;
+
+	ctx->sched.priority = I915_USER_PRIORITY(priority);
+	context_apply_all(ctx, __apply_priority, ctx);
+
+	return 0;
+}
+
 static int ctx_setparam(struct drm_i915_file_private *fpriv,
 			struct i915_gem_context *ctx,
 			struct drm_i915_gem_context_param *args)
@@ -1898,23 +1936,7 @@ static int ctx_setparam(struct drm_i915_file_private *fpriv,
 		break;
 
 	case I915_CONTEXT_PARAM_PRIORITY:
-		{
-			s64 priority = args->value;
-
-			if (args->size)
-				ret = -EINVAL;
-			else if (!(ctx->i915->caps.scheduler & I915_SCHEDULER_CAP_PRIORITY))
-				ret = -ENODEV;
-			else if (priority > I915_CONTEXT_MAX_USER_PRIORITY ||
-				 priority < I915_CONTEXT_MIN_USER_PRIORITY)
-				ret = -EINVAL;
-			else if (priority > I915_CONTEXT_DEFAULT_PRIORITY &&
-				 !capable(CAP_SYS_NICE))
-				ret = -EPERM;
-			else
-				ctx->sched.priority =
-					I915_USER_PRIORITY(priority);
-		}
+		ret = set_priority(ctx, args);
 		break;
 
 	case I915_CONTEXT_PARAM_SSEU:

@@ -917,18 +917,16 @@ i915_request_await_request(struct i915_request *to, struct i915_request *from)
 			return ret;
 	}
 
-	if (to->engine == from->engine) {
+	if (to->engine == from->engine)
 		ret = i915_sw_fence_await_sw_fence_gfp(&to->submit,
 						       &from->submit,
 						       I915_FENCE_GFP);
-	} else if (intel_engine_has_semaphores(to->engine) &&
-		   to->context->gem_context->sched.priority >= I915_PRIORITY_NORMAL) {
+	else if (intel_context_use_semaphores(to->context))
 		ret = emit_semaphore_wait(to, from, I915_FENCE_GFP);
-	} else {
+	else
 		ret = i915_sw_fence_await_dma_fence(&to->submit,
 						    &from->fence, 0,
 						    I915_FENCE_GFP);
-	}
 	if (ret < 0)
 		return ret;
 
