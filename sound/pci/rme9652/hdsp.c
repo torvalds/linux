@@ -4817,7 +4817,7 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 			 "initializing firmware upload\n");
 		firmware = (struct hdsp_firmware __user *)argp;
 
-		if (get_user(firmware_data, &firmware->firmware_data))
+		if (get_user(firmware_data, (__force void __user **)&firmware->firmware_data))
 			return -EFAULT;
 
 		if (hdsp_check_for_iobox (hdsp))
@@ -5233,6 +5233,7 @@ static int snd_hdsp_create(struct snd_card *card,
 	}
 
 	hdsp->irq = pci->irq;
+	card->sync_irq = hdsp->irq;
 	hdsp->precise_ptr = 0;
 	hdsp->use_midi_tasklet = 1;
 	hdsp->dds_value = 0;

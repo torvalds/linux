@@ -780,17 +780,6 @@ static void snd_cs4281_mode(struct cs4281 *chip, struct cs4281_dma *dma,
 	snd_cs4281_pokeBA0(chip, dma->regFSIC, 0);
 }
 
-static int snd_cs4281_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_cs4281_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-}
-
 static int snd_cs4281_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -938,9 +927,6 @@ static int snd_cs4281_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_cs4281_playback_ops = {
 	.open =		snd_cs4281_playback_open,
 	.close =	snd_cs4281_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_cs4281_hw_params,
-	.hw_free =	snd_cs4281_hw_free,
 	.prepare =	snd_cs4281_playback_prepare,
 	.trigger =	snd_cs4281_trigger,
 	.pointer =	snd_cs4281_pointer,
@@ -949,9 +935,6 @@ static const struct snd_pcm_ops snd_cs4281_playback_ops = {
 static const struct snd_pcm_ops snd_cs4281_capture_ops = {
 	.open =		snd_cs4281_capture_open,
 	.close =	snd_cs4281_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_cs4281_hw_params,
-	.hw_free =	snd_cs4281_hw_free,
 	.prepare =	snd_cs4281_capture_prepare,
 	.trigger =	snd_cs4281_trigger,
 	.pointer =	snd_cs4281_pointer,
@@ -974,9 +957,8 @@ static int snd_cs4281_pcm(struct cs4281 *chip, int device)
 	strcpy(pcm->name, "CS4281");
 	chip->pcm = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &chip->pci->dev,
-					      64*1024, 512*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
+				       64*1024, 512*1024);
 
 	return 0;
 }
@@ -1286,9 +1268,6 @@ static int snd_cs4281_free(struct cs4281 *chip)
 {
 	snd_cs4281_free_gameport(chip);
 
-	if (chip->irq >= 0)
-		synchronize_irq(chip->irq);
-
 	/* Mask interrupts */
 	snd_cs4281_pokeBA0(chip, BA0_HIMR, 0x7fffffff);
 	/* Stop the DLL Clock logic. */
@@ -1370,6 +1349,7 @@ static int snd_cs4281_create(struct snd_card *card,
 		return -ENOMEM;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 	tmp = snd_cs4281_chip_init(chip);
 	if (tmp) {
@@ -1618,7 +1598,6 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 					BA0_HISR_DMA(1) |
 					BA0_HISR_DMA(2) |
 					BA0_HISR_DMA(3)));
-	synchronize_irq(chip->irq);
 
 	return 0;
 }

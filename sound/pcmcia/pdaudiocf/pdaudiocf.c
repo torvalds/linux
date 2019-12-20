@@ -224,6 +224,7 @@ static int pdacf_config(struct pcmcia_device *link)
 					link->irq) < 0)
 		goto failed;
 
+	pdacf->card->sync_irq = link->irq;
 	return 0;
 
  failed:

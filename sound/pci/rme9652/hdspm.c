@@ -6613,6 +6613,7 @@ static int snd_hdspm_create(struct snd_card *card,
 	dev_dbg(card->dev, "use IRQ %d\n", pci->irq);
 
 	hdspm->irq = pci->irq;
+	card->sync_irq = hdspm->irq;
 
 	dev_dbg(card->dev, "kmalloc Mixer memory of %zd Bytes\n",
 		sizeof(*hdspm->mixer));

@@ -547,16 +547,6 @@ static int init_engine(struct snd_pcm_substream *substream,
 		"pcm_hw_params (bufsize=%dB periods=%d persize=%dB)\n",
 		params_buffer_bytes(hw_params), params_periods(hw_params),
 		params_period_bytes(hw_params));
-	err = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (err < 0) {
-		dev_err(chip->card->dev, "malloc_pages err=%d\n", err);
-		spin_lock_irq(&chip->lock);
-		free_pipes(chip, pipe);
-		spin_unlock_irq(&chip->lock);
-		pipe->index = -1;
-		return err;
-	}
 
 	sglist_init(chip, pipe);
 	edge = PAGE_SIZE;
@@ -671,7 +661,6 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 	}
 	spin_unlock_irq(&chip->lock);
 
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -818,7 +807,6 @@ static snd_pcm_uframes_t pcm_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops analog_playback_ops = {
 	.open = pcm_analog_out_open,
 	.close = pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = pcm_analog_out_hw_params,
 	.hw_free = pcm_hw_free,
 	.prepare = pcm_prepare,
@@ -828,7 +816,6 @@ static const struct snd_pcm_ops analog_playback_ops = {
 static const struct snd_pcm_ops analog_capture_ops = {
 	.open = pcm_analog_in_open,
 	.close = pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = pcm_analog_in_hw_params,
 	.hw_free = pcm_hw_free,
 	.prepare = pcm_prepare,
@@ -840,7 +827,6 @@ static const struct snd_pcm_ops analog_capture_ops = {
 static const struct snd_pcm_ops digital_playback_ops = {
 	.open = pcm_digital_out_open,
 	.close = pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = pcm_digital_out_hw_params,
 	.hw_free = pcm_hw_free,
 	.prepare = pcm_prepare,
@@ -851,7 +837,6 @@ static const struct snd_pcm_ops digital_playback_ops = {
 static const struct snd_pcm_ops digital_capture_ops = {
 	.open = pcm_digital_in_open,
 	.close = pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = pcm_digital_in_hw_params,
 	.hw_free = pcm_hw_free,
 	.prepare = pcm_prepare,
@@ -872,10 +857,10 @@ static void snd_echo_preallocate_pages(struct snd_pcm *pcm, struct device *dev)
 
 	for (stream = 0; stream < 2; stream++)
 		for (ss = pcm->streams[stream].substream; ss; ss = ss->next)
-			snd_pcm_lib_preallocate_pages(ss, SNDRV_DMA_TYPE_DEV_SG,
-						      dev,
-						      ss->number ? 0 : 128<<10,
-						      256<<10);
+			snd_pcm_set_managed_buffer(ss, SNDRV_DMA_TYPE_DEV_SG,
+						   dev,
+						   ss->number ? 0 : 128<<10,
+						   256<<10);
 }
 
 
@@ -1943,6 +1928,7 @@ static int snd_echo_create(struct snd_card *card,
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	dev_dbg(card->dev, "pci=%p irq=%d subdev=%04x Init hardware...\n",
 		chip->pci, chip->irq, chip->pci->subsystem_device);
 
@@ -2166,6 +2152,7 @@ static int snd_echo_suspend(struct device *dev)
 	chip->dsp_code = NULL;
 	free_irq(chip->irq, chip);
 	chip->irq = -1;
+	chip->card->sync_irq = -1;
 	return 0;
 }
 
@@ -2219,6 +2206,7 @@ static int snd_echo_resume(struct device *dev)
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	chip->card->sync_irq = chip->irq;
 	dev_dbg(dev, "resume irq=%d\n", chip->irq);
 
 #ifdef ECHOCARD_HAS_MIDI

@@ -1205,20 +1205,6 @@ snd_azf3328_mixer_new(struct snd_azf3328 *chip)
 }
 #endif /* AZF_USE_AC97_LAYER */
 
-static int
-snd_azf3328_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int
-snd_azf3328_hw_free(struct snd_pcm_substream *substream)
-{
-	snd_pcm_lib_free_pages(substream);
-	return 0;
-}
-
 static void
 snd_azf3328_codec_setfmt(struct snd_azf3328_codec_data *codec,
 			       enum azf_freq_t bitrate,
@@ -2079,9 +2065,6 @@ snd_azf3328_pcm_close(struct snd_pcm_substream *substream
 static const struct snd_pcm_ops snd_azf3328_playback_ops = {
 	.open =		snd_azf3328_pcm_playback_open,
 	.close =	snd_azf3328_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_azf3328_hw_params,
-	.hw_free =	snd_azf3328_hw_free,
 	.prepare =	snd_azf3328_pcm_prepare,
 	.trigger =	snd_azf3328_pcm_trigger,
 	.pointer =	snd_azf3328_pcm_pointer
@@ -2090,9 +2073,6 @@ static const struct snd_pcm_ops snd_azf3328_playback_ops = {
 static const struct snd_pcm_ops snd_azf3328_capture_ops = {
 	.open =		snd_azf3328_pcm_capture_open,
 	.close =	snd_azf3328_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_azf3328_hw_params,
-	.hw_free =	snd_azf3328_hw_free,
 	.prepare =	snd_azf3328_pcm_prepare,
 	.trigger =	snd_azf3328_pcm_trigger,
 	.pointer =	snd_azf3328_pcm_pointer
@@ -2101,9 +2081,6 @@ static const struct snd_pcm_ops snd_azf3328_capture_ops = {
 static const struct snd_pcm_ops snd_azf3328_i2s_out_ops = {
 	.open =		snd_azf3328_pcm_i2s_out_open,
 	.close =	snd_azf3328_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_azf3328_hw_params,
-	.hw_free =	snd_azf3328_hw_free,
 	.prepare =	snd_azf3328_pcm_prepare,
 	.trigger =	snd_azf3328_pcm_trigger,
 	.pointer =	snd_azf3328_pcm_pointer
@@ -2134,9 +2111,8 @@ snd_azf3328_pcm(struct snd_azf3328 *chip)
 	chip->pcm[AZF_CODEC_PLAYBACK] = pcm;
 	chip->pcm[AZF_CODEC_CAPTURE] = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &chip->pci->dev,
-					      64*1024, 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
+				       64*1024, 64*1024);
 
 	err = snd_pcm_new(chip->card, "AZF3328 I2S OUT", AZF_PCMDEV_I2S_OUT,
 								1, 0, &pcm);
@@ -2150,9 +2126,8 @@ snd_azf3328_pcm(struct snd_azf3328 *chip)
 	strcpy(pcm->name, chip->card->shortname);
 	chip->pcm[AZF_CODEC_I2S_OUT] = pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &chip->pci->dev,
-					      64*1024, 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
+				       64*1024, 64*1024);
 
 	return 0;
 }
@@ -2448,8 +2423,8 @@ snd_azf3328_create(struct snd_card *card,
 		goto out_err;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	pci_set_master(pci);
-	synchronize_irq(chip->irq);
 
 	snd_azf3328_debug_show_ports(chip);
 
