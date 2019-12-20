@@ -293,6 +293,9 @@ bool hubbub2_get_dcc_compression_cap(struct hubbub *hubbub,
 		output->grph.rgb.max_compressed_blk_size = 64;
 		output->grph.rgb.independent_64b_blks = true;
 		break;
+	default:
+		ASSERT(false);
+		break;
 	}
 	output->capable = true;
 	output->const_color_support = true;
