@@ -190,7 +190,6 @@ struct device_queue_manager {
 	/* the pasid mapping for each kfd vmid */
 	uint16_t		vmid_pasid[VMID_NUM];
 	uint64_t		pipelines_addr;
-	struct kfd_mem_obj	*pipeline_mem;
 	uint64_t		fence_gpu_addr;
 	unsigned int		*fence_addr;
 	struct kfd_mem_obj	*fence_mem;

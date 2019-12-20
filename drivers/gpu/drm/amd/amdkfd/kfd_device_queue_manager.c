@@ -930,7 +930,6 @@ static void uninitialize(struct device_queue_manager *dqm)
 	for (i = 0 ; i < KFD_MQD_TYPE_MAX ; i++)
 		kfree(dqm->mqd_mgrs[i]);
 	mutex_destroy(&dqm->lock_hidden);
-	kfd_gtt_sa_free(dqm->dev, dqm->pipeline_mem);
 }
 
 static int start_nocpsch(struct device_queue_manager *dqm)
