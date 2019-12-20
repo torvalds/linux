@@ -231,19 +231,10 @@ static int alchemy_pcm_hw_params(struct snd_soc_component *component,
 				 struct snd_pcm_hw_params *hw_params)
 {
 	struct audio_stream *stream = ss_to_as(substream, component);
-	int err;
 
-	err = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
-	err = au1000_setup_dma_link(stream,
-				    params_period_bytes(hw_params),
-				    params_periods(hw_params));
-	if (err)
-		snd_pcm_lib_free_pages(substream);
-
-	return err;
+	return au1000_setup_dma_link(stream,
+				     params_period_bytes(hw_params),
+				     params_periods(hw_params));
 }
 
 static int alchemy_pcm_hw_free(struct snd_soc_component *component,
@@ -251,7 +242,7 @@ static int alchemy_pcm_hw_free(struct snd_soc_component *component,
 {
 	struct audio_stream *stream = ss_to_as(substream, component);
 	au1000_release_dma_link(stream);
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int alchemy_pcm_trigger(struct snd_soc_component *component,
@@ -292,8 +283,8 @@ static int alchemy_pcm_new(struct snd_soc_component *component,
 {
 	struct snd_pcm *pcm = rtd->pcm;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					      NULL, 65536, (4096 * 1024) - 1);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL, 65536, (4096 * 1024) - 1);
 
 	return 0;
 }
@@ -302,7 +293,6 @@ static struct snd_soc_component_driver alchemy_pcm_soc_component = {
 	.name		= DRV_NAME,
 	.open		= alchemy_pcm_open,
 	.close		= alchemy_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= alchemy_pcm_hw_params,
 	.hw_free	= alchemy_pcm_hw_free,
 	.trigger	= alchemy_pcm_trigger,
