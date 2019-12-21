@@ -250,7 +250,7 @@ static int ceph_parse_source(struct fs_parameter *param, struct fs_context *fc)
 		dout("server path '%s'\n", fsopt->server_path);
 
 	ret = ceph_parse_mon_ips(param->string, dev_name_end - dev_name,
-				 pctx->copts, fc);
+				 pctx->copts, fc->log);
 	if (ret)
 		return ret;
 
@@ -268,7 +268,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 	unsigned int mode;
 	int token, ret;
 
-	ret = ceph_parse_param(param, pctx->copts, fc);
+	ret = ceph_parse_param(param, pctx->copts, fc->log);
 	if (ret != -ENOPARAM)
 		return ret;
 

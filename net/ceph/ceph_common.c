@@ -383,9 +383,9 @@ out:
 }
 
 int ceph_parse_mon_ips(const char *buf, size_t len, struct ceph_options *opt,
-		       struct fs_context *fc)
+		       struct fc_log *l)
 {
-	struct p_log log = {.prefix = "libceph", .log = fc ? fc->log : NULL};
+	struct p_log log = {.prefix = "libceph", .log = l};
 	int ret;
 
 	/* ip1[:port1][,ip2[:port2]...] */
@@ -401,11 +401,11 @@ int ceph_parse_mon_ips(const char *buf, size_t len, struct ceph_options *opt,
 EXPORT_SYMBOL(ceph_parse_mon_ips);
 
 int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
-		     struct fs_context *fc)
+		     struct fc_log *l)
 {
 	struct fs_parse_result result;
 	int token, err;
-	struct p_log log = {.prefix = "libceph", .log = fc ? fc->log : NULL};
+	struct p_log log = {.prefix = "libceph", .log = l};
 
 	token = __fs_parse(&log, &ceph_parameters, param, &result);
 	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
