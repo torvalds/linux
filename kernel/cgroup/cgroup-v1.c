@@ -18,8 +18,6 @@
 
 #include <trace/events/cgroup.h>
 
-#define cg_invalf(fc, fmt, ...) invalf(fc, fmt, ## __VA_ARGS__)
-
 /*
  * pidlists linger the following amount before being destroyed.  The goal
  * is avoiding frequent destruction in the middle of consecutive read calls
@@ -924,7 +922,7 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			ctx->subsys_mask |= (1 << i);
 			return 0;
 		}
-		return cg_invalf(fc, "cgroup1: Unknown subsys name '%s'", param->key);
+		return invalf(fc, "cgroup1: Unknown subsys name '%s'", param->key);
 	}
 	if (opt < 0)
 		return opt;
@@ -952,7 +950,7 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_release_agent:
 		/* Specifying two release agents is forbidden */
 		if (ctx->release_agent)
-			return cg_invalf(fc, "cgroup1: release_agent respecified");
+			return invalf(fc, "cgroup1: release_agent respecified");
 		ctx->release_agent = param->string;
 		param->string = NULL;
 		break;
@@ -962,9 +960,9 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			return -ENOENT;
 		/* Can't specify an empty name */
 		if (!param->size)
-			return cg_invalf(fc, "cgroup1: Empty name");
+			return invalf(fc, "cgroup1: Empty name");
 		if (param->size > MAX_CGROUP_ROOT_NAMELEN - 1)
-			return cg_invalf(fc, "cgroup1: Name too long");
+			return invalf(fc, "cgroup1: Name too long");
 		/* Must match [\w.-]+ */
 		for (i = 0; i < param->size; i++) {
 			char c = param->string[i];
@@ -972,11 +970,11 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 				continue;
 			if ((c == '.') || (c == '-') || (c == '_'))
 				continue;
-			return cg_invalf(fc, "cgroup1: Invalid name");
+			return invalf(fc, "cgroup1: Invalid name");
 		}
 		/* Specifying two names is forbidden */
 		if (ctx->name)
-			return cg_invalf(fc, "cgroup1: name respecified");
+			return invalf(fc, "cgroup1: name respecified");
 		ctx->name = param->string;
 		param->string = NULL;
 		break;
@@ -1011,7 +1009,7 @@ static int check_cgroupfs_options(struct fs_context *fc)
 	if (ctx->all_ss) {
 		/* Mutually exclusive option 'all' + subsystem name */
 		if (ctx->subsys_mask)
-			return cg_invalf(fc, "cgroup1: subsys name conflicts with all");
+			return invalf(fc, "cgroup1: subsys name conflicts with all");
 		/* 'all' => select all the subsystems */
 		ctx->subsys_mask = enabled;
 	}
@@ -1021,7 +1019,7 @@ static int check_cgroupfs_options(struct fs_context *fc)
 	 * empty hierarchies must have a name).
 	 */
 	if (!ctx->subsys_mask && !ctx->name)
-		return cg_invalf(fc, "cgroup1: Need name or subsystem set");
+		return invalf(fc, "cgroup1: Need name or subsystem set");
 
 	/*
 	 * Option noprefix was introduced just for backward compatibility
@@ -1029,11 +1027,11 @@ static int check_cgroupfs_options(struct fs_context *fc)
 	 * the cpuset subsystem.
 	 */
 	if ((ctx->flags & CGRP_ROOT_NOPREFIX) && (ctx->subsys_mask & mask))
-		return cg_invalf(fc, "cgroup1: noprefix used incorrectly");
+		return invalf(fc, "cgroup1: noprefix used incorrectly");
 
 	/* Can't specify "none" and some subsystems */
 	if (ctx->subsys_mask && ctx->none)
-		return cg_invalf(fc, "cgroup1: none used incorrectly");
+		return invalf(fc, "cgroup1: none used incorrectly");
 
 	return 0;
 }
@@ -1063,7 +1061,7 @@ int cgroup1_reconfigure(struct fs_context *fc)
 	/* Don't allow flags or name to change at remount */
 	if ((ctx->flags ^ root->flags) ||
 	    (ctx->name && strcmp(ctx->name, root->name))) {
-		cg_invalf(fc, "option or name mismatch, new: 0x%x \"%s\", old: 0x%x \"%s\"",
+		errorf(fc, "option or name mismatch, new: 0x%x \"%s\", old: 0x%x \"%s\"",
 		       ctx->flags, ctx->name ?: "", root->flags, root->name);
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1180,7 +1178,7 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 	 * can't create new one without subsys specification.
 	 */
 	if (!ctx->subsys_mask && !ctx->none)
-		return cg_invalf(fc, "cgroup1: No subsys list or none specified");
+		return invalf(fc, "cgroup1: No subsys list or none specified");
 
 	/* Hierarchies may only be created in the initial cgroup namespace. */
 	if (ctx->ns != &init_cgroup_ns)
