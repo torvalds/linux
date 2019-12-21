@@ -2621,6 +2621,12 @@ bool is_ccs_modifier(u64 modifier)
 	       modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
 }
 
+static int gen12_ccs_aux_stride(struct drm_framebuffer *fb, int ccs_plane)
+{
+	return DIV_ROUND_UP(fb->pitches[ccs_to_main_plane(fb, ccs_plane)],
+			    512) * 64;
+}
+
 u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 			      u32 pixel_format, u64 modifier)
 {
@@ -16548,6 +16554,17 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 			DRM_DEBUG_KMS("plane %d pitch (%d) must be at least %u byte aligned\n",
 				      i, fb->pitches[i], stride_alignment);
 			goto err;
+		}
+
+		if (is_gen12_ccs_plane(fb, i)) {
+			int ccs_aux_stride = gen12_ccs_aux_stride(fb, i);
+
+			if (fb->pitches[i] != ccs_aux_stride) {
+				DRM_DEBUG_KMS("ccs aux plane %d pitch (%d) must be %d\n",
+					      i,
+					      fb->pitches[i], ccs_aux_stride);
+				goto err;
+			}
 		}
 
 		fb->obj[i] = &obj->base;
