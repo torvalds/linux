@@ -2951,7 +2951,6 @@ static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 	r8168d_phy_param(phydev, 0x8b85, 0x0000, 0x4000);
 
 	rtl8168f_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 
 	/* Green feature */
 	rtl_writephy(tp, 0x1f, 0x0003);
@@ -2978,7 +2977,6 @@ static void rtl8168f_hw_phy_config(struct rtl8169_private *tp)
 	r8168d_phy_param(phydev, 0x8b86, 0x0000, 0x0001);
 
 	rtl8168f_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 }
 
 static void rtl8168f_1_hw_phy_config(struct rtl8169_private *tp)
@@ -3124,14 +3122,12 @@ static void rtl8168g_1_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl8168g_disable_aldps(tp);
 	rtl8168g_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 }
 
 static void rtl8168g_2_hw_phy_config(struct rtl8169_private *tp)
 {
 	rtl_apply_firmware(tp);
 	rtl8168g_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 }
 
 static void rtl8168h_1_hw_phy_config(struct rtl8169_private *tp)
@@ -3198,7 +3194,6 @@ static void rtl8168h_1_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl8168g_disable_aldps(tp);
 	rtl8168h_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 }
 
 static u16 rtl8168h_2_get_adc_bias_ioffset(struct rtl8169_private *tp)
@@ -3253,7 +3248,6 @@ static void rtl8168h_2_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl8168g_disable_aldps(tp);
 	rtl8168g_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 }
 
 static void rtl8168ep_1_hw_phy_config(struct rtl8169_private *tp)
@@ -3276,7 +3270,6 @@ static void rtl8168ep_1_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl8168g_disable_aldps(tp);
 	rtl8168g_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 }
 
 static void rtl8168ep_2_hw_phy_config(struct rtl8169_private *tp)
@@ -3328,7 +3321,6 @@ static void rtl8168ep_2_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl8168g_disable_aldps(tp);
 	rtl8168g_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 }
 
 static void rtl8117_hw_phy_config(struct rtl8169_private *tp)
@@ -3368,7 +3360,6 @@ static void rtl8117_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl8168g_disable_aldps(tp);
 	rtl8168h_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 }
 
 static void rtl8102e_hw_phy_config(struct rtl8169_private *tp)
@@ -3475,7 +3466,6 @@ static void rtl8125_1_hw_phy_config(struct rtl8169_private *tp)
 	phy_modify_paged(phydev, 0xa44, 0x11, 0x0000, 0x0800);
 
 	rtl8125_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 }
 
 static void rtl8125_2_hw_phy_config(struct rtl8169_private *tp)
@@ -3541,7 +3531,6 @@ static void rtl8125_2_hw_phy_config(struct rtl8169_private *tp)
 	phy_modify_paged(phydev, 0xa44, 0x11, 0x0000, 0x0800);
 
 	rtl8125_config_eee_phy(tp);
-	rtl_enable_eee(tp);
 }
 
 static void rtl_hw_phy_config(struct net_device *dev)
@@ -3629,6 +3618,9 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 
 	/* We may have called phy_speed_down before */
 	phy_speed_up(tp->phydev);
+
+	if (rtl_supports_eee(tp))
+		rtl_enable_eee(tp);
 
 	genphy_soft_reset(tp->phydev);
 }
