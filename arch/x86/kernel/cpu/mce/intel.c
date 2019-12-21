@@ -115,12 +115,12 @@ static bool lmce_supported(void)
 
 	/*
 	 * BIOS should indicate support for LMCE by setting bit 20 in
-	 * IA32_FEATURE_CONTROL without which touching MCG_EXT_CTL will
-	 * generate a #GP fault.
+	 * IA32_FEAT_CTL without which touching MCG_EXT_CTL will generate a #GP
+	 * fault.
 	 */
-	rdmsrl(MSR_IA32_FEATURE_CONTROL, tmp);
-	if ((tmp & (FEATURE_CONTROL_LOCKED | FEATURE_CONTROL_LMCE)) ==
-		   (FEATURE_CONTROL_LOCKED | FEATURE_CONTROL_LMCE))
+	rdmsrl(MSR_IA32_FEAT_CTL, tmp);
+	if ((tmp & (FEAT_CTL_LOCKED | FEAT_CTL_LMCE_ENABLED)) ==
+		   (FEAT_CTL_LOCKED | FEAT_CTL_LMCE_ENABLED))
 		return true;
 
 	return false;
