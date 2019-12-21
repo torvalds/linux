@@ -1998,7 +1998,7 @@ static void intel_tile_dims(const struct drm_framebuffer *fb, int color_plane,
 	unsigned int cpp = fb->format->cpp[color_plane];
 
 	*tile_width = tile_width_bytes / cpp;
-	*tile_height = intel_tile_size(to_i915(fb->dev)) / tile_width_bytes;
+	*tile_height = intel_tile_height(fb, color_plane);
 }
 
 unsigned int
