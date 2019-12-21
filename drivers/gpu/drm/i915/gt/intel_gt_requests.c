@@ -23,15 +23,18 @@ static void retire_requests(struct intel_timeline *tl)
 			break;
 }
 
-static void flush_submission(struct intel_gt *gt)
+static bool flush_submission(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	bool active = false;
 
 	for_each_engine(engine, gt, id) {
-		intel_engine_flush_submission(engine);
-		flush_work(&engine->retire_work);
+		active |= intel_engine_flush_submission(engine);
+		active |= flush_work(&engine->retire_work);
 	}
+
+	return active;
 }
 
 static void engine_retire(struct work_struct *work)
@@ -120,9 +123,10 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 
 	spin_lock(&timelines->lock);
 	list_for_each_entry_safe(tl, tn, &timelines->active_list, link) {
-		active_count++; /* report busy to caller, try again? */
-		if (!mutex_trylock(&tl->mutex))
+		if (!mutex_trylock(&tl->mutex)) {
+			active_count++; /* report busy to caller, try again? */
 			continue;
+		}
 
 		intel_timeline_get(tl);
 		GEM_BUG_ON(!atomic_read(&tl->active_count));
@@ -147,10 +151,10 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 
 		/* Resume iteration after dropping lock */
 		list_safe_reset_next(tl, tn, link);
-		if (atomic_dec_and_test(&tl->active_count)) {
+		if (atomic_dec_and_test(&tl->active_count))
 			list_del(&tl->link);
-			active_count--;
-		}
+		else
+			active_count += i915_active_fence_isset(&tl->last_request);
 
 		mutex_unlock(&tl->mutex);
 
@@ -165,7 +169,8 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 	list_for_each_entry_safe(tl, tn, &free, link)
 		__intel_timeline_free(&tl->kref);
 
-	flush_submission(gt);
+	if (flush_submission(gt))
+		active_count++;
 
 	return active_count ? timeout : 0;
 }
