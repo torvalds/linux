@@ -1284,18 +1284,17 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	}
 
 	intel_gt_init(&dev_priv->gt);
-	i915_gem_init__contexts(dev_priv);
 
 	ret = intel_engines_setup(&dev_priv->gt);
 	if (ret) {
 		GEM_BUG_ON(ret == -EIO);
-		goto err_unlock;
+		goto err_gt_early;
 	}
 
 	ret = intel_engines_init(&dev_priv->gt);
 	if (ret) {
 		GEM_BUG_ON(ret == -EIO);
-		goto err_scratch;
+		goto err_engines;
 	}
 
 	intel_uc_init(&dev_priv->gt.uc);
@@ -1322,19 +1321,19 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	ret = intel_engines_verify_workarounds(&dev_priv->gt);
 	if (ret)
-		goto err_gt;
+		goto err_gt_late;
 
 	ret = __intel_engines_record_defaults(&dev_priv->gt);
 	if (ret)
-		goto err_gt;
+		goto err_gt_late;
 
 	ret = i915_inject_probe_error(dev_priv, -ENODEV);
 	if (ret)
-		goto err_gt;
+		goto err_gt_late;
 
 	ret = i915_inject_probe_error(dev_priv, -EIO);
 	if (ret)
-		goto err_gt;
+		goto err_gt_late;
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
@@ -1346,7 +1345,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * HW as irrevisibly wedged, but keep enough state around that the
 	 * driver doesn't explode during runtime.
 	 */
-err_gt:
+err_gt_late:
 	intel_gt_set_wedged_on_init(&dev_priv->gt);
 	i915_gem_suspend(dev_priv);
 	i915_gem_suspend_late(dev_priv);
@@ -1355,11 +1354,12 @@ err_gt:
 err_init_hw:
 	intel_uc_fini_hw(&dev_priv->gt.uc);
 err_uc_init:
-	if (ret != -EIO) {
+	if (ret != -EIO)
 		intel_uc_fini(&dev_priv->gt.uc);
+err_engines:
+	if (ret != -EIO)
 		intel_engines_cleanup(&dev_priv->gt);
-	}
-err_scratch:
+err_gt_early:
 	intel_gt_driver_release(&dev_priv->gt);
 err_unlock:
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
@@ -1452,6 +1452,7 @@ static void i915_gem_init__mm(struct drm_i915_private *i915)
 void i915_gem_init_early(struct drm_i915_private *dev_priv)
 {
 	i915_gem_init__mm(dev_priv);
+	i915_gem_init__contexts(dev_priv);
 
 	spin_lock_init(&dev_priv->fb_tracking.lock);
 }
