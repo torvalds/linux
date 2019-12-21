@@ -2678,6 +2678,46 @@ static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
 }
 
 static int
+intel_fb_check_ccs_xy(struct drm_framebuffer *fb, int ccs_plane, int x, int y)
+{
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	int hsub = fb->format->hsub;
+	int vsub = fb->format->vsub;
+	int tile_width, tile_height;
+	int ccs_x, ccs_y;
+	int main_x, main_y;
+
+	if (!is_ccs_modifier(fb->modifier) || ccs_plane != 1)
+		return 0;
+
+	intel_tile_dims(fb, 1, &tile_width, &tile_height);
+
+	tile_width *= hsub;
+	tile_height *= vsub;
+
+	ccs_x = (x * hsub) % tile_width;
+	ccs_y = (y * vsub) % tile_height;
+	main_x = intel_fb->normal[0].x % tile_width;
+	main_y = intel_fb->normal[0].y % tile_height;
+
+	/*
+	 * CCS doesn't have its own x/y offset register, so the intra CCS tile
+	 * x/y offsets must match between CCS and the main surface.
+	 */
+	if (main_x != ccs_x || main_y != ccs_y) {
+		DRM_DEBUG_KMS("Bad CCS x/y (main %d,%d ccs %d,%d) full (main %d,%d ccs %d,%d)\n",
+			      main_x, main_y,
+			      ccs_x, ccs_y,
+			      intel_fb->normal[0].x,
+			      intel_fb->normal[0].y,
+			      x, y);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
 intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		   struct drm_framebuffer *fb)
 {
@@ -2707,36 +2747,9 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 			return ret;
 		}
 
-		if (is_ccs_modifier(fb->modifier) && i == 1) {
-			int hsub = fb->format->hsub;
-			int vsub = fb->format->vsub;
-			int tile_width, tile_height;
-			int main_x, main_y;
-			int ccs_x, ccs_y;
-
-			intel_tile_dims(fb, i, &tile_width, &tile_height);
-			tile_width *= hsub;
-			tile_height *= vsub;
-
-			ccs_x = (x * hsub) % tile_width;
-			ccs_y = (y * vsub) % tile_height;
-			main_x = intel_fb->normal[0].x % tile_width;
-			main_y = intel_fb->normal[0].y % tile_height;
-
-			/*
-			 * CCS doesn't have its own x/y offset register, so the intra CCS tile
-			 * x/y offsets must match between CCS and the main surface.
-			 */
-			if (main_x != ccs_x || main_y != ccs_y) {
-				DRM_DEBUG_KMS("Bad CCS x/y (main %d,%d ccs %d,%d) full (main %d,%d ccs %d,%d)\n",
-					      main_x, main_y,
-					      ccs_x, ccs_y,
-					      intel_fb->normal[0].x,
-					      intel_fb->normal[0].y,
-					      x, y);
-				return -EINVAL;
-			}
-		}
+		ret = intel_fb_check_ccs_xy(fb, i, x, y);
+		if (ret)
+			return ret;
 
 		/*
 		 * The fence (if used) is aligned to the start of the object
