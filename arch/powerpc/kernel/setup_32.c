@@ -161,6 +161,18 @@ void __init irqstack_early_init(void)
 	}
 }
 
+#ifdef CONFIG_VMAP_STACK
+void *emergency_ctx[NR_CPUS] __ro_after_init;
+
+void __init emergency_stack_init(void)
+{
+	unsigned int i;
+
+	for_each_possible_cpu(i)
+		emergency_ctx[i] = alloc_stack();
+}
+#endif
+
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 void __init exc_lvl_early_init(void)
 {

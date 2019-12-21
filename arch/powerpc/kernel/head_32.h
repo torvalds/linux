@@ -55,6 +55,10 @@
 	addi	r11, r11, THREAD_SIZE - INT_FRAME_SIZE
 	tophys_novmstack r11, r11
 1:
+#ifdef CONFIG_VMAP_STACK
+	mtcrf	0x7f, r11
+	bt	32 - THREAD_ALIGN_SHIFT, stack_overflow
+#endif
 .endm
 
 .macro EXCEPTION_PROLOG_2 handle_dar_dsisr=0
@@ -298,5 +302,29 @@ label:
 #define EXC_XFER_LITE(n, hdlr)		\
 	EXC_XFER_TEMPLATE(hdlr, n+1, MSR_KERNEL, transfer_to_handler, \
 			  ret_from_except)
+
+.macro vmap_stack_overflow_exception
+#ifdef CONFIG_VMAP_STACK
+#ifdef CONFIG_SMP
+	mfspr	r11, SPRN_SPRG_THREAD
+	tovirt(r11, r11)
+	lwz	r11, TASK_CPU - THREAD(r11)
+	slwi	r11, r11, 3
+	addis	r11, r11, emergency_ctx@ha
+#else
+	lis	r11, emergency_ctx@ha
+#endif
+	lwz	r11, emergency_ctx@l(r11)
+	cmpwi	cr1, r11, 0
+	bne	cr1, 1f
+	lis	r11, init_thread_union@ha
+	addi	r11, r11, init_thread_union@l
+1:	addi	r11, r11, THREAD_SIZE - INT_FRAME_SIZE
+	EXCEPTION_PROLOG_2
+	SAVE_NVGPRS(r11)
+	addi	r3, r1, STACK_FRAME_OVERHEAD
+	EXC_XFER_STD(0, stack_overflow_exception)
+#endif
+.endm
 
 #endif /* __HEAD_32_H__ */
