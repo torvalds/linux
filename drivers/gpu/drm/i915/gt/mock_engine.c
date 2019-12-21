@@ -290,6 +290,7 @@ int mock_engine_init(struct intel_engine_cs *engine)
 	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlists(engine);
 	intel_engine_init__pm(engine);
+	intel_engine_init_retire(engine);
 	intel_engine_pool_init(&engine->pool);
 
 	ce = create_kernel_context(engine);
@@ -332,6 +333,7 @@ void mock_engine_free(struct intel_engine_cs *engine)
 	intel_context_unpin(engine->kernel_context);
 	intel_context_put(engine->kernel_context);
 
+	intel_engine_fini_retire(engine);
 	intel_engine_fini_breadcrumbs(engine);
 
 	kfree(engine);
