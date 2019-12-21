@@ -797,13 +797,11 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			hclge_get_link_mode(vport, req);
 			break;
 		case HCLGE_MBX_GET_VF_FLR_STATUS:
-			mutex_lock(&hdev->vport_cfg_mutex);
 			hclge_rm_vport_all_mac_table(vport, true,
 						     HCLGE_MAC_ADDR_UC);
 			hclge_rm_vport_all_mac_table(vport, true,
 						     HCLGE_MAC_ADDR_MC);
 			hclge_rm_vport_all_vlan_table(vport, true);
-			mutex_unlock(&hdev->vport_cfg_mutex);
 			break;
 		case HCLGE_MBX_GET_MEDIA_TYPE:
 			ret = hclge_get_vf_media_type(vport, req);

@@ -886,8 +886,8 @@ static void hclge_dbg_dump_mng_table(struct hclge_dev *hdev)
 	}
 }
 
-static void hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, u8 stage,
-				   bool sel_x, u32 loc)
+static int hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, u8 stage,
+				  bool sel_x, u32 loc)
 {
 	struct hclge_fd_tcam_config_1_cmd *req1;
 	struct hclge_fd_tcam_config_2_cmd *req2;
@@ -912,7 +912,7 @@ static void hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, u8 stage,
 
 	ret = hclge_cmd_send(&hdev->hw, desc, 3);
 	if (ret)
-		return;
+		return ret;
 
 	dev_info(&hdev->pdev->dev, " read result tcam key %s(%u):\n",
 		 sel_x ? "x" : "y", loc);
@@ -931,16 +931,76 @@ static void hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, u8 stage,
 	req = (u32 *)req3->tcam_data;
 	for (i = 0; i < 5; i++)
 		dev_info(&hdev->pdev->dev, "%08x\n", *req++);
+
+	return ret;
+}
+
+static int hclge_dbg_get_rules_location(struct hclge_dev *hdev, u16 *rule_locs)
+{
+	struct hclge_fd_rule *rule;
+	struct hlist_node *node;
+	int cnt = 0;
+
+	spin_lock_bh(&hdev->fd_rule_lock);
+	hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list, rule_node) {
+		rule_locs[cnt] = rule->location;
+		cnt++;
+	}
+	spin_unlock_bh(&hdev->fd_rule_lock);
+
+	if (cnt != hdev->hclge_fd_rule_num)
+		return -EINVAL;
+
+	return cnt;
 }
 
 static void hclge_dbg_fd_tcam(struct hclge_dev *hdev)
 {
-	u32 i;
+	int i, ret, rule_cnt;
+	u16 *rule_locs;
 
-	for (i = 0; i < hdev->fd_cfg.rule_num[0]; i++) {
-		hclge_dbg_fd_tcam_read(hdev, 0, true, i);
-		hclge_dbg_fd_tcam_read(hdev, 0, false, i);
+	if (!hnae3_dev_fd_supported(hdev)) {
+		dev_err(&hdev->pdev->dev,
+			"Only FD-supported dev supports dump fd tcam\n");
+		return;
 	}
+
+	if (!hdev->hclge_fd_rule_num ||
+	    !hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1])
+		return;
+
+	rule_locs = kcalloc(hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1],
+			    sizeof(u16), GFP_KERNEL);
+	if (!rule_locs)
+		return;
+
+	rule_cnt = hclge_dbg_get_rules_location(hdev, rule_locs);
+	if (rule_cnt <= 0) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get rule number, ret = %d\n", rule_cnt);
+		kfree(rule_locs);
+		return;
+	}
+
+	for (i = 0; i < rule_cnt; i++) {
+		ret = hclge_dbg_fd_tcam_read(hdev, 0, true, rule_locs[i]);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to get fd tcam key x, ret = %d\n", ret);
+			kfree(rule_locs);
+			return;
+		}
+
+		ret = hclge_dbg_fd_tcam_read(hdev, 0, false, rule_locs[i]);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to get fd tcam key y, ret = %d\n", ret);
+			kfree(rule_locs);
+			return;
+		}
+	}
+
+	kfree(rule_locs);
 }
 
 void hclge_dbg_dump_rst_info(struct hclge_dev *hdev)
