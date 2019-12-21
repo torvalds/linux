@@ -116,7 +116,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		ehci_mv->set_vbus = pdata->set_vbus;
 	}
 
-	ehci_mv->phy = devm_phy_get(&pdev->dev, "usb");
+	ehci_mv->phy = devm_phy_optional_get(&pdev->dev, "usb");
 	if (IS_ERR(ehci_mv->phy)) {
 		retval = PTR_ERR(ehci_mv->phy);
 		if (retval != -EPROBE_DEFER)
