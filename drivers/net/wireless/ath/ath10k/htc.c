@@ -270,7 +270,7 @@ ath10k_htc_process_lookahead_bundle(struct ath10k_htc *htc,
 	struct ath10k *ar = htc->ar;
 	int bundle_cnt = len / sizeof(*report);
 
-	if (!bundle_cnt || (bundle_cnt > HTC_HOST_MAX_MSG_PER_RX_BUNDLE)) {
+	if (!bundle_cnt || (bundle_cnt > htc->max_msgs_per_htc_bundle)) {
 		ath10k_warn(ar, "Invalid lookahead bundle count: %d\n",
 			    bundle_cnt);
 		return -EINVAL;
@@ -800,8 +800,8 @@ setup:
 						&ep->ul_pipe_id,
 						&ep->dl_pipe_id);
 	if (status) {
-		ath10k_warn(ar, "unsupported HTC service id: %d\n",
-			    ep->service_id);
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "unsupported HTC service id: %d\n",
+			   ep->service_id);
 		return status;
 	}
 
@@ -878,8 +878,8 @@ static bool ath10k_htc_pktlog_svc_supported(struct ath10k *ar)
 						&ul_pipe_id,
 						&dl_pipe_id);
 	if (status) {
-		ath10k_warn(ar, "unsupported HTC service id: %d\n",
-			    ATH10K_HTC_SVC_ID_HTT_LOG_MSG);
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "unsupported HTC pktlog service id: %d\n",
+			   ATH10K_HTC_SVC_ID_HTT_LOG_MSG);
 
 		return false;
 	}
