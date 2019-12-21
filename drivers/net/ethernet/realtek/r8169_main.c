@@ -3204,11 +3204,26 @@ static void rtl8168h_1_hw_phy_config(struct rtl8169_private *tp)
 	rtl_enable_eee(tp);
 }
 
+static u16 rtl8168h_2_get_adc_bias_ioffset(struct rtl8169_private *tp)
+{
+	u16 data1, data2, ioffset;
+
+	r8168_mac_ocp_write(tp, 0xdd02, 0x807d);
+	data1 = r8168_mac_ocp_read(tp, 0xdd02);
+	data2 = r8168_mac_ocp_read(tp, 0xdd00);
+
+	ioffset = (data2 >> 1) & 0x7ff8;
+	ioffset |= data2 & 0x0007;
+	if (data1 & BIT(7))
+		ioffset |= BIT(15);
+
+	return ioffset;
+}
+
 static void rtl8168h_2_hw_phy_config(struct rtl8169_private *tp)
 {
-	u16 ioffset_p3, ioffset_p2, ioffset_p1, ioffset_p0;
 	struct phy_device *phydev = tp->phydev;
-	u16 rlen;
+	u16 ioffset, rlen;
 	u32 data;
 
 	rtl_apply_firmware(tp);
@@ -3223,23 +3238,9 @@ static void rtl8168h_2_hw_phy_config(struct rtl8169_private *tp)
 	/* enable GPHY 10M */
 	phy_modify_paged(tp->phydev, 0x0a44, 0x11, 0, BIT(11));
 
-	r8168_mac_ocp_write(tp, 0xdd02, 0x807d);
-	data = r8168_mac_ocp_read(tp, 0xdd02);
-	ioffset_p3 = ((data & 0x80)>>7);
-	ioffset_p3 <<= 3;
-
-	data = r8168_mac_ocp_read(tp, 0xdd00);
-	ioffset_p3 |= ((data & (0xe000))>>13);
-	ioffset_p2 = ((data & (0x1e00))>>9);
-	ioffset_p1 = ((data & (0x01e0))>>5);
-	ioffset_p0 = ((data & 0x0010)>>4);
-	ioffset_p0 <<= 3;
-	ioffset_p0 |= (data & (0x07));
-	data = (ioffset_p3<<12)|(ioffset_p2<<8)|(ioffset_p1<<4)|(ioffset_p0);
-
-	if ((ioffset_p3 != 0x0f) || (ioffset_p2 != 0x0f) ||
-	    (ioffset_p1 != 0x0f) || (ioffset_p0 != 0x0f))
-		phy_write_paged(phydev, 0x0bcf, 0x16, data);
+	ioffset = rtl8168h_2_get_adc_bias_ioffset(tp);
+	if (ioffset != 0xffff)
+		phy_write_paged(phydev, 0x0bcf, 0x16, ioffset);
 
 	/* Modify rlen (TX LPF corner frequency) level */
 	data = phy_read_paged(phydev, 0x0bcd, 0x16);
