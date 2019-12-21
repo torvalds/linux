@@ -583,6 +583,7 @@ skl_program_plane(struct intel_plane *plane,
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 surf_addr = plane_state->color_plane[color_plane].offset;
 	u32 stride = skl_plane_stride(plane_state, color_plane);
+	u32 aux_dist = plane_state->color_plane[1].offset - surf_addr;
 	u32 aux_stride = skl_plane_stride(plane_state, 1);
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
@@ -624,8 +625,10 @@ skl_program_plane(struct intel_plane *plane,
 	I915_WRITE_FW(PLANE_STRIDE(pipe, plane_id), stride);
 	I915_WRITE_FW(PLANE_POS(pipe, plane_id), (crtc_y << 16) | crtc_x);
 	I915_WRITE_FW(PLANE_SIZE(pipe, plane_id), (src_h << 16) | src_w);
-	I915_WRITE_FW(PLANE_AUX_DIST(pipe, plane_id),
-		      (plane_state->color_plane[1].offset - surf_addr) | aux_stride);
+
+	if (INTEL_GEN(dev_priv) < 12)
+		aux_dist |= aux_stride;
+	I915_WRITE_FW(PLANE_AUX_DIST(pipe, plane_id), aux_dist);
 
 	if (icl_is_hdr_plane(dev_priv, plane_id))
 		I915_WRITE_FW(PLANE_CUS_CTL(pipe, plane_id), plane_state->cus_ctl);
@@ -2102,7 +2105,8 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	    (fb->modifier == I915_FORMAT_MOD_Y_TILED ||
 	     fb->modifier == I915_FORMAT_MOD_Yf_TILED ||
 	     fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
-	     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS)) {
+	     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS ||
+	     fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS)) {
 		DRM_DEBUG_KMS("Y/Yf tiling not supported in IF-ID mode\n");
 		return -EINVAL;
 	}
@@ -2573,7 +2577,8 @@ static const u64 skl_plane_format_modifiers_ccs[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
-static const u64 gen12_plane_format_modifiers_noccs[] = {
+static const u64 gen12_plane_format_modifiers_ccs[] = {
+	I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS,
 	I915_FORMAT_MOD_Y_TILED,
 	I915_FORMAT_MOD_X_TILED,
 	DRM_FORMAT_MOD_LINEAR,
@@ -2744,6 +2749,7 @@ static bool gen12_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_X_TILED:
 	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
 		break;
 	default:
 		return false;
@@ -2754,6 +2760,9 @@ static bool gen12_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_ABGR8888:
+		if (is_ccs_modifier(modifier))
+			return true;
+		/* fall through */
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_XBGR2101010:
@@ -2963,13 +2972,11 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		formats = skl_get_plane_formats(dev_priv, pipe,
 						plane_id, &num_formats);
 
+	plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe, plane_id);
 	if (INTEL_GEN(dev_priv) >= 12) {
-		/* TODO: Implement support for gen-12 CCS modifiers */
-		plane->has_ccs = false;
-		modifiers = gen12_plane_format_modifiers_noccs;
+		modifiers = gen12_plane_format_modifiers_ccs;
 		plane_funcs = &gen12_plane_funcs;
 	} else {
-		plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe, plane_id);
 		if (plane->has_ccs)
 			modifiers = skl_plane_format_modifiers_ccs;
 		else
