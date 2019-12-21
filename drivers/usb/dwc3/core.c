@@ -218,6 +218,7 @@ runtime:
 
 		switch (dwc->current_dr_role) {
 		case DWC3_GCTL_PRTCAP_HOST:
+			phy_power_on(dwc->usb3_generic_phy);
 			ret = dwc3_host_init(dwc);
 			if (ret) {
 				dev_err(dwc->dev,
@@ -248,6 +249,7 @@ runtime:
 	} else {
 		switch (dwc->current_dr_role) {
 		case DWC3_GCTL_PRTCAP_HOST:
+			phy_power_off(dwc->usb3_generic_phy);
 			dwc3_host_exit(dwc);
 			break;
 		case DWC3_GCTL_PRTCAP_DEVICE:
@@ -763,7 +765,13 @@ static void dwc3_core_exit(struct dwc3 *dwc)
 	phy_power_off(dwc->usb3_generic_phy);
 	clk_bulk_disable(dwc->num_clks, dwc->clks);
 	clk_bulk_unprepare(dwc->num_clks, dwc->clks);
-	reset_control_assert(dwc->reset);
+	/*
+	 * We're resetting only the device side, it can avoid to reset the DWC3
+	 * controller when resume from PM suspend which may cause the usb
+	 * device to be reenumerated.
+	 */
+	if (!dwc->drd_connected && dwc->dr_mode == USB_DR_MODE_OTG)
+		reset_control_assert(dwc->reset);
 }
 
 static bool dwc3_core_is_valid(struct dwc3 *dwc)
@@ -1228,6 +1236,15 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 		}
 		break;
 	case USB_DR_MODE_HOST:
+		/*
+		 * To prevent usb device be reenumerated when resume from PM
+		 * suspend, we set the flag dwc->power.can_wakeup which can
+		 * keep PD on and run phy_power_on again to avoid
+		 * phy_power_on failed (error -110) in Rockchip platform.
+		 */
+		device_init_wakeup(dev, true);
+		phy_power_on(dwc->usb3_generic_phy);
+
 		dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_HOST);
 
 		if (dwc->usb2_phy)
@@ -1663,9 +1680,16 @@ static int dwc3_core_init_for_resume(struct dwc3 *dwc)
 {
 	int ret;
 
-	ret = reset_control_deassert(dwc->reset);
-	if (ret)
-		return ret;
+	/*
+	 * We're resetting only the device side, it can avoid to reset the DWC3
+	 * controller when resume from PM suspend which may cause the usb
+	 * device to be reenumerated.
+	 */
+	if (!dwc->drd_connected && dwc->dr_mode == USB_DR_MODE_OTG) {
+		ret = reset_control_deassert(dwc->reset);
+		if (ret)
+			return ret;
+	}
 
 	ret = clk_bulk_prepare(dwc->num_clks, dwc->clks);
 	if (ret)
@@ -1686,7 +1710,8 @@ disable_clks:
 unprepare_clks:
 	clk_bulk_unprepare(dwc->num_clks, dwc->clks);
 assert_reset:
-	reset_control_assert(dwc->reset);
+	if (!dwc->drd_connected && dwc->dr_mode == USB_DR_MODE_OTG)
+		reset_control_assert(dwc->reset);
 
 	return ret;
 }
@@ -1843,7 +1868,7 @@ static int dwc3_runtime_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	device_init_wakeup(dev, true);
+	device_init_wakeup(dev, false);
 
 	return 0;
 }
@@ -1853,7 +1878,7 @@ static int dwc3_runtime_resume(struct device *dev)
 	struct dwc3     *dwc = dev_get_drvdata(dev);
 	int		ret;
 
-	device_init_wakeup(dev, false);
+	device_init_wakeup(dev, true);
 
 	ret = dwc3_resume_common(dwc, PMSG_AUTO_RESUME);
 	if (ret)
@@ -1902,9 +1927,36 @@ static int dwc3_suspend(struct device *dev)
 	struct dwc3	*dwc = dev_get_drvdata(dev);
 	int		ret;
 
+	if (pm_runtime_suspended(dwc->dev))
+		return 0;
+
 	ret = dwc3_suspend_common(dwc, PMSG_SUSPEND);
 	if (ret)
 		return ret;
+
+	/*
+	 * If link state is Rx.Detect, it means that
+	 * no usb device is connecting with the DWC3
+	 * Host, and need to power off the USB3 PHY.
+	 *
+	 * If link state is in other state, like U0
+	 * or U3 state, it means that at least one
+	 * USB3 device is connecting with the Host
+	 * port, in this case, we don't power off
+	 * the USB3 PHY because some USB3 PHYs (like
+	 * RK3399 Type-C USB3 PHY) require that the
+	 * power on operation must be done while the
+	 * DWC3 controller is in P2 state, but the
+	 * state is in P0 after resume with a USB3
+	 * device connected. So we set the USB3 PHY
+	 * in power on state in this case.
+	 */
+	dwc->link_state = dwc3_gadget_get_link_state(dwc);
+	if (dwc->current_dr_role == DWC3_GCTL_PRTCAP_HOST &&
+	    dwc->link_state == DWC3_LINK_STATE_RX_DET) {
+		phy_power_off(dwc->usb3_generic_phy);
+		reset_control_assert(dwc->reset);
+	}
 
 	pinctrl_pm_select_sleep_state(dev);
 
@@ -1916,7 +1968,16 @@ static int dwc3_resume(struct device *dev)
 	struct dwc3	*dwc = dev_get_drvdata(dev);
 	int		ret;
 
+	if (pm_runtime_suspended(dwc->dev))
+		return 0;
+
 	pinctrl_pm_select_default_state(dev);
+
+	if (dwc->current_dr_role == DWC3_GCTL_PRTCAP_HOST &&
+	    dwc->link_state == DWC3_LINK_STATE_RX_DET) {
+		reset_control_deassert(dwc->reset);
+		phy_power_on(dwc->usb3_generic_phy);
+	}
 
 	ret = dwc3_resume_common(dwc, PMSG_RESUME);
 	if (ret)
