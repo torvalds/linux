@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/of.h>
 #include <linux/platform_data/mv_usb.h>
 #include <linux/io.h>
 
@@ -67,6 +68,8 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 {
 	struct device *dev = hcd->self.controller;
 	struct ehci_hcd_mv *ehci_mv = hcd_to_ehci_hcd_mv(hcd);
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	u32 status;
 	int retval;
 
 	if (ehci_mv == NULL) {
@@ -79,6 +82,14 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 	retval = ehci_setup(hcd);
 	if (retval)
 		dev_err(dev, "ehci_setup failed %d\n", retval);
+
+	if (of_usb_get_phy_mode(dev->of_node) == USBPHY_INTERFACE_MODE_HSIC) {
+		status = ehci_readl(ehci, &ehci->regs->port_status[0]);
+		status |= PORT_TEST_FORCE;
+		ehci_writel(ehci, status, &ehci->regs->port_status[0]);
+		status &= ~PORT_TEST_FORCE;
+		ehci_writel(ehci, status, &ehci->regs->port_status[0]);
+	}
 
 	return retval;
 }
