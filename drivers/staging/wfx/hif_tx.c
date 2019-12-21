@@ -366,6 +366,9 @@ int hif_set_edca_queue_params(struct wfx_vif *wvif, u16 queue,
 	struct hif_req_edca_queue_params *body = wfx_alloc_hif(sizeof(*body),
 							       &hif);
 
+	if (!body)
+		return -ENOMEM;
+
 	WARN_ON(arg->aifs > 255);
 	body->aifsn = arg->aifs;
 	body->cw_min = cpu_to_le16(arg->cw_min);
@@ -389,6 +392,9 @@ int hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout)
 	int ret;
 	struct hif_msg *hif;
 	struct hif_req_set_pm_mode *body = wfx_alloc_hif(sizeof(*body), &hif);
+
+	if (!body)
+		return -ENOMEM;
 
 	if (ps) {
 		body->pm_mode.enter_psm = 1;

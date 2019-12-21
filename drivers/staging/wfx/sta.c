@@ -316,6 +316,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
+	int ret = 0;
 
 	WARN_ON(queue >= hw->queues);
 
@@ -326,10 +327,10 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (wvif->vif->type == NL80211_IFTYPE_STATION) {
 		hif_set_uapsd_info(wvif, wvif->uapsd_mask);
 		if (wvif->setbssparams_done && wvif->state == WFX_STATE_STA)
-			wfx_update_pm(wvif);
+			ret = wfx_update_pm(wvif);
 	}
 	mutex_unlock(&wdev->conf_mutex);
-	return 0;
+	return ret;
 }
 
 int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
@@ -1322,7 +1323,7 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		wvif = NULL;
 		while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
-			wfx_update_pm(wvif);
+			ret = wfx_update_pm(wvif);
 		wvif = wdev_to_wvif(wdev, 0);
 	}
 
@@ -1333,7 +1334,7 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 
 int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	int i;
+	int i, ret = 0;
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 
@@ -1417,9 +1418,9 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		else
 			hif_set_block_ack_policy(wvif, 0x00, 0x00);
 		// Combo force powersave mode. We can re-enable it now
-		wfx_update_pm(wvif);
+		ret = wfx_update_pm(wvif);
 	}
-	return 0;
+	return ret;
 }
 
 void wfx_remove_interface(struct ieee80211_hw *hw,
