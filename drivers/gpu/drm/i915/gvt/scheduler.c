@@ -35,12 +35,12 @@
 
 #include <linux/kthread.h>
 
-#include "gem/i915_gem_context.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
 #include "gt/intel_ring.h"
 
 #include "i915_drv.h"
+#include "i915_gem_gtt.h"
 #include "gvt.h"
 
 #define RING_CTX_OFF(x) \
@@ -1220,16 +1220,14 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
 	struct i915_ppgtt *ppgtt;
 	enum intel_engine_id i;
 	int ret;
 
-	ctx = i915_gem_context_create_kernel(i915, I915_PRIORITY_MAX);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	ppgtt = i915_ppgtt_create(i915);
+	if (IS_ERR(ppgtt))
+		return PTR_ERR(ppgtt);
 
-	ppgtt = i915_vm_to_ppgtt(i915_gem_context_get_vm_rcu(ctx));
 	i915_context_ppgtt_root_save(s, ppgtt);
 
 	for_each_engine(engine, i915, i) {
@@ -1238,12 +1236,14 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 		INIT_LIST_HEAD(&s->workload_q_head[i]);
 		s->shadow[i] = ERR_PTR(-EINVAL);
 
-		ce = intel_context_create(ctx, engine);
+		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
 			ret = PTR_ERR(ce);
 			goto out_shadow_ctx;
 		}
 
+		i915_vm_put(ce->vm);
+		ce->vm = i915_vm_get(&ppgtt->vm);
 		intel_context_set_single_submission(ce);
 
 		if (!USES_GUC_SUBMISSION(i915)) { /* Max ring buffer size */
@@ -1278,7 +1278,6 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	bitmap_zero(s->tlb_handle_pending, I915_NUM_ENGINES);
 
 	i915_vm_put(&ppgtt->vm);
-	i915_gem_context_put(ctx);
 	return 0;
 
 out_shadow_ctx:
@@ -1291,7 +1290,6 @@ out_shadow_ctx:
 		intel_context_put(s->shadow[i]);
 	}
 	i915_vm_put(&ppgtt->vm);
-	i915_gem_context_put(ctx);
 	return ret;
 }
 

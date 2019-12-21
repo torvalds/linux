@@ -63,7 +63,6 @@ static void mock_device_release(struct drm_device *dev)
 
 	for_each_engine(engine, &i915->gt, id)
 		mock_engine_free(engine);
-	i915_gem_driver_release__contexts(i915);
 
 	drain_workqueue(i915->wq);
 	i915_gem_drain_freed_objects(i915);
@@ -180,16 +179,13 @@ struct drm_i915_private *mock_gem_device(void)
 	mock_init_contexts(i915);
 
 	mock_init_ggtt(i915, &i915->ggtt);
+	i915->gt.vm = i915_vm_get(&i915->ggtt.vm);
 
 	mkwrite_device_info(i915)->engine_mask = BIT(0);
 
 	i915->engine[RCS0] = mock_engine(i915, "mock", RCS0);
 	if (!i915->engine[RCS0])
 		goto err_unlock;
-
-	i915->kernel_context = mock_context(i915, NULL);
-	if (!i915->kernel_context)
-		goto err_engine;
 
 	if (mock_engine_init(i915->engine[RCS0]))
 		goto err_context;
@@ -199,8 +195,6 @@ struct drm_i915_private *mock_gem_device(void)
 	return i915;
 
 err_context:
-	i915_gem_driver_release__contexts(i915);
-err_engine:
 	mock_engine_free(i915->engine[RCS0]);
 err_unlock:
 	destroy_workqueue(i915->wq);

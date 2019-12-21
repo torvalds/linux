@@ -1375,12 +1375,8 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	 * If everybody agrees to not to write into the scratch page,
 	 * we can reuse it for all vm, keeping contexts and processes separate.
 	 */
-	if (vm->has_read_only &&
-	    vm->i915->kernel_context &&
-	    vm->i915->kernel_context->vm) {
-		struct i915_address_space *clone =
-			rcu_dereference_protected(vm->i915->kernel_context->vm,
-						  true); /* static */
+	if (vm->has_read_only && vm->gt->vm && !i915_is_ggtt(vm->gt->vm)) {
+		struct i915_address_space *clone = vm->gt->vm;
 
 		GEM_BUG_ON(!clone->has_read_only);
 

@@ -109,13 +109,8 @@ i915_gem_context_clear_user_engines(struct i915_gem_context *ctx)
 	clear_bit(CONTEXT_USER_ENGINES, &ctx->flags);
 }
 
-static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
-{
-	return !ctx->file_priv;
-}
-
 /* i915_gem_context.c */
-int __must_check i915_gem_init_contexts(struct drm_i915_private *i915);
+void i915_gem_init__contexts(struct drm_i915_private *i915);
 void i915_gem_driver_release__contexts(struct drm_i915_private *i915);
 
 int i915_gem_context_open(struct drm_i915_private *i915,
@@ -139,9 +134,6 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file);
-
-struct i915_gem_context *
-i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio);
 
 static inline struct i915_gem_context *
 i915_gem_context_get(struct i915_gem_context *ctx)

@@ -1245,6 +1245,9 @@ int i915_vma_unbind(struct i915_vma *vma)
 	struct i915_address_space *vm = vma->vm;
 	int err;
 
+	if (!drm_mm_node_allocated(&vma->node))
+		return 0;
+
 	err = mutex_lock_interruptible(&vm->mutex);
 	if (err)
 		return err;

@@ -70,15 +70,14 @@ static int context_sync(struct intel_context *ce)
 	return err;
 }
 
-static int __live_context_size(struct intel_engine_cs *engine,
-			       struct i915_gem_context *fixme)
+static int __live_context_size(struct intel_engine_cs *engine)
 {
 	struct intel_context *ce;
 	struct i915_request *rq;
 	void *vaddr;
 	int err;
 
-	ce = intel_context_create(fixme, engine);
+	ce = intel_context_create(engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
@@ -146,7 +145,6 @@ static int live_context_size(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *fixme;
 	enum intel_engine_id id;
 	int err = 0;
 
@@ -154,10 +152,6 @@ static int live_context_size(void *arg)
 	 * Check that our context sizes are correct by seeing if the
 	 * HW tries to write past the end of one.
 	 */
-
-	fixme = kernel_context(gt->i915);
-	if (IS_ERR(fixme))
-		return PTR_ERR(fixme);
 
 	for_each_engine(engine, gt, id) {
 		struct {
@@ -183,7 +177,7 @@ static int live_context_size(void *arg)
 		/* Overlaps with the execlists redzone */
 		engine->context_size += I915_GTT_PAGE_SIZE;
 
-		err = __live_context_size(engine, fixme);
+		err = __live_context_size(engine);
 
 		engine->context_size -= I915_GTT_PAGE_SIZE;
 
@@ -196,12 +190,10 @@ static int live_context_size(void *arg)
 			break;
 	}
 
-	kernel_context_close(fixme);
 	return err;
 }
 
-static int __live_active_context(struct intel_engine_cs *engine,
-				 struct i915_gem_context *fixme)
+static int __live_active_context(struct intel_engine_cs *engine)
 {
 	unsigned long saved_heartbeat;
 	struct intel_context *ce;
@@ -227,7 +219,7 @@ static int __live_active_context(struct intel_engine_cs *engine,
 		return -EINVAL;
 	}
 
-	ce = intel_context_create(fixme, engine);
+	ce = intel_context_create(engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
@@ -310,23 +302,11 @@ static int live_active_context(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *fixme;
 	enum intel_engine_id id;
-	struct file *file;
 	int err = 0;
 
-	file = mock_file(gt->i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-
-	fixme = live_context(gt->i915, file);
-	if (IS_ERR(fixme)) {
-		err = PTR_ERR(fixme);
-		goto out_file;
-	}
-
 	for_each_engine(engine, gt, id) {
-		err = __live_active_context(engine, fixme);
+		err = __live_active_context(engine);
 		if (err)
 			break;
 
@@ -335,8 +315,6 @@ static int live_active_context(void *arg)
 			break;
 	}
 
-out_file:
-	fput(file);
 	return err;
 }
 
@@ -368,8 +346,7 @@ unpin:
 	return err;
 }
 
-static int __live_remote_context(struct intel_engine_cs *engine,
-				 struct i915_gem_context *fixme)
+static int __live_remote_context(struct intel_engine_cs *engine)
 {
 	struct intel_context *local, *remote;
 	unsigned long saved_heartbeat;
@@ -390,11 +367,11 @@ static int __live_remote_context(struct intel_engine_cs *engine,
 		return -EINVAL;
 	}
 
-	remote = intel_context_create(fixme, engine);
+	remote = intel_context_create(engine);
 	if (IS_ERR(remote))
 		return PTR_ERR(remote);
 
-	local = intel_context_create(fixme, engine);
+	local = intel_context_create(engine);
 	if (IS_ERR(local)) {
 		err = PTR_ERR(local);
 		goto err_remote;
@@ -434,23 +411,11 @@ static int live_remote_context(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *fixme;
 	enum intel_engine_id id;
-	struct file *file;
 	int err = 0;
 
-	file = mock_file(gt->i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-
-	fixme = live_context(gt->i915, file);
-	if (IS_ERR(fixme)) {
-		err = PTR_ERR(fixme);
-		goto out_file;
-	}
-
 	for_each_engine(engine, gt, id) {
-		err = __live_remote_context(engine, fixme);
+		err = __live_remote_context(engine);
 		if (err)
 			break;
 
@@ -459,8 +424,6 @@ static int live_remote_context(void *arg)
 			break;
 	}
 
-out_file:
-	fput(file);
 	return err;
 }
 

@@ -337,7 +337,7 @@ static int live_parallel_switch(void *arg)
 			if (!data[m].ce[0])
 				continue;
 
-			ce = intel_context_create(ctx, data[m].ce[0]->engine);
+			ce = intel_context_create(data[m].ce[0]->engine);
 			if (IS_ERR(ce))
 				goto out;
 
@@ -1264,8 +1264,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 			hweight32(engine->sseu.slice_mask),
 			hweight32(pg_sseu.slice_mask));
 
-		ce = intel_context_create(engine->kernel_context->gem_context,
-					  engine);
+		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
 			ret = PTR_ERR(ce);
 			goto out_put;

@@ -200,8 +200,7 @@ static int __live_heartbeat_fast(struct intel_engine_cs *engine)
 	int err;
 	int i;
 
-	ce = intel_context_create(engine->kernel_context->gem_context,
-				  engine);
+	ce = intel_context_create(engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 

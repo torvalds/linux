@@ -2323,9 +2323,6 @@ static int oa_configure_all_contexts(struct i915_perf_stream *stream,
 	 */
 	spin_lock(&i915->gem.contexts.lock);
 	list_for_each_entry_safe(ctx, cn, &i915->gem.contexts.list, link) {
-		if (ctx == i915->kernel_context)
-			continue;
-
 		if (!kref_get_unless_zero(&ctx->ref))
 			continue;
 

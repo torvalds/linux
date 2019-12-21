@@ -50,14 +50,31 @@ static struct i915_vma *create_scratch(struct intel_gt *gt)
 	return vma;
 }
 
+static void engine_heartbeat_disable(struct intel_engine_cs *engine,
+				     unsigned long *saved)
+{
+	*saved = engine->props.heartbeat_interval_ms;
+	engine->props.heartbeat_interval_ms = 0;
+
+	intel_engine_pm_get(engine);
+	intel_engine_park_heartbeat(engine);
+}
+
+static void engine_heartbeat_enable(struct intel_engine_cs *engine,
+				    unsigned long saved)
+{
+	intel_engine_pm_put(engine);
+
+	engine->props.heartbeat_interval_ms = saved;
+}
+
 static int live_sanitycheck(void *arg)
 {
 	struct intel_gt *gt = arg;
-	struct i915_gem_engines_iter it;
-	struct i915_gem_context *ctx;
-	struct intel_context *ce;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	struct igt_spinner spin;
-	int err = -ENOMEM;
+	int err = 0;
 
 	if (!HAS_LOGICAL_RING_CONTEXTS(gt->i915))
 		return 0;
@@ -65,17 +82,20 @@ static int live_sanitycheck(void *arg)
 	if (igt_spinner_init(&spin, gt))
 		return -ENOMEM;
 
-	ctx = kernel_context(gt->i915);
-	if (!ctx)
-		goto err_spin;
-
-	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+	for_each_engine(engine, gt, id) {
+		struct intel_context *ce;
 		struct i915_request *rq;
+
+		ce = intel_context_create(engine);
+		if (IS_ERR(ce)) {
+			err = PTR_ERR(ce);
+			break;
+		}
 
 		rq = igt_spinner_create_request(&spin, ce, MI_NOOP);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			goto err_ctx;
+			goto out_ctx;
 		}
 
 		i915_request_add(rq);
@@ -84,21 +104,21 @@ static int live_sanitycheck(void *arg)
 			GEM_TRACE_DUMP();
 			intel_gt_set_wedged(gt);
 			err = -EIO;
-			goto err_ctx;
+			goto out_ctx;
 		}
 
 		igt_spinner_end(&spin);
 		if (igt_flush_test(gt->i915)) {
 			err = -EIO;
-			goto err_ctx;
+			goto out_ctx;
 		}
+
+out_ctx:
+		intel_context_put(ce);
+		if (err)
+			break;
 	}
 
-	err = 0;
-err_ctx:
-	i915_gem_context_unlock_engines(ctx);
-	kernel_context_close(ctx);
-err_spin:
 	igt_spinner_fini(&spin);
 	return err;
 }
@@ -106,7 +126,6 @@ err_spin:
 static int live_unlite_restore(struct intel_gt *gt, int prio)
 {
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
 	struct igt_spinner spin;
 	int err = -ENOMEM;
@@ -119,15 +138,12 @@ static int live_unlite_restore(struct intel_gt *gt, int prio)
 	if (igt_spinner_init(&spin, gt))
 		return err;
 
-	ctx = kernel_context(gt->i915);
-	if (!ctx)
-		goto err_spin;
-
 	err = 0;
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce[2] = {};
 		struct i915_request *rq[2];
 		struct igt_live_test t;
+		unsigned long saved;
 		int n;
 
 		if (prio && !intel_engine_has_preemption(engine))
@@ -140,11 +156,12 @@ static int live_unlite_restore(struct intel_gt *gt, int prio)
 			err = -EIO;
 			break;
 		}
+		engine_heartbeat_disable(engine, &saved);
 
 		for (n = 0; n < ARRAY_SIZE(ce); n++) {
 			struct intel_context *tmp;
 
-			tmp = intel_context_create(ctx, engine);
+			tmp = intel_context_create(engine);
 			if (IS_ERR(tmp)) {
 				err = PTR_ERR(tmp);
 				goto err_ce;
@@ -247,14 +264,13 @@ err_ce:
 			intel_context_put(ce[n]);
 		}
 
+		engine_heartbeat_enable(engine, saved);
 		if (igt_live_test_end(&t))
 			err = -EIO;
 		if (err)
 			break;
 	}
 
-	kernel_context_close(ctx);
-err_spin:
 	igt_spinner_fini(&spin);
 	return err;
 }
@@ -309,17 +325,17 @@ emit_semaphore_chain(struct i915_request *rq, struct i915_vma *vma, int idx)
 static struct i915_request *
 semaphore_queue(struct intel_engine_cs *engine, struct i915_vma *vma, int idx)
 {
-	struct i915_gem_context *ctx;
+	struct intel_context *ce;
 	struct i915_request *rq;
 	int err;
 
-	ctx = kernel_context(engine->i915);
-	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+	ce = intel_context_create(engine);
+	if (IS_ERR(ce))
+		return ERR_CAST(ce);
 
-	rq = igt_request_alloc(ctx, engine);
+	rq = intel_context_create_request(ce);
 	if (IS_ERR(rq))
-		goto out_ctx;
+		goto out_ce;
 
 	err = 0;
 	if (rq->engine->emit_init_breadcrumb)
@@ -332,8 +348,8 @@ semaphore_queue(struct intel_engine_cs *engine, struct i915_vma *vma, int idx)
 	if (err)
 		rq = ERR_PTR(err);
 
-out_ctx:
-	kernel_context_close(ctx);
+out_ce:
+	intel_context_put(ce);
 	return rq;
 }
 
@@ -468,12 +484,16 @@ static int live_timeslice_preempt(void *arg)
 		enum intel_engine_id id;
 
 		for_each_engine(engine, gt, id) {
+			unsigned long saved;
+
 			if (!intel_engine_has_preemption(engine))
 				continue;
 
 			memset(vaddr, 0, PAGE_SIZE);
 
+			engine_heartbeat_disable(engine, &saved);
 			err = slice_semaphore_queue(engine, vma, count);
+			engine_heartbeat_enable(engine, saved);
 			if (err)
 				goto err_pin;
 
@@ -566,17 +586,19 @@ static int live_timeslice_queue(void *arg)
 			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
 		};
 		struct i915_request *rq, *nop;
+		unsigned long saved;
 
 		if (!intel_engine_has_preemption(engine))
 			continue;
 
+		engine_heartbeat_disable(engine, &saved);
 		memset(vaddr, 0, PAGE_SIZE);
 
 		/* ELSP[0]: semaphore wait */
 		rq = semaphore_queue(engine, vma, 0);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			goto err_pin;
+			goto err_heartbeat;
 		}
 		engine->schedule(rq, &attr);
 		wait_for_submit(engine, rq);
@@ -585,8 +607,7 @@ static int live_timeslice_queue(void *arg)
 		nop = nop_request(engine);
 		if (IS_ERR(nop)) {
 			err = PTR_ERR(nop);
-			i915_request_put(rq);
-			goto err_pin;
+			goto err_rq;
 		}
 		wait_for_submit(engine, nop);
 		i915_request_put(nop);
@@ -596,10 +617,8 @@ static int live_timeslice_queue(void *arg)
 
 		/* Queue: semaphore signal, matching priority as semaphore */
 		err = release_queue(engine, vma, 1, effective_prio(rq));
-		if (err) {
-			i915_request_put(rq);
-			goto err_pin;
-		}
+		if (err)
+			goto err_rq;
 
 		intel_engine_flush_submission(engine);
 		if (!READ_ONCE(engine->execlists.timer.expires) &&
@@ -630,12 +649,14 @@ static int live_timeslice_queue(void *arg)
 			memset(vaddr, 0xff, PAGE_SIZE);
 			err = -EIO;
 		}
+err_rq:
 		i915_request_put(rq);
+err_heartbeat:
+		engine_heartbeat_enable(engine, saved);
 		if (err)
 			break;
 	}
 
-err_pin:
 	i915_vma_unpin(vma);
 err_map:
 	i915_gem_object_unpin_map(obj);
@@ -1956,7 +1977,7 @@ static int create_gang(struct intel_engine_cs *engine,
 	u32 *cs;
 	int err;
 
-	ce = intel_context_create(engine->kernel_context->gem_context, engine);
+	ce = intel_context_create(engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
@@ -2618,27 +2639,17 @@ static int nop_virtual_engine(struct intel_gt *gt,
 {
 	IGT_TIMEOUT(end_time);
 	struct i915_request *request[16] = {};
-	struct i915_gem_context *ctx[16];
 	struct intel_context *ve[16];
 	unsigned long n, prime, nc;
 	struct igt_live_test t;
 	ktime_t times[2] = {};
 	int err;
 
-	GEM_BUG_ON(!nctx || nctx > ARRAY_SIZE(ctx));
+	GEM_BUG_ON(!nctx || nctx > ARRAY_SIZE(ve));
 
 	for (n = 0; n < nctx; n++) {
-		ctx[n] = kernel_context(gt->i915);
-		if (!ctx[n]) {
-			err = -ENOMEM;
-			nctx = n;
-			goto out;
-		}
-
-		ve[n] = intel_execlists_create_virtual(ctx[n],
-						       siblings, nsibling);
+		ve[n] = intel_execlists_create_virtual(siblings, nsibling);
 		if (IS_ERR(ve[n])) {
-			kernel_context_close(ctx[n]);
 			err = PTR_ERR(ve[n]);
 			nctx = n;
 			goto out;
@@ -2647,7 +2658,6 @@ static int nop_virtual_engine(struct intel_gt *gt,
 		err = intel_context_pin(ve[n]);
 		if (err) {
 			intel_context_put(ve[n]);
-			kernel_context_close(ctx[n]);
 			nctx = n;
 			goto out;
 		}
@@ -2742,7 +2752,6 @@ out:
 		i915_request_put(request[nc]);
 		intel_context_unpin(ve[nc]);
 		intel_context_put(ve[nc]);
-		kernel_context_close(ctx[nc]);
 	}
 	return err;
 }
@@ -2801,7 +2810,6 @@ static int mask_virtual_engine(struct intel_gt *gt,
 			       unsigned int nsibling)
 {
 	struct i915_request *request[MAX_ENGINE_INSTANCE + 1];
-	struct i915_gem_context *ctx;
 	struct intel_context *ve;
 	struct igt_live_test t;
 	unsigned int n;
@@ -2812,11 +2820,7 @@ static int mask_virtual_engine(struct intel_gt *gt,
 	 * restrict it to our desired engine within the virtual engine.
 	 */
 
-	ctx = kernel_context(gt->i915);
-	if (!ctx)
-		return -ENOMEM;
-
-	ve = intel_execlists_create_virtual(ctx, siblings, nsibling);
+	ve = intel_execlists_create_virtual(siblings, nsibling);
 	if (IS_ERR(ve)) {
 		err = PTR_ERR(ve);
 		goto out_close;
@@ -2884,7 +2888,6 @@ out_unpin:
 out_put:
 	intel_context_put(ve);
 out_close:
-	kernel_context_close(ctx);
 	return err;
 }
 
@@ -2924,7 +2927,6 @@ static int preserved_virtual_engine(struct intel_gt *gt,
 				    unsigned int nsibling)
 {
 	struct i915_request *last = NULL;
-	struct i915_gem_context *ctx;
 	struct intel_context *ve;
 	struct i915_vma *scratch;
 	struct igt_live_test t;
@@ -2932,17 +2934,11 @@ static int preserved_virtual_engine(struct intel_gt *gt,
 	int err = 0;
 	u32 *cs;
 
-	ctx = kernel_context(gt->i915);
-	if (!ctx)
-		return -ENOMEM;
-
 	scratch = create_scratch(siblings[0]->gt);
-	if (IS_ERR(scratch)) {
-		err = PTR_ERR(scratch);
-		goto out_close;
-	}
+	if (IS_ERR(scratch))
+		return PTR_ERR(scratch);
 
-	ve = intel_execlists_create_virtual(ctx, siblings, nsibling);
+	ve = intel_execlists_create_virtual(siblings, nsibling);
 	if (IS_ERR(ve)) {
 		err = PTR_ERR(ve);
 		goto out_scratch;
@@ -3025,8 +3021,6 @@ out_put:
 	intel_context_put(ve);
 out_scratch:
 	i915_vma_unpin_and_release(&scratch, 0);
-out_close:
-	kernel_context_close(ctx);
 	return err;
 }
 
@@ -3078,7 +3072,6 @@ static int bond_virtual_engine(struct intel_gt *gt,
 #define BOND_SCHEDULE BIT(0)
 {
 	struct intel_engine_cs *master;
-	struct i915_gem_context *ctx;
 	struct i915_request *rq[16];
 	enum intel_engine_id id;
 	struct igt_spinner spin;
@@ -3129,12 +3122,6 @@ static int bond_virtual_engine(struct intel_gt *gt,
 	if (igt_spinner_init(&spin, gt))
 		return -ENOMEM;
 
-	ctx = kernel_context(gt->i915);
-	if (!ctx) {
-		err = -ENOMEM;
-		goto err_spin;
-	}
-
 	err = 0;
 	rq[0] = ERR_PTR(-ENOMEM);
 	for_each_engine(master, gt, id) {
@@ -3145,7 +3132,9 @@ static int bond_virtual_engine(struct intel_gt *gt,
 
 		memset_p((void *)rq, ERR_PTR(-EINVAL), ARRAY_SIZE(rq));
 
-		rq[0] = spinner_create_request(&spin, ctx, master, MI_NOOP);
+		rq[0] = igt_spinner_create_request(&spin,
+						   master->kernel_context,
+						   MI_NOOP);
 		if (IS_ERR(rq[0])) {
 			err = PTR_ERR(rq[0]);
 			goto out;
@@ -3172,9 +3161,7 @@ static int bond_virtual_engine(struct intel_gt *gt,
 		for (n = 0; n < nsibling; n++) {
 			struct intel_context *ve;
 
-			ve = intel_execlists_create_virtual(ctx,
-							    siblings,
-							    nsibling);
+			ve = intel_execlists_create_virtual(siblings, nsibling);
 			if (IS_ERR(ve)) {
 				err = PTR_ERR(ve);
 				onstack_fence_fini(&fence);
@@ -3254,8 +3241,6 @@ out:
 	if (igt_flush_test(gt->i915))
 		err = -EIO;
 
-	kernel_context_close(ctx);
-err_spin:
 	igt_spinner_fini(&spin);
 	return err;
 }
@@ -3567,8 +3552,7 @@ static int live_lrc_fixed(void *arg)
 	return err;
 }
 
-static int __live_lrc_state(struct i915_gem_context *fixme,
-			    struct intel_engine_cs *engine,
+static int __live_lrc_state(struct intel_engine_cs *engine,
 			    struct i915_vma *scratch)
 {
 	struct intel_context *ce;
@@ -3583,7 +3567,7 @@ static int __live_lrc_state(struct i915_gem_context *fixme,
 	int err;
 	int n;
 
-	ce = intel_context_create(fixme, engine);
+	ce = intel_context_create(engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
@@ -3657,7 +3641,6 @@ static int live_lrc_state(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *fixme;
 	struct i915_vma *scratch;
 	enum intel_engine_id id;
 	int err = 0;
@@ -3667,18 +3650,12 @@ static int live_lrc_state(void *arg)
 	 * intel_context.
 	 */
 
-	fixme = kernel_context(gt->i915);
-	if (!fixme)
-		return -ENOMEM;
-
 	scratch = create_scratch(gt);
-	if (IS_ERR(scratch)) {
-		err = PTR_ERR(scratch);
-		goto out_close;
-	}
+	if (IS_ERR(scratch))
+		return PTR_ERR(scratch);
 
 	for_each_engine(engine, gt, id) {
-		err = __live_lrc_state(fixme, engine, scratch);
+		err = __live_lrc_state(engine, scratch);
 		if (err)
 			break;
 	}
@@ -3687,8 +3664,6 @@ static int live_lrc_state(void *arg)
 		err = -EIO;
 
 	i915_vma_unpin_and_release(&scratch, 0);
-out_close:
-	kernel_context_close(fixme);
 	return err;
 }
 
@@ -3721,8 +3696,7 @@ static int gpr_make_dirty(struct intel_engine_cs *engine)
 	return 0;
 }
 
-static int __live_gpr_clear(struct i915_gem_context *fixme,
-			    struct intel_engine_cs *engine,
+static int __live_gpr_clear(struct intel_engine_cs *engine,
 			    struct i915_vma *scratch)
 {
 	struct intel_context *ce;
@@ -3738,7 +3712,7 @@ static int __live_gpr_clear(struct i915_gem_context *fixme,
 	if (err)
 		return err;
 
-	ce = intel_context_create(fixme, engine);
+	ce = intel_context_create(engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
@@ -3800,7 +3774,6 @@ static int live_gpr_clear(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *fixme;
 	struct i915_vma *scratch;
 	enum intel_engine_id id;
 	int err = 0;
@@ -3810,18 +3783,12 @@ static int live_gpr_clear(void *arg)
 	 * to avoid leaking any information from previous contexts.
 	 */
 
-	fixme = kernel_context(gt->i915);
-	if (!fixme)
-		return -ENOMEM;
-
 	scratch = create_scratch(gt);
-	if (IS_ERR(scratch)) {
-		err = PTR_ERR(scratch);
-		goto out_close;
-	}
+	if (IS_ERR(scratch))
+		return PTR_ERR(scratch);
 
 	for_each_engine(engine, gt, id) {
-		err = __live_gpr_clear(fixme, engine, scratch);
+		err = __live_gpr_clear(engine, scratch);
 		if (err)
 			break;
 	}
@@ -3830,8 +3797,6 @@ static int live_gpr_clear(void *arg)
 		err = -EIO;
 
 	i915_vma_unpin_and_release(&scratch, 0);
-out_close:
-	kernel_context_close(fixme);
 	return err;
 }
 

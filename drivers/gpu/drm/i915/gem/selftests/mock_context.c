@@ -96,7 +96,16 @@ err_ctx:
 struct i915_gem_context *
 kernel_context(struct drm_i915_private *i915)
 {
-	return i915_gem_context_create_kernel(i915, I915_PRIORITY_NORMAL);
+	struct i915_gem_context *ctx;
+
+	ctx = i915_gem_create_context(i915, 0);
+	if (IS_ERR(ctx))
+		return ctx;
+
+	i915_gem_context_clear_bannable(ctx);
+	i915_gem_context_set_persistence(ctx);
+
+	return ctx;
 }
 
 void kernel_context_close(struct i915_gem_context *ctx)

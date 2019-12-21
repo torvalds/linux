@@ -955,9 +955,6 @@ struct drm_i915_private {
 
 	struct pci_dev *bridge_dev;
 
-	/* Context used internally to idle the GPU and setup initial state */
-	struct i915_gem_context *kernel_context;
-
 	struct intel_engine_cs *engine[I915_NUM_ENGINES];
 	struct rb_root uabi_engines;
 

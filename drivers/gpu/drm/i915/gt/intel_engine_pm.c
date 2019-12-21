@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 
+#include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
@@ -121,6 +122,8 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	struct i915_request *rq;
 	unsigned long flags;
 	bool result = true;
+
+	GEM_BUG_ON(!intel_context_is_barrier(ce));
 
 	/* Already inside the kernel context, safe to power down. */
 	if (engine->wakeref_serial == engine->serial)

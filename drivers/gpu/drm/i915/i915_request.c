@@ -1301,8 +1301,8 @@ void __i915_request_queue(struct i915_request *rq,
 
 void i915_request_add(struct i915_request *rq)
 {
-	struct i915_sched_attr attr = rq->context->gem_context->sched;
 	struct intel_timeline * const tl = i915_request_timeline(rq);
+	struct i915_sched_attr attr = {};
 	struct i915_request *prev;
 
 	lockdep_assert_held(&tl->mutex);
@@ -1311,6 +1311,9 @@ void i915_request_add(struct i915_request *rq)
 	trace_i915_request_add(rq);
 
 	prev = __i915_request_commit(rq);
+
+	if (rq->context->gem_context)
+		attr = rq->context->gem_context->sched;
 
 	/*
 	 * Boost actual workloads past semaphores!

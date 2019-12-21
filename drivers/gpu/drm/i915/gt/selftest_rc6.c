@@ -160,8 +160,7 @@ int live_rc6_ctx_wa(void *arg)
 			const u32 *res;
 
 			/* Use a sacrifical context */
-			ce = intel_context_create(engine->kernel_context->gem_context,
-						  engine);
+			ce = intel_context_create(engine);
 			if (IS_ERR(ce)) {
 				err = PTR_ERR(ce);
 				goto out;

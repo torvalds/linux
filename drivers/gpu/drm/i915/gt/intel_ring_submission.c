@@ -1553,7 +1553,7 @@ static int remap_l3(struct i915_request *rq)
 	struct i915_gem_context *ctx = rq->context->gem_context;
 	int i, err;
 
-	if (!ctx->remap_slice)
+	if (!ctx || !ctx->remap_slice)
 		return 0;
 
 	for (i = 0; i < MAX_L3_SLICES; i++) {

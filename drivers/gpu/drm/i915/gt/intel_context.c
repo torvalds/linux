@@ -31,8 +31,7 @@ void intel_context_free(struct intel_context *ce)
 }
 
 struct intel_context *
-intel_context_create(struct i915_gem_context *ctx,
-		     struct intel_engine_cs *engine)
+intel_context_create(struct intel_engine_cs *engine)
 {
 	struct intel_context *ce;
 
@@ -40,7 +39,7 @@ intel_context_create(struct i915_gem_context *ctx,
 	if (!ce)
 		return ERR_PTR(-ENOMEM);
 
-	intel_context_init(ce, ctx, engine);
+	intel_context_init(ce, engine);
 	return ce;
 }
 
@@ -71,8 +70,6 @@ int __intel_context_do_pin(struct intel_context *ce)
 		CE_TRACE(ce, "pin ring:{head:%04x, tail:%04x}\n",
 			 ce->ring->head, ce->ring->tail);
 
-		i915_gem_context_get(ce->gem_context); /* for ctx->ppgtt */
-
 		smp_mb__before_atomic(); /* flush pin before it is visible */
 	}
 
@@ -101,7 +98,6 @@ void intel_context_unpin(struct intel_context *ce)
 
 		ce->ops->unpin(ce);
 
-		i915_gem_context_put(ce->gem_context);
 		intel_context_active_release(ce);
 	}
 
@@ -193,7 +189,7 @@ int intel_context_active_acquire(struct intel_context *ce)
 		return err;
 
 	/* Preallocate tracking nodes */
-	if (!i915_gem_context_is_kernel(ce->gem_context)) {
+	if (!intel_context_is_barrier(ce)) {
 		err = i915_active_acquire_preallocate_barrier(&ce->active,
 							      ce->engine);
 		if (err) {
@@ -214,33 +210,19 @@ void intel_context_active_release(struct intel_context *ce)
 
 void
 intel_context_init(struct intel_context *ce,
-		   struct i915_gem_context *ctx,
 		   struct intel_engine_cs *engine)
 {
-	struct i915_address_space *vm;
-
 	GEM_BUG_ON(!engine->cops);
+	GEM_BUG_ON(!engine->gt->vm);
 
 	kref_init(&ce->ref);
-
-	ce->gem_context = ctx;
-	rcu_read_lock();
-	vm = rcu_dereference(ctx->vm);
-	if (vm)
-		ce->vm = i915_vm_get(vm);
-	else
-		ce->vm = i915_vm_get(&engine->gt->ggtt->vm);
-	rcu_read_unlock();
-	if (ctx->timeline)
-		ce->timeline = intel_timeline_get(ctx->timeline);
-	if (ctx->sched.priority >= I915_PRIORITY_NORMAL &&
-	    intel_engine_has_semaphores(engine))
-		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
 
 	ce->engine = engine;
 	ce->ops = engine->cops;
 	ce->sseu = engine->sseu;
-	ce->ring = __intel_context_ring_size(SZ_16K);
+	ce->ring = __intel_context_ring_size(SZ_4K);
+
+	ce->vm = i915_vm_get(engine->gt->vm);
 
 	INIT_LIST_HEAD(&ce->signal_link);
 	INIT_LIST_HEAD(&ce->signals);

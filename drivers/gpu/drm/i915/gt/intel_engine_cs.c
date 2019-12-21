@@ -759,13 +759,13 @@ create_kernel_context(struct intel_engine_cs *engine)
 	struct intel_context *ce;
 	int err;
 
-	ce = intel_context_create(engine->i915->kernel_context, engine);
+	ce = intel_context_create(engine);
 	if (IS_ERR(ce))
 		return ce;
 
-	ce->ring = __intel_context_ring_size(SZ_4K);
+	__set_bit(CONTEXT_BARRIER_BIT, &ce->flags);
 
-	err = intel_context_pin(ce);
+	err = intel_context_pin(ce); /* perma-pin so it is always available */
 	if (err) {
 		intel_context_put(ce);
 		return ERR_PTR(err);
@@ -800,6 +800,12 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 
 	engine->set_default_submission(engine);
 
+	ret = measure_breadcrumb_dw(engine);
+	if (ret < 0)
+		return ret;
+
+	engine->emit_fini_breadcrumb_dw = ret;
+
 	/*
 	 * We may need to do things with the shrinker which
 	 * require us to immediately switch back to the default
@@ -814,18 +820,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 
 	engine->kernel_context = ce;
 
-	ret = measure_breadcrumb_dw(engine);
-	if (ret < 0)
-		goto err_unpin;
-
-	engine->emit_fini_breadcrumb_dw = ret;
-
 	return 0;
-
-err_unpin:
-	intel_context_unpin(ce);
-	intel_context_put(ce);
-	return ret;
 }
 
 /**

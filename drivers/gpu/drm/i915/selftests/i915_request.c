@@ -749,10 +749,8 @@ out_batch:
 
 static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 {
-	struct i915_gem_context *ctx = i915->kernel_context;
 	struct drm_i915_gem_object *obj;
 	const int gen = INTEL_GEN(i915);
-	struct i915_address_space *vm;
 	struct i915_vma *vma;
 	u32 *cmd;
 	int err;
@@ -761,9 +759,7 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	vm = i915_gem_context_get_vm_rcu(ctx);
-	vma = i915_vma_instance(obj, vm, NULL);
-	i915_vm_put(vm);
+	vma = i915_vma_instance(obj, i915->gt.vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;

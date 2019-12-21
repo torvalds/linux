@@ -209,6 +209,35 @@ context_get_vm_rcu(struct i915_gem_context *ctx)
 	} while (1);
 }
 
+static void intel_context_set_gem(struct intel_context *ce,
+				  struct i915_gem_context *ctx)
+{
+	GEM_BUG_ON(ce->gem_context);
+	ce->gem_context = ctx;
+
+	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))
+		ce->ring = __intel_context_ring_size(SZ_16K);
+
+	if (rcu_access_pointer(ctx->vm)) {
+		struct i915_address_space *vm;
+
+		rcu_read_lock();
+		vm = context_get_vm_rcu(ctx); /* hmm */
+		rcu_read_unlock();
+
+		i915_vm_put(ce->vm);
+		ce->vm = vm;
+	}
+
+	GEM_BUG_ON(ce->timeline);
+	if (ctx->timeline)
+		ce->timeline = intel_timeline_get(ctx->timeline);
+
+	if (ctx->sched.priority >= I915_PRIORITY_NORMAL &&
+	    intel_engine_has_semaphores(ce->engine))
+		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
+}
+
 static void __free_engines(struct i915_gem_engines *e, unsigned int count)
 {
 	while (count--) {
@@ -251,11 +280,13 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 		GEM_BUG_ON(engine->legacy_idx >= I915_NUM_ENGINES);
 		GEM_BUG_ON(e->engines[engine->legacy_idx]);
 
-		ce = intel_context_create(ctx, engine);
+		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
 			__free_engines(e, e->num_engines + 1);
 			return ERR_CAST(ce);
 		}
+
+		intel_context_set_gem(ce, ctx);
 
 		e->engines[engine->legacy_idx] = ce;
 		e->num_engines = max(e->num_engines, engine->legacy_idx);
@@ -706,37 +737,6 @@ i915_gem_create_context(struct drm_i915_private *i915, unsigned int flags)
 	return ctx;
 }
 
-static void
-destroy_kernel_context(struct i915_gem_context **ctxp)
-{
-	struct i915_gem_context *ctx;
-
-	/* Keep the context ref so that we can free it immediately ourselves */
-	ctx = i915_gem_context_get(fetch_and_zero(ctxp));
-	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
-
-	context_close(ctx);
-	i915_gem_context_free(ctx);
-}
-
-struct i915_gem_context *
-i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
-{
-	struct i915_gem_context *ctx;
-
-	ctx = i915_gem_create_context(i915, 0);
-	if (IS_ERR(ctx))
-		return ctx;
-
-	i915_gem_context_clear_bannable(ctx);
-	i915_gem_context_set_persistence(ctx);
-	ctx->sched.priority = I915_USER_PRIORITY(prio);
-
-	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
-
-	return ctx;
-}
-
 static void init_contexts(struct i915_gem_contexts *gc)
 {
 	spin_lock_init(&gc->lock);
@@ -746,32 +746,16 @@ static void init_contexts(struct i915_gem_contexts *gc)
 	init_llist_head(&gc->free_list);
 }
 
-int i915_gem_init_contexts(struct drm_i915_private *i915)
+void i915_gem_init__contexts(struct drm_i915_private *i915)
 {
-	struct i915_gem_context *ctx;
-
-	/* Reassure ourselves we are only called once */
-	GEM_BUG_ON(i915->kernel_context);
-
 	init_contexts(&i915->gem.contexts);
-
-	/* lowest priority; idle task */
-	ctx = i915_gem_context_create_kernel(i915, I915_PRIORITY_MIN);
-	if (IS_ERR(ctx)) {
-		DRM_ERROR("Failed to create default global context\n");
-		return PTR_ERR(ctx);
-	}
-	i915->kernel_context = ctx;
-
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
 			 DRIVER_CAPS(i915)->has_logical_contexts ?
 			 "logical" : "fake");
-	return 0;
 }
 
 void i915_gem_driver_release__contexts(struct drm_i915_private *i915)
 {
-	destroy_kernel_context(&i915->kernel_context);
 	flush_work(&i915->gem.contexts.free_work);
 }
 
@@ -840,7 +824,6 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 	if (err < 0)
 		goto err_ctx;
 
-	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
 	GEM_BUG_ON(err > 0);
 
 	return 0;
@@ -1531,11 +1514,13 @@ set_engines__load_balance(struct i915_user_extension __user *base, void *data)
 		}
 	}
 
-	ce = intel_execlists_create_virtual(set->ctx, siblings, n);
+	ce = intel_execlists_create_virtual(siblings, n);
 	if (IS_ERR(ce)) {
 		err = PTR_ERR(ce);
 		goto out_siblings;
 	}
+
+	intel_context_set_gem(ce, set->ctx);
 
 	if (cmpxchg(&set->engines->engines[idx], NULL, ce)) {
 		intel_context_put(ce);
@@ -1706,11 +1691,13 @@ set_engines(struct i915_gem_context *ctx,
 			return -ENOENT;
 		}
 
-		ce = intel_context_create(ctx, engine);
+		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
 			__free_engines(set.engines, n);
 			return PTR_ERR(ce);
 		}
+
+		intel_context_set_gem(ce, ctx);
 
 		set.engines->engines[n] = ce;
 	}
@@ -2016,13 +2003,15 @@ static int clone_engines(struct i915_gem_context *dst,
 		 */
 		if (intel_engine_is_virtual(engine))
 			clone->engines[n] =
-				intel_execlists_clone_virtual(dst, engine);
+				intel_execlists_clone_virtual(engine);
 		else
-			clone->engines[n] = intel_context_create(dst, engine);
+			clone->engines[n] = intel_context_create(engine);
 		if (IS_ERR_OR_NULL(clone->engines[n])) {
 			__free_engines(clone, n);
 			goto err_unlock;
 		}
+
+		intel_context_set_gem(clone->engines[n], dst);
 	}
 	clone->num_engines = n;
 

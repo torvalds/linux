@@ -1123,8 +1123,7 @@ static int __intel_engines_record_defaults(struct intel_gt *gt)
 		GEM_BUG_ON(!engine->kernel_context);
 		engine->serial++; /* force the kernel context switch */
 
-		ce = intel_context_create(engine->kernel_context->gem_context,
-					  engine);
+		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
 			err = PTR_ERR(ce);
 			goto out;
@@ -1174,6 +1173,7 @@ err_rq:
 			continue;
 
 		/* Serialise with retirement on another CPU */
+		GEM_BUG_ON(!i915_request_completed(rq));
 		err = __intel_context_flush_retire(rq->context);
 		if (err)
 			goto out;
@@ -1284,6 +1284,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	}
 
 	intel_gt_init(&dev_priv->gt);
+	i915_gem_init__contexts(dev_priv);
 
 	ret = intel_engines_setup(&dev_priv->gt);
 	if (ret) {
@@ -1291,16 +1292,10 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		goto err_unlock;
 	}
 
-	ret = i915_gem_init_contexts(dev_priv);
-	if (ret) {
-		GEM_BUG_ON(ret == -EIO);
-		goto err_scratch;
-	}
-
 	ret = intel_engines_init(&dev_priv->gt);
 	if (ret) {
 		GEM_BUG_ON(ret == -EIO);
-		goto err_context;
+		goto err_scratch;
 	}
 
 	intel_uc_init(&dev_priv->gt.uc);
@@ -1364,9 +1359,6 @@ err_uc_init:
 		intel_uc_fini(&dev_priv->gt.uc);
 		intel_engines_cleanup(&dev_priv->gt);
 	}
-err_context:
-	if (ret != -EIO)
-		i915_gem_driver_release__contexts(dev_priv);
 err_scratch:
 	intel_gt_driver_release(&dev_priv->gt);
 err_unlock:
@@ -1431,13 +1423,14 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
 	intel_engines_cleanup(&dev_priv->gt);
-	i915_gem_driver_release__contexts(dev_priv);
 	intel_gt_driver_release(&dev_priv->gt);
 
 	intel_wa_list_free(&dev_priv->gt_wa_list);
 
 	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 	i915_gem_cleanup_userptr(dev_priv);
+
+	i915_gem_driver_release__contexts(dev_priv);
 
 	i915_gem_drain_freed_objects(dev_priv);
 
