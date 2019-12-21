@@ -181,9 +181,13 @@ struct fc_log {
 	char		*buffer[8];
 };
 
-extern __attribute__((format(printf, 2, 3)))
-void logfc(struct fs_context *fc, const char *fmt, ...);
+extern __attribute__((format(printf, 4, 5)))
+void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, ...);
 
+#define __logfc(fc, l, fmt, ...) ({		\
+	struct fs_context *__fc = (fc);		\
+	logfc(__fc ? __fc->log : NULL, NULL,	\
+		l, fmt, ## __VA_ARGS__);})
 /**
  * infof - Store supplementary informational message
  * @fc: The context in which to log the informational message
@@ -192,7 +196,7 @@ void logfc(struct fs_context *fc, const char *fmt, ...);
  * Store the supplementary informational message for the process if the process
  * has enabled the facility.
  */
-#define infof(fc, fmt, ...) ({ logfc(fc, "i "fmt, ## __VA_ARGS__); })
+#define infof(fc, fmt, ...) __logfc(fc, 'i', fmt, ## __VA_ARGS__)
 
 /**
  * warnf - Store supplementary warning message
@@ -202,7 +206,7 @@ void logfc(struct fs_context *fc, const char *fmt, ...);
  * Store the supplementary warning message for the process if the process has
  * enabled the facility.
  */
-#define warnf(fc, fmt, ...) ({ logfc(fc, "w "fmt, ## __VA_ARGS__); })
+#define warnf(fc, fmt, ...) __logfc(fc, 'w', fmt, ## __VA_ARGS__)
 
 /**
  * errorf - Store supplementary error message
@@ -212,7 +216,7 @@ void logfc(struct fs_context *fc, const char *fmt, ...);
  * Store the supplementary error message for the process if the process has
  * enabled the facility.
  */
-#define errorf(fc, fmt, ...) ({ logfc(fc, "e "fmt, ## __VA_ARGS__); })
+#define errorf(fc, fmt, ...) __logfc(fc, 'e', fmt, ## __VA_ARGS__)
 
 /**
  * invalf - Store supplementary invalid argument error message
@@ -222,6 +226,6 @@ void logfc(struct fs_context *fc, const char *fmt, ...);
  * Store the supplementary error message for the process if the process has
  * enabled the facility and return -EINVAL.
  */
-#define invalf(fc, fmt, ...) ({	errorf(fc, fmt, ## __VA_ARGS__); -EINVAL; })
+#define invalf(fc, fmt, ...) (errorf(fc, fmt, ## __VA_ARGS__), -EINVAL)
 
 #endif /* _LINUX_FS_CONTEXT_H */
