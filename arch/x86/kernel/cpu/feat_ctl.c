@@ -75,6 +75,20 @@ static void init_vmx_capabilities(struct cpuinfo_x86 *c)
 	    (c->vmx_capability[SECONDARY_CTLS] & VMX_F(VIRT_INTR_DELIVERY)) &&
 	    (c->vmx_capability[MISC_FEATURES] & VMX_F(POSTED_INTR)))
 		c->vmx_capability[MISC_FEATURES] |= VMX_F(APICV);
+
+	/* Set the synthetic cpufeatures to preserve /proc/cpuinfo's ABI. */
+	if (c->vmx_capability[PRIMARY_CTLS] & VMX_F(VIRTUAL_TPR))
+		set_cpu_cap(c, X86_FEATURE_TPR_SHADOW);
+	if (c->vmx_capability[MISC_FEATURES] & VMX_F(FLEXPRIORITY))
+		set_cpu_cap(c, X86_FEATURE_FLEXPRIORITY);
+	if (c->vmx_capability[MISC_FEATURES] & VMX_F(VIRTUAL_NMIS))
+		set_cpu_cap(c, X86_FEATURE_VNMI);
+	if (c->vmx_capability[SECONDARY_CTLS] & VMX_F(EPT))
+		set_cpu_cap(c, X86_FEATURE_EPT);
+	if (c->vmx_capability[MISC_FEATURES] & VMX_F(EPT_AD))
+		set_cpu_cap(c, X86_FEATURE_EPT_AD);
+	if (c->vmx_capability[MISC_FEATURES] & VMX_F(VPID))
+		set_cpu_cap(c, X86_FEATURE_VPID);
 }
 #endif /* CONFIG_X86_VMX_FEATURE_NAMES */
 
