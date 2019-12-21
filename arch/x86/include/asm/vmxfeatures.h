@@ -3,6 +3,11 @@
 #define _ASM_X86_VMXFEATURES_H
 
 /*
+ * Defines VMX CPU feature bits
+ */
+#define NVMXINTS			3 /* N 32-bit words worth of info */
+
+/*
  * Note: If the comment begins with a quoted string, that string is used
  * in /proc/cpuinfo instead of the macro name.  If the string is "",
  * this feature bit is not displayed in /proc/cpuinfo at all.

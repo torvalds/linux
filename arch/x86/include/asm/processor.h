@@ -86,6 +86,9 @@ struct cpuinfo_x86 {
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
 	int			x86_tlbsize;
 #endif
+#ifdef CONFIG_X86_VMX_FEATURE_NAMES
+	__u32			vmx_capability[NVMXINTS];
+#endif
 	__u8			x86_virt_bits;
 	__u8			x86_phys_bits;
 	/* CPUID returned core id bits: */
