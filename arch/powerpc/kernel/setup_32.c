@@ -153,6 +153,9 @@ void __init irqstack_early_init(void)
 {
 	unsigned int i;
 
+	if (IS_ENABLED(CONFIG_VMAP_STACK))
+		return;
+
 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
 	 * as the memblock is limited to lowmem by default */
 	for_each_possible_cpu(i) {
