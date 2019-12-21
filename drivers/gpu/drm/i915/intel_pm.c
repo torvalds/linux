@@ -4135,7 +4135,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 		return 0;
 
 	if (color_plane == 1 &&
-	    !drm_format_info_is_yuv_semiplanar(fb->format))
+	    !intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
 		return 0;
 
 	/*
@@ -4559,7 +4559,8 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 	u32 interm_pbpl;
 
 	/* only planar format has two planes */
-	if (color_plane == 1 && !drm_format_info_is_yuv_semiplanar(format)) {
+	if (color_plane == 1 &&
+	    !intel_format_info_is_yuv_semiplanar(format, modifier)) {
 		DRM_DEBUG_KMS("Non planar format have single plane\n");
 		return -EINVAL;
 	}
@@ -4571,7 +4572,7 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 	wp->x_tiled = modifier == I915_FORMAT_MOD_X_TILED;
 	wp->rc_surface = modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
 			 modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
-	wp->is_planar = drm_format_info_is_yuv_semiplanar(format);
+	wp->is_planar = intel_format_info_is_yuv_semiplanar(format, modifier);
 
 	wp->width = width;
 	if (color_plane == 1 && wp->is_planar)

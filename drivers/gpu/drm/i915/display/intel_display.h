@@ -601,6 +601,10 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv);
 void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 				     struct intel_display_error_state *error);
 
+bool
+intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
+				    uint64_t modifier);
+
 /* modesetting */
 void intel_modeset_init_hw(struct drm_i915_private *i915);
 int intel_modeset_init(struct drm_i915_private *i915);

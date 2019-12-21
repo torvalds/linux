@@ -250,7 +250,7 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 		new_crtc_state->active_planes |= BIT(plane->id);
 
 	if (new_plane_state->uapi.visible &&
-	    drm_format_info_is_yuv_semiplanar(fb->format))
+	    intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
 		new_crtc_state->nv12_planes |= BIT(plane->id);
 
 	if (new_plane_state->uapi.visible &&

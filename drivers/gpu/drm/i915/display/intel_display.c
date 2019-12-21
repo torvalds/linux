@@ -1986,6 +1986,14 @@ intel_main_to_aux_plane(const struct drm_framebuffer *fb, int main_plane)
 	return 1;
 }
 
+bool
+intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
+				    uint64_t modifier)
+{
+	return info->is_yuv &&
+	       info->num_planes == (is_ccs_modifier(modifier) ? 4 : 2);
+}
+
 static unsigned int
 intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 {
@@ -3862,7 +3870,8 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	 * Handle the AUX surface first since
 	 * the main surface setup depends on it.
 	 */
-	if (drm_format_info_is_yuv_semiplanar(fb->format)) {
+	if (intel_format_info_is_yuv_semiplanar(fb->format,
+						fb->modifier)) {
 		ret = skl_check_nv12_aux_surface(plane_state);
 		if (ret)
 			return ret;
@@ -5791,7 +5800,8 @@ static int
 skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		  unsigned int scaler_user, int *scaler_id,
 		  int src_w, int src_h, int dst_w, int dst_h,
-		  const struct drm_format_info *format, bool need_scaler)
+		  const struct drm_format_info *format,
+		  u64 modifier, bool need_scaler)
 {
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
@@ -5845,7 +5855,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		return 0;
 	}
 
-	if (format && drm_format_info_is_yuv_semiplanar(format) &&
+	if (format && intel_format_info_is_yuv_semiplanar(format, modifier) &&
 	    (src_h < SKL_MIN_YUV_420_SRC_H || src_w < SKL_MIN_YUV_420_SRC_W)) {
 		DRM_DEBUG_KMS("Planar YUV: src dimensions not met\n");
 		return -EINVAL;
@@ -5897,7 +5907,8 @@ int skl_update_scaler_crtc(struct intel_crtc_state *state)
 				 &state->scaler_state.scaler_id,
 				 state->pipe_src_w, state->pipe_src_h,
 				 adjusted_mode->crtc_hdisplay,
-				 adjusted_mode->crtc_vdisplay, NULL, need_scaler);
+				 adjusted_mode->crtc_vdisplay, NULL, 0,
+				 need_scaler);
 }
 
 /**
@@ -5922,7 +5933,7 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 
 	/* Pre-gen11 and SDR planes always need a scaler for planar formats. */
 	if (!icl_is_hdr_plane(dev_priv, intel_plane->id) &&
-	    fb && drm_format_info_is_yuv_semiplanar(fb->format))
+	    fb && intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
 		need_scaler = true;
 
 	ret = skl_update_scaler(crtc_state, force_detach,
@@ -5932,7 +5943,9 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 				drm_rect_height(&plane_state->uapi.src) >> 16,
 				drm_rect_width(&plane_state->uapi.dst),
 				drm_rect_height(&plane_state->uapi.dst),
-				fb ? fb->format : NULL, need_scaler);
+				fb ? fb->format : NULL,
+				fb ? fb->modifier : 0,
+				need_scaler);
 
 	if (ret || plane_state->scaler_id < 0)
 		return ret;
