@@ -243,16 +243,6 @@ unknown_parameter:
 }
 EXPORT_SYMBOL(__fs_parse);
 
-int fs_parse(struct fs_context *fc,
-	     const struct fs_parameter_description *desc,
-	     struct fs_parameter *param,
-	     struct fs_parse_result *result)
-{
-	struct p_log log = {.prefix = desc->name, .log = fc->log};
-	return __fs_parse(&log, desc, param, result);
-}
-EXPORT_SYMBOL(fs_parse);
-
 /**
  * fs_lookup_param - Look up a path referred to by a parameter
  * @fc: The filesystem context to log errors through.

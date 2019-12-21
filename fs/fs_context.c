@@ -271,6 +271,7 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 	fc->fs_type	= get_filesystem(fs_type);
 	fc->cred	= get_current_cred();
 	fc->net_ns	= get_net(current->nsproxy->net_ns);
+	fc->log.prefix	= fs_type->name;
 
 	mutex_init(&fc->uapi_mutex);
 
@@ -364,8 +365,8 @@ struct fs_context *vfs_dup_fs_context(struct fs_context *src_fc)
 	get_net(fc->net_ns);
 	get_user_ns(fc->user_ns);
 	get_cred(fc->cred);
-	if (fc->log)
-		refcount_inc(&fc->log->usage);
+	if (fc->log.log)
+		refcount_inc(&fc->log.log->usage);
 
 	/* Can't call put until we've called ->dup */
 	ret = fc->ops->dup(fc, src_fc);
@@ -442,12 +443,12 @@ EXPORT_SYMBOL(logfc);
  */
 static void put_fc_log(struct fs_context *fc)
 {
-	struct fc_log *log = fc->log;
+	struct fc_log *log = fc->log.log;
 	int i;
 
 	if (log) {
 		if (refcount_dec_and_test(&log->usage)) {
-			fc->log = NULL;
+			fc->log.log = NULL;
 			for (i = 0; i <= 7; i++)
 				if (log->need_free & (1 << i))
 					kfree(log->buffer[i]);

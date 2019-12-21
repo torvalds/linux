@@ -78,10 +78,15 @@ extern int __fs_parse(struct p_log *log,
 		    const struct fs_parameter_description *desc,
 		    struct fs_parameter *value,
 		    struct fs_parse_result *result);
-extern int fs_parse(struct fs_context *fc,
-		    const struct fs_parameter_description *desc,
-		    struct fs_parameter *value,
-		    struct fs_parse_result *result);
+
+static inline int fs_parse(struct fs_context *fc,
+	     const struct fs_parameter_description *desc,
+	     struct fs_parameter *param,
+	     struct fs_parse_result *result)
+{
+	return __fs_parse(&fc->log, desc, param, result);
+}
+
 extern int fs_lookup_param(struct fs_context *fc,
 			   struct fs_parameter *param,
 			   bool want_bdev,
