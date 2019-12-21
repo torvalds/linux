@@ -337,7 +337,7 @@ EXPORT_SYMBOL(ceph_destroy_options);
 
 /* get secret from key store */
 static int get_secret(struct ceph_crypto_key *dst, const char *name,
-		      struct fs_context *fc)
+		      struct p_log *log)
 {
 	struct key *ukey;
 	int key_err;
@@ -351,19 +351,19 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name,
 		key_err = PTR_ERR(ukey);
 		switch (key_err) {
 		case -ENOKEY:
-			errorf(fc, "libceph: Failed due to key not found: %s",
+			error_plog(log, "Failed due to key not found: %s",
 			       name);
 			break;
 		case -EKEYEXPIRED:
-			errorf(fc, "libceph: Failed due to expired key: %s",
+			error_plog(log, "Failed due to expired key: %s",
 			       name);
 			break;
 		case -EKEYREVOKED:
-			errorf(fc, "libceph: Failed due to revoked key: %s",
+			error_plog(log, "Failed due to revoked key: %s",
 			       name);
 			break;
 		default:
-			errorf(fc, "libceph: Failed due to key error %d: %s",
+			error_plog(log, "Failed due to key error %d: %s",
 			       key_err, name);
 		}
 		err = -EPERM;
@@ -385,13 +385,14 @@ out:
 int ceph_parse_mon_ips(const char *buf, size_t len, struct ceph_options *opt,
 		       struct fs_context *fc)
 {
+	struct p_log log = {.prefix = "libceph", .log = fc ? fc->log : NULL};
 	int ret;
 
 	/* ip1[:port1][,ip2[:port2]...] */
 	ret = ceph_parse_ips(buf, buf + len, opt->mon_addr, CEPH_MAX_MON,
 			     &opt->num_mon);
 	if (ret) {
-		errorf(fc, "libceph: Failed to parse monitor IPs: %d", ret);
+		error_plog(&log, "Failed to parse monitor IPs: %d", ret);
 		return ret;
 	}
 
@@ -404,6 +405,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 {
 	struct fs_parse_result result;
 	int token, err;
+	struct p_log log = {.prefix = "libceph", .log = fc ? fc->log : NULL};
 
 	token = fs_parse(fc, &ceph_parameters, param, &result);
 	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
@@ -417,7 +419,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 				     &opt->my_addr,
 				     1, NULL);
 		if (err) {
-			errorf(fc, "libceph: Failed to parse ip: %d", err);
+			error_plog(&log, "Failed to parse ip: %d", err);
 			return err;
 		}
 		opt->flags |= CEPH_OPT_MYIP;
@@ -426,7 +428,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 	case Opt_fsid:
 		err = parse_fsid(param->string, &opt->fsid);
 		if (err) {
-			errorf(fc, "libceph: Failed to parse fsid: %d", err);
+			error_plog(&log, "Failed to parse fsid: %d", err);
 			return err;
 		}
 		opt->flags |= CEPH_OPT_FSID;
@@ -445,7 +447,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 			return -ENOMEM;
 		err = ceph_crypto_key_unarmor(opt->key, param->string);
 		if (err) {
-			errorf(fc, "libceph: Failed to parse secret: %d", err);
+			error_plog(&log, "Failed to parse secret: %d", err);
 			return err;
 		}
 		break;
@@ -456,10 +458,10 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
 		if (!opt->key)
 			return -ENOMEM;
-		return get_secret(opt->key, param->string, fc);
+		return get_secret(opt->key, param->string, &log);
 
 	case Opt_osdtimeout:
-		warnf(fc, "libceph: Ignoring osdtimeout");
+		warn_plog(&log, "Ignoring osdtimeout");
 		break;
 	case Opt_osdkeepalivetimeout:
 		/* 0 isn't well defined right now, reject it */
@@ -530,7 +532,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 	return 0;
 
 out_of_range:
-	return invalf(fc, "libceph: %s out of range", param->key);
+	return inval_plog(&log, "%s out of range", param->key);
 }
 EXPORT_SYMBOL(ceph_parse_param);
 
