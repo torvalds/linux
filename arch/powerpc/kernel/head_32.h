@@ -50,7 +50,7 @@
 	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
 #else
 	li	r10,MSR_KERNEL & ~(MSR_IR|MSR_DR) /* can take exceptions */
-	MTMSRD(r10)			/* (except for mach check in rtas) */
+	mtmsr	r10			/* (except for mach check in rtas) */
 #endif
 	stw	r0,GPR0(r11)
 	lis	r10,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
@@ -80,7 +80,7 @@
 	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
 #else
 	LOAD_REG_IMMEDIATE(r10, MSR_KERNEL & ~(MSR_IR|MSR_DR)) /* can take exceptions */
-	MTMSRD(r10)			/* (except for mach check in rtas) */
+	mtmsr	r10			/* (except for mach check in rtas) */
 #endif
 	lis	r10,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
 	stw	r2,GPR2(r11)

@@ -397,7 +397,7 @@ ret_from_syscall:
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)	/* doesn't include MSR_EE */
 	/* Note: We don't bother telling lockdep about it */
 	SYNC
-	MTMSRD(r10)
+	mtmsr	r10
 	lwz	r9,TI_FLAGS(r2)
 	li	r8,-MAX_ERRNO
 	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
@@ -554,7 +554,7 @@ syscall_exit_work:
 	 */
 	ori	r10,r10,MSR_EE
 	SYNC
-	MTMSRD(r10)
+	mtmsr	r10
 
 	/* Save NVGPRS if they're not saved already */
 	lwz	r4,_TRAP(r1)
@@ -697,7 +697,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 	and.	r0,r0,r11	/* FP or altivec or SPE enabled? */
 	beq+	1f
 	andc	r11,r11,r0
-	MTMSRD(r11)
+	mtmsr	r11
 	isync
 1:	stw	r11,_MSR(r1)
 	mfcr	r10
@@ -831,7 +831,7 @@ ret_from_except:
 	/* Note: We don't bother telling lockdep about it */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)
 	SYNC			/* Some chip revs have problems here... */
-	MTMSRD(r10)		/* disable interrupts */
+	mtmsr	r10		/* disable interrupts */
 
 	lwz	r3,_MSR(r1)	/* Returning to user mode? */
 	andi.	r0,r3,MSR_PR
@@ -998,7 +998,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	 */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL & ~MSR_RI)
 	SYNC
-	MTMSRD(r10)		/* clear the RI bit */
+	mtmsr	r10		/* clear the RI bit */
 	.globl exc_exit_restart
 exc_exit_restart:
 	lwz	r12,_NIP(r1)
@@ -1234,7 +1234,7 @@ do_resched:			/* r10 contains MSR_KERNEL here */
 #endif
 	ori	r10,r10,MSR_EE
 	SYNC
-	MTMSRD(r10)		/* hard-enable interrupts */
+	mtmsr	r10		/* hard-enable interrupts */
 	bl	schedule
 recheck:
 	/* Note: And we don't tell it we are disabling them again
@@ -1243,7 +1243,7 @@ recheck:
 	 */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)
 	SYNC
-	MTMSRD(r10)		/* disable interrupts */
+	mtmsr	r10		/* disable interrupts */
 	lwz	r9,TI_FLAGS(r2)
 	andi.	r0,r9,_TIF_NEED_RESCHED
 	bne-	do_resched
@@ -1252,7 +1252,7 @@ recheck:
 do_user_signal:			/* r10 contains MSR_KERNEL here */
 	ori	r10,r10,MSR_EE
 	SYNC
-	MTMSRD(r10)		/* hard-enable interrupts */
+	mtmsr	r10		/* hard-enable interrupts */
 	/* save r13-r31 in the exception frame, if not already done */
 	lwz	r3,_TRAP(r1)
 	andi.	r0,r3,1
@@ -1341,7 +1341,7 @@ _GLOBAL(enter_rtas)
 	stw	r9,8(r1)
 	LOAD_REG_IMMEDIATE(r0,MSR_KERNEL)
 	SYNC			/* disable interrupts so SRR0/1 */
-	MTMSRD(r0)		/* don't get trashed */
+	mtmsr	r0		/* don't get trashed */
 	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
 	mtlr	r6
 	stw	r7, THREAD + RTAS_SP(r2)
