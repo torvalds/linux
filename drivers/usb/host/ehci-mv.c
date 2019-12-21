@@ -246,10 +246,8 @@ static int mv_ehci_remove(struct platform_device *pdev)
 MODULE_ALIAS("mv-ehci");
 
 static const struct platform_device_id ehci_id_table[] = {
-	{"pxa-u2oehci", PXA_U2OEHCI},
-	{"pxa-sph", PXA_SPH},
-	{"mmp3-hsic", MMP3_HSIC},
-	{"mmp3-fsic", MMP3_FSIC},
+	{"pxa-u2oehci", 0},
+	{"pxa-sph", 0},
 	{},
 };
 
