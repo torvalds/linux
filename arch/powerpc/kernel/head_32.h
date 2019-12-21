@@ -38,11 +38,13 @@
 	andi.	r11, r11, MSR_PR
 .endm
 
-.macro EXCEPTION_PROLOG_1
+.macro EXCEPTION_PROLOG_1 for_rtas=0
 #ifdef CONFIG_VMAP_STACK
+	.ifeq	\for_rtas
 	li	r11, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
 	mtmsr	r11
 	isync
+	.endif
 	subi	r11, r1, INT_FRAME_SIZE		/* use r1 if kernel */
 #else
 	tophys(r11,r1)			/* use tophys(r1) if kernel */
