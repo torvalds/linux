@@ -527,6 +527,27 @@ static const struct address_space_operations ovl_aops = {
  * [...] &ovl_i_mutex_dir_key[depth]   (stack_depth=2)
  * [...] &ovl_i_mutex_dir_key[depth]#2 (stack_depth=1)
  * [...] &type->i_mutex_dir_key        (stack_depth=0)
+ *
+ * Locking order w.r.t ovl_want_write() is important for nested overlayfs.
+ *
+ * This chain is valid:
+ * - inode->i_rwsem			(inode_lock[2])
+ * - upper_mnt->mnt_sb->s_writers	(ovl_want_write[0])
+ * - OVL_I(inode)->lock			(ovl_inode_lock[2])
+ * - OVL_I(lowerinode)->lock		(ovl_inode_lock[1])
+ *
+ * And this chain is valid:
+ * - inode->i_rwsem			(inode_lock[2])
+ * - OVL_I(inode)->lock			(ovl_inode_lock[2])
+ * - lowerinode->i_rwsem		(inode_lock[1])
+ * - OVL_I(lowerinode)->lock		(ovl_inode_lock[1])
+ *
+ * But lowerinode->i_rwsem SHOULD NOT be acquired while ovl_want_write() is
+ * held, because it is in reverse order of the non-nested case using the same
+ * upper fs:
+ * - inode->i_rwsem			(inode_lock[1])
+ * - upper_mnt->mnt_sb->s_writers	(ovl_want_write[0])
+ * - OVL_I(inode)->lock			(ovl_inode_lock[1])
  */
 #define OVL_MAX_NESTING FILESYSTEM_MAX_STACK_DEPTH
 

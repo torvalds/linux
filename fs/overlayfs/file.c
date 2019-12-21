@@ -171,7 +171,7 @@ static loff_t ovl_llseek(struct file *file, loff_t offset, int whence)
 	 * limitations that are more strict than ->s_maxbytes for specific
 	 * files, so we use the real file to perform seeks.
 	 */
-	inode_lock(inode);
+	ovl_inode_lock(inode);
 	real.file->f_pos = file->f_pos;
 
 	old_cred = ovl_override_creds(inode->i_sb);
@@ -179,7 +179,7 @@ static loff_t ovl_llseek(struct file *file, loff_t offset, int whence)
 	revert_creds(old_cred);
 
 	file->f_pos = real.file->f_pos;
-	inode_unlock(inode);
+	ovl_inode_unlock(inode);
 
 	fdput(real);
 
