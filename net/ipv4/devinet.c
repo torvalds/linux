@@ -1441,11 +1441,6 @@ skip:
 	}
 }
 
-static bool inetdev_valid_mtu(unsigned int mtu)
-{
-	return mtu >= IPV4_MIN_MTU;
-}
-
 static void inetdev_send_gratuitous_arp(struct net_device *dev,
 					struct in_device *in_dev)
 
