@@ -5,15 +5,21 @@
 #include <asm/msr-index.h>
 #include <asm/processor.h>
 
+#undef pr_fmt
+#define pr_fmt(fmt)	"x86/cpu: " fmt
+
 void init_ia32_feat_ctl(struct cpuinfo_x86 *c)
 {
+	bool tboot = tboot_enabled();
 	u64 msr;
 
-	if (rdmsrl_safe(MSR_IA32_FEAT_CTL, &msr))
+	if (rdmsrl_safe(MSR_IA32_FEAT_CTL, &msr)) {
+		clear_cpu_cap(c, X86_FEATURE_VMX);
 		return;
+	}
 
 	if (msr & FEAT_CTL_LOCKED)
-		return;
+		goto update_caps;
 
 	/*
 	 * Ignore whatever value BIOS left in the MSR to avoid enabling random
@@ -29,9 +35,20 @@ void init_ia32_feat_ctl(struct cpuinfo_x86 *c)
 	if (cpu_has(c, X86_FEATURE_VMX) && IS_ENABLED(CONFIG_KVM_INTEL)) {
 		msr |= FEAT_CTL_VMX_ENABLED_OUTSIDE_SMX;
 
-		if (tboot_enabled())
+		if (tboot)
 			msr |= FEAT_CTL_VMX_ENABLED_INSIDE_SMX;
 	}
 
 	wrmsrl(MSR_IA32_FEAT_CTL, msr);
+
+update_caps:
+	if (!cpu_has(c, X86_FEATURE_VMX))
+		return;
+
+	if ( (tboot && !(msr & FEAT_CTL_VMX_ENABLED_INSIDE_SMX)) ||
+	    (!tboot && !(msr & FEAT_CTL_VMX_ENABLED_OUTSIDE_SMX))) {
+		pr_err_once("VMX (%s TXT) disabled by BIOS\n",
+			    tboot ? "inside" : "outside");
+		clear_cpu_cap(c, X86_FEATURE_VMX);
+	}
 }
