@@ -383,6 +383,9 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	struct mt76_phy *mphy;
 	int ret;
 
+	if (!is_mt7615(&dev->mt76))
+		return -EOPNOTSUPP;
+
 	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
 		return -EINVAL;
 
