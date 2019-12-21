@@ -6353,6 +6353,7 @@ static int rbd_parse_param(struct fs_parameter *param,
 {
 	struct rbd_options *opt = pctx->opts;
 	struct fs_parse_result result;
+	struct p_log log = {.prefix = "rbd"};
 	int token, ret;
 
 	ret = ceph_parse_param(param, pctx->copts, NULL);
