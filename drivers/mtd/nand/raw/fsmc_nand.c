@@ -809,11 +809,12 @@ static int fsmc_bch8_correct_data(struct nand_chip *chip, u8 *dat,
 
 	i = 0;
 	while (num_err--) {
-		change_bit(0, (unsigned long *)&err_idx[i]);
-		change_bit(1, (unsigned long *)&err_idx[i]);
+		err_idx[i] ^= 3;
 
 		if (err_idx[i] < chip->ecc.size * 8) {
-			change_bit(err_idx[i], (unsigned long *)dat);
+			int err = err_idx[i];
+
+			dat[err >> 3] ^= BIT(err & 7);
 			i++;
 		}
 	}
