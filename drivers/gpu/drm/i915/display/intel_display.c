@@ -2590,7 +2590,22 @@ intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
 		else
 			return 64;
 	} else {
-		return intel_tile_width_bytes(fb, color_plane);
+		u32 tile_width = intel_tile_width_bytes(fb, color_plane);
+
+		/*
+		 * Display WA #0531: skl,bxt,kbl,glk
+		 *
+		 * Render decompression and plane width > 3840
+		 * combined with horizontal panning requires the
+		 * plane stride to be a multiple of 4. We'll just
+		 * require the entire fb to accommodate that to avoid
+		 * potential runtime errors at plane configuration time.
+		 */
+		if (IS_GEN(dev_priv, 9) && is_ccs_modifier(fb->modifier) &&
+		    color_plane == 0 && fb->width > 3840)
+			tile_width *= 4;
+
+		return tile_width;
 	}
 }
 
@@ -16346,20 +16361,6 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		}
 
 		stride_alignment = intel_fb_stride_alignment(fb, i);
-
-		/*
-		 * Display WA #0531: skl,bxt,kbl,glk
-		 *
-		 * Render decompression and plane width > 3840
-		 * combined with horizontal panning requires the
-		 * plane stride to be a multiple of 4. We'll just
-		 * require the entire fb to accommodate that to avoid
-		 * potential runtime errors at plane configuration time.
-		 */
-		if (IS_GEN(dev_priv, 9) && i == 0 && fb->width > 3840 &&
-		    is_ccs_modifier(fb->modifier))
-			stride_alignment *= 4;
-
 		if (fb->pitches[i] & (stride_alignment - 1)) {
 			DRM_DEBUG_KMS("plane %d pitch (%d) must be at least %u byte aligned\n",
 				      i, fb->pitches[i], stride_alignment);
