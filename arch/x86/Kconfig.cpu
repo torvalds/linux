@@ -389,7 +389,7 @@ config X86_DEBUGCTLMSR
 
 config IA32_FEAT_CTL
 	def_bool y
-	depends on CPU_SUP_INTEL
+	depends on CPU_SUP_INTEL || CPU_SUP_CENTAUR
 
 menuconfig PROCESSOR_SELECT
 	bool "Supported processor vendors" if EXPERT
