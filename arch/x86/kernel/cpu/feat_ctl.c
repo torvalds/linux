@@ -126,6 +126,8 @@ void init_ia32_feat_ctl(struct cpuinfo_x86 *c)
 	wrmsrl(MSR_IA32_FEAT_CTL, msr);
 
 update_caps:
+	set_cpu_cap(c, X86_FEATURE_MSR_IA32_FEAT_CTL);
+
 	if (!cpu_has(c, X86_FEATURE_VMX))
 		return;
 
