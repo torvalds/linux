@@ -80,7 +80,7 @@ static const struct fs_parameter_spec *fs_lookup_key(
  * unknown parameters are okay and -EINVAL if there was a conversion issue or
  * the parameter wasn't recognised and unknowns aren't okay.
  */
-int fs_parse(struct fs_context *fc,
+int __fs_parse(struct p_log *log,
 	     const struct fs_parameter_description *desc,
 	     struct fs_parameter *param,
 	     struct fs_parse_result *result)
@@ -113,8 +113,7 @@ int fs_parse(struct fs_context *fc,
 	}
 
 	if (p->flags & fs_param_deprecated)
-		warnf(fc, "%s: Deprecated parameter '%s'",
-		      desc->name, param->key);
+		warn_plog(log, "Deprecated parameter '%s'", param->key);
 
 	if (result->negated)
 		goto okay;
@@ -152,8 +151,8 @@ int fs_parse(struct fs_context *fc,
 	switch (p->type) {
 	case fs_param_is_flag:
 		if (param->type != fs_value_is_flag)
-			return invalf(fc, "%s: Unexpected value for '%s'",
-				      desc->name, param->key);
+			return inval_plog(log, "Unexpected value for '%s'",
+				      param->key);
 		result->boolean = true;
 		goto okay;
 
@@ -238,9 +237,19 @@ okay:
 	return p->opt;
 
 bad_value:
-	return invalf(fc, "%s: Bad value for '%s'", desc->name, param->key);
+	return inval_plog(log, "Bad value for '%s'", param->key);
 unknown_parameter:
 	return -ENOPARAM;
+}
+EXPORT_SYMBOL(__fs_parse);
+
+int fs_parse(struct fs_context *fc,
+	     const struct fs_parameter_description *desc,
+	     struct fs_parameter *param,
+	     struct fs_parse_result *result)
+{
+	struct p_log log = {.prefix = desc->name, .log = fc->log};
+	return __fs_parse(&log, desc, param, result);
 }
 EXPORT_SYMBOL(fs_parse);
 

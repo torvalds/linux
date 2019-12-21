@@ -407,7 +407,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 	int token, err;
 	struct p_log log = {.prefix = "libceph", .log = fc ? fc->log : NULL};
 
-	token = fs_parse(fc, &ceph_parameters, param, &result);
+	token = __fs_parse(&log, &ceph_parameters, param, &result);
 	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
 	if (token < 0)
 		return token;

@@ -74,6 +74,10 @@ struct fs_parse_result {
 	};
 };
 
+extern int __fs_parse(struct p_log *log,
+		    const struct fs_parameter_description *desc,
+		    struct fs_parameter *value,
+		    struct fs_parse_result *result);
 extern int fs_parse(struct fs_context *fc,
 		    const struct fs_parameter_description *desc,
 		    struct fs_parameter *value,

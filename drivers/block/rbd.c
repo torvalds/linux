@@ -6360,7 +6360,7 @@ static int rbd_parse_param(struct fs_parameter *param,
 	if (ret != -ENOPARAM)
 		return ret;
 
-	token = fs_parse(NULL, &rbd_parameters, param, &result);
+	token = __fs_parse(&log, &rbd_parameters, param, &result);
 	dout("%s fs_parse '%s' token %d\n", __func__, param->key, token);
 	if (token < 0) {
 		if (token == -ENOPARAM)

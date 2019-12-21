@@ -189,10 +189,8 @@ struct fc_log {
 extern __attribute__((format(printf, 4, 5)))
 void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, ...);
 
-#define __logfc(fc, l, fmt, ...) ({		\
-	struct fs_context *__fc = (fc);		\
-	logfc(__fc ? __fc->log : NULL, NULL,	\
-		l, fmt, ## __VA_ARGS__);})
+#define __logfc(fc, l, fmt, ...) logfc((fc)->log, NULL, \
+					l, fmt, ## __VA_ARGS__)
 #define __plog(p, l, fmt, ...) logfc((p)->log, (p)->prefix, \
 					l, fmt, ## __VA_ARGS__)
 /**
