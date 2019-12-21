@@ -19,12 +19,12 @@
 .macro EXCEPTION_PROLOG_0
 	mtspr	SPRN_SPRG_SCRATCH0,r10
 	mtspr	SPRN_SPRG_SCRATCH1,r11
+	mfspr	r11, SPRN_SRR1		/* check whether user or kernel */
 	mfcr	r10
+	andi.	r11, r11, MSR_PR
 .endm
 
 .macro EXCEPTION_PROLOG_1
-	mfspr	r11,SPRN_SRR1		/* check whether user or kernel */
-	andi.	r11,r11,MSR_PR
 	tophys(r11,r1)			/* use tophys(r1) if kernel */
 	beq	1f
 	mfspr	r11,SPRN_SPRG_THREAD
