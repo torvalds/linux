@@ -270,6 +270,9 @@ static const struct of_device_id tegra186_emc_of_match[] = {
 #if defined(CONFIG_ARCH_TEGRA186_SOC)
 	{ .compatible = "nvidia,tegra186-emc" },
 #endif
+#if defined(CONFIG_ARCH_TEGRA194_SOC)
+	{ .compatible = "nvidia,tegra194-emc" },
+#endif
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, tegra186_emc_of_match);
