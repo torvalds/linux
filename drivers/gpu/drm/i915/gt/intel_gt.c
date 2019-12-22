@@ -3,6 +3,7 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "debugfs_gt.h"
 #include "i915_drv.h"
 #include "intel_context.h"
 #include "intel_gt.h"
@@ -325,6 +326,8 @@ void intel_gt_chipset_flush(struct intel_gt *gt)
 void intel_gt_driver_register(struct intel_gt *gt)
 {
 	intel_rps_driver_register(&gt->rps);
+
+	debugfs_gt_register(gt);
 }
 
 static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
