@@ -1287,7 +1287,7 @@ static int smc_core_reboot_event(struct notifier_block *this,
 				 unsigned long event, void *ptr)
 {
 	smc_lgrs_shutdown();
-
+	smc_ib_unregister_client();
 	return 0;
 }
 

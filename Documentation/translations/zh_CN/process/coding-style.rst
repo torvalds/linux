@@ -826,7 +826,7 @@ inline gcc 也可以自动使其内联。而且其他用户可能会要求移除
 
 .. code-block:: c
 
-	#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+	#define sizeof_field(t, f) (sizeof(((t*)0)->f))
 
 还有可以做严格的类型检查的 min() 和 max() 宏，如果你需要可以使用它们。你可以
 自己看看那个头文件里还定义了什么你可以拿来用的东西，如果有定义的话，你就不应

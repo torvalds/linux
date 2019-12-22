@@ -286,6 +286,9 @@ int rdma_counter_bind_qp_auto(struct ib_qp *qp, u8 port)
 	struct rdma_counter *counter;
 	int ret;
 
+	if (!qp->res.valid)
+		return 0;
+
 	if (!rdma_is_port_valid(dev, port))
 		return -EINVAL;
 

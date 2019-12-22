@@ -39,9 +39,9 @@ struct wfx_link_entry {
 
 struct tx_policy {
 	struct list_head link;
+	int usage_count;
 	u8 rates[12];
-	u8 usage_count;
-	u8 uploaded;
+	bool uploaded;
 };
 
 struct tx_policy_cache {
@@ -61,6 +61,7 @@ struct wfx_tx_priv {
 } __packed;
 
 void wfx_tx_policy_init(struct wfx_vif *wvif);
+void wfx_tx_policy_upload_work(struct work_struct *work);
 
 void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	    struct sk_buff *skb);

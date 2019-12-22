@@ -145,6 +145,10 @@ static int cxgb4_mqprio_alloc_hw_resources(struct net_device *dev)
 			kfree(adap->sge.eohw_rxq);
 			return -ENOMEM;
 		}
+
+		refcount_set(&adap->tc_mqprio->refcnt, 1);
+	} else {
+		refcount_inc(&adap->tc_mqprio->refcnt);
 	}
 
 	if (!(adap->flags & CXGB4_USING_MSIX))
@@ -205,7 +209,6 @@ static int cxgb4_mqprio_alloc_hw_resources(struct net_device *dev)
 			cxgb4_enable_rx(adap, &eorxq->rspq);
 	}
 
-	refcount_inc(&adap->tc_mqprio->refcnt);
 	return 0;
 
 out_free_msix:
@@ -234,9 +237,10 @@ out_free_queues:
 		t4_sge_free_ethofld_txq(adap, eotxq);
 	}
 
-	kfree(adap->sge.eohw_txq);
-	kfree(adap->sge.eohw_rxq);
-
+	if (refcount_dec_and_test(&adap->tc_mqprio->refcnt)) {
+		kfree(adap->sge.eohw_txq);
+		kfree(adap->sge.eohw_rxq);
+	}
 	return ret;
 }
 
