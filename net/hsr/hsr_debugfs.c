@@ -64,7 +64,6 @@ hsr_node_table_open(struct inode *inode, struct file *filp)
 }
 
 static const struct file_operations hsr_fops = {
-	.owner	= THIS_MODULE,
 	.open	= hsr_node_table_open,
 	.read	= seq_read,
 	.llseek = seq_lseek,
