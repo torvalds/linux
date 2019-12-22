@@ -1,4 +1,0 @@
-gpio-event-mon
-gpio-hammer
-lsgpio
-include/linux/gpio.h

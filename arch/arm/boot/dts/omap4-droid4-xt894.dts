@@ -1,9 +1,0 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/dts-v1/;
-
-#include "motorola-mapphone-common.dtsi"
-
-/ {
-	model = "Motorola Droid 4 XT894";
-	compatible = "motorola,droid4", "ti,omap4430", "ti,omap4";
-};
