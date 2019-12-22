@@ -163,7 +163,7 @@
 		i2s_am_clk_pins: i2s_am_clk {
 			mux {
 				groups = "i2s_am_clk";
-				function = "i2s_out_ao";
+				function = "i2s_ao";
 				bias-disable;
 			};
 		};
@@ -171,7 +171,7 @@
 		i2s_out_ao_clk_pins: i2s_out_ao_clk {
 			mux {
 				groups = "i2s_out_ao_clk";
-				function = "i2s_out_ao";
+				function = "i2s_ao";
 				bias-disable;
 			};
 		};
@@ -179,7 +179,7 @@
 		i2s_out_lr_clk_pins: i2s_out_lr_clk {
 			mux {
 				groups = "i2s_out_lr_clk";
-				function = "i2s_out_ao";
+				function = "i2s_ao";
 				bias-disable;
 			};
 		};
@@ -187,7 +187,7 @@
 		i2s_out_ch01_ao_pins: i2s_out_ch01_ao {
 			mux {
 				groups = "i2s_out_ch01_ao";
-				function = "i2s_out_ao";
+				function = "i2s_ao";
 				bias-disable;
 			};
 		};
@@ -195,7 +195,7 @@
 		i2s_out_ch23_ao_pins: i2s_out_ch23_ao {
 			mux {
 				groups = "i2s_out_ch23_ao";
-				function = "i2s_out_ao";
+				function = "i2s_ao";
 				bias-disable;
 			};
 		};
@@ -203,18 +203,26 @@
 		i2s_out_ch45_ao_pins: i2s_out_ch45_ao {
 			mux {
 				groups = "i2s_out_ch45_ao";
-				function = "i2s_out_ao";
+				function = "i2s_ao";
 				bias-disable;
 			};
 		};
 
-		spdif_out_ao_6_pins: spdif_out_ao_6 {
+		i2s_in_ch01_ao_pins: i2s_in_ch01_ao {
+			mux {
+				groups = "i2s_in_ch01_ao";
+				function = "i2s_ao";
+				bias-disable;
+			};
+		};
+
+/*		spdif_out_ao_6_pins: spdif_out_ao_6 {
 			mux {
 				groups = "spdif_out_ao_6";
 				function = "spdif_out_ao";
 			};
 		};
-
+*/
 		spdif_out_ao_13_pins: spdif_out_ao_13 {
 			mux {
 				groups = "spdif_out_ao_13";

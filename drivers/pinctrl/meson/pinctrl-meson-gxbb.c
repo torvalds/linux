@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pin controller and GPIO driver for Amlogic Meson GXBB.
@@ -286,8 +287,9 @@ static const unsigned int i2s_out_ch01_ao_pins[] = { GPIOAO_11 };
 static const unsigned int i2s_out_ch23_ao_pins[] = { GPIOAO_12 };
 static const unsigned int i2s_out_ch45_ao_pins[] = { GPIOAO_13 };
 static const unsigned int i2s_out_ch67_ao_pins[] = { GPIO_TEST_N };
+static const unsigned int i2s_in_ch01_ao_pins[]	= { GPIOAO_6 };
 
-static const unsigned int spdif_out_ao_6_pins[]	= { GPIOAO_6 };
+//static const unsigned int spdif_out_ao_6_pins[]	= { GPIOAO_6 };
 static const unsigned int spdif_out_ao_13_pins[] = { GPIOAO_13 };
 
 static const unsigned int ao_cec_pins[]		= { GPIOAO_12 };
@@ -557,7 +559,8 @@ static struct meson_pmx_group meson_gxbb_aobus_groups[] = {
 	GROUP(i2s_out_ch01_ao,	0,	27),
 	GROUP(i2s_out_ch23_ao,	1,	0),
 	GROUP(i2s_out_ch45_ao,	1,	1),
-	GROUP(spdif_out_ao_6,	0,	16),
+	GROUP(i2s_in_ch01_ao,	0,	0),
+	//GROUP(spdif_out_ao_6,	0,	16),
 	GROUP(spdif_out_ao_13,	0,	4),
 	GROUP(ao_cec,           0,      15),
 	GROUP(ee_cec,           0,      14),
@@ -751,14 +754,15 @@ static const char * const pwm_ao_b_groups[] = {
 	"pwm_ao_b",
 };
 
-static const char * const i2s_out_ao_groups[] = {
+static const char * const i2s_ao_groups[] = {
 	"i2s_am_clk", "i2s_out_ao_clk", "i2s_out_lr_clk",
 	"i2s_out_ch01_ao", "i2s_out_ch23_ao", "i2s_out_ch45_ao",
-	"i2s_out_ch67_ao",
+	"i2s_out_ch67_ao","i2s_in_ch01_ao"
 };
 
 static const char * const spdif_out_ao_groups[] = {
-	"spdif_out_ao_6", "spdif_out_ao_13",
+//	"spdif_out_ao_6", 
+	"spdif_out_ao_13",
 };
 
 static const char * const cec_ao_groups[] = {
@@ -805,7 +809,7 @@ static struct meson_pmx_func meson_gxbb_aobus_functions[] = {
 	FUNCTION(pwm_ao_a_6),
 	FUNCTION(pwm_ao_a_12),
 	FUNCTION(pwm_ao_b),
-	FUNCTION(i2s_out_ao),
+	FUNCTION(i2s_ao),
 	FUNCTION(spdif_out_ao),
 	FUNCTION(cec_ao),
 };

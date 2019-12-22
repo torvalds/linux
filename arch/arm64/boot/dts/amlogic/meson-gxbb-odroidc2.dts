@@ -135,10 +135,31 @@
 			};
 
 			codec {
-				sound-dai = <&hdmi_tx>;
+				sound-dai = <&aiu_i2s>;
 			};
 		};
 	};	
+	
+	codec_ad00: cs4245@4c {
+		compatible = "cirrus,cs4245";
+		reg = <0x4c>;
+		reset-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_LOW>;
+	};
+	codec_ad01: cs4245@4d {
+		compatible = "cirrus,cs4245";
+		reg = <0x4d>;
+		reset-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_LOW>;
+	};
+	codec_ad10: cs4245@4e {
+		compatible = "cirrus,cs4245";
+		reg = <0x4e>;
+		reset-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_LOW>;
+	};
+	codec_ad11: cs4245@4f {
+		compatible = "cirrus,cs4245";
+		reg = <0x4f>;
+		reset-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &cec_AO {
