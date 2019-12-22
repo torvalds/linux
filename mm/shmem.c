@@ -3475,9 +3475,9 @@ static int shmem_parse_one(struct fs_context *fc, struct fs_parameter *param)
 	return 0;
 
 unsupported_parameter:
-	return invalf(fc, "tmpfs: Unsupported parameter '%s'", param->key);
+	return invalfc(fc, "Unsupported parameter '%s'", param->key);
 bad_value:
-	return invalf(fc, "tmpfs: Bad value for '%s'", param->key);
+	return invalfc(fc, "Bad value for '%s'", param->key);
 }
 
 static int shmem_parse_options(struct fs_context *fc, void *data)
@@ -3583,7 +3583,7 @@ static int shmem_reconfigure(struct fs_context *fc)
 	return 0;
 out:
 	spin_unlock(&sbinfo->stat_lock);
-	return invalf(fc, "tmpfs: %s", err);
+	return invalfc(fc, "%s", err);
 }
 
 static int shmem_show_options(struct seq_file *seq, struct dentry *root)
