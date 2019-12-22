@@ -186,11 +186,17 @@ static inline u16 hsr_get_skb_sequence_nr(struct sk_buff *skb)
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 void hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev);
 void hsr_debugfs_term(struct hsr_priv *priv);
+void hsr_debugfs_create_root(void);
+void hsr_debugfs_remove_root(void);
 #else
 static inline void hsr_debugfs_init(struct hsr_priv *priv,
 				    struct net_device *hsr_dev)
 {}
 static inline void hsr_debugfs_term(struct hsr_priv *priv)
+{}
+static inline void hsr_debugfs_create_root(void)
+{}
+static inline void hsr_debugfs_remove_root(void)
 {}
 #endif
 
