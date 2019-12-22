@@ -868,36 +868,6 @@ static struct mlx5_ib_mr *alloc_mr_from_cache(
 	return mr;
 }
 
-static inline int populate_xlt(struct mlx5_ib_mr *mr, int idx, int npages,
-			       void *xlt, int page_shift, size_t size,
-			       int flags)
-{
-	struct mlx5_ib_dev *dev = mr->dev;
-	struct ib_umem *umem = mr->umem;
-
-	if (flags & MLX5_IB_UPD_XLT_INDIRECT) {
-		if (!umr_can_use_indirect_mkey(dev))
-			return -EPERM;
-		mlx5_odp_populate_klm(xlt, idx, npages, mr, flags);
-		return npages;
-	}
-
-	npages = min_t(size_t, npages, ib_umem_num_pages(umem) - idx);
-
-	if (!(flags & MLX5_IB_UPD_XLT_ZAP)) {
-		__mlx5_ib_populate_pas(dev, umem, page_shift,
-				       idx, npages, xlt,
-				       MLX5_IB_MTT_PRESENT);
-		/* Clear padding after the pages
-		 * brought from the umem.
-		 */
-		memset(xlt + (npages * sizeof(struct mlx5_mtt)), 0,
-		       size - npages * sizeof(struct mlx5_mtt));
-	}
-
-	return npages;
-}
-
 #define MLX5_MAX_UMR_CHUNK ((1 << (MLX5_MAX_UMR_SHIFT + 4)) - \
 			    MLX5_UMR_MTT_ALIGNMENT)
 #define MLX5_SPARE_UMR_CHUNK 0x10000
@@ -921,6 +891,7 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 	size_t pages_mapped = 0;
 	size_t pages_to_map = 0;
 	size_t pages_iter = 0;
+	size_t size_to_map = 0;
 	gfp_t gfp;
 	bool use_emergency_page = false;
 
@@ -967,6 +938,15 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		goto free_xlt;
 	}
 
+	if (mr->umem->is_odp) {
+		if (!(flags & MLX5_IB_UPD_XLT_INDIRECT)) {
+			struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
+			size_t max_pages = ib_umem_odp_num_pages(odp) - idx;
+
+			pages_to_map = min_t(size_t, pages_to_map, max_pages);
+		}
+	}
+
 	sg.addr = dma;
 	sg.lkey = dev->umrc.pd->local_dma_lkey;
 
@@ -989,14 +969,22 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 	     pages_mapped < pages_to_map && !err;
 	     pages_mapped += pages_iter, idx += pages_iter) {
 		npages = min_t(int, pages_iter, pages_to_map - pages_mapped);
+		size_to_map = npages * desc_size;
 		dma_sync_single_for_cpu(ddev, dma, size, DMA_TO_DEVICE);
-		npages = populate_xlt(mr, idx, npages, xlt,
-				      page_shift, size, flags);
-
+		if (mr->umem->is_odp) {
+			mlx5_odp_populate_xlt(xlt, idx, npages, mr, flags);
+		} else {
+			__mlx5_ib_populate_pas(dev, mr->umem, page_shift, idx,
+					       npages, xlt,
+					       MLX5_IB_MTT_PRESENT);
+			/* Clear padding after the pages
+			 * brought from the umem.
+			 */
+			memset(xlt + size_to_map, 0, size - size_to_map);
+		}
 		dma_sync_single_for_device(ddev, dma, size, DMA_TO_DEVICE);
 
-		sg.length = ALIGN(npages * desc_size,
-				  MLX5_UMR_MTT_ALIGNMENT);
+		sg.length = ALIGN(size_to_map, MLX5_UMR_MTT_ALIGNMENT);
 
 		if (pages_mapped + pages_iter >= pages_to_map) {
 			if (flags & MLX5_IB_UPD_XLT_ENABLE)

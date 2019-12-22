@@ -93,8 +93,8 @@ struct mlx5_pagefault {
 
 static u64 mlx5_imr_ksm_entries;
 
-void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
-			   struct mlx5_ib_mr *imr, int flags)
+static void populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
+			struct mlx5_ib_mr *imr, int flags)
 {
 	struct mlx5_klm *end = pklm + nentries;
 
@@ -141,6 +141,44 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 			pklm->key = cpu_to_be32(imr->dev->null_mkey);
 			pklm->va = 0;
 		}
+	}
+}
+
+static u64 umem_dma_to_mtt(dma_addr_t umem_dma)
+{
+	u64 mtt_entry = umem_dma & ODP_DMA_ADDR_MASK;
+
+	if (umem_dma & ODP_READ_ALLOWED_BIT)
+		mtt_entry |= MLX5_IB_MTT_READ;
+	if (umem_dma & ODP_WRITE_ALLOWED_BIT)
+		mtt_entry |= MLX5_IB_MTT_WRITE;
+
+	return mtt_entry;
+}
+
+static void populate_mtt(__be64 *pas, size_t idx, size_t nentries,
+			 struct mlx5_ib_mr *mr, int flags)
+{
+	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
+	dma_addr_t pa;
+	size_t i;
+
+	if (flags & MLX5_IB_UPD_XLT_ZAP)
+		return;
+
+	for (i = 0; i < nentries; i++) {
+		pa = odp->dma_list[idx + i];
+		pas[i] = cpu_to_be64(umem_dma_to_mtt(pa));
+	}
+}
+
+void mlx5_odp_populate_xlt(void *xlt, size_t idx, size_t nentries,
+			   struct mlx5_ib_mr *mr, int flags)
+{
+	if (flags & MLX5_IB_UPD_XLT_INDIRECT) {
+		populate_klm(xlt, idx, nentries, mr, flags);
+	} else {
+		populate_mtt(xlt, idx, nentries, mr, flags);
 	}
 }
 
