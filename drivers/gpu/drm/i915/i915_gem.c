@@ -136,7 +136,6 @@ try_again:
 						       struct i915_vma,
 						       obj_link))) {
 		struct i915_address_space *vm = vma->vm;
-		bool awake = false;
 
 		list_move_tail(&vma->obj_link, &still_in_list);
 		if (!i915_vma_is_bound(vma, I915_VMA_BIND_MASK))
@@ -147,26 +146,18 @@ try_again:
 			break;
 
 		/* Prevent vma being freed by i915_vma_parked as we unbind */
-		if (intel_gt_pm_get_if_awake(vm->gt)) {
-			awake = true;
-		} else {
-			if (i915_vma_is_closed(vma)) {
-				spin_unlock(&obj->vma.lock);
-				i915_vma_parked(vm->gt);
-				goto err_vm;
-			}
-		}
-
+		vma = __i915_vma_get(vma);
 		spin_unlock(&obj->vma.lock);
 
-		ret = -EBUSY;
-		if (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
-		    !i915_vma_is_active(vma))
-			ret = i915_vma_unbind(vma);
+		if (vma) {
+			ret = -EBUSY;
+			if (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
+			    !i915_vma_is_active(vma))
+				ret = i915_vma_unbind(vma);
 
-		if (awake)
-			intel_gt_pm_put(vm->gt);
-err_vm:
+			__i915_vma_put(vma);
+		}
+
 		i915_vm_close(vm);
 		spin_lock(&obj->vma.lock);
 	}

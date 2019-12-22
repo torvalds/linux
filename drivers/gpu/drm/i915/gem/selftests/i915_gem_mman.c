@@ -163,7 +163,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 	kunmap(p);
 
 out:
-	i915_vma_destroy(vma);
+	__i915_vma_put(vma);
 	return err;
 }
 
@@ -257,7 +257,7 @@ static int check_partial_mappings(struct drm_i915_gem_object *obj,
 		if (err)
 			return err;
 
-		i915_vma_destroy(vma);
+		__i915_vma_put(vma);
 
 		if (igt_timeout(end_time,
 				"%s: timed out after tiling=%d stride=%d\n",

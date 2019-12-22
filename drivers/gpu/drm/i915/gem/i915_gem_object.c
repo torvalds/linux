@@ -194,7 +194,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 				GEM_BUG_ON(vma->obj != obj);
 				spin_unlock(&obj->vma.lock);
 
-				i915_vma_destroy(vma);
+				__i915_vma_put(vma);
 
 				spin_lock(&obj->vma.lock);
 			}

@@ -534,7 +534,7 @@ void __i915_vm_close(struct i915_address_space *vm)
 
 		atomic_and(~I915_VMA_PIN_MASK, &vma->flags);
 		WARN_ON(__i915_vma_unbind(vma));
-		i915_vma_destroy(vma);
+		__i915_vma_put(vma);
 
 		i915_gem_object_put(obj);
 	}
@@ -1812,7 +1812,7 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct gen6_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
 
-	i915_vma_destroy(ppgtt->vma);
+	__i915_vma_put(ppgtt->vma);
 
 	gen6_ppgtt_free_pd(ppgtt);
 	free_scratch(vm);
@@ -1895,6 +1895,7 @@ static struct i915_vma *pd_vma_create(struct gen6_ppgtt *ppgtt, int size)
 
 	i915_active_init(&vma->active, NULL, NULL);
 
+	kref_init(&vma->ref);
 	mutex_init(&vma->pages_mutex);
 	vma->vm = i915_vm_get(&ggtt->vm);
 	vma->ops = &pd_vma_ops;

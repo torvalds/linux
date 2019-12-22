@@ -114,6 +114,7 @@ vma_create(struct drm_i915_gem_object *obj,
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	kref_init(&vma->ref);
 	mutex_init(&vma->pages_mutex);
 	vma->vm = i915_vm_get(vm);
 	vma->ops = &vm->vma_ops;
@@ -1021,8 +1022,10 @@ void i915_vma_reopen(struct i915_vma *vma)
 		__i915_vma_remove_closed(vma);
 }
 
-void i915_vma_destroy(struct i915_vma *vma)
+void i915_vma_release(struct kref *ref)
 {
+	struct i915_vma *vma = container_of(ref, typeof(*vma), ref);
+
 	if (drm_mm_node_allocated(&vma->node)) {
 		mutex_lock(&vma->vm->mutex);
 		atomic_and(~I915_VMA_PIN_MASK, &vma->flags);
@@ -1072,7 +1075,7 @@ void i915_vma_parked(struct intel_gt *gt)
 		spin_unlock_irq(&gt->closed_lock);
 
 		if (obj) {
-			i915_vma_destroy(vma);
+			__i915_vma_put(vma);
 			i915_gem_object_put(obj);
 		}
 
@@ -1236,7 +1239,7 @@ int __i915_vma_unbind(struct i915_vma *vma)
 	i915_vma_detach(vma);
 	vma_unbind_pages(vma);
 
-	drm_mm_remove_node(&vma->node); /* pairs with i915_vma_destroy() */
+	drm_mm_remove_node(&vma->node); /* pairs with i915_vma_release() */
 	return 0;
 }
 
