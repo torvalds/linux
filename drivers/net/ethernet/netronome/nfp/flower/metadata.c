@@ -65,17 +65,17 @@ static int nfp_get_stats_entry(struct nfp_app *app, u32 *stats_context_id)
 	freed_stats_id = priv->stats_ring_size;
 	/* Check for unallocated entries first. */
 	if (priv->stats_ids.init_unalloc > 0) {
-		if (priv->active_mem_unit == priv->total_mem_units) {
-			priv->stats_ids.init_unalloc--;
-			priv->active_mem_unit = 0;
-		}
-
 		*stats_context_id =
 			FIELD_PREP(NFP_FL_STAT_ID_STAT,
 				   priv->stats_ids.init_unalloc - 1) |
 			FIELD_PREP(NFP_FL_STAT_ID_MU_NUM,
 				   priv->active_mem_unit);
-		priv->active_mem_unit++;
+
+		if (++priv->active_mem_unit == priv->total_mem_units) {
+			priv->stats_ids.init_unalloc--;
+			priv->active_mem_unit = 0;
+		}
+
 		return 0;
 	}
 

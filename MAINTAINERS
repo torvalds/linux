@@ -10110,6 +10110,7 @@ S:	Maintained
 F:	drivers/media/radio/radio-maxiradio*
 
 MCAN MMIO DEVICE DRIVER
+M:	Dan Murphy <dmurphy@ti.com>
 M:	Sriram Dash <sriram.dash@samsung.com>
 L:	linux-can@vger.kernel.org
 S:	Maintained
@@ -13710,6 +13711,15 @@ L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	drivers/iommu/qcom_iommu.c
 
+QUALCOMM RMNET DRIVER
+M:	Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
+M:	Sean Tranchetti <stranche@codeaurora.org>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/qualcomm/rmnet/
+F:	Documentation/networking/device_drivers/qualcomm/rmnet.txt
+F:	include/linux/if_rmnet.h
+
 QUALCOMM TSENS THERMAL DRIVER
 M:	Amit Kucheria <amit.kucheria@linaro.org>
 L:	linux-pm@vger.kernel.org
@@ -16532,6 +16542,13 @@ M:	Kevin Cernekee <cernekee@chromium.org>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Odd Fixes
 F:	sound/soc/codecs/tas571x*
+
+TI TCAN4X5X DEVICE DRIVER
+M:	Dan Murphy <dmurphy@ti.com>
+L:	linux-can@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/can/tcan4x5x.txt
+F:	drivers/net/can/m_can/tcan4x5x.c
 
 TI TRF7970A NFC DRIVER
 M:	Mark Greer <mgreer@animalcreek.com>
