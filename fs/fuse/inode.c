@@ -475,14 +475,14 @@ static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	switch (opt) {
 	case OPT_SOURCE:
 		if (fc->source)
-			return invalf(fc, "fuse: Multiple sources specified");
+			return invalfc(fc, "Multiple sources specified");
 		fc->source = param->string;
 		param->string = NULL;
 		break;
 
 	case OPT_SUBTYPE:
 		if (ctx->subtype)
-			return invalf(fc, "fuse: Multiple subtypes specified");
+			return invalfc(fc, "Multiple subtypes specified");
 		ctx->subtype = param->string;
 		param->string = NULL;
 		return 0;
@@ -494,7 +494,7 @@ static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	case OPT_ROOTMODE:
 		if (!fuse_valid_type(result.uint_32))
-			return invalf(fc, "fuse: Invalid rootmode");
+			return invalfc(fc, "Invalid rootmode");
 		ctx->rootmode = result.uint_32;
 		ctx->rootmode_present = 1;
 		break;
@@ -502,14 +502,14 @@ static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case OPT_USER_ID:
 		ctx->user_id = make_kuid(fc->user_ns, result.uint_32);
 		if (!uid_valid(ctx->user_id))
-			return invalf(fc, "fuse: Invalid user_id");
+			return invalfc(fc, "Invalid user_id");
 		ctx->user_id_present = 1;
 		break;
 
 	case OPT_GROUP_ID:
 		ctx->group_id = make_kgid(fc->user_ns, result.uint_32);
 		if (!gid_valid(ctx->group_id))
-			return invalf(fc, "fuse: Invalid group_id");
+			return invalfc(fc, "Invalid group_id");
 		ctx->group_id_present = 1;
 		break;
 
@@ -527,7 +527,7 @@ static int fuse_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	case OPT_BLKSIZE:
 		if (!ctx->is_bdev)
-			return invalf(fc, "fuse: blksize only supported for fuseblk");
+			return invalfc(fc, "blksize only supported for fuseblk");
 		ctx->blksize = result.uint_32;
 		break;
 
