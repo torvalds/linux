@@ -50,6 +50,8 @@
 				interrupt-parent = <&gpio>;
 				interrupts = <TEGRA186_MAIN_GPIO(M, 5)
 					      IRQ_TYPE_LEVEL_LOW>;
+
+				#phy-cells = <0>;
 			};
 		};
 	};
