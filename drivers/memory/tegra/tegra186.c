@@ -590,10 +590,23 @@ static int tegra186_mc_probe(struct platform_device *pdev)
 
 	mc->dev = &pdev->dev;
 
+	err = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	if (err < 0)
+		return err;
+
 	platform_set_drvdata(pdev, mc);
 	tegra186_mc_program_sid(mc);
 
-	return err;
+	return 0;
+}
+
+static int tegra186_mc_remove(struct platform_device *pdev)
+{
+	struct tegra186_mc *mc = platform_get_drvdata(pdev);
+
+	of_platform_depopulate(mc->dev);
+
+	return 0;
 }
 
 static const struct of_device_id tegra186_mc_of_match[] = {
@@ -627,8 +640,8 @@ static struct platform_driver tegra186_mc_driver = {
 		.pm = &tegra186_mc_pm_ops,
 		.suppress_bind_attrs = true,
 	},
-	.prevent_deferred_probe = true,
 	.probe = tegra186_mc_probe,
+	.remove = tegra186_mc_remove,
 };
 module_platform_driver(tegra186_mc_driver);
 
