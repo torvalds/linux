@@ -187,7 +187,7 @@ int intel_gt_resume(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	int err = 0;
+	int err;
 
 	GT_TRACE(gt, "\n");
 
@@ -201,6 +201,15 @@ int intel_gt_resume(struct intel_gt *gt)
 
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	intel_rc6_sanitize(&gt->rc6);
+
+	/* Only when the HW is re-initialised, can we replay the requests */
+	err = intel_gt_init_hw(gt);
+	if (err) {
+		dev_err(gt->i915->drm.dev,
+			"Failed to initialize GPU, declaring it wedged!\n");
+		intel_gt_set_wedged(gt);
+		goto err_fw;
+	}
 
 	intel_rps_enable(&gt->rps);
 	intel_llc_enable(&gt->llc);
@@ -234,6 +243,7 @@ int intel_gt_resume(struct intel_gt *gt)
 
 	user_forcewake(gt, false);
 
+err_fw:
 	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
 	intel_gt_pm_put(gt);
 

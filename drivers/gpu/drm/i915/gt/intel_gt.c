@@ -594,14 +594,9 @@ int intel_gt_init(struct intel_gt *gt)
 
 	intel_uc_init(&gt->uc);
 
-	err = intel_gt_init_hw(gt);
-	if (err)
-		goto err_uc_init;
-
-	/* Only when the HW is re-initialised, can we replay the requests */
 	err = intel_gt_resume(gt);
 	if (err)
-		goto err_gt_init_hw;
+		goto err_uc_init;
 
 	err = __engines_record_defaults(gt);
 	if (err)
@@ -618,7 +613,6 @@ int intel_gt_init(struct intel_gt *gt)
 	goto out_fw;
 err_gt:
 	__intel_gt_disable(gt);
-err_gt_init_hw:
 	intel_uc_fini_hw(&gt->uc);
 err_uc_init:
 	intel_uc_fini(&gt->uc);
