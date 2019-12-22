@@ -650,8 +650,8 @@ void sbitmap_add_wait_queue(struct sbitmap_queue *sbq,
 	if (!sbq_wait->sbq) {
 		sbq_wait->sbq = sbq;
 		atomic_inc(&sbq->ws_active);
+		add_wait_queue(&ws->wait, &sbq_wait->wait);
 	}
-	add_wait_queue(&ws->wait, &sbq_wait->wait);
 }
 EXPORT_SYMBOL_GPL(sbitmap_add_wait_queue);
 
