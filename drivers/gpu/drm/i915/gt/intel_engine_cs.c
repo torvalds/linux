@@ -319,12 +319,6 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->props.timeslice_duration_ms =
 		CONFIG_DRM_I915_TIMESLICE_DURATION;
 
-	/*
-	 * To be overridden by the backend on setup. However to facilitate
-	 * cleanup on error during setup, we always provide the destroy vfunc.
-	 */
-	engine->destroy = (typeof(engine->destroy))kfree;
-
 	engine->context_size = intel_engine_context_size(gt, engine->class);
 	if (WARN_ON(engine->context_size > BIT(20)))
 		engine->context_size = 0;
@@ -390,18 +384,36 @@ static void intel_setup_engine_capabilities(struct intel_gt *gt)
 }
 
 /**
- * intel_engines_cleanup() - free the resources allocated for Command Streamers
+ * intel_engines_release() - free the resources allocated for Command Streamers
  * @gt: pointer to struct intel_gt
  */
-void intel_engines_cleanup(struct intel_gt *gt)
+void intel_engines_release(struct intel_gt *gt)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	/* Decouple the backend; but keep the layout for late GPU resets */
+	for_each_engine(engine, gt, id) {
+		if (!engine->release)
+			continue;
+
+		engine->release(engine);
+		engine->release = NULL;
+
+		memset(&engine->reset, 0, sizeof(engine->reset));
+
+		gt->i915->engine[id] = NULL;
+	}
+}
+
+void intel_engines_free(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
 	for_each_engine(engine, gt, id) {
-		engine->destroy(engine);
+		kfree(engine);
 		gt->engine[id] = NULL;
-		gt->i915->engine[id] = NULL;
 	}
 }
 
@@ -455,7 +467,7 @@ int intel_engines_init_mmio(struct intel_gt *gt)
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(gt);
+	intel_engines_free(gt);
 	return err;
 }
 
@@ -488,7 +500,7 @@ int intel_engines_init(struct intel_gt *gt)
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(gt);
+	intel_engines_release(gt);
 	return err;
 }
 
@@ -663,16 +675,13 @@ int intel_engines_setup(struct intel_gt *gt)
 		if (err)
 			goto cleanup;
 
-		/* We expect the backend to take control over its state */
-		GEM_BUG_ON(engine->destroy == (typeof(engine->destroy))kfree);
-
 		GEM_BUG_ON(!engine->cops);
 	}
 
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(gt);
+	intel_engines_release(gt);
 	return err;
 }
 
@@ -833,6 +842,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
 	GEM_BUG_ON(!list_empty(&engine->active.requests));
+	tasklet_kill(&engine->execlists.tasklet); /* flush the callback */
 
 	cleanup_status_page(engine);
 

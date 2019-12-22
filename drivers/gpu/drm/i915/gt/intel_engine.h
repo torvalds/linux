@@ -186,7 +186,9 @@ void intel_engine_cleanup(struct intel_engine_cs *engine);
 int intel_engines_init_mmio(struct intel_gt *gt);
 int intel_engines_setup(struct intel_gt *gt);
 int intel_engines_init(struct intel_gt *gt);
-void intel_engines_cleanup(struct intel_gt *gt);
+
+void intel_engines_release(struct intel_gt *gt);
+void intel_engines_free(struct intel_gt *gt);
 
 int intel_engine_init_common(struct intel_engine_cs *engine);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
@@ -275,8 +277,8 @@ gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 static inline void __intel_engine_reset(struct intel_engine_cs *engine,
 					bool stalled)
 {
-	if (engine->reset.reset)
-		engine->reset.reset(engine, stalled);
+	if (engine->reset.rewind)
+		engine->reset.rewind(engine, stalled);
 	engine->serial++; /* contexts lost */
 }
 

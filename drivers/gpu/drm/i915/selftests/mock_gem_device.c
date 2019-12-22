@@ -54,17 +54,11 @@ void mock_device_flush(struct drm_i915_private *i915)
 static void mock_device_release(struct drm_device *dev)
 {
 	struct drm_i915_private *i915 = to_i915(dev);
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 
 	mock_device_flush(i915);
+	intel_gt_driver_remove(&i915->gt);
 
 	i915_gem_drain_workqueue(i915);
-
-	for_each_engine(engine, &i915->gt, id)
-		mock_engine_free(engine);
-
-	drain_workqueue(i915->wq);
 	i915_gem_drain_freed_objects(i915);
 
 	mock_fini_ggtt(&i915->ggtt);
@@ -195,7 +189,7 @@ struct drm_i915_private *mock_gem_device(void)
 	return i915;
 
 err_context:
-	mock_engine_free(i915->engine[RCS0]);
+	intel_gt_driver_remove(&i915->gt);
 err_unlock:
 	destroy_workqueue(i915->wq);
 err_drv:

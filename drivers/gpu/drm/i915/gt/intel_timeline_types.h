@@ -15,9 +15,9 @@
 
 #include "i915_active_types.h"
 
-struct drm_i915_private;
 struct i915_vma;
 struct i915_syncmap;
+struct intel_gt;
 struct intel_timeline_hwsp;
 
 struct intel_timeline {

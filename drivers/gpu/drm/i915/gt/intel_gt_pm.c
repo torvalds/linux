@@ -281,6 +281,11 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 	/* We expect to be idle already; but also want to be independent */
 	wait_for_suspend(gt);
 
+	if (is_mock_gt(gt))
+		return;
+
+	GEM_BUG_ON(gt->awake);
+
 	/*
 	 * On disabling the device, we want to turn off HW access to memory
 	 * that we no longer own.

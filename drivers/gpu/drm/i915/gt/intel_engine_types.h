@@ -400,7 +400,10 @@ struct intel_engine_cs {
 
 	struct {
 		void (*prepare)(struct intel_engine_cs *engine);
-		void (*reset)(struct intel_engine_cs *engine, bool stalled);
+
+		void (*rewind)(struct intel_engine_cs *engine, bool stalled);
+		void (*cancel)(struct intel_engine_cs *engine);
+
 		void (*finish)(struct intel_engine_cs *engine);
 	} reset;
 
@@ -450,15 +453,7 @@ struct intel_engine_cs {
 	void		(*schedule)(struct i915_request *request,
 				    const struct i915_sched_attr *attr);
 
-	/*
-	 * Cancel all requests on the hardware, or queued for execution.
-	 * This should only cancel the ready requests that have been
-	 * submitted to the engine (via the engine->submit_request callback).
-	 * This is called when marking the device as wedged.
-	 */
-	void		(*cancel_requests)(struct intel_engine_cs *engine);
-
-	void		(*destroy)(struct intel_engine_cs *engine);
+	void		(*release)(struct intel_engine_cs *engine);
 
 	struct intel_engine_execlists execlists;
 

@@ -45,20 +45,12 @@
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_mman.h"
-#include "gem/i915_gem_pm.h"
-#include "gt/intel_context.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
-#include "gt/intel_gt_requests.h"
-#include "gt/intel_mocs.h"
-#include "gt/intel_reset.h"
-#include "gt/intel_renderstate.h"
-#include "gt/intel_rps.h"
 #include "gt/intel_workarounds.h"
 
 #include "i915_drv.h"
-#include "i915_scatterlist.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 
@@ -1082,177 +1074,6 @@ out:
 	return err;
 }
 
-static int __intel_context_flush_retire(struct intel_context *ce)
-{
-	struct intel_timeline *tl;
-
-	tl = intel_context_timeline_lock(ce);
-	if (IS_ERR(tl))
-		return PTR_ERR(tl);
-
-	intel_context_timeline_unlock(tl);
-	return 0;
-}
-
-static int __intel_engines_record_defaults(struct intel_gt *gt)
-{
-	struct i915_request *requests[I915_NUM_ENGINES] = {};
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int err = 0;
-
-	/*
-	 * As we reset the gpu during very early sanitisation, the current
-	 * register state on the GPU should reflect its defaults values.
-	 * We load a context onto the hw (with restore-inhibit), then switch
-	 * over to a second context to save that default register state. We
-	 * can then prime every new context with that state so they all start
-	 * from the same default HW values.
-	 */
-
-	for_each_engine(engine, gt, id) {
-		struct intel_renderstate so;
-		struct intel_context *ce;
-		struct i915_request *rq;
-
-		err = intel_renderstate_init(&so, engine);
-		if (err)
-			goto out;
-
-		/* We must be able to switch to something! */
-		GEM_BUG_ON(!engine->kernel_context);
-		engine->serial++; /* force the kernel context switch */
-
-		ce = intel_context_create(engine);
-		if (IS_ERR(ce)) {
-			err = PTR_ERR(ce);
-			goto out;
-		}
-
-		rq = intel_context_create_request(ce);
-		if (IS_ERR(rq)) {
-			err = PTR_ERR(rq);
-			intel_context_put(ce);
-			goto out;
-		}
-
-		err = intel_engine_emit_ctx_wa(rq);
-		if (err)
-			goto err_rq;
-
-		err = intel_renderstate_emit(&so, rq);
-		if (err)
-			goto err_rq;
-
-err_rq:
-		requests[id] = i915_request_get(rq);
-		i915_request_add(rq);
-		intel_renderstate_fini(&so);
-		if (err)
-			goto out;
-	}
-
-	/* Flush the default context image to memory, and enable powersaving. */
-	if (intel_gt_wait_for_idle(gt, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
-		err = -EIO;
-		goto out;
-	}
-
-	for (id = 0; id < ARRAY_SIZE(requests); id++) {
-		struct i915_request *rq;
-		struct i915_vma *state;
-		void *vaddr;
-
-		rq = requests[id];
-		if (!rq)
-			continue;
-
-		GEM_BUG_ON(!test_bit(CONTEXT_ALLOC_BIT, &rq->context->flags));
-		state = rq->context->state;
-		if (!state)
-			continue;
-
-		/* Serialise with retirement on another CPU */
-		GEM_BUG_ON(!i915_request_completed(rq));
-		err = __intel_context_flush_retire(rq->context);
-		if (err)
-			goto out;
-
-		/* We want to be able to unbind the state from the GGTT */
-		GEM_BUG_ON(intel_context_is_pinned(rq->context));
-
-		/*
-		 * As we will hold a reference to the logical state, it will
-		 * not be torn down with the context, and importantly the
-		 * object will hold onto its vma (making it possible for a
-		 * stray GTT write to corrupt our defaults). Unmap the vma
-		 * from the GTT to prevent such accidents and reclaim the
-		 * space.
-		 */
-		err = i915_vma_unbind(state);
-		if (err)
-			goto out;
-
-		i915_gem_object_lock(state->obj);
-		err = i915_gem_object_set_to_cpu_domain(state->obj, false);
-		i915_gem_object_unlock(state->obj);
-		if (err)
-			goto out;
-
-		i915_gem_object_set_cache_coherency(state->obj, I915_CACHE_LLC);
-
-		/* Check we can acquire the image of the context state */
-		vaddr = i915_gem_object_pin_map(state->obj, I915_MAP_FORCE_WB);
-		if (IS_ERR(vaddr)) {
-			err = PTR_ERR(vaddr);
-			goto out;
-		}
-
-		rq->engine->default_state = i915_gem_object_get(state->obj);
-		i915_gem_object_unpin_map(state->obj);
-	}
-
-out:
-	/*
-	 * If we have to abandon now, we expect the engines to be idle
-	 * and ready to be torn-down. The quickest way we can accomplish
-	 * this is by declaring ourselves wedged.
-	 */
-	if (err)
-		intel_gt_set_wedged(gt);
-
-	for (id = 0; id < ARRAY_SIZE(requests); id++) {
-		struct intel_context *ce;
-		struct i915_request *rq;
-
-		rq = requests[id];
-		if (!rq)
-			continue;
-
-		ce = rq->context;
-		i915_request_put(rq);
-		intel_context_put(ce);
-	}
-	return err;
-}
-
-static int intel_engines_verify_workarounds(struct intel_gt *gt)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int err = 0;
-
-	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
-		return 0;
-
-	for_each_engine(engine, gt, id) {
-		if (intel_engine_verify_workarounds(engine, "load"))
-			err = -EIO;
-	}
-
-	return err;
-}
-
 int i915_gem_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
@@ -1269,44 +1090,11 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	intel_uc_fetch_firmwares(&dev_priv->gt.uc);
 	intel_wopcm_init(&dev_priv->wopcm);
 
-	/* This is just a security blanket to placate dragons.
-	 * On some systems, we very sporadically observe that the first TLBs
-	 * used by the CS may be stale, despite us poking the TLB reset. If
-	 * we hold the forcewake during initialisation these problems
-	 * just magically go away.
-	 */
-	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
-
 	ret = i915_init_ggtt(dev_priv);
 	if (ret) {
 		GEM_BUG_ON(ret == -EIO);
 		goto err_unlock;
 	}
-
-	intel_gt_init(&dev_priv->gt);
-
-	ret = intel_engines_setup(&dev_priv->gt);
-	if (ret) {
-		GEM_BUG_ON(ret == -EIO);
-		goto err_gt_early;
-	}
-
-	ret = intel_engines_init(&dev_priv->gt);
-	if (ret) {
-		GEM_BUG_ON(ret == -EIO);
-		goto err_engines;
-	}
-
-	intel_uc_init(&dev_priv->gt.uc);
-
-	ret = intel_gt_init_hw(&dev_priv->gt);
-	if (ret)
-		goto err_uc_init;
-
-	/* Only when the HW is re-initialised, can we replay the requests */
-	ret = intel_gt_resume(&dev_priv->gt);
-	if (ret)
-		goto err_init_hw;
 
 	/*
 	 * Despite its name intel_init_clock_gating applies both display
@@ -1319,23 +1107,9 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_init_clock_gating(dev_priv);
 
-	ret = intel_engines_verify_workarounds(&dev_priv->gt);
+	ret = intel_gt_init(&dev_priv->gt);
 	if (ret)
-		goto err_gt_late;
-
-	ret = __intel_engines_record_defaults(&dev_priv->gt);
-	if (ret)
-		goto err_gt_late;
-
-	ret = i915_inject_probe_error(dev_priv, -ENODEV);
-	if (ret)
-		goto err_gt_late;
-
-	ret = i915_inject_probe_error(dev_priv, -EIO);
-	if (ret)
-		goto err_gt_late;
-
-	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
+		goto err_unlock;
 
 	return 0;
 
@@ -1345,24 +1119,8 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * HW as irrevisibly wedged, but keep enough state around that the
 	 * driver doesn't explode during runtime.
 	 */
-err_gt_late:
-	intel_gt_set_wedged_on_init(&dev_priv->gt);
-	i915_gem_suspend(dev_priv);
-	i915_gem_suspend_late(dev_priv);
-
-	i915_gem_drain_workqueue(dev_priv);
-err_init_hw:
-	intel_uc_fini_hw(&dev_priv->gt.uc);
-err_uc_init:
-	if (ret != -EIO)
-		intel_uc_fini(&dev_priv->gt.uc);
-err_engines:
-	if (ret != -EIO)
-		intel_engines_cleanup(&dev_priv->gt);
-err_gt_early:
-	intel_gt_driver_release(&dev_priv->gt);
 err_unlock:
-	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
+	i915_gem_drain_workqueue(dev_priv);
 
 	if (ret != -EIO) {
 		intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
@@ -1410,19 +1168,16 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 
 	i915_gem_suspend_late(dev_priv);
 	intel_gt_driver_remove(&dev_priv->gt);
+	dev_priv->uabi_engines = RB_ROOT;
 
 	/* Flush any outstanding unpin_work. */
 	i915_gem_drain_workqueue(dev_priv);
-
-	intel_uc_fini_hw(&dev_priv->gt.uc);
-	intel_uc_fini(&dev_priv->gt.uc);
 
 	i915_gem_drain_freed_objects(dev_priv);
 }
 
 void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
-	intel_engines_cleanup(&dev_priv->gt);
 	intel_gt_driver_release(&dev_priv->gt);
 
 	intel_wa_list_free(&dev_priv->gt_wa_list);

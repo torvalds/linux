@@ -768,7 +768,7 @@ static void reset_prepare(struct intel_engine_cs *engine)
 			     intel_uncore_read_fw(uncore, RING_HEAD(base)));
 }
 
-static void reset_ring(struct intel_engine_cs *engine, bool stalled)
+static void reset_rewind(struct intel_engine_cs *engine, bool stalled)
 {
 	struct i915_request *pos, *rq;
 	unsigned long flags;
@@ -900,7 +900,7 @@ static int rcs_resume(struct intel_engine_cs *engine)
 	return xcs_resume(engine);
 }
 
-static void cancel_requests(struct intel_engine_cs *engine)
+static void reset_cancel(struct intel_engine_cs *engine)
 {
 	struct i915_request *request;
 	unsigned long flags;
@@ -1787,7 +1787,6 @@ static int gen6_ring_flush(struct i915_request *rq, u32 mode)
 static void i9xx_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = i9xx_submit_request;
-	engine->cancel_requests = cancel_requests;
 
 	engine->park = NULL;
 	engine->unpark = NULL;
@@ -1799,7 +1798,7 @@ static void gen6_bsd_set_default_submission(struct intel_engine_cs *engine)
 	engine->submit_request = gen6_bsd_submit_request;
 }
 
-static void ring_destroy(struct intel_engine_cs *engine)
+static void ring_release(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
@@ -1813,8 +1812,6 @@ static void ring_destroy(struct intel_engine_cs *engine)
 
 	intel_timeline_unpin(engine->legacy.timeline);
 	intel_timeline_put(engine->legacy.timeline);
-
-	kfree(engine);
 }
 
 static void setup_irq(struct intel_engine_cs *engine)
@@ -1845,11 +1842,12 @@ static void setup_common(struct intel_engine_cs *engine)
 
 	setup_irq(engine);
 
-	engine->destroy = ring_destroy;
+	engine->release = ring_release;
 
 	engine->resume = xcs_resume;
 	engine->reset.prepare = reset_prepare;
-	engine->reset.reset = reset_ring;
+	engine->reset.rewind = reset_rewind;
+	engine->reset.cancel = reset_cancel;
 	engine->reset.finish = reset_finish;
 
 	engine->cops = &ring_context_ops;

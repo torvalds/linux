@@ -262,12 +262,7 @@ void intel_uc_fetch_firmwares(struct intel_uc *uc)
 
 void intel_uc_cleanup_firmwares(struct intel_uc *uc)
 {
-	if (!intel_uc_uses_guc(uc))
-		return;
-
-	if (intel_uc_uses_huc(uc))
-		intel_uc_fw_cleanup_fetch(&uc->huc.fw);
-
+	intel_uc_fw_cleanup_fetch(&uc->huc.fw);
 	intel_uc_fw_cleanup_fetch(&uc->guc.fw);
 }
 
@@ -295,15 +290,8 @@ void intel_uc_init(struct intel_uc *uc)
 
 void intel_uc_fini(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &uc->guc;
-
-	if (!intel_uc_uses_guc(uc))
-		return;
-
-	if (intel_uc_uses_huc(uc))
-		intel_huc_fini(&uc->huc);
-
-	intel_guc_fini(guc);
+	intel_huc_fini(&uc->huc);
+	intel_guc_fini(&uc->guc);
 
 	__uc_free_load_err_log(uc);
 }

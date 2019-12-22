@@ -401,7 +401,7 @@ cancel_port_requests(struct intel_engine_execlists * const execlists)
 		memset(execlists->inflight, 0, sizeof(execlists->inflight));
 }
 
-static void guc_reset(struct intel_engine_cs *engine, bool stalled)
+static void guc_reset_rewind(struct intel_engine_cs *engine, bool stalled)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_request *rq;
@@ -426,7 +426,7 @@ out_unlock:
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
-static void guc_cancel_requests(struct intel_engine_cs *engine)
+static void guc_reset_cancel(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_request *rq, *rn;
@@ -599,10 +599,9 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 	engine->park = engine->unpark = NULL;
 
 	engine->reset.prepare = guc_reset_prepare;
-	engine->reset.reset = guc_reset;
+	engine->reset.rewind = guc_reset_rewind;
+	engine->reset.cancel = guc_reset_cancel;
 	engine->reset.finish = guc_reset_finish;
-
-	engine->cancel_requests = guc_cancel_requests;
 
 	engine->flags &= ~I915_ENGINE_SUPPORTS_STATS;
 	engine->flags |= I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;

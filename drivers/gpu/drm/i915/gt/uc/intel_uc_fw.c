@@ -544,10 +544,7 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
 {
-	if (!intel_uc_fw_is_available(uc_fw))
-		return;
-
-	i915_gem_object_unpin_pages(uc_fw->obj);
+	intel_uc_fw_cleanup_fetch(uc_fw);
 }
 
 /**
