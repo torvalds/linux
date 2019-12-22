@@ -335,10 +335,16 @@ static int exynos_bus_profile_init(struct exynos_bus *bus,
 	ret = exynos_bus_set_event(bus);
 	if (ret < 0) {
 		dev_err(dev, "failed to set event to devfreq-event devices\n");
-		return ret;
+		goto err_edev;
 	}
 
 	return 0;
+
+err_edev:
+	if (exynos_bus_disable_edev(bus))
+		dev_warn(dev, "failed to disable the devfreq-event devices\n");
+
+	return ret;
 }
 
 static int exynos_bus_profile_init_passive(struct exynos_bus *bus,
