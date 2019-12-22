@@ -65,6 +65,19 @@ hsr_node_table_open(struct inode *inode, struct file *filp)
 	return single_open(filp, hsr_node_table_show, inode->i_private);
 }
 
+void hsr_debugfs_rename(struct net_device *dev)
+{
+	struct hsr_priv *priv = netdev_priv(dev);
+	struct dentry *d;
+
+	d = debugfs_rename(hsr_debugfs_root_dir, priv->node_tbl_root,
+			   hsr_debugfs_root_dir, dev->name);
+	if (IS_ERR(d))
+		netdev_warn(dev, "failed to rename\n");
+	else
+		priv->node_tbl_root = d;
+}
+
 static const struct file_operations hsr_fops = {
 	.open	= hsr_node_table_open,
 	.read	= seq_read,
