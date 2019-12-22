@@ -138,6 +138,10 @@ try_again:
 		struct i915_address_space *vm = vma->vm;
 		bool awake = false;
 
+		list_move_tail(&vma->obj_link, &still_in_list);
+		if (!i915_vma_is_bound(vma, I915_VMA_BIND_MASK))
+			continue;
+
 		ret = -EAGAIN;
 		if (!i915_vm_tryopen(vm))
 			break;
@@ -153,7 +157,6 @@ try_again:
 			}
 		}
 
-		list_move_tail(&vma->obj_link, &still_in_list);
 		spin_unlock(&obj->vma.lock);
 
 		ret = -EBUSY;
