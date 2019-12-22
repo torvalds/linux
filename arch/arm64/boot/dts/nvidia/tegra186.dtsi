@@ -144,6 +144,27 @@
 		reg = <0x0 0x02c00000 0x0 0xb0000>;
 		interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		ranges = <0x0 0x02c00000 0x0 0x02c00000 0x0 0xb0000>;
+
+		/*
+		 * Memory clients have access to all 40 bits that the memory
+		 * controller can address.
+		 */
+		dma-ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
+
+		emc: external-memory-controller@2c60000 {
+			compatible = "nvidia,tegra186-emc";
+			reg = <0x0 0x02c60000 0x0 0x50000>;
+			interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA186_CLK_EMC>;
+			clock-names = "emc";
+
+			nvidia,bpmp = <&bpmp>;
+		};
 	};
 
 	uarta: serial@3100000 {
