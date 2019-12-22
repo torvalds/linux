@@ -1364,12 +1364,11 @@ int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev)
 				   &req, sizeof(req), false);
 }
 
-int mt7615_mcu_set_channel(struct mt7615_phy *phy)
+int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd)
 {
 	struct mt7615_dev *dev = phy->dev;
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
-	u8 n_chains = hweight8(phy->mt76->antenna_mask);
 	struct {
 		u8 control_chan;
 		u8 center_chan;
@@ -1391,11 +1390,10 @@ int mt7615_mcu_set_channel(struct mt7615_phy *phy)
 	} req = {
 		.control_chan = chandef->chan->hw_value,
 		.center_chan = ieee80211_frequency_to_channel(freq1),
-		.tx_streams = n_chains,
-		.rx_streams_mask = n_chains,
+		.tx_streams = hweight8(phy->mt76->antenna_mask),
+		.rx_streams_mask = phy->chainmask,
 		.center_chan2 = ieee80211_frequency_to_channel(freq2),
 	};
-	int ret;
 
 	if (dev->mt76.hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
@@ -1434,15 +1432,7 @@ int mt7615_mcu_set_channel(struct mt7615_phy *phy)
 	}
 	memset(req.txpower_sku, 0x3f, 49);
 
-	ret = __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_CHANNEL_SWITCH,
-				  &req, sizeof(req), true);
-	if (ret)
-		return ret;
-
-	req.rx_streams_mask = phy->chainmask;
-
-	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RX_PATH,
-				   &req, sizeof(req), true);
+	return __mt76_mcu_send_msg(&dev->mt76, cmd, &req, sizeof(req), true);
 }
 
 int mt7615_mcu_set_ht_cap(struct mt7615_dev *dev, struct ieee80211_vif *vif,

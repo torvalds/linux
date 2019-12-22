@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include "mt7615.h"
+#include "mcu.h"
 
 static bool mt7615_dev_running(struct mt7615_dev *dev)
 {
@@ -48,6 +49,8 @@ static int mt7615_start(struct ieee80211_hw *hw)
 		mt7615_mcu_set_mac_enable(dev, 1, true);
 		mt7615_mac_enable_nf(dev, 1);
 	}
+
+	mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
@@ -226,7 +229,7 @@ static int mt7615_set_channel(struct mt7615_phy *phy)
 	phy->dfs_state = -1;
 	mt76_set_channel(phy->mt76);
 
-	ret = mt7615_mcu_set_channel(phy);
+	ret = mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_CHANNEL_SWITCH);
 	if (ret)
 		goto out;
 
