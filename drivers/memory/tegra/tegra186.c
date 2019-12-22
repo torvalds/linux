@@ -9,7 +9,9 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 
+#if defined(CONFIG_ARCH_TEGRA_186_SOC)
 #include <dt-bindings/memory/tegra186-mc.h>
+#endif
 
 struct tegra186_mc_client {
 	const char *name;
@@ -58,6 +60,7 @@ static void tegra186_mc_program_sid(struct tegra186_mc *mc)
 	}
 }
 
+#if defined(CONFIG_ARCH_TEGRA_186_SOC)
 static const struct tegra186_mc_client tegra186_mc_clients[] = {
 	{
 		.name = "ptcr",
@@ -570,6 +573,7 @@ static const struct tegra186_mc_soc tegra186_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra186_mc_clients),
 	.clients = tegra186_mc_clients,
 };
+#endif
 
 static int tegra186_mc_probe(struct platform_device *pdev)
 {
@@ -610,7 +614,9 @@ static int tegra186_mc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id tegra186_mc_of_match[] = {
+#if defined(CONFIG_ARCH_TEGRA_186_SOC)
 	{ .compatible = "nvidia,tegra186-mc", .data = &tegra186_mc_soc },
+#endif
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, tegra186_mc_of_match);
