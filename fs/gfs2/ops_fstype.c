@@ -1359,7 +1359,7 @@ static int gfs2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_debug:
 		if (result.boolean && args->ar_errors == GFS2_ERRORS_PANIC)
-			return invalf(fc, "gfs2: -o debug and -o errors=panic are mutually exclusive");
+			return invalfc(fc, "-o debug and -o errors=panic are mutually exclusive");
 		args->ar_debug = result.boolean;
 		break;
 	case Opt_upgrade:
@@ -1389,27 +1389,27 @@ static int gfs2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_commit:
 		if (result.int_32 <= 0)
-			return invalf(fc, "gfs2: commit mount option requires a positive numeric argument");
+			return invalfc(fc, "commit mount option requires a positive numeric argument");
 		args->ar_commit = result.int_32;
 		break;
 	case Opt_statfs_quantum:
 		if (result.int_32 < 0)
-			return invalf(fc, "gfs2: statfs_quantum mount option requires a non-negative numeric argument");
+			return invalfc(fc, "statfs_quantum mount option requires a non-negative numeric argument");
 		args->ar_statfs_quantum = result.int_32;
 		break;
 	case Opt_quota_quantum:
 		if (result.int_32 <= 0)
-			return invalf(fc, "gfs2: quota_quantum mount option requires a positive numeric argument");
+			return invalfc(fc, "quota_quantum mount option requires a positive numeric argument");
 		args->ar_quota_quantum = result.int_32;
 		break;
 	case Opt_statfs_percent:
 		if (result.int_32 < 0 || result.int_32 > 100)
-			return invalf(fc, "gfs2: statfs_percent mount option requires a numeric argument between 0 and 100");
+			return invalfc(fc, "statfs_percent mount option requires a numeric argument between 0 and 100");
 		args->ar_statfs_percent = result.int_32;
 		break;
 	case Opt_errors:
 		if (args->ar_debug && result.uint_32 == GFS2_ERRORS_PANIC)
-			return invalf(fc, "gfs2: -o debug and -o errors=panic are mutually exclusive");
+			return invalfc(fc, "-o debug and -o errors=panic are mutually exclusive");
 		args->ar_errors = result.uint_32;
 		break;
 	case Opt_barrier:
@@ -1422,7 +1422,7 @@ static int gfs2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		args->ar_loccookie = result.boolean;
 		break;
 	default:
-		return invalf(fc, "gfs2: invalid mount option: %s", param->key);
+		return invalfc(fc, "invalid mount option: %s", param->key);
 	}
 	return 0;
 }
@@ -1448,27 +1448,27 @@ static int gfs2_reconfigure(struct fs_context *fc)
 	spin_unlock(&gt->gt_spin);
 
 	if (strcmp(newargs->ar_lockproto, oldargs->ar_lockproto)) {
-		errorf(fc, "gfs2: reconfiguration of locking protocol not allowed");
+		errorfc(fc, "reconfiguration of locking protocol not allowed");
 		return -EINVAL;
 	}
 	if (strcmp(newargs->ar_locktable, oldargs->ar_locktable)) {
-		errorf(fc, "gfs2: reconfiguration of lock table not allowed");
+		errorfc(fc, "reconfiguration of lock table not allowed");
 		return -EINVAL;
 	}
 	if (strcmp(newargs->ar_hostdata, oldargs->ar_hostdata)) {
-		errorf(fc, "gfs2: reconfiguration of host data not allowed");
+		errorfc(fc, "reconfiguration of host data not allowed");
 		return -EINVAL;
 	}
 	if (newargs->ar_spectator != oldargs->ar_spectator) {
-		errorf(fc, "gfs2: reconfiguration of spectator mode not allowed");
+		errorfc(fc, "reconfiguration of spectator mode not allowed");
 		return -EINVAL;
 	}
 	if (newargs->ar_localflocks != oldargs->ar_localflocks) {
-		errorf(fc, "gfs2: reconfiguration of localflocks not allowed");
+		errorfc(fc, "reconfiguration of localflocks not allowed");
 		return -EINVAL;
 	}
 	if (newargs->ar_meta != oldargs->ar_meta) {
-		errorf(fc, "gfs2: switching between gfs2 and gfs2meta not allowed");
+		errorfc(fc, "switching between gfs2 and gfs2meta not allowed");
 		return -EINVAL;
 	}
 	if (oldargs->ar_spectator)
@@ -1478,11 +1478,11 @@ static int gfs2_reconfigure(struct fs_context *fc)
 		if (fc->sb_flags & SB_RDONLY) {
 			error = gfs2_make_fs_ro(sdp);
 			if (error)
-				errorf(fc, "gfs2: unable to remount read-only");
+				errorfc(fc, "unable to remount read-only");
 		} else {
 			error = gfs2_make_fs_rw(sdp);
 			if (error)
-				errorf(fc, "gfs2: unable to remount read-write");
+				errorfc(fc, "unable to remount read-write");
 		}
 	}
 	sdp->sd_args = *newargs;
