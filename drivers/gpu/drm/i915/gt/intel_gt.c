@@ -584,10 +584,6 @@ int intel_gt_init(struct intel_gt *gt)
 		goto err_pm;
 	}
 
-	err = intel_engines_setup(gt);
-	if (err)
-		goto err_vm;
-
 	err = intel_engines_init(gt);
 	if (err)
 		goto err_engines;
@@ -618,7 +614,6 @@ err_uc_init:
 	intel_uc_fini(&gt->uc);
 err_engines:
 	intel_engines_release(gt);
-err_vm:
 	i915_vm_put(fetch_and_zero(&gt->vm));
 err_pm:
 	intel_gt_pm_fini(gt);
