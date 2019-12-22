@@ -67,7 +67,7 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 
 		/* Make sure we recognize frames from ourselves in hsr_rcv() */
 		port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
-		res = hsr_create_self_node(&hsr->self_node_db,
+		res = hsr_create_self_node(hsr,
 					   master->dev->dev_addr,
 					   port ?
 						port->dev->dev_addr :

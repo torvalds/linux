@@ -368,7 +368,7 @@ static void hsr_dev_destroy(struct net_device *hsr_dev)
 	del_timer_sync(&hsr->prune_timer);
 	del_timer_sync(&hsr->announce_timer);
 
-	hsr_del_self_node(&hsr->self_node_db);
+	hsr_del_self_node(hsr);
 	hsr_del_nodes(&hsr->node_db);
 }
 
@@ -440,11 +440,12 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	INIT_LIST_HEAD(&hsr->ports);
 	INIT_LIST_HEAD(&hsr->node_db);
 	INIT_LIST_HEAD(&hsr->self_node_db);
+	spin_lock_init(&hsr->list_lock);
 
 	ether_addr_copy(hsr_dev->dev_addr, slave[0]->dev_addr);
 
 	/* Make sure we recognize frames from ourselves in hsr_rcv() */
-	res = hsr_create_self_node(&hsr->self_node_db, hsr_dev->dev_addr,
+	res = hsr_create_self_node(hsr, hsr_dev->dev_addr,
 				   slave[1]->dev_addr);
 	if (res < 0)
 		return res;
@@ -502,7 +503,7 @@ err_unregister:
 	list_for_each_entry_safe(port, tmp, &hsr->ports, port_list)
 		hsr_del_port(port);
 err_add_master:
-	hsr_del_self_node(&hsr->self_node_db);
+	hsr_del_self_node(hsr);
 
 	return res;
 }

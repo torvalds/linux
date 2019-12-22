@@ -160,8 +160,9 @@ struct hsr_priv {
 	int announce_count;
 	u16 sequence_nr;
 	u16 sup_sequence_nr;	/* For HSRv1 separate seq_nr for supervision */
-	u8 prot_version;		/* Indicate if HSRv0 or HSRv1. */
-	spinlock_t seqnr_lock;			/* locking for sequence_nr */
+	u8 prot_version;	/* Indicate if HSRv0 or HSRv1. */
+	spinlock_t seqnr_lock;	/* locking for sequence_nr */
+	spinlock_t list_lock;	/* locking for node list */
 	unsigned char		sup_multicast_addr[ETH_ALEN];
 #ifdef	CONFIG_DEBUG_FS
 	struct dentry *node_tbl_root;
