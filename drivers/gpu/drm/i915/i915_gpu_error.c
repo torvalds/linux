@@ -1221,7 +1221,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 static void record_request(const struct i915_request *request,
 			   struct drm_i915_error_request *erq)
 {
-	const struct i915_gem_context *ctx = request->context->gem_context;
+	const struct i915_gem_context *ctx;
 
 	erq->flags = request->fence.flags;
 	erq->context = request->fence.context;
@@ -1231,7 +1231,13 @@ static void record_request(const struct i915_request *request,
 	erq->start = i915_ggtt_offset(request->ring->vma);
 	erq->head = request->head;
 	erq->tail = request->tail;
-	erq->pid = ctx && ctx->pid ? pid_nr(ctx->pid) : 0;
+
+	erq->pid = 0;
+	rcu_read_lock();
+	ctx = rcu_dereference(request->context->gem_context);
+	if (ctx)
+		erq->pid = pid_nr(ctx->pid);
+	rcu_read_unlock();
 }
 
 static void engine_record_requests(struct intel_engine_cs *engine,
@@ -1298,28 +1304,34 @@ static void error_record_engine_execlists(const struct intel_engine_cs *engine,
 static bool record_context(struct drm_i915_error_context *e,
 			   const struct i915_request *rq)
 {
-	const struct i915_gem_context *ctx = rq->context->gem_context;
+	struct i915_gem_context *ctx;
+	struct task_struct *task;
+	bool capture;
 
+	rcu_read_lock();
+	ctx = rcu_dereference(rq->context->gem_context);
+	if (ctx && !kref_get_unless_zero(&ctx->ref))
+		ctx = NULL;
+	rcu_read_unlock();
 	if (!ctx)
 		return false;
 
-	if (ctx->pid) {
-		struct task_struct *task;
-
-		rcu_read_lock();
-		task = pid_task(ctx->pid, PIDTYPE_PID);
-		if (task) {
-			strcpy(e->comm, task->comm);
-			e->pid = task->pid;
-		}
-		rcu_read_unlock();
+	rcu_read_lock();
+	task = pid_task(ctx->pid, PIDTYPE_PID);
+	if (task) {
+		strcpy(e->comm, task->comm);
+		e->pid = task->pid;
 	}
+	rcu_read_unlock();
 
 	e->sched_attr = ctx->sched;
 	e->guilty = atomic_read(&ctx->guilty_count);
 	e->active = atomic_read(&ctx->active_count);
 
-	return i915_gem_context_no_error_capture(ctx);
+	capture = i915_gem_context_no_error_capture(ctx);
+
+	i915_gem_context_put(ctx);
+	return capture;
 }
 
 struct capture_vma {

@@ -44,7 +44,7 @@ struct intel_context {
 #define intel_context_inflight_count(ce) ptr_unmask_bits((ce)->inflight, 2)
 
 	struct i915_address_space *vm;
-	struct i915_gem_context *gem_context;
+	struct i915_gem_context __rcu *gem_context;
 
 	struct list_head signal_link;
 	struct list_head signals;

@@ -1550,7 +1550,7 @@ static int remap_l3_slice(struct i915_request *rq, int slice)
 
 static int remap_l3(struct i915_request *rq)
 {
-	struct i915_gem_context *ctx = rq->context->gem_context;
+	struct i915_gem_context *ctx = i915_request_gem_context(rq);
 	int i, err;
 
 	if (!ctx || !ctx->remap_slice)

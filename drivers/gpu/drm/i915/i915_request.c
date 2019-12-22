@@ -76,7 +76,7 @@ static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return "signaled";
 
-	ctx = to_request(fence)->context->gem_context;
+	ctx = i915_request_gem_context(to_request(fence));
 	if (!ctx)
 		return "[" DRIVER_NAME "]";
 
@@ -1312,8 +1312,8 @@ void i915_request_add(struct i915_request *rq)
 
 	prev = __i915_request_commit(rq);
 
-	if (rq->context->gem_context)
-		attr = rq->context->gem_context->sched;
+	if (rcu_access_pointer(rq->context->gem_context))
+		attr = i915_request_gem_context(rq)->sched;
 
 	/*
 	 * Boost actual workloads past semaphores!

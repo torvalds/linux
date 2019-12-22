@@ -28,6 +28,7 @@
 #include <linux/dma-fence.h>
 #include <linux/lockdep.h>
 
+#include "gem/i915_gem_context_types.h"
 #include "gt/intel_context_types.h"
 #include "gt/intel_engine_types.h"
 #include "gt/intel_timeline_types.h"
@@ -461,6 +462,13 @@ i915_request_timeline(struct i915_request *rq)
 	/* Valid only while the request is being constructed (or retired). */
 	return rcu_dereference_protected(rq->timeline,
 					 lockdep_is_held(&rcu_access_pointer(rq->timeline)->mutex));
+}
+
+static inline struct i915_gem_context *
+i915_request_gem_context(struct i915_request *rq)
+{
+	/* Valid only while the request is being constructed (or retired). */
+	return rcu_dereference_protected(rq->context->gem_context, true);
 }
 
 static inline struct intel_timeline *

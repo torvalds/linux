@@ -85,20 +85,27 @@ static bool mark_guilty(struct i915_request *rq)
 	bool banned;
 	int i;
 
-	ctx = rq->context->gem_context;
+	rcu_read_lock();
+	ctx = rcu_dereference(rq->context->gem_context);
+	if (ctx && !kref_get_unless_zero(&ctx->ref))
+		ctx = NULL;
+	rcu_read_unlock();
 	if (!ctx)
 		return false;
 
 	if (i915_gem_context_is_closed(ctx)) {
 		intel_context_set_banned(rq->context);
-		return true;
+		banned = true;
+		goto out;
 	}
 
 	atomic_inc(&ctx->guilty_count);
 
 	/* Cool contexts are too cool to be banned! (Used for reset testing.) */
-	if (!i915_gem_context_is_bannable(ctx))
-		return false;
+	if (!i915_gem_context_is_bannable(ctx)) {
+		banned = false;
+		goto out;
+	}
 
 	dev_notice(ctx->i915->drm.dev,
 		   "%s context reset due to GPU hang\n",
@@ -122,13 +129,20 @@ static bool mark_guilty(struct i915_request *rq)
 
 	client_mark_guilty(ctx, banned);
 
+out:
+	i915_gem_context_put(ctx);
 	return banned;
 }
 
 static void mark_innocent(struct i915_request *rq)
 {
-	if (rq->context->gem_context)
-		atomic_inc(&rq->context->gem_context->active_count);
+	struct i915_gem_context *ctx;
+
+	rcu_read_lock();
+	ctx = rcu_dereference(rq->context->gem_context);
+	if (ctx)
+		atomic_inc(&ctx->active_count);
+	rcu_read_unlock();
 }
 
 void __i915_request_reset(struct i915_request *rq, bool guilty)

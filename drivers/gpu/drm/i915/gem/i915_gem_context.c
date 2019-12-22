@@ -212,8 +212,8 @@ context_get_vm_rcu(struct i915_gem_context *ctx)
 static void intel_context_set_gem(struct intel_context *ce,
 				  struct i915_gem_context *ctx)
 {
-	GEM_BUG_ON(ce->gem_context);
-	ce->gem_context = ctx;
+	GEM_BUG_ON(rcu_access_pointer(ce->gem_context));
+	RCU_INIT_POINTER(ce->gem_context, ctx);
 
 	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))
 		ce->ring = __intel_context_ring_size(SZ_16K);
@@ -244,6 +244,7 @@ static void __free_engines(struct i915_gem_engines *e, unsigned int count)
 		if (!e->engines[count])
 			continue;
 
+		RCU_INIT_POINTER(e->engines[count]->gem_context, NULL);
 		intel_context_put(e->engines[count]);
 	}
 	kfree(e);
