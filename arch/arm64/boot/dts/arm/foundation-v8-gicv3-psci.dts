@@ -1,9 +1,0 @@
-/*
- * ARM Ltd.
- *
- * ARMv8 Foundation model DTS (GICv3+PSCI configuration)
- */
-
-#include "foundation-v8.dtsi"
-#include "foundation-v8-gicv3.dtsi"
-#include "foundation-v8-psci.dtsi"

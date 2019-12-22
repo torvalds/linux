@@ -1,8 +1,0 @@
-#
-# SGI-IP30 (Octane/Octane2)
-#
-ifdef CONFIG_SGI_IP30
-platform-$(CONFIG_SGI_IP30)		+= sgi-ip30/
-cflags-$(CONFIG_SGI_IP30)		+= -I$(srctree)/arch/mips/include/asm/mach-ip30
-load-$(CONFIG_SGI_IP30)			+= 0xa800000020004000
-endif

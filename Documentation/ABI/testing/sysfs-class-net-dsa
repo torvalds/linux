@@ -1,7 +1,0 @@
-What:		/sys/class/net/<iface>/dsa/tagging
-Date:		August 2018
-KernelVersion:	4.20
-Contact:	netdev@vger.kernel.org
-Description:
-		String indicating the type of tagging protocol used by the
-		DSA slave network device.

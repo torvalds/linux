@@ -1,5 +1,0 @@
-OLPC battery
-~~~~~~~~~~~~
-
-Required properties:
-  - compatible : "olpc,xo1-battery" or "olpc,xo1.5-battery"

@@ -1,2 +1,0 @@
-perf-y += util/
-perf-y += tests/

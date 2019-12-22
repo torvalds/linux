@@ -1,7 +1,0 @@
-gettimeofday
-context_switch
-fork
-exec_target
-mmap_bench
-futex_bench
-null_syscall

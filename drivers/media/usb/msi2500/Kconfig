@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-config USB_MSI2500
-	tristate "Mirics MSi2500"
-	depends on VIDEO_V4L2 && SPI
-	select VIDEOBUF2_VMALLOC
-	select MEDIA_TUNER_MSI001
