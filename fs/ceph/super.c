@@ -222,7 +222,7 @@ static int ceph_parse_source(struct fs_parameter *param, struct fs_context *fc)
 
 	dout("%s '%s'\n", __func__, dev_name);
 	if (!dev_name || !*dev_name)
-		return invalf(fc, "ceph: Empty source");
+		return invalfc(fc, "Empty source");
 
 	dev_name_end = strchr(dev_name, '/');
 	if (dev_name_end) {
@@ -238,7 +238,7 @@ static int ceph_parse_source(struct fs_parameter *param, struct fs_context *fc)
 
 	dev_name_end--;		/* back up to ':' separator */
 	if (dev_name_end < dev_name || *dev_name_end != ':')
-		return invalf(fc, "ceph: No path or : separator in source");
+		return invalfc(fc, "No path or : separator in source");
 
 	dout("device name '%.*s'\n", (int)(dev_name_end - dev_name), dev_name);
 	if (fsopt->server_path)
@@ -294,7 +294,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		break;
 	case Opt_source:
 		if (fc->source)
-			return invalf(fc, "ceph: Multiple sources specified");
+			return invalfc(fc, "Multiple sources specified");
 		return ceph_parse_source(param, fc);
 	case Opt_wsize:
 		if (result.uint_32 < PAGE_SIZE ||
@@ -385,7 +385,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		}
 		break;
 #else
-		return invalf(fc, "ceph: fscache support is disabled");
+		return invalfc(fc, "fscache support is disabled");
 #endif
 	case Opt_poolperm:
 		if (!result.negated)
@@ -416,7 +416,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 			fc->sb_flags |= SB_POSIXACL;
 #else
-			return invalf(fc, "ceph: POSIX ACL support is disabled");
+			return invalfc(fc, "POSIX ACL support is disabled");
 #endif
 		} else {
 			fc->sb_flags &= ~SB_POSIXACL;
@@ -428,7 +428,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 	return 0;
 
 out_of_range:
-	return invalf(fc, "ceph: %s out of range", param->key);
+	return invalfc(fc, "%s out of range", param->key);
 }
 
 static void destroy_mount_options(struct ceph_mount_options *args)
@@ -1012,7 +1012,7 @@ static int ceph_get_tree(struct fs_context *fc)
 	dout("ceph_get_tree\n");
 
 	if (!fc->source)
-		return invalf(fc, "ceph: No source");
+		return invalfc(fc, "No source");
 
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	fc->sb_flags |= SB_POSIXACL;
