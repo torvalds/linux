@@ -241,22 +241,10 @@ struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
 	umem_odp->umem.owning_mm = mm = current->mm;
 	umem_odp->notifier.ops = ops;
 
-	umem_odp->page_shift = PAGE_SHIFT;
-	if (access & IB_ACCESS_HUGETLB) {
-		struct vm_area_struct *vma;
-		struct hstate *h;
-
-		down_read(&mm->mmap_sem);
-		vma = find_vma(mm, ib_umem_start(umem_odp));
-		if (!vma || !is_vm_hugetlb_page(vma)) {
-			up_read(&mm->mmap_sem);
-			ret = -EINVAL;
-			goto err_free;
-		}
-		h = hstate_vma(vma);
-		umem_odp->page_shift = huge_page_shift(h);
-		up_read(&mm->mmap_sem);
-	}
+	if (access & IB_ACCESS_HUGETLB)
+		umem_odp->page_shift = HPAGE_SHIFT;
+	else
+		umem_odp->page_shift = PAGE_SHIFT;
 
 	umem_odp->tgid = get_task_pid(current->group_leader, PIDTYPE_PID);
 	ret = ib_init_umem_odp(umem_odp, ops);
@@ -266,7 +254,6 @@ struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
 
 err_put_pid:
 	put_pid(umem_odp->tgid);
-err_free:
 	kfree(umem_odp);
 	return ERR_PTR(ret);
 }
