@@ -581,7 +581,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		}
 		wait_event_interruptible(pipe->wait, pipe_writable(pipe));
 		__pipe_lock(pipe);
-		was_empty = pipe_empty(head, pipe->tail);
+		was_empty = pipe_empty(pipe->head, pipe->tail);
 	}
 out:
 	__pipe_unlock(pipe);
