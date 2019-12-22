@@ -477,30 +477,31 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 
 	res = hsr_add_port(hsr, hsr_dev, HSR_PT_MASTER);
 	if (res)
-		goto err_add_port;
+		goto err_add_master;
 
 	res = register_netdevice(hsr_dev);
 	if (res)
-		goto fail;
+		goto err_unregister;
 
 	res = hsr_add_port(hsr, slave[0], HSR_PT_SLAVE_A);
 	if (res)
-		goto fail;
+		goto err_add_slaves;
+
 	res = hsr_add_port(hsr, slave[1], HSR_PT_SLAVE_B);
 	if (res)
-		goto fail;
+		goto err_add_slaves;
 
+	hsr_debugfs_init(hsr, hsr_dev);
 	mod_timer(&hsr->prune_timer, jiffies + msecs_to_jiffies(PRUNE_PERIOD));
-	res = hsr_debugfs_init(hsr, hsr_dev);
-	if (res)
-		goto fail;
 
 	return 0;
 
-fail:
+err_add_slaves:
+	unregister_netdevice(hsr_dev);
+err_unregister:
 	list_for_each_entry_safe(port, tmp, &hsr->ports, port_list)
 		hsr_del_port(port);
-err_add_port:
+err_add_master:
 	hsr_del_self_node(&hsr->self_node_db);
 
 	return res;

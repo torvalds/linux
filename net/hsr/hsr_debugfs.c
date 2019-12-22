@@ -77,15 +77,14 @@ static const struct file_operations hsr_fops = {
  * When debugfs is configured this routine sets up the node_table file per
  * hsr device for dumping the node_table entries
  */
-int hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
+void hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 {
-	int rc = -1;
 	struct dentry *de = NULL;
 
 	de = debugfs_create_dir(hsr_dev->name, NULL);
-	if (!de) {
+	if (IS_ERR(de)) {
 		pr_err("Cannot create hsr debugfs root\n");
-		return rc;
+		return;
 	}
 
 	priv->node_tbl_root = de;
@@ -93,13 +92,13 @@ int hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 	de = debugfs_create_file("node_table", S_IFREG | 0444,
 				 priv->node_tbl_root, priv,
 				 &hsr_fops);
-	if (!de) {
+	if (IS_ERR(de)) {
 		pr_err("Cannot create hsr node_table directory\n");
-		return rc;
+		debugfs_remove(priv->node_tbl_root);
+		priv->node_tbl_root = NULL;
+		return;
 	}
 	priv->node_tbl_file = de;
-
-	return 0;
 }
 
 /* hsr_debugfs_term - Tear down debugfs intrastructure
