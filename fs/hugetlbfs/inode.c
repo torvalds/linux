@@ -1228,7 +1228,7 @@ static int hugetlbfs_parse_param(struct fs_context *fc, struct fs_parameter *par
 	}
 
 bad_val:
-	return invalf(fc, "hugetlbfs: Bad value '%s' for mount option '%s'\n",
+	return invalfc(fc, "Bad value '%s' for mount option '%s'\n",
 		      param->string, param->key);
 }
 
