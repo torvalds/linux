@@ -281,12 +281,12 @@ static void cpcap_usb_detect(struct work_struct *work)
 		return;
 	}
 
+	cpcap_usb_try_musb_mailbox(ddata, MUSB_VBUS_OFF);
+
 	/* Default to debug UART mode */
 	error = cpcap_usb_set_uart_mode(ddata);
 	if (error)
 		goto out_err;
-
-	cpcap_usb_try_musb_mailbox(ddata, MUSB_VBUS_OFF);
 
 	dev_dbg(ddata->dev, "set UART mode\n");
 
