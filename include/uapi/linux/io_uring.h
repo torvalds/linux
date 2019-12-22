@@ -84,6 +84,8 @@ enum {
 	IORING_OP_CLOSE,
 	IORING_OP_FILES_UPDATE,
 	IORING_OP_STATX,
+	IORING_OP_READ,
+	IORING_OP_WRITE,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,

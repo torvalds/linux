@@ -654,6 +654,18 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.fd_non_neg		= 1,
 	},
+	{
+		/* IORING_OP_READ */
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_WRITE */
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
 };
 
 static void io_wq_submit_work(struct io_wq_work **workptr);
@@ -1866,6 +1878,13 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 	/* buffer index only valid with fixed read/write */
 	if (req->rw.kiocb.private)
 		return -EINVAL;
+
+	if (opcode == IORING_OP_READ || opcode == IORING_OP_WRITE) {
+		ssize_t ret;
+		ret = import_single_range(rw, buf, sqe_len, *iovec, iter);
+		*iovec = NULL;
+		return ret;
+	}
 
 	if (req->io) {
 		struct io_async_rw *iorw = &req->io->rw;
@@ -3634,10 +3653,12 @@ static int io_req_defer_prep(struct io_kiocb *req,
 		break;
 	case IORING_OP_READV:
 	case IORING_OP_READ_FIXED:
+	case IORING_OP_READ:
 		ret = io_read_prep(req, sqe, true);
 		break;
 	case IORING_OP_WRITEV:
 	case IORING_OP_WRITE_FIXED:
+	case IORING_OP_WRITE:
 		ret = io_write_prep(req, sqe, true);
 		break;
 	case IORING_OP_POLL_ADD:
@@ -3741,6 +3762,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		break;
 	case IORING_OP_READV:
 	case IORING_OP_READ_FIXED:
+	case IORING_OP_READ:
 		if (sqe) {
 			ret = io_read_prep(req, sqe, force_nonblock);
 			if (ret < 0)
@@ -3750,6 +3772,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		break;
 	case IORING_OP_WRITEV:
 	case IORING_OP_WRITE_FIXED:
+	case IORING_OP_WRITE:
 		if (sqe) {
 			ret = io_write_prep(req, sqe, force_nonblock);
 			if (ret < 0)
