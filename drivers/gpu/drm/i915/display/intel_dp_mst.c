@@ -347,6 +347,7 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 		to_intel_connector(old_conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	bool last_mst_stream;
+	u32 val;
 
 	intel_dp->active_mst_links--;
 	last_mst_stream = intel_dp->active_mst_links == 0;
@@ -357,6 +358,19 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 
 	intel_disable_pipe(old_crtc_state);
 
+	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
+
+	val = I915_READ(TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder));
+	val &= ~TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
+	I915_WRITE(TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder), val);
+
+	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
+				  DP_TP_STATUS_ACT_SENT, 1))
+		DRM_ERROR("Timed out waiting for ACT sent when disabling\n");
+	drm_dp_check_act_status(&intel_dp->mst_mgr);
+
+	drm_dp_mst_deallocate_vcpi(&intel_dp->mst_mgr, connector->port);
+
 	intel_ddi_disable_transcoder_func(old_crtc_state);
 
 	if (INTEL_GEN(dev_priv) >= 9)
@@ -364,6 +378,12 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	else
 		ironlake_pfit_disable(old_crtc_state);
 
+	/*
+	 * Power down mst path before disabling the port, otherwise we end
+	 * up getting interrupts from the sink upon detecting link loss.
+	 */
+	drm_dp_send_power_updown_phy(&intel_dp->mst_mgr, connector->port,
+				     false);
 	/*
 	 * From TGL spec: "If multi-stream slave transcoder: Configure
 	 * Transcoder Clock Select to direct no clock to the transcoder"
@@ -374,19 +394,6 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	if (INTEL_GEN(dev_priv) < 12 || !last_mst_stream)
 		intel_ddi_disable_pipe_clock(old_crtc_state);
 
-	/* this can fail */
-	drm_dp_check_act_status(&intel_dp->mst_mgr);
-	/* and this can also fail */
-	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
-
-	drm_dp_mst_deallocate_vcpi(&intel_dp->mst_mgr, connector->port);
-
-	/*
-	 * Power down mst path before disabling the port, otherwise we end
-	 * up getting interrupts from the sink upon detecting link loss.
-	 */
-	drm_dp_send_power_updown_phy(&intel_dp->mst_mgr, connector->port,
-				     false);
 
 	intel_mst->connector = NULL;
 	if (last_mst_stream)

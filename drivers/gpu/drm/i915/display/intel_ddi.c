@@ -34,6 +34,7 @@
 #include "intel_ddi.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
+#include "intel_dp_mst.h"
 #include "intel_dp_link_training.h"
 #include "intel_dpio_phy.h"
 #include "intel_dsi.h"
@@ -1949,17 +1950,18 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	i915_reg_t reg = TRANS_DDI_FUNC_CTL(cpu_transcoder);
-	u32 val = I915_READ(reg);
+	u32 val;
+
+	val = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
+	val &= ~TRANS_DDI_FUNC_ENABLE;
 
 	if (INTEL_GEN(dev_priv) >= 12) {
-		val &= ~(TRANS_DDI_FUNC_ENABLE | TGL_TRANS_DDI_PORT_MASK |
-			 TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
+		if (!intel_dp_mst_is_master_trans(crtc_state))
+			val &= ~TGL_TRANS_DDI_PORT_MASK;
 	} else {
-		val &= ~(TRANS_DDI_FUNC_ENABLE | TRANS_DDI_PORT_MASK |
-			 TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
+		val &= ~TRANS_DDI_PORT_MASK;
 	}
-	I915_WRITE(reg, val);
+	I915_WRITE(TRANS_DDI_FUNC_CTL(cpu_transcoder), val);
 
 	if (dev_priv->quirks & QUIRK_INCREASE_DDI_DISABLED_TIME &&
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
@@ -3813,8 +3815,19 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 	 */
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 
-	if (INTEL_GEN(dev_priv) < 12 && !is_mst)
-		intel_ddi_disable_pipe_clock(old_crtc_state);
+	if (INTEL_GEN(dev_priv) >= 12) {
+		if (is_mst) {
+			enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
+			u32 val;
+
+			val = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
+			val &= ~TGL_TRANS_DDI_PORT_MASK;
+			I915_WRITE(TRANS_DDI_FUNC_CTL(cpu_transcoder), val);
+		}
+	} else {
+		if (!is_mst)
+			intel_ddi_disable_pipe_clock(old_crtc_state);
+	}
 
 	intel_disable_ddi_buf(encoder, old_crtc_state);
 
