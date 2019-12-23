@@ -6417,39 +6417,23 @@ intel_connector_primary_encoder(struct intel_connector *connector)
 	return encoder;
 }
 
-static bool
-intel_connector_needs_modeset(struct intel_atomic_state *state,
-			      const struct drm_connector_state *old_conn_state,
-			      const struct drm_connector_state *new_conn_state)
-{
-	struct intel_crtc *old_crtc = old_conn_state->crtc ?
-				      to_intel_crtc(old_conn_state->crtc) : NULL;
-	struct intel_crtc *new_crtc = new_conn_state->crtc ?
-				      to_intel_crtc(new_conn_state->crtc) : NULL;
-
-	return new_crtc != old_crtc ||
-	       (new_crtc &&
-		needs_modeset(intel_atomic_get_new_crtc_state(state, new_crtc)));
-}
-
 static void intel_encoders_update_prepare(struct intel_atomic_state *state)
 {
-	struct drm_connector_state *old_conn_state;
 	struct drm_connector_state *new_conn_state;
-	struct drm_connector *conn;
+	struct drm_connector *connector;
 	int i;
 
-	for_each_oldnew_connector_in_state(&state->base, conn,
-					   old_conn_state, new_conn_state, i) {
+	for_each_new_connector_in_state(&state->base, connector, new_conn_state,
+					i) {
+		struct intel_connector *intel_connector;
 		struct intel_encoder *encoder;
 		struct intel_crtc *crtc;
 
-		if (!intel_connector_needs_modeset(state,
-						   old_conn_state,
-						   new_conn_state))
+		if (!intel_connector_needs_modeset(state, connector))
 			continue;
 
-		encoder = intel_connector_primary_encoder(to_intel_connector(conn));
+		intel_connector = to_intel_connector(connector);
+		encoder = intel_connector_primary_encoder(intel_connector);
 		if (!encoder->update_prepare)
 			continue;
 
@@ -6461,22 +6445,21 @@ static void intel_encoders_update_prepare(struct intel_atomic_state *state)
 
 static void intel_encoders_update_complete(struct intel_atomic_state *state)
 {
-	struct drm_connector_state *old_conn_state;
 	struct drm_connector_state *new_conn_state;
-	struct drm_connector *conn;
+	struct drm_connector *connector;
 	int i;
 
-	for_each_oldnew_connector_in_state(&state->base, conn,
-					   old_conn_state, new_conn_state, i) {
+	for_each_new_connector_in_state(&state->base, connector, new_conn_state,
+					i) {
+		struct intel_connector *intel_connector;
 		struct intel_encoder *encoder;
 		struct intel_crtc *crtc;
 
-		if (!intel_connector_needs_modeset(state,
-						   old_conn_state,
-						   new_conn_state))
+		if (!intel_connector_needs_modeset(state, connector))
 			continue;
 
-		encoder = intel_connector_primary_encoder(to_intel_connector(conn));
+		intel_connector = to_intel_connector(connector);
+		encoder = intel_connector_primary_encoder(intel_connector);
 		if (!encoder->update_complete)
 			continue;
 

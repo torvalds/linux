@@ -32,6 +32,8 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 					 struct drm_atomic_state *state);
 struct drm_connector_state *
 intel_digital_connector_duplicate_state(struct drm_connector *connector);
+bool intel_connector_needs_modeset(struct intel_atomic_state *state,
+				   struct drm_connector *connector);
 
 struct drm_crtc_state *intel_crtc_duplicate_state(struct drm_crtc *crtc);
 void intel_crtc_destroy_state(struct drm_crtc *crtc,
