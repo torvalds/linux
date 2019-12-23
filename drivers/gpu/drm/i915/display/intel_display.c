@@ -14777,15 +14777,21 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	u8 hw_enabled_slices = dev_priv->wm.skl_hw.ddb.enabled_slices;
 	u8 required_slices = state->wm_results.ddb.enabled_slices;
 	struct skl_ddb_entry entries[I915_MAX_PIPES] = {};
-	u8 dirty_pipes = 0;
+	const u8 num_pipes = INTEL_NUM_PIPES(dev_priv);
+	u8 update_pipes = 0, modeset_pipes = 0;
 	int i;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		if (!new_crtc_state->hw.active)
+			continue;
+
 		/* ignore allocations for crtc's that have been turned off. */
-		if (!needs_modeset(new_crtc_state) && new_crtc_state->hw.active)
+		if (!needs_modeset(new_crtc_state)) {
 			entries[i] = old_crtc_state->wm.skl.ddb;
-		if (new_crtc_state->hw.active)
-			dirty_pipes |= BIT(crtc->pipe);
+			update_pipes |= BIT(crtc->pipe);
+		} else {
+			modeset_pipes |= BIT(crtc->pipe);
+		}
 	}
 
 	/* If 2nd DBuf slice required, enable it here */
@@ -14795,38 +14801,29 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	/*
 	 * Whenever the number of active pipes changes, we need to make sure we
 	 * update the pipes in the right order so that their ddb allocations
-	 * never overlap with eachother inbetween CRTC updates. Otherwise we'll
+	 * never overlap with each other between CRTC updates. Otherwise we'll
 	 * cause pipe underruns and other bad stuff.
+	 *
+	 * So first lets enable all pipes that do not need a fullmodeset as
+	 * those don't have any external dependency.
 	 */
-	while (dirty_pipes) {
+	while (update_pipes) {
 		for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 						    new_crtc_state, i) {
 			enum pipe pipe = crtc->pipe;
-			bool modeset = needs_modeset(new_crtc_state);
 
-			if ((dirty_pipes & BIT(pipe)) == 0)
+			if ((update_pipes & BIT(pipe)) == 0)
 				continue;
 
 			if (skl_ddb_allocation_overlaps(&new_crtc_state->wm.skl.ddb,
-							entries,
-							INTEL_NUM_PIPES(dev_priv), i))
+							entries, num_pipes, i))
 				continue;
 
 			entries[i] = new_crtc_state->wm.skl.ddb;
-			dirty_pipes &= ~BIT(pipe);
+			update_pipes &= ~BIT(pipe);
 
-			if (modeset && is_trans_port_sync_mode(new_crtc_state)) {
-				if (is_trans_port_sync_master(new_crtc_state))
-					intel_update_trans_port_sync_crtcs(crtc,
-									   state,
-									   old_crtc_state,
-									   new_crtc_state);
-				else
-					continue;
-			} else {
-				intel_update_crtc(crtc, state, old_crtc_state,
-						  new_crtc_state);
-			}
+			intel_update_crtc(crtc, state, old_crtc_state,
+					  new_crtc_state);
 
 			/*
 			 * If this is an already active pipe, it's DDB changed,
@@ -14836,10 +14833,71 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 			 */
 			if (!skl_ddb_entry_equal(&new_crtc_state->wm.skl.ddb,
 						 &old_crtc_state->wm.skl.ddb) &&
-			    !modeset && dirty_pipes)
+			    (update_pipes | modeset_pipes))
 				intel_wait_for_vblank(dev_priv, pipe);
 		}
 	}
+
+	/*
+	 * Enable all pipes that needs a modeset and do not depends on other
+	 * pipes
+	 */
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		enum pipe pipe = crtc->pipe;
+
+		if ((modeset_pipes & BIT(pipe)) == 0)
+			continue;
+
+		if (intel_dp_mst_is_slave_trans(new_crtc_state) ||
+		    is_trans_port_sync_slave(new_crtc_state))
+			continue;
+
+		WARN_ON(skl_ddb_allocation_overlaps(&new_crtc_state->wm.skl.ddb,
+						    entries, num_pipes, i));
+
+		entries[i] = new_crtc_state->wm.skl.ddb;
+		modeset_pipes &= ~BIT(pipe);
+
+		if (is_trans_port_sync_mode(new_crtc_state)) {
+			struct intel_crtc *slave_crtc;
+
+			intel_update_trans_port_sync_crtcs(crtc, state,
+							   old_crtc_state,
+							   new_crtc_state);
+
+			slave_crtc = intel_get_slave_crtc(new_crtc_state);
+			/* TODO: update entries[] of slave */
+			modeset_pipes &= ~BIT(slave_crtc->pipe);
+
+		} else {
+			intel_update_crtc(crtc, state, old_crtc_state,
+					  new_crtc_state);
+		}
+	}
+
+	/*
+	 * Finally enable all pipes that needs a modeset and depends on
+	 * other pipes, right now it is only MST slaves as both port sync slave
+	 * and master are enabled together
+	 */
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		enum pipe pipe = crtc->pipe;
+
+		if ((modeset_pipes & BIT(pipe)) == 0)
+			continue;
+
+		WARN_ON(skl_ddb_allocation_overlaps(&new_crtc_state->wm.skl.ddb,
+						    entries, num_pipes, i));
+
+		entries[i] = new_crtc_state->wm.skl.ddb;
+		modeset_pipes &= ~BIT(pipe);
+
+		intel_update_crtc(crtc, state, old_crtc_state, new_crtc_state);
+	}
+
+	WARN_ON(modeset_pipes);
 
 	/* If 2nd DBuf slice is no more required disable it */
 	if (INTEL_GEN(dev_priv) >= 11 && required_slices < hw_enabled_slices)
