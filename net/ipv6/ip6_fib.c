@@ -370,6 +370,21 @@ static int call_fib6_entry_notifier(struct notifier_block *nb,
 	return call_fib6_notifier(nb, event_type, &info.info);
 }
 
+static int call_fib6_multipath_entry_notifier(struct notifier_block *nb,
+					      enum fib_event_type event_type,
+					      struct fib6_info *rt,
+					      unsigned int nsiblings,
+					      struct netlink_ext_ack *extack)
+{
+	struct fib6_entry_notifier_info info = {
+		.info.extack = extack,
+		.rt = rt,
+		.nsiblings = nsiblings,
+	};
+
+	return call_fib6_notifier(nb, event_type, &info.info);
+}
+
 int call_fib6_entry_notifiers(struct net *net,
 			      enum fib_event_type event_type,
 			      struct fib6_info *rt,
@@ -414,16 +429,41 @@ static int fib6_rt_dump(struct fib6_info *rt, struct fib6_dump_arg *arg)
 					rt, arg->extack);
 }
 
+static int fib6_rt_dump_tmp(struct fib6_info *rt, struct fib6_dump_arg *arg)
+{
+	enum fib_event_type fib_event = FIB_EVENT_ENTRY_REPLACE_TMP;
+	int err;
+
+	if (!rt || rt == arg->net->ipv6.fib6_null_entry)
+		return 0;
+
+	if (rt->fib6_nsiblings)
+		err = call_fib6_multipath_entry_notifier(arg->nb, fib_event,
+							 rt,
+							 rt->fib6_nsiblings,
+							 arg->extack);
+	else
+		err = call_fib6_entry_notifier(arg->nb, fib_event, rt,
+					       arg->extack);
+
+	return err;
+}
+
 static int fib6_node_dump(struct fib6_walker *w)
 {
 	struct fib6_info *rt;
 	int err = 0;
+
+	err = fib6_rt_dump_tmp(w->leaf, w->args);
+	if (err)
+		goto out;
 
 	for_each_fib6_walker_rt(w) {
 		err = fib6_rt_dump(rt, w->args);
 		if (err)
 			break;
 	}
+out:
 	w->leaf = NULL;
 	return err;
 }
