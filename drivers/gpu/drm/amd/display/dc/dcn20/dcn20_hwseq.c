@@ -945,6 +945,9 @@ void dcn20_blank_pixel_data(
 	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
 	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
 
+	if (stream->link->test_pattern_enabled)
+		return;
+
 	/* get opp dpg blank color */
 	color_space_to_black_color(dc, color_space, &black_color);
 
