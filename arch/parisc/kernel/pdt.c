@@ -327,8 +327,7 @@ static int pdt_mainloop(void *unused)
 			    ((pde & PDT_ADDR_SINGLE_ERR) == 0))
 				memory_failure(pde >> PAGE_SHIFT, 0);
 			else
-				soft_offline_page(
-					pfn_to_page(pde >> PAGE_SHIFT), 0);
+				soft_offline_page(pde >> PAGE_SHIFT, 0);
 #else
 			pr_crit("PDT: memory error at 0x%lx ignored.\n"
 				"Rebuild kernel with CONFIG_MEMORY_FAILURE=y "

@@ -20,7 +20,7 @@ struct bpf_cgroup_storage_map {
 	struct bpf_map map;
 
 	spinlock_t lock;
-	struct bpf_prog *prog;
+	struct bpf_prog_aux *aux;
 	struct rb_root root;
 	struct list_head list;
 };
@@ -420,7 +420,7 @@ const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_seq_show_elem = cgroup_storage_seq_show_elem,
 };
 
-int bpf_cgroup_storage_assign(struct bpf_prog *prog, struct bpf_map *_map)
+int bpf_cgroup_storage_assign(struct bpf_prog_aux *aux, struct bpf_map *_map)
 {
 	enum bpf_cgroup_storage_type stype = cgroup_storage_type(_map);
 	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
@@ -428,14 +428,14 @@ int bpf_cgroup_storage_assign(struct bpf_prog *prog, struct bpf_map *_map)
 
 	spin_lock_bh(&map->lock);
 
-	if (map->prog && map->prog != prog)
+	if (map->aux && map->aux != aux)
 		goto unlock;
-	if (prog->aux->cgroup_storage[stype] &&
-	    prog->aux->cgroup_storage[stype] != _map)
+	if (aux->cgroup_storage[stype] &&
+	    aux->cgroup_storage[stype] != _map)
 		goto unlock;
 
-	map->prog = prog;
-	prog->aux->cgroup_storage[stype] = _map;
+	map->aux = aux;
+	aux->cgroup_storage[stype] = _map;
 	ret = 0;
 unlock:
 	spin_unlock_bh(&map->lock);
@@ -443,16 +443,16 @@ unlock:
 	return ret;
 }
 
-void bpf_cgroup_storage_release(struct bpf_prog *prog, struct bpf_map *_map)
+void bpf_cgroup_storage_release(struct bpf_prog_aux *aux, struct bpf_map *_map)
 {
 	enum bpf_cgroup_storage_type stype = cgroup_storage_type(_map);
 	struct bpf_cgroup_storage_map *map = map_to_storage(_map);
 
 	spin_lock_bh(&map->lock);
-	if (map->prog == prog) {
-		WARN_ON(prog->aux->cgroup_storage[stype] != _map);
-		map->prog = NULL;
-		prog->aux->cgroup_storage[stype] = NULL;
+	if (map->aux == aux) {
+		WARN_ON(aux->cgroup_storage[stype] != _map);
+		map->aux = NULL;
+		aux->cgroup_storage[stype] = NULL;
 	}
 	spin_unlock_bh(&map->lock);
 }

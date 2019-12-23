@@ -539,6 +539,16 @@ static int cmm_migratepage(struct balloon_dev_info *b_dev_info,
 	/* balloon page list reference */
 	get_page(newpage);
 
+	/*
+	 * When we migrate a page to a different zone, we have to fixup the
+	 * count of both involved zones as we adjusted the managed page count
+	 * when inflating.
+	 */
+	if (page_zone(page) != page_zone(newpage)) {
+		adjust_managed_page_count(page, 1);
+		adjust_managed_page_count(newpage, -1);
+	}
+
 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
 	balloon_page_insert(b_dev_info, newpage);
 	balloon_page_delete(page);

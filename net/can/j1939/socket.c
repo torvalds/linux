@@ -423,9 +423,9 @@ static int j1939_sk_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 {
 	struct sockaddr_can *addr = (struct sockaddr_can *)uaddr;
 	struct j1939_sock *jsk = j1939_sk(sock->sk);
-	struct j1939_priv *priv = jsk->priv;
-	struct sock *sk = sock->sk;
-	struct net *net = sock_net(sk);
+	struct j1939_priv *priv;
+	struct sock *sk;
+	struct net *net;
 	int ret = 0;
 
 	ret = j1939_sk_sanity_check(addr, len);
@@ -433,6 +433,10 @@ static int j1939_sk_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 		return ret;
 
 	lock_sock(sock->sk);
+
+	priv = jsk->priv;
+	sk = sock->sk;
+	net = sock_net(sk);
 
 	/* Already bound to an interface? */
 	if (jsk->state & J1939_SOCK_BOUND) {

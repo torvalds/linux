@@ -265,11 +265,6 @@
 				regulator-name = "LDORTC1";
 				regulator-boot-on;
 			};
-
-			ldortc2_reg: LDORTC2 {
-				regulator-name = "LDORTC2";
-				regulator-boot-on;
-			};
 		};
 	};
 };

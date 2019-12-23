@@ -1163,7 +1163,7 @@ void console_on_rootfs(void)
 
 	/* Open /dev/console in kernelspace, this should never fail */
 	file = filp_open("/dev/console", O_RDWR, 0);
-	if (!file)
+	if (IS_ERR(file))
 		goto err_out;
 
 	/* create stdin/stdout/stderr, this should never fail */
