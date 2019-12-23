@@ -5017,6 +5017,32 @@ static void ip6_route_mpath_notify(struct fib6_info *rt,
 		inet6_rt_notify(RTM_NEWROUTE, rt, info, nlflags);
 }
 
+static bool ip6_route_mpath_should_notify(const struct fib6_info *rt)
+{
+	bool rt_can_ecmp = rt6_qualify_for_ecmp(rt);
+	bool should_notify = false;
+	struct fib6_info *leaf;
+	struct fib6_node *fn;
+
+	rcu_read_lock();
+	fn = rcu_dereference(rt->fib6_node);
+	if (!fn)
+		goto out;
+
+	leaf = rcu_dereference(fn->leaf);
+	if (!leaf)
+		goto out;
+
+	if (rt == leaf ||
+	    (rt_can_ecmp && rt->fib6_metric == leaf->fib6_metric &&
+	     rt6_qualify_for_ecmp(leaf)))
+		should_notify = true;
+out:
+	rcu_read_unlock();
+
+	return should_notify;
+}
+
 static int ip6_route_multipath_add(struct fib6_config *cfg,
 				   struct netlink_ext_ack *extack)
 {
@@ -5147,6 +5173,28 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 		nhn++;
 	}
 
+	/* An in-kernel notification should only be sent in case the new
+	 * multipath route is added as the first route in the node, or if
+	 * it was appended to it. We pass 'rt_notif' since it is the first
+	 * sibling and might allow us to skip some checks in the replace case.
+	 */
+	if (ip6_route_mpath_should_notify(rt_notif)) {
+		enum fib_event_type fib_event;
+
+		if (rt_notif->fib6_nsiblings != nhn - 1)
+			fib_event = FIB_EVENT_ENTRY_APPEND;
+		else
+			fib_event = FIB_EVENT_ENTRY_REPLACE_TMP;
+
+		err = call_fib6_multipath_entry_notifiers(info->nl_net,
+							  fib_event, rt_notif,
+							  nhn - 1, extack);
+		if (err) {
+			/* Delete all the siblings that were just added */
+			err_nh = NULL;
+			goto add_errout;
+		}
+	}
 	event_type = replace ? FIB_EVENT_ENTRY_REPLACE : FIB_EVENT_ENTRY_ADD;
 	err = call_fib6_multipath_entry_notifiers(info->nl_net, event_type,
 						  rt_notif, nhn - 1, extack);
