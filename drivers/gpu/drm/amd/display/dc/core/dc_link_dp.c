@@ -3925,8 +3925,43 @@ bool dc_link_dp_set_test_pattern(
 					     sizeof(training_pattern));
 		}
 	} else {
-	/* CRTC Patterns */
+		enum dc_color_space color_space = COLOR_SPACE_UNKNOWN;
+		struct encoder_info_frame info_frame = pipe_ctx->stream_res.encoder_info_frame;
+
+		switch (test_pattern_color_space) {
+		case DP_TEST_PATTERN_COLOR_SPACE_RGB:
+			color_space = COLOR_SPACE_SRGB;
+			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)
+				color_space = COLOR_SPACE_SRGB_LIMITED;
+			break;
+
+		case DP_TEST_PATTERN_COLOR_SPACE_YCBCR601:
+			color_space = COLOR_SPACE_YCBCR601;
+			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)
+				color_space = COLOR_SPACE_YCBCR601_LIMITED;
+			break;
+		case DP_TEST_PATTERN_COLOR_SPACE_YCBCR709:
+			color_space = COLOR_SPACE_YCBCR709;
+			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)
+				color_space = COLOR_SPACE_YCBCR709_LIMITED;
+			break;
+		default:
+			break;
+		}
+		/* update MSA to requested color space */
+		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(pipe_ctx->stream_res.stream_enc,
+				&pipe_ctx->stream->timing,
+				color_space, false, link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
+
+		/* disable vsc so no need to update it based on request */
+		info_frame.vsc.valid = false;
+		pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets(
+				pipe_ctx->stream_res.stream_enc,
+				&info_frame);
+
+		/* CRTC Patterns */
 		set_crtc_test_pattern(link, pipe_ctx, test_pattern, test_pattern_color_space);
+
 		/* Set Test Pattern state */
 		link->test_pattern_enabled = true;
 	}
