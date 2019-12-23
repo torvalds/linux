@@ -833,7 +833,7 @@ static struct i2c_driver rv3029_driver = {
 	.id_table	= rv3029_id,
 };
 
-static int rv3029_register_driver(void)
+static int __init rv3029_register_driver(void)
 {
 	return i2c_add_driver(&rv3029_driver);
 }
@@ -845,7 +845,7 @@ static void rv3029_unregister_driver(void)
 
 #else
 
-static int rv3029_register_driver(void)
+static int __init rv3029_register_driver(void)
 {
 	return 0;
 }
@@ -879,24 +879,24 @@ static struct spi_driver rv3049_driver = {
 	.probe   = rv3049_probe,
 };
 
-static int rv3049_register_driver(void)
+static int __init rv3049_register_driver(void)
 {
 	return spi_register_driver(&rv3049_driver);
 }
 
-static void rv3049_unregister_driver(void)
+static void __exit rv3049_unregister_driver(void)
 {
 	spi_unregister_driver(&rv3049_driver);
 }
 
 #else
 
-static int rv3049_register_driver(void)
+static int __init rv3049_register_driver(void)
 {
 	return 0;
 }
 
-static void rv3049_unregister_driver(void)
+static void __exit rv3049_unregister_driver(void)
 {
 }
 
