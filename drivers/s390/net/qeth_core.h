@@ -728,7 +728,6 @@ struct qeth_osn_info {
 
 struct qeth_discipline {
 	const struct device_type *devtype;
-	int (*process_rx_buffer)(struct qeth_card *card, int budget, int *done);
 	int (*recover)(void *ptr);
 	int (*setup) (struct ccwgroup_device *);
 	void (*remove) (struct ccwgroup_device *);
@@ -923,18 +922,6 @@ static inline struct dst_entry *qeth_dst_check_rcu(struct sk_buff *skb, int ipv)
 	return dst;
 }
 
-static inline void qeth_rx_csum(struct qeth_card *card, struct sk_buff *skb,
-				u8 flags)
-{
-	if ((card->dev->features & NETIF_F_RXCSUM) &&
-	    (flags & QETH_HDR_EXT_CSUM_TRANSP_REQ)) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		QETH_CARD_STAT_INC(card, rx_skb_csum);
-	} else {
-		skb->ip_summed = CHECKSUM_NONE;
-	}
-}
-
 static inline void qeth_tx_csum(struct sk_buff *skb, u8 *flags, int ipv)
 {
 	*flags |= QETH_HDR_EXT_CSUM_TRANSP_REQ;
@@ -1031,9 +1018,6 @@ struct qeth_cmd_buffer *qeth_get_diag_cmd(struct qeth_card *card,
 void qeth_notify_cmd(struct qeth_cmd_buffer *iob, int reason);
 void qeth_put_cmd(struct qeth_cmd_buffer *iob);
 
-struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
-		struct qeth_qdio_buffer *, struct qdio_buffer_element **, int *,
-		struct qeth_hdr **);
 void qeth_schedule_recovery(struct qeth_card *);
 int qeth_poll(struct napi_struct *napi, int budget);
 void qeth_clear_ipacmd_list(struct qeth_card *);
