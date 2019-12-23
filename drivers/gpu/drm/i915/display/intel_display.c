@@ -14290,6 +14290,20 @@ static int intel_atomic_check_crtcs(struct intel_atomic_state *state)
 	return 0;
 }
 
+static bool intel_cpu_transcoder_needs_modeset(struct intel_atomic_state *state,
+					       enum transcoder transcoder)
+{
+	struct intel_crtc_state *new_crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)
+		if (new_crtc_state->cpu_transcoder == transcoder)
+			return needs_modeset(new_crtc_state);
+
+	return false;
+}
+
 /**
  * intel_atomic_check - validate state object
  * @dev: drm device
@@ -14340,6 +14354,28 @@ static int intel_atomic_check(struct drm_device *dev,
 			goto fail;
 
 		intel_crtc_check_fastset(old_crtc_state, new_crtc_state);
+	}
+
+	/**
+	 * Check if fastset is allowed by external dependencies like other
+	 * pipes and transcoders.
+	 *
+	 * Right now it only forces a fullmodeset when the MST master
+	 * transcoder did not changed but the pipe of the master transcoder
+	 * needs a fullmodeset so all slaves also needs to do a fullmodeset.
+	 */
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		enum transcoder master = new_crtc_state->mst_master_transcoder;
+
+		if (!new_crtc_state->hw.enable ||
+		    needs_modeset(new_crtc_state) ||
+		    !intel_dp_mst_is_slave_trans(new_crtc_state))
+			continue;
+
+		if (intel_cpu_transcoder_needs_modeset(state, master)) {
+			new_crtc_state->uapi.mode_changed = true;
+			new_crtc_state->update_pipe = false;
+		}
 	}
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
