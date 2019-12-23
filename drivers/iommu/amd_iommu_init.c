@@ -1118,8 +1118,6 @@ static int __init add_early_maps(void)
  */
 static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
 {
-	struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
-
 	if (!(m->flags & IVMD_FLAG_EXCL_RANGE))
 		return;
 
