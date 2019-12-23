@@ -168,6 +168,7 @@ static const unsigned int sdm845_ufsphy_regs_layout[] = {
 static const unsigned int sm8150_ufsphy_regs_layout[] = {
 	[QPHY_START_CTRL]		= QPHY_V4_PHY_START,
 	[QPHY_PCS_READY_STATUS]		= QPHY_V4_PCS_READY_STATUS,
+	[QPHY_SW_RESET]			= QPHY_V4_SW_RESET,
 };
 
 static const struct qmp_phy_init_tbl msm8996_pcie_serdes_tbl[] = {
