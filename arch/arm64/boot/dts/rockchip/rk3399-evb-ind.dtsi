@@ -287,8 +287,8 @@
 		SYS_STATUS_NORMAL       856000
 		SYS_STATUS_REBOOT       856000
 		SYS_STATUS_SUSPEND      328000
-		SYS_STATUS_VIDEO_1080P  328000
-		SYS_STATUS_VIDEO_4K     666000
+		SYS_STATUS_VIDEO_1080P  666000
+		SYS_STATUS_VIDEO_4K     856000
 		SYS_STATUS_VIDEO_4K_10B 856000
 		SYS_STATUS_PERFORMANCE  856000
 		SYS_STATUS_BOOST        856000
@@ -297,9 +297,14 @@
 	>;
 	vop-bw-dmc-freq = <
 	/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
-		0       762      328000
+		0       762      416000
 		763     3012     666000
 		3013    99999    856000
+	>;
+
+	vop-pn-msch-readlatency = <
+		0	0x20
+		4	0x20
 	>;
 
 	auto-min-freq = <328000>;
