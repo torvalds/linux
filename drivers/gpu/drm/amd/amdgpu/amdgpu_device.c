@@ -3953,7 +3953,7 @@ static bool amdgpu_device_lock_adev(struct amdgpu_device *adev, bool trylock)
 		mutex_lock(&adev->lock_reset);
 
 	atomic_inc(&adev->gpu_reset_counter);
-	adev->in_gpu_reset = 1;
+	adev->in_gpu_reset = true;
 	switch (amdgpu_asic_reset_method(adev)) {
 	case AMD_RESET_METHOD_MODE1:
 		adev->mp1_state = PP_MP1_STATE_SHUTDOWN;
@@ -3973,7 +3973,7 @@ static void amdgpu_device_unlock_adev(struct amdgpu_device *adev)
 {
 	amdgpu_vf_error_trans_all(adev);
 	adev->mp1_state = PP_MP1_STATE_NONE;
-	adev->in_gpu_reset = 0;
+	adev->in_gpu_reset = false;
 	mutex_unlock(&adev->lock_reset);
 }
 
