@@ -48,3 +48,4 @@ Documentation for filesystem implementations.
 
    autofs
    virtiofs
+   vfat
