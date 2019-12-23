@@ -1231,6 +1231,13 @@ add:
 		}
 
 		if (!info->skip_notify_kernel) {
+			enum fib_event_type fib_event;
+
+			fib_event = FIB_EVENT_ENTRY_REPLACE_TMP;
+			if (ins == &fn->leaf)
+				err = call_fib6_entry_notifiers(info->nl_net,
+								fib_event, rt,
+								extack);
 			err = call_fib6_entry_notifiers(info->nl_net,
 							FIB_EVENT_ENTRY_REPLACE,
 							rt, extack);
