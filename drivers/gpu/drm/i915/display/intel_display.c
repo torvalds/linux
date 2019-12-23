@@ -14737,6 +14737,10 @@ static void intel_set_dp_tp_ctl_normal(struct intel_crtc *crtc,
 	intel_dp_stop_link_train(intel_dp);
 }
 
+/*
+ * TODO: This is only called from port sync and it is identical to what will be
+ * executed again in intel_update_crtc() over port sync pipes
+ */
 static void intel_post_crtc_enable_updates(struct intel_crtc *crtc,
 					   struct intel_atomic_state *state)
 {
