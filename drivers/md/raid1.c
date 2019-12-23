@@ -50,17 +50,17 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr);
 
 #include "raid1-10.c"
 
-static int check_and_add_wb(struct md_rdev *rdev, sector_t lo, sector_t hi)
+static int check_and_add_serial(struct md_rdev *rdev, sector_t lo, sector_t hi)
 {
-	struct wb_info *wi, *temp_wi;
+	struct serial_info *wi, *temp_wi;
 	unsigned long flags;
 	int ret = 0;
 	struct mddev *mddev = rdev->mddev;
 
-	wi = mempool_alloc(mddev->wb_info_pool, GFP_NOIO);
+	wi = mempool_alloc(mddev->serial_info_pool, GFP_NOIO);
 
-	spin_lock_irqsave(&rdev->wb_list_lock, flags);
-	list_for_each_entry(temp_wi, &rdev->wb_list, list) {
+	spin_lock_irqsave(&rdev->serial_list_lock, flags);
+	list_for_each_entry(temp_wi, &rdev->serial_list, list) {
 		/* collision happened */
 		if (hi > temp_wi->lo && lo < temp_wi->hi) {
 			ret = -EBUSY;
@@ -71,34 +71,34 @@ static int check_and_add_wb(struct md_rdev *rdev, sector_t lo, sector_t hi)
 	if (!ret) {
 		wi->lo = lo;
 		wi->hi = hi;
-		list_add(&wi->list, &rdev->wb_list);
+		list_add(&wi->list, &rdev->serial_list);
 	} else
-		mempool_free(wi, mddev->wb_info_pool);
-	spin_unlock_irqrestore(&rdev->wb_list_lock, flags);
+		mempool_free(wi, mddev->serial_info_pool);
+	spin_unlock_irqrestore(&rdev->serial_list_lock, flags);
 
 	return ret;
 }
 
-static void remove_wb(struct md_rdev *rdev, sector_t lo, sector_t hi)
+static void remove_serial(struct md_rdev *rdev, sector_t lo, sector_t hi)
 {
-	struct wb_info *wi;
+	struct serial_info *wi;
 	unsigned long flags;
 	int found = 0;
 	struct mddev *mddev = rdev->mddev;
 
-	spin_lock_irqsave(&rdev->wb_list_lock, flags);
-	list_for_each_entry(wi, &rdev->wb_list, list)
+	spin_lock_irqsave(&rdev->serial_list_lock, flags);
+	list_for_each_entry(wi, &rdev->serial_list, list)
 		if (hi == wi->hi && lo == wi->lo) {
 			list_del(&wi->list);
-			mempool_free(wi, mddev->wb_info_pool);
+			mempool_free(wi, mddev->serial_info_pool);
 			found = 1;
 			break;
 		}
 
 	if (!found)
-		WARN(1, "The write behind IO is not recorded\n");
-	spin_unlock_irqrestore(&rdev->wb_list_lock, flags);
-	wake_up(&rdev->wb_io_wait);
+		WARN(1, "The write IO is not recorded for serialization\n");
+	spin_unlock_irqrestore(&rdev->serial_list_lock, flags);
+	wake_up(&rdev->serial_io_wait);
 }
 
 /*
@@ -499,11 +499,11 @@ static void raid1_end_write_request(struct bio *bio)
 	}
 
 	if (behind) {
-		if (test_bit(WBCollisionCheck, &rdev->flags)) {
+		if (test_bit(CollisionCheck, &rdev->flags)) {
 			sector_t lo = r1_bio->sector;
 			sector_t hi = r1_bio->sector + r1_bio->sectors;
 
-			remove_wb(rdev, lo, hi);
+			remove_serial(rdev, lo, hi);
 		}
 		if (test_bit(WriteMostly, &rdev->flags))
 			atomic_dec(&r1_bio->behind_remaining);
@@ -1508,12 +1508,13 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		if (r1_bio->behind_master_bio) {
 			struct md_rdev *rdev = conf->mirrors[i].rdev;
 
-			if (test_bit(WBCollisionCheck, &rdev->flags)) {
+			if (test_bit(CollisionCheck, &rdev->flags)) {
 				sector_t lo = r1_bio->sector;
 				sector_t hi = r1_bio->sector + r1_bio->sectors;
 
-				wait_event(rdev->wb_io_wait,
-					   check_and_add_wb(rdev, lo, hi) == 0);
+				wait_event(rdev->serial_io_wait,
+					   check_and_add_serial(rdev, lo, hi)
+					   == 0);
 			}
 			if (test_bit(WriteMostly, &rdev->flags))
 				atomic_inc(&r1_bio->behind_remaining);

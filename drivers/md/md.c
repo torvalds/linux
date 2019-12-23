@@ -125,72 +125,74 @@ static inline int speed_max(struct mddev *mddev)
 		mddev->sync_speed_max : sysctl_speed_limit_max;
 }
 
-static int rdev_init_wb(struct md_rdev *rdev)
+static int rdev_init_serial(struct md_rdev *rdev)
 {
 	if (rdev->bdev->bd_queue->nr_hw_queues == 1)
 		return 0;
 
-	spin_lock_init(&rdev->wb_list_lock);
-	INIT_LIST_HEAD(&rdev->wb_list);
-	init_waitqueue_head(&rdev->wb_io_wait);
-	set_bit(WBCollisionCheck, &rdev->flags);
+	spin_lock_init(&rdev->serial_list_lock);
+	INIT_LIST_HEAD(&rdev->serial_list);
+	init_waitqueue_head(&rdev->serial_io_wait);
+	set_bit(CollisionCheck, &rdev->flags);
 
 	return 1;
 }
 
 /*
- * Create wb_info_pool if rdev is the first multi-queue device flaged
+ * Create serial_info_pool if rdev is the first multi-queue device flaged
  * with writemostly, also write-behind mode is enabled.
  */
-void mddev_create_wb_pool(struct mddev *mddev, struct md_rdev *rdev,
+void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 			  bool is_suspend)
 {
 	if (mddev->bitmap_info.max_write_behind == 0)
 		return;
 
-	if (!test_bit(WriteMostly, &rdev->flags) || !rdev_init_wb(rdev))
+	if (!test_bit(WriteMostly, &rdev->flags) || !rdev_init_serial(rdev))
 		return;
 
-	if (mddev->wb_info_pool == NULL) {
+	if (mddev->serial_info_pool == NULL) {
 		unsigned int noio_flag;
 
 		if (!is_suspend)
 			mddev_suspend(mddev);
 		noio_flag = memalloc_noio_save();
-		mddev->wb_info_pool = mempool_create_kmalloc_pool(NR_WB_INFOS,
-							sizeof(struct wb_info));
+		mddev->serial_info_pool =
+			mempool_create_kmalloc_pool(NR_SERIAL_INFOS,
+						sizeof(struct serial_info));
 		memalloc_noio_restore(noio_flag);
-		if (!mddev->wb_info_pool)
-			pr_err("can't alloc memory pool for writemostly\n");
+		if (!mddev->serial_info_pool)
+			pr_err("can't alloc memory pool for serialization\n");
 		if (!is_suspend)
 			mddev_resume(mddev);
 	}
 }
-EXPORT_SYMBOL_GPL(mddev_create_wb_pool);
+EXPORT_SYMBOL_GPL(mddev_create_serial_pool);
 
 /*
- * destroy wb_info_pool if rdev is the last device flaged with WBCollisionCheck.
+ * Destroy serial_info_pool if rdev is the last device flaged with
+ * CollisionCheck.
  */
-static void mddev_destroy_wb_pool(struct mddev *mddev, struct md_rdev *rdev)
+static void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev)
 {
-	if (!test_and_clear_bit(WBCollisionCheck, &rdev->flags))
+	if (!test_and_clear_bit(CollisionCheck, &rdev->flags))
 		return;
 
-	if (mddev->wb_info_pool) {
+	if (mddev->serial_info_pool) {
 		struct md_rdev *temp;
 		int num = 0;
 
 		/*
-		 * Check if other rdevs need wb_info_pool.
+		 * Check if other rdevs need serial_info_pool.
 		 */
 		rdev_for_each(temp, mddev)
 			if (temp != rdev &&
-			    test_bit(WBCollisionCheck, &temp->flags))
+			    test_bit(CollisionCheck, &temp->flags))
 				num++;
 		if (!num) {
 			mddev_suspend(rdev->mddev);
-			mempool_destroy(mddev->wb_info_pool);
-			mddev->wb_info_pool = NULL;
+			mempool_destroy(mddev->serial_info_pool);
+			mddev->serial_info_pool = NULL;
 			mddev_resume(rdev->mddev);
 		}
 	}
@@ -2337,7 +2339,7 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 	pr_debug("md: bind<%s>\n", b);
 
 	if (mddev->raid_disks)
-		mddev_create_wb_pool(mddev, rdev, false);
+		mddev_create_serial_pool(mddev, rdev, false);
 
 	if ((err = kobject_add(&rdev->kobj, &mddev->kobj, "dev-%s", b)))
 		goto fail;
@@ -2375,7 +2377,7 @@ static void unbind_rdev_from_array(struct md_rdev *rdev)
 	bd_unlink_disk_holder(rdev->bdev, rdev->mddev->gendisk);
 	list_del_rcu(&rdev->same_set);
 	pr_debug("md: unbind<%s>\n", bdevname(rdev->bdev,b));
-	mddev_destroy_wb_pool(rdev->mddev, rdev);
+	mddev_destroy_serial_pool(rdev->mddev, rdev);
 	rdev->mddev = NULL;
 	sysfs_remove_link(&rdev->kobj, "block");
 	sysfs_put(rdev->sysfs_state);
@@ -2888,10 +2890,10 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 		}
 	} else if (cmd_match(buf, "writemostly")) {
 		set_bit(WriteMostly, &rdev->flags);
-		mddev_create_wb_pool(rdev->mddev, rdev, false);
+		mddev_create_serial_pool(rdev->mddev, rdev, false);
 		err = 0;
 	} else if (cmd_match(buf, "-writemostly")) {
-		mddev_destroy_wb_pool(rdev->mddev, rdev);
+		mddev_destroy_serial_pool(rdev->mddev, rdev);
 		clear_bit(WriteMostly, &rdev->flags);
 		err = 0;
 	} else if (cmd_match(buf, "blocked")) {
@@ -5773,14 +5775,14 @@ int md_run(struct mddev *mddev)
 
 		rdev_for_each(rdev, mddev) {
 			if (test_bit(WriteMostly, &rdev->flags) &&
-			    rdev_init_wb(rdev))
+			    rdev_init_serial(rdev))
 				creat_pool = true;
 		}
-		if (creat_pool && mddev->wb_info_pool == NULL) {
-			mddev->wb_info_pool =
-				mempool_create_kmalloc_pool(NR_WB_INFOS,
-						    sizeof(struct wb_info));
-			if (!mddev->wb_info_pool) {
+		if (creat_pool && mddev->serial_info_pool == NULL) {
+			mddev->serial_info_pool =
+				mempool_create_kmalloc_pool(NR_SERIAL_INFOS,
+						    sizeof(struct serial_info));
+			if (!mddev->serial_info_pool) {
 				err = -ENOMEM;
 				goto bitmap_abort;
 			}
@@ -6025,8 +6027,8 @@ static void __md_stop_writes(struct mddev *mddev)
 			mddev->in_sync = 1;
 		md_update_sb(mddev, 1);
 	}
-	mempool_destroy(mddev->wb_info_pool);
-	mddev->wb_info_pool = NULL;
+	mempool_destroy(mddev->serial_info_pool);
+	mddev->serial_info_pool = NULL;
 }
 
 void md_stop_writes(struct mddev *mddev)
