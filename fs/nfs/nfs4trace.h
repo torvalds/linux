@@ -691,6 +691,41 @@ TRACE_EVENT(nfs4_xdr_status,
 		)
 );
 
+DECLARE_EVENT_CLASS(nfs4_cb_error_class,
+		TP_PROTO(
+			__be32 xid,
+			u32 cb_ident
+		),
+
+		TP_ARGS(xid, cb_ident),
+
+		TP_STRUCT__entry(
+			__field(u32, xid)
+			__field(u32, cbident)
+		),
+
+		TP_fast_assign(
+			__entry->xid = be32_to_cpu(xid);
+			__entry->cbident = cb_ident;
+		),
+
+		TP_printk(
+			"xid=0x%08x cb_ident=0x%08x",
+			__entry->xid, __entry->cbident
+		)
+);
+
+#define DEFINE_CB_ERROR_EVENT(name) \
+	DEFINE_EVENT(nfs4_cb_error_class, nfs_cb_##name, \
+			TP_PROTO( \
+				__be32 xid, \
+				u32 cb_ident \
+			), \
+			TP_ARGS(xid, cb_ident))
+
+DEFINE_CB_ERROR_EVENT(no_clp);
+DEFINE_CB_ERROR_EVENT(badprinc);
+
 DECLARE_EVENT_CLASS(nfs4_open_event,
 		TP_PROTO(
 			const struct nfs_open_context *ctx,
