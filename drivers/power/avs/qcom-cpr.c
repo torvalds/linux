@@ -835,7 +835,7 @@ static int cpr_read_efuse(struct device *dev, const char *cname, u32 *data)
 		*data |= ret[i] << (8 * i);
 
 	kfree(ret);
-	dev_dbg(dev, "efuse read(%s) = %x, bytes %ld\n", cname, *data, len);
+	dev_dbg(dev, "efuse read(%s) = %x, bytes %zd\n", cname, *data, len);
 
 	return 0;
 }
