@@ -1168,6 +1168,8 @@ static void cpufreq_interactive_input_event(struct input_handle *handle,
 		pcpu->loc_floor_val_time = ktime_to_us(ktime_get());
 
 		spin_unlock_irqrestore(&pcpu->target_freq_lock, flags[1]);
+
+		up_read(&pcpu->enable_sem);
 	}
 
 	spin_unlock_irqrestore(&speedchange_cpumask_lock, flags[0]);
