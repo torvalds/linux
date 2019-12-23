@@ -159,7 +159,7 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 
 int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
 {
-	if (!(smu->adev->flags & AMD_IS_APU))
+	if (!smu->is_apu)
 		return 0;
 
 	if (gate)
@@ -170,7 +170,7 @@ int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
 
 int smu_v12_0_powergate_vcn(struct smu_context *smu, bool gate)
 {
-	if (!(smu->adev->flags & AMD_IS_APU))
+	if (!smu->is_apu)
 		return 0;
 
 	if (gate)
@@ -181,7 +181,7 @@ int smu_v12_0_powergate_vcn(struct smu_context *smu, bool gate)
 
 int smu_v12_0_powergate_jpeg(struct smu_context *smu, bool gate)
 {
-	if (!(smu->adev->flags & AMD_IS_APU))
+	if (!smu->is_apu)
 		return 0;
 
 	if (gate)

@@ -643,12 +643,11 @@ int smu_feature_init_dpm(struct smu_context *smu)
 
 int smu_feature_is_enabled(struct smu_context *smu, enum smu_feature_mask mask)
 {
-	struct amdgpu_device *adev = smu->adev;
 	struct smu_feature *feature = &smu->smu_feature;
 	int feature_id;
 	int ret = 0;
 
-	if (adev->flags & AMD_IS_APU)
+	if (smu->is_apu)
 		return 1;
 
 	feature_id = smu_feature_get_index(smu, mask);
@@ -1242,7 +1241,7 @@ static int smu_hw_init(void *handle)
 		return ret;
 	}
 
-	if (adev->flags & AMD_IS_APU) {
+	if (smu->is_apu) {
 		smu_powergate_sdma(&adev->smu, false);
 		smu_powergate_vcn(&adev->smu, false);
 		smu_powergate_jpeg(&adev->smu, false);
@@ -1301,7 +1300,7 @@ static int smu_hw_fini(void *handle)
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
 
-	if (adev->flags & AMD_IS_APU) {
+	if (smu->is_apu) {
 		smu_powergate_sdma(&adev->smu, true);
 		smu_powergate_vcn(&adev->smu, true);
 		smu_powergate_jpeg(&adev->smu, true);
@@ -1377,7 +1376,7 @@ static int smu_suspend(void *handle)
 	struct smu_context *smu = &adev->smu;
 	bool baco_feature_is_enabled = false;
 
-	if(!(adev->flags & AMD_IS_APU))
+	if(!smu->is_apu)
 		baco_feature_is_enabled = smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT);
 
 	ret = smu_system_features_control(smu, false);
