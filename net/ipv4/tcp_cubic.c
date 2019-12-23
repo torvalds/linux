@@ -436,8 +436,27 @@ static void bictcp_acked(struct sock *sk, const struct ack_sample *sample)
 		delay = 1;
 
 	/* first time call or link delay decreases */
-	if (ca->delay_min == 0 || ca->delay_min > delay)
-		ca->delay_min = delay;
+	if (ca->delay_min == 0 || ca->delay_min > delay) {
+		unsigned long rate = READ_ONCE(sk->sk_pacing_rate);
+
+		/* Account for TSO/GRO delays.
+		 * Otherwise short RTT flows could get too small ssthresh,
+		 * since during slow start we begin with small TSO packets
+		 * and could lower ca->delay_min too much.
+		 * Ideally even with a very small RTT we would like to have
+		 * at least one TSO packet being sent and received by GRO,
+		 * and another one in qdisc layer.
+		 * We apply another 100% factor because @rate is doubled at
+		 * this point.
+		 * We cap the cushion to 1ms.
+		 */
+		if (rate)
+			delay += min_t(u64, USEC_PER_MSEC,
+				       div64_ul((u64)GSO_MAX_SIZE *
+						4 * USEC_PER_SEC, rate));
+		if (ca->delay_min == 0 || ca->delay_min > delay)
+			ca->delay_min = delay;
+	}
 
 	/* hystart triggers when cwnd is larger than some threshold */
 	if (!ca->found && hystart && tcp_in_slow_start(tp) &&
