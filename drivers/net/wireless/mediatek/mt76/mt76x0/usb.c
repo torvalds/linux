@@ -182,15 +182,11 @@ static int mt76x0u_register_device(struct mt76x02_dev *dev)
 	if (err < 0)
 		goto out_err;
 
+	/* check hw sg support in order to enable AMSDU */
+	hw->max_tx_fragments = dev->mt76.usb.sg_en ? MT_TX_SG_MAX_SIZE : 1;
 	err = mt76x0_register_device(dev);
 	if (err < 0)
 		goto out_err;
-
-	/* check hw sg support in order to enable AMSDU */
-	if (dev->mt76.usb.sg_en)
-		hw->max_tx_fragments = MT_TX_SG_MAX_SIZE;
-	else
-		hw->max_tx_fragments = 1;
 
 	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
