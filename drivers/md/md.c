@@ -5304,6 +5304,57 @@ static struct md_sysfs_entry md_fail_last_dev =
 __ATTR(fail_last_dev, S_IRUGO | S_IWUSR, fail_last_dev_show,
        fail_last_dev_store);
 
+static ssize_t serialize_policy_show(struct mddev *mddev, char *page)
+{
+	if (mddev->pers == NULL || (mddev->pers->level != 1))
+		return sprintf(page, "n/a\n");
+	else
+		return sprintf(page, "%d\n", mddev->serialize_policy);
+}
+
+/*
+ * Setting serialize_policy to true to enforce write IO is not reordered
+ * for raid1.
+ */
+static ssize_t
+serialize_policy_store(struct mddev *mddev, const char *buf, size_t len)
+{
+	int err;
+	bool value;
+
+	err = kstrtobool(buf, &value);
+	if (err)
+		return err;
+
+	if (value == mddev->serialize_policy)
+		return len;
+
+	err = mddev_lock(mddev);
+	if (err)
+		return err;
+	if (mddev->pers == NULL || (mddev->pers->level != 1)) {
+		pr_err("md: serialize_policy is only effective for raid1\n");
+		err = -EINVAL;
+		goto unlock;
+	}
+
+	mddev_suspend(mddev);
+	if (value)
+		mddev_create_serial_pool(mddev, NULL, true);
+	else
+		mddev_destroy_serial_pool(mddev, NULL, true);
+	mddev->serialize_policy = value;
+	mddev_resume(mddev);
+unlock:
+	mddev_unlock(mddev);
+	return err ?: len;
+}
+
+static struct md_sysfs_entry md_serialize_policy =
+__ATTR(serialize_policy, S_IRUGO | S_IWUSR, serialize_policy_show,
+       serialize_policy_store);
+
+
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
 	&md_layout.attr,
@@ -5321,6 +5372,7 @@ static struct attribute *md_default_attrs[] = {
 	&max_corr_read_errors.attr,
 	&md_consistency_policy.attr,
 	&md_fail_last_dev.attr,
+	&md_serialize_policy.attr,
 	NULL,
 };
 
