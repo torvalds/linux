@@ -1535,11 +1535,13 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 	 * The reason for this is that we need to know the highest
 	 * frequency associated with each fuse corner.
 	 */
-	drv->num_corners = dev_pm_opp_get_opp_count(&drv->pd.dev);
-	if (drv->num_corners < 0) {
-		ret = drv->num_corners;
+	ret = dev_pm_opp_get_opp_count(&drv->pd.dev);
+	if (ret < 0) {
+		dev_err(drv->dev, "could not get OPP count\n");
 		goto unlock;
 	}
+	drv->num_corners = ret;
+
 	if (drv->num_corners < 2) {
 		dev_err(drv->dev, "need at least 2 OPPs to use CPR\n");
 		ret = -EINVAL;
