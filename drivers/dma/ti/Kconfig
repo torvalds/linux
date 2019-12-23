@@ -34,5 +34,8 @@ config DMA_OMAP
 	  Enable support for the TI sDMA (System DMA or DMA4) controller. This
 	  DMA engine is found on OMAP and DRA7xx parts.
 
+config TI_K3_PSIL
+	bool
+
 config TI_DMA_CROSSBAR
 	bool
