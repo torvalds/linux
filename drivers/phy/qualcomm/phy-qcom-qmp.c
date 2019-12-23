@@ -1389,7 +1389,6 @@ static const struct qmp_phy_cfg sm8150_ufsphy_cfg = {
 	.pwrdn_ctrl		= SW_PWRDN,
 
 	.is_dual_lane_phy	= true,
-	.no_pcs_sw_reset	= true,
 };
 
 static void qcom_qmp_phy_configure(void __iomem *base,
