@@ -423,8 +423,7 @@ int call_fib6_entry_notifiers_replace(struct net *net, struct fib6_info *rt)
 	};
 
 	rt->fib6_table->fib_seq++;
-	return call_fib6_notifiers(net, FIB_EVENT_ENTRY_REPLACE_TMP,
-				   &info.info);
+	return call_fib6_notifiers(net, FIB_EVENT_ENTRY_REPLACE, &info.info);
 }
 
 struct fib6_dump_arg {
@@ -435,15 +434,7 @@ struct fib6_dump_arg {
 
 static int fib6_rt_dump(struct fib6_info *rt, struct fib6_dump_arg *arg)
 {
-	if (rt == arg->net->ipv6.fib6_null_entry)
-		return 0;
-	return call_fib6_entry_notifier(arg->nb, FIB_EVENT_ENTRY_ADD,
-					rt, arg->extack);
-}
-
-static int fib6_rt_dump_tmp(struct fib6_info *rt, struct fib6_dump_arg *arg)
-{
-	enum fib_event_type fib_event = FIB_EVENT_ENTRY_REPLACE_TMP;
+	enum fib_event_type fib_event = FIB_EVENT_ENTRY_REPLACE;
 	int err;
 
 	if (!rt || rt == arg->net->ipv6.fib6_null_entry)
@@ -463,19 +454,9 @@ static int fib6_rt_dump_tmp(struct fib6_info *rt, struct fib6_dump_arg *arg)
 
 static int fib6_node_dump(struct fib6_walker *w)
 {
-	struct fib6_info *rt;
-	int err = 0;
+	int err;
 
-	err = fib6_rt_dump_tmp(w->leaf, w->args);
-	if (err)
-		goto out;
-
-	for_each_fib6_walker_rt(w) {
-		err = fib6_rt_dump(rt, w->args);
-		if (err)
-			break;
-	}
-out:
+	err = fib6_rt_dump(w->leaf, w->args);
 	w->leaf = NULL;
 	return err;
 }
@@ -1220,25 +1201,21 @@ next_iter:
 add:
 		nlflags |= NLM_F_CREATE;
 
-		if (!info->skip_notify_kernel) {
+		/* The route should only be notified if it is the first
+		 * route in the node or if it is added as a sibling
+		 * route to the first route in the node.
+		 */
+		if (!info->skip_notify_kernel &&
+		    (notify_sibling_rt || ins == &fn->leaf)) {
 			enum fib_event_type fib_event;
 
 			if (notify_sibling_rt)
 				fib_event = FIB_EVENT_ENTRY_APPEND;
 			else
-				fib_event = FIB_EVENT_ENTRY_REPLACE_TMP;
-			/* The route should only be notified if it is the first
-			 * route in the node or if it is added as a sibling
-			 * route to the first route in the node.
-			 */
-			if (notify_sibling_rt || ins == &fn->leaf)
-				err = call_fib6_entry_notifiers(info->nl_net,
-								fib_event, rt,
-								extack);
-
+				fib_event = FIB_EVENT_ENTRY_REPLACE;
 			err = call_fib6_entry_notifiers(info->nl_net,
-							FIB_EVENT_ENTRY_ADD,
-							rt, extack);
+							fib_event, rt,
+							extack);
 			if (err) {
 				struct fib6_info *sibling, *next_sibling;
 
@@ -1282,14 +1259,7 @@ add:
 			return -ENOENT;
 		}
 
-		if (!info->skip_notify_kernel) {
-			enum fib_event_type fib_event;
-
-			fib_event = FIB_EVENT_ENTRY_REPLACE_TMP;
-			if (ins == &fn->leaf)
-				err = call_fib6_entry_notifiers(info->nl_net,
-								fib_event, rt,
-								extack);
+		if (!info->skip_notify_kernel && ins == &fn->leaf) {
 			err = call_fib6_entry_notifiers(info->nl_net,
 							FIB_EVENT_ENTRY_REPLACE,
 							rt, extack);
@@ -2007,11 +1977,10 @@ static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
 
 	if (!info->skip_notify_kernel) {
 		if (notify_del)
-			call_fib6_entry_notifiers(net, FIB_EVENT_ENTRY_DEL_TMP,
+			call_fib6_entry_notifiers(net, FIB_EVENT_ENTRY_DEL,
 						  rt, NULL);
 		else if (replace_rt)
 			call_fib6_entry_notifiers_replace(net, replace_rt);
-		call_fib6_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, rt, NULL);
 	}
 	if (!info->skip_notify)
 		inet6_rt_notify(RTM_DELROUTE, rt, info, 0);
