@@ -281,18 +281,6 @@ int bch2_dirent_delete_at(struct btree_trans *trans,
 				   hash_info, iter);
 }
 
-int bch2_dirent_delete(struct bch_fs *c, u64 dir_inum,
-		       const struct bch_hash_info *hash_info,
-		       const struct qstr *name,
-		       u64 *journal_seq)
-{
-	return bch2_trans_do(c, journal_seq,
-			     BTREE_INSERT_ATOMIC|
-			     BTREE_INSERT_NOFAIL,
-		bch2_hash_delete(&trans, bch2_dirent_hash_desc, hash_info,
-				 dir_inum, name));
-}
-
 struct btree_iter *
 __bch2_dirent_lookup_trans(struct btree_trans *trans, u64 dir_inum,
 			   const struct bch_hash_info *hash_info,

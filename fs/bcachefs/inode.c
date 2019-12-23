@@ -533,7 +533,7 @@ int bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
 int bch2_inode_find_by_inum(struct bch_fs *c, u64 inode_nr,
 			    struct bch_inode_unpacked *inode)
 {
-	return bch2_trans_do(c, NULL, 0,
+	return bch2_trans_do(c, NULL, NULL, 0,
 		bch2_inode_find_by_inum_trans(&trans, inode_nr, inode));
 }
 

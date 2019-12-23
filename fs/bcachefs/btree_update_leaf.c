@@ -823,6 +823,20 @@ err:
 	goto retry;
 }
 
+static int __bch2_btree_insert(struct btree_trans *trans,
+			       enum btree_id id, struct bkey_i *k)
+{
+	struct btree_iter *iter;
+
+	iter = bch2_trans_get_iter(trans, id, bkey_start_pos(&k->k),
+				   BTREE_ITER_INTENT);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
+
+	bch2_trans_update(trans, iter, k);
+	return 0;
+}
+
 /**
  * bch2_btree_insert - insert keys into the extent btree
  * @c:			pointer to struct bch_fs
@@ -831,29 +845,12 @@ err:
  * @hook:		insert callback
  */
 int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
-		     struct bkey_i *k,
-		     struct disk_reservation *disk_res,
-		     u64 *journal_seq, int flags)
+		      struct bkey_i *k,
+		      struct disk_reservation *disk_res,
+		      u64 *journal_seq, int flags)
 {
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	int ret;
-
-	bch2_trans_init(&trans, c, 0, 0);
-retry:
-	bch2_trans_begin(&trans);
-
-	iter = bch2_trans_get_iter(&trans, id, bkey_start_pos(&k->k),
-				   BTREE_ITER_INTENT);
-
-	bch2_trans_update(&trans, iter, k);
-
-	ret = bch2_trans_commit(&trans, disk_res, journal_seq, flags);
-	if (ret == -EINTR)
-		goto retry;
-	bch2_trans_exit(&trans);
-
-	return ret;
+	return bch2_trans_do(c, disk_res, journal_seq, flags,
+			     __bch2_btree_insert(&trans, id, k));
 }
 
 int bch2_btree_delete_at_range(struct btree_trans *trans,

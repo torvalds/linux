@@ -2465,9 +2465,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 		struct bpos next_pos;
 		struct bpos move_pos = POS(inode->v.i_ino, offset >> 9);
 		struct bpos atomic_end;
-		unsigned commit_flags = BTREE_INSERT_NOFAIL|
-			BTREE_INSERT_ATOMIC|
-			BTREE_INSERT_USE_RESERVE;
+		unsigned commit_flags = 0;
 
 		k = insert
 			? bch2_btree_iter_peek_prev(src)
@@ -2560,6 +2558,8 @@ reassemble:
 
 		ret = bch2_trans_commit(&trans, &disk_res,
 					&inode->ei_journal_seq,
+					BTREE_INSERT_ATOMIC|
+					BTREE_INSERT_NOFAIL|
 					commit_flags);
 		bch2_disk_reservation_put(c, &disk_res);
 bkey_err:

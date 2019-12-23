@@ -131,22 +131,32 @@ static inline void bch2_trans_update(struct btree_trans *trans,
 	};
 }
 
-#define bch2_trans_do(_c, _journal_seq, _flags, _do)			\
+#define __bch2_trans_do(_trans, _disk_res, _journal_seq,		\
+			_flags,	_reset_flags, _do)			\
 ({									\
-	struct btree_trans trans;					\
 	int _ret;							\
 									\
-	bch2_trans_init(&trans, (_c), 0, 0);				\
-									\
 	do {								\
-		bch2_trans_begin(&trans);				\
+		bch2_trans_reset(_trans, _reset_flags);			\
 									\
-		_ret = (_do) ?:	bch2_trans_commit(&trans, NULL,		\
+		_ret = (_do) ?:	bch2_trans_commit(_trans, (_disk_res),	\
 					(_journal_seq), (_flags));	\
 	} while (_ret == -EINTR);					\
 									\
-	bch2_trans_exit(&trans);					\
 	_ret;								\
+})
+
+#define bch2_trans_do(_c, _disk_res, _journal_seq, _flags, _do)		\
+({									\
+	struct btree_trans trans;					\
+	int _ret, _ret2;						\
+									\
+	bch2_trans_init(&trans, (_c), 0, 0);				\
+	_ret = __bch2_trans_do(&trans, _disk_res, _journal_seq, _flags,	\
+			       TRANS_RESET_MEM|TRANS_RESET_ITERS, _do);	\
+	_ret2 = bch2_trans_exit(&trans);				\
+									\
+	_ret ?: _ret2;							\
 })
 
 #define trans_for_each_update(_trans, _i)				\

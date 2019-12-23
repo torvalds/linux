@@ -1009,7 +1009,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_inode_init_early(c, &lostfound_inode);
 
 	err = "error creating lost+found";
-	ret = bch2_trans_do(c, NULL, BTREE_INSERT_ATOMIC,
+	ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_ATOMIC,
 		bch2_create_trans(&trans, BCACHEFS_ROOT_INO,
 				  &root_inode, &lostfound_inode,
 				  &lostfound,

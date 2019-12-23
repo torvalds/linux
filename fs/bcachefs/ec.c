@@ -1235,6 +1235,7 @@ static int __bch2_stripe_write_key(struct btree_trans *trans,
 	bch2_trans_update(trans, iter, &new_key->k_i);
 
 	return bch2_trans_commit(trans, NULL, NULL,
+				 BTREE_INSERT_ATOMIC|
 				 BTREE_INSERT_NOFAIL|flags);
 }
 
@@ -1259,8 +1260,13 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags, bool *wrote)
 		if (!m->dirty)
 			continue;
 
-		ret = __bch2_stripe_write_key(&trans, iter, m, giter.pos,
-					      new_key, flags);
+		do {
+			bch2_trans_reset(&trans, TRANS_RESET_MEM);
+
+			ret = __bch2_stripe_write_key(&trans, iter, m,
+					giter.pos, new_key, flags);
+		} while (ret == -EINTR);
+
 		if (ret)
 			break;
 

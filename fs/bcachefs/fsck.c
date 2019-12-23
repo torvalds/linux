@@ -37,8 +37,8 @@ static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum)
 	return ret ?: sectors;
 }
 
-static int remove_dirent(struct btree_trans *trans,
-			 struct bkey_s_c_dirent dirent)
+static int __remove_dirent(struct btree_trans *trans,
+			   struct bkey_s_c_dirent dirent)
 {
 	struct bch_fs *c = trans->c;
 	struct qstr name;
@@ -49,31 +49,41 @@ static int remove_dirent(struct btree_trans *trans,
 	char *buf;
 
 	name.len = bch2_dirent_name_bytes(dirent);
-	buf = kmalloc(name.len + 1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	buf = bch2_trans_kmalloc(trans, name.len + 1);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	memcpy(buf, dirent.v->d_name, name.len);
 	buf[name.len] = '\0';
 	name.name = buf;
 
-	/* Unlock so we don't deadlock, after copying name: */
-	bch2_trans_unlock(trans);
-
-	ret = bch2_inode_find_by_inum(c, dir_inum, &dir_inode);
-	if (ret) {
+	ret = bch2_inode_find_by_inum_trans(trans, dir_inum, &dir_inode);
+	if (ret && ret != -EINTR)
 		bch_err(c, "remove_dirent: err %i looking up directory inode", ret);
-		goto err;
-	}
+	if (ret)
+		return ret;
 
 	dir_hash_info = bch2_hash_info_init(c, &dir_inode);
 
-	ret = bch2_dirent_delete(c, dir_inum, &dir_hash_info, &name, NULL);
-	if (ret)
+	ret = bch2_hash_delete(trans, bch2_dirent_hash_desc,
+			       &dir_hash_info, dir_inum, &name);
+	if (ret && ret != -EINTR)
 		bch_err(c, "remove_dirent: err %i deleting dirent", ret);
-err:
-	kfree(buf);
-	return ret;
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int remove_dirent(struct btree_trans *trans,
+			 struct bkey_s_c_dirent dirent)
+{
+	return __bch2_trans_do(trans, NULL, NULL,
+			       BTREE_INSERT_ATOMIC|
+			       BTREE_INSERT_NOFAIL|
+			       BTREE_INSERT_LAZY_RW,
+			       TRANS_RESET_MEM,
+			       __remove_dirent(trans, dirent));
 }
 
 static int reattach_inode(struct bch_fs *c,
@@ -88,7 +98,7 @@ static int reattach_inode(struct bch_fs *c,
 	snprintf(name_buf, sizeof(name_buf), "%llu", inum);
 	name = (struct qstr) QSTR(name_buf);
 
-	ret = bch2_trans_do(c, NULL,
+	ret = bch2_trans_do(c, NULL, NULL,
 			    BTREE_INSERT_ATOMIC|
 			    BTREE_INSERT_LAZY_RW,
 		bch2_link_trans(&trans, lostfound_inode->bi_inum,
@@ -171,27 +181,27 @@ static int hash_redo_key(const struct bch_hash_desc desc,
 			 struct btree_iter *k_iter, struct bkey_s_c k,
 			 u64 hashed)
 {
+	struct bkey_i delete;
 	struct bkey_i *tmp;
-	int ret = 0;
 
-	tmp = kmalloc(bkey_bytes(k.k), GFP_KERNEL);
-	if (!tmp)
-		return -ENOMEM;
+	bch2_trans_reset(trans, TRANS_RESET_MEM);
+
+	tmp = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
 
 	bkey_reassemble(tmp, k);
 
-	ret = bch2_btree_delete_at(trans, k_iter, 0);
-	if (ret)
-		goto err;
+	bkey_init(&delete.k);
+	delete.k.p = k_iter->pos;
+	bch2_trans_update(trans, k_iter, &delete);
 
-	bch2_hash_set(trans, desc, &h->info, k_iter->pos.inode,
-		      tmp, BCH_HASH_SET_MUST_CREATE);
-	ret = bch2_trans_commit(trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_LAZY_RW);
-err:
-	kfree(tmp);
-	return ret;
+	return  bch2_hash_set(trans, desc, &h->info, k_iter->pos.inode,
+			      tmp, BCH_HASH_SET_MUST_CREATE) ?:
+		bch2_trans_commit(trans, NULL, NULL,
+				  BTREE_INSERT_ATOMIC|
+				  BTREE_INSERT_NOFAIL|
+				  BTREE_INSERT_LAZY_RW);
 }
 
 static int fsck_hash_delete_at(struct btree_trans *trans,
@@ -313,9 +323,11 @@ static int hash_check_key(struct btree_trans *trans,
 			"hashed to %llu chain starts at %llu\n%s",
 			desc.btree_id, k.k->p.offset,
 			hashed, h->chain->pos.offset,
-			(bch2_bkey_val_to_text(&PBUF(buf), c,
-					       k), buf))) {
-		ret = hash_redo_key(desc, trans, h, k_iter, k, hashed);
+			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf))) {
+		do {
+			ret = hash_redo_key(desc, trans, h, k_iter, k, hashed);
+		} while (ret == -EINTR);
+
 		if (ret) {
 			bch_err(c, "hash_redo_key err %i", ret);
 			return ret;
@@ -376,11 +388,12 @@ static int check_dirent_hash(struct btree_trans *trans, struct hash_check *h,
 
 	if (fsck_err(c, "dirent with junk at end, was %s (%zu) now %s (%u)",
 		     buf, strlen(buf), d->v.d_name, len)) {
-		bch2_trans_update(trans, iter, &d->k_i);
-
-		ret = bch2_trans_commit(trans, NULL, NULL,
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_LAZY_RW);
+		ret = __bch2_trans_do(trans, NULL, NULL,
+				      BTREE_INSERT_ATOMIC|
+				      BTREE_INSERT_NOFAIL|
+				      BTREE_INSERT_LAZY_RW,
+				      TRANS_RESET_MEM,
+			(bch2_trans_update(trans, iter, &d->k_i), 0));
 		if (ret)
 			goto err;
 
@@ -402,8 +415,11 @@ err_redo:
 		     k->k->p.offset, hash, h->chain->pos.offset,
 		     (bch2_bkey_val_to_text(&PBUF(buf), c,
 					    *k), buf))) {
-		ret = hash_redo_key(bch2_dirent_hash_desc, trans,
-				    h, iter, *k, hash);
+		do {
+			ret = hash_redo_key(bch2_dirent_hash_desc, trans,
+					    h, iter, *k, hash);
+		} while (ret == -EINTR);
+
 		if (ret)
 			bch_err(c, "hash_redo_key err %i", ret);
 		else
@@ -646,11 +662,12 @@ retry:
 			bkey_reassemble(&n->k_i, d.s_c);
 			n->v.d_type = mode_to_type(target.bi_mode);
 
-			bch2_trans_update(&trans, iter, &n->k_i);
-
-			ret = bch2_trans_commit(&trans, NULL, NULL,
-						BTREE_INSERT_NOFAIL|
-						BTREE_INSERT_LAZY_RW);
+			ret = __bch2_trans_do(&trans, NULL, NULL,
+					      BTREE_INSERT_ATOMIC|
+					      BTREE_INSERT_NOFAIL|
+					      BTREE_INSERT_LAZY_RW,
+					      TRANS_RESET_MEM,
+				(bch2_trans_update(&trans, iter, &n->k_i), 0));
 			kfree(n);
 			if (ret)
 				goto err;
@@ -790,7 +807,7 @@ fsck_err:
 create_lostfound:
 	bch2_inode_init_early(c, lostfound_inode);
 
-	ret = bch2_trans_do(c, NULL,
+	ret = bch2_trans_do(c, NULL, NULL,
 			    BTREE_INSERT_ATOMIC|
 			    BTREE_INSERT_NOFAIL|
 			    BTREE_INSERT_LAZY_RW,
@@ -1261,12 +1278,14 @@ static int check_inode(struct btree_trans *trans,
 		struct bkey_inode_buf p;
 
 		bch2_inode_pack(&p, &u);
-		bch2_trans_update(trans, iter, &p.inode.k_i);
 
-		ret = bch2_trans_commit(trans, NULL, NULL,
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_LAZY_RW);
-		if (ret && ret != -EINTR)
+		ret = __bch2_trans_do(trans, NULL, NULL,
+				      BTREE_INSERT_ATOMIC|
+				      BTREE_INSERT_NOFAIL|
+				      BTREE_INSERT_LAZY_RW,
+				      TRANS_RESET_MEM,
+			(bch2_trans_update(trans, iter, &p.inode.k_i), 0));
+		if (ret)
 			bch_err(c, "error in fsck: error %i "
 				"updating inode", ret);
 	}

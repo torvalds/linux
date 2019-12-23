@@ -36,8 +36,6 @@ int bch2_dirent_create(struct btree_trans *, u64,
 int bch2_dirent_delete_at(struct btree_trans *,
 			  const struct bch_hash_info *,
 			  struct btree_iter *);
-int bch2_dirent_delete(struct bch_fs *, u64, const struct bch_hash_info *,
-		       const struct qstr *, u64 *);
 
 enum bch_rename_mode {
 	BCH_RENAME,
