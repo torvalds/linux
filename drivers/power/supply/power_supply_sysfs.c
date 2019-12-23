@@ -221,14 +221,8 @@ static ssize_t power_supply_show_property(struct device *dev,
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER_EXT:
 		ret = sprintf(buf, "%lld\n", value.int64val);
 		break;
-	case POWER_SUPPLY_PROP_MODEL_NAME ... POWER_SUPPLY_PROP_CYCLE_COUNTS:
+	case POWER_SUPPLY_PROP_MODEL_NAME ... POWER_SUPPLY_PROP_SERIAL_NUMBER:
 		ret = sprintf(buf, "%s\n", value.strval);
-		break;
-	/*
-	 * FIXME: b/139264914, ignore it temporarily to avoid hit NULL point.
-	 * will review it
-	 */
-	case POWER_SUPPLY_PROP_SERIAL_NUMBER:
 		break;
 	default:
 		ret = sprintf(buf, "%d\n", value.intval);
