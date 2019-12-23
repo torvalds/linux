@@ -3749,6 +3749,7 @@ static int __ip6_del_rt_siblings(struct fib6_info *rt, struct fib6_config *cfg)
 
 	if (rt->fib6_nsiblings && cfg->fc_delete_all_nh) {
 		struct fib6_info *sibling, *next_sibling;
+		struct fib6_node *fn;
 
 		/* prefer to send a single notification with all hops */
 		skb = nlmsg_new(rt6_nlmsg_size(rt), gfp_any());
@@ -3764,7 +3765,32 @@ static int __ip6_del_rt_siblings(struct fib6_info *rt, struct fib6_config *cfg)
 				info->skip_notify = 1;
 		}
 
+		/* 'rt' points to the first sibling route. If it is not the
+		 * leaf, then we do not need to send a notification. Otherwise,
+		 * we need to check if the last sibling has a next route or not
+		 * and emit a replace or delete notification, respectively.
+		 */
 		info->skip_notify_kernel = 1;
+		fn = rcu_dereference_protected(rt->fib6_node,
+					    lockdep_is_held(&table->tb6_lock));
+		if (rcu_access_pointer(fn->leaf) == rt) {
+			struct fib6_info *last_sibling, *replace_rt;
+
+			last_sibling = list_last_entry(&rt->fib6_siblings,
+						       struct fib6_info,
+						       fib6_siblings);
+			replace_rt = rcu_dereference_protected(
+					    last_sibling->fib6_next,
+					    lockdep_is_held(&table->tb6_lock));
+			if (replace_rt)
+				call_fib6_entry_notifiers_replace(net,
+								  replace_rt);
+			else
+				call_fib6_multipath_entry_notifiers(net,
+						       FIB_EVENT_ENTRY_DEL_TMP,
+						       rt, rt->fib6_nsiblings,
+						       NULL);
+		}
 		call_fib6_multipath_entry_notifiers(net,
 						    FIB_EVENT_ENTRY_DEL,
 						    rt,
