@@ -46,6 +46,7 @@
 #include "display/intel_crt.h"
 #include "display/intel_ddi.h"
 #include "display/intel_dp.h"
+#include "display/intel_dp_mst.h"
 #include "display/intel_dsi.h"
 #include "display/intel_dvo.h"
 #include "display/intel_gmbus.h"
@@ -11880,6 +11881,7 @@ static void intel_crtc_state_reset(struct intel_crtc_state *crtc_state,
 	crtc_state->hsw_workaround_pipe = INVALID_PIPE;
 	crtc_state->output_format = INTEL_OUTPUT_FORMAT_INVALID;
 	crtc_state->scaler_state.scaler_id = -1;
+	crtc_state->mst_master_transcoder = INVALID_TRANSCODER;
 }
 
 static struct intel_crtc_state *intel_crtc_state_alloc(struct intel_crtc *crtc)
@@ -12738,6 +12740,9 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 			      pipe_config->csc_mode, pipe_config->gamma_mode,
 			      pipe_config->gamma_enable, pipe_config->csc_enable);
 
+	DRM_DEBUG_KMS("MST master transcoder: %s\n",
+		      transcoder_name(pipe_config->mst_master_transcoder));
+
 dump_planes:
 	if (!state)
 		return;
@@ -13517,6 +13522,8 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_I(dsc.compression_enable);
 	PIPE_CONF_CHECK_I(dsc.dsc_split);
 	PIPE_CONF_CHECK_I(dsc.compressed_bpp);
+
+	PIPE_CONF_CHECK_I(mst_master_transcoder);
 
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
@@ -14602,7 +14609,7 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 	u32 handled = 0;
 	int i;
 
-	/* Only disable port sync slaves */
+	/* Only disable port sync and MST slaves */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		if (!needs_modeset(new_crtc_state))
@@ -14616,7 +14623,8 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 		 * slave CRTCs are disabled first and then master CRTC since
 		 * Slave vblanks are masked till Master Vblanks.
 		 */
-		if (!is_trans_port_sync_slave(old_crtc_state))
+		if (!is_trans_port_sync_slave(old_crtc_state) &&
+		    !intel_dp_mst_is_slave_trans(old_crtc_state))
 			continue;
 
 		intel_pre_plane_update(state, crtc);

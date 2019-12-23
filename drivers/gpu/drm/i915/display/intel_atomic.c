@@ -192,6 +192,20 @@ intel_connector_needs_modeset(struct intel_atomic_state *state,
 									    new_conn_state->crtc)));
 }
 
+struct intel_digital_connector_state *
+intel_atomic_get_digital_connector_state(struct intel_atomic_state *state,
+					 struct intel_connector *connector)
+{
+	struct drm_connector_state *conn_state;
+
+	conn_state = drm_atomic_get_connector_state(&state->base,
+						    &connector->base);
+	if (IS_ERR(conn_state))
+		return ERR_CAST(conn_state);
+
+	return to_intel_digital_connector_state(conn_state);
+}
+
 /**
  * intel_crtc_duplicate_state - duplicate crtc state
  * @crtc: drm crtc

@@ -87,10 +87,56 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 	return 0;
 }
 
+/*
+ * Iterate over all connectors and return the smallest transcoder in the MST
+ * stream
+ */
+static enum transcoder
+intel_dp_mst_master_trans_compute(struct intel_atomic_state *state,
+				  struct intel_dp *mst_port)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_digital_connector_state *conn_state;
+	struct intel_connector *connector;
+	enum pipe ret = I915_MAX_PIPES;
+	int i;
+
+	if (INTEL_GEN(dev_priv) < 12)
+		return INVALID_TRANSCODER;
+
+	for_each_new_intel_connector_in_state(state, connector, conn_state, i) {
+		struct intel_crtc_state *crtc_state;
+		struct intel_crtc *crtc;
+
+		if (connector->mst_port != mst_port || !conn_state->base.crtc)
+			continue;
+
+		crtc = to_intel_crtc(conn_state->base.crtc);
+		crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+		if (!crtc_state->uapi.active)
+			continue;
+
+		/*
+		 * Using crtc->pipe because crtc_state->cpu_transcoder is
+		 * computed, so others CRTCs could have non-computed
+		 * cpu_transcoder
+		 */
+		if (crtc->pipe < ret)
+			ret = crtc->pipe;
+	}
+
+	if (ret == I915_MAX_PIPES)
+		return INVALID_TRANSCODER;
+
+	/* Simple cast works because TGL don't have a eDP transcoder */
+	return (enum transcoder)ret;
+}
+
 static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 				       struct intel_crtc_state *pipe_config,
 				       struct drm_connector_state *conn_state)
 {
+	struct intel_atomic_state *state = to_intel_atomic_state(conn_state->state);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_dp *intel_dp = &intel_mst->primary->dp;
@@ -154,24 +200,91 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 
+	pipe_config->mst_master_transcoder = intel_dp_mst_master_trans_compute(state, intel_dp);
+
+	return 0;
+}
+
+/*
+ * If one of the connectors in a MST stream needs a modeset, mark all CRTCs
+ * that shares the same MST stream as mode changed,
+ * intel_modeset_pipe_config()+intel_crtc_check_fastset() will take care to do
+ * a fastset when possible.
+ */
+static int
+intel_dp_mst_atomic_master_trans_check(struct intel_connector *connector,
+				       struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct drm_connector_list_iter connector_list_iter;
+	struct intel_connector *connector_iter;
+
+	if (INTEL_GEN(dev_priv) < 12)
+		return  0;
+
+	if (!intel_connector_needs_modeset(state, &connector->base))
+		return 0;
+
+	drm_connector_list_iter_begin(&dev_priv->drm, &connector_list_iter);
+	for_each_intel_connector_iter(connector_iter, &connector_list_iter) {
+		struct intel_digital_connector_state *conn_iter_state;
+		struct intel_crtc_state *crtc_state;
+		struct intel_crtc *crtc;
+		int ret;
+
+		if (connector_iter->mst_port != connector->mst_port ||
+		    connector_iter == connector)
+			continue;
+
+		conn_iter_state = intel_atomic_get_digital_connector_state(state,
+									   connector_iter);
+		if (IS_ERR(conn_iter_state)) {
+			drm_connector_list_iter_end(&connector_list_iter);
+			return PTR_ERR(conn_iter_state);
+		}
+
+		if (!conn_iter_state->base.crtc)
+			continue;
+
+		crtc = to_intel_crtc(conn_iter_state->base.crtc);
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state)) {
+			drm_connector_list_iter_end(&connector_list_iter);
+			return PTR_ERR(crtc_state);
+		}
+
+		ret = drm_atomic_add_affected_planes(&state->base, &crtc->base);
+		if (ret) {
+			drm_connector_list_iter_end(&connector_list_iter);
+			return ret;
+		}
+		crtc_state->uapi.mode_changed = true;
+	}
+	drm_connector_list_iter_end(&connector_list_iter);
+
 	return 0;
 }
 
 static int
 intel_dp_mst_atomic_check(struct drm_connector *connector,
-			  struct drm_atomic_state *state)
+			  struct drm_atomic_state *_state)
 {
+	struct intel_atomic_state *state = to_intel_atomic_state(_state);
 	struct drm_connector_state *new_conn_state =
-		drm_atomic_get_new_connector_state(state, connector);
+		drm_atomic_get_new_connector_state(&state->base, connector);
 	struct drm_connector_state *old_conn_state =
-		drm_atomic_get_old_connector_state(state, connector);
+		drm_atomic_get_old_connector_state(&state->base, connector);
 	struct intel_connector *intel_connector =
 		to_intel_connector(connector);
 	struct drm_crtc *new_crtc = new_conn_state->crtc;
 	struct drm_dp_mst_topology_mgr *mgr;
 	int ret;
 
-	ret = intel_digital_connector_atomic_check(connector, state);
+	ret = intel_digital_connector_atomic_check(connector, &state->base);
+	if (ret)
+		return ret;
+
+	ret = intel_dp_mst_atomic_master_trans_check(intel_connector, state);
 	if (ret)
 		return ret;
 
@@ -182,12 +295,9 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	 * connector
 	 */
 	if (new_crtc) {
-		struct intel_atomic_state *intel_state =
-			to_intel_atomic_state(state);
 		struct intel_crtc *intel_crtc = to_intel_crtc(new_crtc);
 		struct intel_crtc_state *crtc_state =
-			intel_atomic_get_new_crtc_state(intel_state,
-							intel_crtc);
+			intel_atomic_get_new_crtc_state(state, intel_crtc);
 
 		if (!crtc_state ||
 		    !drm_atomic_crtc_needs_modeset(&crtc_state->uapi) ||
@@ -196,7 +306,7 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	}
 
 	mgr = &enc_to_mst(old_conn_state->best_encoder)->primary->dp.mst_mgr;
-	ret = drm_dp_atomic_release_vcpi_slots(state, mgr,
+	ret = drm_dp_atomic_release_vcpi_slots(&state->base, mgr,
 					       intel_connector->port);
 
 	return ret;
@@ -240,6 +350,8 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 
 	intel_dp->active_mst_links--;
 	last_mst_stream = intel_dp->active_mst_links == 0;
+	WARN_ON(INTEL_GEN(dev_priv) >= 12 && last_mst_stream &&
+		!intel_dp_mst_is_master_trans(old_crtc_state));
 
 	intel_crtc_vblank_off(old_crtc_state);
 
@@ -317,6 +429,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	connector->encoder = encoder;
 	intel_mst->connector = connector;
 	first_mst_stream = intel_dp->active_mst_links == 0;
+	WARN_ON(INTEL_GEN(dev_priv) >= 12 && first_mst_stream &&
+		!intel_dp_mst_is_master_trans(pipe_config));
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
@@ -721,4 +835,15 @@ intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port)
 
 	drm_dp_mst_topology_mgr_destroy(&intel_dp->mst_mgr);
 	/* encoders will get killed by normal cleanup */
+}
+
+bool intel_dp_mst_is_master_trans(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->mst_master_transcoder == crtc_state->cpu_transcoder;
+}
+
+bool intel_dp_mst_is_slave_trans(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->mst_master_transcoder != INVALID_TRANSCODER &&
+	       crtc_state->mst_master_transcoder != crtc_state->cpu_transcoder;
 }

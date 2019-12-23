@@ -1899,8 +1899,13 @@ intel_ddi_transcoder_func_reg_val_get(const struct intel_crtc_state *crtc_state)
 		temp |= TRANS_DDI_MODE_SELECT_DP_MST;
 		temp |= DDI_PORT_WIDTH(crtc_state->lane_count);
 
-		if (INTEL_GEN(dev_priv) >= 12)
-			temp |= TRANS_DDI_MST_TRANSPORT_SELECT(crtc_state->cpu_transcoder);
+		if (INTEL_GEN(dev_priv) >= 12) {
+			enum transcoder master;
+
+			master = crtc_state->mst_master_transcoder;
+			WARN_ON(master == INVALID_TRANSCODER);
+			temp |= TRANS_DDI_MST_TRANSPORT_SELECT(master);
+		}
 	} else {
 		temp |= TRANS_DDI_MODE_SELECT_DP_SST;
 		temp |= DDI_PORT_WIDTH(crtc_state->lane_count);
@@ -4405,6 +4410,11 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		pipe_config->output_types |= BIT(INTEL_OUTPUT_DP_MST);
 		pipe_config->lane_count =
 			((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
+
+		if (INTEL_GEN(dev_priv) >= 12)
+			pipe_config->mst_master_transcoder =
+					REG_FIELD_GET(TRANS_DDI_MST_TRANSPORT_SELECT_MASK, temp);
+
 		intel_dp_get_m_n(intel_crtc, pipe_config);
 		break;
 	default:

@@ -1054,6 +1054,9 @@ struct intel_crtc_state {
 
 	/* Bitmask to indicate slaves attached */
 	u8 sync_mode_slaves_mask;
+
+	/* Only valid on TGL+ */
+	enum transcoder mst_master_transcoder;
 };
 
 struct intel_crtc {
