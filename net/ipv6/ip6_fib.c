@@ -1039,6 +1039,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 		   (info->nlh->nlmsg_flags & NLM_F_CREATE));
 	int found = 0;
 	bool rt_can_ecmp = rt6_qualify_for_ecmp(rt);
+	bool notify_sibling_rt = false;
 	u16 nlflags = NLM_F_EXCL;
 	int err;
 
@@ -1130,6 +1131,7 @@ next_iter:
 
 		/* Find the first route that have the same metric */
 		sibling = leaf;
+		notify_sibling_rt = true;
 		while (sibling) {
 			if (sibling->fib6_metric == rt->fib6_metric &&
 			    rt6_qualify_for_ecmp(sibling)) {
@@ -1139,6 +1141,7 @@ next_iter:
 			}
 			sibling = rcu_dereference_protected(sibling->fib6_next,
 				    lockdep_is_held(&rt->fib6_table->tb6_lock));
+			notify_sibling_rt = false;
 		}
 		/* For each sibling in the list, increment the counter of
 		 * siblings. BUG() if counters does not match, list of siblings
@@ -1166,6 +1169,21 @@ add:
 		nlflags |= NLM_F_CREATE;
 
 		if (!info->skip_notify_kernel) {
+			enum fib_event_type fib_event;
+
+			if (notify_sibling_rt)
+				fib_event = FIB_EVENT_ENTRY_APPEND;
+			else
+				fib_event = FIB_EVENT_ENTRY_REPLACE_TMP;
+			/* The route should only be notified if it is the first
+			 * route in the node or if it is added as a sibling
+			 * route to the first route in the node.
+			 */
+			if (notify_sibling_rt || ins == &fn->leaf)
+				err = call_fib6_entry_notifiers(info->nl_net,
+								fib_event, rt,
+								extack);
+
 			err = call_fib6_entry_notifiers(info->nl_net,
 							FIB_EVENT_ENTRY_ADD,
 							rt, extack);
