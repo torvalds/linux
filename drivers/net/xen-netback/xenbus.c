@@ -954,12 +954,10 @@ static int netback_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
-	set_backend_state(be, XenbusStateClosed);
-
 	unregister_hotplug_status_watch(be);
 	if (be->vif) {
 		kobject_uevent(&dev->dev.kobj, KOBJ_OFFLINE);
-		xen_unregister_watchers(be->vif);
+		backend_disconnect(be);
 		xenvif_free(be->vif);
 		be->vif = NULL;
 	}
@@ -1131,6 +1129,7 @@ static struct xenbus_driver netback_driver = {
 	.remove = netback_remove,
 	.uevent = netback_uevent,
 	.otherend_changed = frontend_changed,
+	.allow_rebind = true,
 };
 
 int xenvif_xenbus_init(void)
