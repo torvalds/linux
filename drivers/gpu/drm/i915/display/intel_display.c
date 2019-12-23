@@ -14163,7 +14163,11 @@ static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_sta
 
 	new_crtc_state->uapi.mode_changed = false;
 	new_crtc_state->update_pipe = true;
+}
 
+static void intel_crtc_copy_fastset(const struct intel_crtc_state *old_crtc_state,
+				    struct intel_crtc_state *new_crtc_state)
+{
 	/*
 	 * If we're not doing the full modeset we want to
 	 * keep the current M/N values as they may be
@@ -14324,8 +14328,6 @@ static int intel_atomic_check(struct drm_device *dev,
 
 		if (!new_crtc_state->uapi.enable) {
 			intel_crtc_copy_uapi_to_hw_state(new_crtc_state);
-
-			any_ms = true;
 			continue;
 		}
 
@@ -14338,9 +14340,19 @@ static int intel_atomic_check(struct drm_device *dev,
 			goto fail;
 
 		intel_crtc_check_fastset(old_crtc_state, new_crtc_state);
+	}
 
-		if (needs_modeset(new_crtc_state))
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (needs_modeset(new_crtc_state)) {
 			any_ms = true;
+			continue;
+		}
+
+		if (!new_crtc_state->update_pipe)
+			continue;
+
+		intel_crtc_copy_fastset(old_crtc_state, new_crtc_state);
 	}
 
 	if (any_ms && !check_digital_port_conflicts(state)) {
