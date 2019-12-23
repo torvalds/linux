@@ -298,8 +298,6 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 	BUG_ON(bkey_cmp(bkey_start_pos(&i->k->k), i->iter->pos));
 	EBUG_ON((i->iter->flags & BTREE_ITER_IS_EXTENTS) &&
 		bkey_cmp(i->k->k.p, i->iter->l[0].b->key.k.p) > 0);
-	EBUG_ON((i->iter->flags & BTREE_ITER_IS_EXTENTS) &&
-		!(trans->flags & BTREE_INSERT_ATOMIC));
 
 	BUG_ON(debug_check_bkeys(c) &&
 	       !bkey_deleted(&i->k->k) &&
@@ -641,8 +639,8 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 
 		/*
 		 * if the split succeeded without dropping locks the insert will
-		 * still be atomic (in the BTREE_INSERT_ATOMIC sense, what the
-		 * caller peeked() and is overwriting won't have changed)
+		 * still be atomic (what the caller peeked() and is overwriting
+		 * won't have changed)
 		 */
 #if 0
 		/*
@@ -713,13 +711,6 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			return ret2;
 		}
 
-		/*
-		 * BTREE_ITER_ATOMIC means we have to return -EINTR if we
-		 * dropped locks:
-		 */
-		if (!(flags & BTREE_INSERT_ATOMIC))
-			return 0;
-
 		trace_trans_restart_atomic(trans->ip);
 	}
 
@@ -755,9 +746,6 @@ int __bch2_trans_commit(struct btree_trans *trans)
 
 	if (!trans->nr_updates)
 		goto out_noupdates;
-
-	/* for the sake of sanity: */
-	EBUG_ON(trans->nr_updates > 1 && !(trans->flags & BTREE_INSERT_ATOMIC));
 
 	if (trans->flags & BTREE_INSERT_GC_LOCK_HELD)
 		lockdep_assert_held(&trans->c->gc_lock);
@@ -795,8 +783,6 @@ out:
 	if (likely(!(trans->flags & BTREE_INSERT_NOCHECK_RW)))
 		percpu_ref_put(&trans->c->writes);
 out_noupdates:
-	EBUG_ON(!(trans->flags & BTREE_INSERT_ATOMIC) && ret == -EINTR);
-
 	trans_for_each_iter_all(trans, iter)
 		iter->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
 
@@ -897,7 +883,6 @@ retry:
 
 		bch2_trans_update(trans, iter, &delete);
 		ret = bch2_trans_commit(trans, NULL, journal_seq,
-					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL);
 		if (ret)
 			break;

@@ -153,7 +153,6 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 
 		ret = bch2_trans_commit(&trans, &op->res,
 				op_journal_seq(op),
-				BTREE_INSERT_ATOMIC|
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_USE_RESERVE|
 				m->data_opts.btree_insert_flags);

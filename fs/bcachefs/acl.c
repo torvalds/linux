@@ -326,7 +326,6 @@ retry:
 	ret =   bch2_inode_write(&trans, inode_iter, &inode_u) ?:
 		bch2_trans_commit(&trans, NULL,
 				  &inode->ei_journal_seq,
-				  BTREE_INSERT_ATOMIC|
 				  BTREE_INSERT_NOUNLOCK);
 btree_err:
 	if (ret == -EINTR)

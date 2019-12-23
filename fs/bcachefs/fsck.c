@@ -79,7 +79,6 @@ static int remove_dirent(struct btree_trans *trans,
 			 struct bkey_s_c_dirent dirent)
 {
 	return __bch2_trans_do(trans, NULL, NULL,
-			       BTREE_INSERT_ATOMIC|
 			       BTREE_INSERT_NOFAIL|
 			       BTREE_INSERT_LAZY_RW,
 			       TRANS_RESET_MEM,
@@ -99,7 +98,6 @@ static int reattach_inode(struct bch_fs *c,
 	name = (struct qstr) QSTR(name_buf);
 
 	ret = bch2_trans_do(c, NULL, NULL,
-			    BTREE_INSERT_ATOMIC|
 			    BTREE_INSERT_LAZY_RW,
 		bch2_link_trans(&trans, lostfound_inode->bi_inum,
 				inum, &dir_u, &inode_u, &name));
@@ -199,7 +197,6 @@ static int hash_redo_key(const struct bch_hash_desc desc,
 	return  bch2_hash_set(trans, desc, &h->info, k_iter->pos.inode,
 			      tmp, BCH_HASH_SET_MUST_CREATE) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-				  BTREE_INSERT_ATOMIC|
 				  BTREE_INSERT_NOFAIL|
 				  BTREE_INSERT_LAZY_RW);
 }
@@ -213,7 +210,6 @@ static int fsck_hash_delete_at(struct btree_trans *trans,
 retry:
 	ret   = bch2_hash_delete_at(trans, desc, info, iter) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-				  BTREE_INSERT_ATOMIC|
 				  BTREE_INSERT_NOFAIL|
 				  BTREE_INSERT_LAZY_RW);
 	if (ret == -EINTR) {
@@ -389,7 +385,6 @@ static int check_dirent_hash(struct btree_trans *trans, struct hash_check *h,
 	if (fsck_err(c, "dirent with junk at end, was %s (%zu) now %s (%u)",
 		     buf, strlen(buf), d->v.d_name, len)) {
 		ret = __bch2_trans_do(trans, NULL, NULL,
-				      BTREE_INSERT_ATOMIC|
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
 				      TRANS_RESET_MEM,
@@ -663,7 +658,6 @@ retry:
 			n->v.d_type = mode_to_type(target.bi_mode);
 
 			ret = __bch2_trans_do(&trans, NULL, NULL,
-					      BTREE_INSERT_ATOMIC|
 					      BTREE_INSERT_NOFAIL|
 					      BTREE_INSERT_LAZY_RW,
 					      TRANS_RESET_MEM,
@@ -808,7 +802,6 @@ create_lostfound:
 	bch2_inode_init_early(c, lostfound_inode);
 
 	ret = bch2_trans_do(c, NULL, NULL,
-			    BTREE_INSERT_ATOMIC|
 			    BTREE_INSERT_NOFAIL|
 			    BTREE_INSERT_LAZY_RW,
 		bch2_create_trans(&trans,
@@ -1280,7 +1273,6 @@ static int check_inode(struct btree_trans *trans,
 		bch2_inode_pack(&p, &u);
 
 		ret = __bch2_trans_do(trans, NULL, NULL,
-				      BTREE_INSERT_ATOMIC|
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
 				      TRANS_RESET_MEM,

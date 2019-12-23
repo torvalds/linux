@@ -16,7 +16,6 @@ void bch2_btree_journal_key(struct btree_trans *, struct btree_iter *,
 			    struct bkey_i *);
 
 enum {
-	__BTREE_INSERT_ATOMIC,
 	__BTREE_INSERT_NOUNLOCK,
 	__BTREE_INSERT_NOFAIL,
 	__BTREE_INSERT_NOCHECK_RW,
@@ -34,12 +33,6 @@ enum {
 	__BCH_HASH_SET_MUST_CREATE,
 	__BCH_HASH_SET_MUST_REPLACE,
 };
-
-/*
- * Don't drop/retake locks before doing btree update, instead return -EINTR if
- * we had to drop locks for any reason
- */
-#define BTREE_INSERT_ATOMIC		(1 << __BTREE_INSERT_ATOMIC)
 
 /*
  * Don't drop locks _after_ successfully updating btree:
@@ -101,8 +94,7 @@ int __bch2_trans_commit(struct btree_trans *);
  * This is main entry point for btree updates.
  *
  * Return values:
- * -EINTR: locking changed, this function should be called again. Only returned
- *  if passed BTREE_INSERT_ATOMIC.
+ * -EINTR: locking changed, this function should be called again.
  * -EROFS: filesystem read only
  * -EIO: journal or btree node IO error
  */

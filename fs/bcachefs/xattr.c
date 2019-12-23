@@ -328,8 +328,7 @@ static int bch2_xattr_set_handler(const struct xattr_handler *handler,
 	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 
-	return bch2_trans_do(c, NULL, &inode->ei_journal_seq,
-			     BTREE_INSERT_ATOMIC,
+	return bch2_trans_do(c, NULL, &inode->ei_journal_seq, 0,
 			bch2_xattr_set(&trans, inode->v.i_ino,
 				       &inode->ei_str_hash,
 				       name, value, size,

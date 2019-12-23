@@ -739,7 +739,6 @@ found_slot:
 	bch2_trans_update(&trans, iter, &stripe->k_i);
 
 	ret = bch2_trans_commit(&trans, NULL, NULL,
-				BTREE_INSERT_ATOMIC|
 				BTREE_INSERT_NOFAIL);
 err:
 	if (ret == -EINTR)
@@ -822,7 +821,6 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 		bch2_trans_update(&trans, iter, sk.k);
 
 		ret = bch2_trans_commit(&trans, NULL, NULL,
-					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL|
 					BTREE_INSERT_USE_RESERVE);
 		if (ret == -EINTR)
@@ -1235,7 +1233,6 @@ static int __bch2_stripe_write_key(struct btree_trans *trans,
 	bch2_trans_update(trans, iter, &new_key->k_i);
 
 	return bch2_trans_commit(trans, NULL, NULL,
-				 BTREE_INSERT_ATOMIC|
 				 BTREE_INSERT_NOFAIL|flags);
 }
 

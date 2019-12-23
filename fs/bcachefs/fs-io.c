@@ -2558,7 +2558,6 @@ reassemble:
 
 		ret = bch2_trans_commit(&trans, &disk_res,
 					&inode->ei_journal_seq,
-					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL|
 					commit_flags);
 		bch2_disk_reservation_put(c, &disk_res);

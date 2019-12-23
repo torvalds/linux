@@ -309,14 +309,12 @@ retry:
 					  0, -((s64) k->k.size),
 					  BCH_BUCKET_MARK_OVERWRITE) ?:
 		      bch2_trans_commit(&trans, &disk_res, NULL,
-					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL|
 					BTREE_INSERT_LAZY_RW|
 					BTREE_INSERT_NOMARK_OVERWRITES|
 					BTREE_INSERT_NO_CLEAR_REPLICAS);
 	} else {
 		ret = bch2_trans_commit(&trans, &disk_res, NULL,
-					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL|
 					BTREE_INSERT_LAZY_RW|
 					BTREE_INSERT_JOURNAL_REPLAY|
@@ -1009,7 +1007,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_inode_init_early(c, &lostfound_inode);
 
 	err = "error creating lost+found";
-	ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_ATOMIC,
+	ret = bch2_trans_do(c, NULL, NULL, 0,
 		bch2_create_trans(&trans, BCACHEFS_ROOT_INO,
 				  &root_inode, &lostfound_inode,
 				  &lostfound,
