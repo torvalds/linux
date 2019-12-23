@@ -989,6 +989,51 @@ TRACE_EVENT(nfs_writeback_done,
 		)
 );
 
+DECLARE_EVENT_CLASS(nfs_page_error_class,
+		TP_PROTO(
+			const struct nfs_page *req,
+			int error
+		),
+
+		TP_ARGS(req, error),
+
+		TP_STRUCT__entry(
+			__field(const void *, req)
+			__field(pgoff_t, index)
+			__field(unsigned int, offset)
+			__field(unsigned int, pgbase)
+			__field(unsigned int, bytes)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			__entry->req = req;
+			__entry->index = req->wb_index;
+			__entry->offset = req->wb_offset;
+			__entry->pgbase = req->wb_pgbase;
+			__entry->bytes = req->wb_bytes;
+			__entry->error = error;
+		),
+
+		TP_printk(
+			"req=%p index=%lu offset=%u pgbase=%u bytes=%u error=%d",
+			__entry->req, __entry->index, __entry->offset,
+			__entry->pgbase, __entry->bytes, __entry->error
+		)
+);
+
+#define DEFINE_NFS_PAGEERR_EVENT(name) \
+	DEFINE_EVENT(nfs_page_error_class, name, \
+			TP_PROTO( \
+				const struct nfs_page *req, \
+				int error \
+			), \
+			TP_ARGS(req, error))
+
+DEFINE_NFS_PAGEERR_EVENT(nfs_write_error);
+DEFINE_NFS_PAGEERR_EVENT(nfs_comp_error);
+DEFINE_NFS_PAGEERR_EVENT(nfs_commit_error);
+
 TRACE_EVENT(nfs_initiate_commit,
 		TP_PROTO(
 			const struct nfs_commit_data *data
