@@ -22,15 +22,15 @@
 		poll-interval = <100>;
 
 		vol-up-key {
-			linux,code = <115>;
 			label = "volume up";
-			rockchip,adc_value = <1000>;
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <1000>;
 		};
 
 		vol-down-key {
-			linux,code = <114>;
 			label = "volume down";
-			rockchip,adc_value = <170000>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <170000>;
 		};
 	};
 
