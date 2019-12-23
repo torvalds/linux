@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/ratelimit.h>
+#include <linux/interval_tree_generic.h>
 
 #include <trace/events/block.h>
 
@@ -50,55 +51,58 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr);
 
 #include "raid1-10.c"
 
+#define START(node) ((node)->start)
+#define LAST(node) ((node)->last)
+INTERVAL_TREE_DEFINE(struct serial_info, node, sector_t, _subtree_last,
+		     START, LAST, static inline, raid1_rb);
+
 static int check_and_add_serial(struct md_rdev *rdev, sector_t lo, sector_t hi)
 {
-	struct serial_info *wi, *temp_wi;
+	struct serial_info *si;
 	unsigned long flags;
 	int ret = 0;
 	struct mddev *mddev = rdev->mddev;
+	struct serial_in_rdev *serial = rdev->serial;
 
-	wi = mempool_alloc(mddev->serial_info_pool, GFP_NOIO);
+	si = mempool_alloc(mddev->serial_info_pool, GFP_NOIO);
 
-	spin_lock_irqsave(&rdev->serial_list_lock, flags);
-	list_for_each_entry(temp_wi, &rdev->serial_list, list) {
-		/* collision happened */
-		if (hi > temp_wi->lo && lo < temp_wi->hi) {
-			ret = -EBUSY;
-			break;
-		}
-	}
-
+	spin_lock_irqsave(&serial->serial_lock, flags);
+	/* collision happened */
+	if (raid1_rb_iter_first(&serial->serial_rb, lo, hi))
+		ret = -EBUSY;
 	if (!ret) {
-		wi->lo = lo;
-		wi->hi = hi;
-		list_add(&wi->list, &rdev->serial_list);
+		si->start = lo;
+		si->last = hi;
+		raid1_rb_insert(si, &serial->serial_rb);
 	} else
-		mempool_free(wi, mddev->serial_info_pool);
-	spin_unlock_irqrestore(&rdev->serial_list_lock, flags);
+		mempool_free(si, mddev->serial_info_pool);
+	spin_unlock_irqrestore(&serial->serial_lock, flags);
 
 	return ret;
 }
 
 static void remove_serial(struct md_rdev *rdev, sector_t lo, sector_t hi)
 {
-	struct serial_info *wi;
+	struct serial_info *si;
 	unsigned long flags;
 	int found = 0;
 	struct mddev *mddev = rdev->mddev;
+	struct serial_in_rdev *serial = rdev->serial;
 
-	spin_lock_irqsave(&rdev->serial_list_lock, flags);
-	list_for_each_entry(wi, &rdev->serial_list, list)
-		if (hi == wi->hi && lo == wi->lo) {
-			list_del(&wi->list);
-			mempool_free(wi, mddev->serial_info_pool);
+	spin_lock_irqsave(&serial->serial_lock, flags);
+	for (si = raid1_rb_iter_first(&serial->serial_rb, lo, hi);
+	     si; si = raid1_rb_iter_next(si, lo, hi)) {
+		if (si->start == lo && si->last == hi) {
+			raid1_rb_remove(si, &serial->serial_rb);
+			mempool_free(si, mddev->serial_info_pool);
 			found = 1;
 			break;
 		}
-
+	}
 	if (!found)
 		WARN(1, "The write IO is not recorded for serialization\n");
-	spin_unlock_irqrestore(&rdev->serial_list_lock, flags);
-	wake_up(&rdev->serial_io_wait);
+	spin_unlock_irqrestore(&serial->serial_lock, flags);
+	wake_up(&serial->serial_io_wait);
 }
 
 /*
@@ -1482,6 +1486,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	for (i = 0; i < disks; i++) {
 		struct bio *mbio = NULL;
 		struct md_rdev *rdev = conf->mirrors[i].rdev;
+		struct serial_in_rdev *serial = rdev->serial;
 		if (!r1_bio->bios[i])
 			continue;
 
@@ -1510,13 +1515,13 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 
 		if (r1_bio->behind_master_bio) {
 			if (test_bit(CollisionCheck, &rdev->flags))
-				wait_event(rdev->serial_io_wait,
+				wait_event(serial->serial_io_wait,
 					   check_and_add_serial(rdev, lo, hi)
 					   == 0);
 			if (test_bit(WriteMostly, &rdev->flags))
 				atomic_inc(&r1_bio->behind_remaining);
 		} else if (mddev->serialize_policy)
-			wait_event(rdev->serial_io_wait,
+			wait_event(serial->serial_io_wait,
 				   check_and_add_serial(rdev, lo, hi) == 0);
 
 		r1_bio->bios[i] = mbio;

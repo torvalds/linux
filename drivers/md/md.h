@@ -32,6 +32,16 @@
  * be retried.
  */
 #define	MD_FAILFAST	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT)
+
+/*
+ * The struct embedded in rdev is used to serialize IO.
+ */
+struct serial_in_rdev {
+	struct rb_root_cached serial_rb;
+	spinlock_t serial_lock;
+	wait_queue_head_t serial_io_wait;
+};
+
 /*
  * MD's 'extended' device
  */
@@ -110,12 +120,7 @@ struct md_rdev {
 					   * in superblock.
 					   */
 
-	/*
-	 * The members for check collision of write IOs.
-	 */
-	struct list_head serial_list;
-	spinlock_t serial_list_lock;
-	wait_queue_head_t serial_io_wait;
+	struct serial_in_rdev *serial;  /* used for raid1 io serialization */
 
 	struct work_struct del_work;	/* used for delayed sysfs removal */
 
@@ -266,9 +271,10 @@ enum mddev_sb_flags {
 #define NR_SERIAL_INFOS		8
 /* record current range of serialize IOs */
 struct serial_info {
-	sector_t lo;
-	sector_t hi;
-	struct list_head list;
+	struct rb_node node;
+	sector_t start;		/* start sector of rb node */
+	sector_t last;		/* end sector of rb node */
+	sector_t _subtree_last; /* highest sector in subtree of rb node */
 };
 
 struct mddev {
@@ -740,6 +746,8 @@ extern void md_update_sb(struct mddev *mddev, int force);
 extern void md_kick_rdev_from_array(struct md_rdev * rdev);
 extern void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 				     bool is_suspend);
+extern void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
+				      bool is_suspend);
 struct md_rdev *md_find_rdev_nr_rcu(struct mddev *mddev, int nr);
 struct md_rdev *md_find_rdev_rcu(struct mddev *mddev, dev_t dev);
 

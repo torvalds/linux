@@ -125,25 +125,59 @@ static inline int speed_max(struct mddev *mddev)
 		mddev->sync_speed_max : sysctl_speed_limit_max;
 }
 
-static int rdev_init_serial(struct md_rdev *rdev)
+static void rdev_uninit_serial(struct md_rdev *rdev)
 {
-	spin_lock_init(&rdev->serial_list_lock);
-	INIT_LIST_HEAD(&rdev->serial_list);
-	init_waitqueue_head(&rdev->serial_io_wait);
-	set_bit(CollisionCheck, &rdev->flags);
+	if (!test_and_clear_bit(CollisionCheck, &rdev->flags))
+		return;
 
-	return 1;
+	kfree(rdev->serial);
+	rdev->serial = NULL;
 }
 
-static void rdevs_init_serial(struct mddev *mddev)
+static void rdevs_uninit_serial(struct mddev *mddev)
 {
 	struct md_rdev *rdev;
 
+	rdev_for_each(rdev, mddev)
+		rdev_uninit_serial(rdev);
+}
+
+static int rdev_init_serial(struct md_rdev *rdev)
+{
+	struct serial_in_rdev *serial = NULL;
+
+	if (test_bit(CollisionCheck, &rdev->flags))
+		return 0;
+
+	serial = kmalloc(sizeof(struct serial_in_rdev), GFP_KERNEL);
+	if (!serial)
+		return -ENOMEM;
+
+	spin_lock_init(&serial->serial_lock);
+	serial->serial_rb = RB_ROOT_CACHED;
+	init_waitqueue_head(&serial->serial_io_wait);
+	rdev->serial = serial;
+	set_bit(CollisionCheck, &rdev->flags);
+
+	return 0;
+}
+
+static int rdevs_init_serial(struct mddev *mddev)
+{
+	struct md_rdev *rdev;
+	int ret = 0;
+
 	rdev_for_each(rdev, mddev) {
-		if (test_bit(CollisionCheck, &rdev->flags))
-			continue;
-		rdev_init_serial(rdev);
+		ret = rdev_init_serial(rdev);
+		if (ret)
+			break;
 	}
+
+	/* Free all resources if pool is not existed */
+	if (ret && !mddev->serial_info_pool)
+		rdevs_uninit_serial(mddev);
+
+	return ret;
 }
 
 /*
@@ -166,6 +200,8 @@ static int rdev_need_serial(struct md_rdev *rdev)
 void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 			      bool is_suspend)
 {
+	int ret = 0;
+
 	if (rdev && !rdev_need_serial(rdev) &&
 	    !test_bit(CollisionCheck, &rdev->flags))
 		return;
@@ -174,9 +210,11 @@ void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 		mddev_suspend(mddev);
 
 	if (!rdev)
-		rdevs_init_serial(mddev);
+		ret = rdevs_init_serial(mddev);
 	else
-		rdev_init_serial(rdev);
+		ret = rdev_init_serial(rdev);
+	if (ret)
+		goto abort;
 
 	if (mddev->serial_info_pool == NULL) {
 		unsigned int noio_flag;
@@ -186,9 +224,13 @@ void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 			mempool_create_kmalloc_pool(NR_SERIAL_INFOS,
 						sizeof(struct serial_info));
 		memalloc_noio_restore(noio_flag);
-		if (!mddev->serial_info_pool)
+		if (!mddev->serial_info_pool) {
+			rdevs_uninit_serial(mddev);
 			pr_err("can't alloc memory pool for serialization\n");
+		}
 	}
+
+abort:
 	if (!is_suspend)
 		mddev_resume(mddev);
 }
@@ -199,8 +241,8 @@ void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
  * 2. when bitmap is destroyed while policy is not enabled.
  * 3. for disable policy, the pool is destroyed only when no rdev needs it.
  */
-static void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
-				      bool is_suspend)
+void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
+			       bool is_suspend)
 {
 	if (rdev && !test_bit(CollisionCheck, &rdev->flags))
 		return;
@@ -213,8 +255,9 @@ static void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 			mddev_suspend(mddev);
 		rdev_for_each(temp, mddev) {
 			if (!rdev) {
-				if (!rdev_need_serial(temp))
-					clear_bit(CollisionCheck, &temp->flags);
+				if (!mddev->serialize_policy ||
+				    !rdev_need_serial(temp))
+					rdev_uninit_serial(temp);
 				else
 					num++;
 			} else if (temp != rdev &&
@@ -223,7 +266,7 @@ static void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 		}
 
 		if (rdev)
-			clear_bit(CollisionCheck, &rdev->flags);
+			rdev_uninit_serial(rdev);
 
 		if (num)
 			pr_info("The mempool could be used by other devices\n");
@@ -6117,8 +6160,9 @@ static void __md_stop_writes(struct mddev *mddev)
 			mddev->in_sync = 1;
 		md_update_sb(mddev, 1);
 	}
-	mempool_destroy(mddev->serial_info_pool);
-	mddev->serial_info_pool = NULL;
+	/* disable policy to guarantee rdevs free resources for serialization */
+	mddev->serialize_policy = 0;
+	mddev_destroy_serial_pool(mddev, NULL, true);
 }
 
 void md_stop_writes(struct mddev *mddev)

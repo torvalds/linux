@@ -1789,10 +1789,8 @@ void md_bitmap_destroy(struct mddev *mddev)
 		return;
 
 	md_bitmap_wait_behind_writes(mddev);
-	if (!mddev->serialize_policy) {
-		mempool_destroy(mddev->serial_info_pool);
-		mddev->serial_info_pool = NULL;
-	}
+	if (!mddev->serialize_policy)
+		mddev_destroy_serial_pool(mddev, NULL, true);
 
 	mutex_lock(&mddev->bitmap_info.mutex);
 	spin_lock(&mddev->lock);
@@ -2478,10 +2476,8 @@ backlog_store(struct mddev *mddev, const char *buf, size_t len)
 	mddev->bitmap_info.max_write_behind = backlog;
 	if (!backlog && mddev->serial_info_pool) {
 		/* serial_info_pool is not needed if backlog is zero */
-		if (!mddev->serialize_policy) {
-			mempool_destroy(mddev->serial_info_pool);
-			mddev->serial_info_pool = NULL;
-		}
+		if (!mddev->serialize_policy)
+			mddev_destroy_serial_pool(mddev, NULL, false);
 	} else if (backlog && !mddev->serial_info_pool) {
 		/* serial_info_pool is needed since backlog is not zero */
 		struct md_rdev *rdev;
