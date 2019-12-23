@@ -130,7 +130,7 @@ static void rdev_uninit_serial(struct md_rdev *rdev)
 	if (!test_and_clear_bit(CollisionCheck, &rdev->flags))
 		return;
 
-	kfree(rdev->serial);
+	kvfree(rdev->serial);
 	rdev->serial = NULL;
 }
 
@@ -144,18 +144,26 @@ static void rdevs_uninit_serial(struct mddev *mddev)
 
 static int rdev_init_serial(struct md_rdev *rdev)
 {
+	/* serial_nums equals with BARRIER_BUCKETS_NR */
+	int i, serial_nums = 1 << ((PAGE_SHIFT - ilog2(sizeof(atomic_t))));
 	struct serial_in_rdev *serial = NULL;
 
 	if (test_bit(CollisionCheck, &rdev->flags))
 		return 0;
 
-	serial = kmalloc(sizeof(struct serial_in_rdev), GFP_KERNEL);
+	serial = kvmalloc(sizeof(struct serial_in_rdev) * serial_nums,
+			  GFP_KERNEL);
 	if (!serial)
 		return -ENOMEM;
 
-	spin_lock_init(&serial->serial_lock);
-	serial->serial_rb = RB_ROOT_CACHED;
-	init_waitqueue_head(&serial->serial_io_wait);
+	for (i = 0; i < serial_nums; i++) {
+		struct serial_in_rdev *serial_tmp = &serial[i];
+
+		spin_lock_init(&serial_tmp->serial_lock);
+		serial_tmp->serial_rb = RB_ROOT_CACHED;
+		init_waitqueue_head(&serial_tmp->serial_io_wait);
+	}
+
 	rdev->serial = serial;
 	set_bit(CollisionCheck, &rdev->flags);
 
