@@ -54,6 +54,7 @@ Required properties:
 
 - port: A port node with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt.
+- rockchip,dual-channel-swap: boolean, optional config for vop dual channel swap
 
 Example:
 SoC specific DT entry:
