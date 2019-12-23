@@ -893,7 +893,7 @@ static int cpr_fuse_corner_init(struct cpr_drv *drv)
 	int i;
 	unsigned int step_volt;
 	struct fuse_corner_data *fdata;
-	struct fuse_corner *fuse, *end, *prev;
+	struct fuse_corner *fuse, *end;
 	int uV;
 	const struct reg_sequence *accs;
 	int ret;
@@ -909,7 +909,7 @@ static int cpr_fuse_corner_init(struct cpr_drv *drv)
 	end = &fuse[desc->num_fuse_corners - 1];
 	fdata = desc->cpr_fuses.fuse_corner_data;
 
-	for (i = 0, prev = NULL; fuse <= end; fuse++, fuses++, i++, fdata++) {
+	for (i = 0; fuse <= end; fuse++, fuses++, i++, fdata++) {
 		/*
 		 * Update SoC voltages: platforms might choose a different
 		 * regulators than the one used to characterize the algorithms
