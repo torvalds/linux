@@ -56,30 +56,41 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr);
 INTERVAL_TREE_DEFINE(struct serial_info, node, sector_t, _subtree_last,
 		     START, LAST, static inline, raid1_rb);
 
-static int check_and_add_serial(struct md_rdev *rdev, sector_t lo, sector_t hi)
+static int check_and_add_serial(struct md_rdev *rdev, struct r1bio *r1_bio,
+				struct serial_info *si, int idx)
 {
-	struct serial_info *si;
 	unsigned long flags;
 	int ret = 0;
-	struct mddev *mddev = rdev->mddev;
-	int idx = sector_to_idx(lo);
+	sector_t lo = r1_bio->sector;
+	sector_t hi = lo + r1_bio->sectors;
 	struct serial_in_rdev *serial = &rdev->serial[idx];
-
-	si = mempool_alloc(mddev->serial_info_pool, GFP_NOIO);
 
 	spin_lock_irqsave(&serial->serial_lock, flags);
 	/* collision happened */
 	if (raid1_rb_iter_first(&serial->serial_rb, lo, hi))
 		ret = -EBUSY;
-	if (!ret) {
+	else {
 		si->start = lo;
 		si->last = hi;
 		raid1_rb_insert(si, &serial->serial_rb);
-	} else
-		mempool_free(si, mddev->serial_info_pool);
+	}
 	spin_unlock_irqrestore(&serial->serial_lock, flags);
 
 	return ret;
+}
+
+static void wait_for_serialization(struct md_rdev *rdev, struct r1bio *r1_bio)
+{
+	struct mddev *mddev = rdev->mddev;
+	struct serial_info *si;
+	int idx = sector_to_idx(r1_bio->sector);
+	struct serial_in_rdev *serial = &rdev->serial[idx];
+
+	if (WARN_ON(!mddev->serial_info_pool))
+		return;
+	si = mempool_alloc(mddev->serial_info_pool, GFP_NOIO);
+	wait_event(serial->serial_io_wait,
+		   check_and_add_serial(rdev, r1_bio, si, idx) == 0);
 }
 
 static void remove_serial(struct md_rdev *rdev, sector_t lo, sector_t hi)
@@ -1342,7 +1353,6 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	struct raid1_plug_cb *plug = NULL;
 	int first_clone;
 	int max_sectors;
-	sector_t lo, hi;
 
 	if (mddev_is_clustered(mddev) &&
 	     md_cluster_ops->area_resyncing(mddev, WRITE,
@@ -1370,8 +1380,6 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 
 	r1_bio = alloc_r1bio(mddev, bio);
 	r1_bio->sectors = max_write_sectors;
-	lo = r1_bio->sector;
-	hi = r1_bio->sector + r1_bio->sectors;
 
 	if (conf->pending_count >= max_queued_requests) {
 		md_wakeup_thread(mddev->thread);
@@ -1488,8 +1496,6 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	for (i = 0; i < disks; i++) {
 		struct bio *mbio = NULL;
 		struct md_rdev *rdev = conf->mirrors[i].rdev;
-		int idx = sector_to_idx(lo);
-		struct serial_in_rdev *serial = &rdev->serial[idx];
 		if (!r1_bio->bios[i])
 			continue;
 
@@ -1518,14 +1524,11 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 
 		if (r1_bio->behind_master_bio) {
 			if (test_bit(CollisionCheck, &rdev->flags))
-				wait_event(serial->serial_io_wait,
-					   check_and_add_serial(rdev, lo, hi)
-					   == 0);
+				wait_for_serialization(rdev, r1_bio);
 			if (test_bit(WriteMostly, &rdev->flags))
 				atomic_inc(&r1_bio->behind_remaining);
 		} else if (mddev->serialize_policy)
-			wait_event(serial->serial_io_wait,
-				   check_and_add_serial(rdev, lo, hi) == 0);
+			wait_for_serialization(rdev, r1_bio);
 
 		r1_bio->bios[i] = mbio;
 
