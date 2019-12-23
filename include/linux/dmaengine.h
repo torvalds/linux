@@ -1545,4 +1545,23 @@ static inline struct dma_chan
 
 	return __dma_request_channel(mask, fn, fn_param, NULL);
 }
+
+static inline char *
+dmaengine_get_direction_text(enum dma_transfer_direction dir)
+{
+	switch (dir) {
+	case DMA_DEV_TO_MEM:
+		return "DEV_TO_MEM";
+	case DMA_MEM_TO_DEV:
+		return "MEM_TO_DEV";
+	case DMA_MEM_TO_MEM:
+		return "MEM_TO_MEM";
+	case DMA_DEV_TO_DEV:
+		return "DEV_TO_DEV";
+	default:
+		break;
+	}
+
+	return "invalid";
+}
 #endif /* DMAENGINE_H */
