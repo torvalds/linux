@@ -262,7 +262,8 @@ void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 		return;
 
 	mutex_lock(&card->sbp_lock);
-	if (card->options.sbp.role != QETH_SBP_ROLE_NONE) {
+	if (!card->options.sbp.reflect_promisc &&
+	    card->options.sbp.role != QETH_SBP_ROLE_NONE) {
 		/* Conditional to avoid spurious error messages */
 		qeth_bridgeport_setrole(card, card->options.sbp.role);
 		/* Let the callback function refresh the stored role value. */

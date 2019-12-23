@@ -211,10 +211,11 @@ static int ovl_check_encode_origin(struct dentry *dentry)
 	return 1;
 }
 
-static int ovl_d_to_fh(struct dentry *dentry, char *buf, int buflen)
+static int ovl_dentry_to_fid(struct dentry *dentry, u32 *fid, int buflen)
 {
 	struct ovl_fh *fh = NULL;
 	int err, enc_lower;
+	int len;
 
 	/*
 	 * Check if we should encode a lower or upper file handle and maybe
@@ -231,11 +232,12 @@ static int ovl_d_to_fh(struct dentry *dentry, char *buf, int buflen)
 		return PTR_ERR(fh);
 
 	err = -EOVERFLOW;
-	if (fh->len > buflen)
+	len = OVL_FH_LEN(fh);
+	if (len > buflen)
 		goto fail;
 
-	memcpy(buf, (char *)fh, fh->len);
-	err = fh->len;
+	memcpy(fid, fh, len);
+	err = len;
 
 out:
 	kfree(fh);
@@ -243,31 +245,16 @@ out:
 
 fail:
 	pr_warn_ratelimited("overlayfs: failed to encode file handle (%pd2, err=%i, buflen=%d, len=%d, type=%d)\n",
-			    dentry, err, buflen, fh ? (int)fh->len : 0,
-			    fh ? fh->type : 0);
+			    dentry, err, buflen, fh ? (int)fh->fb.len : 0,
+			    fh ? fh->fb.type : 0);
 	goto out;
-}
-
-static int ovl_dentry_to_fh(struct dentry *dentry, u32 *fid, int *max_len)
-{
-	int res, len = *max_len << 2;
-
-	res = ovl_d_to_fh(dentry, (char *)fid, len);
-	if (res <= 0)
-		return FILEID_INVALID;
-
-	len = res;
-
-	/* Round up to dwords */
-	*max_len = (len + 3) >> 2;
-	return OVL_FILEID;
 }
 
 static int ovl_encode_fh(struct inode *inode, u32 *fid, int *max_len,
 			 struct inode *parent)
 {
 	struct dentry *dentry;
-	int type;
+	int bytes = *max_len << 2;
 
 	/* TODO: encode connectable file handles */
 	if (parent)
@@ -277,10 +264,14 @@ static int ovl_encode_fh(struct inode *inode, u32 *fid, int *max_len,
 	if (WARN_ON(!dentry))
 		return FILEID_INVALID;
 
-	type = ovl_dentry_to_fh(dentry, fid, max_len);
-
+	bytes = ovl_dentry_to_fid(dentry, fid, bytes);
 	dput(dentry);
-	return type;
+	if (bytes <= 0)
+		return FILEID_INVALID;
+
+	*max_len = bytes >> 2;
+
+	return OVL_FILEID_V1;
 }
 
 /*
@@ -777,24 +768,45 @@ out_err:
 	goto out;
 }
 
+static struct ovl_fh *ovl_fid_to_fh(struct fid *fid, int buflen, int fh_type)
+{
+	struct ovl_fh *fh;
+
+	/* If on-wire inner fid is aligned - nothing to do */
+	if (fh_type == OVL_FILEID_V1)
+		return (struct ovl_fh *)fid;
+
+	if (fh_type != OVL_FILEID_V0)
+		return ERR_PTR(-EINVAL);
+
+	fh = kzalloc(buflen, GFP_KERNEL);
+	if (!fh)
+		return ERR_PTR(-ENOMEM);
+
+	/* Copy unaligned inner fh into aligned buffer */
+	memcpy(&fh->fb, fid, buflen - OVL_FH_WIRE_OFFSET);
+	return fh;
+}
+
 static struct dentry *ovl_fh_to_dentry(struct super_block *sb, struct fid *fid,
 				       int fh_len, int fh_type)
 {
 	struct dentry *dentry = NULL;
-	struct ovl_fh *fh = (struct ovl_fh *) fid;
+	struct ovl_fh *fh = NULL;
 	int len = fh_len << 2;
 	unsigned int flags = 0;
 	int err;
 
-	err = -EINVAL;
-	if (fh_type != OVL_FILEID)
+	fh = ovl_fid_to_fh(fid, len, fh_type);
+	err = PTR_ERR(fh);
+	if (IS_ERR(fh))
 		goto out_err;
 
 	err = ovl_check_fh_len(fh, len);
 	if (err)
 		goto out_err;
 
-	flags = fh->flags;
+	flags = fh->fb.flags;
 	dentry = (flags & OVL_FH_FLAG_PATH_UPPER) ?
 		 ovl_upper_fh_to_d(sb, fh) :
 		 ovl_lower_fh_to_d(sb, fh);
@@ -802,12 +814,18 @@ static struct dentry *ovl_fh_to_dentry(struct super_block *sb, struct fid *fid,
 	if (IS_ERR(dentry) && err != -ESTALE)
 		goto out_err;
 
+out:
+	/* We may have needed to re-align OVL_FILEID_V0 */
+	if (!IS_ERR_OR_NULL(fh) && fh != (void *)fid)
+		kfree(fh);
+
 	return dentry;
 
 out_err:
 	pr_warn_ratelimited("overlayfs: failed to decode file handle (len=%d, type=%d, flags=%x, err=%i)\n",
-			    len, fh_type, flags, err);
-	return ERR_PTR(err);
+			    fh_len, fh_type, flags, err);
+	dentry = ERR_PTR(err);
+	goto out;
 }
 
 static struct dentry *ovl_fh_to_parent(struct super_block *sb, struct fid *fid,

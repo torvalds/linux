@@ -347,7 +347,7 @@ static int essiv_aead_init_tfm(struct crypto_aead *tfm)
 	if (IS_ERR(aead))
 		return PTR_ERR(aead);
 
-	subreq_size = FIELD_SIZEOF(struct essiv_aead_request_ctx, aead_req) +
+	subreq_size = sizeof_field(struct essiv_aead_request_ctx, aead_req) +
 		      crypto_aead_reqsize(aead);
 
 	tctx->ivoffset = offsetof(struct essiv_aead_request_ctx, aead_req) +

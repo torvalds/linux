@@ -328,6 +328,7 @@ struct pool_c {
 	dm_block_t low_water_blocks;
 	struct pool_features requested_pf; /* Features requested during table load */
 	struct pool_features adjusted_pf;  /* Features used after adjusting for constituent devices */
+	struct bio flush_bio;
 };
 
 /*
@@ -2383,8 +2384,16 @@ static void process_deferred_bios(struct pool *pool)
 	while ((bio = bio_list_pop(&bio_completions)))
 		bio_endio(bio);
 
-	while ((bio = bio_list_pop(&bios)))
-		generic_make_request(bio);
+	while ((bio = bio_list_pop(&bios))) {
+		/*
+		 * The data device was flushed as part of metadata commit,
+		 * so complete redundant flushes immediately.
+		 */
+		if (bio->bi_opf & REQ_PREFLUSH)
+			bio_endio(bio);
+		else
+			generic_make_request(bio);
+	}
 }
 
 static void do_worker(struct work_struct *ws)
@@ -3115,6 +3124,7 @@ static void pool_dtr(struct dm_target *ti)
 	__pool_dec(pt->pool);
 	dm_put_device(ti, pt->metadata_dev);
 	dm_put_device(ti, pt->data_dev);
+	bio_uninit(&pt->flush_bio);
 	kfree(pt);
 
 	mutex_unlock(&dm_thin_pool_table.mutex);
@@ -3178,6 +3188,29 @@ static void metadata_low_callback(void *context)
 	       dm_device_name(pool->pool_md));
 
 	dm_table_event(pool->ti->table);
+}
+
+/*
+ * We need to flush the data device **before** committing the metadata.
+ *
+ * This ensures that the data blocks of any newly inserted mappings are
+ * properly written to non-volatile storage and won't be lost in case of a
+ * crash.
+ *
+ * Failure to do so can result in data corruption in the case of internal or
+ * external snapshots and in the case of newly provisioned blocks, when block
+ * zeroing is enabled.
+ */
+static int metadata_pre_commit_callback(void *context)
+{
+	struct pool_c *pt = context;
+	struct bio *flush_bio = &pt->flush_bio;
+
+	bio_reset(flush_bio);
+	bio_set_dev(flush_bio, pt->data_dev->bdev);
+	flush_bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
+
+	return submit_bio_wait(flush_bio);
 }
 
 static sector_t get_dev_size(struct block_device *bdev)
@@ -3348,6 +3381,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	pt->data_dev = data_dev;
 	pt->low_water_blocks = low_water_blocks;
 	pt->adjusted_pf = pt->requested_pf = pf;
+	bio_init(&pt->flush_bio, NULL, 0);
 	ti->num_flush_bios = 1;
 
 	/*
@@ -3373,6 +3407,10 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 						pool);
 	if (r)
 		goto out_flags_changed;
+
+	dm_pool_register_pre_commit_callback(pt->pool->pmd,
+					     metadata_pre_commit_callback,
+					     pt);
 
 	pt->callbacks.congested_fn = pool_is_congested;
 	dm_table_add_target_callbacks(ti->table, &pt->callbacks);

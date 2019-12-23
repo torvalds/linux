@@ -2043,23 +2043,28 @@ static void bpf_free_cgroup_storage(struct bpf_prog_aux *aux)
 	for_each_cgroup_storage_type(stype) {
 		if (!aux->cgroup_storage[stype])
 			continue;
-		bpf_cgroup_storage_release(aux->prog,
-					   aux->cgroup_storage[stype]);
+		bpf_cgroup_storage_release(aux, aux->cgroup_storage[stype]);
+	}
+}
+
+void __bpf_free_used_maps(struct bpf_prog_aux *aux,
+			  struct bpf_map **used_maps, u32 len)
+{
+	struct bpf_map *map;
+	u32 i;
+
+	bpf_free_cgroup_storage(aux);
+	for (i = 0; i < len; i++) {
+		map = used_maps[i];
+		if (map->ops->map_poke_untrack)
+			map->ops->map_poke_untrack(map, aux);
+		bpf_map_put(map);
 	}
 }
 
 static void bpf_free_used_maps(struct bpf_prog_aux *aux)
 {
-	struct bpf_map *map;
-	int i;
-
-	bpf_free_cgroup_storage(aux);
-	for (i = 0; i < aux->used_map_cnt; i++) {
-		map = aux->used_maps[i];
-		if (map->ops->map_poke_untrack)
-			map->ops->map_poke_untrack(map, aux);
-		bpf_map_put(map);
-	}
+	__bpf_free_used_maps(aux, aux->used_maps, aux->used_map_cnt);
 	kfree(aux->used_maps);
 }
 
