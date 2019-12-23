@@ -454,6 +454,42 @@ static void hibmc_crtc_disable_vblank(struct drm_crtc *crtc)
 	       priv->mmio + HIBMC_RAW_INTERRUPT_EN);
 }
 
+static void hibmc_crtc_load_lut(struct drm_crtc *crtc)
+{
+	struct hibmc_drm_private *priv = crtc->dev->dev_private;
+	void __iomem   *mmio = priv->mmio;
+	u16 *r, *g, *b;
+	unsigned int reg;
+	int i;
+
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
+
+	for (i = 0; i < crtc->gamma_size; i++) {
+		unsigned int offset = i << 2;
+		u8 red = *r++ >> 8;
+		u8 green = *g++ >> 8;
+		u8 blue = *b++ >> 8;
+		u32 rgb = (red << 16) | (green << 8) | blue;
+
+		writel(rgb, mmio + HIBMC_CRT_PALETTE + offset);
+	}
+
+	reg = readl(priv->mmio + HIBMC_CRT_DISP_CTL);
+	reg |= HIBMC_FIELD(HIBMC_CTL_DISP_CTL_GAMMA, 1);
+	writel(reg, priv->mmio + HIBMC_CRT_DISP_CTL);
+}
+
+static int hibmc_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+				u16 *blue, uint32_t size,
+				struct drm_modeset_acquire_ctx *ctx)
+{
+	hibmc_crtc_load_lut(crtc);
+
+	return 0;
+}
+
 static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.set_config = drm_atomic_helper_set_config,
@@ -463,6 +499,7 @@ static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.enable_vblank = hibmc_crtc_enable_vblank,
 	.disable_vblank = hibmc_crtc_disable_vblank,
+	.gamma_set = hibmc_crtc_gamma_set,
 };
 
 static const struct drm_crtc_helper_funcs hibmc_crtc_helper_funcs = {

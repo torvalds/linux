@@ -91,6 +91,9 @@
 #define HIBMC_CRT_DISP_CTL_TIMING(x)		((x) << 8)
 #define HIBMC_CRT_DISP_CTL_TIMING_MASK		0x100
 
+#define HIBMC_CTL_DISP_CTL_GAMMA(x)		((x) << 3)
+#define HIBMC_CTL_DISP_CTL_GAMMA_MASK		0x08
+
 #define HIBMC_CRT_DISP_CTL_PLANE(x)		((x) << 2)
 #define HIBMC_CRT_DISP_CTL_PLANE_MASK		4
 
@@ -192,6 +195,8 @@
 #define CRT_PLL2_HS_162MHZ			0xA0000000
 #define CRT_PLL2_HS_148MHZ			0xB0CCCCCD
 #define CRT_PLL2_HS_193MHZ			0xC0872B02
+
+#define HIBMC_CRT_PALETTE                       0x80C00
 
 #define HIBMC_FIELD(field, value) (field(value) & field##_MASK)
 #endif
