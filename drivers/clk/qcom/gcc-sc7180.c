@@ -2186,7 +2186,8 @@ static struct gdsc hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc = {
 	.pd = {
 		.name = "hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc",
 	},
-	.pwrsts = PWRSTS_OFF_ON | VOTABLE,
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc hlos1_vote_mmnoc_mmu_tbu_sf_gdsc = {
@@ -2194,7 +2195,8 @@ static struct gdsc hlos1_vote_mmnoc_mmu_tbu_sf_gdsc = {
 	.pd = {
 		.name = "hlos1_vote_mmnoc_mmu_tbu_sf_gdsc",
 	},
-	.pwrsts = PWRSTS_OFF_ON | VOTABLE,
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc *gcc_sc7180_gdscs[] = {

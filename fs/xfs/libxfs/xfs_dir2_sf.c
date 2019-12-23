@@ -37,7 +37,7 @@ static void xfs_dir2_sf_check(xfs_da_args_t *args);
 static void xfs_dir2_sf_toino4(xfs_da_args_t *args);
 static void xfs_dir2_sf_toino8(xfs_da_args_t *args);
 
-static int
+int
 xfs_dir2_sf_entsize(
 	struct xfs_mount	*mp,
 	struct xfs_dir2_sf_hdr	*hdr,
@@ -84,7 +84,7 @@ xfs_dir2_sf_get_ino(
 	return get_unaligned_be64(from) & XFS_MAXINUMBER;
 }
 
-static void
+void
 xfs_dir2_sf_put_ino(
 	struct xfs_mount		*mp,
 	struct xfs_dir2_sf_hdr		*hdr,
@@ -145,7 +145,7 @@ xfs_dir2_sf_get_ftype(
 	return XFS_DIR3_FT_UNKNOWN;
 }
 
-static void
+void
 xfs_dir2_sf_put_ftype(
 	struct xfs_mount	*mp,
 	struct xfs_dir2_sf_entry *sfep,
