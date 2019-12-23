@@ -1237,8 +1237,6 @@ static int snd_echo_mixer_info(struct snd_kcontrol *kcontrol,
 	uinfo->count = 1;
 	uinfo->value.integer.min = ECHOGAIN_MINOUT;
 	uinfo->value.integer.max = ECHOGAIN_MAXOUT;
-	uinfo->dimen.d[0] = num_busses_out(chip);
-	uinfo->dimen.d[1] = num_busses_in(chip);
 	return 0;
 }
 
@@ -1309,8 +1307,6 @@ static int snd_echo_vmixer_info(struct snd_kcontrol *kcontrol,
 	uinfo->count = 1;
 	uinfo->value.integer.min = ECHOGAIN_MINOUT;
 	uinfo->value.integer.max = ECHOGAIN_MAXOUT;
-	uinfo->dimen.d[0] = num_busses_out(chip);
-	uinfo->dimen.d[1] = num_pipes_out(chip);
 	return 0;
 }
 
@@ -1693,13 +1689,6 @@ static int snd_echo_vumeters_info(struct snd_kcontrol *kcontrol,
 	uinfo->count = 96;
 	uinfo->value.integer.min = ECHOGAIN_MINOUT;
 	uinfo->value.integer.max = 0;
-#ifdef ECHOCARD_HAS_VMIXER
-	uinfo->dimen.d[0] = 3;	/* Out, In, Virt */
-#else
-	uinfo->dimen.d[0] = 2;	/* Out, In */
-#endif
-	uinfo->dimen.d[1] = 16;	/* 16 channels */
-	uinfo->dimen.d[2] = 2;	/* 0=level, 1=peak */
 	return 0;
 }
 
