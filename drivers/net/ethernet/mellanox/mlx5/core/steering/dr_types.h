@@ -123,7 +123,7 @@ struct mlx5dr_matcher_rx_tx;
 struct mlx5dr_ste {
 	u8 *hw_ste;
 	/* refcount: indicates the num of rules that using this ste */
-	refcount_t refcount;
+	u32 refcount;
 
 	/* attached to the miss_list head at each htbl entry */
 	struct list_head miss_list_node;
@@ -155,7 +155,7 @@ struct mlx5dr_ste_htbl_ctrl {
 struct mlx5dr_ste_htbl {
 	u8 lu_type;
 	u16 byte_mask;
-	refcount_t refcount;
+	u32 refcount;
 	struct mlx5dr_icm_chunk *chunk;
 	struct mlx5dr_ste *ste_arr;
 	u8 *hw_ste_arr;
@@ -206,13 +206,14 @@ int mlx5dr_ste_htbl_free(struct mlx5dr_ste_htbl *htbl);
 
 static inline void mlx5dr_htbl_put(struct mlx5dr_ste_htbl *htbl)
 {
-	if (refcount_dec_and_test(&htbl->refcount))
+	htbl->refcount--;
+	if (!htbl->refcount)
 		mlx5dr_ste_htbl_free(htbl);
 }
 
 static inline void mlx5dr_htbl_get(struct mlx5dr_ste_htbl *htbl)
 {
-	refcount_inc(&htbl->refcount);
+	htbl->refcount++;
 }
 
 /* STE utils */
@@ -254,14 +255,15 @@ static inline void mlx5dr_ste_put(struct mlx5dr_ste *ste,
 				  struct mlx5dr_matcher *matcher,
 				  struct mlx5dr_matcher_rx_tx *nic_matcher)
 {
-	if (refcount_dec_and_test(&ste->refcount))
+	ste->refcount--;
+	if (!ste->refcount)
 		mlx5dr_ste_free(ste, matcher, nic_matcher);
 }
 
 /* initial as 0, increased only when ste appears in a new rule */
 static inline void mlx5dr_ste_get(struct mlx5dr_ste *ste)
 {
-	refcount_inc(&ste->refcount);
+	ste->refcount++;
 }
 
 void mlx5dr_ste_set_hit_addr_by_next_htbl(u8 *hw_ste,
