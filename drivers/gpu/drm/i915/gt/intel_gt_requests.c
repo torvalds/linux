@@ -14,13 +14,16 @@
 #include "intel_gt_requests.h"
 #include "intel_timeline.h"
 
-static void retire_requests(struct intel_timeline *tl)
+static bool retire_requests(struct intel_timeline *tl)
 {
 	struct i915_request *rq, *rn;
 
 	list_for_each_entry_safe(rq, rn, &tl->requests, link)
 		if (!i915_request_retire(rq))
-			break;
+			return false;
+
+	/* And check nothing new was submitted */
+	return !i915_active_fence_isset(&tl->last_request);
 }
 
 static bool flush_submission(struct intel_gt *gt)
@@ -28,6 +31,9 @@ static bool flush_submission(struct intel_gt *gt)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	bool active = false;
+
+	if (!intel_gt_pm_is_awake(gt))
+		return false;
 
 	for_each_engine(engine, gt, id) {
 		active |= intel_engine_flush_submission(engine);
@@ -145,7 +151,7 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 			}
 		}
 
-		retire_requests(tl);
+		active_count += !retire_requests(tl);
 
 		spin_lock(&timelines->lock);
 
@@ -153,8 +159,6 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 		list_safe_reset_next(tl, tn, link);
 		if (atomic_dec_and_test(&tl->active_count))
 			list_del(&tl->link);
-		else
-			active_count += i915_active_fence_isset(&tl->last_request);
 
 		mutex_unlock(&tl->mutex);
 
