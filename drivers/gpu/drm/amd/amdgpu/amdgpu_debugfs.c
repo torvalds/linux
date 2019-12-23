@@ -129,7 +129,7 @@ static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 			sh_bank = 0xFFFFFFFF;
 		if (instance_bank == 0x3FF)
 			instance_bank = 0xFFFFFFFF;
-		use_bank = 1;
+		use_bank = true;
 	} else if (*pos & (1ULL << 61)) {
 
 		me = (*pos & GENMASK_ULL(33, 24)) >> 24;
@@ -137,9 +137,9 @@ static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 		queue = (*pos & GENMASK_ULL(53, 44)) >> 44;
 		vmid = (*pos & GENMASK_ULL(58, 54)) >> 54;
 
-		use_ring = 1;
+		use_ring = true;
 	} else {
-		use_bank = use_ring = 0;
+		use_bank = use_ring = false;
 	}
 
 	*pos &= (1UL << 22) - 1;
