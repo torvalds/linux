@@ -2876,7 +2876,6 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 			return false;
 
 		previous_link_settings = link->cur_link_settings;
-		dp_disable_link_phy(link, pipe_ctx->stream->signal);
 
 		perform_link_training_with_retries(&previous_link_settings,
 			true, LINK_TRAINING_ATTEMPTS,
