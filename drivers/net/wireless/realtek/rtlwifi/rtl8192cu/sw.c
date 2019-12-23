@@ -12,7 +12,6 @@
 #include "mac.h"
 #include "dm.h"
 #include "rf.h"
-#include "sw.h"
 #include "trx.h"
 #include "led.h"
 #include "hw.h"
