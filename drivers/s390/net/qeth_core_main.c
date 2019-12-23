@@ -2627,7 +2627,8 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 
 	if ((card->options.cq == QETH_CQ_ENABLED) && (!buf->rx_skb)) {
 		buf->rx_skb = netdev_alloc_skb(card->dev,
-					       QETH_RX_PULL_LEN + ETH_HLEN);
+					       ETH_HLEN +
+					       sizeof(struct ipv6hdr));
 		if (!buf->rx_skb)
 			return 1;
 	}
@@ -5264,7 +5265,8 @@ next_packet:
 
 	if (use_rx_sg) {
 		/* QETH_CQ_ENABLED only: */
-		if (qethbuffer->rx_skb) {
+		if (qethbuffer->rx_skb &&
+		    skb_tailroom(qethbuffer->rx_skb) >= linear_len + headroom) {
 			skb = qethbuffer->rx_skb;
 			qethbuffer->rx_skb = NULL;
 			goto use_skb;
