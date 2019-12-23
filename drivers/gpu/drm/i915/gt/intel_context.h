@@ -19,7 +19,7 @@
 
 #define CE_TRACE(ce, fmt, ...) do {					\
 	const struct intel_context *ce__ = (ce);			\
-	ENGINE_TRACE(ce__->engine, "context:%llx" fmt,			\
+	ENGINE_TRACE(ce__->engine, "context:%llx " fmt,			\
 		     ce__->timeline->fence_context,			\
 		     ##__VA_ARGS__);					\
 } while (0)
