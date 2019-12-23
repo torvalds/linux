@@ -1047,10 +1047,9 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	return idle;
 }
 
-bool intel_engine_flush_submission(struct intel_engine_cs *engine)
+void intel_engine_flush_submission(struct intel_engine_cs *engine)
 {
 	struct tasklet_struct *t = &engine->execlists.tasklet;
-	bool active = tasklet_is_locked(t);
 
 	if (__tasklet_is_scheduled(t)) {
 		local_bh_disable();
@@ -1061,13 +1060,10 @@ bool intel_engine_flush_submission(struct intel_engine_cs *engine)
 			tasklet_unlock(t);
 		}
 		local_bh_enable();
-		active = true;
 	}
 
 	/* Otherwise flush the tasklet if it was running on another cpu */
 	tasklet_unlock_wait(t);
-
-	return active;
 }
 
 /**
