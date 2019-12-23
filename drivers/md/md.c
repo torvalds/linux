@@ -127,9 +127,6 @@ static inline int speed_max(struct mddev *mddev)
 
 static int rdev_init_serial(struct md_rdev *rdev)
 {
-	if (rdev->bdev->bd_queue->nr_hw_queues == 1)
-		return 0;
-
 	spin_lock_init(&rdev->serial_list_lock);
 	INIT_LIST_HEAD(&rdev->serial_list);
 	init_waitqueue_head(&rdev->serial_io_wait);
@@ -138,17 +135,29 @@ static int rdev_init_serial(struct md_rdev *rdev)
 	return 1;
 }
 
+static void rdevs_init_serial(struct mddev *mddev)
+{
+	struct md_rdev *rdev;
+
+	rdev_for_each(rdev, mddev) {
+		if (test_bit(CollisionCheck, &rdev->flags))
+			continue;
+		rdev_init_serial(rdev);
+	}
+}
+
 /*
- * Create serial_info_pool if rdev is the first multi-queue device flaged
- * with writemostly, also write-behind mode is enabled.
+ * Create serial_info_pool for raid1 under conditions:
+ * 1. rdev is the first multi-queue device flaged with writemostly,
+ *    also write-behind mode is enabled.
+ * 2. rdev is NULL, means want to enable serialization for all rdevs.
  */
 void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
-			  bool is_suspend)
+			      bool is_suspend)
 {
-	if (mddev->bitmap_info.max_write_behind == 0)
-		return;
-
-	if (!test_bit(WriteMostly, &rdev->flags) || !rdev_init_serial(rdev))
+	if (rdev && (mddev->bitmap_info.max_write_behind == 0 ||
+		     rdev->bdev->bd_queue->nr_hw_queues == 1 ||
+		     !test_bit(WriteMostly, &rdev->flags)))
 		return;
 
 	if (mddev->serial_info_pool == NULL) {
@@ -156,6 +165,10 @@ void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 
 		if (!is_suspend)
 			mddev_suspend(mddev);
+		if (!rdev)
+			rdevs_init_serial(mddev);
+		else
+			rdev_init_serial(rdev);
 		noio_flag = memalloc_noio_save();
 		mddev->serial_info_pool =
 			mempool_create_kmalloc_pool(NR_SERIAL_INFOS,
@@ -167,15 +180,16 @@ void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 			mddev_resume(mddev);
 	}
 }
-EXPORT_SYMBOL_GPL(mddev_create_serial_pool);
 
 /*
  * Destroy serial_info_pool if rdev is the last device flaged with
- * CollisionCheck.
+ * CollisionCheck, or rdev is NULL when we disable serialization
+ * for normal raid1.
  */
-static void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev)
+static void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
+				      bool is_suspend)
 {
-	if (!test_and_clear_bit(CollisionCheck, &rdev->flags))
+	if (rdev && !test_bit(CollisionCheck, &rdev->flags))
 		return;
 
 	if (mddev->serial_info_pool) {
@@ -185,16 +199,27 @@ static void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev)
 		/*
 		 * Check if other rdevs need serial_info_pool.
 		 */
-		rdev_for_each(temp, mddev)
+		if (!is_suspend)
+			mddev_suspend(mddev);
+		rdev_for_each(temp, mddev) {
+			if (!rdev) {
+				clear_bit(CollisionCheck, &temp->flags);
+				continue;
+			}
+
 			if (temp != rdev &&
 			    test_bit(CollisionCheck, &temp->flags))
 				num++;
-		if (!num) {
-			mddev_suspend(rdev->mddev);
+		}
+
+		if (rdev)
+			clear_bit(CollisionCheck, &rdev->flags);
+		if (!rdev || !num) {
 			mempool_destroy(mddev->serial_info_pool);
 			mddev->serial_info_pool = NULL;
-			mddev_resume(rdev->mddev);
 		}
+		if (!is_suspend)
+			mddev_resume(mddev);
 	}
 }
 
@@ -2377,7 +2402,7 @@ static void unbind_rdev_from_array(struct md_rdev *rdev)
 	bd_unlink_disk_holder(rdev->bdev, rdev->mddev->gendisk);
 	list_del_rcu(&rdev->same_set);
 	pr_debug("md: unbind<%s>\n", bdevname(rdev->bdev,b));
-	mddev_destroy_serial_pool(rdev->mddev, rdev);
+	mddev_destroy_serial_pool(rdev->mddev, rdev, false);
 	rdev->mddev = NULL;
 	sysfs_remove_link(&rdev->kobj, "block");
 	sysfs_put(rdev->sysfs_state);
@@ -2893,7 +2918,7 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 		mddev_create_serial_pool(rdev->mddev, rdev, false);
 		err = 0;
 	} else if (cmd_match(buf, "-writemostly")) {
-		mddev_destroy_serial_pool(rdev->mddev, rdev);
+		mddev_destroy_serial_pool(rdev->mddev, rdev, false);
 		clear_bit(WriteMostly, &rdev->flags);
 		err = 0;
 	} else if (cmd_match(buf, "blocked")) {
