@@ -5106,8 +5106,9 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 #endif
 
 static void qeth_receive_skb(struct qeth_card *card, struct sk_buff *skb,
-			     struct qeth_hdr *hdr)
+			     struct qeth_hdr *hdr, bool uses_frags)
 {
+	struct napi_struct *napi = &card->napi;
 	bool is_cso;
 
 	switch (hdr->hdr.l2.id) {
@@ -5130,7 +5131,10 @@ static void qeth_receive_skb(struct qeth_card *card, struct sk_buff *skb,
 		break;
 	default:
 		/* never happens */
-		dev_kfree_skb_any(skb);
+		if (uses_frags)
+			napi_free_frags(napi);
+		else
+			dev_kfree_skb_any(skb);
 		return;
 	}
 
@@ -5141,8 +5145,6 @@ static void qeth_receive_skb(struct qeth_card *card, struct sk_buff *skb,
 		skb->ip_summed = CHECKSUM_NONE;
 	}
 
-	skb->protocol = eth_type_trans(skb, skb->dev);
-
 	QETH_CARD_STAT_ADD(card, rx_bytes, skb->len);
 	QETH_CARD_STAT_INC(card, rx_packets);
 	if (skb_is_nonlinear(skb)) {
@@ -5151,7 +5153,12 @@ static void qeth_receive_skb(struct qeth_card *card, struct sk_buff *skb,
 				   skb_shinfo(skb)->nr_frags);
 	}
 
-	napi_gro_receive(&card->napi, skb);
+	if (uses_frags) {
+		napi_gro_frags(napi);
+	} else {
+		skb->protocol = eth_type_trans(skb, skb->dev);
+		napi_gro_receive(napi, skb);
+	}
 }
 
 static void qeth_create_skb_frag(struct sk_buff *skb, char *data, int data_len)
@@ -5177,7 +5184,9 @@ static int qeth_extract_skb(struct qeth_card *card,
 {
 	struct qdio_buffer_element *element = *__element;
 	struct qdio_buffer *buffer = qethbuffer->buffer;
+	struct napi_struct *napi = &card->napi;
 	unsigned int linear_len = 0;
+	bool uses_frags = false;
 	int offset = *__offset;
 	bool use_rx_sg = false;
 	unsigned int headroom;
@@ -5253,21 +5262,42 @@ next_packet:
 		     !atomic_read(&card->force_alloc_skb) &&
 		     !IS_OSN(card));
 
-	if (use_rx_sg && qethbuffer->rx_skb) {
+	if (use_rx_sg) {
 		/* QETH_CQ_ENABLED only: */
-		skb = qethbuffer->rx_skb;
-		qethbuffer->rx_skb = NULL;
-	} else {
-		if (!use_rx_sg)
-			linear_len = skb_len;
-		skb = napi_alloc_skb(&card->napi, linear_len + headroom);
+		if (qethbuffer->rx_skb) {
+			skb = qethbuffer->rx_skb;
+			qethbuffer->rx_skb = NULL;
+			goto use_skb;
+		}
+
+		skb = napi_get_frags(napi);
+		if (!skb) {
+			/* -ENOMEM, no point in falling back further. */
+			QETH_CARD_STAT_INC(card, rx_dropped_nomem);
+			goto walk_packet;
+		}
+
+		if (skb_tailroom(skb) >= linear_len + headroom) {
+			uses_frags = true;
+			goto use_skb;
+		}
+
+		netdev_info_once(card->dev,
+				 "Insufficient linear space in NAPI frags skb, need %u but have %u\n",
+				 linear_len + headroom, skb_tailroom(skb));
+		/* Shouldn't happen. Don't optimize, fall back to linear skb. */
 	}
 
-	if (!skb)
+	linear_len = skb_len;
+	skb = napi_alloc_skb(napi, linear_len + headroom);
+	if (!skb) {
 		QETH_CARD_STAT_INC(card, rx_dropped_nomem);
-	else if (headroom)
-		skb_reserve(skb, headroom);
+		goto walk_packet;
+	}
 
+use_skb:
+	if (headroom)
+		skb_reserve(skb, headroom);
 walk_packet:
 	while (skb_len) {
 		int data_len = min(skb_len, (int)(element->length - offset));
@@ -5300,7 +5330,10 @@ walk_packet:
 				QETH_CARD_TEXT(card, 4, "unexeob");
 				QETH_CARD_HEX(card, 2, buffer, sizeof(void *));
 				if (skb) {
-					dev_kfree_skb_any(skb);
+					if (uses_frags)
+						napi_free_frags(napi);
+					else
+						dev_kfree_skb_any(skb);
 					QETH_CARD_STAT_INC(card,
 							   rx_length_errors);
 				}
@@ -5318,7 +5351,7 @@ walk_packet:
 	*__element = element;
 	*__offset = offset;
 
-	qeth_receive_skb(card, skb, hdr);
+	qeth_receive_skb(card, skb, hdr, uses_frags);
 	return 0;
 }
 
