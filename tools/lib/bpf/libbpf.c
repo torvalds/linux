@@ -18,6 +18,7 @@
 #include <stdarg.h>
 #include <libgen.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <string.h>
 #include <unistd.h>
 #include <endian.h>
@@ -3810,11 +3811,13 @@ static int bpf_core_reloc_insn(struct bpf_program *prog,
 	insn = &prog->insns[insn_idx];
 	class = BPF_CLASS(insn->code);
 
-	if (class == BPF_ALU || class == BPF_ALU64) {
+	switch (class) {
+	case BPF_ALU:
+	case BPF_ALU64:
 		if (BPF_SRC(insn->code) != BPF_K)
 			return -EINVAL;
 		if (!failed && validate && insn->imm != orig_val) {
-			pr_warn("prog '%s': unexpected insn #%d value: got %u, exp %u -> %u\n",
+			pr_warn("prog '%s': unexpected insn #%d (ALU/ALU64) value: got %u, exp %u -> %u\n",
 				bpf_program__title(prog, false), insn_idx,
 				insn->imm, orig_val, new_val);
 			return -EINVAL;
@@ -3824,7 +3827,29 @@ static int bpf_core_reloc_insn(struct bpf_program *prog,
 		pr_debug("prog '%s': patched insn #%d (ALU/ALU64)%s imm %u -> %u\n",
 			 bpf_program__title(prog, false), insn_idx,
 			 failed ? " w/ failed reloc" : "", orig_val, new_val);
-	} else {
+		break;
+	case BPF_LDX:
+	case BPF_ST:
+	case BPF_STX:
+		if (!failed && validate && insn->off != orig_val) {
+			pr_warn("prog '%s': unexpected insn #%d (LD/LDX/ST/STX) value: got %u, exp %u -> %u\n",
+				bpf_program__title(prog, false), insn_idx,
+				insn->off, orig_val, new_val);
+			return -EINVAL;
+		}
+		if (new_val > SHRT_MAX) {
+			pr_warn("prog '%s': insn #%d (LD/LDX/ST/STX) value too big: %u\n",
+				bpf_program__title(prog, false), insn_idx,
+				new_val);
+			return -ERANGE;
+		}
+		orig_val = insn->off;
+		insn->off = new_val;
+		pr_debug("prog '%s': patched insn #%d (LD/LDX/ST/STX)%s off %u -> %u\n",
+			 bpf_program__title(prog, false), insn_idx,
+			 failed ? " w/ failed reloc" : "", orig_val, new_val);
+		break;
+	default:
 		pr_warn("prog '%s': trying to relocate unrecognized insn #%d, code:%x, src:%x, dst:%x, off:%x, imm:%x\n",
 			bpf_program__title(prog, false),
 			insn_idx, insn->code, insn->src_reg, insn->dst_reg,
