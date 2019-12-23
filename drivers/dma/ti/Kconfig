@@ -47,6 +47,14 @@ config TI_K3_UDMA
 	  Enable support for the TI UDMA (Unified DMA) controller. This
 	  DMA engine is used in AM65x and j721e.
 
+config TI_K3_UDMA_GLUE_LAYER
+	bool "Texas Instruments UDMA Glue layer for non DMAengine users"
+	depends on ARCH_K3 || COMPILE_TEST
+	depends on TI_K3_UDMA
+	help
+	  Say y here to support the K3 NAVSS DMA glue interface
+	  If unsure, say N.
+
 config TI_K3_PSIL
 	bool
 

@@ -117,4 +117,35 @@ struct udma_tisci_rm {
 	struct ti_sci_resource *rm_ranges[RM_RANGE_LAST];
 };
 
+/* Direct access to UDMA low lever resources for the glue layer */
+int xudma_navss_psil_pair(struct udma_dev *ud, u32 src_thread, u32 dst_thread);
+int xudma_navss_psil_unpair(struct udma_dev *ud, u32 src_thread,
+			    u32 dst_thread);
+
+struct udma_dev *of_xudma_dev_get(struct device_node *np, const char *property);
+void xudma_dev_put(struct udma_dev *ud);
+u32 xudma_dev_get_psil_base(struct udma_dev *ud);
+struct udma_tisci_rm *xudma_dev_get_tisci_rm(struct udma_dev *ud);
+
+int xudma_alloc_gp_rflow_range(struct udma_dev *ud, int from, int cnt);
+int xudma_free_gp_rflow_range(struct udma_dev *ud, int from, int cnt);
+
+struct udma_tchan *xudma_tchan_get(struct udma_dev *ud, int id);
+struct udma_rchan *xudma_rchan_get(struct udma_dev *ud, int id);
+struct udma_rflow *xudma_rflow_get(struct udma_dev *ud, int id);
+
+void xudma_tchan_put(struct udma_dev *ud, struct udma_tchan *p);
+void xudma_rchan_put(struct udma_dev *ud, struct udma_rchan *p);
+void xudma_rflow_put(struct udma_dev *ud, struct udma_rflow *p);
+
+int xudma_tchan_get_id(struct udma_tchan *p);
+int xudma_rchan_get_id(struct udma_rchan *p);
+int xudma_rflow_get_id(struct udma_rflow *p);
+
+u32 xudma_tchanrt_read(struct udma_tchan *tchan, int reg);
+void xudma_tchanrt_write(struct udma_tchan *tchan, int reg, u32 val);
+u32 xudma_rchanrt_read(struct udma_rchan *rchan, int reg);
+void xudma_rchanrt_write(struct udma_rchan *rchan, int reg, u32 val);
+bool xudma_rflow_is_gp(struct udma_dev *ud, int id);
+
 #endif /* K3_UDMA_H_ */
