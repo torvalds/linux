@@ -143,8 +143,8 @@ struct rockchip_thermal_sensor {
  * @pdev: platform device of thermal
  * @reset: the reset controller of tsadc
  * @sensors: array of thermal sensors
- * @clk: the controller clock is divided by the exteral 24MHz
- * @pclk: the advanced peripherals bus clock
+ * @clk: the bulk clk of tsadc, include controller clock and peripherals bus clock
+ * @num_clks: the number of tsadc clks
  * @grf: the general register file will be used to do static set by software
  * @regs: the base address of tsadc controller
  * @tshut_temp: the hardware-controlled shutdown temperature value
@@ -162,8 +162,8 @@ struct rockchip_thermal_data {
 
 	struct rockchip_thermal_sensor sensors[SOC_MAX_SENSORS];
 
-	struct clk *clk;
-	struct clk *pclk;
+	struct clk_bulk_data *clks;
+	int num_clks;
 
 	struct regmap *grf;
 	void __iomem *regs;
@@ -293,6 +293,45 @@ static const struct tsadc_table rv1108_table[] = {
 	{618, 115000},
 	{626, 120000},
 	{634, 125000},
+	{TSADCV2_DATA_MASK, 125000},
+};
+
+static const struct tsadc_table rv1126_code_table[] = {
+	{0, -40000},
+	{2623,	-40000},
+	{2635,	-35000},
+	{2646,	-30000},
+	{2657,	-25000},
+	{2669,	-20000},
+	{2680,	-15000},
+	{2691,	-10000},
+	{2703,	-5000},
+	{2714,	0},
+	{2725,	5000},
+	{2737,	10000},
+	{2748,	15000},
+	{2759,	20000},
+	{2770,	25000},
+	{2782,	30000},
+	{2793,	35000},
+	{2804,	40000},
+	{2816,	45000},
+	{2827,	50000},
+	{2838,	55000},
+	{2850,	60000},
+	{2861,	65000},
+	{2872,	70000},
+	{2884,	75000},
+	{2895,	80000},
+	{2906,	85000},
+	{2918,	90000},
+	{2929,	95000},
+	{2940,	100000},
+	{2952,	105000},
+	{2963,	110000},
+	{2974,	115000},
+	{2985,	120000},
+	{2997,	125000},
 	{TSADCV2_DATA_MASK, 125000},
 };
 
@@ -960,6 +999,30 @@ static const struct rockchip_tsadc_chip rv1108_tsadc_data = {
 	},
 };
 
+static const struct rockchip_tsadc_chip rv1126_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_num = 1, /* one channel for tsadc */
+
+	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
+	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
+	.tshut_temp = 95000,
+
+	.initialize = rk_tsadcv2_initialize,
+	.irq_ack = rk_tsadcv3_irq_ack,
+	.control = rk_tsadcv3_control,
+	.get_temp = rk_tsadcv2_get_temp,
+	.set_alarm_temp = rk_tsadcv2_alarm_temp,
+	.set_tshut_temp = rk_tsadcv2_tshut_temp,
+	.set_tshut_mode = rk_tsadcv2_tshut_mode,
+
+	.table = {
+		.id = rv1126_code_table,
+		.length = ARRAY_SIZE(rv1126_code_table),
+		.data_mask = TSADCV2_DATA_MASK,
+		.mode = ADC_INCREMENT,
+	},
+};
+
 static const struct rockchip_tsadc_chip rk1808_tsadc_data = {
 	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* one channel for tsadc */
@@ -1138,6 +1201,10 @@ static const struct of_device_id of_rockchip_thermal_match[] = {
 	{
 		.compatible = "rockchip,rv1108-tsadc",
 		.data = (void *)&rv1108_tsadc_data,
+	},
+	{
+		.compatible = "rockchip,rv1126-tsadc",
+		.data = (void *)&rv1126_tsadc_data,
 	},
 	{
 		.compatible = "rockchip,rk1808-tsadc",
@@ -1421,42 +1488,25 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	if (IS_ERR(thermal->regs))
 		return PTR_ERR(thermal->regs);
 
-	thermal->reset = devm_reset_control_get(&pdev->dev, "tsadc-apb");
+	thermal->reset = devm_reset_control_array_get(&pdev->dev, false, false);
 	if (IS_ERR(thermal->reset)) {
-		error = PTR_ERR(thermal->reset);
-		dev_err(&pdev->dev, "failed to get tsadc reset: %d\n", error);
-		return error;
+		if (PTR_ERR(thermal->reset) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get tsadc reset lines\n");
+		return PTR_ERR(thermal->reset);
 	}
 
-	thermal->clk = devm_clk_get(&pdev->dev, "tsadc");
-	if (IS_ERR(thermal->clk)) {
-		error = PTR_ERR(thermal->clk);
-		dev_err(&pdev->dev, "failed to get tsadc clock: %d\n", error);
-		return error;
-	}
+	thermal->num_clks = devm_clk_bulk_get_all(&pdev->dev, &thermal->clks);
+	if (thermal->num_clks < 1)
+		return -ENODEV;
 
-	thermal->pclk = devm_clk_get(&pdev->dev, "apb_pclk");
-	if (IS_ERR(thermal->pclk)) {
-		error = PTR_ERR(thermal->pclk);
-		dev_err(&pdev->dev, "failed to get apb_pclk clock: %d\n",
+	error = clk_bulk_prepare_enable(thermal->num_clks, thermal->clks);
+	if (error) {
+		dev_err(&pdev->dev, "failed to prepare enable tsadc bulk clks: %d\n",
 			error);
 		return error;
 	}
 
 	thermal->chip->control(thermal->regs, false);
-
-	error = clk_prepare_enable(thermal->clk);
-	if (error) {
-		dev_err(&pdev->dev, "failed to enable converter clock: %d\n",
-			error);
-		return error;
-	}
-
-	error = clk_prepare_enable(thermal->pclk);
-	if (error) {
-		dev_err(&pdev->dev, "failed to enable pclk: %d\n", error);
-		goto err_disable_clk;
-	}
 
 	rockchip_thermal_reset_controller(thermal->reset);
 
@@ -1464,7 +1514,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	if (error) {
 		dev_err(&pdev->dev, "failed to parse device tree data: %d\n",
 			error);
-		goto err_disable_pclk;
+		goto err_disable_clocks;
 	}
 
 	thermal->chip->initialize(thermal->grf, thermal->regs,
@@ -1496,7 +1546,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"failed to register sensor[%d] : error = %d\n",
 				i, error);
-			goto err_disable_pclk;
+			goto err_disable_clocks;
 		}
 	}
 
@@ -1507,7 +1557,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	if (error) {
 		dev_err(&pdev->dev,
 			"failed to request tsadc irq: %d\n", error);
-		goto err_disable_pclk;
+		goto err_disable_clocks;
 	}
 
 	thermal->chip->control(thermal->regs, true);
@@ -1532,10 +1582,8 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_disable_pclk:
-	clk_disable_unprepare(thermal->pclk);
-err_disable_clk:
-	clk_disable_unprepare(thermal->clk);
+err_disable_clocks:
+	clk_bulk_disable_unprepare(thermal->num_clks, thermal->clks);
 
 	return error;
 }
@@ -1554,8 +1602,7 @@ static int rockchip_thermal_remove(struct platform_device *pdev)
 
 	thermal->chip->control(thermal->regs, false);
 
-	clk_disable_unprepare(thermal->pclk);
-	clk_disable_unprepare(thermal->clk);
+	clk_bulk_disable_unprepare(thermal->num_clks, thermal->clks);
 
 	return 0;
 }
@@ -1586,8 +1633,7 @@ static int __maybe_unused rockchip_thermal_suspend(struct device *dev)
 
 	thermal->chip->control(thermal->regs, false);
 
-	clk_disable(thermal->pclk);
-	clk_disable(thermal->clk);
+	clk_bulk_disable(thermal->num_clks, thermal->clks);
 
 	if (thermal->tshut_mode == TSHUT_MODE_OTP)
 		thermal_pinctrl_select_gpio(thermal);
@@ -1601,13 +1647,10 @@ static int __maybe_unused rockchip_thermal_resume(struct device *dev)
 	int i;
 	int error;
 
-	error = clk_enable(thermal->clk);
-	if (error)
-		return error;
-
-	error = clk_enable(thermal->pclk);
+	error = clk_bulk_enable(thermal->num_clks, thermal->clks);
 	if (error) {
-		clk_disable(thermal->clk);
+		dev_err(dev, "failed to enable tsadc bulk clks: %d\n",
+			error);
 		return error;
 	}
 
