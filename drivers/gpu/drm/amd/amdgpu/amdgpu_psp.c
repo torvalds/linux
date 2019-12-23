@@ -662,7 +662,7 @@ static int psp_ras_load(struct psp_context *psp)
 			psp->fence_buf_mc_addr);
 
 	if (!ret) {
-		psp->ras.ras_initialized = 1;
+		psp->ras.ras_initialized = true;
 		psp->ras.session_id = cmd->resp.session_id;
 	}
 
@@ -782,7 +782,7 @@ static int psp_ras_terminate(struct psp_context *psp)
 	if (ret)
 		return ret;
 
-	psp->ras.ras_initialized = 0;
+	psp->ras.ras_initialized = false;
 
 	/* free ras shared memory */
 	amdgpu_bo_free_kernel(&psp->ras.ras_shared_bo,
@@ -885,7 +885,7 @@ static int psp_hdcp_load(struct psp_context *psp)
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
 	if (!ret) {
-		psp->hdcp_context.hdcp_initialized = 1;
+		psp->hdcp_context.hdcp_initialized = true;
 		psp->hdcp_context.session_id = cmd->resp.session_id;
 	}
 
@@ -1004,7 +1004,7 @@ static int psp_hdcp_terminate(struct psp_context *psp)
 	if (ret)
 		return ret;
 
-	psp->hdcp_context.hdcp_initialized = 0;
+	psp->hdcp_context.hdcp_initialized = false;
 
 	/* free hdcp shared memory */
 	amdgpu_bo_free_kernel(&psp->hdcp_context.hdcp_shared_bo,
@@ -1075,7 +1075,7 @@ static int psp_dtm_load(struct psp_context *psp)
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
 	if (!ret) {
-		psp->dtm_context.dtm_initialized = 1;
+		psp->dtm_context.dtm_initialized = true;
 		psp->dtm_context.session_id = cmd->resp.session_id;
 	}
 
@@ -1165,7 +1165,7 @@ static int psp_dtm_terminate(struct psp_context *psp)
 	if (ret)
 		return ret;
 
-	psp->dtm_context.dtm_initialized = 0;
+	psp->dtm_context.dtm_initialized = false;
 
 	/* free hdcp shared memory */
 	amdgpu_bo_free_kernel(&psp->dtm_context.dtm_shared_bo,
