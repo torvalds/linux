@@ -5771,14 +5771,14 @@ int md_run(struct mddev *mddev)
 		goto bitmap_abort;
 
 	if (mddev->bitmap_info.max_write_behind > 0) {
-		bool creat_pool = false;
+		bool create_pool = false;
 
 		rdev_for_each(rdev, mddev) {
 			if (test_bit(WriteMostly, &rdev->flags) &&
 			    rdev_init_serial(rdev))
-				creat_pool = true;
+				create_pool = true;
 		}
-		if (creat_pool && mddev->serial_info_pool == NULL) {
+		if (create_pool && mddev->serial_info_pool == NULL) {
 			mddev->serial_info_pool =
 				mempool_create_kmalloc_pool(NR_SERIAL_INFOS,
 						    sizeof(struct serial_info));
