@@ -165,6 +165,11 @@
 
 &emmc {
 	status = "okay";
+};
+
+&fsim0 {
+	status = "okay";
+
 	#address-cells = <2>;
 	#size-cells = <0>;
 
