@@ -5026,10 +5026,8 @@ retriable:
 	}
 	if (qeth_adp_supported(card, IPA_SETADP_SET_DIAG_ASSIST)) {
 		rc = qeth_query_setdiagass(card);
-		if (rc < 0) {
+		if (rc)
 			QETH_CARD_TEXT_(card, 2, "8err%d", rc);
-			goto out;
-		}
 	}
 
 	if (!qeth_is_diagass_supported(card, QETH_DIAGS_CMD_TRAP) ||
