@@ -258,6 +258,7 @@ struct vop {
 	u32 *lut;
 	u32 lut_len;
 	bool lut_active;
+	bool dual_channel_swap;
 	/* one time only one process allowed to config the register */
 	spinlock_t reg_lock;
 	/* lock vop irq reg */
@@ -2773,7 +2774,8 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		VOP_CTRL_SET(vop, mipi_dual_channel_en,
 			!!(s->output_flags & ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL));
 		VOP_CTRL_SET(vop, data01_swap,
-			!!(s->output_flags & ROCKCHIP_OUTPUT_DSI_DUAL_LINK));
+			!!(s->output_flags & ROCKCHIP_OUTPUT_DSI_DUAL_LINK) ||
+			vop->dual_channel_swap);
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		VOP_CTRL_SET(vop, dp_dclk_pol, 0);
@@ -3380,7 +3382,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	vop_cfg_update(crtc, old_crtc_state);
 
 	if (!vop->is_iommu_enabled && vop->is_iommu_needed) {
-		bool need_wait_vblank = 0;
+		bool need_wait_vblank = false;
 		int ret;
 
 		if (s->mode_update)
@@ -4306,6 +4308,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	size_t alloc_size;
 	int ret, irq, i;
 	int num_wins = 0;
+	bool dual_channel_swap = false;
 	struct device_node *mcu = NULL;
 
 	vop_data = of_device_get_match_data(dev);
@@ -4432,6 +4435,10 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		if (!of_property_read_u32(mcu, "mcu-hold-mode", &val))
 			vop->mcu_timing.mcu_hold_mode = val;
 	}
+
+	dual_channel_swap = of_property_read_bool(dev->of_node,
+						  "rockchip,dual-channel-swap");
+	vop->dual_channel_swap = dual_channel_swap;
 
 	return 0;
 }
