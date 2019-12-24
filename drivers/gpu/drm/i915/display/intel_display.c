@@ -370,7 +370,7 @@ static const struct intel_limit intel_limits_g4x_dual_channel_lvds = {
 	},
 };
 
-static const struct intel_limit intel_limits_pineview_sdvo = {
+static const struct intel_limit pnv_limits_sdvo = {
 	.dot = { .min = 20000, .max = 400000},
 	.vco = { .min = 1700000, .max = 3500000 },
 	/* Pineview's Ncounter is a ring counter */
@@ -385,7 +385,7 @@ static const struct intel_limit intel_limits_pineview_sdvo = {
 		.p2_slow = 10, .p2_fast = 5 },
 };
 
-static const struct intel_limit intel_limits_pineview_lvds = {
+static const struct intel_limit pnv_limits_lvds = {
 	.dot = { .min = 20000, .max = 400000 },
 	.vco = { .min = 1700000, .max = 3500000 },
 	.n = { .min = 3, .max = 6 },
@@ -8779,9 +8779,9 @@ static int pnv_crtc_compute_clock(struct intel_crtc *crtc,
 			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
 		}
 
-		limit = &intel_limits_pineview_lvds;
+		limit = &pnv_limits_lvds;
 	} else {
-		limit = &intel_limits_pineview_sdvo;
+		limit = &pnv_limits_sdvo;
 	}
 
 	if (!crtc_state->clock_set &&

@@ -140,7 +140,7 @@ static void glk_init_clock_gating(struct drm_i915_private *dev_priv)
 
 }
 
-static void i915_pineview_get_mem_freq(struct drm_i915_private *dev_priv)
+static void pnv_get_mem_freq(struct drm_i915_private *dev_priv)
 {
 	u32 tmp;
 
@@ -549,34 +549,38 @@ static int i845_get_fifo_size(struct drm_i915_private *dev_priv,
 }
 
 /* Pineview has different values for various configs */
-static const struct intel_watermark_params pineview_display_wm = {
+static const struct intel_watermark_params pnv_display_wm = {
 	.fifo_size = PINEVIEW_DISPLAY_FIFO,
 	.max_wm = PINEVIEW_MAX_WM,
 	.default_wm = PINEVIEW_DFT_WM,
 	.guard_size = PINEVIEW_GUARD_WM,
 	.cacheline_size = PINEVIEW_FIFO_LINE_SIZE,
 };
-static const struct intel_watermark_params pineview_display_hplloff_wm = {
+
+static const struct intel_watermark_params pnv_display_hplloff_wm = {
 	.fifo_size = PINEVIEW_DISPLAY_FIFO,
 	.max_wm = PINEVIEW_MAX_WM,
 	.default_wm = PINEVIEW_DFT_HPLLOFF_WM,
 	.guard_size = PINEVIEW_GUARD_WM,
 	.cacheline_size = PINEVIEW_FIFO_LINE_SIZE,
 };
-static const struct intel_watermark_params pineview_cursor_wm = {
+
+static const struct intel_watermark_params pnv_cursor_wm = {
 	.fifo_size = PINEVIEW_CURSOR_FIFO,
 	.max_wm = PINEVIEW_CURSOR_MAX_WM,
 	.default_wm = PINEVIEW_CURSOR_DFT_WM,
 	.guard_size = PINEVIEW_CURSOR_GUARD_WM,
 	.cacheline_size = PINEVIEW_FIFO_LINE_SIZE,
 };
-static const struct intel_watermark_params pineview_cursor_hplloff_wm = {
+
+static const struct intel_watermark_params pnv_cursor_hplloff_wm = {
 	.fifo_size = PINEVIEW_CURSOR_FIFO,
 	.max_wm = PINEVIEW_CURSOR_MAX_WM,
 	.default_wm = PINEVIEW_CURSOR_DFT_WM,
 	.guard_size = PINEVIEW_CURSOR_GUARD_WM,
 	.cacheline_size = PINEVIEW_FIFO_LINE_SIZE,
 };
+
 static const struct intel_watermark_params i965_cursor_wm_info = {
 	.fifo_size = I965_CURSOR_FIFO,
 	.max_wm = I965_CURSOR_MAX_WM,
@@ -584,6 +588,7 @@ static const struct intel_watermark_params i965_cursor_wm_info = {
 	.guard_size = 2,
 	.cacheline_size = I915_FIFO_LINE_SIZE,
 };
+
 static const struct intel_watermark_params i945_wm_info = {
 	.fifo_size = I945_FIFO_SIZE,
 	.max_wm = I915_MAX_WM,
@@ -591,6 +596,7 @@ static const struct intel_watermark_params i945_wm_info = {
 	.guard_size = 2,
 	.cacheline_size = I915_FIFO_LINE_SIZE,
 };
+
 static const struct intel_watermark_params i915_wm_info = {
 	.fifo_size = I915_FIFO_SIZE,
 	.max_wm = I915_MAX_WM,
@@ -598,6 +604,7 @@ static const struct intel_watermark_params i915_wm_info = {
 	.guard_size = 2,
 	.cacheline_size = I915_FIFO_LINE_SIZE,
 };
+
 static const struct intel_watermark_params i830_a_wm_info = {
 	.fifo_size = I855GM_FIFO_SIZE,
 	.max_wm = I915_MAX_WM,
@@ -605,6 +612,7 @@ static const struct intel_watermark_params i830_a_wm_info = {
 	.guard_size = 2,
 	.cacheline_size = I830_FIFO_LINE_SIZE,
 };
+
 static const struct intel_watermark_params i830_bc_wm_info = {
 	.fifo_size = I855GM_FIFO_SIZE,
 	.max_wm = I915_MAX_WM/2,
@@ -612,6 +620,7 @@ static const struct intel_watermark_params i830_bc_wm_info = {
 	.guard_size = 2,
 	.cacheline_size = I830_FIFO_LINE_SIZE,
 };
+
 static const struct intel_watermark_params i845_wm_info = {
 	.fifo_size = I830_FIFO_SIZE,
 	.max_wm = I915_MAX_WM,
@@ -848,7 +857,7 @@ static struct intel_crtc *single_enabled_crtc(struct drm_i915_private *dev_priv)
 	return enabled;
 }
 
-static void pineview_update_wm(struct intel_crtc *unused_crtc)
+static void pnv_update_wm(struct intel_crtc *unused_crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	struct intel_crtc *crtc;
@@ -876,8 +885,8 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 		int clock = adjusted_mode->crtc_clock;
 
 		/* Display SR */
-		wm = intel_calculate_wm(clock, &pineview_display_wm,
-					pineview_display_wm.fifo_size,
+		wm = intel_calculate_wm(clock, &pnv_display_wm,
+					pnv_display_wm.fifo_size,
 					cpp, latency->display_sr);
 		reg = I915_READ(DSPFW1);
 		reg &= ~DSPFW_SR_MASK;
@@ -886,8 +895,8 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 		DRM_DEBUG_KMS("DSPFW1 register is %x\n", reg);
 
 		/* cursor SR */
-		wm = intel_calculate_wm(clock, &pineview_cursor_wm,
-					pineview_display_wm.fifo_size,
+		wm = intel_calculate_wm(clock, &pnv_cursor_wm,
+					pnv_display_wm.fifo_size,
 					4, latency->cursor_sr);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_CURSOR_SR_MASK;
@@ -895,8 +904,8 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 		I915_WRITE(DSPFW3, reg);
 
 		/* Display HPLL off SR */
-		wm = intel_calculate_wm(clock, &pineview_display_hplloff_wm,
-					pineview_display_hplloff_wm.fifo_size,
+		wm = intel_calculate_wm(clock, &pnv_display_hplloff_wm,
+					pnv_display_hplloff_wm.fifo_size,
 					cpp, latency->display_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_SR_MASK;
@@ -904,8 +913,8 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 		I915_WRITE(DSPFW3, reg);
 
 		/* cursor HPLL off SR */
-		wm = intel_calculate_wm(clock, &pineview_cursor_hplloff_wm,
-					pineview_display_hplloff_wm.fifo_size,
+		wm = intel_calculate_wm(clock, &pnv_cursor_hplloff_wm,
+					pnv_display_hplloff_wm.fifo_size,
 					4, latency->cursor_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_CURSOR_MASK;
@@ -7192,7 +7201,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 {
 	/* For cxsr */
 	if (IS_PINEVIEW(dev_priv))
-		i915_pineview_get_mem_freq(dev_priv);
+		pnv_get_mem_freq(dev_priv);
 	else if (IS_GEN(dev_priv, 5))
 		i915_ironlake_get_mem_freq(dev_priv);
 
@@ -7250,7 +7259,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 			intel_set_memory_cxsr(dev_priv, false);
 			dev_priv->display.update_wm = NULL;
 		} else
-			dev_priv->display.update_wm = pineview_update_wm;
+			dev_priv->display.update_wm = pnv_update_wm;
 	} else if (IS_GEN(dev_priv, 4)) {
 		dev_priv->display.update_wm = i965_update_wm;
 	} else if (IS_GEN(dev_priv, 3)) {
