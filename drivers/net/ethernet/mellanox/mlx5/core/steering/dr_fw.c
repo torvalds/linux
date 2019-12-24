@@ -7,6 +7,7 @@
 struct mlx5dr_fw_recalc_cs_ft *
 mlx5dr_fw_create_recalc_cs_ft(struct mlx5dr_domain *dmn, u32 vport_num)
 {
+	struct mlx5dr_cmd_create_flow_table_attr ft_attr = {};
 	struct mlx5dr_fw_recalc_cs_ft *recalc_cs_ft;
 	u32 table_id, group_id, modify_hdr_id;
 	u64 rx_icm_addr, modify_ttl_action;
@@ -16,9 +17,14 @@ mlx5dr_fw_create_recalc_cs_ft(struct mlx5dr_domain *dmn, u32 vport_num)
 	if (!recalc_cs_ft)
 		return NULL;
 
-	ret = mlx5dr_cmd_create_flow_table(dmn->mdev, MLX5_FLOW_TABLE_TYPE_FDB,
-					   0, 0, dmn->info.caps.max_ft_level - 1,
-					   false, true, &rx_icm_addr, &table_id);
+	ft_attr.table_type = MLX5_FLOW_TABLE_TYPE_FDB;
+	ft_attr.level = dmn->info.caps.max_ft_level - 1;
+	ft_attr.term_tbl = true;
+
+	ret = mlx5dr_cmd_create_flow_table(dmn->mdev,
+					   &ft_attr,
+					   &rx_icm_addr,
+					   &table_id);
 	if (ret) {
 		mlx5dr_err(dmn, "Failed creating TTL W/A FW flow table %d\n", ret);
 		goto free_ttl_tbl;

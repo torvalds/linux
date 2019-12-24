@@ -867,6 +867,17 @@ struct mlx5dr_cmd_query_flow_table_details {
 	u64 sw_owner_icm_root_0;
 };
 
+struct mlx5dr_cmd_create_flow_table_attr {
+	u32 table_type;
+	u64 icm_addr_rx;
+	u64 icm_addr_tx;
+	u8 level;
+	bool sw_owner;
+	bool term_tbl;
+	bool decap_en;
+	bool reformat_en;
+};
+
 /* internal API functions */
 int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 			    struct mlx5dr_cmd_caps *caps);
@@ -904,12 +915,7 @@ int mlx5dr_cmd_destroy_flow_group(struct mlx5_core_dev *mdev,
 				  u32 table_id,
 				  u32 group_id);
 int mlx5dr_cmd_create_flow_table(struct mlx5_core_dev *mdev,
-				 u32 table_type,
-				 u64 icm_addr_rx,
-				 u64 icm_addr_tx,
-				 u8 level,
-				 bool sw_owner,
-				 bool term_tbl,
+				 struct mlx5dr_cmd_create_flow_table_attr *attr,
 				 u64 *fdb_rx_icm_addr,
 				 u32 *table_id);
 int mlx5dr_cmd_destroy_flow_table(struct mlx5_core_dev *mdev,

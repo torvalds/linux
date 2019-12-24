@@ -320,12 +320,7 @@ int mlx5dr_cmd_destroy_flow_group(struct mlx5_core_dev *mdev,
 }
 
 int mlx5dr_cmd_create_flow_table(struct mlx5_core_dev *mdev,
-				 u32 table_type,
-				 u64 icm_addr_rx,
-				 u64 icm_addr_tx,
-				 u8 level,
-				 bool sw_owner,
-				 bool term_tbl,
+				 struct mlx5dr_cmd_create_flow_table_attr *attr,
 				 u64 *fdb_rx_icm_addr,
 				 u32 *table_id)
 {
@@ -335,37 +330,43 @@ int mlx5dr_cmd_create_flow_table(struct mlx5_core_dev *mdev,
 	int err;
 
 	MLX5_SET(create_flow_table_in, in, opcode, MLX5_CMD_OP_CREATE_FLOW_TABLE);
-	MLX5_SET(create_flow_table_in, in, table_type, table_type);
+	MLX5_SET(create_flow_table_in, in, table_type, attr->table_type);
 
 	ft_mdev = MLX5_ADDR_OF(create_flow_table_in, in, flow_table_context);
-	MLX5_SET(flow_table_context, ft_mdev, termination_table, term_tbl);
-	MLX5_SET(flow_table_context, ft_mdev, sw_owner, sw_owner);
-	MLX5_SET(flow_table_context, ft_mdev, level, level);
+	MLX5_SET(flow_table_context, ft_mdev, termination_table, attr->term_tbl);
+	MLX5_SET(flow_table_context, ft_mdev, sw_owner, attr->sw_owner);
+	MLX5_SET(flow_table_context, ft_mdev, level, attr->level);
 
-	if (sw_owner) {
+	if (attr->sw_owner) {
 		/* icm_addr_0 used for FDB RX / NIC TX / NIC_RX
 		 * icm_addr_1 used for FDB TX
 		 */
-		if (table_type == MLX5_FLOW_TABLE_TYPE_NIC_RX) {
+		if (attr->table_type == MLX5_FLOW_TABLE_TYPE_NIC_RX) {
 			MLX5_SET64(flow_table_context, ft_mdev,
-				   sw_owner_icm_root_0, icm_addr_rx);
-		} else if (table_type == MLX5_FLOW_TABLE_TYPE_NIC_TX) {
+				   sw_owner_icm_root_0, attr->icm_addr_rx);
+		} else if (attr->table_type == MLX5_FLOW_TABLE_TYPE_NIC_TX) {
 			MLX5_SET64(flow_table_context, ft_mdev,
-				   sw_owner_icm_root_0, icm_addr_tx);
-		} else if (table_type == MLX5_FLOW_TABLE_TYPE_FDB) {
+				   sw_owner_icm_root_0, attr->icm_addr_tx);
+		} else if (attr->table_type == MLX5_FLOW_TABLE_TYPE_FDB) {
 			MLX5_SET64(flow_table_context, ft_mdev,
-				   sw_owner_icm_root_0, icm_addr_rx);
+				   sw_owner_icm_root_0, attr->icm_addr_rx);
 			MLX5_SET64(flow_table_context, ft_mdev,
-				   sw_owner_icm_root_1, icm_addr_tx);
+				   sw_owner_icm_root_1, attr->icm_addr_tx);
 		}
 	}
+
+	MLX5_SET(create_flow_table_in, in, flow_table_context.decap_en,
+		 attr->decap_en);
+	MLX5_SET(create_flow_table_in, in, flow_table_context.reformat_en,
+		 attr->reformat_en);
 
 	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 	if (err)
 		return err;
 
 	*table_id = MLX5_GET(create_flow_table_out, out, table_id);
-	if (!sw_owner && table_type == MLX5_FLOW_TABLE_TYPE_FDB)
+	if (!attr->sw_owner && attr->table_type == MLX5_FLOW_TABLE_TYPE_FDB &&
+	    fdb_rx_icm_addr)
 		*fdb_rx_icm_addr =
 		(u64)MLX5_GET(create_flow_table_out, out, icm_address_31_0) |
 		(u64)MLX5_GET(create_flow_table_out, out, icm_address_39_32) << 32 |
