@@ -11,16 +11,6 @@
 
 typedef union efi_rng_protocol efi_rng_protocol_t;
 
-typedef struct {
-	u32 get_info;
-	u32 get_rng;
-} efi_rng_protocol_32_t;
-
-typedef struct {
-	u64 get_info;
-	u64 get_rng;
-} efi_rng_protocol_64_t;
-
 union efi_rng_protocol {
 	struct {
 		efi_status_t (*get_info)(efi_rng_protocol_t *,

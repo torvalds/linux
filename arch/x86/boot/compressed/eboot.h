@@ -12,18 +12,6 @@
 
 #define DESC_TYPE_CODE_DATA	(1 << 0)
 
-typedef struct {
-	u32 get_mode;
-	u32 set_mode;
-	u32 blt;
-} efi_uga_draw_protocol_32_t;
-
-typedef struct {
-	u64 get_mode;
-	u64 set_mode;
-	u64 blt;
-} efi_uga_draw_protocol_64_t;
-
 typedef union {
 	struct {
 		void *get_mode;
