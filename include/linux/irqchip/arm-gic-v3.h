@@ -234,6 +234,7 @@
 #define GICR_TYPER_VLPIS		(1U << 1)
 #define GICR_TYPER_DirectLPIS		(1U << 3)
 #define GICR_TYPER_LAST			(1U << 4)
+#define GICR_TYPER_RVPEID		(1U << 7)
 
 #define GIC_V3_REDIST_SIZE		0x20000
 
@@ -615,6 +616,7 @@ struct rdists {
 	u64			flags;
 	u32			gicd_typer;
 	bool			has_vlpis;
+	bool			has_rvpeid;
 	bool			has_direct_lpi;
 };
 
