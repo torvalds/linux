@@ -50,9 +50,9 @@ void efi_virtmap_unload(void);
 
 /* arch specific definitions used by the stub code */
 
-#define efi_call_early(f, ...)		efi_system_table()->boottime->f(__VA_ARGS__)
-#define efi_call_runtime(f, ...)	efi_system_table()->runtime->f(__VA_ARGS__)
-#define efi_is_native()			(true)
+#define efi_bs_call(func, ...)	efi_system_table()->boottime->func(__VA_ARGS__)
+#define efi_rt_call(func, ...)	efi_system_table()->runtime->func(__VA_ARGS__)
+#define efi_is_native()		(true)
 
 #define efi_table_attr(inst, attr)	(inst->attr)
 

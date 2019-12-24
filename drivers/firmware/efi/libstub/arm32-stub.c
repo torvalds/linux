@@ -37,18 +37,18 @@ struct screen_info *alloc_screen_info(void)
 	 * its contents while we hand over to the kernel proper from the
 	 * decompressor.
 	 */
-	status = efi_call_early(allocate_pool, EFI_RUNTIME_SERVICES_DATA,
-				sizeof(*si), (void **)&si);
+	status = efi_bs_call(allocate_pool, EFI_RUNTIME_SERVICES_DATA,
+			     sizeof(*si), (void **)&si);
 
 	if (status != EFI_SUCCESS)
 		return NULL;
 
-	status = efi_call_early(install_configuration_table,
-				&screen_info_guid, si);
+	status = efi_bs_call(install_configuration_table,
+			     &screen_info_guid, si);
 	if (status == EFI_SUCCESS)
 		return si;
 
-	efi_call_early(free_pool, si);
+	efi_bs_call(free_pool, si);
 	return NULL;
 }
 
@@ -57,8 +57,8 @@ void free_screen_info(struct screen_info *si)
 	if (!si)
 		return;
 
-	efi_call_early(install_configuration_table, &screen_info_guid, NULL);
-	efi_call_early(free_pool, si);
+	efi_bs_call(install_configuration_table, &screen_info_guid, NULL);
+	efi_bs_call(free_pool, si);
 }
 
 static efi_status_t reserve_kernel_base(unsigned long dram_base,
@@ -91,8 +91,8 @@ static efi_status_t reserve_kernel_base(unsigned long dram_base,
 	 */
 	alloc_addr = dram_base + MAX_UNCOMP_KERNEL_SIZE;
 	nr_pages = MAX_UNCOMP_KERNEL_SIZE / EFI_PAGE_SIZE;
-	status = efi_call_early(allocate_pages, EFI_ALLOCATE_MAX_ADDRESS,
-				EFI_BOOT_SERVICES_DATA, nr_pages, &alloc_addr);
+	status = efi_bs_call(allocate_pages, EFI_ALLOCATE_MAX_ADDRESS,
+			     EFI_BOOT_SERVICES_DATA, nr_pages, &alloc_addr);
 	if (status == EFI_SUCCESS) {
 		if (alloc_addr == dram_base) {
 			*reserve_addr = alloc_addr;
@@ -156,11 +156,11 @@ static efi_status_t reserve_kernel_base(unsigned long dram_base,
 			start = max(start, (u64)dram_base);
 			end = min(end, (u64)dram_base + MAX_UNCOMP_KERNEL_SIZE);
 
-			status = efi_call_early(allocate_pages,
-						EFI_ALLOCATE_ADDRESS,
-						EFI_LOADER_DATA,
-						(end - start) / EFI_PAGE_SIZE,
-						&start);
+			status = efi_bs_call(allocate_pages,
+					     EFI_ALLOCATE_ADDRESS,
+					     EFI_LOADER_DATA,
+					     (end - start) / EFI_PAGE_SIZE,
+					     &start);
 			if (status != EFI_SUCCESS) {
 				pr_efi_err("reserve_kernel_base(): alloc failed.\n");
 				goto out;
@@ -185,7 +185,7 @@ static efi_status_t reserve_kernel_base(unsigned long dram_base,
 
 	status = EFI_SUCCESS;
 out:
-	efi_call_early(free_pool, memory_map);
+	efi_bs_call(free_pool, memory_map);
 	return status;
 }
 

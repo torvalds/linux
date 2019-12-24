@@ -32,8 +32,7 @@ efi_status_t efi_get_random_bytes(unsigned long size, u8 *out)
 	efi_status_t status;
 	efi_rng_protocol_t *rng = NULL;
 
-	status = efi_call_early(locate_protocol, &rng_proto, NULL,
-				(void **)&rng);
+	status = efi_bs_call(locate_protocol, &rng_proto, NULL, (void **)&rng);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -141,14 +140,14 @@ efi_status_t efi_random_alloc(unsigned long size,
 		target = round_up(md->phys_addr, align) + target_slot * align;
 		pages = round_up(size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
 
-		status = efi_call_early(allocate_pages, EFI_ALLOCATE_ADDRESS,
-					EFI_LOADER_DATA, pages, &target);
+		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
+				     EFI_LOADER_DATA, pages, &target);
 		if (status == EFI_SUCCESS)
 			*addr = target;
 		break;
 	}
 
-	efi_call_early(free_pool, memory_map);
+	efi_bs_call(free_pool, memory_map);
 
 	return status;
 }
@@ -162,14 +161,13 @@ efi_status_t efi_random_get_seed(void)
 	struct linux_efi_random_seed *seed = NULL;
 	efi_status_t status;
 
-	status = efi_call_early(locate_protocol, &rng_proto, NULL,
-				(void **)&rng);
+	status = efi_bs_call(locate_protocol, &rng_proto, NULL, (void **)&rng);
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = efi_call_early(allocate_pool, EFI_RUNTIME_SERVICES_DATA,
-				sizeof(*seed) + EFI_RANDOM_SEED_SIZE,
-				(void **)&seed);
+	status = efi_bs_call(allocate_pool, EFI_RUNTIME_SERVICES_DATA,
+			     sizeof(*seed) + EFI_RANDOM_SEED_SIZE,
+			     (void **)&seed);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -188,14 +186,13 @@ efi_status_t efi_random_get_seed(void)
 		goto err_freepool;
 
 	seed->size = EFI_RANDOM_SEED_SIZE;
-	status = efi_call_early(install_configuration_table, &rng_table_guid,
-				seed);
+	status = efi_bs_call(install_configuration_table, &rng_table_guid, seed);
 	if (status != EFI_SUCCESS)
 		goto err_freepool;
 
 	return EFI_SUCCESS;
 
 err_freepool:
-	efi_call_early(free_pool, seed);
+	efi_bs_call(free_pool, seed);
 	return status;
 }

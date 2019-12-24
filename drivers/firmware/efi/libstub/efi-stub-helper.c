@@ -95,19 +95,19 @@ efi_status_t efi_get_memory_map(struct efi_boot_memmap *map)
 	*map->map_size =	*map->desc_size * 32;
 	*map->buff_size =	*map->map_size;
 again:
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				*map->map_size, (void **)&m);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
+			     *map->map_size, (void **)&m);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
 	*map->desc_size = 0;
 	key = 0;
-	status = efi_call_early(get_memory_map, map->map_size, m,
-				&key, map->desc_size, &desc_version);
+	status = efi_bs_call(get_memory_map, map->map_size, m,
+			     &key, map->desc_size, &desc_version);
 	if (status == EFI_BUFFER_TOO_SMALL ||
 	    !mmap_has_headroom(*map->buff_size, *map->map_size,
 			       *map->desc_size)) {
-		efi_call_early(free_pool, m);
+		efi_bs_call(free_pool, m);
 		/*
 		 * Make sure there is some entries of headroom so that the
 		 * buffer can be reused for a new map after allocations are
@@ -121,7 +121,7 @@ again:
 	}
 
 	if (status != EFI_SUCCESS)
-		efi_call_early(free_pool, m);
+		efi_bs_call(free_pool, m);
 
 	if (map->key_ptr && status == EFI_SUCCESS)
 		*map->key_ptr = key;
@@ -163,7 +163,7 @@ unsigned long get_dram_base(void)
 		}
 	}
 
-	efi_call_early(free_pool, map.map);
+	efi_bs_call(free_pool, map.map);
 
 	return membase;
 }
@@ -249,9 +249,8 @@ again:
 	if (!max_addr)
 		status = EFI_NOT_FOUND;
 	else {
-		status = efi_call_early(allocate_pages,
-					EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
-					nr_pages, &max_addr);
+		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
+				     EFI_LOADER_DATA, nr_pages, &max_addr);
 		if (status != EFI_SUCCESS) {
 			max = max_addr;
 			max_addr = 0;
@@ -261,7 +260,7 @@ again:
 		*addr = max_addr;
 	}
 
-	efi_call_early(free_pool, map);
+	efi_bs_call(free_pool, map);
 fail:
 	return status;
 }
@@ -328,9 +327,8 @@ efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 		if ((start + size) > end)
 			continue;
 
-		status = efi_call_early(allocate_pages,
-					EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
-					nr_pages, &start);
+		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
+				     EFI_LOADER_DATA, nr_pages, &start);
 		if (status == EFI_SUCCESS) {
 			*addr = start;
 			break;
@@ -340,7 +338,7 @@ efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 	if (i == map_size / desc_size)
 		status = EFI_NOT_FOUND;
 
-	efi_call_early(free_pool, map);
+	efi_bs_call(free_pool, map);
 fail:
 	return status;
 }
@@ -386,8 +384,8 @@ static efi_status_t efi_file_size(void *__fh, efi_char16_t *filename_16,
 	}
 
 grow:
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				info_sz, (void **)&info);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, info_sz,
+			     (void **)&info);
 	if (status != EFI_SUCCESS) {
 		efi_printk("Failed to alloc mem for file info\n");
 		return status;
@@ -395,12 +393,12 @@ grow:
 
 	status = h->get_info(h, &info_guid, &info_sz, info);
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		efi_call_early(free_pool, info);
+		efi_bs_call(free_pool, info);
 		goto grow;
 	}
 
 	*file_sz = info->file_size;
-	efi_call_early(free_pool, info);
+	efi_bs_call(free_pool, info);
 
 	if (status != EFI_SUCCESS)
 		efi_printk("Failed to get initrd info\n");
@@ -428,8 +426,7 @@ static efi_status_t efi_open_volume(efi_loaded_image_t *image,
 	efi_status_t status;
 	efi_handle_t handle = image->device_handle;
 
-	status = efi_call_early(handle_protocol, handle,
-				&fs_proto, (void **)&io);
+	status = efi_bs_call(handle_protocol, handle, &fs_proto, (void **)&io);
 	if (status != EFI_SUCCESS) {
 		efi_printk("Failed to handle fs_proto\n");
 		return status;
@@ -562,8 +559,8 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 	if (!nr_files)
 		return EFI_SUCCESS;
 
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				nr_files * sizeof(*files), (void **)&files);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
+			     nr_files * sizeof(*files), (void **)&files);
 	if (status != EFI_SUCCESS) {
 		pr_efi_err("Failed to alloc mem for file handle list\n");
 		goto fail;
@@ -668,7 +665,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 
 	}
 
-	efi_call_early(free_pool, files);
+	efi_bs_call(free_pool, files);
 
 	*load_addr = file_addr;
 	*load_size = file_size_total;
@@ -682,7 +679,7 @@ close_handles:
 	for (k = j; k < i; k++)
 		efi_file_close(files[k].handle);
 free_files:
-	efi_call_early(free_pool, files);
+	efi_bs_call(free_pool, files);
 fail:
 	*load_addr = 0;
 	*load_size = 0;
@@ -728,9 +725,8 @@ efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 	 * as possible while respecting the required alignment.
 	 */
 	nr_pages = round_up(alloc_size, EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
-	status = efi_call_early(allocate_pages,
-				EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
-				nr_pages, &efi_addr);
+	status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
+			     EFI_LOADER_DATA, nr_pages, &efi_addr);
 	new_addr = efi_addr;
 	/*
 	 * If preferred address allocation failed allocate as low as
@@ -883,7 +879,7 @@ efi_status_t efi_exit_boot_services(void *handle,
 	if (status != EFI_SUCCESS)
 		goto free_map;
 
-	status = efi_call_early(exit_boot_services, handle, *map->key_ptr);
+	status = efi_bs_call(exit_boot_services, handle, *map->key_ptr);
 
 	if (status == EFI_INVALID_PARAMETER) {
 		/*
@@ -900,12 +896,12 @@ efi_status_t efi_exit_boot_services(void *handle,
 		 * to get_memory_map() is expected to succeed here.
 		 */
 		*map->map_size = *map->buff_size;
-		status = efi_call_early(get_memory_map,
-					map->map_size,
-					*map->map,
-					map->key_ptr,
-					map->desc_size,
-					map->desc_ver);
+		status = efi_bs_call(get_memory_map,
+				     map->map_size,
+				     *map->map,
+				     map->key_ptr,
+				     map->desc_size,
+				     map->desc_ver);
 
 		/* exit_boot_services() was called, thus cannot free */
 		if (status != EFI_SUCCESS)
@@ -916,7 +912,7 @@ efi_status_t efi_exit_boot_services(void *handle,
 		if (status != EFI_SUCCESS)
 			goto fail;
 
-		status = efi_call_early(exit_boot_services, handle, *map->key_ptr);
+		status = efi_bs_call(exit_boot_services, handle, *map->key_ptr);
 	}
 
 	/* exit_boot_services() was called, thus cannot free */
@@ -926,7 +922,7 @@ efi_status_t efi_exit_boot_services(void *handle,
 	return EFI_SUCCESS;
 
 free_map:
-	efi_call_early(free_pool, *map->map);
+	efi_bs_call(free_pool, *map->map);
 fail:
 	return status;
 }

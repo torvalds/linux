@@ -129,10 +129,10 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 		*image_addr = *reserve_addr = preferred_offset;
 		*reserve_size = round_up(kernel_memsize, EFI_ALLOC_ALIGN);
 
-		status = efi_call_early(allocate_pages, EFI_ALLOCATE_ADDRESS,
-					EFI_LOADER_DATA,
-					*reserve_size / EFI_PAGE_SIZE,
-					(efi_physical_addr_t *)reserve_addr);
+		status = efi_bs_call(allocate_pages, EFI_ALLOCATE_ADDRESS,
+				     EFI_LOADER_DATA,
+				     *reserve_size / EFI_PAGE_SIZE,
+				     (efi_physical_addr_t *)reserve_addr);
 	}
 
 	if (status != EFI_SUCCESS) {

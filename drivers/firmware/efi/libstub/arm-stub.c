@@ -53,8 +53,8 @@ static struct screen_info *setup_graphics(void)
 	struct screen_info *si = NULL;
 
 	size = 0;
-	status = efi_call_early(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-				&gop_proto, NULL, &size, gop_handle);
+	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
+			     &gop_proto, NULL, &size, gop_handle);
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		si = alloc_screen_info();
 		if (!si)
@@ -70,8 +70,8 @@ void install_memreserve_table(void)
 	efi_guid_t memreserve_table_guid = LINUX_EFI_MEMRESERVE_TABLE_GUID;
 	efi_status_t status;
 
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA, sizeof(*rsv),
-				(void **)&rsv);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, sizeof(*rsv),
+			     (void **)&rsv);
 	if (status != EFI_SUCCESS) {
 		pr_efi_err("Failed to allocate memreserve entry!\n");
 		return;
@@ -81,9 +81,8 @@ void install_memreserve_table(void)
 	rsv->size = 0;
 	atomic_set(&rsv->count, 0);
 
-	status = efi_call_early(install_configuration_table,
-				&memreserve_table_guid,
-				rsv);
+	status = efi_bs_call(install_configuration_table,
+			     &memreserve_table_guid, rsv);
 	if (status != EFI_SUCCESS)
 		pr_efi_err("Failed to install memreserve config table!\n");
 }

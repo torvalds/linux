@@ -110,13 +110,11 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 		void *dummy = NULL;
 		efi_physical_addr_t current_fb_base;
 
-		status = efi_call_early(handle_protocol, h,
-					proto, (void **)&gop);
+		status = efi_bs_call(handle_protocol, h, proto, (void **)&gop);
 		if (status != EFI_SUCCESS)
 			continue;
 
-		status = efi_call_early(handle_protocol, h,
-					&conout_proto, &dummy);
+		status = efi_bs_call(handle_protocol, h, &conout_proto, &dummy);
 		if (status == EFI_SUCCESS)
 			conout_found = true;
 
@@ -187,20 +185,19 @@ efi_status_t efi_setup_gop(struct screen_info *si, efi_guid_t *proto,
 	efi_status_t status;
 	void **gop_handle = NULL;
 
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				size, (void **)&gop_handle);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
+			     (void **)&gop_handle);
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = efi_call_early(locate_handle,
-				EFI_LOCATE_BY_PROTOCOL,
-				proto, NULL, &size, gop_handle);
+	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL, proto, NULL,
+			     &size, gop_handle);
 	if (status != EFI_SUCCESS)
 		goto free_handle;
 
 	status = setup_gop(si, proto, size, gop_handle);
 
 free_handle:
-	efi_call_early(free_pool, gop_handle);
+	efi_bs_call(free_pool, gop_handle);
 	return status;
 }

@@ -93,9 +93,9 @@ static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
 	return (image_addr & ~(SZ_1G - 1UL)) + (1UL << (VA_BITS_MIN - 1));
 }
 
-#define efi_call_early(f, ...)		efi_system_table()->boottime->f(__VA_ARGS__)
-#define efi_call_runtime(f, ...)	efi_system_table()->runtime->f(__VA_ARGS__)
-#define efi_is_native()			(true)
+#define efi_bs_call(func, ...)	efi_system_table()->boottime->func(__VA_ARGS__)
+#define efi_rt_call(func, ...)	efi_system_table()->runtime->func(__VA_ARGS__)
+#define efi_is_native()		(true)
 
 #define efi_table_attr(inst, attr)	(inst->attr)
 

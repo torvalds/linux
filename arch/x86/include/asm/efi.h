@@ -227,17 +227,17 @@ static inline bool efi_is_native(void)
 		? inst->func(inst, ##__VA_ARGS__)			\
 		: efi64_thunk(inst->mixed_mode.func, inst, ##__VA_ARGS__))
 
-#define efi_call_early(f, ...)						\
+#define efi_bs_call(func, ...)						\
 	(efi_is_native()						\
-		? efi_system_table()->boottime->f(__VA_ARGS__)		\
+		? efi_system_table()->boottime->func(__VA_ARGS__)	\
 		: efi64_thunk(efi_table_attr(efi_system_table(),	\
-				boottime)->mixed_mode.f, __VA_ARGS__))
+				boottime)->mixed_mode.func, __VA_ARGS__))
 
-#define efi_call_runtime(f, ...)					\
+#define efi_rt_call(func, ...)						\
 	(efi_is_native()						\
-		? efi_system_table()->runtime->f(__VA_ARGS__)		\
+		? efi_system_table()->runtime->func(__VA_ARGS__)	\
 		: efi64_thunk(efi_table_attr(efi_system_table(),	\
-				runtime)->mixed_mode.f, __VA_ARGS__))
+				runtime)->mixed_mode.func, __VA_ARGS__))
 
 extern bool efi_reboot_required(void);
 extern bool efi_is_table_address(unsigned long phys_addr);

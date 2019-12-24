@@ -76,4 +76,12 @@ void *get_efi_config_table(efi_guid_t guid);
 	fdt_setprop((fdt), (node_offset), (name), &(var), sizeof(var))
 #endif
 
+#define get_efi_var(name, vendor, ...)				\
+	efi_rt_call(get_variable, (efi_char16_t *)(name),	\
+		    (efi_guid_t *)(vendor), __VA_ARGS__)
+
+#define set_efi_var(name, vendor, ...)				\
+	efi_rt_call(set_variable, (efi_char16_t *)(name),	\
+		    (efi_guid_t *)(vendor), __VA_ARGS__)
+
 #endif
