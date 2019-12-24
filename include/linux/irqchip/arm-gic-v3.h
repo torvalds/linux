@@ -328,6 +328,15 @@
 #define GICR_VPENDBASER_Valid		(1ULL << 63)
 
 /*
+ * GICv4.1 VPENDBASER, used for VPE residency. On top of these fields,
+ * also use the above Valid, PendingLast and Dirty.
+ */
+#define GICR_VPENDBASER_4_1_DB		(1ULL << 62)
+#define GICR_VPENDBASER_4_1_VGRP0EN	(1ULL << 59)
+#define GICR_VPENDBASER_4_1_VGRP1EN	(1ULL << 58)
+#define GICR_VPENDBASER_4_1_VPEID	GENMASK_ULL(15, 0)
+
+/*
  * ITS registers, offsets from ITS_base
  */
 #define GITS_CTLR			0x0000
