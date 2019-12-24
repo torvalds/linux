@@ -44,15 +44,6 @@ __pure efi_system_table_t *efi_system_table(void)
 	return sys_table;
 }
 
-void efi_char16_printk(efi_system_table_t *sys_table_arg,
-			      efi_char16_t *str)
-{
-	efi_simple_text_output_protocol_t *out;
-
-	out = (efi_simple_text_output_protocol_t *)sys_table_arg->con_out;
-	out->output_string(out, str);
-}
-
 static struct screen_info *setup_graphics(efi_system_table_t *sys_table_arg)
 {
 	efi_guid_t gop_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
