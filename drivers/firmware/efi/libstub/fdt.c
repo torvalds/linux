@@ -40,7 +40,7 @@ static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 	/* Do some checks on provided FDT, if it exists: */
 	if (orig_fdt) {
 		if (fdt_check_header(orig_fdt)) {
-			pr_efi_err(sys_table, "Device Tree header not valid!\n");
+			pr_efi_err("Device Tree header not valid!\n");
 			return EFI_LOAD_ERROR;
 		}
 		/*
@@ -48,7 +48,7 @@ static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 		 * configuration table:
 		 */
 		if (orig_fdt_size && fdt_totalsize(orig_fdt) > orig_fdt_size) {
-			pr_efi_err(sys_table, "Truncated device tree! foo!\n");
+			pr_efi_err("Truncated device tree! foo!\n");
 			return EFI_LOAD_ERROR;
 		}
 	}
@@ -277,17 +277,17 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	 */
 	status = efi_get_memory_map(sys_table, &map);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err(sys_table, "Unable to retrieve UEFI memory map.\n");
+		pr_efi_err("Unable to retrieve UEFI memory map.\n");
 		return status;
 	}
 
-	pr_efi(sys_table, "Exiting boot services and installing virtual address map...\n");
+	pr_efi("Exiting boot services and installing virtual address map...\n");
 
 	map.map = &memory_map;
 	status = efi_high_alloc(sys_table, MAX_FDT_SIZE, EFI_FDT_ALIGN,
 				new_fdt_addr, max_addr);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err(sys_table, "Unable to allocate memory for new device tree.\n");
+		pr_efi_err("Unable to allocate memory for new device tree.\n");
 		goto fail;
 	}
 
@@ -304,7 +304,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 			    initrd_addr, initrd_size);
 
 	if (status != EFI_SUCCESS) {
-		pr_efi_err(sys_table, "Unable to construct new device tree.\n");
+		pr_efi_err("Unable to construct new device tree.\n");
 		goto fail_free_new_fdt;
 	}
 
@@ -350,7 +350,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 		return EFI_SUCCESS;
 	}
 
-	pr_efi_err(sys_table, "Exit boot services failed.\n");
+	pr_efi_err("Exit boot services failed.\n");
 
 fail_free_new_fdt:
 	efi_free(sys_table, MAX_FDT_SIZE, *new_fdt_addr);
@@ -371,7 +371,7 @@ void *get_fdt(efi_system_table_t *sys_table, unsigned long *fdt_size)
 		return NULL;
 
 	if (fdt_check_header(fdt) != 0) {
-		pr_efi_err(sys_table, "Invalid header detected on UEFI supplied FDT, ignoring ...\n");
+		pr_efi_err("Invalid header detected on UEFI supplied FDT, ignoring ...\n");
 		return NULL;
 	}
 	*fdt_size = fdt_totalsize(fdt);

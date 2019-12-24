@@ -57,7 +57,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA, size,
 				(void **)&rom);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to allocate memory for 'rom'\n");
+		efi_printk("Failed to allocate memory for 'rom'\n");
 		return status;
 	}
 
@@ -74,7 +74,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 				&rom->vendor);
 
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to read rom->vendor\n");
+		efi_printk("Failed to read rom->vendor\n");
 		goto free_struct;
 	}
 
@@ -83,7 +83,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 				&rom->devid);
 
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to read rom->devid\n");
+		efi_printk("Failed to read rom->devid\n");
 		goto free_struct;
 	}
 
@@ -132,7 +132,7 @@ static void setup_efi_pci(struct boot_params *params)
 					size, (void **)&pci_handle);
 
 		if (status != EFI_SUCCESS) {
-			efi_printk(sys_table, "Failed to allocate memory for 'pci_handle'\n");
+			efi_printk("Failed to allocate memory for 'pci_handle'\n");
 			return;
 		}
 
@@ -187,7 +187,7 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 		return;
 
 	if (efi_table_attr(apple_properties_protocol, version, p) != 0x10000) {
-		efi_printk(sys_table, "Unsupported properties proto version\n");
+		efi_printk("Unsupported properties proto version\n");
 		return;
 	}
 
@@ -200,7 +200,7 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 					size + sizeof(struct setup_data),
 					(void **)&new);
 		if (status != EFI_SUCCESS) {
-			efi_printk(sys_table, "Failed to allocate memory for 'properties'\n");
+			efi_printk("Failed to allocate memory for 'properties'\n");
 			return;
 		}
 
@@ -386,14 +386,14 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	status = efi_call_early(handle_protocol, handle,
 				&proto, (void *)&image);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
+		efi_printk("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
 		return status;
 	}
 
 	status = efi_low_alloc(sys_table, 0x4000, 1,
 			       (unsigned long *)&boot_params);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to allocate lowmem for boot params\n");
+		efi_printk("Failed to allocate lowmem for boot params\n");
 		return status;
 	}
 
@@ -441,7 +441,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 
 	if (status != EFI_SUCCESS &&
 	    hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G) {
-		efi_printk(sys_table, "Trying to load files to higher address\n");
+		efi_printk("Trying to load files to higher address\n");
 		status = handle_cmdline_files(sys_table, image,
 				      (char *)(unsigned long)hdr->cmd_line_ptr,
 				      "initrd=", -1UL,
@@ -773,7 +773,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
 				sizeof(*gdt), (void **)&gdt);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to allocate memory for 'gdt' structure\n");
+		efi_printk("Failed to allocate memory for 'gdt' structure\n");
 		goto fail;
 	}
 
@@ -781,7 +781,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 	status = efi_low_alloc(sys_table, gdt->size, 8,
 			   (unsigned long *)&gdt->address);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "Failed to allocate memory for 'gdt'\n");
+		efi_printk("Failed to allocate memory for 'gdt'\n");
 		goto fail;
 	}
 
@@ -797,7 +797,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 					     hdr->kernel_alignment,
 					     LOAD_PHYSICAL_ADDR);
 		if (status != EFI_SUCCESS) {
-			efi_printk(sys_table, "efi_relocate_kernel() failed!\n");
+			efi_printk("efi_relocate_kernel() failed!\n");
 			goto fail;
 		}
 
@@ -807,7 +807,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 
 	status = exit_boot(boot_params, handle);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "exit_boot() failed!\n");
+		efi_printk("exit_boot() failed!\n");
 		goto fail;
 	}
 
@@ -900,7 +900,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 
 	return boot_params;
 fail:
-	efi_printk(sys_table, "efi_main() failed!\n");
+	efi_printk("efi_main() failed!\n");
 
 	for (;;)
 		asm("hlt");

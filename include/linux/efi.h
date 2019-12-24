@@ -1493,7 +1493,7 @@ static inline int efi_runtime_map_copy(void *buf, size_t bufsz)
 
 /* prototypes shared between arch specific and generic stub code */
 
-void efi_printk(efi_system_table_t *sys_table_arg, char *str);
+void efi_printk(char *str);
 
 void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
 	      unsigned long addr);

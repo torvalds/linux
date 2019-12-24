@@ -58,7 +58,7 @@ struct file_info {
 	u64 size;
 };
 
-void efi_printk(efi_system_table_t *sys_table_arg, char *str)
+void efi_printk(char *str)
 {
 	char *s8;
 
@@ -68,10 +68,10 @@ void efi_printk(efi_system_table_t *sys_table_arg, char *str)
 		ch[0] = *s8;
 		if (*s8 == '\n') {
 			efi_char16_t nl[2] = { '\r', 0 };
-			efi_char16_printk(sys_table_arg, nl);
+			efi_char16_printk(nl);
 		}
 
-		efi_char16_printk(sys_table_arg, ch);
+		efi_char16_printk(ch);
 	}
 }
 
@@ -372,9 +372,9 @@ static efi_status_t efi_file_size(efi_system_table_t *sys_table_arg, void *__fh,
 
 	status = fh->open(fh, &h, filename_16, EFI_FILE_MODE_READ, 0);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table_arg, "Failed to open file: ");
-		efi_char16_printk(sys_table_arg, filename_16);
-		efi_printk(sys_table_arg, "\n");
+		efi_printk("Failed to open file: ");
+		efi_char16_printk(filename_16);
+		efi_printk("\n");
 		return status;
 	}
 
@@ -383,7 +383,7 @@ static efi_status_t efi_file_size(efi_system_table_t *sys_table_arg, void *__fh,
 	info_sz = 0;
 	status = h->get_info(h, &info_guid, &info_sz, NULL);
 	if (status != EFI_BUFFER_TOO_SMALL) {
-		efi_printk(sys_table_arg, "Failed to get file info size\n");
+		efi_printk("Failed to get file info size\n");
 		return status;
 	}
 
@@ -391,7 +391,7 @@ grow:
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
 				info_sz, (void **)&info);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table_arg, "Failed to alloc mem for file info\n");
+		efi_printk("Failed to alloc mem for file info\n");
 		return status;
 	}
 
@@ -405,7 +405,7 @@ grow:
 	efi_call_early(free_pool, info);
 
 	if (status != EFI_SUCCESS)
-		efi_printk(sys_table_arg, "Failed to get initrd info\n");
+		efi_printk("Failed to get initrd info\n");
 
 	return status;
 }
@@ -434,13 +434,13 @@ static efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
 	status = efi_call_early(handle_protocol, handle,
 				&fs_proto, (void **)&io);
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table_arg, "Failed to handle fs_proto\n");
+		efi_printk("Failed to handle fs_proto\n");
 		return status;
 	}
 
 	status = io->open_volume(io, &fh);
 	if (status != EFI_SUCCESS)
-		efi_printk(sys_table_arg, "Failed to open volume\n");
+		efi_printk("Failed to open volume\n");
 	else
 		*__fh = fh;
 
@@ -569,7 +569,7 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
 				nr_files * sizeof(*files), (void **)&files);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err(sys_table_arg, "Failed to alloc mem for file handle list\n");
+		pr_efi_err("Failed to alloc mem for file handle list\n");
 		goto fail;
 	}
 
@@ -632,13 +632,13 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 		status = efi_high_alloc(sys_table_arg, file_size_total, 0x1000,
 				    &file_addr, max_addr);
 		if (status != EFI_SUCCESS) {
-			pr_efi_err(sys_table_arg, "Failed to alloc highmem for files\n");
+			pr_efi_err("Failed to alloc highmem for files\n");
 			goto close_handles;
 		}
 
 		/* We've run out of free low memory. */
 		if (file_addr > max_addr) {
-			pr_efi_err(sys_table_arg, "We've run out of free low memory\n");
+			pr_efi_err("We've run out of free low memory\n");
 			status = EFI_INVALID_PARAMETER;
 			goto free_file_total;
 		}
@@ -660,7 +660,7 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 						       &chunksize,
 						       (void *)addr);
 				if (status != EFI_SUCCESS) {
-					pr_efi_err(sys_table_arg, "Failed to read file\n");
+					pr_efi_err("Failed to read file\n");
 					goto free_file_total;
 				}
 				addr += chunksize;
@@ -746,7 +746,7 @@ efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
 					     alignment, &new_addr, min_addr);
 	}
 	if (status != EFI_SUCCESS) {
-		pr_efi_err(sys_table_arg, "Failed to allocate usable memory for kernel.\n");
+		pr_efi_err("Failed to allocate usable memory for kernel.\n");
 		return status;
 	}
 
@@ -956,7 +956,7 @@ void *get_efi_config_table(efi_system_table_t *sys_table, efi_guid_t guid)
 	return NULL;
 }
 
-void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
+void efi_char16_printk(efi_char16_t *str)
 {
 	efi_call_proto(efi_simple_text_output_protocol,
 		       output_string,

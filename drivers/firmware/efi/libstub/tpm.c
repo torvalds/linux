@@ -131,8 +131,7 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
 				(void **) &log_tbl);
 
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table_arg,
-			   "Unable to allocate memory for event log\n");
+		efi_printk("Unable to allocate memory for event log\n");
 		return;
 	}
 

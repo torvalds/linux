@@ -31,13 +31,14 @@ extern int __pure novamap(void);
 
 extern __pure efi_system_table_t  *efi_system_table(void);
 
-#define pr_efi(sys_table, msg)		do {				\
-	if (!is_quiet()) efi_printk(sys_table, "EFI stub: "msg);	\
+#define pr_efi(msg)		do {			\
+	if (!is_quiet()) efi_printk("EFI stub: "msg);	\
 } while (0)
 
-#define pr_efi_err(sys_table, msg) efi_printk(sys_table, "EFI stub: ERROR: "msg)
+#define pr_efi_err(msg) efi_printk("EFI stub: ERROR: "msg)
 
-void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
+void efi_char16_printk(efi_char16_t *);
+void efi_char16_printk(efi_char16_t *);
 
 unsigned long get_dram_base(efi_system_table_t *sys_table_arg);
 

@@ -18,7 +18,7 @@ efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
 	/* LPAE kernels need compatible hardware */
 	block = cpuid_feature_extract(CPUID_EXT_MMFR0, 0);
 	if (block < 5) {
-		pr_efi_err(sys_table_arg, "This LPAE kernel is not supported by your CPU\n");
+		pr_efi_err("This LPAE kernel is not supported by your CPU\n");
 		return EFI_UNSUPPORTED;
 	}
 	return EFI_SUCCESS;
@@ -121,8 +121,7 @@ static efi_status_t reserve_kernel_base(efi_system_table_t *sys_table_arg,
 	 */
 	status = efi_get_memory_map(sys_table_arg, &map);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err(sys_table_arg,
-			   "reserve_kernel_base(): Unable to retrieve memory map.\n");
+		pr_efi_err("reserve_kernel_base(): Unable to retrieve memory map.\n");
 		return status;
 	}
 
@@ -164,8 +163,7 @@ static efi_status_t reserve_kernel_base(efi_system_table_t *sys_table_arg,
 						(end - start) / EFI_PAGE_SIZE,
 						&start);
 			if (status != EFI_SUCCESS) {
-				pr_efi_err(sys_table_arg,
-					"reserve_kernel_base(): alloc failed.\n");
+				pr_efi_err("reserve_kernel_base(): alloc failed.\n");
 				goto out;
 			}
 			break;
@@ -224,7 +222,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
 	status = reserve_kernel_base(sys_table, kernel_base, reserve_addr,
 				     reserve_size);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err(sys_table, "Unable to allocate memory for uncompressed kernel.\n");
+		pr_efi_err("Unable to allocate memory for uncompressed kernel.\n");
 		return status;
 	}
 
@@ -237,7 +235,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
 				     *image_size,
 				     kernel_base + MAX_UNCOMP_KERNEL_SIZE, 0, 0);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err(sys_table, "Failed to relocate kernel.\n");
+		pr_efi_err("Failed to relocate kernel.\n");
 		efi_free(sys_table, *reserve_size, *reserve_addr);
 		*reserve_size = 0;
 		return status;
@@ -249,7 +247,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
 	 * address at which the zImage is loaded.
 	 */
 	if (*image_addr + *image_size > dram_base + ZIMAGE_OFFSET_LIMIT) {
-		pr_efi_err(sys_table, "Failed to relocate kernel, no low memory available.\n");
+		pr_efi_err("Failed to relocate kernel, no low memory available.\n");
 		efi_free(sys_table, *reserve_size, *reserve_addr);
 		*reserve_size = 0;
 		efi_free(sys_table, *image_size, *image_addr);

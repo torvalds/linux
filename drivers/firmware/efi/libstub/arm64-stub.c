@@ -32,9 +32,9 @@ efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
 	tg = (read_cpuid(ID_AA64MMFR0_EL1) >> ID_AA64MMFR0_TGRAN_SHIFT) & 0xf;
 	if (tg != ID_AA64MMFR0_TGRAN_SUPPORTED) {
 		if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
-			pr_efi_err(sys_table_arg, "This 64 KB granular kernel is not supported by your CPU\n");
+			pr_efi_err("This 64 KB granular kernel is not supported by your CPU\n");
 		else
-			pr_efi_err(sys_table_arg, "This 16 KB granular kernel is not supported by your CPU\n");
+			pr_efi_err("This 16 KB granular kernel is not supported by your CPU\n");
 		return EFI_UNSUPPORTED;
 	}
 	return EFI_SUCCESS;
@@ -60,13 +60,13 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 						      sizeof(phys_seed),
 						      (u8 *)&phys_seed);
 			if (status == EFI_NOT_FOUND) {
-				pr_efi(sys_table_arg, "EFI_RNG_PROTOCOL unavailable, no randomness supplied\n");
+				pr_efi("EFI_RNG_PROTOCOL unavailable, no randomness supplied\n");
 			} else if (status != EFI_SUCCESS) {
-				pr_efi_err(sys_table_arg, "efi_get_random_bytes() failed\n");
+				pr_efi_err("efi_get_random_bytes() failed\n");
 				return status;
 			}
 		} else {
-			pr_efi(sys_table_arg, "KASLR disabled on kernel command line\n");
+			pr_efi("KASLR disabled on kernel command line\n");
 		}
 	}
 
@@ -143,7 +143,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 				       MIN_KIMG_ALIGN, reserve_addr);
 
 		if (status != EFI_SUCCESS) {
-			pr_efi_err(sys_table_arg, "Failed to relocate kernel\n");
+			pr_efi_err("Failed to relocate kernel\n");
 			*reserve_size = 0;
 			return status;
 		}
