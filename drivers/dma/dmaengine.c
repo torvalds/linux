@@ -427,15 +427,15 @@ static void dma_chan_put(struct dma_chan *chan)
 		chan->device->device_free_chan_resources(chan);
 	}
 
-	dma_device_put(chan->device);
-	module_put(dma_chan_to_owner(chan));
-
 	/* If the channel is used via a DMA request router, free the mapping */
 	if (chan->router && chan->router->route_free) {
 		chan->router->route_free(chan->router->dev, chan->route_data);
 		chan->router = NULL;
 		chan->route_data = NULL;
 	}
+
+	dma_device_put(chan->device);
+	module_put(dma_chan_to_owner(chan));
 }
 
 enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
