@@ -346,6 +346,9 @@ fail:
 }
 
 void efi_free(unsigned long size, unsigned long addr)
+	__weak __alias(efi_free_native);
+
+void efi_free_native(unsigned long size, unsigned long addr)
 {
 	unsigned long nr_pages;
 
@@ -353,7 +356,7 @@ void efi_free(unsigned long size, unsigned long addr)
 		return;
 
 	nr_pages = round_up(size, EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
-	efi_call_early(free_pages, addr, nr_pages);
+	efi_system_table()->boottime->free_pages(addr, nr_pages);
 }
 
 static efi_status_t efi_file_size(void *__fh, efi_char16_t *filename_16,
