@@ -1415,69 +1415,69 @@ struct efi_simple_text_output_protocol {
 #define PIXEL_BLT_ONLY					3
 #define PIXEL_FORMAT_MAX				4
 
-struct efi_pixel_bitmask {
+typedef struct {
 	u32 red_mask;
 	u32 green_mask;
 	u32 blue_mask;
 	u32 reserved_mask;
-};
+} efi_pixel_bitmask_t;
 
-struct efi_graphics_output_mode_info {
+typedef struct {
 	u32 version;
 	u32 horizontal_resolution;
 	u32 vertical_resolution;
 	int pixel_format;
-	struct efi_pixel_bitmask pixel_information;
+	efi_pixel_bitmask_t pixel_information;
 	u32 pixels_per_scan_line;
-};
+} efi_graphics_output_mode_info_t;
 
-struct efi_graphics_output_protocol_mode_32 {
+typedef struct {
 	u32 max_mode;
 	u32 mode;
 	u32 info;
 	u32 size_of_info;
 	u64 frame_buffer_base;
 	u32 frame_buffer_size;
-};
+} efi_graphics_output_protocol_mode_32_t;
 
-struct efi_graphics_output_protocol_mode_64 {
+typedef struct {
 	u32 max_mode;
 	u32 mode;
 	u64 info;
 	u64 size_of_info;
 	u64 frame_buffer_base;
 	u64 frame_buffer_size;
-};
+} efi_graphics_output_protocol_mode_64_t;
 
-struct efi_graphics_output_protocol_mode {
+typedef struct {
 	u32 max_mode;
 	u32 mode;
-	unsigned long info;
+	efi_graphics_output_mode_info_t *info;
 	unsigned long size_of_info;
-	u64 frame_buffer_base;
+	efi_physical_addr_t frame_buffer_base;
 	unsigned long frame_buffer_size;
-};
+} efi_graphics_output_protocol_mode_t;
 
-struct efi_graphics_output_protocol_32 {
+typedef struct {
 	u32 query_mode;
 	u32 set_mode;
 	u32 blt;
 	u32 mode;
-};
+} efi_graphics_output_protocol_32_t;
 
-struct efi_graphics_output_protocol_64 {
+typedef struct {
 	u64 query_mode;
 	u64 set_mode;
 	u64 blt;
 	u64 mode;
-};
+} efi_graphics_output_protocol_64_t;
 
-struct efi_graphics_output_protocol {
-	unsigned long query_mode;
-	unsigned long set_mode;
-	unsigned long blt;
-	struct efi_graphics_output_protocol_mode *mode;
-};
+typedef struct {
+	void *query_mode;
+	void *set_mode;
+	void *blt;
+	efi_graphics_output_protocol_mode_t *mode;
+} efi_graphics_output_protocol_t;
 
 extern struct list_head efivar_sysfs_list;
 
