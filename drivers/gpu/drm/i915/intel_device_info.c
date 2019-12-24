@@ -519,7 +519,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
+static void bdw_sseu_info_init(struct drm_i915_private *dev_priv)
 {
 	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	int s, ss;
@@ -1025,7 +1025,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	else if (IS_CHERRYVIEW(dev_priv))
 		cherryview_sseu_info_init(dev_priv);
 	else if (IS_BROADWELL(dev_priv))
-		broadwell_sseu_info_init(dev_priv);
+		bdw_sseu_info_init(dev_priv);
 	else if (IS_GEN(dev_priv, 9))
 		gen9_sseu_info_init(dev_priv);
 	else if (IS_GEN(dev_priv, 10))

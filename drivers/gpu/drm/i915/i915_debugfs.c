@@ -3819,8 +3819,8 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 #undef SS_MAX
 }
 
-static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
-					 struct sseu_dev_info *sseu)
+static void bdw_sseu_device_status(struct drm_i915_private *dev_priv,
+				   struct sseu_dev_info *sseu)
 {
 	const struct intel_runtime_info *info = RUNTIME_INFO(dev_priv);
 	u32 slice_info = I915_READ(GEN8_GT_SLICE_INFO);
@@ -3905,7 +3905,7 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		if (IS_CHERRYVIEW(dev_priv))
 			cherryview_sseu_device_status(dev_priv, &sseu);
 		else if (IS_BROADWELL(dev_priv))
-			broadwell_sseu_device_status(dev_priv, &sseu);
+			bdw_sseu_device_status(dev_priv, &sseu);
 		else if (IS_GEN(dev_priv, 9))
 			gen9_sseu_device_status(dev_priv, &sseu);
 		else if (INTEL_GEN(dev_priv) >= 10)

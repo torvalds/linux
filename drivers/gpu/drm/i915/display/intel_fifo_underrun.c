@@ -180,8 +180,8 @@ static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
 	}
 }
 
-static void broadwell_set_fifo_underrun_reporting(struct drm_device *dev,
-						  enum pipe pipe, bool enable)
+static void bdw_set_fifo_underrun_reporting(struct drm_device *dev,
+					    enum pipe pipe, bool enable)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -268,7 +268,7 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 	else if (IS_GEN(dev_priv, 7))
 		ivybridge_set_fifo_underrun_reporting(dev, pipe, enable, old);
 	else if (INTEL_GEN(dev_priv) >= 8)
-		broadwell_set_fifo_underrun_reporting(dev, pipe, enable);
+		bdw_set_fifo_underrun_reporting(dev, pipe, enable);
 
 	return old;
 }
