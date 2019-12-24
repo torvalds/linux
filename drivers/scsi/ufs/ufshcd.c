@@ -2218,6 +2218,7 @@ static void ufshcd_prepare_req_desc_hdr(struct ufshcd_lrb *lrbp,
 static
 void ufshcd_prepare_utp_scsi_cmd_upiu(struct ufshcd_lrb *lrbp, u32 upiu_flags)
 {
+	struct scsi_cmnd *cmd = lrbp->cmd;
 	struct utp_upiu_req *ucd_req_ptr = lrbp->ucd_req_ptr;
 	unsigned short cdb_len;
 
@@ -2231,12 +2232,11 @@ void ufshcd_prepare_utp_scsi_cmd_upiu(struct ufshcd_lrb *lrbp, u32 upiu_flags)
 	/* Total EHS length and Data segment length will be zero */
 	ucd_req_ptr->header.dword_2 = 0;
 
-	ucd_req_ptr->sc.exp_data_transfer_len =
-		cpu_to_be32(lrbp->cmd->sdb.length);
+	ucd_req_ptr->sc.exp_data_transfer_len = cpu_to_be32(cmd->sdb.length);
 
-	cdb_len = min_t(unsigned short, lrbp->cmd->cmd_len, UFS_CDB_SIZE);
+	cdb_len = min_t(unsigned short, cmd->cmd_len, UFS_CDB_SIZE);
 	memset(ucd_req_ptr->sc.cdb, 0, UFS_CDB_SIZE);
-	memcpy(ucd_req_ptr->sc.cdb, lrbp->cmd->cmnd, cdb_len);
+	memcpy(ucd_req_ptr->sc.cdb, cmd->cmnd, cdb_len);
 
 	memset(lrbp->ucd_rsp_ptr, 0, sizeof(struct utp_upiu_rsp));
 }
