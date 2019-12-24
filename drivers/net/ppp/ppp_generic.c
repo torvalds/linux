@@ -296,8 +296,6 @@ static struct class *ppp_class;
 /* per net-namespace data */
 static inline struct ppp_net *ppp_pernet(struct net *net)
 {
-	BUG_ON(!net);
-
 	return net_generic(net, ppp_net_id);
 }
 
