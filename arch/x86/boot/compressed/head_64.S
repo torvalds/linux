@@ -459,15 +459,6 @@ SYM_FUNC_START(efi_pe_entry)
 	leaq	efi64_config(%rip), %rax
 	movq	%rax, efi_config(%rip)
 
-	call	1f
-1:	popq	%rbp
-	subq	$1b, %rbp
-
-	/*
-	 * Relocate efi_config->call().
-	 */
-	addq	%rbp, efi64_config+40(%rip)
-
 	movq	%rax, %rdi
 	call	make_boot_params
 	cmpq	$0,%rax
@@ -475,20 +466,10 @@ SYM_FUNC_START(efi_pe_entry)
 	mov	%rax, %rsi
 	leaq	startup_32(%rip), %rax
 	movl	%eax, BP_code32_start(%rsi)
-	jmp	2f		/* Skip the relocation */
 
 handover_entry:
-	call	1f
-1:	popq	%rbp
-	subq	$1b, %rbp
-
-	/*
-	 * Relocate efi_config->call().
-	 */
-	movq	efi_config(%rip), %rax
-	addq	%rbp, 40(%rax)
-2:
 	movq	efi_config(%rip), %rdi
+	and	$~0xf, %rsp			/* realign the stack */
 	call	efi_main
 	movq	%rax,%rsi
 	cmpq	$0,%rax
@@ -688,14 +669,12 @@ SYM_DATA_LOCAL(efi_config, .quad 0)
 #ifdef CONFIG_EFI_MIXED
 SYM_DATA_START(efi32_config)
 	.fill	5,8,0
-	.quad	efi64_thunk
 	.byte	0
 SYM_DATA_END(efi32_config)
 #endif
 
 SYM_DATA_START(efi64_config)
 	.fill	5,8,0
-	.quad	efi_call
 	.byte	1
 SYM_DATA_END(efi64_config)
 #endif /* CONFIG_EFI_STUB */

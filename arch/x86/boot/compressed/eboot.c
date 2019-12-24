@@ -44,7 +44,8 @@ BOOT_SERVICES(64);
 void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
 {
 	efi_call_proto(efi_simple_text_output_protocol, output_string,
-		       efi_early->text_output, str);
+		       ((efi_simple_text_output_protocol_t *)(unsigned long)
+				efi_early->text_output), str);
 }
 
 static efi_status_t

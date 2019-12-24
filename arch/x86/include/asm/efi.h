@@ -152,6 +152,7 @@ struct efi_setup_data {
 extern u64 efi_setup;
 
 #ifdef CONFIG_EFI
+extern efi_status_t efi64_thunk(u32, ...);
 
 static inline bool efi_is_mixed(void)
 {
@@ -205,7 +206,6 @@ struct efi_config {
 	u64 runtime_services;
 	u64 boot_services;
 	u64 text_output;
-	efi_status_t (*call)(unsigned long, ...);
 	bool is64;
 } __packed;
 
@@ -235,30 +235,36 @@ static inline bool efi_is_native(void)
 			(unsigned long)(attr), (attr))
 
 #define efi_table_attr(table, attr, instance) ({			\
-	__typeof__(((table##_t *)0)->attr) __ret;			\
+	__typeof__(instance->attr) __ret;				\
 	if (efi_is_native()) {						\
-		__ret = ((table##_t *)(unsigned long)instance)->attr;	\
+		__ret = instance->attr;					\
 	} else {							\
-		__ret = (__typeof__(__ret))efi_mixed_mode_cast(		\
-		((table##_t *)(unsigned long)instance)->mixed_mode.attr);\
+		__ret = (__typeof__(__ret))				\
+			efi_mixed_mode_cast(instance->mixed_mode.attr);	\
 	}								\
 	__ret;								\
 })
 
 #define efi_call_proto(protocol, f, instance, ...)			\
-	__efi_early()->call((unsigned long)				\
-				efi_table_attr(protocol, f, instance),	\
-		instance, ##__VA_ARGS__)
+	(efi_is_native()						\
+		? instance->f(instance, ##__VA_ARGS__)			\
+		: efi64_thunk(instance->mixed_mode.f, instance,	##__VA_ARGS__))
 
 #define efi_call_early(f, ...)						\
-	__efi_early()->call((unsigned long)				\
-				efi_table_attr(efi_boot_services, f,	\
-		__efi_early()->boot_services), __VA_ARGS__)
+	(efi_is_native()						\
+		? ((efi_boot_services_t *)(unsigned long)		\
+			__efi_early()->boot_services)->f(__VA_ARGS__)	\
+		: efi64_thunk(((efi_boot_services_t *)(unsigned long)	\
+			__efi_early()->boot_services)->mixed_mode.f,	\
+			__VA_ARGS__))
 
 #define efi_call_runtime(f, ...)					\
-	__efi_early()->call((unsigned long)				\
-				efi_table_attr(efi_runtime_services, f,	\
-		__efi_early()->runtime_services), __VA_ARGS__)
+	(efi_is_native()						\
+		? ((efi_runtime_services_t *)(unsigned long)		\
+			__efi_early()->runtime_services)->f(__VA_ARGS__)\
+		: efi64_thunk(((efi_runtime_services_t *)(unsigned long)\
+			__efi_early()->runtime_services)->mixed_mode.f,	\
+			__VA_ARGS__))
 
 extern bool efi_reboot_required(void);
 extern bool efi_is_table_address(unsigned long phys_addr);

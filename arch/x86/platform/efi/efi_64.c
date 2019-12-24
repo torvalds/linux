@@ -635,8 +635,6 @@ void efi_switch_mm(struct mm_struct *mm)
 }
 
 #ifdef CONFIG_EFI_MIXED
-extern efi_status_t efi64_thunk(u32, ...);
-
 static DEFINE_SPINLOCK(efi_runtime_lock);
 
 #define runtime_service32(func)						 \
