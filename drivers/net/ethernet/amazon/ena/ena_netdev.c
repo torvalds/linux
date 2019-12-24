@@ -313,7 +313,6 @@ static int ena_xdp_xmit_buff(struct net_device *dev,
 	struct ena_com_tx_ctx ena_tx_ctx = {0};
 	struct ena_tx_buffer *tx_info;
 	struct ena_ring *xdp_ring;
-	struct ena_ring *rx_ring;
 	u16 next_to_use, req_id;
 	int rc;
 	void *push_hdr;
@@ -324,8 +323,6 @@ static int ena_xdp_xmit_buff(struct net_device *dev,
 	req_id = xdp_ring->free_ids[next_to_use];
 	tx_info = &xdp_ring->tx_buffer_info[req_id];
 	tx_info->num_of_bufs = 0;
-	rx_ring = &xdp_ring->adapter->rx_ring[qid -
-		  xdp_ring->adapter->xdp_first_ring];
 	page_ref_inc(rx_info->page);
 	tx_info->xdp_rx_page = rx_info->page;
 
