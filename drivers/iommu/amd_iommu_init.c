@@ -1718,7 +1718,7 @@ static const struct attribute_group *amd_iommu_groups[] = {
 static int __init iommu_init_pci(struct amd_iommu *iommu)
 {
 	int cap_ptr = iommu->cap_ptr;
-	u32 range, misc, low, high;
+	u32 low, high;
 	int ret;
 
 	iommu->dev = pci_get_domain_bus_and_slot(0, PCI_BUS_NUM(iommu->devid),
@@ -1731,10 +1731,6 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 
 	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_CAP_HDR_OFFSET,
 			      &iommu->cap);
-	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_RANGE_OFFSET,
-			      &range);
-	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_MISC_OFFSET,
-			      &misc);
 
 	if (!(iommu->cap & (1 << IOMMU_CAP_IOTLB)))
 		amd_iommu_iotlb_sup = false;
