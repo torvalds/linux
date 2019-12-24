@@ -27,24 +27,24 @@
  */
 #define EFI_READ_CHUNK_SIZE	(1024 * 1024)
 
-static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
+static unsigned long efi_chunk_size = EFI_READ_CHUNK_SIZE;
 
-static int __section(.data) __nokaslr;
-static int __section(.data) __quiet;
-static int __section(.data) __novamap;
-static bool __section(.data) efi_nosoftreserve;
+static bool __efistub_global efi_nokaslr;
+static bool __efistub_global efi_quiet;
+static bool __efistub_global efi_novamap;
+static bool __efistub_global efi_nosoftreserve;
 
-int __pure nokaslr(void)
+bool __pure nokaslr(void)
 {
-	return __nokaslr;
+	return efi_nokaslr;
 }
-int __pure is_quiet(void)
+bool __pure is_quiet(void)
 {
-	return __quiet;
+	return efi_quiet;
 }
-int __pure novamap(void)
+bool __pure novamap(void)
 {
-	return __novamap;
+	return efi_novamap;
 }
 bool __pure __efi_soft_reserve_enabled(void)
 {
@@ -455,11 +455,11 @@ efi_status_t efi_parse_options(char const *cmdline)
 
 	str = strstr(cmdline, "nokaslr");
 	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
-		__nokaslr = 1;
+		efi_nokaslr = true;
 
 	str = strstr(cmdline, "quiet");
 	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
-		__quiet = 1;
+		efi_quiet = true;
 
 	/*
 	 * If no EFI parameters were specified on the cmdline we've got
@@ -479,18 +479,18 @@ efi_status_t efi_parse_options(char const *cmdline)
 	while (*str && *str != ' ') {
 		if (!strncmp(str, "nochunk", 7)) {
 			str += strlen("nochunk");
-			__chunk_size = -1UL;
+			efi_chunk_size = -1UL;
 		}
 
 		if (!strncmp(str, "novamap", 7)) {
 			str += strlen("novamap");
-			__novamap = 1;
+			efi_novamap = true;
 		}
 
 		if (IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
 		    !strncmp(str, "nosoftreserve", 7)) {
 			str += strlen("nosoftreserve");
-			efi_nosoftreserve = 1;
+			efi_nosoftreserve = true;
 		}
 
 		/* Group words together, delimited by "," */
@@ -644,8 +644,8 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 			while (size) {
 				unsigned long chunksize;
 
-				if (IS_ENABLED(CONFIG_X86) && size > __chunk_size)
-					chunksize = __chunk_size;
+				if (IS_ENABLED(CONFIG_X86) && size > efi_chunk_size)
+					chunksize = efi_chunk_size;
 				else
 					chunksize = size;
 

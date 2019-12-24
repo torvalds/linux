@@ -25,9 +25,15 @@
 #define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
 #endif
 
-extern int __pure nokaslr(void);
-extern int __pure is_quiet(void);
-extern int __pure novamap(void);
+#ifdef CONFIG_ARM
+#define __efistub_global	__section(.data)
+#else
+#define __efistub_global
+#endif
+
+extern bool __pure nokaslr(void);
+extern bool __pure is_quiet(void);
+extern bool __pure novamap(void);
 
 extern __pure efi_system_table_t  *efi_system_table(void);
 

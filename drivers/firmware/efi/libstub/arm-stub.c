@@ -37,7 +37,7 @@
 
 static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
 
-static efi_system_table_t *__section(.data) sys_table;
+static efi_system_table_t *__efistub_global sys_table;
 
 __pure efi_system_table_t *efi_system_table(void)
 {
