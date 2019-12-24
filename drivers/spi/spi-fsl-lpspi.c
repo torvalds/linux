@@ -469,9 +469,9 @@ static int fsl_lpspi_setup_transfer(struct spi_controller *controller,
 		fsl_lpspi->watermark = fsl_lpspi->txfifosize;
 
 	if (fsl_lpspi_can_dma(controller, spi, t))
-		fsl_lpspi->usedma = 1;
+		fsl_lpspi->usedma = true;
 	else
-		fsl_lpspi->usedma = 0;
+		fsl_lpspi->usedma = false;
 
 	return fsl_lpspi_config(fsl_lpspi);
 }
