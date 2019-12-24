@@ -9,7 +9,7 @@
 
 #include "efistub.h"
 
-typedef struct efi_rng_protocol efi_rng_protocol_t;
+typedef union efi_rng_protocol efi_rng_protocol_t;
 
 typedef struct {
 	u32 get_info;
@@ -21,11 +21,17 @@ typedef struct {
 	u64 get_rng;
 } efi_rng_protocol_64_t;
 
-struct efi_rng_protocol {
-	efi_status_t (*get_info)(struct efi_rng_protocol *,
-				 unsigned long *, efi_guid_t *);
-	efi_status_t (*get_rng)(struct efi_rng_protocol *,
-				efi_guid_t *, unsigned long, u8 *out);
+union efi_rng_protocol {
+	struct {
+		efi_status_t (*get_info)(efi_rng_protocol_t *,
+					 unsigned long *, efi_guid_t *);
+		efi_status_t (*get_rng)(efi_rng_protocol_t *,
+					efi_guid_t *, unsigned long, u8 *out);
+	};
+	struct {
+		u32 get_info;
+		u32 get_rng;
+	} mixed_mode;
 };
 
 efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table_arg,
@@ -33,7 +39,7 @@ efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table_arg,
 {
 	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
 	efi_status_t status;
-	struct efi_rng_protocol *rng = NULL;
+	efi_rng_protocol_t *rng = NULL;
 
 	status = efi_call_early(locate_protocol, &rng_proto, NULL,
 				(void **)&rng);
@@ -162,7 +168,7 @@ efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg)
 	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
 	efi_guid_t rng_algo_raw = EFI_RNG_ALGORITHM_RAW;
 	efi_guid_t rng_table_guid = LINUX_EFI_RANDOM_SEED_TABLE_GUID;
-	struct efi_rng_protocol *rng = NULL;
+	efi_rng_protocol_t *rng = NULL;
 	struct linux_efi_random_seed *seed = NULL;
 	efi_status_t status;
 

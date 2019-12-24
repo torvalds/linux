@@ -40,9 +40,9 @@ static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
 void efi_char16_printk(efi_system_table_t *sys_table_arg,
 			      efi_char16_t *str)
 {
-	struct efi_simple_text_output_protocol *out;
+	efi_simple_text_output_protocol_t *out;
 
-	out = (struct efi_simple_text_output_protocol *)sys_table_arg->con_out;
+	out = (efi_simple_text_output_protocol_t *)sys_table_arg->con_out;
 	out->output_string(out, str);
 }
 

@@ -24,10 +24,17 @@ typedef struct {
 	u64 blt;
 } efi_uga_draw_protocol_64_t;
 
-typedef struct {
-	void *get_mode;
-	void *set_mode;
-	void *blt;
+typedef union {
+	struct {
+		void *get_mode;
+		void *set_mode;
+		void *blt;
+	};
+	struct {
+		u32 get_mode;
+		u32 set_mode;
+		u32 blt;
+	} mixed_mode;
 } efi_uga_draw_protocol_t;
 
 #endif /* BOOT_COMPRESSED_EBOOT_H */
