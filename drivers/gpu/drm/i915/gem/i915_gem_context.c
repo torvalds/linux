@@ -760,12 +760,6 @@ void i915_gem_driver_release__contexts(struct drm_i915_private *i915)
 	flush_work(&i915->gem.contexts.free_work);
 }
 
-static int context_idr_cleanup(int id, void *p, void *data)
-{
-	context_close(p);
-	return 0;
-}
-
 static int vm_idr_cleanup(int id, void *p, void *data)
 {
 	i915_vm_put(p);
@@ -773,7 +767,8 @@ static int vm_idr_cleanup(int id, void *p, void *data)
 }
 
 static int gem_context_register(struct i915_gem_context *ctx,
-				struct drm_i915_file_private *fpriv)
+				struct drm_i915_file_private *fpriv,
+				u32 *id)
 {
 	struct i915_address_space *vm;
 	int ret;
@@ -791,14 +786,10 @@ static int gem_context_register(struct i915_gem_context *ctx,
 		 current->comm, pid_nr(ctx->pid));
 
 	/* And finally expose ourselves to userspace via the idr */
-	mutex_lock(&fpriv->context_idr_lock);
-	ret = idr_alloc(&fpriv->context_idr, ctx, 0, 0, GFP_KERNEL);
-	mutex_unlock(&fpriv->context_idr_lock);
-	if (ret >= 0)
-		goto out;
+	ret = xa_alloc(&fpriv->context_xa, id, ctx, xa_limit_32b, GFP_KERNEL);
+	if (ret)
+		put_pid(fetch_and_zero(&ctx->pid));
 
-	put_pid(fetch_and_zero(&ctx->pid));
-out:
 	return ret;
 }
 
@@ -808,11 +799,11 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct i915_gem_context *ctx;
 	int err;
+	u32 id;
 
-	mutex_init(&file_priv->context_idr_lock);
+	xa_init_flags(&file_priv->context_xa, XA_FLAGS_ALLOC);
+
 	mutex_init(&file_priv->vm_idr_lock);
-
-	idr_init(&file_priv->context_idr);
 	idr_init_base(&file_priv->vm_idr, 1);
 
 	ctx = i915_gem_create_context(i915, 0);
@@ -821,21 +812,19 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 		goto err;
 	}
 
-	err = gem_context_register(ctx, file_priv);
+	err = gem_context_register(ctx, file_priv, &id);
 	if (err < 0)
 		goto err_ctx;
 
-	GEM_BUG_ON(err > 0);
-
+	GEM_BUG_ON(id);
 	return 0;
 
 err_ctx:
 	context_close(ctx);
 err:
 	idr_destroy(&file_priv->vm_idr);
-	idr_destroy(&file_priv->context_idr);
+	xa_destroy(&file_priv->context_xa);
 	mutex_destroy(&file_priv->vm_idr_lock);
-	mutex_destroy(&file_priv->context_idr_lock);
 	return err;
 }
 
@@ -843,10 +832,12 @@ void i915_gem_context_close(struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct drm_i915_private *i915 = file_priv->dev_priv;
+	struct i915_gem_context *ctx;
+	unsigned long idx;
 
-	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
-	idr_destroy(&file_priv->context_idr);
-	mutex_destroy(&file_priv->context_idr_lock);
+	xa_for_each(&file_priv->context_xa, idx, ctx)
+		context_close(ctx);
+	xa_destroy(&file_priv->context_xa);
 
 	idr_for_each(&file_priv->vm_idr, vm_idr_cleanup, NULL);
 	idr_destroy(&file_priv->vm_idr);
@@ -2187,6 +2178,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_context_create_ext *args = data;
 	struct create_ext ext_data;
 	int ret;
+	u32 id;
 
 	if (!DRIVER_CAPS(i915)->has_logical_contexts)
 		return -ENODEV;
@@ -2218,11 +2210,11 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 			goto err_ctx;
 	}
 
-	ret = gem_context_register(ext_data.ctx, ext_data.fpriv);
+	ret = gem_context_register(ext_data.ctx, ext_data.fpriv, &id);
 	if (ret < 0)
 		goto err_ctx;
 
-	args->ctx_id = ret;
+	args->ctx_id = id;
 	DRM_DEBUG("HW context %d created\n", args->ctx_id);
 
 	return 0;
@@ -2245,11 +2237,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	if (!args->ctx_id)
 		return -ENOENT;
 
-	if (mutex_lock_interruptible(&file_priv->context_idr_lock))
-		return -EINTR;
-
-	ctx = idr_remove(&file_priv->context_idr, args->ctx_id);
-	mutex_unlock(&file_priv->context_idr_lock);
+	ctx = xa_erase(&file_priv->context_xa, args->ctx_id);
 	if (!ctx)
 		return -ENOENT;
 

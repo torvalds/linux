@@ -77,12 +77,13 @@ live_context(struct drm_i915_private *i915, struct file *file)
 {
 	struct i915_gem_context *ctx;
 	int err;
+	u32 id;
 
 	ctx = i915_gem_create_context(i915, 0);
 	if (IS_ERR(ctx))
 		return ctx;
 
-	err = gem_context_register(ctx, to_drm_file(file)->driver_priv);
+	err = gem_context_register(ctx, to_drm_file(file)->driver_priv, &id);
 	if (err < 0)
 		goto err_ctx;
 
