@@ -233,7 +233,7 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
 		   L3_1_UC)
 
-static const struct drm_i915_mocs_entry tigerlake_mocs_table[] = {
+static const struct drm_i915_mocs_entry tgl_mocs_table[] = {
 	/* Base - Error (Reserved for Non-Use) */
 	MOCS_ENTRY(0, 0x0, 0x0),
 	/* Base - Reserved */
@@ -284,8 +284,8 @@ static bool get_mocs_settings(const struct drm_i915_private *i915,
 			      struct drm_i915_mocs_table *table)
 {
 	if (INTEL_GEN(i915) >= 12) {
-		table->size  = ARRAY_SIZE(tigerlake_mocs_table);
-		table->table = tigerlake_mocs_table;
+		table->size  = ARRAY_SIZE(tgl_mocs_table);
+		table->table = tgl_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
 	} else if (IS_GEN(i915, 11)) {
 		table->size  = ARRAY_SIZE(icl_mocs_table);
