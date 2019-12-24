@@ -342,6 +342,11 @@ properties:
           - const: libretech,all-h3-cc-h5
           - const: allwinner,sun50i-h5
 
+      - description: Libre Computer Board ALL-H3-IT H5
+        items:
+          - const: libretech,all-h3-it-h5
+          - const: allwinner,sun50i-h5
+
       - description: Lichee Pi One
         items:
           - const: licheepi,licheepi-one
