@@ -69,7 +69,7 @@ void mt7615_mac_set_timing(struct mt7615_phy *phy)
 	s16 coverage_class = phy->coverage_class;
 	struct mt7615_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
-	u32 val, reg_offset, reg = ext_phy ? MT_TMAC_ICR1 : MT_TMAC_ICR0;
+	u32 val, reg_offset;
 	u32 cck = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 231) |
 		  FIELD_PREP(MT_TIMEOUT_VAL_CCA, 48);
 	u32 ofdm = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 60) |
@@ -103,7 +103,7 @@ void mt7615_mac_set_timing(struct mt7615_phy *phy)
 	mt76_wr(dev, MT_TMAC_CDTR, cck + reg_offset);
 	mt76_wr(dev, MT_TMAC_ODTR, ofdm + reg_offset);
 
-	mt76_wr(dev, reg,
+	mt76_wr(dev, MT_TMAC_ICR(ext_phy),
 		FIELD_PREP(MT_IFS_EIFS, 360) |
 		FIELD_PREP(MT_IFS_RIFS, 2) |
 		FIELD_PREP(MT_IFS_SIFS, sifs) |
@@ -114,15 +114,14 @@ void mt7615_mac_set_timing(struct mt7615_phy *phy)
 	else
 		val = MT7615_CFEND_RATE_11B;
 
-	if (ext_phy) {
-		mt76_rmw_field(dev, MT_AGG_ACR1, MT_AGG_ACR_CFEND_RATE, val);
+	mt76_rmw_field(dev, MT_AGG_ACR(ext_phy), MT_AGG_ACR_CFEND_RATE, val);
+	if (ext_phy)
 		mt76_clear(dev, MT_ARB_SCR,
 			   MT_ARB_SCR_TX1_DISABLE | MT_ARB_SCR_RX1_DISABLE);
-	} else {
-		mt76_rmw_field(dev, MT_AGG_ACR0, MT_AGG_ACR_CFEND_RATE, val);
+	else
 		mt76_clear(dev, MT_ARB_SCR,
 			   MT_ARB_SCR_TX0_DISABLE | MT_ARB_SCR_RX0_DISABLE);
-	}
+
 }
 
 int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
@@ -1322,21 +1321,12 @@ mt7615_mac_set_default_sensitivity(struct mt7615_phy *phy)
 	struct mt7615_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
 
-	if (!ext_phy) {
-		mt76_rmw(dev, MT_WF_PHY_B0_MIN_PRI_PWR,
-			 MT_WF_PHY_B0_PD_OFDM_MASK,
-			 MT_WF_PHY_B0_PD_OFDM(0x13c));
-		mt76_rmw(dev, MT_WF_PHY_B0_RXTD_CCK_PD,
-			 MT_WF_PHY_B0_PD_CCK_MASK,
-			 MT_WF_PHY_B0_PD_CCK(0x92));
-	} else {
-		mt76_rmw(dev, MT_WF_PHY_B1_MIN_PRI_PWR,
-			 MT_WF_PHY_B1_PD_OFDM_MASK,
-			 MT_WF_PHY_B1_PD_OFDM(0x13c));
-		mt76_rmw(dev, MT_WF_PHY_B1_RXTD_CCK_PD,
-			 MT_WF_PHY_B1_PD_CCK_MASK,
-			 MT_WF_PHY_B1_PD_CCK(0x92));
-	}
+	mt76_rmw(dev, MT_WF_PHY_MIN_PRI_PWR(ext_phy),
+		 MT_WF_PHY_PD_OFDM_MASK(ext_phy),
+		 MT_WF_PHY_PD_OFDM(ext_phy, 0x13c));
+	mt76_rmw(dev, MT_WF_PHY_RXTD_CCK_PD(ext_phy),
+		 MT_WF_PHY_PD_CCK_MASK(ext_phy),
+		 MT_WF_PHY_PD_CCK(ext_phy, 0x92));
 
 	phy->ofdm_sensitivity = -98;
 	phy->cck_sensitivity = -110;
@@ -1353,19 +1343,19 @@ void mt7615_mac_set_scs(struct mt7615_dev *dev, bool enable)
 		goto out;
 
 	if (enable) {
-		mt76_set(dev, MT_WF_PHY_B0_MIN_PRI_PWR,
-			 MT_WF_PHY_B0_PD_BLK);
-		mt76_set(dev, MT_WF_PHY_B1_MIN_PRI_PWR,
-			 MT_WF_PHY_B1_PD_BLK);
+		mt76_set(dev, MT_WF_PHY_MIN_PRI_PWR(0),
+			 MT_WF_PHY_PD_BLK(0));
+		mt76_set(dev, MT_WF_PHY_MIN_PRI_PWR(1),
+			 MT_WF_PHY_PD_BLK(1));
 		if (is_mt7622(&dev->mt76)) {
 			mt76_set(dev, MT_MIB_M0_MISC_CR, 0x7 << 8);
 			mt76_set(dev, MT_MIB_M0_MISC_CR, 0x7);
 		}
 	} else {
-		mt76_clear(dev, MT_WF_PHY_B0_MIN_PRI_PWR,
-			   MT_WF_PHY_B0_PD_BLK);
-		mt76_clear(dev, MT_WF_PHY_B1_MIN_PRI_PWR,
-			   MT_WF_PHY_B1_PD_BLK);
+		mt76_clear(dev, MT_WF_PHY_MIN_PRI_PWR(0),
+			   MT_WF_PHY_PD_BLK(0));
+		mt76_clear(dev, MT_WF_PHY_MIN_PRI_PWR(1),
+			   MT_WF_PHY_PD_BLK(1));
 	}
 
 	mt7615_mac_set_default_sensitivity(&dev->phy);
@@ -1453,24 +1443,15 @@ mt7615_mac_adjust_sensitivity(struct mt7615_phy *phy,
 
 		if (ofdm) {
 			val = *sensitivity * 2 + 512;
-			if (!ext_phy)
-				mt76_rmw(dev, MT_WF_PHY_B0_MIN_PRI_PWR,
-					 MT_WF_PHY_B0_PD_OFDM_MASK,
-					 MT_WF_PHY_B0_PD_OFDM(val));
-			else
-				mt76_rmw(dev, MT_WF_PHY_B1_MIN_PRI_PWR,
-					 MT_WF_PHY_B1_PD_OFDM_MASK,
-					 MT_WF_PHY_B1_PD_OFDM(val));
+			mt76_rmw(dev, MT_WF_PHY_MIN_PRI_PWR(ext_phy),
+				 MT_WF_PHY_PD_OFDM_MASK(ext_phy),
+				 MT_WF_PHY_PD_OFDM(ext_phy, val));
 		} else {
 			val = *sensitivity + 256;
 			if (!ext_phy)
-				mt76_rmw(dev, MT_WF_PHY_B0_RXTD_CCK_PD,
-					 MT_WF_PHY_B0_PD_CCK_MASK,
-					 MT_WF_PHY_B0_PD_CCK(val));
-			else
-				mt76_rmw(dev, MT_WF_PHY_B1_RXTD_CCK_PD,
-					 MT_WF_PHY_B1_PD_CCK_MASK,
-					 MT_WF_PHY_B1_PD_CCK(val));
+			mt76_rmw(dev, MT_WF_PHY_RXTD_CCK_PD(ext_phy),
+				 MT_WF_PHY_PD_CCK_MASK(ext_phy),
+				 MT_WF_PHY_PD_CCK(ext_phy, val));
 		}
 		phy->last_cca_adj = jiffies;
 	}
