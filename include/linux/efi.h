@@ -49,11 +49,11 @@ typedef u64 efi_physical_addr_t;
 typedef void *efi_handle_t;
 
 #define efi_get_handle_at(array, idx)					\
-	(efi_is_64bit() ? (efi_handle_t)(unsigned long)((u64 *)(array))[idx] \
+	(efi_is_native() ? (array)[idx] 				\
 		: (efi_handle_t)(unsigned long)((u32 *)(array))[idx])
 
 #define efi_get_handle_num(size)					\
-	((size) / (efi_is_64bit() ? sizeof(u64) : sizeof(u32)))
+	((size) / (efi_is_native() ? sizeof(efi_handle_t) : sizeof(u32)))
 
 #define for_each_efi_handle(handle, array, size, i)			\
 	for (i = 0;							\
@@ -805,7 +805,7 @@ typedef struct {
 typedef union {
 	struct {
 		efi_guid_t guid;
-		unsigned long table;
+		void *table;
 	};
 	efi_config_table_32_t mixed_mode;
 } efi_config_table_t;

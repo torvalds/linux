@@ -63,8 +63,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	 * large romsize. The UEFI spec limits the size of option ROMs to 16
 	 * MiB so we reject any ROMs over 16 MiB in size to catch this.
 	 */
-	romimage = (void *)(unsigned long)efi_table_attr(efi_pci_io_protocol,
-							 romimage, pci);
+	romimage = efi_table_attr(efi_pci_io_protocol, romimage, pci);
 	romsize = efi_table_attr(efi_pci_io_protocol, romsize, pci);
 	if (!romimage || !romsize || romsize > SZ_16M)
 		return EFI_INVALID_PARAMETER;

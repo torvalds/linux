@@ -52,7 +52,7 @@ void efi_virtmap_unload(void);
 
 #define efi_call_early(f, ...)		sys_table_arg->boottime->f(__VA_ARGS__)
 #define efi_call_runtime(f, ...)	sys_table_arg->runtime->f(__VA_ARGS__)
-#define efi_is_64bit()			(false)
+#define efi_is_native()			(true)
 
 #define efi_table_attr(table, attr, instance)				\
 	((table##_t *)instance)->attr

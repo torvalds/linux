@@ -222,21 +222,42 @@ static inline bool efi_is_64bit(void)
 	return __efi_early()->is64;
 }
 
-#define efi_table_attr(table, attr, instance)				\
-	(efi_is_64bit() ?						\
-		((table##_64_t *)(unsigned long)instance)->attr :	\
-		((table##_32_t *)(unsigned long)instance)->attr)
+static inline bool efi_is_native(void)
+{
+	if (!IS_ENABLED(CONFIG_X86_64))
+		return true;
+	return efi_is_64bit();
+}
+
+#define efi_mixed_mode_cast(attr)					\
+	__builtin_choose_expr(						\
+		__builtin_types_compatible_p(u32, __typeof__(attr)),	\
+			(unsigned long)(attr), (attr))
+
+#define efi_table_attr(table, attr, instance) ({			\
+	__typeof__(((table##_t *)0)->attr) __ret;			\
+	if (efi_is_native()) {						\
+		__ret = ((table##_t *)(unsigned long)instance)->attr;	\
+	} else {							\
+		__ret = (__typeof__(__ret))efi_mixed_mode_cast(		\
+		((table##_t *)(unsigned long)instance)->mixed_mode.attr);\
+	}								\
+	__ret;								\
+})
 
 #define efi_call_proto(protocol, f, instance, ...)			\
-	__efi_early()->call(efi_table_attr(protocol, f, instance),	\
+	__efi_early()->call((unsigned long)				\
+				efi_table_attr(protocol, f, instance),	\
 		instance, ##__VA_ARGS__)
 
 #define efi_call_early(f, ...)						\
-	__efi_early()->call(efi_table_attr(efi_boot_services, f,	\
+	__efi_early()->call((unsigned long)				\
+				efi_table_attr(efi_boot_services, f,	\
 		__efi_early()->boot_services), __VA_ARGS__)
 
 #define efi_call_runtime(f, ...)					\
-	__efi_early()->call(efi_table_attr(efi_runtime_services, f,	\
+	__efi_early()->call((unsigned long)				\
+				efi_table_attr(efi_runtime_services, f,	\
 		__efi_early()->runtime_services), __VA_ARGS__)
 
 extern bool efi_reboot_required(void);
