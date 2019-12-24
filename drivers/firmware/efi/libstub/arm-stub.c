@@ -37,6 +37,13 @@
 
 static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
 
+static efi_system_table_t *__section(.data) sys_table;
+
+__pure efi_system_table_t *efi_system_table(void)
+{
+	return sys_table;
+}
+
 void efi_char16_printk(efi_system_table_t *sys_table_arg,
 			      efi_char16_t *str)
 {
@@ -110,7 +117,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
  * for both archictectures, with the arch-specific code provided in the
  * handle_kernel_image() function.
  */
-unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
+unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 			       unsigned long *image_addr)
 {
 	efi_loaded_image_t *image;
@@ -130,6 +137,8 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	unsigned long reserve_size = 0;
 	enum efi_secureboot_mode secure_boot;
 	struct screen_info *si;
+
+	sys_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)

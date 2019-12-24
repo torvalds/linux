@@ -27,6 +27,11 @@ __pure const struct efi_config *__efi_early(void)
 	return efi_early;
 }
 
+__pure efi_system_table_t *efi_system_table(void)
+{
+	return sys_table;
+}
+
 #define BOOT_SERVICES(bits)						\
 static void setup_boot_services##bits(struct efi_config *c)		\
 {									\

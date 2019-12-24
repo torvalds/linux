@@ -10,6 +10,8 @@
 #include <asm/efi.h>
 #include <asm/setup.h>
 
+#include "efistub.h"
+
 static void find_bits(unsigned long mask, u8 *pos, u8 *size)
 {
 	u8 first, len;
