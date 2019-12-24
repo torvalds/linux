@@ -1314,19 +1314,61 @@ not_found:
 }
 
 static int
-dr_action_modify_sw_to_hw(struct mlx5dr_domain *dmn,
-			  __be64 *sw_action,
-			  __be64 *hw_action,
-			  const struct dr_action_modify_field_conv **ret_hw_info)
+dr_action_modify_sw_to_hw_add(struct mlx5dr_domain *dmn,
+			      __be64 *sw_action,
+			      __be64 *hw_action,
+			      const struct dr_action_modify_field_conv **ret_hw_info)
 {
 	const struct dr_action_modify_field_conv *hw_action_info;
-	u8 offset, length, max_length, action;
+	u8 max_length;
 	u16 sw_field;
-	u8 hw_opcode;
 	u32 data;
 
 	/* Get SW modify action data */
-	action = MLX5_GET(set_action_in, sw_action, action_type);
+	sw_field = MLX5_GET(set_action_in, sw_action, field);
+	data = MLX5_GET(set_action_in, sw_action, data);
+
+	/* Convert SW data to HW modify action format */
+	hw_action_info = dr_action_modify_get_hw_info(sw_field);
+	if (!hw_action_info) {
+		mlx5dr_dbg(dmn, "Modify add action invalid field given\n");
+		return -EINVAL;
+	}
+
+	max_length = hw_action_info->end - hw_action_info->start + 1;
+
+	MLX5_SET(dr_action_hw_set, hw_action,
+		 opcode, MLX5DR_ACTION_MDFY_HW_OP_ADD);
+
+	MLX5_SET(dr_action_hw_set, hw_action, destination_field_code,
+		 hw_action_info->hw_field);
+
+	MLX5_SET(dr_action_hw_set, hw_action, destination_left_shifter,
+		 hw_action_info->start);
+
+	/* PRM defines that length zero specific length of 32bits */
+	MLX5_SET(dr_action_hw_set, hw_action, destination_length,
+		 max_length == 32 ? 0 : max_length);
+
+	MLX5_SET(dr_action_hw_set, hw_action, inline_data, data);
+
+	*ret_hw_info = hw_action_info;
+
+	return 0;
+}
+
+static int
+dr_action_modify_sw_to_hw_set(struct mlx5dr_domain *dmn,
+			      __be64 *sw_action,
+			      __be64 *hw_action,
+			      const struct dr_action_modify_field_conv **ret_hw_info)
+{
+	const struct dr_action_modify_field_conv *hw_action_info;
+	u8 offset, length, max_length;
+	u16 sw_field;
+	u32 data;
+
+	/* Get SW modify action data */
 	length = MLX5_GET(set_action_in, sw_action, length);
 	offset = MLX5_GET(set_action_in, sw_action, offset);
 	sw_field = MLX5_GET(set_action_in, sw_action, field);
@@ -1335,37 +1377,22 @@ dr_action_modify_sw_to_hw(struct mlx5dr_domain *dmn,
 	/* Convert SW data to HW modify action format */
 	hw_action_info = dr_action_modify_get_hw_info(sw_field);
 	if (!hw_action_info) {
-		mlx5dr_dbg(dmn, "Modify action invalid field given\n");
+		mlx5dr_dbg(dmn, "Modify set action invalid field given\n");
 		return -EINVAL;
 	}
 
+	/* PRM defines that length zero specific length of 32bits */
+	length = length ? length : 32;
+
 	max_length = hw_action_info->end - hw_action_info->start + 1;
 
-	switch (action) {
-	case MLX5_ACTION_TYPE_SET:
-		hw_opcode = MLX5DR_ACTION_MDFY_HW_OP_SET;
-		/* PRM defines that length zero specific length of 32bits */
-		if (!length)
-			length = 32;
-
-		if (length + offset > max_length) {
-			mlx5dr_dbg(dmn, "Modify action length + offset exceeds limit\n");
-			return -EINVAL;
-		}
-		break;
-
-	case MLX5_ACTION_TYPE_ADD:
-		hw_opcode = MLX5DR_ACTION_MDFY_HW_OP_ADD;
-		offset = 0;
-		length = max_length;
-		break;
-
-	default:
-		mlx5dr_info(dmn, "Unsupported action_type for modify action\n");
-		return -EOPNOTSUPP;
+	if (length + offset > max_length) {
+		mlx5dr_dbg(dmn, "Modify action length + offset exceeds limit\n");
+		return -EINVAL;
 	}
 
-	MLX5_SET(dr_action_hw_set, hw_action, opcode, hw_opcode);
+	MLX5_SET(dr_action_hw_set, hw_action,
+		 opcode, MLX5DR_ACTION_MDFY_HW_OP_SET);
 
 	MLX5_SET(dr_action_hw_set, hw_action, destination_field_code,
 		 hw_action_info->hw_field);
@@ -1384,46 +1411,118 @@ dr_action_modify_sw_to_hw(struct mlx5dr_domain *dmn,
 }
 
 static int
-dr_action_modify_check_field_limitation(struct mlx5dr_domain *dmn,
-					const __be64 *sw_action)
+dr_action_modify_sw_to_hw(struct mlx5dr_domain *dmn,
+			  __be64 *sw_action,
+			  __be64 *hw_action,
+			  const struct dr_action_modify_field_conv **ret_hw_info)
 {
-	u16 sw_field;
 	u8 action;
+	int ret;
 
-	sw_field = MLX5_GET(set_action_in, sw_action, field);
+	*hw_action = 0;
+
+	/* Get SW modify action type */
 	action = MLX5_GET(set_action_in, sw_action, action_type);
 
-	/* Check if SW field is supported in current domain (RX/TX) */
-	if (action == MLX5_ACTION_TYPE_SET) {
-		if (sw_field == MLX5_ACTION_IN_FIELD_METADATA_REG_A) {
-			if (dmn->type != MLX5DR_DOMAIN_TYPE_NIC_TX) {
-				mlx5dr_dbg(dmn, "Unsupported field %d for RX/FDB set action\n",
-					   sw_field);
-				return -EINVAL;
-			}
-		}
+	switch (action) {
+	case MLX5_ACTION_TYPE_SET:
+		ret = dr_action_modify_sw_to_hw_set(dmn, sw_action,
+						    hw_action,
+						    ret_hw_info);
+		break;
 
-		if (sw_field == MLX5_ACTION_IN_FIELD_METADATA_REG_B) {
-			if (dmn->type != MLX5DR_DOMAIN_TYPE_NIC_RX) {
-				mlx5dr_dbg(dmn, "Unsupported field %d for TX/FDB set action\n",
-					   sw_field);
-				return -EINVAL;
-			}
-		}
-	} else if (action == MLX5_ACTION_TYPE_ADD) {
-		if (sw_field != MLX5_ACTION_IN_FIELD_OUT_IP_TTL &&
-		    sw_field != MLX5_ACTION_IN_FIELD_OUT_IPV6_HOPLIMIT &&
-		    sw_field != MLX5_ACTION_IN_FIELD_OUT_TCP_SEQ_NUM &&
-		    sw_field != MLX5_ACTION_IN_FIELD_OUT_TCP_ACK_NUM) {
-			mlx5dr_dbg(dmn, "Unsupported field %d for add action\n", sw_field);
+	case MLX5_ACTION_TYPE_ADD:
+		ret = dr_action_modify_sw_to_hw_add(dmn, sw_action,
+						    hw_action,
+						    ret_hw_info);
+		break;
+
+	default:
+		mlx5dr_info(dmn, "Unsupported action_type for modify action\n");
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
+static int
+dr_action_modify_check_set_field_limitation(struct mlx5dr_action *action,
+					    const __be64 *sw_action)
+{
+	u16 sw_field = MLX5_GET(set_action_in, sw_action, field);
+	struct mlx5dr_domain *dmn = action->rewrite.dmn;
+
+	if (sw_field == MLX5_ACTION_IN_FIELD_METADATA_REG_A) {
+		action->rewrite.allow_rx = 0;
+		if (dmn->type != MLX5DR_DOMAIN_TYPE_NIC_TX) {
+			mlx5dr_dbg(dmn, "Unsupported field %d for RX/FDB set action\n",
+				   sw_field);
 			return -EINVAL;
 		}
-	} else {
-		mlx5dr_info(dmn, "Unsupported action %d modify action\n", action);
-		return -EOPNOTSUPP;
+	} else if (sw_field == MLX5_ACTION_IN_FIELD_METADATA_REG_B) {
+		action->rewrite.allow_tx = 0;
+		if (dmn->type != MLX5DR_DOMAIN_TYPE_NIC_RX) {
+			mlx5dr_dbg(dmn, "Unsupported field %d for TX/FDB set action\n",
+				   sw_field);
+			return -EINVAL;
+		}
+	}
+
+	if (!action->rewrite.allow_rx && !action->rewrite.allow_tx) {
+		mlx5dr_dbg(dmn, "Modify SET actions not supported on both RX and TX\n");
+		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static int
+dr_action_modify_check_add_field_limitation(struct mlx5dr_action *action,
+					    const __be64 *sw_action)
+{
+	u16 sw_field = MLX5_GET(set_action_in, sw_action, field);
+	struct mlx5dr_domain *dmn = action->rewrite.dmn;
+
+	if (sw_field != MLX5_ACTION_IN_FIELD_OUT_IP_TTL &&
+	    sw_field != MLX5_ACTION_IN_FIELD_OUT_IPV6_HOPLIMIT &&
+	    sw_field != MLX5_ACTION_IN_FIELD_OUT_TCP_SEQ_NUM &&
+	    sw_field != MLX5_ACTION_IN_FIELD_OUT_TCP_ACK_NUM) {
+		mlx5dr_dbg(dmn, "Unsupported field %d for add action\n",
+			   sw_field);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+dr_action_modify_check_field_limitation(struct mlx5dr_action *action,
+					const __be64 *sw_action)
+{
+	struct mlx5dr_domain *dmn = action->rewrite.dmn;
+	u8 action_type;
+	int ret;
+
+	action_type = MLX5_GET(set_action_in, sw_action, action_type);
+
+	switch (action_type) {
+	case MLX5_ACTION_TYPE_SET:
+		ret = dr_action_modify_check_set_field_limitation(action,
+								  sw_action);
+		break;
+
+	case MLX5_ACTION_TYPE_ADD:
+		ret = dr_action_modify_check_add_field_limitation(action,
+								  sw_action);
+		break;
+
+	default:
+		mlx5dr_info(dmn, "Unsupported action %d modify action\n",
+			    action_type);
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
 }
 
 static bool
@@ -1434,7 +1533,7 @@ dr_action_modify_check_is_ttl_modify(const u64 *sw_action)
 	return sw_field == MLX5_ACTION_IN_FIELD_OUT_IP_TTL;
 }
 
-static int dr_actions_convert_modify_header(struct mlx5dr_domain *dmn,
+static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 					    u32 max_hw_actions,
 					    u32 num_sw_actions,
 					    __be64 sw_actions[],
@@ -1446,16 +1545,21 @@ static int dr_actions_convert_modify_header(struct mlx5dr_domain *dmn,
 	u16 hw_field = MLX5DR_ACTION_MDFY_HW_FLD_RESERVED;
 	u32 l3_type = MLX5DR_ACTION_MDFY_HW_HDR_L3_NONE;
 	u32 l4_type = MLX5DR_ACTION_MDFY_HW_HDR_L4_NONE;
+	struct mlx5dr_domain *dmn = action->rewrite.dmn;
 	int ret, i, hw_idx = 0;
 	__be64 *sw_action;
 	__be64 hw_action;
 
 	*modify_ttl = false;
 
+	action->rewrite.allow_rx = 1;
+	action->rewrite.allow_tx = 1;
+
 	for (i = 0; i < num_sw_actions; i++) {
 		sw_action = &sw_actions[i];
 
-		ret = dr_action_modify_check_field_limitation(dmn, sw_action);
+		ret = dr_action_modify_check_field_limitation(action,
+							      sw_action);
 		if (ret)
 			return ret;
 
@@ -1544,7 +1648,7 @@ static int dr_action_create_modify_action(struct mlx5dr_domain *dmn,
 		goto free_chunk;
 	}
 
-	ret = dr_actions_convert_modify_header(dmn,
+	ret = dr_actions_convert_modify_header(action,
 					       max_hw_actions,
 					       num_sw_actions,
 					       actions,
