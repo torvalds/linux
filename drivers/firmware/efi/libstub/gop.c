@@ -91,7 +91,6 @@ setup_gop(efi_system_table_t *sys_table_arg, struct screen_info *si,
 	  efi_guid_t *proto, unsigned long size, void **handles)
 {
 	efi_graphics_output_protocol_t *gop, *first_gop;
-	unsigned long nr_gops;
 	u16 width, height;
 	u32 pixels_per_scan_line;
 	u32 ext_lfb_base;
@@ -99,22 +98,18 @@ setup_gop(efi_system_table_t *sys_table_arg, struct screen_info *si,
 	efi_pixel_bitmask_t pixel_info;
 	int pixel_format;
 	efi_status_t status;
+	efi_handle_t h;
 	int i;
-	bool is64 = efi_is_64bit();
 
 	first_gop = NULL;
 	gop = NULL;
 
-	nr_gops = size / (is64 ? sizeof(u64) : sizeof(u32));
-	for (i = 0; i < nr_gops; i++) {
+	for_each_efi_handle(h, handles, size, i) {
 		efi_graphics_output_protocol_mode_t *mode;
 		efi_graphics_output_mode_info_t *info = NULL;
 		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
 		bool conout_found = false;
 		void *dummy = NULL;
-		efi_handle_t h = (efi_handle_t)(unsigned long)
-				 (is64 ? ((u64 *)handles)[i]
-				       : ((u32 *)handles)[i]);
 		efi_physical_addr_t current_fb_base;
 
 		status = efi_call_early(handle_protocol, h,

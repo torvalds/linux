@@ -135,6 +135,7 @@ static void setup_efi_pci(struct boot_params *params)
 	unsigned long size = 0;
 	unsigned long nr_pci;
 	struct setup_data *data;
+	efi_handle_t h;
 	int i;
 
 	status = efi_call_early(locate_handle,
@@ -164,14 +165,11 @@ static void setup_efi_pci(struct boot_params *params)
 	while (data && data->next)
 		data = (struct setup_data *)(unsigned long)data->next;
 
-	nr_pci = size / (efi_is_64bit() ? sizeof(u64) : sizeof(u32));
-	for (i = 0; i < nr_pci; i++) {
+	for_each_efi_handle(h, pci_handle, size, i) {
 		efi_pci_io_protocol_t *pci = NULL;
 		struct pci_setup_rom *rom;
 
-		status = efi_call_early(handle_protocol,
-					efi_is_64bit() ? ((u64 *)pci_handle)[i]
-						       : ((u32 *)pci_handle)[i],
+		status = efi_call_early(handle_protocol, h,
 					&pci_proto, (void **)&pci);
 		if (status != EFI_SUCCESS || !pci)
 			continue;
@@ -266,6 +264,7 @@ setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
 	void **uga_handle = NULL;
 	efi_uga_draw_protocol_t *uga = NULL, *first_uga;
 	unsigned long nr_ugas;
+	efi_handle_t handle;
 	int i;
 
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
@@ -283,13 +282,10 @@ setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
 	width = 0;
 
 	first_uga = NULL;
-	nr_ugas = size / (efi_is_64bit() ? sizeof(u64) : sizeof(u32));
-	for (i = 0; i < nr_ugas; i++) {
+	for_each_efi_handle(handle, uga_handle, size, i) {
 		efi_guid_t pciio_proto = EFI_PCI_IO_PROTOCOL_GUID;
 		u32 w, h, depth, refresh;
 		void *pciio;
-		unsigned long handle = efi_is_64bit() ? ((u64 *)uga_handle)[i]
-						      : ((u32 *)uga_handle)[i];
 
 		status = efi_call_early(handle_protocol, handle,
 					uga_proto, (void **)&uga);
