@@ -267,7 +267,7 @@ static const struct drm_i915_mocs_entry tigerlake_mocs_table[] = {
 		   L3_3_WB),
 };
 
-static const struct drm_i915_mocs_entry icelake_mocs_table[] = {
+static const struct drm_i915_mocs_entry icl_mocs_table[] = {
 	/* Base - Uncached (Deprecated) */
 	MOCS_ENTRY(I915_MOCS_UNCACHED,
 		   LE_1_UC | LE_TC_1_LLC,
@@ -288,8 +288,8 @@ static bool get_mocs_settings(const struct drm_i915_private *i915,
 		table->table = tigerlake_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
 	} else if (IS_GEN(i915, 11)) {
-		table->size  = ARRAY_SIZE(icelake_mocs_table);
-		table->table = icelake_mocs_table;
+		table->size  = ARRAY_SIZE(icl_mocs_table);
+		table->table = icl_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
 	} else if (IS_GEN9_BC(i915) || IS_CANNONLAKE(i915)) {
 		table->size  = ARRAY_SIZE(skl_mocs_table);
