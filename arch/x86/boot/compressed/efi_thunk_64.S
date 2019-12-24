@@ -10,7 +10,7 @@
  * needs to be able to service interrupts.
  *
  * On the plus side, we don't have to worry about mangling 64-bit
- * addresses into 32-bits because we're executing with an identify
+ * addresses into 32-bits because we're executing with an identity
  * mapped pagetable and haven't transitioned to 64-bit virtual addresses
  * yet.
  */
@@ -28,7 +28,7 @@ SYM_FUNC_START(efi64_thunk)
 	push	%rbx
 
 	subq	$8, %rsp
-	leaq	efi_exit32(%rip), %rax
+	leaq	1f(%rip), %rax
 	movl	%eax, 4(%rsp)
 	leaq	efi_gdt64(%rip), %rax
 	movl	%eax, (%rsp)
@@ -55,9 +55,6 @@ SYM_FUNC_START(efi64_thunk)
 
 	sgdt	save_gdt(%rip)
 
-	leaq	1f(%rip), %rbx
-	movq	%rbx, func_rt_ptr(%rip)
-
 	/*
 	 * Switch to gdt with 32-bit segments. This is the firmware GDT
 	 * that was installed when the kernel started executing. This
@@ -72,6 +69,7 @@ SYM_FUNC_START(efi64_thunk)
 	lretq
 
 1:	addq	$32, %rsp
+	movq	%rdi, %rax
 
 	lgdt	save_gdt(%rip)
 
@@ -98,13 +96,6 @@ SYM_FUNC_START(efi64_thunk)
 	pop	%rbp
 	ret
 SYM_FUNC_END(efi64_thunk)
-
-SYM_FUNC_START_LOCAL(efi_exit32)
-	movq	func_rt_ptr(%rip), %rax
-	push	%rax
-	mov	%rdi, %rax
-	ret
-SYM_FUNC_END(efi_exit32)
 
 	.code32
 /*
@@ -185,8 +176,6 @@ SYM_DATA_START_LOCAL(save_gdt)
 	.word	0
 	.quad	0
 SYM_DATA_END(save_gdt)
-
-SYM_DATA_LOCAL(func_rt_ptr, .quad 0)
 
 SYM_DATA_START(efi_gdt64)
 	.word	efi_gdt64_end - efi_gdt64
