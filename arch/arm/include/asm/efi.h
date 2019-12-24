@@ -54,8 +54,7 @@ void efi_virtmap_unload(void);
 #define efi_call_runtime(f, ...)	efi_system_table()->runtime->f(__VA_ARGS__)
 #define efi_is_native()			(true)
 
-#define efi_table_attr(table, attr, instance)				\
-	instance->attr
+#define efi_table_attr(inst, attr)	(inst->attr)
 
 #define efi_call_proto(inst, func, ...) inst->func(inst, ##__VA_ARGS__)
 

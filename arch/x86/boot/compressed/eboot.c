@@ -47,8 +47,8 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	 * large romsize. The UEFI spec limits the size of option ROMs to 16
 	 * MiB so we reject any ROMs over 16 MiB in size to catch this.
 	 */
-	romimage = efi_table_attr(efi_pci_io_protocol, romimage, pci);
-	romsize = efi_table_attr(efi_pci_io_protocol, romsize, pci);
+	romimage = efi_table_attr(pci, romimage);
+	romsize = efi_table_attr(pci, romsize);
 	if (!romimage || !romsize || romsize > SZ_16M)
 		return EFI_INVALID_PARAMETER;
 
@@ -183,7 +183,7 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 	if (status != EFI_SUCCESS)
 		return;
 
-	if (efi_table_attr(apple_properties_protocol, version, p) != 0x10000) {
+	if (efi_table_attr(p, version) != 0x10000) {
 		efi_printk("Unsupported properties proto version\n");
 		return;
 	}
@@ -226,7 +226,7 @@ static const efi_char16_t apple[] = L"Apple";
 static void setup_quirks(struct boot_params *boot_params)
 {
 	efi_char16_t *fw_vendor = (efi_char16_t *)(unsigned long)
-		efi_table_attr(efi_system_table, fw_vendor, sys_table);
+		efi_table_attr(efi_system_table(), fw_vendor);
 
 	if (!memcmp(fw_vendor, apple, sizeof(apple))) {
 		if (IS_ENABLED(CONFIG_APPLE_PROPERTIES))

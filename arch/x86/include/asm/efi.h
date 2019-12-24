@@ -216,16 +216,11 @@ static inline bool efi_is_native(void)
 		__builtin_types_compatible_p(u32, __typeof__(attr)),	\
 			(unsigned long)(attr), (attr))
 
-#define efi_table_attr(table, attr, instance) ({			\
-	__typeof__(instance->attr) __ret;				\
-	if (efi_is_native()) {						\
-		__ret = instance->attr;					\
-	} else {							\
-		__ret = (__typeof__(__ret))				\
-			efi_mixed_mode_cast(instance->mixed_mode.attr);	\
-	}								\
-	__ret;								\
-})
+#define efi_table_attr(inst, attr)					\
+	(efi_is_native()						\
+		? inst->attr						\
+		: (__typeof__(inst->attr))				\
+			efi_mixed_mode_cast(inst->mixed_mode.attr))
 
 #define efi_call_proto(inst, func, ...)					\
 	(efi_is_native()						\
@@ -235,16 +230,14 @@ static inline bool efi_is_native(void)
 #define efi_call_early(f, ...)						\
 	(efi_is_native()						\
 		? efi_system_table()->boottime->f(__VA_ARGS__)		\
-		: efi64_thunk(efi_table_attr(efi_boot_services,		\
-			boottime, efi_system_table())->mixed_mode.f,	\
-			__VA_ARGS__))
+		: efi64_thunk(efi_table_attr(efi_system_table(),	\
+				boottime)->mixed_mode.f, __VA_ARGS__))
 
 #define efi_call_runtime(f, ...)					\
 	(efi_is_native()						\
 		? efi_system_table()->runtime->f(__VA_ARGS__)		\
-		: efi64_thunk(efi_table_attr(efi_runtime_services,	\
-			runtime, efi_system_table())->mixed_mode.f,	\
-			__VA_ARGS__))
+		: efi64_thunk(efi_table_attr(efi_system_table(),	\
+				runtime)->mixed_mode.f, __VA_ARGS__))
 
 extern bool efi_reboot_required(void);
 extern bool efi_is_table_address(unsigned long phys_addr);

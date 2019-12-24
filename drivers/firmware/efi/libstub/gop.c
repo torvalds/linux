@@ -85,9 +85,6 @@ setup_pixel_info(struct screen_info *si, u32 pixels_per_scan_line,
 	}
 }
 
-#define efi_gop_attr(table, attr, instance) \
-	(efi_table_attr(efi_graphics_output_protocol##table, attr, instance))
-
 static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 			      unsigned long size, void **handles)
 {
@@ -123,9 +120,9 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 		if (status == EFI_SUCCESS)
 			conout_found = true;
 
-		mode = (void *)(unsigned long)efi_gop_attr(, mode, gop);
-		info = (void *)(unsigned long)efi_gop_attr(_mode, info, mode);
-		current_fb_base = efi_gop_attr(_mode, frame_buffer_base, mode);
+		mode = efi_table_attr(gop, mode);
+		info = efi_table_attr(mode, info);
+		current_fb_base = efi_table_attr(mode, frame_buffer_base);
 
 		if ((!first_gop || conout_found) &&
 		    info->pixel_format != PIXEL_BLT_ONLY) {
