@@ -806,40 +806,21 @@ struct efi_fdt_params {
 	u32 desc_ver;
 };
 
-typedef union efi_loaded_image efi_loaded_image_t;
-
-union efi_loaded_image {
-	struct {
-		u32 revision;
-		efi_handle_t parent_handle;
-		efi_system_table_t *system_table;
-		efi_handle_t device_handle;
-		void *file_path;
-		void *reserved;
-		u32 load_options_size;
-		void *load_options;
-		void *image_base;
-		__aligned_u64 image_size;
-		unsigned int image_code_type;
-		unsigned int image_data_type;
-		efi_status_t ( __efiapi *unload)(efi_handle_t image_handle);
-	};
-	struct {
-		u32 revision;
-		u32 parent_handle;
-		u32 system_table;
-		u32 device_handle;
-		u32 file_path;
-		u32 reserved;
-		u32 load_options_size;
-		u32 load_options;
-		u32 image_base;
-		__aligned_u64 image_size;
-		unsigned int image_code_type;
-		unsigned int image_data_type;
-		u32 unload;
-	} mixed_mode;
-};
+typedef struct {
+	u32 revision;
+	efi_handle_t parent_handle;
+	efi_system_table_t *system_table;
+	efi_handle_t device_handle;
+	void *file_path;
+	void *reserved;
+	u32 load_options_size;
+	void *load_options;
+	void *image_base;
+	__aligned_u64 image_size;
+	unsigned int image_code_type;
+	unsigned int image_data_type;
+	efi_status_t ( __efiapi *unload)(efi_handle_t image_handle);
+} efi_loaded_image_t;
 
 typedef struct {
 	u64 size;
@@ -852,54 +833,33 @@ typedef struct {
 	efi_char16_t filename[1];
 } efi_file_info_t;
 
-typedef union efi_file_handle efi_file_handle_t;
+typedef struct efi_file_handle efi_file_handle_t;
 
-union efi_file_handle {
-	struct {
-		u64 revision;
-		efi_status_t (__efiapi *open)(efi_file_handle_t *,
-					      efi_file_handle_t **,
-					      efi_char16_t *, u64, u64);
-		efi_status_t (__efiapi *close)(efi_file_handle_t *);
-		void *delete;
-		efi_status_t (__efiapi *read)(efi_file_handle_t *,
-					      unsigned long *, void *);
-		void *write;
-		void *get_position;
-		void *set_position;
-		efi_status_t (__efiapi *get_info)(efi_file_handle_t *,
-						  efi_guid_t *, unsigned long *,
-						  void *);
-		void *set_info;
-		void *flush;
-	};
-	struct {
-		u64 revision;
-		u32 open;
-		u32 close;
-		u32 delete;
-		u32 read;
-		u32 write;
-		u32 get_position;
-		u32 set_position;
-		u32 get_info;
-		u32 set_info;
-		u32 flush;
-	} mixed_mode;
+struct efi_file_handle {
+	u64 revision;
+	efi_status_t (__efiapi *open)(efi_file_handle_t *,
+				      efi_file_handle_t **,
+				      efi_char16_t *, u64, u64);
+	efi_status_t (__efiapi *close)(efi_file_handle_t *);
+	void *delete;
+	efi_status_t (__efiapi *read)(efi_file_handle_t *,
+				      unsigned long *, void *);
+	void *write;
+	void *get_position;
+	void *set_position;
+	efi_status_t (__efiapi *get_info)(efi_file_handle_t *,
+					  efi_guid_t *, unsigned long *,
+					  void *);
+	void *set_info;
+	void *flush;
 };
 
-typedef union efi_file_io_interface efi_file_io_interface_t;
+typedef struct efi_file_io_interface efi_file_io_interface_t;
 
-union efi_file_io_interface {
-	struct {
-		u64 revision;
-		int (__efiapi *open_volume)(efi_file_io_interface_t *,
-					    efi_file_handle_t **);
-	};
-	struct {
-		u64 revision;
-		u32 open_volume;
-	} mixed_mode;
+struct efi_file_io_interface {
+	u64 revision;
+	int (__efiapi *open_volume)(efi_file_io_interface_t *,
+				    efi_file_handle_t **);
 };
 
 #define EFI_FILE_MODE_READ	0x0000000000000001

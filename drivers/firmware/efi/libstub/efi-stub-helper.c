@@ -370,8 +370,7 @@ static efi_status_t efi_file_size(efi_system_table_t *sys_table_arg, void *__fh,
 	efi_guid_t info_guid = EFI_FILE_INFO_ID;
 	unsigned long info_sz;
 
-	status = efi_call_proto(efi_file_handle, open, fh, &h, filename_16,
-				EFI_FILE_MODE_READ, (u64)0);
+	status = fh->open(fh, &h, filename_16, EFI_FILE_MODE_READ, 0);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table_arg, "Failed to open file: ");
 		efi_char16_printk(sys_table_arg, filename_16);
@@ -382,8 +381,7 @@ static efi_status_t efi_file_size(efi_system_table_t *sys_table_arg, void *__fh,
 	*handle = h;
 
 	info_sz = 0;
-	status = efi_call_proto(efi_file_handle, get_info, h, &info_guid,
-				&info_sz, NULL);
+	status = h->get_info(h, &info_guid, &info_sz, NULL);
 	if (status != EFI_BUFFER_TOO_SMALL) {
 		efi_printk(sys_table_arg, "Failed to get file info size\n");
 		return status;
@@ -397,8 +395,7 @@ grow:
 		return status;
 	}
 
-	status = efi_call_proto(efi_file_handle, get_info, h, &info_guid,
-				&info_sz, info);
+	status = h->get_info(h, &info_guid, &info_sz, info);
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		efi_call_early(free_pool, info);
 		goto grow;
@@ -416,12 +413,12 @@ grow:
 static efi_status_t efi_file_read(efi_file_handle_t *handle,
 				  unsigned long *size, void *addr)
 {
-	return efi_call_proto(efi_file_handle, read, handle, size, addr);
+	return handle->read(handle, size, addr);
 }
 
 static efi_status_t efi_file_close(efi_file_handle_t *handle)
 {
-	return efi_call_proto(efi_file_handle, close, handle);
+	return handle->close(handle);
 }
 
 static efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
@@ -432,7 +429,7 @@ static efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
 	efi_file_handle_t *fh;
 	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
 	efi_status_t status;
-	void *handle = efi_table_attr(efi_loaded_image, device_handle, image);
+	efi_handle_t handle = image->device_handle;
 
 	status = efi_call_early(handle_protocol, handle,
 				&fs_proto, (void **)&io);
@@ -441,7 +438,7 @@ static efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
 		return status;
 	}
 
-	status = efi_call_proto(efi_file_io_interface, open_volume, io, &fh);
+	status = io->open_volume(io, &fh);
 	if (status != EFI_SUCCESS)
 		efi_printk(sys_table_arg, "Failed to open volume\n");
 	else
