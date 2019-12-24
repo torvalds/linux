@@ -1871,7 +1871,7 @@ static void configure_requester_scat_cqe(struct mlx5_ib_dev *dev,
 {
 	enum ib_qp_type qpt = init_attr->qp_type;
 	int scqe_sz;
-	bool allow_scat_cqe = 0;
+	bool allow_scat_cqe = false;
 
 	if (qpt == IB_QPT_UC || qpt == IB_QPT_UD)
 		return;

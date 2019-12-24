@@ -147,7 +147,7 @@ static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
 			break;
 		}
 		mr->order = ent->order;
-		mr->allocated_from_cache = 1;
+		mr->allocated_from_cache = true;
 		mr->dev = dev;
 
 		MLX5_SET(mkc, mkc, free, 1);
@@ -1440,7 +1440,7 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			goto err;
 		}
 
-		mr->allocated_from_cache = 0;
+		mr->allocated_from_cache = false;
 	} else {
 		/*
 		 * Send a UMR WQE
