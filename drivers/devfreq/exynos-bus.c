@@ -126,6 +126,7 @@ static int exynos_bus_get_dev_status(struct device *dev,
 
 	ret = exynos_bus_get_event(bus, &edata);
 	if (ret < 0) {
+		dev_err(dev, "failed to get event from devfreq-event devices\n");
 		stat->total_time = stat->busy_time = 0;
 		goto err;
 	}
