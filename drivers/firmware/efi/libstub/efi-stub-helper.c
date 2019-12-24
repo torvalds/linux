@@ -953,9 +953,7 @@ void *get_efi_config_table(efi_guid_t guid)
 
 void efi_char16_printk(efi_char16_t *str)
 {
-	efi_call_proto(efi_simple_text_output_protocol,
-		       output_string,
-		       efi_table_attr(efi_system_table, con_out,
+	efi_call_proto(efi_table_attr(efi_system_table, con_out,
 				      efi_system_table()),
-		       str);
+		       output_string, str);
 }

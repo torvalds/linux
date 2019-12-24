@@ -37,7 +37,7 @@ efi_status_t efi_get_random_bytes(unsigned long size, u8 *out)
 	if (status != EFI_SUCCESS)
 		return status;
 
-	return efi_call_proto(efi_rng_protocol, get_rng, rng, NULL, size, out);
+	return efi_call_proto(rng, get_rng, NULL, size, out);
 }
 
 /*
@@ -173,7 +173,7 @@ efi_status_t efi_random_get_seed(void)
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = efi_call_proto(efi_rng_protocol, get_rng, rng, &rng_algo_raw,
+	status = efi_call_proto(rng, get_rng, &rng_algo_raw,
 				 EFI_RANDOM_SEED_SIZE, seed->bits);
 
 	if (status == EFI_UNSUPPORTED)
@@ -181,8 +181,8 @@ efi_status_t efi_random_get_seed(void)
 		 * Use whatever algorithm we have available if the raw algorithm
 		 * is not implemented.
 		 */
-		status = efi_call_proto(efi_rng_protocol, get_rng, rng, NULL,
-					 EFI_RANDOM_SEED_SIZE, seed->bits);
+		status = efi_call_proto(rng, get_rng, NULL,
+					EFI_RANDOM_SEED_SIZE, seed->bits);
 
 	if (status != EFI_SUCCESS)
 		goto err_freepool;

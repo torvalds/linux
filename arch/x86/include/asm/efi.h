@@ -227,10 +227,10 @@ static inline bool efi_is_native(void)
 	__ret;								\
 })
 
-#define efi_call_proto(protocol, f, instance, ...)			\
+#define efi_call_proto(inst, func, ...)					\
 	(efi_is_native()						\
-		? instance->f(instance, ##__VA_ARGS__)			\
-		: efi64_thunk(instance->mixed_mode.f, instance,	##__VA_ARGS__))
+		? inst->func(inst, ##__VA_ARGS__)			\
+		: efi64_thunk(inst->mixed_mode.func, inst, ##__VA_ARGS__))
 
 #define efi_call_early(f, ...)						\
 	(efi_is_native()						\

@@ -100,8 +100,7 @@ static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
 #define efi_table_attr(table, attr, instance)				\
 	instance->attr
 
-#define efi_call_proto(protocol, f, instance, ...)			\
-	instance->f(instance, ##__VA_ARGS__)
+#define efi_call_proto(inst, func, ...) inst->func(inst, ##__VA_ARGS__)
 
 #define alloc_screen_info(x...)		&screen_info
 

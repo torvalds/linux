@@ -69,27 +69,24 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	rom->pcilen	= pci->romsize;
 	*__rom = rom;
 
-	status = efi_call_proto(efi_pci_io_protocol, pci.read, pci,
-				EfiPciIoWidthUint16, PCI_VENDOR_ID, 1,
-				&rom->vendor);
+	status = efi_call_proto(pci, pci.read, EfiPciIoWidthUint16,
+				PCI_VENDOR_ID, 1, &rom->vendor);
 
 	if (status != EFI_SUCCESS) {
 		efi_printk("Failed to read rom->vendor\n");
 		goto free_struct;
 	}
 
-	status = efi_call_proto(efi_pci_io_protocol, pci.read, pci,
-				EfiPciIoWidthUint16, PCI_DEVICE_ID, 1,
-				&rom->devid);
+	status = efi_call_proto(pci, pci.read, EfiPciIoWidthUint16,
+				PCI_DEVICE_ID, 1, &rom->devid);
 
 	if (status != EFI_SUCCESS) {
 		efi_printk("Failed to read rom->devid\n");
 		goto free_struct;
 	}
 
-	status = efi_call_proto(efi_pci_io_protocol, get_location, pci,
-				&rom->segment, &rom->bus, &rom->device,
-				&rom->function);
+	status = efi_call_proto(pci, get_location, &rom->segment, &rom->bus,
+				&rom->device, &rom->function);
 
 	if (status != EFI_SUCCESS)
 		goto free_struct;
@@ -191,7 +188,7 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 		return;
 	}
 
-	efi_call_proto(apple_properties_protocol, get_all, p, NULL, &size);
+	efi_call_proto(p, get_all, NULL, &size);
 	if (!size)
 		return;
 
@@ -204,8 +201,7 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 			return;
 		}
 
-		status = efi_call_proto(apple_properties_protocol, get_all, p,
-					new->data, &size);
+		status = efi_call_proto(p, get_all, new->data, &size);
 
 		if (status == EFI_BUFFER_TOO_SMALL)
 			efi_call_early(free_pool, new);
@@ -280,8 +276,7 @@ setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
 		pciio = NULL;
 		efi_call_early(handle_protocol, handle, &pciio_proto, &pciio);
 
-		status = efi_call_proto(efi_uga_draw_protocol, get_mode, uga,
-					&w, &h, &depth, &refresh);
+		status = efi_call_proto(uga, get_mode, &w, &h, &depth, &refresh);
 		if (status == EFI_SUCCESS && (!first_uga || pciio)) {
 			width = w;
 			height = h;
