@@ -24,6 +24,7 @@
 #include <soc/rockchip/pm_domains.h>
 #include <soc/rockchip/rockchip_dmc.h>
 #include <dt-bindings/power/px30-power.h>
+#include <dt-bindings/power/rv1126-power.h>
 #include <dt-bindings/power/rk1808-power.h>
 #include <dt-bindings/power/rk3036-power.h>
 #include <dt-bindings/power/rk3128-power.h>
@@ -44,6 +45,8 @@ struct rockchip_domain_info {
 	int pwr_w_mask;
 	int req_w_mask;
 	bool keepon_startup;
+	u32 pwr_offset;
+	u32 req_offset;
 };
 
 struct rockchip_pmu_info {
@@ -133,6 +136,21 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 	.keepon_startup = keepon,			\
 }
 
+#define DOMAIN_M_O(pwr, status, p_offset, req, idle, ack, r_offset, wakeup, keepon)	\
+{							\
+	.pwr_w_mask = (pwr) << 16,			\
+	.pwr_mask = (pwr),				\
+	.status_mask = (status),			\
+	.req_w_mask = (req) << 16,			\
+	.req_mask = (req),				\
+	.idle_mask = (idle),				\
+	.ack_mask = (ack),				\
+	.active_wakeup = wakeup,			\
+	.keepon_startup = keepon,			\
+	.pwr_offset = p_offset,				\
+	.req_offset = r_offset,				\
+}
+
 #define DOMAIN_RK3036(req, ack, idle, wakeup)		\
 {							\
 	.req_mask = (req),				\
@@ -147,6 +165,15 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 
 #define DOMAIN_PX30_PROTECT(pwr, status, req, wakeup)	\
 	DOMAIN_M(pwr, status, req, (req) << 16, req, wakeup, true)
+
+#define DOMAIN_RV1126(pwr, req, idle, wakeup)		\
+	DOMAIN_M(pwr, pwr, req, idle, idle, wakeup, false)
+
+#define DOMAIN_RV1126_PROTECT(pwr, req, idle, wakeup)	\
+	DOMAIN_M(pwr, pwr, req, idle, idle, wakeup, true)
+
+#define DOMAIN_RV1126_O(pwr, req, idle, r_offset, wakeup)	\
+	DOMAIN_M_O(pwr, pwr, 0, req, idle, idle, r_offset, wakeup, false)
 
 #define DOMAIN_RK3288(pwr, status, req, wakeup)		\
 	DOMAIN(pwr, status, req, req, (req) << 16, wakeup, false)
@@ -193,20 +220,25 @@ static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 	const struct rockchip_domain_info *pd_info = pd->info;
 	struct generic_pm_domain *genpd = &pd->genpd;
 	struct rockchip_pmu *pmu = pd->pmu;
+	u32 pd_req_offset = 0;
 	unsigned int target_ack;
 	unsigned int val;
 	bool is_idle;
 	int ret = 0;
 
+	if (pd_info->req_offset)
+		pd_req_offset = pd_info->req_offset;
+
 	if (pd_info->req_mask == 0)
 		return 0;
 	else if (pd_info->req_w_mask)
-		regmap_write(pmu->regmap, pmu->info->req_offset,
+		regmap_write(pmu->regmap, pmu->info->req_offset + pd_req_offset,
 			     idle ? (pd_info->req_mask | pd_info->req_w_mask) :
 			     pd_info->req_w_mask);
 	else
-		regmap_update_bits(pmu->regmap, pmu->info->req_offset,
-				   pd_info->req_mask, idle ? -1U : 0);
+		regmap_update_bits(pmu->regmap, pmu->info->req_offset +
+				   pd_req_offset, pd_info->req_mask,
+				   idle ? -1U : 0);
 
 	dsb(sy);
 
@@ -375,18 +407,23 @@ static int rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 {
 	struct rockchip_pmu *pmu = pd->pmu;
 	struct generic_pm_domain *genpd = &pd->genpd;
+	u32 pd_pwr_offset = 0;
 	bool is_on;
 	int ret = 0;
+
+	if (pd->info->pwr_offset)
+		pd_pwr_offset = pd->info->pwr_offset;
 
 	if (pd->info->pwr_mask == 0)
 		return 0;
 	else if (pd->info->pwr_w_mask)
-		regmap_write(pmu->regmap, pmu->info->pwr_offset,
+		regmap_write(pmu->regmap, pmu->info->pwr_offset + pd_pwr_offset,
 			     on ? pd->info->pwr_w_mask :
 			     (pd->info->pwr_mask | pd->info->pwr_w_mask));
 	else
-		regmap_update_bits(pmu->regmap, pmu->info->pwr_offset,
-				   pd->info->pwr_mask, on ? 0 : -1U);
+		regmap_update_bits(pmu->regmap, pmu->info->pwr_offset +
+				   pd_pwr_offset, pd->info->pwr_mask,
+				   on ? 0 : -1U);
 
 	dsb(sy);
 
@@ -1059,6 +1096,19 @@ static const struct rockchip_domain_info px30_pm_domains[] = {
 	[PX30_PD_GPU]		= DOMAIN_PX30(BIT(15), BIT(15), BIT(2),  false),
 };
 
+static const struct rockchip_domain_info rv1126_pm_domains[] = {
+	[RV1126_PD_CRYPTO]	= DOMAIN_RV1126_O(BIT(10), BIT(4), BIT(20), 0x4, false),
+	[RV1126_PD_VEPU]	= DOMAIN_RV1126(BIT(2),  BIT(9),  BIT(9), false),
+	[RV1126_PD_VI]		= DOMAIN_RV1126(BIT(4),  BIT(6),  BIT(6),  false),
+	[RV1126_PD_VO]		= DOMAIN_RV1126_PROTECT(BIT(5), BIT(7), BIT(7),  false),
+	[RV1126_PD_ISPP]	= DOMAIN_RV1126(BIT(1), BIT(8), BIT(8),  false),
+	[RV1126_PD_VDPU]	= DOMAIN_RV1126(BIT(3), BIT(10), BIT(10), false),
+	[RV1126_PD_NVM]		= DOMAIN_RV1126(BIT(7), BIT(11), BIT(11),  false),
+	[RV1126_PD_SDIO]	= DOMAIN_RV1126(BIT(8), BIT(13), BIT(13),  false),
+	[RV1126_PD_USB]		= DOMAIN_RV1126(BIT(9), BIT(15), BIT(15),  false),
+	[RV1126_PD_NPU]		= DOMAIN_RV1126_O(BIT(0), BIT(2), BIT(18), 0x4, false),
+};
+
 static const struct rockchip_domain_info rk1808_pm_domains[] = {
 	[RK1808_VD_NPU]		= DOMAIN_PX30(BIT(15), BIT(15), BIT(2), false),
 	[RK1808_PD_PCIE]	= DOMAIN_PX30(BIT(9),  BIT(9),  BIT(4), true),
@@ -1174,6 +1224,17 @@ static const struct rockchip_pmu_info px30_pmu = {
 
 	.num_domains = ARRAY_SIZE(px30_pm_domains),
 	.domain_info = px30_pm_domains,
+};
+
+static const struct rockchip_pmu_info rv1126_pmu = {
+	.pwr_offset = 0x110,
+	.status_offset = 0x108,
+	.req_offset = 0xc0,
+	.idle_offset = 0xd8,
+	.ack_offset = 0xd0,
+
+	.num_domains = ARRAY_SIZE(rv1126_pm_domains),
+	.domain_info = rv1126_pm_domains,
 };
 
 static const struct rockchip_pmu_info rk1808_pmu = {
@@ -1297,6 +1358,10 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,px30-power-controller",
 		.data = (void *)&px30_pmu,
+	},
+	{
+		.compatible = "rockchip,rv1126-power-controller",
+		.data = (void *)&rv1126_pmu,
 	},
 	{
 		.compatible = "rockchip,rk1808-power-controller",
