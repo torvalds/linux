@@ -10424,9 +10424,8 @@ static int hsw_crtc_compute_clock(struct intel_crtc *crtc,
 	return 0;
 }
 
-static void cannonlake_get_ddi_pll(struct drm_i915_private *dev_priv,
-				   enum port port,
-				   struct intel_crtc_state *pipe_config)
+static void cnl_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
+			    struct intel_crtc_state *pipe_config)
 {
 	enum intel_dpll_id id;
 	u32 temp;
@@ -10728,7 +10727,7 @@ static void hsw_get_ddi_port_state(struct intel_crtc *crtc,
 	if (INTEL_GEN(dev_priv) >= 11)
 		icelake_get_ddi_pll(dev_priv, port, pipe_config);
 	else if (IS_CANNONLAKE(dev_priv))
-		cannonlake_get_ddi_pll(dev_priv, port, pipe_config);
+		cnl_get_ddi_pll(dev_priv, port, pipe_config);
 	else if (IS_GEN9_BC(dev_priv))
 		skl_get_ddi_pll(dev_priv, port, pipe_config);
 	else if (IS_GEN9_LP(dev_priv))
