@@ -1444,7 +1444,7 @@ static void pg_init_done(void *data, int errors)
 		break;
 	case SCSI_DH_RETRY:
 		/* Wait before retrying. */
-		delay_retry = 1;
+		delay_retry = true;
 		/* fall through */
 	case SCSI_DH_IMM_RETRY:
 	case SCSI_DH_RES_TEMP_UNAVAIL:
