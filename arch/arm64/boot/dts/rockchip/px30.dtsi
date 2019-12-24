@@ -410,6 +410,33 @@
 			compatible = "rockchip,px30-io-voltage-domain";
 			status = "disabled";
 		};
+
+		lvds: lvds {
+			compatible = "rockchip,px30-lvds";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			phys = <&dsi_dphy>;
+			phy-names = "dphy";
+			rockchip,grf = <&grf>;
+			rockchip,output = "lvds";
+			status = "disabled";
+
+			port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				lvds_vopb_in: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vopb_out_lvds>;
+				};
+
+				lvds_vopl_in: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopl_out_lvds>;
+				};
+			};
+		};
 	};
 
 	uart1: serial@ff158000 {
@@ -1015,6 +1042,11 @@
 				reg = <0>;
 				remote-endpoint = <&dsi_in_vopb>;
 			};
+
+			vopb_out_lvds: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lvds_vopb_in>;
+			};
 		};
 	};
 
@@ -1051,6 +1083,11 @@
 			vopl_out_dsi: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&dsi_in_vopl>;
+			};
+
+			vopl_out_lvds: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lvds_vopl_in>;
 			};
 		};
 	};
