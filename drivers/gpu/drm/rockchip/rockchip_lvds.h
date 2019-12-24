@@ -72,6 +72,9 @@
 #define RK3288_LVDS_CFG_REG21_TX_DISABLE	0x00
 #define RK3288_LVDS_CH1_OFFSET			0x100
 
+#define RK3288_LVDS_GRF_SOC_CON6		0x025C
+#define RK3288_LVDS_GRF_SOC_CON7		0x0260
+
 /* fbdiv value is split over 2 registers, with bit8 in reg2 */
 #define RK3288_LVDS_PLL_FBDIV_REG2(_fbd) \
 		(_fbd & BIT(8) ? RK3288_LVDS_CH0_REG2_PLL_FBDIV8 : 0)

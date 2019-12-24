@@ -39,16 +39,10 @@
 
 /**
  * rockchip_lvds_soc_data - rockchip lvds Soc private data
- * @ch1_offset: lvds channel 1 registe offset
- * grf_soc_con6: general registe offset for LVDS contrl
- * grf_soc_con7: general registe offset for LVDS contrl
- * has_vop_sel: to indicate whether need to choose from different VOP.
+ * @helper_funcs: LVDS connector helper functions
  */
 struct rockchip_lvds_soc_data {
-	u32 ch1_offset;
-	int grf_soc_con6;
-	int grf_soc_con7;
-	bool has_vop_sel;
+	const struct drm_encoder_helper_funcs *helper_funcs;
 };
 
 struct rockchip_lvds {
@@ -73,7 +67,7 @@ static inline void rk3288_writel(struct rockchip_lvds *lvds, u32 offset,
 	writel_relaxed(val, lvds->regs + offset);
 	if (lvds->output == DISPLAY_OUTPUT_LVDS)
 		return;
-	writel_relaxed(val, lvds->regs + offset + lvds->soc_data->ch1_offset);
+	writel_relaxed(val, lvds->regs + offset + RK3288_LVDS_CH1_OFFSET);
 }
 
 static inline int rockchip_lvds_name_to_format(const char *s)
@@ -188,7 +182,7 @@ static void rk3288_lvds_poweroff(struct rockchip_lvds *lvds)
 		      RK3288_LVDS_CFG_REGC_PLL_ENABLE);
 	val = LVDS_DUAL | LVDS_TTL_EN | LVDS_CH0_EN | LVDS_CH1_EN | LVDS_PWRDN;
 	val |= val << 16;
-	ret = regmap_write(lvds->grf, lvds->soc_data->grf_soc_con7, val);
+	ret = regmap_write(lvds->grf, RK3288_LVDS_GRF_SOC_CON7, val);
 	if (ret != 0)
 		DRM_DEV_ERROR(lvds->dev, "Could not write to GRF: %d\n", ret);
 
@@ -242,7 +236,7 @@ static void rk3288_lvds_grf_config(struct drm_encoder *encoder,
 
 	val |= (pin_dclk << 8) | (pin_hsync << 9);
 	val |= (0xffff << 16);
-	ret = regmap_write(lvds->grf, lvds->soc_data->grf_soc_con7, val);
+	ret = regmap_write(lvds->grf, RK3288_LVDS_GRF_SOC_CON7, val);
 	if (ret != 0) {
 		DRM_DEV_ERROR(lvds->dev, "Could not write to GRF: %d\n", ret);
 		return;
@@ -255,9 +249,6 @@ static int rk3288_lvds_set_vop_source(struct rockchip_lvds *lvds,
 	u32 val;
 	int ret;
 
-	if (!lvds->soc_data->has_vop_sel)
-		return 0;
-
 	ret = drm_of_encoder_active_endpoint_id(lvds->dev->of_node, encoder);
 	if (ret < 0)
 		return ret;
@@ -266,7 +257,7 @@ static int rk3288_lvds_set_vop_source(struct rockchip_lvds *lvds,
 	if (ret)
 		val |= RK3288_LVDS_SOC_CON6_SEL_VOP_LIT;
 
-	ret = regmap_write(lvds->grf, lvds->soc_data->grf_soc_con6, val);
+	ret = regmap_write(lvds->grf, RK3288_LVDS_GRF_SOC_CON6, val);
 	if (ret < 0)
 		return ret;
 
@@ -324,10 +315,7 @@ static const struct drm_encoder_funcs rockchip_lvds_encoder_funcs = {
 };
 
 static const struct rockchip_lvds_soc_data rk3288_lvds_data = {
-	.ch1_offset = 0x100,
-	.grf_soc_con6 = 0x025c,
-	.grf_soc_con7 = 0x0260,
-	.has_vop_sel = true,
+	.helper_funcs = &rk3288_lvds_encoder_helper_funcs,
 };
 
 static const struct of_device_id rockchip_lvds_dt_ids[] = {
@@ -418,7 +406,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		goto err_put_remote;
 	}
 
-	drm_encoder_helper_add(encoder, &rk3288_lvds_encoder_helper_funcs);
+	drm_encoder_helper_add(encoder, lvds->soc_data->helper_funcs);
 
 	if (lvds->panel) {
 		connector = &lvds->connector;
@@ -479,8 +467,10 @@ static void rockchip_lvds_unbind(struct device *dev, struct device *master,
 				void *data)
 {
 	struct rockchip_lvds *lvds = dev_get_drvdata(dev);
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 
-	rk3288_lvds_encoder_disable(&lvds->encoder);
+	encoder_funcs = lvds->soc_data->helper_funcs;
+	encoder_funcs->disable(&lvds->encoder);
 	if (lvds->panel)
 		drm_panel_detach(lvds->panel);
 	pm_runtime_disable(dev);
