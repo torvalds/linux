@@ -340,7 +340,7 @@ void setup_graphics(struct boot_params *boot_params)
 				EFI_LOCATE_BY_PROTOCOL,
 				&graphics_proto, NULL, &size, gop_handle);
 	if (status == EFI_BUFFER_TOO_SMALL)
-		status = efi_setup_gop(NULL, si, &graphics_proto, size);
+		status = efi_setup_gop(si, &graphics_proto, size);
 
 	if (status != EFI_SUCCESS) {
 		size = 0;
@@ -390,8 +390,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 		return status;
 	}
 
-	status = efi_low_alloc(sys_table, 0x4000, 1,
-			       (unsigned long *)&boot_params);
+	status = efi_low_alloc(0x4000, 1, (unsigned long *)&boot_params);
 	if (status != EFI_SUCCESS) {
 		efi_printk("Failed to allocate lowmem for boot params\n");
 		return status;
@@ -416,7 +415,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	hdr->type_of_loader = 0x21;
 
 	/* Convert unicode cmdline to ascii */
-	cmdline_ptr = efi_convert_cmdline(sys_table, image, &options_size);
+	cmdline_ptr = efi_convert_cmdline(image, &options_size);
 	if (!cmdline_ptr)
 		goto fail;
 
@@ -434,7 +433,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	if (status != EFI_SUCCESS)
 		goto fail2;
 
-	status = handle_cmdline_files(sys_table, image,
+	status = handle_cmdline_files(image,
 				      (char *)(unsigned long)hdr->cmd_line_ptr,
 				      "initrd=", hdr->initrd_addr_max,
 				      &ramdisk_addr, &ramdisk_size);
@@ -442,7 +441,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	if (status != EFI_SUCCESS &&
 	    hdr->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G) {
 		efi_printk("Trying to load files to higher address\n");
-		status = handle_cmdline_files(sys_table, image,
+		status = handle_cmdline_files(image,
 				      (char *)(unsigned long)hdr->cmd_line_ptr,
 				      "initrd=", -1UL,
 				      &ramdisk_addr, &ramdisk_size);
@@ -461,9 +460,9 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	/* not reached */
 
 fail2:
-	efi_free(sys_table, options_size, hdr->cmd_line_ptr);
+	efi_free(options_size, hdr->cmd_line_ptr);
 fail:
-	efi_free(sys_table, 0x4000, (unsigned long)boot_params);
+	efi_free(0x4000, (unsigned long)boot_params);
 
 	return status;
 }
@@ -630,7 +629,7 @@ static efi_status_t allocate_e820(struct boot_params *params,
 	boot_map.key_ptr	= NULL;
 	boot_map.buff_size	= &buff_size;
 
-	status = efi_get_memory_map(sys_table, &boot_map);
+	status = efi_get_memory_map(&boot_map);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -652,8 +651,7 @@ struct exit_boot_struct {
 	struct efi_info		*efi;
 };
 
-static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
-				   struct efi_boot_memmap *map,
+static efi_status_t exit_boot_func(struct efi_boot_memmap *map,
 				   void *priv)
 {
 	const char *signature;
@@ -663,14 +661,14 @@ static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
 				   : EFI32_LOADER_SIGNATURE;
 	memcpy(&p->efi->efi_loader_signature, signature, sizeof(__u32));
 
-	p->efi->efi_systab		= (unsigned long)sys_table_arg;
+	p->efi->efi_systab		= (unsigned long)efi_system_table();
 	p->efi->efi_memdesc_size	= *map->desc_size;
 	p->efi->efi_memdesc_version	= *map->desc_ver;
 	p->efi->efi_memmap		= (unsigned long)*map->map;
 	p->efi->efi_memmap_size		= *map->map_size;
 
 #ifdef CONFIG_X86_64
-	p->efi->efi_systab_hi		= (unsigned long)sys_table_arg >> 32;
+	p->efi->efi_systab_hi		= (unsigned long)efi_system_table() >> 32;
 	p->efi->efi_memmap_hi		= (unsigned long)*map->map >> 32;
 #endif
 
@@ -702,8 +700,7 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
 		return status;
 
 	/* Might as well exit boot services now */
-	status = efi_exit_boot_services(sys_table, handle, &map, &priv,
-					exit_boot_func);
+	status = efi_exit_boot_services(handle, &map, &priv, exit_boot_func);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -755,14 +752,14 @@ struct boot_params *efi_main(efi_handle_t handle,
 	 * otherwise we ask the BIOS.
 	 */
 	if (boot_params->secure_boot == efi_secureboot_mode_unset)
-		boot_params->secure_boot = efi_get_secureboot(sys_table);
+		boot_params->secure_boot = efi_get_secureboot();
 
 	/* Ask the firmware to clear memory on unclean shutdown */
-	efi_enable_reset_attack_mitigation(sys_table);
+	efi_enable_reset_attack_mitigation();
 
-	efi_random_get_seed(sys_table);
+	efi_random_get_seed();
 
-	efi_retrieve_tpm2_eventlog(sys_table);
+	efi_retrieve_tpm2_eventlog();
 
 	setup_graphics(boot_params);
 
@@ -778,8 +775,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 	}
 
 	gdt->size = 0x800;
-	status = efi_low_alloc(sys_table, gdt->size, 8,
-			   (unsigned long *)&gdt->address);
+	status = efi_low_alloc(gdt->size, 8, (unsigned long *)&gdt->address);
 	if (status != EFI_SUCCESS) {
 		efi_printk("Failed to allocate memory for 'gdt'\n");
 		goto fail;
@@ -791,7 +787,7 @@ struct boot_params *efi_main(efi_handle_t handle,
 	 */
 	if (hdr->pref_address != hdr->code32_start) {
 		unsigned long bzimage_addr = hdr->code32_start;
-		status = efi_relocate_kernel(sys_table, &bzimage_addr,
+		status = efi_relocate_kernel(&bzimage_addr,
 					     hdr->init_size, hdr->init_size,
 					     hdr->pref_address,
 					     hdr->kernel_alignment,

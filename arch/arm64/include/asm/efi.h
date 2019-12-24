@@ -105,8 +105,7 @@ static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
 
 #define alloc_screen_info(x...)		&screen_info
 
-static inline void free_screen_info(efi_system_table_t *sys_table_arg,
-				    struct screen_info *si)
+static inline void free_screen_info(struct screen_info *si)
 {
 }
 

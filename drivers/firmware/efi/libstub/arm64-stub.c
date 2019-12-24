@@ -21,7 +21,7 @@
 
 #include "efistub.h"
 
-efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
+efi_status_t check_platform_features(void)
 {
 	u64 tg;
 
@@ -40,8 +40,7 @@ efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
 	return EFI_SUCCESS;
 }
 
-efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
-				 unsigned long *image_addr,
+efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
 				 unsigned long *reserve_addr,
 				 unsigned long *reserve_size,
@@ -56,8 +55,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
 		if (!nokaslr()) {
-			status = efi_get_random_bytes(sys_table_arg,
-						      sizeof(phys_seed),
+			status = efi_get_random_bytes(sizeof(phys_seed),
 						      (u8 *)&phys_seed);
 			if (status == EFI_NOT_FOUND) {
 				pr_efi("EFI_RNG_PROTOCOL unavailable, no randomness supplied\n");
@@ -108,7 +106,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 		 * locate the kernel at a randomized offset in physical memory.
 		 */
 		*reserve_size = kernel_memsize + offset;
-		status = efi_random_alloc(sys_table_arg, *reserve_size,
+		status = efi_random_alloc(*reserve_size,
 					  MIN_KIMG_ALIGN, reserve_addr,
 					  (u32)phys_seed);
 
@@ -139,7 +137,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 
 	if (status != EFI_SUCCESS) {
 		*reserve_size = kernel_memsize + TEXT_OFFSET;
-		status = efi_low_alloc(sys_table_arg, *reserve_size,
+		status = efi_low_alloc(*reserve_size,
 				       MIN_KIMG_ALIGN, reserve_addr);
 
 		if (status != EFI_SUCCESS) {

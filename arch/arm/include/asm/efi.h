@@ -60,8 +60,8 @@ void efi_virtmap_unload(void);
 #define efi_call_proto(protocol, f, instance, ...)			\
 	instance->f(instance, ##__VA_ARGS__)
 
-struct screen_info *alloc_screen_info(efi_system_table_t *sys_table_arg);
-void free_screen_info(efi_system_table_t *sys_table, struct screen_info *si);
+struct screen_info *alloc_screen_info(void);
+void free_screen_info(struct screen_info *si);
 
 static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
 {

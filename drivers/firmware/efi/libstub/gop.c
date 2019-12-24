@@ -88,9 +88,8 @@ setup_pixel_info(struct screen_info *si, u32 pixels_per_scan_line,
 #define efi_gop_attr(table, attr, instance) \
 	(efi_table_attr(efi_graphics_output_protocol##table, attr, instance))
 
-static efi_status_t
-setup_gop(efi_system_table_t *sys_table_arg, struct screen_info *si,
-	  efi_guid_t *proto, unsigned long size, void **handles)
+static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
+			      unsigned long size, void **handles)
 {
 	efi_graphics_output_protocol_t *gop, *first_gop;
 	u16 width, height;
@@ -185,8 +184,7 @@ setup_gop(efi_system_table_t *sys_table_arg, struct screen_info *si,
 /*
  * See if we have Graphics Output Protocol
  */
-efi_status_t efi_setup_gop(efi_system_table_t *sys_table_arg,
-			   struct screen_info *si, efi_guid_t *proto,
+efi_status_t efi_setup_gop(struct screen_info *si, efi_guid_t *proto,
 			   unsigned long size)
 {
 	efi_status_t status;
@@ -203,7 +201,7 @@ efi_status_t efi_setup_gop(efi_system_table_t *sys_table_arg,
 	if (status != EFI_SUCCESS)
 		goto free_handle;
 
-	status = setup_gop(sys_table_arg, si, proto, size, gop_handle);
+	status = setup_gop(si, proto, size, gop_handle);
 
 free_handle:
 	efi_call_early(free_pool, gop_handle);

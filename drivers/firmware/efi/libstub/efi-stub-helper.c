@@ -84,8 +84,7 @@ static inline bool mmap_has_headroom(unsigned long buff_size,
 	return slack / desc_size >= EFI_MMAP_NR_SLACK_SLOTS;
 }
 
-efi_status_t efi_get_memory_map(efi_system_table_t *sys_table_arg,
-				struct efi_boot_memmap *map)
+efi_status_t efi_get_memory_map(struct efi_boot_memmap *map)
 {
 	efi_memory_desc_t *m = NULL;
 	efi_status_t status;
@@ -135,7 +134,7 @@ fail:
 }
 
 
-unsigned long get_dram_base(efi_system_table_t *sys_table_arg)
+unsigned long get_dram_base(void)
 {
 	efi_status_t status;
 	unsigned long map_size, buff_size;
@@ -151,7 +150,7 @@ unsigned long get_dram_base(efi_system_table_t *sys_table_arg)
 	boot_map.key_ptr =	NULL;
 	boot_map.buff_size =	&buff_size;
 
-	status = efi_get_memory_map(sys_table_arg, &boot_map);
+	status = efi_get_memory_map(&boot_map);
 	if (status != EFI_SUCCESS)
 		return membase;
 
@@ -172,8 +171,7 @@ unsigned long get_dram_base(efi_system_table_t *sys_table_arg)
 /*
  * Allocate at the highest possible address that is not above 'max'.
  */
-efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
-			    unsigned long size, unsigned long align,
+efi_status_t efi_high_alloc(unsigned long size, unsigned long align,
 			    unsigned long *addr, unsigned long max)
 {
 	unsigned long map_size, desc_size, buff_size;
@@ -191,7 +189,7 @@ efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
 	boot_map.key_ptr =	NULL;
 	boot_map.buff_size =	&buff_size;
 
-	status = efi_get_memory_map(sys_table_arg, &boot_map);
+	status = efi_get_memory_map(&boot_map);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
@@ -271,8 +269,7 @@ fail:
 /*
  * Allocate at the lowest possible address that is not below 'min'.
  */
-efi_status_t efi_low_alloc_above(efi_system_table_t *sys_table_arg,
-				 unsigned long size, unsigned long align,
+efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 				 unsigned long *addr, unsigned long min)
 {
 	unsigned long map_size, desc_size, buff_size;
@@ -289,7 +286,7 @@ efi_status_t efi_low_alloc_above(efi_system_table_t *sys_table_arg,
 	boot_map.key_ptr =	NULL;
 	boot_map.buff_size =	&buff_size;
 
-	status = efi_get_memory_map(sys_table_arg, &boot_map);
+	status = efi_get_memory_map(&boot_map);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
@@ -348,8 +345,7 @@ fail:
 	return status;
 }
 
-void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
-	      unsigned long addr)
+void efi_free(unsigned long size, unsigned long addr)
 {
 	unsigned long nr_pages;
 
@@ -360,9 +356,8 @@ void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
 	efi_call_early(free_pages, addr, nr_pages);
 }
 
-static efi_status_t efi_file_size(efi_system_table_t *sys_table_arg, void *__fh,
-				  efi_char16_t *filename_16, void **handle,
-				  u64 *file_sz)
+static efi_status_t efi_file_size(void *__fh, efi_char16_t *filename_16,
+				  void **handle, u64 *file_sz)
 {
 	efi_file_handle_t *h, *fh = __fh;
 	efi_file_info_t *info;
@@ -421,8 +416,7 @@ static efi_status_t efi_file_close(efi_file_handle_t *handle)
 	return handle->close(handle);
 }
 
-static efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
-				    efi_loaded_image_t *image,
+static efi_status_t efi_open_volume(efi_loaded_image_t *image,
 				    efi_file_handle_t **__fh)
 {
 	efi_file_io_interface_t *io;
@@ -516,8 +510,7 @@ efi_status_t efi_parse_options(char const *cmdline)
  * We only support loading a file from the same filesystem as
  * the kernel image.
  */
-efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
-				  efi_loaded_image_t *image,
+efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 				  char *cmd_line, char *option_string,
 				  unsigned long max_addr,
 				  unsigned long *load_addr,
@@ -608,13 +601,13 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 
 		/* Only open the volume once. */
 		if (!i) {
-			status = efi_open_volume(sys_table_arg, image, &fh);
+			status = efi_open_volume(image, &fh);
 			if (status != EFI_SUCCESS)
 				goto free_files;
 		}
 
-		status = efi_file_size(sys_table_arg, fh, filename_16,
-				       (void **)&file->handle, &file->size);
+		status = efi_file_size(fh, filename_16, (void **)&file->handle,
+				       &file->size);
 		if (status != EFI_SUCCESS)
 			goto close_handles;
 
@@ -629,8 +622,8 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 		 * so allocate enough memory for all the files.  This is used
 		 * for loading multiple files.
 		 */
-		status = efi_high_alloc(sys_table_arg, file_size_total, 0x1000,
-				    &file_addr, max_addr);
+		status = efi_high_alloc(file_size_total, 0x1000, &file_addr,
+					max_addr);
 		if (status != EFI_SUCCESS) {
 			pr_efi_err("Failed to alloc highmem for files\n");
 			goto close_handles;
@@ -680,7 +673,7 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 	return status;
 
 free_file_total:
-	efi_free(sys_table_arg, file_size_total, file_addr);
+	efi_free(file_size_total, file_addr);
 
 close_handles:
 	for (k = j; k < i; k++)
@@ -703,8 +696,7 @@ fail:
  * address is not available the lowest available address will
  * be used.
  */
-efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
-				 unsigned long *image_addr,
+efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 				 unsigned long image_size,
 				 unsigned long alloc_size,
 				 unsigned long preferred_addr,
@@ -742,8 +734,8 @@ efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
 	 * possible.
 	 */
 	if (status != EFI_SUCCESS) {
-		status = efi_low_alloc_above(sys_table_arg, alloc_size,
-					     alignment, &new_addr, min_addr);
+		status = efi_low_alloc_above(alloc_size, alignment, &new_addr,
+					     min_addr);
 	}
 	if (status != EFI_SUCCESS) {
 		pr_efi_err("Failed to allocate usable memory for kernel.\n");
@@ -820,8 +812,7 @@ static u8 *efi_utf16_to_utf8(u8 *dst, const u16 *src, int n)
  * Size of memory allocated return in *cmd_line_len.
  * Returns NULL on error.
  */
-char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
-			  efi_loaded_image_t *image,
+char *efi_convert_cmdline(efi_loaded_image_t *image,
 			  int *cmd_line_len)
 {
 	const u16 *s2;
@@ -850,8 +841,8 @@ char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
 
 	options_bytes++;	/* NUL termination */
 
-	status = efi_high_alloc(sys_table_arg, options_bytes, 0,
-				&cmdline_addr, MAX_CMDLINE_ADDRESS);
+	status = efi_high_alloc(options_bytes, 0, &cmdline_addr,
+				MAX_CMDLINE_ADDRESS);
 	if (status != EFI_SUCCESS)
 		return NULL;
 
@@ -873,20 +864,19 @@ char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
  * specific structure may be passed to the function via priv.  The client
  * function may be called multiple times.
  */
-efi_status_t efi_exit_boot_services(efi_system_table_t *sys_table_arg,
-				    void *handle,
+efi_status_t efi_exit_boot_services(void *handle,
 				    struct efi_boot_memmap *map,
 				    void *priv,
 				    efi_exit_boot_map_processing priv_func)
 {
 	efi_status_t status;
 
-	status = efi_get_memory_map(sys_table_arg, map);
+	status = efi_get_memory_map(map);
 
 	if (status != EFI_SUCCESS)
 		goto fail;
 
-	status = priv_func(sys_table_arg, map, priv);
+	status = priv_func(map, priv);
 	if (status != EFI_SUCCESS)
 		goto free_map;
 
@@ -918,7 +908,7 @@ efi_status_t efi_exit_boot_services(efi_system_table_t *sys_table_arg,
 		if (status != EFI_SUCCESS)
 			goto fail;
 
-		status = priv_func(sys_table_arg, map, priv);
+		status = priv_func(map, priv);
 		/* exit_boot_services() was called, thus cannot free */
 		if (status != EFI_SUCCESS)
 			goto fail;
@@ -938,10 +928,12 @@ fail:
 	return status;
 }
 
-void *get_efi_config_table(efi_system_table_t *sys_table, efi_guid_t guid)
+void *get_efi_config_table(efi_guid_t guid)
 {
-	unsigned long tables = efi_table_attr(efi_system_table, tables, sys_table);
-	int nr_tables = efi_table_attr(efi_system_table, nr_tables, sys_table);
+	unsigned long tables = efi_table_attr(efi_system_table, tables,
+					      efi_system_table());
+	int nr_tables = efi_table_attr(efi_system_table, nr_tables,
+				       efi_system_table());
 	int i;
 
 	for (i = 0; i < nr_tables; i++) {

@@ -36,7 +36,7 @@ static const efi_char16_t efi_MemoryOverWriteRequest_name[] =
  * are cleared. If userland has ensured that all secrets have been removed
  * from RAM before reboot it can simply reset this variable.
  */
-void efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg)
+void efi_enable_reset_attack_mitigation(void)
 {
 	u8 val = 1;
 	efi_guid_t var_guid = MEMORY_ONLY_RESET_CONTROL_GUID;
@@ -57,7 +57,7 @@ void efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg)
 
 #endif
 
-void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
+void efi_retrieve_tpm2_eventlog(void)
 {
 	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
 	efi_guid_t linux_eventlog_guid = LINUX_EFI_TPM_EVENT_LOG_GUID;
@@ -139,8 +139,7 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
 	 * Figure out whether any events have already been logged to the
 	 * final events structure, and if so how much space they take up
 	 */
-	final_events_table = get_efi_config_table(sys_table_arg,
-						LINUX_EFI_TPM_FINAL_LOG_GUID);
+	final_events_table = get_efi_config_table(LINUX_EFI_TPM_FINAL_LOG_GUID);
 	if (final_events_table && final_events_table->nr_events) {
 		struct tcg_pcr_event2_head *header;
 		int offset;

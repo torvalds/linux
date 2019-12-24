@@ -1495,22 +1495,17 @@ static inline int efi_runtime_map_copy(void *buf, size_t bufsz)
 
 void efi_printk(char *str);
 
-void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
-	      unsigned long addr);
+void efi_free(unsigned long size, unsigned long addr);
 
-char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
-			  efi_loaded_image_t *image, int *cmd_line_len);
+char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len);
 
-efi_status_t efi_get_memory_map(efi_system_table_t *sys_table_arg,
-				struct efi_boot_memmap *map);
+efi_status_t efi_get_memory_map(struct efi_boot_memmap *map);
 
-efi_status_t efi_low_alloc_above(efi_system_table_t *sys_table_arg,
-				 unsigned long size, unsigned long align,
+efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 				 unsigned long *addr, unsigned long min);
 
 static inline
-efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
-			   unsigned long size, unsigned long align,
+efi_status_t efi_low_alloc(unsigned long size, unsigned long align,
 			   unsigned long *addr)
 {
 	/*
@@ -1518,23 +1513,20 @@ efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 	 * checks pointers against NULL. Skip the first 8
 	 * bytes so we start at a nice even number.
 	 */
-	return efi_low_alloc_above(sys_table_arg, size, align, addr, 0x8);
+	return efi_low_alloc_above(size, align, addr, 0x8);
 }
 
-efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
-			    unsigned long size, unsigned long align,
+efi_status_t efi_high_alloc(unsigned long size, unsigned long align,
 			    unsigned long *addr, unsigned long max);
 
-efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
-				 unsigned long *image_addr,
+efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 				 unsigned long image_size,
 				 unsigned long alloc_size,
 				 unsigned long preferred_addr,
 				 unsigned long alignment,
 				 unsigned long min_addr);
 
-efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
-				  efi_loaded_image_t *image,
+efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 				  char *cmd_line, char *option_string,
 				  unsigned long max_addr,
 				  unsigned long *load_addr,
@@ -1542,8 +1534,7 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 
 efi_status_t efi_parse_options(char const *cmdline);
 
-efi_status_t efi_setup_gop(efi_system_table_t *sys_table_arg,
-			   struct screen_info *si, efi_guid_t *proto,
+efi_status_t efi_setup_gop(struct screen_info *si, efi_guid_t *proto,
 			   unsigned long size);
 
 #ifdef CONFIG_EFI
@@ -1561,18 +1552,18 @@ enum efi_secureboot_mode {
 	efi_secureboot_mode_disabled,
 	efi_secureboot_mode_enabled,
 };
-enum efi_secureboot_mode efi_get_secureboot(efi_system_table_t *sys_table);
+enum efi_secureboot_mode efi_get_secureboot(void);
 
 #ifdef CONFIG_RESET_ATTACK_MITIGATION
-void efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg);
+void efi_enable_reset_attack_mitigation(void);
 #else
 static inline void
-efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg) { }
+efi_enable_reset_attack_mitigation(void) { }
 #endif
 
-efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg);
+efi_status_t efi_random_get_seed(void);
 
-void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table);
+void efi_retrieve_tpm2_eventlog(void);
 
 /*
  * Arch code can implement the following three template macros, avoiding
@@ -1624,12 +1615,10 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table);
 })
 
 typedef efi_status_t (*efi_exit_boot_map_processing)(
-	efi_system_table_t *sys_table_arg,
 	struct efi_boot_memmap *map,
 	void *priv);
 
-efi_status_t efi_exit_boot_services(efi_system_table_t *sys_table,
-				    void *handle,
+efi_status_t efi_exit_boot_services(void *handle,
 				    struct efi_boot_memmap *map,
 				    void *priv,
 				    efi_exit_boot_map_processing priv_func);

@@ -44,7 +44,7 @@ __pure efi_system_table_t *efi_system_table(void)
 	return sys_table;
 }
 
-static struct screen_info *setup_graphics(efi_system_table_t *sys_table_arg)
+static struct screen_info *setup_graphics(void)
 {
 	efi_guid_t gop_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 	efi_status_t status;
@@ -56,15 +56,15 @@ static struct screen_info *setup_graphics(efi_system_table_t *sys_table_arg)
 	status = efi_call_early(locate_handle, EFI_LOCATE_BY_PROTOCOL,
 				&gop_proto, NULL, &size, gop_handle);
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		si = alloc_screen_info(sys_table_arg);
+		si = alloc_screen_info();
 		if (!si)
 			return NULL;
-		efi_setup_gop(sys_table_arg, si, &gop_proto, size);
+		efi_setup_gop(si, &gop_proto, size);
 	}
 	return si;
 }
 
-void install_memreserve_table(efi_system_table_t *sys_table_arg)
+void install_memreserve_table(void)
 {
 	struct linux_efi_memreserve *rsv;
 	efi_guid_t memreserve_table_guid = LINUX_EFI_MEMRESERVE_TABLE_GUID;
@@ -95,8 +95,7 @@ void install_memreserve_table(efi_system_table_t *sys_table_arg)
  * must be reserved. On failure it is required to free all
  * all allocations it has made.
  */
-efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
-				 unsigned long *image_addr,
+efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
 				 unsigned long *reserve_addr,
 				 unsigned long *reserve_size,
@@ -135,7 +134,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		goto fail;
 
-	status = check_platform_features(sys_table);
+	status = check_platform_features();
 	if (status != EFI_SUCCESS)
 		goto fail;
 
@@ -151,7 +150,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 		goto fail;
 	}
 
-	dram_base = get_dram_base(sys_table);
+	dram_base = get_dram_base();
 	if (dram_base == EFI_ERROR) {
 		pr_efi_err("Failed to find DRAM base\n");
 		goto fail;
@@ -162,7 +161,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	 * protocol. We are going to copy the command line into the
 	 * device tree, so this can be allocated anywhere.
 	 */
-	cmdline_ptr = efi_convert_cmdline(sys_table, image, &cmdline_size);
+	cmdline_ptr = efi_convert_cmdline(image, &cmdline_size);
 	if (!cmdline_ptr) {
 		pr_efi_err("getting command line via LOADED_IMAGE_PROTOCOL\n");
 		goto fail;
@@ -178,9 +177,9 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 
 	pr_efi("Booting Linux Kernel...\n");
 
-	si = setup_graphics(sys_table);
+	si = setup_graphics();
 
-	status = handle_kernel_image(sys_table, image_addr, &image_size,
+	status = handle_kernel_image(image_addr, &image_size,
 				     &reserve_addr,
 				     &reserve_size,
 				     dram_base, image);
@@ -189,12 +188,12 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 		goto fail_free_cmdline;
 	}
 
-	efi_retrieve_tpm2_eventlog(sys_table);
+	efi_retrieve_tpm2_eventlog();
 
 	/* Ask the firmware to clear memory on unclean shutdown */
-	efi_enable_reset_attack_mitigation(sys_table);
+	efi_enable_reset_attack_mitigation();
 
-	secure_boot = efi_get_secureboot(sys_table);
+	secure_boot = efi_get_secureboot();
 
 	/*
 	 * Unauthenticated device tree data is a security hazard, so ignore
@@ -206,8 +205,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 		if (strstr(cmdline_ptr, "dtb="))
 			pr_efi("Ignoring DTB from command line.\n");
 	} else {
-		status = handle_cmdline_files(sys_table, image, cmdline_ptr,
-					      "dtb=",
+		status = handle_cmdline_files(image, cmdline_ptr, "dtb=",
 					      ~0UL, &fdt_addr, &fdt_size);
 
 		if (status != EFI_SUCCESS) {
@@ -220,7 +218,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 		pr_efi("Using DTB from command line\n");
 	} else {
 		/* Look for a device tree configuration table entry. */
-		fdt_addr = (uintptr_t)get_fdt(sys_table, &fdt_size);
+		fdt_addr = (uintptr_t)get_fdt(&fdt_size);
 		if (fdt_addr)
 			pr_efi("Using DTB from configuration table\n");
 	}
@@ -228,7 +226,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	if (!fdt_addr)
 		pr_efi("Generating empty DTB\n");
 
-	status = handle_cmdline_files(sys_table, image, cmdline_ptr, "initrd=",
+	status = handle_cmdline_files(image, cmdline_ptr, "initrd=",
 				      efi_get_max_initrd_addr(dram_base,
 							      *image_addr),
 				      (unsigned long *)&initrd_addr,
@@ -236,7 +234,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 	if (status != EFI_SUCCESS)
 		pr_efi_err("Failed initrd from command line!\n");
 
-	efi_random_get_seed(sys_table);
+	efi_random_get_seed();
 
 	/* hibernation expects the runtime regions to stay in the same place */
 	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr()) {
@@ -251,18 +249,17 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 					    EFI_RT_VIRTUAL_SIZE;
 		u32 rnd;
 
-		status = efi_get_random_bytes(sys_table, sizeof(rnd),
-					      (u8 *)&rnd);
+		status = efi_get_random_bytes(sizeof(rnd), (u8 *)&rnd);
 		if (status == EFI_SUCCESS) {
 			virtmap_base = EFI_RT_VIRTUAL_BASE +
 				       (((headroom >> 21) * rnd) >> (32 - 21));
 		}
 	}
 
-	install_memreserve_table(sys_table);
+	install_memreserve_table();
 
 	new_fdt_addr = fdt_addr;
-	status = allocate_new_fdt_and_exit_boot(sys_table, handle,
+	status = allocate_new_fdt_and_exit_boot(handle,
 				&new_fdt_addr, efi_get_max_fdt_addr(dram_base),
 				initrd_addr, initrd_size, cmdline_ptr,
 				fdt_addr, fdt_size);
@@ -277,15 +274,15 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table_arg,
 
 	pr_efi_err("Failed to update FDT and exit boot services\n");
 
-	efi_free(sys_table, initrd_size, initrd_addr);
-	efi_free(sys_table, fdt_size, fdt_addr);
+	efi_free(initrd_size, initrd_addr);
+	efi_free(fdt_size, fdt_addr);
 
 fail_free_image:
-	efi_free(sys_table, image_size, *image_addr);
-	efi_free(sys_table, reserve_size, reserve_addr);
+	efi_free(image_size, *image_addr);
+	efi_free(reserve_size, reserve_addr);
 fail_free_cmdline:
-	free_screen_info(sys_table, si);
-	efi_free(sys_table, cmdline_size, (unsigned long)cmdline_ptr);
+	free_screen_info(si);
+	efi_free(cmdline_size, (unsigned long)cmdline_ptr);
 fail:
 	return EFI_ERROR;
 }

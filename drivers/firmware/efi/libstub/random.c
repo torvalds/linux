@@ -26,8 +26,7 @@ union efi_rng_protocol {
 	} mixed_mode;
 };
 
-efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table_arg,
-				  unsigned long size, u8 *out)
+efi_status_t efi_get_random_bytes(unsigned long size, u8 *out)
 {
 	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
 	efi_status_t status;
@@ -79,8 +78,7 @@ static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
  */
 #define MD_NUM_SLOTS(md)	((md)->virt_addr)
 
-efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
-			      unsigned long size,
+efi_status_t efi_random_alloc(unsigned long size,
 			      unsigned long align,
 			      unsigned long *addr,
 			      unsigned long random_seed)
@@ -99,7 +97,7 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 	map.key_ptr =	NULL;
 	map.buff_size =	&buff_size;
 
-	status = efi_get_memory_map(sys_table_arg, &map);
+	status = efi_get_memory_map(&map);
 	if (status != EFI_SUCCESS)
 		return status;
 
@@ -155,7 +153,7 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 	return status;
 }
 
-efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg)
+efi_status_t efi_random_get_seed(void)
 {
 	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
 	efi_guid_t rng_algo_raw = EFI_RNG_ALGORITHM_RAW;

@@ -16,7 +16,7 @@
 #define EFI_DT_ADDR_CELLS_DEFAULT 2
 #define EFI_DT_SIZE_CELLS_DEFAULT 2
 
-static void fdt_update_cell_size(efi_system_table_t *sys_table, void *fdt)
+static void fdt_update_cell_size(void *fdt)
 {
 	int offset;
 
@@ -27,8 +27,7 @@ static void fdt_update_cell_size(efi_system_table_t *sys_table, void *fdt)
 	fdt_setprop_u32(fdt, offset, "#size-cells",    EFI_DT_SIZE_CELLS_DEFAULT);
 }
 
-static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
-			       unsigned long orig_fdt_size,
+static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 			       void *fdt, int new_fdt_size, char *cmdline_ptr,
 			       u64 initrd_addr, u64 initrd_size)
 {
@@ -62,7 +61,7 @@ static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 			 * Any failure from the following function is
 			 * non-critical:
 			 */
-			fdt_update_cell_size(sys_table, fdt);
+			fdt_update_cell_size(fdt);
 		}
 	}
 
@@ -111,7 +110,7 @@ static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 
 	/* Add FDT entries for EFI runtime services in chosen node. */
 	node = fdt_subnode_offset(fdt, 0, "chosen");
-	fdt_val64 = cpu_to_fdt64((u64)(unsigned long)sys_table);
+	fdt_val64 = cpu_to_fdt64((u64)(unsigned long)efi_system_table());
 
 	status = fdt_setprop_var(fdt, node, "linux,uefi-system-table", fdt_val64);
 	if (status)
@@ -140,7 +139,7 @@ static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
 		efi_status_t efi_status;
 
-		efi_status = efi_get_random_bytes(sys_table, sizeof(fdt_val64),
+		efi_status = efi_get_random_bytes(sizeof(fdt_val64),
 						  (u8 *)&fdt_val64);
 		if (efi_status == EFI_SUCCESS) {
 			status = fdt_setprop_var(fdt, node, "kaslr-seed", fdt_val64);
@@ -210,8 +209,7 @@ struct exit_boot_struct {
 	void			*new_fdt_addr;
 };
 
-static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
-				   struct efi_boot_memmap *map,
+static efi_status_t exit_boot_func(struct efi_boot_memmap *map,
 				   void *priv)
 {
 	struct exit_boot_struct *p = priv;
@@ -244,8 +242,7 @@ static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
  * with the final memory map in it.
  */
 
-efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
-					    void *handle,
+efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 					    unsigned long *new_fdt_addr,
 					    unsigned long max_addr,
 					    u64 initrd_addr, u64 initrd_size,
@@ -275,7 +272,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	 * subsequent allocations adding entries, since they could not affect
 	 * the number of EFI_MEMORY_RUNTIME regions.
 	 */
-	status = efi_get_memory_map(sys_table, &map);
+	status = efi_get_memory_map(&map);
 	if (status != EFI_SUCCESS) {
 		pr_efi_err("Unable to retrieve UEFI memory map.\n");
 		return status;
@@ -284,7 +281,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	pr_efi("Exiting boot services and installing virtual address map...\n");
 
 	map.map = &memory_map;
-	status = efi_high_alloc(sys_table, MAX_FDT_SIZE, EFI_FDT_ALIGN,
+	status = efi_high_alloc(MAX_FDT_SIZE, EFI_FDT_ALIGN,
 				new_fdt_addr, max_addr);
 	if (status != EFI_SUCCESS) {
 		pr_efi_err("Unable to allocate memory for new device tree.\n");
@@ -295,11 +292,11 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	 * Now that we have done our final memory allocation (and free)
 	 * we can get the memory map key needed for exit_boot_services().
 	 */
-	status = efi_get_memory_map(sys_table, &map);
+	status = efi_get_memory_map(&map);
 	if (status != EFI_SUCCESS)
 		goto fail_free_new_fdt;
 
-	status = update_fdt(sys_table, (void *)fdt_addr, fdt_size,
+	status = update_fdt((void *)fdt_addr, fdt_size,
 			    (void *)*new_fdt_addr, MAX_FDT_SIZE, cmdline_ptr,
 			    initrd_addr, initrd_size);
 
@@ -313,7 +310,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	priv.runtime_entry_count	= &runtime_entry_count;
 	priv.new_fdt_addr		= (void *)*new_fdt_addr;
 
-	status = efi_exit_boot_services(sys_table, handle, &map, &priv, exit_boot_func);
+	status = efi_exit_boot_services(handle, &map, &priv, exit_boot_func);
 
 	if (status == EFI_SUCCESS) {
 		efi_set_virtual_address_map_t *svam;
@@ -322,7 +319,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 			return EFI_SUCCESS;
 
 		/* Install the new virtual address map */
-		svam = sys_table->runtime->set_virtual_address_map;
+		svam = efi_system_table()->runtime->set_virtual_address_map;
 		status = svam(runtime_entry_count * desc_size, desc_size,
 			      desc_ver, runtime_map);
 
@@ -353,19 +350,19 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	pr_efi_err("Exit boot services failed.\n");
 
 fail_free_new_fdt:
-	efi_free(sys_table, MAX_FDT_SIZE, *new_fdt_addr);
+	efi_free(MAX_FDT_SIZE, *new_fdt_addr);
 
 fail:
-	sys_table->boottime->free_pool(runtime_map);
+	efi_system_table()->boottime->free_pool(runtime_map);
 
 	return EFI_LOAD_ERROR;
 }
 
-void *get_fdt(efi_system_table_t *sys_table, unsigned long *fdt_size)
+void *get_fdt(unsigned long *fdt_size)
 {
 	void *fdt;
 
-	fdt = get_efi_config_table(sys_table, DEVICE_TREE_GUID);
+	fdt = get_efi_config_table(DEVICE_TREE_GUID);
 
 	if (!fdt)
 		return NULL;
