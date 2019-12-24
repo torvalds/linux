@@ -600,7 +600,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	sseu->has_eu_pg = 0;
 }
 
-static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
+static void hsw_sseu_info_init(struct drm_i915_private *dev_priv)
 {
 	struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	u32 fuse1;
@@ -1021,7 +1021,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 	/* Initialize slice/subslice/EU info */
 	if (IS_HASWELL(dev_priv))
-		haswell_sseu_info_init(dev_priv);
+		hsw_sseu_info_init(dev_priv);
 	else if (IS_CHERRYVIEW(dev_priv))
 		cherryview_sseu_info_init(dev_priv);
 	else if (IS_BROADWELL(dev_priv))

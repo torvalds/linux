@@ -3465,14 +3465,14 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	 * (DFLEXDPSP.DPX4TXLATC)
 	 *
 	 * This was done before tgl_ddi_pre_enable_dp by
-	 * haswell_crtc_enable()->intel_encoders_pre_pll_enable().
+	 * hsw_crtc_enable()->intel_encoders_pre_pll_enable().
 	 */
 
 	/*
 	 * 4. Enable the port PLL.
 	 *
 	 * The PLL enabling itself was already done before this function by
-	 * haswell_crtc_enable()->intel_enable_shared_dpll().  We need only
+	 * hsw_crtc_enable()->intel_enable_shared_dpll().  We need only
 	 * configure the PLL to port mapping here.
 	 */
 	intel_ddi_clk_select(encoder, crtc_state);

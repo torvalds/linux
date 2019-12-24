@@ -159,7 +159,7 @@ static void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_sta
 					 const struct intel_link_m_n *m2_n2);
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void ironlake_set_pipeconf(const struct intel_crtc_state *crtc_state);
-static void haswell_set_pipeconf(const struct intel_crtc_state *crtc_state);
+static void hsw_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state);
 static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
@@ -6771,8 +6771,8 @@ static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(reg, val);
 }
 
-static void haswell_crtc_enable(struct intel_atomic_state *state,
-				struct intel_crtc *crtc)
+static void hsw_crtc_enable(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
 {
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -6813,7 +6813,7 @@ static void haswell_crtc_enable(struct intel_atomic_state *state,
 
 	if (!transcoder_is_dsi(cpu_transcoder)) {
 		hsw_set_frame_start_delay(new_crtc_state);
-		haswell_set_pipeconf(new_crtc_state);
+		hsw_set_pipeconf(new_crtc_state);
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
@@ -6951,8 +6951,8 @@ static void ironlake_crtc_disable(struct intel_atomic_state *state,
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 }
 
-static void haswell_crtc_disable(struct intel_atomic_state *state,
-				 struct intel_crtc *crtc)
+static void hsw_crtc_disable(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
 	/*
 	 * FIXME collapse everything to one hook.
@@ -9767,7 +9767,7 @@ static void ironlake_set_pipeconf(const struct intel_crtc_state *crtc_state)
 	POSTING_READ(PIPECONF(pipe));
 }
 
-static void haswell_set_pipeconf(const struct intel_crtc_state *crtc_state)
+static void hsw_set_pipeconf(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -10401,8 +10401,9 @@ out:
 
 	return ret;
 }
-static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
-				      struct intel_crtc_state *crtc_state)
+
+static int hsw_crtc_compute_clock(struct intel_crtc *crtc,
+				  struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_atomic_state *state =
@@ -10516,9 +10517,8 @@ static void skylake_get_ddi_pll(struct drm_i915_private *dev_priv,
 	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
 }
 
-static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
-				enum port port,
-				struct intel_crtc_state *pipe_config)
+static void hsw_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
+			    struct intel_crtc_state *pipe_config)
 {
 	enum intel_dpll_id id;
 	u32 ddi_pll_sel = I915_READ(PORT_CLK_SEL(port));
@@ -10706,8 +10706,8 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 	return transcoder_is_dsi(pipe_config->cpu_transcoder);
 }
 
-static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
-				       struct intel_crtc_state *pipe_config)
+static void hsw_get_ddi_port_state(struct intel_crtc *crtc,
+				   struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
@@ -10735,7 +10735,7 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_get_ddi_pll(dev_priv, port, pipe_config);
 	else
-		haswell_get_ddi_pll(dev_priv, port, pipe_config);
+		hsw_get_ddi_pll(dev_priv, port, pipe_config);
 
 	pll = pipe_config->shared_dpll;
 	if (pll) {
@@ -10813,8 +10813,8 @@ static void icelake_get_trans_port_sync_config(struct intel_crtc_state *crtc_sta
 		crtc_state->sync_mode_slaves_mask);
 }
 
-static bool haswell_get_pipe_config(struct intel_crtc *crtc,
-				    struct intel_crtc_state *pipe_config)
+static bool hsw_get_pipe_config(struct intel_crtc *crtc,
+				struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	intel_wakeref_t wakerefs[POWER_DOMAIN_NUM], wf;
@@ -10849,7 +10849,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 	if (!transcoder_is_dsi(pipe_config->cpu_transcoder) ||
 	    INTEL_GEN(dev_priv) >= 11) {
-		haswell_get_ddi_port_state(crtc, pipe_config);
+		hsw_get_ddi_port_state(crtc, pipe_config);
 		intel_get_pipe_timings(crtc, pipe_config);
 	}
 
@@ -14038,7 +14038,7 @@ static void intel_modeset_clear_plls(struct intel_atomic_state *state)
  * multiple pipes, and planes are enabled after the pipe, we need to wait at
  * least 2 vblanks on the first pipe before enabling planes on the second pipe.
  */
-static int haswell_mode_set_planes_workaround(struct intel_atomic_state *state)
+static int hsw_mode_set_planes_workaround(struct intel_atomic_state *state)
 {
 	struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
@@ -14133,7 +14133,7 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 	intel_modeset_clear_plls(state);
 
 	if (IS_HASWELL(dev_priv))
-		return haswell_mode_set_planes_workaround(state);
+		return hsw_mode_set_planes_workaround(state);
 
 	return 0;
 }
@@ -16915,21 +16915,20 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	intel_init_cdclk_hooks(dev_priv);
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
+		dev_priv->display.get_pipe_config = hsw_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
 			skylake_get_initial_plane_config;
-		dev_priv->display.crtc_compute_clock =
-			haswell_crtc_compute_clock;
-		dev_priv->display.crtc_enable = haswell_crtc_enable;
-		dev_priv->display.crtc_disable = haswell_crtc_disable;
+		dev_priv->display.crtc_compute_clock = hsw_crtc_compute_clock;
+		dev_priv->display.crtc_enable = hsw_crtc_enable;
+		dev_priv->display.crtc_disable = hsw_crtc_disable;
 	} else if (HAS_DDI(dev_priv)) {
-		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
+		dev_priv->display.get_pipe_config = hsw_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
 			i9xx_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock =
-			haswell_crtc_compute_clock;
-		dev_priv->display.crtc_enable = haswell_crtc_enable;
-		dev_priv->display.crtc_disable = haswell_crtc_disable;
+			hsw_crtc_compute_clock;
+		dev_priv->display.crtc_enable = hsw_crtc_enable;
+		dev_priv->display.crtc_disable = hsw_crtc_disable;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
