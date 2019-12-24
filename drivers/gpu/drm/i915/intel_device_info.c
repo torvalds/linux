@@ -1093,7 +1093,7 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 		 * hooked up to an SFC (Scaler & Format Converter) unit.
 		 * In TGL each VDBOX has access to an SFC.
 		 */
-		if (IS_TIGERLAKE(dev_priv) || logical_vdbox++ % 2 == 0)
+		if (INTEL_GEN(dev_priv) >= 12 || logical_vdbox++ % 2 == 0)
 			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
 	DRM_DEBUG_DRIVER("vdbox enable: %04x, instances: %04lx\n",
