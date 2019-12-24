@@ -146,8 +146,8 @@ static const u64 cursor_format_modifiers[] = {
 
 static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 				struct intel_crtc_state *pipe_config);
-static void ironlake_pch_clock_get(struct intel_crtc *crtc,
-				   struct intel_crtc_state *pipe_config);
+static void ilk_pch_clock_get(struct intel_crtc *crtc,
+			      struct intel_crtc_state *pipe_config);
 
 static int intel_framebuffer_init(struct intel_framebuffer *ifb,
 				  struct drm_i915_gem_object *obj,
@@ -158,7 +158,7 @@ static void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_sta
 					 const struct intel_link_m_n *m_n,
 					 const struct intel_link_m_n *m2_n2);
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state);
-static void ironlake_set_pipeconf(const struct intel_crtc_state *crtc_state);
+static void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void hsw_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state);
 static void vlv_prepare_pll(struct intel_crtc *crtc,
@@ -166,7 +166,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void skl_pfit_enable(const struct intel_crtc_state *crtc_state);
-static void ironlake_pfit_enable(const struct intel_crtc_state *crtc_state);
+static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state);
 static void intel_modeset_setup_hw_state(struct drm_device *dev,
 					 struct drm_modeset_acquire_ctx *ctx);
 static struct intel_crtc_state *intel_crtc_state_alloc(struct intel_crtc *crtc);
@@ -403,7 +403,7 @@ static const struct intel_limit pnv_limits_lvds = {
  * We calculate clock using (register_value + 2) for N/M1/M2, so here
  * the range value for them is (actual_value - 2).
  */
-static const struct intel_limit intel_limits_ironlake_dac = {
+static const struct intel_limit ilk_limits_dac = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 1760000, .max = 3510000 },
 	.n = { .min = 1, .max = 5 },
@@ -416,7 +416,7 @@ static const struct intel_limit intel_limits_ironlake_dac = {
 		.p2_slow = 10, .p2_fast = 5 },
 };
 
-static const struct intel_limit intel_limits_ironlake_single_lvds = {
+static const struct intel_limit ilk_limits_single_lvds = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 1760000, .max = 3510000 },
 	.n = { .min = 1, .max = 3 },
@@ -429,7 +429,7 @@ static const struct intel_limit intel_limits_ironlake_single_lvds = {
 		.p2_slow = 14, .p2_fast = 14 },
 };
 
-static const struct intel_limit intel_limits_ironlake_dual_lvds = {
+static const struct intel_limit ilk_limits_dual_lvds = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 1760000, .max = 3510000 },
 	.n = { .min = 1, .max = 3 },
@@ -443,7 +443,7 @@ static const struct intel_limit intel_limits_ironlake_dual_lvds = {
 };
 
 /* LVDS 100mhz refclk limits. */
-static const struct intel_limit intel_limits_ironlake_single_lvds_100m = {
+static const struct intel_limit ilk_limits_single_lvds_100m = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 1760000, .max = 3510000 },
 	.n = { .min = 1, .max = 2 },
@@ -456,7 +456,7 @@ static const struct intel_limit intel_limits_ironlake_single_lvds_100m = {
 		.p2_slow = 14, .p2_fast = 14 },
 };
 
-static const struct intel_limit intel_limits_ironlake_dual_lvds_100m = {
+static const struct intel_limit ilk_limits_dual_lvds_100m = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 1760000, .max = 3510000 },
 	.n = { .min = 1, .max = 3 },
@@ -1638,7 +1638,7 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		     I915_READ(dpll_reg) & port_mask, expected_mask);
 }
 
-static void ironlake_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
+static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1736,8 +1736,8 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 		DRM_ERROR("Failed to enable PCH transcoder\n");
 }
 
-static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
-					    enum pipe pipe)
+static void ilk_disable_pch_transcoder(struct drm_i915_private *dev_priv,
+				       enum pipe pipe)
 {
 	i915_reg_t reg;
 	u32 val;
@@ -4870,8 +4870,8 @@ static void intel_fdi_normal_train(struct intel_crtc *crtc)
 }
 
 /* The FDI link training functions for ILK/Ibexpeak. */
-static void ironlake_fdi_link_train(struct intel_crtc *crtc,
-				    const struct intel_crtc_state *crtc_state)
+static void ilk_fdi_link_train(struct intel_crtc *crtc,
+			       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -5223,7 +5223,7 @@ train_done:
 	DRM_DEBUG_KMS("FDI train done.\n");
 }
 
-static void ironlake_fdi_pll_enable(const struct intel_crtc_state *crtc_state)
+static void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
@@ -5260,7 +5260,7 @@ static void ironlake_fdi_pll_enable(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-static void ironlake_fdi_pll_disable(struct intel_crtc *intel_crtc)
+static void ilk_fdi_pll_disable(struct intel_crtc *intel_crtc)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -5290,7 +5290,7 @@ static void ironlake_fdi_pll_disable(struct intel_crtc *intel_crtc)
 	udelay(100);
 }
 
-static void ironlake_fdi_disable(struct intel_crtc *crtc)
+static void ilk_fdi_disable(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
@@ -5497,8 +5497,8 @@ int lpt_get_iclkip(struct drm_i915_private *dev_priv)
 				 desired_divisor << auxdiv);
 }
 
-static void ironlake_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_state,
-						enum pipe pch_transcoder)
+static void ilk_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_state,
+					   enum pipe pch_transcoder)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -5602,8 +5602,8 @@ intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
  *   - DP transcoding bits
  *   - transcoder
  */
-static void ironlake_pch_enable(const struct intel_atomic_state *state,
-				const struct intel_crtc_state *crtc_state)
+static void ilk_pch_enable(const struct intel_atomic_state *state,
+			   const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_device *dev = crtc->base.dev;
@@ -5651,7 +5651,7 @@ static void ironlake_pch_enable(const struct intel_atomic_state *state,
 
 	/* set transcoder timing, panel must allow it */
 	assert_panel_unlocked(dev_priv, pipe);
-	ironlake_pch_transcoder_set_timings(crtc_state, pipe);
+	ilk_pch_transcoder_set_timings(crtc_state, pipe);
 
 	intel_fdi_normal_train(crtc);
 
@@ -5683,7 +5683,7 @@ static void ironlake_pch_enable(const struct intel_atomic_state *state,
 		I915_WRITE(reg, temp);
 	}
 
-	ironlake_enable_pch_transcoder(crtc_state);
+	ilk_enable_pch_transcoder(crtc_state);
 }
 
 static void lpt_pch_enable(const struct intel_atomic_state *state,
@@ -5698,7 +5698,7 @@ static void lpt_pch_enable(const struct intel_atomic_state *state,
 	lpt_program_iclkip(crtc_state);
 
 	/* Set transcoder timing. */
-	ironlake_pch_transcoder_set_timings(crtc_state, PIPE_A);
+	ilk_pch_transcoder_set_timings(crtc_state, PIPE_A);
 
 	lpt_enable_pch_transcoder(dev_priv, cpu_transcoder);
 }
@@ -6048,7 +6048,7 @@ static void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-static void ironlake_pfit_enable(const struct intel_crtc_state *crtc_state)
+static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -6627,8 +6627,8 @@ static void intel_disable_primary_plane(const struct intel_crtc_state *crtc_stat
 	plane->disable_plane(plane, crtc_state);
 }
 
-static void ironlake_crtc_enable(struct intel_atomic_state *state,
-				 struct intel_crtc *crtc)
+static void ilk_crtc_enable(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
 {
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -6664,7 +6664,7 @@ static void ironlake_crtc_enable(struct intel_atomic_state *state,
 		intel_cpu_transcoder_set_m_n(new_crtc_state,
 					     &new_crtc_state->fdi_m_n, NULL);
 
-	ironlake_set_pipeconf(new_crtc_state);
+	ilk_set_pipeconf(new_crtc_state);
 
 	crtc->active = true;
 
@@ -6674,13 +6674,13 @@ static void ironlake_crtc_enable(struct intel_atomic_state *state,
 		/* Note: FDI PLL enabling _must_ be done before we enable the
 		 * cpu pipes, hence this is separate from all the other fdi/pch
 		 * enabling. */
-		ironlake_fdi_pll_enable(new_crtc_state);
+		ilk_fdi_pll_enable(new_crtc_state);
 	} else {
 		assert_fdi_tx_disabled(dev_priv, pipe);
 		assert_fdi_rx_disabled(dev_priv, pipe);
 	}
 
-	ironlake_pfit_enable(new_crtc_state);
+	ilk_pfit_enable(new_crtc_state);
 
 	/*
 	 * On ILK+ LUT must be loaded before the pipe is running but with
@@ -6696,7 +6696,7 @@ static void ironlake_crtc_enable(struct intel_atomic_state *state,
 	intel_enable_pipe(new_crtc_state);
 
 	if (new_crtc_state->has_pch_encoder)
-		ironlake_pch_enable(state, new_crtc_state);
+		ilk_pch_enable(state, new_crtc_state);
 
 	intel_crtc_vblank_on(new_crtc_state);
 
@@ -6830,7 +6830,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	if (INTEL_GEN(dev_priv) >= 9)
 		skl_pfit_enable(new_crtc_state);
 	else
-		ironlake_pfit_enable(new_crtc_state);
+		ilk_pfit_enable(new_crtc_state);
 
 	/*
 	 * On ILK+ LUT must be loaded before the pipe is running but with
@@ -6879,7 +6879,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	}
 }
 
-void ironlake_pfit_disable(const struct intel_crtc_state *old_crtc_state)
+void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -6894,8 +6894,8 @@ void ironlake_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 	}
 }
 
-static void ironlake_crtc_disable(struct intel_atomic_state *state,
-				  struct intel_crtc *crtc)
+static void ilk_crtc_disable(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
@@ -6916,15 +6916,15 @@ static void ironlake_crtc_disable(struct intel_atomic_state *state,
 
 	intel_disable_pipe(old_crtc_state);
 
-	ironlake_pfit_disable(old_crtc_state);
+	ilk_pfit_disable(old_crtc_state);
 
 	if (old_crtc_state->has_pch_encoder)
-		ironlake_fdi_disable(crtc);
+		ilk_fdi_disable(crtc);
 
 	intel_encoders_post_disable(state, crtc);
 
 	if (old_crtc_state->has_pch_encoder) {
-		ironlake_disable_pch_transcoder(dev_priv, pipe);
+		ilk_disable_pch_transcoder(dev_priv, pipe);
 
 		if (HAS_PCH_CPT(dev_priv)) {
 			i915_reg_t reg;
@@ -6944,7 +6944,7 @@ static void ironlake_crtc_disable(struct intel_atomic_state *state,
 			I915_WRITE(PCH_DPLL_SEL, temp);
 		}
 
-		ironlake_fdi_pll_disable(crtc);
+		ilk_fdi_pll_disable(crtc);
 	}
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
@@ -7489,8 +7489,8 @@ static int pipe_required_fdi_lanes(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static int ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
-				     struct intel_crtc_state *pipe_config)
+static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
+			       struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *state = pipe_config->uapi.state;
@@ -7562,8 +7562,8 @@ static int ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 }
 
 #define RETRY 1
-static int ironlake_fdi_compute_config(struct intel_crtc *intel_crtc,
-				       struct intel_crtc_state *pipe_config)
+static int ilk_fdi_compute_config(struct intel_crtc *intel_crtc,
+				  struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -7582,15 +7582,15 @@ retry:
 
 	fdi_dotclock = adjusted_mode->crtc_clock;
 
-	lane = ironlake_get_lanes_required(fdi_dotclock, link_bw,
-					   pipe_config->pipe_bpp);
+	lane = ilk_get_lanes_required(fdi_dotclock, link_bw,
+				      pipe_config->pipe_bpp);
 
 	pipe_config->fdi_lanes = lane;
 
 	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, fdi_dotclock,
 			       link_bw, &pipe_config->fdi_m_n, false, false);
 
-	ret = ironlake_check_fdi_lanes(dev, intel_crtc->pipe, pipe_config);
+	ret = ilk_check_fdi_lanes(dev, intel_crtc->pipe, pipe_config);
 	if (ret == -EDEADLK)
 		return ret;
 
@@ -7796,7 +7796,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	intel_crtc_compute_pixel_rate(pipe_config);
 
 	if (pipe_config->has_pch_encoder)
-		return ironlake_fdi_compute_config(crtc, pipe_config);
+		return ilk_fdi_compute_config(crtc, pipe_config);
 
 	return 0;
 }
@@ -9208,7 +9208,7 @@ out:
 	return ret;
 }
 
-static void ironlake_init_pch_refclk(struct drm_i915_private *dev_priv)
+static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
 	int i;
@@ -9706,12 +9706,12 @@ static void lpt_init_pch_refclk(struct drm_i915_private *dev_priv)
 void intel_init_pch_refclk(struct drm_i915_private *dev_priv)
 {
 	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
-		ironlake_init_pch_refclk(dev_priv);
+		ilk_init_pch_refclk(dev_priv);
 	else if (HAS_PCH_LPT(dev_priv))
 		lpt_init_pch_refclk(dev_priv);
 }
 
-static void ironlake_set_pipeconf(const struct intel_crtc_state *crtc_state)
+static void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -9855,7 +9855,7 @@ int bdw_get_pipemisc_bpp(struct intel_crtc *crtc)
 	}
 }
 
-int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp)
+int ilk_get_lanes_required(int target_clock, int link_bw, int bpp)
 {
 	/*
 	 * Account for spread spectrum to avoid
@@ -9866,14 +9866,14 @@ int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp)
 	return DIV_ROUND_UP(bps, link_bw * 8);
 }
 
-static bool ironlake_needs_fb_cb_tune(struct dpll *dpll, int factor)
+static bool ilk_needs_fb_cb_tune(struct dpll *dpll, int factor)
 {
 	return i9xx_dpll_compute_m(dpll) < factor * dpll->n;
 }
 
-static void ironlake_compute_dpll(struct intel_crtc *crtc,
-				  struct intel_crtc_state *crtc_state,
-				  struct dpll *reduced_clock)
+static void ilk_compute_dpll(struct intel_crtc *crtc,
+			     struct intel_crtc_state *crtc_state,
+			     struct dpll *reduced_clock)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dpll, fp, fp2;
@@ -9893,7 +9893,7 @@ static void ironlake_compute_dpll(struct intel_crtc *crtc,
 
 	fp = i9xx_dpll_compute_fp(&crtc_state->dpll);
 
-	if (ironlake_needs_fb_cb_tune(&crtc_state->dpll, factor))
+	if (ilk_needs_fb_cb_tune(&crtc_state->dpll, factor))
 		fp |= FP_CB_TUNE;
 
 	if (reduced_clock) {
@@ -9973,8 +9973,8 @@ static void ironlake_compute_dpll(struct intel_crtc *crtc,
 	crtc_state->dpll_hw_state.fp1 = fp2;
 }
 
-static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
-				       struct intel_crtc_state *crtc_state)
+static int ilk_crtc_compute_clock(struct intel_crtc *crtc,
+				  struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_atomic_state *state =
@@ -9998,17 +9998,17 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 
 		if (intel_is_dual_link_lvds(dev_priv)) {
 			if (refclk == 100000)
-				limit = &intel_limits_ironlake_dual_lvds_100m;
+				limit = &ilk_limits_dual_lvds_100m;
 			else
-				limit = &intel_limits_ironlake_dual_lvds;
+				limit = &ilk_limits_dual_lvds;
 		} else {
 			if (refclk == 100000)
-				limit = &intel_limits_ironlake_single_lvds_100m;
+				limit = &ilk_limits_single_lvds_100m;
 			else
-				limit = &intel_limits_ironlake_single_lvds;
+				limit = &ilk_limits_single_lvds;
 		}
 	} else {
-		limit = &intel_limits_ironlake_dac;
+		limit = &ilk_limits_dac;
 	}
 
 	if (!crtc_state->clock_set &&
@@ -10018,7 +10018,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	ironlake_compute_dpll(crtc, crtc_state, NULL);
+	ilk_compute_dpll(crtc, crtc_state, NULL);
 
 	if (!intel_reserve_shared_dplls(state, crtc, NULL)) {
 		DRM_DEBUG_KMS("failed to find PLL for pipe %c\n",
@@ -10093,8 +10093,8 @@ void intel_dp_get_m_n(struct intel_crtc *crtc,
 					     &pipe_config->dp_m2_n2);
 }
 
-static void ironlake_get_fdi_m_n_config(struct intel_crtc *crtc,
-					struct intel_crtc_state *pipe_config)
+static void ilk_get_fdi_m_n_config(struct intel_crtc *crtc,
+				   struct intel_crtc_state *pipe_config)
 {
 	intel_cpu_transcoder_get_m_n(crtc, pipe_config->cpu_transcoder,
 				     &pipe_config->fdi_m_n, NULL);
@@ -10260,8 +10260,8 @@ error:
 	kfree(intel_fb);
 }
 
-static void ironlake_get_pfit_config(struct intel_crtc *crtc,
-				     struct intel_crtc_state *pipe_config)
+static void ilk_get_pfit_config(struct intel_crtc *crtc,
+				struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -10284,8 +10284,8 @@ static void ironlake_get_pfit_config(struct intel_crtc *crtc,
 	}
 }
 
-static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
-				     struct intel_crtc_state *pipe_config)
+static bool ilk_get_pipe_config(struct intel_crtc *crtc,
+				struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -10356,7 +10356,7 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
 					  FDI_DP_PORT_WIDTH_SHIFT) + 1;
 
-		ironlake_get_fdi_m_n_config(crtc, pipe_config);
+		ilk_get_fdi_m_n_config(crtc, pipe_config);
 
 		if (HAS_PCH_IBX(dev_priv)) {
 			/*
@@ -10384,7 +10384,7 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 			((tmp & PLL_REF_SDVO_HDMI_MULTIPLIER_MASK)
 			 >> PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT) + 1;
 
-		ironlake_pch_clock_get(crtc, pipe_config);
+		ilk_pch_clock_get(crtc, pipe_config);
 	} else {
 		pipe_config->pixel_multiplier = 1;
 	}
@@ -10392,7 +10392,7 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	intel_get_pipe_timings(crtc, pipe_config);
 	intel_get_pipe_src_size(crtc, pipe_config);
 
-	ironlake_get_pfit_config(crtc, pipe_config);
+	ilk_get_pfit_config(crtc, pipe_config);
 
 	ret = true;
 
@@ -10753,7 +10753,7 @@ static void hsw_get_ddi_port_state(struct intel_crtc *crtc,
 		pipe_config->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
 					  FDI_DP_PORT_WIDTH_SHIFT) + 1;
 
-		ironlake_get_fdi_m_n_config(crtc, pipe_config);
+		ilk_get_fdi_m_n_config(crtc, pipe_config);
 	}
 }
 
@@ -10905,7 +10905,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 		if (INTEL_GEN(dev_priv) >= 9)
 			skl_get_pfit_config(crtc, pipe_config);
 		else
-			ironlake_get_pfit_config(crtc, pipe_config);
+			ilk_get_pfit_config(crtc, pipe_config);
 	}
 
 	if (hsw_crtc_supports_ips(crtc)) {
@@ -11848,8 +11848,8 @@ int intel_dotclock_calculate(int link_freq,
 	return div_u64(mul_u32_u32(m_n->link_m, link_freq), m_n->link_n);
 }
 
-static void ironlake_pch_clock_get(struct intel_crtc *crtc,
-				   struct intel_crtc_state *pipe_config)
+static void ilk_pch_clock_get(struct intel_crtc *crtc,
+			      struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
@@ -14510,9 +14510,9 @@ static void intel_pipe_fastset(const struct intel_crtc_state *old_crtc_state,
 			skl_pfit_enable(new_crtc_state);
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		if (new_crtc_state->pch_pfit.enabled)
-			ironlake_pfit_enable(new_crtc_state);
+			ilk_pfit_enable(new_crtc_state);
 		else if (old_crtc_state->pch_pfit.enabled)
-			ironlake_pfit_disable(old_crtc_state);
+			ilk_pfit_disable(old_crtc_state);
 	}
 
 	if (INTEL_GEN(dev_priv) >= 11)
@@ -16927,13 +16927,13 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.crtc_enable = hsw_crtc_enable;
 		dev_priv->display.crtc_disable = hsw_crtc_disable;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
+		dev_priv->display.get_pipe_config = ilk_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
 			i9xx_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock =
-			ironlake_crtc_compute_clock;
-		dev_priv->display.crtc_enable = ironlake_crtc_enable;
-		dev_priv->display.crtc_disable = ironlake_crtc_disable;
+			ilk_crtc_compute_clock;
+		dev_priv->display.crtc_enable = ilk_crtc_enable;
+		dev_priv->display.crtc_disable = ilk_crtc_disable;
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
@@ -16979,7 +16979,7 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	}
 
 	if (IS_GEN(dev_priv, 5)) {
-		dev_priv->display.fdi_link_train = ironlake_fdi_link_train;
+		dev_priv->display.fdi_link_train = ilk_fdi_link_train;
 	} else if (IS_GEN(dev_priv, 6)) {
 		dev_priv->display.fdi_link_train = gen6_fdi_link_train;
 	} else if (IS_IVYBRIDGE(dev_priv)) {

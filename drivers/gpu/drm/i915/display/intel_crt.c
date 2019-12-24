@@ -247,7 +247,7 @@ static void hsw_post_disable_crt(struct intel_encoder *encoder,
 
 	intel_ddi_disable_transcoder_func(old_crtc_state);
 
-	ironlake_pfit_disable(old_crtc_state);
+	ilk_pfit_disable(old_crtc_state);
 
 	intel_ddi_disable_pipe_clock(old_crtc_state);
 
@@ -351,7 +351,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 
 	/* The FDI receiver on LPT only supports 8bpc and only has 2 lanes. */
 	if (HAS_PCH_LPT(dev_priv) &&
-	    (ironlake_get_lanes_required(mode->clock, 270000, 24) > 2))
+	    ilk_get_lanes_required(mode->clock, 270000, 24) > 2)
 		return MODE_CLOCK_HIGH;
 
 	/* HSW/BDW FDI limited to 4k */
@@ -427,7 +427,7 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 	return 0;
 }
 
-static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
+static bool ilk_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct intel_crt *crt = intel_attached_crt(connector);
@@ -535,7 +535,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	int i, tries = 0;
 
 	if (HAS_PCH_SPLIT(dev_priv))
-		return intel_ironlake_crt_detect_hotplug(connector);
+		return ilk_crt_detect_hotplug(connector);
 
 	if (IS_VALLEYVIEW(dev_priv))
 		return valleyview_crt_detect_hotplug(connector);

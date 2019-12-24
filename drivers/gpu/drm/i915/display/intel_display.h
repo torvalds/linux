@@ -521,7 +521,7 @@ int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
 u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc);
 void intel_crtc_vblank_off(const struct intel_crtc_state *crtc_state);
 
-int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
+int ilk_get_lanes_required(int target_clock, int link_bw, int bpp);
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 			 struct intel_digital_port *dport,
 			 unsigned int expected_mask);
@@ -579,7 +579,7 @@ void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_center);
 int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
 void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state);
-void ironlake_pfit_disable(const struct intel_crtc_state *old_crtc_state);
+void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state);
 u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state);

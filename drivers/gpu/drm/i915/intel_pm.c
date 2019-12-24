@@ -178,7 +178,7 @@ static void pnv_get_mem_freq(struct drm_i915_private *dev_priv)
 	dev_priv->is_ddr3 = (tmp & CSHRDDR3CTL_DDR3) ? 1 : 0;
 }
 
-static void i915_ironlake_get_mem_freq(struct drm_i915_private *dev_priv)
+static void ilk_get_mem_freq(struct drm_i915_private *dev_priv)
 {
 	u16 ddrpll, csipll;
 
@@ -7203,7 +7203,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	if (IS_PINEVIEW(dev_priv))
 		pnv_get_mem_freq(dev_priv);
 	else if (IS_GEN(dev_priv, 5))
-		i915_ironlake_get_mem_freq(dev_priv);
+		ilk_get_mem_freq(dev_priv);
 
 	if (intel_has_sagv(dev_priv))
 		skl_setup_sagv_block_time(dev_priv);

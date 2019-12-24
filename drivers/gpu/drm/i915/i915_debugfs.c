@@ -1005,7 +1005,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	return ret;
 }
 
-static int ironlake_drpc_info(struct seq_file *m)
+static int ilk_drpc_info(struct seq_file *m)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
 	struct intel_uncore *uncore = &i915->uncore;
@@ -1213,7 +1213,7 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 		else if (INTEL_GEN(dev_priv) >= 6)
 			err = gen6_drpc_info(m);
 		else
-			err = ironlake_drpc_info(m);
+			err = ilk_drpc_info(m);
 	}
 
 	return err;

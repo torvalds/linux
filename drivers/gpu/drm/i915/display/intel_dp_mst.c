@@ -376,7 +376,7 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	if (INTEL_GEN(dev_priv) >= 9)
 		skl_scaler_disable(old_crtc_state);
 	else
-		ironlake_pfit_disable(old_crtc_state);
+		ilk_pfit_disable(old_crtc_state);
 
 	/*
 	 * Power down mst path before disabling the port, otherwise we end

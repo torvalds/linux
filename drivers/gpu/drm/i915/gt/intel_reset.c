@@ -251,9 +251,8 @@ out:
 	return ret;
 }
 
-static int ironlake_do_reset(struct intel_gt *gt,
-			     intel_engine_mask_t engine_mask,
-			     unsigned int retry)
+static int ilk_do_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask,
+			unsigned int retry)
 {
 	struct intel_uncore *uncore = gt->uncore;
 	int ret;
@@ -597,7 +596,7 @@ static reset_func intel_get_gpu_reset(const struct intel_gt *gt)
 	else if (INTEL_GEN(i915) >= 6)
 		return gen6_reset_engines;
 	else if (INTEL_GEN(i915) >= 5)
-		return ironlake_do_reset;
+		return ilk_do_reset;
 	else if (IS_G4X(i915))
 		return g4x_do_reset;
 	else if (IS_G33(i915) || IS_PINEVIEW(i915))

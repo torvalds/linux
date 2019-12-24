@@ -126,8 +126,8 @@ static void i9xx_set_fifo_underrun_reporting(struct drm_device *dev,
 	}
 }
 
-static void ironlake_set_fifo_underrun_reporting(struct drm_device *dev,
-						 enum pipe pipe, bool enable)
+static void ilk_set_fifo_underrun_reporting(struct drm_device *dev,
+					    enum pipe pipe, bool enable)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 bit = (pipe == PIPE_A) ?
@@ -264,7 +264,7 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 	if (HAS_GMCH(dev_priv))
 		i9xx_set_fifo_underrun_reporting(dev, pipe, enable, old);
 	else if (IS_GEN_RANGE(dev_priv, 5, 6))
-		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
+		ilk_set_fifo_underrun_reporting(dev, pipe, enable);
 	else if (IS_GEN(dev_priv, 7))
 		ivybridge_set_fifo_underrun_reporting(dev, pipe, enable, old);
 	else if (INTEL_GEN(dev_priv) >= 8)
