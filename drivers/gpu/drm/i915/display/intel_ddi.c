@@ -3914,7 +3914,7 @@ static void intel_ddi_post_disable(struct intel_encoder *encoder,
 	intel_dsc_disable(old_crtc_state);
 
 	if (INTEL_GEN(dev_priv) >= 9)
-		skylake_scaler_disable(old_crtc_state);
+		skl_scaler_disable(old_crtc_state);
 	else
 		ironlake_pfit_disable(old_crtc_state);
 

@@ -895,7 +895,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	if (IS_GEN9_LP(dev_priv)) {
 		intel_crtc_vblank_off(old_crtc_state);
 
-		skylake_scaler_disable(old_crtc_state);
+		skl_scaler_disable(old_crtc_state);
 	}
 
 	if (is_vid_mode(intel_dsi)) {

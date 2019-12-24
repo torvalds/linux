@@ -1259,7 +1259,7 @@ static void gen11_dsi_post_disable(struct intel_encoder *encoder,
 
 	intel_dsc_disable(old_crtc_state);
 
-	skylake_scaler_disable(old_crtc_state);
+	skl_scaler_disable(old_crtc_state);
 }
 
 static enum drm_mode_status gen11_dsi_mode_valid(struct drm_connector *connector,
