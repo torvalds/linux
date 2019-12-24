@@ -13,10 +13,12 @@ typedef union efi_rng_protocol efi_rng_protocol_t;
 
 union efi_rng_protocol {
 	struct {
-		efi_status_t (*get_info)(efi_rng_protocol_t *,
-					 unsigned long *, efi_guid_t *);
-		efi_status_t (*get_rng)(efi_rng_protocol_t *,
-					efi_guid_t *, unsigned long, u8 *out);
+		efi_status_t (__efiapi *get_info)(efi_rng_protocol_t *,
+						  unsigned long *,
+						  efi_guid_t *);
+		efi_status_t (__efiapi *get_rng)(efi_rng_protocol_t *,
+						 efi_guid_t *, unsigned long,
+						 u8 *out);
 	};
 	struct {
 		u32 get_info;

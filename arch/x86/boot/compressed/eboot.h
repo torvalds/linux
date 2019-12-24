@@ -16,8 +16,8 @@ typedef union efi_uga_draw_protocol efi_uga_draw_protocol_t;
 
 union efi_uga_draw_protocol {
 	struct {
-		efi_status_t (*get_mode)(efi_uga_draw_protocol_t *,
-					 u32*, u32*, u32*, u32*);
+		efi_status_t (__efiapi *get_mode)(efi_uga_draw_protocol_t *,
+						  u32*, u32*, u32*, u32*);
 		void *set_mode;
 		void *blt;
 	};
