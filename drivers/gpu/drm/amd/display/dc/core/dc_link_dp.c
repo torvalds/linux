@@ -3446,6 +3446,68 @@ static bool retrieve_link_cap(struct dc_link *link)
 	return true;
 }
 
+bool dp_overwrite_extended_receiver_cap(struct dc_link *link)
+{
+	uint8_t dpcd_data[16];
+	uint32_t read_dpcd_retry_cnt = 3;
+	enum dc_status status = DC_ERROR_UNEXPECTED;
+	union dp_downstream_port_present ds_port = { 0 };
+	union down_stream_port_count down_strm_port_count;
+	union edp_configuration_cap edp_config_cap;
+
+	int i;
+
+	for (i = 0; i < read_dpcd_retry_cnt; i++) {
+		status = core_link_read_dpcd(
+				link,
+				DP_DPCD_REV,
+				dpcd_data,
+				sizeof(dpcd_data));
+		if (status == DC_OK)
+			break;
+	}
+
+	link->dpcd_caps.dpcd_rev.raw =
+		dpcd_data[DP_DPCD_REV - DP_DPCD_REV];
+
+	if (dpcd_data[DP_MAX_LANE_COUNT - DP_DPCD_REV] == 0)
+		return false;
+
+	ds_port.byte = dpcd_data[DP_DOWNSTREAMPORT_PRESENT -
+			DP_DPCD_REV];
+
+	get_active_converter_info(ds_port.byte, link);
+
+	down_strm_port_count.raw = dpcd_data[DP_DOWN_STREAM_PORT_COUNT -
+			DP_DPCD_REV];
+
+	link->dpcd_caps.allow_invalid_MSA_timing_param =
+		down_strm_port_count.bits.IGNORE_MSA_TIMING_PARAM;
+
+	link->dpcd_caps.max_ln_count.raw = dpcd_data[
+		DP_MAX_LANE_COUNT - DP_DPCD_REV];
+
+	link->dpcd_caps.max_down_spread.raw = dpcd_data[
+		DP_MAX_DOWNSPREAD - DP_DPCD_REV];
+
+	link->reported_link_cap.lane_count =
+		link->dpcd_caps.max_ln_count.bits.MAX_LANE_COUNT;
+	link->reported_link_cap.link_rate = dpcd_data[
+		DP_MAX_LINK_RATE - DP_DPCD_REV];
+	link->reported_link_cap.link_spread =
+		link->dpcd_caps.max_down_spread.bits.MAX_DOWN_SPREAD ?
+		LINK_SPREAD_05_DOWNSPREAD_30KHZ : LINK_SPREAD_DISABLED;
+
+	edp_config_cap.raw = dpcd_data[
+		DP_EDP_CONFIGURATION_CAP - DP_DPCD_REV];
+	link->dpcd_caps.panel_mode_edp =
+		edp_config_cap.bits.ALT_SCRAMBLER_RESET;
+	link->dpcd_caps.dpcd_display_control_capable =
+		edp_config_cap.bits.DPCD_DISPLAY_CONTROL_CAPABLE;
+
+	return true;
+}
+
 bool detect_dp_sink_caps(struct dc_link *link)
 {
 	return retrieve_link_cap(link);
