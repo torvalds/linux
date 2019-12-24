@@ -233,9 +233,6 @@ static inline bool efi_is_64bit(void)
 	__efi_early()->call(efi_table_attr(efi_boot_services, f,	\
 		__efi_early()->boot_services), __VA_ARGS__)
 
-#define __efi_call_early(f, ...)					\
-	__efi_early()->call((unsigned long)f, __VA_ARGS__);
-
 #define efi_call_runtime(f, ...)					\
 	__efi_early()->call(efi_table_attr(efi_runtime_services, f,	\
 		__efi_early()->runtime_services), __VA_ARGS__)
