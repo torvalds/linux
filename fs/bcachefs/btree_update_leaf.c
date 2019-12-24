@@ -515,44 +515,18 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 {
 	struct btree_insert_entry *i;
 	struct btree_iter *iter;
-	unsigned idx, u64s, journal_preres_u64s = 0;
+	unsigned idx;
 	int ret;
 
-	/*
-	 * note: running triggers will append more updates to the list of
-	 * updates as we're walking it:
-	 */
-	trans_for_each_update(trans, i) {
-		/* we know trans->nounlock won't be set here: */
-		if (unlikely(!(i->iter->locks_want < 1
-			       ? __bch2_btree_iter_upgrade(i->iter, 1)
-			       : i->iter->uptodate <= BTREE_ITER_NEED_PEEK))) {
-			trace_trans_restart_upgrade(trans->ip);
-			return -EINTR;
-		}
-
-		if (likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
-		    update_has_trans_triggers(i)) {
-			ret = bch2_trans_mark_update(trans, i->iter, i->k);
-			if (unlikely(ret)) {
-				if (ret == -EINTR)
-					trace_trans_restart_mark(trans->ip);
-				return ret;
-			}
-		}
-
-		u64s = jset_u64s(i->k->k.u64s);
-		if (0)
-			journal_preres_u64s += u64s;
-		trans->journal_u64s += u64s;
-	}
+	trans_for_each_update(trans, i)
+		BUG_ON(!btree_node_intent_locked(i->iter, 0));
 
 	ret = bch2_journal_preres_get(&trans->c->journal,
-			&trans->journal_preres, journal_preres_u64s,
+			&trans->journal_preres, trans->journal_preres_u64s,
 			JOURNAL_RES_GET_NONBLOCK);
 	if (unlikely(ret == -EAGAIN))
 		ret = bch2_trans_journal_preres_get_cold(trans,
-						journal_preres_u64s);
+						trans->journal_preres_u64s);
 	if (unlikely(ret))
 		return ret;
 
@@ -740,8 +714,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i = NULL;
 	struct btree_iter *iter;
-	unsigned orig_nr_updates	= trans->nr_updates;
-	unsigned orig_mem_top		= trans->mem_top;
+	unsigned u64s;
 	int ret = 0;
 
 	if (!trans->nr_updates)
@@ -752,25 +725,49 @@ int __bch2_trans_commit(struct btree_trans *trans)
 
 	memset(&trans->journal_preres, 0, sizeof(trans->journal_preres));
 
+	trans->journal_u64s		= 0;
+	trans->journal_preres_u64s	= 0;
+
 	if (!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&
 	    unlikely(!percpu_ref_tryget(&trans->c->writes))) {
 		ret = bch2_trans_commit_get_rw_cold(trans);
 		if (ret)
 			return ret;
 	}
+
+	/*
+	 * note: running triggers will append more updates to the list of
+	 * updates as we're walking it:
+	 */
+	trans_for_each_update(trans, i) {
+		/* we know trans->nounlock won't be set here: */
+		if (unlikely(!(i->iter->locks_want < 1
+			       ? __bch2_btree_iter_upgrade(i->iter, 1)
+			       : i->iter->uptodate <= BTREE_ITER_NEED_PEEK))) {
+			trace_trans_restart_upgrade(trans->ip);
+			ret = -EINTR;
+			goto out;
+		}
+
+		if (likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
+		    update_has_trans_triggers(i)) {
+			ret = bch2_trans_mark_update(trans, i->iter, i->k);
+			if (unlikely(ret)) {
+				if (ret == -EINTR)
+					trace_trans_restart_mark(trans->ip);
+				goto out;
+			}
+		}
+
+		u64s = jset_u64s(i->k->k.u64s);
+		if (0)
+			trans->journal_preres_u64s += u64s;
+		trans->journal_u64s += u64s;
+	}
 retry:
 	memset(&trans->journal_res, 0, sizeof(trans->journal_res));
-	trans->journal_u64s	= 0;
 
 	ret = do_bch2_trans_commit(trans, &i);
-
-	if (trans->fs_usage_deltas) {
-		trans->fs_usage_deltas->used = 0;
-		memset((void *) trans->fs_usage_deltas +
-		       offsetof(struct replicas_delta_list, memset_start), 0,
-		       (void *) &trans->fs_usage_deltas->memset_end -
-		       (void *) &trans->fs_usage_deltas->memset_start);
-	}
 
 	/* make sure we didn't drop or screw up locks: */
 	bch2_btree_trans_verify_locks(trans);
@@ -793,19 +790,20 @@ out_noupdates:
 	trans->nr_updates	= 0;
 	trans->mem_top		= 0;
 
+	if (trans->fs_usage_deltas) {
+		trans->fs_usage_deltas->used = 0;
+		memset((void *) trans->fs_usage_deltas +
+		       offsetof(struct replicas_delta_list, memset_start), 0,
+		       (void *) &trans->fs_usage_deltas->memset_end -
+		       (void *) &trans->fs_usage_deltas->memset_start);
+	}
+
 	return ret;
 err:
 	ret = bch2_trans_commit_error(trans, i, ret);
-
-	/* can't loop if it was passed in and we changed it: */
-	if (unlikely(trans->flags & BTREE_INSERT_NO_CLEAR_REPLICAS) && !ret)
-		ret = -EINTR;
 	if (ret)
 		goto out;
 
-	/* free updates and memory used by triggers, they'll be reexecuted: */
-	trans->nr_updates	= orig_nr_updates;
-	trans->mem_top		= orig_mem_top;
 	goto retry;
 }
 

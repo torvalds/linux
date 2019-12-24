@@ -311,8 +311,7 @@ retry:
 		      bch2_trans_commit(&trans, &disk_res, NULL,
 					BTREE_INSERT_NOFAIL|
 					BTREE_INSERT_LAZY_RW|
-					BTREE_INSERT_NOMARK_OVERWRITES|
-					BTREE_INSERT_NO_CLEAR_REPLICAS);
+					BTREE_INSERT_NOMARK_OVERWRITES);
 	} else {
 		ret = bch2_trans_commit(&trans, &disk_res, NULL,
 					BTREE_INSERT_NOFAIL|
