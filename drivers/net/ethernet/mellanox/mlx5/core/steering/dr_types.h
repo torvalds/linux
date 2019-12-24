@@ -1108,4 +1108,12 @@ void mlx5dr_fw_destroy_recalc_cs_ft(struct mlx5dr_domain *dmn,
 int mlx5dr_domain_cache_get_recalc_cs_ft_addr(struct mlx5dr_domain *dmn,
 					      u32 vport_num,
 					      u64 *rx_icm_addr);
+int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
+			    struct mlx5dr_cmd_flow_destination_hw_info *dest,
+			    int num_dest,
+			    bool reformat_req,
+			    u32 *tbl_id,
+			    u32 *group_id);
+void mlx5dr_fw_destroy_md_tbl(struct mlx5dr_domain *dmn, u32 tbl_id,
+			      u32 group_id);
 #endif  /* _DR_TYPES_H_ */
