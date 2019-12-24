@@ -1429,7 +1429,7 @@ struct efi_graphics_output_mode_info {
 	int pixel_format;
 	struct efi_pixel_bitmask pixel_information;
 	u32 pixels_per_scan_line;
-} __packed;
+};
 
 struct efi_graphics_output_protocol_mode_32 {
 	u32 max_mode;
@@ -1438,7 +1438,7 @@ struct efi_graphics_output_protocol_mode_32 {
 	u32 size_of_info;
 	u64 frame_buffer_base;
 	u32 frame_buffer_size;
-} __packed;
+};
 
 struct efi_graphics_output_protocol_mode_64 {
 	u32 max_mode;
@@ -1447,7 +1447,7 @@ struct efi_graphics_output_protocol_mode_64 {
 	u64 size_of_info;
 	u64 frame_buffer_base;
 	u64 frame_buffer_size;
-} __packed;
+};
 
 struct efi_graphics_output_protocol_mode {
 	u32 max_mode;
@@ -1456,7 +1456,7 @@ struct efi_graphics_output_protocol_mode {
 	unsigned long size_of_info;
 	u64 frame_buffer_base;
 	unsigned long frame_buffer_size;
-} __packed;
+};
 
 struct efi_graphics_output_protocol_32 {
 	u32 query_mode;
