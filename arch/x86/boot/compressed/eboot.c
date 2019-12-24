@@ -19,32 +19,17 @@
 #include "eboot.h"
 
 static efi_system_table_t *sys_table;
-
-static struct efi_config *efi_early;
-
-__pure const struct efi_config *__efi_early(void)
-{
-	return efi_early;
-}
+static bool efi_is64 = IS_ENABLED(CONFIG_X86_64);
 
 __pure efi_system_table_t *efi_system_table(void)
 {
 	return sys_table;
 }
 
-#define BOOT_SERVICES(bits)						\
-static void setup_boot_services##bits(struct efi_config *c)		\
-{									\
-	efi_system_table_##bits##_t *table;				\
-									\
-	table = (typeof(table))sys_table;				\
-									\
-	c->runtime_services	= table->runtime;			\
-	c->boot_services	= table->boottime;			\
-	c->text_output		= table->con_out;			\
+__pure bool efi_is_64bit(void)
+{
+	return efi_is64;
 }
-BOOT_SERVICES(32);
-BOOT_SERVICES(64);
 
 static efi_status_t
 preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
@@ -367,21 +352,24 @@ void setup_graphics(struct boot_params *boot_params)
 	}
 }
 
+void startup_32(struct boot_params *boot_params);
+
+void __noreturn efi_stub_entry(efi_handle_t handle,
+			       efi_system_table_t *sys_table_arg,
+			       struct boot_params *boot_params);
+
 /*
  * Because the x86 boot code expects to be passed a boot_params we
  * need to create one ourselves (usually the bootloader would create
  * one for us).
- *
- * The caller is responsible for filling out ->code32_start in the
- * returned boot_params.
  */
-struct boot_params *make_boot_params(struct efi_config *c)
+efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
+				   efi_system_table_t *sys_table_arg)
 {
 	struct boot_params *boot_params;
 	struct apm_bios_info *bi;
 	struct setup_header *hdr;
 	efi_loaded_image_t *image;
-	void *handle;
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	int options_size = 0;
 	efi_status_t status;
@@ -389,31 +377,24 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	unsigned long ramdisk_addr;
 	unsigned long ramdisk_size;
 
-	efi_early = c;
-	sys_table = (efi_system_table_t *)(unsigned long)efi_early->table;
-	handle = (void *)(unsigned long)efi_early->image_handle;
+	sys_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
-		return NULL;
-
-	if (efi_is_64bit())
-		setup_boot_services64(efi_early);
-	else
-		setup_boot_services32(efi_early);
+		return EFI_INVALID_PARAMETER;
 
 	status = efi_call_early(handle_protocol, handle,
 				&proto, (void *)&image);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table, "Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
-		return NULL;
+		return status;
 	}
 
 	status = efi_low_alloc(sys_table, 0x4000, 1,
 			       (unsigned long *)&boot_params);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table, "Failed to allocate lowmem for boot params\n");
-		return NULL;
+		return status;
 	}
 
 	memset(boot_params, 0x0, 0x4000);
@@ -474,14 +455,17 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
 	boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
 
-	return boot_params;
+	hdr->code32_start = (u32)(unsigned long)startup_32;
+
+	efi_stub_entry(handle, sys_table, boot_params);
+	/* not reached */
 
 fail2:
 	efi_free(sys_table, options_size, hdr->cmd_line_ptr);
 fail:
 	efi_free(sys_table, 0x4000, (unsigned long)boot_params);
 
-	return NULL;
+	return status;
 }
 
 static void add_e820ext(struct boot_params *params,
@@ -737,32 +721,25 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
  * On success we return a pointer to a boot_params structure, and NULL
  * on failure.
  */
-struct boot_params *
-efi_main(struct efi_config *c, struct boot_params *boot_params)
+struct boot_params *efi_main(efi_handle_t handle,
+			     efi_system_table_t *sys_table_arg,
+			     struct boot_params *boot_params,
+			     bool is64)
 {
 	struct desc_ptr *gdt = NULL;
 	struct setup_header *hdr = &boot_params->hdr;
 	efi_status_t status;
 	struct desc_struct *desc;
-	void *handle;
-	efi_system_table_t *_table;
 	unsigned long cmdline_paddr;
 
-	efi_early = c;
+	sys_table = sys_table_arg;
 
-	_table = (efi_system_table_t *)(unsigned long)efi_early->table;
-	handle = (void *)(unsigned long)efi_early->image_handle;
-
-	sys_table = _table;
+	if (IS_ENABLED(CONFIG_EFI_MIXED))
+		efi_is64 = is64;
 
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		goto fail;
-
-	if (efi_is_64bit())
-		setup_boot_services64(efi_early);
-	else
-		setup_boot_services32(efi_early);
 
 	/*
 	 * make_boot_params() may have been called before efi_main(), in which
@@ -925,5 +902,6 @@ efi_main(struct efi_config *c, struct boot_params *boot_params)
 fail:
 	efi_printk(sys_table, "efi_main() failed!\n");
 
-	return NULL;
+	for (;;)
+		asm("hlt");
 }

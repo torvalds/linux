@@ -200,31 +200,13 @@ static inline efi_status_t efi_thunk_set_virtual_address_map(
 
 /* arch specific definitions used by the stub code */
 
-struct efi_config {
-	u64 image_handle;
-	u64 table;
-	u64 runtime_services;
-	u64 boot_services;
-	u64 text_output;
-	bool is64;
-} __packed;
-
-__pure const struct efi_config *__efi_early(void);
-
-static inline bool efi_is_64bit(void)
-{
-	if (!IS_ENABLED(CONFIG_X86_64))
-		return false;
-
-	if (!IS_ENABLED(CONFIG_EFI_MIXED))
-		return true;
-
-	return __efi_early()->is64;
-}
+__pure bool efi_is_64bit(void);
 
 static inline bool efi_is_native(void)
 {
 	if (!IS_ENABLED(CONFIG_X86_64))
+		return true;
+	if (!IS_ENABLED(CONFIG_EFI_MIXED))
 		return true;
 	return efi_is_64bit();
 }
@@ -252,18 +234,16 @@ static inline bool efi_is_native(void)
 
 #define efi_call_early(f, ...)						\
 	(efi_is_native()						\
-		? ((efi_boot_services_t *)(unsigned long)		\
-			__efi_early()->boot_services)->f(__VA_ARGS__)	\
-		: efi64_thunk(((efi_boot_services_t *)(unsigned long)	\
-			__efi_early()->boot_services)->mixed_mode.f,	\
+		? efi_system_table()->boottime->f(__VA_ARGS__)		\
+		: efi64_thunk(efi_table_attr(efi_boot_services,		\
+			boottime, efi_system_table())->mixed_mode.f,	\
 			__VA_ARGS__))
 
 #define efi_call_runtime(f, ...)					\
 	(efi_is_native()						\
-		? ((efi_runtime_services_t *)(unsigned long)		\
-			__efi_early()->runtime_services)->f(__VA_ARGS__)\
-		: efi64_thunk(((efi_runtime_services_t *)(unsigned long)\
-			__efi_early()->runtime_services)->mixed_mode.f,	\
+		? efi_system_table()->runtime->f(__VA_ARGS__)		\
+		: efi64_thunk(efi_table_attr(efi_runtime_services,	\
+			runtime, efi_system_table())->mixed_mode.f,	\
 			__VA_ARGS__))
 
 extern bool efi_reboot_required(void);
