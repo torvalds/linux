@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * k10temp.c - AMD Family 10h/11h/12h/14h/15h/16h processor hardware monitoring
+ * k10temp.c - AMD Family 10h/11h/12h/14h/15h/16h/17h
+ *		processor hardware monitoring
  *
  * Copyright (c) 2009 Clemens Ladisch <clemens@ladisch.de>
+ * Copyright (c) 2020 Guenter Roeck <linux@roeck-us.net>
  */
 
 #include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -127,10 +128,10 @@ static void read_tempreg_nb_f17(struct pci_dev *pdev, u32 *regval)
 		     F17H_M01H_REPORTED_TEMP_CTRL_OFFSET, regval);
 }
 
-static unsigned int get_raw_temp(struct k10temp_data *data)
+static long get_raw_temp(struct k10temp_data *data)
 {
-	unsigned int temp;
 	u32 regval;
+	long temp;
 
 	data->read_tempreg(data->pdev, &regval);
 	temp = (regval >> CUR_TEMP_SHIFT) * 125;
@@ -139,117 +140,107 @@ static unsigned int get_raw_temp(struct k10temp_data *data)
 	return temp;
 }
 
-static ssize_t temp1_input_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+const char *k10temp_temp_label[] = {
+	"Tdie",
+	"Tctl",
+};
+
+static int k10temp_read_labels(struct device *dev,
+			       enum hwmon_sensor_types type,
+			       u32 attr, int channel, const char **str)
+{
+	*str = k10temp_temp_label[channel];
+	return 0;
+}
+
+static int k10temp_read(struct device *dev, enum hwmon_sensor_types type,
+			u32 attr, int channel, long *val)
 {
 	struct k10temp_data *data = dev_get_drvdata(dev);
-	unsigned int temp = get_raw_temp(data);
-
-	if (temp > data->temp_offset)
-		temp -= data->temp_offset;
-	else
-		temp = 0;
-
-	return sprintf(buf, "%u\n", temp);
-}
-
-static ssize_t temp2_input_show(struct device *dev,
-				struct device_attribute *devattr, char *buf)
-{
-	struct k10temp_data *data = dev_get_drvdata(dev);
-	unsigned int temp = get_raw_temp(data);
-
-	return sprintf(buf, "%u\n", temp);
-}
-
-static ssize_t temp_label_show(struct device *dev,
-			       struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-
-	return sprintf(buf, "%s\n", attr->index ? "Tctl" : "Tdie");
-}
-
-static ssize_t temp1_max_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", 70 * 1000);
-}
-
-static ssize_t temp_crit_show(struct device *dev,
-			      struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct k10temp_data *data = dev_get_drvdata(dev);
-	int show_hyst = attr->index;
 	u32 regval;
-	int value;
 
-	data->read_htcreg(data->pdev, &regval);
-	value = ((regval >> 16) & 0x7f) * 500 + 52000;
-	if (show_hyst)
-		value -= ((regval >> 24) & 0xf) * 500;
-	return sprintf(buf, "%d\n", value);
+	switch (attr) {
+	case hwmon_temp_input:
+		switch (channel) {
+		case 0:		/* Tdie */
+			*val = get_raw_temp(data) - data->temp_offset;
+			if (*val < 0)
+				*val = 0;
+			break;
+		case 1:		/* Tctl */
+			*val = get_raw_temp(data);
+			if (*val < 0)
+				*val = 0;
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	case hwmon_temp_max:
+		*val = 70 * 1000;
+		break;
+	case hwmon_temp_crit:
+		data->read_htcreg(data->pdev, &regval);
+		*val = ((regval >> 16) & 0x7f) * 500 + 52000;
+		break;
+	case hwmon_temp_crit_hyst:
+		data->read_htcreg(data->pdev, &regval);
+		*val = (((regval >> 16) & 0x7f)
+			- ((regval >> 24) & 0xf)) * 500 + 52000;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
 }
 
-static DEVICE_ATTR_RO(temp1_input);
-static DEVICE_ATTR_RO(temp1_max);
-static SENSOR_DEVICE_ATTR_RO(temp1_crit, temp_crit, 0);
-static SENSOR_DEVICE_ATTR_RO(temp1_crit_hyst, temp_crit, 1);
-
-static SENSOR_DEVICE_ATTR_RO(temp1_label, temp_label, 0);
-static DEVICE_ATTR_RO(temp2_input);
-static SENSOR_DEVICE_ATTR_RO(temp2_label, temp_label, 1);
-
-static umode_t k10temp_is_visible(struct kobject *kobj,
-				  struct attribute *attr, int index)
+static umode_t k10temp_is_visible(const void *_data,
+				  enum hwmon_sensor_types type,
+				  u32 attr, int channel)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct k10temp_data *data = dev_get_drvdata(dev);
+	const struct k10temp_data *data = _data;
 	struct pci_dev *pdev = data->pdev;
 	u32 reg;
 
-	switch (index) {
-	case 0 ... 1:	/* temp1_input, temp1_max */
+	switch (type) {
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_input:
+			if (channel && !data->show_tdie)
+				return 0;
+			break;
+		case hwmon_temp_max:
+			if (channel)
+				return 0;
+			break;
+		case hwmon_temp_crit:
+		case hwmon_temp_crit_hyst:
+			if (channel || !data->read_htcreg)
+				return 0;
+
+			pci_read_config_dword(pdev,
+					      REG_NORTHBRIDGE_CAPABILITIES,
+					      &reg);
+			if (!(reg & NB_CAP_HTC))
+				return 0;
+
+			data->read_htcreg(data->pdev, &reg);
+			if (!(reg & HTC_ENABLE))
+				return 0;
+			break;
+		case hwmon_temp_label:
+			if (!data->show_tdie)
+				return 0;
+			break;
+		default:
+			return 0;
+		}
+		break;
 	default:
-		break;
-	case 2 ... 3:	/* temp1_crit, temp1_crit_hyst */
-		if (!data->read_htcreg)
-			return 0;
-
-		pci_read_config_dword(pdev, REG_NORTHBRIDGE_CAPABILITIES,
-				      &reg);
-		if (!(reg & NB_CAP_HTC))
-			return 0;
-
-		data->read_htcreg(data->pdev, &reg);
-		if (!(reg & HTC_ENABLE))
-			return 0;
-		break;
-	case 4 ... 6:	/* temp1_label, temp2_input, temp2_label */
-		if (!data->show_tdie)
-			return 0;
-		break;
+		return 0;
 	}
-	return attr->mode;
+	return 0444;
 }
-
-static struct attribute *k10temp_attrs[] = {
-	&dev_attr_temp1_input.attr,
-	&dev_attr_temp1_max.attr,
-	&sensor_dev_attr_temp1_crit.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp1_label.dev_attr.attr,
-	&dev_attr_temp2_input.attr,
-	&sensor_dev_attr_temp2_label.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group k10temp_group = {
-	.attrs = k10temp_attrs,
-	.is_visible = k10temp_is_visible,
-};
-__ATTRIBUTE_GROUPS(k10temp);
 
 static bool has_erratum_319(struct pci_dev *pdev)
 {
@@ -285,8 +276,27 @@ static bool has_erratum_319(struct pci_dev *pdev)
 	       (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_stepping <= 2);
 }
 
-static int k10temp_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *id)
+static const struct hwmon_channel_info *k10temp_info[] = {
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_CRIT_HYST |
+			   HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL),
+	NULL
+};
+
+static const struct hwmon_ops k10temp_hwmon_ops = {
+	.is_visible = k10temp_is_visible,
+	.read = k10temp_read,
+	.read_string = k10temp_read_labels,
+};
+
+static const struct hwmon_chip_info k10temp_chip_info = {
+	.ops = &k10temp_hwmon_ops,
+	.info = k10temp_info,
+};
+
+static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int unreliable = has_erratum_319(pdev);
 	struct device *dev = &pdev->dev;
@@ -334,8 +344,9 @@ static int k10temp_probe(struct pci_dev *pdev,
 		}
 	}
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(dev, "k10temp", data,
-							   k10temp_groups);
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, "k10temp", data,
+							 &k10temp_chip_info,
+							 NULL);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
