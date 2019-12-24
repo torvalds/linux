@@ -70,7 +70,8 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 
 	size = romsize + sizeof(*rom);
 
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA, size, &rom);
+	status = efi_call_early(allocate_pool, EFI_LOADER_DATA, size,
+				(void **)&rom);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table, "Failed to allocate memory for 'rom'\n");
 		return status;
@@ -195,9 +196,9 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 	struct setup_data *data, *new;
 	efi_status_t status;
 	u32 size = 0;
-	void *p;
+	apple_properties_protocol_t *p;
 
-	status = efi_call_early(locate_protocol, &guid, NULL, &p);
+	status = efi_call_early(locate_protocol, &guid, NULL, (void **)&p);
 	if (status != EFI_SUCCESS)
 		return;
 
@@ -212,7 +213,8 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 
 	do {
 		status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-					size + sizeof(struct setup_data), &new);
+					size + sizeof(struct setup_data),
+					(void **)&new);
 		if (status != EFI_SUCCESS) {
 			efi_printk(sys_table, "Failed to allocate memory for 'properties'\n");
 			return;

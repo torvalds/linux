@@ -382,7 +382,11 @@ union efi_pci_io_protocol {
 		void *allocate_buffer;
 		void *free_buffer;
 		void *flush;
-		void *get_location;
+		efi_status_t (*get_location)(efi_pci_io_protocol_t *,
+					     unsigned long *segment_nr,
+					     unsigned long *bus_nr,
+					     unsigned long *device_nr,
+					     unsigned long *function_nr);
 		void *attributes;
 		void *get_bar_attributes;
 		void *set_bar_attributes;
@@ -730,6 +734,8 @@ typedef struct {
 	u32 tables;
 } efi_system_table_32_t;
 
+typedef union efi_simple_text_output_protocol efi_simple_text_output_protocol_t;
+
 typedef union {
 	struct {
 		efi_table_hdr_t hdr;
@@ -738,7 +744,7 @@ typedef union {
 		unsigned long con_in_handle;
 		unsigned long con_in;
 		unsigned long con_out_handle;
-		unsigned long con_out;
+		efi_simple_text_output_protocol_t *con_out;
 		unsigned long stderr_handle;
 		unsigned long stderr;
 		efi_runtime_services_t *runtime;
@@ -1336,8 +1342,6 @@ struct efivar_entry {
 	bool scanning;
 	bool deleting;
 };
-
-typedef union efi_simple_text_output_protocol efi_simple_text_output_protocol_t;
 
 union efi_simple_text_output_protocol {
 	struct {

@@ -385,7 +385,7 @@ static int __init efi_systab_init(void *phys)
 		tmp |= systab64->con_in;
 		efi_systab.con_out_handle = systab64->con_out_handle;
 		tmp |= systab64->con_out_handle;
-		efi_systab.con_out = systab64->con_out;
+		efi_systab.con_out = (void *)(unsigned long)systab64->con_out;
 		tmp |= systab64->con_out;
 		efi_systab.stderr_handle = systab64->stderr_handle;
 		tmp |= systab64->stderr_handle;
@@ -427,7 +427,7 @@ static int __init efi_systab_init(void *phys)
 		efi_systab.con_in_handle = systab32->con_in_handle;
 		efi_systab.con_in = systab32->con_in;
 		efi_systab.con_out_handle = systab32->con_out_handle;
-		efi_systab.con_out = systab32->con_out;
+		efi_systab.con_out = (void *)(unsigned long)systab32->con_out;
 		efi_systab.stderr_handle = systab32->stderr_handle;
 		efi_systab.stderr = systab32->stderr;
 		efi_systab.runtime = (void *)(unsigned long)systab32->runtime;

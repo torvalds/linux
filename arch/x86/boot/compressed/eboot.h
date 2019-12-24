@@ -12,9 +12,12 @@
 
 #define DESC_TYPE_CODE_DATA	(1 << 0)
 
-typedef union {
+typedef union efi_uga_draw_protocol efi_uga_draw_protocol_t;
+
+union efi_uga_draw_protocol {
 	struct {
-		void *get_mode;
+		efi_status_t (*get_mode)(efi_uga_draw_protocol_t *,
+					 u32*, u32*, u32*, u32*);
 		void *set_mode;
 		void *blt;
 	};
@@ -23,6 +26,6 @@ typedef union {
 		u32 set_mode;
 		u32 blt;
 	} mixed_mode;
-} efi_uga_draw_protocol_t;
+};
 
 #endif /* BOOT_COMPRESSED_EBOOT_H */

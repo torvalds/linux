@@ -69,11 +69,11 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
 	size_t log_size, last_entry_size;
 	efi_bool_t truncated;
 	int version = EFI_TCG2_EVENT_LOG_FORMAT_TCG_2;
-	void *tcg2_protocol = NULL;
+	efi_tcg2_protocol_t *tcg2_protocol = NULL;
 	int final_events_size = 0;
 
 	status = efi_call_early(locate_protocol, &tcg2_guid, NULL,
-				&tcg2_protocol);
+				(void **)&tcg2_protocol);
 	if (status != EFI_SUCCESS)
 		return;
 

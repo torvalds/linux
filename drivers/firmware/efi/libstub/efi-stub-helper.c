@@ -413,12 +413,13 @@ grow:
 	return status;
 }
 
-static efi_status_t efi_file_read(void *handle, unsigned long *size, void *addr)
+static efi_status_t efi_file_read(efi_file_handle_t *handle,
+				  unsigned long *size, void *addr)
 {
 	return efi_call_proto(efi_file_handle, read, handle, size, addr);
 }
 
-static efi_status_t efi_file_close(void *handle)
+static efi_status_t efi_file_close(efi_file_handle_t *handle)
 {
 	return efi_call_proto(efi_file_handle, close, handle);
 }
