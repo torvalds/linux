@@ -429,6 +429,8 @@ next:
 		if (signal_pending(current))
 			flush_signals(current);
 
+		cond_resched();
+
 		spin_lock_irq(&worker->lock);
 		worker->cur_work = work;
 		spin_unlock_irq(&worker->lock);
