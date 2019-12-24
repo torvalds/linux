@@ -1140,7 +1140,7 @@ static int wil_tx_desc_map(union wil_tx_desc *desc, dma_addr_t pa,
 void wil_tx_data_init(struct wil_ring_tx_data *txdata)
 {
 	spin_lock_bh(&txdata->lock);
-	txdata->dot1x_open = 0;
+	txdata->dot1x_open = false;
 	txdata->enabled = 0;
 	txdata->idle = 0;
 	txdata->last_idle = 0;
