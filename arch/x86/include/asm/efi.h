@@ -153,17 +153,19 @@ extern u64 efi_setup;
 
 #ifdef CONFIG_EFI
 
-static inline bool efi_is_native(void)
+static inline bool efi_is_mixed(void)
 {
-	return IS_ENABLED(CONFIG_X86_64) == efi_enabled(EFI_64BIT);
+	if (!IS_ENABLED(CONFIG_EFI_MIXED))
+		return false;
+	return IS_ENABLED(CONFIG_X86_64) && !efi_enabled(EFI_64BIT);
 }
 
 static inline bool efi_runtime_supported(void)
 {
-	if (efi_is_native())
+	if (!efi_is_mixed())
 		return true;
 
-	if (IS_ENABLED(CONFIG_EFI_MIXED) && !efi_enabled(EFI_OLD_MEMMAP))
+	if (!efi_enabled(EFI_OLD_MEMMAP))
 		return true;
 
 	return false;

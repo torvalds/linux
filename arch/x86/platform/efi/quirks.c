@@ -395,7 +395,7 @@ static void __init efi_unmap_pages(efi_memory_desc_t *md)
 	 * EFI runtime calls, hence don't unmap EFI boot services code/data
 	 * regions.
 	 */
-	if (!efi_is_native())
+	if (efi_is_mixed())
 		return;
 
 	if (kernel_unmap_pages_in_pgd(pgd, pa, md->num_pages))
