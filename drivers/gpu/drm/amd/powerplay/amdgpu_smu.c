@@ -1904,8 +1904,14 @@ int smu_write_watermarks_table(struct smu_context *smu)
 int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
 {
-	struct smu_table *watermarks = &smu->smu_table.tables[SMU_TABLE_WATERMARKS];
-	void *table = watermarks->cpu_addr;
+	struct smu_table *watermarks;
+	void *table;
+
+	if (!smu->smu_table.tables)
+		return 0;
+
+	watermarks = &smu->smu_table.tables[SMU_TABLE_WATERMARKS];
+	table = watermarks->cpu_addr;
 
 	mutex_lock(&smu->mutex);
 
@@ -2397,7 +2403,7 @@ bool smu_baco_is_support(struct smu_context *smu)
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->baco_is_support)
+	if (smu->ppt_funcs && smu->ppt_funcs->baco_is_support)
 		ret = smu->ppt_funcs->baco_is_support(smu);
 
 	mutex_unlock(&smu->mutex);
