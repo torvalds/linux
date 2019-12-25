@@ -1915,7 +1915,7 @@ config SENSORS_W83627HF
 	  will be called w83627hf.
 
 config SENSORS_W83627EHF
-	tristate "Winbond W83627EHF/EHG/DHG/UHG, W83667HG, NCT6775F, NCT6776F"
+	tristate "Winbond W83627EHF/EHG/DHG/UHG, W83667HG"
 	depends on !PPC
 	select HWMON_VID
 	help
@@ -1928,8 +1928,7 @@ config SENSORS_W83627EHF
 	  the Core 2 Duo. And also the W83627UHG, which is a stripped down
 	  version of the W83627DHG (as far as hardware monitoring goes.)
 
-	  This driver also supports Nuvoton W83667HG, W83667HG-B, NCT6775F
-	  (also known as W83667HG-I), and NCT6776F.
+	  This driver also supports Nuvoton W83667HG and W83667HG-B.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called w83627ehf.
