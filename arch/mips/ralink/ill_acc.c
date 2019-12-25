@@ -67,11 +67,13 @@ static int __init ill_acc_of_setup(void)
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
 		dev_err(&pdev->dev, "failed to get irq\n");
+		put_device(&pdev->dev);
 		return -EINVAL;
 	}
 
 	if (request_irq(irq, ill_acc_irq_handler, 0, "ill_acc", &pdev->dev)) {
 		dev_err(&pdev->dev, "failed to request irq\n");
+		put_device(&pdev->dev);
 		return -EINVAL;
 	}
 
