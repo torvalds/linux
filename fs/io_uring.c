@@ -495,6 +495,7 @@ struct io_kiocb {
 #define REQ_F_COMP_LOCKED	32768	/* completion under lock */
 #define REQ_F_HARDLINK		65536	/* doesn't sever on completion < 0 */
 #define REQ_F_FORCE_ASYNC	131072	/* IOSQE_ASYNC */
+#define REQ_F_CUR_POS		262144	/* read/write uses file position */
 	u64			user_data;
 	u32			result;
 	u32			sequence;
@@ -1711,6 +1712,10 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		req->flags |= REQ_F_ISREG;
 
 	kiocb->ki_pos = READ_ONCE(sqe->off);
+	if (kiocb->ki_pos == -1 && !(req->file->f_mode & FMODE_STREAM)) {
+		req->flags |= REQ_F_CUR_POS;
+		kiocb->ki_pos = req->file->f_pos;
+	}
 	kiocb->ki_flags = iocb_flags(kiocb->ki_filp);
 	kiocb->ki_hint = ki_hint_validate(file_write_hint(kiocb->ki_filp));
 
@@ -1782,6 +1787,10 @@ static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
 static void kiocb_done(struct kiocb *kiocb, ssize_t ret, struct io_kiocb **nxt,
 		       bool in_async)
 {
+	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
+
+	if (req->flags & REQ_F_CUR_POS)
+		req->file->f_pos = kiocb->ki_pos;
 	if (in_async && ret >= 0 && kiocb->ki_complete == io_complete_rw)
 		*nxt = __io_complete_rw(kiocb, ret);
 	else
@@ -6154,7 +6163,7 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p)
 		goto err;
 
 	p->features = IORING_FEAT_SINGLE_MMAP | IORING_FEAT_NODROP |
-			IORING_FEAT_SUBMIT_STABLE;
+			IORING_FEAT_SUBMIT_STABLE | IORING_FEAT_RW_CUR_POS;
 	trace_io_uring_create(ret, ctx, p->sq_entries, p->cq_entries, p->flags);
 	return ret;
 err:
