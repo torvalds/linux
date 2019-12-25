@@ -1091,13 +1091,11 @@ static int
 clear_caseopen(struct device *dev, struct w83627ehf_data *data, int channel,
 	       long val)
 {
-	u16 masks[] = { 0x80, 0x40 };
-	u16 reg, mask;
+	const u16 mask = 0x80;
+	u16 reg;
 
-	if (val != 0 || channel > 1)
+	if (val != 0 || channel != 0)
 		return -EINVAL;
-
-	mask = masks[channel];
 
 	mutex_lock(&data->update_lock);
 	reg = w83627ehf_read_value(data, W83627EHF_REG_CASEOPEN_CLR);
@@ -1418,9 +1416,7 @@ w83627ehf_is_visible(const void *drvdata, enum hwmon_sensor_types type,
 		break;
 
 	case hwmon_intrusion:
-		if (channel == 0)
-			return 0644;
-		return 0;
+		return 0644;
 
 	default: /* Shouldn't happen */
 		return 0;
@@ -1545,12 +1541,10 @@ static int
 w83627ehf_do_read_intrusion(struct w83627ehf_data *data, u32 attr,
 			    int channel, long *val)
 {
-	unsigned int masks[] = { 0x10, 0x40 };
-
-	if (attr != hwmon_intrusion_alarm || channel > 1)
+	if (attr != hwmon_intrusion_alarm || channel != 0)
 		return -EOPNOTSUPP; /* shouldn't happen */
 
-	*val = !!(data->caseopen & masks[channel]);
+	*val = !!(data->caseopen & 0x10);
 	return 0;
 }
 
@@ -1688,7 +1682,6 @@ static const struct hwmon_channel_info *w83627ehf_info[] = {
 		HWMON_T_ALARM | HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_MAX |
 			HWMON_T_MAX_HYST | HWMON_T_OFFSET | HWMON_T_TYPE),
 	HWMON_CHANNEL_INFO(intrusion,
-		HWMON_INTRUSION_ALARM,
 		HWMON_INTRUSION_ALARM),
 	NULL
 };
