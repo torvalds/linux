@@ -410,13 +410,12 @@ static int __engines_record_defaults(struct intel_gt *gt)
 		struct intel_context *ce;
 		struct i915_request *rq;
 
+		/* We must be able to switch to something! */
+		GEM_BUG_ON(!engine->kernel_context);
+
 		err = intel_renderstate_init(&so, engine);
 		if (err)
 			goto out;
-
-		/* We must be able to switch to something! */
-		GEM_BUG_ON(!engine->kernel_context);
-		engine->serial++; /* force the kernel context switch */
 
 		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
