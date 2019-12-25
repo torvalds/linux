@@ -2194,6 +2194,8 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 		return ERR_PTR(-EINVAL);
 
 	alignment = intel_surf_alignment(fb, 0);
+	if (WARN_ON(alignment && !is_power_of_2(alignment)))
+		return ERR_PTR(-EINVAL);
 
 	/* Note that the w/a also requires 64 PTE of padding following the
 	 * bo. We currently fill all unused PTE with the shadow page and so
@@ -2432,9 +2434,6 @@ static u32 intel_compute_aligned_offset(struct drm_i915_private *dev_priv,
 	unsigned int cpp = fb->format->cpp[color_plane];
 	u32 offset, offset_aligned;
 
-	if (alignment)
-		alignment--;
-
 	if (!is_surface_linear(fb, color_plane)) {
 		unsigned int tile_size, tile_width, tile_height;
 		unsigned int tile_rows, tiles, pitch_tiles;
@@ -2456,17 +2455,24 @@ static u32 intel_compute_aligned_offset(struct drm_i915_private *dev_priv,
 		*x %= tile_width;
 
 		offset = (tile_rows * pitch_tiles + tiles) * tile_size;
-		offset_aligned = offset & ~alignment;
+
+		offset_aligned = offset;
+		if (alignment)
+			offset_aligned = rounddown(offset_aligned, alignment);
 
 		intel_adjust_tile_offset(x, y, tile_width, tile_height,
 					 tile_size, pitch_tiles,
 					 offset, offset_aligned);
 	} else {
 		offset = *y * pitch + *x * cpp;
-		offset_aligned = offset & ~alignment;
-
-		*y = (offset & alignment) / pitch;
-		*x = ((offset & alignment) - *y * pitch) / cpp;
+		offset_aligned = offset;
+		if (alignment) {
+			offset_aligned = rounddown(offset_aligned, alignment);
+			*y = (offset % alignment) / pitch;
+			*x = ((offset % alignment) - *y * pitch) / cpp;
+		} else {
+			*y = *x = 0;
+		}
 	}
 
 	return offset_aligned;
@@ -3738,6 +3744,8 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
 	offset = intel_plane_compute_aligned_offset(&x, &y, plane_state, 0);
 	alignment = intel_surf_alignment(fb, 0);
+	if (WARN_ON(alignment && !is_power_of_2(alignment)))
+		return -EINVAL;
 
 	/*
 	 * AUX surface offset is specified as the distance from the
