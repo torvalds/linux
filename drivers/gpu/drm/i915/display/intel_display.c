@@ -2913,11 +2913,15 @@ intel_fb_check_ccs_xy(struct drm_framebuffer *fb, int ccs_plane, int x, int y)
 static void
 intel_fb_plane_dims(int *w, int *h, struct drm_framebuffer *fb, int color_plane)
 {
+	int main_plane = is_ccs_plane(fb, color_plane) ?
+			 ccs_to_main_plane(fb, color_plane) : 0;
+	int main_hsub, main_vsub;
 	int hsub, vsub;
 
+	intel_fb_plane_get_subsampling(&main_hsub, &main_vsub, fb, main_plane);
 	intel_fb_plane_get_subsampling(&hsub, &vsub, fb, color_plane);
-	*w = fb->width / hsub;
-	*h = fb->height / vsub;
+	*w = fb->width / main_hsub / hsub;
+	*h = fb->height / main_vsub / vsub;
 }
 
 /*
