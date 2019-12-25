@@ -233,7 +233,7 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 	if (!*resfh)
 		return nfserr_jukebox;
 	fh_init(*resfh, NFS4_FHSIZE);
-	open->op_truncate = 0;
+	open->op_truncate = false;
 
 	if (open->op_create) {
 		/* FIXME: check session persistence and pnfs flags.
@@ -366,7 +366,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (open->op_create && open->op_claim_type != NFS4_OPEN_CLAIM_NULL)
 		return nfserr_inval;
 
-	open->op_created = 0;
+	open->op_created = false;
 	/*
 	 * RFC5661 18.51.3
 	 * Before RECLAIM_COMPLETE done, server should deny new lock
