@@ -1995,6 +1995,13 @@ intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
 	       info->num_planes == (is_ccs_modifier(modifier) ? 4 : 2);
 }
 
+static bool is_semiplanar_uv_plane(const struct drm_framebuffer *fb,
+				   int color_plane)
+{
+	return intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier) &&
+	       color_plane == 1;
+}
+
 static unsigned int
 intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 {
@@ -2067,6 +2074,16 @@ static void intel_tile_dims(const struct drm_framebuffer *fb, int color_plane,
 
 	*tile_width = tile_width_bytes / cpp;
 	*tile_height = intel_tile_height(fb, color_plane);
+}
+
+static unsigned int intel_tile_row_size(const struct drm_framebuffer *fb,
+					int color_plane)
+{
+	unsigned int tile_width, tile_height;
+
+	intel_tile_dims(fb, color_plane, &tile_width, &tile_height);
+
+	return fb->pitches[color_plane] * tile_height;
 }
 
 unsigned int
@@ -2143,7 +2160,8 @@ static unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 
 	/* AUX_DIST needs only 4K alignment */
-	if (is_aux_plane(fb, color_plane))
+	if ((INTEL_GEN(dev_priv) < 12 && is_aux_plane(fb, color_plane)) ||
+	    is_ccs_plane(fb, color_plane))
 		return 4096;
 
 	switch (fb->modifier) {
@@ -2158,6 +2176,10 @@ static unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 	case I915_FORMAT_MOD_Y_TILED_CCS:
 	case I915_FORMAT_MOD_Yf_TILED_CCS:
 	case I915_FORMAT_MOD_Y_TILED:
+		if (INTEL_GEN(dev_priv) >= 12 &&
+		    is_semiplanar_uv_plane(fb, color_plane))
+			return intel_tile_row_size(fb, color_plane);
+		/* Fall-through */
 	case I915_FORMAT_MOD_Yf_TILED:
 		return 1 * 1024 * 1024;
 	default:
@@ -2505,9 +2527,17 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 	unsigned int height;
+	u32 alignment;
 
-	if (fb->modifier != DRM_FORMAT_MOD_LINEAR &&
-	    fb->offsets[color_plane] % intel_tile_size(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 12 &&
+	    is_semiplanar_uv_plane(fb, color_plane))
+		alignment = intel_tile_row_size(fb, color_plane);
+	else if (fb->modifier != DRM_FORMAT_MOD_LINEAR)
+		alignment = intel_tile_size(dev_priv);
+	else
+		alignment = 0;
+
+	if (alignment != 0 && fb->offsets[color_plane] % alignment) {
 		DRM_DEBUG_KMS("Misaligned offset 0x%08x for color plane %d\n",
 			      fb->offsets[color_plane], color_plane);
 		return -EINVAL;
