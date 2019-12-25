@@ -312,6 +312,12 @@ again:
 		/* Match nfsv4 minorversion */
 		if (clp->cl_minorversion != data->minorversion)
 			continue;
+
+		/* Match request for a dedicated DS */
+		if (test_bit(NFS_CS_DS, &data->init_flags) !=
+		    test_bit(NFS_CS_DS, &clp->cl_flags))
+			continue;
+
 		/* Match the full socket address */
 		if (!rpc_cmp_addr_port(sap, clap))
 			/* Match all xprt_switch full socket addresses */
@@ -515,6 +521,10 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 	if (test_bit(NFS_CS_INFINITE_SLOTS, &clp->cl_flags))
 		args.flags |= RPC_CLNT_CREATE_INFINITE_SLOTS;
+	if (test_bit(NFS_CS_NOPING, &clp->cl_flags))
+		args.flags |= RPC_CLNT_CREATE_NOPING;
+	if (test_bit(NFS_CS_REUSEPORT, &clp->cl_flags))
+		args.flags |= RPC_CLNT_CREATE_REUSEPORT;
 
 	if (!IS_ERR(clp->cl_rpcclient))
 		return 0;
@@ -662,6 +672,7 @@ static int nfs_init_server(struct nfs_server *server,
 		.timeparms = &timeparms,
 		.cred = server->cred,
 		.nconnect = data->nfs_server.nconnect,
+		.init_flags = (1UL << NFS_CS_REUSEPORT),
 	};
 	struct nfs_client *clp;
 	int error;

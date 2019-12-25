@@ -464,7 +464,7 @@ struct qede_fastpath {
 	struct qede_tx_queue	*txq;
 	struct qede_tx_queue	*xdp_tx;
 
-#define VEC_NAME_SIZE  (FIELD_SIZEOF(struct net_device, name) + 8)
+#define VEC_NAME_SIZE  (sizeof_field(struct net_device, name) + 8)
 	char	name[VEC_NAME_SIZE];
 };
 

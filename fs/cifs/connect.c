@@ -2712,7 +2712,11 @@ cifs_find_tcp_session(struct smb_vol *vol)
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
-		if (!match_server(server, vol))
+		/*
+		 * Skip ses channels since they're only handled in lower layers
+		 * (e.g. cifs_send_recv).
+		 */
+		if (server->is_channel || !match_server(server, vol))
 			continue;
 
 		++server->srv_count;

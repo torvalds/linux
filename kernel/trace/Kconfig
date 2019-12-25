@@ -671,6 +671,15 @@ config HIST_TRIGGERS
 	  See Documentation/trace/histogram.rst.
 	  If in doubt, say N.
 
+config TRACE_EVENT_INJECT
+	bool "Trace event injection"
+	depends on TRACING
+	help
+	  Allow user-space to inject a specific trace event into the ring
+	  buffer. This is mainly used for testing purpose.
+
+	  If unsure, say N.
+
 config MMIOTRACE_TEST
 	tristate "Test module for mmiotrace"
 	depends on MMIOTRACE && m

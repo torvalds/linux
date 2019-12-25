@@ -8438,13 +8438,16 @@ static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 	if (hdev->pdev->revision == 0x20)
 		return -EOPNOTSUPP;
 
+	vport = hclge_get_vf_vport(hdev, vfid);
+	if (!vport)
+		return -EINVAL;
+
 	/* qos is a 3 bits value, so can not be bigger than 7 */
-	if (vfid >= hdev->num_alloc_vfs || vlan > VLAN_N_VID - 1 || qos > 7)
+	if (vlan > VLAN_N_VID - 1 || qos > 7)
 		return -EINVAL;
 	if (proto != htons(ETH_P_8021Q))
 		return -EPROTONOSUPPORT;
 
-	vport = &hdev->vport[vfid];
 	state = hclge_get_port_base_vlan_state(vport,
 					       vport->port_base_vlan_cfg.state,
 					       vlan);
@@ -8455,21 +8458,12 @@ static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 	vlan_info.qos = qos;
 	vlan_info.vlan_proto = ntohs(proto);
 
-	/* update port based VLAN for PF */
-	if (!vfid) {
-		hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
-		ret = hclge_update_port_base_vlan_cfg(vport, state, &vlan_info);
-		hclge_notify_client(hdev, HNAE3_UP_CLIENT);
-
-		return ret;
-	}
-
 	if (!test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state)) {
 		return hclge_update_port_base_vlan_cfg(vport, state,
 						       &vlan_info);
 	} else {
 		ret = hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
-							(u8)vfid, state,
+							vport->vport_id, state,
 							vlan, qos,
 							ntohs(proto));
 		return ret;
@@ -10246,7 +10240,7 @@ static int hclge_get_dfx_reg_len(struct hclge_dev *hdev, int *len)
 		return ret;
 	}
 
-	data_len_per_desc = FIELD_SIZEOF(struct hclge_desc, data);
+	data_len_per_desc = sizeof_field(struct hclge_desc, data);
 	*len = 0;
 	for (i = 0; i < dfx_reg_type_num; i++) {
 		bd_num = bd_num_list[i];

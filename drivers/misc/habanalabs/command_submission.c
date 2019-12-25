@@ -824,8 +824,9 @@ int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	memset(args, 0, sizeof(*args));
 
 	if (rc < 0) {
-		dev_err(hdev->dev, "Error %ld on waiting for CS handle %llu\n",
-			rc, seq);
+		dev_err_ratelimited(hdev->dev,
+				"Error %ld on waiting for CS handle %llu\n",
+				rc, seq);
 		if (rc == -ERESTARTSYS) {
 			args->out.status = HL_WAIT_CS_STATUS_INTERRUPTED;
 			rc = -EINTR;

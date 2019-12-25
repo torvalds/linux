@@ -87,6 +87,7 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
+		spi-max-frequency = <50000000>;
 #include "openbmc-flash-layout.dtsi"
 	};
 };
@@ -99,6 +100,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
+		spi-max-frequency = <50000000>;
 		label = "pnor";
 	};
 };

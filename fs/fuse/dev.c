@@ -1965,7 +1965,7 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 
 	nbuf = 0;
 	rem = 0;
-	for (idx = tail; idx < head && rem < len; idx++)
+	for (idx = tail; idx != head && rem < len; idx++)
 		rem += pipe->bufs[idx & mask].len;
 
 	ret = -EINVAL;

@@ -368,7 +368,7 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 	if (!ce->timeline)
 		return NULL;
 
-	rcu_read_lock();
+	mutex_lock(&ce->timeline->mutex);
 	list_for_each_entry_reverse(rq, &ce->timeline->requests, link) {
 		if (i915_request_completed(rq))
 			break;
@@ -378,7 +378,7 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 		if (engine)
 			break;
 	}
-	rcu_read_unlock();
+	mutex_unlock(&ce->timeline->mutex);
 
 	return engine;
 }
@@ -2167,8 +2167,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	ext_data.fpriv = file->driver_priv;
 	if (client_is_banned(ext_data.fpriv)) {
 		DRM_DEBUG("client %s[%d] banned from creating ctx\n",
-			  current->comm,
-			  pid_nr(get_task_pid(current, PIDTYPE_PID)));
+			  current->comm, task_pid_nr(current));
 		return -EIO;
 	}
 

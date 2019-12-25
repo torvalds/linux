@@ -121,7 +121,7 @@ static void flush_dcache_range_chunked(unsigned long start, unsigned long stop,
 	unsigned long i;
 
 	for (i = start; i < stop; i += chunk) {
-		flush_dcache_range(i, min(stop, start + chunk));
+		flush_dcache_range(i, min(stop, i + chunk));
 		cond_resched();
 	}
 }
@@ -289,6 +289,14 @@ void __init mem_init(void)
 	BUILD_BUG_ON(MMU_PAGE_COUNT > 16);
 
 #ifdef CONFIG_SWIOTLB
+	/*
+	 * Some platforms (e.g. 85xx) limit DMA-able memory way below
+	 * 4G. We force memblock to bottom-up mode to ensure that the
+	 * memory allocated in swiotlb_init() is DMA-able.
+	 * As it's the last memblock allocation, no need to reset it
+	 * back to to-down.
+	 */
+	memblock_set_bottom_up(true);
 	swiotlb_init(0);
 #endif
 

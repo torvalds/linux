@@ -129,13 +129,13 @@ struct xgbe_stats {
 
 #define XGMAC_MMC_STAT(_string, _var)				\
 	{ _string,						\
-	  FIELD_SIZEOF(struct xgbe_mmc_stats, _var),		\
+	  sizeof_field(struct xgbe_mmc_stats, _var),		\
 	  offsetof(struct xgbe_prv_data, mmc_stats._var),	\
 	}
 
 #define XGMAC_EXT_STAT(_string, _var)				\
 	{ _string,						\
-	  FIELD_SIZEOF(struct xgbe_ext_stats, _var),		\
+	  sizeof_field(struct xgbe_ext_stats, _var),		\
 	  offsetof(struct xgbe_prv_data, ext_stats._var),	\
 	}
 

@@ -24,7 +24,6 @@
 #include "cm1_7xx.h"
 #include "cm2_7xx.h"
 #include "prm7xx.h"
-#include "wd_timer.h"
 #include "soc.h"
 
 /* Base offset for all DRA7XX interrupts external to MPUSS */
@@ -683,7 +682,7 @@ static struct omap_hwmod_class dra7xx_sha0_hwmod_class = {
 	.sysc		= &dra7xx_sha0_sysc,
 };
 
-struct omap_hwmod dra7xx_sha0_hwmod = {
+static struct omap_hwmod dra7xx_sha0_hwmod = {
 	.name		= "sham",
 	.class		= &dra7xx_sha0_hwmod_class,
 	.clkdm_name	= "l4sec_clkdm",
@@ -772,229 +771,7 @@ static struct omap_hwmod dra7xx_gpmc_hwmod = {
 	},
 };
 
-/*
- * 'hdq1w' class
- *
- */
 
-static struct omap_hwmod_class_sysconfig dra7xx_hdq1w_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0014,
-	.syss_offs	= 0x0018,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SOFTRESET |
-			   SYSS_HAS_RESET_STATUS),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class dra7xx_hdq1w_hwmod_class = {
-	.name	= "hdq1w",
-	.sysc	= &dra7xx_hdq1w_sysc,
-};
-
-/* hdq1w */
-
-static struct omap_hwmod dra7xx_hdq1w_hwmod = {
-	.name		= "hdq1w",
-	.class		= &dra7xx_hdq1w_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.flags		= HWMOD_INIT_NO_RESET,
-	.main_clk	= "func_12m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER_HDQ1W_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER_HDQ1W_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
- * 'mailbox' class
- *
- */
-
-static struct omap_hwmod_class_sysconfig dra7xx_mailbox_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= (SYSC_HAS_RESET_STATUS | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class dra7xx_mailbox_hwmod_class = {
-	.name	= "mailbox",
-	.sysc	= &dra7xx_mailbox_sysc,
-};
-
-/* mailbox1 */
-static struct omap_hwmod dra7xx_mailbox1_hwmod = {
-	.name		= "mailbox1",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX1_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX1_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox2 */
-static struct omap_hwmod dra7xx_mailbox2_hwmod = {
-	.name		= "mailbox2",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX2_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX2_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox3 */
-static struct omap_hwmod dra7xx_mailbox3_hwmod = {
-	.name		= "mailbox3",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX3_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX3_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox4 */
-static struct omap_hwmod dra7xx_mailbox4_hwmod = {
-	.name		= "mailbox4",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX4_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX4_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox5 */
-static struct omap_hwmod dra7xx_mailbox5_hwmod = {
-	.name		= "mailbox5",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX5_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX5_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox6 */
-static struct omap_hwmod dra7xx_mailbox6_hwmod = {
-	.name		= "mailbox6",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX6_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX6_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox7 */
-static struct omap_hwmod dra7xx_mailbox7_hwmod = {
-	.name		= "mailbox7",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX7_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX7_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox8 */
-static struct omap_hwmod dra7xx_mailbox8_hwmod = {
-	.name		= "mailbox8",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX8_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX8_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox9 */
-static struct omap_hwmod dra7xx_mailbox9_hwmod = {
-	.name		= "mailbox9",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX9_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX9_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox10 */
-static struct omap_hwmod dra7xx_mailbox10_hwmod = {
-	.name		= "mailbox10",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX10_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX10_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox11 */
-static struct omap_hwmod dra7xx_mailbox11_hwmod = {
-	.name		= "mailbox11",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX11_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX11_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox12 */
-static struct omap_hwmod dra7xx_mailbox12_hwmod = {
-	.name		= "mailbox12",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX12_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX12_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* mailbox13 */
-static struct omap_hwmod dra7xx_mailbox13_hwmod = {
-	.name		= "mailbox13",
-	.class		= &dra7xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4CFG_MAILBOX13_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4CFG_MAILBOX13_CONTEXT_OFFSET,
-		},
-	},
-};
 
 /*
  * 'mpu' class
@@ -1655,34 +1432,6 @@ static struct omap_hwmod dra7xx_des_hwmod = {
 	},
 };
 
-/* rng */
-static struct omap_hwmod_class_sysconfig dra7xx_rng_sysc = {
-	.rev_offs       = 0x1fe0,
-	.sysc_offs      = 0x1fe4,
-	.sysc_flags     = SYSC_HAS_AUTOIDLE | SYSC_HAS_SIDLEMODE,
-	.idlemodes      = SIDLE_FORCE | SIDLE_NO,
-	.sysc_fields    = &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class dra7xx_rng_hwmod_class = {
-	.name           = "rng",
-	.sysc           = &dra7xx_rng_sysc,
-};
-
-static struct omap_hwmod dra7xx_rng_hwmod = {
-	.name           = "rng",
-	.class          = &dra7xx_rng_hwmod_class,
-	.flags		= HWMOD_SWSUP_SIDLE,
-	.clkdm_name     = "l4sec_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4SEC_RNG_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4SEC_RNG_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
-		},
-	},
-};
-
 /*
  * 'usb_otg_ss' class
  *
@@ -1815,43 +1564,6 @@ static struct omap_hwmod dra7xx_vcp2_hwmod = {
 	},
 };
 
-/*
- * 'wd_timer' class
- *
- */
-
-static struct omap_hwmod_class_sysconfig dra7xx_wd_timer_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_EMUFREE | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class dra7xx_wd_timer_hwmod_class = {
-	.name		= "wd_timer",
-	.sysc		= &dra7xx_wd_timer_sysc,
-	.pre_shutdown	= &omap2_wd_timer_disable,
-	.reset		= &omap2_wd_timer_reset,
-};
-
-/* wd_timer2 */
-static struct omap_hwmod dra7xx_wd_timer2_hwmod = {
-	.name		= "wd_timer2",
-	.class		= &dra7xx_wd_timer_hwmod_class,
-	.clkdm_name	= "wkupaon_clkdm",
-	.main_clk	= "sys_32k_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_WKUPAON_WD_TIMER2_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_WKUPAON_WD_TIMER2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
 
 
 /*
@@ -2086,118 +1798,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per1__elm = {
 static struct omap_hwmod_ocp_if dra7xx_l3_main_1__gpmc = {
 	.master		= &dra7xx_l3_main_1_hwmod,
 	.slave		= &dra7xx_gpmc_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per1 -> hdq1w */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__hdq1w = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_hdq1w_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_cfg -> mailbox1 */
-static struct omap_hwmod_ocp_if dra7xx_l4_cfg__mailbox1 = {
-	.master		= &dra7xx_l4_cfg_hwmod,
-	.slave		= &dra7xx_mailbox1_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox2 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox2 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox2_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox3 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox3 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox3_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox4 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox4 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox4_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox5 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox5 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox5_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox6 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox6 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox6_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox7 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox7 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox7_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox8 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox8 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox8_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox9 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox9 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox9_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox10 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox10 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox10_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox11 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox11 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox11_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox12 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox12 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox12_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per3 -> mailbox13 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per3__mailbox13 = {
-	.master		= &dra7xx_l4_per3_hwmod,
-	.slave		= &dra7xx_mailbox13_hwmod,
 	.clk		= "l3_iclk_div",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
@@ -2442,13 +2042,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per1__des = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_per1 -> rng */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__rng = {
-	.master         = &dra7xx_l4_per1_hwmod,
-	.slave          = &dra7xx_rng_hwmod,
-	.user           = OCP_USER_MPU,
-};
-
 /* l4_per3 -> usb_otg_ss1 */
 static struct omap_hwmod_ocp_if dra7xx_l4_per3__usb_otg_ss1 = {
 	.master		= &dra7xx_l4_per3_hwmod,
@@ -2513,14 +2106,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per2__vcp2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_wkup -> wd_timer2 */
-static struct omap_hwmod_ocp_if dra7xx_l4_wkup__wd_timer2 = {
-	.master		= &dra7xx_l4_wkup_hwmod,
-	.slave		= &dra7xx_wd_timer2_hwmod,
-	.clk		= "wkupaon_iclk_mux",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_per2 -> epwmss0 */
 static struct omap_hwmod_ocp_if dra7xx_l4_per2__epwmss0 = {
 	.master		= &dra7xx_l4_per2_hwmod,
@@ -2575,20 +2160,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l3_main_1__sha0,
 	&dra7xx_l4_per1__elm,
 	&dra7xx_l3_main_1__gpmc,
-	&dra7xx_l4_per1__hdq1w,
-	&dra7xx_l4_cfg__mailbox1,
-	&dra7xx_l4_per3__mailbox2,
-	&dra7xx_l4_per3__mailbox3,
-	&dra7xx_l4_per3__mailbox4,
-	&dra7xx_l4_per3__mailbox5,
-	&dra7xx_l4_per3__mailbox6,
-	&dra7xx_l4_per3__mailbox7,
-	&dra7xx_l4_per3__mailbox8,
-	&dra7xx_l4_per3__mailbox9,
-	&dra7xx_l4_per3__mailbox10,
-	&dra7xx_l4_per3__mailbox11,
-	&dra7xx_l4_per3__mailbox12,
-	&dra7xx_l4_per3__mailbox13,
 	&dra7xx_l4_cfg__mpu,
 	&dra7xx_l4_cfg__ocp2scp1,
 	&dra7xx_l4_cfg__ocp2scp3,
@@ -2624,7 +2195,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_per2__vcp1,
 	&dra7xx_l3_main_1__vcp2,
 	&dra7xx_l4_per2__vcp2,
-	&dra7xx_l4_wkup__wd_timer2,
 	&dra7xx_l4_per2__epwmss0,
 	&dra7xx_l4_per2__epwmss1,
 	&dra7xx_l4_per2__epwmss2,
@@ -2634,7 +2204,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 /* GP-only hwmod links */
 static struct omap_hwmod_ocp_if *dra7xx_gp_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_wkup__timer12,
-	&dra7xx_l4_per1__rng,
 	NULL,
 };
 

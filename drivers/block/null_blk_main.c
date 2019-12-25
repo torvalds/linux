@@ -1559,14 +1559,13 @@ static int init_driver_queues(struct nullb *nullb)
 
 static int null_gendisk_register(struct nullb *nullb)
 {
+	sector_t size = ((sector_t)nullb->dev->size * SZ_1M) >> SECTOR_SHIFT;
 	struct gendisk *disk;
-	sector_t size;
 
 	disk = nullb->disk = alloc_disk_node(1, nullb->dev->home_node);
 	if (!disk)
 		return -ENOMEM;
-	size = (sector_t)nullb->dev->size * 1024 * 1024ULL;
-	set_capacity(disk, size >> 9);
+	set_capacity(disk, size);
 
 	disk->flags |= GENHD_FL_EXT_DEVT | GENHD_FL_SUPPRESS_PARTITION_INFO;
 	disk->major		= null_major;
@@ -1576,12 +1575,19 @@ static int null_gendisk_register(struct nullb *nullb)
 	disk->queue		= nullb->q;
 	strncpy(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
 
+#ifdef CONFIG_BLK_DEV_ZONED
 	if (nullb->dev->zoned) {
-		int ret = blk_revalidate_disk_zones(disk);
-
-		if (ret != 0)
-			return ret;
+		if (queue_is_mq(nullb->q)) {
+			int ret = blk_revalidate_disk_zones(disk);
+			if (ret)
+				return ret;
+		} else {
+			blk_queue_chunk_sectors(nullb->q,
+					nullb->dev->zone_size_sects);
+			nullb->q->nr_zones = blkdev_nr_zones(disk);
+		}
 	}
+#endif
 
 	add_disk(disk);
 	return 0;
@@ -1607,7 +1613,7 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 	return blk_mq_alloc_tag_set(set);
 }
 
-static void null_validate_conf(struct nullb_device *dev)
+static int null_validate_conf(struct nullb_device *dev)
 {
 	dev->blocksize = round_down(dev->blocksize, 512);
 	dev->blocksize = clamp_t(unsigned int, dev->blocksize, 512, 4096);
@@ -1634,6 +1640,14 @@ static void null_validate_conf(struct nullb_device *dev)
 	/* can not stop a queue */
 	if (dev->queue_mode == NULL_Q_BIO)
 		dev->mbps = 0;
+
+	if (dev->zoned &&
+	    (!dev->zone_size || !is_power_of_2(dev->zone_size))) {
+		pr_err("zone_size must be power-of-two\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 #ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
@@ -1666,7 +1680,9 @@ static int null_add_dev(struct nullb_device *dev)
 	struct nullb *nullb;
 	int rv;
 
-	null_validate_conf(dev);
+	rv = null_validate_conf(dev);
+	if (rv)
+		return rv;
 
 	nullb = kzalloc_node(sizeof(*nullb), GFP_KERNEL, dev->home_node);
 	if (!nullb) {
@@ -1731,7 +1747,6 @@ static int null_add_dev(struct nullb_device *dev)
 		if (rv)
 			goto out_cleanup_blk_queue;
 
-		blk_queue_chunk_sectors(nullb->q, dev->zone_size_sects);
 		nullb->q->limits.zoned = BLK_ZONED_HM;
 		blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, nullb->q);
 		blk_queue_required_elevator_features(nullb->q,
@@ -1790,11 +1805,6 @@ static int __init null_init(void)
 		pr_warn("invalid block size\n");
 		pr_warn("defaults block size to %lu\n", PAGE_SIZE);
 		g_bs = PAGE_SIZE;
-	}
-
-	if (!is_power_of_2(g_zone_size)) {
-		pr_err("zone_size must be power-of-two\n");
-		return -EINVAL;
 	}
 
 	if (g_home_node != NUMA_NO_NODE && g_home_node >= nr_online_nodes) {

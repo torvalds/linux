@@ -341,6 +341,10 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			gvt_dbg_mmio("vgpu%d: request VCS2 Reset\n", vgpu->id);
 			engine_mask |= BIT(VCS1);
 		}
+		if (data & GEN9_GRDOM_GUC) {
+			gvt_dbg_mmio("vgpu%d: request GUC Reset\n", vgpu->id);
+			vgpu_vreg_t(vgpu, GUC_STATUS) |= GS_MIA_IN_RESET;
+		}
 		engine_mask &= INTEL_INFO(vgpu->gvt->dev_priv)->engine_mask;
 	}
 
@@ -460,6 +464,7 @@ static int pipeconf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 static i915_reg_t force_nonpriv_white_list[] = {
 	GEN9_CS_DEBUG_MODE1, //_MMIO(0x20ec)
 	GEN9_CTX_PREEMPT_REG,//_MMIO(0x2248)
+	PS_INVOCATION_COUNT,//_MMIO(0x2348)
 	GEN8_CS_CHICKEN1,//_MMIO(0x2580)
 	_MMIO(0x2690),
 	_MMIO(0x2694),
@@ -508,7 +513,7 @@ static inline bool in_whitelist(unsigned int reg)
 static int force_nonpriv_write(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
-	u32 reg_nonpriv = *(u32 *)p_data;
+	u32 reg_nonpriv = (*(u32 *)p_data) & REG_GENMASK(25, 2);
 	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
 	u32 ring_base;
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
@@ -528,7 +533,7 @@ static int force_nonpriv_write(struct intel_vgpu *vgpu,
 			bytes);
 	} else
 		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV write %x at offset %x\n",
-			vgpu->id, reg_nonpriv, offset);
+			vgpu->id, *(u32 *)p_data, offset);
 
 	return 0;
 }
@@ -1635,6 +1640,16 @@ static int edp_psr_imr_iir_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
+static int guc_status_read(struct intel_vgpu *vgpu,
+			   unsigned int offset, void *p_data,
+			   unsigned int bytes)
+{
+	/* keep MIA_IN_RESET before clearing */
+	read_vreg(vgpu, offset, p_data, bytes);
+	vgpu_vreg(vgpu, offset) &= ~GS_MIA_IN_RESET;
+	return 0;
+}
+
 static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
@@ -2671,6 +2686,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_DH(EDP_PSR_IMR, D_BDW_PLUS, NULL, edp_psr_imr_iir_write);
 	MMIO_DH(EDP_PSR_IIR, D_BDW_PLUS, NULL, edp_psr_imr_iir_write);
+	MMIO_DH(GUC_STATUS, D_ALL, guc_status_read, NULL);
+
 	return 0;
 }
 

@@ -862,7 +862,6 @@ S:	Maintained
 F:	drivers/i2c/busses/i2c-amd-mp2*
 
 AMD POWERPLAY
-M:	Rex Zhu <rex.zhu@amd.com>
 M:	Evan Quan <evan.quan@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
@@ -1585,8 +1584,8 @@ S:	Maintained
 F:	arch/arm/mach-cns3xxx/
 
 ARM/CAVIUM THUNDER NETWORK DRIVER
-M:	Sunil Goutham <sgoutham@cavium.com>
-M:	Robert Richter <rric@kernel.org>
+M:	Sunil Goutham <sgoutham@marvell.com>
+M:	Robert Richter <rrichter@marvell.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/net/ethernet/cavium/thunder/
@@ -1934,7 +1933,7 @@ F:	arch/arm/boot/dts/dove*
 F:	arch/arm/boot/dts/orion5x*
 T:	git git://git.infradead.org/linux-mvebu.git
 
-ARM/Marvell Kirkwood and Armada 370, 375, 38x, 39x, XP, 3700, 7K/8K SOC support
+ARM/Marvell Kirkwood and Armada 370, 375, 38x, 39x, XP, 3700, 7K/8K, CN9130 SOC support
 M:	Jason Cooper <jason@lakedaemon.net>
 M:	Andrew Lunn <andrew@lunn.ch>
 M:	Gregory Clement <gregory.clement@bootlin.com>
@@ -1946,6 +1945,7 @@ F:	arch/arm/boot/dts/kirkwood*
 F:	arch/arm/configs/mvebu_*_defconfig
 F:	arch/arm/mach-mvebu/
 F:	arch/arm64/boot/dts/marvell/armada*
+F:	arch/arm64/boot/dts/marvell/cn913*
 F:	drivers/cpufreq/armada-37xx-cpufreq.c
 F:	drivers/cpufreq/armada-8k-cpufreq.c
 F:	drivers/cpufreq/mvebu-cpufreq.c
@@ -2140,6 +2140,7 @@ S:	Maintained
 
 ARM/QUALCOMM SUPPORT
 M:	Andy Gross <agross@kernel.org>
+M:	Bjorn Andersson <bjorn.andersson@linaro.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/soc/qcom/
@@ -2200,6 +2201,7 @@ F:	Documentation/devicetree/bindings/timer/rda,8810pl-timer.txt
 ARM/REALTEK ARCHITECTURE
 M:	Andreas Färber <afaerber@suse.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-realtek-soc@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm64/boot/dts/realtek/
 F:	Documentation/devicetree/bindings/arm/realtek.yaml
@@ -2270,6 +2272,7 @@ F:	drivers/*/*s3c64xx*
 F:	drivers/*/*s5pv210*
 F:	drivers/memory/samsung/
 F:	drivers/soc/samsung/
+F:	drivers/tty/serial/samsung*
 F:	include/linux/soc/samsung/
 F:	Documentation/arm/samsung/
 F:	Documentation/devicetree/bindings/arm/samsung/
@@ -3226,8 +3229,7 @@ N:	kona
 F:	arch/arm/mach-bcm/
 
 BROADCOM BCM2711/BCM2835 ARM ARCHITECTURE
-M:	Eric Anholt <eric@anholt.net>
-M:	Stefan Wahren <wahrenst@gmx.net>
+M:	Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
 L:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -3740,9 +3742,8 @@ S:	Maintained
 F:	drivers/net/wireless/ath/carl9170/
 
 CAVIUM I2C DRIVER
-M:	Jan Glauber <jglauber@cavium.com>
-M:	David Daney <david.daney@cavium.com>
-W:	http://www.cavium.com
+M:	Robert Richter <rrichter@marvell.com>
+W:	http://www.marvell.com
 S:	Supported
 F:	drivers/i2c/busses/i2c-octeon*
 F:	drivers/i2c/busses/i2c-thunderx*
@@ -3752,27 +3753,25 @@ M:	Derek Chickles <dchickles@marvell.com>
 M:	Satanand Burla <sburla@marvell.com>
 M:	Felix Manlunas <fmanlunas@marvell.com>
 L:	netdev@vger.kernel.org
-W:	http://www.cavium.com
+W:	http://www.marvell.com
 S:	Supported
 F:	drivers/net/ethernet/cavium/liquidio/
 
 CAVIUM MMC DRIVER
-M:	Jan Glauber <jglauber@cavium.com>
-M:	David Daney <david.daney@cavium.com>
-M:	Steven J. Hill <Steven.Hill@cavium.com>
-W:	http://www.cavium.com
+M:	Robert Richter <rrichter@marvell.com>
+W:	http://www.marvell.com
 S:	Supported
 F:	drivers/mmc/host/cavium*
 
 CAVIUM OCTEON-TX CRYPTO DRIVER
-M:	George Cherian <george.cherian@cavium.com>
+M:	George Cherian <gcherian@marvell.com>
 L:	linux-crypto@vger.kernel.org
-W:	http://www.cavium.com
+W:	http://www.marvell.com
 S:	Supported
 F:	drivers/crypto/cavium/cpt/
 
 CAVIUM THUNDERX2 ARM64 SOC
-M:	Robert Richter <rrichter@cavium.com>
+M:	Robert Richter <rrichter@marvell.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm64/boot/dts/cavium/thunder2-99xx*
@@ -4972,6 +4971,7 @@ F:	include/linux/dma-buf*
 F:	include/linux/reservation.h
 F:	include/linux/*fence.h
 F:	Documentation/driver-api/dma-buf.rst
+K:	dma_(buf|fence|resv)
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
@@ -4999,6 +4999,14 @@ F:	include/asm-generic/dma-mapping.h
 F:	include/linux/dma-direct.h
 F:	include/linux/dma-mapping.h
 F:	include/linux/dma-noncoherent.h
+
+DMC FREQUENCY DRIVER FOR SAMSUNG EXYNOS5422
+M:	Lukasz Luba <lukasz.luba@arm.com>
+L:	linux-pm@vger.kernel.org
+L:	linux-samsung-soc@vger.kernel.org
+S:	Maintained
+F:	drivers/memory/samsung/exynos5422-dmc.c
+F:	Documentation/devicetree/bindings/memory-controllers/exynos5422-dmc.txt
 
 DME1737 HARDWARE MONITOR DRIVER
 M:	Juerg Haefliger <juergh@gmail.com>
@@ -5882,15 +5890,14 @@ F:	drivers/edac/highbank*
 
 EDAC-CAVIUM OCTEON
 M:	Ralf Baechle <ralf@linux-mips.org>
-M:	David Daney <david.daney@cavium.com>
+M:	Robert Richter <rrichter@marvell.com>
 L:	linux-edac@vger.kernel.org
 L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	drivers/edac/octeon_edac*
 
 EDAC-CAVIUM THUNDERX
-M:	David Daney <david.daney@cavium.com>
-M:	Jan Glauber <jglauber@cavium.com>
+M:	Robert Richter <rrichter@marvell.com>
 L:	linux-edac@vger.kernel.org
 S:	Supported
 F:	drivers/edac/thunderx_edac*
@@ -6020,6 +6027,7 @@ M:	Yash Shah <yash.shah@sifive.com>
 L:	linux-edac@vger.kernel.org
 S:	Supported
 F:	drivers/edac/sifive_edac.c
+F:	drivers/soc/sifive_l2_cache.c
 
 EDAC-SKYLAKE
 M:	Tony Luck <tony.luck@intel.com>
@@ -8759,6 +8767,7 @@ ISCSI
 M:	Lee Duncan <lduncan@suse.com>
 M:	Chris Leech <cleech@redhat.com>
 L:	open-iscsi@googlegroups.com
+L:	linux-scsi@vger.kernel.org
 W:	www.open-iscsi.com
 S:	Maintained
 F:	drivers/scsi/*iscsi*
@@ -9032,7 +9041,6 @@ F:	include/linux/umh.h
 
 KERNEL VIRTUAL MACHINE (KVM)
 M:	Paolo Bonzini <pbonzini@redhat.com>
-M:	Radim Krčmář <rkrcmar@redhat.com>
 L:	kvm@vger.kernel.org
 W:	http://www.linux-kvm.org
 T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
@@ -9067,9 +9075,9 @@ F:	virt/kvm/arm/
 F:	include/kvm/arm_*
 
 KERNEL VIRTUAL MACHINE FOR MIPS (KVM/mips)
-M:	James Hogan <jhogan@kernel.org>
 L:	linux-mips@vger.kernel.org
-S:	Supported
+L:	kvm@vger.kernel.org
+S:	Orphan
 F:	arch/mips/include/uapi/asm/kvm*
 F:	arch/mips/include/asm/kvm*
 F:	arch/mips/kvm/
@@ -9104,7 +9112,6 @@ F:	tools/testing/selftests/kvm/*/s390x/
 
 KERNEL VIRTUAL MACHINE FOR X86 (KVM/x86)
 M:	Paolo Bonzini <pbonzini@redhat.com>
-M:	Radim Krčmář <rkrcmar@redhat.com>
 R:	Sean Christopherson <sean.j.christopherson@intel.com>
 R:	Vitaly Kuznetsov <vkuznets@redhat.com>
 R:	Wanpeng Li <wanpengli@tencent.com>
@@ -10101,6 +10108,16 @@ W:	https://linuxtv.org
 S:	Maintained
 F:	drivers/media/radio/radio-maxiradio*
 
+MCAN MMIO DEVICE DRIVER
+M:	Dan Murphy <dmurphy@ti.com>
+M:	Sriram Dash <sriram.dash@samsung.com>
+L:	linux-can@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/can/m_can.txt
+F:	drivers/net/can/m_can/m_can.c
+F:	drivers/net/can/m_can/m_can.h
+F:	drivers/net/can/m_can/m_can_platform.c
+
 MCP4018 AND MCP4531 MICROCHIP DIGITAL POTENTIOMETER DRIVERS
 M:	Peter Rosin <peda@axentia.se>
 L:	linux-iio@vger.kernel.org
@@ -11059,9 +11076,18 @@ F:	drivers/media/radio/radio-miropcm20*
 MMP SUPPORT
 R:	Lubomir Rintel <lkundrak@v3.sk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lkundrak/linux-mmp.git
 S:	Odd Fixes
 F:	arch/arm/boot/dts/mmp*
 F:	arch/arm/mach-mmp/
+F:	linux/soc/mmp/
+
+MMP USB PHY DRIVERS
+R:	Lubomir Rintel <lkundrak@v3.sk>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/phy/marvell/phy-mmp3-usb.c
+F:	drivers/phy/marvell/phy-pxa-usb.c
 
 MMU GATHER AND TLB INVALIDATION
 M:	Will Deacon <will@kernel.org>
@@ -11908,6 +11934,8 @@ F:	arch/arm/boot/dts/*am3*
 F:	arch/arm/boot/dts/*am4*
 F:	arch/arm/boot/dts/*am5*
 F:	arch/arm/boot/dts/*dra7*
+F:	arch/arm/boot/dts/logicpd-som-lv*
+F:	arch/arm/boot/dts/logicpd-torpedo*
 
 OMAP DISPLAY SUBSYSTEM and FRAMEBUFFER SUPPORT (DSS2)
 L:	linux-omap@vger.kernel.org
@@ -12367,7 +12395,7 @@ L:	linux-unionfs@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/vfs.git
 S:	Supported
 F:	fs/overlayfs/
-F:	Documentation/filesystems/overlayfs.txt
+F:	Documentation/filesystems/overlayfs.rst
 
 P54 WIRELESS DRIVER
 M:	Christian Lamparter <chunkeey@googlemail.com>
@@ -12778,7 +12806,7 @@ F:	Documentation/devicetree/bindings/pci/axis,artpec*
 F:	drivers/pci/controller/dwc/*artpec*
 
 PCIE DRIVER FOR CAVIUM THUNDERX
-M:	David Daney <david.daney@cavium.com>
+M:	Robert Richter <rrichter@marvell.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
@@ -13682,12 +13710,22 @@ L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	drivers/iommu/qcom_iommu.c
 
+QUALCOMM RMNET DRIVER
+M:	Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
+M:	Sean Tranchetti <stranche@codeaurora.org>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/qualcomm/rmnet/
+F:	Documentation/networking/device_drivers/qualcomm/rmnet.txt
+F:	include/linux/if_rmnet.h
+
 QUALCOMM TSENS THERMAL DRIVER
 M:	Amit Kucheria <amit.kucheria@linaro.org>
 L:	linux-pm@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	drivers/thermal/qcom/
+F:	Documentation/devicetree/bindings/thermal/qcom-tsens.yaml
 
 QUALCOMM VENUS VIDEO ACCELERATOR DRIVER
 M:	Stanimir Varbanov <stanimir.varbanov@linaro.org>
@@ -13750,7 +13788,7 @@ F:	drivers/media/radio/radio-tea5777.c
 RADOS BLOCK DEVICE (RBD)
 M:	Ilya Dryomov <idryomov@gmail.com>
 M:	Sage Weil <sage@redhat.com>
-M:	Alex Elder <elder@kernel.org>
+R:	Dongsheng Yang <dongsheng.yang@easystack.cn>
 L:	ceph-devel@vger.kernel.org
 W:	http://ceph.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
@@ -14027,6 +14065,7 @@ F:	include/dt-bindings/reset/
 F:	include/linux/reset.h
 F:	include/linux/reset/
 F:	include/linux/reset-controller.h
+K:      \b(?:devm_|of_)?reset_control(?:ler_[a-z]+|_[a-z_]+)?\b
 
 RESTARTABLE SEQUENCES SUPPORT
 M:	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
@@ -16286,12 +16325,10 @@ F:	drivers/media/radio/radio-raremono.c
 
 THERMAL
 M:	Zhang Rui <rui.zhang@intel.com>
-M:	Eduardo Valentin <edubezval@gmail.com>
-R:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@linaro.org>
 R:	Amit Kucheria <amit.kucheria@verdurent.com>
 L:	linux-pm@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rzhang/linux.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/evalenti/linux-soc-thermal.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/thermal/linux.git
 Q:	https://patchwork.kernel.org/project/linux-pm/list/
 S:	Supported
 F:	drivers/thermal/
@@ -16309,6 +16346,15 @@ S:	Supported
 F:	Documentation/driver-api/thermal/cpu-cooling-api.rst
 F:	drivers/thermal/cpu_cooling.c
 F:	include/linux/cpu_cooling.h
+
+THERMAL DRIVER FOR AMLOGIC SOCS
+M:	Guillaume La Roque <glaroque@baylibre.com>
+L:	linux-pm@vger.kernel.org
+L:	linux-amlogic@lists.infradead.org
+W:	http://linux-meson.com/
+S:	Supported
+F:	drivers/thermal/amlogic_thermal.c
+F:	Documentation/devicetree/bindings/thermal/amlogic,thermal.yaml
 
 THINKPAD ACPI EXTRAS DRIVER
 M:	Henrique de Moraes Holschuh <ibm-acpi@hmh.eng.br>
@@ -16340,7 +16386,7 @@ S:	Maintained
 F:	drivers/net/thunderbolt.c
 
 THUNDERX GPIO DRIVER
-M:	David Daney <david.daney@cavium.com>
+M:	Robert Richter <rrichter@marvell.com>
 S:	Maintained
 F:	drivers/gpio/gpio-thunderx.c
 
@@ -16495,6 +16541,13 @@ M:	Kevin Cernekee <cernekee@chromium.org>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Odd Fixes
 F:	sound/soc/codecs/tas571x*
+
+TI TCAN4X5X DEVICE DRIVER
+M:	Dan Murphy <dmurphy@ti.com>
+L:	linux-can@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/can/tcan4x5x.txt
+F:	drivers/net/can/m_can/tcan4x5x.c
 
 TI TRF7970A NFC DRIVER
 M:	Mark Greer <mgreer@animalcreek.com>
@@ -18111,6 +18164,14 @@ M:	Radhey Shyam Pandey <radhey.shyam.pandey@xilinx.com>
 S:	Maintained
 F:	drivers/net/ethernet/xilinx/xilinx_axienet*
 
+XILINX CAN DRIVER
+M:	Appana Durga Kedareswara rao <appana.durga.rao@xilinx.com>
+R:	Naga Sureshkumar Relli <naga.sureshkumar.relli@xilinx.com>
+L:	linux-can@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/can/xilinx_can.txt
+F:	drivers/net/can/xilinx_can.c
+
 XILINX UARTLITE SERIAL DRIVER
 M:	Peter Korsgaard <jacmet@sunsite.dk>
 L:	linux-serial@vger.kernel.org
@@ -18145,10 +18206,9 @@ S:	Supported
 F:	drivers/char/xillybus/
 
 XLP9XX I2C DRIVER
-M:	George Cherian <george.cherian@cavium.com>
-M:	Jan Glauber <jglauber@cavium.com>
+M:	George Cherian <gcherian@marvell.com>
 L:	linux-i2c@vger.kernel.org
-W:	http://www.cavium.com
+W:	http://www.marvell.com
 S:	Supported
 F:	Documentation/devicetree/bindings/i2c/i2c-xlp9xx.txt
 F:	drivers/i2c/busses/i2c-xlp9xx.c

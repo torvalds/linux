@@ -29,20 +29,6 @@ extern unsigned char IPA_PDU_HEADER[];
 #define QETH_TIMEOUT		(10 * HZ)
 #define QETH_IPA_TIMEOUT	(45 * HZ)
 
-#define QETH_CLEAR_CHANNEL_PARM	-10
-#define QETH_HALT_CHANNEL_PARM	-11
-
-static inline bool qeth_intparm_is_iob(unsigned long intparm)
-{
-	switch (intparm) {
-	case QETH_CLEAR_CHANNEL_PARM:
-	case QETH_HALT_CHANNEL_PARM:
-	case 0:
-		return false;
-	}
-	return true;
-}
-
 /*****************************************************************************/
 /* IP Assist related definitions                                             */
 /*****************************************************************************/
@@ -435,7 +421,7 @@ struct qeth_ipacmd_setassparms {
 	} data;
 } __attribute__ ((packed));
 
-#define SETASS_DATA_SIZEOF(field) FIELD_SIZEOF(struct qeth_ipacmd_setassparms,\
+#define SETASS_DATA_SIZEOF(field) sizeof_field(struct qeth_ipacmd_setassparms,\
 					       data.field)
 
 /* SETRTG IPA Command:    ****************************************************/
@@ -549,7 +535,7 @@ struct qeth_ipacmd_setadpparms {
 	} data;
 } __attribute__ ((packed));
 
-#define SETADP_DATA_SIZEOF(field) FIELD_SIZEOF(struct qeth_ipacmd_setadpparms,\
+#define SETADP_DATA_SIZEOF(field) sizeof_field(struct qeth_ipacmd_setadpparms,\
 					       data.field)
 
 /* CREATE_ADDR IPA Command:    ***********************************************/
@@ -662,7 +648,7 @@ struct qeth_ipacmd_vnicc {
 	} data;
 };
 
-#define VNICC_DATA_SIZEOF(field)	FIELD_SIZEOF(struct qeth_ipacmd_vnicc,\
+#define VNICC_DATA_SIZEOF(field)	sizeof_field(struct qeth_ipacmd_vnicc,\
 						     data.field)
 
 /* SETBRIDGEPORT IPA Command:	 *********************************************/
@@ -743,7 +729,7 @@ struct qeth_ipacmd_setbridgeport {
 	} data;
 } __packed;
 
-#define SBP_DATA_SIZEOF(field)	FIELD_SIZEOF(struct qeth_ipacmd_setbridgeport,\
+#define SBP_DATA_SIZEOF(field)	sizeof_field(struct qeth_ipacmd_setbridgeport,\
 					     data.field)
 
 /* ADDRESS_CHANGE_NOTIFICATION adapter-initiated "command" *******************/
@@ -804,7 +790,7 @@ struct qeth_ipa_cmd {
 	} data;
 } __attribute__ ((packed));
 
-#define IPA_DATA_SIZEOF(field)	FIELD_SIZEOF(struct qeth_ipa_cmd, data.field)
+#define IPA_DATA_SIZEOF(field)	sizeof_field(struct qeth_ipa_cmd, data.field)
 
 /*
  * special command for ARP processing.
@@ -912,6 +898,11 @@ extern unsigned char IDX_ACTIVATE_WRITE[];
 #define QETH_IDX_ACT_ERR_EXCL		0x19
 #define QETH_IDX_ACT_ERR_AUTH		0x1E
 #define QETH_IDX_ACT_ERR_AUTH_USER	0x20
+
+#define QETH_IDX_TERMINATE		0xc0
+#define QETH_IDX_TERMINATE_MASK		0xc0
+#define QETH_IDX_TERM_BAD_TRANSPORT	0x41
+#define QETH_IDX_TERM_BAD_TRANSPORT_VM	0xf6
 
 #define PDU_ENCAPSULATION(buffer) \
 	(buffer + *(buffer + (*(buffer + 0x0b)) + \

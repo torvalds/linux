@@ -100,9 +100,7 @@ execlists_num_ports(const struct intel_engine_execlists * const execlists)
 static inline struct i915_request *
 execlists_active(const struct intel_engine_execlists *execlists)
 {
-	GEM_BUG_ON(execlists->active - execlists->inflight >
-		   execlists_num_ports(execlists));
-	return READ_ONCE(*execlists->active);
+	return *READ_ONCE(execlists->active);
 }
 
 static inline void

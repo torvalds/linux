@@ -1775,7 +1775,7 @@ enum netdev_priv_flags {
  *			for hardware timestamping
  *	@sfp_bus:	attached &struct sfp_bus structure.
  *	@qdisc_tx_busylock_key: lockdep class annotating Qdisc->busylock
-				spinlock
+ *				spinlock
  *	@qdisc_running_key:	lockdep class annotating Qdisc->running seqcount
  *	@qdisc_xmit_lock_key:	lockdep class annotating
  *				netdev_queue->_xmit_lock spinlock
@@ -1881,6 +1881,11 @@ struct net_device {
 	unsigned char		if_port;
 	unsigned char		dma;
 
+	/* Note : dev->mtu is often read without holding a lock.
+	 * Writers usually hold RTNL.
+	 * It is recommended to use READ_ONCE() to annotate the reads,
+	 * and to use WRITE_ONCE() to annotate the writes.
+	 */
 	unsigned int		mtu;
 	unsigned int		min_mtu;
 	unsigned int		max_mtu;

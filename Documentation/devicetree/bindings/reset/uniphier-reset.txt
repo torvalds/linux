@@ -130,6 +130,7 @@ this layer. These clocks and resets should be described in each property.
 Required properties:
 - compatible: Should be
     "socionext,uniphier-pro4-usb3-reset" - for Pro4 SoC USB3
+    "socionext,uniphier-pro5-usb3-reset" - for Pro5 SoC USB3
     "socionext,uniphier-pxs2-usb3-reset" - for PXs2 SoC USB3
     "socionext,uniphier-ld20-usb3-reset" - for LD20 SoC USB3
     "socionext,uniphier-pxs3-usb3-reset" - for PXs3 SoC USB3
@@ -141,12 +142,12 @@ Required properties:
 - clocks: A list of phandles to the clock gate for the glue layer.
 	According to the clock-names, appropriate clocks are required.
 - clock-names: Should contain
-    "gio", "link" - for Pro4 SoC
+    "gio", "link" - for Pro4 and Pro5 SoCs
     "link"        - for others
 - resets: A list of phandles to the reset control for the glue layer.
 	According to the reset-names, appropriate resets are required.
 - reset-names: Should contain
-    "gio", "link" - for Pro4 SoC
+    "gio", "link" - for Pro4 and Pro5 SoCs
     "link"        - for others
 
 Example:

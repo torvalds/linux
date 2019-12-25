@@ -295,6 +295,7 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 
 	flush_workqueue(card->event_wq);
 	card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
+	card->info.promisc_mode = 0;
 }
 
 static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
@@ -845,9 +846,9 @@ static int qeth_l2_set_online(struct ccwgroup_device *gdev)
 
 out_remove:
 	qeth_l2_stop_card(card);
-	ccw_device_set_offline(CARD_DDEV(card));
-	ccw_device_set_offline(CARD_WDEV(card));
-	ccw_device_set_offline(CARD_RDEV(card));
+	qeth_stop_channel(&card->data);
+	qeth_stop_channel(&card->write);
+	qeth_stop_channel(&card->read);
 	qdio_free(CARD_DDEV(card));
 
 	mutex_unlock(&card->conf_mutex);
@@ -878,9 +879,9 @@ static int __qeth_l2_set_offline(struct ccwgroup_device *cgdev,
 	rtnl_unlock();
 
 	qeth_l2_stop_card(card);
-	rc  = ccw_device_set_offline(CARD_DDEV(card));
-	rc2 = ccw_device_set_offline(CARD_WDEV(card));
-	rc3 = ccw_device_set_offline(CARD_RDEV(card));
+	rc  = qeth_stop_channel(&card->data);
+	rc2 = qeth_stop_channel(&card->write);
+	rc3 = qeth_stop_channel(&card->read);
 	if (!rc)
 		rc = (rc2) ? rc2 : rc3;
 	if (rc)

@@ -129,7 +129,7 @@ writing of special-purpose memory allocators in the future.
    :functions: gen_pool_for_each_chunk
 
 .. kernel-doc:: lib/genalloc.c
-   :functions: addr_in_gen_pool
+   :functions: gen_pool_has_addr
 
 .. kernel-doc:: lib/genalloc.c
    :functions: gen_pool_avail

@@ -16,7 +16,7 @@ struct igc_stats {
 
 #define IGC_STAT(_name, _stat) { \
 	.stat_string = _name, \
-	.sizeof_stat = FIELD_SIZEOF(struct igc_adapter, _stat), \
+	.sizeof_stat = sizeof_field(struct igc_adapter, _stat), \
 	.stat_offset = offsetof(struct igc_adapter, _stat) \
 }
 
@@ -67,7 +67,7 @@ static const struct igc_stats igc_gstrings_stats[] = {
 
 #define IGC_NETDEV_STAT(_net_stat) { \
 	.stat_string = __stringify(_net_stat), \
-	.sizeof_stat = FIELD_SIZEOF(struct rtnl_link_stats64, _net_stat), \
+	.sizeof_stat = sizeof_field(struct rtnl_link_stats64, _net_stat), \
 	.stat_offset = offsetof(struct rtnl_link_stats64, _net_stat) \
 }
 

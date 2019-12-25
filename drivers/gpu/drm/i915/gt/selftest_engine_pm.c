@@ -51,11 +51,12 @@ static int live_engine_pm(void *arg)
 				pr_err("intel_engine_pm_get_if_awake(%s) failed under %s\n",
 				       engine->name, p->name);
 			else
-				intel_engine_pm_put(engine);
-			intel_engine_pm_put(engine);
+				intel_engine_pm_put_async(engine);
+			intel_engine_pm_put_async(engine);
 			p->critical_section_end();
 
-			/* engine wakeref is sync (instant) */
+			intel_engine_pm_flush(engine);
+
 			if (intel_engine_pm_is_awake(engine)) {
 				pr_err("%s is still awake after flushing pm\n",
 				       engine->name);

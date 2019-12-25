@@ -3231,7 +3231,6 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.system_features_control = smu_v11_0_system_features_control,
-	.send_smc_msg = smu_v11_0_send_msg,
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
 	.read_smc_arg = smu_v11_0_read_arg,
 	.init_display_count = smu_v11_0_init_display_count,

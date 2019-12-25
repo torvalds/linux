@@ -817,8 +817,6 @@ static int lpc_mii_init(struct netdata_local *pldat)
 	pldat->mii_bus->priv = pldat;
 	pldat->mii_bus->parent = &pldat->pdev->dev;
 
-	platform_set_drvdata(pldat->pdev, pldat->mii_bus);
-
 	node = of_get_child_by_name(pldat->pdev->dev.of_node, "mdio");
 	err = of_mdiobus_register(pldat->mii_bus, node);
 	of_node_put(node);

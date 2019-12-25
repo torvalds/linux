@@ -368,6 +368,9 @@ struct smb_version_operations {
 	/* close a file */
 	void (*close)(const unsigned int, struct cifs_tcon *,
 		      struct cifs_fid *);
+	/* close a file, returning file attributes and timestamps */
+	void (*close_getattr)(const unsigned int xid, struct cifs_tcon *tcon,
+		      struct cifsFileInfo *pfile_info);
 	/* send a flush request to the server */
 	int (*flush)(const unsigned int, struct cifs_tcon *, struct cifs_fid *);
 	/* async read from the server */
@@ -774,6 +777,7 @@ struct TCP_Server_Info {
 	 */
 	int nr_targets;
 	bool noblockcnt; /* use non-blocking connect() */
+	bool is_channel; /* if a session channel */
 };
 
 struct cifs_credits {
@@ -1057,7 +1061,7 @@ cap_unix(struct cifs_ses *ses)
 struct cached_fid {
 	bool is_valid:1;	/* Do we have a useable root fid */
 	bool file_all_info_is_valid:1;
-
+	bool has_lease:1;
 	struct kref refcount;
 	struct cifs_fid *fid;
 	struct mutex fid_mutex;

@@ -571,7 +571,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	/* Use the skb control buffer for building up the packet */
 	BUILD_BUG_ON(sizeof(struct hv_netvsc_packet) >
-			FIELD_SIZEOF(struct sk_buff, cb));
+			sizeof_field(struct sk_buff, cb));
 	packet = (struct hv_netvsc_packet *)skb->cb;
 
 	packet->q_idx = skb_get_queue_mapping(skb);
@@ -1662,7 +1662,7 @@ static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 	rndis_dev = ndev->extension;
 	if (indir) {
 		for (i = 0; i < ITAB_NUM; i++)
-			indir[i] = rndis_dev->rx_table[i];
+			indir[i] = ndc->rx_table[i];
 	}
 
 	if (key)
@@ -1692,7 +1692,7 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 				return -EINVAL;
 
 		for (i = 0; i < ITAB_NUM; i++)
-			rndis_dev->rx_table[i] = indir[i];
+			ndc->rx_table[i] = indir[i];
 	}
 
 	if (!key) {

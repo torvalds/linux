@@ -35,7 +35,8 @@ static inline void wq_list_add_tail(struct io_wq_work_node *node,
 				    struct io_wq_work_list *list)
 {
 	if (!list->first) {
-		list->first = list->last = node;
+		list->last = node;
+		WRITE_ONCE(list->first, node);
 	} else {
 		list->last->next = node;
 		list->last = node;
@@ -47,17 +48,18 @@ static inline void wq_node_del(struct io_wq_work_list *list,
 			       struct io_wq_work_node *prev)
 {
 	if (node == list->first)
-		list->first = node->next;
+		WRITE_ONCE(list->first, node->next);
 	if (node == list->last)
 		list->last = prev;
 	if (prev)
 		prev->next = node->next;
+	node->next = NULL;
 }
 
 #define wq_list_for_each(pos, prv, head)			\
 	for (pos = (head)->first, prv = NULL; pos; prv = pos, pos = (pos)->next)
 
-#define wq_list_empty(list)	((list)->first == NULL)
+#define wq_list_empty(list)	(READ_ONCE((list)->first) == NULL)
 #define INIT_WQ_LIST(list)	do {				\
 	(list)->first = NULL;					\
 	(list)->last = NULL;					\
@@ -87,7 +89,7 @@ typedef void (put_work_fn)(struct io_wq_work *);
 struct io_wq_data {
 	struct mm_struct *mm;
 	struct user_struct *user;
-	struct cred *creds;
+	const struct cred *creds;
 
 	get_work_fn *get_work;
 	put_work_fn *put_work;

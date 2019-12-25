@@ -312,7 +312,7 @@ static void tcf_ct_act_set_labels(struct nf_conn *ct,
 				  u32 *labels_m)
 {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS)
-	size_t labels_sz = FIELD_SIZEOF(struct tcf_ct_params, labels);
+	size_t labels_sz = sizeof_field(struct tcf_ct_params, labels);
 
 	if (!memchr_inv(labels_m, 0, labels_sz))
 		return;
@@ -329,6 +329,7 @@ static int tcf_ct_act_nat(struct sk_buff *skb,
 			  bool commit)
 {
 #if IS_ENABLED(CONFIG_NF_NAT)
+	int err;
 	enum nf_nat_manip_type maniptype;
 
 	if (!(ct_action & TCA_CT_ACT_NAT))
@@ -359,7 +360,17 @@ static int tcf_ct_act_nat(struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 
-	return ct_nat_execute(skb, ct, ctinfo, range, maniptype);
+	err = ct_nat_execute(skb, ct, ctinfo, range, maniptype);
+	if (err == NF_ACCEPT &&
+	    ct->status & IPS_SRC_NAT && ct->status & IPS_DST_NAT) {
+		if (maniptype == NF_NAT_MANIP_SRC)
+			maniptype = NF_NAT_MANIP_DST;
+		else
+			maniptype = NF_NAT_MANIP_SRC;
+
+		err = ct_nat_execute(skb, ct, ctinfo, range, maniptype);
+	}
+	return err;
 #else
 	return NF_ACCEPT;
 #endif
@@ -925,7 +936,7 @@ static struct tc_action_ops act_ct_ops = {
 
 static __net_init int ct_init_net(struct net *net)
 {
-	unsigned int n_bits = FIELD_SIZEOF(struct tcf_ct_params, labels) * 8;
+	unsigned int n_bits = sizeof_field(struct tcf_ct_params, labels) * 8;
 	struct tc_ct_action_net *tn = net_generic(net, ct_net_id);
 
 	if (nf_connlabels_get(net, n_bits - 1)) {

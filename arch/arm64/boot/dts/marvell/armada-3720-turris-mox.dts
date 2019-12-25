@@ -106,6 +106,14 @@
 		/* enabled by U-Boot if SFP module is present */
 		status = "disabled";
 	};
+
+	firmware {
+		turris-mox-rwtm {
+			compatible = "cznic,turris-mox-rwtm";
+			mboxes = <&rwtm 0>;
+			status = "okay";
+		};
+	};
 };
 
 &i2c0 {

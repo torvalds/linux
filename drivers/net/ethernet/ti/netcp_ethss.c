@@ -783,28 +783,28 @@ struct netcp_ethtool_stat {
 #define GBE_STATSA_INFO(field)						\
 {									\
 	"GBE_A:"#field, GBE_STATSA_MODULE,				\
-	FIELD_SIZEOF(struct gbe_hw_stats, field),			\
+	sizeof_field(struct gbe_hw_stats, field),			\
 	offsetof(struct gbe_hw_stats, field)				\
 }
 
 #define GBE_STATSB_INFO(field)						\
 {									\
 	"GBE_B:"#field, GBE_STATSB_MODULE,				\
-	FIELD_SIZEOF(struct gbe_hw_stats, field),			\
+	sizeof_field(struct gbe_hw_stats, field),			\
 	offsetof(struct gbe_hw_stats, field)				\
 }
 
 #define GBE_STATSC_INFO(field)						\
 {									\
 	"GBE_C:"#field, GBE_STATSC_MODULE,				\
-	FIELD_SIZEOF(struct gbe_hw_stats, field),			\
+	sizeof_field(struct gbe_hw_stats, field),			\
 	offsetof(struct gbe_hw_stats, field)				\
 }
 
 #define GBE_STATSD_INFO(field)						\
 {									\
 	"GBE_D:"#field, GBE_STATSD_MODULE,				\
-	FIELD_SIZEOF(struct gbe_hw_stats, field),			\
+	sizeof_field(struct gbe_hw_stats, field),			\
 	offsetof(struct gbe_hw_stats, field)				\
 }
 
@@ -957,7 +957,7 @@ static const struct netcp_ethtool_stat gbe13_et_stats[] = {
 #define GBENU_STATS_HOST(field)					\
 {								\
 	"GBE_HOST:"#field, GBENU_STATS0_MODULE,			\
-	FIELD_SIZEOF(struct gbenu_hw_stats, field),		\
+	sizeof_field(struct gbenu_hw_stats, field),		\
 	offsetof(struct gbenu_hw_stats, field)			\
 }
 
@@ -967,56 +967,56 @@ static const struct netcp_ethtool_stat gbe13_et_stats[] = {
 #define GBENU_STATS_P1(field)					\
 {								\
 	"GBE_P1:"#field, GBENU_STATS1_MODULE,			\
-	FIELD_SIZEOF(struct gbenu_hw_stats, field),		\
+	sizeof_field(struct gbenu_hw_stats, field),		\
 	offsetof(struct gbenu_hw_stats, field)			\
 }
 
 #define GBENU_STATS_P2(field)					\
 {								\
 	"GBE_P2:"#field, GBENU_STATS2_MODULE,			\
-	FIELD_SIZEOF(struct gbenu_hw_stats, field),		\
+	sizeof_field(struct gbenu_hw_stats, field),		\
 	offsetof(struct gbenu_hw_stats, field)			\
 }
 
 #define GBENU_STATS_P3(field)					\
 {								\
 	"GBE_P3:"#field, GBENU_STATS3_MODULE,			\
-	FIELD_SIZEOF(struct gbenu_hw_stats, field),		\
+	sizeof_field(struct gbenu_hw_stats, field),		\
 	offsetof(struct gbenu_hw_stats, field)			\
 }
 
 #define GBENU_STATS_P4(field)					\
 {								\
 	"GBE_P4:"#field, GBENU_STATS4_MODULE,			\
-	FIELD_SIZEOF(struct gbenu_hw_stats, field),		\
+	sizeof_field(struct gbenu_hw_stats, field),		\
 	offsetof(struct gbenu_hw_stats, field)			\
 }
 
 #define GBENU_STATS_P5(field)					\
 {								\
 	"GBE_P5:"#field, GBENU_STATS5_MODULE,			\
-	FIELD_SIZEOF(struct gbenu_hw_stats, field),		\
+	sizeof_field(struct gbenu_hw_stats, field),		\
 	offsetof(struct gbenu_hw_stats, field)			\
 }
 
 #define GBENU_STATS_P6(field)					\
 {								\
 	"GBE_P6:"#field, GBENU_STATS6_MODULE,			\
-	FIELD_SIZEOF(struct gbenu_hw_stats, field),		\
+	sizeof_field(struct gbenu_hw_stats, field),		\
 	offsetof(struct gbenu_hw_stats, field)			\
 }
 
 #define GBENU_STATS_P7(field)					\
 {								\
 	"GBE_P7:"#field, GBENU_STATS7_MODULE,			\
-	FIELD_SIZEOF(struct gbenu_hw_stats, field),		\
+	sizeof_field(struct gbenu_hw_stats, field),		\
 	offsetof(struct gbenu_hw_stats, field)			\
 }
 
 #define GBENU_STATS_P8(field)					\
 {								\
 	"GBE_P8:"#field, GBENU_STATS8_MODULE,			\
-	FIELD_SIZEOF(struct gbenu_hw_stats, field),		\
+	sizeof_field(struct gbenu_hw_stats, field),		\
 	offsetof(struct gbenu_hw_stats, field)			\
 }
 
@@ -1607,21 +1607,21 @@ static const struct netcp_ethtool_stat gbenu_et_stats[] = {
 #define XGBE_STATS0_INFO(field)				\
 {							\
 	"GBE_0:"#field, XGBE_STATS0_MODULE,		\
-	FIELD_SIZEOF(struct xgbe_hw_stats, field),	\
+	sizeof_field(struct xgbe_hw_stats, field),	\
 	offsetof(struct xgbe_hw_stats, field)		\
 }
 
 #define XGBE_STATS1_INFO(field)				\
 {							\
 	"GBE_1:"#field, XGBE_STATS1_MODULE,		\
-	FIELD_SIZEOF(struct xgbe_hw_stats, field),	\
+	sizeof_field(struct xgbe_hw_stats, field),	\
 	offsetof(struct xgbe_hw_stats, field)		\
 }
 
 #define XGBE_STATS2_INFO(field)				\
 {							\
 	"GBE_2:"#field, XGBE_STATS2_MODULE,		\
-	FIELD_SIZEOF(struct xgbe_hw_stats, field),	\
+	sizeof_field(struct xgbe_hw_stats, field),	\
 	offsetof(struct xgbe_hw_stats, field)		\
 }
 

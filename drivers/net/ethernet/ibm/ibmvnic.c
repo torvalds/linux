@@ -184,7 +184,7 @@ static int ibmvnic_wait_for_completion(struct ibmvnic_adapter *adapter,
 			netdev_err(netdev, "Device down!\n");
 			return -ENODEV;
 		}
-		if (retry--)
+		if (!retry--)
 			break;
 		if (wait_for_completion_timeout(comp_done, div_timeout))
 			return 0;

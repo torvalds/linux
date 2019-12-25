@@ -616,6 +616,7 @@ smb2_close_cached_fid(struct kref *ref)
 			   cfid->fid->volatile_fid);
 		cfid->is_valid = false;
 		cfid->file_all_info_is_valid = false;
+		cfid->has_lease = false;
 	}
 }
 
@@ -626,13 +627,28 @@ void close_shroot(struct cached_fid *cfid)
 	mutex_unlock(&cfid->fid_mutex);
 }
 
+void close_shroot_lease_locked(struct cached_fid *cfid)
+{
+	if (cfid->has_lease) {
+		cfid->has_lease = false;
+		kref_put(&cfid->refcount, smb2_close_cached_fid);
+	}
+}
+
+void close_shroot_lease(struct cached_fid *cfid)
+{
+	mutex_lock(&cfid->fid_mutex);
+	close_shroot_lease_locked(cfid);
+	mutex_unlock(&cfid->fid_mutex);
+}
+
 void
 smb2_cached_lease_break(struct work_struct *work)
 {
 	struct cached_fid *cfid = container_of(work,
 				struct cached_fid, lease_break);
 
-	close_shroot(cfid);
+	close_shroot_lease(cfid);
 }
 
 /*
@@ -773,6 +789,7 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 	/* BB TBD check to see if oplock level check can be removed below */
 	if (o_rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE) {
 		kref_get(&tcon->crfid.refcount);
+		tcon->crfid.has_lease = true;
 		smb2_parse_contexts(server, o_rsp,
 				&oparms.fid->epoch,
 				oparms.fid->lease_key, &oplock, NULL);
@@ -1178,7 +1195,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 	memset(&close_iov, 0, sizeof(close_iov));
 	rqst[2].rq_iov = close_iov;
 	rqst[2].rq_nvec = 1;
-	rc = SMB2_close_init(tcon, &rqst[2], COMPOUND_FID, COMPOUND_FID);
+	rc = SMB2_close_init(tcon, &rqst[2], COMPOUND_FID, COMPOUND_FID, false);
 	smb2_set_related(&rqst[2]);
 
 	rc = compound_send_recv(xid, ses, flags, 3, rqst,
@@ -1330,6 +1347,45 @@ smb2_close_file(const unsigned int xid, struct cifs_tcon *tcon,
 		struct cifs_fid *fid)
 {
 	SMB2_close(xid, tcon, fid->persistent_fid, fid->volatile_fid);
+}
+
+static void
+smb2_close_getattr(const unsigned int xid, struct cifs_tcon *tcon,
+		   struct cifsFileInfo *cfile)
+{
+	struct smb2_file_network_open_info file_inf;
+	struct inode *inode;
+	int rc;
+
+	rc = __SMB2_close(xid, tcon, cfile->fid.persistent_fid,
+		   cfile->fid.volatile_fid, &file_inf);
+	if (rc)
+		return;
+
+	inode = d_inode(cfile->dentry);
+
+	spin_lock(&inode->i_lock);
+	CIFS_I(inode)->time = jiffies;
+
+	/* Creation time should not need to be updated on close */
+	if (file_inf.LastWriteTime)
+		inode->i_mtime = cifs_NTtimeToUnix(file_inf.LastWriteTime);
+	if (file_inf.ChangeTime)
+		inode->i_ctime = cifs_NTtimeToUnix(file_inf.ChangeTime);
+	if (file_inf.LastAccessTime)
+		inode->i_atime = cifs_NTtimeToUnix(file_inf.LastAccessTime);
+
+	/*
+	 * i_blocks is not related to (i_size / i_blksize),
+	 * but instead 512 byte (2**9) size is required for
+	 * calculating num blocks.
+	 */
+	if (le64_to_cpu(file_inf.AllocationSize) > 4096)
+		inode->i_blocks =
+			(512 - 1 + le64_to_cpu(file_inf.AllocationSize)) >> 9;
+
+	/* End of file and Attributes should not have to be updated on close */
+	spin_unlock(&inode->i_lock);
 }
 
 static int
@@ -1512,7 +1568,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 	rqst[2].rq_iov = close_iov;
 	rqst[2].rq_nvec = 1;
 
-	rc = SMB2_close_init(tcon, &rqst[2], COMPOUND_FID, COMPOUND_FID);
+	rc = SMB2_close_init(tcon, &rqst[2], COMPOUND_FID, COMPOUND_FID, false);
 	if (rc)
 		goto iqinf_exit;
 	smb2_set_related(&rqst[2]);
@@ -2241,7 +2297,7 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 	rqst[2].rq_iov = close_iov;
 	rqst[2].rq_nvec = 1;
 
-	rc = SMB2_close_init(tcon, &rqst[2], COMPOUND_FID, COMPOUND_FID);
+	rc = SMB2_close_init(tcon, &rqst[2], COMPOUND_FID, COMPOUND_FID, false);
 	if (rc)
 		goto qic_exit;
 	smb2_set_related(&rqst[2]);
@@ -2654,7 +2710,7 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	rqst[2].rq_iov = close_iov;
 	rqst[2].rq_nvec = 1;
 
-	rc = SMB2_close_init(tcon, &rqst[2], COMPOUND_FID, COMPOUND_FID);
+	rc = SMB2_close_init(tcon, &rqst[2], COMPOUND_FID, COMPOUND_FID, false);
 	if (rc)
 		goto querty_exit;
 
@@ -4707,6 +4763,7 @@ struct smb_version_operations smb30_operations = {
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
+	.close_getattr = smb2_close_getattr,
 	.flush = smb2_flush_file,
 	.async_readv = smb2_async_readv,
 	.async_writev = smb2_async_writev,
@@ -4816,6 +4873,7 @@ struct smb_version_operations smb311_operations = {
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
+	.close_getattr = smb2_close_getattr,
 	.flush = smb2_flush_file,
 	.async_readv = smb2_async_readv,
 	.async_writev = smb2_async_writev,

@@ -44,6 +44,9 @@ struct nft_flow_rule *nft_flow_rule_create(struct net *net,
 		expr = nft_expr_next(expr);
 	}
 
+	if (num_actions == 0)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	flow = nft_flow_rule_alloc(num_actions);
 	if (!flow)
 		return ERR_PTR(-ENOMEM);
@@ -577,6 +580,9 @@ static int nft_offload_netdev_event(struct notifier_block *this,
 	struct net *net = dev_net(dev);
 	struct nft_chain *chain;
 
+	if (event != NETDEV_UNREGISTER)
+		return NOTIFY_DONE;
+
 	mutex_lock(&net->nft.commit_mutex);
 	chain = __nft_offload_get_chain(dev);
 	if (chain)
@@ -588,7 +594,7 @@ static int nft_offload_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct flow_indr_block_ing_entry block_ing_entry = {
+static struct flow_indr_block_entry block_ing_entry = {
 	.cb	= nft_indr_block_cb,
 	.list	= LIST_HEAD_INIT(block_ing_entry.list),
 };
@@ -605,13 +611,13 @@ int nft_offload_init(void)
 	if (err < 0)
 		return err;
 
-	flow_indr_add_block_ing_cb(&block_ing_entry);
+	flow_indr_add_block_cb(&block_ing_entry);
 
 	return 0;
 }
 
 void nft_offload_exit(void)
 {
-	flow_indr_del_block_ing_cb(&block_ing_entry);
+	flow_indr_del_block_cb(&block_ing_entry);
 	unregister_netdevice_notifier(&nft_offload_netdev_notifier);
 }

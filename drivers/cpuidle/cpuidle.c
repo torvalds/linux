@@ -381,7 +381,8 @@ u64 cpuidle_poll_time(struct cpuidle_driver *drv,
 		if (dev->states_usage[i].disable)
 			continue;
 
-		limit_ns = (u64)drv->states[i].target_residency_ns;
+		limit_ns = drv->states[i].target_residency_ns;
+		break;
 	}
 
 	dev->poll_limit_ns = limit_ns;
@@ -572,7 +573,7 @@ static int __cpuidle_register_device(struct cpuidle_device *dev)
 		return -EINVAL;
 
 	for (i = 0; i < drv->state_count; i++)
-		if (drv->states[i].disabled)
+		if (drv->states[i].flags & CPUIDLE_FLAG_UNUSABLE)
 			dev->states_usage[i].disable |= CPUIDLE_STATE_DISABLED_BY_DRIVER;
 
 	per_cpu(cpuidle_devices, dev->cpu) = dev;

@@ -16,9 +16,6 @@ override c_flags = $(UAPI_CFLAGS) -Wp,-MD,$(depfile) -I$(objtree)/usr/include
 # Please consider to fix the header first.
 #
 # Sorted alphabetically.
-header-test- += asm/ipcbuf.h
-header-test- += asm/msgbuf.h
-header-test- += asm/sembuf.h
 header-test- += asm/shmbuf.h
 header-test- += asm/signal.h
 header-test- += asm/ucontext.h
@@ -40,7 +37,6 @@ header-test- += linux/omapfb.h
 header-test- += linux/patchkey.h
 header-test- += linux/phonet.h
 header-test- += linux/reiserfs_xattr.h
-header-test- += linux/scc.h
 header-test- += linux/sctp.h
 header-test- += linux/signal.h
 header-test- += linux/sysctl.h
@@ -95,7 +91,7 @@ endif
 # asm-generic/*.h is used by asm/*.h, and should not be included directly
 header-test- += asm-generic/%
 
-extra-y := $(patsubst $(obj)/%.h,%.hdrtest, $(shell find $(obj) -name '*.h'))
+extra-y := $(patsubst $(obj)/%.h,%.hdrtest, $(shell find $(obj) -name '*.h' 2>/dev/null))
 
 quiet_cmd_hdrtest = HDRTEST $<
       cmd_hdrtest = \

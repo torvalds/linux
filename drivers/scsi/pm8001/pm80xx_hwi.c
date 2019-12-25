@@ -37,7 +37,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  */
- #include <linux/version.h>
  #include <linux/slab.h>
  #include "pm8001_sas.h"
  #include "pm80xx_hwi.h"
@@ -348,7 +347,7 @@ moreData:
 			do {
 				reg_val = pm8001_mr32(fatal_table_address,
 					MPI_FATAL_EDUMP_TABLE_STATUS);
-			} while (((reg_val != 2) || (reg_val != 3)) &&
+			} while (((reg_val != 2) && (reg_val != 3)) &&
 					time_before(jiffies, start));
 
 			if (reg_val < 2) {
