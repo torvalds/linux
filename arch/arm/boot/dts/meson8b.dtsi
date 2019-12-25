@@ -442,7 +442,7 @@
 
 &hhi {
 	clkc: clock-controller {
-		compatible = "amlogic,meson8-clkc";
+		compatible = "amlogic,meson8b-clkc";
 		clocks = <&xtal>, <&ddr_clkc DDR_CLKID_DDR_PLL>;
 		clock-names = "xtal", "ddr_pll";
 		#clock-cells = <1>;
