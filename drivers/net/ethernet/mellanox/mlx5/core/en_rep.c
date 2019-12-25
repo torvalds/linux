@@ -192,7 +192,8 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(vport_rep)
 
 	err = mlx5_eswitch_get_vport_stats(esw, rep->vport, &vf_stats);
 	if (err) {
-		pr_warn("vport %d error %d reading stats\n", rep->vport, err);
+		netdev_warn(priv->netdev, "vport %d error %d reading stats\n",
+			    rep->vport, err);
 		return;
 	}
 
@@ -2032,8 +2033,9 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 		  &mlx5e_uplink_rep_profile : &mlx5e_rep_profile;
 	netdev = mlx5e_create_netdev(dev, profile, nch, rpriv);
 	if (!netdev) {
-		pr_warn("Failed to create representor netdev for vport %d\n",
-			rep->vport);
+		mlx5_core_warn(dev,
+			       "Failed to create representor netdev for vport %d\n",
+			       rep->vport);
 		kfree(rpriv);
 		return -EINVAL;
 	}
@@ -2051,29 +2053,32 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 
 	err = mlx5e_attach_netdev(netdev_priv(netdev));
 	if (err) {
-		pr_warn("Failed to attach representor netdev for vport %d\n",
-			rep->vport);
+		netdev_warn(netdev,
+			    "Failed to attach representor netdev for vport %d\n",
+			    rep->vport);
 		goto err_destroy_mdev_resources;
 	}
 
 	err = mlx5e_rep_neigh_init(rpriv);
 	if (err) {
-		pr_warn("Failed to initialized neighbours handling for vport %d\n",
-			rep->vport);
+		netdev_warn(netdev,
+			    "Failed to initialized neighbours handling for vport %d\n",
+			    rep->vport);
 		goto err_detach_netdev;
 	}
 
 	err = register_devlink_port(dev, rpriv);
 	if (err) {
-		esw_warn(dev, "Failed to register devlink port %d\n",
-			 rep->vport);
+		netdev_warn(netdev, "Failed to register devlink port %d\n",
+			    rep->vport);
 		goto err_neigh_cleanup;
 	}
 
 	err = register_netdev(netdev);
 	if (err) {
-		pr_warn("Failed to register representor netdev for vport %d\n",
-			rep->vport);
+		netdev_warn(netdev,
+			    "Failed to register representor netdev for vport %d\n",
+			    rep->vport);
 		goto err_devlink_cleanup;
 	}
 
