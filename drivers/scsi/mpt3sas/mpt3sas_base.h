@@ -140,6 +140,7 @@
 #define MAX_CHAIN_ELEMT_SZ		16
 #define DEFAULT_NUM_FWCHAIN_ELEMTS	8
 
+#define IO_UNIT_CONTROL_SHUTDOWN_TIMEOUT 6
 #define FW_IMG_HDR_READ_TIMEOUT	15
 
 #define IOC_OPERATIONAL_WAIT_COUNT	10
@@ -589,6 +590,7 @@ static inline void sas_device_put(struct _sas_device *s)
  * @connector_name: ASCII value of the Connector's name
  * @serial_number: pointer of serial number string allocated runtime
  * @access_status: Device's Access Status
+ * @shutdown_latency: NVMe device's RTD3 Entry Latency
  * @refcount: reference count for deletion
  */
 struct _pcie_device {
@@ -611,6 +613,7 @@ struct _pcie_device {
 	u8	*serial_number;
 	u8	reset_timeout;
 	u8	access_status;
+	u16	shutdown_latency;
 	struct kref refcount;
 };
 /**
@@ -1073,6 +1076,10 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @event_context: unique id for each logged event
  * @event_log: event log pointer
  * @event_masks: events that are masked
+ * @max_shutdown_latency: timeout value for NVMe shutdown operation,
+ *			which is equal that NVMe drive's RTD3 Entry Latency
+ *			which has reported maximum RTD3 Entry Latency value
+ *			among attached NVMe drives.
  * @facts: static facts data
  * @prev_fw_facts: previous fw facts data
  * @pfacts: static port facts data
@@ -1283,7 +1290,7 @@ struct MPT3SAS_ADAPTER {
 
 	u8		tm_custom_handling;
 	u8		nvme_abort_timeout;
-
+	u16		max_shutdown_latency;
 
 	/* static config pages */
 	struct mpt3sas_facts facts;
