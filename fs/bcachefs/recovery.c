@@ -986,11 +986,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_fs_journal_start(&c->journal, 1, &journal);
 	bch2_journal_set_replay_done(&c->journal);
 
-	err = "error going read write";
-	ret = __bch2_fs_read_write(c, true);
-	if (ret)
-		goto err;
-
 	bch2_inode_init(c, &root_inode, 0, 0,
 			S_IFDIR|S_IRWXU|S_IRUGO|S_IXUGO, 0, NULL);
 	root_inode.bi_inum = BCACHEFS_ROOT_INO;
@@ -999,7 +994,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	err = "error creating root directory";
 	ret = bch2_btree_insert(c, BTREE_ID_INODES,
 				&packed_inode.inode.k_i,
-				NULL, NULL, 0);
+				NULL, NULL, BTREE_INSERT_LAZY_RW);
 	if (ret)
 		goto err;
 

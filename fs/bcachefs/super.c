@@ -372,7 +372,7 @@ static int bch2_fs_read_write_late(struct bch_fs *c)
 	return 0;
 }
 
-int __bch2_fs_read_write(struct bch_fs *c, bool early)
+static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 {
 	struct bch_dev *ca;
 	unsigned i;
