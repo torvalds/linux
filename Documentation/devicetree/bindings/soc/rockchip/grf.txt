@@ -23,10 +23,12 @@ Required Properties:
    - "rockchip,rk3368-grf", "syscon": for rk3368
    - "rockchip,rk3399-grf", "syscon": for rk3399
    - "rockchip,rv1108-grf", "syscon": for rv1108
+   - "rockchip,rv1126-grf", "syscon": for rv1126
 - compatible: COREGRF should be one of the following
    - "rockchip,rk1808-coregrf", "syscon": for rk1808
 - compatible: PMUGRF should be one of the following:
    - "rockchip,rv1108-pmugrf", "syscon": for rv1108
+   - "rockchip,rv1126-pmugrf", "syscon": for rv1126
    - "rockchip,rk3368-pmugrf", "syscon": for rk3368
    - "rockchip,rk3399-pmugrf", "syscon": for rk3399
 - compatible: SGRF should be one of the following
