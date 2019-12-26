@@ -128,6 +128,10 @@ _base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc,
 		u32 ioc_state, int timeout);
 static int
 _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc);
+static void
+_base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc);
+static void
+_base_clear_outstanding_commands(struct MPT3SAS_ADAPTER *ioc);
 
 /**
  * mpt3sas_base_check_cmd_timeout - Function
@@ -612,7 +616,8 @@ _base_fault_reset_work(struct work_struct *work)
 
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (ioc->shost_recovery || ioc->pci_error_recovery)
+	if ((ioc->shost_recovery && (ioc->ioc_coredump_loop == 0)) ||
+			ioc->pci_error_recovery)
 		goto rearm_timer;
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
@@ -659,20 +664,64 @@ _base_fault_reset_work(struct work_struct *work)
 		return; /* don't rearm timer */
 	}
 
-	ioc->non_operational_loop = 0;
+	if ((doorbell & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_COREDUMP) {
+		u8 timeout = (ioc->manu_pg11.CoreDumpTOSec) ?
+		    ioc->manu_pg11.CoreDumpTOSec :
+		    MPT3SAS_DEFAULT_COREDUMP_TIMEOUT_SECONDS;
 
+		timeout /= (FAULT_POLLING_INTERVAL/1000);
+
+		if (ioc->ioc_coredump_loop == 0) {
+			mpt3sas_base_coredump_info(ioc,
+			    doorbell & MPI2_DOORBELL_DATA_MASK);
+			/* do not accept any IOs and disable the interrupts */
+			spin_lock_irqsave(
+			    &ioc->ioc_reset_in_progress_lock, flags);
+			ioc->shost_recovery = 1;
+			spin_unlock_irqrestore(
+			    &ioc->ioc_reset_in_progress_lock, flags);
+			_base_mask_interrupts(ioc);
+			_base_clear_outstanding_commands(ioc);
+		}
+
+		ioc_info(ioc, "%s: CoreDump loop %d.",
+		    __func__, ioc->ioc_coredump_loop);
+
+		/* Wait until CoreDump completes or times out */
+		if (ioc->ioc_coredump_loop++ < timeout) {
+			spin_lock_irqsave(
+			    &ioc->ioc_reset_in_progress_lock, flags);
+			goto rearm_timer;
+		}
+	}
+
+	if (ioc->ioc_coredump_loop) {
+		if ((doorbell & MPI2_IOC_STATE_MASK) != MPI2_IOC_STATE_COREDUMP)
+			ioc_err(ioc, "%s: CoreDump completed. LoopCount: %d",
+			    __func__, ioc->ioc_coredump_loop);
+		else
+			ioc_err(ioc, "%s: CoreDump Timed out. LoopCount: %d",
+			    __func__, ioc->ioc_coredump_loop);
+		ioc->ioc_coredump_loop = MPT3SAS_COREDUMP_LOOP_DONE;
+	}
+	ioc->non_operational_loop = 0;
 	if ((doorbell & MPI2_IOC_STATE_MASK) != MPI2_IOC_STATE_OPERATIONAL) {
 		rc = mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
 		ioc_warn(ioc, "%s: hard reset: %s\n",
 			 __func__, rc == 0 ? "success" : "failed");
 		doorbell = mpt3sas_base_get_iocstate(ioc, 0);
-		if ((doorbell & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT)
+		if ((doorbell & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
 			mpt3sas_base_fault_info(ioc, doorbell &
+			    MPI2_DOORBELL_DATA_MASK);
+		} else if ((doorbell & MPI2_IOC_STATE_MASK) ==
+		    MPI2_IOC_STATE_COREDUMP)
+			mpt3sas_base_coredump_info(ioc, doorbell &
 			    MPI2_DOORBELL_DATA_MASK);
 		if (rc && (doorbell & MPI2_IOC_STATE_MASK) !=
 		    MPI2_IOC_STATE_OPERATIONAL)
 			return; /* don't rearm timer */
 	}
+	ioc->ioc_coredump_loop = 0;
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
  rearm_timer:
@@ -6815,9 +6864,19 @@ _base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, enum reset_type type)
 	}
 
 	if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_COREDUMP) {
-		mpt3sas_base_coredump_info(ioc, ioc_state &
-		    MPI2_DOORBELL_DATA_MASK);
-		mpt3sas_base_wait_for_coredump_completion(ioc, __func__);
+		/*
+		 * if host reset is invoked while watch dog thread is waiting
+		 * for IOC state to be changed to Fault state then driver has
+		 * to wait here for CoreDump state to clear otherwise reset
+		 * will be issued to the FW and FW move the IOC state to
+		 * reset state without copying the FW logs to coredump region.
+		 */
+		if (ioc->ioc_coredump_loop != MPT3SAS_COREDUMP_LOOP_DONE) {
+			mpt3sas_base_coredump_info(ioc, ioc_state &
+			    MPI2_DOORBELL_DATA_MASK);
+			mpt3sas_base_wait_for_coredump_completion(ioc,
+			    __func__);
+		}
 		goto issue_diag_reset;
 	}
 
@@ -7301,6 +7360,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	    sizeof(struct mpt3sas_facts));
 
 	ioc->non_operational_loop = 0;
+	ioc->ioc_coredump_loop = 0;
 	ioc->got_task_abort_from_ioctl = 0;
 	return 0;
 
@@ -7591,7 +7651,9 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 	    MPT3_DIAG_BUFFER_IS_RELEASED))) {
 		is_trigger = 1;
 		ioc_state = mpt3sas_base_get_iocstate(ioc, 0);
-		if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT)
+		if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT ||
+		    (ioc_state & MPI2_IOC_STATE_MASK) ==
+		    MPI2_IOC_STATE_COREDUMP)
 			is_fault = 1;
 	}
 	_base_pre_reset_handler(ioc);
