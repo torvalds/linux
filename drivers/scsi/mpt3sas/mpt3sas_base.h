@@ -90,6 +90,9 @@
 #define MPT2SAS_BUILD_VERSION		0
 #define MPT2SAS_RELEASE_VERSION	00
 
+/* CoreDump: Default timeout */
+#define MPT3SAS_DEFAULT_COREDUMP_TIMEOUT_SECONDS	(15) /*15 seconds*/
+
 /*
  * Set MPT3SAS_SG_DEPTH value based on user input.
  */
@@ -399,7 +402,10 @@ struct Mpi2ManufacturingPage11_t {
 	u8	HostTraceBufferFlags;		/* 4Fh */
 	u16	HostTraceBufferMaxSizeKB;	/* 50h */
 	u16	HostTraceBufferMinSizeKB;	/* 52h */
-	__le32	Reserved10[2];			/* 54h - 5Bh */
+	u8	CoreDumpTOSec;			/* 54h */
+	u8	Reserved8;			/* 55h */
+	u16	Reserved9;			/* 56h */
+	__le32	Reserved10;			/* 58h */
 };
 
 /**
@@ -1538,6 +1544,9 @@ void *mpt3sas_base_get_reply_virt_addr(struct MPT3SAS_ADAPTER *ioc,
 u32 mpt3sas_base_get_iocstate(struct MPT3SAS_ADAPTER *ioc, int cooked);
 
 void mpt3sas_base_fault_info(struct MPT3SAS_ADAPTER *ioc , u16 fault_code);
+void mpt3sas_base_coredump_info(struct MPT3SAS_ADAPTER *ioc, u16 fault_code);
+int mpt3sas_base_wait_for_coredump_completion(struct MPT3SAS_ADAPTER *ioc,
+		const char *caller);
 int mpt3sas_base_sas_iounit_control(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2SasIoUnitControlReply_t *mpi_reply,
 	Mpi2SasIoUnitControlRequest_t *mpi_request);

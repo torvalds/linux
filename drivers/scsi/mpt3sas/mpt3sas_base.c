@@ -124,6 +124,9 @@ enum mpt3sas_perf_mode {
 };
 
 static int
+_base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc,
+		u32 ioc_state, int timeout);
+static int
 _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc);
 
 /**
@@ -749,6 +752,49 @@ mpt3sas_base_fault_info(struct MPT3SAS_ADAPTER *ioc , u16 fault_code)
 }
 
 /**
+ * mpt3sas_base_coredump_info - verbose translation of firmware CoreDump state
+ * @ioc: per adapter object
+ * @fault_code: fault code
+ *
+ * Return nothing.
+ */
+void
+mpt3sas_base_coredump_info(struct MPT3SAS_ADAPTER *ioc, u16 fault_code)
+{
+	ioc_err(ioc, "coredump_state(0x%04x)!\n", fault_code);
+}
+
+/**
+ * mpt3sas_base_wait_for_coredump_completion - Wait until coredump
+ * completes or times out
+ * @ioc: per adapter object
+ *
+ * Returns 0 for success, non-zero for failure.
+ */
+int
+mpt3sas_base_wait_for_coredump_completion(struct MPT3SAS_ADAPTER *ioc,
+		const char *caller)
+{
+	u8 timeout = (ioc->manu_pg11.CoreDumpTOSec) ?
+			ioc->manu_pg11.CoreDumpTOSec :
+			MPT3SAS_DEFAULT_COREDUMP_TIMEOUT_SECONDS;
+
+	int ioc_state = _base_wait_on_iocstate(ioc, MPI2_IOC_STATE_FAULT,
+					timeout);
+
+	if (ioc_state)
+		ioc_err(ioc,
+		    "%s: CoreDump timed out. (ioc_state=0x%x)\n",
+		    caller, ioc_state);
+	else
+		ioc_info(ioc,
+		    "%s: CoreDump completed. (ioc_state=0x%x)\n",
+		    caller, ioc_state);
+
+	return ioc_state;
+}
+
+/**
  * mpt3sas_halt_firmware - halt's mpt controller firmware
  * @ioc: per adapter object
  *
@@ -768,9 +814,14 @@ mpt3sas_halt_firmware(struct MPT3SAS_ADAPTER *ioc)
 	dump_stack();
 
 	doorbell = ioc->base_readl(&ioc->chip->Doorbell);
-	if ((doorbell & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT)
-		mpt3sas_base_fault_info(ioc , doorbell);
-	else {
+	if ((doorbell & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
+		mpt3sas_base_fault_info(ioc, doorbell &
+		    MPI2_DOORBELL_DATA_MASK);
+	} else if ((doorbell & MPI2_IOC_STATE_MASK) ==
+	    MPI2_IOC_STATE_COREDUMP) {
+		mpt3sas_base_coredump_info(ioc, doorbell &
+		    MPI2_DOORBELL_DATA_MASK);
+	} else {
 		writel(0xC0FFEE00, &ioc->chip->Doorbell);
 		ioc_err(ioc, "Firmware is halted due to command timeout\n");
 	}
@@ -3209,6 +3260,12 @@ _base_check_for_fault_and_issue_reset(struct MPT3SAS_ADAPTER *ioc)
 		mpt3sas_base_fault_info(ioc, ioc_state &
 		    MPI2_DOORBELL_DATA_MASK);
 		rc = _base_diag_reset(ioc);
+	} else if ((ioc_state & MPI2_IOC_STATE_MASK) ==
+	    MPI2_IOC_STATE_COREDUMP) {
+		mpt3sas_base_coredump_info(ioc, ioc_state &
+		     MPI2_DOORBELL_DATA_MASK);
+		mpt3sas_base_wait_for_coredump_completion(ioc, __func__);
+		rc = _base_diag_reset(ioc);
 	}
 
 	return rc;
@@ -5447,6 +5504,8 @@ _base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc, u32 ioc_state, int timeout)
 			return 0;
 		if (count && current_state == MPI2_IOC_STATE_FAULT)
 			break;
+		if (count && current_state == MPI2_IOC_STATE_COREDUMP)
+			break;
 
 		usleep_range(1000, 1500);
 		count++;
@@ -5551,6 +5610,11 @@ _base_wait_for_doorbell_ack(struct MPT3SAS_ADAPTER *ioc, int timeout)
 				mpt3sas_base_fault_info(ioc , doorbell);
 				return -EFAULT;
 			}
+			if ((doorbell & MPI2_IOC_STATE_MASK) ==
+			    MPI2_IOC_STATE_COREDUMP) {
+				mpt3sas_base_coredump_info(ioc, doorbell);
+				return -EFAULT;
+			}
 		} else if (int_status == 0xFFFFFFFF)
 			goto out;
 
@@ -5610,6 +5674,7 @@ _base_send_ioc_reset(struct MPT3SAS_ADAPTER *ioc, u8 reset_type, int timeout)
 {
 	u32 ioc_state;
 	int r = 0;
+	unsigned long flags;
 
 	if (reset_type != MPI2_FUNCTION_IOC_MESSAGE_UNIT_RESET) {
 		ioc_err(ioc, "%s: unknown reset_type\n", __func__);
@@ -5628,6 +5693,7 @@ _base_send_ioc_reset(struct MPT3SAS_ADAPTER *ioc, u8 reset_type, int timeout)
 		r = -EFAULT;
 		goto out;
 	}
+
 	ioc_state = _base_wait_on_iocstate(ioc, MPI2_IOC_STATE_READY, timeout);
 	if (ioc_state) {
 		ioc_err(ioc, "%s: failed going to ready state (ioc_state=0x%x)\n",
@@ -5636,6 +5702,26 @@ _base_send_ioc_reset(struct MPT3SAS_ADAPTER *ioc, u8 reset_type, int timeout)
 		goto out;
 	}
  out:
+	if (r != 0) {
+		ioc_state = mpt3sas_base_get_iocstate(ioc, 0);
+		spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
+		/*
+		 * Wait for IOC state CoreDump to clear only during
+		 * HBA initialization & release time.
+		 */
+		if ((ioc_state & MPI2_IOC_STATE_MASK) ==
+		    MPI2_IOC_STATE_COREDUMP && (ioc->is_driver_loading == 1 ||
+		    ioc->fault_reset_work_q == NULL)) {
+			spin_unlock_irqrestore(
+			    &ioc->ioc_reset_in_progress_lock, flags);
+			mpt3sas_base_coredump_info(ioc, ioc_state);
+			mpt3sas_base_wait_for_coredump_completion(ioc,
+			    __func__);
+			spin_lock_irqsave(
+			    &ioc->ioc_reset_in_progress_lock, flags);
+		}
+		spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+	}
 	ioc_info(ioc, "message unit reset: %s\n",
 		 r == 0 ? "SUCCESS" : "FAILED");
 	return r;
@@ -6032,6 +6118,12 @@ _base_wait_for_iocstate(struct MPT3SAS_ADAPTER *ioc, int timeout)
 		mpt3sas_base_fault_info(ioc, ioc_state &
 		    MPI2_DOORBELL_DATA_MASK);
 		goto issue_diag_reset;
+	} else if ((ioc_state & MPI2_IOC_STATE_MASK) ==
+	    MPI2_IOC_STATE_COREDUMP) {
+		ioc_info(ioc,
+		    "%s: Skipping the diag reset here. (ioc_state=0x%x)\n",
+		    __func__, ioc_state);
+		return -EFAULT;
 	}
 
 	ioc_state = _base_wait_on_iocstate(ioc, MPI2_IOC_STATE_READY, timeout);
@@ -6209,6 +6301,12 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
 		mpi_request.ReplyDescriptorPostQueueAddress =
 		    cpu_to_le64((u64)ioc->reply_post[0].reply_post_free_dma);
 	}
+
+	/*
+	 * Set the flag to enable CoreDump state feature in IOC firmware.
+	 */
+	mpi_request.ConfigurationFlags |=
+	    cpu_to_le16(MPI26_IOCINIT_CFGFLAGS_COREDUMP_ENABLE);
 
 	/* This time stamp specifies number of milliseconds
 	 * since epoch ~ midnight January 1, 1970.
@@ -6713,6 +6811,13 @@ _base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, enum reset_type type)
 	if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
 		mpt3sas_base_fault_info(ioc, ioc_state &
 		    MPI2_DOORBELL_DATA_MASK);
+		goto issue_diag_reset;
+	}
+
+	if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_COREDUMP) {
+		mpt3sas_base_coredump_info(ioc, ioc_state &
+		    MPI2_DOORBELL_DATA_MASK);
+		mpt3sas_base_wait_for_coredump_completion(ioc, __func__);
 		goto issue_diag_reset;
 	}
 
