@@ -17,6 +17,7 @@
 #include <linux/linkmode.h>
 #include <linux/mdio.h>
 #include <linux/mii.h>
+#include <linux/mii_timestamper.h>
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
@@ -441,6 +442,7 @@ struct phy_device {
 	struct sfp_bus *sfp_bus;
 	struct phylink *phylink;
 	struct net_device *attached_dev;
+	struct mii_timestamper *mii_ts;
 
 	u8 mdix;
 	u8 mdix_ctrl;
@@ -545,29 +547,6 @@ struct phy_driver {
 	 * phy_id_mask.
 	 */
 	int (*match_phy_device)(struct phy_device *phydev);
-
-	/* Handles ethtool queries for hardware time stamping. */
-	int (*ts_info)(struct phy_device *phydev, struct ethtool_ts_info *ti);
-
-	/* Handles SIOCSHWTSTAMP ioctl for hardware time stamping. */
-	int  (*hwtstamp)(struct phy_device *phydev, struct ifreq *ifr);
-
-	/*
-	 * Requests a Rx timestamp for 'skb'. If the skb is accepted,
-	 * the phy driver promises to deliver it using netif_rx() as
-	 * soon as a timestamp becomes available. One of the
-	 * PTP_CLASS_ values is passed in 'type'. The function must
-	 * return true if the skb is accepted for delivery.
-	 */
-	bool (*rxtstamp)(struct phy_device *dev, struct sk_buff *skb, int type);
-
-	/*
-	 * Requests a Tx timestamp for 'skb'. The phy driver promises
-	 * to deliver it using skb_complete_tx_timestamp() as soon as a
-	 * timestamp becomes available. One of the PTP_CLASS_ values
-	 * is passed in 'type'.
-	 */
-	void (*txtstamp)(struct phy_device *dev, struct sk_buff *skb, int type);
 
 	/* Some devices (e.g. qnap TS-119P II) require PHY register changes to
 	 * enable Wake on LAN, so set_wol is provided to be called in the
@@ -934,6 +913,66 @@ static inline bool phy_interrupt_is_valid(struct phy_device *phydev)
 static inline bool phy_polling_mode(struct phy_device *phydev)
 {
 	return phydev->irq == PHY_POLL;
+}
+
+/**
+ * phy_has_hwtstamp - Tests whether a PHY time stamp configuration.
+ * @phydev: the phy_device struct
+ */
+static inline bool phy_has_hwtstamp(struct phy_device *phydev)
+{
+	return phydev && phydev->mii_ts && phydev->mii_ts->hwtstamp;
+}
+
+/**
+ * phy_has_rxtstamp - Tests whether a PHY supports receive time stamping.
+ * @phydev: the phy_device struct
+ */
+static inline bool phy_has_rxtstamp(struct phy_device *phydev)
+{
+	return phydev && phydev->mii_ts && phydev->mii_ts->rxtstamp;
+}
+
+/**
+ * phy_has_tsinfo - Tests whether a PHY reports time stamping and/or
+ * PTP hardware clock capabilities.
+ * @phydev: the phy_device struct
+ */
+static inline bool phy_has_tsinfo(struct phy_device *phydev)
+{
+	return phydev && phydev->mii_ts && phydev->mii_ts->ts_info;
+}
+
+/**
+ * phy_has_txtstamp - Tests whether a PHY supports transmit time stamping.
+ * @phydev: the phy_device struct
+ */
+static inline bool phy_has_txtstamp(struct phy_device *phydev)
+{
+	return phydev && phydev->mii_ts && phydev->mii_ts->txtstamp;
+}
+
+static inline int phy_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
+{
+	return phydev->mii_ts->hwtstamp(phydev->mii_ts, ifr);
+}
+
+static inline bool phy_rxtstamp(struct phy_device *phydev, struct sk_buff *skb,
+				int type)
+{
+	return phydev->mii_ts->rxtstamp(phydev->mii_ts, skb, type);
+}
+
+static inline int phy_ts_info(struct phy_device *phydev,
+			      struct ethtool_ts_info *tsinfo)
+{
+	return phydev->mii_ts->ts_info(phydev->mii_ts, tsinfo);
+}
+
+static inline void phy_txtstamp(struct phy_device *phydev, struct sk_buff *skb,
+				int type)
+{
+	phydev->mii_ts->txtstamp(phydev->mii_ts, skb, type);
 }
 
 /**
