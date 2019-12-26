@@ -128,7 +128,11 @@ static int rk_rng_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	u32 reg_ctrl = 0;
 	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
 
-	pm_runtime_get_sync(rk_rng->dev);
+	ret = pm_runtime_get_sync(rk_rng->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(rk_rng->dev);
+		return ret;
+	}
 
 	/* enable osc_ring to get entropy, sample period is set as 100 */
 	reg_ctrl = CRYPTO_V1_OSC_ENABLE | CRYPTO_V1_TRNG_SAMPLE_PERIOD(100);
@@ -166,7 +170,11 @@ static int rk_rng_v2_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	u32 reg_ctrl = 0;
 	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
 
-	pm_runtime_get_sync(rk_rng->dev);
+	ret = pm_runtime_get_sync(rk_rng->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(rk_rng->dev);
+		return ret;
+	}
 
 	/* enable osc_ring to get entropy, sample period is set as 100 */
 	rk_rng_writel(rk_rng, 100, CRYPTO_V2_RNG_SAMPLE_CNT);
