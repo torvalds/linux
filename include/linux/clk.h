@@ -627,6 +627,9 @@ long clk_round_rate(struct clk *clk, unsigned long rate);
  * @clk: clock source
  * @rate: desired clock rate in Hz
  *
+ * Updating the rate starts at the top-most affected clock and then
+ * walks the tree down to the bottom-most clock that needs updating.
+ *
  * Returns success (0) or negative errno.
  */
 int clk_set_rate(struct clk *clk, unsigned long rate);
