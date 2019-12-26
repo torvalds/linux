@@ -3427,13 +3427,18 @@ static int __clk_core_init(struct clk_core *core)
 		unsigned long flags;
 
 		ret = clk_core_prepare(core);
-		if (ret)
+		if (ret) {
+			pr_warn("%s: critical clk '%s' failed to prepare\n",
+			       __func__, core->name);
 			goto out;
+		}
 
 		flags = clk_enable_lock();
 		ret = clk_core_enable(core);
 		clk_enable_unlock(flags);
 		if (ret) {
+			pr_warn("%s: critical clk '%s' failed to enable\n",
+			       __func__, core->name);
 			clk_core_unprepare(core);
 			goto out;
 		}
