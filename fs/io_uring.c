@@ -72,6 +72,7 @@
 #include <linux/highmem.h>
 #include <linux/namei.h>
 #include <linux/fsnotify.h>
+#include <linux/fadvise.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -400,6 +401,13 @@ struct io_files_update {
 	u32				offset;
 };
 
+struct io_fadvise {
+	struct file			*file;
+	u64				offset;
+	u32				len;
+	u32				advice;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -452,6 +460,7 @@ struct io_kiocb {
 		struct io_open		open;
 		struct io_close		close;
 		struct io_files_update	files_update;
+		struct io_fadvise	fadvise;
 	};
 
 	struct io_async_ctx		*io;
@@ -666,6 +675,10 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_FADVISE */
+		.needs_file		= 1,
 	},
 };
 
@@ -2436,6 +2449,35 @@ err:
 	return 0;
 }
 
+static int io_fadvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	if (sqe->ioprio || sqe->buf_index || sqe->addr)
+		return -EINVAL;
+
+	req->fadvise.offset = READ_ONCE(sqe->off);
+	req->fadvise.len = READ_ONCE(sqe->len);
+	req->fadvise.advice = READ_ONCE(sqe->fadvise_advice);
+	return 0;
+}
+
+static int io_fadvise(struct io_kiocb *req, struct io_kiocb **nxt,
+		      bool force_nonblock)
+{
+	struct io_fadvise *fa = &req->fadvise;
+	int ret;
+
+	/* DONTNEED may block, others _should_ not */
+	if (fa->advice == POSIX_FADV_DONTNEED && force_nonblock)
+		return -EAGAIN;
+
+	ret = vfs_fadvise(req->file, fa->offset, fa->len, fa->advice);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	io_put_req_find_next(req, nxt);
+	return 0;
+}
+
 static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	unsigned lookup_flags;
@@ -3721,6 +3763,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	case IORING_OP_STATX:
 		ret = io_statx_prep(req, sqe);
 		break;
+	case IORING_OP_FADVISE:
+		ret = io_fadvise_prep(req, sqe);
+		break;
 	default:
 		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
 				req->opcode);
@@ -3916,6 +3961,14 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 				break;
 		}
 		ret = io_statx(req, nxt, force_nonblock);
+		break;
+	case IORING_OP_FADVISE:
+		if (sqe) {
+			ret = io_fadvise_prep(req, sqe);
+			if (ret)
+				break;
+		}
+		ret = io_fadvise(req, nxt, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;

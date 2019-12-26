@@ -36,6 +36,7 @@ struct io_uring_sqe {
 		__u32		cancel_flags;
 		__u32		open_flags;
 		__u32		statx_flags;
+		__u32		fadvise_advice;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
 	union {
@@ -86,6 +87,7 @@ enum {
 	IORING_OP_STATX,
 	IORING_OP_READ,
 	IORING_OP_WRITE,
+	IORING_OP_FADVISE,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
