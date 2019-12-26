@@ -126,17 +126,7 @@ static bool reset_engines(struct intel_gt *gt)
 	return __intel_gt_reset(gt, ALL_ENGINES) == 0;
 }
 
-/**
- * intel_gt_sanitize: called after the GPU has lost power
- * @gt: the i915 GT container
- * @force: ignore a failed reset and sanitize engine state anyway
- *
- * Anytime we reset the GPU, either with an explicit GPU reset or through a
- * PCI power cycle, the GPU loses state and we must reset our state tracking
- * to match. Note that calling intel_gt_sanitize() if the GPU has not
- * been reset results in much confusion!
- */
-void intel_gt_sanitize(struct intel_gt *gt, bool force)
+static void gt_sanitize(struct intel_gt *gt, bool force)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -189,6 +179,10 @@ int intel_gt_resume(struct intel_gt *gt)
 	enum intel_engine_id id;
 	int err;
 
+	err = intel_gt_terminally_wedged(gt);
+	if (err)
+		return err;
+
 	GT_TRACE(gt, "\n");
 
 	/*
@@ -201,14 +195,14 @@ int intel_gt_resume(struct intel_gt *gt)
 
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	intel_rc6_sanitize(&gt->rc6);
+	gt_sanitize(gt, true);
 
 	/* Only when the HW is re-initialised, can we replay the requests */
 	err = intel_gt_init_hw(gt);
 	if (err) {
 		dev_err(gt->i915->drm.dev,
 			"Failed to initialize GPU, declaring it wedged!\n");
-		intel_gt_set_wedged(gt);
-		goto err_fw;
+		goto err_wedged;
 	}
 
 	intel_rps_enable(&gt->rps);
@@ -233,7 +227,7 @@ int intel_gt_resume(struct intel_gt *gt)
 			dev_err(gt->i915->drm.dev,
 				"Failed to restart %s (%d)\n",
 				engine->name, err);
-			break;
+			goto err_wedged;
 		}
 	}
 
@@ -243,11 +237,14 @@ int intel_gt_resume(struct intel_gt *gt)
 
 	user_forcewake(gt, false);
 
-err_fw:
+out_fw:
 	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
 	intel_gt_pm_put(gt);
-
 	return err;
+
+err_wedged:
+	intel_gt_set_wedged(gt);
+	goto out_fw;
 }
 
 static void wait_for_suspend(struct intel_gt *gt)
@@ -315,7 +312,7 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 		intel_llc_disable(&gt->llc);
 	}
 
-	intel_gt_sanitize(gt, false);
+	gt_sanitize(gt, false);
 
 	GT_TRACE(gt, "\n");
 }
