@@ -7277,14 +7277,14 @@ static void _base_pre_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * _base_after_reset_handler - after reset handler
+ * _base_clear_outstanding_mpt_commands - clears outstanding mpt commands
  * @ioc: per adapter object
  */
-static void _base_after_reset_handler(struct MPT3SAS_ADAPTER *ioc)
+static void
+_base_clear_outstanding_mpt_commands(struct MPT3SAS_ADAPTER *ioc)
 {
-	mpt3sas_scsih_after_reset_handler(ioc);
-	mpt3sas_ctl_after_reset_handler(ioc);
-	dtmprintk(ioc, ioc_info(ioc, "%s: MPT3_IOC_AFTER_RESET\n", __func__));
+	dtmprintk(ioc,
+	    ioc_info(ioc, "%s: clear outstanding mpt cmds\n", __func__));
 	if (ioc->transport_cmds.status & MPT3_CMD_PENDING) {
 		ioc->transport_cmds.status |= MPT3_CMD_RESET;
 		mpt3sas_base_free_smid(ioc, ioc->transport_cmds.smid);
@@ -7315,6 +7315,17 @@ static void _base_after_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 		ioc->config_cmds.smid = USHRT_MAX;
 		complete(&ioc->config_cmds.done);
 	}
+}
+
+/**
+ * _base_clear_outstanding_commands - clear all outstanding commands
+ * @ioc: per adapter object
+ */
+static void _base_clear_outstanding_commands(struct MPT3SAS_ADAPTER *ioc)
+{
+	mpt3sas_scsih_clear_outstanding_scsi_tm_commands(ioc);
+	mpt3sas_ctl_clear_outstanding_ioctls(ioc);
+	_base_clear_outstanding_mpt_commands(ioc);
 }
 
 /**
@@ -7484,7 +7495,7 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 	r = _base_make_ioc_ready(ioc, type);
 	if (r)
 		goto out;
-	_base_after_reset_handler(ioc);
+	_base_clear_outstanding_commands(ioc);
 
 	/* If this hard reset is called while port enable is active, then
 	 * there is no reason to call make_ioc_operational

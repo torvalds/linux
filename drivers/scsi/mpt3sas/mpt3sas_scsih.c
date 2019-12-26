@@ -9332,15 +9332,17 @@ void mpt3sas_scsih_pre_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * mpt3sas_scsih_after_reset_handler - reset callback handler (for scsih)
+ * mpt3sas_scsih_clear_outstanding_scsi_tm_commands - clears outstanding
+ *							scsi & tm cmds.
  * @ioc: per adapter object
  *
  * The handler for doing any required cleanup or initialization.
  */
 void
-mpt3sas_scsih_after_reset_handler(struct MPT3SAS_ADAPTER *ioc)
+mpt3sas_scsih_clear_outstanding_scsi_tm_commands(struct MPT3SAS_ADAPTER *ioc)
 {
-	dtmprintk(ioc, ioc_info(ioc, "%s: MPT3_IOC_AFTER_RESET\n", __func__));
+	dtmprintk(ioc,
+	    ioc_info(ioc, "%s: clear outstanding scsi & tm cmds\n", __func__));
 	if (ioc->scsih_cmds.status & MPT3_CMD_PENDING) {
 		ioc->scsih_cmds.status |= MPT3_CMD_RESET;
 		mpt3sas_base_free_smid(ioc, ioc->scsih_cmds.smid);
