@@ -298,45 +298,6 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 	card->info.promisc_mode = 0;
 }
 
-static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
-				int budget, int *done)
-{
-	int work_done = 0;
-	struct sk_buff *skb;
-	struct qeth_hdr *hdr;
-	unsigned int len;
-
-	*done = 0;
-	WARN_ON_ONCE(!budget);
-	while (budget) {
-		skb = qeth_core_get_next_skb(card,
-			&card->qdio.in_q->bufs[card->rx.b_index],
-			&card->rx.b_element, &card->rx.e_offset, &hdr);
-		if (!skb) {
-			*done = 1;
-			break;
-		}
-
-		if (hdr->hdr.l2.id == QETH_HEADER_TYPE_LAYER2) {
-			skb->protocol = eth_type_trans(skb, skb->dev);
-			qeth_rx_csum(card, skb, hdr->hdr.l2.flags[1]);
-			len = skb->len;
-			napi_gro_receive(&card->napi, skb);
-		} else {
-			skb_push(skb, sizeof(*hdr));
-			skb_copy_to_linear_data(skb, hdr, sizeof(*hdr));
-			len = skb->len;
-			card->osn_info.data_cb(skb);
-		}
-
-		work_done++;
-		budget--;
-		QETH_CARD_STAT_INC(card, rx_packets);
-		QETH_CARD_STAT_ADD(card, rx_bytes, len);
-	}
-	return work_done;
-}
-
 static int qeth_l2_request_initial_mac(struct qeth_card *card)
 {
 	int rc = 0;
@@ -961,7 +922,6 @@ static int qeth_l2_control_event(struct qeth_card *card,
 
 struct qeth_discipline qeth_l2_discipline = {
 	.devtype = &qeth_l2_devtype,
-	.process_rx_buffer = qeth_l2_process_inbound_buffer,
 	.recover = qeth_l2_recover,
 	.setup = qeth_l2_probe_device,
 	.remove = qeth_l2_remove_device,

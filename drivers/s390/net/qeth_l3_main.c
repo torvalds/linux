@@ -1164,96 +1164,6 @@ static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev,
 	return 0;
 }
 
-static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
-				struct qeth_hdr *hdr)
-{
-	struct af_iucv_trans_hdr *iucv = (struct af_iucv_trans_hdr *) skb->data;
-	struct net_device *dev = skb->dev;
-
-	if (IS_IQD(card) && iucv->magic == ETH_P_AF_IUCV) {
-		dev_hard_header(skb, dev, ETH_P_AF_IUCV, dev->dev_addr,
-				"FAKELL", skb->len);
-		return;
-	}
-
-	if (!(hdr->hdr.l3.flags & QETH_HDR_PASSTHRU)) {
-		u16 prot = (hdr->hdr.l3.flags & QETH_HDR_IPV6) ? ETH_P_IPV6 :
-								 ETH_P_IP;
-		unsigned char tg_addr[ETH_ALEN];
-
-		skb_reset_network_header(skb);
-		switch (hdr->hdr.l3.flags & QETH_HDR_CAST_MASK) {
-		case QETH_CAST_MULTICAST:
-			if (prot == ETH_P_IP)
-				ip_eth_mc_map(ip_hdr(skb)->daddr, tg_addr);
-			else
-				ipv6_eth_mc_map(&ipv6_hdr(skb)->daddr, tg_addr);
-			QETH_CARD_STAT_INC(card, rx_multicast);
-			break;
-		case QETH_CAST_BROADCAST:
-			ether_addr_copy(tg_addr, card->dev->broadcast);
-			QETH_CARD_STAT_INC(card, rx_multicast);
-			break;
-		default:
-			if (card->options.sniffer)
-				skb->pkt_type = PACKET_OTHERHOST;
-			ether_addr_copy(tg_addr, card->dev->dev_addr);
-		}
-
-		if (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_SRC_MAC_ADDR)
-			card->dev->header_ops->create(skb, card->dev, prot,
-				tg_addr, &hdr->hdr.l3.next_hop.rx.src_mac,
-				skb->len);
-		else
-			card->dev->header_ops->create(skb, card->dev, prot,
-				tg_addr, "FAKELL", skb->len);
-	}
-
-	/* copy VLAN tag from hdr into skb */
-	if (!card->options.sniffer &&
-	    (hdr->hdr.l3.ext_flags & (QETH_HDR_EXT_VLAN_FRAME |
-				      QETH_HDR_EXT_INCLUDE_VLAN_TAG))) {
-		u16 tag = (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_VLAN_FRAME) ?
-				hdr->hdr.l3.vlan_id :
-				hdr->hdr.l3.next_hop.rx.vlan_id;
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), tag);
-	}
-
-	qeth_rx_csum(card, skb, hdr->hdr.l3.ext_flags);
-}
-
-static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
-				int budget, int *done)
-{
-	int work_done = 0;
-	struct sk_buff *skb;
-	struct qeth_hdr *hdr;
-
-	*done = 0;
-	WARN_ON_ONCE(!budget);
-	while (budget) {
-		skb = qeth_core_get_next_skb(card,
-			&card->qdio.in_q->bufs[card->rx.b_index],
-			&card->rx.b_element, &card->rx.e_offset, &hdr);
-		if (!skb) {
-			*done = 1;
-			break;
-		}
-
-		if (hdr->hdr.l3.id == QETH_HEADER_TYPE_LAYER3)
-			qeth_l3_rebuild_skb(card, skb, hdr);
-
-		skb->protocol = eth_type_trans(skb, skb->dev);
-		QETH_CARD_STAT_INC(card, rx_packets);
-		QETH_CARD_STAT_ADD(card, rx_bytes, skb->len);
-
-		napi_gro_receive(&card->napi, skb);
-		work_done++;
-		budget--;
-	}
-	return work_done;
-}
-
 static void qeth_l3_stop_card(struct qeth_card *card)
 {
 	QETH_CARD_TEXT(card, 2, "stopcard");
@@ -2317,7 +2227,6 @@ static int qeth_l3_control_event(struct qeth_card *card,
 
 struct qeth_discipline qeth_l3_discipline = {
 	.devtype = &qeth_l3_devtype,
-	.process_rx_buffer = qeth_l3_process_inbound_buffer,
 	.recover = qeth_l3_recover,
 	.setup = qeth_l3_probe_device,
 	.remove = qeth_l3_remove_device,
