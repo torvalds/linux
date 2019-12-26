@@ -1131,96 +1131,6 @@ static void dp83640_clock_put(struct dp83640_clock *clock)
 	mutex_unlock(&clock->clock_lock);
 }
 
-static int dp83640_probe(struct phy_device *phydev)
-{
-	struct dp83640_clock *clock;
-	struct dp83640_private *dp83640;
-	int err = -ENOMEM, i;
-
-	if (phydev->mdio.addr == BROADCAST_ADDR)
-		return 0;
-
-	clock = dp83640_clock_get_bus(phydev->mdio.bus);
-	if (!clock)
-		goto no_clock;
-
-	dp83640 = kzalloc(sizeof(struct dp83640_private), GFP_KERNEL);
-	if (!dp83640)
-		goto no_memory;
-
-	dp83640->phydev = phydev;
-	INIT_DELAYED_WORK(&dp83640->ts_work, rx_timestamp_work);
-
-	INIT_LIST_HEAD(&dp83640->rxts);
-	INIT_LIST_HEAD(&dp83640->rxpool);
-	for (i = 0; i < MAX_RXTS; i++)
-		list_add(&dp83640->rx_pool_data[i].list, &dp83640->rxpool);
-
-	phydev->priv = dp83640;
-
-	spin_lock_init(&dp83640->rx_lock);
-	skb_queue_head_init(&dp83640->rx_queue);
-	skb_queue_head_init(&dp83640->tx_queue);
-
-	dp83640->clock = clock;
-
-	if (choose_this_phy(clock, phydev)) {
-		clock->chosen = dp83640;
-		clock->ptp_clock = ptp_clock_register(&clock->caps,
-						      &phydev->mdio.dev);
-		if (IS_ERR(clock->ptp_clock)) {
-			err = PTR_ERR(clock->ptp_clock);
-			goto no_register;
-		}
-	} else
-		list_add_tail(&dp83640->list, &clock->phylist);
-
-	dp83640_clock_put(clock);
-	return 0;
-
-no_register:
-	clock->chosen = NULL;
-	kfree(dp83640);
-no_memory:
-	dp83640_clock_put(clock);
-no_clock:
-	return err;
-}
-
-static void dp83640_remove(struct phy_device *phydev)
-{
-	struct dp83640_clock *clock;
-	struct list_head *this, *next;
-	struct dp83640_private *tmp, *dp83640 = phydev->priv;
-
-	if (phydev->mdio.addr == BROADCAST_ADDR)
-		return;
-
-	enable_status_frames(phydev, false);
-	cancel_delayed_work_sync(&dp83640->ts_work);
-
-	skb_queue_purge(&dp83640->rx_queue);
-	skb_queue_purge(&dp83640->tx_queue);
-
-	clock = dp83640_clock_get(dp83640->clock);
-
-	if (dp83640 == clock->chosen) {
-		ptp_clock_unregister(clock->ptp_clock);
-		clock->chosen = NULL;
-	} else {
-		list_for_each_safe(this, next, &clock->phylist) {
-			tmp = list_entry(this, struct dp83640_private, list);
-			if (tmp == dp83640) {
-				list_del_init(&tmp->list);
-				break;
-			}
-		}
-	}
-
-	dp83640_clock_put(clock);
-	kfree(dp83640);
-}
-
 static int dp83640_soft_reset(struct phy_device *phydev)
 {
 	int ret;
@@ -1524,6 +1434,96 @@ static int dp83640_ts_info(struct phy_device *dev, struct ethtool_ts_info *info)
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 	return 0;
+}
+
+static int dp83640_probe(struct phy_device *phydev)
+{
+	struct dp83640_clock *clock;
+	struct dp83640_private *dp83640;
+	int err = -ENOMEM, i;
+
+	if (phydev->mdio.addr == BROADCAST_ADDR)
+		return 0;
+
+	clock = dp83640_clock_get_bus(phydev->mdio.bus);
+	if (!clock)
+		goto no_clock;
+
+	dp83640 = kzalloc(sizeof(struct dp83640_private), GFP_KERNEL);
+	if (!dp83640)
+		goto no_memory;
+
+	dp83640->phydev = phydev;
+	INIT_DELAYED_WORK(&dp83640->ts_work, rx_timestamp_work);
+
+	INIT_LIST_HEAD(&dp83640->rxts);
+	INIT_LIST_HEAD(&dp83640->rxpool);
+	for (i = 0; i < MAX_RXTS; i++)
+		list_add(&dp83640->rx_pool_data[i].list, &dp83640->rxpool);
+
+	phydev->priv = dp83640;
+
+	spin_lock_init(&dp83640->rx_lock);
+	skb_queue_head_init(&dp83640->rx_queue);
+	skb_queue_head_init(&dp83640->tx_queue);
+
+	dp83640->clock = clock;
+
+	if (choose_this_phy(clock, phydev)) {
+		clock->chosen = dp83640;
+		clock->ptp_clock = ptp_clock_register(&clock->caps,
+						      &phydev->mdio.dev);
+		if (IS_ERR(clock->ptp_clock)) {
+			err = PTR_ERR(clock->ptp_clock);
+			goto no_register;
+		}
+	} else
+		list_add_tail(&dp83640->list, &clock->phylist);
+
+	dp83640_clock_put(clock);
+	return 0;
+
+no_register:
+	clock->chosen = NULL;
+	kfree(dp83640);
+no_memory:
+	dp83640_clock_put(clock);
+no_clock:
+	return err;
+}
+
+static void dp83640_remove(struct phy_device *phydev)
+{
+	struct dp83640_clock *clock;
+	struct list_head *this, *next;
+	struct dp83640_private *tmp, *dp83640 = phydev->priv;
+
+	if (phydev->mdio.addr == BROADCAST_ADDR)
+		return;
+
+	enable_status_frames(phydev, false);
+	cancel_delayed_work_sync(&dp83640->ts_work);
+
+	skb_queue_purge(&dp83640->rx_queue);
+	skb_queue_purge(&dp83640->tx_queue);
+
+	clock = dp83640_clock_get(dp83640->clock);
+
+	if (dp83640 == clock->chosen) {
+		ptp_clock_unregister(clock->ptp_clock);
+		clock->chosen = NULL;
+	} else {
+		list_for_each_safe(this, next, &clock->phylist) {
+			tmp = list_entry(this, struct dp83640_private, list);
+			if (tmp == dp83640) {
+				list_del_init(&tmp->list);
+				break;
+			}
+		}
+	}
+
+	dp83640_clock_put(clock);
+	kfree(dp83640);
 }
 
 static struct phy_driver dp83640_driver = {
