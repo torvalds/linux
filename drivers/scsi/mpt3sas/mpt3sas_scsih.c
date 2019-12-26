@@ -2745,13 +2745,13 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, u64 lun,
 	}
 
 	if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
-		mpt3sas_base_fault_info(ioc, ioc_state &
+		mpt3sas_print_fault_code(ioc, ioc_state &
 		    MPI2_DOORBELL_DATA_MASK);
 		rc = mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
 		return (!rc) ? SUCCESS : FAILED;
 	} else if ((ioc_state & MPI2_IOC_STATE_MASK) ==
 	    MPI2_IOC_STATE_COREDUMP) {
-		mpt3sas_base_coredump_info(ioc, ioc_state &
+		mpt3sas_print_coredump_info(ioc, ioc_state &
 		    MPI2_DOORBELL_DATA_MASK);
 		rc = mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
 		return (!rc) ? SUCCESS : FAILED;
@@ -4545,11 +4545,11 @@ _scsih_temp_threshold_events(struct MPT3SAS_ADAPTER *ioc,
 			doorbell = mpt3sas_base_get_iocstate(ioc, 0);
 			if ((doorbell & MPI2_IOC_STATE_MASK) ==
 			    MPI2_IOC_STATE_FAULT) {
-				mpt3sas_base_fault_info(ioc,
+				mpt3sas_print_fault_code(ioc,
 				    doorbell & MPI2_DOORBELL_DATA_MASK);
 			} else if ((doorbell & MPI2_IOC_STATE_MASK) ==
 			    MPI2_IOC_STATE_COREDUMP) {
-				mpt3sas_base_coredump_info(ioc,
+				mpt3sas_print_coredump_info(ioc,
 				    doorbell & MPI2_DOORBELL_DATA_MASK);
 			}
 		}

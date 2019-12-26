@@ -1547,7 +1547,15 @@ void *mpt3sas_base_get_reply_virt_addr(struct MPT3SAS_ADAPTER *ioc,
 u32 mpt3sas_base_get_iocstate(struct MPT3SAS_ADAPTER *ioc, int cooked);
 
 void mpt3sas_base_fault_info(struct MPT3SAS_ADAPTER *ioc , u16 fault_code);
+#define mpt3sas_print_fault_code(ioc, fault_code) \
+do { pr_err("%s fault info from func: %s\n", ioc->name, __func__); \
+	mpt3sas_base_fault_info(ioc, fault_code); } while (0)
+
 void mpt3sas_base_coredump_info(struct MPT3SAS_ADAPTER *ioc, u16 fault_code);
+#define mpt3sas_print_coredump_info(ioc, fault_code) \
+do { pr_err("%s fault info from func: %s\n", ioc->name, __func__); \
+	mpt3sas_base_coredump_info(ioc, fault_code); } while (0)
+
 int mpt3sas_base_wait_for_coredump_completion(struct MPT3SAS_ADAPTER *ioc,
 		const char *caller);
 int mpt3sas_base_sas_iounit_control(struct MPT3SAS_ADAPTER *ioc,
