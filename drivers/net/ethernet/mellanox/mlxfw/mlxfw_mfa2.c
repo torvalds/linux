@@ -37,6 +37,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netlink.h>
+#include <linux/vmalloc.h>
 #include <linux/xz.h>
 #include "mlxfw_mfa2.h"
 #include "mlxfw_mfa2_file.h"
@@ -579,7 +580,7 @@ mlxfw_mfa2_file_component_get(const struct mlxfw_mfa2_file *mfa2_file,
 	comp_size = be32_to_cpu(comp->size);
 	comp_buf_size = comp_size + mlxfw_mfa2_comp_magic_len;
 
-	comp_data = kmalloc(sizeof(*comp_data) + comp_buf_size, GFP_KERNEL);
+	comp_data = vzalloc(sizeof(*comp_data) + comp_buf_size);
 	if (!comp_data)
 		return ERR_PTR(-ENOMEM);
 	comp_data->comp.data_size = comp_size;
@@ -601,7 +602,7 @@ mlxfw_mfa2_file_component_get(const struct mlxfw_mfa2_file *mfa2_file,
 	comp_data->comp.data = comp_data->buff + mlxfw_mfa2_comp_magic_len;
 	return &comp_data->comp;
 err_out:
-	kfree(comp_data);
+	vfree(comp_data);
 	return ERR_PTR(err);
 }
 
@@ -610,7 +611,7 @@ void mlxfw_mfa2_file_component_put(struct mlxfw_mfa2_component *comp)
 	const struct mlxfw_mfa2_comp_data *comp_data;
 
 	comp_data = container_of(comp, struct mlxfw_mfa2_comp_data, comp);
-	kfree(comp_data);
+	vfree(comp_data);
 }
 
 void mlxfw_mfa2_file_fini(struct mlxfw_mfa2_file *mfa2_file)
