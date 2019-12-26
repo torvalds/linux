@@ -3203,6 +3203,8 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 	 */
 	if (!ioc->combined_reply_queue &&
 	    ioc->hba_mpi_version_belonged != MPI2_VERSION) {
+		ioc_info(ioc,
+		    "combined ReplyQueue is off, Enabling msix load balance\n");
 		ioc->msix_load_balance = true;
 	}
 
@@ -3215,9 +3217,7 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 
 	r = _base_alloc_irq_vectors(ioc);
 	if (r < 0) {
-		dfailprintk(ioc,
-			    ioc_info(ioc, "pci_alloc_irq_vectors failed (r=%d) !!!\n",
-				     r));
+		ioc_info(ioc, "pci_alloc_irq_vectors failed (r=%d) !!!\n", r);
 		goto try_ioapic;
 	}
 
@@ -3385,7 +3385,8 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	}
 
 	if (ioc->chip == NULL) {
-		ioc_err(ioc, "unable to map adapter memory! or resource not found\n");
+		ioc_err(ioc,
+		    "unable to map adapter memory! or resource not found\n");
 		r = -EINVAL;
 		goto out_fail;
 	}
@@ -3424,8 +3425,8 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		     ioc->combined_reply_index_count,
 		     sizeof(resource_size_t *), GFP_KERNEL);
 		if (!ioc->replyPostRegisterIndex) {
-			dfailprintk(ioc,
-				    ioc_warn(ioc, "allocation for reply Post Register Index failed!!!\n"));
+			ioc_err(ioc,
+			    "allocation for replyPostRegisterIndex failed!\n");
 			r = -ENOMEM;
 			goto out_fail;
 		}
@@ -4370,7 +4371,8 @@ _base_display_fwpkg_version(struct MPT3SAS_ADAPTER *ioc)
 	fwpkg_data = dma_alloc_coherent(&ioc->pdev->dev, data_length,
 			&fwpkg_data_dma, GFP_KERNEL);
 	if (!fwpkg_data) {
-		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+		ioc_err(ioc,
+		    "Memory allocation for fwpkg data failed at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
 		return -ENOMEM;
 	}
@@ -5100,12 +5102,13 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		ioc->reply_free_queue_depth = ioc->hba_queue_depth + 64;
 	}
 
-	dinitprintk(ioc,
-		    ioc_info(ioc, "scatter gather: sge_in_main_msg(%d), sge_per_chain(%d), sge_per_io(%d), chains_per_io(%d)\n",
-			     ioc->max_sges_in_main_message,
-			     ioc->max_sges_in_chain_message,
-			     ioc->shost->sg_tablesize,
-			     ioc->chains_needed_per_io));
+	ioc_info(ioc,
+	    "scatter gather: sge_in_main_msg(%d), sge_per_chain(%d), "
+	    "sge_per_io(%d), chains_per_io(%d)\n",
+	    ioc->max_sges_in_main_message,
+	    ioc->max_sges_in_chain_message,
+	    ioc->shost->sg_tablesize,
+	    ioc->chains_needed_per_io);
 
 	/* reply post queue, 16 byte align */
 	reply_post_free_sz = ioc->reply_post_queue_depth *
@@ -5215,15 +5218,13 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	ioc->internal_dma = ioc->hi_priority_dma + (ioc->hi_priority_depth *
 	    ioc->request_sz);
 
-	dinitprintk(ioc,
-		    ioc_info(ioc, "request pool(0x%p): depth(%d), frame_size(%d), pool_size(%d kB)\n",
-			     ioc->request, ioc->hba_queue_depth,
-			     ioc->request_sz,
-			     (ioc->hba_queue_depth * ioc->request_sz) / 1024));
+	ioc_info(ioc,
+	    "request pool(0x%p) - dma(0x%llx): "
+	    "depth(%d), frame_size(%d), pool_size(%d kB)\n",
+	    ioc->request, (unsigned long long) ioc->request_dma,
+	    ioc->hba_queue_depth, ioc->request_sz,
+	    (ioc->hba_queue_depth * ioc->request_sz) / 1024);
 
-	dinitprintk(ioc,
-		    ioc_info(ioc, "request pool: dma(0x%llx)\n",
-			     (unsigned long long)ioc->request_dma));
 	total_sz += sz;
 
 	dinitprintk(ioc,
@@ -5409,13 +5410,12 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 			goto out;
 		}
 	}
-	dinitprintk(ioc,
-		    ioc_info(ioc, "sense pool(0x%p): depth(%d), element_size(%d), pool_size(%d kB)\n",
-			     ioc->sense, ioc->scsiio_depth,
-			     SCSI_SENSE_BUFFERSIZE, sz / 1024));
-	dinitprintk(ioc,
-		    ioc_info(ioc, "sense_dma(0x%llx)\n",
-			     (unsigned long long)ioc->sense_dma));
+	ioc_info(ioc,
+	    "sense pool(0x%p)- dma(0x%llx): depth(%d),"
+	    "element_size(%d), pool_size(%d kB)\n",
+	    ioc->sense, (unsigned long long)ioc->sense_dma, ioc->scsiio_depth,
+	    SCSI_SENSE_BUFFERSIZE, sz / 1024);
+
 	total_sz += sz;
 
 	/* reply pool, 4 byte align */
@@ -5493,12 +5493,10 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		ioc_err(ioc, "config page: dma_pool_alloc failed\n");
 		goto out;
 	}
-	dinitprintk(ioc,
-		    ioc_info(ioc, "config page(0x%p): size(%d)\n",
-			     ioc->config_page, ioc->config_page_sz));
-	dinitprintk(ioc,
-		    ioc_info(ioc, "config_page_dma(0x%llx)\n",
-			     (unsigned long long)ioc->config_page_dma));
+
+	ioc_info(ioc, "config page(0x%p) - dma(0x%llx): size(%d)\n",
+	    ioc->config_page, (unsigned long long)ioc->config_page_dma,
+	    ioc->config_page_sz);
 	total_sz += ioc->config_page_sz;
 
 	ioc_info(ioc, "Allocated physical memory: size(%d kB)\n",
@@ -5918,7 +5916,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 		mfp = (__le32 *)reply;
 		pr_info("\toffset:data\n");
 		for (i = 0; i < reply_bytes/4; i++)
-			pr_info("\t[0x%02x]:%08x\n", i*4,
+			ioc_info(ioc, "\t[0x%02x]:%08x\n", i*4,
 			    le32_to_cpu(mfp[i]));
 	}
 	return 0;
@@ -6368,9 +6366,9 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
 		int i;
 
 		mfp = (__le32 *)&mpi_request;
-		pr_info("\toffset:data\n");
+		ioc_info(ioc, "\toffset:data\n");
 		for (i = 0; i < sizeof(Mpi2IOCInitRequest_t)/4; i++)
-			pr_info("\t[0x%02x]:%08x\n", i*4,
+			ioc_info(ioc, "\t[0x%02x]:%08x\n", i*4,
 			    le32_to_cpu(mfp[i]));
 	}
 
@@ -6740,8 +6738,11 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 		/* wait 100 msec */
 		msleep(100);
 
-		if (count++ > 20)
+		if (count++ > 20) {
+			ioc_info(ioc,
+			    "Stop writing magic sequence after 20 retries\n");
 			goto out;
+		}
 
 		host_diagnostic = ioc->base_readl(&ioc->chip->HostDiagnostic);
 		drsprintk(ioc,
@@ -6765,8 +6766,11 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 
 		host_diagnostic = ioc->base_readl(&ioc->chip->HostDiagnostic);
 
-		if (host_diagnostic == 0xFFFFFFFF)
+		if (host_diagnostic == 0xFFFFFFFF) {
+			ioc_info(ioc,
+			    "Invalid host diagnostic register value\n");
 			goto out;
+		}
 		if (!(host_diagnostic & MPI2_DIAG_RESET_ADAPTER))
 			break;
 
@@ -6853,7 +6857,7 @@ _base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, enum reset_type type)
 		return 0;
 
 	if (ioc_state & MPI2_DOORBELL_USED) {
-		dhsprintk(ioc, ioc_info(ioc, "unexpected doorbell active!\n"));
+		ioc_info(ioc, "unexpected doorbell active!\n");
 		goto issue_diag_reset;
 	}
 
@@ -7123,8 +7127,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	ioc->cpu_msix_table = kzalloc(ioc->cpu_msix_table_sz, GFP_KERNEL);
 	ioc->reply_queue_count = 1;
 	if (!ioc->cpu_msix_table) {
-		dfailprintk(ioc,
-			    ioc_info(ioc, "allocation for cpu_msix_table failed!!!\n"));
+		ioc_info(ioc, "Allocation for cpu_msix_table failed!!!\n");
 		r = -ENOMEM;
 		goto out_free_resources;
 	}
@@ -7133,8 +7136,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		ioc->reply_post_host_index = kcalloc(ioc->cpu_msix_table_sz,
 		    sizeof(resource_size_t *), GFP_KERNEL);
 		if (!ioc->reply_post_host_index) {
-			dfailprintk(ioc,
-				    ioc_info(ioc, "allocation for reply_post_host_index failed!!!\n"));
+			ioc_info(ioc, "Allocation for reply_post_host_index failed!!!\n");
 			r = -ENOMEM;
 			goto out_free_resources;
 		}
@@ -7693,9 +7695,7 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 		_base_reset_done_handler(ioc);
 
  out:
-	dtmprintk(ioc,
-		  ioc_info(ioc, "%s: %s\n",
-			   __func__, r == 0 ? "SUCCESS" : "FAILED"));
+	ioc_info(ioc, "%s: %s\n", __func__, r == 0 ? "SUCCESS" : "FAILED");
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
 	ioc->shost_recovery = 0;

@@ -180,6 +180,12 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	case MPI2_FUNCTION_SMP_PASSTHROUGH:
 		desc = "smp_passthrough";
 		break;
+	case MPI2_FUNCTION_TOOLBOX:
+		desc = "toolbox";
+		break;
+	case MPI2_FUNCTION_NVME_ENCAPSULATED:
+		desc = "nvme_encapsulated";
+		break;
 	}
 
 	if (!desc)
@@ -1326,7 +1332,8 @@ _ctl_do_reset(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 				 __func__));
 
 	retval = mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
-	ioc_info(ioc, "host reset: %s\n", ((!retval) ? "SUCCESS" : "FAILED"));
+	ioc_info(ioc,
+	    "Ioctl: host reset: %s\n", ((!retval) ? "SUCCESS" : "FAILED"));
 	return 0;
 }
 
