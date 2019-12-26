@@ -4795,16 +4795,6 @@ static void mlxsw_sp_fib_node_entry_del(struct mlxsw_sp *mlxsw_sp,
 	if (!mlxsw_sp_fib_node_entry_is_first(fib_node, fib_entry))
 		return;
 
-	/* Promote the next entry by overwriting the deleted entry */
-	if (!list_is_singular(&fib_node->entry_list)) {
-		struct mlxsw_sp_fib_entry *n = list_next_entry(fib_entry, list);
-		enum mlxsw_reg_ralue_op op = MLXSW_REG_RALUE_OP_WRITE_DELETE;
-
-		mlxsw_sp_fib_entry_update(mlxsw_sp, n);
-		mlxsw_sp_fib_entry_offload_refresh(fib_entry, op, 0);
-		return;
-	}
-
 	mlxsw_sp_fib_entry_del(mlxsw_sp, fib_entry);
 }
 
