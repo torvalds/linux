@@ -242,8 +242,8 @@ struct mpp_task {
 
 	/* link to session pending */
 	struct list_head session_link;
-	/* link to service node pending */
-	struct list_head service_link;
+	/* link to taskqueue node pending */
+	struct list_head queue_link;
 	/* The DMA buffer used in this task */
 	struct list_head mem_region_list;
 
@@ -254,8 +254,6 @@ struct mpp_task {
 struct mpp_taskqueue {
 	/* taskqueue structure global lock */
 	struct mutex lock;
-	/* lock for task add and del */
-	struct mutex list_lock;
 	/* work for taskqueue */
 	struct work_struct work;
 

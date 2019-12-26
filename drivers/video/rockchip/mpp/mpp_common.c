@@ -62,9 +62,9 @@ static int
 mpp_taskqueue_push_pending(struct mpp_taskqueue *queue,
 			   struct mpp_task *task)
 {
-	mutex_lock(&queue->list_lock);
-	list_add_tail(&task->service_link, &queue->pending);
-	mutex_unlock(&queue->list_lock);
+	mutex_lock(&queue->lock);
+	list_add_tail(&task->queue_link, &queue->pending);
+	mutex_unlock(&queue->lock);
 
 	return 0;
 }
@@ -74,46 +74,54 @@ mpp_taskqueue_get_pending_task(struct mpp_taskqueue *queue)
 {
 	struct mpp_task *task = NULL;
 
-	if (!list_empty(&queue->pending)) {
-		task = list_first_entry(&queue->pending,
-					struct mpp_task,
-					service_link);
+	mutex_lock(&queue->lock);
+	if (!atomic_read(&queue->running)) {
+		if (!list_empty(&queue->pending)) {
+			task = list_first_entry(&queue->pending,
+						struct mpp_task,
+						queue_link);
+			list_del_init(&task->queue_link);
+			atomic_inc(&queue->running);
+			queue->cur_task = task;
+		}
 	}
 
+	mutex_unlock(&queue->lock);
+
 	return task;
-}
-
-static int
-mpp_taskqueue_is_running(struct mpp_taskqueue *queue)
-{
-	return atomic_read(&queue->running);
-}
-
-static int
-mpp_taskqueue_wait_to_run(struct mpp_taskqueue *queue,
-			  struct mpp_task *task)
-{
-	atomic_inc(&queue->running);
-	queue->cur_task = task;
-	mutex_lock(&queue->list_lock);
-	list_del_init(&task->service_link);
-	mutex_unlock(&queue->list_lock);
-
-	return 0;
 }
 
 static struct mpp_task *
 mpp_taskqueue_get_cur_task(struct mpp_taskqueue *queue)
 {
-	return queue->cur_task;
+	struct mpp_task *task = NULL;
+
+	mutex_lock(&queue->lock);
+	task = queue->cur_task;
+	mutex_unlock(&queue->lock);
+
+	return task;
 }
 
 static int
 mpp_taskqueue_done(struct mpp_taskqueue *queue,
 		   struct mpp_task *task)
 {
+	mutex_lock(&queue->lock);
 	queue->cur_task = NULL;
 	atomic_set(&queue->running, 0);
+	mutex_unlock(&queue->lock);
+
+	return 0;
+}
+
+static int
+mpp_taskqueue_trigger_work(struct mpp_taskqueue *queue,
+			   struct workqueue_struct *workq)
+{
+	mutex_lock(&queue->lock);
+	queue_work(workq, &queue->work);
+	mutex_unlock(&queue->lock);
 
 	return 0;
 }
@@ -122,12 +130,13 @@ static int
 mpp_taskqueue_abort(struct mpp_taskqueue *queue,
 		    struct mpp_task *task)
 {
+	mutex_lock(&queue->lock);
 	if (task) {
 		if (queue->cur_task == task)
 			queue->cur_task = NULL;
 	}
 	atomic_set(&queue->running, 0);
-
+	mutex_unlock(&queue->lock);
 	return 0;
 }
 
@@ -174,7 +183,7 @@ mpp_fd_to_mem_region(struct mpp_session *session, int fd)
 	up_read(&mpp->rw_sem);
 	if (IS_ERR_OR_NULL(buffer)) {
 		mpp_err("can't import dma-buf %d\n", fd);
-		return ERR_PTR(-EINVAL);
+		goto fail;
 	}
 
 	mem_region->hdl = (void *)(long)fd;
@@ -182,6 +191,9 @@ mpp_fd_to_mem_region(struct mpp_session *session, int fd)
 	mem_region->len = buffer->size;
 
 	return mem_region;
+fail:
+	kfree(mem_region);
+	return ERR_PTR(-ENOMEM);
 }
 
 static int
@@ -243,15 +255,19 @@ static int mpp_process_task(struct mpp_session *session,
 	if (mpp->hw_ops->get_freq)
 		mpp->hw_ops->get_freq(mpp, task);
 
+	/*
+	 * Push task to session should be in front of push task to queue.
+	 * Otherwise, when mpp_task_finish finish and worker_thread call
+	 * mpp_task_try_run, it may be get a task who has push in queue but
+	 * not in session, cause some errors.
+	 */
+	mpp_session_push_pending(session, task);
 	/* push current task to queue */
 	mpp_taskqueue_push_pending(mpp->queue, task);
-	mpp_session_push_pending(session, task);
 	atomic_inc(&session->task_running);
 	atomic_inc(&mpp->total_running);
 	/* trigger current queue to run task */
-	mutex_lock(&mpp->queue->lock);
-	queue_work(mpp->workq, &mpp->queue->work);
-	mutex_unlock(&mpp->queue->lock);
+	mpp_taskqueue_trigger_work(mpp->queue, mpp->workq);
 
 	return 0;
 }
@@ -403,7 +419,7 @@ static int mpp_dev_reset(struct mpp_dev *mpp)
 
 static int mpp_dev_abort(struct mpp_dev *mpp)
 {
-	int ret;
+	struct mpp_task *task = NULL;
 
 	mpp_debug_enter();
 
@@ -411,11 +427,8 @@ static int mpp_dev_abort(struct mpp_dev *mpp)
 
 	mpp_dev_reset(mpp);
 	/* destroy the current task after hardware reset */
-	ret = mpp_taskqueue_is_running(mpp->queue);
-	if (ret) {
-		struct mpp_task *task = NULL;
-
-		task = mpp_taskqueue_get_cur_task(mpp->queue);
+	task = mpp_taskqueue_get_cur_task(mpp->queue);
+	if (task) {
 		mutex_lock(&task->session->list_lock);
 		list_del_init(&task->session_link);
 		mutex_unlock(&task->session->list_lock);
@@ -424,11 +437,12 @@ static int mpp_dev_abort(struct mpp_dev *mpp)
 		mpp_free_task(task->session, task);
 	} else {
 		mpp_taskqueue_abort(mpp->queue, NULL);
+		mpp_err("error: task is null!\n");
 	}
 
 	mpp_debug_leave();
 
-	return ret;
+	return 0;
 }
 
 static int mpp_task_run(struct mpp_dev *mpp,
@@ -477,7 +491,6 @@ static int mpp_task_run(struct mpp_dev *mpp,
 
 static void mpp_task_try_run(struct work_struct *work_s)
 {
-	int ret;
 	struct mpp_task *task;
 	struct mpp_dev *mpp;
 	struct mpp_taskqueue *queue = container_of(work_s,
@@ -486,17 +499,11 @@ static void mpp_task_try_run(struct work_struct *work_s)
 
 	mpp_debug_enter();
 
-	ret = mpp_taskqueue_is_running(queue);
-	if (ret)
-		goto done;
-
 	task = mpp_taskqueue_get_pending_task(queue);
 	if (!task)
 		goto done;
 	/* get device for current task */
 	mpp = task->session->mpp;
-	if (atomic_read(&mpp->reset_request) > 0)
-		goto done;
 	/*
 	 * In the link table mode, the prepare function of the device
 	 * will check whether I can insert a new task into device.
@@ -511,9 +518,9 @@ static void mpp_task_try_run(struct work_struct *work_s)
 	 * FIXME if the hardware supports task query, but we still need to lock
 	 * the running list and lock the mpp service in the current state.
 	 */
-	mpp_taskqueue_wait_to_run(mpp->queue, task);
 	/* Push a pending task to running queue */
 	mpp_task_run(mpp, task);
+
 done:
 	mpp_debug_leave();
 }
@@ -523,14 +530,14 @@ static int mpp_session_clear(struct mpp_dev *mpp,
 {
 	struct mpp_task *task, *n, *task_done;
 
+	mutex_lock(&session->list_lock);
 	list_for_each_entry_safe(task, n,
 				 &session->pending,
 				 session_link) {
-		mutex_lock(&task->session->list_lock);
 		list_del_init(&task->session_link);
-		mutex_unlock(&task->session->list_lock);
 		mpp_free_task(session, task);
 	}
+	mutex_unlock(&session->list_lock);
 
 	while (kfifo_out(&session->done_fifo, &task_done, 1))
 		mpp_free_task(session, task_done);
@@ -656,7 +663,6 @@ int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 		       struct mpp_service *srv)
 {
 	mutex_init(&queue->lock);
-	mutex_init(&queue->list_lock);
 	atomic_set(&queue->running, 0);
 	INIT_LIST_HEAD(&queue->pending);
 	INIT_WORK(&queue->work, mpp_task_try_run);
@@ -1268,7 +1274,7 @@ int mpp_task_init(struct mpp_session *session,
 		  struct mpp_task *task)
 {
 	INIT_LIST_HEAD(&task->session_link);
-	INIT_LIST_HEAD(&task->service_link);
+	INIT_LIST_HEAD(&task->queue_link);
 	INIT_LIST_HEAD(&task->mem_region_list);
 
 	task->session = session;
@@ -1281,8 +1287,6 @@ int mpp_task_finish(struct mpp_session *session,
 {
 	struct mpp_dev *mpp = session->mpp;
 
-	mutex_lock(&mpp->queue->lock);
-
 	if (mpp->dev_ops->finish)
 		mpp->dev_ops->finish(mpp, task);
 	atomic_dec(&task->session->task_running);
@@ -1292,13 +1296,11 @@ int mpp_task_finish(struct mpp_session *session,
 	if (atomic_read(&mpp->reset_request) > 0)
 		mpp_dev_reset(mpp);
 
-	mpp_taskqueue_done(mpp->queue, task);
 	/* Wake up the GET thread */
 	mpp_session_push_done(task);
+	mpp_taskqueue_done(mpp->queue, task);
 	/* trigger current queue to run next task */
-	queue_work(mpp->workq, &mpp->queue->work);
-
-	mutex_unlock(&mpp->queue->lock);
+	mpp_taskqueue_trigger_work(mpp->queue, mpp->workq);
 
 	return 0;
 }
@@ -1310,6 +1312,7 @@ int mpp_task_finalize(struct mpp_session *session,
 	struct mpp_mem_region *mem_region = NULL, *n;
 
 	mpp = session->mpp;
+	mutex_lock(&session->list_lock);
 	/* release memory region attach to this registers table. */
 	list_for_each_entry_safe(mem_region, n,
 				 &task->mem_region_list,
@@ -1317,12 +1320,10 @@ int mpp_task_finalize(struct mpp_session *session,
 		down_read(&mpp->rw_sem);
 		mpp_dma_release_fd(session->dma, (long)mem_region->hdl);
 		up_read(&mpp->rw_sem);
-		mutex_lock(&task->session->list_lock);
 		list_del_init(&mem_region->reg_lnk);
-		mutex_unlock(&task->session->list_lock);
 		kfree(mem_region);
 	}
-
+	mutex_unlock(&session->list_lock);
 	return 0;
 }
 
