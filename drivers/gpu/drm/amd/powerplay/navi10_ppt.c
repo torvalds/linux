@@ -1582,7 +1582,40 @@ static int navi10_get_uclk_dpm_states(struct smu_context *smu, uint32_t *clocks_
 	return 0;
 }
 
-static int navi10_set_peak_clock_by_device(struct smu_context *smu)
+static int navi10_set_performance_level(struct smu_context *smu,
+					enum amd_dpm_forced_level level);
+
+static int navi10_set_standard_performance_level(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+	uint32_t sclk_freq = 0, uclk_freq = 0;
+
+	switch (adev->asic_type) {
+	case CHIP_NAVI10:
+		sclk_freq = NAVI10_UMD_PSTATE_PROFILING_GFXCLK;
+		uclk_freq = NAVI10_UMD_PSTATE_PROFILING_MEMCLK;
+		break;
+	case CHIP_NAVI14:
+		sclk_freq = NAVI14_UMD_PSTATE_PROFILING_GFXCLK;
+		uclk_freq = NAVI14_UMD_PSTATE_PROFILING_MEMCLK;
+		break;
+	default:
+		/* by default, this is same as auto performance level */
+		return navi10_set_performance_level(smu, AMD_DPM_FORCED_LEVEL_AUTO);
+	}
+
+	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
+	if (ret)
+		return ret;
+	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int navi10_set_peak_performance_level(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
@@ -1664,8 +1697,10 @@ static int navi10_set_performance_level(struct smu_context *smu,
 		ret = smu_force_dpm_limit_value(smu, false);
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
-	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 		ret = smu_unforce_dpm_levels(smu);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		ret = navi10_set_standard_performance_level(smu);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
@@ -1680,7 +1715,7 @@ static int navi10_set_performance_level(struct smu_context *smu,
 		smu_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask, false);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
-		ret = navi10_set_peak_clock_by_device(smu);
+		ret = navi10_set_peak_performance_level(smu);
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
