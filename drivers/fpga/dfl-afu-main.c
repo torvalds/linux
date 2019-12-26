@@ -813,10 +813,8 @@ static int afu_dev_init(struct platform_device *pdev)
 static int afu_dev_destroy(struct platform_device *pdev)
 {
 	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct dfl_afu *afu;
 
 	mutex_lock(&pdata->lock);
-	afu = dfl_fpga_pdata_get_private(pdata);
 	afu_mmio_region_destroy(pdata);
 	afu_dma_region_destroy(pdata);
 	dfl_fpga_pdata_set_private(pdata, NULL);
