@@ -3574,6 +3574,22 @@ _base_get_msix_index(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
+ * _base_sdev_nr_inflight_request -get number of inflight requests
+ *				   of a request queue.
+ * @q: request_queue object
+ *
+ * returns number of inflight request of a request queue.
+ */
+inline unsigned long
+_base_sdev_nr_inflight_request(struct request_queue *q)
+{
+	struct blk_mq_hw_ctx *hctx = q->queue_hw_ctx[0];
+
+	return atomic_read(&hctx->nr_active);
+}
+
+
+/**
  * _base_get_high_iops_msix_index - get the msix index of
  *				high iops queues
  * @ioc: per adapter object
@@ -3592,7 +3608,7 @@ _base_get_high_iops_msix_index(struct MPT3SAS_ADAPTER *ioc,
 	 * reply queues in terms of batch count 16 when outstanding
 	 * IOs on the target device is >=8.
 	 */
-	if (atomic_read(&scmd->device->device_busy) >
+	if (_base_sdev_nr_inflight_request(scmd->device->request_queue) >
 	    MPT3SAS_DEVICE_HIGH_IOPS_DEPTH)
 		return base_mod64((
 		    atomic64_add_return(1, &ioc->high_iops_outstanding) /
