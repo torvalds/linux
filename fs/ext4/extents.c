@@ -4891,14 +4891,9 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	 * range since we would need to re-encrypt blocks with a
 	 * different IV or XTS tweak (which are based on the logical
 	 * block number).
-	 *
-	 * XXX It's not clear why zero range isn't working, but we'll
-	 * leave it disabled for encrypted inodes for now.  This is a
-	 * bug we should fix....
 	 */
 	if (IS_ENCRYPTED(inode) &&
-	    (mode & (FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_INSERT_RANGE |
-		     FALLOC_FL_ZERO_RANGE)))
+	    (mode & (FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_INSERT_RANGE)))
 		return -EOPNOTSUPP;
 
 	/* Return error if mode is not supported */
