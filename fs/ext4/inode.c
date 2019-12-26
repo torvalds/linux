@@ -3725,8 +3725,12 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 		if (S_ISREG(inode->i_mode) && IS_ENCRYPTED(inode)) {
 			/* We expect the key to be set. */
 			BUG_ON(!fscrypt_has_encryption_key(inode));
-			WARN_ON_ONCE(fscrypt_decrypt_pagecache_blocks(
-					page, blocksize, bh_offset(bh)));
+			err = fscrypt_decrypt_pagecache_blocks(page, blocksize,
+							       bh_offset(bh));
+			if (err) {
+				clear_buffer_uptodate(bh);
+				goto unlock;
+			}
 		}
 	}
 	if (ext4_should_journal_data(inode)) {
