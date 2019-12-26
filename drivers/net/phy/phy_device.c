@@ -919,6 +919,8 @@ static void phy_link_change(struct phy_device *phydev, bool up, bool do_carrier)
 			netif_carrier_off(netdev);
 	}
 	phydev->adjust_link(netdev);
+	if (phydev->mii_ts && phydev->mii_ts->link_state)
+		phydev->mii_ts->link_state(phydev->mii_ts, phydev);
 }
 
 /**

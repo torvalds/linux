@@ -98,6 +98,7 @@ struct dp83640_private {
 	struct list_head list;
 	struct dp83640_clock *clock;
 	struct phy_device *phydev;
+	struct mii_timestamper mii_ts;
 	struct delayed_work ts_work;
 	int hwts_tx_en;
 	int hwts_rx_en;
@@ -1229,9 +1230,10 @@ static int dp83640_config_intr(struct phy_device *phydev)
 	}
 }
 
-static int dp83640_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
+static int dp83640_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 {
-	struct dp83640_private *dp83640 = phydev->priv;
+	struct dp83640_private *dp83640 =
+		container_of(mii_ts, struct dp83640_private, mii_ts);
 	struct hwtstamp_config cfg;
 	u16 txcfg0, rxcfg0;
 
@@ -1307,8 +1309,8 @@ static int dp83640_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
 
 	mutex_lock(&dp83640->clock->extreg_lock);
 
-	ext_write(0, phydev, PAGE5, PTP_TXCFG0, txcfg0);
-	ext_write(0, phydev, PAGE5, PTP_RXCFG0, rxcfg0);
+	ext_write(0, dp83640->phydev, PAGE5, PTP_TXCFG0, txcfg0);
+	ext_write(0, dp83640->phydev, PAGE5, PTP_RXCFG0, rxcfg0);
 
 	mutex_unlock(&dp83640->clock->extreg_lock);
 
@@ -1338,10 +1340,11 @@ static void rx_timestamp_work(struct work_struct *work)
 		schedule_delayed_work(&dp83640->ts_work, SKB_TIMESTAMP_TIMEOUT);
 }
 
-static bool dp83640_rxtstamp(struct phy_device *phydev,
+static bool dp83640_rxtstamp(struct mii_timestamper *mii_ts,
 			     struct sk_buff *skb, int type)
 {
-	struct dp83640_private *dp83640 = phydev->priv;
+	struct dp83640_private *dp83640 =
+		container_of(mii_ts, struct dp83640_private, mii_ts);
 	struct dp83640_skb_info *skb_info = (struct dp83640_skb_info *)skb->cb;
 	struct list_head *this, *next;
 	struct rxts *rxts;
@@ -1387,11 +1390,12 @@ static bool dp83640_rxtstamp(struct phy_device *phydev,
 	return true;
 }
 
-static void dp83640_txtstamp(struct phy_device *phydev,
+static void dp83640_txtstamp(struct mii_timestamper *mii_ts,
 			     struct sk_buff *skb, int type)
 {
 	struct dp83640_skb_info *skb_info = (struct dp83640_skb_info *)skb->cb;
-	struct dp83640_private *dp83640 = phydev->priv;
+	struct dp83640_private *dp83640 =
+		container_of(mii_ts, struct dp83640_private, mii_ts);
 
 	switch (dp83640->hwts_tx_en) {
 
@@ -1414,9 +1418,11 @@ static void dp83640_txtstamp(struct phy_device *phydev,
 	}
 }
 
-static int dp83640_ts_info(struct phy_device *dev, struct ethtool_ts_info *info)
+static int dp83640_ts_info(struct mii_timestamper *mii_ts,
+			   struct ethtool_ts_info *info)
 {
-	struct dp83640_private *dp83640 = dev->priv;
+	struct dp83640_private *dp83640 =
+		container_of(mii_ts, struct dp83640_private, mii_ts);
 
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_HARDWARE |
@@ -1454,13 +1460,18 @@ static int dp83640_probe(struct phy_device *phydev)
 		goto no_memory;
 
 	dp83640->phydev = phydev;
-	INIT_DELAYED_WORK(&dp83640->ts_work, rx_timestamp_work);
+	dp83640->mii_ts.rxtstamp = dp83640_rxtstamp;
+	dp83640->mii_ts.txtstamp = dp83640_txtstamp;
+	dp83640->mii_ts.hwtstamp = dp83640_hwtstamp;
+	dp83640->mii_ts.ts_info  = dp83640_ts_info;
 
+	INIT_DELAYED_WORK(&dp83640->ts_work, rx_timestamp_work);
 	INIT_LIST_HEAD(&dp83640->rxts);
 	INIT_LIST_HEAD(&dp83640->rxpool);
 	for (i = 0; i < MAX_RXTS; i++)
 		list_add(&dp83640->rx_pool_data[i].list, &dp83640->rxpool);
 
+	phydev->mii_ts = &dp83640->mii_ts;
 	phydev->priv = dp83640;
 
 	spin_lock_init(&dp83640->rx_lock);
@@ -1501,6 +1512,8 @@ static void dp83640_remove(struct phy_device *phydev)
 	if (phydev->mdio.addr == BROADCAST_ADDR)
 		return;
 
+	phydev->mii_ts = NULL;
+
 	enable_status_frames(phydev, false);
 	cancel_delayed_work_sync(&dp83640->ts_work);
 
@@ -1537,10 +1550,6 @@ static struct phy_driver dp83640_driver = {
 	.config_init	= dp83640_config_init,
 	.ack_interrupt  = dp83640_ack_interrupt,
 	.config_intr    = dp83640_config_intr,
-	.ts_info	= dp83640_ts_info,
-	.hwtstamp	= dp83640_hwtstamp,
-	.rxtstamp	= dp83640_rxtstamp,
-	.txtstamp	= dp83640_txtstamp,
 };
 
 static int __init dp83640_init(void)
