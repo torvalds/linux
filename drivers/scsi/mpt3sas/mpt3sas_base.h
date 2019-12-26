@@ -1579,6 +1579,11 @@ mpt3sas_wait_for_commands_to_complete(struct MPT3SAS_ADAPTER *ioc);
 
 u8 mpt3sas_base_check_cmd_timeout(struct MPT3SAS_ADAPTER *ioc,
 	u8 status, void *mpi_request, int sz);
+#define mpt3sas_check_cmd_timeout(ioc, status, mpi_request, sz, issue_reset) \
+do {	ioc_err(ioc, "In func: %s\n", __func__); \
+	issue_reset = mpt3sas_base_check_cmd_timeout(ioc, \
+	status, mpi_request, sz); } while (0)
+
 int mpt3sas_wait_for_ioc(struct MPT3SAS_ADAPTER *ioc, int wait_count);
 
 /* scsih shared API */

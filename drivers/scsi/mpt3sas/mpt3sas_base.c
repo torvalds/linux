@@ -5984,10 +5984,9 @@ mpt3sas_base_sas_iounit_control(struct MPT3SAS_ADAPTER *ioc,
 	    ioc->ioc_link_reset_in_progress)
 		ioc->ioc_link_reset_in_progress = 0;
 	if (!(ioc->base_cmds.status & MPT3_CMD_COMPLETE)) {
-		issue_reset =
-			mpt3sas_base_check_cmd_timeout(ioc,
-				ioc->base_cmds.status, mpi_request,
-				sizeof(Mpi2SasIoUnitControlRequest_t)/4);
+		mpt3sas_check_cmd_timeout(ioc, ioc->base_cmds.status,
+		    mpi_request, sizeof(Mpi2SasIoUnitControlRequest_t)/4,
+		    issue_reset);
 		goto issue_host_reset;
 	}
 	if (ioc->base_cmds.status & MPT3_CMD_REPLY_VALID)
@@ -6060,10 +6059,9 @@ mpt3sas_base_scsi_enclosure_processor(struct MPT3SAS_ADAPTER *ioc,
 	wait_for_completion_timeout(&ioc->base_cmds.done,
 	    msecs_to_jiffies(10000));
 	if (!(ioc->base_cmds.status & MPT3_CMD_COMPLETE)) {
-		issue_reset =
-			mpt3sas_base_check_cmd_timeout(ioc,
-				ioc->base_cmds.status, mpi_request,
-				sizeof(Mpi2SepRequest_t)/4);
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->base_cmds.status, mpi_request,
+		    sizeof(Mpi2SepRequest_t)/4, issue_reset);
 		goto issue_host_reset;
 	}
 	if (ioc->base_cmds.status & MPT3_CMD_REPLY_VALID)
