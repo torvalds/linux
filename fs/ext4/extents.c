@@ -3719,9 +3719,6 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		max_zeroout = sbi->s_extent_max_zeroout_kb >>
 			(inode->i_sb->s_blocksize_bits - 10);
 
-	if (IS_ENCRYPTED(inode))
-		max_zeroout = 0;
-
 	/*
 	 * five cases:
 	 * 1. split the extent into three extents.
