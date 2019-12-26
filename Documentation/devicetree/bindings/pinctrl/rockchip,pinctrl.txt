@@ -22,6 +22,7 @@ Required properties for iomux controller:
   - compatible: should be
 		"rockchip,px30-pinctrl":    for Rockchip PX30
 		"rockchip,rv1108-pinctrl":  for Rockchip RV1108
+		"rockchip,rv1126-pinctrl":  for Rockchip RV1126
 		"rockchip,rk2928-pinctrl":  for Rockchip RK2928
 		"rockchip,rk3066a-pinctrl": for Rockchip RK3066a
 		"rockchip,rk3066b-pinctrl": for Rockchip RK3066b
