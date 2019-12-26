@@ -1642,9 +1642,9 @@ void dcn20_program_front_end_for_ctx(
 			struct hubp *hubp = pipe->plane_res.hubp;
 			int j = 0;
 
-			for (j = 0; j < TIMEOUT_FOR_PIPE_ENABLE_MS
+			for (j = 0; j < TIMEOUT_FOR_PIPE_ENABLE_MS*1000
 					&& hubp->funcs->hubp_is_flip_pending(hubp); j++)
-				msleep(1);
+				mdelay(1);
 		}
 	}
 
