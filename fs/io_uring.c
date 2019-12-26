@@ -408,6 +408,13 @@ struct io_fadvise {
 	u32				advice;
 };
 
+struct io_madvise {
+	struct file			*file;
+	u64				addr;
+	u32				len;
+	u32				advice;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -461,6 +468,7 @@ struct io_kiocb {
 		struct io_close		close;
 		struct io_files_update	files_update;
 		struct io_fadvise	fadvise;
+		struct io_madvise	madvise;
 	};
 
 	struct io_async_ctx		*io;
@@ -679,6 +687,10 @@ static const struct io_op_def io_op_defs[] = {
 	{
 		/* IORING_OP_FADVISE */
 		.needs_file		= 1,
+	},
+	{
+		/* IORING_OP_MADVISE */
+		.needs_mm		= 1,
 	},
 };
 
@@ -2449,6 +2461,42 @@ err:
 	return 0;
 }
 
+static int io_madvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+#if defined(CONFIG_ADVISE_SYSCALLS) && defined(CONFIG_MMU)
+	if (sqe->ioprio || sqe->buf_index || sqe->off)
+		return -EINVAL;
+
+	req->madvise.addr = READ_ONCE(sqe->addr);
+	req->madvise.len = READ_ONCE(sqe->len);
+	req->madvise.advice = READ_ONCE(sqe->fadvise_advice);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int io_madvise(struct io_kiocb *req, struct io_kiocb **nxt,
+		      bool force_nonblock)
+{
+#if defined(CONFIG_ADVISE_SYSCALLS) && defined(CONFIG_MMU)
+	struct io_madvise *ma = &req->madvise;
+	int ret;
+
+	if (force_nonblock)
+		return -EAGAIN;
+
+	ret = do_madvise(ma->addr, ma->len, ma->advice);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	io_put_req_find_next(req, nxt);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
 static int io_fadvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	if (sqe->ioprio || sqe->buf_index || sqe->addr)
@@ -3766,6 +3814,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	case IORING_OP_FADVISE:
 		ret = io_fadvise_prep(req, sqe);
 		break;
+	case IORING_OP_MADVISE:
+		ret = io_madvise_prep(req, sqe);
+		break;
 	default:
 		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
 				req->opcode);
@@ -3969,6 +4020,14 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 				break;
 		}
 		ret = io_fadvise(req, nxt, force_nonblock);
+		break;
+	case IORING_OP_MADVISE:
+		if (sqe) {
+			ret = io_madvise_prep(req, sqe);
+			if (ret)
+				break;
+		}
+		ret = io_madvise(req, nxt, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;

@@ -88,6 +88,7 @@ enum {
 	IORING_OP_READ,
 	IORING_OP_WRITE,
 	IORING_OP_FADVISE,
+	IORING_OP_MADVISE,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
