@@ -76,6 +76,90 @@ of the flag should be interpreted the way the client expects. A client must
 not set flags it does not understand.
 
 
+Bit sets
+========
+
+For short bitmaps of (reasonably) fixed length, standard ``NLA_BITFIELD32``
+type is used. For arbitrary length bitmaps, ethtool netlink uses a nested
+attribute with contents of one of two forms: compact (two binary bitmaps
+representing bit values and mask of affected bits) and bit-by-bit (list of
+bits identified by either index or name).
+
+Verbose (bit-by-bit) bitsets allow sending symbolic names for bits together
+with their values which saves a round trip (when the bitset is passed in a
+request) or at least a second request (when the bitset is in a reply). This is
+useful for one shot applications like traditional ethtool command. On the
+other hand, long running applications like ethtool monitor (displaying
+notifications) or network management daemons may prefer fetching the names
+only once and using compact form to save message size. Notifications from
+ethtool netlink interface always use compact form for bitsets.
+
+A bitset can represent either a value/mask pair (``ETHTOOL_A_BITSET_NOMASK``
+not set) or a single bitmap (``ETHTOOL_A_BITSET_NOMASK`` set). In requests
+modifying a bitmap, the former changes the bit set in mask to values set in
+value and preserves the rest; the latter sets the bits set in the bitmap and
+clears the rest.
+
+Compact form: nested (bitset) atrribute contents:
+
+  ============================  ======  ============================
+  ``ETHTOOL_A_BITSET_NOMASK``   flag    no mask, only a list
+  ``ETHTOOL_A_BITSET_SIZE``     u32     number of significant bits
+  ``ETHTOOL_A_BITSET_VALUE``    binary  bitmap of bit values
+  ``ETHTOOL_A_BITSET_MASK``     binary  bitmap of valid bits
+  ============================  ======  ============================
+
+Value and mask must have length at least ``ETHTOOL_A_BITSET_SIZE`` bits
+rounded up to a multiple of 32 bits. They consist of 32-bit words in host byte
+order, words ordered from least significant to most significant (i.e. the same
+way as bitmaps are passed with ioctl interface).
+
+For compact form, ``ETHTOOL_A_BITSET_SIZE`` and ``ETHTOOL_A_BITSET_VALUE`` are
+mandatory. ``ETHTOOL_A_BITSET_MASK`` attribute is mandatory if
+``ETHTOOL_A_BITSET_NOMASK`` is not set (bitset represents a value/mask pair);
+if ``ETHTOOL_A_BITSET_NOMASK`` is not set, ``ETHTOOL_A_BITSET_MASK`` is not
+allowed (bitset represents a single bitmap.
+
+Kernel bit set length may differ from userspace length if older application is
+used on newer kernel or vice versa. If userspace bitmap is longer, an error is
+issued only if the request actually tries to set values of some bits not
+recognized by kernel.
+
+Bit-by-bit form: nested (bitset) attribute contents:
+
+ +------------------------------------+--------+-----------------------------+
+ | ``ETHTOOL_A_BITSET_NOMASK``        | flag   | no mask, only a list        |
+ +------------------------------------+--------+-----------------------------+
+ | ``ETHTOOL_A_BITSET_SIZE``          | u32    | number of significant bits  |
+ +------------------------------------+--------+-----------------------------+
+ | ``ETHTOOL_A_BITSET_BITS``          | nested | array of bits               |
+ +-+----------------------------------+--------+-----------------------------+
+ | | ``ETHTOOL_A_BITSET_BITS_BIT+``   | nested | one bit                     |
+ +-+-+--------------------------------+--------+-----------------------------+
+ | | | ``ETHTOOL_A_BITSET_BIT_INDEX`` | u32    | bit index (0 for LSB)       |
+ +-+-+--------------------------------+--------+-----------------------------+
+ | | | ``ETHTOOL_A_BITSET_BIT_NAME``  | string | bit name                    |
+ +-+-+--------------------------------+--------+-----------------------------+
+ | | | ``ETHTOOL_A_BITSET_BIT_VALUE`` | flag   | present if bit is set       |
+ +-+-+--------------------------------+--------+-----------------------------+
+
+Bit size is optional for bit-by-bit form. ``ETHTOOL_A_BITSET_BITS`` nest can
+only contain ``ETHTOOL_A_BITSET_BITS_BIT`` attributes but there can be an
+arbitrary number of them.  A bit may be identified by its index or by its
+name. When used in requests, listed bits are set to 0 or 1 according to
+``ETHTOOL_A_BITSET_BIT_VALUE``, the rest is preserved. A request fails if
+index exceeds kernel bit length or if name is not recognized.
+
+When ``ETHTOOL_A_BITSET_NOMASK`` flag is present, bitset is interpreted as
+a simple bitmap. ``ETHTOOL_A_BITSET_BIT_VALUE`` attributes are not used in
+such case. Such bitset represents a bitmap with listed bits set and the rest
+zero.
+
+In requests, application can use either form. Form used by kernel in reply is
+determined by ``ETHTOOL_FLAG_COMPACT_BITSETS`` flag in flags field of request
+header. Semantics of value and mask depends on the attribute.
+
+
 List of message types
 =====================
 
