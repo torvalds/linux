@@ -1375,12 +1375,9 @@ static void cdns3_check_usb_interrupt_proceed(struct cdns3_device *priv_dev,
  */
 static irqreturn_t cdns3_device_irq_handler(int irq, void *data)
 {
-	struct cdns3_device *priv_dev;
-	struct cdns3 *cdns = data;
+	struct cdns3_device *priv_dev = data;
 	irqreturn_t ret = IRQ_NONE;
 	u32 reg;
-
-	priv_dev = cdns->gadget_dev;
 
 	/* check USB device interrupt */
 	reg = readl(&priv_dev->regs->usb_ists);
@@ -1419,14 +1416,12 @@ static irqreturn_t cdns3_device_irq_handler(int irq, void *data)
  */
 static irqreturn_t cdns3_device_thread_irq_handler(int irq, void *data)
 {
-	struct cdns3_device *priv_dev;
-	struct cdns3 *cdns = data;
+	struct cdns3_device *priv_dev = data;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned long flags;
 	int bit;
 	u32 reg;
 
-	priv_dev = cdns->gadget_dev;
 	spin_lock_irqsave(&priv_dev->lock, flags);
 
 	reg = readl(&priv_dev->regs->usb_ists);
@@ -2539,7 +2534,7 @@ void cdns3_gadget_exit(struct cdns3 *cdns)
 
 	priv_dev = cdns->gadget_dev;
 
-	devm_free_irq(cdns->dev, cdns->dev_irq, cdns);
+	devm_free_irq(cdns->dev, cdns->dev_irq, priv_dev);
 
 	pm_runtime_mark_last_busy(cdns->dev);
 	pm_runtime_put_autosuspend(cdns->dev);
@@ -2710,7 +2705,8 @@ static int __cdns3_gadget_init(struct cdns3 *cdns)
 	ret = devm_request_threaded_irq(cdns->dev, cdns->dev_irq,
 					cdns3_device_irq_handler,
 					cdns3_device_thread_irq_handler,
-					IRQF_SHARED, dev_name(cdns->dev), cdns);
+					IRQF_SHARED, dev_name(cdns->dev),
+					cdns->gadget_dev);
 
 	if (ret)
 		goto err0;
