@@ -2901,11 +2901,8 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 			pipe_ctx,
 			pipe_ctx->stream->signal);
 
-		if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link &&
-				pipe_ctx->stream->dpms_off == false &&
-				pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-			dc_link_allocate_mst_payload(pipe_ctx);
-		}
+		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+			dc_link_reallocate_mst_payload(link);
 
 		status = false;
 		if (out_link_loss)
