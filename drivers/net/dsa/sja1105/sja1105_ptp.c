@@ -83,6 +83,7 @@ static int sja1105_init_avb_params(struct sja1105_private *priv,
 static int sja1105_change_rxtstamping(struct sja1105_private *priv,
 				      bool on)
 {
+	struct sja1105_ptp_data *ptp_data = &priv->ptp_data;
 	struct sja1105_general_params_entry *general_params;
 	struct sja1105_table *table;
 	int rc;
@@ -101,6 +102,8 @@ static int sja1105_change_rxtstamping(struct sja1105_private *priv,
 		kfree_skb(priv->tagger_data.stampable_skb);
 		priv->tagger_data.stampable_skb = NULL;
 	}
+	ptp_cancel_worker_sync(ptp_data->clock);
+	skb_queue_purge(&ptp_data->skb_rxtstamp_queue);
 
 	return sja1105_static_config_reload(priv, SJA1105_RX_HWTSTAMPING);
 }
