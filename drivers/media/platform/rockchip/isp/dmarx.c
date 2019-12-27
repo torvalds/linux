@@ -763,6 +763,11 @@ void rkisp2_rawrd_isr(u32 mis_val, struct rkisp_device *dev)
 		stream = &dev->dmarx_dev.stream[i];
 		if (!(mis_val & CIF_MI_FRAME(stream)))
 			continue;
+		/* filt rawrd frame end when frame read back mode */
+		if (dev->csi_dev.filt_state[stream->id]) {
+			dev->csi_dev.filt_state[stream->id]--;
+			continue;
+		}
 		stream->frame_end = true;
 		if (stream->stopping) {
 			stream->stopping = false;

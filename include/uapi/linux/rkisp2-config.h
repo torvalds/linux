@@ -10,6 +10,9 @@
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
+#define RKISP_CMD_TRIGGER_READ_BACK \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 0, int)
+
 #define ISP2X_MODULE_DPCC		BIT_ULL(0)
 #define ISP2X_MODULE_BLS		BIT_ULL(1)
 #define ISP2X_MODULE_SDG		BIT_ULL(2)

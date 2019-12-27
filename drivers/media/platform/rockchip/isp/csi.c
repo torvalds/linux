@@ -422,6 +422,21 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 	struct rkisp_device *dev = csi->ispdev;
 	void __iomem *addr = dev->base_addr + CSI2RX_CTRL0;
 
+	if (dma2frm > 2)
+		dma2frm = 2;
+	memset(csi->filt_state, 0, sizeof(csi->filt_state));
+	switch (dev->hdr.op_mode) {
+	case HDR_DBG_FRAME3://is rawrd1 rawrd0 rawrd2
+		csi->filt_state[CSI_F_RD1] = dma2frm;
+	case HDR_DBG_FRAME2://is rawrd0 and rawrd2
+		csi->filt_state[CSI_F_RD0] = dma2frm;
+	case HDR_DBG_FRAME1://only rawrd2
+		csi->filt_state[CSI_F_RD2] = dma2frm;
+		break;
+	default://other no support readback
+		return;
+	}
+	csi->filt_state[CSI_F_VS] = dma2frm;
 	writel(SW_CSI2RX_EN | SW_DMA_2FRM_MODE(dma2frm) | readl(addr), addr);
 }
 

@@ -41,6 +41,7 @@
 #include <linux/kfifo.h>
 #include <linux/interrupt.h>
 #include <linux/rk-preisp.h>
+#include <linux/rkisp2-config.h>
 #include <linux/iommu.h>
 #include <media/v4l2-event.h>
 #include <media/media-entity.h>
@@ -1575,6 +1576,47 @@ static int rkisp_isp_sd_subs_evt(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 	return v4l2_event_subscribe(fh, sub, 0, NULL);
 }
 
+static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKISP_CMD_TRIGGER_READ_BACK:
+		if (!IS_HDR_DBG(isp_dev->hdr.op_mode))
+			break;
+		rkisp_trigger_read_back(&isp_dev->csi_dev, *((int *)arg));
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
+				 unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKISP_CMD_TRIGGER_READ_BACK:
+		int mode;
+
+		ret = copy_from_user(&mode, up, sizeof(int));
+		if (!ret)
+			ret = rkisp_ioctl(sd, cmd, &mode);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+	}
+
+	return ret;
+}
+#endif
+
 static const struct v4l2_subdev_pad_ops rkisp_isp_sd_pad_ops = {
 	.enum_mbus_code = rkisp_isp_sd_enum_mbus_code,
 	.get_selection = rkisp_isp_sd_get_selection,
@@ -1599,6 +1641,10 @@ static const struct v4l2_subdev_core_ops rkisp_isp_core_ops = {
 	.subscribe_event = rkisp_isp_sd_subs_evt,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 	.s_power = rkisp_isp_sd_s_power,
+	.ioctl = rkisp_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = rkisp_compat_ioctl32,
+#endif
 };
 
 static struct v4l2_subdev_ops rkisp_isp_sd_ops = {
@@ -1802,6 +1848,11 @@ void rkisp_isp_isr(unsigned int isp_mis,
 
 	/* start edge of v_sync */
 	if (isp_mis & CIF_ISP_V_START) {
+		/* filt v_sync when frame read back mode */
+		if (dev->csi_dev.filt_state[CSI_F_VS]) {
+			dev->csi_dev.filt_state[CSI_F_VS]--;
+			goto vs_skip;
+		}
 		if (dev->cap_dev.stream[RKISP_STREAM_SP].interlaced) {
 			/* 0 = ODD 1 = EVEN */
 			if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
@@ -1825,7 +1876,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 
 		if (dev->vs_irq < 0)
 			rkisp_isp_queue_event_sof(&dev->isp_sdev);
-
+vs_skip:
 		writel(CIF_ISP_V_START, base + CIF_ISP_ICR);
 		isp_mis_tmp = readl(base + CIF_ISP_MIS);
 		if (isp_mis_tmp & CIF_ISP_V_START)
