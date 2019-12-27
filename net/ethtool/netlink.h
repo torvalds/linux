@@ -200,16 +200,130 @@ static inline unsigned int ethnl_reply_header_size(void)
 			      nla_total_size(IFNAMSIZ));
 }
 
+/* GET request handling */
+
+/* Unified processing of GET requests uses two data structures: request info
+ * and reply data. Request info holds information parsed from client request
+ * and its stays constant through all request processing. Reply data holds data
+ * retrieved from ethtool_ops callbacks or other internal sources which is used
+ * to compose the reply. When processing a dump request, request info is filled
+ * only once (when the request message is parsed) but reply data is filled for
+ * each reply message.
+ *
+ * Both structures consist of part common for all request types (struct
+ * ethnl_req_info and struct ethnl_reply_data defined below) and optional
+ * parts specific for each request type. Common part always starts at offset 0.
+ */
+
 /**
  * struct ethnl_req_info - base type of request information for GET requests
  * @dev:   network device the request is for (may be null)
  * @flags: request flags common for all request types
  *
- * This is a common base, additional members may follow after this structure.
+ * This is a common base for request specific structures holding data from
+ * parsed userspace request. These always embed struct ethnl_req_info at
+ * zero offset.
  */
 struct ethnl_req_info {
 	struct net_device	*dev;
 	u32			flags;
+};
+
+/**
+ * struct ethnl_reply_data - base type of reply data for GET requests
+ * @dev:       device for current reply message; in single shot requests it is
+ *             equal to &ethnl_req_info.dev; in dumps it's different for each
+ *             reply message
+ *
+ * This is a common base for request specific structures holding data for
+ * kernel reply message. These always embed struct ethnl_reply_data at zero
+ * offset.
+ */
+struct ethnl_reply_data {
+	struct net_device		*dev;
+};
+
+static inline int ethnl_ops_begin(struct net_device *dev)
+{
+	if (dev && dev->ethtool_ops->begin)
+		return dev->ethtool_ops->begin(dev);
+	else
+		return 0;
+}
+
+static inline void ethnl_ops_complete(struct net_device *dev)
+{
+	if (dev && dev->ethtool_ops->complete)
+		dev->ethtool_ops->complete(dev);
+}
+
+/**
+ * struct ethnl_request_ops - unified handling of GET requests
+ * @request_cmd:      command id for request (GET)
+ * @reply_cmd:        command id for reply (GET_REPLY)
+ * @hdr_attr:         attribute type for request header
+ * @max_attr:         maximum (top level) attribute type
+ * @req_info_size:    size of request info
+ * @reply_data_size:  size of reply data
+ * @request_policy:   netlink policy for message contents
+ * @allow_nodev_do:   allow non-dump request with no device identification
+ * @parse_request:
+ *	Parse request except common header (struct ethnl_req_info). Common
+ *	header is already filled on entry, the rest up to @repdata_offset
+ *	is zero initialized. This callback should only modify type specific
+ *	request info by parsed attributes from request message.
+ * @prepare_data:
+ *	Retrieve and prepare data needed to compose a reply message. Calls to
+ *	ethtool_ops handlers are limited to this callback. Common reply data
+ *	(struct ethnl_reply_data) is filled on entry, type specific part after
+ *	it is zero initialized. This callback should only modify the type
+ *	specific part of reply data. Device identification from struct
+ *	ethnl_reply_data is to be used as for dump requests, it iterates
+ *	through network devices while dev member of struct ethnl_req_info
+ *	points to the device from client request.
+ * @reply_size:
+ *	Estimate reply message size. Returned value must be sufficient for
+ *	message payload without common reply header. The callback may returned
+ *	estimate higher than actual message size if exact calculation would
+ *	not be worth the saved memory space.
+ * @fill_reply:
+ *	Fill reply message payload (except for common header) from reply data.
+ *	The callback must not generate more payload than previously called
+ *	->reply_size() estimated.
+ * @cleanup_data:
+ *	Optional cleanup called when reply data is no longer needed. Can be
+ *	used e.g. to free any additional data structures outside the main
+ *	structure which were allocated by ->prepare_data(). When processing
+ *	dump requests, ->cleanup() is called for each message.
+ *
+ * Description of variable parts of GET request handling when using the
+ * unified infrastructure. When used, a pointer to an instance of this
+ * structure is to be added to &ethnl_default_requests array and generic
+ * handlers ethnl_default_doit(), ethnl_default_dumpit(),
+ * ethnl_default_start() and ethnl_default_done() used in @ethtool_genl_ops.
+ */
+struct ethnl_request_ops {
+	u8			request_cmd;
+	u8			reply_cmd;
+	u16			hdr_attr;
+	unsigned int		max_attr;
+	unsigned int		req_info_size;
+	unsigned int		reply_data_size;
+	const struct nla_policy *request_policy;
+	bool			allow_nodev_do;
+
+	int (*parse_request)(struct ethnl_req_info *req_info,
+			     struct nlattr **tb,
+			     struct netlink_ext_ack *extack);
+	int (*prepare_data)(const struct ethnl_req_info *req_info,
+			    struct ethnl_reply_data *reply_data,
+			    struct genl_info *info);
+	int (*reply_size)(const struct ethnl_req_info *req_info,
+			  const struct ethnl_reply_data *reply_data);
+	int (*fill_reply)(struct sk_buff *skb,
+			  const struct ethnl_req_info *req_info,
+			  const struct ethnl_reply_data *reply_data);
+	void (*cleanup_data)(struct ethnl_reply_data *reply_data);
 };
 
 #endif /* _NET_ETHTOOL_NETLINK_H */
