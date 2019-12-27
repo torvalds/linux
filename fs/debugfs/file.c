@@ -496,10 +496,10 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_u32_wo, NULL, debugfs_u32_set, "%llu\n");
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
+ * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
  * returned.
  *
- * If debugfs is not enabled in the kernel, the value %ERR_PTR(-ENODEV) will
+ * If debugfs is not enabled in the kernel, the value ERR_PTR(-ENODEV) will
  * be returned.
  */
 struct dentry *debugfs_create_u32(const char *name, umode_t mode,
@@ -581,10 +581,10 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_ulong_wo, NULL, debugfs_ulong_set, "%llu\n");
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
+ * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
  * returned.
  *
- * If debugfs is not enabled in the kernel, the value %ERR_PTR(-ENODEV) will
+ * If debugfs is not enabled in the kernel, the value ERR_PTR(-ENODEV) will
  * be returned.
  */
 struct dentry *debugfs_create_ulong(const char *name, umode_t mode,
@@ -846,10 +846,10 @@ static const struct file_operations fops_bool_wo = {
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
+ * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
  * returned.
  *
- * If debugfs is not enabled in the kernel, the value %ERR_PTR(-ENODEV) will
+ * If debugfs is not enabled in the kernel, the value ERR_PTR(-ENODEV) will
  * be returned.
  */
 struct dentry *debugfs_create_bool(const char *name, umode_t mode,
@@ -899,10 +899,10 @@ static const struct file_operations fops_blob = {
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
+ * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
  * returned.
  *
- * If debugfs is not enabled in the kernel, the value %ERR_PTR(-ENODEV) will
+ * If debugfs is not enabled in the kernel, the value ERR_PTR(-ENODEV) will
  * be returned.
  */
 struct dentry *debugfs_create_blob(const char *name, umode_t mode,
@@ -1091,10 +1091,10 @@ static const struct file_operations fops_regset32 = {
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, %ERR_PTR(-ERROR) will be
+ * you are responsible here.)  If an error occurs, ERR_PTR(-ERROR) will be
  * returned.
  *
- * If debugfs is not enabled in the kernel, the value %ERR_PTR(-ENODEV) will
+ * If debugfs is not enabled in the kernel, the value ERR_PTR(-ENODEV) will
  * be returned.
  */
 struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
@@ -1158,4 +1158,3 @@ struct dentry *debugfs_create_devm_seqfile(struct device *dev, const char *name,
 				   &debugfs_devm_entry_ops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_devm_seqfile);
-
