@@ -49,12 +49,13 @@
 
 /* The index of the last real chain (FT) + 1 as chain zero is valid as well */
 #define FDB_NUM_CHAINS (FDB_FT_CHAIN + 1)
-#define ESW_OFFLOADS_NUM_GROUPS  4
 
 #define FDB_TC_MAX_PRIO 16
 #define FDB_TC_LEVELS_PER_PRIO 2
 
 #ifdef CONFIG_MLX5_ESWITCH
+
+#define ESW_OFFLOADS_DEFAULT_NUM_GROUPS 15
 
 #define MLX5_MAX_UC_PER_VPORT(dev) \
 	(1 << MLX5_CAP_GEN(dev, log_max_current_uc_list))
@@ -262,6 +263,9 @@ struct mlx5_eswitch {
 	u16                     manager_vport;
 	u16                     first_host_vport;
 	struct mlx5_esw_functions esw_funcs;
+	struct {
+		u32             large_group_num;
+	}  params;
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);

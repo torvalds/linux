@@ -71,13 +71,15 @@ struct mlx5_vport_table {
 	struct mlx5_vport_key key;
 };
 
+#define MLX5_ESW_VPORT_TBL_NUM_GROUPS  4
+
 static struct mlx5_flow_table *
 esw_vport_tbl_create(struct mlx5_eswitch *esw, struct mlx5_flow_namespace *ns)
 {
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_table *fdb;
 
-	ft_attr.autogroup.max_num_groups = ESW_OFFLOADS_NUM_GROUPS;
+	ft_attr.autogroup.max_num_groups = MLX5_ESW_VPORT_TBL_NUM_GROUPS;
 	ft_attr.max_fte = MLX5_ESW_VPORT_TABLE_SIZE;
 	ft_attr.prio = FDB_PER_VPORT;
 	fdb = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);

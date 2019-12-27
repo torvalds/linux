@@ -190,11 +190,6 @@ static int mlx5_devlink_fs_mode_get(struct devlink *devlink, u32 id,
 	return 0;
 }
 
-enum mlx5_devlink_param_id {
-	MLX5_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
-	MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
-};
-
 static int mlx5_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
 					     union devlink_param_value val,
 					     struct netlink_ext_ack *extack)
@@ -210,6 +205,23 @@ static int mlx5_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
 	return 0;
 }
 
+#ifdef CONFIG_MLX5_ESWITCH
+static int mlx5_devlink_large_group_num_validate(struct devlink *devlink, u32 id,
+						 union devlink_param_value val,
+						 struct netlink_ext_ack *extack)
+{
+	int group_num = val.vu32;
+
+	if (group_num < 1 || group_num > 1024) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Unsupported group number, supported range is 1-1024");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+#endif
+
 static const struct devlink_param mlx5_devlink_params[] = {
 	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
 			     "flow_steering_mode", DEVLINK_PARAM_TYPE_STRING,
@@ -218,6 +230,13 @@ static const struct devlink_param mlx5_devlink_params[] = {
 			     mlx5_devlink_fs_mode_validate),
 	DEVLINK_PARAM_GENERIC(ENABLE_ROCE, BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
 			      NULL, NULL, mlx5_devlink_enable_roce_validate),
+#ifdef CONFIG_MLX5_ESWITCH
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_ESW_LARGE_GROUP_NUM,
+			     "fdb_large_groups", DEVLINK_PARAM_TYPE_U32,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			     NULL, NULL,
+			     mlx5_devlink_large_group_num_validate),
+#endif
 };
 
 static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
@@ -237,6 +256,13 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 	devlink_param_driverinit_value_set(devlink,
 					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
 					   value);
+
+#ifdef CONFIG_MLX5_ESWITCH
+	value.vu32 = ESW_OFFLOADS_DEFAULT_NUM_GROUPS;
+	devlink_param_driverinit_value_set(devlink,
+					   MLX5_DEVLINK_PARAM_ID_ESW_LARGE_GROUP_NUM,
+					   value);
+#endif
 }
 
 int mlx5_devlink_register(struct devlink *devlink, struct device *dev)

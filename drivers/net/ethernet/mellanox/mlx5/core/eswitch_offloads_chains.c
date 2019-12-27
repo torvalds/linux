@@ -237,7 +237,7 @@ mlx5_esw_chains_create_fdb_table(struct mlx5_eswitch *esw,
 	}
 
 	ft_attr.autogroup.num_reserved_entries = 2;
-	ft_attr.autogroup.max_num_groups = ESW_OFFLOADS_NUM_GROUPS;
+	ft_attr.autogroup.max_num_groups = esw->params.large_group_num;
 	fdb = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(fdb)) {
 		esw_warn(esw->dev,
@@ -640,7 +640,7 @@ mlx5_esw_chains_init(struct mlx5_eswitch *esw)
 
 	esw_debug(dev,
 		  "Init esw offloads chains, max counters(%d), groups(%d), max flow table size(%d)\n",
-		  max_flow_counter, ESW_OFFLOADS_NUM_GROUPS, fdb_max);
+		  max_flow_counter, esw->params.large_group_num, fdb_max);
 
 	mlx5_esw_chains_init_sz_pool(esw);
 
