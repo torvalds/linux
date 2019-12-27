@@ -234,7 +234,7 @@ int sja1105_ptp_commit(struct dsa_switch *ds, struct sja1105_ptp_cmd *cmd,
 	if (rw == SPI_WRITE)
 		priv->info->ptp_cmd_packing(buf, cmd, PACK);
 
-	rc = sja1105_xfer_buf(priv, SPI_WRITE, regs->ptp_control, buf,
+	rc = sja1105_xfer_buf(priv, rw, regs->ptp_control, buf,
 			      SJA1105_SIZE_PTP_CMD);
 
 	if (rw == SPI_READ)
