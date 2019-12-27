@@ -367,12 +367,16 @@ static void print_context_stats(struct seq_file *m,
 static int i915_gem_object_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct intel_memory_region *mr;
+	enum intel_region_id id;
 
 	seq_printf(m, "%u shrinkable [%u free] objects, %llu bytes\n",
 		   i915->mm.shrink_count,
 		   atomic_read(&i915->mm.free_count),
 		   i915->mm.shrink_memory);
-
+	for_each_memory_region(mr, i915, id)
+		seq_printf(m, "%s: total:%pa, available:%pa bytes\n",
+			   mr->name, &mr->total, &mr->avail);
 	seq_putc(m, '\n');
 
 	print_context_stats(m, i915);

@@ -594,6 +594,8 @@ static int init_shmem(struct intel_memory_region *mem)
 			 err);
 	}
 
+	intel_memory_region_set_name(mem, "system");
+
 	return 0; /* Don't error, we can simply fallback to the kernel mnt */
 }
 

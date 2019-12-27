@@ -90,6 +90,8 @@ region_lmem_init(struct intel_memory_region *mem)
 	if (ret)
 		io_mapping_fini(&mem->iomap);
 
+	intel_memory_region_set_name(mem, "local");
+
 	return ret;
 }
 

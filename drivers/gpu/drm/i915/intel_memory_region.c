@@ -37,7 +37,7 @@ __intel_memory_region_put_pages_buddy(struct intel_memory_region *mem,
 				      struct list_head *blocks)
 {
 	mutex_lock(&mem->mm_lock);
-	intel_memory_region_free_pages(mem, blocks);
+	mem->avail += intel_memory_region_free_pages(mem, blocks);
 	mutex_unlock(&mem->mm_lock);
 }
 
@@ -106,6 +106,7 @@ __intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
 			break;
 	} while (1);
 
+	mem->avail -= size;
 	mutex_unlock(&mem->mm_lock);
 	return 0;
 
@@ -164,6 +165,8 @@ intel_memory_region_create(struct drm_i915_private *i915,
 	mem->io_start = io_start;
 	mem->min_page_size = min_page_size;
 	mem->ops = ops;
+	mem->total = size;
+	mem->avail = mem->total;
 
 	mutex_init(&mem->objects.lock);
 	INIT_LIST_HEAD(&mem->objects.list);
@@ -183,6 +186,16 @@ intel_memory_region_create(struct drm_i915_private *i915,
 err_free:
 	kfree(mem);
 	return ERR_PTR(err);
+}
+
+void intel_memory_region_set_name(struct intel_memory_region *mem,
+				  const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(mem->name, sizeof(mem->name), fmt, ap);
+	va_end(ap);
 }
 
 static void __intel_memory_region_destroy(struct kref *kref)
