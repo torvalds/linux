@@ -516,12 +516,13 @@ static void bch2_write_done(struct closure *cl)
 
 	bch2_time_stats_update(&c->times[BCH_TIME_data_write], op->start_time);
 
-	if (op->end_io)
-		op->end_io(op);
-	if (cl->parent)
-		closure_return(cl);
-	else
+	if (op->end_io) {
+		EBUG_ON(cl->parent);
 		closure_debug_destroy(cl);
+		op->end_io(op);
+	} else {
+		closure_return(cl);
+	}
 }
 
 /**
@@ -1234,12 +1235,14 @@ void bch2_write(struct closure *cl)
 err:
 	if (!(op->flags & BCH_WRITE_NOPUT_RESERVATION))
 		bch2_disk_reservation_put(c, &op->res);
-	if (op->end_io)
-		op->end_io(op);
-	if (cl->parent)
-		closure_return(cl);
-	else
+
+	if (op->end_io) {
+		EBUG_ON(cl->parent);
 		closure_debug_destroy(cl);
+		op->end_io(op);
+	} else {
+		closure_return(cl);
+	}
 }
 
 /* Cache promotion on read */
