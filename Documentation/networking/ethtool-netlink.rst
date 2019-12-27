@@ -183,6 +183,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_LINKINFO_GET``          get link settings
   ``ETHTOOL_MSG_LINKINFO_SET``          set link settings
   ``ETHTOOL_MSG_LINKMODES_GET``         get link modes info
+  ``ETHTOOL_MSG_LINKMODES_SET``         set link modes info
   ===================================== ================================
 
 Kernel to userspace:
@@ -366,6 +367,30 @@ list.
 devices supporting the request).
 
 
+LINKMODES_SET
+=============
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_LINKMODES_HEADER``        nested  request header
+  ``ETHTOOL_A_LINKMODES_AUTONEG``       u8      autonegotiation status
+  ``ETHTOOL_A_LINKMODES_OURS``          bitset  advertised link modes
+  ``ETHTOOL_A_LINKMODES_PEER``          bitset  partner link modes
+  ``ETHTOOL_A_LINKMODES_SPEED``         u32     link speed (Mb/s)
+  ``ETHTOOL_A_LINKMODES_DUPLEX``        u8      duplex mode
+  ====================================  ======  ==========================
+
+``ETHTOOL_A_LINKMODES_OURS`` bit set allows setting advertised link modes. If
+autonegotiation is on (either set now or kept from before), advertised modes
+are not changed (no ``ETHTOOL_A_LINKMODES_OURS`` attribute) and at least one
+of speed and duplex is specified, kernel adjusts advertised modes to all
+supported modes matching speed, duplex or both (whatever is specified). This
+autoselection is done on ethtool side with ioctl interface, netlink interface
+is supposed to allow requesting changes without knowing what exactly kernel
+supports.
+
+
 Request translation
 ===================
 
@@ -379,6 +404,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GSET``                    ``ETHTOOL_MSG_LINKINFO_GET``
                                       ``ETHTOOL_MSG_LINKMODES_GET``
   ``ETHTOOL_SSET``                    ``ETHTOOL_MSG_LINKINFO_SET``
+                                      ``ETHTOOL_MSG_LINKMODES_SET``
   ``ETHTOOL_GDRVINFO``                n/a
   ``ETHTOOL_GREGS``                   n/a
   ``ETHTOOL_GWOL``                    n/a
@@ -454,6 +480,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GLINKSETTINGS``           ``ETHTOOL_MSG_LINKINFO_GET``
                                       ``ETHTOOL_MSG_LINKMODES_GET``
   ``ETHTOOL_SLINKSETTINGS``           ``ETHTOOL_MSG_LINKINFO_SET``
+                                      ``ETHTOOL_MSG_LINKMODES_SET``
   ``ETHTOOL_PHY_GTUNABLE``            n/a
   ``ETHTOOL_PHY_STUNABLE``            n/a
   ``ETHTOOL_GFECPARAM``               n/a
