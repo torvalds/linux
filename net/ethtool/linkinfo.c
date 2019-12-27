@@ -155,6 +155,8 @@ int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info)
 	ret = dev->ethtool_ops->set_link_ksettings(dev, &ksettings);
 	if (ret < 0)
 		GENL_SET_ERR_MSG(info, "link settings update failed");
+	else
+		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
 
 out_ops:
 	ethnl_ops_complete(dev);

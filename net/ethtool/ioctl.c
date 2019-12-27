@@ -26,6 +26,7 @@
 #include <net/devlink.h>
 #include <net/xdp_sock.h>
 #include <net/flow_offload.h>
+#include <linux/ethtool_netlink.h>
 
 #include "common.h"
 
@@ -571,7 +572,10 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 	    != link_ksettings.base.link_mode_masks_nwords)
 		return -EINVAL;
 
-	return dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
+	err = dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
+	if (err >= 0)
+		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
+	return err;
 }
 
 /* Query device for its ethtool_cmd settings.
@@ -620,6 +624,7 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_link_ksettings link_ksettings;
 	struct ethtool_cmd cmd;
+	int ret;
 
 	ASSERT_RTNL();
 
@@ -632,7 +637,10 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 		return -EINVAL;
 	link_ksettings.base.link_mode_masks_nwords =
 		__ETHTOOL_LINK_MODE_MASK_NU32;
-	return dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
+	ret = dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
+	if (ret >= 0)
+		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
+	return ret;
 }
 
 static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
