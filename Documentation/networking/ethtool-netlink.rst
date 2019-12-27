@@ -180,12 +180,14 @@ Userspace to kernel:
 
   ===================================== ================================
   ``ETHTOOL_MSG_STRSET_GET``            get string set
+  ``ETHTOOL_MSG_LINKINFO_GET``          get link settings
   ===================================== ================================
 
 Kernel to userspace:
 
   ===================================== ================================
   ``ETHTOOL_MSG_STRSET_GET_REPLY``      string set contents
+  ``ETHTOOL_MSG_LINKINFO_GET_REPLY``    link settings
   ===================================== ================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -278,6 +280,37 @@ Flag ``ETHTOOL_A_STRSET_COUNTS_ONLY`` tells kernel to only return string
 counts of the sets, not the actual strings.
 
 
+LINKINFO_GET
+============
+
+Requests link settings as provided by ``ETHTOOL_GLINKSETTINGS`` except for
+link modes and autonegotiation related information. The request does not use
+any attributes.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_LINKINFO_HEADER``         nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_LINKINFO_HEADER``         nested  reply header
+  ``ETHTOOL_A_LINKINFO_PORT``           u8      physical port
+  ``ETHTOOL_A_LINKINFO_PHYADDR``        u8      phy MDIO address
+  ``ETHTOOL_A_LINKINFO_TP_MDIX``        u8      MDI(-X) status
+  ``ETHTOOL_A_LINKINFO_TP_MDIX_CTRL``   u8      MDI(-X) control
+  ``ETHTOOL_A_LINKINFO_TRANSCEIVER``    u8      transceiver
+  ====================================  ======  ==========================
+
+Attributes and their values have the same meaning as matching members of the
+corresponding ioctl structures.
+
+``LINKINFO_GET`` allows dump requests (kernel returns reply message for all
+devices supporting the request).
+
+
 Request translation
 ===================
 
@@ -288,7 +321,7 @@ have their netlink replacement yet.
   =================================== =====================================
   ioctl command                       netlink command
   =================================== =====================================
-  ``ETHTOOL_GSET``                    n/a
+  ``ETHTOOL_GSET``                    ``ETHTOOL_MSG_LINKINFO_GET``
   ``ETHTOOL_SSET``                    n/a
   ``ETHTOOL_GDRVINFO``                n/a
   ``ETHTOOL_GREGS``                   n/a
@@ -362,7 +395,7 @@ have their netlink replacement yet.
   ``ETHTOOL_STUNABLE``                n/a
   ``ETHTOOL_GPHYSTATS``               n/a
   ``ETHTOOL_PERQUEUE``                n/a
-  ``ETHTOOL_GLINKSETTINGS``           n/a
+  ``ETHTOOL_GLINKSETTINGS``           ``ETHTOOL_MSG_LINKINFO_GET``
   ``ETHTOOL_SLINKSETTINGS``           n/a
   ``ETHTOOL_PHY_GTUNABLE``            n/a
   ``ETHTOOL_PHY_STUNABLE``            n/a

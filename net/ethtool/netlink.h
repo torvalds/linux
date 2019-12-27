@@ -329,5 +329,6 @@ struct ethnl_request_ops {
 /* request handlers */
 
 extern const struct ethnl_request_ops ethnl_strset_request_ops;
+extern const struct ethnl_request_ops ethnl_linkinfo_request_ops;
 
 #endif /* _NET_ETHTOOL_NETLINK_H */
