@@ -664,7 +664,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	i915_gem_object_unlock(obj);
 
 	if (write_domain)
-		intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
+		i915_gem_object_invalidate_frontbuffer(obj, ORIGIN_CPU);
 
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
@@ -784,7 +784,7 @@ int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
 	}
 
 out:
-	intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
+	i915_gem_object_invalidate_frontbuffer(obj, ORIGIN_CPU);
 	obj->mm.dirty = true;
 	/* return with the pages pinned */
 	return 0;

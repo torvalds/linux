@@ -279,12 +279,21 @@ static void intel_overlay_flip_prepare(struct intel_overlay *overlay,
 				       struct i915_vma *vma)
 {
 	enum pipe pipe = overlay->crtc->pipe;
+	struct intel_frontbuffer *from = NULL, *to = NULL;
 
 	WARN_ON(overlay->old_vma);
 
-	intel_frontbuffer_track(overlay->vma ? overlay->vma->obj->frontbuffer : NULL,
-				vma ? vma->obj->frontbuffer : NULL,
-				INTEL_FRONTBUFFER_OVERLAY(pipe));
+	if (overlay->vma)
+		from = intel_frontbuffer_get(overlay->vma->obj);
+	if (vma)
+		to = intel_frontbuffer_get(vma->obj);
+
+	intel_frontbuffer_track(from, to, INTEL_FRONTBUFFER_OVERLAY(pipe));
+
+	if (to)
+		intel_frontbuffer_put(to);
+	if (from)
+		intel_frontbuffer_put(from);
 
 	intel_frontbuffer_flip_prepare(overlay->i915,
 				       INTEL_FRONTBUFFER_OVERLAY(pipe));
@@ -766,7 +775,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 		ret = PTR_ERR(vma);
 		goto out_pin_section;
 	}
-	intel_frontbuffer_flush(new_bo->frontbuffer, ORIGIN_DIRTYFB);
+	i915_gem_object_flush_frontbuffer(new_bo, ORIGIN_DIRTYFB);
 
 	if (!overlay->active) {
 		u32 oconfig;
