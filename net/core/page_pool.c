@@ -113,7 +113,12 @@ static struct page *page_pool_refill_alloc_cache(struct page_pool *pool,
 	/* Softirq guarantee CPU and thus NUMA node is stable. This,
 	 * assumes CPU refilling driver RX-ring will also run RX-NAPI.
 	 */
+#ifdef CONFIG_NUMA
 	pref_nid = (pool->p.nid == NUMA_NO_NODE) ? numa_mem_id() : pool->p.nid;
+#else
+	/* Ignore pool->p.nid setting if !CONFIG_NUMA, helps compiler */
+	pref_nid = numa_mem_id(); /* will be zero like page_to_nid() */
+#endif
 
 	/* Slower-path: Get pages from locked ring queue */
 	spin_lock(&r->consumer_lock);
@@ -200,7 +205,11 @@ static struct page *__page_pool_alloc_pages_slow(struct page_pool *pool,
 	 */
 
 	/* Cache was empty, do real allocation */
+#ifdef CONFIG_NUMA
 	page = alloc_pages_node(pool->p.nid, gfp, pool->p.order);
+#else
+	page = alloc_pages(gfp, pool->p.order);
+#endif
 	if (!page)
 		return NULL;
 
