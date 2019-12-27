@@ -176,6 +176,18 @@ according to message purpose:
   ``_NTF``          kernel notification
   ==============    ======================================
 
+Userspace to kernel:
+
+  ===================================== ================================
+  ``ETHTOOL_MSG_STRSET_GET``            get string set
+  ===================================== ================================
+
+Kernel to userspace:
+
+  ===================================== ================================
+  ``ETHTOOL_MSG_STRSET_GET_REPLY``      string set contents
+  ===================================== ================================
+
 ``GET`` requests are sent by userspace applications to retrieve device
 information. They usually do not contain any message specific attributes.
 Kernel replies with corresponding "GET_REPLY" message. For most types, ``GET``
@@ -205,6 +217,65 @@ an ``ACT_REPLY`` message. Performing an action also triggers a notification
 (``NTF`` message).
 
 Later sections describe the format and semantics of these messages.
+
+
+STRSET_GET
+==========
+
+Requests contents of a string set as provided by ioctl commands
+``ETHTOOL_GSSET_INFO`` and ``ETHTOOL_GSTRINGS.`` String sets are not user
+writeable so that the corresponding ``STRSET_SET`` message is only used in
+kernel replies. There are two types of string sets: global (independent of
+a device, e.g. device feature names) and device specific (e.g. device private
+flags).
+
+Request contents:
+
+ +---------------------------------------+--------+------------------------+
+ | ``ETHTOOL_A_STRSET_HEADER``           | nested | request header         |
+ +---------------------------------------+--------+------------------------+
+ | ``ETHTOOL_A_STRSET_STRINGSETS``       | nested | string set to request  |
+ +-+-------------------------------------+--------+------------------------+
+ | | ``ETHTOOL_A_STRINGSETS_STRINGSET+`` | nested | one string set         |
+ +-+-+-----------------------------------+--------+------------------------+
+ | | | ``ETHTOOL_A_STRINGSET_ID``        | u32    | set id                 |
+ +-+-+-----------------------------------+--------+------------------------+
+
+Kernel response contents:
+
+ +---------------------------------------+--------+-----------------------+
+ | ``ETHTOOL_A_STRSET_HEADER``           | nested | reply header          |
+ +---------------------------------------+--------+-----------------------+
+ | ``ETHTOOL_A_STRSET_STRINGSETS``       | nested | array of string sets  |
+ +-+-------------------------------------+--------+-----------------------+
+ | | ``ETHTOOL_A_STRINGSETS_STRINGSET+`` | nested | one string set        |
+ +-+-+-----------------------------------+--------+-----------------------+
+ | | | ``ETHTOOL_A_STRINGSET_ID``        | u32    | set id                |
+ +-+-+-----------------------------------+--------+-----------------------+
+ | | | ``ETHTOOL_A_STRINGSET_COUNT``     | u32    | number of strings     |
+ +-+-+-----------------------------------+--------+-----------------------+
+ | | | ``ETHTOOL_A_STRINGSET_STRINGS``   | nested | array of strings      |
+ +-+-+-+---------------------------------+--------+-----------------------+
+ | | | | ``ETHTOOL_A_STRINGS_STRING+``   | nested | one string            |
+ +-+-+-+-+-------------------------------+--------+-----------------------+
+ | | | | | ``ETHTOOL_A_STRING_INDEX``    | u32    | string index          |
+ +-+-+-+-+-------------------------------+--------+-----------------------+
+ | | | | | ``ETHTOOL_A_STRING_VALUE``    | string | string value          |
+ +-+-+-+-+-------------------------------+--------+-----------------------+
+ | ``ETHTOOL_A_STRSET_COUNTS_ONLY``      | flag   | return only counts    |
+ +---------------------------------------+--------+-----------------------+
+
+Device identification in request header is optional. Depending on its presence
+a and ``NLM_F_DUMP`` flag, there are three type of ``STRSET_GET`` requests:
+
+ - no ``NLM_F_DUMP,`` no device: get "global" stringsets
+ - no ``NLM_F_DUMP``, with device: get string sets related to the device
+ - ``NLM_F_DUMP``, no device: get device related string sets for all devices
+
+If there is no ``ETHTOOL_A_STRSET_STRINGSETS`` array, all string sets of
+requested type are returned, otherwise only those specified in the request.
+Flag ``ETHTOOL_A_STRSET_COUNTS_ONLY`` tells kernel to only return string
+counts of the sets, not the actual strings.
 
 
 Request translation
@@ -242,7 +313,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GSG``                     n/a
   ``ETHTOOL_SSG``                     n/a
   ``ETHTOOL_TEST``                    n/a
-  ``ETHTOOL_GSTRINGS``                n/a
+  ``ETHTOOL_GSTRINGS``                ``ETHTOOL_MSG_STRSET_GET``
   ``ETHTOOL_PHYS_ID``                 n/a
   ``ETHTOOL_GSTATS``                  n/a
   ``ETHTOOL_GTSO``                    n/a
@@ -270,7 +341,7 @@ have their netlink replacement yet.
   ``ETHTOOL_RESET``                   n/a
   ``ETHTOOL_SRXNTUPLE``               n/a
   ``ETHTOOL_GRXNTUPLE``               n/a
-  ``ETHTOOL_GSSET_INFO``              n/a
+  ``ETHTOOL_GSSET_INFO``              ``ETHTOOL_MSG_STRSET_GET``
   ``ETHTOOL_GRXFHINDIR``              n/a
   ``ETHTOOL_SRXFHINDIR``              n/a
   ``ETHTOOL_GFEATURES``               n/a
