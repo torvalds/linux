@@ -1855,7 +1855,7 @@ static netdev_tx_t sja1105_port_deferred_xmit(struct dsa_switch *ds, int port,
 	if (!clone)
 		goto out;
 
-	sja1105_ptp_txtstamp_skb(ds, slot, clone);
+	sja1105_ptp_txtstamp_skb(ds, port, clone);
 
 out:
 	mutex_unlock(&priv->mgmt_lock);
