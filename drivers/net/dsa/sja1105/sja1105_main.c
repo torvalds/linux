@@ -1569,8 +1569,8 @@ static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 
 	if (enabled) {
 		/* Enable VLAN filtering. */
-		tpid  = ETH_P_8021AD;
-		tpid2 = ETH_P_8021Q;
+		tpid  = ETH_P_8021Q;
+		tpid2 = ETH_P_8021AD;
 	} else {
 		/* Disable VLAN filtering. */
 		tpid  = ETH_P_SJA1105;
@@ -1579,9 +1579,9 @@ static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
 	general_params = table->entries;
-	/* EtherType used to identify outer tagged (S-tag) VLAN traffic */
-	general_params->tpid = tpid;
 	/* EtherType used to identify inner tagged (C-tag) VLAN traffic */
+	general_params->tpid = tpid;
+	/* EtherType used to identify outer tagged (S-tag) VLAN traffic */
 	general_params->tpid2 = tpid2;
 	/* When VLAN filtering is on, we need to at least be able to
 	 * decode management traffic through the "backup plan".
