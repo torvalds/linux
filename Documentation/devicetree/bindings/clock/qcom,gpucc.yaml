@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - qcom,msm8998-gpucc
+      - qcom,sc7180-gpucc
       - qcom,sdm845-gpucc
 
   clocks:
