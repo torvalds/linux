@@ -16912,8 +16912,11 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	}
 
 	/* FIXME need to adjust LINOFF/TILEOFF accordingly. */
-	if (mode_cmd->offsets[0] != 0)
+	if (mode_cmd->offsets[0] != 0) {
+		DRM_DEBUG_KMS("plane 0 offset (0x%08x) must be 0\n",
+			      mode_cmd->offsets[0]);
 		goto err;
+	}
 
 	drm_helper_mode_fill_fb_struct(&dev_priv->drm, fb, mode_cmd);
 
