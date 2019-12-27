@@ -46,10 +46,22 @@ struct mpp_dma_session {
 	struct device *dev;
 };
 
+struct mpp_rk_iommu {
+	struct list_head link;
+	u32 grf_val;
+	int mmu_num;
+	u32 base_addr[2];
+	void __iomem *bases[2];
+	u32 dte_addr;
+	u32 is_paged;
+};
+
 struct mpp_iommu_info {
-	struct device	*dev;
+	struct device *dev;
+	struct platform_device *pdev;
 	struct iommu_domain *domain;
 	struct iommu_group *group;
+	struct mpp_rk_iommu *iommu;
 };
 
 struct mpp_dma_session *
@@ -77,5 +89,10 @@ int mpp_iommu_remove(struct mpp_iommu_info *info);
 
 int mpp_iommu_attach(struct mpp_iommu_info *info);
 int mpp_iommu_detach(struct mpp_iommu_info *info);
+
+bool mpp_iommu_is_paged(struct mpp_rk_iommu *iommu);
+u32 mpp_iommu_get_dte_addr(struct mpp_rk_iommu *iommu);
+int mpp_iommu_enable(struct mpp_rk_iommu *iommu);
+int mpp_iommu_disable(struct mpp_rk_iommu *iommu);
 
 #endif

@@ -483,6 +483,12 @@ static int vepu_init(struct mpp_dev *mpp)
 	return 0;
 }
 
+static int vepu_px30_init(struct mpp_dev *mpp)
+{
+	vepu_init(mpp);
+	return px30_workaround_combo_init(mpp);
+}
+
 static int vepu_power_on(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
@@ -571,6 +577,17 @@ static struct mpp_hw_ops vepu_v2_hw_ops = {
 	.reset = vepu_reset,
 };
 
+static struct mpp_hw_ops vepu_px30_hw_ops = {
+	.init = vepu_px30_init,
+	.power_on = vepu_power_on,
+	.power_off = vepu_power_off,
+	.get_freq = vepu_get_freq,
+	.set_freq = vepu_set_freq,
+	.reduce_freq = vepu_reduce_freq,
+	.reset = vepu_reset,
+	.set_grf = px30_workaround_combo_switch_grf,
+};
+
 static struct mpp_dev_ops vepu_v2_dev_ops = {
 	.alloc_task = vepu_alloc_task,
 	.prepare = vepu_prepare,
@@ -590,10 +607,22 @@ static const struct mpp_dev_var vepu_v2_data = {
 	.dev_ops = &vepu_v2_dev_ops,
 };
 
+static const struct mpp_dev_var vepu_px30_data = {
+	.device_type = MPP_DEVICE_VEPU2,
+	.hw_info = &vepu_v2_hw_info,
+	.trans_info = trans_rk_vepu2,
+	.hw_ops = &vepu_px30_hw_ops,
+	.dev_ops = &vepu_v2_dev_ops,
+};
+
 static const struct of_device_id mpp_vepu2_dt_match[] = {
 	{
 		.compatible = "rockchip,vpu-encoder-v2",
 		.data = &vepu_v2_data,
+	},
+	{
+		.compatible = "rockchip,vpu-encoder-px30",
+		.data = &vepu_px30_data,
 	},
 	{},
 };

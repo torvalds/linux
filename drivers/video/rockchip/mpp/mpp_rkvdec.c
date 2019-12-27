@@ -1166,6 +1166,12 @@ static int rkvdec_init(struct mpp_dev *mpp)
 	return 0;
 }
 
+static int rkvdec_px30_init(struct mpp_dev *mpp)
+{
+	rkvdec_init(mpp);
+	return px30_workaround_combo_init(mpp);
+}
+
 static int rkvdec_3328_iommu_hdl(struct iommu_domain *iommu,
 				 struct device *iommu_dev,
 				 unsigned long iova,
@@ -1522,6 +1528,17 @@ static struct mpp_hw_ops rkvdec_v1_hw_ops = {
 	.reset = rkvdec_reset,
 };
 
+static struct mpp_hw_ops rkvdec_px30_hw_ops = {
+	.init = rkvdec_px30_init,
+	.power_on = rkvdec_power_on,
+	.power_off = rkvdec_power_off,
+	.get_freq = rkvdec_get_freq,
+	.set_freq = rkvdec_set_freq,
+	.reduce_freq = rkvdec_reduce_freq,
+	.reset = rkvdec_reset,
+	.set_grf = px30_workaround_combo_switch_grf,
+};
+
 static struct mpp_hw_ops rkvdec_3399_hw_ops = {
 	.init = rkvdec_init,
 	.power_on = rkvdec_power_on,
@@ -1573,6 +1590,14 @@ static const struct mpp_dev_var rk_hevcdec_data = {
 	.dev_ops = &rkvdec_v1_dev_ops,
 };
 
+static const struct mpp_dev_var rk_hevcdec_px30_data = {
+	.device_type = MPP_DEVICE_HEVC_DEC,
+	.hw_info = &rk_hevcdec_hw_info,
+	.trans_info = rk_hevcdec_trans,
+	.hw_ops = &rkvdec_px30_hw_ops,
+	.dev_ops = &rkvdec_v1_dev_ops,
+};
+
 static const struct mpp_dev_var rkvdec_v1_data = {
 	.device_type = MPP_DEVICE_RKVDEC,
 	.hw_info = &rkvdec_v1_hw_info,
@@ -1601,6 +1626,10 @@ static const struct of_device_id mpp_rkvdec_dt_match[] = {
 	{
 		.compatible = "rockchip,hevc-decoder",
 		.data = &rk_hevcdec_data,
+	},
+	{
+		.compatible = "rockchip,hevc-decoder-px30",
+		.data = &rk_hevcdec_px30_data,
 	},
 	{
 		.compatible = "rockchip,rkv-decoder-v1",

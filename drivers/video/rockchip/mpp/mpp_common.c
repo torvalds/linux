@@ -388,7 +388,10 @@ static int mpp_dev_reset(struct mpp_dev *mpp)
 	 * before running, we have to switch grf ctrl bit to ensure
 	 * working in current hardware
 	 */
-	mpp_set_grf(mpp->grf_info);
+	if (mpp->hw_ops->set_grf)
+		mpp->hw_ops->set_grf(mpp);
+	else
+		mpp_set_grf(mpp->grf_info);
 
 	if (mpp->hw_ops->reduce_freq)
 		mpp->hw_ops->reduce_freq(mpp);
@@ -457,7 +460,15 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	 * before running, we have to switch grf ctrl bit to ensure
 	 * working in current hardware
 	 */
-	mpp_set_grf(mpp->grf_info);
+	if (mpp->hw_ops->set_grf) {
+		ret = mpp->hw_ops->set_grf(mpp);
+		if (ret) {
+			dev_err(mpp->dev, "set grf failed\n");
+			return ret;
+		}
+	} else {
+		mpp_set_grf(mpp->grf_info);
+	}
 	/*
 	 * for iommu share hardware, should attach to ensure
 	 * working in current device
@@ -664,6 +675,7 @@ int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 	mutex_init(&queue->lock);
 	atomic_set(&queue->running, 0);
 	INIT_LIST_HEAD(&queue->pending);
+	INIT_LIST_HEAD(&queue->mmu_link);
 	INIT_WORK(&queue->work, mpp_task_try_run);
 
 	queue->srv = srv;
@@ -1469,6 +1481,20 @@ int mpp_safe_unreset(struct reset_control *rst)
 	return 0;
 }
 
+#define MPP_GRF_VAL_MASK	0xFFFF
+
+u32 mpp_get_grf(struct mpp_grf_info *grf_info)
+{
+	u32 val = 0;
+
+	if (grf_info->grf && grf_info->val)
+		regmap_read(grf_info->grf,
+			    grf_info->offset,
+			    &val);
+
+	return (val & MPP_GRF_VAL_MASK);
+}
+
 int mpp_set_grf(struct mpp_grf_info *grf_info)
 {
 	if (grf_info->grf && grf_info->val)
@@ -1524,4 +1550,86 @@ int mpp_read_req(struct mpp_dev *mpp, u32 *regs,
 		regs[i] = mpp_read_relaxed(mpp, i * sizeof(u32));
 
 	return 0;
+}
+
+int px30_workaround_combo_init(struct mpp_dev *mpp)
+{
+	struct mpp_rk_iommu *iommu = NULL, *loop = NULL, *n;
+	struct platform_device *pdev = mpp->iommu_info->pdev;
+
+	/* find whether exist in iommu link */
+	list_for_each_entry_safe(loop, n, &mpp->queue->mmu_link, link) {
+		if (loop->base_addr[0] == pdev->resource[0].start) {
+			iommu = loop;
+			break;
+		}
+	}
+	/* if not exist, add it */
+	if (!iommu) {
+		int i;
+		struct resource *res;
+		void __iomem *base;
+
+		iommu = devm_kzalloc(mpp->srv->dev, sizeof(*iommu), GFP_KERNEL);
+		for (i = 0; i < pdev->num_resources; i++) {
+			res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+			if (!res)
+				continue;
+			base = devm_ioremap(&pdev->dev,
+					    res->start, resource_size(res));
+			if (IS_ERR(base))
+				continue;
+			iommu->base_addr[i] = res->start;
+			iommu->bases[i] = base;
+			iommu->mmu_num++;
+		}
+		iommu->grf_val = mpp->grf_info->val & MPP_GRF_VAL_MASK;
+		iommu->dte_addr =  mpp_iommu_get_dte_addr(iommu);
+		INIT_LIST_HEAD(&iommu->link);
+		mutex_lock(&mpp->queue->lock);
+		list_add_tail(&iommu->link, &mpp->queue->mmu_link);
+		mutex_unlock(&mpp->queue->lock);
+	}
+	mpp->iommu_info->iommu = iommu;
+
+	return 0;
+}
+
+int px30_workaround_combo_switch_grf(struct mpp_dev *mpp)
+{
+	int ret = 0;
+	u32 curr_val;
+	u32 next_val;
+	bool pd_is_on;
+	struct mpp_rk_iommu *loop = NULL, *n;
+
+	if (!mpp->grf_info->grf || !mpp->grf_info->val)
+		return 0;
+
+	curr_val = mpp_get_grf(mpp->grf_info);
+	next_val = mpp->grf_info->val & MPP_GRF_VAL_MASK;
+	if (curr_val == next_val)
+		return 0;
+
+	pd_is_on = rockchip_pmu_pd_is_on(mpp->dev);
+	if (!pd_is_on)
+		rockchip_pmu_pd_on(mpp->dev);
+	mpp->hw_ops->power_on(mpp);
+
+	list_for_each_entry_safe(loop, n, &mpp->queue->mmu_link, link) {
+		/* update iommu parameters */
+		if (loop->grf_val == curr_val)
+			loop->is_paged = mpp_iommu_is_paged(loop);
+		/* disable all iommu */
+		mpp_iommu_disable(loop);
+	}
+	mpp_set_grf(mpp->grf_info);
+	/* enable current iommu */
+	ret = mpp_iommu_enable(mpp->iommu_info->iommu);
+
+	mpp->hw_ops->power_off(mpp);
+	if (!pd_is_on)
+		rockchip_pmu_pd_off(mpp->dev);
+
+	return ret;
 }

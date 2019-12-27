@@ -254,6 +254,8 @@ struct mpp_taskqueue {
 	atomic_t running;
 	struct mpp_task *cur_task;
 	struct mpp_service *srv;
+	/* link to mmu iommu node */
+	struct list_head mmu_link;
 };
 
 struct mpp_reset_clk {
@@ -311,6 +313,7 @@ struct mpp_hw_ops {
 			struct mpp_task *mpp_task);
 	int (*reduce_freq)(struct mpp_dev *mpp);
 	int (*reset)(struct mpp_dev *mpp);
+	int (*set_grf)(struct mpp_dev *mpp);
 };
 
 /*
@@ -383,6 +386,7 @@ mpp_reset_control_get(struct mpp_dev *mpp, const char *name);
 int mpp_safe_reset(struct reset_control *rst);
 int mpp_safe_unreset(struct reset_control *rst);
 
+u32 mpp_get_grf(struct mpp_grf_info *grf_info);
 int mpp_set_grf(struct mpp_grf_info *grf_info);
 
 int mpp_time_record(struct mpp_task *task);
@@ -434,6 +438,10 @@ static inline u32 mpp_read_relaxed(struct mpp_dev *mpp, u32 reg)
 
 	return val;
 }
+
+/* workaround according hardware */
+int px30_workaround_combo_init(struct mpp_dev *mpp);
+int px30_workaround_combo_switch_grf(struct mpp_dev *mpp);
 
 extern const struct file_operations rockchip_mpp_fops;
 

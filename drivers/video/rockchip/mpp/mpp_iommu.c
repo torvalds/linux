@@ -11,9 +11,12 @@
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
 #include <asm/dma-iommu.h>
 #endif
+#include <linux/delay.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-iommu.h>
 #include <linux/iommu.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/kref.h>
 #include <linux/slab.h>
 
@@ -350,10 +353,25 @@ struct mpp_iommu_info *
 mpp_iommu_probe(struct device *dev)
 {
 	int ret = 0;
+	struct device_node *np = NULL;
+	struct platform_device *pdev = NULL;
 	struct mpp_iommu_info *info = NULL;
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
 	struct dma_iommu_mapping *mapping;
 #endif
+
+	np = of_parse_phandle(dev->of_node, "iommus", 0);
+	if (!np || !of_device_is_available(np)) {
+		mpp_err("failed to get device node\n");
+		ret = -ENODEV;
+		goto err;
+	}
+	pdev = of_find_device_by_node(np);
+	if (!pdev) {
+		mpp_err("failed to get platform device\n");
+		ret = -ENODEV;
+		goto err;
+	}
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
@@ -361,6 +379,7 @@ mpp_iommu_probe(struct device *dev)
 		goto err;
 	}
 	info->dev = dev;
+	info->pdev = pdev;
 
 	info->group = iommu_group_get(dev);
 	if (!info->group) {
@@ -408,6 +427,129 @@ int mpp_iommu_remove(struct mpp_iommu_info *info)
 #endif
 	iommu_group_put(info->group);
 	kfree(info);
+
+	return 0;
+}
+
+#define RK_MMU_DTE_ADDR			0x00 /* Directory table address */
+#define RK_MMU_STATUS			0x04
+#define RK_MMU_COMMAND			0x08
+#define RK_MMU_INT_MASK			0x1C /* IRQ enable */
+
+/* RK_MMU_COMMAND command values */
+#define RK_MMU_CMD_ENABLE_PAGING	0 /* Enable memory translation */
+#define RK_MMU_CMD_DISABLE_PAGING	1 /* Disable memory translation */
+#define RK_MMU_CMD_ENABLE_STALL		2 /* Stall paging to allow other cmds */
+#define RK_MMU_CMD_DISABLE_STALL	3 /* Stop stall re-enables paging */
+#define RK_MMU_CMD_ZAP_CACHE		4 /* Shoot down entire IOTLB */
+#define RK_MMU_CMD_PAGE_FAULT_DONE	5 /* Clear page fault */
+#define RK_MMU_CMD_FORCE_RESET		6 /* Reset all registers */
+
+/* RK_MMU_INT_* register fields */
+#define RK_MMU_IRQ_MASK			0x03
+/* RK_MMU_STATUS fields */
+#define RK_MMU_STATUS_PAGING_ENABLED	BIT(0)
+#define RK_MMU_STATUS_STALL_ACTIVE	BIT(2)
+
+bool mpp_iommu_is_paged(struct mpp_rk_iommu *iommu)
+{
+	int i;
+	u32 status;
+	bool active = true;
+
+	for (i = 0; i < iommu->mmu_num; i++) {
+		status = readl(iommu->bases[i] + RK_MMU_STATUS);
+		active &= !!(status & RK_MMU_STATUS_PAGING_ENABLED);
+	}
+
+	return active;
+}
+
+u32 mpp_iommu_get_dte_addr(struct mpp_rk_iommu *iommu)
+{
+	return readl(iommu->bases[0] + RK_MMU_DTE_ADDR);
+}
+
+int mpp_iommu_enable(struct mpp_rk_iommu *iommu)
+{
+	int i;
+
+	/* iommu should be paging disable */
+	if (mpp_iommu_is_paged(iommu)) {
+		mpp_err("iommu disable failed\n");
+		return -ENOMEM;
+	}
+
+	/* enable stall */
+	for (i = 0; i < iommu->mmu_num; i++)
+		writel(RK_MMU_CMD_ENABLE_STALL,
+		       iommu->bases[i] + RK_MMU_COMMAND);
+	udelay(2);
+	/* force reset */
+	for (i = 0; i < iommu->mmu_num; i++)
+		writel(RK_MMU_CMD_FORCE_RESET,
+		       iommu->bases[i] + RK_MMU_COMMAND);
+	udelay(2);
+
+	for (i = 0; i < iommu->mmu_num; i++) {
+		/* restore dte and status */
+		writel(iommu->dte_addr,
+		       iommu->bases[i] + RK_MMU_DTE_ADDR);
+		/* zap cache */
+		writel(RK_MMU_CMD_ZAP_CACHE,
+		       iommu->bases[i] + RK_MMU_COMMAND);
+		/* irq mask */
+		writel(RK_MMU_IRQ_MASK,
+		       iommu->bases[i] + RK_MMU_INT_MASK);
+	}
+	udelay(2);
+	/* enable paging */
+	for (i = 0; i < iommu->mmu_num; i++)
+		writel(RK_MMU_CMD_ENABLE_PAGING,
+		       iommu->bases[i] + RK_MMU_COMMAND);
+	udelay(2);
+	/* disable stall */
+	for (i = 0; i < iommu->mmu_num; i++)
+		writel(RK_MMU_CMD_DISABLE_STALL,
+		       iommu->bases[i] + RK_MMU_COMMAND);
+	udelay(2);
+
+	/* iommu should be paging enable */
+	iommu->is_paged = mpp_iommu_is_paged(iommu);
+	if (!iommu->is_paged) {
+		mpp_err("iommu enable failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int mpp_iommu_disable(struct mpp_rk_iommu *iommu)
+{
+	int i;
+	u32 dte;
+
+	if (iommu->is_paged) {
+		dte = readl(iommu->bases[0] + RK_MMU_DTE_ADDR);
+		if (!dte)
+			return -EINVAL;
+		udelay(2);
+		/* enable stall */
+		for (i = 0; i < iommu->mmu_num; i++)
+			writel(RK_MMU_CMD_ENABLE_STALL,
+			       iommu->bases[i] + RK_MMU_COMMAND);
+		udelay(2);
+		/* disable paging */
+		for (i = 0; i < iommu->mmu_num; i++)
+			writel(RK_MMU_CMD_DISABLE_PAGING,
+			       iommu->bases[i] + RK_MMU_COMMAND);
+		udelay(2);
+		/* disable stall */
+		for (i = 0; i < iommu->mmu_num; i++)
+			writel(RK_MMU_CMD_DISABLE_STALL,
+			       iommu->bases[i] + RK_MMU_COMMAND);
+		udelay(2);
+	}
 
 	return 0;
 }

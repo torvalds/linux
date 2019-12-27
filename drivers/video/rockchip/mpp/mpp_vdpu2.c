@@ -516,6 +516,12 @@ static int vdpu_init(struct mpp_dev *mpp)
 	return 0;
 }
 
+static int vdpu_px30_init(struct mpp_dev *mpp)
+{
+	vdpu_init(mpp);
+	return px30_workaround_combo_init(mpp);
+}
+
 static int vdpu_power_on(struct mpp_dev *mpp)
 {
 	struct vdpu_dev *dec = to_vdpu_dev(mpp);
@@ -655,6 +661,17 @@ static struct mpp_hw_ops vdpu_v2_hw_ops = {
 	.reset = vdpu_reset,
 };
 
+static struct mpp_hw_ops vdpu_px30_hw_ops = {
+	.init = vdpu_px30_init,
+	.power_on = vdpu_power_on,
+	.power_off = vdpu_power_off,
+	.get_freq = vdpu_get_freq,
+	.set_freq = vdpu_set_freq,
+	.reduce_freq = vdpu_reduce_freq,
+	.reset = vdpu_reset,
+	.set_grf = px30_workaround_combo_switch_grf,
+};
+
 static struct mpp_dev_ops vdpu_v2_dev_ops = {
 	.alloc_task = vdpu_alloc_task,
 	.prepare = vdpu_prepare,
@@ -674,10 +691,22 @@ static const struct mpp_dev_var vdpu_v2_data = {
 	.dev_ops = &vdpu_v2_dev_ops,
 };
 
+static const struct mpp_dev_var vdpu_px30_data = {
+	.device_type = MPP_DEVICE_VDPU2,
+	.hw_info = &vdpu_v2_hw_info,
+	.trans_info = vdpu_v2_trans,
+	.hw_ops = &vdpu_px30_hw_ops,
+	.dev_ops = &vdpu_v2_dev_ops,
+};
+
 static const struct of_device_id mpp_vdpu2_dt_match[] = {
 	{
 		.compatible = "rockchip,vpu-decoder-v2",
 		.data = &vdpu_v2_data,
+	},
+	{
+		.compatible = "rockchip,vpu-decoder-px30",
+		.data = &vdpu_px30_data,
 	},
 	{},
 };
