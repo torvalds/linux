@@ -300,7 +300,9 @@ static inline void ethnl_ops_complete(struct net_device *dev)
  * unified infrastructure. When used, a pointer to an instance of this
  * structure is to be added to &ethnl_default_requests array and generic
  * handlers ethnl_default_doit(), ethnl_default_dumpit(),
- * ethnl_default_start() and ethnl_default_done() used in @ethtool_genl_ops.
+ * ethnl_default_start() and ethnl_default_done() used in @ethtool_genl_ops;
+ * ethnl_default_notify() can be used in @ethnl_notify_handlers to send
+ * notifications of the corresponding type.
  */
 struct ethnl_request_ops {
 	u8			request_cmd;

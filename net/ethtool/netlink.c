@@ -7,6 +7,7 @@
 static struct genl_family ethtool_genl_family;
 
 static bool ethnl_ok __read_mostly;
+static u32 ethnl_bcast_seq;
 
 static const struct nla_policy ethnl_header_policy[ETHTOOL_A_HEADER_MAX + 1] = {
 	[ETHTOOL_A_HEADER_UNSPEC]	= { .type = NLA_REJECT },
@@ -169,6 +170,18 @@ err:
 	if (info)
 		GENL_SET_ERR_MSG(info, "failed to setup reply message");
 	return NULL;
+}
+
+static void *ethnl_bcastmsg_put(struct sk_buff *skb, u8 cmd)
+{
+	return genlmsg_put(skb, 0, ++ethnl_bcast_seq, &ethtool_genl_family, 0,
+			   cmd);
+}
+
+static int ethnl_multicast(struct sk_buff *skb, struct net_device *dev)
+{
+	return genlmsg_multicast_netns(&ethtool_genl_family, dev_net(dev), skb,
+				       0, ETHNL_MCGRP_MONITOR, GFP_KERNEL);
 }
 
 /* GET request helpers */
@@ -492,6 +505,82 @@ static int ethnl_default_done(struct netlink_callback *cb)
 	kfree(ctx->req_info);
 
 	return 0;
+}
+
+static const struct ethnl_request_ops *
+ethnl_default_notify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
+};
+
+/* default notification handler */
+static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
+				 const void *data)
+{
+	struct ethnl_reply_data *reply_data;
+	const struct ethnl_request_ops *ops;
+	struct ethnl_req_info *req_info;
+	struct sk_buff *skb;
+	void *reply_payload;
+	int reply_len;
+	int ret;
+
+	if (WARN_ONCE(cmd > ETHTOOL_MSG_KERNEL_MAX ||
+		      !ethnl_default_notify_ops[cmd],
+		      "unexpected notification type %u\n", cmd))
+		return;
+	ops = ethnl_default_notify_ops[cmd];
+	req_info = kzalloc(ops->req_info_size, GFP_KERNEL);
+	if (!req_info)
+		return;
+	reply_data = kmalloc(ops->reply_data_size, GFP_KERNEL);
+	if (!reply_data) {
+		kfree(req_info);
+		return;
+	}
+
+	req_info->dev = dev;
+	req_info->flags |= ETHTOOL_FLAG_COMPACT_BITSETS;
+
+	ethnl_init_reply_data(reply_data, ops, dev);
+	ret = ops->prepare_data(req_info, reply_data, NULL);
+	if (ret < 0)
+		goto err_cleanup;
+	reply_len = ops->reply_size(req_info, reply_data);
+	if (ret < 0)
+		goto err_cleanup;
+	ret = -ENOMEM;
+	skb = genlmsg_new(reply_len, GFP_KERNEL);
+	if (!skb)
+		goto err_cleanup;
+	reply_payload = ethnl_bcastmsg_put(skb, cmd);
+	if (!reply_payload)
+		goto err_skb;
+	ret = ethnl_fill_reply_header(skb, dev, ops->hdr_attr);
+	if (ret < 0)
+		goto err_msg;
+	ret = ops->fill_reply(skb, req_info, reply_data);
+	if (ret < 0)
+		goto err_msg;
+	if (ops->cleanup_data)
+		ops->cleanup_data(reply_data);
+
+	genlmsg_end(skb, reply_payload);
+	kfree(reply_data);
+	kfree(req_info);
+	ethnl_multicast(skb, dev);
+	return;
+
+err_msg:
+	WARN_ONCE(ret == -EMSGSIZE,
+		  "calculated message payload length (%d) not sufficient\n",
+		  reply_len);
+err_skb:
+	nlmsg_free(skb);
+err_cleanup:
+	if (ops->cleanup_data)
+		ops->cleanup_data(reply_data);
+	kfree(reply_data);
+	kfree(req_info);
+	return;
 }
 
 /* notifications */
