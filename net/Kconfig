@@ -449,6 +449,14 @@ config FAILOVER
 	  migration of VMs with direct attached VFs by failing over to the
 	  paravirtual datapath when the VF is unplugged.
 
+config ETHTOOL_NETLINK
+	bool "Netlink interface for ethtool"
+	default y
+	help
+	  An alternative userspace interface for ethtool based on generic
+	  netlink. It provides better extensibility and some new features,
+	  e.g. notification messages.
+
 endif   # if NET
 
 # Used by archs to tell that they support BPF JIT compiler plus which flavour.
