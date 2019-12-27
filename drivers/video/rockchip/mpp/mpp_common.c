@@ -906,7 +906,7 @@ static int mpp_process_request(struct mpp_session *session,
 		}
 		count = req->size / sizeof(u32);
 		for (i = 0; i < count; i++) {
-			ret = mpp_dma_release_fd_direct(session->dma, data[i]);
+			ret = mpp_dma_release_fd(session->dma, data[i]);
 			if (ret) {
 				mpp_err("release fd %d failed.\n", data[i]);
 				return ret;

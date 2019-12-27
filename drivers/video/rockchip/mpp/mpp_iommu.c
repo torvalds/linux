@@ -31,6 +31,7 @@ mpp_dma_find_buffer_fd(struct mpp_dma_session *dma, int fd)
 	if (IS_ERR(dmabuf))
 		return NULL;
 
+	mutex_lock(&dma->list_mutex);
 	list_for_each_entry_safe(buffer, n,
 				 &dma->buffer_list, list) {
 		/*
@@ -43,6 +44,7 @@ mpp_dma_find_buffer_fd(struct mpp_dma_session *dma, int fd)
 			break;
 		}
 	}
+	mutex_unlock(&dma->list_mutex);
 	dma_buf_put(dmabuf);
 
 	return out;
@@ -54,10 +56,8 @@ static void mpp_dma_release_buffer(struct kref *ref)
 	struct mpp_dma_buffer *buffer =
 		container_of(ref, struct mpp_dma_buffer, ref);
 
-	mutex_lock(&buffer->dma->list_mutex);
 	buffer->dma->buffer_count--;
 	list_del_init(&buffer->list);
-	mutex_unlock(&buffer->dma->list_mutex);
 
 	dma_buf_unmap_attachment(buffer->attach, buffer->sgt, buffer->dir);
 	dma_buf_detach(buffer->dmabuf, buffer->attach);
@@ -74,6 +74,7 @@ mpp_dma_remove_extra_buffer(struct mpp_dma_session *dma)
 	ktime_t oldest_time = ktime_set(0, 0);
 
 	if (dma->buffer_count > dma->max_buffers) {
+		mutex_lock(&dma->list_mutex);
 		list_for_each_entry_safe(buffer, n,
 					 &dma->buffer_list,
 					 list) {
@@ -83,25 +84,10 @@ mpp_dma_remove_extra_buffer(struct mpp_dma_session *dma)
 				oldest = buffer;
 			}
 		}
-		kref_put(&oldest->ref, mpp_dma_release_buffer);
+		if (oldest)
+			kref_put(&oldest->ref, mpp_dma_release_buffer);
+		mutex_unlock(&dma->list_mutex);
 	}
-
-	return 0;
-}
-
-int mpp_dma_release_fd_direct(struct mpp_dma_session *dma, int fd)
-{
-	struct device *dev = dma->dev;
-	struct mpp_dma_buffer *buffer = NULL;
-
-	buffer = mpp_dma_find_buffer_fd(dma, fd);
-	if (IS_ERR_OR_NULL(buffer)) {
-		dev_err(dev, "can not find %d buffer in list\n", fd);
-
-		return -EINVAL;
-	}
-
-	mpp_dma_release_buffer(&buffer->ref);
 
 	return 0;
 }
@@ -118,7 +104,9 @@ int mpp_dma_release_fd(struct mpp_dma_session *dma, int fd)
 		return -EINVAL;
 	}
 
+	mutex_lock(&dma->list_mutex);
 	kref_put(&buffer->ref, mpp_dma_release_buffer);
+	mutex_unlock(&dma->list_mutex);
 
 	return 0;
 }
@@ -305,11 +293,13 @@ int mpp_dma_session_destroy(struct mpp_dma_session *dma)
 	if (!dma)
 		return -EINVAL;
 
+	mutex_lock(&dma->list_mutex);
 	list_for_each_entry_safe(buffer, n,
 				 &dma->buffer_list,
 				 list) {
-		mpp_dma_release_buffer(&buffer->ref);
+		kref_put(&buffer->ref, mpp_dma_release_buffer);
 	}
+	mutex_unlock(&dma->list_mutex);
 
 	kfree(dma);
 
