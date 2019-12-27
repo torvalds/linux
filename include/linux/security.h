@@ -462,10 +462,6 @@ static inline  int unregister_blocking_lsm_notifier(struct notifier_block *nb)
 	return 0;
 }
 
-static inline void security_free_mnt_opts(void **mnt_opts)
-{
-}
-
 /*
  * This is the default capabilities functionality.  Most of these functions
  * are just stubbed out, but a few must call the proper capable code.
@@ -605,6 +601,9 @@ static inline int security_sb_alloc(struct super_block *sb)
 static inline void security_sb_free(struct super_block *sb)
 { }
 
+static inline void security_free_mnt_opts(void **mnt_opts)
+{ }
+
 static inline int security_sb_eat_lsm_opts(char *options,
 					   void **mnt_opts)
 {
@@ -679,20 +678,6 @@ static inline int security_move_mount(const struct path *from_path,
 	return 0;
 }
 
-static inline int security_path_notify(const struct path *path, u64 mask,
-				unsigned int obj_type)
-{
-	return 0;
-}
-
-static inline int security_inode_alloc(struct inode *inode)
-{
-	return 0;
-}
-
-static inline void security_inode_free(struct inode *inode)
-{ }
-
 static inline int security_dentry_init_security(struct dentry *dentry,
 						 int mode,
 						 const struct qstr *name,
@@ -710,6 +695,19 @@ static inline int security_dentry_create_files_as(struct dentry *dentry,
 	return 0;
 }
 
+static inline int security_path_notify(const struct path *path, u64 mask,
+				unsigned int obj_type)
+{
+	return 0;
+}
+
+static inline int security_inode_alloc(struct inode *inode)
+{
+	return 0;
+}
+
+static inline void security_inode_free(struct inode *inode)
+{ }
 
 static inline int security_inode_init_security(struct inode *inode,
 						struct inode *dir,
@@ -982,8 +980,10 @@ static inline int security_prepare_creds(struct cred *new,
 
 static inline void security_transfer_creds(struct cred *new,
 					   const struct cred *old)
-{
-}
+{ }
+
+static inline void security_cred_getsecid(const struct cred *c, u32 *secid)
+{ }
 
 static inline int security_kernel_act_as(struct cred *cred, u32 secid)
 {
@@ -1249,12 +1249,10 @@ static inline int security_secctx_to_secid(const char *secdata,
 }
 
 static inline void security_release_secctx(char *secdata, u32 seclen)
-{
-}
+{ }
 
 static inline void security_inode_invalidate_secctx(struct inode *inode)
-{
-}
+{ }
 
 static inline int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
 {
