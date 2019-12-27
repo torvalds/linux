@@ -7,6 +7,9 @@
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 
+#define __ETHTOOL_LINK_MODE_MASK_NWORDS \
+	DIV_ROUND_UP(__ETHTOOL_LINK_MODE_MASK_NBITS, 32)
+
 enum ethtool_multicast_groups {
 	ETHNL_MCGRP_MONITOR,
 };

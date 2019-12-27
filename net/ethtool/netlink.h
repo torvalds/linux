@@ -332,6 +332,7 @@ struct ethnl_request_ops {
 
 extern const struct ethnl_request_ops ethnl_strset_request_ops;
 extern const struct ethnl_request_ops ethnl_linkinfo_request_ops;
+extern const struct ethnl_request_ops ethnl_linkmodes_request_ops;
 
 int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info);
 

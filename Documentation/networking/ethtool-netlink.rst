@@ -182,6 +182,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_STRSET_GET``            get string set
   ``ETHTOOL_MSG_LINKINFO_GET``          get link settings
   ``ETHTOOL_MSG_LINKINFO_SET``          set link settings
+  ``ETHTOOL_MSG_LINKMODES_GET``         get link modes info
   ===================================== ================================
 
 Kernel to userspace:
@@ -190,6 +191,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_STRSET_GET_REPLY``      string set contents
   ``ETHTOOL_MSG_LINKINFO_GET_REPLY``    link settings
   ``ETHTOOL_MSG_LINKINFO_NTF``          link settings notification
+  ``ETHTOOL_MSG_LINKMODES_GET_REPLY``   link modes info
   ===================================== ================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -332,6 +334,38 @@ MDI(-X) status and transceiver cannot be set, request with the corresponding
 attributes is rejected.
 
 
+LINKMODES_GET
+=============
+
+Requests link modes (supported, advertised and peer advertised) and related
+information (autonegotiation status, link speed and duplex) as provided by
+``ETHTOOL_GLINKSETTINGS``. The request does not use any attributes.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_LINKMODES_HEADER``        nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_LINKMODES_HEADER``        nested  reply header
+  ``ETHTOOL_A_LINKMODES_AUTONEG``       u8      autonegotiation status
+  ``ETHTOOL_A_LINKMODES_OURS``          bitset  advertised link modes
+  ``ETHTOOL_A_LINKMODES_PEER``          bitset  partner link modes
+  ``ETHTOOL_A_LINKMODES_SPEED``         u32     link speed (Mb/s)
+  ``ETHTOOL_A_LINKMODES_DUPLEX``        u8      duplex mode
+  ====================================  ======  ==========================
+
+For ``ETHTOOL_A_LINKMODES_OURS``, value represents advertised modes and mask
+represents supported modes. ``ETHTOOL_A_LINKMODES_PEER`` in the reply is a bit
+list.
+
+``LINKMODES_GET`` allows dump requests (kernel returns reply messages for all
+devices supporting the request).
+
+
 Request translation
 ===================
 
@@ -343,6 +377,7 @@ have their netlink replacement yet.
   ioctl command                       netlink command
   =================================== =====================================
   ``ETHTOOL_GSET``                    ``ETHTOOL_MSG_LINKINFO_GET``
+                                      ``ETHTOOL_MSG_LINKMODES_GET``
   ``ETHTOOL_SSET``                    ``ETHTOOL_MSG_LINKINFO_SET``
   ``ETHTOOL_GDRVINFO``                n/a
   ``ETHTOOL_GREGS``                   n/a
@@ -417,6 +452,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GPHYSTATS``               n/a
   ``ETHTOOL_PERQUEUE``                n/a
   ``ETHTOOL_GLINKSETTINGS``           ``ETHTOOL_MSG_LINKINFO_GET``
+                                      ``ETHTOOL_MSG_LINKMODES_GET``
   ``ETHTOOL_SLINKSETTINGS``           ``ETHTOOL_MSG_LINKINFO_SET``
   ``ETHTOOL_PHY_GTUNABLE``            n/a
   ``ETHTOOL_PHY_STUNABLE``            n/a
