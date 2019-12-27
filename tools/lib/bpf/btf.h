@@ -8,12 +8,10 @@
 #include <linux/btf.h>
 #include <linux/types.h>
 
+#include "libbpf_common.h"
+
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifndef LIBBPF_API
-#define LIBBPF_API __attribute__((visibility("default")))
 #endif
 
 #define BTF_ELF_SEC ".BTF"
@@ -79,6 +77,7 @@ LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 						  __u32 id);
 LIBBPF_API __s64 btf__resolve_size(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
+LIBBPF_API int btf__align_of(const struct btf *btf, __u32 id);
 LIBBPF_API int btf__fd(const struct btf *btf);
 LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
@@ -126,6 +125,28 @@ LIBBPF_API struct btf_dump *btf_dump__new(const struct btf *btf,
 LIBBPF_API void btf_dump__free(struct btf_dump *d);
 
 LIBBPF_API int btf_dump__dump_type(struct btf_dump *d, __u32 id);
+
+struct btf_dump_emit_type_decl_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* optional field name for type declaration, e.g.:
+	 * - struct my_struct <FNAME>
+	 * - void (*<FNAME>)(int)
+	 * - char (*<FNAME>)[123]
+	 */
+	const char *field_name;
+	/* extra indentation level (in number of tabs) to emit for multi-line
+	 * type declarations (e.g., anonymous struct); applies for lines
+	 * starting from the second one (first line is assumed to have
+	 * necessary indentation already
+	 */
+	int indent_level;
+};
+#define btf_dump_emit_type_decl_opts__last_field indent_level
+
+LIBBPF_API int
+btf_dump__emit_type_decl(struct btf_dump *d, __u32 id,
+			 const struct btf_dump_emit_type_decl_opts *opts);
 
 /*
  * A set of helpers for easier BTF types handling

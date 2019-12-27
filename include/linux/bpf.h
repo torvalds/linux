@@ -471,11 +471,69 @@ struct bpf_trampoline {
 	void *image;
 	u64 selector;
 };
+
+#define BPF_DISPATCHER_MAX 48 /* Fits in 2048B */
+
+struct bpf_dispatcher_prog {
+	struct bpf_prog *prog;
+	refcount_t users;
+};
+
+struct bpf_dispatcher {
+	/* dispatcher mutex */
+	struct mutex mutex;
+	void *func;
+	struct bpf_dispatcher_prog progs[BPF_DISPATCHER_MAX];
+	int num_progs;
+	void *image;
+	u32 image_off;
+};
+
+static __always_inline unsigned int bpf_dispatcher_nopfunc(
+	const void *ctx,
+	const struct bpf_insn *insnsi,
+	unsigned int (*bpf_func)(const void *,
+				 const struct bpf_insn *))
+{
+	return bpf_func(ctx, insnsi);
+}
 #ifdef CONFIG_BPF_JIT
 struct bpf_trampoline *bpf_trampoline_lookup(u64 key);
 int bpf_trampoline_link_prog(struct bpf_prog *prog);
 int bpf_trampoline_unlink_prog(struct bpf_prog *prog);
 void bpf_trampoline_put(struct bpf_trampoline *tr);
+void *bpf_jit_alloc_exec_page(void);
+#define BPF_DISPATCHER_INIT(name) {			\
+	.mutex = __MUTEX_INITIALIZER(name.mutex),	\
+	.func = &name##func,				\
+	.progs = {},					\
+	.num_progs = 0,					\
+	.image = NULL,					\
+	.image_off = 0					\
+}
+
+#define DEFINE_BPF_DISPATCHER(name)					\
+	noinline unsigned int name##func(				\
+		const void *ctx,					\
+		const struct bpf_insn *insnsi,				\
+		unsigned int (*bpf_func)(const void *,			\
+					 const struct bpf_insn *))	\
+	{								\
+		return bpf_func(ctx, insnsi);				\
+	}								\
+	EXPORT_SYMBOL(name##func);			\
+	struct bpf_dispatcher name = BPF_DISPATCHER_INIT(name);
+#define DECLARE_BPF_DISPATCHER(name)					\
+	unsigned int name##func(					\
+		const void *ctx,					\
+		const struct bpf_insn *insnsi,				\
+		unsigned int (*bpf_func)(const void *,			\
+					 const struct bpf_insn *));	\
+	extern struct bpf_dispatcher name;
+#define BPF_DISPATCHER_FUNC(name) name##func
+#define BPF_DISPATCHER_PTR(name) (&name)
+void bpf_dispatcher_change_prog(struct bpf_dispatcher *d, struct bpf_prog *from,
+				struct bpf_prog *to);
 #else
 static inline struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 {
@@ -490,6 +548,13 @@ static inline int bpf_trampoline_unlink_prog(struct bpf_prog *prog)
 	return -ENOTSUPP;
 }
 static inline void bpf_trampoline_put(struct bpf_trampoline *tr) {}
+#define DEFINE_BPF_DISPATCHER(name)
+#define DECLARE_BPF_DISPATCHER(name)
+#define BPF_DISPATCHER_FUNC(name) bpf_dispatcher_nopfunc
+#define BPF_DISPATCHER_PTR(name) NULL
+static inline void bpf_dispatcher_change_prog(struct bpf_dispatcher *d,
+					      struct bpf_prog *from,
+					      struct bpf_prog *to) {}
 #endif
 
 struct bpf_func_info_aux {
@@ -897,14 +962,14 @@ struct sk_buff;
 
 struct bpf_dtab_netdev *__dev_map_lookup_elem(struct bpf_map *map, u32 key);
 struct bpf_dtab_netdev *__dev_map_hash_lookup_elem(struct bpf_map *map, u32 key);
-void __dev_map_flush(struct bpf_map *map);
+void __dev_map_flush(void);
 int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
 		    struct net_device *dev_rx);
 int dev_map_generic_redirect(struct bpf_dtab_netdev *dst, struct sk_buff *skb,
 			     struct bpf_prog *xdp_prog);
 
 struct bpf_cpu_map_entry *__cpu_map_lookup_elem(struct bpf_map *map, u32 key);
-void __cpu_map_flush(struct bpf_map *map);
+void __cpu_map_flush(void);
 int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_buff *xdp,
 		    struct net_device *dev_rx);
 
@@ -942,6 +1007,8 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 			   struct btf_func_model *m);
 
 int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog);
+
+struct bpf_prog *bpf_prog_by_id(u32 id);
 
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
@@ -1004,7 +1071,7 @@ static inline struct net_device  *__dev_map_hash_lookup_elem(struct bpf_map *map
 	return NULL;
 }
 
-static inline void __dev_map_flush(struct bpf_map *map)
+static inline void __dev_map_flush(void)
 {
 }
 
@@ -1033,7 +1100,7 @@ struct bpf_cpu_map_entry *__cpu_map_lookup_elem(struct bpf_map *map, u32 key)
 	return NULL;
 }
 
-static inline void __cpu_map_flush(struct bpf_map *map)
+static inline void __cpu_map_flush(void)
 {
 }
 
@@ -1073,6 +1140,11 @@ static inline int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 
 static inline void bpf_map_put(struct bpf_map *map)
 {
+}
+
+static inline struct bpf_prog *bpf_prog_by_id(u32 id)
+{
+	return ERR_PTR(-ENOTSUPP);
 }
 #endif /* CONFIG_BPF_SYSCALL */
 
