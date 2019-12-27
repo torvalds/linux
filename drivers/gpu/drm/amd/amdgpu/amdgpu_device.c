@@ -2455,7 +2455,11 @@ static int amdgpu_device_ip_reinit_late_sriov(struct amdgpu_device *adev)
 				block->status.hw)
 				continue;
 
-			r = block->version->funcs->hw_init(adev);
+			if (block->version->type == AMD_IP_BLOCK_TYPE_SMC)
+				r = block->version->funcs->resume(adev);
+			else
+				r = block->version->funcs->hw_init(adev);
+
 			DRM_INFO("RE-INIT-late: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
 			if (r)
 				return r;

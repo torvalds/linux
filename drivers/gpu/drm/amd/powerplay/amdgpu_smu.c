@@ -1445,6 +1445,12 @@ static int smu_resume(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 
+	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
+		return 0;
+
+	if (!smu->pm_enabled)
+		return 0;
+
 	pr_info("SMU is resuming...\n");
 
 	ret = smu_start_smc_engine(smu);
