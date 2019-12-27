@@ -89,4 +89,6 @@ enum {
 #define ETHTOOL_GENL_NAME "ethtool"
 #define ETHTOOL_GENL_VERSION 1
 
+#define ETHTOOL_MCGRP_MONITOR_NAME "monitor"
+
 #endif /* _UAPI_LINUX_ETHTOOL_NETLINK_H_ */

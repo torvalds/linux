@@ -5,5 +5,10 @@
 
 #include <uapi/linux/ethtool_netlink.h>
 #include <linux/ethtool.h>
+#include <linux/netdevice.h>
+
+enum ethtool_multicast_groups {
+	ETHNL_MCGRP_MONITOR,
+};
 
 #endif /* _LINUX_ETHTOOL_NETLINK_H_ */
