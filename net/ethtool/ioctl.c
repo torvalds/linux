@@ -573,8 +573,10 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 		return -EINVAL;
 
 	err = dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
-	if (err >= 0)
+	if (err >= 0) {
 		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF, NULL);
+	}
 	return err;
 }
 
@@ -638,8 +640,10 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 	link_ksettings.base.link_mode_masks_nwords =
 		__ETHTOOL_LINK_MODE_MASK_NU32;
 	ret = dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
-	if (ret >= 0)
+	if (ret >= 0) {
 		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF, NULL);
+	}
 	return ret;
 }
 

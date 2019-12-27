@@ -193,6 +193,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_LINKINFO_GET_REPLY``    link settings
   ``ETHTOOL_MSG_LINKINFO_NTF``          link settings notification
   ``ETHTOOL_MSG_LINKMODES_GET_REPLY``   link modes info
+  ``ETHTOOL_MSG_LINKMODES_NTF``         link modes notification
   ===================================== ================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
