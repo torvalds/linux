@@ -325,7 +325,10 @@ static int igt_gem_coherency(void *arg)
 	values = offsets + ncachelines;
 
 	ctx.engine = random_engine(i915, &prng);
-	GEM_BUG_ON(!ctx.engine);
+	if (!ctx.engine) {
+		err = -ENODEV;
+		goto out_free;
+	}
 	pr_info("%s: using %s\n", __func__, ctx.engine->name);
 	intel_engine_pm_get(ctx.engine);
 
@@ -354,7 +357,7 @@ static int igt_gem_coherency(void *arg)
 					ctx.obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 					if (IS_ERR(ctx.obj)) {
 						err = PTR_ERR(ctx.obj);
-						goto free;
+						goto out_pm;
 					}
 
 					i915_random_reorder(offsets, ncachelines, &prng);
@@ -405,14 +408,15 @@ static int igt_gem_coherency(void *arg)
 			}
 		}
 	}
-free:
+out_pm:
 	intel_engine_pm_put(ctx.engine);
+out_free:
 	kfree(offsets);
 	return err;
 
 put_object:
 	i915_gem_object_put(ctx.obj);
-	goto free;
+	goto out_pm;
 }
 
 int i915_gem_coherency_live_selftests(struct drm_i915_private *i915)
