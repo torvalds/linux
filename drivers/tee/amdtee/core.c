@@ -16,6 +16,7 @@
 #include <linux/firmware.h>
 #include "amdtee_private.h"
 #include "../tee_private.h"
+#include <linux/psp-tee.h>
 
 static struct amdtee_driver_data *drv_data;
 static DEFINE_MUTEX(session_list_mutex);
@@ -438,6 +439,10 @@ static int __init amdtee_driver_init(void)
 	struct tee_shm_pool *pool = ERR_PTR(-EINVAL);
 	int rc;
 
+	rc = psp_check_tee_status();
+	if (rc)
+		goto err_fail;
+
 	drv_data = kzalloc(sizeof(*drv_data), GFP_KERNEL);
 	if (IS_ERR(drv_data))
 		return -ENOMEM;
@@ -485,6 +490,7 @@ err_kfree_drv_data:
 	kfree(drv_data);
 	drv_data = NULL;
 
+err_fail:
 	pr_err("amd-tee driver initialization failed\n");
 	return rc;
 }

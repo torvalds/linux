@@ -62,10 +62,28 @@ enum tee_cmd_id {
 int psp_tee_process_cmd(enum tee_cmd_id cmd_id, void *buf, size_t len,
 			u32 *status);
 
+/**
+ * psp_check_tee_status() - Checks whether there is a TEE which a driver can
+ * talk to.
+ *
+ * This function can be used by AMD-TEE driver to query if there is TEE with
+ * which it can communicate.
+ *
+ * Returns:
+ * 0          if the device has TEE
+ * -%ENODEV   if there is no TEE available
+ */
+int psp_check_tee_status(void);
+
 #else /* !CONFIG_CRYPTO_DEV_SP_PSP */
 
 static inline int psp_tee_process_cmd(enum tee_cmd_id cmd_id, void *buf,
 				      size_t len, u32 *status)
+{
+	return -ENODEV;
+}
+
+static inline int psp_check_tee_status(void)
 {
 	return -ENODEV;
 }
