@@ -29,6 +29,27 @@ enum {
 	ETHTOOL_MSG_KERNEL_MAX = __ETHTOOL_MSG_KERNEL_CNT - 1
 };
 
+/* request header */
+
+/* use compact bitsets in reply */
+#define ETHTOOL_FLAG_COMPACT_BITSETS	(1 << 0)
+/* provide optional reply for SET or ACT requests */
+#define ETHTOOL_FLAG_OMIT_REPLY	(1 << 1)
+
+#define ETHTOOL_FLAG_ALL (ETHTOOL_FLAG_COMPACT_BITSETS | \
+			  ETHTOOL_FLAG_OMIT_REPLY)
+
+enum {
+	ETHTOOL_A_HEADER_UNSPEC,
+	ETHTOOL_A_HEADER_DEV_INDEX,		/* u32 */
+	ETHTOOL_A_HEADER_DEV_NAME,		/* string */
+	ETHTOOL_A_HEADER_FLAGS,			/* u32 - ETHTOOL_FLAG_* */
+
+	/* add new constants above here */
+	__ETHTOOL_A_HEADER_CNT,
+	ETHTOOL_A_HEADER_MAX = __ETHTOOL_A_HEADER_CNT - 1
+};
+
 /* generic netlink info */
 #define ETHTOOL_GENL_NAME "ethtool"
 #define ETHTOOL_GENL_VERSION 1
