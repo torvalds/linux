@@ -75,6 +75,9 @@ i915-$(CONFIG_PERF_EVENTS) += i915_pmu.o
 # "Graphics Technology" (aka we talk to the gpu)
 obj-y += gt/
 gt-y += \
+	gt/debugfs_engines.o \
+	gt/debugfs_gt.o \
+	gt/debugfs_gt_pm.o \
 	gt/intel_breadcrumbs.o \
 	gt/intel_context.o \
 	gt/intel_engine_cs.o \
@@ -259,6 +262,7 @@ i915-$(CONFIG_DRM_I915_SELFTEST) += \
 	selftests/i915_selftest.o \
 	selftests/igt_flush_test.o \
 	selftests/igt_live_test.o \
+	selftests/igt_mmap.o \
 	selftests/igt_reset.o \
 	selftests/igt_spinner.o
 

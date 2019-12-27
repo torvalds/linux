@@ -212,10 +212,12 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			 unsigned long end_time)
 {
 	I915_RND_STATE(seed_prng);
+	struct i915_vma *mock_vma;
 	unsigned int size;
-	struct i915_vma mock_vma;
 
-	memset(&mock_vma, 0, sizeof(struct i915_vma));
+	mock_vma = kzalloc(sizeof(*mock_vma), GFP_KERNEL);
+	if (!mock_vma)
+		return -ENOMEM;
 
 	/* Keep creating larger objects until one cannot fit into the hole */
 	for (size = 12; (hole_end - hole_start) >> size; size++) {
@@ -239,8 +241,10 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			if (order)
 				break;
 		} while (count >>= 1);
-		if (!count)
+		if (!count) {
+			kfree(mock_vma);
 			return -ENOMEM;
+		}
 		GEM_BUG_ON(!order);
 
 		GEM_BUG_ON(count * BIT_ULL(size) > vm->total);
@@ -283,12 +287,12 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			    vm->allocate_va_range(vm, addr, BIT_ULL(size)))
 				break;
 
-			mock_vma.pages = obj->mm.pages;
-			mock_vma.node.size = BIT_ULL(size);
-			mock_vma.node.start = addr;
+			mock_vma->pages = obj->mm.pages;
+			mock_vma->node.size = BIT_ULL(size);
+			mock_vma->node.start = addr;
 
 			with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-				vm->insert_entries(vm, &mock_vma,
+				vm->insert_entries(vm, mock_vma,
 						   I915_CACHE_NONE, 0);
 		}
 		count = n;
@@ -311,6 +315,7 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 		cleanup_freed_objects(i915);
 	}
 
+	kfree(mock_vma);
 	return 0;
 }
 
@@ -1001,9 +1006,9 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 				      u64 hole_start, u64 hole_end,
 				      unsigned long end_time))
 {
-	struct drm_file *file;
 	struct i915_ppgtt *ppgtt;
 	IGT_TIMEOUT(end_time);
+	struct file *file;
 	int err;
 
 	if (!HAS_FULL_PPGTT(dev_priv))
@@ -1026,7 +1031,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 	i915_vm_put(&ppgtt->vm);
 
 out_free:
-	mock_file_free(dev_priv, file);
+	fput(file);
 	return err;
 }
 
@@ -1161,11 +1166,13 @@ static int igt_ggtt_page(void *arg)
 		goto out_free;
 
 	memset(&tmp, 0, sizeof(tmp));
+	mutex_lock(&ggtt->vm.mutex);
 	err = drm_mm_insert_node_in_range(&ggtt->vm.mm, &tmp,
 					  count * PAGE_SIZE, 0,
 					  I915_COLOR_UNEVICTABLE,
 					  0, ggtt->mappable_end,
 					  DRM_MM_INSERT_LOW);
+	mutex_unlock(&ggtt->vm.mutex);
 	if (err)
 		goto out_unpin;
 
@@ -1217,7 +1224,9 @@ static int igt_ggtt_page(void *arg)
 out_remove:
 	ggtt->vm.clear_range(&ggtt->vm, tmp.start, tmp.size);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	mutex_lock(&ggtt->vm.mutex);
 	drm_mm_remove_node(&tmp);
+	mutex_unlock(&ggtt->vm.mutex);
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
 out_free:
@@ -1782,9 +1791,9 @@ static int igt_cs_tlb(void *arg)
 	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;
 	struct intel_context *ce;
-	struct drm_file *file;
 	struct i915_vma *vma;
 	I915_RND_STATE(prng);
+	struct file *file;
 	unsigned int i;
 	u32 *result;
 	u32 *batch;
@@ -2022,7 +2031,7 @@ out_put_bbe:
 out_vm:
 	i915_vm_put(vm);
 out_unlock:
-	mock_file_free(i915, file);
+	fput(file);
 	return err;
 }
 

@@ -100,15 +100,6 @@ struct i915_gem_context {
 	 */
 	struct pid *pid;
 
-	/**
-	 * @name: arbitrary name
-	 *
-	 * A name is constructed for the context from the creator's process
-	 * name, pid and user handle in order to uniquely identify the
-	 * context in messages.
-	 */
-	const char *name;
-
 	/** link: place with &drm_i915_private.context_list */
 	struct list_head link;
 	struct llist_node free_link;
@@ -143,11 +134,8 @@ struct i915_gem_context {
 	 * @flags: small set of booleans
 	 */
 	unsigned long flags;
-#define CONTEXT_BANNED			0
-#define CONTEXT_CLOSED			1
-#define CONTEXT_FORCE_SINGLE_SUBMISSION	2
-#define CONTEXT_USER_ENGINES		3
-#define CONTEXT_NOPREEMPT		4
+#define CONTEXT_CLOSED			0
+#define CONTEXT_USER_ENGINES		1
 
 	struct mutex mutex;
 
@@ -177,12 +165,14 @@ struct i915_gem_context {
 	 */
 	struct radix_tree_root handles_vma;
 
-	/** jump_whitelist: Bit array for tracking cmds during cmdparsing
-	 *  Guarded by struct_mutex
+	/**
+	 * @name: arbitrary name, used for user debug
+	 *
+	 * A name is constructed for the context from the creator's process
+	 * name, pid and user handle in order to uniquely identify the
+	 * context in messages.
 	 */
-	unsigned long *jump_whitelist;
-	/** jump_whitelist_cmds: No of cmd slots available */
-	u32 jump_whitelist_cmds;
+	char name[TASK_COMM_LEN + 8];
 };
 
 #endif /* __I915_GEM_CONTEXT_TYPES_H__ */

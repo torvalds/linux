@@ -599,9 +599,10 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 {
 	struct drm_printer p = i915_error_printer(m);
 
-	intel_device_info_dump_flags(info, &p);
+	intel_device_info_print_static(info, &p);
+	intel_device_info_print_runtime(runtime, &p);
+	intel_device_info_print_topology(&runtime->sseu, &p);
 	intel_driver_caps_print(caps, &p);
-	intel_device_info_dump_topology(&runtime->sseu, &p);
 }
 
 static void err_print_params(struct drm_i915_error_state_buf *m,
@@ -1045,7 +1046,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 
 			s = kmap(page);
 			ret = compress_page(compress, s, dst);
-			kunmap(s);
+			kunmap(page);
 
 			drm_clflush_pages(&page, 1);
 
@@ -1220,7 +1221,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 static void record_request(const struct i915_request *request,
 			   struct drm_i915_error_request *erq)
 {
-	const struct i915_gem_context *ctx = request->gem_context;
+	const struct i915_gem_context *ctx;
 
 	erq->flags = request->fence.flags;
 	erq->context = request->fence.context;
@@ -1231,8 +1232,11 @@ static void record_request(const struct i915_request *request,
 	erq->head = request->head;
 	erq->tail = request->tail;
 
+	erq->pid = 0;
 	rcu_read_lock();
-	erq->pid = ctx->pid ? pid_nr(ctx->pid) : 0;
+	ctx = rcu_dereference(request->context->gem_context);
+	if (ctx)
+		erq->pid = pid_nr(ctx->pid);
 	rcu_read_unlock();
 }
 
@@ -1300,25 +1304,34 @@ static void error_record_engine_execlists(const struct intel_engine_cs *engine,
 static bool record_context(struct drm_i915_error_context *e,
 			   const struct i915_request *rq)
 {
-	const struct i915_gem_context *ctx = rq->gem_context;
+	struct i915_gem_context *ctx;
+	struct task_struct *task;
+	bool capture;
 
-	if (ctx->pid) {
-		struct task_struct *task;
+	rcu_read_lock();
+	ctx = rcu_dereference(rq->context->gem_context);
+	if (ctx && !kref_get_unless_zero(&ctx->ref))
+		ctx = NULL;
+	rcu_read_unlock();
+	if (!ctx)
+		return false;
 
-		rcu_read_lock();
-		task = pid_task(ctx->pid, PIDTYPE_PID);
-		if (task) {
-			strcpy(e->comm, task->comm);
-			e->pid = task->pid;
-		}
-		rcu_read_unlock();
+	rcu_read_lock();
+	task = pid_task(ctx->pid, PIDTYPE_PID);
+	if (task) {
+		strcpy(e->comm, task->comm);
+		e->pid = task->pid;
 	}
+	rcu_read_unlock();
 
 	e->sched_attr = ctx->sched;
 	e->guilty = atomic_read(&ctx->guilty_count);
 	e->active = atomic_read(&ctx->active_count);
 
-	return i915_gem_context_no_error_capture(ctx);
+	capture = i915_gem_context_no_error_capture(ctx);
+
+	i915_gem_context_put(ctx);
+	return capture;
 }
 
 struct capture_vma {
@@ -1454,7 +1467,7 @@ gem_record_rings(struct i915_gpu_state *error, struct compress *compress)
 		capture = request_record_user_bo(request, ee, capture);
 
 		capture = capture_vma(capture,
-				      request->hw_context->state,
+				      request->context->state,
 				      &ee->ctx);
 
 		capture = capture_vma(capture,

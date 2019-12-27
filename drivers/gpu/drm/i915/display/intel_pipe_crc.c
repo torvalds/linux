@@ -309,13 +309,13 @@ retry:
 		goto put_state;
 	}
 
-	pipe_config->base.mode_changed = pipe_config->has_psr;
+	pipe_config->uapi.mode_changed = pipe_config->has_psr;
 	pipe_config->crc_enabled = enable;
 
 	if (IS_HASWELL(dev_priv) &&
-	    pipe_config->base.active && crtc->pipe == PIPE_A &&
+	    pipe_config->hw.active && crtc->pipe == PIPE_A &&
 	    pipe_config->cpu_transcoder == TRANSCODER_EDP)
-		pipe_config->base.mode_changed = true;
+		pipe_config->uapi.mode_changed = true;
 
 	ret = drm_atomic_commit(state);
 

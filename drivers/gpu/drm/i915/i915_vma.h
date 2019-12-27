@@ -51,17 +51,25 @@ enum i915_cache_level;
  */
 struct i915_vma {
 	struct drm_mm_node node;
-	struct drm_i915_gem_object *obj;
+
 	struct i915_address_space *vm;
 	const struct i915_vma_ops *ops;
-	struct i915_fence_reg *fence;
+
+	struct drm_i915_gem_object *obj;
 	struct dma_resv *resv; /** Alias of obj->resv */
+
 	struct sg_table *pages;
 	void __iomem *iomap;
 	void *private; /* owned by creator */
+
+	struct i915_fence_reg *fence;
+
 	u64 size;
 	u64 display_alignment;
 	struct i915_page_sizes page_sizes;
+
+	/* mmap-offset associated with fencing for this vma */
+	struct i915_mmap_offset	*mmo;
 
 	u32 fence_size;
 	u32 fence_alignment;
@@ -71,6 +79,7 @@ struct i915_vma {
 	 * handles (but same file) for execbuf, i.e. the number of aliases
 	 * that exist in the ctx->handle_vmas LUT for this vma.
 	 */
+	struct kref ref;
 	atomic_t open_count;
 	atomic_t flags;
 	/**
@@ -333,7 +342,20 @@ int __must_check i915_vma_unbind(struct i915_vma *vma);
 void i915_vma_unlink_ctx(struct i915_vma *vma);
 void i915_vma_close(struct i915_vma *vma);
 void i915_vma_reopen(struct i915_vma *vma);
-void i915_vma_destroy(struct i915_vma *vma);
+
+static inline struct i915_vma *__i915_vma_get(struct i915_vma *vma)
+{
+	if (kref_get_unless_zero(&vma->ref))
+		return vma;
+
+	return NULL;
+}
+
+void i915_vma_release(struct kref *ref);
+static inline void __i915_vma_put(struct i915_vma *vma)
+{
+	kref_put(&vma->ref, i915_vma_release);
+}
 
 #define assert_vma_held(vma) dma_resv_assert_held((vma)->resv)
 
@@ -349,6 +371,7 @@ static inline void i915_vma_unlock(struct i915_vma *vma)
 
 int __must_check
 i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags);
+int i915_ggtt_pin(struct i915_vma *vma, u32 align, unsigned int flags);
 
 static inline int i915_vma_pin_count(const struct i915_vma *vma)
 {

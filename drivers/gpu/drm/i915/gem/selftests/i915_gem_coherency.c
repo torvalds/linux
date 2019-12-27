@@ -6,6 +6,7 @@
 
 #include <linux/prime_numbers.h>
 
+#include "gt/intel_engine_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_ring.h"
@@ -200,7 +201,7 @@ static int gpu_set(struct context *ctx, unsigned long offset, u32 v)
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	rq = i915_request_create(ctx->engine->kernel_context);
+	rq = intel_engine_create_kernel_request(ctx->engine);
 	if (IS_ERR(rq)) {
 		i915_vma_unpin(vma);
 		return PTR_ERR(rq);
@@ -326,6 +327,7 @@ static int igt_gem_coherency(void *arg)
 	ctx.engine = random_engine(i915, &prng);
 	GEM_BUG_ON(!ctx.engine);
 	pr_info("%s: using %s\n", __func__, ctx.engine->name);
+	intel_engine_pm_get(ctx.engine);
 
 	for (over = igt_coherency_mode; over->name; over++) {
 		if (!over->set)
@@ -404,6 +406,7 @@ static int igt_gem_coherency(void *arg)
 		}
 	}
 free:
+	intel_engine_pm_put(ctx.engine);
 	kfree(offsets);
 	return err;
 

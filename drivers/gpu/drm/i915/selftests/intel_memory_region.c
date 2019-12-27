@@ -32,7 +32,7 @@ static void close_objects(struct intel_memory_region *mem,
 		if (i915_gem_object_has_pinned_pages(obj))
 			i915_gem_object_unpin_pages(obj);
 		/* No polluting the memory region between tests */
-		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+		__i915_gem_object_put_pages(obj);
 		list_del(&obj->st_link);
 		i915_gem_object_put(obj);
 	}
@@ -122,7 +122,7 @@ put:
 static void igt_object_release(struct drm_i915_gem_object *obj)
 {
 	i915_gem_object_unpin_pages(obj);
-	__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+	__i915_gem_object_put_pages(obj);
 	list_del(&obj->st_link);
 	i915_gem_object_put(obj);
 }
@@ -404,7 +404,7 @@ static int igt_lmem_write_gpu(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_context *ctx;
-	struct drm_file *file;
+	struct file *file;
 	I915_RND_STATE(prng);
 	u32 sz;
 	int err;
@@ -439,7 +439,7 @@ static int igt_lmem_write_gpu(void *arg)
 out_put:
 	i915_gem_object_put(obj);
 out_file:
-	mock_file_free(i915, file);
+	fput(file);
 	return err;
 }
 
@@ -506,7 +506,9 @@ static int igt_lmem_write_cpu(void *arg)
 	}
 
 	/* Put the pages into a known state -- from the gpu for added fun */
+	intel_engine_pm_get(engine);
 	err = i915_gem_object_fill_blt(obj, engine->kernel_context, 0xdeadbeaf);
+	intel_engine_pm_put(engine);
 	if (err)
 		goto out_unpin;
 

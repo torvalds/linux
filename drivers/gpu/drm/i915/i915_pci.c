@@ -30,6 +30,7 @@
 #include "display/intel_fbdev.h"
 
 #include "i915_drv.h"
+#include "i915_perf.h"
 #include "i915_globals.h"
 #include "i915_selftest.h"
 
@@ -436,7 +437,7 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
 	.has_rps = true, \
-	.ppgtt_type = INTEL_PPGTT_ALIASING, \
+	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 31, \
 	IVB_PIPE_OFFSETS, \
 	IVB_CURSOR_OFFSETS, \
@@ -493,7 +494,7 @@ static const struct intel_device_info intel_valleyview_info = {
 	.has_rps = true,
 	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
-	.ppgtt_type = INTEL_PPGTT_ALIASING,
+	.ppgtt_type = INTEL_PPGTT_FULL,
 	.ppgtt_size = 31,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
@@ -897,6 +898,8 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_WHL_U_GT3_IDS(&intel_coffeelake_gt3_info),
 	INTEL_CML_GT1_IDS(&intel_coffeelake_gt1_info),
 	INTEL_CML_GT2_IDS(&intel_coffeelake_gt2_info),
+	INTEL_CML_U_GT1_IDS(&intel_coffeelake_gt1_info),
+	INTEL_CML_U_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_CNL_IDS(&intel_cannonlake_info),
 	INTEL_ICL_11_IDS(&intel_icelake_11_info),
 	INTEL_EHL_IDS(&intel_elkhartlake_info),
@@ -1003,6 +1006,12 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err > 0 ? -ENOTTY : err;
 	}
 
+	err = i915_perf_selftests(pdev);
+	if (err) {
+		i915_pci_remove(pdev);
+		return err > 0 ? -ENOTTY : err;
+	}
+
 	return 0;
 }
 
@@ -1045,7 +1054,12 @@ static int __init i915_init(void)
 		return 0;
 	}
 
-	return pci_register_driver(&i915_pci_driver);
+	err = pci_register_driver(&i915_pci_driver);
+	if (err)
+		return err;
+
+	i915_perf_sysctl_register();
+	return 0;
 }
 
 static void __exit i915_exit(void)
@@ -1053,6 +1067,7 @@ static void __exit i915_exit(void)
 	if (!i915_pci_driver.driver.owner)
 		return;
 
+	i915_perf_sysctl_unregister();
 	pci_unregister_driver(&i915_pci_driver);
 	i915_globals_exit();
 }
