@@ -184,6 +184,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_LINKINFO_SET``          set link settings
   ``ETHTOOL_MSG_LINKMODES_GET``         get link modes info
   ``ETHTOOL_MSG_LINKMODES_SET``         set link modes info
+  ``ETHTOOL_MSG_LINKSTATE_GET``         get link state
   ===================================== ================================
 
 Kernel to userspace:
@@ -194,6 +195,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_LINKINFO_NTF``          link settings notification
   ``ETHTOOL_MSG_LINKMODES_GET_REPLY``   link modes info
   ``ETHTOOL_MSG_LINKMODES_NTF``         link modes notification
+  ``ETHTOOL_MSG_LINKSTATE_GET_REPLY``   link state info
   ===================================== ================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -392,6 +394,35 @@ is supposed to allow requesting changes without knowing what exactly kernel
 supports.
 
 
+LINKSTATE_GET
+=============
+
+Requests link state information. At the moment, only link up/down flag (as
+provided by ``ETHTOOL_GLINK`` ioctl command) is provided but some future
+extensions are planned (e.g. link down reason). This request does not have any
+attributes.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_LINKSTATE_HEADER``        nested  request header
+  ====================================  ======  ==========================
+
+Kernel response contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_LINKSTATE_HEADER``        nested  reply header
+  ``ETHTOOL_A_LINKSTATE_LINK``          bool    link state (up/down)
+  ====================================  ======  ==========================
+
+For most NIC drivers, the value of ``ETHTOOL_A_LINKSTATE_LINK`` returns
+carrier flag provided by ``netif_carrier_ok()`` but there are drivers which
+define their own handler.
+
+``LINKSTATE_GET`` allows dump requests (kernel returns reply messages for all
+devices supporting the request).
+
+
 Request translation
 ===================
 
@@ -413,7 +444,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GMSGLVL``                 n/a
   ``ETHTOOL_SMSGLVL``                 n/a
   ``ETHTOOL_NWAY_RST``                n/a
-  ``ETHTOOL_GLINK``                   n/a
+  ``ETHTOOL_GLINK``                   ``ETHTOOL_MSG_LINKSTATE_GET``
   ``ETHTOOL_GEEPROM``                 n/a
   ``ETHTOOL_SEEPROM``                 n/a
   ``ETHTOOL_GCOALESCE``               n/a
