@@ -181,6 +181,7 @@ Userspace to kernel:
   ===================================== ================================
   ``ETHTOOL_MSG_STRSET_GET``            get string set
   ``ETHTOOL_MSG_LINKINFO_GET``          get link settings
+  ``ETHTOOL_MSG_LINKINFO_SET``          set link settings
   ===================================== ================================
 
 Kernel to userspace:
@@ -311,6 +312,25 @@ corresponding ioctl structures.
 devices supporting the request).
 
 
+LINKINFO_SET
+============
+
+``LINKINFO_SET`` request allows setting some of the attributes reported by
+``LINKINFO_GET``.
+
+Request contents:
+
+  ====================================  ======  ==========================
+  ``ETHTOOL_A_LINKINFO_HEADER``         nested  request header
+  ``ETHTOOL_A_LINKINFO_PORT``           u8      physical port
+  ``ETHTOOL_A_LINKINFO_PHYADDR``        u8      phy MDIO address
+  ``ETHTOOL_A_LINKINFO_TP_MDIX_CTRL``   u8      MDI(-X) control
+  ====================================  ======  ==========================
+
+MDI(-X) status and transceiver cannot be set, request with the corresponding
+attributes is rejected.
+
+
 Request translation
 ===================
 
@@ -322,7 +342,7 @@ have their netlink replacement yet.
   ioctl command                       netlink command
   =================================== =====================================
   ``ETHTOOL_GSET``                    ``ETHTOOL_MSG_LINKINFO_GET``
-  ``ETHTOOL_SSET``                    n/a
+  ``ETHTOOL_SSET``                    ``ETHTOOL_MSG_LINKINFO_SET``
   ``ETHTOOL_GDRVINFO``                n/a
   ``ETHTOOL_GREGS``                   n/a
   ``ETHTOOL_GWOL``                    n/a
@@ -396,7 +416,7 @@ have their netlink replacement yet.
   ``ETHTOOL_GPHYSTATS``               n/a
   ``ETHTOOL_PERQUEUE``                n/a
   ``ETHTOOL_GLINKSETTINGS``           ``ETHTOOL_MSG_LINKINFO_GET``
-  ``ETHTOOL_SLINKSETTINGS``           n/a
+  ``ETHTOOL_SLINKSETTINGS``           ``ETHTOOL_MSG_LINKINFO_SET``
   ``ETHTOOL_PHY_GTUNABLE``            n/a
   ``ETHTOOL_PHY_STUNABLE``            n/a
   ``ETHTOOL_GFECPARAM``               n/a
