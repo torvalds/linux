@@ -1680,6 +1680,13 @@ void spi_finalize_current_message(struct spi_controller *ctlr)
 		}
 	}
 
+	if (unlikely(ctlr->ptp_sts_supported)) {
+		list_for_each_entry(xfer, &mesg->transfers, transfer_list) {
+			WARN_ON_ONCE(xfer->ptp_sts && !xfer->timestamped_pre);
+			WARN_ON_ONCE(xfer->ptp_sts && !xfer->timestamped_post);
+		}
+	}
+
 	spi_unmap_msg(ctlr, mesg);
 
 	if (ctlr->cur_msg_prepared && ctlr->unprepare_message) {
