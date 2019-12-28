@@ -350,6 +350,16 @@ static const struct usbmix_name_map dell_alc4020_map[] = {
 };
 
 /*
+ * Corsair Virtuoso calls everything "Headset" without this, leading to
+ * applications moving the sidetone control instead of the main one.
+ */
+static const struct usbmix_name_map corsair_virtuoso_map[] = {
+	{ 3, "Mic Capture" },
+	{ 6, "Sidetone Playback" },
+	{ 0 }
+};
+
+/*
  * Control map entries
  */
 
@@ -467,6 +477,16 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		/* Bose Companion 5 */
 		.id = USB_ID(0x05a7, 0x1020),
 		.map = bose_companion5_map,
+	},
+	{
+		/* Corsair Virtuoso (wired mode) */
+		.id = USB_ID(0x1b1c, 0x0a41),
+		.map = corsair_virtuoso_map,
+	},
+	{
+		/* Corsair Virtuoso (wireless mode) */
+		.id = USB_ID(0x1b1c, 0x0a42),
+		.map = corsair_virtuoso_map,
 	},
 	{ 0 } /* terminator */
 };
