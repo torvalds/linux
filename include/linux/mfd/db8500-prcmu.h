@@ -525,7 +525,6 @@ u8 db8500_prcmu_get_power_state_result(void);
 void db8500_prcmu_enable_wakeups(u32 wakeups);
 int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state);
 int db8500_prcmu_request_clock(u8 clock, bool enable);
-int db8500_prcmu_set_display_clocks(void);
 int db8500_prcmu_disable_dsipll(void);
 int db8500_prcmu_enable_dsipll(void);
 void db8500_prcmu_config_abb_event_readout(u32 abb_events);
@@ -678,11 +677,6 @@ static inline int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state)
 }
 
 static inline int db8500_prcmu_request_clock(u8 clock, bool enable)
-{
-	return 0;
-}
-
-static inline int db8500_prcmu_set_display_clocks(void)
 {
 	return 0;
 }

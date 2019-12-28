@@ -321,11 +321,6 @@ static inline bool prcmu_is_ac_wake_requested(void)
 	return db8500_prcmu_is_ac_wake_requested();
 }
 
-static inline int prcmu_set_display_clocks(void)
-{
-	return db8500_prcmu_set_display_clocks();
-}
-
 static inline int prcmu_disable_dsipll(void)
 {
 	return db8500_prcmu_disable_dsipll();
@@ -509,11 +504,6 @@ static inline void prcmu_modem_reset(void) {}
 static inline bool prcmu_is_ac_wake_requested(void)
 {
 	return false;
-}
-
-static inline int prcmu_set_display_clocks(void)
-{
-	return 0;
 }
 
 static inline int prcmu_disable_dsipll(void)
