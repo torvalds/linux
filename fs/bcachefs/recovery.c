@@ -27,26 +27,15 @@
 
 /* iterate over keys read from the journal: */
 
-struct journal_iter bch2_journal_iter_init(struct journal_keys *keys,
-					   enum btree_id id)
-{
-	return (struct journal_iter) {
-		.keys		= keys,
-		.k		= keys->d,
-		.btree_id	= id,
-	};
-}
-
 struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 {
-	while (1) {
-		if (iter->k == iter->keys->d + iter->keys->nr)
-			return bkey_s_c_null;
-
+	while (iter->k) {
 		if (iter->k->btree_id == iter->btree_id)
 			return bkey_i_to_s_c(iter->k->k);
 
 		iter->k++;
+		if (iter->k == iter->keys->d + iter->keys->nr)
+			iter->k = NULL;
 	}
 
 	return bkey_s_c_null;
@@ -54,11 +43,108 @@ struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 
 struct bkey_s_c bch2_journal_iter_next(struct journal_iter *iter)
 {
-	if (iter->k == iter->keys->d + iter->keys->nr)
+	if (!iter->k)
 		return bkey_s_c_null;
 
 	iter->k++;
+	if (iter->k == iter->keys->d + iter->keys->nr)
+		iter->k = NULL;
+
 	return bch2_journal_iter_peek(iter);
+}
+
+void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *iter)
+{
+	switch (iter->last) {
+	case none:
+		break;
+	case btree:
+		bch2_btree_iter_next(iter->btree);
+		break;
+	case journal:
+		bch2_journal_iter_next(&iter->journal);
+		break;
+	}
+
+	iter->last = none;
+}
+
+struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *iter)
+{
+	struct bkey_s_c ret;
+
+	while (1) {
+		struct bkey_s_c btree_k		= bch2_btree_iter_peek(iter->btree);
+		struct bkey_s_c journal_k	= bch2_journal_iter_peek(&iter->journal);
+
+		if (btree_k.k && journal_k.k) {
+			int cmp = bkey_cmp(btree_k.k->p, journal_k.k->p);
+
+			if (!cmp)
+				bch2_btree_iter_next(iter->btree);
+
+			iter->last = cmp < 0 ? btree : journal;
+		} else if (btree_k.k) {
+			iter->last = btree;
+		} else if (journal_k.k) {
+			iter->last = journal;
+		} else {
+			iter->last = none;
+			return bkey_s_c_null;
+		}
+
+		ret = iter->last == journal ? journal_k : btree_k;
+		if (!bkey_deleted(ret.k))
+			break;
+
+		bch2_btree_and_journal_iter_advance(iter);
+	}
+
+	return ret;
+}
+
+struct bkey_s_c bch2_btree_and_journal_iter_next(struct btree_and_journal_iter *iter)
+{
+	bch2_btree_and_journal_iter_advance(iter);
+
+	return bch2_btree_and_journal_iter_peek(iter);
+}
+
+struct journal_key *journal_key_search(struct journal_keys *journal_keys,
+				       enum btree_id id, struct bpos pos)
+{
+	size_t l = 0, r = journal_keys->nr, m;
+
+	while (l < r) {
+		m = l + ((r - l) >> 1);
+		if ((cmp_int(id, journal_keys->d[m].btree_id) ?:
+		     bkey_cmp(pos, journal_keys->d[m].k->k.p)) > 0)
+			l = m + 1;
+		else
+			r = m;
+	}
+
+	BUG_ON(l < journal_keys->nr &&
+	       (cmp_int(id, journal_keys->d[l].btree_id) ?:
+		bkey_cmp(pos, journal_keys->d[l].k->k.p)) > 0);
+
+	BUG_ON(l &&
+	       (cmp_int(id, journal_keys->d[l - 1].btree_id) ?:
+		bkey_cmp(pos, journal_keys->d[l - 1].k->k.p)) <= 0);
+
+	return l < journal_keys->nr ? journal_keys->d + l : NULL;
+}
+
+void bch2_btree_and_journal_iter_init(struct btree_and_journal_iter *iter,
+				      struct btree_trans *trans,
+				      struct journal_keys *journal_keys,
+				      enum btree_id id, struct bpos pos)
+{
+	iter->journal.keys	= journal_keys;
+	iter->journal.k		= journal_key_search(journal_keys, id, pos);
+	iter->journal.btree_id	= id;
+
+	iter->btree = bch2_trans_get_iter(trans, id, pos, 0);
 }
 
 /* sort and dedup all keys in the journal: */

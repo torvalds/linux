@@ -1280,9 +1280,8 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags, bool *wrote)
 int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
 	struct btree_trans trans;
-	struct btree_iter *btree_iter;
-	struct journal_iter journal_iter;
-	struct bkey_s_c btree_k, journal_k;
+	struct btree_and_journal_iter iter;
+	struct bkey_s_c k;
 	int ret;
 
 	ret = bch2_fs_ec_start(c);
@@ -1291,38 +1290,16 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	btree_iter	= bch2_trans_get_iter(&trans, BTREE_ID_EC, POS_MIN, 0);
-	journal_iter	= bch2_journal_iter_init(journal_keys, BTREE_ID_EC);
+	bch2_btree_and_journal_iter_init(&iter, &trans, journal_keys,
+					 BTREE_ID_EC, POS_MIN);
 
-	btree_k		= bch2_btree_iter_peek(btree_iter);
-	journal_k	= bch2_journal_iter_peek(&journal_iter);
 
-	while (1) {
-		bool btree;
-
-		if (btree_k.k && journal_k.k) {
-			int cmp = bkey_cmp(btree_k.k->p, journal_k.k->p);
-
-			if (!cmp)
-				btree_k = bch2_btree_iter_next(btree_iter);
-			btree = cmp < 0;
-		} else if (btree_k.k) {
-			btree = true;
-		} else if (journal_k.k) {
-			btree = false;
-		} else {
-			break;
-		}
-
-		bch2_mark_key(c, btree ? btree_k : journal_k,
-			      0, 0, NULL, 0,
+	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
+		bch2_mark_key(c, k, 0, 0, NULL, 0,
 			      BTREE_TRIGGER_ALLOC_READ|
 			      BTREE_TRIGGER_NOATOMIC);
 
-		if (btree)
-			btree_k = bch2_btree_iter_next(btree_iter);
-		else
-			journal_k = bch2_journal_iter_next(&journal_iter);
+		bch2_btree_and_journal_iter_advance(&iter);
 	}
 
 	ret = bch2_trans_exit(&trans) ?: ret;

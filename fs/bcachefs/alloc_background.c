@@ -211,32 +211,30 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_and_journal_iter iter;
 	struct bkey_s_c k;
 	struct bch_dev *ca;
-	struct journal_key *j;
 	unsigned i;
-	int ret;
+	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_ALLOC, POS_MIN, 0, k, ret)
+	bch2_btree_and_journal_iter_init(&iter, &trans, journal_keys,
+					 BTREE_ID_ALLOC, POS_MIN);
+
+	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
 		bch2_mark_key(c, k, 0, 0, NULL, 0,
 			      BTREE_TRIGGER_ALLOC_READ|
 			      BTREE_TRIGGER_NOATOMIC);
+
+		bch2_btree_and_journal_iter_advance(&iter);
+	}
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret) {
 		bch_err(c, "error reading alloc info: %i", ret);
 		return ret;
 	}
-
-	for_each_journal_key(*journal_keys, j)
-		if (j->btree_id == BTREE_ID_ALLOC)
-			bch2_mark_key(c, bkey_i_to_s_c(j->k),
-				      0, 0, NULL, 0,
-				      BTREE_TRIGGER_ALLOC_READ|
-				      BTREE_TRIGGER_NOATOMIC);
 
 	percpu_down_write(&c->mark_lock);
 	bch2_dev_usage_from_buckets(c);

@@ -24,10 +24,28 @@ struct journal_iter {
 	enum btree_id		btree_id;
 };
 
-struct journal_iter bch2_journal_iter_init(struct journal_keys *,
-					   enum btree_id);
-struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *);
-struct bkey_s_c bch2_journal_iter_next(struct journal_iter *);
+struct btree_and_journal_iter {
+	enum btree_id		btree_id;
+
+	struct btree_iter	*btree;
+	struct journal_iter	journal;
+
+	enum last_key_returned {
+		none,
+		btree,
+		journal,
+	}			last;
+};
+
+void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *);
+struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *);
+struct bkey_s_c bch2_btree_and_journal_iter_next(struct btree_and_journal_iter *);
+struct journal_key *journal_key_search(struct journal_keys *,
+				       enum btree_id, struct bpos);
+void bch2_btree_and_journal_iter_init(struct btree_and_journal_iter *,
+				      struct btree_trans *,
+				      struct journal_keys *,
+				      enum btree_id, struct bpos);
 
 int bch2_fs_recovery(struct bch_fs *);
 int bch2_fs_initialize(struct bch_fs *);
