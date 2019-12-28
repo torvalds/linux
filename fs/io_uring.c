@@ -1132,14 +1132,19 @@ fallback:
 	return NULL;
 }
 
-static void io_free_req_many(struct io_ring_ctx *ctx, void **reqs, int *nr)
+struct req_batch {
+	void *reqs[IO_IOPOLL_BATCH];
+	int to_free;
+};
+
+static void io_free_req_many(struct io_ring_ctx *ctx, struct req_batch *rb)
 {
-	if (*nr) {
-		kmem_cache_free_bulk(req_cachep, *nr, reqs);
-		percpu_ref_put_many(&ctx->refs, *nr);
-		percpu_ref_put_many(&ctx->file_data->refs, *nr);
-		*nr = 0;
-	}
+	if (!rb->to_free)
+		return;
+	kmem_cache_free_bulk(req_cachep, rb->to_free, rb->reqs);
+	percpu_ref_put_many(&ctx->refs, rb->to_free);
+	percpu_ref_put_many(&ctx->file_data->refs, rb->to_free);
+	rb->to_free = 0;
 }
 
 static void __io_req_do_free(struct io_kiocb *req)
@@ -1371,7 +1376,7 @@ static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
 	return smp_load_acquire(&rings->sq.tail) - ctx->cached_sq_head;
 }
 
-static inline bool io_req_multi_free(struct io_kiocb *req)
+static inline bool io_req_multi_free(struct req_batch *rb, struct io_kiocb *req)
 {
 	/*
 	 * If we're not using fixed files, we have to pair the completion part
@@ -1379,8 +1384,12 @@ static inline bool io_req_multi_free(struct io_kiocb *req)
 	 * free for fixed file and non-linked commands.
 	 */
 	if (((req->flags & (REQ_F_FIXED_FILE|REQ_F_LINK)) == REQ_F_FIXED_FILE)
-	    && !io_is_fallback_req(req) && !req->io)
+	    && !io_is_fallback_req(req) && !req->io) {
+		rb->reqs[rb->to_free++] = req;
+		if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
+			io_free_req_many(req->ctx, rb);
 		return true;
+	}
 
 	return false;
 }
@@ -1391,11 +1400,10 @@ static inline bool io_req_multi_free(struct io_kiocb *req)
 static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 			       struct list_head *done)
 {
-	void *reqs[IO_IOPOLL_BATCH];
+	struct req_batch rb;
 	struct io_kiocb *req;
-	int to_free;
 
-	to_free = 0;
+	rb.to_free = 0;
 	while (!list_empty(done)) {
 		req = list_first_entry(done, struct io_kiocb, list);
 		list_del(&req->list);
@@ -1403,19 +1411,13 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		io_cqring_fill_event(req, req->result);
 		(*nr_events)++;
 
-		if (refcount_dec_and_test(&req->refs)) {
-			if (io_req_multi_free(req)) {
-				reqs[to_free++] = req;
-				if (to_free == ARRAY_SIZE(reqs))
-					io_free_req_many(ctx, reqs, &to_free);
-			} else {
-				io_free_req(req);
-			}
-		}
+		if (refcount_dec_and_test(&req->refs) &&
+		    !io_req_multi_free(&rb, req))
+			io_free_req(req);
 	}
 
 	io_commit_cqring(ctx);
-	io_free_req_many(ctx, reqs, &to_free);
+	io_free_req_many(ctx, &rb);
 }
 
 static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
@@ -3221,30 +3223,25 @@ static void io_poll_complete_work(struct io_wq_work **workptr)
 
 static void __io_poll_flush(struct io_ring_ctx *ctx, struct llist_node *nodes)
 {
-	void *reqs[IO_IOPOLL_BATCH];
 	struct io_kiocb *req, *tmp;
-	int to_free = 0;
+	struct req_batch rb;
 
+	rb.to_free = 0;
 	spin_lock_irq(&ctx->completion_lock);
 	llist_for_each_entry_safe(req, tmp, nodes, llist_node) {
 		hash_del(&req->hash_node);
 		io_poll_complete(req, req->result, 0);
 
-		if (refcount_dec_and_test(&req->refs)) {
-			if (io_req_multi_free(req)) {
-				reqs[to_free++] = req;
-				if (to_free == ARRAY_SIZE(reqs))
-					io_free_req_many(ctx, reqs, &to_free);
-			} else {
-				req->flags |= REQ_F_COMP_LOCKED;
-				io_free_req(req);
-			}
+		if (refcount_dec_and_test(&req->refs) &&
+		    !io_req_multi_free(&rb, req)) {
+			req->flags |= REQ_F_COMP_LOCKED;
+			io_free_req(req);
 		}
 	}
 	spin_unlock_irq(&ctx->completion_lock);
 
 	io_cqring_ev_posted(ctx);
-	io_free_req_many(ctx, reqs, &to_free);
+	io_free_req_many(ctx, &rb);
 }
 
 static void io_poll_flush(struct io_wq_work **workptr)
