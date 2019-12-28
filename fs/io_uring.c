@@ -1132,21 +1132,6 @@ fallback:
 	return NULL;
 }
 
-struct req_batch {
-	void *reqs[IO_IOPOLL_BATCH];
-	int to_free;
-};
-
-static void io_free_req_many(struct io_ring_ctx *ctx, struct req_batch *rb)
-{
-	if (!rb->to_free)
-		return;
-	kmem_cache_free_bulk(req_cachep, rb->to_free, rb->reqs);
-	percpu_ref_put_many(&ctx->refs, rb->to_free);
-	percpu_ref_put_many(&ctx->file_data->refs, rb->to_free);
-	rb->to_free = 0;
-}
-
 static void __io_req_do_free(struct io_kiocb *req)
 {
 	if (likely(!io_is_fallback_req(req)))
@@ -1155,7 +1140,7 @@ static void __io_req_do_free(struct io_kiocb *req)
 		clear_bit_unlock(0, (unsigned long *) req->ctx->fallback_req);
 }
 
-static void __io_free_req(struct io_kiocb *req)
+static void __io_req_aux_free(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -1167,7 +1152,14 @@ static void __io_free_req(struct io_kiocb *req)
 		else
 			fput(req->file);
 	}
+}
+
+static void __io_free_req(struct io_kiocb *req)
+{
+	__io_req_aux_free(req);
+
 	if (req->flags & REQ_F_INFLIGHT) {
+		struct io_ring_ctx *ctx = req->ctx;
 		unsigned long flags;
 
 		spin_lock_irqsave(&ctx->inflight_lock, flags);
@@ -1179,6 +1171,56 @@ static void __io_free_req(struct io_kiocb *req)
 
 	percpu_ref_put(&req->ctx->refs);
 	__io_req_do_free(req);
+}
+
+struct req_batch {
+	void *reqs[IO_IOPOLL_BATCH];
+	int to_free;
+	int need_iter;
+};
+
+static void io_free_req_many(struct io_ring_ctx *ctx, struct req_batch *rb)
+{
+	if (!rb->to_free)
+		return;
+	if (rb->need_iter) {
+		int i, inflight = 0;
+		unsigned long flags;
+
+		for (i = 0; i < rb->to_free; i++) {
+			struct io_kiocb *req = rb->reqs[i];
+
+			if (req->flags & REQ_F_FIXED_FILE)
+				req->file = NULL;
+			if (req->flags & REQ_F_INFLIGHT)
+				inflight++;
+			else
+				rb->reqs[i] = NULL;
+			__io_req_aux_free(req);
+		}
+		if (!inflight)
+			goto do_free;
+
+		spin_lock_irqsave(&ctx->inflight_lock, flags);
+		for (i = 0; i < rb->to_free; i++) {
+			struct io_kiocb *req = rb->reqs[i];
+
+			if (req) {
+				list_del(&req->inflight_entry);
+				if (!--inflight)
+					break;
+			}
+		}
+		spin_unlock_irqrestore(&ctx->inflight_lock, flags);
+
+		if (waitqueue_active(&ctx->inflight_wait))
+			wake_up(&ctx->inflight_wait);
+	}
+do_free:
+	kmem_cache_free_bulk(req_cachep, rb->to_free, rb->reqs);
+	percpu_ref_put_many(&ctx->refs, rb->to_free);
+	percpu_ref_put_many(&ctx->file_data->refs, rb->to_free);
+	rb->to_free = rb->need_iter = 0;
 }
 
 static bool io_link_cancel_timeout(struct io_kiocb *req)
@@ -1378,20 +1420,16 @@ static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
 
 static inline bool io_req_multi_free(struct req_batch *rb, struct io_kiocb *req)
 {
-	/*
-	 * If we're not using fixed files, we have to pair the completion part
-	 * with the file put. Use regular completions for those, only batch
-	 * free for fixed file and non-linked commands.
-	 */
-	if (((req->flags & (REQ_F_FIXED_FILE|REQ_F_LINK)) == REQ_F_FIXED_FILE)
-	    && !io_is_fallback_req(req) && !req->io) {
-		rb->reqs[rb->to_free++] = req;
-		if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
-			io_free_req_many(req->ctx, rb);
-		return true;
-	}
+	if ((req->flags & REQ_F_LINK) || io_is_fallback_req(req))
+		return false;
 
-	return false;
+	if (!(req->flags & REQ_F_FIXED_FILE) || req->io)
+		rb->need_iter++;
+
+	rb->reqs[rb->to_free++] = req;
+	if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
+		io_free_req_many(req->ctx, rb);
+	return true;
 }
 
 /*
@@ -1403,7 +1441,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	struct req_batch rb;
 	struct io_kiocb *req;
 
-	rb.to_free = 0;
+	rb.to_free = rb.need_iter = 0;
 	while (!list_empty(done)) {
 		req = list_first_entry(done, struct io_kiocb, list);
 		list_del(&req->list);
@@ -3226,7 +3264,7 @@ static void __io_poll_flush(struct io_ring_ctx *ctx, struct llist_node *nodes)
 	struct io_kiocb *req, *tmp;
 	struct req_batch rb;
 
-	rb.to_free = 0;
+	rb.to_free = rb.need_iter = 0;
 	spin_lock_irq(&ctx->completion_lock);
 	llist_for_each_entry_safe(req, tmp, nodes, llist_node) {
 		hash_del(&req->hash_node);
