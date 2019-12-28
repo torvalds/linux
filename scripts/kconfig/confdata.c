@@ -72,7 +72,8 @@ static bool is_same(const char *file1, const char *file2)
 	if (map2 == MAP_FAILED)
 		goto close2;
 
-	if (bcmp(map1, map2, st1.st_size))
+// using android, bcmp does not works, but memcmp yes:
+	if (memcmp(map1, map2, st1.st_size))
 		goto close2;
 
 	ret = true;
