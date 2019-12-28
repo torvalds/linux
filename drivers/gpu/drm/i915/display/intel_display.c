@@ -12260,20 +12260,50 @@ static bool c8_planes_changed(const struct intel_crtc_state *new_crtc_state)
 	return !old_crtc_state->c8_planes != !new_crtc_state->c8_planes;
 }
 
-static int icl_add_sync_mode_crtcs(struct intel_crtc_state *crtc_state)
+static bool
+intel_atomic_is_master_connector(struct intel_crtc_state *crtc_state)
+{
+	struct drm_crtc *crtc = crtc_state->uapi.crtc;
+	struct drm_atomic_state *state = crtc_state->uapi.state;
+	struct drm_connector *connector;
+	struct drm_connector_state *connector_state;
+	int i;
+
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
+		if (connector_state->crtc != crtc)
+			continue;
+		if (connector->has_tile &&
+		    connector->tile_h_loc == connector->num_h_tile - 1 &&
+		    connector->tile_v_loc == connector->num_v_tile - 1)
+			return true;
+	}
+
+	return false;
+}
+
+static void reset_port_sync_mode_state(struct intel_crtc_state *crtc_state)
+{
+	crtc_state->master_transcoder = INVALID_TRANSCODER;
+	crtc_state->sync_mode_slaves_mask = 0;
+}
+
+static int icl_compute_port_sync_crtc_state(struct drm_connector *connector,
+					    struct intel_crtc_state *crtc_state,
+					    int num_tiled_conns)
 {
 	struct drm_crtc *crtc = crtc_state->uapi.crtc;
 	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->uapi.state);
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct drm_connector *master_connector, *connector;
-	struct drm_connector_state *connector_state;
+	struct drm_connector *master_connector;
 	struct drm_connector_list_iter conn_iter;
 	struct drm_crtc *master_crtc = NULL;
 	struct drm_crtc_state *master_crtc_state;
 	struct intel_crtc_state *master_pipe_config;
-	int i, tile_group_id;
 
 	if (INTEL_GEN(dev_priv) < 11)
+		return 0;
+
+	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP))
 		return 0;
 
 	/*
@@ -12282,65 +12312,68 @@ static int icl_add_sync_mode_crtcs(struct intel_crtc_state *crtc_state)
 	 * to the last horizonal and last vertical tile a master/genlock CRTC.
 	 * All the other CRTCs corresponding to other tiles of the same Tile group
 	 * are the slave CRTCs and hold a pointer to their genlock CRTC.
+	 * If all tiles not present do not make master slave assignments.
 	 */
-	for_each_new_connector_in_state(&state->base, connector, connector_state, i) {
-		if (connector_state->crtc != crtc)
-			continue;
-		if (!connector->has_tile)
-			continue;
-		if (crtc_state->hw.mode.hdisplay != connector->tile_h_size ||
-		    crtc_state->hw.mode.vdisplay != connector->tile_v_size)
-			return 0;
-		if (connector->tile_h_loc == connector->num_h_tile - 1 &&
-		    connector->tile_v_loc == connector->num_v_tile - 1)
-			continue;
-		crtc_state->sync_mode_slaves_mask = 0;
-		tile_group_id = connector->tile_group->id;
-		drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
-		drm_for_each_connector_iter(master_connector, &conn_iter) {
-			struct drm_connector_state *master_conn_state = NULL;
-
-			if (!master_connector->has_tile)
-				continue;
-			if (master_connector->tile_h_loc != master_connector->num_h_tile - 1 ||
-			    master_connector->tile_v_loc != master_connector->num_v_tile - 1)
-				continue;
-			if (master_connector->tile_group->id != tile_group_id)
-				continue;
-
-			master_conn_state = drm_atomic_get_connector_state(&state->base,
-									   master_connector);
-			if (IS_ERR(master_conn_state)) {
-				drm_connector_list_iter_end(&conn_iter);
-				return PTR_ERR(master_conn_state);
-			}
-			if (master_conn_state->crtc) {
-				master_crtc = master_conn_state->crtc;
-				break;
-			}
-		}
-		drm_connector_list_iter_end(&conn_iter);
-
-		if (!master_crtc) {
-			DRM_DEBUG_KMS("Could not find Master CRTC for Slave CRTC %d\n",
-				      connector_state->crtc->base.id);
-			return -EINVAL;
-		}
-
-		master_crtc_state = drm_atomic_get_crtc_state(&state->base,
-							      master_crtc);
-		if (IS_ERR(master_crtc_state))
-			return PTR_ERR(master_crtc_state);
-
-		master_pipe_config = to_intel_crtc_state(master_crtc_state);
-		crtc_state->master_transcoder = master_pipe_config->cpu_transcoder;
-		master_pipe_config->sync_mode_slaves_mask |=
-			BIT(crtc_state->cpu_transcoder);
-		DRM_DEBUG_KMS("Master Transcoder = %s added for Slave CRTC = %d, slave transcoder bitmask = %d\n",
-			      transcoder_name(crtc_state->master_transcoder),
-			      crtc_state->uapi.crtc->base.id,
-			      master_pipe_config->sync_mode_slaves_mask);
+	if (!connector->has_tile ||
+	    crtc_state->hw.mode.hdisplay != connector->tile_h_size ||
+	    crtc_state->hw.mode.vdisplay != connector->tile_v_size ||
+	    num_tiled_conns < connector->num_h_tile * connector->num_v_tile) {
+		reset_port_sync_mode_state(crtc_state);
+		return 0;
 	}
+	/* Last Horizontal and last vertical tile connector is a master
+	 * Master's crtc state is already populated in slave for port sync
+	 */
+	if (connector->tile_h_loc == connector->num_h_tile - 1 &&
+	    connector->tile_v_loc == connector->num_v_tile - 1)
+		return 0;
+
+	/* Loop through all connectors and configure the Slave crtc_state
+	 * to point to the correct master.
+	 */
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
+	drm_for_each_connector_iter(master_connector, &conn_iter) {
+		struct drm_connector_state *master_conn_state = NULL;
+
+		if (!(master_connector->has_tile &&
+		      master_connector->tile_group->id == connector->tile_group->id))
+			continue;
+		if (master_connector->tile_h_loc != master_connector->num_h_tile - 1 ||
+		    master_connector->tile_v_loc != master_connector->num_v_tile - 1)
+			continue;
+
+		master_conn_state = drm_atomic_get_connector_state(&state->base,
+								   master_connector);
+		if (IS_ERR(master_conn_state)) {
+			drm_connector_list_iter_end(&conn_iter);
+			return PTR_ERR(master_conn_state);
+		}
+		if (master_conn_state->crtc) {
+			master_crtc = master_conn_state->crtc;
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	if (!master_crtc) {
+		DRM_DEBUG_KMS("Could not find Master CRTC for Slave CRTC %d\n",
+			      crtc->base.id);
+		return -EINVAL;
+	}
+
+	master_crtc_state = drm_atomic_get_crtc_state(&state->base,
+						      master_crtc);
+	if (IS_ERR(master_crtc_state))
+		return PTR_ERR(master_crtc_state);
+
+	master_pipe_config = to_intel_crtc_state(master_crtc_state);
+	crtc_state->master_transcoder = master_pipe_config->cpu_transcoder;
+	master_pipe_config->sync_mode_slaves_mask |=
+		BIT(crtc_state->cpu_transcoder);
+	DRM_DEBUG_KMS("Master Transcoder = %s added for Slave CRTC = %d, slave transcoder bitmask = %d\n",
+		      transcoder_name(crtc_state->master_transcoder),
+		      crtc->base.id,
+		      master_pipe_config->sync_mode_slaves_mask);
 
 	return 0;
 }
@@ -12886,9 +12919,11 @@ intel_crtc_prepare_cleared_state(struct intel_crtc_state *crtc_state)
 		saved_state->wm = crtc_state->wm;
 	/*
 	 * Save the slave bitmask which gets filled for master crtc state during
-	 * slave atomic check call.
+	 * slave atomic check call. For all other CRTCs reset the port sync variables
+	 * crtc_state->master_transcoder needs to be set to INVALID
 	 */
-	if (is_trans_port_sync_master(crtc_state))
+	reset_port_sync_mode_state(saved_state);
+	if (intel_atomic_is_master_connector(crtc_state))
 		saved_state->sync_mode_slaves_mask =
 			crtc_state->sync_mode_slaves_mask;
 
@@ -12909,7 +12944,7 @@ intel_modeset_pipe_config(struct intel_crtc_state *pipe_config)
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	int base_bpp, ret;
-	int i;
+	int i, tile_group_id = -1, num_tiled_conns = 0;
 	bool retry = true;
 
 	pipe_config->cpu_transcoder =
@@ -12979,13 +13014,22 @@ encoder_retry:
 	drm_mode_set_crtcinfo(&pipe_config->hw.adjusted_mode,
 			      CRTC_STEREO_DOUBLE);
 
-	/* Set the crtc_state defaults for trans_port_sync */
-	pipe_config->master_transcoder = INVALID_TRANSCODER;
-	ret = icl_add_sync_mode_crtcs(pipe_config);
-	if (ret) {
-		DRM_DEBUG_KMS("Cannot assign Sync Mode CRTCs: %d\n",
-			      ret);
-		return ret;
+	/* Get tile_group_id of tiled connector */
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
+		if (connector_state->crtc == crtc &&
+		    connector->has_tile) {
+			tile_group_id = connector->tile_group->id;
+			break;
+		}
+	}
+
+	/* Get total number of tiled connectors in state that belong to
+	 * this tile group.
+	 */
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
+		if (connector->has_tile &&
+		    connector->tile_group->id == tile_group_id)
+			num_tiled_conns++;
 	}
 
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
@@ -12995,6 +13039,14 @@ encoder_retry:
 	for_each_new_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != crtc)
 			continue;
+
+		ret = icl_compute_port_sync_crtc_state(connector, pipe_config,
+						       num_tiled_conns);
+		if (ret) {
+			DRM_DEBUG_KMS("Cannot assign Sync Mode CRTCs: %d\n",
+				      ret);
+			return ret;
+		}
 
 		encoder = to_intel_encoder(connector_state->best_encoder);
 		ret = encoder->compute_config(encoder, pipe_config,
