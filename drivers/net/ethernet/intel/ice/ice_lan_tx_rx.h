@@ -302,7 +302,7 @@ struct ice_ctx_ele {
 
 #define ICE_CTX_STORE(_struct, _ele, _width, _lsb) {	\
 	.offset = offsetof(struct _struct, _ele),	\
-	.size_of = FIELD_SIZEOF(struct _struct, _ele),	\
+	.size_of = sizeof_field(struct _struct, _ele),	\
 	.width = _width,				\
 	.lsb = _lsb,					\
 }

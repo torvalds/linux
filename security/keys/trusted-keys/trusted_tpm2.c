@@ -309,6 +309,7 @@ int tpm2_unseal_trusted(struct tpm_chip *chip,
 		return rc;
 
 	rc = tpm2_unseal_cmd(chip, payload, options, blob_handle);
+	tpm2_flush_context(chip, blob_handle);
 
 	return rc;
 }

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/net/ti,cpsw-switch.yaml#
@@ -44,7 +44,6 @@ properties:
     description: CPSW functional clock
 
   clock-names:
-    maxItems: 1
     items:
       - const: fck
 
@@ -70,7 +69,6 @@ properties:
       Phandle to the system control device node which provides access to
       efuse IO range with MAC addresses
 
-
   ethernet-ports:
     type: object
     properties:
@@ -82,8 +80,6 @@ properties:
     patternProperties:
       "^port@[0-9]+$":
           type: object
-          minItems: 1
-          maxItems: 2
           description: CPSW external ports
 
           allOf:
@@ -91,23 +87,20 @@ properties:
 
           properties:
             reg:
-              maxItems: 1
-              enum: [1, 2]
+              items:
+                - enum: [1, 2]
               description: CPSW port number
 
             phys:
-              $ref: /schemas/types.yaml#definitions/phandle-array
               maxItems: 1
               description:  phandle on phy-gmii-sel PHY
 
             label:
-              $ref: /schemas/types.yaml#/definitions/string-array
-              maxItems: 1
               description: label associated with this port
 
             ti,dual-emac-pvid:
-              $ref: /schemas/types.yaml#/definitions/uint32
-              maxItems: 1
+              allOf:
+                - $ref: /schemas/types.yaml#/definitions/uint32
               minimum: 1
               maximum: 1024
               description:
@@ -136,7 +129,6 @@ properties:
         description: CPTS reference clock
 
       clock-names:
-        maxItems: 1
         items:
           - const: cpts
 
@@ -201,7 +193,7 @@ examples:
                         phys = <&phy_gmii_sel 1>;
                         phy-handle = <&ethphy0_sw>;
                         phy-mode = "rgmii";
-                        ti,dual_emac_pvid = <1>;
+                        ti,dual-emac-pvid = <1>;
                 };
 
                 cpsw_port2: port@2 {
@@ -211,7 +203,7 @@ examples:
                         phys = <&phy_gmii_sel 2>;
                         phy-handle = <&ethphy1_sw>;
                         phy-mode = "rgmii";
-                        ti,dual_emac_pvid = <2>;
+                        ti,dual-emac-pvid = <2>;
                 };
         };
 

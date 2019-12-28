@@ -586,7 +586,7 @@ bool dal_ddc_service_query_ddc_data(
 bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
 		struct aux_payload *payload)
 {
-	uint8_t retrieved = 0;
+	uint32_t retrieved = 0;
 	bool ret = 0;
 
 	if (!ddc)

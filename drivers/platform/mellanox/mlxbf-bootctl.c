@@ -309,7 +309,7 @@ static struct platform_driver mlxbf_bootctl_driver = {
 	.probe = mlxbf_bootctl_probe,
 	.driver = {
 		.name = "mlxbf-bootctl",
-		.groups = mlxbf_bootctl_groups,
+		.dev_groups = mlxbf_bootctl_groups,
 		.acpi_match_table = mlxbf_bootctl_acpi_ids,
 	}
 };

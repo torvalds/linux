@@ -172,10 +172,10 @@ static const struct fs_parameter_enum ceph_mount_param_enums[] = {
 static const struct fs_parameter_spec ceph_mount_param_specs[] = {
 	fsparam_flag_no ("acl",				Opt_acl),
 	fsparam_flag_no ("asyncreaddir",		Opt_asyncreaddir),
-	fsparam_u32	("caps_max",			Opt_caps_max),
+	fsparam_s32	("caps_max",			Opt_caps_max),
 	fsparam_u32	("caps_wanted_delay_max",	Opt_caps_wanted_delay_max),
 	fsparam_u32	("caps_wanted_delay_min",	Opt_caps_wanted_delay_min),
-	fsparam_s32	("write_congestion_kb",		Opt_congestion_kb),
+	fsparam_u32	("write_congestion_kb",		Opt_congestion_kb),
 	fsparam_flag_no ("copyfrom",			Opt_copyfrom),
 	fsparam_flag_no ("dcache",			Opt_dcache),
 	fsparam_flag_no ("dirstat",			Opt_dirstat),
@@ -187,8 +187,8 @@ static const struct fs_parameter_spec ceph_mount_param_specs[] = {
 	fsparam_flag_no ("quotadf",			Opt_quotadf),
 	fsparam_u32	("rasize",			Opt_rasize),
 	fsparam_flag_no ("rbytes",			Opt_rbytes),
-	fsparam_s32	("readdir_max_bytes",		Opt_readdir_max_bytes),
-	fsparam_s32	("readdir_max_entries",		Opt_readdir_max_entries),
+	fsparam_u32	("readdir_max_bytes",		Opt_readdir_max_bytes),
+	fsparam_u32	("readdir_max_entries",		Opt_readdir_max_entries),
 	fsparam_enum	("recover_session",		Opt_recover_session),
 	fsparam_flag_no ("require_active_mds",		Opt_require_active_mds),
 	fsparam_u32	("rsize",			Opt_rsize),
@@ -328,7 +328,9 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		fsopt->caps_wanted_delay_max = result.uint_32;
 		break;
 	case Opt_caps_max:
-		fsopt->caps_max = result.uint_32;
+		if (result.int_32 < 0)
+			goto out_of_range;
+		fsopt->caps_max = result.int_32;
 		break;
 	case Opt_readdir_max_entries:
 		if (result.uint_32 < 1)
@@ -547,25 +549,25 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_show_option(m, "recover_session", "clean");
 
 	if (fsopt->wsize != CEPH_MAX_WRITE_SIZE)
-		seq_printf(m, ",wsize=%d", fsopt->wsize);
+		seq_printf(m, ",wsize=%u", fsopt->wsize);
 	if (fsopt->rsize != CEPH_MAX_READ_SIZE)
-		seq_printf(m, ",rsize=%d", fsopt->rsize);
+		seq_printf(m, ",rsize=%u", fsopt->rsize);
 	if (fsopt->rasize != CEPH_RASIZE_DEFAULT)
-		seq_printf(m, ",rasize=%d", fsopt->rasize);
+		seq_printf(m, ",rasize=%u", fsopt->rasize);
 	if (fsopt->congestion_kb != default_congestion_kb())
-		seq_printf(m, ",write_congestion_kb=%d", fsopt->congestion_kb);
+		seq_printf(m, ",write_congestion_kb=%u", fsopt->congestion_kb);
 	if (fsopt->caps_max)
 		seq_printf(m, ",caps_max=%d", fsopt->caps_max);
 	if (fsopt->caps_wanted_delay_min != CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT)
-		seq_printf(m, ",caps_wanted_delay_min=%d",
+		seq_printf(m, ",caps_wanted_delay_min=%u",
 			 fsopt->caps_wanted_delay_min);
 	if (fsopt->caps_wanted_delay_max != CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT)
-		seq_printf(m, ",caps_wanted_delay_max=%d",
+		seq_printf(m, ",caps_wanted_delay_max=%u",
 			   fsopt->caps_wanted_delay_max);
 	if (fsopt->max_readdir != CEPH_MAX_READDIR_DEFAULT)
-		seq_printf(m, ",readdir_max_entries=%d", fsopt->max_readdir);
+		seq_printf(m, ",readdir_max_entries=%u", fsopt->max_readdir);
 	if (fsopt->max_readdir_bytes != CEPH_MAX_READDIR_BYTES_DEFAULT)
-		seq_printf(m, ",readdir_max_bytes=%d", fsopt->max_readdir_bytes);
+		seq_printf(m, ",readdir_max_bytes=%u", fsopt->max_readdir_bytes);
 	if (strcmp(fsopt->snapdir_name, CEPH_SNAPDIRNAME_DEFAULT))
 		seq_show_option(m, "snapdirname", fsopt->snapdir_name);
 

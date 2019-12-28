@@ -4291,8 +4291,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
 				&crtc_state->wm.skl.optimal.planes[plane_id];
 
 			if (plane_id == PLANE_CURSOR) {
-				if (WARN_ON(wm->wm[level].min_ddb_alloc >
-					    total[PLANE_CURSOR])) {
+				if (wm->wm[level].min_ddb_alloc > total[PLANE_CURSOR]) {
+					WARN_ON(wm->wm[level].min_ddb_alloc != U16_MAX);
 					blocks = U32_MAX;
 					break;
 				}

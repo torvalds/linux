@@ -11,9 +11,9 @@
 #	R1 and R2 (also implemented with namespaces), with different MTUs:
 #
 #	  segment a_r1    segment b_r1		a_r1: 2000
-#	.--------------R1--------------.	a_r2: 1500
-#	A                               B	a_r3: 2000
-#	'--------------R2--------------'	a_r4: 1400
+#	.--------------R1--------------.	b_r1: 1400
+#	A                               B	a_r2: 2000
+#	'--------------R2--------------'	b_r2: 1500
 #	  segment a_r2    segment b_r2
 #
 #	Check that PMTU exceptions with the correct PMTU are created. Then
