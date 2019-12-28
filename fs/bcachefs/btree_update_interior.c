@@ -1657,6 +1657,8 @@ void __bch2_foreground_maybe_merge(struct bch_fs *c,
 	size_t sib_u64s;
 	int ret = 0;
 
+	BUG_ON(!btree_node_locked(iter, level));
+
 	closure_init_stack(&cl);
 retry:
 	BUG_ON(!btree_node_locked(iter, level));
