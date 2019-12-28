@@ -46,7 +46,8 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 		hsr_check_carrier_and_operstate(hsr);
 		break;
 	case NETDEV_CHANGENAME:
-		hsr_debugfs_rename(dev);
+		if (is_hsr_master(dev))
+			hsr_debugfs_rename(dev);
 		break;
 	case NETDEV_CHANGEADDR:
 		if (port->type == HSR_PT_MASTER) {
