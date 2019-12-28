@@ -321,16 +321,6 @@ static inline bool prcmu_is_ac_wake_requested(void)
 	return db8500_prcmu_is_ac_wake_requested();
 }
 
-static inline int prcmu_disable_dsipll(void)
-{
-	return db8500_prcmu_disable_dsipll();
-}
-
-static inline int prcmu_enable_dsipll(void)
-{
-	return db8500_prcmu_enable_dsipll();
-}
-
 static inline int prcmu_config_esram0_deep_sleep(u8 state)
 {
 	return db8500_prcmu_config_esram0_deep_sleep(state);
@@ -504,16 +494,6 @@ static inline void prcmu_modem_reset(void) {}
 static inline bool prcmu_is_ac_wake_requested(void)
 {
 	return false;
-}
-
-static inline int prcmu_disable_dsipll(void)
-{
-	return 0;
-}
-
-static inline int prcmu_enable_dsipll(void)
-{
-	return 0;
 }
 
 static inline int prcmu_config_esram0_deep_sleep(u8 state)
