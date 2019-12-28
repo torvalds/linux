@@ -1108,33 +1108,10 @@ erridr:
 	return err;
 }
 
-static bool u32_hnode_empty(struct tc_u_hnode *ht, bool *non_root_ht)
-{
-	int i;
-
-	if (!ht)
-		return true;
-	if (!ht->is_root) {
-		*non_root_ht = true;
-		return false;
-	}
-	if (*non_root_ht)
-		return false;
-	if (ht->refcnt < 2)
-		return true;
-
-	for (i = 0; i <= ht->divisor; i++) {
-		if (rtnl_dereference(ht->ht[i]))
-			return false;
-	}
-	return true;
-}
-
 static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 		     bool rtnl_held)
 {
 	struct tc_u_common *tp_c = tp->data;
-	bool non_root_ht = false;
 	struct tc_u_hnode *ht;
 	struct tc_u_knode *n;
 	unsigned int h;
@@ -1147,8 +1124,6 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	     ht = rtnl_dereference(ht->next)) {
 		if (ht->prio != tp->prio)
 			continue;
-		if (u32_hnode_empty(ht, &non_root_ht))
-			return;
 		if (arg->count >= arg->skip) {
 			if (arg->fn(tp, ht, arg) < 0) {
 				arg->stop = 1;
