@@ -1461,24 +1461,13 @@ static void
 mt7615_mac_scs_check(struct mt7615_phy *phy)
 {
 	struct mt7615_dev *dev = phy->dev;
-	u32 val, rts_cnt = 0, rts_retries_cnt = 0, rts_err_rate = 0;
+	struct mib_stats *mib = &phy->mib;
+	u32 val, rts_err_rate = 0;
 	u32 mdrdy_cck, mdrdy_ofdm, pd_cck, pd_ofdm;
 	bool ext_phy = phy != &dev->phy;
-	int i;
 
 	if (!dev->scs_en)
 		return;
-
-	for (i = 0; i < 4; i++) {
-		u32 data;
-
-		val = mt76_rr(dev, MT_MIB_MB_SDR(ext_phy, i));
-		data = FIELD_GET(MT_MIB_RTS_RETRIES_COUNT_MASK, val);
-		if (data > rts_retries_cnt) {
-			rts_cnt = FIELD_GET(MT_MIB_RTS_COUNT_MASK, val);
-			rts_retries_cnt = data;
-		}
-	}
 
 	val = mt76_rr(dev, MT_WF_PHY_R0_PHYCTRL_STS0(ext_phy));
 	pd_cck = FIELD_GET(MT_WF_PHYCTRL_STAT_PD_CCK, val);
@@ -1492,9 +1481,9 @@ mt7615_mac_scs_check(struct mt7615_phy *phy)
 	phy->false_cca_cck = pd_cck - mdrdy_cck;
 	mt7615_mac_cca_stats_reset(phy);
 
-	if (rts_cnt + rts_retries_cnt)
-		rts_err_rate = MT_FRAC(rts_retries_cnt,
-				       rts_cnt + rts_retries_cnt);
+	if (mib->rts_cnt + mib->rts_retries_cnt)
+		rts_err_rate = MT_FRAC(mib->rts_retries_cnt,
+				       mib->rts_cnt + mib->rts_retries_cnt);
 
 	/* cck */
 	mt7615_mac_adjust_sensitivity(phy, rts_err_rate, false);
@@ -1569,6 +1558,36 @@ void mt7615_update_channel(struct mt76_dev *mdev)
 	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
 }
 
+static void
+mt7615_mac_update_mib_stats(struct mt7615_phy *phy)
+{
+	struct mt7615_dev *dev = phy->dev;
+	struct mib_stats *mib = &phy->mib;
+	bool ext_phy = phy != &dev->phy;
+	int i;
+
+	memset(mib, 0, sizeof(*mib));
+
+	mib->fcs_err_cnt = mt76_get_field(dev, MT_MIB_SDR3(ext_phy),
+					  MT_MIB_SDR3_FCS_ERR_MASK);
+
+	for (i = 0; i < 4; i++) {
+		u32 data, val, val2;
+
+		val = mt76_get_field(dev, MT_MIB_MB_SDR1(ext_phy, i),
+				     MT_MIB_ACK_FAIL_COUNT_MASK);
+		if (val > mib->ack_fail_cnt)
+			mib->ack_fail_cnt = val;
+
+		val2 = mt76_rr(dev, MT_MIB_MB_SDR0(ext_phy, i));
+		data = FIELD_GET(MT_MIB_RTS_RETRIES_COUNT_MASK, val2);
+		if (data > mib->rts_retries_cnt) {
+			mib->rts_cnt = FIELD_GET(MT_MIB_RTS_COUNT_MASK, val2);
+			mib->rts_retries_cnt = data;
+		}
+	}
+}
+
 void mt7615_mac_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev;
@@ -1583,9 +1602,12 @@ void mt7615_mac_work(struct work_struct *work)
 	if (++dev->mac_work_count == 5) {
 		ext_phy = mt7615_ext_phy(dev);
 
+		mt7615_mac_update_mib_stats(&dev->phy);
 		mt7615_mac_scs_check(&dev->phy);
-		if (ext_phy)
+		if (ext_phy) {
+			mt7615_mac_update_mib_stats(ext_phy);
 			mt7615_mac_scs_check(ext_phy);
+		}
 
 		dev->mac_work_count = 0;
 	}

@@ -87,6 +87,13 @@ struct mt7615_vif {
 	struct mt7615_sta sta;
 };
 
+struct mib_stats {
+	u32 ack_fail_cnt;
+	u32 fcs_err_cnt;
+	u32 rts_cnt;
+	u32 rts_retries_cnt;
+};
+
 struct mt7615_phy {
 	struct mt76_phy *mt76;
 	struct mt7615_dev *dev;
@@ -112,6 +119,8 @@ struct mt7615_phy {
 
 	__le32 rx_ampdu_ts;
 	u32 ampdu_ref;
+
+	struct mib_stats mib;
 };
 
 struct mt7615_dev {
