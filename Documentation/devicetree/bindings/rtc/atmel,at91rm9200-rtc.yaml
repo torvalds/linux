@@ -17,6 +17,8 @@ properties:
     enum:
       - atmel,at91rm9200-rtc
       - atmel,at91sam9x5-rtc
+      - atmel,sama5d4-rtc
+      - atmel,sama5d2-rtc
       - microchip,sam9x60-rtc
 
   reg:
