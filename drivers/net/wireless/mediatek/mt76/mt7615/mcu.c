@@ -202,6 +202,28 @@ mt7615_mcu_rx_radar_detected(struct mt7615_dev *dev, struct sk_buff *skb)
 }
 
 static void
+mt7615_mcu_rx_log_message(struct mt7615_dev *dev, struct sk_buff *skb)
+{
+	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
+	const char *data = (char *)&rxd[1];
+	const char *type;
+
+	switch (rxd->s2d_index) {
+	case 0:
+		type = "N9";
+		break;
+	case 2:
+		type = "CR4";
+		break;
+	default:
+		type = "unknown";
+		break;
+	}
+
+	wiphy_info(mt76_hw(dev)->wiphy, "%s: %s", type, data);
+}
+
+static void
 mt7615_mcu_rx_ext_event(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
@@ -214,6 +236,9 @@ mt7615_mcu_rx_ext_event(struct mt7615_dev *dev, struct sk_buff *skb)
 		ieee80211_iterate_active_interfaces_atomic(dev->mt76.hw,
 				IEEE80211_IFACE_ITER_RESUME_ALL,
 				mt7615_mcu_csa_finish, dev);
+		break;
+	case MCU_EXT_EVENT_FW_LOG_2_HOST:
+		mt7615_mcu_rx_log_message(dev, skb);
 		break;
 	default:
 		break;
@@ -643,6 +668,19 @@ static int mt7622_load_firmware(struct mt7615_dev *dev)
 	return 0;
 }
 
+int mt7615_mcu_fw_log_2_host(struct mt7615_dev *dev, u8 ctrl)
+{
+	struct {
+		u8 ctrl_val;
+		u8 pad[3];
+	} data = {
+		.ctrl_val = ctrl
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_FW_LOG_2_HOST,
+				   &data, sizeof(data), true);
+}
+
 int mt7615_mcu_init(struct mt7615_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7615_mcu_ops = {
@@ -667,6 +705,7 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 	mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
 	dev_dbg(dev->mt76.dev, "Firmware init done\n");
 	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
+	mt7615_mcu_fw_log_2_host(dev, 0);
 
 	return 0;
 }

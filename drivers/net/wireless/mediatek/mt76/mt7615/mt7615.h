@@ -169,6 +169,7 @@ struct mt7615_dev {
 
 	u8 mac_work_count;
 	bool scs_en;
+	bool fw_debug;
 
 	spinlock_t token_lock;
 	struct idr token;
@@ -308,6 +309,7 @@ int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 		       enum mt7615_rdd_cmd cmd, u8 index,
 		       u8 rx_sel, u8 val);
 int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev);
+int mt7615_mcu_fw_log_2_host(struct mt7615_dev *dev, u8 ctrl);
 
 static inline bool is_mt7622(struct mt76_dev *dev)
 {
