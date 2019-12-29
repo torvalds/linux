@@ -1353,6 +1353,9 @@ void intel_gt_init_reset(struct intel_gt *gt)
 	init_waitqueue_head(&gt->reset.queue);
 	mutex_init(&gt->reset.mutex);
 	init_srcu_struct(&gt->reset.backoff_srcu);
+
+	/* no GPU until we are ready! */
+	__set_bit(I915_WEDGED, &gt->reset.flags);
 }
 
 void intel_gt_fini_reset(struct intel_gt *gt)

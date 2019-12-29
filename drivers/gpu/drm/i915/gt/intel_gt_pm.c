@@ -179,7 +179,7 @@ int intel_gt_resume(struct intel_gt *gt)
 	enum intel_engine_id id;
 	int err;
 
-	err = intel_gt_terminally_wedged(gt);
+	err = intel_gt_has_init_error(gt);
 	if (err)
 		return err;
 
@@ -196,6 +196,10 @@ int intel_gt_resume(struct intel_gt *gt)
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	intel_rc6_sanitize(&gt->rc6);
 	gt_sanitize(gt, true);
+	if (intel_gt_is_wedged(gt)) {
+		err = -EIO;
+		goto out_fw;
+	}
 
 	/* Only when the HW is re-initialised, can we replay the requests */
 	err = intel_gt_init_hw(gt);

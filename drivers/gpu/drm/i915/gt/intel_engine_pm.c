@@ -123,14 +123,14 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	unsigned long flags;
 	bool result = true;
 
+	/* GPU is pointing to the void, as good as in the kernel context. */
+	if (intel_gt_is_wedged(engine->gt))
+		return true;
+
 	GEM_BUG_ON(!intel_context_is_barrier(ce));
 
 	/* Already inside the kernel context, safe to power down. */
 	if (engine->wakeref_serial == engine->serial)
-		return true;
-
-	/* GPU is pointing to the void, as good as in the kernel context. */
-	if (intel_gt_is_wedged(engine->gt))
 		return true;
 
 	/*

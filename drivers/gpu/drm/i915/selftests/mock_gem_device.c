@@ -184,6 +184,7 @@ struct drm_i915_private *mock_gem_device(void)
 	if (mock_engine_init(i915->engine[RCS0]))
 		goto err_context;
 
+	__clear_bit(I915_WEDGED, &i915->gt.reset.flags);
 	intel_engines_driver_register(i915);
 
 	return i915;
