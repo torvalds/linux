@@ -3030,10 +3030,8 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 			       &execlists->csb_status[reset_value]);
 }
 
-static void __execlists_reset_reg_state(const struct intel_context *ce,
-					const struct intel_engine_cs *engine)
+static void __reset_stop_ring(u32 *regs, const struct intel_engine_cs *engine)
 {
-	u32 *regs = ce->lrc_reg_state;
 	int x;
 
 	x = lrc_ring_mi_mode(engine);
@@ -3041,6 +3039,14 @@ static void __execlists_reset_reg_state(const struct intel_context *ce,
 		regs[x + 1] &= ~STOP_RING;
 		regs[x + 1] |= STOP_RING << 16;
 	}
+}
+
+static void __execlists_reset_reg_state(const struct intel_context *ce,
+					const struct intel_engine_cs *engine)
+{
+	u32 *regs = ce->lrc_reg_state;
+
+	__reset_stop_ring(regs, engine);
 }
 
 static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
@@ -4043,6 +4049,8 @@ static void execlists_init_reg_state(u32 *regs,
 			     INTEL_GEN(engine->i915) >= 12 ?
 			     GEN12_CTX_BB_PER_CTX_PTR :
 			     CTX_BB_PER_CTX_PTR);
+
+	__reset_stop_ring(regs, engine);
 }
 
 static int
