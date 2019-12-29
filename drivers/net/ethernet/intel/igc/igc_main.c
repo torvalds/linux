@@ -880,7 +880,7 @@ static void igc_tx_ctxtdesc(struct igc_ring *tx_ring,
 	/* set bits to identify this as an advanced context descriptor */
 	type_tucmd |= IGC_TXD_CMD_DEXT | IGC_ADVTXD_DTYP_CTXT;
 
-	/* For 82575, context index must be unique per ring. */
+	/* For i225, context index must be unique per ring. */
 	if (test_bit(IGC_RING_FLAG_TX_CTX_IDX, &tx_ring->flags))
 		mss_l4len_idx |= tx_ring->reg_idx << 4;
 
