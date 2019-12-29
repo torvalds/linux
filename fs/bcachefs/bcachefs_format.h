@@ -436,47 +436,6 @@ struct bch_csum {
 	__le64			hi;
 } __attribute__((packed, aligned(8)));
 
-enum bch_csum_type {
-	BCH_CSUM_NONE			= 0,
-	BCH_CSUM_CRC32C_NONZERO		= 1,
-	BCH_CSUM_CRC64_NONZERO		= 2,
-	BCH_CSUM_CHACHA20_POLY1305_80	= 3,
-	BCH_CSUM_CHACHA20_POLY1305_128	= 4,
-	BCH_CSUM_CRC32C			= 5,
-	BCH_CSUM_CRC64			= 6,
-	BCH_CSUM_NR			= 7,
-};
-
-static const unsigned bch_crc_bytes[] = {
-	[BCH_CSUM_NONE]				= 0,
-	[BCH_CSUM_CRC32C_NONZERO]		= 4,
-	[BCH_CSUM_CRC32C]			= 4,
-	[BCH_CSUM_CRC64_NONZERO]		= 8,
-	[BCH_CSUM_CRC64]			= 8,
-	[BCH_CSUM_CHACHA20_POLY1305_80]		= 10,
-	[BCH_CSUM_CHACHA20_POLY1305_128]	= 16,
-};
-
-static inline _Bool bch2_csum_type_is_encryption(enum bch_csum_type type)
-{
-	switch (type) {
-	case BCH_CSUM_CHACHA20_POLY1305_80:
-	case BCH_CSUM_CHACHA20_POLY1305_128:
-		return true;
-	default:
-		return false;
-	}
-}
-
-enum bch_compression_type {
-	BCH_COMPRESSION_NONE		= 0,
-	BCH_COMPRESSION_LZ4_OLD		= 1,
-	BCH_COMPRESSION_GZIP		= 2,
-	BCH_COMPRESSION_LZ4		= 3,
-	BCH_COMPRESSION_ZSTD		= 4,
-	BCH_COMPRESSION_NR		= 5,
-};
-
 #define BCH_EXTENT_ENTRY_TYPES()		\
 	x(ptr,			0)		\
 	x(crc32,		1)		\
@@ -1320,17 +1279,29 @@ LE64_BITMASK(BCH_SB_GC_RESERVE_BYTES,	struct bch_sb, flags[2],  4, 64);
 
 LE64_BITMASK(BCH_SB_ERASURE_CODE,	struct bch_sb, flags[3],  0, 16);
 
-/* Features: */
-enum bch_sb_features {
-	BCH_FEATURE_LZ4			= 0,
-	BCH_FEATURE_GZIP		= 1,
-	BCH_FEATURE_ZSTD		= 2,
-	BCH_FEATURE_ATOMIC_NLINK	= 3, /* should have gone under compat */
-	BCH_FEATURE_EC			= 4,
-	BCH_FEATURE_JOURNAL_SEQ_BLACKLIST_V3 = 5,
-	BCH_FEATURE_REFLINK		= 6,
-	BCH_FEATURE_NEW_SIPHASH		= 7,
-	BCH_FEATURE_INLINE_DATA		= 8,
+/*
+ * Features:
+ *
+ * journal_seq_blacklist_v3:	gates BCH_SB_FIELD_journal_seq_blacklist
+ * reflink:			gates KEY_TYPE_reflink
+ * inline_data:			gates KEY_TYPE_inline_data
+ * new_siphash:			gates BCH_STR_HASH_SIPHASH
+ */
+#define BCH_SB_FEATURES()			\
+	x(lz4,				0)	\
+	x(gzip,				1)	\
+	x(zstd,				2)	\
+	x(atomic_nlink,			3)	\
+	x(ec,				4)	\
+	x(journal_seq_blacklist_v3,	5)	\
+	x(reflink,			6)	\
+	x(new_siphash,			7)	\
+	x(inline_data,			8)
+
+enum bch_sb_feature {
+#define x(f, n) BCH_FEATURE_##f,
+	BCH_SB_FEATURES()
+#undef x
 	BCH_FEATURE_NR,
 };
 
@@ -1350,13 +1321,6 @@ enum bch_error_actions {
 	BCH_NR_ERROR_ACTIONS		= 3,
 };
 
-enum bch_csum_opts {
-	BCH_CSUM_OPT_NONE		= 0,
-	BCH_CSUM_OPT_CRC32C		= 1,
-	BCH_CSUM_OPT_CRC64		= 2,
-	BCH_CSUM_OPT_NR			= 3,
-};
-
 enum bch_str_hash_type {
 	BCH_STR_HASH_CRC32C		= 0,
 	BCH_STR_HASH_CRC64		= 1,
@@ -1372,15 +1336,68 @@ enum bch_str_hash_opts {
 	BCH_STR_HASH_OPT_NR		= 3,
 };
 
+enum bch_csum_type {
+	BCH_CSUM_NONE			= 0,
+	BCH_CSUM_CRC32C_NONZERO		= 1,
+	BCH_CSUM_CRC64_NONZERO		= 2,
+	BCH_CSUM_CHACHA20_POLY1305_80	= 3,
+	BCH_CSUM_CHACHA20_POLY1305_128	= 4,
+	BCH_CSUM_CRC32C			= 5,
+	BCH_CSUM_CRC64			= 6,
+	BCH_CSUM_NR			= 7,
+};
+
+static const unsigned bch_crc_bytes[] = {
+	[BCH_CSUM_NONE]				= 0,
+	[BCH_CSUM_CRC32C_NONZERO]		= 4,
+	[BCH_CSUM_CRC32C]			= 4,
+	[BCH_CSUM_CRC64_NONZERO]		= 8,
+	[BCH_CSUM_CRC64]			= 8,
+	[BCH_CSUM_CHACHA20_POLY1305_80]		= 10,
+	[BCH_CSUM_CHACHA20_POLY1305_128]	= 16,
+};
+
+static inline _Bool bch2_csum_type_is_encryption(enum bch_csum_type type)
+{
+	switch (type) {
+	case BCH_CSUM_CHACHA20_POLY1305_80:
+	case BCH_CSUM_CHACHA20_POLY1305_128:
+		return true;
+	default:
+		return false;
+	}
+}
+
+enum bch_csum_opts {
+	BCH_CSUM_OPT_NONE		= 0,
+	BCH_CSUM_OPT_CRC32C		= 1,
+	BCH_CSUM_OPT_CRC64		= 2,
+	BCH_CSUM_OPT_NR			= 3,
+};
+
 #define BCH_COMPRESSION_TYPES()		\
-	x(NONE)				\
-	x(LZ4)				\
-	x(GZIP)				\
-	x(ZSTD)
+	x(none,		0)		\
+	x(lz4_old,	1)		\
+	x(gzip,		2)		\
+	x(lz4,		3)		\
+	x(zstd,		4)
+
+enum bch_compression_type {
+#define x(t, n) BCH_COMPRESSION_TYPE_##t,
+	BCH_COMPRESSION_TYPES()
+#undef x
+	BCH_COMPRESSION_TYPE_NR
+};
+
+#define BCH_COMPRESSION_OPTS()		\
+	x(none,		0)		\
+	x(lz4,		1)		\
+	x(gzip,		2)		\
+	x(zstd,		3)
 
 enum bch_compression_opts {
-#define x(t) BCH_COMPRESSION_OPT_##t,
-	BCH_COMPRESSION_TYPES()
+#define x(t, n) BCH_COMPRESSION_OPT_##t,
+	BCH_COMPRESSION_OPTS()
 #undef x
 	BCH_COMPRESSION_OPT_NR
 };

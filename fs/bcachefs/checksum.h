@@ -108,8 +108,8 @@ static inline enum bch_csum_type bch2_meta_checksum_type(struct bch_fs *c)
 }
 
 static const unsigned bch2_compression_opt_to_type[] = {
-#define x(t) [BCH_COMPRESSION_OPT_##t] = BCH_COMPRESSION_##t,
-	BCH_COMPRESSION_TYPES()
+#define x(t, n) [BCH_COMPRESSION_OPT_##t] = BCH_COMPRESSION_TYPE_##t,
+	BCH_COMPRESSION_OPTS()
 #undef x
 };
 

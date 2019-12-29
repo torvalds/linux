@@ -1124,7 +1124,7 @@ static int check_inode_nlink(struct bch_fs *c,
 
 	if (!link->count &&
 	    !(u->bi_flags & BCH_INODE_UNLINKED) &&
-	    (c->sb.features & (1 << BCH_FEATURE_ATOMIC_NLINK))) {
+	    (c->sb.features & (1 << BCH_FEATURE_atomic_nlink))) {
 		if (fsck_err(c, "unreachable inode %llu not marked as unlinked (type %u)",
 			     u->bi_inum, mode_to_type(u->bi_mode)) ==
 		    FSCK_ERR_IGNORE)
@@ -1159,7 +1159,7 @@ static int check_inode_nlink(struct bch_fs *c,
 	}
 
 	if (i_nlink != real_i_nlink &&
-	    (c->sb.features & (1 << BCH_FEATURE_ATOMIC_NLINK))) {
+	    (c->sb.features & (1 << BCH_FEATURE_atomic_nlink))) {
 		if (fsck_err(c, "inode %llu has wrong i_nlink "
 			     "(type %u i_nlink %u, should be %u)",
 			     u->bi_inum, mode_to_type(u->bi_mode),

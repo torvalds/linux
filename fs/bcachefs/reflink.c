@@ -171,7 +171,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 	if (!percpu_ref_tryget(&c->writes))
 		return -EROFS;
 
-	bch2_check_set_feature(c, BCH_FEATURE_REFLINK);
+	bch2_check_set_feature(c, BCH_FEATURE_reflink);
 
 	dst_end.offset += remap_sectors;
 	src_end.offset += remap_sectors;

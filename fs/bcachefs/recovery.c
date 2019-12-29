@@ -866,7 +866,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	}
 
 	if (!c->sb.clean) {
-		if (!(c->sb.features & (1 << BCH_FEATURE_ATOMIC_NLINK))) {
+		if (!(c->sb.features & (1 << BCH_FEATURE_atomic_nlink))) {
 			bch_info(c, "checking inode link counts");
 			err = "error in recovery";
 			ret = bch2_fsck_inode_nlink(c);
@@ -907,6 +907,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 			c->disk_sb.sb->version_min =
 				le16_to_cpu(bcachefs_metadata_version_min);
 		c->disk_sb.sb->version = le16_to_cpu(bcachefs_metadata_version_current);
+		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_new_siphash;
 		write_sb = true;
 	}
 
@@ -917,7 +918,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	if (c->opts.fsck &&
 	    !test_bit(BCH_FS_ERROR, &c->flags)) {
-		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_ATOMIC_NLINK;
+		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_atomic_nlink;
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 0);
 		write_sb = true;
 	}
@@ -1024,7 +1025,8 @@ int bch2_fs_initialize(struct bch_fs *c)
 	mutex_lock(&c->sb_lock);
 	c->disk_sb.sb->version = c->disk_sb.sb->version_min =
 		le16_to_cpu(bcachefs_metadata_version_current);
-	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_ATOMIC_NLINK;
+	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_atomic_nlink;
+	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_new_siphash;
 
 	SET_BCH_SB_INITIALIZED(c->disk_sb.sb, true);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);

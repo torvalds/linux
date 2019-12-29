@@ -1141,7 +1141,7 @@ static void bch2_write_data_inline(struct bch_write_op *op, unsigned data_len)
 	unsigned sectors;
 	int ret;
 
-	bch2_check_set_feature(op->c, BCH_FEATURE_INLINE_DATA);
+	bch2_check_set_feature(op->c, BCH_FEATURE_inline_data);
 
 	ret = bch2_keylist_realloc(&op->insert_keys, op->inline_keys,
 				   ARRAY_SIZE(op->inline_keys),
@@ -1788,7 +1788,7 @@ static void __bch2_read_endio(struct work_struct *work)
 	crc.offset     += rbio->offset_into_extent;
 	crc.live_size	= bvec_iter_sectors(rbio->bvec_iter);
 
-	if (crc.compression_type != BCH_COMPRESSION_NONE) {
+	if (crc.compression_type != BCH_COMPRESSION_TYPE_none) {
 		bch2_encrypt_bio(c, crc.csum_type, nonce, src);
 		if (bch2_bio_uncompress(c, src, dst, dst_iter, crc))
 			goto decompression_err;
@@ -1996,7 +1996,7 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 
 	EBUG_ON(offset_into_extent + bvec_iter_sectors(iter) > k.k->size);
 
-	if (pick.crc.compression_type != BCH_COMPRESSION_NONE ||
+	if (pick.crc.compression_type != BCH_COMPRESSION_TYPE_none ||
 	    (pick.crc.csum_type != BCH_CSUM_NONE &&
 	     (bvec_iter_sectors(iter) != pick.crc.uncompressed_size ||
 	      (bch2_csum_type_is_encryption(pick.crc.csum_type) &&

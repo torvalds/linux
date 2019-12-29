@@ -158,14 +158,14 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 	src_data = bio_map_or_bounce(c, src, READ);
 
 	switch (crc.compression_type) {
-	case BCH_COMPRESSION_LZ4_OLD:
-	case BCH_COMPRESSION_LZ4:
+	case BCH_COMPRESSION_TYPE_lz4_old:
+	case BCH_COMPRESSION_TYPE_lz4:
 		ret = LZ4_decompress_safe_partial(src_data.b, dst_data,
 						  src_len, dst_len, dst_len);
 		if (ret != dst_len)
 			goto err;
 		break;
-	case BCH_COMPRESSION_GZIP: {
+	case BCH_COMPRESSION_TYPE_gzip: {
 		z_stream strm = {
 			.next_in	= src_data.b,
 			.avail_in	= src_len,
@@ -185,7 +185,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 			goto err;
 		break;
 	}
-	case BCH_COMPRESSION_ZSTD: {
+	case BCH_COMPRESSION_TYPE_zstd: {
 		ZSTD_DCtx *ctx;
 		size_t len;
 
@@ -290,10 +290,10 @@ static int attempt_compress(struct bch_fs *c,
 			    void *workspace,
 			    void *dst, size_t dst_len,
 			    void *src, size_t src_len,
-			    unsigned compression_type)
+			    enum bch_compression_type compression_type)
 {
 	switch (compression_type) {
-	case BCH_COMPRESSION_LZ4: {
+	case BCH_COMPRESSION_TYPE_lz4: {
 		int len = src_len;
 		int ret = LZ4_compress_destSize(
 				src,		dst,
@@ -305,7 +305,7 @@ static int attempt_compress(struct bch_fs *c,
 
 		return ret;
 	}
-	case BCH_COMPRESSION_GZIP: {
+	case BCH_COMPRESSION_TYPE_gzip: {
 		z_stream strm = {
 			.next_in	= src,
 			.avail_in	= src_len,
@@ -326,7 +326,7 @@ static int attempt_compress(struct bch_fs *c,
 
 		return strm.total_out;
 	}
-	case BCH_COMPRESSION_ZSTD: {
+	case BCH_COMPRESSION_TYPE_zstd: {
 		ZSTD_CCtx *ctx = zstd_init_cctx(workspace,
 			zstd_cctx_workspace_bound(&c->zstd_params.cParams));
 
@@ -348,14 +348,14 @@ static int attempt_compress(struct bch_fs *c,
 static unsigned __bio_compress(struct bch_fs *c,
 			       struct bio *dst, size_t *dst_len,
 			       struct bio *src, size_t *src_len,
-			       unsigned compression_type)
+			       enum bch_compression_type compression_type)
 {
 	struct bbuf src_data = { NULL }, dst_data = { NULL };
 	void *workspace;
 	unsigned pad;
 	int ret = 0;
 
-	BUG_ON(compression_type >= BCH_COMPRESSION_NR);
+	BUG_ON(compression_type >= BCH_COMPRESSION_TYPE_NR);
 	BUG_ON(!mempool_initialized(&c->compress_workspace[compression_type]));
 
 	/* If it's only one block, don't bother trying to compress: */
@@ -452,8 +452,8 @@ unsigned bch2_bio_compress(struct bch_fs *c,
 	/* Don't generate a bigger output than input: */
 	dst->bi_iter.bi_size = min(dst->bi_iter.bi_size, src->bi_iter.bi_size);
 
-	if (compression_type == BCH_COMPRESSION_LZ4_OLD)
-		compression_type = BCH_COMPRESSION_LZ4;
+	if (compression_type == BCH_COMPRESSION_TYPE_lz4_old)
+		compression_type = BCH_COMPRESSION_TYPE_lz4;
 
 	compression_type =
 		__bio_compress(c, dst, dst_len, src, src_len, compression_type);
@@ -465,15 +465,15 @@ unsigned bch2_bio_compress(struct bch_fs *c,
 
 static int __bch2_fs_compress_init(struct bch_fs *, u64);
 
-#define BCH_FEATURE_NONE	0
+#define BCH_FEATURE_none	0
 
 static const unsigned bch2_compression_opt_to_feature[] = {
-#define x(t) [BCH_COMPRESSION_OPT_##t] = BCH_FEATURE_##t,
-	BCH_COMPRESSION_TYPES()
+#define x(t, n) [BCH_COMPRESSION_OPT_##t] = BCH_FEATURE_##t,
+	BCH_COMPRESSION_OPTS()
 #undef x
 };
 
-#undef BCH_FEATURE_NONE
+#undef BCH_FEATURE_none
 
 static int __bch2_check_set_has_compressed_data(struct bch_fs *c, u64 f)
 {
@@ -537,11 +537,11 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 		size_t		compress_workspace;
 		size_t		decompress_workspace;
 	} compression_types[] = {
-		{ BCH_FEATURE_LZ4, BCH_COMPRESSION_LZ4, LZ4_MEM_COMPRESS, 0 },
-		{ BCH_FEATURE_GZIP, BCH_COMPRESSION_GZIP,
+		{ BCH_FEATURE_lz4, BCH_COMPRESSION_TYPE_lz4, LZ4_MEM_COMPRESS, 0 },
+		{ BCH_FEATURE_gzip, BCH_COMPRESSION_TYPE_gzip,
 			zlib_deflate_workspacesize(MAX_WBITS, DEF_MEM_LEVEL),
 			zlib_inflate_workspacesize(), },
-		{ BCH_FEATURE_ZSTD, BCH_COMPRESSION_ZSTD,
+		{ BCH_FEATURE_zstd, BCH_COMPRESSION_TYPE_zstd,
 			zstd_cctx_workspace_bound(&params.cParams),
 			zstd_dctx_workspace_bound() },
 	}, *i;

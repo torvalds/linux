@@ -271,7 +271,7 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 			if (!p.ptr.cached &&
-			    p.crc.compression_type != BCH_COMPRESSION_NONE &&
+			    p.crc.compression_type != BCH_COMPRESSION_TYPE_none &&
 			    bch2_dev_in_target(c, p.ptr.dev, data_opts.target))
 				compressed_sectors += p.crc.compressed_size;
 

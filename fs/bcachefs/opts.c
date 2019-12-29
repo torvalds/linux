@@ -16,18 +16,24 @@ const char * const bch2_error_actions[] = {
 	NULL
 };
 
-const char * const bch2_csum_types[] = {
+const char * const bch2_sb_features[] = {
+#define x(f, n) #f,
+	BCH_SB_FEATURES()
+#undef x
+	NULL
+};
+
+const char * const bch2_csum_opts[] = {
 	"none",
 	"crc32c",
 	"crc64",
 	NULL
 };
 
-const char * const bch2_compression_types[] = {
-	"none",
-	"lz4",
-	"gzip",
-	"zstd",
+const char * const bch2_compression_opts[] = {
+#define x(t, n) #t,
+	BCH_COMPRESSION_OPTS()
+#undef x
 	NULL
 };
 
@@ -300,7 +306,7 @@ int bch2_opt_check_may_set(struct bch_fs *c, int id, u64 v)
 		break;
 	case Opt_erasure_code:
 		if (v)
-			bch2_check_set_feature(c, BCH_FEATURE_EC);
+			bch2_check_set_feature(c, BCH_FEATURE_ec);
 		break;
 	}
 

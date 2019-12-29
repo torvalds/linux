@@ -613,7 +613,7 @@ unsigned bch2_bkey_nr_ptrs_fully_allocated(struct bkey_s_c k)
 
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 			ret += !p.ptr.cached &&
-				p.crc.compression_type == BCH_COMPRESSION_NONE;
+				p.crc.compression_type == BCH_COMPRESSION_TYPE_none;
 	}
 
 	return ret;
@@ -628,7 +628,7 @@ unsigned bch2_bkey_sectors_compressed(struct bkey_s_c k)
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 		if (!p.ptr.cached &&
-		    p.crc.compression_type != BCH_COMPRESSION_NONE)
+		    p.crc.compression_type != BCH_COMPRESSION_TYPE_none)
 			ret += p.crc.compressed_size;
 
 	return ret;
@@ -1053,7 +1053,7 @@ const char *bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k)
 			if (!bch2_checksum_type_valid(c, crc.csum_type))
 				return "invalid checksum type";
 
-			if (crc.compression_type >= BCH_COMPRESSION_NR)
+			if (crc.compression_type >= BCH_COMPRESSION_TYPE_NR)
 				return "invalid compression type";
 
 			if (bch2_csum_type_is_encryption(crc.csum_type)) {
