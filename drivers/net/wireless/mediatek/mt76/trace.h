@@ -51,6 +51,29 @@ DEFINE_EVENT(dev_reg_evt, reg_wr,
 	TP_ARGS(dev, reg, val)
 );
 
+TRACE_EVENT(dev_irq,
+	TP_PROTO(struct mt76_dev *dev, u32 val, u32 mask),
+
+	TP_ARGS(dev, val, mask),
+
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u32, val)
+		__field(u32, mask)
+	),
+
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->val = val;
+		__entry->mask = mask;
+	),
+
+	TP_printk(
+		DEV_PR_FMT " %08x & %08x",
+		DEV_PR_ARG, __entry->val, __entry->mask
+	)
+);
+
 #endif
 
 #undef TRACE_INCLUDE_PATH

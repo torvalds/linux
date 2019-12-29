@@ -11,6 +11,7 @@
 
 #include "mt7615.h"
 #include "mac.h"
+#include "../trace.h"
 
 static const struct pci_device_id mt7615_pci_device_table[] = {
 	{ PCI_DEVICE(0x14c3, 0x7615) },
@@ -45,6 +46,8 @@ static irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return IRQ_NONE;
+
+	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
 	intr &= dev->mt76.mmio.irqmask;
 

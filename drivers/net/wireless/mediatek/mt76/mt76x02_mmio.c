@@ -9,7 +9,7 @@
 
 #include "mt76x02.h"
 #include "mt76x02_mcu.h"
-#include "mt76x02_trace.h"
+#include "trace.h"
 
 static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 {
@@ -271,7 +271,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return IRQ_NONE;
 
-	trace_dev_irq(dev, intr, dev->mt76.mmio.irqmask);
+	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
 	intr &= dev->mt76.mmio.irqmask;
 
