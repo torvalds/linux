@@ -254,20 +254,6 @@ static int at91_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	return 0;
 }
-/*
- * Provide additional RTC information in /proc/driver/rtc
- */
-static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
-{
-	unsigned long imr = at91_rtc_read_imr();
-
-	seq_printf(seq, "update_IRQ\t: %s\n",
-			(imr & AT91_RTC_ACKUPD) ? "yes" : "no");
-	seq_printf(seq, "periodic_IRQ\t: %s\n",
-			(imr & AT91_RTC_SECEV) ? "yes" : "no");
-
-	return 0;
-}
 
 /*
  * IRQ handler for the RTC
@@ -337,7 +323,6 @@ static const struct rtc_class_ops at91_rtc_ops = {
 	.set_time	= at91_rtc_settime,
 	.read_alarm	= at91_rtc_readalarm,
 	.set_alarm	= at91_rtc_setalarm,
-	.proc		= at91_rtc_proc,
 	.alarm_irq_enable = at91_rtc_alarm_irq_enable,
 };
 
