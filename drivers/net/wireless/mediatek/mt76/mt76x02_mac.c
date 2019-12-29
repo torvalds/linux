@@ -6,6 +6,7 @@
 
 #include "mt76x02.h"
 #include "mt76x02_trace.h"
+#include "trace.h"
 
 void mt76x02_mac_reset_counters(struct mt76x02_dev *dev)
 {
@@ -910,7 +911,7 @@ void mt76x02_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 
 	txwi_ptr = mt76_get_txwi_ptr(mdev, e->txwi);
 	txwi = (struct mt76x02_txwi *)txwi_ptr;
-	trace_mac_txdone_add(dev, txwi->wcid, txwi->pktid);
+	trace_mac_txdone(mdev, txwi->wcid, txwi->pktid);
 
 	mt76_tx_complete_skb(mdev, e->skb);
 }

@@ -20,7 +20,6 @@
 #define DEV_PR_ARG	__entry->wiphy_name
 
 #define TXID_ENTRY	__field(u8, wcid) __field(u8, pktid)
-#define TXID_ASSIGN	__entry->wcid = wcid; __entry->pktid = pktid
 #define TXID_PR_FMT	" [%d:%d]"
 #define TXID_PR_ARG	__entry->wcid, __entry->pktid
 
@@ -34,28 +33,6 @@ DECLARE_EVENT_CLASS(dev_evt,
 		DEV_ASSIGN;
 	),
 	TP_printk(DEV_PR_FMT, DEV_PR_ARG)
-);
-
-DECLARE_EVENT_CLASS(dev_txid_evt,
-	TP_PROTO(struct mt76x02_dev *dev, u8 wcid, u8 pktid),
-	TP_ARGS(dev, wcid, pktid),
-	TP_STRUCT__entry(
-		DEV_ENTRY
-		TXID_ENTRY
-	),
-	TP_fast_assign(
-		DEV_ASSIGN;
-		TXID_ASSIGN;
-	),
-	TP_printk(
-		DEV_PR_FMT TXID_PR_FMT,
-		DEV_PR_ARG, TXID_PR_ARG
-	)
-);
-
-DEFINE_EVENT(dev_txid_evt, mac_txdone_add,
-	TP_PROTO(struct mt76x02_dev *dev, u8 wcid, u8 pktid),
-	TP_ARGS(dev, wcid, pktid)
 );
 
 DEFINE_EVENT(dev_evt, mac_txstat_poll,

@@ -10,6 +10,7 @@
 #include <linux/etherdevice.h>
 #include <linux/timekeeping.h>
 #include "mt7615.h"
+#include "../trace.h"
 #include "../dma.h"
 #include "mac.h"
 
@@ -1217,6 +1218,8 @@ static bool mt7615_mac_add_txs_skb(struct mt7615_dev *dev,
 
 	if (pid < MT_PACKET_ID_FIRST)
 		return false;
+
+	trace_mac_txdone(mdev, sta->wcid.idx, pid);
 
 	mt76_tx_status_lock(mdev, &list);
 	skb = mt76_tx_status_skb_get(mdev, &sta->wcid, pid, &list);

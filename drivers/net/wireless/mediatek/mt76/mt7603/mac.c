@@ -4,6 +4,7 @@
 #include <linux/timekeeping.h>
 #include "mt7603.h"
 #include "mac.h"
+#include "../trace.h"
 
 #define MT_PSE_PAGE_SIZE	128
 
@@ -1192,6 +1193,8 @@ mt7603_mac_add_txs_skb(struct mt7603_dev *dev, struct mt7603_sta *sta, int pid,
 
 	if (pid < MT_PACKET_ID_FIRST)
 		return false;
+
+	trace_mac_txdone(mdev, sta->wcid.idx, pid);
 
 	mt76_tx_status_lock(mdev, &list);
 	skb = mt76_tx_status_skb_get(mdev, &sta->wcid, pid, &list);
