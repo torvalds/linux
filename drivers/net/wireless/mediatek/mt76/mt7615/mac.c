@@ -12,6 +12,7 @@
 #include "mt7615.h"
 #include "../trace.h"
 #include "../dma.h"
+#include "mt7615_trace.h"
 #include "mac.h"
 
 #define to_rssi(field, rxv)		((FIELD_GET(field, rxv) - 220) / 2)
@@ -1300,12 +1301,16 @@ void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	count = FIELD_GET(MT_TX_FREE_MSDU_ID_CNT, le16_to_cpu(free->ctrl));
 	for (i = 0; i < count; i++) {
+		u16 token = le16_to_cpu(free->token[i]);
+
 		spin_lock_bh(&dev->token_lock);
-		txwi = idr_remove(&dev->token, le16_to_cpu(free->token[i]));
+		txwi = idr_remove(&dev->token, token);
 		spin_unlock_bh(&dev->token_lock);
 
 		if (!txwi)
 			continue;
+
+		trace_mac_tx_free(dev, token);
 
 		mt7615_txp_skb_unmap(mdev, txwi);
 		if (txwi->skb) {
