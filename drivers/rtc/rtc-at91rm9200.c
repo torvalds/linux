@@ -255,25 +255,17 @@ static int at91_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
  */
 static int at91_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct rtc_time tm;
-
-	at91_rtc_decodetime(AT91_RTC_TIMR, AT91_RTC_CALR, &tm);
-
-	tm.tm_mon = alrm->time.tm_mon;
-	tm.tm_mday = alrm->time.tm_mday;
-	tm.tm_hour = alrm->time.tm_hour;
-	tm.tm_min = alrm->time.tm_min;
-	tm.tm_sec = alrm->time.tm_sec;
+	struct rtc_time tm = alrm->time;
 
 	at91_rtc_write_idr(AT91_RTC_ALARM);
 	at91_rtc_write(AT91_RTC_TIMALR,
-		  bin2bcd(tm.tm_sec) << 0
-		| bin2bcd(tm.tm_min) << 8
-		| bin2bcd(tm.tm_hour) << 16
+		  bin2bcd(alrm->time.tm_sec) << 0
+		| bin2bcd(alrm->time.tm_min) << 8
+		| bin2bcd(alrm->time.tm_hour) << 16
 		| AT91_RTC_HOUREN | AT91_RTC_MINEN | AT91_RTC_SECEN);
 	at91_rtc_write(AT91_RTC_CALALR,
-		  bin2bcd(tm.tm_mon + 1) << 16		/* tm_mon starts at zero */
-		| bin2bcd(tm.tm_mday) << 24
+		  bin2bcd(alrm->time.tm_mon + 1) << 16		/* tm_mon starts at zero */
+		| bin2bcd(alrm->time.tm_mday) << 24
 		| AT91_RTC_DATEEN | AT91_RTC_MTHEN);
 
 	if (alrm->enabled) {
