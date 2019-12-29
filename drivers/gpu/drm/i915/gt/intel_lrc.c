@@ -1108,7 +1108,7 @@ __execlists_schedule_in(struct i915_request *rq)
 		/* We don't need a strict matching tag, just different values */
 		ce->lrc_desc &= ~GENMASK_ULL(47, 37);
 		ce->lrc_desc |=
-			(u64)(engine->context_tag++ % NUM_CONTEXT_TAG) <<
+			(u64)(++engine->context_tag % NUM_CONTEXT_TAG) <<
 			GEN11_SW_CTX_ID_SHIFT;
 		BUILD_BUG_ON(NUM_CONTEXT_TAG > GEN12_MAX_CONTEXT_HW_ID);
 	}
@@ -2925,6 +2925,8 @@ static void enable_execlists(struct intel_engine_cs *engine)
 			RING_HWS_PGA,
 			i915_ggtt_offset(engine->status_page.vma));
 	ENGINE_POSTING_READ(engine, RING_HWS_PGA);
+
+	engine->context_tag = 0;
 }
 
 static bool unexpected_starting_state(struct intel_engine_cs *engine)
