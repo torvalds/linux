@@ -161,7 +161,7 @@ static int vfio_pci_nvgpu_mmap(struct vfio_pci_device *vdev,
 	data->useraddr = vma->vm_start;
 	data->mm = current->mm;
 
-	atomic_inc(&data->mm->mm_count);
+	mmgrab(data->mm);
 	ret = (int) mm_iommu_newdev(data->mm, data->useraddr,
 			vma_pages(vma), data->gpu_hpa, &data->mem);
 
