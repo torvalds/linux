@@ -658,7 +658,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 		dma_dst = dma_map_single(dev, buf, count, DMA_FROM_DEVICE);
 	}
 	if (dma_mapping_error(dev, dma_dst)) {
-		dev_err(dev, "Couldn't map a %d byte buffer for DMA\n", count);
+		dev_err(dev, "Couldn't map a %zu byte buffer for DMA\n", count);
 		goto normal;
 	}
 	err = s5pc110_dma_ops(dma_dst, dma_src,
