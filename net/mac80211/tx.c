@@ -2256,6 +2256,15 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 						    payload[7]);
 	}
 
+	/*
+	 * Initialize skb->priority for QoS frames. This is put in the TID field
+	 * of the frame before passing it to the driver.
+	 */
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		u8 *p = ieee80211_get_qos_ctl(hdr);
+		skb->priority = *p & IEEE80211_QOS_CTL_TAG1D_MASK;
+	}
+
 	memset(info, 0, sizeof(*info));
 
 	info->flags = IEEE80211_TX_CTL_REQ_TX_STATUS |
@@ -3668,7 +3677,7 @@ begin:
 
 	IEEE80211_SKB_CB(skb)->control.vif = vif;
 
-	if (local->airtime_flags & AIRTIME_USE_AQL) {
+	if (wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL)) {
 		u32 airtime;
 
 		airtime = ieee80211_calc_expected_tx_airtime(hw, vif, txq->sta,
@@ -3790,7 +3799,7 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
 	struct sta_info *sta;
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (!(local->airtime_flags & AIRTIME_USE_AQL))
+	if (!wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL))
 		return true;
 
 	if (!txq->sta)
