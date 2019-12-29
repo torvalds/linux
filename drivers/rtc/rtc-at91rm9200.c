@@ -30,7 +30,51 @@
 #include <linux/time.h>
 #include <linux/uaccess.h>
 
-#include "rtc-at91rm9200.h"
+#define	AT91_RTC_CR		0x00			/* Control Register */
+#define		AT91_RTC_UPDTIM		BIT(0)		/* Update Request Time Register */
+#define		AT91_RTC_UPDCAL		BIT(1)		/* Update Request Calendar Register */
+
+#define	AT91_RTC_MR		0x04			/* Mode Register */
+
+#define	AT91_RTC_TIMR		0x08			/* Time Register */
+#define		AT91_RTC_SEC		GENMASK(6, 0)	/* Current Second */
+#define		AT91_RTC_MIN		GENMASK(14, 8)	/* Current Minute */
+#define		AT91_RTC_HOUR		GENMASK(21, 16)	/* Current Hour */
+#define		AT91_RTC_AMPM		BIT(22)		/* Ante Meridiem Post Meridiem Indicator */
+
+#define	AT91_RTC_CALR		0x0c			/* Calendar Register */
+#define		AT91_RTC_CENT		GENMASK(6, 0)	/* Current Century */
+#define		AT91_RTC_YEAR		GENMASK(15, 8)	/* Current Year */
+#define		AT91_RTC_MONTH		GENMASK(20, 16)	/* Current Month */
+#define		AT91_RTC_DAY		GENMASK(23, 21)	/* Current Day */
+#define		AT91_RTC_DATE		GENMASK(29, 24)	/* Current Date */
+
+#define	AT91_RTC_TIMALR		0x10			/* Time Alarm Register */
+#define		AT91_RTC_SECEN		BIT(7)		/* Second Alarm Enable */
+#define		AT91_RTC_MINEN		BIT(15)		/* Minute Alarm Enable */
+#define		AT91_RTC_HOUREN		BIT(23)		/* Hour Alarm Enable */
+
+#define	AT91_RTC_CALALR		0x14			/* Calendar Alarm Register */
+#define		AT91_RTC_MTHEN		BIT(23)		/* Month Alarm Enable */
+#define		AT91_RTC_DATEEN		BIT(31)		/* Date Alarm Enable */
+
+#define	AT91_RTC_SR		0x18			/* Status Register */
+#define		AT91_RTC_ACKUPD		BIT(0)		/* Acknowledge for Update */
+#define		AT91_RTC_ALARM		BIT(1)		/* Alarm Flag */
+#define		AT91_RTC_SECEV		BIT(2)		/* Second Event */
+#define		AT91_RTC_TIMEV		BIT(3)		/* Time Event */
+#define		AT91_RTC_CALEV		BIT(4)		/* Calendar Event */
+
+#define	AT91_RTC_SCCR		0x1c			/* Status Clear Command Register */
+#define	AT91_RTC_IER		0x20			/* Interrupt Enable Register */
+#define	AT91_RTC_IDR		0x24			/* Interrupt Disable Register */
+#define	AT91_RTC_IMR		0x28			/* Interrupt Mask Register */
+
+#define	AT91_RTC_VER		0x2c			/* Valid Entry Register */
+#define		AT91_RTC_NVTIM		BIT(0)		/* Non valid Time */
+#define		AT91_RTC_NVCAL		BIT(1)		/* Non valid Calendar */
+#define		AT91_RTC_NVTIMALR	BIT(2)		/* Non valid Time Alarm */
+#define		AT91_RTC_NVCALALR	BIT(3)		/* Non valid Calendar Alarm */
 
 #define at91_rtc_read(field) \
 	readl_relaxed(at91_rtc_regs + field)
