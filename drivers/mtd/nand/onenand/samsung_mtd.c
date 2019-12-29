@@ -248,7 +248,7 @@ static unsigned short s3c_onenand_readw(void __iomem *addr)
 	}
 
 	/* BootRAM access control */
-	if ((unsigned int) addr < ONENAND_DATARAM && onenand->bootram_command) {
+	if ((unsigned long)addr < ONENAND_DATARAM && onenand->bootram_command) {
 		if (word_addr == 0)
 			return s3c_read_reg(MANUFACT_ID_OFFSET);
 		if (word_addr == 1)
@@ -289,7 +289,7 @@ static void s3c_onenand_writew(unsigned short value, void __iomem *addr)
 	}
 
 	/* BootRAM access control */
-	if ((unsigned int)addr < ONENAND_DATARAM) {
+	if ((unsigned long)addr < ONENAND_DATARAM) {
 		if (value == ONENAND_CMD_READID) {
 			onenand->bootram_command = 1;
 			return;
