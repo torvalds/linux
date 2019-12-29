@@ -369,6 +369,17 @@ err_update_qrwe:
 }
 
 static int
+mlxsw_sp_port_dcb_app_update_qpdp(struct mlxsw_sp_port *mlxsw_sp_port,
+				  u8 default_prio)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char qpdp_pl[MLXSW_REG_QPDP_LEN];
+
+	mlxsw_reg_qpdp_pack(qpdp_pl, mlxsw_sp_port->local_port, default_prio);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpdp), qpdp_pl);
+}
+
+static int
 mlxsw_sp_port_dcb_app_update_qpdpm(struct mlxsw_sp_port *mlxsw_sp_port,
 				   struct dcb_ieee_app_dscp_map *map)
 {
@@ -405,6 +416,12 @@ static int mlxsw_sp_port_dcb_app_update(struct mlxsw_sp_port *mlxsw_sp_port)
 	int err;
 
 	default_prio = mlxsw_sp_port_dcb_app_default_prio(mlxsw_sp_port);
+	err = mlxsw_sp_port_dcb_app_update_qpdp(mlxsw_sp_port, default_prio);
+	if (err) {
+		netdev_err(mlxsw_sp_port->dev, "Couldn't configure port default priority\n");
+		return err;
+	}
+
 	have_dscp = mlxsw_sp_port_dcb_app_prio_dscp_map(mlxsw_sp_port,
 							&prio_map);
 
