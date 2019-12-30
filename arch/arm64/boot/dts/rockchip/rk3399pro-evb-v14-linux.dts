@@ -1,0 +1,148 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ */
+
+/dts-v1/;
+#include "rk3399pro-evb-v11-linux.dts"
+
+/ {
+	model = "Rockchip RK3399pro evb v14 board for linux";
+	compatible = "rockchip,rk3399pro-evb-v14-linux", "rockchip,rk3399pro";
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		dma_trans: dma_trans@3c000000 {
+			//no-map;
+			reg = <0x0 0x3c000000 0x0 0x04000000>;
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <345>;
+	i2c-scl-falling-time-ns = <11>;
+	pinctrl-0 = <&i2c1_xfer>, <&cam_pwren_high>;
+
+	jaguar1: jaguar1@30 {
+		compatible = "jaguar1-v4l2";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+		/*
+		 * pd-gpios = <&gpio4 21 GPIO_ACTIVE_HIGH>; // conflict with csi-ctl-gpios
+		 * rst-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		 */
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "jaguar1";
+		rockchip,camera-module-lens-name = "jaguar1";
+		port {
+			cam_out: endpoint {
+				remote-endpoint = <&usbacm_video_control_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&mipi_dphy_rx0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&usbacm_video_control_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_mipi_in>;
+			};
+		};
+	};
+};
+
+&pcie0 {
+	/delete-property/ ep-gpios;
+	num-lanes = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_clkreqn_cpm>;
+	max-link-speed = <1>;
+	memory-region = <&dma_trans>;
+	busno = <0>;
+	rockchip,dma_trx_enabled = <1>;
+	rockchip,deferred = <1>;
+	status = "okay";
+};
+
+&rkisp1_0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx0_out>;
+		};
+	};
+};
+
+&usbacm_video_control {
+	status = "okay";
+	rockchip,camera-module-index = <0>;
+	rockchip,camera-module-facing = "back";
+	rockchip,camera-module-name = "usbacm_video_control";
+	rockchip,camera-module-lens-name = "usbacm_video_control";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			usbacm_video_control_in: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cam_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			usbacm_video_control_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};

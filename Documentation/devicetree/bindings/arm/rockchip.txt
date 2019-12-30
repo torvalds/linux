@@ -223,6 +223,15 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "rockchip,rk3399-sapphire-excavator", "rockchip,rk3399";
 
+- Rockchip RK3399pro evb:
+    Required root node properties:
+      - compatible = "rockchip,rk3399pro-evb-v10", "rockchip,rk3399pro";
+      - compatible = "rockchip,rk3399pro-evb-v10-linux", "rockchip,rk3399pro";
+      - compatible = "rockchip,rk3399pro-evb-v11-linux", "rockchip,rk3399pro";
+      - compatible = "rockchip,rk3399pro-evb-v13-linux", "rockchip,rk3399pro";
+      - compatible = "rockchip,rk3399pro-evb-v13-multi-cam", "rockchip,rk3399pro";
+      - compatible = "rockchip,rk3399pro-evb-v14-linux", "rockchip,rk3399pro";
+
 - Theobroma Systems RK3368-uQ7 Haikou Baseboard:
     Required root node properties:
       - compatible = "tsd,rk3368-uq7-haikou", "rockchip,rk3368";

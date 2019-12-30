@@ -1108,6 +1108,13 @@
 			};
 	};
 
+	camera {
+		cam_pwren_high: cam-pwren-high {
+			rockchip,pins =
+				<4 RK_PC5 0 &pcfg_output_high>;
+			};
+	};
+
 	fusb30x {
 		fusb0_int: fusb0-int {
 			rockchip,pins =
