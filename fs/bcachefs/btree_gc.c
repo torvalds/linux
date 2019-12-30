@@ -186,8 +186,16 @@ fsck_err:
 	return ret;
 }
 
-static int btree_gc_mark_node(struct bch_fs *c, struct btree *b,
-			      u8 *max_stale, bool initial)
+static bool pos_in_journal_keys(struct journal_keys *journal_keys,
+				enum btree_id id, struct bpos pos)
+{
+	struct journal_key *k = journal_key_search(journal_keys, id, pos);
+
+	return k && k->btree_id == id && !bkey_cmp(k->k->k.p, pos);
+}
+
+static int btree_gc_mark_node(struct bch_fs *c, struct btree *b, u8 *max_stale,
+			      struct journal_keys *journal_keys, bool initial)
 {
 	struct btree_node_iter iter;
 	struct bkey unpacked;
@@ -201,6 +209,10 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b,
 
 	for_each_btree_node_key_unpack(b, k, &iter,
 				       &unpacked) {
+		if (!b->c.level && journal_keys &&
+		    pos_in_journal_keys(journal_keys, b->c.btree_id, k.k->p))
+			continue;
+
 		bch2_bkey_debugcheck(c, b, k);
 
 		ret = bch2_gc_mark_key(c, k, max_stale, initial);
@@ -212,6 +224,7 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b,
 }
 
 static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
+			 struct journal_keys *journal_keys,
 			 bool initial, bool metadata_only)
 {
 	struct btree_trans trans;
@@ -239,7 +252,8 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 		gc_pos_set(c, gc_pos_btree_node(b));
 
-		ret = btree_gc_mark_node(c, b, &max_stale, initial);
+		ret = btree_gc_mark_node(c, b, &max_stale,
+					 journal_keys, initial);
 		if (ret)
 			break;
 
@@ -281,36 +295,6 @@ static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
 		(int) btree_id_to_gc_phase(r);
 }
 
-static int mark_journal_key(struct bch_fs *c, enum btree_id id,
-			    struct bkey_i *insert)
-{
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	struct bkey_s_c k;
-	u8 max_stale;
-	int ret = 0;
-
-	ret = bch2_gc_mark_key(c, bkey_i_to_s_c(insert), &max_stale, true);
-	if (ret)
-		return ret;
-
-	bch2_trans_init(&trans, c, 0, 0);
-
-	for_each_btree_key(&trans, iter, id, bkey_start_pos(&insert->k),
-			   BTREE_ITER_SLOTS, k, ret) {
-		percpu_down_read(&c->mark_lock);
-		ret = bch2_mark_overwrite(&trans, iter, k, insert, NULL,
-					 BTREE_TRIGGER_GC|
-					 BTREE_TRIGGER_NOATOMIC);
-		percpu_up_read(&c->mark_lock);
-
-		if (!ret)
-			break;
-	}
-
-	return bch2_trans_exit(&trans) ?: ret;
-}
-
 static int bch2_gc_btrees(struct bch_fs *c, struct journal_keys *journal_keys,
 			  bool initial, bool metadata_only)
 {
@@ -325,18 +309,21 @@ static int bch2_gc_btrees(struct bch_fs *c, struct journal_keys *journal_keys,
 		enum btree_id id = ids[i];
 		enum btree_node_type type = __btree_node_type(0, id);
 
-		int ret = bch2_gc_btree(c, id, initial, metadata_only);
+		int ret = bch2_gc_btree(c, id, journal_keys,
+					initial, metadata_only);
 		if (ret)
 			return ret;
 
 		if (journal_keys && !metadata_only &&
 		    btree_node_type_needs_gc(type)) {
 			struct journal_key *j;
+			u8 max_stale;
 			int ret;
 
 			for_each_journal_key(*journal_keys, j)
 				if (j->btree_id == id) {
-					ret = mark_journal_key(c, id, j->k);
+					ret = bch2_gc_mark_key(c, bkey_i_to_s_c(j->k),
+							       &max_stale, initial);
 					if (ret)
 						return ret;
 				}

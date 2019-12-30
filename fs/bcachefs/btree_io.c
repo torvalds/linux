@@ -708,9 +708,7 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 			 unsigned *whiteout_u64s, int write,
 			 bool have_retry)
 {
-	struct bkey_packed *k;
-	struct bkey prev	= KEY(0, 0, 0);
-	struct bpos prev_data	= POS_MIN;
+	struct bkey_packed *k, *prev = NULL;
 	bool seen_non_whiteout = false;
 	unsigned version;
 	const char *err;
@@ -852,15 +850,15 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 
 		if (!seen_non_whiteout &&
 		    (!bkey_whiteout(k) ||
-		     (bkey_cmp(prev.p, bkey_start_pos(u.k)) > 0))) {
+		     (prev && bkey_iter_cmp(b, prev, k) > 0))) {
 			*whiteout_u64s = k->_data - i->_data;
 			seen_non_whiteout = true;
-		} else if (bkey_cmp(prev_data, bkey_start_pos(u.k)) > 0 ||
-			   bkey_cmp(prev.p, u.k->p) > 0) {
+		} else if (prev && bkey_iter_cmp(b, prev, k) > 0) {
 			char buf1[80];
 			char buf2[80];
+			struct bkey up = bkey_unpack_key(b, prev);
 
-			bch2_bkey_to_text(&PBUF(buf1), &prev);
+			bch2_bkey_to_text(&PBUF(buf1), &up);
 			bch2_bkey_to_text(&PBUF(buf2), u.k);
 
 			bch2_dump_bset(b, i, 0);
@@ -870,10 +868,7 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 			/* XXX: repair this */
 		}
 
-		if (!bkey_deleted(u.k))
-			prev_data = u.k->p;
-		prev = *u.k;
-
+		prev = k;
 		k = bkey_next_skip_noops(k, vstruct_last(i));
 	}
 

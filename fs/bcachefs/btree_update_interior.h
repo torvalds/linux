@@ -303,18 +303,23 @@ static inline struct btree_node_entry *want_new_bset(struct bch_fs *c,
 }
 
 static inline void push_whiteout(struct bch_fs *c, struct btree *b,
-				 struct bkey_packed *k)
+				 struct bpos pos)
 {
-	unsigned u64s = bkeyp_key_u64s(&b->format, k);
-	struct bkey_packed *dst;
+	struct bkey_packed k;
 
-	BUG_ON(u64s > bch_btree_keys_u64s_remaining(c, b));
+	BUG_ON(bch_btree_keys_u64s_remaining(c, b) < BKEY_U64s);
 
-	b->whiteout_u64s += bkeyp_key_u64s(&b->format, k);
-	dst = unwritten_whiteouts_start(c, b);
-	memcpy_u64s(dst, k, u64s);
-	dst->u64s = u64s;
-	dst->type = KEY_TYPE_deleted;
+	if (!bkey_pack_pos(&k, pos, b)) {
+		struct bkey *u = (void *) &k;
+
+		bkey_init(u);
+		u->p = pos;
+	}
+
+	k.needs_whiteout = true;
+
+	b->whiteout_u64s += k.u64s;
+	bkey_copy(unwritten_whiteouts_start(c, b), &k);
 }
 
 /*

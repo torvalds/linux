@@ -1504,12 +1504,12 @@ static struct bkey_s_c __btree_trans_updates_peek(struct btree_iter *iter)
 	struct btree_trans *trans = iter->trans;
 	struct btree_insert_entry *i;
 
-	trans_for_each_update(trans, i)
+	trans_for_each_update2(trans, i)
 		if ((cmp_int(iter->btree_id,	i->iter->btree_id) ?:
 		     bkey_cmp(pos,		i->k->k.p)) <= 0)
 			break;
 
-	return i < trans->updates + trans->nr_updates &&
+	return i < trans->updates2 + trans->nr_updates2 &&
 		iter->btree_id == i->iter->btree_id
 		? bkey_i_to_s_c(i->k)
 		: bkey_s_c_null;
@@ -1821,7 +1821,7 @@ int bch2_trans_iter_free(struct btree_trans *trans,
 static int bch2_trans_realloc_iters(struct btree_trans *trans,
 				    unsigned new_size)
 {
-	void *new_iters, *new_updates;
+	void *p, *new_iters, *new_updates, *new_updates2;
 	size_t iters_bytes;
 	size_t updates_bytes;
 
@@ -1839,21 +1839,27 @@ static int bch2_trans_realloc_iters(struct btree_trans *trans,
 	iters_bytes	= sizeof(struct btree_iter) * new_size;
 	updates_bytes	= sizeof(struct btree_insert_entry) * new_size;
 
-	new_iters = kmalloc(iters_bytes + updates_bytes, GFP_NOFS);
-	if (new_iters)
+	p = kmalloc(iters_bytes +
+		    updates_bytes +
+		    updates_bytes, GFP_NOFS);
+	if (p)
 		goto success;
 
-	new_iters = mempool_alloc(&trans->c->btree_iters_pool, GFP_NOFS);
+	p = mempool_alloc(&trans->c->btree_iters_pool, GFP_NOFS);
 	new_size = BTREE_ITER_MAX;
 
 	trans->used_mempool = true;
 success:
-	new_updates	= new_iters + iters_bytes;
+	new_iters	= p; p += iters_bytes;
+	new_updates	= p; p += updates_bytes;
+	new_updates2	= p; p += updates_bytes;
 
 	memcpy(new_iters, trans->iters,
 	       sizeof(struct btree_iter) * trans->nr_iters);
 	memcpy(new_updates, trans->updates,
 	       sizeof(struct btree_insert_entry) * trans->nr_updates);
+	memcpy(new_updates2, trans->updates2,
+	       sizeof(struct btree_insert_entry) * trans->nr_updates2);
 
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
 		memset(trans->iters, POISON_FREE,
@@ -1865,6 +1871,7 @@ success:
 
 	trans->iters		= new_iters;
 	trans->updates		= new_updates;
+	trans->updates2		= new_updates2;
 	trans->size		= new_size;
 
 	if (trans->iters_live) {
@@ -2126,6 +2133,7 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 
 	trans->need_reset		= 0;
 	trans->nr_updates		= 0;
+	trans->nr_updates2		= 0;
 	trans->mem_top			= 0;
 
 	if (trans->fs_usage_deltas) {
@@ -2157,6 +2165,7 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 	trans->size		= ARRAY_SIZE(trans->iters_onstack);
 	trans->iters		= trans->iters_onstack;
 	trans->updates		= trans->updates_onstack;
+	trans->updates2		= trans->updates2_onstack;
 	trans->fs_usage_deltas	= NULL;
 
 	if (expected_nr_iters > trans->size)
@@ -2194,5 +2203,5 @@ int bch2_fs_btree_iter_init(struct bch_fs *c)
 	return mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
 			sizeof(struct btree_iter) * nr +
 			sizeof(struct btree_insert_entry) * nr +
-			sizeof(u8) * nr);
+			sizeof(struct btree_insert_entry) * nr);
 }

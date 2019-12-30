@@ -5,8 +5,6 @@
 struct journal_keys {
 	struct journal_key {
 		enum btree_id	btree_id:8;
-		unsigned	allocated:1;
-		struct bpos	pos;
 		struct bkey_i	*k;
 		u32		journal_seq;
 		u32		journal_offset;

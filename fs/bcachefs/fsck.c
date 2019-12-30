@@ -422,6 +422,42 @@ static int bch2_inode_truncate(struct bch_fs *c, u64 inode_nr, u64 new_size)
 			POS(inode_nr + 1, 0), NULL);
 }
 
+static int bch2_fix_overlapping_extent(struct btree_trans *trans,
+				       struct btree_iter *iter,
+				       struct bkey_s_c k, struct bpos cut_at)
+{
+	struct btree_iter *u_iter;
+	struct bkey_i *u;
+	int ret;
+
+	u = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	ret = PTR_ERR_OR_ZERO(u);
+	if (ret)
+		return ret;
+
+	bkey_reassemble(u, k);
+	bch2_cut_front(cut_at, u);
+
+	u_iter = bch2_trans_copy_iter(trans, iter);
+	ret = PTR_ERR_OR_ZERO(u_iter);
+	if (ret)
+		return ret;
+
+	/*
+	 * We don't want to go through the
+	 * extent_handle_overwrites path:
+	 */
+	__bch2_btree_iter_set_pos(u_iter, u->k.p, false);
+
+	/*
+	 * XXX: this is going to leave disk space
+	 * accounting slightly wrong
+	 */
+	ret = bch2_trans_update(trans, u_iter, u, 0);
+	bch2_trans_iter_put(trans, u_iter);
+	return ret;
+}
+
 /*
  * Walk extents: verify that extents have a corresponding S_ISREG inode, and
  * that i_size an i_sectors are consistent
@@ -433,6 +469,7 @@ static int check_extents(struct bch_fs *c)
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
+	struct bkey prev = KEY(0, 0, 0);
 	u64 i_sectors;
 	int ret = 0;
 
@@ -444,6 +481,25 @@ static int check_extents(struct bch_fs *c)
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
 retry:
 	for_each_btree_key_continue(iter, 0, k, ret) {
+		if (bkey_cmp(prev.p, bkey_start_pos(k.k)) > 0) {
+			char buf1[100];
+			char buf2[100];
+
+			bch2_bkey_to_text(&PBUF(buf1), &prev);
+			bch2_bkey_to_text(&PBUF(buf2), k.k);
+
+			if (fsck_err(c, "overlapping extents: %s, %s", buf1, buf2)) {
+				ret = __bch2_trans_do(&trans, NULL, NULL,
+						      BTREE_INSERT_NOFAIL|
+						      BTREE_INSERT_LAZY_RW,
+						bch2_fix_overlapping_extent(&trans,
+								iter, k, prev.p));
+				if (ret)
+					goto err;
+			}
+		}
+		prev = *k.k;
+
 		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
 			break;

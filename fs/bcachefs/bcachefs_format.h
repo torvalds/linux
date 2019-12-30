@@ -1315,12 +1315,14 @@ LE64_BITMASK(BCH_SB_ERASURE_CODE,	struct bch_sb, flags[3],  0, 16);
 	x(inline_data,			8)	\
 	x(new_extent_overwrite,		9)	\
 	x(incompressible,		10)	\
-	x(btree_ptr_v2,			11)
+	x(btree_ptr_v2,			11)	\
+	x(extents_above_btree_updates,	12)
 
 #define BCH_SB_FEATURES_ALL				\
 	((1ULL << BCH_FEATURE_new_siphash)|		\
 	 (1ULL << BCH_FEATURE_new_extent_overwrite)|	\
-	 (1ULL << BCH_FEATURE_btree_ptr_v2))
+	 (1ULL << BCH_FEATURE_btree_ptr_v2)|		\
+	 (1ULL << BCH_FEATURE_extents_above_btree_updates))
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,

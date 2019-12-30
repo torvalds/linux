@@ -161,13 +161,16 @@ static void journal_entries_free(struct list_head *list)
 	}
 }
 
+/*
+ * When keys compare equal, oldest compares first:
+ */
 static int journal_sort_key_cmp(const void *_l, const void *_r)
 {
 	const struct journal_key *l = _l;
 	const struct journal_key *r = _r;
 
 	return cmp_int(l->btree_id, r->btree_id) ?:
-		bkey_cmp(l->pos, r->pos) ?:
+		bkey_cmp(l->k->k.p, r->k->k.p) ?:
 		cmp_int(l->journal_seq, r->journal_seq) ?:
 		cmp_int(l->journal_offset, r->journal_offset);
 }
@@ -179,25 +182,11 @@ static int journal_sort_seq_cmp(const void *_l, const void *_r)
 
 	return cmp_int(l->journal_seq, r->journal_seq) ?:
 		cmp_int(l->btree_id, r->btree_id) ?:
-		bkey_cmp(l->pos, r->pos);
-}
-
-static void journal_keys_sift(struct journal_keys *keys, struct journal_key *i)
-{
-	while (i + 1 < keys->d + keys->nr &&
-	       journal_sort_key_cmp(i, i + 1) > 0) {
-		swap(i[0], i[1]);
-		i++;
-	}
+		bkey_cmp(l->k->k.p, r->k->k.p);
 }
 
 static void journal_keys_free(struct journal_keys *keys)
 {
-	struct journal_key *i;
-
-	for_each_journal_key(*keys, i)
-		if (i->allocated)
-			kfree(i->k);
 	kvfree(keys->d);
 	keys->d = NULL;
 	keys->nr = 0;
@@ -208,15 +197,15 @@ static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
 	struct journal_replay *p;
 	struct jset_entry *entry;
 	struct bkey_i *k, *_n;
-	struct journal_keys keys = { NULL }, keys_deduped = { NULL };
-	struct journal_key *i;
+	struct journal_keys keys = { NULL };
+	struct journal_key *src, *dst;
 	size_t nr_keys = 0;
 
 	list_for_each_entry(p, journal_entries, list)
 		for_each_jset_key(k, _n, entry, &p->j)
 			nr_keys++;
 
-	keys.journal_seq_base = keys_deduped.journal_seq_base =
+	keys.journal_seq_base =
 		le64_to_cpu(list_first_entry(journal_entries,
 					     struct journal_replay,
 					     list)->j.seq);
@@ -225,96 +214,31 @@ static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
 	if (!keys.d)
 		goto err;
 
-	keys_deduped.d = kvmalloc(sizeof(keys.d[0]) * nr_keys * 2, GFP_KERNEL);
-	if (!keys_deduped.d)
-		goto err;
-
 	list_for_each_entry(p, journal_entries, list)
-		for_each_jset_key(k, _n, entry, &p->j) {
-			if (bkey_deleted(&k->k) &&
-			    btree_node_type_is_extents(entry->btree_id))
-				continue;
-
+		for_each_jset_key(k, _n, entry, &p->j)
 			keys.d[keys.nr++] = (struct journal_key) {
 				.btree_id	= entry->btree_id,
-				.pos		= bkey_start_pos(&k->k),
 				.k		= k,
 				.journal_seq	= le64_to_cpu(p->j.seq) -
 					keys.journal_seq_base,
 				.journal_offset	= k->_data - p->j._data,
 			};
-		}
 
 	sort(keys.d, keys.nr, sizeof(keys.d[0]), journal_sort_key_cmp, NULL);
 
-	i = keys.d;
-	while (i < keys.d + keys.nr) {
-		if (i + 1 < keys.d + keys.nr &&
-		    i[0].btree_id == i[1].btree_id &&
-		    !bkey_cmp(i[0].pos, i[1].pos)) {
-			if (bkey_cmp(i[0].k->k.p, i[1].k->k.p) <= 0) {
-				i++;
-			} else {
-				bch2_cut_front(i[1].k->k.p, i[0].k);
-				i[0].pos = i[1].k->k.p;
-				journal_keys_sift(&keys, i);
-			}
-			continue;
-		}
+	src = dst = keys.d;
+	while (src < keys.d + keys.nr) {
+		while (src + 1 < keys.d + keys.nr &&
+		       src[0].btree_id == src[1].btree_id &&
+		       !bkey_cmp(src[0].k->k.p, src[1].k->k.p))
+			src++;
 
-		if (i + 1 < keys.d + keys.nr &&
-		    i[0].btree_id == i[1].btree_id &&
-		    bkey_cmp(i[0].k->k.p, bkey_start_pos(&i[1].k->k)) > 0) {
-			if ((cmp_int(i[0].journal_seq, i[1].journal_seq) ?:
-			     cmp_int(i[0].journal_offset, i[1].journal_offset)) < 0) {
-				if (bkey_cmp(i[0].k->k.p, i[1].k->k.p) <= 0) {
-					bch2_cut_back(bkey_start_pos(&i[1].k->k), i[0].k);
-				} else {
-					struct bkey_i *split =
-						kmalloc(bkey_bytes(i[0].k), GFP_KERNEL);
-
-					if (!split)
-						goto err;
-
-					bkey_copy(split, i[0].k);
-					bch2_cut_back(bkey_start_pos(&i[1].k->k), split);
-					keys_deduped.d[keys_deduped.nr++] = (struct journal_key) {
-						.btree_id	= i[0].btree_id,
-						.allocated	= true,
-						.pos		= bkey_start_pos(&split->k),
-						.k		= split,
-						.journal_seq	= i[0].journal_seq,
-						.journal_offset	= i[0].journal_offset,
-					};
-
-					bch2_cut_front(i[1].k->k.p, i[0].k);
-					i[0].pos = i[1].k->k.p;
-					journal_keys_sift(&keys, i);
-					continue;
-				}
-			} else {
-				if (bkey_cmp(i[0].k->k.p, i[1].k->k.p) >= 0) {
-					i[1] = i[0];
-					i++;
-					continue;
-				} else {
-					bch2_cut_front(i[0].k->k.p, i[1].k);
-					i[1].pos = i[0].k->k.p;
-					journal_keys_sift(&keys, i + 1);
-					continue;
-				}
-			}
-		}
-
-		keys_deduped.d[keys_deduped.nr++] = *i++;
+		*dst++ = *src++;
 	}
 
-	kvfree(keys.d);
-	return keys_deduped;
+	keys.nr = dst - keys.d;
 err:
-	journal_keys_free(&keys_deduped);
-	kvfree(keys.d);
-	return (struct journal_keys) { NULL };
+	return keys;
 }
 
 /* journal replay: */
@@ -365,11 +289,6 @@ retry:
 
 		atomic_end = bpos_min(k->k.p, iter->l[0].b->key.k.p);
 
-		split_iter = bch2_trans_copy_iter(&trans, iter);
-		ret = PTR_ERR_OR_ZERO(split_iter);
-		if (ret)
-			goto err;
-
 		split = bch2_trans_kmalloc(&trans, bkey_bytes(&k->k));
 		ret = PTR_ERR_OR_ZERO(split);
 		if (ret)
@@ -388,12 +307,25 @@ retry:
 		}
 
 		bkey_copy(split, k);
-		bch2_cut_front(split_iter->pos, split);
+		bch2_cut_front(iter->pos, split);
 		bch2_cut_back(atomic_end, split);
 
+		split_iter = bch2_trans_copy_iter(&trans, iter);
+		ret = PTR_ERR_OR_ZERO(split_iter);
+		if (ret)
+			goto err;
+
+		/*
+		 * It's important that we don't go through the
+		 * extent_handle_overwrites() and extent_update_to_keys() path
+		 * here: journal replay is supposed to treat extents like
+		 * regular keys
+		 */
+		__bch2_btree_iter_set_pos(split_iter, split->k.p, false);
 		bch2_trans_update(&trans, split_iter, split, !remark
 				  ? BTREE_TRIGGER_NORUN
 				  : BTREE_TRIGGER_NOOVERWRITES);
+
 		bch2_btree_iter_set_pos(iter, split->k.p);
 	} while (bkey_cmp(iter->pos, k->k.p) < 0);
 
@@ -424,10 +356,17 @@ static int __bch2_journal_replay_key(struct btree_trans *trans,
 	struct btree_iter *iter;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, id, bkey_start_pos(&k->k),
-				   BTREE_ITER_INTENT);
+	iter = bch2_trans_get_iter(trans, id, k->k.p, BTREE_ITER_INTENT);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
+
+	/*
+	 * iter->flags & BTREE_ITER_IS_EXTENTS triggers the update path to run
+	 * extent_handle_overwrites() and extent_update_to_keys() - but we don't
+	 * want that here, journal replay is supposed to treat extents like
+	 * regular keys:
+	 */
+	__bch2_btree_iter_set_pos(iter, k->k.p, false);
 
 	ret   = bch2_btree_iter_traverse(iter) ?:
 		bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
@@ -459,7 +398,7 @@ static int bch2_journal_replay(struct bch_fs *c,
 
 		if (i->btree_id == BTREE_ID_ALLOC)
 			ret = bch2_alloc_replay_key(c, i->k);
-		else if (btree_node_type_is_extents(i->btree_id))
+		else if (i->k->k.size)
 			ret = bch2_extent_replay_key(c, i->btree_id, i->k);
 		else
 			ret = bch2_journal_replay_key(c, i->btree_id, i->k);
@@ -858,6 +797,15 @@ int bch2_fs_recovery(struct bch_fs *c)
 	} else {
 		journal_seq = le64_to_cpu(clean->journal_seq) + 1;
 	}
+
+	if (!c->sb.clean &&
+	    !(c->sb.features & (1ULL << BCH_FEATURE_extents_above_btree_updates))) {
+		bch_err(c, "filesystem needs recovery from older version; run fsck from older bcachefs-tools to fix");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_extents_above_btree_updates;
 
 	ret = journal_replay_early(c, clean, &journal_entries);
 	if (ret)

@@ -1254,21 +1254,21 @@ inline int bch2_mark_overwrite(struct btree_trans *trans,
 			       struct bkey_s_c old,
 			       struct bkey_i *new,
 			       struct bch_fs_usage *fs_usage,
-			       unsigned flags)
+			       unsigned flags,
+			       bool is_extents)
 {
 	struct bch_fs		*c = trans->c;
-	struct btree		*b = iter->l[0].b;
 	unsigned		offset = 0;
-	s64			sectors = 0;
+	s64			sectors = -((s64) old.k->size);
 
 	flags |= BTREE_TRIGGER_OVERWRITE;
 
-	if (btree_node_is_extents(b)
+	if (is_extents
 	    ? bkey_cmp(new->k.p, bkey_start_pos(old.k)) <= 0
 	    : bkey_cmp(new->k.p, old.k->p))
 		return 0;
 
-	if (btree_node_is_extents(b)) {
+	if (is_extents) {
 		switch (bch2_extent_overlap(&new->k, old.k)) {
 		case BCH_EXTENT_OVERLAP_ALL:
 			offset = 0;
@@ -1341,7 +1341,8 @@ int bch2_mark_update(struct btree_trans *trans,
 		struct bkey_s_c		k = bkey_disassemble(b, _k, &unpacked);
 
 		ret = bch2_mark_overwrite(trans, iter, k, insert,
-					  fs_usage, flags);
+					  fs_usage, flags,
+					  btree_node_type_is_extents(iter->btree_id));
 		if (ret <= 0)
 			break;
 
