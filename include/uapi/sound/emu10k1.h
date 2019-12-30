@@ -23,6 +23,10 @@
 #ifndef _UAPI__SOUND_EMU10K1_H
 #define _UAPI__SOUND_EMU10K1_H
 
+#ifdef __linux__
+#include <linux/types.h>
+#endif
+
 /*
  * ---- FX8010 ----
  */
