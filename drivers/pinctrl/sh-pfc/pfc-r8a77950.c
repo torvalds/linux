@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * R8A7795 ES1.x processor support - PFC hardware block.
+ * R8A77950 processor support - PFC hardware block.
  *
  * Copyright (C) 2015-2017  Renesas Electronics Corporation
  */
@@ -5562,8 +5562,8 @@ static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
 	{ /* sentinel */ },
 };
 
-static int r8a7795es1_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin,
-				     u32 *pocctrl)
+static int r8a77950_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin,
+				   u32 *pocctrl)
 {
 	int bit = -EINVAL;
 
@@ -5820,8 +5820,8 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 	{ /* sentinel */ },
 };
 
-static unsigned int r8a7795es1_pinmux_get_bias(struct sh_pfc *pfc,
-					       unsigned int pin)
+static unsigned int r8a77950_pinmux_get_bias(struct sh_pfc *pfc,
+					     unsigned int pin)
 {
 	const struct pinmux_bias_reg *reg;
 	unsigned int bit;
@@ -5838,8 +5838,8 @@ static unsigned int r8a7795es1_pinmux_get_bias(struct sh_pfc *pfc,
 		return PIN_CONFIG_BIAS_PULL_DOWN;
 }
 
-static void r8a7795es1_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
-				       unsigned int bias)
+static void r8a77950_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
+				     unsigned int bias)
 {
 	const struct pinmux_bias_reg *reg;
 	u32 enable, updown;
@@ -5861,15 +5861,15 @@ static void r8a7795es1_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	sh_pfc_write(pfc, reg->puen, enable);
 }
 
-static const struct sh_pfc_soc_operations r8a7795es1_pinmux_ops = {
-	.pin_to_pocctrl = r8a7795es1_pin_to_pocctrl,
-	.get_bias = r8a7795es1_pinmux_get_bias,
-	.set_bias = r8a7795es1_pinmux_set_bias,
+static const struct sh_pfc_soc_operations r8a77950_pinmux_ops = {
+	.pin_to_pocctrl = r8a77950_pin_to_pocctrl,
+	.get_bias = r8a77950_pinmux_get_bias,
+	.set_bias = r8a77950_pinmux_set_bias,
 };
 
-const struct sh_pfc_soc_info r8a7795es1_pinmux_info = {
+const struct sh_pfc_soc_info r8a77950_pinmux_info = {
 	.name = "r8a77950_pfc",
-	.ops = &r8a7795es1_pinmux_ops,
+	.ops = &r8a77950_pinmux_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
