@@ -9,6 +9,9 @@
 #define USB_TYPEC_REV_1_0	0x100 /* 1.0 */
 #define USB_TYPEC_REV_1_1	0x110 /* 1.1 */
 #define USB_TYPEC_REV_1_2	0x120 /* 1.2 */
+#define USB_TYPEC_REV_1_3	0x130 /* 1.3 */
+#define USB_TYPEC_REV_1_4	0x140 /* 1.4 */
+#define USB_TYPEC_REV_2_0	0x200 /* 2.0 */
 
 struct typec_partner;
 struct typec_cable;
