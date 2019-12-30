@@ -166,10 +166,11 @@ int bch2_extent_is_atomic(struct bkey_i *k, struct btree_iter *iter)
 
 enum btree_insert_ret
 bch2_extent_can_insert(struct btree_trans *trans,
-		       struct btree_insert_entry *insert,
+		       struct btree_iter *iter,
+		       struct bkey_i *insert,
 		       unsigned *u64s)
 {
-	struct btree_iter_level *l = &insert->iter->l[0];
+	struct btree_iter_level *l = &iter->l[0];
 	struct btree_node_iter node_iter = l->iter;
 	struct bkey_packed *_k;
 	struct bkey unpacked;
@@ -179,12 +180,12 @@ bch2_extent_can_insert(struct btree_trans *trans,
 						      KEY_TYPE_discard))) {
 		struct bkey_s_c k = bkey_disassemble(l->b, _k, &unpacked);
 		enum bch_extent_overlap overlap =
-			bch2_extent_overlap(&insert->k->k, k.k);
+			bch2_extent_overlap(&insert->k, k.k);
 
-		if (bkey_cmp(bkey_start_pos(k.k), insert->k->k.p) >= 0)
+		if (bkey_cmp(bkey_start_pos(k.k), insert->k.p) >= 0)
 			break;
 
-		overlap = bch2_extent_overlap(&insert->k->k, k.k);
+		overlap = bch2_extent_overlap(&insert->k, k.k);
 
 		/*
 		 * If we're overwriting an existing extent, we may need to emit
@@ -192,8 +193,8 @@ bch2_extent_can_insert(struct btree_trans *trans,
 		 * position:
 		 */
 		if (k.k->needs_whiteout &&
-		    (!bkey_whiteout(&insert->k->k) ||
-		     bkey_cmp(k.k->p, insert->k->k.p)))
+		    (!bkey_whiteout(&insert->k) ||
+		     bkey_cmp(k.k->p, insert->k.p)))
 			*u64s += BKEY_U64s;
 
 		/*
@@ -507,11 +508,10 @@ extent_squash(struct bch_fs *c, struct btree_iter *iter,
  * key insertion needs to continue/be retried.
  */
 void bch2_insert_fixup_extent(struct btree_trans *trans,
-			      struct btree_insert_entry *insert_entry)
+			      struct btree_iter *iter,
+			      struct bkey_i *insert)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter	= insert_entry->iter;
-	struct bkey_i *insert	= insert_entry->k;
 	struct btree_iter_level *l = &iter->l[0];
 	struct btree_node_iter node_iter = l->iter;
 	bool do_update		= !bkey_whiteout(&insert->k);

@@ -8,7 +8,6 @@
 
 struct bch_fs;
 struct btree_trans;
-struct btree_insert_entry;
 
 /* extent entries: */
 

@@ -285,8 +285,8 @@ struct btree_trans {
 	struct replicas_delta_list *fs_usage_deltas;
 
 	struct btree_iter	iters_onstack[2];
-	struct btree_insert_entry updates_onstack[6];
-	u8			updates_sorted_onstack[6];
+	struct btree_insert_entry updates_onstack[2];
+	u8			updates_sorted_onstack[2];
 };
 
 #define BTREE_FLAG(flag)						\

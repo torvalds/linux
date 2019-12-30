@@ -10,9 +10,10 @@ int bch2_extent_trim_atomic(struct bkey_i *, struct btree_iter *);
 int bch2_extent_is_atomic(struct bkey_i *, struct btree_iter *);
 
 enum btree_insert_ret
-bch2_extent_can_insert(struct btree_trans *, struct btree_insert_entry *,
-		       unsigned *);
+bch2_extent_can_insert(struct btree_trans *, struct btree_iter *,
+		       struct bkey_i *, unsigned *);
 void bch2_insert_fixup_extent(struct btree_trans *,
-			      struct btree_insert_entry *);
+			      struct btree_iter *,
+			      struct bkey_i *);
 
 #endif /* _BCACHEFS_EXTENT_UPDATE_H */

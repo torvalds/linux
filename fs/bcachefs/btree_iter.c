@@ -1810,8 +1810,8 @@ static int bch2_trans_realloc_iters(struct btree_trans *trans,
 	bch2_trans_unlock(trans);
 
 	iters_bytes	= sizeof(struct btree_iter) * new_size;
-	updates_bytes	= sizeof(struct btree_insert_entry) * (new_size + 4);
-	sorted_bytes	= sizeof(u8) * (new_size + 4);
+	updates_bytes	= sizeof(struct btree_insert_entry) * new_size;
+	sorted_bytes	= sizeof(u8) * new_size;
 
 	new_iters = kmalloc(iters_bytes +
 			    updates_bytes +
@@ -2164,6 +2164,6 @@ int bch2_fs_btree_iter_init(struct bch_fs *c)
 
 	return mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
 			sizeof(struct btree_iter) * nr +
-			sizeof(struct btree_insert_entry) * (nr + 4) +
-			sizeof(u8) * (nr + 4));
+			sizeof(struct btree_insert_entry) * nr +
+			sizeof(u8) * nr);
 }

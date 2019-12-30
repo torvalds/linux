@@ -111,7 +111,7 @@ static inline void bch2_trans_update(struct btree_trans *trans,
 				     struct btree_iter *iter,
 				     struct bkey_i *k)
 {
-	EBUG_ON(trans->nr_updates >= trans->nr_iters + 4);
+	EBUG_ON(trans->nr_updates >= trans->nr_iters);
 
 	iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
 

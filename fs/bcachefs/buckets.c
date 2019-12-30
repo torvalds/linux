@@ -1300,12 +1300,12 @@ inline int bch2_mark_overwrite(struct btree_trans *trans,
 }
 
 int bch2_mark_update(struct btree_trans *trans,
-		     struct btree_insert_entry *insert,
+		     struct btree_iter *iter,
+		     struct bkey_i *insert,
 		     struct bch_fs_usage *fs_usage,
 		     unsigned flags)
 {
 	struct bch_fs		*c = trans->c;
-	struct btree_iter	*iter = insert->iter;
 	struct btree		*b = iter->l[0].b;
 	struct btree_node_iter	node_iter = iter->l[0].iter;
 	struct bkey_packed	*_k;
@@ -1314,8 +1314,8 @@ int bch2_mark_update(struct btree_trans *trans,
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return 0;
 
-	bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k),
-		0, insert->k->k.size,
+	bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
+		0, insert->k.size,
 		fs_usage, trans->journal_res.seq,
 		BCH_BUCKET_MARK_INSERT|flags);
 
@@ -1328,7 +1328,7 @@ int bch2_mark_update(struct btree_trans *trans,
 	 */
 	if ((iter->btree_id == BTREE_ID_ALLOC ||
 	     iter->btree_id == BTREE_ID_EC) &&
-	    !bkey_deleted(&insert->k->k))
+	    !bkey_deleted(&insert->k))
 		return 0;
 
 	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
@@ -1336,7 +1336,7 @@ int bch2_mark_update(struct btree_trans *trans,
 		struct bkey		unpacked;
 		struct bkey_s_c		k = bkey_disassemble(b, _k, &unpacked);
 
-		ret = bch2_mark_overwrite(trans, iter, k, insert->k,
+		ret = bch2_mark_overwrite(trans, iter, k, insert,
 					  fs_usage, flags);
 		if (ret <= 0)
 			break;
