@@ -4371,8 +4371,7 @@ static void io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 			req_set_fail_links(req);
 			io_double_put_req(req);
 		}
-	} else if ((req->flags & REQ_F_FORCE_ASYNC) &&
-		   !io_wq_current_is_worker()) {
+	} else if (req->flags & REQ_F_FORCE_ASYNC) {
 		/*
 		 * Never try inline submit of IOSQE_ASYNC is set, go straight
 		 * to async execution.
