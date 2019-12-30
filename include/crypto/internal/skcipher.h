@@ -140,8 +140,6 @@ int skcipher_walk_virt(struct skcipher_walk *walk,
 void skcipher_walk_atomise(struct skcipher_walk *walk);
 int skcipher_walk_async(struct skcipher_walk *walk,
 			struct skcipher_request *req);
-int skcipher_walk_aead(struct skcipher_walk *walk, struct aead_request *req,
-		       bool atomic);
 int skcipher_walk_aead_encrypt(struct skcipher_walk *walk,
 			       struct aead_request *req, bool atomic);
 int skcipher_walk_aead_decrypt(struct skcipher_walk *walk,
