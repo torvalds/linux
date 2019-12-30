@@ -136,7 +136,6 @@
 
 		target-module@56000 {			/* 0x4a056000, ap 7 0a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dma_system";
 			reg = <0x56000 0x4>,
 			      <0x5602c 0x4>,
 			      <0x56028 0x4>;
@@ -160,7 +159,7 @@
 			ranges = <0x0 0x56000 0x1000>;
 
 			sdma: dma-controller@0 {
-				compatible = "ti,omap4430-sdma";
+				compatible = "ti,omap4430-sdma", "ti,omap-sdma";
 				reg = <0x0 0x1000>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,

@@ -18,7 +18,6 @@
  */
 
 #include <linux/io.h>
-#include <linux/omap-dma.h>
 
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
@@ -29,9 +28,6 @@
 
 /* Base offset for all OMAP4 interrupts external to MPUSS */
 #define OMAP44XX_IRQ_GIC_START	32
-
-/* Base offset for all OMAP4 dma requests */
-#define OMAP44XX_DMA_REQ_START	1
 
 /*
  * IP blocks
@@ -358,53 +354,6 @@ static struct omap_hwmod omap44xx_debugss_hwmod = {
 		},
 	},
 };
-
-/*
- * 'dma' class
- * dma controller for data exchange between memory to memory (i.e. internal or
- * external memory) and gp peripherals to memory or memory to gp peripherals
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_dma_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x002c,
-	.syss_offs	= 0x0028,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
-			   SYSC_HAS_EMUFREE | SYSC_HAS_MIDLEMODE |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
-			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap44xx_dma_hwmod_class = {
-	.name	= "dma",
-	.sysc	= &omap44xx_dma_sysc,
-};
-
-/* dma dev_attr */
-static struct omap_dma_dev_attr dma_dev_attr = {
-	.dev_caps	= RESERVE_CHANNEL | DMA_LINKED_LCH | GLOBAL_PRIORITY |
-			  IS_CSSA_32 | IS_CDSA_32 | IS_RW_PRIORITY,
-	.lch_count	= 32,
-};
-
-/* dma_system */
-static struct omap_hwmod omap44xx_dma_system_hwmod = {
-	.name		= "dma_system",
-	.class		= &omap44xx_dma_hwmod_class,
-	.clkdm_name	= "l3_dma_clkdm",
-	.main_clk	= "l3_div_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_SDMA_SDMA_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_SDMA_SDMA_CONTEXT_OFFSET,
-		},
-	},
-	.dev_attr	= &dma_dev_attr,
-};
-
 
 /*
  * 'dsp' class
@@ -1458,14 +1407,6 @@ static struct omap_hwmod_ocp_if omap44xx_debugss__l3_main_2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* dma_system -> l3_main_2 */
-static struct omap_hwmod_ocp_if omap44xx_dma_system__l3_main_2 = {
-	.master		= &omap44xx_dma_system_hwmod,
-	.slave		= &omap44xx_l3_main_2_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* ipu -> l3_main_2 */
 static struct omap_hwmod_ocp_if omap44xx_ipu__l3_main_2 = {
 	.master		= &omap44xx_ipu_hwmod,
@@ -1655,14 +1596,6 @@ static struct omap_hwmod_ocp_if omap44xx_l3_instr__debugss = {
 	.master		= &omap44xx_l3_instr_hwmod,
 	.slave		= &omap44xx_debugss_hwmod,
 	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_cfg -> dma_system */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__dma_system = {
-	.master		= &omap44xx_l4_cfg_hwmod,
-	.slave		= &omap44xx_dma_system_hwmod,
-	.clk		= "l4_div_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -1966,7 +1899,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__l3_main_1,
 	&omap44xx_mpu__l3_main_1,
 	&omap44xx_debugss__l3_main_2,
-	&omap44xx_dma_system__l3_main_2,
 	&omap44xx_ipu__l3_main_2,
 	&omap44xx_iss__l3_main_2,
 	&omap44xx_iva__l3_main_2,
@@ -1991,7 +1923,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_wkup__ctrl_module_wkup,
 	&omap44xx_l4_wkup__ctrl_module_pad_wkup,
 	&omap44xx_l3_instr__debugss,
-	&omap44xx_l4_cfg__dma_system,
 	&omap44xx_dsp__iva,
 	/* &omap44xx_dsp__sl2if, */
 	&omap44xx_l4_cfg__dsp,
