@@ -123,6 +123,7 @@ static const struct of_device_id blacklist[] __initconst = {
 	{ .compatible = "rockchip,rk3366", },
 	{ .compatible = "rockchip,rk3368", },
 	{ .compatible = "rockchip,rk3399", },
+	{ .compatible = "rockchip,rk3399pro", },
 
 	{ .compatible = "st,stih407", },
 	{ .compatible = "st,stih410", },
