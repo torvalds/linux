@@ -6,6 +6,9 @@
 #ifndef _UFS_MEDIATEK_H
 #define _UFS_MEDIATEK_H
 
+#include <linux/bitops.h>
+#include <linux/soc/mediatek/mtk_sip_svc.h>
+
 /*
  * Vendor specific pre-defined parameters
  */
@@ -28,6 +31,12 @@
 #define VS_DEBUGCLOCKENABLE         0xD0A1
 #define VS_SAVEPOWERCONTROL         0xD0A6
 #define VS_UNIPROPOWERDOWNCONTROL   0xD0A8
+
+/*
+ * SiP commands
+ */
+#define MTK_SIP_UFS_CONTROL         MTK_SIP_SMC_CMD(0x276)
+#define UFS_MTK_SIP_DEVICE_RESET    BIT(1)
 
 /*
  * VS_DEBUGCLOCKENABLE
