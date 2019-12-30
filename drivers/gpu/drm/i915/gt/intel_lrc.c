@@ -3968,7 +3968,6 @@ static void init_common_reg_state(u32 * const regs,
 					    CTX_CTRL_RS_CTX_ENABLE);
 
 	regs[CTX_RING_CTL] = RING_CTL_SIZE(ring->size) | RING_VALID;
-	regs[CTX_BB_STATE] = RING_BB_PPGTT;
 }
 
 static void init_wa_bb_reg_state(u32 * const regs,
