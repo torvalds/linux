@@ -101,6 +101,9 @@ int typec_altmode_enter(struct typec_altmode *adev)
 	if (!pdev->ops || !pdev->ops->enter)
 		return -EOPNOTSUPP;
 
+	if (is_typec_port(pdev->dev.parent) && !pdev->active)
+		return -EPERM;
+
 	/* Moving to USB Safe State */
 	ret = typec_altmode_set_state(adev, TYPEC_STATE_SAFE);
 	if (ret)
