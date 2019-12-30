@@ -2104,7 +2104,16 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 	if (flags & TRANS_RESET_MEM)
 		trans->mem_top		= 0;
 
-	bch2_btree_iter_traverse_all(trans);
+	if (trans->fs_usage_deltas) {
+		trans->fs_usage_deltas->used = 0;
+		memset((void *) trans->fs_usage_deltas +
+		       offsetof(struct replicas_delta_list, memset_start), 0,
+		       (void *) &trans->fs_usage_deltas->memset_end -
+		       (void *) &trans->fs_usage_deltas->memset_start);
+	}
+
+	if (!(flags & TRANS_RESET_NOTRAVERSE))
+		bch2_btree_iter_traverse_all(trans);
 }
 
 void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,

@@ -715,7 +715,6 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 int __bch2_trans_commit(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i = NULL;
-	struct btree_iter *iter;
 	unsigned u64s;
 	int ret = 0;
 
@@ -782,23 +781,7 @@ out:
 	if (likely(!(trans->flags & BTREE_INSERT_NOCHECK_RW)))
 		percpu_ref_put(&trans->c->writes);
 out_noupdates:
-	trans_for_each_iter_all(trans, iter)
-		iter->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
-
-	if (!ret) {
-		bch2_trans_unlink_iters(trans);
-		trans->iters_touched = 0;
-	}
-	trans->nr_updates	= 0;
-	trans->mem_top		= 0;
-
-	if (trans->fs_usage_deltas) {
-		trans->fs_usage_deltas->used = 0;
-		memset((void *) trans->fs_usage_deltas +
-		       offsetof(struct replicas_delta_list, memset_start), 0,
-		       (void *) &trans->fs_usage_deltas->memset_end -
-		       (void *) &trans->fs_usage_deltas->memset_start);
-	}
+	bch2_trans_reset(trans, TRANS_RESET_MEM|TRANS_RESET_NOTRAVERSE);
 
 	return ret;
 err:
