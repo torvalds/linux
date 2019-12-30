@@ -2863,7 +2863,7 @@ static void mvpp2_rx_csum(struct mvpp2_port *port, u32 status,
 	skb->ip_summed = CHECKSUM_NONE;
 }
 
-/* Reuse skb if possible, or allocate a new skb and add it to BM pool */
+/* Allocate a new skb and add it to BM pool */
 static int mvpp2_rx_refill(struct mvpp2_port *port,
 			   struct mvpp2_bm_pool *bm_pool, int pool)
 {
@@ -2871,7 +2871,6 @@ static int mvpp2_rx_refill(struct mvpp2_port *port,
 	phys_addr_t phys_addr;
 	void *buf;
 
-	/* No recycle or too many buffers are in use, so allocate a new skb */
 	buf = mvpp2_buf_alloc(port, bm_pool, &dma_addr, &phys_addr,
 			      GFP_ATOMIC);
 	if (!buf)
@@ -2957,14 +2956,13 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 		 * by the hardware, and the information about the buffer is
 		 * comprised by the RX descriptor.
 		 */
-		if (rx_status & MVPP2_RXD_ERR_SUMMARY) {
-err_drop_frame:
-			dev->stats.rx_errors++;
-			mvpp2_rx_error(port, rx_desc);
-			/* Return the buffer to the pool */
-			mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
-			continue;
-		}
+		if (rx_status & MVPP2_RXD_ERR_SUMMARY)
+			goto err_drop_frame;
+
+		dma_sync_single_for_cpu(dev->dev.parent, dma_addr,
+					rx_bytes + MVPP2_MH_SIZE,
+					DMA_FROM_DEVICE);
+		prefetch(data);
 
 		if (bm_pool->frag_size > PAGE_SIZE)
 			frag_size = 0;
@@ -2983,8 +2981,9 @@ err_drop_frame:
 			goto err_drop_frame;
 		}
 
-		dma_unmap_single(dev->dev.parent, dma_addr,
-				 bm_pool->buf_size, DMA_FROM_DEVICE);
+		dma_unmap_single_attrs(dev->dev.parent, dma_addr,
+				       bm_pool->buf_size, DMA_FROM_DEVICE,
+				       DMA_ATTR_SKIP_CPU_SYNC);
 
 		rcvd_pkts++;
 		rcvd_bytes += rx_bytes;
@@ -2995,6 +2994,13 @@ err_drop_frame:
 		mvpp2_rx_csum(port, rx_status, skb);
 
 		napi_gro_receive(napi, skb);
+		continue;
+
+err_drop_frame:
+		dev->stats.rx_errors++;
+		mvpp2_rx_error(port, rx_desc);
+		/* Return the buffer to the pool */
+		mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 	}
 
 	if (rcvd_pkts) {
@@ -3674,7 +3680,7 @@ static int mvpp2_open(struct net_device *dev)
 		valid = true;
 	}
 
-	if (priv->hw_version == MVPP22 && port->link_irq && !port->phylink) {
+	if (priv->hw_version == MVPP22 && port->link_irq) {
 		err = request_irq(port->link_irq, mvpp2_link_status_isr, 0,
 				  dev->name, port);
 		if (err) {
@@ -4817,8 +4823,8 @@ empty_set:
 	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static void mvpp22_xlg_link_state(struct mvpp2_port *port,
-				  struct phylink_link_state *state)
+static void mvpp22_xlg_pcs_get_state(struct mvpp2_port *port,
+				     struct phylink_link_state *state)
 {
 	u32 val;
 
@@ -4837,8 +4843,8 @@ static void mvpp22_xlg_link_state(struct mvpp2_port *port,
 		state->pause |= MLO_PAUSE_RX;
 }
 
-static void mvpp2_gmac_link_state(struct mvpp2_port *port,
-				  struct phylink_link_state *state)
+static void mvpp2_gmac_pcs_get_state(struct mvpp2_port *port,
+				     struct phylink_link_state *state)
 {
 	u32 val;
 
@@ -4871,8 +4877,8 @@ static void mvpp2_gmac_link_state(struct mvpp2_port *port,
 		state->pause |= MLO_PAUSE_TX;
 }
 
-static int mvpp2_phylink_mac_link_state(struct phylink_config *config,
-					struct phylink_link_state *state)
+static void mvpp2_phylink_mac_pcs_get_state(struct phylink_config *config,
+					    struct phylink_link_state *state)
 {
 	struct mvpp2_port *port = container_of(config, struct mvpp2_port,
 					       phylink_config);
@@ -4882,13 +4888,12 @@ static int mvpp2_phylink_mac_link_state(struct phylink_config *config,
 		mode &= MVPP22_XLG_CTRL3_MACMODESELECT_MASK;
 
 		if (mode == MVPP22_XLG_CTRL3_MACMODESELECT_10G) {
-			mvpp22_xlg_link_state(port, state);
-			return 1;
+			mvpp22_xlg_pcs_get_state(port, state);
+			return;
 		}
 	}
 
-	mvpp2_gmac_link_state(port, state);
-	return 1;
+	mvpp2_gmac_pcs_get_state(port, state);
 }
 
 static void mvpp2_mac_an_restart(struct phylink_config *config)
@@ -5180,7 +5185,7 @@ static void mvpp2_mac_link_down(struct phylink_config *config,
 
 static const struct phylink_mac_ops mvpp2_phylink_ops = {
 	.validate = mvpp2_phylink_validate,
-	.mac_link_state = mvpp2_phylink_mac_link_state,
+	.mac_pcs_get_state = mvpp2_phylink_mac_pcs_get_state,
 	.mac_an_restart = mvpp2_mac_an_restart,
 	.mac_config = mvpp2_mac_config,
 	.mac_link_up = mvpp2_mac_link_up,

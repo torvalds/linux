@@ -591,8 +591,8 @@ static int max2175_set_lo_freq(struct max2175 *ctx, u32 lo_freq)
 		lo_freq *= lo_mult;
 
 	int_desired = lo_freq / ctx->xtal_freq;
-	frac_desired = div_u64((u64)(lo_freq % ctx->xtal_freq) << 20,
-			       ctx->xtal_freq);
+	frac_desired = div64_ul((u64)(lo_freq % ctx->xtal_freq) << 20,
+				ctx->xtal_freq);
 
 	/* Check CSM is not busy */
 	ret = max2175_poll_csm_ready(ctx);

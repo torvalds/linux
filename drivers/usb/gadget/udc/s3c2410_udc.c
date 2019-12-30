@@ -1978,7 +1978,8 @@ static int __init udc_init(void)
 
 	dprintk(DEBUG_NORMAL, "%s\n", gadget_name);
 
-	s3c2410_udc_debugfs_root = debugfs_create_dir(gadget_name, NULL);
+	s3c2410_udc_debugfs_root = debugfs_create_dir(gadget_name,
+						      usb_debug_root);
 
 	retval = platform_driver_register(&udc_driver_24x0);
 	if (retval)

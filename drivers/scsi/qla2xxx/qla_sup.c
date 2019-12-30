@@ -847,15 +847,15 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 				ha->flt_region_img_status_pri = start;
 			break;
 		case FLT_REG_IMG_SEC_27XX:
-			if (IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+			if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
 				ha->flt_region_img_status_sec = start;
 			break;
 		case FLT_REG_FW_SEC_27XX:
-			if (IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+			if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
 				ha->flt_region_fw_sec = start;
 			break;
 		case FLT_REG_BOOTLOAD_SEC_27XX:
-			if (IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+			if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
 				ha->flt_region_boot_sec = start;
 			break;
 		case FLT_REG_AUX_IMG_PRI_28XX:
@@ -2725,8 +2725,11 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 		ql_log(ql_log_warn + ql_dbg_verbose, vha, 0xffff,
 		    "Region %x is secure\n", region.code);
 
-		if (region.code == FLT_REG_FW ||
-		    region.code == FLT_REG_FW_SEC_27XX) {
+		switch (region.code) {
+		case FLT_REG_FW:
+		case FLT_REG_FW_SEC_27XX:
+		case FLT_REG_MPI_PRI_28XX:
+		case FLT_REG_MPI_SEC_28XX:
 			fw_array = dwptr;
 
 			/* 1st fw array */
@@ -2757,9 +2760,23 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 				buf_size_without_sfub += risc_size;
 				fw_array += risc_size;
 			}
-		} else {
-			ql_log(ql_log_warn + ql_dbg_verbose, vha, 0xffff,
-			    "Secure region %x not supported\n",
+			break;
+
+		case FLT_REG_PEP_PRI_28XX:
+		case FLT_REG_PEP_SEC_28XX:
+			fw_array = dwptr;
+
+			/* 1st fw array */
+			risc_size = be32_to_cpu(fw_array[3]);
+			risc_attr = be32_to_cpu(fw_array[9]);
+
+			buf_size_without_sfub = risc_size;
+			fw_array += risc_size;
+			break;
+
+		default:
+			ql_log(ql_log_warn + ql_dbg_verbose, vha,
+			    0xffff, "Secure region %x not supported\n",
 			    region.code);
 			rval = QLA_COMMAND_ERROR;
 			goto done;
@@ -2880,7 +2897,7 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 			    "Sending Secure Flash MB Cmd\n");
 			rval = qla28xx_secure_flash_update(vha, 0, region.code,
 				buf_size_without_sfub, sfub_dma,
-				sizeof(struct secure_flash_update_block));
+				sizeof(struct secure_flash_update_block) >> 2);
 			if (rval != QLA_SUCCESS) {
 				ql_log(ql_log_warn, vha, 0xffff,
 				    "Secure Flash MB Cmd failed %x.", rval);

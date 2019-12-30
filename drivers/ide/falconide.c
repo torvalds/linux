@@ -15,6 +15,7 @@
 #include <linux/blkdev.h>
 #include <linux/ide.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 
 #include <asm/setup.h>
 #include <asm/atarihw.h>
@@ -25,13 +26,7 @@
 #define DRV_NAME "falconide"
 
     /*
-     *  Base of the IDE interface
-     */
-
-#define ATA_HD_BASE	0xfff00000
-
-    /*
-     *  Offsets from the above base
+     *  Offsets from base address
      */
 
 #define ATA_HD_CONTROL	0x39
@@ -114,18 +109,18 @@ static const struct ide_port_info falconide_port_info = {
 	.chipset		= ide_generic,
 };
 
-static void __init falconide_setup_ports(struct ide_hw *hw)
+static void __init falconide_setup_ports(struct ide_hw *hw, unsigned long base)
 {
 	int i;
 
 	memset(hw, 0, sizeof(*hw));
 
-	hw->io_ports.data_addr = ATA_HD_BASE;
+	hw->io_ports.data_addr = base;
 
 	for (i = 1; i < 8; i++)
-		hw->io_ports_array[i] = ATA_HD_BASE + 1 + i * 4;
+		hw->io_ports_array[i] = base + 1 + i * 4;
 
-	hw->io_ports.ctl_addr = ATA_HD_BASE + ATA_HD_CONTROL;
+	hw->io_ports.ctl_addr = base + ATA_HD_CONTROL;
 
 	hw->irq = IRQ_MFP_IDE;
 }
@@ -134,23 +129,29 @@ static void __init falconide_setup_ports(struct ide_hw *hw)
      *  Probe for a Falcon IDE interface
      */
 
-static int __init falconide_init(void)
+static int __init falconide_init(struct platform_device *pdev)
 {
+	struct resource *res;
 	struct ide_host *host;
 	struct ide_hw hw, *hws[] = { &hw };
+	unsigned long base;
 	int rc;
 
-	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(IDE))
+	dev_info(&pdev->dev, "Atari Falcon IDE controller\n");
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
 		return -ENODEV;
 
-	printk(KERN_INFO "ide: Falcon IDE controller\n");
-
-	if (!request_mem_region(ATA_HD_BASE, 0x40, DRV_NAME)) {
-		printk(KERN_ERR "%s: resources busy\n", DRV_NAME);
+	if (!devm_request_mem_region(&pdev->dev, res->start,
+				     resource_size(res), DRV_NAME)) {
+		dev_err(&pdev->dev, "resources busy\n");
 		return -EBUSY;
 	}
 
-	falconide_setup_ports(&hw);
+	base = (unsigned long)res->start;
+
+	falconide_setup_ports(&hw, base);
 
 	host = ide_host_alloc(&falconide_port_info, hws, 1);
 	if (host == NULL) {
@@ -169,10 +170,29 @@ static int __init falconide_init(void)
 err_free:
 	ide_host_free(host);
 err:
-	release_mem_region(ATA_HD_BASE, 0x40);
+	release_mem_region(res->start, resource_size(res));
 	return rc;
 }
 
-module_init(falconide_init);
+static int falconide_remove(struct platform_device *pdev)
+{
+	struct ide_host *host = dev_get_drvdata(&pdev->dev);
 
+	ide_host_remove(host);
+
+	return 0;
+}
+
+static struct platform_driver ide_falcon_driver = {
+	.remove = falconide_remove,
+	.driver   = {
+		.name	= "atari-falcon-ide",
+	},
+};
+
+module_platform_driver_probe(ide_falcon_driver, falconide_init);
+
+MODULE_AUTHOR("Geert Uytterhoeven");
+MODULE_DESCRIPTION("low-level driver for Atari Falcon IDE");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:atari-falcon-ide");

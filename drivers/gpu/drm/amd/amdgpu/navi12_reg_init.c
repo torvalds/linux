@@ -24,7 +24,6 @@
 #include "nv.h"
 
 #include "soc15_common.h"
-#include "soc15_hw_ip.h"
 #include "navi12_ip_offset.h"
 
 int navi12_reg_base_init(struct amdgpu_device *adev)

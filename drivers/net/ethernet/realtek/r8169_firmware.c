@@ -37,7 +37,7 @@ struct fw_info {
 	u8	chksum;
 } __packed;
 
-#define FW_OPCODE_SIZE	sizeof(typeof(*((struct rtl_fw_phy_action *)0)->code))
+#define FW_OPCODE_SIZE sizeof_field(struct rtl_fw_phy_action, code[0])
 
 static bool rtl_fw_format_ok(struct rtl_fw *rtl_fw)
 {
@@ -92,17 +92,22 @@ static bool rtl_fw_data_ok(struct rtl_fw *rtl_fw)
 
 	for (index = 0; index < pa->size; index++) {
 		u32 action = le32_to_cpu(pa->code[index]);
+		u32 val = action & 0x0000ffff;
 		u32 regno = (action & 0x0fff0000) >> 16;
 
 		switch (action >> 28) {
 		case PHY_READ:
 		case PHY_DATA_OR:
 		case PHY_DATA_AND:
-		case PHY_MDIO_CHG:
 		case PHY_CLEAR_READCOUNT:
 		case PHY_WRITE:
 		case PHY_WRITE_PREVIOUS:
 		case PHY_DELAY_MS:
+			break;
+
+		case PHY_MDIO_CHG:
+			if (val > 1)
+				goto out;
 			break;
 
 		case PHY_BJMPN:
@@ -164,12 +169,12 @@ void rtl_fw_write_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 			index -= (regno + 1);
 			break;
 		case PHY_MDIO_CHG:
-			if (data == 0) {
-				fw_write = rtl_fw->phy_write;
-				fw_read = rtl_fw->phy_read;
-			} else if (data == 1) {
+			if (data) {
 				fw_write = rtl_fw->mac_mcu_write;
 				fw_read = rtl_fw->mac_mcu_read;
+			} else {
+				fw_write = rtl_fw->phy_write;
+				fw_read = rtl_fw->phy_read;
 			}
 
 			break;
@@ -198,7 +203,7 @@ void rtl_fw_write_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 			index += regno;
 			break;
 		case PHY_DELAY_MS:
-			mdelay(data);
+			msleep(data);
 			break;
 		}
 	}

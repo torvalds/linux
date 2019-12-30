@@ -103,6 +103,19 @@ static void mmu_patch_addis(s32 *site, long simm)
 	patch_instruction_site(site, instr);
 }
 
+static void mmu_mapin_ram_chunk(unsigned long offset, unsigned long top, pgprot_t prot)
+{
+	unsigned long s = offset;
+	unsigned long v = PAGE_OFFSET + s;
+	phys_addr_t p = memstart_addr + s;
+
+	for (; s < top; s += PAGE_SIZE) {
+		map_kernel_page(v, p, prot);
+		v += PAGE_SIZE;
+		p += PAGE_SIZE;
+	}
+}
+
 unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 {
 	unsigned long mapped;
@@ -115,10 +128,20 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 		if (!IS_ENABLED(CONFIG_PIN_TLB_TEXT))
 			mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top, 0);
 	} else {
+		unsigned long einittext8 = ALIGN(__pa(_einittext), SZ_8M);
+
 		mapped = top & ~(LARGE_PAGE_SIZE_8M - 1);
 		if (!IS_ENABLED(CONFIG_PIN_TLB_TEXT))
-			mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top,
-					    _ALIGN(__pa(_einittext), 8 << 20));
+			mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top, einittext8);
+
+		/*
+		 * Populate page tables to:
+		 * - have them appear in /sys/kernel/debug/kernel_page_tables
+		 * - allow the BDI to find the pages when they are not PINNED
+		 */
+		mmu_mapin_ram_chunk(0, einittext8, PAGE_KERNEL_X);
+		mmu_mapin_ram_chunk(einittext8, mapped, PAGE_KERNEL);
+		mmu_mapin_immr();
 	}
 
 	mmu_patch_cmp_limit(&patch__dtlbmiss_linmem_top, mapped);
@@ -144,18 +167,41 @@ void mmu_mark_initmem_nx(void)
 	if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX) && CONFIG_ETEXT_SHIFT < 23)
 		mmu_patch_addis(&patch__itlbmiss_linmem_top8,
 				-((long)_etext & ~(LARGE_PAGE_SIZE_8M - 1)));
-	if (!IS_ENABLED(CONFIG_PIN_TLB_TEXT))
+	if (!IS_ENABLED(CONFIG_PIN_TLB_TEXT)) {
+		unsigned long einittext8 = ALIGN(__pa(_einittext), SZ_8M);
+		unsigned long etext8 = ALIGN(__pa(_etext), SZ_8M);
+		unsigned long etext = __pa(_etext);
+
 		mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top, __pa(_etext));
+
+		/* Update page tables for PTDUMP and BDI */
+		mmu_mapin_ram_chunk(0, einittext8, __pgprot(0));
+		if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX)) {
+			mmu_mapin_ram_chunk(0, etext, PAGE_KERNEL_TEXT);
+			mmu_mapin_ram_chunk(etext, einittext8, PAGE_KERNEL);
+		} else {
+			mmu_mapin_ram_chunk(0, etext8, PAGE_KERNEL_TEXT);
+			mmu_mapin_ram_chunk(etext8, einittext8, PAGE_KERNEL);
+		}
+	}
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
 void mmu_mark_rodata_ro(void)
 {
+	unsigned long sinittext = __pa(_sinittext);
+	unsigned long etext = __pa(_etext);
+
 	if (CONFIG_DATA_SHIFT < 23)
 		mmu_patch_addis(&patch__dtlbmiss_romem_top8,
 				-__pa(((unsigned long)_sinittext) &
 				      ~(LARGE_PAGE_SIZE_8M - 1)));
 	mmu_patch_addis(&patch__dtlbmiss_romem_top, -__pa(_sinittext));
+
+	/* Update page tables for PTDUMP and BDI */
+	mmu_mapin_ram_chunk(0, sinittext, __pgprot(0));
+	mmu_mapin_ram_chunk(0, etext, PAGE_KERNEL_ROX);
+	mmu_mapin_ram_chunk(etext, sinittext, PAGE_KERNEL_RO);
 }
 #endif
 

@@ -39,6 +39,7 @@
 #include "vivid-osd.h"
 #include "vivid-ctrls.h"
 #include "vivid-kthread-cap.h"
+#include "vivid-meta-cap.h"
 
 static inline v4l2_std_id vivid_get_std_cap(const struct vivid_dev *dev)
 {
@@ -677,6 +678,7 @@ static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
 {
 	struct vivid_buffer *vid_cap_buf = NULL;
 	struct vivid_buffer *vbi_cap_buf = NULL;
+	struct vivid_buffer *meta_cap_buf = NULL;
 	u64 f_time = 0;
 
 	dprintk(dev, 1, "Video Capture Thread Tick\n");
@@ -704,15 +706,19 @@ static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
 			list_del(&vbi_cap_buf->list);
 		}
 	}
+	if (!list_empty(&dev->meta_cap_active)) {
+		meta_cap_buf = list_entry(dev->meta_cap_active.next,
+					  struct vivid_buffer, list);
+		list_del(&meta_cap_buf->list);
+	}
+
 	spin_unlock(&dev->slock);
 
-	if (!vid_cap_buf && !vbi_cap_buf)
+	if (!vid_cap_buf && !vbi_cap_buf && !meta_cap_buf)
 		goto update_mv;
 
 	f_time = dev->cap_frame_period * dev->vid_cap_seq_count +
 		 dev->cap_stream_start + dev->time_wrap_offset;
-	if (!dev->tstamp_src_is_soe)
-		f_time += dev->cap_frame_eof_offset;
 
 	if (vid_cap_buf) {
 		v4l2_ctrl_request_setup(vid_cap_buf->vb.vb2_buf.req_obj.req,
@@ -735,6 +741,8 @@ static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
 				vid_cap_buf->vb.vb2_buf.index);
 
 		vid_cap_buf->vb.vb2_buf.timestamp = f_time;
+		if (!dev->tstamp_src_is_soe)
+			vid_cap_buf->vb.vb2_buf.timestamp += dev->cap_frame_eof_offset;
 	}
 
 	if (vbi_cap_buf) {
@@ -756,8 +764,22 @@ static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
 		/* If capturing a VBI, offset by 0.05 */
 		vbi_period = dev->cap_frame_period * 5;
 		do_div(vbi_period, 100);
-		vbi_cap_buf->vb.vb2_buf.timestamp = f_time + vbi_period;
+		vbi_cap_buf->vb.vb2_buf.timestamp = f_time + dev->cap_frame_eof_offset + vbi_period;
 	}
+
+	if (meta_cap_buf) {
+		v4l2_ctrl_request_setup(meta_cap_buf->vb.vb2_buf.req_obj.req,
+					&dev->ctrl_hdl_meta_cap);
+		vivid_meta_cap_fillbuff(dev, meta_cap_buf, f_time);
+		v4l2_ctrl_request_complete(meta_cap_buf->vb.vb2_buf.req_obj.req,
+					   &dev->ctrl_hdl_meta_cap);
+		vb2_buffer_done(&meta_cap_buf->vb.vb2_buf, dev->dqbuf_error ?
+				VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
+		dprintk(dev, 2, "meta_cap %d done\n",
+			meta_cap_buf->vb.vb2_buf.index);
+		meta_cap_buf->vb.vb2_buf.timestamp = f_time + dev->cap_frame_eof_offset;
+	}
+
 	dev->dqbuf_error = false;
 
 update_mv:
@@ -796,7 +818,11 @@ static int vivid_thread_vid_cap(void *data)
 		if (kthread_should_stop())
 			break;
 
-		mutex_lock(&dev->mutex);
+		if (!mutex_trylock(&dev->mutex)) {
+			schedule_timeout_uninterruptible(1);
+			continue;
+		}
+
 		cur_jiffies = jiffies;
 		if (dev->cap_seq_resync) {
 			dev->jiffies_vid_cap = cur_jiffies;
@@ -835,6 +861,7 @@ static int vivid_thread_vid_cap(void *data)
 		dev->cap_seq_count = buffers_since_start + dev->cap_seq_offset;
 		dev->vid_cap_seq_count = dev->cap_seq_count - dev->vid_cap_seq_start;
 		dev->vbi_cap_seq_count = dev->cap_seq_count - dev->vbi_cap_seq_start;
+		dev->meta_cap_seq_count = dev->cap_seq_count - dev->meta_cap_seq_start;
 
 		vivid_thread_vid_cap_tick(dev, dropped_bufs);
 
@@ -883,8 +910,10 @@ int vivid_start_generating_vid_cap(struct vivid_dev *dev, bool *pstreaming)
 
 		if (pstreaming == &dev->vid_cap_streaming)
 			dev->vid_cap_seq_start = seq_count;
-		else
+		else if (pstreaming == &dev->vbi_cap_streaming)
 			dev->vbi_cap_seq_start = seq_count;
+		else
+			dev->meta_cap_seq_start = seq_count;
 		*pstreaming = true;
 		return 0;
 	}
@@ -894,6 +923,7 @@ int vivid_start_generating_vid_cap(struct vivid_dev *dev, bool *pstreaming)
 
 	dev->vid_cap_seq_start = dev->seq_wrap * 128;
 	dev->vbi_cap_seq_start = dev->seq_wrap * 128;
+	dev->meta_cap_seq_start = dev->seq_wrap * 128;
 
 	dev->kthread_vid_cap = kthread_run(vivid_thread_vid_cap, dev,
 			"%s-vid-cap", dev->v4l2_dev.name);
@@ -951,13 +981,27 @@ void vivid_stop_generating_vid_cap(struct vivid_dev *dev, bool *pstreaming)
 		}
 	}
 
-	if (dev->vid_cap_streaming || dev->vbi_cap_streaming)
+	if (pstreaming == &dev->meta_cap_streaming) {
+		while (!list_empty(&dev->meta_cap_active)) {
+			struct vivid_buffer *buf;
+
+			buf = list_entry(dev->meta_cap_active.next,
+					 struct vivid_buffer, list);
+			list_del(&buf->list);
+			v4l2_ctrl_request_complete(buf->vb.vb2_buf.req_obj.req,
+						   &dev->ctrl_hdl_meta_cap);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+			dprintk(dev, 2, "meta_cap buffer %d done\n",
+				buf->vb.vb2_buf.index);
+		}
+	}
+
+	if (dev->vid_cap_streaming || dev->vbi_cap_streaming ||
+	    dev->meta_cap_streaming)
 		return;
 
 	/* shutdown control thread */
 	vivid_grab_controls(dev, false);
-	mutex_unlock(&dev->mutex);
 	kthread_stop(dev->kthread_vid_cap);
 	dev->kthread_vid_cap = NULL;
-	mutex_lock(&dev->mutex);
 }

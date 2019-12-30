@@ -95,7 +95,7 @@ static u32 get_linear_addr(struct drm_framebuffer *fb,
 
 bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb)
 {
-	return omap_gem_flags(fb->obj[0]) & OMAP_BO_TILED;
+	return omap_gem_flags(fb->obj[0]) & OMAP_BO_TILED_MASK;
 }
 
 /* Note: DRM rotates counter-clockwise, TILER & DSS rotates clockwise */
@@ -135,7 +135,6 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	const struct drm_format_info *format = omap_fb->format;
-	struct plane *plane = &omap_fb->planes[0];
 	u32 x, y, orient = 0;
 
 	info->fourcc = fb->format->format;
@@ -154,7 +153,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	x = state->src_x >> 16;
 	y = state->src_y >> 16;
 
-	if (omap_gem_flags(fb->obj[0]) & OMAP_BO_TILED) {
+	if (omap_gem_flags(fb->obj[0]) & OMAP_BO_TILED_MASK) {
 		u32 w = state->src_w >> 16;
 		u32 h = state->src_h >> 16;
 
@@ -209,10 +208,8 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	info->screen_width /= format->cpp[0];
 
 	if (fb->format->format == DRM_FORMAT_NV12) {
-		plane = &omap_fb->planes[1];
-
 		if (info->rotation_type == OMAP_DSS_ROT_TILER) {
-			WARN_ON(!(omap_gem_flags(fb->obj[1]) & OMAP_BO_TILED));
+			WARN_ON(!(omap_gem_flags(fb->obj[1]) & OMAP_BO_TILED_MASK));
 			omap_gem_rotated_dma_addr(fb->obj[1], orient, x/2, y/2,
 						  &info->p_uv_addr);
 		} else {

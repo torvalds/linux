@@ -147,22 +147,22 @@ struct smb3_sd {
 } __packed;
 
 /* Meaning of 'Control' field flags */
-#define ACL_CONTROL_SR	0x0001	/* Self relative */
-#define ACL_CONTROL_RM	0x0002	/* Resource manager control bits */
-#define ACL_CONTROL_PS	0x0004	/* SACL protected from inherits */
-#define ACL_CONTROL_PD	0x0008	/* DACL protected from inherits */
-#define ACL_CONTROL_SI	0x0010	/* SACL Auto-Inherited */
-#define ACL_CONTROL_DI	0x0020	/* DACL Auto-Inherited */
-#define ACL_CONTROL_SC	0x0040	/* SACL computed through inheritance */
-#define ACL_CONTROL_DC	0x0080	/* DACL computed through inheritence */
-#define ACL_CONTROL_SS	0x0100	/* Create server ACL */
-#define ACL_CONTROL_DT	0x0200	/* DACL provided by trusteed source */
-#define ACL_CONTROL_SD	0x0400	/* SACL defaulted */
-#define ACL_CONTROL_SP	0x0800	/* SACL is present on object */
-#define ACL_CONTROL_DD	0x1000	/* DACL defaulted */
-#define ACL_CONTROL_DP	0x2000	/* DACL is present on object */
-#define ACL_CONTROL_GD	0x4000	/* Group was defaulted */
-#define ACL_CONTROL_OD	0x8000	/* User was defaulted */
+#define ACL_CONTROL_SR	0x8000	/* Self relative */
+#define ACL_CONTROL_RM	0x4000	/* Resource manager control bits */
+#define ACL_CONTROL_PS	0x2000	/* SACL protected from inherits */
+#define ACL_CONTROL_PD	0x1000	/* DACL protected from inherits */
+#define ACL_CONTROL_SI	0x0800	/* SACL Auto-Inherited */
+#define ACL_CONTROL_DI	0x0400	/* DACL Auto-Inherited */
+#define ACL_CONTROL_SC	0x0200	/* SACL computed through inheritance */
+#define ACL_CONTROL_DC	0x0100	/* DACL computed through inheritence */
+#define ACL_CONTROL_SS	0x0080	/* Create server ACL */
+#define ACL_CONTROL_DT	0x0040	/* DACL provided by trusted source */
+#define ACL_CONTROL_SD	0x0020	/* SACL defaulted */
+#define ACL_CONTROL_SP	0x0010	/* SACL is present on object */
+#define ACL_CONTROL_DD	0x0008	/* DACL defaulted */
+#define ACL_CONTROL_DP	0x0004	/* DACL is present on object */
+#define ACL_CONTROL_GD	0x0002	/* Group was defaulted */
+#define ACL_CONTROL_OD	0x0001	/* User was defaulted */
 
 /* Meaning of AclRevision flags */
 #define ACL_REVISION	0x02 /* See section 2.4.4.1 of MS-DTYP */

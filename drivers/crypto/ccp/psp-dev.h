@@ -23,6 +23,7 @@
 #include <linux/dmaengine.h>
 #include <linux/psp-sev.h>
 #include <linux/miscdevice.h>
+#include <linux/capability.h>
 
 #include "sp-dev.h"
 

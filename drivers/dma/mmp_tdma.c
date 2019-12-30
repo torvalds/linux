@@ -544,6 +544,9 @@ static void mmp_tdma_issue_pending(struct dma_chan *chan)
 
 static int mmp_tdma_remove(struct platform_device *pdev)
 {
+	if (pdev->dev.of_node)
+		of_dma_controller_free(pdev->dev.of_node);
+
 	return 0;
 }
 

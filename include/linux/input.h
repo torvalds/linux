@@ -383,6 +383,7 @@ int input_setup_polling(struct input_dev *dev,
 void input_set_poll_interval(struct input_dev *dev, unsigned int interval);
 void input_set_min_poll_interval(struct input_dev *dev, unsigned int interval);
 void input_set_max_poll_interval(struct input_dev *dev, unsigned int interval);
+int input_get_poll_interval(struct input_dev *dev);
 
 int __must_check input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);

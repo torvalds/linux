@@ -58,6 +58,7 @@ struct intel_context {
 
 	u32 *lrc_reg_state;
 	u64 lrc_desc;
+	u32 tag; /* cookie passed to HW to track this context on submission */
 
 	unsigned int active_count; /* protected by timeline->mutex */
 

@@ -270,10 +270,6 @@ static int setup_v1_file_key_direct(struct fscrypt_info *ci,
 		return -EINVAL;
 	}
 
-	/* ESSIV implies 16-byte IVs which implies !DIRECT_KEY */
-	if (WARN_ON(mode->needs_essiv))
-		return -EINVAL;
-
 	dk = fscrypt_get_direct_key(ci, raw_master_key);
 	if (IS_ERR(dk))
 		return PTR_ERR(dk);

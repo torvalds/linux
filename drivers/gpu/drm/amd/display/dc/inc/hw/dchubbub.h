@@ -147,6 +147,7 @@ struct hubbub_funcs {
 	bool (*is_allow_self_refresh_enabled)(struct hubbub *hubbub);
 	void (*allow_self_refresh_control)(struct hubbub *hubbub, bool allow);
 
+	void (*apply_DEDCN21_147_wa)(struct hubbub *hubbub);
 };
 
 struct hubbub {

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#ifndef __ASM_IMAGE_H
-#define __ASM_IMAGE_H
+#ifndef _ASM_RISCV_IMAGE_H
+#define _ASM_RISCV_IMAGE_H
 
 #define RISCV_IMAGE_MAGIC	"RISCV\0\0\0"
 #define RISCV_IMAGE_MAGIC2	"RSC\x05"
@@ -62,4 +62,4 @@ struct riscv_image_header {
 	u32 res4;
 };
 #endif /* __ASSEMBLY__ */
-#endif /* __ASM_IMAGE_H */
+#endif /* _ASM_RISCV_IMAGE_H */

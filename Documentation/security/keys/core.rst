@@ -1102,7 +1102,7 @@ payload contents" for more information.
     See also Documentation/security/keys/request-key.rst.
 
 
- *  To search for a key in a specific domain, call:
+ *  To search for a key in a specific domain, call::
 
 	struct key *request_key_tag(const struct key_type *type,
 				    const char *description,

@@ -63,7 +63,7 @@ struct vnic_stats {
 	};
 };
 
-#define VNIC_STAT(m)            { FIELD_SIZEOF(struct opa_vnic_stats, m),   \
+#define VNIC_STAT(m)            { sizeof_field(struct opa_vnic_stats, m),   \
 				  offsetof(struct opa_vnic_stats, m) }
 
 static struct vnic_stats vnic_gstrings_stats[] = {

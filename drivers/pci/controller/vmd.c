@@ -602,16 +602,30 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 
 	/*
 	 * Certain VMD devices may have a root port configuration option which
-	 * limits the bus range to between 0-127 or 128-255
+	 * limits the bus range to between 0-127, 128-255, or 224-255
 	 */
 	if (features & VMD_FEAT_HAS_BUS_RESTRICTIONS) {
-		u32 vmcap, vmconfig;
+		u16 reg16;
 
-		pci_read_config_dword(vmd->dev, PCI_REG_VMCAP, &vmcap);
-		pci_read_config_dword(vmd->dev, PCI_REG_VMCONFIG, &vmconfig);
-		if (BUS_RESTRICT_CAP(vmcap) &&
-		    (BUS_RESTRICT_CFG(vmconfig) == 0x1))
-			vmd->busn_start = 128;
+		pci_read_config_word(vmd->dev, PCI_REG_VMCAP, &reg16);
+		if (BUS_RESTRICT_CAP(reg16)) {
+			pci_read_config_word(vmd->dev, PCI_REG_VMCONFIG,
+					     &reg16);
+
+			switch (BUS_RESTRICT_CFG(reg16)) {
+			case 1:
+				vmd->busn_start = 128;
+				break;
+			case 2:
+				vmd->busn_start = 224;
+				break;
+			case 3:
+				pci_err(vmd->dev, "Unknown Bus Offset Setting\n");
+				return -ENODEV;
+			default:
+				break;
+			}
+		}
 	}
 
 	res = &vmd->dev->resource[VMD_CFGBAR];
@@ -823,7 +837,7 @@ static int vmd_suspend(struct device *dev)
 	int i;
 
 	for (i = 0; i < vmd->msix_count; i++)
-                devm_free_irq(dev, pci_irq_vector(pdev, i), &vmd->irqs[i]);
+		devm_free_irq(dev, pci_irq_vector(pdev, i), &vmd->irqs[i]);
 
 	pci_save_state(pdev);
 	return 0;
@@ -854,6 +868,8 @@ static const struct pci_device_id vmd_ids[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_VMD_28C0),
 		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW |
 				VMD_FEAT_HAS_BUS_RESTRICTIONS,},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_VMD_9A0B),
+		.driver_data = VMD_FEAT_HAS_BUS_RESTRICTIONS,},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, vmd_ids);

@@ -211,7 +211,7 @@ struct hip04_priv {
 #if defined(CONFIG_HI13X1_GMAC)
 	void __iomem *sysctrl_base;
 #endif
-	int phy_mode;
+	phy_interface_t phy_mode;
 	int chan;
 	unsigned int port;
 	unsigned int group;
@@ -543,9 +543,9 @@ hip04_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	skb_tx_timestamp(skb);
 
 	hip04_set_xmit_desc(priv, phys);
-	priv->tx_head = TX_NEXT(tx_head);
 	count++;
 	netdev_sent_queue(ndev, skb->len);
+	priv->tx_head = TX_NEXT(tx_head);
 
 	stats->tx_bytes += skb->len;
 	stats->tx_packets++;
@@ -961,10 +961,9 @@ static int hip04_mac_probe(struct platform_device *pdev)
 		goto init_fail;
 	}
 
-	priv->phy_mode = of_get_phy_mode(node);
-	if (priv->phy_mode < 0) {
+	ret = of_get_phy_mode(node, &priv->phy_mode);
+	if (ret) {
 		dev_warn(d, "not find phy-mode\n");
-		ret = -EINVAL;
 		goto init_fail;
 	}
 

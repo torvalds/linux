@@ -27,6 +27,7 @@
 #define mmMM_INDEX                                                              0x0
 #define mmMM_INDEX_HI                                                           0x6
 #define mmMM_DATA                                                               0x1
+#define mmCC_BIF_BX_FUSESTRAP0							0x14D7
 #define mmCC_BIF_BX_STRAP2							0x152A
 #define mmBIF_MM_INDACCESS_CNTL                                                 0x1500
 #define mmBIF_DOORBELL_APER_EN                                                  0x1501

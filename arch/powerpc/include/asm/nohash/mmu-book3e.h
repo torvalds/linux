@@ -75,7 +75,6 @@
 #define MAS2_E			0x00000001
 #define MAS2_WIMGE_MASK		0x0000001f
 #define MAS2_EPN_MASK(size)		(~0 << (size + 10))
-#define MAS2_VAL(addr, size, flags)	((addr) & MAS2_EPN_MASK(size) | (flags))
 
 #define MAS3_RPN		0xFFFFF000
 #define MAS3_U0			0x00000200
@@ -220,6 +219,16 @@
 #define TLBILX_T_CLASS1			5
 #define TLBILX_T_CLASS2			6
 #define TLBILX_T_CLASS3			7
+
+/*
+ * The mapping only needs to be cache-coherent on SMP, except on
+ * Freescale e500mc derivatives where it's also needed for coherent DMA.
+ */
+#if defined(CONFIG_SMP) || defined(CONFIG_PPC_E500MC)
+#define MAS2_M_IF_NEEDED	MAS2_M
+#else
+#define MAS2_M_IF_NEEDED	0
+#endif
 
 #ifndef __ASSEMBLY__
 #include <asm/bug.h>

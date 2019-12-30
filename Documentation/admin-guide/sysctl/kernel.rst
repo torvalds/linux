@@ -831,8 +831,8 @@ printk_ratelimit:
 =================
 
 Some warning messages are rate limited. printk_ratelimit specifies
-the minimum length of time between these messages (in jiffies), by
-default we allow one every 5 seconds.
+the minimum length of time between these messages (in seconds).
+The default value is 5 seconds.
 
 A value of 0 will disable rate limiting.
 
@@ -844,6 +844,8 @@ While long term we enforce one message per printk_ratelimit
 seconds, we do allow a burst of messages to pass through.
 printk_ratelimit_burst specifies the number of messages we can
 send before ratelimiting kicks in.
+
+The default value is 10 messages.
 
 
 printk_devkmsg:
@@ -1101,17 +1103,13 @@ During initialization the kernel sets this value such that even if the
 maximum number of threads is created, the thread structures occupy only
 a part (1/8th) of the available RAM pages.
 
-The minimum value that can be written to threads-max is 20.
+The minimum value that can be written to threads-max is 1.
 
 The maximum value that can be written to threads-max is given by the
 constant FUTEX_TID_MASK (0x3fffffff).
 
 If a value outside of this range is written to threads-max an error
 EINVAL occurs.
-
-The value written is checked against the available RAM pages. If the
-thread structures would occupy too much (more than 1/8th) of the
-available RAM pages threads-max is reduced accordingly.
 
 
 unknown_nmi_panic:

@@ -203,6 +203,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 
 struct device;
 struct phylink;
+struct sfp_bus;
+struct sfp_upstream_ops;
 struct sk_buff;
 
 /*
@@ -342,6 +344,8 @@ struct phy_c45_device_ids {
  * dev_flags: Device-specific flags used by the PHY driver.
  * irq: IRQ number of the PHY's interrupt (-1 if none)
  * phy_timer: The timer for handling the state machine
+ * sfp_bus_attached: flag indicating whether the SFP bus has been attached
+ * sfp_bus: SFP bus attached to this PHY's fiber port
  * attached_dev: The attached enet driver's device instance ptr
  * adjust_link: Callback for the enet controller to respond to
  * changes in the link state.
@@ -432,6 +436,9 @@ struct phy_device {
 
 	struct mutex lock;
 
+	/* This may be modified under the rtnl lock */
+	bool sfp_bus_attached;
+	struct sfp_bus *sfp_bus;
 	struct phylink *phylink;
 	struct net_device *attached_dev;
 
@@ -993,7 +1000,7 @@ int phy_modify_paged_changed(struct phy_device *phydev, int page, u32 regnum,
 int phy_modify_paged(struct phy_device *phydev, int page, u32 regnum,
 		     u16 mask, u16 set);
 
-struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
+struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 				     bool is_c45,
 				     struct phy_c45_device_ids *c45_ids);
 #if IS_ENABLED(CONFIG_PHYLIB)
@@ -1020,6 +1027,10 @@ int phy_suspend(struct phy_device *phydev);
 int phy_resume(struct phy_device *phydev);
 int __phy_resume(struct phy_device *phydev);
 int phy_loopback(struct phy_device *phydev, bool enable);
+void phy_sfp_attach(void *upstream, struct sfp_bus *bus);
+void phy_sfp_detach(void *upstream, struct sfp_bus *bus);
+int phy_sfp_probe(struct phy_device *phydev,
+	          const struct sfp_upstream_ops *ops);
 struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 			      phy_interface_t interface);
 struct phy_device *phy_find_first(struct mii_bus *bus);
@@ -1065,6 +1076,16 @@ static inline const char *phydev_name(const struct phy_device *phydev)
 	return dev_name(&phydev->mdio.dev);
 }
 
+static inline void phy_lock_mdio_bus(struct phy_device *phydev)
+{
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+}
+
+static inline void phy_unlock_mdio_bus(struct phy_device *phydev)
+{
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+}
+
 void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 	__printf(2, 3);
 void phy_attached_info(struct phy_device *phydev);
@@ -1106,6 +1127,10 @@ int genphy_read_mmd_unsupported(struct phy_device *phdev, int devad,
 int genphy_write_mmd_unsupported(struct phy_device *phdev, int devnum,
 				 u16 regnum, u16 val);
 
+/* Clause 37 */
+int genphy_c37_config_aneg(struct phy_device *phydev);
+int genphy_c37_read_status(struct phy_device *phydev);
+
 /* Clause 45 PHY */
 int genphy_c45_restart_aneg(struct phy_device *phydev);
 int genphy_c45_check_and_restart_aneg(struct phy_device *phydev, bool restart);
@@ -1145,7 +1170,6 @@ void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies);
 void phy_mac_interrupt(struct phy_device *phydev);
 void phy_start_machine(struct phy_device *phydev);
 void phy_stop_machine(struct phy_device *phydev);
-int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 void phy_ethtool_ksettings_get(struct phy_device *phydev,
 			       struct ethtool_link_ksettings *cmd);
 int phy_ethtool_ksettings_set(struct phy_device *phydev,

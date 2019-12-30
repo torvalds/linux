@@ -60,6 +60,16 @@ static inline void smc_wr_tx_set_wr_id(atomic_long_t *wr_tx_id, long val)
 	atomic_long_set(wr_tx_id, val);
 }
 
+static inline void smc_wr_wakeup_tx_wait(struct smc_link *lnk)
+{
+	wake_up_all(&lnk->wr_tx_wait);
+}
+
+static inline void smc_wr_wakeup_reg_wait(struct smc_link *lnk)
+{
+	wake_up(&lnk->wr_reg_wait);
+}
+
 /* post a new receive work request to fill a completed old work request entry */
 static inline int smc_wr_rx_post(struct smc_link *link)
 {

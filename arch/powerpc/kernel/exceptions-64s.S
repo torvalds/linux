@@ -514,7 +514,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
  * If stack=0, then the stack is already set in r1, and r1 is saved in r10.
  * PPR save and CPU accounting is not done for the !stack case (XXX why not?)
  */
-.macro INT_COMMON vec, area, stack, kaup, reconcile, dar, dsisr
+.macro INT_COMMON vec, area, stack, kuap, reconcile, dar, dsisr
 	.if \stack
 	andi.	r10,r12,MSR_PR		/* See if coming from user	*/
 	mr	r10,r1			/* Save r1			*/
@@ -533,7 +533,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	std	r10,GPR1(r1)		/* save r1 in stackframe	*/
 
 	.if \stack
-	.if \kaup
+	.if \kuap
 	kuap_save_amr_and_lock r9, r10, cr1, cr0
 	.endif
 	beq	101f			/* if from kernel mode		*/
@@ -541,7 +541,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	SAVE_PPR(\area, r9)
 101:
 	.else
-	.if \kaup
+	.if \kuap
 	kuap_save_amr_and_lock r9, r10, cr1
 	.endif
 	.endif

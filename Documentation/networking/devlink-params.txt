@@ -65,3 +65,7 @@ reset_dev_on_drv_probe	[DEVICE, GENERIC]
 			  Reset only if device firmware can be found in the
 			  filesystem.
 			Type: u8
+
+enable_roce		[DEVICE, GENERIC]
+			Enable handling of RoCE traffic in the device.
+			Type: Boolean

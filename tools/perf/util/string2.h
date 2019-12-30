@@ -4,6 +4,7 @@
 
 #include <linux/string.h>
 #include <linux/types.h>
+#include <sys/types.h> // pid_t
 #include <stddef.h>
 #include <string.h>
 
@@ -31,6 +32,8 @@ static inline char *asprintf_expr_not_in_ints(const char *var, size_t nints, int
 {
 	return asprintf_expr_inout_ints(var, false, nints, ints);
 }
+
+char *asprintf__tp_filter_pids(size_t npids, pid_t *pids);
 
 char *strpbrk_esc(char *str, const char *stopset);
 char *strdup_esc(const char *str);

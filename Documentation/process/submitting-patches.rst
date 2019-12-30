@@ -782,7 +782,58 @@ helpful, you can use the https://lkml.kernel.org/ redirector (e.g., in
 the cover email text) to link to an earlier version of the patch series.
 
 
-16) Sending ``git pull`` requests
+16) Providing base tree information
+-----------------------------------
+
+When other developers receive your patches and start the review process,
+it is often useful for them to know where in the tree history they
+should place your work. This is particularly useful for automated CI
+processes that attempt to run a series of tests in order to establish
+the quality of your submission before the maintainer starts the review.
+
+If you are using ``git format-patch`` to generate your patches, you can
+automatically include the base tree information in your submission by
+using the ``--base`` flag. The easiest and most convenient way to use
+this option is with topical branches::
+
+    $ git checkout -t -b my-topical-branch master
+    Branch 'my-topical-branch' set up to track local branch 'master'.
+    Switched to a new branch 'my-topical-branch'
+
+    [perform your edits and commits]
+
+    $ git format-patch --base=auto --cover-letter -o outgoing/ master
+    outgoing/0000-cover-letter.patch
+    outgoing/0001-First-Commit.patch
+    outgoing/...
+
+When you open ``outgoing/0000-cover-letter.patch`` for editing, you will
+notice that it will have the ``base-commit:`` trailer at the very
+bottom, which provides the reviewer and the CI tools enough information
+to properly perform ``git am`` without worrying about conflicts::
+
+    $ git checkout -b patch-review [base-commit-id]
+    Switched to a new branch 'patch-review'
+    $ git am patches.mbox
+    Applying: First Commit
+    Applying: ...
+
+Please see ``man git-format-patch`` for more information about this
+option.
+
+.. note::
+
+    The ``--base`` feature was introduced in git version 2.9.0.
+
+If you are not using git to format your patches, you can still include
+the same ``base-commit`` trailer to indicate the commit hash of the tree
+on which your work is based. You should add it either in the cover
+letter or in the first patch of the series and it should be placed
+either below the ``---`` line or at the very bottom of all other
+content, right before your email signature.
+
+
+17) Sending ``git pull`` requests
 ---------------------------------
 
 If you have a series of patches, it may be most convenient to have the

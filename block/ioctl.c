@@ -155,48 +155,21 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	}
 }
 
-/*
- * This is an exported API for the block driver, and will not
- * acquire bd_mutex. This API should be used in case that
- * caller has held bd_mutex already.
- */
-int __blkdev_reread_part(struct block_device *bdev)
+static int blkdev_reread_part(struct block_device *bdev)
 {
-	struct gendisk *disk = bdev->bd_disk;
+	int ret;
 
-	if (!disk_part_scan_enabled(disk) || bdev != bdev->bd_contains)
+	if (!disk_part_scan_enabled(bdev->bd_disk) || bdev != bdev->bd_contains)
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	lockdep_assert_held(&bdev->bd_mutex);
-
-	return rescan_partitions(disk, bdev);
-}
-EXPORT_SYMBOL(__blkdev_reread_part);
-
-/*
- * This is an exported API for the block driver, and will
- * try to acquire bd_mutex. If bd_mutex has been held already
- * in current context, please call __blkdev_reread_part().
- *
- * Make sure the held locks in current context aren't required
- * in open()/close() handler and I/O path for avoiding ABBA deadlock:
- * - bd_mutex is held before calling block driver's open/close
- *   handler
- * - reading partition table may submit I/O to the block device
- */
-int blkdev_reread_part(struct block_device *bdev)
-{
-	int res;
-
 	mutex_lock(&bdev->bd_mutex);
-	res = __blkdev_reread_part(bdev);
+	ret = bdev_disk_changed(bdev, false);
 	mutex_unlock(&bdev->bd_mutex);
 
-	return res;
+	return ret;
 }
-EXPORT_SYMBOL(blkdev_reread_part);
 
 static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
 		unsigned long arg, unsigned long flags)
@@ -532,11 +505,14 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case BLKREPORTZONE:
 		return blkdev_report_zones_ioctl(bdev, mode, cmd, arg);
 	case BLKRESETZONE:
-		return blkdev_reset_zones_ioctl(bdev, mode, cmd, arg);
+	case BLKOPENZONE:
+	case BLKCLOSEZONE:
+	case BLKFINISHZONE:
+		return blkdev_zone_mgmt_ioctl(bdev, mode, cmd, arg);
 	case BLKGETZONESZ:
 		return put_uint(arg, bdev_zone_sectors(bdev));
 	case BLKGETNRZONES:
-		return put_uint(arg, blkdev_nr_zones(bdev));
+		return put_uint(arg, blkdev_nr_zones(bdev->bd_disk));
 	case HDIO_GETGEO:
 		return blkdev_getgeo(bdev, argp);
 	case BLKRAGET:

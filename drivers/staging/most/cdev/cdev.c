@@ -494,6 +494,7 @@ err_remove_ida:
 
 static struct cdev_component comp = {
 	.cc = {
+		.mod = THIS_MODULE,
 		.name = "cdev",
 		.probe_channel = comp_probe,
 		.disconnect_channel = comp_disconnect_channel,

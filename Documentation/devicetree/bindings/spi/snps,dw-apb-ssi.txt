@@ -16,7 +16,8 @@ Required properties:
 Optional properties:
 - clock-names : Contains the names of the clocks:
     "ssi_clk", for the core clock used to generate the external SPI clock.
-    "pclk", the interface clock, required for register access.
+    "pclk", the interface clock, required for register access. If a clock domain
+     used to enable this clock then it should be named "pclk_clkdomain".
 - cs-gpios : Specifies the gpio pins to be used for chipselects.
 - num-cs : The number of chipselects. If omitted, this will default to 4.
 - reg-io-width : The I/O register width (in bytes) implemented by this

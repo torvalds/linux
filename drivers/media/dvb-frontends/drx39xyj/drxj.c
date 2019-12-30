@@ -4201,7 +4201,7 @@ int drxj_dap_scu_atomic_read_reg16(struct i2c_device_addr *dev_addr,
 					 u16 *data, u32 flags)
 {
 	u8 buf[2] = { 0 };
-	int rc = -EIO;
+	int rc;
 	u16 word = 0;
 
 	if (!data)

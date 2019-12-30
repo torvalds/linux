@@ -82,6 +82,8 @@
 #define ENA_DEFAULT_RING_SIZE	(1024)
 #define ENA_MIN_RING_SIZE	(256)
 
+#define ENA_MIN_NUM_IO_QUEUES	(1)
+
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
 #define ENA_DEFAULT_RX_COPYBREAK	(256 - NET_IP_ALIGN)
 
@@ -161,10 +163,10 @@ struct ena_calc_queue_size_ctx {
 	struct ena_com_dev_get_features_ctx *get_feat_ctx;
 	struct ena_com_dev *ena_dev;
 	struct pci_dev *pdev;
-	u16 tx_queue_size;
-	u16 rx_queue_size;
-	u16 max_tx_queue_size;
-	u16 max_rx_queue_size;
+	u32 tx_queue_size;
+	u32 rx_queue_size;
+	u32 max_tx_queue_size;
+	u32 max_rx_queue_size;
 	u16 max_tx_sgl_size;
 	u16 max_rx_sgl_size;
 };
@@ -324,7 +326,8 @@ struct ena_adapter {
 	u32 rx_copybreak;
 	u32 max_mtu;
 
-	int num_queues;
+	u32 num_io_queues;
+	u32 max_num_io_queues;
 
 	int msix_vecs;
 
@@ -387,6 +390,7 @@ void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
 int ena_update_queue_sizes(struct ena_adapter *adapter,
 			   u32 new_tx_size,
 			   u32 new_rx_size);
+int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count);
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
 

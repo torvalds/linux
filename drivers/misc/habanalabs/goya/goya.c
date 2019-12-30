@@ -72,6 +72,9 @@
  *
  */
 
+#define GOYA_UBOOT_FW_FILE	"habanalabs/goya/goya-u-boot.bin"
+#define GOYA_LINUX_FW_FILE	"habanalabs/goya/goya-fit.itb"
+
 #define GOYA_MMU_REGS_NUM		63
 
 #define GOYA_DMA_POOL_BLK_SIZE		0x100		/* 256 bytes */
@@ -337,17 +340,20 @@ void goya_get_fixed_properties(struct hl_device *hdev)
 	for (i = 0 ; i < NUMBER_OF_EXT_HW_QUEUES ; i++) {
 		prop->hw_queues_props[i].type = QUEUE_TYPE_EXT;
 		prop->hw_queues_props[i].driver_only = 0;
+		prop->hw_queues_props[i].requires_kernel_cb = 1;
 	}
 
 	for (; i < NUMBER_OF_EXT_HW_QUEUES + NUMBER_OF_CPU_HW_QUEUES ; i++) {
 		prop->hw_queues_props[i].type = QUEUE_TYPE_CPU;
 		prop->hw_queues_props[i].driver_only = 1;
+		prop->hw_queues_props[i].requires_kernel_cb = 0;
 	}
 
 	for (; i < NUMBER_OF_EXT_HW_QUEUES + NUMBER_OF_CPU_HW_QUEUES +
 			NUMBER_OF_INT_HW_QUEUES; i++) {
 		prop->hw_queues_props[i].type = QUEUE_TYPE_INT;
 		prop->hw_queues_props[i].driver_only = 0;
+		prop->hw_queues_props[i].requires_kernel_cb = 0;
 	}
 
 	for (; i < HL_MAX_QUEUES; i++)
@@ -377,6 +383,23 @@ void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->mmu_hop0_tables_total_size = HOP0_TABLES_TOTAL_SIZE;
 	prop->dram_page_size = PAGE_SIZE_2MB;
 
+	prop->dmmu.hop0_shift = HOP0_SHIFT;
+	prop->dmmu.hop1_shift = HOP1_SHIFT;
+	prop->dmmu.hop2_shift = HOP2_SHIFT;
+	prop->dmmu.hop3_shift = HOP3_SHIFT;
+	prop->dmmu.hop4_shift = HOP4_SHIFT;
+	prop->dmmu.hop0_mask = HOP0_MASK;
+	prop->dmmu.hop1_mask = HOP1_MASK;
+	prop->dmmu.hop2_mask = HOP2_MASK;
+	prop->dmmu.hop3_mask = HOP3_MASK;
+	prop->dmmu.hop4_mask = HOP4_MASK;
+	prop->dmmu.huge_page_size = PAGE_SIZE_2MB;
+
+	/* No difference between PMMU and DMMU except of page size */
+	memcpy(&prop->pmmu, &prop->dmmu, sizeof(prop->dmmu));
+	prop->dmmu.page_size = PAGE_SIZE_2MB;
+	prop->pmmu.page_size = PAGE_SIZE_4KB;
+
 	prop->va_space_host_start_address = VA_HOST_SPACE_START;
 	prop->va_space_host_end_address = VA_HOST_SPACE_END;
 	prop->va_space_dram_start_address = VA_DDR_SPACE_START;
@@ -393,6 +416,9 @@ void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
 	prop->pcie_dbi_base_address = mmPCIE_DBI_BASE;
 	prop->pcie_aux_dbi_reg_addr = CFG_BASE + mmPCIE_AUX_DBI;
+
+	strncpy(prop->armcp_info.card_name, GOYA_DEFAULT_CARD_NAME,
+		CARD_NAME_MAX_LEN);
 }
 
 /*
@@ -1454,6 +1480,9 @@ static void goya_init_golden_registers(struct hl_device *hdev)
 				1 << TPC0_NRTR_SCRAMB_EN_VAL_SHIFT);
 		WREG32(mmTPC0_NRTR_NON_LIN_SCRAMB + offset,
 				1 << TPC0_NRTR_NON_LIN_SCRAMB_EN_SHIFT);
+
+		WREG32_FIELD(TPC0_CFG_MSS_CONFIG, offset,
+				ICACHE_FETCH_LINE_NUM, 2);
 	}
 
 	WREG32(mmDMA_NRTR_SCRAMB_EN, 1 << DMA_NRTR_SCRAMB_EN_VAL_SHIFT);
@@ -1533,7 +1562,6 @@ static void goya_init_mme_cmdq(struct hl_device *hdev)
 	u32 mtr_base_lo, mtr_base_hi;
 	u32 so_base_lo, so_base_hi;
 	u32 gic_base_lo, gic_base_hi;
-	u64 qman_base_addr;
 
 	mtr_base_lo = lower_32_bits(CFG_BASE + mmSYNC_MNGR_MON_PAY_ADDRL_0);
 	mtr_base_hi = upper_32_bits(CFG_BASE + mmSYNC_MNGR_MON_PAY_ADDRL_0);
@@ -1544,9 +1572,6 @@ static void goya_init_mme_cmdq(struct hl_device *hdev)
 		lower_32_bits(CFG_BASE + mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR);
 	gic_base_hi =
 		upper_32_bits(CFG_BASE + mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR);
-
-	qman_base_addr = hdev->asic_prop.sram_base_address +
-				MME_QMAN_BASE_OFFSET;
 
 	WREG32(mmMME_CMDQ_CP_MSG_BASE0_ADDR_LO, mtr_base_lo);
 	WREG32(mmMME_CMDQ_CP_MSG_BASE0_ADDR_HI, mtr_base_hi);
@@ -2141,13 +2166,11 @@ static void goya_halt_engines(struct hl_device *hdev, bool hard_reset)
  */
 static int goya_push_uboot_to_device(struct hl_device *hdev)
 {
-	char fw_name[200];
 	void __iomem *dst;
 
-	snprintf(fw_name, sizeof(fw_name), "habanalabs/goya/goya-u-boot.bin");
 	dst = hdev->pcie_bar[SRAM_CFG_BAR_ID] + UBOOT_FW_OFFSET;
 
-	return hl_fw_push_fw_to_device(hdev, fw_name, dst);
+	return hl_fw_push_fw_to_device(hdev, GOYA_UBOOT_FW_FILE, dst);
 }
 
 /*
@@ -2160,18 +2183,16 @@ static int goya_push_uboot_to_device(struct hl_device *hdev)
  */
 static int goya_push_linux_to_device(struct hl_device *hdev)
 {
-	char fw_name[200];
 	void __iomem *dst;
 
-	snprintf(fw_name, sizeof(fw_name), "habanalabs/goya/goya-fit.itb");
 	dst = hdev->pcie_bar[DDR_BAR_ID] + LINUX_FW_OFFSET;
 
-	return hl_fw_push_fw_to_device(hdev, fw_name, dst);
+	return hl_fw_push_fw_to_device(hdev, GOYA_LINUX_FW_FILE, dst);
 }
 
 static int goya_pldm_init_cpu(struct hl_device *hdev)
 {
-	u32 val, unit_rst_val;
+	u32 unit_rst_val;
 	int rc;
 
 	/* Must initialize SRAM scrambler before pushing u-boot to SRAM */
@@ -2179,14 +2200,14 @@ static int goya_pldm_init_cpu(struct hl_device *hdev)
 
 	/* Put ARM cores into reset */
 	WREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL, CPU_RESET_ASSERT);
-	val = RREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL);
+	RREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL);
 
 	/* Reset the CA53 MACRO */
 	unit_rst_val = RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
 	WREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N, CA53_RESET);
-	val = RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
+	RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
 	WREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N, unit_rst_val);
-	val = RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
+	RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
 
 	rc = goya_push_uboot_to_device(hdev);
 	if (rc)
@@ -2207,7 +2228,7 @@ static int goya_pldm_init_cpu(struct hl_device *hdev)
 	/* Release ARM core 0 from reset */
 	WREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL,
 					CPU_RESET_CORE0_DEASSERT);
-	val = RREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL);
+	RREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL);
 
 	return 0;
 }
@@ -2291,6 +2312,10 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 		10000,
 		cpu_timeout);
 
+	/* Read U-Boot version now in case we will later fail */
+	goya_read_device_fw_version(hdev, FW_COMP_UBOOT);
+	goya_read_device_fw_version(hdev, FW_COMP_PREBOOT);
+
 	if (rc) {
 		dev_err(hdev->dev, "Error in ARM u-boot!");
 		switch (status) {
@@ -2328,6 +2353,11 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 				"ARM status %d - u-boot stopped by user\n",
 				status);
 			break;
+		case CPU_BOOT_STATUS_TS_INIT_FAIL:
+			dev_err(hdev->dev,
+				"ARM status %d - Thermal Sensor initialization failed\n",
+				status);
+			break;
 		default:
 			dev_err(hdev->dev,
 				"ARM status %d - Invalid status code\n",
@@ -2336,10 +2366,6 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 		}
 		return -EIO;
 	}
-
-	/* Read U-Boot version now in case we will later fail */
-	goya_read_device_fw_version(hdev, FW_COMP_UBOOT);
-	goya_read_device_fw_version(hdev, FW_COMP_PREBOOT);
 
 	if (!hdev->fw_loading) {
 		dev_info(hdev->dev, "Skip loading FW\n");
@@ -2453,7 +2479,8 @@ int goya_mmu_init(struct hl_device *hdev)
 	WREG32_AND(mmSTLB_STLB_FEATURE_EN,
 			(~STLB_STLB_FEATURE_EN_FOLLOWER_EN_MASK));
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true,
+					VM_TYPE_USERPTR | VM_TYPE_PHYS_PACK);
 
 	WREG32(mmMMU_MMU_ENABLE, 1);
 	WREG32(mmMMU_SPI_MASK, 0xF);
@@ -2475,13 +2502,12 @@ err:
 static int goya_hw_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 val;
 	int rc;
 
 	dev_info(hdev->dev, "Starting initialization of H/W\n");
 
 	/* Perform read from the device to make sure device is up */
-	val = RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
+	RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
 
 	/*
 	 * Let's mark in the H/W that we have reached this point. We check
@@ -2533,7 +2559,7 @@ static int goya_hw_init(struct hl_device *hdev)
 		goto disable_queues;
 
 	/* Perform read from the device to flush all MSI-X configuration */
-	val = RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
+	RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
 
 	return 0;
 
@@ -2978,9 +3004,6 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 			"H/W queue %d test failed (scratch(0x%08llX) == 0x%08X)\n",
 			hw_queue_id, (unsigned long long) fence_dma_addr, tmp);
 		rc = -EIO;
-	} else {
-		dev_info(hdev->dev, "queue test on H/W queue %d succeeded\n",
-			hw_queue_id);
 	}
 
 free_pkt:
@@ -3925,7 +3948,7 @@ static int goya_parse_cb_no_ext_queue(struct hl_device *hdev,
 		return 0;
 
 	dev_err(hdev->dev,
-		"Internal CB address %px + 0x%x is not in SRAM nor in DRAM\n",
+		"Internal CB address 0x%px + 0x%x is not in SRAM nor in DRAM\n",
 		parser->user_cb, parser->user_cb_size);
 
 	return -EFAULT;
@@ -3935,7 +3958,7 @@ int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
 {
 	struct goya_device *goya = hdev->asic_specific;
 
-	if (!parser->ext_queue)
+	if (parser->queue_type == QUEUE_TYPE_INT)
 		return goya_parse_cb_no_ext_queue(hdev, parser);
 
 	if (goya->hw_cap_initialized & HW_CAP_MMU)
@@ -4606,7 +4629,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u64 size,
 		lin_dma_pkt++;
 	} while (--lin_dma_pkts_cnt);
 
-	job = hl_cs_allocate_job(hdev, true);
+	job = hl_cs_allocate_job(hdev, QUEUE_TYPE_EXT, true);
 	if (!job) {
 		dev_err(hdev->dev, "Failed to allocate a new job\n");
 		rc = -ENOMEM;
@@ -4835,13 +4858,15 @@ static void goya_mmu_prepare(struct hl_device *hdev, u32 asid)
 		goya_mmu_prepare_reg(hdev, goya_mmu_regs[i], asid);
 }
 
-static void goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard)
+static void goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
+					u32 flags)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	u32 status, timeout_usec;
 	int rc;
 
-	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU) ||
+		hdev->hard_reset_pending)
 		return;
 
 	/* no need in L1 only invalidation in Goya */
@@ -4880,7 +4905,8 @@ static void goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 	u32 status, timeout_usec, inv_data, pi;
 	int rc;
 
-	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU) ||
+		hdev->hard_reset_pending)
 		return;
 
 	/* no need in L1 only invalidation in Goya */
@@ -5137,7 +5163,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.init_iatu = goya_init_iatu,
 	.rreg = hl_rreg,
 	.wreg = hl_wreg,
-	.halt_coresight = goya_halt_coresight
+	.halt_coresight = goya_halt_coresight,
+	.get_clk_rate = goya_get_clk_rate
 };
 
 /*

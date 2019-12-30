@@ -32,9 +32,9 @@ static int tps65912_gpio_get_direction(struct gpio_chip *gc,
 		return ret;
 
 	if (val & GPIO_CFG_MASK)
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 	else
-		return 1;
+		return GPIO_LINE_DIRECTION_IN;
 }
 
 static int tps65912_gpio_direction_input(struct gpio_chip *gc, unsigned offset)

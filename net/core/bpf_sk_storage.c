@@ -798,7 +798,7 @@ int bpf_sk_storage_clone(const struct sock *sk, struct sock *newsk)
 		 * Try to grab map refcnt to make sure that it's still
 		 * alive and prevent concurrent removal.
 		 */
-		map = bpf_map_inc_not_zero(&smap->map, false);
+		map = bpf_map_inc_not_zero(&smap->map);
 		if (IS_ERR(map))
 			continue;
 

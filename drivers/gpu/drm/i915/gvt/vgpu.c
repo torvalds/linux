@@ -212,9 +212,9 @@ static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
  */
 void intel_gvt_activate_vgpu(struct intel_vgpu *vgpu)
 {
-	mutex_lock(&vgpu->gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
 	vgpu->active = true;
-	mutex_unlock(&vgpu->gvt->lock);
+	mutex_unlock(&vgpu->vgpu_lock);
 }
 
 /**

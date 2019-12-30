@@ -32,8 +32,6 @@
 #define ISM_UNREG_SBA	0x11
 #define ISM_UNREG_IEQ	0x12
 
-#define ISM_ERROR	0xFFFF
-
 struct ism_req_hdr {
 	u32 cmd;
 	u16 : 16;

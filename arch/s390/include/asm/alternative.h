@@ -139,10 +139,10 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
  * without volatile and memory clobber.
  */
 #define alternative(oldinstr, altinstr, facility)			\
-	asm volatile(ALTERNATIVE(oldinstr, altinstr, facility) : : : "memory")
+	asm_inline volatile(ALTERNATIVE(oldinstr, altinstr, facility) : : : "memory")
 
 #define alternative_2(oldinstr, altinstr1, facility1, altinstr2, facility2) \
-	asm volatile(ALTERNATIVE_2(oldinstr, altinstr1, facility1,	    \
+	asm_inline volatile(ALTERNATIVE_2(oldinstr, altinstr1, facility1,   \
 				   altinstr2, facility2) ::: "memory")
 
 #endif /* __ASSEMBLY__ */

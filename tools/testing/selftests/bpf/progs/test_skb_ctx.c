@@ -16,6 +16,7 @@ int process(struct __sk_buff *skb)
 		skb->cb[i]++;
 	}
 	skb->priority++;
+	skb->tstamp++;
 
 	return 0;
 }

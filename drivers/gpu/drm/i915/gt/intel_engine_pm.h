@@ -31,6 +31,16 @@ static inline void intel_engine_pm_put(struct intel_engine_cs *engine)
 	intel_wakeref_put(&engine->wakeref);
 }
 
+static inline void intel_engine_pm_put_async(struct intel_engine_cs *engine)
+{
+	intel_wakeref_put_async(&engine->wakeref);
+}
+
+static inline void intel_engine_pm_flush(struct intel_engine_cs *engine)
+{
+	intel_wakeref_unlock_wait(&engine->wakeref);
+}
+
 void intel_engine_init__pm(struct intel_engine_cs *engine);
 
 #endif /* INTEL_ENGINE_PM_H */

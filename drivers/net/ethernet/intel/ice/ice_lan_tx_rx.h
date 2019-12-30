@@ -211,7 +211,7 @@ enum ice_flex_rx_mdid {
 /* Rx/Tx Flag64 packet flag bits */
 enum ice_flg64_bits {
 	ICE_FLG_PKT_DSI		= 0,
-	ICE_FLG_EVLAN_x8100	= 15,
+	ICE_FLG_EVLAN_x8100	= 14,
 	ICE_FLG_EVLAN_x9100,
 	ICE_FLG_VLAN_x8100,
 	ICE_FLG_TNL_MAC		= 22,
@@ -302,7 +302,7 @@ struct ice_ctx_ele {
 
 #define ICE_CTX_STORE(_struct, _ele, _width, _lsb) {	\
 	.offset = offsetof(struct _struct, _ele),	\
-	.size_of = FIELD_SIZEOF(struct _struct, _ele),	\
+	.size_of = sizeof_field(struct _struct, _ele),	\
 	.width = _width,				\
 	.lsb = _lsb,					\
 }

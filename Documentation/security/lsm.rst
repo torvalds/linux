@@ -56,7 +56,7 @@ the infrastructure to support security modules. The LSM kernel patch
 also moves most of the capabilities logic into an optional security
 module, with the system defaulting to the traditional superuser logic.
 This capabilities module is discussed further in
-`LSM Capabilities Module <#cap>`__.
+`LSM Capabilities Module`_.
 
 The LSM kernel patch adds security fields to kernel data structures and
 inserts calls to hook functions at critical points in the kernel code to

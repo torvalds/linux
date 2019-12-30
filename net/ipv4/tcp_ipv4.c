@@ -121,11 +121,9 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tw->tw_family == AF_INET6) {
 			if (ipv6_addr_loopback(&tw->tw_v6_daddr) ||
-			    (ipv6_addr_v4mapped(&tw->tw_v6_daddr) &&
-			     (tw->tw_v6_daddr.s6_addr[12] == 127)) ||
+			    ipv6_addr_v4mapped_loopback(&tw->tw_v6_daddr) ||
 			    ipv6_addr_loopback(&tw->tw_v6_rcv_saddr) ||
-			    (ipv6_addr_v4mapped(&tw->tw_v6_rcv_saddr) &&
-			     (tw->tw_v6_rcv_saddr.s6_addr[12] == 127)))
+			    ipv6_addr_v4mapped_loopback(&tw->tw_v6_rcv_saddr))
 				loopback = true;
 		} else
 #endif
@@ -2149,13 +2147,14 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 	struct tcp_iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
 	struct inet_listen_hashbucket *ilb;
+	struct hlist_nulls_node *node;
 	struct sock *sk = cur;
 
 	if (!sk) {
 get_head:
 		ilb = &tcp_hashinfo.listening_hash[st->bucket];
 		spin_lock(&ilb->lock);
-		sk = sk_head(&ilb->head);
+		sk = sk_nulls_head(&ilb->nulls_head);
 		st->offset = 0;
 		goto get_sk;
 	}
@@ -2163,9 +2162,9 @@ get_head:
 	++st->num;
 	++st->offset;
 
-	sk = sk_next(sk);
+	sk = sk_nulls_next(sk);
 get_sk:
-	sk_for_each_from(sk) {
+	sk_nulls_for_each_from(sk, node) {
 		if (!net_eq(sock_net(sk), net))
 			continue;
 		if (sk->sk_family == afinfo->family)
@@ -2453,7 +2452,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i)
 
 	state = inet_sk_state_load(sk);
 	if (state == TCP_LISTEN)
-		rx_queue = sk->sk_ack_backlog;
+		rx_queue = READ_ONCE(sk->sk_ack_backlog);
 	else
 		/* Because we don't lock the socket,
 		 * we might find a transient negative value.

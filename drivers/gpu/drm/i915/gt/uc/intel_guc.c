@@ -4,10 +4,33 @@
  */
 
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_irq.h"
+#include "gt/intel_gt_pm_irq.h"
 #include "intel_guc.h"
 #include "intel_guc_ads.h"
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
+
+/**
+ * DOC: GuC
+ *
+ * The GuC is a microcontroller inside the GT HW, introduced in gen9. The GuC is
+ * designed to offload some of the functionality usually performed by the host
+ * driver; currently the main operations it can take care of are:
+ *
+ * - Authentication of the HuC, which is required to fully enable HuC usage.
+ * - Low latency graphics context scheduling (a.k.a. GuC submission).
+ * - GT Power management.
+ *
+ * The enable_guc module parameter can be used to select which of those
+ * operations to enable within GuC. Note that not all the operations are
+ * supported on all gen9+ platforms.
+ *
+ * Enabling the GuC is not mandatory and therefore the firmware is only loaded
+ * if at least one of the operations is selected. However, not loading the GuC
+ * might result in the loss of some features that do require the GuC (currently
+ * just the HuC, but more are expected to land in the future).
+ */
 
 static void gen8_guc_raise_irq(struct intel_guc *guc)
 {
@@ -56,6 +79,93 @@ void intel_guc_init_send_regs(struct intel_guc *guc)
 	guc->send_regs.fw_domains = fw_domains;
 }
 
+static void gen9_reset_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+
+	spin_lock_irq(&gt->irq_lock);
+	gen6_gt_pm_reset_iir(gt, gt->pm_guc_events);
+	spin_unlock_irq(&gt->irq_lock);
+}
+
+static void gen9_enable_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+
+	spin_lock_irq(&gt->irq_lock);
+	if (!guc->interrupts.enabled) {
+		WARN_ON_ONCE(intel_uncore_read(gt->uncore, GEN8_GT_IIR(2)) &
+			     gt->pm_guc_events);
+		guc->interrupts.enabled = true;
+		gen6_gt_pm_enable_irq(gt, gt->pm_guc_events);
+	}
+	spin_unlock_irq(&gt->irq_lock);
+}
+
+static void gen9_disable_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+
+	spin_lock_irq(&gt->irq_lock);
+	guc->interrupts.enabled = false;
+
+	gen6_gt_pm_disable_irq(gt, gt->pm_guc_events);
+
+	spin_unlock_irq(&gt->irq_lock);
+	intel_synchronize_irq(gt->i915);
+
+	gen9_reset_guc_interrupts(guc);
+}
+
+static void gen11_reset_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	spin_lock_irq(&gt->irq_lock);
+	gen11_gt_reset_one_iir(gt, 0, GEN11_GUC);
+	spin_unlock_irq(&gt->irq_lock);
+}
+
+static void gen11_enable_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	spin_lock_irq(&gt->irq_lock);
+	if (!guc->interrupts.enabled) {
+		u32 events = REG_FIELD_PREP(ENGINE1_MASK, GUC_INTR_GUC2HOST);
+
+		WARN_ON_ONCE(gen11_gt_reset_one_iir(gt, 0, GEN11_GUC));
+		intel_uncore_write(gt->uncore,
+				   GEN11_GUC_SG_INTR_ENABLE, events);
+		intel_uncore_write(gt->uncore,
+				   GEN11_GUC_SG_INTR_MASK, ~events);
+		guc->interrupts.enabled = true;
+	}
+	spin_unlock_irq(&gt->irq_lock);
+}
+
+static void gen11_disable_guc_interrupts(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	spin_lock_irq(&gt->irq_lock);
+	guc->interrupts.enabled = false;
+
+	intel_uncore_write(gt->uncore, GEN11_GUC_SG_INTR_MASK, ~0);
+	intel_uncore_write(gt->uncore, GEN11_GUC_SG_INTR_ENABLE, 0);
+
+	spin_unlock_irq(&gt->irq_lock);
+	intel_synchronize_irq(gt->i915);
+
+	gen11_reset_guc_interrupts(guc);
+}
+
 void intel_guc_init_early(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
@@ -80,32 +190,6 @@ void intel_guc_init_early(struct intel_guc *guc)
 		guc->interrupts.enable = gen9_enable_guc_interrupts;
 		guc->interrupts.disable = gen9_disable_guc_interrupts;
 	}
-}
-
-static int guc_shared_data_create(struct intel_guc *guc)
-{
-	struct i915_vma *vma;
-	void *vaddr;
-
-	vma = intel_guc_allocate_vma(guc, PAGE_SIZE);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
-	if (IS_ERR(vaddr)) {
-		i915_vma_unpin_and_release(&vma, 0);
-		return PTR_ERR(vaddr);
-	}
-
-	guc->shared_data = vma;
-	guc->shared_data_vaddr = vaddr;
-
-	return 0;
-}
-
-static void guc_shared_data_destroy(struct intel_guc *guc)
-{
-	i915_vma_unpin_and_release(&guc->shared_data, I915_VMA_RELEASE_MAP);
 }
 
 static u32 guc_ctl_debug_flags(struct intel_guc *guc)
@@ -254,14 +338,9 @@ int intel_guc_init(struct intel_guc *guc)
 	if (ret)
 		goto err_fetch;
 
-	ret = guc_shared_data_create(guc);
-	if (ret)
-		goto err_fw;
-	GEM_BUG_ON(!guc->shared_data);
-
 	ret = intel_guc_log_create(&guc->log);
 	if (ret)
-		goto err_shared;
+		goto err_fw;
 
 	ret = intel_guc_ads_create(guc);
 	if (ret)
@@ -296,8 +375,6 @@ err_ads:
 	intel_guc_ads_destroy(guc);
 err_log:
 	intel_guc_log_destroy(&guc->log);
-err_shared:
-	guc_shared_data_destroy(guc);
 err_fw:
 	intel_uc_fw_fini(&guc->fw);
 err_fetch:
@@ -322,7 +399,6 @@ void intel_guc_fini(struct intel_guc *guc)
 
 	intel_guc_ads_destroy(guc);
 	intel_guc_log_destroy(&guc->log);
-	guc_shared_data_destroy(guc);
 	intel_uc_fw_fini(&guc->fw);
 	intel_uc_fw_cleanup_fetch(&guc->fw);
 }
@@ -478,6 +554,13 @@ int intel_guc_suspend(struct intel_guc *guc)
 	};
 
 	/*
+	 * If GuC communication is enabled but submission is not supported,
+	 * we do not need to suspend the GuC.
+	 */
+	if (!intel_guc_submission_is_enabled(guc))
+		return 0;
+
+	/*
 	 * The ENTER_S_STATE action queues the save/restore operation in GuC FW
 	 * and then returns, so waiting on the H2G is not enough to guarantee
 	 * GuC is done. When all the processing is done, GuC writes
@@ -518,19 +601,9 @@ int intel_guc_suspend(struct intel_guc *guc)
 int intel_guc_reset_engine(struct intel_guc *guc,
 			   struct intel_engine_cs *engine)
 {
-	u32 data[7];
+	/* XXX: to be implemented with submission interface rework */
 
-	GEM_BUG_ON(!guc->execbuf_client);
-
-	data[0] = INTEL_GUC_ACTION_REQUEST_ENGINE_RESET;
-	data[1] = engine->guc_id;
-	data[2] = 0;
-	data[3] = 0;
-	data[4] = 0;
-	data[5] = guc->execbuf_client->stage_id;
-	data[6] = intel_guc_ggtt_offset(guc, guc->shared_data);
-
-	return intel_guc_send(guc, data, ARRAY_SIZE(data));
+	return -ENODEV;
 }
 
 /**
@@ -544,13 +617,27 @@ int intel_guc_resume(struct intel_guc *guc)
 		GUC_POWER_D0,
 	};
 
+	/*
+	 * If GuC communication is enabled but submission is not supported,
+	 * we do not need to resume the GuC but we do need to enable the
+	 * GuC communication on resume (above).
+	 */
+	if (!intel_guc_submission_is_enabled(guc))
+		return 0;
+
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
 /**
- * DOC: GuC Address Space
+ * DOC: GuC Memory Management
  *
- * The layout of GuC address space is shown below:
+ * GuC can't allocate any memory for its own usage, so all the allocations must
+ * be handled by the host driver. GuC accesses the memory via the GGTT, with the
+ * exception of the top and bottom parts of the 4GB address space, which are
+ * instead re-mapped by the GuC HW to memory location of the FW itself (WOPCM)
+ * or other parts of the HW. The driver must take care not to place objects that
+ * the GuC is going to access in these reserved ranges. The layout of the GuC
+ * address space is shown below:
  *
  * ::
  *

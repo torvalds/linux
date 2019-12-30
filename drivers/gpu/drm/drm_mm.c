@@ -174,7 +174,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 
 	node->__subtree_last = LAST(node);
 
-	if (hole_node->allocated) {
+	if (drm_mm_node_allocated(hole_node)) {
 		rb = &hole_node->rb;
 		while (rb) {
 			parent = rb_entry(rb, struct drm_mm_node, rb);
@@ -424,9 +424,9 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 
 	node->mm = mm;
 
+	__set_bit(DRM_MM_NODE_ALLOCATED_BIT, &node->flags);
 	list_add(&node->node_list, &hole->node_list);
 	drm_mm_interval_tree_add_node(hole, node);
-	node->allocated = true;
 	node->hole_size = 0;
 
 	rm_hole(hole);
@@ -543,9 +543,9 @@ int drm_mm_insert_node_in_range(struct drm_mm * const mm,
 		node->color = color;
 		node->hole_size = 0;
 
+		__set_bit(DRM_MM_NODE_ALLOCATED_BIT, &node->flags);
 		list_add(&node->node_list, &hole->node_list);
 		drm_mm_interval_tree_add_node(hole, node);
-		node->allocated = true;
 
 		rm_hole(hole);
 		if (adj_start > hole_start)
@@ -561,6 +561,11 @@ int drm_mm_insert_node_in_range(struct drm_mm * const mm,
 }
 EXPORT_SYMBOL(drm_mm_insert_node_in_range);
 
+static inline bool drm_mm_node_scanned_block(const struct drm_mm_node *node)
+{
+	return test_bit(DRM_MM_NODE_SCANNED_BIT, &node->flags);
+}
+
 /**
  * drm_mm_remove_node - Remove a memory node from the allocator.
  * @node: drm_mm_node to remove
@@ -574,8 +579,8 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 	struct drm_mm *mm = node->mm;
 	struct drm_mm_node *prev_node;
 
-	DRM_MM_BUG_ON(!node->allocated);
-	DRM_MM_BUG_ON(node->scanned_block);
+	DRM_MM_BUG_ON(!drm_mm_node_allocated(node));
+	DRM_MM_BUG_ON(drm_mm_node_scanned_block(node));
 
 	prev_node = list_prev_entry(node, node_list);
 
@@ -584,11 +589,12 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 
 	drm_mm_interval_tree_remove(node, &mm->interval_tree);
 	list_del(&node->node_list);
-	node->allocated = false;
 
 	if (drm_mm_hole_follows(prev_node))
 		rm_hole(prev_node);
 	add_hole(prev_node);
+
+	clear_bit_unlock(DRM_MM_NODE_ALLOCATED_BIT, &node->flags);
 }
 EXPORT_SYMBOL(drm_mm_remove_node);
 
@@ -605,10 +611,11 @@ void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 {
 	struct drm_mm *mm = old->mm;
 
-	DRM_MM_BUG_ON(!old->allocated);
+	DRM_MM_BUG_ON(!drm_mm_node_allocated(old));
 
 	*new = *old;
 
+	__set_bit(DRM_MM_NODE_ALLOCATED_BIT, &new->flags);
 	list_replace(&old->node_list, &new->node_list);
 	rb_replace_node_cached(&old->rb, &new->rb, &mm->interval_tree);
 
@@ -622,8 +629,7 @@ void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 				&mm->holes_addr);
 	}
 
-	old->allocated = false;
-	new->allocated = true;
+	clear_bit_unlock(DRM_MM_NODE_ALLOCATED_BIT, &old->flags);
 }
 EXPORT_SYMBOL(drm_mm_replace_node);
 
@@ -731,9 +737,9 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 	u64 adj_start, adj_end;
 
 	DRM_MM_BUG_ON(node->mm != mm);
-	DRM_MM_BUG_ON(!node->allocated);
-	DRM_MM_BUG_ON(node->scanned_block);
-	node->scanned_block = true;
+	DRM_MM_BUG_ON(!drm_mm_node_allocated(node));
+	DRM_MM_BUG_ON(drm_mm_node_scanned_block(node));
+	__set_bit(DRM_MM_NODE_SCANNED_BIT, &node->flags);
 	mm->scan_active++;
 
 	/* Remove this block from the node_list so that we enlarge the hole
@@ -818,8 +824,8 @@ bool drm_mm_scan_remove_block(struct drm_mm_scan *scan,
 	struct drm_mm_node *prev_node;
 
 	DRM_MM_BUG_ON(node->mm != scan->mm);
-	DRM_MM_BUG_ON(!node->scanned_block);
-	node->scanned_block = false;
+	DRM_MM_BUG_ON(!drm_mm_node_scanned_block(node));
+	__clear_bit(DRM_MM_NODE_SCANNED_BIT, &node->flags);
 
 	DRM_MM_BUG_ON(!node->mm->scan_active);
 	node->mm->scan_active--;
@@ -917,7 +923,7 @@ void drm_mm_init(struct drm_mm *mm, u64 start, u64 size)
 
 	/* Clever trick to avoid a special case in the free hole tracking. */
 	INIT_LIST_HEAD(&mm->head_node.node_list);
-	mm->head_node.allocated = false;
+	mm->head_node.flags = 0;
 	mm->head_node.mm = mm;
 	mm->head_node.start = start + size;
 	mm->head_node.size = -size;

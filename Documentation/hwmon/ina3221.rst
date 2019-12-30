@@ -41,6 +41,18 @@ curr[123]_max           Warning alert current(mA) setting, activates the
 			average is above this value.
 curr[123]_max_alarm     Warning alert current limit exceeded
 in[456]_input           Shunt voltage(uV) for channels 1, 2, and 3 respectively
+in7_input               Sum of shunt voltage(uV) channels
+in7_label               Channel label for sum of shunt voltage
+curr4_input             Sum of current(mA) measurement channels,
+                        (only available when all channels use the same resistor
+                        value for their shunt resistors)
+curr4_crit              Critical alert current(mA) setting for sum of current
+                        measurements, activates the corresponding alarm
+                        when the respective current is above this value
+                        (only effective when all channels use the same resistor
+                        value for their shunt resistors)
+curr4_crit_alarm        Critical alert current limit exceeded for sum of
+                        current measurements.
 samples                 Number of samples using in the averaging mode.
 
                         Supports the list of number of samples:

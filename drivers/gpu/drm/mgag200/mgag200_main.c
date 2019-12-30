@@ -94,7 +94,8 @@ static int mgag200_device_init(struct drm_device *dev,
 	struct mga_device *mdev = dev->dev_private;
 	int ret, option;
 
-	mdev->type = flags;
+	mdev->flags = mgag200_flags_from_driver_data(flags);
+	mdev->type = mgag200_type_from_driver_data(flags);
 
 	/* Hardcode the number of CRTCs to 1 */
 	mdev->num_crtc = 1;
@@ -159,7 +160,7 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_init(dev);
 	dev->mode_config.funcs = (void *)&mga_mode_funcs;
-	if (IS_G200_SE(mdev) && mdev->mc.vram_size < (2048*1024))
+	if (IS_G200_SE(mdev) && mdev->vram_fb_available < (2048*1024))
 		dev->mode_config.preferred_depth = 16;
 	else
 		dev->mode_config.preferred_depth = 32;
@@ -171,20 +172,10 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 		goto err_modeset;
 	}
 
-	/* Make small buffers to store a hardware cursor (double buffered icon updates) */
-	mdev->cursor.pixels_1 = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
-						    roundup(48*64, PAGE_SIZE),
-						    0, 0);
-	mdev->cursor.pixels_2 = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
-						    roundup(48*64, PAGE_SIZE),
-						    0, 0);
-	if (IS_ERR(mdev->cursor.pixels_2) || IS_ERR(mdev->cursor.pixels_1)) {
-		mdev->cursor.pixels_1 = NULL;
-		mdev->cursor.pixels_2 = NULL;
+	r = mgag200_cursor_init(mdev);
+	if (r)
 		dev_warn(&dev->pdev->dev,
-			"Could not allocate space for cursors. Not doing hardware cursors.\n");
-	}
-	mdev->cursor.pixels_current = NULL;
+			"Could not initialize cursors. Not doing hardware cursors.\n");
 
 	r = drm_fbdev_generic_setup(mdev->dev, 0);
 	if (r)
@@ -194,6 +185,7 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 
 err_modeset:
 	drm_mode_config_cleanup(dev);
+	mgag200_cursor_fini(mdev);
 	mgag200_mm_fini(mdev);
 err_mm:
 	dev->dev_private = NULL;
@@ -209,6 +201,7 @@ void mgag200_driver_unload(struct drm_device *dev)
 		return;
 	mgag200_modeset_fini(mdev);
 	drm_mode_config_cleanup(dev);
+	mgag200_cursor_fini(mdev);
 	mgag200_mm_fini(mdev);
 	dev->dev_private = NULL;
 }

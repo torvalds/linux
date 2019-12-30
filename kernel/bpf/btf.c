@@ -2,6 +2,8 @@
 /* Copyright (c) 2018 Facebook */
 
 #include <uapi/linux/btf.h>
+#include <uapi/linux/bpf.h>
+#include <uapi/linux/bpf_perf_event.h>
 #include <uapi/linux/types.h>
 #include <linux/seq_file.h>
 #include <linux/compiler.h>
@@ -16,6 +18,9 @@
 #include <linux/sort.h>
 #include <linux/bpf_verifier.h>
 #include <linux/btf.h>
+#include <linux/skmsg.h>
+#include <linux/perf_event.h>
+#include <net/sock.h>
 
 /* BTF (BPF Type Format) is the meta data format which describes
  * the data types of BPF program/map.  Hence, it basically focus
@@ -336,16 +341,6 @@ static bool btf_type_is_fwd(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info) == BTF_KIND_FWD;
 }
 
-static bool btf_type_is_func(const struct btf_type *t)
-{
-	return BTF_INFO_KIND(t->info) == BTF_KIND_FUNC;
-}
-
-static bool btf_type_is_func_proto(const struct btf_type *t)
-{
-	return BTF_INFO_KIND(t->info) == BTF_KIND_FUNC_PROTO;
-}
-
 static bool btf_type_nosize(const struct btf_type *t)
 {
 	return btf_type_is_void(t) || btf_type_is_fwd(t) ||
@@ -375,16 +370,6 @@ static bool __btf_type_is_struct(const struct btf_type *t)
 static bool btf_type_is_array(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_ARRAY;
-}
-
-static bool btf_type_is_ptr(const struct btf_type *t)
-{
-	return BTF_INFO_KIND(t->info) == BTF_KIND_PTR;
-}
-
-static bool btf_type_is_int(const struct btf_type *t)
-{
-	return BTF_INFO_KIND(t->info) == BTF_KIND_INT;
 }
 
 static bool btf_type_is_var(const struct btf_type *t)
@@ -698,6 +683,13 @@ __printf(4, 5) static void __btf_verifier_log_type(struct btf_verifier_env *env,
 	if (!bpf_verifier_log_needed(log))
 		return;
 
+	/* btf verifier prints all types it is processing via
+	 * btf_verifier_log_type(..., fmt = NULL).
+	 * Skip those prints for in-kernel BTF verification.
+	 */
+	if (log->level == BPF_LOG_KERNEL && !fmt)
+		return;
+
 	__btf_verifier_log(log, "[%u] %s %s%s",
 			   env->log_type_id,
 			   btf_kind_str[kind],
@@ -735,6 +727,8 @@ static void btf_verifier_log_member(struct btf_verifier_env *env,
 	if (!bpf_verifier_log_needed(log))
 		return;
 
+	if (log->level == BPF_LOG_KERNEL && !fmt)
+		return;
 	/* The CHECK_META phase already did a btf dump.
 	 *
 	 * If member is logged again, it must hit an error in
@@ -777,6 +771,8 @@ static void btf_verifier_log_vsi(struct btf_verifier_env *env,
 
 	if (!bpf_verifier_log_needed(log))
 		return;
+	if (log->level == BPF_LOG_KERNEL && !fmt)
+		return;
 	if (env->phase != CHECK_META)
 		btf_verifier_log_type(env, datasec_type, NULL);
 
@@ -802,6 +798,8 @@ static void btf_verifier_log_hdr(struct btf_verifier_env *env,
 	if (!bpf_verifier_log_needed(log))
 		return;
 
+	if (log->level == BPF_LOG_KERNEL)
+		return;
 	hdr = &btf->hdr;
 	__btf_verifier_log(log, "magic: 0x%x\n", hdr->magic);
 	__btf_verifier_log(log, "version: %u\n", hdr->version);
@@ -1041,6 +1039,82 @@ static void env_stack_pop_resolved(struct btf_verifier_env *env,
 static const struct resolve_vertex *env_stack_peak(struct btf_verifier_env *env)
 {
 	return env->top_stack ? &env->stack[env->top_stack - 1] : NULL;
+}
+
+/* Resolve the size of a passed-in "type"
+ *
+ * type: is an array (e.g. u32 array[x][y])
+ * return type: type "u32[x][y]", i.e. BTF_KIND_ARRAY,
+ * *type_size: (x * y * sizeof(u32)).  Hence, *type_size always
+ *             corresponds to the return type.
+ * *elem_type: u32
+ * *total_nelems: (x * y).  Hence, individual elem size is
+ *                (*type_size / *total_nelems)
+ *
+ * type: is not an array (e.g. const struct X)
+ * return type: type "struct X"
+ * *type_size: sizeof(struct X)
+ * *elem_type: same as return type ("struct X")
+ * *total_nelems: 1
+ */
+static const struct btf_type *
+btf_resolve_size(const struct btf *btf, const struct btf_type *type,
+		 u32 *type_size, const struct btf_type **elem_type,
+		 u32 *total_nelems)
+{
+	const struct btf_type *array_type = NULL;
+	const struct btf_array *array;
+	u32 i, size, nelems = 1;
+
+	for (i = 0; i < MAX_RESOLVE_DEPTH; i++) {
+		switch (BTF_INFO_KIND(type->info)) {
+		/* type->size can be used */
+		case BTF_KIND_INT:
+		case BTF_KIND_STRUCT:
+		case BTF_KIND_UNION:
+		case BTF_KIND_ENUM:
+			size = type->size;
+			goto resolved;
+
+		case BTF_KIND_PTR:
+			size = sizeof(void *);
+			goto resolved;
+
+		/* Modifiers */
+		case BTF_KIND_TYPEDEF:
+		case BTF_KIND_VOLATILE:
+		case BTF_KIND_CONST:
+		case BTF_KIND_RESTRICT:
+			type = btf_type_by_id(btf, type->type);
+			break;
+
+		case BTF_KIND_ARRAY:
+			if (!array_type)
+				array_type = type;
+			array = btf_type_array(type);
+			if (nelems && array->nelems > U32_MAX / nelems)
+				return ERR_PTR(-EINVAL);
+			nelems *= array->nelems;
+			type = btf_type_by_id(btf, array->type);
+			break;
+
+		/* type without size */
+		default:
+			return ERR_PTR(-EINVAL);
+		}
+	}
+
+	return ERR_PTR(-EINVAL);
+
+resolved:
+	if (nelems && size > U32_MAX / nelems)
+		return ERR_PTR(-EINVAL);
+
+	*type_size = nelems * size;
+	*total_nelems = nelems;
+	*elem_type = type;
+
+	return array_type ? : type;
 }
 
 /* The input param "type_id" must point to a needs_resolve type */
@@ -2405,7 +2479,8 @@ static s32 btf_enum_check_meta(struct btf_verifier_env *env,
 			return -EINVAL;
 		}
 
-
+		if (env->log.level == BPF_LOG_KERNEL)
+			continue;
 		btf_verifier_log(env, "\t%s val=%d\n",
 				 __btf_name_by_offset(btf, enums[i].name_off),
 				 enums[i].val);
@@ -3365,6 +3440,689 @@ errout:
 	if (btf)
 		btf_free(btf);
 	return ERR_PTR(err);
+}
+
+extern char __weak _binary__btf_vmlinux_bin_start[];
+extern char __weak _binary__btf_vmlinux_bin_end[];
+extern struct btf *btf_vmlinux;
+
+#define BPF_MAP_TYPE(_id, _ops)
+static union {
+	struct bpf_ctx_convert {
+#define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
+	prog_ctx_type _id##_prog; \
+	kern_ctx_type _id##_kern;
+#include <linux/bpf_types.h>
+#undef BPF_PROG_TYPE
+	} *__t;
+	/* 't' is written once under lock. Read many times. */
+	const struct btf_type *t;
+} bpf_ctx_convert;
+enum {
+#define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
+	__ctx_convert##_id,
+#include <linux/bpf_types.h>
+#undef BPF_PROG_TYPE
+	__ctx_convert_unused, /* to avoid empty enum in extreme .config */
+};
+static u8 bpf_ctx_convert_map[] = {
+#define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
+	[_id] = __ctx_convert##_id,
+#include <linux/bpf_types.h>
+#undef BPF_PROG_TYPE
+	0, /* avoid empty array */
+};
+#undef BPF_MAP_TYPE
+
+static const struct btf_member *
+btf_get_prog_ctx_type(struct bpf_verifier_log *log, struct btf *btf,
+		      const struct btf_type *t, enum bpf_prog_type prog_type)
+{
+	const struct btf_type *conv_struct;
+	const struct btf_type *ctx_struct;
+	const struct btf_member *ctx_type;
+	const char *tname, *ctx_tname;
+
+	conv_struct = bpf_ctx_convert.t;
+	if (!conv_struct) {
+		bpf_log(log, "btf_vmlinux is malformed\n");
+		return NULL;
+	}
+	t = btf_type_by_id(btf, t->type);
+	while (btf_type_is_modifier(t))
+		t = btf_type_by_id(btf, t->type);
+	if (!btf_type_is_struct(t)) {
+		/* Only pointer to struct is supported for now.
+		 * That means that BPF_PROG_TYPE_TRACEPOINT with BTF
+		 * is not supported yet.
+		 * BPF_PROG_TYPE_RAW_TRACEPOINT is fine.
+		 */
+		bpf_log(log, "BPF program ctx type is not a struct\n");
+		return NULL;
+	}
+	tname = btf_name_by_offset(btf, t->name_off);
+	if (!tname) {
+		bpf_log(log, "BPF program ctx struct doesn't have a name\n");
+		return NULL;
+	}
+	/* prog_type is valid bpf program type. No need for bounds check. */
+	ctx_type = btf_type_member(conv_struct) + bpf_ctx_convert_map[prog_type] * 2;
+	/* ctx_struct is a pointer to prog_ctx_type in vmlinux.
+	 * Like 'struct __sk_buff'
+	 */
+	ctx_struct = btf_type_by_id(btf_vmlinux, ctx_type->type);
+	if (!ctx_struct)
+		/* should not happen */
+		return NULL;
+	ctx_tname = btf_name_by_offset(btf_vmlinux, ctx_struct->name_off);
+	if (!ctx_tname) {
+		/* should not happen */
+		bpf_log(log, "Please fix kernel include/linux/bpf_types.h\n");
+		return NULL;
+	}
+	/* only compare that prog's ctx type name is the same as
+	 * kernel expects. No need to compare field by field.
+	 * It's ok for bpf prog to do:
+	 * struct __sk_buff {};
+	 * int socket_filter_bpf_prog(struct __sk_buff *skb)
+	 * { // no fields of skb are ever used }
+	 */
+	if (strcmp(ctx_tname, tname))
+		return NULL;
+	return ctx_type;
+}
+
+static int btf_translate_to_vmlinux(struct bpf_verifier_log *log,
+				     struct btf *btf,
+				     const struct btf_type *t,
+				     enum bpf_prog_type prog_type)
+{
+	const struct btf_member *prog_ctx_type, *kern_ctx_type;
+
+	prog_ctx_type = btf_get_prog_ctx_type(log, btf, t, prog_type);
+	if (!prog_ctx_type)
+		return -ENOENT;
+	kern_ctx_type = prog_ctx_type + 1;
+	return kern_ctx_type->type;
+}
+
+struct btf *btf_parse_vmlinux(void)
+{
+	struct btf_verifier_env *env = NULL;
+	struct bpf_verifier_log *log;
+	struct btf *btf = NULL;
+	int err, i;
+
+	env = kzalloc(sizeof(*env), GFP_KERNEL | __GFP_NOWARN);
+	if (!env)
+		return ERR_PTR(-ENOMEM);
+
+	log = &env->log;
+	log->level = BPF_LOG_KERNEL;
+
+	btf = kzalloc(sizeof(*btf), GFP_KERNEL | __GFP_NOWARN);
+	if (!btf) {
+		err = -ENOMEM;
+		goto errout;
+	}
+	env->btf = btf;
+
+	btf->data = _binary__btf_vmlinux_bin_start;
+	btf->data_size = _binary__btf_vmlinux_bin_end -
+		_binary__btf_vmlinux_bin_start;
+
+	err = btf_parse_hdr(env);
+	if (err)
+		goto errout;
+
+	btf->nohdr_data = btf->data + btf->hdr.hdr_len;
+
+	err = btf_parse_str_sec(env);
+	if (err)
+		goto errout;
+
+	err = btf_check_all_metas(env);
+	if (err)
+		goto errout;
+
+	/* find struct bpf_ctx_convert for type checking later */
+	for (i = 1; i <= btf->nr_types; i++) {
+		const struct btf_type *t;
+		const char *tname;
+
+		t = btf_type_by_id(btf, i);
+		if (!__btf_type_is_struct(t))
+			continue;
+		tname = __btf_name_by_offset(btf, t->name_off);
+		if (!strcmp(tname, "bpf_ctx_convert")) {
+			/* btf_parse_vmlinux() runs under bpf_verifier_lock */
+			bpf_ctx_convert.t = t;
+			break;
+		}
+	}
+	if (i > btf->nr_types) {
+		err = -ENOENT;
+		goto errout;
+	}
+
+	btf_verifier_env_free(env);
+	refcount_set(&btf->refcnt, 1);
+	return btf;
+
+errout:
+	btf_verifier_env_free(env);
+	if (btf) {
+		kvfree(btf->types);
+		kfree(btf);
+	}
+	return ERR_PTR(err);
+}
+
+struct btf *bpf_prog_get_target_btf(const struct bpf_prog *prog)
+{
+	struct bpf_prog *tgt_prog = prog->aux->linked_prog;
+
+	if (tgt_prog) {
+		return tgt_prog->aux->btf;
+	} else {
+		return btf_vmlinux;
+	}
+}
+
+bool btf_ctx_access(int off, int size, enum bpf_access_type type,
+		    const struct bpf_prog *prog,
+		    struct bpf_insn_access_aux *info)
+{
+	const struct btf_type *t = prog->aux->attach_func_proto;
+	struct bpf_prog *tgt_prog = prog->aux->linked_prog;
+	struct btf *btf = bpf_prog_get_target_btf(prog);
+	const char *tname = prog->aux->attach_func_name;
+	struct bpf_verifier_log *log = info->log;
+	const struct btf_param *args;
+	u32 nr_args, arg;
+	int ret;
+
+	if (off % 8) {
+		bpf_log(log, "func '%s' offset %d is not multiple of 8\n",
+			tname, off);
+		return false;
+	}
+	arg = off / 8;
+	args = (const struct btf_param *)(t + 1);
+	/* if (t == NULL) Fall back to default BPF prog with 5 u64 arguments */
+	nr_args = t ? btf_type_vlen(t) : 5;
+	if (prog->aux->attach_btf_trace) {
+		/* skip first 'void *__data' argument in btf_trace_##name typedef */
+		args++;
+		nr_args--;
+	}
+
+	if (prog->expected_attach_type == BPF_TRACE_FEXIT &&
+	    arg == nr_args) {
+		if (!t)
+			/* Default prog with 5 args. 6th arg is retval. */
+			return true;
+		/* function return type */
+		t = btf_type_by_id(btf, t->type);
+	} else if (arg >= nr_args) {
+		bpf_log(log, "func '%s' doesn't have %d-th argument\n",
+			tname, arg + 1);
+		return false;
+	} else {
+		if (!t)
+			/* Default prog with 5 args */
+			return true;
+		t = btf_type_by_id(btf, args[arg].type);
+	}
+	/* skip modifiers */
+	while (btf_type_is_modifier(t))
+		t = btf_type_by_id(btf, t->type);
+	if (btf_type_is_int(t))
+		/* accessing a scalar */
+		return true;
+	if (!btf_type_is_ptr(t)) {
+		bpf_log(log,
+			"func '%s' arg%d '%s' has type %s. Only pointer access is allowed\n",
+			tname, arg,
+			__btf_name_by_offset(btf, t->name_off),
+			btf_kind_str[BTF_INFO_KIND(t->info)]);
+		return false;
+	}
+	if (t->type == 0)
+		/* This is a pointer to void.
+		 * It is the same as scalar from the verifier safety pov.
+		 * No further pointer walking is allowed.
+		 */
+		return true;
+
+	/* this is a pointer to another type */
+	info->reg_type = PTR_TO_BTF_ID;
+	info->btf_id = t->type;
+
+	if (tgt_prog) {
+		ret = btf_translate_to_vmlinux(log, btf, t, tgt_prog->type);
+		if (ret > 0) {
+			info->btf_id = ret;
+			return true;
+		} else {
+			return false;
+		}
+	}
+	t = btf_type_by_id(btf, t->type);
+	/* skip modifiers */
+	while (btf_type_is_modifier(t))
+		t = btf_type_by_id(btf, t->type);
+	if (!btf_type_is_struct(t)) {
+		bpf_log(log,
+			"func '%s' arg%d type %s is not a struct\n",
+			tname, arg, btf_kind_str[BTF_INFO_KIND(t->info)]);
+		return false;
+	}
+	bpf_log(log, "func '%s' arg%d has btf_id %d type %s '%s'\n",
+		tname, arg, info->btf_id, btf_kind_str[BTF_INFO_KIND(t->info)],
+		__btf_name_by_offset(btf, t->name_off));
+	return true;
+}
+
+int btf_struct_access(struct bpf_verifier_log *log,
+		      const struct btf_type *t, int off, int size,
+		      enum bpf_access_type atype,
+		      u32 *next_btf_id)
+{
+	u32 i, moff, mtrue_end, msize = 0, total_nelems = 0;
+	const struct btf_type *mtype, *elem_type = NULL;
+	const struct btf_member *member;
+	const char *tname, *mname;
+
+again:
+	tname = __btf_name_by_offset(btf_vmlinux, t->name_off);
+	if (!btf_type_is_struct(t)) {
+		bpf_log(log, "Type '%s' is not a struct", tname);
+		return -EINVAL;
+	}
+
+	for_each_member(i, t, member) {
+		if (btf_member_bitfield_size(t, member))
+			/* bitfields are not supported yet */
+			continue;
+
+		/* offset of the field in bytes */
+		moff = btf_member_bit_offset(t, member) / 8;
+		if (off + size <= moff)
+			/* won't find anything, field is already too far */
+			break;
+		/* In case of "off" is pointing to holes of a struct */
+		if (off < moff)
+			continue;
+
+		/* type of the field */
+		mtype = btf_type_by_id(btf_vmlinux, member->type);
+		mname = __btf_name_by_offset(btf_vmlinux, member->name_off);
+
+		mtype = btf_resolve_size(btf_vmlinux, mtype, &msize,
+					 &elem_type, &total_nelems);
+		if (IS_ERR(mtype)) {
+			bpf_log(log, "field %s doesn't have size\n", mname);
+			return -EFAULT;
+		}
+
+		mtrue_end = moff + msize;
+		if (off >= mtrue_end)
+			/* no overlap with member, keep iterating */
+			continue;
+
+		if (btf_type_is_array(mtype)) {
+			u32 elem_idx;
+
+			/* btf_resolve_size() above helps to
+			 * linearize a multi-dimensional array.
+			 *
+			 * The logic here is treating an array
+			 * in a struct as the following way:
+			 *
+			 * struct outer {
+			 *	struct inner array[2][2];
+			 * };
+			 *
+			 * looks like:
+			 *
+			 * struct outer {
+			 *	struct inner array_elem0;
+			 *	struct inner array_elem1;
+			 *	struct inner array_elem2;
+			 *	struct inner array_elem3;
+			 * };
+			 *
+			 * When accessing outer->array[1][0], it moves
+			 * moff to "array_elem2", set mtype to
+			 * "struct inner", and msize also becomes
+			 * sizeof(struct inner).  Then most of the
+			 * remaining logic will fall through without
+			 * caring the current member is an array or
+			 * not.
+			 *
+			 * Unlike mtype/msize/moff, mtrue_end does not
+			 * change.  The naming difference ("_true") tells
+			 * that it is not always corresponding to
+			 * the current mtype/msize/moff.
+			 * It is the true end of the current
+			 * member (i.e. array in this case).  That
+			 * will allow an int array to be accessed like
+			 * a scratch space,
+			 * i.e. allow access beyond the size of
+			 *      the array's element as long as it is
+			 *      within the mtrue_end boundary.
+			 */
+
+			/* skip empty array */
+			if (moff == mtrue_end)
+				continue;
+
+			msize /= total_nelems;
+			elem_idx = (off - moff) / msize;
+			moff += elem_idx * msize;
+			mtype = elem_type;
+		}
+
+		/* the 'off' we're looking for is either equal to start
+		 * of this field or inside of this struct
+		 */
+		if (btf_type_is_struct(mtype)) {
+			/* our field must be inside that union or struct */
+			t = mtype;
+
+			/* adjust offset we're looking for */
+			off -= moff;
+			goto again;
+		}
+
+		if (btf_type_is_ptr(mtype)) {
+			const struct btf_type *stype;
+
+			if (msize != size || off != moff) {
+				bpf_log(log,
+					"cannot access ptr member %s with moff %u in struct %s with off %u size %u\n",
+					mname, moff, tname, off, size);
+				return -EACCES;
+			}
+
+			stype = btf_type_by_id(btf_vmlinux, mtype->type);
+			/* skip modifiers */
+			while (btf_type_is_modifier(stype))
+				stype = btf_type_by_id(btf_vmlinux, stype->type);
+			if (btf_type_is_struct(stype)) {
+				*next_btf_id = mtype->type;
+				return PTR_TO_BTF_ID;
+			}
+		}
+
+		/* Allow more flexible access within an int as long as
+		 * it is within mtrue_end.
+		 * Since mtrue_end could be the end of an array,
+		 * that also allows using an array of int as a scratch
+		 * space. e.g. skb->cb[].
+		 */
+		if (off + size > mtrue_end) {
+			bpf_log(log,
+				"access beyond the end of member %s (mend:%u) in struct %s with off %u size %u\n",
+				mname, mtrue_end, tname, off, size);
+			return -EACCES;
+		}
+
+		return SCALAR_VALUE;
+	}
+	bpf_log(log, "struct %s doesn't have field at offset %d\n", tname, off);
+	return -EINVAL;
+}
+
+static int __btf_resolve_helper_id(struct bpf_verifier_log *log, void *fn,
+				   int arg)
+{
+	char fnname[KSYM_SYMBOL_LEN + 4] = "btf_";
+	const struct btf_param *args;
+	const struct btf_type *t;
+	const char *tname, *sym;
+	u32 btf_id, i;
+
+	if (IS_ERR(btf_vmlinux)) {
+		bpf_log(log, "btf_vmlinux is malformed\n");
+		return -EINVAL;
+	}
+
+	sym = kallsyms_lookup((long)fn, NULL, NULL, NULL, fnname + 4);
+	if (!sym) {
+		bpf_log(log, "kernel doesn't have kallsyms\n");
+		return -EFAULT;
+	}
+
+	for (i = 1; i <= btf_vmlinux->nr_types; i++) {
+		t = btf_type_by_id(btf_vmlinux, i);
+		if (BTF_INFO_KIND(t->info) != BTF_KIND_TYPEDEF)
+			continue;
+		tname = __btf_name_by_offset(btf_vmlinux, t->name_off);
+		if (!strcmp(tname, fnname))
+			break;
+	}
+	if (i > btf_vmlinux->nr_types) {
+		bpf_log(log, "helper %s type is not found\n", fnname);
+		return -ENOENT;
+	}
+
+	t = btf_type_by_id(btf_vmlinux, t->type);
+	if (!btf_type_is_ptr(t))
+		return -EFAULT;
+	t = btf_type_by_id(btf_vmlinux, t->type);
+	if (!btf_type_is_func_proto(t))
+		return -EFAULT;
+
+	args = (const struct btf_param *)(t + 1);
+	if (arg >= btf_type_vlen(t)) {
+		bpf_log(log, "bpf helper %s doesn't have %d-th argument\n",
+			fnname, arg);
+		return -EINVAL;
+	}
+
+	t = btf_type_by_id(btf_vmlinux, args[arg].type);
+	if (!btf_type_is_ptr(t) || !t->type) {
+		/* anything but the pointer to struct is a helper config bug */
+		bpf_log(log, "ARG_PTR_TO_BTF is misconfigured\n");
+		return -EFAULT;
+	}
+	btf_id = t->type;
+	t = btf_type_by_id(btf_vmlinux, t->type);
+	/* skip modifiers */
+	while (btf_type_is_modifier(t)) {
+		btf_id = t->type;
+		t = btf_type_by_id(btf_vmlinux, t->type);
+	}
+	if (!btf_type_is_struct(t)) {
+		bpf_log(log, "ARG_PTR_TO_BTF is not a struct\n");
+		return -EFAULT;
+	}
+	bpf_log(log, "helper %s arg%d has btf_id %d struct %s\n", fnname + 4,
+		arg, btf_id, __btf_name_by_offset(btf_vmlinux, t->name_off));
+	return btf_id;
+}
+
+int btf_resolve_helper_id(struct bpf_verifier_log *log,
+			  const struct bpf_func_proto *fn, int arg)
+{
+	int *btf_id = &fn->btf_id[arg];
+	int ret;
+
+	if (fn->arg_type[arg] != ARG_PTR_TO_BTF_ID)
+		return -EINVAL;
+
+	ret = READ_ONCE(*btf_id);
+	if (ret)
+		return ret;
+	/* ok to race the search. The result is the same */
+	ret = __btf_resolve_helper_id(log, fn->func, arg);
+	if (!ret) {
+		/* Function argument cannot be type 'void' */
+		bpf_log(log, "BTF resolution bug\n");
+		return -EFAULT;
+	}
+	WRITE_ONCE(*btf_id, ret);
+	return ret;
+}
+
+static int __get_type_size(struct btf *btf, u32 btf_id,
+			   const struct btf_type **bad_type)
+{
+	const struct btf_type *t;
+
+	if (!btf_id)
+		/* void */
+		return 0;
+	t = btf_type_by_id(btf, btf_id);
+	while (t && btf_type_is_modifier(t))
+		t = btf_type_by_id(btf, t->type);
+	if (!t) {
+		*bad_type = btf->types[0];
+		return -EINVAL;
+	}
+	if (btf_type_is_ptr(t))
+		/* kernel size of pointer. Not BPF's size of pointer*/
+		return sizeof(void *);
+	if (btf_type_is_int(t) || btf_type_is_enum(t))
+		return t->size;
+	*bad_type = t;
+	return -EINVAL;
+}
+
+int btf_distill_func_proto(struct bpf_verifier_log *log,
+			   struct btf *btf,
+			   const struct btf_type *func,
+			   const char *tname,
+			   struct btf_func_model *m)
+{
+	const struct btf_param *args;
+	const struct btf_type *t;
+	u32 i, nargs;
+	int ret;
+
+	if (!func) {
+		/* BTF function prototype doesn't match the verifier types.
+		 * Fall back to 5 u64 args.
+		 */
+		for (i = 0; i < 5; i++)
+			m->arg_size[i] = 8;
+		m->ret_size = 8;
+		m->nr_args = 5;
+		return 0;
+	}
+	args = (const struct btf_param *)(func + 1);
+	nargs = btf_type_vlen(func);
+	if (nargs >= MAX_BPF_FUNC_ARGS) {
+		bpf_log(log,
+			"The function %s has %d arguments. Too many.\n",
+			tname, nargs);
+		return -EINVAL;
+	}
+	ret = __get_type_size(btf, func->type, &t);
+	if (ret < 0) {
+		bpf_log(log,
+			"The function %s return type %s is unsupported.\n",
+			tname, btf_kind_str[BTF_INFO_KIND(t->info)]);
+		return -EINVAL;
+	}
+	m->ret_size = ret;
+
+	for (i = 0; i < nargs; i++) {
+		ret = __get_type_size(btf, args[i].type, &t);
+		if (ret < 0) {
+			bpf_log(log,
+				"The function %s arg%d type %s is unsupported.\n",
+				tname, i, btf_kind_str[BTF_INFO_KIND(t->info)]);
+			return -EINVAL;
+		}
+		m->arg_size[i] = ret;
+	}
+	m->nr_args = nargs;
+	return 0;
+}
+
+int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog)
+{
+	struct bpf_verifier_state *st = env->cur_state;
+	struct bpf_func_state *func = st->frame[st->curframe];
+	struct bpf_reg_state *reg = func->regs;
+	struct bpf_verifier_log *log = &env->log;
+	struct bpf_prog *prog = env->prog;
+	struct btf *btf = prog->aux->btf;
+	const struct btf_param *args;
+	const struct btf_type *t;
+	u32 i, nargs, btf_id;
+	const char *tname;
+
+	if (!prog->aux->func_info)
+		return 0;
+
+	btf_id = prog->aux->func_info[subprog].type_id;
+	if (!btf_id)
+		return 0;
+
+	if (prog->aux->func_info_aux[subprog].unreliable)
+		return 0;
+
+	t = btf_type_by_id(btf, btf_id);
+	if (!t || !btf_type_is_func(t)) {
+		bpf_log(log, "BTF of subprog %d doesn't point to KIND_FUNC\n",
+			subprog);
+		return -EINVAL;
+	}
+	tname = btf_name_by_offset(btf, t->name_off);
+
+	t = btf_type_by_id(btf, t->type);
+	if (!t || !btf_type_is_func_proto(t)) {
+		bpf_log(log, "Invalid type of func %s\n", tname);
+		return -EINVAL;
+	}
+	args = (const struct btf_param *)(t + 1);
+	nargs = btf_type_vlen(t);
+	if (nargs > 5) {
+		bpf_log(log, "Function %s has %d > 5 args\n", tname, nargs);
+		goto out;
+	}
+	/* check that BTF function arguments match actual types that the
+	 * verifier sees.
+	 */
+	for (i = 0; i < nargs; i++) {
+		t = btf_type_by_id(btf, args[i].type);
+		while (btf_type_is_modifier(t))
+			t = btf_type_by_id(btf, t->type);
+		if (btf_type_is_int(t) || btf_type_is_enum(t)) {
+			if (reg[i + 1].type == SCALAR_VALUE)
+				continue;
+			bpf_log(log, "R%d is not a scalar\n", i + 1);
+			goto out;
+		}
+		if (btf_type_is_ptr(t)) {
+			if (reg[i + 1].type == SCALAR_VALUE) {
+				bpf_log(log, "R%d is not a pointer\n", i + 1);
+				goto out;
+			}
+			/* If program is passing PTR_TO_CTX into subprogram
+			 * check that BTF type matches.
+			 */
+			if (reg[i + 1].type == PTR_TO_CTX &&
+			    !btf_get_prog_ctx_type(log, btf, t, prog->type))
+				goto out;
+			/* All other pointers are ok */
+			continue;
+		}
+		bpf_log(log, "Unrecognized argument type %s\n",
+			btf_kind_str[BTF_INFO_KIND(t->info)]);
+		goto out;
+	}
+	return 0;
+out:
+	/* LLVM optimizations can remove arguments from static functions. */
+	bpf_log(log,
+		"Type info disagrees with actual arguments due to compiler optimizations\n");
+	prog->aux->func_info_aux[subprog].unreliable = true;
+	return 0;
 }
 
 void btf_type_seq_show(const struct btf *btf, u32 type_id, void *obj,

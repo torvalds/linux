@@ -11,9 +11,9 @@
 #	R1 and R2 (also implemented with namespaces), with different MTUs:
 #
 #	  segment a_r1    segment b_r1		a_r1: 2000
-#	.--------------R1--------------.	a_r2: 1500
-#	A                               B	a_r3: 2000
-#	'--------------R2--------------'	a_r4: 1400
+#	.--------------R1--------------.	b_r1: 1400
+#	A                               B	a_r2: 2000
+#	'--------------R2--------------'	b_r2: 1500
 #	  segment a_r2    segment b_r2
 #
 #	Check that PMTU exceptions with the correct PMTU are created. Then
@@ -1249,8 +1249,7 @@ test_list_flush_ipv4_exception() {
 	done
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -c 2 -s 1800 "${dst2}"
 
-	# Each exception is printed as two lines
-	if [ "$(${ns_a} ip route list cache | wc -l)" -ne 202 ]; then
+	if [ "$(${ns_a} ip -oneline route list cache | wc -l)" -ne 101 ]; then
 		err "  can't list cached exceptions"
 		fail=1
 	fi
@@ -1300,7 +1299,7 @@ test_list_flush_ipv6_exception() {
 		run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s 1800 "${dst_prefix1}${i}"
 	done
 	run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s 1800 "${dst2}"
-	if [ "$(${ns_a} ip -6 route list cache | wc -l)" -ne 101 ]; then
+	if [ "$(${ns_a} ip -oneline -6 route list cache | wc -l)" -ne 101 ]; then
 		err "  can't list cached exceptions"
 		fail=1
 	fi

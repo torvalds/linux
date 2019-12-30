@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
@@ -228,7 +229,9 @@ static bool tc_test_pattern;
 module_param_named(test, tc_test_pattern, bool, 0644);
 
 struct tc_edp_link {
-	struct drm_dp_link	base;
+	u8			dpcd[DP_RECEIVER_CAP_SIZE];
+	unsigned int		rate;
+	u8			num_lanes;
 	u8			assr;
 	bool			scrambler_dis;
 	bool			spread;
@@ -437,9 +440,9 @@ static u32 tc_srcctrl(struct tc_data *tc)
 		reg |= DP0_SRCCTRL_SCRMBLDIS;	/* Scrambler Disabled */
 	if (tc->link.spread)
 		reg |= DP0_SRCCTRL_SSCG;	/* Spread Spectrum Enable */
-	if (tc->link.base.num_lanes == 2)
+	if (tc->link.num_lanes == 2)
 		reg |= DP0_SRCCTRL_LANES_2;	/* Two Main Channel Lanes */
-	if (tc->link.base.rate != 162000)
+	if (tc->link.rate != 162000)
 		reg |= DP0_SRCCTRL_BW27;	/* 2.7 Gbps link */
 	return reg;
 }
@@ -662,22 +665,34 @@ err:
 
 static int tc_get_display_props(struct tc_data *tc)
 {
+	u8 revision, num_lanes;
+	unsigned int rate;
 	int ret;
 	u8 reg;
 
 	/* Read DP Rx Link Capability */
-	ret = drm_dp_link_probe(&tc->aux, &tc->link.base);
+	ret = drm_dp_dpcd_read(&tc->aux, DP_DPCD_REV, tc->link.dpcd,
+			       DP_RECEIVER_CAP_SIZE);
 	if (ret < 0)
 		goto err_dpcd_read;
-	if (tc->link.base.rate != 162000 && tc->link.base.rate != 270000) {
+
+	revision = tc->link.dpcd[DP_DPCD_REV];
+	rate = drm_dp_max_link_rate(tc->link.dpcd);
+	num_lanes = drm_dp_max_lane_count(tc->link.dpcd);
+
+	if (rate != 162000 && rate != 270000) {
 		dev_dbg(tc->dev, "Falling to 2.7 Gbps rate\n");
-		tc->link.base.rate = 270000;
+		rate = 270000;
 	}
 
-	if (tc->link.base.num_lanes > 2) {
+	tc->link.rate = rate;
+
+	if (num_lanes > 2) {
 		dev_dbg(tc->dev, "Falling to 2 lanes\n");
-		tc->link.base.num_lanes = 2;
+		num_lanes = 2;
 	}
+
+	tc->link.num_lanes = num_lanes;
 
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_MAX_DOWNSPREAD, &reg);
 	if (ret < 0)
@@ -696,11 +711,11 @@ static int tc_get_display_props(struct tc_data *tc)
 	tc->link.assr = reg & DP_ALTERNATE_SCRAMBLER_RESET_ENABLE;
 
 	dev_dbg(tc->dev, "DPCD rev: %d.%d, rate: %s, lanes: %d, framing: %s\n",
-		tc->link.base.revision >> 4, tc->link.base.revision & 0x0f,
-		(tc->link.base.rate == 162000) ? "1.62Gbps" : "2.7Gbps",
-		tc->link.base.num_lanes,
-		(tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING) ?
-		"enhanced" : "non-enhanced");
+		revision >> 4, revision & 0x0f,
+		(tc->link.rate == 162000) ? "1.62Gbps" : "2.7Gbps",
+		tc->link.num_lanes,
+		drm_dp_enhanced_frame_cap(tc->link.dpcd) ?
+		"enhanced" : "default");
 	dev_dbg(tc->dev, "Downspread: %s, scrambler: %s\n",
 		tc->link.spread ? "0.5%" : "0.0%",
 		tc->link.scrambler_dis ? "disabled" : "enabled");
@@ -739,7 +754,7 @@ static int tc_set_video_mode(struct tc_data *tc,
 	 */
 
 	in_bw = mode->clock * bits_per_pixel / 8;
-	out_bw = tc->link.base.num_lanes * tc->link.base.rate;
+	out_bw = tc->link.num_lanes * tc->link.rate;
 	max_tu_symbol = DIV_ROUND_UP(in_bw * TU_SIZE_RECOMMENDED, out_bw);
 
 	dev_dbg(tc->dev, "set mode %dx%d\n",
@@ -901,7 +916,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 	/* SSCG and BW27 on DP1 must be set to the same as on DP0 */
 	ret = regmap_write(tc->regmap, DP1_SRCCTRL,
 		 (tc->link.spread ? DP0_SRCCTRL_SSCG : 0) |
-		 ((tc->link.base.rate != 162000) ? DP0_SRCCTRL_BW27 : 0));
+		 ((tc->link.rate != 162000) ? DP0_SRCCTRL_BW27 : 0));
 	if (ret)
 		return ret;
 
@@ -911,7 +926,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 
 	/* Setup Main Link */
 	dp_phy_ctrl = BGREN | PWR_SW_EN | PHY_A0_EN | PHY_M0_EN;
-	if (tc->link.base.num_lanes == 2)
+	if (tc->link.num_lanes == 2)
 		dp_phy_ctrl |= PHY_2LANE;
 
 	ret = regmap_write(tc->regmap, DP_PHY_CTRL, dp_phy_ctrl);
@@ -974,7 +989,13 @@ static int tc_main_link_enable(struct tc_data *tc)
 	}
 
 	/* Setup Link & DPRx Config for Training */
-	ret = drm_dp_link_configure(aux, &tc->link.base);
+	tmp[0] = drm_dp_link_rate_to_bw_code(tc->link.rate);
+	tmp[1] = tc->link.num_lanes;
+
+	if (drm_dp_enhanced_frame_cap(tc->link.dpcd))
+		tmp[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
+
+	ret = drm_dp_dpcd_write(aux, DP_LINK_BW_SET, tmp, 2);
 	if (ret < 0)
 		goto err_dpcd_write;
 
@@ -1018,9 +1039,8 @@ static int tc_main_link_enable(struct tc_data *tc)
 
 	/* Enable DP0 to start Link Training */
 	ret = regmap_write(tc->regmap, DP0CTL,
-			   ((tc->link.base.capabilities &
-			     DP_LINK_CAP_ENHANCED_FRAMING) ? EF_EN : 0) |
-			   DP_EN);
+			   (drm_dp_enhanced_frame_cap(tc->link.dpcd) ?
+				EF_EN : 0) | DP_EN);
 	if (ret)
 		return ret;
 
@@ -1099,7 +1119,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 		ret = -ENODEV;
 	}
 
-	if (tc->link.base.num_lanes == 2) {
+	if (tc->link.num_lanes == 2) {
 		value = (tmp[0] >> 4) & DP_CHANNEL_EQ_BITS;
 
 		if (value != DP_CHANNEL_EQ_BITS) {
@@ -1170,7 +1190,7 @@ static int tc_stream_enable(struct tc_data *tc)
 		return ret;
 
 	value = VID_MN_GEN | DP_EN;
-	if (tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+	if (drm_dp_enhanced_frame_cap(tc->link.dpcd))
 		value |= EF_EN;
 	ret = regmap_write(tc->regmap, DP0CTL, value);
 	if (ret)
@@ -1296,7 +1316,7 @@ static enum drm_mode_status tc_mode_valid(struct drm_bridge *bridge,
 		return MODE_CLOCK_HIGH;
 
 	req = mode->clock * bits_per_pixel / 8;
-	avail = tc->link.base.num_lanes * tc->link.base.rate;
+	avail = tc->link.num_lanes * tc->link.rate;
 
 	if (req > avail)
 		return MODE_BAD;

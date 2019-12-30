@@ -47,7 +47,7 @@
 #ifdef CONFIG_DRM_AMD_DC_DCN2_1
 /* Will these bw structures be ASIC specific? */
 
-#define MAX_NUM_DPM_LVL		4
+#define MAX_NUM_DPM_LVL		8
 #define WM_SET_COUNT 		4
 
 
@@ -69,6 +69,8 @@ struct wm_range_table_entry {
 	unsigned int wm_inst;
 	unsigned int wm_type;
 	double pstate_latency_us;
+	double sr_exit_time_us;
+	double sr_enter_plus_exit_time_us;
 	bool valid;
 };
 
@@ -180,13 +182,19 @@ struct clk_mgr_funcs {
 			struct dc_state *context,
 			enum dc_clock_type clock_type,
 			struct dc_clock_config *clock_cfg);
+
+	bool (*are_clock_states_equal) (struct dc_clocks *a,
+			struct dc_clocks *b);
+	void (*notify_wm_ranges)(struct clk_mgr *clk_mgr);
 };
 
 struct clk_mgr {
 	struct dc_context *ctx;
 	struct clk_mgr_funcs *funcs;
 	struct dc_clocks clks;
+	bool psr_allow_active_cache;
 	int dprefclk_khz; // Used by program pixel clock in clock source funcs, need to figureout where this goes
+	int dentist_vco_freq_khz;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_1
 	struct clk_bw_params *bw_params;
 #endif
@@ -198,5 +206,9 @@ struct dccg;
 struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *pp_smu, struct dccg *dccg);
 
 void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr);
+
+void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr);
+
+void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr);
 
 #endif /* __DAL_CLK_MGR_H__ */
