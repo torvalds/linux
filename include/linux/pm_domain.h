@@ -284,6 +284,8 @@ void of_genpd_del_provider(struct device_node *np);
 int of_genpd_add_device(struct of_phandle_args *args, struct device *dev);
 int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
 			   struct of_phandle_args *subdomain_spec);
+int of_genpd_remove_subdomain(struct of_phandle_args *parent_spec,
+			      struct of_phandle_args *subdomain_spec);
 struct generic_pm_domain *of_genpd_remove_last(struct device_node *np);
 int of_genpd_parse_idle_states(struct device_node *dn,
 			       struct genpd_power_state **states, int *n);
@@ -318,6 +320,12 @@ static inline int of_genpd_add_device(struct of_phandle_args *args,
 
 static inline int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
 					 struct of_phandle_args *subdomain_spec)
+{
+	return -ENODEV;
+}
+
+static inline int of_genpd_remove_subdomain(struct of_phandle_args *parent_spec,
+					struct of_phandle_args *subdomain_spec)
 {
 	return -ENODEV;
 }
