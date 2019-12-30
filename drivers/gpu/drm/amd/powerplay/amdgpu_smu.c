@@ -2279,12 +2279,8 @@ int smu_set_active_display_count(struct smu_context *smu, uint32_t count)
 {
 	int ret = 0;
 
-	mutex_lock(&smu->mutex);
-
 	if (smu->ppt_funcs->set_active_display_count)
 		ret = smu->ppt_funcs->set_active_display_count(smu, count);
-
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
