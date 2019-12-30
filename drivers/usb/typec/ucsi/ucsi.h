@@ -269,6 +269,9 @@ struct ucsi {
 	/* PPM Communication lock */
 	struct mutex ppm_lock;
 
+	/* The latest "Notification Enable" bits (SET_NOTIFICATION_ENABLE) */
+	u64 ntfy;
+
 	/* PPM communication flags */
 	unsigned long flags;
 #define EVENT_PENDING	0
