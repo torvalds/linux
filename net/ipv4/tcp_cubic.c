@@ -372,6 +372,26 @@ static void bictcp_state(struct sock *sk, u8 new_state)
 	}
 }
 
+/* Account for TSO/GRO delays.
+ * Otherwise short RTT flows could get too small ssthresh, since during
+ * slow start we begin with small TSO packets and ca->delay_min would
+ * not account for long aggregation delay when TSO packets get bigger.
+ * Ideally even with a very small RTT we would like to have at least one
+ * TSO packet being sent and received by GRO, and another one in qdisc layer.
+ * We apply another 100% factor because @rate is doubled at this point.
+ * We cap the cushion to 1ms.
+ */
+static u32 hystart_ack_delay(struct sock *sk)
+{
+	unsigned long rate;
+
+	rate = READ_ONCE(sk->sk_pacing_rate);
+	if (!rate)
+		return 0;
+	return min_t(u64, USEC_PER_MSEC,
+		     div64_ul((u64)GSO_MAX_SIZE * 4 * USEC_PER_SEC, rate));
+}
+
 static void hystart_update(struct sock *sk, u32 delay)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -385,7 +405,8 @@ static void hystart_update(struct sock *sk, u32 delay)
 		if ((s32)(now - ca->last_ack) <= hystart_ack_delta_us) {
 			ca->last_ack = now;
 
-			threshold = ca->delay_min;
+			threshold = ca->delay_min + hystart_ack_delay(sk);
+
 			/* Hystart ack train triggers if we get ack past
 			 * ca->delay_min/2.
 			 * Pacing might have delayed packets up to RTT/2
@@ -396,6 +417,9 @@ static void hystart_update(struct sock *sk, u32 delay)
 
 			if ((s32)(now - ca->round_start) > threshold) {
 				ca->found = 1;
+				pr_debug("hystart_ack_train (%u > %u) delay_min %u (+ ack_delay %u) cwnd %u\n",
+					 now - ca->round_start, threshold,
+					 ca->delay_min, hystart_ack_delay(sk), tp->snd_cwnd);
 				NET_INC_STATS(sock_net(sk),
 					      LINUX_MIB_TCPHYSTARTTRAINDETECT);
 				NET_ADD_STATS(sock_net(sk),
@@ -447,30 +471,11 @@ static void bictcp_acked(struct sock *sk, const struct ack_sample *sample)
 		delay = 1;
 
 	/* first time call or link delay decreases */
-	if (ca->delay_min == 0 || ca->delay_min > delay) {
-		unsigned long rate = READ_ONCE(sk->sk_pacing_rate);
-
-		/* Account for TSO/GRO delays.
-		 * Otherwise short RTT flows could get too small ssthresh,
-		 * since during slow start we begin with small TSO packets
-		 * and could lower ca->delay_min too much.
-		 * Ideally even with a very small RTT we would like to have
-		 * at least one TSO packet being sent and received by GRO,
-		 * and another one in qdisc layer.
-		 * We apply another 100% factor because @rate is doubled at
-		 * this point.
-		 * We cap the cushion to 1ms.
-		 */
-		if (rate)
-			delay += min_t(u64, USEC_PER_MSEC,
-				       div64_ul((u64)GSO_MAX_SIZE *
-						4 * USEC_PER_SEC, rate));
-		if (ca->delay_min == 0 || ca->delay_min > delay)
-			ca->delay_min = delay;
-	}
+	if (ca->delay_min == 0 || ca->delay_min > delay)
+		ca->delay_min = delay;
 
 	/* hystart triggers when cwnd is larger than some threshold */
-	if (!ca->found && hystart && tcp_in_slow_start(tp) &&
+	if (!ca->found && tcp_in_slow_start(tp) && hystart &&
 	    tp->snd_cwnd >= hystart_low_window)
 		hystart_update(sk, delay);
 }
