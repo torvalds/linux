@@ -147,8 +147,8 @@
 #define CONTROL_COHERENT_EN     0x0aULL
 #define CONTROL_ISOC_EN         0x0bULL
 #define CONTROL_CMDBUF_EN       0x0cULL
-#define CONTROL_PPFLOG_EN       0x0dULL
-#define CONTROL_PPFINT_EN       0x0eULL
+#define CONTROL_PPRLOG_EN       0x0dULL
+#define CONTROL_PPRINT_EN       0x0eULL
 #define CONTROL_PPR_EN          0x0fULL
 #define CONTROL_GT_EN           0x10ULL
 #define CONTROL_GA_EN           0x11ULL

@@ -716,7 +716,7 @@ static void iommu_enable_ppr_log(struct amd_iommu *iommu)
 	writel(0x00, iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
 	writel(0x00, iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
 
-	iommu_feature_enable(iommu, CONTROL_PPFLOG_EN);
+	iommu_feature_enable(iommu, CONTROL_PPRLOG_EN);
 	iommu_feature_enable(iommu, CONTROL_PPR_EN);
 }
 
@@ -2031,7 +2031,7 @@ enable_faults:
 	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
 
 	if (iommu->ppr_log != NULL)
-		iommu_feature_enable(iommu, CONTROL_PPFINT_EN);
+		iommu_feature_enable(iommu, CONTROL_PPRINT_EN);
 
 	iommu_ga_log_enable(iommu);
 
