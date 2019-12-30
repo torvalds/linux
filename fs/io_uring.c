@@ -4522,7 +4522,6 @@ static void io_commit_sqring(struct io_ring_ctx *ctx)
 static bool io_get_sqring(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			  const struct io_uring_sqe **sqe_ptr)
 {
-	struct io_rings *rings = ctx->rings;
 	u32 *sq_array = ctx->sq_array;
 	unsigned head;
 
@@ -4534,12 +4533,7 @@ static bool io_get_sqring(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	 * 2) allows the kernel side to track the head on its own, even
 	 *    though the application is the one updating it.
 	 */
-	head = ctx->cached_sq_head;
-	/* make sure SQ entry isn't read before tail */
-	if (unlikely(head == smp_load_acquire(&rings->sq.tail)))
-		return false;
-
-	head = READ_ONCE(sq_array[head & ctx->sq_mask]);
+	head = READ_ONCE(sq_array[ctx->cached_sq_head & ctx->sq_mask]);
 	if (likely(head < ctx->sq_entries)) {
 		/*
 		 * All io need record the previous position, if LINK vs DARIN,
@@ -4557,7 +4551,7 @@ static bool io_get_sqring(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	/* drop invalid entries */
 	ctx->cached_sq_head++;
 	ctx->cached_sq_dropped++;
-	WRITE_ONCE(rings->sq_dropped, ctx->cached_sq_dropped);
+	WRITE_ONCE(ctx->rings->sq_dropped, ctx->cached_sq_dropped);
 	return false;
 }
 
@@ -4577,7 +4571,8 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 			return -EBUSY;
 	}
 
-	nr = min(nr, ctx->sq_entries);
+	/* make sure SQ entry isn't read before tail */
+	nr = min3(nr, ctx->sq_entries, io_sqring_entries(ctx));
 
 	if (!percpu_ref_tryget_many(&ctx->refs, nr))
 		return -EAGAIN;
