@@ -3158,7 +3158,18 @@ TEST(user_notification_basic)
 	EXPECT_GT(poll(&pollfd, 1, -1), 0);
 	EXPECT_EQ(pollfd.revents, POLLIN);
 
-	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	/* Test that we can't pass garbage to the kernel. */
+	memset(&req, 0, sizeof(req));
+	req.pid = -1;
+	errno = 0;
+	ret = ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req);
+	EXPECT_EQ(-1, ret);
+	EXPECT_EQ(EINVAL, errno);
+
+	if (ret) {
+		req.pid = 0;
+		EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	}
 
 	pollfd.fd = listener;
 	pollfd.events = POLLIN | POLLOUT;
