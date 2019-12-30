@@ -98,11 +98,11 @@ static inline bool acpi_pptt_match_type(int table_type, int type)
  *
  * Return: The cache structure and the level we terminated with.
  */
-static int acpi_pptt_walk_cache(struct acpi_table_header *table_hdr,
-				int local_level,
-				struct acpi_subtable_header *res,
-				struct acpi_pptt_cache **found,
-				int level, int type)
+static unsigned int acpi_pptt_walk_cache(struct acpi_table_header *table_hdr,
+					 unsigned int local_level,
+					 struct acpi_subtable_header *res,
+					 struct acpi_pptt_cache **found,
+					 unsigned int level, int type)
 {
 	struct acpi_pptt_cache *cache;
 
@@ -119,7 +119,7 @@ static int acpi_pptt_walk_cache(struct acpi_table_header *table_hdr,
 			if (*found != NULL && cache != *found)
 				pr_warn("Found duplicate cache level/type unable to determine uniqueness\n");
 
-			pr_debug("Found cache @ level %d\n", level);
+			pr_debug("Found cache @ level %u\n", level);
 			*found = cache;
 			/*
 			 * continue looking at this node's resource list
@@ -132,16 +132,17 @@ static int acpi_pptt_walk_cache(struct acpi_table_header *table_hdr,
 	return local_level;
 }
 
-static struct acpi_pptt_cache *acpi_find_cache_level(struct acpi_table_header *table_hdr,
-						     struct acpi_pptt_processor *cpu_node,
-						     int *starting_level, int level,
-						     int type)
+static struct acpi_pptt_cache *
+acpi_find_cache_level(struct acpi_table_header *table_hdr,
+		      struct acpi_pptt_processor *cpu_node,
+		      unsigned int *starting_level, unsigned int level,
+		      int type)
 {
 	struct acpi_subtable_header *res;
-	int number_of_levels = *starting_level;
+	unsigned int number_of_levels = *starting_level;
 	int resource = 0;
 	struct acpi_pptt_cache *ret = NULL;
-	int local_level;
+	unsigned int local_level;
 
 	/* walk down from processor node */
 	while ((res = acpi_get_pptt_resource(table_hdr, cpu_node, resource))) {
@@ -321,12 +322,12 @@ static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *ta
 						    unsigned int level,
 						    struct acpi_pptt_processor **node)
 {
-	int total_levels = 0;
+	unsigned int total_levels = 0;
 	struct acpi_pptt_cache *found = NULL;
 	struct acpi_pptt_processor *cpu_node;
 	u8 acpi_type = acpi_cache_type(type);
 
-	pr_debug("Looking for CPU %d's level %d cache type %d\n",
+	pr_debug("Looking for CPU %d's level %u cache type %d\n",
 		 acpi_cpu_id, level, acpi_type);
 
 	cpu_node = acpi_find_processor_node(table_hdr, acpi_cpu_id);
