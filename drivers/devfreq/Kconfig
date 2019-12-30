@@ -83,7 +83,6 @@ config ARM_EXYNOS_BUS_DEVFREQ
 	select DEVFREQ_GOV_PASSIVE
 	select DEVFREQ_EVENT_EXYNOS_PPMU
 	select PM_DEVFREQ_EVENT
-	select PM_OPP
 	help
 	  This adds the common DEVFREQ driver for Exynos Memory bus. Exynos
 	  Memory bus has one more group of memory bus (e.g, MIF and INT block).
@@ -98,7 +97,7 @@ config ARM_TEGRA_DEVFREQ
 		ARCH_TEGRA_132_SOC || ARCH_TEGRA_124_SOC || \
 		ARCH_TEGRA_210_SOC || \
 		COMPILE_TEST
-	select PM_OPP
+	depends on COMMON_CLK
 	help
 	  This adds the DEVFREQ driver for the Tegra family of SoCs.
 	  It reads ACTMON counters of memory controllers and adjusts the
@@ -109,7 +108,6 @@ config ARM_TEGRA20_DEVFREQ
 	depends on (TEGRA_MC && TEGRA20_EMC) || COMPILE_TEST
 	depends on COMMON_CLK
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
-	select PM_OPP
 	help
 	  This adds the DEVFREQ driver for the Tegra20 family of SoCs.
 	  It reads Memory Controller counters and adjusts the operating
@@ -121,7 +119,6 @@ config ARM_RK3399_DMC_DEVFREQ
 	select DEVFREQ_EVENT_ROCKCHIP_DFI
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select PM_DEVFREQ_EVENT
-	select PM_OPP
 	help
           This adds the DEVFREQ driver for the RK3399 DMC(Dynamic Memory Controller).
           It sets the frequency for the memory controller and reads the usage counts
