@@ -577,6 +577,7 @@ static int ramoops_init_przs(const char *name,
 			dev_err(dev, "failed to request %s mem region (0x%zx@0x%llx): %d\n",
 				name, record_size,
 				(unsigned long long)*paddr, err);
+			kfree(label);
 
 			while (i > 0) {
 				i--;
@@ -622,6 +623,7 @@ static int ramoops_init_prz(const char *name,
 
 		dev_err(dev, "failed to request %s mem region (0x%zx@0x%llx): %d\n",
 			name, sz, (unsigned long long)*paddr, err);
+		kfree(label);
 		return err;
 	}
 
