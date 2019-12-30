@@ -230,6 +230,10 @@ struct typec_cable *typec_register_cable(struct typec_port *port,
 					 struct typec_cable_desc *desc);
 void typec_unregister_cable(struct typec_cable *cable);
 
+struct typec_cable *typec_cable_get(struct typec_port *port);
+void typec_cable_put(struct typec_cable *cable);
+int typec_cable_is_active(struct typec_cable *cable);
+
 struct typec_plug *typec_register_plug(struct typec_cable *cable,
 				       struct typec_plug_desc *desc);
 void typec_unregister_plug(struct typec_plug *plug);
