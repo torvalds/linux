@@ -5,9 +5,6 @@ staging directory.
   as well as formats and the binary used to a request. Remove the
   opportunistic buffer management. (Sakari)
 
-- Using ENABLED and IMMUTABLE link flags for the links where those are
-  relevant. (Sakari)
-
 - IPU3 driver documentation (Laurent)
   Comments on configuring v4l2 subdevs for CIO2 and ImgU.
 
