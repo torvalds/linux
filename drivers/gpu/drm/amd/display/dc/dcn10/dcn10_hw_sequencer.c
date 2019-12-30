@@ -1188,8 +1188,14 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		if (can_apply_seamless_boot &&
 			pipe_ctx->stream != NULL &&
 			pipe_ctx->stream_res.tg->funcs->is_tg_enabled(
-				pipe_ctx->stream_res.tg))
+				pipe_ctx->stream_res.tg)) {
+			// Enable double buffering for OTG_BLANK no matter if
+			// seamless boot is enabled or not to suppress global sync
+			// signals when OTG blanked. This is to prevent pipe from
+			// requesting data while in PSR.
+			tg->funcs->tg_init(tg);
 			continue;
+		}
 
 		/* Disable on the current state so the new one isn't cleared. */
 		pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
