@@ -395,15 +395,27 @@ static int imx8m_ddrc_probe(struct platform_device *pdev)
 	}
 
 	priv->dram_core = devm_clk_get(dev, "core");
+	if (IS_ERR(priv->dram_core)) {
+		ret = PTR_ERR(priv->dram_core);
+		dev_err(dev, "failed to fetch core clock: %d\n", ret);
+		return ret;
+	}
 	priv->dram_pll = devm_clk_get(dev, "pll");
+	if (IS_ERR(priv->dram_pll)) {
+		ret = PTR_ERR(priv->dram_pll);
+		dev_err(dev, "failed to fetch pll clock: %d\n", ret);
+		return ret;
+	}
 	priv->dram_alt = devm_clk_get(dev, "alt");
+	if (IS_ERR(priv->dram_alt)) {
+		ret = PTR_ERR(priv->dram_alt);
+		dev_err(dev, "failed to fetch alt clock: %d\n", ret);
+		return ret;
+	}
 	priv->dram_apb = devm_clk_get(dev, "apb");
-	if (IS_ERR(priv->dram_core) ||
-		IS_ERR(priv->dram_pll) ||
-		IS_ERR(priv->dram_alt) ||
-		IS_ERR(priv->dram_apb)) {
-		ret = PTR_ERR(priv->devfreq);
-		dev_err(dev, "failed to fetch clocks: %d\n", ret);
+	if (IS_ERR(priv->dram_apb)) {
+		ret = PTR_ERR(priv->dram_apb);
+		dev_err(dev, "failed to fetch apb clock: %d\n", ret);
 		return ret;
 	}
 
