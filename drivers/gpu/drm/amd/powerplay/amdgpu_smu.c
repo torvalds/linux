@@ -1319,7 +1319,7 @@ failed:
 
 static int smu_stop_dpms(struct smu_context *smu)
 {
-	return smu_send_smc_msg(smu, SMU_MSG_DisableAllSmuFeatures);
+	return smu_system_features_control(smu, false);
 }
 
 static int smu_hw_fini(void *handle)
