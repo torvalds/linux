@@ -1194,7 +1194,7 @@ static int do_server(struct sock_args *args)
 
 	if (args->password && tcp_md5_remote(lsd, args)) {
 		close(lsd);
-		return -1;
+		return 1;
 	}
 
 	while (1) {
