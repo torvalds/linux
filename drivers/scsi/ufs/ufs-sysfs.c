@@ -118,26 +118,6 @@ static ssize_t spm_target_link_state_show(struct device *dev,
 				ufs_pm_lvl_states[hba->spm_lvl].link_state));
 }
 
-static void ufshcd_auto_hibern8_update(struct ufs_hba *hba, u32 ahit)
-{
-	unsigned long flags;
-
-	if (!ufshcd_is_auto_hibern8_supported(hba))
-		return;
-
-	spin_lock_irqsave(hba->host->host_lock, flags);
-	if (hba->ahit != ahit)
-		hba->ahit = ahit;
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
-	if (!pm_runtime_suspended(hba->dev)) {
-		pm_runtime_get_sync(hba->dev);
-		ufshcd_hold(hba, false);
-		ufshcd_auto_hibern8_enable(hba);
-		ufshcd_release(hba);
-		pm_runtime_put(hba->dev);
-	}
-}
-
 /* Convert Auto-Hibernate Idle Timer register value to microseconds */
 static int ufshcd_ahit_to_us(u32 ahit)
 {
