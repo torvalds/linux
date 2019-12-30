@@ -163,6 +163,48 @@ static const int madera_dsp_bus_error_irqs[MADERA_MAX_ADSP] = {
 	MADERA_IRQ_DSP7_BUS_ERR,
 };
 
+int madera_clk_ev(struct snd_soc_dapm_widget *w,
+		  struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct madera_priv *priv = snd_soc_component_get_drvdata(component);
+	struct madera *madera = priv->madera;
+	unsigned int val;
+	int clk_idx;
+	int ret;
+
+	ret = regmap_read(madera->regmap, w->reg, &val);
+	if (ret) {
+		dev_err(madera->dev, "Failed to check clock source: %d\n", ret);
+		return ret;
+	}
+
+	switch ((val & MADERA_SYSCLK_SRC_MASK) >> MADERA_SYSCLK_SRC_SHIFT) {
+	case MADERA_CLK_SRC_MCLK1:
+		clk_idx = MADERA_MCLK1;
+		break;
+	case MADERA_CLK_SRC_MCLK2:
+		clk_idx = MADERA_MCLK2;
+		break;
+	case MADERA_CLK_SRC_MCLK3:
+		clk_idx = MADERA_MCLK3;
+		break;
+	default:
+		return 0;
+	}
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		return clk_prepare_enable(madera->mclk[clk_idx].clk);
+	case SND_SOC_DAPM_POST_PMD:
+		clk_disable_unprepare(madera->mclk[clk_idx].clk);
+		return 0;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL_GPL(madera_clk_ev);
+
 static void madera_spin_sysclk(struct madera_priv *priv)
 {
 	struct madera *madera = priv->madera;
@@ -193,9 +235,16 @@ int madera_sysclk_ev(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct madera_priv *priv = snd_soc_component_get_drvdata(component);
 
-	madera_spin_sysclk(priv);
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_PRE_PMD:
+		madera_spin_sysclk(priv);
+		break;
+	default:
+		break;
+	}
 
-	return 0;
+	return madera_clk_ev(w, kcontrol, event);
 }
 EXPORT_SYMBOL_GPL(madera_sysclk_ev);
 

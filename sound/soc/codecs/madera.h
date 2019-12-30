@@ -383,6 +383,8 @@ int madera_eq_coeff_put(struct snd_kcontrol *kcontrol,
 int madera_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol);
 
+int madera_clk_ev(struct snd_soc_dapm_widget *w,
+		  struct snd_kcontrol *kcontrol, int event);
 int madera_sysclk_ev(struct snd_soc_dapm_widget *w,
 		     struct snd_kcontrol *kcontrol, int event);
 int madera_spk_ev(struct snd_soc_dapm_widget *w,
