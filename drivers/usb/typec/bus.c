@@ -10,12 +10,23 @@
 
 #include "bus.h"
 
-static inline int typec_altmode_set_mux(struct altmode *alt, u8 state)
+static inline int
+typec_altmode_set_mux(struct altmode *alt, unsigned long conf, void *data)
 {
-	return alt->mux ? alt->mux->set(alt->mux, state) : 0;
+	struct typec_mux_state state;
+
+	if (!alt->mux)
+		return 0;
+
+	state.alt = &alt->adev;
+	state.mode = conf;
+	state.data = data;
+
+	return alt->mux->set(alt->mux, &state);
 }
 
-static int typec_altmode_set_state(struct typec_altmode *adev, int state)
+static int typec_altmode_set_state(struct typec_altmode *adev,
+				   unsigned long conf, void *data)
 {
 	bool is_port = is_typec_port(adev->dev.parent);
 	struct altmode *port_altmode;
@@ -23,11 +34,11 @@ static int typec_altmode_set_state(struct typec_altmode *adev, int state)
 
 	port_altmode = is_port ? to_altmode(adev) : to_altmode(adev)->partner;
 
-	ret = typec_altmode_set_mux(port_altmode, state);
+	ret = typec_altmode_set_mux(port_altmode, conf, data);
 	if (ret)
 		return ret;
 
-	blocking_notifier_call_chain(&port_altmode->nh, state, NULL);
+	blocking_notifier_call_chain(&port_altmode->nh, conf, NULL);
 
 	return 0;
 }
@@ -67,7 +78,7 @@ int typec_altmode_notify(struct typec_altmode *adev,
 	is_port = is_typec_port(adev->dev.parent);
 	partner = altmode->partner;
 
-	ret = typec_altmode_set_mux(is_port ? altmode : partner, (u8)conf);
+	ret = typec_altmode_set_mux(is_port ? altmode : partner, conf, data);
 	if (ret)
 		return ret;
 
@@ -107,7 +118,7 @@ int typec_altmode_enter(struct typec_altmode *adev, u32 *vdo)
 		return -EPERM;
 
 	/* Moving to USB Safe State */
-	ret = typec_altmode_set_state(adev, TYPEC_STATE_SAFE);
+	ret = typec_altmode_set_state(adev, TYPEC_STATE_SAFE, NULL);
 	if (ret)
 		return ret;
 
@@ -135,7 +146,7 @@ int typec_altmode_exit(struct typec_altmode *adev)
 		return -EOPNOTSUPP;
 
 	/* Moving to USB Safe State */
-	ret = typec_altmode_set_state(adev, TYPEC_STATE_SAFE);
+	ret = typec_altmode_set_state(adev, TYPEC_STATE_SAFE, NULL);
 	if (ret)
 		return ret;
 
@@ -388,7 +399,7 @@ static int typec_remove(struct device *dev)
 		drv->remove(to_typec_altmode(dev));
 
 	if (adev->active) {
-		WARN_ON(typec_altmode_set_state(adev, TYPEC_STATE_SAFE));
+		WARN_ON(typec_altmode_set_state(adev, TYPEC_STATE_SAFE, NULL));
 		typec_altmode_update_active(adev, false);
 	}
 

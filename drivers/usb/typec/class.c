@@ -1529,7 +1529,11 @@ EXPORT_SYMBOL_GPL(typec_get_orientation);
  */
 int typec_set_mode(struct typec_port *port, int mode)
 {
-	return port->mux ? port->mux->set(port->mux, mode) : 0;
+	struct typec_mux_state state = { };
+
+	state.mode = mode;
+
+	return port->mux ? port->mux->set(port->mux, &state) : 0;
 }
 EXPORT_SYMBOL_GPL(typec_set_mode);
 
