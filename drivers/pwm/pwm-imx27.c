@@ -319,9 +319,13 @@ static int pwm_imx27_probe(struct platform_device *pdev)
 
 	imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(imx->clk_ipg)) {
-		dev_err(&pdev->dev, "getting ipg clock failed with %ld\n",
-				PTR_ERR(imx->clk_ipg));
-		return PTR_ERR(imx->clk_ipg);
+		int ret = PTR_ERR(imx->clk_ipg);
+
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"getting ipg clock failed with %d\n",
+				ret);
+		return ret;
 	}
 
 	imx->clk_per = devm_clk_get(&pdev->dev, "per");
