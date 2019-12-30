@@ -8581,6 +8581,18 @@ struct mlx5_ifc_pplm_reg_bits {
 	u8	   fec_override_admin_50g[0x4];
 	u8	   fec_override_admin_25g[0x4];
 	u8	   fec_override_admin_10g_40g[0x4];
+
+	u8         fec_override_cap_400g_8x[0x10];
+	u8         fec_override_cap_200g_4x[0x10];
+
+	u8         fec_override_cap_100g_2x[0x10];
+	u8         fec_override_cap_50g_1x[0x10];
+
+	u8         fec_override_admin_400g_8x[0x10];
+	u8         fec_override_admin_200g_4x[0x10];
+
+	u8         fec_override_admin_100g_2x[0x10];
+	u8         fec_override_admin_50g_1x[0x10];
 };
 
 struct mlx5_ifc_ppcnt_reg_bits {
@@ -8907,7 +8919,9 @@ struct mlx5_ifc_mpegc_reg_bits {
 };
 
 struct mlx5_ifc_pcam_enhanced_features_bits {
-	u8         reserved_at_0[0x6d];
+	u8         reserved_at_0[0x68];
+	u8         fec_50G_per_lane_in_pplm[0x1];
+	u8         reserved_at_69[0x4];
 	u8         rx_icrc_encapsulated_counter[0x1];
 	u8	   reserved_at_6e[0x4];
 	u8         ptys_extended_ethernet[0x1];
