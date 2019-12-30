@@ -698,7 +698,8 @@ clear_hash_noput:
 #endif
 
 static bool tcp_v6_inbound_md5_hash(const struct sock *sk,
-				    const struct sk_buff *skb)
+				    const struct sk_buff *skb,
+				    int dif, int sdif)
 {
 #ifdef CONFIG_TCP_MD5SIG
 	const __u8 *hash_location = NULL;
@@ -953,6 +954,9 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 	if (sk && sk_fullsock(sk)) {
 		key = tcp_v6_md5_do_lookup(sk, &ipv6h->saddr);
 	} else if (hash_location) {
+		int dif = tcp_v6_iif_l3_slave(skb);
+		int sdif = tcp_v6_sdif(skb);
+
 		/*
 		 * active side is lost. Try to find listening socket through
 		 * source port, and then find md5 key through listening socket.
@@ -964,9 +968,7 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 					   &tcp_hashinfo, NULL, 0,
 					   &ipv6h->saddr,
 					   th->source, &ipv6h->daddr,
-					   ntohs(th->source),
-					   tcp_v6_iif_l3_slave(skb),
-					   tcp_v6_sdif(skb));
+					   ntohs(th->source), dif, sdif);
 		if (!sk1)
 			goto out;
 
@@ -1480,6 +1482,7 @@ INDIRECT_CALLABLE_SCOPE int tcp_v6_rcv(struct sk_buff *skb)
 {
 	struct sk_buff *skb_to_free;
 	int sdif = inet6_sdif(skb);
+	int dif = inet6_iif(skb);
 	const struct tcphdr *th;
 	const struct ipv6hdr *hdr;
 	bool refcounted;
@@ -1528,7 +1531,7 @@ process:
 		struct sock *nsk;
 
 		sk = req->rsk_listener;
-		if (tcp_v6_inbound_md5_hash(sk, skb)) {
+		if (tcp_v6_inbound_md5_hash(sk, skb, dif, sdif)) {
 			sk_drops_add(sk, skb);
 			reqsk_put(req);
 			goto discard_it;
@@ -1583,7 +1586,7 @@ process:
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
 
-	if (tcp_v6_inbound_md5_hash(sk, skb))
+	if (tcp_v6_inbound_md5_hash(sk, skb, dif, sdif))
 		goto discard_and_relse;
 
 	if (tcp_filter(sk, skb))
