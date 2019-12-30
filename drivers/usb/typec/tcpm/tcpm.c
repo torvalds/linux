@@ -1475,16 +1475,16 @@ static int tcpm_validate_caps(struct tcpm_port *port, const u32 *pdo,
 	return 0;
 }
 
-static int tcpm_altmode_enter(struct typec_altmode *altmode)
+static int tcpm_altmode_enter(struct typec_altmode *altmode, u32 *vdo)
 {
 	struct tcpm_port *port = typec_altmode_get_drvdata(altmode);
 	u32 header;
 
 	mutex_lock(&port->lock);
-	header = VDO(altmode->svid, 1, CMD_ENTER_MODE);
+	header = VDO(altmode->svid, vdo ? 2 : 1, CMD_ENTER_MODE);
 	header |= VDO_OPOS(altmode->mode);
 
-	tcpm_queue_vdm(port, header, NULL, 0);
+	tcpm_queue_vdm(port, header, vdo, vdo ? 1 : 0);
 	mod_delayed_work(port->wq, &port->vdm_state_machine, 0);
 	mutex_unlock(&port->lock);
 

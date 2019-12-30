@@ -84,12 +84,14 @@ EXPORT_SYMBOL_GPL(typec_altmode_notify);
 /**
  * typec_altmode_enter - Enter Mode
  * @adev: The alternate mode
+ * @vdo: VDO for the Enter Mode command
  *
  * The alternate mode drivers use this function to enter mode. The port drivers
  * use this to inform the alternate mode drivers that the partner has initiated
- * Enter Mode command.
+ * Enter Mode command. If the alternate mode does not require VDO, @vdo must be
+ * NULL.
  */
-int typec_altmode_enter(struct typec_altmode *adev)
+int typec_altmode_enter(struct typec_altmode *adev, u32 *vdo)
 {
 	struct altmode *partner = to_altmode(adev)->partner;
 	struct typec_altmode *pdev = &partner->adev;
@@ -110,7 +112,7 @@ int typec_altmode_enter(struct typec_altmode *adev)
 		return ret;
 
 	/* Enter Mode */
-	return pdev->ops->enter(pdev);
+	return pdev->ops->enter(pdev, vdo);
 }
 EXPORT_SYMBOL_GPL(typec_altmode_enter);
 
