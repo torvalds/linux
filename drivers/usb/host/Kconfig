@@ -309,7 +309,7 @@ config USB_EHCI_HCD_PLATFORM
 
 config USB_OCTEON_EHCI
 	bool "Octeon on-chip EHCI support (DEPRECATED)"
-	depends on CAVIUM_OCTEON_SOC || COMPILE_TEST
+	depends on CAVIUM_OCTEON_SOC
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_EHCI_HCD_PLATFORM
 	help
