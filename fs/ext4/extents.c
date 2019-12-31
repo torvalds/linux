@@ -1716,11 +1716,6 @@ static int ext4_can_extents_be_merged(struct inode *inode,
 			le32_to_cpu(ex2->ee_block))
 		return 0;
 
-	/*
-	 * To allow future support for preallocated extents to be added
-	 * as an RO_COMPAT feature, refuse to merge to extents if
-	 * this can result in the top bit of ee_len being set.
-	 */
 	if (ext1_ee_len + ext2_ee_len > EXT_INIT_MAX_LEN)
 		return 0;
 
