@@ -2015,6 +2015,9 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
 		     struct io_mapping *iomap);
+int remap_io_sg_page(struct vm_area_struct *vma,
+		     unsigned long addr, unsigned long size,
+		     struct scatterlist *sgl);
 
 static inline int intel_hws_csb_write_index(struct drm_i915_private *i915)
 {

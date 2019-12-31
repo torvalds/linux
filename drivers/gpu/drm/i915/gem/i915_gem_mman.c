@@ -236,42 +236,34 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 	struct vm_area_struct *area = vmf->vma;
 	struct i915_mmap_offset *mmo = area->vm_private_data;
 	struct drm_i915_gem_object *obj = mmo->obj;
-	unsigned long i, size = area->vm_end - area->vm_start;
-	bool write = area->vm_flags & VM_WRITE;
-	vm_fault_t ret = VM_FAULT_SIGBUS;
 	int err;
 
-	if (!i915_gem_object_has_struct_page(obj))
-		return ret;
+	if (unlikely(!i915_gem_object_has_struct_page(obj)))
+		return VM_FAULT_SIGBUS;
 
 	/* Sanity check that we allow writing into this object */
-	if (i915_gem_object_is_readonly(obj) && write)
-		return ret;
+	if (unlikely(i915_gem_object_is_readonly(obj) &&
+		     area->vm_flags & VM_WRITE))
+		return VM_FAULT_SIGBUS;
 
 	err = i915_gem_object_pin_pages(obj);
 	if (err)
-		return i915_error_to_vmf_fault(err);
+		goto out;
 
 	/* PTEs are revoked in obj->ops->put_pages() */
-	for (i = 0; i < size >> PAGE_SHIFT; i++) {
-		struct page *page = i915_gem_object_get_page(obj, i);
+	err = remap_io_sg_page(area,
+			       area->vm_start, area->vm_end - area->vm_start,
+			       obj->mm.pages->sgl);
 
-		ret = vmf_insert_pfn(area,
-				     (unsigned long)area->vm_start + i * PAGE_SIZE,
-				     page_to_pfn(page));
-		if (ret != VM_FAULT_NOPAGE)
-			break;
-	}
-
-	if (write) {
+	if (area->vm_flags & VM_WRITE) {
 		GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
-		obj->cache_dirty = true; /* XXX flush after PAT update? */
 		obj->mm.dirty = true;
 	}
 
 	i915_gem_object_unpin_pages(obj);
 
-	return ret;
+out:
+	return i915_error_to_vmf_fault(err);
 }
 
 static vm_fault_t vm_fault_gtt(struct vm_fault *vmf)
