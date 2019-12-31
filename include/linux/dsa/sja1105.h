@@ -37,8 +37,6 @@
  * the structure defined in struct sja1105_private.
  */
 struct sja1105_tagger_data {
-	struct sk_buff_head skb_rxtstamp_queue;
-	struct work_struct rxtstamp_work;
 	struct sk_buff *stampable_skb;
 	/* Protects concurrent access to the meta state machine
 	 * from taggers running on multiple ports on SMP systems
