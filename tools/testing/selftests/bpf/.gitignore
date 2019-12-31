@@ -41,3 +41,4 @@ test_cpp
 /no_alu32
 /bpf_gcc
 /tools
+bpf_helper_defs.h

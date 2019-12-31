@@ -263,7 +263,7 @@ bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 
 		pf->af->from_sk(&addr, sk);
 		pf->to_sk_daddr(&t->ipaddr, sk);
-		dst->ops->update_pmtu(dst, sk, NULL, pmtu);
+		dst->ops->update_pmtu(dst, sk, NULL, pmtu, true);
 		pf->to_sk_daddr(&addr, sk);
 
 		dst = sctp_transport_dst_check(t);

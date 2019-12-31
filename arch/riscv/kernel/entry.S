@@ -246,6 +246,7 @@ check_syscall_nr:
 	 */
 	li t1, -1
 	beq a7, t1, ret_from_syscall_rejected
+	blt a7, t1, 1f
 	/* Call syscall */
 	la s0, sys_call_table
 	slli t0, a7, RISCV_LGPTR

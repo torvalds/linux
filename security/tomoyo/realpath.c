@@ -218,31 +218,6 @@ out:
 }
 
 /**
- * tomoyo_get_socket_name - Get the name of a socket.
- *
- * @path:   Pointer to "struct path".
- * @buffer: Pointer to buffer to return value in.
- * @buflen: Sizeof @buffer.
- *
- * Returns the buffer.
- */
-static char *tomoyo_get_socket_name(const struct path *path, char * const buffer,
-				    const int buflen)
-{
-	struct inode *inode = d_backing_inode(path->dentry);
-	struct socket *sock = inode ? SOCKET_I(inode) : NULL;
-	struct sock *sk = sock ? sock->sk : NULL;
-
-	if (sk) {
-		snprintf(buffer, buflen, "socket:[family=%u:type=%u:protocol=%u]",
-			 sk->sk_family, sk->sk_type, sk->sk_protocol);
-	} else {
-		snprintf(buffer, buflen, "socket:[unknown]");
-	}
-	return buffer;
-}
-
-/**
  * tomoyo_realpath_from_path - Returns realpath(3) of the given pathname but ignores chroot'ed root.
  *
  * @path: Pointer to "struct path".
@@ -279,12 +254,7 @@ char *tomoyo_realpath_from_path(const struct path *path)
 			break;
 		/* To make sure that pos is '\0' terminated. */
 		buf[buf_len - 1] = '\0';
-		/* Get better name for socket. */
-		if (sb->s_magic == SOCKFS_MAGIC) {
-			pos = tomoyo_get_socket_name(path, buf, buf_len - 1);
-			goto encode;
-		}
-		/* For "pipe:[\$]". */
+		/* For "pipe:[\$]" and "socket:[\$]". */
 		if (dentry->d_op && dentry->d_op->d_dname) {
 			pos = dentry->d_op->d_dname(dentry, buf, buf_len - 1);
 			goto encode;
