@@ -35,10 +35,6 @@ static inline int crypto_des_verify_key(struct crypto_tfm *tfm, const u8 *key)
 		else
 			err = 0;
 	}
-
-	if (err)
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
-
 	memzero_explicit(&tmp, sizeof(tmp));
 	return err;
 }
@@ -95,14 +91,9 @@ bad:
 static inline int crypto_des3_ede_verify_key(struct crypto_tfm *tfm,
 					     const u8 *key)
 {
-	int err;
-
-	err = des3_ede_verify_key(key, DES3_EDE_KEY_SIZE,
-				  crypto_tfm_get_flags(tfm) &
-				  CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
-	if (err)
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
-	return err;
+	return des3_ede_verify_key(key, DES3_EDE_KEY_SIZE,
+				   crypto_tfm_get_flags(tfm) &
+				   CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
 }
 
 static inline int verify_skcipher_des_key(struct crypto_skcipher *tfm,
