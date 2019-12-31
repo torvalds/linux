@@ -56,8 +56,8 @@ are illustrated in the following diagram::
                   +- - - -+                  |  +-------------------| |
                   | Entry | - - - - - - - -+ |  | Definition Blocks | |
                   +- - - -+                | |  +-------------------+ |
-                                          | |  +- - - - - - - - - -+ |
-                                          +-|->|       SSDT        | |
+                                           | |  +- - - - - - - - - -+ |
+                                           +-|->|       SSDT        | |
                                              |  +-------------------+ |
                                              |  | Definition Blocks | |
                                              |  +- - - - - - - - - -+ |
