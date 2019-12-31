@@ -100,7 +100,7 @@ static const struct capture_fmt dmarx_fmts[] = {
 	}
 };
 
-static struct stream_config rkisp1_dmarx_stream_config = {
+static struct stream_config rkisp_dmarx_stream_config = {
 	.fmts = dmarx_fmts,
 	.fmt_size = ARRAY_SIZE(dmarx_fmts),
 	.mi = {
@@ -112,7 +112,7 @@ static struct stream_config rkisp1_dmarx_stream_config = {
 };
 
 static const
-struct capture_fmt *find_fmt(struct rkisp1_stream *stream,
+struct capture_fmt *find_fmt(struct rkisp_stream *stream,
 			     const u32 pixelfmt)
 {
 	const struct capture_fmt *fmt;
@@ -126,13 +126,13 @@ struct capture_fmt *find_fmt(struct rkisp1_stream *stream,
 	return NULL;
 }
 
-static int dmarx_config_mi(struct rkisp1_stream *stream)
+static int dmarx_config_mi(struct rkisp_stream *stream)
 {
-	struct rkisp1_device *dev = stream->ispdev;
+	struct rkisp_device *dev = stream->ispdev;
 	void __iomem *base = dev->base_addr;
 	struct capture_fmt *dmarx_in_fmt = &stream->out_isp_fmt;
 
-	v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
+	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s %dx%x y_stride:%d\n", __func__,
 		 stream->out_fmt.width,
 		 stream->out_fmt.height,
@@ -155,34 +155,34 @@ static int dmarx_config_mi(struct rkisp1_stream *stream)
 	return 0;
 }
 
-static void update_dmarx(struct rkisp1_stream *stream)
+static void update_dmarx(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
 	if (stream->curr_buf) {
 		mi_set_y_addr(stream,
-			stream->curr_buf->buff_addr[RKISP1_PLANE_Y]);
+			stream->curr_buf->buff_addr[RKISP_PLANE_Y]);
 		mi_set_cb_addr(stream,
-			stream->curr_buf->buff_addr[RKISP1_PLANE_CB]);
+			stream->curr_buf->buff_addr[RKISP_PLANE_CB]);
 		mi_set_cr_addr(stream,
-			stream->curr_buf->buff_addr[RKISP1_PLANE_CR]);
+			stream->curr_buf->buff_addr[RKISP_PLANE_CR]);
 		mi_dmarx_start(base);
 		stream->frame_end = false;
 	}
 }
 
-static void dmarx_stop_mi(struct rkisp1_stream *stream)
+static void dmarx_stop_mi(struct rkisp_stream *stream)
 {
 	mi_dmarx_ready_disable(stream);
 }
 
-static struct streams_ops rkisp1_dmarx_streams_ops = {
+static struct streams_ops rkisp_dmarx_streams_ops = {
 	.config_mi = dmarx_config_mi,
 	.stop_mi = dmarx_stop_mi,
 	.update_mi = update_dmarx,
 };
 
-static int dmarx_frame_end(struct rkisp1_stream *stream)
+static int dmarx_frame_end(struct rkisp_stream *stream)
 {
 	unsigned long lock_flags = 0;
 
@@ -196,7 +196,7 @@ static int dmarx_frame_end(struct rkisp1_stream *stream)
 	if (!list_empty(&stream->buf_queue)) {
 		stream->curr_buf =
 			list_first_entry(&stream->buf_queue,
-					struct rkisp1_buffer,
+					struct rkisp_buffer,
 					queue);
 		list_del(&stream->curr_buf->queue);
 	}
@@ -208,9 +208,9 @@ static int dmarx_frame_end(struct rkisp1_stream *stream)
 
 /***************************** vb2 operations*******************************/
 
-static void dmarx_stop(struct rkisp1_stream *stream)
+static void dmarx_stop(struct rkisp_stream *stream)
 {
-	struct rkisp1_device *dev = stream->ispdev;
+	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret = 0;
 
@@ -232,7 +232,7 @@ static void dmarx_stop(struct rkisp1_stream *stream)
 	stream->frame_end = false;
 }
 
-static int dmarx_start(struct rkisp1_stream *stream)
+static int dmarx_start(struct rkisp_stream *stream)
 {
 	int ret;
 
@@ -246,14 +246,14 @@ static int dmarx_start(struct rkisp1_stream *stream)
 	return 0;
 }
 
-static int rkisp1_queue_setup(struct vb2_queue *queue,
+static int rkisp_queue_setup(struct vb2_queue *queue,
 			      unsigned int *num_buffers,
 			      unsigned int *num_planes,
 			      unsigned int sizes[],
 			      struct device *alloc_ctxs[])
 {
-	struct rkisp1_stream *stream = queue->drv_priv;
-	struct rkisp1_device *dev = stream->ispdev;
+	struct rkisp_stream *stream = queue->drv_priv;
+	struct rkisp_device *dev = stream->ispdev;
 	const struct v4l2_pix_format_mplane *pixm = NULL;
 	const struct capture_fmt *isp_fmt = NULL;
 	u32 i;
@@ -270,22 +270,22 @@ static int rkisp1_queue_setup(struct vb2_queue *queue,
 		sizes[i] = plane_fmt->sizeimage;
 	}
 
-	v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
+	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
 		 v4l2_type_names[queue->type], *num_buffers, sizes[0]);
 
 	return 0;
 }
 
 /*
- * The vb2_buffer are stored in rkisp1_buffer, in order to unify
+ * The vb2_buffer are stored in rkisp_buffer, in order to unify
  * mplane buffer and none-mplane buffer.
  */
-static void rkisp1_buf_queue(struct vb2_buffer *vb)
+static void rkisp_buf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct rkisp1_buffer *ispbuf = to_rkisp1_buffer(vbuf);
+	struct rkisp_buffer *ispbuf = to_rkisp_buffer(vbuf);
 	struct vb2_queue *queue = vb->vb2_queue;
-	struct rkisp1_stream *stream = queue->drv_priv;
+	struct rkisp_stream *stream = queue->drv_priv;
 	unsigned long lock_flags = 0;
 	struct v4l2_pix_format_mplane *pixm = &stream->out_fmt;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
@@ -324,8 +324,8 @@ static void rkisp1_buf_queue(struct vb2_buffer *vb)
 
 static void dmarx_stop_streaming(struct vb2_queue *queue)
 {
-	struct rkisp1_stream *stream = queue->drv_priv;
-	struct rkisp1_buffer *buf;
+	struct rkisp_stream *stream = queue->drv_priv;
+	struct rkisp_buffer *buf;
 	unsigned long lock_flags = 0;
 
 	dmarx_stop(stream);
@@ -337,7 +337,7 @@ static void dmarx_stop_streaming(struct vb2_queue *queue)
 	}
 	while (!list_empty(&stream->buf_queue)) {
 		buf = list_first_entry(&stream->buf_queue,
-			struct rkisp1_buffer, queue);
+			struct rkisp_buffer, queue);
 		list_del(&buf->queue);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
@@ -347,8 +347,8 @@ static void dmarx_stop_streaming(struct vb2_queue *queue)
 static int dmarx_start_streaming(struct vb2_queue *queue,
 				 unsigned int count)
 {
-	struct rkisp1_stream *stream = queue->drv_priv;
-	struct rkisp1_device *dev = stream->ispdev;
+	struct rkisp_stream *stream = queue->drv_priv;
+	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret = 0;
 
@@ -371,8 +371,8 @@ static int dmarx_start_streaming(struct vb2_queue *queue,
 }
 
 static struct vb2_ops dmarx_vb2_ops = {
-	.queue_setup = rkisp1_queue_setup,
-	.buf_queue = rkisp1_buf_queue,
+	.queue_setup = rkisp_queue_setup,
+	.buf_queue = rkisp_buf_queue,
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
 	.stop_streaming = dmarx_stop_streaming,
@@ -380,10 +380,10 @@ static struct vb2_ops dmarx_vb2_ops = {
 };
 
 static int rkisp_init_vb2_queue(struct vb2_queue *q,
-				struct rkisp1_stream *stream,
+				struct rkisp_stream *stream,
 				enum v4l2_buf_type buf_type)
 {
-	struct rkisp1_vdev_node *node;
+	struct rkisp_vdev_node *node;
 
 	node = queue_to_node(q);
 
@@ -392,7 +392,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	q->drv_priv = stream;
 	q->ops = &dmarx_vb2_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->buf_struct_size = sizeof(struct rkisp1_buffer);
+	q->buf_struct_size = sizeof(struct rkisp_buffer);
 	q->min_buffers_needed = CIF_ISP_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stream->ispdev->apilock;
@@ -400,7 +400,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	return vb2_queue_init(q);
 }
 
-static int rkisp1_set_fmt(struct rkisp1_stream *stream,
+static int rkisp_set_fmt(struct rkisp_stream *stream,
 			   struct v4l2_pix_format_mplane *pixm,
 			   bool try)
 {
@@ -469,7 +469,7 @@ static int rkisp1_set_fmt(struct rkisp1_stream *stream,
 			pixm->plane_fmt[0].bytesperline /
 			DIV_ROUND_UP(fmt->bpp[0], 8);
 
-		v4l2_dbg(1, rkisp1_debug, &stream->ispdev->v4l2_dev,
+		v4l2_dbg(1, rkisp_debug, &stream->ispdev->v4l2_dev,
 			 "%s: stream: %d req(%d, %d) out(%d, %d)\n", __func__,
 			 stream->id, pixm->width, pixm->height,
 			 stream->out_fmt.width, stream->out_fmt.height);
@@ -480,26 +480,26 @@ static int rkisp1_set_fmt(struct rkisp1_stream *stream,
 
 /************************* v4l2_file_operations***************************/
 
-static const struct v4l2_file_operations rkisp1_fops = {
-	.open = rkisp1_fh_open,
-	.release = rkisp1_fop_release,
+static const struct v4l2_file_operations rkisp_fops = {
+	.open = rkisp_fh_open,
+	.release = rkisp_fop_release,
 	.unlocked_ioctl = video_ioctl2,
 	.poll = vb2_fop_poll,
 	.mmap = vb2_fop_mmap,
 };
 
-static int rkisp1_try_fmt_vid_out_mplane(struct file *file, void *fh,
+static int rkisp_try_fmt_vid_out_mplane(struct file *file, void *fh,
 					 struct v4l2_format *f)
 {
-	struct rkisp1_stream *stream = video_drvdata(file);
+	struct rkisp_stream *stream = video_drvdata(file);
 
-	return rkisp1_set_fmt(stream, &f->fmt.pix_mp, true);
+	return rkisp_set_fmt(stream, &f->fmt.pix_mp, true);
 }
 
-static int rkisp1_enum_fmt_vid_out_mplane(struct file *file, void *priv,
+static int rkisp_enum_fmt_vid_out_mplane(struct file *file, void *priv,
 					  struct v4l2_fmtdesc *f)
 {
-	struct rkisp1_stream *stream = video_drvdata(file);
+	struct rkisp_stream *stream = video_drvdata(file);
 	const struct capture_fmt *fmt = NULL;
 
 	if (f->index >= stream->config->fmt_size)
@@ -511,36 +511,36 @@ static int rkisp1_enum_fmt_vid_out_mplane(struct file *file, void *priv,
 	return 0;
 }
 
-static int rkisp1_s_fmt_vid_out_mplane(struct file *file,
+static int rkisp_s_fmt_vid_out_mplane(struct file *file,
 				       void *priv, struct v4l2_format *f)
 {
-	struct rkisp1_stream *stream = video_drvdata(file);
+	struct rkisp_stream *stream = video_drvdata(file);
 	struct video_device *vdev = &stream->vnode.vdev;
-	struct rkisp1_vdev_node *node = vdev_to_node(vdev);
-	struct rkisp1_device *dev = stream->ispdev;
+	struct rkisp_vdev_node *node = vdev_to_node(vdev);
+	struct rkisp_device *dev = stream->ispdev;
 
 	if (vb2_is_busy(&node->buf_queue)) {
 		v4l2_err(&dev->v4l2_dev, "%s queue busy\n", __func__);
 		return -EBUSY;
 	}
 
-	return rkisp1_set_fmt(stream, &f->fmt.pix_mp, false);
+	return rkisp_set_fmt(stream, &f->fmt.pix_mp, false);
 }
 
-static int rkisp1_g_fmt_vid_out_mplane(struct file *file, void *fh,
+static int rkisp_g_fmt_vid_out_mplane(struct file *file, void *fh,
 				       struct v4l2_format *f)
 {
-	struct rkisp1_stream *stream = video_drvdata(file);
+	struct rkisp_stream *stream = video_drvdata(file);
 
 	f->fmt.pix_mp = stream->out_fmt;
 
 	return 0;
 }
 
-static int rkisp1_querycap(struct file *file, void *priv,
+static int rkisp_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	struct rkisp1_stream *stream = video_drvdata(file);
+	struct rkisp_stream *stream = video_drvdata(file);
 	struct device *dev = stream->ispdev->dev;
 	struct video_device *vdev = video_devdata(file);
 
@@ -554,7 +554,7 @@ static int rkisp1_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-static const struct v4l2_ioctl_ops rkisp1_dmarx_ioctl = {
+static const struct v4l2_ioctl_ops rkisp_dmarx_ioctl = {
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
 	.vidioc_querybuf = vb2_ioctl_querybuf,
 	.vidioc_create_bufs = vb2_ioctl_create_bufs,
@@ -564,37 +564,37 @@ static const struct v4l2_ioctl_ops rkisp1_dmarx_ioctl = {
 	.vidioc_prepare_buf = vb2_ioctl_prepare_buf,
 	.vidioc_streamon = vb2_ioctl_streamon,
 	.vidioc_streamoff = vb2_ioctl_streamoff,
-	.vidioc_try_fmt_vid_out_mplane = rkisp1_try_fmt_vid_out_mplane,
-	.vidioc_enum_fmt_vid_out_mplane = rkisp1_enum_fmt_vid_out_mplane,
-	.vidioc_s_fmt_vid_out_mplane = rkisp1_s_fmt_vid_out_mplane,
-	.vidioc_g_fmt_vid_out_mplane = rkisp1_g_fmt_vid_out_mplane,
-	.vidioc_querycap = rkisp1_querycap,
+	.vidioc_try_fmt_vid_out_mplane = rkisp_try_fmt_vid_out_mplane,
+	.vidioc_enum_fmt_vid_out_mplane = rkisp_enum_fmt_vid_out_mplane,
+	.vidioc_s_fmt_vid_out_mplane = rkisp_s_fmt_vid_out_mplane,
+	.vidioc_g_fmt_vid_out_mplane = rkisp_g_fmt_vid_out_mplane,
+	.vidioc_querycap = rkisp_querycap,
 };
 
-static void rkisp1_unregister_dmarx_video(struct rkisp1_stream *stream)
+static void rkisp_unregister_dmarx_video(struct rkisp_stream *stream)
 {
 	media_entity_cleanup(&stream->vnode.vdev.entity);
 	video_unregister_device(&stream->vnode.vdev);
 }
 
-static int rkisp1_register_dmarx_video(struct rkisp1_stream *stream)
+static int rkisp_register_dmarx_video(struct rkisp_stream *stream)
 {
-	struct rkisp1_device *dev = stream->ispdev;
+	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct video_device *vdev = &stream->vnode.vdev;
-	struct rkisp1_vdev_node *node;
+	struct rkisp_vdev_node *node;
 	int ret = 0;
 
 	node = vdev_to_node(vdev);
 
 	vdev->release = video_device_release_empty;
-	vdev->fops = &rkisp1_fops;
+	vdev->fops = &rkisp_fops;
 	vdev->minor = -1;
 	vdev->v4l2_dev = v4l2_dev;
 	vdev->lock = &dev->apilock;
 	video_set_drvdata(vdev, stream);
 
-	vdev->ioctl_ops = &rkisp1_dmarx_ioctl;
+	vdev->ioctl_ops = &rkisp_dmarx_ioctl;
 	vdev->device_caps = V4L2_CAP_VIDEO_OUTPUT_MPLANE |
 			    V4L2_CAP_STREAMING;
 	vdev->vfl_dir = VFL_DIR_TX;
@@ -623,13 +623,13 @@ unreg:
 
 /****************  Interrupter Handler ****************/
 
-void rkisp1_dmarx_isr(u32 mis_val, struct rkisp1_device *dev)
+void rkisp_dmarx_isr(u32 mis_val, struct rkisp_device *dev)
 {
 	void __iomem *base = dev->base_addr;
-	struct rkisp1_stream *stream;
+	struct rkisp_stream *stream;
 
 	if (mis_val & CIF_MI_DMA_READY) {
-		stream = &dev->dmarx_dev.stream[RKISP1_STREAM_DMARX];
+		stream = &dev->dmarx_dev.stream[RKISP_STREAM_DMARX];
 		stream->frame_end = true;
 		writel(CIF_MI_DMA_READY, base + CIF_MI_ICR);
 
@@ -643,10 +643,10 @@ void rkisp1_dmarx_isr(u32 mis_val, struct rkisp1_device *dev)
 	}
 }
 
-int rkisp1_register_dmarx_vdev(struct rkisp1_device *dev)
+int rkisp_register_dmarx_vdev(struct rkisp_device *dev)
 {
-	struct rkisp1_dmarx_device *dmarx_dev = &dev->dmarx_dev;
-	struct rkisp1_stream *stream;
+	struct rkisp_dmarx_device *dmarx_dev = &dev->dmarx_dev;
+	struct rkisp_stream *stream;
 	struct video_device *vdev;
 	struct media_entity *source, *sink;
 	int ret = 0;
@@ -655,17 +655,17 @@ int rkisp1_register_dmarx_vdev(struct rkisp1_device *dev)
 	dmarx_dev->ispdev = dev;
 
 	if (dev->isp_ver <= ISP_V13) {
-		stream = &dmarx_dev->stream[RKISP1_STREAM_DMARX];
+		stream = &dmarx_dev->stream[RKISP_STREAM_DMARX];
 		INIT_LIST_HEAD(&stream->buf_queue);
 		init_waitqueue_head(&stream->done);
 		spin_lock_init(&stream->vbq_lock);
-		stream->id = RKISP1_STREAM_DMARX;
+		stream->id = RKISP_STREAM_DMARX;
 		stream->ispdev = dev;
-		stream->ops = &rkisp1_dmarx_streams_ops;
-		stream->config = &rkisp1_dmarx_stream_config;
+		stream->ops = &rkisp_dmarx_streams_ops;
+		stream->config = &rkisp_dmarx_stream_config;
 		vdev = &stream->vnode.vdev;
 		strlcpy(vdev->name, DMA_VDEV_NAME, sizeof(vdev->name));
-		ret = rkisp1_register_dmarx_video(stream);
+		ret = rkisp_register_dmarx_video(stream);
 		if (ret < 0)
 			return ret;
 
@@ -673,19 +673,19 @@ int rkisp1_register_dmarx_vdev(struct rkisp1_device *dev)
 		source = &vdev->entity;
 		sink = &dev->isp_sdev.sd.entity;
 		ret = media_create_pad_link(source, 0,
-			sink, RKISP1_ISP_PAD_SINK, 0);
+			sink, RKISP_ISP_PAD_SINK, 0);
 	}
 
 	return ret;
 }
 
-void rkisp1_unregister_dmarx_vdev(struct rkisp1_device *dev)
+void rkisp_unregister_dmarx_vdev(struct rkisp_device *dev)
 {
-	struct rkisp1_dmarx_device *dmarx_dev = &dev->dmarx_dev;
-	struct rkisp1_stream *stream;
+	struct rkisp_dmarx_device *dmarx_dev = &dev->dmarx_dev;
+	struct rkisp_stream *stream;
 
 	if (dev->isp_ver <= ISP_V13) {
-		stream = &dmarx_dev->stream[RKISP1_STREAM_DMARX];
-		rkisp1_unregister_dmarx_video(stream);
+		stream = &dmarx_dev->stream[RKISP_STREAM_DMARX];
+		rkisp_unregister_dmarx_video(stream);
 	}
 }

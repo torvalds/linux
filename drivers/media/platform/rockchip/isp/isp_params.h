@@ -32,90 +32,89 @@
  * SOFTWARE.
  */
 
-#ifndef _RKISP1_ISP_H
-#define _RKISP1_ISP_H
+#ifndef _RKISP_ISP_H
+#define _RKISP_ISP_H
 
 #include <linux/rkisp1-config.h>
 #include <linux/rk-preisp.h>
 #include "common.h"
 
-struct rkisp1_isp_params_vdev;
-struct rkisp1_isp_params_ops {
-	void (*dpcc_config)(struct rkisp1_isp_params_vdev *params_vdev,
+struct rkisp_isp_params_vdev;
+struct rkisp_isp_params_ops {
+	void (*dpcc_config)(struct rkisp_isp_params_vdev *params_vdev,
 			    const struct cifisp_dpcc_config *arg);
-	void (*bls_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*bls_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_bls_config *arg);
-	void (*lsc_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*lsc_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_lsc_config *arg);
-	void (*lsc_matrix_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*lsc_matrix_config)(struct rkisp_isp_params_vdev *params_vdev,
 				  const struct cifisp_lsc_config *pconfig);
-	void (*flt_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*flt_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_flt_config *arg);
-	void (*bdm_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*bdm_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_bdm_config *arg);
-	void (*sdg_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*sdg_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_sdg_config *arg);
-	void (*goc_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*goc_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_goc_config *arg);
-	void (*ctk_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*ctk_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_ctk_config *arg);
-	void (*ctk_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*ctk_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			   bool en);
-	void (*awb_meas_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*awb_meas_config)(struct rkisp_isp_params_vdev *params_vdev,
 				const struct cifisp_awb_meas_config *arg);
-	void (*awb_meas_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*awb_meas_enable)(struct rkisp_isp_params_vdev *params_vdev,
 				const struct cifisp_awb_meas_config *arg,
 				bool en);
-	void (*awb_gain_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*awb_gain_config)(struct rkisp_isp_params_vdev *params_vdev,
 				const struct cifisp_awb_gain_config *arg);
-	void (*aec_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*aec_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_aec_config *arg);
-	void (*cproc_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*cproc_config)(struct rkisp_isp_params_vdev *params_vdev,
 			     const struct cifisp_cproc_config *arg);
-	void (*hst_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*hst_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_hst_config *arg);
-	void (*hst_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*hst_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_hst_config *arg, bool en);
-	void (*afm_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*afm_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_afc_config *arg);
-	void (*ie_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*ie_config)(struct rkisp_isp_params_vdev *params_vdev,
 			  const struct cifisp_ie_config *arg);
-	void (*ie_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*ie_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			  bool en);
-	void (*csm_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*csm_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   bool full_range);
-	void (*dpf_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*dpf_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_dpf_config *arg);
-	void (*dpf_strength_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*dpf_strength_config)(struct rkisp_isp_params_vdev *params_vdev,
 				    const struct cifisp_dpf_strength_config *arg);
-	void (*wdr_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*wdr_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct cifisp_wdr_config *arg);
-	void (*wdr_enable)(struct rkisp1_isp_params_vdev *params_vdev,
-			  bool en);
-	void (*demosaiclp_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*wdr_enable)(struct rkisp_isp_params_vdev *params_vdev, bool en);
+	void (*demosaiclp_config)(struct rkisp_isp_params_vdev *params_vdev,
 				  const struct cifisp_demosaiclp_config *arg);
-	void (*demosaiclp_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*demosaiclp_enable)(struct rkisp_isp_params_vdev *params_vdev,
 				  bool en);
-	void (*rkiesharp_config)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*rkiesharp_config)(struct rkisp_isp_params_vdev *params_vdev,
 				 const struct cifisp_rkiesharp_config *arg);
-	void (*rkiesharp_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+	void (*rkiesharp_enable)(struct rkisp_isp_params_vdev *params_vdev,
 				 bool en);
 };
 
-struct rkisp1_isp_params_config {
+struct rkisp_isp_params_config {
 	const int gamma_out_max_samples;
 	const int hst_weight_grids_size;
 };
 
 /*
- * struct rkisp1_isp_subdev - ISP input parameters device
+ * struct rkisp_isp_subdev - ISP input parameters device
  *
  * @cur_params: Current ISP parameters
  * @first_params: the first params should take effect immediately
  */
-struct rkisp1_isp_params_vdev {
-	struct rkisp1_vdev_node vnode;
-	struct rkisp1_device *dev;
+struct rkisp_isp_params_vdev {
+	struct rkisp_vdev_node vnode;
+	struct rkisp_device *dev;
 
 	spinlock_t config_lock;
 	struct list_head params;
@@ -125,27 +124,27 @@ struct rkisp1_isp_params_vdev {
 	bool first_params;
 
 	enum v4l2_quantization quantization;
-	enum rkisp1_fmt_raw_pat_type raw_type;
+	enum rkisp_fmt_raw_pat_type raw_type;
 	u32 in_mbus_code;
 
 	struct preisp_hdrae_para_s hdrae_para;
 
-	struct rkisp1_isp_params_ops *ops;
-	struct rkisp1_isp_params_config *config;
+	struct rkisp_isp_params_ops *ops;
+	struct rkisp_isp_params_config *config;
 };
 
 /* config params before ISP streaming */
-void rkisp1_params_configure_isp(struct rkisp1_isp_params_vdev *params_vdev,
+void rkisp_params_configure_isp(struct rkisp_isp_params_vdev *params_vdev,
 			  struct ispsd_in_fmt *in_fmt,
 			  enum v4l2_quantization quantization);
-void rkisp1_params_disable_isp(struct rkisp1_isp_params_vdev *params_vdev);
+void rkisp_params_disable_isp(struct rkisp_isp_params_vdev *params_vdev);
 
-int rkisp1_register_params_vdev(struct rkisp1_isp_params_vdev *params_vdev,
+int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 				struct v4l2_device *v4l2_dev,
-				struct rkisp1_device *dev);
+				struct rkisp_device *dev);
 
-void rkisp1_unregister_params_vdev(struct rkisp1_isp_params_vdev *params_vdev);
+void rkisp_unregister_params_vdev(struct rkisp_isp_params_vdev *params_vdev);
 
-void rkisp1_params_isr(struct rkisp1_isp_params_vdev *params_vdev, u32 isp_mis);
+void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis);
 
-#endif /* _RKISP1_ISP_H */
+#endif /* _RKISP_ISP_H */

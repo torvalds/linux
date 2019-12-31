@@ -32,8 +32,8 @@
  * SOFTWARE.
  */
 
-#ifndef _RKISP1_COMMON_H
-#define _RKISP1_COMMON_H
+#ifndef _RKISP_COMMON_H
+#define _RKISP_COMMON_H
 
 #include <linux/mutex.h>
 #include <linux/media.h>
@@ -44,38 +44,38 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mc.h>
 
-#define RKISP1_DEFAULT_WIDTH		800
-#define RKISP1_DEFAULT_HEIGHT		600
+#define RKISP_DEFAULT_WIDTH		800
+#define RKISP_DEFAULT_HEIGHT		600
 
-#define RKISP1_MAX_STREAM		3
-#define RKISP1_STREAM_MP		0
-#define RKISP1_STREAM_SP		1
-#define RKISP1_STREAM_RAW		2
+#define RKISP_MAX_STREAM		3
+#define RKISP_STREAM_MP		0
+#define RKISP_STREAM_SP		1
+#define RKISP_STREAM_RAW		2
 
-#define RKISP1_PLANE_Y			0
-#define RKISP1_PLANE_CB			1
-#define RKISP1_PLANE_CR			2
+#define RKISP_PLANE_Y			0
+#define RKISP_PLANE_CB			1
+#define RKISP_PLANE_CR			2
 
-#define RKISP1_EMDDATA_FIFO_MAX		4
-#define RKISP1_DMATX_CHECK              0xA5A5A5A5
-#define RKISP1_RK3326_USE_OLDMIPI	0
+#define RKISP_EMDDATA_FIFO_MAX		4
+#define RKISP_DMATX_CHECK              0xA5A5A5A5
+#define RKISP_RK3326_USE_OLDMIPI	0
 
-enum rkisp1_sd_type {
-	RKISP1_SD_SENSOR,
-	RKISP1_SD_PHY_CSI,
-	RKISP1_SD_VCM,
-	RKISP1_SD_FLASH,
-	RKISP1_SD_MAX,
+enum rkisp_sd_type {
+	RKISP_SD_SENSOR,
+	RKISP_SD_PHY_CSI,
+	RKISP_SD_VCM,
+	RKISP_SD_FLASH,
+	RKISP_SD_MAX,
 };
 
 /* One structure per video node */
-struct rkisp1_vdev_node {
+struct rkisp_vdev_node {
 	struct vb2_queue buf_queue;
 	struct video_device vdev;
 	struct media_pad pad;
 };
 
-enum rkisp1_fmt_pix_type {
+enum rkisp_fmt_pix_type {
 	FMT_YUV,
 	FMT_RGB,
 	FMT_BAYER,
@@ -83,14 +83,14 @@ enum rkisp1_fmt_pix_type {
 	FMT_MAX
 };
 
-enum rkisp1_fmt_raw_pat_type {
+enum rkisp_fmt_raw_pat_type {
 	RAW_RGGB = 0,
 	RAW_GRBG,
 	RAW_GBRG,
 	RAW_BGGR,
 };
 
-struct rkisp1_buffer {
+struct rkisp_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head queue;
 	union {
@@ -99,35 +99,35 @@ struct rkisp1_buffer {
 	};
 };
 
-struct rkisp1_dummy_buffer {
+struct rkisp_dummy_buffer {
 	void *vaddr;
 	dma_addr_t dma_addr;
 	u32 size;
 };
 
-extern int rkisp1_debug;
+extern int rkisp_debug;
 
 static inline
-struct rkisp1_vdev_node *vdev_to_node(struct video_device *vdev)
+struct rkisp_vdev_node *vdev_to_node(struct video_device *vdev)
 {
-	return container_of(vdev, struct rkisp1_vdev_node, vdev);
+	return container_of(vdev, struct rkisp_vdev_node, vdev);
 }
 
-static inline struct rkisp1_vdev_node *queue_to_node(struct vb2_queue *q)
+static inline struct rkisp_vdev_node *queue_to_node(struct vb2_queue *q)
 {
-	return container_of(q, struct rkisp1_vdev_node, buf_queue);
+	return container_of(q, struct rkisp_vdev_node, buf_queue);
 }
 
-static inline struct rkisp1_buffer *to_rkisp1_buffer(struct vb2_v4l2_buffer *vb)
+static inline struct rkisp_buffer *to_rkisp_buffer(struct vb2_v4l2_buffer *vb)
 {
-	return container_of(vb, struct rkisp1_buffer, vb);
+	return container_of(vb, struct rkisp_buffer, vb);
 }
 
 static inline struct vb2_queue *to_vb2_queue(struct file *file)
 {
-	struct rkisp1_vdev_node *vnode = video_drvdata(file);
+	struct rkisp_vdev_node *vnode = video_drvdata(file);
 
 	return &vnode->buf_queue;
 }
 
-#endif /* _RKISP1_COMMON_H */
+#endif /* _RKISP_COMMON_H */

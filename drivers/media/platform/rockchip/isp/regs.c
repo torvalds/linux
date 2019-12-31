@@ -35,7 +35,7 @@
 #include <media/v4l2-common.h>
 #include "regs.h"
 
-void disable_dcrop(struct rkisp1_stream *stream, bool async)
+void disable_dcrop(struct rkisp_stream *stream, bool async)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *dc_ctrl_addr = base + stream->config->dual_crop.ctrl;
@@ -51,7 +51,7 @@ void disable_dcrop(struct rkisp1_stream *stream, bool async)
 	writel(val, dc_ctrl_addr);
 }
 
-void config_dcrop(struct rkisp1_stream *stream, struct v4l2_rect *rect, bool async)
+void config_dcrop(struct rkisp_stream *stream, struct v4l2_rect *rect, bool async)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *dc_ctrl_addr = base + stream->config->dual_crop.ctrl;
@@ -69,7 +69,7 @@ void config_dcrop(struct rkisp1_stream *stream, struct v4l2_rect *rect, bool asy
 	writel(dc_ctrl, dc_ctrl_addr);
 }
 
-void dump_rsz_regs(struct rkisp1_stream *stream)
+void dump_rsz_regs(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
@@ -105,7 +105,7 @@ void dump_rsz_regs(struct rkisp1_stream *stream)
 			readl(base + stream->config->rsz.phase_vc_shd));
 }
 
-static void update_rsz_shadow(struct rkisp1_stream *stream, bool async)
+static void update_rsz_shadow(struct rkisp_stream *stream, bool async)
 {
 	void *addr = stream->ispdev->base_addr + stream->config->rsz.ctrl;
 	u32 ctrl_cfg = readl(addr);
@@ -116,7 +116,7 @@ static void update_rsz_shadow(struct rkisp1_stream *stream, bool async)
 		writel(CIF_RSZ_CTRL_CFG_UPD | ctrl_cfg, addr);
 }
 
-static void set_scale(struct rkisp1_stream *stream, struct v4l2_rect *in_y,
+static void set_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 		struct v4l2_rect *in_c, struct v4l2_rect *out_y,
 		struct v4l2_rect *out_c)
 {
@@ -185,7 +185,7 @@ static void set_scale(struct rkisp1_stream *stream, struct v4l2_rect *in_y,
 	writel(rsz_ctrl, rsz_ctrl_addr);
 }
 
-void config_rsz(struct rkisp1_stream *stream, struct v4l2_rect *in_y,
+void config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 	struct v4l2_rect *in_c, struct v4l2_rect *out_y,
 	struct v4l2_rect *out_c, bool async)
 {
@@ -208,7 +208,7 @@ void config_rsz(struct rkisp1_stream *stream, struct v4l2_rect *in_y,
 	update_rsz_shadow(stream, async);
 }
 
-void disable_rsz(struct rkisp1_stream *stream, bool async)
+void disable_rsz(struct rkisp_stream *stream, bool async)
 {
 	writel(0, stream->ispdev->base_addr + stream->config->rsz.ctrl);
 
@@ -216,7 +216,7 @@ void disable_rsz(struct rkisp1_stream *stream, bool async)
 		update_rsz_shadow(stream, async);
 }
 
-void config_mi_ctrl(struct rkisp1_stream *stream, u32 burst)
+void config_mi_ctrl(struct rkisp_stream *stream, u32 burst)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *addr = base + CIF_MI_CTRL;

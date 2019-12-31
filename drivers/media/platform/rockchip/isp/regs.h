@@ -32,8 +32,8 @@
  * SOFTWARE.
  */
 
-#ifndef _RKISP1_REGS_H
-#define _RKISP1_REGS_H
+#ifndef _RKISP_REGS_H
+#define _RKISP_REGS_H
 #include "dev.h"
 
 #define CIF_ISP_PACK_4BYTE(a, b, c, d)	\
@@ -1608,17 +1608,17 @@
 #define CIF_ISP_CSI0_TX_IBUF_STATUS_RO	(CIF_ISP_CSI0_BASE + 0x00000078)
 #define CIF_ISP_CSI0_VERSION		(CIF_ISP_CSI0_BASE + 0x0000007c)
 
-void disable_dcrop(struct rkisp1_stream *stream, bool async);
-void config_dcrop(struct rkisp1_stream *stream, struct v4l2_rect *rect,
+void disable_dcrop(struct rkisp_stream *stream, bool async);
+void config_dcrop(struct rkisp_stream *stream, struct v4l2_rect *rect,
 		  bool async);
 
-void dump_rsz_regs(struct rkisp1_stream *stream);
-void disable_rsz(struct rkisp1_stream *stream, bool async);
-void config_rsz(struct rkisp1_stream *stream, struct v4l2_rect *in_y,
+void dump_rsz_regs(struct rkisp_stream *stream);
+void disable_rsz(struct rkisp_stream *stream, bool async);
+void config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 		struct v4l2_rect *in_c, struct v4l2_rect *out_y,
 		struct v4l2_rect *out_c, bool async);
 
-void config_mi_ctrl(struct rkisp1_stream *stream, u32 burst);
+void config_mi_ctrl(struct rkisp_stream *stream, u32 burst);
 
 void mp_clr_frame_end_int(void __iomem *base);
 void sp_clr_frame_end_int(void __iomem *base);
@@ -1628,70 +1628,70 @@ bool sp_is_frame_end_int_masked(void __iomem *base);
 bool mp_is_stream_stopped(void __iomem *base);
 bool sp_is_stream_stopped(void __iomem *base);
 
-static inline void mi_set_y_size(struct rkisp1_stream *stream, int val)
+static inline void mi_set_y_size(struct rkisp_stream *stream, int val)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
 	writel(val, base + stream->config->mi.y_size_init);
 }
 
-static inline void mi_set_cb_size(struct rkisp1_stream *stream, int val)
+static inline void mi_set_cb_size(struct rkisp_stream *stream, int val)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
 	writel(val, base + stream->config->mi.cb_size_init);
 }
 
-static inline void mi_set_cr_size(struct rkisp1_stream *stream, int val)
+static inline void mi_set_cr_size(struct rkisp_stream *stream, int val)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
 	writel(val, base + stream->config->mi.cr_size_init);
 }
 
-static inline void mi_set_y_addr(struct rkisp1_stream *stream, int val)
+static inline void mi_set_y_addr(struct rkisp_stream *stream, int val)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
 	writel(val, base + stream->config->mi.y_base_ad_init);
 }
 
-static inline void mi_set_cb_addr(struct rkisp1_stream *stream, int val)
+static inline void mi_set_cb_addr(struct rkisp_stream *stream, int val)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
 	writel(val, base + stream->config->mi.cb_base_ad_init);
 }
 
-static inline void mi_set_cr_addr(struct rkisp1_stream *stream, int val)
+static inline void mi_set_cr_addr(struct rkisp_stream *stream, int val)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
 	writel(val, base + stream->config->mi.cr_base_ad_init);
 }
 
-static inline void mi_set_y_offset(struct rkisp1_stream *stream, int val)
+static inline void mi_set_y_offset(struct rkisp_stream *stream, int val)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
 	writel(val, base + stream->config->mi.y_offs_cnt_init);
 }
 
-static inline void mi_set_cb_offset(struct rkisp1_stream *stream, int val)
+static inline void mi_set_cb_offset(struct rkisp_stream *stream, int val)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
 	writel(val, base + stream->config->mi.cb_offs_cnt_init);
 }
 
-static inline void mi_set_cr_offset(struct rkisp1_stream *stream, int val)
+static inline void mi_set_cr_offset(struct rkisp_stream *stream, int val)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
 	writel(val, base + stream->config->mi.cr_offs_cnt_init);
 }
 
-static inline void mi_frame_end_int_enable(struct rkisp1_stream *stream)
+static inline void mi_frame_end_int_enable(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *addr = base + CIF_MI_IMSC;
@@ -1699,7 +1699,7 @@ static inline void mi_frame_end_int_enable(struct rkisp1_stream *stream)
 	writel(CIF_MI_FRAME(stream) | readl(addr), addr);
 }
 
-static inline void mi_frame_end_int_disable(struct rkisp1_stream *stream)
+static inline void mi_frame_end_int_disable(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *addr = base + CIF_MI_IMSC;
@@ -1707,7 +1707,7 @@ static inline void mi_frame_end_int_disable(struct rkisp1_stream *stream)
 	writel(~CIF_MI_FRAME(stream) & readl(addr), addr);
 }
 
-static inline void mi_frame_end_int_clear(struct rkisp1_stream *stream)
+static inline void mi_frame_end_int_clear(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *addr = base + CIF_MI_ICR;
@@ -1943,7 +1943,7 @@ static inline void mi_ctrl2(void __iomem *base, u32 val)
 	writel(val, base + CIF_MI_CTRL2);
 }
 
-static inline void mi_dmarx_ready_enable(struct rkisp1_stream *stream)
+static inline void mi_dmarx_ready_enable(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *addr = base + CIF_MI_IMSC;
@@ -1951,7 +1951,7 @@ static inline void mi_dmarx_ready_enable(struct rkisp1_stream *stream)
 	writel(CIF_MI_DMA_READY | readl(addr), addr);
 }
 
-static inline void mi_dmarx_ready_disable(struct rkisp1_stream *stream)
+static inline void mi_dmarx_ready_disable(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *addr = base + CIF_MI_IMSC;
@@ -1991,4 +1991,4 @@ static inline void mi_dmarx_start(void __iomem *base)
 	writel(CIF_MI_DMA_START_ENABLE, addr);
 }
 
-#endif /* _RKISP1_REGS_H */
+#endif /* _RKISP_REGS_H */

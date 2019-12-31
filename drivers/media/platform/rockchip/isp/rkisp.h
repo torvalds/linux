@@ -32,8 +32,8 @@
  * SOFTWARE.
  */
 
-#ifndef _RKISP1_H
-#define _RKISP1_H
+#ifndef _RKISP_H
+#define _RKISP_H
 
 #include <linux/kfifo.h>
 #include <linux/platform_device.h>
@@ -55,7 +55,7 @@
 #define CIF_ISP_OUTPUT_H_MIN		CIF_ISP_INPUT_H_MIN
 #define CIF_ISP_ADD_DATA_VC_MAX		3
 
-struct rkisp1_stream;
+struct rkisp_stream;
 
 /*
  * struct ispsd_in_fmt - ISP intput-pad format
@@ -69,7 +69,7 @@ struct ispsd_in_fmt {
 	u8 fmt_type;
 	u32 mipi_dt;
 	u32 yuv_seq;
-	enum rkisp1_fmt_raw_pat_type bayer_pat;
+	enum rkisp_fmt_raw_pat_type bayer_pat;
 	u8 bus_width;
 };
 
@@ -78,22 +78,22 @@ struct ispsd_out_fmt {
 	u8 fmt_type;
 };
 
-struct rkisp1_ie_config {
+struct rkisp_ie_config {
 	unsigned int effect;
 };
 
-enum rkisp1_isp_pad {
-	RKISP1_ISP_PAD_SINK,
-	RKISP1_ISP_PAD_SINK_PARAMS,
-	RKISP1_ISP_PAD_SOURCE_PATH,
-	RKISP1_ISP_PAD_SOURCE_STATS,
-	RKISP1_ISP_PAD_MAX
+enum rkisp_isp_pad {
+	RKISP_ISP_PAD_SINK,
+	RKISP_ISP_PAD_SINK_PARAMS,
+	RKISP_ISP_PAD_SOURCE_PATH,
+	RKISP_ISP_PAD_SOURCE_STATS,
+	RKISP_ISP_PAD_MAX
 };
 
 /*
- * struct rkisp1_isp_subdev - ISP sub-device
+ * struct rkisp_isp_subdev - ISP sub-device
  *
- * See Cropping regions of ISP in rkisp1.c for details
+ * See Cropping regions of ISP in rkisp.c for details
  * @in_frm: input size, don't have to be equal to sensor size
  * @in_fmt: intput format
  * @in_crop: crop for sink pad
@@ -104,9 +104,9 @@ enum rkisp1_isp_pad {
  * @frm_sync_seq: frame sequence, to sync frame_id between video devices.
  * @quantization: output quantization
  */
-struct rkisp1_isp_subdev {
+struct rkisp_isp_subdev {
 	struct v4l2_subdev sd;
-	struct media_pad pads[RKISP1_ISP_PAD_MAX];
+	struct media_pad pads[RKISP_ISP_PAD_MAX];
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_mbus_framefmt in_frm;
 	struct ispsd_in_fmt in_fmt;
@@ -118,46 +118,46 @@ struct rkisp1_isp_subdev {
 	enum v4l2_quantization quantization;
 };
 
-struct rkisp1_emd_data {
+struct rkisp_emd_data {
 	struct kfifo mipi_kfifo;
 	unsigned int data_len;
 	unsigned int frame_id;
 };
 
-int rkisp1_register_isp_subdev(struct rkisp1_device *isp_dev,
+int rkisp_register_isp_subdev(struct rkisp_device *isp_dev,
 			       struct v4l2_device *v4l2_dev);
 
-void rkisp1_unregister_isp_subdev(struct rkisp1_device *isp_dev);
+void rkisp_unregister_isp_subdev(struct rkisp_device *isp_dev);
 
-void rkisp1_mipi_isr(unsigned int mipi_mis, struct rkisp1_device *dev);
+void rkisp_mipi_isr(unsigned int mipi_mis, struct rkisp_device *dev);
 
-void rkisp1_mipi_v13_isr(unsigned int err1, unsigned int err2,
-			       unsigned int err3, struct rkisp1_device *dev);
+void rkisp_mipi_v13_isr(unsigned int err1, unsigned int err2,
+			       unsigned int err3, struct rkisp_device *dev);
 
-void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev);
+void rkisp_isp_isr(unsigned int isp_mis, struct rkisp_device *dev);
 
-irqreturn_t rkisp1_vs_isr_handler(int irq, void *ctx);
+irqreturn_t rkisp_vs_isr_handler(int irq, void *ctx);
 
-int rkisp1_update_sensor_info(struct rkisp1_device *dev);
+int rkisp_update_sensor_info(struct rkisp_device *dev);
 
-u32 rkisp1_mbus_pixelcode_to_v4l2(u32 pixelcode);
+u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode);
 
 static inline
-struct ispsd_out_fmt *rkisp1_get_ispsd_out_fmt(struct rkisp1_isp_subdev *isp_sdev)
+struct ispsd_out_fmt *rkisp_get_ispsd_out_fmt(struct rkisp_isp_subdev *isp_sdev)
 {
 	return &isp_sdev->out_fmt;
 }
 
 static inline
-struct ispsd_in_fmt *rkisp1_get_ispsd_in_fmt(struct rkisp1_isp_subdev *isp_sdev)
+struct ispsd_in_fmt *rkisp_get_ispsd_in_fmt(struct rkisp_isp_subdev *isp_sdev)
 {
 	return &isp_sdev->in_fmt;
 }
 
 static inline
-struct v4l2_rect *rkisp1_get_isp_sd_win(struct rkisp1_isp_subdev *isp_sdev)
+struct v4l2_rect *rkisp_get_isp_sd_win(struct rkisp_isp_subdev *isp_sdev)
 {
 	return &isp_sdev->out_crop;
 }
 
-#endif /* _RKISP1_H */
+#endif /* _RKISP_H */

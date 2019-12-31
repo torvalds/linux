@@ -32,61 +32,61 @@
  * SOFTWARE.
  */
 
-#ifndef _RKISP1_ISP_STATS_H
-#define _RKISP1_ISP_STATS_H
+#ifndef _RKISP_ISP_STATS_H
+#define _RKISP_ISP_STATS_H
 
 #include <linux/rkisp1-config.h>
 #include <linux/interrupt.h>
 #include <linux/kfifo.h>
 #include "common.h"
 
-#define RKISP1_READOUT_WORK_SIZE	\
-	(8 * sizeof(struct rkisp1_isp_readout_work))
+#define RKISP_READOUT_WORK_SIZE	\
+	(8 * sizeof(struct rkisp_isp_readout_work))
 
-struct rkisp1_isp_stats_vdev;
+struct rkisp_isp_stats_vdev;
 
-enum rkisp1_isp_readout_cmd {
-	RKISP1_ISP_READOUT_MEAS,
-	RKISP1_ISP_READOUT_META,
+enum rkisp_isp_readout_cmd {
+	RKISP_ISP_READOUT_MEAS,
+	RKISP_ISP_READOUT_META,
 };
 
-struct rkisp1_isp_readout_work {
+struct rkisp_isp_readout_work {
 	unsigned int frame_id;
 	unsigned int isp_ris;
-	enum rkisp1_isp_readout_cmd readout;
+	enum rkisp_isp_readout_cmd readout;
 	unsigned long long timestamp;
 };
 
-struct rkisp1_stats_ops {
-	void (*get_awb_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
+struct rkisp_stats_ops {
+	void (*get_awb_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
 			     struct rkisp1_stat_buffer *pbuf);
-	void (*get_aec_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
+	void (*get_aec_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
 			     struct rkisp1_stat_buffer *pbuf);
-	void (*get_afc_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
+	void (*get_afc_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
 			     struct rkisp1_stat_buffer *pbuf);
-	void (*get_hst_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
+	void (*get_hst_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
 			     struct rkisp1_stat_buffer *pbuf);
-	void (*get_bls_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
+	void (*get_bls_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
 			     struct rkisp1_stat_buffer *pbuf);
-	void (*get_emb_data)(struct rkisp1_isp_stats_vdev *stats_vdev,
+	void (*get_emb_data)(struct rkisp_isp_stats_vdev *stats_vdev,
 			     struct rkisp1_stat_buffer *pbuf);
 };
 
-struct rkisp1_stats_config {
+struct rkisp_stats_config {
 	const int ae_mean_max;
 	const int hist_bin_n_max;
 };
 
 /*
- * struct rkisp1_isp_stats_vdev - ISP Statistics device
+ * struct rkisp_isp_stats_vdev - ISP Statistics device
  *
  * @irq_lock: buffer queue lock
  * @stat: stats buffer list
  * @readout_wq: workqueue for statistics information read
  */
-struct rkisp1_isp_stats_vdev {
-	struct rkisp1_vdev_node vnode;
-	struct rkisp1_device *dev;
+struct rkisp_isp_stats_vdev {
+	struct rkisp_vdev_node vnode;
+	struct rkisp_device *dev;
 
 	spinlock_t irq_lock;
 	struct list_head stat;
@@ -97,16 +97,16 @@ struct rkisp1_isp_stats_vdev {
 	struct kfifo rd_kfifo;
 	struct tasklet_struct rd_tasklet;
 
-	struct rkisp1_stats_ops *ops;
-	struct rkisp1_stats_config *config;
+	struct rkisp_stats_ops *ops;
+	struct rkisp_stats_config *config;
 };
 
-int rkisp1_stats_isr(struct rkisp1_isp_stats_vdev *stats_vdev, u32 isp_ris);
+int rkisp_stats_isr(struct rkisp_isp_stats_vdev *stats_vdev, u32 isp_ris);
 
-int rkisp1_register_stats_vdev(struct rkisp1_isp_stats_vdev *stats_vdev,
+int rkisp_register_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev,
 			       struct v4l2_device *v4l2_dev,
-			       struct rkisp1_device *dev);
+			       struct rkisp_device *dev);
 
-void rkisp1_unregister_stats_vdev(struct rkisp1_isp_stats_vdev *stats_vdev);
+void rkisp_unregister_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev);
 
-#endif /* _RKISP1_ISP_STATS_H */
+#endif /* _RKISP_ISP_STATS_H */
