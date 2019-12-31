@@ -866,7 +866,7 @@ out:
  */
 #define ESW_SIZE (16 * 1024 * 1024)
 const unsigned int ESW_POOLS[4] = { 4 * 1024 * 1024, 1 * 1024 * 1024,
-				    64 * 1024, 4 * 1024 };
+				    64 * 1024, 128 };
 
 static int
 get_sz_from_pool(struct mlx5_eswitch *esw)
