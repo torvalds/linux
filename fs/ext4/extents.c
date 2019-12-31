@@ -1828,13 +1828,14 @@ static void ext4_ext_try_to_merge_up(handle_t *handle,
 }
 
 /*
- * This function tries to merge the @ex extent to neighbours in the tree.
- * return 1 if merge left else 0.
+ * This function tries to merge the @ex extent to neighbours in the tree, then
+ * tries to collapse the extent tree into the inode.
  */
 static void ext4_ext_try_to_merge(handle_t *handle,
 				  struct inode *inode,
 				  struct ext4_ext_path *path,
-				  struct ext4_extent *ex) {
+				  struct ext4_extent *ex)
+{
 	struct ext4_extent_header *eh;
 	unsigned int depth;
 	int merge_done = 0;
