@@ -62,7 +62,7 @@ are illustrated in the following diagram::
                                              |  | Definition Blocks | |
                                              |  +- - - - - - - - - -+ |
                                              +------------------------+
-                                                         |
+                                                          |
                                              OSPM Loading |
                                                          \|/
                                                    +----------------+
