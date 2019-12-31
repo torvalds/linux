@@ -567,7 +567,10 @@ static enum kernel_gp_hint get_kernel_gp_address(struct pt_regs *regs,
 dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code)
 {
 	char desc[sizeof(GPFSTR) + 50 + 2*sizeof(unsigned long) + 1] = GPFSTR;
+	enum kernel_gp_hint hint = GP_NO_HINT;
 	struct task_struct *tsk;
+	unsigned long gp_addr;
+	int ret;
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	cond_local_irq_enable(regs);
@@ -584,58 +587,56 @@ dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code)
 	}
 
 	tsk = current;
-	if (!user_mode(regs)) {
-		enum kernel_gp_hint hint = GP_NO_HINT;
-		unsigned long gp_addr;
 
-		if (fixup_exception(regs, X86_TRAP_GP, error_code, 0))
-			return;
-
+	if (user_mode(regs)) {
 		tsk->thread.error_code = error_code;
 		tsk->thread.trap_nr = X86_TRAP_GP;
 
-		/*
-		 * To be potentially processing a kprobe fault and to
-		 * trust the result from kprobe_running(), we have to
-		 * be non-preemptible.
-		 */
-		if (!preemptible() && kprobe_running() &&
-		    kprobe_fault_handler(regs, X86_TRAP_GP))
-			return;
+		show_signal(tsk, SIGSEGV, "", desc, regs, error_code);
+		force_sig(SIGSEGV);
 
-		if (notify_die(DIE_GPF, desc, regs, error_code,
-			       X86_TRAP_GP, SIGSEGV) == NOTIFY_STOP)
-			return;
-
-		if (error_code)
-			snprintf(desc, sizeof(desc), "segment-related " GPFSTR);
-		else
-			hint = get_kernel_gp_address(regs, &gp_addr);
-
-		if (hint != GP_NO_HINT)
-			snprintf(desc, sizeof(desc), GPFSTR ", %s 0x%lx",
-				 (hint == GP_NON_CANONICAL) ?
-				 "probably for non-canonical address" :
-				 "maybe for address",
-				 gp_addr);
-
-		/*
-		 * KASAN is interested only in the non-canonical case, clear it
-		 * otherwise.
-		 */
-		if (hint != GP_NON_CANONICAL)
-			gp_addr = 0;
-
-		die_addr(desc, regs, error_code, gp_addr);
 		return;
 	}
+
+	if (fixup_exception(regs, X86_TRAP_GP, error_code, 0))
+		return;
 
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_nr = X86_TRAP_GP;
 
-	show_signal(tsk, SIGSEGV, "", desc, regs, error_code);
+	/*
+	 * To be potentially processing a kprobe fault and to trust the result
+	 * from kprobe_running(), we have to be non-preemptible.
+	 */
+	if (!preemptible() &&
+	    kprobe_running() &&
+	    kprobe_fault_handler(regs, X86_TRAP_GP))
+		return;
 
-	force_sig(SIGSEGV);
+	ret = notify_die(DIE_GPF, desc, regs, error_code, X86_TRAP_GP, SIGSEGV);
+	if (ret == NOTIFY_STOP)
+		return;
+
+	if (error_code)
+		snprintf(desc, sizeof(desc), "segment-related " GPFSTR);
+	else
+		hint = get_kernel_gp_address(regs, &gp_addr);
+
+	if (hint != GP_NO_HINT)
+		snprintf(desc, sizeof(desc), GPFSTR ", %s 0x%lx",
+			 (hint == GP_NON_CANONICAL) ? "probably for non-canonical address"
+						    : "maybe for address",
+			 gp_addr);
+
+	/*
+	 * KASAN is interested only in the non-canonical case, clear it
+	 * otherwise.
+	 */
+	if (hint != GP_NON_CANONICAL)
+		gp_addr = 0;
+
+	die_addr(desc, regs, error_code, gp_addr);
+
 }
 NOKPROBE_SYMBOL(do_general_protection);
 
