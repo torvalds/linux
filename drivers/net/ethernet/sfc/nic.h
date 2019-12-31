@@ -9,7 +9,6 @@
 #define EFX_NIC_H
 
 #include <linux/net_tstamp.h>
-#include <linux/i2c-algo-bit.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "mcdi.h"
