@@ -204,19 +204,32 @@ static void f2fs_verity_work(struct work_struct *work)
 {
 	struct bio_post_read_ctx *ctx =
 		container_of(work, struct bio_post_read_ctx, work);
+	struct bio *bio = ctx->bio;
+#ifdef CONFIG_F2FS_FS_COMPRESSION
+	unsigned int enabled_steps = ctx->enabled_steps;
+#endif
+
+	/*
+	 * fsverity_verify_bio() may call readpages() again, and while verity
+	 * will be disabled for this, decryption may still be needed, resulting
+	 * in another bio_post_read_ctx being allocated.  So to prevent
+	 * deadlocks we need to release the current ctx to the mempool first.
+	 * This assumes that verity is the last post-read step.
+	 */
+	mempool_free(ctx, bio_post_read_ctx_pool);
+	bio->bi_private = NULL;
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	/* previous step is decompression */
-	if (ctx->enabled_steps & (1 << STEP_DECOMPRESS)) {
-
-		f2fs_verify_bio(ctx->bio);
-		f2fs_release_read_bio(ctx->bio);
+	if (enabled_steps & (1 << STEP_DECOMPRESS)) {
+		f2fs_verify_bio(bio);
+		f2fs_release_read_bio(bio);
 		return;
 	}
 #endif
 
-	fsverity_verify_bio(ctx->bio);
-	__f2fs_read_end_io(ctx->bio, false, false);
+	fsverity_verify_bio(bio);
+	__f2fs_read_end_io(bio, false, false);
 }
 
 static void f2fs_post_read_work(struct work_struct *work)
