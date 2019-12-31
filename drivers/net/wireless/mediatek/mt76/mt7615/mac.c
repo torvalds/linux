@@ -17,6 +17,44 @@
 
 #define to_rssi(field, rxv)		((FIELD_GET(field, rxv) - 220) / 2)
 
+static const struct mt7615_dfs_radar_spec etsi_radar_specs = {
+	.pulse_th = { 40, -10, -80, 800, 3360, 128, 5200 },
+	.radar_pattern = {
+		[5] =  { 1, 0,  6, 32, 28, 0, 17,  990, 5010, 1, 1 },
+		[6] =  { 1, 0,  9, 32, 28, 0, 27,  615, 5010, 1, 1 },
+		[7] =  { 1, 0, 15, 32, 28, 0, 27,  240,  445, 1, 1 },
+		[8] =  { 1, 0, 12, 32, 28, 0, 42,  240,  510, 1, 1 },
+		[9] =  { 1, 1,  0,  0,  0, 0, 14, 2490, 3343, 0, 0, 12, 32, 28 },
+		[10] = { 1, 1,  0,  0,  0, 0, 14, 2490, 3343, 0, 0, 15, 32, 24 },
+		[11] = { 1, 1,  0,  0,  0, 0, 14,  823, 2510, 0, 0, 18, 32, 28 },
+		[12] = { 1, 1,  0,  0,  0, 0, 14,  823, 2510, 0, 0, 27, 32, 24 },
+	},
+};
+
+static const struct mt7615_dfs_radar_spec fcc_radar_specs = {
+	.pulse_th = { 40, -10, -80, 800, 3360, 128, 5200 },
+	.radar_pattern = {
+		[0] = { 1, 0,  9,  32, 28, 0, 13, 508, 3076, 1,  1 },
+		[1] = { 1, 0, 12,  32, 28, 0, 17, 140,  240, 1,  1 },
+		[2] = { 1, 0,  8,  32, 28, 0, 22, 190,  510, 1,  1 },
+		[3] = { 1, 0,  6,  32, 28, 0, 32, 190,  510, 1,  1 },
+		[4] = { 1, 0,  9, 255, 28, 0, 13, 323,  343, 1, 32 },
+	},
+};
+
+static const struct mt7615_dfs_radar_spec jp_radar_specs = {
+	.pulse_th = { 40, -10, -80, 800, 3360, 128, 5200 },
+	.radar_pattern = {
+		[0] =  { 1, 0,  8, 32, 28, 0, 13,  508, 3076, 1,  1 },
+		[1] =  { 1, 0, 12, 32, 28, 0, 17,  140,  240, 1,  1 },
+		[2] =  { 1, 0,  8, 32, 28, 0, 22,  190,  510, 1,  1 },
+		[3] =  { 1, 0,  6, 32, 28, 0, 32,  190,  510, 1,  1 },
+		[4] =  { 1, 0,  9, 32, 28, 0, 13,  323,  343, 1, 32 },
+		[13] = { 1, 0, 8,  32, 28, 0, 14, 3836, 3856, 1,  1 },
+		[14] = { 1, 0, 8,  32, 28, 0, 14, 3990, 4010, 1,  1 },
+	},
+};
+
 static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 					    u8 idx, bool unicast)
 {
@@ -1685,6 +1723,40 @@ static int mt7615_dfs_start_radar_detector(struct mt7615_phy *phy)
 	return 0;
 }
 
+static int
+mt7615_dfs_init_radar_specs(struct mt7615_phy *phy)
+{
+	const struct mt7615_dfs_radar_spec *radar_specs;
+	struct mt7615_dev *dev = phy->dev;
+	int err, i;
+
+	switch (dev->mt76.region) {
+	case NL80211_DFS_FCC:
+		radar_specs = &fcc_radar_specs;
+		err = mt7615_mcu_set_fcc5_lpn(dev, 8);
+		if (err < 0)
+			return err;
+		break;
+	case NL80211_DFS_ETSI:
+		radar_specs = &etsi_radar_specs;
+		break;
+	case NL80211_DFS_JP:
+		radar_specs = &jp_radar_specs;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(radar_specs->radar_pattern); i++) {
+		err = mt7615_mcu_set_radar_th(dev, i,
+					      &radar_specs->radar_pattern[i]);
+		if (err < 0)
+			return err;
+	}
+
+	return mt7615_mcu_set_pulse_th(dev, &radar_specs->pulse_th);
+}
+
 int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy)
 {
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
@@ -1705,6 +1777,12 @@ int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy)
 
 	if (phy->dfs_state == chandef->chan->dfs_state)
 		return 0;
+
+	err = mt7615_dfs_init_radar_specs(phy);
+	if (err < 0) {
+		phy->dfs_state = -1;
+		goto stop;
+	}
 
 	phy->dfs_state = chandef->chan->dfs_state;
 

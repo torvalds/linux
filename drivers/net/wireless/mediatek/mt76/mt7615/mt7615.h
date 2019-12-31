@@ -46,6 +46,8 @@
 
 struct mt7615_vif;
 struct mt7615_sta;
+struct mt7615_dfs_pulse;
+struct mt7615_dfs_pattern;
 
 enum mt7615_hw_txq_id {
 	MT7615_TXQ_MAIN,
@@ -341,6 +343,11 @@ void mt7615_mac_work(struct work_struct *work);
 void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 			  struct mt76_txwi_cache *txwi);
 int mt76_dfs_start_rdd(struct mt7615_dev *dev, bool force);
+int mt7615_mcu_set_fcc5_lpn(struct mt7615_dev *dev, int val);
+int mt7615_mcu_set_pulse_th(struct mt7615_dev *dev,
+			    const struct mt7615_dfs_pulse *pulse);
+int mt7615_mcu_set_radar_th(struct mt7615_dev *dev, int index,
+			    const struct mt7615_dfs_pattern *pattern);
 int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy);
 
 int mt7615_init_debugfs(struct mt7615_dev *dev);

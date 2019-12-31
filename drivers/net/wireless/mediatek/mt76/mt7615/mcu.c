@@ -1333,6 +1333,54 @@ int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 				   &req, sizeof(req), true);
 }
 
+int mt7615_mcu_set_fcc5_lpn(struct mt7615_dev *dev, int val)
+{
+	struct {
+		u16 tag;
+		u16 min_lpn;
+	} req = {
+		.tag = 0x1,
+		.min_lpn = val,
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RDD_TH,
+				   &req, sizeof(req), true);
+}
+
+int mt7615_mcu_set_pulse_th(struct mt7615_dev *dev,
+			    const struct mt7615_dfs_pulse *pulse)
+{
+	struct {
+		u16 tag;
+		struct mt7615_dfs_pulse pulse;
+	} req = {
+		.tag = 0x3,
+	};
+
+	memcpy(&req.pulse, pulse, sizeof(*pulse));
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RDD_TH,
+				   &req, sizeof(req), true);
+}
+
+int mt7615_mcu_set_radar_th(struct mt7615_dev *dev, int index,
+			    const struct mt7615_dfs_pattern *pattern)
+{
+	struct {
+		u16 tag;
+		u16 radar_type;
+		struct mt7615_dfs_pattern pattern;
+	} req = {
+		.tag = 0x2,
+		.radar_type = index,
+	};
+
+	memcpy(&req.pattern, pattern, sizeof(*pattern));
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RDD_TH,
+				   &req, sizeof(req), true);
+}
+
 int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev)
 {
 	struct {
