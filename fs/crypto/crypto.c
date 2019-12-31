@@ -137,7 +137,7 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
  *		multiple of the filesystem's block size.
  * @offs:      Byte offset within @page of the first block to encrypt.  Must be
  *		a multiple of the filesystem's block size.
- * @gfp_flags: Memory allocation flags
+ * @gfp_flags: Memory allocation flags.  See details below.
  *
  * A new bounce page is allocated, and the specified block(s) are encrypted into
  * it.  In the bounce page, the ciphertext block(s) will be located at the same
@@ -146,6 +146,11 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
  * blocksize == PAGE_SIZE and the whole page is encrypted at once.
  *
  * This is for use by the filesystem's ->writepages() method.
+ *
+ * The bounce page allocation is mempool-backed, so it will always succeed when
+ * @gfp_flags includes __GFP_DIRECT_RECLAIM, e.g. when it's GFP_NOFS.  However,
+ * only the first page of each bio can be allocated this way.  To prevent
+ * deadlocks, for any additional pages a mask like GFP_NOWAIT must be used.
  *
  * Return: the new encrypted bounce page on success; an ERR_PTR() on failure
  */
