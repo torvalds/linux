@@ -260,6 +260,15 @@ struct smu_table_context
 	struct smu_bios_boot_up_values	boot_values;
 	void                            *driver_pptable;
 	struct smu_table		*tables;
+	/*
+	 * The driver table is just a staging buffer for
+	 * uploading/downloading content from the SMU.
+	 *
+	 * And the table_id for SMU_MSG_TransferTableSmu2Dram/
+	 * SMU_MSG_TransferTableDram2Smu instructs SMU
+	 * which content driver is interested.
+	 */
+	struct smu_table		driver_table;
 	struct smu_table		memory_pool;
 	uint8_t                         thermal_controller_type;
 
@@ -498,6 +507,7 @@ struct pptable_funcs {
 	int (*set_gfx_cgpg)(struct smu_context *smu, bool enable);
 	int (*write_pptable)(struct smu_context *smu);
 	int (*set_min_dcef_deep_sleep)(struct smu_context *smu);
+	int (*set_driver_table_location)(struct smu_context *smu);
 	int (*set_tool_table_location)(struct smu_context *smu);
 	int (*notify_memory_pool_location)(struct smu_context *smu);
 	int (*set_last_dcef_min_deep_sleep_clk)(struct smu_context *smu);

@@ -920,6 +920,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_dpm_ultimate_freq = smu_v12_0_get_dpm_ultimate_freq,
 	.mode2_reset = smu_v12_0_mode2_reset,
 	.set_soft_freq_limited_range = smu_v12_0_set_soft_freq_limited_range,
+	.set_driver_table_location = smu_v12_0_set_driver_table_location,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
