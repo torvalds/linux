@@ -149,7 +149,7 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 			goto next;
 		}
 
-		bch2_trans_update(&trans, iter, insert);
+		bch2_trans_update(&trans, iter, insert, 0);
 
 		ret = bch2_trans_commit(&trans, &op->res,
 				op_journal_seq(op),

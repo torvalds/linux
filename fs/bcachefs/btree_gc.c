@@ -118,8 +118,8 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const struct bch_extent_ptr *ptr;
 	unsigned flags =
-		BCH_BUCKET_MARK_GC|
-		(initial ? BCH_BUCKET_MARK_NOATOMIC : 0);
+		BTREE_TRIGGER_GC|
+		(initial ? BTREE_TRIGGER_NOATOMIC : 0);
 	int ret = 0;
 
 	if (initial) {
@@ -296,8 +296,8 @@ static int mark_journal_key(struct bch_fs *c, enum btree_id id,
 			   BTREE_ITER_SLOTS, k, ret) {
 		percpu_down_read(&c->mark_lock);
 		ret = bch2_mark_overwrite(&trans, iter, k, insert, NULL,
-					 BCH_BUCKET_MARK_GC|
-					 BCH_BUCKET_MARK_NOATOMIC);
+					 BTREE_TRIGGER_GC|
+					 BTREE_TRIGGER_NOATOMIC);
 		percpu_up_read(&c->mark_lock);
 
 		if (!ret)
@@ -409,7 +409,7 @@ static void bch2_mark_superblocks(struct bch_fs *c)
 	gc_pos_set(c, gc_phase(GC_PHASE_SB));
 
 	for_each_online_member(ca, c, i)
-		bch2_mark_dev_superblock(c, ca, BCH_BUCKET_MARK_GC);
+		bch2_mark_dev_superblock(c, ca, BTREE_TRIGGER_GC);
 	mutex_unlock(&c->sb_lock);
 }
 
@@ -426,7 +426,7 @@ static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 		if (d->index_update_done)
 			bch2_mark_key(c, bkey_i_to_s_c(&d->key),
 				      0, 0, NULL, 0,
-				      BCH_BUCKET_MARK_GC);
+				      BTREE_TRIGGER_GC);
 
 	mutex_unlock(&c->btree_interior_update_lock);
 }
@@ -447,7 +447,7 @@ static void bch2_mark_allocator_buckets(struct bch_fs *c)
 		fifo_for_each_entry(i, &ca->free_inc, iter)
 			bch2_mark_alloc_bucket(c, ca, i, true,
 					       gc_pos_alloc(c, NULL),
-					       BCH_BUCKET_MARK_GC);
+					       BTREE_TRIGGER_GC);
 
 
 
@@ -455,7 +455,7 @@ static void bch2_mark_allocator_buckets(struct bch_fs *c)
 			fifo_for_each_entry(i, &ca->free[j], iter)
 				bch2_mark_alloc_bucket(c, ca, i, true,
 						       gc_pos_alloc(c, NULL),
-						       BCH_BUCKET_MARK_GC);
+						       BTREE_TRIGGER_GC);
 	}
 
 	spin_unlock(&c->freelist_lock);
@@ -469,7 +469,7 @@ static void bch2_mark_allocator_buckets(struct bch_fs *c)
 			ca = bch_dev_bkey_exists(c, ob->ptr.dev);
 			bch2_mark_alloc_bucket(c, ca, PTR_BUCKET_NR(ca, &ob->ptr), true,
 					       gc_pos_alloc(c, ob),
-					       BCH_BUCKET_MARK_GC);
+					       BTREE_TRIGGER_GC);
 		}
 		spin_unlock(&ob->lock);
 	}

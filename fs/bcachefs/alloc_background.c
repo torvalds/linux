@@ -222,8 +222,8 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 
 	for_each_btree_key(&trans, iter, BTREE_ID_ALLOC, POS_MIN, 0, k, ret)
 		bch2_mark_key(c, k, 0, 0, NULL, 0,
-			      BCH_BUCKET_MARK_ALLOC_READ|
-			      BCH_BUCKET_MARK_NOATOMIC);
+			      BTREE_TRIGGER_ALLOC_READ|
+			      BTREE_TRIGGER_NOATOMIC);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret) {
@@ -235,8 +235,8 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 		if (j->btree_id == BTREE_ID_ALLOC)
 			bch2_mark_key(c, bkey_i_to_s_c(j->k),
 				      0, 0, NULL, 0,
-				      BCH_BUCKET_MARK_ALLOC_READ|
-				      BCH_BUCKET_MARK_NOATOMIC);
+				      BTREE_TRIGGER_ALLOC_READ|
+				      BTREE_TRIGGER_NOATOMIC);
 
 	percpu_down_write(&c->mark_lock);
 	bch2_dev_usage_from_buckets(c);
@@ -314,11 +314,10 @@ retry:
 	a->k.p = iter->pos;
 	bch2_alloc_pack(a, new_u);
 
-	bch2_trans_update(trans, iter, &a->k_i);
+	bch2_trans_update(trans, iter, &a->k_i,
+			  BTREE_TRIGGER_NORUN);
 	ret = bch2_trans_commit(trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_NOMARK|
-				flags);
+				BTREE_INSERT_NOFAIL|flags);
 err:
 	if (ret == -EINTR)
 		goto retry;
@@ -383,8 +382,7 @@ int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
 	ret = bch2_alloc_write_key(&trans, iter,
 				   BTREE_INSERT_NOFAIL|
 				   BTREE_INSERT_LAZY_RW|
-				   BTREE_INSERT_JOURNAL_REPLAY|
-				   BTREE_INSERT_NOMARK);
+				   BTREE_INSERT_JOURNAL_REPLAY);
 	bch2_trans_exit(&trans);
 	return ret < 0 ? ret : 0;
 }
@@ -901,7 +899,8 @@ retry:
 	a->k.p = iter->pos;
 	bch2_alloc_pack(a, u);
 
-	bch2_trans_update(trans, iter, &a->k_i);
+	bch2_trans_update(trans, iter, &a->k_i,
+			  BTREE_TRIGGER_BUCKET_INVALIDATE);
 
 	/*
 	 * XXX:
@@ -917,7 +916,6 @@ retry:
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_USE_RESERVE|
 				BTREE_INSERT_USE_ALLOC_RESERVE|
-				BTREE_INSERT_BUCKET_INVALIDATE|
 				flags);
 	if (ret == -EINTR)
 		goto retry;

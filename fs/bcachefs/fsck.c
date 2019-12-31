@@ -192,7 +192,7 @@ static int hash_redo_key(const struct bch_hash_desc desc,
 
 	bkey_init(&delete.k);
 	delete.k.p = k_iter->pos;
-	bch2_trans_update(trans, k_iter, &delete);
+	bch2_trans_update(trans, k_iter, &delete, 0);
 
 	return  bch2_hash_set(trans, desc, &h->info, k_iter->pos.inode,
 			      tmp, BCH_HASH_SET_MUST_CREATE) ?:
@@ -388,7 +388,7 @@ static int check_dirent_hash(struct btree_trans *trans, struct hash_check *h,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
 				      TRANS_RESET_MEM,
-			(bch2_trans_update(trans, iter, &d->k_i), 0));
+			(bch2_trans_update(trans, iter, &d->k_i, 0), 0));
 		if (ret)
 			goto err;
 
@@ -661,7 +661,7 @@ retry:
 					      BTREE_INSERT_NOFAIL|
 					      BTREE_INSERT_LAZY_RW,
 					      TRANS_RESET_MEM,
-				(bch2_trans_update(&trans, iter, &n->k_i), 0));
+				(bch2_trans_update(&trans, iter, &n->k_i, 0), 0));
 			kfree(n);
 			if (ret)
 				goto err;
@@ -1276,7 +1276,7 @@ static int check_inode(struct btree_trans *trans,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
 				      TRANS_RESET_MEM,
-			(bch2_trans_update(trans, iter, &p.inode.k_i), 0));
+			(bch2_trans_update(trans, iter, &p.inode.k_i, 0), 0));
 		if (ret)
 			bch_err(c, "error in fsck: error %i "
 				"updating inode", ret);

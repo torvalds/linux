@@ -302,13 +302,13 @@ int bch2_extent_update(struct btree_trans *trans,
 		if (delta || new_i_size) {
 			bch2_inode_pack(&inode_p, &inode_u);
 			bch2_trans_update(trans, inode_iter,
-					  &inode_p.inode.k_i);
+					  &inode_p.inode.k_i, 0);
 		}
 
 		bch2_trans_iter_put(trans, inode_iter);
 	}
 
-	bch2_trans_update(trans, iter, k);
+	bch2_trans_update(trans, iter, k, 0);
 
 	ret = bch2_trans_commit(trans, disk_res, journal_seq,
 				BTREE_INSERT_NOCHECK_RW|
@@ -1740,7 +1740,7 @@ retry:
 	if (!bch2_bkey_narrow_crcs(new.k, new_crc))
 		goto out;
 
-	bch2_trans_update(&trans, iter, new.k);
+	bch2_trans_update(&trans, iter, new.k, 0);
 	ret = bch2_trans_commit(&trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_NOWAIT);

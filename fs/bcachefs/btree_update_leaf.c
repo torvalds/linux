@@ -395,17 +395,11 @@ static noinline void bch2_trans_mark_gc(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
-	unsigned mark_flags = trans->flags & BTREE_INSERT_BUCKET_INVALIDATE
-		? BCH_BUCKET_MARK_BUCKET_INVALIDATE
-		: 0;
-
-	if (unlikely(trans->flags & BTREE_INSERT_NOMARK))
-		return;
 
 	trans_for_each_update(trans, i)
 		if (gc_visited(c, gc_pos_btree_node(i->iter->l[0].b)))
 			bch2_mark_update(trans, i->iter, i->k, NULL,
-					 mark_flags|BCH_BUCKET_MARK_GC);
+					 i->trigger_flags|BTREE_TRIGGER_GC);
 }
 
 static inline int
@@ -415,9 +409,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bch_fs_usage_online *fs_usage = NULL;
 	struct btree_insert_entry *i;
-	unsigned mark_flags = trans->flags & BTREE_INSERT_BUCKET_INVALIDATE
-		? BCH_BUCKET_MARK_BUCKET_INVALIDATE
-		: 0;
 	unsigned iter, u64s = 0;
 	bool marking = false;
 	int ret;
@@ -490,10 +481,9 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	}
 
 	trans_for_each_update(trans, i)
-		if (likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
-		    iter_has_nontrans_triggers(i->iter))
+		if (iter_has_nontrans_triggers(i->iter))
 			bch2_mark_update(trans, i->iter, i->k,
-					 &fs_usage->u, mark_flags);
+					 &fs_usage->u, i->trigger_flags);
 
 	if (marking)
 		bch2_trans_fs_usage_apply(trans, fs_usage);
@@ -753,9 +743,9 @@ int __bch2_trans_commit(struct btree_trans *trans)
 			goto out;
 		}
 
-		if (likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
-		    iter_has_trans_triggers(i->iter)) {
-			ret = bch2_trans_mark_update(trans, i->iter, i->k);
+		if (iter_has_trans_triggers(i->iter)) {
+			ret = bch2_trans_mark_update(trans, i->iter, i->k,
+						     i->trigger_flags);
 			if (unlikely(ret)) {
 				if (ret == -EINTR)
 					trace_trans_restart_mark(trans->ip);
@@ -805,7 +795,7 @@ static int __bch2_btree_insert(struct btree_trans *trans,
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
-	bch2_trans_update(trans, iter, k);
+	bch2_trans_update(trans, iter, k, 0);
 	return 0;
 }
 
@@ -867,7 +857,7 @@ retry:
 				break;
 		}
 
-		bch2_trans_update(trans, iter, &delete);
+		bch2_trans_update(trans, iter, &delete, 0);
 		ret = bch2_trans_commit(trans, NULL, journal_seq,
 					BTREE_INSERT_NOFAIL);
 		if (ret)
@@ -893,7 +883,7 @@ int bch2_btree_delete_at(struct btree_trans *trans,
 	bkey_init(&k.k);
 	k.k.p = iter->pos;
 
-	bch2_trans_update(trans, iter, &k);
+	bch2_trans_update(trans, iter, &k, 0);
 	return bch2_trans_commit(trans, NULL, NULL,
 				 BTREE_INSERT_NOFAIL|
 				 BTREE_INSERT_USE_RESERVE|flags);

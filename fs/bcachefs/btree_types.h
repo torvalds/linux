@@ -245,6 +245,7 @@ static inline enum btree_iter_type btree_iter_type(struct btree_iter *iter)
 }
 
 struct btree_insert_entry {
+	unsigned		trigger_flags;
 	struct bkey_i		*k;
 	struct btree_iter	*iter;
 };
@@ -483,6 +484,32 @@ static inline bool btree_node_is_extents(struct btree *b)
 	((1U << BKEY_TYPE_EXTENTS)|			\
 	 (1U << BKEY_TYPE_INODES)|			\
 	 (1U << BKEY_TYPE_REFLINK))
+
+enum btree_trigger_flags {
+	__BTREE_TRIGGER_NORUN,		/* Don't run triggers at all */
+	__BTREE_TRIGGER_NOOVERWRITES,	/* Don't run triggers on overwrites */
+
+	__BTREE_TRIGGER_INSERT,
+	__BTREE_TRIGGER_OVERWRITE,
+	__BTREE_TRIGGER_OVERWRITE_SPLIT,
+
+	__BTREE_TRIGGER_GC,
+	__BTREE_TRIGGER_BUCKET_INVALIDATE,
+	__BTREE_TRIGGER_ALLOC_READ,
+	__BTREE_TRIGGER_NOATOMIC,
+};
+
+#define BTREE_TRIGGER_NORUN		(1U << __BTREE_TRIGGER_NORUN)
+#define BTREE_TRIGGER_NOOVERWRITES	(1U << __BTREE_TRIGGER_NOOVERWRITES)
+
+#define BTREE_TRIGGER_INSERT		(1U << __BTREE_TRIGGER_INSERT)
+#define BTREE_TRIGGER_OVERWRITE		(1U << __BTREE_TRIGGER_OVERWRITE)
+#define BTREE_TRIGGER_OVERWRITE_SPLIT	(1U << __BTREE_TRIGGER_OVERWRITE_SPLIT)
+
+#define BTREE_TRIGGER_GC		(1U << __BTREE_TRIGGER_GC)
+#define BTREE_TRIGGER_BUCKET_INVALIDATE	(1U << __BTREE_TRIGGER_BUCKET_INVALIDATE)
+#define BTREE_TRIGGER_ALLOC_READ	(1U << __BTREE_TRIGGER_ALLOC_READ)
+#define BTREE_TRIGGER_NOATOMIC		(1U << __BTREE_TRIGGER_NOATOMIC)
 
 static inline bool btree_node_type_needs_gc(enum btree_node_type type)
 {

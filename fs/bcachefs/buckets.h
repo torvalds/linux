@@ -258,14 +258,6 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			       size_t, enum bch_data_type, unsigned,
 			       struct gc_pos, unsigned);
 
-#define BCH_BUCKET_MARK_INSERT			(1 << 0)
-#define BCH_BUCKET_MARK_OVERWRITE		(1 << 1)
-#define BCH_BUCKET_MARK_OVERWRITE_SPLIT		(1 << 2)
-#define BCH_BUCKET_MARK_BUCKET_INVALIDATE	(1 << 3)
-#define BCH_BUCKET_MARK_GC			(1 << 4)
-#define BCH_BUCKET_MARK_ALLOC_READ		(1 << 5)
-#define BCH_BUCKET_MARK_NOATOMIC		(1 << 6)
-
 int bch2_mark_key_locked(struct bch_fs *, struct bkey_s_c, unsigned, s64,
 			 struct bch_fs_usage *, u64, unsigned);
 int bch2_mark_key(struct bch_fs *, struct bkey_s_c, unsigned, s64,
@@ -284,9 +276,8 @@ int bch2_replicas_delta_list_apply(struct bch_fs *,
 				   struct replicas_delta_list *);
 int bch2_trans_mark_key(struct btree_trans *, struct bkey_s_c,
 			unsigned, s64, unsigned);
-int bch2_trans_mark_update(struct btree_trans *,
-			   struct btree_iter *iter,
-			   struct bkey_i *insert);
+int bch2_trans_mark_update(struct btree_trans *, struct btree_iter *iter,
+			   struct bkey_i *insert, unsigned);
 void bch2_trans_fs_usage_apply(struct btree_trans *, struct bch_fs_usage_online *);
 
 /* disk reservations: */

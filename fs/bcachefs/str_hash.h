@@ -281,7 +281,7 @@ not_found:
 			swap(iter, slot);
 
 		insert->k.p = iter->pos;
-		bch2_trans_update(trans, iter, insert);
+		bch2_trans_update(trans, iter, insert, 0);
 	}
 
 	goto out;
@@ -308,7 +308,7 @@ int bch2_hash_delete_at(struct btree_trans *trans,
 	delete->k.p = iter->pos;
 	delete->k.type = ret ? KEY_TYPE_whiteout : KEY_TYPE_deleted;
 
-	bch2_trans_update(trans, iter, delete);
+	bch2_trans_update(trans, iter, delete, 0);
 	return 0;
 }
 

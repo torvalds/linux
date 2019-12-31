@@ -76,7 +76,7 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 
 		bch2_btree_iter_set_pos(iter, bkey_start_pos(&sk.k->k));
 
-		bch2_trans_update(&trans, iter, sk.k);
+		bch2_trans_update(&trans, iter, sk.k, 0);
 
 		ret = bch2_trans_commit(&trans, NULL, NULL,
 					BTREE_INSERT_NOFAIL);

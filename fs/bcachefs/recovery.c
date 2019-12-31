@@ -300,28 +300,24 @@ retry:
 		bch2_cut_front(split_iter->pos, split);
 		bch2_cut_back(atomic_end, split);
 
-		bch2_trans_update(&trans, split_iter, split);
+		bch2_trans_update(&trans, split_iter, split, !remark
+				  ? BTREE_TRIGGER_NORUN
+				  : BTREE_TRIGGER_NOOVERWRITES);
 		bch2_btree_iter_set_pos(iter, split->k.p);
 	} while (bkey_cmp(iter->pos, k->k.p) < 0);
 
 	if (remark) {
 		ret = bch2_trans_mark_key(&trans, bkey_i_to_s_c(k),
 					  0, -((s64) k->k.size),
-					  BCH_BUCKET_MARK_OVERWRITE) ?:
-		      bch2_trans_commit(&trans, &disk_res, NULL,
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_LAZY_RW|
-					BTREE_INSERT_NOMARK_OVERWRITES);
-	} else {
-		ret = bch2_trans_commit(&trans, &disk_res, NULL,
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_LAZY_RW|
-					BTREE_INSERT_JOURNAL_REPLAY|
-					BTREE_INSERT_NOMARK);
+					  BTREE_TRIGGER_OVERWRITE);
+		if (ret)
+			goto err;
 	}
 
-	if (ret)
-		goto err;
+	ret = bch2_trans_commit(&trans, &disk_res, NULL,
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_LAZY_RW|
+				BTREE_INSERT_JOURNAL_REPLAY);
 err:
 	if (ret == -EINTR)
 		goto retry;
@@ -329,6 +325,30 @@ err:
 	bch2_disk_reservation_put(c, &disk_res);
 
 	return bch2_trans_exit(&trans) ?: ret;
+}
+
+static int __bch2_journal_replay_key(struct btree_trans *trans,
+				     enum btree_id id, struct bkey_i *k)
+{
+	struct btree_iter *iter;
+
+	iter = bch2_trans_get_iter(trans, id, bkey_start_pos(&k->k),
+				   BTREE_ITER_INTENT);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
+
+	bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
+	return 0;
+}
+
+static int bch2_journal_replay_key(struct bch_fs *c, enum btree_id id,
+				   struct bkey_i *k)
+{
+	return bch2_trans_do(c, NULL, NULL,
+			     BTREE_INSERT_NOFAIL|
+			     BTREE_INSERT_LAZY_RW|
+			     BTREE_INSERT_JOURNAL_REPLAY,
+			     __bch2_journal_replay_key(&trans, id, k));
 }
 
 static int bch2_journal_replay(struct bch_fs *c,
@@ -348,12 +368,7 @@ static int bch2_journal_replay(struct bch_fs *c,
 		else if (btree_node_type_is_extents(i->btree_id))
 			ret = bch2_extent_replay_key(c, i->btree_id, i->k);
 		else
-			ret = bch2_btree_insert(c, i->btree_id, i->k,
-						NULL, NULL,
-						BTREE_INSERT_NOFAIL|
-						BTREE_INSERT_LAZY_RW|
-						BTREE_INSERT_JOURNAL_REPLAY|
-						BTREE_INSERT_NOMARK);
+			ret = bch2_journal_replay_key(c, i->btree_id, i->k);
 
 		if (ret) {
 			bch_err(c, "journal replay: error %d while replaying key",

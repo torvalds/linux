@@ -115,7 +115,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	r_v->v.refcount	= 0;
 	memcpy(r_v->v.start, e->v.start, bkey_val_bytes(&e->k));
 
-	bch2_trans_update(trans, reflink_iter, &r_v->k_i);
+	bch2_trans_update(trans, reflink_iter, &r_v->k_i, 0);
 
 	r_p = bch2_trans_kmalloc(trans, sizeof(*r_p));
 	if (IS_ERR(r_p))
@@ -126,7 +126,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	set_bkey_val_bytes(&r_p->k, sizeof(r_p->v));
 	r_p->v.idx = cpu_to_le64(bkey_start_offset(&r_v->k));
 
-	bch2_trans_update(trans, extent_iter, &r_p->k_i);
+	bch2_trans_update(trans, extent_iter, &r_p->k_i, 0);
 err:
 	if (!IS_ERR(reflink_iter)) {
 		c->reflink_hint = reflink_iter->pos.offset;

@@ -2465,7 +2465,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 		struct bpos next_pos;
 		struct bpos move_pos = POS(inode->v.i_ino, offset >> 9);
 		struct bpos atomic_end;
-		unsigned commit_flags = 0;
+		unsigned trigger_flags = 0;
 
 		k = insert
 			? bch2_btree_iter_peek_prev(src)
@@ -2536,15 +2536,12 @@ reassemble:
 				bkey_start_pos(&delete.k));
 		}
 
-		bch2_trans_update(&trans, dst, copy.k);
-		bch2_trans_update(&trans, del ?: src, &delete);
-
 		if (copy.k->k.size == k.k->size) {
 			/*
 			 * If we're moving the entire extent, we can skip
 			 * running triggers:
 			 */
-			commit_flags |= BTREE_INSERT_NOMARK;
+			trigger_flags |= BTREE_TRIGGER_NORUN;
 		} else {
 			/* We might end up splitting compressed extents: */
 			unsigned nr_ptrs =
@@ -2556,10 +2553,12 @@ reassemble:
 			BUG_ON(ret);
 		}
 
+		bch2_trans_update(&trans, dst, copy.k, trigger_flags);
+		bch2_trans_update(&trans, del ?: src, &delete, trigger_flags);
+
 		ret = bch2_trans_commit(&trans, &disk_res,
 					&inode->ei_journal_seq,
-					BTREE_INSERT_NOFAIL|
-					commit_flags);
+					BTREE_INSERT_NOFAIL);
 		bch2_disk_reservation_put(c, &disk_res);
 bkey_err:
 		if (del)
