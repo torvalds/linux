@@ -316,14 +316,11 @@ static int aes_set_key_common(struct crypto_tfm *tfm, void *raw_ctx,
 			      const u8 *in_key, unsigned int key_len)
 {
 	struct crypto_aes_ctx *ctx = aes_ctx(raw_ctx);
-	u32 *flags = &tfm->crt_flags;
 	int err;
 
 	if (key_len != AES_KEYSIZE_128 && key_len != AES_KEYSIZE_192 &&
-	    key_len != AES_KEYSIZE_256) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	    key_len != AES_KEYSIZE_256)
 		return -EINVAL;
-	}
 
 	if (!crypto_simd_usable())
 		err = aes_expandkey(ctx, in_key, key_len);
@@ -641,10 +638,9 @@ static int common_rfc4106_set_key(struct crypto_aead *aead, const u8 *key,
 {
 	struct aesni_rfc4106_gcm_ctx *ctx = aesni_rfc4106_gcm_ctx_get(aead);
 
-	if (key_len < 4) {
-		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (key_len < 4)
 		return -EINVAL;
-	}
+
 	/*Account for 4 byte nonce at the end.*/
 	key_len -= 4;
 

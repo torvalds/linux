@@ -914,7 +914,6 @@ static int aead_setkey(struct crypto_aead *authenc,
 	return 0;
 
 badkey:
-	crypto_aead_set_flags(authenc, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
@@ -929,11 +928,11 @@ static int aead_des3_setkey(struct crypto_aead *authenc,
 
 	err = crypto_authenc_extractkeys(&keys, key, keylen);
 	if (unlikely(err))
-		goto badkey;
+		goto out;
 
 	err = -EINVAL;
 	if (keys.authkeylen + keys.enckeylen > TALITOS_MAX_KEY_SIZE)
-		goto badkey;
+		goto out;
 
 	err = verify_aead_des3_key(authenc, keys.enckey, keys.enckeylen);
 	if (err)
@@ -954,10 +953,6 @@ static int aead_des3_setkey(struct crypto_aead *authenc,
 out:
 	memzero_explicit(&keys, sizeof(keys));
 	return err;
-
-badkey:
-	crypto_aead_set_flags(authenc, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	goto out;
 }
 
 static void talitos_sg_unmap(struct device *dev,
@@ -1527,8 +1522,6 @@ static int skcipher_aes_setkey(struct crypto_skcipher *cipher,
 	if (keylen == AES_KEYSIZE_128 || keylen == AES_KEYSIZE_192 ||
 	    keylen == AES_KEYSIZE_256)
 		return skcipher_setkey(cipher, key, keylen);
-
-	crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 
 	return -EINVAL;
 }
@@ -2234,10 +2227,8 @@ static int ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 		/* Must get the hash of the long key */
 		ret = keyhash(tfm, key, keylen, hash);
 
-		if (ret) {
-			crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		if (ret)
 			return -EINVAL;
-		}
 
 		keysize = digestsize;
 		memcpy(ctx->key, hash, digestsize);

@@ -473,7 +473,6 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 	return ahash_set_sh_desc(ahash);
  bad_free_key:
 	kfree(hashed_key);
-	crypto_ahash_set_flags(ahash, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }
 
@@ -483,10 +482,8 @@ static int axcbc_setkey(struct crypto_ahash *ahash, const u8 *key,
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct device *jrdev = ctx->jrdev;
 
-	if (keylen != AES_KEYSIZE_128) {
-		crypto_ahash_set_flags(ahash, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != AES_KEYSIZE_128)
 		return -EINVAL;
-	}
 
 	memcpy(ctx->key, key, keylen);
 	dma_sync_single_for_device(jrdev, ctx->adata.key_dma, keylen,
@@ -506,10 +503,8 @@ static int acmac_setkey(struct crypto_ahash *ahash, const u8 *key,
 	int err;
 
 	err = aes_check_keylen(keylen);
-	if (err) {
-		crypto_ahash_set_flags(ahash, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (err)
 		return err;
-	}
 
 	/* key is immediate data for all cmac shared descriptors */
 	ctx->adata.key_virt = key;

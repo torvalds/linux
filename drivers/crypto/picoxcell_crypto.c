@@ -490,7 +490,6 @@ static int spacc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	return 0;
 
 badkey:
-	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
@@ -780,10 +779,8 @@ static int spacc_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	struct spacc_ablk_ctx *ctx = crypto_tfm_ctx(tfm);
 	int err = 0;
 
-	if (len > AES_MAX_KEY_SIZE) {
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (len > AES_MAX_KEY_SIZE)
 		return -EINVAL;
-	}
 
 	/*
 	 * IPSec engine only supports 128 and 256 bit AES keys. If we get a
@@ -830,7 +827,6 @@ static int spacc_kasumi_f8_setkey(struct crypto_skcipher *cipher,
 	int err = 0;
 
 	if (len > AES_MAX_KEY_SIZE) {
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		err = -EINVAL;
 		goto out;
 	}

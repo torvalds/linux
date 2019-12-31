@@ -380,10 +380,8 @@ static int safexcel_skcipher_aes_setkey(struct crypto_skcipher *ctfm,
 	int ret, i;
 
 	ret = aes_expandkey(&aes, key, len);
-	if (ret) {
-		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < len / sizeof(u32); i++) {
@@ -433,12 +431,12 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	case SAFEXCEL_DES:
 		err = verify_aead_des_key(ctfm, keys.enckey, keys.enckeylen);
 		if (unlikely(err))
-			goto badkey_expflags;
+			goto badkey;
 		break;
 	case SAFEXCEL_3DES:
 		err = verify_aead_des3_key(ctfm, keys.enckey, keys.enckeylen);
 		if (unlikely(err))
-			goto badkey_expflags;
+			goto badkey;
 		break;
 	case SAFEXCEL_AES:
 		err = aes_expandkey(&aes, keys.enckey, keys.enckeylen);
@@ -521,8 +519,6 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	return 0;
 
 badkey:
-	crypto_aead_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-badkey_expflags:
 	memzero_explicit(&keys, sizeof(keys));
 	return err;
 }
@@ -1444,10 +1440,8 @@ static int safexcel_skcipher_aesctr_setkey(struct crypto_skcipher *ctfm,
 	/* exclude the nonce here */
 	keylen = len - CTR_RFC3686_NONCE_SIZE;
 	ret = aes_expandkey(&aes, key, keylen);
-	if (ret) {
-		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < keylen / sizeof(u32); i++) {
@@ -2459,10 +2453,8 @@ static int safexcel_skcipher_aesxts_setkey(struct crypto_skcipher *ctfm,
 	/* Only half of the key data is cipher key */
 	keylen = (len >> 1);
 	ret = aes_expandkey(&aes, key, keylen);
-	if (ret) {
-		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < keylen / sizeof(u32); i++) {
@@ -2478,10 +2470,8 @@ static int safexcel_skcipher_aesxts_setkey(struct crypto_skcipher *ctfm,
 
 	/* The other half is the tweak key */
 	ret = aes_expandkey(&aes, (u8 *)(key + keylen), keylen);
-	if (ret) {
-		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < keylen / sizeof(u32); i++) {
@@ -2570,7 +2560,6 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 	ret = aes_expandkey(&aes, key, len);
 	if (ret) {
-		crypto_aead_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		memzero_explicit(&aes, sizeof(aes));
 		return ret;
 	}
@@ -2684,7 +2673,6 @@ static int safexcel_aead_ccm_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 	ret = aes_expandkey(&aes, key, len);
 	if (ret) {
-		crypto_aead_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		memzero_explicit(&aes, sizeof(aes));
 		return ret;
 	}
@@ -2815,10 +2803,9 @@ static int safexcel_skcipher_chacha20_setkey(struct crypto_skcipher *ctfm,
 {
 	struct safexcel_cipher_ctx *ctx = crypto_skcipher_ctx(ctfm);
 
-	if (len != CHACHA_KEY_SIZE) {
-		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (len != CHACHA_KEY_SIZE)
 		return -EINVAL;
-	}
+
 	safexcel_chacha20_setkey(ctx, key);
 
 	return 0;
@@ -2872,10 +2859,9 @@ static int safexcel_aead_chachapoly_setkey(struct crypto_aead *ctfm,
 		len -= EIP197_AEAD_IPSEC_NONCE_SIZE;
 		ctx->nonce = *(u32 *)(key + len);
 	}
-	if (len != CHACHA_KEY_SIZE) {
-		crypto_aead_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (len != CHACHA_KEY_SIZE)
 		return -EINVAL;
-	}
+
 	safexcel_chacha20_setkey(ctx, key);
 
 	return 0;
@@ -3070,10 +3056,8 @@ static int safexcel_skcipher_sm4_setkey(struct crypto_skcipher *ctfm,
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
 
-	if (len != SM4_KEY_SIZE) {
-		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (len != SM4_KEY_SIZE)
 		return -EINVAL;
-	}
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma)
 		if (memcmp(ctx->key, key, SM4_KEY_SIZE))

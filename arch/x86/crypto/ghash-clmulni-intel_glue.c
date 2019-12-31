@@ -57,10 +57,8 @@ static int ghash_setkey(struct crypto_shash *tfm,
 	be128 *x = (be128 *)key;
 	u64 a, b;
 
-	if (keylen != GHASH_BLOCK_SIZE) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
-	}
 
 	/* perform multiplication by 'x' in GF(2^128) */
 	a = be64_to_cpu(x->a);

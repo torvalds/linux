@@ -1227,12 +1227,10 @@ static void camellia_setup192(const unsigned char *key, u64 *subkey)
 }
 
 int __camellia_setkey(struct camellia_ctx *cctx, const unsigned char *key,
-		      unsigned int key_len, u32 *flags)
+		      unsigned int key_len)
 {
-	if (key_len != 16 && key_len != 24 && key_len != 32) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	if (key_len != 16 && key_len != 24 && key_len != 32)
 		return -EINVAL;
-	}
 
 	cctx->key_length = key_len;
 
@@ -1255,8 +1253,7 @@ EXPORT_SYMBOL_GPL(__camellia_setkey);
 static int camellia_setkey(struct crypto_tfm *tfm, const u8 *key,
 			   unsigned int key_len)
 {
-	return __camellia_setkey(crypto_tfm_ctx(tfm), key, key_len,
-				 &tfm->crt_flags);
+	return __camellia_setkey(crypto_tfm_ctx(tfm), key, key_len);
 }
 
 static int camellia_setkey_skcipher(struct crypto_skcipher *tfm, const u8 *key,

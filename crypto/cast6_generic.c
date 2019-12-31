@@ -103,17 +103,14 @@ static inline void W(u32 *key, unsigned int i)
 	key[7] ^= F2(key[0], Tr[i % 4][7], Tm[i][7]);
 }
 
-int __cast6_setkey(struct cast6_ctx *c, const u8 *in_key,
-		   unsigned key_len, u32 *flags)
+int __cast6_setkey(struct cast6_ctx *c, const u8 *in_key, unsigned int key_len)
 {
 	int i;
 	u32 key[8];
 	__be32 p_key[8]; /* padded key */
 
-	if (key_len % 4 != 0) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	if (key_len % 4 != 0)
 		return -EINVAL;
-	}
 
 	memset(p_key, 0, 32);
 	memcpy(p_key, in_key, key_len);
@@ -148,8 +145,7 @@ EXPORT_SYMBOL_GPL(__cast6_setkey);
 
 int cast6_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 {
-	return __cast6_setkey(crypto_tfm_ctx(tfm), key, keylen,
-			      &tfm->crt_flags);
+	return __cast6_setkey(crypto_tfm_ctx(tfm), key, keylen);
 }
 EXPORT_SYMBOL_GPL(cast6_setkey);
 

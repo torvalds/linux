@@ -117,10 +117,8 @@ static int essiv_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	if (err)
 		return err;
 
-	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0) {
-		crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		return -EINVAL;
-	}
 
 	desc->tfm = tctx->hash;
 	err = crypto_shash_init(desc) ?:

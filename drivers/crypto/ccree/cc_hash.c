@@ -899,9 +899,6 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 	rc = cc_send_sync_request(ctx->drvdata, &cc_req, desc, idx);
 
 out:
-	if (rc)
-		crypto_ahash_set_flags(ahash, CRYPTO_TFM_RES_BAD_KEY_LEN);
-
 	if (ctx->key_params.key_dma_addr) {
 		dma_unmap_single(dev, ctx->key_params.key_dma_addr,
 				 ctx->key_params.keylen, DMA_TO_DEVICE);
@@ -989,9 +986,6 @@ static int cc_xcbc_setkey(struct crypto_ahash *ahash,
 	idx++;
 
 	rc = cc_send_sync_request(ctx->drvdata, &cc_req, desc, idx);
-
-	if (rc)
-		crypto_ahash_set_flags(ahash, CRYPTO_TFM_RES_BAD_KEY_LEN);
 
 	dma_unmap_single(dev, ctx->key_params.key_dma_addr,
 			 ctx->key_params.keylen, DMA_TO_DEVICE);

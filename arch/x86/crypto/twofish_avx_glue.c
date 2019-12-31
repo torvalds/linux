@@ -64,7 +64,6 @@ static int xts_twofish_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			      unsigned int keylen)
 {
 	struct twofish_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
-	u32 *flags = &tfm->base.crt_flags;
 	int err;
 
 	err = xts_verify_key(tfm, key, keylen);
@@ -72,13 +71,12 @@ static int xts_twofish_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		return err;
 
 	/* first half of xts-key is for crypt */
-	err = __twofish_setkey(&ctx->crypt_ctx, key, keylen / 2, flags);
+	err = __twofish_setkey(&ctx->crypt_ctx, key, keylen / 2);
 	if (err)
 		return err;
 
 	/* second half of xts-key is for tweak */
-	return __twofish_setkey(&ctx->tweak_ctx, key + keylen / 2, keylen / 2,
-				flags);
+	return __twofish_setkey(&ctx->tweak_ctx, key + keylen / 2, keylen / 2);
 }
 
 static const struct common_glue_ctx twofish_enc = {

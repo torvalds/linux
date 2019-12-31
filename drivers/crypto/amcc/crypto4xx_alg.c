@@ -128,12 +128,9 @@ static int crypto4xx_setkey_aes(struct crypto_skcipher *cipher,
 	struct dynamic_sa_ctl *sa;
 	int    rc;
 
-	if (keylen != AES_KEYSIZE_256 &&
-		keylen != AES_KEYSIZE_192 && keylen != AES_KEYSIZE_128) {
-		crypto_skcipher_set_flags(cipher,
-				CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != AES_KEYSIZE_256 && keylen != AES_KEYSIZE_192 &&
+	    keylen != AES_KEYSIZE_128)
 		return -EINVAL;
-	}
 
 	/* Create SA */
 	if (ctx->sa_in || ctx->sa_out)
@@ -551,10 +548,8 @@ int crypto4xx_setkey_aes_gcm(struct crypto_aead *cipher,
 	struct dynamic_sa_ctl *sa;
 	int    rc = 0;
 
-	if (crypto4xx_aes_gcm_validate_keylen(keylen) != 0) {
-		crypto_aead_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (crypto4xx_aes_gcm_validate_keylen(keylen) != 0)
 		return -EINVAL;
-	}
 
 	rc = crypto4xx_aead_setup_fallback(ctx, cipher, key, keylen);
 	if (rc)

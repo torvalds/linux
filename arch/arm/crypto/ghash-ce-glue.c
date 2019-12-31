@@ -163,10 +163,8 @@ static int ghash_setkey(struct crypto_shash *tfm,
 	struct ghash_key *key = crypto_shash_ctx(tfm);
 	be128 h;
 
-	if (keylen != GHASH_BLOCK_SIZE) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
-	}
 
 	/* needed for the fallback */
 	memcpy(&key->k, inkey, GHASH_BLOCK_SIZE);

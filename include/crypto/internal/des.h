@@ -120,20 +120,16 @@ static inline int verify_skcipher_des3_key(struct crypto_skcipher *tfm,
 static inline int verify_aead_des_key(struct crypto_aead *tfm, const u8 *key,
 				      int keylen)
 {
-	if (keylen != DES_KEY_SIZE) {
-		crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != DES_KEY_SIZE)
 		return -EINVAL;
-	}
 	return crypto_des_verify_key(crypto_aead_tfm(tfm), key);
 }
 
 static inline int verify_aead_des3_key(struct crypto_aead *tfm, const u8 *key,
 				       int keylen)
 {
-	if (keylen != DES3_EDE_KEY_SIZE) {
-		crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != DES3_EDE_KEY_SIZE)
 		return -EINVAL;
-	}
 	return crypto_des3_ede_verify_key(crypto_aead_tfm(tfm), key);
 }
 

@@ -435,10 +435,8 @@ static int vmac_setkey(struct crypto_shash *tfm,
 	unsigned int i;
 	int err;
 
-	if (keylen != VMAC_KEY_LEN) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != VMAC_KEY_LEN)
 		return -EINVAL;
-	}
 
 	err = crypto_cipher_setkey(tctx->cipher, key, keylen);
 	if (err)

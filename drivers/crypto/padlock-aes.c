@@ -108,14 +108,11 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
 	const __le32 *key = (const __le32 *)in_key;
-	u32 *flags = &tfm->crt_flags;
 	struct crypto_aes_ctx gen_aes;
 	int cpu;
 
-	if (key_len % 8) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	if (key_len % 8)
 		return -EINVAL;
-	}
 
 	/*
 	 * If the hardware is capable of generating the extended key
@@ -146,10 +143,8 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	ctx->cword.encrypt.keygen = 1;
 	ctx->cword.decrypt.keygen = 1;
 
-	if (aes_expandkey(&gen_aes, in_key, key_len)) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	if (aes_expandkey(&gen_aes, in_key, key_len))
 		return -EINVAL;
-	}
 
 	memcpy(ctx->E, gen_aes.key_enc, AES_MAX_KEYLENGTH);
 	memcpy(ctx->D, gen_aes.key_dec, AES_MAX_KEYLENGTH);

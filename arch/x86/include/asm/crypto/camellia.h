@@ -26,7 +26,7 @@ struct camellia_xts_ctx {
 
 extern int __camellia_setkey(struct camellia_ctx *cctx,
 			     const unsigned char *key,
-			     unsigned int key_len, u32 *flags);
+			     unsigned int key_len);
 
 extern int xts_camellia_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			       unsigned int keylen);

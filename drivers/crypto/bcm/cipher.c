@@ -1846,7 +1846,6 @@ static int aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 		ctx->cipher_type = CIPHER_TYPE_AES256;
 		break;
 	default:
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 	WARN_ON((ctx->max_payload != SPU_MAX_PAYLOAD_INF) &&
@@ -2916,7 +2915,6 @@ badkey:
 	ctx->authkeylen = 0;
 	ctx->digestsize = 0;
 
-	crypto_aead_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }
 
@@ -2992,7 +2990,6 @@ badkey:
 	ctx->authkeylen = 0;
 	ctx->digestsize = 0;
 
-	crypto_aead_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }
 

@@ -414,10 +414,8 @@ static int xts_aes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 		return err;
 
 	/* In fips mode only 128 bit or 256 bit keys are valid */
-	if (fips_enabled && key_len != 32 && key_len != 64) {
-		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (fips_enabled && key_len != 32 && key_len != 64)
 		return -EINVAL;
-	}
 
 	/* Pick the correct function code based on the key length */
 	fc = (key_len == 32) ? CPACF_KM_XTS_128 :

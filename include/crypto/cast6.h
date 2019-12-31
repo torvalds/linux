@@ -15,8 +15,7 @@ struct cast6_ctx {
 	u8 Kr[12][4];
 };
 
-int __cast6_setkey(struct cast6_ctx *ctx, const u8 *key,
-		   unsigned int keylen, u32 *flags);
+int __cast6_setkey(struct cast6_ctx *ctx, const u8 *key, unsigned int keylen);
 int cast6_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen);
 
 void __cast6_encrypt(const void *ctx, u8 *dst, const u8 *src);
