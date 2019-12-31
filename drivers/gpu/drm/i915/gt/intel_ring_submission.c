@@ -1394,7 +1394,7 @@ static int load_pd_dir(struct i915_request *rq,
 
 	intel_ring_advance(rq, cs);
 
-	return 0;
+	return rq->engine->emit_flush(rq, EMIT_FLUSH);
 }
 
 static inline int mi_set_context(struct i915_request *rq, u32 flags)
@@ -1584,7 +1584,7 @@ static int switch_mm(struct i915_request *rq, struct i915_address_space *vm)
 	if (ret)
 		return ret;
 
-	return rq->engine->emit_flush(rq, EMIT_FLUSH);
+	return rq->engine->emit_flush(rq, EMIT_INVALIDATE);
 }
 
 static int switch_context(struct i915_request *rq)
