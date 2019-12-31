@@ -165,9 +165,11 @@ static int build_merkle_tree(struct file *filp,
 		return 0;
 	}
 
+	/* This allocation never fails, since it's mempool-backed. */
+	req = fsverity_alloc_hash_request(params->hash_alg, GFP_KERNEL);
+
 	pending_hashes = kmalloc(params->block_size, GFP_KERNEL);
-	req = ahash_request_alloc(params->hash_alg->tfm, GFP_KERNEL);
-	if (!pending_hashes || !req)
+	if (!pending_hashes)
 		goto out;
 
 	/*
@@ -189,7 +191,7 @@ static int build_merkle_tree(struct file *filp,
 	err = 0;
 out:
 	kfree(pending_hashes);
-	ahash_request_free(req);
+	fsverity_free_hash_request(params->hash_alg, req);
 	return err;
 }
 

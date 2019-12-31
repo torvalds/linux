@@ -192,13 +192,12 @@ bool fsverity_verify_page(struct page *page)
 	struct ahash_request *req;
 	bool valid;
 
-	req = ahash_request_alloc(vi->tree_params.hash_alg->tfm, GFP_NOFS);
-	if (unlikely(!req))
-		return false;
+	/* This allocation never fails, since it's mempool-backed. */
+	req = fsverity_alloc_hash_request(vi->tree_params.hash_alg, GFP_NOFS);
 
 	valid = verify_page(inode, vi, req, page, 0);
 
-	ahash_request_free(req);
+	fsverity_free_hash_request(vi->tree_params.hash_alg, req);
 
 	return valid;
 }
@@ -229,12 +228,8 @@ void fsverity_verify_bio(struct bio *bio)
 	int i;
 	unsigned long max_ra_pages = 0;
 
-	req = ahash_request_alloc(params->hash_alg->tfm, GFP_NOFS);
-	if (unlikely(!req)) {
-		bio_for_each_segment_all(bv, bio, i)
-			SetPageError(bv->bv_page);
-		return;
-	}
+	/* This allocation never fails, since it's mempool-backed. */
+	req = fsverity_alloc_hash_request(params->hash_alg, GFP_NOFS);
 
 	if (bio->bi_opf & REQ_RAHEAD) {
 		/*
@@ -262,7 +257,7 @@ void fsverity_verify_bio(struct bio *bio)
 			SetPageError(page);
 	}
 
-	ahash_request_free(req);
+	fsverity_free_hash_request(params->hash_alg, req);
 }
 EXPORT_SYMBOL_GPL(fsverity_verify_bio);
 #endif /* CONFIG_BLOCK */
