@@ -254,6 +254,7 @@ struct smu_table_context
 	unsigned long			metrics_time;
 	void				*metrics_table;
 	void				*clocks_table;
+	void				*watermarks_table;
 
 	void				*max_sustainable_clocks;
 	struct smu_bios_boot_up_values	boot_values;

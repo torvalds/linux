@@ -450,8 +450,10 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 
 	kfree(smu_table->tables);
 	kfree(smu_table->metrics_table);
+	kfree(smu_table->watermarks_table);
 	smu_table->tables = NULL;
 	smu_table->metrics_table = NULL;
+	smu_table->watermarks_table = NULL;
 	smu_table->metrics_time = 0;
 
 	ret = smu_v11_0_fini_dpm_context(smu);

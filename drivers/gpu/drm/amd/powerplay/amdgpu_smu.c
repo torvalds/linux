@@ -1929,32 +1929,25 @@ int smu_set_df_cstate(struct smu_context *smu,
 
 int smu_write_watermarks_table(struct smu_context *smu)
 {
-	int ret = 0;
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *table = NULL;
+	void *watermarks_table = smu->smu_table.watermarks_table;
 
-	table = &smu_table->tables[SMU_TABLE_WATERMARKS];
-
-	if (!table->cpu_addr)
+	if (!watermarks_table)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, 0, table->cpu_addr,
+	return smu_update_table(smu,
+				SMU_TABLE_WATERMARKS,
+				0,
+				watermarks_table,
 				true);
-
-	return ret;
 }
 
 int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 		struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges)
 {
-	struct smu_table *watermarks;
-	void *table;
+	void *table = smu->smu_table.watermarks_table;
 
-	if (!smu->smu_table.tables)
-		return 0;
-
-	watermarks = &smu->smu_table.tables[SMU_TABLE_WATERMARKS];
-	table = watermarks->cpu_addr;
+	if (!table)
+		return -EINVAL;
 
 	mutex_lock(&smu->mutex);
 
