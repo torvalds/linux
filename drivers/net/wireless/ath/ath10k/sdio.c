@@ -642,16 +642,23 @@ static int ath10k_sdio_mbox_rx_fetch(struct ath10k *ar)
 
 	ret = ath10k_sdio_readsb(ar, ar_sdio->mbox_info.htc_addr,
 				 skb->data, pkt->alloc_len);
-
-	if (ret) {
-		ar_sdio->n_rx_pkts = 0;
-		ath10k_sdio_mbox_free_rx_pkt(pkt);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	htc_hdr = (struct ath10k_htc_hdr *)skb->data;
 	pkt->act_len = le16_to_cpu(htc_hdr->len) + sizeof(*htc_hdr);
+
+	if (pkt->act_len > pkt->alloc_len) {
+		ret = -EINVAL;
+		goto err;
+	}
+
 	skb_put(skb, pkt->act_len);
+	return 0;
+
+err:
+	ar_sdio->n_rx_pkts = 0;
+	ath10k_sdio_mbox_free_rx_pkt(pkt);
 
 	return ret;
 }
@@ -686,6 +693,11 @@ static int ath10k_sdio_mbox_rx_fetch_bundle(struct ath10k *ar)
 		pkt = &ar_sdio->rx_pkts[i];
 		htc_hdr = (struct ath10k_htc_hdr *)(ar_sdio->vsg_buffer + pkt_offset);
 		pkt->act_len = le16_to_cpu(htc_hdr->len) + sizeof(*htc_hdr);
+
+		if (pkt->act_len > pkt->alloc_len ) {
+			ret = -EINVAL;
+			goto err;
+		}
 
 		skb_put_data(pkt->skb, htc_hdr, pkt->act_len);
 		pkt_offset += pkt->alloc_len;
