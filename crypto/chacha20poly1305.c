@@ -477,7 +477,6 @@ static int chachapoly_setkey(struct crypto_aead *aead, const u8 *key,
 			     unsigned int keylen)
 {
 	struct chachapoly_ctx *ctx = crypto_aead_ctx(aead);
-	int err;
 
 	if (keylen != ctx->saltlen + CHACHA_KEY_SIZE)
 		return -EINVAL;
@@ -488,11 +487,7 @@ static int chachapoly_setkey(struct crypto_aead *aead, const u8 *key,
 	crypto_skcipher_clear_flags(ctx->chacha, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(ctx->chacha, crypto_aead_get_flags(aead) &
 					       CRYPTO_TFM_REQ_MASK);
-
-	err = crypto_skcipher_setkey(ctx->chacha, key, keylen);
-	crypto_aead_set_flags(aead, crypto_skcipher_get_flags(ctx->chacha) &
-				    CRYPTO_TFM_RES_MASK);
-	return err;
+	return crypto_skcipher_setkey(ctx->chacha, key, keylen);
 }
 
 static int chachapoly_setauthsize(struct crypto_aead *tfm,

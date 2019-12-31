@@ -75,9 +75,6 @@ static int essiv_skcipher_setkey(struct crypto_skcipher *tfm,
 				  crypto_skcipher_get_flags(tfm) &
 				  CRYPTO_TFM_REQ_MASK);
 	err = crypto_skcipher_setkey(tctx->u.skcipher, key, keylen);
-	crypto_skcipher_set_flags(tfm,
-				  crypto_skcipher_get_flags(tctx->u.skcipher) &
-				  CRYPTO_TFM_RES_MASK);
 	if (err)
 		return err;
 
@@ -90,13 +87,8 @@ static int essiv_skcipher_setkey(struct crypto_skcipher *tfm,
 	crypto_cipher_set_flags(tctx->essiv_cipher,
 				crypto_skcipher_get_flags(tfm) &
 				CRYPTO_TFM_REQ_MASK);
-	err = crypto_cipher_setkey(tctx->essiv_cipher, salt,
-				   crypto_shash_digestsize(tctx->hash));
-	crypto_skcipher_set_flags(tfm,
-				  crypto_cipher_get_flags(tctx->essiv_cipher) &
-				  CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_cipher_setkey(tctx->essiv_cipher, salt,
+				    crypto_shash_digestsize(tctx->hash));
 }
 
 static int essiv_aead_setkey(struct crypto_aead *tfm, const u8 *key,
@@ -112,8 +104,6 @@ static int essiv_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	crypto_aead_set_flags(tctx->u.aead, crypto_aead_get_flags(tfm) &
 					    CRYPTO_TFM_REQ_MASK);
 	err = crypto_aead_setkey(tctx->u.aead, key, keylen);
-	crypto_aead_set_flags(tfm, crypto_aead_get_flags(tctx->u.aead) &
-				   CRYPTO_TFM_RES_MASK);
 	if (err)
 		return err;
 
@@ -130,12 +120,8 @@ static int essiv_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	crypto_cipher_clear_flags(tctx->essiv_cipher, CRYPTO_TFM_REQ_MASK);
 	crypto_cipher_set_flags(tctx->essiv_cipher, crypto_aead_get_flags(tfm) &
 						    CRYPTO_TFM_REQ_MASK);
-	err = crypto_cipher_setkey(tctx->essiv_cipher, salt,
-				   crypto_shash_digestsize(tctx->hash));
-	crypto_aead_set_flags(tfm, crypto_cipher_get_flags(tctx->essiv_cipher) &
-				   CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_cipher_setkey(tctx->essiv_cipher, salt,
+				    crypto_shash_digestsize(tctx->hash));
 }
 
 static int essiv_aead_setauthsize(struct crypto_aead *tfm,

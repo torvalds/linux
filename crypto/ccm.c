@@ -91,26 +91,19 @@ static int crypto_ccm_setkey(struct crypto_aead *aead, const u8 *key,
 	struct crypto_ccm_ctx *ctx = crypto_aead_ctx(aead);
 	struct crypto_skcipher *ctr = ctx->ctr;
 	struct crypto_ahash *mac = ctx->mac;
-	int err = 0;
+	int err;
 
 	crypto_skcipher_clear_flags(ctr, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(ctr, crypto_aead_get_flags(aead) &
 				       CRYPTO_TFM_REQ_MASK);
 	err = crypto_skcipher_setkey(ctr, key, keylen);
-	crypto_aead_set_flags(aead, crypto_skcipher_get_flags(ctr) &
-			      CRYPTO_TFM_RES_MASK);
 	if (err)
-		goto out;
+		return err;
 
 	crypto_ahash_clear_flags(mac, CRYPTO_TFM_REQ_MASK);
 	crypto_ahash_set_flags(mac, crypto_aead_get_flags(aead) &
 				    CRYPTO_TFM_REQ_MASK);
-	err = crypto_ahash_setkey(mac, key, keylen);
-	crypto_aead_set_flags(aead, crypto_ahash_get_flags(mac) &
-			      CRYPTO_TFM_RES_MASK);
-
-out:
-	return err;
+	return crypto_ahash_setkey(mac, key, keylen);
 }
 
 static int crypto_ccm_setauthsize(struct crypto_aead *tfm,
@@ -604,7 +597,6 @@ static int crypto_rfc4309_setkey(struct crypto_aead *parent, const u8 *key,
 {
 	struct crypto_rfc4309_ctx *ctx = crypto_aead_ctx(parent);
 	struct crypto_aead *child = ctx->child;
-	int err;
 
 	if (keylen < 3)
 		return -EINVAL;
@@ -615,11 +607,7 @@ static int crypto_rfc4309_setkey(struct crypto_aead *parent, const u8 *key,
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
 				     CRYPTO_TFM_REQ_MASK);
-	err = crypto_aead_setkey(child, key, keylen);
-	crypto_aead_set_flags(parent, crypto_aead_get_flags(child) &
-				      CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_aead_setkey(child, key, keylen);
 }
 
 static int crypto_rfc4309_setauthsize(struct crypto_aead *parent,

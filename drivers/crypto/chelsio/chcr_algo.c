@@ -870,20 +870,13 @@ static int chcr_cipher_fallback_setkey(struct crypto_skcipher *cipher,
 				       const u8 *key,
 				       unsigned int keylen)
 {
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(cipher);
 	struct ablk_ctx *ablkctx = ABLK_CTX(c_ctx(cipher));
-	int err = 0;
 
 	crypto_sync_skcipher_clear_flags(ablkctx->sw_cipher,
 				CRYPTO_TFM_REQ_MASK);
 	crypto_sync_skcipher_set_flags(ablkctx->sw_cipher,
 				cipher->base.crt_flags & CRYPTO_TFM_REQ_MASK);
-	err = crypto_sync_skcipher_setkey(ablkctx->sw_cipher, key, keylen);
-	tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
-	tfm->crt_flags |=
-		crypto_sync_skcipher_get_flags(ablkctx->sw_cipher) &
-		CRYPTO_TFM_RES_MASK;
-	return err;
+	return crypto_sync_skcipher_setkey(ablkctx->sw_cipher, key, keylen);
 }
 
 static int chcr_aes_cbc_setkey(struct crypto_skcipher *cipher,
@@ -3302,9 +3295,6 @@ static int chcr_aead_ccm_setkey(struct crypto_aead *aead,
 	crypto_aead_set_flags(aeadctx->sw_cipher, crypto_aead_get_flags(aead) &
 			      CRYPTO_TFM_REQ_MASK);
 	error = crypto_aead_setkey(aeadctx->sw_cipher, key, keylen);
-	crypto_aead_clear_flags(aead, CRYPTO_TFM_RES_MASK);
-	crypto_aead_set_flags(aead, crypto_aead_get_flags(aeadctx->sw_cipher) &
-			      CRYPTO_TFM_RES_MASK);
 	if (error)
 		return error;
 	return chcr_ccm_common_setkey(aead, key, keylen);
@@ -3324,9 +3314,6 @@ static int chcr_aead_rfc4309_setkey(struct crypto_aead *aead, const u8 *key,
 	crypto_aead_set_flags(aeadctx->sw_cipher, crypto_aead_get_flags(aead) &
 			      CRYPTO_TFM_REQ_MASK);
 	error = crypto_aead_setkey(aeadctx->sw_cipher, key, keylen);
-	crypto_aead_clear_flags(aead, CRYPTO_TFM_RES_MASK);
-	crypto_aead_set_flags(aead, crypto_aead_get_flags(aeadctx->sw_cipher) &
-			      CRYPTO_TFM_RES_MASK);
 	if (error)
 		return error;
 	keylen -= 3;
@@ -3348,9 +3335,6 @@ static int chcr_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	crypto_aead_set_flags(aeadctx->sw_cipher, crypto_aead_get_flags(aead)
 			      & CRYPTO_TFM_REQ_MASK);
 	ret = crypto_aead_setkey(aeadctx->sw_cipher, key, keylen);
-	crypto_aead_clear_flags(aead, CRYPTO_TFM_RES_MASK);
-	crypto_aead_set_flags(aead, crypto_aead_get_flags(aeadctx->sw_cipher) &
-			      CRYPTO_TFM_RES_MASK);
 	if (ret)
 		goto out;
 
@@ -3416,9 +3400,6 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	crypto_aead_set_flags(aeadctx->sw_cipher, crypto_aead_get_flags(authenc)
 			      & CRYPTO_TFM_REQ_MASK);
 	err = crypto_aead_setkey(aeadctx->sw_cipher, key, keylen);
-	crypto_aead_clear_flags(authenc, CRYPTO_TFM_RES_MASK);
-	crypto_aead_set_flags(authenc, crypto_aead_get_flags(aeadctx->sw_cipher)
-			      & CRYPTO_TFM_RES_MASK);
 	if (err)
 		goto out;
 
@@ -3544,9 +3525,6 @@ static int chcr_aead_digest_null_setkey(struct crypto_aead *authenc,
 	crypto_aead_set_flags(aeadctx->sw_cipher, crypto_aead_get_flags(authenc)
 			      & CRYPTO_TFM_REQ_MASK);
 	err = crypto_aead_setkey(aeadctx->sw_cipher, key, keylen);
-	crypto_aead_clear_flags(authenc, CRYPTO_TFM_RES_MASK);
-	crypto_aead_set_flags(authenc, crypto_aead_get_flags(aeadctx->sw_cipher)
-			      & CRYPTO_TFM_RES_MASK);
 	if (err)
 		goto out;
 

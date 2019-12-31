@@ -45,7 +45,6 @@ int crypto_cipher_setkey(struct crypto_cipher *tfm,
 	struct cipher_alg *cia = crypto_cipher_alg(tfm);
 	unsigned long alignmask = crypto_cipher_alignmask(tfm);
 
-	crypto_cipher_clear_flags(tfm, CRYPTO_TFM_RES_MASK);
 	if (keylen < cia->cia_min_keysize || keylen > cia->cia_max_keysize)
 		return -EINVAL;
 

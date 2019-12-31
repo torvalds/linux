@@ -2041,7 +2041,6 @@ static int atmel_aes_authenc_setkey(struct crypto_aead *tfm, const u8 *key,
 {
 	struct atmel_aes_authenc_ctx *ctx = crypto_aead_ctx(tfm);
 	struct crypto_authenc_keys keys;
-	u32 flags;
 	int err;
 
 	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
@@ -2051,11 +2050,9 @@ static int atmel_aes_authenc_setkey(struct crypto_aead *tfm, const u8 *key,
 		goto badkey;
 
 	/* Save auth key. */
-	flags = crypto_aead_get_flags(tfm);
 	err = atmel_sha_authenc_setkey(ctx->auth,
 				       keys.authkey, keys.authkeylen,
-				       &flags);
-	crypto_aead_set_flags(tfm, flags & CRYPTO_TFM_RES_MASK);
+				       crypto_aead_get_flags(tfm));
 	if (err) {
 		memzero_explicit(&keys, sizeof(keys));
 		return err;

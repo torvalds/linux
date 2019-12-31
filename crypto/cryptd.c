@@ -252,17 +252,12 @@ static int cryptd_skcipher_setkey(struct crypto_skcipher *parent,
 {
 	struct cryptd_skcipher_ctx *ctx = crypto_skcipher_ctx(parent);
 	struct crypto_sync_skcipher *child = ctx->child;
-	int err;
 
 	crypto_sync_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_sync_skcipher_set_flags(child,
 				       crypto_skcipher_get_flags(parent) &
 					 CRYPTO_TFM_REQ_MASK);
-	err = crypto_sync_skcipher_setkey(child, key, keylen);
-	crypto_skcipher_set_flags(parent,
-				  crypto_sync_skcipher_get_flags(child) &
-					  CRYPTO_TFM_RES_MASK);
-	return err;
+	return crypto_sync_skcipher_setkey(child, key, keylen);
 }
 
 static void cryptd_skcipher_complete(struct skcipher_request *req, int err)
@@ -491,15 +486,11 @@ static int cryptd_hash_setkey(struct crypto_ahash *parent,
 {
 	struct cryptd_hash_ctx *ctx   = crypto_ahash_ctx(parent);
 	struct crypto_shash *child = ctx->child;
-	int err;
 
 	crypto_shash_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_shash_set_flags(child, crypto_ahash_get_flags(parent) &
 				      CRYPTO_TFM_REQ_MASK);
-	err = crypto_shash_setkey(child, key, keylen);
-	crypto_ahash_set_flags(parent, crypto_shash_get_flags(child) &
-				       CRYPTO_TFM_RES_MASK);
-	return err;
+	return crypto_shash_setkey(child, key, keylen);
 }
 
 static int cryptd_hash_enqueue(struct ahash_request *req,

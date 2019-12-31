@@ -78,15 +78,11 @@ static int crypto_cts_setkey(struct crypto_skcipher *parent, const u8 *key,
 {
 	struct crypto_cts_ctx *ctx = crypto_skcipher_ctx(parent);
 	struct crypto_skcipher *child = ctx->child;
-	int err;
 
 	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(child, crypto_skcipher_get_flags(parent) &
 					 CRYPTO_TFM_REQ_MASK);
-	err = crypto_skcipher_setkey(child, key, keylen);
-	crypto_skcipher_set_flags(parent, crypto_skcipher_get_flags(child) &
-					  CRYPTO_TFM_RES_MASK);
-	return err;
+	return crypto_skcipher_setkey(child, key, keylen);
 }
 
 static void cts_cbc_crypt_done(struct crypto_async_request *areq, int err)

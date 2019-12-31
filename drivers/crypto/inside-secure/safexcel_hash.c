@@ -2069,8 +2069,6 @@ static int safexcel_xcbcmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	crypto_cipher_set_flags(ctx->kaes, crypto_ahash_get_flags(tfm) &
 				CRYPTO_TFM_REQ_MASK);
 	ret = crypto_cipher_setkey(ctx->kaes, key, len);
-	crypto_ahash_set_flags(tfm, crypto_cipher_get_flags(ctx->kaes) &
-			       CRYPTO_TFM_RES_MASK);
 	if (ret)
 		return ret;
 
@@ -2090,8 +2088,6 @@ static int safexcel_xcbcmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	ret = crypto_cipher_setkey(ctx->kaes,
 				   (u8 *)key_tmp + 2 * AES_BLOCK_SIZE,
 				   AES_MIN_KEY_SIZE);
-	crypto_ahash_set_flags(tfm, crypto_cipher_get_flags(ctx->kaes) &
-			       CRYPTO_TFM_RES_MASK);
 	if (ret)
 		return ret;
 
@@ -2174,8 +2170,6 @@ static int safexcel_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	crypto_cipher_set_flags(ctx->kaes, crypto_ahash_get_flags(tfm) &
 				CRYPTO_TFM_REQ_MASK);
 	ret = crypto_cipher_setkey(ctx->kaes, key, len);
-	crypto_ahash_set_flags(tfm, crypto_cipher_get_flags(ctx->kaes) &
-			       CRYPTO_TFM_RES_MASK);
 	if (ret)
 		return ret;
 

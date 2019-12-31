@@ -170,7 +170,6 @@ static int crypto_rfc3686_setkey(struct crypto_skcipher *parent,
 {
 	struct crypto_rfc3686_ctx *ctx = crypto_skcipher_ctx(parent);
 	struct crypto_skcipher *child = ctx->child;
-	int err;
 
 	/* the nonce is stored in bytes at end of key */
 	if (keylen < CTR_RFC3686_NONCE_SIZE)
@@ -184,11 +183,7 @@ static int crypto_rfc3686_setkey(struct crypto_skcipher *parent,
 	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(child, crypto_skcipher_get_flags(parent) &
 					 CRYPTO_TFM_REQ_MASK);
-	err = crypto_skcipher_setkey(child, key, keylen);
-	crypto_skcipher_set_flags(parent, crypto_skcipher_get_flags(child) &
-					  CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_skcipher_setkey(child, key, keylen);
 }
 
 static int crypto_rfc3686_crypt(struct skcipher_request *req)

@@ -499,9 +499,6 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 		goto badkey;
 	}
 
-	crypto_aead_set_flags(ctfm, crypto_aead_get_flags(ctfm) &
-				    CRYPTO_TFM_RES_MASK);
-
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma &&
 	    (memcmp(ctx->ipad, istate.state, ctx->state_sz) ||
 	     memcmp(ctx->opad, ostate.state, ctx->state_sz)))
@@ -2583,8 +2580,6 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 	crypto_cipher_set_flags(ctx->hkaes, crypto_aead_get_flags(ctfm) &
 				CRYPTO_TFM_REQ_MASK);
 	ret = crypto_cipher_setkey(ctx->hkaes, key, len);
-	crypto_aead_set_flags(ctfm, crypto_cipher_get_flags(ctx->hkaes) &
-			      CRYPTO_TFM_RES_MASK);
 	if (ret)
 		return ret;
 

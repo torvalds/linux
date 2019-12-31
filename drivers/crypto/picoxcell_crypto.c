@@ -465,9 +465,6 @@ static int spacc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	crypto_aead_set_flags(ctx->sw_cipher, crypto_aead_get_flags(tfm) &
 					      CRYPTO_TFM_REQ_MASK);
 	err = crypto_aead_setkey(ctx->sw_cipher, key, keylen);
-	crypto_aead_clear_flags(tfm, CRYPTO_TFM_RES_MASK);
-	crypto_aead_set_flags(tfm, crypto_aead_get_flags(ctx->sw_cipher) &
-				   CRYPTO_TFM_RES_MASK);
 	if (err)
 		return err;
 
@@ -802,12 +799,6 @@ static int spacc_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 					  CRYPTO_TFM_REQ_MASK);
 
 		err = crypto_sync_skcipher_setkey(ctx->sw_cipher, key, len);
-
-		tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
-		tfm->crt_flags |=
-			crypto_sync_skcipher_get_flags(ctx->sw_cipher) &
-			CRYPTO_TFM_RES_MASK;
-
 		if (err)
 			goto sw_setkey_failed;
 	}

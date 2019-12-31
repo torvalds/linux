@@ -61,8 +61,6 @@ static int setkey(struct crypto_skcipher *parent, const u8 *key,
 	crypto_cipher_set_flags(tweak, crypto_skcipher_get_flags(parent) &
 				       CRYPTO_TFM_REQ_MASK);
 	err = crypto_cipher_setkey(tweak, key + keylen, keylen);
-	crypto_skcipher_set_flags(parent, crypto_cipher_get_flags(tweak) &
-					  CRYPTO_TFM_RES_MASK);
 	if (err)
 		return err;
 
@@ -71,11 +69,7 @@ static int setkey(struct crypto_skcipher *parent, const u8 *key,
 	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(child, crypto_skcipher_get_flags(parent) &
 					 CRYPTO_TFM_REQ_MASK);
-	err = crypto_skcipher_setkey(child, key, keylen);
-	crypto_skcipher_set_flags(parent, crypto_skcipher_get_flags(child) &
-					  CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_skcipher_setkey(child, key, keylen);
 }
 
 /*

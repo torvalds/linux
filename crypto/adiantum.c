@@ -135,9 +135,6 @@ static int adiantum_setkey(struct crypto_skcipher *tfm, const u8 *key,
 				  crypto_skcipher_get_flags(tfm) &
 				  CRYPTO_TFM_REQ_MASK);
 	err = crypto_skcipher_setkey(tctx->streamcipher, key, keylen);
-	crypto_skcipher_set_flags(tfm,
-				crypto_skcipher_get_flags(tctx->streamcipher) &
-				CRYPTO_TFM_RES_MASK);
 	if (err)
 		return err;
 
@@ -167,9 +164,6 @@ static int adiantum_setkey(struct crypto_skcipher *tfm, const u8 *key,
 				CRYPTO_TFM_REQ_MASK);
 	err = crypto_cipher_setkey(tctx->blockcipher, keyp,
 				   BLOCKCIPHER_KEY_SIZE);
-	crypto_skcipher_set_flags(tfm,
-				  crypto_cipher_get_flags(tctx->blockcipher) &
-				  CRYPTO_TFM_RES_MASK);
 	if (err)
 		goto out;
 	keyp += BLOCKCIPHER_KEY_SIZE;
@@ -182,8 +176,6 @@ static int adiantum_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	crypto_shash_set_flags(tctx->hash, crypto_skcipher_get_flags(tfm) &
 					   CRYPTO_TFM_REQ_MASK);
 	err = crypto_shash_setkey(tctx->hash, keyp, NHPOLY1305_KEY_SIZE);
-	crypto_skcipher_set_flags(tfm, crypto_shash_get_flags(tctx->hash) &
-				       CRYPTO_TFM_RES_MASK);
 	keyp += NHPOLY1305_KEY_SIZE;
 	WARN_ON(keyp != &data->derived_keys[ARRAY_SIZE(data->derived_keys)]);
 out:

@@ -2207,18 +2207,13 @@ void atmel_sha_authenc_free(struct atmel_sha_authenc_ctx *auth)
 EXPORT_SYMBOL_GPL(atmel_sha_authenc_free);
 
 int atmel_sha_authenc_setkey(struct atmel_sha_authenc_ctx *auth,
-			     const u8 *key, unsigned int keylen,
-			     u32 *flags)
+			     const u8 *key, unsigned int keylen, u32 flags)
 {
 	struct crypto_ahash *tfm = auth->tfm;
-	int err;
 
 	crypto_ahash_clear_flags(tfm, CRYPTO_TFM_REQ_MASK);
-	crypto_ahash_set_flags(tfm, *flags & CRYPTO_TFM_REQ_MASK);
-	err = crypto_ahash_setkey(tfm, key, keylen);
-	*flags = crypto_ahash_get_flags(tfm);
-
-	return err;
+	crypto_ahash_set_flags(tfm, flags & CRYPTO_TFM_REQ_MASK);
+	return crypto_ahash_setkey(tfm, key, keylen);
 }
 EXPORT_SYMBOL_GPL(atmel_sha_authenc_setkey);
 

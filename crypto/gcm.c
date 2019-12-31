@@ -111,8 +111,6 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	crypto_skcipher_set_flags(ctr, crypto_aead_get_flags(aead) &
 				       CRYPTO_TFM_REQ_MASK);
 	err = crypto_skcipher_setkey(ctr, key, keylen);
-	crypto_aead_set_flags(aead, crypto_skcipher_get_flags(ctr) &
-				    CRYPTO_TFM_RES_MASK);
 	if (err)
 		return err;
 
@@ -141,9 +139,6 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	crypto_ahash_set_flags(ghash, crypto_aead_get_flags(aead) &
 			       CRYPTO_TFM_REQ_MASK);
 	err = crypto_ahash_setkey(ghash, (u8 *)&data->hash, sizeof(be128));
-	crypto_aead_set_flags(aead, crypto_ahash_get_flags(ghash) &
-			      CRYPTO_TFM_RES_MASK);
-
 out:
 	kzfree(data);
 	return err;
@@ -727,7 +722,6 @@ static int crypto_rfc4106_setkey(struct crypto_aead *parent, const u8 *key,
 {
 	struct crypto_rfc4106_ctx *ctx = crypto_aead_ctx(parent);
 	struct crypto_aead *child = ctx->child;
-	int err;
 
 	if (keylen < 4)
 		return -EINVAL;
@@ -738,11 +732,7 @@ static int crypto_rfc4106_setkey(struct crypto_aead *parent, const u8 *key,
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
 				     CRYPTO_TFM_REQ_MASK);
-	err = crypto_aead_setkey(child, key, keylen);
-	crypto_aead_set_flags(parent, crypto_aead_get_flags(child) &
-				      CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_aead_setkey(child, key, keylen);
 }
 
 static int crypto_rfc4106_setauthsize(struct crypto_aead *parent,
@@ -956,7 +946,6 @@ static int crypto_rfc4543_setkey(struct crypto_aead *parent, const u8 *key,
 {
 	struct crypto_rfc4543_ctx *ctx = crypto_aead_ctx(parent);
 	struct crypto_aead *child = ctx->child;
-	int err;
 
 	if (keylen < 4)
 		return -EINVAL;
@@ -967,11 +956,7 @@ static int crypto_rfc4543_setkey(struct crypto_aead *parent, const u8 *key,
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
 				     CRYPTO_TFM_REQ_MASK);
-	err = crypto_aead_setkey(child, key, keylen);
-	crypto_aead_set_flags(parent, crypto_aead_get_flags(child) &
-				      CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_aead_setkey(child, key, keylen);
 }
 
 static int crypto_rfc4543_setauthsize(struct crypto_aead *parent,

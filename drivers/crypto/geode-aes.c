@@ -110,7 +110,6 @@ static int geode_setkey_cip(struct crypto_tfm *tfm, const u8 *key,
 		unsigned int len)
 {
 	struct geode_aes_tfm_ctx *tctx = crypto_tfm_ctx(tfm);
-	unsigned int ret;
 
 	tctx->keylen = len;
 
@@ -130,20 +129,13 @@ static int geode_setkey_cip(struct crypto_tfm *tfm, const u8 *key,
 	tctx->fallback.cip->base.crt_flags |=
 		(tfm->crt_flags & CRYPTO_TFM_REQ_MASK);
 
-	ret = crypto_cipher_setkey(tctx->fallback.cip, key, len);
-	if (ret) {
-		tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
-		tfm->crt_flags |= (tctx->fallback.cip->base.crt_flags &
-				   CRYPTO_TFM_RES_MASK);
-	}
-	return ret;
+	return crypto_cipher_setkey(tctx->fallback.cip, key, len);
 }
 
 static int geode_setkey_skcipher(struct crypto_skcipher *tfm, const u8 *key,
 				 unsigned int len)
 {
 	struct geode_aes_tfm_ctx *tctx = crypto_skcipher_ctx(tfm);
-	unsigned int ret;
 
 	tctx->keylen = len;
 
@@ -164,11 +156,7 @@ static int geode_setkey_skcipher(struct crypto_skcipher *tfm, const u8 *key,
 	crypto_skcipher_set_flags(tctx->fallback.skcipher,
 				  crypto_skcipher_get_flags(tfm) &
 				  CRYPTO_TFM_REQ_MASK);
-	ret = crypto_skcipher_setkey(tctx->fallback.skcipher, key, len);
-	crypto_skcipher_set_flags(tfm,
-				  crypto_skcipher_get_flags(tctx->fallback.skcipher) &
-				  CRYPTO_TFM_RES_MASK);
-	return ret;
+	return crypto_skcipher_setkey(tctx->fallback.skcipher, key, len);
 }
 
 static void
