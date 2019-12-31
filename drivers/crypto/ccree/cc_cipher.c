@@ -837,7 +837,6 @@ static int cc_cipher_process(struct skcipher_request *req,
 	/* TODO: check data length according to mode */
 	if (validate_data_size(ctx_p, nbytes)) {
 		dev_err(dev, "Unsupported data size %d.\n", nbytes);
-		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_BLOCK_LEN);
 		rc = -EINVAL;
 		goto exit_process;
 	}
