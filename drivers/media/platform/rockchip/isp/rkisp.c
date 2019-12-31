@@ -228,11 +228,7 @@ static void rkisp_config_clk(struct rkisp_device *dev, int on)
 
 	writel(val, dev->base_addr + CIF_ICCL);
 
-#if RKISP_RK3326_USE_OLDMIPI
-	if (dev->isp_ver == ISP_V13) {
-#else
 	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
-#endif
 		val = !on ? 0 :
 		      CIF_CLK_CTRL_MI_Y12 | CIF_CLK_CTRL_MI_SP |
 		      CIF_CLK_CTRL_MI_RAW0 | CIF_CLK_CTRL_MI_RAW1 |
@@ -501,12 +497,8 @@ static int rkisp_config_mipi(struct rkisp_device *dev)
 		}
 	}
 
-#if RKISP_RK3326_USE_OLDMIPI
-	if (dev->isp_ver == ISP_V13) {
-#else
 	if (dev->isp_ver == ISP_V13 ||
 		dev->isp_ver == ISP_V12) {
-#endif
 		/* lanes */
 		writel(lanes - 1, base + CIF_ISP_CSI0_CTRL1);
 
@@ -534,19 +526,6 @@ static int rkisp_config_mipi(struct rkisp_device *dev)
 			    CIF_MIPI_CTRL_SHUTDOWNLANES(0xf) |
 			    CIF_MIPI_CTRL_ERR_SOT_SYNC_HS_SKIP |
 			    CIF_MIPI_CTRL_CLOCKLANE_ENA;
-
-#if RKISP_RK3326_USE_OLDMIPI
-		if (dev->isp_ver == ISP_V12) {
-			writel(0, base + CIF_ISP_CSI0_CTRL0);
-			writel(0, base + CIF_ISP_CSI0_MASK1);
-			writel(0, base + CIF_ISP_CSI0_MASK2);
-			writel(0, base + CIF_ISP_CSI0_MASK3);
-			/* clear interrupts state */
-			readl(base + CIF_ISP_CSI0_ERR1);
-			readl(base + CIF_ISP_CSI0_ERR2);
-			readl(base + CIF_ISP_CSI0_ERR3);
-		}
-#endif
 		writel(mipi_ctrl, base + CIF_MIPI_CTRL);
 
 		/* Configure Data Type and Virtual Channel */
@@ -711,11 +690,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 	 * Stop ISP(isp) ->wait for ISP isp off
 	 */
 	/* stop and clear MI, MIPI, and ISP interrupts */
-#if RKISP_RK3326_USE_OLDMIPI
-	if (dev->isp_ver == ISP_V13) {
-#else
 	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
-#endif
 		writel(0, base + CIF_ISP_CSI0_MASK1);
 		writel(0, base + CIF_ISP_CSI0_MASK2);
 		writel(0, base + CIF_ISP_CSI0_MASK3);
@@ -732,11 +707,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 
 	writel(0, base + CIF_MI_IMSC);
 	writel(~0, base + CIF_MI_ICR);
-#if RKISP_RK3326_USE_OLDMIPI
-	if (dev->isp_ver == ISP_V13) {
-#else
 	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
-#endif
 		writel(0, base + CIF_ISP_CSI0_CTRL0);
 	} else {
 		val = readl(base + CIF_MIPI_CTRL);
@@ -825,11 +796,7 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 
 	/* Activate MIPI */
 	if (sensor && sensor->mbus.type == V4L2_MBUS_CSI2) {
-#if RKISP_RK3326_USE_OLDMIPI
-		if (dev->isp_ver == ISP_V13) {
-#else
 		if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
-#endif
 			/* clear interrupts state */
 			readl(base + CIF_ISP_CSI0_ERR1);
 			readl(base + CIF_ISP_CSI0_ERR2);

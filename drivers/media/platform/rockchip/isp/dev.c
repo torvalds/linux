@@ -327,12 +327,8 @@ static int rkisp_create_links(struct rkisp_device *dev)
 	if (ret < 0)
 		return ret;
 
-#if RKISP_RK3326_USE_OLDMIPI
-	if (dev->isp_ver == ISP_V13) {
-#else
 	if (dev->isp_ver == ISP_V12 ||
 		dev->isp_ver == ISP_V13) {
-#endif
 		/* MIPI RAW links */
 		source = &dev->isp_sdev.sd.entity;
 		sink = &dev->stream[RKISP_STREAM_RAW].vnode.vdev.entity;
@@ -635,12 +631,8 @@ static irqreturn_t rkisp_mipi_irq_hdl(int irq, void *ctx)
 	unsigned int mis_val;
 	unsigned int err1, err2, err3;
 
-#if RKISP_RK3326_USE_OLDMIPI
-	if (rkisp_dev->isp_ver == ISP_V13) {
-#else
 	if (rkisp_dev->isp_ver == ISP_V13 ||
 		rkisp_dev->isp_ver == ISP_V12) {
-#endif
 		err1 = readl(rkisp_dev->base_addr + CIF_ISP_CSI0_ERR1);
 		err2 = readl(rkisp_dev->base_addr + CIF_ISP_CSI0_ERR2);
 		err3 = readl(rkisp_dev->base_addr + CIF_ISP_CSI0_ERR3);
@@ -653,20 +645,6 @@ static irqreturn_t rkisp_mipi_irq_hdl(int irq, void *ctx)
 		mis_val = readl(rkisp_dev->base_addr + CIF_MIPI_MIS);
 		if (mis_val)
 			rkisp_mipi_isr(mis_val, rkisp_dev);
-
-		/*
-		 * As default interrupt mask for csi_rx are on,
-		 * when resetting isp, interrupt from csi_rx maybe arise,
-		 * we should clear them.
-		 */
-#if RKISP_RK3326_USE_OLDMIPI
-		if (rkisp_dev->isp_ver == ISP_V12) {
-			/* read error state register to clear interrupt state */
-			readl(rkisp_dev->base_addr + CIF_ISP_CSI0_ERR1);
-			readl(rkisp_dev->base_addr + CIF_ISP_CSI0_ERR2);
-			readl(rkisp_dev->base_addr + CIF_ISP_CSI0_ERR3);
-		}
-#endif
 	}
 
 	return IRQ_HANDLED;

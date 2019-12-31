@@ -1244,12 +1244,8 @@ static int rkisp_start(struct rkisp_stream *stream)
 		return -EINVAL;
 	}
 
-#if RKISP_RK3326_USE_OLDMIPI
-	if (dev->isp_ver == ISP_V13)
-#else
 	if (dev->isp_ver == ISP_V12 ||
 		dev->isp_ver == ISP_V13)
-#endif
 		raw_config_mi(stream);
 
 	if (stream->ops->set_data_path)
@@ -2106,12 +2102,8 @@ void rkisp_unregister_stream_vdevs(struct rkisp_device *dev)
 	if (dev->isp_ver != ISP_V10_1)
 		rkisp_unregister_stream_vdev(sp_stream);
 
-#if RKISP_RK3326_USE_OLDMIPI
-	if (dev->isp_ver == ISP_V13)
-#else
 	if (dev->isp_ver == ISP_V12 ||
 		dev->isp_ver == ISP_V13)
-#endif
 		rkisp_unregister_stream_vdev(raw_stream);
 }
 
@@ -2135,12 +2127,8 @@ static int rkisp_register_stream_vdev(struct rkisp_stream *stream)
 		break;
 	case RKISP_STREAM_RAW:
 		vdev_name = RAW_VDEV_NAME;
-#if RKISP_RK3326_USE_OLDMIPI
-		if (dev->isp_ver != ISP_V13)
-#else
 		if (dev->isp_ver != ISP_V12 &&
 			dev->isp_ver != ISP_V13)
-#endif
 			return 0;
 		break;
 	default:

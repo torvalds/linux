@@ -58,7 +58,6 @@
 
 #define RKISP_EMDDATA_FIFO_MAX		4
 #define RKISP_DMATX_CHECK              0xA5A5A5A5
-#define RKISP_RK3326_USE_OLDMIPI	0
 
 enum rkisp_sd_type {
 	RKISP_SD_SENSOR,
