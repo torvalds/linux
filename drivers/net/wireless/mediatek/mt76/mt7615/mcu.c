@@ -598,10 +598,10 @@ int mt7615_mcu_set_eeprom(struct mt7615_dev *dev)
 	struct {
 		u8 buffer_mode;
 		u8 pad;
-		u16 len;
+		__le16 len;
 	} __packed req_hdr = {
 		.buffer_mode = 1,
-		.len = __MT_EE_MAX - MT_EE_NIC_CONF_0,
+		.len = cpu_to_le16(__MT_EE_MAX - MT_EE_NIC_CONF_0),
 	};
 	int ret, len = sizeof(req_hdr) + __MT_EE_MAX - MT_EE_NIC_CONF_0;
 	u8 *req, *eep = (u8 *)dev->mt76.eeprom.data;
