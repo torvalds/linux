@@ -286,7 +286,8 @@ static u32 crypto4xx_build_gdr(struct crypto4xx_device *dev)
 
 static inline void crypto4xx_destroy_gdr(struct crypto4xx_device *dev)
 {
-	dma_free_coherent(dev->core_dev->device,
+	if (dev->gdr)
+		dma_free_coherent(dev->core_dev->device,
 			  sizeof(struct ce_gd) * PPC4XX_NUM_GD,
 			  dev->gdr, dev->gdr_pa);
 }
@@ -354,18 +355,18 @@ static u32 crypto4xx_build_sdr(struct crypto4xx_device *dev)
 {
 	int i;
 
-	/* alloc memory for scatter descriptor ring */
-	dev->sdr = dma_alloc_coherent(dev->core_dev->device,
-				      sizeof(struct ce_sd) * PPC4XX_NUM_SD,
-				      &dev->sdr_pa, GFP_ATOMIC);
-	if (!dev->sdr)
-		return -ENOMEM;
-
 	dev->scatter_buffer_va =
 		dma_alloc_coherent(dev->core_dev->device,
 			PPC4XX_SD_BUFFER_SIZE * PPC4XX_NUM_SD,
 			&dev->scatter_buffer_pa, GFP_ATOMIC);
 	if (!dev->scatter_buffer_va)
+		return -ENOMEM;
+
+	/* alloc memory for scatter descriptor ring */
+	dev->sdr = dma_alloc_coherent(dev->core_dev->device,
+				      sizeof(struct ce_sd) * PPC4XX_NUM_SD,
+				      &dev->sdr_pa, GFP_ATOMIC);
+	if (!dev->sdr)
 		return -ENOMEM;
 
 	for (i = 0; i < PPC4XX_NUM_SD; i++) {
@@ -1439,15 +1440,14 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	spin_lock_init(&core_dev->lock);
 	INIT_LIST_HEAD(&core_dev->dev->alg_list);
 	ratelimit_default_init(&core_dev->dev->aead_ratelimit);
+	rc = crypto4xx_build_sdr(core_dev->dev);
+	if (rc)
+		goto err_build_sdr;
 	rc = crypto4xx_build_pdr(core_dev->dev);
 	if (rc)
-		goto err_build_pdr;
+		goto err_build_sdr;
 
 	rc = crypto4xx_build_gdr(core_dev->dev);
-	if (rc)
-		goto err_build_pdr;
-
-	rc = crypto4xx_build_sdr(core_dev->dev);
 	if (rc)
 		goto err_build_sdr;
 
@@ -1493,7 +1493,6 @@ err_iomap:
 err_build_sdr:
 	crypto4xx_destroy_sdr(core_dev->dev);
 	crypto4xx_destroy_gdr(core_dev->dev);
-err_build_pdr:
 	crypto4xx_destroy_pdr(core_dev->dev);
 	kfree(core_dev->dev);
 err_alloc_dev:
