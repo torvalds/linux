@@ -8,6 +8,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/ip.h>
+#include <linux/pm_runtime.h>
 
 #include <net/ipv6.h>
 
@@ -114,7 +115,7 @@ void igc_reset(struct igc_adapter *adapter)
 }
 
 /**
- * igc_power_up_link - Power up the phy/serdes link
+ * igc_power_up_link - Power up the phy link
  * @adapter: address of board private structure
  */
 static void igc_power_up_link(struct igc_adapter *adapter)
@@ -128,7 +129,7 @@ static void igc_power_up_link(struct igc_adapter *adapter)
 }
 
 /**
- * igc_power_down_link - Power down the phy/serdes link
+ * igc_power_down_link - Power down the phy link
  * @adapter: address of board private structure
  */
 static void igc_power_down_link(struct igc_adapter *adapter)
@@ -1485,7 +1486,6 @@ static bool igc_can_reuse_rx_page(struct igc_rx_buffer *rx_buffer)
  * igc_is_non_eop - process handling of non-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
- * @skb: current socket buffer containing buffer in progress
  *
  * This function updates next to clean.  If the buffer is an EOP buffer
  * this function exits returning false, otherwise it will place the
@@ -1567,7 +1567,8 @@ static void igc_put_rx_buffer(struct igc_ring *rx_ring,
 
 /**
  * igc_alloc_rx_buffers - Replace used receive buffers; packet split
- * @adapter: address of board private structure
+ * @rx_ring: rx descriptor ring
+ * @cleaned_count: number of buffers to clean
  */
 static void igc_alloc_rx_buffers(struct igc_ring *rx_ring, u16 cleaned_count)
 {
@@ -3109,7 +3110,7 @@ bool igc_has_link(struct igc_adapter *adapter)
 
 /**
  * igc_watchdog - Timer Call-back
- * @data: pointer to adapter cast into an unsigned long
+ * @t: timer for the watchdog
  */
 static void igc_watchdog(struct timer_list *t)
 {
@@ -3638,6 +3639,7 @@ static int igc_poll(struct napi_struct *napi, int budget)
 /**
  * igc_set_interrupt_capability - set MSI or MSI-X if supported
  * @adapter: Pointer to adapter structure
+ * @msix: boolean value for MSI-X capability
  *
  * Attempt to configure interrupts using the best available
  * capabilities of the hardware and kernel.
@@ -3906,6 +3908,7 @@ static void igc_cache_ring_register(struct igc_adapter *adapter)
 /**
  * igc_init_interrupt_scheme - initialize interrupts, allocate queues/vectors
  * @adapter: Pointer to adapter structure
+ * @msix: boolean for MSI-X capability
  *
  * This function initializes the interrupts and allocates all of the queues.
  */
@@ -4073,8 +4076,9 @@ static void igc_write_itr(struct igc_q_vector *q_vector)
 }
 
 /**
- * igc_open - Called when a network interface is made active
+ * __igc_open - Called when a network interface is made active
  * @netdev: network interface device structure
+ * @resuming: boolean indicating if the device is resuming
  *
  * Returns 0 on success, negative value on failure
  *
@@ -4164,8 +4168,9 @@ static int igc_open(struct net_device *netdev)
 }
 
 /**
- * igc_close - Disables a network interface
+ * __igc_close - Disables a network interface
  * @netdev: network interface device structure
+ * @suspending: boolean indicating the device is suspending
  *
  * Returns 0, this is not allowed to fail
  *
@@ -4345,32 +4350,26 @@ static int igc_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct igc_hw *hw;
 	const struct igc_info *ei = igc_info_tbl[ent->driver_data];
-	int err;
+	int err, pci_using_dac;
 
 	err = pci_enable_device_mem(pdev);
 	if (err)
 		return err;
 
-	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	pci_using_dac = 0;
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = dma_set_coherent_mask(&pdev->dev,
-					    DMA_BIT_MASK(64));
+		pci_using_dac = 1;
 	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-			if (err) {
-				dev_err(&pdev->dev, "igc: Wrong DMA config\n");
-				goto err_dma;
-			}
+			dev_err(&pdev->dev,
+				"No usable DMA configuration, aborting\n");
+			goto err_dma;
 		}
 	}
 
-	err = pci_request_selected_regions(pdev,
-					   pci_select_bars(pdev,
-							   IORESOURCE_MEM),
-					   igc_driver_name);
+	err = pci_request_mem_regions(pdev, igc_driver_name);
 	if (err)
 		goto err_pci_reg;
 
@@ -4433,6 +4432,7 @@ static int igc_probe(struct pci_dev *pdev,
 		goto err_sw_init;
 
 	/* Add supported features to the features list*/
+	netdev->features |= NETIF_F_SG;
 	netdev->features |= NETIF_F_RXCSUM;
 	netdev->features |= NETIF_F_HW_CSUM;
 	netdev->features |= NETIF_F_SCTP_CRC;
@@ -4445,6 +4445,9 @@ static int igc_probe(struct pci_dev *pdev,
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= NETIF_F_NTUPLE;
 	netdev->hw_features |= netdev->features;
+
+	if (pci_using_dac)
+		netdev->features |= NETIF_F_HIGHDMA;
 
 	/* MTU range: 68 - 9216 */
 	netdev->min_mtu = ETH_MIN_MTU;
@@ -4532,8 +4535,7 @@ err_sw_init:
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_selected_regions(pdev,
-				     pci_select_bars(pdev, IORESOURCE_MEM));
+	pci_release_mem_regions(pdev);
 err_pci_reg:
 err_dma:
 	pci_disable_device(pdev);
@@ -4580,11 +4582,214 @@ static void igc_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+static int __igc_shutdown(struct pci_dev *pdev, bool *enable_wake,
+			  bool runtime)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	u32 wufc = runtime ? IGC_WUFC_LNKC : adapter->wol;
+	struct igc_hw *hw = &adapter->hw;
+	u32 ctrl, rctl, status;
+	bool wake;
+
+	rtnl_lock();
+	netif_device_detach(netdev);
+
+	if (netif_running(netdev))
+		__igc_close(netdev, true);
+
+	igc_clear_interrupt_scheme(adapter);
+	rtnl_unlock();
+
+	status = rd32(IGC_STATUS);
+	if (status & IGC_STATUS_LU)
+		wufc &= ~IGC_WUFC_LNKC;
+
+	if (wufc) {
+		igc_setup_rctl(adapter);
+		igc_set_rx_mode(netdev);
+
+		/* turn on all-multi mode if wake on multicast is enabled */
+		if (wufc & IGC_WUFC_MC) {
+			rctl = rd32(IGC_RCTL);
+			rctl |= IGC_RCTL_MPE;
+			wr32(IGC_RCTL, rctl);
+		}
+
+		ctrl = rd32(IGC_CTRL);
+		ctrl |= IGC_CTRL_ADVD3WUC;
+		wr32(IGC_CTRL, ctrl);
+
+		/* Allow time for pending master requests to run */
+		igc_disable_pcie_master(hw);
+
+		wr32(IGC_WUC, IGC_WUC_PME_EN);
+		wr32(IGC_WUFC, wufc);
+	} else {
+		wr32(IGC_WUC, 0);
+		wr32(IGC_WUFC, 0);
+	}
+
+	wake = wufc || adapter->en_mng_pt;
+	if (!wake)
+		igc_power_down_link(adapter);
+	else
+		igc_power_up_link(adapter);
+
+	if (enable_wake)
+		*enable_wake = wake;
+
+	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
+	 * would have already happened in close and is redundant.
+	 */
+	igc_release_hw_control(adapter);
+
+	pci_disable_device(pdev);
+
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int __maybe_unused igc_runtime_suspend(struct device *dev)
+{
+	return __igc_shutdown(to_pci_dev(dev), NULL, 1);
+}
+
+static void igc_deliver_wake_packet(struct net_device *netdev)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct igc_hw *hw = &adapter->hw;
+	struct sk_buff *skb;
+	u32 wupl;
+
+	wupl = rd32(IGC_WUPL) & IGC_WUPL_MASK;
+
+	/* WUPM stores only the first 128 bytes of the wake packet.
+	 * Read the packet only if we have the whole thing.
+	 */
+	if (wupl == 0 || wupl > IGC_WUPM_BYTES)
+		return;
+
+	skb = netdev_alloc_skb_ip_align(netdev, IGC_WUPM_BYTES);
+	if (!skb)
+		return;
+
+	skb_put(skb, wupl);
+
+	/* Ensure reads are 32-bit aligned */
+	wupl = roundup(wupl, 4);
+
+	memcpy_fromio(skb->data, hw->hw_addr + IGC_WUPM_REG(0), wupl);
+
+	skb->protocol = eth_type_trans(skb, netdev);
+	netif_rx(skb);
+}
+
+static int __maybe_unused igc_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct igc_hw *hw = &adapter->hw;
+	u32 err, val;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_save_state(pdev);
+
+	if (!pci_device_is_present(pdev))
+		return -ENODEV;
+	err = pci_enable_device_mem(pdev);
+	if (err) {
+		dev_err(&pdev->dev,
+			"igc: Cannot enable PCI device from suspend\n");
+		return err;
+	}
+	pci_set_master(pdev);
+
+	pci_enable_wake(pdev, PCI_D3hot, 0);
+	pci_enable_wake(pdev, PCI_D3cold, 0);
+
+	if (igc_init_interrupt_scheme(adapter, true)) {
+		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		return -ENOMEM;
+	}
+
+	igc_reset(adapter);
+
+	/* let the f/w know that the h/w is now under the control of the
+	 * driver.
+	 */
+	igc_get_hw_control(adapter);
+
+	val = rd32(IGC_WUS);
+	if (val & WAKE_PKT_WUS)
+		igc_deliver_wake_packet(netdev);
+
+	wr32(IGC_WUS, ~0);
+
+	rtnl_lock();
+	if (!err && netif_running(netdev))
+		err = __igc_open(netdev, true);
+
+	if (!err)
+		netif_device_attach(netdev);
+	rtnl_unlock();
+
+	return err;
+}
+
+static int __maybe_unused igc_runtime_resume(struct device *dev)
+{
+	return igc_resume(dev);
+}
+
+static int __maybe_unused igc_suspend(struct device *dev)
+{
+	return __igc_shutdown(to_pci_dev(dev), NULL, 0);
+}
+
+static int __maybe_unused igc_runtime_idle(struct device *dev)
+{
+	struct net_device *netdev = dev_get_drvdata(dev);
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	if (!igc_has_link(adapter))
+		pm_schedule_suspend(dev, MSEC_PER_SEC * 5);
+
+	return -EBUSY;
+}
+#endif /* CONFIG_PM */
+
+static void igc_shutdown(struct pci_dev *pdev)
+{
+	bool wake;
+
+	__igc_shutdown(pdev, &wake, 0);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, wake);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+}
+
+#ifdef CONFIG_PM
+static const struct dev_pm_ops igc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(igc_suspend, igc_resume)
+	SET_RUNTIME_PM_OPS(igc_runtime_suspend, igc_runtime_resume,
+			   igc_runtime_idle)
+};
+#endif
+
 static struct pci_driver igc_driver = {
 	.name     = igc_driver_name,
 	.id_table = igc_pci_tbl,
 	.probe    = igc_probe,
 	.remove   = igc_remove,
+#ifdef CONFIG_PM
+	.driver.pm = &igc_pm_ops,
+#endif
+	.shutdown = igc_shutdown,
 };
 
 void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
