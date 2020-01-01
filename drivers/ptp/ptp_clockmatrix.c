@@ -1102,7 +1102,7 @@ static void idtcm_display_version_info(struct idtcm *idtcm)
 		 product_id, hw_rev_id, bond_id, csr_id, irq_id);
 }
 
-static struct ptp_clock_info idtcm_caps = {
+static const struct ptp_clock_info idtcm_caps = {
 	.owner		= THIS_MODULE,
 	.max_adj	= 244000,
 	.n_per_out	= 1,
