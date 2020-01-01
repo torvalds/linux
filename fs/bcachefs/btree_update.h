@@ -72,6 +72,8 @@ int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *,
 int bch2_btree_node_update_key(struct bch_fs *, struct btree_iter *,
 			       struct btree *, struct bkey_i_btree_ptr *);
 
+int bch2_trans_update(struct btree_trans *, struct btree_iter *,
+		      struct bkey_i *, enum btree_trigger_flags);
 int __bch2_trans_commit(struct btree_trans *);
 
 /**
@@ -94,19 +96,6 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	trans->flags		= flags;
 
 	return __bch2_trans_commit(trans);
-}
-
-static inline void bch2_trans_update(struct btree_trans *trans,
-				     struct btree_iter *iter, struct bkey_i *k,
-				     enum btree_trigger_flags flags)
-{
-	EBUG_ON(trans->nr_updates >= trans->nr_iters);
-
-	iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
-
-	trans->updates[trans->nr_updates++] = (struct btree_insert_entry) {
-		.trigger_flags = flags, .iter = iter, .k = k
-	};
 }
 
 #define __bch2_trans_do(_trans, _disk_res, _journal_seq,		\

@@ -1793,10 +1793,9 @@ int bch2_trans_iter_free(struct btree_trans *trans,
 static int bch2_trans_realloc_iters(struct btree_trans *trans,
 				    unsigned new_size)
 {
-	void *new_iters, *new_updates, *new_sorted;
+	void *new_iters, *new_updates;
 	size_t iters_bytes;
 	size_t updates_bytes;
-	size_t sorted_bytes;
 
 	new_size = roundup_pow_of_two(new_size);
 
@@ -1811,11 +1810,8 @@ static int bch2_trans_realloc_iters(struct btree_trans *trans,
 
 	iters_bytes	= sizeof(struct btree_iter) * new_size;
 	updates_bytes	= sizeof(struct btree_insert_entry) * new_size;
-	sorted_bytes	= sizeof(u8) * new_size;
 
-	new_iters = kmalloc(iters_bytes +
-			    updates_bytes +
-			    sorted_bytes, GFP_NOFS);
+	new_iters = kmalloc(iters_bytes + updates_bytes, GFP_NOFS);
 	if (new_iters)
 		goto success;
 
@@ -1825,7 +1821,6 @@ static int bch2_trans_realloc_iters(struct btree_trans *trans,
 	trans->used_mempool = true;
 success:
 	new_updates	= new_iters + iters_bytes;
-	new_sorted	= new_updates + updates_bytes;
 
 	memcpy(new_iters, trans->iters,
 	       sizeof(struct btree_iter) * trans->nr_iters);
@@ -1842,7 +1837,6 @@ success:
 
 	trans->iters		= new_iters;
 	trans->updates		= new_updates;
-	trans->updates_sorted	= new_sorted;
 	trans->size		= new_size;
 
 	if (trans->iters_live) {
@@ -1891,6 +1885,7 @@ static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans)
 got_slot:
 	BUG_ON(trans->iters_linked & (1ULL << idx));
 	trans->iters_linked |= 1ULL << idx;
+	trans->iters[idx].flags = 0;
 	return &trans->iters[idx];
 }
 
@@ -1906,6 +1901,9 @@ static inline void btree_iter_copy(struct btree_iter *dst,
 		if (btree_node_locked(dst, i))
 			six_lock_increment(&dst->l[i].b->c.lock,
 					   __btree_lock_want(dst, i));
+
+	dst->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
+	dst->flags &= ~BTREE_ITER_SET_POS_AFTER_COMMIT;
 }
 
 static inline struct bpos bpos_diff(struct bpos l, struct bpos r)
@@ -1956,7 +1954,6 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 		iter = best;
 	}
 
-	iter->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
 	iter->flags &= ~(BTREE_ITER_SLOTS|BTREE_ITER_INTENT|BTREE_ITER_PREFETCH);
 	iter->flags |= flags & (BTREE_ITER_SLOTS|BTREE_ITER_INTENT|BTREE_ITER_PREFETCH);
 
@@ -1968,6 +1965,7 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 	BUG_ON(iter->btree_id != btree_id);
 	BUG_ON((iter->flags ^ flags) & BTREE_ITER_TYPE);
 	BUG_ON(iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT);
+	BUG_ON(iter->flags & BTREE_ITER_SET_POS_AFTER_COMMIT);
 	BUG_ON(trans->iters_live & (1ULL << iter->idx));
 
 	trans->iters_live	|= 1ULL << iter->idx;
@@ -2030,7 +2028,6 @@ struct btree_iter *bch2_trans_copy_iter(struct btree_trans *trans,
 	 * it's cheap to copy it again:
 	 */
 	trans->iters_touched &= ~(1ULL << iter->idx);
-	iter->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
 
 	return iter;
 }
@@ -2090,7 +2087,8 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 	struct btree_iter *iter;
 
 	trans_for_each_iter(trans, iter)
-		iter->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
+		iter->flags &= ~(BTREE_ITER_KEEP_UNTIL_COMMIT|
+				 BTREE_ITER_SET_POS_AFTER_COMMIT);
 
 	bch2_trans_unlink_iters(trans);
 
@@ -2099,6 +2097,7 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 
 	trans->iters_touched &= trans->iters_live;
 
+	trans->need_reset		= 0;
 	trans->nr_updates		= 0;
 
 	if (flags & TRANS_RESET_MEM)
@@ -2127,7 +2126,6 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 	trans->size		= ARRAY_SIZE(trans->iters_onstack);
 	trans->iters		= trans->iters_onstack;
 	trans->updates		= trans->updates_onstack;
-	trans->updates_sorted	= trans->updates_sorted_onstack;
 	trans->fs_usage_deltas	= NULL;
 
 	if (expected_nr_iters > trans->size)

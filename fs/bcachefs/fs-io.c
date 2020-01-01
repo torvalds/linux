@@ -2383,7 +2383,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 	struct address_space *mapping = inode->v.i_mapping;
 	struct bkey_on_stack copy;
 	struct btree_trans trans;
-	struct btree_iter *src, *dst, *del = NULL;
+	struct btree_iter *src, *dst;
 	loff_t shift, new_size;
 	u64 src_start;
 	int ret;
@@ -2513,29 +2513,6 @@ reassemble:
 
 		next_pos = insert ? bkey_start_pos(&delete.k) : delete.k.p;
 
-		/*
-		 * If the new and old keys overlap (because we're moving an
-		 * extent that's bigger than the amount we're collapsing by),
-		 * we need to trim the delete key here so they don't overlap
-		 * because overlaps on insertions aren't handled before
-		 * triggers are run, so the overwrite will get double counted
-		 * by the triggers machinery:
-		 */
-		if (insert &&
-		    bkey_cmp(bkey_start_pos(&copy.k->k), delete.k.p) < 0) {
-			bch2_cut_back(bkey_start_pos(&copy.k->k), &delete);
-		} else if (!insert &&
-			   bkey_cmp(copy.k->k.p,
-				    bkey_start_pos(&delete.k)) > 0) {
-			bch2_cut_front(copy.k->k.p, &delete);
-
-			del = bch2_trans_copy_iter(&trans, src);
-			BUG_ON(IS_ERR_OR_NULL(del));
-
-			bch2_btree_iter_set_pos(del,
-				bkey_start_pos(&delete.k));
-		}
-
 		if (copy.k->k.size == k.k->size) {
 			/*
 			 * If we're moving the entire extent, we can skip
@@ -2553,18 +2530,13 @@ reassemble:
 			BUG_ON(ret);
 		}
 
-		bch2_trans_update(&trans, dst, copy.k, trigger_flags);
-		bch2_trans_update(&trans, del ?: src, &delete, trigger_flags);
-
-		ret = bch2_trans_commit(&trans, &disk_res,
-					&inode->ei_journal_seq,
-					BTREE_INSERT_NOFAIL);
+		ret =   bch2_trans_update(&trans, src, &delete, trigger_flags) ?:
+			bch2_trans_update(&trans, dst, copy.k, trigger_flags) ?:
+			bch2_trans_commit(&trans, &disk_res,
+					  &inode->ei_journal_seq,
+					  BTREE_INSERT_NOFAIL);
 		bch2_disk_reservation_put(c, &disk_res);
 bkey_err:
-		if (del)
-			bch2_trans_iter_put(&trans, del);
-		del = NULL;
-
 		if (!ret)
 			bch2_btree_iter_set_pos(src, next_pos);
 

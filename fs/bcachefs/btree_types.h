@@ -197,6 +197,7 @@ enum btree_iter_type {
  */
 #define BTREE_ITER_IS_EXTENTS		(1 << 6)
 #define BTREE_ITER_ERROR		(1 << 7)
+#define BTREE_ITER_SET_POS_AFTER_COMMIT	(1 << 8)
 
 enum btree_iter_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
@@ -213,12 +214,13 @@ enum btree_iter_uptodate {
  * @nodes_intent_locked	- bitmask indicating which locks are intent locks
  */
 struct btree_iter {
-	u8			idx;
-
 	struct btree_trans	*trans;
 	struct bpos		pos;
+	struct bpos		pos_after_commit;
 
-	u8			flags;
+	u16			flags;
+	u8			idx;
+
 	enum btree_iter_uptodate uptodate:4;
 	enum btree_id		btree_id:4;
 	unsigned		level:4,
@@ -246,6 +248,7 @@ static inline enum btree_iter_type btree_iter_type(struct btree_iter *iter)
 
 struct btree_insert_entry {
 	unsigned		trigger_flags;
+	unsigned		trans_triggers_run:1;
 	struct bkey_i		*k;
 	struct btree_iter	*iter;
 };
@@ -266,6 +269,7 @@ struct btree_trans {
 	unsigned		used_mempool:1;
 	unsigned		error:1;
 	unsigned		nounlock:1;
+	unsigned		need_reset:1;
 
 	unsigned		mem_top;
 	unsigned		mem_bytes;
@@ -273,7 +277,6 @@ struct btree_trans {
 
 	struct btree_iter	*iters;
 	struct btree_insert_entry *updates;
-	u8			*updates_sorted;
 
 	/* update path: */
 	struct journal_res	journal_res;
@@ -287,7 +290,6 @@ struct btree_trans {
 
 	struct btree_iter	iters_onstack[2];
 	struct btree_insert_entry updates_onstack[2];
-	u8			updates_sorted_onstack[2];
 };
 
 #define BTREE_FLAG(flag)						\
