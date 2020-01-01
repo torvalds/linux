@@ -1041,12 +1041,18 @@ static const struct dev_pm_ops bq25890_pm = {
 
 static const struct i2c_device_id bq25890_i2c_ids[] = {
 	{ "bq25890", 0 },
+	{ "bq25892", 0 },
+	{ "bq25895", 0 },
+	{ "bq25896", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, bq25890_i2c_ids);
 
 static const struct of_device_id bq25890_of_match[] = {
 	{ .compatible = "ti,bq25890", },
+	{ .compatible = "ti,bq25892", },
+	{ .compatible = "ti,bq25895", },
+	{ .compatible = "ti,bq25896", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq25890_of_match);
