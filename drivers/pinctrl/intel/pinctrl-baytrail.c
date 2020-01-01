@@ -1026,15 +1026,15 @@ static int byt_gpio_set_direction(struct pinctrl_dev *pctl_dev,
 	value &= ~BYT_DIR_MASK;
 	if (input)
 		value |= BYT_OUTPUT_EN;
-	else
+	else if (readl(conf_reg) & BYT_DIRECT_IRQ_EN)
 		/*
 		 * Before making any direction modifications, do a check if gpio
 		 * is set for direct IRQ.  On baytrail, setting GPIO to output
-		 * does not make sense, so let's at least warn the caller before
+		 * does not make sense, so let's at least inform the caller before
 		 * they shoot themselves in the foot.
 		 */
-		WARN(readl(conf_reg) & BYT_DIRECT_IRQ_EN,
-		     "Potential Error: Setting GPIO with direct_irq_en to output");
+		dev_info_once(vg->dev, "Potential Error: Setting GPIO with direct_irq_en to output");
+
 	writel(value, val_reg);
 
 	raw_spin_unlock_irqrestore(&byt_lock, flags);
