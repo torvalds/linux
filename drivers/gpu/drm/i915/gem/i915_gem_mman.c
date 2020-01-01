@@ -4,6 +4,7 @@
  * Copyright © 2014-2016 Intel Corporation
  */
 
+#include <linux/anon_inodes.h>
 #include <linux/mman.h>
 #include <linux/pfn_t.h>
 #include <linux/sizes.h>
@@ -686,6 +687,46 @@ static const struct vm_operations_struct vm_ops_cpu = {
 	.close = vm_close,
 };
 
+static int singleton_release(struct inode *inode, struct file *file)
+{
+	struct drm_i915_private *i915 = file->private_data;
+
+	cmpxchg(&i915->gem.mmap_singleton, file, NULL);
+	drm_dev_put(&i915->drm);
+
+	return 0;
+}
+
+static const struct file_operations singleton_fops = {
+	.owner = THIS_MODULE,
+	.release = singleton_release,
+};
+
+static struct file *mmap_singleton(struct drm_i915_private *i915)
+{
+	struct file *file;
+
+	rcu_read_lock();
+	file = i915->gem.mmap_singleton;
+	if (file && !get_file_rcu(file))
+		file = NULL;
+	rcu_read_unlock();
+	if (file)
+		return file;
+
+	file = anon_inode_getfile("i915.gem", &singleton_fops, i915, O_RDWR);
+	if (IS_ERR(file))
+		return file;
+
+	/* Everyone shares a single global address space */
+	file->f_mapping = i915->drm.anon_inode->i_mapping;
+
+	smp_store_mb(i915->gem.mmap_singleton, file);
+	drm_dev_get(&i915->drm);
+
+	return file;
+}
+
 /*
  * This overcomes the limitation in drm_gem_mmap's assignment of a
  * drm_gem_object as the vma->vm_private_data. Since we need to
@@ -699,6 +740,7 @@ int i915_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_device *dev = priv->minor->dev;
 	struct i915_mmap_offset *mmo = NULL;
 	struct drm_gem_object *obj = NULL;
+	struct file *anon;
 
 	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
@@ -747,8 +789,25 @@ int i915_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 		vma->vm_flags &= ~VM_MAYWRITE;
 	}
 
+	anon = mmap_singleton(to_i915(obj->dev));
+	if (IS_ERR(anon)) {
+		drm_gem_object_put_unlocked(obj);
+		return PTR_ERR(anon);
+	}
+
 	vma->vm_flags |= VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_private_data = mmo;
+
+	/*
+	 * We keep the ref on mmo->obj, not vm_file, but we require
+	 * vma->vm_file->f_mapping, see vma_link(), for later revocation.
+	 * Our userspace is accustomed to having per-file resource cleanup
+	 * (i.e. contexts, objects and requests) on their close(fd), which
+	 * requires avoiding extraneous references to their filp, hence why
+	 * we prefer to use an anonymous file for their mmaps.
+	 */
+	fput(vma->vm_file);
+	vma->vm_file = anon;
 
 	switch (mmo->mmap_type) {
 	case I915_MMAP_TYPE_WC:

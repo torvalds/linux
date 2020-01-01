@@ -1252,6 +1252,16 @@ struct drm_i915_private {
 			struct llist_head free_list;
 			struct work_struct free_work;
 		} contexts;
+
+		/*
+		 * We replace the local file with a global mappings as the
+		 * backing storage for the mmap is on the device and not
+		 * on the struct file, and we do not want to prolong the
+		 * lifetime of the local fd. To minimise the number of
+		 * anonymous inodes we create, we use a global singleton to
+		 * share the global mapping.
+		 */
+		struct file *mmap_singleton;
 	} gem;
 
 	u8 pch_ssc_use;
