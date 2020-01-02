@@ -620,9 +620,8 @@ no_dma_tx:
 		dmaengine_terminate_all(rspi->ctlr->dma_rx);
 no_dma_rx:
 	if (ret == -EAGAIN) {
-		pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
-			     dev_driver_string(&rspi->ctlr->dev),
-			     dev_name(&rspi->ctlr->dev));
+		dev_warn_once(&rspi->ctlr->dev,
+			      "DMA not available, falling back to PIO\n");
 	}
 	return ret;
 }
