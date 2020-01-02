@@ -15,6 +15,12 @@
 #define BTRFS_DISCARD_DELAY		(120ULL * NSEC_PER_SEC)
 #define BTRFS_DISCARD_UNUSED_DELAY	(10ULL * NSEC_PER_SEC)
 
+/* Target completion latency of discarding all discardable extents */
+#define BTRFS_DISCARD_TARGET_MSEC	(6 * 60 * 60UL * MSEC_PER_SEC)
+#define BTRFS_DISCARD_MIN_DELAY_MSEC	(1UL)
+#define BTRFS_DISCARD_MAX_DELAY_MSEC	(1000UL)
+#define BTRFS_DISCARD_MAX_IOPS		(10U)
+
 static struct list_head *get_discard_list(struct btrfs_discard_ctl *discard_ctl,
 					  struct btrfs_block_group *block_group)
 {
@@ -235,11 +241,17 @@ void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 
 	block_group = find_next_block_group(discard_ctl, now);
 	if (block_group) {
-		u64 delay = 0;
+		unsigned long delay = discard_ctl->delay;
 
-		if (now < block_group->discard_eligible_time)
-			delay = nsecs_to_jiffies(
-				block_group->discard_eligible_time - now);
+		/*
+		 * This timeout is to hopefully prevent immediate discarding
+		 * in a recently allocated block group.
+		 */
+		if (now < block_group->discard_eligible_time) {
+			u64 bg_timeout = block_group->discard_eligible_time - now;
+
+			delay = max(delay, nsecs_to_jiffies(bg_timeout));
+		}
 
 		mod_delayed_work(discard_ctl->discard_workers,
 				 &discard_ctl->work, delay);
@@ -340,6 +352,39 @@ bool btrfs_run_discard_work(struct btrfs_discard_ctl *discard_ctl)
 
 	return (!(fs_info->sb->s_flags & SB_RDONLY) &&
 		test_bit(BTRFS_FS_DISCARD_RUNNING, &fs_info->flags));
+}
+
+/**
+ * btrfs_discard_calc_delay - recalculate the base delay
+ * @discard_ctl: discard control
+ *
+ * Recalculate the base delay which is based off the total number of
+ * discardable_extents.  Clamp this between the lower_limit (iops_limit or 1ms)
+ * and the upper_limit (BTRFS_DISCARD_MAX_DELAY_MSEC).
+ */
+void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
+{
+	s32 discardable_extents;
+	u32 iops_limit;
+	unsigned long delay;
+	unsigned long lower_limit = BTRFS_DISCARD_MIN_DELAY_MSEC;
+
+	discardable_extents = atomic_read(&discard_ctl->discardable_extents);
+	if (!discardable_extents)
+		return;
+
+	spin_lock(&discard_ctl->lock);
+
+	iops_limit = READ_ONCE(discard_ctl->iops_limit);
+	if (iops_limit)
+		lower_limit = max_t(unsigned long, lower_limit,
+				    MSEC_PER_SEC / iops_limit);
+
+	delay = BTRFS_DISCARD_TARGET_MSEC / discardable_extents;
+	delay = clamp(delay, lower_limit, BTRFS_DISCARD_MAX_DELAY_MSEC);
+	discard_ctl->delay = msecs_to_jiffies(delay);
+
+	spin_unlock(&discard_ctl->lock);
 }
 
 /**
@@ -464,6 +509,8 @@ void btrfs_discard_init(struct btrfs_fs_info *fs_info)
 
 	atomic_set(&discard_ctl->discardable_extents, 0);
 	atomic64_set(&discard_ctl->discardable_bytes, 0);
+	discard_ctl->delay = BTRFS_DISCARD_MAX_DELAY_MSEC;
+	discard_ctl->iops_limit = BTRFS_DISCARD_MAX_IOPS;
 }
 
 void btrfs_discard_cleanup(struct btrfs_fs_info *fs_info)

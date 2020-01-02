@@ -468,6 +468,8 @@ struct btrfs_discard_ctl {
 	struct list_head discard_list[BTRFS_NR_DISCARD_LISTS];
 	atomic_t discardable_extents;
 	atomic64_t discardable_bytes;
+	unsigned long delay;
+	u32 iops_limit;
 };
 
 /* delayed seq elem */
