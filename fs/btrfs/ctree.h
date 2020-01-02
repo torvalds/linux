@@ -466,10 +466,12 @@ struct btrfs_discard_ctl {
 	spinlock_t lock;
 	struct btrfs_block_group *block_group;
 	struct list_head discard_list[BTRFS_NR_DISCARD_LISTS];
+	u64 prev_discard;
 	atomic_t discardable_extents;
 	atomic64_t discardable_bytes;
 	unsigned long delay;
 	u32 iops_limit;
+	u32 kbps_limit;
 };
 
 /* delayed seq elem */

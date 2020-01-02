@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
+#include <linux/math64.h>
 #include <linux/sizes.h>
 #include <linux/workqueue.h>
 #include "ctree.h"
@@ -222,8 +223,8 @@ void btrfs_discard_queue_work(struct btrfs_discard_ctl *discard_ctl,
  * @override: override the current timer
  *
  * Discards are issued by a delayed workqueue item.  @override is used to
- * update the current delay as the baseline delay interview is reevaluated
- * on transaction commit.  This is also maxed with any other rate limit.
+ * update the current delay as the baseline delay interval is reevaluated on
+ * transaction commit.  This is also maxed with any other rate limit.
  */
 void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 				 bool override)
@@ -242,6 +243,20 @@ void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 	block_group = find_next_block_group(discard_ctl, now);
 	if (block_group) {
 		unsigned long delay = discard_ctl->delay;
+		u32 kbps_limit = READ_ONCE(discard_ctl->kbps_limit);
+
+		/*
+		 * A single delayed workqueue item is responsible for
+		 * discarding, so we can manage the bytes rate limit by keeping
+		 * track of the previous discard.
+		 */
+		if (kbps_limit && discard_ctl->prev_discard) {
+			u64 bps_limit = ((u64)kbps_limit) * SZ_1K;
+			u64 bps_delay = div64_u64(discard_ctl->prev_discard *
+						  MSEC_PER_SEC, bps_limit);
+
+			delay = max(delay, msecs_to_jiffies(bps_delay));
+		}
 
 		/*
 		 * This timeout is to hopefully prevent immediate discarding
@@ -315,6 +330,8 @@ static void btrfs_discard_workfn(struct work_struct *work)
 				       block_group->discard_cursor,
 				       btrfs_block_group_end(block_group),
 				       0, true);
+
+	discard_ctl->prev_discard = trimmed;
 
 	/* Determine next steps for a block_group */
 	if (block_group->discard_cursor >= btrfs_block_group_end(block_group)) {
@@ -507,10 +524,12 @@ void btrfs_discard_init(struct btrfs_fs_info *fs_info)
 	for (i = 0; i < BTRFS_NR_DISCARD_LISTS; i++)
 		INIT_LIST_HEAD(&discard_ctl->discard_list[i]);
 
+	discard_ctl->prev_discard = 0;
 	atomic_set(&discard_ctl->discardable_extents, 0);
 	atomic64_set(&discard_ctl->discardable_bytes, 0);
 	discard_ctl->delay = BTRFS_DISCARD_MAX_DELAY_MSEC;
 	discard_ctl->iops_limit = BTRFS_DISCARD_MAX_IOPS;
+	discard_ctl->kbps_limit = 0;
 }
 
 void btrfs_discard_cleanup(struct btrfs_fs_info *fs_info)
