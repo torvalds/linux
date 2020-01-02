@@ -74,7 +74,7 @@ static int mlx5_cmd_dr_create_flow_table(struct mlx5_flow_root_namespace *ns,
 								    next_ft);
 
 	tbl = mlx5dr_table_create(ns->fs_dr_domain.dr_domain,
-				  ft->level);
+				  ft->level, ft->flags);
 	if (!tbl) {
 		mlx5_core_err(ns->dev, "Failed creating dr flow_table\n");
 		return -EINVAL;

@@ -679,6 +679,7 @@ struct mlx5dr_table {
 	u32 level;
 	u32 table_type;
 	u32 table_id;
+	u32 flags;
 	struct list_head matcher_list;
 	struct mlx5dr_action *miss_action;
 	refcount_t refcount;

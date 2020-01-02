@@ -46,7 +46,7 @@ void mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
 			    struct mlx5dr_domain *peer_dmn);
 
 struct mlx5dr_table *
-mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level);
+mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level, u32 flags);
 
 int mlx5dr_table_destroy(struct mlx5dr_table *table);
 
@@ -131,7 +131,7 @@ mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
 		       struct mlx5dr_domain *peer_dmn) { }
 
 static inline struct mlx5dr_table *
-mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level) { return NULL; }
+mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level, u32 flags) { return NULL; }
 
 static inline int
 mlx5dr_table_destroy(struct mlx5dr_table *table) { return 0; }
