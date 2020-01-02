@@ -1472,6 +1472,12 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 	n_xdp_tx = num_possible_cpus();
 	n_xdp_ev = DIV_ROUND_UP(n_xdp_tx, EFX_TXQ_TYPES);
 
+	vec_count = pci_msix_vec_count(efx->pci_dev);
+	if (vec_count < 0)
+		return vec_count;
+
+	max_channels = min_t(unsigned int, vec_count, max_channels);
+
 	/* Check resources.
 	 * We need a channel per event queue, plus a VI per tx queue.
 	 * This may be more pessimistic than it needs to be.
@@ -1493,11 +1499,6 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 			  n_xdp_tx, n_xdp_ev);
 	}
 
-	n_channels = min(n_channels, max_channels);
-
-	vec_count = pci_msix_vec_count(efx->pci_dev);
-	if (vec_count < 0)
-		return vec_count;
 	if (vec_count < n_channels) {
 		netif_err(efx, drv, efx->net_dev,
 			  "WARNING: Insufficient MSI-X vectors available (%d < %u).\n",
@@ -1507,11 +1508,9 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 		n_channels = vec_count;
 	}
 
-	efx->n_channels = n_channels;
+	n_channels = min(n_channels, max_channels);
 
-	/* Do not create the PTP TX queue(s) if PTP uses the MC directly. */
-	if (extra_channels && !efx_ptp_use_mac_tx_timestamps(efx))
-		n_channels--;
+	efx->n_channels = n_channels;
 
 	/* Ignore XDP tx channels when creating rx channels. */
 	n_channels -= efx->n_xdp_channels;
@@ -1531,11 +1530,10 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 		efx->n_rx_channels = n_channels;
 	}
 
-	if (efx->n_xdp_channels)
-		efx->xdp_channel_offset = efx->tx_channel_offset +
-					  efx->n_tx_channels;
-	else
-		efx->xdp_channel_offset = efx->n_channels;
+	efx->n_rx_channels = min(efx->n_rx_channels, parallelism);
+	efx->n_tx_channels = min(efx->n_tx_channels, parallelism);
+
+	efx->xdp_channel_offset = n_channels;
 
 	netif_dbg(efx, drv, efx->net_dev,
 		  "Allocating %u RX channels\n",
@@ -1550,6 +1548,7 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 static int efx_probe_interrupts(struct efx_nic *efx)
 {
 	unsigned int extra_channels = 0;
+	unsigned int rss_spread;
 	unsigned int i, j;
 	int rc;
 
@@ -1631,8 +1630,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	for (i = 0; i < EFX_MAX_EXTRA_CHANNELS; i++) {
 		if (!efx->extra_channel_type[i])
 			continue;
-		if (efx->interrupt_mode != EFX_INT_MODE_MSIX ||
-		    efx->n_channels <= extra_channels) {
+		if (j <= efx->tx_channel_offset + efx->n_tx_channels) {
 			efx->extra_channel_type[i]->handle_no_channel(efx);
 		} else {
 			--j;
@@ -1643,16 +1641,17 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		}
 	}
 
+	rss_spread = efx->n_rx_channels;
 	/* RSS might be usable on VFs even if it is disabled on the PF */
 #ifdef CONFIG_SFC_SRIOV
 	if (efx->type->sriov_wanted) {
-		efx->rss_spread = ((efx->n_rx_channels > 1 ||
+		efx->rss_spread = ((rss_spread > 1 ||
 				    !efx->type->sriov_wanted(efx)) ?
-				   efx->n_rx_channels : efx_vf_size(efx));
+				   rss_spread : efx_vf_size(efx));
 		return 0;
 	}
 #endif
-	efx->rss_spread = efx->n_rx_channels;
+	efx->rss_spread = rss_spread;
 
 	return 0;
 }

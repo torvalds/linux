@@ -487,6 +487,7 @@ int call_fib6_multipath_entry_notifiers(struct net *net,
 					struct fib6_info *rt,
 					unsigned int nsiblings,
 					struct netlink_ext_ack *extack);
+int call_fib6_entry_notifiers_replace(struct net *net, struct fib6_info *rt);
 void fib6_rt_update(struct net *net, struct fib6_info *rt,
 		    struct nl_info *info);
 void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,

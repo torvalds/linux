@@ -370,6 +370,8 @@ struct igc_adapter {
 	struct timer_list dma_err_timer;
 	struct timer_list phy_info_timer;
 
+	u32 wol;
+	u32 en_mng_pt;
 	u16 link_speed;
 	u16 link_duplex;
 

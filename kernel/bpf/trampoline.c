@@ -3,6 +3,7 @@
 #include <linux/hash.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
+#include <linux/ftrace.h>
 
 /* btf_vmlinux has ~22k attachable functions. 1k htab is enough. */
 #define TRAMPOLINE_HASH_BITS 10
@@ -12,6 +13,22 @@ static struct hlist_head trampoline_table[TRAMPOLINE_TABLE_SIZE];
 
 /* serializes access to trampoline_table */
 static DEFINE_MUTEX(trampoline_mutex);
+
+void *bpf_jit_alloc_exec_page(void)
+{
+	void *image;
+
+	image = bpf_jit_alloc_exec(PAGE_SIZE);
+	if (!image)
+		return NULL;
+
+	set_vm_flush_reset_perms(image);
+	/* Keep image as writeable. The alternative is to keep flipping ro/rw
+	 * everytime new program is attached or detached.
+	 */
+	set_memory_x((long)image, 1);
+	return image;
+}
 
 struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 {
@@ -33,7 +50,7 @@ struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 		goto out;
 
 	/* is_root was checked earlier. No need for bpf_jit_charge_modmem() */
-	image = bpf_jit_alloc_exec(PAGE_SIZE);
+	image = bpf_jit_alloc_exec_page();
 	if (!image) {
 		kfree(tr);
 		tr = NULL;
@@ -47,16 +64,64 @@ struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 	mutex_init(&tr->mutex);
 	for (i = 0; i < BPF_TRAMP_MAX; i++)
 		INIT_HLIST_HEAD(&tr->progs_hlist[i]);
-
-	set_vm_flush_reset_perms(image);
-	/* Keep image as writeable. The alternative is to keep flipping ro/rw
-	 * everytime new program is attached or detached.
-	 */
-	set_memory_x((long)image, 1);
 	tr->image = image;
 out:
 	mutex_unlock(&trampoline_mutex);
 	return tr;
+}
+
+static int is_ftrace_location(void *ip)
+{
+	long addr;
+
+	addr = ftrace_location((long)ip);
+	if (!addr)
+		return 0;
+	if (WARN_ON_ONCE(addr != (long)ip))
+		return -EFAULT;
+	return 1;
+}
+
+static int unregister_fentry(struct bpf_trampoline *tr, void *old_addr)
+{
+	void *ip = tr->func.addr;
+	int ret;
+
+	if (tr->func.ftrace_managed)
+		ret = unregister_ftrace_direct((long)ip, (long)old_addr);
+	else
+		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, old_addr, NULL);
+	return ret;
+}
+
+static int modify_fentry(struct bpf_trampoline *tr, void *old_addr, void *new_addr)
+{
+	void *ip = tr->func.addr;
+	int ret;
+
+	if (tr->func.ftrace_managed)
+		ret = modify_ftrace_direct((long)ip, (long)old_addr, (long)new_addr);
+	else
+		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, old_addr, new_addr);
+	return ret;
+}
+
+/* first time registering */
+static int register_fentry(struct bpf_trampoline *tr, void *new_addr)
+{
+	void *ip = tr->func.addr;
+	int ret;
+
+	ret = is_ftrace_location(ip);
+	if (ret < 0)
+		return ret;
+	tr->func.ftrace_managed = ret;
+
+	if (tr->func.ftrace_managed)
+		ret = register_ftrace_direct((long)ip, (long)new_addr);
+	else
+		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, NULL, new_addr);
+	return ret;
 }
 
 /* Each call __bpf_prog_enter + call bpf_func + call __bpf_prog_exit is ~50
@@ -77,8 +142,7 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 	int err;
 
 	if (fentry_cnt + fexit_cnt == 0) {
-		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_CALL,
-					 old_image, NULL);
+		err = unregister_fentry(tr, old_image);
 		tr->selector = 0;
 		goto out;
 	}
@@ -105,12 +169,10 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 
 	if (tr->selector)
 		/* progs already running at this address */
-		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_CALL,
-					 old_image, new_image);
+		err = modify_fentry(tr, old_image, new_image);
 	else
 		/* first time registering */
-		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_CALL, NULL,
-					 new_image);
+		err = register_fentry(tr, new_image);
 	if (err)
 		goto out;
 	tr->selector++;

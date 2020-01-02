@@ -125,12 +125,6 @@ struct qeth_routing_info {
 	enum qeth_routing_types type;
 };
 
-/* IPA stuff */
-struct qeth_ipa_info {
-	__u32 supported_funcs;
-	__u32 enabled_funcs;
-};
-
 /* SETBRIDGEPORT stuff */
 enum qeth_sbp_roles {
 	QETH_SBP_ROLE_NONE	= 0,
@@ -168,41 +162,6 @@ struct qeth_vnicc_info {
 	/* has user explicitly enabled rx_bcast while online? */
 	bool rx_bcast_enabled;
 };
-
-static inline int qeth_is_adp_supported(struct qeth_ipa_info *ipa,
-		enum qeth_ipa_setadp_cmd func)
-{
-	return (ipa->supported_funcs & func);
-}
-
-static inline int qeth_is_ipa_supported(struct qeth_ipa_info *ipa,
-		enum qeth_ipa_funcs func)
-{
-	return (ipa->supported_funcs & func);
-}
-
-static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
-		enum qeth_ipa_funcs func)
-{
-	return (ipa->supported_funcs & ipa->enabled_funcs & func);
-}
-
-#define qeth_adp_supported(c, f) \
-	qeth_is_adp_supported(&c->options.adp, f)
-#define qeth_is_supported(c, f) \
-	qeth_is_ipa_supported(&c->options.ipa4, f)
-#define qeth_is_enabled(c, f) \
-	qeth_is_ipa_enabled(&c->options.ipa4, f)
-#define qeth_is_supported6(c, f) \
-	qeth_is_ipa_supported(&c->options.ipa6, f)
-#define qeth_is_enabled6(c, f) \
-	qeth_is_ipa_enabled(&c->options.ipa6, f)
-#define qeth_is_ipafunc_supported(c, prot, f) \
-	 ((prot == QETH_PROT_IPV6) ? \
-		qeth_is_supported6(c, f) : qeth_is_supported(c, f))
-#define qeth_is_ipafunc_enabled(c, prot, f) \
-	 ((prot == QETH_PROT_IPV6) ? \
-		qeth_is_enabled6(c, f) : qeth_is_enabled(c, f))
 
 #define QETH_IDX_FUNC_LEVEL_OSD		 0x0101
 #define QETH_IDX_FUNC_LEVEL_IQD		 0x4108
@@ -262,7 +221,6 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 
 /* large receive scatter gather copy break */
 #define QETH_RX_SG_CB (PAGE_SIZE >> 1)
-#define QETH_RX_PULL_LEN 256
 
 struct qeth_hdr_layer3 {
 	__u8  id;
@@ -735,11 +693,11 @@ enum qeth_discipline_id {
 };
 
 struct qeth_card_options {
+	struct qeth_ipa_caps ipa4;
+	struct qeth_ipa_caps ipa6;
 	struct qeth_routing_info route4;
-	struct qeth_ipa_info ipa4;
-	struct qeth_ipa_info adp; /*Adapter parameters*/
 	struct qeth_routing_info route6;
-	struct qeth_ipa_info ipa6;
+	struct qeth_ipa_caps adp; /* Adapter parameters */
 	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
 	struct qeth_vnicc_info vnicc; /* VNICC options */
 	int fake_broadcast;
@@ -769,7 +727,6 @@ struct qeth_osn_info {
 
 struct qeth_discipline {
 	const struct device_type *devtype;
-	int (*process_rx_buffer)(struct qeth_card *card, int budget, int *done);
 	int (*recover)(void *ptr);
 	int (*setup) (struct ccwgroup_device *);
 	void (*remove) (struct ccwgroup_device *);
@@ -860,6 +817,13 @@ struct qeth_card {
 static inline bool qeth_card_hw_is_reachable(struct qeth_card *card)
 {
 	return card->state == CARD_STATE_SOFTSETUP;
+}
+
+static inline void qeth_unlock_channel(struct qeth_card *card,
+				       struct qeth_channel *channel)
+{
+	atomic_set(&channel->irq_pending, 0);
+	wake_up(&card->wait_q);
 }
 
 struct qeth_trap_id {
@@ -955,18 +919,6 @@ static inline struct dst_entry *qeth_dst_check_rcu(struct sk_buff *skb, int ipv)
 	if (dst)
 		dst = dst_check(dst, (ipv == 6) ? rt6_get_cookie(rt) : 0);
 	return dst;
-}
-
-static inline void qeth_rx_csum(struct qeth_card *card, struct sk_buff *skb,
-				u8 flags)
-{
-	if ((card->dev->features & NETIF_F_RXCSUM) &&
-	    (flags & QETH_HDR_EXT_CSUM_TRANSP_REQ)) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		QETH_CARD_STAT_INC(card, rx_skb_csum);
-	} else {
-		skb->ip_summed = CHECKSUM_NONE;
-	}
 }
 
 static inline void qeth_tx_csum(struct sk_buff *skb, u8 *flags, int ipv)
@@ -1065,9 +1017,6 @@ struct qeth_cmd_buffer *qeth_get_diag_cmd(struct qeth_card *card,
 void qeth_notify_cmd(struct qeth_cmd_buffer *iob, int reason);
 void qeth_put_cmd(struct qeth_cmd_buffer *iob);
 
-struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
-		struct qeth_qdio_buffer *, struct qdio_buffer_element **, int *,
-		struct qeth_hdr **);
 void qeth_schedule_recovery(struct qeth_card *);
 int qeth_poll(struct napi_struct *napi, int budget);
 void qeth_clear_ipacmd_list(struct qeth_card *);

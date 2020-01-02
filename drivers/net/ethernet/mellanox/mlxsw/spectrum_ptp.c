@@ -920,6 +920,7 @@ static int mlxsw_sp_ptp_get_message_types(const struct hwtstamp_config *config,
 		egr_types = 0xff;
 		break;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
+	case HWTSTAMP_TX_ONESTEP_P2P:
 		return -ERANGE;
 	}
 

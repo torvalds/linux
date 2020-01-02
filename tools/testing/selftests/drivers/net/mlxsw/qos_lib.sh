@@ -24,24 +24,6 @@ rate()
 	echo $((8 * (t1 - t0) / interval))
 }
 
-start_traffic()
-{
-	local h_in=$1; shift    # Where the traffic egresses the host
-	local sip=$1; shift
-	local dip=$1; shift
-	local dmac=$1; shift
-
-	$MZ $h_in -p 8000 -A $sip -B $dip -c 0 \
-		-a own -b $dmac -t udp -q &
-	sleep 1
-}
-
-stop_traffic()
-{
-	# Suppress noise from killing mausezahn.
-	{ kill %% && wait %%; } 2>/dev/null
-}
-
 check_rate()
 {
 	local rate=$1; shift
@@ -95,4 +77,32 @@ measure_rate()
 
 	echo $ir $er
 	return $ret
+}
+
+bail_on_lldpad()
+{
+	if systemctl is-active --quiet lldpad; then
+
+		cat >/dev/stderr <<-EOF
+		WARNING: lldpad is running
+
+			lldpad will likely configure DCB, and this test will
+			configure Qdiscs. mlxsw does not support both at the
+			same time, one of them is arbitrarily going to overwrite
+			the other. That will cause spurious failures (or,
+			unlikely, passes) of this test.
+		EOF
+
+		if [[ -z $ALLOW_LLDPAD ]]; then
+			cat >/dev/stderr <<-EOF
+
+				If you want to run the test anyway, please set
+				an environment variable ALLOW_LLDPAD to a
+				non-empty string.
+			EOF
+			exit 1
+		else
+			return
+		fi
+	fi
 }

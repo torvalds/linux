@@ -442,13 +442,20 @@ static unsigned int sfp_soft_get_state(struct sfp *sfp)
 {
 	unsigned int state = 0;
 	u8 status;
+	int ret;
 
-	if (sfp_read(sfp, true, SFP_STATUS, &status, sizeof(status)) ==
-		     sizeof(status)) {
+	ret = sfp_read(sfp, true, SFP_STATUS, &status, sizeof(status));
+	if (ret == sizeof(status)) {
 		if (status & SFP_STATUS_RX_LOS)
 			state |= SFP_F_LOS;
 		if (status & SFP_STATUS_TX_FAULT)
 			state |= SFP_F_TX_FAULT;
+	} else {
+		dev_err_ratelimited(sfp->dev,
+				    "failed to read SFP soft status: %d\n",
+				    ret);
+		/* Preserve the current state */
+		state = sfp->state;
 	}
 
 	return state & sfp->state_soft_mask;

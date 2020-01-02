@@ -672,7 +672,8 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 		 * 0 to driver. However, the hardware TCAM index
 		 * starts from 0. Hence, the -1 here.
 		 */
-		if (cls->common.prio <= adap->tids.nftids) {
+		if (cls->common.prio <= (adap->tids.nftids +
+					 adap->tids.nhpftids)) {
 			fidx = cls->common.prio - 1;
 			if (fidx < adap->tids.nhpftids)
 				fs->prio = 1;

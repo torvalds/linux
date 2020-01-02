@@ -250,7 +250,7 @@ static int tipc_link_build_nack_msg(struct tipc_link *l,
 static void tipc_link_build_bc_init_msg(struct tipc_link *l,
 					struct sk_buff_head *xmitq);
 static int tipc_link_release_pkts(struct tipc_link *l, u16 to);
-static u16 tipc_build_gap_ack_blks(struct tipc_link *l, void *data);
+static u16 tipc_build_gap_ack_blks(struct tipc_link *l, void *data, u16 gap);
 static int tipc_link_advance_transmq(struct tipc_link *l, u16 acked, u16 gap,
 				     struct tipc_gap_ack_blks *ga,
 				     struct sk_buff_head *xmitq);
@@ -1423,14 +1423,14 @@ static int tipc_link_release_pkts(struct tipc_link *l, u16 acked)
  *
  * returns the actual allocated memory size
  */
-static u16 tipc_build_gap_ack_blks(struct tipc_link *l, void *data)
+static u16 tipc_build_gap_ack_blks(struct tipc_link *l, void *data, u16 gap)
 {
 	struct sk_buff *skb = skb_peek(&l->deferdq);
 	struct tipc_gap_ack_blks *ga = data;
 	u16 len, expect, seqno = 0;
 	u8 n = 0;
 
-	if (!skb)
+	if (!skb || !gap)
 		goto exit;
 
 	expect = buf_seqno(skb);
@@ -1739,7 +1739,7 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 		msg_set_probe(hdr, probe);
 		msg_set_is_keepalive(hdr, probe || probe_reply);
 		if (l->peer_caps & TIPC_GAP_ACK_BLOCK)
-			glen = tipc_build_gap_ack_blks(l, data);
+			glen = tipc_build_gap_ack_blks(l, data, rcvgap);
 		tipc_mon_prep(l->net, data + glen, &dlen, mstate, l->bearer_id);
 		msg_set_size(hdr, INT_H_SIZE + glen + dlen);
 		skb_trim(skb, INT_H_SIZE + glen + dlen);

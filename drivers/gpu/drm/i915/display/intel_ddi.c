@@ -3986,6 +3986,7 @@ static void intel_enable_ddi(struct intel_encoder *encoder,
 	if (conn_state->content_protection ==
 	    DRM_MODE_CONTENT_PROTECTION_DESIRED)
 		intel_hdcp_enable(to_intel_connector(conn_state->connector),
+				  crtc_state->cpu_transcoder,
 				  (u8)conn_state->hdcp_content_type);
 }
 
@@ -4089,7 +4090,9 @@ static void intel_ddi_update_pipe(struct intel_encoder *encoder,
 	if (conn_state->content_protection ==
 	    DRM_MODE_CONTENT_PROTECTION_DESIRED ||
 	    content_protection_type_changed)
-		intel_hdcp_enable(connector, (u8)conn_state->hdcp_content_type);
+		intel_hdcp_enable(connector,
+				  crtc_state->cpu_transcoder,
+				  (u8)conn_state->hdcp_content_type);
 }
 
 static void

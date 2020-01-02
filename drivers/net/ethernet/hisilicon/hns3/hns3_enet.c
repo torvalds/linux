@@ -1556,6 +1556,37 @@ static int hns3_nic_set_features(struct net_device *netdev,
 	return 0;
 }
 
+static netdev_features_t hns3_features_check(struct sk_buff *skb,
+					     struct net_device *dev,
+					     netdev_features_t features)
+{
+#define HNS3_MAX_HDR_LEN	480U
+#define HNS3_MAX_L4_HDR_LEN	60U
+
+	size_t len;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return features;
+
+	if (skb->encapsulation)
+		len = skb_inner_transport_header(skb) - skb->data;
+	else
+		len = skb_transport_header(skb) - skb->data;
+
+	/* Assume L4 is 60 byte as TCP is the only protocol with a
+	 * a flexible value, and it's max len is 60 bytes.
+	 */
+	len += HNS3_MAX_L4_HDR_LEN;
+
+	/* Hardware only supports checksum on the skb with a max header
+	 * len of 480 bytes.
+	 */
+	if (len > HNS3_MAX_HDR_LEN)
+		features &= ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+
+	return features;
+}
+
 static void hns3_nic_get_stats64(struct net_device *netdev,
 				 struct rtnl_link_stats64 *stats)
 {
@@ -1970,6 +2001,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_do_ioctl		= hns3_nic_do_ioctl,
 	.ndo_change_mtu		= hns3_nic_change_mtu,
 	.ndo_set_features	= hns3_nic_set_features,
+	.ndo_features_check	= hns3_features_check,
 	.ndo_get_stats64	= hns3_nic_get_stats64,
 	.ndo_setup_tc		= hns3_nic_setup_tc,
 	.ndo_set_rx_mode	= hns3_nic_set_rx_mode,
@@ -2788,7 +2820,6 @@ static bool hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
 static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 			  unsigned char *va)
 {
-#define HNS3_NEED_ADD_FRAG	1
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_clean];
 	struct net_device *netdev = ring_to_netdev(ring);
 	struct sk_buff *skb;
@@ -2832,33 +2863,19 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 			    desc_cb);
 	ring_ptr_move_fw(ring, next_to_clean);
 
-	return HNS3_NEED_ADD_FRAG;
+	return 0;
 }
 
-static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
-			 bool pending)
+static int hns3_add_frag(struct hns3_enet_ring *ring)
 {
 	struct sk_buff *skb = ring->skb;
 	struct sk_buff *head_skb = skb;
 	struct sk_buff *new_skb;
 	struct hns3_desc_cb *desc_cb;
-	struct hns3_desc *pre_desc;
+	struct hns3_desc *desc;
 	u32 bd_base_info;
-	int pre_bd;
 
-	/* if there is pending bd, the SW param next_to_clean has moved
-	 * to next and the next is NULL
-	 */
-	if (pending) {
-		pre_bd = (ring->next_to_clean - 1 + ring->desc_num) %
-			 ring->desc_num;
-		pre_desc = &ring->desc[pre_bd];
-		bd_base_info = le32_to_cpu(pre_desc->rx.bd_base_info);
-	} else {
-		bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
-	}
-
-	while (!(bd_base_info & BIT(HNS3_RXD_FE_B))) {
+	do {
 		desc = &ring->desc[ring->next_to_clean];
 		desc_cb = &ring->desc_cb[ring->next_to_clean];
 		bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
@@ -2895,7 +2912,7 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 		hns3_nic_reuse_page(skb, ring->frag_num++, ring, 0, desc_cb);
 		ring_ptr_move_fw(ring, next_to_clean);
 		ring->pending_buf++;
-	}
+	} while (!(bd_base_info & BIT(HNS3_RXD_FE_B)));
 
 	return 0;
 }
@@ -3063,28 +3080,23 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring)
 
 		if (ret < 0) /* alloc buffer fail */
 			return ret;
-		if (ret > 0) { /* need add frag */
-			ret = hns3_add_frag(ring, desc, false);
+		if (!(bd_base_info & BIT(HNS3_RXD_FE_B))) { /* need add frag */
+			ret = hns3_add_frag(ring);
 			if (ret)
 				return ret;
-
-			/* As the head data may be changed when GRO enable, copy
-			 * the head data in after other data rx completed
-			 */
-			memcpy(skb->data, ring->va,
-			       ALIGN(ring->pull_len, sizeof(long)));
 		}
 	} else {
-		ret = hns3_add_frag(ring, desc, true);
+		ret = hns3_add_frag(ring);
 		if (ret)
 			return ret;
+	}
 
-		/* As the head data may be changed when GRO enable, copy
-		 * the head data in after other data rx completed
-		 */
+	/* As the head data may be changed when GRO enable, copy
+	 * the head data in after other data rx completed
+	 */
+	if (skb->len > HNS3_RX_HEAD_SIZE)
 		memcpy(skb->data, ring->va,
 		       ALIGN(ring->pull_len, sizeof(long)));
-	}
 
 	ret = hns3_handle_bdinfo(ring, skb);
 	if (unlikely(ret)) {
@@ -3590,7 +3602,12 @@ static void hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 		if (!tqp_vector->rx_group.ring && !tqp_vector->tx_group.ring)
 			continue;
 
-		hns3_get_vector_ring_chain(tqp_vector, &vector_ring_chain);
+		/* Since the mapping can be overwritten, when fail to get the
+		 * chain between vector and ring, we should go on to deal with
+		 * the remaining options.
+		 */
+		if (hns3_get_vector_ring_chain(tqp_vector, &vector_ring_chain))
+			dev_warn(priv->dev, "failed to get ring chain\n");
 
 		h->ae_algo->ops->unmap_ring_from_vector(h,
 			tqp_vector->vector_irq, &vector_ring_chain);

@@ -124,7 +124,8 @@ static struct dsa_port *dsa_tree_find_port_by_node(struct dsa_switch_tree *dst,
 	return NULL;
 }
 
-struct dsa_link *dsa_link_touch(struct dsa_port *dp, struct dsa_port *link_dp)
+static struct dsa_link *dsa_link_touch(struct dsa_port *dp,
+				       struct dsa_port *link_dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_switch_tree *dst;

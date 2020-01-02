@@ -361,20 +361,22 @@ static int get_filter_count(struct adapter *adapter, unsigned int fidx,
 
 	tcb_base = t4_read_reg(adapter, TP_CMM_TCB_BASE_A);
 	if (is_hashfilter(adapter) && hash) {
-		if (fidx < adapter->tids.ntids) {
-			f = adapter->tids.tid_tab[fidx];
-			if (!f)
-				return -EINVAL;
-		} else {
+		if (tid_out_of_range(&adapter->tids, fidx))
 			return -E2BIG;
-		}
+		f = adapter->tids.tid_tab[fidx - adapter->tids.tid_base];
+		if (!f)
+			return -EINVAL;
 	} else {
-		if ((fidx != (adapter->tids.nftids +
-			      adapter->tids.nsftids - 1)) &&
-		    fidx >= adapter->tids.nftids)
+		if ((fidx != (adapter->tids.nftids + adapter->tids.nsftids +
+			      adapter->tids.nhpftids - 1)) &&
+		    fidx >= (adapter->tids.nftids + adapter->tids.nhpftids))
 			return -E2BIG;
 
-		f = &adapter->tids.ftid_tab[fidx];
+		if (fidx < adapter->tids.nhpftids)
+			f = &adapter->tids.hpftid_tab[fidx];
+		else
+			f = &adapter->tids.ftid_tab[fidx -
+						    adapter->tids.nhpftids];
 		if (!f->valid)
 			return -EINVAL;
 	}
@@ -480,6 +482,7 @@ int cxgb4_get_free_ftid(struct net_device *dev, int family)
 		ftid -= n;
 	}
 	spin_unlock_bh(&t->ftid_lock);
+	ftid += t->nhpftids;
 
 	return found ? ftid : -ENOMEM;
 }
@@ -815,10 +818,14 @@ int delete_filter(struct adapter *adapter, unsigned int fidx)
 	struct filter_entry *f;
 	int ret;
 
-	if (fidx >= adapter->tids.nftids + adapter->tids.nsftids)
+	if (fidx >= adapter->tids.nftids + adapter->tids.nsftids +
+		    adapter->tids.nhpftids)
 		return -EINVAL;
 
-	f = &adapter->tids.ftid_tab[fidx];
+	if (fidx < adapter->tids.nhpftids)
+		f = &adapter->tids.hpftid_tab[fidx];
+	else
+		f = &adapter->tids.ftid_tab[fidx - adapter->tids.nhpftids];
 	ret = writable_filter(f);
 	if (ret)
 		return ret;
@@ -1606,7 +1613,7 @@ static int cxgb4_del_hash_filter(struct net_device *dev, int filter_id,
 	netdev_dbg(dev, "%s: filter_id = %d ; nftids = %d\n",
 		   __func__, filter_id, adapter->tids.nftids);
 
-	if (filter_id > adapter->tids.ntids)
+	if (tid_out_of_range(t, filter_id))
 		return -E2BIG;
 
 	f = lookup_tid(t, filter_id);

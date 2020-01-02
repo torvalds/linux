@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/iio/adc/adi,ad7292.yaml#
@@ -53,7 +53,8 @@ patternProperties:
         description: |
           The channel number. It can have up to 8 channels numbered from 0 to 7.
         items:
-          maximum: 7
+          - minimum: 0
+            maximum: 7
 
       diff-channels:
         description: see Documentation/devicetree/bindings/iio/adc/adc.txt

@@ -42,7 +42,7 @@ struct aux_payload {
 	bool write;
 	bool mot;
 	uint32_t address;
-	uint8_t length;
+	uint32_t length;
 	uint8_t *data;
 	/*
 	 * used to return the reply type of the transaction

@@ -586,6 +586,9 @@ struct nfp_net_dp {
  * @ktls_conn_id_gen:	Trivial generator for kTLS connection ids (for TX)
  * @ktls_no_space:	Counter of firmware rejecting kTLS connection due to
  *			lack of space
+ * @ktls_rx_resync_req:	Counter of TLS RX resync requested
+ * @ktls_rx_resync_ign:	Counter of TLS RX resync requests ignored
+ * @ktls_rx_resync_sent:    Counter of TLS RX resync completed
  * @mbox_cmsg:		Common Control Message via vNIC mailbox state
  * @mbox_cmsg.queue:	CCM mbox queue of pending messages
  * @mbox_cmsg.wq:	CCM mbox wait queue of waiting processes
@@ -674,6 +677,9 @@ struct nfp_net {
 	atomic64_t ktls_conn_id_gen;
 
 	atomic_t ktls_no_space;
+	atomic_t ktls_rx_resync_req;
+	atomic_t ktls_rx_resync_ign;
+	atomic_t ktls_rx_resync_sent;
 
 	struct {
 		struct sk_buff_head queue;

@@ -247,6 +247,7 @@ static int qede_ptp_cfg_filters(struct qede_dev *edev)
 		break;
 
 	case HWTSTAMP_TX_ONESTEP_SYNC:
+	case HWTSTAMP_TX_ONESTEP_P2P:
 		DP_ERR(edev, "One-step timestamping is not supported\n");
 		return -ERANGE;
 	}

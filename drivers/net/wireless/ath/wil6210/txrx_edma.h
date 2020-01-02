@@ -46,7 +46,7 @@
 
 #define WIL_RX_EDMA_DLPF_LU_MISS_TID_POS	5
 
-#define WIL_RX_EDMA_MID_VALID_BIT		BIT(22)
+#define WIL_RX_EDMA_MID_VALID_BIT		BIT(20)
 
 #define WIL_EDMA_DESC_TX_MAC_CFG_0_QID_POS 16
 #define WIL_EDMA_DESC_TX_MAC_CFG_0_QID_LEN 6
@@ -244,8 +244,8 @@ struct wil_ring_tx_status {
  *		     calculated, Bit1- L4Err - TCP/UDP Checksum Error
  *	bit      7 : Reserved:1
  *	bit  8..19 : Flow ID:12 - MSDU flow ID
- *	bit 20..21 : MID:2 - The MAC ID
- *	bit     22 : MID_V:1 - The MAC ID field is valid
+ *	bit     20 : MID_V:1 - The MAC ID field is valid
+ *	bit 21..22 : MID:2 - The MAC ID
  *	bit     23 : L3T:1 - IP types: 0-IPv6, 1-IPv4
  *	bit     24 : L4T:1 - Layer 4 Type: 0-UDP, 1-TCP
  *	bit     25 : BC:1 - The received MPDU is broadcast
@@ -479,7 +479,7 @@ static inline int wil_rx_status_get_mid(void *msg)
 		return 0; /* use the default MID */
 
 	return WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d0,
-			    20, 21);
+			    21, 22);
 }
 
 static inline int wil_rx_status_get_error(void *msg)

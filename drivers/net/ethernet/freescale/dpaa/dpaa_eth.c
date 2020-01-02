@@ -1719,7 +1719,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 	int page_offset;
 	unsigned int sz;
 	int *count_ptr;
-	int i;
+	int i, j;
 
 	vaddr = phys_to_virt(addr);
 	WARN_ON(!IS_ALIGNED((unsigned long)vaddr, SMP_CACHE_BYTES));
@@ -1736,14 +1736,14 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 		WARN_ON(!IS_ALIGNED((unsigned long)sg_vaddr,
 				    SMP_CACHE_BYTES));
 
+		dma_unmap_page(priv->rx_dma_dev, sg_addr,
+			       DPAA_BP_RAW_SIZE, DMA_FROM_DEVICE);
+
 		/* We may use multiple Rx pools */
 		dpaa_bp = dpaa_bpid2pool(sgt[i].bpid);
 		if (!dpaa_bp)
 			goto free_buffers;
 
-		count_ptr = this_cpu_ptr(dpaa_bp->percpu_count);
-		dma_unmap_page(priv->rx_dma_dev, sg_addr,
-			       DPAA_BP_RAW_SIZE, DMA_FROM_DEVICE);
 		if (!skb) {
 			sz = dpaa_bp->size +
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
@@ -1786,7 +1786,9 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 			skb_add_rx_frag(skb, i - 1, head_page, frag_off,
 					frag_len, dpaa_bp->size);
 		}
+
 		/* Update the pool count for the current {cpu x bpool} */
+		count_ptr = this_cpu_ptr(dpaa_bp->percpu_count);
 		(*count_ptr)--;
 
 		if (qm_sg_entry_is_final(&sgt[i]))
@@ -1800,26 +1802,25 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 	return skb;
 
 free_buffers:
-	/* compensate sw bpool counter changes */
-	for (i--; i >= 0; i--) {
-		dpaa_bp = dpaa_bpid2pool(sgt[i].bpid);
-		if (dpaa_bp) {
-			count_ptr = this_cpu_ptr(dpaa_bp->percpu_count);
-			(*count_ptr)++;
-		}
-	}
 	/* free all the SG entries */
-	for (i = 0; i < DPAA_SGT_MAX_ENTRIES ; i++) {
-		sg_addr = qm_sg_addr(&sgt[i]);
+	for (j = 0; j < DPAA_SGT_MAX_ENTRIES ; j++) {
+		sg_addr = qm_sg_addr(&sgt[j]);
 		sg_vaddr = phys_to_virt(sg_addr);
+		/* all pages 0..i were unmaped */
+		if (j > i)
+			dma_unmap_page(priv->rx_dma_dev, qm_sg_addr(&sgt[j]),
+				       DPAA_BP_RAW_SIZE, DMA_FROM_DEVICE);
 		free_pages((unsigned long)sg_vaddr, 0);
-		dpaa_bp = dpaa_bpid2pool(sgt[i].bpid);
-		if (dpaa_bp) {
-			count_ptr = this_cpu_ptr(dpaa_bp->percpu_count);
-			(*count_ptr)--;
+		/* counters 0..i-1 were decremented */
+		if (j >= i) {
+			dpaa_bp = dpaa_bpid2pool(sgt[j].bpid);
+			if (dpaa_bp) {
+				count_ptr = this_cpu_ptr(dpaa_bp->percpu_count);
+				(*count_ptr)--;
+			}
 		}
 
-		if (qm_sg_entry_is_final(&sgt[i]))
+		if (qm_sg_entry_is_final(&sgt[j]))
 			break;
 	}
 	/* free the SGT fragment */

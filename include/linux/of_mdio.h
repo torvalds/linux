@@ -12,6 +12,7 @@
 #include <linux/of.h>
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
+extern bool of_mdiobus_child_is_phy(struct device_node *child);
 extern int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np);
 extern struct phy_device *of_phy_find_device(struct device_node *phy_np);
 extern struct phy_device *of_phy_connect(struct net_device *dev,
@@ -54,6 +55,11 @@ static inline int of_mdio_parse_addr(struct device *dev,
 }
 
 #else /* CONFIG_OF_MDIO */
+static inline bool of_mdiobus_child_is_phy(struct device_node *child)
+{
+	return false;
+}
+
 static inline int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 {
 	/*

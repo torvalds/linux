@@ -606,6 +606,9 @@ enum ethtool_stringset {
 	ETH_SS_PHY_STATS,
 	ETH_SS_PHY_TUNABLES,
 	ETH_SS_LINK_MODES,
+
+	/* add new constants above here */
+	ETH_SS_COUNT
 };
 
 /**

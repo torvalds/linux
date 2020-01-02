@@ -45,6 +45,7 @@
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_pm.h"
+#include "gt/intel_context.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
@@ -160,7 +161,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	 * We manually control the domain here and pretend that it
 	 * remains coherent i.e. in the GTT domain, like shmem_pwrite.
 	 */
-	intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
+	i915_gem_object_invalidate_frontbuffer(obj, ORIGIN_CPU);
 
 	if (copy_from_user(vaddr, user_data, args->size))
 		return -EFAULT;
@@ -168,7 +169,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	drm_clflush_virt_range(vaddr, args->size);
 	intel_gt_chipset_flush(&to_i915(obj->base.dev)->gt);
 
-	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
+	i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);
 	return 0;
 }
 
@@ -588,7 +589,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		goto out_unpin;
 	}
 
-	intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
+	i915_gem_object_invalidate_frontbuffer(obj, ORIGIN_CPU);
 
 	user_data = u64_to_user_ptr(args->data_ptr);
 	offset = args->offset;
@@ -630,7 +631,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		user_data += page_length;
 		offset += page_length;
 	}
-	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
+	i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);
 
 	i915_gem_object_unlock_fence(obj, fence);
 out_unpin:
@@ -720,7 +721,7 @@ i915_gem_shmem_pwrite(struct drm_i915_gem_object *obj,
 		offset = 0;
 	}
 
-	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
+	i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);
 	i915_gem_object_unlock_fence(obj, fence);
 
 	return ret;
@@ -1053,6 +1054,18 @@ out:
 	return err;
 }
 
+static int __intel_context_flush_retire(struct intel_context *ce)
+{
+	struct intel_timeline *tl;
+
+	tl = intel_context_timeline_lock(ce);
+	if (IS_ERR(tl))
+		return PTR_ERR(tl);
+
+	intel_context_timeline_unlock(tl);
+	return 0;
+}
+
 static int __intel_engines_record_defaults(struct intel_gt *gt)
 {
 	struct i915_request *requests[I915_NUM_ENGINES] = {};
@@ -1121,12 +1134,19 @@ err_rq:
 		if (!rq)
 			continue;
 
-		/* We want to be able to unbind the state from the GGTT */
-		GEM_BUG_ON(intel_context_is_pinned(rq->hw_context));
-
+		GEM_BUG_ON(!test_bit(CONTEXT_ALLOC_BIT,
+				     &rq->hw_context->flags));
 		state = rq->hw_context->state;
 		if (!state)
 			continue;
+
+		/* Serialise with retirement on another CPU */
+		err = __intel_context_flush_retire(rq->hw_context);
+		if (err)
+			goto out;
+
+		/* We want to be able to unbind the state from the GGTT */
+		GEM_BUG_ON(intel_context_is_pinned(rq->hw_context));
 
 		/*
 		 * As we will hold a reference to the logical state, it will

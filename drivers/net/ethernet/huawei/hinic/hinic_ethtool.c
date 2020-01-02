@@ -450,7 +450,7 @@ static u32 hinic_get_rxfh_indir_size(struct net_device *netdev)
 
 #define HINIC_FUNC_STAT(_stat_item) {	\
 	.name = #_stat_item, \
-	.size = FIELD_SIZEOF(struct hinic_vport_stats, _stat_item), \
+	.size = sizeof_field(struct hinic_vport_stats, _stat_item), \
 	.offset = offsetof(struct hinic_vport_stats, _stat_item) \
 }
 
@@ -477,7 +477,7 @@ static struct hinic_stats hinic_function_stats[] = {
 
 #define HINIC_PORT_STAT(_stat_item) { \
 	.name = #_stat_item, \
-	.size = FIELD_SIZEOF(struct hinic_phy_port_stats, _stat_item), \
+	.size = sizeof_field(struct hinic_phy_port_stats, _stat_item), \
 	.offset = offsetof(struct hinic_phy_port_stats, _stat_item) \
 }
 
@@ -571,7 +571,7 @@ static struct hinic_stats hinic_port_stats[] = {
 
 #define HINIC_TXQ_STAT(_stat_item) { \
 	.name = "txq%d_"#_stat_item, \
-	.size = FIELD_SIZEOF(struct hinic_txq_stats, _stat_item), \
+	.size = sizeof_field(struct hinic_txq_stats, _stat_item), \
 	.offset = offsetof(struct hinic_txq_stats, _stat_item) \
 }
 
@@ -586,7 +586,7 @@ static struct hinic_stats hinic_tx_queue_stats[] = {
 
 #define HINIC_RXQ_STAT(_stat_item) { \
 	.name = "rxq%d_"#_stat_item, \
-	.size = FIELD_SIZEOF(struct hinic_rxq_stats, _stat_item), \
+	.size = sizeof_field(struct hinic_rxq_stats, _stat_item), \
 	.offset = offsetof(struct hinic_rxq_stats, _stat_item) \
 }
 
