@@ -3406,6 +3406,13 @@ static int live_lrc_layout(void *arg)
 				continue;
 			}
 
+			if (lrc[dw] == 0) {
+				pr_debug("%s: skipped instruction %x at dword %d\n",
+					 engine->name, lri, dw);
+				dw++;
+				continue;
+			}
+
 			if ((lri & GENMASK(31, 23)) != MI_INSTR(0x22, 0)) {
 				pr_err("%s: Expected LRI command at dword %d, found %08x\n",
 				       engine->name, dw, lri);
