@@ -26,18 +26,22 @@ static bool retire_requests(struct intel_timeline *tl)
 	return !i915_active_fence_isset(&tl->last_request);
 }
 
-static void flush_submission(struct intel_gt *gt)
+static bool flush_submission(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	bool active = false;
 
 	if (!intel_gt_pm_is_awake(gt))
-		return;
+		return false;
 
 	for_each_engine(engine, gt, id) {
 		intel_engine_flush_submission(engine);
-		flush_work(&engine->retire_work);
+		active |= flush_work(&engine->retire_work);
+		active |= flush_work(&engine->wakeref.work);
 	}
+
+	return active;
 }
 
 static void engine_retire(struct work_struct *work)
@@ -147,9 +151,9 @@ long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout)
 			}
 		}
 
-		active_count += !retire_requests(tl);
+		if (!retire_requests(tl) || flush_submission(gt))
+			active_count++;
 
-		flush_submission(gt); /* sync with concurrent retirees */
 		spin_lock(&timelines->lock);
 
 		/* Resume iteration after dropping lock */

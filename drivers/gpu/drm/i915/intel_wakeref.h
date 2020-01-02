@@ -44,12 +44,17 @@ struct intel_wakeref {
 	struct work_struct work;
 };
 
+struct intel_wakeref_lockclass {
+	struct lock_class_key mutex;
+	struct lock_class_key work;
+};
+
 void __intel_wakeref_init(struct intel_wakeref *wf,
 			  struct intel_runtime_pm *rpm,
 			  const struct intel_wakeref_ops *ops,
-			  struct lock_class_key *key);
+			  struct intel_wakeref_lockclass *key);
 #define intel_wakeref_init(wf, rpm, ops) do {				\
-	static struct lock_class_key __key;				\
+	static struct intel_wakeref_lockclass __key;			\
 									\
 	__intel_wakeref_init((wf), (rpm), (ops), &__key);		\
 } while (0)
