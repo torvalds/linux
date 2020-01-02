@@ -426,6 +426,7 @@ static const struct of_device_id rockchip_rgb_dt_ids[] = {
 	{ .compatible = "rockchip,rk3308-rgb", },
 	{ .compatible = "rockchip,rk3368-rgb", },
 	{ .compatible = "rockchip,rv1108-rgb", },
+	{ .compatible = "rockchip,rv1126-rgb", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, rockchip_rgb_dt_ids);
