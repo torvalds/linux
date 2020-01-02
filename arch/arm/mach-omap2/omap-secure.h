@@ -53,6 +53,9 @@
 #define OMAP4_PPA_L2_POR_INDEX		0x23
 #define OMAP4_PPA_CPU_ACTRL_SMP_INDEX	0x25
 
+#define AM43xx_PPA_SVC_PM_SUSPEND	0x71
+#define AM43xx_PPA_SVC_PM_RESUME	0x72
+
 /* Secure RX-51 PPA (Primary Protected Application) APIs */
 #define RX51_PPA_HWRNG			29
 #define RX51_PPA_L2_INVAL		40
