@@ -10,6 +10,8 @@
 #ifndef OMAP_ARCH_OMAP_SECURE_H
 #define OMAP_ARCH_OMAP_SECURE_H
 
+#include <linux/types.h>
+
 /* Monitor error code */
 #define  API_HAL_RET_VALUE_NS2S_CONVERSION_ERROR	0xFFFFFFFE
 #define  API_HAL_RET_VALUE_SERVICE_UNKNWON		0xFFFFFFFF
@@ -72,6 +74,7 @@ extern u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
 extern u32 rx51_secure_update_aux_cr(u32 set_bits, u32 clear_bits);
 extern u32 rx51_secure_rng_call(u32 ptr, u32 count, u32 flag);
 
+extern bool optee_available;
 void omap_secure_init(void);
 
 #ifdef CONFIG_SOC_HAS_REALTIME_COUNTER

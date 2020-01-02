@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/memblock.h>
+#include <linux/of.h>
 
 #include <asm/cacheflush.h>
 #include <asm/memblock.h>
@@ -19,6 +20,23 @@
 #include "omap-secure.h"
 
 static phys_addr_t omap_secure_memblock_base;
+
+bool optee_available;
+
+static void __init omap_optee_init_check(void)
+{
+	struct device_node *np;
+
+	/*
+	 * We only check that the OP-TEE node is present and available. The
+	 * OP-TEE kernel driver is not needed for the type of interaction made
+	 * with OP-TEE here so the driver's status is not checked.
+	 */
+	np = of_find_node_by_path("/firmware/optee");
+	if (np && of_device_is_available(np))
+		optee_available = true;
+	of_node_put(np);
+}
 
 /**
  * omap_sec_dispatcher: Routine to dispatch low power secure
@@ -166,4 +184,5 @@ u32 rx51_secure_rng_call(u32 ptr, u32 count, u32 flag)
 
 void __init omap_secure_init(void)
 {
+	omap_optee_init_check();
 }
