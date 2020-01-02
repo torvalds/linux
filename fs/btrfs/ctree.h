@@ -473,6 +473,9 @@ struct btrfs_discard_ctl {
 	unsigned long delay;
 	u32 iops_limit;
 	u32 kbps_limit;
+	u64 discard_extent_bytes;
+	u64 discard_bitmap_bytes;
+	atomic64_t discard_bytes_saved;
 };
 
 /* delayed seq elem */
