@@ -717,7 +717,7 @@ static int crypt_iv_eboiv_gen(struct crypt_config *cc, u8 *iv,
 	struct crypto_wait wait;
 	int err;
 
-	req = skcipher_request_alloc(any_tfm(cc), GFP_KERNEL | GFP_NOFS);
+	req = skcipher_request_alloc(any_tfm(cc), GFP_NOIO);
 	if (!req)
 		return -ENOMEM;
 
