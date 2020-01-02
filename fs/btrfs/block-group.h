@@ -182,6 +182,17 @@ static inline u64 btrfs_block_group_end(struct btrfs_block_group *block_group)
 	return (block_group->start + block_group->length);
 }
 
+static inline bool btrfs_is_block_group_data_only(
+					struct btrfs_block_group *block_group)
+{
+	/*
+	 * In mixed mode the fragmentation is expected to be high, lowering the
+	 * efficiency, so only proper data block groups are considered.
+	 */
+	return (block_group->flags & BTRFS_BLOCK_GROUP_DATA) &&
+	       !(block_group->flags & BTRFS_BLOCK_GROUP_METADATA);
+}
+
 #ifdef CONFIG_BTRFS_DEBUG
 static inline int btrfs_should_fragment_free_space(
 		struct btrfs_block_group *block_group)

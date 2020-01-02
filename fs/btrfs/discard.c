@@ -57,6 +57,9 @@ static void __add_to_discard_list(struct btrfs_discard_ctl *discard_ctl,
 static void add_to_discard_list(struct btrfs_discard_ctl *discard_ctl,
 				struct btrfs_block_group *block_group)
 {
+	if (!btrfs_is_block_group_data_only(block_group))
+		return;
+
 	spin_lock(&discard_ctl->lock);
 	__add_to_discard_list(discard_ctl, block_group);
 	spin_unlock(&discard_ctl->lock);
@@ -169,7 +172,10 @@ again:
 	if (block_group && now > block_group->discard_eligible_time) {
 		if (block_group->discard_index == BTRFS_DISCARD_INDEX_UNUSED &&
 		    block_group->used != 0) {
-			__add_to_discard_list(discard_ctl, block_group);
+			if (btrfs_is_block_group_data_only(block_group))
+				__add_to_discard_list(discard_ctl, block_group);
+			else
+				list_del_init(&block_group->discard_list);
 			goto again;
 		}
 		if (block_group->discard_state == BTRFS_DISCARD_RESET_CURSOR) {
@@ -507,7 +513,9 @@ void btrfs_discard_update_discardable(struct btrfs_block_group *block_group,
 	s32 extents_delta;
 	s64 bytes_delta;
 
-	if (!block_group || !btrfs_test_opt(block_group->fs_info, DISCARD_ASYNC))
+	if (!block_group ||
+	    !btrfs_test_opt(block_group->fs_info, DISCARD_ASYNC) ||
+	    !btrfs_is_block_group_data_only(block_group))
 		return;
 
 	discard_ctl = &block_group->fs_info->discard_ctl;
