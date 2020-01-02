@@ -425,3 +425,41 @@ void keyslot_manager_destroy(struct keyslot_manager *ksm)
 	}
 }
 EXPORT_SYMBOL_GPL(keyslot_manager_destroy);
+
+/**
+ * keyslot_manager_derive_raw_secret() - Derive software secret from wrapped key
+ * @ksm: The keyslot manager
+ * @wrapped_key: The wrapped key
+ * @wrapped_key_size: Size of the wrapped key in bytes
+ * @secret: (output) the software secret
+ * @secret_size: (output) the number of secret bytes to derive
+ *
+ * Given a hardware-wrapped key, ask the hardware to derive a secret which
+ * software can use for cryptographic tasks other than inline encryption.  The
+ * derived secret is guaranteed to be cryptographically isolated from the key
+ * with which any inline encryption with this wrapped key would actually be
+ * done.  I.e., both will be derived from the unwrapped key.
+ *
+ * Return: 0 on success, -EOPNOTSUPP if hardware-wrapped keys are unsupported,
+ *	   or another -errno code.
+ */
+int keyslot_manager_derive_raw_secret(struct keyslot_manager *ksm,
+				      const u8 *wrapped_key,
+				      unsigned int wrapped_key_size,
+				      u8 *secret, unsigned int secret_size)
+{
+	int err;
+
+	down_write(&ksm->lock);
+	if (ksm->ksm_ll_ops.derive_raw_secret) {
+		err = ksm->ksm_ll_ops.derive_raw_secret(ksm, wrapped_key,
+							wrapped_key_size,
+							secret, secret_size);
+	} else {
+		err = -EOPNOTSUPP;
+	}
+	up_write(&ksm->lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(keyslot_manager_derive_raw_secret);
