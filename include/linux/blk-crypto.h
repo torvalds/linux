@@ -14,7 +14,8 @@ int blk_crypto_submit_bio(struct bio **bio_ptr);
 
 bool blk_crypto_endio(struct bio *bio);
 
-int blk_crypto_init_key(struct blk_crypto_key *blk_key, const u8 *raw_key,
+int blk_crypto_init_key(struct blk_crypto_key *blk_key,
+			const u8 *raw_key, unsigned int raw_key_size,
 			enum blk_crypto_mode_num crypto_mode,
 			unsigned int data_unit_size);
 

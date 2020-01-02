@@ -19,6 +19,7 @@ enum blk_crypto_mode_num {
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 
 #define BLK_CRYPTO_MAX_KEY_SIZE		64
+#define BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE		128
 
 /**
  * struct blk_crypto_key - an inline encryption key
@@ -41,7 +42,7 @@ struct blk_crypto_key {
 	unsigned int data_unit_size_bits;
 	unsigned int size;
 	unsigned int hash;
-	u8 raw[BLK_CRYPTO_MAX_KEY_SIZE];
+	u8 raw[BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE];
 };
 
 #define BLK_CRYPTO_MAX_IV_SIZE		32
