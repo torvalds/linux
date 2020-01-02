@@ -326,6 +326,7 @@ struct ceph_inode_info {
 
 	struct ceph_dir_layout i_dir_layout;
 	struct ceph_file_layout i_layout;
+	struct ceph_file_layout i_cached_layout;	// for async creates
 	char *i_symlink;
 
 	/* for dirs */
