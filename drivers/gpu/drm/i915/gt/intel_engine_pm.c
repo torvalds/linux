@@ -37,8 +37,24 @@ static int __engine_unpark(struct intel_wakeref *wf)
 
 	/* Discard stale context state from across idling */
 	ce = engine->kernel_context;
-	if (ce)
+	if (ce) {
+		GEM_BUG_ON(test_bit(CONTEXT_VALID_BIT, &ce->flags));
+
+		/* First poison the image to verify we never fully trust it */
+		if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) && ce->state) {
+			struct drm_i915_gem_object *obj = ce->state->obj;
+			int type = i915_coherent_map_type(engine->i915);
+
+			map = i915_gem_object_pin_map(obj, type);
+			if (!IS_ERR(map)) {
+				memset(map, CONTEXT_REDZONE, obj->base.size);
+				i915_gem_object_flush_map(obj);
+				i915_gem_object_unpin_map(obj);
+			}
+		}
+
 		ce->ops->reset(ce);
+	}
 
 	if (engine->unpark)
 		engine->unpark(engine);
