@@ -1057,6 +1057,43 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 				struct mlx5dr_action *action);
 
+struct mlx5dr_cmd_ft_info {
+	u32 id;
+	u16 vport;
+	enum fs_flow_table_type type;
+};
+
+struct mlx5dr_cmd_flow_destination_hw_info {
+	enum mlx5_flow_destination_type type;
+	union {
+		u32 tir_num;
+		u32 ft_num;
+		u32 ft_id;
+		u32 counter_id;
+		struct {
+			u16 num;
+			u16 vhca_id;
+			u32 reformat_id;
+			u8 flags;
+		} vport;
+	};
+};
+
+struct mlx5dr_cmd_fte_info {
+	u32 dests_size;
+	u32 index;
+	struct mlx5_flow_context flow_context;
+	u32 *val;
+	struct mlx5_flow_act action;
+	struct mlx5dr_cmd_flow_destination_hw_info *dest_arr;
+};
+
+int mlx5dr_cmd_set_fte(struct mlx5_core_dev *dev,
+		       int opmod, int modify_mask,
+		       struct mlx5dr_cmd_ft_info *ft,
+		       u32 group_id,
+		       struct mlx5dr_cmd_fte_info *fte);
+
 struct mlx5dr_fw_recalc_cs_ft {
 	u64 rx_icm_addr;
 	u32 table_id;

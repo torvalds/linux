@@ -479,3 +479,208 @@ int mlx5dr_cmd_query_gid(struct mlx5_core_dev *mdev, u8 vhca_port_num,
 
 	return 0;
 }
+
+static int mlx5dr_cmd_set_extended_dest(struct mlx5_core_dev *dev,
+					struct mlx5dr_cmd_fte_info *fte,
+					bool *extended_dest)
+{
+	int fw_log_max_fdb_encap_uplink = MLX5_CAP_ESW(dev, log_max_fdb_encap_uplink);
+	int num_fwd_destinations = 0;
+	int num_encap = 0;
+	int i;
+
+	*extended_dest = false;
+	if (!(fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
+		return 0;
+	for (i = 0; i < fte->dests_size; i++) {
+		if (fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
+			continue;
+		if (fte->dest_arr[i].type == MLX5_FLOW_DESTINATION_TYPE_VPORT &&
+		    fte->dest_arr[i].vport.flags & MLX5_FLOW_DEST_VPORT_REFORMAT_ID)
+			num_encap++;
+		num_fwd_destinations++;
+	}
+
+	if (num_fwd_destinations > 1 && num_encap > 0)
+		*extended_dest = true;
+
+	if (*extended_dest && !fw_log_max_fdb_encap_uplink) {
+		mlx5_core_warn(dev, "FW does not support extended destination");
+		return -EOPNOTSUPP;
+	}
+	if (num_encap > (1 << fw_log_max_fdb_encap_uplink)) {
+		mlx5_core_warn(dev, "FW does not support more than %d encaps",
+			       1 << fw_log_max_fdb_encap_uplink);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+int mlx5dr_cmd_set_fte(struct mlx5_core_dev *dev,
+		       int opmod, int modify_mask,
+		       struct mlx5dr_cmd_ft_info *ft,
+		       u32 group_id,
+		       struct mlx5dr_cmd_fte_info *fte)
+{
+	u32 out[MLX5_ST_SZ_DW(set_fte_out)] = {};
+	void *in_flow_context, *vlan;
+	bool extended_dest = false;
+	void *in_match_value;
+	unsigned int inlen;
+	int dst_cnt_size;
+	void *in_dests;
+	u32 *in;
+	int err;
+	int i;
+
+	if (mlx5dr_cmd_set_extended_dest(dev, fte, &extended_dest))
+		return -EOPNOTSUPP;
+
+	if (!extended_dest)
+		dst_cnt_size = MLX5_ST_SZ_BYTES(dest_format_struct);
+	else
+		dst_cnt_size = MLX5_ST_SZ_BYTES(extended_dest_format);
+
+	inlen = MLX5_ST_SZ_BYTES(set_fte_in) + fte->dests_size * dst_cnt_size;
+	in = kvzalloc(inlen, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(set_fte_in, in, opcode, MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY);
+	MLX5_SET(set_fte_in, in, op_mod, opmod);
+	MLX5_SET(set_fte_in, in, modify_enable_mask, modify_mask);
+	MLX5_SET(set_fte_in, in, table_type, ft->type);
+	MLX5_SET(set_fte_in, in, table_id, ft->id);
+	MLX5_SET(set_fte_in, in, flow_index, fte->index);
+	if (ft->vport) {
+		MLX5_SET(set_fte_in, in, vport_number, ft->vport);
+		MLX5_SET(set_fte_in, in, other_vport, 1);
+	}
+
+	in_flow_context = MLX5_ADDR_OF(set_fte_in, in, flow_context);
+	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
+
+	MLX5_SET(flow_context, in_flow_context, flow_tag,
+		 fte->flow_context.flow_tag);
+	MLX5_SET(flow_context, in_flow_context, flow_source,
+		 fte->flow_context.flow_source);
+
+	MLX5_SET(flow_context, in_flow_context, extended_destination,
+		 extended_dest);
+	if (extended_dest) {
+		u32 action;
+
+		action = fte->action.action &
+			~MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+		MLX5_SET(flow_context, in_flow_context, action, action);
+	} else {
+		MLX5_SET(flow_context, in_flow_context, action,
+			 fte->action.action);
+		if (fte->action.pkt_reformat)
+			MLX5_SET(flow_context, in_flow_context, packet_reformat_id,
+				 fte->action.pkt_reformat->id);
+	}
+	if (fte->action.modify_hdr)
+		MLX5_SET(flow_context, in_flow_context, modify_header_id,
+			 fte->action.modify_hdr->id);
+
+	vlan = MLX5_ADDR_OF(flow_context, in_flow_context, push_vlan);
+
+	MLX5_SET(vlan, vlan, ethtype, fte->action.vlan[0].ethtype);
+	MLX5_SET(vlan, vlan, vid, fte->action.vlan[0].vid);
+	MLX5_SET(vlan, vlan, prio, fte->action.vlan[0].prio);
+
+	vlan = MLX5_ADDR_OF(flow_context, in_flow_context, push_vlan_2);
+
+	MLX5_SET(vlan, vlan, ethtype, fte->action.vlan[1].ethtype);
+	MLX5_SET(vlan, vlan, vid, fte->action.vlan[1].vid);
+	MLX5_SET(vlan, vlan, prio, fte->action.vlan[1].prio);
+
+	in_match_value = MLX5_ADDR_OF(flow_context, in_flow_context,
+				      match_value);
+	memcpy(in_match_value, fte->val, sizeof(u32) * MLX5_ST_SZ_DW_MATCH_PARAM);
+
+	in_dests = MLX5_ADDR_OF(flow_context, in_flow_context, destination);
+	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
+		int list_size = 0;
+
+		for (i = 0; i < fte->dests_size; i++) {
+			unsigned int id, type = fte->dest_arr[i].type;
+
+			if (type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
+				continue;
+
+			switch (type) {
+			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM:
+				id = fte->dest_arr[i].ft_num;
+				type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+				break;
+			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
+				id = fte->dest_arr[i].ft_id;
+				break;
+			case MLX5_FLOW_DESTINATION_TYPE_VPORT:
+				id = fte->dest_arr[i].vport.num;
+				MLX5_SET(dest_format_struct, in_dests,
+					 destination_eswitch_owner_vhca_id_valid,
+					 !!(fte->dest_arr[i].vport.flags &
+					    MLX5_FLOW_DEST_VPORT_VHCA_ID));
+				MLX5_SET(dest_format_struct, in_dests,
+					 destination_eswitch_owner_vhca_id,
+					 fte->dest_arr[i].vport.vhca_id);
+				if (extended_dest && (fte->dest_arr[i].vport.flags &
+						    MLX5_FLOW_DEST_VPORT_REFORMAT_ID)) {
+					MLX5_SET(dest_format_struct, in_dests,
+						 packet_reformat,
+						 !!(fte->dest_arr[i].vport.flags &
+						    MLX5_FLOW_DEST_VPORT_REFORMAT_ID));
+					MLX5_SET(extended_dest_format, in_dests,
+						 packet_reformat_id,
+						 fte->dest_arr[i].vport.reformat_id);
+				}
+				break;
+			default:
+				id = fte->dest_arr[i].tir_num;
+			}
+
+			MLX5_SET(dest_format_struct, in_dests, destination_type,
+				 type);
+			MLX5_SET(dest_format_struct, in_dests, destination_id, id);
+			in_dests += dst_cnt_size;
+			list_size++;
+		}
+
+		MLX5_SET(flow_context, in_flow_context, destination_list_size,
+			 list_size);
+	}
+
+	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		int max_list_size = BIT(MLX5_CAP_FLOWTABLE_TYPE(dev,
+					log_max_flow_counter,
+					ft->type));
+		int list_size = 0;
+
+		for (i = 0; i < fte->dests_size; i++) {
+			if (fte->dest_arr[i].type !=
+			    MLX5_FLOW_DESTINATION_TYPE_COUNTER)
+				continue;
+
+			MLX5_SET(flow_counter_list, in_dests, flow_counter_id,
+				 fte->dest_arr[i].counter_id);
+			in_dests += dst_cnt_size;
+			list_size++;
+		}
+		if (list_size > max_list_size) {
+			err = -EINVAL;
+			goto err_out;
+		}
+
+		MLX5_SET(flow_context, in_flow_context, flow_counter_list_size,
+			 list_size);
+	}
+
+	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
+err_out:
+	kvfree(in);
+	return err;
+}
