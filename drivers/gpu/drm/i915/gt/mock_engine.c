@@ -152,6 +152,10 @@ static int mock_context_pin(struct intel_context *ce)
 	return intel_context_active_acquire(ce);
 }
 
+static void mock_context_reset(struct intel_context *ce)
+{
+}
+
 static const struct intel_context_ops mock_context_ops = {
 	.alloc = mock_context_alloc,
 
@@ -161,6 +165,7 @@ static const struct intel_context_ops mock_context_ops = {
 	.enter = intel_context_enter_engine,
 	.exit = intel_context_exit_engine,
 
+	.reset = mock_context_reset,
 	.destroy = mock_context_destroy,
 };
 

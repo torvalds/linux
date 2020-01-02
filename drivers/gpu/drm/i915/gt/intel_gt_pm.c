@@ -213,15 +213,7 @@ int intel_gt_resume(struct intel_gt *gt)
 	intel_llc_enable(&gt->llc);
 
 	for_each_engine(engine, gt, id) {
-		struct intel_context *ce;
-
 		intel_engine_pm_get(engine);
-
-		ce = engine->kernel_context;
-		if (ce) {
-			GEM_BUG_ON(!intel_context_is_pinned(ce));
-			ce->ops->reset(ce);
-		}
 
 		engine->serial++; /* kernel context lost */
 		err = engine->resume(engine);

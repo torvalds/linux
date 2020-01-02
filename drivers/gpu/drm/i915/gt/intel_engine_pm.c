@@ -20,6 +20,7 @@ static int __engine_unpark(struct intel_wakeref *wf)
 {
 	struct intel_engine_cs *engine =
 		container_of(wf, typeof(*engine), wakeref);
+	struct intel_context *ce;
 	void *map;
 
 	ENGINE_TRACE(engine, "\n");
@@ -33,6 +34,11 @@ static int __engine_unpark(struct intel_wakeref *wf)
 					      I915_MAP_WB);
 	if (!IS_ERR_OR_NULL(map))
 		engine->pinned_default_state = map;
+
+	/* Discard stale context state from across idling */
+	ce = engine->kernel_context;
+	if (ce)
+		ce->ops->reset(ce);
 
 	if (engine->unpark)
 		engine->unpark(engine);
