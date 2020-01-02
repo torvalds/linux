@@ -2389,8 +2389,6 @@ xfs_btree_lshift(
 	XFS_BTREE_STATS_ADD(cur, moves, rrecs - 1);
 	if (level > 0) {
 		/* It's a nonleaf. operate on keys and ptrs */
-		int			i;		/* loop index */
-
 		for (i = 0; i < rrecs; i++) {
 			error = xfs_btree_debug_check_ptr(cur, rpp, i + 1, level);
 			if (error)
