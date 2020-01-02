@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "rv1109.dtsi"
+#include <dt-bindings/display/media-bus-format.h>
 
 / {
 	model = "Rockchip RV1109 FPGA Board";
@@ -19,12 +20,72 @@
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 initrd=0x9000000,0xb05e7 init=/init";
 	};
+
+	panel: panel {
+		compatible = "simple-panel";
+		bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+		status = "okay";
+
+		display-timings {
+			native-mode = <&kd050fwfba002_timing>;
+
+			kd050fwfba002_timing: timing0 {
+				clock-frequency = <13500000>;
+				hactive = <800>;
+				vactive = <1280>;
+				hback-porch = <24>;
+				hfront-porch = <24>;
+				vback-porch = <4>;
+				vfront-porch = <2>;
+				hsync-len = <16>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_panel>;
+			};
+		};
+	};
+};
+
+&display_subsystem {
+	status = "okay";
 };
 
 &fiq_debugger {
 	status = "okay";
 };
 
+&rgb {
+	status = "okay";
+	ports {
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_rgb>;
+			};
+		};
+	};
+};
+
 &uart2 {
 	clocks = <&xin24m>, <&xin24m>;
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
 };
