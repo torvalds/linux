@@ -148,13 +148,13 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 	unsigned long timeout;
 	u32 syscfg;
 
-	if (state == FL_RESETING || state == FL_PREPARING_ERASE ||
+	if (state == FL_RESETTING || state == FL_PREPARING_ERASE ||
 	    state == FL_VERIFYING_ERASE) {
 		int i = 21;
 		unsigned int intr_flags = ONENAND_INT_MASTER;
 
 		switch (state) {
-		case FL_RESETING:
+		case FL_RESETTING:
 			intr_flags |= ONENAND_INT_RESET;
 			break;
 		case FL_PREPARING_ERASE:
@@ -375,7 +375,7 @@ static int omap2_onenand_read_bufferram(struct mtd_info *mtd, int area,
 	 * context fallback to PIO mode.
 	 */
 	if (!virt_addr_valid(buf) || bram_offset & 3 || (size_t)buf & 3 ||
-	    count < 384 || in_interrupt() || oops_in_progress )
+	    count < 384 || in_interrupt() || oops_in_progress)
 		goto out_copy;
 
 	xtra = count & 3;
@@ -422,7 +422,7 @@ static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
 	 * context fallback to PIO mode.
 	 */
 	if (!virt_addr_valid(buf) || bram_offset & 3 || (size_t)buf & 3 ||
-	    count < 384 || in_interrupt() || oops_in_progress )
+	    count < 384 || in_interrupt() || oops_in_progress)
 		goto out_copy;
 
 	dma_src = dma_map_single(dev, buf, count, DMA_TO_DEVICE);
@@ -528,7 +528,8 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 		 c->gpmc_cs, c->phys_base, c->onenand.base,
 		 c->dma_chan ? "DMA" : "PIO");
 
-	if ((r = onenand_scan(&c->mtd, 1)) < 0)
+	r = onenand_scan(&c->mtd, 1);
+	if (r < 0)
 		goto err_release_dma;
 
 	freq = omap2_onenand_get_freq(c->onenand.version_id);
