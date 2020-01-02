@@ -22,6 +22,13 @@
 #define BTRFS_DISCARD_MAX_DELAY_MSEC	(1000UL)
 #define BTRFS_DISCARD_MAX_IOPS		(10U)
 
+/* Montonically decreasing minimum length filters after index 0 */
+static int discard_minlen[BTRFS_NR_DISCARD_LISTS] = {
+	0,
+	BTRFS_ASYNC_DISCARD_MAX_FILTER,
+	BTRFS_ASYNC_DISCARD_MIN_FILTER
+};
+
 static struct list_head *get_discard_list(struct btrfs_discard_ctl *discard_ctl,
 					  struct btrfs_block_group *block_group)
 {
@@ -139,16 +146,18 @@ static struct btrfs_block_group *find_next_block_group(
  * peek_discard_list - wrap find_next_block_group()
  * @discard_ctl: discard control
  * @discard_state: the discard_state of the block_group after state management
+ * @discard_index: the discard_index of the block_group after state management
  *
  * This wraps find_next_block_group() and sets the block_group to be in use.
  * discard_state's control flow is managed here.  Variables related to
- * discard_state are reset here as needed (eg. discard_cursor).  @discard_state
- * is remembered as it may change while we're discarding, but we want the
- * discard to execute in the context determined here.
+ * discard_state are reset here as needed (eg discard_cursor).  @discard_state
+ * and @discard_index are remembered as it may change while we're discarding,
+ * but we want the discard to execute in the context determined here.
  */
 static struct btrfs_block_group *peek_discard_list(
 					struct btrfs_discard_ctl *discard_ctl,
-					enum btrfs_discard_state *discard_state)
+					enum btrfs_discard_state *discard_state,
+					int *discard_index)
 {
 	struct btrfs_block_group *block_group;
 	const u64 now = ktime_get_ns();
@@ -169,6 +178,7 @@ again:
 		}
 		discard_ctl->block_group = block_group;
 		*discard_state = block_group->discard_state;
+		*discard_index = block_group->discard_index;
 	} else {
 		block_group = NULL;
 	}
@@ -176,6 +186,64 @@ again:
 	spin_unlock(&discard_ctl->lock);
 
 	return block_group;
+}
+
+/**
+ * btrfs_discard_check_filter - updates a block groups filters
+ * @block_group: block group of interest
+ * @bytes: recently freed region size after coalescing
+ *
+ * Async discard maintains multiple lists with progressively smaller filters
+ * to prioritize discarding based on size.  Should a free space that matches
+ * a larger filter be returned to the free_space_cache, prioritize that discard
+ * by moving @block_group to the proper filter.
+ */
+void btrfs_discard_check_filter(struct btrfs_block_group *block_group,
+				u64 bytes)
+{
+	struct btrfs_discard_ctl *discard_ctl;
+
+	if (!block_group ||
+	    !btrfs_test_opt(block_group->fs_info, DISCARD_ASYNC))
+		return;
+
+	discard_ctl = &block_group->fs_info->discard_ctl;
+
+	if (block_group->discard_index > BTRFS_DISCARD_INDEX_START &&
+	    bytes >= discard_minlen[block_group->discard_index - 1]) {
+		int i;
+
+		remove_from_discard_list(discard_ctl, block_group);
+
+		for (i = BTRFS_DISCARD_INDEX_START; i < BTRFS_NR_DISCARD_LISTS;
+		     i++) {
+			if (bytes >= discard_minlen[i]) {
+				block_group->discard_index = i;
+				add_to_discard_list(discard_ctl, block_group);
+				break;
+			}
+		}
+	}
+}
+
+/**
+ * btrfs_update_discard_index - moves a block group along the discard lists
+ * @discard_ctl: discard control
+ * @block_group: block_group of interest
+ *
+ * Increment @block_group's discard_index.  If it falls of the list, let it be.
+ * Otherwise add it back to the appropriate list.
+ */
+static void btrfs_update_discard_index(struct btrfs_discard_ctl *discard_ctl,
+				       struct btrfs_block_group *block_group)
+{
+	block_group->discard_index++;
+	if (block_group->discard_index == BTRFS_NR_DISCARD_LISTS) {
+		block_group->discard_index = 1;
+		return;
+	}
+
+	add_to_discard_list(discard_ctl, block_group);
 }
 
 /**
@@ -295,6 +363,8 @@ static void btrfs_finish_discard_pass(struct btrfs_discard_ctl *discard_ctl,
 			btrfs_mark_bg_unused(block_group);
 		else
 			add_to_discard_unused_list(discard_ctl, block_group);
+	} else {
+		btrfs_update_discard_index(discard_ctl, block_group);
 	}
 }
 
@@ -311,25 +381,42 @@ static void btrfs_discard_workfn(struct work_struct *work)
 	struct btrfs_discard_ctl *discard_ctl;
 	struct btrfs_block_group *block_group;
 	enum btrfs_discard_state discard_state;
+	int discard_index = 0;
 	u64 trimmed = 0;
+	u64 minlen = 0;
 
 	discard_ctl = container_of(work, struct btrfs_discard_ctl, work.work);
 
-	block_group = peek_discard_list(discard_ctl, &discard_state);
+	block_group = peek_discard_list(discard_ctl, &discard_state,
+					&discard_index);
 	if (!block_group || !btrfs_run_discard_work(discard_ctl))
 		return;
 
 	/* Perform discarding */
-	if (discard_state == BTRFS_DISCARD_BITMAPS)
+	minlen = discard_minlen[discard_index];
+
+	if (discard_state == BTRFS_DISCARD_BITMAPS) {
+		u64 maxlen = 0;
+
+		/*
+		 * Use the previous levels minimum discard length as the max
+		 * length filter.  In the case something is added to make a
+		 * region go beyond the max filter, the entire bitmap is set
+		 * back to BTRFS_TRIM_STATE_UNTRIMMED.
+		 */
+		if (discard_index != BTRFS_DISCARD_INDEX_UNUSED)
+			maxlen = discard_minlen[discard_index - 1];
+
 		btrfs_trim_block_group_bitmaps(block_group, &trimmed,
 				       block_group->discard_cursor,
 				       btrfs_block_group_end(block_group),
-				       0, true);
-	else
+				       minlen, maxlen, true);
+	} else {
 		btrfs_trim_block_group_extents(block_group, &trimmed,
 				       block_group->discard_cursor,
 				       btrfs_block_group_end(block_group),
-				       0, true);
+				       minlen, true);
+	}
 
 	discard_ctl->prev_discard = trimmed;
 

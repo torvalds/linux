@@ -456,7 +456,7 @@ struct btrfs_full_stripe_locks_tree {
  * afterwards represent monotonically decreasing discard filter sizes to
  * prioritize what should be discarded next.
  */
-#define BTRFS_NR_DISCARD_LISTS		2
+#define BTRFS_NR_DISCARD_LISTS		3
 #define BTRFS_DISCARD_INDEX_UNUSED	0
 #define BTRFS_DISCARD_INDEX_START	1
 
