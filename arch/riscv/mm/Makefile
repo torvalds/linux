@@ -21,3 +21,5 @@ ifdef CONFIG_KASAN
 KASAN_SANITIZE_kasan_init.o := n
 KASAN_SANITIZE_init.o := n
 endif
+
+obj-$(CONFIG_DEBUG_VIRTUAL) += physaddr.o
