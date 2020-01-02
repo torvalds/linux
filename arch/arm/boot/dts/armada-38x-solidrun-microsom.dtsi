@@ -76,6 +76,12 @@
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+
+	eeprom@53 {
+		compatible = "atmel,24c02";
+		reg = <0x53>;
+		pagesize = <16>;
+	};
 };
 
 &pinctrl {
