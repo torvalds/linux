@@ -147,11 +147,11 @@ static const struct snd_soc_dapm_route skylake_map[] = {
 
 static struct snd_soc_codec_conf ssm4567_codec_conf[] = {
 	{
-		.dev_name = "i2c-INT343B:00",
+		.dlc = COMP_CODEC_CONF("i2c-INT343B:00"),
 		.name_prefix = "Left",
 	},
 	{
-		.dev_name = "i2c-INT343B:01",
+		.dlc = COMP_CODEC_CONF("i2c-INT343B:01"),
 		.name_prefix = "Right",
 	},
 };

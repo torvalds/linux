@@ -118,6 +118,10 @@ enum {
 	MLX5_MEMIC_BASE_SIZE	= 1 << MLX5_MEMIC_BASE_ALIGN,
 };
 
+enum mlx5_ib_mmap_type {
+	MLX5_IB_MMAP_TYPE_MEMIC = 1,
+};
+
 #define MLX5_LOG_SW_ICM_BLOCK_SIZE(dev)                                        \
 	(MLX5_CAP_DEV_MEM(dev, log_sw_icm_alloc_granularity))
 #define MLX5_SW_ICM_BLOCK_SIZE(dev) (1 << MLX5_LOG_SW_ICM_BLOCK_SIZE(dev))
@@ -135,7 +139,6 @@ struct mlx5_ib_ucontext {
 	u32			tdn;
 
 	u64			lib_caps;
-	DECLARE_BITMAP(dm_pages, MLX5_MAX_MEMIC_PAGES);
 	u16			devx_uid;
 	/* For RoCE LAG TX affinity */
 	atomic_t		tx_port_affinity;
@@ -556,6 +559,12 @@ enum mlx5_ib_mtt_access_flags {
 	MLX5_IB_MTT_WRITE = (1 << 1),
 };
 
+struct mlx5_user_mmap_entry {
+	struct rdma_user_mmap_entry rdma_entry;
+	u8 mmap_flag;
+	u64 address;
+};
+
 struct mlx5_ib_dm {
 	struct ib_dm		ibdm;
 	phys_addr_t		dev_addr;
@@ -567,6 +576,7 @@ struct mlx5_ib_dm {
 		} icm_dm;
 		/* other dm types specific params should be added here */
 	};
+	struct mlx5_user_mmap_entry mentry;
 };
 
 #define MLX5_IB_MTT_PRESENT (MLX5_IB_MTT_READ | MLX5_IB_MTT_WRITE)
@@ -1099,6 +1109,13 @@ static inline struct mlx5_ib_flow_action *
 to_mflow_act(struct ib_flow_action *ibact)
 {
 	return container_of(ibact, struct mlx5_ib_flow_action, ib_action);
+}
+
+static inline struct mlx5_user_mmap_entry *
+to_mmmap(struct rdma_user_mmap_entry *rdma_entry)
+{
+	return container_of(rdma_entry,
+		struct mlx5_user_mmap_entry, rdma_entry);
 }
 
 int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context,

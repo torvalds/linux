@@ -1011,18 +1011,13 @@ static int __ceph_is_single_caps(struct ceph_inode_info *ci)
 	return rb_first(&ci->i_caps) == rb_last(&ci->i_caps);
 }
 
-static int __ceph_is_any_caps(struct ceph_inode_info *ci)
-{
-	return !RB_EMPTY_ROOT(&ci->i_caps);
-}
-
 int ceph_is_any_caps(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int ret;
 
 	spin_lock(&ci->i_ceph_lock);
-	ret = __ceph_is_any_caps(ci);
+	ret = __ceph_is_any_real_caps(ci);
 	spin_unlock(&ci->i_ceph_lock);
 
 	return ret;
@@ -1099,15 +1094,16 @@ void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 	if (removed)
 		ceph_put_cap(mdsc, cap);
 
-	/* when reconnect denied, we remove session caps forcibly,
-	 * i_wr_ref can be non-zero. If there are ongoing write,
-	 * keep i_snap_realm.
-	 */
-	if (!__ceph_is_any_caps(ci) && ci->i_wr_ref == 0 && ci->i_snap_realm)
-		drop_inode_snap_realm(ci);
+	if (!__ceph_is_any_real_caps(ci)) {
+		/* when reconnect denied, we remove session caps forcibly,
+		 * i_wr_ref can be non-zero. If there are ongoing write,
+		 * keep i_snap_realm.
+		 */
+		if (ci->i_wr_ref == 0 && ci->i_snap_realm)
+			drop_inode_snap_realm(ci);
 
-	if (!__ceph_is_any_real_caps(ci))
 		__cap_delay_cancel(mdsc, ci);
+	}
 }
 
 struct cap_msg_args {
@@ -2764,7 +2760,19 @@ int ceph_get_caps(struct file *filp, int need, int want,
 		if (ret == -EAGAIN)
 			continue;
 		if (!ret) {
+			struct ceph_mds_client *mdsc = fsc->mdsc;
+			struct cap_wait cw;
 			DEFINE_WAIT_FUNC(wait, woken_wake_function);
+
+			cw.ino = inode->i_ino;
+			cw.tgid = current->tgid;
+			cw.need = need;
+			cw.want = want;
+
+			spin_lock(&mdsc->caps_list_lock);
+			list_add(&cw.list, &mdsc->cap_wait_list);
+			spin_unlock(&mdsc->caps_list_lock);
+
 			add_wait_queue(&ci->i_cap_wq, &wait);
 
 			flags |= NON_BLOCKING;
@@ -2778,6 +2786,11 @@ int ceph_get_caps(struct file *filp, int need, int want,
 			}
 
 			remove_wait_queue(&ci->i_cap_wq, &wait);
+
+			spin_lock(&mdsc->caps_list_lock);
+			list_del(&cw.list);
+			spin_unlock(&mdsc->caps_list_lock);
+
 			if (ret == -EAGAIN)
 				continue;
 		}
@@ -2928,7 +2941,7 @@ void ceph_put_cap_refs(struct ceph_inode_info *ci, int had)
 				ci->i_head_snapc = NULL;
 			}
 			/* see comment in __ceph_remove_cap() */
-			if (!__ceph_is_any_caps(ci) && ci->i_snap_realm)
+			if (!__ceph_is_any_real_caps(ci) && ci->i_snap_realm)
 				drop_inode_snap_realm(ci);
 		}
 	spin_unlock(&ci->i_ceph_lock);

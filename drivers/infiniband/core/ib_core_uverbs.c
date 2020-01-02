@@ -238,28 +238,32 @@ void rdma_user_mmap_entry_remove(struct rdma_user_mmap_entry *entry)
 EXPORT_SYMBOL(rdma_user_mmap_entry_remove);
 
 /**
- * rdma_user_mmap_entry_insert() - Insert an entry to the mmap_xa
+ * rdma_user_mmap_entry_insert_range() - Insert an entry to the mmap_xa
+ *					 in a given range.
  *
  * @ucontext: associated user context.
  * @entry: the entry to insert into the mmap_xa
  * @length: length of the address that will be mmapped
+ * @min_pgoff: minimum pgoff to be returned
+ * @max_pgoff: maximum pgoff to be returned
  *
  * This function should be called by drivers that use the rdma_user_mmap
  * interface for implementing their mmap syscall A database of mmap offsets is
  * handled in the core and helper functions are provided to insert entries
  * into the database and extract entries when the user calls mmap with the
- * given offset.  The function allocates a unique page offset that should be
- * provided to user, the user will use the offset to retrieve information such
- * as address to be mapped and how.
+ * given offset. The function allocates a unique page offset in a given range
+ * that should be provided to user, the user will use the offset to retrieve
+ * information such as address to be mapped and how.
  *
  * Return: 0 on success and -ENOMEM on failure
  */
-int rdma_user_mmap_entry_insert(struct ib_ucontext *ucontext,
-				struct rdma_user_mmap_entry *entry,
-				size_t length)
+int rdma_user_mmap_entry_insert_range(struct ib_ucontext *ucontext,
+				      struct rdma_user_mmap_entry *entry,
+				      size_t length, u32 min_pgoff,
+				      u32 max_pgoff)
 {
 	struct ib_uverbs_file *ufile = ucontext->ufile;
-	XA_STATE(xas, &ucontext->mmap_xa, 0);
+	XA_STATE(xas, &ucontext->mmap_xa, min_pgoff);
 	u32 xa_first, xa_last, npages;
 	int err;
 	u32 i;
@@ -285,7 +289,7 @@ int rdma_user_mmap_entry_insert(struct ib_ucontext *ucontext,
 	entry->npages = npages;
 	while (true) {
 		/* First find an empty index */
-		xas_find_marked(&xas, U32_MAX, XA_FREE_MARK);
+		xas_find_marked(&xas, max_pgoff, XA_FREE_MARK);
 		if (xas.xa_node == XAS_RESTART)
 			goto err_unlock;
 
@@ -331,5 +335,31 @@ err_unlock:
 	xa_unlock(&ucontext->mmap_xa);
 	mutex_unlock(&ufile->umap_lock);
 	return -ENOMEM;
+}
+EXPORT_SYMBOL(rdma_user_mmap_entry_insert_range);
+
+/**
+ * rdma_user_mmap_entry_insert() - Insert an entry to the mmap_xa.
+ *
+ * @ucontext: associated user context.
+ * @entry: the entry to insert into the mmap_xa
+ * @length: length of the address that will be mmapped
+ *
+ * This function should be called by drivers that use the rdma_user_mmap
+ * interface for handling user mmapped addresses. The database is handled in
+ * the core and helper functions are provided to insert entries into the
+ * database and extract entries when the user calls mmap with the given offset.
+ * The function allocates a unique page offset that should be provided to user,
+ * the user will use the offset to retrieve information such as address to
+ * be mapped and how.
+ *
+ * Return: 0 on success and -ENOMEM on failure
+ */
+int rdma_user_mmap_entry_insert(struct ib_ucontext *ucontext,
+				struct rdma_user_mmap_entry *entry,
+				size_t length)
+{
+	return rdma_user_mmap_entry_insert_range(ucontext, entry, length, 0,
+						 U32_MAX);
 }
 EXPORT_SYMBOL(rdma_user_mmap_entry_insert);

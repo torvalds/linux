@@ -624,10 +624,7 @@ static int snd_mixart_hw_params(struct snd_pcm_substream *subs,
 		return err;
 	}
 
-	/* allocate buffer */
-	err = snd_pcm_lib_malloc_pages(subs, params_buffer_bytes(hw));
-
-	if (err > 0) {
+	if (subs->runtime->buffer_changed) {
 		struct mixart_bufferinfo *bufferinfo;
 		int i = (chip->chip_idx * MIXART_MAX_STREAM_PER_CARD) + (stream->pcm_number * (MIXART_PLAYBACK_STREAMS+MIXART_CAPTURE_STREAMS)) + subs->number;
 		if( subs->stream == SNDRV_PCM_STREAM_CAPTURE ) {
@@ -647,13 +644,12 @@ static int snd_mixart_hw_params(struct snd_pcm_substream *subs,
 	}
 	mutex_unlock(&mgr->setup_mutex);
 
-	return err;
+	return 0;
 }
 
 static int snd_mixart_hw_free(struct snd_pcm_substream *subs)
 {
 	struct snd_mixart *chip = snd_pcm_substream_chip(subs);
-	snd_pcm_lib_free_pages(subs);
 	mixart_sync_nonblock_events(chip->mgr);
 	return 0;
 }
@@ -913,7 +909,6 @@ static snd_pcm_uframes_t snd_mixart_stream_pointer(struct snd_pcm_substream *sub
 static const struct snd_pcm_ops snd_mixart_playback_ops = {
 	.open      = snd_mixart_playback_open,
 	.close     = snd_mixart_close,
-	.ioctl     = snd_pcm_lib_ioctl,
 	.prepare   = snd_mixart_prepare,
 	.hw_params = snd_mixart_hw_params,
 	.hw_free   = snd_mixart_hw_free,
@@ -924,7 +919,6 @@ static const struct snd_pcm_ops snd_mixart_playback_ops = {
 static const struct snd_pcm_ops snd_mixart_capture_ops = {
 	.open      = snd_mixart_capture_open,
 	.close     = snd_mixart_close,
-	.ioctl     = snd_pcm_lib_ioctl,
 	.prepare   = snd_mixart_prepare,
 	.hw_params = snd_mixart_hw_params,
 	.hw_free   = snd_mixart_hw_free,
@@ -947,9 +941,9 @@ static void preallocate_buffers(struct snd_mixart *chip, struct snd_pcm *pcm)
 				(chip->chip_idx + 1) << 24;
 	}
 #endif
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      &chip->mgr->pci->dev,
-					      32*1024, 32*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->mgr->pci->dev,
+				       32*1024, 32*1024);
 }
 
 /*
@@ -1047,6 +1041,7 @@ static int snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *card, int 
 	chip->card = card;
 	chip->chip_idx = idx;
 	chip->mgr = mgr;
+	card->sync_irq = mgr->irq;
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_mixart_chip_free(chip);

@@ -92,7 +92,6 @@ struct mod_vrr_params_btr {
 	uint32_t inserted_duration_in_us;
 	uint32_t frames_to_insert;
 	uint32_t frame_counter;
-	uint32_t margin_in_us;
 };
 
 struct mod_vrr_params_fixed_refresh {
