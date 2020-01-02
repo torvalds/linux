@@ -88,8 +88,9 @@ struct rkisp_stream_mp {
 	bool raw_enable;
 };
 
-struct rkisp_stream_raw {
+struct rkisp_stream_dmatx {
 	u8 pre_stop;
+	u8 is_config;
 };
 
 struct rkisp_stream_dmarx {
@@ -105,6 +106,7 @@ struct stream_config {
 	const int max_rsz_height;
 	const int min_rsz_width;
 	const int min_rsz_height;
+	const int frame_end_id;
 	/* registers */
 	struct {
 		u32 ctrl;
@@ -149,7 +151,13 @@ struct stream_config {
 		u32 y_offs_cnt_init;
 		u32 cb_offs_cnt_init;
 		u32 cr_offs_cnt_init;
+		u32 y_base_ad_shd;
 	} mi;
+	struct {
+		u32 ctrl;
+		u32 pic_size;
+		u32 pic_offs;
+	} dma;
 };
 
 /* Different reg ops between selfpath and mainpath */
@@ -166,6 +174,8 @@ struct streams_ops {
 /*
  * struct rkisp_stream - ISP capture video device
  *
+ * @id: stream video identify
+ * @interlaced: selfpath interlaced flag
  * @out_isp_fmt: output isp format
  * @out_fmt: output buffer size
  * @dcrop: coordinates of dual-crop
@@ -177,9 +187,12 @@ struct streams_ops {
  * rkisp use shadowsock registers, so it need two buffer at a time
  * @curr_buf: the buffer used for current frame
  * @next_buf: the buffer used for next frame
+ * @done: wait frame end event queue
+ * @burst: burst length for Y and CB/CR
+ * @sequence: damtx video frame sequence
  */
 struct rkisp_stream {
-	unsigned id:2;
+	unsigned int id;
 	unsigned interlaced:1;
 	struct rkisp_device *ispdev;
 	struct rkisp_vdev_node vnode;
@@ -198,22 +211,34 @@ struct rkisp_stream {
 	bool frame_end;
 	wait_queue_head_t done;
 	unsigned int burst;
+	atomic_t sequence;
 	union {
 		struct rkisp_stream_sp sp;
 		struct rkisp_stream_mp mp;
-		struct rkisp_stream_raw raw;
 		struct rkisp_stream_dmarx dmarx;
+		struct rkisp_stream_dmatx dmatx;
 	} u;
+};
+
+struct rkisp_capture_device {
+	struct rkisp_device *ispdev;
+	struct rkisp_stream stream[RKISP_MAX_STREAM];
 };
 
 void rkisp_unregister_stream_vdevs(struct rkisp_device *dev);
 int rkisp_register_stream_vdevs(struct rkisp_device *dev);
 void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev);
-void rkisp_stream_init(struct rkisp_device *dev, u32 id);
 void rkisp_set_stream_def_fmt(struct rkisp_device *dev, u32 id,
 			       u32 width, u32 height, u32 pixelformat);
 void rkisp_mipi_dmatx0_end(u32 status, struct rkisp_device *dev);
 int fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs);
 int rkisp_fh_open(struct file *filp);
 int rkisp_fop_release(struct file *file);
+
+struct rkisp_dummy_buffer *hdr_dqbuf(struct list_head *q);
+void hdr_qbuf(struct list_head *q, struct rkisp_dummy_buffer *buf);
+int hdr_config_dmatx(struct rkisp_device *dev);
+int hdr_update_dmatx_buf(struct rkisp_device *dev);
+void hdr_stop_dmatx(struct rkisp_device *dev);
+void hdr_destroy_buf(struct rkisp_device *dev);
 #endif /* _RKISP_PATH_VIDEO_H */

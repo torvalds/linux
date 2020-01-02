@@ -134,9 +134,15 @@ void rkisp_mipi_isr(unsigned int mipi_mis, struct rkisp_device *dev);
 void rkisp_mipi_v13_isr(unsigned int err1, unsigned int err2,
 			       unsigned int err3, struct rkisp_device *dev);
 
+void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
+			 unsigned int overflow, unsigned int state,
+			 struct rkisp_device *dev);
+
 void rkisp_isp_isr(unsigned int isp_mis, struct rkisp_device *dev);
 
 irqreturn_t rkisp_vs_isr_handler(int irq, void *ctx);
+
+struct media_pad *rkisp_media_entity_remote_pad(struct media_pad *pad);
 
 int rkisp_update_sensor_info(struct rkisp_device *dev);
 

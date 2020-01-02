@@ -40,6 +40,7 @@
 #include "dev.h"
 #include "regs.h"
 
+#define STATS_NAME DRIVER_NAME "-statistics"
 #define RKISP_ISP_STATS_REQ_BUFS_MIN 2
 #define RKISP_ISP_STATS_REQ_BUFS_MAX 8
 
@@ -200,10 +201,6 @@ static struct vb2_ops rkisp_stats_vb2_ops = {
 static int rkisp_stats_init_vb2_queue(struct vb2_queue *q,
 				       struct rkisp_isp_stats_vdev *stats_vdev)
 {
-	struct rkisp_vdev_node *node;
-
-	node = queue_to_node(q);
-
 	q->type = V4L2_BUF_TYPE_META_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = stats_vdev;
@@ -618,13 +615,14 @@ int rkisp_register_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev,
 	int ret;
 	struct rkisp_vdev_node *node = &stats_vdev->vnode;
 	struct video_device *vdev = &node->vdev;
+	struct media_entity *source, *sink;
 
 	stats_vdev->dev = dev;
 	INIT_LIST_HEAD(&stats_vdev->stat);
 	spin_lock_init(&stats_vdev->irq_lock);
 	spin_lock_init(&stats_vdev->rd_lock);
 
-	strlcpy(vdev->name, "rkisp1-statistics", sizeof(vdev->name));
+	strlcpy(vdev->name, STATS_NAME, sizeof(vdev->name));
 
 	video_set_drvdata(vdev, stats_vdev);
 	vdev->ioctl_ops = &rkisp_stats_ioctl;
@@ -650,6 +648,13 @@ int rkisp_register_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev,
 			"could not register Video for Linux device\n");
 		goto err_cleanup_media_entity;
 	}
+
+	source = &dev->isp_sdev.sd.entity;
+	sink = &stats_vdev->vnode.vdev.entity;
+	ret = media_create_pad_link(source, RKISP_ISP_PAD_SOURCE_STATS,
+		sink, 0, MEDIA_LNK_FL_ENABLED);
+	if (ret < 0)
+		goto err_cleanup_media_entity;
 
 	ret = kfifo_alloc(&stats_vdev->rd_kfifo,
 			  RKISP_READOUT_WORK_SIZE,

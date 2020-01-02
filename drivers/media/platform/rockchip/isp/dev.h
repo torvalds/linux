@@ -36,17 +36,31 @@
 #define _RKISP_DEV_H
 
 #include "capture.h"
+#include "csi.h"
 #include "dmarx.h"
+#include "mpfbc.h"
 #include "rkisp.h"
 #include "isp_params.h"
 #include "isp_stats.h"
 
+#ifdef VIDEO_ROCKCHIP_ISP1
 #define DRIVER_NAME "rkisp1"
+#else
+#define DRIVER_NAME "rkisp"
+#endif
+
 #define ISP_VDEV_NAME DRIVER_NAME  "_ispdev"
 #define SP_VDEV_NAME DRIVER_NAME   "_selfpath"
 #define MP_VDEV_NAME DRIVER_NAME   "_mainpath"
 #define DMA_VDEV_NAME DRIVER_NAME  "_dmapath"
 #define RAW_VDEV_NAME DRIVER_NAME  "_rawpath"
+#define DMATX0_VDEV_NAME DRIVER_NAME "_rawwr0"
+#define DMATX1_VDEV_NAME DRIVER_NAME "_rawwr1"
+#define DMATX2_VDEV_NAME DRIVER_NAME "_rawwr2"
+#define DMATX3_VDEV_NAME DRIVER_NAME "_rawwr3"
+#define DMARX0_VDEV_NAME DRIVER_NAME "_rawrd0_m"
+#define DMARX1_VDEV_NAME DRIVER_NAME "_rawrd1_l"
+#define DMARX2_VDEV_NAME DRIVER_NAME "_rawrd2_s"
 
 #define GRP_ID_SENSOR			BIT(0)
 #define GRP_ID_MIPIPHY			BIT(1)
@@ -54,10 +68,12 @@
 #define GRP_ID_ISP_MP			BIT(3)
 #define GRP_ID_ISP_SP			BIT(4)
 #define GRP_ID_ISP_DMARX		BIT(5)
+#define GRP_ID_ISP_MPFBC		BIT(6)
+#define GRP_ID_CSI			BIT(7)
 
-#define RKISP_MAX_BUS_CLK	8
-#define RKISP_MAX_SENSOR	2
-#define RKISP_MAX_PIPELINE	4
+#define RKISP_MAX_BUS_CLK		8
+#define RKISP_MAX_SENSOR		2
+#define RKISP_MAX_PIPELINE		4
 
 #define RKISP_MEDIA_BUS_FMT_MASK	0xF000
 #define RKISP_MEDIA_BUS_FMT_BAYER	0x3000
@@ -71,6 +87,7 @@ enum rkisp_isp_ver {
 	ISP_V11 = 0x10,
 	ISP_V12 = 0x20,
 	ISP_V13 = 0x30,
+	ISP_V20 = 0x40,
 };
 
 enum rkisp_isp_state {
@@ -81,9 +98,12 @@ enum rkisp_isp_state {
 
 enum rkisp_isp_inp {
 	INP_INVAL = 0,
-	INP_CSI,
-	INP_DVP,
-	INP_DMARX_ISP,
+	INP_RAWRD0 = BIT(0),
+	INP_RAWRD1 = BIT(1),
+	INP_RAWRD2 = BIT(2),
+	INP_CSI = BIT(4),
+	INP_DVP = BIT(5),
+	INP_DMARX_ISP = BIT(6),
 };
 
 /*
@@ -114,8 +134,30 @@ struct rkisp_pipeline {
 struct rkisp_sensor_info {
 	struct v4l2_subdev *sd;
 	struct v4l2_mbus_config mbus;
-	struct v4l2_subdev_format fmt;
+	struct v4l2_subdev_format fmt[CSI_PAD_MAX - 1];
 	struct v4l2_subdev_pad_config cfg;
+};
+
+/* struct rkisp_hdr - hdr configured
+ * @cnt: open counter
+ * @op_mode: hdr optional mode
+ * @esp_mode: hdr especial mode
+ * @index: hdr dma index
+ * @q_tx: dmatx buf list
+ * @q_rx: dmarx buf list
+ * @rx_cur_buf: rawrd current buf
+ * @dummy_buf: hdr dma internal buf
+ */
+struct rkisp_hdr {
+	u8 cnt;
+	u8 op_mode;
+	u8 esp_mode;
+	u8 index[HDR_DMA_MAX];
+	struct v4l2_subdev *sensor;
+	struct list_head q_tx[HDR_DMA_MAX];
+	struct list_head q_rx[HDR_DMA_MAX];
+	struct rkisp_dummy_buffer *rx_cur_buf[HDR_DMA_MAX];
+	struct rkisp_dummy_buffer dummy_buf[HDR_DMA_MAX][HDR_MAX_DUMMY_BUF];
 };
 
 /*
@@ -123,9 +165,12 @@ struct rkisp_sensor_info {
  * @base_addr: base register address
  * @active_sensor: sensor in-use, set when streaming on
  * @isp_sdev: ISP sub-device
- * @rkisp_stream: capture video device
+ * @cap_dev: image capture device
  * @stats_vdev: ISP statistics output device
  * @params_vdev: ISP input parameters device
+ * @dmarx_dev: image input device
+ * @csi_dev: mipi csi device
+ * @mpfbc_dev: mpfbc output device
  */
 struct rkisp_device {
 	struct list_head list;
@@ -144,10 +189,12 @@ struct rkisp_device {
 	struct rkisp_sensor_info sensors[RKISP_MAX_SENSOR];
 	int num_sensors;
 	struct rkisp_isp_subdev isp_sdev;
-	struct rkisp_stream stream[RKISP_MAX_STREAM];
+	struct rkisp_capture_device cap_dev;
 	struct rkisp_isp_stats_vdev stats_vdev;
 	struct rkisp_isp_params_vdev params_vdev;
 	struct rkisp_dmarx_device dmarx_dev;
+	struct rkisp_csi_device csi_dev;
+	struct rkisp_mpfbc_device mpfbc_dev;
 	struct rkisp_pipeline pipe;
 	struct iommu_domain *domain;
 	enum rkisp_isp_ver isp_ver;
@@ -161,10 +208,10 @@ struct rkisp_device {
 	int vs_irq;
 	int mipi_irq;
 	struct gpio_desc *vs_irq_gpio;
-	struct v4l2_subdev *hdr_sensor;
+	struct rkisp_hdr hdr;
 	enum rkisp_isp_state isp_state;
 	unsigned int isp_err_cnt;
-	enum rkisp_isp_inp isp_inp;
+	unsigned int isp_inp;
 	struct mutex apilock; /* mutex to serialize the calls of stream */
 	struct mutex iqlock; /* mutex to serialize the calls of iq */
 	wait_queue_head_t sync_onoff;

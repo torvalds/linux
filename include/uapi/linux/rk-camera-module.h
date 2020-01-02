@@ -29,6 +29,9 @@
 #define RKMODULE_LSC_CFG	\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 3, struct rkmodule_lsc_cfg)
 
+#define RKMODULE_HDR_CFG       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 4, struct rkmodule_hdr_cfg)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -141,6 +144,55 @@ struct rkmodule_af_cfg {
  */
 struct rkmodule_lsc_cfg {
 	__u32 enable;
+} __attribute__ ((packed));
+
+/**
+ * NO_HDR: linear mode
+ * HDR_X2: hdr two frame or line mode
+ * HDR_X3: hdr three or line mode
+ */
+enum rkmodule_hdr_mode {
+	NO_HDR = 0,
+	HDR_X2 = 5,
+	HDR_X3 = 6,
+};
+
+/**
+ * HDR_NORMAL_VC: hdr frame with diff virtual channels
+ * HDR_LINE_CNT: hdr frame with line counter
+ * HDR_ID_CODE: hdr frame with identification code
+ */
+enum hdr_esp_mode {
+	HDR_NORMAL_VC = 0,
+	HDR_LINE_CNT,
+	HDR_ID_CODE,
+};
+
+/**
+ * lcnt: line counter
+ *     padnum: the pixels of padding row
+ *     padpix: the payload of padding
+ * idcd: identification code
+ *     efpix: identification code of Effective line
+ *     obpix: identification code of OB line
+ */
+struct rkmodule_hdr_esp {
+	enum hdr_esp_mode mode;
+	union {
+		struct {
+			__u32 padnum;
+			__u32 padpix;
+		} lcnt;
+		struct {
+			__u32 efpix;
+			__u32 obpix;
+		} idcd;
+	} val;
+};
+
+struct rkmodule_hdr_cfg {
+	__u32 hdr_mode;
+	struct rkmodule_hdr_esp esp;
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */

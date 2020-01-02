@@ -51,7 +51,8 @@ void disable_dcrop(struct rkisp_stream *stream, bool async)
 	writel(val, dc_ctrl_addr);
 }
 
-void config_dcrop(struct rkisp_stream *stream, struct v4l2_rect *rect, bool async)
+void config_dcrop(struct rkisp_stream *stream,
+		  struct v4l2_rect *rect, bool async)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *dc_ctrl_addr = base + stream->config->dual_crop.ctrl;

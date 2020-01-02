@@ -41,6 +41,7 @@
 #include "dev.h"
 #include "regs.h"
 
+#define PARAMS_NAME DRIVER_NAME "-input-params"
 #define RKISP_ISP_PARAMS_REQ_BUFS_MIN	2
 #define RKISP_ISP_PARAMS_REQ_BUFS_MAX	8
 
@@ -2123,7 +2124,7 @@ void __preisp_isr_update_hdrae_para(struct rkisp_isp_params_vdev *params_vdev,
 	lsc = &new_params->others.lsc_config;
 	awb_gain = &new_params->others.awb_gain_config;
 
-	if (!params_vdev->dev->hdr_sensor)
+	if (!params_vdev->dev->hdr.sensor)
 		return;
 
 	if ((module_en_update & CIFISP_MODULE_AWB_GAIN) ||
@@ -2160,10 +2161,10 @@ void __preisp_isr_update_hdrae_para(struct rkisp_isp_params_vdev *params_vdev,
 		}
 	}
 
-	ret = v4l2_subdev_call(params_vdev->dev->hdr_sensor, core, ioctl,
+	ret = v4l2_subdev_call(params_vdev->dev->hdr.sensor, core, ioctl,
 			       PREISP_CMD_SAVE_HDRAE_PARAM, hdrae);
 	if (ret)
-		params_vdev->dev->hdr_sensor = NULL;
+		params_vdev->dev->hdr.sensor = NULL;
 }
 
 void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis)
@@ -2566,10 +2567,6 @@ static int
 rkisp_params_init_vb2_queue(struct vb2_queue *q,
 			     struct rkisp_isp_params_vdev *params_vdev)
 {
-	struct rkisp_vdev_node *node;
-
-	node = queue_to_node(q);
-
 	q->type = V4L2_BUF_TYPE_META_OUTPUT;
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = params_vdev;
@@ -2607,11 +2604,12 @@ int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 	int ret;
 	struct rkisp_vdev_node *node = &params_vdev->vnode;
 	struct video_device *vdev = &node->vdev;
+	struct media_entity *source, *sink;
 
 	params_vdev->dev = dev;
 	spin_lock_init(&params_vdev->config_lock);
 
-	strlcpy(vdev->name, "rkisp1-input-params", sizeof(vdev->name));
+	strlcpy(vdev->name, PARAMS_NAME, sizeof(vdev->name));
 
 	video_set_drvdata(vdev, params_vdev);
 	vdev->ioctl_ops = &rkisp_params_ioctl;
@@ -2640,6 +2638,14 @@ int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 			"could not register Video for Linux device\n");
 		goto err_cleanup_media_entity;
 	}
+
+	source = &params_vdev->vnode.vdev.entity;
+	sink = &params_vdev->dev->isp_sdev.sd.entity;
+	ret = media_create_pad_link(source, 0, sink,
+		RKISP_ISP_PAD_SINK_PARAMS, MEDIA_LNK_FL_ENABLED);
+	if (ret < 0)
+		goto err_cleanup_media_entity;
+
 	return 0;
 err_cleanup_media_entity:
 	media_entity_cleanup(&vdev->entity);

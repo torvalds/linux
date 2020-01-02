@@ -47,10 +47,13 @@
 #define RKISP_DEFAULT_WIDTH		800
 #define RKISP_DEFAULT_HEIGHT		600
 
-#define RKISP_MAX_STREAM		3
-#define RKISP_STREAM_MP		0
-#define RKISP_STREAM_SP		1
-#define RKISP_STREAM_RAW		2
+#define RKISP_MAX_STREAM		6
+#define RKISP_STREAM_MP			0
+#define RKISP_STREAM_SP			1
+#define RKISP_STREAM_DMATX0		2
+#define RKISP_STREAM_DMATX1		3
+#define RKISP_STREAM_DMATX2		4
+#define RKISP_STREAM_DMATX3		5
 
 #define RKISP_PLANE_Y			0
 #define RKISP_PLANE_CB			1
@@ -99,6 +102,7 @@ struct rkisp_buffer {
 };
 
 struct rkisp_dummy_buffer {
+	struct list_head queue;
 	void *vaddr;
 	dma_addr_t dma_addr;
 	u32 size;

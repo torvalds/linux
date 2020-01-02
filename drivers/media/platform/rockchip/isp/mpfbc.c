@@ -1,0 +1,322 @@
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd. */
+
+#include <linux/delay.h>
+#include <linux/pm_runtime.h>
+#include <media/v4l2-common.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-ioctl.h>
+#include <media/v4l2-subdev.h>
+#include <media/videobuf2-dma-contig.h>
+#include <linux/dma-iommu.h>
+#include <linux/rk-camera-module.h>
+#include "dev.h"
+#include "regs.h"
+
+static int mpfbc_get_set_fmt(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_format *fmt)
+{
+	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
+	struct rkisp_device *dev = mpfbc_dev->ispdev;
+	int ret;
+
+	/* get isp out format */
+	fmt->pad = RKISP_ISP_PAD_SOURCE_PATH;
+	ret =  v4l2_subdev_call(&dev->isp_sdev.sd, pad, get_fmt, NULL, fmt);
+	mpfbc_dev->fmt = *fmt;
+	return ret;
+}
+
+static int mpfbc_s_rx_buffer(struct v4l2_subdev *sd,
+			     void *buf, unsigned int *size)
+{
+	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
+	struct rkisp_device *dev = mpfbc_dev->ispdev;
+	void __iomem *base = dev->base_addr;
+	u32 w = ALIGN(mpfbc_dev->fmt.format.width, 16);
+	u32 h = ALIGN(mpfbc_dev->fmt.format.height, 16);
+	u32 sizes = (w * h >> 4) + w * h * 2;
+
+	/* picture or gain buffer */
+	if (*size == sizes) {
+		if (mpfbc_dev->pic_cur) {
+			mpfbc_dev->pic_nxt = (u32 *)buf;
+			writel(*mpfbc_dev->pic_nxt,
+				base + ISP_MPFBC_HEAD_PTR2);
+			writel(*mpfbc_dev->pic_nxt + (w * h >> 4),
+				base + ISP_MPFBC_PAYL_PTR2);
+			mpfbc_dev->pingpong = true;
+		} else {
+			mpfbc_dev->pic_cur = (u32 *)buf;
+			writel(*mpfbc_dev->pic_cur,
+				base + ISP_MPFBC_HEAD_PTR);
+			writel(*mpfbc_dev->pic_cur + (w * h >> 4),
+				base + ISP_MPFBC_PAYL_PTR);
+			mpfbc_dev->pingpong = false;
+		}
+	} else {
+		if (mpfbc_dev->gain_cur) {
+			mpfbc_dev->gain_nxt = (u32 *)buf;
+			writel(*mpfbc_dev->gain_nxt,
+				base + MI_GAIN_WR_BASE2);
+			mi_wr_ctrl2(base, SW_GAIN_WR_PINGPONG);
+		} else {
+			mpfbc_dev->gain_cur = (u32 *)buf;
+			writel(*mpfbc_dev->gain_cur,
+				base + MI_GAIN_WR_BASE);
+			isp_clear_bits(base + MI_WR_CTRL2,
+					SW_GAIN_WR_PINGPONG);
+		}
+		writel(*size, base + MI_GAIN_WR_SIZE);
+		writel(w >> 4, base + MI_GAIN_WR_LENGTH);
+		mi_wr_ctrl2(base, SW_GAIN_WR_AUTOUPD);
+	}
+	return 0;
+}
+
+static int mpfbc_start(struct rkisp_mpfbc_device *mpfbc_dev)
+{
+	struct rkisp_device *dev = mpfbc_dev->ispdev;
+	void __iomem *base = dev->base_addr;
+	u32 h = ALIGN(mpfbc_dev->fmt.format.height, 16);
+
+	writel(mpfbc_dev->pingpong << 4 | SW_MPFBC_YUV_MODE(1) |
+		SW_MPFBC_MAINISP_MODE | SW_MPFBC_EN,
+		base + ISP_MPFBC_BASE);
+	writel(0, base + ISP_MPFBC_VIR_WIDTH);
+	writel(h, base + ISP_MPFBC_VIR_HEIGHT);
+	isp_set_bits(base + CTRL_SWS_CFG, 0, SW_ISP2PP_PIPE_EN);
+	isp_set_bits(base + MI_IMSC, 0, MI_MPFBC_FRAME);
+	isp_set_bits(base + MI_WR_CTRL, 0, CIF_MI_CTRL_INIT_BASE_EN);
+	mp_set_data_path(base);
+	force_cfg_update(base);
+	mpfbc_dev->en = true;
+	return 0;
+}
+
+static int mpfbc_stop(struct rkisp_mpfbc_device *mpfbc_dev)
+{
+	struct rkisp_device *dev = mpfbc_dev->ispdev;
+	void __iomem *base = dev->base_addr;
+	int ret;
+
+	mpfbc_dev->stopping = true;
+	writel(SW_MPFBC_YUV_MODE(1),
+		base + ISP_MPFBC_BASE);
+	hdr_stop_dmatx(dev);
+	ret = wait_event_timeout(mpfbc_dev->done,
+				 !mpfbc_dev->en,
+				 msecs_to_jiffies(1000));
+	if (!ret)
+		v4l2_warn(&mpfbc_dev->sd,
+			  "waiting on event return error %d\n", ret);
+	isp_clear_bits(base + MI_IMSC, MI_MPFBC_FRAME);
+	hdr_destroy_buf(dev);
+	mpfbc_dev->en = false;
+	mpfbc_dev->pic_cur = NULL;
+	mpfbc_dev->pic_nxt = NULL;
+	mpfbc_dev->gain_cur = NULL;
+	mpfbc_dev->gain_nxt = NULL;
+	return 0;
+}
+
+static int mpfbc_start_stream(struct v4l2_subdev *sd)
+{
+	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
+	struct rkisp_device *dev = mpfbc_dev->ispdev;
+	int ret;
+
+	if (WARN_ON(mpfbc_dev->en) ||
+	    !dev->isp_inp)
+		return -EBUSY;
+
+	if (dev->isp_inp & INP_CSI ||
+	    dev->isp_inp & INP_DVP) {
+		/* Always update sensor info in case media topology changed */
+		ret = rkisp_update_sensor_info(dev);
+		if (ret < 0) {
+			v4l2_err(&dev->v4l2_dev,
+				 "update sensor info failed %d\n",
+				 ret);
+			return -EBUSY;
+		}
+	}
+
+	/* enable clocks/power-domains */
+	ret = dev->pipe.open(&dev->pipe, &sd->entity, true);
+	if (ret < 0)
+		return ret;
+
+	hdr_config_dmatx(dev);
+	ret = mpfbc_start(mpfbc_dev);
+	if (ret < 0)
+		goto close_pipe;
+	hdr_update_dmatx_buf(dev);
+
+	/* start sub-devices */
+	ret = dev->pipe.set_stream(&dev->pipe, true);
+	if (ret < 0)
+		goto stop_mpfbc;
+
+	ret = media_pipeline_start(&sd->entity, &dev->pipe.pipe);
+	if (ret < 0)
+		goto pipe_stream_off;
+
+	return 0;
+pipe_stream_off:
+	dev->pipe.set_stream(&dev->pipe, false);
+stop_mpfbc:
+	mpfbc_stop(mpfbc_dev);
+close_pipe:
+	dev->pipe.close(&dev->pipe);
+	return ret;
+}
+
+static int mpfbc_stop_stream(struct v4l2_subdev *sd)
+{
+	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
+	struct rkisp_device *dev = mpfbc_dev->ispdev;
+
+	mpfbc_stop(mpfbc_dev);
+	media_pipeline_stop(&sd->entity);
+	dev->pipe.set_stream(&dev->pipe, false);
+	dev->pipe.close(&dev->pipe);
+	return 0;
+}
+
+static int mpfbc_s_stream(struct v4l2_subdev *sd, int on)
+{
+	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
+	int ret = 0;
+
+	if (on)
+		ret = mpfbc_start_stream(sd);
+	else if (mpfbc_dev->en)
+		ret = mpfbc_stop_stream(sd);
+
+	return ret;
+}
+
+static int mpfbc_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct rkisp_mpfbc_device *mpfbc_dev = v4l2_get_subdevdata(sd);
+	struct rkisp_device *dev = mpfbc_dev->ispdev;
+	int ret;
+
+	if (on) {
+		atomic_inc(&dev->open_cnt);
+		ret = v4l2_pipeline_pm_use(&sd->entity, 1);
+	} else {
+		ret = v4l2_pipeline_pm_use(&sd->entity, 0);
+		atomic_dec(&dev->open_cnt);
+	}
+	return ret;
+}
+
+void rkisp_mpfbc_isr(u32 mis_val, struct rkisp_device *dev)
+{
+	struct rkisp_mpfbc_device *mpfbc_dev = &dev->mpfbc_dev;
+	void __iomem *base = dev->base_addr;
+
+	writel(MI_MPFBC_FRAME, base + CIF_MI_ICR);
+
+	if (mpfbc_dev->stopping) {
+		if (is_mpfbc_stopped(base)) {
+			mpfbc_dev->en = false;
+			mpfbc_dev->stopping = false;
+			wake_up(&mpfbc_dev->done);
+		}
+	}
+}
+
+static const struct v4l2_subdev_pad_ops mpfbc_pad_ops = {
+	.set_fmt = mpfbc_get_set_fmt,
+	.get_fmt = mpfbc_get_set_fmt,
+};
+
+static const struct v4l2_subdev_video_ops mpfbc_video_ops = {
+	.s_rx_buffer = mpfbc_s_rx_buffer,
+	.s_stream = mpfbc_s_stream,
+};
+
+static const struct v4l2_subdev_core_ops mpfbc_core_ops = {
+	.s_power = mpfbc_s_power,
+};
+
+static struct v4l2_subdev_ops mpfbc_v4l2_ops = {
+	.core = &mpfbc_core_ops,
+	.video = &mpfbc_video_ops,
+	.pad = &mpfbc_pad_ops,
+};
+
+int rkisp_register_mpfbc_subdev(struct rkisp_device *dev,
+			       struct v4l2_device *v4l2_dev)
+{
+	struct rkisp_mpfbc_device *mpfbc_dev = &dev->mpfbc_dev;
+	struct v4l2_subdev *sd;
+	struct media_entity *source, *sink;
+	int ret;
+
+	memset(mpfbc_dev, 0, sizeof(*mpfbc_dev));
+	if (dev->isp_ver != ISP_V20)
+		return 0;
+
+	mpfbc_dev->ispdev = dev;
+	sd = &mpfbc_dev->sd;
+
+	v4l2_subdev_init(sd, &mpfbc_v4l2_ops);
+	//sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->entity.obj_type = 0;
+	snprintf(sd->name, sizeof(sd->name), MPFBC_DEV_NAME);
+
+	mpfbc_dev->pad.flags = MEDIA_PAD_FL_SINK;
+
+	ret = media_entity_pads_init(&sd->entity, 1, &mpfbc_dev->pad);
+	if (ret < 0)
+		return ret;
+	sd->owner = THIS_MODULE;
+	v4l2_set_subdevdata(sd, mpfbc_dev);
+	sd->grp_id = GRP_ID_ISP_MPFBC;
+	ret = v4l2_device_register_subdev(v4l2_dev, sd);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Failed to register mpfbc subdev\n");
+		goto free_media;
+	}
+
+	/* mpfbc links */
+	source = &dev->isp_sdev.sd.entity;
+	sink = &sd->entity;
+	ret = media_create_pad_link(source, RKISP_ISP_PAD_SOURCE_PATH,
+				    sink, 0, MEDIA_LNK_FL_ENABLED);
+
+	init_waitqueue_head(&mpfbc_dev->done);
+	return ret;
+
+free_media:
+	media_entity_cleanup(&sd->entity);
+	return ret;
+}
+
+void rkisp_unregister_mpfbc_subdev(struct rkisp_device *dev)
+{
+	struct v4l2_subdev *sd = &dev->mpfbc_dev.sd;
+
+	if (dev->isp_ver != ISP_V20)
+		return;
+	v4l2_device_unregister_subdev(sd);
+	media_entity_cleanup(&sd->entity);
+}
+
+void rkisp_get_mpfbc_sd(struct platform_device *dev,
+			 struct v4l2_subdev **sd)
+{
+	struct rkisp_device *isp_dev = platform_get_drvdata(dev);
+
+	if (isp_dev)
+		*sd = &isp_dev->mpfbc_dev.sd;
+	else
+		*sd = NULL;
+}
+EXPORT_SYMBOL(rkisp_get_mpfbc_sd);
