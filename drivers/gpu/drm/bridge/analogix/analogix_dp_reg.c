@@ -25,7 +25,6 @@
 #define COMMON_INT_MASK_2	0
 #define COMMON_INT_MASK_3	0
 #define COMMON_INT_MASK_4	(HOTPLUG_CHG | HPD_LOST | PLUG)
-#define INT_STA_MASK		INT_HPD
 
 static void analogix_dp_write(struct analogix_dp_device *dp, u32 reg, u32 val)
 {
@@ -206,11 +205,10 @@ void analogix_dp_config_interrupt(struct analogix_dp_device *dp)
 	reg = COMMON_INT_MASK_3;
 	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_3, reg);
 
-	reg = COMMON_INT_MASK_4;
-	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_4, reg);
-
-	reg = INT_STA_MASK;
-	analogix_dp_write(dp, ANALOGIX_DP_INT_STA_MASK, reg);
+	if (dp->force_hpd || gpio_is_valid(dp->hpd_gpio))
+		analogix_dp_mute_hpd_interrupt(dp);
+	else
+		analogix_dp_unmute_hpd_interrupt(dp);
 }
 
 void analogix_dp_mute_hpd_interrupt(struct analogix_dp_device *dp)
@@ -223,7 +221,7 @@ void analogix_dp_mute_hpd_interrupt(struct analogix_dp_device *dp)
 	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_4, reg);
 
 	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA_MASK);
-	reg &= ~INT_STA_MASK;
+	reg &= ~INT_HPD;
 	analogix_dp_write(dp, ANALOGIX_DP_INT_STA_MASK, reg);
 }
 
@@ -235,7 +233,8 @@ void analogix_dp_unmute_hpd_interrupt(struct analogix_dp_device *dp)
 	reg = COMMON_INT_MASK_4;
 	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_4, reg);
 
-	reg = INT_STA_MASK;
+	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA_MASK);
+	reg |= INT_HPD;
 	analogix_dp_write(dp, ANALOGIX_DP_INT_STA_MASK, reg);
 }
 
