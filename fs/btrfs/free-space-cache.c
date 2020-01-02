@@ -1959,6 +1959,18 @@ static void add_new_bitmap(struct btrfs_free_space_ctl *ctl,
 static void free_bitmap(struct btrfs_free_space_ctl *ctl,
 			struct btrfs_free_space *bitmap_info)
 {
+	/*
+	 * Normally when this is called, the bitmap is completely empty. However,
+	 * if we are blowing up the free space cache for one reason or another
+	 * via __btrfs_remove_free_space_cache(), then it may not be freed and
+	 * we may leave stats on the table.
+	 */
+	if (bitmap_info->bytes && !btrfs_free_space_trimmed(bitmap_info)) {
+		ctl->discardable_extents[BTRFS_STAT_CURR] -=
+			bitmap_info->bitmap_extents;
+		ctl->discardable_bytes[BTRFS_STAT_CURR] -= bitmap_info->bytes;
+
+	}
 	unlink_free_space(ctl, bitmap_info);
 	kmem_cache_free(btrfs_free_space_bitmap_cachep, bitmap_info->bitmap);
 	kmem_cache_free(btrfs_free_space_cachep, bitmap_info);
@@ -2776,6 +2788,8 @@ void __btrfs_remove_free_space_cache(struct btrfs_free_space_ctl *ctl)
 {
 	spin_lock(&ctl->tree_lock);
 	__btrfs_remove_free_space_cache_locked(ctl);
+	if (ctl->private)
+		btrfs_discard_update_discardable(ctl->private, ctl);
 	spin_unlock(&ctl->tree_lock);
 }
 
