@@ -22,7 +22,6 @@
 #define COMMON_INT_MASK_2	0
 #define COMMON_INT_MASK_3	0
 #define COMMON_INT_MASK_4	(HOTPLUG_CHG | HPD_LOST | PLUG)
-#define INT_STA_MASK		INT_HPD
 
 static void analogix_dp_write(struct analogix_dp_device *dp, u32 reg, u32 val)
 {
@@ -203,11 +202,10 @@ void analogix_dp_config_interrupt(struct analogix_dp_device *dp)
 	reg = COMMON_INT_MASK_3;
 	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_3, reg);
 
-	reg = COMMON_INT_MASK_4;
-	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_4, reg);
-
-	reg = INT_STA_MASK;
-	analogix_dp_write(dp, ANALOGIX_DP_INT_STA_MASK, reg);
+	if (dp->force_hpd || dp->hpd_gpiod)
+		analogix_dp_mute_hpd_interrupt(dp);
+	else
+		analogix_dp_unmute_hpd_interrupt(dp);
 }
 
 void analogix_dp_mute_hpd_interrupt(struct analogix_dp_device *dp)
@@ -220,7 +218,7 @@ void analogix_dp_mute_hpd_interrupt(struct analogix_dp_device *dp)
 	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_4, reg);
 
 	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA_MASK);
-	reg &= ~INT_STA_MASK;
+	reg &= ~INT_HPD;
 	analogix_dp_write(dp, ANALOGIX_DP_INT_STA_MASK, reg);
 }
 
@@ -232,7 +230,8 @@ void analogix_dp_unmute_hpd_interrupt(struct analogix_dp_device *dp)
 	reg = COMMON_INT_MASK_4;
 	analogix_dp_write(dp, ANALOGIX_DP_COMMON_INT_MASK_4, reg);
 
-	reg = INT_STA_MASK;
+	reg = analogix_dp_read(dp, ANALOGIX_DP_INT_STA_MASK);
+	reg |= INT_HPD;
 	analogix_dp_write(dp, ANALOGIX_DP_INT_STA_MASK, reg);
 }
 
@@ -437,27 +436,19 @@ enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	if (dp->hpd_gpiod) {
-		reg = gpiod_get_value(dp->hpd_gpiod);
-		if (reg)
-			return DP_IRQ_TYPE_HP_CABLE_IN;
-		else
-			return DP_IRQ_TYPE_HP_CABLE_OUT;
-	} else {
-		/* Parse hotplug interrupt status register */
-		reg = analogix_dp_read(dp, ANALOGIX_DP_COMMON_INT_STA_4);
+	/* Parse hotplug interrupt status register */
+	reg = analogix_dp_read(dp, ANALOGIX_DP_COMMON_INT_STA_4);
 
-		if (reg & PLUG)
-			return DP_IRQ_TYPE_HP_CABLE_IN;
+	if (reg & PLUG)
+		return DP_IRQ_TYPE_HP_CABLE_IN;
 
-		if (reg & HPD_LOST)
-			return DP_IRQ_TYPE_HP_CABLE_OUT;
+	if (reg & HPD_LOST)
+		return DP_IRQ_TYPE_HP_CABLE_OUT;
 
-		if (reg & HOTPLUG_CHG)
-			return DP_IRQ_TYPE_HP_CHANGE;
+	if (reg & HOTPLUG_CHG)
+		return DP_IRQ_TYPE_HP_CHANGE;
 
-		return DP_IRQ_TYPE_UNKNOWN;
-	}
+	return DP_IRQ_TYPE_UNKNOWN;
 }
 
 void analogix_dp_reset_aux(struct analogix_dp_device *dp)
