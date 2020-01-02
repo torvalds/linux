@@ -516,6 +516,7 @@ bool btrfs_run_discard_work(struct btrfs_discard_ctl *discard_ctl)
 void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
 {
 	s32 discardable_extents;
+	s64 discardable_bytes;
 	u32 iops_limit;
 	unsigned long delay;
 	unsigned long lower_limit = BTRFS_DISCARD_MIN_DELAY_MSEC;
@@ -525,6 +526,27 @@ void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
 		return;
 
 	spin_lock(&discard_ctl->lock);
+
+	/*
+	 * The following is to fix a potential -1 discrepenancy that we're not
+	 * sure how to reproduce. But given that this is the only place that
+	 * utilizes these numbers and this is only called by from
+	 * btrfs_finish_extent_commit() which is synchronized, we can correct
+	 * here.
+	 */
+	if (discardable_extents < 0)
+		atomic_add(-discardable_extents,
+			   &discard_ctl->discardable_extents);
+
+	discardable_bytes = atomic64_read(&discard_ctl->discardable_bytes);
+	if (discardable_bytes < 0)
+		atomic64_add(-discardable_bytes,
+			     &discard_ctl->discardable_bytes);
+
+	if (discardable_extents <= 0) {
+		spin_unlock(&discard_ctl->lock);
+		return;
+	}
 
 	iops_limit = READ_ONCE(discard_ctl->iops_limit);
 	if (iops_limit)
