@@ -1854,15 +1854,15 @@ static int domain_init(struct dmar_domain *domain, struct intel_iommu *iommu,
 {
 	int adjust_width, agaw;
 	unsigned long sagaw;
-	int err;
+	int ret;
 
 	init_iova_domain(&domain->iovad, VTD_PAGE_SIZE, IOVA_START_PFN);
 
 	if (!intel_iommu_strict) {
-		err = init_iova_flush_queue(&domain->iovad,
+		ret = init_iova_flush_queue(&domain->iovad,
 					    iommu_flush_iova, iova_entry_free);
-		if (err)
-			return err;
+		if (ret)
+			pr_info("iova flush queue initialization failed\n");
 	}
 
 	domain_reserve_special_ranges(domain);
@@ -5222,10 +5222,8 @@ static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
 			ret = init_iova_flush_queue(&dmar_domain->iovad,
 						    iommu_flush_iova,
 						    iova_entry_free);
-			if (ret) {
-				pr_warn("iova flush queue initialization failed\n");
-				intel_iommu_strict = 1;
-			}
+			if (ret)
+				pr_info("iova flush queue initialization failed\n");
 		}
 
 		domain_update_iommu_cap(dmar_domain);
