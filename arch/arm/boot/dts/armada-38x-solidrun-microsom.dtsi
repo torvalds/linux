@@ -71,6 +71,13 @@
 	};
 };
 
+&i2c0 {
+	clock-frequency = <400000>;
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &pinctrl {
 	microsom_phy_clk_pins: microsom-phy-clk-pins {
 		marvell,pins = "mpp45";
