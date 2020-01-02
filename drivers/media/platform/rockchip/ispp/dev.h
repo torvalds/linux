@@ -56,6 +56,8 @@ struct rkispp_device {
 	enum rkispp_ver	ispp_ver;
 	/* mutex to serialize the calls from user */
 	struct mutex apilock;
+	/* lock for fec and ispp irq */
+	spinlock_t irq_lock;
 
 	u8 module_en[ISPP_MD_MAX];
 	enum rkispp_input inp;

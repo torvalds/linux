@@ -1341,7 +1341,6 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 		 "isr:0x%x\n", mis_val);
 
 	vdev = &dev->stream_vdev;
-	writel(mis_val, base + RKISPP_CTRL_INT_CLR);
 	if (mis_val & err_mask)
 		v4l2_err(&dev->v4l2_dev,
 			 "ispp err:0x%x\n", mis_val);

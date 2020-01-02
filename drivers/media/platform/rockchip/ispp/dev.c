@@ -239,7 +239,48 @@ err:
 	return ret;
 }
 
+static irqreturn_t rkispp_irq_hdl(int irq, void *ctx)
+{
+	struct device *dev = ctx;
+	struct rkispp_device *ispp_dev = dev_get_drvdata(dev);
+	void __iomem *base = ispp_dev->base_addr;
+	unsigned int mis_val;
+
+	spin_lock(&ispp_dev->irq_lock);
+	mis_val = readl(base + RKISPP_CTRL_INT_STA);
+	writel(mis_val, base + RKISPP_CTRL_INT_CLR);
+	spin_unlock(&ispp_dev->irq_lock);
+
+	if (mis_val)
+		rkispp_isr(mis_val, ispp_dev);
+
+	return IRQ_HANDLED;
+}
+
+static const char * const rv1126_ispp_clks[] = {
+	"aclk_ispp",
+	"hclk_ispp",
+	"clk_ispp",
+};
+
+static struct ispp_irqs_data rv1126_ispp_irqs[] = {
+	{"ispp_irq", rkispp_irq_hdl},
+	{"fec_irq", rkispp_irq_hdl},
+};
+
+static const struct ispp_match_data rv1126_ispp_match_data = {
+	.clks = rv1126_ispp_clks,
+	.clks_num = ARRAY_SIZE(rv1126_ispp_clks),
+	.irqs = rv1126_ispp_irqs,
+	.num_irqs = ARRAY_SIZE(rv1126_ispp_irqs),
+	.ispp_ver = ISPP_V10,
+};
+
 static const struct of_device_id rkispp_plat_of_match[] = {
+	{
+		.compatible = "rockchip,rv1126-rkispp",
+		.data = &rv1126_ispp_match_data,
+	},
 	{},
 };
 
@@ -317,6 +358,7 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 	ispp_dev->ispp_ver = match_data->ispp_ver;
 
 	mutex_init(&ispp_dev->apilock);
+	spin_lock_init(&ispp_dev->irq_lock);
 
 	strlcpy(ispp_dev->media_dev.model, "rkispp",
 		sizeof(ispp_dev->media_dev.model));
