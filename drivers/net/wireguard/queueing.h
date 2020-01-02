@@ -83,13 +83,10 @@ static inline __be16 wg_skb_examine_untrusted_ip_hdr(struct sk_buff *skb)
 
 static inline void wg_reset_packet(struct sk_buff *skb)
 {
-	const int pfmemalloc = skb->pfmemalloc;
-
 	skb_scrub_packet(skb, true);
 	memset(&skb->headers_start, 0,
 	       offsetof(struct sk_buff, headers_end) -
 		       offsetof(struct sk_buff, headers_start));
-	skb->pfmemalloc = pfmemalloc;
 	skb->queue_mapping = 0;
 	skb->nohdr = 0;
 	skb->peeked = 0;
