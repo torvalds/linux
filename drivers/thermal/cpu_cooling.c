@@ -33,6 +33,8 @@
 #include <linux/cpu_cooling.h>
 #include <linux/energy_model.h>
 
+#include <soc/rockchip/rockchip_ipa.h>
+
 #include <trace/events/thermal.h>
 
 /*
@@ -91,6 +93,7 @@ struct cpufreq_cooling_device {
 	struct cpufreq_policy *policy;
 	struct list_head node;
 	struct time_in_idle *idle_time;
+	struct ipa_power_model_data *model_data;
 };
 
 static DEFINE_IDA(cpufreq_ida);
@@ -229,6 +232,61 @@ static u32 get_load(struct cpufreq_cooling_device *cpufreq_cdev, int cpu,
 	idle_time->timestamp = now;
 
 	return load;
+}
+
+/**
+ * get_static_power() - calculate the static power consumed by the cpus
+ * @cpufreq_cdev:	struct &cpufreq_cooling_device for this cpu cdev
+ * @tz:		thermal zone device in which we're operating
+ * @freq:	frequency in KHz
+ * @power:	pointer in which to store the calculated static power
+ *
+ * Calculate the static power consumed by the cpus described by
+ * @cpu_actor running at frequency @freq.  This function relies on a
+ * platform specific function that should have been provided when the
+ * actor was registered.  If it wasn't, the static power is assumed to
+ * be negligible.  The calculated static power is stored in @power.
+ *
+ * Return: 0 on success, -E* on failure.
+ */
+static int get_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
+			    struct thermal_zone_device *tz, unsigned long freq,
+			    u32 *power)
+{
+	struct dev_pm_opp *opp;
+	unsigned long voltage;
+	struct cpufreq_policy *policy = cpufreq_cdev->policy;
+	unsigned long freq_hz = freq * 1000;
+	struct device *dev;
+
+	if (!cpufreq_cdev->model_data) {
+		*power = 0;
+		return 0;
+	}
+
+	dev = get_cpu_device(policy->cpu);
+	WARN_ON(!dev);
+
+	opp = dev_pm_opp_find_freq_exact(dev, freq_hz, true);
+	if (IS_ERR(opp)) {
+		dev_warn_ratelimited(dev, "Failed to find OPP for frequency %lu: %ld\n",
+				     freq_hz, PTR_ERR(opp));
+		return -EINVAL;
+	}
+
+	voltage = dev_pm_opp_get_voltage(opp);
+	dev_pm_opp_put(opp);
+
+	if (voltage == 0) {
+		dev_err_ratelimited(dev, "Failed to get voltage for frequency %lu\n",
+				    freq_hz);
+		return -EINVAL;
+	}
+
+	*power = rockchip_ipa_get_static_power(cpufreq_cdev->model_data,
+					       voltage / 1000);
+
+	return 0;
 }
 
 /**
@@ -376,8 +434,8 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 				       u32 *power)
 {
 	unsigned long freq;
-	int i = 0, cpu;
-	u32 total_load = 0;
+	int i = 0, cpu, ret;
+	u32 static_power, dynamic_power, total_load = 0;
 	struct cpufreq_cooling_device *cpufreq_cdev = cdev->devdata;
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
 	u32 *load_cpu = NULL;
@@ -407,15 +465,22 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 
 	cpufreq_cdev->last_load = total_load;
 
-	*power = get_dynamic_power(cpufreq_cdev, freq);
+	dynamic_power = get_dynamic_power(cpufreq_cdev, freq);
+	ret = get_static_power(cpufreq_cdev, tz, freq, &static_power);
+	if (ret) {
+		kfree(load_cpu);
+		return ret;
+	}
 
 	if (load_cpu) {
 		trace_thermal_power_cpu_get_power(policy->related_cpus, freq,
-						  load_cpu, i, *power);
+						  load_cpu, i, dynamic_power,
+						  static_power);
 
 		kfree(load_cpu);
 	}
 
+	*power = static_power + dynamic_power;
 	return 0;
 }
 
@@ -439,6 +504,8 @@ static int cpufreq_state2power(struct thermal_cooling_device *cdev,
 			       unsigned long state, u32 *power)
 {
 	unsigned int freq, num_cpus, idx;
+	u32 static_power, dynamic_power;
+	int ret;
 	struct cpufreq_cooling_device *cpufreq_cdev = cdev->devdata;
 
 	/* Request state should be less than max_level */
@@ -449,9 +516,13 @@ static int cpufreq_state2power(struct thermal_cooling_device *cdev,
 
 	idx = cpufreq_cdev->max_level - state;
 	freq = cpufreq_cdev->em->table[idx].frequency;
-	*power = cpu_freq_to_power(cpufreq_cdev, freq) * num_cpus;
+	dynamic_power = cpu_freq_to_power(cpufreq_cdev, freq) * num_cpus;
+	ret = get_static_power(cpufreq_cdev, tz, freq, &static_power);
+	if (ret)
+		return ret;
 
-	return 0;
+	*power = static_power + dynamic_power;
+	return ret;
 }
 
 /**
@@ -479,14 +550,21 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 			       unsigned long *state)
 {
 	unsigned int cur_freq, target_freq;
-	u32 last_load, normalised_power;
+	int ret;
+	s32 dyn_power;
+	u32 last_load, normalised_power, static_power;
 	struct cpufreq_cooling_device *cpufreq_cdev = cdev->devdata;
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
 
 	cur_freq = cpufreq_quick_get(policy->cpu);
-	power = power > 0 ? power : 0;
+	ret = get_static_power(cpufreq_cdev, tz, cur_freq, &static_power);
+	if (ret)
+		return ret;
+
+	dyn_power = power - static_power;
+	dyn_power = dyn_power > 0 ? dyn_power : 0;
 	last_load = cpufreq_cdev->last_load ?: 1;
-	normalised_power = (power * 100) / last_load;
+	normalised_power = (dyn_power * 100) / last_load;
 	target_freq = cpu_power_to_freq(cpufreq_cdev, normalised_power);
 
 	*state = get_level(cpufreq_cdev, target_freq);
@@ -537,6 +615,7 @@ static struct thermal_cooling_device *
 __cpufreq_cooling_register(struct device_node *np,
 			struct cpufreq_policy *policy, bool try_model)
 {
+	struct device *dev = get_cpu_device(policy->cpu);
 	struct thermal_cooling_device *cdev;
 	struct cpufreq_cooling_device *cpufreq_cdev;
 	char dev_name[THERMAL_NAME_LENGTH];
@@ -606,6 +685,11 @@ __cpufreq_cooling_register(struct device_node *np,
 
 	cpufreq_cdev->clipped_freq = get_state_freq(cpufreq_cdev, 0);
 	cpufreq_cdev->cdev = cdev;
+
+	cpufreq_cdev->model_data = rockchip_ipa_power_model_init(dev,
+								 "cpu_leakage");
+	if (IS_ERR(cpufreq_cdev->model_data))
+		cpufreq_cdev->model_data = NULL;
 
 	mutex_lock(&cooling_list_lock);
 	/* Register the notifier for first cpufreq cooling device */
@@ -720,6 +804,7 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	thermal_cooling_device_unregister(cpufreq_cdev->cdev);
 	ida_simple_remove(&cpufreq_ida, cpufreq_cdev->id);
 	kfree(cpufreq_cdev->idle_time);
+	kfree(cpufreq_cdev->model_data);
 	kfree(cpufreq_cdev);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cooling_unregister);
