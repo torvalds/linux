@@ -163,3 +163,7 @@ u32 rx51_secure_rng_call(u32 ptr, u32 count, u32 flag)
 				      NO_FLAG,
 				      3, ptr, count, flag, 0);
 }
+
+void __init omap_secure_init(void)
+{
+}
