@@ -3362,7 +3362,7 @@ static int live_lrc_layout(void *arg)
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	u32 *mem;
+	u32 *lrc;
 	int err;
 
 	/*
@@ -3370,13 +3370,13 @@ static int live_lrc_layout(void *arg)
 	 * match the layout saved by HW.
 	 */
 
-	mem = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!mem)
+	lrc = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!lrc)
 		return -ENOMEM;
 
 	err = 0;
 	for_each_engine(engine, gt, id) {
-		u32 *hw, *lrc;
+		u32 *hw;
 		int dw;
 
 		if (!engine->default_state)
@@ -3390,8 +3390,7 @@ static int live_lrc_layout(void *arg)
 		}
 		hw += LRC_STATE_PN * PAGE_SIZE / sizeof(*hw);
 
-		lrc = memset(mem, 0, PAGE_SIZE);
-		execlists_init_reg_state(lrc,
+		execlists_init_reg_state(memset(lrc, POISON_INUSE, PAGE_SIZE),
 					 engine->kernel_context,
 					 engine,
 					 engine->kernel_context->ring,
@@ -3461,7 +3460,7 @@ static int live_lrc_layout(void *arg)
 			break;
 	}
 
-	kfree(mem);
+	kfree(lrc);
 	return err;
 }
 
