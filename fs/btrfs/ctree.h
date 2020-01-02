@@ -469,6 +469,7 @@ struct btrfs_discard_ctl {
 	u64 prev_discard;
 	atomic_t discardable_extents;
 	atomic64_t discardable_bytes;
+	u64 max_discard_size;
 	unsigned long delay;
 	u32 iops_limit;
 	u32 kbps_limit;

@@ -10,7 +10,7 @@ struct btrfs_discard_ctl;
 struct btrfs_block_group;
 
 /* Discard size limits */
-#define BTRFS_ASYNC_DISCARD_MAX_SIZE	(SZ_64M)
+#define BTRFS_ASYNC_DISCARD_DEFAULT_MAX_SIZE		(SZ_64M)
 
 /* Work operations */
 void btrfs_discard_cancel_work(struct btrfs_discard_ctl *discard_ctl,
