@@ -685,11 +685,12 @@ static int domain_update_iommu_snooping(struct intel_iommu *skip)
 	return ret;
 }
 
-static int domain_update_iommu_superpage(struct intel_iommu *skip)
+static int domain_update_iommu_superpage(struct dmar_domain *domain,
+					 struct intel_iommu *skip)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
-	int mask = 0xf;
+	int mask = 0x3;
 
 	if (!intel_iommu_superpage) {
 		return 0;
@@ -699,7 +700,13 @@ static int domain_update_iommu_superpage(struct intel_iommu *skip)
 	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd) {
 		if (iommu != skip) {
-			mask &= cap_super_page_val(iommu->cap);
+			if (domain && domain_use_first_level(domain)) {
+				if (!cap_fl1gp_support(iommu->cap))
+					mask = 0x1;
+			} else {
+				mask &= cap_super_page_val(iommu->cap);
+			}
+
 			if (!mask)
 				break;
 		}
@@ -714,7 +721,7 @@ static void domain_update_iommu_cap(struct dmar_domain *domain)
 {
 	domain_update_iommu_coherency(domain);
 	domain->iommu_snooping = domain_update_iommu_snooping(NULL);
-	domain->iommu_superpage = domain_update_iommu_superpage(NULL);
+	domain->iommu_superpage = domain_update_iommu_superpage(domain, NULL);
 }
 
 struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
@@ -4604,7 +4611,7 @@ static int intel_iommu_add(struct dmar_drhd_unit *dmaru)
 			iommu->name);
 		return -ENXIO;
 	}
-	sp = domain_update_iommu_superpage(iommu) - 1;
+	sp = domain_update_iommu_superpage(NULL, iommu) - 1;
 	if (sp >= 0 && !(cap_super_page_val(iommu->cap) & (1 << sp))) {
 		pr_warn("%s: Doesn't support large page.\n",
 			iommu->name);
