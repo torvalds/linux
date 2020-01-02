@@ -338,7 +338,8 @@ static void rkisp_config_clk(struct rkisp_device *dev, int on)
 		      CLK_CTRL_MI_JPEG | CLK_CTRL_MI_DP |
 		      CLK_CTRL_MI_Y12 | CLK_CTRL_MI_SP |
 		      CLK_CTRL_MI_RAW0 | CLK_CTRL_MI_RAW1 |
-		      CLK_CTRL_MI_READ | CLK_CTRL_MI_RAWRD;
+		      CLK_CTRL_MI_READ | CLK_CTRL_MI_RAWRD |
+		      CLK_CTRL_ISP_3A;
 		writel(val, dev->base_addr + CTRL_VI_ISP_CLK_CTRL);
 	}
 }
@@ -501,6 +502,15 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	irq_mask |= CIF_ISP_FRAME | CIF_ISP_V_START | CIF_ISP_PIC_SIZE_ERROR |
 		    CIF_ISP_FRAME_IN | CIF_ISP_AWB_DONE | CIF_ISP_AFM_FIN;
 	writel(irq_mask, base + CIF_ISP_IMSC);
+	if (dev->isp_ver == ISP_V20) {
+		irq_mask = ISP2X_3A_RAWAE_BIG | ISP2X_3A_RAWAE_CH0 |
+			ISP2X_3A_RAWAE_CH1 | ISP2X_3A_RAWAE_CH2 |
+			ISP2X_3A_RAWHIST_BIG | ISP2X_3A_RAWHIST_CH0 |
+			ISP2X_3A_RAWHIST_CH1 | ISP2X_3A_RAWHIST_CH2 |
+			ISP2X_3A_RAWAWB | ISP2X_3A_RAWAF | ISP2X_3A_RAWAF_SUM |
+			ISP2X_3A_RAWAF_LUM;
+		writel(irq_mask, base + ISP_ISP3A_IMSC);
+	}
 
 	if (out_fmt->fmt_type == FMT_BAYER)
 		rkisp_params_disable_isp(&dev->params_vdev);
@@ -697,6 +707,11 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 
 	writel(0, base + CIF_ISP_IMSC);
 	writel(~0, base + CIF_ISP_ICR);
+
+	if (dev->isp_ver == ISP_V20) {
+		writel(0, base + ISP_ISP3A_IMSC);
+		writel(~0, base + ISP_ISP3A_ICR);
+	}
 
 	writel(0, base + CIF_MI_IMSC);
 	writel(~0, base + CIF_MI_ICR);
@@ -1766,11 +1781,21 @@ void rkisp_mipi_v13_isr(unsigned int err1, unsigned int err2,
 		v4l2_warn(v4l2_dev, "MIPI error: err2: 0x%08x\n", err2);
 }
 
-void rkisp_isp_isr(unsigned int isp_mis, struct rkisp_device *dev)
+void rkisp_isp_isr(unsigned int isp_mis,
+		   unsigned int isp3a_mis,
+		   struct rkisp_device *dev)
 {
 	void __iomem *base = dev->base_addr;
 	unsigned int isp_mis_tmp = 0;
 	unsigned int isp_err = 0;
+	u32 si3a_isr_mask = ISP2X_SIAWB_DONE | ISP2X_SIAF_FIN |
+		ISP2X_YUVAE_END | ISP2X_SIHST_RDY;
+	u32 raw3a_isr_mask = ISP2X_3A_RAWAE_BIG | ISP2X_3A_RAWAE_CH0 |
+		ISP2X_3A_RAWAE_CH1 | ISP2X_3A_RAWAE_CH2 |
+		ISP2X_3A_RAWHIST_BIG | ISP2X_3A_RAWHIST_CH0 |
+		ISP2X_3A_RAWHIST_CH1 | ISP2X_3A_RAWHIST_CH2 |
+		ISP2X_3A_RAWAF_SUM | ISP2X_3A_RAWAF_LUM |
+		ISP2X_3A_RAWAF | ISP2X_3A_RAWAWB;
 
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 		 "isp isr:0x%x\n", isp_mis);
@@ -1856,7 +1881,8 @@ void rkisp_isp_isr(unsigned int isp_mis, struct rkisp_device *dev)
 		rkisp_isp_read_add_fifo_data(dev);
 	}
 
-	if (isp_mis & (CIF_ISP_FRAME | CIF_ISP_AWB_DONE | CIF_ISP_AFM_FIN)) {
+	if ((isp_mis & (CIF_ISP_FRAME | si3a_isr_mask)) ||
+	    (isp3a_mis & raw3a_isr_mask)) {
 		u32 irq = isp_mis;
 
 		/* FRAME to get EXP and HIST together */
@@ -1865,7 +1891,7 @@ void rkisp_isp_isr(unsigned int isp_mis, struct rkisp_device *dev)
 				CIF_ISP_HIST_MEASURE_RDY) &
 				readl(base + CIF_ISP_RIS));
 
-		rkisp_stats_isr(&dev->stats_vdev, irq);
+		rkisp_stats_isr(&dev->stats_vdev, irq, isp3a_mis);
 	}
 
 	/*

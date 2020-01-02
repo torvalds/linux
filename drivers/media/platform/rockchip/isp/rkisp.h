@@ -138,7 +138,8 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 			 unsigned int overflow, unsigned int state,
 			 struct rkisp_device *dev);
 
-void rkisp_isp_isr(unsigned int isp_mis, struct rkisp_device *dev);
+void rkisp_isp_isr(unsigned int isp_mis, unsigned int isp3a_mis,
+		   struct rkisp_device *dev);
 
 irqreturn_t rkisp_vs_isr_handler(int irq, void *ctx);
 

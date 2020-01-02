@@ -517,6 +517,8 @@
 #define CIF_ISP_AWB_YMAX_READ(x)		(((x) >> 2) & 1)
 #define CIF_ISP_AWB_MODE_RGB_EN			((1 << 31) | (0x2 << 0))
 #define CIF_ISP_AWB_MODE_YCBCR_EN		((0 << 31) | (0x2 << 0))
+#define CIF_ISP_AWB_MODE_RGB			BIT(31)
+#define CIF_ISP_AWB_ENABLE			(0x2 << 0)
 #define CIF_ISP_AWB_MODE_MASK_NONE		0xFFFFFFFC
 #define CIF_ISP_AWB_MODE_READ(x)		((x) & 3)
 #define CIF_ISP_AWB_SET_FRAMES_V12(x)		(((x) & 0x07) << 28)

@@ -591,11 +591,13 @@ static irqreturn_t rkisp_irq_handler(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct rkisp_device *rkisp_dev = dev_get_drvdata(dev);
-	unsigned int mis_val;
+	unsigned int mis_val, mis_3a = 0;
 
 	mis_val = readl(rkisp_dev->base_addr + CIF_ISP_MIS);
-	if (mis_val)
-		rkisp_isp_isr(mis_val, rkisp_dev);
+	if (rkisp_dev->isp_ver == ISP_V20)
+		mis_3a = readl(rkisp_dev->base_addr + ISP_ISP3A_MIS);
+	if (mis_val || mis_3a)
+		rkisp_isp_isr(mis_val, mis_3a, rkisp_dev);
 
 	mis_val = readl(rkisp_dev->base_addr + CIF_MIPI_MIS);
 	if (mis_val)
@@ -612,11 +614,13 @@ static irqreturn_t rkisp_isp_irq_hdl(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct rkisp_device *rkisp_dev = dev_get_drvdata(dev);
-	unsigned int mis_val;
+	unsigned int mis_val, mis_3a = 0;
 
 	mis_val = readl(rkisp_dev->base_addr + CIF_ISP_MIS);
-	if (mis_val)
-		rkisp_isp_isr(mis_val, rkisp_dev);
+	if (rkisp_dev->isp_ver == ISP_V20)
+		mis_3a = readl(rkisp_dev->base_addr + ISP_ISP3A_MIS);
+	if (mis_val || mis_3a)
+		rkisp_isp_isr(mis_val, mis_3a, rkisp_dev);
 
 	return IRQ_HANDLED;
 }
