@@ -66,13 +66,6 @@ struct amdgpu_copy_mem {
 	unsigned long			offset;
 };
 
-/* Definitions for constance */
-enum amdgpu_internal_constants
-{
-	ONE_KiB	= 0x400,
-	ONE_MiB	= 0x100000,
-};
-
 extern const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func;
 extern const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
 
