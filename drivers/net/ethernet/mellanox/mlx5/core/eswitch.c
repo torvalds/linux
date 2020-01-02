@@ -1707,8 +1707,7 @@ static int esw_vport_create_legacy_acl_tables(struct mlx5_eswitch *esw,
 	if (mlx5_esw_is_manager_vport(esw, vport->vport))
 		return 0;
 
-	if (!mlx5_esw_is_manager_vport(esw, vport->vport) &&
-	    MLX5_CAP_ESW_INGRESS_ACL(esw->dev, flow_counter)) {
+	if (MLX5_CAP_ESW_INGRESS_ACL(esw->dev, flow_counter)) {
 		vport->ingress.legacy.drop_counter = mlx5_fc_create(esw->dev, false);
 		if (IS_ERR(vport->ingress.legacy.drop_counter)) {
 			esw_warn(esw->dev,
@@ -1722,8 +1721,7 @@ static int esw_vport_create_legacy_acl_tables(struct mlx5_eswitch *esw,
 	if (ret)
 		goto ingress_err;
 
-	if (!mlx5_esw_is_manager_vport(esw, vport->vport) &&
-	    MLX5_CAP_ESW_EGRESS_ACL(esw->dev, flow_counter)) {
+	if (MLX5_CAP_ESW_EGRESS_ACL(esw->dev, flow_counter)) {
 		vport->egress.legacy.drop_counter = mlx5_fc_create(esw->dev, false);
 		if (IS_ERR(vport->egress.legacy.drop_counter)) {
 			esw_warn(esw->dev,
