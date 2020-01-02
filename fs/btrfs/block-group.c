@@ -96,7 +96,7 @@ static u64 btrfs_reduce_alloc_profile(struct btrfs_fs_info *fs_info, u64 flags)
 	return extended_to_chunk(flags | allowed);
 }
 
-static u64 get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags)
+u64 btrfs_get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags)
 {
 	unsigned seq;
 	u64 flags;
@@ -114,11 +114,6 @@ static u64 get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags)
 	} while (read_seqretry(&fs_info->profiles_lock, seq));
 
 	return btrfs_reduce_alloc_profile(fs_info, flags);
-}
-
-u64 btrfs_get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags)
-{
-	return get_alloc_profile(fs_info, orig_flags);
 }
 
 void btrfs_get_block_group(struct btrfs_block_group *cache)
