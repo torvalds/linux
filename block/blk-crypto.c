@@ -171,15 +171,19 @@ bool blk_crypto_endio(struct bio *bio)
 /**
  * blk_crypto_init_key() - Prepare a key for use with blk-crypto
  * @blk_key: Pointer to the blk_crypto_key to initialize.
- * @raw_key: Pointer to the raw key.  Must be the correct length for the chosen
- *	     @crypto_mode; see blk_crypto_modes[].
+ * @raw_key: Pointer to the raw key.
+ * @raw_key_size: Size of raw key.  Must be at least the required size for the
+ *                chosen @crypto_mode; see blk_crypto_modes[].  (It's allowed
+ *                to be longer than the mode's actual key size, in order to
+ *                support inline encryption hardware that accepts wrapped keys.)
  * @crypto_mode: identifier for the encryption algorithm to use
  * @data_unit_size: the data unit size to use for en/decryption
  *
  * Return: The blk_crypto_key that was prepared, or an ERR_PTR() on error.  When
  *	   done using the key, it must be freed with blk_crypto_free_key().
  */
-int blk_crypto_init_key(struct blk_crypto_key *blk_key, const u8 *raw_key,
+int blk_crypto_init_key(struct blk_crypto_key *blk_key,
+			const u8 *raw_key, unsigned int raw_key_size,
 			enum blk_crypto_mode_num crypto_mode,
 			unsigned int data_unit_size)
 {
@@ -191,8 +195,11 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key, const u8 *raw_key,
 	if (crypto_mode >= ARRAY_SIZE(blk_crypto_modes))
 		return -EINVAL;
 
+	BUILD_BUG_ON(BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE < BLK_CRYPTO_MAX_KEY_SIZE);
+
 	mode = &blk_crypto_modes[crypto_mode];
-	if (mode->keysize == 0)
+	if (raw_key_size < mode->keysize ||
+	    raw_key_size > BLK_CRYPTO_MAX_WRAPPED_KEY_SIZE)
 		return -EINVAL;
 
 	if (!is_power_of_2(data_unit_size))
@@ -201,8 +208,8 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key, const u8 *raw_key,
 	blk_key->crypto_mode = crypto_mode;
 	blk_key->data_unit_size = data_unit_size;
 	blk_key->data_unit_size_bits = ilog2(data_unit_size);
-	blk_key->size = mode->keysize;
-	memcpy(blk_key->raw, raw_key, mode->keysize);
+	blk_key->size = raw_key_size;
+	memcpy(blk_key->raw, raw_key, raw_key_size);
 
 	/*
 	 * The keyslot manager uses the SipHash of the key to implement O(1) key
@@ -210,7 +217,7 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key, const u8 *raw_key,
 	 * precomputed here so that it only needs to be computed once per key.
 	 */
 	get_random_once(&hash_key, sizeof(hash_key));
-	blk_key->hash = siphash(raw_key, mode->keysize, &hash_key);
+	blk_key->hash = siphash(raw_key, raw_key_size, &hash_key);
 
 	return 0;
 }

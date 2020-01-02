@@ -168,6 +168,7 @@ static int find_keyslot(struct keyslot_manager *ksm,
 	hlist_for_each_entry(slotp, head, hash_node) {
 		if (slotp->key.hash == key->hash &&
 		    slotp->key.crypto_mode == key->crypto_mode &&
+		    slotp->key.size == key->size &&
 		    slotp->key.data_unit_size == key->data_unit_size &&
 		    !crypto_memneq(slotp->key.raw, key->raw, key->size))
 			return slotp - ksm->slots;

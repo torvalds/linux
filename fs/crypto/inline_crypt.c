@@ -74,8 +74,8 @@ int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 	else
 		sb->s_cop->get_devices(sb, blk_key->devs);
 
-	err = blk_crypto_init_key(&blk_key->base, raw_key, crypto_mode,
-				  sb->s_blocksize);
+	err = blk_crypto_init_key(&blk_key->base, raw_key, ci->ci_mode->keysize,
+				  crypto_mode, sb->s_blocksize);
 	if (err) {
 		fscrypt_err(inode, "error %d initializing blk-crypto key", err);
 		goto fail;
