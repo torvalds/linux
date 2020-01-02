@@ -174,6 +174,18 @@ config COMMON_CLK_CS2000_CP
 	help
 	  If you say yes here you get support for the CS2000 clock multiplier.
 
+config COMMON_CLK_FSL_SAI
+	bool "Clock driver for BCLK of Freescale SAI cores"
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	help
+	  This driver supports the Freescale SAI (Synchronous Audio Interface)
+	  to be used as a generic clock output. Some SoCs have restrictions
+	  regarding the possible pin multiplexer settings. Eg. on some SoCs
+	  two SAI interfaces can only be enabled together. If just one is
+	  needed, the BCLK pin of the second one can be used as general
+	  purpose clock output. Ideally, it can be used to drive an audio
+	  codec (sometimes known as MCLK).
+
 config COMMON_CLK_GEMINI
 	bool "Clock driver for Cortina Systems Gemini SoC"
 	depends on ARCH_GEMINI || COMPILE_TEST
