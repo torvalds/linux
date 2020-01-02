@@ -401,7 +401,7 @@ static inline void *erofs_get_pcpubuf(unsigned int pagenr)
 #ifdef CONFIG_EROFS_FS_ZIP
 int erofs_workgroup_put(struct erofs_workgroup *grp);
 struct erofs_workgroup *erofs_find_workgroup(struct super_block *sb,
-					     pgoff_t index, bool *tag);
+					     pgoff_t index);
 int erofs_register_workgroup(struct super_block *sb,
 			     struct erofs_workgroup *grp, bool tag);
 void erofs_workgroup_free_rcu(struct erofs_workgroup *grp);

@@ -59,7 +59,7 @@ repeat:
 }
 
 struct erofs_workgroup *erofs_find_workgroup(struct super_block *sb,
-					     pgoff_t index, bool *tag)
+					     pgoff_t index)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 	struct erofs_workgroup *grp;
@@ -68,7 +68,6 @@ repeat:
 	rcu_read_lock();
 	grp = radix_tree_lookup(&sbi->workstn_tree, index);
 	if (grp) {
-		*tag = xa_pointer_tag(grp);
 		grp = xa_untag_pointer(grp);
 
 		if (erofs_workgroup_get(grp)) {
