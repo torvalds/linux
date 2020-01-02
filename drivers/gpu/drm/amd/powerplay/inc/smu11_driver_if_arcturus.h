@@ -622,8 +622,14 @@ typedef struct {
   uint16_t     PccThresholdHigh;
   uint32_t     PaddingAPCC[6];  //FIXME pending SPEC
 
+  // OOB Settings
+  uint16_t BasePerformanceCardPower;
+  uint16_t MaxPerformanceCardPower;
+  uint16_t BasePerformanceFrequencyCap;   //In Mhz
+  uint16_t MaxPerformanceFrequencyCap;    //In Mhz
+
   // SECTION: Reserved
-  uint32_t     Reserved[11];
+  uint32_t     Reserved[9];
 
   // SECTION: BOARD PARAMETERS
 
