@@ -2186,6 +2186,14 @@ struct hci_ev_le_direct_adv_info {
 	__s8	 rssi;
 } __packed;
 
+#define HCI_EV_LE_PHY_UPDATE_COMPLETE	0x0c
+struct hci_ev_le_phy_update_complete {
+	__u8  status;
+	__u16 handle;
+	__u8  tx_phy;
+	__u8  rx_phy;
+} __packed;
+
 #define HCI_EV_LE_EXT_ADV_REPORT    0x0d
 struct hci_ev_le_ext_adv_report {
 	__le16 	 evt_type;

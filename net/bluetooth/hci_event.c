@@ -5718,6 +5718,29 @@ static void hci_le_direct_adv_report_evt(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
+static void hci_le_phy_update_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_le_phy_update_complete *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+
+	if (!ev->status)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
+	if (!conn)
+		goto unlock;
+
+	conn->le_tx_phy = ev->tx_phy;
+	conn->le_rx_phy = ev->rx_phy;
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
 static void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_le_meta *le_ev = (void *) skb->data;
@@ -5751,6 +5774,10 @@ static void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_LE_DIRECT_ADV_REPORT:
 		hci_le_direct_adv_report_evt(hdev, skb);
+		break;
+
+	case HCI_EV_LE_PHY_UPDATE_COMPLETE:
+		hci_le_phy_update_evt(hdev, skb);
 		break;
 
 	case HCI_EV_LE_EXT_ADV_REPORT:
