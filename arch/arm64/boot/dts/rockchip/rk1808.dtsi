@@ -58,7 +58,7 @@
 				compatible = "simple-power-model";
 				ref-leakage = <31>;
 				static-coefficient = <100000>;
-				ts = <59740 24105 (-245) 7>;
+				ts = <597400 241050 (-2450) 70>;
 				thermal-zone = "soc-thermal";
 			};
 		};
@@ -1702,7 +1702,7 @@
 			ref-leakage = <31>;
 			static-coefficient = <100000>;
 			dynamic-coefficient = <3080>;
-			ts = <8861 30312 (-500) 10>;
+			ts = <88610 303120 (-5000) 100>;
 			thermal-zone = "soc-thermal";
 		};
 	};

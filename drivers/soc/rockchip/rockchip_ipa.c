@@ -106,7 +106,8 @@ static u32 calculate_temp_scaling_factor(s32 ts[4], s64 t)
 			  + ts[1] * t
 			  + ts[0] * 1000LL;
 
-	s64 res_unclamped = div_s64(res_big, 1000);
+	/* ts has beed multiplied by 10 in devicetree */
+	s64 res_unclamped = div_s64(res_big, 10000);
 
 	/* Clamp to range of 0x to 10x the static power */
 	return clamp(res_unclamped, (s64)0, (s64)10000000);
