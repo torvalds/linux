@@ -1143,7 +1143,7 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	int i, err;
 	unsigned int irq;
 	unsigned long ctrl_addr, txdma_addr, rxdma_addr;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_pmac_dev_free,
 	};
 
