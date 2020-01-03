@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/soc/brcmstb/brcmstb.h>
 #include <dt-bindings/phy/phy.h>
+#include <linux/mfd/syscon.h>
 
 #include "phy-brcm-usb-init.h"
 
@@ -30,6 +31,11 @@ enum brcm_usb_phy_id {
 struct value_to_name_map {
 	int value;
 	const char *name;
+};
+
+struct match_chip_info {
+	void *init_func;
+	u8 required_regs[BRCM_REGS_MAX + 1];
 };
 
 static struct value_to_name_map brcm_dr_mode_to_name[] = {
@@ -62,6 +68,10 @@ struct brcm_usb_phy_data {
 	int			init_count;
 	int			wake_irq;
 	struct brcm_usb_phy	phys[BRCM_USB_PHY_ID_MAX];
+};
+
+static s8 *node_reg_names[BRCM_REGS_MAX] = {
+	"crtl", "xhci_ec", "xhci_gbl", "usb_phy", "usb_mdio"
 };
 
 static irqreturn_t brcm_usb_phy_wake_isr(int irq, void *dev_id)
@@ -241,14 +251,85 @@ static const struct attribute_group brcm_usb_phy_group = {
 	.attrs = brcm_usb_phy_attrs,
 };
 
+static struct match_chip_info chip_info_7216 = {
+	.init_func = &brcm_usb_dvr_init_7216,
+	.required_regs = {
+		BRCM_REGS_CTRL,
+		BRCM_REGS_XHCI_EC,
+		BRCM_REGS_XHCI_GBL,
+		-1,
+	},
+};
+
+static struct match_chip_info chip_info_7211b0 = {
+	.init_func = &brcm_usb_dvr_init_7211b0,
+	.required_regs = {
+		BRCM_REGS_CTRL,
+		BRCM_REGS_XHCI_EC,
+		BRCM_REGS_XHCI_GBL,
+		BRCM_REGS_USB_PHY,
+		BRCM_REGS_USB_MDIO,
+		-1,
+	},
+};
+
+static struct match_chip_info chip_info_7445 = {
+	.init_func = &brcm_usb_dvr_init_7445,
+	.required_regs = {
+		BRCM_REGS_CTRL,
+		BRCM_REGS_XHCI_EC,
+		-1,
+	},
+};
+
 static const struct of_device_id brcm_usb_dt_ids[] = {
 	{
 		.compatible = "brcm,bcm7216-usb-phy",
-		.data = &brcm_usb_dvr_init_7216,
+		.data = &chip_info_7216,
 	},
-	{ .compatible = "brcm,brcmstb-usb-phy" },
+	{
+		.compatible = "brcm,bcm7211-usb-phy",
+		.data = &chip_info_7211b0,
+	},
+	{
+		.compatible = "brcm,brcmstb-usb-phy",
+		.data = &chip_info_7445,
+	},
 	{ /* sentinel */ }
 };
+
+static int brcm_usb_get_regs(struct platform_device *pdev,
+			     enum brcmusb_reg_sel regs,
+			     struct  brcm_usb_init_params *ini)
+{
+	struct resource *res;
+
+	/* Older DT nodes have ctrl and optional xhci_ec by index only */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						node_reg_names[regs]);
+	if (res == NULL) {
+		if (regs == BRCM_REGS_CTRL) {
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		} else if (regs == BRCM_REGS_XHCI_EC) {
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+			/* XHCI_EC registers are optional */
+			if (res == NULL)
+				return 0;
+		}
+		if (res == NULL) {
+			dev_err(&pdev->dev, "can't get %s base address\n",
+				node_reg_names[regs]);
+			return 1;
+		}
+	}
+	ini->regs[regs] = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ini->regs[regs])) {
+		dev_err(&pdev->dev, "can't map %s register space\n",
+			node_reg_names[regs]);
+		return 1;
+	}
+	return 0;
+}
 
 static int brcm_usb_phy_dvr_init(struct platform_device *pdev,
 				 struct brcm_usb_phy_data *priv,
@@ -325,9 +406,6 @@ static int brcm_usb_phy_dvr_init(struct platform_device *pdev,
 
 static int brcm_usb_phy_probe(struct platform_device *pdev)
 {
-	struct resource *res_ctrl;
-	struct resource *res_xhciec = NULL;
-	struct resource *res_xhcigbl = NULL;
 	struct device *dev = &pdev->dev;
 	struct brcm_usb_phy_data *priv;
 	struct phy_provider *phy_provider;
@@ -335,6 +413,10 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	int err;
 	const char *mode;
 	const struct of_device_id *match;
+	void (*dvr_init)(struct brcm_usb_init_params *params);
+	const struct match_chip_info *info;
+	struct regmap *rmap;
+	int x;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -345,57 +427,12 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	priv->ini.product_id = brcmstb_get_product_id();
 
 	match = of_match_node(brcm_usb_dt_ids, dev->of_node);
-	if (match && match->data) {
-		void (*dvr_init)(struct brcm_usb_init_params *params);
-
-		dvr_init = match->data;
-		(*dvr_init)(&priv->ini);
-	} else {
-		brcm_usb_dvr_init_7445(&priv->ini);
-	}
+	info = match->data;
+	dvr_init = info->init_func;
+	(*dvr_init)(&priv->ini);
 
 	dev_dbg(dev, "Best mapping table is for %s\n",
 		priv->ini.family_name);
-
-	/* Newer DT node has reg-names. xhci_ec and xhci_gbl are optional. */
-	res_ctrl = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ctrl");
-	if (res_ctrl != NULL) {
-		res_xhciec = platform_get_resource_byname(pdev,
-							  IORESOURCE_MEM,
-							  "xhci_ec");
-		res_xhcigbl = platform_get_resource_byname(pdev,
-							   IORESOURCE_MEM,
-							   "xhci_gbl");
-	} else {
-		/* Older DT node without reg-names, use index */
-		res_ctrl = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (res_ctrl == NULL) {
-			dev_err(dev, "can't get CTRL base address\n");
-			return -EINVAL;
-		}
-		res_xhciec = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	}
-	priv->ini.ctrl_regs = devm_ioremap_resource(dev, res_ctrl);
-	if (IS_ERR(priv->ini.ctrl_regs)) {
-		dev_err(dev, "can't map CTRL register space\n");
-		return -EINVAL;
-	}
-	if (res_xhciec) {
-		priv->ini.xhci_ec_regs =
-			devm_ioremap_resource(dev, res_xhciec);
-		if (IS_ERR(priv->ini.xhci_ec_regs)) {
-			dev_err(dev, "can't map XHCI EC register space\n");
-			return -EINVAL;
-		}
-	}
-	if (res_xhcigbl) {
-		priv->ini.xhci_gbl_regs =
-			devm_ioremap_resource(dev, res_xhcigbl);
-		if (IS_ERR(priv->ini.xhci_gbl_regs)) {
-			dev_err(dev, "can't map XHCI Global register space\n");
-			return -EINVAL;
-		}
-	}
 
 	of_property_read_u32(dn, "brcm,ipp", &priv->ini.ipp);
 	of_property_read_u32(dn, "brcm,ioc", &priv->ini.ioc);
@@ -411,6 +448,16 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 		priv->has_xhci = true;
 	if (of_property_read_bool(dn, "brcm,has-eohci"))
 		priv->has_eohci = true;
+
+	for (x = 0; x < BRCM_REGS_MAX; x++) {
+		if (info->required_regs[x] >= BRCM_REGS_MAX)
+			break;
+
+		err = brcm_usb_get_regs(pdev, info->required_regs[x],
+					&priv->ini);
+		if (err)
+			return -EINVAL;
+	}
 
 	err = brcm_usb_phy_dvr_init(pdev, priv, dn);
 	if (err)
@@ -430,6 +477,15 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	err = sysfs_create_group(&dev->kobj, &brcm_usb_phy_group);
 	if (err)
 		dev_warn(dev, "Error creating sysfs attributes\n");
+
+	/* Get piarbctl syscon if it exists */
+	rmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+						 "syscon-piarbctl");
+	if (IS_ERR(rmap))
+		rmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+						       "brcm,syscon-piarbctl");
+	if (!IS_ERR(rmap))
+		priv->ini.syscon_piarbctl = rmap;
 
 	/* start with everything off */
 	if (priv->has_xhci)

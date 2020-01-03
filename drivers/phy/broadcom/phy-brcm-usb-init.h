@@ -6,12 +6,21 @@
 #ifndef _USB_BRCM_COMMON_INIT_H
 #define _USB_BRCM_COMMON_INIT_H
 
+#include <linux/regmap.h>
+
 #define USB_CTLR_MODE_HOST 0
 #define USB_CTLR_MODE_DEVICE 1
 #define USB_CTLR_MODE_DRD 2
 #define USB_CTLR_MODE_TYPEC_PD 3
 
-struct  brcm_usb_init_params;
+enum brcmusb_reg_sel {
+	BRCM_REGS_CTRL = 0,
+	BRCM_REGS_XHCI_EC,
+	BRCM_REGS_XHCI_GBL,
+	BRCM_REGS_USB_PHY,
+	BRCM_REGS_USB_MDIO,
+	BRCM_REGS_MAX
+};
 
 #define USB_CTRL_REG(base, reg)	((void __iomem *)base + USB_CTRL_##reg)
 #define USB_XHCI_EC_REG(base, reg) ((void __iomem *)base + USB_XHCI_EC_##reg)
@@ -41,9 +50,7 @@ struct brcm_usb_init_ops {
 };
 
 struct  brcm_usb_init_params {
-	void __iomem *ctrl_regs;
-	void __iomem *xhci_ec_regs;
-	void __iomem *xhci_gbl_regs;
+	void __iomem *regs[BRCM_REGS_MAX];
 	int ioc;
 	int ipp;
 	int mode;
@@ -53,10 +60,12 @@ struct  brcm_usb_init_params {
 	const char *family_name;
 	const u32 *usb_reg_bits_map;
 	const struct brcm_usb_init_ops *ops;
+	struct regmap *syscon_piarbctl;
 };
 
 void brcm_usb_dvr_init_7445(struct brcm_usb_init_params *params);
 void brcm_usb_dvr_init_7216(struct brcm_usb_init_params *params);
+void brcm_usb_dvr_init_7211b0(struct brcm_usb_init_params *params);
 
 static inline u32 brcm_usb_readl(void __iomem *addr)
 {

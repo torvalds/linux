@@ -401,7 +401,7 @@ void usb_ctrl_unset_family(struct brcm_usb_init_params *params,
 	u32 mask;
 
 	mask = params->usb_reg_bits_map[field];
-	brcm_usb_ctrl_unset(params->ctrl_regs + reg_offset, mask);
+	brcm_usb_ctrl_unset(params->regs[BRCM_REGS_CTRL] + reg_offset, mask);
 };
 
 static inline
@@ -411,7 +411,7 @@ void usb_ctrl_set_family(struct brcm_usb_init_params *params,
 	u32 mask;
 
 	mask = params->usb_reg_bits_map[field];
-	brcm_usb_ctrl_set(params->ctrl_regs + reg_offset, mask);
+	brcm_usb_ctrl_set(params->regs[BRCM_REGS_CTRL] + reg_offset, mask);
 };
 
 static u32 brcmusb_usb_mdio_read(void __iomem *ctrl_base, u32 reg, int mode)
@@ -544,7 +544,7 @@ static void brcmusb_usb3_pll_54mhz(struct brcm_usb_init_params *params)
 {
 	u32 ofs;
 	int ii;
-	void __iomem *ctrl_base = params->ctrl_regs;
+	void __iomem *ctrl_base = params->regs[BRCM_REGS_CTRL];
 
 	/*
 	 * On newer B53 based SoC's, the reference clock for the
@@ -625,7 +625,7 @@ static void brcmusb_usb3_ssc_enable(void __iomem *ctrl_base)
 
 static void brcmusb_usb3_phy_workarounds(struct brcm_usb_init_params *params)
 {
-	void __iomem *ctrl_base = params->ctrl_regs;
+	void __iomem *ctrl_base = params->regs[BRCM_REGS_CTRL];
 
 	brcmusb_usb3_pll_fix(ctrl_base);
 	brcmusb_usb3_pll_54mhz(params);
@@ -667,7 +667,7 @@ static void brcmusb_memc_fix(struct brcm_usb_init_params *params)
 
 static void brcmusb_usb3_otp_fix(struct brcm_usb_init_params *params)
 {
-	void __iomem *xhci_ec_base = params->xhci_ec_regs;
+	void __iomem *xhci_ec_base = params->regs[BRCM_REGS_XHCI_EC];
 	u32 val;
 
 	if (params->family_id != 0x74371000 || !xhci_ec_base)
@@ -680,8 +680,8 @@ static void brcmusb_usb3_otp_fix(struct brcm_usb_init_params *params)
 	brcm_usb_writel(val, USB_XHCI_EC_REG(xhci_ec_base, IRADAT));
 
 	/* Reset USB 3.0 PHY for workaround to take effect */
-	USB_CTRL_UNSET(params->ctrl_regs, USB30_CTL1, PHY3_RESETB);
-	USB_CTRL_SET(params->ctrl_regs,	USB30_CTL1, PHY3_RESETB);
+	USB_CTRL_UNSET(params->regs[BRCM_REGS_CTRL], USB30_CTL1, PHY3_RESETB);
+	USB_CTRL_SET(params->regs[BRCM_REGS_CTRL], USB30_CTL1, PHY3_RESETB);
 }
 
 static void brcmusb_xhci_soft_reset(struct brcm_usb_init_params *params,
@@ -740,7 +740,7 @@ static enum brcm_family_type get_family_type(
 
 static void usb_init_ipp(struct brcm_usb_init_params *params)
 {
-	void __iomem *ctrl = params->ctrl_regs;
+	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 	u32 reg;
 	u32 orig_reg;
 
@@ -786,7 +786,7 @@ static void usb_init_ipp(struct brcm_usb_init_params *params)
 static void usb_init_common(struct brcm_usb_init_params *params)
 {
 	u32 reg;
-	void __iomem *ctrl = params->ctrl_regs;
+	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 
 	/* Clear any pending wake conditions */
 	reg = brcm_usb_readl(USB_CTRL_REG(ctrl, USB_PM_STATUS));
@@ -866,7 +866,7 @@ static void usb_init_common(struct brcm_usb_init_params *params)
 static void usb_init_eohci(struct brcm_usb_init_params *params)
 {
 	u32 reg;
-	void __iomem *ctrl = params->ctrl_regs;
+	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 
 	if (USB_CTRL_MASK_FAMILY(params, USB_PM, USB20_HC_RESETB))
 		USB_CTRL_SET_FAMILY(params, USB_PM, USB20_HC_RESETB);
@@ -902,7 +902,7 @@ static void usb_init_eohci(struct brcm_usb_init_params *params)
 
 static void usb_init_xhci(struct brcm_usb_init_params *params)
 {
-	void __iomem *ctrl = params->ctrl_regs;
+	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 
 	USB_CTRL_UNSET(ctrl, USB30_PCTL, PHY3_IDDQ_OVERRIDE);
 	/* 1 millisecond - for USB clocks to settle down */
@@ -944,12 +944,13 @@ static void usb_uninit_eohci(struct brcm_usb_init_params *params)
 static void usb_uninit_xhci(struct brcm_usb_init_params *params)
 {
 	brcmusb_xhci_soft_reset(params, 1);
-	USB_CTRL_SET(params->ctrl_regs, USB30_PCTL, PHY3_IDDQ_OVERRIDE);
+	USB_CTRL_SET(params->regs[BRCM_REGS_CTRL], USB30_PCTL,
+		     PHY3_IDDQ_OVERRIDE);
 }
 
 static int usb_get_dual_select(struct brcm_usb_init_params *params)
 {
-	void __iomem *ctrl = params->ctrl_regs;
+	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 	u32 reg = 0;
 
 	pr_debug("%s\n", __func__);
@@ -963,7 +964,7 @@ static int usb_get_dual_select(struct brcm_usb_init_params *params)
 
 static void usb_set_dual_select(struct brcm_usb_init_params *params, int mode)
 {
-	void __iomem *ctrl = params->ctrl_regs;
+	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 	u32 reg;
 
 	pr_debug("%s\n", __func__);
@@ -980,7 +981,7 @@ static void usb_set_dual_select(struct brcm_usb_init_params *params, int mode)
 static void usb_wake_enable(struct brcm_usb_init_params *params,
 			  int enable)
 {
-	void __iomem *ctrl = params->ctrl_regs;
+	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 
 	if (enable)
 		USB_CTRL_SET(ctrl, USB_PM, RMTWKUP_EN);
