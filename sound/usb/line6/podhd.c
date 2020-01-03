@@ -42,7 +42,7 @@ struct usb_line6_podhd {
 
 #define line6_to_podhd(x)	container_of(x, struct usb_line6_podhd, line6)
 
-static struct snd_ratden podhd_ratden = {
+static const struct snd_ratden podhd_ratden = {
 	.num_min = 48000,
 	.num_max = 48000,
 	.num_step = 1,
