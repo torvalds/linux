@@ -629,8 +629,7 @@ int crypto_register_instance(struct crypto_template *tmpl,
 		spawn->inst = inst;
 		spawn->registered = true;
 
-		if (spawn->dropref)
-			crypto_mod_put(spawn->alg);
+		crypto_mod_put(spawn->alg);
 
 		spawn = next;
 	}
@@ -672,36 +671,14 @@ void crypto_unregister_instance(struct crypto_instance *inst)
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_instance);
 
-int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
-		      struct crypto_instance *inst, u32 mask)
-{
-	int err = -EAGAIN;
-
-	if (WARN_ON_ONCE(inst == NULL))
-		return -EINVAL;
-
-	spawn->next = inst->spawns;
-	inst->spawns = spawn;
-
-	spawn->mask = mask;
-
-	down_write(&crypto_alg_sem);
-	if (!crypto_is_moribund(alg)) {
-		list_add(&spawn->list, &alg->cra_users);
-		spawn->alg = alg;
-		err = 0;
-	}
-	up_write(&crypto_alg_sem);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(crypto_init_spawn);
-
 int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
 		      const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *alg;
-	int err;
+	int err = -EAGAIN;
+
+	if (WARN_ON_ONCE(inst == NULL))
+		return -EINVAL;
 
 	/* Allow the result of crypto_attr_alg_name() to be passed directly */
 	if (IS_ERR(name))
@@ -711,8 +688,16 @@ int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
 	if (IS_ERR(alg))
 		return PTR_ERR(alg);
 
-	spawn->dropref = true;
-	err = crypto_init_spawn(spawn, alg, inst, mask);
+	down_write(&crypto_alg_sem);
+	if (!crypto_is_moribund(alg)) {
+		list_add(&spawn->list, &alg->cra_users);
+		spawn->alg = alg;
+		spawn->mask = mask;
+		spawn->next = inst->spawns;
+		inst->spawns = spawn;
+		err = 0;
+	}
+	up_write(&crypto_alg_sem);
 	if (err)
 		crypto_mod_put(alg);
 	return err;
@@ -729,7 +714,7 @@ void crypto_drop_spawn(struct crypto_spawn *spawn)
 		list_del(&spawn->list);
 	up_write(&crypto_alg_sem);
 
-	if (spawn->dropref && !spawn->registered)
+	if (!spawn->registered)
 		crypto_mod_put(spawn->alg);
 }
 EXPORT_SYMBOL_GPL(crypto_drop_spawn);

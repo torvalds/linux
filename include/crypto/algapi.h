@@ -82,7 +82,6 @@ struct crypto_spawn {
 	const struct crypto_type *frontend;
 	u32 mask;
 	bool dead;
-	bool dropref;
 	bool registered;
 };
 
@@ -111,8 +110,6 @@ int crypto_register_instance(struct crypto_template *tmpl,
 			     struct crypto_instance *inst);
 void crypto_unregister_instance(struct crypto_instance *inst);
 
-int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
-		      struct crypto_instance *inst, u32 mask);
 int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
 		      const char *name, u32 type, u32 mask);
 void crypto_drop_spawn(struct crypto_spawn *spawn);
