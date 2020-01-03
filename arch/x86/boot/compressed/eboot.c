@@ -6,6 +6,8 @@
  *
  * ----------------------------------------------------------------------- */
 
+#pragma GCC visibility push(hidden)
+
 #include <linux/efi.h>
 #include <linux/pci.h>
 
