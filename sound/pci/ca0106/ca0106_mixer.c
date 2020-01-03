@@ -654,7 +654,7 @@ static const int spi_dmute_bit[] = {
 };
 
 static struct snd_kcontrol_new
-snd_ca0106_volume_spi_dac_ctl(struct snd_ca0106_details *details,
+snd_ca0106_volume_spi_dac_ctl(const struct snd_ca0106_details *details,
 			      int channel_id)
 {
 	struct snd_kcontrol_new spi_switch = {0};
