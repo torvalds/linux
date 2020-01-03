@@ -208,13 +208,12 @@ SYM_FUNC_START(startup_32)
 	pushl	$__KERNEL_CS
 	leal	startup_64(%ebp), %eax
 #ifdef CONFIG_EFI_MIXED
-	movl	efi32_boot_args(%ebp), %ebx
-	cmp	$0, %ebx
+	movl	efi32_boot_args(%ebp), %edi
+	cmp	$0, %edi
 	jz	1f
 	leal	handover_entry(%ebp), %eax
-	movl	0(%ebx), %edi
-	movl	4(%ebx), %esi
-	movl	8(%ebx), %edx
+	movl	%esi, %edx
+	movl	efi32_boot_args+4(%ebp), %esi
 	movl	$0x0, %ecx
 1:
 #endif
@@ -232,12 +231,16 @@ SYM_FUNC_END(startup_32)
 	.org 0x190
 SYM_FUNC_START(efi32_stub_entry)
 	add	$0x4, %esp		/* Discard return address */
+	popl	%ecx
+	popl	%edx
+	popl	%esi
 
 	call	1f
 1:	pop	%ebp
 	subl	$1b, %ebp
 
-	movl	%esp, efi32_boot_args(%ebp)
+	movl	%ecx, efi32_boot_args(%ebp)
+	movl	%edx, efi32_boot_args+4(%ebp)
 	sgdtl	efi32_boot_gdt(%ebp)
 
 	/* Disable paging */
@@ -628,7 +631,7 @@ SYM_DATA_START_LOCAL(gdt)
 SYM_DATA_END_LABEL(gdt, SYM_L_LOCAL, gdt_end)
 
 #ifdef CONFIG_EFI_MIXED
-SYM_DATA_LOCAL(efi32_boot_args, .long 0)
+SYM_DATA_LOCAL(efi32_boot_args, .long 0, 0)
 #endif
 
 /*
