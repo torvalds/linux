@@ -781,9 +781,9 @@ void nf_flow_offload_stats(struct nf_flowtable *flowtable,
 			   struct flow_offload *flow)
 {
 	struct flow_offload_work *offload;
-	s64 delta;
+	__s32 delta;
 
-	delta = flow->timeout - jiffies;
+	delta = nf_flow_timeout_delta(flow->timeout);
 	if ((delta >= (9 * NF_FLOW_TIMEOUT) / 10) ||
 	    flow->flags & FLOW_OFFLOAD_HW_DYING)
 		return;
