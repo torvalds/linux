@@ -88,14 +88,9 @@ static inline void skcipher_request_complete(struct skcipher_request *req, int e
 	req->base.complete(&req->base, err);
 }
 
-static inline void crypto_set_skcipher_spawn(
-	struct crypto_skcipher_spawn *spawn, struct crypto_instance *inst)
-{
-	crypto_set_spawn(&spawn->base, inst);
-}
-
-int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn, const char *name,
-			 u32 type, u32 mask);
+int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn,
+			 struct crypto_instance *inst,
+			 const char *name, u32 type, u32 mask);
 
 static inline void crypto_drop_skcipher(struct crypto_skcipher_spawn *spawn)
 {

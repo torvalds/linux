@@ -493,6 +493,7 @@ static bool adiantum_supported_algorithms(struct skcipher_alg *streamcipher_alg,
 static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct crypto_attr_type *algt;
+	u32 mask;
 	const char *streamcipher_name;
 	const char *blockcipher_name;
 	const char *nhpoly1305_name;
@@ -510,6 +511,8 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	if ((algt->type ^ CRYPTO_ALG_TYPE_SKCIPHER) & algt->mask)
 		return -EINVAL;
+
+	mask = crypto_requires_sync(algt->type, algt->mask);
 
 	streamcipher_name = crypto_attr_alg_name(tb[1]);
 	if (IS_ERR(streamcipher_name))
@@ -531,11 +534,9 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	ictx = skcipher_instance_ctx(inst);
 
 	/* Stream cipher, e.g. "xchacha12" */
-	crypto_set_skcipher_spawn(&ictx->streamcipher_spawn,
-				  skcipher_crypto_instance(inst));
-	err = crypto_grab_skcipher(&ictx->streamcipher_spawn, streamcipher_name,
-				   0, crypto_requires_sync(algt->type,
-							   algt->mask));
+	err = crypto_grab_skcipher(&ictx->streamcipher_spawn,
+				   skcipher_crypto_instance(inst),
+				   streamcipher_name, 0, mask);
 	if (err)
 		goto out_free_inst;
 	streamcipher_alg = crypto_spawn_skcipher_alg(&ictx->streamcipher_spawn);

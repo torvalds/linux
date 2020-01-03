@@ -450,6 +450,7 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 				    const char *mac_name)
 {
 	struct crypto_attr_type *algt;
+	u32 mask;
 	struct aead_instance *inst;
 	struct skcipher_alg *ctr;
 	struct crypto_alg *mac_alg;
@@ -463,6 +464,8 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 
 	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
+
+	mask = crypto_requires_sync(algt->type, algt->mask);
 
 	mac_alg = crypto_find_alg(mac_name, &crypto_ahash_type,
 				  CRYPTO_ALG_TYPE_HASH,
@@ -488,10 +491,8 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 	if (err)
 		goto err_free_inst;
 
-	crypto_set_skcipher_spawn(&ictx->ctr, aead_crypto_instance(inst));
-	err = crypto_grab_skcipher(&ictx->ctr, ctr_name, 0,
-				   crypto_requires_sync(algt->type,
-							algt->mask));
+	err = crypto_grab_skcipher(&ictx->ctr, aead_crypto_instance(inst),
+				   ctr_name, 0, mask);
 	if (err)
 		goto err_drop_mac;
 

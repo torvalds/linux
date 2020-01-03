@@ -452,6 +452,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 	struct shash_alg *hash_alg;
 	int ivsize;
 	u32 type;
+	u32 mask;
 	int err;
 
 	algt = crypto_get_attr_type(tb);
@@ -467,6 +468,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 		return PTR_ERR(shash_name);
 
 	type = algt->type & algt->mask;
+	mask = crypto_requires_sync(algt->type, algt->mask);
 
 	switch (type) {
 	case CRYPTO_ALG_TYPE_SKCIPHER:
@@ -479,11 +481,8 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 		ictx = crypto_instance_ctx(inst);
 
 		/* Symmetric cipher, e.g., "cbc(aes)" */
-		crypto_set_skcipher_spawn(&ictx->u.skcipher_spawn, inst);
-		err = crypto_grab_skcipher(&ictx->u.skcipher_spawn,
-					   inner_cipher_name, 0,
-					   crypto_requires_sync(algt->type,
-								algt->mask));
+		err = crypto_grab_skcipher(&ictx->u.skcipher_spawn, inst,
+					   inner_cipher_name, 0, mask);
 		if (err)
 			goto out_free_inst;
 		skcipher_alg = crypto_spawn_skcipher_alg(&ictx->u.skcipher_spawn);
@@ -503,9 +502,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 		/* AEAD cipher, e.g., "authenc(hmac(sha256),cbc(aes))" */
 		crypto_set_aead_spawn(&ictx->u.aead_spawn, inst);
 		err = crypto_grab_aead(&ictx->u.aead_spawn,
-				       inner_cipher_name, 0,
-				       crypto_requires_sync(algt->type,
-							    algt->mask));
+				       inner_cipher_name, 0, mask);
 		if (err)
 			goto out_free_inst;
 		aead_alg = crypto_spawn_aead_alg(&ictx->u.aead_spawn);

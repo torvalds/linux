@@ -747,8 +747,10 @@ static const struct crypto_type crypto_skcipher_type = {
 };
 
 int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn,
-			  const char *name, u32 type, u32 mask)
+			 struct crypto_instance *inst,
+			 const char *name, u32 type, u32 mask)
 {
+	spawn->base.inst = inst;
 	spawn->base.frontend = &crypto_skcipher_type;
 	return crypto_grab_spawn(&spawn->base, name, type, mask);
 }

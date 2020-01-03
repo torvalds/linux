@@ -328,6 +328,7 @@ static int crypto_cts_create(struct crypto_template *tmpl, struct rtattr **tb)
 	struct crypto_attr_type *algt;
 	struct skcipher_alg *alg;
 	const char *cipher_name;
+	u32 mask;
 	int err;
 
 	algt = crypto_get_attr_type(tb);
@@ -336,6 +337,8 @@ static int crypto_cts_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	if ((algt->type ^ CRYPTO_ALG_TYPE_SKCIPHER) & algt->mask)
 		return -EINVAL;
+
+	mask = crypto_requires_sync(algt->type, algt->mask);
 
 	cipher_name = crypto_attr_alg_name(tb[1]);
 	if (IS_ERR(cipher_name))
@@ -347,10 +350,8 @@ static int crypto_cts_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	spawn = skcipher_instance_ctx(inst);
 
-	crypto_set_skcipher_spawn(spawn, skcipher_crypto_instance(inst));
-	err = crypto_grab_skcipher(spawn, cipher_name, 0,
-				   crypto_requires_sync(algt->type,
-							algt->mask));
+	err = crypto_grab_skcipher(spawn, skcipher_crypto_instance(inst),
+				   cipher_name, 0, mask);
 	if (err)
 		goto err_free_inst;
 

@@ -416,8 +416,8 @@ static int cryptd_create_skcipher(struct crypto_template *tmpl,
 	ctx = skcipher_instance_ctx(inst);
 	ctx->queue = queue;
 
-	crypto_set_skcipher_spawn(&ctx->spawn, skcipher_crypto_instance(inst));
-	err = crypto_grab_skcipher(&ctx->spawn, name, type, mask);
+	err = crypto_grab_skcipher(&ctx->spawn, skcipher_crypto_instance(inst),
+				   name, type, mask);
 	if (err)
 		goto out_free_inst;
 

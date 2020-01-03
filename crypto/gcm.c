@@ -580,6 +580,7 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 				    const char *ghash_name)
 {
 	struct crypto_attr_type *algt;
+	u32 mask;
 	struct aead_instance *inst;
 	struct skcipher_alg *ctr;
 	struct crypto_alg *ghash_alg;
@@ -594,11 +595,11 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
+	mask = crypto_requires_sync(algt->type, algt->mask);
+
 	ghash_alg = crypto_find_alg(ghash_name, &crypto_ahash_type,
 				    CRYPTO_ALG_TYPE_HASH,
-				    CRYPTO_ALG_TYPE_AHASH_MASK |
-				    crypto_requires_sync(algt->type,
-							 algt->mask));
+				    CRYPTO_ALG_TYPE_AHASH_MASK | mask);
 	if (IS_ERR(ghash_alg))
 		return PTR_ERR(ghash_alg);
 
@@ -620,10 +621,8 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 	    ghash->digestsize != 16)
 		goto err_drop_ghash;
 
-	crypto_set_skcipher_spawn(&ctx->ctr, aead_crypto_instance(inst));
-	err = crypto_grab_skcipher(&ctx->ctr, ctr_name, 0,
-				   crypto_requires_sync(algt->type,
-							algt->mask));
+	err = crypto_grab_skcipher(&ctx->ctr, aead_crypto_instance(inst),
+				   ctr_name, 0, mask);
 	if (err)
 		goto err_drop_ghash;
 

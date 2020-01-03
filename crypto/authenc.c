@@ -373,6 +373,7 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 				 struct rtattr **tb)
 {
 	struct crypto_attr_type *algt;
+	u32 mask;
 	struct aead_instance *inst;
 	struct hash_alg_common *auth;
 	struct crypto_alg *auth_base;
@@ -388,9 +389,10 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
+	mask = crypto_requires_sync(algt->type, algt->mask);
+
 	auth = ahash_attr_alg(tb[1], CRYPTO_ALG_TYPE_HASH,
-			      CRYPTO_ALG_TYPE_AHASH_MASK |
-			      crypto_requires_sync(algt->type, algt->mask));
+			      CRYPTO_ALG_TYPE_AHASH_MASK | mask);
 	if (IS_ERR(auth))
 		return PTR_ERR(auth);
 
@@ -413,10 +415,8 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 	if (err)
 		goto err_free_inst;
 
-	crypto_set_skcipher_spawn(&ctx->enc, aead_crypto_instance(inst));
-	err = crypto_grab_skcipher(&ctx->enc, enc_name, 0,
-				   crypto_requires_sync(algt->type,
-							algt->mask));
+	err = crypto_grab_skcipher(&ctx->enc, aead_crypto_instance(inst),
+				   enc_name, 0, mask);
 	if (err)
 		goto err_drop_auth;
 
