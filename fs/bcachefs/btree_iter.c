@@ -1027,10 +1027,7 @@ retry_all:
 	for (i = 0; i < nr_sorted; i++) {
 		iter = &trans->iters[sorted[i]];
 
-		do {
-			ret = btree_iter_traverse_one(iter);
-		} while (ret == -EINTR);
-
+		ret = btree_iter_traverse_one(iter);
 		if (ret)
 			goto retry_all;
 	}
