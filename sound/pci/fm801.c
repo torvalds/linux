@@ -724,7 +724,7 @@ struct snd_fm801_tea575x_gpio {
 	char *name;
 };
 
-static struct snd_fm801_tea575x_gpio snd_fm801_tea575x_gpios[] = {
+static const struct snd_fm801_tea575x_gpio snd_fm801_tea575x_gpios[] = {
 	{ .data = 1, .clk = 3, .wren = 2, .most = 0, .name = "SF256-PCS" },
 	{ .data = 1, .clk = 0, .wren = 2, .most = 3, .name = "SF256-PCP" },
 	{ .data = 2, .clk = 0, .wren = 1, .most = 3, .name = "SF64-PCR" },
