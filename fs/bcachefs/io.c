@@ -1981,7 +1981,7 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 			goto hole;
 
 		iter.bi_size	= pick.crc.compressed_size << 9;
-		goto noclone;
+		goto get_bio;
 	}
 
 	if (!(flags & BCH_READ_LAST_FRAGMENT) ||
@@ -2028,7 +2028,7 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 		pick.crc.live_size		= bvec_iter_sectors(iter);
 		offset_into_extent		= 0;
 	}
-
+get_bio:
 	if (rbio) {
 		/*
 		 * promote already allocated bounce rbio:
@@ -2068,7 +2068,6 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 		rbio->bio.bi_iter = iter;
 		rbio->split	= true;
 	} else {
-noclone:
 		rbio = orig;
 		rbio->bio.bi_iter = iter;
 		EBUG_ON(bio_flagged(&rbio->bio, BIO_CHAIN));
