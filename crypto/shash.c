@@ -427,11 +427,6 @@ static void crypto_shash_free_instance(struct crypto_instance *inst)
 {
 	struct shash_instance *shash = shash_instance(inst);
 
-	if (!shash->free) {
-		inst->tmpl->free(inst);
-		return;
-	}
-
 	shash->free(shash);
 }
 

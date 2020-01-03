@@ -65,11 +65,6 @@ static int crypto_check_alg(struct crypto_alg *alg)
 
 static void crypto_free_instance(struct crypto_instance *inst)
 {
-	if (!inst->alg.cra_type->free) {
-		inst->tmpl->free(inst);
-		return;
-	}
-
 	inst->alg.cra_type->free(inst);
 }
 

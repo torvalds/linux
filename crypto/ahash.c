@@ -515,11 +515,6 @@ static void crypto_ahash_free_instance(struct crypto_instance *inst)
 {
 	struct ahash_instance *ahash = ahash_instance(inst);
 
-	if (!ahash->free) {
-		inst->tmpl->free(inst);
-		return;
-	}
-
 	ahash->free(ahash);
 }
 

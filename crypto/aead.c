@@ -185,11 +185,6 @@ static void crypto_aead_free_instance(struct crypto_instance *inst)
 {
 	struct aead_instance *aead = aead_instance(inst);
 
-	if (!aead->free) {
-		inst->tmpl->free(inst);
-		return;
-	}
-
 	aead->free(aead);
 }
 
