@@ -133,29 +133,17 @@ static int echainiv_aead_create(struct crypto_template *tmpl,
 	inst->alg.base.cra_ctxsize = sizeof(struct aead_geniv_ctx);
 	inst->alg.base.cra_ctxsize += inst->alg.ivsize;
 
-	inst->free = aead_geniv_free;
-
 	err = aead_register_instance(tmpl, inst);
-	if (err)
-		goto free_inst;
-
-out:
-	return err;
-
+	if (err) {
 free_inst:
-	aead_geniv_free(inst);
-	goto out;
-}
-
-static void echainiv_free(struct crypto_instance *inst)
-{
-	aead_geniv_free(aead_instance(inst));
+		inst->free(inst);
+	}
+	return err;
 }
 
 static struct crypto_template echainiv_tmpl = {
 	.name = "echainiv",
 	.create = echainiv_aead_create,
-	.free = echainiv_free,
 	.module = THIS_MODULE,
 };
 
