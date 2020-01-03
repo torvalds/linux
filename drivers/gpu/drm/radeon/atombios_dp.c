@@ -813,9 +813,8 @@ void radeon_dp_link_train(struct drm_encoder *encoder,
 	dp_info.use_dpencoder = true;
 	index = GetIndexIntoMasterTable(COMMAND, DPEncoderService);
 	if (atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev)) {
-		if (crev > 1) {
+		if (crev > 1)
 			dp_info.use_dpencoder = false;
-		}
 	}
 
 	dp_info.enc_id = 0;

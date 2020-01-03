@@ -700,9 +700,9 @@ static int radeon_connector_set_property(struct drm_connector *connector, struct
 			else
 				ret = radeon_legacy_get_tmds_info_from_combios(radeon_encoder, tmds);
 		}
-		if (val == 1 || !ret) {
+		if (val == 1 || !ret)
 			radeon_legacy_get_tmds_info_from_table(radeon_encoder, tmds);
-		}
+
 		radeon_property_change_mode(&radeon_encoder->base);
 	}
 
