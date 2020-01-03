@@ -795,7 +795,7 @@ EXPORT_SYMBOL_GPL(machine_check_poll);
 static int mce_no_way_out(struct mce *m, char **msg, unsigned long *validp,
 			  struct pt_regs *regs)
 {
-	char *tmp;
+	char *tmp = *msg;
 	int i;
 
 	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
@@ -1220,8 +1220,8 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
 	struct mca_config *cfg = &mca_cfg;
 	int cpu = smp_processor_id();
-	char *msg = "Unknown";
 	struct mce m, *final;
+	char *msg = NULL;
 	int worst = 0;
 
 	/*
