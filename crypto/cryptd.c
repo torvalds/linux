@@ -631,6 +631,14 @@ static int cryptd_hash_import(struct ahash_request *req, const void *in)
 	return crypto_shash_import(desc, in);
 }
 
+static void cryptd_hash_free(struct ahash_instance *inst)
+{
+	struct hashd_instance_ctx *ctx = ahash_instance_ctx(inst);
+
+	crypto_drop_shash(&ctx->spawn);
+	kfree(inst);
+}
+
 static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 			      struct cryptd_queue *queue)
 {
@@ -680,6 +688,8 @@ static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	if (crypto_shash_alg_has_setkey(alg))
 		inst->alg.setkey = cryptd_hash_setkey;
 	inst->alg.digest = cryptd_hash_digest_enqueue;
+
+	inst->free = cryptd_hash_free;
 
 	err = ahash_register_instance(tmpl, inst);
 	if (err) {
@@ -808,6 +818,14 @@ static void cryptd_aead_exit_tfm(struct crypto_aead *tfm)
 	crypto_free_aead(ctx->child);
 }
 
+static void cryptd_aead_free(struct aead_instance *inst)
+{
+	struct aead_instance_ctx *ctx = aead_instance_ctx(inst);
+
+	crypto_drop_aead(&ctx->aead_spawn);
+	kfree(inst);
+}
+
 static int cryptd_create_aead(struct crypto_template *tmpl,
 		              struct rtattr **tb,
 			      struct cryptd_queue *queue)
@@ -857,6 +875,8 @@ static int cryptd_create_aead(struct crypto_template *tmpl,
 	inst->alg.encrypt = cryptd_aead_encrypt_enqueue;
 	inst->alg.decrypt = cryptd_aead_decrypt_enqueue;
 
+	inst->free = cryptd_aead_free;
+
 	err = aead_register_instance(tmpl, inst);
 	if (err) {
 out_drop_aead:
@@ -889,31 +909,9 @@ static int cryptd_create(struct crypto_template *tmpl, struct rtattr **tb)
 	return -EINVAL;
 }
 
-static void cryptd_free(struct crypto_instance *inst)
-{
-	struct cryptd_instance_ctx *ctx = crypto_instance_ctx(inst);
-	struct hashd_instance_ctx *hctx = crypto_instance_ctx(inst);
-	struct aead_instance_ctx *aead_ctx = crypto_instance_ctx(inst);
-
-	switch (inst->alg.cra_flags & CRYPTO_ALG_TYPE_MASK) {
-	case CRYPTO_ALG_TYPE_AHASH:
-		crypto_drop_shash(&hctx->spawn);
-		kfree(ahash_instance(inst));
-		return;
-	case CRYPTO_ALG_TYPE_AEAD:
-		crypto_drop_aead(&aead_ctx->aead_spawn);
-		kfree(aead_instance(inst));
-		return;
-	default:
-		crypto_drop_spawn(&ctx->spawn);
-		kfree(inst);
-	}
-}
-
 static struct crypto_template cryptd_tmpl = {
 	.name = "cryptd",
 	.create = cryptd_create,
-	.free = cryptd_free,
 	.module = THIS_MODULE,
 };
 
