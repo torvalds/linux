@@ -54,8 +54,8 @@
 #include <asm/x86_init.h>
 #include <asm/uv/uv.h>
 
-struct efi efi_phys __initdata;
 static efi_system_table_t efi_systab __initdata;
+static u64 efi_systab_phys __initdata;
 
 static efi_config_table_type_t arch_tables[] __initdata = {
 #ifdef CONFIG_X86_UV
@@ -327,89 +327,90 @@ void __init efi_print_memmap(void)
 	}
 }
 
-static int __init efi_systab_init(void *phys)
+static int __init efi_systab_init(u64 phys)
 {
+	int size = efi_enabled(EFI_64BIT) ? sizeof(efi_system_table_64_t)
+					  : sizeof(efi_system_table_32_t);
+	bool over4g = false;
+	void *p;
+
+	p = early_memremap_ro(phys, size);
+	if (p == NULL) {
+		pr_err("Couldn't map the system table!\n");
+		return -ENOMEM;
+	}
+
 	if (efi_enabled(EFI_64BIT)) {
-		efi_system_table_64_t *systab64;
-		struct efi_setup_data *data = NULL;
-		u64 tmp = 0;
+		const efi_system_table_64_t *systab64 = p;
+
+		efi_systab.hdr			= systab64->hdr;
+		efi_systab.fw_vendor		= systab64->fw_vendor;
+		efi_systab.fw_revision		= systab64->fw_revision;
+		efi_systab.con_in_handle	= systab64->con_in_handle;
+		efi_systab.con_in		= systab64->con_in;
+		efi_systab.con_out_handle	= systab64->con_out_handle;
+		efi_systab.con_out		= (void *)(unsigned long)systab64->con_out;
+		efi_systab.stderr_handle	= systab64->stderr_handle;
+		efi_systab.stderr		= systab64->stderr;
+		efi_systab.runtime		= (void *)(unsigned long)systab64->runtime;
+		efi_systab.boottime		= (void *)(unsigned long)systab64->boottime;
+		efi_systab.nr_tables		= systab64->nr_tables;
+		efi_systab.tables		= systab64->tables;
+
+		over4g = systab64->con_in_handle	> U32_MAX ||
+			 systab64->con_in		> U32_MAX ||
+			 systab64->con_out_handle	> U32_MAX ||
+			 systab64->con_out		> U32_MAX ||
+			 systab64->stderr_handle	> U32_MAX ||
+			 systab64->stderr		> U32_MAX ||
+			 systab64->boottime		> U32_MAX;
 
 		if (efi_setup) {
-			data = early_memremap(efi_setup, sizeof(*data));
-			if (!data)
+			struct efi_setup_data *data;
+
+			data = early_memremap_ro(efi_setup, sizeof(*data));
+			if (!data) {
+				early_memunmap(p, size);
 				return -ENOMEM;
-		}
-		systab64 = early_memremap((unsigned long)phys,
-					 sizeof(*systab64));
-		if (systab64 == NULL) {
-			pr_err("Couldn't map the system table!\n");
-			if (data)
-				early_memunmap(data, sizeof(*data));
-			return -ENOMEM;
-		}
+			}
 
-		efi_systab.hdr = systab64->hdr;
-		efi_systab.fw_vendor = data ? (unsigned long)data->fw_vendor :
-					      systab64->fw_vendor;
-		tmp |= data ? data->fw_vendor : systab64->fw_vendor;
-		efi_systab.fw_revision = systab64->fw_revision;
-		efi_systab.con_in_handle = systab64->con_in_handle;
-		tmp |= systab64->con_in_handle;
-		efi_systab.con_in = systab64->con_in;
-		tmp |= systab64->con_in;
-		efi_systab.con_out_handle = systab64->con_out_handle;
-		tmp |= systab64->con_out_handle;
-		efi_systab.con_out = (void *)(unsigned long)systab64->con_out;
-		tmp |= systab64->con_out;
-		efi_systab.stderr_handle = systab64->stderr_handle;
-		tmp |= systab64->stderr_handle;
-		efi_systab.stderr = systab64->stderr;
-		tmp |= systab64->stderr;
-		efi_systab.runtime = data ?
-				     (void *)(unsigned long)data->runtime :
-				     (void *)(unsigned long)systab64->runtime;
-		tmp |= data ? data->runtime : systab64->runtime;
-		efi_systab.boottime = (void *)(unsigned long)systab64->boottime;
-		tmp |= systab64->boottime;
-		efi_systab.nr_tables = systab64->nr_tables;
-		efi_systab.tables = data ? (unsigned long)data->tables :
-					   systab64->tables;
-		tmp |= data ? data->tables : systab64->tables;
+			efi_systab.fw_vendor	= (unsigned long)data->fw_vendor;
+			efi_systab.runtime	= (void *)(unsigned long)data->runtime;
+			efi_systab.tables	= (unsigned long)data->tables;
 
-		early_memunmap(systab64, sizeof(*systab64));
-		if (data)
+			over4g |= data->fw_vendor	> U32_MAX ||
+				  data->runtime		> U32_MAX ||
+				  data->tables		> U32_MAX;
+
 			early_memunmap(data, sizeof(*data));
-#ifdef CONFIG_X86_32
-		if (tmp >> 32) {
-			pr_err("EFI data located above 4GB, disabling EFI.\n");
-			return -EINVAL;
+		} else {
+			over4g |= systab64->fw_vendor	> U32_MAX ||
+				  systab64->runtime	> U32_MAX ||
+				  systab64->tables	> U32_MAX;
 		}
-#endif
 	} else {
-		efi_system_table_32_t *systab32;
+		const efi_system_table_32_t *systab32 = p;
 
-		systab32 = early_memremap((unsigned long)phys,
-					 sizeof(*systab32));
-		if (systab32 == NULL) {
-			pr_err("Couldn't map the system table!\n");
-			return -ENOMEM;
-		}
+		efi_systab.hdr			= systab32->hdr;
+		efi_systab.fw_vendor		= systab32->fw_vendor;
+		efi_systab.fw_revision		= systab32->fw_revision;
+		efi_systab.con_in_handle	= systab32->con_in_handle;
+		efi_systab.con_in		= systab32->con_in;
+		efi_systab.con_out_handle	= systab32->con_out_handle;
+		efi_systab.con_out		= (void *)(unsigned long)systab32->con_out;
+		efi_systab.stderr_handle	= systab32->stderr_handle;
+		efi_systab.stderr		= systab32->stderr;
+		efi_systab.runtime		= (void *)(unsigned long)systab32->runtime;
+		efi_systab.boottime		= (void *)(unsigned long)systab32->boottime;
+		efi_systab.nr_tables		= systab32->nr_tables;
+		efi_systab.tables		= systab32->tables;
+	}
 
-		efi_systab.hdr = systab32->hdr;
-		efi_systab.fw_vendor = systab32->fw_vendor;
-		efi_systab.fw_revision = systab32->fw_revision;
-		efi_systab.con_in_handle = systab32->con_in_handle;
-		efi_systab.con_in = systab32->con_in;
-		efi_systab.con_out_handle = systab32->con_out_handle;
-		efi_systab.con_out = (void *)(unsigned long)systab32->con_out;
-		efi_systab.stderr_handle = systab32->stderr_handle;
-		efi_systab.stderr = systab32->stderr;
-		efi_systab.runtime = (void *)(unsigned long)systab32->runtime;
-		efi_systab.boottime = (void *)(unsigned long)systab32->boottime;
-		efi_systab.nr_tables = systab32->nr_tables;
-		efi_systab.tables = systab32->tables;
+	early_memunmap(p, size);
 
-		early_memunmap(systab32, sizeof(*systab32));
+	if (IS_ENABLED(CONFIG_X86_32) && over4g) {
+		pr_err("EFI data located above 4GB, disabling EFI.\n");
+		return -EINVAL;
 	}
 
 	efi.systab = &efi_systab;
@@ -435,20 +436,17 @@ void __init efi_init(void)
 	char vendor[100] = "unknown";
 	int i = 0;
 
-#ifdef CONFIG_X86_32
-	if (boot_params.efi_info.efi_systab_hi ||
-	    boot_params.efi_info.efi_memmap_hi) {
+	if (IS_ENABLED(CONFIG_X86_32) &&
+	    (boot_params.efi_info.efi_systab_hi ||
+	     boot_params.efi_info.efi_memmap_hi)) {
 		pr_info("Table located above 4GB, disabling EFI.\n");
 		return;
 	}
-	efi_phys.systab = (efi_system_table_t *)boot_params.efi_info.efi_systab;
-#else
-	efi_phys.systab = (efi_system_table_t *)
-			  (boot_params.efi_info.efi_systab |
-			  ((__u64)boot_params.efi_info.efi_systab_hi<<32));
-#endif
 
-	if (efi_systab_init(efi_phys.systab))
+	efi_systab_phys = boot_params.efi_info.efi_systab |
+			  ((__u64)boot_params.efi_info.efi_systab_hi << 32);
+
+	if (efi_systab_init(efi_systab_phys))
 		return;
 
 	efi.config_table = (unsigned long)efi.systab->tables;
@@ -601,7 +599,7 @@ static void __init get_systab_virt_addr(efi_memory_desc_t *md)
 
 	size = md->num_pages << EFI_PAGE_SHIFT;
 	end = md->phys_addr + size;
-	systab = (u64)(unsigned long)efi_phys.systab;
+	systab = efi_systab_phys;
 	if (md->phys_addr <= systab && systab < end) {
 		systab += md->virt_addr - md->phys_addr;
 		efi.systab = (efi_system_table_t *)(unsigned long)systab;
