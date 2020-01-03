@@ -30,7 +30,13 @@ struct crypto_hash_walk {
 };
 
 struct ahash_instance {
-	struct ahash_alg alg;
+	union {
+		struct {
+			char head[offsetof(struct ahash_alg, halg.base)];
+			struct crypto_instance base;
+		} s;
+		struct ahash_alg alg;
+	};
 };
 
 struct shash_instance {
@@ -155,13 +161,13 @@ static inline void crypto_ahash_set_reqsize(struct crypto_ahash *tfm,
 static inline struct crypto_instance *ahash_crypto_instance(
 	struct ahash_instance *inst)
 {
-	return container_of(&inst->alg.halg.base, struct crypto_instance, alg);
+	return &inst->s.base;
 }
 
 static inline struct ahash_instance *ahash_instance(
 	struct crypto_instance *inst)
 {
-	return container_of(&inst->alg, struct ahash_instance, alg.halg.base);
+	return container_of(inst, struct ahash_instance, s.base);
 }
 
 static inline void *ahash_instance_ctx(struct ahash_instance *inst)
