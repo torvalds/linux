@@ -29,6 +29,12 @@
 
 #include "sun4i_csi.h"
 
+struct sun4i_csi_traits {
+	unsigned int channels;
+	unsigned int max_width;
+	bool has_isp;
+};
+
 static const struct media_entity_operations sun4i_csi_video_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
@@ -156,6 +162,10 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	subdev = &csi->subdev;
 	vdev = &csi->vdev;
 
+	csi->traits = of_device_get_match_data(&pdev->dev);
+	if (!csi->traits)
+		return -EINVAL;
+
 	/*
 	 * On Allwinner SoCs, some high memory bandwidth devices do DMA
 	 * directly over the memory bus (called MBUS), instead of the
@@ -199,10 +209,12 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 		return PTR_ERR(csi->bus_clk);
 	}
 
-	csi->isp_clk = devm_clk_get(&pdev->dev, "isp");
-	if (IS_ERR(csi->isp_clk)) {
-		dev_err(&pdev->dev, "Couldn't get our ISP clock\n");
-		return PTR_ERR(csi->isp_clk);
+	if (csi->traits->has_isp) {
+		csi->isp_clk = devm_clk_get(&pdev->dev, "isp");
+		if (IS_ERR(csi->isp_clk)) {
+			dev_err(&pdev->dev, "Couldn't get our ISP clock\n");
+			return PTR_ERR(csi->isp_clk);
+		}
 	}
 
 	csi->ram_clk = devm_clk_get(&pdev->dev, "ram");
@@ -280,8 +292,21 @@ static int sun4i_csi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct sun4i_csi_traits sun4i_a10_csi1_traits = {
+	.channels = 1,
+	.max_width = 24,
+	.has_isp = false,
+};
+
+static const struct sun4i_csi_traits sun7i_a20_csi0_traits = {
+	.channels = 4,
+	.max_width = 16,
+	.has_isp = true,
+};
+
 static const struct of_device_id sun4i_csi_of_match[] = {
-	{ .compatible = "allwinner,sun7i-a20-csi0" },
+	{ .compatible = "allwinner,sun4i-a10-csi1", .data = &sun4i_a10_csi1_traits },
+	{ .compatible = "allwinner,sun7i-a20-csi0", .data = &sun7i_a20_csi0_traits },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_csi_of_match);

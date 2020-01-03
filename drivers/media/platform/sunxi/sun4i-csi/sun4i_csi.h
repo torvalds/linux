@@ -108,6 +108,8 @@ struct sun4i_csi {
 	/* Device resources */
 	struct device			*dev;
 
+	const struct sun4i_csi_traits	*traits;
+
 	void __iomem			*regs;
 	struct clk			*bus_clk;
 	struct clk			*isp_clk;
