@@ -1566,9 +1566,7 @@ static unsigned long preallocate_image_highmem(unsigned long nr_pages)
  */
 static unsigned long __fraction(u64 x, u64 multiplier, u64 base)
 {
-	x *= multiplier;
-	do_div(x, base);
-	return (unsigned long)x;
+	return div64_u64(x * multiplier, base);
 }
 
 static unsigned long preallocate_highmem_fraction(unsigned long nr_pages,
