@@ -72,9 +72,9 @@ static void __init early_code_mapping_set_exec(int executable)
 	}
 }
 
-void __init efi_old_memmap_phys_epilog(pgd_t *save_pgd);
+static void __init efi_old_memmap_phys_epilog(pgd_t *save_pgd);
 
-pgd_t * __init efi_old_memmap_phys_prolog(void)
+static pgd_t * __init efi_old_memmap_phys_prolog(void)
 {
 	unsigned long vaddr, addr_pgd, addr_p4d, addr_pud;
 	pgd_t *save_pgd, *pgd_k, *pgd_efi;
@@ -144,7 +144,7 @@ out:
 	return NULL;
 }
 
-void __init efi_old_memmap_phys_epilog(pgd_t *save_pgd)
+static void __init efi_old_memmap_phys_epilog(pgd_t *save_pgd)
 {
 	/*
 	 * After the lock is released, the original page table is restored.
@@ -183,23 +183,6 @@ void __init efi_old_memmap_phys_epilog(pgd_t *save_pgd)
 
 	__flush_tlb_all();
 	early_code_mapping_set_exec(0);
-}
-
-pgd_t * __init efi_call_phys_prolog(void)
-{
-	if (efi_enabled(EFI_OLD_MEMMAP))
-		return efi_old_memmap_phys_prolog();
-
-	efi_switch_mm(&efi_mm);
-	return efi_mm.pgd;
-}
-
-void __init efi_call_phys_epilog(pgd_t *save_pgd)
-{
-	if (efi_enabled(EFI_OLD_MEMMAP))
-		efi_old_memmap_phys_epilog(save_pgd);
-	else
-		efi_switch_mm(efi_scratch.prev_mm);
 }
 
 EXPORT_SYMBOL_GPL(efi_mm);
@@ -1018,3 +1001,36 @@ void efi_thunk_runtime_setup(void)
 	efi.query_capsule_caps = efi_thunk_query_capsule_caps;
 }
 #endif /* CONFIG_EFI_MIXED */
+
+efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
+						unsigned long descriptor_size,
+						u32 descriptor_version,
+						efi_memory_desc_t *virtual_map)
+{
+	efi_status_t status;
+	unsigned long flags;
+	pgd_t *save_pgd = NULL;
+
+	if (efi_enabled(EFI_OLD_MEMMAP)) {
+		save_pgd = efi_old_memmap_phys_prolog();
+		if (!save_pgd)
+			return EFI_ABORTED;
+	} else {
+		efi_switch_mm(&efi_mm);
+	}
+
+	/* Disable interrupts around EFI calls: */
+	local_irq_save(flags);
+	status = efi_call(efi.systab->runtime->set_virtual_address_map,
+			  memory_map_size, descriptor_size,
+			  descriptor_version, virtual_map);
+	local_irq_restore(flags);
+
+
+	if (save_pgd)
+		efi_old_memmap_phys_epilog(save_pgd);
+	else
+		efi_switch_mm(efi_scratch.prev_mm);
+
+	return status;
+}

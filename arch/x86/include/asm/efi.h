@@ -61,8 +61,6 @@ extern asmlinkage unsigned long efi_call_phys(void *, ...);
 
 extern asmlinkage u64 efi_call(void *fp, ...);
 
-#define efi_call_phys(f, args...)		efi_call((f), args)
-
 /*
  * struct efi_scratch - Scratch space used while switching to/from efi_mm
  * @phys_stack: stack used during EFI Mixed Mode
@@ -115,8 +113,6 @@ extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned long size,
 extern struct efi_scratch efi_scratch;
 extern void __init efi_set_executable(efi_memory_desc_t *md, bool executable);
 extern int __init efi_memblock_x86_reserve_range(void);
-extern pgd_t * __init efi_call_phys_prolog(void);
-extern void __init efi_call_phys_epilog(pgd_t *save_pgd);
 extern void __init efi_print_memmap(void);
 extern void __init efi_memory_uc(u64 addr, unsigned long size);
 extern void __init efi_map_region(efi_memory_desc_t *md);
@@ -177,6 +173,10 @@ extern efi_status_t efi_thunk_set_virtual_address_map(
 	unsigned long descriptor_size,
 	u32 descriptor_version,
 	efi_memory_desc_t *virtual_map);
+efi_status_t efi_set_virtual_address_map(unsigned long memory_map_size,
+					 unsigned long descriptor_size,
+					 u32 descriptor_version,
+					 efi_memory_desc_t *virtual_map);
 
 /* arch specific definitions used by the stub code */
 
