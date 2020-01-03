@@ -228,8 +228,8 @@ static void psbfb_copyarea_accel(struct fb_info *info,
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_framebuffer *fb = fb_helper->fb;
-	struct drm_device *dev = fb->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_device *dev;
+	struct drm_psb_private *dev_priv;
 	uint32_t offset;
 	uint32_t stride;
 	uint32_t src_format;
@@ -238,6 +238,8 @@ static void psbfb_copyarea_accel(struct fb_info *info,
 	if (!fb)
 		return;
 
+	dev = fb->dev;
+	dev_priv = dev->dev_private;
 	offset = to_gtt_range(fb->obj[0])->offset;
 	stride = fb->pitches[0];
 

@@ -42,7 +42,7 @@ static int lg4573_spi_write_u16(struct lg4573 *ctx, u16 data)
 	struct spi_transfer xfer = {
 		.len = 2,
 	};
-	u16 temp = cpu_to_be16(data);
+	__be16 temp = cpu_to_be16(data);
 	struct spi_message msg;
 
 	dev_dbg(ctx->panel.dev, "writing data: %x\n", data);

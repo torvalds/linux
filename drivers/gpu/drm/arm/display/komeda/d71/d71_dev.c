@@ -20,8 +20,10 @@ static u64 get_lpu_event(struct d71_pipeline *d71_pipeline)
 		evts |= KOMEDA_EVENT_IBSY;
 	if (raw_status & LPU_IRQ_EOW)
 		evts |= KOMEDA_EVENT_EOW;
+	if (raw_status & LPU_IRQ_OVR)
+		evts |= KOMEDA_EVENT_OVR;
 
-	if (raw_status & (LPU_IRQ_ERR | LPU_IRQ_IBSY)) {
+	if (raw_status & (LPU_IRQ_ERR | LPU_IRQ_IBSY | LPU_IRQ_OVR)) {
 		u32 restore = 0, tbu_status;
 		/* Check error of LPU status */
 		status = malidp_read32(reg, BLK_STATUS);
@@ -45,6 +47,15 @@ static u64 get_lpu_event(struct d71_pipeline *d71_pipeline)
 			restore |= LPU_STATUS_ACE3;
 			evts |= KOMEDA_ERR_ACE3;
 		}
+		if (status & LPU_STATUS_FEMPTY) {
+			restore |= LPU_STATUS_FEMPTY;
+			evts |= KOMEDA_EVENT_EMPTY;
+		}
+		if (status & LPU_STATUS_FFULL) {
+			restore |= LPU_STATUS_FFULL;
+			evts |= KOMEDA_EVENT_FULL;
+		}
+
 		if (restore != 0)
 			malidp_write32_mask(reg, BLK_STATUS, restore, 0);
 

@@ -1070,6 +1070,14 @@ struct drm_cmdline_mode {
 	unsigned int rotation_reflection;
 
 	/**
+	 * @panel_orientation:
+	 *
+	 * drm-connector "panel orientation" property override value,
+	 * DRM_MODE_PANEL_ORIENTATION_UNKNOWN if not set.
+	 */
+	enum drm_panel_orientation panel_orientation;
+
+	/**
 	 * @tv_margins: TV margins to apply to the mode.
 	 */
 	struct drm_connector_tv_margins tv_margins;

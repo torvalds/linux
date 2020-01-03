@@ -122,9 +122,8 @@ static int begin_cpu_udmabuf(struct dma_buf *buf,
 		if (IS_ERR(ubuf->sg))
 			return PTR_ERR(ubuf->sg);
 	} else {
-		dma_sync_sg_for_device(dev, ubuf->sg->sgl,
-				       ubuf->sg->nents,
-				       direction);
+		dma_sync_sg_for_cpu(dev, ubuf->sg->sgl, ubuf->sg->nents,
+				    direction);
 	}
 
 	return 0;
@@ -139,7 +138,7 @@ static int end_cpu_udmabuf(struct dma_buf *buf,
 	if (!ubuf->sg)
 		return -EINVAL;
 
-	dma_sync_sg_for_cpu(dev, ubuf->sg->sgl, ubuf->sg->nents, direction);
+	dma_sync_sg_for_device(dev, ubuf->sg->sgl, ubuf->sg->nents, direction);
 	return 0;
 }
 

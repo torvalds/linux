@@ -1,0 +1,131 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/lvds-codec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Transparent LVDS encoders and decoders
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
+
+description: |
+  This binding supports transparent LVDS encoders and decoders that don't
+  require any configuration.
+
+  LVDS is a physical layer specification defined in ANSI/TIA/EIA-644-A. Multiple
+  incompatible data link layers have been used over time to transmit image data
+  to LVDS panels. This binding targets devices compatible with the following
+  specifications only.
+
+  [JEIDA] "Digital Interface Standards for Monitor", JEIDA-59-1999, February
+  1999 (Version 1.0), Japan Electronic Industry Development Association (JEIDA)
+  [LDI] "Open LVDS Display Interface", May 1999 (Version 0.95), National
+  Semiconductor
+  [VESA] "VESA Notebook Panel Standard", October 2007 (Version 1.0), Video
+  Electronics Standards Association (VESA)
+
+  Those devices have been marketed under the FPD-Link and FlatLink brand names
+  among others.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+        - enum:
+          - ti,ds90c185       # For the TI DS90C185 FPD-Link Serializer
+          - ti,ds90c187       # For the TI DS90C187 FPD-Link Serializer
+          - ti,sn75lvds83     # For the TI SN75LVDS83 FlatLink transmitter
+        - const: lvds-encoder # Generic LVDS encoder compatible fallback
+      - items:
+        - enum:
+          - ti,ds90cf384a     # For the DS90CF384A FPD-Link LVDS Receiver
+        - const: lvds-decoder # Generic LVDS decoders compatible fallback
+      - enum:
+        - thine,thc63lvdm83d  # For the THC63LVDM83D LVDS serializer
+
+  ports:
+    type: object
+    description: |
+      This device has two video ports. Their connections are modeled using the
+      OF graph bindings specified in Documentation/devicetree/bindings/graph.txt
+    properties:
+      port@0:
+        type: object
+        description: |
+          For LVDS encoders, port 0 is the parallel input
+          For LVDS decoders, port 0 is the LVDS input
+
+      port@1:
+        type: object
+        description: |
+          For LVDS encoders, port 1 is the LVDS output
+          For LVDS decoders, port 1 is the parallel output
+
+    required:
+      - port@0
+      - port@1
+
+  powerdown-gpios:
+    description:
+      The GPIO used to control the power down line of this device.
+    maxItems: 1
+
+required:
+  - compatible
+  - ports
+
+examples:
+  - |
+    lvds-encoder {
+      compatible = "ti,ds90c185", "lvds-encoder";
+
+      ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        port@0 {
+          reg = <0>;
+
+          lvds_enc_in: endpoint {
+            remote-endpoint = <&display_out_rgb>;
+          };
+        };
+
+        port@1 {
+          reg = <1>;
+
+          lvds_enc_out: endpoint {
+            remote-endpoint = <&lvds_panel_in>;
+          };
+        };
+      };
+    };
+
+  - |
+    lvds-decoder {
+      compatible = "ti,ds90cf384a", "lvds-decoder";
+
+      ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        port@0 {
+          reg = <0>;
+
+          lvds_dec_in: endpoint {
+            remote-endpoint = <&display_out_lvds>;
+          };
+        };
+
+        port@1 {
+          reg = <1>;
+
+          lvds_dec_out: endpoint {
+            remote-endpoint = <&rgb_panel_in>;
+          };
+        };
+      };
+    };
+
+...
