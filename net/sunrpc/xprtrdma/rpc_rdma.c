@@ -580,22 +580,19 @@ void rpcrdma_sendctx_unmap(struct rpcrdma_sendctx *sc)
 
 /* Prepare an SGE for the RPC-over-RDMA transport header.
  */
-static bool rpcrdma_prepare_hdr_sge(struct rpcrdma_xprt *r_xprt,
+static void rpcrdma_prepare_hdr_sge(struct rpcrdma_xprt *r_xprt,
 				    struct rpcrdma_req *req, u32 len)
 {
 	struct rpcrdma_sendctx *sc = req->rl_sendctx;
 	struct rpcrdma_regbuf *rb = req->rl_rdmabuf;
 	struct ib_sge *sge = &sc->sc_sges[req->rl_wr.num_sge++];
 
-	if (!rpcrdma_regbuf_dma_map(r_xprt, rb))
-		return false;
 	sge->addr = rdmab_addr(rb);
 	sge->length = len;
 	sge->lkey = rdmab_lkey(rb);
 
 	ib_dma_sync_single_for_device(rdmab_device(rb), sge->addr, sge->length,
 				      DMA_TO_DEVICE);
-	return true;
 }
 
 /* The head iovec is straightforward, as it is usually already
@@ -836,10 +833,9 @@ inline int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 	req->rl_wr.num_sge = 0;
 	req->rl_wr.opcode = IB_WR_SEND;
 
-	ret = -EIO;
-	if (!rpcrdma_prepare_hdr_sge(r_xprt, req, hdrlen))
-		goto out_unmap;
+	rpcrdma_prepare_hdr_sge(r_xprt, req, hdrlen);
 
+	ret = -EIO;
 	switch (rtype) {
 	case rpcrdma_noch_pullup:
 		if (!rpcrdma_prepare_noch_pullup(r_xprt, req, xdr))
