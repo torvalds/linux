@@ -1894,7 +1894,8 @@ static int ac97_reset_wait(struct snd_ac97 *ac97, int timeout, int with_modem)
  *
  * Return: Zero if successful, or a negative error code on failure.
  */
-int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
+int snd_ac97_bus(struct snd_card *card, int num,
+		 const struct snd_ac97_bus_ops *ops,
 		 void *private_data, struct snd_ac97_bus **rbus)
 {
 	int err;
