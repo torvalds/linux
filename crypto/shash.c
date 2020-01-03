@@ -469,6 +469,15 @@ static const struct crypto_type crypto_shash_type = {
 	.tfmsize = offsetof(struct crypto_shash, base),
 };
 
+int crypto_grab_shash(struct crypto_shash_spawn *spawn,
+		      struct crypto_instance *inst,
+		      const char *name, u32 type, u32 mask)
+{
+	spawn->base.frontend = &crypto_shash_type;
+	return crypto_grab_spawn(&spawn->base, inst, name, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_grab_shash);
+
 struct crypto_shash *crypto_alloc_shash(const char *alg_name, u32 type,
 					u32 mask)
 {

@@ -128,9 +128,19 @@ int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
 			    struct shash_alg *alg,
 			    struct crypto_instance *inst);
 
+int crypto_grab_shash(struct crypto_shash_spawn *spawn,
+		      struct crypto_instance *inst,
+		      const char *name, u32 type, u32 mask);
+
 static inline void crypto_drop_shash(struct crypto_shash_spawn *spawn)
 {
 	crypto_drop_spawn(&spawn->base);
+}
+
+static inline struct shash_alg *crypto_spawn_shash_alg(
+	struct crypto_shash_spawn *spawn)
+{
+	return __crypto_shash_alg(spawn->base.alg);
 }
 
 struct shash_alg *shash_attr_alg(struct rtattr *rta, u32 type, u32 mask);
