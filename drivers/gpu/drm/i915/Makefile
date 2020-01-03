@@ -252,6 +252,7 @@ i915-$(CONFIG_DRM_I915_SELFTEST) += \
 	gem/selftests/igt_gem_utils.o \
 	selftests/i915_random.o \
 	selftests/i915_selftest.o \
+	selftests/igt_atomic.o \
 	selftests/igt_flush_test.o \
 	selftests/igt_live_test.o \
 	selftests/igt_mmap.o \
