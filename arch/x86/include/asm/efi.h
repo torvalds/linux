@@ -51,13 +51,7 @@ extern asmlinkage unsigned long efi_call_phys(void *, ...);
 })
 
 
-/*
- * Wrap all the virtual calls in a way that forces the parameters on the stack.
- */
-#define arch_efi_call_virt(p, f, args...)				\
-({									\
-	((efi_##f##_t __attribute__((regparm(0)))*) p->f)(args);	\
-})
+#define arch_efi_call_virt(p, f, args...)	p->f(args)
 
 #define efi_ioremap(addr, size, type, attr)	ioremap_cache(addr, size)
 

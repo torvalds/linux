@@ -48,8 +48,10 @@ typedef u16 efi_char16_t;		/* UNICODE character */
 typedef u64 efi_physical_addr_t;
 typedef void *efi_handle_t;
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64)
 #define __efiapi __attribute__((ms_abi))
+#elif defined(CONFIG_X86_32)
+#define __efiapi __attribute__((regparm(0)))
 #else
 #define __efiapi
 #endif
