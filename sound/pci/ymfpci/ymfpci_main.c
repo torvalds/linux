@@ -1908,7 +1908,7 @@ static int snd_ymfpci_timer_precise_resolution(struct snd_timer *timer,
 	return 0;
 }
 
-static struct snd_timer_hardware snd_ymfpci_timer_hw = {
+static const struct snd_timer_hardware snd_ymfpci_timer_hw = {
 	.flags = SNDRV_TIMER_HW_AUTO,
 	.resolution = 10417, /* 1 / 96 kHz = 10.41666...us */
 	.ticks = 0x10000,
