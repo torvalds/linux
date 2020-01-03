@@ -983,7 +983,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 				offset);
 
 		/* 2. update DPCD of the receiver*/
-		if (!retries_cr)
+		if (!retry_count)
 			/* EPR #361076 - write as a 5-byte burst,
 			 * but only for the 1-st iteration.*/
 			dpcd_set_lt_pattern_and_lane_settings(
