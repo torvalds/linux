@@ -34,7 +34,13 @@ struct ahash_instance {
 };
 
 struct shash_instance {
-	struct shash_alg alg;
+	union {
+		struct {
+			char head[offsetof(struct shash_alg, base)];
+			struct crypto_instance base;
+		} s;
+		struct shash_alg alg;
+	};
 };
 
 struct crypto_ahash_spawn {
@@ -210,14 +216,13 @@ static inline void *crypto_shash_ctx(struct crypto_shash *tfm)
 static inline struct crypto_instance *shash_crypto_instance(
 	struct shash_instance *inst)
 {
-	return container_of(&inst->alg.base, struct crypto_instance, alg);
+	return &inst->s.base;
 }
 
 static inline struct shash_instance *shash_instance(
 	struct crypto_instance *inst)
 {
-	return container_of(__crypto_shash_alg(&inst->alg),
-			    struct shash_instance, alg);
+	return container_of(inst, struct shash_instance, s.base);
 }
 
 static inline struct shash_instance *shash_alg_instance(
