@@ -1279,7 +1279,7 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 	/* internal DMA mapping in page_pool */
 	pp_params.flags = PP_FLAG_DMA_MAP;
 	pp_params.pool_size = DESC_NUM;
-	pp_params.nid = cpu_to_node(0);
+	pp_params.nid = NUMA_NO_NODE;
 	pp_params.dev = priv->dev;
 	pp_params.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
 
