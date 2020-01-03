@@ -233,6 +233,29 @@ out:
 	return err;
 }
 
+int psp_v11_0_wait_for_bootloader(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	int ret;
+	int retry_loop;
+
+	for (retry_loop = 0; retry_loop < 10; retry_loop++) {
+		/* Wait for bootloader to signify that is
+		    ready having bit 31 of C2PMSG_35 set to 1 */
+		ret = psp_wait_for(psp,
+				   SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+				   0x80000000,
+				   0x80000000,
+				   false);
+
+		if (ret == 0)
+			return 0;
+	}
+
+	return ret;
+}
+
 static bool psp_v11_0_is_sos_alive(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -258,9 +281,7 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 		return 0;
 	}
 
-	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
 		return ret;
 
@@ -276,9 +297,7 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35,
 	       psp_gfxdrv_command_reg);
 
-	/* Wait for bootloader to signify that is ready having  bit 31 of C2PMSG_35 set to 1*/
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 
 	return ret;
 }
@@ -298,9 +317,7 @@ static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
 		return 0;
 	}
 
-	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
 		return ret;
 
@@ -319,8 +336,7 @@ static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
 	/* there might be handshake issue with hardware which needs delay */
 	mdelay(20);
 
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 
 	return ret;
 }
@@ -337,9 +353,7 @@ static int psp_v11_0_bootloader_load_sos(struct psp_context *psp)
 	if (psp_v11_0_is_sos_alive(psp))
 		return 0;
 
-	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
 		return ret;
 
