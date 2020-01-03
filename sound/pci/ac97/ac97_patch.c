@@ -3871,7 +3871,7 @@ static int mpatch_si3036(struct snd_ac97 * ac97)
  * check_volume_resolution().
  */
 
-static struct snd_ac97_res_table lm4550_restbl[] = {
+static const struct snd_ac97_res_table lm4550_restbl[] = {
 	{ AC97_MASTER, 0x1f1f },
 	{ AC97_HEADPHONE, 0x1f1f },
 	{ AC97_MASTER_MONO, 0x001f },
