@@ -165,6 +165,7 @@ static void hmac_exit_tfm(struct crypto_shash *parent)
 static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct shash_instance *inst;
+	struct crypto_shash_spawn *spawn;
 	struct crypto_alg *alg;
 	struct shash_alg *salg;
 	int err;
@@ -175,31 +176,32 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (err)
 		return err;
 
-	salg = shash_attr_alg(tb[1], 0, 0);
-	if (IS_ERR(salg))
-		return PTR_ERR(salg);
+	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
+	spawn = shash_instance_ctx(inst);
+
+	err = crypto_grab_shash(spawn, shash_crypto_instance(inst),
+				crypto_attr_alg_name(tb[1]), 0, 0);
+	if (err)
+		goto err_free_inst;
+	salg = crypto_spawn_shash_alg(spawn);
 	alg = &salg->base;
 
 	/* The underlying hash algorithm must not require a key */
 	err = -EINVAL;
 	if (crypto_shash_alg_needs_key(salg))
-		goto out_put_alg;
+		goto err_free_inst;
 
 	ds = salg->digestsize;
 	ss = salg->statesize;
 	if (ds > alg->cra_blocksize ||
 	    ss < alg->cra_blocksize)
-		goto out_put_alg;
+		goto err_free_inst;
 
-	inst = shash_alloc_instance("hmac", alg);
-	err = PTR_ERR(inst);
-	if (IS_ERR(inst))
-		goto out_put_alg;
-
-	err = crypto_init_shash_spawn(shash_instance_ctx(inst), salg,
-				      shash_crypto_instance(inst));
+	err = crypto_inst_setname(shash_crypto_instance(inst), tmpl->name, alg);
 	if (err)
-		goto out_free_inst;
+		goto err_free_inst;
 
 	inst->alg.base.cra_priority = alg->cra_priority;
 	inst->alg.base.cra_blocksize = alg->cra_blocksize;
@@ -224,12 +226,9 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	err = shash_register_instance(tmpl, inst);
 	if (err) {
-out_free_inst:
+err_free_inst:
 		shash_free_instance(shash_crypto_instance(inst));
 	}
-
-out_put_alg:
-	crypto_mod_put(alg);
 	return err;
 }
 
