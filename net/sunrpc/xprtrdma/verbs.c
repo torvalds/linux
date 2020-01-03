@@ -80,6 +80,7 @@ static void rpcrdma_sendctx_put_locked(struct rpcrdma_xprt *r_xprt,
 				       struct rpcrdma_sendctx *sc);
 static int rpcrdma_reqs_setup(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt);
+static void rpcrdma_rep_destroy(struct rpcrdma_rep *rep);
 static void rpcrdma_reps_unmap(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_mrs_destroy(struct rpcrdma_xprt *r_xprt);
@@ -177,7 +178,7 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	return;
 
 out_flushed:
-	rpcrdma_recv_buffer_put(rep);
+	rpcrdma_rep_destroy(rep);
 }
 
 static void rpcrdma_update_cm_private(struct rpcrdma_xprt *r_xprt,
@@ -1106,6 +1107,9 @@ static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt)
 		rpcrdma_req_reset(req);
 }
 
+/* No locking needed here. This function is called only by the
+ * Receive completion handler.
+ */
 static struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 					      bool temp)
 {
@@ -1138,6 +1142,9 @@ out:
 	return NULL;
 }
 
+/* No locking needed here. This function is invoked only by the
+ * Receive completion handler, or during transport shutdown.
+ */
 static void rpcrdma_rep_destroy(struct rpcrdma_rep *rep)
 {
 	list_del(&rep->rr_all);
