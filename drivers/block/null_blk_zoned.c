@@ -186,7 +186,10 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 		if (zone->cond == BLK_ZONE_COND_FULL)
 			return BLK_STS_IOERR;
 
-		zone->cond = BLK_ZONE_COND_CLOSED;
+		if (zone->wp == zone->start)
+			zone->cond = BLK_ZONE_COND_EMPTY;
+		else
+			zone->cond = BLK_ZONE_COND_CLOSED;
 		break;
 	case REQ_OP_ZONE_FINISH:
 		if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
