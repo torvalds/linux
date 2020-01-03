@@ -72,7 +72,9 @@ static void __init early_code_mapping_set_exec(int executable)
 	}
 }
 
-pgd_t * __init efi_call_phys_prolog(void)
+void __init efi_old_memmap_phys_epilog(pgd_t *save_pgd);
+
+pgd_t * __init efi_old_memmap_phys_prolog(void)
 {
 	unsigned long vaddr, addr_pgd, addr_p4d, addr_pud;
 	pgd_t *save_pgd, *pgd_k, *pgd_efi;
@@ -81,11 +83,6 @@ pgd_t * __init efi_call_phys_prolog(void)
 
 	int pgd;
 	int n_pgds, i, j;
-
-	if (!efi_enabled(EFI_OLD_MEMMAP)) {
-		efi_switch_mm(&efi_mm);
-		return efi_mm.pgd;
-	}
 
 	early_code_mapping_set_exec(1);
 
@@ -143,11 +140,11 @@ pgd_t * __init efi_call_phys_prolog(void)
 	__flush_tlb_all();
 	return save_pgd;
 out:
-	efi_call_phys_epilog(save_pgd);
+	efi_old_memmap_phys_epilog(save_pgd);
 	return NULL;
 }
 
-void __init efi_call_phys_epilog(pgd_t *save_pgd)
+void __init efi_old_memmap_phys_epilog(pgd_t *save_pgd)
 {
 	/*
 	 * After the lock is released, the original page table is restored.
@@ -157,11 +154,6 @@ void __init efi_call_phys_epilog(pgd_t *save_pgd)
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
-
-	if (!efi_enabled(EFI_OLD_MEMMAP)) {
-		efi_switch_mm(efi_scratch.prev_mm);
-		return;
-	}
 
 	nr_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT) , PGDIR_SIZE);
 
@@ -191,6 +183,23 @@ void __init efi_call_phys_epilog(pgd_t *save_pgd)
 
 	__flush_tlb_all();
 	early_code_mapping_set_exec(0);
+}
+
+pgd_t * __init efi_call_phys_prolog(void)
+{
+	if (efi_enabled(EFI_OLD_MEMMAP))
+		return efi_old_memmap_phys_prolog();
+
+	efi_switch_mm(&efi_mm);
+	return efi_mm.pgd;
+}
+
+void __init efi_call_phys_epilog(pgd_t *save_pgd)
+{
+	if (efi_enabled(EFI_OLD_MEMMAP))
+		efi_old_memmap_phys_epilog(save_pgd);
+	else
+		efi_switch_mm(efi_scratch.prev_mm);
 }
 
 EXPORT_SYMBOL_GPL(efi_mm);
