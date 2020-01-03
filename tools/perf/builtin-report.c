@@ -1164,7 +1164,8 @@ int cmd_report(int argc, const char **argv)
 			     report_callchain_help, &report_parse_callchain_opt,
 			     callchain_default_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
-		    "Accumulate callchains of children and show total overhead as well"),
+		    "Accumulate callchains of children and show total overhead as well. "
+		    "Enabled by default, use --no-children to disable."),
 	OPT_INTEGER(0, "max-stack", &report.max_stack,
 		    "Set the maximum stack depth when parsing the callchain, "
 		    "anything beyond the specified depth will be ignored. "
