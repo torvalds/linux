@@ -13139,6 +13139,11 @@ S:	Maintained
 F:	drivers/iio/chemical/pms7003.c
 F:	Documentation/devicetree/bindings/iio/chemical/plantower,pms7003.yaml
 
+PLX DMA DRIVER
+M:	Logan Gunthorpe <logang@deltatee.com>
+S:	Maintained
+F:	drivers/dma/plx_dma.c
+
 PMBUS HARDWARE MONITORING DRIVERS
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
