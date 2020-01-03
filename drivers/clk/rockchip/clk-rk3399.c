@@ -1327,8 +1327,6 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(27), 1, GFLAGS),
 	GATE(ACLK_ISP0_WRAPPER, "aclk_isp0_wrapper", "aclk_isp0", 0,
 			RK3399_CLKGATE_CON(27), 5, GFLAGS),
-	GATE(HCLK_ISP1_WRAPPER, "hclk_isp1_wrapper", "aclk_isp0", 0,
-			RK3399_CLKGATE_CON(27), 7, GFLAGS),
 
 	GATE(HCLK_ISP0_NOC, "hclk_isp0_noc", "hclk_isp0", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(27), 0, GFLAGS),
@@ -1348,11 +1346,13 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 
 	GATE(ACLK_ISP1_NOC, "aclk_isp1_noc", "aclk_isp1", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(27), 3, GFLAGS),
+	GATE(ACLK_ISP1_WRAPPER, "aclk_isp1_wrapper", "aclk_isp1", 0,
+			RK3399_CLKGATE_CON(27), 8, GFLAGS),
 
 	GATE(HCLK_ISP1_NOC, "hclk_isp1_noc", "hclk_isp1", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(27), 2, GFLAGS),
-	GATE(ACLK_ISP1_WRAPPER, "aclk_isp1_wrapper", "hclk_isp1", 0,
-			RK3399_CLKGATE_CON(27), 8, GFLAGS),
+	GATE(HCLK_ISP1_WRAPPER, "hclk_isp1_wrapper", "hclk_isp1", 0,
+			RK3399_CLKGATE_CON(27), 7, GFLAGS),
 
 	COMPOSITE(SCLK_ISP1, "clk_isp1", mux_pll_src_cpll_gpll_npll_p, 0,
 			RK3399_CLKSEL_CON(55), 14, 2, MFLAGS, 8, 5, DFLAGS,
