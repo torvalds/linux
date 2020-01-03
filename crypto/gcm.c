@@ -13,7 +13,6 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/gcm.h>
 #include <crypto/hash.h>
-#include "internal.h"
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -582,10 +581,9 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 	struct crypto_attr_type *algt;
 	u32 mask;
 	struct aead_instance *inst;
-	struct skcipher_alg *ctr;
-	struct crypto_alg *ghash_alg;
-	struct hash_alg_common *ghash;
 	struct gcm_instance_ctx *ctx;
+	struct skcipher_alg *ctr;
+	struct hash_alg_common *ghash;
 	int err;
 
 	algt = crypto_get_attr_type(tb);
@@ -597,35 +595,26 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 
 	mask = crypto_requires_sync(algt->type, algt->mask);
 
-	ghash_alg = crypto_find_alg(ghash_name, &crypto_ahash_type,
-				    CRYPTO_ALG_TYPE_HASH,
-				    CRYPTO_ALG_TYPE_AHASH_MASK | mask);
-	if (IS_ERR(ghash_alg))
-		return PTR_ERR(ghash_alg);
-
-	ghash = __crypto_hash_alg_common(ghash_alg);
-
-	err = -ENOMEM;
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		goto out_put_ghash;
-
+		return -ENOMEM;
 	ctx = aead_instance_ctx(inst);
-	err = crypto_init_ahash_spawn(&ctx->ghash, ghash,
-				      aead_crypto_instance(inst));
+
+	err = crypto_grab_ahash(&ctx->ghash, aead_crypto_instance(inst),
+				ghash_name, 0, mask);
 	if (err)
 		goto err_free_inst;
+	ghash = crypto_spawn_ahash_alg(&ctx->ghash);
 
 	err = -EINVAL;
 	if (strcmp(ghash->base.cra_name, "ghash") != 0 ||
 	    ghash->digestsize != 16)
-		goto err_drop_ghash;
+		goto err_free_inst;
 
 	err = crypto_grab_skcipher(&ctx->ctr, aead_crypto_instance(inst),
 				   ctr_name, 0, mask);
 	if (err)
-		goto err_drop_ghash;
-
+		goto err_free_inst;
 	ctr = crypto_spawn_skcipher_alg(&ctx->ctr);
 
 	/* The skcipher algorithm must be CTR mode, using 16-byte blocks. */
@@ -633,18 +622,18 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 	if (strncmp(ctr->base.cra_name, "ctr(", 4) != 0 ||
 	    crypto_skcipher_alg_ivsize(ctr) != 16 ||
 	    ctr->base.cra_blocksize != 1)
-		goto out_put_ctr;
+		goto err_free_inst;
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
 		     "gcm(%s", ctr->base.cra_name + 4) >= CRYPTO_MAX_ALG_NAME)
-		goto out_put_ctr;
+		goto err_free_inst;
 
 	if (snprintf(inst->alg.base.cra_driver_name, CRYPTO_MAX_ALG_NAME,
 		     "gcm_base(%s,%s)", ctr->base.cra_driver_name,
-		     ghash_alg->cra_driver_name) >=
+		     ghash->base.cra_driver_name) >=
 	    CRYPTO_MAX_ALG_NAME)
-		goto out_put_ctr;
+		goto err_free_inst;
 
 	inst->alg.base.cra_flags = (ghash->base.cra_flags |
 				    ctr->base.cra_flags) & CRYPTO_ALG_ASYNC;
@@ -667,20 +656,11 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 	inst->free = crypto_gcm_free;
 
 	err = aead_register_instance(tmpl, inst);
-	if (err)
-		goto out_put_ctr;
-
-out_put_ghash:
-	crypto_mod_put(ghash_alg);
-	return err;
-
-out_put_ctr:
-	crypto_drop_skcipher(&ctx->ctr);
-err_drop_ghash:
-	crypto_drop_ahash(&ctx->ghash);
+	if (err) {
 err_free_inst:
-	kfree(inst);
-	goto out_put_ghash;
+		crypto_gcm_free(inst);
+	}
+	return err;
 }
 
 static int crypto_gcm_create(struct crypto_template *tmpl, struct rtattr **tb)
