@@ -368,18 +368,6 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
 		goto out_err;
 	}
 
-	switch (xprt_rdma_memreg_strategy) {
-	case RPCRDMA_FRWR:
-		if (frwr_is_supported(ia->ri_id->device))
-			break;
-		/*FALLTHROUGH*/
-	default:
-		pr_err("rpcrdma: Device %s does not support memreg mode %d\n",
-		       ia->ri_id->device->name, xprt_rdma_memreg_strategy);
-		rc = -EINVAL;
-		goto out_err;
-	}
-
 	return 0;
 
 out_err:
@@ -479,7 +467,7 @@ int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 	ep->rep_inline_send = xprt_rdma_max_inline_write;
 	ep->rep_inline_recv = xprt_rdma_max_inline_read;
 
-	rc = frwr_open(ia, ep);
+	rc = frwr_query_device(r_xprt, ia->ri_id->device);
 	if (rc)
 		return rc;
 	r_xprt->rx_buf.rb_max_requests = cpu_to_be32(ep->rep_max_requests);

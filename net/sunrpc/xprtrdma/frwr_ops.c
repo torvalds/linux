@@ -51,28 +51,6 @@
 #endif
 
 /**
- * frwr_is_supported - Check if device supports FRWR
- * @device: interface adapter to check
- *
- * Returns true if device supports FRWR, otherwise false
- */
-bool frwr_is_supported(struct ib_device *device)
-{
-	struct ib_device_attr *attrs = &device->attrs;
-
-	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
-		goto out_not_supported;
-	if (attrs->max_fast_reg_page_list_len == 0)
-		goto out_not_supported;
-	return true;
-
-out_not_supported:
-	pr_info("rpcrdma: 'frwr' mode is not supported by device %s\n",
-		device->name);
-	return false;
-}
-
-/**
  * frwr_release_mr - Destroy one MR
  * @mr: MR allocated by frwr_init_mr
  *
@@ -170,13 +148,12 @@ out_list_err:
 }
 
 /**
- * frwr_open - Prepare an endpoint for use with FRWR
- * @ia: interface adapter this endpoint will use
- * @ep: endpoint to prepare
+ * frwr_query_device - Prepare a transport for use with FRWR
+ * @r_xprt: controlling transport instance
+ * @device: RDMA device to query
  *
  * On success, sets:
- *	ep->rep_attr.cap.max_send_wr
- *	ep->rep_attr.cap.max_recv_wr
+ *	ep->rep_attr
  *	ep->rep_max_requests
  *	ia->ri_max_rdma_segs
  *
@@ -184,13 +161,26 @@ out_list_err:
  *	ia->ri_max_frwr_depth
  *	ia->ri_mrtype
  *
- * On failure, a negative errno is returned.
+ * Return values:
+ *   On success, returns zero.
+ *   %-EINVAL - the device does not support FRWR memory registration
+ *   %-ENOMEM - the device is not sufficiently capable for NFS/RDMA
  */
-int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
+int frwr_query_device(struct rpcrdma_xprt *r_xprt,
+		      const struct ib_device *device)
 {
-	struct ib_device_attr *attrs = &ia->ri_id->device->attrs;
+	const struct ib_device_attr *attrs = &device->attrs;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 	int max_qp_wr, depth, delta;
 	unsigned int max_sge;
+
+	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) ||
+	    attrs->max_fast_reg_page_list_len == 0) {
+		pr_err("rpcrdma: 'frwr' mode is not supported by device %s\n",
+		       device->name);
+		return -EINVAL;
+	}
 
 	max_sge = min_t(unsigned int, attrs->max_send_sge,
 			RPCRDMA_MAX_SEND_SGES);
@@ -238,7 +228,7 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 		} while (delta > 0);
 	}
 
-	max_qp_wr = ia->ri_id->device->attrs.max_qp_wr;
+	max_qp_wr = attrs->max_qp_wr;
 	max_qp_wr -= RPCRDMA_BACKWARD_WRS;
 	max_qp_wr -= 1;
 	if (max_qp_wr < RPCRDMA_MIN_SLOT_TABLE)
@@ -249,7 +239,7 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 	if (ep->rep_attr.cap.max_send_wr > max_qp_wr) {
 		ep->rep_max_requests = max_qp_wr / depth;
 		if (!ep->rep_max_requests)
-			return -EINVAL;
+			return -ENOMEM;
 		ep->rep_attr.cap.max_send_wr = ep->rep_max_requests * depth;
 	}
 	ep->rep_attr.cap.max_send_wr += RPCRDMA_BACKWARD_WRS;
