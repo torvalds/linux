@@ -590,12 +590,12 @@ int shash_register_instance(struct crypto_template *tmpl,
 }
 EXPORT_SYMBOL_GPL(shash_register_instance);
 
-void shash_free_instance(struct crypto_instance *inst)
+void shash_free_singlespawn_instance(struct shash_instance *inst)
 {
-	crypto_drop_spawn(crypto_instance_ctx(inst));
-	kfree(shash_instance(inst));
+	crypto_drop_spawn(shash_instance_ctx(inst));
+	kfree(inst);
 }
-EXPORT_SYMBOL_GPL(shash_free_instance);
+EXPORT_SYMBOL_GPL(shash_free_singlespawn_instance);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Synchronous cryptographic hash type");

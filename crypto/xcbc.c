@@ -239,10 +239,12 @@ static int xcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.final = crypto_xcbc_digest_final;
 	inst->alg.setkey = crypto_xcbc_digest_setkey;
 
+	inst->free = shash_free_singlespawn_instance;
+
 	err = shash_register_instance(tmpl, inst);
 	if (err) {
 err_free_inst:
-		shash_free_instance(shash_crypto_instance(inst));
+		shash_free_singlespawn_instance(inst);
 	}
 	return err;
 }
@@ -250,7 +252,6 @@ err_free_inst:
 static struct crypto_template crypto_xcbc_tmpl = {
 	.name = "xcbc",
 	.create = xcbc_create,
-	.free = shash_free_instance,
 	.module = THIS_MODULE,
 };
 

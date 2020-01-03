@@ -224,10 +224,12 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.init_tfm = hmac_init_tfm;
 	inst->alg.exit_tfm = hmac_exit_tfm;
 
+	inst->free = shash_free_singlespawn_instance;
+
 	err = shash_register_instance(tmpl, inst);
 	if (err) {
 err_free_inst:
-		shash_free_instance(shash_crypto_instance(inst));
+		shash_free_singlespawn_instance(inst);
 	}
 	return err;
 }
@@ -235,7 +237,6 @@ err_free_inst:
 static struct crypto_template hmac_tmpl = {
 	.name = "hmac",
 	.create = hmac_create,
-	.free = shash_free_instance,
 	.module = THIS_MODULE,
 };
 

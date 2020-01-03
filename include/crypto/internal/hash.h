@@ -125,7 +125,7 @@ int crypto_register_shashes(struct shash_alg *algs, int count);
 void crypto_unregister_shashes(struct shash_alg *algs, int count);
 int shash_register_instance(struct crypto_template *tmpl,
 			    struct shash_instance *inst);
-void shash_free_instance(struct crypto_instance *inst);
+void shash_free_singlespawn_instance(struct shash_instance *inst);
 
 int crypto_grab_shash(struct crypto_shash_spawn *spawn,
 		      struct crypto_instance *inst,
