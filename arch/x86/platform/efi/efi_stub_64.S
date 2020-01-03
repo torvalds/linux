@@ -10,7 +10,7 @@
 #include <linux/linkage.h>
 #include <asm/nospec-branch.h>
 
-SYM_FUNC_START(efi_call)
+SYM_FUNC_START(__efi_call)
 	pushq %rbp
 	movq %rsp, %rbp
 	and $~0xf, %rsp
@@ -24,4 +24,4 @@ SYM_FUNC_START(efi_call)
 	CALL_NOSPEC %rdi
 	leave
 	ret
-SYM_FUNC_END(efi_call)
+SYM_FUNC_END(__efi_call)

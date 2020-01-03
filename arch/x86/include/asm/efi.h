@@ -8,6 +8,7 @@
 #include <asm/tlb.h>
 #include <asm/nospec-branch.h>
 #include <asm/mmu_context.h>
+#include <linux/build_bug.h>
 
 /*
  * We map the EFI regions needed for runtime services non-contiguously,
@@ -34,6 +35,45 @@
 
 #define ARCH_EFI_IRQ_FLAGS_MASK	X86_EFLAGS_IF
 
+/*
+ * The EFI services are called through variadic functions in many cases. These
+ * functions are implemented in assembler and support only a fixed number of
+ * arguments. The macros below allows us to check at build time that we don't
+ * try to call them with too many arguments.
+ *
+ * __efi_nargs() will return the number of arguments if it is 7 or less, and
+ * cause a BUILD_BUG otherwise. The limitations of the C preprocessor make it
+ * impossible to calculate the exact number of arguments beyond some
+ * pre-defined limit. The maximum number of arguments currently supported by
+ * any of the thunks is 7, so this is good enough for now and can be extended
+ * in the obvious way if we ever need more.
+ */
+
+#define __efi_nargs(...) __efi_nargs_(__VA_ARGS__)
+#define __efi_nargs_(...) __efi_nargs__(0, ##__VA_ARGS__,	\
+	__efi_arg_sentinel(7), __efi_arg_sentinel(6),		\
+	__efi_arg_sentinel(5), __efi_arg_sentinel(4),		\
+	__efi_arg_sentinel(3), __efi_arg_sentinel(2),		\
+	__efi_arg_sentinel(1), __efi_arg_sentinel(0))
+#define __efi_nargs__(_0, _1, _2, _3, _4, _5, _6, _7, n, ...)	\
+	__take_second_arg(n,					\
+		({ BUILD_BUG_ON_MSG(1, "__efi_nargs limit exceeded"); 8; }))
+#define __efi_arg_sentinel(n) , n
+
+/*
+ * __efi_nargs_check(f, n, ...) will cause a BUILD_BUG if the ellipsis
+ * represents more than n arguments.
+ */
+
+#define __efi_nargs_check(f, n, ...)					\
+	__efi_nargs_check_(f, __efi_nargs(__VA_ARGS__), n)
+#define __efi_nargs_check_(f, p, n) __efi_nargs_check__(f, p, n)
+#define __efi_nargs_check__(f, p, n) ({					\
+	BUILD_BUG_ON_MSG(						\
+		(p) > (n),						\
+		#f " called with too many arguments (" #p ">" #n ")");	\
+})
+
 #ifdef CONFIG_X86_32
 #define arch_efi_call_virt_setup()					\
 ({									\
@@ -56,7 +96,12 @@
 
 #define EFI_LOADER_SIGNATURE	"EL64"
 
-extern asmlinkage u64 efi_call(void *fp, ...);
+extern asmlinkage u64 __efi_call(void *fp, ...);
+
+#define efi_call(...) ({						\
+	__efi_nargs_check(efi_call, 7, __VA_ARGS__);			\
+	__efi_call(__VA_ARGS__);					\
+})
 
 /*
  * struct efi_scratch - Scratch space used while switching to/from efi_mm
@@ -139,7 +184,12 @@ struct efi_setup_data {
 extern u64 efi_setup;
 
 #ifdef CONFIG_EFI
-extern efi_status_t efi64_thunk(u32, ...);
+extern efi_status_t __efi64_thunk(u32, ...);
+
+#define efi64_thunk(...) ({						\
+	__efi_nargs_check(efi64_thunk, 6, __VA_ARGS__);			\
+	__efi64_thunk(__VA_ARGS__);					\
+})
 
 static inline bool efi_is_mixed(void)
 {

@@ -23,7 +23,7 @@
 
 	.code64
 	.text
-SYM_FUNC_START(efi64_thunk)
+SYM_FUNC_START(__efi64_thunk)
 	push	%rbp
 	push	%rbx
 
@@ -95,7 +95,7 @@ SYM_FUNC_START(efi64_thunk)
 	pop	%rbx
 	pop	%rbp
 	ret
-SYM_FUNC_END(efi64_thunk)
+SYM_FUNC_END(__efi64_thunk)
 
 	.code32
 /*
