@@ -7,6 +7,7 @@
 
 #include "dmaengine.h"
 
+#include <linux/circ_buf.h>
 #include <linux/dmaengine.h>
 #include <linux/kref.h>
 #include <linux/list.h>
@@ -118,6 +119,11 @@ struct plx_dma_dev {
 static struct plx_dma_dev *chan_to_plx_dma_dev(struct dma_chan *c)
 {
 	return container_of(c, struct plx_dma_dev, dma_chan);
+}
+
+static struct plx_dma_desc *to_plx_desc(struct dma_async_tx_descriptor *txd)
+{
+	return container_of(txd, struct plx_dma_desc, txd);
 }
 
 static struct plx_dma_desc *plx_dma_get_desc(struct plx_dma_dev *plxdev, int i)
@@ -242,6 +248,113 @@ static void plx_dma_desc_task(unsigned long data)
 	plx_dma_process_desc(plxdev);
 }
 
+static struct dma_async_tx_descriptor *plx_dma_prep_memcpy(struct dma_chan *c,
+		dma_addr_t dma_dst, dma_addr_t dma_src, size_t len,
+		unsigned long flags)
+	__acquires(plxdev->ring_lock)
+{
+	struct plx_dma_dev *plxdev = chan_to_plx_dma_dev(c);
+	struct plx_dma_desc *plxdesc;
+
+	spin_lock_bh(&plxdev->ring_lock);
+	if (!plxdev->ring_active)
+		goto err_unlock;
+
+	if (!CIRC_SPACE(plxdev->head, plxdev->tail, PLX_DMA_RING_COUNT))
+		goto err_unlock;
+
+	if (len > PLX_DESC_SIZE_MASK)
+		goto err_unlock;
+
+	plxdesc = plx_dma_get_desc(plxdev, plxdev->head);
+	plxdev->head++;
+
+	plxdesc->hw->dst_addr_lo = cpu_to_le32(lower_32_bits(dma_dst));
+	plxdesc->hw->dst_addr_hi = cpu_to_le16(upper_32_bits(dma_dst));
+	plxdesc->hw->src_addr_lo = cpu_to_le32(lower_32_bits(dma_src));
+	plxdesc->hw->src_addr_hi = cpu_to_le16(upper_32_bits(dma_src));
+
+	plxdesc->orig_size = len;
+
+	if (flags & DMA_PREP_INTERRUPT)
+		len |= PLX_DESC_FLAG_INT_WHEN_DONE;
+
+	plxdesc->hw->flags_and_size = cpu_to_le32(len);
+	plxdesc->txd.flags = flags;
+
+	/* return with the lock held, it will be released in tx_submit */
+
+	return &plxdesc->txd;
+
+err_unlock:
+	/*
+	 * Keep sparse happy by restoring an even lock count on
+	 * this lock.
+	 */
+	__acquire(plxdev->ring_lock);
+
+	spin_unlock_bh(&plxdev->ring_lock);
+	return NULL;
+}
+
+static dma_cookie_t plx_dma_tx_submit(struct dma_async_tx_descriptor *desc)
+	__releases(plxdev->ring_lock)
+{
+	struct plx_dma_dev *plxdev = chan_to_plx_dma_dev(desc->chan);
+	struct plx_dma_desc *plxdesc = to_plx_desc(desc);
+	dma_cookie_t cookie;
+
+	cookie = dma_cookie_assign(desc);
+
+	/*
+	 * Ensure the descriptor updates are visible to the dma device
+	 * before setting the valid bit.
+	 */
+	wmb();
+
+	plxdesc->hw->flags_and_size |= cpu_to_le32(PLX_DESC_FLAG_VALID);
+
+	spin_unlock_bh(&plxdev->ring_lock);
+
+	return cookie;
+}
+
+static enum dma_status plx_dma_tx_status(struct dma_chan *chan,
+		dma_cookie_t cookie, struct dma_tx_state *txstate)
+{
+	struct plx_dma_dev *plxdev = chan_to_plx_dma_dev(chan);
+	enum dma_status ret;
+
+	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret == DMA_COMPLETE)
+		return ret;
+
+	plx_dma_process_desc(plxdev);
+
+	return dma_cookie_status(chan, cookie, txstate);
+}
+
+static void plx_dma_issue_pending(struct dma_chan *chan)
+{
+	struct plx_dma_dev *plxdev = chan_to_plx_dma_dev(chan);
+
+	rcu_read_lock();
+	if (!rcu_dereference(plxdev->pdev)) {
+		rcu_read_unlock();
+		return;
+	}
+
+	/*
+	 * Ensure the valid bits are visible before starting the
+	 * DMA engine.
+	 */
+	wmb();
+
+	writew(PLX_REG_CTRL_START_VAL, plxdev->bar + PLX_REG_CTRL);
+
+	rcu_read_unlock();
+}
+
 static irqreturn_t plx_dma_isr(int irq, void *devid)
 {
 	struct plx_dma_dev *plxdev = devid;
@@ -276,7 +389,9 @@ static int plx_dma_alloc_desc(struct plx_dma_dev *plxdev)
 			goto free_and_exit;
 
 		dma_async_tx_descriptor_init(&desc->txd, &plxdev->dma_chan);
+		desc->txd.tx_submit = plx_dma_tx_submit;
 		desc->hw = &plxdev->hw_ring[i];
+
 		plxdev->desc_ring[i] = desc;
 	}
 
@@ -407,11 +522,15 @@ static int plx_dma_create(struct pci_dev *pdev)
 	dma = &plxdev->dma_dev;
 	dma->chancnt = 1;
 	INIT_LIST_HEAD(&dma->channels);
+	dma_cap_set(DMA_MEMCPY, dma->cap_mask);
 	dma->copy_align = DMAENGINE_ALIGN_1_BYTE;
 	dma->dev = get_device(&pdev->dev);
 
 	dma->device_alloc_chan_resources = plx_dma_alloc_chan_resources;
 	dma->device_free_chan_resources = plx_dma_free_chan_resources;
+	dma->device_prep_dma_memcpy = plx_dma_prep_memcpy;
+	dma->device_issue_pending = plx_dma_issue_pending;
+	dma->device_tx_status = plx_dma_tx_status;
 	dma->device_release = plx_dma_release;
 
 	chan = &plxdev->dma_chan;
