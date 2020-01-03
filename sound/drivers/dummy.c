@@ -849,7 +849,7 @@ static int snd_dummy_iobox_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_dummy_controls[] = {
+static const struct snd_kcontrol_new snd_dummy_controls[] = {
 DUMMY_VOLUME("Master Volume", 0, MIXER_ADDR_MASTER),
 DUMMY_CAPSRC("Master Capture Switch", 0, MIXER_ADDR_MASTER),
 DUMMY_VOLUME("Synth Volume", 0, MIXER_ADDR_SYNTH),
