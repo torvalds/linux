@@ -213,6 +213,7 @@ static vm_fault_t i915_error_to_vmf_fault(int err)
 	case -EIO: /* shmemfs failure from swap device */
 	case -EFAULT: /* purged object */
 	case -ENODEV: /* bad object, how did you get here! */
+	case -ENXIO: /* unable to access backing store (on device) */
 		return VM_FAULT_SIGBUS;
 
 	case -ENOSPC: /* shmemfs allocation failure */
@@ -237,10 +238,8 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 	struct vm_area_struct *area = vmf->vma;
 	struct i915_mmap_offset *mmo = area->vm_private_data;
 	struct drm_i915_gem_object *obj = mmo->obj;
+	resource_size_t iomap;
 	int err;
-
-	if (unlikely(!i915_gem_object_has_struct_page(obj)))
-		return VM_FAULT_SIGBUS;
 
 	/* Sanity check that we allow writing into this object */
 	if (unlikely(i915_gem_object_is_readonly(obj) &&
@@ -251,10 +250,16 @@ static vm_fault_t vm_fault_cpu(struct vm_fault *vmf)
 	if (err)
 		goto out;
 
+	iomap = -1;
+	if (!i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_STRUCT_PAGE)) {
+		iomap = obj->mm.region->iomap.base;
+		iomap -= obj->mm.region->region.start;
+	}
+
 	/* PTEs are revoked in obj->ops->put_pages() */
-	err = remap_io_sg_page(area,
-			       area->vm_start, area->vm_end - area->vm_start,
-			       obj->mm.pages->sgl);
+	err = remap_io_sg(area,
+			  area->vm_start, area->vm_end - area->vm_start,
+			  obj->mm.pages->sgl, iomap);
 
 	if (area->vm_flags & VM_WRITE) {
 		GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
@@ -553,7 +558,9 @@ __assign_mmap_offset(struct drm_file *file,
 	}
 
 	if (mmap_type != I915_MMAP_TYPE_GTT &&
-	    !i915_gem_object_has_struct_page(obj)) {
+	    !i915_gem_object_type_has(obj,
+				      I915_GEM_OBJECT_HAS_STRUCT_PAGE |
+				      I915_GEM_OBJECT_HAS_IOMEM)) {
 		err = -ENODEV;
 		goto out;
 	}
