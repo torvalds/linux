@@ -3191,7 +3191,7 @@ void r600_vga_set_state(struct radeon_device *rdev, bool state)
 	uint32_t temp;
 
 	temp = RREG32(CONFIG_CNTL);
-	if (state == false) {
+	if (!state) {
 		temp &= ~(1<<0);
 		temp |= (1<<1);
 	} else {

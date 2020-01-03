@@ -2815,7 +2815,7 @@ void r100_vga_set_state(struct radeon_device *rdev, bool state)
 	uint32_t temp;
 
 	temp = RREG32(RADEON_CONFIG_CNTL);
-	if (state == false) {
+	if (!state) {
 		temp &= ~RADEON_CFG_VGA_RAM_EN;
 		temp |= RADEON_CFG_VGA_IO_DIS;
 	} else {
