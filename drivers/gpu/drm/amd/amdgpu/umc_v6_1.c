@@ -32,11 +32,13 @@
 
 #define smnMCA_UMC0_MCUMC_ADDRT0	0x50f10
 
+#define UMC_6_INST_DIST			0x40000
+
 /*
  * (addr / 256) * 8192, the higher 26 bits in ErrorAddr
  * is the index of 8KB block
  */
-#define ADDR_OF_8KB_BLOCK(addr)		(((addr) & ~0xffULL) << 5)
+#define ADDR_OF_8KB_BLOCK(addr)			(((addr) & ~0xffULL) << 5)
 /* channel index is the index of 256B block */
 #define ADDR_OF_256B_BLOCK(channel_index)	((channel_index) << 8)
 /* offset in 256B block */
@@ -50,41 +52,11 @@ const uint32_t
 		{9, 25, 0, 16},		{15, 31, 6, 22}
 };
 
-static void umc_v6_1_enable_umc_index_mode(struct amdgpu_device *adev,
-					   uint32_t umc_instance)
+static inline uint32_t get_umc_6_reg_offset(struct amdgpu_device *adev,
+					    uint32_t umc_inst,
+					    uint32_t ch_inst)
 {
-	uint32_t rsmu_umc_index;
-
-	rsmu_umc_index = RREG32_SOC15(RSMU, 0,
-			mmRSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU);
-	rsmu_umc_index = REG_SET_FIELD(rsmu_umc_index,
-			RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
-			RSMU_UMC_INDEX_MODE_EN, 1);
-	rsmu_umc_index = REG_SET_FIELD(rsmu_umc_index,
-			RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
-			RSMU_UMC_INDEX_INSTANCE, umc_instance);
-	rsmu_umc_index = REG_SET_FIELD(rsmu_umc_index,
-			RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
-			RSMU_UMC_INDEX_WREN, 1 << umc_instance);
-	WREG32_SOC15(RSMU, 0, mmRSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
-				rsmu_umc_index);
-}
-
-static void umc_v6_1_disable_umc_index_mode(struct amdgpu_device *adev)
-{
-	WREG32_FIELD15(RSMU, 0, RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
-			RSMU_UMC_INDEX_MODE_EN, 0);
-}
-
-static uint32_t umc_v6_1_get_umc_inst(struct amdgpu_device *adev)
-{
-	uint32_t rsmu_umc_index;
-
-	rsmu_umc_index = RREG32_SOC15(RSMU, 0,
-				mmRSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU);
-	return REG_GET_FIELD(rsmu_umc_index,
-				RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
-				RSMU_UMC_INDEX_INSTANCE);
+	return adev->umc.channel_offs*ch_inst + UMC_6_INST_DIST*umc_inst;
 }
 
 static void umc_v6_1_query_correctable_error_count(struct amdgpu_device *adev,
@@ -174,25 +146,36 @@ static void umc_v6_1_querry_uncorrectable_error_count(struct amdgpu_device *adev
 		*error_count += 1;
 }
 
-static void umc_v6_1_query_error_count(struct amdgpu_device *adev,
-					   struct ras_err_data *err_data, uint32_t umc_reg_offset,
-					   uint32_t channel_index)
-{
-	umc_v6_1_query_correctable_error_count(adev, umc_reg_offset,
-						   &(err_data->ce_count));
-	umc_v6_1_querry_uncorrectable_error_count(adev, umc_reg_offset,
-						  &(err_data->ue_count));
-}
-
 static void umc_v6_1_query_ras_error_count(struct amdgpu_device *adev,
 					   void *ras_error_status)
 {
-	amdgpu_umc_for_each_channel(umc_v6_1_query_error_count);
+	struct ras_err_data* err_data = (struct ras_err_data*)ras_error_status;
+
+	uint32_t umc_inst        = 0;
+	uint32_t ch_inst         = 0;
+	uint32_t umc_reg_offset  = 0;
+
+	for (umc_inst = 0; umc_inst < adev->umc.umc_inst_num; umc_inst++) {
+		for (ch_inst = 0; ch_inst < adev->umc.channel_inst_num; ch_inst++) {
+			umc_reg_offset = get_umc_6_reg_offset(adev,
+							      umc_inst,
+							      ch_inst);
+
+			umc_v6_1_query_correctable_error_count(adev,
+							       umc_reg_offset,
+							       &(err_data->ce_count));
+			umc_v6_1_querry_uncorrectable_error_count(adev,
+								  umc_reg_offset,
+								  &(err_data->ue_count));
+		}
+	}
 }
 
 static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 					 struct ras_err_data *err_data,
-					 uint32_t umc_reg_offset, uint32_t channel_index)
+					 uint32_t umc_reg_offset,
+					 uint32_t channel_index,
+					 uint32_t umc_inst)
 {
 	uint32_t lsb, mc_umc_status_addr;
 	uint64_t mc_umc_status, err_addr, retired_page;
@@ -244,7 +227,7 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 			err_rec->err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
 			err_rec->cu = 0;
 			err_rec->mem_channel = channel_index;
-			err_rec->mcumc_id = umc_v6_1_get_umc_inst(adev);
+			err_rec->mcumc_id = umc_inst;
 
 			err_data->err_addr_cnt++;
 		}
@@ -257,12 +240,30 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 static void umc_v6_1_query_ras_error_address(struct amdgpu_device *adev,
 					     void *ras_error_status)
 {
-	amdgpu_umc_for_each_channel(umc_v6_1_query_error_address);
+	struct ras_err_data* err_data = (struct ras_err_data*)ras_error_status;
+
+	uint32_t umc_inst        = 0;
+	uint32_t ch_inst         = 0;
+	uint32_t umc_reg_offset  = 0;
+
+	for (umc_inst = 0; umc_inst < adev->umc.umc_inst_num; umc_inst++) {
+		for (ch_inst = 0; ch_inst < adev->umc.channel_inst_num; ch_inst++) {
+			umc_reg_offset = get_umc_6_reg_offset(adev,
+							      umc_inst,
+							      ch_inst);
+
+			umc_v6_1_query_error_address(adev,
+						     err_data,
+						     umc_reg_offset,
+						     ch_inst,
+						     umc_inst);
+		}
+	}
+
 }
 
 static void umc_v6_1_err_cnt_init_per_channel(struct amdgpu_device *adev,
-					 struct ras_err_data *err_data,
-					 uint32_t umc_reg_offset, uint32_t channel_index)
+					      uint32_t umc_reg_offset)
 {
 	uint32_t ecc_err_cnt_sel, ecc_err_cnt_sel_addr;
 	uint32_t ecc_err_cnt_addr;
@@ -301,9 +302,19 @@ static void umc_v6_1_err_cnt_init_per_channel(struct amdgpu_device *adev,
 
 static void umc_v6_1_err_cnt_init(struct amdgpu_device *adev)
 {
-	void *ras_error_status = NULL;
+	uint32_t umc_inst        = 0;
+	uint32_t ch_inst         = 0;
+	uint32_t umc_reg_offset  = 0;
 
-	amdgpu_umc_for_each_channel(umc_v6_1_err_cnt_init_per_channel);
+	for (umc_inst = 0; umc_inst < adev->umc.umc_inst_num; umc_inst++) {
+		for (ch_inst = 0; ch_inst < adev->umc.channel_inst_num; ch_inst++) {
+			umc_reg_offset = get_umc_6_reg_offset(adev,
+							      umc_inst,
+							      ch_inst);
+
+			umc_v6_1_err_cnt_init_per_channel(adev, umc_reg_offset);
+		}
+	}
 }
 
 const struct amdgpu_umc_funcs umc_v6_1_funcs = {
@@ -311,6 +322,4 @@ const struct amdgpu_umc_funcs umc_v6_1_funcs = {
 	.ras_late_init = amdgpu_umc_ras_late_init,
 	.query_ras_error_count = umc_v6_1_query_ras_error_count,
 	.query_ras_error_address = umc_v6_1_query_ras_error_address,
-	.enable_umc_index_mode = umc_v6_1_enable_umc_index_mode,
-	.disable_umc_index_mode = umc_v6_1_disable_umc_index_mode,
 };
