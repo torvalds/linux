@@ -97,7 +97,7 @@ static int onyx_dev_register(struct snd_device *dev)
 	return 0;
 }
 
-static struct snd_device_ops ops = {
+static const struct snd_device_ops ops = {
 	.dev_register = onyx_dev_register,
 };
 
