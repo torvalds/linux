@@ -874,7 +874,7 @@ static int snd_at73c213_dev_free(struct snd_device *device)
 static int snd_at73c213_dev_init(struct snd_card *card,
 				 struct spi_device *spi)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free	= snd_at73c213_dev_free,
 	};
 	struct snd_at73c213 *chip = get_chip(card);
