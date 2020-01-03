@@ -914,8 +914,6 @@ SHOW(bch2_dev)
 			bch2_disk_path_to_text(&out, &c->disk_sb,
 					       ca->mi.group - 1);
 			mutex_unlock(&c->sb_lock);
-		} else {
-			pr_buf(&out, "none");
 		}
 
 		pr_buf(&out, "\n");
