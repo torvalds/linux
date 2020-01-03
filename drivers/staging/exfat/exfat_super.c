@@ -38,8 +38,8 @@
 
 static struct kmem_cache *exfat_inode_cachep;
 
-static int exfat_default_codepage = CONFIG_EXFAT_DEFAULT_CODEPAGE;
-static char exfat_default_iocharset[] = CONFIG_EXFAT_DEFAULT_IOCHARSET;
+static int exfat_default_codepage = CONFIG_STAGING_EXFAT_DEFAULT_CODEPAGE;
+static char exfat_default_iocharset[] = CONFIG_STAGING_EXFAT_DEFAULT_IOCHARSET;
 
 #define INC_IVERSION(x) (inode_inc_iversion(x))
 #define GET_IVERSION(x) (inode_peek_iversion_raw(x))
@@ -647,7 +647,7 @@ static int ffsCreateFile(struct inode *inode, char *path, u8 mode,
 	/* create a new file */
 	ret = create_file(inode, &dir, &uni_name, mode, fid);
 
-#ifndef CONFIG_EXFAT_DELAYED_SYNC
+#ifndef CONFIG_STAGING_EXFAT_DELAYED_SYNC
 	fs_sync(sb, true);
 	fs_set_vol_flags(sb, VOL_CLEAN);
 #endif
@@ -1008,7 +1008,7 @@ static int ffsWriteFile(struct inode *inode, struct file_id_t *fid,
 	update_dir_checksum_with_entry_set(sb, es);
 	release_entry_set(es);
 
-#ifndef CONFIG_EXFAT_DELAYED_SYNC
+#ifndef CONFIG_STAGING_EXFAT_DELAYED_SYNC
 	fs_sync(sb, true);
 	fs_set_vol_flags(sb, VOL_CLEAN);
 #endif
@@ -1134,7 +1134,7 @@ static int ffsTruncateFile(struct inode *inode, u64 old_size, u64 new_size)
 	if (fid->rwoffset > fid->size)
 		fid->rwoffset = fid->size;
 
-#ifndef CONFIG_EXFAT_DELAYED_SYNC
+#ifndef CONFIG_STAGING_EXFAT_DELAYED_SYNC
 	fs_sync(sb, true);
 	fs_set_vol_flags(sb, VOL_CLEAN);
 #endif
@@ -1282,7 +1282,7 @@ static int ffsMoveFile(struct inode *old_parent_inode, struct file_id_t *fid,
 						num_entries + 1);
 	}
 out:
-#ifndef CONFIG_EXFAT_DELAYED_SYNC
+#ifndef CONFIG_STAGING_EXFAT_DELAYED_SYNC
 	fs_sync(sb, true);
 	fs_set_vol_flags(sb, VOL_CLEAN);
 #endif
@@ -1344,7 +1344,7 @@ static int ffsRemoveFile(struct inode *inode, struct file_id_t *fid)
 	fid->start_clu = CLUSTER_32(~0);
 	fid->flags = (p_fs->vol_type == EXFAT) ? 0x03 : 0x01;
 
-#ifndef CONFIG_EXFAT_DELAYED_SYNC
+#ifndef CONFIG_STAGING_EXFAT_DELAYED_SYNC
 	fs_sync(sb, true);
 	fs_set_vol_flags(sb, VOL_CLEAN);
 #endif
@@ -1420,7 +1420,7 @@ static int ffsSetAttr(struct inode *inode, u32 attr)
 	update_dir_checksum_with_entry_set(sb, es);
 	release_entry_set(es);
 
-#ifndef CONFIG_EXFAT_DELAYED_SYNC
+#ifndef CONFIG_STAGING_EXFAT_DELAYED_SYNC
 	fs_sync(sb, true);
 	fs_set_vol_flags(sb, VOL_CLEAN);
 #endif
@@ -1804,7 +1804,7 @@ static int ffsCreateDir(struct inode *inode, char *path, struct file_id_t *fid)
 
 	ret = create_dir(inode, &dir, &uni_name, fid);
 
-#ifndef CONFIG_EXFAT_DELAYED_SYNC
+#ifndef CONFIG_STAGING_EXFAT_DELAYED_SYNC
 	fs_sync(sb, true);
 	fs_set_vol_flags(sb, VOL_CLEAN);
 #endif
@@ -2053,7 +2053,7 @@ static int ffsRemoveDir(struct inode *inode, struct file_id_t *fid)
 	fid->start_clu = CLUSTER_32(~0);
 	fid->flags = (p_fs->vol_type == EXFAT) ? 0x03 : 0x01;
 
-#ifndef CONFIG_EXFAT_DELAYED_SYNC
+#ifndef CONFIG_STAGING_EXFAT_DELAYED_SYNC
 	fs_sync(sb, true);
 	fs_set_vol_flags(sb, VOL_CLEAN);
 #endif
@@ -2176,14 +2176,14 @@ static long exfat_generic_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
 	struct inode *inode = filp->f_path.dentry->d_inode;
-#ifdef CONFIG_EXFAT_KERNEL_DEBUG
+#ifdef CONFIG_STAGING_EXFAT_KERNEL_DEBUG
 	unsigned int flags;
-#endif /* CONFIG_EXFAT_KERNEL_DEBUG */
+#endif /* CONFIG_STAGING_EXFAT_KERNEL_DEBUG */
 
 	switch (cmd) {
 	case EXFAT_IOCTL_GET_VOLUME_ID:
 		return exfat_ioctl_volume_id(inode);
-#ifdef CONFIG_EXFAT_KERNEL_DEBUG
+#ifdef CONFIG_STAGING_EXFAT_KERNEL_DEBUG
 	case EXFAT_IOC_GET_DEBUGFLAGS: {
 		struct super_block *sb = inode->i_sb;
 		struct exfat_sb_info *sbi = EXFAT_SB(sb);
@@ -2207,7 +2207,7 @@ static long exfat_generic_ioctl(struct file *filp, unsigned int cmd,
 
 		return 0;
 	}
-#endif /* CONFIG_EXFAT_KERNEL_DEBUG */
+#endif /* CONFIG_STAGING_EXFAT_KERNEL_DEBUG */
 	default:
 		return -ENOTTY; /* Inappropriate ioctl for device */
 	}
@@ -3400,7 +3400,7 @@ static int exfat_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",errors=panic");
 	else
 		seq_puts(m, ",errors=remount-ro");
-#ifdef CONFIG_EXFAT_DISCARD
+#ifdef CONFIG_STAGING_EXFAT_DISCARD
 	if (opts->discard)
 		seq_puts(m, ",discard");
 #endif
@@ -3481,7 +3481,7 @@ enum {
 	Opt_err_ro,
 	Opt_utf8_hack,
 	Opt_err,
-#ifdef CONFIG_EXFAT_DISCARD
+#ifdef CONFIG_STAGING_EXFAT_DISCARD
 	Opt_discard,
 #endif /* EXFAT_CONFIG_DISCARD */
 };
@@ -3501,9 +3501,9 @@ static const match_table_t exfat_tokens = {
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
 	{Opt_utf8_hack, "utf8"},
-#ifdef CONFIG_EXFAT_DISCARD
+#ifdef CONFIG_STAGING_EXFAT_DISCARD
 	{Opt_discard, "discard"},
-#endif /* CONFIG_EXFAT_DISCARD */
+#endif /* CONFIG_STAGING_EXFAT_DISCARD */
 	{Opt_err, NULL}
 };
 
@@ -3524,7 +3524,7 @@ static int parse_options(char *options, int silent, int *debug,
 	opts->iocharset = exfat_default_iocharset;
 	opts->casesensitive = 0;
 	opts->errors = EXFAT_ERRORS_RO;
-#ifdef CONFIG_EXFAT_DISCARD
+#ifdef CONFIG_STAGING_EXFAT_DISCARD
 	opts->discard = 0;
 #endif
 	*debug = 0;
@@ -3595,11 +3595,11 @@ static int parse_options(char *options, int silent, int *debug,
 		case Opt_debug:
 			*debug = 1;
 			break;
-#ifdef CONFIG_EXFAT_DISCARD
+#ifdef CONFIG_STAGING_EXFAT_DISCARD
 		case Opt_discard:
 			opts->discard = 1;
 			break;
-#endif /* CONFIG_EXFAT_DISCARD */
+#endif /* CONFIG_STAGING_EXFAT_DISCARD */
 		case Opt_utf8_hack:
 			break;
 		default:
@@ -3803,7 +3803,7 @@ static void __exit exfat_destroy_inodecache(void)
 	kmem_cache_destroy(exfat_inode_cachep);
 }
 
-#ifdef CONFIG_EXFAT_KERNEL_DEBUG
+#ifdef CONFIG_STAGING_EXFAT_KERNEL_DEBUG
 static void exfat_debug_kill_sb(struct super_block *sb)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
@@ -3831,17 +3831,17 @@ static void exfat_debug_kill_sb(struct super_block *sb)
 
 	kill_block_super(sb);
 }
-#endif /* CONFIG_EXFAT_KERNEL_DEBUG */
+#endif /* CONFIG_STAGING_EXFAT_KERNEL_DEBUG */
 
 static struct file_system_type exfat_fs_type = {
 	.owner       = THIS_MODULE,
 	.name        = "exfat",
 	.mount       = exfat_fs_mount,
-#ifdef CONFIG_EXFAT_KERNEL_DEBUG
+#ifdef CONFIG_STAGING_EXFAT_KERNEL_DEBUG
 	.kill_sb    = exfat_debug_kill_sb,
 #else
 	.kill_sb    = kill_block_super,
-#endif /* CONFIG_EXFAT_KERNEL_DEBUG */
+#endif /* CONFIG_STAGING_EXFAT_KERNEL_DEBUG */
 	.fs_flags    = FS_REQUIRES_DEV,
 };
 

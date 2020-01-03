@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/buffer_head.h>
 
-#ifdef CONFIG_EXFAT_KERNEL_DEBUG
+#ifdef CONFIG_STAGING_EXFAT_KERNEL_DEBUG
   /* For Debugging Purpose */
 	/* IOCTL code 'f' used by
 	 *   - file systems typically #0~0x1F
@@ -22,9 +22,9 @@
 
 #define EXFAT_DEBUGFLAGS_INVALID_UMOUNT	0x01
 #define EXFAT_DEBUGFLAGS_ERROR_RW	0x02
-#endif /* CONFIG_EXFAT_KERNEL_DEBUG */
+#endif /* CONFIG_STAGING_EXFAT_KERNEL_DEBUG */
 
-#ifdef CONFIG_EXFAT_DEBUG_MSG
+#ifdef CONFIG_STAGING_EXFAT_DEBUG_MSG
 #define DEBUG	1
 #else
 #undef DEBUG
@@ -661,10 +661,10 @@ struct exfat_mount_options {
 
 	/* on error: continue, panic, remount-ro */
 	unsigned char errors;
-#ifdef CONFIG_EXFAT_DISCARD
+#ifdef CONFIG_STAGING_EXFAT_DISCARD
 	/* flag on if -o dicard specified and device support discard() */
 	unsigned char discard;
-#endif /* CONFIG_EXFAT_DISCARD */
+#endif /* CONFIG_STAGING_EXFAT_DISCARD */
 };
 
 #define EXFAT_HASH_BITS		8
@@ -700,9 +700,9 @@ struct exfat_sb_info {
 
 	spinlock_t inode_hash_lock;
 	struct hlist_head inode_hashtable[EXFAT_HASH_SIZE];
-#ifdef CONFIG_EXFAT_KERNEL_DEBUG
+#ifdef CONFIG_STAGING_EXFAT_KERNEL_DEBUG
 	long debug_flags;
-#endif /* CONFIG_EXFAT_KERNEL_DEBUG */
+#endif /* CONFIG_STAGING_EXFAT_KERNEL_DEBUG */
 };
 
 /*
