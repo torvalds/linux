@@ -908,7 +908,7 @@ static void skcipher_exit_tfm_simple(struct crypto_skcipher *tfm)
 
 static void skcipher_free_instance_simple(struct skcipher_instance *inst)
 {
-	crypto_drop_spawn(skcipher_instance_ctx(inst));
+	crypto_drop_cipher(skcipher_instance_ctx(inst));
 	kfree(inst);
 }
 
@@ -932,10 +932,10 @@ struct skcipher_instance *skcipher_alloc_instance_simple(
 	struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct crypto_attr_type *algt;
-	struct crypto_alg *cipher_alg;
-	struct skcipher_instance *inst;
-	struct crypto_spawn *spawn;
 	u32 mask;
+	struct skcipher_instance *inst;
+	struct crypto_cipher_spawn *spawn;
+	struct crypto_alg *cipher_alg;
 	int err;
 
 	algt = crypto_get_attr_type(tb);
@@ -945,32 +945,25 @@ struct skcipher_instance *skcipher_alloc_instance_simple(
 	if ((algt->type ^ CRYPTO_ALG_TYPE_SKCIPHER) & algt->mask)
 		return ERR_PTR(-EINVAL);
 
-	mask = CRYPTO_ALG_TYPE_MASK |
-		crypto_requires_off(algt->type, algt->mask,
-				    CRYPTO_ALG_NEED_FALLBACK);
-
-	cipher_alg = crypto_get_attr_alg(tb, CRYPTO_ALG_TYPE_CIPHER, mask);
-	if (IS_ERR(cipher_alg))
-		return ERR_CAST(cipher_alg);
+	mask = crypto_requires_off(algt->type, algt->mask,
+				   CRYPTO_ALG_NEED_FALLBACK);
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
-	if (!inst) {
-		err = -ENOMEM;
-		goto err_put_cipher_alg;
-	}
+	if (!inst)
+		return ERR_PTR(-ENOMEM);
 	spawn = skcipher_instance_ctx(inst);
+
+	err = crypto_grab_cipher(spawn, skcipher_crypto_instance(inst),
+				 crypto_attr_alg_name(tb[1]), 0, mask);
+	if (err)
+		goto err_free_inst;
+	cipher_alg = crypto_spawn_cipher_alg(spawn);
 
 	err = crypto_inst_setname(skcipher_crypto_instance(inst), tmpl->name,
 				  cipher_alg);
 	if (err)
 		goto err_free_inst;
 
-	spawn->dropref = true;
-	err = crypto_init_spawn(spawn, cipher_alg,
-				skcipher_crypto_instance(inst),
-				CRYPTO_ALG_TYPE_MASK);
-	if (err)
-		goto err_free_inst;
 	inst->free = skcipher_free_instance_simple;
 
 	/* Default algorithm properties, can be overridden */
@@ -990,9 +983,7 @@ struct skcipher_instance *skcipher_alloc_instance_simple(
 	return inst;
 
 err_free_inst:
-	kfree(inst);
-err_put_cipher_alg:
-	crypto_mod_put(cipher_alg);
+	skcipher_free_instance_simple(inst);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(skcipher_alloc_instance_simple);

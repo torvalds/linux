@@ -214,9 +214,9 @@ struct skcipher_instance *skcipher_alloc_instance_simple(
 static inline struct crypto_alg *skcipher_ialg_simple(
 	struct skcipher_instance *inst)
 {
-	struct crypto_spawn *spawn = skcipher_instance_ctx(inst);
+	struct crypto_cipher_spawn *spawn = skcipher_instance_ctx(inst);
 
-	return spawn->alg;
+	return crypto_spawn_cipher_alg(spawn);
 }
 
 #endif	/* _CRYPTO_INTERNAL_SKCIPHER_H */
