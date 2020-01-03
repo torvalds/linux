@@ -1200,7 +1200,7 @@ static bool rcu_start_this_gp(struct rcu_node *rnp_start, struct rcu_data *rdp,
 	}
 	trace_rcu_this_gp(rnp, rdp, gp_seq_req, TPS("Startedroot"));
 	WRITE_ONCE(rcu_state.gp_flags, rcu_state.gp_flags | RCU_GP_FLAG_INIT);
-	rcu_state.gp_req_activity = jiffies;
+	WRITE_ONCE(rcu_state.gp_req_activity, jiffies);
 	if (!rcu_state.gp_kthread) {
 		trace_rcu_this_gp(rnp, rdp, gp_seq_req, TPS("NoGPkthread"));
 		goto unlock_out;
@@ -1775,7 +1775,7 @@ static void rcu_gp_cleanup(void)
 		    rcu_segcblist_is_offloaded(&rdp->cblist);
 	if ((offloaded || !rcu_accelerate_cbs(rnp, rdp)) && needgp) {
 		WRITE_ONCE(rcu_state.gp_flags, RCU_GP_FLAG_INIT);
-		rcu_state.gp_req_activity = jiffies;
+		WRITE_ONCE(rcu_state.gp_req_activity, jiffies);
 		trace_rcu_grace_period(rcu_state.name,
 				       READ_ONCE(rcu_state.gp_seq),
 				       TPS("newreq"));
