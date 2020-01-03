@@ -1076,7 +1076,7 @@ snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 {
 	struct snd_ml403_ac97cr *ml403_ac97cr;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_ml403_ac97cr_dev_free,
 	};
 	struct resource *resource;
