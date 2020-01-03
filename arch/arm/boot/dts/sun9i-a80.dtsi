@@ -878,8 +878,12 @@
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_LCD0>, <&ccu CLK_LCD0>;
 			clock-names = "ahb", "tcon-ch0";
-			resets = <&ccu RST_BUS_LCD0>, <&ccu RST_BUS_EDP>;
-			reset-names = "lcd", "edp";
+			resets = <&ccu RST_BUS_LCD0>,
+				 <&ccu RST_BUS_EDP>,
+				 <&ccu RST_BUS_LVDS>;
+			reset-names = "lcd",
+				      "edp",
+				      "lvds";
 			clock-output-names = "tcon0-pixel-clock";
 			#clock-cells = <0>;
 
