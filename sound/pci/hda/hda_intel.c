@@ -1490,7 +1490,7 @@ static bool check_hdmi_disabled(struct pci_dev *pci)
 /*
  * white/black-listing for position_fix
  */
-static struct snd_pci_quirk position_fix_list[] = {
+static const struct snd_pci_quirk position_fix_list[] = {
 	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1028, 0x01de, "Dell Precision 390", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x103c, 0x306d, "HP dv3", POS_FIX_LPIB),
@@ -1583,7 +1583,7 @@ static void assign_position_fix(struct azx *chip, int fix)
 /*
  * black-lists for probe_mask
  */
-static struct snd_pci_quirk probe_mask_list[] = {
+static const struct snd_pci_quirk probe_mask_list[] = {
 	/* Thinkpad often breaks the controller communication when accessing
 	 * to the non-working (or non-existing) modem codec slot.
 	 */
@@ -1631,7 +1631,7 @@ static void check_probe_mask(struct azx *chip, int dev)
 /*
  * white/black-list for enable_msi
  */
-static struct snd_pci_quirk msi_black_list[] = {
+static const struct snd_pci_quirk msi_black_list[] = {
 	SND_PCI_QUIRK(0x103c, 0x2191, "HP", 0), /* AMD Hudson */
 	SND_PCI_QUIRK(0x103c, 0x2192, "HP", 0), /* AMD Hudson */
 	SND_PCI_QUIRK(0x103c, 0x21f7, "HP", 0), /* AMD Hudson */
@@ -2164,7 +2164,7 @@ out_free:
  * So we keep a list of devices where we disable powersaving as its known
  * to causes problems on these devices.
  */
-static struct snd_pci_quirk power_save_blacklist[] = {
+static const struct snd_pci_quirk power_save_blacklist[] = {
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
 	SND_PCI_QUIRK(0x1849, 0xc892, "Asrock B85M-ITX", 0),
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
