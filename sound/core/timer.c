@@ -1199,7 +1199,7 @@ static int snd_timer_s_close(struct snd_timer *timer)
 	return 0;
 }
 
-static struct snd_timer_hardware snd_timer_system =
+static const struct snd_timer_hardware snd_timer_system =
 {
 	.flags =	SNDRV_TIMER_HW_FIRST | SNDRV_TIMER_HW_TASKLET,
 	.resolution =	1000000000L / HZ,
