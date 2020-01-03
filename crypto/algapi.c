@@ -734,6 +734,9 @@ EXPORT_SYMBOL_GPL(crypto_grab_spawn);
 
 void crypto_drop_spawn(struct crypto_spawn *spawn)
 {
+	if (!spawn->alg) /* not yet initialized? */
+		return;
+
 	down_write(&crypto_alg_sem);
 	if (!spawn->dead)
 		list_del(&spawn->list);
