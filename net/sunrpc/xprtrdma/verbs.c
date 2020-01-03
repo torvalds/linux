@@ -74,6 +74,8 @@
 /*
  * internal functions
  */
+static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt);
+static void rpcrdma_sendctxs_destroy(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_sendctx_put_locked(struct rpcrdma_xprt *r_xprt,
 				       struct rpcrdma_sendctx *sc);
 static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt);
@@ -428,6 +430,7 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 		rpcrdma_regbuf_dma_unmap(req->rl_recvbuf);
 	}
 	rpcrdma_mrs_destroy(r_xprt);
+	rpcrdma_sendctxs_destroy(r_xprt);
 	ib_dealloc_pd(ia->ri_pd);
 	ia->ri_pd = NULL;
 
@@ -705,6 +708,10 @@ retry:
 	rpcrdma_reset_cwnd(r_xprt);
 	rpcrdma_post_recvs(r_xprt, true);
 
+	rc = rpcrdma_sendctxs_create(r_xprt);
+	if (rc)
+		goto out;
+
 	rc = rdma_connect(ia->ri_id, &ep->rep_remote_cma);
 	if (rc)
 		goto out;
@@ -757,6 +764,7 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 	rpcrdma_xprt_drain(r_xprt);
 	rpcrdma_reqs_reset(r_xprt);
 	rpcrdma_mrs_destroy(r_xprt);
+	rpcrdma_sendctxs_destroy(r_xprt);
 }
 
 /* Fixed-size circular FIFO queue. This implementation is wait-free and
@@ -776,13 +784,17 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
  * queue activity, and rpcrdma_xprt_drain has flushed all remaining
  * Send requests.
  */
-static void rpcrdma_sendctxs_destroy(struct rpcrdma_buffer *buf)
+static void rpcrdma_sendctxs_destroy(struct rpcrdma_xprt *r_xprt)
 {
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	unsigned long i;
 
+	if (!buf->rb_sc_ctxs)
+		return;
 	for (i = 0; i <= buf->rb_sc_last; i++)
 		kfree(buf->rb_sc_ctxs[i]);
 	kfree(buf->rb_sc_ctxs);
+	buf->rb_sc_ctxs = NULL;
 }
 
 static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ep *ep)
@@ -810,7 +822,6 @@ static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
 	 * Sends are posted.
 	 */
 	i = buf->rb_max_requests + RPCRDMA_MAX_BC_REQUESTS;
-	dprintk("RPC:       %s: allocating %lu send_ctxs\n", __func__, i);
 	buf->rb_sc_ctxs = kcalloc(i, sizeof(sc), GFP_KERNEL);
 	if (!buf->rb_sc_ctxs)
 		return -ENOMEM;
@@ -824,6 +835,8 @@ static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
 		buf->rb_sc_ctxs[i] = sc;
 	}
 
+	buf->rb_sc_head = 0;
+	buf->rb_sc_tail = 0;
 	return 0;
 }
 
@@ -1166,10 +1179,6 @@ int rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 
 	init_llist_head(&buf->rb_free_reps);
 
-	rc = rpcrdma_sendctxs_create(r_xprt);
-	if (rc)
-		goto out;
-
 	return 0;
 out:
 	rpcrdma_buffer_destroy(buf);
@@ -1245,7 +1254,6 @@ static void rpcrdma_mrs_destroy(struct rpcrdma_xprt *r_xprt)
 void
 rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 {
-	rpcrdma_sendctxs_destroy(buf);
 	rpcrdma_reps_destroy(buf);
 
 	while (!list_empty(&buf->rb_send_bufs)) {
