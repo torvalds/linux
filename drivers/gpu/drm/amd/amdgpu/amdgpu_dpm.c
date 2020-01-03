@@ -951,16 +951,31 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
 	case AMD_IP_BLOCK_TYPE_VCN:
 	case AMD_IP_BLOCK_TYPE_VCE:
 	case AMD_IP_BLOCK_TYPE_SDMA:
+		if (swsmu) {
+			ret = smu_dpm_set_power_gate(&adev->smu, block_type, gate);
+		} else {
+			if (adev->powerplay.pp_funcs &&
+			    adev->powerplay.pp_funcs->set_powergating_by_smu) {
+				mutex_lock(&adev->pm.mutex);
+				ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+					(adev)->powerplay.pp_handle, block_type, gate));
+				mutex_unlock(&adev->pm.mutex);
+			}
+		}
+		break;
+	case AMD_IP_BLOCK_TYPE_JPEG:
 		if (swsmu)
 			ret = smu_dpm_set_power_gate(&adev->smu, block_type, gate);
-		else
-			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
-				(adev)->powerplay.pp_handle, block_type, gate));
 		break;
 	case AMD_IP_BLOCK_TYPE_GMC:
 	case AMD_IP_BLOCK_TYPE_ACP:
-		ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+		if (adev->powerplay.pp_funcs &&
+		    adev->powerplay.pp_funcs->set_powergating_by_smu) {
+			mutex_lock(&adev->pm.mutex);
+			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
 				(adev)->powerplay.pp_handle, block_type, gate));
+			mutex_unlock(&adev->pm.mutex);
+		}
 		break;
 	default:
 		break;
