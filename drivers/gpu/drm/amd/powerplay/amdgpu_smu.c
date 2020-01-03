@@ -529,8 +529,14 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 
 	table_size = smu_table->tables[table_index].size;
 
-	if (drv2smu)
+	if (drv2smu) {
 		memcpy(table->cpu_addr, table_data, table_size);
+		/*
+		 * Flush hdp cache: to guard the content seen by
+		 * GPU is consitent with CPU.
+		 */
+		amdgpu_asic_flush_hdp(adev, NULL);
+	}
 
 	ret = smu_send_smc_msg_with_param(smu, drv2smu ?
 					  SMU_MSG_TransferTableDram2Smu :
@@ -539,11 +545,10 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 	if (ret)
 		return ret;
 
-	/* flush hdp cache */
-	adev->nbio.funcs->hdp_flush(adev, NULL);
-
-	if (!drv2smu)
+	if (!drv2smu) {
+		amdgpu_asic_flush_hdp(adev, NULL);
 		memcpy(table_data, table->cpu_addr, table_size);
+	}
 
 	return ret;
 }
