@@ -163,10 +163,10 @@ static inline bool efi_is_mixed(void)
 
 static inline bool efi_runtime_supported(void)
 {
-	if (!efi_is_mixed())
+	if (IS_ENABLED(CONFIG_X86_64) == efi_enabled(EFI_64BIT))
 		return true;
 
-	if (!efi_enabled(EFI_OLD_MEMMAP))
+	if (IS_ENABLED(CONFIG_EFI_MIXED) && !efi_enabled(EFI_OLD_MEMMAP))
 		return true;
 
 	return false;
@@ -176,7 +176,6 @@ extern void parse_efi_setup(u64 phys_addr, u32 data_len);
 
 extern void efifb_setup_from_dmi(struct screen_info *si, const char *opt);
 
-#ifdef CONFIG_EFI_MIXED
 extern void efi_thunk_runtime_setup(void);
 extern efi_status_t efi_thunk_set_virtual_address_map(
 	void *phys_set_virtual_address_map,
@@ -184,19 +183,6 @@ extern efi_status_t efi_thunk_set_virtual_address_map(
 	unsigned long descriptor_size,
 	u32 descriptor_version,
 	efi_memory_desc_t *virtual_map);
-#else
-static inline void efi_thunk_runtime_setup(void) {}
-static inline efi_status_t efi_thunk_set_virtual_address_map(
-	void *phys_set_virtual_address_map,
-	unsigned long memory_map_size,
-	unsigned long descriptor_size,
-	u32 descriptor_version,
-	efi_memory_desc_t *virtual_map)
-{
-	return EFI_SUCCESS;
-}
-#endif /* CONFIG_EFI_MIXED */
-
 
 /* arch specific definitions used by the stub code */
 
