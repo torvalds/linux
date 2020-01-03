@@ -774,7 +774,7 @@ static unsigned char __init isapnp_checksum(unsigned char *data)
 static int __init isapnp_build_device_list(void)
 {
 	int csn;
-	unsigned char header[9], checksum;
+	unsigned char header[9];
 	struct pnp_card *card;
 	u32 eisa_id;
 	char id[8];
@@ -784,7 +784,6 @@ static int __init isapnp_build_device_list(void)
 	for (csn = 1; csn <= isapnp_csn_count; csn++) {
 		isapnp_wake(csn);
 		isapnp_peek(header, 9);
-		checksum = isapnp_checksum(header);
 		eisa_id = header[0] | header[1] << 8 |
 			  header[2] << 16 | header[3] << 24;
 		pnp_eisa_id_to_string(eisa_id, id);
