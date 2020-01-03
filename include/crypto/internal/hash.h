@@ -109,9 +109,19 @@ int crypto_init_ahash_spawn(struct crypto_ahash_spawn *spawn,
 			    struct hash_alg_common *alg,
 			    struct crypto_instance *inst);
 
+int crypto_grab_ahash(struct crypto_ahash_spawn *spawn,
+		      struct crypto_instance *inst,
+		      const char *name, u32 type, u32 mask);
+
 static inline void crypto_drop_ahash(struct crypto_ahash_spawn *spawn)
 {
 	crypto_drop_spawn(&spawn->base);
+}
+
+static inline struct hash_alg_common *crypto_spawn_ahash_alg(
+	struct crypto_ahash_spawn *spawn)
+{
+	return __crypto_hash_alg_common(spawn->base.alg);
 }
 
 struct hash_alg_common *ahash_attr_alg(struct rtattr *rta, u32 type, u32 mask);
