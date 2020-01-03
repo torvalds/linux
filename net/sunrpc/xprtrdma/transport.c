@@ -316,7 +316,8 @@ xprt_setup_rdma(struct xprt_create *args)
 	if (args->addrlen > sizeof(xprt->addr))
 		return ERR_PTR(-EBADF);
 
-	xprt = xprt_alloc(args->net, sizeof(struct rpcrdma_xprt), 0, 0);
+	xprt = xprt_alloc(args->net, sizeof(struct rpcrdma_xprt), 0,
+			  xprt_rdma_slot_table_entries);
 	if (!xprt)
 		return ERR_PTR(-ENOMEM);
 

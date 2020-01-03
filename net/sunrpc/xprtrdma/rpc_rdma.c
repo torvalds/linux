@@ -909,7 +909,7 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 		goto out_err;
 	*p++ = rqst->rq_xid;
 	*p++ = rpcrdma_version;
-	*p++ = cpu_to_be32(r_xprt->rx_buf.rb_max_requests);
+	*p++ = r_xprt->rx_buf.rb_max_requests;
 
 	/* When the ULP employs a GSS flavor that guarantees integrity
 	 * or privacy, direct data placement of individual data items
@@ -1480,8 +1480,8 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 
 	if (credits == 0)
 		credits = 1;	/* don't deadlock */
-	else if (credits > buf->rb_max_requests)
-		credits = buf->rb_max_requests;
+	else if (credits > r_xprt->rx_ep.rep_max_requests)
+		credits = r_xprt->rx_ep.rep_max_requests;
 	if (buf->rb_credits != credits)
 		rpcrdma_update_cwnd(r_xprt, credits);
 	rpcrdma_post_recvs(r_xprt, false);

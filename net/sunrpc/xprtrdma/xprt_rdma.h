@@ -98,7 +98,7 @@ struct rpcrdma_ep {
 	wait_queue_head_t 	rep_connect_wait;
 	struct rpcrdma_connect_private	rep_cm_private;
 	struct rdma_conn_param	rep_remote_cma;
-	unsigned int		rep_max_requests;	/* set by /proc */
+	unsigned int		rep_max_requests;	/* depends on device */
 	unsigned int		rep_inline_send;	/* negotiated */
 	unsigned int		rep_inline_recv;	/* negotiated */
 	int			rep_receive_count;
@@ -372,7 +372,7 @@ struct rpcrdma_buffer {
 
 	struct llist_head	rb_free_reps;
 
-	u32			rb_max_requests;
+	__be32			rb_max_requests;
 	u32			rb_credits;	/* most recent credit grant */
 
 	u32			rb_bc_srv_max_requests;
@@ -582,7 +582,6 @@ static inline void rpcrdma_set_xdrlen(struct xdr_buf *xdr, size_t len)
 
 /* RPC/RDMA module init - xprtrdma/transport.c
  */
-extern unsigned int xprt_rdma_slot_table_entries;
 extern unsigned int xprt_rdma_max_inline_read;
 extern unsigned int xprt_rdma_max_inline_write;
 void xprt_rdma_format_addresses(struct rpc_xprt *xprt, struct sockaddr *sap);
