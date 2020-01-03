@@ -243,22 +243,83 @@ static inline bool efi_is_native(void)
 		: (__typeof__(inst->attr))				\
 			efi_mixed_mode_cast(inst->mixed_mode.attr))
 
+/*
+ * The following macros allow translating arguments if necessary from native to
+ * mixed mode. The use case for this is to initialize the upper 32 bits of
+ * output parameters, and where the 32-bit method requires a 64-bit argument,
+ * which must be split up into two arguments to be thunked properly.
+ *
+ * As examples, the AllocatePool boot service returns the address of the
+ * allocation, but it will not set the high 32 bits of the address. To ensure
+ * that the full 64-bit address is initialized, we zero-init the address before
+ * calling the thunk.
+ *
+ * The FreePages boot service takes a 64-bit physical address even in 32-bit
+ * mode. For the thunk to work correctly, a native 64-bit call of
+ * 	free_pages(addr, size)
+ * must be translated to
+ * 	efi64_thunk(free_pages, addr & U32_MAX, addr >> 32, size)
+ * so that the two 32-bit halves of addr get pushed onto the stack separately.
+ */
+
+static inline void *efi64_zero_upper(void *p)
+{
+	((u32 *)p)[1] = 0;
+	return p;
+}
+
+#define __efi64_argmap_free_pages(addr, size)				\
+	((addr), 0, (size))
+
+#define __efi64_argmap_get_memory_map(mm_size, mm, key, size, ver)	\
+	((mm_size), (mm), efi64_zero_upper(key), efi64_zero_upper(size), (ver))
+
+#define __efi64_argmap_allocate_pool(type, size, buffer)		\
+	((type), (size), efi64_zero_upper(buffer))
+
+#define __efi64_argmap_handle_protocol(handle, protocol, interface)	\
+	((handle), (protocol), efi64_zero_upper(interface))
+
+#define __efi64_argmap_locate_protocol(protocol, reg, interface)	\
+	((protocol), (reg), efi64_zero_upper(interface))
+
+/*
+ * The macros below handle the plumbing for the argument mapping. To add a
+ * mapping for a specific EFI method, simply define a macro
+ * __efi64_argmap_<method name>, following the examples above.
+ */
+
+#define __efi64_thunk_map(inst, func, ...)				\
+	efi64_thunk(inst->mixed_mode.func,				\
+		__efi64_argmap(__efi64_argmap_ ## func(__VA_ARGS__),	\
+			       (__VA_ARGS__)))
+
+#define __efi64_argmap(mapped, args)					\
+	__PASTE(__efi64_argmap__, __efi_nargs(__efi_eat mapped))(mapped, args)
+#define __efi64_argmap__0(mapped, args) __efi_eval mapped
+#define __efi64_argmap__1(mapped, args) __efi_eval args
+
+#define __efi_eat(...)
+#define __efi_eval(...) __VA_ARGS__
+
+/* The three macros below handle dispatching via the thunk if needed */
+
 #define efi_call_proto(inst, func, ...)					\
 	(efi_is_native()						\
 		? inst->func(inst, ##__VA_ARGS__)			\
-		: efi64_thunk(inst->mixed_mode.func, inst, ##__VA_ARGS__))
+		: __efi64_thunk_map(inst, func, inst, ##__VA_ARGS__))
 
 #define efi_bs_call(func, ...)						\
 	(efi_is_native()						\
 		? efi_system_table()->boottime->func(__VA_ARGS__)	\
-		: efi64_thunk(efi_table_attr(efi_system_table(),	\
-				boottime)->mixed_mode.func, __VA_ARGS__))
+		: __efi64_thunk_map(efi_table_attr(efi_system_table(),	\
+				boottime), func, __VA_ARGS__))
 
 #define efi_rt_call(func, ...)						\
 	(efi_is_native()						\
 		? efi_system_table()->runtime->func(__VA_ARGS__)	\
-		: efi64_thunk(efi_table_attr(efi_system_table(),	\
-				runtime)->mixed_mode.func, __VA_ARGS__))
+		: __efi64_thunk_map(efi_table_attr(efi_system_table(),	\
+				runtime), func, __VA_ARGS__))
 
 extern bool efi_reboot_required(void);
 extern bool efi_is_table_address(unsigned long phys_addr);

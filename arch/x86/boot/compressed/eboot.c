@@ -891,19 +891,3 @@ fail:
 	for (;;)
 		asm("hlt");
 }
-
-#ifdef CONFIG_EFI_MIXED
-void efi_free_native(unsigned long size, unsigned long addr);
-
-void efi_free(unsigned long size, unsigned long addr)
-{
-	if (!size)
-		return;
-
-	if (efi_is_native())
-		efi_free_native(size, addr);
-	else
-		efi64_thunk(efi_system_table()->boottime->mixed_mode.free_pages,
-			    addr, 0, DIV_ROUND_UP(size, EFI_PAGE_SIZE));
-}
-#endif
