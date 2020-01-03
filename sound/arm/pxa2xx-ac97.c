@@ -52,7 +52,7 @@ static void pxa2xx_ac97_legacy_write(struct snd_ac97 *ac97,
 	ret = pxa2xx_ac97_write(ac97->num, reg, val);
 }
 
-static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
+static const struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 	.read	= pxa2xx_ac97_legacy_read,
 	.write	= pxa2xx_ac97_legacy_write,
 	.reset	= pxa2xx_ac97_legacy_reset,
