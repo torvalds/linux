@@ -323,7 +323,6 @@ int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *tb[ETHTOOL_A_LINKMODES_MAX + 1];
 	struct ethtool_link_ksettings ksettings = {};
-	struct ethtool_link_settings *lsettings;
 	struct ethnl_req_info req_info = {};
 	struct net_device *dev;
 	bool mod = false;
@@ -354,7 +353,6 @@ int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info)
 			GENL_SET_ERR_MSG(info, "failed to retrieve link settings");
 		goto out_ops;
 	}
-	lsettings = &ksettings.base;
 
 	ret = ethnl_update_linkmodes(info, tb, &ksettings, &mod);
 	if (ret < 0)
