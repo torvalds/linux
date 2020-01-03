@@ -105,6 +105,11 @@ static inline bool qcom_scm_is_available(void) { return false; }
 static inline bool qcom_scm_hdcp_available(void) { return false; }
 static inline int qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt,
 				    u32 *resp) { return -ENODEV; }
+static inline bool qcom_scm_ocmem_lock_available(void) { return false; }
+static inline int qcom_scm_ocmem_lock(enum qcom_scm_ocmem_client id, u32 offset,
+				      u32 size, u32 mode) { return -ENODEV; }
+static inline int qcom_scm_ocmem_unlock(enum qcom_scm_ocmem_client id, u32 offset,
+					u32 size) { return -ENODEV; }
 static inline bool qcom_scm_pas_supported(u32 peripheral) { return false; }
 static inline int qcom_scm_pas_init_image(u32 peripheral, const void *metadata,
 					  size_t size) { return -ENODEV; }
@@ -121,6 +126,7 @@ static inline void qcom_scm_cpu_power_down(u32 flags) {}
 static inline u32 qcom_scm_get_version(void) { return 0; }
 static inline u32
 qcom_scm_set_remote_state(u32 state,u32 id) { return -ENODEV; }
+static inline bool qcom_scm_restore_sec_cfg_available(void) { return false; }
 static inline int qcom_scm_restore_sec_cfg(u32 device_id, u32 spare) { return -ENODEV; }
 static inline int qcom_scm_iommu_secure_ptbl_size(u32 spare, size_t *size) { return -ENODEV; }
 static inline int qcom_scm_iommu_secure_ptbl_init(u64 addr, u32 size, u32 spare) { return -ENODEV; }
