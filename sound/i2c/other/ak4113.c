@@ -349,7 +349,7 @@ static int snd_ak4113_spdif_qget(struct snd_kcontrol *kcontrol,
 }
 
 /* Don't forget to change AK4113_CONTROLS define!!! */
-static struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
+static const struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		"IEC958 Parity Errors",
