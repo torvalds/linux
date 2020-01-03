@@ -865,8 +865,8 @@ static int cryptd_create_aead(struct crypto_template *tmpl,
 	ctx = aead_instance_ctx(inst);
 	ctx->queue = queue;
 
-	crypto_set_aead_spawn(&ctx->aead_spawn, aead_crypto_instance(inst));
-	err = crypto_grab_aead(&ctx->aead_spawn, name, type, mask);
+	err = crypto_grab_aead(&ctx->aead_spawn, aead_crypto_instance(inst),
+			       name, type, mask);
 	if (err)
 		goto out_free_inst;
 

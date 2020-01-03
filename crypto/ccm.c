@@ -734,6 +734,7 @@ static int crypto_rfc4309_create(struct crypto_template *tmpl,
 				 struct rtattr **tb)
 {
 	struct crypto_attr_type *algt;
+	u32 mask;
 	struct aead_instance *inst;
 	struct crypto_aead_spawn *spawn;
 	struct aead_alg *alg;
@@ -747,6 +748,8 @@ static int crypto_rfc4309_create(struct crypto_template *tmpl,
 	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
+	mask = crypto_requires_sync(algt->type, algt->mask);
+
 	ccm_name = crypto_attr_alg_name(tb[1]);
 	if (IS_ERR(ccm_name))
 		return PTR_ERR(ccm_name);
@@ -756,9 +759,8 @@ static int crypto_rfc4309_create(struct crypto_template *tmpl,
 		return -ENOMEM;
 
 	spawn = aead_instance_ctx(inst);
-	crypto_set_aead_spawn(spawn, aead_crypto_instance(inst));
-	err = crypto_grab_aead(spawn, ccm_name, 0,
-			       crypto_requires_sync(algt->type, algt->mask));
+	err = crypto_grab_aead(spawn, aead_crypto_instance(inst),
+			       ccm_name, 0, mask);
 	if (err)
 		goto out_free_inst;
 
