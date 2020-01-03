@@ -175,7 +175,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	}
 
 	ehci = hcd_to_ehci(hcd);
-	ehci->caps = (struct ehci_caps *) ehci_mv->cap_regs;
+	ehci->caps = (struct ehci_caps __iomem *) ehci_mv->cap_regs;
 
 	if (ehci_mv->mode == MV_USB_MODE_OTG) {
 		ehci_mv->otg = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
