@@ -150,7 +150,7 @@ static void __maybe_unused sync_exp_reset_tree(void)
 static bool sync_rcu_exp_done(struct rcu_node *rnp)
 {
 	raw_lockdep_assert_held_rcu_node(rnp);
-	return rnp->exp_tasks == NULL &&
+	return READ_ONCE(rnp->exp_tasks) == NULL &&
 	       READ_ONCE(rnp->expmask) == 0;
 }
 
@@ -373,7 +373,7 @@ static void sync_rcu_exp_select_node_cpus(struct work_struct *wp)
 	 * until such time as the ->expmask bits are cleared.
 	 */
 	if (rcu_preempt_has_tasks(rnp))
-		rnp->exp_tasks = rnp->blkd_tasks.next;
+		WRITE_ONCE(rnp->exp_tasks, rnp->blkd_tasks.next);
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 
 	/* IPI the remaining CPUs for expedited quiescent state. */
@@ -542,8 +542,8 @@ static void synchronize_rcu_expedited_wait(void)
 		}
 		pr_cont(" } %lu jiffies s: %lu root: %#lx/%c\n",
 			jiffies - jiffies_start, rcu_state.expedited_sequence,
-			READ_ONCE(rnp_root->expmask),
-			".T"[!!rnp_root->exp_tasks]);
+			data_race(rnp_root->expmask),
+			".T"[!!data_race(rnp_root->exp_tasks)]);
 		if (ndetected) {
 			pr_err("blocking rcu_node structures:");
 			rcu_for_each_node_breadth_first(rnp) {
@@ -553,8 +553,8 @@ static void synchronize_rcu_expedited_wait(void)
 					continue;
 				pr_cont(" l=%u:%d-%d:%#lx/%c",
 					rnp->level, rnp->grplo, rnp->grphi,
-					READ_ONCE(rnp->expmask),
-					".T"[!!rnp->exp_tasks]);
+					data_race(rnp->expmask),
+					".T"[!!data_race(rnp->exp_tasks)]);
 			}
 			pr_cont("\n");
 		}
@@ -721,17 +721,20 @@ static void sync_sched_exp_online_cleanup(int cpu)
  */
 static int rcu_print_task_exp_stall(struct rcu_node *rnp)
 {
-	struct task_struct *t;
+	unsigned long flags;
 	int ndetected = 0;
+	struct task_struct *t;
 
-	if (!rnp->exp_tasks)
+	if (!READ_ONCE(rnp->exp_tasks))
 		return 0;
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	t = list_entry(rnp->exp_tasks->prev,
 		       struct task_struct, rcu_node_entry);
 	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
 		pr_cont(" P%d", t->pid);
 		ndetected++;
 	}
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	return ndetected;
 }
 
