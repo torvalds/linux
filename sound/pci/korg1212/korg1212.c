@@ -2153,7 +2153,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
         struct snd_korg1212 * korg1212;
 	const struct firmware *dsp_code;
 
-        static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
                 .dev_free = snd_korg1212_dev_free,
         };
 

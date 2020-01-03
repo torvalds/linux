@@ -1030,7 +1030,7 @@ static int snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *card, int 
 {
 	int err;
 	struct snd_mixart *chip;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_mixart_chip_dev_free,
 	};
 

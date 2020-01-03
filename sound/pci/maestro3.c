@@ -2522,7 +2522,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	struct snd_m3 *chip;
 	int i, err;
 	const struct snd_pci_quirk *quirk;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_m3_dev_free,
 	};
 

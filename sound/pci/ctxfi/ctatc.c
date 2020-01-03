@@ -1669,7 +1669,7 @@ int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 		  struct ct_atc **ratc)
 {
 	struct ct_atc *atc;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = atc_dev_free,
 	};
 	int err;

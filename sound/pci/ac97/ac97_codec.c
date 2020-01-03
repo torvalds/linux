@@ -1899,7 +1899,7 @@ int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
 {
 	int err;
 	struct snd_ac97_bus *bus;
-	static struct snd_device_ops dev_ops = {
+	static const struct snd_device_ops dev_ops = {
 		.dev_free =	snd_ac97_bus_dev_free,
 	};
 
@@ -1999,7 +1999,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	unsigned long end_time;
 	unsigned int reg;
 	const struct ac97_codec_id *pid;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_ac97_dev_free,
 		.dev_register =	snd_ac97_dev_register,
 		.dev_disconnect =	snd_ac97_dev_disconnect,

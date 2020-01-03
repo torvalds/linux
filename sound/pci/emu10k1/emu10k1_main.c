@@ -1791,7 +1791,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	size_t page_table_size;
 	unsigned int silent_page;
 	const struct snd_emu_chip_details *c;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_emu10k1_dev_free,
 	};
 

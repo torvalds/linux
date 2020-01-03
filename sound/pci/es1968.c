@@ -2656,7 +2656,7 @@ static int snd_es1968_create(struct snd_card *card,
 			     int radio_nr,
 			     struct es1968 **chip_ret)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_es1968_dev_free,
 	};
 	struct es1968 *chip;

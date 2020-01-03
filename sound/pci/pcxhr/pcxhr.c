@@ -1179,7 +1179,7 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 {
 	int err;
 	struct snd_pcxhr *chip;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = pcxhr_chip_dev_free,
 	};
 

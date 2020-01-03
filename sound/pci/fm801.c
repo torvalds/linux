@@ -1183,7 +1183,7 @@ static int snd_fm801_create(struct snd_card *card,
 {
 	struct fm801 *chip;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_fm801_dev_free,
 	};
 

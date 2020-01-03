@@ -1548,7 +1548,7 @@ static int snd_es1938_create(struct snd_card *card,
 {
 	struct es1938 *chip;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_es1938_dev_free,
 	};
 

@@ -1074,7 +1074,7 @@ static int snd_via82xx_create(struct snd_card *card,
 {
 	struct via82xx_modem *chip;
 	int err;
-        static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_via82xx_dev_free,
         };
 

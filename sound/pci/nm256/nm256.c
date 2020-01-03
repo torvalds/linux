@@ -1471,7 +1471,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 {
 	struct nm256 *chip;
 	int err, pval;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_nm256_dev_free,
 	};
 	u32 addr;

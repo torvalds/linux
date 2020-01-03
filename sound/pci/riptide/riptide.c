@@ -1824,7 +1824,7 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 	struct snd_riptide *chip;
 	struct riptideport *hwport;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_riptide_dev_free,
 	};
 

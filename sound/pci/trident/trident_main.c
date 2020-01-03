@@ -3487,7 +3487,7 @@ int snd_trident_create(struct snd_card *card,
 	int i, err;
 	struct snd_trident_voice *voice;
 	struct snd_trident_pcm_mixer *tmix;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_trident_dev_free,
 	};
 

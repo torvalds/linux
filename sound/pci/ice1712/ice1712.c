@@ -2474,7 +2474,7 @@ static int snd_ice1712_create(struct snd_card *card,
 {
 	struct snd_ice1712 *ice;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_ice1712_dev_free,
 	};
 

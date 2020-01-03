@@ -261,7 +261,7 @@ static int snd_cs5535audio_create(struct snd_card *card,
 	struct cs5535audio *cs5535au;
 
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_cs5535audio_dev_free,
 	};
 

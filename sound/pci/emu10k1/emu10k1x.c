@@ -886,7 +886,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	struct emu10k1x *chip;
 	int err;
 	int ch;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_emu10k1x_dev_free,
 	};
 

@@ -847,7 +847,7 @@ snd_ad1889_create(struct snd_card *card,
 	int err;
 
 	struct snd_ad1889 *chip;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_ad1889_dev_free,
 	};
 

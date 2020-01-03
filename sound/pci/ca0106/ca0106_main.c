@@ -1595,7 +1595,7 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 	struct snd_ca0106 *chip;
 	struct snd_ca0106_details *c;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_ca0106_dev_free,
 	};
 

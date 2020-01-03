@@ -1304,7 +1304,7 @@ static int snd_cs4281_create(struct snd_card *card,
 	struct cs4281 *chip;
 	unsigned int tmp;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_cs4281_dev_free,
 	};
 

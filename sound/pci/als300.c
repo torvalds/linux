@@ -617,7 +617,7 @@ static int snd_als300_create(struct snd_card *card,
 	void *irq_handler;
 	int err;
 
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_als300_dev_free,
 	};
 	*rchip = NULL;

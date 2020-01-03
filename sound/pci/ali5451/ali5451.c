@@ -2046,7 +2046,7 @@ static int snd_ali_create(struct snd_card *card,
 	struct snd_ali *codec;
 	int i, err;
 	unsigned short cmdw;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_ali_dev_free,
         };
 
