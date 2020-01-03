@@ -545,7 +545,7 @@ static void snd_emu_proc_ptr_reg_read20c(struct snd_info_entry *entry,
 }
 #endif
 
-static struct snd_info_entry_ops snd_emu10k1_proc_ops_fx8010 = {
+static const struct snd_info_entry_ops snd_emu10k1_proc_ops_fx8010 = {
 	.read = snd_emu10k1_fx8010_read,
 };
 

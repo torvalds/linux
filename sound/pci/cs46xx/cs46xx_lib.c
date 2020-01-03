@@ -2815,7 +2815,7 @@ static ssize_t snd_cs46xx_io_read(struct snd_info_entry *entry,
 	return count;
 }
 
-static struct snd_info_entry_ops snd_cs46xx_proc_io_ops = {
+static const struct snd_info_entry_ops snd_cs46xx_proc_io_ops = {
 	.read = snd_cs46xx_io_read,
 };
 

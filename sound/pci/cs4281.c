@@ -1129,11 +1129,11 @@ static ssize_t snd_cs4281_BA1_read(struct snd_info_entry *entry,
 	return count;
 }
 
-static struct snd_info_entry_ops snd_cs4281_proc_ops_BA0 = {
+static const struct snd_info_entry_ops snd_cs4281_proc_ops_BA0 = {
 	.read = snd_cs4281_BA0_read,
 };
 
-static struct snd_info_entry_ops snd_cs4281_proc_ops_BA1 = {
+static const struct snd_info_entry_ops snd_cs4281_proc_ops_BA1 = {
 	.read = snd_cs4281_BA1_read,
 };
 

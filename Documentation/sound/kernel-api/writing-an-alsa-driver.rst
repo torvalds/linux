@@ -3912,7 +3912,7 @@ For a raw-data proc-file, set the attributes as follows:
 
 ::
 
-  static struct snd_info_entry_ops my_file_io_ops = {
+  static const struct snd_info_entry_ops my_file_io_ops = {
           .read = my_file_io_read,
   };
 
