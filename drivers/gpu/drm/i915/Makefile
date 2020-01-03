@@ -275,8 +275,6 @@ obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o
 # exclude some broken headers from the test coverage
 no-header-test := \
 	display/intel_vbt_defs.h \
-	gem/selftests/huge_gem_object.h \
-	gem/selftests/mock_gem_object.h \
 	gvt/execlist.h \
 	gvt/fb_decoder.h \
 	gvt/gtt.h \
@@ -284,11 +282,7 @@ no-header-test := \
 	gvt/interrupt.h \
 	gvt/mmio_context.h \
 	gvt/mpt.h \
-	gvt/scheduler.h \
-	selftests/i915_live_selftests.h \
-	selftests/i915_mock_selftests.h \
-	selftests/i915_perf_selftests.h \
-	selftests/igt_live_test.h
+	gvt/scheduler.h
 
 extra-$(CONFIG_DRM_I915_WERROR) += \
 	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \
