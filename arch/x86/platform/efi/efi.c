@@ -429,87 +429,6 @@ static int __init efi_systab_init(void *phys)
 	return 0;
 }
 
-static int __init efi_runtime_init32(void)
-{
-	efi_runtime_services_32_t *runtime;
-
-	runtime = early_memremap((unsigned long)efi.systab->runtime,
-			sizeof(efi_runtime_services_32_t));
-	if (!runtime) {
-		pr_err("Could not map the runtime service table!\n");
-		return -ENOMEM;
-	}
-
-	/*
-	 * We will only need *early* access to the SetVirtualAddressMap
-	 * EFI runtime service. All other runtime services will be called
-	 * via the virtual mapping.
-	 */
-	efi_phys.set_virtual_address_map =
-			(efi_set_virtual_address_map_t *)
-			(unsigned long)runtime->set_virtual_address_map;
-	early_memunmap(runtime, sizeof(efi_runtime_services_32_t));
-
-	return 0;
-}
-
-static int __init efi_runtime_init64(void)
-{
-	efi_runtime_services_64_t *runtime;
-
-	runtime = early_memremap((unsigned long)efi.systab->runtime,
-			sizeof(efi_runtime_services_64_t));
-	if (!runtime) {
-		pr_err("Could not map the runtime service table!\n");
-		return -ENOMEM;
-	}
-
-	/*
-	 * We will only need *early* access to the SetVirtualAddressMap
-	 * EFI runtime service. All other runtime services will be called
-	 * via the virtual mapping.
-	 */
-	efi_phys.set_virtual_address_map =
-			(efi_set_virtual_address_map_t *)
-			(unsigned long)runtime->set_virtual_address_map;
-	early_memunmap(runtime, sizeof(efi_runtime_services_64_t));
-
-	return 0;
-}
-
-static int __init efi_runtime_init(void)
-{
-	int rv;
-
-	/*
-	 * Check out the runtime services table. We need to map
-	 * the runtime services table so that we can grab the physical
-	 * address of several of the EFI runtime functions, needed to
-	 * set the firmware into virtual mode.
-	 *
-	 * When EFI_PARAVIRT is in force then we could not map runtime
-	 * service memory region because we do not have direct access to it.
-	 * However, runtime services are available through proxy functions
-	 * (e.g. in case of Xen dom0 EFI implementation they call special
-	 * hypercall which executes relevant EFI functions) and that is why
-	 * they are always enabled.
-	 */
-
-	if (!efi_enabled(EFI_PARAVIRT)) {
-		if (efi_enabled(EFI_64BIT))
-			rv = efi_runtime_init64();
-		else
-			rv = efi_runtime_init32();
-
-		if (rv)
-			return rv;
-	}
-
-	set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
-
-	return 0;
-}
-
 void __init efi_init(void)
 {
 	efi_char16_t *c16;
@@ -567,13 +486,13 @@ void __init efi_init(void)
 
 	if (!efi_runtime_supported())
 		pr_info("No EFI runtime due to 32/64-bit mismatch with kernel\n");
-	else {
-		if (efi_runtime_disabled() || efi_runtime_init()) {
-			efi_memmap_unmap();
-			return;
-		}
+
+	if (!efi_runtime_supported() || efi_runtime_disabled()) {
+		efi_memmap_unmap();
+		return;
 	}
 
+	set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 	efi_clean_memmap();
 
 	if (efi_enabled(EFI_DBG))
@@ -934,8 +853,6 @@ static void __init kexec_enter_virtual_mode(void)
 
 	efi_native_runtime_setup();
 
-	efi.set_virtual_address_map = NULL;
-
 	if (efi_enabled(EFI_OLD_MEMMAP) && (__supported_pte_mask & _PAGE_NX))
 		runtime_code_page_mkexec();
 #endif
@@ -1039,8 +956,6 @@ static void __init __efi_enter_virtual_mode(void)
 		efi_native_runtime_setup();
 	else
 		efi_thunk_runtime_setup();
-
-	efi.set_virtual_address_map = NULL;
 
 	/*
 	 * Apply more restrictive page table mapping attributes now that
