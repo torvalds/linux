@@ -1716,7 +1716,7 @@ static void *aux_buffer_setup(struct perf_event *event, void **pages,
 	sfb = &aux->sfb;
 
 	/* Allocate sdbt_index for fast reference */
-	n_sdbt = (nr_pages + CPUM_SF_SDB_PER_TABLE - 1) / CPUM_SF_SDB_PER_TABLE;
+	n_sdbt = DIV_ROUND_UP(nr_pages, CPUM_SF_SDB_PER_TABLE);
 	aux->sdbt_index = kmalloc_array(n_sdbt, sizeof(void *), GFP_KERNEL);
 	if (!aux->sdbt_index)
 		goto no_sdbt_index;
