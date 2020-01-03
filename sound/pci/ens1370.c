@@ -1596,7 +1596,7 @@ static int snd_ensoniq_1371_mixer(struct ensoniq *ensoniq,
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_es1371_codec_write,
 		.read = snd_es1371_codec_read,
 		.wait = snd_es1371_codec_wait,

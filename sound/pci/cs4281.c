@@ -1064,7 +1064,7 @@ static int snd_cs4281_mixer(struct cs4281 *chip)
 	struct snd_card *card = chip->card;
 	struct snd_ac97_template ac97;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_cs4281_ac97_write,
 		.read = snd_cs4281_ac97_read,
 	};

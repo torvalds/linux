@@ -801,7 +801,7 @@ static int snd_intel8x0m_mixer(struct intel8x0m *chip, int ac97_clock)
 	struct snd_ac97 *x97;
 	int err;
 	unsigned int glob_sta = 0;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_intel8x0m_codec_write,
 		.read = snd_intel8x0m_codec_read,
 	};

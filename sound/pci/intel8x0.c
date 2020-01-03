@@ -2138,12 +2138,12 @@ static int snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 	int err;
 	unsigned int i, codecs;
 	unsigned int glob_sta = 0;
-	struct snd_ac97_bus_ops *ops;
-	static struct snd_ac97_bus_ops standard_bus_ops = {
+	const struct snd_ac97_bus_ops *ops;
+	static const struct snd_ac97_bus_ops standard_bus_ops = {
 		.write = snd_intel8x0_codec_write,
 		.read = snd_intel8x0_codec_read,
 	};
-	static struct snd_ac97_bus_ops ali_bus_ops = {
+	static const struct snd_ac97_bus_ops ali_bus_ops = {
 		.write = snd_intel8x0_ali_codec_write,
 		.read = snd_intel8x0_ali_codec_read,
 	};

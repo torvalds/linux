@@ -983,7 +983,7 @@ static int sis_mixer_create(struct sis7019 *sis)
 {
 	struct snd_ac97_bus *bus;
 	struct snd_ac97_template ac97;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = sis_ac97_write,
 		.read = sis_ac97_read,
 	};

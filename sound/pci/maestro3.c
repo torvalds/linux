@@ -2036,7 +2036,7 @@ static int snd_m3_mixer(struct snd_m3 *chip)
 	struct snd_ctl_elem_id elem_id;
 #endif
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_m3_ac97_write,
 		.read = snd_m3_ac97_read,
 	};

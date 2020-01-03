@@ -1791,7 +1791,7 @@ static int snd_ali_mixer(struct snd_ali *codec)
 	struct snd_ac97_template ac97;
 	unsigned int idx;
 	int i, err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_ali_codec_write,
 		.read = snd_ali_codec_read,
 	};

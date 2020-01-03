@@ -294,7 +294,7 @@ static int snd_als300_ac97(struct snd_als300 *chip)
 	struct snd_ac97_bus *bus;
 	struct snd_ac97_template ac97;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_als300_ac97_write,
 		.read = snd_als300_ac97_read,
 	};

@@ -760,7 +760,7 @@ snd_ad1889_ac97_init(struct snd_ad1889 *chip, const char *quirk_override)
 {
 	int err;
 	struct snd_ac97_template ac97;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_ad1889_ac97_write,
 		.read = snd_ad1889_ac97_read,
 	};

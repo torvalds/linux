@@ -2465,7 +2465,7 @@ int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 	struct snd_ctl_elem_id id;
 	int err;
 	unsigned int idx;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 		.reset = snd_cs46xx_codec_reset,
 #endif

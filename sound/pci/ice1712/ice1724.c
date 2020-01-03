@@ -1463,7 +1463,7 @@ static int snd_vt1724_ac97_mixer(struct snd_ice1712 *ice)
 	if (!(ice->eeprom.data[ICE_EEP2_ACLINK] & VT1724_CFG_PRO_I2S)) {
 		struct snd_ac97_bus *pbus;
 		struct snd_ac97_template ac97;
-		static struct snd_ac97_bus_ops ops = {
+		static const struct snd_ac97_bus_ops ops = {
 			.write = snd_vt1724_ac97_write,
 			.read = snd_vt1724_ac97_read,
 		};

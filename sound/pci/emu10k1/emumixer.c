@@ -1898,7 +1898,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 	if (emu->card_capabilities->ac97_chip) {
 		struct snd_ac97_bus *pbus;
 		struct snd_ac97_template ac97;
-		static struct snd_ac97_bus_ops ops = {
+		static const struct snd_ac97_bus_ops ops = {
 			.write = snd_emu10k1_ac97_write,
 			.read = snd_emu10k1_ac97_read,
 		};

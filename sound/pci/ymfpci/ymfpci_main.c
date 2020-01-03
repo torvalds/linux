@@ -1780,7 +1780,7 @@ int snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch)
 	struct snd_pcm_substream *substream;
 	unsigned int idx;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_ymfpci_codec_write,
 		.read = snd_ymfpci_codec_read,
 	};

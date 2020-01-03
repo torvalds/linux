@@ -1963,7 +1963,7 @@ static int snd_riptide_mixer(struct snd_riptide *chip)
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
 	int err = 0;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_riptide_codec_write,
 		.read = snd_riptide_codec_read,
 	};

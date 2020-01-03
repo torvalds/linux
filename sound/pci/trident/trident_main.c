@@ -2912,7 +2912,7 @@ static int snd_trident_mixer(struct snd_trident *trident, int pcm_spdif_device)
 	struct snd_kcontrol *kctl;
 	struct snd_ctl_elem_value *uctl;
 	int idx, err, retries = 2;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_trident_codec_write,
 		.read = snd_trident_codec_read,
 	};

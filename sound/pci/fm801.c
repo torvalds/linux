@@ -1020,7 +1020,7 @@ static int snd_fm801_mixer(struct fm801 *chip)
 	struct snd_ac97_template ac97;
 	unsigned int i;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_fm801_codec_write,
 		.read = snd_fm801_codec_read,
 	};
