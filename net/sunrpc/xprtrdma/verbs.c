@@ -1110,8 +1110,9 @@ static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt)
 /* No locking needed here. This function is called only by the
  * Receive completion handler.
  */
-static struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
-					      bool temp)
+static noinline
+struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
+				       bool temp)
 {
 	struct rpcrdma_rep *rep;
 
@@ -1123,6 +1124,9 @@ static struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 					       DMA_FROM_DEVICE, GFP_KERNEL);
 	if (!rep->rr_rdmabuf)
 		goto out_free;
+
+	if (!rpcrdma_regbuf_dma_map(r_xprt, rep->rr_rdmabuf))
+		goto out_free_regbuf;
 
 	xdr_buf_init(&rep->rr_hdrbuf, rdmab_data(rep->rr_rdmabuf),
 		     rdmab_length(rep->rr_rdmabuf));
@@ -1136,6 +1140,8 @@ static struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 	list_add(&rep->rr_all, &r_xprt->rx_buf.rb_all_reps);
 	return rep;
 
+out_free_regbuf:
+	rpcrdma_regbuf_free(rep->rr_rdmabuf);
 out_free:
 	kfree(rep);
 out:
@@ -1537,7 +1543,7 @@ void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
-	struct ib_recv_wr *i, *wr, *bad_wr;
+	struct ib_recv_wr *wr, *bad_wr;
 	struct rpcrdma_rep *rep;
 	int needed, count, rc;
 
@@ -1564,22 +1570,14 @@ void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 		if (!rep)
 			break;
 
+		trace_xprtrdma_post_recv(rep);
 		rep->rr_recv_wr.next = wr;
 		wr = &rep->rr_recv_wr;
 		--needed;
+		++count;
 	}
 	if (!wr)
 		goto out;
-
-	for (i = wr; i; i = i->next) {
-		rep = container_of(i, struct rpcrdma_rep, rr_recv_wr);
-
-		if (!rpcrdma_regbuf_dma_map(r_xprt, rep->rr_rdmabuf))
-			goto release_wrs;
-
-		trace_xprtrdma_post_recv(rep);
-		++count;
-	}
 
 	rc = ib_post_recv(r_xprt->rx_ia.ri_id->qp, wr,
 			  (const struct ib_recv_wr **)&bad_wr);
@@ -1597,11 +1595,4 @@ out:
 	}
 	ep->rep_receive_count += count;
 	return;
-
-release_wrs:
-	for (i = wr; i;) {
-		rep = container_of(i, struct rpcrdma_rep, rr_recv_wr);
-		i = i->next;
-		rpcrdma_recv_buffer_put(rep);
-	}
 }
