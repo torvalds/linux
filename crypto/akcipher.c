@@ -90,9 +90,11 @@ static const struct crypto_type crypto_akcipher_type = {
 	.tfmsize = offsetof(struct crypto_akcipher, base),
 };
 
-int crypto_grab_akcipher(struct crypto_akcipher_spawn *spawn, const char *name,
-			 u32 type, u32 mask)
+int crypto_grab_akcipher(struct crypto_akcipher_spawn *spawn,
+			 struct crypto_instance *inst,
+			 const char *name, u32 type, u32 mask)
 {
+	spawn->base.inst = inst;
 	spawn->base.frontend = &crypto_akcipher_type;
 	return crypto_grab_spawn(&spawn->base, name, type, mask);
 }
