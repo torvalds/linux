@@ -697,23 +697,6 @@ int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
 }
 EXPORT_SYMBOL_GPL(crypto_init_spawn);
 
-int crypto_init_spawn2(struct crypto_spawn *spawn, struct crypto_alg *alg,
-		       struct crypto_instance *inst,
-		       const struct crypto_type *frontend)
-{
-	int err = -EINVAL;
-
-	if ((alg->cra_flags ^ frontend->type) & frontend->maskset)
-		goto out;
-
-	spawn->frontend = frontend;
-	err = crypto_init_spawn(spawn, alg, inst, frontend->maskset);
-
-out:
-	return err;
-}
-EXPORT_SYMBOL_GPL(crypto_init_spawn2);
-
 int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
 		      const char *name, u32 type, u32 mask)
 {
@@ -876,20 +859,6 @@ const char *crypto_attr_alg_name(struct rtattr *rta)
 }
 EXPORT_SYMBOL_GPL(crypto_attr_alg_name);
 
-struct crypto_alg *crypto_attr_alg2(struct rtattr *rta,
-				    const struct crypto_type *frontend,
-				    u32 type, u32 mask)
-{
-	const char *name;
-
-	name = crypto_attr_alg_name(rta);
-	if (IS_ERR(name))
-		return ERR_CAST(name);
-
-	return crypto_find_alg(name, frontend, type, mask);
-}
-EXPORT_SYMBOL_GPL(crypto_attr_alg2);
-
 int crypto_attr_u32(struct rtattr *rta, u32 *num)
 {
 	struct crypto_attr_u32 *nu32;
@@ -922,32 +891,6 @@ int crypto_inst_setname(struct crypto_instance *inst, const char *name,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_inst_setname);
-
-void *crypto_alloc_instance(const char *name, struct crypto_alg *alg,
-			    unsigned int head)
-{
-	struct crypto_instance *inst;
-	char *p;
-	int err;
-
-	p = kzalloc(head + sizeof(*inst) + sizeof(struct crypto_spawn),
-		    GFP_KERNEL);
-	if (!p)
-		return ERR_PTR(-ENOMEM);
-
-	inst = (void *)(p + head);
-
-	err = crypto_inst_setname(inst, name, alg);
-	if (err)
-		goto err_free_inst;
-
-	return p;
-
-err_free_inst:
-	kfree(p);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL_GPL(crypto_alloc_instance);
 
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen)
 {

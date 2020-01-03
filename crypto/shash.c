@@ -584,24 +584,5 @@ void shash_free_instance(struct crypto_instance *inst)
 }
 EXPORT_SYMBOL_GPL(shash_free_instance);
 
-int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
-			    struct shash_alg *alg,
-			    struct crypto_instance *inst)
-{
-	return crypto_init_spawn2(&spawn->base, &alg->base, inst,
-				  &crypto_shash_type);
-}
-EXPORT_SYMBOL_GPL(crypto_init_shash_spawn);
-
-struct shash_alg *shash_attr_alg(struct rtattr *rta, u32 type, u32 mask)
-{
-	struct crypto_alg *alg;
-
-	alg = crypto_attr_alg2(rta, &crypto_shash_type, type, mask);
-	return IS_ERR(alg) ? ERR_CAST(alg) :
-	       container_of(alg, struct shash_alg, base);
-}
-EXPORT_SYMBOL_GPL(shash_attr_alg);
-
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Synchronous cryptographic hash type");
