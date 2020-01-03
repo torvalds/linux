@@ -283,6 +283,11 @@ static inline void *efi64_zero_upper(void *p)
 #define __efi64_argmap_locate_protocol(protocol, reg, interface)	\
 	((protocol), (reg), efi64_zero_upper(interface))
 
+/* PCI I/O */
+#define __efi64_argmap_get_location(protocol, seg, bus, dev, func)	\
+	((protocol), efi64_zero_upper(seg), efi64_zero_upper(bus),	\
+	 efi64_zero_upper(dev), efi64_zero_upper(func))
+
 /*
  * The macros below handle the plumbing for the argument mapping. To add a
  * mapping for a specific EFI method, simply define a macro

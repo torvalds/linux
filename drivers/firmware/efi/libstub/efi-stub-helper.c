@@ -33,6 +33,8 @@ static bool __efistub_global efi_nokaslr;
 static bool __efistub_global efi_quiet;
 static bool __efistub_global efi_novamap;
 static bool __efistub_global efi_nosoftreserve;
+static bool __efistub_global efi_disable_pci_dma =
+					IS_ENABLED(CONFIG_EFI_DISABLE_PCI_DMA);
 
 bool __pure nokaslr(void)
 {
@@ -490,6 +492,16 @@ efi_status_t efi_parse_options(char const *cmdline)
 			efi_nosoftreserve = true;
 		}
 
+		if (!strncmp(str, "disable_early_pci_dma", 21)) {
+			str += strlen("disable_early_pci_dma");
+			efi_disable_pci_dma = true;
+		}
+
+		if (!strncmp(str, "no_disable_early_pci_dma", 24)) {
+			str += strlen("no_disable_early_pci_dma");
+			efi_disable_pci_dma = false;
+		}
+
 		/* Group words together, delimited by "," */
 		while (*str && *str != ' ' && *str != ',')
 			str++;
@@ -875,6 +887,9 @@ efi_status_t efi_exit_boot_services(void *handle,
 	status = priv_func(map, priv);
 	if (status != EFI_SUCCESS)
 		goto free_map;
+
+	if (efi_disable_pci_dma)
+		efi_pci_disable_bridge_busmaster();
 
 	status = efi_bs_call(exit_boot_services, handle, *map->key_ptr);
 
