@@ -178,7 +178,7 @@ out_list_err:
  *	ep->rep_attr.cap.max_send_wr
  *	ep->rep_attr.cap.max_recv_wr
  *	ep->rep_max_requests
- *	ia->ri_max_segs
+ *	ia->ri_max_rdma_segs
  *
  * And these FRWR-related fields:
  *	ia->ri_max_frwr_depth
@@ -209,14 +209,12 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 	 * capability, but perform optimally when the MRs are not larger
 	 * than a page.
 	 */
-	if (attrs->max_sge_rd > 1)
+	if (attrs->max_sge_rd > RPCRDMA_MAX_HDR_SEGS)
 		ia->ri_max_frwr_depth = attrs->max_sge_rd;
 	else
 		ia->ri_max_frwr_depth = attrs->max_fast_reg_page_list_len;
 	if (ia->ri_max_frwr_depth > RPCRDMA_MAX_DATA_SEGS)
 		ia->ri_max_frwr_depth = RPCRDMA_MAX_DATA_SEGS;
-	dprintk("RPC:       %s: max FR page list depth = %u\n",
-		__func__, ia->ri_max_frwr_depth);
 
 	/* Add room for frwr register and invalidate WRs.
 	 * 1. FRWR reg WR for head
@@ -260,30 +258,22 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 	ep->rep_attr.cap.max_recv_wr += RPCRDMA_BACKWARD_WRS;
 	ep->rep_attr.cap.max_recv_wr += 1; /* for ib_drain_rq */
 
-	ia->ri_max_segs =
+	ia->ri_max_rdma_segs =
 		DIV_ROUND_UP(RPCRDMA_MAX_DATA_SEGS, ia->ri_max_frwr_depth);
 	/* Reply chunks require segments for head and tail buffers */
-	ia->ri_max_segs += 2;
-	if (ia->ri_max_segs > RPCRDMA_MAX_HDR_SEGS)
-		ia->ri_max_segs = RPCRDMA_MAX_HDR_SEGS;
+	ia->ri_max_rdma_segs += 2;
+	if (ia->ri_max_rdma_segs > RPCRDMA_MAX_HDR_SEGS)
+		ia->ri_max_rdma_segs = RPCRDMA_MAX_HDR_SEGS;
+
+	/* Ensure the underlying device is capable of conveying the
+	 * largest r/wsize NFS will ask for. This guarantees that
+	 * failing over from one RDMA device to another will not
+	 * break NFS I/O.
+	 */
+	if ((ia->ri_max_rdma_segs * ia->ri_max_frwr_depth) < RPCRDMA_MAX_SEGS)
+		return -ENOMEM;
+
 	return 0;
-}
-
-/**
- * frwr_maxpages - Compute size of largest payload
- * @r_xprt: transport
- *
- * Returns maximum size of an RPC message, in pages.
- *
- * FRWR mode conveys a list of pages per chunk segment. The
- * maximum length of that list is the FRWR page list depth.
- */
-size_t frwr_maxpages(struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-
-	return min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
-		     (ia->ri_max_segs - 2) * ia->ri_max_frwr_depth);
 }
 
 /**

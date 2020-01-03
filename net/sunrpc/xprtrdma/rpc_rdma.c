@@ -111,7 +111,7 @@ static unsigned int rpcrdma_max_reply_header_size(unsigned int maxsegs)
  */
 void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *r_xprt)
 {
-	unsigned int maxsegs = r_xprt->rx_ia.ri_max_segs;
+	unsigned int maxsegs = r_xprt->rx_ia.ri_max_rdma_segs;
 	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 
 	ep->rep_max_inline_send =

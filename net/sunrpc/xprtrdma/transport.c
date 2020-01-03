@@ -359,18 +359,12 @@ xprt_setup_rdma(struct xprt_create *args)
 	if (rc)
 		goto out3;
 
-	INIT_DELAYED_WORK(&new_xprt->rx_connect_worker,
-			  xprt_rdma_connect_worker);
-
-	xprt->max_payload = frwr_maxpages(new_xprt);
-	if (xprt->max_payload == 0)
-		goto out4;
-	xprt->max_payload <<= PAGE_SHIFT;
-	dprintk("RPC:       %s: transport data payload maximum: %zu bytes\n",
-		__func__, xprt->max_payload);
-
 	if (!try_module_get(THIS_MODULE))
 		goto out4;
+
+	INIT_DELAYED_WORK(&new_xprt->rx_connect_worker,
+			  xprt_rdma_connect_worker);
+	xprt->max_payload = RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT;
 
 	dprintk("RPC:       %s: %s:%s\n", __func__,
 		xprt->address_strings[RPC_DISPLAY_ADDR],

@@ -71,7 +71,7 @@ struct rpcrdma_ia {
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
 	int			ri_async_rc;
-	unsigned int		ri_max_segs;
+	unsigned int		ri_max_rdma_segs;
 	unsigned int		ri_max_frwr_depth;
 	bool			ri_implicit_roundup;
 	enum ib_mr_type		ri_mrtype;
@@ -539,7 +539,6 @@ void frwr_reset(struct rpcrdma_req *req);
 int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep);
 int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr);
 void frwr_release_mr(struct rpcrdma_mr *mr);
-size_t frwr_maxpages(struct rpcrdma_xprt *r_xprt);
 struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 				struct rpcrdma_mr_seg *seg,
 				int nsegs, bool writing, __be32 xid,
