@@ -755,26 +755,22 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 log_it:
 		error_seen = true;
 
+		if (flags & MCP_DONTLOG)
+			goto clear_it;
+
 		mce_read_aux(&m, i);
-
 		m.severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
-
 		/*
 		 * Don't get the IP here because it's unlikely to
 		 * have anything to do with the actual error location.
 		 */
-		if (!(flags & MCP_DONTLOG) && !mca_cfg.dont_log_ce)
-			mce_log(&m);
-		else if (mce_usable_address(&m)) {
-			/*
-			 * Although we skipped logging this, we still want
-			 * to take action. Add to the pool so the registered
-			 * notifiers will see it.
-			 */
-			if (!mce_gen_pool_add(&m))
-				mce_schedule_work();
-		}
 
+		if (mca_cfg.dont_log_ce && !mce_usable_address(&m))
+			goto clear_it;
+
+		mce_log(&m);
+
+clear_it:
 		/*
 		 * Clear state for this bank.
 		 */
