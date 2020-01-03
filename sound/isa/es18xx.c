@@ -1753,7 +1753,7 @@ static int snd_es18xx_new_device(struct snd_card *card,
 				 int irq, int dma1, int dma2)
 {
 	struct snd_es18xx *chip = card->private_data;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_es18xx_dev_free,
         };
 	int err;

@@ -612,7 +612,7 @@ int snd_es1688_create(struct snd_card *card,
 		      int dma8,
 		      unsigned short hardware)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_es1688_dev_free,
 	};
                                 

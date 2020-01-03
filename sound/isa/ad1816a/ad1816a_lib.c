@@ -577,7 +577,7 @@ int snd_ad1816a_create(struct snd_card *card,
 		       unsigned long port, int irq, int dma1, int dma2,
 		       struct snd_ad1816a *chip)
 {
-        static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_ad1816a_dev_free,
 	};
 	int error;
