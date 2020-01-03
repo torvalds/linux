@@ -460,6 +460,23 @@ static const struct ts_dmi_data pipo_w2s_data = {
 	.properties	= pipo_w2s_props,
 };
 
+static const struct property_entry pipo_w11_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 1),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 15),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1984),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1532),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1680-pipo-w11.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data pipo_w11_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= pipo_w11_props,
+};
+
 static const struct property_entry pov_mobii_wintab_p800w_v20_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 32),
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 16),
@@ -907,6 +924,17 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "PIPO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "W2S"),
+		},
+	},
+	{
+		/* Pipo W11 */
+		.driver_data = (void *)&pipo_w11_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "PIPO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "To be filled by O.E.M."),
+			/* Above matches are too generic, add bios-ver match */
+			DMI_MATCH(DMI_BIOS_VERSION,
+				  "JS-BI-10.6-SF133GR300-GA55B-024-F"),
 		},
 	},
 	{
