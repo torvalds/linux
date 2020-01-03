@@ -145,7 +145,7 @@ static bool rpcrdma_args_inline(struct rpcrdma_xprt *r_xprt,
 			remaining -= min_t(unsigned int,
 					   PAGE_SIZE - offset, remaining);
 			offset = 0;
-			if (++count > r_xprt->rx_ia.ri_max_send_sges)
+			if (++count > r_xprt->rx_ep.rep_attr.cap.max_send_sge)
 				return false;
 		}
 	}

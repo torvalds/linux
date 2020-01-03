@@ -470,20 +470,11 @@ int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_connect_private *pmsg = &ep->rep_cm_private;
 	struct ib_cq *sendcq, *recvcq;
-	unsigned int max_sge;
 	int rc;
 
 	ep->rep_max_requests = xprt_rdma_slot_table_entries;
 	ep->rep_inline_send = xprt_rdma_max_inline_write;
 	ep->rep_inline_recv = xprt_rdma_max_inline_read;
-
-	max_sge = min_t(unsigned int, ia->ri_id->device->attrs.max_send_sge,
-			RPCRDMA_MAX_SEND_SGES);
-	if (max_sge < RPCRDMA_MIN_SEND_SGES) {
-		pr_warn("rpcrdma: HCA provides only %d send SGEs\n", max_sge);
-		return -ENOMEM;
-	}
-	ia->ri_max_send_sges = max_sge;
 
 	rc = frwr_open(ia, ep);
 	if (rc)
@@ -492,8 +483,6 @@ int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 	ep->rep_attr.event_handler = rpcrdma_qp_event_handler;
 	ep->rep_attr.qp_context = ep;
 	ep->rep_attr.srq = NULL;
-	ep->rep_attr.cap.max_send_sge = max_sge;
-	ep->rep_attr.cap.max_recv_sge = 1;
 	ep->rep_attr.cap.max_inline_data = 0;
 	ep->rep_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	ep->rep_attr.qp_type = IB_QPT_RC;
@@ -796,11 +785,11 @@ static void rpcrdma_sendctxs_destroy(struct rpcrdma_buffer *buf)
 	kfree(buf->rb_sc_ctxs);
 }
 
-static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ia *ia)
+static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ep *ep)
 {
 	struct rpcrdma_sendctx *sc;
 
-	sc = kzalloc(struct_size(sc, sc_sges, ia->ri_max_send_sges),
+	sc = kzalloc(struct_size(sc, sc_sges, ep->rep_attr.cap.max_send_sge),
 		     GFP_KERNEL);
 	if (!sc)
 		return NULL;
@@ -828,7 +817,7 @@ static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
 
 	buf->rb_sc_last = i - 1;
 	for (i = 0; i <= buf->rb_sc_last; i++) {
-		sc = rpcrdma_sendctx_create(&r_xprt->rx_ia);
+		sc = rpcrdma_sendctx_create(&r_xprt->rx_ep);
 		if (!sc)
 			return -ENOMEM;
 

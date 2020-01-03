@@ -190,6 +190,16 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 {
 	struct ib_device_attr *attrs = &ia->ri_id->device->attrs;
 	int max_qp_wr, depth, delta;
+	unsigned int max_sge;
+
+	max_sge = min_t(unsigned int, attrs->max_send_sge,
+			RPCRDMA_MAX_SEND_SGES);
+	if (max_sge < RPCRDMA_MIN_SEND_SGES) {
+		pr_err("rpcrdma: HCA provides only %u send SGEs\n", max_sge);
+		return -ENOMEM;
+	}
+	ep->rep_attr.cap.max_send_sge = max_sge;
+	ep->rep_attr.cap.max_recv_sge = 1;
 
 	ia->ri_mrtype = IB_MR_TYPE_MEM_REG;
 	if (attrs->device_cap_flags & IB_DEVICE_SG_GAPS_REG)
