@@ -156,10 +156,8 @@ void mce_log(struct mce *m)
 }
 EXPORT_SYMBOL_GPL(mce_log);
 
-static struct notifier_block mce_srao_nb;
-
 /*
- * We run the default notifier if we have only the SRAO, the first and the
+ * We run the default notifier if we have only the UC, the first and the
  * default notifier registered. I.e., the mandatory NUM_DEFAULT_NOTIFIERS
  * notifiers registered on the chain.
  */
@@ -585,26 +583,29 @@ static struct notifier_block first_nb = {
 	.priority	= MCE_PRIO_FIRST,
 };
 
-static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
-				void *data)
+static int uc_decode_notifier(struct notifier_block *nb, unsigned long val,
+			      void *data)
 {
 	struct mce *mce = (struct mce *)data;
 	unsigned long pfn;
 
-	if (!mce)
+	if (!mce || !mce_usable_address(mce))
 		return NOTIFY_DONE;
 
-	if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
-		pfn = mce->addr >> PAGE_SHIFT;
-		if (!memory_failure(pfn, 0))
-			set_mce_nospec(pfn);
-	}
+	if (mce->severity != MCE_AO_SEVERITY &&
+	    mce->severity != MCE_DEFERRED_SEVERITY)
+		return NOTIFY_DONE;
+
+	pfn = mce->addr >> PAGE_SHIFT;
+	if (!memory_failure(pfn, 0))
+		set_mce_nospec(pfn);
 
 	return NOTIFY_OK;
 }
-static struct notifier_block mce_srao_nb = {
-	.notifier_call	= srao_decode_notifier,
-	.priority	= MCE_PRIO_SRAO,
+
+static struct notifier_block mce_uc_nb = {
+	.notifier_call	= uc_decode_notifier,
+	.priority	= MCE_PRIO_UC,
 };
 
 static int mce_default_notifier(struct notifier_block *nb, unsigned long val,
@@ -2032,7 +2033,7 @@ int __init mcheck_init(void)
 {
 	mcheck_intel_therm_init();
 	mce_register_decode_chain(&first_nb);
-	mce_register_decode_chain(&mce_srao_nb);
+	mce_register_decode_chain(&mce_uc_nb);
 	mce_register_decode_chain(&mce_default_nb);
 	mcheck_vendor_init_severity();
 
