@@ -221,32 +221,6 @@ static int cryptd_init_instance(struct crypto_instance *inst,
 	return 0;
 }
 
-static void *cryptd_alloc_instance(struct crypto_alg *alg, unsigned int head,
-				   unsigned int tail)
-{
-	char *p;
-	struct crypto_instance *inst;
-	int err;
-
-	p = kzalloc(head + sizeof(*inst) + tail, GFP_KERNEL);
-	if (!p)
-		return ERR_PTR(-ENOMEM);
-
-	inst = (void *)(p + head);
-
-	err = cryptd_init_instance(inst, alg);
-	if (err)
-		goto out_free_inst;
-
-out:
-	return p;
-
-out_free_inst:
-	kfree(p);
-	p = ERR_PTR(err);
-	goto out;
-}
-
 static int cryptd_skcipher_setkey(struct crypto_skcipher *parent,
 				  const u8 *key, unsigned int keylen)
 {
@@ -662,39 +636,36 @@ static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 {
 	struct hashd_instance_ctx *ctx;
 	struct ahash_instance *inst;
-	struct shash_alg *salg;
-	struct crypto_alg *alg;
+	struct shash_alg *alg;
 	u32 type = 0;
 	u32 mask = 0;
 	int err;
 
 	cryptd_check_internal(tb, &type, &mask);
 
-	salg = shash_attr_alg(tb[1], type, mask);
-	if (IS_ERR(salg))
-		return PTR_ERR(salg);
-
-	alg = &salg->base;
-	inst = cryptd_alloc_instance(alg, ahash_instance_headroom(),
-				     sizeof(*ctx));
-	err = PTR_ERR(inst);
-	if (IS_ERR(inst))
-		goto out_put_alg;
+	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
 
 	ctx = ahash_instance_ctx(inst);
 	ctx->queue = queue;
 
-	err = crypto_init_shash_spawn(&ctx->spawn, salg,
-				      ahash_crypto_instance(inst));
+	err = crypto_grab_shash(&ctx->spawn, ahash_crypto_instance(inst),
+				crypto_attr_alg_name(tb[1]), type, mask);
 	if (err)
-		goto out_free_inst;
+		goto err_free_inst;
+	alg = crypto_spawn_shash_alg(&ctx->spawn);
+
+	err = cryptd_init_instance(ahash_crypto_instance(inst), &alg->base);
+	if (err)
+		goto err_free_inst;
 
 	inst->alg.halg.base.cra_flags = CRYPTO_ALG_ASYNC |
-		(alg->cra_flags & (CRYPTO_ALG_INTERNAL |
-				   CRYPTO_ALG_OPTIONAL_KEY));
+		(alg->base.cra_flags & (CRYPTO_ALG_INTERNAL |
+					CRYPTO_ALG_OPTIONAL_KEY));
 
-	inst->alg.halg.digestsize = salg->digestsize;
-	inst->alg.halg.statesize = salg->statesize;
+	inst->alg.halg.digestsize = alg->digestsize;
+	inst->alg.halg.statesize = alg->statesize;
 	inst->alg.halg.base.cra_ctxsize = sizeof(struct cryptd_hash_ctx);
 
 	inst->alg.halg.base.cra_init = cryptd_hash_init_tfm;
@@ -706,19 +677,16 @@ static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.finup  = cryptd_hash_finup_enqueue;
 	inst->alg.export = cryptd_hash_export;
 	inst->alg.import = cryptd_hash_import;
-	if (crypto_shash_alg_has_setkey(salg))
+	if (crypto_shash_alg_has_setkey(alg))
 		inst->alg.setkey = cryptd_hash_setkey;
 	inst->alg.digest = cryptd_hash_digest_enqueue;
 
 	err = ahash_register_instance(tmpl, inst);
 	if (err) {
+err_free_inst:
 		crypto_drop_shash(&ctx->spawn);
-out_free_inst:
 		kfree(inst);
 	}
-
-out_put_alg:
-	crypto_mod_put(alg);
 	return err;
 }
 
