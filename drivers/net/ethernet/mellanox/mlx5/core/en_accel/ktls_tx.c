@@ -413,27 +413,14 @@ err_out:
 	return MLX5E_KTLS_SYNC_FAIL;
 }
 
-bool mlx5e_ktls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
+bool mlx5e_ktls_handle_tx_skb(struct tls_context *tls_ctx, struct mlx5e_txqsq *sq,
 			      struct sk_buff *skb, struct mlx5e_tx_wqe **wqe,
-			      u16 *pi)
+			      u16 *pi, int datalen)
 {
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	struct mlx5e_sq_stats *stats = sq->stats;
 	struct mlx5_wqe_ctrl_seg *cseg;
-	struct tls_context *tls_ctx;
-	int datalen;
 	u32 seq;
-
-	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
-		goto out;
-
-	datalen = skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb));
-	if (!datalen)
-		goto out;
-
-	tls_ctx = tls_get_ctx(skb->sk);
-	if (WARN_ON_ONCE(tls_ctx->netdev != netdev))
-		goto err_out;
 
 	priv_tx = mlx5e_get_ktls_tx_priv_ctx(tls_ctx);
 

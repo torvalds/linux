@@ -266,9 +266,6 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 	int datalen;
 	u32 skb_seq;
 
-	if (MLX5_CAP_GEN(sq->channel->mdev, tls_tx))
-		return mlx5e_ktls_handle_tx_skb(netdev, sq, skb, wqe, pi);
-
 	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
 		return true;
 
@@ -277,8 +274,11 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 		return true;
 
 	tls_ctx = tls_get_ctx(skb->sk);
-	if (unlikely(tls_ctx->netdev != netdev))
-		return true;
+	if (WARN_ON_ONCE(tls_ctx->netdev != netdev))
+		goto err_out;
+
+	if (MLX5_CAP_GEN(sq->channel->mdev, tls_tx))
+		return mlx5e_ktls_handle_tx_skb(tls_ctx, sq, skb, wqe, pi, datalen);
 
 	skb_seq = ntohl(tcp_hdr(skb)->seq);
 	context = mlx5e_get_tls_tx_context(tls_ctx);
@@ -295,6 +295,10 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 
 	context->expected_seq = skb_seq + datalen;
 	return true;
+
+err_out:
+	dev_kfree_skb_any(skb);
+	return false;
 }
 
 static int tls_update_resync_sn(struct net_device *netdev,
