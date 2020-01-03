@@ -53,7 +53,7 @@ static int bcm84881_config_init(struct phy_device *phydev)
 	switch (phydev->interface) {
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_2500BASEX:
-	case PHY_INTERFACE_MODE_10GKR:
+	case PHY_INTERFACE_MODE_10GBASER:
 		break;
 	default:
 		return -ENODEV;
@@ -218,7 +218,7 @@ static int bcm84881_read_status(struct phy_device *phydev)
 	if (mode == 1 || mode == 2)
 		phydev->interface = PHY_INTERFACE_MODE_SGMII;
 	else if (mode == 3)
-		phydev->interface = PHY_INTERFACE_MODE_10GKR;
+		phydev->interface = PHY_INTERFACE_MODE_10GBASER;
 	else if (mode == 4)
 		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
 	switch (mode & 7) {
