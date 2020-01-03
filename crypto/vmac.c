@@ -596,7 +596,7 @@ static int vmac_final(struct shash_desc *desc, u8 *out)
 static int vmac_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_instance *inst = crypto_tfm_alg_instance(tfm);
-	struct crypto_spawn *spawn = crypto_instance_ctx(inst);
+	struct crypto_cipher_spawn *spawn = crypto_instance_ctx(inst);
 	struct vmac_tfm_ctx *tctx = crypto_tfm_ctx(tfm);
 	struct crypto_cipher *cipher;
 

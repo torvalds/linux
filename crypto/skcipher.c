@@ -887,7 +887,7 @@ static int skcipher_setkey_simple(struct crypto_skcipher *tfm, const u8 *key,
 static int skcipher_init_tfm_simple(struct crypto_skcipher *tfm)
 {
 	struct skcipher_instance *inst = skcipher_alg_instance(tfm);
-	struct crypto_spawn *spawn = skcipher_instance_ctx(inst);
+	struct crypto_cipher_spawn *spawn = skcipher_instance_ctx(inst);
 	struct skcipher_ctx_simple *ctx = crypto_skcipher_ctx(tfm);
 	struct crypto_cipher *cipher;
 
