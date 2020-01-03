@@ -164,12 +164,6 @@ extern void parse_efi_setup(u64 phys_addr, u32 data_len);
 extern void efifb_setup_from_dmi(struct screen_info *si, const char *opt);
 
 extern void efi_thunk_runtime_setup(void);
-extern efi_status_t efi_thunk_set_virtual_address_map(
-	void *phys_set_virtual_address_map,
-	unsigned long memory_map_size,
-	unsigned long descriptor_size,
-	u32 descriptor_version,
-	efi_memory_desc_t *virtual_map);
 efi_status_t efi_set_virtual_address_map(unsigned long memory_map_size,
 					 unsigned long descriptor_size,
 					 u32 descriptor_version,

@@ -626,61 +626,74 @@ void efi_switch_mm(struct mm_struct *mm)
 	switch_mm(efi_scratch.prev_mm, mm, NULL);
 }
 
-#ifdef CONFIG_EFI_MIXED
 static DEFINE_SPINLOCK(efi_runtime_lock);
 
-#define runtime_service32(func)						 \
-({									 \
-	u32 table = (u32)(unsigned long)efi.systab;			 \
-	u32 *rt, *___f;							 \
-									 \
-	rt = (u32 *)(table + offsetof(efi_system_table_32_t, runtime));	 \
-	___f = (u32 *)(*rt + offsetof(efi_runtime_services_32_t, func)); \
-	*___f;								 \
+/*
+ * DS and ES contain user values.  We need to save them.
+ * The 32-bit EFI code needs a valid DS, ES, and SS.  There's no
+ * need to save the old SS: __KERNEL_DS is always acceptable.
+ */
+#define __efi_thunk(func, ...)						\
+({									\
+	efi_runtime_services_32_t *__rt;				\
+	unsigned short __ds, __es;					\
+	efi_status_t ____s;						\
+									\
+	__rt = (void *)(unsigned long)efi.systab->mixed_mode.runtime;	\
+									\
+	savesegment(ds, __ds);						\
+	savesegment(es, __es);						\
+									\
+	loadsegment(ss, __KERNEL_DS);					\
+	loadsegment(ds, __KERNEL_DS);					\
+	loadsegment(es, __KERNEL_DS);					\
+									\
+	____s = efi64_thunk(__rt->func, __VA_ARGS__);			\
+									\
+	loadsegment(ds, __ds);						\
+	loadsegment(es, __es);						\
+									\
+	____s ^= (____s & BIT(31)) | (____s & BIT_ULL(31)) << 32;	\
+	____s;								\
 })
 
 /*
  * Switch to the EFI page tables early so that we can access the 1:1
  * runtime services mappings which are not mapped in any other page
- * tables. This function must be called before runtime_service32().
+ * tables.
  *
  * Also, disable interrupts because the IDT points to 64-bit handlers,
  * which aren't going to function correctly when we switch to 32-bit.
  */
-#define efi_thunk(f, ...)						\
+#define efi_thunk(func...)						\
 ({									\
 	efi_status_t __s;						\
-	u32 __func;							\
 									\
 	arch_efi_call_virt_setup();					\
 									\
-	__func = runtime_service32(f);					\
-	__s = efi64_thunk(__func, __VA_ARGS__);				\
+	__s = __efi_thunk(func);					\
 									\
 	arch_efi_call_virt_teardown();					\
 									\
 	__s;								\
 })
 
-efi_status_t efi_thunk_set_virtual_address_map(
-	void *phys_set_virtual_address_map,
-	unsigned long memory_map_size,
-	unsigned long descriptor_size,
-	u32 descriptor_version,
-	efi_memory_desc_t *virtual_map)
+static efi_status_t __init
+efi_thunk_set_virtual_address_map(unsigned long memory_map_size,
+				  unsigned long descriptor_size,
+				  u32 descriptor_version,
+				  efi_memory_desc_t *virtual_map)
 {
 	efi_status_t status;
 	unsigned long flags;
-	u32 func;
 
 	efi_sync_low_kernel_mappings();
 	local_irq_save(flags);
 
 	efi_switch_mm(&efi_mm);
 
-	func = (u32)(unsigned long)phys_set_virtual_address_map;
-	status = efi64_thunk(func, memory_map_size, descriptor_size,
-			     descriptor_version, virtual_map);
+	status = __efi_thunk(set_virtual_address_map, memory_map_size,
+			     descriptor_size, descriptor_version, virtual_map);
 
 	efi_switch_mm(efi_scratch.prev_mm);
 	local_irq_restore(flags);
@@ -983,8 +996,11 @@ efi_thunk_query_capsule_caps(efi_capsule_header_t **capsules,
 	return EFI_UNSUPPORTED;
 }
 
-void efi_thunk_runtime_setup(void)
+void __init efi_thunk_runtime_setup(void)
 {
+	if (!IS_ENABLED(CONFIG_EFI_MIXED))
+		return;
+
 	efi.get_time = efi_thunk_get_time;
 	efi.set_time = efi_thunk_set_time;
 	efi.get_wakeup_time = efi_thunk_get_wakeup_time;
@@ -1000,7 +1016,6 @@ void efi_thunk_runtime_setup(void)
 	efi.update_capsule = efi_thunk_update_capsule;
 	efi.query_capsule_caps = efi_thunk_query_capsule_caps;
 }
-#endif /* CONFIG_EFI_MIXED */
 
 efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 						unsigned long descriptor_size,
@@ -1010,6 +1025,12 @@ efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 	efi_status_t status;
 	unsigned long flags;
 	pgd_t *save_pgd = NULL;
+
+	if (efi_is_mixed())
+		return efi_thunk_set_virtual_address_map(memory_map_size,
+							 descriptor_size,
+							 descriptor_version,
+							 virtual_map);
 
 	if (efi_enabled(EFI_OLD_MEMMAP)) {
 		save_pgd = efi_old_memmap_phys_prolog();
