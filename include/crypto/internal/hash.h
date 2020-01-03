@@ -57,8 +57,6 @@ struct crypto_shash_spawn {
 	struct crypto_spawn base;
 };
 
-extern const struct crypto_type crypto_ahash_type;
-
 int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err);
 int crypto_hash_walk_first(struct ahash_request *req,
 			   struct crypto_hash_walk *walk);

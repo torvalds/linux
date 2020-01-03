@@ -23,6 +23,8 @@
 
 #include "internal.h"
 
+static const struct crypto_type crypto_ahash_type;
+
 struct ahash_request_priv {
 	crypto_completion_t complete;
 	void *data;
@@ -542,7 +544,7 @@ static void crypto_ahash_show(struct seq_file *m, struct crypto_alg *alg)
 		   __crypto_hash_alg_common(alg)->digestsize);
 }
 
-const struct crypto_type crypto_ahash_type = {
+static const struct crypto_type crypto_ahash_type = {
 	.extsize = crypto_ahash_extsize,
 	.init_tfm = crypto_ahash_init_tfm,
 #ifdef CONFIG_PROC_FS
@@ -554,7 +556,6 @@ const struct crypto_type crypto_ahash_type = {
 	.type = CRYPTO_ALG_TYPE_AHASH,
 	.tfmsize = offsetof(struct crypto_ahash, base),
 };
-EXPORT_SYMBOL_GPL(crypto_ahash_type);
 
 int crypto_grab_ahash(struct crypto_ahash_spawn *spawn,
 		      struct crypto_instance *inst,
