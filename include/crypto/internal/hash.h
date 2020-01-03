@@ -30,6 +30,7 @@ struct crypto_hash_walk {
 };
 
 struct ahash_instance {
+	void (*free)(struct ahash_instance *inst);
 	union {
 		struct {
 			char head[offsetof(struct ahash_alg, halg.base)];
@@ -40,6 +41,7 @@ struct ahash_instance {
 };
 
 struct shash_instance {
+	void (*free)(struct shash_instance *inst);
 	union {
 		struct {
 			char head[offsetof(struct shash_alg, base)];

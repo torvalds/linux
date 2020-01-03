@@ -511,6 +511,18 @@ static unsigned int crypto_ahash_extsize(struct crypto_alg *alg)
 	return crypto_alg_extsize(alg);
 }
 
+static void crypto_ahash_free_instance(struct crypto_instance *inst)
+{
+	struct ahash_instance *ahash = ahash_instance(inst);
+
+	if (!ahash->free) {
+		inst->tmpl->free(inst);
+		return;
+	}
+
+	ahash->free(ahash);
+}
+
 #ifdef CONFIG_NET
 static int crypto_ahash_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
@@ -547,6 +559,7 @@ static void crypto_ahash_show(struct seq_file *m, struct crypto_alg *alg)
 static const struct crypto_type crypto_ahash_type = {
 	.extsize = crypto_ahash_extsize,
 	.init_tfm = crypto_ahash_init_tfm,
+	.free = crypto_ahash_free_instance,
 #ifdef CONFIG_PROC_FS
 	.show = crypto_ahash_show,
 #endif
