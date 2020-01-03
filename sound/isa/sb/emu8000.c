@@ -855,7 +855,7 @@ static int mixer_bass_treble_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
-static struct snd_kcontrol_new mixer_bass_control =
+static const struct snd_kcontrol_new mixer_bass_control =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Synth Tone Control - Bass",
@@ -865,7 +865,7 @@ static struct snd_kcontrol_new mixer_bass_control =
 	.private_value = 0,
 };
 
-static struct snd_kcontrol_new mixer_treble_control =
+static const struct snd_kcontrol_new mixer_treble_control =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Synth Tone Control - Treble",
@@ -922,7 +922,7 @@ static int mixer_chorus_reverb_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 	return change;
 }
 
-static struct snd_kcontrol_new mixer_chorus_mode_control =
+static const struct snd_kcontrol_new mixer_chorus_mode_control =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Chorus Mode",
@@ -932,7 +932,7 @@ static struct snd_kcontrol_new mixer_chorus_mode_control =
 	.private_value = 1,
 };
 
-static struct snd_kcontrol_new mixer_reverb_mode_control =
+static const struct snd_kcontrol_new mixer_reverb_mode_control =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Reverb Mode",
@@ -984,7 +984,7 @@ static int mixer_fm_depth_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	return change;
 }
 
-static struct snd_kcontrol_new mixer_fm_chorus_depth_control =
+static const struct snd_kcontrol_new mixer_fm_chorus_depth_control =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "FM Chorus Depth",
@@ -994,7 +994,7 @@ static struct snd_kcontrol_new mixer_fm_chorus_depth_control =
 	.private_value = 1,
 };
 
-static struct snd_kcontrol_new mixer_fm_reverb_depth_control =
+static const struct snd_kcontrol_new mixer_fm_reverb_depth_control =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "FM Reverb Depth",
@@ -1005,7 +1005,7 @@ static struct snd_kcontrol_new mixer_fm_reverb_depth_control =
 };
 
 
-static struct snd_kcontrol_new *mixer_defs[EMU8000_NUM_CONTROLS] = {
+static const struct snd_kcontrol_new *mixer_defs[EMU8000_NUM_CONTROLS] = {
 	&mixer_bass_control,
 	&mixer_treble_control,
 	&mixer_chorus_mode_control,

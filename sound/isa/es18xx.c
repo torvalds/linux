@@ -1246,7 +1246,7 @@ static int snd_es18xx_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
  * The controls that are universal to all chipsets are fully initialized
  * here.
  */
-static struct snd_kcontrol_new snd_es18xx_base_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_base_controls[] = {
 ES18XX_DOUBLE("Master Playback Volume", 0, 0x60, 0x62, 0, 0, 63, 0),
 ES18XX_DOUBLE("Master Playback Switch", 0, 0x60, 0x62, 6, 6, 1, 1),
 ES18XX_DOUBLE("Line Playback Volume", 0, 0x3e, 0x3e, 4, 0, 15, 0),
@@ -1265,7 +1265,7 @@ ES18XX_DOUBLE("Capture Volume", 0, 0xb4, 0xb4, 4, 0, 15, 0),
 }
 };
 
-static struct snd_kcontrol_new snd_es18xx_recmix_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_recmix_controls[] = {
 ES18XX_DOUBLE("PCM Capture Volume", 0, 0x69, 0x69, 4, 0, 15, 0),
 ES18XX_DOUBLE("Mic Capture Volume", 0, 0x68, 0x68, 4, 0, 15, 0),
 ES18XX_DOUBLE("Line Capture Volume", 0, 0x6e, 0x6e, 4, 0, 15, 0),
@@ -1277,35 +1277,35 @@ ES18XX_DOUBLE("Aux Capture Volume", 0, 0x6c, 0x6c, 4, 0, 15, 0)
 /*
  * The chipset specific mixer controls
  */
-static struct snd_kcontrol_new snd_es18xx_opt_speaker =
+static const struct snd_kcontrol_new snd_es18xx_opt_speaker =
 	ES18XX_SINGLE("Beep Playback Volume", 0, 0x3c, 0, 7, 0);
 
-static struct snd_kcontrol_new snd_es18xx_opt_1869[] = {
+static const struct snd_kcontrol_new snd_es18xx_opt_1869[] = {
 ES18XX_SINGLE("Capture Switch", 0, 0x1c, 4, 1, ES18XX_FL_INVERT),
 ES18XX_SINGLE("Video Playback Switch", 0, 0x7f, 0, 1, 0),
 ES18XX_DOUBLE("Mono Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
 ES18XX_DOUBLE("Mono Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
 };
 
-static struct snd_kcontrol_new snd_es18xx_opt_1878 =
+static const struct snd_kcontrol_new snd_es18xx_opt_1878 =
 	ES18XX_DOUBLE("Video Playback Volume", 0, 0x68, 0x68, 4, 0, 15, 0);
 
-static struct snd_kcontrol_new snd_es18xx_opt_1879[] = {
+static const struct snd_kcontrol_new snd_es18xx_opt_1879[] = {
 ES18XX_SINGLE("Video Playback Switch", 0, 0x71, 6, 1, 0),
 ES18XX_DOUBLE("Video Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
 ES18XX_DOUBLE("Video Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
 };
 
-static struct snd_kcontrol_new snd_es18xx_pcm1_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_pcm1_controls[] = {
 ES18XX_DOUBLE("PCM Playback Volume", 0, 0x14, 0x14, 4, 0, 15, 0),
 };
 
-static struct snd_kcontrol_new snd_es18xx_pcm2_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_pcm2_controls[] = {
 ES18XX_DOUBLE("PCM Playback Volume", 0, 0x7c, 0x7c, 4, 0, 15, 0),
 ES18XX_DOUBLE("PCM Playback Volume", 1, 0x14, 0x14, 4, 0, 15, 0)
 };
 
-static struct snd_kcontrol_new snd_es18xx_spatializer_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_spatializer_controls[] = {
 ES18XX_SINGLE("3D Control - Level", 0, 0x52, 0, 63, 0),
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1316,13 +1316,13 @@ ES18XX_SINGLE("3D Control - Level", 0, 0x52, 0, 63, 0),
 }
 };
 
-static struct snd_kcontrol_new snd_es18xx_micpre1_control = 
+static const struct snd_kcontrol_new snd_es18xx_micpre1_control =
 ES18XX_SINGLE("Mic Boost (+26dB)", 0, 0xa9, 2, 1, 0);
 
-static struct snd_kcontrol_new snd_es18xx_micpre2_control =
+static const struct snd_kcontrol_new snd_es18xx_micpre2_control =
 ES18XX_SINGLE("Mic Boost (+26dB)", 0, 0x7d, 3, 1, 0);
 
-static struct snd_kcontrol_new snd_es18xx_hw_volume_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_hw_volume_controls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Hardware Master Playback Volume",
@@ -1340,7 +1340,7 @@ static struct snd_kcontrol_new snd_es18xx_hw_volume_controls[] = {
 ES18XX_SINGLE("Hardware Master Volume Split", 0, 0x64, 7, 1, 0),
 };
 
-static struct snd_kcontrol_new snd_es18xx_opt_gpo_2bit[] = {
+static const struct snd_kcontrol_new snd_es18xx_opt_gpo_2bit[] = {
 ES18XX_SINGLE("GPO0 Switch", 0, ES18XX_PM, 0, 1, ES18XX_FL_PMPORT),
 ES18XX_SINGLE("GPO1 Switch", 0, ES18XX_PM, 1, 1, ES18XX_FL_PMPORT),
 };
