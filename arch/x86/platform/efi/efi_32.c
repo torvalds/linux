@@ -66,7 +66,8 @@ void __init efi_map_region(efi_memory_desc_t *md)
 void __init efi_map_region_fixed(efi_memory_desc_t *md) {}
 void __init parse_efi_setup(u64 phys_addr, u32 data_len) {}
 
-extern struct efi efi_phys;
+efi_status_t efi_call_svam(efi_set_virtual_address_map_t *__efiapi *,
+			   u32, u32, u32, void *);
 
 efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 						unsigned long descriptor_size,
@@ -89,7 +90,7 @@ efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 
 	/* Disable interrupts around EFI calls: */
 	local_irq_save(flags);
-	status = efi_call_phys(efi_phys.set_virtual_address_map,
+	status = efi_call_svam(&efi.systab->runtime->set_virtual_address_map,
 			       memory_map_size, descriptor_size,
 			       descriptor_version, virtual_map);
 	local_irq_restore(flags);

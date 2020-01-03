@@ -35,9 +35,6 @@
 #define ARCH_EFI_IRQ_FLAGS_MASK	X86_EFLAGS_IF
 
 #ifdef CONFIG_X86_32
-
-extern asmlinkage unsigned long efi_call_phys(void *, ...);
-
 #define arch_efi_call_virt_setup()					\
 ({									\
 	kernel_fpu_begin();						\
