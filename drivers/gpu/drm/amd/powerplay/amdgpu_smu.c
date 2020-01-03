@@ -1363,6 +1363,9 @@ static int smu_hw_fini(void *handle)
 		smu_powergate_jpeg(&adev->smu, true);
 	}
 
+	if (!smu->pm_enabled)
+		return 0;
+
 	if (!amdgpu_sriov_vf(adev)){
 		ret = smu_stop_thermal_control(smu);
 		if (ret) {
@@ -1434,6 +1437,9 @@ static int smu_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 	bool baco_feature_is_enabled = false;
+
+	if (!smu->pm_enabled)
+		return 0;
 
 	if(!smu->is_apu)
 		baco_feature_is_enabled = smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT);
