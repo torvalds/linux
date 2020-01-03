@@ -389,7 +389,7 @@ static int patch_ad1986a(struct hda_codec *codec)
 {
 	int err;
 	struct ad198x_spec *spec;
-	static hda_nid_t preferred_pairs[] = {
+	static const hda_nid_t preferred_pairs[] = {
 		0x1a, 0x03,
 		0x1b, 0x03,
 		0x1c, 0x04,
@@ -519,9 +519,9 @@ static int ad1983_add_spdif_mux_ctl(struct hda_codec *codec)
 
 static int patch_ad1983(struct hda_codec *codec)
 {
+	static const hda_nid_t conn_0c[] = { 0x08 };
+	static const hda_nid_t conn_0d[] = { 0x09 };
 	struct ad198x_spec *spec;
-	static hda_nid_t conn_0c[] = { 0x08 };
-	static hda_nid_t conn_0d[] = { 0x09 };
 	int err;
 
 	err = alloc_ad_spec(codec);

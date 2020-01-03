@@ -795,7 +795,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 static bool has_builtin_speaker(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	hda_nid_t *nid_pin;
+	const hda_nid_t *nid_pin;
 	int nids, i;
 
 	if (spec->gen.autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT) {
@@ -2182,7 +2182,7 @@ static void hp_envy_ts_fixup_dac_bind(struct hda_codec *codec,
 					    int action)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	static hda_nid_t preferred_pairs[] = {
+	static const hda_nid_t preferred_pairs[] = {
 		0xd, 0x13,
 		0
 	};

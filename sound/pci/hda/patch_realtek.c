@@ -464,10 +464,10 @@ static void set_eapd(struct hda_codec *codec, hda_nid_t nid, int on)
 static void alc_auto_setup_eapd(struct hda_codec *codec, bool on)
 {
 	/* We currently only handle front, HP */
-	static hda_nid_t pins[] = {
+	static const hda_nid_t pins[] = {
 		0x0f, 0x10, 0x14, 0x15, 0x17, 0
 	};
-	hda_nid_t *p;
+	const hda_nid_t *p;
 	for (p = pins; *p; p++)
 		set_eapd(codec, *p, on);
 }
@@ -1935,19 +1935,19 @@ static void alc889_fixup_dac_route(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		/* fake the connections during parsing the tree */
-		hda_nid_t conn1[2] = { 0x0c, 0x0d };
-		hda_nid_t conn2[2] = { 0x0e, 0x0f };
-		snd_hda_override_conn_list(codec, 0x14, 2, conn1);
-		snd_hda_override_conn_list(codec, 0x15, 2, conn1);
-		snd_hda_override_conn_list(codec, 0x18, 2, conn2);
-		snd_hda_override_conn_list(codec, 0x1a, 2, conn2);
+		static const hda_nid_t conn1[] = { 0x0c, 0x0d };
+		static const hda_nid_t conn2[] = { 0x0e, 0x0f };
+		snd_hda_override_conn_list(codec, 0x14, ARRAY_SIZE(conn1), conn1);
+		snd_hda_override_conn_list(codec, 0x15, ARRAY_SIZE(conn1), conn1);
+		snd_hda_override_conn_list(codec, 0x18, ARRAY_SIZE(conn2), conn2);
+		snd_hda_override_conn_list(codec, 0x1a, ARRAY_SIZE(conn2), conn2);
 	} else if (action == HDA_FIXUP_ACT_PROBE) {
 		/* restore the connections */
-		hda_nid_t conn[5] = { 0x0c, 0x0d, 0x0e, 0x0f, 0x26 };
-		snd_hda_override_conn_list(codec, 0x14, 5, conn);
-		snd_hda_override_conn_list(codec, 0x15, 5, conn);
-		snd_hda_override_conn_list(codec, 0x18, 5, conn);
-		snd_hda_override_conn_list(codec, 0x1a, 5, conn);
+		static const hda_nid_t conn[] = { 0x0c, 0x0d, 0x0e, 0x0f, 0x26 };
+		snd_hda_override_conn_list(codec, 0x14, ARRAY_SIZE(conn), conn);
+		snd_hda_override_conn_list(codec, 0x15, ARRAY_SIZE(conn), conn);
+		snd_hda_override_conn_list(codec, 0x18, ARRAY_SIZE(conn), conn);
+		snd_hda_override_conn_list(codec, 0x1a, ARRAY_SIZE(conn), conn);
 	}
 }
 
@@ -1955,8 +1955,8 @@ static void alc889_fixup_dac_route(struct hda_codec *codec,
 static void alc889_fixup_mbp_vref(struct hda_codec *codec,
 				  const struct hda_fixup *fix, int action)
 {
+	static const hda_nid_t nids[] = { 0x14, 0x15, 0x19 };
 	struct alc_spec *spec = codec->spec;
-	static hda_nid_t nids[3] = { 0x14, 0x15, 0x19 };
 	int i;
 
 	if (action != HDA_FIXUP_ACT_INIT)
@@ -1992,7 +1992,7 @@ static void alc889_fixup_mac_pins(struct hda_codec *codec,
 static void alc889_fixup_imac91_vref(struct hda_codec *codec,
 				     const struct hda_fixup *fix, int action)
 {
-	static hda_nid_t nids[2] = { 0x18, 0x1a };
+	static const hda_nid_t nids[] = { 0x18, 0x1a };
 
 	if (action == HDA_FIXUP_ACT_INIT)
 		alc889_fixup_mac_pins(codec, nids, ARRAY_SIZE(nids));
@@ -2002,7 +2002,7 @@ static void alc889_fixup_imac91_vref(struct hda_codec *codec,
 static void alc889_fixup_mba11_vref(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
-	static hda_nid_t nids[1] = { 0x18 };
+	static const hda_nid_t nids[] = { 0x18 };
 
 	if (action == HDA_FIXUP_ACT_INIT)
 		alc889_fixup_mac_pins(codec, nids, ARRAY_SIZE(nids));
@@ -2012,7 +2012,7 @@ static void alc889_fixup_mba11_vref(struct hda_codec *codec,
 static void alc889_fixup_mba21_vref(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
-	static hda_nid_t nids[2] = { 0x18, 0x19 };
+	static const hda_nid_t nids[] = { 0x18, 0x19 };
 
 	if (action == HDA_FIXUP_ACT_INIT)
 		alc889_fixup_mac_pins(codec, nids, ARRAY_SIZE(nids));
@@ -2094,7 +2094,7 @@ static void alc1220_fixup_clevo_p950(struct hda_codec *codec,
 				     const struct hda_fixup *fix,
 				     int action)
 {
-	hda_nid_t conn1[1] = { 0x0c };
+	static const hda_nid_t conn1[] = { 0x0c };
 
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
@@ -2103,8 +2103,8 @@ static void alc1220_fixup_clevo_p950(struct hda_codec *codec,
 	/* We therefore want to make sure 0x14 (front headphone) and
 	 * 0x1b (speakers) use the stereo DAC 0x02
 	 */
-	snd_hda_override_conn_list(codec, 0x14, 1, conn1);
-	snd_hda_override_conn_list(codec, 0x1b, 1, conn1);
+	snd_hda_override_conn_list(codec, 0x14, ARRAY_SIZE(conn1), conn1);
+	snd_hda_override_conn_list(codec, 0x1b, ARRAY_SIZE(conn1), conn1);
 }
 
 static void alc_fixup_headset_mode_no_hp_mic(struct hda_codec *codec,
@@ -5243,7 +5243,7 @@ static void alc_fixup_tpt470_dock(struct hda_codec *codec,
 	 * the speaker output becomes too low by some reason on Thinkpads with
 	 * ALC298 codec
 	 */
-	static hda_nid_t preferred_pairs[] = {
+	static const hda_nid_t preferred_pairs[] = {
 		0x14, 0x03, 0x17, 0x02, 0x21, 0x02,
 		0
 	};
@@ -5515,9 +5515,9 @@ static void alc290_fixup_mono_speakers(struct hda_codec *codec,
 		/* DAC node 0x03 is giving mono output. We therefore want to
 		   make sure 0x14 (front speaker) and 0x15 (headphones) use the
 		   stereo DAC, while leaving 0x17 (bass speaker) for node 0x03. */
-		hda_nid_t conn1[2] = { 0x0c };
-		snd_hda_override_conn_list(codec, 0x14, 1, conn1);
-		snd_hda_override_conn_list(codec, 0x15, 1, conn1);
+		static const hda_nid_t conn1[] = { 0x0c };
+		snd_hda_override_conn_list(codec, 0x14, ARRAY_SIZE(conn1), conn1);
+		snd_hda_override_conn_list(codec, 0x15, ARRAY_SIZE(conn1), conn1);
 	}
 }
 
@@ -5532,8 +5532,8 @@ static void alc298_fixup_speaker_volume(struct hda_codec *codec,
 		   Pin Complex), since Node 0x02 has Amp-out caps, we can adjust
 		   speaker's volume now. */
 
-		hda_nid_t conn1[1] = { 0x0c };
-		snd_hda_override_conn_list(codec, 0x17, 1, conn1);
+		static const hda_nid_t conn1[] = { 0x0c };
+		snd_hda_override_conn_list(codec, 0x17, ARRAY_SIZE(conn1), conn1);
 	}
 }
 
@@ -5542,8 +5542,8 @@ static void alc295_fixup_disable_dac3(struct hda_codec *codec,
 				      const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		hda_nid_t conn[2] = { 0x02, 0x03 };
-		snd_hda_override_conn_list(codec, 0x17, 2, conn);
+		static const hda_nid_t conn[] = { 0x02, 0x03 };
+		snd_hda_override_conn_list(codec, 0x17, ARRAY_SIZE(conn), conn);
 	}
 }
 
@@ -5552,8 +5552,8 @@ static void alc285_fixup_speaker2_to_dac1(struct hda_codec *codec,
 					  const struct hda_fixup *fix, int action)
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		hda_nid_t conn[1] = { 0x02 };
-		snd_hda_override_conn_list(codec, 0x17, 1, conn);
+		static const hda_nid_t conn[] = { 0x02 };
+		snd_hda_override_conn_list(codec, 0x17, ARRAY_SIZE(conn), conn);
 	}
 }
 
@@ -5631,7 +5631,7 @@ static void alc274_fixup_bind_dacs(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-	static hda_nid_t preferred_pairs[] = {
+	static const hda_nid_t preferred_pairs[] = {
 		0x21, 0x03, 0x1b, 0x03, 0x16, 0x02,
 		0
 	};
