@@ -94,9 +94,8 @@ int crypto_grab_akcipher(struct crypto_akcipher_spawn *spawn,
 			 struct crypto_instance *inst,
 			 const char *name, u32 type, u32 mask)
 {
-	spawn->base.inst = inst;
 	spawn->base.frontend = &crypto_akcipher_type;
-	return crypto_grab_spawn(&spawn->base, name, type, mask);
+	return crypto_grab_spawn(&spawn->base, inst, name, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_grab_akcipher);
 

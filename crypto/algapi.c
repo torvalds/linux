@@ -714,8 +714,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(crypto_init_spawn2);
 
-int crypto_grab_spawn(struct crypto_spawn *spawn, const char *name,
-		      u32 type, u32 mask)
+int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
+		      const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *alg;
 	int err;
@@ -729,7 +729,7 @@ int crypto_grab_spawn(struct crypto_spawn *spawn, const char *name,
 		return PTR_ERR(alg);
 
 	spawn->dropref = true;
-	err = crypto_init_spawn(spawn, alg, spawn->inst, mask);
+	err = crypto_init_spawn(spawn, alg, inst, mask);
 	if (err)
 		crypto_mod_put(alg);
 	return err;

@@ -116,19 +116,13 @@ int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
 int crypto_init_spawn2(struct crypto_spawn *spawn, struct crypto_alg *alg,
 		       struct crypto_instance *inst,
 		       const struct crypto_type *frontend);
-int crypto_grab_spawn(struct crypto_spawn *spawn, const char *name,
-		      u32 type, u32 mask);
+int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
+		      const char *name, u32 type, u32 mask);
 
 void crypto_drop_spawn(struct crypto_spawn *spawn);
 struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
 				    u32 mask);
 void *crypto_spawn_tfm2(struct crypto_spawn *spawn);
-
-static inline void crypto_set_spawn(struct crypto_spawn *spawn,
-				    struct crypto_instance *inst)
-{
-	spawn->inst = inst;
-}
 
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
 int crypto_check_attr_type(struct rtattr **tb, u32 type);

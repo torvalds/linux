@@ -542,9 +542,9 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	streamcipher_alg = crypto_spawn_skcipher_alg(&ictx->streamcipher_spawn);
 
 	/* Block cipher, e.g. "aes" */
-	crypto_set_spawn(&ictx->blockcipher_spawn,
-			 skcipher_crypto_instance(inst));
-	err = crypto_grab_spawn(&ictx->blockcipher_spawn, blockcipher_name,
+	err = crypto_grab_spawn(&ictx->blockcipher_spawn,
+				skcipher_crypto_instance(inst),
+				blockcipher_name,
 				CRYPTO_ALG_TYPE_CIPHER, CRYPTO_ALG_TYPE_MASK);
 	if (err)
 		goto out_drop_streamcipher;
