@@ -82,7 +82,7 @@ static int snd_vxpocket_dev_free(struct snd_device *device)
 
 static const DECLARE_TLV_DB_SCALE(db_scale_old_vol, -11350, 50, 0);
 
-static struct snd_vx_hardware vxpocket_hw = {
+static const struct snd_vx_hardware vxpocket_hw = {
 	.name = "VXPocket",
 	.type = VX_TYPE_VXPOCKET,
 
@@ -104,7 +104,7 @@ static struct snd_vx_hardware vxpocket_hw = {
  * UER, but only for the first two inputs and outputs.
  */
 
-static struct snd_vx_hardware vxp440_hw = {
+static const struct snd_vx_hardware vxp440_hw = {
 	.name = "VXPocket440",
 	.type = VX_TYPE_VXP440,
 

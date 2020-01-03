@@ -765,8 +765,9 @@ EXPORT_SYMBOL(snd_vx_resume);
  *
  * return the instance pointer if successful, NULL in error.
  */
-struct vx_core *snd_vx_create(struct snd_card *card, struct snd_vx_hardware *hw,
-			      struct snd_vx_ops *ops,
+struct vx_core *snd_vx_create(struct snd_card *card,
+			      const struct snd_vx_hardware *hw,
+			      const struct snd_vx_ops *ops,
 			      int extra_size)
 {
 	struct vx_core *chip;
