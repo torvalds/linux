@@ -1588,7 +1588,7 @@ static const struct snd_kcontrol_new snd_ymfpci_dup4ch = {
 	.put = snd_ymfpci_put_dup4ch,
 };
 
-static struct snd_kcontrol_new snd_ymfpci_controls[] = {
+static const struct snd_kcontrol_new snd_ymfpci_controls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Wave Playback Volume",

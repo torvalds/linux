@@ -255,7 +255,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_master, -6200, 200, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_mono, -2800, 400, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_input, -5000, 200, 0);
 
-static struct snd_kcontrol_new snd_ak4531_controls[] = {
+static const struct snd_kcontrol_new snd_ak4531_controls[] = {
 
 AK4531_DOUBLE_TLV("Master Playback Switch", 0,
 		  AK4531_LMASTER, AK4531_RMASTER, 7, 7, 1, 1,

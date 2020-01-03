@@ -1307,7 +1307,7 @@ static const DECLARE_TLV_DB_RANGE(db_scale_line,
 
 static const DECLARE_TLV_DB_SCALE(db_scale_capture, 0, 150, 0);
 
-static struct snd_kcontrol_new snd_es1938_controls[] = {
+static const struct snd_kcontrol_new snd_es1938_controls[] = {
 ES1938_DOUBLE_TLV("Master Playback Volume", 0, 0x60, 0x62, 0, 0, 63, 0,
 		  db_scale_master),
 ES1938_DOUBLE("Master Playback Switch", 0, 0x60, 0x62, 6, 6, 1, 1),

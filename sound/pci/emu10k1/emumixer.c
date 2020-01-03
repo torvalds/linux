@@ -484,7 +484,7 @@ static int snd_emu1010_input_source_put(struct snd_kcontrol *kcontrol,
 	.private_value = chid					\
 }
 
-static struct snd_kcontrol_new snd_emu1010_output_enum_ctls[] = {
+static const struct snd_kcontrol_new snd_emu1010_output_enum_ctls[] = {
 	EMU1010_SOURCE_OUTPUT("Dock DAC1 Left Playback Enum", 0),
 	EMU1010_SOURCE_OUTPUT("Dock DAC1 Right Playback Enum", 1),
 	EMU1010_SOURCE_OUTPUT("Dock DAC2 Left Playback Enum", 2),
@@ -513,7 +513,7 @@ static struct snd_kcontrol_new snd_emu1010_output_enum_ctls[] = {
 
 
 /* 1616(m) cardbus */
-static struct snd_kcontrol_new snd_emu1616_output_enum_ctls[] = {
+static const struct snd_kcontrol_new snd_emu1616_output_enum_ctls[] = {
 	EMU1010_SOURCE_OUTPUT("Dock DAC1 Left Playback Enum", 0),
 	EMU1010_SOURCE_OUTPUT("Dock DAC1 Right Playback Enum", 1),
 	EMU1010_SOURCE_OUTPUT("Dock DAC2 Left Playback Enum", 2),
@@ -545,7 +545,7 @@ static struct snd_kcontrol_new snd_emu1616_output_enum_ctls[] = {
 	.private_value = chid					\
 }
 
-static struct snd_kcontrol_new snd_emu1010_input_enum_ctls[] = {
+static const struct snd_kcontrol_new snd_emu1010_input_enum_ctls[] = {
 	EMU1010_SOURCE_INPUT("DSP 0 Capture Enum", 0),
 	EMU1010_SOURCE_INPUT("DSP 1 Capture Enum", 1),
 	EMU1010_SOURCE_INPUT("DSP 2 Capture Enum", 2),
@@ -613,7 +613,7 @@ static int snd_emu1010_adc_pads_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	.private_value = chid					\
 }
 
-static struct snd_kcontrol_new snd_emu1010_adc_pads[] = {
+static const struct snd_kcontrol_new snd_emu1010_adc_pads[] = {
 	EMU1010_ADC_PADS("ADC1 14dB PAD Audio Dock Capture Switch", EMU_HANA_DOCK_ADC_PAD1),
 	EMU1010_ADC_PADS("ADC2 14dB PAD Audio Dock Capture Switch", EMU_HANA_DOCK_ADC_PAD2),
 	EMU1010_ADC_PADS("ADC3 14dB PAD Audio Dock Capture Switch", EMU_HANA_DOCK_ADC_PAD3),
@@ -661,7 +661,7 @@ static int snd_emu1010_dac_pads_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	.private_value = chid					\
 }
 
-static struct snd_kcontrol_new snd_emu1010_dac_pads[] = {
+static const struct snd_kcontrol_new snd_emu1010_dac_pads[] = {
 	EMU1010_DAC_PADS("DAC1 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD1),
 	EMU1010_DAC_PADS("DAC2 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD2),
 	EMU1010_DAC_PADS("DAC3 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD3),
@@ -1051,7 +1051,7 @@ static int snd_audigy_i2c_volume_put(struct snd_kcontrol *kcontrol,
 }
 
 
-static struct snd_kcontrol_new snd_audigy_i2c_volume_ctls[] = {
+static const struct snd_kcontrol_new snd_audigy_i2c_volume_ctls[] = {
 	I2C_VOLUME("Mic Capture Volume", 0),
 	I2C_VOLUME("Line Capture Volume", 0)
 };
@@ -1125,7 +1125,7 @@ static int snd_audigy_spdif_output_rate_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_audigy_spdif_output_rate =
+static const struct snd_kcontrol_new snd_audigy_spdif_output_rate =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,

@@ -343,7 +343,7 @@ static int juli_mute_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new juli_mute_controls[] = {
+static const struct snd_kcontrol_new juli_mute_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",

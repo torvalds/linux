@@ -2019,7 +2019,7 @@ static int snd_korg1212_control_sync_put(struct snd_kcontrol *kcontrol,
 		.private_value = ord,								\
         }
 
-static struct snd_kcontrol_new snd_korg1212_controls[] = {
+static const struct snd_kcontrol_new snd_korg1212_controls[] = {
         MON_MIXER(8, "Analog"),
 	MON_MIXER(10, "SPDIF"), 
         MON_MIXER(0, "ADAT-1"), MON_MIXER(1, "ADAT-2"), MON_MIXER(2, "ADAT-3"), MON_MIXER(3, "ADAT-4"),

@@ -424,7 +424,7 @@ static int maya_pb_route_put(struct snd_kcontrol *kcontrol,
  * controls to be added
  */
 
-static struct snd_kcontrol_new maya_controls[] = {
+static const struct snd_kcontrol_new maya_controls[] = {
 	{
 		.name = "Crossmix Playback Volume",
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
