@@ -15,8 +15,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include "internal.h"
-
 struct ccm_instance_ctx {
 	struct crypto_skcipher_spawn ctr;
 	struct crypto_ahash_spawn mac;
@@ -452,10 +450,9 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 	struct crypto_attr_type *algt;
 	u32 mask;
 	struct aead_instance *inst;
-	struct skcipher_alg *ctr;
-	struct crypto_alg *mac_alg;
-	struct hash_alg_common *mac;
 	struct ccm_instance_ctx *ictx;
+	struct skcipher_alg *ctr;
+	struct hash_alg_common *mac;
 	int err;
 
 	algt = crypto_get_attr_type(tb);
@@ -467,35 +464,26 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 
 	mask = crypto_requires_sync(algt->type, algt->mask);
 
-	mac_alg = crypto_find_alg(mac_name, &crypto_ahash_type,
-				  CRYPTO_ALG_TYPE_HASH,
-				  CRYPTO_ALG_TYPE_AHASH_MASK |
-				  CRYPTO_ALG_ASYNC);
-	if (IS_ERR(mac_alg))
-		return PTR_ERR(mac_alg);
+	inst = kzalloc(sizeof(*inst) + sizeof(*ictx), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
+	ictx = aead_instance_ctx(inst);
 
-	mac = __crypto_hash_alg_common(mac_alg);
+	err = crypto_grab_ahash(&ictx->mac, aead_crypto_instance(inst),
+				mac_name, 0, CRYPTO_ALG_ASYNC);
+	if (err)
+		goto err_free_inst;
+	mac = crypto_spawn_ahash_alg(&ictx->mac);
+
 	err = -EINVAL;
 	if (strncmp(mac->base.cra_name, "cbcmac(", 7) != 0 ||
 	    mac->digestsize != 16)
-		goto out_put_mac;
-
-	inst = kzalloc(sizeof(*inst) + sizeof(*ictx), GFP_KERNEL);
-	err = -ENOMEM;
-	if (!inst)
-		goto out_put_mac;
-
-	ictx = aead_instance_ctx(inst);
-	err = crypto_init_ahash_spawn(&ictx->mac, mac,
-				      aead_crypto_instance(inst));
-	if (err)
 		goto err_free_inst;
 
 	err = crypto_grab_skcipher(&ictx->ctr, aead_crypto_instance(inst),
 				   ctr_name, 0, mask);
 	if (err)
-		goto err_drop_mac;
-
+		goto err_free_inst;
 	ctr = crypto_spawn_skcipher_alg(&ictx->ctr);
 
 	/* The skcipher algorithm must be CTR mode, using 16-byte blocks. */
@@ -503,21 +491,21 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 	if (strncmp(ctr->base.cra_name, "ctr(", 4) != 0 ||
 	    crypto_skcipher_alg_ivsize(ctr) != 16 ||
 	    ctr->base.cra_blocksize != 1)
-		goto err_drop_ctr;
+		goto err_free_inst;
 
 	/* ctr and cbcmac must use the same underlying block cipher. */
 	if (strcmp(ctr->base.cra_name + 4, mac->base.cra_name + 7) != 0)
-		goto err_drop_ctr;
+		goto err_free_inst;
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
 		     "ccm(%s", ctr->base.cra_name + 4) >= CRYPTO_MAX_ALG_NAME)
-		goto err_drop_ctr;
+		goto err_free_inst;
 
 	if (snprintf(inst->alg.base.cra_driver_name, CRYPTO_MAX_ALG_NAME,
 		     "ccm_base(%s,%s)", ctr->base.cra_driver_name,
 		     mac->base.cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
-		goto err_drop_ctr;
+		goto err_free_inst;
 
 	inst->alg.base.cra_flags = ctr->base.cra_flags & CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_priority = (mac->base.cra_priority +
@@ -539,20 +527,11 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 	inst->free = crypto_ccm_free;
 
 	err = aead_register_instance(tmpl, inst);
-	if (err)
-		goto err_drop_ctr;
-
-out_put_mac:
-	crypto_mod_put(mac_alg);
-	return err;
-
-err_drop_ctr:
-	crypto_drop_skcipher(&ictx->ctr);
-err_drop_mac:
-	crypto_drop_ahash(&ictx->mac);
+	if (err) {
 err_free_inst:
-	kfree(inst);
-	goto out_put_mac;
+		crypto_ccm_free(inst);
+	}
+	return err;
 }
 
 static int crypto_ccm_create(struct crypto_template *tmpl, struct rtattr **tb)
