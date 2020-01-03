@@ -1019,6 +1019,8 @@ efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 		efi_switch_mm(&efi_mm);
 	}
 
+	kernel_fpu_begin();
+
 	/* Disable interrupts around EFI calls: */
 	local_irq_save(flags);
 	status = efi_call(efi.systab->runtime->set_virtual_address_map,
@@ -1026,6 +1028,7 @@ efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 			  descriptor_version, virtual_map);
 	local_irq_restore(flags);
 
+	kernel_fpu_end();
 
 	if (save_pgd)
 		efi_old_memmap_phys_epilog(save_pgd);
