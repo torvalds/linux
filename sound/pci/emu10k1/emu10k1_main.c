@@ -1283,7 +1283,7 @@ static int snd_emu10k1_dev_free(struct snd_device *device)
 	return snd_emu10k1_free(emu);
 }
 
-static struct snd_emu_chip_details emu_chip_details[] = {
+static const struct snd_emu_chip_details emu_chip_details[] = {
 	/* Audigy 5/Rx SB1550 */
 	/* Tested by michael@gernoth.net 28 Mar 2015 */
 	/* DSP: CA10300-IAT LF
