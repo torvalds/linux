@@ -189,7 +189,7 @@ dir_filelist() {
 
 # if only one file is specified and it is .cpio file then use it direct as fs
 # if a directory is specified then add all files in given direcotry to fs
-# if a regular file is specified assume it is in gen_initramfs format
+# if a regular file is specified assume it is in gen_init_cpio format
 input_file() {
 	source="$1"
 	if [ -f "$1" ]; then
