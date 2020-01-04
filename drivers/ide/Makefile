@@ -3,8 +3,6 @@
 # link order is important here
 #
 
-ccflags-y				:= -Idrivers/ide
-
 ide-core-y += ide.o ide-ioctls.o ide-io.o ide-iops.o ide-lib.o ide-probe.o \
 	      ide-taskfile.o ide-pm.o ide-park.o ide-sysfs.o ide-devsets.o \
 	      ide-io-std.o ide-eh.o
