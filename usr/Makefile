@@ -3,9 +3,6 @@
 # kbuild file for usr/ - including initramfs image
 #
 
-klibcdirs:;
-PHONY += klibcdirs
-
 suffix_y = $(subst $\",,$(CONFIG_INITRAMFS_COMPRESSION))
 datafile_y = initramfs_data.cpio$(suffix_y)
 datafile_d_y = .$(datafile_y).d
@@ -50,13 +47,12 @@ targets := $(datafile_y)
 # do not try to update files included in initramfs
 $(deps_initramfs): ;
 
-$(deps_initramfs): klibcdirs
 # We rebuild initramfs_data.cpio if:
 # 1) Any included file is newer than initramfs_data.cpio
 # 2) There are changes in which files are included (added or deleted)
 # 3) If gen_init_cpio are newer than initramfs_data.cpio
 # 4) Arguments to gen_initramfs.sh changes
-$(obj)/$(datafile_y): $(obj)/gen_init_cpio $(deps_initramfs) klibcdirs
+$(obj)/$(datafile_y): $(obj)/gen_init_cpio $(deps_initramfs) FORCE
 	$(Q)$(initramfs) -l $(ramfs-input) > $(obj)/$(datafile_d_y)
 	$(call if_changed,initfs)
 
