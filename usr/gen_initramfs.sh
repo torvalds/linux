@@ -5,7 +5,7 @@
 # Released under the terms of the GNU GPL
 #
 # Generate a cpio packed initramfs. It uses gen_init_cpio to generate
-# the cpio archive, and then compresses it.
+# the cpio archive.
 # This script assumes that gen_init_cpio is located in usr/ directory
 
 # error out on errors
@@ -15,8 +15,7 @@ usage() {
 cat << EOF
 Usage:
 $0 [-o <file>] [-l <dep_list>] [-u <uid>] [-g <gid>] {-d | <cpio_source>} ...
-	-o <file>      Create compressed initramfs file named <file> using
-		       gen_init_cpio and compressor depending on the extension
+	-o <file>      Create initramfs file named <file> by using gen_init_cpio
 	-l <dep_list>  Create dependency list named <dep_list>
 	-u <uid>       User ID to map to user ID 0 (root).
 		       <uid> is only meaningful if <cpio_source> is a
@@ -162,20 +161,12 @@ dir_filelist() {
 	fi
 }
 
-# if only one file is specified and it is .cpio file then use it direct as fs
-# if a directory is specified then add all files in given direcotry to fs
-# if a regular file is specified assume it is in gen_init_cpio format
 input_file() {
 	source="$1"
 	if [ -f "$1" ]; then
+		# If a regular file is specified, assume it is in
+		# gen_init_cpio format
 		header "$1"
-		is_cpio="$(echo "$1" | sed 's/^.*\.cpio\(\..*\)\{0,1\}/cpio/')"
-		if [ $2 -eq 0 -a ${is_cpio} = "cpio" ]; then
-			cpio_file=$1
-			echo "$1" | grep -q '^.*\.cpio\..*' && is_cpio_compressed="compressed"
-			[ -n "$dep_list" ] && echo "$1" >> $dep_list
-			return 0
-		fi
 		print_mtime "$1" >> $cpio_list
 		cat "$1"         >> $cpio_list
 		if [ -n "$dep_list" ]; then
@@ -187,6 +178,7 @@ input_file() {
 			done
 		fi
 	elif [ -d "$1" ]; then
+		# If a directory is specified then add all files in it to fs
 		dir_filelist "$1"
 	else
 		echo "  ${prog}: Cannot open '$1'" >&2
@@ -198,12 +190,8 @@ prog=$0
 root_uid=0
 root_gid=0
 dep_list=
-cpio_file=
 cpio_list=$(mktemp ${TMPDIR:-/tmp}/cpiolist.XXXXXX)
 output="/dev/stdout"
-output_file="/dev/stdout"
-is_cpio_compressed=
-compr="gzip -n -9 -f"
 
 while [ $# -gt 0 ]; do
 	arg="$1"
@@ -214,28 +202,8 @@ while [ $# -gt 0 ]; do
 			echo "deps_initramfs := \\" > $dep_list
 			shift
 			;;
-		"-o")	# generate compressed cpio image named $1
-			output_file="$1"
-			output=$cpio_list
-			echo "$output_file" | grep -q "\.gz$" \
-			&& [ -x "`which gzip 2> /dev/null`" ] \
-			&& compr="gzip -n -9 -f"
-			echo "$output_file" | grep -q "\.bz2$" \
-			&& [ -x "`which bzip2 2> /dev/null`" ] \
-			&& compr="bzip2 -9 -f"
-			echo "$output_file" | grep -q "\.lzma$" \
-			&& [ -x "`which lzma 2> /dev/null`" ] \
-			&& compr="lzma -9 -f"
-			echo "$output_file" | grep -q "\.xz$" \
-			&& [ -x "`which xz 2> /dev/null`" ] \
-			&& compr="xz --check=crc32 --lzma2=dict=1MiB"
-			echo "$output_file" | grep -q "\.lzo$" \
-			&& [ -x "`which lzop 2> /dev/null`" ] \
-			&& compr="lzop -9 -f"
-			echo "$output_file" | grep -q "\.lz4$" \
-			&& [ -x "`which lz4 2> /dev/null`" ] \
-			&& compr="lz4 -l -9 -f"
-			echo "$output_file" | grep -q "\.cpio$" && compr="cat"
+		"-o")	# generate cpio image named $1
+			output="$1"
 			shift
 			;;
 		"-u")	# map $1 to uid=0 (root)
@@ -258,34 +226,21 @@ while [ $# -gt 0 ]; do
 					unknown_option
 					;;
 				*)	# input file/dir - process it
-					input_file "$arg" "$#"
+					input_file "$arg"
 					;;
 			esac
 			;;
 	esac
 done
 
-# If output_file is set we will generate cpio archive and compress it
+# If output_file is set we will generate cpio archive
 # we are careful to delete tmp files
-if [ -z ${cpio_file} ]; then
-	timestamp=
-	if test -n "$KBUILD_BUILD_TIMESTAMP"; then
-		timestamp="$(date -d"$KBUILD_BUILD_TIMESTAMP" +%s || :)"
-		if test -n "$timestamp"; then
-			timestamp="-t $timestamp"
-		fi
+timestamp=
+if test -n "$KBUILD_BUILD_TIMESTAMP"; then
+	timestamp="$(date -d"$KBUILD_BUILD_TIMESTAMP" +%s || :)"
+	if test -n "$timestamp"; then
+		timestamp="-t $timestamp"
 	fi
-	cpio_tfile="$(mktemp ${TMPDIR:-/tmp}/cpiofile.XXXXXX)"
-	usr/gen_init_cpio $timestamp ${cpio_list} > ${cpio_tfile}
-else
-	cpio_tfile=${cpio_file}
 fi
-rm ${cpio_list}
-if [ "${is_cpio_compressed}" = "compressed" ]; then
-	cat ${cpio_tfile} > ${output_file}
-else
-	(cat ${cpio_tfile} | ${compr}  - > ${output_file}) \
-	|| (rm -f ${output_file} ; false)
-fi
-[ -z ${cpio_file} ] && rm ${cpio_tfile}
-exit 0
+usr/gen_init_cpio $timestamp $cpio_list > $output
+rm $cpio_list
