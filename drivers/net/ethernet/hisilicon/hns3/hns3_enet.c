@@ -24,6 +24,12 @@
 
 #include "hnae3.h"
 #include "hns3_enet.h"
+/* All hns3 tracepoints are defined by the include below, which
+ * must be included exactly once across the whole kernel with
+ * CREATE_TRACE_POINTS defined
+ */
+#define CREATE_TRACE_POINTS
+#include "hns3_trace.h"
 
 #define hns3_set_field(origin, shift, val)	((origin) |= ((val) << (shift)))
 #define hns3_tx_bd_count(S)	DIV_ROUND_UP(S, HNS3_MAX_BD_SIZE)
@@ -734,6 +740,8 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 	/* get MSS for TSO */
 	*mss = skb_shinfo(skb)->gso_size;
 
+	trace_hns3_tso(skb);
+
 	return 0;
 }
 
@@ -1138,6 +1146,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		desc->tx.bdtp_fe_sc_vld_ra_ri =
 			cpu_to_le16(BIT(HNS3_TXD_VLD_B));
 
+		trace_hns3_tx_desc(ring, ring->next_to_use);
 		ring_ptr_move_fw(ring, next_to_use);
 		return HNS3_LIKELY_BD_NUM;
 	}
@@ -1161,6 +1170,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		desc->tx.bdtp_fe_sc_vld_ra_ri =
 				cpu_to_le16(BIT(HNS3_TXD_VLD_B));
 
+		trace_hns3_tx_desc(ring, ring->next_to_use);
 		/* move ring pointer to next */
 		ring_ptr_move_fw(ring, next_to_use);
 
@@ -1286,6 +1296,14 @@ static bool hns3_skb_need_linearized(struct sk_buff *skb, unsigned int *bd_size,
 	return false;
 }
 
+void hns3_shinfo_pack(struct skb_shared_info *shinfo, __u32 *size)
+{
+	int i = 0;
+
+	for (i = 0; i < MAX_SKB_FRAGS; i++)
+		size[i] = skb_frag_size(&shinfo->frags[i]);
+}
+
 static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 				  struct net_device *netdev,
 				  struct sk_buff *skb)
@@ -1297,8 +1315,10 @@ static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 	bd_num = hns3_tx_bd_num(skb, bd_size);
 	if (unlikely(bd_num > HNS3_MAX_NON_TSO_BD_NUM)) {
 		if (bd_num <= HNS3_MAX_TSO_BD_NUM && skb_is_gso(skb) &&
-		    !hns3_skb_need_linearized(skb, bd_size, bd_num))
+		    !hns3_skb_need_linearized(skb, bd_size, bd_num)) {
+			trace_hns3_over_8bd(skb);
 			goto out;
+		}
 
 		if (__skb_linearize(skb))
 			return -ENOMEM;
@@ -1306,8 +1326,10 @@ static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 		bd_num = hns3_tx_bd_count(skb->len);
 		if ((skb_is_gso(skb) && bd_num > HNS3_MAX_TSO_BD_NUM) ||
 		    (!skb_is_gso(skb) &&
-		     bd_num > HNS3_MAX_NON_TSO_BD_NUM))
+		     bd_num > HNS3_MAX_NON_TSO_BD_NUM)) {
+			trace_hns3_over_8bd(skb);
 			return -ENOMEM;
+		}
 
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.tx_copy++;
@@ -1448,6 +1470,7 @@ out:
 					(ring->desc_num - 1);
 	ring->desc[pre_ntu].tx.bdtp_fe_sc_vld_ra_ri |=
 				cpu_to_le16(BIT(HNS3_TXD_FE_B));
+	trace_hns3_tx_desc(ring, pre_ntu);
 
 	/* Complete translate all packets */
 	dev_queue = netdev_get_tx_queue(netdev, ring->queue_index);
@@ -2700,6 +2723,9 @@ static int hns3_gro_complete(struct sk_buff *skb, u32 l234info)
 	skb->csum_start = (unsigned char *)th - skb->head;
 	skb->csum_offset = offsetof(struct tcphdr, check);
 	skb->ip_summed = CHECKSUM_PARTIAL;
+
+	trace_hns3_gro(skb);
+
 	return 0;
 }
 
@@ -2836,6 +2862,7 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 		return -ENOMEM;
 	}
 
+	trace_hns3_rx_desc(ring);
 	prefetchw(skb->data);
 
 	ring->pending_buf = 1;
@@ -2910,6 +2937,7 @@ static int hns3_add_frag(struct hns3_enet_ring *ring)
 		}
 
 		hns3_nic_reuse_page(skb, ring->frag_num++, ring, 0, desc_cb);
+		trace_hns3_rx_desc(ring);
 		ring_ptr_move_fw(ring, next_to_clean);
 		ring->pending_buf++;
 	} while (!(bd_base_info & BIT(HNS3_RXD_FE_B)));
