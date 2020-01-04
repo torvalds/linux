@@ -118,6 +118,12 @@
 
 #define ISP2X_GAMMA_OUT_MAX_SAMPLES	17
 
+#define ISP2X_MIPI_LUMA_MEAN_MAX	16
+#define ISP2X_MIPI_RAW_MAX		3
+#define ISP2X_RAW0_Y_STATE		(1 << 0)
+#define ISP2X_RAW1_Y_STATE		(1 << 1)
+#define ISP2X_RAW2_Y_STATE		(1 << 2)
+
 struct isp2x_window {
 	u16 h_offs;
 	u16 v_offs;
@@ -1474,6 +1480,30 @@ struct rkisp_isp2x_stat_buffer {
 	unsigned int meas_type;
 	unsigned int frame_id;
 	struct isp2x_stat params;
+} __attribute__ ((packed));
+
+/**
+ * struct rkisp_mipi_luma - statistics mipi y statistic
+ *
+ * @exp_mean: Mean luminance value of block xx
+ *
+ * Image is divided into 5x5 blocks.
+ */
+struct rkisp_mipi_luma {
+	unsigned int exp_mean[ISP2X_MIPI_LUMA_MEAN_MAX];
+} __attribute__ ((packed));
+
+/**
+ * struct rkisp_isp2x_luma_buffer - Rockchip ISP1 Statistics Mipi Luma
+ *
+ * @meas_type: measurement types (CIFISP_STAT_ definitions)
+ * @frame_id: frame ID for sync
+ * @params: statistics data
+ */
+struct rkisp_isp2x_luma_buffer {
+	unsigned int meas_type;
+	unsigned int frame_id;
+	struct rkisp_mipi_luma luma[ISP2X_MIPI_RAW_MAX];
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKISP2_CONFIG_H */

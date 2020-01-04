@@ -42,6 +42,7 @@
 #include "rkisp.h"
 #include "isp_params.h"
 #include "isp_stats.h"
+#include "isp_mipi_luma.h"
 
 #ifdef VIDEO_ROCKCHIP_ISP1
 #define DRIVER_NAME "rkisp1"
@@ -195,6 +196,7 @@ struct rkisp_device {
 	struct rkisp_dmarx_device dmarx_dev;
 	struct rkisp_csi_device csi_dev;
 	struct rkisp_mpfbc_device mpfbc_dev;
+	struct rkisp_luma_vdev luma_vdev;
 	struct rkisp_pipeline pipe;
 	struct iommu_domain *domain;
 	enum rkisp_isp_ver isp_ver;

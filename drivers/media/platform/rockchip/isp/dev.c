@@ -557,6 +557,10 @@ static int rkisp_register_platform_subdevs(struct rkisp_device *dev)
 	if (ret < 0)
 		goto err_unreg_stats_vdev;
 
+	ret = rkisp_register_luma_vdev(&dev->luma_vdev, &dev->v4l2_dev, dev);
+	if (ret < 0)
+		goto err_unreg_params_vdev;
+
 	ret = isp_subdev_notifier(dev);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev,
@@ -565,10 +569,12 @@ static int rkisp_register_platform_subdevs(struct rkisp_device *dev)
 		ret = v4l2_device_register_subdev_nodes(&dev->v4l2_dev);
 		if (ret == 0)
 			return 0;
-		goto err_unreg_params_vdev;
+		goto err_unreg_luma_vdev;
 	}
 
 	return 0;
+err_unreg_luma_vdev:
+	rkisp_unregister_luma_vdev(&dev->luma_vdev);
 err_unreg_params_vdev:
 	rkisp_unregister_params_vdev(&dev->params_vdev);
 err_unreg_stats_vdev:
@@ -1139,6 +1145,7 @@ static int rkisp_plat_remove(struct platform_device *pdev)
 
 	media_device_unregister(&isp_dev->media_dev);
 	v4l2_device_unregister(&isp_dev->v4l2_dev);
+	rkisp_unregister_luma_vdev(&isp_dev->luma_vdev);
 	rkisp_unregister_params_vdev(&isp_dev->params_vdev);
 	rkisp_unregister_stats_vdev(&isp_dev->stats_vdev);
 	rkisp_unregister_stream_vdevs(isp_dev);

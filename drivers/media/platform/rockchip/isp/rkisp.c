@@ -1602,13 +1602,14 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	long ret = 0;
 
 	switch (cmd) {
-	case RKISP_CMD_TRIGGER_READ_BACK:
+	case RKISP_CMD_TRIGGER_READ_BACK: {
 		int mode;
 
 		ret = copy_from_user(&mode, up, sizeof(int));
 		if (!ret)
 			ret = rkisp_ioctl(sd, cmd, &mode);
 		break;
+	}
 	default:
 		ret = -ENOIOCTLCMD;
 	}
