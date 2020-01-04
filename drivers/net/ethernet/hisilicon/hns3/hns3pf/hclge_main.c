@@ -3177,8 +3177,10 @@ static int hclge_misc_irq_init(struct hclge_dev *hdev)
 	hclge_get_misc_vector(hdev);
 
 	/* this would be explicitly freed in the end */
+	snprintf(hdev->misc_vector.name, HNAE3_INT_NAME_LEN, "%s-misc-%s",
+		 HCLGE_NAME, pci_name(hdev->pdev));
 	ret = request_irq(hdev->misc_vector.vector_irq, hclge_misc_irq_handle,
-			  0, "hclge_misc", hdev);
+			  0, hdev->misc_vector.name, hdev);
 	if (ret) {
 		hclge_free_vector(hdev, 0);
 		dev_err(&hdev->pdev->dev, "request misc irq(%d) fail\n",

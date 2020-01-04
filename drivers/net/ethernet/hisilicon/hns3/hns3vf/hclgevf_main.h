@@ -221,6 +221,7 @@ struct hclgevf_rss_cfg {
 struct hclgevf_misc_vector {
 	u8 __iomem *addr;
 	int vector_irq;
+	char name[HNAE3_INT_NAME_LEN];
 };
 
 struct hclgevf_rst_stats {
