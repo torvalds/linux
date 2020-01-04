@@ -35,6 +35,8 @@ Optional child properties:
 	- label : see Documentation/devicetree/bindings/leds/common.txt (deprecated)
 	- linux,default-trigger :
 	   see Documentation/devicetree/bindings/leds/common.txt
+	- led-max-microamp :
+	   see Documentation/devicetree/bindings/leds/common.txt
 
 Example:
 
@@ -55,6 +57,7 @@ led-controller@36 {
 		function = LED_FUNCTION_BACKLIGHT;
 		color = <LED_COLOR_ID_WHITE>;
 		linux,default-trigger = "backlight";
+		led-max-microamp = <20000>;
 	};
 }
 
