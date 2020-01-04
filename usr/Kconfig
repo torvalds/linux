@@ -102,7 +102,6 @@ config RD_LZ4
 
 choice
 	prompt "Built-in initramfs compression mode"
-	optional
 	help
 	  This option allows you to decide by which algorithm the builtin
 	  initramfs will be compressed.  Several compression algorithms are
@@ -218,10 +217,3 @@ config INITRAMFS_COMPRESSION
 	default ".xz"   if INITRAMFS_COMPRESSION_XZ
 	default ".lzo"  if INITRAMFS_COMPRESSION_LZO
 	default ".lz4"  if INITRAMFS_COMPRESSION_LZ4
-	default ".gz"   if RD_GZIP
-	default ".lz4"  if RD_LZ4
-	default ".lzo"  if RD_LZO
-	default ".xz"   if RD_XZ
-	default ".lzma" if RD_LZMA
-	default ".bz2"  if RD_BZIP2
-	default ""
