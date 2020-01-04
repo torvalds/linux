@@ -706,6 +706,15 @@ int __bch2_trans_commit(struct btree_trans *trans)
 		trans_trigger_run = false;
 
 		trans_for_each_update(trans, i) {
+			/* we know trans->nounlock won't be set here: */
+			if (unlikely(!(i->iter->locks_want < 1
+				       ? __bch2_btree_iter_upgrade(i->iter, 1)
+				       : i->iter->uptodate <= BTREE_ITER_NEED_PEEK))) {
+				trace_trans_restart_upgrade(trans->ip);
+				ret = -EINTR;
+				goto out;
+			}
+
 			if (iter_has_trans_triggers(i->iter) &&
 			    !i->trans_triggers_run) {
 				i->trans_triggers_run = true;
@@ -723,15 +732,6 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	} while (trans_trigger_run);
 
 	trans_for_each_update(trans, i) {
-		/* we know trans->nounlock won't be set here: */
-		if (unlikely(!(i->iter->locks_want < 1
-			       ? __bch2_btree_iter_upgrade(i->iter, 1)
-			       : i->iter->uptodate <= BTREE_ITER_NEED_PEEK))) {
-			trace_trans_restart_upgrade(trans->ip);
-			ret = -EINTR;
-			goto out;
-		}
-
 		u64s = jset_u64s(i->k->k.u64s);
 		if (0)
 			trans->journal_preres_u64s += u64s;
