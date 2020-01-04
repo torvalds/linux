@@ -86,6 +86,16 @@ static const struct regmap_config atlas_regmap_config = {
 	.val_bits = 8,
 };
 
+static int atlas_buffer_num_channels(const struct iio_chan_spec *spec)
+{
+	int idx = 0;
+
+	for (; spec->type != IIO_TIMESTAMP; spec++)
+		idx++;
+
+	return idx;
+};
+
 static const struct iio_chan_spec atlas_ph_channels[] = {
 	{
 		.type = IIO_PH,
@@ -354,11 +364,12 @@ static irqreturn_t atlas_trigger_handler(int irq, void *private)
 	struct iio_poll_func *pf = private;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct atlas_data *data = iio_priv(indio_dev);
+	int channels = atlas_buffer_num_channels(data->chip->channels);
 	int ret;
 
 	ret = regmap_bulk_read(data->regmap, data->chip->data_reg,
 			      (u8 *) &data->buffer,
-			      sizeof(__be32) * (data->chip->num_channels - 2));
+			      sizeof(__be32) * channels);
 
 	if (!ret)
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
