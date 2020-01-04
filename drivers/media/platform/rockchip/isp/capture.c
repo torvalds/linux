@@ -1883,6 +1883,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 	 * when run at 120fps.
 	 */
 	if (is_update && !dev->mpfbc_dev.en) {
+		rkisp_stats_first_ddr_config(&dev->stats_vdev);
 		force_cfg_update(base);
 		mi_frame_end(stream);
 		if (dev->isp_ver == ISP_V20)

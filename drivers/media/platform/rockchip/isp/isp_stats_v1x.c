@@ -407,3 +407,8 @@ void rkisp_init_stats_vdev_v1x(struct rkisp_isp_stats_vdev *stats_vdev)
 		stats_vdev->priv_cfg = &rkisp1_v10_stats_config;
 	}
 }
+
+void rkisp_uninit_stats_vdev_v1x(struct rkisp_isp_stats_vdev *stats_vdev)
+{
+}
+

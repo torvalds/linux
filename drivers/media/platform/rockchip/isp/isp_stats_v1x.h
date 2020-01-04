@@ -32,5 +32,6 @@ struct rkisp_stats_v1x_config {
 };
 
 void rkisp_init_stats_vdev_v1x(struct rkisp_isp_stats_vdev *stats_vdev);
+void rkisp_uninit_stats_vdev_v1x(struct rkisp_isp_stats_vdev *stats_vdev);
 
 #endif /* _RKISP_ISP_STATS_V1X_H */

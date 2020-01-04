@@ -9,6 +9,7 @@
 #include <linux/kfifo.h>
 #include "common.h"
 
+#define RKISP_STATS_DDR_BUF_NUM		1
 #define RKISP_READOUT_WORK_SIZE	\
 	(8 * sizeof(struct rkisp_isp_readout_work))
 
@@ -57,7 +58,14 @@ struct rkisp_isp_stats_vdev {
 	struct rkisp_isp_stats_ops *ops;
 	void *priv_ops;
 	void *priv_cfg;
+
+	struct rkisp_dummy_buffer stats_buf[RKISP_STATS_DDR_BUF_NUM];
+	u32 rd_buf_idx;
+	u32 wr_buf_idx;
+	bool rd_stats_from_ddr;
 };
+
+void rkisp_stats_first_ddr_config(struct rkisp_isp_stats_vdev *stats_vdev);
 
 void rkisp_stats_isr(struct rkisp_isp_stats_vdev *stats_vdev,
 		     u32 isp_ris, u32 isp3a_ris);

@@ -206,14 +206,12 @@ static void rkisp_stats_readout_task(unsigned long data)
 	}
 }
 
-void rkisp_stats_isr(struct rkisp_isp_stats_vdev *stats_vdev,
-		      u32 isp_ris, u32 isp3a_ris)
-{
-	stats_vdev->ops->isr_hdl(stats_vdev, isp_ris, isp3a_ris);
-}
-
 static void rkisp_init_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 {
+	stats_vdev->rd_buf_idx = 0;
+	stats_vdev->wr_buf_idx = 0;
+	memset(stats_vdev->stats_buf, 0, sizeof(stats_vdev->stats_buf));
+
 	stats_vdev->vdev_fmt.fmt.meta.dataformat =
 		V4L2_META_FMT_RK_ISP1_STAT_3A;
 	stats_vdev->vdev_fmt.fmt.meta.buffersize =
@@ -223,6 +221,26 @@ static void rkisp_init_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_init_stats_vdev_v1x(stats_vdev);
 	else
 		rkisp_init_stats_vdev_v2x(stats_vdev);
+}
+
+static void rkisp_uninit_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
+{
+	if (stats_vdev->dev->isp_ver <= ISP_V13)
+		rkisp_uninit_stats_vdev_v1x(stats_vdev);
+	else
+		rkisp_uninit_stats_vdev_v2x(stats_vdev);
+}
+
+void rkisp_stats_first_ddr_config(struct rkisp_isp_stats_vdev *stats_vdev)
+{
+	if (stats_vdev->dev->isp_ver >= ISP_V20)
+		rkisp_stats_first_ddr_config_v2x(stats_vdev);
+}
+
+void rkisp_stats_isr(struct rkisp_isp_stats_vdev *stats_vdev,
+		      u32 isp_ris, u32 isp3a_ris)
+{
+	stats_vdev->ops->isr_hdl(stats_vdev, isp_ris, isp3a_ris);
 }
 
 int rkisp_register_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev,
@@ -302,6 +320,7 @@ void rkisp_unregister_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 	struct rkisp_vdev_node *node = &stats_vdev->vnode;
 	struct video_device *vdev = &node->vdev;
 
+	rkisp_uninit_stats_vdev(stats_vdev);
 	kfifo_free(&stats_vdev->rd_kfifo);
 	tasklet_kill(&stats_vdev->rd_tasklet);
 	video_unregister_device(vdev);
