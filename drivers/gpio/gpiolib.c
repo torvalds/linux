@@ -1444,7 +1444,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 
 	if (chip->ngpio > FASTPATH_NGPIO)
 		chip_warn(chip, "line cnt %u is greater than fast path cnt %u\n",
-		chip->ngpio, FASTPATH_NGPIO);
+			  chip->ngpio, FASTPATH_NGPIO);
 
 	gdev->label = kstrdup_const(chip->label ?: "unknown", GFP_KERNEL);
 	if (!gdev->label) {
