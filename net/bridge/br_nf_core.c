@@ -26,7 +26,8 @@
 #endif
 
 static void fake_update_pmtu(struct dst_entry *dst, struct sock *sk,
-			     struct sk_buff *skb, u32 mtu)
+			     struct sk_buff *skb, u32 mtu,
+			     bool confirm_neigh)
 {
 }
 

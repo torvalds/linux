@@ -53,12 +53,10 @@
 #endif
 
 #ifdef CONFIG_PPC_PSERIES
-DECLARE_STATIC_KEY_FALSE(shared_processor);
-
 #define vcpu_is_preempted vcpu_is_preempted
 static inline bool vcpu_is_preempted(int cpu)
 {
-	if (!static_branch_unlikely(&shared_processor))
+	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return false;
 	return !!(be32_to_cpu(lppaca_of(cpu).yield_count) & 1);
 }

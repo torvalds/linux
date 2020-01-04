@@ -171,6 +171,7 @@ struct sock *inet6_lookup_listener(struct net *net,
 	bool exact_dif = inet6_exact_dif_match(net, skb);
 	struct inet_listen_hashbucket *ilb2;
 	struct sock *sk, *result = NULL;
+	struct hlist_nulls_node *node;
 	int score, hiscore = 0;
 	unsigned int hash2;
 	u32 phash = 0;
@@ -206,7 +207,7 @@ struct sock *inet6_lookup_listener(struct net *net,
 	goto done;
 
 port_lookup:
-	sk_for_each(sk, &ilb->head) {
+	sk_nulls_for_each(sk, node, &ilb->nulls_head) {
 		score = compute_score(sk, net, hnum, daddr, dif, sdif, exact_dif);
 		if (score > hiscore) {
 			if (sk->sk_reuseport) {
