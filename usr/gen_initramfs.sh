@@ -235,7 +235,7 @@ arg="$1"
 case "$arg" in
 	"-l")	# files included in initramfs - used by kbuild
 		dep_list="list_"
-		echo "deps_initramfs := $0 \\"
+		echo "deps_initramfs := \\"
 		shift
 		;;
 	"-o")	# generate compressed cpio image named $1
