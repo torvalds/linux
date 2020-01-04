@@ -28,7 +28,6 @@ $0 [-o <file>] [-l <dep_list>] [-u <uid>] [-g <gid>] {-d | <cpio_source>} ...
 	<cpio_source>  File list or directory for cpio archive.
 		       If <cpio_source> is a .cpio file it will be used
 		       as direct input to initramfs.
-	-d             Output the default cpio list.
 
 All options except -o and -l may be repeated and are interpreted
 sequentially and immediately.  -u and -g states are preserved across
@@ -41,18 +40,6 @@ EOF
 # $1 - field number; rest is argument string
 field() {
 	shift $1 ; echo $1
-}
-
-default_initramfs() {
-	cat <<-EOF >> ${output}
-		# This is a very simple, default initramfs
-
-		dir /dev 0755 0 0
-		nod /dev/console 0600 0 0 c 5 1
-		dir /root 0700 0 0
-		# file /kinit usr/kinit/kinit 0755 0 0
-		# slink /init kinit 0755 0 0
-	EOF
 }
 
 filetype() {
@@ -262,9 +249,6 @@ while [ $# -gt 0 ]; do
 			root_gid="$1"
 			[ "$root_gid" = "-1" ] && root_gid=$(id -g || echo 0)
 			shift
-			;;
-		"-d")	# display default initramfs list
-			default_initramfs
 			;;
 		"-h")
 			usage
