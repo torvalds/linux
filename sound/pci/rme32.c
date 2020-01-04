@@ -1796,7 +1796,7 @@ static int snd_rme32_control_spdif_mask_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_rme32_controls[] = {
+static const struct snd_kcontrol_new snd_rme32_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.name =	SNDRV_CTL_NAME_IEC958("", PLAYBACK, DEFAULT),

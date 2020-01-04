@@ -223,7 +223,7 @@ static int snd_aw2_create(struct snd_card *card,
 {
 	struct aw2 *chip;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_aw2_dev_free,
 	};
 

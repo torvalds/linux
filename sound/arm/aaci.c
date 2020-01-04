@@ -811,7 +811,7 @@ static const struct ac97_pcm ac97_defs[] = {
 	}
 };
 
-static struct snd_ac97_bus_ops aaci_bus_ops = {
+static const struct snd_ac97_bus_ops aaci_bus_ops = {
 	.write	= aaci_ac97_write,
 	.read	= aaci_ac97_read,
 };

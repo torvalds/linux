@@ -477,7 +477,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_adc, 0, 150, 0);
 /*
  * Control tabs
  */
-static struct snd_kcontrol_new stac9640_controls[] = {
+static const struct snd_kcontrol_new stac9640_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |

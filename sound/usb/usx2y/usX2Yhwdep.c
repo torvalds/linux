@@ -126,26 +126,26 @@ static int snd_usX2Y_hwdep_dsp_status(struct snd_hwdep *hw,
 
 static int usX2Y_create_usbmidi(struct snd_card *card)
 {
-	static struct snd_usb_midi_endpoint_info quirk_data_1 = {
+	static const struct snd_usb_midi_endpoint_info quirk_data_1 = {
 		.out_ep = 0x06,
 		.in_ep = 0x06,
 		.out_cables =	0x001,
 		.in_cables =	0x001
 	};
-	static struct snd_usb_audio_quirk quirk_1 = {
+	static const struct snd_usb_audio_quirk quirk_1 = {
 		.vendor_name =	"TASCAM",
 		.product_name =	NAME_ALLCAPS,
 		.ifnum = 	0,
        		.type = QUIRK_MIDI_FIXED_ENDPOINT,
 		.data = &quirk_data_1
 	};
-	static struct snd_usb_midi_endpoint_info quirk_data_2 = {
+	static const struct snd_usb_midi_endpoint_info quirk_data_2 = {
 		.out_ep = 0x06,
 		.in_ep = 0x06,
 		.out_cables =	0x003,
 		.in_cables =	0x003
 	};
-	static struct snd_usb_audio_quirk quirk_2 = {
+	static const struct snd_usb_audio_quirk quirk_2 = {
 		.vendor_name =	"TASCAM",
 		.product_name =	"US428",
 		.ifnum = 	0,
@@ -154,7 +154,7 @@ static int usX2Y_create_usbmidi(struct snd_card *card)
 	};
 	struct usb_device *dev = usX2Y(card)->dev;
 	struct usb_interface *iface = usb_ifnum_to_if(dev, 0);
-	struct snd_usb_audio_quirk *quirk =
+	const struct snd_usb_audio_quirk *quirk =
 		le16_to_cpu(dev->descriptor.idProduct) == USB_ID_US428 ?
 		&quirk_2 : &quirk_1;
 

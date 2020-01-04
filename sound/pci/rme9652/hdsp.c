@@ -2879,7 +2879,7 @@ static int snd_hdsp_put_dds_offset(struct snd_kcontrol *kcontrol, struct snd_ctl
 	return change;
 }
 
-static struct snd_kcontrol_new snd_hdsp_9632_controls[] = {
+static const struct snd_kcontrol_new snd_hdsp_9632_controls[] = {
 HDSP_DA_GAIN("DA Gain", 0),
 HDSP_AD_GAIN("AD Gain", 0),
 HDSP_PHONE_GAIN("Phones Gain", 0),
@@ -2887,7 +2887,7 @@ HDSP_TOGGLE_SETTING("XLR Breakout Cable", HDSP_XLRBreakoutCable),
 HDSP_DDS_OFFSET("DDS Sample Rate Offset", 0)
 };
 
-static struct snd_kcontrol_new snd_hdsp_controls[] = {
+static const struct snd_kcontrol_new snd_hdsp_controls[] = {
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -3216,7 +3216,7 @@ static int snd_hdsp_info_rpm_disconnect(struct snd_kcontrol *kcontrol, struct sn
 	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
-static struct snd_kcontrol_new snd_hdsp_rpm_controls[] = {
+static const struct snd_kcontrol_new snd_hdsp_rpm_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "RPM Bypass",
@@ -3249,7 +3249,7 @@ static struct snd_kcontrol_new snd_hdsp_rpm_controls[] = {
 	HDSP_MIXER("Mixer", 0)
 };
 
-static struct snd_kcontrol_new snd_hdsp_96xx_aeb =
+static const struct snd_kcontrol_new snd_hdsp_96xx_aeb =
 	HDSP_TOGGLE_SETTING("Analog Extension Board",
 			HDSP_AnalogExtensionBoard);
 static struct snd_kcontrol_new snd_hdsp_adat_sync_check = HDSP_ADAT_SYNC_CHECK;

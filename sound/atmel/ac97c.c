@@ -702,7 +702,7 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 	struct atmel_ac97c		*chip;
 	struct resource			*regs;
 	struct clk			*pclk;
-	static struct snd_ac97_bus_ops	ops = {
+	static const struct snd_ac97_bus_ops	ops = {
 		.write	= atmel_ac97c_write,
 		.read	= atmel_ac97c_read,
 	};

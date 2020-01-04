@@ -938,7 +938,7 @@ static int snd_lx6464es_create(struct snd_card *card,
 	struct lx6464es *chip;
 	int err;
 
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_lx6464es_dev_free,
 	};
 

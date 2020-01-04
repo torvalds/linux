@@ -838,7 +838,7 @@ static int snd_usX2Y_pcm_prepare(struct snd_pcm_substream *substream)
 	return err;
 }
 
-static struct snd_pcm_hardware snd_usX2Y_2c =
+static const struct snd_pcm_hardware snd_usX2Y_2c =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |

@@ -156,7 +156,7 @@ MODULE_PARM_DESC(subsystem, "Force card subsystem model.");
 
 #include "ca0106.h"
 
-static struct snd_ca0106_details ca0106_chip_details[] = {
+static const struct snd_ca0106_details ca0106_chip_details[] = {
 	 /* Sound Blaster X-Fi Extreme Audio. This does not have an AC97. 53SB079000000 */
 	 /* It is really just a normal SB Live 24bit. */
 	 /* Tested:
@@ -503,7 +503,7 @@ static void restore_spdif_bits(struct snd_ca0106 *chip, int idx)
 }
 
 static int snd_ca0106_channel_dac(struct snd_ca0106 *chip,
-				  struct snd_ca0106_details *details,
+				  const struct snd_ca0106_details *details,
 				  int channel_id)
 {
 	switch (channel_id) {
@@ -1161,7 +1161,7 @@ static int snd_ca0106_ac97(struct snd_ca0106 *chip)
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_ca0106_ac97_write,
 		.read = snd_ca0106_ac97_read,
 	};
@@ -1593,9 +1593,9 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 					 struct snd_ca0106 **rchip)
 {
 	struct snd_ca0106 *chip;
-	struct snd_ca0106_details *c;
+	const struct snd_ca0106_details *c;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_ca0106_dev_free,
 	};
 

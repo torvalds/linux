@@ -30,22 +30,25 @@ MODULE_DESCRIPTION("Advanced Linux Sound Architecture sequencer MIDI emulation."
 MODULE_LICENSE("GPL");
 
 /* Prototypes for static functions */
-static void note_off(struct snd_midi_op *ops, void *drv,
+static void note_off(const struct snd_midi_op *ops, void *drv,
 		     struct snd_midi_channel *chan,
 		     int note, int vel);
-static void do_control(struct snd_midi_op *ops, void *private,
+static void do_control(const struct snd_midi_op *ops, void *private,
 		       struct snd_midi_channel_set *chset,
 		       struct snd_midi_channel *chan,
 		       int control, int value);
-static void rpn(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
+static void rpn(const struct snd_midi_op *ops, void *drv,
+		struct snd_midi_channel *chan,
 		struct snd_midi_channel_set *chset);
-static void nrpn(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
+static void nrpn(const struct snd_midi_op *ops, void *drv,
+		 struct snd_midi_channel *chan,
 		 struct snd_midi_channel_set *chset);
-static void sysex(struct snd_midi_op *ops, void *private, unsigned char *sysex,
+static void sysex(const struct snd_midi_op *ops, void *private,
+		  unsigned char *sysex,
 		  int len, struct snd_midi_channel_set *chset);
-static void all_sounds_off(struct snd_midi_op *ops, void *private,
+static void all_sounds_off(const struct snd_midi_op *ops, void *private,
 			   struct snd_midi_channel *chan);
-static void all_notes_off(struct snd_midi_op *ops, void *private,
+static void all_notes_off(const struct snd_midi_op *ops, void *private,
 			  struct snd_midi_channel *chan);
 static void snd_midi_reset_controllers(struct snd_midi_channel *chan);
 static void reset_all_channels(struct snd_midi_channel_set *chset);
@@ -66,7 +69,7 @@ static void reset_all_channels(struct snd_midi_channel_set *chset);
  *        be interpreted.
  */
 void
-snd_midi_process_event(struct snd_midi_op *ops,
+snd_midi_process_event(const struct snd_midi_op *ops,
 		       struct snd_seq_event *ev,
 		       struct snd_midi_channel_set *chanset)
 {
@@ -229,7 +232,8 @@ EXPORT_SYMBOL(snd_midi_process_event);
  * release note
  */
 static void
-note_off(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
+note_off(const struct snd_midi_op *ops, void *drv,
+	 struct snd_midi_channel *chan,
 	 int note, int vel)
 {
 	if (chan->gm_hold) {
@@ -251,7 +255,8 @@ note_off(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
  * events that need to take place immediately to the driver.
  */
 static void
-do_control(struct snd_midi_op *ops, void *drv, struct snd_midi_channel_set *chset,
+do_control(const struct snd_midi_op *ops, void *drv,
+	   struct snd_midi_channel_set *chset,
 	   struct snd_midi_channel *chan, int control, int value)
 {
 	int  i;
@@ -402,7 +407,7 @@ EXPORT_SYMBOL(snd_midi_channel_set_clear);
  * Process a rpn message.
  */
 static void
-rpn(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
+rpn(const struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
     struct snd_midi_channel_set *chset)
 {
 	int type;
@@ -442,7 +447,7 @@ rpn(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
  * Process an nrpn message.
  */
 static void
-nrpn(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
+nrpn(const struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan,
      struct snd_midi_channel_set *chset)
 {
 	/* parse XG NRPNs here if possible */
@@ -470,7 +475,7 @@ get_channel(unsigned char cmd)
  * Process a sysex message.
  */
 static void
-sysex(struct snd_midi_op *ops, void *private, unsigned char *buf, int len,
+sysex(const struct snd_midi_op *ops, void *private, unsigned char *buf, int len,
       struct snd_midi_channel_set *chset)
 {
 	/* GM on */
@@ -584,7 +589,8 @@ sysex(struct snd_midi_op *ops, void *private, unsigned char *buf, int len,
  * all sound off
  */
 static void
-all_sounds_off(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan)
+all_sounds_off(const struct snd_midi_op *ops, void *drv,
+	       struct snd_midi_channel *chan)
 {
 	int n;
 
@@ -602,7 +608,8 @@ all_sounds_off(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan
  * all notes off
  */
 static void
-all_notes_off(struct snd_midi_op *ops, void *drv, struct snd_midi_channel *chan)
+all_notes_off(const struct snd_midi_op *ops, void *drv,
+	      struct snd_midi_channel *chan)
 {
 	int n;
 

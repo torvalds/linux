@@ -397,7 +397,7 @@ static int usb6fire_control_digital_thru_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new vol_elements[] = {
+static const struct snd_kcontrol_new vol_elements[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Analog Playback Volume",
@@ -437,7 +437,7 @@ static struct snd_kcontrol_new vol_elements[] = {
 	{}
 };
 
-static struct snd_kcontrol_new mute_elements[] = {
+static const struct snd_kcontrol_new mute_elements[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Analog Playback Switch",
@@ -471,7 +471,7 @@ static struct snd_kcontrol_new mute_elements[] = {
 	{}
 };
 
-static struct snd_kcontrol_new elements[] = {
+static const struct snd_kcontrol_new elements[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Line/Phono Capture Route",
@@ -517,7 +517,7 @@ static int usb6fire_control_add_virtual(
 	struct control_runtime *rt,
 	struct snd_card *card,
 	char *name,
-	struct snd_kcontrol_new *elems)
+	const struct snd_kcontrol_new *elems)
 {
 	int ret;
 	int i;

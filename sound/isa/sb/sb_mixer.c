@@ -438,7 +438,7 @@ static int snd_sb16mixer_put_input_sw(struct snd_kcontrol *kcontrol, struct snd_
  */
 int snd_sbmixer_add_ctl(struct snd_sb *chip, const char *name, int index, int type, unsigned long value)
 {
-	static struct snd_kcontrol_new newctls[] = {
+	static const struct snd_kcontrol_new newctls[] = {
 		[SB_MIX_SINGLE] = {
 			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 			.info = snd_sbmixer_info_single,

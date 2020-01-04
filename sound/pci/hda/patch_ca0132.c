@@ -7802,23 +7802,23 @@ static void sbz_region2_exit(struct hda_codec *codec)
 
 static void sbz_set_pin_ctl_default(struct hda_codec *codec)
 {
-	hda_nid_t pins[5] = {0x0B, 0x0C, 0x0E, 0x12, 0x13};
+	static const hda_nid_t pins[] = {0x0B, 0x0C, 0x0E, 0x12, 0x13};
 	unsigned int i;
 
 	snd_hda_codec_write(codec, 0x11, 0,
 			AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40);
 
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < ARRAY_SIZE(pins); i++)
 		snd_hda_codec_write(codec, pins[i], 0,
 				AC_VERB_SET_PIN_WIDGET_CONTROL, 0x00);
 }
 
 static void ca0132_clear_unsolicited(struct hda_codec *codec)
 {
-	hda_nid_t pins[7] = {0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13};
+	static const hda_nid_t pins[] = {0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13};
 	unsigned int i;
 
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ARRAY_SIZE(pins); i++) {
 		snd_hda_codec_write(codec, pins[i], 0,
 				AC_VERB_SET_UNSOLICITED_ENABLE, 0x00);
 	}
@@ -7842,10 +7842,10 @@ static void sbz_gpio_shutdown_commands(struct hda_codec *codec, int dir,
 
 static void zxr_dbpro_power_state_shutdown(struct hda_codec *codec)
 {
-	hda_nid_t pins[7] = {0x05, 0x0c, 0x09, 0x0e, 0x08, 0x11, 0x01};
+	static const hda_nid_t pins[] = {0x05, 0x0c, 0x09, 0x0e, 0x08, 0x11, 0x01};
 	unsigned int i;
 
-	for (i = 0; i < 7; i++)
+	for (i = 0; i < ARRAY_SIZE(pins); i++)
 		snd_hda_codec_write(codec, pins[i], 0,
 				AC_VERB_SET_POWER_STATE, 0x03);
 }
