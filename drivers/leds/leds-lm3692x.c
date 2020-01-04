@@ -114,6 +114,8 @@ struct lm3692x_led {
 	struct regulator *regulator;
 	int led_enable;
 	int model_id;
+
+	u8 boost_ctrl;
 };
 
 static const struct reg_default lm3692x_reg_defs[] = {
@@ -249,10 +251,7 @@ static int lm3692x_init(struct lm3692x_led *led)
 	if (ret)
 		goto out;
 
-	ret = regmap_write(led->regmap, LM3692X_BOOST_CTRL,
-			LM3692X_BOOST_SW_1MHZ |
-			LM3692X_BOOST_SW_NO_SHIFT |
-			LM3692X_OCP_PROT_1_5A);
+	ret = regmap_write(led->regmap, LM3692X_BOOST_CTRL, led->boost_ctrl);
 	if (ret)
 		goto out;
 
@@ -326,6 +325,7 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 {
 	struct fwnode_handle *child = NULL;
 	struct led_init_data init_data = {};
+	u32 ovp;
 	int ret;
 
 	led->enable_gpio = devm_gpiod_get_optional(&led->client->dev,
@@ -348,6 +348,32 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 			return ret;
 		}
 		led->regulator = NULL;
+	}
+
+	led->boost_ctrl = LM3692X_BOOST_SW_1MHZ |
+		LM3692X_BOOST_SW_NO_SHIFT |
+		LM3692X_OCP_PROT_1_5A;
+	ret = device_property_read_u32(&led->client->dev,
+				       "ti,ovp-microvolt", &ovp);
+	if (ret) {
+		led->boost_ctrl |= LM3692X_OVP_29V;
+	} else {
+		switch (ovp) {
+		case 17000000:
+			break;
+		case 21000000:
+			led->boost_ctrl |= LM3692X_OVP_21V;
+			break;
+		case 25000000:
+			led->boost_ctrl |= LM3692X_OVP_25V;
+			break;
+		case 29000000:
+			led->boost_ctrl |= LM3692X_OVP_29V;
+			break;
+		default:
+			dev_err(&led->client->dev, "Invalid OVP %d\n", ovp);
+			return -EINVAL;
+		}
 	}
 
 	child = device_get_next_child_node(&led->client->dev, child);
