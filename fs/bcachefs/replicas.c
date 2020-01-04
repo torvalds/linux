@@ -84,10 +84,10 @@ static void extent_to_replicas(struct bkey_s_c k,
 		if (p.ptr.cached)
 			continue;
 
-		if (p.has_ec)
+		if (!p.has_ec)
+			r->devs[r->nr_devs++] = p.ptr.dev;
+		else
 			r->nr_required = 0;
-
-		r->devs[r->nr_devs++] = p.ptr.dev;
 	}
 }
 
