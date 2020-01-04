@@ -171,13 +171,16 @@ void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct bkey_s_c k)
 	struct bucket_mark mark;
 	struct bch_dev *ca;
 
-	bch2_fs_bug_on(!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
-		       !bch2_bkey_replicas_marked(c, k, false), c,
-		       "btree key bad (replicas not marked in superblock):\n%s",
-		       (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
-
 	if (!test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags))
 		return;
+
+	if (!percpu_down_read_trylock(&c->mark_lock))
+		return;
+
+	bch2_fs_inconsistent_on(!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
+		!bch2_bkey_replicas_marked(c, k, false), c,
+		"btree key bad (replicas not marked in superblock):\n%s",
+		(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
 
 	bkey_for_each_ptr(ptrs, ptr) {
 		ca = bch_dev_bkey_exists(c, ptr->dev);
@@ -193,13 +196,15 @@ void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct bkey_s_c k)
 		    mark.dirty_sectors < c->opts.btree_node_size)
 			goto err;
 	}
-
+out:
+	percpu_up_read(&c->mark_lock);
 	return;
 err:
-	bch2_bkey_val_to_text(&PBUF(buf), c, k);
-	bch2_fs_bug(c, "%s btree pointer %s: bucket %zi gen %i mark %08x",
-		    err, buf, PTR_BUCKET_NR(ca, ptr),
-		    mark.gen, (unsigned) mark.v.counter);
+	bch2_fs_inconsistent(c, "%s btree pointer %s: bucket %zi gen %i mark %08x",
+		err, (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf),
+		PTR_BUCKET_NR(ca, ptr),
+		mark.gen, (unsigned) mark.v.counter);
+	goto out;
 }
 
 void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
@@ -222,28 +227,17 @@ void bch2_extent_debugcheck(struct bch_fs *c, struct bkey_s_c k)
 	struct extent_ptr_decoded p;
 	char buf[160];
 
-	/*
-	 * XXX: we should be doing most/all of these checks at startup time,
-	 * where we check bch2_bkey_invalid() in btree_node_read_done()
-	 *
-	 * But note that we can't check for stale pointers or incorrect gc marks
-	 * until after journal replay is done (it might be an extent that's
-	 * going to get overwritten during replay)
-	 */
-
-	if (percpu_down_read_trylock(&c->mark_lock)) {
-		bch2_fs_bug_on(!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
-			       !bch2_bkey_replicas_marked_locked(c, e.s_c, false), c,
-			       "extent key bad (replicas not marked in superblock):\n%s",
-			       (bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c), buf));
-		percpu_up_read(&c->mark_lock);
-	}
-	/*
-	 * If journal replay hasn't finished, we might be seeing keys
-	 * that will be overwritten by the time journal replay is done:
-	 */
-	if (!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))
+	if (!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags) ||
+	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags))
 		return;
+
+	if (!percpu_down_read_trylock(&c->mark_lock))
+		return;
+
+	bch2_fs_inconsistent_on(!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
+		!bch2_bkey_replicas_marked_locked(c, e.s_c, false), c,
+		"extent key bad (replicas not marked in superblock):\n%s",
+		(bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c), buf));
 
 	extent_for_each_ptr_decode(e, p, entry) {
 		struct bch_dev *ca	= bch_dev_bkey_exists(c, p.ptr.dev);
@@ -254,21 +248,24 @@ void bch2_extent_debugcheck(struct bch_fs *c, struct bkey_s_c k)
 			? mark.cached_sectors
 			: mark.dirty_sectors;
 
-		bch2_fs_bug_on(stale && !p.ptr.cached, c,
-			       "stale dirty pointer (ptr gen %u bucket %u",
-			       p.ptr.gen, mark.gen);
+		bch2_fs_inconsistent_on(stale && !p.ptr.cached, c,
+			"stale dirty pointer (ptr gen %u bucket %u",
+			p.ptr.gen, mark.gen);
 
-		bch2_fs_bug_on(stale > 96, c, "key too stale: %i", stale);
+		bch2_fs_inconsistent_on(stale > 96, c,
+			"key too stale: %i", stale);
 
-		bch2_fs_bug_on(!stale &&
-			       (mark.data_type != BCH_DATA_USER ||
-				mark_sectors < disk_sectors), c,
-			       "extent pointer not marked: %s:\n"
-			       "type %u sectors %u < %u",
-			       (bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c), buf),
-			       mark.data_type,
-			       mark_sectors, disk_sectors);
+		bch2_fs_inconsistent_on(!stale &&
+			(mark.data_type != BCH_DATA_USER ||
+			 mark_sectors < disk_sectors), c,
+			"extent pointer not marked: %s:\n"
+			"type %u sectors %u < %u",
+			(bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c), buf),
+			mark.data_type,
+			mark_sectors, disk_sectors);
 	}
+
+	percpu_up_read(&c->mark_lock);
 }
 
 void bch2_extent_to_text(struct printbuf *out, struct bch_fs *c,

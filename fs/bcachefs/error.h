@@ -17,26 +17,6 @@ struct work_struct;
 /* Error messages: */
 
 /*
- * Very fatal logic/inconsistency errors: these indicate that we've majorly
- * screwed up at runtime, i.e. it's not likely that it was just caused by the
- * data on disk being inconsistent. These BUG():
- *
- * XXX: audit and convert to inconsistent() checks
- */
-
-#define bch2_fs_bug(c, ...)						\
-do {									\
-	bch_err(c, __VA_ARGS__);					\
-	BUG();								\
-} while (0)
-
-#define bch2_fs_bug_on(cond, c, ...)					\
-do {									\
-	if (cond)							\
-		bch2_fs_bug(c, __VA_ARGS__);				\
-} while (0)
-
-/*
  * Inconsistency errors: The on disk data is inconsistent. If these occur during
  * initial recovery, they don't indicate a bug in the running code - we walk all
  * the metadata before modifying anything. If they occur at runtime, they

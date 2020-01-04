@@ -156,7 +156,7 @@ void bch2_bkey_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k)
 		char buf[160];
 
 		bch2_bkey_val_to_text(&PBUF(buf), c, k);
-		bch2_fs_bug(c, "invalid bkey %s: %s", buf, invalid);
+		bch2_fs_inconsistent(c, "invalid bkey %s: %s", buf, invalid);
 		return;
 	}
 
