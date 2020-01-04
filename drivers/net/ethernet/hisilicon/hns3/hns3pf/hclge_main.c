@@ -4698,7 +4698,7 @@ static int hclge_map_ring_to_vector(struct hnae3_handle *handle, int vector,
 	vector_id = hclge_get_vector_index(hdev, vector);
 	if (vector_id < 0) {
 		dev_err(&hdev->pdev->dev,
-			"Get vector index fail. vector_id =%d\n", vector_id);
+			"failed to get vector index. vector=%d\n", vector);
 		return vector_id;
 	}
 
