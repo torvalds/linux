@@ -1381,7 +1381,11 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 
 	mutex_lock(&c->state_lock);
 
-	percpu_ref_put(&ca->ref); /* XXX */
+	/*
+	 * We consume a reference to ca->ref, regardless of whether we succeed
+	 * or fail:
+	 */
+	percpu_ref_put(&ca->ref);
 
 	if (!bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_FAILED, flags)) {
 		bch_err(ca, "Cannot remove without losing data");
@@ -1390,11 +1394,6 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 
 	__bch2_dev_read_only(c, ca);
 
-	/*
-	 * XXX: verify that dev_idx is really not in use anymore, anywhere
-	 *
-	 * flag_data_bad() does not check btree pointers
-	 */
 	ret = bch2_dev_data_drop(c, ca->dev_idx, flags);
 	if (ret) {
 		bch_err(ca, "Remove failed: error %i dropping data", ret);
@@ -1404,17 +1403,6 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	ret = bch2_journal_flush_device_pins(&c->journal, ca->dev_idx);
 	if (ret) {
 		bch_err(ca, "Remove failed: error %i flushing journal", ret);
-		goto err;
-	}
-
-	data = bch2_dev_has_data(c, ca);
-	if (data) {
-		char data_has_str[100];
-
-		bch2_flags_to_text(&PBUF(data_has_str),
-				   bch2_data_types, data);
-		bch_err(ca, "Remove failed, still has data (%s)", data_has_str);
-		ret = -EBUSY;
 		goto err;
 	}
 
@@ -1432,9 +1420,30 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	 * (overwritten) keys that point to the device we're removing:
 	 */
 	bch2_journal_flush_all_pins(&c->journal);
+	/*
+	 * hack to ensure bch2_replicas_gc2() clears out entries to this device
+	 */
+	bch2_journal_meta(&c->journal);
 	ret = bch2_journal_error(&c->journal);
 	if (ret) {
 		bch_err(ca, "Remove failed, journal error");
+		goto err;
+	}
+
+	ret = bch2_replicas_gc2(c);
+	if (ret) {
+		bch_err(ca, "Remove failed: error %i from replicas gc", ret);
+		goto err;
+	}
+
+	data = bch2_dev_has_data(c, ca);
+	if (data) {
+		char data_has_str[100];
+
+		bch2_flags_to_text(&PBUF(data_has_str),
+				   bch2_data_types, data);
+		bch_err(ca, "Remove failed, still has data (%s)", data_has_str);
+		ret = -EBUSY;
 		goto err;
 	}
 

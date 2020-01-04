@@ -53,9 +53,6 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
 		if (!bch2_bkey_has_device(k, dev_idx)) {
-			ret = bch2_mark_bkey_replicas(c, k);
-			if (ret)
-				break;
 			bch2_btree_iter_next(iter);
 			continue;
 		}
@@ -129,34 +126,27 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 			struct bkey_i_btree_ptr *new_key;
 retry:
 			if (!bch2_bkey_has_device(bkey_i_to_s_c(&b->key),
-						  dev_idx)) {
-				/*
-				 * we might have found a btree node key we
-				 * needed to update, and then tried to update it
-				 * but got -EINTR after upgrading the iter, but
-				 * then raced and the node is now gone:
-				 */
-				bch2_btree_iter_downgrade(iter);
+						  dev_idx))
+				continue;
 
-				ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(&b->key));
-				if (ret)
-					goto err;
-			} else {
-				bkey_copy(&tmp.k, &b->key);
-				new_key = bkey_i_to_btree_ptr(&tmp.k);
+			bkey_copy(&tmp.k, &b->key);
+			new_key = bkey_i_to_btree_ptr(&tmp.k);
 
-				ret = drop_dev_ptrs(c, bkey_i_to_s(&new_key->k_i),
-						    dev_idx, flags, true);
-				if (ret)
-					goto err;
+			ret = drop_dev_ptrs(c, bkey_i_to_s(&new_key->k_i),
+					    dev_idx, flags, true);
+			if (ret) {
+				bch_err(c, "Cannot drop device without losing data");
+				goto err;
+			}
 
-				ret = bch2_btree_node_update_key(c, iter, b, new_key);
-				if (ret == -EINTR) {
-					b = bch2_btree_iter_peek_node(iter);
-					goto retry;
-				}
-				if (ret)
-					goto err;
+			ret = bch2_btree_node_update_key(c, iter, b, new_key);
+			if (ret == -EINTR) {
+				b = bch2_btree_iter_peek_node(iter);
+				goto retry;
+			}
+			if (ret) {
+				bch_err(c, "Error updating btree node key: %i", ret);
+				goto err;
 			}
 		}
 		bch2_trans_iter_free(&trans, iter);
@@ -167,9 +157,10 @@ retry:
 		closure_wait_event(&c->btree_interior_update_wait,
 				   !bch2_btree_interior_updates_nr_pending(c) ||
 				   c->btree_roots_dirty);
+		if (c->btree_roots_dirty)
+			bch2_journal_meta(&c->journal);
 		if (!bch2_btree_interior_updates_nr_pending(c))
 			break;
-		bch2_journal_meta(&c->journal);
 	}
 
 	ret = 0;
@@ -184,6 +175,5 @@ err:
 int bch2_dev_data_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
 	return bch2_dev_usrdata_drop(c, dev_idx, flags) ?:
-		bch2_dev_metadata_drop(c, dev_idx, flags) ?:
-		bch2_replicas_gc2(c);
+		bch2_dev_metadata_drop(c, dev_idx, flags);
 }
