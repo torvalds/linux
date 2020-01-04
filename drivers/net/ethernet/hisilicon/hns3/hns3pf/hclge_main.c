@@ -2835,6 +2835,12 @@ static int hclge_get_sfp_info(struct hclge_dev *hdev, struct hclge_mac *mac)
 		return ret;
 	}
 
+	/* In some case, mac speed get from IMP may be 0, it shouldn't be
+	 * set to mac->speed.
+	 */
+	if (!le32_to_cpu(resp->speed))
+		return 0;
+
 	mac->speed = le32_to_cpu(resp->speed);
 	/* if resp->speed_ability is 0, it means it's an old version
 	 * firmware, do not update these params
