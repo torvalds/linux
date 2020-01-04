@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * exynos_ppmu.c - EXYNOS PPMU (Platform Performance Monitoring Unit) support
+ * exynos_ppmu.c - Exynos PPMU (Platform Performance Monitoring Unit) support
  *
  * Copyright (c) 2014-2015 Samsung Electronics Co., Ltd.
  * Author : Chanwoo Choi <cw00.choi@samsung.com>
