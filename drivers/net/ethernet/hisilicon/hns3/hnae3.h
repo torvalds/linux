@@ -164,6 +164,7 @@ enum hnae3_reset_type {
 	HNAE3_IMP_RESET,
 	HNAE3_UNKNOWN_RESET,
 	HNAE3_NONE_RESET,
+	HNAE3_MAX_RESET,
 };
 
 enum hnae3_flr_state {
