@@ -393,7 +393,7 @@ static void ufshcd_print_err_hist(struct ufs_hba *hba,
 	}
 
 	if (!found)
-		dev_err(hba->dev, "No record of %s errors\n", err_name);
+		dev_err(hba->dev, "No record of %s\n", err_name);
 }
 
 static void ufshcd_print_host_regs(struct ufs_hba *hba)
