@@ -8,7 +8,7 @@
 //      Ben Dooks <ben@simtec.co.uk>
 //      http://armlinux.simtec.co.uk/
 //
-// SAMSUNG - GPIOlib support
+// Samsung - GPIOlib support
 
 #include <linux/kernel.h>
 #include <linux/irq.h>
