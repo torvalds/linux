@@ -56,7 +56,6 @@ struct sja1105_port {
 	struct sja1105_tagger_data *data;
 	struct dsa_port *dp;
 	bool hwts_tx_en;
-	int mgmt_slot;
 };
 
 #endif /* _NET_DSA_SJA1105_H */
