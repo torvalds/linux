@@ -805,6 +805,8 @@ int ufshcd_wait_for_register(struct ufs_hba *hba, u32 reg, u32 mask,
 				u32 val, unsigned long interval_us,
 				unsigned long timeout_ms, bool can_sleep);
 void ufshcd_parse_dev_ref_clk_freq(struct ufs_hba *hba, struct clk *refclk);
+void ufshcd_update_reg_hist(struct ufs_err_reg_hist *reg_hist,
+			    u32 reg);
 
 static inline void check_upiu_size(void)
 {
@@ -1083,8 +1085,10 @@ static inline void ufshcd_vops_dbg_register_dump(struct ufs_hba *hba)
 
 static inline void ufshcd_vops_device_reset(struct ufs_hba *hba)
 {
-	if (hba->vops && hba->vops->device_reset)
+	if (hba->vops && hba->vops->device_reset) {
 		hba->vops->device_reset(hba);
+		ufshcd_update_reg_hist(&hba->ufs_stats.dev_reset, 0);
+	}
 }
 
 extern struct ufs_pm_lvl_states ufs_pm_lvl_states[];
