@@ -269,7 +269,7 @@ config USB_EHCI_SH
 	  If you use the PCI EHCI controller, this option is not necessary.
 
 config USB_EHCI_EXYNOS
-	tristate "EHCI support for Samsung S5P/EXYNOS SoC Series"
+	tristate "EHCI support for Samsung S5P/Exynos SoC Series"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	help
 	  Enable support for the Samsung Exynos SOC's on-chip EHCI controller.
@@ -542,7 +542,7 @@ config USB_OHCI_SH
 	  If you use the PCI OHCI controller, this option is not necessary.
 
 config USB_OHCI_EXYNOS
-	tristate "OHCI support for Samsung S5P/EXYNOS SoC Series"
+	tristate "OHCI support for Samsung S5P/Exynos SoC Series"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	help
 	  Enable support for the Samsung Exynos SOC's on-chip OHCI controller.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * dwc3-exynos.c - Samsung EXYNOS DWC3 Specific Glue layer
+ * dwc3-exynos.c - Samsung Exynos DWC3 Specific Glue layer
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -255,4 +255,4 @@ module_platform_driver(dwc3_exynos_driver);
 
 MODULE_AUTHOR("Anton Tikhomirov <av.tikhomirov@samsung.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("DesignWare USB3 EXYNOS Glue Layer");
+MODULE_DESCRIPTION("DesignWare USB3 Exynos Glue Layer");
