@@ -1420,7 +1420,7 @@ static void snd_es1938_chip_init(struct es1938 *chip)
  * PM support
  */
 
-static unsigned char saved_regs[SAVED_REG_SIZE+1] = {
+static const unsigned char saved_regs[SAVED_REG_SIZE+1] = {
 	0x14, 0x1a, 0x1c, 0x3a, 0x3c, 0x3e, 0x36, 0x38,
 	0x50, 0x52, 0x60, 0x61, 0x62, 0x63, 0x64, 0x68,
 	0x69, 0x6a, 0x6b, 0x6d, 0x6e, 0x6f, 0x7c, 0x7d,
@@ -1432,7 +1432,8 @@ static int es1938_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct es1938 *chip = card->private_data;
-	unsigned char *s, *d;
+	const unsigned char *s;
+	unsigned char *d;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
@@ -1454,7 +1455,8 @@ static int es1938_resume(struct device *dev)
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct es1938 *chip = card->private_data;
-	unsigned char *s, *d;
+	const unsigned char *s;
+	unsigned char *d;
 
 	if (request_irq(pci->irq, snd_es1938_interrupt,
 			IRQF_SHARED, KBUILD_MODNAME, chip)) {
