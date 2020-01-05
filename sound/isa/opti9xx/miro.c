@@ -119,7 +119,7 @@ struct snd_miro {
 
 static struct snd_miro_aci aci_device;
 
-static char * snd_opti9xx_names[] = {
+static const char * const snd_opti9xx_names[] = {
 	"unknown",
 	"82C928", "82C929",
 	"82C924", "82C925",
@@ -637,7 +637,7 @@ static const struct snd_kcontrol_new snd_miro_capture_control[] = {
 	.put = snd_miro_put_capture,
 }};
 
-static unsigned char aci_init_values[][2] = {
+static const unsigned char aci_init_values[][2] = {
 	{ ACI_SET_MUTE, 0x00 },
 	{ ACI_SET_POWERAMP, 0x00 },
 	{ ACI_SET_PREAMP, 0x00 },
@@ -764,7 +764,7 @@ static int snd_miro_mixer(struct snd_card *card,
 static int snd_miro_init(struct snd_miro *chip,
 			 unsigned short hardware)
 {
-	static int opti9xx_mc_size[] = {7, 7, 10, 10, 2, 2, 2};
+	static const int opti9xx_mc_size[] = {7, 7, 10, 10, 2, 2, 2};
 
 	chip->hardware = hardware;
 	strcpy(chip->name, snd_opti9xx_names[hardware]);
@@ -1387,12 +1387,12 @@ static int snd_miro_isa_match(struct device *devptr, unsigned int n)
 
 static int snd_miro_isa_probe(struct device *devptr, unsigned int n)
 {
-	static long possible_ports[] = {0x530, 0xe80, 0xf40, 0x604, -1};
-	static long possible_mpu_ports[] = {0x330, 0x300, 0x310, 0x320, -1};
-	static int possible_irqs[] = {11, 9, 10, 7, -1};
-	static int possible_mpu_irqs[] = {10, 5, 9, 7, -1};
-	static int possible_dma1s[] = {3, 1, 0, -1};
-	static int possible_dma2s[][2] = { {1, -1}, {0, -1}, {-1, -1},
+	static const long possible_ports[] = {0x530, 0xe80, 0xf40, 0x604, -1};
+	static const long possible_mpu_ports[] = {0x330, 0x300, 0x310, 0x320, -1};
+	static const int possible_irqs[] = {11, 9, 10, 7, -1};
+	static const int possible_mpu_irqs[] = {10, 5, 9, 7, -1};
+	static const int possible_dma1s[] = {3, 1, 0, -1};
+	static const int possible_dma2s[][2] = { {1, -1}, {0, -1}, {-1, -1},
 					   {0, -1} };
 
 	int error;
