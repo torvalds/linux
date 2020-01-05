@@ -1114,7 +1114,7 @@ mvpp2_shared_interrupt_mask_unmask(struct mvpp2_port *port, bool mask)
 /* Port configuration routines */
 static bool mvpp2_is_xlg(phy_interface_t interface)
 {
-	return interface == PHY_INTERFACE_MODE_10GKR ||
+	return interface == PHY_INTERFACE_MODE_10GBASER ||
 	       interface == PHY_INTERFACE_MODE_XAUI;
 }
 
@@ -1200,7 +1200,7 @@ static int mvpp22_gop_init(struct mvpp2_port *port)
 	case PHY_INTERFACE_MODE_2500BASEX:
 		mvpp22_gop_init_sgmii(port);
 		break;
-	case PHY_INTERFACE_MODE_10GKR:
+	case PHY_INTERFACE_MODE_10GBASER:
 		if (port->gop_id != 0)
 			goto invalid_conf;
 		mvpp22_gop_init_10gkr(port);
@@ -1649,7 +1649,7 @@ static void mvpp22_pcs_reset_deassert(struct mvpp2_port *port)
 	xpcs = priv->iface_base + MVPP22_XPCS_BASE(port->gop_id);
 
 	switch (port->phy_interface) {
-	case PHY_INTERFACE_MODE_10GKR:
+	case PHY_INTERFACE_MODE_10GBASER:
 		val = readl(mpcs + MVPP22_MPCS_CLK_RESET);
 		val |= MAC_CLK_RESET_MAC | MAC_CLK_RESET_SD_RX |
 		       MAC_CLK_RESET_SD_TX;
@@ -4758,7 +4758,7 @@ static void mvpp2_phylink_validate(struct phylink_config *config,
 
 	/* Invalid combinations */
 	switch (state->interface) {
-	case PHY_INTERFACE_MODE_10GKR:
+	case PHY_INTERFACE_MODE_10GBASER:
 	case PHY_INTERFACE_MODE_XAUI:
 		if (port->gop_id != 0)
 			goto empty_set;
@@ -4780,7 +4780,7 @@ static void mvpp2_phylink_validate(struct phylink_config *config,
 	phylink_set(mask, Asym_Pause);
 
 	switch (state->interface) {
-	case PHY_INTERFACE_MODE_10GKR:
+	case PHY_INTERFACE_MODE_10GBASER:
 	case PHY_INTERFACE_MODE_XAUI:
 	case PHY_INTERFACE_MODE_NA:
 		if (port->gop_id == 0) {
@@ -5246,6 +5246,15 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		err = phy_mode;
 		goto err_free_netdev;
 	}
+
+	/*
+	 * Rewrite 10GBASE-KR to 10GBASE-R for compatibility with existing DT.
+	 * Existing usage of 10GBASE-KR is not correct; no backplane
+	 * negotiation is done, and this driver does not actually support
+	 * 10GBASE-KR.
+	 */
+	if (phy_mode == PHY_INTERFACE_MODE_10GKR)
+		phy_mode = PHY_INTERFACE_MODE_10GBASER;
 
 	if (port_node) {
 		comphy = devm_of_phy_get(&pdev->dev, port_node, NULL);
