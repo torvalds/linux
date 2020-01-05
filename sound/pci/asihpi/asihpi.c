@@ -300,7 +300,7 @@ static void print_hwparams(struct snd_pcm_substream *substream,
 
 #define INVALID_FORMAT	(__force snd_pcm_format_t)(-1)
 
-static snd_pcm_format_t hpi_to_alsa_formats[] = {
+static const snd_pcm_format_t hpi_to_alsa_formats[] = {
 	INVALID_FORMAT,		/* INVALID */
 	SNDRV_PCM_FORMAT_U8,	/* HPI_FORMAT_PCM8_UNSIGNED        1 */
 	SNDRV_PCM_FORMAT_S16,	/* HPI_FORMAT_PCM16_SIGNED         2 */
@@ -2073,7 +2073,7 @@ static int snd_asihpi_meter_info(struct snd_kcontrol *kcontrol,
 }
 
 /* linear values for 10dB steps */
-static int log2lin[] = {
+static const int log2lin[] = {
 	0x7FFFFFFF, /* 0dB */
 	679093956,
 	214748365,
