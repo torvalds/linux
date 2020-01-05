@@ -196,6 +196,7 @@ struct mlx5_fs_vlan {
 
 enum {
 	FLOW_ACT_NO_APPEND = BIT(0),
+	FLOW_ACT_IGNORE_FLOW_LEVEL = BIT(1),
 };
 
 struct mlx5_flow_act {

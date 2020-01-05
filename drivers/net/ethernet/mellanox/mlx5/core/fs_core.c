@@ -1536,18 +1536,30 @@ static bool counter_is_valid(u32 action)
 }
 
 static bool dest_is_valid(struct mlx5_flow_destination *dest,
-			  u32 action,
+			  struct mlx5_flow_act *flow_act,
 			  struct mlx5_flow_table *ft)
 {
+	bool ignore_level = flow_act->flags & FLOW_ACT_IGNORE_FLOW_LEVEL;
+	u32 action = flow_act->action;
+
 	if (dest && (dest->type == MLX5_FLOW_DESTINATION_TYPE_COUNTER))
 		return counter_is_valid(action);
 
 	if (!(action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
 		return true;
 
+	if (ignore_level) {
+		if (ft->type != FS_FT_FDB)
+			return false;
+
+		if (dest->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
+		    dest->ft->type != FS_FT_FDB)
+			return false;
+	}
+
 	if (!dest || ((dest->type ==
 	    MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE) &&
-	    (dest->ft->level <= ft->level)))
+	    (dest->ft->level <= ft->level && !ignore_level)))
 		return false;
 	return true;
 }
@@ -1777,7 +1789,7 @@ _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		return ERR_PTR(-EINVAL);
 
 	for (i = 0; i < dest_num; i++) {
-		if (!dest_is_valid(&dest[i], flow_act->action, ft))
+		if (!dest_is_valid(&dest[i], flow_act, ft))
 			return ERR_PTR(-EINVAL);
 	}
 	nested_down_read_ref_node(&ft->node, FS_LOCK_GRANDPARENT);
