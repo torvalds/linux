@@ -5,11 +5,16 @@ ALL_TESTS="
 	ping_ipv4
 	ping_ipv6
 	sip_in_class_e
+	mc_mac_mismatch
 "
 
 NUM_NETIFS=4
 source lib.sh
 source tc_common.sh
+
+require_command $MCD
+require_command $MC_CLI
+table_name=selftests
 
 h1_create()
 {
@@ -93,6 +98,25 @@ router_destroy()
 	ip link set dev $rp1 down
 }
 
+start_mcd()
+{
+	SMCROUTEDIR="$(mktemp -d)"
+
+	for ((i = 1; i <= $NUM_NETIFS; ++i)); do
+		echo "phyint ${NETIFS[p$i]} enable" >> \
+			$SMCROUTEDIR/$table_name.conf
+	done
+
+	$MCD -N -I $table_name -f $SMCROUTEDIR/$table_name.conf \
+		-P $SMCROUTEDIR/$table_name.pid
+}
+
+kill_mcd()
+{
+	pkill $MCD
+	rm -rf $SMCROUTEDIR
+}
+
 setup_prepare()
 {
 	h1=${NETIFS[p1]}
@@ -102,6 +126,8 @@ setup_prepare()
 	h2=${NETIFS[p4]}
 
 	rp1mac=$(mac_get $rp1)
+
+	start_mcd
 
 	vrf_prepare
 
@@ -125,6 +151,8 @@ cleanup()
 	h1_destroy
 
 	vrf_cleanup
+
+	kill_mcd
 }
 
 ping_ipv4()
@@ -159,6 +187,60 @@ sip_in_class_e()
 	tc filter del dev $rp2 egress protocol ip pref 1 handle 101 flower
 	sysctl_restore net.ipv4.conf.$rp1.rp_filter
 	sysctl_restore net.ipv4.conf.all.rp_filter
+}
+
+create_mcast_sg()
+{
+	local if_name=$1; shift
+	local s_addr=$1; shift
+	local mcast=$1; shift
+	local dest_ifs=${@}
+
+	$MC_CLI -I $table_name add $if_name $s_addr $mcast $dest_ifs
+}
+
+delete_mcast_sg()
+{
+	local if_name=$1; shift
+	local s_addr=$1; shift
+	local mcast=$1; shift
+	local dest_ifs=${@}
+
+	$MC_CLI -I $table_name remove $if_name $s_addr $mcast $dest_ifs
+}
+
+__mc_mac_mismatch()
+{
+	local desc=$1; shift
+	local proto=$1; shift
+	local sip=$1; shift
+	local dip=$1; shift
+	local flags=${1:-""}; shift
+	local dmac=01:02:03:04:05:06
+
+	RET=0
+
+	tc filter add dev $rp2 egress protocol $proto pref 1 handle 101 \
+		flower dst_ip $dip action pass
+
+	create_mcast_sg $rp1 $sip $dip $rp2
+
+	$MZ $flags $h1 -t udp "sp=54321,dp=12345" -c 5 -d 1msec -b $dmac \
+		-B $dip -q
+
+	tc_check_packets "dev $rp2 egress" 101 5
+	check_err $? "Packets were dropped"
+
+	log_test "Multicast MAC mismatch: $desc"
+
+	delete_mcast_sg $rp1 $sip $dip $rp2
+	tc filter del dev $rp2 egress protocol $proto pref 1 handle 101 flower
+}
+
+mc_mac_mismatch()
+{
+	__mc_mac_mismatch "IPv4" "ip" 192.0.2.2 225.1.2.3
+	__mc_mac_mismatch "IPv6" "ipv6" 2001:db8:1::2 ff0e::3 "-6"
 }
 
 trap cleanup EXIT
