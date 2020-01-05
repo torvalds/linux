@@ -415,7 +415,7 @@ static const struct pci_device_id snd_korg1212_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_korg1212_ids);
 
-static char *stateName[] = {
+static const char * const stateName[] = {
 	"Non-existent",
 	"Uninitialized",
 	"DSP download in process",
@@ -455,7 +455,7 @@ static const char * const channelName[] = {
 	"SPDIF-R",
 };
 
-static u16 ClockSourceSelector[] = {
+static const u16 ClockSourceSelector[] = {
 	0x8000,   // selects source as ADAT at 44.1 kHz
 	0x0000,   // selects source as ADAT at 48 kHz
 	0x8001,   // selects source as S/PDIF at 44.1 kHz
@@ -813,12 +813,12 @@ static inline int snd_korg1212_use_is_exclusive(struct snd_korg1212 *korg1212)
 
 static int snd_korg1212_SetRate(struct snd_korg1212 *korg1212, int rate)
 {
-        static enum ClockSourceIndex s44[] = {
+	static const enum ClockSourceIndex s44[] = {
 		K1212_CLKIDX_AdatAt44_1K,
 		K1212_CLKIDX_WordAt44_1K,
 		K1212_CLKIDX_LocalAt44_1K
 	};
-        static enum ClockSourceIndex s48[] = {
+	static const enum ClockSourceIndex s48[] = {
 		K1212_CLKIDX_AdatAt48K,
 		K1212_CLKIDX_WordAt48K,
 		K1212_CLKIDX_LocalAt48K
