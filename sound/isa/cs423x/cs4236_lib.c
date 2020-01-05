@@ -80,7 +80,7 @@
  *
  */
 
-static unsigned char snd_cs4236_ext_map[18] = {
+static const unsigned char snd_cs4236_ext_map[18] = {
 	/* CS4236_LEFT_LINE */		0xff,
 	/* CS4236_RIGHT_LINE */		0xff,
 	/* CS4236_LEFT_MIC */		0xdf,
