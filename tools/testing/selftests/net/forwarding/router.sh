@@ -1,9 +1,15 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="ping_ipv4 ping_ipv6"
+ALL_TESTS="
+	ping_ipv4
+	ping_ipv6
+	sip_in_class_e
+"
+
 NUM_NETIFS=4
 source lib.sh
+source tc_common.sh
 
 h1_create()
 {
@@ -64,6 +70,8 @@ router_create()
 	ip link set dev $rp1 up
 	ip link set dev $rp2 up
 
+	tc qdisc add dev $rp2 clsact
+
 	ip address add 192.0.2.1/24 dev $rp1
 	ip address add 2001:db8:1::1/64 dev $rp1
 
@@ -79,6 +87,8 @@ router_destroy()
 	ip address del 2001:db8:1::1/64 dev $rp1
 	ip address del 192.0.2.1/24 dev $rp1
 
+	tc qdisc del dev $rp2 clsact
+
 	ip link set dev $rp2 down
 	ip link set dev $rp1 down
 }
@@ -90,6 +100,8 @@ setup_prepare()
 
 	rp2=${NETIFS[p3]}
 	h2=${NETIFS[p4]}
+
+	rp1mac=$(mac_get $rp1)
 
 	vrf_prepare
 
@@ -123,6 +135,30 @@ ping_ipv4()
 ping_ipv6()
 {
 	ping6_test $h1 2001:db8:2::2
+}
+
+sip_in_class_e()
+{
+	RET=0
+
+	# Disable rpfilter to prevent packets to be dropped because of it.
+	sysctl_set net.ipv4.conf.all.rp_filter 0
+	sysctl_set net.ipv4.conf.$rp1.rp_filter 0
+
+	tc filter add dev $rp2 egress protocol ip pref 1 handle 101 \
+		flower src_ip 240.0.0.1 ip_proto udp action pass
+
+	$MZ $h1 -t udp "sp=54321,dp=12345" -c 5 -d 1msec \
+		-A 240.0.0.1 -b $rp1mac -B 198.51.100.2 -q
+
+	tc_check_packets "dev $rp2 egress" 101 5
+	check_err $? "Packets were dropped"
+
+	log_test "Source IP in class E"
+
+	tc filter del dev $rp2 egress protocol ip pref 1 handle 101 flower
+	sysctl_restore net.ipv4.conf.$rp1.rp_filter
+	sysctl_restore net.ipv4.conf.all.rp_filter
 }
 
 trap cleanup EXIT
