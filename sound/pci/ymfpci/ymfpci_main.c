@@ -122,14 +122,14 @@ static u32 snd_ymfpci_calc_delta(u32 rate)
 	}
 }
 
-static u32 def_rate[8] = {
+static const u32 def_rate[8] = {
 	100, 2000, 8000, 11025, 16000, 22050, 32000, 48000
 };
 
 static u32 snd_ymfpci_calc_lpfK(u32 rate)
 {
 	u32 i;
-	static u32 val[8] = {
+	static const u32 val[8] = {
 		0x00570000, 0x06AA0000, 0x18B20000, 0x20930000,
 		0x2B9A0000, 0x35A10000, 0x3EAA0000, 0x40000000
 	};
@@ -145,7 +145,7 @@ static u32 snd_ymfpci_calc_lpfK(u32 rate)
 static u32 snd_ymfpci_calc_lpfQ(u32 rate)
 {
 	u32 i;
-	static u32 val[8] = {
+	static const u32 val[8] = {
 		0x35280000, 0x34A70000, 0x32020000, 0x31770000,
 		0x31390000, 0x31C90000, 0x33D00000, 0x40000000
 	};
@@ -2234,7 +2234,7 @@ static int snd_ymfpci_dev_free(struct snd_device *device)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int saved_regs_index[] = {
+static const int saved_regs_index[] = {
 	/* spdif */
 	YDSXGR_SPDIFOUTCTRL,
 	YDSXGR_SPDIFOUTSTATUS,
