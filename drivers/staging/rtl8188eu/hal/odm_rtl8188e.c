@@ -303,6 +303,7 @@ void rtl88eu_dm_antenna_diversity(struct odm_dm_struct *dm_odm)
 
 	if (!(dm_odm->SupportAbility & ODM_BB_ANT_DIV))
 		return;
+
 	if (!dm_odm->bLinked) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
 			     ("ODM_AntennaDiversity_88E(): No Link.\n"));
@@ -318,19 +319,20 @@ void rtl88eu_dm_antenna_diversity(struct odm_dm_struct *dm_odm)
 			dm_fat_tbl->bBecomeLinked = dm_odm->bLinked;
 		}
 		return;
-	} else {
-		if (!dm_fat_tbl->bBecomeLinked) {
-			ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
-				     ("Need to Turn on HW AntDiv\n"));
-			phy_set_bb_reg(adapter, ODM_REG_IGI_A_11N, BIT(7), 1);
-			phy_set_bb_reg(adapter, ODM_REG_CCK_ANTDIV_PARA1_11N,
-				       BIT(15), 1);
-			if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV)
-				phy_set_bb_reg(adapter, ODM_REG_TX_ANT_CTRL_11N,
-					       BIT(21), 1);
-			dm_fat_tbl->bBecomeLinked = dm_odm->bLinked;
-		}
 	}
+
+	if (!dm_fat_tbl->bBecomeLinked) {
+		ODM_RT_TRACE(dm_odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
+			     ("Need to Turn on HW AntDiv\n"));
+		phy_set_bb_reg(adapter, ODM_REG_IGI_A_11N, BIT(7), 1);
+		phy_set_bb_reg(adapter, ODM_REG_CCK_ANTDIV_PARA1_11N,
+			       BIT(15), 1);
+		if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV)
+			phy_set_bb_reg(adapter, ODM_REG_TX_ANT_CTRL_11N,
+				       BIT(21), 1);
+		dm_fat_tbl->bBecomeLinked = dm_odm->bLinked;
+	}
+
 	if ((dm_odm->AntDivType == CG_TRX_HW_ANTDIV) ||
 	    (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV))
 		rtl88eu_dm_hw_ant_div(dm_odm);
