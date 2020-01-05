@@ -3745,7 +3745,7 @@ static struct cs_card_type cards[] = {
  * APM support
  */
 #ifdef CONFIG_PM_SLEEP
-static unsigned int saved_regs[] = {
+static const unsigned int saved_regs[] = {
 	BA0_ACOSV,
 	/*BA0_ASER_FADDR,*/
 	BA0_ASER_MASTER,
