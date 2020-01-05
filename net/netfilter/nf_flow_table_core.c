@@ -61,9 +61,9 @@ struct flow_offload *flow_offload_alloc(struct nf_conn *ct)
 	flow_offload_fill_dir(flow, FLOW_OFFLOAD_DIR_REPLY);
 
 	if (ct->status & IPS_SRC_NAT)
-		flow->flags |= FLOW_OFFLOAD_SNAT;
+		__set_bit(NF_FLOW_SNAT, &flow->flags);
 	if (ct->status & IPS_DST_NAT)
-		flow->flags |= FLOW_OFFLOAD_DNAT;
+		__set_bit(NF_FLOW_DNAT, &flow->flags);
 
 	return flow;
 
@@ -269,7 +269,7 @@ static void flow_offload_del(struct nf_flowtable *flow_table,
 
 	if (nf_flow_has_expired(flow))
 		flow_offload_fixup_ct(flow->ct);
-	else if (flow->flags & FLOW_OFFLOAD_TEARDOWN)
+	else if (test_bit(NF_FLOW_TEARDOWN, &flow->flags))
 		flow_offload_fixup_ct_timeout(flow->ct);
 
 	flow_offload_free(flow);
@@ -277,7 +277,7 @@ static void flow_offload_del(struct nf_flowtable *flow_table,
 
 void flow_offload_teardown(struct flow_offload *flow)
 {
-	flow->flags |= FLOW_OFFLOAD_TEARDOWN;
+	set_bit(NF_FLOW_TEARDOWN, &flow->flags);
 
 	flow_offload_fixup_ct_state(flow->ct);
 }
@@ -298,7 +298,7 @@ flow_offload_lookup(struct nf_flowtable *flow_table,
 
 	dir = tuplehash->tuple.dir;
 	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
-	if (flow->flags & FLOW_OFFLOAD_TEARDOWN)
+	if (test_bit(NF_FLOW_TEARDOWN, &flow->flags))
 		return NULL;
 
 	if (unlikely(nf_ct_is_dying(flow->ct)))
@@ -347,16 +347,16 @@ static void nf_flow_offload_gc_step(struct flow_offload *flow, void *data)
 	struct nf_flowtable *flow_table = data;
 
 	if (nf_flow_has_expired(flow) || nf_ct_is_dying(flow->ct) ||
-	    (flow->flags & FLOW_OFFLOAD_TEARDOWN)) {
-		if (flow->flags & FLOW_OFFLOAD_HW) {
-			if (!(flow->flags & FLOW_OFFLOAD_HW_DYING))
+	    test_bit(NF_FLOW_TEARDOWN, &flow->flags)) {
+		if (test_bit(NF_FLOW_HW, &flow->flags)) {
+			if (!test_bit(NF_FLOW_HW_DYING, &flow->flags))
 				nf_flow_offload_del(flow_table, flow);
-			else if (flow->flags & FLOW_OFFLOAD_HW_DEAD)
+			else if (test_bit(NF_FLOW_HW_DEAD, &flow->flags))
 				flow_offload_del(flow_table, flow);
 		} else {
 			flow_offload_del(flow_table, flow);
 		}
-	} else if (flow->flags & FLOW_OFFLOAD_HW) {
+	} else if (test_bit(NF_FLOW_HW, &flow->flags)) {
 		nf_flow_offload_stats(flow_table, flow);
 	}
 }

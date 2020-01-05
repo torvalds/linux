@@ -450,16 +450,16 @@ int nf_flow_rule_route_ipv4(struct net *net, const struct flow_offload *flow,
 	    flow_offload_eth_dst(net, flow, dir, flow_rule) < 0)
 		return -1;
 
-	if (flow->flags & FLOW_OFFLOAD_SNAT) {
+	if (test_bit(NF_FLOW_SNAT, &flow->flags)) {
 		flow_offload_ipv4_snat(net, flow, dir, flow_rule);
 		flow_offload_port_snat(net, flow, dir, flow_rule);
 	}
-	if (flow->flags & FLOW_OFFLOAD_DNAT) {
+	if (test_bit(NF_FLOW_DNAT, &flow->flags)) {
 		flow_offload_ipv4_dnat(net, flow, dir, flow_rule);
 		flow_offload_port_dnat(net, flow, dir, flow_rule);
 	}
-	if (flow->flags & FLOW_OFFLOAD_SNAT ||
-	    flow->flags & FLOW_OFFLOAD_DNAT)
+	if (test_bit(NF_FLOW_SNAT, &flow->flags) ||
+	    test_bit(NF_FLOW_DNAT, &flow->flags))
 		flow_offload_ipv4_checksum(net, flow, flow_rule);
 
 	flow_offload_redirect(flow, dir, flow_rule);
@@ -476,11 +476,11 @@ int nf_flow_rule_route_ipv6(struct net *net, const struct flow_offload *flow,
 	    flow_offload_eth_dst(net, flow, dir, flow_rule) < 0)
 		return -1;
 
-	if (flow->flags & FLOW_OFFLOAD_SNAT) {
+	if (test_bit(NF_FLOW_SNAT, &flow->flags)) {
 		flow_offload_ipv6_snat(net, flow, dir, flow_rule);
 		flow_offload_port_snat(net, flow, dir, flow_rule);
 	}
-	if (flow->flags & FLOW_OFFLOAD_DNAT) {
+	if (test_bit(NF_FLOW_DNAT, &flow->flags)) {
 		flow_offload_ipv6_dnat(net, flow, dir, flow_rule);
 		flow_offload_port_dnat(net, flow, dir, flow_rule);
 	}
@@ -636,7 +636,7 @@ static void flow_offload_tuple_del(struct flow_offload_work *offload,
 	list_for_each_entry(block_cb, &flowtable->flow_block.cb_list, list)
 		block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow, block_cb->cb_priv);
 
-	offload->flow->flags |= FLOW_OFFLOAD_HW_DEAD;
+	set_bit(NF_FLOW_HW_DEAD, &offload->flow->flags);
 }
 
 static int flow_offload_rule_add(struct flow_offload_work *offload,
@@ -723,7 +723,7 @@ static void flow_offload_work_handler(struct work_struct *work)
 		case FLOW_CLS_REPLACE:
 			ret = flow_offload_work_add(offload);
 			if (ret < 0)
-				offload->flow->flags &= ~FLOW_OFFLOAD_HW;
+				__clear_bit(NF_FLOW_HW, &offload->flow->flags);
 			break;
 		case FLOW_CLS_DESTROY:
 			flow_offload_work_del(offload);
@@ -776,7 +776,7 @@ void nf_flow_offload_add(struct nf_flowtable *flowtable,
 	if (!offload)
 		return;
 
-	flow->flags |= FLOW_OFFLOAD_HW;
+	__set_bit(NF_FLOW_HW, &flow->flags);
 	flow_offload_queue_work(offload);
 }
 
@@ -789,7 +789,7 @@ void nf_flow_offload_del(struct nf_flowtable *flowtable,
 	if (!offload)
 		return;
 
-	flow->flags |= FLOW_OFFLOAD_HW_DYING;
+	set_bit(NF_FLOW_HW_DYING, &flow->flags);
 	flow_offload_queue_work(offload);
 }
 

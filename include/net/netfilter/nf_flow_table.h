@@ -83,12 +83,14 @@ struct flow_offload_tuple_rhash {
 	struct flow_offload_tuple	tuple;
 };
 
-#define FLOW_OFFLOAD_SNAT	0x1
-#define FLOW_OFFLOAD_DNAT	0x2
-#define FLOW_OFFLOAD_TEARDOWN	0x8
-#define FLOW_OFFLOAD_HW		0x10
-#define FLOW_OFFLOAD_HW_DYING	0x20
-#define FLOW_OFFLOAD_HW_DEAD	0x40
+enum nf_flow_flags {
+	NF_FLOW_SNAT,
+	NF_FLOW_DNAT,
+	NF_FLOW_TEARDOWN,
+	NF_FLOW_HW,
+	NF_FLOW_HW_DYING,
+	NF_FLOW_HW_DEAD,
+};
 
 enum flow_offload_type {
 	NF_FLOW_OFFLOAD_UNSPEC	= 0,
@@ -98,7 +100,7 @@ enum flow_offload_type {
 struct flow_offload {
 	struct flow_offload_tuple_rhash		tuplehash[FLOW_OFFLOAD_DIR_MAX];
 	struct nf_conn				*ct;
-	u16					flags;
+	unsigned long				flags;
 	u16					type;
 	u32					timeout;
 	struct rcu_head				rcu_head;
