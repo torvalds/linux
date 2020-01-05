@@ -759,7 +759,7 @@ struct hl_userptr {
  * @aborted: true if CS was aborted due to some device error.
  */
 struct hl_cs {
-	u8			jobs_in_queue_cnt[HL_MAX_QUEUES];
+	u16			jobs_in_queue_cnt[HL_MAX_QUEUES];
 	struct hl_ctx		*ctx;
 	struct list_head	job_list;
 	spinlock_t		job_lock;
