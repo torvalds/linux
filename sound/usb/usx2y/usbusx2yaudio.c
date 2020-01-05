@@ -549,7 +549,7 @@ static int snd_usX2Y_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
  * if sg buffer is supported on the later version of alsa, we'll follow
  * that.
  */
-static struct s_c2
+static const struct s_c2
 {
 	char c1, c2;
 }
@@ -589,7 +589,7 @@ static struct s_c2
 	{ 0x18, 0x7C},
 	{ 0x18, 0x7E}
 };
-static struct s_c2 SetRate48000[] =
+static const struct s_c2 SetRate48000[] =
 {
 	{ 0x14, 0x09},	// this line sets 48000, well actually a little less
 	{ 0x18, 0x40},	// only tascam / frontier design knows the further lines .......
@@ -642,7 +642,7 @@ static int usX2Y_rate_set(struct usX2Ydev *usX2Y, int rate)
 	int			err = 0, i;
 	struct snd_usX2Y_urbSeq	*us = NULL;
 	int			*usbdata = NULL;
-	struct s_c2		*ra = rate == 48000 ? SetRate48000 : SetRate44100;
+	const struct s_c2	*ra = rate == 48000 ? SetRate48000 : SetRate44100;
 
 	if (usX2Y->rate != rate) {
 		us = kzalloc(sizeof(*us) + sizeof(struct urb*) * NOOF_SETRATE_URBS, GFP_KERNEL);
