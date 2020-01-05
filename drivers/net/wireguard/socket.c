@@ -333,6 +333,7 @@ static int wg_receive(struct sock *sk, struct sk_buff *skb)
 	wg = sk->sk_user_data;
 	if (unlikely(!wg))
 		goto err;
+	skb_mark_not_on_list(skb);
 	wg_packet_receive(wg, skb);
 	return 0;
 

@@ -21,6 +21,7 @@
 #include <sys/reboot.h>
 #include <sys/utsname.h>
 #include <sys/sendfile.h>
+#include <sys/sysmacros.h>
 #include <linux/random.h>
 #include <linux/version.h>
 
