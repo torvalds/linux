@@ -184,7 +184,7 @@ struct snd_cs4231 {
  *  Some variables
  */
 
-static unsigned char freq_bits[14] = {
+static const unsigned char freq_bits[14] = {
 	/* 5510 */	0x00 | CS4231_XTAL2,
 	/* 6620 */	0x0E | CS4231_XTAL2,
 	/* 8000 */	0x00 | CS4231_XTAL1,
@@ -218,7 +218,7 @@ static int snd_cs4231_xrate(struct snd_pcm_runtime *runtime)
 					  &hw_constraints_rates);
 }
 
-static unsigned char snd_cs4231_original_image[32] =
+static const unsigned char snd_cs4231_original_image[32] =
 {
 	0x00,			/* 00/00 - lic */
 	0x00,			/* 01/01 - ric */
