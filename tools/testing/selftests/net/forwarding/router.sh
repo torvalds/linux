@@ -8,6 +8,7 @@ ALL_TESTS="
 	mc_mac_mismatch
 	ipv4_sip_equal_dip
 	ipv6_sip_equal_dip
+	ipv4_dip_link_local
 "
 
 NUM_NETIFS=4
@@ -285,6 +286,30 @@ ipv6_sip_equal_dip()
 	log_test "Source IP is equal to destination IP: IPv6"
 
 	tc filter del dev $rp2 egress protocol ipv6 pref 1 handle 101 flower
+}
+
+ipv4_dip_link_local()
+{
+	local dip=169.254.1.1
+
+	RET=0
+
+	tc filter add dev $rp2 egress protocol ip pref 1 handle 101 \
+		flower dst_ip $dip action pass
+
+	ip neigh add 169.254.1.1 lladdr 00:11:22:33:44:55 dev $rp2
+	ip route add 169.254.1.0/24 dev $rp2
+
+	$MZ $h1 -t udp "sp=54321,dp=12345" -c 5 -d 1msec -b $rp1mac -B $dip -q
+
+	tc_check_packets "dev $rp2 egress" 101 5
+	check_err $? "Packets were dropped"
+
+	log_test "IPv4 destination IP is link-local"
+
+	ip route del 169.254.1.0/24 dev $rp2
+	ip neigh del 169.254.1.1 lladdr 00:11:22:33:44:55 dev $rp2
+	tc filter del dev $rp2 egress protocol ip pref 1 handle 101 flower
 }
 
 trap cleanup EXIT
