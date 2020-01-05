@@ -1407,7 +1407,7 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 		.write = snd_atiixp_ac97_write,
 		.read = snd_atiixp_ac97_read,
 	};
-	static unsigned int codec_skip[NUM_ATI_CODECS] = {
+	static const unsigned int codec_skip[NUM_ATI_CODECS] = {
 		ATI_REG_ISR_CODEC0_NOT_READY,
 		ATI_REG_ISR_CODEC1_NOT_READY,
 		ATI_REG_ISR_CODEC2_NOT_READY,
