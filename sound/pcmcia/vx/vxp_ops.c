@@ -15,7 +15,7 @@
 #include "vxpocket.h"
 
 
-static int vxp_reg_offset[VX_REG_MAX] = {
+static const int vxp_reg_offset[VX_REG_MAX] = {
 	[VX_ICR]	= 0x00,		// ICR
 	[VX_CVR]	= 0x01,		// CVR
 	[VX_ISR]	= 0x02,		// ISR
