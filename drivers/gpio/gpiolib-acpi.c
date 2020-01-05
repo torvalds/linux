@@ -24,6 +24,8 @@
 
 #include "gpiolib.h"
 
+#define QUIRK_NO_EDGE_EVENTS_ON_BOOT		0x01l
+
 static int run_edge_events_on_boot = -1;
 module_param(run_edge_events_on_boot, int, 0444);
 MODULE_PARM_DESC(run_edge_events_on_boot,
@@ -1263,7 +1265,7 @@ static int acpi_gpio_handle_deferred_request_irqs(void)
 /* We must use _sync so that this runs after the first deferred_probe run */
 late_initcall_sync(acpi_gpio_handle_deferred_request_irqs);
 
-static const struct dmi_system_id run_edge_events_on_boot_blacklist[] = {
+static const struct dmi_system_id gpiolib_acpi_quirks[] = {
 	{
 		/*
 		 * The Minix Neo Z83-4 has a micro-USB-B id-pin handler for
@@ -1273,7 +1275,8 @@ static const struct dmi_system_id run_edge_events_on_boot_blacklist[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MINIX"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
-		}
+		},
+		.driver_data = (void *)QUIRK_NO_EDGE_EVENTS_ON_BOOT,
 	},
 	{
 		/*
@@ -1285,15 +1288,23 @@ static const struct dmi_system_id run_edge_events_on_boot_blacklist[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Wortmann_AG"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TERRA_PAD_1061"),
-		}
+		},
+		.driver_data = (void *)QUIRK_NO_EDGE_EVENTS_ON_BOOT,
 	},
 	{} /* Terminating entry */
 };
 
 static int acpi_gpio_setup_params(void)
 {
+	const struct dmi_system_id *id;
+	long quirks = 0;
+
+	id = dmi_first_match(gpiolib_acpi_quirks);
+	if (id)
+		quirks = (long)id->driver_data;
+
 	if (run_edge_events_on_boot < 0) {
-		if (dmi_check_system(run_edge_events_on_boot_blacklist))
+		if (quirks & QUIRK_NO_EDGE_EVENTS_ON_BOOT)
 			run_edge_events_on_boot = 0;
 		else
 			run_edge_events_on_boot = 1;
