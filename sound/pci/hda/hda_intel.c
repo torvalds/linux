@@ -372,7 +372,7 @@ enum {
 
 #define IS_BXT(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x5a98)
 
-static char *driver_short_names[] = {
+static const char * const driver_short_names[] = {
 	[AZX_DRIVER_ICH] = "HDA Intel",
 	[AZX_DRIVER_PCH] = "HDA Intel PCH",
 	[AZX_DRIVER_SCH] = "HDA Intel MID",
@@ -499,7 +499,7 @@ static void bxt_reduce_dma_latency(struct azx *chip)
 static int intel_get_lctl_scf(struct azx *chip)
 {
 	struct hdac_bus *bus = azx_bus(chip);
-	static int preferred_bits[] = { 2, 3, 1, 4, 5 };
+	static const int preferred_bits[] = { 2, 3, 1, 4, 5 };
 	u32 val, t;
 	int i;
 
@@ -1564,7 +1564,7 @@ static int check_position_fix(struct azx *chip, int fix)
 
 static void assign_position_fix(struct azx *chip, int fix)
 {
-	static azx_get_pos_callback_t callbacks[] = {
+	static const azx_get_pos_callback_t callbacks[] = {
 		[POS_FIX_AUTO] = NULL,
 		[POS_FIX_LPIB] = azx_get_pos_lpib,
 		[POS_FIX_POSBUF] = azx_get_pos_posbuf,
@@ -2231,7 +2231,7 @@ static void set_default_power_save(struct azx *chip)
 }
 
 /* number of codec slots for each chipset: 0 = default slots (i.e. 4) */
-static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] = {
+static const unsigned int azx_max_codecs[AZX_NUM_DRIVERS] = {
 	[AZX_DRIVER_NVIDIA] = 8,
 	[AZX_DRIVER_TERA] = 1,
 };
