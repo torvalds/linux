@@ -379,25 +379,29 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 		clear_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags);
 		if (vsi->current_netdev_flags & IFF_PROMISC) {
 			/* Apply Rx filter rule to get traffic from wire */
-			status = ice_cfg_dflt_vsi(hw, vsi->idx, true,
-						  ICE_FLTR_RX);
-			if (status) {
-				netdev_err(netdev, "Error setting default VSI %i Rx rule\n",
-					   vsi->vsi_num);
-				vsi->current_netdev_flags &= ~IFF_PROMISC;
-				err = -EIO;
-				goto out_promisc;
+			if (!ice_is_dflt_vsi_in_use(pf->first_sw)) {
+				err = ice_set_dflt_vsi(pf->first_sw, vsi);
+				if (err && err != -EEXIST) {
+					netdev_err(netdev,
+						   "Error %d setting default VSI %i Rx rule\n",
+						   err, vsi->vsi_num);
+					vsi->current_netdev_flags &=
+						~IFF_PROMISC;
+					goto out_promisc;
+				}
 			}
 		} else {
 			/* Clear Rx filter to remove traffic from wire */
-			status = ice_cfg_dflt_vsi(hw, vsi->idx, false,
-						  ICE_FLTR_RX);
-			if (status) {
-				netdev_err(netdev, "Error clearing default VSI %i Rx rule\n",
-					   vsi->vsi_num);
-				vsi->current_netdev_flags |= IFF_PROMISC;
-				err = -EIO;
-				goto out_promisc;
+			if (ice_is_vsi_dflt_vsi(pf->first_sw, vsi)) {
+				err = ice_clear_dflt_vsi(pf->first_sw);
+				if (err) {
+					netdev_err(netdev,
+						   "Error %d clearing default VSI %i Rx rule\n",
+						   err, vsi->vsi_num);
+					vsi->current_netdev_flags |=
+						IFF_PROMISC;
+					goto out_promisc;
+				}
 			}
 		}
 	}
@@ -472,7 +476,7 @@ ice_prepare_for_reset(struct ice_pf *pf)
 		ice_vc_notify_reset(pf);
 
 	/* Disable VFs until reset is completed */
-	for (i = 0; i < pf->num_alloc_vfs; i++)
+	ice_for_each_vf(pf, i)
 		ice_set_vf_state_qs_dis(&pf->vf[i]);
 
 	/* clear SW filtering DB */
@@ -840,8 +844,7 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	ice_vsi_link_event(vsi, link_up);
 	ice_print_link_msg(vsi, link_up);
 
-	if (pf->num_alloc_vfs)
-		ice_vc_notify_link_state(pf);
+	ice_vc_notify_link_state(pf);
 
 	return result;
 }
@@ -1291,7 +1294,7 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 	}
 
 	/* check to see if one of the VFs caused the MDD */
-	for (i = 0; i < pf->num_alloc_vfs; i++) {
+	ice_for_each_vf(pf, i) {
 		struct ice_vf *vf = &pf->vf[i];
 
 		bool vf_mdd_detected = false;
@@ -2330,7 +2333,8 @@ static void ice_set_netdev_features(struct net_device *netdev)
 			 NETIF_F_HW_VLAN_CTAG_TX     |
 			 NETIF_F_HW_VLAN_CTAG_RX;
 
-	tso_features = NETIF_F_TSO;
+	tso_features = NETIF_F_TSO		|
+		       NETIF_F_GSO_UDP_L4;
 
 	/* set features that user can change */
 	netdev->hw_features = dflt_features | csumo_features |
@@ -3568,6 +3572,15 @@ static const struct pci_device_id ice_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_BACKPLANE), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_QSFP), 0 },
 	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_BACKPLANE), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_QSFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_10G_BASE_T), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822C_SGMII), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822X_BACKPLANE), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822L_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822L_10G_BASE_T), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E822L_SGMII), 0 },
 	/* required last entry */
 	{ 0, }
 };
@@ -4670,6 +4683,13 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 		goto err_init_ctrlq;
 	}
 
+	if (pf->first_sw->dflt_vsi_ena)
+		dev_info(dev,
+			 "Clearing default VSI, re-enable after reset completes\n");
+	/* clear the default VSI configuration if it exists */
+	pf->first_sw->dflt_vsi = NULL;
+	pf->first_sw->dflt_vsi_ena = false;
+
 	ice_clear_pxe_mode(hw);
 
 	ret = ice_get_caps(hw);
@@ -4825,7 +4845,7 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 		}
 	}
 
-	netdev_info(netdev, "changed MTU to %d\n", new_mtu);
+	netdev_dbg(netdev, "changed MTU to %d\n", new_mtu);
 	return 0;
 }
 

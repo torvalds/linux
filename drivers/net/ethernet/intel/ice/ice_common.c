@@ -7,25 +7,6 @@
 
 #define ICE_PF_RESET_WAIT_COUNT	200
 
-#define ICE_PROG_FLEX_ENTRY(hw, rxdid, mdid, idx) \
-	wr32((hw), GLFLXP_RXDID_FLX_WRD_##idx(rxdid), \
-	     ((ICE_RX_OPC_MDID << \
-	       GLFLXP_RXDID_FLX_WRD_##idx##_RXDID_OPCODE_S) & \
-	      GLFLXP_RXDID_FLX_WRD_##idx##_RXDID_OPCODE_M) | \
-	     (((mdid) << GLFLXP_RXDID_FLX_WRD_##idx##_PROT_MDID_S) & \
-	      GLFLXP_RXDID_FLX_WRD_##idx##_PROT_MDID_M))
-
-#define ICE_PROG_FLG_ENTRY(hw, rxdid, flg_0, flg_1, flg_2, flg_3, idx) \
-	wr32((hw), GLFLXP_RXDID_FLAGS(rxdid, idx), \
-	     (((flg_0) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_S) & \
-	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_M) | \
-	     (((flg_1) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_1_S) & \
-	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_1_M) | \
-	     (((flg_2) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_2_S) & \
-	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_2_M) | \
-	     (((flg_3) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_3_S) & \
-	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_3_M))
-
 /**
  * ice_set_mac_type - Sets MAC type
  * @hw: pointer to the HW structure
@@ -345,88 +326,6 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 	pi->phy.get_link_info = false;
 
 	return 0;
-}
-
-/**
- * ice_init_flex_flags
- * @hw: pointer to the hardware structure
- * @prof_id: Rx Descriptor Builder profile ID
- *
- * Function to initialize Rx flex flags
- */
-static void ice_init_flex_flags(struct ice_hw *hw, enum ice_rxdid prof_id)
-{
-	u8 idx = 0;
-
-	/* Flex-flag fields (0-2) are programmed with FLG64 bits with layout:
-	 * flexiflags0[5:0] - TCP flags, is_packet_fragmented, is_packet_UDP_GRE
-	 * flexiflags1[3:0] - Not used for flag programming
-	 * flexiflags2[7:0] - Tunnel and VLAN types
-	 * 2 invalid fields in last index
-	 */
-	switch (prof_id) {
-	/* Rx flex flags are currently programmed for the NIC profiles only.
-	 * Different flag bit programming configurations can be added per
-	 * profile as needed.
-	 */
-	case ICE_RXDID_FLEX_NIC:
-	case ICE_RXDID_FLEX_NIC_2:
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_PKT_FRG,
-				   ICE_FLG_UDP_GRE, ICE_FLG_PKT_DSI,
-				   ICE_FLG_FIN, idx++);
-		/* flex flag 1 is not used for flexi-flag programming, skipping
-		 * these four FLG64 bits.
-		 */
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_SYN, ICE_FLG_RST,
-				   ICE_FLG_PKT_DSI, ICE_FLG_PKT_DSI, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_PKT_DSI,
-				   ICE_FLG_PKT_DSI, ICE_FLG_EVLAN_x8100,
-				   ICE_FLG_EVLAN_x9100, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_VLAN_x8100,
-				   ICE_FLG_TNL_VLAN, ICE_FLG_TNL_MAC,
-				   ICE_FLG_TNL0, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_TNL1, ICE_FLG_TNL2,
-				   ICE_FLG_PKT_DSI, ICE_FLG_PKT_DSI, idx);
-		break;
-
-	default:
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Flag programming for profile ID %d not supported\n",
-			  prof_id);
-	}
-}
-
-/**
- * ice_init_flex_flds
- * @hw: pointer to the hardware structure
- * @prof_id: Rx Descriptor Builder profile ID
- *
- * Function to initialize flex descriptors
- */
-static void ice_init_flex_flds(struct ice_hw *hw, enum ice_rxdid prof_id)
-{
-	enum ice_flex_rx_mdid mdid;
-
-	switch (prof_id) {
-	case ICE_RXDID_FLEX_NIC:
-	case ICE_RXDID_FLEX_NIC_2:
-		ICE_PROG_FLEX_ENTRY(hw, prof_id, ICE_RX_MDID_HASH_LOW, 0);
-		ICE_PROG_FLEX_ENTRY(hw, prof_id, ICE_RX_MDID_HASH_HIGH, 1);
-		ICE_PROG_FLEX_ENTRY(hw, prof_id, ICE_RX_MDID_FLOW_ID_LOWER, 2);
-
-		mdid = (prof_id == ICE_RXDID_FLEX_NIC_2) ?
-			ICE_RX_MDID_SRC_VSI : ICE_RX_MDID_FLOW_ID_HIGH;
-
-		ICE_PROG_FLEX_ENTRY(hw, prof_id, mdid, 3);
-
-		ice_init_flex_flags(hw, prof_id);
-		break;
-
-	default:
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Field init for profile ID %d not supported\n",
-			  prof_id);
-	}
 }
 
 /**
@@ -882,9 +781,6 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
-
-	ice_init_flex_flds(hw, ICE_RXDID_FLEX_NIC);
-	ice_init_flex_flds(hw, ICE_RXDID_FLEX_NIC_2);
 	status = ice_init_hw_tbls(hw);
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
