@@ -1579,6 +1579,7 @@ int ima_policy_show(struct seq_file *m, void *v)
 					   (char *)entry->lsm[i].args_p);
 				break;
 			}
+			seq_puts(m, " ");
 		}
 	}
 	if (entry->template)
