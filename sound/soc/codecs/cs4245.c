@@ -654,7 +654,7 @@ static int cs4245_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(&i2c_client->dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
-// Temp: Reset on Odroid C2 is GPIOX.21 => gpio249
+// Temp: Reset on Odroid C2 is GPIOX.21 => gpio491
 	cs4245->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
 		"reset", GPIOD_OUT_LOW);
 	if (IS_ERR(cs4245->reset_gpio))

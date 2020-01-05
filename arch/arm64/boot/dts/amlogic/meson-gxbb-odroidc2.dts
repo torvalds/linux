@@ -110,21 +110,39 @@
 			};
 		};
 	};
+// github.com/LibreELEC/linux-amlogic/blob/amlogic-3.14.y/arch/arm64/boot/dts/meson64-odroidc2.dts
+// github.com/hardkernel/linux/blob/odroidc2-v3.16y/arch/arm64/boot/dts/meson64-odroidc2.dts
 
 	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "meson-gx-audio";
+		compatible = "amlogic,meson-aiu-i2s";
+//		simple-audio-card,name = "meson-aiu-i2s";
 
 		assigned-clocks = <&clkc CLKID_MPLL2>,
 				  <&clkc CLKID_MPLL0>,
 				  <&clkc CLKID_MPLL1>;
+//				  <&clkc CLKID_AMCLK>; //libreelec
 		assigned-clock-parents = <0>, <0>, <0>;
 		assigned-clock-rates = <294912000>,
 				       <270950400>,
 				       <393216000>;
 
-		simple-audio-card,dai-link@0 {
-			/* HDMI Output */
+		gpios = <&gpio GPIOX_3 0>,	//LOWA
+			<&gpio GPIOX_1 1>,	//MIDA
+			<&gpio GPIOX_7 0>,	//LOWB
+			<&gpio GPIOX_4 1>,	//MIDB
+			<&gpio GPIOX_8 0>,	//MICA
+			<&gpio GPIOX_5 0>,	//INSTA
+			<&gpio GPIOX_19 0>,	//MICB
+			<&gpio GPIOX_11 0>,	//INSTB
+			<&gpio GPIOY_3 0>,	//TBPASSA
+			<&gpio GPIOY_7 0>,	//TBPASSB
+			<&gpio GPIOX_0 0>,	//HP_CLK
+			<&gpio GPIOY_8 1>,	//HP_ENA
+			<&gpio GPIOX_6 0>;	//HP_UP_DN
+
+
+		dai-link@0 {
+			/* I2S Output */
 			format = "i2s";
 			mclk-fs = <256>;
 			bitclock-master = <&aiu_i2s>;
@@ -135,30 +153,18 @@
 			};
 
 			codec {
-				sound-dai = <&aiu_i2s>;
+				sound-dai = <&cs4245>;
 			};
 		};
 	};	
-	
-	codec_ad00: cs4245@4c {
+	cs4245: cs4245@4c {
+		#sound-dai-cells = <0>;
 		compatible = "cirrus,cs4245";
 		reg = <0x4c>;
 		reset-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_LOW>;
-	};
-	codec_ad01: cs4245@4d {
-		compatible = "cirrus,cs4245";
-		reg = <0x4d>;
-		reset-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_LOW>;
-	};
-	codec_ad10: cs4245@4e {
-		compatible = "cirrus,cs4245";
-		reg = <0x4e>;
-		reset-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_LOW>;
-	};
-	codec_ad11: cs4245@4f {
-		compatible = "cirrus,cs4245";
-		reg = <0x4f>;
-		reset-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_LOW>;
+		reset-delay-us = <10000>;
+		reset-active-low;
+		default-state = "off";
 	};
 };
 
