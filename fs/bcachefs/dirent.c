@@ -331,7 +331,9 @@ int bch2_empty_dir_trans(struct btree_trans *trans, u64 dir_inum)
 			break;
 		}
 	}
-	bch2_trans_iter_put(trans, iter);
+
+	if (!IS_ERR(iter))
+		bch2_trans_iter_put(trans, iter);
 
 	return ret;
 }
