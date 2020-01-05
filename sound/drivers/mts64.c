@@ -261,7 +261,7 @@ static int mts64_device_close(struct mts64 *mts)
  */
 static u8 mts64_map_midi_input(u8 c)
 {
-	static u8 map[] = { 0, 1, 4, 2, 3 };
+	static const u8 map[] = { 0, 1, 4, 2, 3 };
 
 	return map[c];
 }
@@ -353,7 +353,7 @@ static void mts64_smpte_start(struct parport *p,
 			      u8 seconds, u8 frames,
 			      u8 idx)
 {
-	static u8 fps[5] = { MTS64_CMD_SMPTE_FPS_24, 
+	static const u8 fps[5] = { MTS64_CMD_SMPTE_FPS_24,
 			     MTS64_CMD_SMPTE_FPS_25,
 			     MTS64_CMD_SMPTE_FPS_2997, 
 			     MTS64_CMD_SMPTE_FPS_30D,
