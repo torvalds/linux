@@ -377,8 +377,12 @@ struct io_connect {
 
 struct io_sr_msg {
 	struct file			*file;
-	struct user_msghdr __user	*msg;
+	union {
+		struct user_msghdr __user *msg;
+		void __user		*buf;
+	};
 	int				msg_flags;
+	size_t				len;
 };
 
 struct io_open {
@@ -691,6 +695,18 @@ static const struct io_op_def io_op_defs[] = {
 	{
 		/* IORING_OP_MADVISE */
 		.needs_mm		= 1,
+	},
+	{
+		/* IORING_OP_SEND */
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
+	{
+		/* IORING_OP_RECV */
+		.needs_mm		= 1,
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
 	},
 };
 
@@ -2802,8 +2818,9 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	sr->msg = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	sr->len = READ_ONCE(sqe->len);
 
-	if (!io)
+	if (!io || req->opcode == IORING_OP_SEND)
 		return 0;
 
 	io->msg.iov = io->msg.fast_iov;
@@ -2883,6 +2900,56 @@ static int io_sendmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 #endif
 }
 
+static int io_send(struct io_kiocb *req, struct io_kiocb **nxt,
+		   bool force_nonblock)
+{
+#if defined(CONFIG_NET)
+	struct socket *sock;
+	int ret;
+
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+
+	sock = sock_from_file(req->file, &ret);
+	if (sock) {
+		struct io_sr_msg *sr = &req->sr_msg;
+		struct msghdr msg;
+		struct iovec iov;
+		unsigned flags;
+
+		ret = import_single_range(WRITE, sr->buf, sr->len, &iov,
+						&msg.msg_iter);
+		if (ret)
+			return ret;
+
+		msg.msg_name = NULL;
+		msg.msg_control = NULL;
+		msg.msg_controllen = 0;
+		msg.msg_namelen = 0;
+
+		flags = req->sr_msg.msg_flags;
+		if (flags & MSG_DONTWAIT)
+			req->flags |= REQ_F_NOWAIT;
+		else if (force_nonblock)
+			flags |= MSG_DONTWAIT;
+
+		ret = __sys_sendmsg_sock(sock, &msg, flags);
+		if (force_nonblock && ret == -EAGAIN)
+			return -EAGAIN;
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
+	}
+
+	io_cqring_add_event(req, ret);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_put_req_find_next(req, nxt);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
 static int io_recvmsg_prep(struct io_kiocb *req,
 			   const struct io_uring_sqe *sqe)
 {
@@ -2893,7 +2960,7 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	sr->msg = u64_to_user_ptr(READ_ONCE(sqe->addr));
 
-	if (!io)
+	if (!io || req->opcode == IORING_OP_RECV)
 		return 0;
 
 	io->msg.iov = io->msg.fast_iov;
@@ -2974,6 +3041,59 @@ static int io_recvmsg(struct io_kiocb *req, struct io_kiocb **nxt,
 	return -EOPNOTSUPP;
 #endif
 }
+
+static int io_recv(struct io_kiocb *req, struct io_kiocb **nxt,
+		   bool force_nonblock)
+{
+#if defined(CONFIG_NET)
+	struct socket *sock;
+	int ret;
+
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+
+	sock = sock_from_file(req->file, &ret);
+	if (sock) {
+		struct io_sr_msg *sr = &req->sr_msg;
+		struct msghdr msg;
+		struct iovec iov;
+		unsigned flags;
+
+		ret = import_single_range(READ, sr->buf, sr->len, &iov,
+						&msg.msg_iter);
+		if (ret)
+			return ret;
+
+		msg.msg_name = NULL;
+		msg.msg_control = NULL;
+		msg.msg_controllen = 0;
+		msg.msg_namelen = 0;
+		msg.msg_iocb = NULL;
+		msg.msg_flags = 0;
+
+		flags = req->sr_msg.msg_flags;
+		if (flags & MSG_DONTWAIT)
+			req->flags |= REQ_F_NOWAIT;
+		else if (force_nonblock)
+			flags |= MSG_DONTWAIT;
+
+		ret = __sys_recvmsg_sock(sock, &msg, NULL, NULL, flags);
+		if (force_nonblock && ret == -EAGAIN)
+			return -EAGAIN;
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
+	}
+
+	io_cqring_add_event(req, ret);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_put_req_find_next(req, nxt);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
 
 static int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
@@ -3811,9 +3931,11 @@ static int io_req_defer_prep(struct io_kiocb *req,
 		ret = io_prep_sfr(req, sqe);
 		break;
 	case IORING_OP_SENDMSG:
+	case IORING_OP_SEND:
 		ret = io_sendmsg_prep(req, sqe);
 		break;
 	case IORING_OP_RECVMSG:
+	case IORING_OP_RECV:
 		ret = io_recvmsg_prep(req, sqe);
 		break;
 	case IORING_OP_CONNECT:
@@ -3956,20 +4078,28 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		ret = io_sync_file_range(req, nxt, force_nonblock);
 		break;
 	case IORING_OP_SENDMSG:
+	case IORING_OP_SEND:
 		if (sqe) {
 			ret = io_sendmsg_prep(req, sqe);
 			if (ret < 0)
 				break;
 		}
-		ret = io_sendmsg(req, nxt, force_nonblock);
+		if (req->opcode == IORING_OP_SENDMSG)
+			ret = io_sendmsg(req, nxt, force_nonblock);
+		else
+			ret = io_send(req, nxt, force_nonblock);
 		break;
 	case IORING_OP_RECVMSG:
+	case IORING_OP_RECV:
 		if (sqe) {
 			ret = io_recvmsg_prep(req, sqe);
 			if (ret)
 				break;
 		}
-		ret = io_recvmsg(req, nxt, force_nonblock);
+		if (req->opcode == IORING_OP_RECVMSG)
+			ret = io_recvmsg(req, nxt, force_nonblock);
+		else
+			ret = io_recv(req, nxt, force_nonblock);
 		break;
 	case IORING_OP_TIMEOUT:
 		if (sqe) {
