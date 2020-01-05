@@ -289,7 +289,7 @@ int rkisp_register_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev,
 	ret = media_create_pad_link(source, RKISP_ISP_PAD_SOURCE_STATS,
 		sink, 0, MEDIA_LNK_FL_ENABLED);
 	if (ret < 0)
-		goto err_cleanup_media_entity;
+		goto err_unregister_video;
 
 	ret = kfifo_alloc(&stats_vdev->rd_kfifo,
 			  RKISP_READOUT_WORK_SIZE,
@@ -298,7 +298,7 @@ int rkisp_register_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev,
 		dev_err(&vdev->dev,
 			"kfifo_alloc failed with error %d\n",
 			ret);
-		goto err_cleanup_media_entity;
+		goto err_unregister_video;
 	}
 
 	tasklet_init(&stats_vdev->rd_tasklet,
@@ -308,10 +308,13 @@ int rkisp_register_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev,
 
 	return 0;
 
+err_unregister_video:
+	video_unregister_device(vdev);
 err_cleanup_media_entity:
 	media_entity_cleanup(&vdev->entity);
 err_release_queue:
 	vb2_queue_release(vdev->queue);
+	rkisp_uninit_stats_vdev(stats_vdev);
 	return ret;
 }
 
@@ -320,10 +323,11 @@ void rkisp_unregister_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 	struct rkisp_vdev_node *node = &stats_vdev->vnode;
 	struct video_device *vdev = &node->vdev;
 
-	rkisp_uninit_stats_vdev(stats_vdev);
 	kfifo_free(&stats_vdev->rd_kfifo);
 	tasklet_kill(&stats_vdev->rd_tasklet);
 	video_unregister_device(vdev);
 	media_entity_cleanup(&vdev->entity);
 	vb2_queue_release(vdev->queue);
+	rkisp_uninit_stats_vdev(stats_vdev);
 }
+

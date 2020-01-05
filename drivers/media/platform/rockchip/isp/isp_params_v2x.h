@@ -169,6 +169,15 @@
 #define ISP2X_ISPPATH_RAWAWB_SEL_SET(x)	(((x) & 0x03) << 20)
 #define ISP2X_ISPPATH_RAWAE_SWAP_SET(x)	(((x) & 0x03) << 22)
 
+#define RKISP_PARAM_3DLUT_BUF_NUM		2
+#define RKISP_PARAM_3DLUT_BUF_SIZE		(9 * 9 * 9 * 4)
+
+#define RKISP_PARAM_LDCH_BUF_NUM		2
+
+#define RKISP_PARAM_LSC_LUT_BUF_NUM		2
+#define RKISP_PARAM_LSC_LUT_TBL_SIZE		(9 * 17)
+#define RKISP_PARAM_LSC_LUT_BUF_SIZE		(RKISP_PARAM_LSC_LUT_TBL_SIZE * 4)
+
 struct rkisp_isp_params_vdev;
 struct rkisp_isp_params_v2x_ops {
 	void (*dpcc_config)(struct rkisp_isp_params_vdev *params_vdev,
@@ -195,13 +204,13 @@ struct rkisp_isp_params_v2x_ops {
 			       const struct isp2x_awb_gain_cfg *arg);
 	void (*awbgain_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			       bool en);
-	void (*bdm_config)(struct rkisp_isp_params_vdev *params_vdev,
-			   const struct isp2x_bdm_config *arg);
-	void (*bdm_enable)(struct rkisp_isp_params_vdev *params_vdev,
-			   bool en);
-	void (*ctk_config)(struct rkisp_isp_params_vdev *params_vdev,
-			   const struct isp2x_ctk_cfg *arg);
-	void (*ctk_enable)(struct rkisp_isp_params_vdev *params_vdev,
+	void (*debayer_config)(struct rkisp_isp_params_vdev *params_vdev,
+			       const struct isp2x_debayer_cfg *arg);
+	void (*debayer_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			       bool en);
+	void (*ccm_config)(struct rkisp_isp_params_vdev *params_vdev,
+			   const struct isp2x_ccm_cfg *arg);
+	void (*ccm_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			   bool en);
 	void (*goc_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct isp2x_gammaout_cfg *arg);
@@ -295,12 +304,34 @@ struct rkisp_isp_params_v2x_ops {
 			    const struct isp2x_dhaz_cfg *arg);
 	void (*dhaz_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			    bool en);
+	void (*gain_config)(struct rkisp_isp_params_vdev *params_vdev,
+			    const struct isp2x_gain_cfg *arg);
+	void (*gain_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			    bool en);
 	void (*isp3dlut_config)(struct rkisp_isp_params_vdev *params_vdev,
 				const struct isp2x_3dlut_cfg *arg);
 	void (*isp3dlut_enable)(struct rkisp_isp_params_vdev *params_vdev,
 				bool en);
+	void (*ldch_config)(struct rkisp_isp_params_vdev *params_vdev,
+			    const struct isp2x_ldch_cfg *arg);
+	void (*ldch_enable)(struct rkisp_isp_params_vdev *params_vdev,
+			    bool en);
+	void (*csm_config)(struct rkisp_isp_params_vdev *params_vdev,
+			   bool full_range);
+};
+
+struct rkisp_isp_params_val_v2x {
+	struct rkisp_dummy_buffer buf_3dlut[RKISP_PARAM_3DLUT_BUF_NUM];
+	u32 buf_3dlut_idx;
+
+	struct rkisp_dummy_buffer buf_ldch[RKISP_PARAM_LDCH_BUF_NUM];
+	u32 buf_ldch_idx;
+
+	struct rkisp_dummy_buffer buf_lsclut[RKISP_PARAM_LSC_LUT_BUF_NUM];
+	u32 buf_lsclut_idx;
 };
 
 void rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev);
+void rkisp_uninit_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev);
 
 #endif /* _RKISP_ISP_PARAM_V2X_H */

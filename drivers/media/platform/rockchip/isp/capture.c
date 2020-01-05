@@ -1514,29 +1514,6 @@ static int mi_frame_end(struct rkisp_stream *stream)
 
 /***************************** vb2 operations*******************************/
 
-static int rkisp_allow_buffer(struct rkisp_device *dev,
-			      struct rkisp_dummy_buffer *buf)
-{
-	int ret = 0;
-
-	buf->vaddr = dma_alloc_coherent(dev->dev, buf->size,
-					&buf->dma_addr, GFP_KERNEL);
-	if (!buf->vaddr)
-		ret = -ENOMEM;
-	return ret;
-}
-
-static void rkisp_free_buffer(struct rkisp_device *dev,
-			      struct rkisp_dummy_buffer *buf)
-{
-	if (buf && buf->vaddr && buf->size) {
-		dma_free_coherent(dev->dev, buf->size,
-				  buf->vaddr, buf->dma_addr);
-		buf->size = 0;
-		buf->vaddr = NULL;
-	}
-}
-
 static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 {
 	int i, j, max_dma, max_buf = 1;
@@ -1557,7 +1534,7 @@ static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 		for (j = 0; j < max_buf; j++) {
 			buf = &dev->hdr.dummy_buf[i][j];
 			buf->size = size;
-			if (rkisp_allow_buffer(dev, buf) < 0) {
+			if (rkisp_alloc_buffer(dev->dev, buf) < 0) {
 				v4l2_err(&dev->v4l2_dev,
 					"Failed to allocate the memory for hdr buffer\n");
 				return -ENOMEM;
@@ -1619,17 +1596,17 @@ void hdr_destroy_buf(struct rkisp_device *dev)
 	for (i = 0; i < max_dma; i++) {
 		buf = dev->hdr.rx_cur_buf[i];
 		if (buf) {
-			rkisp_free_buffer(dev, buf);
+			rkisp_free_buffer(dev->dev, buf);
 			dev->hdr.rx_cur_buf[i] = NULL;
 		}
 
 		for (j = 0; j < max_buf; j++) {
 			buf = hdr_dqbuf(&dev->hdr.q_tx[i]);
 			if (buf)
-				rkisp_free_buffer(dev, buf);
+				rkisp_free_buffer(dev->dev, buf);
 			buf = hdr_dqbuf(&dev->hdr.q_rx[i]);
 			if (buf)
-				rkisp_free_buffer(dev, buf);
+				rkisp_free_buffer(dev->dev, buf);
 		}
 	}
 }
@@ -2015,7 +1992,7 @@ static int rkisp_create_dummy_buf(struct rkisp_stream *stream)
 		dummy_buf->size = max(dummy_buf->size, in_size);
 	}
 
-	if (rkisp_allow_buffer(dev, dummy_buf) < 0) {
+	if (rkisp_alloc_buffer(dev->dev, dummy_buf) < 0) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Failed to allocate the memory for dummy buffer\n");
 		return -ENOMEM;
@@ -2032,7 +2009,7 @@ static void rkisp_destroy_dummy_buf(struct rkisp_stream *stream)
 	struct rkisp_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkisp_device *dev = stream->ispdev;
 
-	rkisp_free_buffer(dev, dummy_buf);
+	rkisp_free_buffer(dev->dev, dummy_buf);
 	if (dev->isp_ver == ISP_V20)
 		hdr_destroy_buf(dev);
 }

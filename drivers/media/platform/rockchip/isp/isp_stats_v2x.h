@@ -15,39 +15,46 @@
 struct rkisp_isp_stats_vdev;
 struct rkisp_stats_v2x_ops {
 	void (*get_siawb_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+			       struct rkisp_isp2x_stat_buffer *pbuf);
 	void (*get_rawawb_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+				struct rkisp_isp2x_stat_buffer *pbuf);
 
 	void (*get_siaf_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+			      struct rkisp_isp2x_stat_buffer *pbuf);
 	void (*get_rawaf_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+			       struct rkisp_isp2x_stat_buffer *pbuf);
 
 	void (*get_yuvae_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+			       struct rkisp_isp2x_stat_buffer *pbuf);
 	void (*get_sihst_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+			       struct rkisp_isp2x_stat_buffer *pbuf);
 
 	void (*get_rawaebig1_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+				   struct rkisp_isp2x_stat_buffer *pbuf);
 	void (*get_rawhstbig1_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+				    struct rkisp_isp2x_stat_buffer *pbuf);
 
 	void (*get_rawaebig2_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+				   struct rkisp_isp2x_stat_buffer *pbuf);
 	void (*get_rawhstbig2_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+				    struct rkisp_isp2x_stat_buffer *pbuf);
 
 	void (*get_rawaebig3_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+				   struct rkisp_isp2x_stat_buffer *pbuf);
 	void (*get_rawhstbig3_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+				    struct rkisp_isp2x_stat_buffer *pbuf);
 
 	void (*get_rawaelite_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+				   struct rkisp_isp2x_stat_buffer *pbuf);
 	void (*get_rawhstlite_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
-			     struct rkisp_isp2x_stat_buffer *pbuf);
+				    struct rkisp_isp2x_stat_buffer *pbuf);
+
+	void (*get_bls_stats)(struct rkisp_isp_stats_vdev *stats_vdev,
+			      struct rkisp_isp2x_stat_buffer *pbuf);
+	void (*get_tmo_stats)(struct rkisp_isp_stats_vdev *stats_vdev,
+			      struct rkisp_isp2x_stat_buffer *pbuf);
+	void (*get_dhaz_stats)(struct rkisp_isp_stats_vdev *stats_vdev,
+			       struct rkisp_isp2x_stat_buffer *pbuf);
 };
 
 void rkisp_stats_first_ddr_config_v2x(struct rkisp_isp_stats_vdev *stats_vdev);

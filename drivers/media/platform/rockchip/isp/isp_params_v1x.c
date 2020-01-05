@@ -2265,6 +2265,12 @@ static void rkisp1_clear_first_param_v1x(struct rkisp_isp_params_vdev *params_vd
 	params_vdev->isp1x_params.module_en_update = 0;
 }
 
+static void
+rkisp1_get_param_size_v1x(struct rkisp_isp_params_vdev *params_vdev, unsigned int sizes[])
+{
+	sizes[0] = sizeof(struct rkisp1_isp_params_cfg);
+}
+
 /* Not called when the camera active, thus not isr protection. */
 static void rkisp1_params_disable_isp_v1x(struct rkisp_isp_params_vdev *params_vdev)
 {
@@ -2342,6 +2348,7 @@ unlock:
 static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.save_first_param = rkisp1_save_first_param_v1x,
 	.clear_first_param = rkisp1_clear_first_param_v1x,
+	.get_param_size = rkisp1_get_param_size_v1x,
 	.config_isp = rkisp1_params_configure_isp_v1x,
 	.disable_isp = rkisp1_params_disable_isp_v1x,
 	.isr_hdl = rkisp1_params_isr_v1x,
@@ -2360,3 +2367,8 @@ void rkisp_init_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev)
 		params_vdev->priv_cfg = &rkisp1_v10_isp_params_config;
 	}
 }
+
+void rkisp_uninit_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev)
+{
+}
+

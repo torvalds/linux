@@ -20,7 +20,7 @@
 #define ISP2X_MODULE_LSC		BIT_ULL(4)
 #define ISP2X_MODULE_AWB_GAIN		BIT_ULL(5)
 #define ISP2X_MODULE_BDM		BIT_ULL(7)
-#define ISP2X_MODULE_CTK		BIT_ULL(8)
+#define ISP2X_MODULE_CCM		BIT_ULL(8)
 #define ISP2X_MODULE_GOC		BIT_ULL(9)
 #define ISP2X_MODULE_CPROC		BIT_ULL(10)
 #define ISP2X_MODULE_SIAF		BIT_ULL(11)
@@ -45,6 +45,9 @@
 #define ISP2X_MODULE_GIC		BIT_ULL(30)
 #define ISP2X_MODULE_DHAZ		BIT_ULL(31)
 #define ISP2X_MODULE_3DLUT		BIT_ULL(32)
+#define ISP2X_MODULE_LDCH		BIT_ULL(33)
+#define ISP2X_MODULE_GAIN		BIT_ULL(34)
+#define ISP2X_MODULE_DEBAYER		BIT_ULL(35)
 
 /*
  * Measurement types
@@ -64,12 +67,19 @@
 #define ISP2X_STAT_RAWHSTCH0		BIT(12)
 #define ISP2X_STAT_RAWHSTCH1		BIT(13)
 #define ISP2X_STAT_RAWHSTCH2		BIT(14)
+#define ISP2X_STAT_BLS			BIT(15)
+#define ISP2X_STAT_HDRTMO		BIT(16)
+#define ISP2X_STAT_DHAZ			BIT(17)
 
 #define ISP2X_LSC_GRAD_TBL_SIZE		8
 #define ISP2X_LSC_SIZE_TBL_SIZE		8
 #define ISP2X_LSC_DATA_TBL_SIZE		290
 
 #define ISP2X_DEGAMMA_CURVE_SIZE	17
+
+#define ISP2X_GAIN_HDRMGE_GAIN_NUM	3
+#define ISP2X_GAIN_IDX_NUM		15
+#define ISP2X_GAIN_LUT_NUM		17
 
 #define ISP2X_AWB_MAX_GRID		1
 #define ISP2X_RAWAWB_SUM_NUM		7
@@ -84,9 +94,10 @@
 
 #define ISP2X_RAWHISTBIG_SUBWIN_NUM	225
 #define ISP2X_RAWHISTLITE_SUBWIN_NUM	25
-#define ISP2X_HIST_WIN_NUM		4
+#define ISP2X_SIHIST_WIN_NUM		1
 #define ISP2X_HIST_WEIGHT_NUM		225
 #define ISP2X_HIST_BIN_N_MAX		256
+#define ISP2X_SIHIST_BIN_N_MAX		32
 
 #define ISP2X_RAWAF_WIN_NUM		2
 #define ISP2X_RAWAF_LINE_NUM		5
@@ -101,28 +112,29 @@
 #define ISP2X_HDRMGE_L_CURVE_NUM	17
 #define ISP2X_HDRMGE_E_CURVE_NUM	17
 
-#define ISP2X_RAWNR_LUMA_RATION_NUM	17
+#define ISP2X_RAWNR_LUMA_RATION_NUM	8
 
 #define ISP2X_HDRTMO_MINMAX_NUM		32
 
+#define ISP2X_GIC_SIGMA_Y_NUM		15
+
 #define ISP2X_CCM_CURVE_NUM		17
 
-#define ISP2X_WDR_DY_NUM		32
-#define ISP2X_WDR_TONE_YN_NUM		16
-#define ISP2X_WDR_TONE_YM_NUM		32
-#define ISP2X_WDR_BLKMEAN_ROW_NUM	10
-#define ISP2X_WDR_BLKMEAN_DATA_NUM	8
+/* WDR */
+#define ISP2X_WDR_SIZE			48
 
 #define ISP2X_DHAZ_CONV_COEFF_NUM	6
 #define ISP2X_DHAZ_HIST_IIR_NUM		64
 
-#define ISP2X_GAMMA_OUT_MAX_SAMPLES	17
+#define ISP2X_GAMMA_OUT_MAX_SAMPLES	45
 
 #define ISP2X_MIPI_LUMA_MEAN_MAX	16
 #define ISP2X_MIPI_RAW_MAX		3
 #define ISP2X_RAW0_Y_STATE		(1 << 0)
 #define ISP2X_RAW1_Y_STATE		(1 << 1)
 #define ISP2X_RAW2_Y_STATE		(1 << 2)
+
+#define ISP2X_3DLUT_DATA_NUM		729
 
 struct isp2x_window {
 	u16 h_offs;
@@ -359,22 +371,27 @@ struct isp2x_dpcc_cfg {
 } __attribute__ ((packed));
 
 struct isp2x_hdrmge_curve {
-	u16 curve_1;
-	u16 curve_0;
+	u16 curve_1[ISP2X_HDRMGE_L_CURVE_NUM];
+	u16 curve_0[ISP2X_HDRMGE_L_CURVE_NUM];
 } __attribute__ ((packed));
 
 struct isp2x_hdrmge_cfg {
 	u8 mode;
+
 	u16 gain0_inv;
 	u16 gain0;
+
 	u16 gain1_inv;
 	u16 gain1;
+
 	u8 gain2;
+
 	u8 lm_dif_0p15;
 	u8 lm_dif_0p9;
 	u8 ms_diff_0p15;
 	u8 ms_dif_0p8;
-	struct isp2x_hdrmge_curve curve[ISP2X_HDRMGE_L_CURVE_NUM];
+
+	struct isp2x_hdrmge_curve curve;
 	u16 e_y[ISP2X_HDRMGE_E_CURVE_NUM];
 } __attribute__ ((packed));
 
@@ -391,11 +408,18 @@ struct isp2x_rawnr_cfg {
 	u32 dgain2;
 
 	u16 luration[ISP2X_RAWNR_LUMA_RATION_NUM];
+	u16 lulevel[ISP2X_RAWNR_LUMA_RATION_NUM];
+
 	u32 gauss;
 	u16 sigma;
 	u16 pix_diff;
+
 	u32 thld_diff;
+
+	u8 gas_weig_scl2;
+	u8 gas_weig_scl1;
 	u16 thld_chanelw;
+
 	u16 lamda;
 
 	u16 fixw0;
@@ -412,18 +436,16 @@ struct isp2x_rawnr_cfg {
 } __attribute__ ((packed));
 
 struct isp2x_lsc_cfg {
-	u32 r_data_tbl[ISP2X_LSC_DATA_TBL_SIZE];
-	u32 gr_data_tbl[ISP2X_LSC_DATA_TBL_SIZE];
-	u32 gb_data_tbl[ISP2X_LSC_DATA_TBL_SIZE];
-	u32 b_data_tbl[ISP2X_LSC_DATA_TBL_SIZE];
+	u16 r_data_tbl[ISP2X_LSC_DATA_TBL_SIZE];
+	u16 gr_data_tbl[ISP2X_LSC_DATA_TBL_SIZE];
+	u16 gb_data_tbl[ISP2X_LSC_DATA_TBL_SIZE];
+	u16 b_data_tbl[ISP2X_LSC_DATA_TBL_SIZE];
 
-	u32 x_grad_tbl[ISP2X_LSC_GRAD_TBL_SIZE];
-	u32 y_grad_tbl[ISP2X_LSC_GRAD_TBL_SIZE];
+	u16 x_grad_tbl[ISP2X_LSC_GRAD_TBL_SIZE];
+	u16 y_grad_tbl[ISP2X_LSC_GRAD_TBL_SIZE];
 
-	u32 x_size_tbl[ISP2X_LSC_SIZE_TBL_SIZE];
-	u32 y_size_tbl[ISP2X_LSC_SIZE_TBL_SIZE];
-	u16 cfg_width;
-	u16 cfg_height;
+	u16 x_size_tbl[ISP2X_LSC_SIZE_TBL_SIZE];
+	u16 y_size_tbl[ISP2X_LSC_SIZE_TBL_SIZE];
 } __attribute__ ((packed));
 
 enum isp2x_goc_mode {
@@ -433,35 +455,58 @@ enum isp2x_goc_mode {
 
 struct isp2x_goc_cfg {
 	enum isp2x_goc_mode mode;
-	u8 gamma_y[ISP2X_GAMMA_OUT_MAX_SAMPLES];
+	u8 gamma_y[17];
 } __attribute__ ((packed));
 
 struct isp2x_hdrtmo_cfg {
+	u16 cnt_vsize;
+	u8 gain_ld_off2;
+	u8 gain_ld_off1;
+	u8 big_en;
+	u8 nobig_en;
+	u8 newhst_en;
+	u8 cnt_mode;
+
+	u16 expl_lgratio;
+	u8 lgscl_ratio;
 	u8 cfg_alpha;
+
 	u16 set_gainoff;
 	u16 set_palpha;
+
 	u16 set_lgmax;
 	u16 set_lgmin;
+
 	u8 set_weightkey;
 	u16 set_lgmean;
+
 	u16 set_lgrange1;
 	u16 set_lgrange0;
+
 	u16 set_lgavgmax;
+
 	u8 clipgap1_i;
 	u8 clipgap0_i;
 	u8 clipratio1;
 	u8 clipratio0;
 	u8 ratiol;
+
 	u16 lgscl_inv;
 	u16 lgscl;
+
 	u16 lgmax;
+
 	u16 hist_low;
 	u16 hist_min;
+
 	u8 hist_shift;
 	u16 hist_0p3;
 	u16 hist_high;
-	u16 palpha_0p5;
+
+	u16 palpha_lwscl;
+	u16 palpha_lw0p5;
 	u16 palpha_0p18;
+
 	u16 maxgain;
 	u16 maxpalpha;
 } __attribute__ ((packed));
@@ -504,42 +549,50 @@ struct isp2x_gic_cfg {
 	u16 regmingradthr2;
 	u16 regmingradthr1;
 
+	u8 gr_ratio;
 	u16 dnloscale;
 	u16 dnhiscale;
 	u8 reglumapointsstep;
+
 	u16 gvaluelimitlo;
 	u16 gvaluelimithi;
 	u8 fusionratiohilimt1;
 
 	u8 regstrength_fix;
 
-	u16 sigma_y1;
+	u16 sigma_y[ISP2X_GIC_SIGMA_Y_NUM];
+
+	u8 noise_cut_en;
+	u16 noise_coe_a;
+
+	u16 noise_coe_b;
+	u16 diff_clip;
 } __attribute__ ((packed));
 
 struct isp2x_debayer_cfg {
 	u8 filter_c_en;
 	u8 filter_g_en;
 
-	u8 gain_offset;
-	u16 hf_offset;
 	u8 thed1;
 	u8 thed0;
 	u8 dist_scale;
 	u8 max_ratio;
 	u8 clip_en;
 
-	u8 filter1_coe5;
-	u8 filter1_coe4;
-	u8 filter1_coe3;
-	u8 filter1_coe2;
-	u8 filter1_coe1;
+	s8 filter1_coe5;
+	s8 filter1_coe4;
+	s8 filter1_coe3;
+	s8 filter1_coe2;
+	s8 filter1_coe1;
 
-	u8 filter2_coe5;
-	u8 filter2_coe4;
-	u8 filter2_coe3;
-	u8 filter2_coe2;
-	u8 filter2_coe1;
+	s8 filter2_coe5;
+	s8 filter2_coe4;
+	s8 filter2_coe3;
+	s8 filter2_coe2;
+	s8 filter2_coe1;
 
+	u16 hf_offset;
+	u8 gain_offset;
 	u8 offset;
 
 	u8 shift_num;
@@ -548,20 +601,20 @@ struct isp2x_debayer_cfg {
 } __attribute__ ((packed));
 
 struct isp2x_ccm_cfg {
-	u16 coeff0_r;
-	u16 coeff1_r;
-	u16 coeff2_r;
-	u16 offset_r;
+	s16 coeff0_r;
+	s16 coeff1_r;
+	s16 coeff2_r;
+	s16 offset_r;
 
-	u16 coeff0_g;
-	u16 coeff1_g;
-	u16 coeff2_g;
-	u16 offset_g;
+	s16 coeff0_g;
+	s16 coeff1_g;
+	s16 coeff2_g;
+	s16 offset_g;
 
-	u16 coeff0_b;
-	u16 coeff1_b;
-	u16 coeff2_b;
-	u16 offset_b;
+	s16 coeff0_b;
+	s16 coeff1_b;
+	s16 coeff2_b;
+	s16 offset_b;
 
 	u16 coeff0_y;
 	u16 coeff1_y;
@@ -575,57 +628,27 @@ struct isp2x_ccm_cfg {
 struct isp2x_gammaout_cfg {
 	u8 equ_segm;
 	u16 offset;
-	u16 y[ISP2X_GAMMA_OUT_MAX_SAMPLES];
+	u16 gamma_y[ISP2X_GAMMA_OUT_MAX_SAMPLES];
 } __attribute__ ((packed));
+
+enum isp2x_wdr_mode {
+	ISP2X_WDR_MODE_BLOCK,
+	ISP2X_WDR_MODE_GLOBAL
+};
 
 struct isp2x_wdr_cfg {
-	u8 wdr_dy[ISP2X_WDR_DY_NUM];
-	u16 tonecurve_yn[ISP2X_WDR_TONE_YN_NUM];
-	u16 tonecurve_ym[ISP2X_WDR_TONE_YM_NUM];
-
-	u16 lum_offset;
-	u16 rgb_offset;
-
-	u8 pym_cc;
-	u8 epsilon;
-	u8 lvl_en;
-	u8 blkgain_gam;
-	u8 csc_sel;
-	u8 h_size_sel;
-
-	u8 gain_max_en;
-	u8 gain_max;
-	u8 bavg_clip;
-	u8 nonl_segm;
-	u8 nonl_open;
-	u8 nonl_mode1;
-	u8 flt_sel;
-	u8 blk_sel;
-
-	u8 gain_off1;
-	u8 gain_off2;
-
-	u8 bestlight;
-	u8 noiseratio;
-
-	u16 coe_0;
-	u16 coe_1;
-	u16 coe_2;
-	u32 coe_off;
-	u8 gain_off3;
-} __attribute__ ((packed));
-
-struct isp2x_wdr_stat {
-	u32 blkmean[ISP2X_WDR_BLKMEAN_ROW_NUM][ISP2X_WDR_BLKMEAN_DATA_NUM];
+	enum isp2x_wdr_mode mode;
+	unsigned int c_wdr[ISP2X_WDR_SIZE];
 } __attribute__ ((packed));
 
 struct isp2x_dhaz_cfg {
-	u8 gain_en;
 	u8 enhance_en;
 	u8 hist_chn;
 	u8 hpara_en;
 	u8 hist_en;
 	u8 dc_en;
+	u8 big_en;
+	u8 nobig_en;
 
 	u8 yblk_th;
 	u8 yhist_th;
@@ -779,26 +802,33 @@ struct isp2x_sdg_cfg {
 } __attribute__ ((packed));
 
 struct isp2x_bdm_config {
-	u8 demosaic_th;
+	unsigned char demosaic_th;
+} __attribute__ ((packed));
+
+struct isp2x_gain_cfg {
+	u8 dhaz_en;
+	u8 wdr_en;
+	u8 tmo_en;
+	u8 lsc_en;
+	u8 mge_en;
+
+	u32 mge_gain[ISP2X_GAIN_HDRMGE_GAIN_NUM];
+	u16 idx[ISP2X_GAIN_IDX_NUM];
+	u16 lut[ISP2X_GAIN_LUT_NUM];
 } __attribute__ ((packed));
 
 struct isp2x_3dlut_cfg {
-	u8 dummy;
+	u8 bypass_en;
+	u32 actual_size;	// word unit
+	u16 lut_r[ISP2X_3DLUT_DATA_NUM];
+	u16 lut_g[ISP2X_3DLUT_DATA_NUM];
+	u16 lut_b[ISP2X_3DLUT_DATA_NUM];
 } __attribute__ ((packed));
 
-struct isp2x_ctk_cfg {
-	u16 coeff0;
-	u16 coeff1;
-	u16 coeff2;
-	u16 coeff3;
-	u16 coeff4;
-	u16 coeff5;
-	u16 coeff6;
-	u16 coeff7;
-	u16 coeff8;
-	u16 ct_offset_r;
-	u16 ct_offset_g;
-	u16 ct_offset_b;
+struct isp2x_ldch_cfg {
+	u32 hsize;
+	u32 vsize;
+	u32 data[1];
 } __attribute__ ((packed));
 
 struct isp2x_awb_gain_cfg {
@@ -823,8 +853,6 @@ struct isp2x_siawb_meas_cfg {
 
 struct isp2x_rawawb_meas_cfg {
 	u8 rawawb_sel;
-	u8 sw_rawawb_meas_done;			//CTRL
-	u8 ro_rawawb_working;			//CTRL
 	u8 sw_rawawb_light_num;			//CTRL
 	u8 sw_rawawb_wind_size;			//CTRL
 	u8 sw_rawawb_c_range;			//CTRL
@@ -835,7 +863,6 @@ struct isp2x_rawawb_meas_cfg {
 	u8 sw_rawawb_3dyuv_ls_idx0;		//CTRL
 	u8 sw_rawawb_xy_en;			//CTRL
 	u8 sw_rawawb_uv_en;			//CTRL
-	u8 sw_rawawb_en;			//CTRL
 	u8 sw_rawawb_blk_measure_mode;		//BLK_CTRL
 	u8 sw_rawawb_store_wp_flag_ls_idx2;	//BLK_CTRL
 	u8 sw_rawawb_store_wp_flag_ls_idx1;	//BLK_CTRL
@@ -1206,10 +1233,6 @@ struct isp2x_rawaebig_meas_cfg {
 struct isp2x_rawaelite_meas_cfg {
 	u8 rawae_sel;
 	u8 wnd_num;
-	u8 off;
-	u8 bcc;
-	u8 gcc;
-	u8 rcc;
 	struct isp2x_window win;
 } __attribute__ ((packed));
 
@@ -1288,7 +1311,7 @@ struct isp2x_sihst_win_cfg {
 
 struct isp2x_sihst_cfg {
 	u8 wnd_num;
-	struct isp2x_sihst_win_cfg win_cfg[ISP2X_HIST_WIN_NUM];
+	struct isp2x_sihst_win_cfg win_cfg[ISP2X_SIHIST_WIN_NUM];
 	u8 hist_weight[ISP2X_HIST_WEIGHT_NUM];
 } __attribute__ ((packed));
 
@@ -1299,7 +1322,7 @@ struct isp2x_isp_other_cfg {
 	struct isp2x_rawnr_cfg rawnr_cfg;
 	struct isp2x_lsc_cfg lsc_cfg;
 	struct isp2x_awb_gain_cfg awb_gain_cfg;
-	struct isp2x_goc_cfg goc_cfg;
+	//struct isp2x_goc_cfg goc_cfg;
 	struct isp2x_gic_cfg gic_cfg;
 	struct isp2x_debayer_cfg debayer_cfg;
 	struct isp2x_ccm_cfg ccm_cfg;
@@ -1310,11 +1333,12 @@ struct isp2x_isp_other_cfg {
 	struct isp2x_rkiesharp_cfg rkiesharp_cfg;
 	struct isp2x_superimp_cfg superimp_cfg;
 	struct isp2x_sdg_cfg sdg_cfg;
-	struct isp2x_ctk_cfg ctk_cfg;
 	struct isp2x_bdm_config bdm_cfg;
 	struct isp2x_hdrtmo_cfg hdrtmo_cfg;
 	struct isp2x_dhaz_cfg dhaz_cfg;
+	struct isp2x_gain_cfg gain_cfg;
 	struct isp2x_3dlut_cfg isp3dlut_cfg;
+	struct isp2x_ldch_cfg ldch_cfg;		// must be last item
 } __attribute__ ((packed));
 
 struct isp2x_isp_meas_cfg {
@@ -1340,7 +1364,7 @@ struct isp2x_isp_params_cfg {
 	u64 module_cfg_update;
 
 	struct isp2x_isp_meas_cfg meas;
-	struct isp2x_isp_other_cfg others;
+	struct isp2x_isp_other_cfg others;	// must be last item
 } __attribute__ ((packed));
 
 struct isp2x_siawb_meas {
@@ -1440,11 +1464,11 @@ struct isp2x_rawhistlite_stat {
 } __attribute__ ((packed));
 
 struct isp2x_sihst_win_stat {
-	u32 hist_bins[ISP2X_HIST_BIN_N_MAX];
+	u32 hist_bins[ISP2X_SIHIST_BIN_N_MAX];
 } __attribute__ ((packed));
 
 struct isp2x_sihst_stat {
-	struct isp2x_sihst_win_stat win_stat[ISP2X_HIST_WIN_NUM];
+	struct isp2x_sihst_win_stat win_stat[ISP2X_SIHIST_WIN_NUM];
 } __attribute__ ((packed));
 
 struct isp2x_stat {
@@ -1465,7 +1489,6 @@ struct isp2x_stat {
 
 	struct isp2x_bls_stat bls;
 	struct isp2x_hdrtmo_stat hdrtmo;
-	struct isp2x_wdr_stat wdr;
 	struct isp2x_dhaz_stat dhaz;
 } __attribute__ ((packed));
 

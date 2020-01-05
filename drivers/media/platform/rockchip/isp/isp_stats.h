@@ -29,7 +29,7 @@ struct rkisp_isp_readout_work {
 };
 
 struct rkisp_isp_stats_ops {
-	void (*isr_hdl)(struct rkisp_isp_stats_vdev *params_vdev,
+	void (*isr_hdl)(struct rkisp_isp_stats_vdev *stats_vdev,
 			u32 isp_mis, u32 isp3a_ris);
 	void (*send_meas)(struct rkisp_isp_stats_vdev *stats_vdev,
 			  struct rkisp_isp_readout_work *meas_work);

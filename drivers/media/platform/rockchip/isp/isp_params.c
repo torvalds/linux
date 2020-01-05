@@ -110,11 +110,7 @@ static int rkisp_params_vb2_queue_setup(struct vb2_queue *vq,
 			       RKISP_ISP_PARAMS_REQ_BUFS_MAX);
 
 	*num_planes = 1;
-
-	if (params_vdev->dev->isp_ver <= ISP_V13)
-		sizes[0] = sizeof(struct rkisp1_isp_params_cfg);
-	else
-		sizes[0] = sizeof(struct isp2x_isp_params_cfg);
+	params_vdev->ops->get_param_size(params_vdev, sizes);
 
 	INIT_LIST_HEAD(&params_vdev->params);
 	params_vdev->first_params = true;
@@ -192,6 +188,7 @@ rkisp_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkisp_isp_params_vdev *params_vdev = queue->drv_priv;
 	unsigned long flags;
 
+	params_vdev->hdrtmo_en = false;
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	params_vdev->streamon = true;
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
@@ -245,6 +242,14 @@ static void rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_init_params_vdev_v1x(params_vdev);
 	else
 		rkisp_init_params_vdev_v2x(params_vdev);
+}
+
+static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
+{
+	if (params_vdev->dev->isp_ver <= ISP_V13)
+		rkisp_uninit_params_vdev_v1x(params_vdev);
+	else
+		rkisp_uninit_params_vdev_v2x(params_vdev);
 }
 
 void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev,
@@ -317,13 +322,17 @@ int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 	ret = media_create_pad_link(source, 0, sink,
 		RKISP_ISP_PAD_SINK_PARAMS, MEDIA_LNK_FL_ENABLED);
 	if (ret < 0)
-		goto err_cleanup_media_entity;
+		goto err_unregister_video;
 
 	return 0;
+
+err_unregister_video:
+	video_unregister_device(vdev);
 err_cleanup_media_entity:
 	media_entity_cleanup(&vdev->entity);
 err_release_queue:
 	vb2_queue_release(vdev->queue);
+	rkisp_uninit_params_vdev(params_vdev);
 	return ret;
 }
 
@@ -335,4 +344,6 @@ void rkisp_unregister_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 	video_unregister_device(vdev);
 	media_entity_cleanup(&vdev->entity);
 	vb2_queue_release(vdev->queue);
+	rkisp_uninit_params_vdev(params_vdev);
 }
+

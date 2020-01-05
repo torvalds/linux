@@ -77,5 +77,6 @@ struct rkisp_isp_params_v1x_config {
 };
 
 void rkisp_init_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev);
+void rkisp_uninit_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev);
 
 #endif /* _RKISP_ISP_PARAM_V1X_H */

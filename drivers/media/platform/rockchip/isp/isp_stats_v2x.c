@@ -268,9 +268,9 @@ rkisp_stats_get_sihst_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 
 	pbuf->meas_type |= ISP2X_STAT_SIHST;
 	addr = stats_vdev->dev->base_addr + ISP_HIST_HIST_BIN;
-	for (i = 0; i < ISP2X_HIST_WIN_NUM; i++) {
+	for (i = 0; i < ISP2X_SIHIST_WIN_NUM; i++) {
 		addr += i * 0x40;
-		for (j = 0; j < ISP2X_HIST_BIN_N_MAX / 2; j++) {
+		for (j = 0; j < ISP2X_SIHIST_BIN_N_MAX / 2; j++) {
 			value = readl(addr + (j * 4));
 			pbuf->params.sihst.win_stat[i].hist_bins[2 * j] =
 				ISP2X_HIST_GET_BIN0(value);
@@ -479,6 +479,145 @@ out:
 	writel(value, addr + ISP_RAWHIST_LITE_CTRL);
 }
 
+static void
+rkisp_stats_get_bls_stats(struct rkisp_isp_stats_vdev *stats_vdev,
+			 struct rkisp_isp2x_stat_buffer *pbuf)
+{
+	void __iomem *addr = stats_vdev->dev->base_addr;
+	struct ispsd_in_fmt in_fmt = stats_vdev->dev->isp_sdev.in_fmt;
+	enum rkisp_fmt_raw_pat_type raw_type = in_fmt.bayer_pat;
+	struct isp2x_bls_stat *bls;
+	u32 value;
+
+	if (!pbuf)
+		return;
+
+	bls = &pbuf->params.bls;
+	value = readl(addr + ISP_BLS_CTRL);
+	if (value & (ISP_BLS_ENA | ISP_BLS_MODE_MEASURED)) {
+		pbuf->meas_type |= ISP2X_STAT_BLS;
+
+		switch (raw_type) {
+		case RAW_BGGR:
+			bls->meas_r = readl(addr + ISP_BLS_D_MEASURED);
+			bls->meas_gr = readl(addr + ISP_BLS_C_MEASURED);
+			bls->meas_gb = readl(addr + ISP_BLS_B_MEASURED);
+			bls->meas_b = readl(addr + ISP_BLS_A_MEASURED);
+			break;
+		case RAW_GBRG:
+			bls->meas_r = readl(addr + ISP_BLS_C_MEASURED);
+			bls->meas_gr = readl(addr + ISP_BLS_D_MEASURED);
+			bls->meas_gb = readl(addr + ISP_BLS_A_MEASURED);
+			bls->meas_b = readl(addr + ISP_BLS_B_MEASURED);
+			break;
+		case RAW_GRBG:
+			bls->meas_r = readl(addr + ISP_BLS_B_MEASURED);
+			bls->meas_gr = readl(addr + ISP_BLS_A_MEASURED);
+			bls->meas_gb = readl(addr + ISP_BLS_D_MEASURED);
+			bls->meas_b = readl(addr + ISP_BLS_C_MEASURED);
+			break;
+		case RAW_RGGB:
+			bls->meas_r = readl(addr + ISP_BLS_A_MEASURED);
+			bls->meas_gr = readl(addr + ISP_BLS_B_MEASURED);
+			bls->meas_gb = readl(addr + ISP_BLS_C_MEASURED);
+			bls->meas_b = readl(addr + ISP_BLS_D_MEASURED);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static void
+rkisp_stats_get_tmo_stats(struct rkisp_isp_stats_vdev *stats_vdev,
+			  struct rkisp_isp2x_stat_buffer *pbuf)
+{
+	struct rkisp_device *dev = stats_vdev->dev;
+	struct rkisp_isp_params_vdev *params_vdev = &dev->params_vdev;
+	void __iomem *addr = dev->base_addr;
+	struct isp2x_hdrtmo_stat *tmo;
+	u32 value, i;
+
+	if (!pbuf || !params_vdev->hdrtmo_en)
+		return;
+
+	tmo = &pbuf->params.hdrtmo;
+	value = readl(addr + ISP_HDRTMO_CTRL);
+	if (value & ISP_HDRTMO_EN) {
+		pbuf->meas_type |= ISP2X_STAT_HDRTMO;
+
+		value = readl(addr + ISP_HDRTMO_LG_RO0);
+		tmo->lglow = value >> 16;
+		tmo->lgmin = value & 0xFFFF;
+
+		value = readl(addr + ISP_HDRTMO_LG_RO1);
+		tmo->lghigh = value >> 16;
+		tmo->lgmax = value & 0xFFFF;
+
+		value = readl(addr + ISP_HDRTMO_LG_RO2);
+		tmo->weightkey = (value >> 16) & 0xFF;
+		tmo->lgmean = value & 0xFFFF;
+
+		value = readl(addr + ISP_HDRTMO_LG_RO3);
+		tmo->lgrange1 = value >> 16;
+		tmo->lgrange0 = value & 0xFFFF;
+
+		value = readl(addr + ISP_HDRTMO_LG_RO4);
+		tmo->palpha = (value >> 16) & 0x3FF;
+		tmo->lgavgmax = value & 0xFFFF;
+
+		value = readl(addr + ISP_HDRTMO_LG_RO5);
+		tmo->linecnt = value & 0x1FFF;
+
+		for (i = 0; i < ISP2X_HDRTMO_MINMAX_NUM; i++)
+			tmo->min_max[i] = readl(addr + ISP_HDRTMO_HIST_RO0 + 4 * i);
+	}
+}
+
+static void
+rkisp_stats_get_dhaz_stats(struct rkisp_isp_stats_vdev *stats_vdev,
+			   struct rkisp_isp2x_stat_buffer *pbuf)
+{
+	void __iomem *addr = stats_vdev->dev->base_addr;
+	struct isp2x_dhaz_stat *dhaz;
+	u32 value, i;
+
+	if (!pbuf)
+		return;
+
+	dhaz = &pbuf->params.dhaz;
+	value = readl(addr + ISP_DHAZ_CTRL);
+	if (value & ISP_DHAZ_ENMUX) {
+		pbuf->meas_type |= ISP2X_STAT_DHAZ;
+
+		value = readl(addr + ISP_DHAZ_ADP_RD0);
+		dhaz->dhaz_adp_air_base = value >> 16;
+		dhaz->dhaz_adp_wt = value & 0xFFFF;
+
+		value = readl(addr + ISP_DHAZ_ADP_RD1);
+		dhaz->dhaz_adp_gratio = value >> 16;
+		dhaz->dhaz_adp_tmax = value & 0xFFFF;
+
+		for (i = 0; i < ISP2X_DHAZ_HIST_IIR_NUM / 2; i++) {
+			value = readl(addr + ISP_DHAZ_HIST_REG0 + 4 * i);
+			dhaz->h_r_iir[2 * i] = value & 0xFFFF;
+			dhaz->h_r_iir[2 * i + 1] = value >> 16;
+		}
+
+		for (i = 0; i < ISP2X_DHAZ_HIST_IIR_NUM / 2; i++) {
+			value = readl(addr + ISP_DHAZ_HIST_REG32 + 4 * i);
+			dhaz->h_g_iir[2 * i] = value & 0xFFFF;
+			dhaz->h_g_iir[2 * i + 1] = value >> 16;
+		}
+
+		for (i = 0; i < ISP2X_DHAZ_HIST_IIR_NUM / 2; i++) {
+			value = readl(addr + ISP_DHAZ_HIST_REG64 + 4 * i);
+			dhaz->h_b_iir[2 * i] = value & 0xFFFF;
+			dhaz->h_b_iir[2 * i + 1] = value >> 16;
+		}
+	}
+}
+
 static struct rkisp_stats_v2x_ops __maybe_unused rkisp_stats_reg_ops_v2x = {
 	.get_siawb_meas = rkisp_stats_get_siawb_meas_reg,
 	.get_rawawb_meas = rkisp_stats_get_rawawb_meas_reg,
@@ -494,6 +633,9 @@ static struct rkisp_stats_v2x_ops __maybe_unused rkisp_stats_reg_ops_v2x = {
 	.get_rawhstbig3_meas = rkisp_stats_get_rawhstbig3_meas_reg,
 	.get_rawaelite_meas = rkisp_stats_get_rawaelite_meas_reg,
 	.get_rawhstlite_meas = rkisp_stats_get_rawhstlite_meas_reg,
+	.get_bls_stats = rkisp_stats_get_bls_stats,
+	.get_tmo_stats = rkisp_stats_get_tmo_stats,
+	.get_dhaz_stats = rkisp_stats_get_dhaz_stats,
 };
 
 static void
@@ -735,10 +877,10 @@ rkisp_stats_get_sihst_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 
 	rd_buf_idx = stats_vdev->rd_buf_idx;
 	ddr_addr = stats_vdev->stats_buf[rd_buf_idx].vaddr + 0x2C00;
-	for (i = 0; i < 1; i++) {
+	for (i = 0; i < ISP2X_SIHIST_WIN_NUM; i++) {
 		ddr_addr += i * 0x40;
-		for (j = 0; j < ISP2X_HIST_BIN_N_MAX / 2; j++) {
-			value = ddr_addr[j * 4];
+		for (j = 0; j < ISP2X_SIHIST_BIN_N_MAX / 2; j++) {
+			value = ddr_addr[j];
 			pbuf->params.sihst.win_stat[i].hist_bins[2 * j] =
 				ISP2X_HIST_GET_BIN0(value);
 			pbuf->params.sihst.win_stat[i].hist_bins[2 * j + 1] =
@@ -975,6 +1117,9 @@ static struct rkisp_stats_v2x_ops __maybe_unused rkisp_stats_ddr_ops_v2x = {
 	.get_rawhstbig3_meas = rkisp_stats_get_rawhstbig3_meas_ddr,
 	.get_rawaelite_meas = rkisp_stats_get_rawaelite_meas_ddr,
 	.get_rawhstlite_meas = rkisp_stats_get_rawhstlite_meas_ddr,
+	.get_bls_stats = rkisp_stats_get_bls_stats,
+	.get_tmo_stats = rkisp_stats_get_tmo_stats,
+	.get_dhaz_stats = rkisp_stats_get_dhaz_stats,
 };
 
 static void
@@ -1111,6 +1256,10 @@ rkisp_stats_send_meas_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 			cur_stat_buf->meas_type |= ISP2X_STAT_RAWHSTCH2;
 	}
 
+	ops->get_bls_stats(stats_vdev, cur_stat_buf);
+	ops->get_tmo_stats(stats_vdev, cur_stat_buf);
+	ops->get_dhaz_stats(stats_vdev, cur_stat_buf);
+
 	if (cur_buf) {
 		vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0,
 				      sizeof(struct rkisp_isp2x_stat_buffer));
@@ -1212,29 +1361,6 @@ unlock:
 	spin_unlock(&stats_vdev->irq_lock);
 }
 
-static int __maybe_unused rkisp_alloc_buffer(struct rkisp_device *dev,
-			      struct rkisp_dummy_buffer *buf)
-{
-	int ret = 0;
-
-	buf->vaddr = dma_alloc_coherent(dev->dev, buf->size,
-					&buf->dma_addr, GFP_KERNEL);
-	if (!buf->vaddr)
-		ret = -ENOMEM;
-	return ret;
-}
-
-static void __maybe_unused rkisp_free_buffer(struct rkisp_device *dev,
-			       struct rkisp_dummy_buffer *buf)
-{
-	if (buf && buf->vaddr && buf->size) {
-		dma_free_coherent(dev->dev, buf->size,
-				  buf->vaddr, buf->dma_addr);
-		buf->size = 0;
-		buf->vaddr = NULL;
-	}
-}
-
 static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 	.isr_hdl = rkisp_stats_isr_v2x,
 	.send_meas = rkisp_stats_send_meas_v2x,
@@ -1275,7 +1401,7 @@ void rkisp_init_stats_vdev_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 		stats_vdev->wr_buf_idx = 0;
 		for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++) {
 			stats_vdev->stats_buf[i].size = RKISP_RD_STATS_BUF_SIZE;
-			rkisp_alloc_buffer(stats_vdev->dev, &stats_vdev->stats_buf[i]);
+			rkisp_alloc_buffer(stats_vdev->dev->dev, &stats_vdev->stats_buf[i]);
 		}
 	}
 #endif
@@ -1286,6 +1412,6 @@ void rkisp_uninit_stats_vdev_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 	int i;
 
 	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++)
-		rkisp_free_buffer(stats_vdev->dev, &stats_vdev->stats_buf[i]);
+		rkisp_free_buffer(stats_vdev->dev->dev, &stats_vdev->stats_buf[i]);
 }
 

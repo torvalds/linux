@@ -133,4 +133,27 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 	return &vnode->buf_queue;
 }
 
+static inline int rkisp_alloc_buffer(struct device *dev,
+				     struct rkisp_dummy_buffer *buf)
+{
+	int ret = 0;
+
+	buf->vaddr = dma_alloc_coherent(dev, buf->size,
+					&buf->dma_addr, GFP_KERNEL);
+	if (!buf->vaddr)
+		ret = -ENOMEM;
+	return ret;
+}
+
+static inline void rkisp_free_buffer(struct device *dev,
+				     struct rkisp_dummy_buffer *buf)
+{
+	if (buf && buf->vaddr && buf->size) {
+		dma_free_coherent(dev, buf->size,
+				  buf->vaddr, buf->dma_addr);
+		buf->size = 0;
+		buf->vaddr = NULL;
+	}
+}
+
 #endif /* _RKISP_COMMON_H */

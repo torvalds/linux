@@ -12,6 +12,7 @@ struct rkisp_isp_params_vdev;
 struct rkisp_isp_params_ops {
 	void (*save_first_param)(struct rkisp_isp_params_vdev *params_vdev, void *param);
 	void (*clear_first_param)(struct rkisp_isp_params_vdev *params_vdev);
+	void (*get_param_size)(struct rkisp_isp_params_vdev *params_vdev, unsigned int sizes[]);
 	void (*config_isp)(struct rkisp_isp_params_vdev *params_vdev);
 	void (*disable_isp)(struct rkisp_isp_params_vdev *params_vdev);
 	void (*isr_hdl)(struct rkisp_isp_params_vdev *params_vdev,
@@ -37,6 +38,7 @@ struct rkisp_isp_params_vdev {
 	struct v4l2_format vdev_fmt;
 	bool streamon;
 	bool first_params;
+	bool hdrtmo_en;
 
 	enum v4l2_quantization quantization;
 	enum rkisp_fmt_raw_pat_type raw_type;
@@ -47,6 +49,7 @@ struct rkisp_isp_params_vdev {
 	struct rkisp_isp_params_ops *ops;
 	void *priv_ops;
 	void *priv_cfg;
+	void *priv_val;
 };
 
 /* config params before ISP streaming */
