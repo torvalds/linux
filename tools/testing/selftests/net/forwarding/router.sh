@@ -6,6 +6,8 @@ ALL_TESTS="
 	ping_ipv6
 	sip_in_class_e
 	mc_mac_mismatch
+	ipv4_sip_equal_dip
+	ipv6_sip_equal_dip
 "
 
 NUM_NETIFS=4
@@ -241,6 +243,48 @@ mc_mac_mismatch()
 {
 	__mc_mac_mismatch "IPv4" "ip" 192.0.2.2 225.1.2.3
 	__mc_mac_mismatch "IPv6" "ipv6" 2001:db8:1::2 ff0e::3 "-6"
+}
+
+ipv4_sip_equal_dip()
+{
+	RET=0
+
+	# Disable rpfilter to prevent packets to be dropped because of it.
+	sysctl_set net.ipv4.conf.all.rp_filter 0
+	sysctl_set net.ipv4.conf.$rp1.rp_filter 0
+
+	tc filter add dev $rp2 egress protocol ip pref 1 handle 101 \
+		flower src_ip 198.51.100.2  action pass
+
+	$MZ $h1 -t udp "sp=54321,dp=12345" -c 5 -d 1msec \
+		-A 198.51.100.2 -b $rp1mac -B 198.51.100.2 -q
+
+	tc_check_packets "dev $rp2 egress" 101 5
+	check_err $? "Packets were dropped"
+
+	log_test "Source IP is equal to destination IP: IPv4"
+
+	tc filter del dev $rp2 egress protocol ip pref 1 handle 101 flower
+	sysctl_restore net.ipv4.conf.$rp1.rp_filter
+	sysctl_restore net.ipv4.conf.all.rp_filter
+}
+
+ipv6_sip_equal_dip()
+{
+	RET=0
+
+	tc filter add dev $rp2 egress protocol ipv6 pref 1 handle 101 \
+		flower src_ip 2001:db8:2::2 action pass
+
+	$MZ -6 $h1 -t udp "sp=54321,dp=12345" -c 5 -d 1msec \
+		-A 2001:db8:2::2 -b $rp1mac -B 2001:db8:2::2 -q
+
+	tc_check_packets "dev $rp2 egress" 101 5
+	check_err $? "Packets were dropped"
+
+	log_test "Source IP is equal to destination IP: IPv6"
+
+	tc filter del dev $rp2 egress protocol ipv6 pref 1 handle 101 flower
 }
 
 trap cleanup EXIT
