@@ -433,14 +433,14 @@ static const struct snd_pcm_ops snd_vortex_playback_ops = {
 *  definitions of capture are omitted here...
 */
 
-static char *vortex_pcm_prettyname[VORTEX_PCM_LAST] = {
+static const char * const vortex_pcm_prettyname[VORTEX_PCM_LAST] = {
 	CARD_NAME " ADB",
 	CARD_NAME " SPDIF",
 	CARD_NAME " A3D",
 	CARD_NAME " WT",
 	CARD_NAME " I2S",
 };
-static char *vortex_pcm_name[VORTEX_PCM_LAST] = {
+static const char * const vortex_pcm_name[VORTEX_PCM_LAST] = {
 	"adb",
 	"spdif",
 	"a3d",
