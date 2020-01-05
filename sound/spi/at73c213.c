@@ -36,7 +36,7 @@
 #define BITRATE_MAX	50000 /* Hardware limit. */
 
 /* Initial (hardware reset) AT73C213 register values. */
-static u8 snd_at73c213_original_image[18] =
+static const u8 snd_at73c213_original_image[18] =
 {
 	0x00,	/* 00 - CTRL    */
 	0x05,	/* 01 - LLIG    */
