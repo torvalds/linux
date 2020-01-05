@@ -25,11 +25,17 @@
 #include "gpiolib.h"
 
 #define QUIRK_NO_EDGE_EVENTS_ON_BOOT		0x01l
+#define QUIRK_NO_WAKEUP				0x02l
 
 static int run_edge_events_on_boot = -1;
 module_param(run_edge_events_on_boot, int, 0444);
 MODULE_PARM_DESC(run_edge_events_on_boot,
 		 "Run edge _AEI event-handlers at boot: 0=no, 1=yes, -1=auto");
+
+static int honor_wakeup = -1;
+module_param(honor_wakeup, int, 0444);
+MODULE_PARM_DESC(honor_wakeup,
+		 "Honor the ACPI wake-capable flag: 0=no, 1=yes, -1=auto");
 
 /**
  * struct acpi_gpio_event - ACPI GPIO event handler data
@@ -280,7 +286,7 @@ static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 	event->handle = evt_handle;
 	event->handler = handler;
 	event->irq = irq;
-	event->irq_is_wake = agpio->wake_capable == ACPI_WAKE_CAPABLE;
+	event->irq_is_wake = honor_wakeup && agpio->wake_capable == ACPI_WAKE_CAPABLE;
 	event->pin = pin;
 	event->desc = desc;
 
@@ -1291,6 +1297,23 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] = {
 		},
 		.driver_data = (void *)QUIRK_NO_EDGE_EVENTS_ON_BOOT,
 	},
+	{
+		/*
+		 * Various HP X2 10 Cherry Trail models use an external
+		 * embedded-controller connected via I2C + an ACPI GPIO
+		 * event handler. The embedded controller generates various
+		 * spurious wakeup events when suspended. So disable wakeup
+		 * for its handler (it uses the only ACPI GPIO event handler).
+		 * This breaks wakeup when opening the lid, the user needs
+		 * to press the power-button to wakeup the system. The
+		 * alternative is suspend simply not working, which is worse.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP x2 Detachable 10-p0XX"),
+		},
+		.driver_data = (void *)QUIRK_NO_WAKEUP,
+	},
 	{} /* Terminating entry */
 };
 
@@ -1308,6 +1331,13 @@ static int acpi_gpio_setup_params(void)
 			run_edge_events_on_boot = 0;
 		else
 			run_edge_events_on_boot = 1;
+	}
+
+	if (honor_wakeup < 0) {
+		if (quirks & QUIRK_NO_WAKEUP)
+			honor_wakeup = 0;
+		else
+			honor_wakeup = 1;
 	}
 
 	return 0;
