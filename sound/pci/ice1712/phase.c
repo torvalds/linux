@@ -157,7 +157,7 @@ static int phase22_add_controls(struct snd_ice1712 *ice)
 	return 0;
 }
 
-static unsigned char phase22_eeprom[] = {
+static const unsigned char phase22_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x28,  /* clock 512, mpu 401,
 					spdif-in/1xADC, 1xDACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
@@ -174,7 +174,7 @@ static unsigned char phase22_eeprom[] = {
 	[ICE_EEP2_GPIO_STATE2] = 0x00,
 };
 
-static unsigned char phase28_eeprom[] = {
+static const unsigned char phase28_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x2b,  /* clock 512, mpu401,
 					spdif-in/1xADC, 4xDACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
