@@ -7,7 +7,7 @@
 
 #include "opl3_voice.h"
 
-static char snd_opl3_drum_table[47] =
+static const char snd_opl3_drum_table[47] =
 {
 	OPL3_BASSDRUM_ON,  OPL3_BASSDRUM_ON,  OPL3_HIHAT_ON,	/* 35 - 37 */
 	OPL3_SNAREDRUM_ON, OPL3_HIHAT_ON,     OPL3_SNAREDRUM_ON, /* 38 - 40 */
