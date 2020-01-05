@@ -254,6 +254,15 @@ static inline u64 get_phys_addr(struct hl_ctx *ctx, u64 shadow_addr)
 	return phys_hop_addr + pte_offset;
 }
 
+static bool is_dram_va(struct hl_device *hdev, u64 virt_addr)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	return hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
+					prop->dmmu.start_addr,
+					prop->dmmu.end_addr);
+}
+
 static int dram_default_mapping_init(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
@@ -548,6 +557,7 @@ static int _hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, bool is_dram_addr)
 		curr_pte;
 	bool is_huge, clear_hop3 = true;
 
+	/* shifts and masks are the same in PMMU and HPMMU, use one of them */
 	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
 
 	hop0_addr = get_hop0_addr(ctx);
@@ -702,26 +712,25 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 	if (!hdev->mmu_enable)
 		return 0;
 
-	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
-				prop->va_space_dram_start_address,
-				prop->va_space_dram_end_address);
+	is_dram_addr = is_dram_va(hdev, virt_addr);
 
-	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
+	if (is_dram_addr)
+		mmu_prop = &prop->dmmu;
+	else if ((page_size % prop->pmmu_huge.page_size) == 0)
+		mmu_prop = &prop->pmmu_huge;
+	else
+		mmu_prop = &prop->pmmu;
 
 	/*
 	 * The H/W handles mapping of specific page sizes. Hence if the page
 	 * size is bigger, we break it to sub-pages and unmap them separately.
 	 */
-	if ((page_size % mmu_prop->huge_page_size) == 0) {
-		real_page_size = mmu_prop->huge_page_size;
-	} else if ((page_size % mmu_prop->page_size) == 0) {
+	if ((page_size % mmu_prop->page_size) == 0) {
 		real_page_size = mmu_prop->page_size;
 	} else {
 		dev_err(hdev->dev,
-			"page size of %u is not %uKB nor %uMB aligned, can't unmap\n",
-			page_size,
-			mmu_prop->page_size >> 10,
-			mmu_prop->huge_page_size >> 20);
+			"page size of %u is not %uKB aligned, can't unmap\n",
+			page_size, mmu_prop->page_size >> 10);
 
 		return -EFAULT;
 	}
@@ -759,8 +768,6 @@ static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 		hop4_new = false, is_huge;
 	int rc = -ENOMEM;
 
-	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
-
 	/*
 	 * This mapping function can map a page or a huge page. For huge page
 	 * there are only 3 hops rather than 4. Currently the DRAM allocation
@@ -768,11 +775,15 @@ static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 	 * one of the two page sizes. Since this is a common code for all the
 	 * three cases, we need this hugs page check.
 	 */
-	is_huge = page_size == mmu_prop->huge_page_size;
-
-	if (is_dram_addr && !is_huge) {
-		dev_err(hdev->dev, "DRAM mapping should use huge pages only\n");
-		return -EFAULT;
+	if (is_dram_addr) {
+		mmu_prop = &prop->dmmu;
+		is_huge = true;
+	} else if (page_size == prop->pmmu_huge.page_size) {
+		mmu_prop = &prop->pmmu_huge;
+		is_huge = true;
+	} else {
+		mmu_prop = &prop->pmmu;
+		is_huge = false;
 	}
 
 	hop0_addr = get_hop0_addr(ctx);
@@ -942,26 +953,25 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
 	if (!hdev->mmu_enable)
 		return 0;
 
-	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
-				prop->va_space_dram_start_address,
-				prop->va_space_dram_end_address);
+	is_dram_addr = is_dram_va(hdev, virt_addr);
 
-	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
+	if (is_dram_addr)
+		mmu_prop = &prop->dmmu;
+	else if ((page_size % prop->pmmu_huge.page_size) == 0)
+		mmu_prop = &prop->pmmu_huge;
+	else
+		mmu_prop = &prop->pmmu;
 
 	/*
 	 * The H/W handles mapping of specific page sizes. Hence if the page
 	 * size is bigger, we break it to sub-pages and map them separately.
 	 */
-	if ((page_size % mmu_prop->huge_page_size) == 0) {
-		real_page_size = mmu_prop->huge_page_size;
-	} else if ((page_size % mmu_prop->page_size) == 0) {
+	if ((page_size % mmu_prop->page_size) == 0) {
 		real_page_size = mmu_prop->page_size;
 	} else {
 		dev_err(hdev->dev,
-			"page size of %u is not %dKB nor %dMB aligned, can't unmap\n",
-			page_size,
-			mmu_prop->page_size >> 10,
-			mmu_prop->huge_page_size >> 20);
+			"page size of %u is not %uKB aligned, can't unmap\n",
+			page_size, mmu_prop->page_size >> 10);
 
 		return -EFAULT;
 	}

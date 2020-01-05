@@ -132,6 +132,8 @@ enum hl_device_hw_state {
 
 /**
  * struct hl_mmu_properties - ASIC specific MMU address translation properties.
+ * @start_addr: virtual start address of the memory region.
+ * @end_addr: virtual end address of the memory region.
  * @hop0_shift: shift of hop 0 mask.
  * @hop1_shift: shift of hop 1 mask.
  * @hop2_shift: shift of hop 2 mask.
@@ -143,9 +145,10 @@ enum hl_device_hw_state {
  * @hop3_mask: mask to get the PTE address in hop 3.
  * @hop4_mask: mask to get the PTE address in hop 4.
  * @page_size: default page size used to allocate memory.
- * @huge_page_size: page size used to allocate memory with huge pages.
  */
 struct hl_mmu_properties {
+	u64	start_addr;
+	u64	end_addr;
 	u64	hop0_shift;
 	u64	hop1_shift;
 	u64	hop2_shift;
@@ -157,7 +160,6 @@ struct hl_mmu_properties {
 	u64	hop3_mask;
 	u64	hop4_mask;
 	u32	page_size;
-	u32	huge_page_size;
 };
 
 /**
@@ -169,6 +171,8 @@ struct hl_mmu_properties {
  * @preboot_ver: F/W Preboot version.
  * @dmmu: DRAM MMU address translation properties.
  * @pmmu: PCI (host) MMU address translation properties.
+ * @pmmu_huge: PCI (host) MMU address translation properties for memory
+ *              allocated with huge pages.
  * @sram_base_address: SRAM physical start address.
  * @sram_end_address: SRAM physical end address.
  * @sram_user_base_address - SRAM physical start address for user access.
@@ -178,14 +182,6 @@ struct hl_mmu_properties {
  * @dram_size: DRAM total size.
  * @dram_pci_bar_size: size of PCI bar towards DRAM.
  * @max_power_default: max power of the device after reset
- * @va_space_host_start_address: base address of virtual memory range for
- *                               mapping host memory.
- * @va_space_host_end_address: end address of virtual memory range for
- *                             mapping host memory.
- * @va_space_dram_start_address: base address of virtual memory range for
- *                               mapping DRAM memory.
- * @va_space_dram_end_address: end address of virtual memory range for
- *                             mapping DRAM memory.
  * @dram_size_for_default_page_mapping: DRAM size needed to map to avoid page
  *                                      fault.
  * @pcie_dbi_base_address: Base address of the PCIE_DBI block.
@@ -218,6 +214,7 @@ struct asic_fixed_properties {
 	char				preboot_ver[VERSION_MAX_LEN];
 	struct hl_mmu_properties	dmmu;
 	struct hl_mmu_properties	pmmu;
+	struct hl_mmu_properties	pmmu_huge;
 	u64				sram_base_address;
 	u64				sram_end_address;
 	u64				sram_user_base_address;
@@ -227,10 +224,6 @@ struct asic_fixed_properties {
 	u64				dram_size;
 	u64				dram_pci_bar_size;
 	u64				max_power_default;
-	u64				va_space_host_start_address;
-	u64				va_space_host_end_address;
-	u64				va_space_dram_start_address;
-	u64				va_space_dram_end_address;
 	u64				dram_size_for_default_page_mapping;
 	u64				pcie_dbi_base_address;
 	u64				pcie_aux_dbi_reg_addr;
@@ -658,6 +651,8 @@ struct hl_va_range {
  *		this hits 0l. It is incremented on CS and CS_WAIT.
  * @cs_pending: array of DMA fence objects representing pending CS.
  * @host_va_range: holds available virtual addresses for host mappings.
+ * @host_huge_va_range: holds available virtual addresses for host mappings
+ *                      with huge pages.
  * @dram_va_range: holds available virtual addresses for DRAM mappings.
  * @mem_hash_lock: protects the mem_hash.
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifing the
@@ -688,8 +683,9 @@ struct hl_ctx {
 	struct hl_device	*hdev;
 	struct kref		refcount;
 	struct dma_fence	*cs_pending[HL_MAX_PENDING_CS];
-	struct hl_va_range	host_va_range;
-	struct hl_va_range	dram_va_range;
+	struct hl_va_range	*host_va_range;
+	struct hl_va_range	*host_huge_va_range;
+	struct hl_va_range	*dram_va_range;
 	struct mutex		mem_hash_lock;
 	struct mutex		mmu_lock;
 	struct list_head	debugfs_list;
@@ -1291,6 +1287,8 @@ struct hl_device_idle_busy_ts {
  *                   otherwise.
  * @dram_supports_virtual_memory: is MMU enabled towards DRAM.
  * @dram_default_page_mapping: is DRAM default page mapping enabled.
+ * @pmmu_huge_range: is a different virtual addresses range used for PMMU with
+ *                   huge pages.
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
@@ -1372,6 +1370,7 @@ struct hl_device {
 	u8				reset_on_lockup;
 	u8				dram_supports_virtual_memory;
 	u8				dram_default_page_mapping;
+	u8				pmmu_huge_range;
 	u8				init_done;
 	u8				device_cpu_disabled;
 	u8				dma_mask;

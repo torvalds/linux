@@ -393,9 +393,10 @@ static int mmu_show(struct seq_file *s, void *data)
 	}
 
 	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
-				prop->va_space_dram_start_address,
-				prop->va_space_dram_end_address);
+						prop->dmmu.start_addr,
+						prop->dmmu.end_addr);
 
+	/* shifts and masks are the same in PMMU and HPMMU, use one of them */
 	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
 
 	mutex_lock(&ctx->mmu_lock);
@@ -547,12 +548,15 @@ static bool hl_is_device_va(struct hl_device *hdev, u64 addr)
 		goto out;
 
 	if (hdev->dram_supports_virtual_memory &&
-			addr >= prop->va_space_dram_start_address &&
-			addr < prop->va_space_dram_end_address)
+		(addr >= prop->dmmu.start_addr && addr < prop->dmmu.end_addr))
 		return true;
 
-	if (addr >= prop->va_space_host_start_address &&
-			addr < prop->va_space_host_end_address)
+	if (addr >= prop->pmmu.start_addr &&
+		addr < prop->pmmu.end_addr)
+		return true;
+
+	if (addr >= prop->pmmu_huge.start_addr &&
+		addr < prop->pmmu_huge.end_addr)
 		return true;
 out:
 	return false;
@@ -575,9 +579,10 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 	}
 
 	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
-				prop->va_space_dram_start_address,
-				prop->va_space_dram_end_address);
+						prop->dmmu.start_addr,
+						prop->dmmu.end_addr);
 
+	/* shifts and masks are the same in PMMU and HPMMU, use one of them */
 	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
 
 	mutex_lock(&ctx->mmu_lock);

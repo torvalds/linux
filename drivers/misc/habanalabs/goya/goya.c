@@ -393,19 +393,21 @@ void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->dmmu.hop2_mask = HOP2_MASK;
 	prop->dmmu.hop3_mask = HOP3_MASK;
 	prop->dmmu.hop4_mask = HOP4_MASK;
-	prop->dmmu.huge_page_size = PAGE_SIZE_2MB;
-
-	/* No difference between PMMU and DMMU except of page size */
-	memcpy(&prop->pmmu, &prop->dmmu, sizeof(prop->dmmu));
+	prop->dmmu.start_addr = VA_DDR_SPACE_START;
+	prop->dmmu.end_addr = VA_DDR_SPACE_END;
 	prop->dmmu.page_size = PAGE_SIZE_2MB;
+
+	/* shifts and masks are the same in PMMU and DMMU */
+	memcpy(&prop->pmmu, &prop->dmmu, sizeof(prop->dmmu));
+	prop->pmmu.start_addr = VA_HOST_SPACE_START;
+	prop->pmmu.end_addr = VA_HOST_SPACE_END;
 	prop->pmmu.page_size = PAGE_SIZE_4KB;
 
-	prop->va_space_host_start_address = VA_HOST_SPACE_START;
-	prop->va_space_host_end_address = VA_HOST_SPACE_END;
-	prop->va_space_dram_start_address = VA_DDR_SPACE_START;
-	prop->va_space_dram_end_address = VA_DDR_SPACE_END;
-	prop->dram_size_for_default_page_mapping =
-			prop->va_space_dram_end_address;
+	/* PMMU and HPMMU are the same except of page size */
+	memcpy(&prop->pmmu_huge, &prop->pmmu, sizeof(prop->pmmu));
+	prop->pmmu_huge.page_size = PAGE_SIZE_2MB;
+
+	prop->dram_size_for_default_page_mapping = VA_DDR_SPACE_END;
 	prop->cfg_size = CFG_SIZE;
 	prop->max_asid = MAX_ASID;
 	prop->num_of_events = GOYA_ASYNC_EVENT_ID_SIZE;
@@ -3443,12 +3445,13 @@ static int goya_validate_dma_pkt_mmu(struct hl_device *hdev,
 	/*
 	 * WA for HW-23.
 	 * We can't allow user to read from Host using QMANs other than 1.
+	 * PMMU and HPMMU addresses are equal, check only one of them.
 	 */
 	if (parser->hw_queue_id != GOYA_QUEUE_ID_DMA_1 &&
 		hl_mem_area_inside_range(le64_to_cpu(user_dma_pkt->src_addr),
 				le32_to_cpu(user_dma_pkt->tsize),
-				hdev->asic_prop.va_space_host_start_address,
-				hdev->asic_prop.va_space_host_end_address)) {
+				hdev->asic_prop.pmmu.start_addr,
+				hdev->asic_prop.pmmu.end_addr)) {
 		dev_err(hdev->dev,
 			"Can't DMA from host on queue other then 1\n");
 		return -EFAULT;
