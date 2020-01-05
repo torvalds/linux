@@ -99,13 +99,14 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 
 		}
 
+		insert->k.needs_whiteout = k->needs_whiteout;
+		k->needs_whiteout = false;
+
 		if (k >= btree_bset_last(b)->start) {
 			clobber_u64s = k->u64s;
 			goto overwrite;
 		}
 
-		insert->k.needs_whiteout = k->needs_whiteout;
-		k->needs_whiteout = false;
 		k->type = KEY_TYPE_deleted;
 		/*
 		 * XXX: we should be able to do this without two calls to
