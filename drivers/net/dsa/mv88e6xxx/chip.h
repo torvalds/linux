@@ -300,7 +300,9 @@ struct mv88e6xxx_chip {
 	char watchdog_irq_name[32];
 
 	int atu_prob_irq;
+	char atu_prob_irq_name[32];
 	int vtu_prob_irq;
+	char vtu_prob_irq_name[32];
 	struct kthread_worker *kworker;
 	struct kthread_delayed_work irq_poll_work;
 
