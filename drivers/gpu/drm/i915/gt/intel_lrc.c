@@ -1744,6 +1744,11 @@ static void set_preempt_timeout(struct intel_engine_cs *engine)
 		     active_preempt_timeout(engine));
 }
 
+static inline void clear_ports(struct i915_request **ports, int count)
+{
+	memset_p((void **)ports, NULL, count);
+}
+
 static void execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -2104,10 +2109,9 @@ done:
 
 			goto skip_submit;
 		}
+		clear_ports(port + 1, last_port - port);
 
-		memset(port + 1, 0, (last_port - port) * sizeof(*port));
 		execlists_submit_ports(engine);
-
 		set_preempt_timeout(engine);
 	} else {
 skip_submit:
@@ -2122,13 +2126,14 @@ cancel_port_requests(struct intel_engine_execlists * const execlists)
 
 	for (port = execlists->pending; *port; port++)
 		execlists_schedule_out(*port);
-	memset(execlists->pending, 0, sizeof(execlists->pending));
+	clear_ports(execlists->pending, ARRAY_SIZE(execlists->pending));
 
 	/* Mark the end of active before we overwrite *active */
 	for (port = xchg(&execlists->active, execlists->pending); *port; port++)
 		execlists_schedule_out(*port);
-	WRITE_ONCE(execlists->active,
-		   memset(execlists->inflight, 0, sizeof(execlists->inflight)));
+	clear_ports(execlists->inflight, ARRAY_SIZE(execlists->inflight));
+
+	WRITE_ONCE(execlists->active, execlists->inflight);
 }
 
 static inline void
