@@ -2,9 +2,8 @@
 config DRM_UDL
 	tristate "DisplayLink"
 	depends on DRM
-	depends on USB_SUPPORT
+	depends on USB
 	depends on USB_ARCH_HAS_HCD
-	select USB
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
 	help
