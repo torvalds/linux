@@ -107,11 +107,6 @@
 #define NODE_DESC_SIZE				64
 #define DB_REG_OFFSET				0x1000
 
-#define SERV_TYPE_RC				0
-#define SERV_TYPE_RD				1
-#define SERV_TYPE_UC				2
-#define SERV_TYPE_UD				3
-
 /* Configure to HW for PAGE_SIZE larger than 4KB */
 #define PG_SHIFT_OFFSET				(PAGE_SHIFT - 12)
 
@@ -129,6 +124,13 @@
  * according to twice the actual EQ depth
  */
 #define EQ_DEPTH_COEFF				2
+
+enum {
+	SERV_TYPE_RC,
+	SERV_TYPE_UC,
+	SERV_TYPE_RD,
+	SERV_TYPE_UD,
+};
 
 enum {
 	HNS_ROCE_SUPPORT_RQ_RECORD_DB = 1 << 0,
