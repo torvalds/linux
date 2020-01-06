@@ -333,3 +333,43 @@ void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 	amdgpu_mmhub_ras_fini(adev);
 	amdgpu_xgmi_ras_fini(adev);
 }
+
+	/*
+	 * The latest engine allocation on gfx9 is:
+	 * Engine 2, 3: firmware
+	 * Engine 0, 1, 4~16: amdgpu ring,
+	 *                    subject to change when ring number changes
+	 * Engine 17: Gart flushes
+	 */
+#define GFXHUB_FREE_VM_INV_ENGS_BITMAP		0x1FFF3
+#define MMHUB_FREE_VM_INV_ENGS_BITMAP		0x1FFF3
+
+int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	unsigned vm_inv_engs[AMDGPU_MAX_VMHUBS] =
+		{GFXHUB_FREE_VM_INV_ENGS_BITMAP, MMHUB_FREE_VM_INV_ENGS_BITMAP,
+		GFXHUB_FREE_VM_INV_ENGS_BITMAP};
+	unsigned i;
+	unsigned vmhub, inv_eng;
+
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+		vmhub = ring->funcs->vmhub;
+
+		inv_eng = ffs(vm_inv_engs[vmhub]);
+		if (!inv_eng) {
+			dev_err(adev->dev, "no VM inv eng for ring %s\n",
+				ring->name);
+			return -EINVAL;
+		}
+
+		ring->vm_inv_eng = inv_eng - 1;
+		vm_inv_engs[vmhub] &= ~(1 << ring->vm_inv_eng);
+
+		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
+			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
+	}
+
+	return 0;
+}

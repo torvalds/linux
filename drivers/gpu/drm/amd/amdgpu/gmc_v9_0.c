@@ -797,36 +797,6 @@ static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 	}
 }
 
-static int gmc_v9_0_allocate_vm_inv_eng(struct amdgpu_device *adev)
-{
-	struct amdgpu_ring *ring;
-	unsigned vm_inv_engs[AMDGPU_MAX_VMHUBS] =
-		{GFXHUB_FREE_VM_INV_ENGS_BITMAP, MMHUB_FREE_VM_INV_ENGS_BITMAP,
-		GFXHUB_FREE_VM_INV_ENGS_BITMAP};
-	unsigned i;
-	unsigned vmhub, inv_eng;
-
-	for (i = 0; i < adev->num_rings; ++i) {
-		ring = adev->rings[i];
-		vmhub = ring->funcs->vmhub;
-
-		inv_eng = ffs(vm_inv_engs[vmhub]);
-		if (!inv_eng) {
-			dev_err(adev->dev, "no VM inv eng for ring %s\n",
-				ring->name);
-			return -EINVAL;
-		}
-
-		ring->vm_inv_eng = inv_eng - 1;
-		vm_inv_engs[vmhub] &= ~(1 << ring->vm_inv_eng);
-
-		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
-			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
-	}
-
-	return 0;
-}
-
 static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -835,7 +805,7 @@ static int gmc_v9_0_late_init(void *handle)
 	if (!gmc_v9_0_keep_stolen_memory(adev))
 		amdgpu_bo_late_init(adev);
 
-	r = gmc_v9_0_allocate_vm_inv_eng(adev);
+	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
 	if (r)
 		return r;
 	/* Check if ecc is available */
