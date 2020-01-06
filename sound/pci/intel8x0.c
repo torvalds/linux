@@ -393,7 +393,7 @@ struct intel8x0 {
 	struct snd_ac97 *ac97[3];
 	unsigned int ac97_sdin[3];
 	unsigned int max_codecs, ncodecs;
-	unsigned int *codec_bit;
+	const unsigned int *codec_bit;
 	unsigned int codec_isr_bits;
 	unsigned int codec_ready_bits;
 
@@ -843,7 +843,7 @@ static int snd_intel8x0_ali_trigger(struct snd_pcm_substream *substream, int cmd
 	struct intel8x0 *chip = snd_pcm_substream_chip(substream);
 	struct ichdev *ichdev = get_ichdev(substream);
 	unsigned long port = ichdev->reg_offset;
-	static int fiforeg[] = {
+	static const int fiforeg[] = {
 		ICHREG(ALI_FIFOCR1), ICHREG(ALI_FIFOCR2), ICHREG(ALI_FIFOCR3)
 	};
 	unsigned int val, fifo;
@@ -1443,7 +1443,7 @@ struct ich_pcm_table {
 	((chip)->fix_nocache ? SNDRV_DMA_TYPE_DEV_UC : SNDRV_DMA_TYPE_DEV)
 
 static int snd_intel8x0_pcm1(struct intel8x0 *chip, int device,
-			     struct ich_pcm_table *rec)
+			     const struct ich_pcm_table *rec)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1498,7 +1498,7 @@ static int snd_intel8x0_pcm1(struct intel8x0 *chip, int device,
 	return 0;
 }
 
-static struct ich_pcm_table intel_pcms[] = {
+static const struct ich_pcm_table intel_pcms[] = {
 	{
 		.playback_ops = &snd_intel8x0_playback_ops,
 		.capture_ops = &snd_intel8x0_capture_ops,
@@ -1535,7 +1535,7 @@ static struct ich_pcm_table intel_pcms[] = {
 	},
 };
 
-static struct ich_pcm_table nforce_pcms[] = {
+static const struct ich_pcm_table nforce_pcms[] = {
 	{
 		.playback_ops = &snd_intel8x0_playback_ops,
 		.capture_ops = &snd_intel8x0_capture_ops,
@@ -1558,7 +1558,7 @@ static struct ich_pcm_table nforce_pcms[] = {
 	},
 };
 
-static struct ich_pcm_table ali_pcms[] = {
+static const struct ich_pcm_table ali_pcms[] = {
 	{
 		.playback_ops = &snd_intel8x0_ali_playback_ops,
 		.capture_ops = &snd_intel8x0_ali_capture_ops,
@@ -1593,7 +1593,7 @@ static struct ich_pcm_table ali_pcms[] = {
 static int snd_intel8x0_pcm(struct intel8x0 *chip)
 {
 	int i, tblsize, device, err;
-	struct ich_pcm_table *tbl, *rec;
+	const struct ich_pcm_table *tbl, *rec;
 
 	switch (chip->device_type) {
 	case DEVICE_INTEL_ICH4:
@@ -2849,10 +2849,10 @@ struct ich_reg_info {
 	unsigned int offset;
 };
 
-static unsigned int ich_codec_bits[3] = {
+static const unsigned int ich_codec_bits[3] = {
 	ICH_PCR, ICH_SCR, ICH_TCR
 };
-static unsigned int sis_codec_bits[3] = {
+static const unsigned int sis_codec_bits[3] = {
 	ICH_PCR, ICH_SCR, ICH_SIS_TCR
 };
 
@@ -2901,14 +2901,14 @@ static int snd_intel8x0_create(struct snd_card *card,
 		.dev_free =	snd_intel8x0_dev_free,
 	};
 
-	static unsigned int bdbars[] = {
+	static const unsigned int bdbars[] = {
 		3, /* DEVICE_INTEL */
 		6, /* DEVICE_INTEL_ICH4 */
 		3, /* DEVICE_SIS */
 		6, /* DEVICE_ALI */
 		4, /* DEVICE_NFORCE */
 	};
-	static struct ich_reg_info intel_regs[6] = {
+	static const struct ich_reg_info intel_regs[6] = {
 		{ ICH_PIINT, 0 },
 		{ ICH_POINT, 0x10 },
 		{ ICH_MCINT, 0x20 },
@@ -2916,13 +2916,13 @@ static int snd_intel8x0_create(struct snd_card *card,
 		{ ICH_P2INT, 0x50 },
 		{ ICH_SPINT, 0x60 },
 	};
-	static struct ich_reg_info nforce_regs[4] = {
+	static const struct ich_reg_info nforce_regs[4] = {
 		{ ICH_PIINT, 0 },
 		{ ICH_POINT, 0x10 },
 		{ ICH_MCINT, 0x20 },
 		{ ICH_NVSPINT, 0x70 },
 	};
-	static struct ich_reg_info ali_regs[6] = {
+	static const struct ich_reg_info ali_regs[6] = {
 		{ ALI_INT_PCMIN, 0x40 },
 		{ ALI_INT_PCMOUT, 0x50 },
 		{ ALI_INT_MICIN, 0x60 },
@@ -2930,7 +2930,7 @@ static int snd_intel8x0_create(struct snd_card *card,
 		{ ALI_INT_SPDIFIN, 0xa0 },
 		{ ALI_INT_SPDIFOUT, 0xb0 },
 	};
-	struct ich_reg_info *tbl;
+	const struct ich_reg_info *tbl;
 
 	*r_intel8x0 = NULL;
 

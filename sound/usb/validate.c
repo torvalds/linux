@@ -233,7 +233,7 @@ static bool validate_midi_out_jack(const void *p,
 #define FIXED(p, t, s) { .protocol = (p), .type = (t), .size = sizeof(s) }
 #define FUNC(p, t, f) { .protocol = (p), .type = (t), .func = (f) }
 
-static struct usb_desc_validator audio_validators[] = {
+static const struct usb_desc_validator audio_validators[] = {
 	/* UAC1 */
 	FUNC(UAC_VERSION_1, UAC_HEADER, validate_uac1_header),
 	FIXED(UAC_VERSION_1, UAC_INPUT_TERMINAL,
@@ -288,7 +288,7 @@ static struct usb_desc_validator audio_validators[] = {
 	{ } /* terminator */
 };
 
-static struct usb_desc_validator midi_validators[] = {
+static const struct usb_desc_validator midi_validators[] = {
 	FIXED(UAC_VERSION_ALL, USB_MS_HEADER,
 	      struct usb_ms_header_descriptor),
 	FIXED(UAC_VERSION_ALL, USB_MS_MIDI_IN_JACK,

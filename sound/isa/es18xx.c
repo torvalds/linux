@@ -965,7 +965,7 @@ static int snd_es18xx_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 
 static int snd_es18xx_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	static unsigned char invMap4Source[8] = {0, 0, 1, 1, 0, 0, 2, 3};
+	static const unsigned char invMap4Source[8] = {0, 0, 1, 1, 0, 0, 2, 3};
 	struct snd_es18xx *chip = snd_kcontrol_chip(kcontrol);
 	int muxSource = snd_es18xx_mixer_read(chip, 0x1c) & 0x07;
 	if (!(chip->version == 0x1869 || chip->version == 0x1879)) {
@@ -982,7 +982,7 @@ static int snd_es18xx_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 
 static int snd_es18xx_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	static unsigned char map4Source[4] = {0, 2, 6, 7};
+	static const unsigned char map4Source[4] = {0, 2, 6, 7};
 	struct snd_es18xx *chip = snd_kcontrol_chip(kcontrol);
 	unsigned char val = ucontrol->value.enumerated.item[0];
 	unsigned char retVal = 0;
@@ -2173,8 +2173,8 @@ static int snd_es18xx_isa_probe1(int dev, struct device *devptr)
 static int snd_es18xx_isa_probe(struct device *pdev, unsigned int dev)
 {
 	int err;
-	static int possible_irqs[] = {5, 9, 10, 7, 11, 12, -1};
-	static int possible_dmas[] = {1, 0, 3, 5, -1};
+	static const int possible_irqs[] = {5, 9, 10, 7, 11, 12, -1};
+	static const int possible_dmas[] = {1, 0, 3, 5, -1};
 
 	if (irq[dev] == SNDRV_AUTO_IRQ) {
 		if ((irq[dev] = snd_legacy_find_free_irq(possible_irqs)) < 0) {
@@ -2198,7 +2198,7 @@ static int snd_es18xx_isa_probe(struct device *pdev, unsigned int dev)
 	if (port[dev] != SNDRV_AUTO_PORT) {
 		return snd_es18xx_isa_probe1(dev, pdev);
 	} else {
-		static unsigned long possible_ports[] = {0x220, 0x240, 0x260, 0x280};
+		static const unsigned long possible_ports[] = {0x220, 0x240, 0x260, 0x280};
 		int i;
 		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
 			port[dev] = possible_ports[i];

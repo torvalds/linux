@@ -380,7 +380,7 @@ static const struct snd_pcm_hardware aaci_hw_info = {
 static int aaci_rule_channels(struct snd_pcm_hw_params *p,
 	struct snd_pcm_hw_rule *rule)
 {
-	static unsigned int channel_list[] = { 2, 4, 6 };
+	static const unsigned int channel_list[] = { 2, 4, 6 };
 	struct aaci *aaci = rule->private;
 	unsigned int mask = 1 << 0, slots;
 

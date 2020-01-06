@@ -812,7 +812,7 @@ static int ad1988_add_spdif_mux_ctl(struct hda_codec *codec)
 	/* we create four static faked paths, since AD codecs have odd
 	 * widget connections regarding the SPDIF out source
 	 */
-	static struct nid_path fake_paths[4] = {
+	static const struct nid_path fake_paths[4] = {
 		{
 			.depth = 3,
 			.path = { 0x02, 0x1d, 0x1b },

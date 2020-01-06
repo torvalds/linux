@@ -1020,7 +1020,7 @@ struct usb_feature_control_info {
 	int type_uac2;	/* data type for uac2 if different from uac1, else -1 */
 };
 
-static struct usb_feature_control_info audio_feature_info[] = {
+static const struct usb_feature_control_info audio_feature_info[] = {
 	{ UAC_FU_MUTE,			"Mute",			USB_MIXER_INV_BOOLEAN, -1 },
 	{ UAC_FU_VOLUME,		"Volume",		USB_MIXER_S16, -1 },
 	{ UAC_FU_BASS,			"Tone Control - Bass",	USB_MIXER_S8, -1 },
@@ -1526,7 +1526,7 @@ static void check_no_speaker_on_headset(struct snd_kcontrol *kctl,
 	strlcpy(kctl->id.name, "Headphone", sizeof(kctl->id.name));
 }
 
-static struct usb_feature_control_info *get_feature_control_info(int control)
+static const struct usb_feature_control_info *get_feature_control_info(int control)
 {
 	int i;
 
@@ -1544,7 +1544,7 @@ static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 				struct usb_audio_term *oterm,
 				int unitid, int nameid, int readonly_mask)
 {
-	struct usb_feature_control_info *ctl_info;
+	const struct usb_feature_control_info *ctl_info;
 	unsigned int len = 0;
 	int mapped_name = 0;
 	struct snd_kcontrol *kctl;
@@ -2198,7 +2198,7 @@ static const struct snd_kcontrol_new mixer_procunit_ctl = {
  */
 struct procunit_value_info {
 	int control;
-	char *suffix;
+	const char *suffix;
 	int val_type;
 	int min_value;
 };
@@ -2206,44 +2206,44 @@ struct procunit_value_info {
 struct procunit_info {
 	int type;
 	char *name;
-	struct procunit_value_info *values;
+	const struct procunit_value_info *values;
 };
 
-static struct procunit_value_info undefined_proc_info[] = {
+static const struct procunit_value_info undefined_proc_info[] = {
 	{ 0x00, "Control Undefined", 0 },
 	{ 0 }
 };
 
-static struct procunit_value_info updown_proc_info[] = {
+static const struct procunit_value_info updown_proc_info[] = {
 	{ UAC_UD_ENABLE, "Switch", USB_MIXER_BOOLEAN },
 	{ UAC_UD_MODE_SELECT, "Mode Select", USB_MIXER_U8, 1 },
 	{ 0 }
 };
-static struct procunit_value_info prologic_proc_info[] = {
+static const struct procunit_value_info prologic_proc_info[] = {
 	{ UAC_DP_ENABLE, "Switch", USB_MIXER_BOOLEAN },
 	{ UAC_DP_MODE_SELECT, "Mode Select", USB_MIXER_U8, 1 },
 	{ 0 }
 };
-static struct procunit_value_info threed_enh_proc_info[] = {
+static const struct procunit_value_info threed_enh_proc_info[] = {
 	{ UAC_3D_ENABLE, "Switch", USB_MIXER_BOOLEAN },
 	{ UAC_3D_SPACE, "Spaciousness", USB_MIXER_U8 },
 	{ 0 }
 };
-static struct procunit_value_info reverb_proc_info[] = {
+static const struct procunit_value_info reverb_proc_info[] = {
 	{ UAC_REVERB_ENABLE, "Switch", USB_MIXER_BOOLEAN },
 	{ UAC_REVERB_LEVEL, "Level", USB_MIXER_U8 },
 	{ UAC_REVERB_TIME, "Time", USB_MIXER_U16 },
 	{ UAC_REVERB_FEEDBACK, "Feedback", USB_MIXER_U8 },
 	{ 0 }
 };
-static struct procunit_value_info chorus_proc_info[] = {
+static const struct procunit_value_info chorus_proc_info[] = {
 	{ UAC_CHORUS_ENABLE, "Switch", USB_MIXER_BOOLEAN },
 	{ UAC_CHORUS_LEVEL, "Level", USB_MIXER_U8 },
 	{ UAC_CHORUS_RATE, "Rate", USB_MIXER_U16 },
 	{ UAC_CHORUS_DEPTH, "Depth", USB_MIXER_U16 },
 	{ 0 }
 };
-static struct procunit_value_info dcr_proc_info[] = {
+static const struct procunit_value_info dcr_proc_info[] = {
 	{ UAC_DCR_ENABLE, "Switch", USB_MIXER_BOOLEAN },
 	{ UAC_DCR_RATE, "Ratio", USB_MIXER_U16 },
 	{ UAC_DCR_MAXAMPL, "Max Amp", USB_MIXER_S16 },
@@ -2253,7 +2253,7 @@ static struct procunit_value_info dcr_proc_info[] = {
 	{ 0 }
 };
 
-static struct procunit_info procunits[] = {
+static const struct procunit_info procunits[] = {
 	{ UAC_PROCESS_UP_DOWNMIX, "Up Down", updown_proc_info },
 	{ UAC_PROCESS_DOLBY_PROLOGIC, "Dolby Prologic", prologic_proc_info },
 	{ UAC_PROCESS_STEREO_EXTENDER, "3D Stereo Extender", threed_enh_proc_info },
@@ -2263,16 +2263,16 @@ static struct procunit_info procunits[] = {
 	{ 0 },
 };
 
-static struct procunit_value_info uac3_updown_proc_info[] = {
+static const struct procunit_value_info uac3_updown_proc_info[] = {
 	{ UAC3_UD_MODE_SELECT, "Mode Select", USB_MIXER_U8, 1 },
 	{ 0 }
 };
-static struct procunit_value_info uac3_stereo_ext_proc_info[] = {
+static const struct procunit_value_info uac3_stereo_ext_proc_info[] = {
 	{ UAC3_EXT_WIDTH_CONTROL, "Width Control", USB_MIXER_U8 },
 	{ 0 }
 };
 
-static struct procunit_info uac3_procunits[] = {
+static const struct procunit_info uac3_procunits[] = {
 	{ UAC3_PROCESS_UP_DOWNMIX, "Up Down", uac3_updown_proc_info },
 	{ UAC3_PROCESS_STEREO_EXTENDER, "3D Stereo Extender", uac3_stereo_ext_proc_info },
 	{ UAC3_PROCESS_MULTI_FUNCTION, "Multi-Function", undefined_proc_info },
@@ -2282,23 +2282,23 @@ static struct procunit_info uac3_procunits[] = {
 /*
  * predefined data for extension units
  */
-static struct procunit_value_info clock_rate_xu_info[] = {
+static const struct procunit_value_info clock_rate_xu_info[] = {
 	{ USB_XU_CLOCK_RATE_SELECTOR, "Selector", USB_MIXER_U8, 0 },
 	{ 0 }
 };
-static struct procunit_value_info clock_source_xu_info[] = {
+static const struct procunit_value_info clock_source_xu_info[] = {
 	{ USB_XU_CLOCK_SOURCE_SELECTOR, "External", USB_MIXER_BOOLEAN },
 	{ 0 }
 };
-static struct procunit_value_info spdif_format_xu_info[] = {
+static const struct procunit_value_info spdif_format_xu_info[] = {
 	{ USB_XU_DIGITAL_FORMAT_SELECTOR, "SPDIF/AC3", USB_MIXER_BOOLEAN },
 	{ 0 }
 };
-static struct procunit_value_info soft_limit_xu_info[] = {
+static const struct procunit_value_info soft_limit_xu_info[] = {
 	{ USB_XU_SOFT_LIMIT_SELECTOR, " ", USB_MIXER_BOOLEAN },
 	{ 0 }
 };
-static struct procunit_info extunits[] = {
+static const struct procunit_info extunits[] = {
 	{ USB_XU_CLOCK_RATE, "Clock rate", clock_rate_xu_info },
 	{ USB_XU_CLOCK_SOURCE, "DigitalIn CLK source", clock_source_xu_info },
 	{ USB_XU_DIGITAL_IO_STATUS, "DigitalOut format:", spdif_format_xu_info },
@@ -2310,7 +2310,7 @@ static struct procunit_info extunits[] = {
  * build a processing/extension unit
  */
 static int build_audio_procunit(struct mixer_build *state, int unitid,
-				void *raw_desc, struct procunit_info *list,
+				void *raw_desc, const struct procunit_info *list,
 				bool extension_unit)
 {
 	struct uac_processing_unit_descriptor *desc = raw_desc;
@@ -2318,14 +2318,14 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 	struct usb_mixer_elem_info *cval;
 	struct snd_kcontrol *kctl;
 	int i, err, nameid, type, len;
-	struct procunit_info *info;
-	struct procunit_value_info *valinfo;
+	const struct procunit_info *info;
+	const struct procunit_value_info *valinfo;
 	const struct usbmix_name_map *map;
-	static struct procunit_value_info default_value_info[] = {
+	static const struct procunit_value_info default_value_info[] = {
 		{ 0x01, "Switch", USB_MIXER_BOOLEAN },
 		{ 0 }
 	};
-	static struct procunit_info default_info = {
+	static const struct procunit_info default_info = {
 		0, NULL, default_value_info
 	};
 	const char *name = extension_unit ?
@@ -2803,7 +2803,7 @@ struct uac3_badd_profile {
 	int st_chmask;	/* side tone mixing channel mask */
 };
 
-static struct uac3_badd_profile uac3_badd_profiles[] = {
+static const struct uac3_badd_profile uac3_badd_profiles[] = {
 	{
 		/*
 		 * BAIF, BAOF or combination of both
@@ -2864,7 +2864,7 @@ static struct uac3_badd_profile uac3_badd_profiles[] = {
 };
 
 static bool uac3_badd_func_has_valid_channels(struct usb_mixer_interface *mixer,
-					      struct uac3_badd_profile *f,
+					      const struct uac3_badd_profile *f,
 					      int c_chmask, int p_chmask)
 {
 	/*
@@ -2908,7 +2908,7 @@ static int snd_usb_mixer_controls_badd(struct usb_mixer_interface *mixer,
 	struct usb_device *dev = mixer->chip->dev;
 	struct usb_interface_assoc_descriptor *assoc;
 	int badd_profile = mixer->chip->badd_profile;
-	struct uac3_badd_profile *f;
+	const struct uac3_badd_profile *f;
 	const struct usbmix_ctl_map *map;
 	int p_chmask = 0, c_chmask = 0, st_chmask = 0;
 	int i;
@@ -3174,7 +3174,7 @@ static void snd_usb_mixer_dump_cval(struct snd_info_buffer *buffer,
 				    struct usb_mixer_elem_list *list)
 {
 	struct usb_mixer_elem_info *cval = mixer_elem_list_to_info(list);
-	static char *val_types[] = {"BOOLEAN", "INV_BOOLEAN",
+	static const char * const val_types[] = {"BOOLEAN", "INV_BOOLEAN",
 				    "S8", "U8", "S16", "U16"};
 	snd_iprintf(buffer, "    Info: id=%i, control=%i, cmask=0x%x, "
 			    "channels=%i, type=\"%s\"\n", cval->head.id,

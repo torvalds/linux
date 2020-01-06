@@ -160,7 +160,7 @@ static void print_amp_vals(struct snd_info_buffer *buffer,
 
 static void print_pcm_rates(struct snd_info_buffer *buffer, unsigned int pcm)
 {
-	static unsigned int rates[] = {
+	static const unsigned int rates[] = {
 		8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200,
 		96000, 176400, 192000, 384000
 	};

@@ -335,7 +335,7 @@ static int snd_ak4531_dev_free(struct snd_device *device)
 	return snd_ak4531_free(ak4531);
 }
 
-static u8 snd_ak4531_initial_map[0x19 + 1] = {
+static const u8 snd_ak4531_initial_map[0x19 + 1] = {
 	0x9f,		/* 00: Master Volume Lch */
 	0x9f,		/* 01: Master Volume Rch */
 	0x9f,		/* 02: Voice Volume Lch */

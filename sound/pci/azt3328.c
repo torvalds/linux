@@ -1152,7 +1152,7 @@ static const struct snd_kcontrol_new snd_azf3328_mixer_controls[] = {
 #endif
 };
 
-static u16 snd_azf3328_init_values[][2] = {
+static const u16 snd_azf3328_init_values[][2] = {
         { IDX_MIXER_PLAY_MASTER,	MIXER_MUTE_MASK|0x1f1f },
         { IDX_MIXER_MODEMOUT,		MIXER_MUTE_MASK|0x1f1f },
 	{ IDX_MIXER_BASSTREBLE,		0x0000 },

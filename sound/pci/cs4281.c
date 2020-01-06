@@ -1939,7 +1939,7 @@ static void snd_cs4281_remove(struct pci_dev *pci)
  */
 #ifdef CONFIG_PM_SLEEP
 
-static int saved_regs[SUSPEND_REGISTERS] = {
+static const int saved_regs[SUSPEND_REGISTERS] = {
 	BA0_JSCTL,
 	BA0_GPIOR,
 	BA0_SSCR,

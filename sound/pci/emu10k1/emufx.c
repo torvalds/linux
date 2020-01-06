@@ -46,7 +46,7 @@ MODULE_PARM_DESC(high_res_gpr_volume, "GPR mixer controls use 31-bit range.");
  *  Tables
  */ 
 
-static char *fxbuses[16] = {
+static const char * const fxbuses[16] = {
 	/* 0x00 */ "PCM Left",
 	/* 0x01 */ "PCM Right",
 	/* 0x02 */ "PCM Surround Left",
@@ -65,7 +65,7 @@ static char *fxbuses[16] = {
 	/* 0x0f */ NULL
 };
 
-static char *creative_ins[16] = {
+static const char * const creative_ins[16] = {
 	/* 0x00 */ "AC97 Left",
 	/* 0x01 */ "AC97 Right",
 	/* 0x02 */ "TTL IEC958 Left",
@@ -84,7 +84,7 @@ static char *creative_ins[16] = {
 	/* 0x0f */ NULL
 };
 
-static char *audigy_ins[16] = {
+static const char * const audigy_ins[16] = {
 	/* 0x00 */ "AC97 Left",
 	/* 0x01 */ "AC97 Right",
 	/* 0x02 */ "Audigy CD Left",
@@ -103,7 +103,7 @@ static char *audigy_ins[16] = {
 	/* 0x0f */ NULL
 };
 
-static char *creative_outs[32] = {
+static const char * const creative_outs[32] = {
 	/* 0x00 */ "AC97 Left",
 	/* 0x01 */ "AC97 Right",
 	/* 0x02 */ "Optical IEC958 Left",
@@ -138,7 +138,7 @@ static char *creative_outs[32] = {
 	/* 0x1f */ NULL,
 };
 
-static char *audigy_outs[32] = {
+static const char * const audigy_outs[32] = {
 	/* 0x00 */ "Digital Front Left",
 	/* 0x01 */ "Digital Front Right",
 	/* 0x02 */ "Digital Center",
@@ -2485,7 +2485,7 @@ static int snd_emu10k1_fx8010_open(struct snd_hwdep * hw, struct file *file)
 	return 0;
 }
 
-static void copy_string(char *dst, char *src, char *null, int idx)
+static void copy_string(char *dst, const char *src, const char *null, int idx)
 {
 	if (src == NULL)
 		sprintf(dst, "%s %02X", null, idx);
@@ -2496,7 +2496,7 @@ static void copy_string(char *dst, char *src, char *null, int idx)
 static void snd_emu10k1_fx8010_info(struct snd_emu10k1 *emu,
 				   struct snd_emu10k1_fx8010_info *info)
 {
-	char **fxbus, **extin, **extout;
+	const char * const *fxbus, * const *extin, * const *extout;
 	unsigned short fxbus_mask, extin_mask, extout_mask;
 	int res;
 

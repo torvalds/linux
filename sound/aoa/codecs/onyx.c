@@ -543,7 +543,7 @@ static const struct snd_kcontrol_new onyx_spdif_ctrl = {
 
 /* our registers */
 
-static u8 register_map[] = {
+static const u8 register_map[] = {
 	ONYX_REG_DAC_ATTEN_LEFT,
 	ONYX_REG_DAC_ATTEN_RIGHT,
 	ONYX_REG_CONTROL,
@@ -559,7 +559,7 @@ static u8 register_map[] = {
 	ONYX_REG_DIG_INFO4
 };
 
-static u8 initial_values[ARRAY_SIZE(register_map)] = {
+static const u8 initial_values[ARRAY_SIZE(register_map)] = {
 	0x80, 0x80, /* muted */
 	ONYX_MRST | ONYX_SRST, /* but handled specially! */
 	ONYX_MUTE_LEFT | ONYX_MUTE_RIGHT,

@@ -1109,7 +1109,7 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer,
 /*
  */
 #define MIXER_VOL(name) [SOUND_MIXER_##name] = #name
-static char *oss_mixer_names[SNDRV_OSS_MAX_MIXERS] = {
+static const char * const oss_mixer_names[SNDRV_OSS_MAX_MIXERS] = {
 	MIXER_VOL(VOLUME),
 	MIXER_VOL(BASS),
 	MIXER_VOL(TREBLE),

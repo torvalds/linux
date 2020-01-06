@@ -567,12 +567,12 @@ static int wtm_add_controls(struct snd_ice1712 *ice)
 
 static int wtm_init(struct snd_ice1712 *ice)
 {
-	static unsigned short stac_inits_wtm[] = {
+	static const unsigned short stac_inits_wtm[] = {
 		STAC946X_RESET, 0,
 		STAC946X_MASTER_CLOCKING, 0x11,
 		(unsigned short)-1
 	};
-	unsigned short *p;
+	const unsigned short *p;
 	struct wtm_spec *spec;
 
 	/*WTM 192M*/
@@ -599,7 +599,7 @@ static int wtm_init(struct snd_ice1712 *ice)
 }
 
 
-static unsigned char wtm_eeprom[] = {
+static const unsigned char wtm_eeprom[] = {
 	[ICE_EEP2_SYSCONF]      = 0x67, /*SYSCONF: clock 192KHz, mpu401,
 							4ADC, 8DAC */
 	[ICE_EEP2_ACLINK]       = 0x80, /* ACLINK : I2S */

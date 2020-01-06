@@ -179,7 +179,7 @@ int snd_pdacf_ak4117_create(struct snd_pdacf *chip)
 	/* from AK4117 then INT1 pin from AK4117 will be high all time, because PCMCIA interrupts are */
 	/* egde based and FPGA does logical OR for all interrupt sources, we cannot use these */
 	/* high-rate sources */
-	static unsigned char pgm[5] = {
+	static const unsigned char pgm[5] = {
 		AK4117_XTL_24_576M | AK4117_EXCT,				/* AK4117_REG_PWRDN */
 		AK4117_CM_PLL_XTAL | AK4117_PKCS_128fs | AK4117_XCKS_128fs,	/* AK4117_REQ_CLOCK */
 		AK4117_EFH_1024LRCLK | AK4117_DIF_24R | AK4117_IPS,		/* AK4117_REG_IO */

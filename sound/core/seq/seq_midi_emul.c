@@ -479,11 +479,11 @@ sysex(const struct snd_midi_op *ops, void *private, unsigned char *buf, int len,
       struct snd_midi_channel_set *chset)
 {
 	/* GM on */
-	static unsigned char gm_on_macro[] = {
+	static const unsigned char gm_on_macro[] = {
 		0x7e,0x7f,0x09,0x01,
 	};
 	/* XG on */
-	static unsigned char xg_on_macro[] = {
+	static const unsigned char xg_on_macro[] = {
 		0x43,0x10,0x4c,0x00,0x00,0x7e,0x00,
 	};
 	/* GS prefix
@@ -492,7 +492,7 @@ sysex(const struct snd_midi_op *ops, void *private, unsigned char *buf, int len,
 	 * chorus mode: XX=0x01, YY=0x38, ZZ=0-7
 	 * master vol:  XX=0x00, YY=0x04, ZZ=0-127
 	 */
-	static unsigned char gs_pfx_macro[] = {
+	static const unsigned char gs_pfx_macro[] = {
 		0x41,0x10,0x42,0x12,0x40,/*XX,YY,ZZ*/
 	};
 
