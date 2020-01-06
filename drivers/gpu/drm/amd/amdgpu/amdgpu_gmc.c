@@ -335,7 +335,7 @@ void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 }
 
 	/*
-	 * The latest engine allocation on gfx9 is:
+	 * The latest engine allocation on gfx9/10 is:
 	 * Engine 2, 3: firmware
 	 * Engine 0, 1, 4~16: amdgpu ring,
 	 *                    subject to change when ring number changes
