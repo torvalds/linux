@@ -2369,9 +2369,6 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	struct ingenic_pinctrl *jzpc;
 	struct pinctrl_desc *pctl_desc;
 	void __iomem *base;
-	const struct platform_device_id *id = platform_get_device_id(pdev);
-	const struct of_device_id *of_id = of_match_device(
-			ingenic_pinctrl_of_match, dev);
 	const struct ingenic_chip_info *chip_info;
 	struct device_node *node;
 	unsigned int i;
@@ -2394,11 +2391,7 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	jzpc->dev = dev;
-
-	if (of_id)
-		jzpc->version = (enum jz_version)of_id->data;
-	else
-		jzpc->version = (enum jz_version)id->driver_data;
+	jzpc->version = (enum jz_version)of_device_get_match_data(dev);
 
 	if (jzpc->version >= ID_X1830)
 		chip_info = &x1830_chip_info;
@@ -2489,26 +2482,11 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id ingenic_pinctrl_ids[] = {
-	{ "jz4740-pinctrl", ID_JZ4740 },
-	{ "jz4725b-pinctrl", ID_JZ4725B },
-	{ "jz4760-pinctrl", ID_JZ4760 },
-	{ "jz4760b-pinctrl", ID_JZ4760B },
-	{ "jz4770-pinctrl", ID_JZ4770 },
-	{ "jz4780-pinctrl", ID_JZ4780 },
-	{ "x1000-pinctrl", ID_X1000 },
-	{ "x1000e-pinctrl", ID_X1000E },
-	{ "x1500-pinctrl", ID_X1500 },
-	{ "x1830-pinctrl", ID_X1830 },
-	{},
-};
-
 static struct platform_driver ingenic_pinctrl_driver = {
 	.driver = {
 		.name = "pinctrl-ingenic",
-		.of_match_table = of_match_ptr(ingenic_pinctrl_of_match),
+		.of_match_table = ingenic_pinctrl_of_match,
 	},
-	.id_table = ingenic_pinctrl_ids,
 };
 
 static int __init ingenic_pinctrl_drv_register(void)
