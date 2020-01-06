@@ -9,6 +9,9 @@ static const struct etnaviv_chip_identity etnaviv_chip_identities[] = {
 	{
 		.model = 0x7000,
 		.revision = 0x6214,
+		.product_id = ~0U,
+		.customer_id = ~0U,
+		.eco_id = ~0U,
 		.stream_count = 16,
 		.register_max = 64,
 		.thread_count = 1024,
