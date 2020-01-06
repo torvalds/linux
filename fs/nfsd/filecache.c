@@ -237,13 +237,6 @@ nfsd_file_check_write_error(struct nfsd_file *nf)
 	return filemap_check_wb_err(file->f_mapping, READ_ONCE(file->f_wb_err));
 }
 
-static bool
-nfsd_file_in_use(struct nfsd_file *nf)
-{
-	return nfsd_file_check_writeback(nf) ||
-			nfsd_file_check_write_error(nf);
-}
-
 static void
 nfsd_file_do_unhash(struct nfsd_file *nf)
 {
@@ -307,10 +300,9 @@ void
 nfsd_file_put(struct nfsd_file *nf)
 {
 	bool is_hashed = test_bit(NFSD_FILE_HASHED, &nf->nf_flags) != 0;
-	bool unused = !nfsd_file_in_use(nf);
 
 	set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
-	if (nfsd_file_put_noref(nf) == 1 && is_hashed && unused)
+	if (nfsd_file_put_noref(nf) == 1 && is_hashed)
 		nfsd_file_schedule_laundrette();
 	if (atomic_long_read(&nfsd_filecache_count) >= NFSD_FILE_LRU_LIMIT)
 		nfsd_file_gc();
