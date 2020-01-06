@@ -348,30 +348,31 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy)
 	void __iomem *base = phy->pad_regs;
 	unsigned long flags;
 	u32 val;
-	int err;
+	int ret;
+
+	ret = clk_prepare_enable(phy->pad_clk);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(&utmip_pad_lock, flags);
 
 	if (!utmip_pad_count) {
 		dev_err(phy->u_phy.dev, "UTMIP pad already powered off\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto ulock;
 	}
-
-	err = clk_prepare_enable(phy->pad_clk);
-	if (err)
-		return err;
-
-	spin_lock_irqsave(&utmip_pad_lock, flags);
 
 	if (--utmip_pad_count == 0) {
 		val = readl_relaxed(base + UTMIP_BIAS_CFG0);
 		val |= UTMIP_OTGPD | UTMIP_BIASPD;
 		writel_relaxed(val, base + UTMIP_BIAS_CFG0);
 	}
-
+ulock:
 	spin_unlock_irqrestore(&utmip_pad_lock, flags);
 
 	clk_disable_unprepare(phy->pad_clk);
 
-	return 0;
+	return ret;
 }
 
 static int utmi_wait_register(void __iomem *reg, u32 mask, u32 result)
