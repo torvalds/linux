@@ -6,9 +6,10 @@
  * Author: Brendan Higgins <brendanhiggins@google.com>
  */
 
-#include <kunit/string-stream.h>
 #include <kunit/test.h>
 #include <linux/slab.h>
+
+#include "string-stream.h"
 
 static void string_stream_test_empty_on_creation(struct kunit *test)
 {
