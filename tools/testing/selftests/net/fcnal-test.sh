@@ -1165,8 +1165,8 @@ ipv4_tcp_vrf()
 	for a in ${NSA_IP} ${VRF_IP}
 	do
 		log_start
-		show_hint "Should fail 'No route to host' since client is not bound to VRF"
-		run_cmd nettest -s -2 ${VRF} &
+		show_hint "Should fail 'Connection refused' since client is not bound to VRF"
+		run_cmd nettest -s -d ${VRF} &
 		sleep 1
 		run_cmd nettest -r ${a}
 		log_test_addr ${a} $? 1 "Global server, local connection"
@@ -2663,8 +2663,8 @@ ipv6_tcp_vrf()
 	for a in ${NSA_IP6} ${VRF_IP6}
 	do
 		log_start
-		show_hint "Fails 'No route to host' since client is not in VRF"
-		run_cmd nettest -6 -s -2 ${VRF} &
+		show_hint "Fails 'Connection refused' since client is not in VRF"
+		run_cmd nettest -6 -s -d ${VRF} &
 		sleep 1
 		run_cmd nettest -6 -r ${a}
 		log_test_addr ${a} $? 1 "Global server, local connection"
