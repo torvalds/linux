@@ -483,6 +483,7 @@
 			resets = <&rcc I2C1_R>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			wakeup-source;
 			status = "disabled";
 		};
 
@@ -496,6 +497,7 @@
 			resets = <&rcc I2C2_R>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			wakeup-source;
 			status = "disabled";
 		};
 
@@ -509,6 +511,7 @@
 			resets = <&rcc I2C3_R>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			wakeup-source;
 			status = "disabled";
 		};
 
@@ -522,6 +525,7 @@
 			resets = <&rcc I2C5_R>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			wakeup-source;
 			status = "disabled";
 		};
 
@@ -1480,6 +1484,7 @@
 			resets = <&rcc I2C4_R>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			wakeup-source;
 			status = "disabled";
 		};
 
@@ -1515,6 +1520,7 @@
 			resets = <&rcc I2C6_R>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			wakeup-source;
 			status = "disabled";
 		};
 
