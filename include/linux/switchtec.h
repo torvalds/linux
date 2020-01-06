@@ -21,6 +21,11 @@
 #define SWITCHTEC_EVENT_FATAL    BIT(4)
 
 #define SWITCHTEC_DMA_MRPC_EN	BIT(0)
+
+#define MRPC_GAS_READ		0x29
+#define MRPC_GAS_WRITE		0x87
+#define MRPC_CMD_ID(x)		((x) & 0xffff)
+
 enum {
 	SWITCHTEC_GAS_MRPC_OFFSET       = 0x0000,
 	SWITCHTEC_GAS_TOP_CFG_OFFSET    = 0x1000,

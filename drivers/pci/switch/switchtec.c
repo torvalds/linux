@@ -479,6 +479,12 @@ static ssize_t switchtec_dev_write(struct file *filp, const char __user *data,
 		rc = -EFAULT;
 		goto out;
 	}
+	if (((MRPC_CMD_ID(stuser->cmd) == MRPC_GAS_WRITE) ||
+	     (MRPC_CMD_ID(stuser->cmd) == MRPC_GAS_READ)) &&
+	    !capable(CAP_SYS_ADMIN)) {
+		rc = -EPERM;
+		goto out;
+	}
 
 	data += sizeof(stuser->cmd);
 	rc = copy_from_user(&stuser->data, data, size - sizeof(stuser->cmd));
