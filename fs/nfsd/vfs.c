@@ -994,8 +994,11 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct nfsd_file *nf,
 		host_err = vfs_iter_write(file, &iter, &pos, flags);
 		up_read(&nf->nf_rwsem);
 	}
-	if (host_err < 0)
+	if (host_err < 0) {
+		nfsd_reset_boot_verifier(net_generic(SVC_NET(rqstp),
+					 nfsd_net_id));
 		goto out_nfserr;
+	}
 	*cnt = host_err;
 	nfsdstats.io_write += *cnt;
 	fsnotify_modify(file);
