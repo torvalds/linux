@@ -527,13 +527,19 @@ static struct i915_request *nop_request(struct intel_engine_cs *engine)
 	return rq;
 }
 
-static void wait_for_submit(struct intel_engine_cs *engine,
-			    struct i915_request *rq)
+static int wait_for_submit(struct intel_engine_cs *engine,
+			   struct i915_request *rq,
+			   unsigned long timeout)
 {
+	timeout += jiffies;
 	do {
 		cond_resched();
 		intel_engine_flush_submission(engine);
-	} while (!i915_request_is_active(rq));
+		if (i915_request_is_active(rq))
+			return 0;
+	} while (time_before(jiffies, timeout));
+
+	return -ETIME;
 }
 
 static long timeslice_threshold(const struct intel_engine_cs *engine)
@@ -601,7 +607,12 @@ static int live_timeslice_queue(void *arg)
 			goto err_heartbeat;
 		}
 		engine->schedule(rq, &attr);
-		wait_for_submit(engine, rq);
+		err = wait_for_submit(engine, rq, HZ / 2);
+		if (err) {
+			pr_err("%s: Timed out trying to submit semaphores\n",
+			       engine->name);
+			goto err_rq;
+		}
 
 		/* ELSP[1]: nop request */
 		nop = nop_request(engine);
@@ -609,8 +620,13 @@ static int live_timeslice_queue(void *arg)
 			err = PTR_ERR(nop);
 			goto err_rq;
 		}
-		wait_for_submit(engine, nop);
+		err = wait_for_submit(engine, nop, HZ / 2);
 		i915_request_put(nop);
+		if (err) {
+			pr_err("%s: Timed out trying to submit nop\n",
+			       engine->name);
+			goto err_rq;
+		}
 
 		GEM_BUG_ON(i915_request_completed(rq));
 		GEM_BUG_ON(execlists_active(&engine->execlists) != rq);
