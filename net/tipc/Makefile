@@ -20,5 +20,3 @@ tipc-$(CONFIG_TIPC_CRYPTO)	+= crypto.o
 
 
 obj-$(CONFIG_TIPC_DIAG)	+= diag.o
-
-tipc_diag-y	:= diag.o
