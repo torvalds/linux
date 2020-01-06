@@ -624,7 +624,7 @@ error_alg:
 error_irq:
 	sun8i_ce_pm_exit(ce);
 error_pm:
-	sun8i_ce_free_chanlist(ce, MAXFLOW);
+	sun8i_ce_free_chanlist(ce, MAXFLOW - 1);
 	return err;
 }
 
@@ -638,7 +638,7 @@ static int sun8i_ce_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(ce->dbgfs_dir);
 #endif
 
-	sun8i_ce_free_chanlist(ce, MAXFLOW);
+	sun8i_ce_free_chanlist(ce, MAXFLOW - 1);
 
 	sun8i_ce_pm_exit(ce);
 	return 0;
