@@ -8,11 +8,12 @@
  */
 
 #include <kunit/test.h>
-#include <kunit/try-catch.h>
 #include <linux/completion.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/sched/sysctl.h>
+
+#include "try-catch-impl.h"
 
 void __noreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch)
 {
@@ -105,14 +106,4 @@ void kunit_try_catch_run(struct kunit_try_catch *try_catch, void *context)
 		kunit_err(test, "Unknown error: %d\n", exit_code);
 
 	try_catch->catch(try_catch->context);
-}
-
-void kunit_try_catch_init(struct kunit_try_catch *try_catch,
-			  struct kunit *test,
-			  kunit_try_catch_func_t try,
-			  kunit_try_catch_func_t catch)
-{
-	try_catch->test = test;
-	try_catch->try = try;
-	try_catch->catch = catch;
 }
