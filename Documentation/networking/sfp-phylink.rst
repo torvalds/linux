@@ -251,7 +251,8 @@ this documentation.
 	phylink_mac_change(priv->phylink, link_is_up);
 
     where ``link_is_up`` is true if the link is currently up or false
-    otherwise.
+    otherwise. If a MAC is unable to provide these interrupts, then
+    it should set ``priv->phylink_config.pcs_poll = true;`` in step 9.
 
 11. Verify that the driver does not call::
 
