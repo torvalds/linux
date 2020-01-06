@@ -554,13 +554,6 @@ is_trans_port_sync_mode(const struct intel_crtc_state *crtc_state)
 }
 
 static bool
-is_trans_port_sync_master(const struct intel_crtc_state *crtc_state)
-{
-	return (crtc_state->master_transcoder == INVALID_TRANSCODER &&
-		crtc_state->sync_mode_slaves_mask);
-}
-
-static bool
 is_trans_port_sync_slave(const struct intel_crtc_state *crtc_state)
 {
 	return crtc_state->master_transcoder != INVALID_TRANSCODER;
@@ -14514,31 +14507,6 @@ intel_modeset_synced_crtcs(struct intel_atomic_state *state,
 	}
 }
 
-static void
-intel_atomic_check_synced_crtcs(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc_state *new_crtc_state;
-	struct intel_crtc *crtc;
-	int i;
-
-	if (INTEL_GEN(dev_priv) < 11)
-		return;
-
-	for_each_new_intel_crtc_in_state(state, crtc,
-					 new_crtc_state, i) {
-		if (is_trans_port_sync_master(new_crtc_state) &&
-		    needs_modeset(new_crtc_state)) {
-			intel_modeset_synced_crtcs(state,
-						   new_crtc_state->sync_mode_slaves_mask);
-		} else if (is_trans_port_sync_slave(new_crtc_state) &&
-			   needs_modeset(new_crtc_state)) {
-			intel_modeset_synced_crtcs(state,
-						   BIT(new_crtc_state->master_transcoder));
-		}
-	}
-}
-
 static int
 intel_modeset_all_tiles(struct intel_atomic_state *state, int tile_grp_id)
 {
@@ -14682,32 +14650,29 @@ static int intel_atomic_check(struct drm_device *dev,
 	 *
 	 * Right now it only forces a fullmodeset when the MST master
 	 * transcoder did not changed but the pipe of the master transcoder
-	 * needs a fullmodeset so all slaves also needs to do a fullmodeset.
+	 * needs a fullmodeset so all slaves also needs to do a fullmodeset or
+	 * in case of port synced crtcs, if one of the synced crtcs
+	 * needs a full modeset, all other synced crtcs should be
+	 * forced a full modeset.
 	 */
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
-		enum transcoder master = new_crtc_state->mst_master_transcoder;
-
-		if (!new_crtc_state->hw.enable ||
-		    needs_modeset(new_crtc_state) ||
-		    !intel_dp_mst_is_slave_trans(new_crtc_state))
+		if (!new_crtc_state->hw.enable || needs_modeset(new_crtc_state))
 			continue;
 
-		if (intel_cpu_transcoder_needs_modeset(state, master)) {
-			new_crtc_state->uapi.mode_changed = true;
-			new_crtc_state->update_pipe = false;
+		if (intel_dp_mst_is_slave_trans(new_crtc_state)) {
+			enum transcoder master = new_crtc_state->mst_master_transcoder;
+
+			if (intel_cpu_transcoder_needs_modeset(state, master)) {
+				new_crtc_state->uapi.mode_changed = true;
+				new_crtc_state->update_pipe = false;
+			}
+		} else if (is_trans_port_sync_mode(new_crtc_state)) {
+			u8 trans = new_crtc_state->sync_mode_slaves_mask |
+				   BIT(new_crtc_state->master_transcoder);
+
+			intel_modeset_synced_crtcs(state, trans);
 		}
 	}
-
-	/**
-	 * In case of port synced crtcs, if one of the synced crtcs
-	 * needs a full modeset, all other synced crtcs should be
-	 * forced a full modeset. This checks if fastset is allowed
-	 * by other dependencies like the synced crtcs.
-	 * Here we set the mode_changed to true directly to force full
-	 * modeset hence we do not explicitly call the function
-	 * drm_atomic_helper_check_modeset().
-	 */
-	intel_atomic_check_synced_crtcs(state);
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
