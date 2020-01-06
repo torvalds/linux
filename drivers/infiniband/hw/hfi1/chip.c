@@ -8403,6 +8403,55 @@ static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
 	return hfi1_rcd_head(rcd) != tail;
 }
 
+/**
+ * Common code for receive contexts interrupt handlers.
+ * Update traces, increment kernel IRQ counter and
+ * setup ASPM when needed.
+ */
+static void receive_interrupt_common(struct hfi1_ctxtdata *rcd)
+{
+	struct hfi1_devdata *dd = rcd->dd;
+
+	trace_hfi1_receive_interrupt(dd, rcd);
+	this_cpu_inc(*dd->int_counter);
+	aspm_ctx_disable(rcd);
+}
+
+/**
+ * __hfi1_rcd_eoi_intr() - Make HW issue receive interrupt
+ * when there are packets present in the queue. When calling
+ * with interrupts enabled please use hfi1_rcd_eoi_intr.
+ *
+ * @rcd: valid receive context
+ */
+static void __hfi1_rcd_eoi_intr(struct hfi1_ctxtdata *rcd)
+{
+	clear_recv_intr(rcd);
+	if (check_packet_present(rcd))
+		force_recv_intr(rcd);
+}
+
+/**
+ * hfi1_rcd_eoi_intr() - End of Interrupt processing action
+ *
+ * @rcd: Ptr to hfi1_ctxtdata of receive context
+ *
+ *  Hold IRQs so we can safely clear the interrupt and
+ *  recheck for a packet that may have arrived after the previous
+ *  check and the interrupt clear.  If a packet arrived, force another
+ *  interrupt. This routine can be called at the end of receive packet
+ *  processing in interrupt service routines, interrupt service thread
+ *  and softirqs
+ */
+static void hfi1_rcd_eoi_intr(struct hfi1_ctxtdata *rcd)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__hfi1_rcd_eoi_intr(rcd);
+	local_irq_restore(flags);
+}
+
 /*
  * Receive packet IRQ handler.  This routine expects to be on its own IRQ.
  * This routine will try to handle packets immediately (latency), but if
@@ -8414,13 +8463,9 @@ static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
 irqreturn_t receive_context_interrupt(int irq, void *data)
 {
 	struct hfi1_ctxtdata *rcd = data;
-	struct hfi1_devdata *dd = rcd->dd;
 	int disposition;
-	int present;
 
-	trace_hfi1_receive_interrupt(dd, rcd);
-	this_cpu_inc(*dd->int_counter);
-	aspm_ctx_disable(rcd);
+	receive_interrupt_common(rcd);
 
 	/* receive interrupt remains blocked while processing packets */
 	disposition = rcd->do_interrupt(rcd, 0);
@@ -8433,17 +8478,7 @@ irqreturn_t receive_context_interrupt(int irq, void *data)
 	if (disposition == RCV_PKT_LIMIT)
 		return IRQ_WAKE_THREAD;
 
-	/*
-	 * The packet processor detected no more packets.  Clear the receive
-	 * interrupt and recheck for a packet packet that may have arrived
-	 * after the previous check and interrupt clear.  If a packet arrived,
-	 * force another interrupt.
-	 */
-	clear_recv_intr(rcd);
-	present = check_packet_present(rcd);
-	if (present)
-		force_recv_intr(rcd);
-
+	__hfi1_rcd_eoi_intr(rcd);
 	return IRQ_HANDLED;
 }
 
@@ -8454,24 +8489,11 @@ irqreturn_t receive_context_interrupt(int irq, void *data)
 irqreturn_t receive_context_thread(int irq, void *data)
 {
 	struct hfi1_ctxtdata *rcd = data;
-	int present;
 
 	/* receive interrupt is still blocked from the IRQ handler */
 	(void)rcd->do_interrupt(rcd, 1);
 
-	/*
-	 * The packet processor will only return if it detected no more
-	 * packets.  Hold IRQs here so we can safely clear the interrupt and
-	 * recheck for a packet that may have arrived after the previous
-	 * check and the interrupt clear.  If a packet arrived, force another
-	 * interrupt.
-	 */
-	local_irq_disable();
-	clear_recv_intr(rcd);
-	present = check_packet_present(rcd);
-	if (present)
-		force_recv_intr(rcd);
-	local_irq_enable();
+	hfi1_rcd_eoi_intr(rcd);
 
 	return IRQ_HANDLED;
 }
