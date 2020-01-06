@@ -86,22 +86,20 @@ err:
 
 void intel_context_unpin(struct intel_context *ce)
 {
-	if (likely(atomic_add_unless(&ce->pin_count, -1, 1)))
+	if (!atomic_dec_and_test(&ce->pin_count))
 		return;
 
-	/* We may be called from inside intel_context_pin() to evict another */
+	CE_TRACE(ce, "unpin\n");
+	ce->ops->unpin(ce);
+
+	/*
+	 * Once released, we may asynchronously drop the active reference.
+	 * As that may be the only reference keeping the context alive,
+	 * take an extra now so that it is not freed before we finish
+	 * dereferencing it.
+	 */
 	intel_context_get(ce);
-	mutex_lock_nested(&ce->pin_mutex, SINGLE_DEPTH_NESTING);
-
-	if (likely(atomic_dec_and_test(&ce->pin_count))) {
-		CE_TRACE(ce, "retire\n");
-
-		ce->ops->unpin(ce);
-
-		intel_context_active_release(ce);
-	}
-
-	mutex_unlock(&ce->pin_mutex);
+	intel_context_active_release(ce);
 	intel_context_put(ce);
 }
 

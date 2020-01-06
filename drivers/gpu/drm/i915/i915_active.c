@@ -605,12 +605,15 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 					    struct intel_engine_cs *engine)
 {
 	intel_engine_mask_t tmp, mask = engine->mask;
+	struct llist_node *pos = NULL, *next;
 	struct intel_gt *gt = engine->gt;
-	struct llist_node *pos, *next;
 	int err;
 
 	GEM_BUG_ON(i915_active_is_idle(ref));
-	GEM_BUG_ON(!llist_empty(&ref->preallocated_barriers));
+
+	/* Wait until the previous preallocation is completed */
+	while (!llist_empty(&ref->preallocated_barriers))
+		cond_resched();
 
 	/*
 	 * Preallocate a node for each physical engine supporting the target
@@ -653,15 +656,23 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 		GEM_BUG_ON(rcu_access_pointer(node->base.fence) != ERR_PTR(-EAGAIN));
 
 		GEM_BUG_ON(barrier_to_engine(node) != engine);
-		llist_add(barrier_to_ll(node), &ref->preallocated_barriers);
+		next = barrier_to_ll(node);
+		next->next = pos;
+		if (!pos)
+			pos = next;
 		intel_engine_pm_get(engine);
 	}
+
+	GEM_BUG_ON(!llist_empty(&ref->preallocated_barriers));
+	llist_add_batch(next, pos, &ref->preallocated_barriers);
 
 	return 0;
 
 unwind:
-	llist_for_each_safe(pos, next, take_preallocated_barriers(ref)) {
+	while (pos) {
 		struct active_node *node = barrier_from_ll(pos);
+
+		pos = pos->next;
 
 		atomic_dec(&ref->count);
 		intel_engine_pm_put(barrier_to_engine(node));
