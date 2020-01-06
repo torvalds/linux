@@ -366,6 +366,7 @@ static void pe_test_reference(struct kunit *test)
 	static const struct software_node nodes[] = {
 		{ .name = "1", },
 		{ .name = "2", },
+		{ }
 	};
 
 	static const struct software_node_ref_args refs[] = {
