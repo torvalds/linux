@@ -757,8 +757,19 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 
 static int ulpi_phy_power_off(struct tegra_usb_phy *phy)
 {
-	clk_disable(phy->clk);
-	return gpio_direction_output(phy->reset_gpio, 0);
+	int err;
+
+	err = gpio_direction_output(phy->reset_gpio, 0);
+	if (err) {
+		dev_err(phy->u_phy.dev, "reset GPIO not asserted: %d\n", err);
+		return err;
+	}
+
+	usleep_range(5000, 6000);
+
+	clk_disable_unprepare(phy->clk);
+
+	return 0;
 }
 
 static void tegra_usb_phy_close(struct tegra_usb_phy *phy)
