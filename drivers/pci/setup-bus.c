@@ -1865,10 +1865,11 @@ static void extend_bridge_window(struct pci_dev *bridge, struct resource *res,
 
 static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 					    struct list_head *add_list,
-					    resource_size_t available_io,
-					    resource_size_t available_mmio,
-					    resource_size_t available_mmio_pref)
+					    struct resource io,
+					    struct resource mmio,
+					    struct resource mmio_pref)
 {
+	resource_size_t available_io, available_mmio, available_mmio_pref;
 	resource_size_t remaining_io, remaining_mmio, remaining_mmio_pref;
 	unsigned int normal_bridges = 0, hotplug_bridges = 0;
 	struct resource *io_res, *mmio_res, *mmio_pref_res;
@@ -1885,6 +1886,10 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	 * calculated in __pci_bus_size_bridges() which covers all the
 	 * devices currently connected to the port and below.
 	 */
+	available_io = resource_size(&io);
+	available_mmio = resource_size(&mmio);
+	available_mmio_pref = resource_size(&mmio_pref);
+
 	extend_bridge_window(bridge, io_res, add_list, available_io);
 	extend_bridge_window(bridge, mmio_res, add_list, available_mmio);
 	extend_bridge_window(bridge, mmio_pref_res, add_list,
@@ -1911,8 +1916,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		dev = list_first_entry(&bus->devices, struct pci_dev, bus_list);
 		if (dev->subordinate)
 			pci_bus_distribute_available_resources(dev->subordinate,
-				add_list, available_io, available_mmio,
-				available_mmio_pref);
+				add_list, io, mmio, mmio_pref);
 		return;
 	}
 
@@ -1986,28 +1990,27 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 				       remaining_mmio_pref);
 		remaining_mmio_pref -= mmio_pref_per_hp;
 
-		pci_bus_distribute_available_resources(b, add_list, io_per_hp,
-						       mmio_per_hp,
-						       mmio_pref_per_hp);
+		io.end = io.start + io_per_hp - 1;
+		mmio.end = mmio.start + mmio_per_hp - 1;
+		mmio_pref.end = mmio_pref.start + mmio_pref_per_hp - 1;
+
+		pci_bus_distribute_available_resources(b, add_list, io, mmio,
+						       mmio_pref);
 	}
 }
 
 static void pci_bridge_distribute_available_resources(struct pci_dev *bridge,
 						     struct list_head *add_list)
 {
-	resource_size_t available_io, available_mmio, available_mmio_pref;
-	const struct resource *res;
+	struct resource available_io, available_mmio, available_mmio_pref;
 
 	if (!bridge->is_hotplug_bridge)
 		return;
 
 	/* Take the initial extra resources from the hotplug port */
-	res = &bridge->resource[PCI_BRIDGE_RESOURCES + 0];
-	available_io = resource_size(res);
-	res = &bridge->resource[PCI_BRIDGE_RESOURCES + 1];
-	available_mmio = resource_size(res);
-	res = &bridge->resource[PCI_BRIDGE_RESOURCES + 2];
-	available_mmio_pref = resource_size(res);
+	available_io = bridge->resource[PCI_BRIDGE_RESOURCES + 0];
+	available_mmio = bridge->resource[PCI_BRIDGE_RESOURCES + 1];
+	available_mmio_pref = bridge->resource[PCI_BRIDGE_RESOURCES + 2];
 
 	pci_bus_distribute_available_resources(bridge->subordinate,
 					       add_list, available_io,
