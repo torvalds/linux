@@ -1553,23 +1553,22 @@ void handle_eflags(struct hfi1_packet *packet)
  * The following functions are called by the interrupt handler. They are type
  * specific handlers for each packet type.
  */
-static int process_receive_ib(struct hfi1_packet *packet)
+static void process_receive_ib(struct hfi1_packet *packet)
 {
 	if (hfi1_setup_9B_packet(packet))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	if (unlikely(hfi1_dbg_should_fault_rx(packet)))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	trace_hfi1_rcvhdr(packet);
 
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		handle_eflags(packet);
-		return RHF_RCV_CONTINUE;
+		return;
 	}
 
 	hfi1_ib_rcv(packet);
-	return RHF_RCV_CONTINUE;
 }
 
 static inline bool hfi1_is_vnic_packet(struct hfi1_packet *packet)
@@ -1585,23 +1584,23 @@ static inline bool hfi1_is_vnic_packet(struct hfi1_packet *packet)
 	return false;
 }
 
-static int process_receive_bypass(struct hfi1_packet *packet)
+static void process_receive_bypass(struct hfi1_packet *packet)
 {
 	struct hfi1_devdata *dd = packet->rcd->dd;
 
 	if (hfi1_is_vnic_packet(packet)) {
 		hfi1_vnic_bypass_rcv(packet);
-		return RHF_RCV_CONTINUE;
+		return;
 	}
 
 	if (hfi1_setup_bypass_packet(packet))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	trace_hfi1_rcvhdr(packet);
 
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		handle_eflags(packet);
-		return RHF_RCV_CONTINUE;
+		return;
 	}
 
 	if (hfi1_16B_get_l2(packet->hdr) == 0x2) {
@@ -1624,17 +1623,16 @@ static int process_receive_bypass(struct hfi1_packet *packet)
 				(OPA_EI_STATUS_SMASK | BAD_L2_ERR);
 		}
 	}
-	return RHF_RCV_CONTINUE;
 }
 
-static int process_receive_error(struct hfi1_packet *packet)
+static void process_receive_error(struct hfi1_packet *packet)
 {
 	/* KHdrHCRCErr -- KDETH packet with a bad HCRC */
 	if (unlikely(
 		 hfi1_dbg_fault_suppress_err(&packet->rcd->dd->verbs_dev) &&
 		 (rhf_rcv_type_err(packet->rhf) == RHF_RCV_TYPE_ERROR ||
 		  packet->rhf & RHF_DC_ERR)))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	hfi1_setup_ib_header(packet);
 	handle_eflags(packet);
@@ -1642,32 +1640,29 @@ static int process_receive_error(struct hfi1_packet *packet)
 	if (unlikely(rhf_err_flags(packet->rhf)))
 		dd_dev_err(packet->rcd->dd,
 			   "Unhandled error packet received. Dropping.\n");
-
-	return RHF_RCV_CONTINUE;
 }
 
-static int kdeth_process_expected(struct hfi1_packet *packet)
+static void kdeth_process_expected(struct hfi1_packet *packet)
 {
 	hfi1_setup_9B_packet(packet);
 	if (unlikely(hfi1_dbg_should_fault_rx(packet)))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		struct hfi1_ctxtdata *rcd = packet->rcd;
 
 		if (hfi1_handle_kdeth_eflags(rcd, rcd->ppd, packet))
-			return RHF_RCV_CONTINUE;
+			return;
 	}
 
 	hfi1_kdeth_expected_rcv(packet);
-	return RHF_RCV_CONTINUE;
 }
 
-static int kdeth_process_eager(struct hfi1_packet *packet)
+static void kdeth_process_eager(struct hfi1_packet *packet)
 {
 	hfi1_setup_9B_packet(packet);
 	if (unlikely(hfi1_dbg_should_fault_rx(packet)))
-		return RHF_RCV_CONTINUE;
+		return;
 
 	trace_hfi1_rcvhdr(packet);
 	if (unlikely(rhf_err_flags(packet->rhf))) {
@@ -1675,18 +1670,16 @@ static int kdeth_process_eager(struct hfi1_packet *packet)
 
 		show_eflags_errs(packet);
 		if (hfi1_handle_kdeth_eflags(rcd, rcd->ppd, packet))
-			return RHF_RCV_CONTINUE;
+			return;
 	}
 
 	hfi1_kdeth_eager_rcv(packet);
-	return RHF_RCV_CONTINUE;
 }
 
-static int process_receive_invalid(struct hfi1_packet *packet)
+static void process_receive_invalid(struct hfi1_packet *packet)
 {
 	dd_dev_err(packet->rcd->dd, "Invalid packet type %d. Dropping\n",
 		   rhf_rcv_type(packet->rhf));
-	return RHF_RCV_CONTINUE;
 }
 
 #define HFI1_RCVHDR_DUMP_MAX	5

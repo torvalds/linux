@@ -199,7 +199,7 @@ struct exp_tid_set {
 
 struct hfi1_ctxtdata;
 typedef int (*intr_handler)(struct hfi1_ctxtdata *rcd, int data);
-typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
+typedef void (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
 
 struct tid_queue {
 	struct list_head queue_head;
