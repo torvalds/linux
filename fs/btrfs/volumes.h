@@ -120,8 +120,6 @@ struct btrfs_device {
 	/* per-device scrub information */
 	struct scrub_ctx *scrub_ctx;
 
-	struct btrfs_work work;
-
 	/* readahead state */
 	atomic_t reada_in_flight;
 	u64 reada_next;
