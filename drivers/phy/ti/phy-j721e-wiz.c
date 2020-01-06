@@ -9,6 +9,8 @@
 #include <dt-bindings/phy/phy.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mux/consumer.h>
@@ -22,12 +24,15 @@
 #define WIZ_SERDES_CTRL		0x404
 #define WIZ_SERDES_TOP_CTRL	0x408
 #define WIZ_SERDES_RST		0x40c
+#define WIZ_SERDES_TYPEC	0x410
 #define WIZ_LANECTL(n)		(0x480 + (0x40 * (n)))
 
 #define WIZ_MAX_LANES		4
 #define WIZ_MUX_NUM_CLOCKS	3
 #define WIZ_DIV_NUM_CLOCKS_16G	2
 #define WIZ_DIV_NUM_CLOCKS_10G	1
+
+#define WIZ_SERDES_TYPEC_LN10_SWAP	BIT(30)
 
 enum wiz_lane_standard_mode {
 	LANE_MODE_GEN1,
@@ -93,6 +98,9 @@ static const struct reg_field p_standard_mode[WIZ_MAX_LANES] = {
 	REG_FIELD(WIZ_LANECTL(2), 24, 25),
 	REG_FIELD(WIZ_LANECTL(3), 24, 25),
 };
+
+static const struct reg_field typec_ln10_swap =
+					REG_FIELD(WIZ_SERDES_TYPEC, 30, 30);
 
 struct wiz_clk_mux {
 	struct clk_hw		hw;
@@ -185,6 +193,9 @@ enum wiz_type {
 	J721E_WIZ_10G,
 };
 
+#define WIZ_TYPEC_DIR_DEBOUNCE_MIN	100	/* ms */
+#define WIZ_TYPEC_DIR_DEBOUNCE_MAX	1000
+
 struct wiz {
 	struct regmap		*regmap;
 	enum wiz_type		type;
@@ -201,11 +212,14 @@ struct wiz {
 	struct regmap_field	*pma_cmn_refclk_mode;
 	struct regmap_field	*pma_cmn_refclk_dig_div;
 	struct regmap_field	*pma_cmn_refclk1_dig_div;
+	struct regmap_field	*typec_ln10_swap;
 
 	struct device		*dev;
 	u32			num_lanes;
 	struct platform_device	*serdes_pdev;
 	struct reset_controller_dev wiz_phy_reset_dev;
+	struct gpio_desc	*gpio_typec_dir;
+	int			typec_dir_delay;
 };
 
 static int wiz_reset(struct wiz *wiz)
@@ -402,6 +416,13 @@ static int wiz_regfield_init(struct wiz *wiz)
 				i);
 			return PTR_ERR(wiz->p_standard_mode[i]);
 		}
+	}
+
+	wiz->typec_ln10_swap = devm_regmap_field_alloc(dev, regmap,
+						       typec_ln10_swap);
+	if (IS_ERR(wiz->typec_ln10_swap)) {
+		dev_err(dev, "LN10_SWAP reg field init failed\n");
+		return PTR_ERR(wiz->typec_ln10_swap);
 	}
 
 	return 0;
@@ -697,6 +718,17 @@ static int wiz_phy_reset_deassert(struct reset_controller_dev *rcdev,
 	struct wiz *wiz = dev_get_drvdata(dev);
 	int ret;
 
+	/* if typec-dir gpio was specified, set LN10 SWAP bit based on that */
+	if (id == 0 && wiz->gpio_typec_dir) {
+		if (wiz->typec_dir_delay)
+			msleep_interruptible(wiz->typec_dir_delay);
+
+		if (gpiod_get_value_cansleep(wiz->gpio_typec_dir))
+			regmap_field_write(wiz->typec_ln10_swap, 1);
+		else
+			regmap_field_write(wiz->typec_ln10_swap, 0);
+	}
+
 	if (id == 0) {
 		ret = regmap_field_write(wiz->phy_reset_n, true);
 		return ret;
@@ -781,6 +813,35 @@ static int wiz_probe(struct platform_device *pdev)
 	if (num_lanes > WIZ_MAX_LANES) {
 		dev_err(dev, "Cannot support %d lanes\n", num_lanes);
 		goto err_addr_to_resource;
+	}
+
+	wiz->gpio_typec_dir = devm_gpiod_get_optional(dev, "typec-dir",
+						      GPIOD_IN);
+	if (IS_ERR(wiz->gpio_typec_dir)) {
+		ret = PTR_ERR(wiz->gpio_typec_dir);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Failed to request typec-dir gpio: %d\n",
+				ret);
+		goto err_addr_to_resource;
+	}
+
+	if (wiz->gpio_typec_dir) {
+		ret = of_property_read_u32(node, "typec-dir-debounce-ms",
+					   &wiz->typec_dir_delay);
+		if (ret && ret != -EINVAL) {
+			dev_err(dev, "Invalid typec-dir-debounce property\n");
+			goto err_addr_to_resource;
+		}
+
+		/* use min. debounce from Type-C spec if not provided in DT  */
+		if (ret == -EINVAL)
+			wiz->typec_dir_delay = WIZ_TYPEC_DIR_DEBOUNCE_MIN;
+
+		if (wiz->typec_dir_delay < WIZ_TYPEC_DIR_DEBOUNCE_MIN ||
+		    wiz->typec_dir_delay > WIZ_TYPEC_DIR_DEBOUNCE_MAX) {
+			dev_err(dev, "Invalid typec-dir-debounce property\n");
+			goto err_addr_to_resource;
+		}
 	}
 
 	wiz->dev = dev;
