@@ -6,11 +6,11 @@
  * Copyright (C) 2017 Cogent Embedded, Inc.
  */
 
-#include "r8a7795-es1-h3ulcb.dts"
+#include "r8a77951-ulcb.dts"
 #include "ulcb-kf.dtsi"
 
 / {
-	model = "Renesas H3ULCB Kingfisher board based on r8a7795 ES1.x";
+	model = "Renesas H3ULCB Kingfisher board based on r8a77951";
 	compatible = "shimafuji,kingfisher", "renesas,h3ulcb",
 		     "renesas,r8a7795";
 };
