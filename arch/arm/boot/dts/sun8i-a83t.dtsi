@@ -1006,9 +1006,9 @@
 			reg = <0x01c30000 0x104>;
 			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			resets = <&ccu 13>;
+			resets = <&ccu CLK_BUS_EMAC>;
 			reset-names = "stmmaceth";
-			clocks = <&ccu 27>;
+			clocks = <&ccu RST_BUS_EMAC>;
 			clock-names = "stmmaceth";
 			status = "disabled";
 
@@ -1102,7 +1102,7 @@
 			compatible = "allwinner,sun8i-a83t-r-ccu";
 			reg = <0x01f01400 0x400>;
 			clocks = <&osc24M>, <&osc16Md512>, <&osc16M>,
-				 <&ccu 6>;
+				 <&ccu CLK_PLL_PERIPH>;
 			clock-names = "hosc", "losc", "iosc", "pll-periph";
 			#clock-cells = <1>;
 			#reset-cells = <1>;

@@ -995,7 +995,7 @@
 			compatible = "allwinner,sun8i-r40-hdmi-phy";
 			reg = <0x01ef0000 0x10000>;
 			clocks = <&ccu CLK_BUS_HDMI1>, <&ccu CLK_HDMI_SLOW>,
-				 <&ccu 7>, <&ccu 16>;
+				 <&ccu CLK_PLL_VIDEO0>, <&ccu CLK_PLL_VIDEO1>;
 			clock-names = "bus", "mod", "pll-0", "pll-1";
 			resets = <&ccu RST_BUS_HDMI0>;
 			reset-names = "phy";
