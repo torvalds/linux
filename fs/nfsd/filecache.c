@@ -27,7 +27,6 @@
 #define NFSD_FILE_HASH_SIZE                  (1 << NFSD_FILE_HASH_BITS)
 #define NFSD_LAUNDRETTE_DELAY		     (2 * HZ)
 
-#define NFSD_FILE_LRU_RESCAN		     (0)
 #define NFSD_FILE_SHUTDOWN		     (1)
 #define NFSD_FILE_LRU_THRESHOLD		     (4096UL)
 #define NFSD_FILE_LRU_LIMIT		     (NFSD_FILE_LRU_THRESHOLD << 2)
@@ -440,15 +439,13 @@ nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
 		goto out_skip;
 
 	if (test_and_clear_bit(NFSD_FILE_REFERENCED, &nf->nf_flags))
-		goto out_rescan;
+		goto out_skip;
 
 	if (!test_and_clear_bit(NFSD_FILE_HASHED, &nf->nf_flags))
 		goto out_skip;
 
 	list_lru_isolate_move(lru, &nf->nf_lru, head);
 	return LRU_REMOVED;
-out_rescan:
-	set_bit(NFSD_FILE_LRU_RESCAN, &nfsd_file_lru_flags);
 out_skip:
 	return LRU_SKIP;
 }
