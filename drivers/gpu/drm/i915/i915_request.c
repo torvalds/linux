@@ -658,7 +658,6 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->engine = ce->engine;
 	rq->ring = ce->ring;
 	rq->execution_mask = ce->engine->mask;
-	rq->flags = 0;
 
 	RCU_INIT_POINTER(rq->timeline, tl);
 	RCU_INIT_POINTER(rq->hwsp_cacheline, tl->hwsp_cacheline);

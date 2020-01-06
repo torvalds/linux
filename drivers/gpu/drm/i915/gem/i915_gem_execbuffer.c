@@ -2173,7 +2173,7 @@ static int eb_submit(struct i915_execbuffer *eb)
 	}
 
 	if (intel_context_nopreempt(eb->context))
-		eb->request->flags |= I915_REQUEST_NOPREEMPT;
+		__set_bit(I915_FENCE_FLAG_NOPREEMPT, &eb->request->fence.flags);
 
 	return 0;
 }

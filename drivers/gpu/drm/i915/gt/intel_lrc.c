@@ -1538,8 +1538,8 @@ static bool can_merge_rq(const struct i915_request *prev,
 	if (i915_request_completed(next))
 		return true;
 
-	if (unlikely((prev->flags ^ next->flags) &
-		     (I915_REQUEST_NOPREEMPT | I915_REQUEST_SENTINEL)))
+	if (unlikely((prev->fence.flags ^ next->fence.flags) &
+		     (I915_FENCE_FLAG_NOPREEMPT | I915_FENCE_FLAG_SENTINEL)))
 		return false;
 
 	if (!can_merge_ctx(prev->context, next->context))

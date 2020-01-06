@@ -777,7 +777,7 @@ void intel_rps_boost(struct i915_request *rq)
 	spin_lock_irqsave(&rq->lock, flags);
 	if (!i915_request_has_waitboost(rq) &&
 	    !dma_fence_is_signaled_locked(&rq->fence)) {
-		rq->flags |= I915_REQUEST_WAITBOOST;
+		set_bit(I915_FENCE_FLAG_BOOST, &rq->fence.flags);
 
 		if (!atomic_fetch_inc(&rps->num_waiters) &&
 		    READ_ONCE(rps->cur_freq) < rps->boost_freq)

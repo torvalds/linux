@@ -1153,7 +1153,7 @@ static int live_nopreempt(void *arg)
 		}
 
 		/* Low priority client, but unpreemptable! */
-		rq_a->flags |= I915_REQUEST_NOPREEMPT;
+		__set_bit(I915_FENCE_FLAG_NOPREEMPT, &rq_a->fence.flags);
 
 		i915_request_add(rq_a);
 		if (!igt_wait_for_spinner(&a.spin, rq_a)) {
