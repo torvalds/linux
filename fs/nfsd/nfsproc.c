@@ -226,7 +226,7 @@ nfsd_proc_write(struct svc_rqst *rqstp)
 		return nfserr_io;
 	nfserr = nfsd_write(rqstp, fh_copy(&resp->fh, &argp->fh),
 			    argp->offset, rqstp->rq_vec, nvecs,
-			    &cnt, NFS_DATA_SYNC);
+			    &cnt, NFS_DATA_SYNC, NULL);
 	return nfsd_return_attrs(nfserr, resp);
 }
 

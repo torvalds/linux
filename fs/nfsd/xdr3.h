@@ -159,6 +159,7 @@ struct nfsd3_writeres {
 	struct svc_fh		fh;
 	unsigned long		count;
 	int			committed;
+	__be32			verf[2];
 };
 
 struct nfsd3_renameres {
