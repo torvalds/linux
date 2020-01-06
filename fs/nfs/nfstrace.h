@@ -915,87 +915,96 @@ TRACE_DEFINE_ENUM(NFS_FILE_SYNC);
 
 TRACE_EVENT(nfs_initiate_write,
 		TP_PROTO(
-			const struct inode *inode,
-			loff_t offset, unsigned long count,
-			enum nfs3_stable_how stable
+			const struct nfs_pgio_header *hdr
 		),
 
-		TP_ARGS(inode, offset, count, stable),
+		TP_ARGS(hdr),
 
 		TP_STRUCT__entry(
-			__field(loff_t, offset)
-			__field(unsigned long, count)
-			__field(enum nfs3_stable_how, stable)
 			__field(dev_t, dev)
 			__field(u32, fhandle)
 			__field(u64, fileid)
+			__field(loff_t, offset)
+			__field(u32, count)
+			__field(enum nfs3_stable_how, stable)
 		),
 
 		TP_fast_assign(
+			const struct inode *inode = hdr->inode;
 			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_fh *fh = hdr->args.fh ?
+						  hdr->args.fh : &nfsi->fh;
 
-			__entry->offset = offset;
-			__entry->count = count;
-			__entry->stable = stable;
+			__entry->offset = hdr->args.offset;
+			__entry->count = hdr->args.count;
+			__entry->stable = hdr->args.stable;
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
-			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"offset=%lld count=%lu stable=%s",
+			"offset=%lld count=%u stable=%s",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
-			__entry->offset, __entry->count,
+			(long long)__entry->offset, __entry->count,
 			nfs_show_stable(__entry->stable)
 		)
 );
 
 TRACE_EVENT(nfs_writeback_done,
 		TP_PROTO(
-			const struct inode *inode,
-			int status,
-			loff_t offset,
-			struct nfs_writeverf *writeverf
+			const struct rpc_task *task,
+			const struct nfs_pgio_header *hdr
 		),
 
-		TP_ARGS(inode, status, offset, writeverf),
+		TP_ARGS(task, hdr),
 
 		TP_STRUCT__entry(
-			__field(int, status)
-			__field(loff_t, offset)
-			__field(enum nfs3_stable_how, stable)
-			__field(unsigned long long, verifier)
 			__field(dev_t, dev)
 			__field(u32, fhandle)
 			__field(u64, fileid)
+			__field(loff_t, offset)
+			__field(u32, arg_count)
+			__field(u32, res_count)
+			__field(int, status)
+			__field(enum nfs3_stable_how, stable)
+			__array(char, verifier, NFS4_VERIFIER_SIZE)
 		),
 
 		TP_fast_assign(
+			const struct inode *inode = hdr->inode;
 			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_fh *fh = hdr->args.fh ?
+						  hdr->args.fh : &nfsi->fh;
+			const struct nfs_writeverf *verf = hdr->res.verf;
 
-			__entry->status = status;
-			__entry->offset = offset;
-			__entry->stable = writeverf->committed;
-			memcpy(&__entry->verifier, &writeverf->verifier,
-			       sizeof(__entry->verifier));
+			__entry->status = task->tk_status;
+			__entry->offset = hdr->args.offset;
+			__entry->arg_count = hdr->args.count;
+			__entry->res_count = hdr->res.count;
+			__entry->stable = verf->committed;
+			memcpy(__entry->verifier,
+				&verf->verifier,
+				NFS4_VERIFIER_SIZE);
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
-			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"offset=%lld status=%d stable=%s "
-			"verifier 0x%016llx",
+			"offset=%lld count=%u res=%u status=%d stable=%s "
+			"verifier=%s",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
-			__entry->offset, __entry->status,
+			(long long)__entry->offset, __entry->arg_count,
+			__entry->res_count, __entry->status,
 			nfs_show_stable(__entry->stable),
-			__entry->verifier
+			__print_hex_str(__entry->verifier, NFS4_VERIFIER_SIZE)
 		)
 );
 
