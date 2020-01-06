@@ -1180,10 +1180,6 @@ static int mask_event(struct switchtec_dev *stdev, int eid, int idx)
 	if (!(hdr & SWITCHTEC_EVENT_OCCURRED && hdr & SWITCHTEC_EVENT_EN_IRQ))
 		return 0;
 
-	if (eid == SWITCHTEC_IOCTL_EVENT_LINK_STATE ||
-	    eid == SWITCHTEC_IOCTL_EVENT_MRPC_COMP)
-		return 0;
-
 	dev_dbg(&stdev->dev, "%s: %d %d %x\n", __func__, eid, idx, hdr);
 	hdr &= ~(SWITCHTEC_EVENT_EN_IRQ | SWITCHTEC_EVENT_OCCURRED);
 	iowrite32(hdr, hdr_reg);
@@ -1230,8 +1226,13 @@ static irqreturn_t switchtec_event_isr(int irq, void *dev)
 
 	check_link_state_events(stdev);
 
-	for (eid = 0; eid < SWITCHTEC_IOCTL_MAX_EVENTS; eid++)
+	for (eid = 0; eid < SWITCHTEC_IOCTL_MAX_EVENTS; eid++) {
+		if (eid == SWITCHTEC_IOCTL_EVENT_LINK_STATE ||
+		    eid == SWITCHTEC_IOCTL_EVENT_MRPC_COMP)
+			continue;
+
 		event_count += mask_all_events(stdev, eid);
+	}
 
 	if (event_count) {
 		atomic_inc(&stdev->event_cnt);
