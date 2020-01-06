@@ -78,6 +78,7 @@ struct tegra_usb_phy {
 	bool is_ulpi_phy;
 	int reset_gpio;
 	struct reset_control *pad_rst;
+	bool powered_on;
 };
 
 void tegra_usb_phy_preresume(struct usb_phy *phy);

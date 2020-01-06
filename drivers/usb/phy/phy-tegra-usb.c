@@ -785,18 +785,40 @@ static void tegra_usb_phy_close(struct tegra_usb_phy *phy)
 
 static int tegra_usb_phy_power_on(struct tegra_usb_phy *phy)
 {
+	int err;
+
+	if (phy->powered_on)
+		return 0;
+
 	if (phy->is_ulpi_phy)
-		return ulpi_phy_power_on(phy);
+		err = ulpi_phy_power_on(phy);
 	else
-		return utmi_phy_power_on(phy);
+		err = utmi_phy_power_on(phy);
+	if (err)
+		return err;
+
+	phy->powered_on = true;
+
+	return 0;
 }
 
 static int tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
 {
+	int err;
+
+	if (!phy->powered_on)
+		return 0;
+
 	if (phy->is_ulpi_phy)
-		return ulpi_phy_power_off(phy);
+		err = ulpi_phy_power_off(phy);
 	else
-		return utmi_phy_power_off(phy);
+		err = utmi_phy_power_off(phy);
+	if (err)
+		return err;
+
+	phy->powered_on = false;
+
+	return 0;
 }
 
 static int	tegra_usb_phy_suspend(struct usb_phy *x, int suspend)
