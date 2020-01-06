@@ -1105,7 +1105,7 @@ out:
  */
 __be32
 nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
-               loff_t offset, unsigned long count)
+               loff_t offset, unsigned long count, __be32 *verf)
 {
 	struct nfsd_file	*nf;
 	loff_t			end = LLONG_MAX;
@@ -1130,6 +1130,8 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		err2 = vfs_fsync_range(nf->nf_file, offset, end, 0);
 		switch (err2) {
 		case 0:
+			nfsd_copy_boot_verifier(verf, net_generic(nf->nf_net,
+						nfsd_net_id));
 			break;
 		case -EINVAL:
 			err = nfserr_notsupp;
@@ -1140,7 +1142,9 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 						 nfsd_net_id));
 		}
 		up_write(&nf->nf_rwsem);
-	}
+	} else
+		nfsd_copy_boot_verifier(verf, net_generic(nf->nf_net,
+					nfsd_net_id));
 
 	nfsd_file_put(nf);
 out:

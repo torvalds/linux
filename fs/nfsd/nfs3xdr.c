@@ -1121,16 +1121,12 @@ int
 nfs3svc_encode_commitres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_commitres *resp = rqstp->rq_resp;
-	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
-	__be32 verf[2];
 
 	p = encode_wcc_data(rqstp, p, &resp->fh);
 	/* Write verifier */
 	if (resp->status == 0) {
-		/* unique identifier, y2038 overflow can be ignored */
-		nfsd_copy_boot_verifier(verf, nn);
-		*p++ = verf[0];
-		*p++ = verf[1];
+		*p++ = resp->verf[0];
+		*p++ = resp->verf[1];
 	}
 	return xdr_ressize_check(rqstp, p);
 }
