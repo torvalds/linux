@@ -2,6 +2,7 @@
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_ttm_helper.h>
@@ -145,9 +146,17 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 	struct drm_gem_vram_object *gbo;
 	int ret;
 
-	gbo = kzalloc(sizeof(*gbo), GFP_KERNEL);
-	if (!gbo)
-		return ERR_PTR(-ENOMEM);
+	if (dev->driver->gem_create_object) {
+		struct drm_gem_object *gem =
+			dev->driver->gem_create_object(dev, size);
+		if (!gem)
+			return ERR_PTR(-ENOMEM);
+		gbo = drm_gem_vram_of_gem(gem);
+	} else {
+		gbo = kzalloc(sizeof(*gbo), GFP_KERNEL);
+		if (!gbo)
+			return ERR_PTR(-ENOMEM);
+	}
 
 	ret = drm_gem_vram_init(dev, gbo, size, pg_align);
 	if (ret < 0)
