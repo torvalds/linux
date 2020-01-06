@@ -603,6 +603,9 @@ static int sctp_timeout_nlattr_to_obj(struct nlattr *tb[],
 	struct nf_sctp_net *sn = sctp_pernet(net);
 	int i;
 
+	if (!timeouts)
+		timeouts = sn->timeouts;
+
 	/* set default SCTP timeouts. */
 	for (i=0; i<SCTP_CONNTRACK_MAX; i++)
 		timeouts[i] = sn->timeouts[i];
