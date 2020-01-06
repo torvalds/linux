@@ -94,8 +94,7 @@ static void drm_gem_vram_placement(struct drm_gem_vram_object *gbo,
 static int drm_gem_vram_init(struct drm_device *dev,
 			     struct ttm_bo_device *bdev,
 			     struct drm_gem_vram_object *gbo,
-			     size_t size, unsigned long pg_align,
-			     bool interruptible)
+			     size_t size, unsigned long pg_align)
 {
 	int ret;
 	size_t acc_size;
@@ -112,7 +111,7 @@ static int drm_gem_vram_init(struct drm_device *dev,
 	drm_gem_vram_placement(gbo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
 
 	ret = ttm_bo_init(bdev, &gbo->bo, size, ttm_bo_type_device,
-			  &gbo->placement, pg_align, interruptible, acc_size,
+			  &gbo->placement, pg_align, false, acc_size,
 			  NULL, NULL, ttm_buffer_object_destroy);
 	if (ret)
 		goto err_drm_gem_object_release;
@@ -130,7 +129,6 @@ err_drm_gem_object_release:
  * @bdev:		the TTM BO device backing the object
  * @size:		the buffer size in bytes
  * @pg_align:		the buffer's alignment in multiples of the page size
- * @interruptible:	sleep interruptible if waiting for memory
  *
  * Returns:
  * A new instance of &struct drm_gem_vram_object on success, or
@@ -139,8 +137,7 @@ err_drm_gem_object_release:
 struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 						struct ttm_bo_device *bdev,
 						size_t size,
-						unsigned long pg_align,
-						bool interruptible)
+						unsigned long pg_align)
 {
 	struct drm_gem_vram_object *gbo;
 	int ret;
@@ -149,7 +146,7 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 	if (!gbo)
 		return ERR_PTR(-ENOMEM);
 
-	ret = drm_gem_vram_init(dev, bdev, gbo, size, pg_align, interruptible);
+	ret = drm_gem_vram_init(dev, bdev, gbo, size, pg_align);
 	if (ret < 0)
 		goto err_kfree;
 
@@ -486,7 +483,6 @@ EXPORT_SYMBOL(drm_gem_vram_vunmap);
  * @bdev:		the TTM BO device managing the buffer object
  * @pg_align:		the buffer's alignment in multiples of the page size
  * @pitch_align:	the scanline's alignment in powers of 2
- * @interruptible:	sleep interruptible if waiting for memory
  * @args:		the arguments as provided to \
 				&struct drm_driver.dumb_create
  *
@@ -504,7 +500,6 @@ int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 				  struct ttm_bo_device *bdev,
 				  unsigned long pg_align,
 				  unsigned long pitch_align,
-				  bool interruptible,
 				  struct drm_mode_create_dumb *args)
 {
 	size_t pitch, size;
@@ -524,7 +519,7 @@ int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 	if (!size)
 		return -EINVAL;
 
-	gbo = drm_gem_vram_create(dev, bdev, size, pg_align, interruptible);
+	gbo = drm_gem_vram_create(dev, bdev, size, pg_align);
 	if (IS_ERR(gbo))
 		return PTR_ERR(gbo);
 
@@ -620,7 +615,7 @@ int drm_gem_vram_driver_dumb_create(struct drm_file *file,
 		return -EINVAL;
 
 	return drm_gem_vram_fill_create_dumb(file, dev, &dev->vram_mm->bdev,
-					     0, 0, false, args);
+					     0, 0, args);
 }
 EXPORT_SYMBOL(drm_gem_vram_driver_dumb_create);
 

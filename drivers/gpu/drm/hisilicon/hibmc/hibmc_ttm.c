@@ -51,7 +51,7 @@ int hibmc_dumb_create(struct drm_file *file, struct drm_device *dev,
 		      struct drm_mode_create_dumb *args)
 {
 	return drm_gem_vram_fill_create_dumb(file, dev, &dev->vram_mm->bdev,
-					     0, 16, false, args);
+					     0, 16, args);
 }
 
 const struct drm_mode_config_funcs hibmc_mode_funcs = {

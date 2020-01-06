@@ -1145,7 +1145,7 @@ static int ast_cursor_init(struct drm_device *dev)
 
 	for (i = 0; i < ARRAY_SIZE(ast->cursor.gbo); ++i) {
 		gbo = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
-					  size, 0, false);
+					  size, 0);
 		if (IS_ERR(gbo)) {
 			ret = PTR_ERR(gbo);
 			goto err_drm_gem_vram_put;
