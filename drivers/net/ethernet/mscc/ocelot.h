@@ -68,7 +68,6 @@ struct ocelot_port_private {
 
 	u8 vlan_aware;
 
-	phy_interface_t phy_mode;
 	struct phy *serdes;
 
 	struct ocelot_port_tc tc;
