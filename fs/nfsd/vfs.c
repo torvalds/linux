@@ -536,22 +536,33 @@ __be32 nfsd4_clone_file_range(struct nfsd_file *nf_src, u64 src_pos,
 	struct file *src = nf_src->nf_file;
 	struct file *dst = nf_dst->nf_file;
 	loff_t cloned;
+	__be32 ret = 0;
 
+	down_write(&nf_dst->nf_rwsem);
 	cloned = vfs_clone_file_range(src, src_pos, dst, dst_pos, count, 0);
-	if (cloned < 0)
-		return nfserrno(cloned);
-	if (count && cloned != count)
-		return nfserrno(-EINVAL);
+	if (cloned < 0) {
+		ret = nfserrno(cloned);
+		goto out_err;
+	}
+	if (count && cloned != count) {
+		ret = nfserrno(-EINVAL);
+		goto out_err;
+	}
 	if (sync) {
 		loff_t dst_end = count ? dst_pos + count - 1 : LLONG_MAX;
 		int status = vfs_fsync_range(dst, dst_pos, dst_end, 0);
 
 		if (!status)
 			status = commit_inode_metadata(file_inode(src));
-		if (status < 0)
-			return nfserrno(status);
+		if (status < 0) {
+			nfsd_reset_boot_verifier(net_generic(nf_dst->nf_net,
+						 nfsd_net_id));
+			ret = nfserrno(status);
+		}
 	}
-	return 0;
+out_err:
+	up_write(&nf_dst->nf_rwsem);
+	return ret;
 }
 
 ssize_t nfsd_copy_file_range(struct file *src, u64 src_pos, struct file *dst,
