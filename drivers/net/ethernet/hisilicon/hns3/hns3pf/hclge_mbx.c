@@ -86,9 +86,11 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 {
 	struct hclge_dev *hdev = vport->back;
-	enum hnae3_reset_type reset_type;
+	u16 reset_type;
 	u8 msg_data[2];
 	u8 dest_vfid;
+
+	BUILD_BUG_ON(HNAE3_MAX_RESET > U16_MAX);
 
 	dest_vfid = (u8)vport->vport_id;
 

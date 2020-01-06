@@ -2376,8 +2376,10 @@ static int hclgevf_misc_irq_init(struct hclgevf_dev *hdev)
 
 	hclgevf_get_misc_vector(hdev);
 
+	snprintf(hdev->misc_vector.name, HNAE3_INT_NAME_LEN, "%s-misc-%s",
+		 HCLGEVF_NAME, pci_name(hdev->pdev));
 	ret = request_irq(hdev->misc_vector.vector_irq, hclgevf_misc_irq_handle,
-			  0, "hclgevf_cmd", hdev);
+			  0, hdev->misc_vector.name, hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev, "VF failed to request misc irq(%d)\n",
 			hdev->misc_vector.vector_irq);
