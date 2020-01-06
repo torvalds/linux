@@ -1004,11 +1004,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 	prescan_rxq(rcd, &packet);
 
 	while (last == RCV_PKT_OK) {
-		if (unlikely(dd->do_drop &&
-			     atomic_xchg(&dd->drop_packet, DROP_PACKET_OFF) ==
-			     DROP_PACKET_ON)) {
-			dd->do_drop = 0;
-
+		if (hfi1_need_drop(dd)) {
 			/* On to the next packet */
 			packet.rhqoff += packet.rsize;
 			packet.rhf_addr = (__le32 *)rcd->rcvhdrq +

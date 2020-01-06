@@ -1316,7 +1316,7 @@ struct hfi1_devdata {
 	struct err_info_constraint err_info_xmit_constraint;
 
 	atomic_t drop_packet;
-	u8 do_drop;
+	bool do_drop;
 	u8 err_info_uncorrectable;
 	u8 err_info_fmconfig;
 
@@ -2460,6 +2460,25 @@ static inline u32 qsfp_resource(struct hfi1_devdata *dd)
 static inline bool is_integrated(struct hfi1_devdata *dd)
 {
 	return dd->pcidev->device == PCI_DEVICE_ID_INTEL1;
+}
+
+/**
+ * hfi1_need_drop - detect need for drop
+ * @dd: - the device
+ *
+ * In some cases, the first packet needs to be dropped.
+ *
+ * Return true is the current packet needs to be dropped and false otherwise.
+ */
+static inline bool hfi1_need_drop(struct hfi1_devdata *dd)
+{
+	if (unlikely(dd->do_drop &&
+		     atomic_xchg(&dd->drop_packet, DROP_PACKET_OFF) ==
+		     DROP_PACKET_ON)) {
+		dd->do_drop = false;
+		return true;
+	}
+	return false;
 }
 
 int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);

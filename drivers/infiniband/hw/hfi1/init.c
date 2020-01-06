@@ -876,10 +876,10 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 
 	if (is_ax(dd)) {
 		atomic_set(&dd->drop_packet, DROP_PACKET_ON);
-		dd->do_drop = 1;
+		dd->do_drop = true;
 	} else {
 		atomic_set(&dd->drop_packet, DROP_PACKET_OFF);
-		dd->do_drop = 0;
+		dd->do_drop = false;
 	}
 
 	/* make sure the link is not "up" */
