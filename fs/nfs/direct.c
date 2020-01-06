@@ -824,7 +824,8 @@ static void nfs_direct_write_reschedule_io(struct nfs_pgio_header *hdr)
 		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
 		/* fake unstable write to let common nfs resend pages */
 		hdr->verf.committed = NFS_UNSTABLE;
-		hdr->good_bytes = hdr->args.count;
+		hdr->good_bytes = hdr->args.offset + hdr->args.count -
+			hdr->io_start;
 	}
 	spin_unlock(&dreq->lock);
 }
