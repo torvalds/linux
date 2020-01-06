@@ -50,6 +50,23 @@ properties:
   assigned-clock-parents:
     maxItems: 2
 
+  typec-dir-gpios:
+    maxItems: 1
+    description:
+      GPIO to signal Type-C cable orientation for lane swap.
+      If GPIO is active, lane 0 and lane 1 of SERDES will be swapped to
+      achieve the funtionality of an external type-C plug flip mux.
+
+  typec-dir-debounce-ms:
+    minimum: 100
+    maximum: 1000
+    default: 100
+    description:
+      Number of milliseconds to wait before sampling typec-dir-gpio.
+      If not specified, the default debounce of 100ms will be used.
+      Type-C spec states minimum CC pin debounce of 100 ms and maximum
+      of 200 ms. However, some solutions might need more than 200 ms.
+
 patternProperties:
   "^pll[0|1]-refclk$":
     type: object
