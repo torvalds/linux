@@ -922,7 +922,7 @@ static int cpr_fuse_corner_init(struct cpr_drv *drv)
 		uV = cpr_read_fuse_uV(desc, fdata, fuses->init_voltage,
 				      step_volt, drv);
 		if (uV < 0)
-			return ret;
+			return uV;
 
 		fuse->min_uV = fdata->min_uV;
 		fuse->max_uV = fdata->max_uV;
