@@ -1374,6 +1374,8 @@
 			lanes-per-direction = <2>;
 			power-domains = <&gcc UFS_PHY_GDSC>;
 			#reset-cells = <1>;
+			resets = <&gcc GCC_UFS_PHY_BCR>;
+			reset-names = "rst";
 
 			iommus = <&apps_smmu 0x100 0xf>;
 
