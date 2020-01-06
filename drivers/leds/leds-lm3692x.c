@@ -116,7 +116,8 @@ struct lm3692x_led {
 	int led_enable;
 	int model_id;
 
-	u8 boost_ctrl;
+	u8 boost_ctrl, brightness_ctrl;
+	bool enabled;
 };
 
 static const struct reg_default lm3692x_reg_defs[] = {
@@ -169,6 +170,9 @@ static int lm3692x_leds_enable(struct lm3692x_led *led)
 {
 	int enable_state;
 	int ret, reg_ret;
+
+	if (led->enabled)
+		return 0;
 
 	if (led->regulator) {
 		ret = regulator_enable(led->regulator);
@@ -272,6 +276,7 @@ static int lm3692x_leds_enable(struct lm3692x_led *led)
 	ret = regmap_update_bits(led->regmap, LM3692X_EN, LM3692X_ENABLE_MASK,
 				 enable_state | LM3692X_DEVICE_EN);
 
+	led->enabled = true;
 	return ret;
 out:
 	dev_err(&led->client->dev, "Fail writing initialization values\n");
@@ -293,6 +298,9 @@ static int lm3692x_leds_disable(struct lm3692x_led *led)
 {
 	int ret;
 
+	if (!led->enabled)
+		return 0;
+
 	ret = regmap_update_bits(led->regmap, LM3692X_EN, LM3692X_DEVICE_EN, 0);
 	if (ret) {
 		dev_err(&led->client->dev, "Failed to disable regulator: %d\n",
@@ -310,6 +318,7 @@ static int lm3692x_leds_disable(struct lm3692x_led *led)
 				"Failed to disable regulator: %d\n", ret);
 	}
 
+	led->enabled = false;
 	return ret;
 }
 
@@ -322,6 +331,13 @@ static int lm3692x_brightness_set(struct led_classdev *led_cdev,
 	int led_brightness_lsb = (brt_val >> 5);
 
 	mutex_lock(&led->lock);
+
+	if (brt_val == 0) {
+		ret = lm3692x_leds_disable(led);
+		goto out;
+	} else {
+		lm3692x_leds_enable(led);
+	}
 
 	ret = lm3692x_fault_check(led);
 	if (ret) {
