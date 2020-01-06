@@ -236,6 +236,7 @@ struct mv88e6xxx_port {
 	bool mirror_ingress;
 	bool mirror_egress;
 	unsigned int serdes_irq;
+	char serdes_irq_name[32];
 };
 
 struct mv88e6xxx_chip {

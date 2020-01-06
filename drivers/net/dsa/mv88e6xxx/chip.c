@@ -2306,10 +2306,14 @@ static int mv88e6xxx_serdes_irq_request(struct mv88e6xxx_chip *chip, int port,
 	if (!irq)
 		return 0;
 
+	snprintf(dev_id->serdes_irq_name, sizeof(dev_id->serdes_irq_name),
+		 "mv88e6xxx-%s-serdes-%d", dev_name(chip->dev), port);
+
 	/* Requesting the IRQ will trigger IRQ callbacks, so release the lock */
 	mv88e6xxx_reg_unlock(chip);
 	err = request_threaded_irq(irq, NULL, mv88e6xxx_serdes_irq_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-serdes", dev_id);
+				   IRQF_ONESHOT, dev_id->serdes_irq_name,
+				   dev_id);
 	mv88e6xxx_reg_lock(chip);
 	if (err)
 		return err;
