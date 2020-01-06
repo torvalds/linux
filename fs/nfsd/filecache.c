@@ -282,27 +282,32 @@ nfsd_file_unhash_and_release_locked(struct nfsd_file *nf, struct list_head *disp
 	return true;
 }
 
-static int
+static void
 nfsd_file_put_noref(struct nfsd_file *nf)
 {
-	int count;
 	trace_nfsd_file_put(nf);
 
-	count = atomic_dec_return(&nf->nf_ref);
-	if (!count) {
+	if (atomic_dec_and_test(&nf->nf_ref)) {
 		WARN_ON(test_bit(NFSD_FILE_HASHED, &nf->nf_flags));
 		nfsd_file_free(nf);
 	}
-	return count;
 }
 
 void
 nfsd_file_put(struct nfsd_file *nf)
 {
-	bool is_hashed = test_bit(NFSD_FILE_HASHED, &nf->nf_flags) != 0;
+	bool is_hashed;
 
 	set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
-	if (nfsd_file_put_noref(nf) == 1 && is_hashed)
+	if (atomic_read(&nf->nf_ref) > 2 || !nf->nf_file) {
+		nfsd_file_put_noref(nf);
+		return;
+	}
+
+	filemap_flush(nf->nf_file->f_mapping);
+	is_hashed = test_bit(NFSD_FILE_HASHED, &nf->nf_flags) != 0;
+	nfsd_file_put_noref(nf);
+	if (is_hashed)
 		nfsd_file_schedule_laundrette();
 	if (atomic_long_read(&nfsd_filecache_count) >= NFSD_FILE_LRU_LIMIT)
 		nfsd_file_gc();
