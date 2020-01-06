@@ -521,16 +521,10 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	struct tegra_ehci_hcd *tegra =
 		(struct tegra_ehci_hcd *)hcd_to_ehci(hcd)->priv;
 
-	otg_set_host(hcd->usb_phy->otg, NULL);
-
-	usb_phy_shutdown(hcd->usb_phy);
 	usb_remove_hcd(hcd);
-
-	reset_control_assert(tegra->rst);
-	udelay(1);
-
+	otg_set_host(hcd->usb_phy->otg, NULL);
+	usb_phy_shutdown(hcd->usb_phy);
 	clk_disable_unprepare(tegra->clk);
-
 	usb_put_hcd(hcd);
 
 	return 0;
