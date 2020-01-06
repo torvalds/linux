@@ -47,6 +47,11 @@ properties:
         - description: Board XO source
         - description: Board active XO source
         - description: Sleep clock source
+      #qcom,gcc-msm8996
+      - items:
+        - description: XO source
+        - description: Second XO source
+        - description: Sleep clock source
       #qcom,gcc-msm8998
       - items:
         - description: Board XO source
@@ -64,6 +69,11 @@ properties:
       - items:
         - const: bi_tcxo
         - const: bi_tcxo_ao
+        - const: sleep_clk
+      #qcom,gcc-msm8996
+      - items:
+        - const: cxo
+        - const: cxo2
         - const: sleep_clk
       #qcom,gcc-msm8998
       - items:
