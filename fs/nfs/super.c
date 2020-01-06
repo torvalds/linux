@@ -375,6 +375,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	} nfs_info[] = {
 		{ NFS_MOUNT_SOFT, ",soft", "" },
 		{ NFS_MOUNT_SOFTERR, ",softerr", "" },
+		{ NFS_MOUNT_SOFTREVAL, ",softreval", "" },
 		{ NFS_MOUNT_POSIX, ",posix", "" },
 		{ NFS_MOUNT_NOCTO, ",nocto", "" },
 		{ NFS_MOUNT_NOAC, ",noac", "" },

@@ -1097,11 +1097,12 @@ static int nfs4_call_sync_custom(struct rpc_task_setup *task_setup)
 	return ret;
 }
 
-static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
-				   struct nfs_server *server,
-				   struct rpc_message *msg,
-				   struct nfs4_sequence_args *args,
-				   struct nfs4_sequence_res *res)
+static int nfs4_do_call_sync(struct rpc_clnt *clnt,
+			     struct nfs_server *server,
+			     struct rpc_message *msg,
+			     struct nfs4_sequence_args *args,
+			     struct nfs4_sequence_res *res,
+			     unsigned short task_flags)
 {
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_call_sync_data data = {
@@ -1113,11 +1114,22 @@ static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
 		.rpc_client = clnt,
 		.rpc_message = msg,
 		.callback_ops = clp->cl_mvops->call_sync_ops,
-		.callback_data = &data
+		.callback_data = &data,
+		.flags = task_flags,
 	};
 
 	return nfs4_call_sync_custom(&task_setup);
 }
+
+static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
+				   struct nfs_server *server,
+				   struct rpc_message *msg,
+				   struct nfs4_sequence_args *args,
+				   struct nfs4_sequence_res *res)
+{
+	return nfs4_do_call_sync(clnt, server, msg, args, res, 0);
+}
+
 
 int nfs4_call_sync(struct rpc_clnt *clnt,
 		   struct nfs_server *server,
@@ -4064,11 +4076,18 @@ static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
+	unsigned short task_flags = 0;
+
+	/* Is this is an attribute revalidation, subject to softreval? */
+	if (inode && (server->flags & NFS_MOUNT_SOFTREVAL))
+		task_flags |= RPC_TASK_TIMEOUT;
 
 	nfs4_bitmap_copy_adjust(bitmask, nfs4_bitmask(server, label), inode);
 
 	nfs_fattr_init(fattr);
-	return nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
+	nfs4_init_sequence(&args.seq_args, &res.seq_res, 0, 0);
+	return nfs4_do_call_sync(server->client, server, &msg,
+			&args.seq_args, &res.seq_res, task_flags);
 }
 
 int nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,

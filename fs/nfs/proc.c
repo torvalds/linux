@@ -108,10 +108,15 @@ nfs_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 		.rpc_resp	= fattr,
 	};
 	int	status;
+	unsigned short task_flags = 0;
+
+	/* Is this is an attribute revalidation, subject to softreval? */
+	if (inode && (server->flags & NFS_MOUNT_SOFTREVAL))
+		task_flags |= RPC_TASK_TIMEOUT;
 
 	dprintk("NFS call  getattr\n");
 	nfs_fattr_init(fattr);
-	status = rpc_call_sync(server->client, &msg, 0);
+	status = rpc_call_sync(server->client, &msg, task_flags);
 	dprintk("NFS reply getattr: %d\n", status);
 	return status;
 }
