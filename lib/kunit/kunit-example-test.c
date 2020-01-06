@@ -85,4 +85,6 @@ static struct kunit_suite example_test_suite = {
  * This registers the above test suite telling KUnit that this is a suite of
  * tests that need to be run.
  */
-kunit_test_suite(example_test_suite);
+kunit_test_suites(&example_test_suite);
+
+MODULE_LICENSE("GPL v2");

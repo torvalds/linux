@@ -3,7 +3,11 @@ obj-$(CONFIG_KUNIT) +=			test.o \
 					assert.o \
 					try-catch.o
 
-obj-$(CONFIG_KUNIT_TEST) +=		test-test.o \
-					string-stream-test.o
+obj-$(CONFIG_KUNIT_TEST) +=		kunit-test.o
 
-obj-$(CONFIG_KUNIT_EXAMPLE_TEST) +=	example-test.o
+# string-stream-test compiles built-in only.
+ifeq ($(CONFIG_KUNIT_TEST),y)
+obj-$(CONFIG_KUNIT_TEST) +=		string-stream-test.o
+endif
+
+obj-$(CONFIG_KUNIT_EXAMPLE_TEST) +=	kunit-example-test.o

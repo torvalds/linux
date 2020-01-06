@@ -50,4 +50,4 @@ static struct kunit_suite string_stream_test_suite = {
 	.name = "string-stream-test",
 	.test_cases = string_stream_test_cases
 };
-kunit_test_suite(string_stream_test_suite);
+kunit_test_suites(&string_stream_test_suite);

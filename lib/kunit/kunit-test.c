@@ -102,7 +102,6 @@ static struct kunit_suite kunit_try_catch_test_suite = {
 	.init = kunit_try_catch_test_init,
 	.test_cases = kunit_try_catch_test_cases,
 };
-kunit_test_suite(kunit_try_catch_test_suite);
 
 /*
  * Context for testing test managed resources
@@ -330,4 +329,6 @@ static struct kunit_suite kunit_resource_test_suite = {
 	.exit = kunit_resource_test_exit,
 	.test_cases = kunit_resource_test_cases,
 };
-kunit_test_suite(kunit_resource_test_suite);
+kunit_test_suites(&kunit_try_catch_test_suite, &kunit_resource_test_suite);
+
+MODULE_LICENSE("GPL v2");
