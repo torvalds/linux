@@ -654,20 +654,20 @@ static int flow_offload_rule_add(struct flow_offload_work *offload,
 	return 0;
 }
 
-static int flow_offload_work_add(struct flow_offload_work *offload)
+static void flow_offload_work_add(struct flow_offload_work *offload)
 {
 	struct nf_flow_rule *flow_rule[FLOW_OFFLOAD_DIR_MAX];
 	int err;
 
 	err = nf_flow_offload_alloc(offload, flow_rule);
 	if (err < 0)
-		return -ENOMEM;
+		return;
 
 	err = flow_offload_rule_add(offload, flow_rule);
+	if (err < 0)
+		set_bit(NF_FLOW_HW_REFRESH, &offload->flow->flags);
 
 	nf_flow_offload_destroy(flow_rule);
-
-	return err;
 }
 
 static void flow_offload_work_del(struct flow_offload_work *offload)
@@ -712,7 +712,6 @@ static void flow_offload_work_handler(struct work_struct *work)
 {
 	struct flow_offload_work *offload, *next;
 	LIST_HEAD(offload_pending_list);
-	int ret;
 
 	spin_lock_bh(&flow_offload_pending_list_lock);
 	list_replace_init(&flow_offload_pending_list, &offload_pending_list);
@@ -721,9 +720,7 @@ static void flow_offload_work_handler(struct work_struct *work)
 	list_for_each_entry_safe(offload, next, &offload_pending_list, list) {
 		switch (offload->cmd) {
 		case FLOW_CLS_REPLACE:
-			ret = flow_offload_work_add(offload);
-			if (ret < 0)
-				__clear_bit(NF_FLOW_HW, &offload->flow->flags);
+			flow_offload_work_add(offload);
 			break;
 		case FLOW_CLS_DESTROY:
 			flow_offload_work_del(offload);
@@ -776,7 +773,6 @@ void nf_flow_offload_add(struct nf_flowtable *flowtable,
 	if (!offload)
 		return;
 
-	__set_bit(NF_FLOW_HW, &flow->flags);
 	flow_offload_queue_work(offload);
 }
 
