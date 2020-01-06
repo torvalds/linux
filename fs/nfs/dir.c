@@ -2312,11 +2312,11 @@ static int nfs_access_get_cached(struct inode *inode, const struct cred *cred, s
 		/* Found an entry, is our attribute cache valid? */
 		if (!nfs_check_cache_invalid(inode, NFS_INO_INVALID_ACCESS))
 			break;
+		if (!retry)
+			break;
 		err = -ECHILD;
 		if (!may_block)
 			goto out;
-		if (!retry)
-			goto out_zap;
 		spin_unlock(&inode->i_lock);
 		err = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 		if (err)
