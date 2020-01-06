@@ -210,7 +210,7 @@ int crypto_nhpoly1305_final_helper(struct shash_desc *desc, u8 *dst, nh_t nh_fn)
 	if (state->nh_remaining)
 		process_nh_hash_value(state, key);
 
-	poly1305_core_emit(&state->poly_state, dst);
+	poly1305_core_emit(&state->poly_state, NULL, dst);
 	return 0;
 }
 EXPORT_SYMBOL(crypto_nhpoly1305_final_helper);

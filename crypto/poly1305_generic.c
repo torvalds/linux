@@ -31,6 +31,29 @@ static int crypto_poly1305_init(struct shash_desc *desc)
 	return 0;
 }
 
+static unsigned int crypto_poly1305_setdesckey(struct poly1305_desc_ctx *dctx,
+					       const u8 *src, unsigned int srclen)
+{
+	if (!dctx->sset) {
+		if (!dctx->rset && srclen >= POLY1305_BLOCK_SIZE) {
+			poly1305_core_setkey(&dctx->core_r, src);
+			src += POLY1305_BLOCK_SIZE;
+			srclen -= POLY1305_BLOCK_SIZE;
+			dctx->rset = 2;
+		}
+		if (srclen >= POLY1305_BLOCK_SIZE) {
+			dctx->s[0] = get_unaligned_le32(src +  0);
+			dctx->s[1] = get_unaligned_le32(src +  4);
+			dctx->s[2] = get_unaligned_le32(src +  8);
+			dctx->s[3] = get_unaligned_le32(src + 12);
+			src += POLY1305_BLOCK_SIZE;
+			srclen -= POLY1305_BLOCK_SIZE;
+			dctx->sset = true;
+		}
+	}
+	return srclen;
+}
+
 static void poly1305_blocks(struct poly1305_desc_ctx *dctx, const u8 *src,
 			    unsigned int srclen)
 {
@@ -42,7 +65,7 @@ static void poly1305_blocks(struct poly1305_desc_ctx *dctx, const u8 *src,
 		srclen = datalen;
 	}
 
-	poly1305_core_blocks(&dctx->h, dctx->r, src,
+	poly1305_core_blocks(&dctx->h, &dctx->core_r, src,
 			     srclen / POLY1305_BLOCK_SIZE, 1);
 }
 

@@ -72,7 +72,7 @@ struct adiantum_tfm_ctx {
 	struct crypto_skcipher *streamcipher;
 	struct crypto_cipher *blockcipher;
 	struct crypto_shash *hash;
-	struct poly1305_key header_hash_key;
+	struct poly1305_core_key header_hash_key;
 };
 
 struct adiantum_request_ctx {
@@ -249,7 +249,7 @@ static void adiantum_hash_header(struct skcipher_request *req)
 	poly1305_core_blocks(&state, &tctx->header_hash_key, req->iv,
 			     TWEAK_SIZE / POLY1305_BLOCK_SIZE, 1);
 
-	poly1305_core_emit(&state, &rctx->header_hash);
+	poly1305_core_emit(&state, NULL, &rctx->header_hash);
 }
 
 /* Hash the left-hand part (the "bulk") of the message using NHPoly1305 */
