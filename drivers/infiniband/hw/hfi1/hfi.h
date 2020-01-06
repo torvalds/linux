@@ -197,6 +197,8 @@ struct exp_tid_set {
 	u32 count;
 };
 
+struct hfi1_ctxtdata;
+typedef int (*intr_handler)(struct hfi1_ctxtdata *rcd, int data);
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
 
 struct tid_queue {
@@ -226,7 +228,11 @@ struct hfi1_ctxtdata {
 	 * be valid. Worst case is we process an extra interrupt and up to 64
 	 * packets with the wrong interrupt handler.
 	 */
-	int (*do_interrupt)(struct hfi1_ctxtdata *rcd, int threaded);
+	intr_handler do_interrupt;
+	/** fast handler after autoactive */
+	intr_handler fast_handler;
+	/** slow handler */
+	intr_handler slow_handler;
 	/* verbs rx_stats per rcd */
 	struct hfi1_opcode_stats_perctx *opstats;
 	/* clear interrupt mask */
@@ -1614,6 +1620,39 @@ static inline u8 get_hdrqentsize(struct hfi1_ctxtdata *rcd)
 static inline u16 get_hdrq_cnt(struct hfi1_ctxtdata *rcd)
 {
 	return rcd->rcvhdrq_cnt;
+}
+
+/**
+ * hfi1_is_slowpath - check if this context is slow path
+ * @rcd: the receive context
+ */
+static inline bool hfi1_is_slowpath(struct hfi1_ctxtdata *rcd)
+{
+	return rcd->do_interrupt == rcd->slow_handler;
+}
+
+/**
+ * hfi1_is_fastpath - check if this context is fast path
+ * @rcd: the receive context
+ */
+static inline bool hfi1_is_fastpath(struct hfi1_ctxtdata *rcd)
+{
+	if (rcd->ctxt == HFI1_CTRL_CTXT)
+		return false;
+
+	return rcd->do_interrupt == rcd->fast_handler;
+}
+
+/**
+ * hfi1_set_fast - change to the fast handler
+ * @rcd: the receive context
+ */
+static inline void hfi1_set_fast(struct hfi1_ctxtdata *rcd)
+{
+	if (unlikely(!rcd))
+		return;
+	if (unlikely(!hfi1_is_fastpath(rcd)))
+		rcd->do_interrupt = rcd->fast_handler;
 }
 
 int hfi1_reset_device(int);

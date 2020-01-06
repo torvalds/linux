@@ -106,11 +106,7 @@ TRACE_EVENT(hfi1_receive_interrupt,
 			     ),
 	    TP_fast_assign(DD_DEV_ASSIGN(dd);
 			__entry->ctxt = rcd->ctxt;
-			if (rcd->do_interrupt ==
-			    &handle_receive_interrupt)
-				__entry->slow_path = 1;
-			else
-				__entry->slow_path = 0;
+			__entry->slow_path = hfi1_is_slowpath(rcd);
 			__entry->dma_rtail = get_dma_rtail_setting(rcd);
 			),
 	    TP_printk("[%s] ctxt %d SlowPath: %d DmaRtail: %d",

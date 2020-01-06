@@ -150,6 +150,11 @@ static int hfi1_create_kctxt(struct hfi1_devdata *dd,
 	/* Control context must use DMA_RTAIL */
 	if (rcd->ctxt == HFI1_CTRL_CTXT)
 		rcd->flags |= HFI1_CAP_DMA_RTAIL;
+	rcd->fast_handler = get_dma_rtail_setting(rcd) ?
+				handle_receive_interrupt_dma_rtail :
+				handle_receive_interrupt_nodma_rtail;
+	rcd->slow_handler = handle_receive_interrupt;
+
 	hfi1_set_seq_cnt(rcd, 1);
 
 	rcd->sc = sc_alloc(dd, SC_ACK, rcd->rcvhdrqentsize, dd->node);
