@@ -530,9 +530,11 @@ __be32 nfsd4_set_nfs4_label(struct svc_rqst *rqstp, struct svc_fh *fhp,
 }
 #endif
 
-__be32 nfsd4_clone_file_range(struct file *src, u64 src_pos, struct file *dst,
-		u64 dst_pos, u64 count, bool sync)
+__be32 nfsd4_clone_file_range(struct nfsd_file *nf_src, u64 src_pos,
+		struct nfsd_file *nf_dst, u64 dst_pos, u64 count, bool sync)
 {
+	struct file *src = nf_src->nf_file;
+	struct file *dst = nf_dst->nf_file;
 	loff_t cloned;
 
 	cloned = vfs_clone_file_range(src, src_pos, dst, dst_pos, count, 0);
