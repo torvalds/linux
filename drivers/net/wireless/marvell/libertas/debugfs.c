@@ -774,7 +774,7 @@ void lbs_debugfs_remove_one(struct lbs_private *priv)
 
 #ifdef PROC_DEBUG
 
-#define item_size(n)	(FIELD_SIZEOF(struct lbs_private, n))
+#define item_size(n)	(sizeof_field(struct lbs_private, n))
 #define item_addr(n)	(offsetof(struct lbs_private, n))
 
 

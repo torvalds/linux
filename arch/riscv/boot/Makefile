@@ -24,7 +24,7 @@ $(obj)/Image: vmlinux FORCE
 $(obj)/Image.gz: $(obj)/Image FORCE
 	$(call if_changed,gzip)
 
-loader.o: $(src)/loader.S $(obj)/Image
+$(obj)/loader.o: $(src)/loader.S $(obj)/Image
 
 $(obj)/loader: $(obj)/loader.o $(obj)/Image $(obj)/loader.lds FORCE
 	$(Q)$(LD) -T $(obj)/loader.lds -o $@ $(obj)/loader.o

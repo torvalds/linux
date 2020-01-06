@@ -754,10 +754,12 @@ bool __bio_try_merge_page(struct bio *bio, struct page *page,
 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
 		return false;
 
-	if (bio->bi_vcnt > 0 && !bio_full(bio, len)) {
+	if (bio->bi_vcnt > 0) {
 		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
 
 		if (page_is_mergeable(bv, page, len, off, same_page)) {
+			if (bio->bi_iter.bi_size > UINT_MAX - len)
+				return false;
 			bv->bv_len += len;
 			bio->bi_iter.bi_size += len;
 			return true;

@@ -614,7 +614,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	}
 
 	memcpy(kinfo->prio_tc, hdev->tm_info.prio_tc,
-	       FIELD_SIZEOF(struct hnae3_knic_private_info, prio_tc));
+	       sizeof_field(struct hnae3_knic_private_info, prio_tc));
 }
 
 static void hclge_tm_vport_info_update(struct hclge_dev *hdev)
