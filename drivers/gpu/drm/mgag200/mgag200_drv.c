@@ -120,8 +120,7 @@ int mgag200_driver_dumb_create(struct drm_file *file,
 	if (mgag200_pin_bo_at_0(mdev))
 		pg_align = PFN_UP(mdev->mc.vram_size);
 
-	return drm_gem_vram_fill_create_dumb(file, dev, &dev->vram_mm->bdev,
-					     pg_align, 0, args);
+	return drm_gem_vram_fill_create_dumb(file, dev, pg_align, 0, args);
 }
 
 static struct drm_driver driver = {
