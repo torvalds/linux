@@ -196,7 +196,9 @@ struct part_cfg_regs {
 	u32 mrpc_comp_async_data[5];
 	u32 dyn_binding_hdr;
 	u32 dyn_binding_data[5];
-	u32 reserved4[159];
+	u32 intercomm_notify_hdr;
+	u32 intercomm_notify_data[5];
+	u32 reserved4[153];
 } __packed;
 
 enum {
@@ -320,7 +322,8 @@ struct pff_csr_regs {
 	u32 dpc_data[5];
 	u32 cts_hdr;
 	u32 cts_data[5];
-	u32 reserved3[6];
+	u32 uec_hdr;
+	u32 uec_data[5];
 	u32 hotplug_hdr;
 	u32 hotplug_data[5];
 	u32 ier_hdr;
