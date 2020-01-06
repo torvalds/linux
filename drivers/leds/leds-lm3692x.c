@@ -165,40 +165,7 @@ static int lm3692x_fault_check(struct lm3692x_led *led)
 	return read_buf;
 }
 
-static int lm3692x_brightness_set(struct led_classdev *led_cdev,
-				enum led_brightness brt_val)
-{
-	struct lm3692x_led *led =
-			container_of(led_cdev, struct lm3692x_led, led_dev);
-	int ret;
-	int led_brightness_lsb = (brt_val >> 5);
-
-	mutex_lock(&led->lock);
-
-	ret = lm3692x_fault_check(led);
-	if (ret) {
-		dev_err(&led->client->dev, "Cannot read/clear faults: %d\n",
-			ret);
-		goto out;
-	}
-
-	ret = regmap_write(led->regmap, LM3692X_BRT_MSB, brt_val);
-	if (ret) {
-		dev_err(&led->client->dev, "Cannot write MSB: %d\n", ret);
-		goto out;
-	}
-
-	ret = regmap_write(led->regmap, LM3692X_BRT_LSB, led_brightness_lsb);
-	if (ret) {
-		dev_err(&led->client->dev, "Cannot write LSB: %d\n", ret);
-		goto out;
-	}
-out:
-	mutex_unlock(&led->lock);
-	return ret;
-}
-
-static int lm3692x_init(struct lm3692x_led *led)
+static int lm3692x_leds_enable(struct lm3692x_led *led)
 {
 	int enable_state;
 	int ret, reg_ret;
@@ -319,6 +286,39 @@ out:
 				"Failed to disable regulator: %d\n", reg_ret);
 	}
 
+	return ret;
+}
+
+static int lm3692x_brightness_set(struct led_classdev *led_cdev,
+				enum led_brightness brt_val)
+{
+	struct lm3692x_led *led =
+			container_of(led_cdev, struct lm3692x_led, led_dev);
+	int ret;
+	int led_brightness_lsb = (brt_val >> 5);
+
+	mutex_lock(&led->lock);
+
+	ret = lm3692x_fault_check(led);
+	if (ret) {
+		dev_err(&led->client->dev, "Cannot read/clear faults: %d\n",
+			ret);
+		goto out;
+	}
+
+	ret = regmap_write(led->regmap, LM3692X_BRT_MSB, brt_val);
+	if (ret) {
+		dev_err(&led->client->dev, "Cannot write MSB: %d\n", ret);
+		goto out;
+	}
+
+	ret = regmap_write(led->regmap, LM3692X_BRT_LSB, led_brightness_lsb);
+	if (ret) {
+		dev_err(&led->client->dev, "Cannot write LSB: %d\n", ret);
+		goto out;
+	}
+out:
+	mutex_unlock(&led->lock);
 	return ret;
 }
 
@@ -451,7 +451,7 @@ static int lm3692x_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	ret = lm3692x_init(led);
+	ret = lm3692x_leds_enable(led);
 	if (ret)
 		return ret;
 
