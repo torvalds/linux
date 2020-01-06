@@ -102,6 +102,7 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 		/* temporarily using level_start[] to store blocks in level */
 		params->level_start[params->num_levels++] = blocks;
 	}
+	params->level0_blocks = params->level_start[0];
 
 	/* Compute the starting block of each level */
 	offset = 0;

@@ -8,6 +8,7 @@
 #include "fsverity_private.h"
 
 #include <crypto/hash.h>
+#include <linux/backing-dev.h>
 #include <linux/mount.h>
 #include <linux/pagemap.h>
 #include <linux/sched/signal.h>
@@ -86,9 +87,14 @@ static int build_merkle_tree_level(struct file *filp, unsigned int level,
 				return err;
 			}
 		} else {
+			unsigned long num_ra_pages =
+				min_t(unsigned long, num_blocks_to_hash - i,
+				      inode->i_sb->s_bdi->io_pages);
+
 			/* Non-leaf: hashing hash block from level below */
 			src_page = vops->read_merkle_tree_page(inode,
-					params->level_start[level - 1] + i);
+					params->level_start[level - 1] + i,
+					num_ra_pages);
 			if (IS_ERR(src_page)) {
 				err = PTR_ERR(src_page);
 				fsverity_err(inode,
