@@ -2318,7 +2318,7 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 {
 	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
 	struct drm_dp_mst_port *port;
-	int old_ddps, ret;
+	int old_ddps, old_input, ret, i;
 	u8 new_pdt;
 	bool dowork = false, create_connector = false;
 
@@ -2349,6 +2349,7 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 	}
 
 	old_ddps = port->ddps;
+	old_input = port->input;
 	port->input = conn_stat->input_port;
 	port->mcs = conn_stat->message_capability_status;
 	port->ldps = conn_stat->legacy_device_plug_status;
@@ -2371,6 +2372,28 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 		DRM_ERROR("Failed to change PDT for port %p: %d\n",
 			  port, ret);
 		dowork = false;
+	}
+
+	if (!old_input && old_ddps != port->ddps && !port->ddps) {
+		for (i = 0; i < mgr->max_payloads; i++) {
+			struct drm_dp_vcpi *vcpi = mgr->proposed_vcpis[i];
+			struct drm_dp_mst_port *port_validated;
+
+			if (!vcpi)
+				continue;
+
+			port_validated =
+				container_of(vcpi, struct drm_dp_mst_port, vcpi);
+			port_validated =
+				drm_dp_mst_topology_get_port_validated(mgr, port_validated);
+			if (!port_validated) {
+				mutex_lock(&mgr->payload_lock);
+				vcpi->num_slots = 0;
+				mutex_unlock(&mgr->payload_lock);
+			} else {
+				drm_dp_mst_topology_put_port(port_validated);
+			}
+		}
 	}
 
 	if (port->connector)
