@@ -1523,3 +1523,27 @@ bool intel_psr_enabled(struct intel_dp *intel_dp)
 
 	return ret;
 }
+
+void intel_psr_atomic_check(struct drm_connector *connector,
+			    struct drm_connector_state *old_state,
+			    struct drm_connector_state *new_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct intel_connector *intel_connector;
+	struct intel_digital_port *dig_port;
+	struct drm_crtc_state *crtc_state;
+
+	if (!CAN_PSR(dev_priv) || !new_state->crtc ||
+	    dev_priv->psr.initially_probed)
+		return;
+
+	intel_connector = to_intel_connector(connector);
+	dig_port = enc_to_dig_port(&intel_connector->encoder->base);
+	if (dev_priv->psr.dp != &dig_port->dp)
+		return;
+
+	crtc_state = drm_atomic_get_new_crtc_state(new_state->state,
+						   new_state->crtc);
+	crtc_state->mode_changed = true;
+	dev_priv->psr.initially_probed = true;
+}
