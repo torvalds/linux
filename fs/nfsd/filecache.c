@@ -132,9 +132,13 @@ nfsd_file_mark_find_or_create(struct nfsd_file *nf)
 						 struct nfsd_file_mark,
 						 nfm_mark));
 			mutex_unlock(&nfsd_file_fsnotify_group->mark_mutex);
-			fsnotify_put_mark(mark);
-			if (likely(nfm))
+			if (nfm) {
+				fsnotify_put_mark(mark);
 				break;
+			}
+			/* Avoid soft lockup race with nfsd_file_mark_put() */
+			fsnotify_destroy_mark(mark, nfsd_file_fsnotify_group);
+			fsnotify_put_mark(mark);
 		} else
 			mutex_unlock(&nfsd_file_fsnotify_group->mark_mutex);
 
