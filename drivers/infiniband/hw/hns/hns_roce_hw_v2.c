@@ -1248,7 +1248,6 @@ static void hns_roce_function_clear(struct hns_roce_dev *hr_dev)
 	}
 
 out:
-	dev_err(hr_dev->dev, "Func clear fail.\n");
 	hns_roce_func_clr_rst_prc(hr_dev, ret, fclr_write_fail_flag);
 }
 
