@@ -40,6 +40,7 @@
 #include "display/intel_overlay.h"
 
 #include "gem/i915_gem_context.h"
+#include "gem/i915_gem_lmem.h"
 
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
@@ -235,6 +236,7 @@ struct compress {
 	struct pagevec pool;
 	struct z_stream_s zstream;
 	void *tmp;
+	bool wc;
 };
 
 static bool compress_init(struct compress *c)
@@ -292,7 +294,7 @@ static int compress_page(struct compress *c,
 	struct z_stream_s *zstream = &c->zstream;
 
 	zstream->next_in = src;
-	if (c->tmp && i915_memcpy_from_wc(c->tmp, src, PAGE_SIZE))
+	if (c->wc && c->tmp && i915_memcpy_from_wc(c->tmp, src, PAGE_SIZE))
 		zstream->next_in = c->tmp;
 	zstream->avail_in = PAGE_SIZE;
 
@@ -367,6 +369,7 @@ static void err_compression_marker(struct drm_i915_error_state_buf *m)
 
 struct compress {
 	struct pagevec pool;
+	bool wc;
 };
 
 static bool compress_init(struct compress *c)
@@ -389,7 +392,7 @@ static int compress_page(struct compress *c,
 	if (!ptr)
 		return -ENOMEM;
 
-	if (!i915_memcpy_from_wc(ptr, src, PAGE_SIZE))
+	if (!(c->wc && i915_memcpy_from_wc(ptr, src, PAGE_SIZE)))
 		memcpy(ptr, src, PAGE_SIZE);
 	dst->pages[dst->page_count++] = ptr;
 
@@ -534,10 +537,6 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	}
 	err_printf(m, "  ring->head: 0x%08x\n", ee->cpu_ring_head);
 	err_printf(m, "  ring->tail: 0x%08x\n", ee->cpu_ring_tail);
-	err_printf(m, "  hangcheck timestamp: %dms (%lu%s)\n",
-		   jiffies_to_msecs(ee->hangcheck_timestamp - epoch),
-		   ee->hangcheck_timestamp,
-		   ee->hangcheck_timestamp == epoch ? "; epoch" : "");
 	err_printf(m, "  engine reset count: %u\n", ee->reset_count);
 
 	for (n = 0; n < ee->num_ports; n++) {
@@ -600,9 +599,10 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 {
 	struct drm_printer p = i915_error_printer(m);
 
-	intel_device_info_dump_flags(info, &p);
+	intel_device_info_print_static(info, &p);
+	intel_device_info_print_runtime(runtime, &p);
+	intel_device_info_print_topology(&runtime->sseu, &p);
 	intel_driver_caps_print(caps, &p);
-	intel_device_info_dump_topology(&runtime->sseu, &p);
 }
 
 static void err_print_params(struct drm_i915_error_state_buf *m,
@@ -679,11 +679,8 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	ts = ktime_to_timespec64(error->uptime);
 	err_printf(m, "Uptime: %lld s %ld us\n",
 		   (s64)ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC);
-	err_printf(m, "Epoch: %lu jiffies (%u HZ)\n", error->epoch, HZ);
-	err_printf(m, "Capture: %lu jiffies; %d ms ago, %d ms after epoch\n",
-		   error->capture,
-		   jiffies_to_msecs(jiffies - error->capture),
-		   jiffies_to_msecs(error->capture - error->epoch));
+	err_printf(m, "Capture: %lu jiffies; %d ms ago\n",
+		   error->capture, jiffies_to_msecs(jiffies - error->capture));
 
 	for (ee = error->engine; ee; ee = ee->next)
 		err_printf(m, "Active process (on ring %s): %s [%d]\n",
@@ -741,8 +738,21 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	if (IS_GEN_RANGE(m->i915, 8, 11))
 		err_printf(m, "GTT_CACHE_EN: 0x%08x\n", error->gtt_cache);
 
+	if (IS_GEN(m->i915, 12))
+		err_printf(m, "AUX_ERR_DBG: 0x%08x\n", error->aux_err);
+
+	if (INTEL_GEN(m->i915) >= 12) {
+		int i;
+
+		for (i = 0; i < GEN12_SFC_DONE_MAX; i++)
+			err_printf(m, "  SFC_DONE[%d]: 0x%08x\n", i,
+				   error->sfc_done[i]);
+
+		err_printf(m, "  GAM_DONE: 0x%08x\n", error->gam_done);
+	}
+
 	for (ee = error->engine; ee; ee = ee->next)
-		error_print_engine(m, ee, error->epoch);
+		error_print_engine(m, ee, error->capture);
 
 	for (ee = error->engine; ee; ee = ee->next) {
 		const struct drm_i915_error_object *obj;
@@ -770,7 +780,7 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 			for (j = 0; j < ee->num_requests; j++)
 				error_print_request(m, " ",
 						    &ee->requests[j],
-						    error->epoch);
+						    error->capture);
 		}
 
 		print_error_obj(m, ee->engine, "ringbuffer", ee->ringbuffer);
@@ -970,7 +980,6 @@ i915_error_object_create(struct drm_i915_private *i915,
 	struct drm_i915_error_object *dst;
 	unsigned long num_pages;
 	struct sgt_iter iter;
-	dma_addr_t dma;
 	int ret;
 
 	might_sleep();
@@ -996,17 +1005,54 @@ i915_error_object_create(struct drm_i915_private *i915,
 	dst->page_count = 0;
 	dst->unused = 0;
 
+	compress->wc = i915_gem_object_is_lmem(vma->obj) ||
+		       drm_mm_node_allocated(&ggtt->error_capture);
+
 	ret = -EINVAL;
-	for_each_sgt_daddr(dma, iter, vma->pages) {
+	if (drm_mm_node_allocated(&ggtt->error_capture)) {
 		void __iomem *s;
+		dma_addr_t dma;
 
-		ggtt->vm.insert_page(&ggtt->vm, dma, slot, I915_CACHE_NONE, 0);
+		for_each_sgt_daddr(dma, iter, vma->pages) {
+			ggtt->vm.insert_page(&ggtt->vm, dma, slot,
+					     I915_CACHE_NONE, 0);
 
-		s = io_mapping_map_wc(&ggtt->iomap, slot, PAGE_SIZE);
-		ret = compress_page(compress, (void  __force *)s, dst);
-		io_mapping_unmap(s);
-		if (ret)
-			break;
+			s = io_mapping_map_wc(&ggtt->iomap, slot, PAGE_SIZE);
+			ret = compress_page(compress, (void  __force *)s, dst);
+			io_mapping_unmap(s);
+			if (ret)
+				break;
+		}
+	} else if (i915_gem_object_is_lmem(vma->obj)) {
+		struct intel_memory_region *mem = vma->obj->mm.region;
+		dma_addr_t dma;
+
+		for_each_sgt_daddr(dma, iter, vma->pages) {
+			void __iomem *s;
+
+			s = io_mapping_map_wc(&mem->iomap, dma, PAGE_SIZE);
+			ret = compress_page(compress, (void __force *)s, dst);
+			io_mapping_unmap(s);
+			if (ret)
+				break;
+		}
+	} else {
+		struct page *page;
+
+		for_each_sgt_page(page, iter, vma->pages) {
+			void *s;
+
+			drm_clflush_pages(&page, 1);
+
+			s = kmap(page);
+			ret = compress_page(compress, s, dst);
+			kunmap(page);
+
+			drm_clflush_pages(&page, 1);
+
+			if (ret)
+				break;
+		}
 	}
 
 	if (ret || compress_flush(compress, dst)) {
@@ -1144,8 +1190,6 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	}
 
 	ee->idle = intel_engine_is_idle(engine);
-	if (!ee->idle)
-		ee->hangcheck_timestamp = engine->hangcheck.action_timestamp;
 	ee->reset_count = i915_reset_engine_count(&dev_priv->gpu_error,
 						  engine);
 
@@ -1177,7 +1221,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 static void record_request(const struct i915_request *request,
 			   struct drm_i915_error_request *erq)
 {
-	const struct i915_gem_context *ctx = request->gem_context;
+	const struct i915_gem_context *ctx;
 
 	erq->flags = request->fence.flags;
 	erq->context = request->fence.context;
@@ -1188,8 +1232,11 @@ static void record_request(const struct i915_request *request,
 	erq->head = request->head;
 	erq->tail = request->tail;
 
+	erq->pid = 0;
 	rcu_read_lock();
-	erq->pid = ctx->pid ? pid_nr(ctx->pid) : 0;
+	ctx = rcu_dereference(request->context->gem_context);
+	if (ctx)
+		erq->pid = pid_nr(ctx->pid);
 	rcu_read_unlock();
 }
 
@@ -1257,25 +1304,34 @@ static void error_record_engine_execlists(const struct intel_engine_cs *engine,
 static bool record_context(struct drm_i915_error_context *e,
 			   const struct i915_request *rq)
 {
-	const struct i915_gem_context *ctx = rq->gem_context;
+	struct i915_gem_context *ctx;
+	struct task_struct *task;
+	bool capture;
 
-	if (ctx->pid) {
-		struct task_struct *task;
+	rcu_read_lock();
+	ctx = rcu_dereference(rq->context->gem_context);
+	if (ctx && !kref_get_unless_zero(&ctx->ref))
+		ctx = NULL;
+	rcu_read_unlock();
+	if (!ctx)
+		return false;
 
-		rcu_read_lock();
-		task = pid_task(ctx->pid, PIDTYPE_PID);
-		if (task) {
-			strcpy(e->comm, task->comm);
-			e->pid = task->pid;
-		}
-		rcu_read_unlock();
+	rcu_read_lock();
+	task = pid_task(ctx->pid, PIDTYPE_PID);
+	if (task) {
+		strcpy(e->comm, task->comm);
+		e->pid = task->pid;
 	}
+	rcu_read_unlock();
 
 	e->sched_attr = ctx->sched;
 	e->guilty = atomic_read(&ctx->guilty_count);
 	e->active = atomic_read(&ctx->active_count);
 
-	return i915_gem_context_no_error_capture(ctx);
+	capture = i915_gem_context_no_error_capture(ctx);
+
+	i915_gem_context_put(ctx);
+	return capture;
 }
 
 struct capture_vma {
@@ -1411,7 +1467,7 @@ gem_record_rings(struct i915_gpu_state *error, struct compress *compress)
 		capture = request_record_user_bo(request, ee, capture);
 
 		capture = capture_vma(capture,
-				      request->hw_context->state,
+				      request->context->state,
 				      &ee->ctx);
 
 		capture = capture_vma(capture,
@@ -1563,6 +1619,18 @@ static void capture_reg_state(struct i915_gpu_state *error)
 	if (IS_GEN_RANGE(i915, 8, 11))
 		error->gtt_cache = intel_uncore_read(uncore, HSW_GTT_CACHE_EN);
 
+	if (IS_GEN(i915, 12))
+		error->aux_err = intel_uncore_read(uncore, GEN12_AUX_ERR_DBG);
+
+	if (INTEL_GEN(i915) >= 12) {
+		for (i = 0; i < GEN12_SFC_DONE_MAX; i++) {
+			error->sfc_done[i] =
+				intel_uncore_read(uncore, GEN12_SFC_DONE(i));
+		}
+
+		error->gam_done = intel_uncore_read(uncore, GEN12_GAM_DONE);
+	}
+
 	/* 4: Everything else */
 	if (INTEL_GEN(i915) >= 11) {
 		error->ier = intel_uncore_read(uncore, GEN8_DE_MISC_IER);
@@ -1657,26 +1725,15 @@ static void capture_params(struct i915_gpu_state *error)
 	i915_params_copy(&error->params, &i915_modparams);
 }
 
-static unsigned long capture_find_epoch(const struct i915_gpu_state *error)
-{
-	const struct drm_i915_error_engine *ee;
-	unsigned long epoch = error->capture;
-
-	for (ee = error->engine; ee; ee = ee->next) {
-		if (ee->hangcheck_timestamp &&
-		    time_before(ee->hangcheck_timestamp, epoch))
-			epoch = ee->hangcheck_timestamp;
-	}
-
-	return epoch;
-}
-
 static void capture_finish(struct i915_gpu_state *error)
 {
 	struct i915_ggtt *ggtt = &error->i915->ggtt;
-	const u64 slot = ggtt->error_capture.start;
 
-	ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
+	if (drm_mm_node_allocated(&ggtt->error_capture)) {
+		const u64 slot = ggtt->error_capture.start;
+
+		ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
+	}
 }
 
 #define DAY_AS_SECONDS(x) (24 * 60 * 60 * (x))
@@ -1721,8 +1778,6 @@ i915_capture_gpu_state(struct drm_i915_private *i915)
 
 	error->overlay = intel_overlay_capture_error_state(i915);
 	error->display = intel_display_capture_error_state(i915);
-
-	error->epoch = capture_find_epoch(error);
 
 	capture_finish(error);
 	compress_fini(&compress);

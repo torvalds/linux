@@ -85,7 +85,7 @@ i915_gem_object_get_pages_buddy(struct drm_i915_gem_object *obj)
 		}
 
 		prev_end = offset + block_size;
-	};
+	}
 
 	sg_page_sizes |= sg->length;
 	sg_mark_end(sg);

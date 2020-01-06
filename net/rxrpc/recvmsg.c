@@ -267,11 +267,13 @@ static int rxrpc_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
  */
 static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
 			     u8 *_annotation,
-			     unsigned int *_offset, unsigned int *_len)
+			     unsigned int *_offset, unsigned int *_len,
+			     bool *_last)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned int offset = sizeof(struct rxrpc_wire_header);
 	unsigned int len;
+	bool last = false;
 	int ret;
 	u8 annotation = *_annotation;
 	u8 subpacket = annotation & RXRPC_RX_ANNO_SUBPACKET;
@@ -281,6 +283,8 @@ static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
 	len = skb->len - offset;
 	if (subpacket < sp->nr_subpackets - 1)
 		len = RXRPC_JUMBO_DATALEN;
+	else if (sp->rx_flags & RXRPC_SKB_INCL_LAST)
+		last = true;
 
 	if (!(annotation & RXRPC_RX_ANNO_VERIFIED)) {
 		ret = rxrpc_verify_packet(call, skb, annotation, offset, len);
@@ -291,6 +295,7 @@ static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
 
 	*_offset = offset;
 	*_len = len;
+	*_last = last;
 	call->security->locate_data(call, skb, _offset, _len);
 	return 0;
 }
@@ -309,7 +314,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top, seq;
 	size_t remain;
-	bool last;
+	bool rx_pkt_last;
 	unsigned int rx_pkt_offset, rx_pkt_len;
 	int ix, copy, ret = -EAGAIN, ret2;
 
@@ -319,6 +324,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 
 	rx_pkt_offset = call->rx_pkt_offset;
 	rx_pkt_len = call->rx_pkt_len;
+	rx_pkt_last = call->rx_pkt_last;
 
 	if (call->state >= RXRPC_CALL_SERVER_ACK_REQUEST) {
 		seq = call->rx_hard_ack;
@@ -329,6 +335,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	/* Barriers against rxrpc_input_data(). */
 	hard_ack = call->rx_hard_ack;
 	seq = hard_ack + 1;
+
 	while (top = smp_load_acquire(&call->rx_top),
 	       before_eq(seq, top)
 	       ) {
@@ -356,7 +363,8 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		if (rx_pkt_offset == 0) {
 			ret2 = rxrpc_locate_data(call, skb,
 						 &call->rxtx_annotations[ix],
-						 &rx_pkt_offset, &rx_pkt_len);
+						 &rx_pkt_offset, &rx_pkt_len,
+						 &rx_pkt_last);
 			trace_rxrpc_recvmsg(call, rxrpc_recvmsg_next, seq,
 					    rx_pkt_offset, rx_pkt_len, ret2);
 			if (ret2 < 0) {
@@ -396,13 +404,12 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		}
 
 		/* The whole packet has been transferred. */
-		last = sp->hdr.flags & RXRPC_LAST_PACKET;
 		if (!(flags & MSG_PEEK))
 			rxrpc_rotate_rx_window(call);
 		rx_pkt_offset = 0;
 		rx_pkt_len = 0;
 
-		if (last) {
+		if (rx_pkt_last) {
 			ASSERTCMP(seq, ==, READ_ONCE(call->rx_top));
 			ret = 1;
 			goto out;
@@ -415,6 +422,7 @@ out:
 	if (!(flags & MSG_PEEK)) {
 		call->rx_pkt_offset = rx_pkt_offset;
 		call->rx_pkt_len = rx_pkt_len;
+		call->rx_pkt_last = rx_pkt_last;
 	}
 done:
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_data_return, seq,

@@ -46,7 +46,8 @@ extern int smb2_verify_signature(struct smb_rqst *, struct TCP_Server_Info *);
 extern int smb2_check_receive(struct mid_q_entry *mid,
 			      struct TCP_Server_Info *server, bool log_error);
 extern struct mid_q_entry *smb2_setup_request(struct cifs_ses *ses,
-			      struct smb_rqst *rqst);
+					      struct TCP_Server_Info *,
+					      struct smb_rqst *rqst);
 extern struct mid_q_entry *smb2_setup_async_request(
 			struct TCP_Server_Info *server, struct smb_rqst *rqst);
 extern struct cifs_ses *smb2_find_smb_ses(struct TCP_Server_Info *server,
@@ -69,6 +70,8 @@ extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 extern int open_shroot(unsigned int xid, struct cifs_tcon *tcon,
 			struct cifs_fid *pfid);
 extern void close_shroot(struct cached_fid *cfid);
+extern void close_shroot_lease(struct cached_fid *cfid);
+extern void close_shroot_lease_locked(struct cached_fid *cfid);
 extern void move_smb2_info_to_cifs(FILE_ALL_INFO *dst,
 				   struct smb2_file_all_info *src);
 extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
@@ -154,12 +157,13 @@ extern int SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, bool watch_tree,
 			u32 completion_filter);
 
+extern int __SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
+			u64 persistent_fid, u64 volatile_fid,
+			struct smb2_file_network_open_info *pbuf);
 extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
-extern int SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
-			    u64 persistent_fid, u64 volatile_fid, int flags);
 extern int SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
-		      u64 persistent_file_id, u64 volatile_file_id);
+		      u64 persistent_fid, u64 volatile_fid, bool query_attrs);
 extern void SMB2_close_free(struct smb_rqst *rqst);
 extern int SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
@@ -212,6 +216,9 @@ extern int SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 extern int SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
 			     const u64 persistent_fid, const u64 volatile_fid,
 			     const __u8 oplock_level);
+extern int smb2_handle_cancelled_close(struct cifs_tcon *tcon,
+				       __u64 persistent_fid,
+				       __u64 volatile_fid);
 extern int smb2_handle_cancelled_mid(char *buffer,
 					struct TCP_Server_Info *server);
 void smb2_cancelled_close_fid(struct work_struct *work);

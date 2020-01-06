@@ -91,6 +91,13 @@ struct mpll_cfg {
 	uint32_t ref_range;
 	uint32_t ref_clk;
 	bool hdmimode_enable;
+	bool sup_pre_hp;
+	bool dp_tx0_vergdrv_byp;
+	bool dp_tx1_vergdrv_byp;
+	bool dp_tx2_vergdrv_byp;
+	bool dp_tx3_vergdrv_byp;
+
+
 };
 
 struct dpcssys_phy_seq_cfg {
@@ -151,9 +158,7 @@ void enc2_fec_set_ready(struct link_encoder *enc, bool ready);
 bool enc2_fec_is_active(struct link_encoder *enc);
 void enc2_hw_init(struct link_encoder *enc);
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 void link_enc2_read_state(struct link_encoder *enc, struct link_enc_state *s);
-#endif
 
 void dcn20_link_encoder_enable_dp_output(
 	struct link_encoder *enc,

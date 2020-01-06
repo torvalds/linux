@@ -2405,11 +2405,19 @@ qla2x00_login_iocb(srb_t *sp, struct mbx_entry *mbx)
 static void
 qla24xx_logout_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 {
+	u16 control_flags = LCF_COMMAND_LOGO;
 	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
-	logio->control_flags =
-	    cpu_to_le16(LCF_COMMAND_LOGO|LCF_IMPL_LOGO);
-	if (!sp->fcport->keep_nport_handle)
-		logio->control_flags |= cpu_to_le16(LCF_FREE_NPORT);
+
+	if (sp->fcport->explicit_logout) {
+		control_flags |= LCF_EXPL_LOGO|LCF_FREE_NPORT;
+	} else {
+		control_flags |= LCF_IMPL_LOGO;
+
+		if (!sp->fcport->keep_nport_handle)
+			control_flags |= LCF_FREE_NPORT;
+	}
+
+	logio->control_flags = cpu_to_le16(control_flags);
 	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
 	logio->port_id[1] = sp->fcport->d_id.b.area;
@@ -2617,6 +2625,10 @@ qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
 
 	memcpy(elsio->u.els_logo.els_logo_pyld, &logo_pyld,
 	    sizeof(struct els_logo_payload));
+	ql_dbg(ql_dbg_disc + ql_dbg_buffer, vha, 0x3075, "LOGO buffer:");
+	ql_dump_buffer(ql_dbg_disc + ql_dbg_buffer, vha, 0x010a,
+		       elsio->u.els_logo.els_logo_pyld,
+		       sizeof(*elsio->u.els_logo.els_logo_pyld));
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
@@ -2676,7 +2688,8 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x3073,
 		    "PLOGI ELS IOCB:\n");
 		ql_dump_buffer(ql_log_info, vha, 0x0109,
-		    (uint8_t *)els_iocb, 0x70);
+		    (uint8_t *)els_iocb,
+		    sizeof(*els_iocb));
 	} else {
 		els_iocb->control_flags = 1 << 13;
 		els_iocb->tx_byte_count =
@@ -2688,6 +2701,11 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 		els_iocb->rx_byte_count = 0;
 		els_iocb->rx_address = 0;
 		els_iocb->rx_len = 0;
+		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x3076,
+		       "LOGO ELS IOCB:");
+		ql_dump_buffer(ql_log_info, vha, 0x010b,
+			       els_iocb,
+			       sizeof(*els_iocb));
 	}
 
 	sp->vha->qla_stats.control_requests++;
@@ -2740,6 +2758,10 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 	struct scsi_qla_host *vha = sp->vha;
 	struct event_arg ea;
 	struct qla_work_evt *e;
+	struct fc_port *conflict_fcport;
+	port_id_t cid;	/* conflict Nport id */
+	u32 *fw_status = sp->u.iocb_cmd.u.els_plogi.fw_status;
+	u16 lid;
 
 	ql_dbg(ql_dbg_disc, vha, 0x3072,
 	    "%s ELS done rc %d hdl=%x, portid=%06x %8phC\n",
@@ -2751,14 +2773,101 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 	if (sp->flags & SRB_WAKEUP_ON_COMP)
 		complete(&lio->u.els_plogi.comp);
 	else {
-		if (res) {
-			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
-		} else {
+		switch (fw_status[0]) {
+		case CS_DATA_UNDERRUN:
+		case CS_COMPLETE:
 			memset(&ea, 0, sizeof(ea));
 			ea.fcport = fcport;
-			ea.data[0] = MBS_COMMAND_COMPLETE;
-			ea.sp = sp;
-			qla24xx_handle_plogi_done_event(vha, &ea);
+			ea.rc = res;
+			qla_handle_els_plogi_done(vha, &ea);
+			break;
+
+		case CS_IOCB_ERROR:
+			switch (fw_status[1]) {
+			case LSC_SCODE_PORTID_USED:
+				lid = fw_status[2] & 0xffff;
+				qlt_find_sess_invalidate_other(vha,
+				    wwn_to_u64(fcport->port_name),
+				    fcport->d_id, lid, &conflict_fcport);
+				if (conflict_fcport) {
+					/*
+					 * Another fcport shares the same
+					 * loop_id & nport id; conflict
+					 * fcport needs to finish cleanup
+					 * before this fcport can proceed
+					 * to login.
+					 */
+					conflict_fcport->conflict = fcport;
+					fcport->login_pause = 1;
+					ql_dbg(ql_dbg_disc, vha, 0x20ed,
+					    "%s %d %8phC pid %06x inuse with lid %#x post gidpn\n",
+					    __func__, __LINE__,
+					    fcport->port_name,
+					    fcport->d_id.b24, lid);
+				} else {
+					ql_dbg(ql_dbg_disc, vha, 0x20ed,
+					    "%s %d %8phC pid %06x inuse with lid %#x sched del\n",
+					    __func__, __LINE__,
+					    fcport->port_name,
+					    fcport->d_id.b24, lid);
+					qla2x00_clear_loop_id(fcport);
+					set_bit(lid, vha->hw->loop_id_map);
+					fcport->loop_id = lid;
+					fcport->keep_nport_handle = 0;
+					qlt_schedule_sess_for_deletion(fcport);
+				}
+				break;
+
+			case LSC_SCODE_NPORT_USED:
+				cid.b.domain = (fw_status[2] >> 16) & 0xff;
+				cid.b.area   = (fw_status[2] >>  8) & 0xff;
+				cid.b.al_pa  = fw_status[2] & 0xff;
+				cid.b.rsvd_1 = 0;
+
+				ql_dbg(ql_dbg_disc, vha, 0x20ec,
+				    "%s %d %8phC lid %#x in use with pid %06x post gnl\n",
+				    __func__, __LINE__, fcport->port_name,
+				    fcport->loop_id, cid.b24);
+				set_bit(fcport->loop_id,
+				    vha->hw->loop_id_map);
+				fcport->loop_id = FC_NO_LOOP_ID;
+				qla24xx_post_gnl_work(vha, fcport);
+				break;
+
+			case LSC_SCODE_NOXCB:
+				vha->hw->exch_starvation++;
+				if (vha->hw->exch_starvation > 5) {
+					ql_log(ql_log_warn, vha, 0xd046,
+					    "Exchange starvation. Resetting RISC\n");
+					vha->hw->exch_starvation = 0;
+					set_bit(ISP_ABORT_NEEDED,
+					    &vha->dpc_flags);
+					qla2xxx_wake_dpc(vha);
+				}
+				/* fall through */
+			default:
+				ql_dbg(ql_dbg_disc, vha, 0x20eb,
+				    "%s %8phC cmd error fw_status 0x%x 0x%x 0x%x\n",
+				    __func__, sp->fcport->port_name,
+				    fw_status[0], fw_status[1], fw_status[2]);
+
+				fcport->flags &= ~FCF_ASYNC_SENT;
+				fcport->disc_state = DSC_LOGIN_FAILED;
+				set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+				break;
+			}
+			break;
+
+		default:
+			ql_dbg(ql_dbg_disc, vha, 0x20eb,
+			    "%s %8phC cmd error 2 fw_status 0x%x 0x%x 0x%x\n",
+			    __func__, sp->fcport->port_name,
+			    fw_status[0], fw_status[1], fw_status[2]);
+
+			sp->fcport->flags &= ~FCF_ASYNC_SENT;
+			sp->fcport->disc_state = DSC_LOGIN_FAILED;
+			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+			break;
 		}
 
 		e = qla2x00_alloc_work(vha, QLA_EVT_UNMAP);
@@ -2792,11 +2901,12 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 		return -ENOMEM;
 	}
 
+	fcport->flags |= FCF_ASYNC_SENT;
+	fcport->disc_state = DSC_LOGIN_PEND;
 	elsio = &sp->u.iocb_cmd;
 	ql_dbg(ql_dbg_io, vha, 0x3073,
 	    "Enter: PLOGI portid=%06x\n", fcport->d_id.b24);
 
-	fcport->flags |= FCF_ASYNC_SENT;
 	sp->type = SRB_ELS_DCMD;
 	sp->name = "ELS_DCMD";
 	sp->fcport = fcport;
@@ -2842,7 +2952,8 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 
 	ql_dbg(ql_dbg_disc + ql_dbg_buffer, vha, 0x3073, "PLOGI buffer:\n");
 	ql_dump_buffer(ql_dbg_disc + ql_dbg_buffer, vha, 0x0109,
-	    (uint8_t *)elsio->u.els_plogi.els_plogi_pyld, 0x70);
+	    (uint8_t *)elsio->u.els_plogi.els_plogi_pyld,
+	    sizeof(*elsio->u.els_plogi.els_plogi_pyld));
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {

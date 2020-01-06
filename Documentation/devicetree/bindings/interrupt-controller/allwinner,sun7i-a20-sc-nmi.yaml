@@ -8,7 +8,7 @@ title: Allwinner A20 Non-Maskable Interrupt Controller Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 allOf:
   - $ref: /schemas/interrupt-controller.yaml#
@@ -52,9 +52,7 @@ required:
   - interrupts
   - interrupt-controller
 
-# FIXME: We should set it, but it would report all the generic
-# properties as additional properties.
-# additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -874,14 +874,18 @@ sub seed_camelcase_file {
 	}
 }
 
+our %maintained_status = ();
+
 sub is_maintained_obsolete {
 	my ($filename) = @_;
 
 	return 0 if (!$tree || !(-e "$root/scripts/get_maintainer.pl"));
 
-	my $status = `perl $root/scripts/get_maintainer.pl --status --nom --nol --nogit --nogit-fallback -f $filename 2>&1`;
+	if (!exists($maintained_status{$filename})) {
+		$maintained_status{$filename} = `perl $root/scripts/get_maintainer.pl --status --nom --nol --nogit --nogit-fallback -f $filename 2>&1`;
+	}
 
-	return $status =~ /obsolete/i;
+	return $maintained_status{$filename} =~ /obsolete/i;
 }
 
 sub is_SPDX_License_valid {
@@ -2826,6 +2830,14 @@ sub process {
 			     "added, moved or deleted file(s), does MAINTAINERS need updating?\n" . $herecurr);
 		}
 
+# Check for adding new DT bindings not in schema format
+		if (!$in_commit_log &&
+		    ($line =~ /^new file mode\s*\d+\s*$/) &&
+		    ($realfile =~ m@^Documentation/devicetree/bindings/.*\.txt$@)) {
+			WARN("DT_SCHEMA_BINDING_PATCH",
+			     "DT bindings should be in DT schema format. See: Documentation/devicetree/writing-schema.rst\n");
+		}
+
 # Check for wrappage within a valid hunk of the file
 		if ($realcnt != 0 && $line !~ m{^(?:\+|-| |\\ No newline|$)}) {
 			ERROR("CORRUPTED_PATCH",
@@ -4113,15 +4125,6 @@ sub process {
 			     "Prefer [subsystem eg: netdev]_$level2([subsystem]dev, ... then dev_$level2(dev, ... then pr_$level(...  to printk(KERN_$orig ...\n" . $herecurr);
 		}
 
-		if ($line =~ /\bpr_warning\s*\(/) {
-			if (WARN("PREFER_PR_LEVEL",
-				 "Prefer pr_warn(... to pr_warning(...\n" . $herecurr) &&
-			    $fix) {
-				$fixed[$fixlinenr] =~
-				    s/\bpr_warning\b/pr_warn/;
-			}
-		}
-
 		if ($line =~ /\bdev_printk\s*\(\s*KERN_([A-Z]+)/) {
 			my $orig = $1;
 			my $level = lc($orig);
@@ -5030,8 +5033,9 @@ sub process {
 			    $var =~ /[A-Z][a-z]|[a-z][A-Z]/ &&
 #Ignore Page<foo> variants
 			    $var !~ /^(?:Clear|Set|TestClear|TestSet|)Page[A-Z]/ &&
-#Ignore SI style variants like nS, mV and dB (ie: max_uV, regulator_min_uA_show)
-			    $var !~ /^(?:[a-z_]*?)_?[a-z][A-Z](?:_[a-z_]+)?$/ &&
+#Ignore SI style variants like nS, mV and dB
+#(ie: max_uV, regulator_min_uA_show, RANGE_mA_VALUE)
+			    $var !~ /^(?:[a-z0-9_]*|[A-Z0-9_]*)?_?[a-z][A-Z](?:_[a-z0-9_]+|_[A-Z0-9_]+)?$/ &&
 #Ignore some three character SI units explicitly, like MiB and KHz
 			    $var !~ /^(?:[a-z_]*?)_?(?:[KMGT]iB|[KMGT]?Hz)(?:_[a-z_]+)?$/) {
 				while ($var =~ m{($Ident)}g) {
@@ -6015,14 +6019,18 @@ sub process {
 		        for (my $count = $linenr; $count <= $lc; $count++) {
 				my $specifier;
 				my $extension;
+				my $qualifier;
 				my $bad_specifier = "";
 				my $fmt = get_quoted_string($lines[$count - 1], raw_line($count, 0));
 				$fmt =~ s/%%//g;
 
-				while ($fmt =~ /(\%[\*\d\.]*p(\w))/g) {
+				while ($fmt =~ /(\%[\*\d\.]*p(\w)(\w*))/g) {
 					$specifier = $1;
 					$extension = $2;
-					if ($extension !~ /[SsBKRraEhMmIiUDdgVCbGNOxt]/) {
+					$qualifier = $3;
+					if ($extension !~ /[SsBKRraEehMmIiUDdgVCbGNOxtf]/ ||
+					    ($extension eq "f" &&
+					     defined $qualifier && $qualifier !~ /^w/)) {
 						$bad_specifier = $specifier;
 						last;
 					}
@@ -6039,7 +6047,6 @@ sub process {
 					my $ext_type = "Invalid";
 					my $use = "";
 					if ($bad_specifier =~ /p[Ff]/) {
-						$ext_type = "Deprecated";
 						$use = " - use %pS instead";
 						$use =~ s/pS/ps/ if ($bad_specifier =~ /pf/);
 					}

@@ -61,8 +61,10 @@
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
+#include "gem/i915_gem_mman.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_rc6.h"
 
 #include "i915_debugfs.h"
 #include "i915_drv.h"
@@ -76,6 +78,7 @@
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_csr.h"
+#include "intel_memory_region.h"
 #include "intel_pm.h"
 
 static struct drm_driver driver;
@@ -294,9 +297,6 @@ static int i915_driver_modeset_probe(struct drm_i915_private *i915)
 	ret = i915_switcheroo_register(i915);
 	if (ret)
 		goto cleanup_vga_client;
-
-	/* must happen before intel_power_domains_init_hw() on VLV/CHV */
-	intel_update_rawclk(i915);
 
 	intel_power_domains_init_hw(i915, false);
 
@@ -598,11 +598,9 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 
 	intel_uc_init_mmio(&dev_priv->gt.uc);
 
-	ret = intel_engines_init_mmio(dev_priv);
+	ret = intel_engines_init_mmio(&dev_priv->gt);
 	if (ret)
 		goto err_uncore;
-
-	i915_gem_init_mmio(dev_priv);
 
 	return 0;
 
@@ -621,7 +619,6 @@ err_bridge:
  */
 static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
 {
-	intel_engines_cleanup(dev_priv);
 	intel_teardown_mchbar(dev_priv);
 	intel_uncore_fini_mmio(&dev_priv->uncore);
 	pci_dev_put(dev_priv->bridge_dev);
@@ -1055,7 +1052,7 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 	 */
 	dram_info->is_16gb_dimm = !IS_GEN9_LP(dev_priv);
 
-	if (INTEL_GEN(dev_priv) < 9)
+	if (INTEL_GEN(dev_priv) < 9 || !HAS_DISPLAY(dev_priv))
 		return;
 
 	if (IS_GEN9_LP(dev_priv))
@@ -1172,12 +1169,16 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_ggtt;
 
-	intel_gt_init_hw_early(dev_priv);
+	ret = intel_memory_regions_hw_probe(dev_priv);
+	if (ret)
+		goto err_ggtt;
+
+	intel_gt_init_hw_early(&dev_priv->gt, &dev_priv->ggtt);
 
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to enable GGTT\n");
-		goto err_ggtt;
+		goto err_mem_regions;
 	}
 
 	pci_set_master(pdev);
@@ -1194,7 +1195,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		if (ret) {
 			DRM_ERROR("failed to set DMA mask\n");
 
-			goto err_ggtt;
+			goto err_mem_regions;
 		}
 	}
 
@@ -1212,7 +1213,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		if (ret) {
 			DRM_ERROR("failed to set DMA mask\n");
 
-			goto err_ggtt;
+			goto err_mem_regions;
 		}
 	}
 
@@ -1264,6 +1265,8 @@ err_msi:
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
 	pm_qos_remove_request(&dev_priv->pm_qos);
+err_mem_regions:
+	intel_memory_regions_driver_release(dev_priv);
 err_ggtt:
 	i915_ggtt_driver_release(dev_priv);
 err_perf:
@@ -1393,8 +1396,8 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 					     INTEL_INFO(dev_priv)->platform),
 			   INTEL_GEN(dev_priv));
 
-		intel_device_info_dump_flags(INTEL_INFO(dev_priv), &p);
-		intel_device_info_dump_runtime(RUNTIME_INFO(dev_priv), &p);
+		intel_device_info_print_static(INTEL_INFO(dev_priv), &p);
+		intel_device_info_print_runtime(RUNTIME_INFO(dev_priv), &p);
 	}
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG))
@@ -1476,6 +1479,23 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!i915_modparams.nuclear_pageflip && match_info->gen < 5)
 		dev_priv->drm.driver_features &= ~DRIVER_ATOMIC;
 
+	/*
+	 * Check if we support fake LMEM -- for now we only unleash this for
+	 * the live selftests(test-and-exit).
+	 */
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+	if (IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM)) {
+		if (INTEL_GEN(dev_priv) >= 9 && i915_selftest.live < 0 &&
+		    i915_modparams.fake_lmem_start) {
+			mkwrite_device_info(dev_priv)->memory_regions =
+				REGION_SMEM | REGION_LMEM | REGION_STOLEN;
+			mkwrite_device_info(dev_priv)->is_dgfx = true;
+			GEM_BUG_ON(!HAS_LMEM(dev_priv));
+			GEM_BUG_ON(!IS_DGFX(dev_priv));
+		}
+	}
+#endif
+
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto out_fini;
@@ -1510,6 +1530,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 out_cleanup_hw:
 	i915_driver_hw_remove(dev_priv);
+	intel_memory_regions_driver_release(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
 out_cleanup_mmio:
 	i915_driver_mmio_release(dev_priv);
@@ -1548,10 +1569,7 @@ void i915_driver_remove(struct drm_i915_private *i915)
 
 	i915_driver_modeset_remove(i915);
 
-	/* Free error state after interrupts are fully disabled. */
-	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
 	i915_reset_error_state(i915);
-
 	i915_gem_driver_remove(i915);
 
 	intel_power_domains_driver_remove(i915);
@@ -1570,6 +1588,7 @@ static void i915_driver_release(struct drm_device *dev)
 
 	i915_gem_driver_release(dev_priv);
 
+	intel_memory_regions_driver_release(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
 
 	i915_driver_mmio_release(dev_priv);
@@ -1797,9 +1816,8 @@ static int i915_drm_resume(struct drm_device *dev)
 	int ret;
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
-	intel_gt_pm_disable(&dev_priv->gt);
 
-	i915_gem_sanitize(dev_priv);
+	intel_gt_sanitize(&dev_priv->gt, true);
 
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret)
@@ -1928,11 +1946,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_display_power_resume_early(dev_priv);
 
-	intel_gt_pm_disable(&dev_priv->gt);
-
 	intel_power_domains_resume(dev_priv);
-
-	intel_gt_sanitize(&dev_priv->gt, true);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -2646,18 +2660,12 @@ const struct dev_pm_ops i915_pm_ops = {
 	.runtime_resume = intel_runtime_resume,
 };
 
-static const struct vm_operations_struct i915_gem_vm_ops = {
-	.fault = i915_gem_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
-
 static const struct file_operations i915_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_gem_mmap,
+	.mmap = i915_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
 	.compat_ioctl = i915_compat_ioctl,
@@ -2704,7 +2712,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_PREAD, i915_gem_pread_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_PWRITE, i915_gem_pwrite_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_MMAP, i915_gem_mmap_ioctl, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(I915_GEM_MMAP_GTT, i915_gem_mmap_gtt_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(I915_GEM_MMAP_OFFSET, i915_gem_mmap_offset_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_SET_DOMAIN, i915_gem_set_domain_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_SW_FINISH, i915_gem_sw_finish_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_SET_TILING, i915_gem_set_tiling_ioctl, DRM_RENDER_ALLOW),
@@ -2746,7 +2754,6 @@ static struct drm_driver driver = {
 
 	.gem_close_object = i915_gem_close_object,
 	.gem_free_object_unlocked = i915_gem_free_object,
-	.gem_vm_ops = &i915_gem_vm_ops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
@@ -2757,7 +2764,8 @@ static struct drm_driver driver = {
 	.get_scanout_position = i915_get_crtc_scanoutpos,
 
 	.dumb_create = i915_gem_dumb_create,
-	.dumb_map_offset = i915_gem_mmap_gtt,
+	.dumb_map_offset = i915_gem_dumb_mmap_offset,
+
 	.ioctls = i915_ioctls,
 	.num_ioctls = ARRAY_SIZE(i915_ioctls),
 	.fops = &i915_driver_fops,
@@ -2768,7 +2776,3 @@ static struct drm_driver driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
-
-#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-#include "selftests/mock_drm.c"
-#endif

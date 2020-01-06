@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- * Marvell OcteonTx2 CGX driver
+/* SPDX-License-Identifier: GPL-2.0 */
+/*  Marvell OcteonTx2 CGX driver
  *
  * Copyright (C) 2018 Marvell International Ltd.
  *

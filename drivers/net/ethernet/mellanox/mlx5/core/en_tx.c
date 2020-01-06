@@ -93,7 +93,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	if (txq_ix >= num_channels)
 		txq_ix = priv->txq2sq[txq_ix]->ch_ix;
 
-	return priv->channel_tc2txq[txq_ix][up];
+	return priv->channel_tc2realtxq[txq_ix][up];
 }
 
 static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
@@ -403,7 +403,10 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 static void mlx5e_dump_error_cqe(struct mlx5e_txqsq *sq,
 				 struct mlx5_err_cqe *err_cqe)
 {
-	u32 ci = mlx5_cqwq_get_ci(&sq->cq.wq);
+	struct mlx5_cqwq *wq = &sq->cq.wq;
+	u32 ci;
+
+	ci = mlx5_cqwq_ctr2ix(wq, wq->cc - 1);
 
 	netdev_err(sq->channel->netdev,
 		   "Error cqe on cqn 0x%x, ci 0x%x, sqn 0x%x, opcode 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
@@ -458,8 +461,14 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 		if (unlikely(get_cqe_opcode(cqe) == MLX5_CQE_REQ_ERR)) {
 			if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING,
 					      &sq->state)) {
+				struct mlx5e_tx_wqe_info *wi;
+				u16 ci;
+
+				ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
+				wi = &sq->db.wqe_info[ci];
 				mlx5e_dump_error_cqe(sq,
 						     (struct mlx5_err_cqe *)cqe);
+				mlx5_wq_cyc_wqe_dump(&sq->wq, ci, wi->num_wqebbs);
 				queue_work(cq->channel->priv->wq,
 					   &sq->recover_work);
 			}
@@ -479,14 +488,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 			skb = wi->skb;
 
 			if (unlikely(!skb)) {
-#ifdef CONFIG_MLX5_EN_TLS
-				if (wi->resync_dump_frag) {
-					struct mlx5e_sq_dma *dma =
-						mlx5e_dma_get(sq, dma_fifo_cc++);
-
-					mlx5e_ktls_tx_handle_resync_dump_comp(sq, wi, dma);
-				}
-#endif
+				mlx5e_ktls_tx_handle_resync_dump_comp(sq, wi, &dma_fifo_cc);
 				sqcc += wi->num_wqebbs;
 				continue;
 			}
@@ -542,29 +544,38 @@ void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq)
 {
 	struct mlx5e_tx_wqe_info *wi;
 	struct sk_buff *skb;
+	u32 dma_fifo_cc;
+	u16 sqcc;
 	u16 ci;
 	int i;
 
-	while (sq->cc != sq->pc) {
-		ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->cc);
+	sqcc = sq->cc;
+	dma_fifo_cc = sq->dma_fifo_cc;
+
+	while (sqcc != sq->pc) {
+		ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
 		wi = &sq->db.wqe_info[ci];
 		skb = wi->skb;
 
-		if (!skb) { /* nop */
-			sq->cc++;
+		if (!skb) {
+			mlx5e_ktls_tx_handle_resync_dump_comp(sq, wi, &dma_fifo_cc);
+			sqcc += wi->num_wqebbs;
 			continue;
 		}
 
 		for (i = 0; i < wi->num_dma; i++) {
 			struct mlx5e_sq_dma *dma =
-				mlx5e_dma_get(sq, sq->dma_fifo_cc++);
+				mlx5e_dma_get(sq, dma_fifo_cc++);
 
 			mlx5e_tx_dma_unmap(sq->pdev, dma);
 		}
 
 		dev_kfree_skb_any(skb);
-		sq->cc += wi->num_wqebbs;
+		sqcc += wi->num_wqebbs;
 	}
+
+	sq->dma_fifo_cc = dma_fifo_cc;
+	sq->cc = sqcc;
 }
 
 #ifdef CONFIG_MLX5_CORE_IPOIB

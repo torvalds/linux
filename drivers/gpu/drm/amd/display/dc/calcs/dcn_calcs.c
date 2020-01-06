@@ -53,13 +53,9 @@
  * remain as-is as it provides us with a guarantee from HW that it is correct.
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 /* Defaults from spreadsheet rev#247.
  * RV2 delta: dram_clock_change_latency, max_num_dpp
  */
-#else
-/* Defaults from spreadsheet rev#247 */
-#endif
 const struct dcn_soc_bounding_box dcn10_soc_defaults = {
 		/* latencies */
 		.sr_exit_time = 17, /*us*/

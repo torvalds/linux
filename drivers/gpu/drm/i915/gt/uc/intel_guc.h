@@ -20,8 +20,8 @@ struct __guc_ads_blob;
 
 /*
  * Top level structure of GuC. It handles firmware loading and manages client
- * pool and doorbells. intel_guc owns a intel_guc_client to replace the legacy
- * ExecList submission.
+ * pool. intel_guc owns a intel_guc_client to replace the legacy ExecList
+ * submission.
  */
 struct intel_guc {
 	struct intel_uc_fw fw;
@@ -46,15 +46,13 @@ struct intel_guc {
 
 	struct i915_vma *stage_desc_pool;
 	void *stage_desc_pool_vaddr;
-	struct ida stage_ids;
-	struct i915_vma *shared_data;
-	void *shared_data_vaddr;
 
-	struct intel_guc_client *execbuf_client;
+	struct i915_vma *workqueue;
+	void *workqueue_vaddr;
+	spinlock_t wq_lock;
 
-	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
-	/* Cyclic counter mod pagesize	*/
-	u32 db_cacheline;
+	struct i915_vma *proc_desc;
+	void *proc_desc_vaddr;
 
 	/* Control params for fw initialization */
 	u32 params[GUC_CTL_MAX_DWORDS];
@@ -66,44 +64,33 @@ struct intel_guc {
 		enum forcewake_domains fw_domains;
 	} send_regs;
 
+	/* register used to send interrupts to the GuC FW */
+	i915_reg_t notify_reg;
+
 	/* Store msg (e.g. log flush) that we see while CTBs are disabled */
 	u32 mmio_msg;
 
 	/* To serialize the intel_guc_send actions */
 	struct mutex send_mutex;
-
-	/* GuC's FW specific send function */
-	int (*send)(struct intel_guc *guc, const u32 *data, u32 len,
-		    u32 *response_buf, u32 response_buf_size);
-
-	/* GuC's FW specific event handler function */
-	void (*handler)(struct intel_guc *guc);
-
-	/* GuC's FW specific notify function */
-	void (*notify)(struct intel_guc *guc);
 };
 
 static
 inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 {
-	return guc->send(guc, action, len, NULL, 0);
+	return intel_guc_ct_send(&guc->ct, action, len, NULL, 0);
 }
 
 static inline int
 intel_guc_send_and_receive(struct intel_guc *guc, const u32 *action, u32 len,
 			   u32 *response_buf, u32 response_buf_size)
 {
-	return guc->send(guc, action, len, response_buf, response_buf_size);
-}
-
-static inline void intel_guc_notify(struct intel_guc *guc)
-{
-	guc->notify(guc);
+	return intel_guc_ct_send(&guc->ct, action, len,
+				 response_buf, response_buf_size);
 }
 
 static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)
 {
-	guc->handler(guc);
+	intel_guc_ct_event_handler(&guc->ct);
 }
 
 /* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
@@ -138,12 +125,9 @@ void intel_guc_init_send_regs(struct intel_guc *guc);
 void intel_guc_write_params(struct intel_guc *guc);
 int intel_guc_init(struct intel_guc *guc);
 void intel_guc_fini(struct intel_guc *guc);
-int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
-		       u32 *response_buf, u32 response_buf_size);
+void intel_guc_notify(struct intel_guc *guc);
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 			u32 *response_buf, u32 response_buf_size);
-void intel_guc_to_host_event_handler(struct intel_guc *guc);
-void intel_guc_to_host_event_handler_nop(struct intel_guc *guc);
 int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
 				       const u32 *payload, u32 len);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
@@ -151,6 +135,8 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset);
 int intel_guc_suspend(struct intel_guc *guc);
 int intel_guc_resume(struct intel_guc *guc);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
+int intel_guc_allocate_and_map_vma(struct intel_guc *guc, u32 size,
+				   struct i915_vma **out_vma, void **out_vaddr);
 
 static inline bool intel_guc_is_supported(struct intel_guc *guc)
 {

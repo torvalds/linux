@@ -952,7 +952,7 @@ static int alb_upper_dev_walk(struct net_device *upper, void *_data)
 	struct bond_vlan_tag *tags;
 
 	if (is_vlan_dev(upper) &&
-	    bond->nest_level == vlan_get_encap_level(upper) - 1) {
+	    bond->dev->lower_level == upper->lower_level - 1) {
 		if (upper->addr_assign_type == NET_ADDR_STOLEN) {
 			alb_send_lp_vid(slave, mac_addr,
 					vlan_dev_vlan_proto(upper),

@@ -7,6 +7,8 @@
 #ifndef _INTEL_GPU_COMMANDS_H_
 #define _INTEL_GPU_COMMANDS_H_
 
+#include <linux/bitops.h>
+
 /*
  * Target address alignments required for GPU access e.g.
  * MI_STORE_DWORD_IMM.
@@ -318,5 +320,32 @@
 
 #define COLOR_BLT     ((0x2<<29)|(0x40<<22))
 #define SRC_COPY_BLT  ((0x2<<29)|(0x43<<22))
+
+/*
+ * Used to convert any address to canonical form.
+ * Starting from gen8, some commands (e.g. STATE_BASE_ADDRESS,
+ * MI_LOAD_REGISTER_MEM and others, see Broadwell PRM Vol2a) require the
+ * addresses to be in a canonical form:
+ * "GraphicsAddress[63:48] are ignored by the HW and assumed to be in correct
+ * canonical form [63:48] == [47]."
+ */
+#define GEN8_HIGH_ADDRESS_BIT 47
+static inline u64 gen8_canonical_addr(u64 address)
+{
+	return sign_extend64(address, GEN8_HIGH_ADDRESS_BIT);
+}
+
+static inline u64 gen8_noncanonical_addr(u64 address)
+{
+	return address & GENMASK_ULL(GEN8_HIGH_ADDRESS_BIT, 0);
+}
+
+static inline u32 *__gen6_emit_bb_start(u32 *cs, u32 addr, unsigned int flags)
+{
+	*cs++ = MI_BATCH_BUFFER_START | flags;
+	*cs++ = addr;
+
+	return cs;
+}
 
 #endif /* _INTEL_GPU_COMMANDS_H_ */

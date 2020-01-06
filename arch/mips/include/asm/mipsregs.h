@@ -689,6 +689,9 @@
 #define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
 #define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
 
+/* Ingenic HPTLB off bits */
+#define XBURST_PAGECTRL_HPTLB_DIS 0xa9000000
+
 /* Ingenic Config7 bits */
 #define MIPS_CONF7_BTB_LOOP_EN	(_ULCAST_(1) << 4)
 
@@ -1970,6 +1973,9 @@ do {									\
 
 #define read_c0_brcm_sleepcount()	__read_32bit_c0_register($22, 7)
 #define write_c0_brcm_sleepcount(val)	__write_32bit_c0_register($22, 7, val)
+
+/* Ingenic page ctrl register */
+#define write_c0_page_ctrl(val)	__write_32bit_c0_register($5, 4, val)
 
 /*
  * Macros to access the guest system control coprocessor

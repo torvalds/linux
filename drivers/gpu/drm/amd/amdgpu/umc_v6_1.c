@@ -31,6 +31,14 @@
 
 #define smnMCA_UMC0_MCUMC_ADDRT0	0x50f10
 
+/* UMC 6_1_2 register offsets */
+#define mmUMCCH0_0_EccErrCntSel_ARCT                 0x0360
+#define mmUMCCH0_0_EccErrCntSel_ARCT_BASE_IDX        1
+#define mmUMCCH0_0_EccErrCnt_ARCT                    0x0361
+#define mmUMCCH0_0_EccErrCnt_ARCT_BASE_IDX           1
+#define mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT           0x03c2
+#define mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT_BASE_IDX  1
+
 /*
  * (addr / 256) * 8192, the higher 26 bits in ErrorAddr
  * is the index of 8KB block
@@ -75,6 +83,17 @@ static void umc_v6_1_disable_umc_index_mode(struct amdgpu_device *adev)
 			RSMU_UMC_INDEX_MODE_EN, 0);
 }
 
+static uint32_t umc_v6_1_get_umc_inst(struct amdgpu_device *adev)
+{
+	uint32_t rsmu_umc_index;
+
+	rsmu_umc_index = RREG32_SOC15(RSMU, 0,
+				mmRSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU);
+	return REG_GET_FIELD(rsmu_umc_index,
+				RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
+				RSMU_UMC_INDEX_INSTANCE);
+}
+
 static void umc_v6_1_query_correctable_error_count(struct amdgpu_device *adev,
 						   uint32_t umc_reg_offset,
 						   unsigned long *error_count)
@@ -84,12 +103,25 @@ static void umc_v6_1_query_correctable_error_count(struct amdgpu_device *adev,
 	uint64_t mc_umc_status;
 	uint32_t mc_umc_status_addr;
 
-	ecc_err_cnt_sel_addr =
-		SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCntSel);
-	ecc_err_cnt_addr =
-		SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCnt);
-	mc_umc_status_addr =
-		SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		/* UMC 6_1_2 registers */
+
+		ecc_err_cnt_sel_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCntSel_ARCT);
+		ecc_err_cnt_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCnt_ARCT);
+		mc_umc_status_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT);
+	} else {
+		/* UMC 6_1_1 registers */
+
+		ecc_err_cnt_sel_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCntSel);
+		ecc_err_cnt_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCnt);
+		mc_umc_status_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
+	}
 
 	/* select the lower chip and check the error count */
 	ecc_err_cnt_sel = RREG32(ecc_err_cnt_sel_addr + umc_reg_offset);
@@ -130,8 +162,17 @@ static void umc_v6_1_querry_uncorrectable_error_count(struct amdgpu_device *adev
 	uint64_t mc_umc_status;
 	uint32_t mc_umc_status_addr;
 
-	mc_umc_status_addr =
-                SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		/* UMC 6_1_2 registers */
+
+		mc_umc_status_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT);
+	} else {
+		/* UMC 6_1_1 registers */
+
+		mc_umc_status_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
+	}
 
 	/* check the MCUMC_STATUS */
 	mc_umc_status = RREG64_UMC(mc_umc_status_addr + umc_reg_offset);
@@ -165,10 +206,20 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 					 uint32_t umc_reg_offset, uint32_t channel_index)
 {
 	uint32_t lsb, mc_umc_status_addr;
-	uint64_t mc_umc_status, err_addr;
+	uint64_t mc_umc_status, err_addr, retired_page;
+	struct eeprom_table_record *err_rec;
 
-	mc_umc_status_addr =
-		SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		/* UMC 6_1_2 registers */
+
+		mc_umc_status_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT);
+	} else {
+		/* UMC 6_1_1 registers */
+
+		mc_umc_status_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
+	}
 
 	/* skip error address process if -ENOMEM */
 	if (!err_data->err_addr) {
@@ -177,6 +228,7 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 		return;
 	}
 
+	err_rec = &err_data->err_addr[err_data->err_addr_cnt];
 	mc_umc_status = RREG64_UMC(mc_umc_status_addr + umc_reg_offset);
 
 	/* calculate error address if ue/ce error is detected */
@@ -191,12 +243,24 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 		err_addr &= ~((0x1ULL << lsb) - 1);
 
 		/* translate umc channel address to soc pa, 3 parts are included */
-		err_data->err_addr[err_data->err_addr_cnt] =
-						ADDR_OF_8KB_BLOCK(err_addr) |
-						ADDR_OF_256B_BLOCK(channel_index) |
-						OFFSET_IN_256B_BLOCK(err_addr);
+		retired_page = ADDR_OF_8KB_BLOCK(err_addr) |
+				ADDR_OF_256B_BLOCK(channel_index) |
+				OFFSET_IN_256B_BLOCK(err_addr);
 
-		err_data->err_addr_cnt++;
+		/* we only save ue error information currently, ce is skipped */
+		if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC)
+				== 1) {
+			err_rec->address = err_addr;
+			/* page frame address is saved */
+			err_rec->retired_page = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
+			err_rec->ts = (uint64_t)ktime_get_real_seconds();
+			err_rec->err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
+			err_rec->cu = 0;
+			err_rec->mem_channel = channel_index;
+			err_rec->mcumc_id = umc_v6_1_get_umc_inst(adev);
+
+			err_data->err_addr_cnt++;
+		}
 	}
 
 	/* clear umc status */
@@ -209,17 +273,28 @@ static void umc_v6_1_query_ras_error_address(struct amdgpu_device *adev,
 	amdgpu_umc_for_each_channel(umc_v6_1_query_error_address);
 }
 
-static void umc_v6_1_ras_init_per_channel(struct amdgpu_device *adev,
+static void umc_v6_1_err_cnt_init_per_channel(struct amdgpu_device *adev,
 					 struct ras_err_data *err_data,
 					 uint32_t umc_reg_offset, uint32_t channel_index)
 {
 	uint32_t ecc_err_cnt_sel, ecc_err_cnt_sel_addr;
 	uint32_t ecc_err_cnt_addr;
 
-	ecc_err_cnt_sel_addr =
-		SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCntSel);
-	ecc_err_cnt_addr =
-		SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCnt);
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		/* UMC 6_1_2 registers */
+
+		ecc_err_cnt_sel_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCntSel_ARCT);
+		ecc_err_cnt_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCnt_ARCT);
+	} else {
+		/* UMC 6_1_1 registers */
+
+		ecc_err_cnt_sel_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCntSel);
+		ecc_err_cnt_addr =
+			SOC15_REG_OFFSET(UMC, 0, mmUMCCH0_0_EccErrCnt);
+	}
 
 	/* select the lower chip and check the error count */
 	ecc_err_cnt_sel = RREG32(ecc_err_cnt_sel_addr + umc_reg_offset);
@@ -239,15 +314,16 @@ static void umc_v6_1_ras_init_per_channel(struct amdgpu_device *adev,
 	WREG32(ecc_err_cnt_addr + umc_reg_offset, UMC_V6_1_CE_CNT_INIT);
 }
 
-static void umc_v6_1_ras_init(struct amdgpu_device *adev)
+static void umc_v6_1_err_cnt_init(struct amdgpu_device *adev)
 {
 	void *ras_error_status = NULL;
 
-	amdgpu_umc_for_each_channel(umc_v6_1_ras_init_per_channel);
+	amdgpu_umc_for_each_channel(umc_v6_1_err_cnt_init_per_channel);
 }
 
 const struct amdgpu_umc_funcs umc_v6_1_funcs = {
-	.ras_init = umc_v6_1_ras_init,
+	.err_cnt_init = umc_v6_1_err_cnt_init,
+	.ras_late_init = amdgpu_umc_ras_late_init,
 	.query_ras_error_count = umc_v6_1_query_ras_error_count,
 	.query_ras_error_address = umc_v6_1_query_ras_error_address,
 	.enable_umc_index_mode = umc_v6_1_enable_umc_index_mode,

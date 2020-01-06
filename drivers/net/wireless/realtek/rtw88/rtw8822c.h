@@ -149,6 +149,18 @@ const struct rtw_table name ## _tbl = {			\
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x01), GENMASK(11, 8))
 #define GET_PHY_STAT_P1_HT_RXSC(phy_stat)                                      \
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x01), GENMASK(15, 12))
+#define GET_PHY_STAT_P1_RXEVM_A(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x04), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_RXEVM_B(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x04), GENMASK(15, 8))
+#define GET_PHY_STAT_P1_CFO_TAIL_A(phy_stat)                                 \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x05), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_CFO_TAIL_B(phy_stat)                                 \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x05), GENMASK(15, 8))
+#define GET_PHY_STAT_P1_RXSNR_A(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x06), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_RXSNR_B(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x06), GENMASK(15, 8))
 
 #define REG_ANAPARLDO_POW_MAC	0x0029
 #define BIT_LDOE25_PON		BIT(0)

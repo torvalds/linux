@@ -728,7 +728,7 @@ static void quirk_usb_handoff_uhci(struct pci_dev *pdev)
 	if (!pio_enabled(pdev))
 		return;
 
-	for (i = 0; i < PCI_ROM_RESOURCE; i++)
+	for (i = 0; i < PCI_STD_NUM_BARS; i++)
 		if ((pci_resource_flags(pdev, i) & IORESOURCE_IO)) {
 			base = pci_resource_start(pdev, i);
 			break;

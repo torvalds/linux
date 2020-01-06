@@ -80,8 +80,7 @@ static void blkg_free(struct blkcg_gq *blkg)
 		if (blkg->pd[i])
 			blkcg_policy[i]->pd_free_fn(blkg->pd[i]);
 
-	blkg_rwstat_exit(&blkg->stat_ios);
-	blkg_rwstat_exit(&blkg->stat_bytes);
+	free_percpu(blkg->iostat_cpu);
 	percpu_ref_exit(&blkg->refcnt);
 	kfree(blkg);
 }
@@ -146,7 +145,7 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 				   gfp_t gfp_mask)
 {
 	struct blkcg_gq *blkg;
-	int i;
+	int i, cpu;
 
 	/* alloc and init base part */
 	blkg = kzalloc_node(sizeof(*blkg), gfp_mask, q->node);
@@ -156,8 +155,8 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 	if (percpu_ref_init(&blkg->refcnt, blkg_release, 0, gfp_mask))
 		goto err_free;
 
-	if (blkg_rwstat_init(&blkg->stat_bytes, gfp_mask) ||
-	    blkg_rwstat_init(&blkg->stat_ios, gfp_mask))
+	blkg->iostat_cpu = alloc_percpu_gfp(struct blkg_iostat_set, gfp_mask);
+	if (!blkg->iostat_cpu)
 		goto err_free;
 
 	blkg->q = q;
@@ -166,6 +165,10 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 	bio_list_init(&blkg->async_bios);
 	INIT_WORK(&blkg->async_bio_work, blkg_async_bio_workfn);
 	blkg->blkcg = blkcg;
+
+	u64_stats_init(&blkg->iostat.sync);
+	for_each_possible_cpu(cpu)
+		u64_stats_init(&per_cpu_ptr(blkg->iostat_cpu, cpu)->sync);
 
 	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkcg_policy *pol = blkcg_policy[i];
@@ -393,7 +396,6 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 static void blkg_destroy(struct blkcg_gq *blkg)
 {
 	struct blkcg *blkcg = blkg->blkcg;
-	struct blkcg_gq *parent = blkg->parent;
 	int i;
 
 	lockdep_assert_held(&blkg->q->queue_lock);
@@ -408,11 +410,6 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 
 		if (blkg->pd[i] && pol->pd_offline_fn)
 			pol->pd_offline_fn(blkg->pd[i]);
-	}
-
-	if (parent) {
-		blkg_rwstat_add_aux(&parent->stat_bytes, &blkg->stat_bytes);
-		blkg_rwstat_add_aux(&parent->stat_ios, &blkg->stat_ios);
 	}
 
 	blkg->online = false;
@@ -464,7 +461,7 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
 	struct blkcg_gq *blkg;
-	int i;
+	int i, cpu;
 
 	mutex_lock(&blkcg_pol_mutex);
 	spin_lock_irq(&blkcg->lock);
@@ -475,8 +472,12 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 	 * anyway.  If you get hit by a race, retry.
 	 */
 	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
-		blkg_rwstat_reset(&blkg->stat_bytes);
-		blkg_rwstat_reset(&blkg->stat_ios);
+		for_each_possible_cpu(cpu) {
+			struct blkg_iostat_set *bis =
+				per_cpu_ptr(blkg->iostat_cpu, cpu);
+			memset(bis, 0, sizeof(*bis));
+		}
+		memset(&blkg->iostat, 0, sizeof(blkg->iostat));
 
 		for (i = 0; i < BLKCG_MAX_POLS; i++) {
 			struct blkcg_policy *pol = blkcg_policy[i];
@@ -559,186 +560,6 @@ u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v)
 	return v;
 }
 EXPORT_SYMBOL_GPL(__blkg_prfill_u64);
-
-/**
- * __blkg_prfill_rwstat - prfill helper for a blkg_rwstat
- * @sf: seq_file to print to
- * @pd: policy private data of interest
- * @rwstat: rwstat to print
- *
- * Print @rwstat to @sf for the device assocaited with @pd.
- */
-u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
-			 const struct blkg_rwstat_sample *rwstat)
-{
-	static const char *rwstr[] = {
-		[BLKG_RWSTAT_READ]	= "Read",
-		[BLKG_RWSTAT_WRITE]	= "Write",
-		[BLKG_RWSTAT_SYNC]	= "Sync",
-		[BLKG_RWSTAT_ASYNC]	= "Async",
-		[BLKG_RWSTAT_DISCARD]	= "Discard",
-	};
-	const char *dname = blkg_dev_name(pd->blkg);
-	u64 v;
-	int i;
-
-	if (!dname)
-		return 0;
-
-	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		seq_printf(sf, "%s %s %llu\n", dname, rwstr[i],
-			   rwstat->cnt[i]);
-
-	v = rwstat->cnt[BLKG_RWSTAT_READ] +
-		rwstat->cnt[BLKG_RWSTAT_WRITE] +
-		rwstat->cnt[BLKG_RWSTAT_DISCARD];
-	seq_printf(sf, "%s Total %llu\n", dname, v);
-	return v;
-}
-EXPORT_SYMBOL_GPL(__blkg_prfill_rwstat);
-
-/**
- * blkg_prfill_rwstat - prfill callback for blkg_rwstat
- * @sf: seq_file to print to
- * @pd: policy private data of interest
- * @off: offset to the blkg_rwstat in @pd
- *
- * prfill callback for printing a blkg_rwstat.
- */
-u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
-		       int off)
-{
-	struct blkg_rwstat_sample rwstat = { };
-
-	blkg_rwstat_read((void *)pd + off, &rwstat);
-	return __blkg_prfill_rwstat(sf, pd, &rwstat);
-}
-EXPORT_SYMBOL_GPL(blkg_prfill_rwstat);
-
-static u64 blkg_prfill_rwstat_field(struct seq_file *sf,
-				    struct blkg_policy_data *pd, int off)
-{
-	struct blkg_rwstat_sample rwstat = { };
-
-	blkg_rwstat_read((void *)pd->blkg + off, &rwstat);
-	return __blkg_prfill_rwstat(sf, pd, &rwstat);
-}
-
-/**
- * blkg_print_stat_bytes - seq_show callback for blkg->stat_bytes
- * @sf: seq_file to print to
- * @v: unused
- *
- * To be used as cftype->seq_show to print blkg->stat_bytes.
- * cftype->private must be set to the blkcg_policy.
- */
-int blkg_print_stat_bytes(struct seq_file *sf, void *v)
-{
-	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)),
-			  blkg_prfill_rwstat_field, (void *)seq_cft(sf)->private,
-			  offsetof(struct blkcg_gq, stat_bytes), true);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blkg_print_stat_bytes);
-
-/**
- * blkg_print_stat_bytes - seq_show callback for blkg->stat_ios
- * @sf: seq_file to print to
- * @v: unused
- *
- * To be used as cftype->seq_show to print blkg->stat_ios.  cftype->private
- * must be set to the blkcg_policy.
- */
-int blkg_print_stat_ios(struct seq_file *sf, void *v)
-{
-	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)),
-			  blkg_prfill_rwstat_field, (void *)seq_cft(sf)->private,
-			  offsetof(struct blkcg_gq, stat_ios), true);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blkg_print_stat_ios);
-
-static u64 blkg_prfill_rwstat_field_recursive(struct seq_file *sf,
-					      struct blkg_policy_data *pd,
-					      int off)
-{
-	struct blkg_rwstat_sample rwstat;
-
-	blkg_rwstat_recursive_sum(pd->blkg, NULL, off, &rwstat);
-	return __blkg_prfill_rwstat(sf, pd, &rwstat);
-}
-
-/**
- * blkg_print_stat_bytes_recursive - recursive version of blkg_print_stat_bytes
- * @sf: seq_file to print to
- * @v: unused
- */
-int blkg_print_stat_bytes_recursive(struct seq_file *sf, void *v)
-{
-	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)),
-			  blkg_prfill_rwstat_field_recursive,
-			  (void *)seq_cft(sf)->private,
-			  offsetof(struct blkcg_gq, stat_bytes), true);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blkg_print_stat_bytes_recursive);
-
-/**
- * blkg_print_stat_ios_recursive - recursive version of blkg_print_stat_ios
- * @sf: seq_file to print to
- * @v: unused
- */
-int blkg_print_stat_ios_recursive(struct seq_file *sf, void *v)
-{
-	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)),
-			  blkg_prfill_rwstat_field_recursive,
-			  (void *)seq_cft(sf)->private,
-			  offsetof(struct blkcg_gq, stat_ios), true);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blkg_print_stat_ios_recursive);
-
-/**
- * blkg_rwstat_recursive_sum - collect hierarchical blkg_rwstat
- * @blkg: blkg of interest
- * @pol: blkcg_policy which contains the blkg_rwstat
- * @off: offset to the blkg_rwstat in blkg_policy_data or @blkg
- * @sum: blkg_rwstat_sample structure containing the results
- *
- * Collect the blkg_rwstat specified by @blkg, @pol and @off and all its
- * online descendants and their aux counts.  The caller must be holding the
- * queue lock for online tests.
- *
- * If @pol is NULL, blkg_rwstat is at @off bytes into @blkg; otherwise, it
- * is at @off bytes into @blkg's blkg_policy_data of the policy.
- */
-void blkg_rwstat_recursive_sum(struct blkcg_gq *blkg, struct blkcg_policy *pol,
-		int off, struct blkg_rwstat_sample *sum)
-{
-	struct blkcg_gq *pos_blkg;
-	struct cgroup_subsys_state *pos_css;
-	unsigned int i;
-
-	lockdep_assert_held(&blkg->q->queue_lock);
-
-	rcu_read_lock();
-	blkg_for_each_descendant_pre(pos_blkg, pos_css, blkg) {
-		struct blkg_rwstat *rwstat;
-
-		if (!pos_blkg->online)
-			continue;
-
-		if (pol)
-			rwstat = (void *)blkg_to_pd(pos_blkg, pol) + off;
-		else
-			rwstat = (void *)pos_blkg + off;
-
-		for (i = 0; i < BLKG_RWSTAT_NR; i++)
-			sum->cnt[i] = blkg_rwstat_read_counter(rwstat, i);
-	}
-	rcu_read_unlock();
-}
-EXPORT_SYMBOL_GPL(blkg_rwstat_recursive_sum);
 
 /* Performs queue bypass and policy enabled checks then looks up blkg. */
 static struct blkcg_gq *blkg_lookup_check(struct blkcg *blkcg,
@@ -923,20 +744,27 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 	struct blkcg *blkcg = css_to_blkcg(seq_css(sf));
 	struct blkcg_gq *blkg;
 
+	cgroup_rstat_flush(blkcg->css.cgroup);
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
+		struct blkg_iostat_set *bis = &blkg->iostat;
 		const char *dname;
 		char *buf;
-		struct blkg_rwstat_sample rwstat;
 		u64 rbytes, wbytes, rios, wios, dbytes, dios;
 		size_t size = seq_get_buf(sf, &buf), off = 0;
 		int i;
 		bool has_stats = false;
+		unsigned seq;
+
+		spin_lock_irq(&blkg->q->queue_lock);
+
+		if (!blkg->online)
+			goto skip;
 
 		dname = blkg_dev_name(blkg);
 		if (!dname)
-			continue;
+			goto skip;
 
 		/*
 		 * Hooray string manipulation, count is the size written NOT
@@ -946,21 +774,16 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 		 */
 		off += scnprintf(buf+off, size-off, "%s ", dname);
 
-		spin_lock_irq(&blkg->q->queue_lock);
+		do {
+			seq = u64_stats_fetch_begin(&bis->sync);
 
-		blkg_rwstat_recursive_sum(blkg, NULL,
-				offsetof(struct blkcg_gq, stat_bytes), &rwstat);
-		rbytes = rwstat.cnt[BLKG_RWSTAT_READ];
-		wbytes = rwstat.cnt[BLKG_RWSTAT_WRITE];
-		dbytes = rwstat.cnt[BLKG_RWSTAT_DISCARD];
-
-		blkg_rwstat_recursive_sum(blkg, NULL,
-					offsetof(struct blkcg_gq, stat_ios), &rwstat);
-		rios = rwstat.cnt[BLKG_RWSTAT_READ];
-		wios = rwstat.cnt[BLKG_RWSTAT_WRITE];
-		dios = rwstat.cnt[BLKG_RWSTAT_DISCARD];
-
-		spin_unlock_irq(&blkg->q->queue_lock);
+			rbytes = bis->cur.bytes[BLKG_IOSTAT_READ];
+			wbytes = bis->cur.bytes[BLKG_IOSTAT_WRITE];
+			dbytes = bis->cur.bytes[BLKG_IOSTAT_DISCARD];
+			rios = bis->cur.ios[BLKG_IOSTAT_READ];
+			wios = bis->cur.ios[BLKG_IOSTAT_WRITE];
+			dios = bis->cur.ios[BLKG_IOSTAT_DISCARD];
+		} while (u64_stats_fetch_retry(&bis->sync, seq));
 
 		if (rbytes || wbytes || rios || wios) {
 			has_stats = true;
@@ -999,6 +822,8 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 				seq_commit(sf, -1);
 			}
 		}
+	skip:
+		spin_unlock_irq(&blkg->q->queue_lock);
 	}
 
 	rcu_read_unlock();
@@ -1237,26 +1062,6 @@ err_unlock:
 }
 
 /**
- * blkcg_drain_queue - drain blkcg part of request_queue
- * @q: request_queue to drain
- *
- * Called from blk_drain_queue().  Responsible for draining blkcg part.
- */
-void blkcg_drain_queue(struct request_queue *q)
-{
-	lockdep_assert_held(&q->queue_lock);
-
-	/*
-	 * @q could be exiting and already have destroyed all blkgs as
-	 * indicated by NULL root_blkg.  If so, don't confuse policies.
-	 */
-	if (!q->root_blkg)
-		return;
-
-	blk_throtl_drain(q);
-}
-
-/**
  * blkcg_exit_queue - exit and release blkcg part of request_queue
  * @q: request_queue being released
  *
@@ -1294,6 +1099,77 @@ static int blkcg_can_attach(struct cgroup_taskset *tset)
 	return ret;
 }
 
+static void blkg_iostat_set(struct blkg_iostat *dst, struct blkg_iostat *src)
+{
+	int i;
+
+	for (i = 0; i < BLKG_IOSTAT_NR; i++) {
+		dst->bytes[i] = src->bytes[i];
+		dst->ios[i] = src->ios[i];
+	}
+}
+
+static void blkg_iostat_add(struct blkg_iostat *dst, struct blkg_iostat *src)
+{
+	int i;
+
+	for (i = 0; i < BLKG_IOSTAT_NR; i++) {
+		dst->bytes[i] += src->bytes[i];
+		dst->ios[i] += src->ios[i];
+	}
+}
+
+static void blkg_iostat_sub(struct blkg_iostat *dst, struct blkg_iostat *src)
+{
+	int i;
+
+	for (i = 0; i < BLKG_IOSTAT_NR; i++) {
+		dst->bytes[i] -= src->bytes[i];
+		dst->ios[i] -= src->ios[i];
+	}
+}
+
+static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
+{
+	struct blkcg *blkcg = css_to_blkcg(css);
+	struct blkcg_gq *blkg;
+
+	rcu_read_lock();
+
+	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
+		struct blkcg_gq *parent = blkg->parent;
+		struct blkg_iostat_set *bisc = per_cpu_ptr(blkg->iostat_cpu, cpu);
+		struct blkg_iostat cur, delta;
+		unsigned seq;
+
+		/* fetch the current per-cpu values */
+		do {
+			seq = u64_stats_fetch_begin(&bisc->sync);
+			blkg_iostat_set(&cur, &bisc->cur);
+		} while (u64_stats_fetch_retry(&bisc->sync, seq));
+
+		/* propagate percpu delta to global */
+		u64_stats_update_begin(&blkg->iostat.sync);
+		blkg_iostat_set(&delta, &cur);
+		blkg_iostat_sub(&delta, &bisc->last);
+		blkg_iostat_add(&blkg->iostat.cur, &delta);
+		blkg_iostat_add(&bisc->last, &delta);
+		u64_stats_update_end(&blkg->iostat.sync);
+
+		/* propagate global delta to parent */
+		if (parent) {
+			u64_stats_update_begin(&parent->iostat.sync);
+			blkg_iostat_set(&delta, &blkg->iostat.cur);
+			blkg_iostat_sub(&delta, &blkg->iostat.last);
+			blkg_iostat_add(&parent->iostat.cur, &delta);
+			blkg_iostat_add(&blkg->iostat.last, &delta);
+			u64_stats_update_end(&parent->iostat.sync);
+		}
+	}
+
+	rcu_read_unlock();
+}
+
 static void blkcg_bind(struct cgroup_subsys_state *root_css)
 {
 	int i;
@@ -1326,6 +1202,7 @@ struct cgroup_subsys io_cgrp_subsys = {
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,
+	.css_rstat_flush = blkcg_rstat_flush,
 	.bind = blkcg_bind,
 	.dfl_cftypes = blkcg_files,
 	.legacy_cftypes = blkcg_legacy_files,

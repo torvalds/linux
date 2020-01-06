@@ -2887,6 +2887,13 @@ static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
 		error = set_blocksize(p->bdev, PAGE_SIZE);
 		if (error < 0)
 			return error;
+		/*
+		 * Zoned block devices contain zones that have a sequential
+		 * write only restriction.  Hence zoned block devices are not
+		 * suitable for swapping.  Disallow them here.
+		 */
+		if (blk_queue_is_zoned(p->bdev->bd_queue))
+			return -EINVAL;
 		p->flags |= SWP_BLKDEV;
 	} else if (S_ISREG(inode->i_mode)) {
 		p->bdev = inode->i_sb->s_bdev;

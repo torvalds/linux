@@ -485,4 +485,23 @@ uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
 		...);
 
+/* register offload macros
+ *
+ * instead of MMIO to register directly, in some cases we want
+ * to gather register sequence and execute the register sequence
+ * from another thread so we optimize time required for lengthy ops
+ */
+
+/* start gathering register sequence */
+#define REG_SEQ_START() \
+	reg_sequence_start_gather(CTX)
+
+/* start execution of register sequence gathered since REG_SEQ_START */
+#define REG_SEQ_SUBMIT() \
+	reg_sequence_start_execute(CTX)
+
+/* wait for the last REG_SEQ_SUBMIT to finish */
+#define REG_SEQ_WAIT_DONE() \
+	reg_sequence_wait_done(CTX)
+
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_REG_HELPER_H_ */

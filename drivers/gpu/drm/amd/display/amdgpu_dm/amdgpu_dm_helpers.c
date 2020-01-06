@@ -97,11 +97,8 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 			(struct edid *) edid->raw_edid);
 
 	sad_count = drm_edid_to_sad((struct edid *) edid->raw_edid, &sads);
-	if (sad_count <= 0) {
-		DRM_INFO("SADs count is: %d, don't need to read it\n",
-				sad_count);
+	if (sad_count <= 0)
 		return result;
-	}
 
 	edid_caps->audio_mode_count = sad_count < DC_MAX_AUDIO_DESC_COUNT ? sad_count : DC_MAX_AUDIO_DESC_COUNT;
 	for (i = 0; i < edid_caps->audio_mode_count; ++i) {
@@ -183,18 +180,21 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 		bool enable)
 {
 	struct amdgpu_dm_connector *aconnector;
+	struct dm_connector_state *dm_conn_state;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	struct drm_dp_mst_port *mst_port;
-	int slots = 0;
 	bool ret;
-	int clock;
-	int bpp = 0;
-	int pbn = 0;
 
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+	/* Accessing the connector state is required for vcpi_slots allocation
+	 * and directly relies on behaviour in commit check
+	 * that blocks before commit guaranteeing that the state
+	 * is not gonna be swapped while still in use in commit tail */
 
 	if (!aconnector || !aconnector->mst_port)
 		return false;
+
+	dm_conn_state = to_dm_connector_state(aconnector->base.state);
 
 	mst_mgr = &aconnector->mst_port->mst_mgr;
 
@@ -204,42 +204,10 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	mst_port = aconnector->port;
 
 	if (enable) {
-		clock = stream->timing.pix_clk_100hz / 10;
 
-		switch (stream->timing.display_color_depth) {
-
-		case COLOR_DEPTH_666:
-			bpp = 6;
-			break;
-		case COLOR_DEPTH_888:
-			bpp = 8;
-			break;
-		case COLOR_DEPTH_101010:
-			bpp = 10;
-			break;
-		case COLOR_DEPTH_121212:
-			bpp = 12;
-			break;
-		case COLOR_DEPTH_141414:
-			bpp = 14;
-			break;
-		case COLOR_DEPTH_161616:
-			bpp = 16;
-			break;
-		default:
-			ASSERT(bpp != 0);
-			break;
-		}
-
-		bpp = bpp * 3;
-
-		/* TODO need to know link rate */
-
-		pbn = drm_dp_calc_pbn_mode(clock, bpp);
-
-		slots = drm_dp_find_vcpi_slots(mst_mgr, pbn);
-		ret = drm_dp_mst_allocate_vcpi(mst_mgr, mst_port, pbn, slots);
-
+		ret = drm_dp_mst_allocate_vcpi(mst_mgr, mst_port,
+					       dm_conn_state->pbn,
+					       dm_conn_state->vcpi_slots);
 		if (!ret)
 			return false;
 
@@ -282,7 +250,7 @@ void dm_helpers_dp_mst_clear_payload_allocation_table(
  * Polls for ACT (allocation change trigger) handled and sends
  * ALLOCATE_PAYLOAD message.
  */
-bool dm_helpers_dp_mst_poll_for_allocation_change_trigger(
+enum act_return_status dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream)
 {
@@ -293,19 +261,19 @@ bool dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
 	if (!aconnector || !aconnector->mst_port)
-		return false;
+		return ACT_FAILED;
 
 	mst_mgr = &aconnector->mst_port->mst_mgr;
 
 	if (!mst_mgr->mst_state)
-		return false;
+		return ACT_FAILED;
 
 	ret = drm_dp_check_act_status(mst_mgr);
 
 	if (ret)
-		return false;
+		return ACT_FAILED;
 
-	return true;
+	return ACT_SUCCESS;
 }
 
 bool dm_helpers_dp_mst_send_payload_allocation(
@@ -541,7 +509,6 @@ bool dm_helpers_submit_i2c(
 
 	return result;
 }
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 bool dm_helpers_dp_write_dsc_enable(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream,
@@ -552,7 +519,6 @@ bool dm_helpers_dp_write_dsc_enable(
 
 	return dm_helpers_dp_write_dpcd(ctx, stream->sink->link, DP_DSC_ENABLE, &enable_dsc, 1);
 }
-#endif
 
 bool dm_helpers_is_dp_sink_present(struct dc_link *link)
 {

@@ -329,7 +329,6 @@ struct max77620_chip {
 	struct regmap *rmap;
 
 	int chip_irq;
-	int irq_base;
 
 	/* chip id */
 	enum max77620_chip_id chip_id;

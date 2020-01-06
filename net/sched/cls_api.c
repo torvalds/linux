@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/rhashtable.h>
+#include <linux/jhash.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/netlink.h>
@@ -46,6 +47,62 @@ static LIST_HEAD(tcf_proto_base);
 
 /* Protects list of registered TC modules. It is pure SMP lock. */
 static DEFINE_RWLOCK(cls_mod_lock);
+
+static u32 destroy_obj_hashfn(const struct tcf_proto *tp)
+{
+	return jhash_3words(tp->chain->index, tp->prio,
+			    (__force __u32)tp->protocol, 0);
+}
+
+static void tcf_proto_signal_destroying(struct tcf_chain *chain,
+					struct tcf_proto *tp)
+{
+	struct tcf_block *block = chain->block;
+
+	mutex_lock(&block->proto_destroy_lock);
+	hash_add_rcu(block->proto_destroy_ht, &tp->destroy_ht_node,
+		     destroy_obj_hashfn(tp));
+	mutex_unlock(&block->proto_destroy_lock);
+}
+
+static bool tcf_proto_cmp(const struct tcf_proto *tp1,
+			  const struct tcf_proto *tp2)
+{
+	return tp1->chain->index == tp2->chain->index &&
+	       tp1->prio == tp2->prio &&
+	       tp1->protocol == tp2->protocol;
+}
+
+static bool tcf_proto_exists_destroying(struct tcf_chain *chain,
+					struct tcf_proto *tp)
+{
+	u32 hash = destroy_obj_hashfn(tp);
+	struct tcf_proto *iter;
+	bool found = false;
+
+	rcu_read_lock();
+	hash_for_each_possible_rcu(chain->block->proto_destroy_ht, iter,
+				   destroy_ht_node, hash) {
+		if (tcf_proto_cmp(tp, iter)) {
+			found = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return found;
+}
+
+static void
+tcf_proto_signal_destroyed(struct tcf_chain *chain, struct tcf_proto *tp)
+{
+	struct tcf_block *block = chain->block;
+
+	mutex_lock(&block->proto_destroy_lock);
+	if (hash_hashed(&tp->destroy_ht_node))
+		hash_del_rcu(&tp->destroy_ht_node);
+	mutex_unlock(&block->proto_destroy_lock);
+}
 
 /* Find classifier type by string name */
 
@@ -234,9 +291,11 @@ static void tcf_proto_get(struct tcf_proto *tp)
 static void tcf_chain_put(struct tcf_chain *chain);
 
 static void tcf_proto_destroy(struct tcf_proto *tp, bool rtnl_held,
-			      struct netlink_ext_ack *extack)
+			      bool sig_destroy, struct netlink_ext_ack *extack)
 {
 	tp->ops->destroy(tp, rtnl_held, extack);
+	if (sig_destroy)
+		tcf_proto_signal_destroyed(tp->chain, tp);
 	tcf_chain_put(tp->chain);
 	module_put(tp->ops->owner);
 	kfree_rcu(tp, rcu);
@@ -246,7 +305,7 @@ static void tcf_proto_put(struct tcf_proto *tp, bool rtnl_held,
 			  struct netlink_ext_ack *extack)
 {
 	if (refcount_dec_and_test(&tp->refcnt))
-		tcf_proto_destroy(tp, rtnl_held, extack);
+		tcf_proto_destroy(tp, rtnl_held, true, extack);
 }
 
 static int walker_check_empty(struct tcf_proto *tp, void *fh,
@@ -370,6 +429,7 @@ static bool tcf_chain_detach(struct tcf_chain *chain)
 static void tcf_block_destroy(struct tcf_block *block)
 {
 	mutex_destroy(&block->lock);
+	mutex_destroy(&block->proto_destroy_lock);
 	kfree_rcu(block, rcu);
 }
 
@@ -545,6 +605,12 @@ static void tcf_chain_flush(struct tcf_chain *chain, bool rtnl_held)
 
 	mutex_lock(&chain->filter_chain_lock);
 	tp = tcf_chain_dereference(chain->filter_chain, chain);
+	while (tp) {
+		tp_next = rcu_dereference_protected(tp->next, 1);
+		tcf_proto_signal_destroying(chain, tp);
+		tp = tp_next;
+	}
+	tp = tcf_chain_dereference(chain->filter_chain, chain);
 	RCU_INIT_POINTER(chain->filter_chain, NULL);
 	tcf_chain0_head_change(chain, NULL);
 	chain->flushing = true;
@@ -560,15 +626,15 @@ static void tcf_chain_flush(struct tcf_chain *chain, bool rtnl_held)
 static int tcf_block_setup(struct tcf_block *block,
 			   struct flow_block_offload *bo);
 
-static void tc_indr_block_ing_cmd(struct net_device *dev,
-				  struct tcf_block *block,
-				  flow_indr_block_bind_cb_t *cb,
-				  void *cb_priv,
-				  enum flow_block_command command)
+static void tc_indr_block_cmd(struct net_device *dev, struct tcf_block *block,
+			      flow_indr_block_bind_cb_t *cb, void *cb_priv,
+			      enum flow_block_command command, bool ingress)
 {
 	struct flow_block_offload bo = {
 		.command	= command,
-		.binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
+		.binder_type	= ingress ?
+				  FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS :
+				  FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
 		.net		= dev_net(dev),
 		.block_shared	= tcf_block_non_null_shared(block),
 	};
@@ -586,9 +652,10 @@ static void tc_indr_block_ing_cmd(struct net_device *dev,
 	up_write(&block->cb_lock);
 }
 
-static struct tcf_block *tc_dev_ingress_block(struct net_device *dev)
+static struct tcf_block *tc_dev_block(struct net_device *dev, bool ingress)
 {
 	const struct Qdisc_class_ops *cops;
+	const struct Qdisc_ops *ops;
 	struct Qdisc *qdisc;
 
 	if (!dev_ingress_queue(dev))
@@ -598,24 +665,37 @@ static struct tcf_block *tc_dev_ingress_block(struct net_device *dev)
 	if (!qdisc)
 		return NULL;
 
-	cops = qdisc->ops->cl_ops;
+	ops = qdisc->ops;
+	if (!ops)
+		return NULL;
+
+	if (!ingress && !strcmp("ingress", ops->id))
+		return NULL;
+
+	cops = ops->cl_ops;
 	if (!cops)
 		return NULL;
 
 	if (!cops->tcf_block)
 		return NULL;
 
-	return cops->tcf_block(qdisc, TC_H_MIN_INGRESS, NULL);
+	return cops->tcf_block(qdisc,
+			       ingress ? TC_H_MIN_INGRESS : TC_H_MIN_EGRESS,
+			       NULL);
 }
 
-static void tc_indr_block_get_and_ing_cmd(struct net_device *dev,
-					  flow_indr_block_bind_cb_t *cb,
-					  void *cb_priv,
-					  enum flow_block_command command)
+static void tc_indr_block_get_and_cmd(struct net_device *dev,
+				      flow_indr_block_bind_cb_t *cb,
+				      void *cb_priv,
+				      enum flow_block_command command)
 {
-	struct tcf_block *block = tc_dev_ingress_block(dev);
+	struct tcf_block *block;
 
-	tc_indr_block_ing_cmd(dev, block, cb, cb_priv, command);
+	block = tc_dev_block(dev, true);
+	tc_indr_block_cmd(dev, block, cb, cb_priv, command, true);
+
+	block = tc_dev_block(dev, false);
+	tc_indr_block_cmd(dev, block, cb, cb_priv, command, false);
 }
 
 static void tc_indr_block_call(struct tcf_block *block,
@@ -844,6 +924,7 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 		return ERR_PTR(-ENOMEM);
 	}
 	mutex_init(&block->lock);
+	mutex_init(&block->proto_destroy_lock);
 	init_rwsem(&block->cb_lock);
 	flow_block_init(&block->flow_block);
 	INIT_LIST_HEAD(&block->chain_list);
@@ -1621,6 +1702,12 @@ static struct tcf_proto *tcf_chain_tp_insert_unique(struct tcf_chain *chain,
 
 	mutex_lock(&chain->filter_chain_lock);
 
+	if (tcf_proto_exists_destroying(chain, tp_new)) {
+		mutex_unlock(&chain->filter_chain_lock);
+		tcf_proto_destroy(tp_new, rtnl_held, false, NULL);
+		return ERR_PTR(-EAGAIN);
+	}
+
 	tp = tcf_chain_tp_find(chain, &chain_info,
 			       protocol, prio, false);
 	if (!tp)
@@ -1628,10 +1715,10 @@ static struct tcf_proto *tcf_chain_tp_insert_unique(struct tcf_chain *chain,
 	mutex_unlock(&chain->filter_chain_lock);
 
 	if (tp) {
-		tcf_proto_destroy(tp_new, rtnl_held, NULL);
+		tcf_proto_destroy(tp_new, rtnl_held, false, NULL);
 		tp_new = tp;
 	} else if (err) {
-		tcf_proto_destroy(tp_new, rtnl_held, NULL);
+		tcf_proto_destroy(tp_new, rtnl_held, false, NULL);
 		tp_new = ERR_PTR(err);
 	}
 
@@ -1669,6 +1756,7 @@ static void tcf_chain_tp_delete_empty(struct tcf_chain *chain,
 		return;
 	}
 
+	tcf_proto_signal_destroying(chain, tp);
 	next = tcf_chain_dereference(chain_info.next, chain);
 	if (tp == chain->filter_chain)
 		tcf_chain0_head_change(chain, next);
@@ -2188,6 +2276,7 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 		err = -EINVAL;
 		goto errout_locked;
 	} else if (t->tcm_handle == 0) {
+		tcf_proto_signal_destroying(chain, tp);
 		tcf_chain_tp_remove(chain, &chain_info, tp);
 		mutex_unlock(&chain->filter_chain_lock);
 
@@ -2646,13 +2735,19 @@ static int tc_chain_tmplt_add(struct tcf_chain *chain, struct net *net,
 			      struct netlink_ext_ack *extack)
 {
 	const struct tcf_proto_ops *ops;
+	char name[IFNAMSIZ];
 	void *tmplt_priv;
 
 	/* If kind is not set, user did not specify template. */
 	if (!tca[TCA_KIND])
 		return 0;
 
-	ops = tcf_proto_lookup_ops(nla_data(tca[TCA_KIND]), true, extack);
+	if (tcf_proto_check_kind(tca[TCA_KIND], name)) {
+		NL_SET_ERR_MSG(extack, "Specified TC chain template name too long");
+		return -EINVAL;
+	}
+
+	ops = tcf_proto_lookup_ops(name, true, extack);
 	if (IS_ERR(ops))
 		return PTR_ERR(ops);
 	if (!ops->tmplt_create || !ops->tmplt_destroy || !ops->tmplt_dump) {
@@ -3551,9 +3646,9 @@ static struct pernet_operations tcf_net_ops = {
 	.size = sizeof(struct tcf_net),
 };
 
-static struct flow_indr_block_ing_entry block_ing_entry = {
-	.cb = tc_indr_block_get_and_ing_cmd,
-	.list = LIST_HEAD_INIT(block_ing_entry.list),
+static struct flow_indr_block_entry block_entry = {
+	.cb = tc_indr_block_get_and_cmd,
+	.list = LIST_HEAD_INIT(block_entry.list),
 };
 
 static int __init tc_filter_init(void)
@@ -3568,7 +3663,7 @@ static int __init tc_filter_init(void)
 	if (err)
 		goto err_register_pernet_subsys;
 
-	flow_indr_add_block_ing_cb(&block_ing_entry);
+	flow_indr_add_block_cb(&block_entry);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWTFILTER, tc_new_tfilter, NULL,
 		      RTNL_FLAG_DOIT_UNLOCKED);

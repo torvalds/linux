@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "gem/i915_gem_mman.h"
 #include "gt/intel_engine_user.h"
 
 #include "i915_drv.h"
@@ -63,7 +64,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = !!(i915->caps.scheduler & I915_SCHEDULER_CAP_SEMAPHORES);
 		break;
 	case I915_PARAM_HAS_SECURE_BATCHES:
-		value = capable(CAP_SYS_ADMIN);
+		value = HAS_SECURE_BATCHES(i915) && capable(CAP_SYS_ADMIN);
 		break;
 	case I915_PARAM_CMD_PARSER_VERSION:
 		value = i915_cmd_parser_get_version(i915);

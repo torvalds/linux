@@ -12,10 +12,14 @@ static void huge_free_pages(struct drm_i915_gem_object *obj,
 			    struct sg_table *pages)
 {
 	unsigned long nreal = obj->scratch / PAGE_SIZE;
-	struct scatterlist *sg;
+	struct sgt_iter sgt_iter;
+	struct page *page;
 
-	for (sg = pages->sgl; sg && nreal--; sg = __sg_next(sg))
-		__free_page(sg_page(sg));
+	for_each_sgt_page(page, sgt_iter, pages) {
+		__free_page(page);
+		if (!--nreal)
+			break;
+	}
 
 	sg_free_table(pages);
 	kfree(pages);
@@ -70,7 +74,6 @@ static int huge_get_pages(struct drm_i915_gem_object *obj)
 
 err:
 	huge_free_pages(obj, pages);
-
 	return -ENOMEM;
 #undef GFP
 }
@@ -96,6 +99,7 @@ huge_gem_object(struct drm_i915_private *i915,
 		phys_addr_t phys_size,
 		dma_addr_t dma_size)
 {
+	static struct lock_class_key lock_class;
 	struct drm_i915_gem_object *obj;
 	unsigned int cache_level;
 
@@ -111,7 +115,7 @@ huge_gem_object(struct drm_i915_private *i915,
 		return ERR_PTR(-ENOMEM);
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, dma_size);
-	i915_gem_object_init(obj, &huge_ops);
+	i915_gem_object_init(obj, &huge_ops, &lock_class);
 
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;

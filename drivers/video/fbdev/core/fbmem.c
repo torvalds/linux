@@ -1783,7 +1783,7 @@ int remove_conflicting_pci_framebuffers(struct pci_dev *pdev, const char *name)
 	bool primary = false;
 	int err, idx, bar;
 
-	for (idx = 0, bar = 0; bar < PCI_ROM_RESOURCE; bar++) {
+	for (idx = 0, bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
 		if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM))
 			continue;
 		idx++;
@@ -1793,7 +1793,7 @@ int remove_conflicting_pci_framebuffers(struct pci_dev *pdev, const char *name)
 	if (!ap)
 		return -ENOMEM;
 
-	for (idx = 0, bar = 0; bar < PCI_ROM_RESOURCE; bar++) {
+	for (idx = 0, bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
 		if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM))
 			continue;
 		ap->ranges[idx].base = pci_resource_start(pdev, bar);

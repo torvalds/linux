@@ -32,11 +32,13 @@
 
 #define PSP_FENCE_BUFFER_SIZE	0x1000
 #define PSP_CMD_BUFFER_SIZE	0x1000
-#define PSP_ASD_SHARED_MEM_SIZE 0x4000
 #define PSP_XGMI_SHARED_MEM_SIZE 0x4000
 #define PSP_RAS_SHARED_MEM_SIZE 0x4000
 #define PSP_1_MEG		0x100000
 #define PSP_TMR_SIZE	0x400000
+#define PSP_HDCP_SHARED_MEM_SIZE	0x4000
+#define PSP_DTM_SHARED_MEM_SIZE	0x4000
+#define PSP_SHARED_MEM_SIZE		0x4000
 
 struct psp_context;
 struct psp_xgmi_node_info;
@@ -46,6 +48,8 @@ enum psp_bootloader_cmd {
 	PSP_BL__LOAD_SYSDRV		= 0x10000,
 	PSP_BL__LOAD_SOSDRV		= 0x20000,
 	PSP_BL__LOAD_KEY_DATABASE	= 0x80000,
+	PSP_BL__DRAM_LONG_TRAIN		= 0x100000,
+	PSP_BL__DRAM_SHORT_TRAIN	= 0x200000,
 };
 
 enum psp_ring_type
@@ -89,9 +93,6 @@ struct psp_funcs
 			    enum psp_ring_type ring_type);
 	int (*ring_destroy)(struct psp_context *psp,
 			    enum psp_ring_type ring_type);
-	int (*cmd_submit)(struct psp_context *psp,
-			  uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr,
-			  int index);
 	bool (*compare_sram_data)(struct psp_context *psp,
 				  struct amdgpu_firmware_info *ucode,
 				  enum AMDGPU_UCODE_ID ucode_type);
@@ -108,6 +109,11 @@ struct psp_funcs
 			struct ta_ras_trigger_error_input *info);
 	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
 	int (*rlc_autoload_start)(struct psp_context *psp);
+	int (*mem_training_init)(struct psp_context *psp);
+	void (*mem_training_fini)(struct psp_context *psp);
+	int (*mem_training)(struct psp_context *psp, uint32_t ops);
+	uint32_t (*ring_get_wptr)(struct psp_context *psp);
+	void (*ring_set_wptr)(struct psp_context *psp, uint32_t value);
 };
 
 #define AMDGPU_XGMI_MAX_CONNECTED_NODES		64
@@ -121,6 +127,11 @@ struct psp_xgmi_node_info {
 struct psp_xgmi_topology_info {
 	uint32_t			num_nodes;
 	struct psp_xgmi_node_info	nodes[AMDGPU_XGMI_MAX_CONNECTED_NODES];
+};
+
+struct psp_asd_context {
+	bool			asd_initialized;
+	uint32_t		session_id;
 };
 
 struct psp_xgmi_context {
@@ -140,6 +151,65 @@ struct psp_ras_context {
 	uint64_t		ras_shared_mc_addr;
 	void			*ras_shared_buf;
 	struct amdgpu_ras	*ras;
+};
+
+struct psp_hdcp_context {
+	bool			hdcp_initialized;
+	uint32_t		session_id;
+	struct amdgpu_bo	*hdcp_shared_bo;
+	uint64_t		hdcp_shared_mc_addr;
+	void			*hdcp_shared_buf;
+};
+
+struct psp_dtm_context {
+	bool			dtm_initialized;
+	uint32_t		session_id;
+	struct amdgpu_bo	*dtm_shared_bo;
+	uint64_t		dtm_shared_mc_addr;
+	void			*dtm_shared_buf;
+};
+
+#define MEM_TRAIN_SYSTEM_SIGNATURE		0x54534942
+#define GDDR6_MEM_TRAINING_DATA_SIZE_IN_BYTES	0x1000
+#define GDDR6_MEM_TRAINING_OFFSET		0x8000
+
+enum psp_memory_training_init_flag {
+	PSP_MEM_TRAIN_NOT_SUPPORT	= 0x0,
+	PSP_MEM_TRAIN_SUPPORT		= 0x1,
+	PSP_MEM_TRAIN_INIT_FAILED	= 0x2,
+	PSP_MEM_TRAIN_RESERVE_SUCCESS	= 0x4,
+	PSP_MEM_TRAIN_INIT_SUCCESS	= 0x8,
+};
+
+enum psp_memory_training_ops {
+	PSP_MEM_TRAIN_SEND_LONG_MSG	= 0x1,
+	PSP_MEM_TRAIN_SAVE		= 0x2,
+	PSP_MEM_TRAIN_RESTORE		= 0x4,
+	PSP_MEM_TRAIN_SEND_SHORT_MSG	= 0x8,
+	PSP_MEM_TRAIN_COLD_BOOT		= PSP_MEM_TRAIN_SEND_LONG_MSG,
+	PSP_MEM_TRAIN_RESUME		= PSP_MEM_TRAIN_SEND_SHORT_MSG,
+};
+
+struct psp_memory_training_context {
+	/*training data size*/
+	u64 train_data_size;
+	/*
+	 * sys_cache
+	 * cpu virtual address
+	 * system memory buffer that used to store the training data.
+	 */
+	void *sys_cache;
+
+	/*vram offset of the p2c training data*/
+	u64 p2c_train_data_offset;
+	struct amdgpu_bo *p2c_bo;
+
+	/*vram offset of the c2p training data*/
+	u64 c2p_train_data_offset;
+	struct amdgpu_bo *c2p_bo;
+
+	enum psp_memory_training_init_flag init;
+	u32 training_cnt;
 };
 
 struct psp_context
@@ -172,15 +242,12 @@ struct psp_context
 	struct amdgpu_bo		*tmr_bo;
 	uint64_t			tmr_mc_addr;
 
-	/* asd firmware and buffer */
+	/* asd firmware */
 	const struct firmware		*asd_fw;
 	uint32_t			asd_fw_version;
 	uint32_t			asd_feature_version;
 	uint32_t			asd_ucode_size;
 	uint8_t				*asd_start_addr;
-	struct amdgpu_bo		*asd_shared_bo;
-	uint64_t			asd_shared_mc_addr;
-	void				*asd_shared_buf;
 
 	/* fence buffer */
 	struct amdgpu_bo		*fence_buf_bo;
@@ -206,9 +273,22 @@ struct psp_context
 	uint32_t			ta_ras_ucode_version;
 	uint32_t			ta_ras_ucode_size;
 	uint8_t				*ta_ras_start_addr;
+
+	uint32_t			ta_hdcp_ucode_version;
+	uint32_t			ta_hdcp_ucode_size;
+	uint8_t				*ta_hdcp_start_addr;
+
+	uint32_t			ta_dtm_ucode_version;
+	uint32_t			ta_dtm_ucode_size;
+	uint8_t				*ta_dtm_start_addr;
+
+	struct psp_asd_context		asd_context;
 	struct psp_xgmi_context		xgmi_context;
 	struct psp_ras_context		ras;
+	struct psp_hdcp_context 	hdcp_context;
+	struct psp_dtm_context		dtm_context;
 	struct mutex			mutex;
+	struct psp_memory_training_context mem_train_ctx;
 };
 
 struct amdgpu_psp_funcs {
@@ -221,8 +301,6 @@ struct amdgpu_psp_funcs {
 #define psp_ring_create(psp, type) (psp)->funcs->ring_create((psp), (type))
 #define psp_ring_stop(psp, type) (psp)->funcs->ring_stop((psp), (type))
 #define psp_ring_destroy(psp, type) ((psp)->funcs->ring_destroy((psp), (type)))
-#define psp_cmd_submit(psp, cmd_mc, fence_mc, index) \
-		(psp)->funcs->cmd_submit((psp), (cmd_mc), (fence_mc), (index))
 #define psp_compare_sram_data(psp, ucode, type) \
 		(psp)->funcs->compare_sram_data((psp), (ucode), (type))
 #define psp_init_microcode(psp) \
@@ -251,6 +329,12 @@ struct amdgpu_psp_funcs {
 		(psp)->funcs->xgmi_set_topology_info((psp), (num_device), (topology)) : -EINVAL)
 #define psp_rlc_autoload(psp) \
 		((psp)->funcs->rlc_autoload_start ? (psp)->funcs->rlc_autoload_start((psp)) : 0)
+#define psp_mem_training_init(psp) \
+	((psp)->funcs->mem_training_init ? (psp)->funcs->mem_training_init((psp)) : 0)
+#define psp_mem_training_fini(psp) \
+	((psp)->funcs->mem_training_fini ? (psp)->funcs->mem_training_fini((psp)) : 0)
+#define psp_mem_training(psp, ops) \
+	((psp)->funcs->mem_training ? (psp)->funcs->mem_training((psp), (ops)) : 0)
 
 #define amdgpu_psp_check_fw_loading_status(adev, i) (adev)->firmware.funcs->check_fw_loading_status((adev), (i))
 
@@ -260,6 +344,9 @@ struct amdgpu_psp_funcs {
 #define psp_ras_cure_posion(psp, addr) \
 	((psp)->funcs->ras_cure_posion ? \
 	(psp)->funcs->ras_cure_posion(psp, (addr)) : -EINVAL)
+
+#define psp_ring_get_wptr(psp) (psp)->funcs->ring_get_wptr((psp))
+#define psp_ring_set_wptr(psp, value) (psp)->funcs->ring_set_wptr((psp), (value))
 
 extern const struct amd_ip_funcs psp_ip_funcs;
 
@@ -279,10 +366,16 @@ int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable);
+int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
+int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 
 int psp_rlc_autoload_start(struct psp_context *psp);
 
 extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
 int psp_reg_program(struct psp_context *psp, enum psp_reg_prog_id reg,
 		uint32_t value);
+int psp_ring_cmd_submit(struct psp_context *psp,
+			uint64_t cmd_buf_mc_addr,
+			uint64_t fence_mc_addr,
+			int index);
 #endif

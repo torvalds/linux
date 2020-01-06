@@ -576,8 +576,7 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 	else
 		dev_priv->map_mode = vmw_dma_map_populate;
 
-	/* No TTM coherent page pool? FIXME: Ask TTM instead! */
-        if (!(IS_ENABLED(CONFIG_SWIOTLB) || IS_ENABLED(CONFIG_INTEL_IOMMU)) &&
+        if (!IS_ENABLED(CONFIG_DRM_TTM_DMA_PAGE_POOL) &&
 	    (dev_priv->map_mode == vmw_dma_alloc_coherent))
 		return -EINVAL;
 

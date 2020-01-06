@@ -44,7 +44,20 @@ struct drm_gem_shmem_object {
 	 */
 	unsigned int pages_use_count;
 
+	/**
+	 * @madv: State for madvise
+	 *
+	 * 0 is active/inuse.
+	 * A negative value is the object is purged.
+	 * Positive values are driver specific and not used by the helpers.
+	 */
 	int madv;
+
+	/**
+	 * @madv_list: List entry for madvise tracking
+	 *
+	 * Typically used by drivers to track purgeable objects
+	 */
 	struct list_head madv_list;
 
 	/**

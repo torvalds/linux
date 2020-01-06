@@ -14,6 +14,7 @@ unsigned int *phy_addr_sp_tmp;
 static void nds32_suspend2ram(void)
 {
 	pgd_t *pgdv;
+	p4d_t *p4dv;
 	pud_t *pudv;
 	pmd_t *pmdv;
 	pte_t *ptev;
@@ -21,7 +22,8 @@ static void nds32_suspend2ram(void)
 	pgdv = (pgd_t *)__va((__nds32__mfsr(NDS32_SR_L1_PPTB) &
 		L1_PPTB_mskBASE)) + pgd_index((unsigned int)cpu_resume);
 
-	pudv = pud_offset(pgdv, (unsigned int)cpu_resume);
+	p4dv = p4d_offset(pgdv, (unsigned int)cpu_resume);
+	pudv = pud_offset(p4dv, (unsigned int)cpu_resume);
 	pmdv = pmd_offset(pudv, (unsigned int)cpu_resume);
 	ptev = pte_offset_map(pmdv, (unsigned int)cpu_resume);
 

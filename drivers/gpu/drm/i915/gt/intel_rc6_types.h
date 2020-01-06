@@ -18,10 +18,13 @@ struct intel_rc6 {
 	u64 prev_hw_residency[4];
 	u64 cur_residency[4];
 
+	u32 ctl_enable;
+
 	struct drm_i915_gem_object *pctx;
 
 	bool supported : 1;
 	bool enabled : 1;
+	bool manual : 1;
 	bool wakeref : 1;
 };
 

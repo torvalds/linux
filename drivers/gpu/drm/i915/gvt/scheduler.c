@@ -35,11 +35,12 @@
 
 #include <linux/kthread.h>
 
-#include "gem/i915_gem_context.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
+#include "gt/intel_ring.h"
 
 #include "i915_drv.h"
+#include "i915_gem_gtt.h"
 #include "gvt.h"
 
 #define RING_CTX_OFF(x) \
@@ -58,7 +59,7 @@ static void set_context_pdp_root_pointer(
 static void update_shadow_pdps(struct intel_vgpu_workload *workload)
 {
 	struct drm_i915_gem_object *ctx_obj =
-		workload->req->hw_context->state->obj;
+		workload->req->context->state->obj;
 	struct execlist_ring_context *shadow_ring_context;
 	struct page *page;
 
@@ -129,7 +130,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	struct intel_gvt *gvt = vgpu->gvt;
 	int ring_id = workload->ring_id;
 	struct drm_i915_gem_object *ctx_obj =
-		workload->req->hw_context->state->obj;
+		workload->req->context->state->obj;
 	struct execlist_ring_context *shadow_ring_context;
 	struct page *page;
 	void *dst;
@@ -194,7 +195,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 			return -EFAULT;
 		}
 
-		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);
+		page = i915_gem_object_get_page(ctx_obj, i);
 		dst = kmap(page);
 		intel_gvt_hypervisor_read_gpa(vgpu, context_gpa, dst,
 				I915_GTT_PAGE_SIZE);
@@ -204,9 +205,9 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	return 0;
 }
 
-static inline bool is_gvt_request(struct i915_request *req)
+static inline bool is_gvt_request(struct i915_request *rq)
 {
-	return i915_gem_context_force_single_submission(req->gem_context);
+	return intel_context_force_single_submission(rq->context);
 }
 
 static void save_ring_hw_state(struct intel_vgpu *vgpu, int ring_id)
@@ -306,7 +307,7 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	u32 *cs;
 	int err;
 
-	if (IS_GEN(req->i915, 9) && is_inhibit_context(req->hw_context))
+	if (IS_GEN(req->i915, 9) && is_inhibit_context(req->context))
 		intel_vgpu_restore_inhibit_context(vgpu, req);
 
 	/*
@@ -362,11 +363,10 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 }
 
 static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
-					  struct i915_gem_context *ctx)
+					  struct intel_context *ce)
 {
 	struct intel_vgpu_mm *mm = workload->shadow_mm;
-	struct i915_ppgtt *ppgtt =
-		i915_vm_to_ppgtt(i915_gem_context_get_vm_rcu(ctx));
+	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ce->vm);
 	int i = 0;
 
 	if (mm->ppgtt_mm.root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
@@ -379,8 +379,6 @@ static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 			px_dma(pd) = mm->ppgtt_mm.shadow_pdps[i];
 		}
 	}
-
-	i915_vm_put(&ppgtt->vm);
 }
 
 static int
@@ -528,7 +526,7 @@ static void update_wa_ctx_2_shadow_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 		container_of(wa_ctx, struct intel_vgpu_workload, wa_ctx);
 	struct i915_request *rq = workload->req;
 	struct execlist_ring_context *shadow_ring_context =
-		(struct execlist_ring_context *)rq->hw_context->lrc_reg_state;
+		(struct execlist_ring_context *)rq->context->lrc_reg_state;
 
 	shadow_ring_context->bb_per_ctx_ptr.val =
 		(shadow_ring_context->bb_per_ctx_ptr.val &
@@ -627,7 +625,7 @@ static int prepare_workload(struct intel_vgpu_workload *workload)
 
 	update_shadow_pdps(workload);
 
-	set_context_ppgtt_from_shadow(workload, s->shadow[ring]->gem_context);
+	set_context_ppgtt_from_shadow(workload, s->shadow[ring]);
 
 	ret = intel_vgpu_sync_oos_pages(workload->vgpu);
 	if (ret) {
@@ -786,7 +784,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 	struct i915_request *rq = workload->req;
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct intel_gvt *gvt = vgpu->gvt;
-	struct drm_i915_gem_object *ctx_obj = rq->hw_context->state->obj;
+	struct drm_i915_gem_object *ctx_obj = rq->context->state->obj;
 	struct execlist_ring_context *shadow_ring_context;
 	struct page *page;
 	void *src;
@@ -834,7 +832,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 			return;
 		}
 
-		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);
+		page = i915_gem_object_get_page(ctx_obj, i);
 		src = kmap(page);
 		intel_gvt_hypervisor_write_gpa(vgpu, context_gpa, src,
 				I915_GTT_PAGE_SIZE);
@@ -1222,18 +1220,14 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	struct drm_i915_private *i915 = vgpu->gvt->dev_priv;
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
 	struct i915_ppgtt *ppgtt;
 	enum intel_engine_id i;
 	int ret;
 
-	ctx = i915_gem_context_create_kernel(i915, I915_PRIORITY_MAX);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	ppgtt = i915_ppgtt_create(i915);
+	if (IS_ERR(ppgtt))
+		return PTR_ERR(ppgtt);
 
-	i915_gem_context_set_force_single_submission(ctx);
-
-	ppgtt = i915_vm_to_ppgtt(i915_gem_context_get_vm_rcu(ctx));
 	i915_context_ppgtt_root_save(s, ppgtt);
 
 	for_each_engine(engine, i915, i) {
@@ -1242,11 +1236,15 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 		INIT_LIST_HEAD(&s->workload_q_head[i]);
 		s->shadow[i] = ERR_PTR(-EINVAL);
 
-		ce = intel_context_create(ctx, engine);
+		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
 			ret = PTR_ERR(ce);
 			goto out_shadow_ctx;
 		}
+
+		i915_vm_put(ce->vm);
+		ce->vm = i915_vm_get(&ppgtt->vm);
+		intel_context_set_single_submission(ce);
 
 		if (!USES_GUC_SUBMISSION(i915)) { /* Max ring buffer size */
 			const unsigned int ring_size = 512 * SZ_4K;
@@ -1280,7 +1278,6 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	bitmap_zero(s->tlb_handle_pending, I915_NUM_ENGINES);
 
 	i915_vm_put(&ppgtt->vm);
-	i915_gem_context_put(ctx);
 	return 0;
 
 out_shadow_ctx:
@@ -1293,7 +1290,6 @@ out_shadow_ctx:
 		intel_context_put(s->shadow[i]);
 	}
 	i915_vm_put(&ppgtt->vm);
-	i915_gem_context_put(ctx);
 	return ret;
 }
 
@@ -1584,9 +1580,7 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	 */
 	if (list_empty(workload_q_head(vgpu, ring_id))) {
 		intel_runtime_pm_get(&dev_priv->runtime_pm);
-		mutex_lock(&vgpu->vgpu_lock);
 		ret = intel_gvt_scan_and_shadow_workload(workload);
-		mutex_unlock(&vgpu->vgpu_lock);
 		intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
 	}
 

@@ -149,7 +149,7 @@ int intel_guc_fw_upload(struct intel_guc *guc)
 	 * Current uCode expects the code to be loaded at 8k; locations below
 	 * this are used for the stack.
 	 */
-	ret = intel_uc_fw_upload(&guc->fw, gt, 0x2000, UOS_MOVE);
+	ret = intel_uc_fw_upload(&guc->fw, 0x2000, UOS_MOVE);
 	if (ret)
 		goto out;
 

@@ -104,4 +104,13 @@ struct amdgpu_sdma_instance *
 amdgpu_sdma_get_instance_from_ring(struct amdgpu_ring *ring);
 int amdgpu_sdma_get_index_from_ring(struct amdgpu_ring *ring, uint32_t *index);
 uint64_t amdgpu_sdma_get_csa_mc_addr(struct amdgpu_ring *ring, unsigned vmid);
+int amdgpu_sdma_ras_late_init(struct amdgpu_device *adev,
+			      void *ras_ih_info);
+void amdgpu_sdma_ras_fini(struct amdgpu_device *adev);
+int amdgpu_sdma_process_ras_data_cb(struct amdgpu_device *adev,
+		void *err_data,
+		struct amdgpu_iv_entry *entry);
+int amdgpu_sdma_process_ecc_irq(struct amdgpu_device *adev,
+				      struct amdgpu_irq_src *source,
+				      struct amdgpu_iv_entry *entry);
 #endif

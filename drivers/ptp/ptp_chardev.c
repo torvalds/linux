@@ -149,11 +149,21 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 			err = -EFAULT;
 			break;
 		}
-		if (((req.extts.flags & ~PTP_EXTTS_VALID_FLAGS) ||
-			req.extts.rsv[0] || req.extts.rsv[1]) &&
-			cmd == PTP_EXTTS_REQUEST2) {
-			err = -EINVAL;
-			break;
+		if (cmd == PTP_EXTTS_REQUEST2) {
+			/* Tell the drivers to check the flags carefully. */
+			req.extts.flags |= PTP_STRICT_FLAGS;
+			/* Make sure no reserved bit is set. */
+			if ((req.extts.flags & ~PTP_EXTTS_VALID_FLAGS) ||
+			    req.extts.rsv[0] || req.extts.rsv[1]) {
+				err = -EINVAL;
+				break;
+			}
+			/* Ensure one of the rising/falling edge bits is set. */
+			if ((req.extts.flags & PTP_ENABLE_FEATURE) &&
+			    (req.extts.flags & PTP_EXTTS_EDGES) == 0) {
+				err = -EINVAL;
+				break;
+			}
 		} else if (cmd == PTP_EXTTS_REQUEST) {
 			req.extts.flags &= PTP_EXTTS_V1_VALID_FLAGS;
 			req.extts.rsv[0] = 0;

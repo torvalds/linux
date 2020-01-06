@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include "core.h"
 #include "drd.h"
+#include "host-export.h"
 
 static int __cdns3_host_init(struct cdns3 *cdns)
 {

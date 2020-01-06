@@ -8,6 +8,7 @@
 #include "goyaP.h"
 #include "include/goya/goya_coresight.h"
 #include "include/goya/asic_reg/goya_regs.h"
+#include "include/goya/asic_reg/goya_masks.h"
 
 #include <uapi/misc/habanalabs.h>
 
@@ -377,33 +378,32 @@ static int goya_config_etr(struct hl_device *hdev,
 		struct hl_debug_params *params)
 {
 	struct hl_debug_params_etr *input;
-	u64 base_reg = mmPSOC_ETR_BASE - CFG_BASE;
 	u32 val;
 	int rc;
 
-	WREG32(base_reg + 0xFB0, CORESIGHT_UNLOCK);
+	WREG32(mmPSOC_ETR_LAR, CORESIGHT_UNLOCK);
 
-	val = RREG32(base_reg + 0x304);
+	val = RREG32(mmPSOC_ETR_FFCR);
 	val |= 0x1000;
-	WREG32(base_reg + 0x304, val);
+	WREG32(mmPSOC_ETR_FFCR, val);
 	val |= 0x40;
-	WREG32(base_reg + 0x304, val);
+	WREG32(mmPSOC_ETR_FFCR, val);
 
-	rc = goya_coresight_timeout(hdev, base_reg + 0x304, 6, false);
+	rc = goya_coresight_timeout(hdev, mmPSOC_ETR_FFCR, 6, false);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to %s ETR on timeout, error %d\n",
 				params->enable ? "enable" : "disable", rc);
 		return rc;
 	}
 
-	rc = goya_coresight_timeout(hdev, base_reg + 0xC, 2, true);
+	rc = goya_coresight_timeout(hdev, mmPSOC_ETR_STS, 2, true);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to %s ETR on timeout, error %d\n",
 				params->enable ? "enable" : "disable", rc);
 		return rc;
 	}
 
-	WREG32(base_reg + 0x20, 0);
+	WREG32(mmPSOC_ETR_CTL, 0);
 
 	if (params->enable) {
 		input = params->input;
@@ -423,25 +423,26 @@ static int goya_config_etr(struct hl_device *hdev,
 			return -EINVAL;
 		}
 
-		WREG32(base_reg + 0x34, 0x3FFC);
-		WREG32(base_reg + 0x4, input->buffer_size);
-		WREG32(base_reg + 0x28, input->sink_mode);
-		WREG32(base_reg + 0x110, 0x700);
-		WREG32(base_reg + 0x118,
+		WREG32(mmPSOC_ETR_BUFWM, 0x3FFC);
+		WREG32(mmPSOC_ETR_RSZ, input->buffer_size);
+		WREG32(mmPSOC_ETR_MODE, input->sink_mode);
+		WREG32(mmPSOC_ETR_AXICTL,
+				0x700 | PSOC_ETR_AXICTL_PROTCTRLBIT1_SHIFT);
+		WREG32(mmPSOC_ETR_DBALO,
 				lower_32_bits(input->buffer_address));
-		WREG32(base_reg + 0x11C,
+		WREG32(mmPSOC_ETR_DBAHI,
 				upper_32_bits(input->buffer_address));
-		WREG32(base_reg + 0x304, 3);
-		WREG32(base_reg + 0x308, 0xA);
-		WREG32(base_reg + 0x20, 1);
+		WREG32(mmPSOC_ETR_FFCR, 3);
+		WREG32(mmPSOC_ETR_PSCR, 0xA);
+		WREG32(mmPSOC_ETR_CTL, 1);
 	} else {
-		WREG32(base_reg + 0x34, 0);
-		WREG32(base_reg + 0x4, 0x400);
-		WREG32(base_reg + 0x118, 0);
-		WREG32(base_reg + 0x11C, 0);
-		WREG32(base_reg + 0x308, 0);
-		WREG32(base_reg + 0x28, 0);
-		WREG32(base_reg + 0x304, 0);
+		WREG32(mmPSOC_ETR_BUFWM, 0);
+		WREG32(mmPSOC_ETR_RSZ, 0x400);
+		WREG32(mmPSOC_ETR_DBALO, 0);
+		WREG32(mmPSOC_ETR_DBAHI, 0);
+		WREG32(mmPSOC_ETR_PSCR, 0);
+		WREG32(mmPSOC_ETR_MODE, 0);
+		WREG32(mmPSOC_ETR_FFCR, 0);
 
 		if (params->output_size >= sizeof(u64)) {
 			u32 rwp, rwphi;
@@ -451,8 +452,8 @@ static int goya_config_etr(struct hl_device *hdev,
 			 * the buffer is set in the RWP register (lower 32
 			 * bits), and in the RWPHI register (upper 8 bits).
 			 */
-			rwp = RREG32(base_reg + 0x18);
-			rwphi = RREG32(base_reg + 0x3c) & 0xff;
+			rwp = RREG32(mmPSOC_ETR_RWP);
+			rwphi = RREG32(mmPSOC_ETR_RWPHI) & 0xff;
 			*(u64 *) params->output = ((u64) rwphi << 32) | rwp;
 		}
 	}

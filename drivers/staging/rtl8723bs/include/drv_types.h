@@ -197,9 +197,6 @@ struct registry_priv
 	u8 RFE_Type;
 	u8  check_fw_ps;
 
-	u8 load_phy_file;
-	u8 RegDecryptCustomFile;
-
 #ifdef CONFIG_MULTI_VIR_IFACES
 	u8 ext_iface_num;/* primary/secondary iface is excluded */
 #endif
@@ -693,7 +690,6 @@ void rtw_indicate_wx_disassoc_event(struct adapter *padapter);
 void indicate_wx_scan_complete_event(struct adapter *padapter);
 int rtw_change_ifname(struct adapter *padapter, const char *ifname);
 
-extern char *rtw_phy_file_path;
 extern char *rtw_initmac;
 extern int rtw_mc2u_disable;
 extern int rtw_ht_enable;

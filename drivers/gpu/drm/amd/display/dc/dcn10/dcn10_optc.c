@@ -457,10 +457,15 @@ static bool optc1_enable_crtc(struct timing_generator *optc)
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 1);
 
+	REG_SEQ_START();
+
 	/* Enable CRTC */
 	REG_UPDATE_2(OTG_CONTROL,
 			OTG_DISABLE_POINT_CNTL, 3,
 			OTG_MASTER_EN, 1);
+
+	REG_SEQ_SUBMIT();
+	REG_SEQ_WAIT_DONE();
 
 	return true;
 }
@@ -1230,59 +1235,25 @@ bool optc1_is_stereo_left_eye(struct timing_generator *optc)
 	return ret;
 }
 
-bool optc1_is_matching_timing(struct timing_generator *tg,
-		const struct dc_crtc_timing *otg_timing)
+bool optc1_get_hw_timing(struct timing_generator *tg,
+		struct dc_crtc_timing *hw_crtc_timing)
 {
-	struct dc_crtc_timing hw_crtc_timing = {0};
 	struct dcn_otg_state s = {0};
 
-	if (tg == NULL || otg_timing == NULL)
+	if (tg == NULL || hw_crtc_timing == NULL)
 		return false;
 
 	optc1_read_otg_state(DCN10TG_FROM_TG(tg), &s);
 
-	hw_crtc_timing.h_total = s.h_total + 1;
-	hw_crtc_timing.h_addressable = s.h_total - ((s.h_total - s.h_blank_start) + s.h_blank_end);
-	hw_crtc_timing.h_front_porch = s.h_total + 1 - s.h_blank_start;
-	hw_crtc_timing.h_sync_width = s.h_sync_a_end - s.h_sync_a_start;
+	hw_crtc_timing->h_total = s.h_total + 1;
+	hw_crtc_timing->h_addressable = s.h_total - ((s.h_total - s.h_blank_start) + s.h_blank_end);
+	hw_crtc_timing->h_front_porch = s.h_total + 1 - s.h_blank_start;
+	hw_crtc_timing->h_sync_width = s.h_sync_a_end - s.h_sync_a_start;
 
-	hw_crtc_timing.v_total = s.v_total + 1;
-	hw_crtc_timing.v_addressable = s.v_total - ((s.v_total - s.v_blank_start) + s.v_blank_end);
-	hw_crtc_timing.v_front_porch = s.v_total + 1 - s.v_blank_start;
-	hw_crtc_timing.v_sync_width = s.v_sync_a_end - s.v_sync_a_start;
-
-	if (otg_timing->h_total != hw_crtc_timing.h_total)
-		return false;
-
-	if (otg_timing->h_border_left != hw_crtc_timing.h_border_left)
-		return false;
-
-	if (otg_timing->h_addressable != hw_crtc_timing.h_addressable)
-		return false;
-
-	if (otg_timing->h_border_right != hw_crtc_timing.h_border_right)
-		return false;
-
-	if (otg_timing->h_front_porch != hw_crtc_timing.h_front_porch)
-		return false;
-
-	if (otg_timing->h_sync_width != hw_crtc_timing.h_sync_width)
-		return false;
-
-	if (otg_timing->v_total != hw_crtc_timing.v_total)
-		return false;
-
-	if (otg_timing->v_border_top != hw_crtc_timing.v_border_top)
-		return false;
-
-	if (otg_timing->v_addressable != hw_crtc_timing.v_addressable)
-		return false;
-
-	if (otg_timing->v_border_bottom != hw_crtc_timing.v_border_bottom)
-		return false;
-
-	if (otg_timing->v_sync_width != hw_crtc_timing.v_sync_width)
-		return false;
+	hw_crtc_timing->v_total = s.v_total + 1;
+	hw_crtc_timing->v_addressable = s.v_total - ((s.v_total - s.v_blank_start) + s.v_blank_end);
+	hw_crtc_timing->v_front_porch = s.v_total + 1 - s.v_blank_start;
+	hw_crtc_timing->v_sync_width = s.v_sync_a_end - s.v_sync_a_start;
 
 	return true;
 }
@@ -1486,7 +1457,6 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.get_frame_count = optc1_get_vblank_counter,
 		.get_scanoutpos = optc1_get_crtc_scanoutpos,
 		.get_otg_active_size = optc1_get_otg_active_size,
-		.is_matching_timing = optc1_is_matching_timing,
 		.set_early_control = optc1_set_early_control,
 		/* used by enable_timing_synchronization. Not need for FPGA */
 		.wait_for_state = optc1_wait_for_state,
@@ -1514,7 +1484,8 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.configure_crc = optc1_configure_crc,
 		.set_vtg_params = optc1_set_vtg_params,
 		.program_manual_trigger = optc1_program_manual_trigger,
-		.setup_manual_trigger = optc1_setup_manual_trigger
+		.setup_manual_trigger = optc1_setup_manual_trigger,
+		.get_hw_timing = optc1_get_hw_timing,
 };
 
 void dcn10_timing_generator_init(struct optc *optc1)
@@ -1531,7 +1502,6 @@ void dcn10_timing_generator_init(struct optc *optc1)
 	optc1->min_v_sync_width = 1;
 }
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 /* "Containter" vs. "pixel" is a concept within HW blocks, mostly those closer to the back-end. It works like this:
  *
  * - In most of the formats (RGB or YCbCr 4:4:4, 4:2:2 uncompressed and DSC 4:2:2 Simple) pixel rate is the same as
@@ -1544,15 +1514,12 @@ void dcn10_timing_generator_init(struct optc *optc1)
  *   to it) and has to be treated the same as 4:2:0, i.e. target containter rate has to be halved in this case as well.
  *
  */
-#endif
 bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 {
 	bool two_pix = timing->pixel_encoding == PIXEL_ENCODING_YCBCR420;
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	two_pix = two_pix || (timing->flags.DSC && timing->pixel_encoding == PIXEL_ENCODING_YCBCR422
 			&& !timing->dsc_cfg.ycbcr422_simple);
-#endif
 	return two_pix;
 }
 

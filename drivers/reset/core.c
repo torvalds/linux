@@ -76,10 +76,11 @@ static const char *rcdev_name(struct reset_controller_dev *rcdev)
  * of_reset_simple_xlate - translate reset_spec to the reset line number
  * @rcdev: a pointer to the reset controller device
  * @reset_spec: reset line specifier as found in the device tree
- * @flags: a flags pointer to fill in (optional)
  *
- * This simple translation function should be used for reset controllers
- * with 1:1 mapping, where reset lines can be indexed by number without gaps.
+ * This static translation function is used by default if of_xlate in
+ * :c:type:`reset_controller_dev` is not set. It is useful for all reset
+ * controllers with 1:1 mapping, where reset lines can be indexed by number
+ * without gaps.
  */
 static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
 			  const struct of_phandle_args *reset_spec)
@@ -334,7 +335,6 @@ EXPORT_SYMBOL_GPL(reset_control_reset);
  * internal state to be reset, but must be prepared for this to happen.
  * Consumers must not use reset_control_reset on shared reset lines when
  * reset_control_(de)assert has been used.
- * return 0.
  *
  * If rstc is NULL it is an optional reset and the function will just
  * return 0.
@@ -393,7 +393,6 @@ EXPORT_SYMBOL_GPL(reset_control_assert);
  * After calling this function, the reset is guaranteed to be deasserted.
  * Consumers must not use reset_control_reset on shared reset lines when
  * reset_control_(de)assert has been used.
- * return 0.
  *
  * If rstc is NULL it is an optional reset and the function will just
  * return 0.
@@ -748,6 +747,7 @@ static void reset_control_array_put(struct reset_control_array *resets)
 	for (i = 0; i < resets->num_rstcs; i++)
 		__reset_control_put_internal(resets->rstc[i]);
 	mutex_unlock(&reset_list_mutex);
+	kfree(resets);
 }
 
 /**
@@ -825,9 +825,10 @@ int __device_reset(struct device *dev, bool optional)
 }
 EXPORT_SYMBOL_GPL(__device_reset);
 
-/**
+/*
  * APIs to manage an array of reset controls.
  */
+
 /**
  * of_reset_control_get_count - Count number of resets available with a device
  *

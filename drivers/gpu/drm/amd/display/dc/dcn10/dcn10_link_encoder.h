@@ -72,9 +72,7 @@
 struct dcn10_link_enc_aux_registers {
 	uint32_t AUX_CONTROL;
 	uint32_t AUX_DPHY_RX_CONTROL0;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	uint32_t AUX_DPHY_TX_CONTROL;
-#endif
 };
 
 struct dcn10_link_enc_hpd_registers {
@@ -106,13 +104,26 @@ struct dcn10_link_enc_registers {
 	uint32_t DP_DPHY_HBR2_PATTERN_CONTROL;
 	uint32_t DP_SEC_CNTL1;
 	uint32_t TMDS_CTL_BITS;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	/* DCCG  */
 	uint32_t CLOCK_ENABLE;
 	/* DIG */
 	uint32_t DIG_LANE_ENABLE;
 	/* UNIPHY */
 	uint32_t CHANNEL_XBAR_CNTL;
+	/* DPCS */
+	uint32_t RDPCSTX_PHY_CNTL3;
+	uint32_t RDPCSTX_PHY_CNTL4;
+	uint32_t RDPCSTX_PHY_CNTL5;
+	uint32_t RDPCSTX_PHY_CNTL6;
+	uint32_t RDPCSTX_PHY_CNTL7;
+	uint32_t RDPCSTX_PHY_CNTL8;
+	uint32_t RDPCSTX_PHY_CNTL9;
+	uint32_t RDPCSTX_PHY_CNTL10;
+	uint32_t RDPCSTX_PHY_CNTL11;
+	uint32_t RDPCSTX_PHY_CNTL12;
+	uint32_t RDPCSTX_PHY_CNTL13;
+	uint32_t RDPCSTX_PHY_CNTL14;
+	uint32_t RDPCSTX_PHY_CNTL15;
 	/* indirect registers */
 	uint32_t RAWLANE0_DIG_PCS_XF_RX_OVRD_IN_2;
 	uint32_t RAWLANE0_DIG_PCS_XF_RX_OVRD_IN_3;
@@ -122,7 +133,6 @@ struct dcn10_link_enc_registers {
 	uint32_t RAWLANE2_DIG_PCS_XF_RX_OVRD_IN_3;
 	uint32_t RAWLANE3_DIG_PCS_XF_RX_OVRD_IN_2;
 	uint32_t RAWLANE3_DIG_PCS_XF_RX_OVRD_IN_3;
-#endif
 };
 
 #define LE_SF(reg_name, field_name, post_fix)\
@@ -228,7 +238,6 @@ struct dcn10_link_enc_registers {
 	type AUX_LS_READ_EN;\
 	type AUX_RX_RECEIVE_WINDOW
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
 #define DCN20_LINK_ENCODER_DPCS_REG_FIELD_LIST(type) \
 		type RDPCS_PHY_DP_TX0_DATA_EN;\
@@ -250,6 +259,10 @@ struct dcn10_link_enc_registers {
 		type RDPCS_EXT_REFCLK_EN;\
 		type RDPCS_TX_FIFO_EN;\
 		type UNIPHY_LINK_ENABLE;\
+		type UNIPHY_CHANNEL0_XBAR_SOURCE;\
+		type UNIPHY_CHANNEL1_XBAR_SOURCE;\
+		type UNIPHY_CHANNEL2_XBAR_SOURCE;\
+		type UNIPHY_CHANNEL3_XBAR_SOURCE;\
 		type UNIPHY_CHANNEL0_INVERT;\
 		type UNIPHY_CHANNEL1_INVERT;\
 		type UNIPHY_CHANNEL2_INVERT;\
@@ -337,16 +350,46 @@ struct dcn10_link_enc_registers {
 		type RDPCS_TX_FIFO_ERROR_MASK;\
 		type RDPCS_DPALT_DISABLE_TOGGLE_MASK;\
 		type RDPCS_DPALT_4LANE_TOGGLE_MASK;\
+		type RDPCS_PHY_DPALT_DP4;\
 		type RDPCS_PHY_DPALT_DISABLE;\
 		type RDPCS_PHY_DPALT_DISABLE_ACK;\
 		type RDPCS_PHY_DP_MPLLB_V2I;\
 		type RDPCS_PHY_DP_MPLLB_FREQ_VCO;\
+		type RDPCS_PHY_DP_MPLLB_CP_INT_GS;\
+		type RDPCS_PHY_RX_VREF_CTRL;\
 		type RDPCS_PHY_DP_MPLLB_CP_INT;\
 		type RDPCS_PHY_DP_MPLLB_CP_PROP;\
 		type RDPCS_PHY_RX_REF_LD_VAL;\
 		type RDPCS_PHY_RX_VCO_LD_VAL;\
 		type DPCSTX_DEBUG_CONFIG; \
-		type RDPCSTX_DEBUG_CONFIG
+		type RDPCSTX_DEBUG_CONFIG; \
+		type RDPCS_PHY_DP_TX0_EQ_MAIN;\
+		type RDPCS_PHY_DP_TX0_EQ_PRE;\
+		type RDPCS_PHY_DP_TX0_EQ_POST;\
+		type RDPCS_PHY_DP_TX1_EQ_MAIN;\
+		type RDPCS_PHY_DP_TX1_EQ_PRE;\
+		type RDPCS_PHY_DP_TX1_EQ_POST;\
+		type RDPCS_PHY_DP_TX2_EQ_MAIN;\
+		type RDPCS_PHY_DP_MPLLB_CP_PROP_GS;\
+		type RDPCS_PHY_DP_TX2_EQ_PRE;\
+		type RDPCS_PHY_DP_TX2_EQ_POST;\
+		type RDPCS_PHY_DP_TX3_EQ_MAIN;\
+		type RDPCS_PHY_DCO_RANGE;\
+		type RDPCS_PHY_DCO_FINETUNE;\
+		type RDPCS_PHY_DP_TX3_EQ_PRE;\
+		type RDPCS_PHY_DP_TX3_EQ_POST;\
+		type RDPCS_PHY_SUP_PRE_HP;\
+		type RDPCS_PHY_DP_TX0_VREGDRV_BYP;\
+		type RDPCS_PHY_DP_TX1_VREGDRV_BYP;\
+		type RDPCS_PHY_DP_TX2_VREGDRV_BYP;\
+		type RDPCS_PHY_DP_TX3_VREGDRV_BYP;\
+		type RDPCS_DMCU_DPALT_DIS_BLOCK_REG;\
+		type UNIPHYA_SOFT_RESET;\
+		type UNIPHYB_SOFT_RESET;\
+		type UNIPHYC_SOFT_RESET;\
+		type UNIPHYD_SOFT_RESET;\
+		type UNIPHYE_SOFT_RESET;\
+		type UNIPHYF_SOFT_RESET
 
 #define DCN20_LINK_ENCODER_REG_FIELD_LIST(type) \
 	type DIG_LANE0EN;\
@@ -375,20 +418,15 @@ struct dcn10_link_enc_registers {
 	type AUX_TX_PRECHARGE_SYMBOLS; \
 	type AUX_MODE_DET_CHECK_DELAY;\
 	type DPCS_DBG_CBUS_DIS
-#endif
 
 struct dcn10_link_enc_shift {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
-#endif
 };
 
 struct dcn10_link_enc_mask {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
-#endif
 };
 
 struct dcn10_link_encoder {

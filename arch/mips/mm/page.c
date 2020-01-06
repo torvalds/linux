@@ -187,7 +187,7 @@ static void set_prefetch_parameters(void)
 			}
 			break;
 
-		case CPU_LOONGSON3:
+		case CPU_LOONGSON64:
 			/* Loongson-3 only support the Pref_Load/Pref_Store. */
 			pref_bias_clear_store = 128;
 			pref_bias_copy_load = 128;

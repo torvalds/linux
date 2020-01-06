@@ -113,26 +113,21 @@ struct link_encoder {
 	struct encoder_feature_support features;
 	enum transmitter transmitter;
 	enum hpd_source_id hpd_source;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	bool usbc_combo_phy;
-#endif
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 struct link_enc_state {
 
 		uint32_t dphy_fec_en;
 		uint32_t dphy_fec_ready_shadow;
 		uint32_t dphy_fec_active_status;
+		uint32_t dp_link_training_complete;
 
 };
-#endif
 
 struct link_encoder_funcs {
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	void (*read_state)(
 			struct link_encoder *enc, struct link_enc_state *s);
-#endif
 	bool (*validate_output_with_stream)(
 		struct link_encoder *enc, const struct dc_stream_state *stream);
 	void (*hw_init)(struct link_encoder *enc);
@@ -174,7 +169,6 @@ struct link_encoder_funcs {
 	unsigned int (*get_dig_frontend)(struct link_encoder *enc);
 	void (*destroy)(struct link_encoder **enc);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void (*fec_set_enable)(struct link_encoder *enc,
 		bool enable);
 
@@ -182,8 +176,11 @@ struct link_encoder_funcs {
 		bool ready);
 
 	bool (*fec_is_active)(struct link_encoder *enc);
-#endif
 	bool (*is_in_alt_mode) (struct link_encoder *enc);
+
+	void (*get_max_link_cap)(struct link_encoder *enc,
+		struct dc_link_settings *link_settings);
+
 	enum signal_type (*get_dig_mode)(
 		struct link_encoder *enc);
 };

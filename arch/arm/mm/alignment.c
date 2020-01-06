@@ -324,7 +324,7 @@ union offset_union {
 	__put32_unaligned_check("strbt", val, addr)
 
 static void
-do_alignment_finish_ldst(unsigned long addr, unsigned long instr, struct pt_regs *regs, union offset_union offset)
+do_alignment_finish_ldst(unsigned long addr, u32 instr, struct pt_regs *regs, union offset_union offset)
 {
 	if (!LDST_U_BIT(instr))
 		offset.un = -offset.un;
@@ -337,7 +337,7 @@ do_alignment_finish_ldst(unsigned long addr, unsigned long instr, struct pt_regs
 }
 
 static int
-do_alignment_ldrhstrh(unsigned long addr, unsigned long instr, struct pt_regs *regs)
+do_alignment_ldrhstrh(unsigned long addr, u32 instr, struct pt_regs *regs)
 {
 	unsigned int rd = RD_BITS(instr);
 
@@ -386,8 +386,7 @@ do_alignment_ldrhstrh(unsigned long addr, unsigned long instr, struct pt_regs *r
 }
 
 static int
-do_alignment_ldrdstrd(unsigned long addr, unsigned long instr,
-		      struct pt_regs *regs)
+do_alignment_ldrdstrd(unsigned long addr, u32 instr, struct pt_regs *regs)
 {
 	unsigned int rd = RD_BITS(instr);
 	unsigned int rd2;
@@ -449,7 +448,7 @@ do_alignment_ldrdstrd(unsigned long addr, unsigned long instr,
 }
 
 static int
-do_alignment_ldrstr(unsigned long addr, unsigned long instr, struct pt_regs *regs)
+do_alignment_ldrstr(unsigned long addr, u32 instr, struct pt_regs *regs)
 {
 	unsigned int rd = RD_BITS(instr);
 
@@ -498,7 +497,7 @@ do_alignment_ldrstr(unsigned long addr, unsigned long instr, struct pt_regs *reg
  * PU = 10             A                    B
  */
 static int
-do_alignment_ldmstm(unsigned long addr, unsigned long instr, struct pt_regs *regs)
+do_alignment_ldmstm(unsigned long addr, u32 instr, struct pt_regs *regs)
 {
 	unsigned int rd, rn, correction, nr_regs, regbits;
 	unsigned long eaddr, newaddr;
@@ -539,7 +538,7 @@ do_alignment_ldmstm(unsigned long addr, unsigned long instr, struct pt_regs *reg
 	 * processor for us.
 	 */
 	if (addr != eaddr) {
-		pr_err("LDMSTM: PC = %08lx, instr = %08lx, "
+		pr_err("LDMSTM: PC = %08lx, instr = %08x, "
 			"addr = %08lx, eaddr = %08lx\n",
 			 instruction_pointer(regs), instr, addr, eaddr);
 		show_regs(regs);
@@ -716,10 +715,10 @@ thumb2arm(u16 tinstr)
  * 2. Register name Rt from ARMv7 is same as Rd from ARMv6 (Rd is Rt)
  */
 static void *
-do_alignment_t32_to_handler(unsigned long *pinstr, struct pt_regs *regs,
+do_alignment_t32_to_handler(u32 *pinstr, struct pt_regs *regs,
 			    union offset_union *poffset)
 {
-	unsigned long instr = *pinstr;
+	u32 instr = *pinstr;
 	u16 tinst1 = (instr >> 16) & 0xffff;
 	u16 tinst2 = instr & 0xffff;
 
@@ -767,17 +766,48 @@ do_alignment_t32_to_handler(unsigned long *pinstr, struct pt_regs *regs,
 	return NULL;
 }
 
+static int alignment_get_arm(struct pt_regs *regs, u32 *ip, u32 *inst)
+{
+	u32 instr = 0;
+	int fault;
+
+	if (user_mode(regs))
+		fault = get_user(instr, ip);
+	else
+		fault = probe_kernel_address(ip, instr);
+
+	*inst = __mem_to_opcode_arm(instr);
+
+	return fault;
+}
+
+static int alignment_get_thumb(struct pt_regs *regs, u16 *ip, u16 *inst)
+{
+	u16 instr = 0;
+	int fault;
+
+	if (user_mode(regs))
+		fault = get_user(instr, ip);
+	else
+		fault = probe_kernel_address(ip, instr);
+
+	*inst = __mem_to_opcode_thumb16(instr);
+
+	return fault;
+}
+
 static int
 do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	union offset_union uninitialized_var(offset);
-	unsigned long instr = 0, instrptr;
-	int (*handler)(unsigned long addr, unsigned long instr, struct pt_regs *regs);
+	unsigned long instrptr;
+	int (*handler)(unsigned long addr, u32 instr, struct pt_regs *regs);
 	unsigned int type;
-	unsigned int fault;
+	u32 instr = 0;
 	u16 tinstr = 0;
 	int isize = 4;
 	int thumb2_32b = 0;
+	int fault;
 
 	if (interrupts_enabled(regs))
 		local_irq_enable();
@@ -786,15 +816,14 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	if (thumb_mode(regs)) {
 		u16 *ptr = (u16 *)(instrptr & ~1);
-		fault = probe_kernel_address(ptr, tinstr);
-		tinstr = __mem_to_opcode_thumb16(tinstr);
+
+		fault = alignment_get_thumb(regs, ptr, &tinstr);
 		if (!fault) {
 			if (cpu_architecture() >= CPU_ARCH_ARMv7 &&
 			    IS_T32(tinstr)) {
 				/* Thumb-2 32-bit */
-				u16 tinst2 = 0;
-				fault = probe_kernel_address(ptr + 1, tinst2);
-				tinst2 = __mem_to_opcode_thumb16(tinst2);
+				u16 tinst2;
+				fault = alignment_get_thumb(regs, ptr + 1, &tinst2);
 				instr = __opcode_thumb32_compose(tinstr, tinst2);
 				thumb2_32b = 1;
 			} else {
@@ -803,8 +832,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 			}
 		}
 	} else {
-		fault = probe_kernel_address((void *)instrptr, instr);
-		instr = __mem_to_opcode_arm(instr);
+		fault = alignment_get_arm(regs, (void *)instrptr, &instr);
 	}
 
 	if (fault) {
@@ -926,7 +954,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	 * Oops, we didn't handle the instruction.
 	 */
 	pr_err("Alignment trap: not handling instruction "
-		"%0*lx at [<%08lx>]\n",
+		"%0*x at [<%08lx>]\n",
 		isize << 1,
 		isize == 2 ? tinstr : instr, instrptr);
 	ai_skipped += 1;
@@ -936,7 +964,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	ai_user += 1;
 
 	if (ai_usermode & UM_WARN)
-		printk("Alignment trap: %s (%d) PC=0x%08lx Instr=0x%0*lx "
+		printk("Alignment trap: %s (%d) PC=0x%08lx Instr=0x%0*x "
 		       "Address=0x%08lx FSR 0x%03x\n", current->comm,
 			task_pid_nr(current), instrptr,
 			isize << 1,

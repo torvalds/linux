@@ -304,13 +304,13 @@ go_proc:
 	return 0;
 }
 
-static int qce_setup_regs_ablkcipher(struct crypto_async_request *async_req,
+static int qce_setup_regs_skcipher(struct crypto_async_request *async_req,
 				     u32 totallen, u32 offset)
 {
-	struct ablkcipher_request *req = ablkcipher_request_cast(async_req);
-	struct qce_cipher_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct skcipher_request *req = skcipher_request_cast(async_req);
+	struct qce_cipher_reqctx *rctx = skcipher_request_ctx(req);
 	struct qce_cipher_ctx *ctx = crypto_tfm_ctx(async_req->tfm);
-	struct qce_alg_template *tmpl = to_cipher_tmpl(async_req->tfm);
+	struct qce_alg_template *tmpl = to_cipher_tmpl(crypto_skcipher_reqtfm(req));
 	struct qce_device *qce = tmpl->qce;
 	__be32 enckey[QCE_MAX_CIPHER_KEY_SIZE / sizeof(__be32)] = {0};
 	__be32 enciv[QCE_MAX_IV_SIZE / sizeof(__be32)] = {0};
@@ -389,8 +389,8 @@ int qce_start(struct crypto_async_request *async_req, u32 type, u32 totallen,
 	      u32 offset)
 {
 	switch (type) {
-	case CRYPTO_ALG_TYPE_ABLKCIPHER:
-		return qce_setup_regs_ablkcipher(async_req, totallen, offset);
+	case CRYPTO_ALG_TYPE_SKCIPHER:
+		return qce_setup_regs_skcipher(async_req, totallen, offset);
 	case CRYPTO_ALG_TYPE_AHASH:
 		return qce_setup_regs_ahash(async_req, totallen, offset);
 	default:

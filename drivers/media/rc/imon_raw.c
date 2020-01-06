@@ -57,32 +57,18 @@ static void imon_ir_data(struct imon *imon)
 		 * fls will tell us the highest bit set plus 1 (or 0 if no
 		 * bits are set).
 		 */
+		rawir.pulse = !rawir.pulse;
 		bit = fls64(data & (BIT_ULL(offset) - 1));
 		if (bit < offset) {
-			dev_dbg(imon->dev, "pulse: %d bits", offset - bit);
-			rawir.pulse = true;
+			dev_dbg(imon->dev, "%s: %d bits",
+				rawir.pulse ? "pulse" : "space", offset - bit);
 			rawir.duration = (offset - bit) * BIT_DURATION;
 			ir_raw_event_store_with_filter(imon->rcdev, &rawir);
-
-			if (bit == 0)
-				break;
 
 			offset = bit;
 		}
 
-		/*
-		 * Find highest clear bit which is less than offset.
-		 *
-		 * Just invert the data and use same trick as above.
-		 */
-		bit = fls64(~data & (BIT_ULL(offset) - 1));
-		dev_dbg(imon->dev, "space: %d bits", offset - bit);
-
-		rawir.pulse = false;
-		rawir.duration = (offset - bit) * BIT_DURATION;
-		ir_raw_event_store_with_filter(imon->rcdev, &rawir);
-
-		offset = bit;
+		data = ~data;
 	} while (offset > 0);
 
 	if (packet_no == 0x0a && !imon->rcdev->idle) {

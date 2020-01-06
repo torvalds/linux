@@ -28,6 +28,7 @@
 #include <drm/i915_component.h>
 
 #include "i915_drv.h"
+#include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_display_types.h"
 #include "intel_lpe_audio.h"
@@ -233,7 +234,7 @@ static const struct hdmi_aud_ncts hdmi_aud_ncts_36bpp[] = {
 static u32 audio_config_hdmi_pixel_clock(const struct intel_crtc_state *crtc_state)
 {
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_audio_clock); i++) {
@@ -554,7 +555,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 				    const struct drm_connector_state *old_conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
 	enum port port = encoder->port;
 	u32 tmp, eldv;
@@ -601,7 +602,7 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 				   const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_connector *connector = conn_state->connector;
 	enum pipe pipe = crtc->pipe;
 	enum port port = encoder->port;
@@ -691,10 +692,10 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct i915_audio_component *acomp = dev_priv->audio_component;
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_connector *connector = conn_state->connector;
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
 
@@ -752,7 +753,7 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct i915_audio_component *acomp = dev_priv->audio_component;
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
 
@@ -818,13 +819,8 @@ retry:
 	to_intel_atomic_state(state)->cdclk.force_min_cdclk =
 		enable ? 2 * 96000 : 0;
 
-	/*
-	 * Protects dev_priv->cdclk.force_min_cdclk
-	 * Need to lock this here in case we have no active pipes
-	 * and thus wouldn't lock it during the commit otherwise.
-	 */
-	ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
-			       &ctx);
+	/* Protects dev_priv->cdclk.force_min_cdclk */
+	ret = intel_atomic_lock_global_state(to_intel_atomic_state(state));
 	if (!ret)
 		ret = drm_atomic_commit(state);
 

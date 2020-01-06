@@ -412,8 +412,8 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 				 sizeof(key), callcmp);
 		if (!caller) {
 			/* found */
-			if (node->map)
-				addr = map__unmap_ip(node->map, node->ip);
+			if (node->ms.map)
+				addr = map__unmap_ip(node->ms.map, node->ip);
 			else
 				addr = node->ip;
 
@@ -691,6 +691,7 @@ static char *compact_gfp_flags(char *gfp_flags)
 			new = realloc(new_flags, len + strlen(cpt) + 2);
 			if (new == NULL) {
 				free(new_flags);
+				free(orig_flags);
 				return NULL;
 			}
 

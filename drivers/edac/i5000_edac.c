@@ -1275,9 +1275,8 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 			if (!MTR_DIMMS_PRESENT(mtr))
 				continue;
 
-			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers,
-				       channel / MAX_BRANCHES,
-				       channel % MAX_BRANCHES, slot);
+			dimm = edac_get_dimm(mci, channel / MAX_BRANCHES,
+					     channel % MAX_BRANCHES, slot);
 
 			csrow_megs = pvt->dimm_info[slot][channel].megabytes;
 			dimm->grain = 8;

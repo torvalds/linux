@@ -382,7 +382,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 	ite_dbg("%s called", __func__);
 
 	/* clear the array just in case */
-	memset(last_sent, 0, ARRAY_SIZE(last_sent));
+	memset(last_sent, 0, sizeof(last_sent));
 
 	spin_lock_irqsave(&dev->lock, flags);
 

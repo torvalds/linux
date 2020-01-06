@@ -346,7 +346,6 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		ret = create_signal_event(devkfd, p, ev);
 		if (!ret) {
 			*event_page_offset = KFD_MMAP_TYPE_EVENTS;
-			*event_page_offset <<= PAGE_SHIFT;
 			*event_slot_index = ev->event_id;
 		}
 		break;
@@ -852,8 +851,8 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 
 	if (type == KFD_EVENT_TYPE_MEMORY) {
 		dev_warn(kfd_device,
-			"Sending SIGSEGV to HSA Process with PID %d ",
-				p->lead_thread->pid);
+			"Sending SIGSEGV to process %d (pasid 0x%x)",
+				p->lead_thread->pid, p->pasid);
 		send_sig(SIGSEGV, p->lead_thread, 0);
 	}
 
@@ -861,13 +860,13 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 	if (send_signal) {
 		if (send_sigterm) {
 			dev_warn(kfd_device,
-				"Sending SIGTERM to HSA Process with PID %d ",
-					p->lead_thread->pid);
+				"Sending SIGTERM to process %d (pasid 0x%x)",
+					p->lead_thread->pid, p->pasid);
 			send_sig(SIGTERM, p->lead_thread, 0);
 		} else {
 			dev_err(kfd_device,
-				"HSA Process (PID %d) got unhandled exception",
-				p->lead_thread->pid);
+				"Process %d (pasid 0x%x) got unhandled exception",
+				p->lead_thread->pid, p->pasid);
 		}
 	}
 }
@@ -936,7 +935,8 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	/* Workaround on Raven to not kill the process when memory is freed
 	 * before IOMMU is able to finish processing all the excessive PPRs
 	 */
-	if (dev->device_info->asic_family != CHIP_RAVEN) {
+	if (dev->device_info->asic_family != CHIP_RAVEN &&
+	    dev->device_info->asic_family != CHIP_RENOIR) {
 		mutex_lock(&p->event_mutex);
 
 		/* Lookup events by type and signal them */

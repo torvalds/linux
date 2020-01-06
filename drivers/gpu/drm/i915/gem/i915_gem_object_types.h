@@ -31,10 +31,11 @@ struct i915_lut_handle {
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
 #define I915_GEM_OBJECT_HAS_STRUCT_PAGE	BIT(0)
-#define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(1)
-#define I915_GEM_OBJECT_IS_PROXY	BIT(2)
-#define I915_GEM_OBJECT_NO_GGTT		BIT(3)
-#define I915_GEM_OBJECT_ASYNC_CANCEL	BIT(4)
+#define I915_GEM_OBJECT_HAS_IOMEM	BIT(1)
+#define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(2)
+#define I915_GEM_OBJECT_IS_PROXY	BIT(3)
+#define I915_GEM_OBJECT_NO_GGTT		BIT(4)
+#define I915_GEM_OBJECT_ASYNC_CANCEL	BIT(5)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -60,6 +61,23 @@ struct drm_i915_gem_object_ops {
 
 	int (*dmabuf_export)(struct drm_i915_gem_object *obj);
 	void (*release)(struct drm_i915_gem_object *obj);
+};
+
+enum i915_mmap_type {
+	I915_MMAP_TYPE_GTT = 0,
+	I915_MMAP_TYPE_WC,
+	I915_MMAP_TYPE_WB,
+	I915_MMAP_TYPE_UC,
+};
+
+struct i915_mmap_offset {
+	struct drm_device *dev;
+	struct drm_vma_offset_node vma_node;
+	struct drm_i915_gem_object *obj;
+	struct drm_file *file;
+	enum i915_mmap_type mmap_type;
+
+	struct list_head offset;
 };
 
 struct drm_i915_gem_object {
@@ -117,12 +135,18 @@ struct drm_i915_gem_object {
 	unsigned int userfault_count;
 	struct list_head userfault_link;
 
+	struct {
+		spinlock_t lock; /* Protects access to mmo offsets */
+		struct list_head offsets;
+	} mmo;
+
 	I915_SELFTEST_DECLARE(struct list_head st_link);
 
 	unsigned long flags;
 #define I915_BO_ALLOC_CONTIGUOUS BIT(0)
 #define I915_BO_ALLOC_VOLATILE   BIT(1)
 #define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS | I915_BO_ALLOC_VOLATILE)
+#define I915_BO_READONLY         BIT(2)
 
 	/*
 	 * Is the object to be mapped as read-only to the GPU
@@ -149,7 +173,7 @@ struct drm_i915_gem_object {
 	 */
 	u16 write_domain;
 
-	struct intel_frontbuffer *frontbuffer;
+	struct intel_frontbuffer __rcu *frontbuffer;
 
 	/** Current tiling stride for the object, if it's tiled. */
 	unsigned int tiling_and_stride;
@@ -161,7 +185,11 @@ struct drm_i915_gem_object {
 	atomic_t bind_count;
 
 	struct {
-		struct mutex lock; /* protects the pages and their use */
+		/*
+		 * Protects the pages and their use. Do not use directly, but
+		 * instead go through the pin/unpin interfaces.
+		 */
+		struct mutex lock;
 		atomic_t pages_pin_count;
 		atomic_t shrink_pin;
 

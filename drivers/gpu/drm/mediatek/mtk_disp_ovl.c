@@ -3,6 +3,8 @@
  * Copyright (c) 2015 MediaTek Inc.
  */
 
+#include <drm/drm_fourcc.h>
+
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
@@ -50,6 +52,8 @@
 					OVL_CON_CLRFMT_RGB : 0)
 #define	OVL_CON_AEN		BIT(8)
 #define	OVL_CON_ALPHA		0xff
+#define	OVL_CON_VIRT_FLIP	BIT(9)
+#define	OVL_CON_HORZ_FLIP	BIT(10)
 
 struct mtk_disp_ovl_data {
 	unsigned int addr;
@@ -135,6 +139,40 @@ static unsigned int mtk_ovl_layer_nr(struct mtk_ddp_comp *comp)
 	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
 
 	return ovl->data->layer_nr;
+}
+
+static unsigned int mtk_ovl_supported_rotations(struct mtk_ddp_comp *comp)
+{
+	return DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
+	       DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y;
+}
+
+static int mtk_ovl_layer_check(struct mtk_ddp_comp *comp, unsigned int idx,
+			       struct mtk_plane_state *mtk_state)
+{
+	struct drm_plane_state *state = &mtk_state->base;
+	unsigned int rotation = 0;
+
+	rotation = drm_rotation_simplify(state->rotation,
+					 DRM_MODE_ROTATE_0 |
+					 DRM_MODE_REFLECT_X |
+					 DRM_MODE_REFLECT_Y);
+	rotation &= ~DRM_MODE_ROTATE_0;
+
+	/* We can only do reflection, not rotation */
+	if ((rotation & DRM_MODE_ROTATE_MASK) != 0)
+		return -EINVAL;
+
+	/*
+	 * TODO: Rotating/reflecting YUV buffers is not supported at this time.
+	 *	 Only RGB[AX] variants are supported.
+	 */
+	if (state->fb->format->is_yuv && rotation != 0)
+		return -EINVAL;
+
+	state->rotation = rotation;
+
+	return 0;
 }
 
 static void mtk_ovl_layer_on(struct mtk_ddp_comp *comp, unsigned int idx)
@@ -229,6 +267,16 @@ static void mtk_ovl_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 	if (idx != 0)
 		con |= OVL_CON_AEN | OVL_CON_ALPHA;
 
+	if (pending->rotation & DRM_MODE_REFLECT_Y) {
+		con |= OVL_CON_VIRT_FLIP;
+		addr += (pending->height - 1) * pending->pitch;
+	}
+
+	if (pending->rotation & DRM_MODE_REFLECT_X) {
+		con |= OVL_CON_HORZ_FLIP;
+		addr += pending->pitch - 1;
+	}
+
 	writel_relaxed(con, comp->regs + DISP_REG_OVL_CON(idx));
 	writel_relaxed(pitch, comp->regs + DISP_REG_OVL_PITCH(idx));
 	writel_relaxed(src_size, comp->regs + DISP_REG_OVL_SRC_SIZE(idx));
@@ -263,9 +311,11 @@ static const struct mtk_ddp_comp_funcs mtk_disp_ovl_funcs = {
 	.stop = mtk_ovl_stop,
 	.enable_vblank = mtk_ovl_enable_vblank,
 	.disable_vblank = mtk_ovl_disable_vblank,
+	.supported_rotations = mtk_ovl_supported_rotations,
 	.layer_nr = mtk_ovl_layer_nr,
 	.layer_on = mtk_ovl_layer_on,
 	.layer_off = mtk_ovl_layer_off,
+	.layer_check = mtk_ovl_layer_check,
 	.layer_config = mtk_ovl_layer_config,
 	.bgclr_in_on = mtk_ovl_bgclr_in_on,
 	.bgclr_in_off = mtk_ovl_bgclr_in_off,

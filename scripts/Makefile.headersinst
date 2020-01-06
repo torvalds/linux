@@ -56,9 +56,6 @@ new-dirs      := $(filter-out $(existing-dirs), $(wanted-dirs))
 $(if $(new-dirs), $(shell mkdir -p $(new-dirs)))
 
 # Rules
-
-ifndef HDRCHECK
-
 quiet_cmd_install = HDRINST $@
       cmd_install = $(CONFIG_SHELL) $(srctree)/scripts/headers_install.sh $< $@
 
@@ -80,21 +77,6 @@ endif
 existing-headers := $(filter $(old-headers), $(all-headers))
 
 -include $(foreach f,$(existing-headers),$(dir $(f)).$(notdir $(f)).cmd)
-
-else
-
-quiet_cmd_check = HDRCHK  $<
-      cmd_check = $(PERL) $(srctree)/scripts/headers_check.pl $(dst) $(SRCARCH) $<; touch $@
-
-check-files := $(addsuffix .chk, $(all-headers))
-
-$(check-files): $(dst)/%.chk : $(dst)/% $(srctree)/scripts/headers_check.pl
-	$(call cmd,check)
-
-__headers: $(check-files)
-	@:
-
-endif
 
 PHONY += FORCE
 FORCE:

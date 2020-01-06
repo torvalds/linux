@@ -3,6 +3,7 @@
 #define _ASM_POWERPC_KUP_8XX_H_
 
 #include <asm/bug.h>
+#include <asm/mmu.h>
 
 #ifdef CONFIG_PPC_KUAP
 

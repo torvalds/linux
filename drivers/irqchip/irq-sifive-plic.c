@@ -181,7 +181,7 @@ static void plic_handle_irq(struct pt_regs *regs)
 
 	WARN_ON_ONCE(!handler->present);
 
-	csr_clear(sie, SIE_SEIE);
+	csr_clear(CSR_IE, IE_EIE);
 	while ((hwirq = readl(claim))) {
 		int irq = irq_find_mapping(plic_irqdomain, hwirq);
 
@@ -191,7 +191,7 @@ static void plic_handle_irq(struct pt_regs *regs)
 		else
 			generic_handle_irq(irq);
 	}
-	csr_set(sie, SIE_SEIE);
+	csr_set(CSR_IE, IE_EIE);
 }
 
 /*
@@ -252,8 +252,11 @@ static int __init plic_init(struct device_node *node,
 			continue;
 		}
 
-		/* skip context holes */
-		if (parent.args[0] == -1)
+		/*
+		 * Skip contexts other than external interrupts for our
+		 * privilege level.
+		 */
+		if (parent.args[0] != IRQ_EXT)
 			continue;
 
 		hartid = plic_find_hart_id(parent.np);

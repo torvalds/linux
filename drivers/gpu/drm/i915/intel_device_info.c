@@ -73,9 +73,30 @@ const char *intel_platform_name(enum intel_platform platform)
 	return platform_names[platform];
 }
 
-void intel_device_info_dump_flags(const struct intel_device_info *info,
-				  struct drm_printer *p)
+static const char *iommu_name(void)
 {
+	const char *msg = "n/a";
+
+#ifdef CONFIG_INTEL_IOMMU
+	msg = enableddisabled(intel_iommu_gfx_mapped);
+#endif
+
+	return msg;
+}
+
+void intel_device_info_print_static(const struct intel_device_info *info,
+				    struct drm_printer *p)
+{
+	drm_printf(p, "engines: %x\n", info->engine_mask);
+	drm_printf(p, "gen: %d\n", info->gen);
+	drm_printf(p, "gt: %d\n", info->gt);
+	drm_printf(p, "iommu: %s\n", iommu_name());
+	drm_printf(p, "memory-regions: %x\n", info->memory_regions);
+	drm_printf(p, "page-sizes: %x\n", info->page_sizes);
+	drm_printf(p, "platform: %s\n", intel_platform_name(info->platform));
+	drm_printf(p, "ppgtt-size: %d\n", info->ppgtt_size);
+	drm_printf(p, "ppgtt-type: %d\n", info->ppgtt_type);
+
 #define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, yesno(info->name));
 	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
@@ -106,8 +127,8 @@ static void sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 	drm_printf(p, "has EU power gating: %s\n", yesno(sseu->has_eu_pg));
 }
 
-void intel_device_info_dump_runtime(const struct intel_runtime_info *info,
-				    struct drm_printer *p)
+void intel_device_info_print_runtime(const struct intel_runtime_info *info,
+				     struct drm_printer *p)
 {
 	sseu_dump(&info->sseu, p);
 
@@ -148,8 +169,8 @@ static void sseu_set_eus(struct sseu_dev_info *sseu, int slice, int subslice,
 	}
 }
 
-void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
-				     struct drm_printer *p)
+void intel_device_info_print_topology(const struct sseu_dev_info *sseu,
+				      struct drm_printer *p)
 {
 	int s, ss;
 
@@ -808,6 +829,8 @@ static const u16 subplatform_ult_ids[] = {
 	INTEL_WHL_U_GT1_IDS(0),
 	INTEL_WHL_U_GT2_IDS(0),
 	INTEL_WHL_U_GT3_IDS(0),
+	INTEL_CML_U_GT1_IDS(0),
+	INTEL_CML_U_GT2_IDS(0),
 };
 
 static const u16 subplatform_ulx_ids[] = {
@@ -981,6 +1004,19 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 				  enabled_mask);
 		else
 			info->pipe_mask = enabled_mask;
+
+		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
+			info->display.has_hdcp = 0;
+
+		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
+			info->display.has_fbc = 0;
+
+		if (INTEL_GEN(dev_priv) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
+			info->display.has_csr = 0;
+
+		if (INTEL_GEN(dev_priv) >= 10 &&
+		    (dfsm & CNL_DFSM_DISPLAY_DSC_DISABLE))
+			info->display.has_dsc = 0;
 	}
 
 	/* Initialize slice/subslice/EU info */

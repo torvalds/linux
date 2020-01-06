@@ -15,6 +15,7 @@
 #define _ASM_FIXMAP_H
 
 #ifndef __ASSEMBLY__
+#include <linux/sizes.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #ifdef CONFIG_HIGHMEM
@@ -63,7 +64,22 @@ enum fixed_addresses {
 	FIX_IMMR_BASE = __ALIGN_MASK(FIX_IMMR_START, FIX_IMMR_SIZE - 1) - 1 +
 		       FIX_IMMR_SIZE,
 #endif
+#ifdef CONFIG_PPC_83xx
+	/* For IMMR we need an aligned 2M area */
+#define FIX_IMMR_SIZE	(SZ_2M / PAGE_SIZE)
+	FIX_IMMR_START,
+	FIX_IMMR_BASE = __ALIGN_MASK(FIX_IMMR_START, FIX_IMMR_SIZE - 1) - 1 +
+		       FIX_IMMR_SIZE,
+#endif
 	/* FIX_PCIE_MCFG, */
+	__end_of_permanent_fixed_addresses,
+
+#define NR_FIX_BTMAPS		(SZ_256K / PAGE_SIZE)
+#define FIX_BTMAPS_SLOTS	16
+#define TOTAL_FIX_BTMAPS	(NR_FIX_BTMAPS * FIX_BTMAPS_SLOTS)
+
+	FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
+	FIX_BTMAP_BEGIN = FIX_BTMAP_END + TOTAL_FIX_BTMAPS - 1,
 	__end_of_fixed_addresses
 };
 
@@ -71,14 +87,22 @@ enum fixed_addresses {
 #define FIXADDR_START		(FIXADDR_TOP - __FIXADDR_SIZE)
 
 #define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NCG
+#define FIXMAP_PAGE_IO	PAGE_KERNEL_NCG
 
 #include <asm-generic/fixmap.h>
 
 static inline void __set_fixmap(enum fixed_addresses idx,
 				phys_addr_t phys, pgprot_t flags)
 {
-	map_kernel_page(fix_to_virt(idx), phys, flags);
+	if (__builtin_constant_p(idx))
+		BUILD_BUG_ON(idx >= __end_of_fixed_addresses);
+	else if (WARN_ON(idx >= __end_of_fixed_addresses))
+		return;
+
+	map_kernel_page(__fix_to_virt(idx), phys, flags);
 }
+
+#define __early_set_fixmap	__set_fixmap
 
 #endif /* !__ASSEMBLY__ */
 #endif

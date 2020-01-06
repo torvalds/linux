@@ -233,4 +233,6 @@ void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 					void *vaddr);
 void goya_mmu_remove_device_cpu_mappings(struct hl_device *hdev);
 
+int goya_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
+
 #endif /* GOYAP_H_ */

@@ -58,7 +58,7 @@ static int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			priv->smu_tables.entry[table_id].table_id);
 
 	/* flush hdp cache */
-	adev->nbio_funcs->hdp_flush(adev, NULL);
+	adev->nbio.funcs->hdp_flush(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
@@ -70,6 +70,12 @@ static int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
 	struct vega10_smumgr *priv = hwmgr->smu_backend;
+
+	/* under sriov, vbios or hypervisor driver
+	 * has already copy table to smc so here only skip it
+	 */
+	if (!hwmgr->not_vf)
+		return 0;
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -99,6 +105,14 @@ int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
 {
 	int msg = enable ? PPSMC_MSG_EnableSmuFeatures :
 			PPSMC_MSG_DisableSmuFeatures;
+
+	/* VF has no permission to change smu feature due
+	 * to security concern even under pp one vf mode
+	 * it still can't do it. For vega10, the smu in
+	 * vbios will enable the appropriate features.
+	 * */
+	if (!hwmgr->not_vf)
+		return 0;
 
 	return smum_send_msg_to_smc_with_parameter(hwmgr,
 			msg, feature_mask);

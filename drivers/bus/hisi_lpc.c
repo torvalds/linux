@@ -74,7 +74,7 @@ struct hisi_lpc_dev {
 /* About 10us. This is specific for single IO operations, such as inb */
 #define LPC_PEROP_WAITCNT	100
 
-static int wait_lpc_idle(unsigned char *mbase, unsigned int waitcnt)
+static int wait_lpc_idle(void __iomem *mbase, unsigned int waitcnt)
 {
 	u32 status;
 
@@ -209,7 +209,7 @@ static u32 hisi_lpc_comm_in(void *hostdata, unsigned long pio, size_t dwidth)
 	struct hisi_lpc_dev *lpcdev = hostdata;
 	struct lpc_cycle_para iopara;
 	unsigned long addr;
-	u32 rd_data = 0;
+	__le32 rd_data = 0;
 	int ret;
 
 	if (!lpcdev || !dwidth || dwidth > LPC_MAX_DWIDTH)
@@ -244,13 +244,12 @@ static void hisi_lpc_comm_out(void *hostdata, unsigned long pio,
 	struct lpc_cycle_para iopara;
 	const unsigned char *buf;
 	unsigned long addr;
+	__le32 _val = cpu_to_le32(val);
 
 	if (!lpcdev || !dwidth || dwidth > LPC_MAX_DWIDTH)
 		return;
 
-	val = cpu_to_le32(val);
-
-	buf = (const unsigned char *)&val;
+	buf = (const unsigned char *)&_val;
 	addr = hisi_lpc_pio_to_addr(lpcdev, pio);
 
 	iopara.opflags = FG_INCRADDR_LPC;

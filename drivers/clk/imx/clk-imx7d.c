@@ -403,8 +403,8 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	hws = clk_hw_data->hws;
 
 	hws[IMX7D_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0);
-	hws[IMX7D_OSC_24M_CLK] = __clk_get_hw(of_clk_get_by_name(ccm_node, "osc"));
-	hws[IMX7D_CKIL] = __clk_get_hw(of_clk_get_by_name(ccm_node, "ckil"));
+	hws[IMX7D_OSC_24M_CLK] = imx_obtain_fixed_clk_hw(ccm_node, "osc");
+	hws[IMX7D_CKIL] = imx_obtain_fixed_clk_hw(ccm_node, "ckil");
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx7d-anatop");
 	base = of_iomap(np, 0);

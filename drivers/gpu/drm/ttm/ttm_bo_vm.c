@@ -128,6 +128,12 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
 vm_fault_t ttm_bo_vm_reserve(struct ttm_buffer_object *bo,
 			     struct vm_fault *vmf)
 {
+	/*
+	 * Work around locking order reversal in fault / nopfn
+	 * between mmap_sem and bo_reserve: Perform a trylock operation
+	 * for reserve, and if it fails, retry the fault after waiting
+	 * for the buffer to become unreserved.
+	 */
 	if (unlikely(!dma_resv_trylock(bo->base.resv))) {
 		if (vmf->flags & FAULT_FLAG_ALLOW_RETRY) {
 			if (!(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {

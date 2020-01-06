@@ -922,7 +922,7 @@ static void intel_hdcp_prop_work(struct work_struct *work)
 bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port)
 {
 	/* PORT E doesn't have HDCP, and PORT F is disabled */
-	return INTEL_GEN(dev_priv) >= 9 && port < PORT_E;
+	return INTEL_INFO(dev_priv)->display.has_hdcp && port < PORT_E;
 }
 
 static int
@@ -1821,23 +1821,6 @@ enum mei_fw_tc intel_get_mei_fw_tc(enum transcoder cpu_transcoder)
 	}
 }
 
-void intel_hdcp_transcoder_config(struct intel_connector *connector,
-				  enum transcoder cpu_transcoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	struct intel_hdcp *hdcp = &connector->hdcp;
-
-	if (!hdcp->shim)
-		return;
-
-	if (INTEL_GEN(dev_priv) >= 12) {
-		mutex_lock(&hdcp->mutex);
-		hdcp->cpu_transcoder = cpu_transcoder;
-		hdcp->port_data.fw_tc = intel_get_mei_fw_tc(cpu_transcoder);
-		mutex_unlock(&hdcp->mutex);
-	}
-}
-
 static inline int initialize_hdcp_port_data(struct intel_connector *connector,
 					    const struct intel_hdcp_shim *shim)
 {
@@ -1887,7 +1870,7 @@ static bool is_hdcp2_supported(struct drm_i915_private *dev_priv)
 		return false;
 
 	return (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv) ||
-		IS_KABYLAKE(dev_priv));
+		IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv));
 }
 
 void intel_hdcp_component_init(struct drm_i915_private *dev_priv)
@@ -1959,8 +1942,10 @@ int intel_hdcp_init(struct intel_connector *connector,
 	return 0;
 }
 
-int intel_hdcp_enable(struct intel_connector *connector, u8 content_type)
+int intel_hdcp_enable(struct intel_connector *connector,
+		      enum transcoder cpu_transcoder, u8 content_type)
 {
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	unsigned long check_link_interval = DRM_HDCP_CHECK_PERIOD_MS;
 	int ret = -EINVAL;
@@ -1971,6 +1956,11 @@ int intel_hdcp_enable(struct intel_connector *connector, u8 content_type)
 	mutex_lock(&hdcp->mutex);
 	WARN_ON(hdcp->value == DRM_MODE_CONTENT_PROTECTION_ENABLED);
 	hdcp->content_type = content_type;
+
+	if (INTEL_GEN(dev_priv) >= 12) {
+		hdcp->cpu_transcoder = cpu_transcoder;
+		hdcp->port_data.fw_tc = intel_get_mei_fw_tc(cpu_transcoder);
+	}
 
 	/*
 	 * Considering that HDCP2.2 is more secure than HDCP1.4, If the setup

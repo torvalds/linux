@@ -34,7 +34,7 @@ struct btrfs_caching_control {
 	struct mutex mutex;
 	wait_queue_head_t wait;
 	struct btrfs_work work;
-	struct btrfs_block_group_cache *block_group;
+	struct btrfs_block_group *block_group;
 	u64 progress;
 	refcount_t count;
 };
@@ -42,14 +42,15 @@ struct btrfs_caching_control {
 /* Once caching_thread() finds this much free space, it will wake up waiters. */
 #define CACHING_CTL_WAKE_UP SZ_2M
 
-struct btrfs_block_group_cache {
-	struct btrfs_key key;
-	struct btrfs_block_group_item item;
+struct btrfs_block_group {
 	struct btrfs_fs_info *fs_info;
 	struct inode *inode;
 	spinlock_t lock;
+	u64 start;
+	u64 length;
 	u64 pinned;
 	u64 reserved;
+	u64 used;
 	u64 delalloc_bytes;
 	u64 bytes_super;
 	u64 flags;
@@ -159,7 +160,7 @@ struct btrfs_block_group_cache {
 
 #ifdef CONFIG_BTRFS_DEBUG
 static inline int btrfs_should_fragment_free_space(
-		struct btrfs_block_group_cache *block_group)
+		struct btrfs_block_group *block_group)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 
@@ -170,29 +171,29 @@ static inline int btrfs_should_fragment_free_space(
 }
 #endif
 
-struct btrfs_block_group_cache *btrfs_lookup_first_block_group(
+struct btrfs_block_group *btrfs_lookup_first_block_group(
 		struct btrfs_fs_info *info, u64 bytenr);
-struct btrfs_block_group_cache *btrfs_lookup_block_group(
+struct btrfs_block_group *btrfs_lookup_block_group(
 		struct btrfs_fs_info *info, u64 bytenr);
-struct btrfs_block_group_cache *btrfs_next_block_group(
-		struct btrfs_block_group_cache *cache);
-void btrfs_get_block_group(struct btrfs_block_group_cache *cache);
-void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
+struct btrfs_block_group *btrfs_next_block_group(
+		struct btrfs_block_group *cache);
+void btrfs_get_block_group(struct btrfs_block_group *cache);
+void btrfs_put_block_group(struct btrfs_block_group *cache);
 void btrfs_dec_block_group_reservations(struct btrfs_fs_info *fs_info,
 					const u64 start);
-void btrfs_wait_block_group_reservations(struct btrfs_block_group_cache *bg);
+void btrfs_wait_block_group_reservations(struct btrfs_block_group *bg);
 bool btrfs_inc_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
 void btrfs_dec_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
-void btrfs_wait_nocow_writers(struct btrfs_block_group_cache *bg);
-void btrfs_wait_block_group_cache_progress(struct btrfs_block_group_cache *cache,
+void btrfs_wait_nocow_writers(struct btrfs_block_group *bg);
+void btrfs_wait_block_group_cache_progress(struct btrfs_block_group *cache,
 				           u64 num_bytes);
-int btrfs_wait_block_group_cache_done(struct btrfs_block_group_cache *cache);
-int btrfs_cache_block_group(struct btrfs_block_group_cache *cache,
+int btrfs_wait_block_group_cache_done(struct btrfs_block_group *cache);
+int btrfs_cache_block_group(struct btrfs_block_group *cache,
 			    int load_cache_only);
 void btrfs_put_caching_control(struct btrfs_caching_control *ctl);
 struct btrfs_caching_control *btrfs_get_caching_control(
-		struct btrfs_block_group_cache *cache);
-u64 add_new_free_space(struct btrfs_block_group_cache *block_group,
+		struct btrfs_block_group *cache);
+u64 add_new_free_space(struct btrfs_block_group *block_group,
 		       u64 start, u64 end);
 struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 				struct btrfs_fs_info *fs_info,
@@ -200,21 +201,22 @@ struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			     u64 group_start, struct extent_map *em);
 void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info);
-void btrfs_mark_bg_unused(struct btrfs_block_group_cache *bg);
+void btrfs_mark_bg_unused(struct btrfs_block_group *bg);
 int btrfs_read_block_groups(struct btrfs_fs_info *info);
 int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 			   u64 type, u64 chunk_offset, u64 size);
 void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans);
-int btrfs_inc_block_group_ro(struct btrfs_block_group_cache *cache);
-void btrfs_dec_block_group_ro(struct btrfs_block_group_cache *cache);
+int btrfs_inc_block_group_ro(struct btrfs_block_group *cache,
+			     bool do_chunk_alloc);
+void btrfs_dec_block_group_ro(struct btrfs_block_group *cache);
 int btrfs_start_dirty_block_groups(struct btrfs_trans_handle *trans);
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans);
 int btrfs_setup_space_cache(struct btrfs_trans_handle *trans);
 int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 			     u64 bytenr, u64 num_bytes, int alloc);
-int btrfs_add_reserved_bytes(struct btrfs_block_group_cache *cache,
+int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
 			     u64 ram_bytes, u64 num_bytes, int delalloc);
-void btrfs_free_reserved_bytes(struct btrfs_block_group_cache *cache,
+void btrfs_free_reserved_bytes(struct btrfs_block_group *cache,
 			       u64 num_bytes, int delalloc);
 int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 		      enum btrfs_chunk_alloc_enum force);
@@ -239,8 +241,7 @@ static inline u64 btrfs_system_alloc_profile(struct btrfs_fs_info *fs_info)
 	return btrfs_get_alloc_profile(fs_info, BTRFS_BLOCK_GROUP_SYSTEM);
 }
 
-static inline int btrfs_block_group_cache_done(
-		struct btrfs_block_group_cache *cache)
+static inline int btrfs_block_group_done(struct btrfs_block_group *cache)
 {
 	smp_mb();
 	return cache->cached == BTRFS_CACHE_FINISHED ||

@@ -23,7 +23,6 @@
  *
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 
 #ifndef __DML2_DISPLAY_MODE_VBA_H__
 #define __DML2_DISPLAY_MODE_VBA_H__
@@ -155,6 +154,8 @@ struct vba_vars_st {
 	double UrgentLatencySupportUsChroma;
 	unsigned int DSCFormatFactor;
 
+	bool DummyPStateCheck;
+	bool DRAMClockChangeSupportsVActive;
 	bool PrefetchModeSupported;
 	enum self_refresh_affinity AllowDRAMSelfRefreshOrDRAMClockChangeInVblank; // Mode Support only
 	double XFCRemoteSurfaceFlipDelay;
@@ -387,6 +388,7 @@ struct vba_vars_st {
 
 	/* vba mode support */
 	/*inputs*/
+	bool EmbeddedPanel[DC__NUM_DPP__MAX];
 	bool SupportGFX7CompatibleTilingIn32bppAnd64bpp;
 	double MaxHSCLRatio;
 	double MaxVSCLRatio;
@@ -869,4 +871,3 @@ double CalculateWriteBackDISPCLK(
 		unsigned int WritebackChromaLineBufferWidth);
 
 #endif /* _DML2_DISPLAY_MODE_VBA_H_ */
-#endif

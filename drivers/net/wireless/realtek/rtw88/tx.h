@@ -35,6 +35,8 @@
 	le32p_replace_bits((__le32 *)(txdesc) + 0x09, value, GENMASK(23, 12))
 #define SET_TX_DESC_MAX_AGG_NUM(txdesc, value)                                 \
 	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, GENMASK(21, 17))
+#define SET_TX_DESC_USE_RTS(tx_desc, value)                                    \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, BIT(12))
 #define SET_TX_DESC_AMPDU_DENSITY(txdesc, value)                               \
 	le32p_replace_bits((__le32 *)(txdesc) + 0x02, value, GENMASK(22, 20))
 #define SET_TX_DESC_DATA_STBC(txdesc, value)                                   \
@@ -75,6 +77,12 @@ enum rtw_tx_desc_queue_select {
 	TX_DESC_QSEL_H2C	= 19,
 };
 
+void rtw_tx(struct rtw_dev *rtwdev,
+	    struct ieee80211_tx_control *control,
+	    struct sk_buff *skb);
+void rtw_txq_init(struct rtw_dev *rtwdev, struct ieee80211_txq *txq);
+void rtw_txq_cleanup(struct rtw_dev *rtwdev, struct ieee80211_txq *txq);
+void rtw_tx_tasklet(unsigned long data);
 void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 			    struct rtw_tx_pkt_info *pkt_info,
 			    struct ieee80211_tx_control *control,

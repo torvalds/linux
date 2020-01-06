@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Ingenic SoCs drivers"
-	depends on MIPS
+	depends on MIPS || COMPILE_TEST
 
 config INGENIC_CGU_COMMON
 	bool
@@ -44,6 +44,16 @@ config INGENIC_CGU_JZ4780
 	  and compatible SoCs.
 
 	  If building for a JZ4780 SoC, you want to say Y here.
+
+config INGENIC_CGU_X1000
+	bool "Ingenic X1000 CGU driver"
+	default MACH_X1000
+	select INGENIC_CGU_COMMON
+	help
+	  Support the clocks provided by the CGU hardware on Ingenic X1000
+	  and compatible SoCs.
+
+	  If building for a X1000 SoC, you want to say Y here.
 
 config INGENIC_TCU_CLK
 	bool "Ingenic JZ47xx TCU clocks driver"

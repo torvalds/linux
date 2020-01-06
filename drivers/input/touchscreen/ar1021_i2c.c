@@ -13,7 +13,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
-#define AR1021_TOCUH_PKG_SIZE	5
+#define AR1021_TOUCH_PKG_SIZE	5
 
 #define AR1021_MAX_X	4095
 #define AR1021_MAX_Y	4095
@@ -25,7 +25,7 @@
 struct ar1021_i2c {
 	struct i2c_client *client;
 	struct input_dev *input;
-	u8 data[AR1021_TOCUH_PKG_SIZE];
+	u8 data[AR1021_TOUCH_PKG_SIZE];
 };
 
 static irqreturn_t ar1021_i2c_irq(int irq, void *dev_id)

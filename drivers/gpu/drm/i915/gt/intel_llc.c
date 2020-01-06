@@ -48,7 +48,7 @@ static bool get_ia_constants(struct intel_llc *llc,
 			     struct ia_constants *consts)
 {
 	struct drm_i915_private *i915 = llc_to_gt(llc)->i915;
-	struct intel_rps *rps = &i915->gt_pm.rps;
+	struct intel_rps *rps = &llc_to_gt(llc)->rps;
 
 	if (rps->max_freq <= rps->min_freq)
 		return false;

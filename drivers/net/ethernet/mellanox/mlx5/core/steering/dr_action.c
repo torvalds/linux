@@ -1577,6 +1577,7 @@ int mlx5dr_action_destroy(struct mlx5dr_action *action)
 		break;
 	case DR_ACTION_TYP_MODIFY_HDR:
 		mlx5dr_icm_free_chunk(action->rewrite.chunk);
+		kfree(action->rewrite.data);
 		refcount_dec(&action->rewrite.dmn->refcount);
 		break;
 	default:

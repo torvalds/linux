@@ -28,8 +28,10 @@
 #include <linux/dma-fence.h>
 #include <linux/lockdep.h>
 
+#include "gem/i915_gem_context_types.h"
 #include "gt/intel_context_types.h"
 #include "gt/intel_engine_types.h"
+#include "gt/intel_timeline_types.h"
 
 #include "i915_gem.h"
 #include "i915_scheduler.h"
@@ -41,13 +43,18 @@
 struct drm_file;
 struct drm_i915_gem_object;
 struct i915_request;
-struct intel_timeline;
-struct intel_timeline_cacheline;
 
 struct i915_capture_list {
 	struct i915_capture_list *next;
 	struct i915_vma *vma;
 };
+
+#define RQ_TRACE(rq, fmt, ...) do {					\
+	const struct i915_request *rq__ = (rq);				\
+	ENGINE_TRACE(rq__->engine, "fence %llx:%lld, current %d" fmt,	\
+		     rq__->fence.context, rq__->fence.seqno,		\
+		     hwsp_seqno(rq__), ##__VA_ARGS__);			\
+} while (0)
 
 enum {
 	/*
@@ -109,9 +116,8 @@ struct i915_request {
 	 * i915_request_free() will then decrement the refcount on the
 	 * context.
 	 */
-	struct i915_gem_context *gem_context;
 	struct intel_engine_cs *engine;
-	struct intel_context *hw_context;
+	struct intel_context *context;
 	struct intel_ring *ring;
 	struct intel_timeline __rcu *timeline;
 	struct list_head signal_link;
@@ -144,6 +150,10 @@ struct i915_request {
 	union {
 		wait_queue_entry_t submitq;
 		struct i915_sw_dma_fence_cb dmaq;
+		struct i915_request_duration_cb {
+			struct dma_fence_cb cb;
+			ktime_t emitted;
+		} duration;
 	};
 	struct list_head execute_cb;
 	struct i915_sw_fence semaphore;
@@ -176,7 +186,7 @@ struct i915_request {
 	 * inside the timeline's HWSP vma, but it is only valid while this
 	 * request has not completed and guarded by the timeline mutex.
 	 */
-	struct intel_timeline_cacheline *hwsp_cacheline;
+	struct intel_timeline_cacheline __rcu *hwsp_cacheline;
 
 	/** Position in the ring of the start of the request */
 	u32 head;
@@ -452,6 +462,13 @@ i915_request_timeline(struct i915_request *rq)
 	/* Valid only while the request is being constructed (or retired). */
 	return rcu_dereference_protected(rq->timeline,
 					 lockdep_is_held(&rcu_access_pointer(rq->timeline)->mutex));
+}
+
+static inline struct i915_gem_context *
+i915_request_gem_context(struct i915_request *rq)
+{
+	/* Valid only while the request is being constructed (or retired). */
+	return rcu_dereference_protected(rq->context->gem_context, true);
 }
 
 static inline struct intel_timeline *

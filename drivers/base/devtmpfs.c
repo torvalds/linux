@@ -359,7 +359,7 @@ static int handle_remove(const char *nodename, struct device *dev)
  * If configured, or requested by the commandline, devtmpfs will be
  * auto-mounted after the kernel mounted the root filesystem.
  */
-int devtmpfs_mount(const char *mntdir)
+int devtmpfs_mount(void)
 {
 	int err;
 
@@ -369,7 +369,7 @@ int devtmpfs_mount(const char *mntdir)
 	if (!thread)
 		return 0;
 
-	err = ksys_mount("devtmpfs", mntdir, "devtmpfs", MS_SILENT, NULL);
+	err = do_mount("devtmpfs", "dev", "devtmpfs", MS_SILENT, NULL);
 	if (err)
 		printk(KERN_INFO "devtmpfs: error mounting %i\n", err);
 	else
@@ -394,7 +394,7 @@ static int devtmpfsd(void *p)
 	*err = ksys_unshare(CLONE_NEWNS);
 	if (*err)
 		goto out;
-	*err = ksys_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, NULL);
+	*err = do_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, NULL);
 	if (*err)
 		goto out;
 	ksys_chdir("/.."); /* will traverse into overmounted root */

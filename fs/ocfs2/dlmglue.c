@@ -1687,7 +1687,7 @@ static void __ocfs2_cluster_unlock(struct ocfs2_super *osb,
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	if (lockres->l_lockdep_map.key != NULL)
-		rwsem_release(&lockres->l_lockdep_map, 1, caller_ip);
+		rwsem_release(&lockres->l_lockdep_map, caller_ip);
 #endif
 }
 

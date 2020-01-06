@@ -63,7 +63,7 @@ static int intel_huc_rsa_data_create(struct intel_huc *huc)
 	void *vaddr;
 	int err;
 
-	err = i915_inject_load_error(gt->i915, -ENXIO);
+	err = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (err)
 		return err;
 
@@ -161,7 +161,7 @@ int intel_huc_auth(struct intel_huc *huc)
 	if (!intel_uc_fw_is_loaded(&huc->fw))
 		return -ENOEXEC;
 
-	ret = i915_inject_load_error(gt->i915, -ENXIO);
+	ret = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (ret)
 		goto fail;
 

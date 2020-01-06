@@ -443,6 +443,7 @@ struct i915_ppgtt {
 struct gen6_ppgtt {
 	struct i915_ppgtt base;
 
+	struct mutex flush;
 	struct i915_vma *vma;
 	gen6_pte_t __iomem *pd_addr;
 
@@ -574,6 +575,11 @@ void i915_ggtt_enable_guc(struct i915_ggtt *ggtt);
 void i915_ggtt_disable_guc(struct i915_ggtt *ggtt);
 int i915_init_ggtt(struct drm_i915_private *dev_priv);
 void i915_ggtt_driver_release(struct drm_i915_private *dev_priv);
+
+static inline bool i915_ggtt_has_aperture(const struct i915_ggtt *ggtt)
+{
+	return ggtt->mappable_end > 0;
+}
 
 int i915_ppgtt_init_hw(struct intel_gt *gt);
 

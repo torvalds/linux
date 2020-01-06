@@ -59,9 +59,10 @@ class KernelDocDirective(Directive):
     optional_arguments = 4
     option_spec = {
         'doc': directives.unchanged_required,
-        'functions': directives.unchanged,
         'export': directives.unchanged,
         'internal': directives.unchanged,
+        'identifiers': directives.unchanged,
+        'functions': directives.unchanged,
     }
     has_content = False
 
@@ -77,6 +78,10 @@ class KernelDocDirective(Directive):
 
         tab_width = self.options.get('tab-width', self.state.document.settings.tab_width)
 
+        # 'function' is an alias of 'identifiers'
+        if 'functions' in self.options:
+            self.options['identifiers'] = self.options.get('functions')
+
         # FIXME: make this nicer and more robust against errors
         if 'export' in self.options:
             cmd += ['-export']
@@ -86,11 +91,11 @@ class KernelDocDirective(Directive):
             export_file_patterns = str(self.options.get('internal')).split()
         elif 'doc' in self.options:
             cmd += ['-function', str(self.options.get('doc'))]
-        elif 'functions' in self.options:
-            functions = self.options.get('functions').split()
-            if functions:
-                for f in functions:
-                    cmd += ['-function', f]
+        elif 'identifiers' in self.options:
+            identifiers = self.options.get('identifiers').split()
+            if identifiers:
+                for i in identifiers:
+                    cmd += ['-function', i]
             else:
                 cmd += ['-no-doc-sections']
 

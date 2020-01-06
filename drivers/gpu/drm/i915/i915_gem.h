@@ -30,6 +30,8 @@
 
 #include <drm/drm_drv.h>
 
+#include "i915_utils.h"
+
 struct drm_i915_private;
 
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
@@ -39,6 +41,7 @@ struct drm_i915_private;
 #define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
 		GEM_TRACE_ERR("%s:%d GEM_BUG_ON(%s)\n", \
 			      __func__, __LINE__, __stringify(condition)); \
+		GEM_TRACE_DUMP(); \
 		BUG(); \
 		} \
 	} while(0)
@@ -68,9 +71,10 @@ struct drm_i915_private;
 	pr_err(__VA_ARGS__);						\
 	trace_printk(__VA_ARGS__);					\
 } while (0)
-#define GEM_TRACE_DUMP() ftrace_dump(DUMP_ALL)
+#define GEM_TRACE_DUMP() \
+	do { ftrace_dump(DUMP_ALL); add_taint_for_CI(TAINT_WARN); } while (0)
 #define GEM_TRACE_DUMP_ON(expr) \
-	do { if (expr) ftrace_dump(DUMP_ALL); } while (0)
+	do { if (expr) GEM_TRACE_DUMP(); } while (0)
 #else
 #define GEM_TRACE(...) do { } while (0)
 #define GEM_TRACE_ERR(...) do { } while (0)
@@ -110,20 +114,6 @@ static inline bool __tasklet_enable(struct tasklet_struct *t)
 static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
 {
 	return test_bit(TASKLET_STATE_SCHED, &t->state);
-}
-
-static inline void cancel_timer(struct timer_list *t)
-{
-	if (!READ_ONCE(t->expires))
-		return;
-
-	del_timer(t);
-	WRITE_ONCE(t->expires, 0);
-}
-
-static inline bool timer_expired(const struct timer_list *t)
-{
-	return READ_ONCE(t->expires) && !timer_pending(t);
 }
 
 #endif /* __I915_GEM_H__ */

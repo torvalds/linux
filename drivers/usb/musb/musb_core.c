@@ -2431,14 +2431,12 @@ static int musb_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	int		irq = platform_get_irq_byname(pdev, "mc");
-	struct resource	*iomem;
 	void __iomem	*base;
 
 	if (irq <= 0)
 		return -ENODEV;
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, iomem);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

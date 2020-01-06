@@ -75,15 +75,15 @@ static bool validate_processing_unit(const void *p,
 
 	if (d->bLength < sizeof(*d))
 		return false;
-	len = d->bLength < sizeof(*d) + d->bNrInPins;
+	len = sizeof(*d) + d->bNrInPins;
 	if (d->bLength < len)
 		return false;
 	switch (v->protocol) {
 	case UAC_VERSION_1:
 	default:
-		/* bNrChannels, wChannelConfig, iChannelNames, bControlSize */
-		len += 1 + 2 + 1 + 1;
-		if (d->bLength < len) /* bControlSize */
+		/* bNrChannels, wChannelConfig, iChannelNames */
+		len += 1 + 2 + 1;
+		if (d->bLength < len + 1) /* bControlSize */
 			return false;
 		m = hdr[len];
 		len += 1 + m + 1; /* bControlSize, bmControls, iProcessing */
@@ -322,11 +322,28 @@ static bool validate_desc(unsigned char *hdr, int protocol,
 
 bool snd_usb_validate_audio_desc(void *p, int protocol)
 {
-	return validate_desc(p, protocol, audio_validators);
+	unsigned char *c = p;
+	bool valid;
+
+	valid = validate_desc(p, protocol, audio_validators);
+	if (!valid && snd_usb_skip_validation) {
+		print_hex_dump(KERN_ERR, "USB-audio: buggy audio desc: ",
+			       DUMP_PREFIX_NONE, 16, 1, c, c[0], true);
+		valid = true;
+	}
+	return valid;
 }
 
 bool snd_usb_validate_midi_desc(void *p)
 {
-	return validate_desc(p, UAC_VERSION_1, midi_validators);
-}
+	unsigned char *c = p;
+	bool valid;
 
+	valid = validate_desc(p, UAC_VERSION_1, midi_validators);
+	if (!valid && snd_usb_skip_validation) {
+		print_hex_dump(KERN_ERR, "USB-audio: buggy midi desc: ",
+			       DUMP_PREFIX_NONE, 16, 1, c, c[0], true);
+		valid = true;
+	}
+	return valid;
+}

@@ -27,6 +27,7 @@
 #include <linux/bitops.h>
 #include <linux/fs.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
@@ -666,6 +667,14 @@ void db8500_prcmu_write_masked(unsigned int reg, u32 mask, u32 value)
 struct prcmu_fw_version *prcmu_get_fw_version(void)
 {
 	return fw_info.valid ? &fw_info.version : NULL;
+}
+
+static bool prcmu_is_ulppll_disabled(void)
+{
+	struct prcmu_fw_version *ver;
+
+	ver = prcmu_get_fw_version();
+	return ver && ver->project == PRCMU_FW_PROJECT_U8420_SYSCLK;
 }
 
 bool prcmu_has_arm_maxopp(void)
@@ -1308,10 +1317,23 @@ static int request_sysclk(bool enable)
 
 static int request_timclk(bool enable)
 {
-	u32 val = (PRCM_TCR_DOZE_MODE | PRCM_TCR_TENSEL_MASK);
+	u32 val;
+
+	/*
+	 * On the U8420_CLKSEL firmware, the ULP (Ultra Low Power)
+	 * PLL is disabled so we cannot use doze mode, this will
+	 * stop the clock on this firmware.
+	 */
+	if (prcmu_is_ulppll_disabled())
+		val = 0;
+	else
+		val = (PRCM_TCR_DOZE_MODE | PRCM_TCR_TENSEL_MASK);
 
 	if (!enable)
-		val |= PRCM_TCR_STOP_TIMERS;
+		val |= PRCM_TCR_STOP_TIMERS |
+			PRCM_TCR_DOZE_MODE |
+			PRCM_TCR_TENSEL_MASK;
+
 	writel(val, PRCM_TCR);
 
 	return 0;
@@ -1615,7 +1637,8 @@ unsigned long prcmu_clock_rate(u8 clock)
 	if (clock < PRCMU_NUM_REG_CLOCKS)
 		return clock_rate(clock);
 	else if (clock == PRCMU_TIMCLK)
-		return ROOT_CLOCK_RATE / 16;
+		return prcmu_is_ulppll_disabled() ?
+			32768 : ROOT_CLOCK_RATE / 16;
 	else if (clock == PRCMU_SYSCLK)
 		return ROOT_CLOCK_RATE;
 	else if (clock == PRCMU_PLLSOC0)
@@ -2646,6 +2669,8 @@ static char *fw_project_name(u32 project)
 		return "U8520 MBL";
 	case PRCMU_FW_PROJECT_U8420:
 		return "U8420";
+	case PRCMU_FW_PROJECT_U8420_SYSCLK:
+		return "U8420-sysclk";
 	case PRCMU_FW_PROJECT_U9540:
 		return "U9540";
 	case PRCMU_FW_PROJECT_A9420:
@@ -2693,27 +2718,18 @@ static int db8500_irq_init(struct device_node *np)
 	return 0;
 }
 
-static void dbx500_fw_version_init(struct platform_device *pdev,
-			    u32 version_offset)
+static void dbx500_fw_version_init(struct device_node *np)
 {
-	struct resource *res;
 	void __iomem *tcpm_base;
 	u32 version;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "prcmu-tcpm");
-	if (!res) {
-		dev_err(&pdev->dev,
-			"Error: no prcmu tcpm memory region provided\n");
-		return;
-	}
-	tcpm_base = ioremap(res->start, resource_size(res));
+	tcpm_base = of_iomap(np, 1);
 	if (!tcpm_base) {
-		dev_err(&pdev->dev, "no prcmu tcpm mem region provided\n");
+		pr_err("no prcmu tcpm mem region provided\n");
 		return;
 	}
 
-	version = readl(tcpm_base + version_offset);
+	version = readl(tcpm_base + DB8500_PRCMU_FW_VERSION_OFFSET);
 	fw_info.version.project = (version & 0xFF);
 	fw_info.version.api_version = (version >> 8) & 0xFF;
 	fw_info.version.func_version = (version >> 16) & 0xFF;
@@ -2731,7 +2747,7 @@ static void dbx500_fw_version_init(struct platform_device *pdev,
 	iounmap(tcpm_base);
 }
 
-void __init db8500_prcmu_early_init(u32 phy_base, u32 size)
+void __init db8500_prcmu_early_init(void)
 {
 	/*
 	 * This is a temporary remap to bring up the clocks. It is
@@ -2740,9 +2756,17 @@ void __init db8500_prcmu_early_init(u32 phy_base, u32 size)
 	 * clock driver can probe independently. An early initcall will
 	 * still be needed, but it can be diverted into drivers/clk/ux500.
 	 */
-	prcmu_base = ioremap(phy_base, size);
-	if (!prcmu_base)
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "stericsson,db8500-prcmu");
+	prcmu_base = of_iomap(np, 0);
+	if (!prcmu_base) {
+		of_node_put(np);
 		pr_err("%s: ioremap() of prcmu registers failed!\n", __func__);
+		return;
+	}
+	dbx500_fw_version_init(np);
+	of_node_put(np);
 
 	spin_lock_init(&mb0_transfer.lock);
 	spin_lock_init(&mb0_transfer.dbb_irqs_lock);
@@ -3024,20 +3048,13 @@ static const struct mfd_cell common_prcmu_devs[] = {
 };
 
 static const struct mfd_cell db8500_prcmu_devs[] = {
-	{
-		.name = "db8500-prcmu-regulators",
-		.of_compatible = "stericsson,db8500-prcmu-regulator",
-		.platform_data = &db8500_regulators,
-		.pdata_size = sizeof(db8500_regulators),
-	},
-	{
-		.name = "cpuidle-dbx500",
-		.of_compatible = "stericsson,cpuidle-dbx500",
-	},
-	{
-		.name = "db8500-thermal",
-		.of_compatible = "stericsson,db8500-thermal",
-	},
+	OF_MFD_CELL("db8500-prcmu-regulators", NULL,
+		    &db8500_regulators, sizeof(db8500_regulators), 0,
+		    "stericsson,db8500-prcmu-regulator"),
+	OF_MFD_CELL("cpuidle-dbx500",
+		    NULL, NULL, 0, 0, "stericsson,cpuidle-dbx500"),
+	OF_MFD_CELL("db8500-thermal",
+		    NULL, NULL, 0, 0, "stericsson,db8500-thermal"),
 };
 
 static int db8500_prcmu_register_ab8500(struct device *parent)
@@ -3091,7 +3108,6 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	init_prcm_registers();
-	dbx500_fw_version_init(pdev, DB8500_PRCMU_FW_VERSION_OFFSET);
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu-tcdm");
 	if (!res) {
 		dev_err(&pdev->dev, "no prcmu tcdm region provided\n");

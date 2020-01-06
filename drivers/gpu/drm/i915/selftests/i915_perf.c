@@ -23,7 +23,8 @@ test_stream(struct i915_perf *perf)
 						   I915_ENGINE_CLASS_RENDER,
 						   0),
 		.sample_flags = SAMPLE_OA_REPORT,
-		.oa_format = I915_OA_FORMAT_C4_B8,
+		.oa_format = IS_GEN(perf->i915, 12) ?
+		I915_OA_FORMAT_A32u40_A4u32_B8_C8 : I915_OA_FORMAT_C4_B8,
 		.metrics_set = 1,
 	};
 	struct i915_perf_stream *stream;
@@ -131,7 +132,7 @@ static int live_noa_delay(void *arg)
 	for (i = 0; i < 4; i++)
 		intel_write_status_page(stream->engine, 0x100 + i, 0);
 
-	rq = i915_request_create(stream->engine->kernel_context);
+	rq = intel_engine_create_kernel_request(stream->engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto out;

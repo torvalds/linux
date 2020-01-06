@@ -18,6 +18,7 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
+#include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/random.h>
 #include <linux/rculist.h>
@@ -151,7 +152,7 @@ static unsigned int batadv_v_ogm_len(struct sk_buff *skb)
  * @skb: the OGM to check
  * @hard_iface: the interface to use to send the OGM
  *
- * Caller needs to hold the hard_iface->bat_v.aggr_list_lock.
+ * Caller needs to hold the hard_iface->bat_v.aggr_list.lock.
  *
  * Return: True, if the given OGMv2 packet still fits, false otherwise.
  */
@@ -162,7 +163,7 @@ static bool batadv_v_ogm_queue_left(struct sk_buff *skb,
 				 BATADV_MAX_AGGREGATION_BYTES);
 	unsigned int ogm_len = batadv_v_ogm_len(skb);
 
-	lockdep_assert_held(&hard_iface->bat_v.aggr_list_lock);
+	lockdep_assert_held(&hard_iface->bat_v.aggr_list.lock);
 
 	return hard_iface->bat_v.aggr_len + ogm_len <= max;
 }
@@ -173,17 +174,13 @@ static bool batadv_v_ogm_queue_left(struct sk_buff *skb,
  *
  * Empties the OGMv2 aggregation queue and frees all the skbs it contained.
  *
- * Caller needs to hold the hard_iface->bat_v.aggr_list_lock.
+ * Caller needs to hold the hard_iface->bat_v.aggr_list.lock.
  */
 static void batadv_v_ogm_aggr_list_free(struct batadv_hard_iface *hard_iface)
 {
-	struct sk_buff *skb;
+	lockdep_assert_held(&hard_iface->bat_v.aggr_list.lock);
 
-	lockdep_assert_held(&hard_iface->bat_v.aggr_list_lock);
-
-	while ((skb = skb_dequeue(&hard_iface->bat_v.aggr_list)))
-		kfree_skb(skb);
-
+	__skb_queue_purge(&hard_iface->bat_v.aggr_list);
 	hard_iface->bat_v.aggr_len = 0;
 }
 
@@ -196,7 +193,7 @@ static void batadv_v_ogm_aggr_list_free(struct batadv_hard_iface *hard_iface)
  *
  * The aggregation queue is empty after this call.
  *
- * Caller needs to hold the hard_iface->bat_v.aggr_list_lock.
+ * Caller needs to hold the hard_iface->bat_v.aggr_list.lock.
  */
 static void batadv_v_ogm_aggr_send(struct batadv_hard_iface *hard_iface)
 {
@@ -205,7 +202,7 @@ static void batadv_v_ogm_aggr_send(struct batadv_hard_iface *hard_iface)
 	unsigned int ogm_len;
 	struct sk_buff *skb;
 
-	lockdep_assert_held(&hard_iface->bat_v.aggr_list_lock);
+	lockdep_assert_held(&hard_iface->bat_v.aggr_list.lock);
 
 	if (!aggr_len)
 		return;
@@ -219,7 +216,7 @@ static void batadv_v_ogm_aggr_send(struct batadv_hard_iface *hard_iface)
 	skb_reserve(skb_aggr, ETH_HLEN + NET_IP_ALIGN);
 	skb_reset_network_header(skb_aggr);
 
-	while ((skb = skb_dequeue(&hard_iface->bat_v.aggr_list))) {
+	while ((skb = __skb_dequeue(&hard_iface->bat_v.aggr_list))) {
 		hard_iface->bat_v.aggr_len -= batadv_v_ogm_len(skb);
 
 		ogm_len = batadv_v_ogm_len(skb);
@@ -246,24 +243,22 @@ static void batadv_v_ogm_queue_on_if(struct sk_buff *skb,
 		return;
 	}
 
-	spin_lock_bh(&hard_iface->bat_v.aggr_list_lock);
+	spin_lock_bh(&hard_iface->bat_v.aggr_list.lock);
 	if (!batadv_v_ogm_queue_left(skb, hard_iface))
 		batadv_v_ogm_aggr_send(hard_iface);
 
 	hard_iface->bat_v.aggr_len += batadv_v_ogm_len(skb);
-	skb_queue_tail(&hard_iface->bat_v.aggr_list, skb);
-	spin_unlock_bh(&hard_iface->bat_v.aggr_list_lock);
+	__skb_queue_tail(&hard_iface->bat_v.aggr_list, skb);
+	spin_unlock_bh(&hard_iface->bat_v.aggr_list.lock);
 }
 
 /**
- * batadv_v_ogm_send() - periodic worker broadcasting the own OGM
- * @work: work queue item
+ * batadv_v_ogm_send_softif() - periodic worker broadcasting the own OGM
+ * @bat_priv: the bat priv with all the soft interface information
  */
-static void batadv_v_ogm_send(struct work_struct *work)
+static void batadv_v_ogm_send_softif(struct batadv_priv *bat_priv)
 {
 	struct batadv_hard_iface *hard_iface;
-	struct batadv_priv_bat_v *bat_v;
-	struct batadv_priv *bat_priv;
 	struct batadv_ogm2_packet *ogm_packet;
 	struct sk_buff *skb, *skb_tmp;
 	unsigned char *ogm_buff;
@@ -271,8 +266,7 @@ static void batadv_v_ogm_send(struct work_struct *work)
 	u16 tvlv_len = 0;
 	int ret;
 
-	bat_v = container_of(work, struct batadv_priv_bat_v, ogm_wq.work);
-	bat_priv = container_of(bat_v, struct batadv_priv, bat_v);
+	lockdep_assert_held(&bat_priv->bat_v.ogm_buff_mutex);
 
 	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
 		goto out;
@@ -364,6 +358,23 @@ out:
 }
 
 /**
+ * batadv_v_ogm_send() - periodic worker broadcasting the own OGM
+ * @work: work queue item
+ */
+static void batadv_v_ogm_send(struct work_struct *work)
+{
+	struct batadv_priv_bat_v *bat_v;
+	struct batadv_priv *bat_priv;
+
+	bat_v = container_of(work, struct batadv_priv_bat_v, ogm_wq.work);
+	bat_priv = container_of(bat_v, struct batadv_priv, bat_v);
+
+	mutex_lock(&bat_priv->bat_v.ogm_buff_mutex);
+	batadv_v_ogm_send_softif(bat_priv);
+	mutex_unlock(&bat_priv->bat_v.ogm_buff_mutex);
+}
+
+/**
  * batadv_v_ogm_aggr_work() - OGM queue periodic task per interface
  * @work: work queue item
  *
@@ -377,9 +388,9 @@ void batadv_v_ogm_aggr_work(struct work_struct *work)
 	batv = container_of(work, struct batadv_hard_iface_bat_v, aggr_wq.work);
 	hard_iface = container_of(batv, struct batadv_hard_iface, bat_v);
 
-	spin_lock_bh(&hard_iface->bat_v.aggr_list_lock);
+	spin_lock_bh(&hard_iface->bat_v.aggr_list.lock);
 	batadv_v_ogm_aggr_send(hard_iface);
-	spin_unlock_bh(&hard_iface->bat_v.aggr_list_lock);
+	spin_unlock_bh(&hard_iface->bat_v.aggr_list.lock);
 
 	batadv_v_ogm_start_queue_timer(hard_iface);
 }
@@ -410,9 +421,9 @@ void batadv_v_ogm_iface_disable(struct batadv_hard_iface *hard_iface)
 {
 	cancel_delayed_work_sync(&hard_iface->bat_v.aggr_wq);
 
-	spin_lock_bh(&hard_iface->bat_v.aggr_list_lock);
+	spin_lock_bh(&hard_iface->bat_v.aggr_list.lock);
 	batadv_v_ogm_aggr_list_free(hard_iface);
-	spin_unlock_bh(&hard_iface->bat_v.aggr_list_lock);
+	spin_unlock_bh(&hard_iface->bat_v.aggr_list.lock);
 }
 
 /**
@@ -424,11 +435,15 @@ void batadv_v_ogm_primary_iface_set(struct batadv_hard_iface *primary_iface)
 	struct batadv_priv *bat_priv = netdev_priv(primary_iface->soft_iface);
 	struct batadv_ogm2_packet *ogm_packet;
 
+	mutex_lock(&bat_priv->bat_v.ogm_buff_mutex);
 	if (!bat_priv->bat_v.ogm_buff)
-		return;
+		goto unlock;
 
 	ogm_packet = (struct batadv_ogm2_packet *)bat_priv->bat_v.ogm_buff;
 	ether_addr_copy(ogm_packet->orig, primary_iface->net_dev->dev_addr);
+
+unlock:
+	mutex_unlock(&bat_priv->bat_v.ogm_buff_mutex);
 }
 
 /**
@@ -1050,6 +1065,8 @@ int batadv_v_ogm_init(struct batadv_priv *bat_priv)
 	atomic_set(&bat_priv->bat_v.ogm_seqno, random_seqno);
 	INIT_DELAYED_WORK(&bat_priv->bat_v.ogm_wq, batadv_v_ogm_send);
 
+	mutex_init(&bat_priv->bat_v.ogm_buff_mutex);
+
 	return 0;
 }
 
@@ -1061,7 +1078,11 @@ void batadv_v_ogm_free(struct batadv_priv *bat_priv)
 {
 	cancel_delayed_work_sync(&bat_priv->bat_v.ogm_wq);
 
+	mutex_lock(&bat_priv->bat_v.ogm_buff_mutex);
+
 	kfree(bat_priv->bat_v.ogm_buff);
 	bat_priv->bat_v.ogm_buff = NULL;
 	bat_priv->bat_v.ogm_buff_len = 0;
+
+	mutex_unlock(&bat_priv->bat_v.ogm_buff_mutex);
 }

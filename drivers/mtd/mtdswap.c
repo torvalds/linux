@@ -1257,7 +1257,6 @@ DEFINE_SHOW_ATTRIBUTE(mtdswap);
 static int mtdswap_add_debugfs(struct mtdswap_dev *d)
 {
 	struct dentry *root = d->mtd->dbg.dfs_dir;
-	struct dentry *dent;
 
 	if (!IS_ENABLED(CONFIG_DEBUG_FS))
 		return 0;
@@ -1265,12 +1264,7 @@ static int mtdswap_add_debugfs(struct mtdswap_dev *d)
 	if (IS_ERR_OR_NULL(root))
 		return -1;
 
-	dent = debugfs_create_file("mtdswap_stats", S_IRUSR, root, d,
-				&mtdswap_fops);
-	if (!dent) {
-		dev_err(d->dev, "debugfs_create_file failed\n");
-		return -1;
-	}
+	debugfs_create_file("mtdswap_stats", S_IRUSR, root, d, &mtdswap_fops);
 
 	return 0;
 }

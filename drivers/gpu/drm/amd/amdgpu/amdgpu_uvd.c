@@ -39,6 +39,8 @@
 #include "cikd.h"
 #include "uvd/uvd_4_2_d.h"
 
+#include "amdgpu_ras.h"
+
 /* 1 second timeout */
 #define UVD_IDLE_TIMEOUT	msecs_to_jiffies(1000)
 
@@ -297,6 +299,7 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 {
 	int i, j;
 
+	cancel_delayed_work_sync(&adev->uvd.idle_work);
 	drm_sched_entity_destroy(&adev->uvd.entity);
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
@@ -346,6 +349,7 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 	unsigned size;
 	void *ptr;
 	int i, j;
+	bool in_ras_intr = amdgpu_ras_intr_triggered();
 
 	cancel_delayed_work_sync(&adev->uvd.idle_work);
 
@@ -372,8 +376,16 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 		if (!adev->uvd.inst[j].saved_bo)
 			return -ENOMEM;
 
-		memcpy_fromio(adev->uvd.inst[j].saved_bo, ptr, size);
+		/* re-write 0 since err_event_athub will corrupt VCPU buffer */
+		if (in_ras_intr)
+			memset(adev->uvd.inst[j].saved_bo, 0, size);
+		else
+			memcpy_fromio(adev->uvd.inst[j].saved_bo, ptr, size);
 	}
+
+	if (in_ras_intr)
+		DRM_WARN("UVD VCPU state may lost due to RAS ERREVENT_ATHUB_INTERRUPT\n");
+
 	return 0;
 }
 

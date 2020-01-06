@@ -795,6 +795,9 @@ int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 {
 	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
 
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
 	if (size < attr->ptr_attr.len) {
 		if (clear_user(u64_to_user_ptr(attr->ptr_attr.data) + size,
 			       attr->ptr_attr.len - size))

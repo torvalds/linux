@@ -1,36 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2002-2005, Network Appliance, Inc. All rights reserved.
- * Copyright (c) 1999-2005, Mellanox Technologies, Inc. All rights reserved.
+ * Copyright (c) 1999-2019, Mellanox Technologies, Inc. All rights reserved.
  * Copyright (c) 2005-2006 Intel Corporation.  All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/completion.h>
@@ -2531,7 +2504,9 @@ EXPORT_SYMBOL(rdma_set_service_type);
  * This function should be called before rdma_connect() on active side,
  * and on passive side before rdma_accept(). It is applicable to primary
  * path only. The timeout will affect the local side of the QP, it is not
- * negotiated with remote side and zero disables the timer.
+ * negotiated with remote side and zero disables the timer. In case it is
+ * set before rdma_resolve_route, the value will also be used to determine
+ * PacketLifeTime for RoCE.
  *
  * Return: 0 for success
  */
@@ -2828,22 +2803,65 @@ static int cma_resolve_iw_route(struct rdma_id_private *id_priv)
 	return 0;
 }
 
-static int iboe_tos_to_sl(struct net_device *ndev, int tos)
+static int get_vlan_ndev_tc(struct net_device *vlan_ndev, int prio)
 {
-	int prio;
 	struct net_device *dev;
 
-	prio = rt_tos2priority(tos);
-	dev = is_vlan_dev(ndev) ? vlan_dev_real_dev(ndev) : ndev;
+	dev = vlan_dev_real_dev(vlan_ndev);
 	if (dev->num_tc)
 		return netdev_get_prio_tc_map(dev, prio);
 
-#if IS_ENABLED(CONFIG_VLAN_8021Q)
+	return (vlan_dev_get_egress_qos_mask(vlan_ndev, prio) &
+		VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+}
+
+struct iboe_prio_tc_map {
+	int input_prio;
+	int output_tc;
+	bool found;
+};
+
+static int get_lower_vlan_dev_tc(struct net_device *dev, void *data)
+{
+	struct iboe_prio_tc_map *map = data;
+
+	if (is_vlan_dev(dev))
+		map->output_tc = get_vlan_ndev_tc(dev, map->input_prio);
+	else if (dev->num_tc)
+		map->output_tc = netdev_get_prio_tc_map(dev, map->input_prio);
+	else
+		map->output_tc = 0;
+	/* We are interested only in first level VLAN device, so always
+	 * return 1 to stop iterating over next level devices.
+	 */
+	map->found = true;
+	return 1;
+}
+
+static int iboe_tos_to_sl(struct net_device *ndev, int tos)
+{
+	struct iboe_prio_tc_map prio_tc_map = {};
+	int prio = rt_tos2priority(tos);
+
+	/* If VLAN device, get it directly from the VLAN netdev */
 	if (is_vlan_dev(ndev))
-		return (vlan_dev_get_egress_qos_mask(ndev, prio) &
-			VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
-#endif
-	return 0;
+		return get_vlan_ndev_tc(ndev, prio);
+
+	prio_tc_map.input_prio = prio;
+	rcu_read_lock();
+	netdev_walk_all_lower_dev_rcu(ndev,
+				      get_lower_vlan_dev_tc,
+				      &prio_tc_map);
+	rcu_read_unlock();
+	/* If map is found from lower device, use it; Otherwise
+	 * continue with the current netdevice to get priority to tc map.
+	 */
+	if (prio_tc_map.found)
+		return prio_tc_map.output_tc;
+	else if (ndev->num_tc)
+		return netdev_get_prio_tc_map(ndev, prio);
+	else
+		return 0;
 }
 
 static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
@@ -2897,7 +2915,16 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	route->path_rec->rate = iboe_get_rate(ndev);
 	dev_put(ndev);
 	route->path_rec->packet_life_time_selector = IB_SA_EQ;
-	route->path_rec->packet_life_time = CMA_IBOE_PACKET_LIFETIME;
+	/* In case ACK timeout is set, use this value to calculate
+	 * PacketLifeTime.  As per IBTA 12.7.34,
+	 * local ACK timeout = (2 * PacketLifeTime + Local CA’s ACK delay).
+	 * Assuming a negligible local ACK delay, we can use
+	 * PacketLifeTime = local ACK timeout/2
+	 * as a reasonable approximation for RoCE networks.
+	 */
+	route->path_rec->packet_life_time = id_priv->timeout_set ?
+		id_priv->timeout - 1 : CMA_IBOE_PACKET_LIFETIME;
+
 	if (!route->path_rec->mtu) {
 		ret = -EINVAL;
 		goto err2;
@@ -4736,6 +4763,7 @@ err_ib:
 err:
 	unregister_netdevice_notifier(&cma_nb);
 	ib_sa_unregister_client(&sa_client);
+	unregister_pernet_subsys(&cma_pernet_operations);
 err_wq:
 	destroy_workqueue(cma_wq);
 	return ret;

@@ -846,8 +846,10 @@ void i915_ggtt_init_fences(struct i915_ggtt *ggtt)
 
 	detect_bit_6_swizzle(ggtt);
 
-	if (INTEL_GEN(i915) >= 7 &&
-	    !(IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)))
+	if (!i915_ggtt_has_aperture(ggtt))
+		num_fences = 0;
+	else if (INTEL_GEN(i915) >= 7 &&
+		 !(IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)))
 		num_fences = 32;
 	else if (INTEL_GEN(i915) >= 4 ||
 		 IS_I945G(i915) || IS_I945GM(i915) ||

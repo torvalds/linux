@@ -28,7 +28,7 @@ of these will need to start with a baseline observation and then calculate
 the change in the counters at each subsequent observation.  A perl script
 which does this for many of the fields is available at
 
-    http://eaglet.rain.com/rick/linux/schedstat/
+    http://eaglet.pdxhosts.com/rick/linux/schedstat/
 
 Note that any such script will necessarily be version-specific, as the main
 reason to change versions is changes in the output format.  For those wishing
@@ -164,4 +164,4 @@ report on how well a particular process or set of processes is faring
 under the scheduler's policies.  A simple version of such a program is
 available at
 
-    http://eaglet.rain.com/rick/linux/schedstat/v12/latency.c
+    http://eaglet.pdxhosts.com/rick/linux/schedstat/v12/latency.c

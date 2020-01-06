@@ -57,7 +57,7 @@ static bool unsafe_drop_pages(struct drm_i915_gem_object *obj,
 		flags = I915_GEM_OBJECT_UNBIND_ACTIVE;
 
 	if (i915_gem_object_unbind(obj, flags) == 0)
-		__i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
+		__i915_gem_object_put_pages(obj);
 
 	return !i915_gem_object_has_pages(obj);
 }
@@ -209,8 +209,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 
 			if (unsafe_drop_pages(obj, shrink)) {
 				/* May arrive from get_pages on another bo */
-				mutex_lock_nested(&obj->mm.lock,
-						  I915_MM_SHRINKER);
+				mutex_lock(&obj->mm.lock);
 				if (!i915_gem_object_has_pages(obj)) {
 					try_to_writeback(obj, shrink);
 					count += obj->base.size >> PAGE_SHIFT;
@@ -437,12 +436,12 @@ void i915_gem_shrinker_taints_mutex(struct drm_i915_private *i915,
 	fs_reclaim_acquire(GFP_KERNEL);
 
 	mutex_acquire(&mutex->dep_map, 0, 0, _RET_IP_);
-	mutex_release(&mutex->dep_map, 0, _RET_IP_);
+	mutex_release(&mutex->dep_map, _RET_IP_);
 
 	fs_reclaim_release(GFP_KERNEL);
 
 	if (unlock)
-		mutex_release(&i915->drm.struct_mutex.dep_map, 0, _RET_IP_);
+		mutex_release(&i915->drm.struct_mutex.dep_map, _RET_IP_);
 }
 
 #define obj_to_i915(obj__) to_i915((obj__)->base.dev)
