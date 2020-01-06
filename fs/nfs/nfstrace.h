@@ -198,7 +198,66 @@ DEFINE_NFS_INODE_EVENT_DONE(nfs_writeback_inode_exit);
 DEFINE_NFS_INODE_EVENT(nfs_fsync_enter);
 DEFINE_NFS_INODE_EVENT_DONE(nfs_fsync_exit);
 DEFINE_NFS_INODE_EVENT(nfs_access_enter);
-DEFINE_NFS_INODE_EVENT_DONE(nfs_access_exit);
+
+TRACE_EVENT(nfs_access_exit,
+		TP_PROTO(
+			const struct inode *inode,
+			unsigned int mask,
+			unsigned int permitted,
+			int error
+		),
+
+		TP_ARGS(inode, mask, permitted, error),
+
+		TP_STRUCT__entry(
+			__field(unsigned long, error)
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(unsigned char, type)
+			__field(u64, fileid)
+			__field(u64, version)
+			__field(loff_t, size)
+			__field(unsigned long, nfsi_flags)
+			__field(unsigned long, cache_validity)
+			__field(unsigned int, mask)
+			__field(unsigned int, permitted)
+		),
+
+		TP_fast_assign(
+			const struct nfs_inode *nfsi = NFS_I(inode);
+			__entry->error = error < 0 ? -error : 0;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = nfsi->fileid;
+			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->type = nfs_umode_to_dtype(inode->i_mode);
+			__entry->version = inode_peek_iversion_raw(inode);
+			__entry->size = i_size_read(inode);
+			__entry->nfsi_flags = nfsi->flags;
+			__entry->cache_validity = nfsi->cache_validity;
+			__entry->mask = mask;
+			__entry->permitted = permitted;
+		),
+
+		TP_printk(
+			"error=%ld (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"type=%u (%s) version=%llu size=%lld "
+			"cache_validity=0x%lx (%s) nfs_flags=0x%lx (%s) "
+			"mask=0x%x permitted=0x%x",
+			-__entry->error, nfs_show_status(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			__entry->type,
+			nfs_show_file_type(__entry->type),
+			(unsigned long long)__entry->version,
+			(long long)__entry->size,
+			__entry->cache_validity,
+			nfs_show_cache_validity(__entry->cache_validity),
+			__entry->nfsi_flags,
+			nfs_show_nfsi_flags(__entry->nfsi_flags),
+			__entry->mask, __entry->permitted
+		)
+);
 
 TRACE_DEFINE_ENUM(LOOKUP_FOLLOW);
 TRACE_DEFINE_ENUM(LOOKUP_DIRECTORY);

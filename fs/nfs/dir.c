@@ -2476,7 +2476,7 @@ static int nfs_do_access(struct inode *inode, const struct cred *cred, int mask)
 {
 	struct nfs_access_entry cache;
 	bool may_block = (mask & MAY_NOT_BLOCK) == 0;
-	int cache_mask;
+	int cache_mask = -1;
 	int status;
 
 	trace_nfs_access_enter(inode);
@@ -2515,7 +2515,7 @@ out_cached:
 	if ((mask & ~cache_mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) != 0)
 		status = -EACCES;
 out:
-	trace_nfs_access_exit(inode, status);
+	trace_nfs_access_exit(inode, mask, cache_mask, status);
 	return status;
 }
 
