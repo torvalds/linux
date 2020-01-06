@@ -248,6 +248,8 @@ static int __init mchp_pit64b_init_mode(struct mchp_pit64b_timer *timer,
 	if (!pclk_rate)
 		return -EINVAL;
 
+	timer->mode = 0;
+
 	/* Try using GCLK. */
 	gclk_round = clk_round_rate(timer->gclk, max_rate);
 	if (gclk_round < 0)
@@ -360,7 +362,7 @@ static int __init mchp_pit64b_dt_init_timer(struct device_node *node,
 					    bool clkevt)
 {
 	u32 freq = clkevt ? MCHP_PIT64B_DEF_CE_FREQ : MCHP_PIT64B_DEF_CS_FREQ;
-	struct mchp_pit64b_timer timer = { 0 };
+	struct mchp_pit64b_timer timer;
 	unsigned long clk_rate;
 	u32 irq = 0;
 	int ret;
