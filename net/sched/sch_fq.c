@@ -735,10 +735,12 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt,
 	if (tb[TCA_FQ_QUANTUM]) {
 		u32 quantum = nla_get_u32(tb[TCA_FQ_QUANTUM]);
 
-		if (quantum > 0)
+		if (quantum > 0 && quantum <= (1 << 20)) {
 			q->quantum = quantum;
-		else
+		} else {
+			NL_SET_ERR_MSG_MOD(extack, "invalid quantum");
 			err = -EINVAL;
+		}
 	}
 
 	if (tb[TCA_FQ_INITIAL_QUANTUM])
