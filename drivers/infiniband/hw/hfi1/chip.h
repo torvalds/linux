@@ -358,6 +358,8 @@
 #define MAX_EAGER_BUFFER       (256 * 1024)
 #define MAX_EAGER_BUFFER_TOTAL (64 * (1 << 20)) /* max per ctxt 64MB */
 #define MAX_EXPECTED_BUFFER    (2048 * 1024)
+#define HFI1_MIN_HDRQ_EGRBUF_CNT 32
+#define HFI1_MAX_HDRQ_EGRBUF_CNT 16352
 
 /*
  * Receive expected base and count and eager base and count increment -
@@ -698,6 +700,10 @@ static inline u32 chip_rcv_array_count(struct hfi1_devdata *dd)
 {
 	return read_csr(dd, RCV_ARRAY_CNT);
 }
+
+u8 encode_rcv_header_entry_size(u8 size);
+int hfi1_validate_rcvhdrcnt(struct hfi1_devdata *dd, uint thecnt);
+void set_hdrq_regs(struct hfi1_devdata *dd, u8 ctxt, u8 entsize, u16 hdrcnt);
 
 u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,
 	       u32 dw_len);

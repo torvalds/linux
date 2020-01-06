@@ -11858,6 +11858,84 @@ static u32 encoded_size(u32 size)
 	return 0x1;	/* if invalid, go with the minimum size */
 }
 
+/**
+ * encode_rcv_header_entry_size - return chip specific encoding for size
+ * @size: size in dwords
+ *
+ * Convert a receive header entry size that to the encoding used in the CSR.
+ *
+ * Return a zero if the given size is invalid, otherwise the encoding.
+ */
+u8 encode_rcv_header_entry_size(u8 size)
+{
+	/* there are only 3 valid receive header entry sizes */
+	if (size == 2)
+		return 1;
+	if (size == 16)
+		return 2;
+	if (size == 32)
+		return 4;
+	return 0; /* invalid */
+}
+
+/**
+ * hfi1_validate_rcvhdrcnt - validate hdrcnt
+ * @dd: the device data
+ * @thecnt: the header count
+ */
+int hfi1_validate_rcvhdrcnt(struct hfi1_devdata *dd, uint thecnt)
+{
+	if (thecnt <= HFI1_MIN_HDRQ_EGRBUF_CNT) {
+		dd_dev_err(dd, "Receive header queue count too small\n");
+		return -EINVAL;
+	}
+
+	if (thecnt > HFI1_MAX_HDRQ_EGRBUF_CNT) {
+		dd_dev_err(dd,
+			   "Receive header queue count cannot be greater than %u\n",
+			   HFI1_MAX_HDRQ_EGRBUF_CNT);
+		return -EINVAL;
+	}
+
+	if (thecnt % HDRQ_INCREMENT) {
+		dd_dev_err(dd, "Receive header queue count %d must be divisible by %lu\n",
+			   thecnt, HDRQ_INCREMENT);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * set_hdrq_regs - set header queue registers for context
+ * @dd: the device data
+ * @ctxt: the context
+ * @entsize: the dword entry size
+ * @hdrcnt: the number of header entries
+ */
+void set_hdrq_regs(struct hfi1_devdata *dd, u8 ctxt, u8 entsize, u16 hdrcnt)
+{
+	u64 reg;
+
+	reg = (((u64)hdrcnt >> HDRQ_SIZE_SHIFT) & RCV_HDR_CNT_CNT_MASK) <<
+	      RCV_HDR_CNT_CNT_SHIFT;
+	write_kctxt_csr(dd, ctxt, RCV_HDR_CNT, reg);
+	reg = ((u64)encode_rcv_header_entry_size(entsize) &
+	       RCV_HDR_ENT_SIZE_ENT_SIZE_MASK) <<
+	      RCV_HDR_ENT_SIZE_ENT_SIZE_SHIFT;
+	write_kctxt_csr(dd, ctxt, RCV_HDR_ENT_SIZE, reg);
+	reg = ((u64)DEFAULT_RCVHDRSIZE & RCV_HDR_SIZE_HDR_SIZE_MASK) <<
+	      RCV_HDR_SIZE_HDR_SIZE_SHIFT;
+	write_kctxt_csr(dd, ctxt, RCV_HDR_SIZE, reg);
+
+	/*
+	 * Program dummy tail address for every receive context
+	 * before enabling any receive context
+	 */
+	write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
+			dd->rcvhdrtail_dummy_dma);
+}
+
 void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		  struct hfi1_ctxtdata *rcd)
 {
