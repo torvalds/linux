@@ -958,8 +958,9 @@ static int __igt_mmap_gpu(struct drm_i915_private *i915,
 {
 	struct intel_engine_cs *engine;
 	struct i915_mmap_offset *mmo;
-	u32 __user *ux, bbe;
 	unsigned long addr;
+	u32 __user *ux;
+	u32 bbe;
 	int err;
 
 	/*
