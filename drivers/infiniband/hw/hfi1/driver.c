@@ -924,11 +924,8 @@ void set_all_slowpath(struct hfi1_devdata *dd)
 	}
 }
 
-static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
-				      struct hfi1_packet *packet,
-				      struct hfi1_devdata *dd)
+static bool __set_armed_to_active(struct hfi1_packet *packet)
 {
-	struct work_struct *lsaw = &rcd->ppd->linkstate_active_work;
 	u8 etype = rhf_rcv_type(packet->rhf);
 	u8 sc = SC15_PACKET;
 
@@ -943,19 +940,34 @@ static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
 		sc = hfi1_16B_get_sc(hdr);
 	}
 	if (sc != SC15_PACKET) {
-		int hwstate = driver_lstate(rcd->ppd);
+		int hwstate = driver_lstate(packet->rcd->ppd);
+		struct work_struct *lsaw =
+				&packet->rcd->ppd->linkstate_active_work;
 
 		if (hwstate != IB_PORT_ACTIVE) {
-			dd_dev_info(dd,
+			dd_dev_info(packet->rcd->dd,
 				    "Unexpected link state %s\n",
 				    opa_lstate_name(hwstate));
-			return 0;
+			return false;
 		}
 
-		queue_work(rcd->ppd->link_wq, lsaw);
-		return 1;
+		queue_work(packet->rcd->ppd->link_wq, lsaw);
+		return true;
 	}
-	return 0;
+	return false;
+}
+
+/**
+ * armed to active - the fast path for armed to active
+ * @packet: the packet structure
+ *
+ * Return true if packet processing needs to bail.
+ */
+static bool set_armed_to_active(struct hfi1_packet *packet)
+{
+	if (likely(packet->rcd->ppd->host_link_state != HLS_UP_ARMED))
+		return false;
+	return __set_armed_to_active(packet);
 }
 
 /*
@@ -1016,10 +1028,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			last = skip_rcv_packet(&packet, thread);
 			skip_pkt = 0;
 		} else {
-			/* Auto activate link on non-SC15 packet receive */
-			if (unlikely(rcd->ppd->host_link_state ==
-				     HLS_UP_ARMED) &&
-			    set_armed_to_active(rcd, &packet, dd))
+			if (set_armed_to_active(&packet))
 				goto bail;
 			last = process_rcv_packet(&packet, thread);
 		}
