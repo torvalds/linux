@@ -46,6 +46,7 @@ struct nfsd_file {
 	atomic_t		nf_ref;
 	unsigned char		nf_may;
 	struct nfsd_file_mark	*nf_mark;
+	struct rw_semaphore	nf_rwsem;
 };
 
 int nfsd_file_cache_init(void);
