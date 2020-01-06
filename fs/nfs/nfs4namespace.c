@@ -137,6 +137,9 @@ static int nfs4_validate_fspath(struct dentry *dentry,
 	int n;
 
 	buf = kmalloc(4096, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
 	path = nfs4_path(dentry, buf, 4096);
 	if (IS_ERR(path)) {
 		kfree(buf);
