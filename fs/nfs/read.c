@@ -281,6 +281,8 @@ static void nfs_readpage_retry(struct rpc_task *task,
 	argp->offset += resp->count;
 	argp->pgbase += resp->count;
 	argp->count -= resp->count;
+	resp->count = 0;
+	resp->eof = 0;
 	rpc_restart_call_prepare(task);
 }
 
