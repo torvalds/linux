@@ -231,6 +231,8 @@ struct dmub_srv_base_funcs {
 struct dmub_srv_hw_funcs {
 	/* private: internal use only */
 
+	void (*init)(struct dmub_srv *dmub);
+
 	void (*reset)(struct dmub_srv *dmub);
 
 	void (*reset_release)(struct dmub_srv *dmub);
