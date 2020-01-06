@@ -1061,71 +1061,81 @@ TRACE_EVENT(nfs_initiate_commit,
 		TP_ARGS(data),
 
 		TP_STRUCT__entry(
-			__field(loff_t, offset)
-			__field(unsigned long, count)
 			__field(dev_t, dev)
 			__field(u32, fhandle)
 			__field(u64, fileid)
+			__field(loff_t, offset)
+			__field(u32, count)
 		),
 
 		TP_fast_assign(
 			const struct inode *inode = data->inode;
 			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_fh *fh = data->args.fh ?
+						  data->args.fh : &nfsi->fh;
 
 			__entry->offset = data->args.offset;
 			__entry->count = data->args.count;
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
-			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"offset=%lld count=%lu",
+			"offset=%lld count=%u",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
-			__entry->offset, __entry->count
+			(long long)__entry->offset, __entry->count
 		)
 );
 
 TRACE_EVENT(nfs_commit_done,
 		TP_PROTO(
+			const struct rpc_task *task,
 			const struct nfs_commit_data *data
 		),
 
-		TP_ARGS(data),
+		TP_ARGS(task, data),
 
 		TP_STRUCT__entry(
-			__field(int, status)
-			__field(loff_t, offset)
-			__field(unsigned long long, verifier)
 			__field(dev_t, dev)
 			__field(u32, fhandle)
 			__field(u64, fileid)
+			__field(loff_t, offset)
+			__field(int, status)
+			__field(enum nfs3_stable_how, stable)
+			__array(char, verifier, NFS4_VERIFIER_SIZE)
 		),
 
 		TP_fast_assign(
 			const struct inode *inode = data->inode;
 			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_fh *fh = data->args.fh ?
+						  data->args.fh : &nfsi->fh;
+			const struct nfs_writeverf *verf = data->res.verf;
 
-			__entry->status = data->res.op_status;
+			__entry->status = task->tk_status;
 			__entry->offset = data->args.offset;
-			memcpy(&__entry->verifier, &data->verf.verifier,
-			       sizeof(__entry->verifier));
+			__entry->stable = verf->committed;
+			memcpy(__entry->verifier,
+				&verf->verifier,
+				NFS4_VERIFIER_SIZE);
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
-			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"offset=%lld status=%d verifier 0x%016llx",
+			"offset=%lld status=%d stable=%s verifier=%s",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
-			__entry->offset, __entry->status,
-			__entry->verifier
+			(long long)__entry->offset, __entry->status,
+			nfs_show_stable(__entry->stable),
+			__print_hex_str(__entry->verifier, NFS4_VERIFIER_SIZE)
 		)
 );
 
