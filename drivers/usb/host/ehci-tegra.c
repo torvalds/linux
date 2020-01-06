@@ -480,12 +480,6 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	}
 	u_phy->otg->host = hcd_to_bus(hcd);
 
-	err = usb_phy_set_suspend(hcd->usb_phy, 0);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to power on the phy\n");
-		goto cleanup_phy;
-	}
-
 	irq = platform_get_irq(pdev, 0);
 	if (!irq) {
 		dev_err(&pdev->dev, "Failed to get IRQ\n");
