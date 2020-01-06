@@ -147,11 +147,7 @@ static void mark_innocent(struct i915_request *rq)
 
 void __i915_request_reset(struct i915_request *rq, bool guilty)
 {
-	GEM_TRACE("%s rq=%llx:%lld, guilty? %s\n",
-		  rq->engine->name,
-		  rq->fence.context,
-		  rq->fence.seqno,
-		  yesno(guilty));
+	RQ_TRACE(rq, "guilty? %s\n", yesno(guilty));
 
 	GEM_BUG_ON(i915_request_completed(rq));
 
@@ -624,7 +620,7 @@ int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask)
 	 */
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	for (retry = 0; ret == -ETIMEDOUT && retry < retries; retry++) {
-		GEM_TRACE("engine_mask=%x\n", engine_mask);
+		GT_TRACE(gt, "engine_mask=%x\n", engine_mask);
 		preempt_disable();
 		ret = reset(gt, engine_mask, retry);
 		preempt_enable();
@@ -784,8 +780,7 @@ static void nop_submit_request(struct i915_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	unsigned long flags;
 
-	GEM_TRACE("%s fence %llx:%lld -> -EIO\n",
-		  engine->name, request->fence.context, request->fence.seqno);
+	RQ_TRACE(request, "-EIO\n");
 	dma_fence_set_error(&request->fence, -EIO);
 
 	spin_lock_irqsave(&engine->active.lock, flags);
@@ -812,7 +807,7 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
 	}
 
-	GEM_TRACE("start\n");
+	GT_TRACE(gt, "start\n");
 
 	/*
 	 * First, stop submission to hw, but do not yet complete requests by
@@ -843,7 +838,7 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 
 	reset_finish(gt, awake);
 
-	GEM_TRACE("end\n");
+	GT_TRACE(gt, "end\n");
 }
 
 void intel_gt_set_wedged(struct intel_gt *gt)
@@ -869,7 +864,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	if (test_bit(I915_WEDGED_ON_INIT, &gt->reset.flags))
 		return false;
 
-	GEM_TRACE("start\n");
+	GT_TRACE(gt, "start\n");
 
 	/*
 	 * Before unwedging, make sure that all pending operations
@@ -931,7 +926,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	 */
 	intel_engines_reset_default_submission(gt);
 
-	GEM_TRACE("end\n");
+	GT_TRACE(gt, "end\n");
 
 	smp_mb__before_atomic(); /* complete takeover before enabling execbuf */
 	clear_bit(I915_WEDGED, &gt->reset.flags);
@@ -1006,7 +1001,7 @@ void intel_gt_reset(struct intel_gt *gt,
 	intel_engine_mask_t awake;
 	int ret;
 
-	GEM_TRACE("flags=%lx\n", gt->reset.flags);
+	GT_TRACE(gt, "flags=%lx\n", gt->reset.flags);
 
 	might_sleep();
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &gt->reset.flags));

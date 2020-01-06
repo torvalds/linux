@@ -152,6 +152,8 @@ static int __intel_context_active(struct i915_active *active)
 	struct intel_context *ce = container_of(active, typeof(*ce), active);
 	int err;
 
+	CE_TRACE(ce, "active\n");
+
 	intel_context_get(ce);
 
 	err = intel_ring_pin(ce->ring);
