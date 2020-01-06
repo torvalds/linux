@@ -1152,28 +1152,116 @@ int btrfs_sysfs_rm_device_link(struct btrfs_fs_devices *fs_devices,
 	if (!fs_devices->devices_kobj)
 		return -EINVAL;
 
-	if (one_device && one_device->bdev) {
-		disk = one_device->bdev->bd_part;
-		disk_kobj = &part_to_dev(disk)->kobj;
+	if (one_device) {
+		if (one_device->bdev) {
+			disk = one_device->bdev->bd_part;
+			disk_kobj = &part_to_dev(disk)->kobj;
+			sysfs_remove_link(fs_devices->devices_kobj,
+					  disk_kobj->name);
+		}
 
-		sysfs_remove_link(fs_devices->devices_kobj, disk_kobj->name);
+		kobject_del(&one_device->devid_kobj);
+		kobject_put(&one_device->devid_kobj);
+
+		wait_for_completion(&one_device->kobj_unregister);
+
+		return 0;
 	}
 
-	if (one_device)
-		return 0;
+	list_for_each_entry(one_device, &fs_devices->devices, dev_list) {
 
-	list_for_each_entry(one_device,
-			&fs_devices->devices, dev_list) {
-		if (!one_device->bdev)
-			continue;
-		disk = one_device->bdev->bd_part;
-		disk_kobj = &part_to_dev(disk)->kobj;
+		if (one_device->bdev) {
+			disk = one_device->bdev->bd_part;
+			disk_kobj = &part_to_dev(disk)->kobj;
+			sysfs_remove_link(fs_devices->devices_kobj,
+					  disk_kobj->name);
+		}
+		kobject_del(&one_device->devid_kobj);
+		kobject_put(&one_device->devid_kobj);
 
-		sysfs_remove_link(fs_devices->devices_kobj, disk_kobj->name);
+		wait_for_completion(&one_device->kobj_unregister);
 	}
 
 	return 0;
 }
+
+static ssize_t btrfs_devinfo_in_fs_metadata_show(struct kobject *kobj,
+					         struct kobj_attribute *a,
+					         char *buf)
+{
+	int val;
+	struct btrfs_device *device = container_of(kobj, struct btrfs_device,
+						   devid_kobj);
+
+	val = !!test_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+BTRFS_ATTR(devid, in_fs_metadata, btrfs_devinfo_in_fs_metadata_show);
+
+static ssize_t btrfs_sysfs_missing_show(struct kobject *kobj,
+					struct kobj_attribute *a, char *buf)
+{
+	int val;
+	struct btrfs_device *device = container_of(kobj, struct btrfs_device,
+						   devid_kobj);
+
+	val = !!test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+BTRFS_ATTR(devid, missing, btrfs_sysfs_missing_show);
+
+static ssize_t btrfs_devinfo_replace_target_show(struct kobject *kobj,
+					         struct kobj_attribute *a,
+					         char *buf)
+{
+	int val;
+	struct btrfs_device *device = container_of(kobj, struct btrfs_device,
+						   devid_kobj);
+
+	val = !!test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+BTRFS_ATTR(devid, replace_target, btrfs_devinfo_replace_target_show);
+
+static ssize_t btrfs_devinfo_writeable_show(struct kobject *kobj,
+					    struct kobj_attribute *a, char *buf)
+{
+	int val;
+	struct btrfs_device *device = container_of(kobj, struct btrfs_device,
+						   devid_kobj);
+
+	val = !!test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+BTRFS_ATTR(devid, writeable, btrfs_devinfo_writeable_show);
+
+static struct attribute *devid_attrs[] = {
+	BTRFS_ATTR_PTR(devid, in_fs_metadata),
+	BTRFS_ATTR_PTR(devid, missing),
+	BTRFS_ATTR_PTR(devid, replace_target),
+	BTRFS_ATTR_PTR(devid, writeable),
+	NULL
+};
+ATTRIBUTE_GROUPS(devid);
+
+static void btrfs_release_devid_kobj(struct kobject *kobj)
+{
+	struct btrfs_device *device = container_of(kobj, struct btrfs_device,
+						   devid_kobj);
+
+	memset(&device->devid_kobj, 0, sizeof(struct kobject));
+	complete(&device->kobj_unregister);
+}
+
+static struct kobj_type devid_ktype = {
+	.sysfs_ops	= &kobj_sysfs_ops,
+	.default_groups = devid_groups,
+	.release	= btrfs_release_devid_kobj,
+};
 
 int btrfs_sysfs_add_device_link(struct btrfs_fs_devices *fs_devices,
 				struct btrfs_device *one_device)
@@ -1182,22 +1270,31 @@ int btrfs_sysfs_add_device_link(struct btrfs_fs_devices *fs_devices,
 	struct btrfs_device *dev;
 
 	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
-		struct hd_struct *disk;
-		struct kobject *disk_kobj;
-
-		if (!dev->bdev)
-			continue;
 
 		if (one_device && one_device != dev)
 			continue;
 
-		disk = dev->bdev->bd_part;
-		disk_kobj = &part_to_dev(disk)->kobj;
+		if (dev->bdev) {
+			struct hd_struct *disk;
+			struct kobject *disk_kobj;
 
-		error = sysfs_create_link(fs_devices->devices_kobj,
-					  disk_kobj, disk_kobj->name);
-		if (error)
+			disk = dev->bdev->bd_part;
+			disk_kobj = &part_to_dev(disk)->kobj;
+
+			error = sysfs_create_link(fs_devices->devices_kobj,
+						  disk_kobj, disk_kobj->name);
+			if (error)
+				break;
+		}
+
+		init_completion(&dev->kobj_unregister);
+		error = kobject_init_and_add(&dev->devid_kobj, &devid_ktype,
+					     fs_devices->devices_kobj, "%llu",
+					     dev->devid);
+		if (error) {
+			kobject_put(&dev->devid_kobj);
 			break;
+		}
 	}
 
 	return error;
@@ -1227,6 +1324,18 @@ void btrfs_sysfs_update_sprout_fsid(struct btrfs_fs_devices *fs_devices,
 	if (kobject_rename(&fs_devices->fsid_kobj, fsid_buf))
 		btrfs_warn(fs_devices->fs_info,
 				"sysfs: failed to create fsid for sprout");
+}
+
+void btrfs_sysfs_update_devid(struct btrfs_device *device)
+{
+	char tmp[24];
+
+	snprintf(tmp, sizeof(tmp), "%llu", device->devid);
+
+	if (kobject_rename(&device->devid_kobj, tmp))
+		btrfs_warn(device->fs_devices->fs_info,
+			   "sysfs: failed to update devid for %llu",
+			   device->devid);
 }
 
 /* /sys/fs/btrfs/ entry */

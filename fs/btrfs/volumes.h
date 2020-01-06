@@ -136,6 +136,10 @@ struct btrfs_device {
 	atomic_t dev_stat_values[BTRFS_DEV_STAT_VALUES_MAX];
 
 	struct extent_io_tree alloc_state;
+
+	struct completion kobj_unregister;
+	/* For sysfs/FSID/devinfo/devid/ */
+	struct kobject devid_kobj;
 };
 
 /*
