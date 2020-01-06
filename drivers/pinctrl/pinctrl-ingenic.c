@@ -1676,6 +1676,25 @@ static void irq_set_type(struct ingenic_gpio_chip *jzgc,
 		u8 offset, unsigned int type)
 {
 	u8 reg1, reg2;
+	bool val1, val2;
+
+	switch (type) {
+	case IRQ_TYPE_EDGE_RISING:
+		val1 = val2 = true;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		val1 = false;
+		val2 = true;
+		break;
+	case IRQ_TYPE_LEVEL_HIGH:
+		val1 = true;
+		val2 = false;
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+	default:
+		val1 = val2 = false;
+		break;
+	}
 
 	if (jzgc->jzpc->info->version >= ID_JZ4760) {
 		reg1 = JZ4760_GPIO_PAT1;
@@ -1685,48 +1704,13 @@ static void irq_set_type(struct ingenic_gpio_chip *jzgc,
 		reg2 = JZ4740_GPIO_DIR;
 	}
 
-	switch (type) {
-	case IRQ_TYPE_EDGE_RISING:
-		if (jzgc->jzpc->info->version >= ID_X1000) {
-			ingenic_gpio_shadow_set_bit(jzgc, reg2, offset, true);
-			ingenic_gpio_shadow_set_bit(jzgc, reg1, offset, true);
-			ingenic_gpio_shadow_set_bit_load(jzgc);
-		} else {
-			ingenic_gpio_set_bit(jzgc, reg2, offset, true);
-			ingenic_gpio_set_bit(jzgc, reg1, offset, true);
-		}
-		break;
-	case IRQ_TYPE_EDGE_FALLING:
-		if (jzgc->jzpc->info->version >= ID_X1000) {
-			ingenic_gpio_shadow_set_bit(jzgc, reg2, offset, false);
-			ingenic_gpio_shadow_set_bit(jzgc, reg1, offset, true);
-			ingenic_gpio_shadow_set_bit_load(jzgc);
-		} else {
-			ingenic_gpio_set_bit(jzgc, reg2, offset, false);
-			ingenic_gpio_set_bit(jzgc, reg1, offset, true);
-		}
-		break;
-	case IRQ_TYPE_LEVEL_HIGH:
-		if (jzgc->jzpc->info->version >= ID_X1000) {
-			ingenic_gpio_shadow_set_bit(jzgc, reg2, offset, true);
-			ingenic_gpio_shadow_set_bit(jzgc, reg1, offset, false);
-			ingenic_gpio_shadow_set_bit_load(jzgc);
-		} else {
-			ingenic_gpio_set_bit(jzgc, reg2, offset, true);
-			ingenic_gpio_set_bit(jzgc, reg1, offset, false);
-		}
-		break;
-	case IRQ_TYPE_LEVEL_LOW:
-	default:
-		if (jzgc->jzpc->info->version >= ID_X1000) {
-			ingenic_gpio_shadow_set_bit(jzgc, reg2, offset, false);
-			ingenic_gpio_shadow_set_bit(jzgc, reg1, offset, false);
-			ingenic_gpio_shadow_set_bit_load(jzgc);
-		} else {
-			ingenic_gpio_set_bit(jzgc, reg2, offset, false);
-			ingenic_gpio_set_bit(jzgc, reg1, offset, false);
-		}
-		break;
+	if (jzgc->jzpc->info->version >= ID_X1000) {
+		ingenic_gpio_shadow_set_bit(jzgc, reg2, offset, val1);
+		ingenic_gpio_shadow_set_bit(jzgc, reg1, offset, val2);
+		ingenic_gpio_shadow_set_bit_load(jzgc);
+	} else {
+		ingenic_gpio_set_bit(jzgc, reg2, offset, val1);
+		ingenic_gpio_set_bit(jzgc, reg1, offset, val2);
 	}
 }
 
