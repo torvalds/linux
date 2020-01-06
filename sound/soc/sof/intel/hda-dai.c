@@ -11,6 +11,7 @@
 #include <sound/pcm_params.h>
 #include <sound/hdaudio_ext.h>
 #include "../sof-priv.h"
+#include "../sof-audio.h"
 #include "hda.h"
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
@@ -444,6 +445,10 @@ struct snd_soc_dai_driver skl_dai[] = {
 },
 {
 	.name = "iDisp3 Pin",
+	.ops = &hda_link_dai_ops,
+},
+{
+	.name = "iDisp4 Pin",
 	.ops = &hda_link_dai_ops,
 },
 {
