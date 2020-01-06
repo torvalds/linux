@@ -820,75 +820,85 @@ TRACE_EVENT(nfs_sillyrename_unlink,
 
 TRACE_EVENT(nfs_initiate_read,
 		TP_PROTO(
-			const struct inode *inode,
-			loff_t offset, unsigned long count
+			const struct nfs_pgio_header *hdr
 		),
 
-		TP_ARGS(inode, offset, count),
+		TP_ARGS(hdr),
 
 		TP_STRUCT__entry(
-			__field(loff_t, offset)
-			__field(unsigned long, count)
 			__field(dev_t, dev)
 			__field(u32, fhandle)
 			__field(u64, fileid)
+			__field(loff_t, offset)
+			__field(u32, count)
 		),
 
 		TP_fast_assign(
+			const struct inode *inode = hdr->inode;
 			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_fh *fh = hdr->args.fh ?
+						  hdr->args.fh : &nfsi->fh;
 
-			__entry->offset = offset;
-			__entry->count = count;
+			__entry->offset = hdr->args.offset;
+			__entry->count = hdr->args.count;
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
-			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"offset=%lld count=%lu",
+			"offset=%lld count=%u",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
-			__entry->offset, __entry->count
+			(long long)__entry->offset, __entry->count
 		)
 );
 
 TRACE_EVENT(nfs_readpage_done,
 		TP_PROTO(
-			const struct inode *inode,
-			int status, loff_t offset, bool eof
+			const struct rpc_task *task,
+			const struct nfs_pgio_header *hdr
 		),
 
-		TP_ARGS(inode, status, offset, eof),
+		TP_ARGS(task, hdr),
 
 		TP_STRUCT__entry(
-			__field(int, status)
-			__field(loff_t, offset)
-			__field(bool, eof)
 			__field(dev_t, dev)
 			__field(u32, fhandle)
 			__field(u64, fileid)
+			__field(loff_t, offset)
+			__field(u32, arg_count)
+			__field(u32, res_count)
+			__field(bool, eof)
+			__field(int, status)
 		),
 
 		TP_fast_assign(
+			const struct inode *inode = hdr->inode;
 			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_fh *fh = hdr->args.fh ?
+						  hdr->args.fh : &nfsi->fh;
 
-			__entry->status = status;
-			__entry->offset = offset;
-			__entry->eof = eof;
+			__entry->status = task->tk_status;
+			__entry->offset = hdr->args.offset;
+			__entry->arg_count = hdr->args.count;
+			__entry->res_count = hdr->res.count;
+			__entry->eof = hdr->res.eof;
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
-			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->fhandle = nfs_fhandle_hash(fh);
 		),
 
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"offset=%lld status=%d%s",
+			"offset=%lld count=%u res=%u status=%d%s",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
-			__entry->offset, __entry->status,
+			(long long)__entry->offset, __entry->arg_count,
+			__entry->res_count, __entry->status,
 			__entry->eof ? " eof" : ""
 		)
 );
