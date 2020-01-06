@@ -256,8 +256,6 @@ nfsd_file_do_unhash(struct nfsd_file *nf)
 		nfsd_reset_boot_verifier(net_generic(nf->nf_net, nfsd_net_id));
 	--nfsd_file_hashtbl[nf->nf_hashval].nfb_count;
 	hlist_del_rcu(&nf->nf_node);
-	if (!list_empty(&nf->nf_lru))
-		list_lru_del(&nfsd_file_lru, &nf->nf_lru);
 	atomic_long_dec(&nfsd_filecache_count);
 }
 
@@ -266,6 +264,8 @@ nfsd_file_unhash(struct nfsd_file *nf)
 {
 	if (test_and_clear_bit(NFSD_FILE_HASHED, &nf->nf_flags)) {
 		nfsd_file_do_unhash(nf);
+		if (!list_empty(&nf->nf_lru))
+			list_lru_del(&nfsd_file_lru, &nf->nf_lru);
 		return true;
 	}
 	return false;
@@ -402,15 +402,14 @@ out_skip:
 static void
 nfsd_file_lru_dispose(struct list_head *head)
 {
-	while(!list_empty(head)) {
-		struct nfsd_file *nf = list_first_entry(head,
-				struct nfsd_file, nf_lru);
-		list_del_init(&nf->nf_lru);
+	struct nfsd_file *nf;
+
+	list_for_each_entry(nf, head, nf_lru) {
 		spin_lock(&nfsd_file_hashtbl[nf->nf_hashval].nfb_lock);
 		nfsd_file_do_unhash(nf);
 		spin_unlock(&nfsd_file_hashtbl[nf->nf_hashval].nfb_lock);
-		nfsd_file_put_noref(nf);
 	}
+	nfsd_file_dispose_list(head);
 }
 
 static unsigned long
