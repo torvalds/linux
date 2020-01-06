@@ -129,11 +129,6 @@ static inline bool generic_fsdax_supported(struct dax_device *dax_dev,
 			sectors);
 }
 
-static inline struct dax_device *fs_dax_get_by_host(const char *host)
-{
-	return dax_get_by_host(host);
-}
-
 static inline void fs_put_dax(struct dax_device *dax_dev)
 {
 	put_dax(dax_dev);
@@ -158,11 +153,6 @@ static inline bool generic_fsdax_supported(struct dax_device *dax_dev,
 		sector_t sectors)
 {
 	return false;
-}
-
-static inline struct dax_device *fs_dax_get_by_host(const char *host)
-{
-	return NULL;
 }
 
 static inline void fs_put_dax(struct dax_device *dax_dev)
