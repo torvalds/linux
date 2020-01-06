@@ -1147,7 +1147,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	membase = devm_ioremap_nocache(&pdev->dev, regs->start,
+	membase = devm_ioremap(&pdev->dev, regs->start,
 				       resource_size(regs));
 	if (!membase)
 		return -ENODEV;

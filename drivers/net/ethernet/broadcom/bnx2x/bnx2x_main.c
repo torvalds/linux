@@ -14053,7 +14053,7 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 			rc = -ENOMEM;
 			goto init_one_freemem;
 		}
-		bp->doorbells = ioremap_nocache(pci_resource_start(pdev, 2),
+		bp->doorbells = ioremap(pci_resource_start(pdev, 2),
 						doorbell_size);
 	}
 	if (!bp->doorbells) {

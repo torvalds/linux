@@ -772,10 +772,10 @@ static int request_and_map(struct platform_device *pdev, const char *name,
 		return -EBUSY;
 	}
 
-	*ptr = devm_ioremap_nocache(device, region->start,
+	*ptr = devm_ioremap(device, region->start,
 				    resource_size(region));
 	if (*ptr == NULL) {
-		dev_err(device, "ioremap_nocache of %s failed!", name);
+		dev_err(device, "ioremap of %s failed!", name);
 		return -ENOMEM;
 	}
 

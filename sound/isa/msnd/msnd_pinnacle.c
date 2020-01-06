@@ -551,7 +551,7 @@ static int snd_msnd_attach(struct snd_card *card)
 		free_irq(chip->irq, chip);
 		return -EBUSY;
 	}
-	chip->mappedbase = ioremap_nocache(chip->base, 0x8000);
+	chip->mappedbase = ioremap(chip->base, 0x8000);
 	if (!chip->mappedbase) {
 		printk(KERN_ERR LOGNAME
 			": unable to map memory region 0x%lx-0x%lx\n",

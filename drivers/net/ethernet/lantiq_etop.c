@@ -649,7 +649,7 @@ ltq_etop_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	ltq_etop_membase = devm_ioremap_nocache(&pdev->dev,
+	ltq_etop_membase = devm_ioremap(&pdev->dev,
 		res->start, resource_size(res));
 	if (!ltq_etop_membase) {
 		dev_err(&pdev->dev, "failed to remap etop engine %d\n",

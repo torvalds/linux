@@ -159,11 +159,11 @@ void __init tegra_init_apbmisc(void)
 		}
 	}
 
-	apbmisc_base = ioremap_nocache(apbmisc.start, resource_size(&apbmisc));
+	apbmisc_base = ioremap(apbmisc.start, resource_size(&apbmisc));
 	if (!apbmisc_base)
 		pr_err("failed to map APBMISC registers\n");
 
-	strapping_base = ioremap_nocache(straps.start, resource_size(&straps));
+	strapping_base = ioremap(straps.start, resource_size(&straps));
 	if (!strapping_base)
 		pr_err("failed to map strapping options registers\n");
 

@@ -3983,7 +3983,7 @@ int snd_cs46xx_create(struct snd_card *card,
 			snd_cs46xx_free(chip);
 			return -EBUSY;
 		}
-		region->remap_addr = ioremap_nocache(region->base, region->size);
+		region->remap_addr = ioremap(region->base, region->size);
 		if (region->remap_addr == NULL) {
 			dev_err(chip->card->dev,
 				"%s ioremap problem\n", region->name);

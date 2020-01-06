@@ -301,7 +301,7 @@ int dw_spi_mid_init(struct dw_spi *dws)
 	void __iomem *clk_reg;
 	u32 clk_cdiv;
 
-	clk_reg = ioremap_nocache(MRST_CLK_SPI_REG, 16);
+	clk_reg = ioremap(MRST_CLK_SPI_REG, 16);
 	if (!clk_reg)
 		return -ENOMEM;
 

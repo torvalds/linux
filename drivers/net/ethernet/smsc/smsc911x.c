@@ -2454,7 +2454,7 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 
 	pdata = netdev_priv(dev);
 	dev->irq = irq;
-	pdata->ioaddr = ioremap_nocache(res->start, res_size);
+	pdata->ioaddr = ioremap(res->start, res_size);
 	if (!pdata->ioaddr) {
 		retval = -ENOMEM;
 		goto out_ioremap_fail;

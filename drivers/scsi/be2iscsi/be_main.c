@@ -453,14 +453,14 @@ static int beiscsi_map_pci_bars(struct beiscsi_hba *phba,
 	u8 __iomem *addr;
 	int pcicfg_reg;
 
-	addr = ioremap_nocache(pci_resource_start(pcidev, 2),
+	addr = ioremap(pci_resource_start(pcidev, 2),
 			       pci_resource_len(pcidev, 2));
 	if (addr == NULL)
 		return -ENOMEM;
 	phba->ctrl.csr = addr;
 	phba->csr_va = addr;
 
-	addr = ioremap_nocache(pci_resource_start(pcidev, 4), 128 * 1024);
+	addr = ioremap(pci_resource_start(pcidev, 4), 128 * 1024);
 	if (addr == NULL)
 		goto pci_map_err;
 	phba->ctrl.db = addr;
@@ -471,7 +471,7 @@ static int beiscsi_map_pci_bars(struct beiscsi_hba *phba,
 	else
 		pcicfg_reg = 0;
 
-	addr = ioremap_nocache(pci_resource_start(pcidev, pcicfg_reg),
+	addr = ioremap(pci_resource_start(pcidev, pcicfg_reg),
 			       pci_resource_len(pcidev, pcicfg_reg));
 
 	if (addr == NULL)

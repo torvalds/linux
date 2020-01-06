@@ -1042,7 +1042,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	/* map io memory */
 	IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 		   (u64)itv->base_addr + IVTV_ENCODER_OFFSET, IVTV_ENCODER_SIZE);
-	itv->enc_mem = ioremap_nocache(itv->base_addr + IVTV_ENCODER_OFFSET,
+	itv->enc_mem = ioremap(itv->base_addr + IVTV_ENCODER_OFFSET,
 				       IVTV_ENCODER_SIZE);
 	if (!itv->enc_mem) {
 		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 encoder memory\n");
@@ -1056,7 +1056,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	if (itv->has_cx23415) {
 		IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 				(u64)itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
-		itv->dec_mem = ioremap_nocache(itv->base_addr + IVTV_DECODER_OFFSET,
+		itv->dec_mem = ioremap(itv->base_addr + IVTV_DECODER_OFFSET,
 				IVTV_DECODER_SIZE);
 		if (!itv->dec_mem) {
 			IVTV_ERR("ioremap failed. Can't get a window into CX23415 decoder memory\n");
@@ -1075,7 +1075,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 		   (u64)itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	itv->reg_mem =
-	    ioremap_nocache(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
+	    ioremap(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (!itv->reg_mem) {
 		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 register space\n");
 		IVTV_ERR("Each capture card with a CX23415/6 needs 64 kB of vmalloc address space for this window\n");

@@ -227,7 +227,6 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset,
  */
 #define ioremap(offset, size)						\
 	__ioremap_mode((offset), (size), _CACHE_UNCACHED)
-#define ioremap_nocache		ioremap
 #define ioremap_uc		ioremap
 
 /*

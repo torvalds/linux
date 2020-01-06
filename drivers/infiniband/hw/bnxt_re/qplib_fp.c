@@ -442,7 +442,7 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 		goto fail;
 	}
 	/* Unconditionally map 8 bytes to support 57500 series */
-	nq->bar_reg_iomem = ioremap_nocache(nq_base + nq->bar_reg_off, 8);
+	nq->bar_reg_iomem = ioremap(nq_base + nq->bar_reg_off, 8);
 	if (!nq->bar_reg_iomem) {
 		rc = -ENOMEM;
 		goto fail;

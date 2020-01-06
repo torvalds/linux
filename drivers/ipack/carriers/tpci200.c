@@ -298,7 +298,7 @@ static int tpci200_register(struct tpci200_board *tpci200)
 
 	/* Map internal tpci200 driver user space */
 	tpci200->info->interface_regs =
-		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
+		ioremap(pci_resource_start(tpci200->info->pdev,
 					   TPCI200_IP_INTERFACE_BAR),
 			TPCI200_IFACE_SIZE);
 	if (!tpci200->info->interface_regs) {
@@ -541,7 +541,7 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 		ret = -EBUSY;
 		goto out_err_pci_request;
 	}
-	tpci200->info->cfg_regs = ioremap_nocache(
+	tpci200->info->cfg_regs = ioremap(
 			pci_resource_start(pdev, TPCI200_CFG_MEM_BAR),
 			pci_resource_len(pdev, TPCI200_CFG_MEM_BAR));
 	if (!tpci200->info->cfg_regs) {

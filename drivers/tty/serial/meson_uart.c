@@ -411,7 +411,7 @@ static int meson_uart_request_port(struct uart_port *port)
 		return -EBUSY;
 	}
 
-	port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+	port->membase = devm_ioremap(port->dev, port->mapbase,
 					     port->mapsize);
 	if (!port->membase)
 		return -ENOMEM;

@@ -127,7 +127,7 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* This will make sure we can use ioremap_nocache() */
+	/* This will make sure we can use ioremap() */
 	status = acpi_release_memory(ACPI_HANDLE(&pdev->dev), res, 1);
 	if (ACPI_FAILURE(status))
 		return -ENOMEM;

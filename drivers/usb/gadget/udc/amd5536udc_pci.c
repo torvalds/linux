@@ -116,7 +116,7 @@ static int udc_pci_probe(
 		goto err_memreg;
 	}
 
-	dev->virt_addr = ioremap_nocache(resource, len);
+	dev->virt_addr = ioremap(resource, len);
 	if (!dev->virt_addr) {
 		dev_dbg(&pdev->dev, "start address cannot be mapped\n");
 		retval = -EFAULT;

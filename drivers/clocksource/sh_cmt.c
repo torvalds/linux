@@ -905,7 +905,7 @@ static int sh_cmt_map_memory(struct sh_cmt_device *cmt)
 		return -ENXIO;
 	}
 
-	cmt->mapbase = ioremap_nocache(mem->start, resource_size(mem));
+	cmt->mapbase = ioremap(mem->start, resource_size(mem));
 	if (cmt->mapbase == NULL) {
 		dev_err(&cmt->pdev->dev, "failed to remap I/O memory\n");
 		return -ENXIO;

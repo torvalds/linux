@@ -716,7 +716,7 @@ static int __init gic_of_init(struct device_node *node,
 		__sync();
 	}
 
-	mips_gic_base = ioremap_nocache(gic_base, gic_len);
+	mips_gic_base = ioremap(gic_base, gic_len);
 
 	gicconfig = read_gic_config();
 	gic_shared_intrs = gicconfig & GIC_CONFIG_NUMINTERRUPTS;

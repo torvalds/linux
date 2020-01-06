@@ -652,7 +652,7 @@ static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	scu->ipc_base = pcim_iomap_table(pdev)[0];
 
-	scu->i2c_base = ioremap_nocache(pdata->i2c_base, pdata->i2c_len);
+	scu->i2c_base = ioremap(pdata->i2c_base, pdata->i2c_len);
 	if (!scu->i2c_base)
 		return -ENOMEM;
 

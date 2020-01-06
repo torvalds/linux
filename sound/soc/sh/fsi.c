@@ -1955,7 +1955,7 @@ static int fsi_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
-	master->base = devm_ioremap_nocache(&pdev->dev,
+	master->base = devm_ioremap(&pdev->dev,
 					    res->start, resource_size(res));
 	if (!master->base) {
 		dev_err(&pdev->dev, "Unable to ioremap FSI registers.\n");

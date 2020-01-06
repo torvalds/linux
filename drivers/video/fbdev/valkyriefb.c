@@ -356,7 +356,7 @@ int __init valkyriefb_init(void)
 	p->total_vram = 0x100000;
 	p->frame_buffer_phys = frame_buffer_phys;
 #ifdef CONFIG_MAC
-	p->frame_buffer = ioremap_nocache(frame_buffer_phys, p->total_vram);
+	p->frame_buffer = ioremap(frame_buffer_phys, p->total_vram);
 #else
 	p->frame_buffer = ioremap_wt(frame_buffer_phys, p->total_vram);
 #endif

@@ -34,7 +34,7 @@ void __iomem  *davinci_sysmod_base;
 
 void davinci_map_sysmod(void)
 {
-	davinci_sysmod_base = ioremap_nocache(DAVINCI_SYSTEM_MODULE_BASE,
+	davinci_sysmod_base = ioremap(DAVINCI_SYSTEM_MODULE_BASE,
 					      0x800);
 	/*
 	 * Throw a bug since a lot of board initialization code depends

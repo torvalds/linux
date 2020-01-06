@@ -1156,7 +1156,7 @@ static int telemetry_pltdrv_probe(struct platform_device *pdev)
 	telm_conf->ioss_config.ssram_base_addr = res1->start;
 	telm_conf->ioss_config.ssram_size = size;
 
-	telm_conf->pss_config.regmap = ioremap_nocache(
+	telm_conf->pss_config.regmap = ioremap(
 					telm_conf->pss_config.ssram_base_addr,
 					telm_conf->pss_config.ssram_size);
 	if (!telm_conf->pss_config.regmap) {
@@ -1164,7 +1164,7 @@ static int telemetry_pltdrv_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	telm_conf->ioss_config.regmap = ioremap_nocache(
+	telm_conf->ioss_config.regmap = ioremap(
 				telm_conf->ioss_config.ssram_base_addr,
 				telm_conf->ioss_config.ssram_size);
 	if (!telm_conf->ioss_config.regmap) {

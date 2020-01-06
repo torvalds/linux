@@ -834,7 +834,7 @@ static int pti_pci_probe(struct pci_dev *pdev,
 	}
 	drv_data->aperture_base = drv_data->pti_addr+APERTURE_14;
 	drv_data->pti_ioaddr =
-		ioremap_nocache((u32)drv_data->aperture_base,
+		ioremap((u32)drv_data->aperture_base,
 		APERTURE_LEN);
 	if (!drv_data->pti_ioaddr) {
 		retval = -ENOMEM;

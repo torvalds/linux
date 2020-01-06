@@ -3659,7 +3659,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * 8051 code into the chip, e.g. to turn on PCI PM.
 	 */
 
-	base = ioremap_nocache(resource, len);
+	base = ioremap(resource, len);
 	if (base == NULL) {
 		ep_dbg(dev, "can't map memory\n");
 		retval = -EFAULT;

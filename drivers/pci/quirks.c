@@ -1571,7 +1571,7 @@ static void asus_hides_smbus_lpc_ich6_suspend(struct pci_dev *dev)
 
 	pci_read_config_dword(dev, 0xF0, &rcba);
 	/* use bits 31:14, 16 kB aligned */
-	asus_rcba_base = ioremap_nocache(rcba & 0xFFFFC000, 0x4000);
+	asus_rcba_base = ioremap(rcba & 0xFFFFC000, 0x4000);
 	if (asus_rcba_base == NULL)
 		return;
 }
@@ -4784,7 +4784,7 @@ static int pci_quirk_enable_intel_lpc_acs(struct pci_dev *dev)
 	if (!(rcba & INTEL_LPC_RCBA_ENABLE))
 		return -EINVAL;
 
-	rcba_mem = ioremap_nocache(rcba & INTEL_LPC_RCBA_MASK,
+	rcba_mem = ioremap(rcba & INTEL_LPC_RCBA_MASK,
 				   PAGE_ALIGN(INTEL_UPDCR_REG));
 	if (!rcba_mem)
 		return -ENOMEM;

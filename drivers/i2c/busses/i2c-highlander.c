@@ -369,7 +369,7 @@ static int highlander_i2c_probe(struct platform_device *pdev)
 	if (unlikely(!dev))
 		return -ENOMEM;
 
-	dev->base = ioremap_nocache(res->start, resource_size(res));
+	dev->base = ioremap(res->start, resource_size(res));
 	if (unlikely(!dev->base)) {
 		ret = -ENXIO;
 		goto err;

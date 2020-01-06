@@ -440,7 +440,7 @@ static u8 __iomem * __init iommu_map_mmio_space(u64 address, u64 end)
 		return NULL;
 	}
 
-	return (u8 __iomem *)ioremap_nocache(address, end);
+	return (u8 __iomem *)ioremap(address, end);
 }
 
 static void __init iommu_unmap_mmio_space(struct amd_iommu *iommu)

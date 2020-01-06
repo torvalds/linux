@@ -6594,7 +6594,7 @@ static int snd_hdspm_create(struct snd_card *card,
 	dev_dbg(card->dev, "grabbed memory region 0x%lx-0x%lx\n",
 			hdspm->port, hdspm->port + io_extent - 1);
 
-	hdspm->iobase = ioremap_nocache(hdspm->port, io_extent);
+	hdspm->iobase = ioremap(hdspm->port, io_extent);
 	if (!hdspm->iobase) {
 		dev_err(card->dev, "unable to remap region 0x%lx-0x%lx\n",
 				hdspm->port, hdspm->port + io_extent - 1);

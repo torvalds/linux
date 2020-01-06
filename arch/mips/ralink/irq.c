@@ -165,7 +165,7 @@ static int __init intc_of_init(struct device_node *node,
 				res.name))
 		pr_err("Failed to request intc memory");
 
-	rt_intc_membase = ioremap_nocache(res.start,
+	rt_intc_membase = ioremap(res.start,
 					resource_size(&res));
 	if (!rt_intc_membase)
 		panic("Failed to remap intc memory");

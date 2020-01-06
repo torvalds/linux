@@ -2373,7 +2373,7 @@ int snd_ymfpci_create(struct snd_card *card,
 	chip->device_id = pci->device;
 	chip->rev = pci->revision;
 	chip->reg_area_phys = pci_resource_start(pci, 0);
-	chip->reg_area_virt = ioremap_nocache(chip->reg_area_phys, 0x8000);
+	chip->reg_area_virt = ioremap(chip->reg_area_phys, 0x8000);
 	pci_set_master(pci);
 	chip->src441_used = -1;
 

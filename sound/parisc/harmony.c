@@ -907,7 +907,7 @@ snd_harmony_create(struct snd_card *card,
 	h->card = card;
 	h->dev = padev;
 	h->irq = -1;
-	h->iobase = ioremap_nocache(padev->hpa.start, HARMONY_SIZE);
+	h->iobase = ioremap(padev->hpa.start, HARMONY_SIZE);
 	if (h->iobase == NULL) {
 		printk(KERN_ERR PFX "unable to remap hpa 0x%lx\n",
 		       (unsigned long)padev->hpa.start);

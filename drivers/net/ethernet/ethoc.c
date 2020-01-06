@@ -1087,7 +1087,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	priv = netdev_priv(netdev);
 	priv->netdev = netdev;
 
-	priv->iobase = devm_ioremap_nocache(&pdev->dev, netdev->base_addr,
+	priv->iobase = devm_ioremap(&pdev->dev, netdev->base_addr,
 			resource_size(mmio));
 	if (!priv->iobase) {
 		dev_err(&pdev->dev, "cannot remap I/O memory space\n");
@@ -1096,7 +1096,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	}
 
 	if (netdev->mem_end) {
-		priv->membase = devm_ioremap_nocache(&pdev->dev,
+		priv->membase = devm_ioremap(&pdev->dev,
 			netdev->mem_start, resource_size(mem));
 		if (!priv->membase) {
 			dev_err(&pdev->dev, "cannot remap memory space\n");

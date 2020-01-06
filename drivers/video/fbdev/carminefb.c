@@ -633,7 +633,7 @@ static int carminefb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		ret = -EBUSY;
 		goto err_free_hw;
 	}
-	hw->v_regs = ioremap_nocache(carminefb_fix.mmio_start,
+	hw->v_regs = ioremap(carminefb_fix.mmio_start,
 			carminefb_fix.mmio_len);
 	if (!hw->v_regs) {
 		printk(KERN_ERR "carminefb: Can't remap %s register.\n",
@@ -664,7 +664,7 @@ static int carminefb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		goto err_unmap_vregs;
 	}
 
-	hw->screen_mem = ioremap_nocache(carminefb_fix.smem_start,
+	hw->screen_mem = ioremap(carminefb_fix.smem_start,
 			carminefb_fix.smem_len);
 	if (!hw->screen_mem) {
 		printk(KERN_ERR "carmine: Can't ioremap smem area.\n");

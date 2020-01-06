@@ -115,7 +115,7 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 		if (unlikely(!addr))
 			goto out;
 		err = -ENOMEM;
-		mmio = ioremap_nocache(addr, sizeof(val));
+		mmio = ioremap(addr, sizeof(val));
 		if (!mmio)
 			goto out;
 
@@ -180,7 +180,7 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 		if (unlikely(!addr))
 			goto out;
 		err = -ENOMEM;
-		mmio = ioremap_nocache(addr, sizeof(val));
+		mmio = ioremap(addr, sizeof(val));
 		if (!mmio)
 			goto out;
 
@@ -515,7 +515,7 @@ void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	/* Ok, ready to run, register it to the system.
 	 * The following needs change, if we want to port hostmode
 	 * to non-MIPS platform. */
-	io_map_base = (unsigned long)ioremap_nocache(pc_host->mem_resource.start,
+	io_map_base = (unsigned long)ioremap(pc_host->mem_resource.start,
 						     resource_size(&pc_host->mem_resource));
 	pc_host->pci_controller.io_map_base = io_map_base;
 	set_io_port_base(pc_host->pci_controller.io_map_base);

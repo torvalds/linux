@@ -256,7 +256,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 							    PSB_AUX_RESOURCE);
 			resource_len = pci_resource_len(dev_priv->aux_pdev,
 							PSB_AUX_RESOURCE);
-			dev_priv->aux_reg = ioremap_nocache(resource_start,
+			dev_priv->aux_reg = ioremap(resource_start,
 							    resource_len);
 			if (!dev_priv->aux_reg)
 				goto out_err;

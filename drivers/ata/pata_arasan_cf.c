@@ -824,7 +824,7 @@ static int arasan_cf_probe(struct platform_device *pdev)
 		quirk |= CF_BROKEN_MWDMA | CF_BROKEN_UDMA;
 
 	acdev->pbase = res->start;
-	acdev->vbase = devm_ioremap_nocache(&pdev->dev, res->start,
+	acdev->vbase = devm_ioremap(&pdev->dev, res->start,
 			resource_size(res));
 	if (!acdev->vbase) {
 		dev_warn(&pdev->dev, "ioremap fail\n");
