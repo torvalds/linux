@@ -1161,9 +1161,9 @@
 			power-domains = <&mmcc MDSS_GDSC>;
 		};
 
-		venus_smmu: arm,smmu-venus@d40000 {
+		venus_smmu: iommu@d40000 {
 			compatible = "qcom,msm8996-smmu-v2", "qcom,smmu-v2";
-			reg = <0xd40000 0x20000>;
+			reg = <0x00d40000 0x20000>;
 			#global-interrupts = <1>;
 			interrupts = <GIC_SPI 286 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>,
