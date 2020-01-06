@@ -155,6 +155,9 @@ TRACE_DEFINE_ENUM(NFS4ERR_WRONG_CRED);
 TRACE_DEFINE_ENUM(NFS4ERR_WRONG_TYPE);
 TRACE_DEFINE_ENUM(NFS4ERR_XDEV);
 
+TRACE_DEFINE_ENUM(NFS4ERR_RESET_TO_MDS);
+TRACE_DEFINE_ENUM(NFS4ERR_RESET_TO_PNFS);
+
 #define show_nfsv4_errors(error) \
 	__print_symbolic(error, \
 		{ NFS4_OK, "OK" }, \
@@ -305,7 +308,10 @@ TRACE_DEFINE_ENUM(NFS4ERR_XDEV);
 		{ NFS4ERR_WRONGSEC, "WRONGSEC" }, \
 		{ NFS4ERR_WRONG_CRED, "WRONG_CRED" }, \
 		{ NFS4ERR_WRONG_TYPE, "WRONG_TYPE" }, \
-		{ NFS4ERR_XDEV, "XDEV" })
+		{ NFS4ERR_XDEV, "XDEV" }, \
+		/* ***** Internal to Linux NFS client ***** */ \
+		{ NFS4ERR_RESET_TO_MDS, "RESET_TO_MDS" }, \
+		{ NFS4ERR_RESET_TO_PNFS, "RESET_TO_PNFS" })
 
 #define show_open_flags(flags) \
 	__print_flags(flags, "|", \
