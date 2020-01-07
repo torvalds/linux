@@ -394,7 +394,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_DQEVENT_TIME32: {
 		struct v4l2_event_time32 *ev32 = arg;
-		struct v4l2_event ev;
+		struct v4l2_event ev = { };
 
 		if (!(sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS))
 			return -ENOIOCTLCMD;
