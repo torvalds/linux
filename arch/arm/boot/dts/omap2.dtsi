@@ -82,7 +82,6 @@
 
 		target-module@48056000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dma";
 			reg = <0x48056000 0x4>,
 			      <0x4805602c 0x4>,
 			      <0x48056028 0x4>;

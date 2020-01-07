@@ -258,7 +258,6 @@
 
 		sham_target: target-module@53100000 {
 			compatible = "ti,sysc-omap3-sham", "ti,sysc";
-			ti,hwmods = "sham";
 			reg = <0x53100100 0x4>,
 			      <0x53100110 0x4>,
 			      <0x53100114 0x4>;
@@ -287,7 +286,6 @@
 
 		aes_target: target-module@53501000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "aes";
 			reg = <0x53501080 0x4>,
 			      <0x53501084 0x4>,
 			      <0x53501088 0x4>;
@@ -318,7 +316,6 @@
 
 		des_target: target-module@53701000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "des";
 			reg = <0x53701030 0x4>,
 			      <0x53701034 0x4>,
 			      <0x53701038 0x4>;
@@ -369,7 +366,6 @@
 
 		target-module@47900000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "qspi";
 			reg = <0x47900000 0x4>,
 			      <0x47900010 0x4>;
 			reg-names = "rev", "sysc";
