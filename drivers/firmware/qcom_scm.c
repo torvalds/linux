@@ -85,6 +85,20 @@ static void qcom_scm_clk_disable(void)
 }
 
 /**
+ * qcom_scm_set_warm_boot_addr() - Set the warm boot address for cpus
+ * @entry: Entry point function for the cpus
+ * @cpus: The cpumask of cpus that will use the entry point
+ *
+ * Set the Linux entry point for the SCM to transfer control to when coming
+ * out of a power down. CPU power down may be executed on cpuidle or hotplug.
+ */
+int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus)
+{
+	return __qcom_scm_set_warm_boot_addr(__scm->dev, entry, cpus);
+}
+EXPORT_SYMBOL(qcom_scm_set_warm_boot_addr);
+
+/**
  * qcom_scm_set_cold_boot_addr() - Set the cold boot address for cpus
  * @entry: Entry point function for the cpus
  * @cpus: The cpumask of cpus that will use the entry point
@@ -100,20 +114,6 @@ int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
 EXPORT_SYMBOL(qcom_scm_set_cold_boot_addr);
 
 /**
- * qcom_scm_set_warm_boot_addr() - Set the warm boot address for cpus
- * @entry: Entry point function for the cpus
- * @cpus: The cpumask of cpus that will use the entry point
- *
- * Set the Linux entry point for the SCM to transfer control to when coming
- * out of a power down. CPU power down may be executed on cpuidle or hotplug.
- */
-int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus)
-{
-	return __qcom_scm_set_warm_boot_addr(__scm->dev, entry, cpus);
-}
-EXPORT_SYMBOL(qcom_scm_set_warm_boot_addr);
-
-/**
  * qcom_scm_cpu_power_down() - Power down the cpu
  * @flags - Flags to flush cache
  *
@@ -127,107 +127,33 @@ void qcom_scm_cpu_power_down(u32 flags)
 }
 EXPORT_SYMBOL(qcom_scm_cpu_power_down);
 
-/**
- * qcom_scm_hdcp_available() - Check if secure environment supports HDCP.
- *
- * Return true if HDCP is supported, false if not.
- */
-bool qcom_scm_hdcp_available(void)
+int qcom_scm_set_remote_state(u32 state, u32 id)
 {
-	int ret = qcom_scm_clk_enable();
+	return __qcom_scm_set_remote_state(__scm->dev, state, id);
+}
+EXPORT_SYMBOL(qcom_scm_set_remote_state);
+
+static void qcom_scm_set_download_mode(bool enable)
+{
+	bool avail;
+	int ret = 0;
+
+	avail = __qcom_scm_is_call_available(__scm->dev,
+					     QCOM_SCM_SVC_BOOT,
+					     QCOM_SCM_BOOT_SET_DLOAD_MODE);
+	if (avail) {
+		ret = __qcom_scm_set_dload_mode(__scm->dev, enable);
+	} else if (__scm->dload_mode_addr) {
+		ret = __qcom_scm_io_writel(__scm->dev, __scm->dload_mode_addr,
+					   enable ? QCOM_SCM_BOOT_SET_DLOAD_MODE : 0);
+	} else {
+		dev_err(__scm->dev,
+			"No available mechanism for setting download mode\n");
+	}
 
 	if (ret)
-		return ret;
-
-	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_HDCP,
-						QCOM_SCM_HDCP_INVOKE);
-
-	qcom_scm_clk_disable();
-
-	return ret > 0 ? true : false;
+		dev_err(__scm->dev, "failed to set download mode: %d\n", ret);
 }
-EXPORT_SYMBOL(qcom_scm_hdcp_available);
-
-/**
- * qcom_scm_hdcp_req() - Send HDCP request.
- * @req: HDCP request array
- * @req_cnt: HDCP request array count
- * @resp: response buffer passed to SCM
- *
- * Write HDCP register(s) through SCM.
- */
-int qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt, u32 *resp)
-{
-	int ret = qcom_scm_clk_enable();
-
-	if (ret)
-		return ret;
-
-	ret = __qcom_scm_hdcp_req(__scm->dev, req, req_cnt, resp);
-	qcom_scm_clk_disable();
-	return ret;
-}
-EXPORT_SYMBOL(qcom_scm_hdcp_req);
-
-/**
- * qcom_scm_pas_supported() - Check if the peripheral authentication service is
- *			      available for the given peripherial
- * @peripheral:	peripheral id
- *
- * Returns true if PAS is supported for this peripheral, otherwise false.
- */
-bool qcom_scm_pas_supported(u32 peripheral)
-{
-	int ret;
-
-	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_PIL,
-					   QCOM_SCM_PIL_PAS_IS_SUPPORTED);
-	if (ret <= 0)
-		return false;
-
-	return __qcom_scm_pas_supported(__scm->dev, peripheral);
-}
-EXPORT_SYMBOL(qcom_scm_pas_supported);
-
-/**
- * qcom_scm_ocmem_lock_available() - is OCMEM lock/unlock interface available
- */
-bool qcom_scm_ocmem_lock_available(void)
-{
-	return __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_OCMEM,
-					    QCOM_SCM_OCMEM_LOCK_CMD);
-}
-EXPORT_SYMBOL(qcom_scm_ocmem_lock_available);
-
-/**
- * qcom_scm_ocmem_lock() - call OCMEM lock interface to assign an OCMEM
- * region to the specified initiator
- *
- * @id:     tz initiator id
- * @offset: OCMEM offset
- * @size:   OCMEM size
- * @mode:   access mode (WIDE/NARROW)
- */
-int qcom_scm_ocmem_lock(enum qcom_scm_ocmem_client id, u32 offset, u32 size,
-			u32 mode)
-{
-	return __qcom_scm_ocmem_lock(__scm->dev, id, offset, size, mode);
-}
-EXPORT_SYMBOL(qcom_scm_ocmem_lock);
-
-/**
- * qcom_scm_ocmem_unlock() - call OCMEM unlock interface to release an OCMEM
- * region from the specified initiator
- *
- * @id:     tz initiator id
- * @offset: OCMEM offset
- * @size:   OCMEM size
- */
-int qcom_scm_ocmem_unlock(enum qcom_scm_ocmem_client id, u32 offset, u32 size)
-{
-	return __qcom_scm_ocmem_unlock(__scm->dev, id, offset, size);
-}
-EXPORT_SYMBOL(qcom_scm_ocmem_unlock);
 
 /**
  * qcom_scm_pas_init_image() - Initialize peripheral authentication service
@@ -342,6 +268,26 @@ int qcom_scm_pas_shutdown(u32 peripheral)
 }
 EXPORT_SYMBOL(qcom_scm_pas_shutdown);
 
+/**
+ * qcom_scm_pas_supported() - Check if the peripheral authentication service is
+ *			      available for the given peripherial
+ * @peripheral:	peripheral id
+ *
+ * Returns true if PAS is supported for this peripheral, otherwise false.
+ */
+bool qcom_scm_pas_supported(u32 peripheral)
+{
+	int ret;
+
+	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_PIL,
+					   QCOM_SCM_PIL_PAS_IS_SUPPORTED);
+	if (ret <= 0)
+		return false;
+
+	return __qcom_scm_pas_supported(__scm->dev, peripheral);
+}
+EXPORT_SYMBOL(qcom_scm_pas_supported);
+
 static int qcom_scm_pas_reset_assert(struct reset_controller_dev *rcdev,
 				     unsigned long idx)
 {
@@ -364,6 +310,18 @@ static const struct reset_control_ops qcom_scm_pas_reset_ops = {
 	.assert = qcom_scm_pas_reset_assert,
 	.deassert = qcom_scm_pas_reset_deassert,
 };
+
+int qcom_scm_io_readl(phys_addr_t addr, unsigned int *val)
+{
+	return __qcom_scm_io_readl(__scm->dev, addr, val);
+}
+EXPORT_SYMBOL(qcom_scm_io_readl);
+
+int qcom_scm_io_writel(phys_addr_t addr, unsigned int val)
+{
+	return __qcom_scm_io_writel(__scm->dev, addr, val);
+}
+EXPORT_SYMBOL(qcom_scm_io_writel);
 
 /**
  * qcom_scm_restore_sec_cfg_available() - Check if secure environment
@@ -395,87 +353,6 @@ int qcom_scm_iommu_secure_ptbl_init(u64 addr, u32 size, u32 spare)
 	return __qcom_scm_iommu_secure_ptbl_init(__scm->dev, addr, size, spare);
 }
 EXPORT_SYMBOL(qcom_scm_iommu_secure_ptbl_init);
-
-int qcom_scm_qsmmu500_wait_safe_toggle(bool en)
-{
-	return __qcom_scm_qsmmu500_wait_safe_toggle(__scm->dev, en);
-}
-EXPORT_SYMBOL(qcom_scm_qsmmu500_wait_safe_toggle);
-
-int qcom_scm_io_readl(phys_addr_t addr, unsigned int *val)
-{
-	return __qcom_scm_io_readl(__scm->dev, addr, val);
-}
-EXPORT_SYMBOL(qcom_scm_io_readl);
-
-int qcom_scm_io_writel(phys_addr_t addr, unsigned int val)
-{
-	return __qcom_scm_io_writel(__scm->dev, addr, val);
-}
-EXPORT_SYMBOL(qcom_scm_io_writel);
-
-static void qcom_scm_set_download_mode(bool enable)
-{
-	bool avail;
-	int ret = 0;
-
-	avail = __qcom_scm_is_call_available(__scm->dev,
-					     QCOM_SCM_SVC_BOOT,
-					     QCOM_SCM_BOOT_SET_DLOAD_MODE);
-	if (avail) {
-		ret = __qcom_scm_set_dload_mode(__scm->dev, enable);
-	} else if (__scm->dload_mode_addr) {
-		ret = __qcom_scm_io_writel(__scm->dev, __scm->dload_mode_addr,
-					   enable ? QCOM_SCM_BOOT_SET_DLOAD_MODE : 0);
-	} else {
-		dev_err(__scm->dev,
-			"No available mechanism for setting download mode\n");
-	}
-
-	if (ret)
-		dev_err(__scm->dev, "failed to set download mode: %d\n", ret);
-}
-
-static int qcom_scm_find_dload_address(struct device *dev, u64 *addr)
-{
-	struct device_node *tcsr;
-	struct device_node *np = dev->of_node;
-	struct resource res;
-	u32 offset;
-	int ret;
-
-	tcsr = of_parse_phandle(np, "qcom,dload-mode", 0);
-	if (!tcsr)
-		return 0;
-
-	ret = of_address_to_resource(tcsr, 0, &res);
-	of_node_put(tcsr);
-	if (ret)
-		return ret;
-
-	ret = of_property_read_u32_index(np, "qcom,dload-mode", 1, &offset);
-	if (ret < 0)
-		return ret;
-
-	*addr = res.start + offset;
-
-	return 0;
-}
-
-/**
- * qcom_scm_is_available() - Checks if SCM is available
- */
-bool qcom_scm_is_available(void)
-{
-	return !!__scm;
-}
-EXPORT_SYMBOL(qcom_scm_is_available);
-
-int qcom_scm_set_remote_state(u32 state, u32 id)
-{
-	return __qcom_scm_set_remote_state(__scm->dev, state, id);
-}
-EXPORT_SYMBOL(qcom_scm_set_remote_state);
 
 /**
  * qcom_scm_assign_mem() - Make a secure call to reassign memory ownership
@@ -558,6 +435,129 @@ int qcom_scm_assign_mem(phys_addr_t mem_addr, size_t mem_sz,
 	return 0;
 }
 EXPORT_SYMBOL(qcom_scm_assign_mem);
+
+/**
+ * qcom_scm_ocmem_lock_available() - is OCMEM lock/unlock interface available
+ */
+bool qcom_scm_ocmem_lock_available(void)
+{
+	return __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_OCMEM,
+					    QCOM_SCM_OCMEM_LOCK_CMD);
+}
+EXPORT_SYMBOL(qcom_scm_ocmem_lock_available);
+
+/**
+ * qcom_scm_ocmem_lock() - call OCMEM lock interface to assign an OCMEM
+ * region to the specified initiator
+ *
+ * @id:     tz initiator id
+ * @offset: OCMEM offset
+ * @size:   OCMEM size
+ * @mode:   access mode (WIDE/NARROW)
+ */
+int qcom_scm_ocmem_lock(enum qcom_scm_ocmem_client id, u32 offset, u32 size,
+			u32 mode)
+{
+	return __qcom_scm_ocmem_lock(__scm->dev, id, offset, size, mode);
+}
+EXPORT_SYMBOL(qcom_scm_ocmem_lock);
+
+/**
+ * qcom_scm_ocmem_unlock() - call OCMEM unlock interface to release an OCMEM
+ * region from the specified initiator
+ *
+ * @id:     tz initiator id
+ * @offset: OCMEM offset
+ * @size:   OCMEM size
+ */
+int qcom_scm_ocmem_unlock(enum qcom_scm_ocmem_client id, u32 offset, u32 size)
+{
+	return __qcom_scm_ocmem_unlock(__scm->dev, id, offset, size);
+}
+EXPORT_SYMBOL(qcom_scm_ocmem_unlock);
+
+/**
+ * qcom_scm_hdcp_available() - Check if secure environment supports HDCP.
+ *
+ * Return true if HDCP is supported, false if not.
+ */
+bool qcom_scm_hdcp_available(void)
+{
+	int ret = qcom_scm_clk_enable();
+
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_HDCP,
+						QCOM_SCM_HDCP_INVOKE);
+
+	qcom_scm_clk_disable();
+
+	return ret > 0 ? true : false;
+}
+EXPORT_SYMBOL(qcom_scm_hdcp_available);
+
+/**
+ * qcom_scm_hdcp_req() - Send HDCP request.
+ * @req: HDCP request array
+ * @req_cnt: HDCP request array count
+ * @resp: response buffer passed to SCM
+ *
+ * Write HDCP register(s) through SCM.
+ */
+int qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt, u32 *resp)
+{
+	int ret = qcom_scm_clk_enable();
+
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_hdcp_req(__scm->dev, req, req_cnt, resp);
+	qcom_scm_clk_disable();
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_hdcp_req);
+
+int qcom_scm_qsmmu500_wait_safe_toggle(bool en)
+{
+	return __qcom_scm_qsmmu500_wait_safe_toggle(__scm->dev, en);
+}
+EXPORT_SYMBOL(qcom_scm_qsmmu500_wait_safe_toggle);
+
+static int qcom_scm_find_dload_address(struct device *dev, u64 *addr)
+{
+	struct device_node *tcsr;
+	struct device_node *np = dev->of_node;
+	struct resource res;
+	u32 offset;
+	int ret;
+
+	tcsr = of_parse_phandle(np, "qcom,dload-mode", 0);
+	if (!tcsr)
+		return 0;
+
+	ret = of_address_to_resource(tcsr, 0, &res);
+	of_node_put(tcsr);
+	if (ret)
+		return ret;
+
+	ret = of_property_read_u32_index(np, "qcom,dload-mode", 1, &offset);
+	if (ret < 0)
+		return ret;
+
+	*addr = res.start + offset;
+
+	return 0;
+}
+
+/**
+ * qcom_scm_is_available() - Checks if SCM is available
+ */
+bool qcom_scm_is_available(void)
+{
+	return !!__scm;
+}
+EXPORT_SYMBOL(qcom_scm_is_available);
 
 static int qcom_scm_probe(struct platform_device *pdev)
 {
