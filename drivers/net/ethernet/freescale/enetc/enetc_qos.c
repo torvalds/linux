@@ -315,7 +315,7 @@ int enetc_setup_tc_txtime(struct net_device *ndev, void *type_data)
 
 	tc = qopt->queue;
 
-	if (tc < 0 || tc > priv->num_tx_rings)
+	if (tc < 0 || tc >= priv->num_tx_rings)
 		return -EINVAL;
 
 	/* Do not support TXSTART and TX CSUM offload simutaniously */
