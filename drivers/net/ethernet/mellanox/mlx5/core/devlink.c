@@ -192,7 +192,7 @@ static int mlx5_devlink_fs_mode_get(struct devlink *devlink, u32 id,
 
 enum mlx5_devlink_param_id {
 	MLX5_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
-	MLX5_DEVLINK_PARAM_FLOW_STEERING_MODE,
+	MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
 };
 
 static int mlx5_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
@@ -211,7 +211,7 @@ static int mlx5_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
 }
 
 static const struct devlink_param mlx5_devlink_params[] = {
-	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_FLOW_STEERING_MODE,
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
 			     "flow_steering_mode", DEVLINK_PARAM_TYPE_STRING,
 			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
 			     mlx5_devlink_fs_mode_get, mlx5_devlink_fs_mode_set,
@@ -230,7 +230,7 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 	else
 		strcpy(value.vstr, "smfs");
 	devlink_param_driverinit_value_set(devlink,
-					   MLX5_DEVLINK_PARAM_FLOW_STEERING_MODE,
+					   MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
 					   value);
 
 	value.vbool = MLX5_CAP_GEN(dev, roce);
