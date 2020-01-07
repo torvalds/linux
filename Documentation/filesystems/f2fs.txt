@@ -331,10 +331,11 @@ Files in /sys/fs/f2fs/<devname>
                               conducts. 32 sections is set by default.
 
  ipu_policy                   This parameter controls the policy of in-place
-                              updates in f2fs. There are five policies:
+                              updates in f2fs. User can set:
                                0x01: F2FS_IPU_FORCE, 0x02: F2FS_IPU_SSR,
                                0x04: F2FS_IPU_UTIL,  0x08: F2FS_IPU_SSR_UTIL,
-                               0x10: F2FS_IPU_FSYNC.
+                               0x10: F2FS_IPU_FSYNC, 0x40: F2FS_IPU_NOCACHE.
+                              Refer segment.h for details.
 
  min_ipu_util                 This parameter controls the threshold to trigger
                               in-place-updates. The number indicates percentage
