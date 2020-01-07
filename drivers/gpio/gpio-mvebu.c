@@ -46,7 +46,6 @@
 #include <linux/irqdomain.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
@@ -1102,7 +1101,11 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		soc_variant = MVEBU_GPIO_SOC_VARIANT_ORION;
 
 	/* Some gpio controllers do not provide irq support */
-	have_irqs = of_irq_count(np) != 0;
+	err = platform_irq_count(pdev);
+	if (err < 0)
+		return err;
+
+	have_irqs = err != 0;
 
 	mvchip = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_gpio_chip),
 			      GFP_KERNEL);
