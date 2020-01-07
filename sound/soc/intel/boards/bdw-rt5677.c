@@ -300,7 +300,7 @@ SND_SOC_DAILINK_DEF(ssp0_port,
 	    DAILINK_COMP_ARRAY(COMP_CPU("ssp0-port")));
 #else
 SND_SOC_DAILINK_DEF(ssp0_port,
-	    DAILINK_COMP_ARRAY(COMP_DUMMY())));
+	    DAILINK_COMP_ARRAY(COMP_DUMMY()));
 #endif
 
 /* Wake on voice interface */
