@@ -69,6 +69,7 @@
 
 #include <drm/i915_drm.h>
 
+#include "gt/gen6_ppgtt.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_engine_pm.h"
@@ -705,7 +706,7 @@ i915_gem_create_context(struct drm_i915_private *i915, unsigned int flags)
 	if (HAS_FULL_PPGTT(i915)) {
 		struct i915_ppgtt *ppgtt;
 
-		ppgtt = i915_ppgtt_create(i915);
+		ppgtt = i915_ppgtt_create(&i915->gt);
 		if (IS_ERR(ppgtt)) {
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
 					 PTR_ERR(ppgtt));
@@ -861,7 +862,7 @@ int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
 	if (args->flags)
 		return -EINVAL;
 
-	ppgtt = i915_ppgtt_create(i915);
+	ppgtt = i915_ppgtt_create(&i915->gt);
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 

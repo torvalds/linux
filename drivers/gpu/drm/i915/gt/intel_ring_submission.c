@@ -33,6 +33,7 @@
 
 #include "gem/i915_gem_context.h"
 
+#include "gen6_ppgtt.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_context.h"

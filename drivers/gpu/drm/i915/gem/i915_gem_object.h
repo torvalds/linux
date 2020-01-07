@@ -16,6 +16,7 @@
 #include "display/intel_frontbuffer.h"
 #include "i915_gem_object_types.h"
 #include "i915_gem_gtt.h"
+#include "i915_vma_types.h"
 
 void i915_gem_init__objects(struct drm_i915_private *i915);
 
