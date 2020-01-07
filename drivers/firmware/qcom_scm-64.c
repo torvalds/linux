@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015,2019 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/io.h>
@@ -14,7 +14,7 @@
 
 #include "qcom_scm.h"
 
-#define QCOM_SCM_FNID(s, c) ((((s) & 0xFF) << 8) | ((c) & 0xFF))
+#define SCM_SMC_FNID(s, c) ((((s) & 0xFF) << 8) | ((c) & 0xFF))
 
 #define MAX_QCOM_SCM_ARGS 10
 #define MAX_QCOM_SCM_RETS 3
@@ -58,11 +58,11 @@ static DEFINE_MUTEX(qcom_scm_lock);
 #define QCOM_SCM_EBUSY_WAIT_MS 30
 #define QCOM_SCM_EBUSY_MAX_RETRY 20
 
-#define N_EXT_QCOM_SCM_ARGS 7
-#define FIRST_EXT_ARG_IDX 3
-#define N_REGISTER_ARGS (MAX_QCOM_SCM_ARGS - N_EXT_QCOM_SCM_ARGS + 1)
+#define SCM_SMC_N_EXT_ARGS 7
+#define SCM_SMC_FIRST_EXT_IDX 3
+#define SCM_SMC_N_REG_ARGS (MAX_QCOM_SCM_ARGS - SCM_SMC_N_EXT_ARGS + 1)
 
-static void __qcom_scm_call_do(const struct qcom_scm_desc *desc,
+static void __scm_smc_do_quirk(const struct qcom_scm_desc *desc,
 			       struct arm_smccc_res *res, u32 fn_id,
 			       u64 x5, u32 type)
 {
@@ -85,22 +85,23 @@ static void __qcom_scm_call_do(const struct qcom_scm_desc *desc,
 	} while (res->a0 == QCOM_SCM_INTERRUPTED);
 }
 
-static void qcom_scm_call_do(const struct qcom_scm_desc *desc,
+static void __scm_smc_do(const struct qcom_scm_desc *desc,
 			     struct arm_smccc_res *res, u32 fn_id,
 			     u64 x5, bool atomic)
 {
 	int retry_count = 0;
 
 	if (atomic) {
-		__qcom_scm_call_do(desc, res, fn_id, x5, ARM_SMCCC_FAST_CALL);
+		__scm_smc_do_quirk(desc, res, fn_id, x5,
+					 ARM_SMCCC_FAST_CALL);
 		return;
 	}
 
 	do {
 		mutex_lock(&qcom_scm_lock);
 
-		__qcom_scm_call_do(desc, res, fn_id, x5,
-				   ARM_SMCCC_STD_CALL);
+		__scm_smc_do_quirk(desc, res, fn_id, x5,
+					 ARM_SMCCC_STD_CALL);
 
 		mutex_unlock(&qcom_scm_lock);
 
@@ -112,21 +113,21 @@ static void qcom_scm_call_do(const struct qcom_scm_desc *desc,
 	}  while (res->a0 == QCOM_SCM_V2_EBUSY);
 }
 
-static int ___qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
-			    const struct qcom_scm_desc *desc,
-			    struct arm_smccc_res *res, bool atomic)
+static int __scm_smc_call(struct device *dev, u32 svc_id, u32 cmd_id,
+				  const struct qcom_scm_desc *desc,
+				  struct arm_smccc_res *res, bool atomic)
 {
 	int arglen = desc->arginfo & 0xf;
 	int i;
-	u32 fn_id = QCOM_SCM_FNID(svc_id, cmd_id);
-	u64 x5 = desc->args[FIRST_EXT_ARG_IDX];
+	u32 fn_id = SCM_SMC_FNID(svc_id, cmd_id);
+	u64 x5 = desc->args[SCM_SMC_FIRST_EXT_IDX];
 	dma_addr_t args_phys = 0;
 	void *args_virt = NULL;
 	size_t alloc_len;
 	gfp_t flag = atomic ? GFP_ATOMIC : GFP_KERNEL;
 
-	if (unlikely(arglen > N_REGISTER_ARGS)) {
-		alloc_len = N_EXT_QCOM_SCM_ARGS * sizeof(u64);
+	if (unlikely(arglen > SCM_SMC_N_REG_ARGS)) {
+		alloc_len = SCM_SMC_N_EXT_ARGS * sizeof(u64);
 		args_virt = kzalloc(PAGE_ALIGN(alloc_len), flag);
 
 		if (!args_virt)
@@ -135,15 +136,15 @@ static int ___qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 		if (qcom_smccc_convention == ARM_SMCCC_SMC_32) {
 			__le32 *args = args_virt;
 
-			for (i = 0; i < N_EXT_QCOM_SCM_ARGS; i++)
+			for (i = 0; i < SCM_SMC_N_EXT_ARGS; i++)
 				args[i] = cpu_to_le32(desc->args[i +
-						      FIRST_EXT_ARG_IDX]);
+						      SCM_SMC_FIRST_EXT_IDX]);
 		} else {
 			__le64 *args = args_virt;
 
-			for (i = 0; i < N_EXT_QCOM_SCM_ARGS; i++)
+			for (i = 0; i < SCM_SMC_N_EXT_ARGS; i++)
 				args[i] = cpu_to_le64(desc->args[i +
-						      FIRST_EXT_ARG_IDX]);
+						      SCM_SMC_FIRST_EXT_IDX]);
 		}
 
 		args_phys = dma_map_single(dev, args_virt, alloc_len,
@@ -157,7 +158,7 @@ static int ___qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 		x5 = args_phys;
 	}
 
-	qcom_scm_call_do(desc, res, fn_id, x5, atomic);
+	__scm_smc_do(desc, res, fn_id, x5, atomic);
 
 	if (args_virt) {
 		dma_unmap_single(dev, args_phys, alloc_len, DMA_TO_DEVICE);
@@ -185,7 +186,7 @@ static int qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 			 struct arm_smccc_res *res)
 {
 	might_sleep();
-	return ___qcom_scm_call(dev, svc_id, cmd_id, desc, res, false);
+	return __scm_smc_call(dev, svc_id, cmd_id, desc, res, false);
 }
 
 /**
@@ -203,7 +204,7 @@ static int qcom_scm_call_atomic(struct device *dev, u32 svc_id, u32 cmd_id,
 				const struct qcom_scm_desc *desc,
 				struct arm_smccc_res *res)
 {
-	return ___qcom_scm_call(dev, svc_id, cmd_id, desc, res, true);
+	return __scm_smc_call(dev, svc_id, cmd_id, desc, res, true);
 }
 
 /**
@@ -253,7 +254,7 @@ int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
 	struct arm_smccc_res res;
 
 	desc.arginfo = QCOM_SCM_ARGS(1);
-	desc.args[0] = QCOM_SCM_FNID(svc_id, cmd_id) |
+	desc.args[0] = SCM_SMC_FNID(svc_id, cmd_id) |
 			(ARM_SMCCC_OWNER_SIP << ARM_SMCCC_OWNER_SHIFT);
 
 	ret = qcom_scm_call(dev, QCOM_SCM_SVC_INFO, QCOM_IS_CALL_AVAIL_CMD,
@@ -307,7 +308,7 @@ void __qcom_scm_init(void)
 {
 	u64 cmd;
 	struct arm_smccc_res res;
-	u32 function = QCOM_SCM_FNID(QCOM_SCM_SVC_INFO, QCOM_IS_CALL_AVAIL_CMD);
+	u32 function = SCM_SMC_FNID(QCOM_SCM_SVC_INFO, QCOM_IS_CALL_AVAIL_CMD);
 
 	/* First try a SMC64 call */
 	cmd = ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_64,
