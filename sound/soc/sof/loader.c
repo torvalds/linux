@@ -487,6 +487,9 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: request firmware %s failed err: %d\n",
 			fw_filename, ret);
+	} else {
+		dev_dbg(sdev->dev, "request_firmware %s successful\n",
+			fw_filename);
 	}
 
 	kfree(fw_filename);
