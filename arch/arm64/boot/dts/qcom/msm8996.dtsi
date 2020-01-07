@@ -2137,6 +2137,11 @@
 			};
 		};
 
+		saw3: syscon@9a10000 {
+			compatible = "syscon";
+			reg = <0x09a10000 0x1000>;
+		};
+
 		intc: interrupt-controller@9bc0000 {
 			compatible = "qcom,msm8996-gic-v3", "arm,gic-v3";
 			#interrupt-cells = <3>;

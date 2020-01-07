@@ -647,6 +647,22 @@
 		"NC";
 };
 
+&pm8994_spmi_regulators {
+	qcom,saw-reg = <&saw3>;
+	s9 {
+		qcom,saw-slave;
+	};
+	s10 {
+		qcom,saw-slave;
+	};
+	s11 {
+		qcom,saw-leader;
+		regulator-always-on;
+		regulator-min-microvolt = <1230000>;
+		regulator-max-microvolt = <1230000>;
+	};
+};
+
 &pmi8994_gpios {
 	gpio-line-names =
 		"NC",
