@@ -549,6 +549,8 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 		cr0 |= (1 << CR0_FBM_OFFSET);/* First Bit Mode */
 	cr0 |= (rs->tmode << CR0_XFM_OFFSET);
 	cr0 |= (rs->type << CR0_FRF_OFFSET);
+	if (spi_controller_is_slave(rs->master))
+		cr0 |= (CR0_OPM_SLAVE << CR0_OPM_OFFSET);
 
 	if (rs->use_dma) {
 		if (rs->tx)
@@ -710,7 +712,12 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	struct resource *mem;
 	u32 rsd_nsecs;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(struct rockchip_spi));
+	if (of_property_read_bool(pdev->dev.of_node, "spi-slave"))
+		master = spi_alloc_slave(&pdev->dev,
+					 sizeof(struct rockchip_spi));
+	else
+		master = spi_alloc_master(&pdev->dev,
+					  sizeof(struct rockchip_spi));
 	if (!master)
 		return -ENOMEM;
 
