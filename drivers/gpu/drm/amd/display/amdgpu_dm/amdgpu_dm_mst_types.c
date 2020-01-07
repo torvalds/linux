@@ -621,37 +621,41 @@ static void increase_dsc_bpp(struct drm_atomic_state *state,
 
 		if (initial_slack[next_index] > fair_pbn_alloc) {
 			vars[next_index].pbn += fair_pbn_alloc;
-			drm_dp_atomic_find_vcpi_slots(state,
-						      params[next_index].port->mgr,
-						      params[next_index].port,
-						      vars[next_index].pbn,
-						      dm_mst_get_pbn_divider(dc_link));
+			if (drm_dp_atomic_find_vcpi_slots(state,
+							  params[next_index].port->mgr,
+							  params[next_index].port,
+							  vars[next_index].pbn,\
+							  dm_mst_get_pbn_divider(dc_link)) < 0)
+				return;
 			if (!drm_dp_mst_atomic_check(state)) {
 				vars[next_index].bpp_x16 = bpp_x16_from_pbn(params[next_index], vars[next_index].pbn);
 			} else {
 				vars[next_index].pbn -= fair_pbn_alloc;
-				drm_dp_atomic_find_vcpi_slots(state,
-						      params[next_index].port->mgr,
-						      params[next_index].port,
-						      vars[next_index].pbn,
-						      dm_mst_get_pbn_divider(dc_link));
+				if (drm_dp_atomic_find_vcpi_slots(state,
+								  params[next_index].port->mgr,
+								  params[next_index].port,
+								  vars[next_index].pbn,
+								  dm_mst_get_pbn_divider(dc_link)) < 0)
+					return;
 			}
 		} else {
 			vars[next_index].pbn += initial_slack[next_index];
-			drm_dp_atomic_find_vcpi_slots(state,
-						      params[next_index].port->mgr,
-						      params[next_index].port,
-						      vars[next_index].pbn,
-						      dm_mst_get_pbn_divider(dc_link));
+			if (drm_dp_atomic_find_vcpi_slots(state,
+							  params[next_index].port->mgr,
+							  params[next_index].port,
+							  vars[next_index].pbn,
+							  dm_mst_get_pbn_divider(dc_link)) < 0)
+				return;
 			if (!drm_dp_mst_atomic_check(state)) {
 				vars[next_index].bpp_x16 = params[next_index].bw_range.max_target_bpp_x16;
 			} else {
 				vars[next_index].pbn -= initial_slack[next_index];
-				drm_dp_atomic_find_vcpi_slots(state,
-						      params[next_index].port->mgr,
-						      params[next_index].port,
-						      vars[next_index].pbn,
-						      dm_mst_get_pbn_divider(dc_link));
+				if (drm_dp_atomic_find_vcpi_slots(state,
+								  params[next_index].port->mgr,
+								  params[next_index].port,
+								  vars[next_index].pbn,
+								  dm_mst_get_pbn_divider(dc_link)) < 0)
+					return;
 			}
 		}
 
@@ -700,22 +704,24 @@ static void try_disable_dsc(struct drm_atomic_state *state,
 			break;
 
 		vars[next_index].pbn = kbps_to_peak_pbn(params[next_index].bw_range.stream_kbps);
-		drm_dp_atomic_find_vcpi_slots(state,
-					      params[next_index].port->mgr,
-					      params[next_index].port,
-					      vars[next_index].pbn,
-					      0);
+		if (drm_dp_atomic_find_vcpi_slots(state,
+						  params[next_index].port->mgr,
+						  params[next_index].port,
+						  vars[next_index].pbn,
+						  0) < 0)
+			return;
 
 		if (!drm_dp_mst_atomic_check(state)) {
 			vars[next_index].dsc_enabled = false;
 			vars[next_index].bpp_x16 = 0;
 		} else {
 			vars[next_index].pbn = kbps_to_peak_pbn(params[next_index].bw_range.max_kbps);
-			drm_dp_atomic_find_vcpi_slots(state,
-					      params[next_index].port->mgr,
-					      params[next_index].port,
-					      vars[next_index].pbn,
-					      dm_mst_get_pbn_divider(dc_link));
+			if (drm_dp_atomic_find_vcpi_slots(state,
+							  params[next_index].port->mgr,
+							  params[next_index].port,
+							  vars[next_index].pbn,
+							  dm_mst_get_pbn_divider(dc_link)) < 0)
+				return;
 		}
 
 		tried[next_index] = true;
@@ -769,11 +775,12 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		vars[i].pbn = kbps_to_peak_pbn(params[i].bw_range.stream_kbps);
 		vars[i].dsc_enabled = false;
 		vars[i].bpp_x16 = 0;
-		drm_dp_atomic_find_vcpi_slots(state,
-					      params[i].port->mgr,
-					      params[i].port,
-					      vars[i].pbn,
-					      0);
+		if (drm_dp_atomic_find_vcpi_slots(state,
+						 params[i].port->mgr,
+						 params[i].port,
+						 vars[i].pbn,
+						 0) < 0)
+			return false;
 	}
 	if (!drm_dp_mst_atomic_check(state)) {
 		set_dsc_configs_from_fairness_vars(params, vars, count);
@@ -786,20 +793,22 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 			vars[i].pbn = kbps_to_peak_pbn(params[i].bw_range.min_kbps);
 			vars[i].dsc_enabled = true;
 			vars[i].bpp_x16 = params[i].bw_range.min_target_bpp_x16;
-			drm_dp_atomic_find_vcpi_slots(state,
-					      params[i].port->mgr,
-					      params[i].port,
-					      vars[i].pbn,
-					      dm_mst_get_pbn_divider(dc_link));
+			if (drm_dp_atomic_find_vcpi_slots(state,
+							  params[i].port->mgr,
+							  params[i].port,
+							  vars[i].pbn,
+							  dm_mst_get_pbn_divider(dc_link)) < 0)
+				return false;
 		} else {
 			vars[i].pbn = kbps_to_peak_pbn(params[i].bw_range.stream_kbps);
 			vars[i].dsc_enabled = false;
 			vars[i].bpp_x16 = 0;
-			drm_dp_atomic_find_vcpi_slots(state,
-					      params[i].port->mgr,
-					      params[i].port,
-					      vars[i].pbn,
-					      0);
+			if (drm_dp_atomic_find_vcpi_slots(state,
+							  params[i].port->mgr,
+							  params[i].port,
+							  vars[i].pbn,
+							  0) < 0)
+				return false;
 		}
 	}
 	if (drm_dp_mst_atomic_check(state))
