@@ -338,7 +338,6 @@ static const struct ata_port_info ahci_brcm_port_info = {
 	.port_ops	= &ahci_brcm_platform_ops,
 };
 
-#ifdef CONFIG_PM_SLEEP
 static int brcm_ahci_suspend(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
@@ -348,7 +347,10 @@ static int brcm_ahci_suspend(struct device *dev)
 
 	brcm_sata_phys_disable(priv);
 
-	ret = ahci_platform_suspend(dev);
+	if (IS_ENABLED(CONFIG_PM_SLEEP))
+		ret = ahci_platform_suspend(dev);
+	else
+		ret = 0;
 
 	if (!IS_ERR_OR_NULL(priv->rcdev))
 		reset_control_assert(priv->rcdev);
@@ -356,7 +358,7 @@ static int brcm_ahci_suspend(struct device *dev)
 	return ret;
 }
 
-static int brcm_ahci_resume(struct device *dev)
+static int __maybe_unused brcm_ahci_resume(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
@@ -405,7 +407,6 @@ out_disable_phys:
 	ahci_platform_disable_clks(hpriv);
 	return ret;
 }
-#endif
 
 static struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
