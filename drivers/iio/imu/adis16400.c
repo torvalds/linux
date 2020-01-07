@@ -1126,7 +1126,6 @@ static const struct adis_data adis16400_data = {
 	.write_delay = 50,
 
 	.self_test_mask = ADIS16400_MSC_CTRL_MEM_TEST,
-	.startup_delay = ADIS16400_STARTUP_DELAY,
 
 	.status_error_msgs = adis16400_status_error_msgs,
 	.status_error_mask = BIT(ADIS16400_DIAG_STAT_ZACCL_FAIL) |
