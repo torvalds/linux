@@ -3533,7 +3533,10 @@ static void hsw_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
 	int level = intel_ddi_dp_level(intel_dp);
 
-	WARN_ON(is_mst && (port == PORT_A || port == PORT_E));
+	if (INTEL_GEN(dev_priv) < 11)
+		WARN_ON(is_mst && (port == PORT_A || port == PORT_E));
+	else
+		WARN_ON(is_mst && port == PORT_A);
 
 	intel_dp_set_link_params(intel_dp, crtc_state->port_clock,
 				 crtc_state->lane_count, is_mst);
