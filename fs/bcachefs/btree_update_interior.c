@@ -1191,7 +1191,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 				     BTREE_TRIGGER_GC);
 
 	while ((k = bch2_btree_node_iter_peek_all(node_iter, b)) &&
-	       bkey_iter_pos_cmp(b, &insert->k.p, k) > 0)
+	       bkey_iter_pos_cmp(b, k, &insert->k.p) < 0)
 		bch2_btree_node_iter_advance(node_iter, b);
 
 	/*

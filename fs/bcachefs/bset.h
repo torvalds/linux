@@ -360,7 +360,7 @@ void bch2_bset_delete(struct btree *, struct bkey_packed *, unsigned);
 static inline int bkey_cmp_p_or_unp(const struct btree *b,
 				    const struct bkey_packed *l,
 				    const struct bkey_packed *r_packed,
-				    struct bpos *r)
+				    const struct bpos *r)
 {
 	EBUG_ON(r_packed && !bkey_packed(r_packed));
 
@@ -464,7 +464,7 @@ static inline bool bch2_btree_node_iter_end(struct btree_node_iter *iter)
  * XXX: only need to compare pointers for keys that are both within a
  * btree_node_iterator - we need to break ties for prev() to work correctly
  */
-static inline int bkey_iter_cmp(struct btree *b,
+static inline int bkey_iter_cmp(const struct btree *b,
 				const struct bkey_packed *l,
 				const struct bkey_packed *r)
 {
@@ -473,7 +473,7 @@ static inline int bkey_iter_cmp(struct btree *b,
 		?: cmp_int(l, r);
 }
 
-static inline int btree_node_iter_cmp(struct btree *b,
+static inline int btree_node_iter_cmp(const struct btree *b,
 				      struct btree_node_iter_set l,
 				      struct btree_node_iter_set r)
 {
@@ -482,22 +482,22 @@ static inline int btree_node_iter_cmp(struct btree *b,
 			__btree_node_offset_to_key(b, r.k));
 }
 
-/* These assume l (the search key) is not a deleted key: */
-static inline int bkey_iter_pos_cmp(struct btree *b,
-			struct bpos *l,
-			const struct bkey_packed *r)
+/* These assume r (the search key) is not a deleted key: */
+static inline int bkey_iter_pos_cmp(const struct btree *b,
+			const struct bkey_packed *l,
+			const struct bpos *r)
 {
-	return -bkey_cmp_left_packed(b, r, l)
-		?: (int) bkey_deleted(r);
+	return bkey_cmp_left_packed(b, l, r)
+		?: -((int) bkey_deleted(l));
 }
 
-static inline int bkey_iter_cmp_p_or_unp(struct btree *b,
-			struct bpos *l,
-			const struct bkey_packed *l_packed,
-			const struct bkey_packed *r)
+static inline int bkey_iter_cmp_p_or_unp(const struct btree *b,
+				    const struct bkey_packed *l,
+				    const struct bkey_packed *r_packed,
+				    const struct bpos *r)
 {
-	return -bkey_cmp_p_or_unp(b, r, l_packed, l)
-		?: (int) bkey_deleted(r);
+	return bkey_cmp_p_or_unp(b, l, r_packed, r)
+		?: -((int) bkey_deleted(l));
 }
 
 static inline struct bkey_packed *

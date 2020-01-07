@@ -1380,21 +1380,21 @@ struct bkey_packed *bch2_bset_search_linear(struct btree *b,
 {
 	if (lossy_packed_search)
 		while (m != btree_bkey_last(b, t) &&
-		       bkey_iter_cmp_p_or_unp(b, search, lossy_packed_search,
-					      m) > 0)
+		       bkey_iter_cmp_p_or_unp(b, m,
+					lossy_packed_search, search) < 0)
 			m = bkey_next_skip_noops(m, btree_bkey_last(b, t));
 
 	if (!packed_search)
 		while (m != btree_bkey_last(b, t) &&
-		       bkey_iter_pos_cmp(b, search, m) > 0)
+		       bkey_iter_pos_cmp(b, m, search) < 0)
 			m = bkey_next_skip_noops(m, btree_bkey_last(b, t));
 
 	if (btree_keys_expensive_checks(b)) {
 		struct bkey_packed *prev = bch2_bkey_prev_all(b, t, m);
 
 		BUG_ON(prev &&
-		       bkey_iter_cmp_p_or_unp(b, search, packed_search,
-					      prev) <= 0);
+		       bkey_iter_cmp_p_or_unp(b, prev,
+					packed_search, search) >= 0);
 	}
 
 	return m;
