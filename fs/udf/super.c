@@ -767,7 +767,7 @@ static int udf_check_vsd(struct super_block *sb)
 static int udf_verify_domain_identifier(struct super_block *sb,
 					struct regid *ident, char *dname)
 {
-	struct domainEntityIDSuffix *suffix;
+	struct domainIdentSuffix *suffix;
 
 	if (memcmp(ident->ident, UDF_ID_COMPLIANT, strlen(UDF_ID_COMPLIANT))) {
 		udf_warn(sb, "Not OSTA UDF compliant %s descriptor.\n", dname);
@@ -778,9 +778,9 @@ static int udf_verify_domain_identifier(struct super_block *sb,
 			 dname);
 		goto force_ro;
 	}
-	suffix = (struct domainEntityIDSuffix *)ident->identSuffix;
-	if (suffix->flags & (1 << ENTITYIDSUFFIX_FLAGS_HARDWRITEPROTECT) ||
-	    suffix->flags & (1 << ENTITYIDSUFFIX_FLAGS_SOFTWRITEPROTECT)) {
+	suffix = (struct domainIdentSuffix *)ident->identSuffix;
+	if ((suffix->domainFlags & DOMAIN_FLAGS_HARD_WRITE_PROTECT) ||
+	    (suffix->domainFlags & DOMAIN_FLAGS_SOFT_WRITE_PROTECT)) {
 		if (!sb_rdonly(sb)) {
 			udf_warn(sb, "Descriptor for %s marked write protected."
 				 " Forcing read only mount.\n", dname);

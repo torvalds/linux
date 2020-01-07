@@ -62,8 +62,14 @@
 #define UDF_ID_METADATA			"*UDF Metadata Partition"
 
 /* Identifier Suffix (UDF 2.50 2.1.5.3) */
-#define IS_DF_HARD_WRITE_PROTECT	0x01
-#define IS_DF_SOFT_WRITE_PROTECT	0x02
+#define DOMAIN_FLAGS_HARD_WRITE_PROTECT	0x01
+#define DOMAIN_FLAGS_SOFT_WRITE_PROTECT	0x02
+
+struct domainIdentSuffix {
+	__le16		UDFRevision;
+	uint8_t		domainFlags;
+	uint8_t		reserved[5];
+} __packed;
 
 struct UDFIdentSuffix {
 	__le16		UDFRevision;
