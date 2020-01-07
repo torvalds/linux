@@ -602,7 +602,7 @@ void show_rcu_gp_kthreads(void)
 			continue;
 		for_each_leaf_node_possible_cpu(rnp, cpu) {
 			rdp = per_cpu_ptr(&rcu_data, cpu);
-			if (rdp->gpwrap ||
+			if (READ_ONCE(rdp->gpwrap) ||
 			    ULONG_CMP_GE(READ_ONCE(rcu_state.gp_seq),
 					 READ_ONCE(rdp->gp_seq_needed)))
 				continue;
