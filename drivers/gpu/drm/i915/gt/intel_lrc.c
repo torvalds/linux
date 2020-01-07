@@ -2583,7 +2583,7 @@ __execlists_context_pin(struct intel_context *ce,
 		goto unpin_active;
 	}
 
-	ce->lrc_desc = lrc_descriptor(ce, engine);
+	ce->lrc_desc = lrc_descriptor(ce, engine) | CTX_DESC_FORCE_RESTORE;
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 	__execlists_update_reg_state(ce, engine);
 
