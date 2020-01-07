@@ -983,3 +983,163 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
 
 	return ret;
 }
+
+int amdgpu_dpm_baco_enter(struct amdgpu_device *adev)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	void *pp_handle = adev->powerplay.pp_handle;
+	struct smu_context *smu = &adev->smu;
+	int ret = 0;
+
+	if (is_support_sw_smu(adev)) {
+		ret = smu_baco_enter(smu);
+	} else {
+		if (!pp_funcs || !pp_funcs->set_asic_baco_state)
+			return -ENOENT;
+
+		/* enter BACO state */
+		ret = pp_funcs->set_asic_baco_state(pp_handle, 1);
+	}
+
+	return ret;
+}
+
+int amdgpu_dpm_baco_exit(struct amdgpu_device *adev)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	void *pp_handle = adev->powerplay.pp_handle;
+	struct smu_context *smu = &adev->smu;
+	int ret = 0;
+
+	if (is_support_sw_smu(adev)) {
+		ret = smu_baco_exit(smu);
+	} else {
+		if (!pp_funcs || !pp_funcs->set_asic_baco_state)
+			return -ENOENT;
+
+		/* exit BACO state */
+		ret = pp_funcs->set_asic_baco_state(pp_handle, 0);
+	}
+
+	return ret;
+}
+
+int amdgpu_dpm_set_mp1_state(struct amdgpu_device *adev,
+			     enum pp_mp1_state mp1_state)
+{
+	int ret = 0;
+
+	if (is_support_sw_smu(adev)) {
+		ret = smu_set_mp1_state(&adev->smu, mp1_state);
+	} else if (adev->powerplay.pp_funcs &&
+		   adev->powerplay.pp_funcs->set_mp1_state) {
+		ret = adev->powerplay.pp_funcs->set_mp1_state(
+				adev->powerplay.pp_handle,
+				mp1_state);
+	}
+
+	return ret;
+}
+
+bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	void *pp_handle = adev->powerplay.pp_handle;
+	struct smu_context *smu = &adev->smu;
+	bool baco_cap;
+
+	if (is_support_sw_smu(adev)) {
+		return smu_baco_is_support(smu);
+	} else {
+		if (!pp_funcs || !pp_funcs->get_asic_baco_capability)
+			return false;
+
+		if (pp_funcs->get_asic_baco_capability(pp_handle, &baco_cap))
+			return false;
+
+		return baco_cap ? true : false;
+	}
+}
+
+int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	void *pp_handle = adev->powerplay.pp_handle;
+	struct smu_context *smu = &adev->smu;
+
+	if (is_support_sw_smu(adev)) {
+		return smu_mode2_reset(smu);
+	} else {
+		if (!pp_funcs || !pp_funcs->asic_reset_mode_2)
+			return -ENOENT;
+
+		return pp_funcs->asic_reset_mode_2(pp_handle);
+	}
+}
+
+int amdgpu_dpm_baco_reset(struct amdgpu_device *adev)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	void *pp_handle = adev->powerplay.pp_handle;
+	struct smu_context *smu = &adev->smu;
+	int ret = 0;
+
+	dev_info(adev->dev, "GPU BACO reset\n");
+
+	if (is_support_sw_smu(adev)) {
+		ret = smu_baco_enter(smu);
+		if (ret)
+			return ret;
+
+		ret = smu_baco_exit(smu);
+		if (ret)
+			return ret;
+	} else {
+		if (!pp_funcs
+		    || !pp_funcs->set_asic_baco_state)
+			return -ENOENT;
+
+		/* enter BACO state */
+		ret = pp_funcs->set_asic_baco_state(pp_handle, 1);
+		if (ret)
+			return ret;
+
+		/* exit BACO state */
+		ret = pp_funcs->set_asic_baco_state(pp_handle, 0);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int amdgpu_dpm_switch_power_profile(struct amdgpu_device *adev,
+				    enum PP_SMC_POWER_PROFILE type,
+				    bool en)
+{
+	int ret = 0;
+
+	if (is_support_sw_smu(adev))
+		ret = smu_switch_power_profile(&adev->smu, type, en);
+	else if (adev->powerplay.pp_funcs &&
+		 adev->powerplay.pp_funcs->switch_power_profile)
+		ret = adev->powerplay.pp_funcs->switch_power_profile(
+			adev->powerplay.pp_handle, type, en);
+
+	return ret;
+}
+
+int amdgpu_dpm_set_xgmi_pstate(struct amdgpu_device *adev,
+			       uint32_t pstate)
+{
+	int ret = 0;
+
+	if (is_support_sw_smu_xgmi(adev))
+		ret = smu_set_xgmi_pstate(&adev->smu, pstate);
+	else if (adev->powerplay.pp_funcs &&
+		 adev->powerplay.pp_funcs->set_xgmi_pstate)
+		ret = adev->powerplay.pp_funcs->set_xgmi_pstate(adev->powerplay.pp_handle,
+								pstate);
+
+	return ret;
+}

@@ -543,12 +543,6 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 		return;
 
-	if (!is_support_sw_smu(adev) &&
-	    (!adev->powerplay.pp_funcs ||
-	     !adev->powerplay.pp_funcs->set_powergating_by_smu))
-		return;
-
-
 	mutex_lock(&adev->gfx.gfx_off_mutex);
 
 	if (!enable)
