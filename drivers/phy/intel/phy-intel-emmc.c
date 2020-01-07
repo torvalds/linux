@@ -281,3 +281,4 @@ module_platform_driver(intel_emmc_driver);
 
 MODULE_AUTHOR("Peter Harliman Liem <peter.harliman.liem@intel.com>");
 MODULE_DESCRIPTION("Intel eMMC PHY driver");
+MODULE_LICENSE("GPL v2");
