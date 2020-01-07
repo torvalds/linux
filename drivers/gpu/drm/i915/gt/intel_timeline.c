@@ -348,7 +348,6 @@ void intel_timeline_enter(struct intel_timeline *tl)
 	 * use atomic to manipulate tl->active_count.
 	 */
 	lockdep_assert_held(&tl->mutex);
-	GEM_BUG_ON(!atomic_read(&tl->pin_count));
 
 	if (atomic_add_unless(&tl->active_count, 1, 0))
 		return;
