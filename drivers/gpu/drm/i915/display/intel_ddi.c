@@ -3168,57 +3168,6 @@ static void intel_ddi_clk_disable(struct intel_encoder *encoder)
 }
 
 static void
-icl_phy_set_clock_gating(struct intel_digital_port *dig_port, bool enable)
-{
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
-	u32 val, bits;
-	int ln;
-
-	if (tc_port == PORT_TC_NONE)
-		return;
-
-	bits = MG_DP_MODE_CFG_TR2PWR_GATING | MG_DP_MODE_CFG_TRPWR_GATING |
-	       MG_DP_MODE_CFG_CLNPWR_GATING | MG_DP_MODE_CFG_DIGPWR_GATING |
-	       MG_DP_MODE_CFG_GAONPWR_GATING;
-
-	for (ln = 0; ln < 2; ln++) {
-		if (INTEL_GEN(dev_priv) >= 12) {
-			I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, ln));
-			val = I915_READ(DKL_DP_MODE(tc_port));
-		} else {
-			val = I915_READ(MG_DP_MODE(ln, tc_port));
-		}
-
-		if (enable)
-			val |= bits;
-		else
-			val &= ~bits;
-
-		if (INTEL_GEN(dev_priv) >= 12)
-			I915_WRITE(DKL_DP_MODE(tc_port), val);
-		else
-			I915_WRITE(MG_DP_MODE(ln, tc_port), val);
-	}
-
-	if (INTEL_GEN(dev_priv) == 11) {
-		bits = MG_MISC_SUS0_CFG_TR2PWR_GATING |
-		       MG_MISC_SUS0_CFG_CL2PWR_GATING |
-		       MG_MISC_SUS0_CFG_GAONPWR_GATING |
-		       MG_MISC_SUS0_CFG_TRPWR_GATING |
-		       MG_MISC_SUS0_CFG_CL1PWR_GATING |
-		       MG_MISC_SUS0_CFG_DGPWR_GATING;
-
-		val = I915_READ(MG_MISC_SUS0(tc_port));
-		if (enable)
-			val |= (bits | MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE(3));
-		else
-			val &= ~(bits | MG_MISC_SUS0_SUSCLK_DYNCLKGATE_MODE_MASK);
-		I915_WRITE(MG_MISC_SUS0(tc_port), val);
-	}
-}
-
-static void
 icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port,
 		       const struct intel_crtc_state *crtc_state)
 {
@@ -3516,12 +3465,6 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	 * down this function.
 	 */
 
-	/*
-	 * 7.d Type C with DP alternate or fixed/legacy/static connection -
-	 * Disable PHY clock gating per Type-C DDI Buffer page
-	 */
-	icl_phy_set_clock_gating(dig_port, false);
-
 	/* 7.e Configure voltage swing and related IO settings */
 	tgl_ddi_vswing_sequence(encoder, crtc_state->port_clock, level,
 				encoder->type);
@@ -3573,15 +3516,6 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	if (!is_trans_port_sync_mode(crtc_state))
 		intel_dp_stop_link_train(intel_dp);
 
-	/*
-	 * TODO: enable clock gating
-	 *
-	 * It is not written in DP enabling sequence but "PHY Clockgating
-	 * programming" states that clock gating should be enabled after the
-	 * link training but doing so causes all the following trainings to fail
-	 * so not enabling it for now.
-	 */
-
 	/* 7.l Configure and enable FEC if needed */
 	intel_ddi_enable_fec(encoder, crtc_state);
 	intel_dsc_enable(encoder, crtc_state);
@@ -3617,7 +3551,6 @@ static void hsw_ddi_pre_enable_dp(struct intel_encoder *encoder,
 					dig_port->ddi_io_power_domain);
 
 	icl_program_mg_dp_mode(dig_port, crtc_state);
-	icl_phy_set_clock_gating(dig_port, false);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_ddi_vswing_sequence(encoder, crtc_state->port_clock,
@@ -3650,8 +3583,6 @@ static void hsw_ddi_pre_enable_dp(struct intel_encoder *encoder,
 		intel_dp_stop_link_train(intel_dp);
 
 	intel_ddi_enable_fec(encoder, crtc_state);
-
-	icl_phy_set_clock_gating(dig_port, true);
 
 	if (!is_mst)
 		intel_ddi_enable_pipe_clock(crtc_state);
@@ -3694,7 +3625,6 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
 	icl_program_mg_dp_mode(dig_port, crtc_state);
-	icl_phy_set_clock_gating(dig_port, false);
 
 	if (INTEL_GEN(dev_priv) >= 12)
 		tgl_ddi_vswing_sequence(encoder, crtc_state->port_clock,
@@ -3708,8 +3638,6 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 		bxt_ddi_vswing_sequence(encoder, level, INTEL_OUTPUT_HDMI);
 	else
 		intel_prepare_hdmi_ddi_buffers(encoder, level);
-
-	icl_phy_set_clock_gating(dig_port, true);
 
 	if (IS_GEN9_BC(dev_priv))
 		skl_ddi_set_iboost(encoder, level, INTEL_OUTPUT_HDMI);
