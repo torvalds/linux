@@ -443,7 +443,7 @@ Again, all methods are called without any locks being held, unless
 otherwise noted.
 
 ``create``
-	called by the open(2) and creat(2) system calls.  Only required
+	called by the open(2) and create(2) system calls.  Only required
 	if you want to support regular files.  The dentry you get should
 	not have an inode (i.e. it should be a negative dentry).  Here
 	you will probably call d_instantiate() with the dentry and the
