@@ -52,6 +52,12 @@ const uint32_t
 		{9, 25, 0, 16},		{15, 31, 6, 22}
 };
 
+static void umc_v6_1_disable_umc_index_mode(struct amdgpu_device *adev)
+{
+	WREG32_FIELD15(RSMU, 0, RSMU_UMC_INDEX_REGISTER_NBIF_VG20_GPU,
+			RSMU_UMC_INDEX_MODE_EN, 0);
+}
+
 static inline uint32_t get_umc_6_reg_offset(struct amdgpu_device *adev,
 					    uint32_t umc_inst,
 					    uint32_t ch_inst)
@@ -87,27 +93,27 @@ static void umc_v6_1_query_correctable_error_count(struct amdgpu_device *adev,
 	}
 
 	/* select the lower chip and check the error count */
-	ecc_err_cnt_sel = RREG32(ecc_err_cnt_sel_addr + umc_reg_offset);
+	ecc_err_cnt_sel = RREG32_PCIE((ecc_err_cnt_sel_addr + umc_reg_offset) * 4);
 	ecc_err_cnt_sel = REG_SET_FIELD(ecc_err_cnt_sel, UMCCH0_0_EccErrCntSel,
 					EccErrCntCsSel, 0);
-	WREG32(ecc_err_cnt_sel_addr + umc_reg_offset, ecc_err_cnt_sel);
-	ecc_err_cnt = RREG32(ecc_err_cnt_addr + umc_reg_offset);
+	WREG32_PCIE((ecc_err_cnt_sel_addr + umc_reg_offset) * 4, ecc_err_cnt_sel);
+	ecc_err_cnt = RREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4);
 	*error_count +=
 		(REG_GET_FIELD(ecc_err_cnt, UMCCH0_0_EccErrCnt, EccErrCnt) -
 		 UMC_V6_1_CE_CNT_INIT);
 	/* clear the lower chip err count */
-	WREG32(ecc_err_cnt_addr + umc_reg_offset, UMC_V6_1_CE_CNT_INIT);
+	WREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4, UMC_V6_1_CE_CNT_INIT);
 
 	/* select the higher chip and check the err counter */
 	ecc_err_cnt_sel = REG_SET_FIELD(ecc_err_cnt_sel, UMCCH0_0_EccErrCntSel,
 					EccErrCntCsSel, 1);
-	WREG32(ecc_err_cnt_sel_addr + umc_reg_offset, ecc_err_cnt_sel);
-	ecc_err_cnt = RREG32(ecc_err_cnt_addr + umc_reg_offset);
+	WREG32_PCIE((ecc_err_cnt_sel_addr + umc_reg_offset) * 4, ecc_err_cnt_sel);
+	ecc_err_cnt = RREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4);
 	*error_count +=
 		(REG_GET_FIELD(ecc_err_cnt, UMCCH0_0_EccErrCnt, EccErrCnt) -
 		 UMC_V6_1_CE_CNT_INIT);
 	/* clear the higher chip err count */
-	WREG32(ecc_err_cnt_addr + umc_reg_offset, UMC_V6_1_CE_CNT_INIT);
+	WREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4, UMC_V6_1_CE_CNT_INIT);
 
 	/* check for SRAM correctable error
 	  MCUMC_STATUS is a 64 bit register */
@@ -283,21 +289,21 @@ static void umc_v6_1_err_cnt_init_per_channel(struct amdgpu_device *adev,
 	}
 
 	/* select the lower chip and check the error count */
-	ecc_err_cnt_sel = RREG32(ecc_err_cnt_sel_addr + umc_reg_offset);
+	ecc_err_cnt_sel = RREG32_PCIE((ecc_err_cnt_sel_addr + umc_reg_offset) * 4);
 	ecc_err_cnt_sel = REG_SET_FIELD(ecc_err_cnt_sel, UMCCH0_0_EccErrCntSel,
 					EccErrCntCsSel, 0);
 	/* set ce error interrupt type to APIC based interrupt */
 	ecc_err_cnt_sel = REG_SET_FIELD(ecc_err_cnt_sel, UMCCH0_0_EccErrCntSel,
 					EccErrInt, 0x1);
-	WREG32(ecc_err_cnt_sel_addr + umc_reg_offset, ecc_err_cnt_sel);
+	WREG32_PCIE((ecc_err_cnt_sel_addr + umc_reg_offset) * 4, ecc_err_cnt_sel);
 	/* set error count to initial value */
-	WREG32(ecc_err_cnt_addr + umc_reg_offset, UMC_V6_1_CE_CNT_INIT);
+	WREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4, UMC_V6_1_CE_CNT_INIT);
 
 	/* select the higher chip and check the err counter */
 	ecc_err_cnt_sel = REG_SET_FIELD(ecc_err_cnt_sel, UMCCH0_0_EccErrCntSel,
 					EccErrCntCsSel, 1);
-	WREG32(ecc_err_cnt_sel_addr + umc_reg_offset, ecc_err_cnt_sel);
-	WREG32(ecc_err_cnt_addr + umc_reg_offset, UMC_V6_1_CE_CNT_INIT);
+	WREG32_PCIE((ecc_err_cnt_sel_addr + umc_reg_offset) * 4, ecc_err_cnt_sel);
+	WREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4, UMC_V6_1_CE_CNT_INIT);
 }
 
 static void umc_v6_1_err_cnt_init(struct amdgpu_device *adev)
@@ -305,6 +311,8 @@ static void umc_v6_1_err_cnt_init(struct amdgpu_device *adev)
 	uint32_t umc_inst        = 0;
 	uint32_t ch_inst         = 0;
 	uint32_t umc_reg_offset  = 0;
+
+	umc_v6_1_disable_umc_index_mode(adev);
 
 	for (umc_inst = 0; umc_inst < adev->umc.umc_inst_num; umc_inst++) {
 		for (ch_inst = 0; ch_inst < adev->umc.channel_inst_num; ch_inst++) {
