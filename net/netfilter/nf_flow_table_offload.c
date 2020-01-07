@@ -812,7 +812,7 @@ void nf_flow_offload_stats(struct nf_flowtable *flowtable,
 
 void nf_flow_table_offload_flush(struct nf_flowtable *flowtable)
 {
-	if (flowtable->flags & NF_FLOWTABLE_HW_OFFLOAD)
+	if (nf_flowtable_hw_offload(flowtable))
 		flush_work(&nf_flow_offload_work);
 }
 
@@ -849,7 +849,7 @@ int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
 	struct flow_block_offload bo = {};
 	int err;
 
-	if (!(flowtable->flags & NF_FLOWTABLE_HW_OFFLOAD))
+	if (!nf_flowtable_hw_offload(flowtable))
 		return 0;
 
 	if (!dev->netdev_ops->ndo_setup_tc)
