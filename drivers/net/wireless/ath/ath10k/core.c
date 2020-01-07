@@ -874,6 +874,13 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 		return -ENODATA;
 	}
 
+	if (ar->id.bmi_ids_valid) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "boot already acquired valid otp board id,skip download, board_id %d chip_id %d\n",
+			   ar->id.bmi_board_id, ar->id.bmi_chip_id);
+		goto skip_otp_download;
+	}
+
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
 		   "boot upload otp to 0x%x len %zd for board id\n",
 		   address, ar->normal_mode_fw.fw_file.otp_len);
@@ -920,6 +927,8 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 	ar->id.bmi_ids_valid = true;
 	ar->id.bmi_board_id = board_id;
 	ar->id.bmi_chip_id = chip_id;
+
+skip_otp_download:
 
 	return 0;
 }
@@ -2905,6 +2914,8 @@ void ath10k_core_stop(struct ath10k *ar)
 	ath10k_htt_tx_stop(&ar->htt);
 	ath10k_htt_rx_free(&ar->htt);
 	ath10k_wmi_detach(ar);
+
+	ar->id.bmi_ids_valid = false;
 }
 EXPORT_SYMBOL(ath10k_core_stop);
 
