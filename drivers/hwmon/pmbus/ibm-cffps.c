@@ -250,7 +250,7 @@ static ssize_t ibm_cffps_debugfs_write(struct file *file,
 		pmbus_set_page(psu->client, 0);
 
 		rc = simple_write_to_buffer(&data, 1, ppos, buf, count);
-		if (rc < 0)
+		if (rc <= 0)
 			return rc;
 
 		rc = i2c_smbus_write_byte_data(psu->client,
