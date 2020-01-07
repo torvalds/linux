@@ -23,6 +23,17 @@ struct adis;
 struct adis_burst;
 
 /**
+ * struct adis_timeouts - ADIS chip variant timeouts
+ * @reset_ms - Wait time after rst pin goes inactive
+ * @sw_reset_ms - Wait time after sw reset command
+ * @self_test_ms - Wait time after self test command
+ */
+struct adis_timeout {
+	u16 reset_ms;
+	u16 sw_reset_ms;
+	u16 self_test_ms;
+};
+/**
  * struct adis_data - ADIS chip variant specific data
  * @read_delay: SPI delay for read operations in us
  * @write_delay: SPI delay for write operations in us
@@ -32,6 +43,7 @@ struct adis_burst;
  * @diag_stat_reg: Register address of the DIAG_STAT register
  * @status_error_msgs: Array of error messgaes
  * @status_error_mask:
+ * @timeouts: Chip specific delays
  */
 struct adis_data {
 	unsigned int read_delay;
@@ -45,6 +57,7 @@ struct adis_data {
 	unsigned int self_test_mask;
 	bool self_test_no_autoclear;
 	unsigned int startup_delay;
+	const struct adis_timeout *timeouts;
 
 	const char * const *status_error_msgs;
 	unsigned int status_error_mask;
