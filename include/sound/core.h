@@ -69,7 +69,7 @@ struct snd_device {
 	enum snd_device_state state;	/* state of the device */
 	enum snd_device_type type;	/* device type */
 	void *device_data;		/* device structure */
-	struct snd_device_ops *ops;	/* operations */
+	const struct snd_device_ops *ops;	/* operations */
 };
 
 #define snd_device(n) list_entry(n, struct snd_device, list)
@@ -256,7 +256,7 @@ static inline void snd_card_unref(struct snd_card *card)
 /* device.c */
 
 int snd_device_new(struct snd_card *card, enum snd_device_type type,
-		   void *device_data, struct snd_device_ops *ops);
+		   void *device_data, const struct snd_device_ops *ops);
 int snd_device_register(struct snd_card *card, void *device_data);
 int snd_device_register_all(struct snd_card *card);
 void snd_device_disconnect(struct snd_card *card, void *device_data);

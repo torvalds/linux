@@ -433,14 +433,14 @@ static const struct snd_pcm_ops snd_vortex_playback_ops = {
 *  definitions of capture are omitted here...
 */
 
-static char *vortex_pcm_prettyname[VORTEX_PCM_LAST] = {
+static const char * const vortex_pcm_prettyname[VORTEX_PCM_LAST] = {
 	CARD_NAME " ADB",
 	CARD_NAME " SPDIF",
 	CARD_NAME " A3D",
 	CARD_NAME " WT",
 	CARD_NAME " I2S",
 };
-static char *vortex_pcm_name[VORTEX_PCM_LAST] = {
+static const char * const vortex_pcm_name[VORTEX_PCM_LAST] = {
 	"adb",
 	"spdif",
 	"a3d",
@@ -497,7 +497,7 @@ static int snd_vortex_spdif_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 }
 
 /* spdif controls */
-static struct snd_kcontrol_new snd_vortex_mixer_spdif[] = {
+static const struct snd_kcontrol_new snd_vortex_mixer_spdif[] = {
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 		.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),

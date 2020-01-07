@@ -201,8 +201,6 @@ static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
 	char *buf = kzalloc(bufsz, GFP_KERNEL), *p = buf;
 	u64 rx_airtime = 0, tx_airtime = 0;
 	s64 deficit[IEEE80211_NUM_ACS];
-	u32 q_depth[IEEE80211_NUM_ACS];
-	u32 q_limit_l[IEEE80211_NUM_ACS], q_limit_h[IEEE80211_NUM_ACS];
 	ssize_t rv;
 	int ac;
 
@@ -214,22 +212,14 @@ static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
 		rx_airtime += sta->airtime[ac].rx_airtime;
 		tx_airtime += sta->airtime[ac].tx_airtime;
 		deficit[ac] = sta->airtime[ac].deficit;
-		q_limit_l[ac] = sta->airtime[ac].aql_limit_low;
-		q_limit_h[ac] = sta->airtime[ac].aql_limit_high;
 		spin_unlock_bh(&local->active_txq_lock[ac]);
-		q_depth[ac] = atomic_read(&sta->airtime[ac].aql_tx_pending);
 	}
 
 	p += scnprintf(p, bufsz + buf - p,
 		"RX: %llu us\nTX: %llu us\nWeight: %u\n"
-		"Deficit: VO: %lld us VI: %lld us BE: %lld us BK: %lld us\n"
-		"Q depth: VO: %u us VI: %u us BE: %u us BK: %u us\n"
-		"Q limit[low/high]: VO: %u/%u VI: %u/%u BE: %u/%u BK: %u/%u\n",
+		"Deficit: VO: %lld us VI: %lld us BE: %lld us BK: %lld us\n",
 		rx_airtime, tx_airtime, sta->airtime_weight,
-		deficit[0], deficit[1], deficit[2], deficit[3],
-		q_depth[0], q_depth[1], q_depth[2], q_depth[3],
-		q_limit_l[0], q_limit_h[0], q_limit_l[1], q_limit_h[1],
-		q_limit_l[2], q_limit_h[2], q_limit_l[3], q_limit_h[3]),
+		deficit[0], deficit[1], deficit[2], deficit[3]);
 
 	rv = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 	kfree(buf);
@@ -241,25 +231,7 @@ static ssize_t sta_airtime_write(struct file *file, const char __user *userbuf,
 {
 	struct sta_info *sta = file->private_data;
 	struct ieee80211_local *local = sta->sdata->local;
-	u32 ac, q_limit_l, q_limit_h;
-	char _buf[100] = {}, *buf = _buf;
-
-	if (count > sizeof(_buf))
-		return -EINVAL;
-
-	if (copy_from_user(buf, userbuf, count))
-		return -EFAULT;
-
-	buf[sizeof(_buf) - 1] = '\0';
-	if (sscanf(buf, "queue limit %u %u %u", &ac, &q_limit_l, &q_limit_h)
-	    != 3)
-		return -EINVAL;
-
-	if (ac >= IEEE80211_NUM_ACS)
-		return -EINVAL;
-
-	sta->airtime[ac].aql_limit_low = q_limit_l;
-	sta->airtime[ac].aql_limit_high = q_limit_h;
+	int ac;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		spin_lock_bh(&local->active_txq_lock[ac]);
@@ -272,6 +244,70 @@ static ssize_t sta_airtime_write(struct file *file, const char __user *userbuf,
 	return count;
 }
 STA_OPS_RW(airtime);
+
+static ssize_t sta_aql_read(struct file *file, char __user *userbuf,
+				size_t count, loff_t *ppos)
+{
+	struct sta_info *sta = file->private_data;
+	struct ieee80211_local *local = sta->sdata->local;
+	size_t bufsz = 400;
+	char *buf = kzalloc(bufsz, GFP_KERNEL), *p = buf;
+	u32 q_depth[IEEE80211_NUM_ACS];
+	u32 q_limit_l[IEEE80211_NUM_ACS], q_limit_h[IEEE80211_NUM_ACS];
+	ssize_t rv;
+	int ac;
+
+	if (!buf)
+		return -ENOMEM;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		spin_lock_bh(&local->active_txq_lock[ac]);
+		q_limit_l[ac] = sta->airtime[ac].aql_limit_low;
+		q_limit_h[ac] = sta->airtime[ac].aql_limit_high;
+		spin_unlock_bh(&local->active_txq_lock[ac]);
+		q_depth[ac] = atomic_read(&sta->airtime[ac].aql_tx_pending);
+	}
+
+	p += scnprintf(p, bufsz + buf - p,
+		"Q depth: VO: %u us VI: %u us BE: %u us BK: %u us\n"
+		"Q limit[low/high]: VO: %u/%u VI: %u/%u BE: %u/%u BK: %u/%u\n",
+		q_depth[0], q_depth[1], q_depth[2], q_depth[3],
+		q_limit_l[0], q_limit_h[0], q_limit_l[1], q_limit_h[1],
+		q_limit_l[2], q_limit_h[2], q_limit_l[3], q_limit_h[3]),
+
+	rv = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	kfree(buf);
+	return rv;
+}
+
+static ssize_t sta_aql_write(struct file *file, const char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct sta_info *sta = file->private_data;
+	u32 ac, q_limit_l, q_limit_h;
+	char _buf[100] = {}, *buf = _buf;
+
+	if (count > sizeof(_buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	buf[sizeof(_buf) - 1] = '\0';
+	if (sscanf(buf, "limit %u %u %u", &ac, &q_limit_l, &q_limit_h)
+	    != 3)
+		return -EINVAL;
+
+	if (ac >= IEEE80211_NUM_ACS)
+		return -EINVAL;
+
+	sta->airtime[ac].aql_limit_low = q_limit_l;
+	sta->airtime[ac].aql_limit_high = q_limit_h;
+
+	return count;
+}
+STA_OPS_RW(aql);
+
 
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
@@ -995,6 +1031,10 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	if (wiphy_ext_feature_isset(local->hw.wiphy,
 				    NL80211_EXT_FEATURE_AIRTIME_FAIRNESS))
 		DEBUGFS_ADD(airtime);
+
+	if (wiphy_ext_feature_isset(local->hw.wiphy,
+				    NL80211_EXT_FEATURE_AQL))
+		DEBUGFS_ADD(aql);
 
 	debugfs_create_xul("driver_buffered_tids", 0400, sta->debugfs_dir,
 			   &sta->driver_buffered_tids);

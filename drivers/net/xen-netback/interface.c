@@ -628,18 +628,6 @@ err:
 
 static void xenvif_disconnect_queue(struct xenvif_queue *queue)
 {
-	if (queue->tx_irq) {
-		unbind_from_irqhandler(queue->tx_irq, queue);
-		if (queue->tx_irq == queue->rx_irq)
-			queue->rx_irq = 0;
-		queue->tx_irq = 0;
-	}
-
-	if (queue->rx_irq) {
-		unbind_from_irqhandler(queue->rx_irq, queue);
-		queue->rx_irq = 0;
-	}
-
 	if (queue->task) {
 		kthread_stop(queue->task);
 		queue->task = NULL;
@@ -653,6 +641,18 @@ static void xenvif_disconnect_queue(struct xenvif_queue *queue)
 	if (queue->napi.poll) {
 		netif_napi_del(&queue->napi);
 		queue->napi.poll = NULL;
+	}
+
+	if (queue->tx_irq) {
+		unbind_from_irqhandler(queue->tx_irq, queue);
+		if (queue->tx_irq == queue->rx_irq)
+			queue->rx_irq = 0;
+		queue->tx_irq = 0;
+	}
+
+	if (queue->rx_irq) {
+		unbind_from_irqhandler(queue->rx_irq, queue);
+		queue->rx_irq = 0;
 	}
 
 	xenvif_unmap_frontend_data_rings(queue);

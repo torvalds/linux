@@ -534,8 +534,8 @@ static int snd_sc6000_match(struct device *devptr, unsigned int dev)
 
 static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 {
-	static int possible_irqs[] = { 5, 7, 9, 10, 11, -1 };
-	static int possible_dmas[] = { 1, 3, 0, -1 };
+	static const int possible_irqs[] = { 5, 7, 9, 10, 11, -1 };
+	static const int possible_dmas[] = { 1, 3, 0, -1 };
 	int err;
 	int xirq = irq[dev];
 	int xdma = dma[dev];

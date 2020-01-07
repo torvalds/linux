@@ -207,6 +207,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
 	select SND_SOC_WCD9335 if SLIMBUS
+	select SND_SOC_WCD934X if MFD_WCD934X
 	select SND_SOC_WL1273 if MFD_WL1273_CORE
 	select SND_SOC_WM0010 if SPI_MASTER
 	select SND_SOC_WM1250_EV1 if I2C
@@ -1274,6 +1275,13 @@ config SND_SOC_WCD9335
 	  The WCD9335 is a standalone Hi-Fi audio CODEC IC, supports
 	  Qualcomm Technologies, Inc. (QTI) multimedia solutions,
 	  including the MSM8996, MSM8976, and MSM8956 chipsets.
+
+config SND_SOC_WCD934X
+	tristate "WCD9340/WCD9341 Codec"
+	depends on MFD_WCD934X
+	help
+	  The WCD9340/9341 is a audio codec IC Integrated in
+	  Qualcomm SoCs like SDM845.
 
 config SND_SOC_WL1273
 	tristate

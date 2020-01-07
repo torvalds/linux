@@ -310,6 +310,15 @@ static void output_label(const char *label)
 	printf("%s:\n", label);
 }
 
+/* Provide proper symbols relocatability by their '_text' relativeness. */
+static void output_address(unsigned long long addr)
+{
+	if (_text <= addr)
+		printf("\tPTR\t_text + %#llx\n", addr - _text);
+	else
+		printf("\tPTR\t_text - %#llx\n", _text - addr);
+}
+
 /* uncompress a compressed symbol. When this function is called, the best table
  * might still be compressed itself, so the function needs to be recursive */
 static int expand_symbol(const unsigned char *data, int len, char *result)
@@ -360,19 +369,6 @@ static void write_src(void)
 
 	printf("\t.section .rodata, \"a\"\n");
 
-	/* Provide proper symbols relocatability by their relativeness
-	 * to a fixed anchor point in the runtime image, either '_text'
-	 * for absolute address tables, in which case the linker will
-	 * emit the final addresses at build time. Otherwise, use the
-	 * offset relative to the lowest value encountered of all relative
-	 * symbols, and emit non-relocatable fixed offsets that will be fixed
-	 * up at runtime.
-	 *
-	 * The symbol names cannot be used to construct normal symbol
-	 * references as the list of symbols contains symbols that are
-	 * declared static and are private to their .o files.  This prevents
-	 * .tmp_kallsyms.o or any other object from referencing them.
-	 */
 	if (!base_relative)
 		output_label("kallsyms_addresses");
 	else
@@ -380,6 +376,13 @@ static void write_src(void)
 
 	for (i = 0; i < table_cnt; i++) {
 		if (base_relative) {
+			/*
+			 * Use the offset relative to the lowest value
+			 * encountered of all relative symbols, and emit
+			 * non-relocatable fixed offsets that will be fixed
+			 * up at runtime.
+			 */
+
 			long long offset;
 			int overflow;
 
@@ -402,12 +405,7 @@ static void write_src(void)
 			}
 			printf("\t.long\t%#x\n", (int)offset);
 		} else if (!symbol_absolute(&table[i])) {
-			if (_text <= table[i].addr)
-				printf("\tPTR\t_text + %#llx\n",
-					table[i].addr - _text);
-			else
-				printf("\tPTR\t_text - %#llx\n",
-					_text - table[i].addr);
+			output_address(table[i].addr);
 		} else {
 			printf("\tPTR\t%#llx\n", table[i].addr);
 		}
@@ -416,7 +414,7 @@ static void write_src(void)
 
 	if (base_relative) {
 		output_label("kallsyms_relative_base");
-		printf("\tPTR\t_text - %#llx\n", _text - relative_base);
+		output_address(relative_base);
 		printf("\n");
 	}
 

@@ -96,11 +96,12 @@ static inline void efx_sync_rx_buffer(struct efx_nic *efx,
 
 void efx_rx_config_page_split(struct efx_nic *efx)
 {
-	efx->rx_page_buf_step = ALIGN(efx->rx_dma_len + efx->rx_ip_align,
+	efx->rx_page_buf_step = ALIGN(efx->rx_dma_len + efx->rx_ip_align +
+				      XDP_PACKET_HEADROOM,
 				      EFX_RX_BUF_ALIGNMENT);
 	efx->rx_bufs_per_page = efx->rx_buffer_order ? 1 :
 		((PAGE_SIZE - sizeof(struct efx_rx_page_state)) /
-		(efx->rx_page_buf_step + XDP_PACKET_HEADROOM));
+		efx->rx_page_buf_step);
 	efx->rx_buffer_truesize = (PAGE_SIZE << efx->rx_buffer_order) /
 		efx->rx_bufs_per_page;
 	efx->rx_pages_per_batch = DIV_ROUND_UP(EFX_RX_PREFERRED_BATCH,
@@ -190,14 +191,13 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue, bool atomic)
 		page_offset = sizeof(struct efx_rx_page_state);
 
 		do {
-			page_offset += XDP_PACKET_HEADROOM;
-			dma_addr += XDP_PACKET_HEADROOM;
-
 			index = rx_queue->added_count & rx_queue->ptr_mask;
 			rx_buf = efx_rx_buffer(rx_queue, index);
-			rx_buf->dma_addr = dma_addr + efx->rx_ip_align;
+			rx_buf->dma_addr = dma_addr + efx->rx_ip_align +
+					   XDP_PACKET_HEADROOM;
 			rx_buf->page = page;
-			rx_buf->page_offset = page_offset + efx->rx_ip_align;
+			rx_buf->page_offset = page_offset + efx->rx_ip_align +
+					      XDP_PACKET_HEADROOM;
 			rx_buf->len = efx->rx_dma_len;
 			rx_buf->flags = 0;
 			++rx_queue->added_count;

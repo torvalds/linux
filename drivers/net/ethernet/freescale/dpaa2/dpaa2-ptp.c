@@ -160,10 +160,10 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 	irq = mc_dev->irqs[0];
 	ptp_qoriq->irq = irq->msi_desc->irq;
 
-	err = devm_request_threaded_irq(dev, ptp_qoriq->irq, NULL,
-					dpaa2_ptp_irq_handler_thread,
-					IRQF_NO_SUSPEND | IRQF_ONESHOT,
-					dev_name(dev), ptp_qoriq);
+	err = request_threaded_irq(ptp_qoriq->irq, NULL,
+				   dpaa2_ptp_irq_handler_thread,
+				   IRQF_NO_SUSPEND | IRQF_ONESHOT,
+				   dev_name(dev), ptp_qoriq);
 	if (err < 0) {
 		dev_err(dev, "devm_request_threaded_irq(): %d\n", err);
 		goto err_free_mc_irq;
@@ -173,18 +173,20 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 				   DPRTC_IRQ_INDEX, 1);
 	if (err < 0) {
 		dev_err(dev, "dprtc_set_irq_enable(): %d\n", err);
-		goto err_free_mc_irq;
+		goto err_free_threaded_irq;
 	}
 
 	err = ptp_qoriq_init(ptp_qoriq, base, &dpaa2_ptp_caps);
 	if (err)
-		goto err_free_mc_irq;
+		goto err_free_threaded_irq;
 
 	dpaa2_phc_index = ptp_qoriq->phc_index;
 	dev_set_drvdata(dev, ptp_qoriq);
 
 	return 0;
 
+err_free_threaded_irq:
+	free_irq(ptp_qoriq->irq, ptp_qoriq);
 err_free_mc_irq:
 	fsl_mc_free_irqs(mc_dev);
 err_unmap:

@@ -2021,26 +2021,34 @@ EXPORT_SYMBOL(vm_iomap_memory);
 
 static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 				     unsigned long addr, unsigned long end,
-				     pte_fn_t fn, void *data)
+				     pte_fn_t fn, void *data, bool create)
 {
 	pte_t *pte;
-	int err;
+	int err = 0;
 	spinlock_t *uninitialized_var(ptl);
 
-	pte = (mm == &init_mm) ?
-		pte_alloc_kernel(pmd, addr) :
-		pte_alloc_map_lock(mm, pmd, addr, &ptl);
-	if (!pte)
-		return -ENOMEM;
+	if (create) {
+		pte = (mm == &init_mm) ?
+			pte_alloc_kernel(pmd, addr) :
+			pte_alloc_map_lock(mm, pmd, addr, &ptl);
+		if (!pte)
+			return -ENOMEM;
+	} else {
+		pte = (mm == &init_mm) ?
+			pte_offset_kernel(pmd, addr) :
+			pte_offset_map_lock(mm, pmd, addr, &ptl);
+	}
 
 	BUG_ON(pmd_huge(*pmd));
 
 	arch_enter_lazy_mmu_mode();
 
 	do {
-		err = fn(pte++, addr, data);
-		if (err)
-			break;
+		if (create || !pte_none(*pte)) {
+			err = fn(pte++, addr, data);
+			if (err)
+				break;
+		}
 	} while (addr += PAGE_SIZE, addr != end);
 
 	arch_leave_lazy_mmu_mode();
@@ -2052,63 +2060,109 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 
 static int apply_to_pmd_range(struct mm_struct *mm, pud_t *pud,
 				     unsigned long addr, unsigned long end,
-				     pte_fn_t fn, void *data)
+				     pte_fn_t fn, void *data, bool create)
 {
 	pmd_t *pmd;
 	unsigned long next;
-	int err;
+	int err = 0;
 
 	BUG_ON(pud_huge(*pud));
 
-	pmd = pmd_alloc(mm, pud, addr);
-	if (!pmd)
-		return -ENOMEM;
+	if (create) {
+		pmd = pmd_alloc(mm, pud, addr);
+		if (!pmd)
+			return -ENOMEM;
+	} else {
+		pmd = pmd_offset(pud, addr);
+	}
 	do {
 		next = pmd_addr_end(addr, end);
-		err = apply_to_pte_range(mm, pmd, addr, next, fn, data);
-		if (err)
-			break;
+		if (create || !pmd_none_or_clear_bad(pmd)) {
+			err = apply_to_pte_range(mm, pmd, addr, next, fn, data,
+						 create);
+			if (err)
+				break;
+		}
 	} while (pmd++, addr = next, addr != end);
 	return err;
 }
 
 static int apply_to_pud_range(struct mm_struct *mm, p4d_t *p4d,
 				     unsigned long addr, unsigned long end,
-				     pte_fn_t fn, void *data)
+				     pte_fn_t fn, void *data, bool create)
 {
 	pud_t *pud;
 	unsigned long next;
-	int err;
+	int err = 0;
 
-	pud = pud_alloc(mm, p4d, addr);
-	if (!pud)
-		return -ENOMEM;
+	if (create) {
+		pud = pud_alloc(mm, p4d, addr);
+		if (!pud)
+			return -ENOMEM;
+	} else {
+		pud = pud_offset(p4d, addr);
+	}
 	do {
 		next = pud_addr_end(addr, end);
-		err = apply_to_pmd_range(mm, pud, addr, next, fn, data);
-		if (err)
-			break;
+		if (create || !pud_none_or_clear_bad(pud)) {
+			err = apply_to_pmd_range(mm, pud, addr, next, fn, data,
+						 create);
+			if (err)
+				break;
+		}
 	} while (pud++, addr = next, addr != end);
 	return err;
 }
 
 static int apply_to_p4d_range(struct mm_struct *mm, pgd_t *pgd,
 				     unsigned long addr, unsigned long end,
-				     pte_fn_t fn, void *data)
+				     pte_fn_t fn, void *data, bool create)
 {
 	p4d_t *p4d;
 	unsigned long next;
-	int err;
+	int err = 0;
 
-	p4d = p4d_alloc(mm, pgd, addr);
-	if (!p4d)
-		return -ENOMEM;
+	if (create) {
+		p4d = p4d_alloc(mm, pgd, addr);
+		if (!p4d)
+			return -ENOMEM;
+	} else {
+		p4d = p4d_offset(pgd, addr);
+	}
 	do {
 		next = p4d_addr_end(addr, end);
-		err = apply_to_pud_range(mm, p4d, addr, next, fn, data);
+		if (create || !p4d_none_or_clear_bad(p4d)) {
+			err = apply_to_pud_range(mm, p4d, addr, next, fn, data,
+						 create);
+			if (err)
+				break;
+		}
+	} while (p4d++, addr = next, addr != end);
+	return err;
+}
+
+static int __apply_to_page_range(struct mm_struct *mm, unsigned long addr,
+				 unsigned long size, pte_fn_t fn,
+				 void *data, bool create)
+{
+	pgd_t *pgd;
+	unsigned long next;
+	unsigned long end = addr + size;
+	int err = 0;
+
+	if (WARN_ON(addr >= end))
+		return -EINVAL;
+
+	pgd = pgd_offset(mm, addr);
+	do {
+		next = pgd_addr_end(addr, end);
+		if (!create && pgd_none_or_clear_bad(pgd))
+			continue;
+		err = apply_to_p4d_range(mm, pgd, addr, next, fn, data, create);
 		if (err)
 			break;
-	} while (p4d++, addr = next, addr != end);
+	} while (pgd++, addr = next, addr != end);
+
 	return err;
 }
 
@@ -2119,25 +2173,23 @@ static int apply_to_p4d_range(struct mm_struct *mm, pgd_t *pgd,
 int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
 			unsigned long size, pte_fn_t fn, void *data)
 {
-	pgd_t *pgd;
-	unsigned long next;
-	unsigned long end = addr + size;
-	int err;
-
-	if (WARN_ON(addr >= end))
-		return -EINVAL;
-
-	pgd = pgd_offset(mm, addr);
-	do {
-		next = pgd_addr_end(addr, end);
-		err = apply_to_p4d_range(mm, pgd, addr, next, fn, data);
-		if (err)
-			break;
-	} while (pgd++, addr = next, addr != end);
-
-	return err;
+	return __apply_to_page_range(mm, addr, size, fn, data, true);
 }
 EXPORT_SYMBOL_GPL(apply_to_page_range);
+
+/*
+ * Scan a region of virtual memory, calling a provided function on
+ * each leaf page table where it exists.
+ *
+ * Unlike apply_to_page_range, this does _not_ fill in page tables
+ * where they are absent.
+ */
+int apply_to_existing_page_range(struct mm_struct *mm, unsigned long addr,
+				 unsigned long size, pte_fn_t fn, void *data)
+{
+	return __apply_to_page_range(mm, addr, size, fn, data, false);
+}
+EXPORT_SYMBOL_GPL(apply_to_existing_page_range);
 
 /*
  * handle_pte_fault chooses page fault handler according to an entry which was

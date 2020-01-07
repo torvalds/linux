@@ -1400,7 +1400,7 @@ static snd_pcm_uframes_t snd_ali_pointer(struct snd_pcm_substream *substream)
 	return cso;
 }
 
-static struct snd_pcm_hardware snd_ali_playback =
+static const struct snd_pcm_hardware snd_ali_playback =
 {
 	.info =		(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 			 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1426,7 +1426,7 @@ static struct snd_pcm_hardware snd_ali_playback =
  *  Capture support device description
  */
 
-static struct snd_pcm_hardware snd_ali_capture =
+static const struct snd_pcm_hardware snd_ali_capture =
 {
 	.info =		(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 			 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1457,7 +1457,7 @@ static void snd_ali_pcm_free_substream(struct snd_pcm_runtime *runtime)
 }
 
 static int snd_ali_open(struct snd_pcm_substream *substream, int rec,
-			int channel, struct snd_pcm_hardware *phw)
+			int channel, const struct snd_pcm_hardware *phw)
 {
 	struct snd_ali *codec = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -1537,7 +1537,7 @@ static int snd_ali_modem_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_pcm_hardware snd_ali_modem =
+static const struct snd_pcm_hardware snd_ali_modem =
 {
 	.info =		(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 			 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1776,7 +1776,7 @@ static int snd_ali5451_spdif_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ali5451_mixer_spdif[] = {
+static const struct snd_kcontrol_new snd_ali5451_mixer_spdif[] = {
 	/* spdif aplayback switch */
 	/* FIXME: "IEC958 Playback Switch" may conflict with one on ac97_codec */
 	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH), 0, 0),
@@ -1791,7 +1791,7 @@ static int snd_ali_mixer(struct snd_ali *codec)
 	struct snd_ac97_template ac97;
 	unsigned int idx;
 	int i, err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_ali_codec_write,
 		.read = snd_ali_codec_read,
 	};
@@ -2046,7 +2046,7 @@ static int snd_ali_create(struct snd_card *card,
 	struct snd_ali *codec;
 	int i, err;
 	unsigned short cmdw;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_ali_dev_free,
         };
 
