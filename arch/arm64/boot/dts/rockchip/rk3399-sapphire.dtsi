@@ -558,8 +558,10 @@
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
+	supports-sd;
 	clock-frequency = <150000000>;
 	disable-wp;
+	sd-uhs-sdr104;
 	max-frequency = <150000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
