@@ -1840,8 +1840,6 @@ static void setup_common(struct intel_engine_cs *engine)
 
 	setup_irq(engine);
 
-	engine->release = ring_release;
-
 	engine->resume = xcs_resume;
 	engine->reset.prepare = reset_prepare;
 	engine->reset.rewind = reset_rewind;
@@ -2006,6 +2004,9 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 	engine->legacy.timeline = timeline;
 
 	GEM_BUG_ON(timeline->hwsp_ggtt != engine->status_page.vma);
+
+	/* Finally, take ownership and responsibility for cleanup! */
+	engine->release = ring_release;
 
 	return 0;
 
