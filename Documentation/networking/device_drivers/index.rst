@@ -25,6 +25,7 @@ Contents:
    mellanox/mlx5
    netronome/nfp
    pensando/ionic
+   stmicro/stmmac
 
 .. only::  subproject and html
 
