@@ -528,7 +528,7 @@ static int snd_msnd_attach(struct snd_card *card)
 {
 	struct snd_msnd *chip = card->private_data;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =      snd_msnd_dev_free,
 		};
 
@@ -538,6 +538,7 @@ static int snd_msnd_attach(struct snd_card *card)
 		printk(KERN_ERR LOGNAME ": Couldn't grab IRQ %d\n", chip->irq);
 		return err;
 	}
+	card->sync_irq = chip->irq;
 	if (request_region(chip->io, DSP_NUMIO, card->shortname) == NULL) {
 		free_irq(chip->irq, chip);
 		return -EBUSY;

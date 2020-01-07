@@ -17,7 +17,6 @@
 #define __LINUX_UAPI_SND_ASOC_H
 
 #include <linux/types.h>
-#include <sound/asound.h>
 
 /*
  * Maximum number of channels topology kcontrol can represent.

@@ -1038,8 +1038,8 @@ static const struct snd_pci_quirk vt2002p_fixups[] = {
  */
 static void fix_vt1802_connections(struct hda_codec *codec)
 {
-	static hda_nid_t conn_24[] = { 0x14, 0x1c };
-	static hda_nid_t conn_33[] = { 0x1c };
+	static const hda_nid_t conn_24[] = { 0x14, 0x1c };
+	static const hda_nid_t conn_33[] = { 0x1c };
 
 	snd_hda_override_conn_list(codec, 0x24, ARRAY_SIZE(conn_24), conn_24);
 	snd_hda_override_conn_list(codec, 0x33, ARRAY_SIZE(conn_33), conn_33);

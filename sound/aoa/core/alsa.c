@@ -59,7 +59,7 @@ void aoa_alsa_cleanup(void)
 }
 
 int aoa_snd_device_new(enum snd_device_type type,
-		       void * device_data, struct snd_device_ops * ops)
+		       void *device_data, const struct snd_device_ops *ops)
 {
 	struct snd_card *card = aoa_get_card();
 	int err;

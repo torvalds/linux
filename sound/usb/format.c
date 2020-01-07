@@ -292,10 +292,10 @@ static int line6_parse_audio_format_rates_quirk(struct snd_usb_audio *chip,
 						struct audioformat *fp)
 {
 	switch (chip->usb_id) {
-	case USB_ID(0x0E41, 0x4241): /* Line6 Helix */
-	case USB_ID(0x0E41, 0x4242): /* Line6 Helix Rack */
-	case USB_ID(0x0E41, 0x4244): /* Line6 Helix LT */
-	case USB_ID(0x0E41, 0x4246): /* Line6 HX-Stomp */
+	case USB_ID(0x0e41, 0x4241): /* Line6 Helix */
+	case USB_ID(0x0e41, 0x4242): /* Line6 Helix Rack */
+	case USB_ID(0x0e41, 0x4244): /* Line6 Helix LT */
+	case USB_ID(0x0e41, 0x4246): /* Line6 HX-Stomp */
 		/* supported rates: 48Khz */
 		kfree(fp->rate_table);
 		fp->rate_table = kmalloc(sizeof(int), GFP_KERNEL);
