@@ -98,7 +98,7 @@ tuner, a video decoder, an audio decoder, etc. usually connected to the
 main chip by the means of an I2C bus. You won't know the number of the I2C
 bus in advance, so the method 1 described above can't be used. Instead,
 you can instantiate your I2C devices explicitly. This is done by filling
-a struct i2c_board_info and calling i2c_new_device().
+a struct i2c_board_info and calling i2c_new_client_device().
 
 Example (from the sfe4001 network driver)::
 
@@ -110,7 +110,7 @@ Example (from the sfe4001 network driver)::
   {
 	(...)
 	efx->board_info.hwmon_client =
-		i2c_new_device(&efx->i2c_adap, &sfe4001_hwmon_info);
+		i2c_new_client_device(&efx->i2c_adap, &sfe4001_hwmon_info);
 
 	(...)
   }
@@ -123,7 +123,7 @@ present or not (for example for an optional feature which is not present
 on cheap variants of a board but you have no way to tell them apart), or
 it may have different addresses from one board to the next (manufacturer
 changing its design without notice). In this case, you can call
-i2c_new_scanned_device() instead of i2c_new_device().
+i2c_new_scanned_device() instead of i2c_new_client_device().
 
 Example (from the nxp OHCI driver)::
 
@@ -152,7 +152,7 @@ simply gives up.
 
 The driver which instantiated the I2C device is responsible for destroying
 it on cleanup. This is done by calling i2c_unregister_device() on the
-pointer that was earlier returned by i2c_new_device() or
+pointer that was earlier returned by i2c_new_client_device() or
 i2c_new_scanned_device().
 
 
