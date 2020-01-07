@@ -64,12 +64,45 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 		bkey_cmp(insert->k.p, b->data->max_key) > 0);
 
 	k = bch2_btree_node_iter_peek_all(node_iter, b);
-	if (k && !bkey_cmp_packed(b, k, &insert->k)) {
-		BUG_ON(bkey_whiteout(k));
+	if (k && bkey_cmp_packed(b, k, &insert->k))
+		k = NULL;
 
+	/* @k is the key being overwritten/deleted, if any: */
+
+	EBUG_ON(k && bkey_whiteout(k));
+
+	if (bkey_whiteout(&insert->k)) {
+		/* Deleting: */
+
+		/* Not found? Nothing to do: */
+		if (!k)
+			return false;
+
+		btree_account_key_drop(b, k);
+		k->type = KEY_TYPE_deleted;
+
+		if (k->needs_whiteout) {
+			push_whiteout(iter->trans->c, b, k);
+			k->needs_whiteout = false;
+		}
+
+		if (k >= btree_bset_last(b)->start) {
+			clobber_u64s = k->u64s;
+
+			bch2_bset_delete(b, k, clobber_u64s);
+			bch2_btree_node_iter_fix(iter, b, node_iter, k,
+						 clobber_u64s, 0);
+		} else {
+			bch2_btree_iter_fix_key_modified(iter, b, k);
+		}
+
+		return true;
+	}
+
+	if (k) {
+		/* Overwriting: */
 		if (!bkey_written(b, k) &&
-		    bkey_val_u64s(&insert->k) == bkeyp_val_u64s(f, k) &&
-		    !bkey_whiteout(&insert->k)) {
+		    bkey_val_u64s(&insert->k) == bkeyp_val_u64s(f, k)) {
 			k->type = insert->k.type;
 			memcpy_u64s(bkeyp_val(f, k), &insert->v,
 				    bkey_val_u64s(&insert->k));
@@ -77,27 +110,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 		}
 
 		btree_account_key_drop(b, k);
-
-		if (bkey_whiteout(&insert->k)) {
-			unsigned clobber_u64s = k->u64s, new_u64s = k->u64s;
-
-			k->type = KEY_TYPE_deleted;
-
-			if (k->needs_whiteout) {
-				push_whiteout(iter->trans->c, b, k);
-				k->needs_whiteout = false;
-			}
-
-			if (k >= btree_bset_last(b)->start) {
-				bch2_bset_delete(b, k, clobber_u64s);
-				new_u64s = 0;
-			}
-
-			bch2_btree_node_iter_fix(iter, b, node_iter, k,
-						 clobber_u64s, new_u64s);
-			return true;
-
-		}
+		k->type = KEY_TYPE_deleted;
 
 		insert->k.needs_whiteout = k->needs_whiteout;
 		k->needs_whiteout = false;
@@ -105,23 +118,9 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 		if (k >= btree_bset_last(b)->start) {
 			clobber_u64s = k->u64s;
 			goto overwrite;
+		} else {
+			bch2_btree_iter_fix_key_modified(iter, b, k);
 		}
-
-		k->type = KEY_TYPE_deleted;
-		/*
-		 * XXX: we should be able to do this without two calls to
-		 * bch2_btree_node_iter_fix:
-		 */
-		bch2_btree_node_iter_fix(iter, b, node_iter, k,
-					 k->u64s, k->u64s);
-	} else {
-		/*
-		 * Deleting, but the key to delete wasn't found - nothing to do:
-		 */
-		if (bkey_whiteout(&insert->k))
-			return false;
-
-		insert->k.needs_whiteout = false;
 	}
 
 	k = bch2_btree_node_iter_bset_pos(node_iter, b, bset_tree_last(b));
