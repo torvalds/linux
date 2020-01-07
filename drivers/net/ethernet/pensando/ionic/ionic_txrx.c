@@ -152,12 +152,16 @@ static void ionic_rx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_i
 	stats = q_to_rx_stats(q);
 	netdev = q->lif->netdev;
 
-	if (comp->status)
+	if (comp->status) {
+		stats->dropped++;
 		return;
+	}
 
 	/* no packet processing while resetting */
-	if (unlikely(test_bit(IONIC_LIF_QUEUE_RESET, q->lif->state)))
+	if (unlikely(test_bit(IONIC_LIF_QUEUE_RESET, q->lif->state))) {
+		stats->dropped++;
 		return;
+	}
 
 	stats->pkts++;
 	stats->bytes += le16_to_cpu(comp->len);
@@ -167,8 +171,10 @@ static void ionic_rx_clean(struct ionic_queue *q, struct ionic_desc_info *desc_i
 	else
 		skb = ionic_rx_frags(q, desc_info, cq_info);
 
-	if (unlikely(!skb))
+	if (unlikely(!skb)) {
+		stats->dropped++;
 		return;
+	}
 
 	skb_record_rx_queue(skb, q->index);
 
