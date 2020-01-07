@@ -2238,7 +2238,7 @@ static int snd_cs46xx_spdif_stream_put(struct snd_kcontrol *kcontrol,
 #endif /* CONFIG_SND_CS46XX_NEW_DSP */
 
 
-static struct snd_kcontrol_new snd_cs46xx_controls[] = {
+static const struct snd_kcontrol_new snd_cs46xx_controls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "DAC Volume",
@@ -2364,7 +2364,7 @@ static const struct snd_kcontrol_new snd_cs46xx_front_dup_ctl = {
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 /* Only available on the Hercules Game Theater XP soundcard */
-static struct snd_kcontrol_new snd_hercules_controls[] = {
+static const struct snd_kcontrol_new snd_hercules_controls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Optical/Coaxial SPDIF Input Switch",
@@ -2465,7 +2465,7 @@ int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 	struct snd_ctl_elem_id id;
 	int err;
 	unsigned int idx;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 		.reset = snd_cs46xx_codec_reset,
 #endif
@@ -2815,7 +2815,7 @@ static ssize_t snd_cs46xx_io_read(struct snd_info_entry *entry,
 	return count;
 }
 
-static struct snd_info_entry_ops snd_cs46xx_proc_io_ops = {
+static const struct snd_info_entry_ops snd_cs46xx_proc_io_ops = {
 	.read = snd_cs46xx_io_read,
 };
 
@@ -3745,7 +3745,7 @@ static struct cs_card_type cards[] = {
  * APM support
  */
 #ifdef CONFIG_PM_SLEEP
-static unsigned int saved_regs[] = {
+static const unsigned int saved_regs[] = {
 	BA0_ACOSV,
 	/*BA0_ASER_FADDR,*/
 	BA0_ASER_MASTER,
@@ -3864,7 +3864,7 @@ int snd_cs46xx_create(struct snd_card *card,
 	struct snd_cs46xx_region *region;
 	struct cs_card_type *cp;
 	u16 ss_card, ss_vendor;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_cs46xx_dev_free,
 	};
 	

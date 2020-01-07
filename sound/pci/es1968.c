@@ -2007,7 +2007,7 @@ snd_es1968_mixer(struct es1968 *chip)
 	struct snd_ctl_elem_id elem_id;
 #endif
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_es1968_ac97_write,
 		.read = snd_es1968_ac97_read,
 	};
@@ -2529,7 +2529,7 @@ struct snd_es1968_tea575x_gpio {
 	char *name;
 };
 
-static struct snd_es1968_tea575x_gpio snd_es1968_tea575x_gpios[] = {
+static const struct snd_es1968_tea575x_gpio snd_es1968_tea575x_gpios[] = {
 	{ .data = 6, .clk = 7, .wren = 8, .most = 9, .name = "SF64-PCE2" },
 	{ .data = 7, .clk = 8, .wren = 6, .most = 10, .name = "M56VAP" },
 };
@@ -2631,7 +2631,7 @@ struct ess_device_list {
 	unsigned short vendor;	/* subsystem vendor id */
 };
 
-static struct ess_device_list pm_whitelist[] = {
+static const struct ess_device_list pm_whitelist[] = {
 	{ TYPE_MAESTRO2E, 0x0e11 },	/* Compaq Armada */
 	{ TYPE_MAESTRO2E, 0x1028 },
 	{ TYPE_MAESTRO2E, 0x103c },
@@ -2642,7 +2642,7 @@ static struct ess_device_list pm_whitelist[] = {
 	{ TYPE_MAESTRO2, 0x125d },	/* a PCI card, e.g. SF64-PCE2 */
 };
 
-static struct ess_device_list mpu_blacklist[] = {
+static const struct ess_device_list mpu_blacklist[] = {
 	{ TYPE_MAESTRO2, 0x125d },
 };
 
@@ -2656,7 +2656,7 @@ static int snd_es1968_create(struct snd_card *card,
 			     int radio_nr,
 			     struct es1968 **chip_ret)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_es1968_dev_free,
 	};
 	struct es1968 *chip;

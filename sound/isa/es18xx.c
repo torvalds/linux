@@ -965,7 +965,7 @@ static int snd_es18xx_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 
 static int snd_es18xx_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	static unsigned char invMap4Source[8] = {0, 0, 1, 1, 0, 0, 2, 3};
+	static const unsigned char invMap4Source[8] = {0, 0, 1, 1, 0, 0, 2, 3};
 	struct snd_es18xx *chip = snd_kcontrol_chip(kcontrol);
 	int muxSource = snd_es18xx_mixer_read(chip, 0x1c) & 0x07;
 	if (!(chip->version == 0x1869 || chip->version == 0x1879)) {
@@ -982,7 +982,7 @@ static int snd_es18xx_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 
 static int snd_es18xx_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	static unsigned char map4Source[4] = {0, 2, 6, 7};
+	static const unsigned char map4Source[4] = {0, 2, 6, 7};
 	struct snd_es18xx *chip = snd_kcontrol_chip(kcontrol);
 	unsigned char val = ucontrol->value.enumerated.item[0];
 	unsigned char retVal = 0;
@@ -1246,7 +1246,7 @@ static int snd_es18xx_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
  * The controls that are universal to all chipsets are fully initialized
  * here.
  */
-static struct snd_kcontrol_new snd_es18xx_base_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_base_controls[] = {
 ES18XX_DOUBLE("Master Playback Volume", 0, 0x60, 0x62, 0, 0, 63, 0),
 ES18XX_DOUBLE("Master Playback Switch", 0, 0x60, 0x62, 6, 6, 1, 1),
 ES18XX_DOUBLE("Line Playback Volume", 0, 0x3e, 0x3e, 4, 0, 15, 0),
@@ -1265,7 +1265,7 @@ ES18XX_DOUBLE("Capture Volume", 0, 0xb4, 0xb4, 4, 0, 15, 0),
 }
 };
 
-static struct snd_kcontrol_new snd_es18xx_recmix_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_recmix_controls[] = {
 ES18XX_DOUBLE("PCM Capture Volume", 0, 0x69, 0x69, 4, 0, 15, 0),
 ES18XX_DOUBLE("Mic Capture Volume", 0, 0x68, 0x68, 4, 0, 15, 0),
 ES18XX_DOUBLE("Line Capture Volume", 0, 0x6e, 0x6e, 4, 0, 15, 0),
@@ -1277,35 +1277,35 @@ ES18XX_DOUBLE("Aux Capture Volume", 0, 0x6c, 0x6c, 4, 0, 15, 0)
 /*
  * The chipset specific mixer controls
  */
-static struct snd_kcontrol_new snd_es18xx_opt_speaker =
+static const struct snd_kcontrol_new snd_es18xx_opt_speaker =
 	ES18XX_SINGLE("Beep Playback Volume", 0, 0x3c, 0, 7, 0);
 
-static struct snd_kcontrol_new snd_es18xx_opt_1869[] = {
+static const struct snd_kcontrol_new snd_es18xx_opt_1869[] = {
 ES18XX_SINGLE("Capture Switch", 0, 0x1c, 4, 1, ES18XX_FL_INVERT),
 ES18XX_SINGLE("Video Playback Switch", 0, 0x7f, 0, 1, 0),
 ES18XX_DOUBLE("Mono Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
 ES18XX_DOUBLE("Mono Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
 };
 
-static struct snd_kcontrol_new snd_es18xx_opt_1878 =
+static const struct snd_kcontrol_new snd_es18xx_opt_1878 =
 	ES18XX_DOUBLE("Video Playback Volume", 0, 0x68, 0x68, 4, 0, 15, 0);
 
-static struct snd_kcontrol_new snd_es18xx_opt_1879[] = {
+static const struct snd_kcontrol_new snd_es18xx_opt_1879[] = {
 ES18XX_SINGLE("Video Playback Switch", 0, 0x71, 6, 1, 0),
 ES18XX_DOUBLE("Video Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
 ES18XX_DOUBLE("Video Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
 };
 
-static struct snd_kcontrol_new snd_es18xx_pcm1_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_pcm1_controls[] = {
 ES18XX_DOUBLE("PCM Playback Volume", 0, 0x14, 0x14, 4, 0, 15, 0),
 };
 
-static struct snd_kcontrol_new snd_es18xx_pcm2_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_pcm2_controls[] = {
 ES18XX_DOUBLE("PCM Playback Volume", 0, 0x7c, 0x7c, 4, 0, 15, 0),
 ES18XX_DOUBLE("PCM Playback Volume", 1, 0x14, 0x14, 4, 0, 15, 0)
 };
 
-static struct snd_kcontrol_new snd_es18xx_spatializer_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_spatializer_controls[] = {
 ES18XX_SINGLE("3D Control - Level", 0, 0x52, 0, 63, 0),
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1316,13 +1316,13 @@ ES18XX_SINGLE("3D Control - Level", 0, 0x52, 0, 63, 0),
 }
 };
 
-static struct snd_kcontrol_new snd_es18xx_micpre1_control = 
+static const struct snd_kcontrol_new snd_es18xx_micpre1_control =
 ES18XX_SINGLE("Mic Boost (+26dB)", 0, 0xa9, 2, 1, 0);
 
-static struct snd_kcontrol_new snd_es18xx_micpre2_control =
+static const struct snd_kcontrol_new snd_es18xx_micpre2_control =
 ES18XX_SINGLE("Mic Boost (+26dB)", 0, 0x7d, 3, 1, 0);
 
-static struct snd_kcontrol_new snd_es18xx_hw_volume_controls[] = {
+static const struct snd_kcontrol_new snd_es18xx_hw_volume_controls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Hardware Master Playback Volume",
@@ -1340,7 +1340,7 @@ static struct snd_kcontrol_new snd_es18xx_hw_volume_controls[] = {
 ES18XX_SINGLE("Hardware Master Volume Split", 0, 0x64, 7, 1, 0),
 };
 
-static struct snd_kcontrol_new snd_es18xx_opt_gpo_2bit[] = {
+static const struct snd_kcontrol_new snd_es18xx_opt_gpo_2bit[] = {
 ES18XX_SINGLE("GPO0 Switch", 0, ES18XX_PM, 0, 1, ES18XX_FL_PMPORT),
 ES18XX_SINGLE("GPO1 Switch", 0, ES18XX_PM, 1, 1, ES18XX_FL_PMPORT),
 };
@@ -1753,7 +1753,7 @@ static int snd_es18xx_new_device(struct snd_card *card,
 				 int irq, int dma1, int dma2)
 {
 	struct snd_es18xx *chip = card->private_data;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_es18xx_dev_free,
         };
 	int err;
@@ -2173,8 +2173,8 @@ static int snd_es18xx_isa_probe1(int dev, struct device *devptr)
 static int snd_es18xx_isa_probe(struct device *pdev, unsigned int dev)
 {
 	int err;
-	static int possible_irqs[] = {5, 9, 10, 7, 11, 12, -1};
-	static int possible_dmas[] = {1, 0, 3, 5, -1};
+	static const int possible_irqs[] = {5, 9, 10, 7, 11, 12, -1};
+	static const int possible_dmas[] = {1, 0, 3, 5, -1};
 
 	if (irq[dev] == SNDRV_AUTO_IRQ) {
 		if ((irq[dev] = snd_legacy_find_free_irq(possible_irqs)) < 0) {
@@ -2198,7 +2198,7 @@ static int snd_es18xx_isa_probe(struct device *pdev, unsigned int dev)
 	if (port[dev] != SNDRV_AUTO_PORT) {
 		return snd_es18xx_isa_probe1(dev, pdev);
 	} else {
-		static unsigned long possible_ports[] = {0x220, 0x240, 0x260, 0x280};
+		static const unsigned long possible_ports[] = {0x220, 0x240, 0x260, 0x280};
 		int i;
 		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
 			port[dev] = possible_ports[i];

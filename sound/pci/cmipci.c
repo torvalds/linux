@@ -586,7 +586,7 @@ static int snd_cmipci_clear_bit_b(struct cmipci *cm, unsigned int cmd, unsigned 
  * calculate frequency
  */
 
-static unsigned int rates[] = { 5512, 11025, 22050, 44100, 8000, 16000, 32000, 48000 };
+static const unsigned int rates[] = { 5512, 11025, 22050, 44100, 8000, 16000, 32000, 48000 };
 
 static unsigned int snd_cmipci_rate_freq(unsigned int rate)
 {
@@ -2256,7 +2256,7 @@ static int snd_cmipci_put_native_mixer_sensitive(struct snd_kcontrol *kcontrol,
 }
 
 
-static struct snd_kcontrol_new snd_cmipci_mixers[] = {
+static const struct snd_kcontrol_new snd_cmipci_mixers[] = {
 	CMIPCI_SB_VOL_STEREO("Master Playback Volume", SB_DSP4_MASTER_DEV, 3, 31),
 	CMIPCI_MIXER_SW_MONO("3D Control - Switch", CM_REG_MIXER1, CM_X3DEN_SHIFT, 0),
 	CMIPCI_SB_VOL_STEREO("PCM Playback Volume", SB_DSP4_PCM_DEV, 3, 31),
@@ -2567,7 +2567,7 @@ static int snd_cmipci_mic_in_mode_put(struct snd_kcontrol *kcontrol,
 }
 
 /* both for CM8338/8738 */
-static struct snd_kcontrol_new snd_cmipci_mixer_switches[] = {
+static const struct snd_kcontrol_new snd_cmipci_mixer_switches[] = {
 	DEFINE_MIXER_SWITCH("Four Channel Mode", fourch),
 	{
 		.name = "Line-In Mode",
@@ -2579,11 +2579,11 @@ static struct snd_kcontrol_new snd_cmipci_mixer_switches[] = {
 };
 
 /* for non-multichannel chips */
-static struct snd_kcontrol_new snd_cmipci_nomulti_switch =
+static const struct snd_kcontrol_new snd_cmipci_nomulti_switch =
 DEFINE_MIXER_SWITCH("Exchange DAC", exchange_dac);
 
 /* only for CM8738 */
-static struct snd_kcontrol_new snd_cmipci_8738_mixer_switches[] = {
+static const struct snd_kcontrol_new snd_cmipci_8738_mixer_switches[] = {
 #if 0 /* controlled in pcm device */
 	DEFINE_MIXER_SWITCH("IEC958 In Record", spdif_in),
 	DEFINE_MIXER_SWITCH("IEC958 Out", spdif_out),
@@ -2605,14 +2605,14 @@ static struct snd_kcontrol_new snd_cmipci_8738_mixer_switches[] = {
 };
 
 /* only for model 033/037 */
-static struct snd_kcontrol_new snd_cmipci_old_mixer_switches[] = {
+static const struct snd_kcontrol_new snd_cmipci_old_mixer_switches[] = {
 	DEFINE_MIXER_SWITCH("IEC958 Mix Analog", spdif_dac_out),
 	DEFINE_MIXER_SWITCH("IEC958 In Phase Inverse", spdi_phase),
 	DEFINE_MIXER_SWITCH("IEC958 In Select", spdif_in_sel1),
 };
 
 /* only for model 039 or later */
-static struct snd_kcontrol_new snd_cmipci_extra_mixer_switches[] = {
+static const struct snd_kcontrol_new snd_cmipci_extra_mixer_switches[] = {
 	DEFINE_MIXER_SWITCH("IEC958 In Select", spdif_in_sel2),
 	DEFINE_MIXER_SWITCH("IEC958 In Phase Inverse", spdi_phase2),
 	{
@@ -2625,14 +2625,14 @@ static struct snd_kcontrol_new snd_cmipci_extra_mixer_switches[] = {
 };
 
 /* card control switches */
-static struct snd_kcontrol_new snd_cmipci_modem_switch =
+static const struct snd_kcontrol_new snd_cmipci_modem_switch =
 DEFINE_CARD_SWITCH("Modem", modem);
 
 
 static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 {
 	struct snd_card *card;
-	struct snd_kcontrol_new *sw;
+	const struct snd_kcontrol_new *sw;
 	struct snd_kcontrol *kctl;
 	unsigned int idx;
 	int err;
@@ -2826,7 +2826,7 @@ static void query_chip(struct cmipci *cm)
 #ifdef SUPPORT_JOYSTICK
 static int snd_cmipci_create_gameport(struct cmipci *cm, int dev)
 {
-	static int ports[] = { 0x201, 0x200, 0 }; /* FIXME: majority is 0x201? */
+	static const int ports[] = { 0x201, 0x200, 0 }; /* FIXME: majority is 0x201? */
 	struct gameport *gp;
 	struct resource *r = NULL;
 	int i, io_port = 0;
@@ -2976,7 +2976,7 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 {
 	struct cmipci *cm;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_cmipci_dev_free,
 	};
 	unsigned int val;
@@ -3289,7 +3289,7 @@ static void snd_cmipci_remove(struct pci_dev *pci)
 /*
  * power management
  */
-static unsigned char saved_regs[] = {
+static const unsigned char saved_regs[] = {
 	CM_REG_FUNCTRL1, CM_REG_CHFORMAT, CM_REG_LEGACY_CTRL, CM_REG_MISC_CTRL,
 	CM_REG_MIXER0, CM_REG_MIXER1, CM_REG_MIXER2, CM_REG_MIXER3, CM_REG_PLL,
 	CM_REG_CH0_FRAME1, CM_REG_CH0_FRAME2,
@@ -3297,7 +3297,7 @@ static unsigned char saved_regs[] = {
 	CM_REG_INT_STATUS, CM_REG_INT_HLDCLR, CM_REG_FUNCTRL0,
 };
 
-static unsigned char saved_mixers[] = {
+static const unsigned char saved_mixers[] = {
 	SB_DSP4_MASTER_DEV, SB_DSP4_MASTER_DEV + 1,
 	SB_DSP4_PCM_DEV, SB_DSP4_PCM_DEV + 1,
 	SB_DSP4_SYNTH_DEV, SB_DSP4_SYNTH_DEV + 1,

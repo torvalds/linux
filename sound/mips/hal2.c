@@ -732,7 +732,7 @@ static int hal2_dev_free(struct snd_device *device)
 	return 0;
 }
 
-static struct snd_device_ops hal2_ops = {
+static const struct snd_device_ops hal2_ops = {
 	.dev_free = hal2_dev_free,
 };
 

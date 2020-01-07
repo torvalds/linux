@@ -163,7 +163,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 
 #define FORMAT(v) [SNDRV_PCM_FORMAT_##v] = #v
 
-static char *snd_pcm_format_names[] = {
+static const char * const snd_pcm_format_names[] = {
 	FORMAT(S8),
 	FORMAT(U8),
 	FORMAT(S16_LE),
@@ -237,12 +237,12 @@ EXPORT_SYMBOL_GPL(snd_pcm_format_name);
 #define START(v) [SNDRV_PCM_START_##v] = #v
 #define SUBFORMAT(v) [SNDRV_PCM_SUBFORMAT_##v] = #v 
 
-static char *snd_pcm_stream_names[] = {
+static const char * const snd_pcm_stream_names[] = {
 	STREAM(PLAYBACK),
 	STREAM(CAPTURE),
 };
 
-static char *snd_pcm_state_names[] = {
+static const char * const snd_pcm_state_names[] = {
 	STATE(OPEN),
 	STATE(SETUP),
 	STATE(PREPARED),
@@ -253,7 +253,7 @@ static char *snd_pcm_state_names[] = {
 	STATE(SUSPENDED),
 };
 
-static char *snd_pcm_access_names[] = {
+static const char * const snd_pcm_access_names[] = {
 	ACCESS(MMAP_INTERLEAVED), 
 	ACCESS(MMAP_NONINTERLEAVED),
 	ACCESS(MMAP_COMPLEX),
@@ -261,11 +261,11 @@ static char *snd_pcm_access_names[] = {
 	ACCESS(RW_NONINTERLEAVED),
 };
 
-static char *snd_pcm_subformat_names[] = {
+static const char * const snd_pcm_subformat_names[] = {
 	SUBFORMAT(STD), 
 };
 
-static char *snd_pcm_tstamp_mode_names[] = {
+static const char * const snd_pcm_tstamp_mode_names[] = {
 	TSTAMP(NONE),
 	TSTAMP(ENABLE),
 };
@@ -706,12 +706,12 @@ static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
 {
 	struct snd_pcm *pcm;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_pcm_dev_free,
 		.dev_register =	snd_pcm_dev_register,
 		.dev_disconnect = snd_pcm_dev_disconnect,
 	};
-	static struct snd_device_ops internal_ops = {
+	static const struct snd_device_ops internal_ops = {
 		.dev_free = snd_pcm_dev_free,
 	};
 

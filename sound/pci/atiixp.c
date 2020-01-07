@@ -282,7 +282,7 @@ static const struct pci_device_id snd_atiixp_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_atiixp_ids);
 
-static struct snd_pci_quirk atiixp_quirks[] = {
+static const struct snd_pci_quirk atiixp_quirks[] = {
 	SND_PCI_QUIRK(0x105b, 0x0c81, "Foxconn RC4107MA-RS2", 0),
 	SND_PCI_QUIRK(0x15bd, 0x3100, "DFI RS482", 0),
 	{ } /* terminator */
@@ -1403,11 +1403,11 @@ static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 	struct snd_ac97_template ac97;
 	int i, err;
 	int codec_count;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_atiixp_ac97_write,
 		.read = snd_atiixp_ac97_read,
 	};
-	static unsigned int codec_skip[NUM_ATI_CODECS] = {
+	static const unsigned int codec_skip[NUM_ATI_CODECS] = {
 		ATI_REG_ISR_CODEC0_NOT_READY,
 		ATI_REG_ISR_CODEC1_NOT_READY,
 		ATI_REG_ISR_CODEC2_NOT_READY,
@@ -1557,7 +1557,7 @@ static int snd_atiixp_create(struct snd_card *card,
 			     struct pci_dev *pci,
 			     struct atiixp **r_chip)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_atiixp_dev_free,
 	};
 	struct atiixp *chip;

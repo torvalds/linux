@@ -275,7 +275,7 @@ static int snd_msndmix_volume_put(struct snd_kcontrol *kcontrol,
   .private_value = addr }
 
 
-static struct snd_kcontrol_new snd_msnd_controls[] = {
+static const struct snd_kcontrol_new snd_msnd_controls[] = {
 DUMMY_VOLUME("Master Volume", 0, MSND_MIXER_VOLUME),
 DUMMY_VOLUME("PCM Volume", 0, MSND_MIXER_PCM),
 DUMMY_VOLUME("Aux Volume", 0, MSND_MIXER_AUX),

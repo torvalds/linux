@@ -136,7 +136,7 @@ struct board_parameters {
 	short fw_file_set;
 	short firmware_num;
 };
-static struct board_parameters pcxhr_board_params[] = {
+static const struct board_parameters pcxhr_board_params[] = {
 [PCI_ID_VX882HR] =      { "VX882HR",      4, 4, 0, 41 },
 [PCI_ID_PCX882HR] =     { "PCX882HR",     4, 4, 0, 41 },
 [PCI_ID_VX881HR] =      { "VX881HR",      4, 4, 0, 41 },
@@ -1179,7 +1179,7 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 {
 	int err;
 	struct snd_pcxhr *chip;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = pcxhr_chip_dev_free,
 	};
 

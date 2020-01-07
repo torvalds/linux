@@ -308,33 +308,12 @@ static void tcf_proto_put(struct tcf_proto *tp, bool rtnl_held,
 		tcf_proto_destroy(tp, rtnl_held, true, extack);
 }
 
-static int walker_check_empty(struct tcf_proto *tp, void *fh,
-			      struct tcf_walker *arg)
+static bool tcf_proto_check_delete(struct tcf_proto *tp)
 {
-	if (fh) {
-		arg->nonempty = true;
-		return -1;
-	}
-	return 0;
-}
+	if (tp->ops->delete_empty)
+		return tp->ops->delete_empty(tp);
 
-static bool tcf_proto_is_empty(struct tcf_proto *tp, bool rtnl_held)
-{
-	struct tcf_walker walker = { .fn = walker_check_empty, };
-
-	if (tp->ops->walk) {
-		tp->ops->walk(tp, &walker, rtnl_held);
-		return !walker.nonempty;
-	}
-	return true;
-}
-
-static bool tcf_proto_check_delete(struct tcf_proto *tp, bool rtnl_held)
-{
-	spin_lock(&tp->lock);
-	if (tcf_proto_is_empty(tp, rtnl_held))
-		tp->deleting = true;
-	spin_unlock(&tp->lock);
+	tp->deleting = true;
 	return tp->deleting;
 }
 
@@ -1751,7 +1730,7 @@ static void tcf_chain_tp_delete_empty(struct tcf_chain *chain,
 	 * concurrently.
 	 * Mark tp for deletion if it is empty.
 	 */
-	if (!tp_iter || !tcf_proto_check_delete(tp, rtnl_held)) {
+	if (!tp_iter || !tcf_proto_check_delete(tp)) {
 		mutex_unlock(&chain->filter_chain_lock);
 		return;
 	}

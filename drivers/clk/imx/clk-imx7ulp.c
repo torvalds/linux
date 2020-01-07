@@ -40,6 +40,7 @@ static const struct clk_div_table ulp_div_table[] = {
 	{ .val = 5, .div = 16, },
 	{ .val = 6, .div = 32, },
 	{ .val = 7, .div = 64, },
+	{ /* sentinel */ },
 };
 
 static const int pcc2_uart_clk_ids[] __initconst = {

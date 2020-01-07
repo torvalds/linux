@@ -16,7 +16,7 @@
 #include "traces.h"
 #include "hif_tx_mib.h"
 
-#define WFX_INVALID_RATE_ID (0xFF)
+#define WFX_INVALID_RATE_ID    15
 #define WFX_LINK_ID_NO_ASSOC   15
 #define WFX_LINK_ID_GC_TIMEOUT ((unsigned long)(10 * HZ))
 
@@ -184,7 +184,7 @@ static int wfx_tx_policy_get(struct wfx_vif *wvif,
 		 */
 		entry = list_entry(cache->free.prev, struct tx_policy, link);
 		memcpy(entry->rates, wanted.rates, sizeof(entry->rates));
-		entry->uploaded = 0;
+		entry->uploaded = false;
 		entry->usage_count = 0;
 		idx = entry - cache->cache;
 	}
@@ -202,6 +202,8 @@ static void wfx_tx_policy_put(struct wfx_vif *wvif, int idx)
 	int usage, locked;
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
 
+	if (idx == WFX_INVALID_RATE_ID)
+		return;
 	spin_lock_bh(&cache->lock);
 	locked = list_empty(&cache->free);
 	usage = wfx_tx_policy_release(cache, &cache->cache[idx]);
@@ -239,7 +241,7 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 			dst->terminate = 1;
 			dst->count_init = 1;
 			memcpy(&dst->rates, src->rates, sizeof(src->rates));
-			src->uploaded = 1;
+			src->uploaded = true;
 			arg->num_tx_rate_policies++;
 		}
 	}
@@ -249,7 +251,7 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 	return 0;
 }
 
-static void wfx_tx_policy_upload_work(struct work_struct *work)
+void wfx_tx_policy_upload_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif =
 		container_of(work, struct wfx_vif, tx_policy_upload_work);
@@ -270,7 +272,6 @@ void wfx_tx_policy_init(struct wfx_vif *wvif)
 	spin_lock_init(&cache->lock);
 	INIT_LIST_HEAD(&cache->used);
 	INIT_LIST_HEAD(&cache->free);
-	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 
 	for (i = 0; i < HIF_MIB_NUM_TX_RATE_RETRY_POLICIES; ++i)
 		list_add(&cache->cache[i].link, &cache->free);
@@ -523,9 +524,9 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 		for (i = 0; i < IEEE80211_TX_MAX_RATES - 1; i++) {
 			if (rates[i + 1].idx == rates[i].idx &&
 			    rates[i].idx != -1) {
-				rates[i].count =
-					max_t(int, rates[i].count,
-					      rates[i + 1].count);
+				rates[i].count += rates[i + 1].count;
+				if (rates[i].count > 15)
+					rates[i].count = 15;
 				rates[i + 1].idx = -1;
 				rates[i + 1].count = 0;
 
@@ -537,6 +538,17 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 			}
 		}
 	} while (!finished);
+	// Ensure that MCS0 or 1Mbps is present at the end of the retry list
+	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+		if (rates[i].idx == 0)
+			break;
+		if (rates[i].idx == -1) {
+			rates[i].idx = 0;
+			rates[i].count = 8; // == hw->max_rate_tries
+			rates[i].flags = rates[i - 1].flags & IEEE80211_TX_RC_MCS;
+			break;
+		}
+	}
 	// All retries use long GI
 	for (i = 1; i < IEEE80211_TX_MAX_RATES; i++)
 		rates[i].flags &= ~IEEE80211_TX_RC_SHORT_GI;
@@ -550,7 +562,8 @@ static u8 wfx_tx_get_rate_id(struct wfx_vif *wvif,
 
 	rate_id = wfx_tx_policy_get(wvif,
 				    tx_info->driver_rates, &tx_policy_renew);
-	WARN(rate_id == WFX_INVALID_RATE_ID, "unable to get a valid Tx policy");
+	if (rate_id == WFX_INVALID_RATE_ID)
+		dev_warn(wvif->wdev->dev, "unable to get a valid Tx policy");
 
 	if (tx_policy_renew) {
 		/* FIXME: It's not so optimal to stop TX queues every now and
@@ -735,7 +748,9 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 		rate = &tx_info->status.rates[i];
 		if (rate->idx < 0)
 			break;
-		if (tx_count < rate->count && arg->status && arg->ack_failures)
+		if (tx_count < rate->count &&
+		    arg->status == HIF_STATUS_RETRY_EXCEEDED &&
+		    arg->ack_failures)
 			dev_dbg(wvif->wdev->dev, "all retries were not consumed: %d != %d\n",
 				rate->count, tx_count);
 		if (tx_count <= rate->count && tx_count &&

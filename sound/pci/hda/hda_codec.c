@@ -915,7 +915,7 @@ int snd_hda_codec_device_new(struct hda_bus *bus, struct snd_card *card,
 	char component[31];
 	hda_nid_t fg;
 	int err;
-	static struct snd_device_ops dev_ops = {
+	static const struct snd_device_ops dev_ops = {
 		.dev_register = snd_hda_codec_dev_register,
 		.dev_free = snd_hda_codec_dev_free,
 	};
@@ -2387,7 +2387,7 @@ static int snd_hda_spdif_out_switch_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new dig_mixes[] = {
+static const struct snd_kcontrol_new dig_mixes[] = {
 	{
 		.access = SNDRV_CTL_ELEM_ACCESS_READ,
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -2437,7 +2437,7 @@ int snd_hda_create_dig_out_ctls(struct hda_codec *codec,
 {
 	int err;
 	struct snd_kcontrol *kctl;
-	struct snd_kcontrol_new *dig_mix;
+	const struct snd_kcontrol_new *dig_mix;
 	int idx = 0;
 	int val = 0;
 	const int spdif_index = 16;
@@ -2655,7 +2655,7 @@ static int snd_hda_spdif_in_status_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new dig_in_ctls[] = {
+static const struct snd_kcontrol_new dig_in_ctls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = SNDRV_CTL_NAME_IEC958("", CAPTURE, SWITCH),
@@ -2687,7 +2687,7 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 {
 	int err;
 	struct snd_kcontrol *kctl;
-	struct snd_kcontrol_new *dig_mix;
+	const struct snd_kcontrol_new *dig_mix;
 	int idx;
 
 	idx = find_empty_mixer_ctl_idx(codec, "IEC958 Capture Switch", 0);
@@ -3201,7 +3201,7 @@ static int get_empty_pcm_device(struct hda_bus *bus, unsigned int type)
 	/* assigned to static slots up to dev#10; if more needed, assign
 	 * the later slot dynamically (when CONFIG_SND_DYNAMIC_MINORS=y)
 	 */
-	static int audio_idx[HDA_PCM_NTYPES][5] = {
+	static const int audio_idx[HDA_PCM_NTYPES][5] = {
 		[HDA_PCM_TYPE_AUDIO] = { 0, 2, 4, 5, -1 },
 		[HDA_PCM_TYPE_SPDIF] = { 1, -1 },
 		[HDA_PCM_TYPE_HDMI]  = { 3, 7, 8, 9, -1 },
@@ -3869,7 +3869,7 @@ EXPORT_SYMBOL_GPL(snd_hda_get_default_vref);
 unsigned int snd_hda_correct_pin_ctl(struct hda_codec *codec,
 				     hda_nid_t pin, unsigned int val)
 {
-	static unsigned int cap_lists[][2] = {
+	static const unsigned int cap_lists[][2] = {
 		{ AC_PINCTL_VREF_100, AC_PINCAP_VREF_100 },
 		{ AC_PINCTL_VREF_80, AC_PINCAP_VREF_80 },
 		{ AC_PINCTL_VREF_50, AC_PINCAP_VREF_50 },
@@ -4014,7 +4014,7 @@ void snd_hda_bus_reset_codecs(struct hda_bus *bus)
  */
 void snd_print_pcm_bits(int pcm, char *buf, int buflen)
 {
-	static unsigned int bits[] = { 8, 16, 20, 24, 32 };
+	static const unsigned int bits[] = { 8, 16, 20, 24, 32 };
 	int i, j;
 
 	for (i = 0, j = 0; i < ARRAY_SIZE(bits); i++)

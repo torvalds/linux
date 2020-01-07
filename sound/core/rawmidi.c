@@ -249,7 +249,7 @@ static int assign_substream(struct snd_rawmidi *rmidi, int subdevice,
 {
 	struct snd_rawmidi_substream *substream;
 	struct snd_rawmidi_str *s = &rmidi->streams[stream];
-	static unsigned int info_flags[2] = {
+	static const unsigned int info_flags[2] = {
 		[SNDRV_RAWMIDI_STREAM_OUTPUT] = SNDRV_RAWMIDI_INFO_OUTPUT,
 		[SNDRV_RAWMIDI_STREAM_INPUT] = SNDRV_RAWMIDI_INFO_INPUT,
 	};
@@ -1621,7 +1621,7 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 {
 	struct snd_rawmidi *rmidi;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_rawmidi_dev_free,
 		.dev_register = snd_rawmidi_dev_register,
 		.dev_disconnect = snd_rawmidi_dev_disconnect,

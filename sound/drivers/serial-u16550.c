@@ -42,7 +42,7 @@ MODULE_SUPPORTED_DEVICE("{{ALSA, MIDI serial u16550}}");
 #define SNDRV_SERIAL_MS124W_MB 3   /* Midiator MS-124W in M/B mode */
 #define SNDRV_SERIAL_GENERIC 4     /* Generic Interface */
 #define SNDRV_SERIAL_MAX_ADAPTOR SNDRV_SERIAL_GENERIC
-static char *adaptor_names[] = {
+static const char * const adaptor_names[] = {
 	"Soundcanvas",
         "MS-124T",
 	"MS-124W S/A",
@@ -777,7 +777,7 @@ static int snd_uart16550_create(struct snd_card *card,
 				int droponfull,
 				struct snd_uart16550 **ruart)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_uart16550_dev_free,
 	};
 	struct snd_uart16550 *uart;

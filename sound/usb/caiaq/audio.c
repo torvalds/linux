@@ -30,7 +30,7 @@
 #define MAKE_CHECKBYTE(cdev,stream,i) \
 	(stream << 1) | (~(i / (cdev->n_streams * BYTES_PER_SAMPLE_USB)) & 1)
 
-static struct snd_pcm_hardware snd_usb_caiaq_pcm_hardware = {
+static const struct snd_pcm_hardware snd_usb_caiaq_pcm_hardware = {
 	.info 		= (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 			   SNDRV_PCM_INFO_BLOCK_TRANSFER),
 	.formats 	= SNDRV_PCM_FMTBIT_S24_3BE,
@@ -179,7 +179,7 @@ static int snd_usb_caiaq_pcm_hw_free(struct snd_pcm_substream *sub)
 #error "Change this table"
 #endif
 
-static unsigned int rates[] = { 5512, 8000, 11025, 16000, 22050, 32000, 44100,
+static const unsigned int rates[] = { 5512, 8000, 11025, 16000, 22050, 32000, 44100,
 				48000, 64000, 88200, 96000, 176400, 192000 };
 
 static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)

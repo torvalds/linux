@@ -715,7 +715,7 @@ static int snd_ps3_spdif_default_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new spdif_ctls[] = {
+static const struct snd_kcontrol_new spdif_ctls[] = {
 	{
 		.access = SNDRV_CTL_ELEM_ACCESS_READ,
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,

@@ -217,7 +217,7 @@ static int tas_dev_register(struct snd_device *dev)
 	return 0;
 }
 
-static struct snd_device_ops ops = {
+static const struct snd_device_ops ops = {
 	.dev_register = tas_dev_register,
 };
 
@@ -369,7 +369,7 @@ static int tas_snd_mixer_put(struct snd_kcontrol *kcontrol,
 }
 
 #define MIXER_CONTROL(n,descr,idx)			\
-static struct snd_kcontrol_new n##_control = {		\
+static const struct snd_kcontrol_new n##_control = {	\
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,		\
 	.name = descr " Playback Volume",		\
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,	\

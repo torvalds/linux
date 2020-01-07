@@ -936,7 +936,7 @@ struct snd_timer_tread {
  *                                                                          *
  ****************************************************************************/
 
-#define SNDRV_CTL_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 7)
+#define SNDRV_CTL_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 8)
 
 struct snd_ctl_card_info {
 	int card;			/* card number */
@@ -974,7 +974,7 @@ typedef int __bitwise snd_ctl_elem_iface_t;
 #define SNDRV_CTL_ELEM_ACCESS_WRITE		(1<<1)
 #define SNDRV_CTL_ELEM_ACCESS_READWRITE		(SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE)
 #define SNDRV_CTL_ELEM_ACCESS_VOLATILE		(1<<2)	/* control value may be changed without a notification */
-#define SNDRV_CTL_ELEM_ACCESS_TIMESTAMP		(1<<3)	/* when was control changed */
+// (1 << 3) is unused.
 #define SNDRV_CTL_ELEM_ACCESS_TLV_READ		(1<<4)	/* TLV read is possible */
 #define SNDRV_CTL_ELEM_ACCESS_TLV_WRITE		(1<<5)	/* TLV write is possible */
 #define SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE	(SNDRV_CTL_ELEM_ACCESS_TLV_READ|SNDRV_CTL_ELEM_ACCESS_TLV_WRITE)
@@ -1040,11 +1040,7 @@ struct snd_ctl_elem_info {
 		} enumerated;
 		unsigned char reserved[128];
 	} value;
-	union {
-		unsigned short d[4];		/* dimensions */
-		unsigned short *d_ptr;		/* indirect - obsoleted */
-	} dimen;
-	unsigned char reserved[64-4*sizeof(unsigned short)];
+	unsigned char reserved[64];
 };
 
 struct snd_ctl_elem_value {

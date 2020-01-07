@@ -718,7 +718,7 @@ static int snd_emu10k1x_ac97(struct emu10k1x *chip)
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_emu10k1x_ac97_write,
 		.read = snd_emu10k1x_ac97_read,
 	};
@@ -886,7 +886,7 @@ static int snd_emu10k1x_create(struct snd_card *card,
 	struct emu10k1x *chip;
 	int err;
 	int ch;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_emu10k1x_dev_free,
 	};
 

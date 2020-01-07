@@ -372,7 +372,8 @@ static int hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new eld_bytes_ctl = {
-	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
+	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE |
+		SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK,
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "ELD",
 	.info = hdmi_eld_ctl_info,

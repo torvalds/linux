@@ -288,7 +288,7 @@ static inline void iaputword(struct intel8x0m *chip, u32 offset, u16 val)
 /* return the GLOB_STA bit for the corresponding codec */
 static unsigned int get_ich_codec_bit(struct intel8x0m *chip, unsigned int codec)
 {
-	static unsigned int codec_bit[3] = {
+	static const unsigned int codec_bit[3] = {
 		ICH_PCR, ICH_SCR, ICH_TCR
 	};
 	if (snd_BUG_ON(codec >= 3))
@@ -686,7 +686,7 @@ struct ich_pcm_table {
 };
 
 static int snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
-			      struct ich_pcm_table *rec)
+			      const struct ich_pcm_table *rec)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -724,7 +724,7 @@ static int snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
 	return 0;
 }
 
-static struct ich_pcm_table intel_pcms[] = {
+static const struct ich_pcm_table intel_pcms[] = {
 	{
 		.suffix = "Modem",
 		.playback_ops = &snd_intel8x0m_playback_ops,
@@ -737,7 +737,7 @@ static struct ich_pcm_table intel_pcms[] = {
 static int snd_intel8x0m_pcm(struct intel8x0m *chip)
 {
 	int i, tblsize, device, err;
-	struct ich_pcm_table *tbl, *rec;
+	const struct ich_pcm_table *tbl, *rec;
 
 #if 1
 	tbl = intel_pcms;
@@ -801,7 +801,7 @@ static int snd_intel8x0m_mixer(struct intel8x0m *chip, int ac97_clock)
 	struct snd_ac97 *x97;
 	int err;
 	unsigned int glob_sta = 0;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_intel8x0m_codec_write,
 		.read = snd_intel8x0m_codec_read,
 	};
@@ -1079,14 +1079,14 @@ static int snd_intel8x0m_create(struct snd_card *card,
 	unsigned int i;
 	unsigned int int_sta_masks;
 	struct ichdev *ichdev;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =	snd_intel8x0m_dev_free,
 	};
-	static struct ich_reg_info intel_regs[2] = {
+	static const struct ich_reg_info intel_regs[2] = {
 		{ ICH_MIINT, 0 },
 		{ ICH_MOINT, 0x10 },
 	};
-	struct ich_reg_info *tbl;
+	const struct ich_reg_info *tbl;
 
 	*r_intel8x0m = NULL;
 

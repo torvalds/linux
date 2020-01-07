@@ -3034,8 +3034,6 @@ static void end_bio_bh_io_sync(struct bio *bio)
 void guard_bio_eod(int op, struct bio *bio)
 {
 	sector_t maxsector;
-	struct bio_vec *bvec = bio_last_bvec_all(bio);
-	unsigned truncated_bytes;
 	struct hd_struct *part;
 
 	rcu_read_lock();
@@ -3061,28 +3059,7 @@ void guard_bio_eod(int op, struct bio *bio)
 	if (likely((bio->bi_iter.bi_size >> 9) <= maxsector))
 		return;
 
-	/* Uhhuh. We've got a bio that straddles the device size! */
-	truncated_bytes = bio->bi_iter.bi_size - (maxsector << 9);
-
-	/*
-	 * The bio contains more than one segment which spans EOD, just return
-	 * and let IO layer turn it into an EIO
-	 */
-	if (truncated_bytes > bvec->bv_len)
-		return;
-
-	/* Truncate the bio.. */
-	bio->bi_iter.bi_size -= truncated_bytes;
-	bvec->bv_len -= truncated_bytes;
-
-	/* ..and clear the end of the buffer for reads */
-	if (op == REQ_OP_READ) {
-		struct bio_vec bv;
-
-		mp_bvec_last_segment(bvec, &bv);
-		zero_user(bv.bv_page, bv.bv_offset + bv.bv_len,
-				truncated_bytes);
-	}
+	bio_truncate(bio, maxsector << 9);
 }
 
 static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
