@@ -85,6 +85,14 @@ struct qcom_scm_res {
 	u64 result[MAX_QCOM_SCM_RETS];
 };
 
+/**
+ * struct arm_smccc_args
+ * @args:	The array of values used in registers in smc instruction
+ */
+struct arm_smccc_args {
+	unsigned long args[8];
+};
+
 #define SCM_LEGACY_FNID(s, c)	(((s) << 10) | ((c) & 0x3ff))
 
 /**
@@ -167,16 +175,14 @@ static inline void *scm_legacy_get_response_buffer(
 	return (void *)rsp + le32_to_cpu(rsp->buf_offset);
 }
 
-static u32 __scm_legacy_do(u32 cmd_addr)
+static void __scm_legacy_do(const struct arm_smccc_args *smc,
+			    struct arm_smccc_res *res)
 {
-	int context_id;
-	struct arm_smccc_res res;
 	do {
-		arm_smccc_smc(1, (unsigned long)&context_id, cmd_addr,
-			      0, 0, 0, 0, 0, &res);
-	} while (res.a0 == QCOM_SCM_INTERRUPTED);
-
-	return res.a0;
+		arm_smccc_smc(smc->args[0], smc->args[1], smc->args[2],
+			      smc->args[3], smc->args[4], smc->args[5],
+			      smc->args[6], smc->args[7], res);
+	} while (res->a0 == QCOM_SCM_INTERRUPTED);
 }
 
 /**
@@ -194,10 +200,12 @@ static int qcom_scm_call(struct device *dev, const struct qcom_scm_desc *desc,
 			 struct qcom_scm_res *res)
 {
 	u8 arglen = desc->arginfo & 0xf;
-	int ret;
+	int ret = 0, context_id;
 	unsigned int i;
 	struct scm_legacy_command *cmd;
 	struct scm_legacy_response *rsp;
+	struct arm_smccc_args smc = {0};
+	struct arm_smccc_res smc_res;
 	const size_t cmd_len = arglen * sizeof(__le32);
 	const size_t resp_len = MAX_QCOM_SCM_RETS * sizeof(__le32);
 	size_t alloc_len = sizeof(*cmd) + cmd_len + sizeof(*rsp) + resp_len;
@@ -226,10 +234,14 @@ static int qcom_scm_call(struct device *dev, const struct qcom_scm_desc *desc,
 		return -ENOMEM;
 	}
 
+	smc.args[0] = 1;
+	smc.args[1] = (unsigned long)&context_id;
+	smc.args[2] = cmd_phys;
+
 	mutex_lock(&qcom_scm_lock);
-	ret = __scm_legacy_do(cmd_phys);
-	if (ret < 0)
-		ret = qcom_scm_remap_error(ret);
+	__scm_legacy_do(&smc, &smc_res);
+	if (smc_res.a0)
+		ret = qcom_scm_remap_error(smc_res.a0);
 	mutex_unlock(&qcom_scm_lock);
 	if (ret)
 		goto out;
