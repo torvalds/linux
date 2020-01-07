@@ -286,6 +286,34 @@ void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *free,
 	}
 }
 
+unsigned long kvmppc_h_svm_init_abort(struct kvm *kvm)
+{
+	int srcu_idx;
+	struct kvm_memory_slot *memslot;
+
+	/*
+	 * Expect to be called only after INIT_START and before INIT_DONE.
+	 * If INIT_DONE was completed, use normal VM termination sequence.
+	 */
+	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
+		return H_UNSUPPORTED;
+
+	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
+		return H_STATE;
+
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+
+	kvm_for_each_memslot(memslot, kvm_memslots(kvm))
+		kvmppc_uvmem_drop_pages(memslot, kvm, false);
+
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+
+	kvm->arch.secure_guest = 0;
+	uv_svm_terminate(kvm->arch.lpid);
+
+	return H_PARAMETER;
+}
+
 /*
  * Get a free device PFN from the pool
  *
