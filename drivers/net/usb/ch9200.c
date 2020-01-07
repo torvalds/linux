@@ -130,8 +130,6 @@ static int control_read(struct usbnet *dev,
 		err = -EINVAL;
 	kfree(buf);
 
-	return err;
-
 err_out:
 	return err;
 }
