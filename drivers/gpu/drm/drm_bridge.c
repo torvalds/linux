@@ -938,15 +938,19 @@ int drm_atomic_bridge_chain_check(struct drm_bridge *bridge,
 				  struct drm_connector_state *conn_state)
 {
 	struct drm_connector *conn = conn_state->connector;
-	struct drm_encoder *encoder = bridge->encoder;
+	struct drm_encoder *encoder;
 	struct drm_bridge *iter;
 	int ret;
+
+	if (!bridge)
+		return 0;
 
 	ret = drm_atomic_bridge_chain_select_bus_fmts(bridge, crtc_state,
 						      conn_state);
 	if (ret)
 		return ret;
 
+	encoder = bridge->encoder;
 	list_for_each_entry_reverse(iter, &encoder->bridge_chain, chain_node) {
 		int ret;
 
