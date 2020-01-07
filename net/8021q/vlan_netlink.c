@@ -181,10 +181,11 @@ static int vlan_newlink(struct net *src_net, struct net_device *dev,
 		return -EINVAL;
 
 	err = vlan_changelink(dev, tb, data, extack);
-	if (err < 0)
-		return err;
-
-	return register_vlan_dev(dev, extack);
+	if (!err)
+		err = register_vlan_dev(dev, extack);
+	if (err)
+		vlan_dev_uninit(dev);
+	return err;
 }
 
 static inline size_t vlan_qos_map_size(unsigned int n)
