@@ -13,6 +13,13 @@
 	model = "TI DRA762 EVM";
 	compatible = "ti,dra76-evm", "ti,dra762", "ti,dra7";
 
+	aliases {
+		display0 = &hdmi0;
+
+		sound0 = &sound0;
+		sound1 = &hdmi;
+	};
+
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>;
@@ -115,6 +122,48 @@
 		vin-supply = <&vio_3v3>;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+	};
+
+	hdmi0: connector {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tpd12s015_out>;
+			};
+		};
+	};
+
+	tpd12s015: encoder {
+		compatible = "ti,tpd12s015";
+
+		gpios = <&gpio7 30 GPIO_ACTIVE_HIGH>,   /* gpio7_30, CT CP HPD */
+			<&gpio7 31 GPIO_ACTIVE_HIGH>,   /* gpio7_31, LS OE */
+			<&gpio7 12 GPIO_ACTIVE_HIGH>;   /* gpio7_12/sp1_cs2, HPD */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tpd12s015_in: endpoint {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tpd12s015_out: endpoint {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
 	};
 };
 
@@ -409,6 +458,23 @@
 
 &usb2_phy2 {
 	phy-supply = <&ldo3_reg>;
+};
+
+&dss {
+	status = "ok";
+	vdda_video-supply = <&ldo5_reg>;
+};
+
+&hdmi {
+	status = "ok";
+
+	vdda-supply = <&ldo1_reg>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&tpd12s015_in>;
+		};
+	};
 };
 
 &qspi {
