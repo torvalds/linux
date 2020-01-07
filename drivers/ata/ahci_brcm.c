@@ -352,8 +352,7 @@ static int brcm_ahci_suspend(struct device *dev)
 	else
 		ret = 0;
 
-	if (!IS_ERR_OR_NULL(priv->rcdev))
-		reset_control_assert(priv->rcdev);
+	reset_control_assert(priv->rcdev);
 
 	return ret;
 }
@@ -365,8 +364,7 @@ static int __maybe_unused brcm_ahci_resume(struct device *dev)
 	struct brcm_ahci_priv *priv = hpriv->plat_data;
 	int ret = 0;
 
-	if (!IS_ERR_OR_NULL(priv->rcdev))
-		ret = reset_control_deassert(priv->rcdev);
+	ret = reset_control_deassert(priv->rcdev);
 	if (ret)
 		return ret;
 
@@ -454,9 +452,11 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	else
 		reset_name = "ahci";
 
-	priv->rcdev = devm_reset_control_get(&pdev->dev, reset_name);
-	if (!IS_ERR_OR_NULL(priv->rcdev))
-		reset_control_deassert(priv->rcdev);
+	priv->rcdev = devm_reset_control_get_optional(&pdev->dev, reset_name);
+	if (IS_ERR(priv->rcdev))
+		return PTR_ERR(priv->rcdev);
+
+	reset_control_deassert(priv->rcdev);
 
 	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv)) {
@@ -520,8 +520,7 @@ out_disable_phys:
 out_disable_clks:
 	ahci_platform_disable_clks(hpriv);
 out_reset:
-	if (!IS_ERR_OR_NULL(priv->rcdev))
-		reset_control_assert(priv->rcdev);
+	reset_control_assert(priv->rcdev);
 	return ret;
 }
 
