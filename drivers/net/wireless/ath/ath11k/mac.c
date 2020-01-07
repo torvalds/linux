@@ -5468,7 +5468,7 @@ static const struct ieee80211_ops ath11k_ops = {
 	.flush				= ath11k_mac_op_flush,
 	.sta_statistics			= ath11k_mac_op_sta_statistics,
 	CFG80211_TESTMODE_CMD(ath11k_tm_cmd)
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_ATH11K_DEBUGFS
 	.sta_add_debugfs		= ath11k_sta_add_debugfs,
 #endif
 };
