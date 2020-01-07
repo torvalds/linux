@@ -3,6 +3,16 @@
  */
 #ifndef __QCOM_SCM_INT_H
 #define __QCOM_SCM_INT_H
+
+enum qcom_scm_convention {
+	SMC_CONVENTION_UNKNOWN,
+	SMC_CONVENTION_LEGACY,
+	SMC_CONVENTION_ARM_32,
+	SMC_CONVENTION_ARM_64,
+};
+
+extern enum qcom_scm_convention qcom_scm_convention;
+
 #define MAX_QCOM_SCM_ARGS 10
 #define MAX_QCOM_SCM_RETS 3
 
@@ -50,11 +60,16 @@ struct qcom_scm_res {
 	u64 result[MAX_QCOM_SCM_RETS];
 };
 
-extern int qcom_scm_call(struct device *dev, const struct qcom_scm_desc *desc,
-			 struct qcom_scm_res *res);
-extern int qcom_scm_call_atomic(struct device *dev,
-				const struct qcom_scm_desc *desc,
-				struct qcom_scm_res *res);
+#define SCM_SMC_FNID(s, c)	((((s) & 0xFF) << 8) | ((c) & 0xFF))
+extern int scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
+			struct qcom_scm_res *res, bool atomic);
+
+#define SCM_LEGACY_FNID(s, c)	(((s) << 10) | ((c) & 0x3ff))
+extern int scm_legacy_call_atomic(struct device *dev,
+				  const struct qcom_scm_desc *desc,
+				  struct qcom_scm_res *res);
+extern int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
+			   struct qcom_scm_res *res);
 
 #define QCOM_SCM_SVC_BOOT		0x01
 #define QCOM_SCM_BOOT_SET_ADDR		0x01
@@ -77,8 +92,6 @@ extern int qcom_scm_call_atomic(struct device *dev,
 
 #define QCOM_SCM_SVC_INFO		0x06
 #define QCOM_SCM_INFO_IS_CALL_AVAIL	0x01
-extern int __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
-		u32 cmd_id);
 
 #define QCOM_SCM_SVC_MP				0x0c
 #define QCOM_SCM_MP_RESTORE_SEC_CFG		0x02

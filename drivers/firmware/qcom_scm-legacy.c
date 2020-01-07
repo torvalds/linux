@@ -26,7 +26,6 @@ struct arm_smccc_args {
 	unsigned long args[8];
 };
 
-#define SCM_LEGACY_FNID(s, c)	(((s) << 10) | ((c) & 0x3ff))
 
 /**
  * struct scm_legacy_command - one SCM command buffer
@@ -129,8 +128,8 @@ static void __scm_legacy_do(const struct arm_smccc_args *smc,
  * and response buffers is taken care of by qcom_scm_call; however, callers are
  * responsible for any other cached buffers passed over to the secure world.
  */
-int qcom_scm_call(struct device *dev, const struct qcom_scm_desc *desc,
-			 struct qcom_scm_res *res)
+int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
+		    struct qcom_scm_res *res)
 {
 	u8 arglen = desc->arginfo & 0xf;
 	int ret = 0, context_id;
@@ -218,9 +217,9 @@ out:
  * This shall only be used with commands that are guaranteed to be
  * uninterruptable, atomic and SMP safe.
  */
-int qcom_scm_call_atomic(struct device *unused,
-			 const struct qcom_scm_desc *desc,
-			 struct qcom_scm_res *res)
+int scm_legacy_call_atomic(struct device *unused,
+			   const struct qcom_scm_desc *desc,
+			   struct qcom_scm_res *res)
 {
 	int context_id;
 	struct arm_smccc_res smc_res;
@@ -240,24 +239,4 @@ int qcom_scm_call_atomic(struct device *unused,
 	}
 
 	return smc_res.a0;
-}
-
-int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
-{
-	int ret;
-	struct qcom_scm_desc desc = {
-		.svc = QCOM_SCM_SVC_INFO,
-		.cmd = QCOM_SCM_INFO_IS_CALL_AVAIL,
-		.args[0] = SCM_LEGACY_FNID(svc_id, cmd_id),
-		.arginfo = QCOM_SCM_ARGS(1),
-	};
-	struct qcom_scm_res res;
-
-	ret = qcom_scm_call(dev, &desc, &res);
-
-	return ret ? : res.result[0];
-}
-
-void __qcom_scm_init(void)
-{
 }

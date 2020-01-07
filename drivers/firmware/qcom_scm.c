@@ -72,6 +72,13 @@ static struct qcom_scm_wb_entry qcom_scm_wb[] = {
 	{ .flag = QCOM_SCM_FLAG_WARMBOOT_CPU3 },
 };
 
+static const char *qcom_scm_convention_names[] = {
+	[SMC_CONVENTION_UNKNOWN] = "unknown",
+	[SMC_CONVENTION_ARM_32] = "smc arm 32",
+	[SMC_CONVENTION_ARM_64] = "smc arm 64",
+	[SMC_CONVENTION_LEGACY] = "smc legacy",
+};
+
 static struct qcom_scm *__scm;
 
 static int qcom_scm_clk_enable(void)
@@ -105,6 +112,143 @@ static void qcom_scm_clk_disable(void)
 	clk_disable_unprepare(__scm->core_clk);
 	clk_disable_unprepare(__scm->iface_clk);
 	clk_disable_unprepare(__scm->bus_clk);
+}
+
+static int __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
+					u32 cmd_id);
+
+enum qcom_scm_convention qcom_scm_convention;
+static bool has_queried __read_mostly;
+static DEFINE_SPINLOCK(query_lock);
+
+static void __query_convention(void)
+{
+	unsigned long flags;
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_INFO,
+		.cmd = QCOM_SCM_INFO_IS_CALL_AVAIL,
+		.args[0] = SCM_SMC_FNID(QCOM_SCM_SVC_INFO,
+					   QCOM_SCM_INFO_IS_CALL_AVAIL) |
+			   (ARM_SMCCC_OWNER_SIP << ARM_SMCCC_OWNER_SHIFT),
+		.arginfo = QCOM_SCM_ARGS(1),
+		.owner = ARM_SMCCC_OWNER_SIP,
+	};
+	struct qcom_scm_res res;
+	int ret;
+
+	spin_lock_irqsave(&query_lock, flags);
+	if (has_queried)
+		goto out;
+
+	qcom_scm_convention = SMC_CONVENTION_ARM_64;
+	// Device isn't required as there is only one argument - no device
+	// needed to dma_map_single to secure world
+	ret = scm_smc_call(NULL, &desc, &res, true);
+	if (!ret && res.result[0] == 1)
+		goto out;
+
+	qcom_scm_convention = SMC_CONVENTION_ARM_32;
+	ret = scm_smc_call(NULL, &desc, &res, true);
+	if (!ret && res.result[0] == 1)
+		goto out;
+
+	qcom_scm_convention = SMC_CONVENTION_LEGACY;
+out:
+	has_queried = true;
+	spin_unlock_irqrestore(&query_lock, flags);
+	pr_info("qcom_scm: convention: %s\n",
+		qcom_scm_convention_names[qcom_scm_convention]);
+}
+
+static inline enum qcom_scm_convention __get_convention(void)
+{
+	if (unlikely(!has_queried))
+		__query_convention();
+	return qcom_scm_convention;
+}
+
+/**
+ * qcom_scm_call() - Invoke a syscall in the secure world
+ * @dev:	device
+ * @svc_id:	service identifier
+ * @cmd_id:	command identifier
+ * @desc:	Descriptor structure containing arguments and return values
+ *
+ * Sends a command to the SCM and waits for the command to finish processing.
+ * This should *only* be called in pre-emptible context.
+ */
+static int qcom_scm_call(struct device *dev, const struct qcom_scm_desc *desc,
+			 struct qcom_scm_res *res)
+{
+	might_sleep();
+	switch (__get_convention()) {
+	case SMC_CONVENTION_ARM_32:
+	case SMC_CONVENTION_ARM_64:
+		return scm_smc_call(dev, desc, res, false);
+	case SMC_CONVENTION_LEGACY:
+		return scm_legacy_call(dev, desc, res);
+	default:
+		pr_err("Unknown current SCM calling convention.\n");
+		return -EINVAL;
+	}
+}
+
+/**
+ * qcom_scm_call_atomic() - atomic variation of qcom_scm_call()
+ * @dev:	device
+ * @svc_id:	service identifier
+ * @cmd_id:	command identifier
+ * @desc:	Descriptor structure containing arguments and return values
+ * @res:	Structure containing results from SMC/HVC call
+ *
+ * Sends a command to the SCM and waits for the command to finish processing.
+ * This can be called in atomic context.
+ */
+static int qcom_scm_call_atomic(struct device *dev,
+				const struct qcom_scm_desc *desc,
+				struct qcom_scm_res *res)
+{
+	switch (__get_convention()) {
+	case SMC_CONVENTION_ARM_32:
+	case SMC_CONVENTION_ARM_64:
+		return scm_smc_call(dev, desc, res, true);
+	case SMC_CONVENTION_LEGACY:
+		return scm_legacy_call_atomic(dev, desc, res);
+	default:
+		pr_err("Unknown current SCM calling convention.\n");
+		return -EINVAL;
+	}
+}
+
+static int __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
+					u32 cmd_id)
+{
+	int ret;
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_INFO,
+		.cmd = QCOM_SCM_INFO_IS_CALL_AVAIL,
+		.owner = ARM_SMCCC_OWNER_SIP,
+	};
+	struct qcom_scm_res res;
+
+	desc.arginfo = QCOM_SCM_ARGS(1);
+	switch (__get_convention()) {
+	case SMC_CONVENTION_ARM_32:
+	case SMC_CONVENTION_ARM_64:
+		desc.args[0] = SCM_SMC_FNID(svc_id, cmd_id) |
+				(ARM_SMCCC_OWNER_SIP << ARM_SMCCC_OWNER_SHIFT);
+		break;
+	case SMC_CONVENTION_LEGACY:
+		desc.args[0] = SCM_LEGACY_FNID(svc_id, cmd_id);
+		break;
+	default:
+		pr_err("Unknown SMC convention being used\n");
+		return -EINVAL;
+	}
+
+	ret = qcom_scm_call(dev, &desc, &res);
+
+	return ret ? : res.result[0];
 }
 
 /**
@@ -971,7 +1115,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	__scm = scm;
 	__scm->dev = &pdev->dev;
 
-	__qcom_scm_init();
+	__query_convention();
 
 	/*
 	 * If requested enable "download mode", from this point on warmboot
