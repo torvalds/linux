@@ -5081,7 +5081,6 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 	chan->move_role = L2CAP_MOVE_ROLE_RESPONDER;
 	l2cap_move_setup(chan);
 	chan->move_id = req->dest_amp_id;
-	icid = chan->dcid;
 
 	if (req->dest_amp_id == AMP_ID_BREDR) {
 		/* Moving to BR/EDR */
