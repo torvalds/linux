@@ -1,4 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright 2020 IBM Corp.
+// Copyright (c) 2019 Intel Corporation
 
 #include <linux/atomic.h>
 #include <linux/bitfield.h>
