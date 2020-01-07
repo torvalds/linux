@@ -806,7 +806,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 	if (pdata) {
 		/* add in known devices to the bus */
 		for (i = 0; i < pdata->num_devices; i++)
-			i2c_new_device(&i2c->adap, pdata->devices + i);
+			i2c_new_client_device(&i2c->adap, pdata->devices + i);
 	}
 
 	return 0;
