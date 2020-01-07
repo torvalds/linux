@@ -709,67 +709,12 @@ out:									\
 
 static int validate_bset(struct bch_fs *c, struct btree *b,
 			 struct bset *i, unsigned sectors,
-			 unsigned *whiteout_u64s, int write,
-			 bool have_retry)
+			 int write, bool have_retry)
 {
-	struct bkey_packed *k, *prev = NULL;
-	bool seen_non_whiteout = false;
-	unsigned version;
+	unsigned version = le16_to_cpu(i->version);
 	const char *err;
 	int ret = 0;
 
-	if (!b->written) {
-		/* These indicate that we read the wrong btree node: */
-		btree_err_on(BTREE_NODE_ID(b->data) != b->c.btree_id,
-			     BTREE_ERR_MUST_RETRY, c, b, i,
-			     "incorrect btree id");
-
-		btree_err_on(BTREE_NODE_LEVEL(b->data) != b->c.level,
-			     BTREE_ERR_MUST_RETRY, c, b, i,
-			     "incorrect level");
-
-		if (BSET_BIG_ENDIAN(i) != CPU_BIG_ENDIAN) {
-			u64 *p = (u64 *) &b->data->ptr;
-
-			*p = swab64(*p);
-			bch2_bpos_swab(&b->data->min_key);
-			bch2_bpos_swab(&b->data->max_key);
-		}
-
-		if (b->key.k.type == KEY_TYPE_btree_ptr_v2) {
-			struct bch_btree_ptr_v2 *bp =
-				&bkey_i_to_btree_ptr_v2(&b->key)->v;
-
-			btree_err_on(bkey_cmp(b->data->min_key, bp->min_key),
-				     BTREE_ERR_MUST_RETRY, c, b, NULL,
-				     "incorrect min_key");
-		}
-
-		btree_err_on(bkey_cmp(b->data->max_key, b->key.k.p),
-			     BTREE_ERR_MUST_RETRY, c, b, i,
-			     "incorrect max key");
-
-		/* XXX: ideally we would be validating min_key too */
-#if 0
-		/*
-		 * not correct anymore, due to btree node write error
-		 * handling
-		 *
-		 * need to add b->data->seq to btree keys and verify
-		 * against that
-		 */
-		btree_err_on(!extent_contains_ptr(bkey_i_to_s_c_extent(&b->key),
-						  b->data->ptr),
-			     BTREE_ERR_FATAL, c, b, i,
-			     "incorrect backpointer");
-#endif
-		err = bch2_bkey_format_validate(&b->data->format);
-		btree_err_on(err,
-			     BTREE_ERR_FATAL, c, b, i,
-			     "invalid bkey format: %s", err);
-	}
-
-	version = le16_to_cpu(i->version);
 	btree_err_on((version != BCH_BSET_VERSION_OLD &&
 		      version < bcachefs_metadata_version_min) ||
 		     version >= bcachefs_metadata_version_max,
@@ -786,6 +731,85 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 	btree_err_on(b->written && !i->u64s,
 		     BTREE_ERR_FIXABLE, c, b, i,
 		     "empty bset");
+
+	if (!b->written) {
+		struct btree_node *bn =
+			container_of(i, struct btree_node, keys);
+		/* These indicate that we read the wrong btree node: */
+		btree_err_on(BTREE_NODE_ID(bn) != b->c.btree_id,
+			     BTREE_ERR_MUST_RETRY, c, b, i,
+			     "incorrect btree id");
+
+		btree_err_on(BTREE_NODE_LEVEL(bn) != b->c.level,
+			     BTREE_ERR_MUST_RETRY, c, b, i,
+			     "incorrect level");
+
+		if (BSET_BIG_ENDIAN(i) != CPU_BIG_ENDIAN) {
+			u64 *p = (u64 *) &bn->ptr;
+
+			*p = swab64(*p);
+		}
+
+		if (!write)
+			compat_btree_node(b->c.level, b->c.btree_id, version,
+					  BSET_BIG_ENDIAN(i), write, bn);
+
+		if (b->key.k.type == KEY_TYPE_btree_ptr_v2) {
+			struct bch_btree_ptr_v2 *bp =
+				&bkey_i_to_btree_ptr_v2(&b->key)->v;
+
+			btree_err_on(bkey_cmp(b->data->min_key, bp->min_key),
+				     BTREE_ERR_MUST_RETRY, c, b, NULL,
+				     "incorrect min_key: got %llu:%llu should be %llu:%llu",
+				     b->data->min_key.inode,
+				     b->data->min_key.offset,
+				     bp->min_key.inode,
+				     bp->min_key.offset);
+		}
+
+		btree_err_on(bkey_cmp(bn->max_key, b->key.k.p),
+			     BTREE_ERR_MUST_RETRY, c, b, i,
+			     "incorrect max key");
+
+		if (write)
+			compat_btree_node(b->c.level, b->c.btree_id, version,
+					  BSET_BIG_ENDIAN(i), write, bn);
+
+		/* XXX: ideally we would be validating min_key too */
+#if 0
+		/*
+		 * not correct anymore, due to btree node write error
+		 * handling
+		 *
+		 * need to add bn->seq to btree keys and verify
+		 * against that
+		 */
+		btree_err_on(!extent_contains_ptr(bkey_i_to_s_c_extent(&b->key),
+						  bn->ptr),
+			     BTREE_ERR_FATAL, c, b, i,
+			     "incorrect backpointer");
+#endif
+		err = bch2_bkey_format_validate(&bn->format);
+		btree_err_on(err,
+			     BTREE_ERR_FATAL, c, b, i,
+			     "invalid bkey format: %s", err);
+
+		compat_bformat(b->c.level, b->c.btree_id, version,
+			       BSET_BIG_ENDIAN(i), write,
+			       &bn->format);
+	}
+fsck_err:
+	return ret;
+}
+
+static int validate_bset_keys(struct bch_fs *c, struct btree *b,
+			 struct bset *i, unsigned *whiteout_u64s,
+			 int write, bool have_retry)
+{
+	unsigned version = le16_to_cpu(i->version);
+	struct bkey_packed *k, *prev = NULL;
+	bool seen_non_whiteout = false;
+	int ret = 0;
 
 	if (!BSET_SEPARATE_WHITEOUTS(i)) {
 		seen_non_whiteout = true;
@@ -814,17 +838,13 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 			continue;
 		}
 
-		if (BSET_BIG_ENDIAN(i) != CPU_BIG_ENDIAN)
-			bch2_bkey_swab_key(&b->format, k);
-
-		if (!write &&
-		    version < bcachefs_metadata_version_bkey_renumber)
-			bch2_bkey_renumber(btree_node_type(b), k, write);
+		/* XXX: validate k->u64s */
+		if (!write)
+			bch2_bkey_compat(b->c.level, b->c.btree_id, version,
+				    BSET_BIG_ENDIAN(i), write,
+				    &b->format, k);
 
 		u = __bkey_disassemble(b, k, &tmp);
-
-		if (BSET_BIG_ENDIAN(i) != CPU_BIG_ENDIAN)
-			bch2_bkey_swab_val(u);
 
 		invalid = __bch2_bkey_invalid(c, u.s_c, btree_node_type(b)) ?:
 			bch2_bkey_in_btree_node(b, u.s_c) ?:
@@ -842,9 +862,10 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 			continue;
 		}
 
-		if (write &&
-		    version < bcachefs_metadata_version_bkey_renumber)
-			bch2_bkey_renumber(btree_node_type(b), k, write);
+		if (write)
+			bch2_bkey_compat(b->c.level, b->c.btree_id, version,
+				    BSET_BIG_ENDIAN(i), write,
+				    &b->format, k);
 
 		/*
 		 * with the separate whiteouts thing (used for extents), the
@@ -875,8 +896,6 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 		prev = k;
 		k = bkey_next_skip_noops(k, vstruct_last(i));
 	}
-
-	SET_BSET_BIG_ENDIAN(i, CPU_BIG_ENDIAN);
 fsck_err:
 	return ret;
 }
@@ -944,8 +963,6 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 				set_btree_node_old_extent_overwrite(b);
 
 			sectors = vstruct_sectors(b->data, c->block_bits);
-
-			btree_node_set_format(b, b->data->format);
 		} else {
 			bne = write_block(b);
 			i = &bne->keys;
@@ -969,10 +986,20 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 			sectors = vstruct_sectors(bne, c->block_bits);
 		}
 
-		ret = validate_bset(c, b, i, sectors, &whiteout_u64s,
+		ret = validate_bset(c, b, i, sectors,
 				    READ, have_retry);
 		if (ret)
 			goto fsck_err;
+
+		if (!b->written)
+			btree_node_set_format(b, b->data->format);
+
+		ret = validate_bset_keys(c, b, i, &whiteout_u64s,
+				    READ, have_retry);
+		if (ret)
+			goto fsck_err;
+
+		SET_BSET_BIG_ENDIAN(i, CPU_BIG_ENDIAN);
 
 		b->written += sectors;
 
@@ -1416,7 +1443,8 @@ static int validate_bset_for_write(struct bch_fs *c, struct btree *b,
 	if (bch2_bkey_invalid(c, bkey_i_to_s_c(&b->key), BKEY_TYPE_BTREE))
 		return -1;
 
-	ret = validate_bset(c, b, i, sectors, &whiteout_u64s, WRITE, false);
+	ret = validate_bset(c, b, i, sectors, WRITE, false) ?:
+		validate_bset_keys(c, b, i, &whiteout_u64s, WRITE, false);
 	if (ret)
 		bch2_inconsistent_error(c);
 
@@ -1566,8 +1594,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 		validate_before_checksum = true;
 
 	/* validate_bset will be modifying: */
-	if (le16_to_cpu(i->version) <
-	    bcachefs_metadata_version_bkey_renumber)
+	if (le16_to_cpu(i->version) < bcachefs_metadata_version_max)
 		validate_before_checksum = true;
 
 	/* if we're going to be encrypting, check metadata validity first: */

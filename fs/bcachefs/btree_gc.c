@@ -74,7 +74,7 @@ static void btree_node_range_checks(struct bch_fs *c, struct btree *b,
 	struct range_level *l = &r->l[b->c.level];
 
 	struct bpos expected_min = bkey_cmp(l->min, l->max)
-		? btree_type_successor(b->c.btree_id, l->max)
+		? bkey_successor(l->max)
 		: l->max;
 
 	bch2_fs_inconsistent_on(bkey_cmp(b->data->min_key, expected_min), c,
@@ -105,8 +105,7 @@ static void btree_node_range_checks(struct bch_fs *c, struct btree *b,
 
 		if (bkey_cmp(b->data->max_key, POS_MAX))
 			l->min = l->max =
-				btree_type_successor(b->c.btree_id,
-						     b->data->max_key);
+				bkey_successor(b->data->max_key);
 	}
 }
 
@@ -987,9 +986,7 @@ static void bch2_coalesce_nodes(struct bch_fs *c, struct btree_iter *iter,
 			n1->key.k.p = n1->data->max_key =
 				bkey_unpack_pos(n1, last);
 
-			n2->data->min_key =
-				btree_type_successor(iter->btree_id,
-						     n1->data->max_key);
+			n2->data->min_key = bkey_successor(n1->data->max_key);
 
 			memcpy_u64s(vstruct_last(s1),
 				    s2->start, u64s);

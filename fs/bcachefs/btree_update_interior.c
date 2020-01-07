@@ -1193,7 +1193,7 @@ static struct btree *__btree_split_node(struct btree_update *as,
 	BUG_ON(!prev);
 
 	btree_set_max(n1, bkey_unpack_pos(n1, prev));
-	btree_set_min(n2, btree_type_successor(n1->c.btree_id, n1->key.k.p));
+	btree_set_min(n2, bkey_successor(n1->key.k.p));
 
 	set2->u64s = cpu_to_le16((u64 *) vstruct_end(set1) - (u64 *) k);
 	set1->u64s = cpu_to_le16(le16_to_cpu(set1->u64s) - le16_to_cpu(set2->u64s));

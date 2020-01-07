@@ -58,8 +58,11 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 	EBUG_ON(btree_node_just_written(b));
 	EBUG_ON(bset_written(b, btree_bset_last(b)));
 	EBUG_ON(bkey_deleted(&insert->k) && bkey_val_u64s(&insert->k));
-	EBUG_ON(bkey_cmp(bkey_start_pos(&insert->k), b->data->min_key) < 0 ||
-		bkey_cmp(insert->k.p, b->data->max_key) > 0);
+	EBUG_ON(bkey_cmp(b->data->min_key, POS_MIN) &&
+		bkey_cmp(bkey_start_pos(&insert->k),
+			 bkey_predecessor(b->data->min_key)) < 0);
+	EBUG_ON(bkey_cmp(insert->k.p, b->data->min_key) < 0);
+	EBUG_ON(bkey_cmp(insert->k.p, b->data->max_key) > 0);
 	EBUG_ON(insert->k.u64s >
 		bch_btree_keys_u64s_remaining(iter->trans->c, b));
 	EBUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);

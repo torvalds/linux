@@ -172,32 +172,6 @@ void bch2_btree_iter_set_pos_same_leaf(struct btree_iter *, struct bpos);
 void __bch2_btree_iter_set_pos(struct btree_iter *, struct bpos, bool);
 void bch2_btree_iter_set_pos(struct btree_iter *, struct bpos);
 
-static inline struct bpos btree_type_successor(enum btree_id id,
-					       struct bpos pos)
-{
-	if (id == BTREE_ID_INODES) {
-		pos.inode++;
-		pos.offset = 0;
-	} else if (!btree_node_type_is_extents(id)) {
-		pos = bkey_successor(pos);
-	}
-
-	return pos;
-}
-
-static inline struct bpos btree_type_predecessor(enum btree_id id,
-					       struct bpos pos)
-{
-	if (id == BTREE_ID_INODES) {
-		--pos.inode;
-		pos.offset = 0;
-	} else {
-		pos = bkey_predecessor(pos);
-	}
-
-	return pos;
-}
-
 static inline int __btree_iter_cmp(enum btree_id id,
 				   struct bpos pos,
 				   const struct btree_iter *r)

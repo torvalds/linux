@@ -9,6 +9,7 @@
 #include "bcachefs.h"
 #include "bkey_methods.h"
 #include "btree_gc.h"
+#include "btree_io.h"
 #include "btree_iter.h"
 #include "buckets.h"
 #include "checksum.h"
@@ -211,6 +212,22 @@ void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 			    struct bkey_s_c k)
 {
 	bch2_bkey_ptrs_to_text(out, c, k);
+}
+
+void bch2_btree_ptr_v2_compat(enum btree_id btree_id, unsigned version,
+			      unsigned big_endian, int write,
+			      struct bkey_s k)
+{
+	struct bkey_s_btree_ptr_v2 bp = bkey_s_to_btree_ptr_v2(k);
+
+	compat_bpos(0, btree_id, version, big_endian, write, &bp.v->min_key);
+
+	if (version < bcachefs_metadata_version_inode_btree_change &&
+	    btree_node_type_is_extents(btree_id) &&
+	    bkey_cmp(bp.v->min_key, POS_MIN))
+		bp.v->min_key = write
+			? bkey_predecessor(bp.v->min_key)
+			: bkey_successor(bp.v->min_key);
 }
 
 /* KEY_TYPE_extent: */

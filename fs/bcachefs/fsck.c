@@ -1038,12 +1038,12 @@ retry:
 		if (!ret)
 			continue;
 
-		if (fsck_err_on(!inode_bitmap_test(&dirs_done, k.k->p.inode), c,
+		if (fsck_err_on(!inode_bitmap_test(&dirs_done, k.k->p.offset), c,
 				"unreachable directory found (inum %llu)",
-				k.k->p.inode)) {
+				k.k->p.offset)) {
 			bch2_trans_unlock(&trans);
 
-			ret = reattach_inode(c, lostfound_inode, k.k->p.inode);
+			ret = reattach_inode(c, lostfound_inode, k.k->p.offset);
 			if (ret) {
 				goto err;
 			}

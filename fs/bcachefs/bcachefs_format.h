@@ -1160,7 +1160,8 @@ enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min			= 9,
 	bcachefs_metadata_version_new_versioning	= 10,
 	bcachefs_metadata_version_bkey_renumber		= 10,
-	bcachefs_metadata_version_max			= 11,
+	bcachefs_metadata_version_inode_btree_change	= 11,
+	bcachefs_metadata_version_max			= 12,
 };
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)

@@ -115,7 +115,9 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 	b = iter->l[0].b;
 	node_iter = iter->l[0].iter;
 
-	BUG_ON(bkey_cmp(bkey_start_pos(&insert->k), b->data->min_key) < 0);
+	BUG_ON(bkey_cmp(b->data->min_key, POS_MIN) &&
+	       bkey_cmp(bkey_start_pos(&insert->k),
+			bkey_predecessor(b->data->min_key)) < 0);
 
 	*end = bpos_min(insert->k.p, b->key.k.p);
 

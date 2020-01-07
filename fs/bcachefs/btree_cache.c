@@ -924,8 +924,7 @@ out:
 		if (sib != btree_prev_sib)
 			swap(n1, n2);
 
-		BUG_ON(bkey_cmp(btree_type_successor(n1->c.btree_id,
-						     n1->key.k.p),
+		BUG_ON(bkey_cmp(bkey_successor(n1->key.k.p),
 				n2->data->min_key));
 	}
 

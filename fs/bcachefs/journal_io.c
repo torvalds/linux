@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
 #include "alloc_foreground.h"
+#include "btree_io.h"
 #include "buckets.h"
 #include "checksum.h"
 #include "error.h"
@@ -137,7 +138,8 @@ static void journal_entry_null_range(void *start, void *end)
 
 static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 				struct jset_entry *entry,
-				struct bkey_i *k, enum btree_node_type key_type,
+				unsigned level, enum btree_id btree_id,
+				struct bkey_i *k,
 				const char *type, int write)
 {
 	void *next = vstruct_next(entry);
@@ -170,16 +172,13 @@ static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 		return 0;
 	}
 
-	if (JSET_BIG_ENDIAN(jset) != CPU_BIG_ENDIAN) {
-		bch2_bkey_swab_key(NULL, bkey_to_packed(k));
-		bch2_bkey_swab_val(bkey_i_to_s(k));
-	}
+	if (!write)
+		bch2_bkey_compat(level, btree_id, version,
+			    JSET_BIG_ENDIAN(jset), write,
+			    NULL, bkey_to_packed(k));
 
-	if (!write &&
-	    version < bcachefs_metadata_version_bkey_renumber)
-		bch2_bkey_renumber(key_type, bkey_to_packed(k), write);
-
-	invalid = bch2_bkey_invalid(c, bkey_i_to_s_c(k), key_type);
+	invalid = bch2_bkey_invalid(c, bkey_i_to_s_c(k),
+				    __btree_node_type(level, btree_id));
 	if (invalid) {
 		char buf[160];
 
@@ -193,9 +192,10 @@ static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 		return 0;
 	}
 
-	if (write &&
-	    version < bcachefs_metadata_version_bkey_renumber)
-		bch2_bkey_renumber(key_type, bkey_to_packed(k), write);
+	if (write)
+		bch2_bkey_compat(level, btree_id, version,
+			    JSET_BIG_ENDIAN(jset), write,
+			    NULL, bkey_to_packed(k));
 fsck_err:
 	return ret;
 }
@@ -208,10 +208,10 @@ static int journal_entry_validate_btree_keys(struct bch_fs *c,
 	struct bkey_i *k;
 
 	vstruct_for_each(entry, k) {
-		int ret = journal_validate_key(c, jset, entry, k,
-				__btree_node_type(entry->level,
-						  entry->btree_id),
-				"key", write);
+		int ret = journal_validate_key(c, jset, entry,
+					       entry->level,
+					       entry->btree_id,
+					       k, "key", write);
 		if (ret)
 			return ret;
 	}
@@ -241,7 +241,7 @@ static int journal_entry_validate_btree_root(struct bch_fs *c,
 		return 0;
 	}
 
-	return journal_validate_key(c, jset, entry, k, BKEY_TYPE_BTREE,
+	return journal_validate_key(c, jset, entry, 1, entry->btree_id, k,
 				    "btree root", write);
 fsck_err:
 	return ret;
@@ -1017,8 +1017,7 @@ void bch2_journal_write(struct closure *cl)
 	if (bch2_csum_type_is_encryption(JSET_CSUM_TYPE(jset)))
 		validate_before_checksum = true;
 
-	if (le32_to_cpu(jset->version) <
-	    bcachefs_metadata_version_bkey_renumber)
+	if (le32_to_cpu(jset->version) < bcachefs_metadata_version_max)
 		validate_before_checksum = true;
 
 	if (validate_before_checksum &&
