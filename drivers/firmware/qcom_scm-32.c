@@ -285,7 +285,8 @@ out:
  * This shall only be used with commands that are guaranteed to be
  * uninterruptable, atomic and SMP safe.
  */
-static int qcom_scm_call_atomic(const struct qcom_scm_desc *desc,
+static int qcom_scm_call_atomic(struct device *unused,
+				const struct qcom_scm_desc *desc,
 				struct qcom_scm_res *res)
 {
 	int context_id;
@@ -316,7 +317,8 @@ static int qcom_scm_call_atomic(const struct qcom_scm_desc *desc,
  * Set the cold boot address of the cpus. Any cpu outside the supported
  * range would be removed from the cpu present mask.
  */
-int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
+int __qcom_scm_set_cold_boot_addr(struct device *dev, void *entry,
+				  const cpumask_t *cpus)
 {
 	int flags = 0;
 	int cpu;
@@ -345,7 +347,7 @@ int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
 	desc.args[1] = virt_to_phys(entry);
 	desc.arginfo = QCOM_SCM_ARGS(2);
 
-	return qcom_scm_call_atomic(&desc, NULL);
+	return qcom_scm_call_atomic(dev, &desc, NULL);
 }
 
 /**
@@ -402,7 +404,7 @@ int __qcom_scm_set_warm_boot_addr(struct device *dev, void *entry,
  * the control would return from this function, otherwise, the cpu jumps to the
  * warm boot entry point set for this cpu upon reset.
  */
-void __qcom_scm_cpu_power_down(u32 flags)
+void __qcom_scm_cpu_power_down(struct device *dev, u32 flags)
 {
 	struct qcom_scm_desc desc = {
 		.svc = QCOM_SCM_SVC_BOOT,
@@ -411,7 +413,7 @@ void __qcom_scm_cpu_power_down(u32 flags)
 		.arginfo = QCOM_SCM_ARGS(1),
 	};
 
-	qcom_scm_call_atomic(&desc, NULL);
+	qcom_scm_call_atomic(dev, &desc, NULL);
 }
 
 int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
@@ -616,7 +618,7 @@ int __qcom_scm_set_dload_mode(struct device *dev, bool enable)
 	desc.args[1] = enable ? QCOM_SCM_BOOT_SET_DLOAD_MODE : 0;
 	desc.arginfo = QCOM_SCM_ARGS(2);
 
-	return qcom_scm_call_atomic(&desc, NULL);
+	return qcom_scm_call_atomic(dev, &desc, NULL);
 }
 
 int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id)
@@ -687,7 +689,7 @@ int __qcom_scm_io_readl(struct device *dev, phys_addr_t addr,
 	desc.args[0] = addr;
 	desc.arginfo = QCOM_SCM_ARGS(1);
 
-	ret = qcom_scm_call_atomic(&desc, &res);
+	ret = qcom_scm_call_atomic(dev, &desc, &res);
 	if (ret >= 0)
 		*val = res.result[0];
 
@@ -705,7 +707,7 @@ int __qcom_scm_io_writel(struct device *dev, phys_addr_t addr, unsigned int val)
 	desc.args[1] = val;
 	desc.arginfo = QCOM_SCM_ARGS(2);
 
-	return qcom_scm_call_atomic(&desc, NULL);
+	return qcom_scm_call_atomic(dev, &desc, NULL);
 }
 
 int __qcom_scm_qsmmu500_wait_safe_toggle(struct device *dev, bool enable)
