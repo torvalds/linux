@@ -224,7 +224,8 @@ static void get_dsc_enc_caps(
 
 	memset(dsc_enc_caps, 0, sizeof(struct dsc_enc_caps));
 	if (dsc) {
-		dsc->funcs->dsc_get_enc_caps(dsc_enc_caps, pixel_clock_100Hz);
+		if (!dsc->ctx->dc->debug.disable_dsc)
+			dsc->funcs->dsc_get_enc_caps(dsc_enc_caps, pixel_clock_100Hz);
 		if (dsc->ctx->dc->debug.native422_support)
 			dsc_enc_caps->color_formats.bits.YCBCR_NATIVE_422 = 1;
 	}
