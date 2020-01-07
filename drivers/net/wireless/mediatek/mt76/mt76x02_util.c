@@ -175,7 +175,6 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 		}
 	}
 
-	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
 
 	hw->sta_data_size = sizeof(struct mt76x02_sta);

@@ -564,7 +564,6 @@ int mt7603_register_device(struct mt7603_dev *dev)
 		dev->mt76.led_cdev.blink_set = mt7603_led_set_blink;
 	}
 
-	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 	wiphy->reg_notifier = mt7603_regd_notifier;
 
 	ret = mt76_register_device(&dev->mt76, true, mt7603_rates,
