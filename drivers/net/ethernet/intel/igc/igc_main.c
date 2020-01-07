@@ -102,6 +102,9 @@ void igc_reset(struct igc_adapter *adapter)
 	if (!netif_running(adapter->netdev))
 		igc_power_down_link(adapter);
 
+	/* Re-enable PTP, where applicable. */
+	igc_ptp_reset(adapter);
+
 	igc_get_phy_info(hw);
 }
 
@@ -984,12 +987,21 @@ static inline int igc_maybe_stop_tx(struct igc_ring *tx_ring, const u16 size)
 	return __igc_maybe_stop_tx(tx_ring, size);
 }
 
+#define IGC_SET_FLAG(_input, _flag, _result) \
+	(((_flag) <= (_result)) ?				\
+	 ((u32)((_input) & (_flag)) * ((_result) / (_flag))) :	\
+	 ((u32)((_input) & (_flag)) / ((_flag) / (_result))))
+
 static u32 igc_tx_cmd_type(struct sk_buff *skb, u32 tx_flags)
 {
 	/* set type for advanced descriptor with frame checksum insertion */
 	u32 cmd_type = IGC_ADVTXD_DTYP_DATA |
 		       IGC_ADVTXD_DCMD_DEXT |
 		       IGC_ADVTXD_DCMD_IFCS;
+
+	/* set timestamp bit if present */
+	cmd_type |= IGC_SET_FLAG(tx_flags, IGC_TX_FLAGS_TSTAMP,
+				 (IGC_ADVTXD_MAC_TSTAMP));
 
 	return cmd_type;
 }
@@ -1189,6 +1201,26 @@ static netdev_tx_t igc_xmit_frame_ring(struct sk_buff *skb,
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
 
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		struct igc_adapter *adapter = netdev_priv(tx_ring->netdev);
+
+		/* FIXME: add support for retrieving timestamps from
+		 * the other timer registers before skipping the
+		 * timestamping request.
+		 */
+		if (adapter->tstamp_config.tx_type == HWTSTAMP_TX_ON &&
+		    !test_and_set_bit_lock(__IGC_PTP_TX_IN_PROGRESS,
+					   &adapter->state)) {
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+			tx_flags |= IGC_TX_FLAGS_TSTAMP;
+
+			adapter->ptp_tx_skb = skb_get(skb);
+			adapter->ptp_tx_start = jiffies;
+		} else {
+			adapter->tx_hwtstamp_skipped++;
+		}
+	}
+
 	/* record initial flags and protocol */
 	first->tx_flags = tx_flags;
 	first->protocol = protocol;
@@ -1295,6 +1327,10 @@ static void igc_process_skb_fields(struct igc_ring *rx_ring,
 	igc_rx_hash(rx_ring, rx_desc, skb);
 
 	igc_rx_checksum(rx_ring, rx_desc, skb);
+
+	if (igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TS) &&
+	    !igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TSIP))
+		igc_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
@@ -1414,6 +1450,12 @@ static struct sk_buff *igc_construct_skb(struct igc_ring *rx_ring,
 	skb = napi_alloc_skb(&rx_ring->q_vector->napi, IGC_RX_HDR_LEN);
 	if (unlikely(!skb))
 		return NULL;
+
+	if (unlikely(igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TSIP))) {
+		igc_ptp_rx_pktstamp(rx_ring->q_vector, va, skb);
+		va += IGC_TS_HDR_LEN;
+		size -= IGC_TS_HDR_LEN;
+	}
 
 	/* Determine available headroom for copy */
 	headlen = size;
@@ -3635,6 +3677,22 @@ int igc_del_mac_steering_filter(struct igc_adapter *adapter,
 					IGC_MAC_STATE_QUEUE_STEERING | flags);
 }
 
+static void igc_tsync_interrupt(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u32 tsicr = rd32(IGC_TSICR);
+	u32 ack = 0;
+
+	if (tsicr & IGC_TSICR_TXTS) {
+		/* retrieve hardware timestamp */
+		schedule_work(&adapter->ptp_tx_work);
+		ack |= IGC_TSICR_TXTS;
+	}
+
+	/* acknowledge the interrupts */
+	wr32(IGC_TSICR, ack);
+}
+
 /**
  * igc_msix_other - msix other interrupt handler
  * @irq: interrupt number
@@ -3661,6 +3719,9 @@ static irqreturn_t igc_msix_other(int irq, void *data)
 		if (!test_bit(__IGC_DOWN, &adapter->state))
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
+
+	if (icr & IGC_ICR_TS)
+		igc_tsync_interrupt(adapter);
 
 	wr32(IGC_EIMS, adapter->eims_other);
 
@@ -3991,6 +4052,8 @@ no_wait:
 		wr32(IGC_ICS, IGC_ICS_RXDMT0);
 	}
 
+	igc_ptp_tx_hang(adapter);
+
 	/* Reset the timer */
 	if (!test_bit(__IGC_DOWN, &adapter->state)) {
 		if (adapter->flags & IGC_FLAG_NEED_LINK_UPDATE)
@@ -4277,6 +4340,24 @@ static int igc_close(struct net_device *netdev)
 	return 0;
 }
 
+/**
+ * igc_ioctl - Access the hwtstamp interface
+ * @netdev: network interface device structure
+ * @ifreq: interface request data
+ * @cmd: ioctl command
+ **/
+static int igc_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+{
+	switch (cmd) {
+	case SIOCGHWTSTAMP:
+		return igc_ptp_get_ts_config(netdev, ifr);
+	case SIOCSHWTSTAMP:
+		return igc_ptp_set_ts_config(netdev, ifr);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops igc_netdev_ops = {
 	.ndo_open		= igc_open,
 	.ndo_stop		= igc_close,
@@ -4288,6 +4369,7 @@ static const struct net_device_ops igc_netdev_ops = {
 	.ndo_fix_features	= igc_fix_features,
 	.ndo_set_features	= igc_set_features,
 	.ndo_features_check	= igc_features_check,
+	.ndo_do_ioctl		= igc_ioctl,
 };
 
 /* PCIe configuration access */
@@ -4588,6 +4670,9 @@ static int igc_probe(struct pci_dev *pdev,
 	 /* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
+	/* do hw tstamp init after resetting */
+	igc_ptp_init(adapter);
+
 	/* Check if Media Autosense is enabled */
 	adapter->ei = *ei;
 
@@ -4628,6 +4713,8 @@ static void igc_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	igc_ptp_stop(adapter);
 
 	set_bit(__IGC_DOWN, &adapter->state);
 
