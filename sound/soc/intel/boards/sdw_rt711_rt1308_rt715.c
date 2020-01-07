@@ -311,19 +311,19 @@ SND_SOC_DAILINK_DEF(platform,
 
 static struct snd_soc_codec_conf codec_conf[] = {
 	{
-		.dev_name = "sdw:0:25d:711:0",
+		.dlc = COMP_CODEC_CONF("sdw:0:25d:711:0"),
 		.name_prefix = "rt711",
 	},
 	{
-		.dev_name = "sdw:1:25d:1308:0",
+		.dlc = COMP_CODEC_CONF("sdw:1:25d:1308:0"),
 		.name_prefix = "rt1308-1",
 	},
 	{
-		.dev_name = "sdw:3:25d:715:0",
+		.dlc = COMP_CODEC_CONF("sdw:3:25d:715:0"),
 		.name_prefix = "rt715",
 	},
 	{
-		.dev_name = "sdw:2:25d:1308:0",
+		.dlc = COMP_CODEC_CONF("sdw:2:25d:1308:0"),
 		.name_prefix = "rt1308-2",
 	},
 
