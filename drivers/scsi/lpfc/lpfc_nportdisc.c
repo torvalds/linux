@@ -340,7 +340,7 @@ lpfc_defer_pt2pt_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *link_mbox)
  * This routine is only called if we are SLI4, acting in target
  * mode and the remote NPort issues the PLOGI after link up.
  **/
-void
+static void
 lpfc_defer_acc_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
