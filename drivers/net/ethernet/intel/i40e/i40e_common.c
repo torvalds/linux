@@ -1455,10 +1455,6 @@ static u32 i40e_led_is_mine(struct i40e_hw *hw, int idx)
 	return gpio_val;
 }
 
-#define I40E_COMBINED_ACTIVITY 0xA
-#define I40E_FILTER_ACTIVITY 0xE
-#define I40E_LINK_ACTIVITY 0xC
-#define I40E_MAC_ACTIVITY 0xD
 #define I40E_FW_LED BIT(4)
 #define I40E_LED_MODE_VALID (I40E_GLGEN_GPIO_CTL_LED_MODE_MASK >> \
 			     I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT)

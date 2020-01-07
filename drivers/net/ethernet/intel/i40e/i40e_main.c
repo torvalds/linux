@@ -6492,8 +6492,7 @@ out:
 	return err;
 }
 #endif /* CONFIG_I40E_DCB */
-#define SPEED_SIZE 14
-#define FC_SIZE 8
+
 /**
  * i40e_print_link_message - print link up or down
  * @vsi: the VSI for which link needs a message
@@ -8949,13 +8948,6 @@ u32 i40e_get_current_atr_cnt(struct i40e_pf *pf)
 {
 	return i40e_get_current_fd_count(pf) - pf->fdir_pf_active_filters;
 }
-
-/* We can see up to 256 filter programming desc in transit if the filters are
- * being applied really fast; before we see the first
- * filter miss error on Rx queue 0. Accumulating enough error messages before
- * reacting will make sure we don't cause flush too often.
- */
-#define I40E_MAX_FD_PROGRAM_ERROR 256
 
 /**
  * i40e_fdir_reinit_subtask - Worker thread to reinit FDIR filter table

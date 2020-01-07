@@ -688,7 +688,6 @@ static void i40e_dbg_dump_vf_all(struct i40e_pf *pf)
 			i40e_dbg_dump_vf(pf, i);
 }
 
-#define I40E_MAX_DEBUG_OUT_BUFFER (4096*4)
 /**
  * i40e_dbg_command_write - write into command datum
  * @filp: the opened file
