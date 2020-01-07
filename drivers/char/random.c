@@ -1195,7 +1195,7 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned num)
 	/*
 	 * delta is now minimum absolute delta.
 	 * Round down by 1 bit on general principles,
-	 * and limit entropy entimate to 12 bits.
+	 * and limit entropy estimate to 12 bits.
 	 */
 	credit_entropy_bits(r, min_t(int, fls(delta>>1), 11));
 }
