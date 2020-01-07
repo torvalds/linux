@@ -357,7 +357,7 @@ int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
 			set_cpu_present(cpu, false);
 	}
 
-	return qcom_scm_call_atomic2(QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_ADDR,
+	return qcom_scm_call_atomic2(QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_SET_ADDR,
 				    flags, virt_to_phys(entry));
 }
 
@@ -396,7 +396,7 @@ int __qcom_scm_set_warm_boot_addr(struct device *dev, void *entry,
 
 	cmd.addr = cpu_to_le32(virt_to_phys(entry));
 	cmd.flags = cpu_to_le32(flags);
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_ADDR,
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_SET_ADDR,
 			    &cmd, sizeof(cmd), NULL, 0);
 	if (!ret) {
 		for_each_cpu(cpu, cpus)
@@ -416,7 +416,7 @@ int __qcom_scm_set_warm_boot_addr(struct device *dev, void *entry,
  */
 void __qcom_scm_cpu_power_down(u32 flags)
 {
-	qcom_scm_call_atomic1(QCOM_SCM_SVC_BOOT, QCOM_SCM_CMD_TERMINATE_PC,
+	qcom_scm_call_atomic1(QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_TERMINATE_PC,
 			flags & QCOM_SCM_FLUSH_FLAG_MASK);
 }
 
@@ -426,7 +426,7 @@ int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
 	__le32 svc_cmd = cpu_to_le32((svc_id << 10) | cmd_id);
 	__le32 ret_val = 0;
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_INFO, QCOM_IS_CALL_AVAIL_CMD,
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_INFO, QCOM_SCM_INFO_IS_CALL_AVAIL,
 			    &svc_cmd, sizeof(svc_cmd), &ret_val,
 			    sizeof(ret_val));
 	if (ret)
@@ -441,7 +441,7 @@ int __qcom_scm_hdcp_req(struct device *dev, struct qcom_scm_hdcp_req *req,
 	if (req_cnt > QCOM_SCM_HDCP_MAX_REQ_CNT)
 		return -ERANGE;
 
-	return qcom_scm_call(dev, QCOM_SCM_SVC_HDCP, QCOM_SCM_CMD_HDCP,
+	return qcom_scm_call(dev, QCOM_SCM_SVC_HDCP, QCOM_SCM_HDCP_INVOKE,
 		req, req_cnt * sizeof(*req), resp, sizeof(*resp));
 }
 
@@ -460,7 +460,7 @@ int __qcom_scm_ocmem_lock(struct device *dev, u32 id, u32 offset, u32 size,
 	request.size = cpu_to_le32(size);
 	request.mode = cpu_to_le32(mode);
 
-	return qcom_scm_call(dev, QCOM_SCM_OCMEM_SVC, QCOM_SCM_OCMEM_LOCK_CMD,
+	return qcom_scm_call(dev, QCOM_SCM_SVC_OCMEM, QCOM_SCM_OCMEM_LOCK_CMD,
 			     &request, sizeof(request), NULL, 0);
 }
 
@@ -476,7 +476,7 @@ int __qcom_scm_ocmem_unlock(struct device *dev, u32 id, u32 offset, u32 size)
 	request.offset = cpu_to_le32(offset);
 	request.size = cpu_to_le32(size);
 
-	return qcom_scm_call(dev, QCOM_SCM_OCMEM_SVC, QCOM_SCM_OCMEM_UNLOCK_CMD,
+	return qcom_scm_call(dev, QCOM_SCM_SVC_OCMEM, QCOM_SCM_OCMEM_UNLOCK_CMD,
 			     &request, sizeof(request), NULL, 0);
 }
 
@@ -492,7 +492,7 @@ bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral)
 
 	in = cpu_to_le32(peripheral);
 	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
-			    QCOM_SCM_PAS_IS_SUPPORTED_CMD,
+			    QCOM_SCM_PIL_PAS_IS_SUPPORTED,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
 
@@ -513,7 +513,7 @@ int __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,
 	request.image_addr = cpu_to_le32(metadata_phys);
 
 	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
-			    QCOM_SCM_PAS_INIT_IMAGE_CMD,
+			    QCOM_SCM_PIL_PAS_INIT_IMAGE,
 			    &request, sizeof(request),
 			    &scm_ret, sizeof(scm_ret));
 
@@ -536,7 +536,7 @@ int __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 	request.len = cpu_to_le32(size);
 
 	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
-			    QCOM_SCM_PAS_MEM_SETUP_CMD,
+			    QCOM_SCM_PIL_PAS_MEM_SETUP,
 			    &request, sizeof(request),
 			    &scm_ret, sizeof(scm_ret));
 
@@ -551,7 +551,7 @@ int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral)
 
 	in = cpu_to_le32(peripheral);
 	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
-			    QCOM_SCM_PAS_AUTH_AND_RESET_CMD,
+			    QCOM_SCM_PIL_PAS_AUTH_AND_RESET,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
 
@@ -566,7 +566,7 @@ int __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral)
 
 	in = cpu_to_le32(peripheral);
 	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
-			    QCOM_SCM_PAS_SHUTDOWN_CMD,
+			    QCOM_SCM_PIL_PAS_SHUTDOWN,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
 
@@ -579,7 +579,7 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 	__le32 in = cpu_to_le32(reset);
 	int ret;
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL, QCOM_SCM_PAS_MSS_RESET,
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL, QCOM_SCM_PIL_PAS_MSS_RESET,
 			&in, sizeof(in),
 			&out, sizeof(out));
 
@@ -588,8 +588,8 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 
 int __qcom_scm_set_dload_mode(struct device *dev, bool enable)
 {
-	return qcom_scm_call_atomic2(QCOM_SCM_SVC_BOOT, QCOM_SCM_SET_DLOAD_MODE,
-				     enable ? QCOM_SCM_SET_DLOAD_MODE : 0, 0);
+	return qcom_scm_call_atomic2(QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_SET_DLOAD_MODE,
+				     enable ? QCOM_SCM_BOOT_SET_DLOAD_MODE : 0, 0);
 }
 
 int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id)
@@ -604,7 +604,7 @@ int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id)
 	req.state = cpu_to_le32(state);
 	req.id = cpu_to_le32(id);
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, QCOM_SCM_SET_REMOTE_STATE,
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_SET_REMOTE_STATE,
 			    &req, sizeof(req), &scm_ret, sizeof(scm_ret));
 
 	return ret ? : le32_to_cpu(scm_ret);
@@ -629,7 +629,7 @@ int __qcom_scm_restore_sec_cfg(struct device *dev, u32 device_id,
 	cfg.id = cpu_to_le32(device_id);
 	cfg.ctx_bank_num = cpu_to_le32(spare);
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_MP, QCOM_SCM_RESTORE_SEC_CFG,
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_MP, QCOM_SCM_MP_RESTORE_SEC_CFG,
 			    &cfg, sizeof(cfg), &scm_ret, sizeof(scm_ret));
 
 	if (ret || scm_ret)

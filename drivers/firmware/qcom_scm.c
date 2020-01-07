@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * Qualcomm SCM driver
- *
- * Copyright (c) 2010,2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010,2015,2019 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  */
 #include <linux/platform_device.h>
@@ -142,7 +139,7 @@ bool qcom_scm_hdcp_available(void)
 		return ret;
 
 	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_HDCP,
-						QCOM_SCM_CMD_HDCP);
+						QCOM_SCM_HDCP_INVOKE);
 
 	qcom_scm_clk_disable();
 
@@ -183,7 +180,7 @@ bool qcom_scm_pas_supported(u32 peripheral)
 	int ret;
 
 	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_PIL,
-					   QCOM_SCM_PAS_IS_SUPPORTED_CMD);
+					   QCOM_SCM_PIL_PAS_IS_SUPPORTED);
 	if (ret <= 0)
 		return false;
 
@@ -196,7 +193,7 @@ EXPORT_SYMBOL(qcom_scm_pas_supported);
  */
 bool qcom_scm_ocmem_lock_available(void)
 {
-	return __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_OCMEM_SVC,
+	return __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_OCMEM,
 					    QCOM_SCM_OCMEM_LOCK_CMD);
 }
 EXPORT_SYMBOL(qcom_scm_ocmem_lock_available);
@@ -376,7 +373,7 @@ static const struct reset_control_ops qcom_scm_pas_reset_ops = {
 bool qcom_scm_restore_sec_cfg_available(void)
 {
 	return __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_MP,
-					    QCOM_SCM_RESTORE_SEC_CFG);
+					    QCOM_SCM_MP_RESTORE_SEC_CFG);
 }
 EXPORT_SYMBOL(qcom_scm_restore_sec_cfg_available);
 
@@ -423,12 +420,12 @@ static void qcom_scm_set_download_mode(bool enable)
 
 	avail = __qcom_scm_is_call_available(__scm->dev,
 					     QCOM_SCM_SVC_BOOT,
-					     QCOM_SCM_SET_DLOAD_MODE);
+					     QCOM_SCM_BOOT_SET_DLOAD_MODE);
 	if (avail) {
 		ret = __qcom_scm_set_dload_mode(__scm->dev, enable);
 	} else if (__scm->dload_mode_addr) {
 		ret = __qcom_scm_io_writel(__scm->dev, __scm->dload_mode_addr,
-					   enable ? QCOM_SCM_SET_DLOAD_MODE : 0);
+					   enable ? QCOM_SCM_BOOT_SET_DLOAD_MODE : 0);
 	} else {
 		dev_err(__scm->dev,
 			"No available mechanism for setting download mode\n");
