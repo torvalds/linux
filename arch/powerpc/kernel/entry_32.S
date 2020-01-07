@@ -246,9 +246,8 @@ reenable_mmu:
 	 * r3 can be different from GPR3(r1) at this point, r9 and r11
 	 * contains the old MSR and handler address respectively,
 	 * r4 & r5 can contain page fault arguments that need to be passed
-	 * along as well. r12, CCR, CTR, XER etc... are left clobbered as
-	 * they aren't useful past this point (aren't syscall arguments),
-	 * the rest is restored from the exception frame.
+	 * along as well. r0, r6-r8, r12, CCR, CTR, XER etc... are left
+	 * clobbered as they aren't useful past this point.
 	 */
 
 	stwu	r1,-32(r1)
@@ -262,16 +261,12 @@ reenable_mmu:
 	 * lockdep
 	 */
 1:	bl	trace_hardirqs_off
-2:	lwz	r5,24(r1)
+	lwz	r5,24(r1)
 	lwz	r4,20(r1)
 	lwz	r3,16(r1)
 	lwz	r11,12(r1)
 	lwz	r9,8(r1)
 	addi	r1,r1,32
-	lwz	r0,GPR0(r1)
-	lwz	r6,GPR6(r1)
-	lwz	r7,GPR7(r1)
-	lwz	r8,GPR8(r1)
 	mtctr	r11
 	mtlr	r9
 	bctr				/* jump to handler */
