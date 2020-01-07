@@ -64,7 +64,7 @@ nvkm_firmware_get_version(const struct nvkm_subdev *subdev, const char *fwname,
 		nvkm_debug(subdev, "firmware \"%s\" unavailable\n", f);
 	}
 
-	nvkm_error(subdev, "failed to load firmware \"%s\"", fwname);
+	nvkm_error(subdev, "failed to load firmware \"%s\"\n", fwname);
 	return -ENOENT;
 }
 
