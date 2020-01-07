@@ -76,13 +76,17 @@ static int gadc_thermal_read_linear_lookup_table(struct device *dev,
 						 struct gadc_thermal_info *gti)
 {
 	struct device_node *np = dev->of_node;
+	enum iio_chan_type chan_type;
 	int ntable;
 	int ret;
 
 	ntable = of_property_count_elems_of_size(np, "temperature-lookup-table",
 						 sizeof(u32));
 	if (ntable <= 0) {
-		dev_notice(dev, "no lookup table, assuming DAC channel returns milliCelcius\n");
+		ret = iio_get_channel_type(gti->channel, &chan_type);
+		if (ret || chan_type != IIO_TEMP)
+			dev_notice(dev,
+				   "no lookup table, assuming DAC channel returns milliCelcius\n");
 		return 0;
 	}
 
