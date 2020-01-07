@@ -85,12 +85,11 @@ static void bcm_aggregate(struct qcom_icc_bcm *bcm)
 		bcm->vote_y[bucket] = bcm_div(temp, bcm->aux_data.unit);
 	}
 
-	if (bcm->keepalive && bcm->vote_x[QCOM_ICC_BUCKET_AMC] == 0 &&
-	    bcm->vote_y[QCOM_ICC_BUCKET_AMC] == 0) {
-		bcm->vote_x[QCOM_ICC_BUCKET_AMC] = 1;
-		bcm->vote_x[QCOM_ICC_BUCKET_WAKE] = 1;
-		bcm->vote_y[QCOM_ICC_BUCKET_AMC] = 1;
-		bcm->vote_y[QCOM_ICC_BUCKET_WAKE] = 1;
+	if (bcm->keepalive) {
+		bcm->vote_x[QCOM_ICC_BUCKET_AMC] = 16000;
+		bcm->vote_x[QCOM_ICC_BUCKET_WAKE] = 16000;
+		bcm->vote_y[QCOM_ICC_BUCKET_AMC] = 16000;
+		bcm->vote_y[QCOM_ICC_BUCKET_WAKE] = 16000;
 	}
 }
 
