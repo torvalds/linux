@@ -450,6 +450,11 @@ xfs_compat_attrmulti_by_handle(
 
 	error = 0;
 	for (i = 0; i < am_hreq.opcount; i++) {
+		if ((ops[i].am_flags & ATTR_ROOT) &&
+		    (ops[i].am_flags & ATTR_SECURE)) {
+			ops[i].am_error = -EINVAL;
+			continue;
+		}
 		ops[i].am_flags &= ~ATTR_KERNEL_FLAGS;
 
 		ops[i].am_error = strncpy_from_user((char *)attr_name,
