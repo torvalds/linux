@@ -213,7 +213,11 @@
 			  "PHY_PMEB",
 
 			  "PHY_INT",
-			  "REC_MODE_L",
+			  /*
+			   * RECOVERY_SW_L is Chrome OS ABI.  Schematics call
+			   * it REC_MODE_L.
+			   */
+			  "RECOVERY_SW_L",
 			  "OTP_OUT",
 			  "",
 			  "USB_OTG_POWER_EN",
