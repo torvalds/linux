@@ -13796,6 +13796,8 @@ static int nl80211_probe_mesh_link(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
+	cfg80211_sinfo_release_content(&sinfo);
+
 	return rdev_probe_mesh_link(rdev, dev, dest, buf, len);
 }
 
