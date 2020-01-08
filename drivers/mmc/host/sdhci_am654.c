@@ -119,16 +119,80 @@ static const struct timing_data td[] = {
 	[MMC_TIMING_MMC_HS400] = {"ti,otap-del-sel-hs400", MMC_CAP2_HS400},
 };
 
+static void sdhci_am654_setup_dll(struct sdhci_host *host, unsigned int clock)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_am654_data *sdhci_am654 = sdhci_pltfm_priv(pltfm_host);
+	int sel50, sel100, freqsel;
+	u32 mask, val;
+	int ret;
+
+	if (sdhci_am654->flags & FREQSEL_2_BIT) {
+		switch (clock) {
+		case 200000000:
+			sel50 = 0;
+			sel100 = 0;
+			break;
+		case 100000000:
+			sel50 = 0;
+			sel100 = 1;
+			break;
+		default:
+			sel50 = 1;
+			sel100 = 0;
+		}
+
+		/* Configure PHY DLL frequency */
+		mask = SEL50_MASK | SEL100_MASK;
+		val = (sel50 << SEL50_SHIFT) | (sel100 << SEL100_SHIFT);
+		regmap_update_bits(sdhci_am654->base, PHY_CTRL5, mask, val);
+
+	} else {
+		switch (clock) {
+		case 200000000:
+			freqsel = 0x0;
+			break;
+		default:
+			freqsel = 0x4;
+		}
+
+		regmap_update_bits(sdhci_am654->base, PHY_CTRL5, FREQSEL_MASK,
+				   freqsel << FREQSEL_SHIFT);
+	}
+	/* Configure DLL TRIM */
+	mask = DLL_TRIM_ICP_MASK;
+	val = sdhci_am654->trm_icp << DLL_TRIM_ICP_SHIFT;
+
+	/* Configure DLL driver strength */
+	mask |= DR_TY_MASK;
+	val |= sdhci_am654->drv_strength << DR_TY_SHIFT;
+	regmap_update_bits(sdhci_am654->base, PHY_CTRL1, mask, val);
+
+	/* Enable DLL */
+	regmap_update_bits(sdhci_am654->base, PHY_CTRL1, ENDLL_MASK,
+			   0x1 << ENDLL_SHIFT);
+	/*
+	 * Poll for DLL ready. Use a one second timeout.
+	 * Works in all experiments done so far
+	 */
+	ret = regmap_read_poll_timeout(sdhci_am654->base, PHY_STAT1, val,
+				       val & DLLRDY_MASK, 1000, 1000000);
+	if (ret) {
+		dev_err(mmc_dev(host->mmc), "DLL failed to relock\n");
+		return;
+	}
+
+	sdhci_am654->dll_on = true;
+}
+
 static void sdhci_am654_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_am654_data *sdhci_am654 = sdhci_pltfm_priv(pltfm_host);
 	unsigned char timing = host->mmc->ios.timing;
-	int sel50, sel100, freqsel;
 	u32 otap_del_sel;
 	u32 otap_del_ena;
 	u32 mask, val;
-	int ret;
 
 	if (sdhci_am654->dll_on) {
 		regmap_update_bits(sdhci_am654->base, PHY_CTRL1, ENDLL_MASK, 0);
@@ -163,64 +227,8 @@ static void sdhci_am654_set_clock(struct sdhci_host *host, unsigned int clock)
 
 		regmap_update_bits(sdhci_am654->base, PHY_CTRL4, mask, val);
 
-		if (sdhci_am654->flags & FREQSEL_2_BIT) {
-			switch (clock) {
-			case 200000000:
-				sel50 = 0;
-				sel100 = 0;
-				break;
-			case 100000000:
-				sel50 = 0;
-				sel100 = 1;
-				break;
-			default:
-				sel50 = 1;
-				sel100 = 0;
-			}
-
-			/* Configure PHY DLL frequency */
-			mask = SEL50_MASK | SEL100_MASK;
-			val = (sel50 << SEL50_SHIFT) | (sel100 << SEL100_SHIFT);
-			regmap_update_bits(sdhci_am654->base, PHY_CTRL5, mask,
-					   val);
-		} else {
-			switch (clock) {
-			case 200000000:
-				freqsel = 0x0;
-				break;
-			default:
-				freqsel = 0x4;
-			}
-
-			regmap_update_bits(sdhci_am654->base, PHY_CTRL5,
-					   FREQSEL_MASK,
-					   freqsel << FREQSEL_SHIFT);
-		}
-
-		/* Configure DLL TRIM */
-		mask = DLL_TRIM_ICP_MASK;
-		val = sdhci_am654->trm_icp << DLL_TRIM_ICP_SHIFT;
-
-		/* Configure DLL driver strength */
-		mask |= DR_TY_MASK;
-		val |= sdhci_am654->drv_strength << DR_TY_SHIFT;
-		regmap_update_bits(sdhci_am654->base, PHY_CTRL1, mask, val);
-		/* Enable DLL */
-		regmap_update_bits(sdhci_am654->base, PHY_CTRL1, ENDLL_MASK,
-				   0x1 << ENDLL_SHIFT);
-		/*
-		 * Poll for DLL ready. Use a one second timeout.
-		 * Works in all experiments done so far
-		 */
-		ret = regmap_read_poll_timeout(sdhci_am654->base, PHY_STAT1,
-					       val, val & DLLRDY_MASK, 1000,
-					       1000000);
-		if (ret) {
-			dev_err(mmc_dev(host->mmc), "DLL failed to relock\n");
-			return;
-		}
-
-		sdhci_am654->dll_on = true;
+		if (timing > MMC_TIMING_UHS_SDR25)
+			sdhci_am654_setup_dll(host, clock);
 	}
 }
 
