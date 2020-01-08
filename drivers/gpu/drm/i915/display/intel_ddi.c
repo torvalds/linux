@@ -3828,21 +3828,23 @@ static void intel_ddi_post_disable(struct intel_encoder *encoder,
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	bool is_tc_port = intel_phy_is_tc(dev_priv, phy);
 
-	intel_crtc_vblank_off(old_crtc_state);
+	if (!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST)) {
+		intel_crtc_vblank_off(old_crtc_state);
 
-	intel_disable_pipe(old_crtc_state);
+		intel_disable_pipe(old_crtc_state);
 
-	if (INTEL_GEN(dev_priv) >= 11)
-		icl_disable_transcoder_port_sync(old_crtc_state);
+		if (INTEL_GEN(dev_priv) >= 11)
+			icl_disable_transcoder_port_sync(old_crtc_state);
 
-	intel_ddi_disable_transcoder_func(old_crtc_state);
+		intel_ddi_disable_transcoder_func(old_crtc_state);
 
-	intel_dsc_disable(old_crtc_state);
+		intel_dsc_disable(old_crtc_state);
 
-	if (INTEL_GEN(dev_priv) >= 9)
-		skl_scaler_disable(old_crtc_state);
-	else
-		ilk_pfit_disable(old_crtc_state);
+		if (INTEL_GEN(dev_priv) >= 9)
+			skl_scaler_disable(old_crtc_state);
+		else
+			ilk_pfit_disable(old_crtc_state);
+	}
 
 	/*
 	 * When called from DP MST code:
