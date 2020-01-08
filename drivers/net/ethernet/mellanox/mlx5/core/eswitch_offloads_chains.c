@@ -34,6 +34,7 @@ static const unsigned int ESW_POOLS[] = { 4 * 1024 * 1024,
 					  1 * 1024 * 1024,
 					  64 * 1024,
 					  128 };
+#define ESW_FT_TBL_SZ (64 * 1024)
 
 struct mlx5_esw_chains_priv {
 	struct rhashtable chains_ht;
@@ -201,7 +202,9 @@ mlx5_esw_chains_create_fdb_table(struct mlx5_eswitch *esw,
 		ft_attr.flags |= (MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT |
 				  MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 
-	sz = mlx5_esw_chains_get_avail_sz_from_pool(esw, POOL_NEXT_SIZE);
+	sz = (chain == mlx5_esw_chains_get_ft_chain(esw)) ?
+	     mlx5_esw_chains_get_avail_sz_from_pool(esw, ESW_FT_TBL_SZ) :
+	     mlx5_esw_chains_get_avail_sz_from_pool(esw, POOL_NEXT_SIZE);
 	if (!sz)
 		return ERR_PTR(-ENOSPC);
 	ft_attr.max_fte = sz;
