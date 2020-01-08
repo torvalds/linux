@@ -10073,7 +10073,8 @@ static void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state)
 	drm_WARN_ON(&dev_priv->drm, crtc_state->limited_color_range &&
 		    crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
 
-	if (crtc_state->limited_color_range)
+	if (crtc_state->limited_color_range &&
+	    !intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
 		val |= PIPECONF_COLOR_RANGE_SELECT;
 
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB)

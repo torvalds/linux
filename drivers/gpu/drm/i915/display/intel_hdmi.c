@@ -2428,8 +2428,8 @@ static int intel_hdmi_compute_clock(struct intel_encoder *encoder,
 	return 0;
 }
 
-static bool intel_hdmi_limited_color_range(const struct intel_crtc_state *crtc_state,
-					   const struct drm_connector_state *conn_state)
+bool intel_hdmi_limited_color_range(const struct intel_crtc_state *crtc_state,
+				    const struct drm_connector_state *conn_state)
 {
 	const struct intel_digital_connector_state *intel_conn_state =
 		to_intel_digital_connector_state(conn_state);
