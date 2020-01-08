@@ -71,7 +71,7 @@ instead of `UPSTREAM:`.
         Bug: 135791357
         Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
         (cherry picked from commit c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
-        [ Resolved minor conflict in drivers/foo/bar.c ]
+        [joe: Resolved minor conflict in drivers/foo/bar.c ]
         Signed-off-by: Joe Smith <joe.smith@foo.org>
 ```
 
