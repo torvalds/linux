@@ -14,23 +14,9 @@
 #include "mcdi_pcol.h"
 #include "nic.h"
 #include "selftest.h"
+#include "mcdi_port_common.h"
 
-struct efx_mcdi_phy_data {
-	u32 flags;
-	u32 type;
-	u32 supported_cap;
-	u32 channel;
-	u32 port;
-	u32 stats_mask;
-	u8 name[20];
-	u32 media;
-	u32 mmd_mask;
-	u8 revision[20];
-	u32 forced_cap;
-};
-
-static int
-efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_data *cfg)
+int efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_data *cfg)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PHY_CFG_OUT_LEN);
 	size_t outlen;
@@ -70,9 +56,9 @@ fail:
 	return rc;
 }
 
-static int efx_mcdi_set_link(struct efx_nic *efx, u32 capabilities,
-			     u32 flags, u32 loopback_mode,
-			     u32 loopback_speed)
+int efx_mcdi_set_link(struct efx_nic *efx, u32 capabilities,
+		      u32 flags, u32 loopback_mode,
+		      u32 loopback_speed)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_LINK_IN_LEN);
 	int rc;
@@ -89,7 +75,7 @@ static int efx_mcdi_set_link(struct efx_nic *efx, u32 capabilities,
 	return rc;
 }
 
-static int efx_mcdi_loopback_modes(struct efx_nic *efx, u64 *loopback_modes)
+int efx_mcdi_loopback_modes(struct efx_nic *efx, u64 *loopback_modes)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LOOPBACK_MODES_OUT_LEN);
 	size_t outlen;
@@ -168,7 +154,7 @@ static int efx_mcdi_mdio_write(struct net_device *net_dev,
 	return 0;
 }
 
-static void mcdi_to_ethtool_linkset(u32 media, u32 cap, unsigned long *linkset)
+void mcdi_to_ethtool_linkset(u32 media, u32 cap, unsigned long *linkset)
 {
 	#define SET_BIT(name)	__set_bit(ETHTOOL_LINK_MODE_ ## name ## _BIT, \
 					  linkset)
@@ -232,7 +218,7 @@ static void mcdi_to_ethtool_linkset(u32 media, u32 cap, unsigned long *linkset)
 	#undef SET_BIT
 }
 
-static u32 ethtool_linkset_to_mcdi_cap(const unsigned long *linkset)
+u32 ethtool_linkset_to_mcdi_cap(const unsigned long *linkset)
 {
 	u32 result = 0;
 
@@ -273,7 +259,7 @@ static u32 ethtool_linkset_to_mcdi_cap(const unsigned long *linkset)
 	return result;
 }
 
-static u32 efx_get_mcdi_phy_flags(struct efx_nic *efx)
+u32 efx_get_mcdi_phy_flags(struct efx_nic *efx)
 {
 	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	enum efx_phy_mode mode, supported;
@@ -301,7 +287,7 @@ static u32 efx_get_mcdi_phy_flags(struct efx_nic *efx)
 	return flags;
 }
 
-static u8 mcdi_to_ethtool_media(u32 media)
+u8 mcdi_to_ethtool_media(u32 media)
 {
 	switch (media) {
 	case MC_CMD_MEDIA_XAUI:
@@ -322,7 +308,7 @@ static u8 mcdi_to_ethtool_media(u32 media)
 	}
 }
 
-static void efx_mcdi_phy_decode_link(struct efx_nic *efx,
+void efx_mcdi_phy_decode_link(struct efx_nic *efx,
 			      struct efx_link_state *link_state,
 			      u32 speed, u32 flags, u32 fcntl)
 {
@@ -365,7 +351,7 @@ static void efx_mcdi_phy_decode_link(struct efx_nic *efx,
  * Both RS and BASER (whether AUTO or not) means use FEC if cable and link
  * partner support it, preferring RS to BASER.
  */
-static u32 ethtool_fec_caps_to_mcdi(u32 ethtool_cap)
+u32 ethtool_fec_caps_to_mcdi(u32 ethtool_cap)
 {
 	u32 ret = 0;
 
@@ -392,7 +378,7 @@ static u32 ethtool_fec_caps_to_mcdi(u32 ethtool_cap)
  * maps both of those to AUTO.  This should never matter, and it's not clear
  * what a better mapping would be anyway.
  */
-static u32 mcdi_fec_caps_to_ethtool(u32 caps, bool is_25g)
+u32 mcdi_fec_caps_to_ethtool(u32 caps, bool is_25g)
 {
 	bool rs = caps & (1 << MC_CMD_PHY_CAP_RS_FEC_LBN),
 	     rs_req = caps & (1 << MC_CMD_PHY_CAP_RS_FEC_REQUESTED_LBN),
@@ -530,7 +516,7 @@ int efx_mcdi_port_reconfigure(struct efx_nic *efx)
 /* Verify that the forced flow control settings (!EFX_FC_AUTO) are
  * supported by the link partner. Warn the user if this isn't the case
  */
-static void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
+void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
 {
 	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 rmtadv;
@@ -555,7 +541,7 @@ static void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
 			  "warning: link partner doesn't support pause frames");
 }
 
-static bool efx_mcdi_phy_poll(struct efx_nic *efx)
+bool efx_mcdi_phy_poll(struct efx_nic *efx)
 {
 	struct efx_link_state old_state = efx->link_state;
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_LEN);
@@ -666,8 +652,8 @@ efx_mcdi_phy_set_link_ksettings(struct efx_nic *efx,
 	return 0;
 }
 
-static int efx_mcdi_phy_get_fecparam(struct efx_nic *efx,
-				     struct ethtool_fecparam *fec)
+int efx_mcdi_phy_get_fecparam(struct efx_nic *efx,
+			      struct ethtool_fecparam *fec)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_V2_LEN);
 	u32 caps, active, speed; /* MCDI format */
@@ -745,7 +731,7 @@ static int efx_mcdi_phy_set_fecparam(struct efx_nic *efx,
 	return 0;
 }
 
-static int efx_mcdi_phy_test_alive(struct efx_nic *efx)
+int efx_mcdi_phy_test_alive(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PHY_STATE_OUT_LEN);
 	size_t outlen;

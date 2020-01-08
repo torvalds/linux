@@ -5,14 +5,17 @@
  */
 
 #include "net_driver.h"
+#include "rx_common.h"
 #include "ef10_regs.h"
 #include "io.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
+#include "mcdi_port_common.h"
 #include "nic.h"
 #include "workarounds.h"
 #include "selftest.h"
 #include "ef10_sriov.h"
+#include "rx_common.h"
 #include <linux/in.h>
 #include <linux/jhash.h>
 #include <linux/wait.h>

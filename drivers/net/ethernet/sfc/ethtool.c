@@ -13,6 +13,9 @@
 #include "workarounds.h"
 #include "selftest.h"
 #include "efx.h"
+#include "efx_channels.h"
+#include "rx_common.h"
+#include "tx_common.h"
 #include "filter.h"
 #include "nic.h"
 
