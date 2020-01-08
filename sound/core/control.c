@@ -896,7 +896,7 @@ static int sanity_check_elem_value(struct snd_card *card,
 				   u32 pattern)
 {
 	size_t offset;
-	int i, ret;
+	int i, ret = 0;
 	u32 *p;
 
 	switch (info->type) {
