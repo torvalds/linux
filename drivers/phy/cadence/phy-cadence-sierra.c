@@ -272,7 +272,7 @@ static int cdns_sierra_phy_init(struct phy *gphy)
 {
 	struct cdns_sierra_inst *ins = phy_get_drvdata(gphy);
 	struct cdns_sierra_phy *phy = dev_get_drvdata(gphy->dev.parent);
-	struct regmap *regmap = phy->regmap;
+	struct regmap *regmap;
 	int i, j;
 	struct cdns_reg_pairs *cmn_vals, *ln_vals;
 	u32 num_cmn_regs, num_ln_regs;
