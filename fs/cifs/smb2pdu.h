@@ -1282,6 +1282,8 @@ struct smb2_echo_rsp {
 #define SMB2_INDEX_SPECIFIED		0x04
 #define SMB2_REOPEN			0x10
 
+#define SMB2_QUERY_DIRECTORY_IOV_SIZE 2
+
 struct smb2_query_directory_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 33 */
