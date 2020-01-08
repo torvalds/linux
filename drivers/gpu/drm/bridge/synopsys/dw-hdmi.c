@@ -2610,6 +2610,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct drm_display_info *info = &connector->display_info;
 	int i, ret = 0;
 
+	memset(metedata, 0, sizeof(*metedata));
 	if (!hdmi->ddc)
 		return 0;
 
