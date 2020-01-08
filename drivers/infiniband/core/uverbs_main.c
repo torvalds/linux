@@ -475,7 +475,9 @@ void ib_uverbs_init_async_event_file(
 
 	ib_uverbs_init_event_queue(&async_file->ev_queue);
 
-	if (!WARN_ON(uverbs_file->async_file)) {
+	/* The first async_event_file becomes the default one for the file. */
+	lockdep_assert_held(&uverbs_file->ucontext_lock);
+	if (!uverbs_file->async_file) {
 		/* Pairs with the put in ib_uverbs_release_file */
 		uverbs_uobject_get(&async_file->uobj);
 		smp_store_release(&uverbs_file->async_file, async_file);
