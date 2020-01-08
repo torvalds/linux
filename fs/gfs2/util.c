@@ -318,13 +318,28 @@ int gfs2_withdraw(struct gfs2_sbd *sdp)
  */
 
 void gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
-			    const char *function, char *file, unsigned int line)
+			    const char *function, char *file, unsigned int line,
+			    bool delayed)
 {
-	gfs2_lm(sdp,
-		"fatal: assertion \"%s\" failed\n"
-		"   function = %s, file = %s, line = %u\n",
-		assertion, function, file, line);
-	gfs2_withdraw(sdp);
+	if (gfs2_withdrawn(sdp))
+		return;
+
+	fs_err(sdp,
+	       "fatal: assertion \"%s\" failed\n"
+	       "   function = %s, file = %s, line = %u\n",
+	       assertion, function, file, line);
+
+	/*
+	 * If errors=panic was specified on mount, it won't help to delay the
+	 * withdraw.
+	 */
+	if (sdp->sd_args.ar_errors == GFS2_ERRORS_PANIC)
+		delayed = false;
+
+	if (delayed)
+		gfs2_withdraw_delayed(sdp);
+	else
+		gfs2_withdraw(sdp);
 	dump_stack();
 }
 

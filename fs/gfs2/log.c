@@ -872,13 +872,17 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 		INIT_LIST_HEAD(&tr->tr_ail2_list);
 		tr->tr_first = sdp->sd_log_flush_head;
 		if (unlikely (state == SFS_FROZEN))
-			gfs2_assert_withdraw(sdp, !tr->tr_num_buf_new && !tr->tr_num_databuf_new);
+			if (gfs2_assert_withdraw_delayed(sdp,
+			       !tr->tr_num_buf_new && !tr->tr_num_databuf_new))
+				goto out;
 	}
 
 	if (unlikely(state == SFS_FROZEN))
-		gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
-	gfs2_assert_withdraw(sdp,
-			sdp->sd_log_num_revoke == sdp->sd_log_committed_revoke);
+		if (gfs2_assert_withdraw_delayed(sdp, !sdp->sd_log_num_revoke))
+			goto out;
+	if (gfs2_assert_withdraw_delayed(sdp,
+			sdp->sd_log_num_revoke == sdp->sd_log_committed_revoke))
+		goto out;
 
 	gfs2_ordered_write(sdp);
 	if (gfs2_withdrawn(sdp))

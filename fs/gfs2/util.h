@@ -37,14 +37,24 @@ do { \
 
 
 void gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
-			    const char *function, char *file, unsigned int line);
+			    const char *function, char *file, unsigned int line,
+			    bool delayed);
 
 #define gfs2_assert_withdraw(sdp, assertion) \
 	({ \
 		bool _bool = (assertion); \
 		if (unlikely(!_bool)) \
 			gfs2_assert_withdraw_i((sdp), #assertion, \
-					__func__, __FILE__, __LINE__); \
+					__func__, __FILE__, __LINE__, false); \
+		!_bool; \
+	})
+
+#define gfs2_assert_withdraw_delayed(sdp, assertion) \
+	({ \
+		bool _bool = (assertion); \
+		if (unlikely(!_bool)) \
+			gfs2_assert_withdraw_i((sdp), #assertion, \
+					__func__, __FILE__, __LINE__, true); \
 		!_bool; \
 	})
 
