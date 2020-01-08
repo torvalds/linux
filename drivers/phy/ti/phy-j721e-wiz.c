@@ -20,6 +20,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
+#include <dt-bindings/phy/phy.h>
 
 #define WIZ_SERDES_CTRL		0x404
 #define WIZ_SERDES_TOP_CTRL	0x408
@@ -77,6 +78,8 @@ static const struct reg_field p_enable[WIZ_MAX_LANES] = {
 	REG_FIELD(WIZ_LANECTL(2), 30, 31),
 	REG_FIELD(WIZ_LANECTL(3), 30, 31),
 };
+
+enum p_enable { P_ENABLE = 2, P_ENABLE_FORCE = 1, P_ENABLE_DISABLE = 0 };
 
 static const struct reg_field p_align[WIZ_MAX_LANES] = {
 	REG_FIELD(WIZ_LANECTL(0), 29, 29),
@@ -220,6 +223,7 @@ struct wiz {
 	struct reset_controller_dev wiz_phy_reset_dev;
 	struct gpio_desc	*gpio_typec_dir;
 	int			typec_dir_delay;
+	u32 lane_phy_type[WIZ_MAX_LANES];
 };
 
 static int wiz_reset(struct wiz *wiz)
@@ -242,12 +246,17 @@ static int wiz_reset(struct wiz *wiz)
 static int wiz_mode_select(struct wiz *wiz)
 {
 	u32 num_lanes = wiz->num_lanes;
+	enum wiz_lane_standard_mode mode;
 	int ret;
 	int i;
 
 	for (i = 0; i < num_lanes; i++) {
-		ret = regmap_field_write(wiz->p_standard_mode[i],
-					 LANE_MODE_GEN4);
+		if (wiz->lane_phy_type[i] == PHY_TYPE_DP)
+			mode = LANE_MODE_GEN1;
+		else
+			mode = LANE_MODE_GEN4;
+
+		ret = regmap_field_write(wiz->p_standard_mode[i], mode);
 		if (ret)
 			return ret;
 	}
@@ -707,7 +716,7 @@ static int wiz_phy_reset_assert(struct reset_controller_dev *rcdev,
 		return ret;
 	}
 
-	ret = regmap_field_write(wiz->p_enable[id - 1], false);
+	ret = regmap_field_write(wiz->p_enable[id - 1], P_ENABLE_DISABLE);
 	return ret;
 }
 
@@ -734,7 +743,11 @@ static int wiz_phy_reset_deassert(struct reset_controller_dev *rcdev,
 		return ret;
 	}
 
-	ret = regmap_field_write(wiz->p_enable[id - 1], true);
+	if (wiz->lane_phy_type[id - 1] == PHY_TYPE_DP)
+		ret = regmap_field_write(wiz->p_enable[id - 1], P_ENABLE);
+	else
+		ret = regmap_field_write(wiz->p_enable[id - 1], P_ENABLE_FORCE);
+
 	return ret;
 }
 
@@ -760,6 +773,40 @@ static const struct of_device_id wiz_id_table[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, wiz_id_table);
+
+static int wiz_get_lane_phy_types(struct device *dev, struct wiz *wiz)
+{
+	struct device_node *serdes, *subnode;
+
+	serdes = of_get_child_by_name(dev->of_node, "serdes");
+	if (!serdes) {
+		dev_err(dev, "%s: Getting \"serdes\"-node failed\n", __func__);
+		return -EINVAL;
+	}
+
+	for_each_child_of_node(serdes, subnode) {
+		u32 reg, num_lanes = 1, phy_type = PHY_NONE;
+		int ret, i;
+
+		ret = of_property_read_u32(subnode, "reg", &reg);
+		if (ret) {
+			dev_err(dev,
+				"%s: Reading \"reg\" from \"%s\" failed: %d\n",
+				__func__, subnode->name, ret);
+			return ret;
+		}
+		of_property_read_u32(subnode, "cdns,num-lanes", &num_lanes);
+		of_property_read_u32(subnode, "cdns,phy-type", &phy_type);
+
+		dev_dbg(dev, "%s: Lanes %u-%u have phy-type %u\n", __func__,
+			reg, reg + num_lanes - 1, phy_type);
+
+		for (i = reg; i < reg + num_lanes; i++)
+			wiz->lane_phy_type[i] = phy_type;
+	}
+
+	return 0;
+}
 
 static int wiz_probe(struct platform_device *pdev)
 {
@@ -843,6 +890,10 @@ static int wiz_probe(struct platform_device *pdev)
 			goto err_addr_to_resource;
 		}
 	}
+
+	ret = wiz_get_lane_phy_types(dev, wiz);
+	if (ret)
+		return ret;
 
 	wiz->dev = dev;
 	wiz->regmap = regmap;
