@@ -135,7 +135,7 @@ struct page_pool;
 #define MLX5E_LOG_INDIR_RQT_SIZE       0x7
 #define MLX5E_INDIR_RQT_SIZE           BIT(MLX5E_LOG_INDIR_RQT_SIZE)
 #define MLX5E_MIN_NUM_CHANNELS         0x1
-#define MLX5E_MAX_NUM_CHANNELS         (MLX5E_INDIR_RQT_SIZE >> 1)
+#define MLX5E_MAX_NUM_CHANNELS         MLX5E_INDIR_RQT_SIZE
 #define MLX5E_MAX_NUM_SQS              (MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC)
 #define MLX5E_TX_CQ_POLL_BUDGET        128
 #define MLX5E_TX_XSK_POLL_BUDGET       64
@@ -1175,11 +1175,11 @@ int mlx5e_attach_netdev(struct mlx5e_priv *priv);
 void mlx5e_detach_netdev(struct mlx5e_priv *priv);
 void mlx5e_destroy_netdev(struct mlx5e_priv *priv);
 void mlx5e_set_netdev_mtu_boundaries(struct mlx5e_priv *priv);
-void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
+void mlx5e_build_nic_params(struct mlx5e_priv *priv,
 			    struct mlx5e_xsk *xsk,
 			    struct mlx5e_rss_params *rss_params,
 			    struct mlx5e_params *params,
-			    u16 max_channels, u16 mtu);
+			    u16 mtu);
 void mlx5e_build_rq_params(struct mlx5_core_dev *mdev,
 			   struct mlx5e_params *params);
 void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
