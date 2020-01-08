@@ -472,8 +472,7 @@ void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr)
 	if (!event->element.qp->uobject)
 		return;
 
-	uobj = container_of(event->element.qp->uobject,
-			    struct ib_uevent_object, uobject);
+	uobj = &event->element.qp->uobject->uevent;
 
 	ib_uverbs_async_handler(context_ptr, uobj->uobject.user_handle,
 				event->event, &uobj->event_list,
