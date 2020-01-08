@@ -935,40 +935,6 @@ void efx_channel_dummy_op_void(struct efx_channel *channel)
  *
  **************************************************************************/
 
-/* This ensures that the kernel is kept informed (via
- * netif_carrier_on/off) of the link status, and also maintains the
- * link status's stop on the port's TX queue.
- */
-void efx_link_status_changed(struct efx_nic *efx)
-{
-	struct efx_link_state *link_state = &efx->link_state;
-
-	/* SFC Bug 5356: A net_dev notifier is registered, so we must ensure
-	 * that no events are triggered between unregister_netdev() and the
-	 * driver unloading. A more general condition is that NETDEV_CHANGE
-	 * can only be generated between NETDEV_UP and NETDEV_DOWN */
-	if (!netif_running(efx->net_dev))
-		return;
-
-	if (link_state->up != netif_carrier_ok(efx->net_dev)) {
-		efx->n_link_state_changes++;
-
-		if (link_state->up)
-			netif_carrier_on(efx->net_dev);
-		else
-			netif_carrier_off(efx->net_dev);
-	}
-
-	/* Status message for kernel log */
-	if (link_state->up)
-		netif_info(efx, link, efx->net_dev,
-			   "link up at %uMbps %s-duplex (MTU %d)\n",
-			   link_state->speed, link_state->fd ? "full" : "half",
-			   efx->net_dev->mtu);
-	else
-		netif_info(efx, link, efx->net_dev, "link down\n");
-}
-
 void efx_link_set_advertising(struct efx_nic *efx,
 			      const unsigned long *advertising)
 {
@@ -1009,16 +975,6 @@ void efx_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
 }
 
 static void efx_fini_port(struct efx_nic *efx);
-
-/* We assume that efx->type->reconfigure_mac will always try to sync RX
- * filters and therefore needs to read-lock the filter table against freeing
- */
-void efx_mac_reconfigure(struct efx_nic *efx)
-{
-	down_read(&efx->filter_sem);
-	efx->type->reconfigure_mac(efx);
-	up_read(&efx->filter_sem);
-}
 
 /* Push loopback/power/transmit disable settings to the PHY, and reconfigure
  * the MAC appropriately. All other PHY configuration changes are pushed
