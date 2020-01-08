@@ -1007,6 +1007,7 @@ int ucsi_init(struct ucsi *ucsi)
 	}
 
 	/* Enable all notifications */
+	ucsi->ntfy = UCSI_ENABLE_NTFY_ALL;
 	command = UCSI_SET_NOTIFICATION_ENABLE | ucsi->ntfy;
 	ret = ucsi_run_command(ucsi, command, NULL, 0);
 	if (ret < 0)
