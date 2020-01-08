@@ -74,6 +74,7 @@
 #include <linux/namei.h>
 #include <linux/fsnotify.h>
 #include <linux/fadvise.h>
+#include <linux/eventpoll.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -423,6 +424,14 @@ struct io_madvise {
 	u32				advice;
 };
 
+struct io_epoll {
+	struct file			*file;
+	int				epfd;
+	int				op;
+	int				fd;
+	struct epoll_event		event;
+};
+
 struct io_async_connect {
 	struct sockaddr_storage		address;
 };
@@ -536,6 +545,7 @@ struct io_kiocb {
 		struct io_files_update	files_update;
 		struct io_fadvise	fadvise;
 		struct io_madvise	madvise;
+		struct io_epoll		epoll;
 	};
 
 	struct io_async_ctx		*io;
@@ -726,6 +736,10 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_OPENAT2] = {
 		.needs_file		= 1,
 		.fd_non_neg		= 1,
+		.file_table		= 1,
+	},
+	[IORING_OP_EPOLL_CTL] = {
+		.unbound_nonreg_file	= 1,
 		.file_table		= 1,
 	},
 };
@@ -2611,6 +2625,52 @@ static int io_openat(struct io_kiocb *req, struct io_kiocb **nxt,
 	return io_openat2(req, nxt, force_nonblock);
 }
 
+static int io_epoll_ctl_prep(struct io_kiocb *req,
+			     const struct io_uring_sqe *sqe)
+{
+#if defined(CONFIG_EPOLL)
+	if (sqe->ioprio || sqe->buf_index)
+		return -EINVAL;
+
+	req->epoll.epfd = READ_ONCE(sqe->fd);
+	req->epoll.op = READ_ONCE(sqe->len);
+	req->epoll.fd = READ_ONCE(sqe->off);
+
+	if (ep_op_has_event(req->epoll.op)) {
+		struct epoll_event __user *ev;
+
+		ev = u64_to_user_ptr(READ_ONCE(sqe->addr));
+		if (copy_from_user(&req->epoll.event, ev, sizeof(*ev)))
+			return -EFAULT;
+	}
+
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int io_epoll_ctl(struct io_kiocb *req, struct io_kiocb **nxt,
+			bool force_nonblock)
+{
+#if defined(CONFIG_EPOLL)
+	struct io_epoll *ie = &req->epoll;
+	int ret;
+
+	ret = do_epoll_ctl(ie->epfd, ie->op, ie->fd, &ie->event, force_nonblock);
+	if (force_nonblock && ret == -EAGAIN)
+		return -EAGAIN;
+
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	io_put_req_find_next(req, nxt);
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
 static int io_madvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 #if defined(CONFIG_ADVISE_SYSCALLS) && defined(CONFIG_MMU)
@@ -4075,6 +4135,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	case IORING_OP_OPENAT2:
 		ret = io_openat2_prep(req, sqe);
 		break;
+	case IORING_OP_EPOLL_CTL:
+		ret = io_epoll_ctl_prep(req, sqe);
+		break;
 	default:
 		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
 				req->opcode);
@@ -4302,6 +4365,14 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 				break;
 		}
 		ret = io_openat2(req, nxt, force_nonblock);
+		break;
+	case IORING_OP_EPOLL_CTL:
+		if (sqe) {
+			ret = io_epoll_ctl_prep(req, sqe);
+			if (ret)
+				break;
+		}
+		ret = io_epoll_ctl(req, nxt, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;

@@ -112,6 +112,7 @@ enum {
 	IORING_OP_SEND,
 	IORING_OP_RECV,
 	IORING_OP_OPENAT2,
+	IORING_OP_EPOLL_CTL,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
