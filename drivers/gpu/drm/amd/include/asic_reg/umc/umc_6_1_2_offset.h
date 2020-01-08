@@ -27,5 +27,7 @@
 #define mmUMCCH0_0_EccErrCnt_ARCT_BASE_IDX                               1
 #define mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT                               0x03c2
 #define mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT_BASE_IDX                      1
+#define mmMCA_UMC_UMC0_MCUMC_ADDRT0_ARCT                                 0x03c4
+#define mmMCA_UMC_UMC0_MCUMC_ADDRT0_ARCT_BASE_IDX                        1
 
 #endif
