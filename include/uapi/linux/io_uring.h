@@ -192,6 +192,7 @@ struct io_uring_params {
 #define IORING_REGISTER_EVENTFD		4
 #define IORING_UNREGISTER_EVENTFD	5
 #define IORING_REGISTER_FILES_UPDATE	6
+#define IORING_REGISTER_EVENTFD_ASYNC	7
 
 struct io_uring_files_update {
 	__u32 offset;
