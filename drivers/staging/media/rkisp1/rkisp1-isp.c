@@ -357,6 +357,18 @@ static int rkisp1_config_isp(struct rkisp1_device *rkisp1)
 		    RKISP1_CIF_ISP_PIC_SIZE_ERROR | RKISP1_CIF_ISP_FRAME_IN;
 	rkisp1_write(rkisp1, irq_mask, RKISP1_CIF_ISP_IMSC);
 
+	if (src_fmt->fmt_type == RKISP1_FMT_BAYER) {
+		rkisp1_params_disable(&rkisp1->params);
+	} else {
+		struct v4l2_mbus_framefmt *src_frm;
+
+		src_frm = rkisp1_isp_get_pad_fmt(&rkisp1->isp, NULL,
+						 RKISP1_ISP_PAD_SINK_VIDEO,
+						 V4L2_SUBDEV_FORMAT_ACTIVE);
+		rkisp1_params_configure(&rkisp1->params, sink_fmt->bayer_pat,
+					src_frm->quantization);
+	}
+
 	return 0;
 }
 
@@ -1142,4 +1154,11 @@ void rkisp1_isp_isr(struct rkisp1_device *rkisp1)
 			       RKISP1_CIF_ISP_HIST_MEASURE_RDY))
 			rkisp1_stats_isr(&rkisp1->stats, isp_ris);
 	}
+
+	/*
+	 * Then update changed configs. Some of them involve
+	 * lot of register writes. Do those only one per frame.
+	 * Do the updates in the order of the processing flow.
+	 */
+	rkisp1_params_isr(rkisp1, status);
 }

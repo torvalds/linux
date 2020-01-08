@@ -4,4 +4,5 @@ rockchip-isp1-objs += 	rkisp1-capture.o \
 			rkisp1-dev.o \
 			rkisp1-isp.o \
 			rkisp1-resizer.o \
-			rkisp1-stats.o
+			rkisp1-stats.o \
+			rkisp1-params.o

@@ -57,13 +57,13 @@
  * |  DMA   |------------------------------------+                          Self Picture Path
  * +--------+
  *
- *         rkisp1-stats.c
- *       |===============|
- *       +---------------+
- *       |               |
- *       |      ISP      |
- *       |               |
- *       +---------------+
+ *         rkisp1-stats.c        rkisp1-params.c
+ *       |===============|      |===============|
+ *       +---------------+      +---------------+
+ *       |               |      |               |
+ *       |      ISP      |      |      ISP      |
+ *       |               |      |               |
+ *       +---------------+      +---------------+
  *
  *
  * Media Topology
@@ -72,13 +72,13 @@
  *      | Sensor 2 |     | Sensor X |
  *      ------------ ... ------------
  *      |    0     |     |    0     |
- *      +----------+     +----------+
- *                  \      |
- *                   \     |
- *    +----------+    \    |
- *    | Sensor 1 |     v   v
- *    ------------      +------+------+
- *    |    0     |----->|  0   |  1   |
+ *      +----------+     +----------+      +-----------+
+ *                  \      |               |  params   |
+ *                   \     |               | (output)  |
+ *    +----------+    \    |               +-----------+
+ *    | Sensor 1 |     v   v                     |
+ *    ------------      +------+------+          |
+ *    |    0     |----->|  0   |  1   |<---------+
  *    +----------+      |------+------|
  *                      |     ISP     |
  *                      |------+------|
@@ -163,6 +163,14 @@ static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 		if (ret)
 			return ret;
 	}
+
+	/* params links */
+	source = &rkisp1->params.vnode.vdev.entity;
+	sink = &rkisp1->isp.sd.entity;
+	ret = media_create_pad_link(source, 0, sink,
+				    RKISP1_ISP_PAD_SINK_PARAMS, flags);
+	if (ret)
+		return ret;
 
 	/* 3A stats links */
 	source = &rkisp1->isp.sd.entity;
@@ -352,14 +360,21 @@ static int rkisp1_entities_register(struct rkisp1_device *rkisp1)
 	if (ret)
 		goto err_unreg_capture_devs;
 
+	ret = rkisp1_params_register(&rkisp1->params,
+				     &rkisp1->v4l2_dev, rkisp1);
+	if (ret)
+		goto err_unreg_stats;
+
 	ret = rkisp1_subdev_notifier(rkisp1);
 	if (ret) {
 		dev_err(rkisp1->dev,
 			"Failed to register subdev notifier(%d)\n", ret);
-		goto err_unreg_stats;
+		goto err_unreg_params;
 	}
 
 	return 0;
+err_unreg_params:
+	rkisp1_params_unregister(&rkisp1->params);
 err_unreg_stats:
 	rkisp1_stats_unregister(&rkisp1->stats);
 err_unreg_capture_devs:
@@ -529,6 +544,7 @@ static int rkisp1_remove(struct platform_device *pdev)
 	v4l2_async_notifier_unregister(&rkisp1->notifier);
 	v4l2_async_notifier_cleanup(&rkisp1->notifier);
 
+	rkisp1_params_unregister(&rkisp1->params);
 	rkisp1_stats_unregister(&rkisp1->stats);
 	rkisp1_capture_devs_unregister(rkisp1);
 	rkisp1_resizer_devs_unregister(rkisp1);

@@ -195,6 +195,27 @@ struct rkisp1_stats {
 	struct mutex wq_lock;
 };
 
+/*
+ * struct rkisp1_params - ISP input parameters device
+ *
+ * @cur_params: Current ISP parameters
+ * @is_first_params: the first params should take effect immediately
+ */
+struct rkisp1_params {
+	struct rkisp1_vdev_node vnode;
+	struct rkisp1_device *rkisp1;
+
+	spinlock_t config_lock;
+	struct list_head params;
+	struct rkisp1_params_cfg cur_params;
+	struct v4l2_format vdev_fmt;
+	bool is_streaming;
+	bool is_first_params;
+
+	enum v4l2_quantization quantization;
+	enum rkisp1_fmt_raw_pat_type raw_type;
+};
+
 struct rkisp1_resizer {
 	struct v4l2_subdev sd;
 	enum rkisp1_stream_id id;
@@ -222,6 +243,7 @@ struct rkisp1_debug {
  * @isp: ISP sub-device
  * @rkisp1_capture: capture video device
  * @stats: ISP statistics output device
+ * @params: ISP input parameters device
  */
 struct rkisp1_device {
 	void __iomem *base_addr;
@@ -238,6 +260,7 @@ struct rkisp1_device {
 	struct rkisp1_resizer resizer_devs[2];
 	struct rkisp1_capture capture_devs[2];
 	struct rkisp1_stats stats;
+	struct rkisp1_params params;
 	struct media_pipeline pipe;
 	struct vb2_alloc_ctx *alloc_ctx;
 	struct rkisp1_debug debug;
@@ -287,6 +310,7 @@ void rkisp1_isp_isr(struct rkisp1_device *rkisp1);
 void rkisp1_mipi_isr(struct rkisp1_device *rkisp1);
 void rkisp1_capture_isr(struct rkisp1_device *rkisp1);
 void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris);
+void rkisp1_params_isr(struct rkisp1_device *rkisp1, u32 isp_mis);
 
 int rkisp1_capture_devs_register(struct rkisp1_device *rkisp1);
 void rkisp1_capture_devs_unregister(struct rkisp1_device *rkisp1);
@@ -298,5 +322,16 @@ int rkisp1_stats_register(struct rkisp1_stats *stats,
 			  struct v4l2_device *v4l2_dev,
 			  struct rkisp1_device *rkisp1);
 void rkisp1_stats_unregister(struct rkisp1_stats *stats);
+
+void rkisp1_params_configure(struct rkisp1_params *params,
+			     enum rkisp1_fmt_raw_pat_type bayer_pat,
+			     enum v4l2_quantization quantization);
+void rkisp1_params_disable(struct rkisp1_params *params);
+int rkisp1_params_register(struct rkisp1_params *params,
+			   struct v4l2_device *v4l2_dev,
+			   struct rkisp1_device *rkisp1);
+void rkisp1_params_unregister(struct rkisp1_params *params);
+
+void rkisp1_params_isr_handler(struct rkisp1_device *rkisp1, u32 isp_mis);
 
 #endif /* _RKISP1_COMMON_H */
