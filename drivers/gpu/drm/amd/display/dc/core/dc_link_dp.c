@@ -3926,7 +3926,6 @@ bool dc_link_dp_set_test_pattern(
 		}
 	} else {
 		enum dc_color_space color_space = COLOR_SPACE_UNKNOWN;
-		struct encoder_info_frame info_frame = pipe_ctx->stream_res.encoder_info_frame;
 
 		switch (test_pattern_color_space) {
 		case DP_TEST_PATTERN_COLOR_SPACE_RGB:
@@ -3951,13 +3950,9 @@ bool dc_link_dp_set_test_pattern(
 		/* update MSA to requested color space */
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(pipe_ctx->stream_res.stream_enc,
 				&pipe_ctx->stream->timing,
-				color_space, false, link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
-
-		/* disable vsc so no need to update it based on request */
-		info_frame.vsc.valid = false;
-		pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets(
-				pipe_ctx->stream_res.stream_enc,
-				&info_frame);
+				color_space,
+				pipe_ctx->stream->use_vsc_sdp_for_colorimetry,
+				link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
 
 		/* CRTC Patterns */
 		set_crtc_test_pattern(link, pipe_ctx, test_pattern, test_pattern_color_space);
