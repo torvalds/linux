@@ -44,6 +44,10 @@
 #define IB_UVERBS_ACCESS_OPTIONAL_FIRST (1 << 20)
 #define IB_UVERBS_ACCESS_OPTIONAL_LAST (1 << 29)
 
+enum ib_uverbs_core_support {
+	IB_UVERBS_CORE_SUPPORT_OPTIONAL_MR_ACCESS = 1 << 0,
+};
+
 enum ib_uverbs_access_flags {
 	IB_UVERBS_ACCESS_LOCAL_WRITE = 1 << 0,
 	IB_UVERBS_ACCESS_REMOTE_WRITE = 1 << 1,
