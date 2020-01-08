@@ -4370,6 +4370,67 @@ void SMB2_query_directory_free(struct smb_rqst *rqst)
 }
 
 int
+smb2_parse_query_directory(struct cifs_tcon *tcon,
+			   struct kvec *rsp_iov,
+			   int resp_buftype,
+			   struct cifs_search_info *srch_inf)
+{
+	struct smb2_query_directory_rsp *rsp;
+	size_t info_buf_size;
+	char *end_of_smb;
+	int rc;
+
+	rsp = (struct smb2_query_directory_rsp *)rsp_iov->iov_base;
+
+	switch (srch_inf->info_level) {
+	case SMB_FIND_FILE_DIRECTORY_INFO:
+		info_buf_size = sizeof(FILE_DIRECTORY_INFO) - 1;
+		break;
+	case SMB_FIND_FILE_ID_FULL_DIR_INFO:
+		info_buf_size = sizeof(SEARCH_ID_FULL_DIR_INFO) - 1;
+		break;
+	default:
+		cifs_tcon_dbg(VFS, "info level %u isn't supported\n",
+			 srch_inf->info_level);
+		return -EINVAL;
+	}
+
+	rc = smb2_validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
+			       le32_to_cpu(rsp->OutputBufferLength), rsp_iov,
+			       info_buf_size);
+	if (rc)
+		return rc;
+
+	srch_inf->unicode = true;
+
+	if (srch_inf->ntwrk_buf_start) {
+		if (srch_inf->smallBuf)
+			cifs_small_buf_release(srch_inf->ntwrk_buf_start);
+		else
+			cifs_buf_release(srch_inf->ntwrk_buf_start);
+	}
+	srch_inf->ntwrk_buf_start = (char *)rsp;
+	srch_inf->srch_entries_start = srch_inf->last_entry =
+		(char *)rsp + le16_to_cpu(rsp->OutputBufferOffset);
+	end_of_smb = rsp_iov->iov_len + (char *)rsp;
+	srch_inf->entries_in_buffer =
+			num_entries(srch_inf->srch_entries_start, end_of_smb,
+				    &srch_inf->last_entry, info_buf_size);
+	srch_inf->index_of_last_entry += srch_inf->entries_in_buffer;
+	cifs_dbg(FYI, "num entries %d last_index %lld srch start %p srch end %p\n",
+		 srch_inf->entries_in_buffer, srch_inf->index_of_last_entry,
+		 srch_inf->srch_entries_start, srch_inf->last_entry);
+	if (resp_buftype == CIFS_LARGE_BUFFER)
+		srch_inf->smallBuf = false;
+	else if (resp_buftype == CIFS_SMALL_BUFFER)
+		srch_inf->smallBuf = true;
+	else
+		cifs_tcon_dbg(VFS, "illegal search buffer type\n");
+
+	return 0;
+}
+
+int
 SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid, int index,
 		     struct cifs_search_info *srch_inf)
@@ -4382,8 +4443,6 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses = tcon->ses;
-	char *end_of_smb;
-	size_t info_buf_size;
 	int flags = 0;
 
 	if (ses && (ses->server))
@@ -4423,55 +4482,13 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 		goto qdir_exit;
 	}
 
-	switch (srch_inf->info_level) {
-	case SMB_FIND_FILE_DIRECTORY_INFO:
-		info_buf_size = sizeof(FILE_DIRECTORY_INFO) - 1;
-		break;
-	case SMB_FIND_FILE_ID_FULL_DIR_INFO:
-		info_buf_size = sizeof(SEARCH_ID_FULL_DIR_INFO) - 1;
-		break;
-	default:
-		cifs_tcon_dbg(VFS, "info level %u isn't supported\n",
-			 srch_inf->info_level);
-		rc = -EINVAL;
-		goto qdir_exit;
-	}
-
-	rc = smb2_validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
-			       le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
-			       info_buf_size);
+	rc = smb2_parse_query_directory(tcon, &rsp_iov,	resp_buftype,
+					srch_inf);
 	if (rc) {
 		trace_smb3_query_dir_err(xid, persistent_fid, tcon->tid,
 			tcon->ses->Suid, index, 0, rc);
 		goto qdir_exit;
 	}
-
-	srch_inf->unicode = true;
-
-	if (srch_inf->ntwrk_buf_start) {
-		if (srch_inf->smallBuf)
-			cifs_small_buf_release(srch_inf->ntwrk_buf_start);
-		else
-			cifs_buf_release(srch_inf->ntwrk_buf_start);
-	}
-	srch_inf->ntwrk_buf_start = (char *)rsp;
-	srch_inf->srch_entries_start = srch_inf->last_entry =
-		(char *)rsp + le16_to_cpu(rsp->OutputBufferOffset);
-	end_of_smb = rsp_iov.iov_len + (char *)rsp;
-	srch_inf->entries_in_buffer =
-			num_entries(srch_inf->srch_entries_start, end_of_smb,
-				    &srch_inf->last_entry, info_buf_size);
-	srch_inf->index_of_last_entry += srch_inf->entries_in_buffer;
-	cifs_dbg(FYI, "num entries %d last_index %lld srch start %p srch end %p\n",
-		 srch_inf->entries_in_buffer, srch_inf->index_of_last_entry,
-		 srch_inf->srch_entries_start, srch_inf->last_entry);
-	if (resp_buftype == CIFS_LARGE_BUFFER)
-		srch_inf->smallBuf = false;
-	else if (resp_buftype == CIFS_SMALL_BUFFER)
-		srch_inf->smallBuf = true;
-	else
-		cifs_tcon_dbg(VFS, "illegal search buffer type\n");
-
 	resp_buftype = CIFS_NO_BUFFER;
 
 	trace_smb3_query_dir_done(xid, persistent_fid, tcon->tid,
