@@ -256,6 +256,19 @@ static int sdhci_am654_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	return 0;
 }
 
+static u32 sdhci_am654_cqhci_irq(struct sdhci_host *host, u32 intmask)
+{
+	int cmd_error = 0;
+	int data_error = 0;
+
+	if (!sdhci_cqe_irq(host, intmask, &cmd_error, &data_error))
+		return intmask;
+
+	cqhci_irq(host->mmc, intmask, cmd_error, data_error);
+
+	return 0;
+}
+
 static struct sdhci_ops sdhci_am654_ops = {
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
@@ -264,6 +277,7 @@ static struct sdhci_ops sdhci_am654_ops = {
 	.set_power = sdhci_am654_set_power,
 	.set_clock = sdhci_am654_set_clock,
 	.write_b = sdhci_am654_write_b,
+	.irq = sdhci_am654_cqhci_irq,
 	.reset = sdhci_reset,
 };
 
@@ -277,19 +291,6 @@ static const struct sdhci_am654_driver_data sdhci_am654_drvdata = {
 	.pdata = &sdhci_am654_pdata,
 	.flags = IOMUX_PRESENT | FREQSEL_2_BIT | STRBSEL_4_BIT | DLL_PRESENT,
 };
-
-static u32 sdhci_am654_cqhci_irq(struct sdhci_host *host, u32 intmask)
-{
-	int cmd_error = 0;
-	int data_error = 0;
-
-	if (!sdhci_cqe_irq(host, intmask, &cmd_error, &data_error))
-		return intmask;
-
-	cqhci_irq(host->mmc, intmask, cmd_error, data_error);
-
-	return 0;
-}
 
 static struct sdhci_ops sdhci_j721e_8bit_ops = {
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
