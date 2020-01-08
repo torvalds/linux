@@ -884,17 +884,6 @@ fail:
 	return rc;
 }
 
-void efx_fini_channels(struct efx_nic *efx)
-{
-	unsigned int i;
-
-	for (i = 0; i < EFX_MAX_CHANNELS; i++)
-		if (efx->channel[i]) {
-			kfree(efx->channel[i]);
-			efx->channel[i] = NULL;
-		}
-}
-
 void efx_fini_struct(struct efx_nic *efx)
 {
 #ifdef CONFIG_RFS_ACCEL

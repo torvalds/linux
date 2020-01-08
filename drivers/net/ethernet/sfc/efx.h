@@ -203,10 +203,6 @@ static inline bool efx_rss_active(struct efx_rss_context *ctx)
 	return ctx->context_id != EFX_EF10_RSS_CONTEXT_INVALID;
 }
 
-/* Channels */
-int efx_channel_dummy_op_int(struct efx_channel *channel);
-void efx_channel_dummy_op_void(struct efx_channel *channel);
-
 /* Ethtool support */
 extern const struct ethtool_ops efx_ethtool_ops;
 
