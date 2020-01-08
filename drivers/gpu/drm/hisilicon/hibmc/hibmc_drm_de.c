@@ -243,6 +243,25 @@ static void hibmc_crtc_atomic_disable(struct drm_crtc *crtc,
 	hibmc_set_current_gate(priv, reg);
 }
 
+static enum drm_mode_status
+hibmc_crtc_mode_valid(struct drm_crtc *crtc,
+		      const struct drm_display_mode *mode)
+{
+	int i = 0;
+	int vrefresh = drm_mode_vrefresh(mode);
+
+	if (vrefresh < 59 || vrefresh > 61)
+		return MODE_NOCLOCK;
+
+	for (i = 0; i < ARRAY_SIZE(hibmc_pll_table); i++) {
+		if (hibmc_pll_table[i].hdisplay == mode->hdisplay &&
+		    hibmc_pll_table[i].vdisplay == mode->vdisplay)
+			return MODE_OK;
+	}
+
+	return MODE_BAD;
+}
+
 static unsigned int format_pll_reg(void)
 {
 	unsigned int pllreg = 0;
@@ -511,6 +530,7 @@ static const struct drm_crtc_helper_funcs hibmc_crtc_helper_funcs = {
 	.atomic_flush	= hibmc_crtc_atomic_flush,
 	.atomic_enable	= hibmc_crtc_atomic_enable,
 	.atomic_disable	= hibmc_crtc_atomic_disable,
+	.mode_valid = hibmc_crtc_mode_valid,
 };
 
 int hibmc_de_init(struct hibmc_drm_private *priv)
