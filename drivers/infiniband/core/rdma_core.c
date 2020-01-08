@@ -256,15 +256,20 @@ int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
 }
 
 /* alloc_uobj must be undone by uverbs_destroy_uobject() */
-static struct ib_uobject *alloc_uobj(struct ib_uverbs_file *ufile,
+static struct ib_uobject *alloc_uobj(struct uverbs_attr_bundle *attrs,
 				     const struct uverbs_api_object *obj)
 {
+	struct ib_uverbs_file *ufile = attrs->ufile;
 	struct ib_uobject *uobj;
-	struct ib_ucontext *ucontext;
 
-	ucontext = ib_uverbs_get_ucontext_file(ufile);
-	if (IS_ERR(ucontext))
-		return ERR_CAST(ucontext);
+	if (!attrs->context) {
+		struct ib_ucontext *ucontext =
+			ib_uverbs_get_ucontext_file(ufile);
+
+		if (IS_ERR(ucontext))
+			return ERR_CAST(ucontext);
+		attrs->context = ucontext;
+	}
 
 	uobj = kzalloc(obj->type_attrs->obj_size, GFP_KERNEL);
 	if (!uobj)
@@ -274,7 +279,7 @@ static struct ib_uobject *alloc_uobj(struct ib_uverbs_file *ufile,
 	 * The object is added to the list in the commit stage.
 	 */
 	uobj->ufile = ufile;
-	uobj->context = ucontext;
+	uobj->context = attrs->context;
 	INIT_LIST_HEAD(&uobj->list);
 	uobj->uapi_object = obj;
 	/*
@@ -417,12 +422,12 @@ free:
 
 static struct ib_uobject *
 alloc_begin_idr_uobject(const struct uverbs_api_object *obj,
-			struct ib_uverbs_file *ufile)
+			struct uverbs_attr_bundle *attrs)
 {
 	int ret;
 	struct ib_uobject *uobj;
 
-	uobj = alloc_uobj(ufile, obj);
+	uobj = alloc_uobj(attrs, obj);
 	if (IS_ERR(uobj))
 		return uobj;
 
@@ -438,7 +443,7 @@ alloc_begin_idr_uobject(const struct uverbs_api_object *obj,
 	return uobj;
 
 remove:
-	xa_erase(&ufile->idr, uobj->id);
+	xa_erase(&attrs->ufile->idr, uobj->id);
 uobj_put:
 	uverbs_uobject_put(uobj);
 	return ERR_PTR(ret);
@@ -446,7 +451,7 @@ uobj_put:
 
 static struct ib_uobject *
 alloc_begin_fd_uobject(const struct uverbs_api_object *obj,
-		       struct ib_uverbs_file *ufile)
+		       struct uverbs_attr_bundle *attrs)
 {
 	const struct uverbs_obj_fd_type *fd_type =
 		container_of(obj->type_attrs, struct uverbs_obj_fd_type, type);
@@ -461,7 +466,7 @@ alloc_begin_fd_uobject(const struct uverbs_api_object *obj,
 	if (new_fd < 0)
 		return ERR_PTR(new_fd);
 
-	uobj = alloc_uobj(ufile, obj);
+	uobj = alloc_uobj(attrs, obj);
 	if (IS_ERR(uobj))
 		goto err_fd;
 
@@ -475,7 +480,6 @@ alloc_begin_fd_uobject(const struct uverbs_api_object *obj,
 	uobj->object = filp;
 
 	uobj->id = new_fd;
-	uobj->ufile = ufile;
 	return uobj;
 
 err_uobj:
@@ -486,9 +490,9 @@ err_fd:
 }
 
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
-					    struct ib_uverbs_file *ufile,
 					    struct uverbs_attr_bundle *attrs)
 {
+	struct ib_uverbs_file *ufile = attrs->ufile;
 	struct ib_uobject *ret;
 
 	if (IS_ERR(obj))
@@ -502,13 +506,11 @@ struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
 	if (!down_read_trylock(&ufile->hw_destroy_rwsem))
 		return ERR_PTR(-EIO);
 
-	ret = obj->type_class->alloc_begin(obj, ufile);
+	ret = obj->type_class->alloc_begin(obj, attrs);
 	if (IS_ERR(ret)) {
 		up_read(&ufile->hw_destroy_rwsem);
 		return ret;
 	}
-	if (attrs)
-		attrs->context = ret->context;
 	return ret;
 }
 
@@ -930,7 +932,7 @@ uverbs_get_uobject_from_file(u16 object_id, enum uverbs_obj_access access,
 		return rdma_lookup_get_uobject(obj, attrs->ufile, id,
 					       UVERBS_LOOKUP_WRITE, attrs);
 	case UVERBS_ACCESS_NEW:
-		return rdma_alloc_begin_uobject(obj, attrs->ufile, attrs);
+		return rdma_alloc_begin_uobject(obj, attrs);
 	default:
 		WARN_ON(true);
 		return ERR_PTR(-EOPNOTSUPP);

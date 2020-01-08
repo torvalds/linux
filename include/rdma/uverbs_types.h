@@ -83,7 +83,7 @@ enum rdma_lookup_mode {
  */
 struct uverbs_obj_type_class {
 	struct ib_uobject *(*alloc_begin)(const struct uverbs_api_object *obj,
-					  struct ib_uverbs_file *ufile);
+					  struct uverbs_attr_bundle *attrs);
 	/* This consumes the kref on uobj */
 	void (*alloc_commit)(struct ib_uobject *uobj);
 	/* This does not consume the kref on uobj */
@@ -137,7 +137,6 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 void rdma_lookup_put_uobject(struct ib_uobject *uobj,
 			     enum rdma_lookup_mode mode);
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
-					    struct ib_uverbs_file *ufile,
 					    struct uverbs_attr_bundle *attrs);
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj,
 			      struct uverbs_attr_bundle *attrs);

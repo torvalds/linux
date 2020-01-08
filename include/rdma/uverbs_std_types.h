@@ -114,8 +114,7 @@ static inline struct ib_uobject *
 __uobj_alloc(const struct uverbs_api_object *obj,
 	     struct uverbs_attr_bundle *attrs, struct ib_device **ib_dev)
 {
-	struct ib_uobject *uobj =
-		rdma_alloc_begin_uobject(obj, attrs->ufile, attrs);
+	struct ib_uobject *uobj = rdma_alloc_begin_uobject(obj, attrs);
 
 	if (!IS_ERR(uobj))
 		*ib_dev = attrs->context->device;
