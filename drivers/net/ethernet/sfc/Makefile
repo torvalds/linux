@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-sfc-y			+= efx.o efx_common.o nic.o \
+sfc-y			+= efx.o efx_common.o efx_channels.o nic.o \
 			   farch.o siena.o ef10.o \
 			   tx.o rx.o \
 			   selftest.o ethtool.o ptp.o tx_tso.o \
