@@ -25,7 +25,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/clk.h>
 #include <linux/nvmem-consumer.h>
-#include <linux/bitops.h>
 
 /* Register Offsets for RB-CPR and Bit Definitions */
 
