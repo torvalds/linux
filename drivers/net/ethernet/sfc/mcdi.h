@@ -346,7 +346,6 @@ int efx_mcdi_flush_rxqs(struct efx_nic *efx);
 int efx_mcdi_port_probe(struct efx_nic *efx);
 void efx_mcdi_port_remove(struct efx_nic *efx);
 int efx_mcdi_port_reconfigure(struct efx_nic *efx);
-int efx_mcdi_port_get_number(struct efx_nic *efx);
 u32 efx_mcdi_phy_get_caps(struct efx_nic *efx);
 void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
 int efx_mcdi_set_mac(struct efx_nic *efx);

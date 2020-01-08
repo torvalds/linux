@@ -20,6 +20,7 @@
 #include "io.h"
 #include "nic.h"
 #include "tx.h"
+#include "tx_common.h"
 #include "workarounds.h"
 #include "ef10_regs.h"
 
@@ -56,10 +57,10 @@ u8 *efx_tx_get_copy_buffer_limited(struct efx_tx_queue *tx_queue,
 	return efx_tx_get_copy_buffer(tx_queue, buffer);
 }
 
-static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
-			       struct efx_tx_buffer *buffer,
-			       unsigned int *pkts_compl,
-			       unsigned int *bytes_compl)
+void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
+			struct efx_tx_buffer *buffer,
+			unsigned int *pkts_compl,
+			unsigned int *bytes_compl)
 {
 	if (buffer->unmap_len) {
 		struct device *dma_dev = &tx_queue->efx->pci_dev->dev;
@@ -333,9 +334,9 @@ static int efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue,
 }
 #endif /* EFX_USE_PIO */
 
-static struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
-					      dma_addr_t dma_addr,
-					      size_t len)
+struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
+				       dma_addr_t dma_addr,
+				       size_t len)
 {
 	const struct efx_nic_type *nic_type = tx_queue->efx->type;
 	struct efx_tx_buffer *buffer;
@@ -359,8 +360,8 @@ static struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
 
 /* Map all data from an SKB for DMA and create descriptors on the queue.
  */
-static int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
-			   unsigned int segment_count)
+int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
+		    unsigned int segment_count)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	struct device *dma_dev = &efx->pci_dev->dev;

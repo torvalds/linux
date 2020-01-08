@@ -138,6 +138,8 @@ struct efx_special_buffer {
  *	freed when descriptor completes
  * @xdpf: When @flags & %EFX_TX_BUF_XDP, the XDP frame information; its @data
  *	member is the associated buffer to drop a page reference on.
+ * @option: When @flags & %EFX_TX_BUF_OPTION, an EF10-specific option
+ *	descriptor.
  * @dma_addr: DMA address of the fragment.
  * @flags: Flags for allocation and DMA mapping type
  * @len: Length of this fragment.
@@ -152,7 +154,7 @@ struct efx_tx_buffer {
 		struct xdp_frame *xdpf;
 	};
 	union {
-		efx_qword_t option;
+		efx_qword_t option;    /* EF10 */
 		dma_addr_t dma_addr;
 	};
 	unsigned short flags;
@@ -1608,6 +1610,15 @@ static inline struct efx_rx_buffer *efx_rx_buffer(struct efx_rx_queue *rx_queue,
 						  unsigned int index)
 {
 	return &rx_queue->buffer[index];
+}
+
+static inline struct efx_rx_buffer *
+efx_rx_buf_next(struct efx_rx_queue *rx_queue, struct efx_rx_buffer *rx_buf)
+{
+	if (unlikely(rx_buf == efx_rx_buffer(rx_queue, rx_queue->ptr_mask)))
+		return efx_rx_buffer(rx_queue, 0);
+	else
+		return rx_buf + 1;
 }
 
 /**

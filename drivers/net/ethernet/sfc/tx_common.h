@@ -1,0 +1,31 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/****************************************************************************
+ * Driver for Solarflare network controllers and boards
+ * Copyright 2018 Solarflare Communications Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published
+ * by the Free Software Foundation, incorporated herein by reference.
+ */
+
+#ifndef EFX_TX_COMMON_H
+#define EFX_TX_COMMON_H
+
+int efx_probe_tx_queue(struct efx_tx_queue *tx_queue);
+void efx_init_tx_queue(struct efx_tx_queue *tx_queue);
+void efx_fini_tx_queue(struct efx_tx_queue *tx_queue);
+void efx_remove_tx_queue(struct efx_tx_queue *tx_queue);
+
+void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
+			struct efx_tx_buffer *buffer,
+			unsigned int *pkts_compl,
+			unsigned int *bytes_compl);
+
+struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
+				       dma_addr_t dma_addr, size_t len);
+int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
+		    unsigned int segment_count);
+
+unsigned int efx_tx_max_skb_descs(struct efx_nic *efx);
+
+#endif

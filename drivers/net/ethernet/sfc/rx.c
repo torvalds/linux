@@ -21,6 +21,7 @@
 #include <linux/bpf_trace.h>
 #include "net_driver.h"
 #include "efx.h"
+#include "rx_common.h"
 #include "filter.h"
 #include "nic.h"
 #include "selftest.h"
@@ -75,15 +76,6 @@ static inline u32 efx_rx_buf_hash(struct efx_nic *efx, const u8 *eh)
 	       (u32)data[2] << 16 |
 	       (u32)data[3] << 24;
 #endif
-}
-
-static inline struct efx_rx_buffer *
-efx_rx_buf_next(struct efx_rx_queue *rx_queue, struct efx_rx_buffer *rx_buf)
-{
-	if (unlikely(rx_buf == efx_rx_buffer(rx_queue, rx_queue->ptr_mask)))
-		return efx_rx_buffer(rx_queue, 0);
-	else
-		return rx_buf + 1;
 }
 
 static inline void efx_sync_rx_buffer(struct efx_nic *efx,
@@ -152,7 +144,7 @@ static struct page *efx_reuse_page(struct efx_rx_queue *rx_queue)
  * 0 on success. If a single page can be used for multiple buffers,
  * then the page will either be inserted fully, or not at all.
  */
-static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue, bool atomic)
+int efx_init_rx_buffers(struct efx_rx_queue *rx_queue, bool atomic)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	struct efx_rx_buffer *rx_buf;
@@ -215,8 +207,8 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue, bool atomic)
 /* Unmap a DMA-mapped page.  This function is only called for the final RX
  * buffer in a page.
  */
-static void efx_unmap_rx_buffer(struct efx_nic *efx,
-				struct efx_rx_buffer *rx_buf)
+void efx_unmap_rx_buffer(struct efx_nic *efx,
+			 struct efx_rx_buffer *rx_buf)
 {
 	struct page *page = rx_buf->page;
 
@@ -229,9 +221,9 @@ static void efx_unmap_rx_buffer(struct efx_nic *efx,
 	}
 }
 
-static void efx_free_rx_buffers(struct efx_rx_queue *rx_queue,
-				struct efx_rx_buffer *rx_buf,
-				unsigned int num_bufs)
+void efx_free_rx_buffers(struct efx_rx_queue *rx_queue,
+			 struct efx_rx_buffer *rx_buf,
+			 unsigned int num_bufs)
 {
 	do {
 		if (rx_buf->page) {

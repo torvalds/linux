@@ -23,6 +23,10 @@
 #include <net/gre.h>
 #include <net/udp_tunnel.h>
 #include "efx.h"
+#include "efx_common.h"
+#include "efx_channels.h"
+#include "rx_common.h"
+#include "tx_common.h"
 #include "nic.h"
 #include "io.h"
 #include "selftest.h"
@@ -214,18 +218,8 @@ MODULE_PARM_DESC(debug, "Bitmapped debugging message enable value");
  *
  *************************************************************************/
 
-static int efx_soft_enable_interrupts(struct efx_nic *efx);
-static void efx_soft_disable_interrupts(struct efx_nic *efx);
-static void efx_remove_channel(struct efx_channel *channel);
-static void efx_remove_channels(struct efx_nic *efx);
 static const struct efx_channel_type efx_default_channel_type;
 static void efx_remove_port(struct efx_nic *efx);
-static void efx_init_napi_channel(struct efx_channel *channel);
-static void efx_fini_napi(struct efx_nic *efx);
-static void efx_fini_napi_channel(struct efx_channel *channel);
-static void efx_fini_struct(struct efx_nic *efx);
-static void efx_start_all(struct efx_nic *efx);
-static void efx_stop_all(struct efx_nic *efx);
 static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog);
 static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
@@ -239,7 +233,7 @@ static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
 			ASSERT_RTNL();			\
 	} while (0)
 
-static int efx_check_disabled(struct efx_nic *efx)
+int efx_check_disabled(struct efx_nic *efx)
 {
 	if (efx->state == STATE_DISABLED || efx->state == STATE_RECOVERY) {
 		netif_err(efx, drv, efx->net_dev,
@@ -375,7 +369,7 @@ static int efx_poll(struct napi_struct *napi, int budget)
  * is reset, the memory buffer will be reused; this guards against
  * errors during channel reset and also simplifies interrupt handling.
  */
-static int efx_probe_eventq(struct efx_channel *channel)
+int efx_probe_eventq(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
 	unsigned long entries;
@@ -393,7 +387,7 @@ static int efx_probe_eventq(struct efx_channel *channel)
 }
 
 /* Prepare channel's event queue */
-static int efx_init_eventq(struct efx_channel *channel)
+int efx_init_eventq(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
 	int rc;
@@ -436,7 +430,7 @@ void efx_stop_eventq(struct efx_channel *channel)
 	channel->enabled = false;
 }
 
-static void efx_fini_eventq(struct efx_channel *channel)
+void efx_fini_eventq(struct efx_channel *channel)
 {
 	if (!channel->eventq_init)
 		return;
@@ -448,7 +442,7 @@ static void efx_fini_eventq(struct efx_channel *channel)
 	channel->eventq_init = false;
 }
 
-static void efx_remove_eventq(struct efx_channel *channel)
+void efx_remove_eventq(struct efx_channel *channel)
 {
 	netif_dbg(channel->efx, drv, channel->efx->net_dev,
 		  "chan %d remove event queue\n", channel->channel);
@@ -463,7 +457,7 @@ static void efx_remove_eventq(struct efx_channel *channel)
  *************************************************************************/
 
 /* Allocate and initialise a channel structure. */
-static struct efx_channel *
+struct efx_channel *
 efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 {
 	struct efx_channel *channel;
@@ -500,8 +494,7 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 /* Allocate and initialise a channel structure, copying parameters
  * (but not resources) from an old channel structure.
  */
-static struct efx_channel *
-efx_copy_channel(const struct efx_channel *old_channel)
+struct efx_channel *efx_copy_channel(const struct efx_channel *old_channel)
 {
 	struct efx_channel *channel;
 	struct efx_rx_queue *rx_queue;
@@ -577,8 +570,7 @@ fail:
 	return rc;
 }
 
-static void
-efx_get_channel_name(struct efx_channel *channel, char *buf, size_t len)
+void efx_get_channel_name(struct efx_channel *channel, char *buf, size_t len)
 {
 	struct efx_nic *efx = channel->efx;
 	const char *type;
@@ -601,7 +593,7 @@ efx_get_channel_name(struct efx_channel *channel, char *buf, size_t len)
 	snprintf(buf, len, "%s%s-%d", efx->name, type, number);
 }
 
-static void efx_set_channel_names(struct efx_nic *efx)
+void efx_set_channel_names(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -611,7 +603,7 @@ static void efx_set_channel_names(struct efx_nic *efx)
 					sizeof(efx->msi_context[0].name));
 }
 
-static int efx_probe_channels(struct efx_nic *efx)
+int efx_probe_channels(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	int rc;
@@ -788,7 +780,7 @@ static void efx_stop_datapath(struct efx_nic *efx)
 	efx->xdp_rxq_info_failed = false;
 }
 
-static void efx_remove_channel(struct efx_channel *channel)
+void efx_remove_channel(struct efx_channel *channel)
 {
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
@@ -804,7 +796,7 @@ static void efx_remove_channel(struct efx_channel *channel)
 	channel->type->post_remove(channel);
 }
 
-static void efx_remove_channels(struct efx_nic *efx)
+void efx_remove_channels(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -814,8 +806,7 @@ static void efx_remove_channels(struct efx_nic *efx)
 	kfree(efx->xdp_tx_queues);
 }
 
-int
-efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
+int efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 {
 	struct efx_channel *other_channel[EFX_MAX_CHANNELS], *channel;
 	u32 old_rxq_entries, old_txq_entries;
@@ -929,7 +920,7 @@ void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
 	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(10));
 }
 
-static bool efx_default_channel_want_txqs(struct efx_channel *channel)
+bool efx_default_channel_want_txqs(struct efx_channel *channel)
 {
 	return channel->channel - channel->efx->tx_channel_offset <
 		channel->efx->n_tx_channels;
@@ -1292,7 +1283,7 @@ static void efx_dissociate(struct efx_nic *efx)
 }
 
 /* This configures the PCI device to enable I/O and DMA. */
-static int efx_init_io(struct efx_nic *efx)
+int efx_init_io(struct efx_nic *efx)
 {
 	struct pci_dev *pci_dev = efx->pci_dev;
 	dma_addr_t dma_mask = efx->type->max_dma_mask;
@@ -1363,7 +1354,7 @@ static int efx_init_io(struct efx_nic *efx)
 	return rc;
 }
 
-static void efx_fini_io(struct efx_nic *efx)
+void efx_fini_io(struct efx_nic *efx)
 {
 	int bar;
 
@@ -1545,7 +1536,7 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 /* Probe the number and type of interrupts we are able to obtain, and
  * the resulting numbers of channels and RX queues.
  */
-static int efx_probe_interrupts(struct efx_nic *efx)
+int efx_probe_interrupts(struct efx_nic *efx)
 {
 	unsigned int extra_channels = 0;
 	unsigned int rss_spread;
@@ -1657,7 +1648,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 }
 
 #if defined(CONFIG_SMP)
-static void efx_set_interrupt_affinity(struct efx_nic *efx)
+void efx_set_interrupt_affinity(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	unsigned int cpu;
@@ -1669,7 +1660,7 @@ static void efx_set_interrupt_affinity(struct efx_nic *efx)
 	}
 }
 
-static void efx_clear_interrupt_affinity(struct efx_nic *efx)
+void efx_clear_interrupt_affinity(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -1677,18 +1668,16 @@ static void efx_clear_interrupt_affinity(struct efx_nic *efx)
 		irq_set_affinity_hint(channel->irq, NULL);
 }
 #else
-static void
-efx_set_interrupt_affinity(struct efx_nic *efx __attribute__ ((unused)))
+void efx_set_interrupt_affinity(struct efx_nic *efx __attribute__ ((unused)))
 {
 }
 
-static void
-efx_clear_interrupt_affinity(struct efx_nic *efx __attribute__ ((unused)))
+void efx_clear_interrupt_affinity(struct efx_nic *efx __attribute__ ((unused)))
 {
 }
 #endif /* CONFIG_SMP */
 
-static int efx_soft_enable_interrupts(struct efx_nic *efx)
+int efx_soft_enable_interrupts(struct efx_nic *efx)
 {
 	struct efx_channel *channel, *end_channel;
 	int rc;
@@ -1723,7 +1712,7 @@ fail:
 	return rc;
 }
 
-static void efx_soft_disable_interrupts(struct efx_nic *efx)
+void efx_soft_disable_interrupts(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -1751,7 +1740,7 @@ static void efx_soft_disable_interrupts(struct efx_nic *efx)
 	efx_mcdi_flush_async(efx);
 }
 
-static int efx_enable_interrupts(struct efx_nic *efx)
+int efx_enable_interrupts(struct efx_nic *efx)
 {
 	struct efx_channel *channel, *end_channel;
 	int rc;
@@ -1793,7 +1782,7 @@ fail:
 	return rc;
 }
 
-static void efx_disable_interrupts(struct efx_nic *efx)
+void efx_disable_interrupts(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -1807,7 +1796,7 @@ static void efx_disable_interrupts(struct efx_nic *efx)
 	efx->type->irq_disable_non_ev(efx);
 }
 
-static void efx_remove_interrupts(struct efx_nic *efx)
+void efx_remove_interrupts(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -1821,7 +1810,7 @@ static void efx_remove_interrupts(struct efx_nic *efx)
 	efx->legacy_irq = 0;
 }
 
-static int efx_set_channels(struct efx_nic *efx)
+int efx_set_channels(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
@@ -2074,7 +2063,7 @@ static int efx_probe_all(struct efx_nic *efx)
  * is safe to call multiple times, so long as the NIC is not disabled.
  * Requires the RTNL lock.
  */
-static void efx_start_all(struct efx_nic *efx)
+void efx_start_all(struct efx_nic *efx)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 	BUG_ON(efx->state == STATE_DISABLED);
@@ -2113,7 +2102,7 @@ static void efx_start_all(struct efx_nic *efx)
  * times with the NIC in almost any state, but interrupts should be
  * enabled.  Requires the RTNL lock.
  */
-static void efx_stop_all(struct efx_nic *efx)
+void efx_stop_all(struct efx_nic *efx)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
@@ -2298,7 +2287,7 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
  *
  **************************************************************************/
 
-static void efx_init_napi_channel(struct efx_channel *channel)
+void efx_init_napi_channel(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
 
@@ -2307,7 +2296,7 @@ static void efx_init_napi_channel(struct efx_channel *channel)
 		       efx_poll, napi_weight);
 }
 
-static void efx_init_napi(struct efx_nic *efx)
+void efx_init_napi(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -2315,7 +2304,7 @@ static void efx_init_napi(struct efx_nic *efx)
 		efx_init_napi_channel(channel);
 }
 
-static void efx_fini_napi_channel(struct efx_channel *channel)
+void efx_fini_napi_channel(struct efx_channel *channel)
 {
 	if (channel->napi_dev)
 		netif_napi_del(&channel->napi_str);
@@ -2323,7 +2312,7 @@ static void efx_fini_napi_channel(struct efx_channel *channel)
 	channel->napi_dev = NULL;
 }
 
-static void efx_fini_napi(struct efx_nic *efx)
+void efx_fini_napi(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -3203,8 +3192,8 @@ static const struct efx_phy_operations efx_dummy_phy_operations = {
 /* This zeroes out and then fills in the invariants in a struct
  * efx_nic (including all sub-structures).
  */
-static int efx_init_struct(struct efx_nic *efx,
-			   struct pci_dev *pci_dev, struct net_device *net_dev)
+int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev,
+		    struct net_device *net_dev)
 {
 	int rc = -ENOMEM, i;
 
@@ -3283,7 +3272,7 @@ fail:
 	return rc;
 }
 
-static void efx_fini_struct(struct efx_nic *efx)
+void efx_fini_struct(struct efx_nic *efx)
 {
 	int i;
 

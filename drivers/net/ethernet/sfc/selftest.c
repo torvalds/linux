@@ -18,6 +18,8 @@
 #include <linux/slab.h>
 #include "net_driver.h"
 #include "efx.h"
+#include "efx_common.h"
+#include "efx_channels.h"
 #include "nic.h"
 #include "selftest.h"
 #include "workarounds.h"
