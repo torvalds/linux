@@ -1174,7 +1174,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_cq[0x5];
 
 	u8         log_max_eq_sz[0x8];
-	u8         reserved_at_e8[0x2];
+	u8         relaxed_ordering_write[0x1];
+	u8         relaxed_ordering_read[0x1];
 	u8         log_max_mkey[0x6];
 	u8         reserved_at_f0[0x8];
 	u8         dump_fill_mkey[0x1];
@@ -3287,7 +3288,9 @@ struct mlx5_ifc_mkc_bits {
 
 	u8         translations_octword_size[0x20];
 
-	u8         reserved_at_1c0[0x1b];
+	u8         reserved_at_1c0[0x19];
+	u8         relaxed_ordering_read[0x1];
+	u8         reserved_at_1d9[0x1];
 	u8         log_page_size[0x5];
 
 	u8         reserved_at_1e0[0x20];
