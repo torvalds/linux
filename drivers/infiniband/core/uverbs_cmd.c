@@ -1056,7 +1056,7 @@ err_free:
 	kfree(cq);
 err_file:
 	if (ev_file)
-		ib_uverbs_release_ucq(attrs->ufile, ev_file, obj);
+		ib_uverbs_release_ucq(ev_file, obj);
 
 err:
 	uobj_alloc_abort(&obj->uevent.uobject, attrs);

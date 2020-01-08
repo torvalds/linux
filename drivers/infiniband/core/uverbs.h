@@ -220,11 +220,9 @@ void ib_uverbs_init_async_event_file(struct ib_uverbs_async_event_file *ev_file)
 void ib_uverbs_free_event_queue(struct ib_uverbs_event_queue *event_queue);
 void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res);
 
-void ib_uverbs_release_ucq(struct ib_uverbs_file *file,
-			   struct ib_uverbs_completion_event_file *ev_file,
+void ib_uverbs_release_ucq(struct ib_uverbs_completion_event_file *ev_file,
 			   struct ib_ucq_object *uobj);
-void ib_uverbs_release_uevent(struct ib_uverbs_file *file,
-			      struct ib_uevent_object *uobj);
+void ib_uverbs_release_uevent(struct ib_uevent_object *uobj);
 void ib_uverbs_release_file(struct kref *ref);
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context);

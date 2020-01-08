@@ -105,7 +105,7 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 	if (uqp->uxrcd)
 		atomic_dec(&uqp->uxrcd->refcnt);
 
-	ib_uverbs_release_uevent(attrs->ufile, &uqp->uevent);
+	ib_uverbs_release_uevent(&uqp->uevent);
 	return ret;
 }
 
@@ -138,7 +138,7 @@ static int uverbs_free_wq(struct ib_uobject *uobject,
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
-	ib_uverbs_release_uevent(attrs->ufile, &uwq->uevent);
+	ib_uverbs_release_uevent(&uwq->uevent);
 	return ret;
 }
 
@@ -163,7 +163,7 @@ static int uverbs_free_srq(struct ib_uobject *uobject,
 		atomic_dec(&us->uxrcd->refcnt);
 	}
 
-	ib_uverbs_release_uevent(attrs->ufile, uevent);
+	ib_uverbs_release_uevent(uevent);
 	return ret;
 }
 
