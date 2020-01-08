@@ -48,15 +48,6 @@
 
 #include "amdgpu_ras.h"
 
-#include "sdma0/sdma0_4_2_offset.h"
-#include "sdma1/sdma1_4_2_offset.h"
-#include "sdma2/sdma2_4_2_2_offset.h"
-#include "sdma3/sdma3_4_2_2_offset.h"
-#include "sdma4/sdma4_4_2_2_offset.h"
-#include "sdma5/sdma5_4_2_2_offset.h"
-#include "sdma6/sdma6_4_2_2_offset.h"
-#include "sdma7/sdma7_4_2_2_offset.h"
-
 #define GFX9_NUM_GFX_RINGS     1
 #define GFX9_MEC_HPD_SIZE 4096
 #define RLCG_UCODE_LOADING_START_ADDRESS 0x00002000L
