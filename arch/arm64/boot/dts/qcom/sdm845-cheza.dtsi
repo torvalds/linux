@@ -1296,3 +1296,9 @@ ap_ts_i2c: &i2c14 {
 		};
 	};
 };
+
+&venus {
+	video-firmware {
+		iommus = <&apps_smmu 0x10b2 0x0>;
+	};
+};
