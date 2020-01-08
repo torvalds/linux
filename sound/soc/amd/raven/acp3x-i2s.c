@@ -321,8 +321,8 @@ static int acp3x_dai_probe(struct platform_device *pdev)
 	}
 	adata->acp3x_base = devm_ioremap(&pdev->dev, res->start,
 						resource_size(res));
-	if (IS_ERR(adata->acp3x_base))
-		return PTR_ERR(adata->acp3x_base);
+	if (!adata->acp3x_base)
+		return -ENOMEM;
 
 	adata->i2s_irq = res->start;
 	dev_set_drvdata(&pdev->dev, adata);
