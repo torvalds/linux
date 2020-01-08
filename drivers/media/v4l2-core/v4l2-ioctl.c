@@ -3205,11 +3205,11 @@ video_usercopy(struct file *file, unsigned int orig_cmd, unsigned long arg,
 			parg = mbuf;
 		}
 
+		err = video_get_user((void __user *)arg, parg, orig_cmd,
+				     &always_copy);
+		if (err)
+			goto out;
 	}
-
-	err = video_get_user((void __user *)arg, parg, orig_cmd, &always_copy);
-	if (err)
-		goto out;
 
 	err = check_array_args(cmd, parg, &array_size, &user_ptr, &kernel_ptr);
 	if (err < 0)
