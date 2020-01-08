@@ -111,7 +111,6 @@ struct ib_uverbs_device {
 	struct srcu_struct			disassociate_srcu;
 	struct mutex				lists_mutex; /* protect lists */
 	struct list_head			uverbs_file_list;
-	struct list_head			uverbs_events_file_list;
 	struct uverbs_api			*uapi;
 };
 
@@ -124,10 +123,9 @@ struct ib_uverbs_event_queue {
 };
 
 struct ib_uverbs_async_event_file {
+	struct ib_uobject			uobj;
 	struct ib_uverbs_event_queue		ev_queue;
-	struct ib_uverbs_file		       *uverbs_file;
-	struct kref				ref;
-	struct list_head			list;
+	struct ib_event_handler			event_handler;
 };
 
 struct ib_uverbs_completion_event_file {
@@ -144,8 +142,7 @@ struct ib_uverbs_file {
 	 * ucontext_lock held
 	 */
 	struct ib_ucontext		       *ucontext;
-	struct ib_event_handler			event_handler;
-	struct ib_uverbs_async_event_file       *async_file;
+	struct ib_uverbs_async_event_file      *async_file;
 	struct list_head			list;
 
 	/*
@@ -217,10 +214,10 @@ struct ib_ucq_object {
 };
 
 extern const struct file_operations uverbs_event_fops;
+extern const struct file_operations uverbs_async_event_fops;
 void ib_uverbs_init_event_queue(struct ib_uverbs_event_queue *ev_queue);
-struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file,
-					      struct ib_device *ib_dev);
-void ib_uverbs_free_async_event_file(struct ib_uverbs_file *uverbs_file);
+void ib_uverbs_init_async_event_file(struct ib_uverbs_async_event_file *ev_file);
+void ib_uverbs_free_event_queue(struct ib_uverbs_event_queue *event_queue);
 void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res);
 
 void ib_uverbs_release_ucq(struct ib_uverbs_file *file,

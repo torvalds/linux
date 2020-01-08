@@ -626,6 +626,7 @@ void uverbs_destroy_api(struct uverbs_api *uapi)
 }
 
 static const struct uapi_definition uverbs_core_api[] = {
+	UAPI_DEF_CHAIN(uverbs_def_obj_async_fd),
 	UAPI_DEF_CHAIN(uverbs_def_obj_counters),
 	UAPI_DEF_CHAIN(uverbs_def_obj_cq),
 	UAPI_DEF_CHAIN(uverbs_def_obj_device),

@@ -202,17 +202,15 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 	return 0;
 }
 
-static int
-uverbs_completion_event_file_destroy_uobj(struct ib_uobject *uobj,
-					  enum rdma_remove_reason why)
+void ib_uverbs_free_event_queue(struct ib_uverbs_event_queue *event_queue)
 {
-	struct ib_uverbs_completion_event_file *file =
-		container_of(uobj, struct ib_uverbs_completion_event_file,
-			     uobj);
-	struct ib_uverbs_event_queue *event_queue = &file->ev_queue;
 	struct ib_uverbs_event *entry, *tmp;
 
 	spin_lock_irq(&event_queue->lock);
+	/*
+	 * The user must ensure that no new items are added to the event_list
+	 * once is_closed is set.
+	 */
 	event_queue->is_closed = 1;
 	spin_unlock_irq(&event_queue->lock);
 	wake_up_interruptible(&event_queue->poll_wait);
@@ -225,8 +223,19 @@ uverbs_completion_event_file_destroy_uobj(struct ib_uobject *uobj,
 		kfree(entry);
 	}
 	spin_unlock_irq(&event_queue->lock);
+}
+
+static int
+uverbs_completion_event_file_destroy_uobj(struct ib_uobject *uobj,
+					  enum rdma_remove_reason why)
+{
+	struct ib_uverbs_completion_event_file *file =
+		container_of(uobj, struct ib_uverbs_completion_event_file,
+			     uobj);
+
+	ib_uverbs_free_event_queue(&file->ev_queue);
 	return 0;
-};
+}
 
 int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs)
 {
