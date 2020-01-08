@@ -1293,7 +1293,7 @@ static void
 w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 			   struct w83627ehf_data *data)
 {
-	int fan3pin, fan4pin, fan4min, fan5pin, regval;
+	int fan3pin, fan4pin, fan5pin, regval;
 
 	/* The W83627UHG is simple, only two fan inputs, no config */
 	if (sio_data->kind == w83627uhg) {
@@ -1307,12 +1307,10 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 		fan3pin = 1;
 		fan4pin = superio_inb(sio_data->sioreg, 0x27) & 0x40;
 		fan5pin = superio_inb(sio_data->sioreg, 0x27) & 0x20;
-		fan4min = fan4pin;
 	} else {
 		fan3pin = 1;
 		fan4pin = !(superio_inb(sio_data->sioreg, 0x29) & 0x06);
 		fan5pin = !(superio_inb(sio_data->sioreg, 0x24) & 0x02);
-		fan4min = fan4pin;
 	}
 
 	data->has_fan = data->has_fan_min = 0x03; /* fan1 and fan2 */
