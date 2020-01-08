@@ -108,12 +108,6 @@ void efx_get_udp_tunnel_type_name(u16 type, char *buf, size_t buflen)
 		snprintf(buf, buflen, "type %d", type);
 }
 
-/* Reset workqueue. If any NIC has a hardware failure then a reset will be
- * queued onto this work queue. This is not a per-nic work queue, because
- * efx_reset_work() acquires the rtnl lock, so resets are naturally serialised.
- */
-static struct workqueue_struct *reset_workqueue;
-
 /* How often and how many times to poll for a reset while waiting for a
  * BIST that another function started to complete.
  */
@@ -3106,7 +3100,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	 * reset is scheduled. So switch back to poll'd MCDI completions. */
 	efx_mcdi_mode_poll(efx);
 
-	queue_work(reset_workqueue, &efx->reset_work);
+	efx_queue_reset_work(efx);
 }
 
 /**************************************************************************
@@ -3492,7 +3486,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	 * are not READY.
 	 */
 	BUG_ON(efx->state == STATE_READY);
-	cancel_work_sync(&efx->reset_work);
+	efx_flush_reset_workqueue(efx);
 
 	efx_disable_interrupts(efx);
 	efx_clear_interrupt_affinity(efx);
@@ -3878,7 +3872,7 @@ static int efx_pm_thaw(struct device *dev)
 	rtnl_unlock();
 
 	/* Reschedule any quenched resets scheduled during efx_pm_freeze() */
-	queue_work(reset_workqueue, &efx->reset_work);
+	efx_queue_reset_work(efx);
 
 	return 0;
 
@@ -4077,11 +4071,9 @@ static int __init efx_init_module(void)
 		goto err_sriov;
 #endif
 
-	reset_workqueue = create_singlethread_workqueue("sfc_reset");
-	if (!reset_workqueue) {
-		rc = -ENOMEM;
+	rc = efx_create_reset_workqueue();
+	if (rc)
 		goto err_reset;
-	}
 
 	rc = pci_register_driver(&efx_pci_driver);
 	if (rc < 0)
@@ -4090,7 +4082,7 @@ static int __init efx_init_module(void)
 	return 0;
 
  err_pci:
-	destroy_workqueue(reset_workqueue);
+	efx_destroy_reset_workqueue();
  err_reset:
 #ifdef CONFIG_SFC_SRIOV
 	efx_fini_sriov();
@@ -4106,7 +4098,7 @@ static void __exit efx_exit_module(void)
 	printk(KERN_INFO "Solarflare NET driver unloading\n");
 
 	pci_unregister_driver(&efx_pci_driver);
-	destroy_workqueue(reset_workqueue);
+	efx_destroy_reset_workqueue();
 #ifdef CONFIG_SFC_SRIOV
 	efx_fini_sriov();
 #endif
