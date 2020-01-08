@@ -1802,7 +1802,7 @@ static int sdma_v4_0_late_init(void *handle)
 		.cb = sdma_v4_0_process_ras_data_cb,
 	};
 
-	return amdgpu_sdma_ras_late_init(adev, &ih_info);
+	return adev->sdma.funcs->ras_late_init(adev, &ih_info);
 }
 
 static int sdma_v4_0_sw_init(void *handle)
@@ -1874,7 +1874,7 @@ static int sdma_v4_0_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i;
 
-	amdgpu_sdma_ras_fini(adev);
+	adev->sdma.funcs->ras_fini(adev);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
@@ -2562,6 +2562,8 @@ static int sdma_v4_0_query_ras_error_count(struct amdgpu_device *adev,
 };
 
 static const struct amdgpu_sdma_ras_funcs sdma_v4_0_ras_funcs = {
+	.ras_late_init = amdgpu_sdma_ras_late_init,
+	.ras_fini = amdgpu_sdma_ras_fini,
 	.query_ras_error_count = sdma_v4_0_query_ras_error_count,
 };
 
