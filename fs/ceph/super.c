@@ -718,6 +718,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	fsc->sb = NULL;
 	fsc->mount_state = CEPH_MOUNT_MOUNTING;
 	fsc->filp_gen = 1;
+	fsc->have_copy_from2 = true;
 
 	atomic_long_set(&fsc->writeback_count, 0);
 

@@ -106,6 +106,8 @@ struct ceph_fs_client {
 	unsigned long last_auto_reconnect;
 	bool blacklisted;
 
+	bool have_copy_from2;
+
 	u32 filp_gen;
 	loff_t max_file_size;
 
