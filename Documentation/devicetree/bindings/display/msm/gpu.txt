@@ -33,6 +33,8 @@ Required properties:
 - zap-shader: For a5xx and a6xx devices this node contains a memory-region that
   points to reserved memory to store the zap shader that can be used to help
   bring the GPU out of secure mode.
+- firmware-name: optional property of the 'zap-shader' node, listing the
+  relative path of the device specific zap firmware.
 
 Example 3xx/4xx/a5xx:
 
@@ -85,6 +87,7 @@ Example a6xx (with GMU):
 
 		zap-shader {
 			memory-region = <&zap_shader_region>;
+			firmware-name = "qcom/LENOVO/81JL/qcdxkmsuc850.mbn"
 		};
 	};
 };
