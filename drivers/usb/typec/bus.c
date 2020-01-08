@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * Bus for USB Type-C Alternate Modes
  *
  * Copyright (C) 2018 Intel Corporation
