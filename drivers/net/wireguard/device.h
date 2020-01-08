@@ -62,12 +62,4 @@ struct wg_device {
 int wg_device_init(void);
 void wg_device_uninit(void);
 
-/* Later after the dust settles, this can be moved into include/linux/skbuff.h,
- * where virtually all code that deals with GSO segs can benefit, around ~30
- * drivers as of writing.
- */
-#define skb_list_walk_safe(first, skb, next)                                   \
-	for (skb = first, next = skb->next; skb;                               \
-	     skb = next, next = skb ? skb->next : NULL)
-
 #endif /* _WG_DEVICE_H */

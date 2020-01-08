@@ -307,12 +307,9 @@ static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
 	dev_consume_skb_any(skb);
 	skb = segments;
 
-	while (skb) {
-		next = skb->next;
-		skb->next = NULL;
-
+	skb_list_walk_safe(skb, skb, next) {
+		skb_mark_not_on_list(skb);
 		efx_enqueue_skb(tx_queue, skb);
-		skb = next;
 	}
 
 	return 0;
