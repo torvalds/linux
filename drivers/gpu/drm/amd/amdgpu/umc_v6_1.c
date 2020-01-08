@@ -30,8 +30,6 @@
 #include "umc/umc_6_1_1_sh_mask.h"
 #include "umc/umc_6_1_2_offset.h"
 
-#define smnMCA_UMC0_MCUMC_ADDRT0	0x50f10
-
 #define UMC_6_INST_DIST			0x40000
 
 /*
@@ -186,7 +184,7 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 					 uint32_t umc_inst)
 {
 	uint32_t lsb, mc_umc_status_addr;
-	uint64_t mc_umc_status, err_addr, retired_page;
+	uint64_t mc_umc_status, err_addr, retired_page, mc_umc_addrt0;
 	struct eeprom_table_record *err_rec;
 	uint32_t channel_index = adev->umc.channel_idx_tbl[umc_inst * adev->umc.channel_inst_num + ch_inst];
 
@@ -194,10 +192,14 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 		/* UMC 6_1_2 registers */
 		mc_umc_status_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0_ARCT);
+		mc_umc_addrt0 =
+			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_ADDRT0_ARCT);
 	} else {
 		/* UMC 6_1_1 registers */
 		mc_umc_status_addr =
 			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
+		mc_umc_addrt0 =
+			SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_ADDRT0);
 	}
 
 	/* skip error address process if -ENOMEM */
@@ -214,7 +216,7 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
 	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 ||
 	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1)) {
-		err_addr = RREG64_PCIE(smnMCA_UMC0_MCUMC_ADDRT0 + umc_reg_offset * 4);
+		err_addr = RREG64_PCIE((mc_umc_addrt0 + umc_reg_offset) * 4);
 
 		/* the lowest lsb bits should be ignored */
 		lsb = REG_GET_FIELD(err_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, LSB);
