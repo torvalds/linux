@@ -509,7 +509,7 @@ int snd_hdac_regmap_read_raw_uncached(struct hdac_device *codec,
  * snd_hdac_regmap_update_raw - update a pseudo register with power mgmt
  * @codec: the codec object
  * @reg: pseudo register
- * @mask: bit mask to udpate
+ * @mask: bit mask to update
  * @val: value to update
  *
  * Returns zero if successful or a negative error code.
