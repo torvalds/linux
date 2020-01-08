@@ -944,6 +944,13 @@ static bool intel_sdvo_set_colorimetry(struct intel_sdvo *intel_sdvo,
 	return intel_sdvo_set_value(intel_sdvo, SDVO_CMD_SET_COLORIMETRY, &mode, 1);
 }
 
+static bool intel_sdvo_set_pixel_replication(struct intel_sdvo *intel_sdvo,
+					     u8 pixel_repeat)
+{
+	return intel_sdvo_set_value(intel_sdvo, SDVO_CMD_SET_PIXEL_REPLI,
+				    &pixel_repeat, 1);
+}
+
 static bool intel_sdvo_set_audio_state(struct intel_sdvo *intel_sdvo,
 				       u8 audio_state)
 {
@@ -1501,6 +1508,9 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 					   SDVO_COLORIMETRY_RGB220 :
 					   SDVO_COLORIMETRY_RGB256);
 		intel_sdvo_set_avi_infoframe(intel_sdvo, crtc_state);
+		intel_sdvo_set_pixel_replication(intel_sdvo,
+						 !!(adjusted_mode->flags &
+						    DRM_MODE_FLAG_DBLCLK));
 	} else
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_DVI);
 
@@ -1855,17 +1865,26 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(connector);
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	bool has_hdmi_sink = intel_has_hdmi_sink(intel_sdvo, connector->state);
+	int clock = mode->clock;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
-	if (intel_sdvo->pixel_clock_min > mode->clock)
-		return MODE_CLOCK_LOW;
 
-	if (intel_sdvo->pixel_clock_max < mode->clock)
+	if (clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
-	if (mode->clock > max_dotclk)
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK) {
+		if (!has_hdmi_sink)
+			return MODE_CLOCK_LOW;
+		clock *= 2;
+	}
+
+	if (intel_sdvo->pixel_clock_min > clock)
+		return MODE_CLOCK_LOW;
+
+	if (intel_sdvo->pixel_clock_max < clock)
 		return MODE_CLOCK_HIGH;
 
 	if (IS_LVDS(intel_sdvo_connector)) {
