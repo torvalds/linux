@@ -50,6 +50,11 @@ struct amdgpu_sdma_instance {
 	bool			burst_nop;
 };
 
+struct amdgpu_sdma_ras_funcs {
+	int (*query_ras_error_count)(struct amdgpu_device *adev,
+			uint32_t instance, void *ras_error_status);
+};
+
 struct amdgpu_sdma {
 	struct amdgpu_sdma_instance instance[AMDGPU_MAX_SDMA_INSTANCES];
 	struct drm_gpu_scheduler    *sdma_sched[AMDGPU_MAX_SDMA_INSTANCES];
@@ -61,6 +66,7 @@ struct amdgpu_sdma {
 	uint32_t                    srbm_soft_reset;
 	bool			has_page_queue;
 	struct ras_common_if	*ras_if;
+	const struct amdgpu_sdma_ras_funcs	*funcs;
 };
 
 /*
