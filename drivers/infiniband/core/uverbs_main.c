@@ -421,92 +421,79 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 	kill_fasync(&ev_queue->async_queue, SIGIO, POLL_IN);
 }
 
-static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
-				    __u64 element, __u64 event,
-				    struct list_head *obj_list,
-				    u32 *counter)
+static void
+ib_uverbs_async_handler(struct ib_uverbs_async_event_file *async_file,
+			__u64 element, __u64 event, struct list_head *obj_list,
+			u32 *counter)
 {
 	struct ib_uverbs_event *entry;
 	unsigned long flags;
 
-	spin_lock_irqsave(&file->async_file->ev_queue.lock, flags);
-	if (file->async_file->ev_queue.is_closed) {
-		spin_unlock_irqrestore(&file->async_file->ev_queue.lock, flags);
+	spin_lock_irqsave(&async_file->ev_queue.lock, flags);
+	if (async_file->ev_queue.is_closed) {
+		spin_unlock_irqrestore(&async_file->ev_queue.lock, flags);
 		return;
 	}
 
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry) {
-		spin_unlock_irqrestore(&file->async_file->ev_queue.lock, flags);
+		spin_unlock_irqrestore(&async_file->ev_queue.lock, flags);
 		return;
 	}
 
-	entry->desc.async.element    = element;
+	entry->desc.async.element = element;
 	entry->desc.async.event_type = event;
-	entry->desc.async.reserved   = 0;
-	entry->counter               = counter;
+	entry->desc.async.reserved = 0;
+	entry->counter = counter;
 
-	list_add_tail(&entry->list, &file->async_file->ev_queue.event_list);
+	list_add_tail(&entry->list, &async_file->ev_queue.event_list);
 	if (obj_list)
 		list_add_tail(&entry->obj_list, obj_list);
-	spin_unlock_irqrestore(&file->async_file->ev_queue.lock, flags);
+	spin_unlock_irqrestore(&async_file->ev_queue.lock, flags);
 
-	wake_up_interruptible(&file->async_file->ev_queue.poll_wait);
-	kill_fasync(&file->async_file->ev_queue.async_queue, SIGIO, POLL_IN);
+	wake_up_interruptible(&async_file->ev_queue.poll_wait);
+	kill_fasync(&async_file->ev_queue.async_queue, SIGIO, POLL_IN);
+}
+
+static void uverbs_uobj_event(struct ib_uevent_object *eobj,
+			      struct ib_event *event)
+{
+	ib_uverbs_async_handler(eobj->uobject.ufile->async_file,
+				eobj->uobject.user_handle, event->event,
+				&eobj->event_list, &eobj->events_reported);
 }
 
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
 {
-	struct ib_uevent_object *uobj = &event->element.cq->uobject->uevent;
-
-	ib_uverbs_async_handler(uobj->uobject.ufile, uobj->uobject.user_handle,
-				event->event, &uobj->event_list,
-				&uobj->events_reported);
+	uverbs_uobj_event(&event->element.cq->uobject->uevent, event);
 }
 
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr)
 {
-	struct ib_uevent_object *uobj;
-
 	/* for XRC target qp's, check that qp is live */
 	if (!event->element.qp->uobject)
 		return;
 
-	uobj = &event->element.qp->uobject->uevent;
-
-	ib_uverbs_async_handler(context_ptr, uobj->uobject.user_handle,
-				event->event, &uobj->event_list,
-				&uobj->events_reported);
+	uverbs_uobj_event(&event->element.qp->uobject->uevent, event);
 }
 
 void ib_uverbs_wq_event_handler(struct ib_event *event, void *context_ptr)
 {
-	struct ib_uevent_object *uobj = &event->element.wq->uobject->uevent;
-
-	ib_uverbs_async_handler(context_ptr, uobj->uobject.user_handle,
-				event->event, &uobj->event_list,
-				&uobj->events_reported);
+	uverbs_uobj_event(&event->element.wq->uobject->uevent, event);
 }
 
 void ib_uverbs_srq_event_handler(struct ib_event *event, void *context_ptr)
 {
-	struct ib_uevent_object *uobj;
-
-	uobj = &event->element.srq->uobject->uevent;
-
-	ib_uverbs_async_handler(context_ptr, uobj->uobject.user_handle,
-				event->event, &uobj->event_list,
-				&uobj->events_reported);
+	uverbs_uobj_event(&event->element.srq->uobject->uevent, event);
 }
 
-void ib_uverbs_event_handler(struct ib_event_handler *handler,
-			     struct ib_event *event)
+static void ib_uverbs_event_handler(struct ib_event_handler *handler,
+				    struct ib_event *event)
 {
-	struct ib_uverbs_file *file =
-		container_of(handler, struct ib_uverbs_file, event_handler);
-
-	ib_uverbs_async_handler(file, event->element.port_num, event->event,
-				NULL, NULL);
+	ib_uverbs_async_handler(
+		container_of(handler, struct ib_uverbs_file, event_handler)
+			->async_file,
+		event->element.port_num, event->event, NULL, NULL);
 }
 
 void ib_uverbs_free_async_event_file(struct ib_uverbs_file *file)
