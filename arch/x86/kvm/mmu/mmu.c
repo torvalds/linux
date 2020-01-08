@@ -3329,6 +3329,34 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
 	__direct_pte_prefetch(vcpu, sp, sptep);
 }
 
+static int host_pfn_mapping_level(struct kvm_vcpu *vcpu, gfn_t gfn,
+				  kvm_pfn_t pfn)
+{
+	struct kvm_memory_slot *slot;
+	unsigned long hva;
+	pte_t *pte;
+	int level;
+
+	BUILD_BUG_ON(PT_PAGE_TABLE_LEVEL != (int)PG_LEVEL_4K ||
+		     PT_DIRECTORY_LEVEL != (int)PG_LEVEL_2M ||
+		     PT_PDPE_LEVEL != (int)PG_LEVEL_1G);
+
+	if (!PageCompound(pfn_to_page(pfn)))
+		return PT_PAGE_TABLE_LEVEL;
+
+	slot = gfn_to_memslot_dirty_bitmap(vcpu, gfn, true);
+	if (!slot)
+		return PT_PAGE_TABLE_LEVEL;
+
+	hva = __gfn_to_hva_memslot(slot, gfn);
+
+	pte = lookup_address_in_mm(vcpu->kvm->mm, hva, &level);
+	if (unlikely(!pte))
+		return PT_PAGE_TABLE_LEVEL;
+
+	return level;
+}
+
 static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
 					int max_level, kvm_pfn_t *pfnp,
 					int *levelp)
@@ -3344,10 +3372,11 @@ static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
 	    kvm_is_zone_device_pfn(pfn))
 		return;
 
-	if (!kvm_is_transparent_hugepage(pfn))
+	level = host_pfn_mapping_level(vcpu, gfn, pfn);
+	if (level == PT_PAGE_TABLE_LEVEL)
 		return;
 
-	level = PT_DIRECTORY_LEVEL;
+	level = min(level, max_level);
 
 	/*
 	 * mmu_notifier_retry() was successful and mmu_lock is held, so
