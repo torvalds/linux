@@ -319,9 +319,10 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 	rtnl_unlock();
 	if (ret < 0)
 		goto err_cleanup;
-	reply_len = ops->reply_size(req_info, reply_data);
+	ret = ops->reply_size(req_info, reply_data);
 	if (ret < 0)
 		goto err_cleanup;
+	reply_len = ret;
 	ret = -ENOMEM;
 	rskb = ethnl_reply_init(reply_len, req_info->dev, ops->reply_cmd,
 				ops->hdr_attr, info, &reply_payload);
@@ -555,9 +556,10 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 	ret = ops->prepare_data(req_info, reply_data, NULL);
 	if (ret < 0)
 		goto err_cleanup;
-	reply_len = ops->reply_size(req_info, reply_data);
+	ret = ops->reply_size(req_info, reply_data);
 	if (ret < 0)
 		goto err_cleanup;
+	reply_len = ret;
 	ret = -ENOMEM;
 	skb = genlmsg_new(reply_len, GFP_KERNEL);
 	if (!skb)
