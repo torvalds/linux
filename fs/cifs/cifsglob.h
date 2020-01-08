@@ -1061,7 +1061,7 @@ cap_unix(struct cifs_ses *ses)
 struct cached_fid {
 	bool is_valid:1;	/* Do we have a useable root fid */
 	bool file_all_info_is_valid:1;
-
+	bool has_lease:1;
 	struct kref refcount;
 	struct cifs_fid *fid;
 	struct mutex fid_mutex;
@@ -1693,6 +1693,7 @@ struct cifs_fattr {
 	struct timespec64 cf_atime;
 	struct timespec64 cf_mtime;
 	struct timespec64 cf_ctime;
+	u32             cf_cifstag;
 };
 
 static inline void free_dfs_info_param(struct dfs_info3_param *param)

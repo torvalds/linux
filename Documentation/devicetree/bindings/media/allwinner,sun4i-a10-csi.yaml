@@ -8,7 +8,7 @@ title: Allwinner A10 CMOS Sensor Interface (CSI) Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 description: |-
   The Allwinner A10 and later has a CMOS Sensor Interface to retrieve

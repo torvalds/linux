@@ -2652,7 +2652,7 @@ struct v4l2_ioctl_info {
 /* Zero struct from after the field to the end */
 #define INFO_FL_CLEAR(v4l2_struct, field)			\
 	((offsetof(struct v4l2_struct, field) +			\
-	  FIELD_SIZEOF(struct v4l2_struct, field)) << 16)
+	  sizeof_field(struct v4l2_struct, field)) << 16)
 #define INFO_FL_CLEAR_MASK	(_IOC_SIZEMASK << 16)
 
 #define DEFINE_V4L_STUB_FUNC(_vidioc)				\

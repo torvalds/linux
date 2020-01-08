@@ -78,12 +78,11 @@ static const struct dma_fence_ops fence_ops = {
 void dma_fence_work_init(struct dma_fence_work *f,
 			 const struct dma_fence_work_ops *ops)
 {
+	f->ops = ops;
 	spin_lock_init(&f->lock);
 	dma_fence_init(&f->dma, &fence_ops, &f->lock, 0, 0);
 	i915_sw_fence_init(&f->chain, fence_notify);
 	INIT_WORK(&f->work, fence_work);
-
-	f->ops = ops;
 }
 
 int dma_fence_work_chain(struct dma_fence_work *f, struct dma_fence *signal)

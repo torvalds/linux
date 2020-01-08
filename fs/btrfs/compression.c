@@ -447,7 +447,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 
 	if (blkcg_css) {
 		bio->bi_opf |= REQ_CGROUP_PUNT;
-		bio_associate_blkg_from_css(bio, blkcg_css);
+		kthread_associate_blkcg(blkcg_css);
 	}
 	refcount_set(&cb->pending_bios, 1);
 
@@ -491,6 +491,8 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			bio->bi_opf = REQ_OP_WRITE | write_flags;
 			bio->bi_private = cb;
 			bio->bi_end_io = end_compressed_bio_write;
+			if (blkcg_css)
+				bio->bi_opf |= REQ_CGROUP_PUNT;
 			bio_add_page(bio, page, PAGE_SIZE, 0);
 		}
 		if (bytes_left < PAGE_SIZE) {
@@ -516,6 +518,9 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		bio->bi_status = ret;
 		bio_endio(bio);
 	}
+
+	if (blkcg_css)
+		kthread_associate_blkcg(NULL);
 
 	return 0;
 }

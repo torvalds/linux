@@ -98,9 +98,6 @@ static int neigh_blackhole(struct neighbour *neigh, struct sk_buff *skb)
 
 static void neigh_cleanup_and_release(struct neighbour *neigh)
 {
-	if (neigh->parms->neigh_cleanup)
-		neigh->parms->neigh_cleanup(neigh);
-
 	trace_neigh_cleanup_and_release(neigh, 0);
 	__neigh_notify(neigh, RTM_DELNEIGH, 0, 0);
 	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);

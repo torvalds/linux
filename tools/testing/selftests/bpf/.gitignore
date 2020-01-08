@@ -40,3 +40,4 @@ xdping
 test_cpp
 /no_alu32
 /bpf_gcc
+bpf_helper_defs.h

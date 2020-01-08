@@ -234,7 +234,7 @@ int sja1105_ptp_commit(struct dsa_switch *ds, struct sja1105_ptp_cmd *cmd,
 	if (rw == SPI_WRITE)
 		priv->info->ptp_cmd_packing(buf, cmd, PACK);
 
-	rc = sja1105_xfer_buf(priv, SPI_WRITE, regs->ptp_control, buf,
+	rc = sja1105_xfer_buf(priv, rw, regs->ptp_control, buf,
 			      SJA1105_SIZE_PTP_CMD);
 
 	if (rw == SPI_READ)
@@ -659,7 +659,7 @@ void sja1105_ptp_clock_unregister(struct dsa_switch *ds)
 	ptp_data->clock = NULL;
 }
 
-void sja1105_ptp_txtstamp_skb(struct dsa_switch *ds, int slot,
+void sja1105_ptp_txtstamp_skb(struct dsa_switch *ds, int port,
 			      struct sk_buff *skb)
 {
 	struct sja1105_private *priv = ds->priv;
@@ -679,7 +679,7 @@ void sja1105_ptp_txtstamp_skb(struct dsa_switch *ds, int slot,
 		goto out;
 	}
 
-	rc = sja1105_ptpegr_ts_poll(ds, slot, &ts);
+	rc = sja1105_ptpegr_ts_poll(ds, port, &ts);
 	if (rc < 0) {
 		dev_err(ds->dev, "timed out polling for tstamp\n");
 		kfree_skb(skb);
