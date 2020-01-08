@@ -4823,7 +4823,7 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 	bool atomic = wr->access & IB_ACCESS_REMOTE_ATOMIC;
 	u8 flags = 0;
 
-	if (!mlx5_ib_can_use_umr(dev, atomic)) {
+	if (!mlx5_ib_can_use_umr(dev, atomic, wr->access)) {
 		mlx5_ib_warn(to_mdev(qp->ibqp.device),
 			     "Fast update of %s for MR is disabled\n",
 			     (MLX5_CAP_GEN(dev->mdev,

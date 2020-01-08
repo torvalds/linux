@@ -380,7 +380,7 @@ void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 	memset(caps, 0, sizeof(*caps));
 
 	if (!MLX5_CAP_GEN(dev->mdev, pg) ||
-	    !mlx5_ib_can_use_umr(dev, true))
+	    !mlx5_ib_can_use_umr(dev, true, 0))
 		return;
 
 	caps->general_caps = IB_ODP_SUPPORT;
