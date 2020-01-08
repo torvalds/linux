@@ -239,6 +239,7 @@ static int strset_prepare_data(const struct ethnl_req_info *req_base,
 				return -EINVAL;
 			}
 		}
+		return 0;
 	}
 
 	ret = ethnl_ops_begin(dev);
