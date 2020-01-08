@@ -2135,8 +2135,9 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	return ret;
 }
 
-static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
+static int intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 {
+	int num_modes = 0;
 	struct edid *edid;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
@@ -2151,18 +2152,19 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 	 * DDC fails, check to see if the analog output is disconnected, in
 	 * which case we'll look there for the digital DDC data.
 	 */
-	if (edid == NULL)
+	if (!edid)
 		edid = intel_sdvo_get_analog_edid(connector);
 
-	if (edid != NULL) {
-		if (intel_sdvo_connector_matches_edid(to_intel_sdvo_connector(connector),
-						      edid)) {
-			drm_connector_update_edid_property(connector, edid);
-			drm_add_edid_modes(connector, edid);
-		}
+	if (!edid)
+		return 0;
 
-		kfree(edid);
-	}
+	if (intel_sdvo_connector_matches_edid(to_intel_sdvo_connector(connector),
+					      edid))
+		num_modes += intel_connector_update_modes(connector, edid);
+
+	kfree(edid);
+
+	return num_modes;
 }
 
 /*
@@ -2230,12 +2232,13 @@ static const struct drm_display_mode sdvo_tv_modes[] = {
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
 };
 
-static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
+static int intel_sdvo_get_tv_modes(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	const struct drm_connector_state *conn_state = connector->state;
 	struct intel_sdvo_sdtv_resolution_request tv_res;
 	u32 reply = 0, format_map = 0;
+	int num_modes = 0;
 	int i;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
@@ -2250,31 +2253,37 @@ static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 	       min(sizeof(format_map), sizeof(struct intel_sdvo_sdtv_resolution_request)));
 
 	if (!intel_sdvo_set_target_output(intel_sdvo, intel_sdvo->attached_output))
-		return;
+		return 0;
 
 	BUILD_BUG_ON(sizeof(tv_res) != 3);
 	if (!intel_sdvo_write_cmd(intel_sdvo,
 				  SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT,
 				  &tv_res, sizeof(tv_res)))
-		return;
+		return 0;
 	if (!intel_sdvo_read_response(intel_sdvo, &reply, 3))
-		return;
+		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(sdvo_tv_modes); i++)
+	for (i = 0; i < ARRAY_SIZE(sdvo_tv_modes); i++) {
 		if (reply & (1 << i)) {
 			struct drm_display_mode *nmode;
 			nmode = drm_mode_duplicate(connector->dev,
 						   &sdvo_tv_modes[i]);
-			if (nmode)
+			if (nmode) {
 				drm_mode_probed_add(connector, nmode);
+				num_modes++;
+			}
 		}
+	}
+
+	return num_modes;
 }
 
-static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
+static int intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct drm_display_mode *newmode;
+	int num_modes = 0;
 
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
@@ -2291,6 +2300,7 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 			newmode->type = (DRM_MODE_TYPE_PREFERRED |
 					 DRM_MODE_TYPE_DRIVER);
 			drm_mode_probed_add(connector, newmode);
+			num_modes++;
 		}
 	}
 
@@ -2299,7 +2309,9 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 	 * Assume that the preferred modes are
 	 * arranged in priority order.
 	 */
-	intel_ddc_get_modes(connector, &intel_sdvo->ddc);
+	num_modes += intel_ddc_get_modes(connector, &intel_sdvo->ddc);
+
+	return num_modes;
 }
 
 static int intel_sdvo_get_modes(struct drm_connector *connector)
@@ -2307,13 +2319,11 @@ static int intel_sdvo_get_modes(struct drm_connector *connector)
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 
 	if (IS_TV(intel_sdvo_connector))
-		intel_sdvo_get_tv_modes(connector);
+		return intel_sdvo_get_tv_modes(connector);
 	else if (IS_LVDS(intel_sdvo_connector))
-		intel_sdvo_get_lvds_modes(connector);
+		return intel_sdvo_get_lvds_modes(connector);
 	else
-		intel_sdvo_get_ddc_modes(connector);
-
-	return !list_empty(&connector->probed_modes);
+		return intel_sdvo_get_ddc_modes(connector);
 }
 
 static int
