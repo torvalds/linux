@@ -112,10 +112,8 @@
 		};
 
 		rng@7e104000 {
-			interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
-
-			/* RNG is incompatible with brcm,bcm2835-rng */
-			status = "disabled";
+			compatible = "brcm,bcm2711-rng200";
+			reg = <0x7e104000 0x28>;
 		};
 
 		uart2: serial@7e201400 {
