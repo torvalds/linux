@@ -29,7 +29,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_supported_band *sband;
 	struct sk_buff *skb;
-	struct ieee80211_rx_status rx_status = { 0 };
+	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_hdr *hdr;
 	__le16 fc;
 	u8 *rsr, *new_rsr, *rssi;
@@ -46,6 +46,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	long rx_dbm;
 
 	skb = ptr_rcb->skb;
+	rx_status = IEEE80211_SKB_RXCB(skb);
 
 	/* [31:16]RcvByteCount ( not include 4-byte Status ) */
 	wbk_status = *((u32 *)(skb->data));
@@ -136,23 +137,23 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	skb_pull(skb, 8);
 	skb_trim(skb, frame_size);
 
-	rx_status.mactime = priv->tsf_time;
-	rx_status.band = hw->conf.chandef.chan->band;
-	rx_status.signal = rx_dbm;
-	rx_status.flag = 0;
-	rx_status.freq = hw->conf.chandef.chan->center_freq;
+	rx_status->mactime = priv->tsf_time;
+	rx_status->band = hw->conf.chandef.chan->band;
+	rx_status->signal = rx_dbm;
+	rx_status->flag = 0;
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
 
 	if (!(*rsr & RSR_CRCOK))
-		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
+		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
 	hdr = (struct ieee80211_hdr *)(skb->data);
 	fc = hdr->frame_control;
 
-	rx_status.rate_idx = rate_idx;
+	rx_status->rate_idx = rate_idx;
 
 	if (ieee80211_has_protected(fc)) {
 		if (priv->local_id > REV_ID_VT3253_A1) {
-			rx_status.flag |= RX_FLAG_DECRYPTED;
+			rx_status->flag |= RX_FLAG_DECRYPTED;
 
 			/* Drop packet */
 			if (!(*new_rsr & NEWRSR_DECRYPTOK)) {
@@ -161,8 +162,6 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 			}
 		}
 	}
-
-	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
 	ieee80211_rx_irqsafe(priv->hw, skb);
 
