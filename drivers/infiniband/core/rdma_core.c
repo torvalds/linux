@@ -845,9 +845,7 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 }
 
 /*
- * Destroy the uncontext and every uobject associated with it. If called with
- * reason != RDMA_REMOVE_CLOSE this will not return until the destruction has
- * been completed and ufile->ucontext is NULL.
+ * Destroy the uncontext and every uobject associated with it.
  *
  * This is internally locked and can be called in parallel from multiple
  * contexts.
@@ -855,22 +853,6 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 			     enum rdma_remove_reason reason)
 {
-	if (reason == RDMA_REMOVE_CLOSE) {
-		/*
-		 * During destruction we might trigger something that
-		 * synchronously calls release on any file descriptor. For
-		 * this reason all paths that come from file_operations
-		 * release must use try_lock. They can progress knowing that
-		 * there is an ongoing uverbs_destroy_ufile_hw that will clean
-		 * up the driver resources.
-		 */
-		if (!mutex_trylock(&ufile->ucontext_lock))
-			return;
-
-	} else {
-		mutex_lock(&ufile->ucontext_lock);
-	}
-
 	down_write(&ufile->hw_destroy_rwsem);
 
 	/*
@@ -899,7 +881,6 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 
 done:
 	up_write(&ufile->hw_destroy_rwsem);
-	mutex_unlock(&ufile->ucontext_lock);
 }
 
 const struct uverbs_obj_type_class uverbs_fd_class = {
