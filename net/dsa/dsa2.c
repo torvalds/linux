@@ -614,6 +614,32 @@ static int dsa_port_parse_dsa(struct dsa_port *dp)
 	return 0;
 }
 
+static enum dsa_tag_protocol dsa_get_tag_protocol(struct dsa_port *dp,
+						  struct net_device *master)
+{
+	enum dsa_tag_protocol tag_protocol = DSA_TAG_PROTO_NONE;
+	struct dsa_switch *mds, *ds = dp->ds;
+	unsigned int mdp_upstream;
+	struct dsa_port *mdp;
+
+	/* It is possible to stack DSA switches onto one another when that
+	 * happens the switch driver may want to know if its tagging protocol
+	 * is going to work in such a configuration.
+	 */
+	if (dsa_slave_dev_check(master)) {
+		mdp = dsa_slave_to_port(master);
+		mds = mdp->ds;
+		mdp_upstream = dsa_upstream_port(mds, mdp->index);
+		tag_protocol = mds->ops->get_tag_protocol(mds, mdp_upstream,
+							  DSA_TAG_PROTO_NONE);
+	}
+
+	/* If the master device is not itself a DSA slave in a disjoint DSA
+	 * tree, then return immediately.
+	 */
+	return ds->ops->get_tag_protocol(ds, dp->index, tag_protocol);
+}
+
 static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 {
 	struct dsa_switch *ds = dp->ds;
@@ -621,20 +647,21 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 	const struct dsa_device_ops *tag_ops;
 	enum dsa_tag_protocol tag_protocol;
 
-	tag_protocol = ds->ops->get_tag_protocol(ds, dp->index);
+	tag_protocol = dsa_get_tag_protocol(dp, master);
 	tag_ops = dsa_tag_driver_get(tag_protocol);
 	if (IS_ERR(tag_ops)) {
 		if (PTR_ERR(tag_ops) == -ENOPROTOOPT)
 			return -EPROBE_DEFER;
 		dev_warn(ds->dev, "No tagger for this switch\n");
+		dp->master = NULL;
 		return PTR_ERR(tag_ops);
 	}
 
+	dp->master = master;
 	dp->type = DSA_PORT_TYPE_CPU;
 	dp->filter = tag_ops->filter;
 	dp->rcv = tag_ops->rcv;
 	dp->tag_ops = tag_ops;
-	dp->master = master;
 	dp->dst = dst;
 
 	return 0;

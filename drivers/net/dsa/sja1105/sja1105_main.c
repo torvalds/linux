@@ -1534,7 +1534,8 @@ static int sja1105_setup_8021q_tagging(struct dsa_switch *ds, bool enabled)
 }
 
 static enum dsa_tag_protocol
-sja1105_get_tag_protocol(struct dsa_switch *ds, int port)
+sja1105_get_tag_protocol(struct dsa_switch *ds, int port,
+			 enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_SJA1105;
 }

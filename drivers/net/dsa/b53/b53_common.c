@@ -573,9 +573,8 @@ EXPORT_SYMBOL(b53_disable_port);
 
 void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
 {
-	bool tag_en = !(ds->ops->get_tag_protocol(ds, port) ==
-			 DSA_TAG_PROTO_NONE);
 	struct b53_device *dev = ds->priv;
+	bool tag_en = !(dev->tag_protocol == DSA_TAG_PROTO_NONE);
 	u8 hdr_ctl, val;
 	u16 reg;
 
@@ -1876,7 +1875,8 @@ static bool b53_can_enable_brcm_tags(struct dsa_switch *ds, int port)
 	return ret;
 }
 
-enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds, int port)
+enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds, int port,
+					   enum dsa_tag_protocol mprot)
 {
 	struct b53_device *dev = ds->priv;
 
@@ -1886,16 +1886,22 @@ enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds, int port)
 	 * misses on multicast addresses (TBD).
 	 */
 	if (is5325(dev) || is5365(dev) || is539x(dev) || is531x5(dev) ||
-	    !b53_can_enable_brcm_tags(ds, port))
-		return DSA_TAG_PROTO_NONE;
+	    !b53_can_enable_brcm_tags(ds, port)) {
+		dev->tag_protocol = DSA_TAG_PROTO_NONE;
+		goto out;
+	}
 
 	/* Broadcom BCM58xx chips have a flow accelerator on Port 8
 	 * which requires us to use the prepended Broadcom tag type
 	 */
-	if (dev->chip_id == BCM58XX_DEVICE_ID && port == B53_CPU_PORT)
-		return DSA_TAG_PROTO_BRCM_PREPEND;
+	if (dev->chip_id == BCM58XX_DEVICE_ID && port == B53_CPU_PORT) {
+		dev->tag_protocol = DSA_TAG_PROTO_BRCM_PREPEND;
+		goto out;
+	}
 
-	return DSA_TAG_PROTO_BRCM;
+	dev->tag_protocol = DSA_TAG_PROTO_BRCM;
+out:
+	return dev->tag_protocol;
 }
 EXPORT_SYMBOL(b53_get_tag_protocol);
 

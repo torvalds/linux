@@ -347,7 +347,8 @@ static void ar9331_sw_port_disable(struct dsa_switch *ds, int port)
 }
 
 static enum dsa_tag_protocol ar9331_sw_get_tag_protocol(struct dsa_switch *ds,
-							int port)
+							int port,
+							enum dsa_tag_protocol m)
 {
 	return DSA_TAG_PROTO_AR9331;
 }

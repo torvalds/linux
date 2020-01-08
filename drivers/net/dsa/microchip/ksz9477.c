@@ -295,7 +295,8 @@ static void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
 }
 
 static enum dsa_tag_protocol ksz9477_get_tag_protocol(struct dsa_switch *ds,
-						      int port)
+						      int port,
+						      enum dsa_tag_protocol mp)
 {
 	enum dsa_tag_protocol proto = DSA_TAG_PROTO_KSZ9477;
 	struct ksz_device *dev = ds->priv;
