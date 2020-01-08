@@ -424,6 +424,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-gw5904.dtb \
 	imx6dl-gw5907.dtb \
 	imx6dl-gw5910.dtb \
+	imx6dl-gw5913.dtb \
 	imx6dl-hummingboard.dtb \
 	imx6dl-hummingboard-emmc-som-v15.dtb \
 	imx6dl-hummingboard-som-v15.dtb \
@@ -497,6 +498,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-gw5904.dtb \
 	imx6q-gw5907.dtb \
 	imx6q-gw5910.dtb \
+	imx6q-gw5913.dtb \
 	imx6q-h100.dtb \
 	imx6q-hummingboard.dtb \
 	imx6q-hummingboard-emmc-som-v15.dtb \
