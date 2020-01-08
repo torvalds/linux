@@ -688,7 +688,7 @@ static int hantro_start_streaming(struct vb2_queue *q, unsigned int count)
 	return ret;
 
 err_codec_exit:
-	if (ctx->codec_ops && ctx->codec_ops->exit)
+	if (ctx->codec_ops->exit)
 		ctx->codec_ops->exit(ctx);
 	return ret;
 }
