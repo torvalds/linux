@@ -150,6 +150,9 @@ void ib_uverbs_release_uevent(struct ib_uevent_object *uobj)
 		READ_ONCE(uobj->uobject.ufile->async_file);
 	struct ib_uverbs_event *evt, *tmp;
 
+	if (!async_file)
+		return;
+
 	spin_lock_irq(&async_file->ev_queue.lock);
 	list_for_each_entry_safe(evt, tmp, &uobj->event_list, obj_list) {
 		list_del(&evt->list);
@@ -391,6 +394,9 @@ ib_uverbs_async_handler(struct ib_uverbs_async_event_file *async_file,
 	struct ib_uverbs_event *entry;
 	unsigned long flags;
 
+	if (!async_file)
+		return;
+
 	spin_lock_irqsave(&async_file->ev_queue.lock, flags);
 	if (async_file->ev_queue.is_closed) {
 		spin_unlock_irqrestore(&async_file->ev_queue.lock, flags);
@@ -476,12 +482,13 @@ void ib_uverbs_init_async_event_file(
 	ib_uverbs_init_event_queue(&async_file->ev_queue);
 
 	/* The first async_event_file becomes the default one for the file. */
-	lockdep_assert_held(&uverbs_file->ucontext_lock);
+	mutex_lock(&uverbs_file->ucontext_lock);
 	if (!uverbs_file->async_file) {
 		/* Pairs with the put in ib_uverbs_release_file */
 		uverbs_uobject_get(&async_file->uobj);
 		smp_store_release(&uverbs_file->async_file, async_file);
 	}
+	mutex_unlock(&uverbs_file->ucontext_lock);
 
 	INIT_IB_EVENT_HANDLER(&async_file->event_handler, ib_dev,
 			      ib_uverbs_event_handler);

@@ -14,10 +14,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_ASYNC_EVENT_ALLOC)(
 	struct ib_uobject *uobj =
 		uverbs_attr_get_uobject(attrs, UVERBS_METHOD_ASYNC_EVENT_ALLOC);
 
-	mutex_lock(&attrs->ufile->ucontext_lock);
 	ib_uverbs_init_async_event_file(
 		container_of(uobj, struct ib_uverbs_async_event_file, uobj));
-	mutex_unlock(&attrs->ufile->ucontext_lock);
 	return 0;
 }
 

@@ -203,81 +203,54 @@ _ib_uverbs_lookup_comp_file(s32 fd, struct uverbs_attr_bundle *attrs)
 #define ib_uverbs_lookup_comp_file(_fd, _ufile)                                \
 	_ib_uverbs_lookup_comp_file((_fd)*typecheck(s32, _fd), _ufile)
 
-static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
+int ib_alloc_ucontext(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_file *file = attrs->ufile;
-	struct ib_uverbs_get_context      cmd;
-	struct ib_uverbs_get_context_resp resp;
-	struct ib_ucontext		 *ucontext;
-	struct ib_rdmacg_object		 cg_obj;
+	struct ib_uverbs_file *ufile = attrs->ufile;
+	struct ib_ucontext *ucontext;
 	struct ib_device *ib_dev;
-	struct ib_uobject *uobj;
-	int ret;
 
-	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
-	if (ret)
-		return ret;
+	ib_dev = srcu_dereference(ufile->device->ib_dev,
+				  &ufile->device->disassociate_srcu);
+	if (!ib_dev)
+		return -EIO;
+
+	ucontext = rdma_zalloc_drv_obj(ib_dev, ib_ucontext);
+	if (!ucontext)
+		return -ENOMEM;
+
+	ucontext->res.type = RDMA_RESTRACK_CTX;
+	ucontext->device = ib_dev;
+	ucontext->ufile = ufile;
+	xa_init_flags(&ucontext->mmap_xa, XA_FLAGS_ALLOC);
+	attrs->context = ucontext;
+	return 0;
+}
+
+int ib_init_ucontext(struct uverbs_attr_bundle *attrs)
+{
+	struct ib_ucontext *ucontext = attrs->context;
+	struct ib_uverbs_file *file = attrs->ufile;
+	int ret;
 
 	if (!down_read_trylock(&file->hw_destroy_rwsem))
 		return -EIO;
 	mutex_lock(&file->ucontext_lock);
-	ib_dev = srcu_dereference(file->device->ib_dev,
-				  &file->device->disassociate_srcu);
-	if (!ib_dev) {
-		ret = -EIO;
-		goto err;
-	}
-
 	if (file->ucontext) {
 		ret = -EINVAL;
 		goto err;
 	}
 
-	ret = ib_rdmacg_try_charge(&cg_obj, ib_dev, RDMACG_RESOURCE_HCA_HANDLE);
+	ret = ib_rdmacg_try_charge(&ucontext->cg_obj, ucontext->device,
+				   RDMACG_RESOURCE_HCA_HANDLE);
 	if (ret)
 		goto err;
 
-	ucontext = rdma_zalloc_drv_obj(ib_dev, ib_ucontext);
-	if (!ucontext) {
-		ret = -ENOMEM;
-		goto err_alloc;
-	}
-
-	attrs->context = ucontext;
-
-	ucontext->res.type = RDMA_RESTRACK_CTX;
-	ucontext->device = ib_dev;
-	ucontext->cg_obj = cg_obj;
-	/* ufile is required when some objects are released */
-	ucontext->ufile = file;
-
-	ucontext->closing = false;
-	ucontext->cleanup_retryable = false;
-
-	xa_init_flags(&ucontext->mmap_xa, XA_FLAGS_ALLOC);
-
-	uobj = uobj_alloc(UVERBS_OBJECT_ASYNC_EVENT, attrs, &ib_dev);
-	if (IS_ERR(uobj)) {
-		ret = PTR_ERR(uobj);
-		goto err_free;
-	}
-
-	resp.async_fd = uobj->id;
-	resp.num_comp_vectors = file->device->num_comp_vectors;
-
-	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	ret = ucontext->device->ops.alloc_ucontext(ucontext,
+						   &attrs->driver_udata);
 	if (ret)
-		goto err_uobj;
-
-	ret = ib_dev->ops.alloc_ucontext(ucontext, &attrs->driver_udata);
-	if (ret)
-		goto err_uobj;
+		goto err_uncharge;
 
 	rdma_restrack_uadd(&ucontext->res);
-
-	ib_uverbs_init_async_event_file(
-		container_of(uobj, struct ib_uverbs_async_event_file, uobj));
-	rdma_alloc_commit_uobject(uobj, attrs);
 
 	/*
 	 * Make sure that ib_uverbs_get_ucontext() sees the pointer update
@@ -289,18 +262,59 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 	up_read(&file->hw_destroy_rwsem);
 	return 0;
 
-err_uobj:
-	rdma_alloc_abort_uobject(uobj, attrs);
-
-err_free:
-	kfree(ucontext);
-
-err_alloc:
-	ib_rdmacg_uncharge(&cg_obj, ib_dev, RDMACG_RESOURCE_HCA_HANDLE);
-
+err_uncharge:
+	ib_rdmacg_uncharge(&ucontext->cg_obj, ucontext->device,
+			   RDMACG_RESOURCE_HCA_HANDLE);
 err:
 	mutex_unlock(&file->ucontext_lock);
 	up_read(&file->hw_destroy_rwsem);
+	return ret;
+}
+
+static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uverbs_get_context_resp resp;
+	struct ib_uverbs_get_context cmd;
+	struct ib_device *ib_dev;
+	struct ib_uobject *uobj;
+	int ret;
+
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
+
+	ret = ib_alloc_ucontext(attrs);
+	if (ret)
+		return ret;
+
+	uobj = uobj_alloc(UVERBS_OBJECT_ASYNC_EVENT, attrs, &ib_dev);
+	if (IS_ERR(uobj)) {
+		ret = PTR_ERR(uobj);
+		goto err_ucontext;
+	}
+
+	resp = (struct ib_uverbs_get_context_resp){
+		.num_comp_vectors = attrs->ufile->device->num_comp_vectors,
+		.async_fd = uobj->id,
+	};
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
+		goto err_uobj;
+
+	ret = ib_init_ucontext(attrs);
+	if (ret)
+		goto err_uobj;
+
+	ib_uverbs_init_async_event_file(
+		container_of(uobj, struct ib_uverbs_async_event_file, uobj));
+	rdma_alloc_commit_uobject(uobj, attrs);
+	return 0;
+
+err_uobj:
+	rdma_alloc_abort_uobject(uobj, attrs);
+err_ucontext:
+	kfree(attrs->context);
+	attrs->context = NULL;
 	return ret;
 }
 

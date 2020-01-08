@@ -200,6 +200,35 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_PORT)(
 					     &resp, sizeof(resp));
 }
 
+static int UVERBS_HANDLER(UVERBS_METHOD_GET_CONTEXT)(
+	struct uverbs_attr_bundle *attrs)
+{
+	u32 num_comp = attrs->ufile->device->num_comp_vectors;
+	int ret;
+
+	ret = uverbs_copy_to(attrs, UVERBS_ATTR_GET_CONTEXT_NUM_COMP_VECTORS,
+			     &num_comp, sizeof(num_comp));
+	if (IS_UVERBS_COPY_ERR(ret))
+		return ret;
+
+	ret = ib_alloc_ucontext(attrs);
+	if (ret)
+		return ret;
+	ret = ib_init_ucontext(attrs);
+	if (ret) {
+		kfree(attrs->context);
+		attrs->context = NULL;
+		return ret;
+	}
+	return 0;
+}
+
+DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_GET_CONTEXT,
+	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_GET_CONTEXT_NUM_COMP_VECTORS,
+			    UVERBS_ATTR_TYPE(u32), UA_OPTIONAL),
+	UVERBS_ATTR_UHW());
+
 DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_METHOD_INFO_HANDLES,
 	/* Also includes any device specific object ids */
@@ -220,6 +249,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 		UA_MANDATORY));
 
 DECLARE_UVERBS_GLOBAL_METHODS(UVERBS_OBJECT_DEVICE,
+			      &UVERBS_METHOD(UVERBS_METHOD_GET_CONTEXT),
 			      &UVERBS_METHOD(UVERBS_METHOD_INVOKE_WRITE),
 			      &UVERBS_METHOD(UVERBS_METHOD_INFO_HANDLES),
 			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_PORT));
