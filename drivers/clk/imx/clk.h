@@ -390,14 +390,17 @@ static inline struct clk_hw *imx_clk_hw_gate4(const char *name, const char *pare
 			reg, shift, 0x3, 0, &imx_ccm_lock, NULL);
 }
 
-static inline struct clk *imx_clk_gate4_flags(const char *name,
+static inline struct clk_hw *imx_clk_hw_gate4_flags(const char *name,
 		const char *parent, void __iomem *reg, u8 shift,
 		unsigned long flags)
 {
-	return clk_register_gate2(NULL, name, parent,
+	return clk_hw_register_gate2(NULL, name, parent,
 			flags | CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 			reg, shift, 0x3, 0, &imx_ccm_lock, NULL);
 }
+
+#define imx_clk_gate4_flags(name, parent, reg, shift, flags) \
+	to_clk(imx_clk_hw_gate4_flags(name, parent, reg, shift, flags))
 
 static inline struct clk_hw *imx_clk_hw_mux(const char *name, void __iomem *reg,
 			u8 shift, u8 width, const char * const *parents,
