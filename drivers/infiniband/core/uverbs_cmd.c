@@ -2971,7 +2971,7 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 		goto err_put_cq;
 	}
 
-	wq->uobject = &obj->uevent.uobject;
+	wq->uobject = obj;
 	obj->uevent.uobject.object = wq;
 	wq->wq_type = wq_init_attr.wq_type;
 	wq->cq = cq;
@@ -2981,7 +2981,7 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 	atomic_set(&wq->usecnt, 0);
 	atomic_inc(&pd->usecnt);
 	atomic_inc(&cq->usecnt);
-	wq->uobject = &obj->uevent.uobject;
+	wq->uobject = obj;
 	obj->uevent.uobject.object = wq;
 
 	memset(&resp, 0, sizeof(resp));
@@ -3070,7 +3070,8 @@ static int ib_uverbs_ex_modify_wq(struct uverbs_attr_bundle *attrs)
 	}
 	ret = wq->device->ops.modify_wq(wq, &wq_attr, cmd.attr_mask,
 					&attrs->driver_udata);
-	uobj_put_obj_read(wq);
+	rdma_lookup_put_uobject(&wq->uobject->uevent.uobject,
+				UVERBS_LOOKUP_READ);
 	return ret;
 }
 
@@ -3171,7 +3172,8 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 	kfree(wqs_handles);
 
 	for (j = 0; j < num_read_wqs; j++)
-		uobj_put_obj_read(wqs[j]);
+		rdma_lookup_put_uobject(&wqs[j]->uobject->uevent.uobject,
+					UVERBS_LOOKUP_READ);
 
 	rdma_alloc_commit_uobject(uobj, attrs);
 	return 0;
@@ -3182,7 +3184,8 @@ err_uobj:
 	uobj_alloc_abort(uobj, attrs);
 put_wqs:
 	for (j = 0; j < num_read_wqs; j++)
-		uobj_put_obj_read(wqs[j]);
+		rdma_lookup_put_uobject(&wqs[j]->uobject->uevent.uobject,
+					UVERBS_LOOKUP_READ);
 err_free:
 	kfree(wqs_handles);
 	kfree(wqs);
