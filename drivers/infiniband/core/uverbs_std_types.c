@@ -202,22 +202,29 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 	return 0;
 }
 
-static int uverbs_hot_unplug_completion_event_file(struct ib_uobject *uobj,
-						   enum rdma_remove_reason why)
+static int
+uverbs_completion_event_file_destroy_uobj(struct ib_uobject *uobj,
+					  enum rdma_remove_reason why)
 {
-	struct ib_uverbs_completion_event_file *comp_event_file =
+	struct ib_uverbs_completion_event_file *file =
 		container_of(uobj, struct ib_uverbs_completion_event_file,
 			     uobj);
-	struct ib_uverbs_event_queue *event_queue = &comp_event_file->ev_queue;
+	struct ib_uverbs_event_queue *event_queue = &file->ev_queue;
+	struct ib_uverbs_event *entry, *tmp;
 
 	spin_lock_irq(&event_queue->lock);
 	event_queue->is_closed = 1;
 	spin_unlock_irq(&event_queue->lock);
+	wake_up_interruptible(&event_queue->poll_wait);
+	kill_fasync(&event_queue->async_queue, SIGIO, POLL_IN);
 
-	if (why == RDMA_REMOVE_DRIVER_REMOVE) {
-		wake_up_interruptible(&event_queue->poll_wait);
-		kill_fasync(&event_queue->async_queue, SIGIO, POLL_IN);
+	spin_lock_irq(&event_queue->lock);
+	list_for_each_entry_safe(entry, tmp, &event_queue->event_list, list) {
+		if (entry->counter)
+			list_del(&entry->obj_list);
+		kfree(entry);
 	}
+	spin_unlock_irq(&event_queue->lock);
 	return 0;
 };
 
@@ -230,7 +237,7 @@ EXPORT_SYMBOL(uverbs_destroy_def_handler);
 DECLARE_UVERBS_NAMED_OBJECT(
 	UVERBS_OBJECT_COMP_CHANNEL,
 	UVERBS_TYPE_ALLOC_FD(sizeof(struct ib_uverbs_completion_event_file),
-			     uverbs_hot_unplug_completion_event_file,
+			     uverbs_completion_event_file_destroy_uobj,
 			     &uverbs_event_fops,
 			     "[infinibandevent]",
 			     O_RDONLY));

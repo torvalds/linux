@@ -161,11 +161,11 @@ struct uverbs_obj_fd_type {
 	 * In fd based objects, uverbs_obj_type_ops points to generic
 	 * fd operations. In order to specialize the underlying types (e.g.
 	 * completion_channel), we use fops, name and flags for fd creation.
-	 * context_closed is called when the context is closed either when
-	 * the driver is removed or the process terminated.
+	 * destroy_object is called when the uobject is to be destroyed,
+	 * because the driver is removed or the FD is closed.
 	 */
 	struct uverbs_obj_type  type;
-	int (*context_closed)(struct ib_uobject *uobj,
+	int (*destroy_object)(struct ib_uobject *uobj,
 			      enum rdma_remove_reason why);
 	const struct file_operations	*fops;
 	const char			*name;
@@ -174,11 +174,11 @@ struct uverbs_obj_fd_type {
 
 extern const struct uverbs_obj_type_class uverbs_idr_class;
 extern const struct uverbs_obj_type_class uverbs_fd_class;
-void uverbs_close_fd(struct file *f);
+int uverbs_uobject_fd_release(struct inode *inode, struct file *filp);
 
 #define UVERBS_BUILD_BUG_ON(cond) (sizeof(char[1 - 2 * !!(cond)]) -	\
 				   sizeof(char))
-#define UVERBS_TYPE_ALLOC_FD(_obj_size, _context_closed, _fops, _name, _flags)\
+#define UVERBS_TYPE_ALLOC_FD(_obj_size, _destroy_object, _fops, _name, _flags) \
 	((&((const struct uverbs_obj_fd_type)				\
 	 {.type = {							\
 		.type_class = &uverbs_fd_class,				\
@@ -186,7 +186,7 @@ void uverbs_close_fd(struct file *f);
 			UVERBS_BUILD_BUG_ON((_obj_size) <               \
 					    sizeof(struct ib_uobject)), \
 	 },								\
-	 .context_closed = _context_closed,				\
+	 .destroy_object = _destroy_object,				\
 	 .fops = _fops,							\
 	 .name = _name,							\
 	 .flags = _flags}))->type)

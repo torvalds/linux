@@ -50,14 +50,6 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 
 int uobj_destroy(struct ib_uobject *uobj, struct uverbs_attr_bundle *attrs);
 
-/* Indicate this fd is no longer used by this consumer, but its memory isn't
- * necessarily released yet. When the last reference is put, we release the
- * memory. After this call is executed, calling uverbs_uobject_get isn't
- * allowed.
- * This must be called from the release file_operations of the file!
- */
-void uverbs_close_fd(struct file *f);
-
 /*
  * Get an ib_uobject that corresponds to the given id from ufile, assuming
  * the object is from the given type. Lock it to the required access when

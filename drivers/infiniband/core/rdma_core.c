@@ -353,9 +353,9 @@ lookup_get_fd_uobject(const struct uverbs_api_object *obj,
 
 	uobject = f->private_data;
 	/*
-	 * fget(id) ensures we are not currently running uverbs_close_fd,
-	 * and the caller is expected to ensure that uverbs_close_fd is never
-	 * done while a call top lookup is possible.
+	 * fget(id) ensures we are not currently running
+	 * uverbs_uobject_fd_release(), and the caller is expected to ensure
+	 * that release is never done while a call to lookup is possible.
 	 */
 	if (f->f_op != fd_type->fops) {
 		fput(f);
@@ -548,7 +548,7 @@ static int __must_check destroy_hw_fd_uobject(struct ib_uobject *uobj,
 {
 	const struct uverbs_obj_fd_type *fd_type = container_of(
 		uobj->uapi_object->type_attrs, struct uverbs_obj_fd_type, type);
-	int ret = fd_type->context_closed(uobj, why);
+	int ret = fd_type->destroy_object(uobj, why);
 
 	if (ib_is_destroy_retryable(ret, why, uobj))
 		return ret;
@@ -587,9 +587,9 @@ static int alloc_commit_fd_uobject(struct ib_uobject *uobj)
 
 	/*
 	 * The kref for uobj is moved into filp->private data and put in
-	 * uverbs_close_fd(). Once alloc_commit() succeeds uverbs_close_fd()
-	 * must be guaranteed to be called from the provided fops release
-	 * callback.
+	 * uverbs_close_fd(). Once alloc_commit() succeeds
+	 * uverbs_uobject_fd_release() must be guaranteed to be called from
+	 * the provided fops release callback.
 	 */
 	filp = anon_inode_getfile(fd_type->name,
 				  fd_type->fops,
@@ -600,7 +600,7 @@ static int alloc_commit_fd_uobject(struct ib_uobject *uobj)
 
 	uobj->object = filp;
 
-	/* Matching put will be done in uverbs_close_fd() */
+	/* Matching put will be done in uverbs_uobject_fd_release() */
 	kref_get(&uobj->ufile->ref);
 
 	/* This shouldn't be used anymore. Use the file object instead */
@@ -608,7 +608,7 @@ static int alloc_commit_fd_uobject(struct ib_uobject *uobj)
 
 	/*
 	 * NOTE: Once we install the file we loose ownership of our kref on
-	 * uobj. It will be put by uverbs_close_fd()
+	 * uobj. It will be put by uverbs_uobject_fd_release()
 	 */
 	fd_install(fd, filp);
 
@@ -676,7 +676,10 @@ static void lookup_put_fd_uobject(struct ib_uobject *uobj,
 	struct file *filp = uobj->object;
 
 	WARN_ON(mode != UVERBS_LOOKUP_READ);
-	/* This indirectly calls uverbs_close_fd and free the object */
+	/*
+	 * This indirectly calls uverbs_uobject_fd_release() and free the
+	 * object
+	 */
 	fput(filp);
 }
 
@@ -742,9 +745,13 @@ const struct uverbs_obj_type_class uverbs_idr_class = {
 };
 EXPORT_SYMBOL(uverbs_idr_class);
 
-void uverbs_close_fd(struct file *f)
+/*
+ * Users of UVERBS_TYPE_ALLOC_FD should set this function as the struct
+ * file_operations release method.
+ */
+int uverbs_uobject_fd_release(struct inode *inode, struct file *filp)
 {
-	struct ib_uobject *uobj = f->private_data;
+	struct ib_uobject *uobj = filp->private_data;
 	struct ib_uverbs_file *ufile = uobj->ufile;
 	struct uverbs_attr_bundle attrs = {
 		.context = uobj->context,
@@ -768,8 +775,9 @@ void uverbs_close_fd(struct file *f)
 
 	/* Pairs with filp->private_data in alloc_begin_fd_uobject */
 	uverbs_uobject_put(uobj);
+	return 0;
 }
-EXPORT_SYMBOL(uverbs_close_fd);
+EXPORT_SYMBOL(uverbs_uobject_fd_release);
 
 /*
  * Drop the ucontext off the ufile and completely disconnect it from the
