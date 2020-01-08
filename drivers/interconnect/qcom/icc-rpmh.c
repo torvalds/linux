@@ -3,6 +3,7 @@
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/clk.h>
 #include <linux/interconnect.h>
 #include <linux/interconnect-provider.h>
 #include <linux/module.h>
@@ -13,6 +14,7 @@
 
 #include "bcm-voter.h"
 #include "icc-rpmh.h"
+#include "qnoc-qos.h"
 
 static LIST_HEAD(qnoc_probe_list);
 static DEFINE_MUTEX(probe_list_lock);
@@ -187,6 +189,24 @@ int qcom_icc_bcm_init(struct qcom_icc_bcm *bcm, struct device *dev)
 }
 EXPORT_SYMBOL_GPL(qcom_icc_bcm_init);
 
+static struct regmap *qcom_icc_rpmh_map(struct platform_device *pdev,
+					const struct qcom_icc_desc *desc)
+{
+	void __iomem *base;
+	struct resource *res;
+	struct device *dev = &pdev->dev;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return NULL;
+
+	base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	return devm_regmap_init_mmio(dev, base, desc->config);
+}
+
 int qcom_icc_rpmh_probe(struct platform_device *pdev)
 {
 	const struct qcom_icc_desc *desc;
@@ -231,9 +251,23 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	if (IS_ERR(qp->voter))
 		return PTR_ERR(qp->voter);
 
+	qp->regmap = qcom_icc_rpmh_map(pdev, desc);
+	if (IS_ERR(qp->regmap))
+		return PTR_ERR(qp->regmap);
+
 	ret = icc_provider_add(provider);
 	if (ret)
 		return ret;
+
+	qp->num_clks = devm_clk_bulk_get_all(qp->dev, &qp->clks);
+	if (qp->num_clks < 0)
+		return qp->num_clks;
+
+	ret = clk_bulk_prepare_enable(qp->num_clks, qp->clks);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable clocks\n");
+		return ret;
+	}
 
 	for (i = 0; i < qp->num_bcms; i++)
 		qcom_icc_bcm_init(qp->bcms[i], dev);
@@ -243,11 +277,16 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 		if (!qn)
 			continue;
 
+		qn->regmap = dev_get_regmap(qp->dev, NULL);
+
 		node = icc_node_create(qn->id);
 		if (IS_ERR(node)) {
 			ret = PTR_ERR(node);
 			goto err;
 		}
+
+		if (qn->qosbox)
+			qn->noc_ops->set_qos(qn);
 
 		node->name = qn->name;
 		node->data = qn;
@@ -268,6 +307,8 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 
 	return 0;
 err:
+	clk_bulk_disable_unprepare(qp->num_clks, qp->clks);
+	clk_bulk_put_all(qp->num_clks, qp->clks);
 	icc_nodes_remove(provider);
 	icc_provider_del(provider);
 	return ret;
@@ -277,6 +318,8 @@ EXPORT_SYMBOL_GPL(qcom_icc_rpmh_probe);
 int qcom_icc_rpmh_remove(struct platform_device *pdev)
 {
 	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
+
+	clk_bulk_put_all(qp->num_clks, qp->clks);
 
 	icc_nodes_remove(&qp->provider);
 	return icc_provider_del(&qp->provider);
