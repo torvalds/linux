@@ -414,12 +414,10 @@ static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 {
 	const char *cmd_name;
 	int i, pos = 0;
-#define BUF_LEN 256
-	char buffer[BUF_LEN];
+	char buffer[64];
 
 #define BUF_PRINT(args...) \
-	pos += snprintf(buffer + pos, max_t(int, BUF_LEN - pos, 0), args)
-
+	pos += snprintf(buffer + pos, max_t(int, sizeof(buffer) - pos, 0), args)
 
 	for (i = 0; i < args_len; i++) {
 		BUF_PRINT("%02X ", ((u8 *)args)[i]);
@@ -433,9 +431,9 @@ static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 		BUF_PRINT("(%s)", cmd_name);
 	else
 		BUF_PRINT("(%02X)", cmd);
-	BUG_ON(pos >= BUF_LEN - 1);
+
+	WARN_ON(pos >= sizeof(buffer) - 1);
 #undef BUF_PRINT
-#undef BUF_LEN
 
 	DRM_DEBUG_KMS("%s: W: %02X %s\n", SDVO_NAME(intel_sdvo), cmd, buffer);
 }
@@ -540,8 +538,7 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	u8 retry = 15; /* 5 quick checks, followed by 10 long checks */
 	u8 status;
 	int i, pos = 0;
-#define BUF_LEN 256
-	char buffer[BUF_LEN];
+	char buffer[64];
 
 	buffer[0] = '\0';
 
@@ -581,7 +578,7 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	}
 
 #define BUF_PRINT(args...) \
-	pos += snprintf(buffer + pos, max_t(int, BUF_LEN - pos, 0), args)
+	pos += snprintf(buffer + pos, max_t(int, sizeof(buffer) - pos, 0), args)
 
 	cmd_status = sdvo_cmd_status(status);
 	if (cmd_status)
@@ -600,9 +597,9 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 			goto log_fail;
 		BUF_PRINT(" %02X", ((u8 *)response)[i]);
 	}
-	BUG_ON(pos >= BUF_LEN - 1);
+
+	WARN_ON(pos >= sizeof(buffer) - 1);
 #undef BUF_PRINT
-#undef BUF_LEN
 
 	DRM_DEBUG_KMS("%s: R: %s\n", SDVO_NAME(intel_sdvo), buffer);
 	return true;
