@@ -321,3 +321,24 @@ bool bpf_probe_helper(enum bpf_func_id id, enum bpf_prog_type prog_type,
 
 	return res;
 }
+
+/*
+ * Probe for availability of kernel commit (5.3):
+ *
+ * c04c0d2b968a ("bpf: increase complexity limit and maximum program size")
+ */
+bool bpf_probe_large_insn_limit(__u32 ifindex)
+{
+	struct bpf_insn insns[BPF_MAXINSNS + 1];
+	int i;
+
+	for (i = 0; i < BPF_MAXINSNS; i++)
+		insns[i] = BPF_MOV64_IMM(BPF_REG_0, 1);
+	insns[BPF_MAXINSNS] = BPF_EXIT_INSN();
+
+	errno = 0;
+	probe_load(BPF_PROG_TYPE_SCHED_CLS, insns, ARRAY_SIZE(insns), NULL, 0,
+		   ifindex);
+
+	return errno != E2BIG && errno != EINVAL;
+}
