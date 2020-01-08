@@ -77,6 +77,8 @@ extern struct workqueue_struct *ib_wq;
 extern struct workqueue_struct *ib_comp_wq;
 extern struct workqueue_struct *ib_comp_unbound_wq;
 
+struct ib_ucq_object;
+
 __printf(3, 4) __cold
 void ibdev_printk(const char *level, const struct ib_device *ibdev,
 		  const char *format, ...);
@@ -1544,7 +1546,7 @@ enum ib_poll_context {
 
 struct ib_cq {
 	struct ib_device       *device;
-	struct ib_uobject      *uobject;
+	struct ib_ucq_object   *uobject;
 	ib_comp_handler   	comp_handler;
 	void                  (*event_handler)(struct ib_event *, void *);
 	void                   *cq_context;

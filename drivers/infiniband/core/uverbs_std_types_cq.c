@@ -116,7 +116,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	}
 
 	cq->device        = ib_dev;
-	cq->uobject       = &obj->uevent.uobject;
+	cq->uobject       = obj;
 	cq->comp_handler  = ib_uverbs_comp_handler;
 	cq->event_handler = ib_uverbs_cq_event_handler;
 	cq->cq_context    = ev_file ? &ev_file->ev_queue : NULL;

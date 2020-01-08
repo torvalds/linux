@@ -1029,7 +1029,7 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 		goto err_file;
 	}
 	cq->device        = ib_dev;
-	cq->uobject       = &obj->uevent.uobject;
+	cq->uobject       = obj;
 	cq->comp_handler  = ib_uverbs_comp_handler;
 	cq->event_handler = ib_uverbs_cq_event_handler;
 	cq->cq_context    = ev_file ? &ev_file->ev_queue : NULL;
@@ -1134,7 +1134,8 @@ static int ib_uverbs_resize_cq(struct uverbs_attr_bundle *attrs)
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 out:
-	uobj_put_obj_read(cq);
+	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
+				UVERBS_LOOKUP_READ);
 
 	return ret;
 }
@@ -1217,7 +1218,8 @@ static int ib_uverbs_poll_cq(struct uverbs_attr_bundle *attrs)
 		ret = uverbs_output_written(attrs, UVERBS_ATTR_CORE_OUT);
 
 out_put:
-	uobj_put_obj_read(cq);
+	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
+				UVERBS_LOOKUP_READ);
 	return ret;
 }
 
@@ -1238,8 +1240,8 @@ static int ib_uverbs_req_notify_cq(struct uverbs_attr_bundle *attrs)
 	ib_req_notify_cq(cq, cmd.solicited_only ?
 			 IB_CQ_SOLICITED : IB_CQ_NEXT_COMP);
 
-	uobj_put_obj_read(cq);
-
+	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
+				UVERBS_LOOKUP_READ);
 	return 0;
 }
 
@@ -1484,9 +1486,11 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	if (pd)
 		uobj_put_obj_read(pd);
 	if (scq)
-		uobj_put_obj_read(scq);
+		rdma_lookup_put_uobject(&scq->uobject->uevent.uobject,
+					UVERBS_LOOKUP_READ);
 	if (rcq && rcq != scq)
-		uobj_put_obj_read(rcq);
+		rdma_lookup_put_uobject(&rcq->uobject->uevent.uobject,
+					UVERBS_LOOKUP_READ);
 	if (srq)
 		uobj_put_obj_read(srq);
 	if (ind_tbl)
@@ -1503,9 +1507,11 @@ err_put:
 	if (pd)
 		uobj_put_obj_read(pd);
 	if (scq)
-		uobj_put_obj_read(scq);
+		rdma_lookup_put_uobject(&scq->uobject->uevent.uobject,
+					UVERBS_LOOKUP_READ);
 	if (rcq && rcq != scq)
-		uobj_put_obj_read(rcq);
+		rdma_lookup_put_uobject(&rcq->uobject->uevent.uobject,
+					UVERBS_LOOKUP_READ);
 	if (srq)
 		uobj_put_obj_read(srq);
 	if (ind_tbl)
@@ -2980,14 +2986,16 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 		goto err_copy;
 
 	uobj_put_obj_read(pd);
-	uobj_put_obj_read(cq);
+	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
+				UVERBS_LOOKUP_READ);
 	rdma_alloc_commit_uobject(&obj->uevent.uobject, attrs);
 	return 0;
 
 err_copy:
 	ib_destroy_wq(wq, uverbs_get_cleared_udata(attrs));
 err_put_cq:
-	uobj_put_obj_read(cq);
+	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
+				UVERBS_LOOKUP_READ);
 err_put_pd:
 	uobj_put_obj_read(pd);
 err_uobj:
@@ -3481,7 +3489,8 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 		uobj_put_read(xrcd_uobj);
 
 	if (ib_srq_has_cq(cmd->srq_type))
-		uobj_put_obj_read(attr.ext.cq);
+		rdma_lookup_put_uobject(&attr.ext.cq->uobject->uevent.uobject,
+					UVERBS_LOOKUP_READ);
 
 	uobj_put_obj_read(pd);
 	rdma_alloc_commit_uobject(&obj->uevent.uobject, attrs);
@@ -3498,7 +3507,8 @@ err_put:
 
 err_put_cq:
 	if (ib_srq_has_cq(cmd->srq_type))
-		uobj_put_obj_read(attr.ext.cq);
+		rdma_lookup_put_uobject(&attr.ext.cq->uobject->uevent.uobject,
+					UVERBS_LOOKUP_READ);
 
 err_put_xrcd:
 	if (cmd->srq_type == IB_SRQT_XRC) {
@@ -3714,8 +3724,8 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 
 	ret = rdma_set_cq_moderation(cq, cmd.attr.cq_count, cmd.attr.cq_period);
 
-	uobj_put_obj_read(cq);
-
+	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
+				UVERBS_LOOKUP_READ);
 	return ret;
 }
 

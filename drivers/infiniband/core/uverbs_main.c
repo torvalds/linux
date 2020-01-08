@@ -408,9 +408,9 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 		return;
 	}
 
-	uobj = container_of(cq->uobject, struct ib_ucq_object, uevent.uobject);
+	uobj = cq->uobject;
 
-	entry->desc.comp.cq_handle = cq->uobject->user_handle;
+	entry->desc.comp.cq_handle = cq->uobject->uevent.uobject.user_handle;
 	entry->counter		   = &uobj->comp_events_reported;
 
 	list_add_tail(&entry->list, &ev_queue->event_list);
@@ -457,8 +457,7 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
 {
-	struct ib_uevent_object *uobj = container_of(
-		event->element.cq->uobject, struct ib_uevent_object, uobject);
+	struct ib_uevent_object *uobj = &event->element.cq->uobject->uevent;
 
 	ib_uverbs_async_handler(uobj->uobject.ufile, uobj->uobject.user_handle,
 				event->event, &uobj->event_list,
