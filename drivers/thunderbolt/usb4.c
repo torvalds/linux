@@ -239,7 +239,7 @@ int usb4_switch_setup(struct tb_switch *sw)
 		 * and the parent does not have any USB3 dowstream
 		 * adapters (so we cannot do USB 3.x tunneling).
 		 */
-		if (xhci & ROUTER_CS_6_HCI)
+		if (xhci)
 			val |= ROUTER_CS_5_HCO;
 	}
 
