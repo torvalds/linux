@@ -57,6 +57,14 @@
  * |  DMA   |------------------------------------+                          Self Picture Path
  * +--------+
  *
+ *         rkisp1-stats.c
+ *       |===============|
+ *       +---------------+
+ *       |               |
+ *       |      ISP      |
+ *       |               |
+ *       +---------------+
+ *
  *
  * Media Topology
  * --------------
@@ -74,14 +82,14 @@
  *    +----------+      |------+------|
  *                      |     ISP     |
  *                      |------+------|
- *        +-------------|  2   |  3   |
- *        |             +------+------+
- *        |                |
- *        v                v
- *  +- ---------+    +-----------+
- *  |     0     |    |     0     |
- *  -------------    -------------
- *  |  Resizer  |    |  Resizer  |
+ *        +-------------|  2   |  3   |----------+
+ *        |             +------+------+          |
+ *        |                |                     |
+ *        v                v                     v
+ *  +- ---------+    +-----------+         +-----------+
+ *  |     0     |    |     0     |         |   stats   |
+ *  -------------    -------------         | (capture) |
+ *  |  Resizer  |    |  Resizer  |         +-----------+
  *  ------------|    ------------|
  *  |     1     |    |     1     |
  *  +-----------+    +-----------+
@@ -156,7 +164,11 @@ static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 			return ret;
 	}
 
-	return 0;
+	/* 3A stats links */
+	source = &rkisp1->isp.sd.entity;
+	sink = &rkisp1->stats.vnode.vdev.entity;
+	return media_create_pad_link(source, RKISP1_ISP_PAD_SOURCE_STATS,
+				     sink, 0, flags);
 }
 
 static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
@@ -336,14 +348,20 @@ static int rkisp1_entities_register(struct rkisp1_device *rkisp1)
 	if (ret)
 		goto err_unreg_resizer_devs;
 
+	ret = rkisp1_stats_register(&rkisp1->stats, &rkisp1->v4l2_dev, rkisp1);
+	if (ret)
+		goto err_unreg_capture_devs;
+
 	ret = rkisp1_subdev_notifier(rkisp1);
 	if (ret) {
 		dev_err(rkisp1->dev,
 			"Failed to register subdev notifier(%d)\n", ret);
-		goto err_unreg_capture_devs;
+		goto err_unreg_stats;
 	}
 
 	return 0;
+err_unreg_stats:
+	rkisp1_stats_unregister(&rkisp1->stats);
 err_unreg_capture_devs:
 	rkisp1_capture_devs_unregister(rkisp1);
 err_unreg_resizer_devs:
@@ -408,6 +426,8 @@ static void rkisp1_debug_init(struct rkisp1_device *rkisp1)
 			     &debug->pic_size_error);
 	debugfs_create_ulong("mipi_error", 0444, debug->debugfs_dir,
 			     &debug->mipi_error);
+	debugfs_create_ulong("stats_error", 0444, debug->debugfs_dir,
+			     &debug->stats_error);
 	debugfs_create_ulong("mp_stop_timeout", 0444, debug->debugfs_dir,
 			     &debug->stop_timeout[RKISP1_MAINPATH]);
 	debugfs_create_ulong("sp_stop_timeout", 0444, debug->debugfs_dir,
@@ -509,6 +529,7 @@ static int rkisp1_remove(struct platform_device *pdev)
 	v4l2_async_notifier_unregister(&rkisp1->notifier);
 	v4l2_async_notifier_cleanup(&rkisp1->notifier);
 
+	rkisp1_stats_unregister(&rkisp1->stats);
 	rkisp1_capture_devs_unregister(rkisp1);
 	rkisp1_resizer_devs_unregister(rkisp1);
 	rkisp1_isp_unregister(rkisp1);

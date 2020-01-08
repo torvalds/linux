@@ -1130,4 +1130,16 @@ void rkisp1_isp_isr(struct rkisp1_device *rkisp1)
 		/* keep track of data_loss in debugfs */
 		rkisp1->debug.data_loss++;
 	}
+
+	if (status & RKISP1_CIF_ISP_FRAME) {
+		u32 isp_ris;
+
+		/* New frame from the sensor received */
+		isp_ris = rkisp1_read(rkisp1, RKISP1_CIF_ISP_RIS);
+		if (isp_ris & (RKISP1_CIF_ISP_AWB_DONE |
+			       RKISP1_CIF_ISP_AFM_FIN |
+			       RKISP1_CIF_ISP_EXP_END |
+			       RKISP1_CIF_ISP_HIST_MEASURE_RDY))
+			rkisp1_stats_isr(&rkisp1->stats, isp_ris);
+	}
 }

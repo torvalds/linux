@@ -20,6 +20,7 @@
 #include <media/videobuf2-v4l2.h>
 
 #include "rkisp1-regs.h"
+#include "uapi/rkisp1-config.h"
 
 #define RKISP1_ISP_MAX_WIDTH		4032
 #define RKISP1_ISP_MAX_HEIGHT		3024
@@ -174,6 +175,26 @@ struct rkisp1_capture {
 	} pix;
 };
 
+/*
+ * struct rkisp1_stats - ISP Statistics device
+ *
+ * @irq_lock: buffer queue lock
+ * @stat: stats buffer list
+ * @readout_wq: workqueue for statistics information read
+ */
+struct rkisp1_stats {
+	struct rkisp1_vdev_node vnode;
+	struct rkisp1_device *rkisp1;
+
+	spinlock_t irq_lock;
+	struct list_head stat;
+	struct v4l2_format vdev_fmt;
+	bool is_streaming;
+
+	struct workqueue_struct *readout_wq;
+	struct mutex wq_lock;
+};
+
 struct rkisp1_resizer {
 	struct v4l2_subdev sd;
 	enum rkisp1_stream_id id;
@@ -189,6 +210,7 @@ struct rkisp1_debug {
 	unsigned long data_loss;
 	unsigned long pic_size_error;
 	unsigned long mipi_error;
+	unsigned long stats_error;
 	unsigned long stop_timeout[2];
 	unsigned long frame_drop[2];
 };
@@ -199,6 +221,7 @@ struct rkisp1_debug {
  * @active_sensor: sensor in-use, set when streaming on
  * @isp: ISP sub-device
  * @rkisp1_capture: capture video device
+ * @stats: ISP statistics output device
  */
 struct rkisp1_device {
 	void __iomem *base_addr;
@@ -214,6 +237,7 @@ struct rkisp1_device {
 	struct rkisp1_isp isp;
 	struct rkisp1_resizer resizer_devs[2];
 	struct rkisp1_capture capture_devs[2];
+	struct rkisp1_stats stats;
 	struct media_pipeline pipe;
 	struct vb2_alloc_ctx *alloc_ctx;
 	struct rkisp1_debug debug;
@@ -262,11 +286,17 @@ const struct rkisp1_isp_mbus_info *rkisp1_isp_mbus_info_get(u32 mbus_code);
 void rkisp1_isp_isr(struct rkisp1_device *rkisp1);
 void rkisp1_mipi_isr(struct rkisp1_device *rkisp1);
 void rkisp1_capture_isr(struct rkisp1_device *rkisp1);
+void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris);
 
 int rkisp1_capture_devs_register(struct rkisp1_device *rkisp1);
 void rkisp1_capture_devs_unregister(struct rkisp1_device *rkisp1);
 
 int rkisp1_resizer_devs_register(struct rkisp1_device *rkisp1);
 void rkisp1_resizer_devs_unregister(struct rkisp1_device *rkisp1);
+
+int rkisp1_stats_register(struct rkisp1_stats *stats,
+			  struct v4l2_device *v4l2_dev,
+			  struct rkisp1_device *rkisp1);
+void rkisp1_stats_unregister(struct rkisp1_stats *stats);
 
 #endif /* _RKISP1_COMMON_H */
