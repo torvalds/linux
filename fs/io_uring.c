@@ -6524,8 +6524,13 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		 * after we've killed the percpu ref.
 		 */
 		mutex_unlock(&ctx->uring_lock);
-		wait_for_completion(&ctx->completions[0]);
+		ret = wait_for_completion_interruptible(&ctx->completions[0]);
 		mutex_lock(&ctx->uring_lock);
+		if (ret) {
+			percpu_ref_resurrect(&ctx->refs);
+			ret = -EINTR;
+			goto out;
+		}
 	}
 
 	switch (opcode) {
@@ -6571,8 +6576,9 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	if (opcode != IORING_UNREGISTER_FILES &&
 	    opcode != IORING_REGISTER_FILES_UPDATE) {
 		/* bring the ctx back to life */
-		reinit_completion(&ctx->completions[0]);
 		percpu_ref_reinit(&ctx->refs);
+out:
+		reinit_completion(&ctx->completions[0]);
 	}
 	return ret;
 }
