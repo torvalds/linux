@@ -529,7 +529,7 @@ static void hci_memdump_timeout(struct timer_list *t)
 	bt_dev_err(hu->hdev, "clearing allocated memory due to memdump timeout");
 	/* Inject hw error event to reset the device and driver. */
 	hci_reset_dev(hu->hdev);
-	kfree(memdump_buf);
+	vfree(memdump_buf);
 	kfree(qca_memdump);
 	qca->memdump_state = QCA_MEMDUMP_TIMEOUT;
 	del_timer(&qca->memdump_timer);
@@ -1437,7 +1437,7 @@ static void qca_wait_for_dump_collection(struct hci_dev *hdev)
 		bt_dev_err(hu->hdev, "Clearing the buffers due to timeout");
 		if (qca_memdump)
 			memdump_buf = qca_memdump->memdump_buf_tail;
-		kfree(memdump_buf);
+		vfree(memdump_buf);
 		kfree(qca_memdump);
 		qca->memdump_state = QCA_MEMDUMP_TIMEOUT;
 		del_timer(&qca->memdump_timer);
