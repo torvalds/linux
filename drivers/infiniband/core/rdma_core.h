@@ -50,21 +50,6 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 
 int uobj_destroy(struct ib_uobject *uobj, struct uverbs_attr_bundle *attrs);
 
-/*
- * uverbs_uobject_get is called in order to increase the reference count on
- * an uobject. This is useful when a handler wants to keep the uobject's memory
- * alive, regardless if this uobject is still alive in the context's objects
- * repository. Objects are put via uverbs_uobject_put.
- */
-void uverbs_uobject_get(struct ib_uobject *uobject);
-
-/*
- * In order to indicate we no longer needs this uobject, uverbs_uobject_put
- * is called. When the reference count is decreased, the uobject is freed.
- * For example, this is used when attaching a completion channel to a CQ.
- */
-void uverbs_uobject_put(struct ib_uobject *uobject);
-
 /* Indicate this fd is no longer used by this consumer, but its memory isn't
  * necessarily released yet. When the last reference is put, we release the
  * memory. After this call is executed, calling uverbs_uobject_get isn't

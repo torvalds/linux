@@ -72,7 +72,6 @@ struct devx_event_subscription {
 	struct rcu_head	rcu;
 	u64 cookie;
 	struct devx_async_event_file *ev_file;
-	struct file *filp; /* Upon hot unplug we need a direct access to */
 	struct eventfd_ctx *eventfd;
 };
 
@@ -2032,6 +2031,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_SUBSCRIBE_EVENT)(
 			goto err;
 
 		list_add_tail(&event_sub->event_list, &sub_list);
+		uverbs_uobject_get(&ev_file->uobj);
 		if (use_eventfd) {
 			event_sub->eventfd =
 				eventfd_ctx_fdget(redirect_fd);
@@ -2045,7 +2045,6 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_SUBSCRIBE_EVENT)(
 
 		event_sub->cookie = cookie;
 		event_sub->ev_file = ev_file;
-		event_sub->filp = fd_uobj->object;
 		/* May be needed upon cleanup the devx object/subscription */
 		event_sub->xa_key_level1 = key_level1;
 		event_sub->xa_key_level2 = obj_id;
@@ -2099,7 +2098,7 @@ err:
 
 		if (event_sub->eventfd)
 			eventfd_ctx_put(event_sub->eventfd);
-
+		uverbs_uobject_put(&event_sub->ev_file->uobj);
 		kfree(event_sub);
 	}
 
@@ -2361,17 +2360,10 @@ static void dispatch_event_fd(struct list_head *fd_list,
 	struct devx_event_subscription *item;
 
 	list_for_each_entry_rcu(item, fd_list, xa_list) {
-		if (!get_file_rcu(item->filp))
-			continue;
-
-		if (item->eventfd) {
+		if (item->eventfd)
 			eventfd_signal(item->eventfd, 1);
-			fput(item->filp);
-			continue;
-		}
-
-		deliver_event(item, data);
-		fput(item->filp);
+		else
+			deliver_event(item, data);
 	}
 }
 
@@ -2653,6 +2645,17 @@ static __poll_t devx_async_event_poll(struct file *filp,
 	return pollflags;
 }
 
+static void devx_free_subscription(struct rcu_head *rcu)
+{
+	struct devx_event_subscription *event_sub =
+		container_of(rcu, struct devx_event_subscription, rcu);
+
+	if (event_sub->eventfd)
+		eventfd_ctx_put(event_sub->eventfd);
+	uverbs_uobject_put(&event_sub->ev_file->uobj);
+	kfree(event_sub);
+}
+
 static int devx_async_event_close(struct inode *inode, struct file *filp)
 {
 	struct devx_async_event_file *ev_file = filp->private_data;
@@ -2665,12 +2668,9 @@ static int devx_async_event_close(struct inode *inode, struct file *filp)
 	list_for_each_entry_safe(event_sub, event_sub_tmp,
 				 &ev_file->subscribed_events_list, file_list) {
 		devx_cleanup_subscription(dev, event_sub);
-		if (event_sub->eventfd)
-			eventfd_ctx_put(event_sub->eventfd);
-
 		list_del_rcu(&event_sub->file_list);
 		/* subscription may not be used by the read API any more */
-		kfree_rcu(event_sub, rcu);
+		call_rcu(&event_sub->rcu, devx_free_subscription);
 	}
 
 	mutex_unlock(&dev->devx_event_table.event_xa_lock);

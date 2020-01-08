@@ -42,20 +42,21 @@
 #include "core_priv.h"
 #include "rdma_core.h"
 
-void uverbs_uobject_get(struct ib_uobject *uobject)
-{
-	kref_get(&uobject->ref);
-}
-
 static void uverbs_uobject_free(struct kref *ref)
 {
 	kfree_rcu(container_of(ref, struct ib_uobject, ref), rcu);
 }
 
+/*
+ * In order to indicate we no longer needs this uobject, uverbs_uobject_put
+ * is called. When the reference count is decreased, the uobject is freed.
+ * For example, this is used when attaching a completion channel to a CQ.
+ */
 void uverbs_uobject_put(struct ib_uobject *uobject)
 {
 	kref_put(&uobject->ref, uverbs_uobject_free);
 }
+EXPORT_SYMBOL(uverbs_uobject_put);
 
 static int uverbs_try_lock_object(struct ib_uobject *uobj,
 				  enum rdma_lookup_mode mode)

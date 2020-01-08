@@ -144,6 +144,18 @@ void rdma_alloc_abort_uobject(struct ib_uobject *uobj,
 int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj,
 					   struct uverbs_attr_bundle *attrs);
 
+/*
+ * uverbs_uobject_get is called in order to increase the reference count on
+ * an uobject. This is useful when a handler wants to keep the uobject's memory
+ * alive, regardless if this uobject is still alive in the context's objects
+ * repository. Objects are put via uverbs_uobject_put.
+ */
+static inline void uverbs_uobject_get(struct ib_uobject *uobject)
+{
+	kref_get(&uobject->ref);
+}
+void uverbs_uobject_put(struct ib_uobject *uobject);
+
 struct uverbs_obj_fd_type {
 	/*
 	 * In fd based objects, uverbs_obj_type_ops points to generic
