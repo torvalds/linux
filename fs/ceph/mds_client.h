@@ -17,21 +17,30 @@
 #include <linux/ceph/auth.h>
 
 /* The first 8 bits are reserved for old ceph releases */
-#define CEPHFS_FEATURE_MIMIC		8
-#define CEPHFS_FEATURE_REPLY_ENCODING	9
-#define CEPHFS_FEATURE_RECLAIM_CLIENT	10
-#define CEPHFS_FEATURE_LAZY_CAP_WANTED	11
-#define CEPHFS_FEATURE_MULTI_RECONNECT  12
+enum ceph_feature_type {
+	CEPHFS_FEATURE_MIMIC = 8,
+	CEPHFS_FEATURE_REPLY_ENCODING,
+	CEPHFS_FEATURE_RECLAIM_CLIENT,
+	CEPHFS_FEATURE_LAZY_CAP_WANTED,
+	CEPHFS_FEATURE_MULTI_RECONNECT,
 
-#define CEPHFS_FEATURES_CLIENT_SUPPORTED { 	\
+	CEPHFS_FEATURE_MAX = CEPHFS_FEATURE_MULTI_RECONNECT,
+};
+
+/*
+ * This will always have the highest feature bit value
+ * as the last element of the array.
+ */
+#define CEPHFS_FEATURES_CLIENT_SUPPORTED {	\
 	0, 1, 2, 3, 4, 5, 6, 7,			\
 	CEPHFS_FEATURE_MIMIC,			\
 	CEPHFS_FEATURE_REPLY_ENCODING,		\
 	CEPHFS_FEATURE_LAZY_CAP_WANTED,		\
 	CEPHFS_FEATURE_MULTI_RECONNECT,		\
+						\
+	CEPHFS_FEATURE_MAX,			\
 }
 #define CEPHFS_FEATURES_CLIENT_REQUIRED {}
-
 
 /*
  * Some lock dependencies:

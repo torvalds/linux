@@ -9,6 +9,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/ratelimit.h>
+#include <linux/bits.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -1057,20 +1058,21 @@ static struct ceph_msg *create_session_msg(u32 op, u64 seq)
 	return msg;
 }
 
+static const unsigned char feature_bits[] = CEPHFS_FEATURES_CLIENT_SUPPORTED;
+#define FEATURE_BYTES(c) (DIV_ROUND_UP((size_t)feature_bits[c - 1] + 1, 64) * 8)
 static void encode_supported_features(void **p, void *end)
 {
-	static const unsigned char bits[] = CEPHFS_FEATURES_CLIENT_SUPPORTED;
-	static const size_t count = ARRAY_SIZE(bits);
+	static const size_t count = ARRAY_SIZE(feature_bits);
 
 	if (count > 0) {
 		size_t i;
-		size_t size = ((size_t)bits[count - 1] + 64) / 64 * 8;
+		size_t size = FEATURE_BYTES(count);
 
 		BUG_ON(*p + 4 + size > end);
 		ceph_encode_32(p, size);
 		memset(*p, 0, size);
 		for (i = 0; i < count; i++)
-			((unsigned char*)(*p))[i / 8] |= 1 << (bits[i] % 8);
+			((unsigned char*)(*p))[i / 8] |= BIT(feature_bits[i] % 8);
 		*p += size;
 	} else {
 		BUG_ON(*p + 4 > end);
@@ -1091,6 +1093,7 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	int metadata_key_count = 0;
 	struct ceph_options *opt = mdsc->fsc->client->options;
 	struct ceph_mount_options *fsopt = mdsc->fsc->mount_options;
+	size_t size, count;
 	void *p, *end;
 
 	const char* metadata[][2] = {
@@ -1108,8 +1111,13 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 			strlen(metadata[i][1]);
 		metadata_key_count++;
 	}
+
 	/* supported feature */
-	extra_bytes += 4 + 8;
+	size = 0;
+	count = ARRAY_SIZE(feature_bits);
+	if (count > 0)
+		size = FEATURE_BYTES(count);
+	extra_bytes += 4 + size;
 
 	/* Allocate the message */
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_SESSION, sizeof(*h) + extra_bytes,
@@ -1129,7 +1137,7 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	 * Serialize client metadata into waiting buffer space, using
 	 * the format that userspace expects for map<string, string>
 	 *
-	 * ClientSession messages with metadata are v2
+	 * ClientSession messages with metadata are v3
 	 */
 	msg->hdr.version = cpu_to_le16(3);
 	msg->hdr.compat_version = cpu_to_le16(1);
