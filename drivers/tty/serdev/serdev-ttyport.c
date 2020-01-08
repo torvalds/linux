@@ -273,6 +273,11 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 	if (!port || !drv || !parent)
 		return ERR_PTR(-ENODEV);
 
+	if (port->console) {
+		/* can't convert tty's that are already in use */
+		return ERR_PTR(-ENODEV);
+	}
+
 	ctrl = serdev_controller_alloc(parent, sizeof(struct serport));
 	if (!ctrl)
 		return ERR_PTR(-ENOMEM);
