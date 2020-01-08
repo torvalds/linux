@@ -26,6 +26,23 @@
 #define ATTR_RMTVALUE_MAPSIZE	1	/* # of map entries at once */
 
 /*
+ * Remote Attribute Values
+ * =======================
+ *
+ * Remote extended attribute values are conceptually simple -- they're written
+ * to data blocks mapped by an inode's attribute fork, and they have an upper
+ * size limit of 64k.  Setting a value does not involve the XFS log.
+ *
+ * However, on a v5 filesystem, maximally sized remote attr values require one
+ * block more than 64k worth of space to hold both the remote attribute value
+ * header (64 bytes).  On a 4k block filesystem this results in a 68k buffer;
+ * on a 64k block filesystem, this would be a 128k buffer.  Note that the log
+ * format can only handle a dirty buffer of XFS_MAX_BLOCKSIZE length (64k).
+ * Therefore, we /must/ ensure that remote attribute value buffers never touch
+ * the logging system and therefore never have a log item.
+ */
+
+/*
  * Each contiguous block has a header, so it is not just a simple attribute
  * length to FSB conversion.
  */
@@ -401,17 +418,25 @@ xfs_attr_rmtval_get(
 			       (map[i].br_startblock != HOLESTARTBLOCK));
 			dblkno = XFS_FSB_TO_DADDR(mp, map[i].br_startblock);
 			dblkcnt = XFS_FSB_TO_BB(mp, map[i].br_blockcount);
-			error = xfs_trans_read_buf(mp, args->trans,
-						   mp->m_ddev_targp,
-						   dblkno, dblkcnt, 0, &bp,
-						   &xfs_attr3_rmt_buf_ops);
-			if (error)
+			bp = xfs_buf_read(mp->m_ddev_targp, dblkno, dblkcnt, 0,
+					&xfs_attr3_rmt_buf_ops);
+			if (!bp)
+				return -ENOMEM;
+			error = bp->b_error;
+			if (error) {
+				xfs_buf_ioerror_alert(bp, __func__);
+				xfs_buf_relse(bp);
+
+				/* bad CRC means corrupted metadata */
+				if (error == -EFSBADCRC)
+					error = -EFSCORRUPTED;
 				return error;
+			}
 
 			error = xfs_attr_rmtval_copyout(mp, bp, args->dp->i_ino,
 							&offset, &valuelen,
 							&dst);
-			xfs_trans_brelse(args->trans, bp);
+			xfs_buf_relse(bp);
 			if (error)
 				return error;
 
