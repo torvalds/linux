@@ -150,12 +150,7 @@ void ib_uverbs_release_ucq(struct ib_uverbs_file *file,
 		uverbs_uobject_put(&ev_file->uobj);
 	}
 
-	spin_lock_irq(&file->async_file->ev_queue.lock);
-	list_for_each_entry_safe(evt, tmp, &uobj->async_list, obj_list) {
-		list_del(&evt->list);
-		kfree(evt);
-	}
-	spin_unlock_irq(&file->async_file->ev_queue.lock);
+	ib_uverbs_release_uevent(file, &uobj->uevent);
 }
 
 void ib_uverbs_release_uevent(struct ib_uverbs_file *file,
@@ -413,7 +408,7 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 		return;
 	}
 
-	uobj = container_of(cq->uobject, struct ib_ucq_object, uobject);
+	uobj = container_of(cq->uobject, struct ib_ucq_object, uevent.uobject);
 
 	entry->desc.comp.cq_handle = cq->uobject->user_handle;
 	entry->counter		   = &uobj->comp_events_reported;
@@ -462,12 +457,12 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
 {
-	struct ib_ucq_object *uobj = container_of(event->element.cq->uobject,
-						  struct ib_ucq_object, uobject);
+	struct ib_uevent_object *uobj = container_of(
+		event->element.cq->uobject, struct ib_uevent_object, uobject);
 
 	ib_uverbs_async_handler(uobj->uobject.ufile, uobj->uobject.user_handle,
-				event->event, &uobj->async_list,
-				&uobj->async_events_reported);
+				event->event, &uobj->event_list,
+				&uobj->events_reported);
 }
 
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr)

@@ -41,7 +41,7 @@ static int uverbs_free_cq(struct ib_uobject *uobject,
 	struct ib_cq *cq = uobject->object;
 	struct ib_uverbs_event_queue *ev_queue = cq->cq_context;
 	struct ib_ucq_object *ucq =
-		container_of(uobject, struct ib_ucq_object, uobject);
+		container_of(uobject, struct ib_ucq_object, uevent.uobject);
 	int ret;
 
 	ret = ib_destroy_cq_user(cq, &attrs->driver_udata);
@@ -63,7 +63,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 {
 	struct ib_ucq_object *obj = container_of(
 		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_CREATE_CQ_HANDLE),
-		typeof(*obj), uobject);
+		typeof(*obj), uevent.uobject);
 	struct ib_device *ib_dev = attrs->context->device;
 	int ret;
 	u64 user_handle;
@@ -106,10 +106,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 		goto err_event_file;
 	}
 
-	obj->comp_events_reported  = 0;
-	obj->async_events_reported = 0;
 	INIT_LIST_HEAD(&obj->comp_list);
-	INIT_LIST_HEAD(&obj->async_list);
+	INIT_LIST_HEAD(&obj->uevent.event_list);
 
 	cq = rdma_zalloc_drv_obj(ib_dev, ib_cq);
 	if (!cq) {
@@ -118,7 +116,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	}
 
 	cq->device        = ib_dev;
-	cq->uobject       = &obj->uobject;
+	cq->uobject       = &obj->uevent.uobject;
 	cq->comp_handler  = ib_uverbs_comp_handler;
 	cq->event_handler = ib_uverbs_cq_event_handler;
 	cq->cq_context    = ev_file ? &ev_file->ev_queue : NULL;
@@ -129,8 +127,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	if (ret)
 		goto err_free;
 
-	obj->uobject.object = cq;
-	obj->uobject.user_handle = user_handle;
+	obj->uevent.uobject.object = cq;
+	obj->uevent.uobject.user_handle = user_handle;
 	rdma_restrack_uadd(&cq->res);
 
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_CREATE_CQ_RESP_CQE, &cq->cqe,
@@ -182,10 +180,10 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_DESTROY)(
 	struct ib_uobject *uobj =
 		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_DESTROY_CQ_HANDLE);
 	struct ib_ucq_object *obj =
-		container_of(uobj, struct ib_ucq_object, uobject);
+		container_of(uobj, struct ib_ucq_object, uevent.uobject);
 	struct ib_uverbs_destroy_cq_resp resp = {
 		.comp_events_reported = obj->comp_events_reported,
-		.async_events_reported = obj->async_events_reported
+		.async_events_reported = obj->uevent.events_reported
 	};
 
 	return uverbs_copy_to(attrs, UVERBS_ATTR_DESTROY_CQ_RESP, &resp,

@@ -1015,11 +1015,9 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 		}
 	}
 
-	obj->uobject.user_handle = cmd->user_handle;
-	obj->comp_events_reported  = 0;
-	obj->async_events_reported = 0;
+	obj->uevent.uobject.user_handle = cmd->user_handle;
 	INIT_LIST_HEAD(&obj->comp_list);
-	INIT_LIST_HEAD(&obj->async_list);
+	INIT_LIST_HEAD(&obj->uevent.event_list);
 
 	attr.cqe = cmd->cqe;
 	attr.comp_vector = cmd->comp_vector;
@@ -1031,7 +1029,7 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 		goto err_file;
 	}
 	cq->device        = ib_dev;
-	cq->uobject       = &obj->uobject;
+	cq->uobject       = &obj->uevent.uobject;
 	cq->comp_handler  = ib_uverbs_comp_handler;
 	cq->event_handler = ib_uverbs_cq_event_handler;
 	cq->cq_context    = ev_file ? &ev_file->ev_queue : NULL;
@@ -1041,9 +1039,9 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	if (ret)
 		goto err_free;
 
-	obj->uobject.object = cq;
+	obj->uevent.uobject.object = cq;
 	memset(&resp, 0, sizeof resp);
-	resp.base.cq_handle = obj->uobject.id;
+	resp.base.cq_handle = obj->uevent.uobject.id;
 	resp.base.cqe       = cq->cqe;
 	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 
@@ -1054,7 +1052,7 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	if (ret)
 		goto err_cb;
 
-	rdma_alloc_commit_uobject(&obj->uobject, attrs);
+	rdma_alloc_commit_uobject(&obj->uevent.uobject, attrs);
 	return obj;
 
 err_cb:
@@ -1067,7 +1065,7 @@ err_file:
 		ib_uverbs_release_ucq(attrs->ufile, ev_file, obj);
 
 err:
-	uobj_alloc_abort(&obj->uobject, attrs);
+	uobj_alloc_abort(&obj->uevent.uobject, attrs);
 
 	return ERR_PTR(ret);
 }
@@ -1261,10 +1259,10 @@ static int ib_uverbs_destroy_cq(struct uverbs_attr_bundle *attrs)
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	obj = container_of(uobj, struct ib_ucq_object, uobject);
+	obj = container_of(uobj, struct ib_ucq_object, uevent.uobject);
 	memset(&resp, 0, sizeof(resp));
 	resp.comp_events_reported  = obj->comp_events_reported;
-	resp.async_events_reported = obj->async_events_reported;
+	resp.async_events_reported = obj->uevent.events_reported;
 
 	uobj_put_destroy(uobj);
 

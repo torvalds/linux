@@ -183,6 +183,7 @@ struct ib_uverbs_mcast_entry {
 
 struct ib_uevent_object {
 	struct ib_uobject	uobject;
+	/* List member for ib_uverbs_async_event_file list */
 	struct list_head	event_list;
 	u32			events_reported;
 };
@@ -210,11 +211,9 @@ struct ib_uwq_object {
 };
 
 struct ib_ucq_object {
-	struct ib_uobject	uobject;
+	struct ib_uevent_object uevent;
 	struct list_head	comp_list;
-	struct list_head	async_list;
 	u32			comp_events_reported;
-	u32			async_events_reported;
 };
 
 extern const struct file_operations uverbs_event_fops;
