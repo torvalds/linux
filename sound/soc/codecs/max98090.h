@@ -1539,6 +1539,7 @@ struct max98090_priv {
 	unsigned int pa2en;
 	unsigned int sidetone;
 	bool master;
+	struct mutex shdn_lock;
 	int saved_count;
 	int saved_shdn;
 };
