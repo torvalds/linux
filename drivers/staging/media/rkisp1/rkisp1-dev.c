@@ -37,6 +37,8 @@
  *
  * ISP Block Diagram
  * -----------------
+ *                                                             rkisp1-resizer.c          rkisp1-capture.c
+ *                                                          |====================|  |=======================|
  *                                rkisp1-isp.c                              Main Picture Path
  *                        |==========================|      |===============================================|
  *                        +-----------+  +--+--+--+--+      +--------+  +--------+              +-----------+
@@ -72,8 +74,23 @@
  *    +----------+      |------+------|
  *                      |     ISP     |
  *                      |------+------|
- *                      |  2   |  3   |
- *                      +------+------+
+ *        +-------------|  2   |  3   |
+ *        |             +------+------+
+ *        |                |
+ *        v                v
+ *  +- ---------+    +-----------+
+ *  |     0     |    |     0     |
+ *  -------------    -------------
+ *  |  Resizer  |    |  Resizer  |
+ *  ------------|    ------------|
+ *  |     1     |    |     1     |
+ *  +-----------+    +-----------+
+ *        |                |
+ *        v                v
+ *  +-----------+    +-----------+
+ *  | selfpath  |    | mainpath  |
+ *  | (capture) |    | (capture) |
+ *  +-----------+    +-----------+
  */
 
 struct rkisp1_match_data {
@@ -87,14 +104,18 @@ struct rkisp1_match_data {
 
 static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 {
+	struct media_entity *source, *sink;
 	unsigned int flags, source_pad;
 	struct v4l2_subdev *sd;
+	unsigned int i;
 	int ret;
 
 	/* sensor links */
 	flags = MEDIA_LNK_FL_ENABLED;
 	list_for_each_entry(sd, &rkisp1->v4l2_dev.subdevs, list) {
-		if (sd == &rkisp1->isp.sd)
+		if (sd == &rkisp1->isp.sd ||
+		    sd == &rkisp1->resizer_devs[RKISP1_MAINPATH].sd ||
+		    sd == &rkisp1->resizer_devs[RKISP1_SELFPATH].sd)
 			continue;
 
 		ret = media_entity_get_fwnode_pad(&sd->entity, sd->fwnode,
@@ -114,6 +135,25 @@ static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 			return ret;
 
 		flags = 0;
+	}
+
+	flags = MEDIA_LNK_FL_ENABLED;
+
+	/* create ISP->RSZ->CAP links */
+	for (i = 0; i < 2; i++) {
+		source = &rkisp1->isp.sd.entity;
+		sink = &rkisp1->resizer_devs[i].sd.entity;
+		ret = media_create_pad_link(source, RKISP1_ISP_PAD_SOURCE_VIDEO,
+					    sink, RKISP1_RSZ_PAD_SINK, flags);
+		if (ret)
+			return ret;
+
+		source = sink;
+		sink = &rkisp1->capture_devs[i].vnode.vdev.entity;
+		ret = media_create_pad_link(source, RKISP1_RSZ_PAD_SRC,
+					    sink, 0, flags);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -288,15 +328,29 @@ static int rkisp1_entities_register(struct rkisp1_device *rkisp1)
 	if (ret)
 		return ret;
 
+	ret = rkisp1_resizer_devs_register(rkisp1);
+	if (ret)
+		goto err_unreg_isp_subdev;
+
+	ret = rkisp1_capture_devs_register(rkisp1);
+	if (ret)
+		goto err_unreg_resizer_devs;
+
 	ret = rkisp1_subdev_notifier(rkisp1);
 	if (ret) {
 		dev_err(rkisp1->dev,
 			"Failed to register subdev notifier(%d)\n", ret);
-		rkisp1_isp_unregister(rkisp1);
-		return ret;
+		goto err_unreg_capture_devs;
 	}
 
 	return 0;
+err_unreg_capture_devs:
+	rkisp1_capture_devs_unregister(rkisp1);
+err_unreg_resizer_devs:
+	rkisp1_resizer_devs_unregister(rkisp1);
+err_unreg_isp_subdev:
+	rkisp1_isp_unregister(rkisp1);
+	return ret;
 }
 
 static irqreturn_t rkisp1_isr(int irq, void *ctx)
@@ -304,6 +358,13 @@ static irqreturn_t rkisp1_isr(int irq, void *ctx)
 	struct device *dev = ctx;
 	struct rkisp1_device *rkisp1 = dev_get_drvdata(dev);
 
+	/*
+	 * Call rkisp1_capture_isr() first to handle the frame that
+	 * potentially completed using the current frame_sequence number before
+	 * it is potentially incremented by rkisp1_isp_isr() in the vertical
+	 * sync.
+	 */
+	rkisp1_capture_isr(rkisp1);
 	rkisp1_isp_isr(rkisp1);
 	rkisp1_mipi_isr(rkisp1);
 
@@ -347,6 +408,14 @@ static void rkisp1_debug_init(struct rkisp1_device *rkisp1)
 			     &debug->pic_size_error);
 	debugfs_create_ulong("mipi_error", 0444, debug->debugfs_dir,
 			     &debug->mipi_error);
+	debugfs_create_ulong("mp_stop_timeout", 0444, debug->debugfs_dir,
+			     &debug->stop_timeout[RKISP1_MAINPATH]);
+	debugfs_create_ulong("sp_stop_timeout", 0444, debug->debugfs_dir,
+			     &debug->stop_timeout[RKISP1_SELFPATH]);
+	debugfs_create_ulong("mp_frame_drop", 0444, debug->debugfs_dir,
+			     &debug->frame_drop[RKISP1_MAINPATH]);
+	debugfs_create_ulong("sp_frame_drop", 0444, debug->debugfs_dir,
+			     &debug->frame_drop[RKISP1_SELFPATH]);
 }
 
 static int rkisp1_probe(struct platform_device *pdev)
@@ -440,6 +509,8 @@ static int rkisp1_remove(struct platform_device *pdev)
 	v4l2_async_notifier_unregister(&rkisp1->notifier);
 	v4l2_async_notifier_cleanup(&rkisp1->notifier);
 
+	rkisp1_capture_devs_unregister(rkisp1);
+	rkisp1_resizer_devs_unregister(rkisp1);
 	rkisp1_isp_unregister(rkisp1);
 
 	media_device_unregister(&rkisp1->media_dev);

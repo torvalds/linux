@@ -41,6 +41,16 @@
 
 #define RKISP1_MAX_BUS_CLK	8
 
+enum rkisp1_rsz_pad {
+	RKISP1_RSZ_PAD_SINK,
+	RKISP1_RSZ_PAD_SRC,
+};
+
+enum rkisp1_stream_id {
+	RKISP1_MAINPATH,
+	RKISP1_SELFPATH,
+};
+
 enum rkisp1_fmt_pix_type {
 	RKISP1_FMT_YUV,
 	RKISP1_FMT_RGB,
@@ -124,11 +134,63 @@ struct rkisp1_dummy_buffer {
 
 struct rkisp1_device;
 
+/*
+ * struct rkisp1_capture - ISP capture video device
+ *
+ * @pix.fmt: buffer format
+ * @pix.info: pixel information
+ * @pix.cfg: pixel configuration
+ *
+ * @buf.lock: lock to protect buf_queue
+ * @buf.queue: queued buffer list
+ * @buf.dummy: dummy space to store dropped data
+ *
+ * rkisp1 use shadowsock registers, so it need two buffer at a time
+ * @buf.curr: the buffer used for current frame
+ * @buf.next: the buffer used for next frame
+ */
+struct rkisp1_capture {
+	struct rkisp1_vdev_node vnode;
+	struct rkisp1_device *rkisp1;
+	enum rkisp1_stream_id id;
+	struct rkisp1_capture_ops *ops;
+	const struct rkisp1_capture_config *config;
+	bool is_streaming;
+	bool is_stopping;
+	wait_queue_head_t done;
+	unsigned int sp_y_stride;
+	struct {
+		/* protects queue, curr and next */
+		spinlock_t lock;
+		struct list_head queue;
+		struct rkisp1_dummy_buffer dummy;
+		struct rkisp1_buffer *curr;
+		struct rkisp1_buffer *next;
+	} buf;
+	struct {
+		const struct rkisp1_capture_fmt_cfg *cfg;
+		const struct v4l2_format_info *info;
+		struct v4l2_pix_format_mplane fmt;
+	} pix;
+};
+
+struct rkisp1_resizer {
+	struct v4l2_subdev sd;
+	enum rkisp1_stream_id id;
+	struct rkisp1_device *rkisp1;
+	struct media_pad pads[RKISP1_ISP_PAD_MAX];
+	struct v4l2_subdev_pad_config pad_cfg[RKISP1_ISP_PAD_MAX];
+	const struct rkisp1_rsz_config *config;
+	enum rkisp1_fmt_pix_type fmt_type;
+};
+
 struct rkisp1_debug {
 	struct dentry *debugfs_dir;
 	unsigned long data_loss;
 	unsigned long pic_size_error;
 	unsigned long mipi_error;
+	unsigned long stop_timeout[2];
+	unsigned long frame_drop[2];
 };
 
 /*
@@ -136,6 +198,7 @@ struct rkisp1_debug {
  * @base_addr: base register address
  * @active_sensor: sensor in-use, set when streaming on
  * @isp: ISP sub-device
+ * @rkisp1_capture: capture video device
  */
 struct rkisp1_device {
 	void __iomem *base_addr;
@@ -149,6 +212,8 @@ struct rkisp1_device {
 	struct v4l2_async_notifier notifier;
 	struct rkisp1_sensor_async *active_sensor;
 	struct rkisp1_isp isp;
+	struct rkisp1_resizer resizer_devs[2];
+	struct rkisp1_capture capture_devs[2];
 	struct media_pipeline pipe;
 	struct vb2_alloc_ctx *alloc_ctx;
 	struct rkisp1_debug debug;
@@ -196,5 +261,12 @@ const struct rkisp1_isp_mbus_info *rkisp1_isp_mbus_info_get(u32 mbus_code);
 
 void rkisp1_isp_isr(struct rkisp1_device *rkisp1);
 void rkisp1_mipi_isr(struct rkisp1_device *rkisp1);
+void rkisp1_capture_isr(struct rkisp1_device *rkisp1);
+
+int rkisp1_capture_devs_register(struct rkisp1_device *rkisp1);
+void rkisp1_capture_devs_unregister(struct rkisp1_device *rkisp1);
+
+int rkisp1_resizer_devs_register(struct rkisp1_device *rkisp1);
+void rkisp1_resizer_devs_unregister(struct rkisp1_device *rkisp1);
 
 #endif /* _RKISP1_COMMON_H */
