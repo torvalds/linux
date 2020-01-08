@@ -1310,27 +1310,6 @@ gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t gfn,
 	return slot;
 }
 
-static int max_mapping_level(struct kvm_vcpu *vcpu, gfn_t gfn,
-			     int max_level)
-{
-	struct kvm_memory_slot *slot;
-
-	if (unlikely(max_level == PT_PAGE_TABLE_LEVEL))
-		return PT_PAGE_TABLE_LEVEL;
-
-	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
-	if (!memslot_valid_for_gpte(slot, true))
-		return PT_PAGE_TABLE_LEVEL;
-
-	max_level = min(max_level, kvm_x86_ops->get_lpage_level());
-	for ( ; max_level > PT_PAGE_TABLE_LEVEL; max_level--) {
-		if (!__mmu_gfn_lpage_is_disallowed(gfn, max_level, slot))
-			break;
-	}
-
-	return max_level;
-}
-
 /*
  * About rmap_head encoding:
  *
@@ -3101,10 +3080,11 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	if (pte_access & ACC_WRITE_MASK) {
 
 		/*
-		 * Other vcpu creates new sp in the window between
-		 * max_mapping_level() and acquiring mmu-lock. We can
-		 * allow guest to retry the access, the mapping can
-		 * be fixed if guest refault.
+		 * Legacy code to handle an obsolete scenario where a different
+		 * vcpu creates new sp in the window between this vcpu's query
+		 * of lpage_is_disallowed() and acquiring mmu_lock.  No longer
+		 * necessary now that lpage_is_disallowed() is called after
+		 * acquiring mmu_lock.
 		 */
 		if (level > PT_PAGE_TABLE_LEVEL &&
 		    mmu_gfn_lpage_is_disallowed(vcpu, gfn, level))
@@ -3295,9 +3275,8 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
 }
 
 static int host_pfn_mapping_level(struct kvm_vcpu *vcpu, gfn_t gfn,
-				  kvm_pfn_t pfn)
+				  kvm_pfn_t pfn, struct kvm_memory_slot *slot)
 {
-	struct kvm_memory_slot *slot;
 	unsigned long hva;
 	pte_t *pte;
 	int level;
@@ -3309,10 +3288,14 @@ static int host_pfn_mapping_level(struct kvm_vcpu *vcpu, gfn_t gfn,
 	if (!PageCompound(pfn_to_page(pfn)))
 		return PT_PAGE_TABLE_LEVEL;
 
-	slot = gfn_to_memslot_dirty_bitmap(vcpu, gfn, true);
-	if (!slot)
-		return PT_PAGE_TABLE_LEVEL;
-
+	/*
+	 * Note, using the already-retrieved memslot and __gfn_to_hva_memslot()
+	 * is not solely for performance, it's also necessary to avoid the
+	 * "writable" check in __gfn_to_hva_many(), which will always fail on
+	 * read-only memslots due to gfn_to_hva() assuming writes.  Earlier
+	 * page fault steps have already verified the guest isn't writing a
+	 * read-only memslot.
+	 */
 	hva = __gfn_to_hva_memslot(slot, gfn);
 
 	pte = lookup_address_in_mm(vcpu->kvm->mm, hva, &level);
@@ -3325,18 +3308,32 @@ static int host_pfn_mapping_level(struct kvm_vcpu *vcpu, gfn_t gfn,
 static int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
 				   int max_level, kvm_pfn_t *pfnp)
 {
+	struct kvm_memory_slot *slot;
 	kvm_pfn_t pfn = *pfnp;
 	kvm_pfn_t mask;
 	int level;
 
-	if (max_level == PT_PAGE_TABLE_LEVEL)
+	if (unlikely(max_level == PT_PAGE_TABLE_LEVEL))
 		return PT_PAGE_TABLE_LEVEL;
 
 	if (is_error_noslot_pfn(pfn) || kvm_is_reserved_pfn(pfn) ||
 	    kvm_is_zone_device_pfn(pfn))
 		return PT_PAGE_TABLE_LEVEL;
 
-	level = host_pfn_mapping_level(vcpu, gfn, pfn);
+	slot = gfn_to_memslot_dirty_bitmap(vcpu, gfn, true);
+	if (!slot)
+		return PT_PAGE_TABLE_LEVEL;
+
+	max_level = min(max_level, kvm_x86_ops->get_lpage_level());
+	for ( ; max_level > PT_PAGE_TABLE_LEVEL; max_level--) {
+		if (!__mmu_gfn_lpage_is_disallowed(gfn, max_level, slot))
+			break;
+	}
+
+	if (max_level == PT_PAGE_TABLE_LEVEL)
+		return PT_PAGE_TABLE_LEVEL;
+
+	level = host_pfn_mapping_level(vcpu, gfn, pfn, slot);
 	if (level == PT_PAGE_TABLE_LEVEL)
 		return level;
 
@@ -4176,8 +4173,6 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 
 	if (lpage_disallowed)
 		max_level = PT_PAGE_TABLE_LEVEL;
-
-	max_level = max_mapping_level(vcpu, gfn, max_level);
 
 	if (fast_page_fault(vcpu, gpa, error_code))
 		return RET_PF_RETRY;
