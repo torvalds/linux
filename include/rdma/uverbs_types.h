@@ -85,7 +85,7 @@ struct uverbs_obj_type_class {
 	struct ib_uobject *(*alloc_begin)(const struct uverbs_api_object *obj,
 					  struct ib_uverbs_file *ufile);
 	/* This consumes the kref on uobj */
-	int (*alloc_commit)(struct ib_uobject *uobj);
+	void (*alloc_commit)(struct ib_uobject *uobj);
 	/* This does not consume the kref on uobj */
 	void (*alloc_abort)(struct ib_uobject *uobj);
 
@@ -141,8 +141,8 @@ struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
 					    struct uverbs_attr_bundle *attrs);
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj,
 			      struct uverbs_attr_bundle *attrs);
-int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj,
-					   struct uverbs_attr_bundle *attrs);
+void rdma_alloc_commit_uobject(struct ib_uobject *uobj,
+			       struct uverbs_attr_bundle *attrs);
 
 /*
  * uverbs_uobject_get is called in order to increase the reference count on

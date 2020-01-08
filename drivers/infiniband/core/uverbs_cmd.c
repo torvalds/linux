@@ -446,7 +446,8 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		goto err_copy;
 
-	return uobj_alloc_commit(uobj, attrs);
+	rdma_alloc_commit_uobject(uobj, attrs);
+	return 0;
 
 err_copy:
 	ib_dealloc_pd_user(pd, uverbs_get_cleared_udata(attrs));
@@ -642,7 +643,8 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 
 	mutex_unlock(&ibudev->xrcd_tree_mutex);
 
-	return uobj_alloc_commit(&obj->uobject, attrs);
+	rdma_alloc_commit_uobject(&obj->uobject, attrs);
+	return 0;
 
 err_copy:
 	if (inode) {
@@ -774,7 +776,8 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 
 	uobj_put_obj_read(pd);
 
-	return uobj_alloc_commit(uobj, attrs);
+	rdma_alloc_commit_uobject(uobj, attrs);
+	return 0;
 
 err_copy:
 	ib_dereg_mr_user(mr, uverbs_get_cleared_udata(attrs));
@@ -928,7 +931,8 @@ static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs)
 		goto err_copy;
 
 	uobj_put_obj_read(pd);
-	return uobj_alloc_commit(uobj, attrs);
+	rdma_alloc_commit_uobject(uobj, attrs);
+	return 0;
 
 err_copy:
 	uverbs_dealloc_mw(mw);
@@ -980,7 +984,8 @@ static int ib_uverbs_create_comp_channel(struct uverbs_attr_bundle *attrs)
 		return ret;
 	}
 
-	return uobj_alloc_commit(uobj, attrs);
+	rdma_alloc_commit_uobject(uobj, attrs);
+	return 0;
 }
 
 static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
@@ -1049,9 +1054,7 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	if (ret)
 		goto err_cb;
 
-	ret = uobj_alloc_commit(&obj->uobject, attrs);
-	if (ret)
-		return ERR_PTR(ret);
+	rdma_alloc_commit_uobject(&obj->uobject, attrs);
 	return obj;
 
 err_cb:
@@ -1491,7 +1494,8 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	if (ind_tbl)
 		uobj_put_obj_read(ind_tbl);
 
-	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
+	rdma_alloc_commit_uobject(&obj->uevent.uobject, attrs);
+	return 0;
 err_cb:
 	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
 
@@ -1623,7 +1627,8 @@ static int ib_uverbs_open_qp(struct uverbs_attr_bundle *attrs)
 	qp->uobject = &obj->uevent.uobject;
 	uobj_put_read(xrcd_uobj);
 
-	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
+	rdma_alloc_commit_uobject(&obj->uevent.uobject, attrs);
+	return 0;
 
 err_destroy:
 	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
@@ -2465,7 +2470,8 @@ static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs)
 		goto err_copy;
 
 	uobj_put_obj_read(pd);
-	return uobj_alloc_commit(uobj, attrs);
+	rdma_alloc_commit_uobject(uobj, attrs);
+	return 0;
 
 err_copy:
 	rdma_destroy_ah_user(ah, RDMA_DESTROY_AH_SLEEPABLE,
@@ -2977,7 +2983,8 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 
 	uobj_put_obj_read(pd);
 	uobj_put_obj_read(cq);
-	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
+	rdma_alloc_commit_uobject(&obj->uevent.uobject, attrs);
+	return 0;
 
 err_copy:
 	ib_destroy_wq(wq, uverbs_get_cleared_udata(attrs));
@@ -3151,7 +3158,8 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 	for (j = 0; j < num_read_wqs; j++)
 		uobj_put_obj_read(wqs[j]);
 
-	return uobj_alloc_commit(uobj, attrs);
+	rdma_alloc_commit_uobject(uobj, attrs);
+	return 0;
 
 err_copy:
 	ib_destroy_rwq_ind_table(rwq_ind_tbl);
@@ -3329,7 +3337,8 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs)
 	kfree(flow_attr);
 	if (cmd.flow_attr.num_of_specs)
 		kfree(kern_flow_attr);
-	return uobj_alloc_commit(uobj, attrs);
+	rdma_alloc_commit_uobject(uobj, attrs);
+	return 0;
 err_copy:
 	if (!qp->device->ops.destroy_flow(flow_id))
 		atomic_dec(&qp->usecnt);
@@ -3477,7 +3486,8 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 		uobj_put_obj_read(attr.ext.cq);
 
 	uobj_put_obj_read(pd);
-	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
+	rdma_alloc_commit_uobject(&obj->uevent.uobject, attrs);
+	return 0;
 
 err_copy:
 	ib_destroy_srq_user(srq, uverbs_get_cleared_udata(attrs));

@@ -63,24 +63,9 @@ struct ib_uobject *
 uverbs_get_uobject_from_file(u16 object_id, enum uverbs_obj_access access,
 			     s64 id, struct uverbs_attr_bundle *attrs);
 
-/*
- * Note that certain finalize stages could return a status:
- *   (a) alloc_commit could return a failure if the object is committed at the
- *       same time when the context is destroyed.
- *   (b) remove_commit could fail if the object wasn't destroyed successfully.
- * Since multiple objects could be finalized in one transaction, it is very NOT
- * recommended to have several finalize actions which have side effects.
- * For example, it's NOT recommended to have a certain action which has both
- * a commit action and a destroy action or two destroy objects in the same
- * action. The rule of thumb is to have one destroy or commit action with
- * multiple lookups.
- * The first non zero return value of finalize_object is returned from this
- * function. For example, this could happen when we couldn't destroy an
- * object.
- */
-int uverbs_finalize_object(struct ib_uobject *uobj,
-			   enum uverbs_obj_access access, bool commit,
-			   struct uverbs_attr_bundle *attrs);
+void uverbs_finalize_object(struct ib_uobject *uobj,
+			    enum uverbs_obj_access access, bool commit,
+			    struct uverbs_attr_bundle *attrs);
 
 int uverbs_output_written(const struct uverbs_attr_bundle *bundle, size_t idx);
 
