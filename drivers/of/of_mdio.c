@@ -162,7 +162,7 @@ static const struct of_device_id whitelist_phys[] = {
  * A device which is not a phy is expected to have a compatible string
  * indicating what sort of device it is.
  */
-static bool of_mdiobus_child_is_phy(struct device_node *child)
+bool of_mdiobus_child_is_phy(struct device_node *child)
 {
 	u32 phy_id;
 
@@ -187,6 +187,7 @@ static bool of_mdiobus_child_is_phy(struct device_node *child)
 
 	return false;
 }
+EXPORT_SYMBOL(of_mdiobus_child_is_phy);
 
 /**
  * of_mdiobus_register - Register mii_bus and create PHYs from the device tree
