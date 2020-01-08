@@ -41,6 +41,9 @@
 #define RDMA_UAPI_PTR(_type, _name)	__aligned_u64 _name
 #endif
 
+#define IB_UVERBS_ACCESS_OPTIONAL_FIRST (1 << 20)
+#define IB_UVERBS_ACCESS_OPTIONAL_LAST (1 << 29)
+
 enum ib_uverbs_access_flags {
 	IB_UVERBS_ACCESS_LOCAL_WRITE = 1 << 0,
 	IB_UVERBS_ACCESS_REMOTE_WRITE = 1 << 1,
@@ -50,6 +53,10 @@ enum ib_uverbs_access_flags {
 	IB_UVERBS_ACCESS_ZERO_BASED = 1 << 5,
 	IB_UVERBS_ACCESS_ON_DEMAND = 1 << 6,
 	IB_UVERBS_ACCESS_HUGETLB = 1 << 7,
+
+	IB_UVERBS_ACCESS_OPTIONAL_RANGE =
+		((IB_UVERBS_ACCESS_OPTIONAL_LAST << 1) - 1) &
+		~(IB_UVERBS_ACCESS_OPTIONAL_FIRST - 1)
 };
 
 enum ib_uverbs_query_port_cap_flags {
