@@ -238,30 +238,6 @@ void efx_start_monitor(struct efx_nic *efx)
  *
  *************************************************************************/
 
-void efx_start_channels(struct efx_nic *efx)
-{
-	struct efx_tx_queue *tx_queue;
-	struct efx_rx_queue *rx_queue;
-	struct efx_channel *channel;
-
-	efx_for_each_channel(channel, efx) {
-		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			efx_init_tx_queue(tx_queue);
-			atomic_inc(&efx->active_queues);
-		}
-
-		efx_for_each_channel_rx_queue(rx_queue, channel) {
-			efx_init_rx_queue(rx_queue);
-			atomic_inc(&efx->active_queues);
-			efx_stop_eventq(channel);
-			efx_fast_push_rx_descriptors(rx_queue, false);
-			efx_start_eventq(channel);
-		}
-
-		WARN_ON(channel->rx_pkt_n_frags);
-	}
-}
-
 /* Channels are shutdown and reinitialised whilst the NIC is running
  * to propagate configuration changes (mtu, checksum offload), or
  * to clear hardware error conditions
@@ -340,51 +316,6 @@ static void efx_start_datapath(struct efx_nic *efx)
 
 	if (netif_device_present(efx->net_dev))
 		netif_tx_wake_all_queues(efx->net_dev);
-}
-
-void efx_stop_channels(struct efx_nic *efx)
-{
-	struct efx_tx_queue *tx_queue;
-	struct efx_rx_queue *rx_queue;
-	struct efx_channel *channel;
-	int rc = 0;
-
-	/* Stop RX refill */
-	efx_for_each_channel(channel, efx) {
-		efx_for_each_channel_rx_queue(rx_queue, channel)
-			rx_queue->refill_enabled = false;
-	}
-
-	efx_for_each_channel(channel, efx) {
-		/* RX packet processing is pipelined, so wait for the
-		 * NAPI handler to complete.  At least event queue 0
-		 * might be kept active by non-data events, so don't
-		 * use napi_synchronize() but actually disable NAPI
-		 * temporarily.
-		 */
-		if (efx_channel_has_rx_queue(channel)) {
-			efx_stop_eventq(channel);
-			efx_start_eventq(channel);
-		}
-	}
-
-	if (efx->type->fini_dmaq)
-		rc = efx->type->fini_dmaq(efx);
-
-	if (rc) {
-		netif_err(efx, drv, efx->net_dev, "failed to flush queues\n");
-	} else {
-		netif_dbg(efx, drv, efx->net_dev,
-			  "successfully flushed all queues\n");
-	}
-
-	efx_for_each_channel(channel, efx) {
-		efx_for_each_channel_rx_queue(rx_queue, channel)
-			efx_fini_rx_queue(rx_queue);
-		efx_for_each_possible_channel_tx_queue(tx_queue, channel)
-			efx_fini_tx_queue(tx_queue);
-	}
-	efx->xdp_rxq_info_failed = false;
 }
 
 static void efx_stop_datapath(struct efx_nic *efx)

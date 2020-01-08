@@ -33,6 +33,196 @@ MODULE_PARM_DESC(irq_adapt_high_thresh,
  */
 static int napi_weight = 64;
 
+/*************
+ * START/STOP
+ *************/
+
+int efx_soft_enable_interrupts(struct efx_nic *efx)
+{
+	struct efx_channel *channel, *end_channel;
+	int rc;
+
+	BUG_ON(efx->state == STATE_DISABLED);
+
+	efx->irq_soft_enabled = true;
+	smp_wmb();
+
+	efx_for_each_channel(channel, efx) {
+		if (!channel->type->keep_eventq) {
+			rc = efx_init_eventq(channel);
+			if (rc)
+				goto fail;
+		}
+		efx_start_eventq(channel);
+	}
+
+	efx_mcdi_mode_event(efx);
+
+	return 0;
+fail:
+	end_channel = channel;
+	efx_for_each_channel(channel, efx) {
+		if (channel == end_channel)
+			break;
+		efx_stop_eventq(channel);
+		if (!channel->type->keep_eventq)
+			efx_fini_eventq(channel);
+	}
+
+	return rc;
+}
+
+void efx_soft_disable_interrupts(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+
+	if (efx->state == STATE_DISABLED)
+		return;
+
+	efx_mcdi_mode_poll(efx);
+
+	efx->irq_soft_enabled = false;
+	smp_wmb();
+
+	if (efx->legacy_irq)
+		synchronize_irq(efx->legacy_irq);
+
+	efx_for_each_channel(channel, efx) {
+		if (channel->irq)
+			synchronize_irq(channel->irq);
+
+		efx_stop_eventq(channel);
+		if (!channel->type->keep_eventq)
+			efx_fini_eventq(channel);
+	}
+
+	/* Flush the asynchronous MCDI request queue */
+	efx_mcdi_flush_async(efx);
+}
+
+int efx_enable_interrupts(struct efx_nic *efx)
+{
+	struct efx_channel *channel, *end_channel;
+	int rc;
+
+	/* TODO: Is this really a bug? */
+	BUG_ON(efx->state == STATE_DISABLED);
+
+	if (efx->eeh_disabled_legacy_irq) {
+		enable_irq(efx->legacy_irq);
+		efx->eeh_disabled_legacy_irq = false;
+	}
+
+	efx->type->irq_enable_master(efx);
+
+	efx_for_each_channel(channel, efx) {
+		if (channel->type->keep_eventq) {
+			rc = efx_init_eventq(channel);
+			if (rc)
+				goto fail;
+		}
+	}
+
+	rc = efx_soft_enable_interrupts(efx);
+	if (rc)
+		goto fail;
+
+	return 0;
+
+fail:
+	end_channel = channel;
+	efx_for_each_channel(channel, efx) {
+		if (channel == end_channel)
+			break;
+		if (channel->type->keep_eventq)
+			efx_fini_eventq(channel);
+	}
+
+	efx->type->irq_disable_non_ev(efx);
+
+	return rc;
+}
+
+void efx_disable_interrupts(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+
+	efx_soft_disable_interrupts(efx);
+
+	efx_for_each_channel(channel, efx) {
+		if (channel->type->keep_eventq)
+			efx_fini_eventq(channel);
+	}
+
+	efx->type->irq_disable_non_ev(efx);
+}
+
+void efx_start_channels(struct efx_nic *efx)
+{
+	struct efx_tx_queue *tx_queue;
+	struct efx_rx_queue *rx_queue;
+	struct efx_channel *channel;
+
+	efx_for_each_channel(channel, efx) {
+		efx_for_each_channel_tx_queue(tx_queue, channel) {
+			efx_init_tx_queue(tx_queue);
+			atomic_inc(&efx->active_queues);
+		}
+
+		efx_for_each_channel_rx_queue(rx_queue, channel) {
+			efx_init_rx_queue(rx_queue);
+			atomic_inc(&efx->active_queues);
+			efx_stop_eventq(channel);
+			efx_fast_push_rx_descriptors(rx_queue, false);
+			efx_start_eventq(channel);
+		}
+
+		WARN_ON(channel->rx_pkt_n_frags);
+	}
+}
+
+void efx_stop_channels(struct efx_nic *efx)
+{
+	struct efx_tx_queue *tx_queue;
+	struct efx_rx_queue *rx_queue;
+	struct efx_channel *channel;
+	int rc;
+
+	/* Stop RX refill */
+	efx_for_each_channel(channel, efx) {
+		efx_for_each_channel_rx_queue(rx_queue, channel)
+			rx_queue->refill_enabled = false;
+	}
+
+	efx_for_each_channel(channel, efx) {
+		/* RX packet processing is pipelined, so wait for the
+		 * NAPI handler to complete.  At least event queue 0
+		 * might be kept active by non-data events, so don't
+		 * use napi_synchronize() but actually disable NAPI
+		 * temporarily.
+		 */
+		if (efx_channel_has_rx_queue(channel)) {
+			efx_stop_eventq(channel);
+			efx_start_eventq(channel);
+		}
+	}
+
+	rc = efx->type->fini_dmaq(efx);
+	if (rc) {
+		netif_err(efx, drv, efx->net_dev, "failed to flush queues\n");
+	} else {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "successfully flushed all queues\n");
+	}
+
+	efx_for_each_channel(channel, efx) {
+		efx_for_each_channel_rx_queue(rx_queue, channel)
+			efx_fini_rx_queue(rx_queue);
+		efx_for_each_possible_channel_tx_queue(tx_queue, channel)
+			efx_fini_tx_queue(tx_queue);
+	}
+}
+
 /**************************************************************************
  *
  * NAPI interface
