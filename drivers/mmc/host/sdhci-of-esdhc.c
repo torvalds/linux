@@ -758,23 +758,58 @@ static void esdhc_reset(struct sdhci_host *host, u8 mask)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
-	u32 val;
+	u32 val, bus_width = 0;
 
+	/*
+	 * Add delay to make sure all the DMA transfers are finished
+	 * for quirk.
+	 */
 	if (esdhc->quirk_delay_before_data_reset &&
 	    (mask & SDHCI_RESET_DATA) &&
 	    (host->flags & SDHCI_REQ_USE_DMA))
 		mdelay(5);
 
+	/*
+	 * Save bus-width for eSDHC whose vendor version is 2.2
+	 * or lower for data reset.
+	 */
+	if ((mask & SDHCI_RESET_DATA) &&
+	    (esdhc->vendor_ver <= VENDOR_V_22)) {
+		val = sdhci_readl(host, ESDHC_PROCTL);
+		bus_width = val & ESDHC_CTRL_BUSWIDTH_MASK;
+	}
+
 	sdhci_reset(host, mask);
 
-	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
-	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
+	/*
+	 * Restore bus-width setting and interrupt registers for eSDHC
+	 * whose vendor version is 2.2 or lower for data reset.
+	 */
+	if ((mask & SDHCI_RESET_DATA) &&
+	    (esdhc->vendor_ver <= VENDOR_V_22)) {
+		val = sdhci_readl(host, ESDHC_PROCTL);
+		val &= ~ESDHC_CTRL_BUSWIDTH_MASK;
+		val |= bus_width;
+		sdhci_writel(host, val, ESDHC_PROCTL);
 
-	if (mask & SDHCI_RESET_ALL) {
+		sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
+		sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
+	}
+
+	/*
+	 * Some bits have to be cleaned manually for eSDHC whose spec
+	 * version is higher than 3.0 for all reset.
+	 */
+	if ((mask & SDHCI_RESET_ALL) &&
+	    (esdhc->spec_ver >= SDHCI_SPEC_300)) {
 		val = sdhci_readl(host, ESDHC_TBCTL);
 		val &= ~ESDHC_TB_EN;
 		sdhci_writel(host, val, ESDHC_TBCTL);
 
+		/*
+		 * Initialize eSDHC_DLLCFG1[DLL_PD_PULSE_STRETCH_SEL] to
+		 * 0 for quirk.
+		 */
 		if (esdhc->quirk_unreliable_pulse_detection) {
 			val = sdhci_readl(host, ESDHC_DLLCFG1);
 			val &= ~ESDHC_DLL_PD_PULSE_STRETCH_SEL;
