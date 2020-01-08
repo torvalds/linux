@@ -233,16 +233,6 @@ static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
 			ASSERT_RTNL();			\
 	} while (0)
 
-int efx_check_disabled(struct efx_nic *efx)
-{
-	if (efx->state == STATE_DISABLED || efx->state == STATE_RECOVERY) {
-		netif_err(efx, drv, efx->net_dev,
-			  "device is disabled due to earlier errors\n");
-		return -EIO;
-	}
-	return 0;
-}
-
 /**************************************************************************
  *
  * Event queue processing
@@ -1283,16 +1273,13 @@ static void efx_dissociate(struct efx_nic *efx)
 }
 
 /* This configures the PCI device to enable I/O and DMA. */
-int efx_init_io(struct efx_nic *efx)
+int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
+		unsigned int mem_map_size)
 {
 	struct pci_dev *pci_dev = efx->pci_dev;
-	dma_addr_t dma_mask = efx->type->max_dma_mask;
-	unsigned int mem_map_size = efx->type->mem_map_size(efx);
-	int rc, bar;
+	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
-
-	bar = efx->type->mem_bar(efx);
 
 	rc = pci_enable_device(pci_dev);
 	if (rc) {
@@ -1354,10 +1341,8 @@ int efx_init_io(struct efx_nic *efx)
 	return rc;
 }
 
-void efx_fini_io(struct efx_nic *efx)
+void efx_fini_io(struct efx_nic *efx, int bar)
 {
-	int bar;
-
 	netif_dbg(efx, drv, efx->net_dev, "shutting down I/O\n");
 
 	if (efx->membase) {
@@ -1366,7 +1351,6 @@ void efx_fini_io(struct efx_nic *efx)
 	}
 
 	if (efx->membase_phys) {
-		bar = efx->type->mem_bar(efx);
 		pci_release_region(efx->pci_dev, bar);
 		efx->membase_phys = 0;
 	}
@@ -3548,7 +3532,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	efx_pci_remove_main(efx);
 
-	efx_fini_io(efx);
+	efx_fini_io(efx, efx->type->mem_bar(efx));
 	netif_dbg(efx, drv, efx->net_dev, "shutdown successful\n");
 
 	efx_fini_struct(efx);
@@ -3771,7 +3755,8 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 		efx_probe_vpd_strings(efx);
 
 	/* Set up basic I/O (BAR mappings etc) */
-	rc = efx_init_io(efx);
+	rc = efx_init_io(efx, efx->type->mem_bar(efx), efx->type->max_dma_mask,
+			 efx->type->mem_map_size(efx));
 	if (rc)
 		goto fail2;
 
@@ -3815,7 +3800,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
  fail3:
-	efx_fini_io(efx);
+	efx_fini_io(efx, efx->type->mem_bar(efx));
  fail2:
 	efx_fini_struct(efx);
  fail1:
