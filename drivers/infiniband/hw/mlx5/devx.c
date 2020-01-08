@@ -30,7 +30,7 @@ enum devx_obj_flags {
 struct devx_async_data {
 	struct mlx5_ib_dev *mdev;
 	struct list_head list;
-	struct ib_uobject *fd_uobj;
+	struct devx_async_cmd_event_file *ev_file;
 	struct mlx5_async_work cb_work;
 	u16 cmd_out_len;
 	/* must be last field in this structure */
@@ -1673,21 +1673,20 @@ static void devx_query_callback(int status, struct mlx5_async_work *context)
 {
 	struct devx_async_data *async_data =
 		container_of(context, struct devx_async_data, cb_work);
-	struct ib_uobject *fd_uobj = async_data->fd_uobj;
-	struct devx_async_cmd_event_file *ev_file;
-	struct devx_async_event_queue *ev_queue;
+	struct devx_async_cmd_event_file *ev_file = async_data->ev_file;
+	struct devx_async_event_queue *ev_queue = &ev_file->ev_queue;
 	unsigned long flags;
 
-	ev_file = container_of(fd_uobj, struct devx_async_cmd_event_file,
-			       uobj);
-	ev_queue = &ev_file->ev_queue;
-
+	/*
+	 * Note that if the struct devx_async_cmd_event_file uobj begins to be
+	 * destroyed it will block at mlx5_cmd_cleanup_async_ctx() until this
+	 * routine returns, ensuring that it always remains valid here.
+	 */
 	spin_lock_irqsave(&ev_queue->lock, flags);
 	list_add_tail(&async_data->list, &ev_queue->event_list);
 	spin_unlock_irqrestore(&ev_queue->lock, flags);
 
 	wake_up_interruptible(&ev_queue->poll_wait);
-	fput(fd_uobj->object);
 }
 
 #define MAX_ASYNC_BYTES_IN_USE (1024 * 1024) /* 1MB */
@@ -1756,9 +1755,8 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_ASYNC_QUERY)(
 
 	async_data->cmd_out_len = cmd_out_len;
 	async_data->mdev = mdev;
-	async_data->fd_uobj = fd_uobj;
+	async_data->ev_file = ev_file;
 
-	get_file(fd_uobj->object);
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, uid);
 	err = mlx5_cmd_exec_cb(&ev_file->async_ctx, cmd_in,
 		    uverbs_attr_get_len(attrs,
@@ -1768,12 +1766,10 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_ASYNC_QUERY)(
 		    devx_query_callback, &async_data->cb_work);
 
 	if (err)
-		goto cb_err;
+		goto free_async;
 
 	return 0;
 
-cb_err:
-	fput(fd_uobj->object);
 free_async:
 	kvfree(async_data);
 sub_bytes:
