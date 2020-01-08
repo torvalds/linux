@@ -3329,33 +3329,34 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
 	__direct_pte_prefetch(vcpu, sp, sptep);
 }
 
-static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
-					gfn_t gfn, kvm_pfn_t *pfnp,
+static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
+					int max_level, kvm_pfn_t *pfnp,
 					int *levelp)
 {
 	kvm_pfn_t pfn = *pfnp;
 	int level = *levelp;
+	kvm_pfn_t mask;
+
+	if (max_level == PT_PAGE_TABLE_LEVEL || level > PT_PAGE_TABLE_LEVEL)
+		return;
+
+	if (is_error_noslot_pfn(pfn) || kvm_is_reserved_pfn(pfn) ||
+	    kvm_is_zone_device_pfn(pfn))
+		return;
+
+	if (!kvm_is_transparent_hugepage(pfn))
+		return;
+
+	level = PT_DIRECTORY_LEVEL;
 
 	/*
-	 * Check if it's a transparent hugepage. If this would be an
-	 * hugetlbfs page, level wouldn't be set to
-	 * PT_PAGE_TABLE_LEVEL and there would be no adjustment done
-	 * here.
+	 * mmu_notifier_retry() was successful and mmu_lock is held, so
+	 * the pmd can't be split from under us.
 	 */
-	if (!is_error_noslot_pfn(pfn) && !kvm_is_reserved_pfn(pfn) &&
-	    !kvm_is_zone_device_pfn(pfn) && level == PT_PAGE_TABLE_LEVEL &&
-	    kvm_is_transparent_hugepage(pfn)) {
-		unsigned long mask;
-
-		/*
-		 * mmu_notifier_retry() was successful and mmu_lock is held, so
-		 * the pmd can't be split from under us.
-		 */
-		*levelp = level = PT_DIRECTORY_LEVEL;
-		mask = KVM_PAGES_PER_HPAGE(level) - 1;
-		VM_BUG_ON((gfn & mask) != (pfn & mask));
-		*pfnp = pfn & ~mask;
-	}
+	*levelp = level;
+	mask = KVM_PAGES_PER_HPAGE(level) - 1;
+	VM_BUG_ON((gfn & mask) != (pfn & mask));
+	*pfnp = pfn & ~mask;
 }
 
 static void disallowed_hugepage_adjust(struct kvm_shadow_walk_iterator it,
@@ -3395,8 +3396,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t gpa, int write,
 	if (WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root_hpa)))
 		return RET_PF_RETRY;
 
-	if (likely(max_level > PT_PAGE_TABLE_LEVEL))
-		transparent_hugepage_adjust(vcpu, gfn, &pfn, &level);
+	transparent_hugepage_adjust(vcpu, gfn, max_level, &pfn, &level);
 
 	trace_kvm_mmu_spte_requested(gpa, level, pfn);
 	for_each_shadow_entry(vcpu, gpa, it) {
