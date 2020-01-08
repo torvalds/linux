@@ -532,11 +532,15 @@ static void move_myself(struct callback_head *head)
 		kfree(rdtgrp);
 	}
 
+	if (unlikely(current->flags & PF_EXITING))
+		goto out;
+
 	preempt_disable();
 	/* update PQR_ASSOC MSR to make resource group go into effect */
 	resctrl_sched_in();
 	preempt_enable();
 
+out:
 	kfree(callback);
 }
 
