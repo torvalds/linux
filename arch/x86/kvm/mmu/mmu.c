@@ -1330,7 +1330,7 @@ gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t gfn,
 static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn,
 			 int *max_levelp)
 {
-	int max_level = *max_levelp;
+	int host_level, max_level = *max_levelp;
 	struct kvm_memory_slot *slot;
 
 	if (unlikely(max_level == PT_PAGE_TABLE_LEVEL))
@@ -1362,7 +1362,8 @@ static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn,
 	 * So, do not propagate host_mapping_level() to max_level as KVM can
 	 * still promote the guest mapping to a huge page in the THP case.
 	 */
-	return host_mapping_level(vcpu->kvm, large_gfn);
+	host_level = host_mapping_level(vcpu->kvm, large_gfn);
+	return min(host_level, max_level);
 }
 
 /*
