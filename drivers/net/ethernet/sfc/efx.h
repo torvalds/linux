@@ -37,6 +37,9 @@ static inline void efx_rx_flush_packet(struct efx_channel *channel)
 		__efx_rx_packet(channel);
 }
 
+void efx_init_rx_recycle_ring(struct efx_rx_queue *rx_queue);
+struct page *efx_reuse_page(struct efx_rx_queue *rx_queue);
+
 #define EFX_MAX_DMAQ_SIZE 4096UL
 #define EFX_DEFAULT_DMAQ_SIZE 1024UL
 #define EFX_MIN_DMAQ_SIZE 512UL

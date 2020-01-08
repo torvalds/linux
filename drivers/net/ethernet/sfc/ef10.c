@@ -5,6 +5,7 @@
  */
 
 #include "net_driver.h"
+#include "rx_common.h"
 #include "ef10_regs.h"
 #include "io.h"
 #include "mcdi.h"

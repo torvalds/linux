@@ -130,17 +130,6 @@ static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
 
 /**************************************************************************
  *
- * Channel handling
- *
- *************************************************************************/
-
-void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
-{
-	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(10));
-}
-
-/**************************************************************************
- *
  * Port handling
  *
  **************************************************************************/
