@@ -977,7 +977,7 @@ static void qca_controller_memdump(struct work_struct *work)
 	struct qca_dump_size *dump;
 	char *memdump_buf;
 	char nullBuff[QCA_DUMP_PACKET_SIZE] = { 0 };
-	u16 opcode, seq_no;
+	u16 seq_no;
 	u32 dump_size;
 
 	while ((skb = skb_dequeue(&qca->rx_memdump_q))) {
@@ -993,7 +993,6 @@ static void qca_controller_memdump(struct work_struct *work)
 
 		qca->memdump_state = QCA_MEMDUMP_COLLECTING;
 		cmd_hdr = (void *) skb->data;
-		opcode = __le16_to_cpu(cmd_hdr->opcode);
 		seq_no = __le16_to_cpu(cmd_hdr->seq_no);
 		skb_pull(skb, sizeof(struct qca_memdump_event_hdr));
 
