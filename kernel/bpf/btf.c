@@ -3744,19 +3744,53 @@ again:
 		return -EINVAL;
 	}
 
-	for_each_member(i, t, member) {
-		if (btf_member_bitfield_size(t, member))
-			/* bitfields are not supported yet */
-			continue;
+	if (off + size > t->size) {
+		bpf_log(log, "access beyond struct %s at off %u size %u\n",
+			tname, off, size);
+		return -EACCES;
+	}
 
+	for_each_member(i, t, member) {
 		/* offset of the field in bytes */
 		moff = btf_member_bit_offset(t, member) / 8;
 		if (off + size <= moff)
 			/* won't find anything, field is already too far */
 			break;
+
+		if (btf_member_bitfield_size(t, member)) {
+			u32 end_bit = btf_member_bit_offset(t, member) +
+				btf_member_bitfield_size(t, member);
+
+			/* off <= moff instead of off == moff because clang
+			 * does not generate a BTF member for anonymous
+			 * bitfield like the ":16" here:
+			 * struct {
+			 *	int :16;
+			 *	int x:8;
+			 * };
+			 */
+			if (off <= moff &&
+			    BITS_ROUNDUP_BYTES(end_bit) <= off + size)
+				return SCALAR_VALUE;
+
+			/* off may be accessing a following member
+			 *
+			 * or
+			 *
+			 * Doing partial access at either end of this
+			 * bitfield.  Continue on this case also to
+			 * treat it as not accessing this bitfield
+			 * and eventually error out as field not
+			 * found to keep it simple.
+			 * It could be relaxed if there was a legit
+			 * partial access case later.
+			 */
+			continue;
+		}
+
 		/* In case of "off" is pointing to holes of a struct */
 		if (off < moff)
-			continue;
+			break;
 
 		/* type of the field */
 		mtype = btf_type_by_id(btf_vmlinux, member->type);
