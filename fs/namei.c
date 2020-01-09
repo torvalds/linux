@@ -1385,6 +1385,18 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		!(path->dentry->d_flags & DCACHE_NEED_AUTOMOUNT);
 }
 
+static inline int handle_mounts(struct path *path, struct nameidata *nd,
+			  struct inode **inode, unsigned int *seqp)
+{
+	int ret = follow_managed(path, nd);
+
+	if (likely(ret >= 0)) {
+		*inode = d_backing_inode(path->dentry);
+		*seqp = 0; /* out of RCU mode, so the value doesn't matter */
+	}
+	return ret;
+}
+
 static int follow_dotdot_rcu(struct nameidata *nd)
 {
 	struct inode *inode = nd->inode;
@@ -1607,7 +1619,6 @@ static int lookup_fast(struct nameidata *nd,
 	struct vfsmount *mnt = nd->path.mnt;
 	struct dentry *dentry, *parent = nd->path.dentry;
 	int status = 1;
-	int err;
 
 	/*
 	 * Rename seqlock is not required here because in the off chance
@@ -1677,10 +1688,7 @@ static int lookup_fast(struct nameidata *nd,
 
 	path->mnt = mnt;
 	path->dentry = dentry;
-	err = follow_managed(path, nd);
-	if (likely(err > 0))
-		*inode = d_backing_inode(path->dentry);
-	return err;
+	return handle_mounts(path, nd, inode, seqp);
 }
 
 /* Fast lookup failed, do it the slow way */
@@ -1875,12 +1883,9 @@ static int walk_component(struct nameidata *nd, int flags)
 			return PTR_ERR(path.dentry);
 
 		path.mnt = nd->path.mnt;
-		err = follow_managed(&path, nd);
+		err = handle_mounts(&path, nd, &inode, &seq);
 		if (unlikely(err < 0))
 			return err;
-
-		seq = 0;	/* we are already out of RCU mode */
-		inode = d_backing_inode(path.dentry);
 	}
 
 	return step_into(nd, &path, flags, inode, seq);
@@ -2365,11 +2370,9 @@ static int handle_lookup_down(struct nameidata *nd)
 			return -ECHILD;
 	} else {
 		dget(path.dentry);
-		err = follow_managed(&path, nd);
+		err = handle_mounts(&path, nd, &inode, &seq);
 		if (unlikely(err < 0))
 			return err;
-		inode = d_backing_inode(path.dentry);
-		seq = 0;
 	}
 	path_to_nameidata(&path, nd);
 	nd->inode = inode;
@@ -3392,12 +3395,9 @@ static int do_last(struct nameidata *nd,
 		got_write = false;
 	}
 
-	error = follow_managed(&path, nd);
+	error = handle_mounts(&path, nd, &inode, &seq);
 	if (unlikely(error < 0))
 		return error;
-
-	seq = 0;	/* out of RCU mode, so the value doesn't matter */
-	inode = d_backing_inode(path.dentry);
 finish_lookup:
 	error = step_into(nd, &path, 0, inode, seq);
 	if (unlikely(error))
