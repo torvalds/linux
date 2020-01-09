@@ -29,22 +29,11 @@
 
 #include "ip27-common.h"
 
-/*
- * Takes as first input the PROM assigned cpu id, and the kernel
- * assigned cpu id as the second.
- */
-static void alloc_cpupda(nasid_t nasid, cpuid_t cpu, int cpunum)
+static int node_scan_cpus(nasid_t nasid, int highest)
 {
-	cputonasid(cpunum) = nasid;
-	cputoslice(cpunum) = get_cpu_slice(cpu);
-}
-
-static int do_cpumask(nasid_t nasid, int highest)
-{
-	static int tot_cpus_found = 0;
+	static int cpus_found;
 	lboard_t *brd;
 	klcpu_t *acpu;
-	int cpus_found = 0;
 	cpuid_t cpuid;
 
 	brd = find_lboard((lboard_t *)KL_CONFIG_INFO(nasid), KLTYPE_IP27);
@@ -55,13 +44,13 @@ static int do_cpumask(nasid_t nasid, int highest)
 			cpuid = acpu->cpu_info.virtid;
 			/* Only let it join in if it's marked enabled */
 			if ((acpu->cpu_info.flags & KLINFO_ENABLE) &&
-			    (tot_cpus_found != NR_CPUS)) {
+			    (cpus_found != NR_CPUS)) {
 				if (cpuid > highest)
 					highest = cpuid;
 				set_cpu_possible(cpuid, true);
-				alloc_cpupda(nasid, cpuid, tot_cpus_found);
+				cputonasid(cpus_found) = nasid;
+				cputoslice(cpus_found) = acpu->cpu_info.physid;
 				cpus_found++;
-				tot_cpus_found++;
 			}
 			acpu = (klcpu_t *)find_component(brd, (klinfo_t *)acpu,
 								KLSTRUCT_CPU);
@@ -87,7 +76,7 @@ void cpu_node_probe(void)
 		if (nasid == INVALID_NASID)
 			break;
 		node_set_online(nasid);
-		highest = do_cpumask(nasid, highest);
+		highest = node_scan_cpus(nasid, highest);
 	}
 
 	printk("Discovered %d cpus on %d nodes\n", highest + 1, num_online_nodes());
@@ -180,7 +169,8 @@ static void __init ip27_smp_setup(void)
 	/*
 	 * PROM sets up system, that boot cpu is always first CPU on nasid 0
 	 */
-	alloc_cpupda(0, 0, 0);
+	cputonasid(0) = 0;
+	cputoslice(0) = LOCAL_HUB_L(PI_CPU_NUM);
 }
 
 static void __init ip27_prepare_cpus(unsigned int max_cpus)
