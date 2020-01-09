@@ -2287,7 +2287,7 @@ static void rtl_release_firmware(struct rtl8169_private *tp)
 	}
 }
 
-static void rtl_apply_firmware(struct rtl8169_private *tp)
+static void r8169_apply_firmware(struct rtl8169_private *tp)
 {
 	/* TODO: release firmware if rtl_fw_write_firmware signals failure. */
 	if (tp->rtl_fw)
@@ -2683,7 +2683,7 @@ static void rtl8168d_apply_firmware_cond(struct rtl8169_private *tp,
 	if (reg_val != val)
 		phydev_warn(phydev, "chipset not ready for firmware\n");
 	else
-		rtl_apply_firmware(tp);
+		r8169_apply_firmware(tp);
 }
 
 static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp,
@@ -2859,7 +2859,7 @@ static void rtl8168e_1_hw_phy_config(struct rtl8169_private *tp,
 		{ 0x1f, 0x0000 },
 	};
 
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	/* Enable Delay cap */
 	r8168d_phy_param(phydev, 0x8b80, 0xffff, 0xc896);
@@ -2907,7 +2907,7 @@ static void rtl_rar_exgmac_set(struct rtl8169_private *tp, u8 *addr)
 static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp,
 				     struct phy_device *phydev)
 {
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	/* Enable Delay cap */
 	r8168d_modify_extpage(phydev, 0x00ac, 0x18, 0xffff, 0x0006);
@@ -2965,7 +2965,7 @@ static void rtl8168f_hw_phy_config(struct rtl8169_private *tp,
 static void rtl8168f_1_hw_phy_config(struct rtl8169_private *tp,
 				     struct phy_device *phydev)
 {
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	/* Channel estimation fine tune */
 	phy_write_paged(phydev, 0x0003, 0x09, 0xa20f);
@@ -2993,7 +2993,7 @@ static void rtl8168f_1_hw_phy_config(struct rtl8169_private *tp,
 static void rtl8168f_2_hw_phy_config(struct rtl8169_private *tp,
 				     struct phy_device *phydev)
 {
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	rtl8168f_hw_phy_config(tp, phydev);
 }
@@ -3001,7 +3001,7 @@ static void rtl8168f_2_hw_phy_config(struct rtl8169_private *tp,
 static void rtl8411_hw_phy_config(struct rtl8169_private *tp,
 				  struct phy_device *phydev)
 {
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	rtl8168f_hw_phy_config(tp, phydev);
 
@@ -3062,7 +3062,7 @@ static void rtl8168g_1_hw_phy_config(struct rtl8169_private *tp,
 {
 	int ret;
 
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	ret = phy_read_paged(phydev, 0x0a46, 0x10);
 	if (ret & BIT(8))
@@ -3108,7 +3108,7 @@ static void rtl8168g_1_hw_phy_config(struct rtl8169_private *tp,
 static void rtl8168g_2_hw_phy_config(struct rtl8169_private *tp,
 				     struct phy_device *phydev)
 {
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 	rtl8168g_config_eee_phy(phydev);
 }
 
@@ -3118,7 +3118,7 @@ static void rtl8168h_1_hw_phy_config(struct rtl8169_private *tp,
 	u16 dout_tapbin;
 	u32 data;
 
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	/* CHN EST parameters adjust - giga master */
 	r8168g_phy_param(phydev, 0x809b, 0xf800, 0x8000);
@@ -3200,7 +3200,7 @@ static void rtl8168h_2_hw_phy_config(struct rtl8169_private *tp,
 	u16 ioffset, rlen;
 	u32 data;
 
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	/* CHIN EST parameter update */
 	r8168g_phy_param(phydev, 0x808a, 0x003f, 0x000a);
@@ -3365,7 +3365,7 @@ static void rtl8105e_hw_phy_config(struct rtl8169_private *tp,
 	phy_write(phydev, 0x18, 0x0310);
 	msleep(100);
 
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	phy_write_paged(phydev, 0x0005, 0x1a, 0x0000);
 	phy_write_paged(phydev, 0x0004, 0x1c, 0x0000);
@@ -3379,7 +3379,7 @@ static void rtl8402_hw_phy_config(struct rtl8169_private *tp,
 	phy_write(phydev, 0x18, 0x0310);
 	msleep(20);
 
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	/* EEE setting */
 	phy_write(phydev, 0x1f, 0x0004);
@@ -3402,7 +3402,7 @@ static void rtl8106e_hw_phy_config(struct rtl8169_private *tp,
 	phy_write(phydev, 0x18, 0x0310);
 	msleep(100);
 
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	rtl_writephy_batch(phydev, phy_reg_init);
 }
@@ -3494,7 +3494,7 @@ static void rtl8125_2_hw_phy_config(struct rtl8169_private *tp,
 	r8168g_phy_param(phydev, 0x8257, 0xffff, 0x020F);
 	r8168g_phy_param(phydev, 0x80ea, 0xffff, 0x7843);
 
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	phy_modify_paged(phydev, 0xd06, 0x14, 0x0000, 0x2000);
 
@@ -4857,7 +4857,7 @@ static void rtl_hw_start_8117(struct rtl8169_private *tp)
 	r8168_mac_ocp_write(tp, 0xc09e, 0x0000);
 
 	/* firmware is for MAC only */
-	rtl_apply_firmware(tp);
+	r8169_apply_firmware(tp);
 
 	rtl_hw_aspm_clkreq_enable(tp, true);
 }
