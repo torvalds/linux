@@ -150,25 +150,6 @@ void __init plat_time_init(void)
 	hub_rt_clock_event_init();
 }
 
-void cpu_time_init(void)
-{
-	lboard_t *board;
-	klcpu_t *cpu;
-	int cpuid;
-
-	/* Don't use ARCS.  ARCS is fragile.  Klconfig is simple and sane.  */
-	board = find_lboard(KL_CONFIG_INFO(get_nasid()), KLTYPE_IP27);
-	if (!board)
-		panic("Can't find board info for myself.");
-
-	cpuid = LOCAL_HUB_L(PI_CPU_NUM) ? IP27_CPU0_INDEX : IP27_CPU1_INDEX;
-	cpu = (klcpu_t *) KLCF_COMP(board, cpuid);
-	if (!cpu)
-		panic("No information about myself?");
-
-	printk("CPU %d clock is %dMHz.\n", smp_processor_id(), cpu->cpu_speed);
-}
-
 void hub_rtc_init(nasid_t nasid)
 {
 

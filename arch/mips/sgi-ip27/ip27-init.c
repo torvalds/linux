@@ -83,7 +83,8 @@ void per_cpu_init(void)
 
 	per_hub_init(nasid);
 
-	cpu_time_init();
+	pr_info("CPU %d clock is %dMHz.\n", cpu, sn_cpu_info[cpu].p_speed);
+
 	install_ipi();
 
 	/* Install our NMI handler if symmon hasn't installed one. */

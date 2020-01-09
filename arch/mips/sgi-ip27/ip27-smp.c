@@ -47,6 +47,8 @@ static int node_scan_cpus(nasid_t nasid, int highest)
 				set_cpu_possible(cpuid, true);
 				cputonasid(cpus_found) = nasid;
 				cputoslice(cpus_found) = acpu->cpu_info.physid;
+				sn_cpu_info[cpus_found].p_speed =
+							acpu->cpu_speed;
 				cpus_found++;
 			}
 			acpu = (klcpu_t *)find_component(brd, (klinfo_t *)acpu,

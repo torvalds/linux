@@ -6,7 +6,6 @@
 extern nasid_t master_nasid;
 
 extern void cpu_node_probe(void);
-extern void cpu_time_init(void);
 extern void hub_rt_clock_event_init(void);
 extern void hub_rtc_init(nasid_t nasid);
 extern void install_cpu_nmi_handler(int slice);
