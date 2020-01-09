@@ -41,6 +41,18 @@ struct mm_struct;
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_PPC32
+static inline pmd_t *pmd_ptr(struct mm_struct *mm, unsigned long va)
+{
+	return pmd_offset(pud_offset(pgd_offset(mm, va), va), va);
+}
+
+static inline pmd_t *pmd_ptr_k(unsigned long va)
+{
+	return pmd_offset(pud_offset(pgd_offset_k(va), va), va);
+}
+#endif
+
 #include <asm/tlbflush.h>
 
 /* Keep these as a macros to avoid include dependency mess */
