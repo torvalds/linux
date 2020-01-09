@@ -4095,7 +4095,7 @@ static void con_driver_unregister_callback(struct work_struct *ignored)
  *	when a driver wants to take over some existing consoles
  *	and become default driver for newly opened ones.
  *
- *	do_take_over_console is basically a register followed by unbind
+ *	do_take_over_console is basically a register followed by bind
  */
 int do_take_over_console(const struct consw *csw, int first, int last, int deflt)
 {
