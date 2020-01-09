@@ -45,8 +45,6 @@
 #include "spectrum_ptp.h"
 #include "../mlxfw/mlxfw.h"
 
-#define MLXSW_SP_FWREV_MINOR_TO_BRANCH(minor) ((minor) / 100)
-
 #define MLXSW_SP1_FWREV_MAJOR 13
 #define MLXSW_SP1_FWREV_MINOR 2000
 #define MLXSW_SP1_FWREV_SUBMINOR 2714
@@ -423,13 +421,12 @@ static int mlxsw_sp_fw_rev_validate(struct mlxsw_sp *mlxsw_sp)
 		     rev->major, req_rev->major);
 		return -EINVAL;
 	}
-	if (MLXSW_SP_FWREV_MINOR_TO_BRANCH(rev->minor) ==
-	    MLXSW_SP_FWREV_MINOR_TO_BRANCH(req_rev->minor) &&
-	    mlxsw_core_fw_rev_minor_subminor_validate(rev, req_rev))
+	if (mlxsw_core_fw_rev_minor_subminor_validate(rev, req_rev))
 		return 0;
 
-	dev_info(mlxsw_sp->bus_info->dev, "The firmware version %d.%d.%d is incompatible with the driver\n",
-		 rev->major, rev->minor, rev->subminor);
+	dev_err(mlxsw_sp->bus_info->dev, "The firmware version %d.%d.%d is incompatible with the driver (required >= %d.%d.%d)\n",
+		rev->major, rev->minor, rev->subminor, req_rev->major,
+		req_rev->minor, req_rev->subminor);
 	dev_info(mlxsw_sp->bus_info->dev, "Flashing firmware using file %s\n",
 		 fw_filename);
 
