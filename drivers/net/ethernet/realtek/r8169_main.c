@@ -3425,8 +3425,6 @@ static void rtl8106e_hw_phy_config(struct rtl8169_private *tp,
 
 	rtl_eri_write(tp, 0x1b0, ERIAR_MASK_0011, 0x0000);
 	rtl_writephy_batch(phydev, phy_reg_init);
-
-	rtl_eri_write(tp, 0x1d0, ERIAR_MASK_0011, 0x0000);
 }
 
 static void rtl8125_1_hw_phy_config(struct rtl8169_private *tp,
@@ -4998,6 +4996,8 @@ static void rtl_hw_start_8106(struct rtl8169_private *tp)
 	RTL_W32(tp, MISC, (RTL_R32(tp, MISC) | DISABLE_LAN_EN) & ~EARLY_TALLY_EN);
 	RTL_W8(tp, MCU, RTL_R8(tp, MCU) | EN_NDP | EN_OOB_RESET);
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) & ~PFM_EN);
+
+	rtl_eri_write(tp, 0x1d0, ERIAR_MASK_0011, 0x0000);
 
 	rtl_pcie_state_l2l3_disable(tp);
 	rtl_hw_aspm_clkreq_enable(tp, true);
