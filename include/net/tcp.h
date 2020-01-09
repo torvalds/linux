@@ -39,6 +39,7 @@
 #include <net/tcp_states.h>
 #include <net/inet_ecn.h>
 #include <net/dst.h>
+#include <net/mptcp.h>
 
 #include <linux/seq_file.h>
 #include <linux/memcontrol.h>
@@ -976,6 +977,13 @@ static inline int tcp_skb_mss(const struct sk_buff *skb)
 static inline bool tcp_skb_can_collapse_to(const struct sk_buff *skb)
 {
 	return likely(!TCP_SKB_CB(skb)->eor);
+}
+
+static inline bool tcp_skb_can_collapse(const struct sk_buff *to,
+					const struct sk_buff *from)
+{
+	return likely(tcp_skb_can_collapse_to(to) &&
+		      mptcp_skb_can_collapse(to, from));
 }
 
 /* Events passed to congestion control interface */
