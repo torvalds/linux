@@ -1207,21 +1207,24 @@ struct req_batch {
 
 static void io_free_req_many(struct io_ring_ctx *ctx, struct req_batch *rb)
 {
+	int fixed_refs = rb->to_free;
+
 	if (!rb->to_free)
 		return;
 	if (rb->need_iter) {
 		int i, inflight = 0;
 		unsigned long flags;
 
+		fixed_refs = 0;
 		for (i = 0; i < rb->to_free; i++) {
 			struct io_kiocb *req = rb->reqs[i];
 
-			if (req->flags & REQ_F_FIXED_FILE)
+			if (req->flags & REQ_F_FIXED_FILE) {
 				req->file = NULL;
+				fixed_refs++;
+			}
 			if (req->flags & REQ_F_INFLIGHT)
 				inflight++;
-			else
-				rb->reqs[i] = NULL;
 			__io_req_aux_free(req);
 		}
 		if (!inflight)
@@ -1231,7 +1234,7 @@ static void io_free_req_many(struct io_ring_ctx *ctx, struct req_batch *rb)
 		for (i = 0; i < rb->to_free; i++) {
 			struct io_kiocb *req = rb->reqs[i];
 
-			if (req) {
+			if (req->flags & REQ_F_INFLIGHT) {
 				list_del(&req->inflight_entry);
 				if (!--inflight)
 					break;
@@ -1244,8 +1247,9 @@ static void io_free_req_many(struct io_ring_ctx *ctx, struct req_batch *rb)
 	}
 do_free:
 	kmem_cache_free_bulk(req_cachep, rb->to_free, rb->reqs);
+	if (fixed_refs)
+		percpu_ref_put_many(&ctx->file_data->refs, fixed_refs);
 	percpu_ref_put_many(&ctx->refs, rb->to_free);
-	percpu_ref_put_many(&ctx->file_data->refs, rb->to_free);
 	rb->to_free = rb->need_iter = 0;
 }
 
