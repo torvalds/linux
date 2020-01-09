@@ -3622,15 +3622,14 @@ static void rtl_schedule_task(struct rtl8169_private *tp, enum rtl_flag flag)
 		schedule_work(&tp->wk.work);
 }
 
-static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
+static void rtl8169_init_phy(struct rtl8169_private *tp)
 {
 	r8169_hw_phy_config(tp, tp->phydev, tp->mac_version);
 
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06) {
 		pci_write_config_byte(tp->pci_dev, PCI_LATENCY_TIMER, 0x40);
 		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
-		netif_dbg(tp, drv, dev,
-			  "Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
+		/* set undocumented MAC Reg C+CR Offset 0x82h */
 		RTL_W8(tp, 0x82, 0x01);
 	}
 
@@ -6245,7 +6244,7 @@ static int rtl_open(struct net_device *dev)
 
 	napi_enable(&tp->napi);
 
-	rtl8169_init_phy(dev, tp);
+	rtl8169_init_phy(tp);
 
 	rtl_pll_power_up(tp);
 
@@ -6376,7 +6375,7 @@ static void __rtl8169_resume(struct net_device *dev)
 	netif_device_attach(dev);
 
 	rtl_pll_power_up(tp);
-	rtl8169_init_phy(dev, tp);
+	rtl8169_init_phy(tp);
 
 	phy_start(tp->phydev);
 
