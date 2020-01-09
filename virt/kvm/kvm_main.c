@@ -2180,8 +2180,10 @@ int kvm_write_guest_offset_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 
 	BUG_ON(len + offset > ghc->len);
 
-	if (slots->generation != ghc->generation)
-		__kvm_gfn_to_hva_cache_init(slots, ghc, ghc->gpa, ghc->len);
+	if (slots->generation != ghc->generation) {
+		if (__kvm_gfn_to_hva_cache_init(slots, ghc, ghc->gpa, ghc->len))
+			return -EFAULT;
+	}
 
 	if (kvm_is_error_hva(ghc->hva))
 		return -EFAULT;
@@ -2213,8 +2215,10 @@ int kvm_read_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 
 	BUG_ON(len > ghc->len);
 
-	if (slots->generation != ghc->generation)
-		__kvm_gfn_to_hva_cache_init(slots, ghc, ghc->gpa, ghc->len);
+	if (slots->generation != ghc->generation) {
+		if (__kvm_gfn_to_hva_cache_init(slots, ghc, ghc->gpa, ghc->len))
+			return -EFAULT;
+	}
 
 	if (kvm_is_error_hva(ghc->hva))
 		return -EFAULT;
