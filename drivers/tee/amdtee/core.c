@@ -484,8 +484,7 @@ err_device_unregister:
 	tee_device_unregister(amdtee->teedev);
 
 err_free_pool:
-	if (pool)
-		tee_shm_pool_free(pool);
+	tee_shm_pool_free(pool);
 
 err_kfree_amdtee:
 	kfree(amdtee);
