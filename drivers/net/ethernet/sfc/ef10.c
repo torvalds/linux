@@ -11,6 +11,7 @@
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 #include "mcdi_port_common.h"
+#include "mcdi_functions.h"
 #include "nic.h"
 #include "workarounds.h"
 #include "selftest.h"
@@ -834,22 +835,6 @@ fail1:
 	return rc;
 }
 
-static int efx_ef10_free_vis(struct efx_nic *efx)
-{
-	MCDI_DECLARE_BUF_ERR(outbuf);
-	size_t outlen;
-	int rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FREE_VIS, NULL, 0,
-				    outbuf, sizeof(outbuf), &outlen);
-
-	/* -EALREADY means nothing to free, so ignore */
-	if (rc == -EALREADY)
-		rc = 0;
-	if (rc)
-		efx_mcdi_display_error(efx, MC_CMD_FREE_VIS, 0, outbuf, outlen,
-				       rc);
-	return rc;
-}
-
 #ifdef EFX_USE_PIO
 
 static void efx_ef10_free_piobufs(struct efx_nic *efx)
@@ -1092,7 +1077,7 @@ static void efx_ef10_remove(struct efx_nic *efx)
 	if (nic_data->wc_membase)
 		iounmap(nic_data->wc_membase);
 
-	rc = efx_ef10_free_vis(efx);
+	rc = efx_mcdi_free_vis(efx);
 	WARN_ON(rc != 0);
 
 	if (!nic_data->must_restore_piobufs)
@@ -1263,28 +1248,10 @@ static int efx_ef10_probe_vf(struct efx_nic *efx __attribute__ ((unused)))
 static int efx_ef10_alloc_vis(struct efx_nic *efx,
 			      unsigned int min_vis, unsigned int max_vis)
 {
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_ALLOC_VIS_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_ALLOC_VIS_OUT_LEN);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	size_t outlen;
-	int rc;
 
-	MCDI_SET_DWORD(inbuf, ALLOC_VIS_IN_MIN_VI_COUNT, min_vis);
-	MCDI_SET_DWORD(inbuf, ALLOC_VIS_IN_MAX_VI_COUNT, max_vis);
-	rc = efx_mcdi_rpc(efx, MC_CMD_ALLOC_VIS, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
-	if (rc != 0)
-		return rc;
-
-	if (outlen < MC_CMD_ALLOC_VIS_OUT_LEN)
-		return -EIO;
-
-	netif_dbg(efx, drv, efx->net_dev, "base VI is A0x%03x\n",
-		  MCDI_DWORD(outbuf, ALLOC_VIS_OUT_VI_BASE));
-
-	nic_data->vi_base = MCDI_DWORD(outbuf, ALLOC_VIS_OUT_VI_BASE);
-	nic_data->n_allocated_vis = MCDI_DWORD(outbuf, ALLOC_VIS_OUT_VI_COUNT);
-	return 0;
+	return efx_mcdi_alloc_vis(efx, min_vis, max_vis, &nic_data->vi_base,
+				  &nic_data->n_allocated_vis);
 }
 
 /* Note that the failure path of this function does not free
@@ -1366,7 +1333,7 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	}
 
 	/* In case the last attached driver failed to free VIs, do it now */
-	rc = efx_ef10_free_vis(efx);
+	rc = efx_mcdi_free_vis(efx);
 	if (rc != 0)
 		return rc;
 
@@ -1387,7 +1354,7 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 		efx->max_tx_channels =
 			nic_data->n_allocated_vis / EFX_TXQ_TYPES;
 
-		efx_ef10_free_vis(efx);
+		efx_mcdi_free_vis(efx);
 		return -EAGAIN;
 	}
 
