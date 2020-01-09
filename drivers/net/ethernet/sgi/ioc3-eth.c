@@ -1079,6 +1079,16 @@ static int ioc3_is_menet(struct pci_dev *pdev)
  * Can't use UPF_IOREMAP as the whole of IOC3 resources have already been
  * registered.
  */
+static unsigned int ioc3_serial_in(struct uart_port *p, int offset)
+{
+	return readb(p->membase + (offset ^ 3));
+}
+
+static void ioc3_serial_out(struct uart_port *p, int offset, int value)
+{
+	writeb(value, p->membase + (offset ^ 3));
+}
+
 static void ioc3_8250_register(struct ioc3_uartregs __iomem *uart)
 {
 #define COSMISC_CONSTANT 6
@@ -1093,6 +1103,8 @@ static void ioc3_8250_register(struct ioc3_uartregs __iomem *uart)
 
 			.membase	= (unsigned char __iomem *)uart,
 			.mapbase	= (unsigned long)uart,
+			.serial_in	= ioc3_serial_in,
+			.serial_out	= ioc3_serial_out,
 		}
 	};
 	unsigned char lcr;
