@@ -23,7 +23,7 @@ int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue, bool tso_v2);
 void efx_mcdi_tx_remove(struct efx_tx_queue *tx_queue);
 void efx_mcdi_tx_fini(struct efx_tx_queue *tx_queue);
 int efx_mcdi_rx_probe(struct efx_rx_queue *rx_queue);
-int efx_mcdi_rx_init(struct efx_rx_queue *rx_queue, bool want_outer_classes);
+void efx_mcdi_rx_init(struct efx_rx_queue *rx_queue);
 void efx_mcdi_rx_remove(struct efx_rx_queue *rx_queue);
 void efx_mcdi_rx_fini(struct efx_rx_queue *rx_queue);
 
