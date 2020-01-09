@@ -542,7 +542,8 @@ static int vsc73xx_phy_write(struct dsa_switch *ds, int phy, int regnum,
 }
 
 static enum dsa_tag_protocol vsc73xx_get_tag_protocol(struct dsa_switch *ds,
-						      int port)
+						      int port,
+						      enum dsa_tag_protocol mp)
 {
 	/* The switch internally uses a 8 byte header with length,
 	 * source port, tag, LPA and priority. This is supposedly

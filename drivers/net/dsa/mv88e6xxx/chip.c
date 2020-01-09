@@ -5217,7 +5217,8 @@ static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 }
 
 static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds,
-							int port)
+							int port,
+							enum dsa_tag_protocol m)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 

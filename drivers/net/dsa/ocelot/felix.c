@@ -16,7 +16,8 @@
 #include "felix.h"
 
 static enum dsa_tag_protocol felix_get_tag_protocol(struct dsa_switch *ds,
-						    int port)
+						    int port,
+						    enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_OCELOT;
 }
