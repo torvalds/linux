@@ -35,6 +35,8 @@ properties:
       - ampire,am800480r3tmqwa1h
         # AUO B116XAK01 eDP TFT LCD panel
       - auo,b116xa01
+        # BOE NV140FHM-N49 14.0" FHD a-Si FT panel
+      - boe,nv140fhmn49
         # GiantPlus GPM940B0 3.0" QVGA TFT LCD panel
       - giantplus,gpm940b0
         # Sharp LS020B1DD01D 2.0" HQVGA TFT LCD panel
