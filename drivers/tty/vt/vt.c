@@ -3568,7 +3568,6 @@ err:
 
 
 #ifdef CONFIG_VT_HW_CONSOLE_BINDING
-/* unlocked version of unbind_con_driver() */
 int do_unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 {
 	struct module *owner = csw->owner;
