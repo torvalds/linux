@@ -237,7 +237,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 		/* For ARGB, use the pixel's alpha */
 		priv->viu.osd1_ctrl_stat2 &= ~OSD_REPLACE_EN;
 		break;
-	};
+	}
 
 	/* Default scaler parameters */
 	vsc_bot_rcv_num = 0;

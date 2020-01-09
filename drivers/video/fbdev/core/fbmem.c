@@ -54,7 +54,8 @@ int num_registered_fb __read_mostly;
 EXPORT_SYMBOL(num_registered_fb);
 
 bool fb_center_logo __read_mostly;
-EXPORT_SYMBOL(fb_center_logo);
+
+int fb_logo_count __read_mostly = -1;
 
 static struct fb_info *get_fb_info(unsigned int idx)
 {
@@ -620,7 +621,7 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 	memset(&fb_logo, 0, sizeof(struct logo_data));
 
 	if (info->flags & FBINFO_MISC_TILEBLITTING ||
-	    info->fbops->owner)
+	    info->fbops->owner || !fb_logo_count)
 		return 0;
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
@@ -686,10 +687,14 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 
 int fb_show_logo(struct fb_info *info, int rotate)
 {
+	unsigned int count;
 	int y;
 
-	y = fb_show_logo_line(info, rotate, fb_logo.logo, 0,
-			      num_online_cpus());
+	if (!fb_logo_count)
+		return 0;
+
+	count = fb_logo_count < 0 ? num_online_cpus() : fb_logo_count;
+	y = fb_show_logo_line(info, rotate, fb_logo.logo, 0, count);
 	y = fb_show_extra_logos(info, y, rotate);
 
 	return y;

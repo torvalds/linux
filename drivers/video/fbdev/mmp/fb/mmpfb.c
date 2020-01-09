@@ -522,7 +522,7 @@ static int fb_info_setup(struct fb_info *info,
 		info->var.bits_per_pixel / 8;
 	info->fbops = &mmpfb_ops;
 	info->pseudo_palette = fbi->pseudo_palette;
-	info->screen_base = fbi->fb_start;
+	info->screen_buffer = fbi->fb_start;
 	info->screen_size = fbi->fb_size;
 
 	/* For FB framework: Allocate color map and Register framebuffer*/

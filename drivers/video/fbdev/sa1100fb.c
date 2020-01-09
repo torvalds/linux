@@ -1143,7 +1143,6 @@ static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 static int sa1100fb_probe(struct platform_device *pdev)
 {
 	struct sa1100fb_info *fbi;
-	struct resource *res;
 	int ret, irq;
 
 	if (!dev_get_platdata(&pdev->dev)) {
@@ -1159,8 +1158,7 @@ static int sa1100fb_probe(struct platform_device *pdev)
 	if (!fbi)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	fbi->base = devm_ioremap_resource(&pdev->dev, res);
+	fbi->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(fbi->base))
 		return PTR_ERR(fbi->base);
 

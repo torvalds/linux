@@ -27,6 +27,10 @@ int mgag200_modeset = -1;
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, mgag200_modeset, int, 0400);
 
+int mgag200_hw_bug_no_startadd = -1;
+MODULE_PARM_DESC(modeset, "HW does not interpret scanout-buffer start address correctly");
+module_param_named(hw_bug_no_startadd, mgag200_hw_bug_no_startadd, int, 0400);
+
 static struct drm_driver driver;
 
 static const struct pci_device_id pciidlist[] = {
@@ -97,6 +101,16 @@ DEFINE_DRM_GEM_FOPS(mgag200_driver_fops);
 
 static bool mgag200_pin_bo_at_0(const struct mga_device *mdev)
 {
+	if (mgag200_hw_bug_no_startadd > 0) {
+		DRM_WARN_ONCE("Option hw_bug_no_startradd is enabled. Please "
+			      "report the output of 'lspci -vvnn' to "
+			      "<dri-devel@lists.freedesktop.org> if this "
+			      "option is required to make mgag200 work "
+			      "correctly on your system.\n");
+		return true;
+	} else if (!mgag200_hw_bug_no_startadd) {
+		return false;
+	}
 	return mdev->flags & MGAG200_FLAG_HW_BUG_NO_STARTADD;
 }
 
@@ -120,8 +134,7 @@ int mgag200_driver_dumb_create(struct drm_file *file,
 	if (mgag200_pin_bo_at_0(mdev))
 		pg_align = PFN_UP(mdev->mc.vram_size);
 
-	return drm_gem_vram_fill_create_dumb(file, dev, &dev->vram_mm->bdev,
-					     pg_align, false, args);
+	return drm_gem_vram_fill_create_dumb(file, dev, pg_align, 0, args);
 }
 
 static struct drm_driver driver = {
