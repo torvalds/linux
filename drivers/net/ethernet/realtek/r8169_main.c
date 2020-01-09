@@ -2276,16 +2276,20 @@ struct phy_reg {
 	u16 val;
 };
 
-static void __rtl_writephy_batch(struct rtl8169_private *tp,
+static void __rtl_writephy_batch(struct phy_device *phydev,
 				 const struct phy_reg *regs, int len)
 {
+	phy_lock_mdio_bus(phydev);
+
 	while (len-- > 0) {
-		rtl_writephy(tp, regs->reg, regs->val);
+		__phy_write(phydev, regs->reg, regs->val);
 		regs++;
 	}
+
+	phy_unlock_mdio_bus(phydev);
 }
 
-#define rtl_writephy_batch(tp, a) __rtl_writephy_batch(tp, a, ARRAY_SIZE(a))
+#define rtl_writephy_batch(p, a) __rtl_writephy_batch(p, a, ARRAY_SIZE(a))
 
 static void rtl_release_firmware(struct rtl8169_private *tp)
 {
@@ -2410,7 +2414,7 @@ static void rtl8169s_hw_phy_config(struct rtl8169_private *tp,
 		{ 0x00, 0x9200 }
 	};
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	rtl_writephy_batch(phydev, phy_reg_init);
 }
 
 static void rtl8169sb_hw_phy_config(struct rtl8169_private *tp,
@@ -2462,7 +2466,7 @@ static void rtl8169scd_hw_phy_config(struct rtl8169_private *tp,
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	rtl_writephy_batch(phydev, phy_reg_init);
 }
 
 static void rtl8169sce_hw_phy_config(struct rtl8169_private *tp,
@@ -2516,7 +2520,7 @@ static void rtl8169sce_hw_phy_config(struct rtl8169_private *tp,
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	rtl_writephy_batch(phydev, phy_reg_init);
 }
 
 static void rtl8168bb_hw_phy_config(struct rtl8169_private *tp,
@@ -2572,7 +2576,7 @@ static void rtl8168c_1_hw_phy_config(struct rtl8169_private *tp,
 		{ 0x09, 0x0000 }
 	};
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	rtl_writephy_batch(phydev, phy_reg_init);
 
 	rtl_patchphy(tp, 0x14, 1 << 5);
 	rtl_patchphy(tp, 0x0d, 1 << 5);
@@ -2600,7 +2604,7 @@ static void rtl8168c_2_hw_phy_config(struct rtl8169_private *tp,
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	rtl_writephy_batch(phydev, phy_reg_init);
 
 	rtl_patchphy(tp, 0x16, 1 << 0);
 	rtl_patchphy(tp, 0x14, 1 << 5);
@@ -2623,7 +2627,7 @@ static void rtl8168c_3_hw_phy_config(struct rtl8169_private *tp,
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	rtl_writephy_batch(phydev, phy_reg_init);
 
 	rtl_patchphy(tp, 0x16, 1 << 0);
 	rtl_patchphy(tp, 0x14, 1 << 5);
@@ -2699,7 +2703,7 @@ static void rtl8168d_apply_firmware_cond(struct rtl8169_private *tp, u16 val)
 static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp,
 				     struct phy_device *phydev)
 {
-	rtl_writephy_batch(tp, rtl8168d_1_phy_reg_init_0);
+	rtl_writephy_batch(phydev, rtl8168d_1_phy_reg_init_0);
 
 	/*
 	 * Rx Error Issue
@@ -2712,7 +2716,7 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp,
 	if (rtl8168d_efuse_read(tp, 0x01) == 0xb1) {
 		int val;
 
-		rtl_writephy_batch(tp, rtl8168d_1_phy_reg_init_1);
+		rtl_writephy_batch(phydev, rtl8168d_1_phy_reg_init_1);
 
 		val = rtl_readphy(tp, 0x0d);
 
@@ -2751,12 +2755,12 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp,
 static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp,
 				     struct phy_device *phydev)
 {
-	rtl_writephy_batch(tp, rtl8168d_1_phy_reg_init_0);
+	rtl_writephy_batch(phydev, rtl8168d_1_phy_reg_init_0);
 
 	if (rtl8168d_efuse_read(tp, 0x01) == 0xb1) {
 		int val;
 
-		rtl_writephy_batch(tp, rtl8168d_1_phy_reg_init_1);
+		rtl_writephy_batch(phydev, rtl8168d_1_phy_reg_init_1);
 
 		val = rtl_readphy(tp, 0x0d);
 		if ((val & 0x00ff) != 0x006c) {
@@ -2844,8 +2848,7 @@ static void rtl8168d_3_hw_phy_config(struct rtl8169_private *tp,
 		{ 0x1f, 0x0000 },
 	};
 
-	rtl_writephy_batch(tp, phy_reg_init);
-
+	rtl_writephy_batch(phydev, phy_reg_init);
 	r8168d_modify_extpage(phydev, 0x0023, 0x16, 0xffff, 0x0000);
 }
 
@@ -2876,7 +2879,7 @@ static void rtl8168e_1_hw_phy_config(struct rtl8169_private *tp,
 	/* Enable Delay cap */
 	r8168d_phy_param(phydev, 0x8b80, 0xffff, 0xc896);
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	rtl_writephy_batch(phydev, phy_reg_init);
 
 	/* Update PFM & 10M TX idle timer */
 	r8168d_modify_extpage(phydev, 0x002f, 0x15, 0xffff, 0x1919);
@@ -3370,7 +3373,7 @@ static void rtl8102e_hw_phy_config(struct rtl8169_private *tp,
 	rtl_patchphy(tp, 0x19, 1 << 13);
 	rtl_patchphy(tp, 0x10, 1 << 15);
 
-	rtl_writephy_batch(tp, phy_reg_init);
+	rtl_writephy_batch(phydev, phy_reg_init);
 }
 
 static void rtl8105e_hw_phy_config(struct rtl8169_private *tp,
@@ -3421,7 +3424,7 @@ static void rtl8106e_hw_phy_config(struct rtl8169_private *tp,
 	rtl_apply_firmware(tp);
 
 	rtl_eri_write(tp, 0x1b0, ERIAR_MASK_0011, 0x0000);
-	rtl_writephy_batch(tp, phy_reg_init);
+	rtl_writephy_batch(phydev, phy_reg_init);
 
 	rtl_eri_write(tp, 0x1d0, ERIAR_MASK_0011, 0x0000);
 }
