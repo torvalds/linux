@@ -1809,7 +1809,10 @@ static int sdma_v4_0_late_init(void *handle)
 			RREG32_SDMA(i, mmSDMA0_EDC_COUNTER);
 	}
 
-	return adev->sdma.funcs->ras_late_init(adev, &ih_info);
+	if (adev->sdma.funcs && adev->sdma.funcs->ras_late_init)
+		return adev->sdma.funcs->ras_late_init(adev, &ih_info);
+	else
+		return 0;
 }
 
 static int sdma_v4_0_sw_init(void *handle)
@@ -1881,7 +1884,8 @@ static int sdma_v4_0_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i;
 
-	adev->sdma.funcs->ras_fini(adev);
+	if (adev->sdma.funcs && adev->sdma.funcs->ras_fini)
+		adev->sdma.funcs->ras_fini(adev);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
