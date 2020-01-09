@@ -27,6 +27,9 @@
 #define mmDF_PIE_AON0_DfGlobalClkGater									0x00fc
 #define mmDF_PIE_AON0_DfGlobalClkGater_BASE_IDX								0
 
+#define mmDF_CS_UMC_AON0_DfGlobalCtrl									0x00fe
+#define mmDF_CS_UMC_AON0_DfGlobalCtrl_BASE_IDX								0
+
 #define mmDF_CS_UMC_AON0_DramBaseAddress0								0x0044
 #define mmDF_CS_UMC_AON0_DramBaseAddress0_BASE_IDX							0
 
