@@ -396,7 +396,7 @@ static int via_resume(struct hda_codec *codec)
 	/* some delay here to make jack detection working (bko#98921) */
 	msleep(10);
 	codec->patch_ops.init(codec);
-	regcache_sync(codec->core.regmap);
+	snd_hda_regmap_sync(codec);
 	return 0;
 }
 #endif
