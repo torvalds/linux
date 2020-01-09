@@ -88,3 +88,14 @@ own name.
    * - ``enable_roce``
      - Boolean
      - Enable handling of RoCE traffic in the device.
+   * - ``internal_err_reset``
+     - Boolean
+     - When enabled, the device driver will reset the device on internal
+       errors.
+   * - ``max_macs``
+     - u32
+     - Specifies the maximum number of MAC addresses per ethernet port of
+       this device.
+   * - ``region_snapshot_enable``
+     - Boolean
+     - Enable capture of ``devlink-region`` snapshots.
