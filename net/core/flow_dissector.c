@@ -233,7 +233,7 @@ static bool icmp_has_id(u8 type)
  * @skb: sk_buff to extract from
  * @key_icmp: struct flow_dissector_key_icmp to fill
  * @data: raw buffer pointer to the packet
- * @toff: offset to extract at
+ * @thoff: offset to extract at
  * @hlen: packet header length
  */
 void skb_flow_get_icmp_tci(const struct sk_buff *skb,
