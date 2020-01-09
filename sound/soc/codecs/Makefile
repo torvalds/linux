@@ -1,3 +1,5 @@
+ccflags-y += -DDEBUG
+
 # SPDX-License-Identifier: GPL-2.0
 snd-soc-88pm860x-objs := 88pm860x-codec.o
 snd-soc-ab8500-codec-objs := ab8500-codec.o
@@ -173,6 +175,7 @@ snd-soc-rt5670-objs := rt5670.o
 snd-soc-rt5677-objs := rt5677.o
 snd-soc-rt5677-spi-objs := rt5677-spi.o
 snd-soc-rt5682-objs := rt5682.o
+snd-soc-rt5682-sdw-objs := rt5682-sdw.o
 snd-soc-sgtl5000-objs := sgtl5000.o
 snd-soc-alc5623-objs := alc5623.o
 snd-soc-alc5632-objs := alc5632.o
@@ -279,6 +282,11 @@ snd-soc-wm9712-objs := wm9712.o
 snd-soc-wm9713-objs := wm9713.o
 snd-soc-wm-hubs-objs := wm_hubs.o
 snd-soc-zx-aud96p22-objs := zx_aud96p22.o
+snd-soc-rt700-objs := rt700.o rt700-sdw.o
+snd-soc-rt1308-sdw-objs := rt1308-sdw.o
+snd-soc-rt711-objs := rt711.o rt711-sdw.o
+snd-soc-rt715-objs := rt715.o rt715-sdw.o
+
 # Amp
 snd-soc-max9877-objs := max9877.o
 snd-soc-max98504-objs := max98504.o
@@ -464,6 +472,7 @@ obj-$(CONFIG_SND_SOC_RT5670)	+= snd-soc-rt5670.o
 obj-$(CONFIG_SND_SOC_RT5677)	+= snd-soc-rt5677.o
 obj-$(CONFIG_SND_SOC_RT5677_SPI)	+= snd-soc-rt5677-spi.o
 obj-$(CONFIG_SND_SOC_RT5682)	+= snd-soc-rt5682.o
+obj-$(CONFIG_SND_SOC_RT5682_SDW)	+= snd-soc-rt5682-sdw.o
 obj-$(CONFIG_SND_SOC_SGTL5000)  += snd-soc-sgtl5000.o
 obj-$(CONFIG_SND_SOC_SIGMADSP)	+= snd-soc-sigmadsp.o
 obj-$(CONFIG_SND_SOC_SIGMADSP_I2C)	+= snd-soc-sigmadsp-i2c.o
@@ -569,6 +578,10 @@ obj-$(CONFIG_SND_SOC_WM9713)	+= snd-soc-wm9713.o
 obj-$(CONFIG_SND_SOC_WM_ADSP)	+= snd-soc-wm-adsp.o
 obj-$(CONFIG_SND_SOC_WM_HUBS)	+= snd-soc-wm-hubs.o
 obj-$(CONFIG_SND_SOC_ZX_AUD96P22) += snd-soc-zx-aud96p22.o
+obj-$(CONFIG_SND_SOC_RT700)     += snd-soc-rt700.o
+obj-$(CONFIG_SND_SOC_RT1308_SDW)     += snd-soc-rt1308-sdw.o
+obj-$(CONFIG_SND_SOC_RT711)     += snd-soc-rt711.o
+obj-$(CONFIG_SND_SOC_RT715)     += snd-soc-rt715.o
 
 # Amp
 obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
