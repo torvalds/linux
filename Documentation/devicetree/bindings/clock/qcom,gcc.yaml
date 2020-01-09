@@ -19,8 +19,9 @@ properties:
     enum:
        - qcom,gcc-apq8064
        - qcom,gcc-apq8084
-       - qcom,gcc-ipq8064
        - qcom,gcc-ipq4019
+       - qcom,gcc-ipq6018
+       - qcom,gcc-ipq8064
        - qcom,gcc-ipq8074
        - qcom,gcc-msm8660
        - qcom,gcc-msm8916
