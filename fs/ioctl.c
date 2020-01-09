@@ -65,6 +65,9 @@ static int ioctl_fibmap(struct file *filp, int __user *p)
 	if (error)
 		return error;
 
+	if (ur_block < 0)
+		return -EINVAL;
+
 	block = ur_block;
 	error = bmap(inode, &block);
 
