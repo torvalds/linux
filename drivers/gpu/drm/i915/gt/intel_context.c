@@ -105,14 +105,11 @@ int __intel_context_do_pin(struct intel_context *ce)
 		return -EINTR;
 
 	if (likely(!atomic_read(&ce->pin_count))) {
-		intel_wakeref_t wakeref;
-
 		err = intel_context_active_acquire(ce);
 		if (unlikely(err))
 			goto err;
 
-		with_intel_runtime_pm(ce->engine->uncore->rpm, wakeref)
-			err = ce->ops->pin(ce);
+		err = ce->ops->pin(ce);
 		if (unlikely(err))
 			goto err_active;
 
