@@ -124,8 +124,8 @@ static int amd_params_to_tee_params(struct tee_param *tee, u32 count,
 int handle_unload_ta(u32 ta_handle)
 {
 	struct tee_cmd_unload_ta cmd = {0};
-	int ret = 0;
 	u32 status;
+	int ret;
 
 	if (!ta_handle)
 		return -EINVAL;
@@ -145,8 +145,8 @@ int handle_unload_ta(u32 ta_handle)
 int handle_close_session(u32 ta_handle, u32 info)
 {
 	struct tee_cmd_close_session cmd = {0};
-	int ret = 0;
 	u32 status;
+	int ret;
 
 	if (ta_handle == 0)
 		return -EINVAL;
@@ -167,8 +167,8 @@ int handle_close_session(u32 ta_handle, u32 info)
 void handle_unmap_shmem(u32 buf_id)
 {
 	struct tee_cmd_unmap_shared_mem cmd = {0};
-	int ret = 0;
 	u32 status;
+	int ret;
 
 	cmd.buf_id = buf_id;
 
@@ -183,7 +183,7 @@ int handle_invoke_cmd(struct tee_ioctl_invoke_arg *arg, u32 sinfo,
 		      struct tee_param *p)
 {
 	struct tee_cmd_invoke_cmd cmd = {0};
-	int ret = 0;
+	int ret;
 
 	if (!arg || (!p && arg->num_params))
 		return -EINVAL;
@@ -229,7 +229,7 @@ int handle_map_shmem(u32 count, struct shmem_desc *start, u32 *buf_id)
 {
 	struct tee_cmd_map_shared_mem *cmd;
 	phys_addr_t paddr;
-	int ret = 0, i;
+	int ret, i;
 	u32 status;
 
 	if (!count || !start || !buf_id)
@@ -294,7 +294,7 @@ int handle_open_session(struct tee_ioctl_open_session_arg *arg, u32 *info,
 			struct tee_param *p)
 {
 	struct tee_cmd_open_session cmd = {0};
-	int ret = 0;
+	int ret;
 
 	if (!arg || !info || (!p && arg->num_params))
 		return -EINVAL;
@@ -342,7 +342,7 @@ int handle_load_ta(void *data, u32 size, struct tee_ioctl_open_session_arg *arg)
 {
 	struct tee_cmd_load_ta cmd = {0};
 	phys_addr_t blob;
-	int ret = 0;
+	int ret;
 
 	if (size == 0 || !data || !arg)
 		return -EINVAL;

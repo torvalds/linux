@@ -50,7 +50,7 @@ static int amdtee_open(struct tee_context *ctx)
 
 static void release_session(struct amdtee_session *sess)
 {
-	int i = 0;
+	int i;
 
 	/* Close any open session */
 	for (i = 0; i < TEE_NUM_SESSIONS; ++i) {
@@ -173,7 +173,7 @@ static int copy_ta_binary(struct tee_context *ctx, void *ptr, void **ta,
 		u16 hi_ver;
 		u8 seq_n[8];
 	} *uuid = ptr;
-	int n = 0, rc = 0;
+	int n, rc = 0;
 
 	n = snprintf(fw_name, TA_PATH_MAX,
 		     "%s/%08x-%04x-%04x-%02x%02x%02x%02x%02x%02x%02x%02x.bin",
@@ -219,9 +219,9 @@ int amdtee_open_session(struct tee_context *ctx,
 	struct amdtee_context_data *ctxdata = ctx->data;
 	struct amdtee_session *sess = NULL;
 	u32 session_info;
-	void *ta = NULL;
 	size_t ta_size;
-	int rc = 0, i;
+	int rc, i;
+	void *ta;
 
 	if (arg->clnt_login != TEE_IOCTL_LOGIN_PUBLIC) {
 		pr_err("unsupported client login method\n");
@@ -368,8 +368,8 @@ int amdtee_map_shmem(struct tee_shm *shm)
 
 void amdtee_unmap_shmem(struct tee_shm *shm)
 {
+	struct amdtee_shm_data *shmnode;
 	u32 buf_id;
-	struct amdtee_shm_data *shmnode = NULL;
 
 	if (!shm)
 		return;
@@ -434,9 +434,9 @@ static const struct tee_desc amdtee_desc = {
 
 static int __init amdtee_driver_init(void)
 {
-	struct amdtee *amdtee = NULL;
 	struct tee_device *teedev;
-	struct tee_shm_pool *pool = ERR_PTR(-EINVAL);
+	struct tee_shm_pool *pool;
+	struct amdtee *amdtee;
 	int rc;
 
 	rc = psp_check_tee_status();
