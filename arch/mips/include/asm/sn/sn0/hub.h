@@ -47,6 +47,16 @@
 	and	\res, NSRI_NODEID_MASK
 	dsrl	\res, NSRI_NODEID_SHFT
 	.endm
+#else
+
+/*
+ * get_nasid() returns the physical node id number of the caller.
+ */
+static inline nasid_t get_nasid(void)
+{
+	return (nasid_t)((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_NODEID_MASK)
+			 >> NSRI_NODEID_SHFT);
+}
 #endif
 
 #endif /* _ASM_SN_SN0_HUB_H */

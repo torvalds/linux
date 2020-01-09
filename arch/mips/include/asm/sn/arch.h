@@ -25,10 +25,4 @@
 #define INVALID_MODULE		(moduleid_t)-1
 #define INVALID_PARTID		(partid_t)-1
 
-#ifndef __ASSEMBLY__
-
-extern nasid_t get_nasid(void);
-
-#endif
-
 #endif /* _ASM_SN_ARCH_H */

@@ -94,16 +94,6 @@ void per_cpu_init(void)
 	enable_percpu_irq(IP27_HUB_PEND1_IRQ, IRQ_TYPE_NONE);
 }
 
-/*
- * get_nasid() returns the physical node id number of the caller.
- */
-nasid_t
-get_nasid(void)
-{
-	return (nasid_t)((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_NODEID_MASK)
-			 >> NSRI_NODEID_SHFT);
-}
-
 void __init plat_mem_setup(void)
 {
 	u64 p, e, n_mode;
