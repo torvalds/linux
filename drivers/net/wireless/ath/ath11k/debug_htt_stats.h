@@ -1231,6 +1231,8 @@ struct htt_tx_pdev_rate_stats_tlv {
 #define HTT_RX_PDEV_STATS_NUM_BW_COUNTERS          4
 #define HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS      8
 #define HTT_RX_PDEV_STATS_NUM_PREAMBLE_TYPES       HTT_STATS_PREAM_COUNT
+#define HTT_RX_PDEV_MAX_OFDMA_NUM_USER             8
+#define HTT_RX_PDEV_STATS_RXEVM_MAX_PILOTS_PER_NSS 16
 
 struct htt_rx_pdev_rate_stats_tlv {
 	u32 mac_id__word;
@@ -1269,6 +1271,46 @@ struct htt_rx_pdev_rate_stats_tlv {
 	u32 rx_legacy_ofdm_rate[HTT_RX_PDEV_STATS_NUM_LEGACY_OFDM_STATS];
 	u32 rx_active_dur_us_low;
 	u32 rx_active_dur_us_high;
+
+	u32 rx_11ax_ul_ofdma;
+
+	u32 ul_ofdma_rx_mcs[HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
+	u32 ul_ofdma_rx_gi[HTT_TX_PDEV_STATS_NUM_GI_COUNTERS]
+			  [HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
+	u32 ul_ofdma_rx_nss[HTT_TX_PDEV_STATS_NUM_SPATIAL_STREAMS];
+	u32 ul_ofdma_rx_bw[HTT_TX_PDEV_STATS_NUM_BW_COUNTERS];
+	u32 ul_ofdma_rx_stbc;
+	u32 ul_ofdma_rx_ldpc;
+
+	/* record the stats for each user index */
+	u32 rx_ulofdma_non_data_ppdu[HTT_RX_PDEV_MAX_OFDMA_NUM_USER]; /* ppdu level */
+	u32 rx_ulofdma_data_ppdu[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];     /* ppdu level */
+	u32 rx_ulofdma_mpdu_ok[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];       /* mpdu level */
+	u32 rx_ulofdma_mpdu_fail[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];     /* mpdu level */
+
+	u32 nss_count;
+	u32 pilot_count;
+	/* RxEVM stats in dB */
+	s32 rx_pilot_evm_db[HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS]
+			   [HTT_RX_PDEV_STATS_RXEVM_MAX_PILOTS_PER_NSS];
+	/* rx_pilot_evm_db_mean:
+	 * EVM mean across pilots, computed as
+	 *     mean(10*log10(rx_pilot_evm_linear)) = mean(rx_pilot_evm_db)
+	 */
+	s32 rx_pilot_evm_db_mean[HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS];
+	s8 rx_ul_fd_rssi[HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS]
+			[HTT_RX_PDEV_MAX_OFDMA_NUM_USER]; /* dBm units */
+	/* per_chain_rssi_pkt_type:
+	 * This field shows what type of rx frame the per-chain RSSI was computed
+	 * on, by recording the frame type and sub-type as bit-fields within this
+	 * field:
+	 * BIT [3 : 0]    :- IEEE80211_FC0_TYPE
+	 * BIT [7 : 4]    :- IEEE80211_FC0_SUBTYPE
+	 * BIT [31 : 8]   :- Reserved
+	 */
+	u32 per_chain_rssi_pkt_type;
+	s8 rx_per_chain_rssi_in_dbm[HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS]
+				   [HTT_RX_PDEV_STATS_NUM_BW_COUNTERS];
 };
 
 /* == RX PDEV/SOC STATS == */
