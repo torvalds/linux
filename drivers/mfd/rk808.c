@@ -349,14 +349,6 @@ static const struct rk808_reg_data rk817_pre_init_reg[] = {
 					   RK817_HOTDIE_105 | RK817_TSD_140},
 };
 
-static struct rk808_reg_data rk817_suspend_reg[] = {
-	{RK817_SYS_CFG(3), RK817_SLPPIN_FUNC_MSK, SLPPIN_SLP_FUN},
-};
-
-static struct rk808_reg_data rk817_resume_reg[] = {
-	{RK817_SYS_CFG(3), RK817_SLPPIN_FUNC_MSK, SLPPIN_NULL_FUN},
-};
-
 static const struct rk808_reg_data rk818_pre_init_reg[] = {
 	/* improve efficiency */
 	{ RK818_BUCK2_CONFIG_REG, BUCK2_RATE_MASK,  BUCK_ILMIN_250MA },
@@ -1268,10 +1260,6 @@ static int rk808_probe(struct i2c_client *client,
 		nr_cells = ARRAY_SIZE(rk817s);
 		on_source = RK817_ON_SOURCE_REG;
 		off_source = RK817_OFF_SOURCE_REG;
-		suspend_reg = rk817_suspend_reg;
-		suspend_reg_num = ARRAY_SIZE(rk817_suspend_reg);
-		resume_reg = rk817_resume_reg;
-		resume_reg_num = ARRAY_SIZE(rk817_resume_reg);
 		rk808->pm_pwroff_prep_fn = rk817_shutdown_prepare;
 		of_property_prepare_fn = rk817_of_property_prepare;
 		pinctrl_init = rk817_pinctrl_init;
