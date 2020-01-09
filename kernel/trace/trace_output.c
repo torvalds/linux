@@ -538,7 +538,7 @@ lat_print_timestamp(struct trace_iterator *iter, u64 next_ts)
 	struct trace_array *tr = iter->tr;
 	unsigned long verbose = tr->trace_flags & TRACE_ITER_VERBOSE;
 	unsigned long in_ns = iter->iter_flags & TRACE_FILE_TIME_IN_NS;
-	unsigned long long abs_ts = iter->ts - iter->trace_buffer->time_start;
+	unsigned long long abs_ts = iter->ts - iter->array_buffer->time_start;
 	unsigned long long rel_ts = next_ts - iter->ts;
 	struct trace_seq *s = &iter->seq;
 

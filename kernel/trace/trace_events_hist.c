@@ -895,7 +895,7 @@ static notrace void trace_event_raw_event_synth(void *__data,
 	 * Avoid ring buffer recursion detection, as this event
 	 * is being performed within another event.
 	 */
-	buffer = trace_file->tr->trace_buffer.buffer;
+	buffer = trace_file->tr->array_buffer.buffer;
 	ring_buffer_nest_start(buffer);
 
 	entry = trace_event_buffer_reserve(&fbuffer, trace_file,

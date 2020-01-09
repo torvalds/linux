@@ -11,7 +11,7 @@
 #include <linux/tracepoint.h>
 
 struct trace_array;
-struct trace_buffer;
+struct array_buffer;
 struct tracer;
 struct dentry;
 struct bpf_prog;
@@ -79,7 +79,7 @@ struct trace_entry {
 struct trace_iterator {
 	struct trace_array	*tr;
 	struct tracer		*trace;
-	struct trace_buffer	*trace_buffer;
+	struct array_buffer	*array_buffer;
 	void			*private;
 	int			cpu_file;
 	struct mutex		mutex;
