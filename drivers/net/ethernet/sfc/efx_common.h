@@ -55,6 +55,14 @@ static inline int efx_check_disabled(struct efx_nic *efx)
 	return 0;
 }
 
+#ifdef CONFIG_SFC_MCDI_LOGGING
+void efx_init_mcdi_logging(struct efx_nic *efx);
+void efx_fini_mcdi_logging(struct efx_nic *efx);
+#else
+static inline void efx_init_mcdi_logging(struct efx_nic *efx) {}
+static inline void efx_fini_mcdi_logging(struct efx_nic *efx) {}
+#endif
+
 void efx_mac_reconfigure(struct efx_nic *efx);
 void efx_link_status_changed(struct efx_nic *efx);
 

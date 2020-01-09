@@ -1006,3 +1006,42 @@ void efx_fini_io(struct efx_nic *efx, int bar)
 	if (!pci_vfs_assigned(efx->pci_dev))
 		pci_disable_device(efx->pci_dev);
 }
+
+#ifdef CONFIG_SFC_MCDI_LOGGING
+static ssize_t show_mcdi_log(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct efx_nic *efx = dev_get_drvdata(dev);
+	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", mcdi->logging_enabled);
+}
+
+static ssize_t set_mcdi_log(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct efx_nic *efx = dev_get_drvdata(dev);
+	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+	bool enable = count > 0 && *buf != '0';
+
+	mcdi->logging_enabled = enable;
+	return count;
+}
+
+static DEVICE_ATTR(mcdi_logging, 0644, show_mcdi_log, set_mcdi_log);
+
+void efx_init_mcdi_logging(struct efx_nic *efx)
+{
+	int rc = device_create_file(&efx->pci_dev->dev, &dev_attr_mcdi_logging);
+
+	if (rc) {
+		netif_warn(efx, drv, efx->net_dev,
+			   "failed to init net dev attributes\n");
+	}
+}
+
+void efx_fini_mcdi_logging(struct efx_nic *efx)
+{
+	device_remove_file(&efx->pci_dev->dev, &dev_attr_mcdi_logging);
+}
+#endif
