@@ -1159,7 +1159,7 @@ static int smu_v11_0_set_thermal_range(struct smu_context *smu,
 
 	low = max(SMU_THERMAL_MINIMUM_ALERT_TEMP,
 			range.min / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES);
-	high = min(SMU_THERMAL_MAXIMUM_ALERT_TEMP, powerplay_table->software_shutdown_temp);
+	high = min((uint16_t)SMU_THERMAL_MAXIMUM_ALERT_TEMP, powerplay_table->software_shutdown_temp);
 
 	if (low > high)
 		return -EINVAL;
