@@ -34,4 +34,5 @@ parameters, info versions, and other features it supports.
    mlxsw
    mv88e6xxx
    nfp
+   qed
    ti-cpsw-switch
