@@ -298,12 +298,14 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	u32 i, fw_size;
 
 	if (!HAS_CSR(dev_priv)) {
-		DRM_ERROR("No CSR support available for this platform\n");
+		drm_err(&dev_priv->drm,
+			"No CSR support available for this platform\n");
 		return;
 	}
 
 	if (!dev_priv->csr.dmc_payload) {
-		DRM_ERROR("Tried to program CSR with empty payload\n");
+		drm_err(&dev_priv->drm,
+			"Tried to program CSR with empty payload\n");
 		return;
 	}
 
@@ -636,16 +638,16 @@ static void csr_load_work_fn(struct work_struct *work)
 		intel_csr_load_program(dev_priv);
 		intel_csr_runtime_pm_put(dev_priv);
 
-		DRM_INFO("Finished loading DMC firmware %s (v%u.%u)\n",
-			 dev_priv->csr.fw_path,
-			 CSR_VERSION_MAJOR(csr->version),
+		drm_info(&dev_priv->drm,
+			 "Finished loading DMC firmware %s (v%u.%u)\n",
+			 dev_priv->csr.fw_path, CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version));
 	} else {
-		dev_notice(dev_priv->drm.dev,
+		drm_notice(&dev_priv->drm,
 			   "Failed to load DMC firmware %s."
 			   " Disabling runtime power management.\n",
 			   csr->fw_path);
-		dev_notice(dev_priv->drm.dev, "DMC firmware homepage: %s",
+		drm_notice(&dev_priv->drm, "DMC firmware homepage: %s",
 			   INTEL_UC_FIRMWARE_URL);
 	}
 
@@ -712,7 +714,8 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (i915_modparams.dmc_firmware_path) {
 		if (strlen(i915_modparams.dmc_firmware_path) == 0) {
 			csr->fw_path = NULL;
-			DRM_INFO("Disabling CSR firmware and runtime PM\n");
+			drm_info(&dev_priv->drm,
+				 "Disabling CSR firmware and runtime PM\n");
 			return;
 		}
 
@@ -722,11 +725,12 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (csr->fw_path == NULL) {
-		DRM_DEBUG_KMS("No known CSR firmware for platform, disabling runtime PM\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "No known CSR firmware for platform, disabling runtime PM\n");
 		return;
 	}
 
-	DRM_DEBUG_KMS("Loading %s\n", csr->fw_path);
+	drm_dbg_kms(&dev_priv->drm, "Loading %s\n", csr->fw_path);
 	schedule_work(&dev_priv->csr.work);
 }
 
