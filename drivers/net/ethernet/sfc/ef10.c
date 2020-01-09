@@ -3199,106 +3199,20 @@ efx_ef10_rx_defer_refill_complete(struct efx_nic *efx, unsigned long cookie,
 	/* nothing to do */
 }
 
-static int efx_ef10_ev_probe(struct efx_channel *channel)
-{
-	return efx_nic_alloc_buffer(channel->efx, &channel->eventq.buf,
-				    (channel->eventq_mask + 1) *
-				    sizeof(efx_qword_t),
-				    GFP_KERNEL);
-}
-
-static void efx_ef10_ev_fini(struct efx_channel *channel)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_EVQ_IN_LEN);
-	MCDI_DECLARE_BUF_ERR(outbuf);
-	struct efx_nic *efx = channel->efx;
-	size_t outlen;
-	int rc;
-
-	MCDI_SET_DWORD(inbuf, FINI_EVQ_IN_INSTANCE, channel->channel);
-
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FINI_EVQ, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
-
-	if (rc && rc != -EALREADY)
-		goto fail;
-
-	return;
-
-fail:
-	efx_mcdi_display_error(efx, MC_CMD_FINI_EVQ, MC_CMD_FINI_EVQ_IN_LEN,
-			       outbuf, outlen, rc);
-}
-
 static int efx_ef10_ev_init(struct efx_channel *channel)
 {
-	MCDI_DECLARE_BUF(inbuf,
-			 MC_CMD_INIT_EVQ_V2_IN_LEN(EFX_MAX_EVQ_SIZE * 8 /
-						   EFX_BUF_SIZE));
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_INIT_EVQ_V2_OUT_LEN);
-	size_t entries = channel->eventq.buf.len / EFX_BUF_SIZE;
 	struct efx_nic *efx = channel->efx;
 	struct efx_ef10_nic_data *nic_data;
-	size_t inlen, outlen;
 	unsigned int enabled, implemented;
-	dma_addr_t dma_addr;
+	bool use_v2, cut_thru;
 	int rc;
-	int i;
 
 	nic_data = efx->nic_data;
-
-	/* Fill event queue with all ones (i.e. empty events) */
-	memset(channel->eventq.buf.addr, 0xff, channel->eventq.buf.len);
-
-	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_SIZE, channel->eventq_mask + 1);
-	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_INSTANCE, channel->channel);
-	/* INIT_EVQ expects index in vector table, not absolute */
-	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_IRQ_NUM, channel->channel);
-	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_TMR_MODE,
-		       MC_CMD_INIT_EVQ_IN_TMR_MODE_DIS);
-	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_TMR_LOAD, 0);
-	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_TMR_RELOAD, 0);
-	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_COUNT_MODE,
-		       MC_CMD_INIT_EVQ_IN_COUNT_MODE_DIS);
-	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_COUNT_THRSHLD, 0);
-
-	if (nic_data->datapath_caps2 &
-	    1 << MC_CMD_GET_CAPABILITIES_V2_OUT_INIT_EVQ_V2_LBN) {
-		/* Use the new generic approach to specifying event queue
-		 * configuration, requesting lower latency or higher throughput.
-		 * The options that actually get used appear in the output.
-		 */
-		MCDI_POPULATE_DWORD_2(inbuf, INIT_EVQ_V2_IN_FLAGS,
-				      INIT_EVQ_V2_IN_FLAG_INTERRUPTING, 1,
-				      INIT_EVQ_V2_IN_FLAG_TYPE,
-				      MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_AUTO);
-	} else {
-		bool cut_thru = !(nic_data->datapath_caps &
-			1 << MC_CMD_GET_CAPABILITIES_OUT_RX_BATCHING_LBN);
-
-		MCDI_POPULATE_DWORD_4(inbuf, INIT_EVQ_IN_FLAGS,
-				      INIT_EVQ_IN_FLAG_INTERRUPTING, 1,
-				      INIT_EVQ_IN_FLAG_RX_MERGE, 1,
-				      INIT_EVQ_IN_FLAG_TX_MERGE, 1,
-				      INIT_EVQ_IN_FLAG_CUT_THRU, cut_thru);
-	}
-
-	dma_addr = channel->eventq.buf.dma_addr;
-	for (i = 0; i < entries; ++i) {
-		MCDI_SET_ARRAY_QWORD(inbuf, INIT_EVQ_IN_DMA_ADDR, i, dma_addr);
-		dma_addr += EFX_BUF_SIZE;
-	}
-
-	inlen = MC_CMD_INIT_EVQ_IN_LEN(entries);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_EVQ, inbuf, inlen,
-			  outbuf, sizeof(outbuf), &outlen);
-
-	if (outlen >= MC_CMD_INIT_EVQ_V2_OUT_LEN)
-		netif_dbg(efx, drv, efx->net_dev,
-			  "Channel %d using event queue flags %08x\n",
-			  channel->channel,
-			  MCDI_DWORD(outbuf, INIT_EVQ_V2_OUT_FLAGS));
+	use_v2 = nic_data->datapath_caps2 &
+			    1 << MC_CMD_GET_CAPABILITIES_V2_OUT_INIT_EVQ_V2_LBN;
+	cut_thru = !(nic_data->datapath_caps &
+			      1 << MC_CMD_GET_CAPABILITIES_OUT_RX_BATCHING_LBN);
+	rc = efx_mcdi_ev_init(channel, cut_thru, use_v2);
 
 	/* IRQ return is ignored */
 	if (channel->channel || rc)
@@ -3356,13 +3270,8 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 		return 0;
 
 fail:
-	efx_ef10_ev_fini(channel);
+	efx_mcdi_ev_fini(channel);
 	return rc;
-}
-
-static void efx_ef10_ev_remove(struct efx_channel *channel)
-{
-	efx_nic_free_buffer(channel->efx, &channel->eventq.buf);
 }
 
 static void efx_ef10_handle_rx_wrong_queue(struct efx_rx_queue *rx_queue,
@@ -6630,10 +6539,10 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.rx_remove = efx_ef10_rx_remove,
 	.rx_write = efx_ef10_rx_write,
 	.rx_defer_refill = efx_ef10_rx_defer_refill,
-	.ev_probe = efx_ef10_ev_probe,
+	.ev_probe = efx_mcdi_ev_probe,
 	.ev_init = efx_ef10_ev_init,
-	.ev_fini = efx_ef10_ev_fini,
-	.ev_remove = efx_ef10_ev_remove,
+	.ev_fini = efx_mcdi_ev_fini,
+	.ev_remove = efx_mcdi_ev_remove,
 	.ev_process = efx_ef10_ev_process,
 	.ev_read_ack = efx_ef10_ev_read_ack,
 	.ev_test_generate = efx_ef10_ev_test_generate,
@@ -6742,10 +6651,10 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.rx_remove = efx_ef10_rx_remove,
 	.rx_write = efx_ef10_rx_write,
 	.rx_defer_refill = efx_ef10_rx_defer_refill,
-	.ev_probe = efx_ef10_ev_probe,
+	.ev_probe = efx_mcdi_ev_probe,
 	.ev_init = efx_ef10_ev_init,
-	.ev_fini = efx_ef10_ev_fini,
-	.ev_remove = efx_ef10_ev_remove,
+	.ev_fini = efx_mcdi_ev_fini,
+	.ev_remove = efx_mcdi_ev_remove,
 	.ev_process = efx_ef10_ev_process,
 	.ev_read_ack = efx_ef10_ev_read_ack,
 	.ev_test_generate = efx_ef10_ev_test_generate,
