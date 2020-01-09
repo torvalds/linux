@@ -23,6 +23,11 @@ MODULE_PARM_DESC(slave_radar, "set 0 to disable radar detection in slave mode");
 
 static struct dentry *qtnf_debugfs_dir;
 
+bool qtnf_slave_radar_get(void)
+{
+	return slave_radar;
+}
+
 struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid)
 {
 	struct qtnf_wmac *mac = NULL;
@@ -454,11 +459,6 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 	bus->mac[macid] = mac;
 
 	return mac;
-}
-
-bool qtnf_mac_slave_radar_get(struct wiphy *wiphy)
-{
-	return slave_radar;
 }
 
 static const struct ethtool_ops qtnf_ethtool_ops = {
