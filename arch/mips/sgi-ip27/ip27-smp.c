@@ -24,7 +24,6 @@
 #include <asm/sn/mapped_kernel.h>
 #include <asm/sn/sn_private.h>
 #include <asm/sn/types.h>
-#include <asm/sn/sn0/ip27.h>
 
 #include "ip27-common.h"
 

@@ -27,7 +27,6 @@
 #include <asm/sn/addrs.h>
 #include <asm/sn/agent.h>
 #include <asm/sn/sn_private.h>
-#include <asm/sn/sn0/ip27.h>
 
 #define TICK_SIZE (tick_nsec / 1000)
 

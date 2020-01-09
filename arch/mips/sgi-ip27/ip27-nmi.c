@@ -17,6 +17,9 @@
 #define NODE_NUM_CPUS(n)	CPUS_PER_NODE
 #endif
 
+#define SEND_NMI(_nasid, _slice)	\
+	REMOTE_HUB_S((_nasid),  (PI_NMI_A + ((_slice) * PI_NMI_OFFSET)), 1)
+
 typedef unsigned long machreg_t;
 
 static arch_spinlock_t nmi_lock = __ARCH_SPIN_LOCK_UNLOCKED;
