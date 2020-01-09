@@ -39,7 +39,7 @@ but without enabling "switch" mode, or to different bridges.
 
 Devlink configuration parameters
 ====================
-See Documentation/networking/devlink-params-ti-cpsw-switch.txt
+See Documentation/networking/devlink/ti-cpsw-switch.rst
 
 ====================
 # Bridging in dual mac mode
