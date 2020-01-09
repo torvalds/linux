@@ -162,3 +162,103 @@ fail:
 	efx_mcdi_display_error(efx, MC_CMD_FINI_EVQ, MC_CMD_FINI_EVQ_IN_LEN,
 			       outbuf, outlen, rc);
 }
+
+int efx_mcdi_tx_init(struct efx_tx_queue *tx_queue, bool tso_v2)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_TXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
+						       EFX_BUF_SIZE));
+	bool csum_offload = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
+	size_t entries = tx_queue->txd.buf.len / EFX_BUF_SIZE;
+	struct efx_channel *channel = tx_queue->channel;
+	struct efx_nic *efx = tx_queue->efx;
+	struct efx_ef10_nic_data *nic_data;
+	dma_addr_t dma_addr;
+	size_t inlen;
+	int rc, i;
+
+	BUILD_BUG_ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
+
+	nic_data = efx->nic_data;
+
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_SIZE, tx_queue->ptr_mask + 1);
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_TARGET_EVQ, channel->channel);
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_LABEL, tx_queue->queue);
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_INSTANCE, tx_queue->queue);
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_OWNER_ID, 0);
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, nic_data->vport_id);
+
+	dma_addr = tx_queue->txd.buf.dma_addr;
+
+	netif_dbg(efx, hw, efx->net_dev, "pushing TXQ %d. %zu entries (%llx)\n",
+		  tx_queue->queue, entries, (u64)dma_addr);
+
+	for (i = 0; i < entries; ++i) {
+		MCDI_SET_ARRAY_QWORD(inbuf, INIT_TXQ_IN_DMA_ADDR, i, dma_addr);
+		dma_addr += EFX_BUF_SIZE;
+	}
+
+	inlen = MC_CMD_INIT_TXQ_IN_LEN(entries);
+
+	do {
+		MCDI_POPULATE_DWORD_4(inbuf, INIT_TXQ_IN_FLAGS,
+				/* This flag was removed from mcdi_pcol.h for
+				 * the non-_EXT version of INIT_TXQ.  However,
+				 * firmware still honours it.
+				 */
+				INIT_TXQ_EXT_IN_FLAG_TSOV2_EN, tso_v2,
+				INIT_TXQ_IN_FLAG_IP_CSUM_DIS, !csum_offload,
+				INIT_TXQ_IN_FLAG_TCP_CSUM_DIS, !csum_offload,
+				INIT_TXQ_EXT_IN_FLAG_TIMESTAMP,
+						tx_queue->timestamping);
+
+		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_INIT_TXQ, inbuf, inlen,
+					NULL, 0, NULL);
+		if (rc == -ENOSPC && tso_v2) {
+			/* Retry without TSOv2 if we're short on contexts. */
+			tso_v2 = false;
+			netif_warn(efx, probe, efx->net_dev,
+				   "TSOv2 context not available to segment in "
+				   "hardware. TCP performance may be reduced.\n"
+				   );
+		} else if (rc) {
+			efx_mcdi_display_error(efx, MC_CMD_INIT_TXQ,
+					       MC_CMD_INIT_TXQ_EXT_IN_LEN,
+					       NULL, 0, rc);
+			goto fail;
+		}
+	} while (rc);
+
+	return 0;
+
+fail:
+	return rc;
+}
+
+void efx_mcdi_tx_remove(struct efx_tx_queue *tx_queue)
+{
+	efx_nic_free_buffer(tx_queue->efx, &tx_queue->txd.buf);
+}
+
+void efx_mcdi_tx_fini(struct efx_tx_queue *tx_queue)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_TXQ_IN_LEN);
+	MCDI_DECLARE_BUF_ERR(outbuf);
+	struct efx_nic *efx = tx_queue->efx;
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, FINI_TXQ_IN_INSTANCE,
+		       tx_queue->queue);
+
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FINI_TXQ, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), &outlen);
+
+	if (rc && rc != -EALREADY)
+		goto fail;
+
+	return;
+
+fail:
+	efx_mcdi_display_error(efx, MC_CMD_FINI_TXQ, MC_CMD_FINI_TXQ_IN_LEN,
+			       outbuf, outlen, rc);
+}

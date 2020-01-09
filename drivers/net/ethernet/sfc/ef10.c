@@ -2378,20 +2378,15 @@ static u32 efx_ef10_tso_versions(struct efx_nic *efx)
 
 static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 {
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_TXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
-						       EFX_BUF_SIZE));
 	bool csum_offload = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
-	size_t entries = tx_queue->txd.buf.len / EFX_BUF_SIZE;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct efx_ef10_nic_data *nic_data;
 	bool tso_v2 = false;
-	size_t inlen;
-	dma_addr_t dma_addr;
 	efx_qword_t *txd;
 	int rc;
-	int i;
-	BUILD_BUG_ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
+
+	nic_data = efx->nic_data;
 
 	/* Only attempt to enable TX timestamping if we have the license for it,
 	 * otherwise TXQ init will fail
@@ -2418,51 +2413,9 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 				channel->channel);
 	}
 
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_SIZE, tx_queue->ptr_mask + 1);
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_TARGET_EVQ, channel->channel);
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_LABEL, tx_queue->queue);
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_INSTANCE, tx_queue->queue);
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_OWNER_ID, 0);
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, nic_data->vport_id);
-
-	dma_addr = tx_queue->txd.buf.dma_addr;
-
-	netif_dbg(efx, hw, efx->net_dev, "pushing TXQ %d. %zu entries (%llx)\n",
-		  tx_queue->queue, entries, (u64)dma_addr);
-
-	for (i = 0; i < entries; ++i) {
-		MCDI_SET_ARRAY_QWORD(inbuf, INIT_TXQ_IN_DMA_ADDR, i, dma_addr);
-		dma_addr += EFX_BUF_SIZE;
-	}
-
-	inlen = MC_CMD_INIT_TXQ_IN_LEN(entries);
-
-	do {
-		MCDI_POPULATE_DWORD_4(inbuf, INIT_TXQ_IN_FLAGS,
-				/* This flag was removed from mcdi_pcol.h for
-				 * the non-_EXT version of INIT_TXQ.  However,
-				 * firmware still honours it.
-				 */
-				INIT_TXQ_EXT_IN_FLAG_TSOV2_EN, tso_v2,
-				INIT_TXQ_IN_FLAG_IP_CSUM_DIS, !csum_offload,
-				INIT_TXQ_IN_FLAG_TCP_CSUM_DIS, !csum_offload,
-				INIT_TXQ_EXT_IN_FLAG_TIMESTAMP,
-						tx_queue->timestamping);
-
-		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_INIT_TXQ, inbuf, inlen,
-					NULL, 0, NULL);
-		if (rc == -ENOSPC && tso_v2) {
-			/* Retry without TSOv2 if we're short on contexts. */
-			tso_v2 = false;
-			netif_warn(efx, probe, efx->net_dev,
-				   "TSOv2 context not available to segment in hardware. TCP performance may be reduced.\n");
-		} else if (rc) {
-			efx_mcdi_display_error(efx, MC_CMD_INIT_TXQ,
-					       MC_CMD_INIT_TXQ_EXT_IN_LEN,
-					       NULL, 0, rc);
-			goto fail;
-		}
-	} while (rc);
+	rc = efx_mcdi_tx_init(tx_queue, tso_v2);
+	if (rc)
+		goto fail;
 
 	/* A previous user of this TX queue might have set us up the
 	 * bomb by writing a descriptor to the TX push collector but
@@ -2498,35 +2451,6 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 fail:
 	netdev_WARN(efx->net_dev, "failed to initialise TXQ %d\n",
 		    tx_queue->queue);
-}
-
-static void efx_ef10_tx_fini(struct efx_tx_queue *tx_queue)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_TXQ_IN_LEN);
-	MCDI_DECLARE_BUF_ERR(outbuf);
-	struct efx_nic *efx = tx_queue->efx;
-	size_t outlen;
-	int rc;
-
-	MCDI_SET_DWORD(inbuf, FINI_TXQ_IN_INSTANCE,
-		       tx_queue->queue);
-
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FINI_TXQ, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
-
-	if (rc && rc != -EALREADY)
-		goto fail;
-
-	return;
-
-fail:
-	efx_mcdi_display_error(efx, MC_CMD_FINI_TXQ, MC_CMD_FINI_TXQ_IN_LEN,
-			       outbuf, outlen, rc);
-}
-
-static void efx_ef10_tx_remove(struct efx_tx_queue *tx_queue)
-{
-	efx_nic_free_buffer(tx_queue->efx, &tx_queue->txd.buf);
 }
 
 /* This writes to the TX_DESC_WPTR; write pointer for TX descriptor ring */
@@ -3857,7 +3781,7 @@ static int efx_ef10_fini_dmaq(struct efx_nic *efx)
 			efx_for_each_channel_rx_queue(rx_queue, channel)
 				efx_ef10_rx_fini(rx_queue);
 			efx_for_each_channel_tx_queue(tx_queue, channel)
-				efx_ef10_tx_fini(tx_queue);
+				efx_mcdi_tx_fini(tx_queue);
 		}
 
 		wait_event_timeout(efx->flush_wq,
@@ -6529,7 +6453,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.irq_handle_legacy = efx_ef10_legacy_interrupt,
 	.tx_probe = efx_ef10_tx_probe,
 	.tx_init = efx_ef10_tx_init,
-	.tx_remove = efx_ef10_tx_remove,
+	.tx_remove = efx_mcdi_tx_remove,
 	.tx_write = efx_ef10_tx_write,
 	.tx_limit_len = efx_ef10_tx_limit_len,
 	.rx_push_rss_config = efx_ef10_vf_rx_push_rss_config,
@@ -6638,7 +6562,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.irq_handle_legacy = efx_ef10_legacy_interrupt,
 	.tx_probe = efx_ef10_tx_probe,
 	.tx_init = efx_ef10_tx_init,
-	.tx_remove = efx_ef10_tx_remove,
+	.tx_remove = efx_mcdi_tx_remove,
 	.tx_write = efx_ef10_tx_write,
 	.tx_limit_len = efx_ef10_tx_limit_len,
 	.rx_push_rss_config = efx_ef10_pf_rx_push_rss_config,
