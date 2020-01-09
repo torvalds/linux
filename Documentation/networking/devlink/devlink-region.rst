@@ -12,10 +12,13 @@ region can then be accessed via the devlink region interface.
 
 Region snapshots are collected by the driver, and can be accessed via read
 or dump commands. This allows future analysis on the created snapshots.
+Regions may optionally support triggering snapshots on demand.
 
 The major benefit to creating a region is to provide access to internal
-address regions that are otherwise inaccessible to the user. They can be
-used to provide an additional way to debug complex error states.
+address regions that are otherwise inaccessible to the user.
+
+Regions may also be used to provide an additional way to debug complex error
+states, but see also :doc:`devlink-health`
 
 example usage
 -------------
@@ -36,6 +39,9 @@ example usage
 
     # Delete a snapshot using:
     $ devlink region del pci/0000:00:05.0/cr-space snapshot 1
+
+    # Trigger (request) a snapshot be taken:
+    $ devlink region trigger pci/0000:00:05.0/cr-space
 
     # Dump a snapshot:
     $ devlink region dump pci/0000:00:05.0/fw-health snapshot 1
