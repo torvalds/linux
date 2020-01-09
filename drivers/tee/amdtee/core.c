@@ -465,7 +465,7 @@ static int __init amdtee_driver_init(void)
 	teedev = tee_device_alloc(&amdtee_desc, NULL, pool, amdtee);
 	if (IS_ERR(teedev)) {
 		rc = PTR_ERR(teedev);
-		goto err;
+		goto err_free_pool;
 	}
 	amdtee->teedev = teedev;
 
@@ -482,6 +482,8 @@ static int __init amdtee_driver_init(void)
 
 err:
 	tee_device_unregister(amdtee->teedev);
+
+err_free_pool:
 	if (pool)
 		tee_shm_pool_free(pool);
 
