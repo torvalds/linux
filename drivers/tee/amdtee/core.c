@@ -440,8 +440,10 @@ static int __init amdtee_driver_init(void)
 	int rc;
 
 	rc = psp_check_tee_status();
-	if (rc)
-		goto err_fail;
+	if (rc) {
+		pr_err("amd-tee driver: tee not present\n");
+		return rc;
+	}
 
 	drv_data = kzalloc(sizeof(*drv_data), GFP_KERNEL);
 	if (IS_ERR(drv_data))
@@ -490,7 +492,6 @@ err_kfree_drv_data:
 	kfree(drv_data);
 	drv_data = NULL;
 
-err_fail:
 	pr_err("amd-tee driver initialization failed\n");
 	return rc;
 }
