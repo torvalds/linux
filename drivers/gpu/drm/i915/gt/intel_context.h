@@ -31,6 +31,8 @@ void intel_context_fini(struct intel_context *ce);
 struct intel_context *
 intel_context_create(struct intel_engine_cs *engine);
 
+int intel_context_alloc_state(struct intel_context *ce);
+
 void intel_context_free(struct intel_context *ce);
 
 /**

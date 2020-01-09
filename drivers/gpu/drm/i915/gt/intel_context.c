@@ -43,23 +43,41 @@ intel_context_create(struct intel_engine_cs *engine)
 	return ce;
 }
 
+int intel_context_alloc_state(struct intel_context *ce)
+{
+	int err = 0;
+
+	if (mutex_lock_interruptible(&ce->pin_mutex))
+		return -EINTR;
+
+	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags)) {
+		err = ce->ops->alloc(ce);
+		if (unlikely(err))
+			goto unlock;
+
+		set_bit(CONTEXT_ALLOC_BIT, &ce->flags);
+	}
+
+unlock:
+	mutex_unlock(&ce->pin_mutex);
+	return err;
+}
+
 int __intel_context_do_pin(struct intel_context *ce)
 {
 	int err;
+
+	if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
+		err = intel_context_alloc_state(ce);
+		if (err)
+			return err;
+	}
 
 	if (mutex_lock_interruptible(&ce->pin_mutex))
 		return -EINTR;
 
 	if (likely(!atomic_read(&ce->pin_count))) {
 		intel_wakeref_t wakeref;
-
-		if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
-			err = ce->ops->alloc(ce);
-			if (unlikely(err))
-				goto err;
-
-			__set_bit(CONTEXT_ALLOC_BIT, &ce->flags);
-		}
 
 		err = 0;
 		with_intel_runtime_pm(ce->engine->uncore->rpm, wakeref)
