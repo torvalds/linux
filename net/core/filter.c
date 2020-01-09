@@ -5935,7 +5935,7 @@ bool bpf_helper_changes_pkt_data(void *func)
 	return false;
 }
 
-static const struct bpf_func_proto *
+const struct bpf_func_proto *
 bpf_base_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
