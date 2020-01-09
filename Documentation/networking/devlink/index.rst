@@ -11,5 +11,6 @@ Contents:
 
    devlink-health
    devlink-info
+   devlink-params
    devlink-trap
    devlink-trap-netdevsim
