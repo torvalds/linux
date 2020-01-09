@@ -130,7 +130,7 @@ static void icp_opal_cause_ipi(int cpu)
 {
 	int hw_cpu = get_hard_smp_processor_id(cpu);
 
-	kvmppc_set_host_ipi(cpu, 1);
+	kvmppc_set_host_ipi(cpu);
 	opal_int_set_mfrr(hw_cpu, IPI_PRIORITY);
 }
 
@@ -138,7 +138,7 @@ static irqreturn_t icp_opal_ipi_action(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
 
-	kvmppc_set_host_ipi(cpu, 0);
+	kvmppc_clear_host_ipi(cpu);
 	opal_int_set_mfrr(get_hard_smp_processor_id(cpu), 0xff);
 
 	return smp_ipi_demux();
@@ -161,7 +161,7 @@ void icp_opal_flush_interrupt(void)
 		if (vec == XICS_IPI) {
 			/* Clear pending IPI */
 			int cpu = smp_processor_id();
-			kvmppc_set_host_ipi(cpu, 0);
+			kvmppc_clear_host_ipi(cpu);
 			opal_int_set_mfrr(get_hard_smp_processor_id(cpu), 0xff);
 		} else {
 			pr_err("XICS: hw interrupt 0x%x to offline cpu, "
