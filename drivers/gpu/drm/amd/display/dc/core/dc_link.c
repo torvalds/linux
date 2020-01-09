@@ -2882,7 +2882,16 @@ enum dc_status dc_link_reallocate_mst_payload(struct dc_link *link)
 	// Clear all of MST payload then reallocate
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link &&
+
+		/* driver enable split pipe for external monitors
+		 * we have to check pipe_ctx is split pipe or not
+		 * If it's split pipe, driver using top pipe to
+		 * reaallocate.
+		 */
+		if (!pipe_ctx || pipe_ctx->top_pipe)
+			continue;
+
+		if (pipe_ctx->stream && pipe_ctx->stream->link == link &&
 				pipe_ctx->stream->dpms_off == false &&
 				pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 			deallocate_mst_payload(pipe_ctx);
@@ -2891,7 +2900,11 @@ enum dc_status dc_link_reallocate_mst_payload(struct dc_link *link)
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link &&
+
+		if (!pipe_ctx || pipe_ctx->top_pipe)
+			continue;
+
+		if (pipe_ctx->stream && pipe_ctx->stream->link == link &&
 				pipe_ctx->stream->dpms_off == false &&
 				pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 			/* enable/disable PHY will clear connection between BE and FE
