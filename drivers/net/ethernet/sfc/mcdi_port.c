@@ -188,58 +188,6 @@ int efx_mcdi_port_reconfigure(struct efx_nic *efx)
 				 efx->loopback_mode, 0);
 }
 
-/* Verify that the forced flow control settings (!EFX_FC_AUTO) are
- * supported by the link partner. Warn the user if this isn't the case
- */
-void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
-{
-	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
-	u32 rmtadv;
-
-	/* The link partner capabilities are only relevant if the
-	 * link supports flow control autonegotiation */
-	if (~phy_cfg->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
-		return;
-
-	/* If flow control autoneg is supported and enabled, then fine */
-	if (efx->wanted_fc & EFX_FC_AUTO)
-		return;
-
-	rmtadv = 0;
-	if (lpa & (1 << MC_CMD_PHY_CAP_PAUSE_LBN))
-		rmtadv |= ADVERTISED_Pause;
-	if (lpa & (1 << MC_CMD_PHY_CAP_ASYM_LBN))
-		rmtadv |=  ADVERTISED_Asym_Pause;
-
-	if ((efx->wanted_fc & EFX_FC_TX) && rmtadv == ADVERTISED_Asym_Pause)
-		netif_err(efx, link, efx->net_dev,
-			  "warning: link partner doesn't support pause frames");
-}
-
-bool efx_mcdi_phy_poll(struct efx_nic *efx)
-{
-	struct efx_link_state old_state = efx->link_state;
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_LEN);
-	int rc;
-
-	WARN_ON(!mutex_is_locked(&efx->mac_lock));
-
-	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
-			  outbuf, sizeof(outbuf), NULL);
-	if (rc)
-		efx->link_state.up = false;
-	else
-		efx_mcdi_phy_decode_link(
-			efx, &efx->link_state,
-			MCDI_DWORD(outbuf, GET_LINK_OUT_LINK_SPEED),
-			MCDI_DWORD(outbuf, GET_LINK_OUT_FLAGS),
-			MCDI_DWORD(outbuf, GET_LINK_OUT_FCNTL));
-
-	return !efx_link_state_equal(&efx->link_state, &old_state);
-}
-
 static void efx_mcdi_phy_remove(struct efx_nic *efx)
 {
 	struct efx_mcdi_phy_data *phy_data = efx->phy_data;
@@ -327,57 +275,6 @@ efx_mcdi_phy_set_link_ksettings(struct efx_nic *efx,
 	return 0;
 }
 
-int efx_mcdi_phy_get_fecparam(struct efx_nic *efx, struct ethtool_fecparam *fec)
-{
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_V2_LEN);
-	u32 caps, active, speed; /* MCDI format */
-	bool is_25g = false;
-	size_t outlen;
-	int rc;
-
-	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
-	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
-			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
-		return rc;
-	if (outlen < MC_CMD_GET_LINK_OUT_V2_LEN)
-		return -EOPNOTSUPP;
-
-	/* behaviour for 25G/50G links depends on 25G BASER bit */
-	speed = MCDI_DWORD(outbuf, GET_LINK_OUT_V2_LINK_SPEED);
-	is_25g = speed == 25000 || speed == 50000;
-
-	caps = MCDI_DWORD(outbuf, GET_LINK_OUT_V2_CAP);
-	fec->fec = mcdi_fec_caps_to_ethtool(caps, is_25g);
-	/* BASER is never supported on 100G */
-	if (speed == 100000)
-		fec->fec &= ~ETHTOOL_FEC_BASER;
-
-	active = MCDI_DWORD(outbuf, GET_LINK_OUT_V2_FEC_TYPE);
-	switch (active) {
-	case MC_CMD_FEC_NONE:
-		fec->active_fec = ETHTOOL_FEC_OFF;
-		break;
-	case MC_CMD_FEC_BASER:
-		fec->active_fec = ETHTOOL_FEC_BASER;
-		break;
-	case MC_CMD_FEC_RS:
-		fec->active_fec = ETHTOOL_FEC_RS;
-		break;
-	default:
-		netif_warn(efx, hw, efx->net_dev,
-			   "Firmware reports unrecognised FEC_TYPE %u\n",
-			   active);
-		/* We don't know what firmware has picked.  AUTO is as good a
-		 * "can't happen" value as any other.
-		 */
-		fec->active_fec = ETHTOOL_FEC_AUTO;
-		break;
-	}
-
-	return 0;
-}
-
 static int efx_mcdi_phy_set_fecparam(struct efx_nic *efx,
 				     const struct ethtool_fecparam *fec)
 {
@@ -402,27 +299,6 @@ static int efx_mcdi_phy_set_fecparam(struct efx_nic *efx,
 
 	/* Record the new FEC setting for subsequent set_link calls */
 	efx->fec_config = fec->fec;
-	return 0;
-}
-
-int efx_mcdi_phy_test_alive(struct efx_nic *efx)
-{
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PHY_STATE_OUT_LEN);
-	size_t outlen;
-	int rc;
-
-	BUILD_BUG_ON(MC_CMD_GET_PHY_STATE_IN_LEN != 0);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_GET_PHY_STATE, NULL, 0,
-			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
-		return rc;
-
-	if (outlen < MC_CMD_GET_PHY_STATE_OUT_LEN)
-		return -EIO;
-	if (MCDI_DWORD(outbuf, GET_PHY_STATE_OUT_STATE) != MC_CMD_PHY_STATE_OK)
-		return -EINVAL;
-
 	return 0;
 }
 
@@ -1007,18 +883,4 @@ void efx_mcdi_port_remove(struct efx_nic *efx)
 {
 	efx->phy_op->remove(efx);
 	efx_nic_free_buffer(efx, &efx->stats_buffer);
-}
-
-/* Get physical port number (EF10 only; on Siena it is same as PF number) */
-int efx_mcdi_port_get_number(struct efx_nic *efx)
-{
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PORT_ASSIGNMENT_OUT_LEN);
-	int rc;
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_GET_PORT_ASSIGNMENT, NULL, 0,
-			  outbuf, sizeof(outbuf), NULL);
-	if (rc)
-		return rc;
-
-	return MCDI_DWORD(outbuf, GET_PORT_ASSIGNMENT_OUT_PORT);
 }
