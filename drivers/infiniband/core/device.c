@@ -1977,7 +1977,6 @@ static int iw_query_port(struct ib_device *device,
 {
 	struct in_device *inetdev;
 	struct net_device *netdev;
-	int err;
 
 	memset(port_attr, 0, sizeof(*port_attr));
 
@@ -2008,11 +2007,7 @@ static int iw_query_port(struct ib_device *device,
 	}
 
 	dev_put(netdev);
-	err = device->ops.query_port(device, port_num, port_attr);
-	if (err)
-		return err;
-
-	return 0;
+	return device->ops.query_port(device, port_num, port_attr);
 }
 
 static int __ib_query_port(struct ib_device *device,
