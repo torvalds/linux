@@ -12,10 +12,11 @@
 #include <asm/sn/agent.h>
 #include <asm/sn/klconfig.h>
 #include <asm/sn/ioc3.h>
-#include <asm/sn/sn_private.h>
 
 #include <linux/serial.h>
 #include <linux/serial_core.h>
+
+#include "ip27-common.h"
 
 #define IOC3_CLK	(22000000 / 3)
 #define IOC3_FLAGS	(0)

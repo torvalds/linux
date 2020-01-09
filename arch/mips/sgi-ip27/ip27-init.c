@@ -31,7 +31,6 @@
 #include <asm/mmu_context.h>
 #include <asm/thread_info.h>
 #include <asm/sn/launch.h>
-#include <asm/sn/sn_private.h>
 #include <asm/sn/mapped_kernel.h>
 
 #include "ip27-common.h"

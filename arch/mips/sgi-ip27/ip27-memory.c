@@ -27,8 +27,8 @@
 #include <asm/sn/arch.h>
 #include <asm/sn/agent.h>
 #include <asm/sn/klconfig.h>
-#include <asm/sn/sn_private.h>
 
+#include "ip27-common.h"
 
 #define SLOT_PFNSHIFT		(SLOT_SHIFT - PAGE_SHIFT)
 #define PFN_NASIDSHFT		(NASID_SHFT - PAGE_SHIFT)

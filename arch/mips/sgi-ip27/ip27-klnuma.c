@@ -17,7 +17,8 @@
 #include <asm/sn/arch.h>
 #include <asm/sn/gda.h>
 #include <asm/sn/mapped_kernel.h>
-#include <asm/sn/sn_private.h>
+
+#include "ip27-common.h"
 
 static nodemask_t ktext_repmask;
 
