@@ -53,6 +53,18 @@ bool btf_member_is_reg_int(const struct btf *btf, const struct btf_type *s,
 			   u32 expected_offset, u32 expected_size);
 int btf_find_spin_lock(const struct btf *btf, const struct btf_type *t);
 bool btf_type_is_void(const struct btf_type *t);
+s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind);
+const struct btf_type *btf_type_skip_modifiers(const struct btf *btf,
+					       u32 id, u32 *res_id);
+const struct btf_type *btf_type_resolve_ptr(const struct btf *btf,
+					    u32 id, u32 *res_id);
+const struct btf_type *btf_type_resolve_func_ptr(const struct btf *btf,
+						 u32 id, u32 *res_id);
+
+#define for_each_member(i, struct_type, member)			\
+	for (i = 0, member = btf_type_member(struct_type);	\
+	     i < btf_type_vlen(struct_type);			\
+	     i++, member++)
 
 static inline bool btf_type_is_ptr(const struct btf_type *t)
 {
@@ -82,6 +94,28 @@ static inline bool btf_type_is_func(const struct btf_type *t)
 static inline bool btf_type_is_func_proto(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_FUNC_PROTO;
+}
+
+static inline u16 btf_type_vlen(const struct btf_type *t)
+{
+	return BTF_INFO_VLEN(t->info);
+}
+
+static inline bool btf_type_kflag(const struct btf_type *t)
+{
+	return BTF_INFO_KFLAG(t->info);
+}
+
+static inline u32 btf_member_bitfield_size(const struct btf_type *struct_type,
+					   const struct btf_member *member)
+{
+	return btf_type_kflag(struct_type) ? BTF_MEMBER_BITFIELD_SIZE(member->offset)
+					   : 0;
+}
+
+static inline const struct btf_member *btf_type_member(const struct btf_type *t)
+{
+	return (const struct btf_member *)(t + 1);
 }
 
 #ifdef CONFIG_BPF_SYSCALL

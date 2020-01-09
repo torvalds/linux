@@ -1672,16 +1672,21 @@ bpf_prog_load_check_attach(enum bpf_prog_type prog_type,
 			   enum bpf_attach_type expected_attach_type,
 			   u32 btf_id, u32 prog_fd)
 {
-	switch (prog_type) {
-	case BPF_PROG_TYPE_TRACING:
+	if (btf_id) {
 		if (btf_id > BTF_MAX_TYPE)
 			return -EINVAL;
-		break;
-	default:
-		if (btf_id || prog_fd)
+
+		switch (prog_type) {
+		case BPF_PROG_TYPE_TRACING:
+		case BPF_PROG_TYPE_STRUCT_OPS:
+			break;
+		default:
 			return -EINVAL;
-		break;
+		}
 	}
+
+	if (prog_fd && prog_type != BPF_PROG_TYPE_TRACING)
+		return -EINVAL;
 
 	switch (prog_type) {
 	case BPF_PROG_TYPE_CGROUP_SOCK:
