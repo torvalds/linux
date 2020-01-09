@@ -25,6 +25,7 @@
 #include <asm/sections.h>
 
 #include <asm/sn/arch.h>
+#include <asm/sn/agent.h>
 #include <asm/sn/klconfig.h>
 #include <asm/sn/sn_private.h>
 
@@ -36,31 +37,18 @@ struct node_data *__node_data[MAX_NUMNODES];
 
 EXPORT_SYMBOL(__node_data);
 
-static int fine_mode;
-
-static int is_fine_dirmode(void)
+static u64 gen_region_mask(void)
 {
-	return ((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_REGIONSIZE_MASK) >> NSRI_REGIONSIZE_SHFT) & REGIONSIZE_FINE;
-}
-
-static u64 get_region(nasid_t nasid)
-{
-	if (fine_mode)
-		return nasid >> NASID_TO_FINEREG_SHFT;
-	else
-		return nasid >> NASID_TO_COARSEREG_SHFT;
-}
-
-static u64 region_mask;
-
-static void gen_region_mask(u64 *region_mask)
-{
+	int region_shift;
+	u64 region_mask;
 	nasid_t nasid;
 
-	(*region_mask) = 0;
-	for_each_online_node(nasid) {
-		(*region_mask) |= 1ULL << get_region(nasid);
-	}
+	region_shift = get_region_shift();
+	region_mask = 0;
+	for_each_online_node(nasid)
+		region_mask |= BIT_ULL(nasid >> region_shift);
+
+	return region_mask;
 }
 
 #define rou_rflag	rou_flags
@@ -280,10 +268,10 @@ static unsigned long __init slot_psize_compute(nasid_t nasid, int slot)
 
 static void __init mlreset(void)
 {
+	u64 region_mask;
 	nasid_t nasid;
 
 	master_nasid = get_nasid();
-	fine_mode = is_fine_dirmode();
 
 	/*
 	 * Probe for all CPUs - this creates the cpumask and sets up the
@@ -296,7 +284,7 @@ static void __init mlreset(void)
 	init_topology_matrix();
 	dump_topology();
 
-	gen_region_mask(&region_mask);
+	region_mask = gen_region_mask();
 
 	setup_replication_mask();
 
