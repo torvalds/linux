@@ -33,8 +33,8 @@ sdw_get_device_id(struct sdw_slave *slave, struct sdw_driver *drv)
 
 static int sdw_bus_match(struct device *dev, struct device_driver *ddrv)
 {
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
-	struct sdw_driver *drv = drv_to_sdw_driver(ddrv);
+	struct sdw_slave *slave = to_sdw_slave_device(dev);
+	struct sdw_driver *drv = to_sdw_slave_driver(ddrv);
 
 	return !!sdw_get_device_id(slave, drv);
 }
@@ -47,15 +47,31 @@ int sdw_slave_modalias(const struct sdw_slave *slave, char *buf, size_t size)
 			slave->id.mfg_id, slave->id.part_id);
 }
 
-static int sdw_uevent(struct device *dev, struct kobj_uevent_env *env)
+int sdw_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
+	struct sdw_slave *slave;
 	char modalias[32];
 
-	sdw_slave_modalias(slave, modalias, sizeof(modalias));
+	if (is_sdw_slave(dev)) {
+		slave = to_sdw_slave_device(dev);
 
-	if (add_uevent_var(env, "MODALIAS=%s", modalias))
-		return -ENOMEM;
+		sdw_slave_modalias(slave, modalias, sizeof(modalias));
+
+		if (add_uevent_var(env, "MODALIAS=%s", modalias))
+			return -ENOMEM;
+	} else {
+		/*
+		 * We only need to handle uevents for the Slave device
+		 * type. This error cannot happen unless the .uevent
+		 * callback is set to use this function for a
+		 * different device type (e.g. Master or Monitor)
+		 */
+		if (is_sdw_master_device(dev))
+			dev_err(dev, "uevent for SoundWire Master type\n");
+		else
+			dev_err(dev, "uevent for unknown Soundwire type\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -63,14 +79,13 @@ static int sdw_uevent(struct device *dev, struct kobj_uevent_env *env)
 struct bus_type sdw_bus_type = {
 	.name = "soundwire",
 	.match = sdw_bus_match,
-	.uevent = sdw_uevent,
 };
 EXPORT_SYMBOL_GPL(sdw_bus_type);
 
-static int sdw_drv_probe(struct device *dev)
+static int sdw_slave_drv_probe(struct device *dev)
 {
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
-	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+	struct sdw_slave *slave = to_sdw_slave_device(dev);
+	struct sdw_driver *drv = to_sdw_slave_driver(dev->driver);
 	const struct sdw_device_id *id;
 	int ret;
 
@@ -110,13 +125,18 @@ static int sdw_drv_probe(struct device *dev)
 	slave->bus->clk_stop_timeout = max_t(u32, slave->bus->clk_stop_timeout,
 					     slave->prop.clk_stop_timeout);
 
+	slave->probed = true;
+	complete(&slave->probe_complete);
+
+	dev_dbg(dev, "probe complete\n");
+
 	return 0;
 }
 
-static int sdw_drv_remove(struct device *dev)
+static int sdw_slave_drv_remove(struct device *dev)
 {
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
-	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+	struct sdw_slave *slave = to_sdw_slave_device(dev);
+	struct sdw_driver *drv = to_sdw_slave_driver(dev->driver);
 	int ret = 0;
 
 	if (drv->remove)
@@ -127,23 +147,24 @@ static int sdw_drv_remove(struct device *dev)
 	return ret;
 }
 
-static void sdw_drv_shutdown(struct device *dev)
+static void sdw_slave_drv_shutdown(struct device *dev)
 {
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
-	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+	struct sdw_slave *slave = to_sdw_slave_device(dev);
+	struct sdw_driver *drv = to_sdw_slave_driver(dev->driver);
 
 	if (drv->shutdown)
 		drv->shutdown(slave);
 }
 
 /**
- * __sdw_register_driver() - register a SoundWire Slave driver
+ * __sdw_register_slave_driver() - register a SoundWire Slave driver
  * @drv: driver to register
  * @owner: owning module/driver
  *
  * Return: zero on success, else a negative error code.
  */
-int __sdw_register_driver(struct sdw_driver *drv, struct module *owner)
+int __sdw_register_slave_driver(struct sdw_driver *drv,
+				struct module *owner)
 {
 	drv->driver.bus = &sdw_bus_type;
 
@@ -154,27 +175,27 @@ int __sdw_register_driver(struct sdw_driver *drv, struct module *owner)
 	}
 
 	drv->driver.owner = owner;
-	drv->driver.probe = sdw_drv_probe;
+	drv->driver.probe = sdw_slave_drv_probe;
 
 	if (drv->remove)
-		drv->driver.remove = sdw_drv_remove;
+		drv->driver.remove = sdw_slave_drv_remove;
 
 	if (drv->shutdown)
-		drv->driver.shutdown = sdw_drv_shutdown;
+		drv->driver.shutdown = sdw_slave_drv_shutdown;
 
 	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(__sdw_register_driver);
+EXPORT_SYMBOL_GPL(__sdw_register_slave_driver);
 
 /**
- * sdw_unregister_driver() - unregisters the SoundWire Slave driver
+ * sdw_unregister_slave_driver() - unregisters the SoundWire Slave driver
  * @drv: driver to unregister
  */
-void sdw_unregister_driver(struct sdw_driver *drv)
+void sdw_unregister_slave_driver(struct sdw_driver *drv)
 {
 	driver_unregister(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(sdw_unregister_driver);
+EXPORT_SYMBOL_GPL(sdw_unregister_slave_driver);
 
 static int __init sdw_bus_init(void)
 {
