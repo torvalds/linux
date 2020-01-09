@@ -134,21 +134,6 @@ static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
  *
  **************************************************************************/
 
-void efx_link_set_advertising(struct efx_nic *efx,
-			      const unsigned long *advertising)
-{
-	memcpy(efx->link_advertising, advertising,
-	       sizeof(__ETHTOOL_DECLARE_LINK_MODE_MASK()));
-
-	efx->link_advertising[0] |= ADVERTISED_Autoneg;
-	if (advertising[0] & ADVERTISED_Pause)
-		efx->wanted_fc |= (EFX_FC_TX | EFX_FC_RX);
-	else
-		efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
-	if (advertising[0] & ADVERTISED_Asym_Pause)
-		efx->wanted_fc ^= EFX_FC_TX;
-}
-
 /* Equivalent to efx_link_set_advertising with all-zeroes, except does not
  * force the Autoneg bit on.
  */
