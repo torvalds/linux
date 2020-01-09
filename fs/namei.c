@@ -1385,11 +1385,15 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		!(path->dentry->d_flags & DCACHE_NEED_AUTOMOUNT);
 }
 
-static inline int handle_mounts(struct path *path, struct nameidata *nd,
-			  struct inode **inode, unsigned int *seqp)
+static inline int handle_mounts(struct nameidata *nd, struct dentry *dentry,
+			  struct path *path, struct inode **inode,
+			  unsigned int *seqp)
 {
-	int ret = follow_managed(path, nd);
+	int ret;
 
+	path->mnt = nd->path.mnt;
+	path->dentry = dentry;
+	ret = follow_managed(path, nd);
 	if (likely(ret >= 0)) {
 		*inode = d_backing_inode(path->dentry);
 		*seqp = 0; /* out of RCU mode, so the value doesn't matter */
@@ -1685,10 +1689,7 @@ static int lookup_fast(struct nameidata *nd,
 		dput(dentry);
 		return status;
 	}
-
-	path->mnt = mnt;
-	path->dentry = dentry;
-	return handle_mounts(path, nd, inode, seqp);
+	return handle_mounts(nd, dentry, path, inode, seqp);
 }
 
 /* Fast lookup failed, do it the slow way */
@@ -1859,6 +1860,7 @@ static inline int step_into(struct nameidata *nd, struct path *path,
 static int walk_component(struct nameidata *nd, int flags)
 {
 	struct path path;
+	struct dentry *dentry;
 	struct inode *inode;
 	unsigned seq;
 	int err;
@@ -1877,13 +1879,11 @@ static int walk_component(struct nameidata *nd, int flags)
 	if (unlikely(err <= 0)) {
 		if (err < 0)
 			return err;
-		path.dentry = lookup_slow(&nd->last, nd->path.dentry,
-					  nd->flags);
-		if (IS_ERR(path.dentry))
-			return PTR_ERR(path.dentry);
+		dentry = lookup_slow(&nd->last, nd->path.dentry, nd->flags);
+		if (IS_ERR(dentry))
+			return PTR_ERR(dentry);
 
-		path.mnt = nd->path.mnt;
-		err = handle_mounts(&path, nd, &inode, &seq);
+		err = handle_mounts(nd, dentry, &path, &inode, &seq);
 		if (unlikely(err < 0))
 			return err;
 	}
@@ -2355,7 +2355,7 @@ static inline int lookup_last(struct nameidata *nd)
 
 static int handle_lookup_down(struct nameidata *nd)
 {
-	struct path path = nd->path;
+	struct path path;
 	struct inode *inode = nd->inode;
 	unsigned seq = nd->seq;
 	int err;
@@ -2366,11 +2366,12 @@ static int handle_lookup_down(struct nameidata *nd)
 		 * at the very beginning of walk, so we lose nothing
 		 * if we simply redo everything in non-RCU mode
 		 */
+		path = nd->path;
 		if (unlikely(!__follow_mount_rcu(nd, &path, &inode, &seq)))
 			return -ECHILD;
 	} else {
-		dget(path.dentry);
-		err = handle_mounts(&path, nd, &inode, &seq);
+		dget(nd->path.dentry);
+		err = handle_mounts(nd, nd->path.dentry, &path, &inode, &seq);
 		if (unlikely(err < 0))
 			return err;
 	}
@@ -3393,9 +3394,7 @@ static int do_last(struct nameidata *nd,
 		got_write = false;
 	}
 
-	path.mnt = nd->path.mnt;
-	path.dentry = dentry;
-	error = handle_mounts(&path, nd, &inode, &seq);
+	error = handle_mounts(nd, dentry, &path, &inode, &seq);
 	if (unlikely(error < 0))
 		return error;
 finish_lookup:
