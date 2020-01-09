@@ -900,18 +900,36 @@ rockchip_system_monitor_wide_temp_init(struct monitor_dev_info *info)
 {
 	int ret, temp;
 
+	/*
+	 * set the init state to low temperature that the voltage will be enough
+	 * when cpu up at low temperature.
+	 */
+	if (!info->is_low_temp) {
+		if (info->opp_table)
+			rockchip_adjust_low_temp_opp_volt(info, true);
+		info->wide_temp_limit = info->low_limit;
+		info->is_low_temp = true;
+	}
+
 	ret = thermal_zone_get_temp(system_monitor->tz, &temp);
 	if (ret || temp == THERMAL_TEMP_INVALID) {
 		dev_err(info->dev,
 			"failed to read out thermal zone (%d)\n", ret);
 		return;
 	}
-	if (temp < info->low_temp) {
+
+	if (temp > info->high_temp) {
 		if (info->opp_table)
-			rockchip_adjust_low_temp_opp_volt(info, true);
-		info->wide_temp_limit = info->low_limit;
-	} else if (temp > info->high_temp) {
+			rockchip_adjust_low_temp_opp_volt(info, false);
+		info->is_low_temp = false;
+
 		info->wide_temp_limit = info->high_limit;
+		info->is_high_temp = true;
+	} else if (temp > (info->low_temp + info->temp_hysteresis)) {
+		if (info->opp_table)
+			rockchip_adjust_low_temp_opp_volt(info, false);
+		info->is_low_temp = false;
+		info->wide_temp_limit = 0;
 	}
 }
 
