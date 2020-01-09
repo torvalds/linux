@@ -1,3 +1,5 @@
+ccflags-y += -DDEBUG
+
 # SPDX-License-Identifier: GPL-2.0
 snd-soc-sst-haswell-objs := haswell.o
 snd-soc-sst-byt-rt5640-mach-objs := byt-rt5640.o
@@ -31,8 +33,11 @@ snd-soc-skl_rt286-objs := skl_rt286.o
 snd-soc-skl_hda_dsp-objs := skl_hda_dsp_generic.o skl_hda_dsp_common.o hda_dsp_common.o
 snd-skl_nau88l25_max98357a-objs := skl_nau88l25_max98357a.o
 snd-soc-skl_nau88l25_ssm4567-objs := skl_nau88l25_ssm4567.o
-snd-soc-tgl-rt1308-objs := tgl_rt1308.o hda_dsp_common.o
 snd-soc-sof_da7219_max98373-objs := sof_da7219_max98373.o hda_dsp_common.o
+snd-soc-tgl-rt711-rt1308-objs := sdw_rt711_i2s_rt1308.o hda_dsp_common.o
+snd-soc-sdw-rt700-objs := sdw_rt700.o hda_dsp_common.o
+snd-soc-sdw-rt711-objs := sdw_rt711.o hda_dsp_common.o
+snd-soc-sdw-rt711-rt1308-rt715-objs := sdw_rt711_rt1308_rt715.o hda_dsp_common.o
 
 obj-$(CONFIG_SND_SOC_INTEL_SOF_RT5682_MACH) += snd-soc-sof_rt5682.o
 obj-$(CONFIG_SND_SOC_INTEL_HASWELL_MACH) += snd-soc-sst-haswell.o
@@ -66,5 +71,8 @@ obj-$(CONFIG_SND_SOC_INTEL_SKL_RT286_MACH) += snd-soc-skl_rt286.o
 obj-$(CONFIG_SND_SOC_INTEL_SKL_NAU88L25_MAX98357A_MACH) += snd-skl_nau88l25_max98357a.o
 obj-$(CONFIG_SND_SOC_INTEL_SKL_NAU88L25_SSM4567_MACH) += snd-soc-skl_nau88l25_ssm4567.o
 obj-$(CONFIG_SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH) += snd-soc-skl_hda_dsp.o
-obj-$(CONFIG_SND_SOC_INTEL_TGL_RT1308_MACH) += snd-soc-tgl-rt1308.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_DA7219_MAX98373_MACH) += snd-soc-sof_da7219_max98373.o
+obj-$(CONFIG_SND_SOC_INTEL_TGL_RT711_RT1308_MACH) += snd-soc-tgl-rt711-rt1308.o
+obj-$(CONFIG_SND_SOC_INTEL_SOUNDWIRE_RT700_MACH) += snd-soc-sdw-rt700.o
+obj-$(CONFIG_SND_SOC_INTEL_SOUNDWIRE_RT711_MACH) += snd-soc-sdw-rt711.o
+obj-$(CONFIG_SND_SOC_INTEL_SOUNDWIRE_RT711_RT1308_RT715_MACH) += snd-soc-sdw-rt711-rt1308-rt715.o
