@@ -4854,7 +4854,7 @@ drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
 /**
  * drm_dp_mst_add_affected_dsc_crtcs
  * @state: Pointer to the new struct drm_dp_mst_topology_state
- * @port: Port pointer of connector with new state
+ * @mgr: MST topology manager
  *
  * Whenever there is a change in mst topology
  * DSC configuration would have to be recalculated
