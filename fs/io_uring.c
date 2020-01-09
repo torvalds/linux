@@ -4810,7 +4810,8 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 		req->has_user = *mm != NULL;
 		req->in_async = async;
 		req->needs_fixed_file = async;
-		trace_io_uring_submit_sqe(ctx, req->user_data, true, async);
+		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
+						true, async);
 		if (!io_submit_sqe(req, sqe, statep, &link))
 			break;
 	}
