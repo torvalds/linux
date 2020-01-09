@@ -141,9 +141,11 @@ void efx_destroy_reset_workqueue(void)
  */
 void efx_mac_reconfigure(struct efx_nic *efx)
 {
-	down_read(&efx->filter_sem);
-	efx->type->reconfigure_mac(efx);
-	up_read(&efx->filter_sem);
+	if (efx->type->reconfigure_mac) {
+		down_read(&efx->filter_sem);
+		efx->type->reconfigure_mac(efx);
+		up_read(&efx->filter_sem);
+	}
 }
 
 /* Asynchronous work item for changing MAC promiscuity and multicast
@@ -296,7 +298,8 @@ static void efx_start_datapath(struct efx_nic *efx)
 		netdev_features_change(efx->net_dev);
 
 	/* RX filters may also have scatter-enabled flags */
-	if (efx->rx_scatter != old_rx_scatter)
+	if ((efx->rx_scatter != old_rx_scatter) &&
+	    efx->type->filter_update_rx_scatter)
 		efx->type->filter_update_rx_scatter(efx);
 
 	/* We must keep at least one descriptor in a TX ring empty.
@@ -405,11 +408,13 @@ void efx_start_all(struct efx_nic *efx)
 		efx_link_status_changed(efx);
 	mutex_unlock(&efx->mac_lock);
 
-	efx->type->start_stats(efx);
-	efx->type->pull_stats(efx);
-	spin_lock_bh(&efx->stats_lock);
-	efx->type->update_stats(efx, NULL, NULL);
-	spin_unlock_bh(&efx->stats_lock);
+	if (efx->type->start_stats) {
+		efx->type->start_stats(efx);
+		efx->type->pull_stats(efx);
+		spin_lock_bh(&efx->stats_lock);
+		efx->type->update_stats(efx, NULL, NULL);
+		spin_unlock_bh(&efx->stats_lock);
+	}
 }
 
 /* Quiesce the hardware and software data path, and regular activity
@@ -425,14 +430,17 @@ void efx_stop_all(struct efx_nic *efx)
 	if (!efx->port_enabled)
 		return;
 
-	/* update stats before we go down so we can accurately count
-	 * rx_nodesc_drops
-	 */
-	efx->type->pull_stats(efx);
-	spin_lock_bh(&efx->stats_lock);
-	efx->type->update_stats(efx, NULL, NULL);
-	spin_unlock_bh(&efx->stats_lock);
-	efx->type->stop_stats(efx);
+	if (efx->type->update_stats) {
+		/* update stats before we go down so we can accurately count
+		 * rx_nodesc_drops
+		 */
+		efx->type->pull_stats(efx);
+		spin_lock_bh(&efx->stats_lock);
+		efx->type->update_stats(efx, NULL, NULL);
+		spin_unlock_bh(&efx->stats_lock);
+		efx->type->stop_stats(efx);
+	}
+
 	efx_stop_port(efx);
 
 	/* Stop the kernel transmit interface.  This is only valid if
@@ -456,7 +464,7 @@ void efx_stop_all(struct efx_nic *efx)
 int __efx_reconfigure_port(struct efx_nic *efx)
 {
 	enum efx_phy_mode phy_mode;
-	int rc;
+	int rc = 0;
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
@@ -467,7 +475,8 @@ int __efx_reconfigure_port(struct efx_nic *efx)
 	else
 		efx->phy_mode &= ~PHY_MODE_TX_DISABLED;
 
-	rc = efx->type->reconfigure_port(efx);
+	if (efx->type->reconfigure_port)
+		rc = efx->type->reconfigure_port(efx);
 
 	if (rc)
 		efx->phy_mode = phy_mode;
@@ -997,3 +1006,42 @@ void efx_fini_io(struct efx_nic *efx, int bar)
 	if (!pci_vfs_assigned(efx->pci_dev))
 		pci_disable_device(efx->pci_dev);
 }
+
+#ifdef CONFIG_SFC_MCDI_LOGGING
+static ssize_t show_mcdi_log(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct efx_nic *efx = dev_get_drvdata(dev);
+	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", mcdi->logging_enabled);
+}
+
+static ssize_t set_mcdi_log(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct efx_nic *efx = dev_get_drvdata(dev);
+	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+	bool enable = count > 0 && *buf != '0';
+
+	mcdi->logging_enabled = enable;
+	return count;
+}
+
+static DEVICE_ATTR(mcdi_logging, 0644, show_mcdi_log, set_mcdi_log);
+
+void efx_init_mcdi_logging(struct efx_nic *efx)
+{
+	int rc = device_create_file(&efx->pci_dev->dev, &dev_attr_mcdi_logging);
+
+	if (rc) {
+		netif_warn(efx, drv, efx->net_dev,
+			   "failed to init net dev attributes\n");
+	}
+}
+
+void efx_fini_mcdi_logging(struct efx_nic *efx)
+{
+	device_remove_file(&efx->pci_dev->dev, &dev_attr_mcdi_logging);
+}
+#endif

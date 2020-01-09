@@ -1039,7 +1039,7 @@ void efx_stop_channels(struct efx_nic *efx)
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
 	struct efx_channel *channel;
-	int rc;
+	int rc = 0;
 
 	/* Stop RX refill */
 	efx_for_each_channel(channel, efx) {
@@ -1060,7 +1060,9 @@ void efx_stop_channels(struct efx_nic *efx)
 		}
 	}
 
-	rc = efx->type->fini_dmaq(efx);
+	if (efx->type->fini_dmaq)
+		rc = efx->type->fini_dmaq(efx);
+
 	if (rc) {
 		netif_err(efx, drv, efx->net_dev, "failed to flush queues\n");
 	} else {
