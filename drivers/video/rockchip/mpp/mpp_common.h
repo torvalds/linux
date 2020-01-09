@@ -24,9 +24,6 @@
 
 #define MHZ			(1000 * 1000)
 
-#define EXTRA_INFO_MAGIC	(0x4C4A46)
-#define JPEG_IOC_EXTRA_SIZE	(48)
-
 #define MPP_MAX_MSG_NUM			(16)
 #define MPP_MAX_REG_TRANS_NUM		(60)
 /* define flags for mpp_request */
@@ -85,15 +82,12 @@ enum MPP_DEV_COMMAND_TYPE {
 	MPP_CMD_INIT_TRANS_TABLE	= MPP_CMD_INIT_BASE + 2,
 
 	MPP_CMD_SEND_BASE		= 0x200,
-	MPP_CMD_SET_REG			= MPP_CMD_SEND_BASE + 0,
-	MPP_CMD_SET_VEPU22_CFG		= MPP_CMD_SEND_BASE + 1,
-	MPP_CMD_SET_RKVENC_OSD_PLT	= MPP_CMD_SEND_BASE + 2,
-	MPP_CMD_SET_RKVENC_L2_REG	= MPP_CMD_SEND_BASE + 3,
-	MPP_CMD_SET_REG_ADDR_OFFSET	= MPP_CMD_SEND_BASE + 4,
+	MPP_CMD_SET_REG_WRITE		= MPP_CMD_SEND_BASE + 0,
+	MPP_CMD_SET_REG_READ		= MPP_CMD_SEND_BASE + 1,
+	MPP_CMD_SET_REG_ADDR_OFFSET	= MPP_CMD_SEND_BASE + 2,
 
 	MPP_CMD_POLL_BASE		= 0x300,
-	MPP_CMD_GET_REG			= MPP_CMD_POLL_BASE + 0,
-	MPP_CMD_POLL_HW_FINISH		= MPP_CMD_POLL_BASE + 1,
+	MPP_CMD_POLL_HW_FINISH		= MPP_CMD_POLL_BASE + 0,
 
 	MPP_CMD_CONTROL_BASE		= 0x400,
 	MPP_CMD_RESET_SESSION		= MPP_CMD_CONTROL_BASE + 0,
@@ -112,13 +106,13 @@ struct mpp_request {
 	void __user *data;
 };
 
-/* struct use to collect task input and output message */
+/* struct use to collect task set and poll message */
 struct mpp_task_msgs {
-	/* for task input */
-	struct mpp_request reg_in;
-	struct mpp_request reg_offset;
-	/* for task output */
-	struct mpp_request reg_out;
+	u32 flags;
+	u32 req_cnt;
+	struct mpp_request reqs[MPP_MAX_MSG_NUM];
+	u32 set_cnt;
+	u32 poll_cnt;
 };
 
 struct mpp_grf_info {
@@ -134,14 +128,14 @@ struct mpp_hw_info {
 	/* register number */
 	u32 reg_num;
 	/* hardware id */
-	u32 regidx_id;
+	u32 reg_id;
 	u32 hw_id;
 	/* start index of register */
-	u32 regidx_start;
+	u32 reg_start;
 	/* end index of register */
-	u32 regidx_end;
+	u32 reg_end;
 	/* register of enable hardware */
-	int regidx_en;
+	int reg_en;
 };
 
 struct mpp_trans_info {
@@ -155,7 +149,6 @@ struct reg_offset_elem {
 };
 
 struct reg_offset_info {
-	u32 magic;
 	u32 cnt;
 	struct reg_offset_elem elem[MPP_MAX_REG_TRANS_NUM];
 };
@@ -348,13 +341,12 @@ struct mpp_dev_ops {
 	int (*free_task)(struct mpp_session *session,
 			 struct mpp_task *task);
 	long (*ioctl)(struct mpp_session *session, struct mpp_request *req);
-	int (*init_session)(struct mpp_dev *mpp);
-	int (*release_session)(struct mpp_session *session);
+	int (*init_session)(struct mpp_session *session);
+	int (*free_session)(struct mpp_session *session);
 };
 
 int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 		       struct mpp_service *srv);
-
 int mpp_reset_group_init(struct mpp_reset_group *group,
 			 struct mpp_service *srv);
 
@@ -364,8 +356,8 @@ int mpp_translate_reg_address(struct mpp_session *session,
 			      struct mpp_task *task, int fmt,
 			      u32 *reg, struct reg_offset_info *off_inf);
 
-int mpp_extract_reg_offset_info(struct mpp_request *msg,
-				struct reg_offset_info *off_inf);
+int mpp_check_req(struct mpp_request *req, int base,
+		  int max_size, u32 off_s, u32 off_e);
 int mpp_query_reg_offset_info(struct reg_offset_info *off_inf,
 			      u32 index);
 int mpp_translate_reg_offset_info(struct mpp_task *task,
@@ -396,13 +388,16 @@ int mpp_set_grf(struct mpp_grf_info *grf_info);
 int mpp_time_record(struct mpp_task *task);
 int mpp_time_diff(struct mpp_task *task);
 
-int mpp_dump_reg(u32 *regs, u32 start_idx, u32 end_idx);
+int mpp_write_req(struct mpp_dev *mpp, u32 *regs,
+		  u32 start_idx, u32 end_idx, u32 en_idx);
+int mpp_read_req(struct mpp_dev *mpp, u32 *regs,
+		 u32 start_idx, u32 end_idx);
 
 static inline int mpp_write(struct mpp_dev *mpp, u32 reg, u32 val)
 {
 	int idx = reg / sizeof(u32);
 
-	mpp_debug(DEBUG_SET_REG, "write reg[%d]: %08x\n", idx, val);
+	mpp_debug(DEBUG_SET_REG, "write reg[%3d]: %08x: %08x\n", idx, reg, val);
 	writel(val, mpp->reg_base + reg);
 
 	return 0;
@@ -412,7 +407,7 @@ static inline int mpp_write_relaxed(struct mpp_dev *mpp, u32 reg, u32 val)
 {
 	int idx = reg / sizeof(u32);
 
-	mpp_debug(DEBUG_SET_REG, "write reg[%d]: %08x\n", idx, val);
+	mpp_debug(DEBUG_SET_REG, "write reg[%3d]: %08x: %08x\n", idx, reg, val);
 	writel_relaxed(val, mpp->reg_base + reg);
 
 	return 0;
@@ -420,20 +415,22 @@ static inline int mpp_write_relaxed(struct mpp_dev *mpp, u32 reg, u32 val)
 
 static inline u32 mpp_read(struct mpp_dev *mpp, u32 reg)
 {
+	u32 val = 0;
 	int idx = reg / sizeof(u32);
-	u32 val = readl(mpp->reg_base + reg);
 
-	mpp_debug(DEBUG_GET_REG, "read reg[%d] 0x%x: %08x\n", idx, reg, val);
+	val = readl(mpp->reg_base + reg);
+	mpp_debug(DEBUG_GET_REG, "read reg[%3d]: %08x: %08x\n", idx, reg, val);
 
 	return val;
 }
 
 static inline u32 mpp_read_relaxed(struct mpp_dev *mpp, u32 reg)
 {
+	u32 val = 0;
 	int idx = reg / sizeof(u32);
-	u32 val = readl_relaxed(mpp->reg_base + reg);
 
-	mpp_debug(DEBUG_GET_REG, "read reg[%d] 0x%x: %08x\n", idx, reg, val);
+	val = readl_relaxed(mpp->reg_base + reg);
+	mpp_debug(DEBUG_GET_REG, "read reg[%3d] %08x: %08x\n", idx, reg, val);
 
 	return val;
 }

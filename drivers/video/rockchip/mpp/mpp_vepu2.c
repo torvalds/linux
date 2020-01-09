@@ -79,9 +79,14 @@ struct vepu_task {
 	struct mpp_hw_info *hw_info;
 	unsigned long aclk_freq;
 	u32 reg[VEPU2_REG_NUM];
-	u32 idx;
+
 	struct reg_offset_info off_inf;
 	u32 irq_status;
+	/* req for current task */
+	u32 w_req_cnt;
+	struct mpp_request w_reqs[MPP_MAX_MSG_NUM];
+	u32 r_req_cnt;
+	struct mpp_request r_reqs[MPP_MAX_MSG_NUM];
 };
 
 struct vepu_dev {
@@ -102,9 +107,9 @@ struct vepu_dev {
 
 static struct mpp_hw_info vepu_v2_hw_info = {
 	.reg_num = VEPU2_REG_NUM,
-	.regidx_start = VEPU2_REG_START_INDEX,
-	.regidx_end = VEPU2_REG_END_INDEX,
-	.regidx_en = VEPU2_REG_ENC_EN_INDEX,
+	.reg_start = VEPU2_REG_START_INDEX,
+	.reg_end = VEPU2_REG_END_INDEX,
+	.reg_en = VEPU2_REG_ENC_EN_INDEX,
 };
 
 /*
@@ -140,72 +145,94 @@ static struct mpp_trans_info trans_rk_vepu2[] = {
 
 static int vepu_process_reg_fd(struct mpp_session *session,
 			       struct vepu_task *task,
-			       struct mpp_task_msgs *msgs,
-			       u32 extinf_len,
-			       u32 reg_len)
+			       struct mpp_task_msgs *msgs)
 {
-	int ret = 0;
-	struct mpp_request *msg_reg = &msgs->reg_in;
+	int ret;
 	int fmt = VEPU2_GET_FORMAT(task->reg[VEPU2_REG_ENC_EN_INDEX]);
-
-	if (extinf_len > 0) {
-		if (likely(fmt == VEPU2_FMT_JPEGE)) {
-			ret = copy_from_user(&task->off_inf,
-					     (u8 *)msg_reg->data
-					     + msg_reg->size
-					     - JPEG_IOC_EXTRA_SIZE,
-					     JPEG_IOC_EXTRA_SIZE);
-		} else {
-			u32 ext_cpy = min_t(size_t, extinf_len,
-					    sizeof(task->off_inf));
-			ret = copy_from_user(&task->off_inf,
-					     (u32 *)msg_reg->data + reg_len,
-					     ext_cpy);
-		}
-
-		if (ret) {
-			mpp_err("copy_from_user failed when extra info\n");
-			goto fail;
-		}
-	} else {
-		ret = mpp_extract_reg_offset_info(&msgs->reg_offset,
-						  &task->off_inf);
-		if (ret)
-			goto fail;
-	}
 
 	ret = mpp_translate_reg_address(session, &task->mpp_task,
 					fmt, task->reg, &task->off_inf);
-	if (ret) {
-		mpp_err("translate reg address failed.\n");
-		mpp_dump_reg(task->reg,
-			     task->hw_info->regidx_start,
-			     task->hw_info->regidx_end);
-		goto fail;
-	}
+	if (ret)
+		return ret;
 
-	mpp_debug(DEBUG_SET_REG, "extra info cnt %u, magic %08x",
-		  task->off_inf.cnt, task->off_inf.magic);
 	mpp_translate_reg_offset_info(&task->mpp_task,
-				      &task->off_inf,
-				      task->reg);
+				      &task->off_inf, task->reg);
 
 	return 0;
-fail:
-	return -EFAULT;
+}
+
+static int vepu_extract_task_msg(struct vepu_task *task,
+				 struct mpp_task_msgs *msgs)
+{
+	u32 i;
+	int ret;
+	struct mpp_request *req;
+	struct reg_offset_info *off_inf = &task->off_inf;
+
+	for (i = 0; i < msgs->req_cnt; i++) {
+		u32 off_s, off_e;
+
+		req = &msgs->reqs[i];
+		if (!req->size)
+			continue;
+
+		switch (req->cmd) {
+		case MPP_CMD_SET_REG_WRITE: {
+			off_s = task->hw_info->reg_start * sizeof(u32);
+			off_e = task->hw_info->reg_end * sizeof(u32);
+			ret = mpp_check_req(req, 0, sizeof(task->reg),
+					    off_s, off_e);
+			if (ret)
+				continue;
+			if (copy_from_user((u8 *)task->reg + req->offset,
+					   req->data, req->size)) {
+				mpp_err("copy_from_user reg failed\n");
+				return -EIO;
+			}
+			memcpy(&task->w_reqs[task->w_req_cnt++],
+			       req, sizeof(*req));
+		} break;
+		case MPP_CMD_SET_REG_READ: {
+			off_s = task->hw_info->reg_start * sizeof(u32);
+			off_e = task->hw_info->reg_end * sizeof(u32);
+			ret = mpp_check_req(req, 0, sizeof(task->reg),
+					    off_s, off_e);
+			if (ret)
+				continue;
+			memcpy(&task->r_reqs[task->r_req_cnt++],
+			       req, sizeof(*req));
+		} break;
+		case MPP_CMD_SET_REG_ADDR_OFFSET: {
+			int off = off_inf->cnt * sizeof(off_inf->elem[0]);
+
+			ret = mpp_check_req(req, off, sizeof(off_inf->elem),
+					    0, sizeof(off_inf->elem));
+			if (ret)
+				continue;
+			if (copy_from_user(&off_inf->elem[off_inf->cnt],
+					   req->data,
+					   req->size)) {
+				mpp_err("copy_from_user failed\n");
+				return -EINVAL;
+			}
+			off_inf->cnt += req->size / sizeof(off_inf->elem[0]);
+		} break;
+		default:
+			break;
+		}
+	}
+	mpp_debug(DEBUG_TASK_INFO, "w_req_cnt %d, r_req_cnt %d\n",
+		  task->w_req_cnt, task->r_req_cnt);
+
+	return 0;
 }
 
 static void *vepu_alloc_task(struct mpp_session *session,
 			     struct mpp_task_msgs *msgs)
 {
 	int ret;
-	u32 reg_len;
-	u32 extinf_len;
-
 	struct vepu_task *task = NULL;
 	struct mpp_dev *mpp = session->mpp;
-	struct mpp_request *msg_reg = &msgs->reg_in;
-	u32 dwsize = msg_reg->size / sizeof(u32);
 
 	mpp_debug_enter();
 
@@ -215,19 +242,13 @@ static void *vepu_alloc_task(struct mpp_session *session,
 
 	mpp_task_init(session, &task->mpp_task);
 	task->hw_info = mpp->var->hw_info;
-	reg_len = min(task->hw_info->reg_num, dwsize);
-	extinf_len = dwsize > reg_len ?
-		(dwsize - reg_len) * sizeof(u32) : 0;
-
-	if (copy_from_user(task->reg, msg_reg->data,
-			   reg_len * sizeof(u32))) {
-		mpp_err("copy_from_user failed in reg_init\n");
+	/* extract reqs for current task */
+	ret = vepu_extract_task_msg(task, msgs);
+	if (ret)
 		goto fail;
-	}
 	/* process fd in register */
-	if (!(msg_reg->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
-		ret = vepu_process_reg_fd(session, task, msgs,
-					  extinf_len, reg_len);
+	if (!(msgs->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
+		ret = vepu_process_reg_fd(session, task, msgs);
 		if (ret)
 			goto fail;
 	}
@@ -252,9 +273,7 @@ static int vepu_run(struct mpp_dev *mpp,
 		    struct mpp_task *mpp_task)
 {
 	u32 i;
-	u32 regidx_start;
-	u32 regidx_end;
-	u32 regidx_en;
+	u32 reg_en;
 	struct vepu_task *task = NULL;
 	struct vepu_dev *enc = NULL;
 
@@ -268,22 +287,24 @@ static int vepu_run(struct mpp_dev *mpp,
 	/* clear cache */
 	mpp_write_relaxed(mpp, VEPU2_REG_CLR_CACHE_BASE, 1);
 
-	regidx_start = task->hw_info->regidx_start;
-	regidx_end = task->hw_info->regidx_end;
-	regidx_en = task->hw_info->regidx_en;
+	reg_en = task->hw_info->reg_en;
 	/* First, flush correct encoder format */
 	mpp_write_relaxed(mpp, VEPU2_REG_ENC_EN,
-			  task->reg[regidx_en] & VEPU2_FORMAT_MASK);
+			  task->reg[reg_en] & VEPU2_FORMAT_MASK);
 	/* Second, flush others register */
-	for (i = regidx_start; i <= regidx_end; i++) {
-		if (i == regidx_en)
-			continue;
-		mpp_write_relaxed(mpp, i * sizeof(u32), task->reg[i]);
+	for (i = 0; i < task->w_req_cnt; i++) {
+		struct mpp_request *req = &task->w_reqs[i];
+		int s = req->offset / sizeof(u32);
+		int e = s + req->size / sizeof(u32);
+
+		mpp_write_req(mpp, task->reg, s, e, reg_en);
 	}
+	/* init current task */
+	enc->current_task = task;
 	/* Last, flush the registers */
 	wmb();
 	mpp_write(mpp, VEPU2_REG_ENC_EN,
-		  task->reg[regidx_en] | VEPU2_ENC_START);
+		  task->reg[reg_en] | VEPU2_ENC_START);
 
 	mpp_debug_leave();
 
@@ -340,16 +361,20 @@ static int vepu_finish(struct mpp_dev *mpp,
 		       struct mpp_task *mpp_task)
 {
 	u32 i;
-	u32 regidx_start;
-	u32 regidx_end;
+	u32 s, e;
+	struct mpp_request *req;
 	struct vepu_task *task = to_vepu_task(mpp_task);
 
 	mpp_debug_enter();
+
 	/* read register after running */
-	regidx_start = task->hw_info->regidx_start;
-	regidx_end = task->hw_info->regidx_end;
-	for (i = regidx_start; i <= regidx_end; i++)
-		task->reg[i] = mpp_read_relaxed(mpp, i * sizeof(u32));
+	for (i = 0; i < task->r_req_cnt; i++) {
+		req = &task->r_reqs[i];
+		s = req->offset / sizeof(u32);
+		e = s + req->size / sizeof(u32);
+		mpp_read_req(mpp, task->reg, s, e);
+	}
+	/* revert hack for irq status */
 	task->reg[VEPU2_REG_INT_INDEX] = task->irq_status;
 
 	mpp_debug_leave();
@@ -361,14 +386,20 @@ static int vepu_result(struct mpp_dev *mpp,
 		       struct mpp_task *mpp_task,
 		       struct mpp_task_msgs *msgs)
 {
-	struct mpp_request *msg_reg_out = &msgs->reg_out;
+	u32 i;
+	struct mpp_request *req;
 	struct vepu_task *task = to_vepu_task(mpp_task);
 
 	/* FIXME may overflow the kernel */
-	if (copy_to_user(msg_reg_out->data,
-			 task->reg, msg_reg_out->size)) {
-		mpp_err("copy_to_user failed\n");
-		return -EIO;
+	for (i = 0; i < task->r_req_cnt; i++) {
+		req = &task->r_reqs[i];
+
+		if (copy_to_user(req->data,
+				 (u8 *)task->reg + req->offset,
+				 req->size)) {
+			mpp_err("copy_to_user reg fail\n");
+			return -EIO;
+		}
 	}
 
 	return 0;

@@ -135,10 +135,14 @@ struct rkvdec_task {
 
 	u32 reg[RKVDEC_V2_REG_NUM];
 	struct reg_offset_info off_inf;
-	u32 idx;
 
 	u32 strm_addr;
 	u32 irq_status;
+	/* req for current task */
+	u32 w_req_cnt;
+	struct mpp_request w_reqs[MPP_MAX_MSG_NUM];
+	u32 r_req_cnt;
+	struct mpp_request r_reqs[MPP_MAX_MSG_NUM];
 };
 
 struct rkvdec_dev {
@@ -191,18 +195,18 @@ struct rkvdec_dev {
  */
 static struct mpp_hw_info rk_hevcdec_hw_info = {
 	.reg_num = HEVC_DEC_REG_NUM,
-	.regidx_id = HEVC_DEC_REG_HW_ID_INDEX,
-	.regidx_start = HEVC_DEC_REG_START_INDEX,
-	.regidx_end = HEVC_DEC_REG_END_INDEX,
-	.regidx_en = RKVDEC_REG_INT_EN_INDEX,
+	.reg_id = HEVC_DEC_REG_HW_ID_INDEX,
+	.reg_start = HEVC_DEC_REG_START_INDEX,
+	.reg_end = HEVC_DEC_REG_END_INDEX,
+	.reg_en = RKVDEC_REG_INT_EN_INDEX,
 };
 
 static struct mpp_hw_info rkvdec_v1_hw_info = {
 	.reg_num = RKVDEC_V1_REG_NUM,
-	.regidx_id = RKVDEC_V1_REG_HW_ID_INDEX,
-	.regidx_start = RKVDEC_V1_REG_START_INDEX,
-	.regidx_end = RKVDEC_V1_REG_END_INDEX,
-	.regidx_en = RKVDEC_REG_INT_EN_INDEX,
+	.reg_id = RKVDEC_V1_REG_HW_ID_INDEX,
+	.reg_start = RKVDEC_V1_REG_START_INDEX,
+	.reg_end = RKVDEC_V1_REG_END_INDEX,
+	.reg_en = RKVDEC_REG_INT_EN_INDEX,
 };
 
 /*
@@ -677,11 +681,6 @@ static int rkvdec_process_reg_fd(struct mpp_session *session,
 	int ret = 0;
 	u32 fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_SYS_CTRL_INDEX]);
 
-	/* copy reg address offset message */
-	ret = mpp_extract_reg_offset_info(&msgs->reg_offset,
-					  &task->off_inf);
-	if (ret)
-		goto fail;
 	/*
 	 * special offset scale case
 	 *
@@ -711,7 +710,7 @@ static int rkvdec_process_reg_fd(struct mpp_session *session,
 		offset += mpp_query_reg_offset_info(&task->off_inf, idx);
 		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
 		if (IS_ERR(mem_region))
-			goto fail;
+			return -EFAULT;
 
 		iova = mem_region->iova;
 		task->reg[idx] = iova + offset;
@@ -719,33 +718,86 @@ static int rkvdec_process_reg_fd(struct mpp_session *session,
 
 	ret = mpp_translate_reg_address(session, &task->mpp_task,
 					fmt, task->reg, &task->off_inf);
-	if (ret) {
-		mpp_err("translate reg address failed.\n");
-		mpp_dump_reg(task->reg,
-			     task->hw_info->regidx_start,
-			     task->hw_info->regidx_end);
-		goto fail;
-	}
+	if (ret)
+		return ret;
 
-	mpp_debug(DEBUG_SET_REG, "extra info cnt %u, magic %08x",
-		  task->off_inf.cnt, task->off_inf.magic);
 	mpp_translate_reg_offset_info(&task->mpp_task,
 				      &task->off_inf, task->reg);
 	return 0;
-fail:
-	return -EFAULT;
+}
+
+static int rkvdec_extract_task_msg(struct rkvdec_task *task,
+				   struct mpp_task_msgs *msgs)
+{
+	u32 i;
+	int ret;
+	struct mpp_request *req;
+	struct reg_offset_info *off_inf = &task->off_inf;
+
+	for (i = 0; i < msgs->req_cnt; i++) {
+		u32 off_s, off_e;
+
+		req = &msgs->reqs[i];
+		if (!req->size)
+			continue;
+
+		switch (req->cmd) {
+		case MPP_CMD_SET_REG_WRITE: {
+			off_s = task->hw_info->reg_start * sizeof(u32);
+			off_e = task->hw_info->reg_end * sizeof(u32);
+			ret = mpp_check_req(req, 0, sizeof(task->reg),
+					    off_s, off_e);
+			if (ret)
+				continue;
+			if (copy_from_user((u8 *)task->reg + req->offset,
+					   req->data, req->size)) {
+				mpp_err("copy_from_user reg failed\n");
+				return -EIO;
+			}
+			memcpy(&task->w_reqs[task->w_req_cnt++],
+			       req, sizeof(*req));
+		} break;
+		case MPP_CMD_SET_REG_READ: {
+			off_s = task->hw_info->reg_start * sizeof(u32);
+			off_e = task->hw_info->reg_end * sizeof(u32);
+			ret = mpp_check_req(req, 0, sizeof(task->reg),
+					    off_s, off_e);
+			if (ret)
+				continue;
+			memcpy(&task->r_reqs[task->r_req_cnt++],
+			       req, sizeof(*req));
+		} break;
+		case MPP_CMD_SET_REG_ADDR_OFFSET: {
+			int off = off_inf->cnt * sizeof(off_inf->elem[0]);
+
+			ret = mpp_check_req(req, off, sizeof(off_inf->elem),
+					    0, sizeof(off_inf->elem));
+			if (ret)
+				continue;
+			if (copy_from_user(&off_inf->elem[off_inf->cnt],
+					   req->data,
+					   req->size)) {
+				mpp_err("copy_from_user failed\n");
+				return -EINVAL;
+			}
+			off_inf->cnt += req->size / sizeof(off_inf->elem[0]);
+		} break;
+		default:
+			break;
+		}
+	}
+	mpp_debug(DEBUG_TASK_INFO, "w_req_cnt %d, r_req_cnt %d\n",
+		  task->w_req_cnt, task->r_req_cnt);
+
+	return 0;
 }
 
 static void *rkvdec_alloc_task(struct mpp_session *session,
 			       struct mpp_task_msgs *msgs)
 {
 	int ret;
-	u32 reg_len;
-
 	struct rkvdec_task *task = NULL;
 	struct mpp_dev *mpp = session->mpp;
-	struct mpp_request *msg_reg = &msgs->reg_in;
-	u32 dwsize = msg_reg->size / sizeof(u32);
 
 	mpp_debug_enter();
 
@@ -755,20 +807,18 @@ static void *rkvdec_alloc_task(struct mpp_session *session,
 
 	mpp_task_init(session, &task->mpp_task);
 	task->hw_info = mpp->var->hw_info;
-	reg_len = min(task->hw_info->reg_num, dwsize);
-	if (copy_from_user(task->reg, msg_reg->data,
-			   reg_len * sizeof(u32))) {
-		mpp_err("copy_from_user failed in reg_init\n");
+	/* extract reqs for current task */
+	ret = rkvdec_extract_task_msg(task, msgs);
+	if (ret)
 		goto fail;
-	}
 	/* process fd in pps for 264 and 265 */
-	if (!(msg_reg->flags & MPP_FLAGS_SCL_FD_NO_TRANS)) {
+	if (!(msgs->flags & MPP_FLAGS_SCL_FD_NO_TRANS)) {
 		ret = rkvdec_process_scl_fd(session, task, msgs);
 		if (ret)
 			goto fail;
 	}
 	/* process fd in register */
-	if (!(msg_reg->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
+	if (!(msgs->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
 		ret = rkvdec_process_reg_fd(session, task, msgs);
 		if (ret)
 			goto fail;
@@ -803,11 +853,8 @@ static int rkvdec_prepare(struct mpp_dev *mpp,
 static int rkvdec_run(struct mpp_dev *mpp,
 		      struct mpp_task *mpp_task)
 {
-	u32 i;
-	u32 regidx_start;
-	u32 regidx_end;
-	u32 regidx_en;
-	u32 reg = 0;
+	int i;
+	u32 reg_en;
 	struct rkvdec_dev *dec = NULL;
 	struct rkvdec_task *task = NULL;
 
@@ -815,11 +862,10 @@ static int rkvdec_run(struct mpp_dev *mpp,
 
 	dec = to_rkvdec_dev(mpp);
 	task = to_rkvdec_task(mpp_task);
-
+	reg_en = task->hw_info->reg_en;
 	switch (dec->state) {
-	case RKVDEC_STATE_NORMAL:
-		/* FIXME: spin lock here */
-		dec->current_task = task;
+	case RKVDEC_STATE_NORMAL: {
+		u32 reg;
 
 		/* set cache size */
 		reg = RKVDEC_CACHE_PERMIT_CACHEABLE_ACCESS
@@ -833,19 +879,21 @@ static int rkvdec_run(struct mpp_dev *mpp,
 		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE0_BASE, 1);
 		mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE1_BASE, 1);
 		/* set registers for hardware */
-		regidx_start = task->hw_info->regidx_start;
-		regidx_end = task->hw_info->regidx_end;
-		regidx_en = task->hw_info->regidx_en;
-		for (i = regidx_start; i <= regidx_end; i++) {
-			if (i == regidx_en)
-				continue;
-			mpp_write_relaxed(mpp, i * sizeof(u32), task->reg[i]);
+		for (i = 0; i < task->w_req_cnt; i++) {
+			int s, e;
+			struct mpp_request *req = &task->w_reqs[i];
+
+			s = req->offset / sizeof(u32);
+			e = s + req->size / sizeof(u32);
+			mpp_write_req(mpp, task->reg, s, e, reg_en);
 		}
+		/* init current task */
+		dec->current_task = task;
 		/* Flush the register before the start the device */
 		wmb();
 		mpp_write(mpp, RKVDEC_REG_INT_EN,
-			  task->reg[regidx_en] | RKVDEC_DEC_START);
-		break;
+			  task->reg[reg_en] | RKVDEC_DEC_START);
+	} break;
 	default:
 		break;
 	}
@@ -942,8 +990,6 @@ static int rkvdec_finish(struct mpp_dev *mpp,
 			 struct mpp_task *mpp_task)
 {
 	u32 i;
-	u32 regidx_start;
-	u32 regidx_end;
 	u32 dec_get;
 	s32 dec_length;
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
@@ -953,19 +999,24 @@ static int rkvdec_finish(struct mpp_dev *mpp,
 
 	switch (dec->state) {
 	case RKVDEC_STATE_NORMAL: {
+		u32 s, e;
+		struct mpp_request *req;
+
 		/* read register after running */
-		regidx_start = 2;//task->hw_info->regidx_start;
-		regidx_end = task->hw_info->regidx_end;
-		for (i = regidx_start; i <= regidx_end; i++)
-			task->reg[i] = mpp_read_relaxed(mpp, i * sizeof(u32));
+		for (i = 0; i < task->r_req_cnt; i++) {
+			req = &task->r_reqs[i];
+			s = req->offset / sizeof(u32);
+			e = s + req->size / sizeof(u32);
+			mpp_read_req(mpp, task->reg, s, e);
+		}
+		/* revert hack for irq status */
 		task->reg[RKVDEC_REG_INT_EN_INDEX] = task->irq_status;
 		/* revert hack for decoded length */
-		dec_get = task->reg[RKVDEC_REG_RLC_BASE_INDEX];
+		dec_get = mpp_read_relaxed(mpp, RKVDEC_REG_RLC_BASE);
 		dec_length = dec_get - task->strm_addr;
 		task->reg[RKVDEC_REG_RLC_BASE_INDEX] = dec_length << 10;
 		mpp_debug(DEBUG_REGISTER,
-			  "dec_get %08x dec_length %d\n",
-			  dec_get, dec_length);
+			  "dec_get %08x dec_length %d\n", dec_get, dec_length);
 	} break;
 	default:
 		break;
@@ -980,14 +1031,20 @@ static int rkvdec_result(struct mpp_dev *mpp,
 			 struct mpp_task *mpp_task,
 			 struct mpp_task_msgs *msgs)
 {
-	struct mpp_request *msg_reg_out = &msgs->reg_out;
+	u32 i;
+	struct mpp_request *req;
 	struct rkvdec_task *task = to_rkvdec_task(mpp_task);
 
 	/* FIXME may overflow the kernel */
-	if (copy_to_user(msg_reg_out->data,
-			 task->reg, msg_reg_out->size)) {
-		mpp_err("copy_to_user failed\n");
-		return -EIO;
+	for (i = 0; i < task->r_req_cnt; i++) {
+		req = &task->r_reqs[i];
+
+		if (copy_to_user(req->data,
+				 (u8 *)task->reg + req->offset,
+				 req->size)) {
+			mpp_err("copy_to_user reg fail\n");
+			return -EIO;
+		}
 	}
 
 	return 0;
@@ -1109,7 +1166,7 @@ static int rkvdec_init(struct mpp_dev *mpp)
 
 	/* read hardware id*/
 	hw_info = mpp->var->hw_info;
-	hw_info->hw_id = mpp_read(mpp, hw_info->regidx_id);
+	hw_info->hw_id = mpp_read(mpp, hw_info->reg_id);
 
 	return 0;
 }
