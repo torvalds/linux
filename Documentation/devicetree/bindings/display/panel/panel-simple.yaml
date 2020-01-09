@@ -37,6 +37,8 @@ properties:
       - auo,b116xa01
         # GiantPlus GPM940B0 3.0" QVGA TFT LCD panel
       - giantplus,gpm940b0
+        # Sharp LS020B1DD01D 2.0" HQVGA TFT LCD panel
+      - sharp,ls020b1dd01d
 
   backlight: true
   enable-gpios: true
