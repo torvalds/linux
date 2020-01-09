@@ -51,6 +51,11 @@ static inline pmd_t *pmd_ptr_k(unsigned long va)
 {
 	return pmd_offset(pud_offset(pgd_offset_k(va), va), va);
 }
+
+static inline pte_t *virt_to_kpte(unsigned long vaddr)
+{
+	return pte_offset_kernel(pmd_ptr_k(vaddr), vaddr);
+}
 #endif
 
 #include <asm/tlbflush.h>
