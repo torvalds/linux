@@ -3637,6 +3637,23 @@ static int gfx_v9_0_cp_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void gfx_v9_0_init_tcp_config(struct amdgpu_device *adev)
+{
+	u32 tmp;
+
+	if (adev->asic_type != CHIP_ARCTURUS)
+		return;
+
+	tmp = RREG32_SOC15(GC, 0, mmTCP_ADDR_CONFIG);
+	tmp = REG_SET_FIELD(tmp, TCP_ADDR_CONFIG, ENABLE64KHASH,
+				adev->df.hash_status.hash_64k);
+	tmp = REG_SET_FIELD(tmp, TCP_ADDR_CONFIG, ENABLE2MHASH,
+				adev->df.hash_status.hash_2m);
+	tmp = REG_SET_FIELD(tmp, TCP_ADDR_CONFIG, ENABLE1GHASH,
+				adev->df.hash_status.hash_1g);
+	WREG32_SOC15(GC, 0, mmTCP_ADDR_CONFIG, tmp);
+}
+
 static void gfx_v9_0_cp_enable(struct amdgpu_device *adev, bool enable)
 {
 	if (adev->asic_type != CHIP_ARCTURUS)
@@ -3653,6 +3670,8 @@ static int gfx_v9_0_hw_init(void *handle)
 		gfx_v9_0_init_golden_registers(adev);
 
 	gfx_v9_0_constants_init(adev);
+
+	gfx_v9_0_init_tcp_config(adev);
 
 	r = adev->gfx.rlc.funcs->resume(adev);
 	if (r)

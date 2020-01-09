@@ -31,6 +31,9 @@ static u32 df_v1_7_channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 
 static void df_v1_7_sw_init(struct amdgpu_device *adev)
 {
+	adev->df.hash_status.hash_64k = false;
+	adev->df.hash_status.hash_2m = false;
+	adev->df.hash_status.hash_1g = false;
 }
 
 static void df_v1_7_sw_fini(struct amdgpu_device *adev)
