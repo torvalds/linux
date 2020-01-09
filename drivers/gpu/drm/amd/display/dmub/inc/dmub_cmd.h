@@ -257,13 +257,13 @@ struct dmub_rb_cmd_psr_enable {
 	struct dmub_cmd_header header;
 };
 
-struct dmub_cmd_psr_setup_data {
+struct dmub_cmd_psr_set_version_data {
 	enum psr_version version; // PSR version 1 or 2
 };
 
-struct dmub_rb_cmd_psr_setup {
+struct dmub_rb_cmd_psr_set_version {
 	struct dmub_cmd_header header;
-	struct dmub_cmd_psr_setup_data psr_setup_data;
+	struct dmub_cmd_psr_set_version_data psr_set_version_data;
 };
 
 union dmub_rb_cmd {
@@ -277,11 +277,11 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_enable_disp_power_gating enable_disp_power_gating;
 	struct dmub_rb_cmd_dpphy_init dpphy_init;
 	struct dmub_rb_cmd_dig1_transmitter_control dig1_transmitter_control;
-	struct dmub_rb_cmd_psr_enable psr_enable;
+	struct dmub_rb_cmd_psr_set_version psr_set_version;
 	struct dmub_rb_cmd_psr_copy_settings psr_copy_settings;
+	struct dmub_rb_cmd_psr_enable psr_enable;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
 	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa;
-	struct dmub_rb_cmd_psr_setup psr_setup;
 };
 
 #pragma pack(pop)

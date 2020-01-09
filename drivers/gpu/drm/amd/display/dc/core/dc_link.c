@@ -2401,7 +2401,7 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, bool allow_active, bool 
 	struct dmub_psr *psr = dc->res_pool->psr;
 
 	if ((psr != NULL) && link->psr_feature_enabled)
-		psr->funcs->set_psr_enable(psr, allow_active);
+		psr->funcs->psr_enable(psr, allow_active);
 	else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_feature_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, allow_active, wait);
 
@@ -2417,7 +2417,7 @@ bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
 	struct dmub_psr *psr = dc->res_pool->psr;
 
 	if (psr != NULL && link->psr_feature_enabled)
-		psr->funcs->get_psr_state(psr_state);
+		psr->funcs->psr_get_state(psr_state);
 	else if (dmcu != NULL && link->psr_feature_enabled)
 		dmcu->funcs->get_psr_state(dmcu, psr_state);
 
@@ -2589,7 +2589,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 	psr_context->frame_delay = 0;
 
 	if (psr)
-		link->psr_feature_enabled = psr->funcs->setup_psr(psr, link, psr_context);
+		link->psr_feature_enabled = psr->funcs->psr_copy_settings(psr, link, psr_context);
 	else
 		link->psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 

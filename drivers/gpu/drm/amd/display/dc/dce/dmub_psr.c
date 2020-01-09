@@ -36,16 +36,39 @@
 /**
  * Get PSR state from firmware.
  */
-static void dmub_get_psr_state(uint32_t *psr_state)
+static void dmub_psr_get_state(uint32_t *psr_state)
 {
 	// Not yet implemented
 	// Trigger GPINT interrupt from firmware
 }
 
+static void dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *stream)
+{
+	//stream->psr_version;
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = dmub->ctx;
+
+	cmd.psr_set_version.header.type = DMUB_CMD__PSR;
+	cmd.psr_set_version.header.sub_type = DMUB_CMD__PSR_SET_VERSION;
+
+	if (stream->psr_version == 0x0)
+		return;
+	else if (stream->psr_version == 0x1)
+		cmd.psr_set_version.psr_set_version_data.version = PSR_VERSION_1;
+	else if (stream->psr_version == 0x2)
+		cmd.psr_set_version.psr_set_version_data.version = PSR_VERSION_2;
+
+	cmd.psr_enable.header.payload_bytes = sizeof(struct dmub_cmd_psr_set_version_data);
+
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.psr_enable.header);
+	dc_dmub_srv_cmd_execute(dc->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->dmub_srv);
+}
+
 /**
  * Enable/Disable PSR.
  */
-static void dmub_set_psr_enable(struct dmub_psr *dmub, bool enable)
+static void dmub_psr_enable(struct dmub_psr *dmub, bool enable)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
@@ -67,13 +90,13 @@ static void dmub_set_psr_enable(struct dmub_psr *dmub, bool enable)
 /**
  * Set PSR level.
  */
-static void dmub_set_psr_level(struct dmub_psr *dmub, uint16_t psr_level)
+static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level)
 {
 	union dmub_rb_cmd cmd;
 	uint32_t psr_state = 0;
 	struct dc_context *dc = dmub->ctx;
 
-	dmub_get_psr_state(&psr_state);
+	dmub_psr_get_state(&psr_state);
 
 	if (psr_state == 0)
 		return;
@@ -91,7 +114,7 @@ static void dmub_set_psr_level(struct dmub_psr *dmub, uint16_t psr_level)
 /**
  * Setup PSR by programming phy registers and sending psr hw context values to firmware.
  */
-static bool dmub_setup_psr(struct dmub_psr *dmub,
+static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 		struct dc_link *link,
 		struct psr_context *psr_context)
 {
@@ -104,18 +127,16 @@ static bool dmub_setup_psr(struct dmub_psr *dmub,
 
 	for (int i = 0; i < MAX_PIPES; i++) {
 		if (res_ctx &&
-				res_ctx->pipe_ctx[i].stream &&
-				res_ctx->pipe_ctx[i].stream->link &&
-				res_ctx->pipe_ctx[i].stream->link == link &&
-				res_ctx->pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
+			res_ctx->pipe_ctx[i].stream &&
+			res_ctx->pipe_ctx[i].stream->link &&
+			res_ctx->pipe_ctx[i].stream->link == link &&
+			res_ctx->pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
 			pipe_ctx = &res_ctx->pipe_ctx[i];
 			break;
 		}
 	}
 
-	if (!pipe_ctx ||
-			!&pipe_ctx->plane_res ||
-			!&pipe_ctx->stream_res)
+	if (!pipe_ctx || !&pipe_ctx->plane_res || !&pipe_ctx->stream_res)
 		return false;
 
 	// Program DP DPHY fast training registers
@@ -161,13 +182,13 @@ static bool dmub_setup_psr(struct dmub_psr *dmub,
 	copy_settings_data->hyst_lines				= psr_context->hyst_lines;
 	copy_settings_data->phy_type				= psr_context->phyType;
 	copy_settings_data->aux_repeat				= psr_context->aux_repeats;
-	copy_settings_data->smu_optimizations_en	= psr_context->allow_smu_optimizations;
-	copy_settings_data->skip_wait_for_pll_lock	= psr_context->skipPsrWaitForPllLock;
+	copy_settings_data->smu_optimizations_en		= psr_context->allow_smu_optimizations;
+	copy_settings_data->skip_wait_for_pll_lock		= psr_context->skipPsrWaitForPllLock;
 	copy_settings_data->frame_delay				= psr_context->frame_delay;
 	copy_settings_data->smu_phy_id				= psr_context->smuPhyId;
-	copy_settings_data->num_of_controllers		= psr_context->numberOfControllers;
+	copy_settings_data->num_of_controllers			= psr_context->numberOfControllers;
 	copy_settings_data->frame_cap_ind			= psr_context->psrFrameCaptureIndicationReq;
-	copy_settings_data->phy_num					= psr_context->frame_delay & 0x7;
+	copy_settings_data->phy_num				= psr_context->frame_delay & 0x7;
 	copy_settings_data->link_rate				= psr_context->frame_delay & 0xF;
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd.psr_copy_settings.header);
@@ -178,10 +199,11 @@ static bool dmub_setup_psr(struct dmub_psr *dmub,
 }
 
 static const struct dmub_psr_funcs psr_funcs = {
-	.set_psr_enable			= dmub_set_psr_enable,
-	.setup_psr				= dmub_setup_psr,
-	.get_psr_state			= dmub_get_psr_state,
-	.set_psr_level			= dmub_set_psr_level,
+	.psr_set_version		= dmub_psr_set_version,
+	.psr_copy_settings		= dmub_psr_copy_settings,
+	.psr_enable			= dmub_psr_enable,
+	.psr_get_state			= dmub_psr_get_state,
+	.psr_set_level			= dmub_psr_set_level,
 };
 
 /**
