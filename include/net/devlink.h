@@ -564,7 +564,7 @@ struct devlink_trap {
 };
 
 /* All traps must be documented in
- * Documentation/networking/devlink-trap.rst
+ * Documentation/networking/devlink/devlink-trap.rst
  */
 enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_SMAC_MC,
@@ -598,7 +598,7 @@ enum devlink_trap_generic_id {
 };
 
 /* All trap groups must be documented in
- * Documentation/networking/devlink-trap.rst
+ * Documentation/networking/devlink/devlink-trap.rst
  */
 enum devlink_trap_group_generic_id {
 	DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS,
