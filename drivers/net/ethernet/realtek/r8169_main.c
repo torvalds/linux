@@ -1081,11 +1081,6 @@ static int rtl_readphy(struct rtl8169_private *tp, int location)
 	}
 }
 
-static void rtl_patchphy(struct rtl8169_private *tp, int reg_addr, int value)
-{
-	rtl_writephy(tp, reg_addr, rtl_readphy(tp, reg_addr) | value);
-}
-
 static void rtl_w0w1_phy(struct rtl8169_private *tp, int reg_addr, int p, int m)
 {
 	int val;
@@ -2527,7 +2522,7 @@ static void rtl8168bb_hw_phy_config(struct rtl8169_private *tp,
 				    struct phy_device *phydev)
 {
 	rtl_writephy(tp, 0x1f, 0x0001);
-	rtl_patchphy(tp, 0x16, 1 << 0);
+	phy_set_bits(phydev, 0x16, BIT(0));
 	rtl_writephy(tp, 0x10, 0xf41b);
 	rtl_writephy(tp, 0x1f, 0x0000);
 }
@@ -2578,9 +2573,8 @@ static void rtl8168c_1_hw_phy_config(struct rtl8169_private *tp,
 
 	rtl_writephy_batch(phydev, phy_reg_init);
 
-	rtl_patchphy(tp, 0x14, 1 << 5);
-	rtl_patchphy(tp, 0x0d, 1 << 5);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	phy_set_bits(phydev, 0x14, BIT(5));
+	phy_set_bits(phydev, 0x0d, BIT(5));
 }
 
 static void rtl8168c_2_hw_phy_config(struct rtl8169_private *tp,
@@ -2606,10 +2600,9 @@ static void rtl8168c_2_hw_phy_config(struct rtl8169_private *tp,
 
 	rtl_writephy_batch(phydev, phy_reg_init);
 
-	rtl_patchphy(tp, 0x16, 1 << 0);
-	rtl_patchphy(tp, 0x14, 1 << 5);
-	rtl_patchphy(tp, 0x0d, 1 << 5);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	phy_set_bits(phydev, 0x16, BIT(0));
+	phy_set_bits(phydev, 0x14, BIT(5));
+	phy_set_bits(phydev, 0x0d, BIT(5));
 }
 
 static void rtl8168c_3_hw_phy_config(struct rtl8169_private *tp,
@@ -2629,10 +2622,9 @@ static void rtl8168c_3_hw_phy_config(struct rtl8169_private *tp,
 
 	rtl_writephy_batch(phydev, phy_reg_init);
 
-	rtl_patchphy(tp, 0x16, 1 << 0);
-	rtl_patchphy(tp, 0x14, 1 << 5);
-	rtl_patchphy(tp, 0x0d, 1 << 5);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	phy_set_bits(phydev, 0x16, BIT(0));
+	phy_set_bits(phydev, 0x14, BIT(5));
+	phy_set_bits(phydev, 0x0d, BIT(5));
 }
 
 static const struct phy_reg rtl8168d_1_phy_reg_init_0[] = {
@@ -2740,8 +2732,8 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp,
 
 	/* RSET couple improve */
 	rtl_writephy(tp, 0x1f, 0x0002);
-	rtl_patchphy(tp, 0x0d, 0x0300);
-	rtl_patchphy(tp, 0x0f, 0x0010);
+	phy_set_bits(phydev, 0x0d, 0x0300);
+	phy_set_bits(phydev, 0x0f, 0x0010);
 
 	/* Fine tune PLL performance */
 	rtl_writephy(tp, 0x1f, 0x0002);
@@ -2785,11 +2777,10 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp,
 	rtl_writephy(tp, 0x1f, 0x0002);
 	rtl_w0w1_phy(tp, 0x02, 0x0100, 0x0600);
 	rtl_w0w1_phy(tp, 0x03, 0x0000, 0xe000);
+	rtl_writephy(tp, 0x1f, 0x0000);
 
 	/* Switching regulator Slew rate */
-	rtl_writephy(tp, 0x1f, 0x0002);
-	rtl_patchphy(tp, 0x0f, 0x0017);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	phy_modify_paged(phydev, 0x0002, 0x0f, 0x0000, 0x0017);
 
 	rtl8168d_apply_firmware_cond(tp, 0xb300);
 }
@@ -3368,10 +3359,9 @@ static void rtl8102e_hw_phy_config(struct rtl8169_private *tp,
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_writephy(tp, 0x1f, 0x0000);
-	rtl_patchphy(tp, 0x11, 1 << 12);
-	rtl_patchphy(tp, 0x19, 1 << 13);
-	rtl_patchphy(tp, 0x10, 1 << 15);
+	phy_set_bits(phydev, 0x11, BIT(12));
+	phy_set_bits(phydev, 0x19, BIT(13));
+	phy_set_bits(phydev, 0x10, BIT(15));
 
 	rtl_writephy_batch(phydev, phy_reg_init);
 }
