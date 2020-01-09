@@ -1718,7 +1718,6 @@ static const struct attribute_group *amd_iommu_groups[] = {
 static int __init iommu_init_pci(struct amd_iommu *iommu)
 {
 	int cap_ptr = iommu->cap_ptr;
-	u32 low, high;
 	int ret;
 
 	iommu->dev = pci_get_domain_bus_and_slot(0, PCI_BUS_NUM(iommu->devid),
@@ -1736,10 +1735,7 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 		amd_iommu_iotlb_sup = false;
 
 	/* read extended feature bits */
-	low  = readl(iommu->mmio_base + MMIO_EXT_FEATURES);
-	high = readl(iommu->mmio_base + MMIO_EXT_FEATURES + 4);
-
-	iommu->features = ((u64)high << 32) | low;
+	iommu->features = readq(iommu->mmio_base + MMIO_EXT_FEATURES);
 
 	if (iommu_feature(iommu, FEATURE_GT)) {
 		int glxval;
