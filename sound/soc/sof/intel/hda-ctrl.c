@@ -64,14 +64,31 @@ int hda_dsp_ctrl_get_caps(struct snd_sof_dev *sdev)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	u32 cap, offset, feature;
 	int count = 0;
+	int ret;
+
+	/*
+	 * On some devices, one reset cycle is necessary before reading
+	 * capabilities
+	 */
+	ret = hda_dsp_ctrl_link_reset(sdev, true);
+	if (ret < 0)
+		return ret;
+	ret = hda_dsp_ctrl_link_reset(sdev, false);
+	if (ret < 0)
+		return ret;
 
 	offset = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_LLCH);
 
 	do {
-		cap = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, offset);
-
 		dev_dbg(sdev->dev, "checking for capabilities at offset 0x%x\n",
 			offset & SOF_HDA_CAP_NEXT_MASK);
+
+		cap = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, offset);
+
+		if (cap == -1) {
+			dev_dbg(bus->dev, "Invalid capability reg read\n");
+			break;
+		}
 
 		feature = (cap & SOF_HDA_CAP_ID_MASK) >> SOF_HDA_CAP_ID_OFF;
 
@@ -105,8 +122,8 @@ int hda_dsp_ctrl_get_caps(struct snd_sof_dev *sdev)
 			bus->mlcap = bus->remap_addr + offset;
 			break;
 		default:
-			dev_vdbg(sdev->dev, "found capability %d at 0x%x\n",
-				 feature, offset);
+			dev_dbg(sdev->dev, "found capability %d at 0x%x\n",
+				feature, offset);
 			break;
 		}
 
