@@ -4097,6 +4097,9 @@ enum skb_ext_id {
 #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
 	TC_SKB_EXT,
 #endif
+#if IS_ENABLED(CONFIG_MPTCP)
+	SKB_EXT_MPTCP,
+#endif
 	SKB_EXT_NUM, /* must be last */
 };
 
