@@ -677,6 +677,29 @@ static void free_rq_inline_buf(struct hns_roce_qp *hr_qp)
 	kfree(hr_qp->rq_inl_buf.wqe_list);
 }
 
+static void add_qp_to_list(struct hns_roce_dev *hr_dev,
+			   struct hns_roce_qp *hr_qp,
+			   struct ib_cq *send_cq, struct ib_cq *recv_cq)
+{
+	struct hns_roce_cq *hr_send_cq, *hr_recv_cq;
+	unsigned long flags;
+
+	hr_send_cq = send_cq ? to_hr_cq(send_cq) : NULL;
+	hr_recv_cq = recv_cq ? to_hr_cq(recv_cq) : NULL;
+
+	spin_lock_irqsave(&hr_dev->qp_list_lock, flags);
+	hns_roce_lock_cqs(hr_send_cq, hr_recv_cq);
+
+	list_add_tail(&hr_qp->node, &hr_dev->qp_list);
+	if (hr_send_cq)
+		list_add_tail(&hr_qp->sq_node, &hr_send_cq->sq_list);
+	if (hr_recv_cq)
+		list_add_tail(&hr_qp->rq_node, &hr_recv_cq->rq_list);
+
+	hns_roce_unlock_cqs(hr_send_cq, hr_recv_cq);
+	spin_unlock_irqrestore(&hr_dev->qp_list_lock, flags);
+}
+
 static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				     struct ib_pd *ib_pd,
 				     struct ib_qp_init_attr *init_attr,
@@ -946,6 +969,9 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	}
 
 	hr_qp->event = hns_roce_ib_qp_event;
+
+	add_qp_to_list(hr_dev, hr_qp, init_attr->send_cq, init_attr->recv_cq);
+
 	hns_roce_free_buf_list(buf_list, hr_qp->region_cnt);
 
 	return 0;
@@ -1228,7 +1254,16 @@ out:
 void hns_roce_lock_cqs(struct hns_roce_cq *send_cq, struct hns_roce_cq *recv_cq)
 		       __acquires(&send_cq->lock) __acquires(&recv_cq->lock)
 {
-	if (send_cq == recv_cq) {
+	if (unlikely(send_cq == NULL && recv_cq == NULL)) {
+		__acquire(&send_cq->lock);
+		__acquire(&recv_cq->lock);
+	} else if (unlikely(send_cq != NULL && recv_cq == NULL)) {
+		spin_lock_irq(&send_cq->lock);
+		__acquire(&recv_cq->lock);
+	} else if (unlikely(send_cq == NULL && recv_cq != NULL)) {
+		spin_lock_irq(&recv_cq->lock);
+		__acquire(&send_cq->lock);
+	} else if (send_cq == recv_cq) {
 		spin_lock_irq(&send_cq->lock);
 		__acquire(&recv_cq->lock);
 	} else if (send_cq->cqn < recv_cq->cqn) {
@@ -1244,7 +1279,16 @@ void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,
 			 struct hns_roce_cq *recv_cq) __releases(&send_cq->lock)
 			 __releases(&recv_cq->lock)
 {
-	if (send_cq == recv_cq) {
+	if (unlikely(send_cq == NULL && recv_cq == NULL)) {
+		__release(&recv_cq->lock);
+		__release(&send_cq->lock);
+	} else if (unlikely(send_cq != NULL && recv_cq == NULL)) {
+		__release(&recv_cq->lock);
+		spin_unlock(&send_cq->lock);
+	} else if (unlikely(send_cq == NULL && recv_cq != NULL)) {
+		__release(&send_cq->lock);
+		spin_unlock(&recv_cq->lock);
+	} else if (send_cq == recv_cq) {
 		__release(&recv_cq->lock);
 		spin_unlock_irq(&send_cq->lock);
 	} else if (send_cq->cqn < recv_cq->cqn) {

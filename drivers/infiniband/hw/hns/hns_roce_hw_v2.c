@@ -225,6 +225,30 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 				 int attr_mask, enum ib_qp_state cur_state,
 				 enum ib_qp_state new_state);
 
+static int check_send_valid(struct hns_roce_dev *hr_dev,
+			    struct hns_roce_qp *hr_qp)
+{
+	struct ib_qp *ibqp = &hr_qp->ibqp;
+	struct device *dev = hr_dev->dev;
+
+	if (unlikely(ibqp->qp_type != IB_QPT_RC &&
+		     ibqp->qp_type != IB_QPT_GSI &&
+		     ibqp->qp_type != IB_QPT_UD)) {
+		dev_err(dev, "Not supported QP(0x%x)type!\n", ibqp->qp_type);
+		return -EOPNOTSUPP;
+	} else if (unlikely(hr_qp->state == IB_QPS_RESET ||
+		   hr_qp->state == IB_QPS_INIT ||
+		   hr_qp->state == IB_QPS_RTR)) {
+		dev_err(dev, "Post WQE fail, QP state %d!\n", hr_qp->state);
+		return -EINVAL;
+	} else if (unlikely(hr_dev->state >= HNS_ROCE_DEVICE_STATE_RST_DOWN)) {
+		dev_err(dev, "Post WQE fail, dev state %d!\n", hr_dev->state);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 				 const struct ib_send_wr *wr,
 				 const struct ib_send_wr **bad_wr)
@@ -247,28 +271,21 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 	bool loopback;
 	int attr_mask;
 	u32 tmp_len;
-	int ret = 0;
 	u32 hr_op;
 	u8 *smac;
 	int nreq;
+	int ret;
 	int i;
 
-	if (unlikely(ibqp->qp_type != IB_QPT_RC &&
-		     ibqp->qp_type != IB_QPT_GSI &&
-		     ibqp->qp_type != IB_QPT_UD)) {
-		dev_err(dev, "Not supported QP(0x%x)type!\n", ibqp->qp_type);
-		*bad_wr = wr;
-		return -EOPNOTSUPP;
-	}
-
-	if (unlikely(qp->state == IB_QPS_RESET || qp->state == IB_QPS_INIT ||
-		     qp->state == IB_QPS_RTR)) {
-		dev_err(dev, "Post WQE fail, QP state %d err!\n", qp->state);
-		*bad_wr = wr;
-		return -EINVAL;
-	}
-
 	spin_lock_irqsave(&qp->sq.lock, flags);
+
+	ret = check_send_valid(hr_dev, qp);
+	if (ret) {
+		*bad_wr = wr;
+		nreq = 0;
+		goto out;
+	}
+
 	sge_idx = qp->next_sge;
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
@@ -609,6 +626,17 @@ out:
 	return ret;
 }
 
+static int check_recv_valid(struct hns_roce_dev *hr_dev,
+			    struct hns_roce_qp *hr_qp)
+{
+	if (unlikely(hr_dev->state >= HNS_ROCE_DEVICE_STATE_RST_DOWN))
+		return -EIO;
+	else if (hr_qp->state == IB_QPS_RESET)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 				 const struct ib_recv_wr *wr,
 				 const struct ib_recv_wr **bad_wr)
@@ -623,16 +651,17 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 	void *wqe = NULL;
 	int attr_mask;
 	u32 wqe_idx;
-	int ret = 0;
 	int nreq;
+	int ret;
 	int i;
 
 	spin_lock_irqsave(&hr_qp->rq.lock, flags);
 
-	if (hr_qp->state == IB_QPS_RESET) {
-		spin_unlock_irqrestore(&hr_qp->rq.lock, flags);
+	ret = check_recv_valid(hr_dev, hr_qp);
+	if (ret) {
 		*bad_wr = wr;
-		return -EINVAL;
+		nreq = 0;
+		goto out;
 	}
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
@@ -2673,6 +2702,55 @@ static int hns_roce_handle_recv_inl_wqe(struct hns_roce_v2_cqe *cqe,
 	return 0;
 }
 
+static int sw_comp(struct hns_roce_qp *hr_qp, struct hns_roce_wq *wq,
+		   int num_entries, struct ib_wc *wc)
+{
+	unsigned int left;
+	int npolled = 0;
+
+	left = wq->head - wq->tail;
+	if (left == 0)
+		return 0;
+
+	left = min_t(unsigned int, (unsigned int)num_entries, left);
+	while (npolled < left) {
+		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
+		wc->status = IB_WC_WR_FLUSH_ERR;
+		wc->vendor_err = 0;
+		wc->qp = &hr_qp->ibqp;
+
+		wq->tail++;
+		wc++;
+		npolled++;
+	}
+
+	return npolled;
+}
+
+static int hns_roce_v2_sw_poll_cq(struct hns_roce_cq *hr_cq, int num_entries,
+				  struct ib_wc *wc)
+{
+	struct hns_roce_qp *hr_qp;
+	int npolled = 0;
+
+	list_for_each_entry(hr_qp, &hr_cq->sq_list, sq_node) {
+		npolled += sw_comp(hr_qp, &hr_qp->sq,
+				   num_entries - npolled, wc + npolled);
+		if (npolled >= num_entries)
+			goto out;
+	}
+
+	list_for_each_entry(hr_qp, &hr_cq->rq_list, rq_node) {
+		npolled += sw_comp(hr_qp, &hr_qp->rq,
+				   num_entries - npolled, wc + npolled);
+		if (npolled >= num_entries)
+			goto out;
+	}
+
+out:
+	return npolled;
+}
+
 static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 				struct hns_roce_qp **cur_qp, struct ib_wc *wc)
 {
@@ -2953,12 +3031,25 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 static int hns_roce_v2_poll_cq(struct ib_cq *ibcq, int num_entries,
 			       struct ib_wc *wc)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibcq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);
 	struct hns_roce_qp *cur_qp = NULL;
 	unsigned long flags;
 	int npolled;
 
 	spin_lock_irqsave(&hr_cq->lock, flags);
+
+	/*
+	 * When the device starts to reset, the state is RST_DOWN. At this time,
+	 * there may still be some valid CQEs in the hardware that are not
+	 * polled. Therefore, it is not allowed to switch to the software mode
+	 * immediately. When the state changes to UNINIT, CQE no longer exists
+	 * in the hardware, and then switch to software mode.
+	 */
+	if (hr_dev->state == HNS_ROCE_DEVICE_STATE_UNINIT) {
+		npolled = hns_roce_v2_sw_poll_cq(hr_cq, num_entries, wc);
+		goto out;
+	}
 
 	for (npolled = 0; npolled < num_entries; ++npolled) {
 		if (hns_roce_v2_poll_one(hr_cq, &cur_qp, wc + npolled))
@@ -2971,6 +3062,7 @@ static int hns_roce_v2_poll_cq(struct ib_cq *ibcq, int num_entries,
 		hns_roce_v2_cq_set_ci(hr_cq, hr_cq->cons_index);
 	}
 
+out:
 	spin_unlock_irqrestore(&hr_cq->lock, flags);
 
 	return npolled;
@@ -4629,6 +4721,7 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 {
 	struct hns_roce_cq *send_cq, *recv_cq;
 	struct ib_device *ibdev = &hr_dev->ib_dev;
+	unsigned long flags;
 	int ret = 0;
 
 	if (hr_qp->ibqp.qp_type == IB_QPT_RC && hr_qp->state != IB_QPS_RESET) {
@@ -4639,21 +4732,32 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 			ibdev_err(ibdev, "modify QP to Reset failed.\n");
 	}
 
-	send_cq = to_hr_cq(hr_qp->ibqp.send_cq);
-	recv_cq = to_hr_cq(hr_qp->ibqp.recv_cq);
+	send_cq = hr_qp->ibqp.send_cq ? to_hr_cq(hr_qp->ibqp.send_cq) : NULL;
+	recv_cq = hr_qp->ibqp.recv_cq ? to_hr_cq(hr_qp->ibqp.recv_cq) : NULL;
 
+	spin_lock_irqsave(&hr_dev->qp_list_lock, flags);
 	hns_roce_lock_cqs(send_cq, recv_cq);
 
+	list_del(&hr_qp->node);
+	list_del(&hr_qp->sq_node);
+	list_del(&hr_qp->rq_node);
+
 	if (!udata) {
-		__hns_roce_v2_cq_clean(recv_cq, hr_qp->qpn, hr_qp->ibqp.srq ?
-				       to_hr_srq(hr_qp->ibqp.srq) : NULL);
-		if (send_cq != recv_cq)
+		if (recv_cq)
+			__hns_roce_v2_cq_clean(recv_cq, hr_qp->qpn,
+					       (hr_qp->ibqp.srq ?
+						to_hr_srq(hr_qp->ibqp.srq) :
+						NULL));
+
+		if (send_cq && send_cq != recv_cq)
 			__hns_roce_v2_cq_clean(send_cq, hr_qp->qpn, NULL);
+
 	}
 
 	hns_roce_qp_remove(hr_dev, hr_qp);
 
 	hns_roce_unlock_cqs(send_cq, recv_cq);
+	spin_unlock_irqrestore(&hr_dev->qp_list_lock, flags);
 
 	hns_roce_qp_free(hr_dev, hr_qp);
 
@@ -6397,6 +6501,10 @@ static void __hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 		return;
 
 	handle->priv = NULL;
+
+	hr_dev->state = HNS_ROCE_DEVICE_STATE_UNINIT;
+	hns_roce_handle_device_err(hr_dev);
+
 	hns_roce_exit(hr_dev);
 	kfree(hr_dev->priv);
 	ib_dealloc_device(&hr_dev->ib_dev);
@@ -6458,7 +6566,6 @@ static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 {
 	struct hns_roce_dev *hr_dev;
-	struct ib_event event;
 
 	if (handle->rinfo.instance_state != HNS_ROCE_STATE_INITED) {
 		set_bit(HNS_ROCE_RST_DIRECT_RETURN, &handle->rinfo.state);
@@ -6476,10 +6583,7 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 	hr_dev->active = false;
 	hr_dev->dis_db = true;
 
-	event.event = IB_EVENT_DEVICE_FATAL;
-	event.device = &hr_dev->ib_dev;
-	event.element.port_num = 1;
-	ib_dispatch_event(&event);
+	hr_dev->state = HNS_ROCE_DEVICE_STATE_RST_DOWN;
 
 	return 0;
 }
