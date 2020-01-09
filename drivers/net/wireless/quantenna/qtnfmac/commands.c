@@ -257,6 +257,14 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	cmd->pbss = s->pbss;
 	cmd->ht_required = s->ht_required;
 	cmd->vht_required = s->vht_required;
+	cmd->twt_responder = s->twt_responder;
+	if (s->he_obss_pd.enable) {
+		cmd->sr_params.sr_control |= QLINK_SR_SRG_INFORMATION_PRESENT;
+		cmd->sr_params.srg_obss_pd_min_offset =
+			s->he_obss_pd.min_offset;
+		cmd->sr_params.srg_obss_pd_max_offset =
+			s->he_obss_pd.max_offset;
+	}
 
 	aen = &cmd->aen;
 	aen->auth_type = s->auth_type;
