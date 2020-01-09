@@ -199,6 +199,7 @@ static inline u32 cdns_readl(struct sdw_cdns *cdns, int offset)
 
 static inline void cdns_writel(struct sdw_cdns *cdns, int offset, u32 value)
 {
+	dev_vdbg(cdns->dev, "%s %x %x\n", __func__, offset, value);
 	writel(value, cdns->registers + offset);
 }
 
@@ -679,29 +680,55 @@ static int cdns_update_slave_status(struct sdw_cdns *cdns,
 		}
 
 		if (mask & CDNS_MCP_SLAVE_INTSTAT_ATTACHED) {
+			dev_dbg(cdns->dev, "Slave %d ATTACHED\n", i);
 			status[i] = SDW_SLAVE_ATTACHED;
 			set_status++;
 		}
 
 		if (mask & CDNS_MCP_SLAVE_INTSTAT_ALERT) {
+			dev_dbg(cdns->dev, "Slave %d ALERT\n", i);
 			status[i] = SDW_SLAVE_ALERT;
 			set_status++;
 		}
 
 		if (mask & CDNS_MCP_SLAVE_INTSTAT_NPRESENT) {
+			dev_dbg(cdns->dev, "Slave %d UNATTACHED\n", i);
 			status[i] = SDW_SLAVE_UNATTACHED;
 			set_status++;
 		}
 
 		/* first check if Slave reported multiple status */
 		if (set_status > 1) {
+			u32 val;
+
 			dev_warn_ratelimited(cdns->dev,
-					     "Slave reported multiple Status: %d\n",
-					     mask);
-			/*
-			 * TODO: we need to reread the status here by
-			 * issuing a PING cmd
-			 */
+					     "Slave %d reported multiple Status: %d\n",
+					     i, mask);
+
+			/* check latest status extracted from PING commands */
+			val = cdns_readl(cdns, CDNS_MCP_SLAVE_STAT);
+			val >>= (i * 2);
+
+			switch (val & 0x3) {
+			case 0:
+				status[i] = SDW_SLAVE_UNATTACHED;
+				break;
+			case 1:
+				status[i] = SDW_SLAVE_ATTACHED;
+				break;
+			case 2:
+				status[i] = SDW_SLAVE_ALERT;
+				break;
+			case 3:
+			default:
+				status[i] = SDW_SLAVE_RESERVED;
+				break;
+			}
+
+			dev_warn_ratelimited(cdns->dev,
+					     "Slave %d status updated to %d\n",
+					     i, status[i]);
+
 		}
 	}
 
@@ -983,8 +1010,6 @@ int sdw_cdns_pdi_init(struct sdw_cdns *cdns,
 	ret = cdns_allocate_pdi(cdns, &stream->out,
 				stream->num_out, offset);
 
-	offset += stream->num_out;
-
 	if (ret)
 		return ret;
 
@@ -1040,6 +1065,9 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 	/* Set SSP interval to default value */
 	cdns_writel(cdns, CDNS_MCP_SSP_CTRL0, CDNS_DEFAULT_SSP_INTERVAL);
 	cdns_writel(cdns, CDNS_MCP_SSP_CTRL1, CDNS_DEFAULT_SSP_INTERVAL);
+
+	/* reset msg_count to default value of FIFOLEVEL */
+	cdns->msg_count = cdns_readl(cdns, CDNS_MCP_FIFOLEVEL);
 
 	/* flush command FIFOs */
 	cdns_updatel(cdns, CDNS_MCP_CONTROL, CDNS_MCP_CONTROL_CMD_RST,
@@ -1235,6 +1263,8 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	u32 status;
 	int ret;
 
+	dev_dbg(cdns->dev, "%s: start\n", __func__);
+
 	/* Check suspend status */
 	status = cdns_readl(cdns, CDNS_MCP_STAT);
 	if (status & CDNS_MCP_STAT_CLK_STOP) {
@@ -1259,6 +1289,8 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 			break;
 		}
 	}
+
+	dev_dbg(cdns->dev, "%s: slave attached %d\n", __func__, slave_present);
 
 	/*
 	 * This CMD_ACCEPT should be used when there are no devices
@@ -1300,6 +1332,8 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	if (ret < 0)
 		dev_err(cdns->dev, "Clock stop failed %d\n", ret);
 
+	dev_dbg(cdns->dev, "%s: end\n", __func__);
+
 	return ret;
 }
 EXPORT_SYMBOL(sdw_cdns_clock_stop);
@@ -1314,6 +1348,8 @@ EXPORT_SYMBOL(sdw_cdns_clock_stop);
 int sdw_cdns_clock_restart(struct sdw_cdns *cdns, bool bus_reset)
 {
 	int ret;
+
+	dev_dbg(cdns->dev, "%s: start\n", __func__);
 
 	ret = cdns_clear_bit(cdns, CDNS_MCP_CONTROL,
 			     CDNS_MCP_CONTROL_CLK_STOP_CLR);
@@ -1361,6 +1397,8 @@ int sdw_cdns_clock_restart(struct sdw_cdns *cdns, bool bus_reset)
 		if (ret < 0)
 			dev_err(cdns->dev, "bus failed to exit clock stop %d\n", ret);
 	}
+
+	dev_dbg(cdns->dev, "%s: end\n", __func__);
 
 	return ret;
 }

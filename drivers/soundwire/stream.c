@@ -26,6 +26,8 @@ int sdw_rows[SDW_FRAME_ROWS] = {48, 50, 60, 64, 75, 80, 125, 147,
 			192, 200, 240, 256, 72, 144, 90, 180};
 
 int sdw_cols[SDW_FRAME_COLS] = {2, 4, 6, 8, 10, 12, 14, 16};
+EXPORT_SYMBOL(sdw_rows);
+EXPORT_SYMBOL(sdw_cols);
 
 int sdw_find_col_index(int col)
 {
@@ -136,8 +138,12 @@ static int sdw_program_slave_port_params(struct sdw_bus *bus,
 	dpn_prop = sdw_get_slave_dpn_prop(s_rt->slave,
 					  s_rt->direction,
 					  t_params->port_num);
-	if (!dpn_prop)
+	if (!dpn_prop) {
+		dev_err(&s_rt->slave->dev,
+			"invalid dpn_prop direction %d port_num %d\n",
+			s_rt->direction, t_params->port_num);
 		return -EINVAL;
+	}
 
 	addr1 = SDW_DPN_PORTCTRL(t_params->port_num);
 	addr2 = SDW_DPN_BLOCKCTRL1(t_params->port_num);
@@ -243,12 +249,21 @@ static int sdw_program_master_port_params(struct sdw_bus *bus,
 	ret = bus->port_ops->dpn_set_port_transport_params(bus,
 					&p_rt->transport_params,
 					bus->params.next_bank);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(bus->dev, "%s dpn_set_port_transport_params failed: %d\n",
+			__func__, ret);
 		return ret;
+	}
 
-	return bus->port_ops->dpn_set_port_params(bus,
-						  &p_rt->port_params,
-						  bus->params.next_bank);
+	ret = bus->port_ops->dpn_set_port_params(bus,
+						 &p_rt->port_params,
+						 bus->params.next_bank);
+
+	if (ret < 0)
+		dev_err(bus->dev, "%s dpn_set_port_params failed: %d\n",
+			__func__, ret);
+
+	return ret;
 }
 
 /**
@@ -268,16 +283,20 @@ static int sdw_program_port_params(struct sdw_master_runtime *m_rt)
 	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
 		list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
 			ret = sdw_program_slave_port_params(bus, s_rt, p_rt);
-			if (ret < 0)
+			if (ret < 0) {
+				pr_err("sdw_program_slave_port_params failed %d\n", ret);
 				return ret;
+			}
 		}
 	}
 
 	/* Program transport & port parameters for Master(s) */
 	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
 		ret = sdw_program_master_port_params(bus, p_rt);
-		if (ret < 0)
+		if (ret < 0) {
+			pr_err("sdw_program_master_port_params failed %d\n", ret);
 			return ret;
+		}
 	}
 
 	return 0;
@@ -452,8 +471,12 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 	if (prep && intr) {
 		ret = sdw_configure_dpn_intr(s_rt->slave, p_rt->num, prep,
 					     dpn_prop->imp_def_interrupts);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(&s_rt->slave->dev,
+				"sdw_configure_dpn_intr failed %d\n", ret);
+
 			return ret;
+		}
 	}
 
 	/* Inform slave about the impending port prepare */
@@ -493,9 +516,15 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 	sdw_do_port_prep(s_rt, prep_ch, SDW_OPS_PORT_POST_PREP);
 
 	/* Disable interrupt after Port de-prepare */
-	if (!prep && intr)
+	if (!prep && intr) {
 		ret = sdw_configure_dpn_intr(s_rt->slave, p_rt->num, prep,
 					     dpn_prop->imp_def_interrupts);
+
+		if (ret < 0) {
+			dev_err(&s_rt->slave->dev,
+				"sdw_configure_dpn_intr failed %d\n", ret);
+		}
+	}
 
 	return ret;
 }
@@ -578,8 +607,10 @@ static int sdw_notify_config(struct sdw_master_runtime *m_rt)
 
 	if (bus->ops->set_bus_conf) {
 		ret = bus->ops->set_bus_conf(bus, &bus->params);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(bus->dev, "%s: set_bus_conf failed %d\n", __func__, ret);
 			return ret;
+		}
 	}
 
 	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
@@ -1786,6 +1817,16 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 		/* TODO: Update this during Device-Device support */
 		bus->params.bandwidth -= m_rt->stream->params.rate *
 			m_rt->ch_count * m_rt->stream->params.bps;
+
+		/* Compute params */
+		if (bus->compute_params) {
+			ret = bus->compute_params(bus);
+			if (ret < 0) {
+				dev_err(bus->dev, "Compute params failed: %d",
+					ret);
+				return ret;
+			}
+		}
 
 		/* Program params */
 		ret = sdw_program_params(bus, false);
