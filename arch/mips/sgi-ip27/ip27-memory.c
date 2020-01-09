@@ -148,25 +148,25 @@ static int __init compute_node_distance(nasid_t nasid_a, nasid_t nasid_b)
 		} while ((brd = find_lboard_class(KLCF_NEXT(brd), KLTYPE_ROUTER)));
 	}
 
+	if (nasid_a == nasid_b)
+		return LOCAL_DISTANCE;
+
+	if (router_a == router_b)
+		return LOCAL_DISTANCE + 1;
+
 	if (router_a == NULL) {
 		pr_info("node_distance: router_a NULL\n");
-		return -1;
+		return 255;
 	}
 	if (router_b == NULL) {
 		pr_info("node_distance: router_b NULL\n");
-		return -1;
+		return 255;
 	}
-
-	if (nasid_a == nasid_b)
-		return 0;
-
-	if (router_a == router_b)
-		return 1;
 
 	router_distance = 100;
 	router_recurse(router_a, router_b, 2);
 
-	return router_distance;
+	return LOCAL_DISTANCE + router_distance;
 }
 
 static void __init init_topology_matrix(void)
