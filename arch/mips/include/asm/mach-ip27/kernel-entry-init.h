@@ -14,16 +14,6 @@
 #include <asm/sn/klkernvars.h>
 
 /*
- * Returns the local nasid into res.
- */
-	.macro GET_NASID_ASM res
-	dli	\res, LOCAL_HUB_ADDR(NI_STATUS_REV_ID)
-	ld	\res, (\res)
-	and	\res, NSRI_NODEID_MASK
-	dsrl	\res, NSRI_NODEID_SHFT
-	.endm
-
-/*
  * TLB bits
  */
 #define PAGE_GLOBAL		(1 << 6)

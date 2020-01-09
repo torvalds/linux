@@ -37,4 +37,16 @@
 #define UATTR_MSPEC	2
 #define UATTR_UNCAC	3
 
+#ifdef __ASSEMBLY__
+/*
+ * Returns the local nasid into res.
+ */
+	.macro GET_NASID_ASM res
+	dli	\res, LOCAL_HUB_ADDR(NI_STATUS_REV_ID)
+	ld	\res, (\res)
+	and	\res, NSRI_NODEID_MASK
+	dsrl	\res, NSRI_NODEID_SHFT
+	.endm
+#endif
+
 #endif /* _ASM_SN_SN0_HUB_H */
