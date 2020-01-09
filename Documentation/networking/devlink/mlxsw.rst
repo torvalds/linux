@@ -36,3 +36,24 @@ parameters.
        immediately after the value is set.
 
 The ``mlxsw`` driver supports reloading via ``DEVLINK_CMD_RELOAD``
+
+Info versions
+=============
+
+The ``mlx5`` driver reports the following versions
+
+.. list-table:: devlink info versions implemented
+   :widths: 5 5 90
+
+   * - Name
+     - Type
+     - Description
+   * - ``hw.revision``
+     - fixed
+     - The hardware revision for this board
+   * - ``fw.psid``
+     - fixed
+     - Firmware PSID
+   * - ``fw.version``
+     - running
+     - Three digit firmware version

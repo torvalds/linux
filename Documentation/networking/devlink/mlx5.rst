@@ -39,3 +39,21 @@ parameters.
          firmware intervention.
 
 The ``mlx5`` driver supports reloading via ``DEVLINK_CMD_RELOAD``
+
+Info versions
+=============
+
+The ``mlx5`` driver reports the following versions
+
+.. list-table:: devlink info versions implemented
+   :widths: 5 5 90
+
+   * - Name
+     - Type
+     - Description
+   * - ``fw.psid``
+     - fixed
+     - Used to represent the board id of the device.
+   * - ``fw.version``
+     - stored, running
+     - Three digit major.minor.subminor firmware version number.
