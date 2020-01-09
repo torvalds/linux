@@ -2454,7 +2454,7 @@ out:
 }
 
 int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req,
-			bool slave_radar)
+			bool slave_radar, bool dfs_offload)
 {
 	struct wiphy *wiphy = priv_to_wiphy(mac);
 	struct qtnf_bus *bus = mac->bus;
@@ -2517,6 +2517,7 @@ int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req,
 	}
 
 	cmd->slave_radar = slave_radar;
+	cmd->dfs_offload = dfs_offload;
 	cmd->num_channels = 0;
 
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {

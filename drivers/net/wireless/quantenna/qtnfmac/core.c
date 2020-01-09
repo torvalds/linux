@@ -21,11 +21,20 @@ static bool slave_radar = true;
 module_param(slave_radar, bool, 0644);
 MODULE_PARM_DESC(slave_radar, "set 0 to disable radar detection in slave mode");
 
+static bool dfs_offload;
+module_param(dfs_offload, bool, 0644);
+MODULE_PARM_DESC(dfs_offload, "set 1 to enable DFS offload to firmware");
+
 static struct dentry *qtnf_debugfs_dir;
 
 bool qtnf_slave_radar_get(void)
 {
 	return slave_radar;
+}
+
+bool qtnf_dfs_offload_get(void)
+{
+	return dfs_offload;
 }
 
 struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid)

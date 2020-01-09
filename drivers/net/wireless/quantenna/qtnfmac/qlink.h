@@ -596,8 +596,9 @@ enum qlink_user_reg_hint_type {
  *	of &enum qlink_user_reg_hint_type.
  * @num_channels: number of &struct qlink_tlv_channel in a variable portion of a
  *	payload.
- * @slave_radar: whether slave device should enable radar detection.
  * @dfs_region: one of &enum qlink_dfs_regions.
+ * @slave_radar: whether slave device should enable radar detection.
+ * @dfs_offload: enable or disable DFS offload to firmware.
  * @info: variable portion of regulatory notifier callback.
  */
 struct qlink_cmd_reg_notify {
@@ -608,7 +609,7 @@ struct qlink_cmd_reg_notify {
 	u8 num_channels;
 	u8 dfs_region;
 	u8 slave_radar;
-	u8 rsvd[1];
+	u8 dfs_offload;
 	u8 info[0];
 } __packed;
 
