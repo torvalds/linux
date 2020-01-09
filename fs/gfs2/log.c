@@ -469,8 +469,8 @@ static unsigned int calc_reserved(struct gfs2_sbd *sdp)
 		reserved += DIV_ROUND_UP(dbuf, databuf_limit(sdp));
 	}
 
-	if (sdp->sd_log_commited_revoke > 0)
-		reserved += gfs2_struct2blk(sdp, sdp->sd_log_commited_revoke);
+	if (sdp->sd_log_committed_revoke > 0)
+		reserved += gfs2_struct2blk(sdp, sdp->sd_log_committed_revoke);
 	/* One for the overall header */
 	if (reserved)
 		reserved++;
@@ -825,7 +825,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 	if (unlikely(state == SFS_FROZEN))
 		gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
 	gfs2_assert_withdraw(sdp,
-			sdp->sd_log_num_revoke == sdp->sd_log_commited_revoke);
+			sdp->sd_log_num_revoke == sdp->sd_log_committed_revoke);
 
 	gfs2_ordered_write(sdp);
 	lops_before_commit(sdp, tr);
@@ -844,7 +844,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 	gfs2_log_lock(sdp);
 	sdp->sd_log_head = sdp->sd_log_flush_head;
 	sdp->sd_log_blks_reserved = 0;
-	sdp->sd_log_commited_revoke = 0;
+	sdp->sd_log_committed_revoke = 0;
 
 	spin_lock(&sdp->sd_ail_lock);
 	if (tr && !list_empty(&tr->tr_ail1_list)) {
@@ -916,7 +916,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 		set_bit(TR_ATTACHED, &tr->tr_flags);
 	}
 
-	sdp->sd_log_commited_revoke += tr->tr_num_revoke;
+	sdp->sd_log_committed_revoke += tr->tr_num_revoke;
 	reserved = calc_reserved(sdp);
 	maxres = sdp->sd_log_blks_reserved + tr->tr_reserved;
 	gfs2_assert_withdraw(sdp, maxres >= reserved);
