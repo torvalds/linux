@@ -10,6 +10,6 @@ Contents:
    :maxdepth: 1
 
    devlink-health
-   devlink-info-versions
+   devlink-info
    devlink-trap
    devlink-trap-netdevsim
