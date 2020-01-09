@@ -2669,9 +2669,10 @@ static const struct phy_reg rtl8168d_1_phy_reg_init_1[] = {
 	{ 0x1f, 0x0002 }
 };
 
-static void rtl8168d_apply_firmware_cond(struct rtl8169_private *tp, u16 val)
+static void rtl8168d_apply_firmware_cond(struct rtl8169_private *tp,
+					 struct phy_device *phydev,
+					 u16 val)
 {
-	struct phy_device *phydev = tp->phydev;
 	u16 reg_val;
 
 	phy_write(phydev, 0x1f, 0x0005);
@@ -2734,7 +2735,7 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp,
 	phy_clear_bits(phydev, 0x03, 0xe000);
 	phy_write(phydev, 0x1f, 0x0000);
 
-	rtl8168d_apply_firmware_cond(tp, 0xbf00);
+	rtl8168d_apply_firmware_cond(tp, phydev, 0xbf00);
 }
 
 static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp,
@@ -2775,7 +2776,7 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp,
 	/* Switching regulator Slew rate */
 	phy_modify_paged(phydev, 0x0002, 0x0f, 0x0000, 0x0017);
 
-	rtl8168d_apply_firmware_cond(tp, 0xb300);
+	rtl8168d_apply_firmware_cond(tp, phydev, 0xb300);
 }
 
 static void rtl8168d_3_hw_phy_config(struct rtl8169_private *tp,
