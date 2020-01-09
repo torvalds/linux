@@ -9,6 +9,7 @@ Contents:
 .. toctree::
    :maxdepth: 1
 
+   devlink-health
    devlink-info-versions
    devlink-trap
    devlink-trap-netdevsim
