@@ -72,12 +72,7 @@ static void per_hub_init(nasid_t nasid)
 void per_cpu_init(void)
 {
 	int cpu = smp_processor_id();
-	int slice = LOCAL_HUB_L(PI_CPU_NUM);
 	nasid_t nasid = get_nasid();
-	struct hub_data *hub = hub_data(nasid);
-
-	if (test_and_set_bit(slice, &hub->slice_map))
-		return;
 
 	clear_c0_status(ST0_IM);
 
