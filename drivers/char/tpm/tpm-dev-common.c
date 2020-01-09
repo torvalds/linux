@@ -130,7 +130,7 @@ ssize_t tpm_common_read(struct file *file, char __user *buf,
 		priv->response_read = true;
 
 		ret_size = min_t(ssize_t, size, priv->response_length);
-		if (!ret_size) {
+		if (ret_size <= 0) {
 			priv->response_length = 0;
 			goto out;
 		}

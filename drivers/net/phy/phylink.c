@@ -572,6 +572,9 @@ static int phylink_register_sfp(struct phylink *pl,
 	struct sfp_bus *bus;
 	int ret;
 
+	if (!fwnode)
+		return 0;
+
 	bus = sfp_bus_find_fwnode(fwnode);
 	if (IS_ERR(bus)) {
 		ret = PTR_ERR(bus);
