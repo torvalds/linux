@@ -471,7 +471,7 @@ static int __init amdtee_driver_init(void)
 
 	rc = tee_device_register(amdtee->teedev);
 	if (rc)
-		goto err;
+		goto err_device_unregister;
 
 	amdtee->pool = pool;
 
@@ -480,7 +480,7 @@ static int __init amdtee_driver_init(void)
 	pr_info("amd-tee driver initialization successful\n");
 	return 0;
 
-err:
+err_device_unregister:
 	tee_device_unregister(amdtee->teedev);
 
 err_free_pool:
