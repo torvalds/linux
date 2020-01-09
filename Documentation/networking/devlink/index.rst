@@ -18,7 +18,6 @@ general.
    devlink-params
    devlink-region
    devlink-trap
-   devlink-trap-netdevsim
 
 Driver-specific documentation
 -----------------------------
@@ -35,6 +34,7 @@ parameters, info versions, and other features it supports.
    mlx5
    mlxsw
    mv88e6xxx
+   netdevsim
    nfp
    qed
    ti-cpsw-switch
