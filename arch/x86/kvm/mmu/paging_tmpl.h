@@ -128,6 +128,21 @@ static inline int FNAME(is_present_gpte)(unsigned long pte)
 #endif
 }
 
+static bool FNAME(is_bad_mt_xwr)(struct rsvd_bits_validate *rsvd_check, u64 gpte)
+{
+#if PTTYPE != PTTYPE_EPT
+	return false;
+#else
+	return __is_bad_mt_xwr(rsvd_check, gpte);
+#endif
+}
+
+static bool FNAME(is_rsvd_bits_set)(struct kvm_mmu *mmu, u64 gpte, int level)
+{
+	return __is_rsvd_bits_set(&mmu->guest_rsvd_check, gpte, level) ||
+	       FNAME(is_bad_mt_xwr)(&mmu->guest_rsvd_check, gpte);
+}
+
 static int FNAME(cmpxchg_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 			       pt_element_t __user *ptep_user, unsigned index,
 			       pt_element_t orig_pte, pt_element_t new_pte)
@@ -183,7 +198,7 @@ static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 	    !(gpte & PT_GUEST_ACCESSED_MASK))
 		goto no_present;
 
-	if (is_rsvd_bits_set(vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
+	if (FNAME(is_rsvd_bits_set)(vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
 		goto no_present;
 
 	return false;
@@ -400,7 +415,7 @@ retry_walk:
 		if (unlikely(!FNAME(is_present_gpte)(pte)))
 			goto error;
 
-		if (unlikely(is_rsvd_bits_set(mmu, pte, walker->level))) {
+		if (unlikely(FNAME(is_rsvd_bits_set)(mmu, pte, walker->level))) {
 			errcode = PFERR_RSVD_MASK | PFERR_PRESENT_MASK;
 			goto error;
 		}

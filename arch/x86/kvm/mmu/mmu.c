@@ -3968,20 +3968,14 @@ static gpa_t nonpaging_gva_to_gpa_nested(struct kvm_vcpu *vcpu, gpa_t vaddr,
 static bool
 __is_rsvd_bits_set(struct rsvd_bits_validate *rsvd_check, u64 pte, int level)
 {
-	int bit7 = (pte >> 7) & 1, low6 = pte & 0x3f;
+	int bit7 = (pte >> 7) & 1;
 
-	return (pte & rsvd_check->rsvd_bits_mask[bit7][level-1]) |
-		((rsvd_check->bad_mt_xwr & (1ull << low6)) != 0);
+	return pte & rsvd_check->rsvd_bits_mask[bit7][level-1];
 }
 
-static bool is_rsvd_bits_set(struct kvm_mmu *mmu, u64 gpte, int level)
+static bool __is_bad_mt_xwr(struct rsvd_bits_validate *rsvd_check, u64 pte)
 {
-	return __is_rsvd_bits_set(&mmu->guest_rsvd_check, gpte, level);
-}
-
-static bool is_shadow_zero_bits_set(struct kvm_mmu *mmu, u64 spte, int level)
-{
-	return __is_rsvd_bits_set(&mmu->shadow_zero_check, spte, level);
+	return rsvd_check->bad_mt_xwr & BIT_ULL(pte & 0x3f);
 }
 
 static bool mmio_info_in_cache(struct kvm_vcpu *vcpu, u64 addr, bool direct)
@@ -4005,8 +3999,11 @@ walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	u64 sptes[PT64_ROOT_MAX_LEVEL], spte = 0ull;
+	struct rsvd_bits_validate *rsvd_check;
 	int root, leaf;
 	bool reserved = false;
+
+	rsvd_check = &vcpu->arch.mmu->shadow_zero_check;
 
 	walk_shadow_page_lockless_begin(vcpu);
 
@@ -4022,8 +4019,13 @@ walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 		if (!is_shadow_present_pte(spte))
 			break;
 
-		reserved |= is_shadow_zero_bits_set(vcpu->arch.mmu, spte,
-						    iterator.level);
+		/*
+		 * Use a bitwise-OR instead of a logical-OR to aggregate the
+		 * reserved bit and EPT's invalid memtype/XWR checks to avoid
+		 * adding a Jcc in the loop.
+		 */
+		reserved |= __is_bad_mt_xwr(rsvd_check, spte) |
+			    __is_rsvd_bits_set(rsvd_check, spte, iterator.level);
 	}
 
 	walk_shadow_page_lockless_end(vcpu);
