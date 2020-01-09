@@ -798,10 +798,10 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 	i2c->dev = &pdev->dev;
-	pm_runtime_enable(i2c->dev);
 	pm_runtime_set_autosuspend_delay(i2c->dev, XIIC_PM_TIMEOUT);
 	pm_runtime_use_autosuspend(i2c->dev);
 	pm_runtime_set_active(i2c->dev);
+	pm_runtime_enable(i2c->dev);
 	ret = devm_request_threaded_irq(&pdev->dev, irq, xiic_isr,
 					xiic_process, IRQF_ONESHOT,
 					pdev->name, i2c);
@@ -859,14 +859,16 @@ static int xiic_i2c_remove(struct platform_device *pdev)
 	/* remove adapter & data */
 	i2c_del_adapter(&i2c->adap);
 
-	ret = clk_prepare_enable(i2c->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Unable to enable clock.\n");
+	ret = pm_runtime_get_sync(i2c->dev);
+	if (ret < 0)
 		return ret;
-	}
+
 	xiic_deinit(i2c);
+	pm_runtime_put_sync(i2c->dev);
 	clk_disable_unprepare(i2c->clk);
 	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 
 	return 0;
 }
