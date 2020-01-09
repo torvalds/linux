@@ -3157,10 +3157,9 @@ static struct dentry *atomic_open(struct nameidata *nd, struct dentry *dentry,
  *
  * An error code is returned on failure.
  */
-static int lookup_open(struct nameidata *nd, struct path *path,
-			struct file *file,
-			const struct open_flags *op,
-			bool got_write)
+static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
+				  const struct open_flags *op,
+				  bool got_write)
 {
 	struct dentry *dir = nd->path.dentry;
 	struct inode *dir_inode = dir->d_inode;
@@ -3171,7 +3170,7 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 
 	if (unlikely(IS_DEADDIR(dir_inode)))
-		return -ENOENT;
+		return ERR_PTR(-ENOENT);
 
 	file->f_mode &= ~FMODE_CREATED;
 	dentry = d_lookup(dir, &nd->last);
@@ -3179,7 +3178,7 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 		if (!dentry) {
 			dentry = d_alloc_parallel(dir, &nd->last, &wq);
 			if (IS_ERR(dentry))
-				return PTR_ERR(dentry);
+				return dentry;
 		}
 		if (d_in_lookup(dentry))
 			break;
@@ -3195,7 +3194,7 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 	}
 	if (dentry->d_inode) {
 		/* Cached positive dentry: will open in f_op->open */
-		goto out_no_open;
+		return dentry;
 	}
 
 	/*
@@ -3235,19 +3234,9 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 
 	if (dir_inode->i_op->atomic_open) {
 		dentry = atomic_open(nd, dentry, file, op, open_flag, mode);
-		if (IS_ERR(dentry)) {
-			error = PTR_ERR(dentry);
-			if (unlikely(error == -ENOENT) && create_error)
-				error = create_error;
-			return error;
-		}
-		if (file->f_mode & FMODE_OPENED) {
-			dput(dentry);
-			return 0;
-		}
-		path->mnt = nd->path.mnt;
-		path->dentry = dentry;
-		return 0;
+		if (unlikely(create_error) && dentry == ERR_PTR(-ENOENT))
+			dentry = ERR_PTR(create_error);
+		return dentry;
 	}
 
 no_open:
@@ -3283,14 +3272,11 @@ no_open:
 		error = create_error;
 		goto out_dput;
 	}
-out_no_open:
-	path->dentry = dentry;
-	path->mnt = nd->path.mnt;
-	return 0;
+	return dentry;
 
 out_dput:
 	dput(dentry);
-	return error;
+	return ERR_PTR(error);
 }
 
 /*
@@ -3309,6 +3295,7 @@ static int do_last(struct nameidata *nd,
 	unsigned seq;
 	struct inode *inode;
 	struct path path;
+	struct dentry *dentry;
 	int error;
 
 	nd->flags &= ~LOOKUP_PARENT;
@@ -3365,14 +3352,18 @@ static int do_last(struct nameidata *nd,
 		inode_lock(dir->d_inode);
 	else
 		inode_lock_shared(dir->d_inode);
-	error = lookup_open(nd, &path, file, op, got_write);
+	dentry = lookup_open(nd, file, op, got_write);
 	if (open_flag & O_CREAT)
 		inode_unlock(dir->d_inode);
 	else
 		inode_unlock_shared(dir->d_inode);
 
-	if (error)
+	if (IS_ERR(dentry)) {
+		error = PTR_ERR(dentry);
 		goto out;
+	}
+	path.mnt = nd->path.mnt;
+	path.dentry = dentry;
 
 	if (file->f_mode & FMODE_OPENED) {
 		if ((file->f_mode & FMODE_CREATED) ||
@@ -3380,6 +3371,7 @@ static int do_last(struct nameidata *nd,
 			will_truncate = false;
 
 		audit_inode(nd->name, file->f_path.dentry, 0);
+		dput(dentry);
 		goto opened;
 	}
 
