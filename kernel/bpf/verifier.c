@@ -8155,6 +8155,11 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 		return -EINVAL;
 	}
 
+	if (map->map_type == BPF_MAP_TYPE_STRUCT_OPS) {
+		verbose(env, "bpf_struct_ops map cannot be used in prog\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

@@ -500,13 +500,6 @@ static const char *btf_int_encoding_str(u8 encoding)
 		return "UNKN";
 }
 
-static u32 btf_member_bit_offset(const struct btf_type *struct_type,
-			     const struct btf_member *member)
-{
-	return btf_type_kflag(struct_type) ? BTF_MEMBER_BIT_OFFSET(member->offset)
-					   : member->offset;
-}
-
 static u32 btf_type_int(const struct btf_type *t)
 {
 	return *(u32 *)(t + 1);
@@ -1089,7 +1082,7 @@ static const struct resolve_vertex *env_stack_peak(struct btf_verifier_env *env)
  * *elem_type: same as return type ("struct X")
  * *total_nelems: 1
  */
-static const struct btf_type *
+const struct btf_type *
 btf_resolve_size(const struct btf *btf, const struct btf_type *type,
 		 u32 *type_size, const struct btf_type **elem_type,
 		 u32 *total_nelems)
@@ -1143,8 +1136,10 @@ resolved:
 		return ERR_PTR(-EINVAL);
 
 	*type_size = nelems * size;
-	*total_nelems = nelems;
-	*elem_type = type;
+	if (total_nelems)
+		*total_nelems = nelems;
+	if (elem_type)
+		*elem_type = type;
 
 	return array_type ? : type;
 }
@@ -1858,7 +1853,10 @@ static void btf_modifier_seq_show(const struct btf *btf,
 				  u32 type_id, void *data,
 				  u8 bits_offset, struct seq_file *m)
 {
-	t = btf_type_id_resolve(btf, &type_id);
+	if (btf->resolved_ids)
+		t = btf_type_id_resolve(btf, &type_id);
+	else
+		t = btf_type_skip_modifiers(btf, type_id, NULL);
 
 	btf_type_ops(t)->seq_show(btf, t, type_id, data, bits_offset, m);
 }
