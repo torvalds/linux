@@ -30,6 +30,7 @@ parameters, info versions, and other features it supports.
    :maxdepth: 1
 
    bnxt
+   ionic
    mlx4
    mlx5
    mlxsw
