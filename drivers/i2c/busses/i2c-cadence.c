@@ -508,7 +508,7 @@ static void cdns_i2c_master_reset(struct i2c_adapter *adap)
 	cdns_i2c_writereg(regval, CDNS_I2C_CR_OFFSET);
 	/* Update the transfercount register to zero */
 	cdns_i2c_writereg(0, CDNS_I2C_XFER_SIZE_OFFSET);
-	/* Clear the interupt status register */
+	/* Clear the interrupt status register */
 	regval = cdns_i2c_readreg(CDNS_I2C_ISR_OFFSET);
 	cdns_i2c_writereg(regval, CDNS_I2C_ISR_OFFSET);
 	/* Clear the status register */
