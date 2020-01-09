@@ -123,9 +123,6 @@ static inline void intel_context_exit(struct intel_context *ce)
 		ce->ops->exit(ce);
 }
 
-int intel_context_active_acquire(struct intel_context *ce);
-void intel_context_active_release(struct intel_context *ce);
-
 static inline struct intel_context *intel_context_get(struct intel_context *ce)
 {
 	kref_get(&ce->ref);

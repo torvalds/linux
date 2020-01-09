@@ -1329,21 +1329,7 @@ static int ring_context_alloc(struct intel_context *ce)
 
 static int ring_context_pin(struct intel_context *ce)
 {
-	int err;
-
-	err = intel_context_active_acquire(ce);
-	if (err)
-		return err;
-
-	err = __context_pin_ppgtt(ce);
-	if (err)
-		goto err_active;
-
-	return 0;
-
-err_active:
-	intel_context_active_release(ce);
-	return err;
+	return __context_pin_ppgtt(ce);
 }
 
 static void ring_context_reset(struct intel_context *ce)

@@ -63,6 +63,34 @@ unlock:
 	return err;
 }
 
+static int intel_context_active_acquire(struct intel_context *ce)
+{
+	int err;
+
+	err = i915_active_acquire(&ce->active);
+	if (err)
+		return err;
+
+	/* Preallocate tracking nodes */
+	if (!intel_context_is_barrier(ce)) {
+		err = i915_active_acquire_preallocate_barrier(&ce->active,
+							      ce->engine);
+		if (err) {
+			i915_active_release(&ce->active);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static void intel_context_active_release(struct intel_context *ce)
+{
+	/* Nodes preallocated in intel_context_active() */
+	i915_active_acquire_barrier(&ce->active);
+	i915_active_release(&ce->active);
+}
+
 int __intel_context_do_pin(struct intel_context *ce)
 {
 	int err;
@@ -79,11 +107,14 @@ int __intel_context_do_pin(struct intel_context *ce)
 	if (likely(!atomic_read(&ce->pin_count))) {
 		intel_wakeref_t wakeref;
 
-		err = 0;
+		err = intel_context_active_acquire(ce);
+		if (unlikely(err))
+			goto err;
+
 		with_intel_runtime_pm(ce->engine->uncore->rpm, wakeref)
 			err = ce->ops->pin(ce);
-		if (err)
-			goto err;
+		if (unlikely(err))
+			goto err_active;
 
 		CE_TRACE(ce, "pin ring:{head:%04x, tail:%04x}\n",
 			 ce->ring->head, ce->ring->tail);
@@ -97,6 +128,8 @@ int __intel_context_do_pin(struct intel_context *ce)
 	mutex_unlock(&ce->pin_mutex);
 	return 0;
 
+err_active:
+	intel_context_active_release(ce);
 err:
 	mutex_unlock(&ce->pin_mutex);
 	return err;
@@ -196,34 +229,6 @@ err_ring:
 err_put:
 	intel_context_put(ce);
 	return err;
-}
-
-int intel_context_active_acquire(struct intel_context *ce)
-{
-	int err;
-
-	err = i915_active_acquire(&ce->active);
-	if (err)
-		return err;
-
-	/* Preallocate tracking nodes */
-	if (!intel_context_is_barrier(ce)) {
-		err = i915_active_acquire_preallocate_barrier(&ce->active,
-							      ce->engine);
-		if (err) {
-			i915_active_release(&ce->active);
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-void intel_context_active_release(struct intel_context *ce)
-{
-	/* Nodes preallocated in intel_context_active() */
-	i915_active_acquire_barrier(&ce->active);
-	i915_active_release(&ce->active);
 }
 
 void
