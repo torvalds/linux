@@ -13,6 +13,7 @@ general.
 .. toctree::
    :maxdepth: 1
 
+   devlink-dpipe
    devlink-health
    devlink-info
    devlink-params
