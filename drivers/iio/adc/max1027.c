@@ -478,7 +478,13 @@ static int max1027_probe(struct spi_device *spi)
 		st->trig->ops = &max1027_trigger_ops;
 		st->trig->dev.parent = &spi->dev;
 		iio_trigger_set_drvdata(st->trig, indio_dev);
-		iio_trigger_register(st->trig);
+		ret = devm_iio_trigger_register(&indio_dev->dev,
+						st->trig);
+		if (ret < 0) {
+			dev_err(&indio_dev->dev,
+				"Failed to register iio trigger\n");
+			return ret;
+		}
 
 		ret = devm_request_threaded_irq(&spi->dev, spi->irq,
 						iio_trigger_generic_data_rdy_poll,

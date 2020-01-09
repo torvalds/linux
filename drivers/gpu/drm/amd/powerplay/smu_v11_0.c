@@ -37,6 +37,7 @@
 #include "soc15_common.h"
 #include "atom.h"
 #include "amd_pcie.h"
+#include "amdgpu_ras.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
@@ -79,15 +80,13 @@ static int smu_v11_0_wait_for_response(struct smu_context *smu)
 	for (i = 0; i < timeout; i++) {
 		cur_value = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
-			break;
+			return cur_value == 0x1 ? 0 : -EIO;
+
 		udelay(1);
 	}
 
 	/* timeout means wrong logic */
-	if (i == timeout)
-		return -ETIME;
-
-	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
+	return -ETIME;
 }
 
 int
@@ -103,9 +102,11 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 		return index;
 
 	ret = smu_v11_0_wait_for_response(smu);
-	if (ret)
-		pr_err("failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
-		       smu_get_message_name(smu, msg), index, param, ret);
+	if (ret) {
+		pr_err("Msg issuing pre-check failed and "
+		       "SMU may be not in the right state!\n");
+		return ret;
+	}
 
 	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
 
@@ -1617,7 +1618,9 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 	if (!baco_support)
 		return false;
 
-	if (!smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
+	/* Arcturus does not support this bit mask */
+	if (smu_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
+	   !smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
 		return false;
 
 	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
@@ -1643,6 +1646,10 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 {
 
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	uint32_t bif_doorbell_intr_cntl;
+	uint32_t data;
 	int ret = 0;
 
 	if (smu_v11_0_baco_get_state(smu) == state)
@@ -1650,10 +1657,37 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 
 	mutex_lock(&smu_baco->mutex);
 
-	if (state == SMU_BACO_STATE_ENTER)
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, BACO_SEQ_BACO);
-	else
+	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL);
+
+	if (state == SMU_BACO_STATE_ENTER) {
+		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
+						BIF_DOORBELL_INT_CNTL,
+						DOORBELL_INTERRUPT_DISABLE, 1);
+		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+
+		if (!ras || !ras->supported) {
+			data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
+			data |= 0x80000000;
+			WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
+
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, 0);
+		} else {
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, 1);
+		}
+	} else {
 		ret = smu_send_smc_msg(smu, SMU_MSG_ExitBaco);
+		if (ret)
+			goto out;
+
+		bif_doorbell_intr_cntl = REG_SET_FIELD(bif_doorbell_intr_cntl,
+						BIF_DOORBELL_INT_CNTL,
+						DOORBELL_INTERRUPT_DISABLE, 0);
+		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
+
+		/* clear vbios scratch 6 and 7 for coming asic reinit */
+		WREG32(adev->bios_scratch_reg_offset + 6, 0);
+		WREG32(adev->bios_scratch_reg_offset + 7, 0);
+	}
 	if (ret)
 		goto out;
 
@@ -1663,19 +1697,30 @@ out:
 	return ret;
 }
 
-int smu_v11_0_baco_reset(struct smu_context *smu)
+int smu_v11_0_baco_enter(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	ret = smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_BACO);
-	if (ret)
-		return ret;
+	/* Arcturus does not need this audio workaround */
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		ret = smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_BACO);
+		if (ret)
+			return ret;
+	}
 
 	ret = smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_ENTER);
 	if (ret)
 		return ret;
 
 	msleep(10);
+
+	return ret;
+}
+
+int smu_v11_0_baco_exit(struct smu_context *smu)
+{
+	int ret = 0;
 
 	ret = smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_EXIT);
 	if (ret)

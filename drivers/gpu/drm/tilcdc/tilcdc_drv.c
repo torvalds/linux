@@ -30,7 +30,6 @@
 #include "tilcdc_external.h"
 #include "tilcdc_panel.h"
 #include "tilcdc_regs.h"
-#include "tilcdc_tfp410.h"
 
 static LIST_HEAD(module_list);
 
@@ -63,12 +62,6 @@ void tilcdc_module_cleanup(struct tilcdc_module *mod)
 }
 
 static struct of_device_id tilcdc_of_match[];
-
-static struct drm_framebuffer *tilcdc_fb_create(struct drm_device *dev,
-		struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	return drm_gem_fb_create(dev, file_priv, mode_cmd);
-}
 
 static int tilcdc_atomic_check(struct drm_device *dev,
 			       struct drm_atomic_state *state)
@@ -140,7 +133,7 @@ static int tilcdc_commit(struct drm_device *dev,
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
-	.fb_create = tilcdc_fb_create,
+	.fb_create = drm_gem_fb_create,
 	.atomic_check = tilcdc_atomic_check,
 	.atomic_commit = tilcdc_commit,
 };
@@ -649,7 +642,6 @@ static struct platform_driver tilcdc_platform_driver = {
 static int __init tilcdc_drm_init(void)
 {
 	DBG("init");
-	tilcdc_tfp410_init();
 	tilcdc_panel_init();
 	return platform_driver_register(&tilcdc_platform_driver);
 }
@@ -659,7 +651,6 @@ static void __exit tilcdc_drm_fini(void)
 	DBG("fini");
 	platform_driver_unregister(&tilcdc_platform_driver);
 	tilcdc_panel_fini();
-	tilcdc_tfp410_fini();
 }
 
 module_init(tilcdc_drm_init);

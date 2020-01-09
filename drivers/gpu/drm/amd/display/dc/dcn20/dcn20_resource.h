@@ -50,7 +50,7 @@ unsigned int dcn20_calc_max_scaled_time(
 		enum mmhubbub_wbif_mode mode,
 		unsigned int urgent_watermark);
 int dcn20_populate_dml_pipes_from_context(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes);
+		struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes);
 struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
 		struct dc_state *state,
 		const struct resource_pool *pool,
@@ -127,9 +127,7 @@ int dcn20_validate_apply_pipe_split_flags(
 		struct dc_state *context,
 		int vlevel,
 		bool *split);
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx);
-#endif
 void dcn20_split_stream_for_mpc(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,

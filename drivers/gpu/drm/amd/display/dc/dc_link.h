@@ -29,13 +29,11 @@
 #include "dc_types.h"
 #include "grph_object_defs.h"
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 enum dc_link_fec_state {
 	dc_link_fec_not_ready,
 	dc_link_fec_ready,
 	dc_link_fec_enabled
 };
-#endif
 struct dc_link_status {
 	bool link_active;
 	struct dpcd_caps *dpcd_caps;
@@ -85,6 +83,7 @@ struct dc_link {
 	bool link_state_valid;
 	bool aux_access_disabled;
 	bool sync_lt_in_progress;
+	bool is_lttpr_mode_transparent;
 
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
@@ -95,6 +94,7 @@ struct dc_link {
 	struct dc_lane_settings cur_lane_setting;
 	struct dc_link_settings preferred_link_setting;
 	struct dc_link_training_overrides preferred_training_settings;
+	struct dp_audio_test_data audio_test_data;
 
 	uint8_t ddc_hw_inst;
 
@@ -140,9 +140,7 @@ struct dc_link {
 
 	struct link_trace link_trace;
 	struct gpio *hpd_gpio;
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	enum dc_link_fec_state fec_state;
-#endif
 };
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
@@ -259,6 +257,7 @@ void dc_link_dp_disable_hpd(const struct dc_link *link);
 bool dc_link_dp_set_test_pattern(
 	struct dc_link *link,
 	enum dp_test_pattern test_pattern,
+	enum dp_test_pattern_color_space test_pattern_color_space,
 	const struct link_training_settings *p_link_settings,
 	const unsigned char *p_custom_pattern,
 	unsigned int cust_pattern_size);
@@ -290,6 +289,7 @@ void dc_link_enable_hpd(const struct dc_link *link);
 void dc_link_disable_hpd(const struct dc_link *link);
 void dc_link_set_test_pattern(struct dc_link *link,
 			enum dp_test_pattern test_pattern,
+			enum dp_test_pattern_color_space test_pattern_color_space,
 			const struct link_training_settings *p_link_settings,
 			const unsigned char *p_custom_pattern,
 			unsigned int cust_pattern_size);
@@ -303,6 +303,10 @@ const struct dc_link_settings *dc_link_get_link_cap(
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
+		struct i2c_command *cmd);
+
+bool dc_submit_i2c_oem(
+		struct dc *dc,
 		struct i2c_command *cmd);
 
 uint32_t dc_bandwidth_in_kbps_from_timing(

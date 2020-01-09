@@ -60,12 +60,14 @@ enum {
 	AUX_DEFER_RETRY_COUNTER = 6
 };
 
-#define TIME_OUT_INCREMENT      1016
-#define TIME_OUT_MULTIPLIER_8 	8
-#define TIME_OUT_MULTIPLIER_16  16
-#define TIME_OUT_MULTIPLIER_32  32
-#define TIME_OUT_MULTIPLIER_64  64
-#define MAX_TIMEOUT_LENGTH      127
+#define TIME_OUT_INCREMENT        1016
+#define TIME_OUT_MULTIPLIER_8     8
+#define TIME_OUT_MULTIPLIER_16    16
+#define TIME_OUT_MULTIPLIER_32    32
+#define TIME_OUT_MULTIPLIER_64    64
+#define MAX_TIMEOUT_LENGTH        127
+#define DEFAULT_AUX_ENGINE_MULT   0
+#define DEFAULT_AUX_ENGINE_LENGTH 69
 
 static void release_engine(
 	struct dce_aux *engine)
@@ -427,11 +429,14 @@ void dce110_engine_destroy(struct dce_aux **engine)
 
 }
 
-static bool dce_aux_configure_timeout(struct ddc_service *ddc,
+static uint32_t dce_aux_configure_timeout(struct ddc_service *ddc,
 		uint32_t timeout_in_us)
 {
 	uint32_t multiplier = 0;
 	uint32_t length = 0;
+	uint32_t prev_length = 0;
+	uint32_t prev_mult = 0;
+	uint32_t prev_timeout_val = 0;
 	struct ddc *ddc_pin = ddc->ddc_pin;
 	struct dce_aux *aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
 	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(aux_engine);
@@ -440,7 +445,10 @@ static bool dce_aux_configure_timeout(struct ddc_service *ddc,
 	aux110->polling_timeout_period = timeout_in_us * SW_AUX_TIMEOUT_PERIOD_MULTIPLIER;
 
 	/* 2-Update aux timeout period length and multiplier */
-	if (timeout_in_us <= TIME_OUT_INCREMENT) {
+	if (timeout_in_us == 0) {
+		multiplier = DEFAULT_AUX_ENGINE_MULT;
+		length = DEFAULT_AUX_ENGINE_LENGTH;
+	} else if (timeout_in_us <= TIME_OUT_INCREMENT) {
 		multiplier = 0;
 		length = timeout_in_us/TIME_OUT_MULTIPLIER_8;
 		if (timeout_in_us % TIME_OUT_MULTIPLIER_8 != 0)
@@ -464,9 +472,29 @@ static bool dce_aux_configure_timeout(struct ddc_service *ddc,
 
 	length = (length < MAX_TIMEOUT_LENGTH) ? length : MAX_TIMEOUT_LENGTH;
 
+	REG_GET_2(AUX_DPHY_RX_CONTROL1, AUX_RX_TIMEOUT_LEN, &prev_length, AUX_RX_TIMEOUT_LEN_MUL, &prev_mult);
+
+	switch (prev_mult) {
+	case 0:
+		prev_timeout_val = prev_length * TIME_OUT_MULTIPLIER_8;
+		break;
+	case 1:
+		prev_timeout_val = prev_length * TIME_OUT_MULTIPLIER_16;
+		break;
+	case 2:
+		prev_timeout_val = prev_length * TIME_OUT_MULTIPLIER_32;
+		break;
+	case 3:
+		prev_timeout_val = prev_length * TIME_OUT_MULTIPLIER_64;
+		break;
+	default:
+		prev_timeout_val = DEFAULT_AUX_ENGINE_LENGTH * TIME_OUT_MULTIPLIER_8;
+		break;
+	}
+
 	REG_UPDATE_SEQ_2(AUX_DPHY_RX_CONTROL1, AUX_RX_TIMEOUT_LEN, length, AUX_RX_TIMEOUT_LEN_MUL, multiplier);
 
-	return true;
+	return prev_timeout_val;
 }
 
 static struct dce_aux_funcs aux_functions = {
@@ -583,6 +611,8 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 	uint8_t reply;
 	bool payload_reply = true;
 	enum aux_channel_operation_result operation_result;
+	bool retry_on_defer = false;
+
 	int aux_ack_retries = 0,
 		aux_defer_retries = 0,
 		aux_i2c_defer_retries = 0,
@@ -613,8 +643,10 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			break;
 
 			case AUX_TRANSACTION_REPLY_AUX_DEFER:
-			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_NACK:
 			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER:
+				retry_on_defer = true;
+				/* fall through */
+			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_NACK:
 				if (++aux_defer_retries >= AUX_MAX_DEFER_RETRIES) {
 					goto fail;
 				} else {
@@ -647,15 +679,24 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			break;
 
 		case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
-			if (++aux_timeout_retries >= AUX_MAX_TIMEOUT_RETRIES)
-				goto fail;
-			else {
-				/*
-				 * DP 1.4, 2.8.2:  AUX Transaction Response/Reply Timeouts
-				 * According to the DP spec there should be 3 retries total
-				 * with a 400us wait inbetween each. Hardware already waits
-				 * for 550us therefore no wait is required here.
-				 */
+			// Check whether a DEFER had occurred before the timeout.
+			// If so, treat timeout as a DEFER.
+			if (retry_on_defer) {
+				if (++aux_defer_retries >= AUX_MAX_DEFER_RETRIES)
+					goto fail;
+				else if (payload->defer_delay > 0)
+					msleep(payload->defer_delay);
+			} else {
+				if (++aux_timeout_retries >= AUX_MAX_TIMEOUT_RETRIES)
+					goto fail;
+				else {
+					/*
+					 * DP 1.4, 2.8.2:  AUX Transaction Response/Reply Timeouts
+					 * According to the DP spec there should be 3 retries total
+					 * with a 400us wait inbetween each. Hardware already waits
+					 * for 550us therefore no wait is required here.
+					 */
+				}
 			}
 			break;
 

@@ -349,6 +349,7 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 	unsigned size;
 	void *ptr;
 	int i, j;
+	bool in_ras_intr = amdgpu_ras_intr_triggered();
 
 	cancel_delayed_work_sync(&adev->uvd.idle_work);
 
@@ -376,13 +377,15 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 			return -ENOMEM;
 
 		/* re-write 0 since err_event_athub will corrupt VCPU buffer */
-		if (amdgpu_ras_intr_triggered()) {
-			DRM_WARN("UVD VCPU state may lost due to RAS ERREVENT_ATHUB_INTERRUPT\n");
+		if (in_ras_intr)
 			memset(adev->uvd.inst[j].saved_bo, 0, size);
-		} else {
+		else
 			memcpy_fromio(adev->uvd.inst[j].saved_bo, ptr, size);
-		}
 	}
+
+	if (in_ras_intr)
+		DRM_WARN("UVD VCPU state may lost due to RAS ERREVENT_ATHUB_INTERRUPT\n");
+
 	return 0;
 }
 

@@ -8,7 +8,7 @@ title: Allwinner A10 PS2 Host Controller Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 description:
   A20 PS2 is dual role controller (PS2 host and PS2 device). These

@@ -20,6 +20,8 @@
 #define KOMEDA_EVENT_OVR		BIT_ULL(4)
 #define KOMEDA_EVENT_EOW		BIT_ULL(5)
 #define KOMEDA_EVENT_MODE		BIT_ULL(6)
+#define KOMEDA_EVENT_FULL		BIT_ULL(7)
+#define KOMEDA_EVENT_EMPTY		BIT_ULL(8)
 
 #define KOMEDA_ERR_TETO			BIT_ULL(14)
 #define KOMEDA_ERR_TEMR			BIT_ULL(15)
@@ -49,12 +51,15 @@
 	KOMEDA_ERR_ZME		| KOMEDA_ERR_MERR	| KOMEDA_ERR_TCF |\
 	KOMEDA_ERR_TTNG		| KOMEDA_ERR_TTF)
 
-#define KOMEDA_WARN_EVENTS	KOMEDA_ERR_CSCE
+#define KOMEDA_WARN_EVENTS	\
+	(KOMEDA_ERR_CSCE | KOMEDA_EVENT_FULL | KOMEDA_EVENT_EMPTY)
 
-/* malidp device id */
-enum {
-	MALI_D71 = 0,
-};
+#define KOMEDA_INFO_EVENTS (0 \
+			    | KOMEDA_EVENT_VSYNC \
+			    | KOMEDA_EVENT_FLIP \
+			    | KOMEDA_EVENT_EOW \
+			    | KOMEDA_EVENT_MODE \
+			    )
 
 /* pipeline DT ports */
 enum {
@@ -67,12 +72,6 @@ struct komeda_chip_info {
 	u32 core_id;
 	u32 core_info;
 	u32 bus_width;
-};
-
-struct komeda_product_data {
-	u32 product_id;
-	const struct komeda_dev_funcs *(*identify)(u32 __iomem *reg,
-					     struct komeda_chip_info *info);
 };
 
 struct komeda_dev;
@@ -202,6 +201,23 @@ struct komeda_dev {
 
 	/** @debugfs_root: root directory of komeda debugfs */
 	struct dentry *debugfs_root;
+	/**
+	 * @err_verbosity: bitmask for how much extra info to print on error
+	 *
+	 * See KOMEDA_DEV_* macros for details. Low byte contains the debug
+	 * level categories, the high byte contains extra debug options.
+	 */
+	u16 err_verbosity;
+	/* Print a single line per error per frame with error events. */
+#define KOMEDA_DEV_PRINT_ERR_EVENTS BIT(0)
+	/* Print a single line per warning per frame with error events. */
+#define KOMEDA_DEV_PRINT_WARN_EVENTS BIT(1)
+	/* Print a single line per info event per frame with error events. */
+#define KOMEDA_DEV_PRINT_INFO_EVENTS BIT(2)
+	/* Dump DRM state on an error or warning event. */
+#define KOMEDA_DEV_PRINT_DUMP_STATE_ON_EVENT BIT(8)
+	/* Disable rate limiting of event prints (normally one per commit) */
+#define KOMEDA_DEV_PRINT_DISABLE_RATELIMIT BIT(12)
 };
 
 static inline bool
@@ -209,6 +225,9 @@ komeda_product_match(struct komeda_dev *mdev, u32 target)
 {
 	return MALIDP_CORE_ID_PRODUCT_ID(mdev->chip.core_id) == target;
 }
+
+typedef const struct komeda_dev_funcs *
+(*komeda_identify_func)(u32 __iomem *reg, struct komeda_chip_info *chip);
 
 const struct komeda_dev_funcs *
 d71_identify(u32 __iomem *reg, struct komeda_chip_info *chip);
@@ -218,11 +237,7 @@ void komeda_dev_destroy(struct komeda_dev *mdev);
 
 struct komeda_dev *dev_to_mdev(struct device *dev);
 
-#ifdef CONFIG_DRM_KOMEDA_ERROR_PRINT
-void komeda_print_events(struct komeda_events *evts);
-#else
-static inline void komeda_print_events(struct komeda_events *evts) {}
-#endif
+void komeda_print_events(struct komeda_events *evts, struct drm_device *dev);
 
 int komeda_dev_resume(struct komeda_dev *mdev);
 int komeda_dev_suspend(struct komeda_dev *mdev);

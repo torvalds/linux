@@ -306,7 +306,6 @@ void hubp1_program_pixel_format(
 		REG_UPDATE(DCSURF_SURFACE_CONFIG,
 				SURFACE_PIXEL_FORMAT, 12);
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	case SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FIX:
 		REG_UPDATE(DCSURF_SURFACE_CONFIG,
 				SURFACE_PIXEL_FORMAT, 112);
@@ -327,7 +326,6 @@ void hubp1_program_pixel_format(
 		REG_UPDATE(DCSURF_SURFACE_CONFIG,
 				SURFACE_PIXEL_FORMAT, 119);
 		break;
-#endif
 	default:
 		BREAK_TO_DEBUGGER();
 		break;
@@ -812,7 +810,8 @@ static void hubp1_set_vm_context0_settings(struct hubp *hubp,
 void min_set_viewport(
 	struct hubp *hubp,
 	const struct rect *viewport,
-	const struct rect *viewport_c)
+	const struct rect *viewport_c,
+	enum dc_rotation_angle rotation)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
@@ -1013,6 +1012,9 @@ void hubp1_read_state_common(struct hubp *hubp)
 			HUBP_BLANK_EN, &s->blank_en,
 			HUBP_TTU_DISABLE, &s->ttu_disable,
 			HUBP_UNDERFLOW_STATUS, &s->underflow_status);
+
+	REG_GET(HUBP_CLK_CNTL,
+			HUBP_CLOCK_ENABLE, &s->clock_en);
 
 	REG_GET(DCN_GLOBAL_TTU_CNTL,
 			MIN_TTU_VBLANK, &s->min_ttu_vblank);
@@ -1248,10 +1250,8 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_get_underflow_status = hubp1_get_underflow_status,
 	.hubp_init = hubp1_init,
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	.dmdata_set_attributes = NULL,
 	.dmdata_load = NULL,
-#endif
 };
 
 /*****************************************/

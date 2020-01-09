@@ -457,10 +457,15 @@ static bool optc1_enable_crtc(struct timing_generator *optc)
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 1);
 
+	REG_SEQ_START();
+
 	/* Enable CRTC */
 	REG_UPDATE_2(OTG_CONTROL,
 			OTG_DISABLE_POINT_CNTL, 3,
 			OTG_MASTER_EN, 1);
+
+	REG_SEQ_SUBMIT();
+	REG_SEQ_WAIT_DONE();
 
 	return true;
 }
@@ -1497,7 +1502,6 @@ void dcn10_timing_generator_init(struct optc *optc1)
 	optc1->min_v_sync_width = 1;
 }
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 /* "Containter" vs. "pixel" is a concept within HW blocks, mostly those closer to the back-end. It works like this:
  *
  * - In most of the formats (RGB or YCbCr 4:4:4, 4:2:2 uncompressed and DSC 4:2:2 Simple) pixel rate is the same as
@@ -1510,15 +1514,12 @@ void dcn10_timing_generator_init(struct optc *optc1)
  *   to it) and has to be treated the same as 4:2:0, i.e. target containter rate has to be halved in this case as well.
  *
  */
-#endif
 bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 {
 	bool two_pix = timing->pixel_encoding == PIXEL_ENCODING_YCBCR420;
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	two_pix = two_pix || (timing->flags.DSC && timing->pixel_encoding == PIXEL_ENCODING_YCBCR422
 			&& !timing->dsc_cfg.ycbcr422_simple);
-#endif
 	return two_pix;
 }
 

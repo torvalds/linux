@@ -641,10 +641,11 @@ static const struct drm_display_mode itu_r_bt_656_720_mode = {
 	.flags = 0,
 };
 
-static int ili9322_get_modes(struct drm_panel *panel)
+static int ili9322_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct ili9322 *ili = panel_to_ili9322(panel);
+	struct drm_device *drm = connector->dev;
 	struct drm_display_mode *mode;
 	struct drm_display_info *info;
 
@@ -663,26 +664,26 @@ static int ili9322_get_modes(struct drm_panel *panel)
 
 	switch (ili->input) {
 	case ILI9322_INPUT_SRGB_DUMMY_320X240:
-		mode = drm_mode_duplicate(panel->drm, &srgb_320x240_mode);
+		mode = drm_mode_duplicate(drm, &srgb_320x240_mode);
 		break;
 	case ILI9322_INPUT_SRGB_DUMMY_360X240:
-		mode = drm_mode_duplicate(panel->drm, &srgb_360x240_mode);
+		mode = drm_mode_duplicate(drm, &srgb_360x240_mode);
 		break;
 	case ILI9322_INPUT_PRGB_THROUGH:
 	case ILI9322_INPUT_PRGB_ALIGNED:
-		mode = drm_mode_duplicate(panel->drm, &prgb_320x240_mode);
+		mode = drm_mode_duplicate(drm, &prgb_320x240_mode);
 		break;
 	case ILI9322_INPUT_YUV_640X320_YCBCR:
-		mode = drm_mode_duplicate(panel->drm, &yuv_640x320_mode);
+		mode = drm_mode_duplicate(drm, &yuv_640x320_mode);
 		break;
 	case ILI9322_INPUT_YUV_720X360_YCBCR:
-		mode = drm_mode_duplicate(panel->drm, &yuv_720x360_mode);
+		mode = drm_mode_duplicate(drm, &yuv_720x360_mode);
 		break;
 	case ILI9322_INPUT_ITU_R_BT656_720X360_YCBCR:
-		mode = drm_mode_duplicate(panel->drm, &itu_r_bt_656_720_mode);
+		mode = drm_mode_duplicate(drm, &itu_r_bt_656_720_mode);
 		break;
 	case ILI9322_INPUT_ITU_R_BT656_640X320_YCBCR:
-		mode = drm_mode_duplicate(panel->drm, &itu_r_bt_656_640_mode);
+		mode = drm_mode_duplicate(drm, &itu_r_bt_656_640_mode);
 		break;
 	default:
 		mode = NULL;

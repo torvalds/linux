@@ -5,6 +5,7 @@
  *
  */
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 
 #include <drm/drm_atomic.h>
@@ -274,6 +275,7 @@ static void
 komeda_crtc_atomic_enable(struct drm_crtc *crtc,
 			  struct drm_crtc_state *old)
 {
+	pm_runtime_get_sync(crtc->dev->dev);
 	komeda_crtc_prepare(to_kcrtc(crtc));
 	drm_crtc_vblank_on(crtc);
 	WARN_ON(drm_crtc_vblank_get(crtc));
@@ -372,6 +374,7 @@ komeda_crtc_atomic_disable(struct drm_crtc *crtc,
 	drm_crtc_vblank_put(crtc);
 	drm_crtc_vblank_off(crtc);
 	komeda_crtc_unprepare(kcrtc);
+	pm_runtime_put(crtc->dev->dev);
 }
 
 static void
@@ -616,6 +619,8 @@ static int komeda_crtc_add(struct komeda_kms_dev *kms,
 	drm_crtc_vblank_reset(crtc);
 
 	crtc->port = kcrtc->master->of_output_port;
+
+	drm_crtc_enable_color_mgmt(crtc, 0, true, KOMEDA_COLOR_LUT_SIZE);
 
 	return err;
 }

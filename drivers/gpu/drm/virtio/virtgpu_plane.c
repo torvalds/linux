@@ -24,6 +24,7 @@
  */
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
@@ -88,7 +89,7 @@ static int virtio_gpu_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *crtc_state;
 	int ret;
 
-	if (!state->fb || !state->crtc)
+	if (!state->fb || WARN_ON(!state->crtc))
 		return 0;
 
 	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
@@ -102,15 +103,37 @@ static int virtio_gpu_plane_atomic_check(struct drm_plane *plane,
 	return ret;
 }
 
+static void virtio_gpu_update_dumb_bo(struct virtio_gpu_device *vgdev,
+				      struct drm_plane_state *state,
+				      struct drm_rect *rect)
+{
+	struct virtio_gpu_object *bo =
+		gem_to_virtio_gpu_obj(state->fb->obj[0]);
+	struct virtio_gpu_object_array *objs;
+	uint32_t w = rect->x2 - rect->x1;
+	uint32_t h = rect->y2 - rect->y1;
+	uint32_t x = rect->x1;
+	uint32_t y = rect->y1;
+	uint32_t off = x * state->fb->format->cpp[0] +
+		y * state->fb->pitches[0];
+
+	objs = virtio_gpu_array_alloc(1);
+	if (!objs)
+		return;
+	virtio_gpu_array_add_obj(objs, &bo->base.base);
+
+	virtio_gpu_cmd_transfer_to_host_2d(vgdev, off, w, h, x, y,
+					   objs, NULL);
+}
+
 static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 					    struct drm_plane_state *old_state)
 {
 	struct drm_device *dev = plane->dev;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_output *output = NULL;
-	struct virtio_gpu_framebuffer *vgfb;
 	struct virtio_gpu_object *bo;
-	uint32_t handle;
+	struct drm_rect rect;
 
 	if (plane->state->crtc)
 		output = drm_crtc_to_virtio_gpu_output(plane->state->crtc);
@@ -119,47 +142,52 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 	if (WARN_ON(!output))
 		return;
 
-	if (plane->state->fb && output->enabled) {
-		vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
-		bo = gem_to_virtio_gpu_obj(vgfb->base.obj[0]);
-		handle = bo->hw_res_handle;
-		if (bo->dumb) {
-			struct virtio_gpu_object_array *objs;
-
-			objs = virtio_gpu_array_alloc(1);
-			if (!objs)
-				return;
-			virtio_gpu_array_add_obj(objs, vgfb->base.obj[0]);
-			virtio_gpu_cmd_transfer_to_host_2d
-				(vgdev, 0,
-				 plane->state->src_w >> 16,
-				 plane->state->src_h >> 16,
-				 plane->state->src_x >> 16,
-				 plane->state->src_y >> 16,
-				 objs, NULL);
-		}
-	} else {
-		handle = 0;
+	if (!plane->state->fb || !output->enabled) {
+		DRM_DEBUG("nofb\n");
+		virtio_gpu_cmd_set_scanout(vgdev, output->index, 0,
+					   plane->state->src_w >> 16,
+					   plane->state->src_h >> 16,
+					   0, 0);
+		return;
 	}
 
-	DRM_DEBUG("handle 0x%x, crtc %dx%d+%d+%d, src %dx%d+%d+%d\n", handle,
-		  plane->state->crtc_w, plane->state->crtc_h,
-		  plane->state->crtc_x, plane->state->crtc_y,
-		  plane->state->src_w >> 16,
-		  plane->state->src_h >> 16,
-		  plane->state->src_x >> 16,
-		  plane->state->src_y >> 16);
-	virtio_gpu_cmd_set_scanout(vgdev, output->index, handle,
-				   plane->state->src_w >> 16,
-				   plane->state->src_h >> 16,
-				   plane->state->src_x >> 16,
-				   plane->state->src_y >> 16);
-	if (handle)
-		virtio_gpu_cmd_resource_flush(vgdev, handle,
-					      plane->state->src_x >> 16,
-					      plane->state->src_y >> 16,
-					      plane->state->src_w >> 16,
-					      plane->state->src_h >> 16);
+	if (!drm_atomic_helper_damage_merged(old_state, plane->state, &rect))
+		return;
+
+	virtio_gpu_disable_notify(vgdev);
+
+	bo = gem_to_virtio_gpu_obj(plane->state->fb->obj[0]);
+	if (bo->dumb)
+		virtio_gpu_update_dumb_bo(vgdev, plane->state, &rect);
+
+	if (plane->state->fb != old_state->fb ||
+	    plane->state->src_w != old_state->src_w ||
+	    plane->state->src_h != old_state->src_h ||
+	    plane->state->src_x != old_state->src_x ||
+	    plane->state->src_y != old_state->src_y) {
+		DRM_DEBUG("handle 0x%x, crtc %dx%d+%d+%d, src %dx%d+%d+%d\n",
+			  bo->hw_res_handle,
+			  plane->state->crtc_w, plane->state->crtc_h,
+			  plane->state->crtc_x, plane->state->crtc_y,
+			  plane->state->src_w >> 16,
+			  plane->state->src_h >> 16,
+			  plane->state->src_x >> 16,
+			  plane->state->src_y >> 16);
+		virtio_gpu_cmd_set_scanout(vgdev, output->index,
+					   bo->hw_res_handle,
+					   plane->state->src_w >> 16,
+					   plane->state->src_h >> 16,
+					   plane->state->src_x >> 16,
+					   plane->state->src_y >> 16);
+	}
+
+	virtio_gpu_cmd_resource_flush(vgdev, bo->hw_res_handle,
+				      rect.x1,
+				      rect.y1,
+				      rect.x2 - rect.x1,
+				      rect.y2 - rect.y1);
+
+	virtio_gpu_enable_notify(vgdev);
 }
 
 static int virtio_gpu_cursor_prepare_fb(struct drm_plane *plane,

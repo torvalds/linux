@@ -169,10 +169,10 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			}
 			break;
 		case AMDGPU_HW_IP_VCN_JPEG:
-			for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
-				if (adev->vcn.harvest_config & (1 << j))
+			for (j = 0; j < adev->jpeg.num_jpeg_inst; ++j) {
+				if (adev->jpeg.harvest_config & (1 << j))
 					continue;
-				rings[num_rings++] = &adev->vcn.inst[j].ring_jpeg;
+				rings[num_rings++] = &adev->jpeg.inst[j].ring_dec;
 			}
 			break;
 		}
@@ -604,11 +604,8 @@ void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 			continue;
 		}
 
-		for (i = 0; i < num_entities; i++) {
-			mutex_lock(&ctx->adev->lock_reset);
+		for (i = 0; i < num_entities; i++)
 			drm_sched_entity_fini(&ctx->entities[0][i].entity);
-			mutex_unlock(&ctx->adev->lock_reset);
-		}
 	}
 }
 

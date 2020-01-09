@@ -147,12 +147,16 @@ amdgpu-y += \
 	vce_v3_0.o \
 	vce_v4_0.o
 
-# add VCN block
+# add VCN and JPEG block
 amdgpu-y += \
 	amdgpu_vcn.o \
 	vcn_v1_0.o \
 	vcn_v2_0.o \
-	vcn_v2_5.o
+	vcn_v2_5.o \
+	amdgpu_jpeg.o \
+	jpeg_v1_0.o \
+	jpeg_v2_0.o \
+	jpeg_v2_5.o
 
 # add ATHUB block
 amdgpu-y += \

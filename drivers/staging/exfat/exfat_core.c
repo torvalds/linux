@@ -192,8 +192,6 @@ static s32 clr_alloc_bitmap(struct super_block *sb, u32 clu)
 
 	exfat_bitmap_clear((u8 *)p_fs->vol_amap[i]->b_data, b);
 
-	return sector_write(sb, sector, p_fs->vol_amap[i], 0);
-
 #ifdef CONFIG_EXFAT_DISCARD
 	if (opts->discard) {
 		ret = sb_issue_discard(sb, START_SECTOR(clu),
@@ -202,9 +200,13 @@ static s32 clr_alloc_bitmap(struct super_block *sb, u32 clu)
 		if (ret == -EOPNOTSUPP) {
 			pr_warn("discard not supported by device, disabling");
 			opts->discard = 0;
+		} else {
+			return ret;
 		}
 	}
 #endif /* CONFIG_EXFAT_DISCARD */
+
+	return sector_write(sb, sector, p_fs->vol_amap[i], 0);
 }
 
 static u32 test_alloc_bitmap(struct super_block *sb, u32 clu)
@@ -2322,8 +2324,8 @@ void remove_file(struct inode *inode, struct chain_t *p_dir, s32 entry)
 	fs_func->delete_dir_entry(sb, p_dir, entry, 0, num_entries);
 }
 
-s32 rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
-		struct uni_name_t *p_uniname, struct file_id_t *fid)
+s32 exfat_rename_file(struct inode *inode, struct chain_t *p_dir, s32 oldentry,
+		      struct uni_name_t *p_uniname, struct file_id_t *fid)
 {
 	s32 ret, newentry = -1, num_old_entries, num_new_entries;
 	sector_t sector_old, sector_new;

@@ -671,7 +671,7 @@ static int mbxfb_ioctl(struct fb_info *info, unsigned int cmd,
 	return -EINVAL;
 }
 
-static struct fb_ops mbxfb_ops = {
+static const struct fb_ops mbxfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = mbxfb_check_var,
 	.fb_set_par = mbxfb_set_par,

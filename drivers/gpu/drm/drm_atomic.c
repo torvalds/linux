@@ -30,6 +30,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
@@ -251,7 +252,7 @@ EXPORT_SYMBOL(drm_atomic_state_clear);
  * @ref: This atomic state to deallocate
  *
  * This frees all memory associated with an atomic state, including all the
- * per-object state for planes, crtcs and connectors.
+ * per-object state for planes, CRTCs and connectors.
  */
 void __drm_atomic_state_free(struct kref *ref)
 {
@@ -272,12 +273,12 @@ void __drm_atomic_state_free(struct kref *ref)
 EXPORT_SYMBOL(__drm_atomic_state_free);
 
 /**
- * drm_atomic_get_crtc_state - get crtc state
+ * drm_atomic_get_crtc_state - get CRTC state
  * @state: global atomic state object
- * @crtc: crtc to get state object for
+ * @crtc: CRTC to get state object for
  *
- * This function returns the crtc state for the given crtc, allocating it if
- * needed. It will also grab the relevant crtc lock to make sure that the state
+ * This function returns the CRTC state for the given CRTC, allocating it if
+ * needed. It will also grab the relevant CRTC lock to make sure that the state
  * is consistent.
  *
  * Returns:
@@ -688,10 +689,12 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
  * associated state struct &drm_private_state.
  *
  * Similar to userspace-exposed objects, private state structures can be
- * acquired by calling drm_atomic_get_private_obj_state(). Since this function
- * does not take care of locking, drivers should wrap it for each type of
- * private state object they have with the required call to drm_modeset_lock()
- * for the corresponding &drm_modeset_lock.
+ * acquired by calling drm_atomic_get_private_obj_state(). This also takes care
+ * of locking, hence drivers should not have a need to call drm_modeset_lock()
+ * directly. Sequence of the actual hardware state commit is not handled,
+ * drivers might need to keep track of struct drm_crtc_commit within subclassed
+ * structure of &drm_private_state as necessary, e.g. similar to
+ * &drm_plane_state.commit. See also &drm_atomic_state.fake_commit.
  *
  * All private state structures contained in a &drm_atomic_state update can be
  * iterated using for_each_oldnew_private_obj_in_state(),
@@ -1016,14 +1019,52 @@ static void drm_atomic_connector_print_state(struct drm_printer *p,
 }
 
 /**
- * drm_atomic_add_affected_connectors - add connectors for crtc
+ * drm_atomic_add_encoder_bridges - add bridges attached to an encoder
  * @state: atomic state
- * @crtc: DRM crtc
+ * @encoder: DRM encoder
+ *
+ * This function adds all bridges attached to @encoder. This is needed to add
+ * bridge states to @state and make them available when
+ * &bridge_funcs.atomic_{check,pre_enable,enable,disable_post_disable}() are
+ * called
+ *
+ * Returns:
+ * 0 on success or can fail with -EDEADLK or -ENOMEM. When the error is EDEADLK
+ * then the w/w mutex code has detected a deadlock and the entire atomic
+ * sequence must be restarted. All other errors are fatal.
+ */
+int
+drm_atomic_add_encoder_bridges(struct drm_atomic_state *state,
+			       struct drm_encoder *encoder)
+{
+	struct drm_bridge_state *bridge_state;
+	struct drm_bridge *bridge;
+
+	if (!encoder)
+		return 0;
+
+	DRM_DEBUG_ATOMIC("Adding all bridges for [encoder:%d:%s] to %p\n",
+			 encoder->base.id, encoder->name, state);
+
+	drm_for_each_bridge_in_chain(encoder, bridge) {
+		bridge_state = drm_atomic_get_bridge_state(state, bridge);
+		if (IS_ERR(bridge_state))
+			return PTR_ERR(bridge_state);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_atomic_add_encoder_bridges);
+
+/**
+ * drm_atomic_add_affected_connectors - add connectors for CRTC
+ * @state: atomic state
+ * @crtc: DRM CRTC
  *
  * This function walks the current configuration and adds all connectors
  * currently using @crtc to the atomic configuration @state. Note that this
  * function must acquire the connection mutex. This can potentially cause
- * unneeded seralization if the update is just for the planes on one crtc. Hence
+ * unneeded seralization if the update is just for the planes on one CRTC. Hence
  * drivers and helpers should only call this when really needed (e.g. when a
  * full modeset needs to happen due to some change).
  *
@@ -1076,9 +1117,9 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_add_affected_connectors);
 
 /**
- * drm_atomic_add_affected_planes - add planes for crtc
+ * drm_atomic_add_affected_planes - add planes for CRTC
  * @state: atomic state
- * @crtc: DRM crtc
+ * @crtc: DRM CRTC
  *
  * This function walks the current configuration and adds all planes
  * currently used by @crtc to the atomic configuration @state. This is useful

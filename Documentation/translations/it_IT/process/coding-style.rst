@@ -1005,7 +1005,7 @@ struttura, usate
 
 .. code-block:: c
 
-	#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+	#define sizeof_field(t, f) (sizeof(((t*)0)->f))
 
 Ci sono anche le macro min() e max() che, se vi serve, effettuano un controllo
 rigido sui tipi.  Sentitevi liberi di leggere attentamente questo file

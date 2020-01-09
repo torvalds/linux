@@ -28,7 +28,7 @@
 #include "core_types.h"
 #include "resource.h"
 #include "dce/dce_hwseq.h"
-#include "dcn20/dcn20_hwseq.h"
+#include "dcn21_hwseq.h"
 #include "vmid.h"
 #include "reg_helper.h"
 #include "hw/clk_mgr.h"
@@ -61,7 +61,7 @@ static void mmhub_update_page_table_config(struct dcn_hubbub_phys_addr_config *c
 
 }
 
-static int dcn21_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config)
+int dcn21_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config)
 {
 	struct dcn_hubbub_phys_addr_config config;
 
@@ -82,7 +82,7 @@ static int dcn21_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_ph
 
 // work around for Renoir s0i3, if register is programmed, bypass golden init.
 
-static bool dcn21_s0i3_golden_init_wa(struct dc *dc)
+bool dcn21_s0i3_golden_init_wa(struct dc *dc)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	uint32_t value = 0;
@@ -112,11 +112,3 @@ void dcn21_optimize_pwr_state(
 			true);
 }
 
-void dcn21_hw_sequencer_construct(struct dc *dc)
-{
-	dcn20_hw_sequencer_construct(dc);
-	dc->hwss.init_sys_ctx = dcn21_init_sys_ctx;
-	dc->hwss.s0i3_golden_init_wa = dcn21_s0i3_golden_init_wa;
-	dc->hwss.optimize_pwr_state = dcn21_optimize_pwr_state;
-	dc->hwss.exit_optimized_pwr_state = dcn21_exit_optimized_pwr_state;
-}

@@ -325,9 +325,9 @@ int __init sh_early_platform_driver_probe(char *class_str,
 }
 
 /**
- * sh_early_platform_cleanup - clean up early platform code
+ * early_platform_cleanup - clean up early platform code
  */
-static int __init sh_early_platform_cleanup(void)
+void __init early_platform_cleanup(void)
 {
 	struct platform_device *pd, *pd2;
 
@@ -337,11 +337,4 @@ static int __init sh_early_platform_cleanup(void)
 		list_del(&pd->dev.devres_head);
 		memset(&pd->dev.devres_head, 0, sizeof(pd->dev.devres_head));
 	}
-
-	return 0;
 }
-/*
- * This must happen once after all early devices are probed but before probing
- * real platform devices.
- */
-subsys_initcall(sh_early_platform_cleanup);

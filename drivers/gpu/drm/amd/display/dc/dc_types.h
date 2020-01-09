@@ -25,7 +25,6 @@
 #ifndef DC_TYPES_H_
 #define DC_TYPES_H_
 
-#ifndef AMD_EDID_UTILITY
 /* AND EdidUtility only needs a portion
  * of this file, including the rest only
  * causes additional issues.
@@ -48,6 +47,7 @@ struct dc_stream_state;
 struct dc_link;
 struct dc_sink;
 struct dal;
+struct dc_dmub_srv;
 
 /********************************
  * Environment definitions
@@ -109,6 +109,8 @@ struct dc_context {
 	uint32_t dc_sink_id_count;
 	uint32_t dc_stream_id_count;
 	uint64_t fbc_gpu_addr;
+	struct dc_dmub_srv *dmub_srv;
+
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct cp_psp cp_psp;
 #endif
@@ -119,6 +121,7 @@ struct dc_context {
 #define DC_EDID_BLOCK_SIZE 128
 #define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
+#define MAX_REPEATER_CNT 8
 
 #include "dc_ddc_types.h"
 
@@ -402,6 +405,30 @@ enum dpcd_downstream_port_max_bpc {
 	DOWN_STREAM_MAX_12BPC,
 	DOWN_STREAM_MAX_16BPC
 };
+
+
+enum link_training_offset {
+	DPRX                = 0,
+	LTTPR_PHY_REPEATER1 = 1,
+	LTTPR_PHY_REPEATER2 = 2,
+	LTTPR_PHY_REPEATER3 = 3,
+	LTTPR_PHY_REPEATER4 = 4,
+	LTTPR_PHY_REPEATER5 = 5,
+	LTTPR_PHY_REPEATER6 = 6,
+	LTTPR_PHY_REPEATER7 = 7,
+	LTTPR_PHY_REPEATER8 = 8
+};
+
+struct dc_lttpr_caps {
+	union dpcd_rev revision;
+	uint8_t mode;
+	uint8_t max_lane_count;
+	uint8_t max_link_rate;
+	uint8_t phy_repeater_cnt;
+	uint8_t max_ext_timeout;
+	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
+};
+
 struct dc_dongle_caps {
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
@@ -440,7 +467,6 @@ enum display_content_type {
 	DISPLAY_CONTENT_TYPE_GAME = 8
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 /* writeback */
 struct dwb_stereo_params {
 	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
@@ -471,7 +497,6 @@ struct dc_dwb_params {
 	enum dwb_subsample_position	subsample_position;
 	struct dc_transfer_func *out_transfer_func;
 };
-#endif
 
 /* audio*/
 
@@ -579,9 +604,7 @@ enum dc_infoframe_type {
 	DC_HDMI_INFOFRAME_TYPE_AVI = 0x82,
 	DC_HDMI_INFOFRAME_TYPE_SPD = 0x83,
 	DC_HDMI_INFOFRAME_TYPE_AUDIO = 0x84,
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	DC_DP_INFOFRAME_TYPE_PPS = 0x10,
-#endif
 };
 
 struct dc_info_packet {
@@ -757,10 +780,6 @@ struct dc_clock_config {
 	uint32_t current_clock_khz;/*current clock in use*/
 };
 
-#endif /*AMD_EDID_UTILITY*/
-//AMD EDID UTILITY does not need any of the above structures
-
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 /* DSC DPCD capabilities */
 union dsc_slice_caps1 {
 	struct {
@@ -830,6 +849,5 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_overall_throughput_1_mps; /* In MPs */
 	uint32_t branch_max_line_width;
 };
-#endif
 
 #endif /* DC_TYPES_H_ */

@@ -161,7 +161,6 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	dma_fence_put(bo->moving);
 	if (!ttm_bo_uses_embedded_gem_object(bo))
 		dma_resv_fini(&bo->base._resv);
-	mutex_destroy(&bo->wu_mutex);
 	bo->destroy(bo);
 	ttm_mem_global_free(&ttm_mem_glob, acc_size);
 }
@@ -1299,7 +1298,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	INIT_LIST_HEAD(&bo->ddestroy);
 	INIT_LIST_HEAD(&bo->swap);
 	INIT_LIST_HEAD(&bo->io_reserve_lru);
-	mutex_init(&bo->wu_mutex);
 	bo->bdev = bdev;
 	bo->type = type;
 	bo->num_pages = num_pages;
@@ -1903,37 +1901,3 @@ void ttm_bo_swapout_all(struct ttm_bo_device *bdev)
 	while (ttm_bo_swapout(&ttm_bo_glob, &ctx) == 0);
 }
 EXPORT_SYMBOL(ttm_bo_swapout_all);
-
-/**
- * ttm_bo_wait_unreserved - interruptible wait for a buffer object to become
- * unreserved
- *
- * @bo: Pointer to buffer
- */
-int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo)
-{
-	int ret;
-
-	/*
-	 * In the absense of a wait_unlocked API,
-	 * Use the bo::wu_mutex to avoid triggering livelocks due to
-	 * concurrent use of this function. Note that this use of
-	 * bo::wu_mutex can go away if we change locking order to
-	 * mmap_sem -> bo::reserve.
-	 */
-	ret = mutex_lock_interruptible(&bo->wu_mutex);
-	if (unlikely(ret != 0))
-		return -ERESTARTSYS;
-	if (!dma_resv_is_locked(bo->base.resv))
-		goto out_unlock;
-	ret = dma_resv_lock_interruptible(bo->base.resv, NULL);
-	if (ret == -EINTR)
-		ret = -ERESTARTSYS;
-	if (unlikely(ret != 0))
-		goto out_unlock;
-	dma_resv_unlock(bo->base.resv);
-
-out_unlock:
-	mutex_unlock(&bo->wu_mutex);
-	return ret;
-}

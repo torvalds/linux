@@ -657,6 +657,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	dc_link_set_test_pattern(
 		link,
 		test_pattern,
+		DP_TEST_PATTERN_COLOR_SPACE_RGB,
 		&link_training_settings,
 		custom_pattern,
 		10);

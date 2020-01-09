@@ -7,7 +7,9 @@
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_print.h>
@@ -19,36 +21,17 @@ static int udl_usb_suspend(struct usb_interface *interface,
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 
-	drm_kms_helper_poll_disable(dev);
-	return 0;
+	return drm_mode_config_helper_suspend(dev);
 }
 
 static int udl_usb_resume(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 
-	drm_kms_helper_poll_enable(dev);
-	udl_modeset_restore(dev);
-	return 0;
+	return drm_mode_config_helper_resume(dev);
 }
 
-static const struct vm_operations_struct udl_gem_vm_ops = {
-	.fault = udl_gem_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
-
-static const struct file_operations udl_driver_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.mmap = udl_drm_gem_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
-	.unlocked_ioctl	= drm_ioctl,
-	.release = drm_release,
-	.compat_ioctl = drm_compat_ioctl,
-	.llseek = noop_llseek,
-};
+DEFINE_DRM_GEM_FOPS(udl_driver_fops);
 
 static void udl_driver_release(struct drm_device *dev)
 {
@@ -59,21 +42,14 @@ static void udl_driver_release(struct drm_device *dev)
 }
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM,
+	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 	.release = udl_driver_release,
 
 	/* gem hooks */
-	.gem_free_object_unlocked = udl_gem_free_object,
-	.gem_vm_ops = &udl_gem_vm_ops,
+	.gem_create_object = udl_driver_gem_create_object,
 
-	.dumb_create = udl_dumb_create,
-	.dumb_map_offset = udl_gem_mmap,
 	.fops = &udl_driver_fops,
-
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_export = udl_gem_prime_export,
-	.gem_prime_import = udl_gem_prime_import,
+	DRM_GEM_SHMEM_DRIVER_OPS,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -129,8 +105,14 @@ static int udl_usb_probe(struct usb_interface *interface,
 
 	DRM_INFO("Initialized udl on minor %d\n", udl->drm.primary->index);
 
+	r = drm_fbdev_generic_setup(&udl->drm, 0);
+	if (r)
+		goto err_drm_dev_unregister;
+
 	return 0;
 
+err_drm_dev_unregister:
+	drm_dev_unregister(&udl->drm);
 err_free:
 	drm_dev_put(&udl->drm);
 	return r;
@@ -141,7 +123,6 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	struct drm_device *dev = usb_get_intfdata(interface);
 
 	drm_kms_helper_poll_disable(dev);
-	udl_fbdev_unplug(dev);
 	udl_drop_usb(dev);
 	drm_dev_unplug(dev);
 	drm_dev_put(dev);

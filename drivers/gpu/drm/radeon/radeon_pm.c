@@ -23,10 +23,10 @@
 
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
+#include <linux/pci.h>
 #include <linux/power_supply.h>
 
 #include <drm/drm_debugfs.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_vblank.h>
 
 #include "atom.h"

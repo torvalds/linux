@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright 2019 Collabora ltd. */
 #include <linux/devfreq.h>
+#include <linux/devfreq_cooling.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/clk.h>
@@ -18,14 +19,17 @@ static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev);
 static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 				   u32 flags)
 {
-	struct panfrost_device *pfdev = dev_get_drvdata(dev);
+	struct dev_pm_opp *opp;
 	int err;
+
+	opp = devfreq_recommended_opp(dev, freq, flags);
+	if (IS_ERR(opp))
+		return PTR_ERR(opp);
+	dev_pm_opp_put(opp);
 
 	err = dev_pm_opp_set_rate(dev, *freq);
 	if (err)
 		return err;
-
-	*freq = clk_get_rate(pfdev->clock);
 
 	return 0;
 }
@@ -60,20 +64,10 @@ static int panfrost_devfreq_get_dev_status(struct device *dev,
 	return 0;
 }
 
-static int panfrost_devfreq_get_cur_freq(struct device *dev, unsigned long *freq)
-{
-	struct panfrost_device *pfdev = platform_get_drvdata(to_platform_device(dev));
-
-	*freq = clk_get_rate(pfdev->clock);
-
-	return 0;
-}
-
 static struct devfreq_dev_profile panfrost_devfreq_profile = {
 	.polling_ms = 50, /* ~3 frames */
 	.target = panfrost_devfreq_target,
 	.get_dev_status = panfrost_devfreq_get_dev_status,
-	.get_cur_freq = panfrost_devfreq_get_cur_freq,
 };
 
 int panfrost_devfreq_init(struct panfrost_device *pfdev)
@@ -81,8 +75,11 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	int ret;
 	struct dev_pm_opp *opp;
 	unsigned long cur_freq;
+	struct device *dev = &pfdev->pdev->dev;
+	struct devfreq *devfreq;
+	struct thermal_cooling_device *cooling;
 
-	ret = dev_pm_opp_of_add_table(&pfdev->pdev->dev);
+	ret = dev_pm_opp_of_add_table(dev);
 	if (ret == -ENODEV) /* Optional, continue without devfreq */
 		return 0;
 	else if (ret)
@@ -92,29 +89,35 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 
 	cur_freq = clk_get_rate(pfdev->clock);
 
-	opp = devfreq_recommended_opp(&pfdev->pdev->dev, &cur_freq, 0);
+	opp = devfreq_recommended_opp(dev, &cur_freq, 0);
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
 	panfrost_devfreq_profile.initial_freq = cur_freq;
 	dev_pm_opp_put(opp);
 
-	pfdev->devfreq.devfreq = devm_devfreq_add_device(&pfdev->pdev->dev,
-			&panfrost_devfreq_profile, DEVFREQ_GOV_SIMPLE_ONDEMAND,
-			NULL);
-	if (IS_ERR(pfdev->devfreq.devfreq)) {
-		DRM_DEV_ERROR(&pfdev->pdev->dev, "Couldn't initialize GPU devfreq\n");
-		ret = PTR_ERR(pfdev->devfreq.devfreq);
-		pfdev->devfreq.devfreq = NULL;
-		dev_pm_opp_of_remove_table(&pfdev->pdev->dev);
-		return ret;
+	devfreq = devm_devfreq_add_device(dev, &panfrost_devfreq_profile,
+					  DEVFREQ_GOV_SIMPLE_ONDEMAND, NULL);
+	if (IS_ERR(devfreq)) {
+		DRM_DEV_ERROR(dev, "Couldn't initialize GPU devfreq\n");
+		dev_pm_opp_of_remove_table(dev);
+		return PTR_ERR(devfreq);
 	}
+	pfdev->devfreq.devfreq = devfreq;
+
+	cooling = of_devfreq_cooling_register(dev->of_node, devfreq);
+	if (IS_ERR(cooling))
+		DRM_DEV_INFO(dev, "Failed to register cooling device\n");
+	else
+		pfdev->devfreq.cooling = cooling;
 
 	return 0;
 }
 
 void panfrost_devfreq_fini(struct panfrost_device *pfdev)
 {
+	if (pfdev->devfreq.cooling)
+		devfreq_cooling_unregister(pfdev->devfreq.cooling);
 	dev_pm_opp_of_remove_table(&pfdev->pdev->dev);
 }
 

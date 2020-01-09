@@ -1522,11 +1522,8 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	struct dma_fence *f;
 	int i;
 
-	/* Don't evict VM page tables while they are busy, otherwise we can't
-	 * cleanly handle page faults.
-	 */
 	if (bo->type == ttm_bo_type_kernel &&
-	    !dma_resv_test_signaled_rcu(bo->base.resv, true))
+	    !amdgpu_vm_evictable(ttm_to_amdgpu_bo(bo)))
 		return false;
 
 	/* If bo is a KFD BO, check if the bo belongs to the current process.
