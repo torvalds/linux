@@ -17,6 +17,7 @@ general.
    devlink-info
    devlink-params
    devlink-region
+   devlink-resource
    devlink-trap
 
 Driver-specific documentation
