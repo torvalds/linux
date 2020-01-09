@@ -96,6 +96,14 @@ config IPQ_GCC_4019
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, SD/eMMC, etc.
 
+config IPQ_GCC_6018
+	tristate "IPQ6018 Global Clock Controller"
+	help
+	  Support for global clock controller on ipq6018 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc. Select this for the root clock
+	  of ipq6018.
+
 config IPQ_GCC_806X
 	tristate "IPQ806x Global Clock Controller"
 	help
