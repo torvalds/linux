@@ -41,6 +41,7 @@
 #include <linux/swap.h>
 #include <linux/swiotlb.h>
 #include <linux/dma-buf.h>
+#include <linux/sizes.h>
 
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
