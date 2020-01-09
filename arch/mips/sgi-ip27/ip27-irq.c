@@ -19,7 +19,6 @@
 #include <asm/sn/addrs.h>
 #include <asm/sn/agent.h>
 #include <asm/sn/arch.h>
-#include <asm/sn/hub.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/irq_alloc.h>
 

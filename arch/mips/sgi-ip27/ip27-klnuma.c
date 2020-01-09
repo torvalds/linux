@@ -16,7 +16,6 @@
 #include <asm/sn/types.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/gda.h>
-#include <asm/sn/hub.h>
 #include <asm/sn/mapped_kernel.h>
 #include <asm/sn/sn_private.h>
 

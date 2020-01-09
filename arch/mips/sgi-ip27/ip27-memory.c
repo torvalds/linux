@@ -25,7 +25,6 @@
 #include <asm/sections.h>
 
 #include <asm/sn/arch.h>
-#include <asm/sn/hub.h>
 #include <asm/sn/klconfig.h>
 #include <asm/sn/sn_private.h>
 

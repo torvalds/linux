@@ -4,7 +4,8 @@
 
 #include <asm/sn/addrs.h>
 #include <asm/sn/arch.h>
-#include <asm/sn/hub.h>
+#include <asm/sn/agent.h>
+#include <asm/sn/klkernvars.h>
 
 #define pa_to_nid(addr)		NASID_GET(addr)
 

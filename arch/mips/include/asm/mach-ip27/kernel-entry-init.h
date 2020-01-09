@@ -10,7 +10,7 @@
 #define __ASM_MACH_IP27_KERNEL_ENTRY_H
 
 #include <asm/sn/addrs.h>
-#include <asm/sn/sn0/hubni.h>
+#include <asm/sn/agent.h>
 #include <asm/sn/klkernvars.h>
 
 /*

@@ -15,6 +15,7 @@
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
+#include <asm/sn/agent.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/gda.h>
 #include <asm/sn/intr.h>
@@ -23,8 +24,6 @@
 #include <asm/sn/mapped_kernel.h>
 #include <asm/sn/sn_private.h>
 #include <asm/sn/types.h>
-#include <asm/sn/sn0/hubpi.h>
-#include <asm/sn/sn0/hubio.h>
 #include <asm/sn/sn0/ip27.h>
 
 #include "ip27-common.h"

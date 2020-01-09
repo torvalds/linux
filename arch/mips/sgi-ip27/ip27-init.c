@@ -19,15 +19,12 @@
 #include <asm/pgtable.h>
 #include <asm/sgialib.h>
 #include <asm/time.h>
+#include <asm/sn/agent.h>
 #include <asm/sn/types.h>
-#include <asm/sn/sn0/addrs.h>
-#include <asm/sn/sn0/hubni.h>
-#include <asm/sn/sn0/hubio.h>
 #include <asm/sn/klconfig.h>
 #include <asm/sn/ioc3.h>
 #include <asm/mipsregs.h>
 #include <asm/sn/gda.h>
-#include <asm/sn/hub.h>
 #include <asm/sn/intr.h>
 #include <asm/current.h>
 #include <asm/processor.h>

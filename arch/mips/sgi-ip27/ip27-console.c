@@ -9,7 +9,7 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <asm/sn/addrs.h>
-#include <asm/sn/sn0/hub.h>
+#include <asm/sn/agent.h>
 #include <asm/sn/klconfig.h>
 #include <asm/sn/ioc3.h>
 #include <asm/sn/sn_private.h>

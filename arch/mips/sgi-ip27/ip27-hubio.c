@@ -11,7 +11,9 @@
 #include <linux/mmzone.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/arch.h>
-#include <asm/sn/hub.h>
+#include <asm/sn/agent.h>
+#include <asm/sn/io.h>
+#include <asm/xtalk/xtalk.h>
 
 
 static int force_fire_and_forget = 1;
