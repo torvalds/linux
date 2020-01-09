@@ -41,3 +41,16 @@ parameters.
      - Enable using the 4k UAR.
 
 The ``mlx4`` driver supports reloading via ``DEVLINK_CMD_RELOAD``
+
+Regions
+=======
+
+The ``mlx4`` driver supports dumping the firmware PCI crspace and health
+buffer during a critical firmware issue.
+
+In case a firmware command times out, firmware getting stuck, or a non zero
+value on the catastrophic buffer, a snapshot will be taken by the driver.
+
+The ``cr-space`` region will contain the firmware PCI crspace contents. The
+``fw-health`` region will contain the device firmware's health buffer.
+Snapshots for both of these regions are taken on the same event triggers.

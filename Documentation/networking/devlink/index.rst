@@ -16,6 +16,7 @@ general.
    devlink-health
    devlink-info
    devlink-params
+   devlink-region
    devlink-trap
    devlink-trap-netdevsim
 
