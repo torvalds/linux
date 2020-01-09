@@ -34,6 +34,13 @@ Parameters may be set in different configuration modes.
      - written to the device's non-volatile memory. A hard reset is required
        for it to take effect.
 
+Reloading
+---------
+
+In order for ``driverinit`` parameters to take effect, the driver must
+support reloading via the ``devlink-reload`` command. This command will
+request a reload of the device driver.
+
 Generic configuration parameters
 ================================
 The following is a list of generic configuration parameters that drivers may
