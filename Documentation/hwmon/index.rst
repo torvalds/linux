@@ -153,6 +153,9 @@ Hardware Monitoring Kernel Drivers
    pc87360
    pc87427
    pcf8591
+   peci-cputemp
+   peci-dimmtemp
+   peci-cpupower
    pim4328
    pm6764tr
    pmbus

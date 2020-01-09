@@ -21,6 +21,7 @@
 static struct mfd_cell peci_functions[] = {
 	{ .name = "peci-cputemp", },
 	{ .name = "peci-dimmtemp", },
+	{ .name = "peci-cpupower", },
 };
 
 static const struct cpu_gen_info cpu_gen_info_table[] = {
