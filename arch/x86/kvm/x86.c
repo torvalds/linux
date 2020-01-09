@@ -9732,18 +9732,6 @@ int __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa, u32 size)
 }
 EXPORT_SYMBOL_GPL(__x86_set_memory_region);
 
-int x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa, u32 size)
-{
-	int r;
-
-	mutex_lock(&kvm->slots_lock);
-	r = __x86_set_memory_region(kvm, id, gpa, size);
-	mutex_unlock(&kvm->slots_lock);
-
-	return r;
-}
-EXPORT_SYMBOL_GPL(x86_set_memory_region);
-
 void kvm_arch_pre_destroy_vm(struct kvm *kvm)
 {
 	kvm_mmu_pre_destroy_vm(kvm);
@@ -9757,9 +9745,13 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		 * unless the the memory map has changed due to process exit
 		 * or fd copying.
 		 */
-		x86_set_memory_region(kvm, APIC_ACCESS_PAGE_PRIVATE_MEMSLOT, 0, 0);
-		x86_set_memory_region(kvm, IDENTITY_PAGETABLE_PRIVATE_MEMSLOT, 0, 0);
-		x86_set_memory_region(kvm, TSS_PRIVATE_MEMSLOT, 0, 0);
+		mutex_lock(&kvm->slots_lock);
+		__x86_set_memory_region(kvm, APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
+					0, 0);
+		__x86_set_memory_region(kvm, IDENTITY_PAGETABLE_PRIVATE_MEMSLOT,
+					0, 0);
+		__x86_set_memory_region(kvm, TSS_PRIVATE_MEMSLOT, 0, 0);
+		mutex_unlock(&kvm->slots_lock);
 	}
 	if (kvm_x86_ops->vm_destroy)
 		kvm_x86_ops->vm_destroy(kvm);
