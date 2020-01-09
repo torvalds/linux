@@ -1328,7 +1328,7 @@ emit_jmp:
 	return proglen;
 }
 
-static void save_regs(struct btf_func_model *m, u8 **prog, int nr_args,
+static void save_regs(const struct btf_func_model *m, u8 **prog, int nr_args,
 		      int stack_size)
 {
 	int i;
@@ -1344,7 +1344,7 @@ static void save_regs(struct btf_func_model *m, u8 **prog, int nr_args,
 			 -(stack_size - i * 8));
 }
 
-static void restore_regs(struct btf_func_model *m, u8 **prog, int nr_args,
+static void restore_regs(const struct btf_func_model *m, u8 **prog, int nr_args,
 			 int stack_size)
 {
 	int i;
@@ -1361,7 +1361,7 @@ static void restore_regs(struct btf_func_model *m, u8 **prog, int nr_args,
 			 -(stack_size - i * 8));
 }
 
-static int invoke_bpf(struct btf_func_model *m, u8 **pprog,
+static int invoke_bpf(const struct btf_func_model *m, u8 **pprog,
 		      struct bpf_prog **progs, int prog_cnt, int stack_size)
 {
 	u8 *prog = *pprog;
@@ -1456,7 +1456,8 @@ static int invoke_bpf(struct btf_func_model *m, u8 **pprog,
  * add rsp, 8                      // skip eth_type_trans's frame
  * ret                             // return to its caller
  */
-int arch_prepare_bpf_trampoline(void *image, struct btf_func_model *m, u32 flags,
+int arch_prepare_bpf_trampoline(void *image, void *image_end,
+				const struct btf_func_model *m, u32 flags,
 				struct bpf_prog **fentry_progs, int fentry_cnt,
 				struct bpf_prog **fexit_progs, int fexit_cnt,
 				void *orig_call)
@@ -1523,13 +1524,10 @@ int arch_prepare_bpf_trampoline(void *image, struct btf_func_model *m, u32 flags
 		/* skip our return address and return to parent */
 		EMIT4(0x48, 0x83, 0xC4, 8); /* add rsp, 8 */
 	EMIT1(0xC3); /* ret */
-	/* One half of the page has active running trampoline.
-	 * Another half is an area for next trampoline.
-	 * Make sure the trampoline generation logic doesn't overflow.
-	 */
-	if (WARN_ON_ONCE(prog - (u8 *)image > PAGE_SIZE / 2 - BPF_INSN_SAFETY))
+	/* Make sure the trampoline generation logic doesn't overflow */
+	if (WARN_ON_ONCE(prog > (u8 *)image_end - BPF_INSN_SAFETY))
 		return -EFAULT;
-	return 0;
+	return prog - (u8 *)image;
 }
 
 static int emit_cond_near_jump(u8 **pprog, void *func, void *ip, u8 jmp_cond)
