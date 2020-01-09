@@ -390,13 +390,12 @@ struct io_open {
 	struct file			*file;
 	int				dfd;
 	union {
-		umode_t			mode;
 		unsigned		mask;
 	};
 	const char __user		*fname;
 	struct filename			*filename;
 	struct statx __user		*buffer;
-	int				flags;
+	struct open_how			how;
 };
 
 struct io_files_update {
@@ -2474,9 +2473,9 @@ static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EINVAL;
 
 	req->open.dfd = READ_ONCE(sqe->fd);
-	req->open.mode = READ_ONCE(sqe->len);
+	req->open.how.mode = READ_ONCE(sqe->len);
 	req->open.fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
-	req->open.flags = READ_ONCE(sqe->open_flags);
+	req->open.how.flags = READ_ONCE(sqe->open_flags);
 
 	req->open.filename = getname(req->open.fname);
 	if (IS_ERR(req->open.filename)) {
@@ -2501,7 +2500,7 @@ static int io_openat(struct io_kiocb *req, struct io_kiocb **nxt,
 		return -EAGAIN;
 	}
 
-	how = build_open_how(req->open.flags, req->open.mode);
+	how = build_open_how(req->open.how.flags, req->open.how.mode);
 	ret = build_open_flags(&how, &op);
 	if (ret)
 		goto err;
@@ -2604,9 +2603,9 @@ static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	req->open.mask = READ_ONCE(sqe->len);
 	req->open.fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	req->open.buffer = u64_to_user_ptr(READ_ONCE(sqe->addr2));
-	req->open.flags = READ_ONCE(sqe->statx_flags);
+	req->open.how.flags = READ_ONCE(sqe->statx_flags);
 
-	if (vfs_stat_set_lookup_flags(&lookup_flags, req->open.flags))
+	if (vfs_stat_set_lookup_flags(&lookup_flags, req->open.how.flags))
 		return -EINVAL;
 
 	req->open.filename = getname_flags(req->open.fname, lookup_flags, NULL);
@@ -2631,7 +2630,7 @@ static int io_statx(struct io_kiocb *req, struct io_kiocb **nxt,
 	if (force_nonblock)
 		return -EAGAIN;
 
-	if (vfs_stat_set_lookup_flags(&lookup_flags, ctx->flags))
+	if (vfs_stat_set_lookup_flags(&lookup_flags, ctx->how.flags))
 		return -EINVAL;
 
 retry:
@@ -2643,7 +2642,7 @@ retry:
 	if (ret)
 		goto err;
 
-	ret = vfs_getattr(&path, &stat, ctx->mask, ctx->flags);
+	ret = vfs_getattr(&path, &stat, ctx->mask, ctx->how.flags);
 	path_put(&path);
 	if (retry_estale(ret, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
