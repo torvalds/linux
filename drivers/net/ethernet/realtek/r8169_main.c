@@ -2425,17 +2425,6 @@ static void rtl8169sb_hw_phy_config(struct rtl8169_private *tp,
 	phy_write_paged(phydev, 0x0002, 0x01, 0x90d0);
 }
 
-static void rtl8169scd_hw_phy_config_quirk(struct rtl8169_private *tp)
-{
-	struct pci_dev *pdev = tp->pci_dev;
-
-	if ((pdev->subsystem_vendor != PCI_VENDOR_ID_GIGABYTE) ||
-	    (pdev->subsystem_device != 0xe000))
-		return;
-
-	phy_write_paged(tp->phydev, 0x0001, 0x10, 0xf01b);
-}
-
 static void rtl8169scd_hw_phy_config(struct rtl8169_private *tp,
 				     struct phy_device *phydev)
 {
@@ -2480,8 +2469,6 @@ static void rtl8169scd_hw_phy_config(struct rtl8169_private *tp,
 	};
 
 	rtl_writephy_batch(tp, phy_reg_init);
-
-	rtl8169scd_hw_phy_config_quirk(tp);
 }
 
 static void rtl8169sce_hw_phy_config(struct rtl8169_private *tp,
@@ -3632,6 +3619,11 @@ static void rtl8169_init_phy(struct rtl8169_private *tp)
 		/* set undocumented MAC Reg C+CR Offset 0x82h */
 		RTL_W8(tp, 0x82, 0x01);
 	}
+
+	if (tp->mac_version == RTL_GIGA_MAC_VER_05 &&
+	    tp->pci_dev->subsystem_vendor == PCI_VENDOR_ID_GIGABYTE &&
+	    tp->pci_dev->subsystem_device == 0xe000)
+		phy_write_paged(tp->phydev, 0x0001, 0x10, 0xf01b);
 
 	/* We may have called phy_speed_down before */
 	phy_speed_up(tp->phydev);
