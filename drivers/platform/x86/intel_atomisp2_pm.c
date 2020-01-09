@@ -50,24 +50,20 @@ static int isp_set_power(struct pci_dev *dev, bool enable)
 	 * And we do the same for power on.
 	 */
 	timeout = jiffies + msecs_to_jiffies(50);
-	while (1) {
+	do {
 		u32 tmp;
 
 		/* Wait until ISPSSPM0 bit[25:24] shows the right value */
 		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, ISPSSPM0, &tmp);
 		tmp = (tmp & ISPSSPM0_ISPSSS_MASK) >> ISPSSPM0_ISPSSS_OFFSET;
 		if (tmp == val)
-			break;
+			return 0;
 
-		if (time_after(jiffies, timeout)) {
-			dev_err(&dev->dev, "IUNIT power-%s timeout.\n",
-				enable ? "on" : "off");
-			return -EBUSY;
-		}
 		usleep_range(1000, 2000);
-	}
+	} while (time_before(jiffies, timeout));
 
-	return 0;
+	dev_err(&dev->dev, "IUNIT power-%s timeout.\n", enable ? "on" : "off");
+	return -EBUSY;
 }
 
 static int isp_probe(struct pci_dev *dev, const struct pci_device_id *id)
