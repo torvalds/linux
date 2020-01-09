@@ -1236,12 +1236,14 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 	 * image, or into the registers directory, does not stick). Pristine
 	 * and idle contexts will be configured on pinning.
 	 */
-	if (!intel_context_is_pinned(ce))
+	if (!intel_context_pin_if_active(ce))
 		return 0;
 
 	rq = intel_engine_create_kernel_request(ce->engine);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
+	if (IS_ERR(rq)) {
+		ret = PTR_ERR(rq);
+		goto out_unpin;
+	}
 
 	/* Serialise with the remote context */
 	ret = intel_context_prepare_remote_request(ce, rq);
@@ -1249,6 +1251,8 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 		ret = gen8_emit_rpcs_config(rq, ce, sseu);
 
 	i915_request_add(rq);
+out_unpin:
+	intel_context_unpin(ce);
 	return ret;
 }
 

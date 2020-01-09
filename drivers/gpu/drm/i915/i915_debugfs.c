@@ -321,16 +321,15 @@ static void print_context_stats(struct seq_file *m,
 
 		for_each_gem_engine(ce,
 				    i915_gem_context_lock_engines(ctx), it) {
-			intel_context_lock_pinned(ce);
-			if (intel_context_is_pinned(ce)) {
+			if (intel_context_pin_if_active(ce)) {
 				rcu_read_lock();
 				if (ce->state)
 					per_file_stats(0,
 						       ce->state->obj, &kstats);
 				per_file_stats(0, ce->ring->vma->obj, &kstats);
 				rcu_read_unlock();
+				intel_context_unpin(ce);
 			}
-			intel_context_unlock_pinned(ce);
 		}
 		i915_gem_context_unlock_engines(ctx);
 
@@ -1513,15 +1512,14 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 		for_each_gem_engine(ce,
 				    i915_gem_context_lock_engines(ctx), it) {
-			intel_context_lock_pinned(ce);
-			if (intel_context_is_pinned(ce)) {
+			if (intel_context_pin_if_active(ce)) {
 				seq_printf(m, "%s: ", ce->engine->name);
 				if (ce->state)
 					describe_obj(m, ce->state->obj);
 				describe_ctx_ring(m, ce->ring);
 				seq_putc(m, '\n');
+				intel_context_unpin(ce);
 			}
-			intel_context_unlock_pinned(ce);
 		}
 		i915_gem_context_unlock_engines(ctx);
 

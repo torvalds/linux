@@ -76,9 +76,14 @@ static inline void intel_context_unlock_pinned(struct intel_context *ce)
 
 int __intel_context_do_pin(struct intel_context *ce);
 
+static inline bool intel_context_pin_if_active(struct intel_context *ce)
+{
+	return atomic_inc_not_zero(&ce->pin_count);
+}
+
 static inline int intel_context_pin(struct intel_context *ce)
 {
-	if (likely(atomic_inc_not_zero(&ce->pin_count)))
+	if (likely(intel_context_pin_if_active(ce)))
 		return 0;
 
 	return __intel_context_do_pin(ce);
