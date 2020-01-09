@@ -1393,6 +1393,18 @@ static inline int handle_mounts(struct nameidata *nd, struct dentry *dentry,
 
 	path->mnt = nd->path.mnt;
 	path->dentry = dentry;
+	if (nd->flags & LOOKUP_RCU) {
+		unsigned int seq = *seqp;
+		if (unlikely(!*inode))
+			return -ENOENT;
+		if (likely(__follow_mount_rcu(nd, path, inode, seqp)))
+			return 1;
+		if (unlazy_child(nd, dentry, seq))
+			return -ECHILD;
+		// *path might've been clobbered by __follow_mount_rcu()
+		path->mnt = nd->path.mnt;
+		path->dentry = dentry;
+	}
 	ret = follow_managed(path, nd);
 	if (likely(ret >= 0)) {
 		*inode = d_backing_inode(path->dentry);
@@ -1620,7 +1632,6 @@ static int lookup_fast(struct nameidata *nd,
 		       struct path *path, struct inode **inode,
 		       unsigned *seqp)
 {
-	struct vfsmount *mnt = nd->path.mnt;
 	struct dentry *dentry, *parent = nd->path.dentry;
 	int status = 1;
 
@@ -1658,21 +1669,8 @@ static int lookup_fast(struct nameidata *nd,
 
 		*seqp = seq;
 		status = d_revalidate(dentry, nd->flags);
-		if (likely(status > 0)) {
-			/*
-			 * Note: do negative dentry check after revalidation in
-			 * case that drops it.
-			 */
-			if (unlikely(!*inode))
-				return -ENOENT;
-			path->mnt = mnt;
-			path->dentry = dentry;
-			if (likely(__follow_mount_rcu(nd, path, inode, seqp)))
-				return 1;
-			if (unlazy_child(nd, dentry, seq))
-				return -ECHILD;
+		if (likely(status > 0))
 			return handle_mounts(nd, dentry, path, inode, seqp);
-		}
 		if (unlazy_child(nd, dentry, seq))
 			return -ECHILD;
 		if (unlikely(status == -ECHILD))
@@ -2361,21 +2359,11 @@ static int handle_lookup_down(struct nameidata *nd)
 	unsigned seq = nd->seq;
 	int err;
 
-	if (nd->flags & LOOKUP_RCU) {
-		/*
-		 * don't bother with unlazy_walk on failure - we are
-		 * at the very beginning of walk, so we lose nothing
-		 * if we simply redo everything in non-RCU mode
-		 */
-		path = nd->path;
-		if (unlikely(!__follow_mount_rcu(nd, &path, &inode, &seq)))
-			return -ECHILD;
-	} else {
+	if (!(nd->flags & LOOKUP_RCU))
 		dget(nd->path.dentry);
-		err = handle_mounts(nd, nd->path.dentry, &path, &inode, &seq);
-		if (unlikely(err < 0))
-			return err;
-	}
+	err = handle_mounts(nd, nd->path.dentry, &path, &inode, &seq);
+	if (unlikely(err < 0))
+		return err;
 	path_to_nameidata(&path, nd);
 	nd->inode = inode;
 	nd->seq = seq;
