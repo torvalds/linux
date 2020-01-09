@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Dummy driver for Intel's Image Signal Processor found on Bay and Cherry
- * Trail devices. The sole purpose of this driver is to allow the ISP to
- * be put in D3.
+ * Dummy driver for Intel's Image Signal Processor found on Bay Trail
+ * and Cherry Trail devices. The sole purpose of this driver is to allow
+ * the ISP to be put in D3.
  *
  * Copyright (C) 2018 Hans de Goede <hdegoede@redhat.com>
  *
@@ -36,8 +36,7 @@
 static int isp_set_power(struct pci_dev *dev, bool enable)
 {
 	unsigned long timeout;
-	u32 val = enable ? ISPSSPM0_IUNIT_POWER_ON :
-		ISPSSPM0_IUNIT_POWER_OFF;
+	u32 val = enable ? ISPSSPM0_IUNIT_POWER_ON : ISPSSPM0_IUNIT_POWER_OFF;
 
 	/* Write to ISPSSPM0 bit[1:0] to power on/off the IUNIT */
 	iosf_mbi_modify(BT_MBI_UNIT_PMC, MBI_REG_READ, ISPSSPM0,
@@ -45,7 +44,7 @@ static int isp_set_power(struct pci_dev *dev, bool enable)
 
 	/*
 	 * There should be no IUNIT access while power-down is
-	 * in progress HW sighting: 4567865
+	 * in progress. HW sighting: 4567865.
 	 * Wait up to 50 ms for the IUNIT to shut down.
 	 * And we do the same for power on.
 	 */

@@ -1299,9 +1299,9 @@ config INTEL_ATOMISP2_PM
 	depends on PCI && IOSF_MBI && PM
 	help
 	  Power-management driver for Intel's Image Signal Processor found on
-	  Bay and Cherry Trail devices. This dummy driver's sole purpose is to
-	  turn the ISP off (put it in D3) to save power and to allow entering
-	  of S0ix modes.
+	  Bay Trail and Cherry Trail devices. This dummy driver's sole purpose
+	  is to turn the ISP off (put it in D3) to save power and to allow
+	  entering of S0ix modes.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_atomisp2_pm.
