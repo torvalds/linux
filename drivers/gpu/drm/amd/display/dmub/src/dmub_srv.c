@@ -415,6 +415,22 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	return DMUB_STATUS_OK;
 }
 
+enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub)
+{
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->hw_init == false)
+		return DMUB_STATUS_OK;
+
+	if (dmub->hw_funcs.reset)
+		dmub->hw_funcs.reset(dmub);
+
+	dmub->hw_init = false;
+
+	return DMUB_STATUS_OK;
+}
+
 enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
 				    const struct dmub_cmd_header *cmd)
 {

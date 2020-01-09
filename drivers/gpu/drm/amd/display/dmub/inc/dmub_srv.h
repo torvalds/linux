@@ -419,6 +419,21 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 				  const struct dmub_srv_hw_params *params);
 
 /**
+ * dmub_srv_hw_reset() - puts the DMUB hardware in reset state if initialized
+ * @dmub: the dmub service
+ *
+ * Before destroying the DMUB service or releasing the backing framebuffer
+ * memory we'll need to put the DMCUB into reset first.
+ *
+ * A subsequent call to dmub_srv_hw_init() will re-enable the DMCUB.
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub);
+
+/**
  * dmub_srv_cmd_queue() - queues a command to the DMUB
  * @dmub: the dmub service
  * @cmd: the command to queue
