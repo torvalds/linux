@@ -15729,23 +15729,25 @@ static void fb_obj_bump_render_priority(struct drm_i915_gem_object *obj)
  * Returns 0 on success, negative error code on failure.
  */
 int
-intel_prepare_plane_fb(struct drm_plane *plane,
+intel_prepare_plane_fb(struct drm_plane *_plane,
 		       struct drm_plane_state *_new_plane_state)
 {
+	struct intel_plane *plane = to_intel_plane(_plane);
 	struct intel_plane_state *new_plane_state =
 		to_intel_plane_state(_new_plane_state);
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(new_plane_state->uapi.state);
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
-	struct drm_framebuffer *fb = new_plane_state->hw.fb;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct intel_plane_state *old_plane_state =
+		intel_atomic_get_old_plane_state(intel_state, plane);
+	struct drm_i915_gem_object *obj = intel_fb_obj(new_plane_state->hw.fb);
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_plane_state->hw.fb);
 	int ret;
 
 	if (old_obj) {
-		struct intel_crtc_state *crtc_state =
+		const struct intel_crtc_state *crtc_state =
 			intel_atomic_get_new_crtc_state(intel_state,
-							to_intel_crtc(plane->state->crtc));
+							to_intel_crtc(old_plane_state->hw.crtc));
 
 		/* Big Hammer, we also need to ensure that any pending
 		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
