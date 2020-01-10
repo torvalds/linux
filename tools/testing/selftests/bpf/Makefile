@@ -83,9 +83,12 @@ TEST_CUSTOM_PROGS = urandom_read
 # $3 - target (assumed to be file); only file name will be emitted;
 # $4 - optional extra arg, emitted as-is, if provided.
 ifeq ($(V),1)
+Q =
 msg =
 else
+Q = @
 msg = @$(info $(1)$(if $(2), [$(2)]) $(notdir $(3)))$(if $(4), $(4))
+MAKEFLAGS += --no-print-directory
 endif
 
 # override lib.mk's default rules
@@ -147,14 +150,14 @@ DEFAULT_BPFTOOL := $(OUTPUT)/tools/usr/local/sbin/bpftool
 BPFTOOL ?= $(DEFAULT_BPFTOOL)
 
 $(DEFAULT_BPFTOOL): force
-	$(MAKE) -C $(BPFTOOLDIR) DESTDIR=$(OUTPUT)/tools install
+	$(Q)$(MAKE) -C $(BPFTOOLDIR) DESTDIR=$(OUTPUT)/tools install
 
 $(BPFOBJ): force
-	$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/
+	$(Q)$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/
 
 BPF_HELPERS := $(OUTPUT)/bpf_helper_defs.h $(wildcard $(BPFDIR)/bpf_*.h)
 $(OUTPUT)/bpf_helper_defs.h: $(BPFOBJ)
-	$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/ $(OUTPUT)/bpf_helper_defs.h
+	$(Q)$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/ $(OUTPUT)/bpf_helper_defs.h
 
 # Get Clang's default includes on this system, as opposed to those seen by
 # '-target bpf'. This fixes "missing" files on some architectures/distros,
@@ -253,6 +256,7 @@ define DEFINE_TEST_RUNNER_RULES
 ifeq ($($(TRUNNER_OUTPUT)-dir),)
 $(TRUNNER_OUTPUT)-dir := y
 $(TRUNNER_OUTPUT):
+	$$(call msg,      MKDIR,,$$@)
 	mkdir -p $$@
 endif
 
