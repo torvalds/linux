@@ -1020,7 +1020,7 @@ static int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
 			rc = -ENOMEM;
 			goto out_unlock;
 		}
-		ctx->context_id = EFX_EF10_RSS_CONTEXT_INVALID;
+		ctx->context_id = EFX_MCDI_RSS_CONTEXT_INVALID;
 		/* Initialise indir table and key to defaults */
 		efx_set_default_rx_indir_table(efx, ctx);
 		netdev_rss_key_fill(ctx->rx_hash_key, sizeof(ctx->rx_hash_key));

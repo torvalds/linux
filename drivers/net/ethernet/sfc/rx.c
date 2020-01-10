@@ -650,37 +650,3 @@ bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota)
 }
 
 #endif /* CONFIG_RFS_ACCEL */
-
-/**
- * efx_filter_is_mc_recipient - test whether spec is a multicast recipient
- * @spec: Specification to test
- *
- * Return: %true if the specification is a non-drop RX filter that
- * matches a local MAC address I/G bit value of 1 or matches a local
- * IPv4 or IPv6 address value in the respective multicast address
- * range.  Otherwise %false.
- */
-bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec)
-{
-	if (!(spec->flags & EFX_FILTER_FLAG_RX) ||
-	    spec->dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP)
-		return false;
-
-	if (spec->match_flags &
-	    (EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_LOC_MAC_IG) &&
-	    is_multicast_ether_addr(spec->loc_mac))
-		return true;
-
-	if ((spec->match_flags &
-	     (EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_LOC_HOST)) ==
-	    (EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_LOC_HOST)) {
-		if (spec->ether_type == htons(ETH_P_IP) &&
-		    ipv4_is_multicast(spec->loc_host[0]))
-			return true;
-		if (spec->ether_type == htons(ETH_P_IPV6) &&
-		    ((const u8 *)spec->loc_host)[0] == 0xff)
-			return true;
-	}
-
-	return false;
-}

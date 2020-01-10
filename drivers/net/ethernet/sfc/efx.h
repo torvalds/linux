@@ -169,33 +169,11 @@ static inline void efx_filter_rfs_expire(struct work_struct *data)
 static inline void efx_filter_rfs_expire(struct work_struct *data) {}
 #define efx_filter_rfs_enabled() 0
 #endif
-bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec);
-
-bool efx_filter_spec_equal(const struct efx_filter_spec *left,
-			   const struct efx_filter_spec *right);
-u32 efx_filter_spec_hash(const struct efx_filter_spec *spec);
-
-#ifdef CONFIG_RFS_ACCEL
-bool efx_rps_check_rule(struct efx_arfs_rule *rule, unsigned int filter_idx,
-			bool *force);
-
-struct efx_arfs_rule *efx_rps_hash_find(struct efx_nic *efx,
-					const struct efx_filter_spec *spec);
-
-/* @new is written to indicate if entry was newly added (true) or if an old
- * entry was found and returned (false).
- */
-struct efx_arfs_rule *efx_rps_hash_add(struct efx_nic *efx,
-				       const struct efx_filter_spec *spec,
-				       bool *new);
-
-void efx_rps_hash_del(struct efx_nic *efx, const struct efx_filter_spec *spec);
-#endif
 
 /* RSS contexts */
 static inline bool efx_rss_active(struct efx_rss_context *ctx)
 {
-	return ctx->context_id != EFX_EF10_RSS_CONTEXT_INVALID;
+	return ctx->context_id != EFX_MCDI_RSS_CONTEXT_INVALID;
 }
 
 /* Ethtool support */
