@@ -814,6 +814,15 @@ config GCOV_PROFILE_FTRACE
 	  Note that on a kernel compiled with this config, ftrace will
 	  run significantly slower.
 
+config BOOTTIME_TRACING
+	bool "Boot-time Tracing support"
+	depends on BOOT_CONFIG && TRACING
+	default y
+	help
+	  Enable developer to setup ftrace subsystem via supplemental
+	  kernel cmdline at boot time for debugging (tracing) driver
+	  initialization and boot process.
+
 endif # FTRACE
 
 endif # TRACING_SUPPORT
