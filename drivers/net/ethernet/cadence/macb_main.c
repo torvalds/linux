@@ -664,9 +664,30 @@ static int macb_mii_probe(struct net_device *dev)
 	return 0;
 }
 
+static int macb_mdiobus_register(struct macb *bp)
+{
+	struct device_node *child, *np = bp->pdev->dev.of_node;
+
+	/* Only create the PHY from the device tree if at least one PHY is
+	 * described. Otherwise scan the entire MDIO bus. We do this to support
+	 * old device tree that did not follow the best practices and did not
+	 * describe their network PHYs.
+	 */
+	for_each_available_child_of_node(np, child)
+		if (of_mdiobus_child_is_phy(child)) {
+			/* The loop increments the child refcount,
+			 * decrement it before returning.
+			 */
+			of_node_put(child);
+
+			return of_mdiobus_register(bp->mii_bus, np);
+		}
+
+	return mdiobus_register(bp->mii_bus);
+}
+
 static int macb_mii_init(struct macb *bp)
 {
-	struct device_node *np;
 	int err = -ENXIO;
 
 	/* Enable management port */
@@ -688,9 +709,7 @@ static int macb_mii_init(struct macb *bp)
 
 	dev_set_drvdata(&bp->dev->dev, bp->mii_bus);
 
-	np = bp->pdev->dev.of_node;
-
-	err = of_mdiobus_register(bp->mii_bus, np);
+	err = macb_mdiobus_register(bp);
 	if (err)
 		goto err_out_free_mdiobus;
 

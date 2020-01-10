@@ -246,7 +246,7 @@ ENTRY(reset_regs)
 	li	t4, 0
 	li	t5, 0
 	li	t6, 0
-	csrw	sscratch, 0
+	csrw	CSR_SCRATCH, 0
 
 #ifdef CONFIG_FPU
 	csrr	t0, CSR_MISA

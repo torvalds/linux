@@ -722,34 +722,6 @@ TEST_F(tls, recv_lowat)
 	EXPECT_EQ(memcmp(send_mem, recv_mem + 10, 5), 0);
 }
 
-TEST_F(tls, recv_rcvbuf)
-{
-	char send_mem[4096];
-	char recv_mem[4096];
-	int rcv_buf = 1024;
-
-	memset(send_mem, 0x1c, sizeof(send_mem));
-
-	EXPECT_EQ(setsockopt(self->cfd, SOL_SOCKET, SO_RCVBUF,
-			     &rcv_buf, sizeof(rcv_buf)), 0);
-
-	EXPECT_EQ(send(self->fd, send_mem, 512, 0), 512);
-	memset(recv_mem, 0, sizeof(recv_mem));
-	EXPECT_EQ(recv(self->cfd, recv_mem, sizeof(recv_mem), 0), 512);
-	EXPECT_EQ(memcmp(send_mem, recv_mem, 512), 0);
-
-	if (self->notls)
-		return;
-
-	EXPECT_EQ(send(self->fd, send_mem, 4096, 0), 4096);
-	memset(recv_mem, 0, sizeof(recv_mem));
-	EXPECT_EQ(recv(self->cfd, recv_mem, sizeof(recv_mem), 0), -1);
-	EXPECT_EQ(errno, EMSGSIZE);
-
-	EXPECT_EQ(recv(self->cfd, recv_mem, sizeof(recv_mem), 0), -1);
-	EXPECT_EQ(errno, EMSGSIZE);
-}
-
 TEST_F(tls, bidir)
 {
 	char const *test_str = "test_read";

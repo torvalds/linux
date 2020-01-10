@@ -405,6 +405,9 @@ static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 
 static const struct block_device_operations virtblk_fops = {
 	.ioctl  = virtblk_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = blkdev_compat_ptr_ioctl,
+#endif
 	.owner  = THIS_MODULE,
 	.getgeo = virtblk_getgeo,
 };

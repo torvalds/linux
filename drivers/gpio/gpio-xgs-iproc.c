@@ -280,7 +280,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit iproc_gpio_remove(struct platform_device *pdev)
+static int iproc_gpio_remove(struct platform_device *pdev)
 {
 	struct iproc_gpio_chip *chip;
 

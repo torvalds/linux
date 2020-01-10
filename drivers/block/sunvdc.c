@@ -171,6 +171,7 @@ static const struct block_device_operations vdc_fops = {
 	.owner		= THIS_MODULE,
 	.getgeo		= vdc_getgeo,
 	.ioctl		= vdc_ioctl,
+	.compat_ioctl	= blkdev_compat_ptr_ioctl,
 };
 
 static void vdc_blk_queue_start(struct vdc_port *port)

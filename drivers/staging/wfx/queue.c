@@ -422,6 +422,7 @@ static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
 		break;
 	case do_wep:
 		wfx_tx_lock(wvif->wdev);
+		WARN_ON(wvif->wep_pending_skb);
 		wvif->wep_default_key_id = tx_priv->hw_key->keyidx;
 		wvif->wep_pending_skb = skb;
 		if (!schedule_work(&wvif->wep_key_work))
