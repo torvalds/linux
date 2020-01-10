@@ -1421,6 +1421,7 @@ static void dwxgmac3_fpe_configure(void __iomem *ioaddr, u32 num_txq,
 		value &= ~XGMAC_EFPE;
 
 		writel(value, ioaddr + XGMAC_FPE_CTRL_STS);
+		return;
 	}
 
 	value = readl(ioaddr + XGMAC_RXQ_CTRL1);
