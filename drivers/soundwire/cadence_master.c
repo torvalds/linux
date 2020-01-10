@@ -820,7 +820,7 @@ int sdw_cdns_exit_reset(struct sdw_cdns *cdns)
 EXPORT_SYMBOL(sdw_cdns_exit_reset);
 
 /**
- * sdw_cdns_enable_interrupt() - Enable SDW interrupts and update config
+ * sdw_cdns_enable_interrupt() - Enable SDW interrupts
  * @cdns: Cadence instance
  */
 int sdw_cdns_enable_interrupt(struct sdw_cdns *cdns, bool state)
@@ -871,8 +871,7 @@ update_masks:
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTMASK1, slave_intmask1);
 	cdns_writel(cdns, CDNS_MCP_INTMASK, mask);
 
-	/* commit changes */
-	return cdns_update_config(cdns);
+	return 0;
 }
 EXPORT_SYMBOL(sdw_cdns_enable_interrupt);
 
