@@ -20,8 +20,8 @@ CLANG		?= clang
 LLC		?= llc
 LLVM_OBJCOPY	?= llvm-objcopy
 BPF_GCC		?= $(shell command -v bpf-gcc;)
-CFLAGS += -g -Wall -O2 $(GENFLAGS) -I$(APIDIR) -I$(LIBDIR) -I$(BPFDIR)	\
-	  -I$(GENDIR) -I$(TOOLSINCDIR) -I$(CURDIR)			\
+CFLAGS += -g -Wall -O2 $(GENFLAGS) -I$(CURDIR) -I$(APIDIR) -I$(LIBDIR)  \
+	  -I$(BPFDIR) -I$(GENDIR) -I$(TOOLSINCDIR)			\
 	  -Dbpf_prog_load=bpf_prog_test_load				\
 	  -Dbpf_load_program=bpf_test_load_program
 LDLIBS += -lcap -lelf -lz -lrt -lpthread
@@ -83,9 +83,12 @@ TEST_CUSTOM_PROGS = urandom_read
 # $3 - target (assumed to be file); only file name will be emitted;
 # $4 - optional extra arg, emitted as-is, if provided.
 ifeq ($(V),1)
+Q =
 msg =
 else
+Q = @
 msg = @$(info $(1)$(if $(2), [$(2)]) $(notdir $(3)))$(if $(4), $(4))
+MAKEFLAGS += --no-print-directory
 endif
 
 # override lib.mk's default rules
@@ -93,6 +96,7 @@ OVERRIDE_TARGETS := 1
 override define CLEAN
 	$(call msg,    CLEAN)
 	$(RM) -r $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES) $(EXTRA_CLEAN)
+	$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/ clean
 endef
 
 include ../lib.mk
@@ -146,14 +150,14 @@ DEFAULT_BPFTOOL := $(OUTPUT)/tools/usr/local/sbin/bpftool
 BPFTOOL ?= $(DEFAULT_BPFTOOL)
 
 $(DEFAULT_BPFTOOL): force
-	$(MAKE) -C $(BPFTOOLDIR) DESTDIR=$(OUTPUT)/tools install
+	$(Q)$(MAKE) -C $(BPFTOOLDIR) DESTDIR=$(OUTPUT)/tools install
 
 $(BPFOBJ): force
-	$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/
+	$(Q)$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/
 
 BPF_HELPERS := $(OUTPUT)/bpf_helper_defs.h $(wildcard $(BPFDIR)/bpf_*.h)
-$(OUTPUT)/bpf_helper_defs.h:
-	$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/ $(OUTPUT)/bpf_helper_defs.h
+$(OUTPUT)/bpf_helper_defs.h: $(BPFOBJ)
+	$(Q)$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/ $(OUTPUT)/bpf_helper_defs.h
 
 # Get Clang's default includes on this system, as opposed to those seen by
 # '-target bpf'. This fixes "missing" files on some architectures/distros,
@@ -173,8 +177,8 @@ MENDIAN=$(if $(IS_LITTLE_ENDIAN),-mlittle-endian,-mbig-endian)
 
 CLANG_SYS_INCLUDES = $(call get_sys_includes,$(CLANG))
 BPF_CFLAGS = -g -D__TARGET_ARCH_$(SRCARCH) $(MENDIAN) 			\
-	     -I. -I./include/uapi -I$(APIDIR)				\
-	     -I$(BPFDIR) -I$(abspath $(OUTPUT)/../usr/include)
+	     -I$(OUTPUT) -I$(CURDIR) -I$(CURDIR)/include/uapi		\
+	     -I$(APIDIR) -I$(BPFDIR) -I$(abspath $(OUTPUT)/../usr/include)
 
 CLANG_CFLAGS = $(CLANG_SYS_INCLUDES) \
 	       -Wno-compare-distinct-pointer-types
@@ -252,6 +256,7 @@ define DEFINE_TEST_RUNNER_RULES
 ifeq ($($(TRUNNER_OUTPUT)-dir),)
 $(TRUNNER_OUTPUT)-dir := y
 $(TRUNNER_OUTPUT):
+	$$(call msg,      MKDIR,,$$@)
 	mkdir -p $$@
 endif
 
@@ -328,7 +333,7 @@ TRUNNER_EXTRA_SOURCES := test_progs.c cgroup_helpers.c trace_helpers.c	\
 TRUNNER_EXTRA_FILES := $(OUTPUT)/urandom_read				\
 		       $(wildcard progs/btf_dump_test_case_*.c)
 TRUNNER_BPF_BUILD_RULE := CLANG_BPF_BUILD_RULE
-TRUNNER_BPF_CFLAGS := -I. -I$(OUTPUT) $(BPF_CFLAGS) $(CLANG_CFLAGS)
+TRUNNER_BPF_CFLAGS := $(BPF_CFLAGS) $(CLANG_CFLAGS)
 TRUNNER_BPF_LDFLAGS := -mattr=+alu32
 $(eval $(call DEFINE_TEST_RUNNER,test_progs))
 
@@ -377,5 +382,5 @@ $(OUTPUT)/test_cpp: test_cpp.cpp $(OUTPUT)/test_core_extern.skel.h $(BPFOBJ)
 
 EXTRA_CLEAN := $(TEST_CUSTOM_PROGS)					\
 	prog_tests/tests.h map_tests/tests.h verifier/tests.h		\
-	feature $(OUTPUT)/*.o $(OUTPUT)/no_alu32 $(OUTPUT)/bpf_gcc	\
-	tools *.skel.h
+	feature								\
+	$(addprefix $(OUTPUT)/,*.o *.skel.h no_alu32 bpf_gcc tools)
