@@ -351,12 +351,8 @@ static int max17040_suspend(struct device *dev)
 
 	cancel_delayed_work(&chip->work);
 
-	if (client->irq) {
-		if (device_may_wakeup(dev))
-			enable_irq_wake(client->irq);
-		else
-			disable_irq_wake(client->irq);
-	}
+	if (client->irq && device_may_wakeup(dev))
+		enable_irq_wake(client->irq);
 
 	return 0;
 }
@@ -369,12 +365,8 @@ static int max17040_resume(struct device *dev)
 	queue_delayed_work(system_power_efficient_wq, &chip->work,
 			   MAX17040_DELAY);
 
-	if (client->irq) {
-		if (device_may_wakeup(dev))
-			disable_irq_wake(client->irq);
-		else
-			enable_irq_wake(client->irq);
-	}
+	if (client->irq && device_may_wakeup(dev))
+		disable_irq_wake(client->irq);
 
 	return 0;
 }
