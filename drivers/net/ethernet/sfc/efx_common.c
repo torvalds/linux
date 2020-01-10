@@ -197,6 +197,51 @@ void efx_link_status_changed(struct efx_nic *efx)
 		netif_info(efx, link, efx->net_dev, "link down\n");
 }
 
+unsigned int efx_xdp_max_mtu(struct efx_nic *efx)
+{
+	/* The maximum MTU that we can fit in a single page, allowing for
+	 * framing, overhead and XDP headroom.
+	 */
+	int overhead = EFX_MAX_FRAME_LEN(0) + sizeof(struct efx_rx_page_state) +
+		       efx->rx_prefix_size + efx->type->rx_buffer_padding +
+		       efx->rx_ip_align + XDP_PACKET_HEADROOM;
+
+	return PAGE_SIZE - overhead;
+}
+
+/* Context: process, rtnl_lock() held. */
+int efx_change_mtu(struct net_device *net_dev, int new_mtu)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	rc = efx_check_disabled(efx);
+	if (rc)
+		return rc;
+
+	if (rtnl_dereference(efx->xdp_prog) &&
+	    new_mtu > efx_xdp_max_mtu(efx)) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Requested MTU of %d too big for XDP (max: %d)\n",
+			  new_mtu, efx_xdp_max_mtu(efx));
+		return -EINVAL;
+	}
+
+	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
+
+	efx_device_detach_sync(efx);
+	efx_stop_all(efx);
+
+	mutex_lock(&efx->mac_lock);
+	net_dev->mtu = new_mtu;
+	efx_mac_reconfigure(efx);
+	mutex_unlock(&efx->mac_lock);
+
+	efx_start_all(efx);
+	efx_device_attach_if_not_resetting(efx);
+	return 0;
+}
+
 /**************************************************************************
  *
  * Hardware monitor

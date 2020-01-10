@@ -189,24 +189,6 @@ static bool efx_ef10_is_vf(struct efx_nic *efx)
 	return efx->type->is_vf;
 }
 
-static int efx_ef10_get_pf_index(struct efx_nic *efx)
-{
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_FUNCTION_INFO_OUT_LEN);
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	size_t outlen;
-	int rc;
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_GET_FUNCTION_INFO, NULL, 0, outbuf,
-			  sizeof(outbuf), &outlen);
-	if (rc)
-		return rc;
-	if (outlen < sizeof(outbuf))
-		return -EIO;
-
-	nic_data->pf_index = MCDI_DWORD(outbuf, GET_FUNCTION_INFO_OUT_PF);
-	return 0;
-}
-
 #ifdef CONFIG_SFC_SRIOV
 static int efx_ef10_get_vf_index(struct efx_nic *efx)
 {
@@ -714,7 +696,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	if (rc)
 		goto fail4;
 
-	rc = efx_ef10_get_pf_index(efx);
+	rc = efx_get_pf_index(efx, &nic_data->pf_index);
 	if (rc)
 		goto fail5;
 

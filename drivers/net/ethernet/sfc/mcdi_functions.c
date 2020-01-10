@@ -370,3 +370,20 @@ int efx_mcdi_window_mode_to_stride(struct efx_nic *efx, u8 vi_window_mode)
 		  efx->vi_stride);
 	return 0;
 }
+
+int efx_get_pf_index(struct efx_nic *efx, unsigned int *pf_index)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_FUNCTION_INFO_OUT_LEN);
+	size_t outlen;
+	int rc;
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_FUNCTION_INFO, NULL, 0, outbuf,
+			  sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+
+	*pf_index = MCDI_DWORD(outbuf, GET_FUNCTION_INFO_OUT_PF);
+	return 0;
+}
