@@ -47,6 +47,32 @@ int test_pkt_access_subprog2(int val, volatile struct __sk_buff *skb)
 	return skb->len * val;
 }
 
+#define MAX_STACK (512 - 2 * 32)
+
+__attribute__ ((noinline))
+int get_skb_len(struct __sk_buff *skb)
+{
+	volatile char buf[MAX_STACK] = {};
+
+	return skb->len;
+}
+
+int get_skb_ifindex(int, struct __sk_buff *skb, int);
+
+__attribute__ ((noinline))
+int test_pkt_access_subprog3(int val, struct __sk_buff *skb)
+{
+	return get_skb_len(skb) * get_skb_ifindex(val, skb, 1);
+}
+
+__attribute__ ((noinline))
+int get_skb_ifindex(int val, struct __sk_buff *skb, int var)
+{
+	volatile char buf[MAX_STACK] = {};
+
+	return skb->ifindex * val * var;
+}
+
 SEC("classifier/test_pkt_access")
 int test_pkt_access(struct __sk_buff *skb)
 {
@@ -81,6 +107,8 @@ int test_pkt_access(struct __sk_buff *skb)
 	if (test_pkt_access_subprog1(skb) != skb->len * 2)
 		return TC_ACT_SHOT;
 	if (test_pkt_access_subprog2(2, skb) != skb->len * 2)
+		return TC_ACT_SHOT;
+	if (test_pkt_access_subprog3(3, skb) != skb->len * 3 * skb->ifindex)
 		return TC_ACT_SHOT;
 	if (tcp) {
 		if (((void *)(tcp) + 20) > data_end || proto != 6)

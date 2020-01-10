@@ -98,6 +98,7 @@ static void test_target_yes_callees(void)
 		"fexit/test_pkt_access",
 		"fexit/test_pkt_access_subprog1",
 		"fexit/test_pkt_access_subprog2",
+		"fexit/test_pkt_access_subprog3",
 	};
 	test_fexit_bpf2bpf_common("./fexit_bpf2bpf.o",
 				  "./test_pkt_access.o",
