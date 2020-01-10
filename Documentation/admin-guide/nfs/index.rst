@@ -7,3 +7,4 @@ NFS
 
     nfs-client
     nfsroot
+    nfs-rdma
