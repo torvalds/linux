@@ -21,6 +21,8 @@ void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 			unsigned int *pkts_compl,
 			unsigned int *bytes_compl);
 
+void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
+
 struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
 				       dma_addr_t dma_addr, size_t len);
 int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,

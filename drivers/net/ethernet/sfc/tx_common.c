@@ -191,6 +191,82 @@ void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 	buffer->flags = 0;
 }
 
+/* Remove packets from the TX queue
+ *
+ * This removes packets from the TX queue, up to and including the
+ * specified index.
+ */
+static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
+				unsigned int index,
+				unsigned int *pkts_compl,
+				unsigned int *bytes_compl)
+{
+	struct efx_nic *efx = tx_queue->efx;
+	unsigned int stop_index, read_ptr;
+
+	stop_index = (index + 1) & tx_queue->ptr_mask;
+	read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
+
+	while (read_ptr != stop_index) {
+		struct efx_tx_buffer *buffer = &tx_queue->buffer[read_ptr];
+
+		if (!(buffer->flags & EFX_TX_BUF_OPTION) &&
+		    unlikely(buffer->len == 0)) {
+			netif_err(efx, tx_err, efx->net_dev,
+				  "TX queue %d spurious TX completion id %x\n",
+				  tx_queue->queue, read_ptr);
+			efx_schedule_reset(efx, RESET_TYPE_TX_SKIP);
+			return;
+		}
+
+		efx_dequeue_buffer(tx_queue, buffer, pkts_compl, bytes_compl);
+
+		++tx_queue->read_count;
+		read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
+	}
+}
+
+void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
+{
+	unsigned int fill_level, pkts_compl = 0, bytes_compl = 0;
+	struct efx_nic *efx = tx_queue->efx;
+	struct efx_tx_queue *txq2;
+
+	EFX_WARN_ON_ONCE_PARANOID(index > tx_queue->ptr_mask);
+
+	efx_dequeue_buffers(tx_queue, index, &pkts_compl, &bytes_compl);
+	tx_queue->pkts_compl += pkts_compl;
+	tx_queue->bytes_compl += bytes_compl;
+
+	if (pkts_compl > 1)
+		++tx_queue->merge_events;
+
+	/* See if we need to restart the netif queue.  This memory
+	 * barrier ensures that we write read_count (inside
+	 * efx_dequeue_buffers()) before reading the queue status.
+	 */
+	smp_mb();
+	if (unlikely(netif_tx_queue_stopped(tx_queue->core_txq)) &&
+	    likely(efx->port_enabled) &&
+	    likely(netif_device_present(efx->net_dev))) {
+		txq2 = efx_tx_queue_partner(tx_queue);
+		fill_level = max(tx_queue->insert_count - tx_queue->read_count,
+				 txq2->insert_count - txq2->read_count);
+		if (fill_level <= efx->txq_wake_thresh)
+			netif_tx_wake_queue(tx_queue->core_txq);
+	}
+
+	/* Check whether the hardware queue is now empty */
+	if ((int)(tx_queue->read_count - tx_queue->old_write_count) >= 0) {
+		tx_queue->old_write_count = READ_ONCE(tx_queue->write_count);
+		if (tx_queue->read_count == tx_queue->old_write_count) {
+			smp_mb();
+			tx_queue->empty_read_count =
+				tx_queue->read_count | EFX_EMPTY_COUNT_VALID;
+		}
+	}
+}
+
 struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
 				       dma_addr_t dma_addr, size_t len)
 {
