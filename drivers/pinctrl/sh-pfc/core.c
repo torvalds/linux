@@ -751,6 +751,14 @@ static bool __init is0s(const u16 *enum_ids, unsigned int n)
 	return true;
 }
 
+static bool __init same_name(const char *a, const char *b)
+{
+	if (!a || !b)
+		return false;
+
+	return !strcmp(a, b);
+}
+
 static void __init sh_pfc_check_cfg_reg(const char *drvname,
 					const struct pinmux_cfg_reg *cfg_reg)
 {
@@ -790,7 +798,7 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	/* Check pins */
 	for (i = 0; i < info->nr_pins; i++) {
 		for (j = 0; j < i; j++) {
-			if (!strcmp(info->pins[i].name, info->pins[j].name))
+			if (same_name(info->pins[i].name, info->pins[j].name))
 				sh_pfc_err("pin %s/%s: name conflict\n",
 					   info->pins[i].name,
 					   info->pins[j].name);
@@ -824,9 +832,8 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 		}
 		for (j = 0; j < func->nr_groups; j++) {
 			for (k = 0; k < info->nr_groups; k++) {
-				if (info->groups[k].name &&
-				    !strcmp(func->groups[j],
-					    info->groups[k].name)) {
+				if (same_name(func->groups[j],
+					      info->groups[k].name)) {
 					refcnts[k]++;
 					break;
 				}
