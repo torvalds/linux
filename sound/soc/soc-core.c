@@ -619,9 +619,6 @@ int snd_soc_suspend(struct device *dev)
 
 		if (cpu_dai->driver->bus_control)
 			snd_soc_dai_suspend(cpu_dai);
-
-		/* deactivate pins to sleep state */
-		pinctrl_pm_select_sleep_state(cpu_dai->dev);
 	}
 
 	if (card->suspend_post)
