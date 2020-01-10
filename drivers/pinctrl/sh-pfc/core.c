@@ -916,15 +916,22 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	}
 
 	for (i = 0; i < info->nr_groups; i++) {
-		if (!info->groups[i].name) {
+		const struct sh_pfc_pin_group *group = &info->groups[i];
+
+		if (!group->name) {
 			sh_pfc_err("empty group %u\n", i);
 			continue;
 		}
+		for (j = 0; j < i; j++) {
+			if (same_name(group->name, info->groups[j].name))
+				sh_pfc_err("group %s: name conflict\n",
+					   group->name);
+		}
 		if (!refcnts[i])
-			sh_pfc_err("orphan group %s\n", info->groups[i].name);
+			sh_pfc_err("orphan group %s\n", group->name);
 		else if (refcnts[i] > 1)
 			sh_pfc_warn("group %s referenced by %u functions\n",
-				    info->groups[i].name, refcnts[i]);
+				    group->name, refcnts[i]);
 	}
 
 	kfree(refcnts);
