@@ -225,11 +225,8 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					struct intel_plane_state *new_plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
-	const struct drm_framebuffer *fb;
+	const struct drm_framebuffer *fb = new_plane_state->hw.fb;
 	int ret;
-
-	intel_plane_copy_uapi_to_hw_state(new_plane_state, new_plane_state);
-	fb = new_plane_state->hw.fb;
 
 	new_crtc_state->active_planes &= ~BIT(plane->id);
 	new_crtc_state->nv12_planes &= ~BIT(plane->id);
@@ -292,6 +289,7 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 	const struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 
+	intel_plane_copy_uapi_to_hw_state(new_plane_state, new_plane_state);
 	new_plane_state->uapi.visible = false;
 	if (!crtc)
 		return 0;

@@ -16018,6 +16018,8 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	new_plane_state->uapi.crtc_w = crtc_w;
 	new_plane_state->uapi.crtc_h = crtc_h;
 
+	intel_plane_copy_uapi_to_hw_state(new_plane_state, new_plane_state);
+
 	ret = intel_plane_atomic_check_with_state(crtc_state, new_crtc_state,
 						  old_plane_state, new_plane_state);
 	if (ret)
