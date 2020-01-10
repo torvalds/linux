@@ -17,6 +17,9 @@
 #include "libbpf.h"
 #include "libbpf_internal.h"
 
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
 static bool grep(const char *buffer, const char *pattern)
 {
 	return !!strstr(buffer, pattern);

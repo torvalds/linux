@@ -55,6 +55,9 @@
 #include "libbpf_internal.h"
 #include "hashmap.h"
 
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
 #ifndef EM_BPF
 #define EM_BPF 247
 #endif
@@ -6475,7 +6478,7 @@ static int bpf_object__collect_struct_ops_map_reloc(struct bpf_object *obj,
 	Elf_Data *symbols;
 	unsigned int moff;
 	const char *name;
-	u32 member_idx;
+	__u32 member_idx;
 	GElf_Sym sym;
 	GElf_Rel rel;
 	int i, nrels;
