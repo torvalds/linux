@@ -814,15 +814,6 @@ struct iommu_table *pnv_pci_table_alloc(int nid)
 	return tbl;
 }
 
-void pnv_pci_dma_dev_setup(struct pci_dev *pdev)
-{
-	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
-	struct pnv_phb *phb = hose->private_data;
-
-	if (phb && phb->dma_dev_setup)
-		phb->dma_dev_setup(phb, pdev);
-}
-
 void pnv_pci_dma_bus_setup(struct pci_bus *bus)
 {
 	struct pci_controller *hose = bus->sysdata;
