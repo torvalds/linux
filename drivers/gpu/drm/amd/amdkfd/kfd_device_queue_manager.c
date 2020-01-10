@@ -934,6 +934,7 @@ static void uninitialize(struct device_queue_manager *dqm)
 
 static int start_nocpsch(struct device_queue_manager *dqm)
 {
+	pr_info("SW scheduler is used");
 	init_interrupts(dqm);
 	
 	if (dqm->dev->device_info->asic_family == CHIP_HAWAII)
