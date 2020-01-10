@@ -33,13 +33,6 @@
 /* Maximum rx prefix used by any architecture. */
 #define EFX_MAX_RX_PREFIX_SIZE 16
 
-/* Number of RX buffers to recycle pages for.  When creating the RX page recycle
- * ring, this number is divided by the number of buffers per page to calculate
- * the number of pages to store in the RX page recycle ring.
- */
-#define EFX_RECYCLE_RING_SIZE_IOMMU 4096
-#define EFX_RECYCLE_RING_SIZE_NOIOMMU (2 * EFX_RX_PREFERRED_BATCH)
-
 /* Size of buffer allocated for skb header area. */
 #define EFX_SKB_HEADERS  128u
 
@@ -47,124 +40,12 @@
 #define EFX_RX_MAX_FRAGS DIV_ROUND_UP(EFX_MAX_FRAME_LEN(EFX_MAX_MTU), \
 				      EFX_RX_USR_BUF_SIZE)
 
-static inline u8 *efx_rx_buf_va(struct efx_rx_buffer *buf)
-{
-	return page_address(buf->page) + buf->page_offset;
-}
-
-static inline u32 efx_rx_buf_hash(struct efx_nic *efx, const u8 *eh)
-{
-#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
-	return __le32_to_cpup((const __le32 *)(eh + efx->rx_packet_hash_offset));
-#else
-	const u8 *data = eh + efx->rx_packet_hash_offset;
-	return (u32)data[0]	  |
-	       (u32)data[1] << 8  |
-	       (u32)data[2] << 16 |
-	       (u32)data[3] << 24;
-#endif
-}
-
 static inline void efx_sync_rx_buffer(struct efx_nic *efx,
 				      struct efx_rx_buffer *rx_buf,
 				      unsigned int len)
 {
 	dma_sync_single_for_cpu(&efx->pci_dev->dev, rx_buf->dma_addr, len,
 				DMA_FROM_DEVICE);
-}
-
-/* Check the RX page recycle ring for a page that can be reused. */
-struct page *efx_reuse_page(struct efx_rx_queue *rx_queue)
-{
-	struct efx_nic *efx = rx_queue->efx;
-	struct page *page;
-	struct efx_rx_page_state *state;
-	unsigned index;
-
-	index = rx_queue->page_remove & rx_queue->page_ptr_mask;
-	page = rx_queue->page_ring[index];
-	if (page == NULL)
-		return NULL;
-
-	rx_queue->page_ring[index] = NULL;
-	/* page_remove cannot exceed page_add. */
-	if (rx_queue->page_remove != rx_queue->page_add)
-		++rx_queue->page_remove;
-
-	/* If page_count is 1 then we hold the only reference to this page. */
-	if (page_count(page) == 1) {
-		++rx_queue->page_recycle_count;
-		return page;
-	} else {
-		state = page_address(page);
-		dma_unmap_page(&efx->pci_dev->dev, state->dma_addr,
-			       PAGE_SIZE << efx->rx_buffer_order,
-			       DMA_FROM_DEVICE);
-		put_page(page);
-		++rx_queue->page_recycle_failed;
-	}
-
-	return NULL;
-}
-
-/* Attempt to recycle the page if there is an RX recycle ring; the page can
- * only be added if this is the final RX buffer, to prevent pages being used in
- * the descriptor ring and appearing in the recycle ring simultaneously.
- */
-static void efx_recycle_rx_page(struct efx_channel *channel,
-				struct efx_rx_buffer *rx_buf)
-{
-	struct page *page = rx_buf->page;
-	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
-	struct efx_nic *efx = rx_queue->efx;
-	unsigned index;
-
-	/* Only recycle the page after processing the final buffer. */
-	if (!(rx_buf->flags & EFX_RX_BUF_LAST_IN_PAGE))
-		return;
-
-	index = rx_queue->page_add & rx_queue->page_ptr_mask;
-	if (rx_queue->page_ring[index] == NULL) {
-		unsigned read_index = rx_queue->page_remove &
-			rx_queue->page_ptr_mask;
-
-		/* The next slot in the recycle ring is available, but
-		 * increment page_remove if the read pointer currently
-		 * points here.
-		 */
-		if (read_index == index)
-			++rx_queue->page_remove;
-		rx_queue->page_ring[index] = page;
-		++rx_queue->page_add;
-		return;
-	}
-	++rx_queue->page_recycle_full;
-	efx_unmap_rx_buffer(efx, rx_buf);
-	put_page(rx_buf->page);
-}
-
-/* Recycle the pages that are used by buffers that have just been received. */
-static void efx_recycle_rx_pages(struct efx_channel *channel,
-				 struct efx_rx_buffer *rx_buf,
-				 unsigned int n_frags)
-{
-	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
-
-	do {
-		efx_recycle_rx_page(channel, rx_buf);
-		rx_buf = efx_rx_buf_next(rx_queue, rx_buf);
-	} while (--n_frags);
-}
-
-static void efx_discard_rx_packet(struct efx_channel *channel,
-				  struct efx_rx_buffer *rx_buf,
-				  unsigned int n_frags)
-{
-	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
-
-	efx_recycle_rx_pages(channel, rx_buf, n_frags);
-
-	efx_free_rx_buffers(rx_queue, rx_buf, n_frags);
 }
 
 static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
@@ -188,53 +69,6 @@ static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
 			  efx_rx_queue_index(rx_queue), len, max_len);
 
 	efx_rx_queue_channel(rx_queue)->n_rx_overlength++;
-}
-
-/* Pass a received packet up through GRO.  GRO can handle pages
- * regardless of checksum state and skbs with a good checksum.
- */
-static void
-efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
-		  unsigned int n_frags, u8 *eh)
-{
-	struct napi_struct *napi = &channel->napi_str;
-	struct efx_nic *efx = channel->efx;
-	struct sk_buff *skb;
-
-	skb = napi_get_frags(napi);
-	if (unlikely(!skb)) {
-		struct efx_rx_queue *rx_queue;
-
-		rx_queue = efx_channel_get_rx_queue(channel);
-		efx_free_rx_buffers(rx_queue, rx_buf, n_frags);
-		return;
-	}
-
-	if (efx->net_dev->features & NETIF_F_RXHASH)
-		skb_set_hash(skb, efx_rx_buf_hash(efx, eh),
-			     PKT_HASH_TYPE_L3);
-	skb->ip_summed = ((rx_buf->flags & EFX_RX_PKT_CSUMMED) ?
-			  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
-	skb->csum_level = !!(rx_buf->flags & EFX_RX_PKT_CSUM_LEVEL);
-
-	for (;;) {
-		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
-				   rx_buf->page, rx_buf->page_offset,
-				   rx_buf->len);
-		rx_buf->page = NULL;
-		skb->len += rx_buf->len;
-		if (skb_shinfo(skb)->nr_frags == n_frags)
-			break;
-
-		rx_buf = efx_rx_buf_next(&channel->rx_queue, rx_buf);
-	}
-
-	skb->data_len = skb->len;
-	skb->truesize += n_frags * efx->rx_buffer_truesize;
-
-	skb_record_rx_queue(skb, channel->rx_queue.core_index);
-
-	napi_gro_frags(napi);
 }
 
 /* Allocate and construct an SKB around page fragments */
@@ -581,28 +415,6 @@ void __efx_rx_packet(struct efx_channel *channel)
 		efx_rx_deliver(channel, eh, rx_buf, channel->rx_pkt_n_frags);
 out:
 	channel->rx_pkt_n_frags = 0;
-}
-
-void efx_init_rx_recycle_ring(struct efx_rx_queue *rx_queue)
-{
-	unsigned int bufs_in_recycle_ring, page_ring_size;
-	struct efx_nic *efx = rx_queue->efx;
-
-	/* Set the RX recycle ring size */
-#ifdef CONFIG_PPC64
-	bufs_in_recycle_ring = EFX_RECYCLE_RING_SIZE_IOMMU;
-#else
-	if (iommu_present(&pci_bus_type))
-		bufs_in_recycle_ring = EFX_RECYCLE_RING_SIZE_IOMMU;
-	else
-		bufs_in_recycle_ring = EFX_RECYCLE_RING_SIZE_NOIOMMU;
-#endif /* CONFIG_PPC64 */
-
-	page_ring_size = roundup_pow_of_two(bufs_in_recycle_ring /
-					    efx->rx_bufs_per_page);
-	rx_queue->page_ring = kcalloc(page_ring_size,
-				      sizeof(*rx_queue->page_ring), GFP_KERNEL);
-	rx_queue->page_ptr_mask = page_ring_size - 1;
 }
 
 #ifdef CONFIG_RFS_ACCEL
