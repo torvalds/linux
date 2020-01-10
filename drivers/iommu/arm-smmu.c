@@ -971,23 +971,36 @@ static void arm_smmu_write_sme(struct arm_smmu_device *smmu, int idx)
 static void arm_smmu_test_smr_masks(struct arm_smmu_device *smmu)
 {
 	u32 smr;
+	int i;
 
 	if (!smmu->smrs)
 		return;
-
+	/*
+	 * If we've had to accommodate firmware memory regions, we may
+	 * have live SMRs by now; tread carefully...
+	 *
+	 * Somewhat perversely, not having a free SMR for this test implies we
+	 * can get away without it anyway, as we'll only be able to 'allocate'
+	 * these SMRs for the ID/mask values we're already trusting to be OK.
+	 */
+	for (i = 0; i < smmu->num_mapping_groups; i++)
+		if (!smmu->smrs[i].valid)
+			goto smr_ok;
+	return;
+smr_ok:
 	/*
 	 * SMR.ID bits may not be preserved if the corresponding MASK
 	 * bits are set, so check each one separately. We can reject
 	 * masters later if they try to claim IDs outside these masks.
 	 */
 	smr = FIELD_PREP(ARM_SMMU_SMR_ID, smmu->streamid_mask);
-	arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_SMR(0), smr);
-	smr = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_SMR(0));
+	arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_SMR(i), smr);
+	smr = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_SMR(i));
 	smmu->streamid_mask = FIELD_GET(ARM_SMMU_SMR_ID, smr);
 
 	smr = FIELD_PREP(ARM_SMMU_SMR_MASK, smmu->streamid_mask);
-	arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_SMR(0), smr);
-	smr = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_SMR(0));
+	arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_SMR(i), smr);
+	smr = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_SMR(i));
 	smmu->smr_mask_mask = FIELD_GET(ARM_SMMU_SMR_MASK, smr);
 }
 
