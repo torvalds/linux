@@ -562,15 +562,25 @@ int snd_soc_suspend(struct device *dev)
 	snd_soc_dapm_sync(&card->dapm);
 
 	/* suspend all COMPONENTs */
-	for_each_card_components(card, component) {
-		struct snd_soc_dapm_context *dapm =
+	for_each_card_rtds(card, rtd) {
+
+		if (rtd->dai_link->ignore_suspend)
+			continue;
+
+		for_each_rtd_components(rtd, i, component) {
+			struct snd_soc_dapm_context *dapm =
 				snd_soc_component_get_dapm(component);
 
-		/*
-		 * If there are paths active then the COMPONENT will be held
-		 * with bias _ON and should not be suspended.
-		 */
-		if (!snd_soc_component_is_suspended(component)) {
+			/*
+			 * ignore if component was already suspended
+			 */
+			if (snd_soc_component_is_suspended(component))
+				continue;
+
+			/*
+			 * If there are paths active then the COMPONENT will be
+			 * held with bias _ON and should not be suspended.
+			 */
 			switch (snd_soc_dapm_get_bias_level(dapm)) {
 			case SND_SOC_BIAS_STANDBY:
 				/*
