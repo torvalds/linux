@@ -15735,18 +15735,18 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	struct intel_plane *plane = to_intel_plane(_plane);
 	struct intel_plane_state *new_plane_state =
 		to_intel_plane_state(_new_plane_state);
-	struct intel_atomic_state *intel_state =
+	struct intel_atomic_state *state =
 		to_intel_atomic_state(new_plane_state->uapi.state);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct intel_plane_state *old_plane_state =
-		intel_atomic_get_old_plane_state(intel_state, plane);
+		intel_atomic_get_old_plane_state(state, plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(new_plane_state->hw.fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_plane_state->hw.fb);
 	int ret;
 
 	if (old_obj) {
 		const struct intel_crtc_state *crtc_state =
-			intel_atomic_get_new_crtc_state(intel_state,
+			intel_atomic_get_new_crtc_state(state,
 							to_intel_crtc(old_plane_state->hw.crtc));
 
 		/* Big Hammer, we also need to ensure that any pending
@@ -15761,7 +15761,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		 * can safely continue.
 		 */
 		if (needs_modeset(crtc_state)) {
-			ret = i915_sw_fence_await_reservation(&intel_state->commit_ready,
+			ret = i915_sw_fence_await_reservation(&state->commit_ready,
 							      old_obj->base.resv, NULL,
 							      false, 0,
 							      GFP_KERNEL);
@@ -15771,7 +15771,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	}
 
 	if (new_plane_state->uapi.fence) { /* explicit fencing */
-		ret = i915_sw_fence_await_dma_fence(&intel_state->commit_ready,
+		ret = i915_sw_fence_await_dma_fence(&state->commit_ready,
 						    new_plane_state->uapi.fence,
 						    I915_FENCE_TIMEOUT,
 						    GFP_KERNEL);
@@ -15798,7 +15798,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	if (!new_plane_state->uapi.fence) { /* implicit fencing */
 		struct dma_fence *fence;
 
-		ret = i915_sw_fence_await_reservation(&intel_state->commit_ready,
+		ret = i915_sw_fence_await_reservation(&state->commit_ready,
 						      obj->base.resv, NULL,
 						      false, I915_FENCE_TIMEOUT,
 						      GFP_KERNEL);
@@ -15824,9 +15824,9 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	 * that are not quite steady state without resorting to forcing
 	 * maximum clocks following a vblank miss (see do_rps_boost()).
 	 */
-	if (!intel_state->rps_interactive) {
+	if (!state->rps_interactive) {
 		intel_rps_mark_interactive(&dev_priv->gt.rps, true);
-		intel_state->rps_interactive = true;
+		state->rps_interactive = true;
 	}
 
 	return 0;
@@ -15845,13 +15845,13 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 {
 	struct intel_plane_state *old_plane_state =
 		to_intel_plane_state(_old_plane_state);
-	struct intel_atomic_state *intel_state =
+	struct intel_atomic_state *state =
 		to_intel_atomic_state(old_plane_state->uapi.state);
 	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 
-	if (intel_state->rps_interactive) {
+	if (state->rps_interactive) {
 		intel_rps_mark_interactive(&dev_priv->gt.rps, false);
-		intel_state->rps_interactive = false;
+		state->rps_interactive = false;
 	}
 
 	/* Should only be called after a successful intel_prepare_plane_fb()! */
