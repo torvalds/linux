@@ -1123,16 +1123,6 @@ bpf_object__init_kversion(struct bpf_object *obj, void *data, size_t size)
 	return 0;
 }
 
-static int compare_bpf_map(const void *_a, const void *_b)
-{
-	const struct bpf_map *a = _a;
-	const struct bpf_map *b = _b;
-
-	if (a->sec_idx != b->sec_idx)
-		return a->sec_idx - b->sec_idx;
-	return a->sec_offset - b->sec_offset;
-}
-
 static bool bpf_map_type__is_map_in_map(enum bpf_map_type type)
 {
 	if (type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
@@ -2196,10 +2186,6 @@ static int bpf_object__init_maps(struct bpf_object *obj,
 	if (err)
 		return err;
 
-	if (obj->nr_maps) {
-		qsort(obj->maps, obj->nr_maps, sizeof(obj->maps[0]),
-		      compare_bpf_map);
-	}
 	return 0;
 }
 
