@@ -49,7 +49,7 @@
 #include <asm/cpu.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/microcode.h>
 #include <asm/microcode_intel.h>
 #include <asm/intel-family.h>

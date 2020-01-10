@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __PAT_INTERNAL_H_
-#define __PAT_INTERNAL_H_
+#ifndef __MEMTYPE_H_
+#define __MEMTYPE_H_
 
 extern int pat_debug_enable;
 
@@ -29,13 +29,13 @@ static inline char *cattr_name(enum page_cache_mode pcm)
 }
 
 #ifdef CONFIG_X86_PAT
-extern int memtype_check_insert(struct memtype *new,
+extern int memtype_check_insert(struct memtype *entry_new,
 				enum page_cache_mode *new_type);
 extern struct memtype *memtype_erase(u64 start, u64 end);
 extern struct memtype *memtype_lookup(u64 addr);
-extern int memtype_copy_nth_element(struct memtype *out, loff_t pos);
+extern int memtype_copy_nth_element(struct memtype *entry_out, loff_t pos);
 #else
-static inline int memtype_check_insert(struct memtype *new,
+static inline int memtype_check_insert(struct memtype *entry_new,
 				       enum page_cache_mode *new_type)
 { return 0; }
 static inline struct memtype *memtype_erase(u64 start, u64 end)
@@ -46,4 +46,4 @@ static inline int memtype_copy_nth_element(struct memtype *out, loff_t pos)
 { return 0; }
 #endif
 
-#endif /* __PAT_INTERNAL_H_ */
+#endif /* __MEMTYPE_H_ */

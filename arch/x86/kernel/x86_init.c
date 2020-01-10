@@ -20,7 +20,7 @@
 #include <asm/irq.h>
 #include <asm/io_apic.h>
 #include <asm/hpet.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/tsc.h>
 #include <asm/iommu.h>
 #include <asm/mach_traps.h>

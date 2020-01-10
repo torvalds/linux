@@ -40,7 +40,7 @@
 #include <linux/slab.h>
 #include <linux/bitmap.h>
 #if defined(CONFIG_X86)
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #endif
 #include <linux/sched.h>
 #include <linux/sched/mm.h>

@@ -29,6 +29,7 @@
 #include <asm/efi.h>			/* efi_recover_from_page_fault()*/
 #include <asm/desc.h>			/* store_idt(), ...		*/
 #include <asm/cpu_entry_area.h>		/* exception stack		*/
+#include <asm/pgtable_areas.h>		/* VMALLOC_START, ...		*/
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>

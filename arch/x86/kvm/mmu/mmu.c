@@ -40,7 +40,7 @@
 #include <linux/kthread.h>
 
 #include <asm/page.h>
-#include <asm/pat.h>
+#include <asm/memtype.h>
 #include <asm/cmpxchg.h>
 #include <asm/e820/api.h>
 #include <asm/io.h>
