@@ -858,6 +858,7 @@ static void vma_unbind_pages(struct i915_vma *vma)
 int i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
 	struct i915_vma_work *work = NULL;
+	intel_wakeref_t wakeref = 0;
 	unsigned int bound;
 	int err;
 
@@ -882,6 +883,9 @@ int i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 			goto err_pages;
 		}
 	}
+
+	if (flags & PIN_GLOBAL)
+		wakeref = intel_runtime_pm_get(&vma->vm->i915->runtime_pm);
 
 	/* No more allocations allowed once we hold vm->mutex */
 	err = mutex_lock_interruptible(&vma->vm->mutex);
@@ -946,6 +950,8 @@ err_unlock:
 err_fence:
 	if (work)
 		dma_fence_work_commit(&work->base);
+	if (wakeref)
+		intel_runtime_pm_put(&vma->vm->i915->runtime_pm, wakeref);
 err_pages:
 	vma_put_pages(vma);
 	return err;
@@ -1246,10 +1252,15 @@ int __i915_vma_unbind(struct i915_vma *vma)
 int i915_vma_unbind(struct i915_vma *vma)
 {
 	struct i915_address_space *vm = vma->vm;
+	intel_wakeref_t wakeref = 0;
 	int err;
 
 	if (!drm_mm_node_allocated(&vma->node))
 		return 0;
+
+	if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
+		/* XXX not always required: nop_clear_range */
+		wakeref = intel_runtime_pm_get(&vm->i915->runtime_pm);
 
 	err = mutex_lock_interruptible(&vm->mutex);
 	if (err)
@@ -1257,6 +1268,9 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	err = __i915_vma_unbind(vma);
 	mutex_unlock(&vm->mutex);
+
+	if (wakeref)
+		intel_runtime_pm_put(&vm->i915->runtime_pm, wakeref);
 
 	return err;
 }

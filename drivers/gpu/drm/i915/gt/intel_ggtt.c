@@ -430,9 +430,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 			 enum i915_cache_level cache_level,
 			 u32 flags)
 {
-	struct drm_i915_private *i915 = vma->vm->i915;
 	struct drm_i915_gem_object *obj = vma->obj;
-	intel_wakeref_t wakeref;
 	u32 pte_flags;
 
 	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
@@ -440,8 +438,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	if (i915_gem_object_is_readonly(obj))
 		pte_flags |= PTE_READ_ONLY;
 
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
+	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 
@@ -457,11 +454,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 
 static void ggtt_unbind_vma(struct i915_vma *vma)
 {
-	struct drm_i915_private *i915 = vma->vm->i915;
-	intel_wakeref_t wakeref;
-
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
+	vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
 }
 
 static int ggtt_reserve_guc_top(struct i915_ggtt *ggtt)
@@ -571,7 +564,6 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 				 enum i915_cache_level cache_level,
 				 u32 flags)
 {
-	struct drm_i915_private *i915 = vma->vm->i915;
 	u32 pte_flags;
 	int ret;
 
@@ -599,28 +591,18 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 					 cache_level, pte_flags);
 	}
 
-	if (flags & I915_VMA_GLOBAL_BIND) {
-		intel_wakeref_t wakeref;
-
-		with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-			vma->vm->insert_entries(vma->vm, vma,
-						cache_level, pte_flags);
-		}
-	}
+	if (flags & I915_VMA_GLOBAL_BIND)
+		vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 
 	return 0;
 }
 
 static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
 {
-	struct drm_i915_private *i915 = vma->vm->i915;
-
 	if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND)) {
 		struct i915_address_space *vm = vma->vm;
-		intel_wakeref_t wakeref;
 
-		with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-			vm->clear_range(vm, vma->node.start, vma->size);
+		vm->clear_range(vm, vma->node.start, vma->size);
 	}
 
 	if (test_and_clear_bit(I915_VMA_ALLOC_BIT, __i915_vma_flags(vma))) {
