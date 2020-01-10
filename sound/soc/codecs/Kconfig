@@ -165,6 +165,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5670 if I2C
 	select SND_SOC_RT5677 if I2C && SPI_MASTER
 	select SND_SOC_RT5682 if I2C
+	select SND_SOC_RT700_SDW if SOUNDWIRE
 	select SND_SOC_RT711_SDW if SOUNDWIRE
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
@@ -1059,6 +1060,15 @@ config SND_SOC_RT5677_SPI
 
 config SND_SOC_RT5682
 	tristate
+
+config SND_SOC_RT700
+	tristate
+
+config SND_SOC_RT700_SDW
+	tristate "Realtek RT700 Codec - SDW"
+	depends on SOUNDWIRE
+	select SND_SOC_RT700
+	select REGMAP_SOUNDWIRE
 
 config SND_SOC_RT711
 	tristate
