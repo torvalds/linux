@@ -273,14 +273,13 @@ static void __uc_cleanup_firmwares(struct intel_uc *uc)
 	intel_uc_fw_cleanup_fetch(&uc->guc.fw);
 }
 
-void intel_uc_init(struct intel_uc *uc)
+static void __uc_init(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 	struct intel_huc *huc = &uc->huc;
 	int ret;
 
-	if (!intel_uc_uses_guc(uc))
-		return;
+	GEM_BUG_ON(!intel_uc_uses_guc(uc));
 
 	/* XXX: GuC submission is unavailable for now */
 	GEM_BUG_ON(intel_uc_supports_guc_submission(uc));
@@ -295,7 +294,7 @@ void intel_uc_init(struct intel_uc *uc)
 		intel_huc_init(huc);
 }
 
-void intel_uc_fini(struct intel_uc *uc)
+static void __uc_fini(struct intel_uc *uc)
 {
 	intel_huc_fini(&uc->huc);
 	intel_guc_fini(&uc->guc);
@@ -618,6 +617,9 @@ static const struct intel_uc_ops uc_ops_off = {
 static const struct intel_uc_ops uc_ops_on = {
 	.init_fw = __uc_fetch_firmwares,
 	.fini_fw = __uc_cleanup_firmwares,
+
+	.init = __uc_init,
+	.fini = __uc_fini,
 
 	.init_hw = __uc_init_hw,
 	.fini_hw = __uc_fini_hw,
