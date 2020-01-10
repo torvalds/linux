@@ -1428,8 +1428,6 @@ intel_engine_coredump_add_request(struct intel_engine_coredump *ee,
 	vma = capture_user(vma, rq, gfp);
 	vma = capture_vma(vma, rq->ring->vma, "ring", gfp);
 	vma = capture_vma(vma, rq->context->state, "HW context", gfp);
-	if (HAS_BROKEN_CS_TLB(rq->i915))
-		vma = capture_vma(vma, ee->engine->gt->scratch, "WA batch", gfp);
 
 	ee->cpu_ring_head = rq->ring->head;
 	ee->cpu_ring_tail = rq->ring->tail;
