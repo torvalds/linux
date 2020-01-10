@@ -1966,7 +1966,7 @@ static int dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
 	soc_pcm_close(substream);
 
 	/* run the stream event for each BE */
-	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_STOP);
+	snd_soc_dapm_stream_stop(fe, stream);
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
