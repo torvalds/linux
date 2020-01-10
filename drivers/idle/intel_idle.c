@@ -1447,16 +1447,12 @@ static void sklh_idle_state_table_update(void)
 	skl_cstates[5].flags |= CPUIDLE_FLAG_UNUSABLE;	/* C8-SKL */
 	skl_cstates[6].flags |= CPUIDLE_FLAG_UNUSABLE;	/* C9-SKL */
 }
-/*
- * intel_idle_state_table_update()
- *
- * Update the default state_table for this CPU-id
- */
 
-static void intel_idle_state_table_update(void)
+static void intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 {
-	switch (boot_cpu_data.x86_model) {
+	int cstate;
 
+	switch (boot_cpu_data.x86_model) {
 	case INTEL_FAM6_IVYBRIDGE_X:
 		ivt_idle_state_table_update();
 		break;
@@ -1468,11 +1464,6 @@ static void intel_idle_state_table_update(void)
 		sklh_idle_state_table_update();
 		break;
 	}
-}
-
-static void intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
-{
-	int cstate;
 
 	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
 		unsigned int mwait_hint;
@@ -1515,12 +1506,8 @@ static void intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
  * intel_idle_cpuidle_driver_init()
  * allocate, initialize cpuidle_states
  */
-static void __init intel_idle_cpuidle_driver_init(void)
+static void __init intel_idle_cpuidle_driver_init(struct cpuidle_driver *drv)
 {
-	struct cpuidle_driver *drv = &intel_idle_driver;
-
-	intel_idle_state_table_update();
-
 	cpuidle_poll_state_init(drv);
 	drv->state_count = 1;
 
@@ -1633,7 +1620,8 @@ static int __init intel_idle_init(void)
 	if (!intel_idle_cpuidle_devices)
 		return -ENOMEM;
 
-	intel_idle_cpuidle_driver_init();
+	intel_idle_cpuidle_driver_init(&intel_idle_driver);
+
 	retval = cpuidle_register_driver(&intel_idle_driver);
 	if (retval) {
 		struct cpuidle_driver *drv = cpuidle_get_driver();
