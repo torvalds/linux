@@ -101,7 +101,7 @@
 
 /* Register bits */
 #define ARM_32_LPAE_TCR_EAE		(1 << 31)
-#define ARM_64_LPAE_S2_TCR_RES1		(1 << 31)
+#define ARM_64_LPAE_S2_TCR_RES1		(1U << 31)
 
 #define ARM_LPAE_TCR_EPD1		(1 << 23)
 
