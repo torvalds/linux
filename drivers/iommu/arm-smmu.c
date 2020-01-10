@@ -548,7 +548,7 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 				cb->tcr[0] |= ARM_SMMU_TCR_EAE;
 		}
 	} else {
-		cb->tcr[0] = pgtbl_cfg->arm_lpae_s2_cfg.vtcr;
+		cb->tcr[0] = arm_smmu_lpae_vtcr(pgtbl_cfg);
 	}
 
 	/* TTBRs */

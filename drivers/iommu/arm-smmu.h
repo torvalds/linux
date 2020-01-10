@@ -174,6 +174,15 @@ enum arm_smmu_cbar_type {
 #define ARM_SMMU_TCR_IRGN0		GENMASK(9, 8)
 #define ARM_SMMU_TCR_T0SZ		GENMASK(5, 0)
 
+#define ARM_SMMU_VTCR_RES1		BIT(31)
+#define ARM_SMMU_VTCR_PS		GENMASK(18, 16)
+#define ARM_SMMU_VTCR_TG0		ARM_SMMU_TCR_TG0
+#define ARM_SMMU_VTCR_SH0		ARM_SMMU_TCR_SH0
+#define ARM_SMMU_VTCR_ORGN0		ARM_SMMU_TCR_ORGN0
+#define ARM_SMMU_VTCR_IRGN0		ARM_SMMU_TCR_IRGN0
+#define ARM_SMMU_VTCR_SL0		GENMASK(7, 6)
+#define ARM_SMMU_VTCR_T0SZ		ARM_SMMU_TCR_T0SZ
+
 #define ARM_SMMU_CB_CONTEXTIDR		0x34
 #define ARM_SMMU_CB_S1_MAIR0		0x38
 #define ARM_SMMU_CB_S1_MAIR1		0x3c
@@ -350,6 +359,18 @@ static inline u32 arm_smmu_lpae_tcr2(struct io_pgtable_cfg *cfg)
 {
 	return FIELD_PREP(ARM_SMMU_TCR2_PASIZE, cfg->arm_lpae_s1_cfg.tcr.ips) |
 	       FIELD_PREP(ARM_SMMU_TCR2_SEP, ARM_SMMU_TCR2_SEP_UPSTREAM);
+}
+
+static inline u32 arm_smmu_lpae_vtcr(struct io_pgtable_cfg *cfg)
+{
+	return ARM_SMMU_VTCR_RES1 |
+	       FIELD_PREP(ARM_SMMU_VTCR_PS, cfg->arm_lpae_s2_cfg.vtcr.ps) |
+	       FIELD_PREP(ARM_SMMU_VTCR_TG0, cfg->arm_lpae_s2_cfg.vtcr.tg) |
+	       FIELD_PREP(ARM_SMMU_VTCR_SH0, cfg->arm_lpae_s2_cfg.vtcr.sh) |
+	       FIELD_PREP(ARM_SMMU_VTCR_ORGN0, cfg->arm_lpae_s2_cfg.vtcr.orgn) |
+	       FIELD_PREP(ARM_SMMU_VTCR_IRGN0, cfg->arm_lpae_s2_cfg.vtcr.irgn) |
+	       FIELD_PREP(ARM_SMMU_VTCR_SL0, cfg->arm_lpae_s2_cfg.vtcr.sl) |
+	       FIELD_PREP(ARM_SMMU_VTCR_T0SZ, cfg->arm_lpae_s2_cfg.vtcr.tsz);
 }
 
 /* Implementation details, yay! */

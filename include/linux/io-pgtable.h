@@ -114,7 +114,15 @@ struct io_pgtable_cfg {
 
 		struct {
 			u64	vttbr;
-			u64	vtcr;
+			struct {
+				u32	ps:3;
+				u32	tg:2;
+				u32	sh:2;
+				u32	orgn:2;
+				u32	irgn:2;
+				u32	sl:2;
+				u32	tsz:6;
+			}	vtcr;
 		} arm_lpae_s2_cfg;
 
 		struct {

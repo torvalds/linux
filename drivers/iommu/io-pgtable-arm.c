@@ -100,26 +100,19 @@
 #define ARM_LPAE_PTE_MEMATTR_DEV	(((arm_lpae_iopte)0x1) << 2)
 
 /* Register bits */
-#define ARM_64_LPAE_VTCR_RES1		(1U << 31)
-
-#define ARM_LPAE_VTCR_TG0_SHIFT		14
 #define ARM_LPAE_TCR_TG0_4K		0
 #define ARM_LPAE_TCR_TG0_64K		1
 #define ARM_LPAE_TCR_TG0_16K		2
 
-#define ARM_LPAE_TCR_SH0_SHIFT		12
 #define ARM_LPAE_TCR_SH_NS		0
 #define ARM_LPAE_TCR_SH_OS		2
 #define ARM_LPAE_TCR_SH_IS		3
 
-#define ARM_LPAE_TCR_ORGN0_SHIFT	10
-#define ARM_LPAE_TCR_IRGN0_SHIFT	8
 #define ARM_LPAE_TCR_RGN_NC		0
 #define ARM_LPAE_TCR_RGN_WBWA		1
 #define ARM_LPAE_TCR_RGN_WT		2
 #define ARM_LPAE_TCR_RGN_WB		3
 
-#define ARM_LPAE_VTCR_SL0_SHIFT		6
 #define ARM_LPAE_VTCR_SL0_MASK		0x3
 
 #define ARM_LPAE_TCR_T0SZ_SHIFT		0
@@ -878,8 +871,9 @@ out_free_data:
 static struct io_pgtable *
 arm_64_lpae_alloc_pgtable_s2(struct io_pgtable_cfg *cfg, void *cookie)
 {
-	u64 reg, sl;
+	u64 sl;
 	struct arm_lpae_io_pgtable *data;
+	typeof(&cfg->arm_lpae_s2_cfg.vtcr) vtcr = &cfg->arm_lpae_s2_cfg.vtcr;
 
 	/* The NS quirk doesn't apply at stage 2 */
 	if (cfg->quirks & ~(IO_PGTABLE_QUIRK_NON_STRICT))
@@ -904,61 +898,59 @@ arm_64_lpae_alloc_pgtable_s2(struct io_pgtable_cfg *cfg, void *cookie)
 	}
 
 	/* VTCR */
-	reg = ARM_64_LPAE_VTCR_RES1;
 	if (cfg->coherent_walk) {
-		reg |= (ARM_LPAE_TCR_SH_IS << ARM_LPAE_TCR_SH0_SHIFT) |
-		       (ARM_LPAE_TCR_RGN_WBWA << ARM_LPAE_TCR_IRGN0_SHIFT) |
-		       (ARM_LPAE_TCR_RGN_WBWA << ARM_LPAE_TCR_ORGN0_SHIFT);
+		vtcr->sh = ARM_LPAE_TCR_SH_IS;
+		vtcr->irgn = ARM_LPAE_TCR_RGN_WBWA;
+		vtcr->orgn = ARM_LPAE_TCR_RGN_WBWA;
 	} else {
-		reg |= (ARM_LPAE_TCR_SH_OS << ARM_LPAE_TCR_SH0_SHIFT) |
-		       (ARM_LPAE_TCR_RGN_NC << ARM_LPAE_TCR_IRGN0_SHIFT) |
-		       (ARM_LPAE_TCR_RGN_NC << ARM_LPAE_TCR_ORGN0_SHIFT);
+		vtcr->sh = ARM_LPAE_TCR_SH_OS;
+		vtcr->irgn = ARM_LPAE_TCR_RGN_NC;
+		vtcr->orgn = ARM_LPAE_TCR_RGN_NC;
 	}
 
 	sl = data->start_level;
 
 	switch (ARM_LPAE_GRANULE(data)) {
 	case SZ_4K:
-		reg |= (ARM_LPAE_TCR_TG0_4K << ARM_LPAE_VTCR_TG0_SHIFT);
+		vtcr->tg = ARM_LPAE_TCR_TG0_4K;
 		sl++; /* SL0 format is different for 4K granule size */
 		break;
 	case SZ_16K:
-		reg |= (ARM_LPAE_TCR_TG0_16K << ARM_LPAE_VTCR_TG0_SHIFT);
+		vtcr->tg = ARM_LPAE_TCR_TG0_16K;
 		break;
 	case SZ_64K:
-		reg |= (ARM_LPAE_TCR_TG0_64K << ARM_LPAE_VTCR_TG0_SHIFT);
+		vtcr->tg = ARM_LPAE_TCR_TG0_64K;
 		break;
 	}
 
 	switch (cfg->oas) {
 	case 32:
-		reg |= (ARM_LPAE_TCR_PS_32_BIT << ARM_LPAE_VTCR_PS_SHIFT);
+		vtcr->ps = ARM_LPAE_TCR_PS_32_BIT;
 		break;
 	case 36:
-		reg |= (ARM_LPAE_TCR_PS_36_BIT << ARM_LPAE_VTCR_PS_SHIFT);
+		vtcr->ps = ARM_LPAE_TCR_PS_36_BIT;
 		break;
 	case 40:
-		reg |= (ARM_LPAE_TCR_PS_40_BIT << ARM_LPAE_VTCR_PS_SHIFT);
+		vtcr->ps = ARM_LPAE_TCR_PS_40_BIT;
 		break;
 	case 42:
-		reg |= (ARM_LPAE_TCR_PS_42_BIT << ARM_LPAE_VTCR_PS_SHIFT);
+		vtcr->ps = ARM_LPAE_TCR_PS_42_BIT;
 		break;
 	case 44:
-		reg |= (ARM_LPAE_TCR_PS_44_BIT << ARM_LPAE_VTCR_PS_SHIFT);
+		vtcr->ps = ARM_LPAE_TCR_PS_44_BIT;
 		break;
 	case 48:
-		reg |= (ARM_LPAE_TCR_PS_48_BIT << ARM_LPAE_VTCR_PS_SHIFT);
+		vtcr->ps = ARM_LPAE_TCR_PS_48_BIT;
 		break;
 	case 52:
-		reg |= (ARM_LPAE_TCR_PS_52_BIT << ARM_LPAE_VTCR_PS_SHIFT);
+		vtcr->ps = ARM_LPAE_TCR_PS_52_BIT;
 		break;
 	default:
 		goto out_free_data;
 	}
 
-	reg |= (64ULL - cfg->ias) << ARM_LPAE_TCR_T0SZ_SHIFT;
-	reg |= (~sl & ARM_LPAE_VTCR_SL0_MASK) << ARM_LPAE_VTCR_SL0_SHIFT;
-	cfg->arm_lpae_s2_cfg.vtcr = reg;
+	vtcr->tsz = 64ULL - cfg->ias;
+	vtcr->sl = ~sl & ARM_LPAE_VTCR_SL0_MASK;
 
 	/* Allocate pgd pages */
 	data->pgd = __arm_lpae_alloc_pages(ARM_LPAE_PGD_SIZE(data),
@@ -985,24 +977,17 @@ arm_32_lpae_alloc_pgtable_s1(struct io_pgtable_cfg *cfg, void *cookie)
 		return NULL;
 
 	cfg->pgsize_bitmap &= (SZ_4K | SZ_2M | SZ_1G);
-
 	return arm_64_lpae_alloc_pgtable_s1(cfg, cookie);
 }
 
 static struct io_pgtable *
 arm_32_lpae_alloc_pgtable_s2(struct io_pgtable_cfg *cfg, void *cookie)
 {
-	struct io_pgtable *iop;
-
 	if (cfg->ias > 40 || cfg->oas > 40)
 		return NULL;
 
 	cfg->pgsize_bitmap &= (SZ_4K | SZ_2M | SZ_1G);
-	iop = arm_64_lpae_alloc_pgtable_s2(cfg, cookie);
-	if (iop)
-		cfg->arm_lpae_s2_cfg.vtcr &= 0xffffffff;
-
-	return iop;
+	return arm_64_lpae_alloc_pgtable_s2(cfg, cookie);
 }
 
 static struct io_pgtable *
