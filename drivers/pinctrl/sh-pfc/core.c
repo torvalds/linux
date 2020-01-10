@@ -726,8 +726,12 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
 #endif /* CONFIG_PM_SLEEP && CONFIG_ARM_PSCI_FW */
 
 #ifdef DEBUG
+#define SH_PFC_MAX_REGS		300
+
 static unsigned int sh_pfc_errors __initdata = 0;
 static unsigned int sh_pfc_warnings __initdata = 0;
+static u32 *sh_pfc_regs __initdata = NULL;
+static u32 sh_pfc_num_regs __initdata = 0;
 
 #define sh_pfc_err(fmt, ...)					\
 	do {							\
@@ -759,10 +763,30 @@ static bool __init same_name(const char *a, const char *b)
 	return !strcmp(a, b);
 }
 
+static void __init sh_pfc_check_reg(const char *drvname, u32 reg)
+{
+	unsigned int i;
+
+	for (i = 0; i < sh_pfc_num_regs; i++)
+		if (reg == sh_pfc_regs[i]) {
+			sh_pfc_err("reg 0x%x conflict\n", reg);
+			return;
+		}
+
+	if (sh_pfc_num_regs == SH_PFC_MAX_REGS) {
+		pr_warn_once("%s: Please increase SH_PFC_MAX_REGS\n", drvname);
+		return;
+	}
+
+	sh_pfc_regs[sh_pfc_num_regs++] = reg;
+}
+
 static void __init sh_pfc_check_cfg_reg(const char *drvname,
 					const struct pinmux_cfg_reg *cfg_reg)
 {
 	unsigned int i, n, rw, fw;
+
+	sh_pfc_check_reg(drvname, cfg_reg->reg);
 
 	if (cfg_reg->field_width) {
 		/* Checked at build time */
@@ -794,6 +818,7 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	unsigned int i, j, k;
 
 	pr_info("Checking %s\n", drvname);
+	sh_pfc_num_regs = 0;
 
 	/* Check pins */
 	for (i = 0; i < info->nr_pins; i++) {
@@ -868,6 +893,11 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 {
 	unsigned int i;
 
+	sh_pfc_regs = kcalloc(SH_PFC_MAX_REGS, sizeof(*sh_pfc_regs),
+			      GFP_KERNEL);
+	if (!sh_pfc_regs)
+		return;
+
 	pr_warn("Checking builtin pinmux tables\n");
 
 	for (i = 0; pdrv->id_table[i].name[0]; i++)
@@ -880,6 +910,8 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 
 	pr_warn("Detected %u errors and %u warnings\n", sh_pfc_errors,
 		sh_pfc_warnings);
+
+	kfree(sh_pfc_regs);
 }
 
 #else /* !DEBUG */
