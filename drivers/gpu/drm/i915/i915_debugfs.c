@@ -685,7 +685,7 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 static ssize_t gpu_state_read(struct file *file, char __user *ubuf,
 			      size_t count, loff_t *pos)
 {
-	struct i915_gpu_state *error;
+	struct i915_gpu_coredump *error;
 	ssize_t ret;
 	void *buf;
 
@@ -698,7 +698,7 @@ static ssize_t gpu_state_read(struct file *file, char __user *ubuf,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = i915_gpu_state_copy_to_buffer(error, buf, *pos, count);
+	ret = i915_gpu_coredump_copy_to_buffer(error, buf, *pos, count);
 	if (ret <= 0)
 		goto out;
 
@@ -714,19 +714,19 @@ out:
 
 static int gpu_state_release(struct inode *inode, struct file *file)
 {
-	i915_gpu_state_put(file->private_data);
+	i915_gpu_coredump_put(file->private_data);
 	return 0;
 }
 
 static int i915_gpu_info_open(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
-	struct i915_gpu_state *gpu;
+	struct i915_gpu_coredump *gpu;
 	intel_wakeref_t wakeref;
 
 	gpu = NULL;
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		gpu = i915_capture_gpu_state(i915);
+		gpu = i915_gpu_coredump(i915);
 	if (IS_ERR(gpu))
 		return PTR_ERR(gpu);
 
@@ -748,7 +748,7 @@ i915_error_state_write(struct file *filp,
 		       size_t cnt,
 		       loff_t *ppos)
 {
-	struct i915_gpu_state *error = filp->private_data;
+	struct i915_gpu_coredump *error = filp->private_data;
 
 	if (!error)
 		return 0;
@@ -761,7 +761,7 @@ i915_error_state_write(struct file *filp,
 
 static int i915_error_state_open(struct inode *inode, struct file *file)
 {
-	struct i915_gpu_state *error;
+	struct i915_gpu_coredump *error;
 
 	error = i915_first_error_state(inode->i_private);
 	if (IS_ERR(error))

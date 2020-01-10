@@ -1498,7 +1498,7 @@ static int igt_handle_error(void *arg)
 	struct intel_engine_cs *engine = gt->engine[RCS0];
 	struct hang h;
 	struct i915_request *rq;
-	struct i915_gpu_state *error;
+	struct i915_gpu_coredump *error;
 	int err;
 
 	/* Check that we can issue a global GPU and engine reset */

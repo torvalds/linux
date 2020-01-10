@@ -202,7 +202,7 @@ void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask);
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine);
 u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine);
 
-void intel_engine_get_instdone(struct intel_engine_cs *engine,
+void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone);
 
 void intel_engine_init_execlists(struct intel_engine_cs *engine);

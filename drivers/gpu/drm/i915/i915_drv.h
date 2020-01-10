@@ -1874,7 +1874,7 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 }
 
 static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
-					  struct intel_engine_cs *engine)
+					  const struct intel_engine_cs *engine)
 {
 	return atomic_read(&error->reset_engine_count[engine->uabi_class]);
 }

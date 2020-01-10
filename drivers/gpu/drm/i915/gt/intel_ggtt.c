@@ -495,6 +495,7 @@ static void cleanup_init_ggtt(struct i915_ggtt *ggtt)
 	ggtt_release_guc_top(ggtt);
 	if (drm_mm_node_allocated(&ggtt->error_capture))
 		drm_mm_remove_node(&ggtt->error_capture);
+	mutex_destroy(&ggtt->error_mutex);
 }
 
 static int init_ggtt(struct i915_ggtt *ggtt)
@@ -526,6 +527,7 @@ static int init_ggtt(struct i915_ggtt *ggtt)
 	if (ret)
 		return ret;
 
+	mutex_init(&ggtt->error_mutex);
 	if (ggtt->mappable_end) {
 		/* Reserve a mappable slot for our lockless error capture */
 		ret = drm_mm_insert_node_in_range(&ggtt->vm.mm,
@@ -716,6 +718,7 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 
 	if (drm_mm_node_allocated(&ggtt->error_capture))
 		drm_mm_remove_node(&ggtt->error_capture);
+	mutex_destroy(&ggtt->error_mutex);
 
 	ggtt_release_guc_top(ggtt);
 	intel_vgt_deballoon(ggtt);
