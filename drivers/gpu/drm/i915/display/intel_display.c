@@ -12366,6 +12366,7 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 		/* Copy parameters to slave plane */
 		linked_state->ctl = plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE;
 		linked_state->color_ctl = plane_state->color_ctl;
+		linked_state->view = plane_state->view;
 		memcpy(linked_state->color_plane, plane_state->color_plane,
 		       sizeof(linked_state->color_plane));
 
