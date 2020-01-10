@@ -967,14 +967,6 @@ static bool intel_idle_verify_cstate(unsigned int mwait_hint)
 	return true;
 }
 
-static void __setup_broadcast_timer(bool on)
-{
-	if (on)
-		tick_broadcast_enable();
-	else
-		tick_broadcast_disable();
-}
-
 static void auto_demotion_disable(void)
 {
 	unsigned long long msr_bits;
@@ -1624,7 +1616,7 @@ static int intel_idle_cpu_online(unsigned int cpu)
 	struct cpuidle_device *dev;
 
 	if (lapic_timer_reliable_states != LAPIC_TIMER_ALWAYS_RELIABLE)
-		__setup_broadcast_timer(true);
+		tick_broadcast_enable();
 
 	/*
 	 * Some systems can hotplug a cpu at runtime after
