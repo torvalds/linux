@@ -2922,7 +2922,8 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 		memset(&config, 0, sizeof(config));
 
 		config.otg_inst = (uint8_t) pipe_ctx->stream_res.tg->inst;
-		config.stream_enc_inst = (uint8_t) pipe_ctx->stream_res.stream_enc->id;
+		/*stream_enc_inst*/
+		config.stream_enc_inst = (uint8_t) pipe_ctx->stream_res.stream_enc->stream_enc_inst;
 		config.link_enc_inst = pipe_ctx->stream->link->link_enc_hw_inst;
 		config.dpms_off = dpms_off;
 		config.dm_stream_ctx = pipe_ctx->stream->dm_stream_context;
