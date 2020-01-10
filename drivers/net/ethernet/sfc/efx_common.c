@@ -840,7 +840,7 @@ int efx_init_struct(struct efx_nic *efx,
 #endif
 	INIT_WORK(&efx->reset_work, efx_reset_work);
 	INIT_DELAYED_WORK(&efx->monitor_work, efx_monitor);
-	INIT_DELAYED_WORK(&efx->selftest_work, efx_selftest_async_work);
+	efx_selftest_async_init(efx);
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
 	efx->state = STATE_UNINIT;
