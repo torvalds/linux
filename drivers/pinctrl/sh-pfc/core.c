@@ -1004,6 +1004,14 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	/* Check ioctrl registers */
 	for (i = 0; info->ioctrl_regs && info->ioctrl_regs[i].reg; i++)
 		sh_pfc_check_reg(drvname, info->ioctrl_regs[i].reg);
+
+	/* Check data registers */
+	for (i = 0; info->data_regs && info->data_regs[i].reg; i++) {
+		sh_pfc_check_reg(drvname, info->data_regs[i].reg);
+		sh_pfc_check_reg_enums(drvname, info->data_regs[i].reg,
+				       info->data_regs[i].enum_ids,
+				       info->data_regs[i].reg_width);
+	}
 }
 
 static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
