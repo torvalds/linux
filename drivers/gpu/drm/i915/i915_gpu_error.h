@@ -66,10 +66,6 @@ struct intel_engine_coredump {
 	/* position of active request inside the ring */
 	u32 rq_head, rq_post, rq_tail;
 
-	/* our own tracking of ring head and tail */
-	u32 cpu_ring_head;
-	u32 cpu_ring_tail;
-
 	/* Register state */
 	u32 ccid;
 	u32 start;

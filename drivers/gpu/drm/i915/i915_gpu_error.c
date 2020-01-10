@@ -553,8 +553,6 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 				   ee->vm_info.pp_dir_base);
 		}
 	}
-	err_printf(m, "  ring->head: 0x%08x\n", ee->cpu_ring_head);
-	err_printf(m, "  ring->tail: 0x%08x\n", ee->cpu_ring_tail);
 	err_printf(m, "  engine reset count: %u\n", ee->reset_count);
 
 	for (n = 0; n < ee->num_ports; n++) {
@@ -1428,9 +1426,6 @@ intel_engine_coredump_add_request(struct intel_engine_coredump *ee,
 	vma = capture_user(vma, rq, gfp);
 	vma = capture_vma(vma, rq->ring->vma, "ring", gfp);
 	vma = capture_vma(vma, rq->context->state, "HW context", gfp);
-
-	ee->cpu_ring_head = rq->ring->head;
-	ee->cpu_ring_tail = rq->ring->tail;
 
 	ee->rq_head = rq->head;
 	ee->rq_post = rq->postfix;
