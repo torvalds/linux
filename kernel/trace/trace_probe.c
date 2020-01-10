@@ -984,7 +984,7 @@ void trace_probe_cleanup(struct trace_probe *tp)
 }
 
 int trace_probe_init(struct trace_probe *tp, const char *event,
-		     const char *group)
+		     const char *group, size_t event_data_size)
 {
 	struct trace_event_call *call;
 	int ret = 0;
@@ -992,7 +992,8 @@ int trace_probe_init(struct trace_probe *tp, const char *event,
 	if (!event || !group)
 		return -EINVAL;
 
-	tp->event = kzalloc(sizeof(struct trace_probe_event), GFP_KERNEL);
+	tp->event = kzalloc(sizeof(struct trace_probe_event) + event_data_size,
+			    GFP_KERNEL);
 	if (!tp->event)
 		return -ENOMEM;
 
