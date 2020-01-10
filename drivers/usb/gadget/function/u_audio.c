@@ -407,7 +407,7 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	struct usb_ep *ep;
 	struct uac_rtd_params *prm;
 	struct uac_params *params = &audio_dev->params;
-	unsigned int factor, rate;
+	unsigned int factor;
 	const struct usb_endpoint_descriptor *ep_desc;
 	int req_len, i;
 
@@ -426,13 +426,15 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	/* pre-compute some values for iso_complete() */
 	uac->p_framesize = params->p_ssize *
 			    num_channels(params->p_chmask);
-	rate = params->p_srate * uac->p_framesize;
 	uac->p_interval = factor / (1 << (ep_desc->bInterval - 1));
-	uac->p_pktsize = min_t(unsigned int, rate / uac->p_interval,
+	uac->p_pktsize = min_t(unsigned int,
+				uac->p_framesize *
+					(params->p_srate / uac->p_interval),
 				prm->max_psize);
 
 	if (uac->p_pktsize < prm->max_psize)
-		uac->p_pktsize_residue = rate % uac->p_interval;
+		uac->p_pktsize_residue = uac->p_framesize *
+			(params->p_srate % uac->p_interval);
 	else
 		uac->p_pktsize_residue = 0;
 
