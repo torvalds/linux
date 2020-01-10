@@ -814,6 +814,23 @@ static void __init sh_pfc_check_reg_enums(const char *drvname, u32 reg,
 	}
 }
 
+static void __init sh_pfc_check_pin(const struct sh_pfc_soc_info *info,
+				    u32 reg, unsigned int pin)
+{
+	const char *drvname = info->name;
+	unsigned int i;
+
+	if (pin == SH_PFC_PIN_NONE)
+		return;
+
+	for (i = 0; i < info->nr_pins; i++) {
+		if (pin == info->pins[i].pin)
+			return;
+	}
+
+	sh_pfc_err("reg 0x%x: pin %u not found\n", reg, pin);
+}
+
 static void __init sh_pfc_check_cfg_reg(const char *drvname,
 					const struct pinmux_cfg_reg *cfg_reg)
 {
@@ -845,6 +862,30 @@ static void __init sh_pfc_check_cfg_reg(const char *drvname,
 
 check_enum_ids:
 	sh_pfc_check_reg_enums(drvname, cfg_reg->reg, cfg_reg->enum_ids, n);
+}
+
+static void __init sh_pfc_check_drive_reg(const struct sh_pfc_soc_info *info,
+					  const struct pinmux_drive_reg *drive)
+{
+	const char *drvname = info->name;
+	unsigned long seen = 0, mask;
+	unsigned int i;
+
+	sh_pfc_check_reg(info->name, drive->reg);
+	for (i = 0; i < ARRAY_SIZE(drive->fields); i++) {
+		const struct pinmux_drive_reg_field *field = &drive->fields[i];
+
+		if (!field->pin && !field->offset && !field->size)
+			continue;
+
+		mask = GENMASK(field->offset + field->size, field->offset);
+		if (mask & seen)
+			sh_pfc_err("drive_reg 0x%x: field %u overlap\n",
+				   drive->reg, i);
+		seen |= mask;
+
+		sh_pfc_check_pin(info, drive->reg, field->pin);
+	}
 }
 
 static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
@@ -939,6 +980,10 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	/* Check config register descriptions */
 	for (i = 0; info->cfg_regs && info->cfg_regs[i].reg; i++)
 		sh_pfc_check_cfg_reg(drvname, &info->cfg_regs[i]);
+
+	/* Check drive strength registers */
+	for (i = 0; info->drive_regs && info->drive_regs[i].reg; i++)
+		sh_pfc_check_drive_reg(info, &info->drive_regs[i]);
 }
 
 static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
