@@ -822,10 +822,11 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_RLC_G];
 		info->ucode_id = AMDGPU_UCODE_ID_RLC_G;
 		info->fw = adev->gfx.rlc_fw;
-		header = (const struct common_firmware_header *)info->fw->data;
-		adev->firmware.fw_size +=
-			ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
-
+		if (info->fw) {
+			header = (const struct common_firmware_header *)info->fw->data;
+			adev->firmware.fw_size +=
+				ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
+		}
 		if (adev->gfx.rlc.is_rlc_v2_1 &&
 		    adev->gfx.rlc.save_restore_list_cntl_size_bytes &&
 		    adev->gfx.rlc.save_restore_list_gpm_size_bytes &&
