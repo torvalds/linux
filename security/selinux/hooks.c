@@ -5894,16 +5894,6 @@ static void ipc_init_security(struct ipc_security_struct *isec, u16 sclass)
 	isec->sid = current_sid();
 }
 
-static int msg_msg_alloc_security(struct msg_msg *msg)
-{
-	struct msg_security_struct *msec;
-
-	msec = selinux_msg_msg(msg);
-	msec->sid = SECINITSID_UNLABELED;
-
-	return 0;
-}
-
 static int ipc_has_perm(struct kern_ipc_perm *ipc_perms,
 			u32 perms)
 {
@@ -5922,7 +5912,12 @@ static int ipc_has_perm(struct kern_ipc_perm *ipc_perms,
 
 static int selinux_msg_msg_alloc_security(struct msg_msg *msg)
 {
-	return msg_msg_alloc_security(msg);
+	struct msg_security_struct *msec;
+
+	msec = selinux_msg_msg(msg);
+	msec->sid = SECINITSID_UNLABELED;
+
+	return 0;
 }
 
 /* message queue security operations */
