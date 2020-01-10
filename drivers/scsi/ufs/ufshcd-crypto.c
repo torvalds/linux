@@ -118,15 +118,21 @@ static int ufshcd_crypto_cfg_entry_write_key(union ufs_crypto_cfg_entry *cfg,
 	return -EINVAL;
 }
 
-static void ufshcd_program_key(struct ufs_hba *hba,
-			       const union ufs_crypto_cfg_entry *cfg,
-			       int slot)
+static int ufshcd_program_key(struct ufs_hba *hba,
+			      const union ufs_crypto_cfg_entry *cfg, int slot)
 {
 	int i;
 	u32 slot_offset = hba->crypto_cfg_register + slot * sizeof(*cfg);
+	int err;
 
 	pm_runtime_get_sync(hba->dev);
 	ufshcd_hold(hba, false);
+
+	if (hba->vops->program_key) {
+		err = hba->vops->program_key(hba, cfg, slot);
+		goto out;
+	}
+
 	/* Clear the dword 16 */
 	ufshcd_writel(hba, 0, slot_offset + 16 * sizeof(cfg->reg_val[0]));
 	/* Ensure that CFGE is cleared before programming the key */
@@ -146,15 +152,20 @@ static void ufshcd_program_key(struct ufs_hba *hba,
 	ufshcd_writel(hba, le32_to_cpu(cfg->reg_val[16]),
 		      slot_offset + 16 * sizeof(cfg->reg_val[0]));
 	wmb();
+	err = 0;
+out:
 	ufshcd_release(hba);
 	pm_runtime_put_sync(hba->dev);
+	return err;
 }
 
 static void ufshcd_clear_keyslot(struct ufs_hba *hba, int slot)
 {
 	union ufs_crypto_cfg_entry cfg = { 0 };
+	int err;
 
-	ufshcd_program_key(hba, &cfg, slot);
+	err = ufshcd_program_key(hba, &cfg, slot);
+	WARN_ON_ONCE(err);
 }
 
 /* Clear all keyslots at driver init time */
@@ -199,10 +210,11 @@ static int ufshcd_crypto_keyslot_program(struct keyslot_manager *ksm,
 	if (err)
 		return err;
 
-	ufshcd_program_key(hba, &cfg, slot);
+	err = ufshcd_program_key(hba, &cfg, slot);
 
 	memzero_explicit(&cfg, sizeof(cfg));
-	return 0;
+
+	return err;
 }
 
 static int ufshcd_crypto_keyslot_evict(struct keyslot_manager *ksm,
