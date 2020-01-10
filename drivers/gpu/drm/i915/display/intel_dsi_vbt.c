@@ -86,6 +86,12 @@ static struct gpio_map vlv_gpio_table[] = {
 	{ VLV_GPIO_NC_11_PANEL1_BKLTCTL },
 };
 
+struct i2c_adapter_lookup {
+	u16 slave_addr;
+	struct intel_dsi *intel_dsi;
+	acpi_handle dev_handle;
+};
+
 #define CHV_GPIO_IDX_START_N		0
 #define CHV_GPIO_IDX_START_E		73
 #define CHV_GPIO_IDX_START_SW		100
@@ -378,11 +384,98 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	return data;
 }
 
+static int i2c_adapter_lookup(struct acpi_resource *ares, void *data)
+{
+	struct i2c_adapter_lookup *lookup = data;
+	struct intel_dsi *intel_dsi = lookup->intel_dsi;
+	struct acpi_resource_i2c_serialbus *sb;
+	struct i2c_adapter *adapter;
+	acpi_handle adapter_handle;
+	acpi_status status;
+
+	if (intel_dsi->i2c_bus_num >= 0 ||
+	    !i2c_acpi_get_i2c_resource(ares, &sb))
+		return 1;
+
+	if (lookup->slave_addr != sb->slave_address)
+		return 1;
+
+	status = acpi_get_handle(lookup->dev_handle,
+				 sb->resource_source.string_ptr,
+				 &adapter_handle);
+	if (ACPI_FAILURE(status))
+		return 1;
+
+	adapter = i2c_acpi_find_adapter_by_handle(adapter_handle);
+	if (adapter)
+		intel_dsi->i2c_bus_num = adapter->nr;
+
+	return 1;
+}
+
 static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	DRM_DEBUG_KMS("Skipping I2C element execution\n");
+	struct drm_device *drm_dev = intel_dsi->base.base.dev;
+	struct device *dev = &drm_dev->pdev->dev;
+	struct i2c_adapter *adapter;
+	struct acpi_device *acpi_dev;
+	struct list_head resource_list;
+	struct i2c_adapter_lookup lookup;
+	struct i2c_msg msg;
+	int ret;
+	u8 vbt_i2c_bus_num = *(data + 2);
+	u16 slave_addr = *(u16 *)(data + 3);
+	u8 reg_offset = *(data + 5);
+	u8 payload_size = *(data + 6);
+	u8 *payload_data;
 
-	return data + *(data + 6) + 7;
+	if (intel_dsi->i2c_bus_num < 0) {
+		intel_dsi->i2c_bus_num = vbt_i2c_bus_num;
+
+		acpi_dev = ACPI_COMPANION(dev);
+		if (acpi_dev) {
+			memset(&lookup, 0, sizeof(lookup));
+			lookup.slave_addr = slave_addr;
+			lookup.intel_dsi = intel_dsi;
+			lookup.dev_handle = acpi_device_handle(acpi_dev);
+
+			INIT_LIST_HEAD(&resource_list);
+			acpi_dev_get_resources(acpi_dev, &resource_list,
+					       i2c_adapter_lookup,
+					       &lookup);
+			acpi_dev_free_resource_list(&resource_list);
+		}
+	}
+
+	adapter = i2c_get_adapter(intel_dsi->i2c_bus_num);
+	if (!adapter) {
+		DRM_DEV_ERROR(dev, "Cannot find a valid i2c bus for xfer\n");
+		goto err_bus;
+	}
+
+	payload_data = kzalloc(payload_size + 1, GFP_KERNEL);
+	if (!payload_data)
+		goto err_alloc;
+
+	payload_data[0] = reg_offset;
+	memcpy(&payload_data[1], (data + 7), payload_size);
+
+	msg.addr = slave_addr;
+	msg.flags = 0;
+	msg.len = payload_size + 1;
+	msg.buf = payload_data;
+
+	ret = i2c_transfer(adapter, &msg, 1);
+	if (ret < 0)
+		DRM_DEV_ERROR(dev,
+			      "Failed to xfer payload of size (%u) to reg (%u)\n",
+			      payload_size, reg_offset);
+
+	kfree(payload_data);
+err_alloc:
+	i2c_put_adapter(adapter);
+err_bus:
+	return data + payload_size + 7;
 }
 
 static const u8 *mipi_exec_spi(struct intel_dsi *intel_dsi, const u8 *data)
@@ -682,6 +775,8 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->panel_on_delay = pps->panel_on_delay / 10;
 	intel_dsi->panel_off_delay = pps->panel_off_delay / 10;
 	intel_dsi->panel_pwr_cycle_delay = pps->panel_power_cycle_delay / 10;
+
+	intel_dsi->i2c_bus_num = -1;
 
 	/* a regular driver would get the device in probe */
 	for_each_dsi_port(port, intel_dsi->ports) {
