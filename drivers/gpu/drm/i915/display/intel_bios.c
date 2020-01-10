@@ -686,7 +686,7 @@ parse_power_conservation_features(struct drm_i915_private *dev_priv,
 	if (bdb->version < 228)
 		return;
 
-	power = find_section(bdb, BDB_LVDS_POWER);
+	power = find_section(bdb, BDB_LFP_POWER);
 	if (!power)
 		return;
 
