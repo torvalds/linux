@@ -71,7 +71,7 @@ config SECURITY_APPARMOR_DEBUG_MESSAGES
 
 config SECURITY_APPARMOR_KUNIT_TEST
 	bool "Build KUnit tests for policy_unpack.c"
-	depends on KUNIT && SECURITY_APPARMOR
+	depends on KUNIT=y && SECURITY_APPARMOR
 	help
 	  This builds the AppArmor KUnit tests.
 
