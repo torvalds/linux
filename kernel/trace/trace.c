@@ -2610,6 +2610,7 @@ static DEFINE_MUTEX(tracepoint_printk_mutex);
 static void output_printk(struct trace_event_buffer *fbuffer)
 {
 	struct trace_event_call *event_call;
+	struct trace_event_file *file;
 	struct trace_event *event;
 	unsigned long flags;
 	struct trace_iterator *iter = tracepoint_print_iter;
@@ -2621,6 +2622,12 @@ static void output_printk(struct trace_event_buffer *fbuffer)
 	event_call = fbuffer->trace_file->event_call;
 	if (!event_call || !event_call->event.funcs ||
 	    !event_call->event.funcs->trace)
+		return;
+
+	file = fbuffer->trace_file;
+	if (test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags) ||
+	    (unlikely(file->flags & EVENT_FILE_FL_FILTERED) &&
+	     !filter_match_preds(file->filter, fbuffer->entry)))
 		return;
 
 	event = &fbuffer->trace_file->event_call->event;
