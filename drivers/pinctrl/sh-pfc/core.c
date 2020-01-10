@@ -727,11 +727,14 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
 
 #ifdef DEBUG
 #define SH_PFC_MAX_REGS		300
+#define SH_PFC_MAX_ENUMS	3000
 
 static unsigned int sh_pfc_errors __initdata = 0;
 static unsigned int sh_pfc_warnings __initdata = 0;
 static u32 *sh_pfc_regs __initdata = NULL;
 static u32 sh_pfc_num_regs __initdata = 0;
+static u16 *sh_pfc_enums __initdata = NULL;
+static u32 sh_pfc_num_enums __initdata = 0;
 
 #define sh_pfc_err(fmt, ...)					\
 	do {							\
@@ -781,6 +784,36 @@ static void __init sh_pfc_check_reg(const char *drvname, u32 reg)
 	sh_pfc_regs[sh_pfc_num_regs++] = reg;
 }
 
+static int __init sh_pfc_check_enum(const char *drvname, u16 enum_id)
+{
+	unsigned int i;
+
+	for (i = 0; i < sh_pfc_num_enums; i++) {
+		if (enum_id == sh_pfc_enums[i])
+			return -EINVAL;
+	}
+
+	if (sh_pfc_num_enums == SH_PFC_MAX_ENUMS) {
+		pr_warn_once("%s: Please increase SH_PFC_MAX_ENUMS\n", drvname);
+		return 0;
+	}
+
+	sh_pfc_enums[sh_pfc_num_enums++] = enum_id;
+	return 0;
+}
+
+static void __init sh_pfc_check_reg_enums(const char *drvname, u32 reg,
+					  const u16 *enums, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 0; i < n; i++) {
+		if (enums[i] && sh_pfc_check_enum(drvname, enums[i]))
+			sh_pfc_err("reg 0x%x enum_id %u conflict\n", reg,
+				   enums[i]);
+	}
+}
+
 static void __init sh_pfc_check_cfg_reg(const char *drvname,
 					const struct pinmux_cfg_reg *cfg_reg)
 {
@@ -789,8 +822,9 @@ static void __init sh_pfc_check_cfg_reg(const char *drvname,
 	sh_pfc_check_reg(drvname, cfg_reg->reg);
 
 	if (cfg_reg->field_width) {
-		/* Checked at build time */
-		return;
+		n = cfg_reg->reg_width / cfg_reg->field_width;
+		/* Skip field checks (done at build time) */
+		goto check_enum_ids;
 	}
 
 	for (i = 0, n = 0, rw = 0; (fw = cfg_reg->var_field_width[i]); i++) {
@@ -808,6 +842,9 @@ static void __init sh_pfc_check_cfg_reg(const char *drvname,
 	if (n != cfg_reg->nr_enum_ids)
 		sh_pfc_err("reg 0x%x: enum_ids[] has %u instead of %u values\n",
 			   cfg_reg->reg, cfg_reg->nr_enum_ids, n);
+
+check_enum_ids:
+	sh_pfc_check_reg_enums(drvname, cfg_reg->reg, cfg_reg->enum_ids, n);
 }
 
 static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
@@ -819,6 +856,7 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 
 	pr_info("Checking %s\n", drvname);
 	sh_pfc_num_regs = 0;
+	sh_pfc_num_enums = 0;
 
 	/* Check pins */
 	for (i = 0; i < info->nr_pins; i++) {
@@ -898,6 +936,11 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 	if (!sh_pfc_regs)
 		return;
 
+	sh_pfc_enums = kcalloc(SH_PFC_MAX_ENUMS, sizeof(*sh_pfc_enums),
+			      GFP_KERNEL);
+	if (!sh_pfc_enums)
+		goto free_regs;
+
 	pr_warn("Checking builtin pinmux tables\n");
 
 	for (i = 0; pdrv->id_table[i].name[0]; i++)
@@ -911,6 +954,8 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 	pr_warn("Detected %u errors and %u warnings\n", sh_pfc_errors,
 		sh_pfc_warnings);
 
+	kfree(sh_pfc_enums);
+free_regs:
 	kfree(sh_pfc_regs);
 }
 
