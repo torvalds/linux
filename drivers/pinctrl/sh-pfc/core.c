@@ -888,6 +888,18 @@ static void __init sh_pfc_check_drive_reg(const struct sh_pfc_soc_info *info,
 	}
 }
 
+static void __init sh_pfc_check_bias_reg(const struct sh_pfc_soc_info *info,
+					 const struct pinmux_bias_reg *bias)
+{
+	unsigned int i;
+
+	sh_pfc_check_reg(info->name, bias->puen);
+	if (bias->pud)
+		sh_pfc_check_reg(info->name, bias->pud);
+	for (i = 0; i < ARRAY_SIZE(bias->pins); i++)
+		sh_pfc_check_pin(info, bias->puen, bias->pins[i]);
+}
+
 static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 {
 	const char *drvname = info->name;
@@ -984,6 +996,10 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	/* Check drive strength registers */
 	for (i = 0; info->drive_regs && info->drive_regs[i].reg; i++)
 		sh_pfc_check_drive_reg(info, &info->drive_regs[i]);
+
+	/* Check bias registers */
+	for (i = 0; info->bias_regs && info->bias_regs[i].puen; i++)
+		sh_pfc_check_bias_reg(info, &info->bias_regs[i]);
 }
 
 static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
