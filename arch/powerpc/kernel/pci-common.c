@@ -958,7 +958,7 @@ void pcibios_setup_bus_self(struct pci_bus *bus)
 		phb->controller_ops.dma_bus_setup(bus);
 }
 
-static void pcibios_setup_device(struct pci_dev *dev)
+void pcibios_bus_add_device(struct pci_dev *dev)
 {
 	struct pci_controller *phb;
 	/* Fixup NUMA node as it may not be setup yet by the generic
@@ -979,15 +979,9 @@ static void pcibios_setup_device(struct pci_dev *dev)
 	pci_read_irq_line(dev);
 	if (ppc_md.pci_irq_fixup)
 		ppc_md.pci_irq_fixup(dev);
-}
-
-void pcibios_bus_add_device(struct pci_dev *pdev)
-{
-	/* Perform platform-specific device setup */
-	pcibios_setup_device(pdev);
 
 	if (ppc_md.pcibios_bus_add_device)
-		ppc_md.pcibios_bus_add_device(pdev);
+		ppc_md.pcibios_bus_add_device(dev);
 }
 
 int pcibios_add_device(struct pci_dev *dev)
