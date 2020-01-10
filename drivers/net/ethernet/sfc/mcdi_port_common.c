@@ -9,6 +9,7 @@
  */
 
 #include "mcdi_port_common.h"
+#include "efx_common.h"
 
 int efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_data *cfg)
 {
@@ -531,4 +532,37 @@ int efx_mcdi_port_get_number(struct efx_nic *efx)
 		return rc;
 
 	return MCDI_DWORD(outbuf, GET_PORT_ASSIGNMENT_OUT_PORT);
+}
+
+static unsigned int efx_mcdi_event_link_speed[] = {
+	[MCDI_EVENT_LINKCHANGE_SPEED_100M] = 100,
+	[MCDI_EVENT_LINKCHANGE_SPEED_1G] = 1000,
+	[MCDI_EVENT_LINKCHANGE_SPEED_10G] = 10000,
+	[MCDI_EVENT_LINKCHANGE_SPEED_40G] = 40000,
+	[MCDI_EVENT_LINKCHANGE_SPEED_25G] = 25000,
+	[MCDI_EVENT_LINKCHANGE_SPEED_50G] = 50000,
+	[MCDI_EVENT_LINKCHANGE_SPEED_100G] = 100000,
+};
+
+void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev)
+{
+	u32 flags, fcntl, speed, lpa;
+
+	speed = EFX_QWORD_FIELD(*ev, MCDI_EVENT_LINKCHANGE_SPEED);
+	EFX_WARN_ON_PARANOID(speed >= ARRAY_SIZE(efx_mcdi_event_link_speed));
+	speed = efx_mcdi_event_link_speed[speed];
+
+	flags = EFX_QWORD_FIELD(*ev, MCDI_EVENT_LINKCHANGE_LINK_FLAGS);
+	fcntl = EFX_QWORD_FIELD(*ev, MCDI_EVENT_LINKCHANGE_FCNTL);
+	lpa = EFX_QWORD_FIELD(*ev, MCDI_EVENT_LINKCHANGE_LP_CAP);
+
+	/* efx->link_state is only modified by efx_mcdi_phy_get_link(),
+	 * which is only run after flushing the event queues. Therefore, it
+	 * is safe to modify the link state outside of the mac_lock here.
+	 */
+	efx_mcdi_phy_decode_link(efx, &efx->link_state, speed, flags, fcntl);
+
+	efx_mcdi_phy_check_fcntl(efx, lpa);
+
+	efx_link_status_changed(efx);
 }

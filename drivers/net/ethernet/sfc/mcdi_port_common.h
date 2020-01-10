@@ -52,5 +52,6 @@ int efx_mcdi_phy_get_fecparam(struct efx_nic *efx,
 int efx_mcdi_phy_test_alive(struct efx_nic *efx);
 int efx_mcdi_set_mac(struct efx_nic *efx);
 int efx_mcdi_port_get_number(struct efx_nic *efx);
+void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
 
 #endif

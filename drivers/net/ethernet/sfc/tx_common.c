@@ -267,6 +267,24 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	}
 }
 
+/* Remove buffers put into a tx_queue for the current packet.
+ * None of the buffers must have an skb attached.
+ */
+void efx_enqueue_unwind(struct efx_tx_queue *tx_queue,
+			unsigned int insert_count)
+{
+	struct efx_tx_buffer *buffer;
+	unsigned int bytes_compl = 0;
+	unsigned int pkts_compl = 0;
+
+	/* Work backwards until we hit the original insert pointer value */
+	while (tx_queue->insert_count != insert_count) {
+		--tx_queue->insert_count;
+		buffer = __efx_tx_queue_get_insert_buffer(tx_queue);
+		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
+	}
+}
+
 struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
 				       dma_addr_t dma_addr, size_t len)
 {
