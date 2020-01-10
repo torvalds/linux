@@ -727,25 +727,16 @@ int snd_soc_resume(struct device *dev)
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	bool bus_control = false;
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_dai *codec_dai;
-	int i;
+	struct snd_soc_component *component;
 
 	/* If the card is not initialized yet there is nothing to do */
 	if (!card->instantiated)
 		return 0;
 
 	/* activate pins from sleep state */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-		if (cpu_dai->active)
-			pinctrl_pm_select_default_state(cpu_dai->dev);
-
-		for_each_rtd_codec_dai(rtd, i, codec_dai) {
-			if (codec_dai->active)
-				pinctrl_pm_select_default_state(codec_dai->dev);
-		}
-	}
+	for_each_card_components(card, component)
+		if (component->active)
+			pinctrl_pm_select_default_state(component->dev);
 
 	/*
 	 * DAIs that also act as the control bus master might have other drivers
@@ -1885,6 +1876,7 @@ static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
 static int snd_soc_bind_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_component *component;
 	struct snd_soc_dai_link *dai_link;
 	int ret, i, card_probed = 0;
 
@@ -2036,17 +2028,9 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 	snd_soc_dapm_sync(&card->dapm);
 
 	/* deactivate pins to sleep state */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *dai;
-
-		for_each_rtd_codec_dai(rtd, i, dai) {
-			if (!dai->active)
-				pinctrl_pm_select_sleep_state(dai->dev);
-		}
-
-		if (!rtd->cpu_dai->active)
-			pinctrl_pm_select_sleep_state(rtd->cpu_dai->dev);
-	}
+	for_each_card_components(card, component)
+		if (!component->active)
+			pinctrl_pm_select_sleep_state(component->dev);
 
 probe_end:
 	if (ret < 0)
@@ -2092,7 +2076,7 @@ static int soc_remove(struct platform_device *pdev)
 int snd_soc_poweroff(struct device *dev)
 {
 	struct snd_soc_card *card = dev_get_drvdata(dev);
-	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_component *component;
 
 	if (!card->instantiated)
 		return 0;
@@ -2106,16 +2090,8 @@ int snd_soc_poweroff(struct device *dev)
 	snd_soc_dapm_shutdown(card);
 
 	/* deactivate pins to sleep state */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-		struct snd_soc_dai *codec_dai;
-		int i;
-
-		pinctrl_pm_select_sleep_state(cpu_dai->dev);
-		for_each_rtd_codec_dai(rtd, i, codec_dai) {
-			pinctrl_pm_select_sleep_state(codec_dai->dev);
-		}
-	}
+	for_each_card_components(card, component)
+		pinctrl_pm_select_sleep_state(component->dev);
 
 	return 0;
 }
