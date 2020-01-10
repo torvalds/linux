@@ -18,6 +18,8 @@ extern int trace_set_options(struct trace_array *tr, char *option);
 extern int tracing_set_tracer(struct trace_array *tr, const char *buf);
 extern ssize_t tracing_resize_ring_buffer(struct trace_array *tr,
 					  unsigned long size, int cpu_id);
+extern int tracing_set_cpumask(struct trace_array *tr,
+				cpumask_var_t tracing_cpumask_new);
 
 static void __init
 trace_boot_set_instance_options(struct trace_array *tr, struct xbc_node *node)
@@ -51,6 +53,18 @@ trace_boot_set_instance_options(struct trace_array *tr, struct xbc_node *node)
 			pr_err("Buffer size is too small: %s\n", p);
 		if (tracing_resize_ring_buffer(tr, v, RING_BUFFER_ALL_CPUS) < 0)
 			pr_err("Failed to resize trace buffer to %s\n", p);
+	}
+
+	p = xbc_node_find_value(node, "cpumask", NULL);
+	if (p && *p != '\0') {
+		cpumask_var_t new_mask;
+
+		if (alloc_cpumask_var(&new_mask, GFP_KERNEL)) {
+			if (cpumask_parse(p, new_mask) < 0 ||
+			    tracing_set_cpumask(tr, new_mask) < 0)
+				pr_err("Failed to set new CPU mask %s\n", p);
+			free_cpumask_var(new_mask);
+		}
 	}
 }
 
