@@ -708,51 +708,6 @@ void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev)
 	efx_link_status_changed(efx);
 }
 
-int efx_mcdi_set_mac(struct efx_nic *efx)
-{
-	u32 fcntl;
-	MCDI_DECLARE_BUF(cmdbytes, MC_CMD_SET_MAC_IN_LEN);
-
-	BUILD_BUG_ON(MC_CMD_SET_MAC_OUT_LEN != 0);
-
-	/* This has no effect on EF10 */
-	ether_addr_copy(MCDI_PTR(cmdbytes, SET_MAC_IN_ADDR),
-			efx->net_dev->dev_addr);
-
-	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_MTU,
-			EFX_MAX_FRAME_LEN(efx->net_dev->mtu));
-	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_DRAIN, 0);
-
-	/* Set simple MAC filter for Siena */
-	MCDI_POPULATE_DWORD_1(cmdbytes, SET_MAC_IN_REJECT,
-			      SET_MAC_IN_REJECT_UNCST, efx->unicast_filter);
-
-	MCDI_POPULATE_DWORD_1(cmdbytes, SET_MAC_IN_FLAGS,
-			      SET_MAC_IN_FLAG_INCLUDE_FCS,
-			      !!(efx->net_dev->features & NETIF_F_RXFCS));
-
-	switch (efx->wanted_fc) {
-	case EFX_FC_RX | EFX_FC_TX:
-		fcntl = MC_CMD_FCNTL_BIDIR;
-		break;
-	case EFX_FC_RX:
-		fcntl = MC_CMD_FCNTL_RESPOND;
-		break;
-	default:
-		fcntl = MC_CMD_FCNTL_OFF;
-		break;
-	}
-	if (efx->wanted_fc & EFX_FC_AUTO)
-		fcntl = MC_CMD_FCNTL_AUTO;
-	if (efx->fc_disable)
-		fcntl = MC_CMD_FCNTL_OFF;
-
-	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_FCNTL, fcntl);
-
-	return efx_mcdi_rpc(efx, MC_CMD_SET_MAC, cmdbytes, sizeof(cmdbytes),
-			    NULL, 0, NULL);
-}
-
 bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_LEN);

@@ -21,6 +21,8 @@ void efx_fini_struct(struct efx_nic *efx);
 void efx_start_all(struct efx_nic *efx);
 void efx_stop_all(struct efx_nic *efx);
 
+void efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats);
+
 int efx_create_reset_workqueue(void);
 void efx_queue_reset_work(struct efx_nic *efx);
 void efx_flush_reset_workqueue(struct efx_nic *efx);

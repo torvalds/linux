@@ -28,6 +28,8 @@ struct efx_mcdi_phy_data {
 	u32 forced_cap;
 };
 
+#define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
+
 int efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_data *cfg);
 void efx_link_set_advertising(struct efx_nic *efx,
 			      const unsigned long *advertising);
@@ -48,6 +50,7 @@ bool efx_mcdi_phy_poll(struct efx_nic *efx);
 int efx_mcdi_phy_get_fecparam(struct efx_nic *efx,
 			      struct ethtool_fecparam *fec);
 int efx_mcdi_phy_test_alive(struct efx_nic *efx);
+int efx_mcdi_set_mac(struct efx_nic *efx);
 int efx_mcdi_port_get_number(struct efx_nic *efx);
 
 #endif

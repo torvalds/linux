@@ -26,5 +26,6 @@ int efx_mcdi_rx_probe(struct efx_rx_queue *rx_queue);
 void efx_mcdi_rx_init(struct efx_rx_queue *rx_queue);
 void efx_mcdi_rx_remove(struct efx_rx_queue *rx_queue);
 void efx_mcdi_rx_fini(struct efx_rx_queue *rx_queue);
+int efx_mcdi_window_mode_to_stride(struct efx_nic *efx, u8 vi_window_mode);
 
 #endif

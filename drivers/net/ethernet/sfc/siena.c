@@ -21,6 +21,7 @@
 #include "workarounds.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
+#include "mcdi_port_common.h"
 #include "selftest.h"
 #include "siena_sriov.h"
 

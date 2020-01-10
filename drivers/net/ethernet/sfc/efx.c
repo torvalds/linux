@@ -692,17 +692,6 @@ int efx_net_stop(struct net_device *net_dev)
 	return 0;
 }
 
-/* Context: process, dev_base_lock or RTNL held, non-blocking. */
-static void efx_net_stats(struct net_device *net_dev,
-			  struct rtnl_link_stats64 *stats)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-
-	spin_lock_bh(&efx->stats_lock);
-	efx->type->update_stats(efx, NULL, stats);
-	spin_unlock_bh(&efx->stats_lock);
-}
-
 /* Context: netif_tx_lock held, BHs disabled. */
 static void efx_watchdog(struct net_device *net_dev, unsigned int txqueue)
 {

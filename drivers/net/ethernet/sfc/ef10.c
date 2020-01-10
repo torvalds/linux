@@ -277,24 +277,9 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 		u8 vi_window_mode = MCDI_BYTE(outbuf,
 				GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE);
 
-		switch (vi_window_mode) {
-		case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_8K:
-			efx->vi_stride = 8192;
-			break;
-		case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_16K:
-			efx->vi_stride = 16384;
-			break;
-		case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_64K:
-			efx->vi_stride = 65536;
-			break;
-		default:
-			netif_err(efx, probe, efx->net_dev,
-				  "Unrecognised VI window mode %d\n",
-				  vi_window_mode);
-			return -EIO;
-		}
-		netif_dbg(efx, probe, efx->net_dev, "vi_stride = %u\n",
-			  efx->vi_stride);
+		rc = efx_mcdi_window_mode_to_stride(efx, vi_window_mode);
+		if (rc)
+			return rc;
 	} else {
 		/* keep default VI stride */
 		netif_dbg(efx, probe, efx->net_dev,
