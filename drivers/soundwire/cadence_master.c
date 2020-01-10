@@ -856,6 +856,16 @@ int sdw_cdns_enable_interrupt(struct sdw_cdns *cdns, bool state)
 		mask = interrupt_mask;
 
 update_masks:
+	/* clear slave interrupt status before enabling interrupt */
+	if (state) {
+		u32 slave_state;
+
+		slave_state = cdns_readl(cdns, CDNS_MCP_SLAVE_INTSTAT0);
+		cdns_writel(cdns, CDNS_MCP_SLAVE_INTSTAT0, slave_state);
+		slave_state = cdns_readl(cdns, CDNS_MCP_SLAVE_INTSTAT1);
+		cdns_writel(cdns, CDNS_MCP_SLAVE_INTSTAT1, slave_state);
+	}
+
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTMASK0, slave_intmask0);
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTMASK1, slave_intmask1);
 	cdns_writel(cdns, CDNS_MCP_INTMASK, mask);
