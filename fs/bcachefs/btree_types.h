@@ -187,9 +187,25 @@ enum btree_iter_type {
 
 #define BTREE_ITER_TYPE			((1 << 2) - 1)
 
+/*
+ * Iterate over all possible positions, synthesizing deleted keys for holes:
+ */
 #define BTREE_ITER_SLOTS		(1 << 2)
+/*
+ * Indicates that intent locks should be taken on leaf nodes, because we expect
+ * to be doing updates:
+ */
 #define BTREE_ITER_INTENT		(1 << 3)
+/*
+ * Causes the btree iterator code to prefetch additional btree nodes from disk:
+ */
 #define BTREE_ITER_PREFETCH		(1 << 4)
+/*
+ * Indicates that this iterator should not be reused until transaction commit,
+ * either because a pending update references it or because the update depends
+ * on that particular key being locked (e.g. by the str_hash code, for hash
+ * table consistency)
+ */
 #define BTREE_ITER_KEEP_UNTIL_COMMIT	(1 << 5)
 /*
  * Used in bch2_btree_iter_traverse(), to indicate whether we're searching for
