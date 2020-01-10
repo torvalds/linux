@@ -1074,12 +1074,17 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pmu->timer.function = i915_sample;
 
-	if (!is_igp(i915))
+	if (!is_igp(i915)) {
 		pmu->name = kasprintf(GFP_KERNEL,
-				      "i915-%s",
+				      "i915_%s",
 				      dev_name(i915->drm.dev));
-	else
+		if (pmu->name) {
+			/* tools/perf reserves colons as special. */
+			strreplace((char *)pmu->name, ':', '_');
+		}
+	} else {
 		pmu->name = "i915";
+	}
 	if (!pmu->name)
 		goto err;
 
