@@ -13,22 +13,23 @@
  *    http://www.glyn.com/Products/Displays
  */
 
-#include <linux/module.h>
-#include <linux/ratelimit.h>
-#include <linux/irq.h>
+#include <linux/debugfs.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
-#include <linux/i2c.h>
-#include <linux/kernel.h>
-#include <linux/uaccess.h>
-#include <linux/delay.h>
-#include <linux/debugfs.h>
-#include <linux/slab.h>
-#include <linux/gpio/consumer.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
-#include <asm/unaligned.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/ratelimit.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+
+#include <asm/unaligned.h>
 
 #define WORK_REGISTER_THRESHOLD		0x00
 #define WORK_REGISTER_REPORT_RATE	0x08
