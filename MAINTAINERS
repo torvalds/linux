@@ -15770,6 +15770,12 @@ W:	http://www.stlinux.com
 S:	Supported
 F:	drivers/net/ethernet/stmicro/stmmac/
 
+EXTRA BOOT CONFIG
+M:	Masami Hiramatsu <mhiramat@kernel.org>
+S:	Maintained
+F:	lib/bootconfig.c
+F:	include/linux/bootconfig.h
+
 SUN3/3X
 M:	Sam Creasey <sammy@sammy.net>
 W:	http://sammy.net/sun3/
