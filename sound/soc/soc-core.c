@@ -258,8 +258,8 @@ static inline void snd_soc_debugfs_exit(void)
 
 #endif
 
-static int snd_soc_rtdcom_add(struct snd_soc_pcm_runtime *rtd,
-			      struct snd_soc_component *component)
+static int snd_soc_rtd_add_component(struct snd_soc_pcm_runtime *rtd,
+				     struct snd_soc_component *component)
 {
 	struct snd_soc_component *comp;
 	int i;
@@ -1035,7 +1035,7 @@ int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 			 dai_link->cpus->dai_name);
 		goto _err_defer;
 	}
-	snd_soc_rtdcom_add(rtd, rtd->cpu_dai->component);
+	snd_soc_rtd_add_component(rtd, rtd->cpu_dai->component);
 
 	/* Find CODEC from registered CODECs */
 	rtd->num_codecs = dai_link->num_codecs;
@@ -1047,7 +1047,7 @@ int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 			goto _err_defer;
 		}
 
-		snd_soc_rtdcom_add(rtd, rtd->codec_dais[i]->component);
+		snd_soc_rtd_add_component(rtd, rtd->codec_dais[i]->component);
 	}
 
 	/* Single codec links expect codec and codec_dai in runtime data */
@@ -1059,7 +1059,7 @@ int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 			if (!snd_soc_is_matching_component(platform, component))
 				continue;
 
-			snd_soc_rtdcom_add(rtd, component);
+			snd_soc_rtd_add_component(rtd, component);
 		}
 	}
 
