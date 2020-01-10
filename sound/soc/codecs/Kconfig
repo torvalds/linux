@@ -168,6 +168,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT700_SDW if SOUNDWIRE
 	select SND_SOC_RT711_SDW if SOUNDWIRE
 	select SND_SOC_RT715_SDW if SOUNDWIRE
+	select SND_SOC_RT1308_SDW if SOUNDWIRE
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SIMPLE_AMPLIFIER
@@ -1004,6 +1005,11 @@ config SND_SOC_RT1305
 
 config SND_SOC_RT1308
 	tristate
+
+config SND_SOC_RT1308_SDW
+	tristate "Realtek RT1308 Codec - SDW"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
 
 config SND_SOC_RT5514
 	tristate
