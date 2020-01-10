@@ -1297,21 +1297,6 @@ static inline bool intel_idle_off_by_default(u32 mwait_hint) { return false; }
 #endif /* !CONFIG_ACPI_PROCESSOR_CSTATE */
 
 /*
- * intel_idle_cpuidle_devices_uninit()
- * Unregisters the cpuidle devices.
- */
-static void intel_idle_cpuidle_devices_uninit(void)
-{
-	int i;
-	struct cpuidle_device *dev;
-
-	for_each_online_cpu(i) {
-		dev = per_cpu_ptr(intel_idle_cpuidle_devices, i);
-		cpuidle_unregister_device(dev);
-	}
-}
-
-/*
  * ivt_idle_state_table_update(void)
  *
  * Tune IVT multi-socket targets
@@ -1563,6 +1548,17 @@ static int intel_idle_cpu_online(unsigned int cpu)
 		return intel_idle_cpu_init(cpu);
 
 	return 0;
+}
+
+/**
+ * intel_idle_cpuidle_devices_uninit - Unregister all cpuidle devices.
+ */
+static void __init intel_idle_cpuidle_devices_uninit(void)
+{
+	int i;
+
+	for_each_online_cpu(i)
+		cpuidle_unregister_device(per_cpu_ptr(intel_idle_cpuidle_devices, i));
 }
 
 static int __init intel_idle_init(void)
