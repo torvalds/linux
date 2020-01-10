@@ -1012,6 +1012,26 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 				       info->data_regs[i].enum_ids,
 				       info->data_regs[i].reg_width);
 	}
+
+#ifdef CONFIG_PINCTRL_SH_FUNC_GPIO
+	/* Check function GPIOs */
+	for (i = 0; i < info->nr_func_gpios; i++) {
+		const struct pinmux_func *func = &info->func_gpios[i];
+
+		if (!func->name) {
+			sh_pfc_err("empty function gpio %u\n", i);
+			continue;
+		}
+		for (j = 0; j < i; j++) {
+			if (same_name(func->name, info->func_gpios[j].name))
+				sh_pfc_err("func_gpio %s: name conflict\n",
+					   func->name);
+		}
+		if (sh_pfc_check_enum(drvname, func->enum_id))
+			sh_pfc_err("%s enum_id %u conflict\n", func->name,
+				   func->enum_id);
+	}
+#endif
 }
 
 static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
