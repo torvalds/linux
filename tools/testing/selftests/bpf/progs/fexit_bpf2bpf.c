@@ -79,4 +79,19 @@ int test_subprog2(struct args_subprog2 *ctx)
 	test_result_subprog2 = 1;
 	return 0;
 }
+
+__u64 test_result_subprog3 = 0;
+BPF_TRACE_3("fexit/test_pkt_access_subprog3", test_subprog3,
+	    int, val, struct sk_buff *, skb, int, ret)
+{
+	int len;
+
+	__builtin_preserve_access_index(({
+		len = skb->len;
+	}));
+	if (len != 74 || ret != 74 * val || val != 3)
+		return 0;
+	test_result_subprog3 = 1;
+	return 0;
+}
 char _license[] SEC("license") = "GPL";
