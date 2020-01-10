@@ -160,12 +160,16 @@ static int stm_sensor_power_on(struct stm_thermal_sensor *sensor)
 	writel_relaxed(value, sensor->base +
 		       DTS_CFGR1_OFFSET);
 
+	sensor->mode = THERMAL_DEVICE_ENABLED;
+
 	return 0;
 }
 
 static int stm_sensor_power_off(struct stm_thermal_sensor *sensor)
 {
 	u32 value;
+
+	sensor->mode = THERMAL_DEVICE_DISABLED;
 
 	/* Stop measuring */
 	value = readl_relaxed(sensor->base + DTS_CFGR1_OFFSET);
@@ -374,7 +378,6 @@ static int stm_thermal_update_threshold(struct stm_thermal_sensor *sensor)
 {
 	int ret;
 
-	sensor->mode = THERMAL_DEVICE_DISABLED;
 
 	ret = stm_sensor_power_off(sensor);
 	if (ret)
@@ -576,8 +579,6 @@ static int stm_thermal_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	sensor->mode = THERMAL_DEVICE_DISABLED;
-
 	return 0;
 }
 
@@ -590,7 +591,6 @@ static int stm_thermal_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	sensor->mode = THERMAL_DEVICE_ENABLED;
 
 	return 0;
 }
@@ -717,8 +717,6 @@ static int stm_thermal_probe(struct platform_device *pdev)
 	ret = thermal_add_hwmon_sysfs(sensor->th_dev);
 	if (ret)
 		goto err_tz;
-
-	sensor->mode = THERMAL_DEVICE_ENABLED;
 
 	dev_info(&pdev->dev, "%s: Driver initialized successfully\n",
 		 __func__);
