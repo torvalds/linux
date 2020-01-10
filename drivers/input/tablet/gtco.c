@@ -970,8 +970,6 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	input_dev->dev.parent = &usbinterface->dev;
 
 	/* Setup the URB, it will be posted later on open of input device */
-	endpoint = &usbinterface->cur_altsetting->endpoint[0].desc;
-
 	usb_fill_int_urb(gtco->urbinfo,
 			 udev,
 			 usb_rcvintpipe(udev,
