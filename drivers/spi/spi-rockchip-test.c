@@ -229,12 +229,12 @@ static ssize_t spi_test_write(struct file *file,
 		}
 
 		if (argc > 3) {
-			fd = sys_open(name, O_RDONLY, 0);
+			fd = ksys_open(name, O_RDONLY, 0);
 			if (fd < 0) {
 				printk("open %s fail\n", name);
 			} else {
-				sys_read(fd, (char __user *)txbuf, size);
-				sys_close(fd);
+				ksys_read(fd, (char __user *)txbuf, size);
+				ksys_close(fd);
 			}
 			set_fs(old_fs);
 		} else {
