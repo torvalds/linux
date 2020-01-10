@@ -1841,7 +1841,7 @@ int hibernate_preallocate_memory(void)
 
  out:
 	stop = ktime_get();
-	pr_info("Allocated %lu pages for shapshot\n", pages);
+	pr_info("Allocated %lu pages for snapshot\n", pages);
 	swsusp_show_speed(start, stop, pages, "Allocated");
 
 	return 0;
