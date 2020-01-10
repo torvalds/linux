@@ -64,6 +64,7 @@ configure specific aspects of kernel behavior to your liking.
    binderfs
    binfmt-misc
    blockdev/index
+   bootconfig
    braille-console
    btmrvl
    cgroup-v1/index
