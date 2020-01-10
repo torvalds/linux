@@ -533,7 +533,7 @@ static int kbps_to_peak_pbn(int kbps)
 	u64 peak_kbps = kbps;
 
 	peak_kbps *= 1006;
-	peak_kbps /= 1000;
+	peak_kbps = div_u64(peak_kbps, 1000);
 	return (int) DIV_ROUND_UP(peak_kbps * 64, (54 * 8 * 1000));
 }
 
@@ -565,7 +565,7 @@ static int bpp_x16_from_pbn(struct dsc_mst_fairness_params param, int pbn)
 	struct dc_dsc_config dsc_config;
 	u64 kbps;
 
-	kbps = (u64)pbn * 994 * 8 * 54 / 64;
+	kbps = div_u64((u64)pbn * 994 * 8 * 54, 64);
 	dc_dsc_compute_config(
 			param.sink->ctx->dc->res_pool->dscs[0],
 			&param.sink->sink_dsc_caps.dsc_dec_caps,
