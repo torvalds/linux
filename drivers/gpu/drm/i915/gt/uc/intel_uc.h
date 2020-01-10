@@ -10,7 +10,15 @@
 #include "intel_huc.h"
 #include "i915_params.h"
 
+struct intel_uc;
+
+struct intel_uc_ops {
+	int (*init_hw)(struct intel_uc *uc);
+	void (*fini_hw)(struct intel_uc *uc);
+};
+
 struct intel_uc {
+	struct intel_uc_ops const *ops;
 	struct intel_guc guc;
 	struct intel_huc huc;
 
@@ -25,8 +33,6 @@ void intel_uc_fetch_firmwares(struct intel_uc *uc);
 void intel_uc_cleanup_firmwares(struct intel_uc *uc);
 void intel_uc_sanitize(struct intel_uc *uc);
 void intel_uc_init(struct intel_uc *uc);
-int intel_uc_init_hw(struct intel_uc *uc);
-void intel_uc_fini_hw(struct intel_uc *uc);
 void intel_uc_fini(struct intel_uc *uc);
 void intel_uc_reset_prepare(struct intel_uc *uc);
 void intel_uc_suspend(struct intel_uc *uc);
@@ -63,5 +69,16 @@ static inline bool intel_uc_uses_huc(struct intel_uc *uc)
 {
 	return intel_huc_is_enabled(&uc->huc);
 }
+
+#define intel_uc_ops_function(_NAME, _OPS, _TYPE, _RET) \
+static inline _TYPE intel_uc_##_NAME(struct intel_uc *uc) \
+{ \
+	if (uc->ops->_OPS) \
+		return uc->ops->_OPS(uc); \
+	return _RET; \
+}
+intel_uc_ops_function(init_hw, init_hw, int, 0);
+intel_uc_ops_function(fini_hw, fini_hw, void, );
+#undef intel_uc_ops_function
 
 #endif
