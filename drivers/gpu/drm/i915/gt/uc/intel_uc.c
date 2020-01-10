@@ -315,14 +315,6 @@ static int __uc_sanitize(struct intel_uc *uc)
 	return __intel_uc_reset_hw(uc);
 }
 
-void intel_uc_sanitize(struct intel_uc *uc)
-{
-	if (!intel_uc_supports_guc(uc))
-		return;
-
-	__uc_sanitize(uc);
-}
-
 /* Initialize and verify the uC regs related to uC positioning in WOPCM */
 static int uc_init_wopcm(struct intel_uc *uc)
 {
@@ -615,6 +607,8 @@ static const struct intel_uc_ops uc_ops_off = {
 };
 
 static const struct intel_uc_ops uc_ops_on = {
+	.sanitize = __uc_sanitize,
+
 	.init_fw = __uc_fetch_firmwares,
 	.fini_fw = __uc_cleanup_firmwares,
 
