@@ -672,7 +672,9 @@ error_brelse:
 
 /*
  * Handle scanned device having its CHANGING_FSID_V2 flag set and the fs_devices
- * being created with a disk that has already completed its fsid change.
+ * being created with a disk that has already completed its fsid change. Such
+ * disk can belong to an fs which has its FSID changed or to one which doesn't.
+ * Handle both cases here.
  */
 static struct btrfs_fs_devices *find_fsid_inprogress(
 					struct btrfs_super_block *disk_super)
@@ -688,7 +690,7 @@ static struct btrfs_fs_devices *find_fsid_inprogress(
 		}
 	}
 
-	return NULL;
+	return find_fsid(disk_super->fsid, NULL);
 }
 
 
@@ -737,19 +739,10 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 					BTRFS_SUPER_FLAG_CHANGING_FSID_V2);
 
 	if (fsid_change_in_progress) {
-		if (!has_metadata_uuid) {
-			/*
-			 * When we have an image which has CHANGING_FSID_V2 set
-			 * it might belong to either a filesystem which has
-			 * disks with completed fsid change or it might belong
-			 * to fs with no UUID changes in effect, handle both.
-			 */
+		if (!has_metadata_uuid)
 			fs_devices = find_fsid_inprogress(disk_super);
-			if (!fs_devices)
-				fs_devices = find_fsid(disk_super->fsid, NULL);
-		} else {
+		else
 			fs_devices = find_fsid_changed(disk_super);
-		}
 	} else if (has_metadata_uuid) {
 		fs_devices = find_fsid(disk_super->fsid,
 				       disk_super->metadata_uuid);
