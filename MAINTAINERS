@@ -15775,6 +15775,7 @@ M:	Masami Hiramatsu <mhiramat@kernel.org>
 S:	Maintained
 F:	lib/bootconfig.c
 F:	include/linux/bootconfig.h
+F:	tools/bootconfig/*
 
 SUN3/3X
 M:	Sam Creasey <sammy@sammy.net>
