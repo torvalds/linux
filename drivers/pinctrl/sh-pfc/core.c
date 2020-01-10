@@ -860,25 +860,27 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 
 	/* Check pins */
 	for (i = 0; i < info->nr_pins; i++) {
+		const struct sh_pfc_pin *pin = &info->pins[i];
+
+		if (!pin->name) {
+			sh_pfc_err("empty pin %u\n", i);
+			continue;
+		}
 		for (j = 0; j < i; j++) {
-			if (same_name(info->pins[i].name, info->pins[j].name))
-				sh_pfc_err("pin %s/%s: name conflict\n",
-					   info->pins[i].name,
-					   info->pins[j].name);
+			const struct sh_pfc_pin *pin2 = &info->pins[j];
 
-			if (info->pins[i].pin != (u16)-1 &&
-			    info->pins[i].pin == info->pins[j].pin)
+			if (same_name(pin->name, pin2->name))
+				sh_pfc_err("pin %s: name conflict\n",
+					   pin->name);
+
+			if (pin->pin != (u16)-1 && pin->pin == pin2->pin)
 				sh_pfc_err("pin %s/%s: pin %u conflict\n",
-					   info->pins[i].name,
-					   info->pins[j].name,
-					   info->pins[i].pin);
+					   pin->name, pin2->name, pin->pin);
 
-			if (info->pins[i].enum_id &&
-			    info->pins[i].enum_id == info->pins[j].enum_id)
+			if (pin->enum_id && pin->enum_id == pin2->enum_id)
 				sh_pfc_err("pin %s/%s: enum_id %u conflict\n",
-					   info->pins[i].name,
-					   info->pins[j].name,
-					   info->pins[i].enum_id);
+					   pin->name, pin2->name,
+					   pin->enum_id);
 		}
 	}
 
