@@ -96,4 +96,20 @@ void dcn20_init_blank(
 	   struct dc *dc,
 	   struct timing_generator *tg);
 void dcn20_display_init(struct dc *dc);
+void dcn20_pipe_control_lock(
+	struct dc *dc,
+	struct pipe_ctx *pipe,
+	bool lock);
+void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn20_enable_plane(
+	struct dc *dc,
+	struct pipe_ctx *pipe_ctx,
+	struct dc_state *context);
+bool dcn20_set_blend_lut(
+	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state);
+bool dcn20_set_shaper_3dlut(
+	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state);
+void dcn20_get_mpctree_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
 #endif /* __DC_HWSS_DCN20_H__ */

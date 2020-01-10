@@ -8,7 +8,7 @@ title: Allwinner platforms device tree bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   $nodename:
@@ -210,6 +210,11 @@ properties:
         items:
           - const: friendlyarm,nanopi-a64
           - const: allwinner,sun50i-a64
+
+      - description: FriendlyARM NanoPi Duo2
+        items:
+          - const: friendlyarm,nanopi-duo2
+          - const: allwinner,sun8i-h3
 
       - description: FriendlyARM NanoPi M1
         items:

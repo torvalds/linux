@@ -36,7 +36,6 @@ properties:
     const: 0
 
   phy-supply:
-     maxItems: 1
      description:
        Phandle to a regulator that provides power to the PHY. This
        regulator will be managed during the PHY power on/off sequence.

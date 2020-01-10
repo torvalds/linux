@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 
 #include <asm/delay.h>
+#include <asm/arch_timer.h>
 
 #include <clocksource/arm_arch_timer.h>
 

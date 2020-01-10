@@ -21,21 +21,6 @@
 #include "hal_phy_cfg.h"
 
 /*  */
-/* RTL8723B From file */
-/*  */
-#define RTL8723B_FW_IMG      "rtl8723b/FW_NIC.bin"
-#define RTL8723B_FW_WW_IMG   "rtl8723b/FW_WoWLAN.bin"
-#define RTL8723B_PHY_REG     "rtl8723b/PHY_REG.txt"
-#define RTL8723B_PHY_RADIO_A "rtl8723b/RadioA.txt"
-#define RTL8723B_PHY_RADIO_B "rtl8723b/RadioB.txt"
-#define RTL8723B_TXPWR_TRACK "rtl8723b/TxPowerTrack.txt"
-#define RTL8723B_AGC_TAB     "rtl8723b/AGC_TAB.txt"
-#define RTL8723B_PHY_MACREG  "rtl8723b/MAC_REG.txt"
-#define RTL8723B_PHY_REG_PG  "rtl8723b/PHY_REG_PG.txt"
-#define RTL8723B_PHY_REG_MP  "rtl8723b/PHY_REG_MP.txt"
-#define RTL8723B_TXPWR_LMT   "rtl8723b/TXPWR_LMT.txt"
-
-/*  */
 /* RTL8723B From header */
 /*  */
 

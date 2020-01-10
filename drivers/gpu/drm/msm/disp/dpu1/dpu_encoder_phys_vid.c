@@ -374,7 +374,7 @@ static void dpu_encoder_phys_vid_mode_set(
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adj_mode)
 {
-	if (!phys_enc || !phys_enc->dpu_kms) {
+	if (!phys_enc) {
 		DPU_ERROR("invalid encoder/kms\n");
 		return;
 	}
@@ -566,16 +566,13 @@ static void dpu_encoder_phys_vid_prepare_for_kickoff(
 
 static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 {
-	struct msm_drm_private *priv;
 	unsigned long lock_flags;
 	int ret;
 
-	if (!phys_enc || !phys_enc->parent || !phys_enc->parent->dev ||
-			!phys_enc->parent->dev->dev_private) {
+	if (!phys_enc || !phys_enc->parent || !phys_enc->parent->dev) {
 		DPU_ERROR("invalid encoder/device\n");
 		return;
 	}
-	priv = phys_enc->parent->dev->dev_private;
 
 	if (!phys_enc->hw_intf || !phys_enc->hw_ctl) {
 		DPU_ERROR("invalid hw_intf %d hw_ctl %d\n",

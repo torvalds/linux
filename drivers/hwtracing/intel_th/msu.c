@@ -164,7 +164,7 @@ struct msc {
 };
 
 static LIST_HEAD(msu_buffer_list);
-static struct mutex msu_buffer_mutex;
+static DEFINE_MUTEX(msu_buffer_mutex);
 
 /**
  * struct msu_buffer_entry - internal MSU buffer bookkeeping
@@ -327,7 +327,7 @@ static size_t msc_win_total_sz(struct msc_window *win)
 		struct msc_block_desc *bdesc = sg_virt(sg);
 
 		if (msc_block_wrapped(bdesc))
-			return win->nr_blocks << PAGE_SHIFT;
+			return (size_t)win->nr_blocks << PAGE_SHIFT;
 
 		size += msc_total_sz(bdesc);
 		if (msc_block_last_written(bdesc))
@@ -1676,9 +1676,12 @@ static int intel_th_msc_init(struct msc *msc)
 	return 0;
 }
 
-static void msc_win_switch(struct msc *msc)
+static int msc_win_switch(struct msc *msc)
 {
 	struct msc_window *first;
+
+	if (list_empty(&msc->win_list))
+		return -EINVAL;
 
 	first = list_first_entry(&msc->win_list, struct msc_window, entry);
 
@@ -1691,6 +1694,8 @@ static void msc_win_switch(struct msc *msc)
 	msc->base_addr = msc_win_base_dma(msc->cur_win);
 
 	intel_th_trace_switch(msc->thdev);
+
+	return 0;
 }
 
 /**
@@ -1848,9 +1853,14 @@ mode_store(struct device *dev, struct device_attribute *attr, const char *buf,
 		len = cp - buf;
 
 	mode = kstrndup(buf, len, GFP_KERNEL);
+	if (!mode)
+		return -ENOMEM;
+
 	i = match_string(msc_mode, ARRAY_SIZE(msc_mode), mode);
-	if (i >= 0)
+	if (i >= 0) {
+		kfree(mode);
 		goto found;
+	}
 
 	/* Buffer sinks only work with a usable IRQ */
 	if (!msc->do_irq) {
@@ -2020,16 +2030,15 @@ win_switch_store(struct device *dev, struct device_attribute *attr,
 	if (val != 1)
 		return -EINVAL;
 
+	ret = -EINVAL;
 	mutex_lock(&msc->buf_mutex);
 	/*
 	 * Window switch can only happen in the "multi" mode.
 	 * If a external buffer is engaged, they have the full
 	 * control over window switching.
 	 */
-	if (msc->mode != MSC_MODE_MULTI || msc->mbuf)
-		ret = -ENOTSUPP;
-	else
-		msc_win_switch(msc);
+	if (msc->mode == MSC_MODE_MULTI && !msc->mbuf)
+		ret = msc_win_switch(msc);
 	mutex_unlock(&msc->buf_mutex);
 
 	return ret ? ret : size;

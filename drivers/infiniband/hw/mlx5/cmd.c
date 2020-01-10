@@ -157,7 +157,7 @@ int mlx5_cmd_alloc_memic(struct mlx5_dm *dm, phys_addr_t *addr,
 	return -ENOMEM;
 }
 
-int mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr, u64 length)
+void mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr, u64 length)
 {
 	struct mlx5_core_dev *dev = dm->dev;
 	u64 hw_start_addr = MLX5_CAP64_DEV_MEM(dev, memic_bar_start_addr);
@@ -175,15 +175,13 @@ int mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr, u64 length)
 	MLX5_SET(dealloc_memic_in, in, memic_size, length);
 
 	err =  mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return;
 
-	if (!err) {
-		spin_lock(&dm->lock);
-		bitmap_clear(dm->memic_alloc_pages,
-			     start_page_idx, num_pages);
-		spin_unlock(&dm->lock);
-	}
-
-	return err;
+	spin_lock(&dm->lock);
+	bitmap_clear(dm->memic_alloc_pages,
+		     start_page_idx, num_pages);
+	spin_unlock(&dm->lock);
 }
 
 int mlx5_cmd_query_ext_ppcnt_counters(struct mlx5_core_dev *dev, void *out)

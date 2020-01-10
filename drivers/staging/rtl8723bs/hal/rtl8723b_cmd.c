@@ -2071,8 +2071,6 @@ static void ConstructBtNullFunctionData(
 	struct ieee80211_hdr *pwlanhdr;
 	__le16 *fctrl;
 	u32 pktlen;
-	struct mlme_ext_priv *pmlmeext;
-	struct mlme_ext_info *pmlmeinfo;
 	u8 bssid[ETH_ALEN];
 
 
@@ -2080,8 +2078,6 @@ static void ConstructBtNullFunctionData(
 		FUNC_ADPT_ARG(padapter), bQoS, bEosp, bForcePowerSave);
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
-	pmlmeext = &padapter->mlmeextpriv;
-	pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (!StaAddr) {
 		memcpy(bssid, myid(&padapter->eeprompriv), ETH_ALEN);
@@ -2122,12 +2118,9 @@ static void ConstructBtNullFunctionData(
 
 static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 {
-	struct hal_com_data *pHalData;
 	struct xmit_frame *pcmdframe;
 	struct pkt_attrib *pattrib;
 	struct xmit_priv *pxmitpriv;
-	struct mlme_ext_priv *pmlmeext;
-	struct mlme_ext_info *pmlmeinfo;
 	u32 BeaconLength = 0;
 	u32 BTQosNullLength = 0;
 	u8 *ReservedPagePacket;
@@ -2140,10 +2133,7 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 
 /* 	DBG_8192C("+" FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(padapter)); */
 
-	pHalData = GET_HAL_DATA(padapter);
 	pxmitpriv = &padapter->xmitpriv;
-	pmlmeext = &padapter->mlmeextpriv;
-	pmlmeinfo = &pmlmeext->mlmext_info;
 	TxDescLen = TXDESC_SIZE;
 	TxDescOffset = TXDESC_OFFSET;
 	PageSize = PAGE_SIZE_TX_8723B;

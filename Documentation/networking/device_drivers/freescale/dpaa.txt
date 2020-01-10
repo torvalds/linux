@@ -129,9 +129,9 @@ CONFIG_AQUANTIA_PHY=y
 DPAA Ethernet Frame Processing
 ==============================
 
-On Rx, buffers for the incoming frames are retrieved from one of the three
-existing buffers pools. The driver initializes and seeds these, each with
-buffers of different sizes: 1KB, 2KB and 4KB.
+On Rx, buffers for the incoming frames are retrieved from the buffers found
+in the dedicated interface buffer pool. The driver initializes and seeds these
+with one page buffers.
 
 On Tx, all transmitted frames are returned to the driver through Tx
 confirmation frame queues. The driver is then responsible for freeing the
@@ -254,7 +254,7 @@ The following statistics are exported for each interface through ethtool:
 The driver also exports the following information in sysfs:
 
 	- the FQ IDs for each FQ type
-	/sys/devices/platform/dpaa-ethernet.0/net/<int>/fqids
+	/sys/devices/platform/soc/<addr>.fman/<addr>.ethernet/dpaa-ethernet.<id>/net/fm<nr>-mac<nr>/fqids
 
-	- the IDs of the buffer pools in use
-	/sys/devices/platform/dpaa-ethernet.0/net/<int>/bpids
+	- the ID of the buffer pool in use
+	/sys/devices/platform/soc/<addr>.fman/<addr>.ethernet/dpaa-ethernet.<id>/net/fm<nr>-mac<nr>/bpids

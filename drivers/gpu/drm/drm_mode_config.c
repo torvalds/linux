@@ -428,8 +428,6 @@ EXPORT_SYMBOL(drm_mode_config_init);
  * Note that since this /should/ happen single-threaded at driver/device
  * teardown time, no locking is required. It's the driver's job to ensure that
  * this guarantee actually holds true.
- *
- * FIXME: cleanup any dangling user buffer objects too
  */
 void drm_mode_config_cleanup(struct drm_device *dev)
 {

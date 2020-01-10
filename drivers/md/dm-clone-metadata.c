@@ -67,23 +67,34 @@ struct superblock_disk {
  * To save constantly doing look ups on disk we keep an in core copy of the
  * on-disk bitmap, the region_map.
  *
- * To further reduce metadata I/O overhead we use a second bitmap, the dmap
- * (dirty bitmap), which tracks the dirty words, i.e. longs, of the region_map.
+ * In order to track which regions are hydrated during a metadata transaction,
+ * we use a second set of bitmaps, the dmap (dirty bitmap), which includes two
+ * bitmaps, namely dirty_regions and dirty_words. The dirty_regions bitmap
+ * tracks the regions that got hydrated during the current metadata
+ * transaction. The dirty_words bitmap tracks the dirty words, i.e. longs, of
+ * the dirty_regions bitmap.
+ *
+ * This allows us to precisely track the regions that were hydrated during the
+ * current metadata transaction and update the metadata accordingly, when we
+ * commit the current transaction. This is important because dm-clone should
+ * only commit the metadata of regions that were properly flushed to the
+ * destination device beforehand. Otherwise, in case of a crash, we could end
+ * up with a corrupted dm-clone device.
  *
  * When a region finishes hydrating dm-clone calls
  * dm_clone_set_region_hydrated(), or for discard requests
  * dm_clone_cond_set_range(), which sets the corresponding bits in region_map
  * and dmap.
  *
- * During a metadata commit we scan the dmap for dirty region_map words (longs)
- * and update accordingly the on-disk metadata. Thus, we don't have to flush to
- * disk the whole region_map. We can just flush the dirty region_map words.
+ * During a metadata commit we scan dmap->dirty_words and dmap->dirty_regions
+ * and update the on-disk metadata accordingly. Thus, we don't have to flush to
+ * disk the whole region_map. We can just flush the dirty region_map bits.
  *
- * We use a dirty bitmap, which is smaller than the original region_map, to
- * reduce the amount of memory accesses during a metadata commit. As dm-bitset
- * accesses the on-disk bitmap in 64-bit word granularity, there is no
- * significant benefit in tracking the dirty region_map bits with a smaller
- * granularity.
+ * We use the helper dmap->dirty_words bitmap, which is smaller than the
+ * original region_map, to reduce the amount of memory accesses during a
+ * metadata commit. Moreover, as dm-bitset also accesses the on-disk bitmap in
+ * 64-bit word granularity, the dirty_words bitmap helps us avoid useless disk
+ * accesses.
  *
  * We could update directly the on-disk bitmap, when dm-clone calls either
  * dm_clone_set_region_hydrated() or dm_clone_cond_set_range(), buts this
@@ -92,12 +103,13 @@ struct superblock_disk {
  * e.g., in a hooked overwrite bio's completion routine, and further reduce the
  * I/O completion latency.
  *
- * We maintain two dirty bitmaps. During a metadata commit we atomically swap
- * the currently used dmap with the unused one. This allows the metadata update
- * functions to run concurrently with an ongoing commit.
+ * We maintain two dirty bitmap sets. During a metadata commit we atomically
+ * swap the currently used dmap with the unused one. This allows the metadata
+ * update functions to run concurrently with an ongoing commit.
  */
 struct dirty_map {
 	unsigned long *dirty_words;
+	unsigned long *dirty_regions;
 	unsigned int changed;
 };
 
@@ -114,6 +126,9 @@ struct dm_clone_metadata {
 	spinlock_t bitmap_lock;
 	struct dirty_map dmap[2];
 	struct dirty_map *current_dmap;
+
+	/* Protected by lock */
+	struct dirty_map *committing_dmap;
 
 	/*
 	 * In core copy of the on-disk bitmap to save constantly doing look ups
@@ -461,34 +476,53 @@ static size_t bitmap_size(unsigned long nr_bits)
 	return BITS_TO_LONGS(nr_bits) * sizeof(long);
 }
 
+static int __dirty_map_init(struct dirty_map *dmap, unsigned long nr_words,
+			    unsigned long nr_regions)
+{
+	dmap->changed = 0;
+
+	dmap->dirty_words = kvzalloc(bitmap_size(nr_words), GFP_KERNEL);
+	if (!dmap->dirty_words)
+		return -ENOMEM;
+
+	dmap->dirty_regions = kvzalloc(bitmap_size(nr_regions), GFP_KERNEL);
+	if (!dmap->dirty_regions) {
+		kvfree(dmap->dirty_words);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void __dirty_map_exit(struct dirty_map *dmap)
+{
+	kvfree(dmap->dirty_words);
+	kvfree(dmap->dirty_regions);
+}
+
 static int dirty_map_init(struct dm_clone_metadata *cmd)
 {
-	cmd->dmap[0].changed = 0;
-	cmd->dmap[0].dirty_words = kvzalloc(bitmap_size(cmd->nr_words), GFP_KERNEL);
-
-	if (!cmd->dmap[0].dirty_words) {
+	if (__dirty_map_init(&cmd->dmap[0], cmd->nr_words, cmd->nr_regions)) {
 		DMERR("Failed to allocate dirty bitmap");
 		return -ENOMEM;
 	}
 
-	cmd->dmap[1].changed = 0;
-	cmd->dmap[1].dirty_words = kvzalloc(bitmap_size(cmd->nr_words), GFP_KERNEL);
-
-	if (!cmd->dmap[1].dirty_words) {
+	if (__dirty_map_init(&cmd->dmap[1], cmd->nr_words, cmd->nr_regions)) {
 		DMERR("Failed to allocate dirty bitmap");
-		kvfree(cmd->dmap[0].dirty_words);
+		__dirty_map_exit(&cmd->dmap[0]);
 		return -ENOMEM;
 	}
 
 	cmd->current_dmap = &cmd->dmap[0];
+	cmd->committing_dmap = NULL;
 
 	return 0;
 }
 
 static void dirty_map_exit(struct dm_clone_metadata *cmd)
 {
-	kvfree(cmd->dmap[0].dirty_words);
-	kvfree(cmd->dmap[1].dirty_words);
+	__dirty_map_exit(&cmd->dmap[0]);
+	__dirty_map_exit(&cmd->dmap[1]);
 }
 
 static int __load_bitset_in_core(struct dm_clone_metadata *cmd)
@@ -633,21 +667,23 @@ unsigned long dm_clone_find_next_unhydrated_region(struct dm_clone_metadata *cmd
 	return find_next_zero_bit(cmd->region_map, cmd->nr_regions, start);
 }
 
-static int __update_metadata_word(struct dm_clone_metadata *cmd, unsigned long word)
+static int __update_metadata_word(struct dm_clone_metadata *cmd,
+				  unsigned long *dirty_regions,
+				  unsigned long word)
 {
 	int r;
 	unsigned long index = word * BITS_PER_LONG;
 	unsigned long max_index = min(cmd->nr_regions, (word + 1) * BITS_PER_LONG);
 
 	while (index < max_index) {
-		if (test_bit(index, cmd->region_map)) {
+		if (test_bit(index, dirty_regions)) {
 			r = dm_bitset_set_bit(&cmd->bitset_info, cmd->bitset_root,
 					      index, &cmd->bitset_root);
-
 			if (r) {
 				DMERR("dm_bitset_set_bit failed");
 				return r;
 			}
+			__clear_bit(index, dirty_regions);
 		}
 		index++;
 	}
@@ -712,7 +748,7 @@ static int __metadata_commit(struct dm_clone_metadata *cmd)
 static int __flush_dmap(struct dm_clone_metadata *cmd, struct dirty_map *dmap)
 {
 	int r;
-	unsigned long word, flags;
+	unsigned long word;
 
 	word = 0;
 	do {
@@ -721,7 +757,7 @@ static int __flush_dmap(struct dm_clone_metadata *cmd, struct dirty_map *dmap)
 		if (word == cmd->nr_words)
 			break;
 
-		r = __update_metadata_word(cmd, word);
+		r = __update_metadata_word(cmd, dmap->dirty_regions, word);
 
 		if (r)
 			return r;
@@ -736,23 +772,24 @@ static int __flush_dmap(struct dm_clone_metadata *cmd, struct dirty_map *dmap)
 		return r;
 
 	/* Update the changed flag */
-	spin_lock_irqsave(&cmd->bitmap_lock, flags);
+	spin_lock_irq(&cmd->bitmap_lock);
 	dmap->changed = 0;
-	spin_unlock_irqrestore(&cmd->bitmap_lock, flags);
+	spin_unlock_irq(&cmd->bitmap_lock);
 
 	return 0;
 }
 
-int dm_clone_metadata_commit(struct dm_clone_metadata *cmd)
+int dm_clone_metadata_pre_commit(struct dm_clone_metadata *cmd)
 {
-	int r = -EPERM;
-	unsigned long flags;
+	int r = 0;
 	struct dirty_map *dmap, *next_dmap;
 
 	down_write(&cmd->lock);
 
-	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm))
+	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm)) {
+		r = -EPERM;
 		goto out;
+	}
 
 	/* Get current dirty bitmap */
 	dmap = cmd->current_dmap;
@@ -764,21 +801,43 @@ int dm_clone_metadata_commit(struct dm_clone_metadata *cmd)
 	 * The last commit failed, so we don't have a clean dirty-bitmap to
 	 * use.
 	 */
-	if (WARN_ON(next_dmap->changed)) {
+	if (WARN_ON(next_dmap->changed || cmd->committing_dmap)) {
 		r = -EINVAL;
 		goto out;
 	}
 
 	/* Swap dirty bitmaps */
-	spin_lock_irqsave(&cmd->bitmap_lock, flags);
+	spin_lock_irq(&cmd->bitmap_lock);
 	cmd->current_dmap = next_dmap;
-	spin_unlock_irqrestore(&cmd->bitmap_lock, flags);
+	spin_unlock_irq(&cmd->bitmap_lock);
 
-	/*
-	 * No one is accessing the old dirty bitmap anymore, so we can flush
-	 * it.
-	 */
-	r = __flush_dmap(cmd, dmap);
+	/* Set old dirty bitmap as currently committing */
+	cmd->committing_dmap = dmap;
+out:
+	up_write(&cmd->lock);
+
+	return r;
+}
+
+int dm_clone_metadata_commit(struct dm_clone_metadata *cmd)
+{
+	int r = -EPERM;
+
+	down_write(&cmd->lock);
+
+	if (cmd->fail_io || dm_bm_is_read_only(cmd->bm))
+		goto out;
+
+	if (WARN_ON(!cmd->committing_dmap)) {
+		r = -EINVAL;
+		goto out;
+	}
+
+	r = __flush_dmap(cmd, cmd->committing_dmap);
+	if (!r) {
+		/* Clear committing dmap */
+		cmd->committing_dmap = NULL;
+	}
 out:
 	up_write(&cmd->lock);
 
@@ -803,6 +862,7 @@ int dm_clone_set_region_hydrated(struct dm_clone_metadata *cmd, unsigned long re
 	dmap = cmd->current_dmap;
 
 	__set_bit(word, dmap->dirty_words);
+	__set_bit(region_nr, dmap->dirty_regions);
 	__set_bit(region_nr, cmd->region_map);
 	dmap->changed = 1;
 
@@ -817,9 +877,9 @@ int dm_clone_cond_set_range(struct dm_clone_metadata *cmd, unsigned long start,
 {
 	int r = 0;
 	struct dirty_map *dmap;
-	unsigned long word, region_nr, flags;
+	unsigned long word, region_nr;
 
-	spin_lock_irqsave(&cmd->bitmap_lock, flags);
+	spin_lock_irq(&cmd->bitmap_lock);
 
 	if (cmd->read_only) {
 		r = -EPERM;
@@ -831,12 +891,13 @@ int dm_clone_cond_set_range(struct dm_clone_metadata *cmd, unsigned long start,
 		if (!test_bit(region_nr, cmd->region_map)) {
 			word = region_nr / BITS_PER_LONG;
 			__set_bit(word, dmap->dirty_words);
+			__set_bit(region_nr, dmap->dirty_regions);
 			__set_bit(region_nr, cmd->region_map);
 			dmap->changed = 1;
 		}
 	}
 out:
-	spin_unlock_irqrestore(&cmd->bitmap_lock, flags);
+	spin_unlock_irq(&cmd->bitmap_lock);
 
 	return r;
 }
@@ -903,13 +964,11 @@ out:
 
 void dm_clone_metadata_set_read_only(struct dm_clone_metadata *cmd)
 {
-	unsigned long flags;
-
 	down_write(&cmd->lock);
 
-	spin_lock_irqsave(&cmd->bitmap_lock, flags);
+	spin_lock_irq(&cmd->bitmap_lock);
 	cmd->read_only = 1;
-	spin_unlock_irqrestore(&cmd->bitmap_lock, flags);
+	spin_unlock_irq(&cmd->bitmap_lock);
 
 	if (!cmd->fail_io)
 		dm_bm_set_read_only(cmd->bm);
@@ -919,13 +978,11 @@ void dm_clone_metadata_set_read_only(struct dm_clone_metadata *cmd)
 
 void dm_clone_metadata_set_read_write(struct dm_clone_metadata *cmd)
 {
-	unsigned long flags;
-
 	down_write(&cmd->lock);
 
-	spin_lock_irqsave(&cmd->bitmap_lock, flags);
+	spin_lock_irq(&cmd->bitmap_lock);
 	cmd->read_only = 0;
-	spin_unlock_irqrestore(&cmd->bitmap_lock, flags);
+	spin_unlock_irq(&cmd->bitmap_lock);
 
 	if (!cmd->fail_io)
 		dm_bm_set_read_write(cmd->bm);

@@ -252,9 +252,9 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 	gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
 		       GFP_KERNEL : GFP_ATOMIC;
 	int sg_flags = (flags == GFP_ATOMIC) ? SG_MITER_ATOMIC : 0;
-	int sgc;
 	int sec4_sg_index, sec4_sg_len = 0, sec4_sg_bytes;
 	int src_nents, dst_nents;
+	int mapped_src_nents, mapped_dst_nents;
 	unsigned int diff_size = 0;
 	int lzeros;
 
@@ -285,13 +285,27 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 				     req_ctx->fixup_src_len);
 	dst_nents = sg_nents_for_len(req->dst, req->dst_len);
 
-	if (!diff_size && src_nents == 1)
+	mapped_src_nents = dma_map_sg(dev, req_ctx->fixup_src, src_nents,
+				      DMA_TO_DEVICE);
+	if (unlikely(!mapped_src_nents)) {
+		dev_err(dev, "unable to map source\n");
+		return ERR_PTR(-ENOMEM);
+	}
+	mapped_dst_nents = dma_map_sg(dev, req->dst, dst_nents,
+				      DMA_FROM_DEVICE);
+	if (unlikely(!mapped_dst_nents)) {
+		dev_err(dev, "unable to map destination\n");
+		goto src_fail;
+	}
+
+	if (!diff_size && mapped_src_nents == 1)
 		sec4_sg_len = 0; /* no need for an input hw s/g table */
 	else
-		sec4_sg_len = src_nents + !!diff_size;
+		sec4_sg_len = mapped_src_nents + !!diff_size;
 	sec4_sg_index = sec4_sg_len;
-	if (dst_nents > 1)
-		sec4_sg_len += pad_sg_nents(dst_nents);
+
+	if (mapped_dst_nents > 1)
+		sec4_sg_len += pad_sg_nents(mapped_dst_nents);
 	else
 		sec4_sg_len = pad_sg_nents(sec4_sg_len);
 
@@ -301,19 +315,7 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 	edesc = kzalloc(sizeof(*edesc) + desclen + sec4_sg_bytes,
 			GFP_DMA | flags);
 	if (!edesc)
-		return ERR_PTR(-ENOMEM);
-
-	sgc = dma_map_sg(dev, req_ctx->fixup_src, src_nents, DMA_TO_DEVICE);
-	if (unlikely(!sgc)) {
-		dev_err(dev, "unable to map source\n");
-		goto src_fail;
-	}
-
-	sgc = dma_map_sg(dev, req->dst, dst_nents, DMA_FROM_DEVICE);
-	if (unlikely(!sgc)) {
-		dev_err(dev, "unable to map destination\n");
 		goto dst_fail;
-	}
 
 	edesc->sec4_sg = (void *)edesc + sizeof(*edesc) + desclen;
 	if (diff_size)
@@ -324,7 +326,7 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 		sg_to_sec4_sg_last(req_ctx->fixup_src, req_ctx->fixup_src_len,
 				   edesc->sec4_sg + !!diff_size, 0);
 
-	if (dst_nents > 1)
+	if (mapped_dst_nents > 1)
 		sg_to_sec4_sg_last(req->dst, req->dst_len,
 				   edesc->sec4_sg + sec4_sg_index, 0);
 
@@ -334,6 +336,9 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 
 	if (!sec4_sg_bytes)
 		return edesc;
+
+	edesc->mapped_src_nents = mapped_src_nents;
+	edesc->mapped_dst_nents = mapped_dst_nents;
 
 	edesc->sec4_sg_dma = dma_map_single(dev, edesc->sec4_sg,
 					    sec4_sg_bytes, DMA_TO_DEVICE);
@@ -351,11 +356,11 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 	return edesc;
 
 sec4_sg_fail:
-	dma_unmap_sg(dev, req->dst, dst_nents, DMA_FROM_DEVICE);
-dst_fail:
-	dma_unmap_sg(dev, req_ctx->fixup_src, src_nents, DMA_TO_DEVICE);
-src_fail:
 	kfree(edesc);
+dst_fail:
+	dma_unmap_sg(dev, req->dst, dst_nents, DMA_FROM_DEVICE);
+src_fail:
+	dma_unmap_sg(dev, req_ctx->fixup_src, src_nents, DMA_TO_DEVICE);
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -383,15 +388,15 @@ static int set_rsa_pub_pdb(struct akcipher_request *req,
 		return -ENOMEM;
 	}
 
-	if (edesc->src_nents > 1) {
+	if (edesc->mapped_src_nents > 1) {
 		pdb->sgf |= RSA_PDB_SGF_F;
 		pdb->f_dma = edesc->sec4_sg_dma;
-		sec4_sg_index += edesc->src_nents;
+		sec4_sg_index += edesc->mapped_src_nents;
 	} else {
 		pdb->f_dma = sg_dma_address(req_ctx->fixup_src);
 	}
 
-	if (edesc->dst_nents > 1) {
+	if (edesc->mapped_dst_nents > 1) {
 		pdb->sgf |= RSA_PDB_SGF_G;
 		pdb->g_dma = edesc->sec4_sg_dma +
 			     sec4_sg_index * sizeof(struct sec4_sg_entry);
@@ -428,17 +433,18 @@ static int set_rsa_priv_f1_pdb(struct akcipher_request *req,
 		return -ENOMEM;
 	}
 
-	if (edesc->src_nents > 1) {
+	if (edesc->mapped_src_nents > 1) {
 		pdb->sgf |= RSA_PRIV_PDB_SGF_G;
 		pdb->g_dma = edesc->sec4_sg_dma;
-		sec4_sg_index += edesc->src_nents;
+		sec4_sg_index += edesc->mapped_src_nents;
+
 	} else {
 		struct caam_rsa_req_ctx *req_ctx = akcipher_request_ctx(req);
 
 		pdb->g_dma = sg_dma_address(req_ctx->fixup_src);
 	}
 
-	if (edesc->dst_nents > 1) {
+	if (edesc->mapped_dst_nents > 1) {
 		pdb->sgf |= RSA_PRIV_PDB_SGF_F;
 		pdb->f_dma = edesc->sec4_sg_dma +
 			     sec4_sg_index * sizeof(struct sec4_sg_entry);
@@ -493,17 +499,17 @@ static int set_rsa_priv_f2_pdb(struct akcipher_request *req,
 		goto unmap_tmp1;
 	}
 
-	if (edesc->src_nents > 1) {
+	if (edesc->mapped_src_nents > 1) {
 		pdb->sgf |= RSA_PRIV_PDB_SGF_G;
 		pdb->g_dma = edesc->sec4_sg_dma;
-		sec4_sg_index += edesc->src_nents;
+		sec4_sg_index += edesc->mapped_src_nents;
 	} else {
 		struct caam_rsa_req_ctx *req_ctx = akcipher_request_ctx(req);
 
 		pdb->g_dma = sg_dma_address(req_ctx->fixup_src);
 	}
 
-	if (edesc->dst_nents > 1) {
+	if (edesc->mapped_dst_nents > 1) {
 		pdb->sgf |= RSA_PRIV_PDB_SGF_F;
 		pdb->f_dma = edesc->sec4_sg_dma +
 			     sec4_sg_index * sizeof(struct sec4_sg_entry);
@@ -582,17 +588,17 @@ static int set_rsa_priv_f3_pdb(struct akcipher_request *req,
 		goto unmap_tmp1;
 	}
 
-	if (edesc->src_nents > 1) {
+	if (edesc->mapped_src_nents > 1) {
 		pdb->sgf |= RSA_PRIV_PDB_SGF_G;
 		pdb->g_dma = edesc->sec4_sg_dma;
-		sec4_sg_index += edesc->src_nents;
+		sec4_sg_index += edesc->mapped_src_nents;
 	} else {
 		struct caam_rsa_req_ctx *req_ctx = akcipher_request_ctx(req);
 
 		pdb->g_dma = sg_dma_address(req_ctx->fixup_src);
 	}
 
-	if (edesc->dst_nents > 1) {
+	if (edesc->mapped_dst_nents > 1) {
 		pdb->sgf |= RSA_PRIV_PDB_SGF_F;
 		pdb->f_dma = edesc->sec4_sg_dma +
 			     sec4_sg_index * sizeof(struct sec4_sg_entry);

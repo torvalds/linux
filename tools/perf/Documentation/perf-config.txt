@@ -561,6 +561,11 @@ trace.*::
 	trace.show_zeros::
 		Do not suppress syscall arguments that are equal to zero.
 
+	trace.tracepoint_beautifiers::
+		Use "libtraceevent" to use that library to augment the tracepoint arguments,
+		"libbeauty", the default, to use the same argument beautifiers used in the
+		strace-like sys_enter+sys_exit lines.
+
 llvm.*::
 	llvm.clang-path::
 		Path to clang. If omit, search it from $PATH.

@@ -43,10 +43,12 @@ unsigned long pipe_user_pages_hard;
 unsigned long pipe_user_pages_soft = PIPE_DEF_BUFFERS * INR_OPEN_CUR;
 
 /*
- * We use a start+len construction, which provides full use of the 
- * allocated memory.
- * -- Florian Coosmann (FGC)
- * 
+ * We use head and tail indices that aren't masked off, except at the point of
+ * dereference, but rather they're allowed to wrap naturally.  This means there
+ * isn't a dead spot in the buffer, but the ring has to be a power of two and
+ * <= 2^31.
+ * -- David Howells 2019-09-23.
+ *
  * Reads with count = 0 should always return 0.
  * -- Julian Bradfield 1999-06-07.
  *
@@ -268,27 +270,48 @@ static bool pipe_buf_can_merge(struct pipe_buffer *buf)
 	return buf->ops == &anon_pipe_buf_ops;
 }
 
+/* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
+static inline bool pipe_readable(const struct pipe_inode_info *pipe)
+{
+	unsigned int head = READ_ONCE(pipe->head);
+	unsigned int tail = READ_ONCE(pipe->tail);
+	unsigned int writers = READ_ONCE(pipe->writers);
+
+	return !pipe_empty(head, tail) || !writers;
+}
+
 static ssize_t
 pipe_read(struct kiocb *iocb, struct iov_iter *to)
 {
 	size_t total_len = iov_iter_count(to);
 	struct file *filp = iocb->ki_filp;
 	struct pipe_inode_info *pipe = filp->private_data;
-	int do_wakeup;
+	bool was_full;
 	ssize_t ret;
 
 	/* Null read succeeds. */
 	if (unlikely(total_len == 0))
 		return 0;
 
-	do_wakeup = 0;
 	ret = 0;
 	__pipe_lock(pipe);
+
+	/*
+	 * We only wake up writers if the pipe was full when we started
+	 * reading in order to avoid unnecessary wakeups.
+	 *
+	 * But when we do wake up writers, we do so using a sync wakeup
+	 * (WF_SYNC), because we want them to get going and generate more
+	 * data for us.
+	 */
+	was_full = pipe_full(pipe->head, pipe->tail, pipe->max_usage);
 	for (;;) {
-		int bufs = pipe->nrbufs;
-		if (bufs) {
-			int curbuf = pipe->curbuf;
-			struct pipe_buffer *buf = pipe->bufs + curbuf;
+		unsigned int head = pipe->head;
+		unsigned int tail = pipe->tail;
+		unsigned int mask = pipe->ring_size - 1;
+
+		if (!pipe_empty(head, tail)) {
+			struct pipe_buffer *buf = &pipe->bufs[tail & mask];
 			size_t chars = buf->len;
 			size_t written;
 			int error;
@@ -321,47 +344,65 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 
 			if (!buf->len) {
 				pipe_buf_release(pipe, buf);
-				curbuf = (curbuf + 1) & (pipe->buffers - 1);
-				pipe->curbuf = curbuf;
-				pipe->nrbufs = --bufs;
-				do_wakeup = 1;
+				spin_lock_irq(&pipe->wait.lock);
+				tail++;
+				pipe->tail = tail;
+				spin_unlock_irq(&pipe->wait.lock);
 			}
 			total_len -= chars;
 			if (!total_len)
 				break;	/* common path: read succeeded */
+			if (!pipe_empty(head, tail))	/* More to do? */
+				continue;
 		}
-		if (bufs)	/* More to do? */
-			continue;
+
 		if (!pipe->writers)
 			break;
-		if (!pipe->waiting_writers) {
-			/* syscall merging: Usually we must not sleep
-			 * if O_NONBLOCK is set, or if we got some data.
-			 * But if a writer sleeps in kernel space, then
-			 * we can wait for that data without violating POSIX.
-			 */
-			if (ret)
-				break;
-			if (filp->f_flags & O_NONBLOCK) {
-				ret = -EAGAIN;
-				break;
-			}
-		}
-		if (signal_pending(current)) {
-			if (!ret)
-				ret = -ERESTARTSYS;
+		if (ret)
+			break;
+		if (filp->f_flags & O_NONBLOCK) {
+			ret = -EAGAIN;
 			break;
 		}
-		if (do_wakeup) {
+		__pipe_unlock(pipe);
+
+		/*
+		 * We only get here if we didn't actually read anything.
+		 *
+		 * However, we could have seen (and removed) a zero-sized
+		 * pipe buffer, and might have made space in the buffers
+		 * that way.
+		 *
+		 * You can't make zero-sized pipe buffers by doing an empty
+		 * write (not even in packet mode), but they can happen if
+		 * the writer gets an EFAULT when trying to fill a buffer
+		 * that already got allocated and inserted in the buffer
+		 * array.
+		 *
+		 * So we still need to wake up any pending writers in the
+		 * _very_ unlikely case that the pipe was full, but we got
+		 * no data.
+		 */
+		if (unlikely(was_full)) {
 			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
- 			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
+			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 		}
-		pipe_wait(pipe);
+
+		/*
+		 * But because we didn't read anything, at this point we can
+		 * just return directly with -ERESTARTSYS if we're interrupted,
+		 * since we've done any required wakeups and there's no need
+		 * to mark anything accessed. And we've dropped the lock.
+		 */
+		if (wait_event_interruptible(pipe->wait, pipe_readable(pipe)) < 0)
+			return -ERESTARTSYS;
+
+		__pipe_lock(pipe);
+		was_full = pipe_full(pipe->head, pipe->tail, pipe->max_usage);
 	}
 	__pipe_unlock(pipe);
 
-	/* Signal writers asynchronously that there is more room. */
-	if (do_wakeup) {
+	if (was_full) {
 		wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
@@ -375,15 +416,27 @@ static inline int is_packetized(struct file *file)
 	return (file->f_flags & O_DIRECT) != 0;
 }
 
+/* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
+static inline bool pipe_writable(const struct pipe_inode_info *pipe)
+{
+	unsigned int head = READ_ONCE(pipe->head);
+	unsigned int tail = READ_ONCE(pipe->tail);
+	unsigned int max_usage = READ_ONCE(pipe->max_usage);
+
+	return !pipe_full(head, tail, max_usage) ||
+		!READ_ONCE(pipe->readers);
+}
+
 static ssize_t
 pipe_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *filp = iocb->ki_filp;
 	struct pipe_inode_info *pipe = filp->private_data;
+	unsigned int head;
 	ssize_t ret = 0;
-	int do_wakeup = 0;
 	size_t total_len = iov_iter_count(from);
 	ssize_t chars;
+	bool was_empty = false;
 
 	/* Null write succeeds. */
 	if (unlikely(total_len == 0))
@@ -397,12 +450,23 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 	}
 
-	/* We try to merge small writes */
-	chars = total_len & (PAGE_SIZE-1); /* size of the last buffer */
-	if (pipe->nrbufs && chars != 0) {
-		int lastbuf = (pipe->curbuf + pipe->nrbufs - 1) &
-							(pipe->buffers - 1);
-		struct pipe_buffer *buf = pipe->bufs + lastbuf;
+	/*
+	 * Only wake up if the pipe started out empty, since
+	 * otherwise there should be no readers waiting.
+	 *
+	 * If it wasn't empty we try to merge new data into
+	 * the last buffer.
+	 *
+	 * That naturally merges small writes, but it also
+	 * page-aligs the rest of the writes for large writes
+	 * spanning multiple pages.
+	 */
+	head = pipe->head;
+	was_empty = pipe_empty(head, pipe->tail);
+	chars = total_len & (PAGE_SIZE-1);
+	if (chars && !was_empty) {
+		unsigned int mask = pipe->ring_size - 1;
+		struct pipe_buffer *buf = &pipe->bufs[(head - 1) & mask];
 		int offset = buf->offset + buf->len;
 
 		if (pipe_buf_can_merge(buf) && offset + chars <= PAGE_SIZE) {
@@ -415,7 +479,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 				ret = -EFAULT;
 				goto out;
 			}
-			do_wakeup = 1;
+
 			buf->len += ret;
 			if (!iov_iter_count(from))
 				goto out;
@@ -423,18 +487,17 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	for (;;) {
-		int bufs;
-
 		if (!pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			if (!ret)
 				ret = -EPIPE;
 			break;
 		}
-		bufs = pipe->nrbufs;
-		if (bufs < pipe->buffers) {
-			int newbuf = (pipe->curbuf + bufs) & (pipe->buffers-1);
-			struct pipe_buffer *buf = pipe->bufs + newbuf;
+
+		head = pipe->head;
+		if (!pipe_full(head, pipe->tail, pipe->max_usage)) {
+			unsigned int mask = pipe->ring_size - 1;
+			struct pipe_buffer *buf = &pipe->bufs[head & mask];
 			struct page *page = pipe->tmp_page;
 			int copied;
 
@@ -446,12 +509,36 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 				}
 				pipe->tmp_page = page;
 			}
-			/* Always wake up, even if the copy fails. Otherwise
-			 * we lock up (O_NONBLOCK-)readers that sleep due to
-			 * syscall merging.
-			 * FIXME! Is this really true?
+
+			/* Allocate a slot in the ring in advance and attach an
+			 * empty buffer.  If we fault or otherwise fail to use
+			 * it, either the reader will consume it or it'll still
+			 * be there for the next write.
 			 */
-			do_wakeup = 1;
+			spin_lock_irq(&pipe->wait.lock);
+
+			head = pipe->head;
+			if (pipe_full(head, pipe->tail, pipe->max_usage)) {
+				spin_unlock_irq(&pipe->wait.lock);
+				continue;
+			}
+
+			pipe->head = head + 1;
+			spin_unlock_irq(&pipe->wait.lock);
+
+			/* Insert it into the buffer array */
+			buf = &pipe->bufs[head & mask];
+			buf->page = page;
+			buf->ops = &anon_pipe_buf_ops;
+			buf->offset = 0;
+			buf->len = 0;
+			buf->flags = 0;
+			if (is_packetized(filp)) {
+				buf->ops = &packet_pipe_buf_ops;
+				buf->flags = PIPE_BUF_FLAG_PACKET;
+			}
+			pipe->tmp_page = NULL;
+
 			copied = copy_page_from_iter(page, 0, PAGE_SIZE, from);
 			if (unlikely(copied < PAGE_SIZE && iov_iter_count(from))) {
 				if (!ret)
@@ -459,25 +546,17 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 				break;
 			}
 			ret += copied;
-
-			/* Insert it into the buffer array */
-			buf->page = page;
-			buf->ops = &anon_pipe_buf_ops;
 			buf->offset = 0;
 			buf->len = copied;
-			buf->flags = 0;
-			if (is_packetized(filp)) {
-				buf->ops = &packet_pipe_buf_ops;
-				buf->flags = PIPE_BUF_FLAG_PACKET;
-			}
-			pipe->nrbufs = ++bufs;
-			pipe->tmp_page = NULL;
 
 			if (!iov_iter_count(from))
 				break;
 		}
-		if (bufs < pipe->buffers)
+
+		if (!pipe_full(head, pipe->tail, pipe->max_usage))
 			continue;
+
+		/* Wait for buffer space to become available. */
 		if (filp->f_flags & O_NONBLOCK) {
 			if (!ret)
 				ret = -EAGAIN;
@@ -488,18 +567,35 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 				ret = -ERESTARTSYS;
 			break;
 		}
-		if (do_wakeup) {
+
+		/*
+		 * We're going to release the pipe lock and wait for more
+		 * space. We wake up any readers if necessary, and then
+		 * after waiting we need to re-check whether the pipe
+		 * become empty while we dropped the lock.
+		 */
+		__pipe_unlock(pipe);
+		if (was_empty) {
 			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLIN | EPOLLRDNORM);
 			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
-			do_wakeup = 0;
 		}
-		pipe->waiting_writers++;
-		pipe_wait(pipe);
-		pipe->waiting_writers--;
+		wait_event_interruptible(pipe->wait, pipe_writable(pipe));
+		__pipe_lock(pipe);
+		was_empty = pipe_empty(pipe->head, pipe->tail);
 	}
 out:
 	__pipe_unlock(pipe);
-	if (do_wakeup) {
+
+	/*
+	 * If we do do a wakeup event, we do a 'sync' wakeup, because we
+	 * want the reader to start processing things asap, rather than
+	 * leave the data pending.
+	 *
+	 * This is particularly important for small writes, because of
+	 * how (for example) the GNU make jobserver uses small writes to
+	 * wake up pending jobs
+	 */
+	if (was_empty) {
 		wake_up_interruptible_sync_poll(&pipe->wait, EPOLLIN | EPOLLRDNORM);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
@@ -515,17 +611,19 @@ out:
 static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct pipe_inode_info *pipe = filp->private_data;
-	int count, buf, nrbufs;
+	int count, head, tail, mask;
 
 	switch (cmd) {
 		case FIONREAD:
 			__pipe_lock(pipe);
 			count = 0;
-			buf = pipe->curbuf;
-			nrbufs = pipe->nrbufs;
-			while (--nrbufs >= 0) {
-				count += pipe->bufs[buf].len;
-				buf = (buf+1) & (pipe->buffers - 1);
+			head = pipe->head;
+			tail = pipe->tail;
+			mask = pipe->ring_size - 1;
+
+			while (tail != head) {
+				count += pipe->bufs[tail & mask].len;
+				tail++;
 			}
 			__pipe_unlock(pipe);
 
@@ -541,21 +639,35 @@ pipe_poll(struct file *filp, poll_table *wait)
 {
 	__poll_t mask;
 	struct pipe_inode_info *pipe = filp->private_data;
-	int nrbufs;
+	unsigned int head, tail;
 
+	/*
+	 * Reading only -- no need for acquiring the semaphore.
+	 *
+	 * But because this is racy, the code has to add the
+	 * entry to the poll table _first_ ..
+	 */
 	poll_wait(filp, &pipe->wait, wait);
 
-	/* Reading only -- no need for acquiring the semaphore.  */
-	nrbufs = pipe->nrbufs;
+	/*
+	 * .. and only then can you do the racy tests. That way,
+	 * if something changes and you got it wrong, the poll
+	 * table entry will wake you up and fix it.
+	 */
+	head = READ_ONCE(pipe->head);
+	tail = READ_ONCE(pipe->tail);
+
 	mask = 0;
 	if (filp->f_mode & FMODE_READ) {
-		mask = (nrbufs > 0) ? EPOLLIN | EPOLLRDNORM : 0;
+		if (!pipe_empty(head, tail))
+			mask |= EPOLLIN | EPOLLRDNORM;
 		if (!pipe->writers && filp->f_version != pipe->w_counter)
 			mask |= EPOLLHUP;
 	}
 
 	if (filp->f_mode & FMODE_WRITE) {
-		mask |= (nrbufs < pipe->buffers) ? EPOLLOUT | EPOLLWRNORM : 0;
+		if (!pipe_full(head, tail, pipe->max_usage))
+			mask |= EPOLLOUT | EPOLLWRNORM;
 		/*
 		 * Most Unices do not set EPOLLERR for FIFOs but on Linux they
 		 * behave exactly like pipes for poll().
@@ -679,7 +791,8 @@ struct pipe_inode_info *alloc_pipe_info(void)
 	if (pipe->bufs) {
 		init_waitqueue_head(&pipe->wait);
 		pipe->r_counter = pipe->w_counter = 1;
-		pipe->buffers = pipe_bufs;
+		pipe->max_usage = pipe_bufs;
+		pipe->ring_size = pipe_bufs;
 		pipe->user = user;
 		mutex_init(&pipe->mutex);
 		return pipe;
@@ -697,9 +810,9 @@ void free_pipe_info(struct pipe_inode_info *pipe)
 {
 	int i;
 
-	(void) account_pipe_buffers(pipe->user, pipe->buffers, 0);
+	(void) account_pipe_buffers(pipe->user, pipe->ring_size, 0);
 	free_uid(pipe->user);
-	for (i = 0; i < pipe->buffers; i++) {
+	for (i = 0; i < pipe->ring_size; i++) {
 		struct pipe_buffer *buf = pipe->bufs + i;
 		if (buf->ops)
 			pipe_buf_release(pipe, buf);
@@ -793,6 +906,8 @@ int create_pipe_files(struct file **res, int flags)
 	}
 	res[0]->private_data = inode->i_pipe;
 	res[1] = f;
+	stream_open(inode, res[0]);
+	stream_open(inode, res[1]);
 	return 0;
 }
 
@@ -880,7 +995,7 @@ SYSCALL_DEFINE1(pipe, int __user *, fildes)
 
 static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
 {
-	int cur = *cnt;	
+	int cur = *cnt;
 
 	while (cur == *cnt) {
 		pipe_wait(pipe);
@@ -931,9 +1046,9 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	__pipe_lock(pipe);
 
 	/* We can only do regular read/write on fifos */
-	filp->f_mode &= (FMODE_READ | FMODE_WRITE);
+	stream_open(inode, filp);
 
-	switch (filp->f_mode) {
+	switch (filp->f_mode & (FMODE_READ | FMODE_WRITE)) {
 	case FMODE_READ:
 	/*
 	 *  O_RDONLY
@@ -955,7 +1070,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 			}
 		}
 		break;
-	
+
 	case FMODE_WRITE:
 	/*
 	 *  O_WRONLY
@@ -975,7 +1090,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 				goto err_wr;
 		}
 		break;
-	
+
 	case FMODE_READ | FMODE_WRITE:
 	/*
 	 *  O_RDWR
@@ -1054,14 +1169,14 @@ unsigned int round_pipe_size(unsigned long size)
 static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 {
 	struct pipe_buffer *bufs;
-	unsigned int size, nr_pages;
+	unsigned int size, nr_slots, head, tail, mask, n;
 	unsigned long user_bufs;
 	long ret = 0;
 
 	size = round_pipe_size(arg);
-	nr_pages = size >> PAGE_SHIFT;
+	nr_slots = size >> PAGE_SHIFT;
 
-	if (!nr_pages)
+	if (!nr_slots)
 		return -EINVAL;
 
 	/*
@@ -1071,13 +1186,13 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	 * Decreasing the pipe capacity is always permitted, even
 	 * if the user is currently over a limit.
 	 */
-	if (nr_pages > pipe->buffers &&
+	if (nr_slots > pipe->ring_size &&
 			size > pipe_max_size && !capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
-	user_bufs = account_pipe_buffers(pipe->user, pipe->buffers, nr_pages);
+	user_bufs = account_pipe_buffers(pipe->user, pipe->ring_size, nr_slots);
 
-	if (nr_pages > pipe->buffers &&
+	if (nr_slots > pipe->ring_size &&
 			(too_many_pipe_buffers_hard(user_bufs) ||
 			 too_many_pipe_buffers_soft(user_bufs)) &&
 			is_unprivileged_user()) {
@@ -1086,17 +1201,21 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	}
 
 	/*
-	 * We can shrink the pipe, if arg >= pipe->nrbufs. Since we don't
-	 * expect a lot of shrink+grow operations, just free and allocate
-	 * again like we would do for growing. If the pipe currently
+	 * We can shrink the pipe, if arg is greater than the ring occupancy.
+	 * Since we don't expect a lot of shrink+grow operations, just free and
+	 * allocate again like we would do for growing.  If the pipe currently
 	 * contains more buffers than arg, then return busy.
 	 */
-	if (nr_pages < pipe->nrbufs) {
+	mask = pipe->ring_size - 1;
+	head = pipe->head;
+	tail = pipe->tail;
+	n = pipe_occupancy(pipe->head, pipe->tail);
+	if (nr_slots < n) {
 		ret = -EBUSY;
 		goto out_revert_acct;
 	}
 
-	bufs = kcalloc(nr_pages, sizeof(*bufs),
+	bufs = kcalloc(nr_slots, sizeof(*bufs),
 		       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
 	if (unlikely(!bufs)) {
 		ret = -ENOMEM;
@@ -1105,33 +1224,38 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 
 	/*
 	 * The pipe array wraps around, so just start the new one at zero
-	 * and adjust the indexes.
+	 * and adjust the indices.
 	 */
-	if (pipe->nrbufs) {
-		unsigned int tail;
-		unsigned int head;
-
-		tail = pipe->curbuf + pipe->nrbufs;
-		if (tail < pipe->buffers)
-			tail = 0;
-		else
-			tail &= (pipe->buffers - 1);
-
-		head = pipe->nrbufs - tail;
-		if (head)
-			memcpy(bufs, pipe->bufs + pipe->curbuf, head * sizeof(struct pipe_buffer));
-		if (tail)
-			memcpy(bufs + head, pipe->bufs, tail * sizeof(struct pipe_buffer));
+	if (n > 0) {
+		unsigned int h = head & mask;
+		unsigned int t = tail & mask;
+		if (h > t) {
+			memcpy(bufs, pipe->bufs + t,
+			       n * sizeof(struct pipe_buffer));
+		} else {
+			unsigned int tsize = pipe->ring_size - t;
+			if (h > 0)
+				memcpy(bufs + tsize, pipe->bufs,
+				       h * sizeof(struct pipe_buffer));
+			memcpy(bufs, pipe->bufs + t,
+			       tsize * sizeof(struct pipe_buffer));
+		}
 	}
 
-	pipe->curbuf = 0;
+	head = n;
+	tail = 0;
+
 	kfree(pipe->bufs);
 	pipe->bufs = bufs;
-	pipe->buffers = nr_pages;
-	return nr_pages * PAGE_SIZE;
+	pipe->ring_size = nr_slots;
+	pipe->max_usage = nr_slots;
+	pipe->tail = tail;
+	pipe->head = head;
+	wake_up_interruptible_all(&pipe->wait);
+	return pipe->max_usage * PAGE_SIZE;
 
 out_revert_acct:
-	(void) account_pipe_buffers(pipe->user, nr_pages, pipe->buffers);
+	(void) account_pipe_buffers(pipe->user, nr_slots, pipe->ring_size);
 	return ret;
 }
 
@@ -1161,7 +1285,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = pipe_set_size(pipe, arg);
 		break;
 	case F_GETPIPE_SZ:
-		ret = pipe->buffers * PAGE_SIZE;
+		ret = pipe->max_usage * PAGE_SIZE;
 		break;
 	default:
 		ret = -EINVAL;
