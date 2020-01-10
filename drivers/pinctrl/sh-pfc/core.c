@@ -849,7 +849,6 @@ check_enum_ids:
 
 static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 {
-	const struct sh_pfc_function *func;
 	const char *drvname = info->name;
 	unsigned int *refcnts;
 	unsigned int i, j, k;
@@ -890,10 +889,16 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 		return;
 
 	for (i = 0; i < info->nr_functions; i++) {
-		func = &info->functions[i];
+		const struct sh_pfc_function *func = &info->functions[i];
+
 		if (!func->name) {
 			sh_pfc_err("empty function %u\n", i);
 			continue;
+		}
+		for (j = 0; j < i; j++) {
+			if (same_name(func->name, info->functions[j].name))
+				sh_pfc_err("function %s: name conflict\n",
+					   func->name);
 		}
 		for (j = 0; j < func->nr_groups; j++) {
 			for (k = 0; k < info->nr_groups; k++) {
