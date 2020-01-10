@@ -657,6 +657,7 @@ void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
 		value &= ~EFPE;
 
 		writel(value, ioaddr + MAC_FPE_CTRL_STS);
+		return;
 	}
 
 	value = readl(ioaddr + GMAC_RXQ_CTRL1);
