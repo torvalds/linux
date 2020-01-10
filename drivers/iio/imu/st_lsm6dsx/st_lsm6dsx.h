@@ -176,21 +176,38 @@ struct st_lsm6dsx_hw_ts_settings {
  * @pullup_en: i2c controller pull-up register info (addr + mask).
  * @aux_sens: aux sensor register info (addr + mask).
  * @wr_once: write_once register info (addr + mask).
+ * @emb_func:  embedded function register info (addr + mask).
+ * @num_ext_dev: max number of slave devices.
  * @shub_out: sensor hub first output register info.
  * @slv0_addr: slave0 address in secondary page.
  * @dw_slv0_addr: slave0 write register address in secondary page.
  * @batch_en: Enable/disable FIFO batching.
+ * @pause: controller pause value.
  */
 struct st_lsm6dsx_shub_settings {
 	struct st_lsm6dsx_reg page_mux;
-	struct st_lsm6dsx_reg master_en;
-	struct st_lsm6dsx_reg pullup_en;
+	struct {
+		bool sec_page;
+		u8 addr;
+		u8 mask;
+	} master_en;
+	struct {
+		bool sec_page;
+		u8 addr;
+		u8 mask;
+	} pullup_en;
 	struct st_lsm6dsx_reg aux_sens;
 	struct st_lsm6dsx_reg wr_once;
-	u8 shub_out;
+	struct st_lsm6dsx_reg emb_func;
+	u8 num_ext_dev;
+	struct {
+		bool sec_page;
+		u8 addr;
+	} shub_out;
 	u8 slv0_addr;
 	u8 dw_slv0_addr;
 	u8 batch_en;
+	u8 pause;
 };
 
 struct st_lsm6dsx_event_settings {
@@ -389,14 +406,17 @@ struct st_lsm6dsx_hw {
 	const struct st_lsm6dsx_settings *settings;
 };
 
-static const struct iio_event_spec st_lsm6dsx_event = {
+static __maybe_unused const struct iio_event_spec st_lsm6dsx_event = {
 	.type = IIO_EV_TYPE_THRESH,
 	.dir = IIO_EV_DIR_EITHER,
 	.mask_separate = BIT(IIO_EV_INFO_VALUE) |
 			 BIT(IIO_EV_INFO_ENABLE)
 };
 
-static const unsigned long st_lsm6dsx_available_scan_masks[] = {0x7, 0x0};
+static __maybe_unused const unsigned long st_lsm6dsx_available_scan_masks[] = {
+	0x7, 0x0,
+};
+
 extern const struct dev_pm_ops st_lsm6dsx_pm_ops;
 
 int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,

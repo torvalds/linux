@@ -119,8 +119,6 @@ static const struct acpi_device_id st_accel_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, st_accel_acpi_match);
-#else
-#define st_accel_acpi_match NULL
 #endif
 
 static const struct i2c_device_id st_accel_id_table[] = {

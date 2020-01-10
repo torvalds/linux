@@ -50,6 +50,7 @@ static void inv_scan_query(struct iio_dev *indio_dev)
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 
 	switch (st->chip_type) {
+	case INV_MPU9150:
 	case INV_MPU9250:
 	case INV_MPU9255:
 		return inv_scan_query_mpu9x50(indio_dev);

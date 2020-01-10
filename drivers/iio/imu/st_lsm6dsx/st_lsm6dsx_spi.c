@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/of.h>
 #include <linux/regmap.h>
 
 #include "st_lsm6dsx.h"
@@ -122,7 +121,7 @@ static struct spi_driver st_lsm6dsx_driver = {
 	.driver = {
 		.name = "st_lsm6dsx_spi",
 		.pm = &st_lsm6dsx_pm_ops,
-		.of_match_table = of_match_ptr(st_lsm6dsx_spi_of_match),
+		.of_match_table = st_lsm6dsx_spi_of_match,
 	},
 	.probe = st_lsm6dsx_spi_probe,
 	.id_table = st_lsm6dsx_spi_id_table,

@@ -915,6 +915,33 @@ static const unsigned long inv_mpu_scan_masks[] = {
 		.ext_info = inv_ext_info,				\
 	}
 
+static const struct iio_chan_spec inv_mpu9150_channels[] = {
+	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU9X50_SCAN_TIMESTAMP),
+	/*
+	 * Note that temperature should only be via polled reading only,
+	 * not the final scan elements output.
+	 */
+	{
+		.type = IIO_TEMP,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)
+				| BIT(IIO_CHAN_INFO_OFFSET)
+				| BIT(IIO_CHAN_INFO_SCALE),
+		.scan_index = -1,
+	},
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_X, INV_MPU6050_SCAN_GYRO_X),
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Y, INV_MPU6050_SCAN_GYRO_Y),
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Z, INV_MPU6050_SCAN_GYRO_Z),
+
+	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_X, INV_MPU6050_SCAN_ACCL_X),
+	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Y, INV_MPU6050_SCAN_ACCL_Y),
+	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Z, INV_MPU6050_SCAN_ACCL_Z),
+
+	/* Magnetometer resolution is 13 bits */
+	INV_MPU9X50_MAGN_CHAN(IIO_MOD_X, 13, INV_MPU9X50_SCAN_MAGN_X),
+	INV_MPU9X50_MAGN_CHAN(IIO_MOD_Y, 13, INV_MPU9X50_SCAN_MAGN_Y),
+	INV_MPU9X50_MAGN_CHAN(IIO_MOD_Z, 13, INV_MPU9X50_SCAN_MAGN_Z),
+};
+
 static const struct iio_chan_spec inv_mpu9250_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU9X50_SCAN_TIMESTAMP),
 	/*
@@ -1324,21 +1351,16 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		inv_mpu_bus_setup(indio_dev);
 
 	switch (chip_type) {
+	case INV_MPU9150:
+		indio_dev->channels = inv_mpu9150_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_mpu9150_channels);
+		indio_dev->available_scan_masks = inv_mpu9x50_scan_masks;
+		break;
 	case INV_MPU9250:
 	case INV_MPU9255:
-		/*
-		 * Use magnetometer inside the chip only if there is no i2c
-		 * auxiliary device in use.
-		 */
-		if (!st->magn_disabled) {
-			indio_dev->channels = inv_mpu9250_channels;
-			indio_dev->num_channels = ARRAY_SIZE(inv_mpu9250_channels);
-			indio_dev->available_scan_masks = inv_mpu9x50_scan_masks;
-		} else {
-			indio_dev->channels = inv_mpu_channels;
-			indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
-			indio_dev->available_scan_masks = inv_mpu_scan_masks;
-		}
+		indio_dev->channels = inv_mpu9250_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_mpu9250_channels);
+		indio_dev->available_scan_masks = inv_mpu9x50_scan_masks;
 		break;
 	case INV_ICM20602:
 		indio_dev->channels = inv_icm20602_channels;
@@ -1350,6 +1372,15 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
 		indio_dev->available_scan_masks = inv_mpu_scan_masks;
 		break;
+	}
+	/*
+	 * Use magnetometer inside the chip only if there is no i2c
+	 * auxiliary device in use. Otherwise Going back to 6-axis only.
+	 */
+	if (st->magn_disabled) {
+		indio_dev->channels = inv_mpu_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
+		indio_dev->available_scan_masks = inv_mpu_scan_masks;
 	}
 
 	indio_dev->info = &mpu_info;
