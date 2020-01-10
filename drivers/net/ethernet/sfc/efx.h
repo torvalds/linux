@@ -26,8 +26,6 @@ extern unsigned int efx_piobuf_size;
 extern bool efx_separate_tx_channels;
 
 /* RX */
-void efx_set_default_rx_indir_table(struct efx_nic *efx,
-				    struct efx_rss_context *ctx);
 void __efx_rx_packet(struct efx_channel *channel);
 void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 		   unsigned int n_frags, unsigned int len, u16 flags);
@@ -195,9 +193,6 @@ void efx_rps_hash_del(struct efx_nic *efx, const struct efx_filter_spec *spec);
 #endif
 
 /* RSS contexts */
-struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx);
-struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id);
-void efx_free_rss_context_entry(struct efx_rss_context *ctx);
 static inline bool efx_rss_active(struct efx_rss_context *ctx)
 {
 	return ctx->context_id != EFX_EF10_RSS_CONTEXT_INVALID;

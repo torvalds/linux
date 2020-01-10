@@ -551,3 +551,68 @@ efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
 
 	napi_gro_frags(napi);
 }
+
+/* RSS contexts.  We're using linked lists and crappy O(n) algorithms, because
+ * (a) this is an infrequent control-plane operation and (b) n is small (max 64)
+ */
+struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx)
+{
+	struct list_head *head = &efx->rss_context.list;
+	struct efx_rss_context *ctx, *new;
+	u32 id = 1; /* Don't use zero, that refers to the master RSS context */
+
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
+
+	/* Search for first gap in the numbering */
+	list_for_each_entry(ctx, head, list) {
+		if (ctx->user_id != id)
+			break;
+		id++;
+		/* Check for wrap.  If this happens, we have nearly 2^32
+		 * allocated RSS contexts, which seems unlikely.
+		 */
+		if (WARN_ON_ONCE(!id))
+			return NULL;
+	}
+
+	/* Create the new entry */
+	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		return NULL;
+	new->context_id = EFX_EF10_RSS_CONTEXT_INVALID;
+	new->rx_hash_udp_4tuple = false;
+
+	/* Insert the new entry into the gap */
+	new->user_id = id;
+	list_add_tail(&new->list, &ctx->list);
+	return new;
+}
+
+struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id)
+{
+	struct list_head *head = &efx->rss_context.list;
+	struct efx_rss_context *ctx;
+
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
+
+	list_for_each_entry(ctx, head, list)
+		if (ctx->user_id == id)
+			return ctx;
+	return NULL;
+}
+
+void efx_free_rss_context_entry(struct efx_rss_context *ctx)
+{
+	list_del(&ctx->list);
+	kfree(ctx);
+}
+
+void efx_set_default_rx_indir_table(struct efx_nic *efx,
+				    struct efx_rss_context *ctx)
+{
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(ctx->rx_indir_table); i++)
+		ctx->rx_indir_table[i] =
+			ethtool_rxfh_indir_default(i, efx->rss_spread);
+}
