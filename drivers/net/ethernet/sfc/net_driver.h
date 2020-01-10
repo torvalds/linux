@@ -744,13 +744,13 @@ union efx_multicast_hash {
 struct vfdi_status;
 
 /* The reserved RSS context value */
-#define EFX_EF10_RSS_CONTEXT_INVALID	0xffffffff
+#define EFX_MCDI_RSS_CONTEXT_INVALID	0xffffffff
 /**
  * struct efx_rss_context - A user-defined RSS context for filtering
  * @list: node of linked list on which this struct is stored
  * @context_id: the RSS_CONTEXT_ID returned by MC firmware, or
- *	%EFX_EF10_RSS_CONTEXT_INVALID if this context is not present on the NIC.
- *	For Siena, 0 if RSS is active, else %EFX_EF10_RSS_CONTEXT_INVALID.
+ *	%EFX_MCDI_RSS_CONTEXT_INVALID if this context is not present on the NIC.
+ *	For Siena, 0 if RSS is active, else %EFX_MCDI_RSS_CONTEXT_INVALID.
  * @user_id: the rss_context ID exposed to userspace over ethtool.
  * @rx_hash_udp_4tuple: UDP 4-tuple hashing enabled
  * @rx_hash_key: Toeplitz hash key for this RSS context

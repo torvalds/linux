@@ -197,6 +197,51 @@ void efx_link_status_changed(struct efx_nic *efx)
 		netif_info(efx, link, efx->net_dev, "link down\n");
 }
 
+unsigned int efx_xdp_max_mtu(struct efx_nic *efx)
+{
+	/* The maximum MTU that we can fit in a single page, allowing for
+	 * framing, overhead and XDP headroom.
+	 */
+	int overhead = EFX_MAX_FRAME_LEN(0) + sizeof(struct efx_rx_page_state) +
+		       efx->rx_prefix_size + efx->type->rx_buffer_padding +
+		       efx->rx_ip_align + XDP_PACKET_HEADROOM;
+
+	return PAGE_SIZE - overhead;
+}
+
+/* Context: process, rtnl_lock() held. */
+int efx_change_mtu(struct net_device *net_dev, int new_mtu)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	rc = efx_check_disabled(efx);
+	if (rc)
+		return rc;
+
+	if (rtnl_dereference(efx->xdp_prog) &&
+	    new_mtu > efx_xdp_max_mtu(efx)) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Requested MTU of %d too big for XDP (max: %d)\n",
+			  new_mtu, efx_xdp_max_mtu(efx));
+		return -EINVAL;
+	}
+
+	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
+
+	efx_device_detach_sync(efx);
+	efx_stop_all(efx);
+
+	mutex_lock(&efx->mac_lock);
+	net_dev->mtu = new_mtu;
+	efx_mac_reconfigure(efx);
+	mutex_unlock(&efx->mac_lock);
+
+	efx_start_all(efx);
+	efx_device_attach_if_not_resetting(efx);
+	return 0;
+}
+
 /**************************************************************************
  *
  * Hardware monitor
@@ -452,6 +497,16 @@ void efx_stop_all(struct efx_nic *efx)
 	netif_tx_disable(efx->net_dev);
 
 	efx_stop_datapath(efx);
+}
+
+/* Context: process, dev_base_lock or RTNL held, non-blocking. */
+void efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	spin_lock_bh(&efx->stats_lock);
+	efx->type->update_stats(efx, NULL, stats);
+	spin_unlock_bh(&efx->stats_lock);
 }
 
 /* Push loopback/power/transmit disable settings to the PHY, and reconfigure
@@ -840,7 +895,7 @@ int efx_init_struct(struct efx_nic *efx,
 #endif
 	INIT_WORK(&efx->reset_work, efx_reset_work);
 	INIT_DELAYED_WORK(&efx->monitor_work, efx_monitor);
-	INIT_DELAYED_WORK(&efx->selftest_work, efx_selftest_async_work);
+	efx_selftest_async_init(efx);
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
 	efx->state = STATE_UNINIT;

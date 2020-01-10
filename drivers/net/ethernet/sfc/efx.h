@@ -26,8 +26,6 @@ extern unsigned int efx_piobuf_size;
 extern bool efx_separate_tx_channels;
 
 /* RX */
-void efx_set_default_rx_indir_table(struct efx_nic *efx,
-				    struct efx_rss_context *ctx);
 void __efx_rx_packet(struct efx_channel *channel);
 void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 		   unsigned int n_frags, unsigned int len, u16 flags);
@@ -36,9 +34,6 @@ static inline void efx_rx_flush_packet(struct efx_channel *channel)
 	if (channel->rx_pkt_n_frags)
 		__efx_rx_packet(channel);
 }
-
-void efx_init_rx_recycle_ring(struct efx_rx_queue *rx_queue);
-struct page *efx_reuse_page(struct efx_rx_queue *rx_queue);
 
 #define EFX_MAX_DMAQ_SIZE 4096UL
 #define EFX_DEFAULT_DMAQ_SIZE 1024UL
@@ -174,36 +169,11 @@ static inline void efx_filter_rfs_expire(struct work_struct *data)
 static inline void efx_filter_rfs_expire(struct work_struct *data) {}
 #define efx_filter_rfs_enabled() 0
 #endif
-bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec);
-
-bool efx_filter_spec_equal(const struct efx_filter_spec *left,
-			   const struct efx_filter_spec *right);
-u32 efx_filter_spec_hash(const struct efx_filter_spec *spec);
-
-#ifdef CONFIG_RFS_ACCEL
-bool efx_rps_check_rule(struct efx_arfs_rule *rule, unsigned int filter_idx,
-			bool *force);
-
-struct efx_arfs_rule *efx_rps_hash_find(struct efx_nic *efx,
-					const struct efx_filter_spec *spec);
-
-/* @new is written to indicate if entry was newly added (true) or if an old
- * entry was found and returned (false).
- */
-struct efx_arfs_rule *efx_rps_hash_add(struct efx_nic *efx,
-				       const struct efx_filter_spec *spec,
-				       bool *new);
-
-void efx_rps_hash_del(struct efx_nic *efx, const struct efx_filter_spec *spec);
-#endif
 
 /* RSS contexts */
-struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx);
-struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id);
-void efx_free_rss_context_entry(struct efx_rss_context *ctx);
 static inline bool efx_rss_active(struct efx_rss_context *ctx)
 {
-	return ctx->context_id != EFX_EF10_RSS_CONTEXT_INVALID;
+	return ctx->context_id != EFX_MCDI_RSS_CONTEXT_INVALID;
 }
 
 /* Ethtool support */
