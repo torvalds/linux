@@ -214,7 +214,7 @@ static int __set_scrub_rate(struct amd64_pvt *pvt, u32 new_bw, u32 min_rate)
 
 	scrubval = scrubrates[i].scrubval;
 
-	if (pvt->fam == 0x17 || pvt->fam == 0x18) {
+	if (pvt->umc) {
 		__f17h_set_scrubval(pvt, scrubval);
 	} else if (pvt->fam == 0x15 && pvt->model == 0x60) {
 		f15h_select_dct(pvt, 0);
@@ -256,18 +256,7 @@ static int get_scrub_rate(struct mem_ctl_info *mci)
 	int i, retval = -EINVAL;
 	u32 scrubval = 0;
 
-	switch (pvt->fam) {
-	case 0x15:
-		/* Erratum #505 */
-		if (pvt->model < 0x10)
-			f15h_select_dct(pvt, 0);
-
-		if (pvt->model == 0x60)
-			amd64_read_pci_cfg(pvt->F2, F15H_M60H_SCRCTRL, &scrubval);
-		break;
-
-	case 0x17:
-	case 0x18:
+	if (pvt->umc) {
 		amd64_read_pci_cfg(pvt->F6, F17H_SCR_BASE_ADDR, &scrubval);
 		if (scrubval & BIT(0)) {
 			amd64_read_pci_cfg(pvt->F6, F17H_SCR_LIMIT_ADDR, &scrubval);
@@ -276,11 +265,15 @@ static int get_scrub_rate(struct mem_ctl_info *mci)
 		} else {
 			scrubval = 0;
 		}
-		break;
+	} else if (pvt->fam == 0x15) {
+		/* Erratum #505 */
+		if (pvt->model < 0x10)
+			f15h_select_dct(pvt, 0);
 
-	default:
+		if (pvt->model == 0x60)
+			amd64_read_pci_cfg(pvt->F2, F15H_M60H_SCRCTRL, &scrubval);
+	} else {
 		amd64_read_pci_cfg(pvt->F3, SCRCTRL, &scrubval);
-		break;
 	}
 
 	scrubval = scrubval & 0x001F;
@@ -1055,6 +1048,16 @@ static void determine_memory_type(struct amd64_pvt *pvt)
 {
 	u32 dram_ctrl, dcsm;
 
+	if (pvt->umc) {
+		if ((pvt->umc[0].dimm_cfg | pvt->umc[1].dimm_cfg) & BIT(5))
+			pvt->dram_type = MEM_LRDDR4;
+		else if ((pvt->umc[0].dimm_cfg | pvt->umc[1].dimm_cfg) & BIT(4))
+			pvt->dram_type = MEM_RDDR4;
+		else
+			pvt->dram_type = MEM_DDR4;
+		return;
+	}
+
 	switch (pvt->fam) {
 	case 0xf:
 		if (pvt->ext_model >= K8_REV_F)
@@ -1099,16 +1102,6 @@ static void determine_memory_type(struct amd64_pvt *pvt)
 
 	case 0x16:
 		goto ddr3;
-
-	case 0x17:
-	case 0x18:
-		if ((pvt->umc[0].dimm_cfg | pvt->umc[1].dimm_cfg) & BIT(5))
-			pvt->dram_type = MEM_LRDDR4;
-		else if ((pvt->umc[0].dimm_cfg | pvt->umc[1].dimm_cfg) & BIT(4))
-			pvt->dram_type = MEM_RDDR4;
-		else
-			pvt->dram_type = MEM_DDR4;
-		return;
 
 	default:
 		WARN(1, KERN_ERR "%s: Family??? 0x%x\n", __func__, pvt->fam);
