@@ -60,7 +60,6 @@ struct intel_engine_coredump {
 	const struct intel_engine_cs *engine;
 
 	bool simulated;
-	int num_requests;
 	u32 reset_count;
 
 	/* position of active request inside the ring */
@@ -96,7 +95,7 @@ struct intel_engine_coredump {
 
 	struct i915_vma_coredump *vma;
 
-	struct i915_request_coredump *requests, execlist[EXECLIST_MAX_PORTS];
+	struct i915_request_coredump execlist[EXECLIST_MAX_PORTS];
 	unsigned int num_ports;
 
 	struct {
