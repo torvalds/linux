@@ -380,6 +380,16 @@
 					 <&clk_ext3>, <&clk_ext4>;
 				clock-names = "osc_32k", "osc_24m", "clk_ext1", "clk_ext2",
 					      "clk_ext3", "clk_ext4";
+				assigned-clocks = <&clk IMX8MN_CLK_NOC>,
+						<&clk IMX8MN_CLK_AUDIO_AHB>,
+						<&clk IMX8MN_CLK_IPG_AUDIO_ROOT>,
+						<&clk IMX8MN_SYS_PLL3>;
+				assigned-clock-parents = <&clk IMX8MN_SYS_PLL3_OUT>,
+							 <&clk IMX8MN_SYS_PLL1_800M>;
+				assigned-clock-rates = <0>,
+							<400000000>,
+							<400000000>,
+							<600000000>;
 			};
 
 			src: reset-controller@30390000 {
