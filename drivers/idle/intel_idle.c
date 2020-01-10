@@ -1148,7 +1148,7 @@ static const struct x86_cpu_id intel_mwait_ids[] __initconst = {
 	{}
 };
 
-static bool intel_idle_max_cstate_reached(int cstate)
+static bool __init intel_idle_max_cstate_reached(int cstate)
 {
 	if (cstate + 1 > max_cstate) {
 		pr_info("max_cstate %d reached\n", max_cstate);
@@ -1164,7 +1164,7 @@ static bool no_acpi __read_mostly;
 module_param(no_acpi, bool, 0444);
 MODULE_PARM_DESC(no_acpi, "Do not use ACPI _CST for building the idle states list");
 
-static struct acpi_processor_power acpi_state_table;
+static struct acpi_processor_power acpi_state_table __initdata;
 
 /**
  * intel_idle_cst_usable - Check if the _CST information can be used.
@@ -1172,7 +1172,7 @@ static struct acpi_processor_power acpi_state_table;
  * Check if all of the C-states listed by _CST in the max_cstate range are
  * ACPI_CSTATE_FFH, which means that they should be entered via MWAIT.
  */
-static bool intel_idle_cst_usable(void)
+static bool __init intel_idle_cst_usable(void)
 {
 	int cstate, limit;
 
@@ -1189,7 +1189,7 @@ static bool intel_idle_cst_usable(void)
 	return true;
 }
 
-static bool intel_idle_acpi_cst_extract(void)
+static bool __init intel_idle_acpi_cst_extract(void)
 {
 	unsigned int cpu;
 
@@ -1224,7 +1224,7 @@ static bool intel_idle_acpi_cst_extract(void)
 	return false;
 }
 
-static void intel_idle_init_cstates_acpi(struct cpuidle_driver *drv)
+static void __init intel_idle_init_cstates_acpi(struct cpuidle_driver *drv)
 {
 	int cstate, limit = min_t(int, CPUIDLE_STATE_MAX, acpi_state_table.count);
 
@@ -1268,7 +1268,7 @@ static void intel_idle_init_cstates_acpi(struct cpuidle_driver *drv)
 	}
 }
 
-static bool intel_idle_off_by_default(u32 mwait_hint)
+static bool __init intel_idle_off_by_default(u32 mwait_hint)
 {
 	int cstate, limit;
 
@@ -1302,7 +1302,7 @@ static inline bool intel_idle_off_by_default(u32 mwait_hint) { return false; }
  * Tune IVT multi-socket targets
  * Assumption: num_sockets == (max_package_num + 1)
  */
-static void ivt_idle_state_table_update(void)
+static void __init ivt_idle_state_table_update(void)
 {
 	/* IVT uses a different table for 1-2, 3-4, and > 4 sockets */
 	int cpu, package_num, num_sockets = 1;
@@ -1329,10 +1329,11 @@ static void ivt_idle_state_table_update(void)
  * Translate IRTL (Interrupt Response Time Limit) MSR to usec
  */
 
-static unsigned int irtl_ns_units[] = {
-	1, 32, 1024, 32768, 1048576, 33554432, 0, 0 };
+static const unsigned int irtl_ns_units[] __initconst = {
+	1, 32, 1024, 32768, 1048576, 33554432, 0, 0
+};
 
-static unsigned long long irtl_2_usec(unsigned long long irtl)
+static unsigned long long __init irtl_2_usec(unsigned long long irtl)
 {
 	unsigned long long ns;
 
@@ -1349,7 +1350,7 @@ static unsigned long long irtl_2_usec(unsigned long long irtl)
  * On BXT, we trust the IRTL to show the definitive maximum latency
  * We use the same value for target_residency.
  */
-static void bxt_idle_state_table_update(void)
+static void __init bxt_idle_state_table_update(void)
 {
 	unsigned long long msr;
 	unsigned int usec;
@@ -1396,7 +1397,7 @@ static void bxt_idle_state_table_update(void)
  * On SKL-H (model 0x5e) disable C8 and C9 if:
  * C10 is enabled and SGX disabled
  */
-static void sklh_idle_state_table_update(void)
+static void __init sklh_idle_state_table_update(void)
 {
 	unsigned long long msr;
 	unsigned int eax, ebx, ecx, edx;
@@ -1433,7 +1434,7 @@ static void sklh_idle_state_table_update(void)
 	skl_cstates[6].flags |= CPUIDLE_FLAG_UNUSABLE;	/* C9-SKL */
 }
 
-static void intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
+static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 {
 	int cstate;
 
