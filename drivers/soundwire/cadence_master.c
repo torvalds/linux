@@ -74,6 +74,7 @@ MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
 #define CDNS_MCP_INTMASK			0x48
 
 #define CDNS_MCP_INT_IRQ			BIT(31)
+#define CDNS_MCP_INT_RESERVED1			GENMASK(30, 17)
 #define CDNS_MCP_INT_WAKEUP			BIT(16)
 #define CDNS_MCP_INT_SLAVE_RSVD			BIT(15)
 #define CDNS_MCP_INT_SLAVE_ALERT		BIT(14)
@@ -85,10 +86,12 @@ MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
 #define CDNS_MCP_INT_DATA_CLASH			BIT(9)
 #define CDNS_MCP_INT_PARITY			BIT(8)
 #define CDNS_MCP_INT_CMD_ERR			BIT(7)
+#define CDNS_MCP_INT_RESERVED2			GENMASK(6, 4)
 #define CDNS_MCP_INT_RX_NE			BIT(3)
 #define CDNS_MCP_INT_RX_WL			BIT(2)
 #define CDNS_MCP_INT_TXE			BIT(1)
 #define CDNS_MCP_INT_TXF			BIT(0)
+#define CDNS_MCP_INT_RESERVED (CDNS_MCP_INT_RESERVED1 | CDNS_MCP_INT_RESERVED2)
 
 #define CDNS_MCP_INTSET				0x4C
 
@@ -704,6 +707,10 @@ irqreturn_t sdw_cdns_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	int_status = cdns_readl(cdns, CDNS_MCP_INTSTAT);
+
+	/* check for reserved values read as zero */
+	if (int_status & CDNS_MCP_INT_RESERVED)
+		return IRQ_NONE;
 
 	if (!(int_status & CDNS_MCP_INT_IRQ))
 		return IRQ_NONE;
