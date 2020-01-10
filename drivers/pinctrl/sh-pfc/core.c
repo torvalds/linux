@@ -1000,6 +1000,10 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	/* Check bias registers */
 	for (i = 0; info->bias_regs && info->bias_regs[i].puen; i++)
 		sh_pfc_check_bias_reg(info, &info->bias_regs[i]);
+
+	/* Check ioctrl registers */
+	for (i = 0; info->ioctrl_regs && info->ioctrl_regs[i].reg; i++)
+		sh_pfc_check_reg(drvname, info->ioctrl_regs[i].reg);
 }
 
 static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
