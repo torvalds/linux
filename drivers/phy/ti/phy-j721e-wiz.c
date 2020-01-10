@@ -794,7 +794,7 @@ static int wiz_probe(struct platform_device *pdev)
 	}
 
 	base = devm_ioremap(dev, res.start, resource_size(&res));
-	if (IS_ERR(base))
+	if (!base)
 		goto err_addr_to_resource;
 
 	regmap = devm_regmap_init_mmio(dev, base, &wiz_regmap_config);
