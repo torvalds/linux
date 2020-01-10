@@ -7607,21 +7607,21 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock, type):
-		BUILD_BUG_ON(HWEIGHT32(SK_FL_TYPE_MASK) != BITS_PER_BYTE * 2);
-		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
-				      offsetof(struct sock, __sk_flags_offset));
-		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, SK_FL_TYPE_MASK);
-		*insn++ = BPF_ALU32_IMM(BPF_RSH, si->dst_reg, SK_FL_TYPE_SHIFT);
-		*target_size = 2;
+		*insn++ = BPF_LDX_MEM(
+			BPF_FIELD_SIZEOF(struct sock, sk_type),
+			si->dst_reg, si->src_reg,
+			bpf_target_off(struct sock, sk_type,
+				       sizeof_field(struct sock, sk_type),
+				       target_size));
 		break;
 
 	case offsetof(struct bpf_sock, protocol):
-		BUILD_BUG_ON(HWEIGHT32(SK_FL_PROTO_MASK) != BITS_PER_BYTE);
-		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
-				      offsetof(struct sock, __sk_flags_offset));
-		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, SK_FL_PROTO_MASK);
-		*insn++ = BPF_ALU32_IMM(BPF_RSH, si->dst_reg, SK_FL_PROTO_SHIFT);
-		*target_size = 1;
+		*insn++ = BPF_LDX_MEM(
+			BPF_FIELD_SIZEOF(struct sock, sk_protocol),
+			si->dst_reg, si->src_reg,
+			bpf_target_off(struct sock, sk_protocol,
+				       sizeof_field(struct sock, sk_protocol),
+				       target_size));
 		break;
 
 	case offsetof(struct bpf_sock, src_ip4):
@@ -7903,20 +7903,13 @@ static u32 sock_addr_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock_addr, type):
-		SOCK_ADDR_LOAD_NESTED_FIELD_SIZE_OFF(
-			struct bpf_sock_addr_kern, struct sock, sk,
-			__sk_flags_offset, BPF_W, 0);
-		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, SK_FL_TYPE_MASK);
-		*insn++ = BPF_ALU32_IMM(BPF_RSH, si->dst_reg, SK_FL_TYPE_SHIFT);
+		SOCK_ADDR_LOAD_NESTED_FIELD(struct bpf_sock_addr_kern,
+					    struct sock, sk, sk_type);
 		break;
 
 	case offsetof(struct bpf_sock_addr, protocol):
-		SOCK_ADDR_LOAD_NESTED_FIELD_SIZE_OFF(
-			struct bpf_sock_addr_kern, struct sock, sk,
-			__sk_flags_offset, BPF_W, 0);
-		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, SK_FL_PROTO_MASK);
-		*insn++ = BPF_ALU32_IMM(BPF_RSH, si->dst_reg,
-					SK_FL_PROTO_SHIFT);
+		SOCK_ADDR_LOAD_NESTED_FIELD(struct bpf_sock_addr_kern,
+					    struct sock, sk, sk_protocol);
 		break;
 
 	case offsetof(struct bpf_sock_addr, msg_src_ip4):
@@ -8835,11 +8828,11 @@ sk_reuseport_is_valid_access(int off, int size,
 				    skb,				\
 				    SKB_FIELD)
 
-#define SK_REUSEPORT_LOAD_SK_FIELD_SIZE_OFF(SK_FIELD, BPF_SIZE, EXTRA_OFF) \
-	SOCK_ADDR_LOAD_NESTED_FIELD_SIZE_OFF(struct sk_reuseport_kern,	\
-					     struct sock,		\
-					     sk,			\
-					     SK_FIELD, BPF_SIZE, EXTRA_OFF)
+#define SK_REUSEPORT_LOAD_SK_FIELD(SK_FIELD)				\
+	SOCK_ADDR_LOAD_NESTED_FIELD(struct sk_reuseport_kern,		\
+				    struct sock,			\
+				    sk,					\
+				    SK_FIELD)
 
 static u32 sk_reuseport_convert_ctx_access(enum bpf_access_type type,
 					   const struct bpf_insn *si,
@@ -8863,16 +8856,7 @@ static u32 sk_reuseport_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct sk_reuseport_md, ip_protocol):
-		BUILD_BUG_ON(HWEIGHT32(SK_FL_PROTO_MASK) != BITS_PER_BYTE);
-		SK_REUSEPORT_LOAD_SK_FIELD_SIZE_OFF(__sk_flags_offset,
-						    BPF_W, 0);
-		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, SK_FL_PROTO_MASK);
-		*insn++ = BPF_ALU32_IMM(BPF_RSH, si->dst_reg,
-					SK_FL_PROTO_SHIFT);
-		/* SK_FL_PROTO_MASK and SK_FL_PROTO_SHIFT are endian
-		 * aware.  No further narrowing or masking is needed.
-		 */
-		*target_size = 1;
+		SK_REUSEPORT_LOAD_SK_FIELD(sk_protocol);
 		break;
 
 	case offsetof(struct sk_reuseport_md, data_end):

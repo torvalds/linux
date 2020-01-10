@@ -4097,6 +4097,9 @@ enum skb_ext_id {
 #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
 	TC_SKB_EXT,
 #endif
+#if IS_ENABLED(CONFIG_MPTCP)
+	SKB_EXT_MPTCP,
+#endif
 	SKB_EXT_NUM, /* must be last */
 };
 
@@ -4117,6 +4120,9 @@ struct skb_ext {
 	char data[0] __aligned(8);
 };
 
+struct skb_ext *__skb_ext_alloc(void);
+void *__skb_ext_set(struct sk_buff *skb, enum skb_ext_id id,
+		    struct skb_ext *ext);
 void *skb_ext_add(struct sk_buff *skb, enum skb_ext_id id);
 void __skb_ext_del(struct sk_buff *skb, enum skb_ext_id id);
 void __skb_ext_put(struct skb_ext *ext);

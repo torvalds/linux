@@ -770,6 +770,18 @@ void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 }
 EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_hash_add);
 
+static void inet_clone_ulp(const struct request_sock *req, struct sock *newsk,
+			   const gfp_t priority)
+{
+	struct inet_connection_sock *icsk = inet_csk(newsk);
+
+	if (!icsk->icsk_ulp_ops)
+		return;
+
+	if (icsk->icsk_ulp_ops->clone)
+		icsk->icsk_ulp_ops->clone(req, newsk, priority);
+}
+
 /**
  *	inet_csk_clone_lock - clone an inet socket, and lock its clone
  *	@sk: the socket to clone
@@ -809,6 +821,8 @@ struct sock *inet_csk_clone_lock(const struct sock *sk,
 
 		/* Deinitialize accept_queue to trap illegal accesses. */
 		memset(&newicsk->icsk_accept_queue, 0, sizeof(newicsk->icsk_accept_queue));
+
+		inet_clone_ulp(req, newsk, priority);
 
 		security_inet_csk_clone(newsk, req);
 	}
