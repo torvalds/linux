@@ -736,19 +736,9 @@ struct snd_soc_compr_ops {
 	int (*trigger)(struct snd_compr_stream *);
 };
 
-struct snd_soc_rtdcom_list {
-	struct snd_soc_component *component;
-	struct list_head list; /* rtd::component_list */
-};
 struct snd_soc_component*
 snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 		       const char *driver_name);
-#define for_each_rtd_components(rtd, rtdcom, _component)		\
-	for (rtdcom = list_first_entry(&(rtd)->component_list,		\
-				       typeof(*rtdcom), list);		\
-	     (&rtdcom->list != &(rtd)->component_list) &&		\
-		     (_component = rtdcom->component);			\
-	     rtdcom = list_next_entry(rtdcom, list))
 
 struct snd_soc_dai_link_component {
 	const char *name;
@@ -1150,12 +1140,18 @@ struct snd_soc_pcm_runtime {
 
 	unsigned int num; /* 0-based and monotonic increasing */
 	struct list_head list; /* rtd list of the soc card */
-	struct list_head component_list; /* list of connected components */
 
 	/* bit field */
 	unsigned int pop_wait:1;
 	unsigned int fe_compr:1; /* for Dynamic PCM */
+
+	int num_components;
+	struct snd_soc_component *components[0]; /* CPU/Codec/Platform */
 };
+#define for_each_rtd_components(rtd, i, component)			\
+	for ((i) = 0;							\
+	     ((i) < rtd->num_components) && ((component) = rtd->components[i]);\
+	     (i)++)
 #define for_each_rtd_codec_dai(rtd, i, dai)\
 	for ((i) = 0;						       \
 	     ((i) < rtd->num_codecs) && ((dai) = rtd->codec_dais[i]); \
