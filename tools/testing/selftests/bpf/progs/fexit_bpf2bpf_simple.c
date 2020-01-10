@@ -9,8 +9,9 @@ struct sk_buff {
 };
 
 __u64 test_result = 0;
-BPF_TRACE_2("fexit/test_pkt_md_access", test_main2,
-	    struct sk_buff *, skb, int, ret)
+
+SEC("fexit/test_pkt_md_access")
+int BPF_PROG(test_main2, struct sk_buff *skb, int ret)
 {
 	int len;
 

@@ -9,8 +9,8 @@ struct sk_buff {
 };
 
 __u64 test_result = 0;
-BPF_TRACE_2("fexit/test_pkt_access", test_main,
-	    struct sk_buff *, skb, int, ret)
+SEC("fexit/test_pkt_access")
+int BPF_PROG(test_main, struct sk_buff *skb, int ret)
 {
 	int len;
 
@@ -24,8 +24,8 @@ BPF_TRACE_2("fexit/test_pkt_access", test_main,
 }
 
 __u64 test_result_subprog1 = 0;
-BPF_TRACE_2("fexit/test_pkt_access_subprog1", test_subprog1,
-	    struct sk_buff *, skb, int, ret)
+SEC("fexit/test_pkt_access_subprog1")
+int BPF_PROG(test_subprog1, struct sk_buff *skb, int ret)
 {
 	int len;
 
@@ -81,8 +81,8 @@ int test_subprog2(struct args_subprog2 *ctx)
 }
 
 __u64 test_result_subprog3 = 0;
-BPF_TRACE_3("fexit/test_pkt_access_subprog3", test_subprog3,
-	    int, val, struct sk_buff *, skb, int, ret)
+SEC("fexit/test_pkt_access_subprog3")
+int BPF_PROG(test_subprog3, int val, struct sk_buff *skb, int ret)
 {
 	int len;
 

@@ -8,6 +8,8 @@
 
 #include <linux/bpf.h>
 #include <linux/types.h>
+#include <bpf_helpers.h>
+#include <bpf_trace_helpers.h>
 #include "bpf_tcp_helpers.h"
 
 char _license[] SEC("license") = "GPL";
@@ -36,7 +38,8 @@ static __always_inline void dctcp_reset(const struct tcp_sock *tp,
 	ca->old_delivered_ce = tp->delivered_ce;
 }
 
-BPF_TCP_OPS_1(dctcp_init, void, struct sock *, sk)
+SEC("struct_ops/dctcp_init")
+void BPF_PROG(dctcp_init, struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct dctcp *ca = inet_csk_ca(sk);
@@ -49,7 +52,8 @@ BPF_TCP_OPS_1(dctcp_init, void, struct sock *, sk)
 	dctcp_reset(tp, ca);
 }
 
-BPF_TCP_OPS_1(dctcp_ssthresh, __u32, struct sock *, sk)
+SEC("struct_ops/dctcp_ssthresh")
+__u32 BPF_PROG(dctcp_ssthresh, struct sock *sk)
 {
 	struct dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -58,8 +62,8 @@ BPF_TCP_OPS_1(dctcp_ssthresh, __u32, struct sock *, sk)
 	return max(tp->snd_cwnd - ((tp->snd_cwnd * ca->dctcp_alpha) >> 11U), 2U);
 }
 
-BPF_TCP_OPS_2(dctcp_update_alpha, void,
-	      struct sock *, sk, __u32, flags)
+SEC("struct_ops/dctcp_update_alpha")
+void BPF_PROG(dctcp_update_alpha, struct sock *sk, __u32 flags)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct dctcp *ca = inet_csk_ca(sk);
@@ -97,7 +101,8 @@ static __always_inline void dctcp_react_to_loss(struct sock *sk)
 	tp->snd_ssthresh = max(tp->snd_cwnd >> 1U, 2U);
 }
 
-BPF_TCP_OPS_2(dctcp_state, void, struct sock *, sk, __u8, new_state)
+SEC("struct_ops/dctcp_state")
+void BPF_PROG(dctcp_state, struct sock *sk, __u8 new_state)
 {
 	if (new_state == TCP_CA_Recovery &&
 	    new_state != BPF_CORE_READ_BITFIELD(inet_csk(sk), icsk_ca_state))
@@ -144,8 +149,8 @@ void dctcp_ece_ack_update(struct sock *sk, enum tcp_ca_event evt,
 	dctcp_ece_ack_cwr(sk, new_ce_state);
 }
 
-BPF_TCP_OPS_2(dctcp_cwnd_event, void,
-	      struct sock *, sk, enum tcp_ca_event, ev)
+SEC("struct_ops/dctcp_cwnd_event")
+void BPF_PROG(dctcp_cwnd_event, struct sock *sk, enum tcp_ca_event ev)
 {
 	struct dctcp *ca = inet_csk_ca(sk);
 
@@ -163,15 +168,16 @@ BPF_TCP_OPS_2(dctcp_cwnd_event, void,
 	}
 }
 
-BPF_TCP_OPS_1(dctcp_cwnd_undo, __u32, struct sock *, sk)
+SEC("struct_ops/dctcp_cwnd_undo")
+__u32 BPF_PROG(dctcp_cwnd_undo, struct sock *sk)
 {
 	const struct dctcp *ca = inet_csk_ca(sk);
 
 	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
 }
 
-BPF_TCP_OPS_3(tcp_reno_cong_avoid, void,
-	      struct sock *, sk, __u32, ack, __u32, acked)
+SEC("struct_ops/tcp_reno_cong_avoid")
+void BPF_PROG(tcp_reno_cong_avoid, struct sock *sk, __u32 ack, __u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
