@@ -16,5 +16,8 @@ bootconfig: ../../lib/bootconfig.c main.c $(HEADER)
 install: $(PROGS)
 	install bootconfig $(DESTDIR)$(bindir)
 
+test: bootconfig
+	./test-bootconfig.sh
+
 clean:
 	$(RM) -f *.o bootconfig
