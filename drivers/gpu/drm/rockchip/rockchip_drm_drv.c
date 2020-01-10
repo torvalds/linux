@@ -1321,6 +1321,12 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 		return -ENOMEM;
 	private->logo_ymirror_prop = prop;
 
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "ASYNC_COMMIT", 0, 1);
+	if (!prop)
+		return -ENOMEM;
+	private->async_commit_prop = prop;
+
 	return drm_mode_create_tv_properties(dev, 0, NULL);
 }
 

@@ -187,6 +187,7 @@ struct vop_plane_state {
 	int blend_mode;
 	unsigned long offset;
 	int pdaf_data_type;
+	bool async_commit;
 };
 
 struct rockchip_mcu_timing {
@@ -1856,6 +1857,124 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_disable = vop_plane_atomic_disable,
 };
 
+/**
+ * rockchip_atomic_helper_update_plane copy from drm_atomic_helper_update_plane
+ * be designed to support async commit at ioctl DRM_IOCTL_MODE_SETPLANE.
+ * @plane: plane object to update
+ * @crtc: owning CRTC of owning plane
+ * @fb: framebuffer to flip onto plane
+ * @crtc_x: x offset of primary plane on crtc
+ * @crtc_y: y offset of primary plane on crtc
+ * @crtc_w: width of primary plane rectangle on crtc
+ * @crtc_h: height of primary plane rectangle on crtc
+ * @src_x: x offset of @fb for panning
+ * @src_y: y offset of @fb for panning
+ * @src_w: width of source rectangle in @fb
+ * @src_h: height of source rectangle in @fb
+ * @ctx: lock acquire context
+ *
+ * Provides a default plane update handler using the atomic driver interface.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+static int __maybe_unused
+rockchip_atomic_helper_update_plane(struct drm_plane *plane,
+				    struct drm_crtc *crtc,
+				    struct drm_framebuffer *fb,
+				    int crtc_x, int crtc_y,
+				    unsigned int crtc_w, unsigned int crtc_h,
+				    uint32_t src_x, uint32_t src_y,
+				    uint32_t src_w, uint32_t src_h,
+				    struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_atomic_state *state;
+	struct drm_plane_state *plane_state;
+	struct vop_plane_state *vop_plane_state;
+	int ret = 0;
+
+	state = drm_atomic_state_alloc(plane->dev);
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = ctx;
+	plane_state = drm_atomic_get_plane_state(state, plane);
+	if (IS_ERR(plane_state)) {
+		ret = PTR_ERR(plane_state);
+		goto fail;
+	}
+
+	vop_plane_state = to_vop_plane_state(plane_state);
+
+	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
+	if (ret != 0)
+		goto fail;
+	drm_atomic_set_fb_for_plane(plane_state, fb);
+	plane_state->crtc_x = crtc_x;
+	plane_state->crtc_y = crtc_y;
+	plane_state->crtc_w = crtc_w;
+	plane_state->crtc_h = crtc_h;
+	plane_state->src_x = src_x;
+	plane_state->src_y = src_y;
+	plane_state->src_w = src_w;
+	plane_state->src_h = src_h;
+
+	if (plane == crtc->cursor || vop_plane_state->async_commit)
+		state->legacy_cursor_update = true;
+
+	ret = drm_atomic_commit(state);
+fail:
+	drm_atomic_state_put(state);
+	return ret;
+}
+
+/**
+ * drm_atomic_helper_disable_plane copy from drm_atomic_helper_disable_plane
+ * be designed to support async commit at ioctl DRM_IOCTL_MODE_SETPLANE.
+ *
+ * @plane: plane to disable
+ * @ctx: lock acquire context
+ *
+ * Provides a default plane disable handler using the atomic driver interface.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+static int __maybe_unused
+rockchip_atomic_helper_disable_plane(struct drm_plane *plane,
+				     struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_atomic_state *state;
+	struct drm_plane_state *plane_state;
+	struct vop_plane_state *vop_plane_state;
+	int ret = 0;
+
+	state = drm_atomic_state_alloc(plane->dev);
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = ctx;
+	plane_state = drm_atomic_get_plane_state(state, plane);
+	if (IS_ERR(plane_state)) {
+		ret = PTR_ERR(plane_state);
+		goto fail;
+	}
+	vop_plane_state = to_vop_plane_state(plane_state);
+
+	if ((plane_state->crtc && plane_state->crtc->cursor == plane) ||
+	    vop_plane_state->async_commit)
+		plane_state->state->legacy_cursor_update = true;
+
+	ret = __drm_atomic_helper_disable_plane(plane, plane_state);
+	if (ret != 0)
+		goto fail;
+
+	ret = drm_atomic_commit(state);
+fail:
+	drm_atomic_state_put(state);
+	return ret;
+}
+
 static void vop_plane_destroy(struct drm_plane *plane)
 {
 	drm_plane_cleanup(plane);
@@ -1950,6 +2069,11 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 		return 0;
 	}
 
+	if (property == private->async_commit_prop) {
+		plane_state->async_commit = val;
+		return 0;
+	}
+
 	DRM_ERROR("failed to set vop plane property id:%d, name:%s\n",
 		   property->base.id, property->name);
 
@@ -1995,6 +2119,11 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 		return 0;
 	}
 
+	if (property == private->async_commit_prop) {
+		*val = plane_state->async_commit;
+		return 0;
+	}
+
 	DRM_ERROR("failed to get vop plane property id:%d, name:%s\n",
 		   property->base.id, property->name);
 
@@ -2002,8 +2131,8 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 }
 
 static const struct drm_plane_funcs vop_plane_funcs = {
-	.update_plane	= drm_atomic_helper_update_plane,
-	.disable_plane	= drm_atomic_helper_disable_plane,
+	.update_plane	= rockchip_atomic_helper_update_plane,
+	.disable_plane	= rockchip_atomic_helper_disable_plane,
 	.destroy = vop_plane_destroy,
 	.reset = vop_atomic_plane_reset,
 	.atomic_duplicate_state = vop_atomic_plane_duplicate_state,
@@ -3911,6 +4040,8 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 					   private->global_alpha_prop, 0xff);
 	drm_object_attach_property(&win->base.base,
 				   private->blend_mode_prop, 0);
+	drm_object_attach_property(&win->base.base,
+				   private->async_commit_prop, 0);
 
 	return 0;
 }
