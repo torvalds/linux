@@ -76,12 +76,9 @@ int efx_mcdi_ev_init(struct efx_channel *channel, bool v1_cut_thru, bool v2)
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_INIT_EVQ_V2_OUT_LEN);
 	size_t entries = channel->eventq.buf.len / EFX_BUF_SIZE;
 	struct efx_nic *efx = channel->efx;
-	struct efx_ef10_nic_data *nic_data;
 	size_t inlen, outlen;
 	dma_addr_t dma_addr;
 	int rc, i;
-
-	nic_data = efx->nic_data;
 
 	/* Fill event queue with all ones (i.e. empty events) */
 	memset(channel->eventq.buf.addr, 0xff, channel->eventq.buf.len);
