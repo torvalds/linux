@@ -304,12 +304,13 @@ intel_engine_coredump_add_vma(struct intel_engine_coredump *ee,
 }
 
 static inline struct i915_vma_compress *
-i915_vma_compress_prepare(struct intel_gt_coredump *gt)
+i915_vma_capture_prepare(struct intel_gt_coredump *gt)
 {
 	return NULL;
 }
 
-void i915_vma_compress_prepare(struct i915_vma_compress *compress)
+void i915_vma_capture_finish(struct intel_gt_coredump *gt,
+			     struct i915_vma_compress *compress)
 {
 }
 
