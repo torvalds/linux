@@ -273,16 +273,10 @@ static void sec_release_qp_ctx(struct sec_ctx *ctx,
 	hisi_qm_release_qp(qp_ctx->qp);
 }
 
-static int sec_skcipher_init(struct crypto_skcipher *tfm)
+static int sec_ctx_base_init(struct sec_ctx *ctx)
 {
-	struct sec_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct sec_cipher_ctx *c_ctx;
 	struct sec_dev *sec;
-	struct device *dev;
-	struct hisi_qm *qm;
 	int i, ret;
-
-	crypto_skcipher_set_reqsize(tfm, sizeof(struct sec_req));
 
 	sec = sec_find_device(cpu_to_node(smp_processor_id()));
 	if (!sec) {
@@ -290,8 +284,6 @@ static int sec_skcipher_init(struct crypto_skcipher *tfm)
 		return -ENODEV;
 	}
 	ctx->sec = sec;
-	qm = &sec->qm;
-	dev = &qm->pdev->dev;
 	ctx->hlf_q_num = sec->ctx_q_num >> 1;
 
 	/* Half of queue depth is taken as fake requests limit in the queue. */
@@ -302,27 +294,12 @@ static int sec_skcipher_init(struct crypto_skcipher *tfm)
 		return -ENOMEM;
 
 	for (i = 0; i < sec->ctx_q_num; i++) {
-		ret = sec_create_qp_ctx(qm, ctx, i, 0);
+		ret = sec_create_qp_ctx(&sec->qm, ctx, i, 0);
 		if (ret)
 			goto err_sec_release_qp_ctx;
 	}
 
-	c_ctx = &ctx->c_ctx;
-	c_ctx->ivsize = crypto_skcipher_ivsize(tfm);
-	if (c_ctx->ivsize > SEC_IV_SIZE) {
-		dev_err(dev, "get error iv size!\n");
-		ret = -EINVAL;
-		goto err_sec_release_qp_ctx;
-	}
-	c_ctx->c_key = dma_alloc_coherent(dev, SEC_MAX_KEY_SIZE,
-					  &c_ctx->c_key_dma, GFP_KERNEL);
-	if (!c_ctx->c_key) {
-		ret = -ENOMEM;
-		goto err_sec_release_qp_ctx;
-	}
-
 	return 0;
-
 err_sec_release_qp_ctx:
 	for (i = i - 1; i >= 0; i--)
 		sec_release_qp_ctx(ctx, &ctx->qp_ctx[i]);
@@ -331,22 +308,71 @@ err_sec_release_qp_ctx:
 	return ret;
 }
 
-static void sec_skcipher_uninit(struct crypto_skcipher *tfm)
+static void sec_ctx_base_uninit(struct sec_ctx *ctx)
 {
-	struct sec_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct sec_cipher_ctx *c_ctx = &ctx->c_ctx;
-	int i = 0;
-
-	if (c_ctx->c_key) {
-		dma_free_coherent(SEC_CTX_DEV(ctx), SEC_MAX_KEY_SIZE,
-				  c_ctx->c_key, c_ctx->c_key_dma);
-		c_ctx->c_key = NULL;
-	}
+	int i;
 
 	for (i = 0; i < ctx->sec->ctx_q_num; i++)
 		sec_release_qp_ctx(ctx, &ctx->qp_ctx[i]);
 
 	kfree(ctx->qp_ctx);
+}
+
+static int sec_cipher_init(struct sec_ctx *ctx)
+{
+	struct sec_cipher_ctx *c_ctx = &ctx->c_ctx;
+
+	c_ctx->c_key = dma_alloc_coherent(SEC_CTX_DEV(ctx), SEC_MAX_KEY_SIZE,
+					  &c_ctx->c_key_dma, GFP_KERNEL);
+	if (!c_ctx->c_key)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void sec_cipher_uninit(struct sec_ctx *ctx)
+{
+	struct sec_cipher_ctx *c_ctx = &ctx->c_ctx;
+
+	memzero_explicit(c_ctx->c_key, SEC_MAX_KEY_SIZE);
+	dma_free_coherent(SEC_CTX_DEV(ctx), SEC_MAX_KEY_SIZE,
+			  c_ctx->c_key, c_ctx->c_key_dma);
+}
+
+static int sec_skcipher_init(struct crypto_skcipher *tfm)
+{
+	struct sec_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int ret;
+
+	ctx = crypto_skcipher_ctx(tfm);
+	crypto_skcipher_set_reqsize(tfm, sizeof(struct sec_req));
+	ctx->c_ctx.ivsize = crypto_skcipher_ivsize(tfm);
+	if (ctx->c_ctx.ivsize > SEC_IV_SIZE) {
+		dev_err(SEC_CTX_DEV(ctx), "get error skcipher iv size!\n");
+		return -EINVAL;
+	}
+
+	ret = sec_ctx_base_init(ctx);
+	if (ret)
+		return ret;
+
+	ret = sec_cipher_init(ctx);
+	if (ret)
+		goto err_cipher_init;
+
+	return 0;
+err_cipher_init:
+	sec_ctx_base_uninit(ctx);
+
+	return ret;
+}
+
+static void sec_skcipher_uninit(struct crypto_skcipher *tfm)
+{
+	struct sec_ctx *ctx = crypto_skcipher_ctx(tfm);
+
+	sec_cipher_uninit(ctx);
+	sec_ctx_base_uninit(ctx);
 }
 
 static int sec_skcipher_3des_setkey(struct sec_cipher_ctx *c_ctx,
