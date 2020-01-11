@@ -1208,11 +1208,9 @@ EXPORT_SYMBOL(follow_up);
  * - return -EISDIR to tell follow_managed() to stop and return the path we
  *   were called with.
  */
-static int follow_automount(struct path *path, struct nameidata *nd,
-			    bool *need_mntput)
+static int follow_automount(struct path *path, struct nameidata *nd)
 {
 	struct vfsmount *mnt;
-	int err;
 
 	if (!path->dentry->d_op || !path->dentry->d_op->d_automount)
 		return -EREMOTE;
@@ -1253,29 +1251,10 @@ static int follow_automount(struct path *path, struct nameidata *nd,
 		return PTR_ERR(mnt);
 	}
 
-	if (!mnt) /* mount collision */
+	if (!mnt)
 		return 0;
 
-	if (!*need_mntput) {
-		/* lock_mount() may release path->mnt on error */
-		mntget(path->mnt);
-		*need_mntput = true;
-	}
-	err = finish_automount(mnt, path);
-
-	switch (err) {
-	case -EBUSY:
-		/* Someone else made a mount here whilst we were busy */
-		return 0;
-	case 0:
-		path_put(path);
-		path->mnt = mnt;
-		path->dentry = dget(mnt->mnt_root);
-		return 0;
-	default:
-		return err;
-	}
-
+	return finish_automount(mnt, path);
 }
 
 /*
@@ -1333,7 +1312,7 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 
 		/* Handle an automount point */
 		if (flags & DCACHE_NEED_AUTOMOUNT) {
-			ret = follow_automount(path, nd, &need_mntput);
+			ret = follow_automount(path, nd);
 			if (ret < 0)
 				break;
 			continue;
