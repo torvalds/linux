@@ -3,7 +3,7 @@
 // Copyright (c) 2011 Samsung Electronics Co., Ltd.
 //		http://www.samsung.com
 //
-// Base SAMSUNG platform device definitions
+// Base Samsung platform device definitions
 
 #include <linux/kernel.h>
 #include <linux/types.h>
