@@ -365,7 +365,7 @@ static int ffsMountVol(struct super_block *sb)
 
 	if (p_bd->sector_size < sb->s_blocksize) {
 		printk(KERN_INFO "EXFAT: mount failed - sector size %d less than blocksize %ld\n",
-			p_bd->sector_size,  sb->s_blocksize);
+		       p_bd->sector_size,  sb->s_blocksize);
 		ret = -EINVAL;
 		goto out;
 	}
