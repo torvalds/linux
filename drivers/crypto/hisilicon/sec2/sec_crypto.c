@@ -245,16 +245,16 @@ static int sec_skcipher_init(struct crypto_skcipher *tfm)
 
 	sec = sec_find_device(cpu_to_node(smp_processor_id()));
 	if (!sec) {
-		pr_err("find no Hisilicon SEC device!\n");
+		pr_err("Can not find proper Hisilicon SEC device!\n");
 		return -ENODEV;
 	}
 	ctx->sec = sec;
 	qm = &sec->qm;
 	dev = &qm->pdev->dev;
-	ctx->hlf_q_num = sec->ctx_q_num >> 0x1;
+	ctx->hlf_q_num = sec->ctx_q_num >> 1;
 
 	/* Half of queue depth is taken as fake requests limit in the queue. */
-	ctx->fake_req_limit = QM_Q_DEPTH >> 0x1;
+	ctx->fake_req_limit = QM_Q_DEPTH >> 1;
 	ctx->qp_ctx = kcalloc(sec->ctx_q_num, sizeof(struct sec_qp_ctx),
 			      GFP_KERNEL);
 	if (!ctx->qp_ctx)
@@ -704,7 +704,7 @@ static int sec_process(struct sec_ctx *ctx, struct sec_req *req)
 
 	ret = ctx->req_op->bd_send(ctx, req);
 	if (ret != -EBUSY && ret != -EINPROGRESS) {
-		dev_err(SEC_CTX_DEV(ctx), "send sec request failed!\n");
+		dev_err_ratelimited(SEC_CTX_DEV(ctx), "send sec request failed!\n");
 		goto err_send_req;
 	}
 

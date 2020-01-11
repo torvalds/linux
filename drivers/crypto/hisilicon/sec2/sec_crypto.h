@@ -48,8 +48,8 @@ enum sec_addr_type {
 struct sec_sqe_type2 {
 
 	/*
-	 * mac_len: 0~5 bits
-	 * a_key_len: 6~10 bits
+	 * mac_len: 0~4 bits
+	 * a_key_len: 5~10 bits
 	 * a_alg: 11~16 bits
 	 */
 	__le32 mac_key_alg;
