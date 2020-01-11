@@ -33,6 +33,7 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <uapi/linux/sched/types.h>
+#include <linux/sched/clock.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/cpufreq_interactive.h>
@@ -135,6 +136,7 @@ struct interactive_cpu {
 	u64 loc_floor_val_time; /* per-cpu floor_validate_time */
 	u64 pol_hispeed_val_time; /* policy hispeed_validate_time */
 	u64 loc_hispeed_val_time; /* per-cpu hispeed_validate_time */
+	int cpu;
 };
 
 static DEFINE_PER_CPU(struct interactive_cpu, interactive_cpu);
@@ -172,7 +174,7 @@ static bool timer_slack_required(struct interactive_cpu *icpu)
 	struct interactive_policy *ipolicy = icpu->ipolicy;
 	struct interactive_tunables *tunables = ipolicy->tunables;
 
-	if (tunables->timer_slack < 0)
+	if (tunables->timer_slack == 0)
 		return false;
 
 	if (icpu->target_freq > ipolicy->policy->min)
@@ -477,6 +479,7 @@ static void cpufreq_interactive_idle_end(void)
 {
 	struct interactive_cpu *icpu = &per_cpu(interactive_cpu,
 						smp_processor_id());
+	unsigned long sampling_rate;
 
 	if (!down_read_trylock(&icpu->enable_sem))
 		return;
@@ -486,8 +489,12 @@ static void cpufreq_interactive_idle_end(void)
 		 * We haven't sampled load for more than sampling_rate time, do
 		 * it right now.
 		 */
-		if (time_after_eq(jiffies, icpu->next_sample_jiffies))
+		if (time_after_eq(jiffies, icpu->next_sample_jiffies)) {
+			sampling_rate = icpu->ipolicy->tunables->sampling_rate;
+			icpu->last_sample_time = local_clock();
+			icpu->next_sample_jiffies = usecs_to_jiffies(sampling_rate) + jiffies;
 			cpufreq_interactive_update(icpu);
+		}
 	}
 
 	up_read(&icpu->enable_sem);
@@ -685,7 +692,7 @@ static unsigned int *get_tokenized_data(const char *buf, int *num_tokens)
 
 	cp = buf;
 	while (i < ntokens) {
-		if (kstrtouint(cp, 0, &tokenized_data[i++]) < 0)
+		if (sscanf(cp, "%u", &tokenized_data[i++]) != 1)
 			goto err_kfree;
 
 		cp = strpbrk(cp, " :");
@@ -1072,7 +1079,7 @@ static void update_util_handler(struct update_util_data *data, u64 time,
 				    jiffies;
 
 	icpu->work_in_progress = true;
-	irq_work_queue(&icpu->irq_work);
+	irq_work_queue_on(&icpu->irq_work, icpu->cpu);
 }
 
 static void gov_set_update_util(struct interactive_policy *ipolicy)
@@ -1278,6 +1285,7 @@ int cpufreq_interactive_start(struct cpufreq_policy *policy)
 		icpu->loc_floor_val_time = icpu->pol_floor_val_time;
 		icpu->pol_hispeed_val_time = icpu->pol_floor_val_time;
 		icpu->loc_hispeed_val_time = icpu->pol_floor_val_time;
+		icpu->cpu = cpu;
 
 		down_write(&icpu->enable_sem);
 		icpu->ipolicy = ipolicy;
@@ -1334,7 +1342,6 @@ void cpufreq_interactive_limits(struct cpufreq_policy *policy)
 static struct interactive_governor interactive_gov = {
 	.gov = {
 		.name			= "interactive",
-		.max_transition_latency	= TRANSITION_LATENCY_LIMIT,
 		.owner			= THIS_MODULE,
 		.init			= cpufreq_interactive_init,
 		.exit			= cpufreq_interactive_exit,
@@ -1344,7 +1351,7 @@ static struct interactive_governor interactive_gov = {
 	}
 };
 
-static void cpufreq_interactive_nop_timer(unsigned long data)
+static void cpufreq_interactive_nop_timer(struct timer_list *t)
 {
 	/*
 	 * The purpose of slack-timer is to wake up the CPU from IDLE, in order
@@ -1370,8 +1377,8 @@ static int __init cpufreq_interactive_gov_init(void)
 		init_rwsem(&icpu->enable_sem);
 
 		/* Initialize per-cpu slack-timer */
-		init_timer_pinned(&icpu->slack_timer);
-		icpu->slack_timer.function = cpufreq_interactive_nop_timer;
+		timer_setup(&icpu->slack_timer, cpufreq_interactive_nop_timer,
+			    TIMER_PINNED);
 	}
 
 	spin_lock_init(&speedchange_cpumask_lock);
