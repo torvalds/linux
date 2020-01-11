@@ -3362,7 +3362,7 @@ static void hclge_mailbox_service_task(struct hclge_dev *hdev)
 	clear_bit(HCLGE_STATE_MBX_HANDLING, &hdev->state);
 }
 
-static int hclge_func_reset_sync_vf(struct hclge_dev *hdev)
+static void hclge_func_reset_sync_vf(struct hclge_dev *hdev)
 {
 	struct hclge_pf_rst_sync_cmd *req;
 	struct hclge_desc desc;
@@ -3382,20 +3382,19 @@ static int hclge_func_reset_sync_vf(struct hclge_dev *hdev)
 		 */
 		if (ret == -EOPNOTSUPP) {
 			msleep(HCLGE_RESET_SYNC_TIME);
-			return 0;
+			return;
 		} else if (ret) {
-			dev_err(&hdev->pdev->dev, "sync with VF fail %d!\n",
-				ret);
-			return ret;
+			dev_warn(&hdev->pdev->dev, "sync with VF fail %d!\n",
+				 ret);
+			return;
 		} else if (req->all_vf_ready) {
-			return 0;
+			return;
 		}
 		msleep(HCLGE_PF_RESET_SYNC_TIME);
 		hclge_cmd_reuse_desc(&desc, true);
 	} while (cnt++ < HCLGE_PF_RESET_SYNC_CNT);
 
-	dev_err(&hdev->pdev->dev, "sync with VF timeout!\n");
-	return -ETIME;
+	dev_warn(&hdev->pdev->dev, "sync with VF timeout!\n");
 }
 
 void hclge_report_hw_error(struct hclge_dev *hdev,
@@ -3600,12 +3599,7 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 
 	switch (hdev->reset_type) {
 	case HNAE3_FUNC_RESET:
-		/* to confirm whether all running VF is ready
-		 * before request PF reset
-		 */
-		ret = hclge_func_reset_sync_vf(hdev);
-		if (ret)
-			return ret;
+		hclge_func_reset_sync_vf(hdev);
 
 		ret = hclge_func_reset_cmd(hdev, 0);
 		if (ret) {
@@ -3623,12 +3617,7 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		hdev->rst_stats.pf_rst_cnt++;
 		break;
 	case HNAE3_FLR_RESET:
-		/* to confirm whether all running VF is ready
-		 * before request PF reset
-		 */
-		ret = hclge_func_reset_sync_vf(hdev);
-		if (ret)
-			return ret;
+		hclge_func_reset_sync_vf(hdev);
 		break;
 	case HNAE3_IMP_RESET:
 		hclge_handle_imp_error(hdev);
