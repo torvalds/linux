@@ -123,7 +123,7 @@ static int hpre_add_req_to_ctx(struct hpre_asym_request *hpre_req)
 
 	ctx = hpre_req->ctx;
 	id = hpre_alloc_req_id(ctx);
-	if (id < 0)
+	if (unlikely(id < 0))
 		return -EINVAL;
 
 	ctx->req_list[id] = hpre_req;
@@ -190,7 +190,7 @@ static int hpre_get_data_dma_addr(struct hpre_asym_request *hpre_req,
 	}
 	*tmp = dma_map_single(dev, sg_virt(data),
 			      len, dma_dir);
-	if (dma_mapping_error(dev, *tmp)) {
+	if (unlikely(dma_mapping_error(dev, *tmp))) {
 		dev_err(dev, "dma map data err!\n");
 		return -ENOMEM;
 	}
@@ -208,11 +208,11 @@ static int hpre_prepare_dma_buf(struct hpre_asym_request *hpre_req,
 	int shift;
 
 	shift = ctx->key_sz - len;
-	if (shift < 0)
+	if (unlikely(shift < 0))
 		return -EINVAL;
 
 	ptr = dma_alloc_coherent(dev, ctx->key_sz, tmp, GFP_KERNEL);
-	if (!ptr)
+	if (unlikely(!ptr))
 		return -ENOMEM;
 
 	if (is_src) {
@@ -241,7 +241,7 @@ static int hpre_hw_data_init(struct hpre_asym_request *hpre_req,
 	else
 		ret = hpre_prepare_dma_buf(hpre_req, data, len,
 					  is_src, &tmp);
-	if (ret)
+	if (unlikely(ret))
 		return ret;
 
 	if (is_src)
@@ -262,7 +262,7 @@ static void hpre_hw_data_clr_all(struct hpre_ctx *ctx,
 	dma_addr_t tmp;
 
 	tmp = le64_to_cpu(sqe->in);
-	if (!tmp)
+	if (unlikely(!tmp))
 		return;
 
 	if (src) {
@@ -275,7 +275,7 @@ static void hpre_hw_data_clr_all(struct hpre_ctx *ctx,
 	}
 
 	tmp = le64_to_cpu(sqe->out);
-	if (!tmp)
+	if (unlikely(!tmp))
 		return;
 
 	if (req->dst) {
@@ -309,7 +309,7 @@ static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 	done = (le32_to_cpu(sqe->dw0) >> HPRE_SQE_DONE_SHIFT) &
 		HREE_SQE_DONE_MASK;
 
-	if (err == HPRE_NO_HW_ERR &&  done == HPRE_HW_TASK_DONE)
+	if (likely(err == HPRE_NO_HW_ERR && done == HPRE_HW_TASK_DONE))
 		return  0;
 
 	return -EINVAL;
@@ -456,17 +456,17 @@ static int hpre_dh_compute_value(struct kpp_request *req)
 	int ret;
 
 	ret = hpre_msg_request_set(ctx, req, false);
-	if (ret)
+	if (unlikely(ret))
 		return ret;
 
 	if (req->src) {
 		ret = hpre_hw_data_init(hpre_req, req->src, req->src_len, 1, 1);
-		if (ret)
+		if (unlikely(ret))
 			goto clear_all;
 	}
 
 	ret = hpre_hw_data_init(hpre_req, req->dst, req->dst_len, 0, 1);
-	if (ret)
+	if (unlikely(ret))
 		goto clear_all;
 
 	if (ctx->crt_g2_mode && !req->src)
@@ -478,7 +478,7 @@ static int hpre_dh_compute_value(struct kpp_request *req)
 	} while (ret == -EBUSY && ctr++ < HPRE_TRY_SEND_TIMES);
 
 	/* success */
-	if (!ret)
+	if (likely(!ret))
 		return -EINPROGRESS;
 
 clear_all:
@@ -667,22 +667,22 @@ static int hpre_rsa_enc(struct akcipher_request *req)
 		return ret;
 	}
 
-	if (!ctx->rsa.pubkey)
+	if (unlikely(!ctx->rsa.pubkey))
 		return -EINVAL;
 
 	ret = hpre_msg_request_set(ctx, req, true);
-	if (ret)
+	if (unlikely(ret))
 		return ret;
 
 	msg->dw0 |= cpu_to_le32(HPRE_ALG_NC_NCRT);
 	msg->key = cpu_to_le64((u64)ctx->rsa.dma_pubkey);
 
 	ret = hpre_hw_data_init(hpre_req, req->src, req->src_len, 1, 0);
-	if (ret)
+	if (unlikely(ret))
 		goto clear_all;
 
 	ret = hpre_hw_data_init(hpre_req, req->dst, req->dst_len, 0, 0);
-	if (ret)
+	if (unlikely(ret))
 		goto clear_all;
 
 	do {
@@ -690,7 +690,7 @@ static int hpre_rsa_enc(struct akcipher_request *req)
 	} while (ret == -EBUSY && ctr++ < HPRE_TRY_SEND_TIMES);
 
 	/* success */
-	if (!ret)
+	if (likely(!ret))
 		return -EINPROGRESS;
 
 clear_all:
@@ -719,11 +719,11 @@ static int hpre_rsa_dec(struct akcipher_request *req)
 		return ret;
 	}
 
-	if (!ctx->rsa.prikey)
+	if (unlikely(!ctx->rsa.prikey))
 		return -EINVAL;
 
 	ret = hpre_msg_request_set(ctx, req, true);
-	if (ret)
+	if (unlikely(ret))
 		return ret;
 
 	if (ctx->crt_g2_mode) {
@@ -737,11 +737,11 @@ static int hpre_rsa_dec(struct akcipher_request *req)
 	}
 
 	ret = hpre_hw_data_init(hpre_req, req->src, req->src_len, 1, 0);
-	if (ret)
+	if (unlikely(ret))
 		goto clear_all;
 
 	ret = hpre_hw_data_init(hpre_req, req->dst, req->dst_len, 0, 0);
-	if (ret)
+	if (unlikely(ret))
 		goto clear_all;
 
 	do {
@@ -749,7 +749,7 @@ static int hpre_rsa_dec(struct akcipher_request *req)
 	} while (ret == -EBUSY && ctr++ < HPRE_TRY_SEND_TIMES);
 
 	/* success */
-	if (!ret)
+	if (likely(!ret))
 		return -EINPROGRESS;
 
 clear_all:
