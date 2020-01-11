@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SAMSUNG EXYNOS5250 SoC device tree source
+ * Samsung Exynos5250 SoC device tree source
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * SAMSUNG EXYNOS5250 SoC device nodes are listed in this file.
- * EXYNOS5250 based board files can include this file and provide
+ * Samsung Exynos5250 SoC device nodes are listed in this file.
+ * Exynos5250 based board files can include this file and provide
  * values for board specfic bindings.
  *
  * Note: This file does not include device nodes for all the controllers in
- * EXYNOS5250 SoC. As device tree coverage for EXYNOS5250 increases,
+ * Exynos5250 SoC. As device tree coverage for Exynos5250 increases,
  * additional nodes can be added to this file.
  */
 

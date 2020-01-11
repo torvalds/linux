@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
  *
- * Device tree source file for SAMSUNG SMDK6410 board which is based on
+ * Device tree source file for Samsung SMDK6410 board which is based on
  * Samsung's S3C6410 SoC.
  */
 
@@ -16,7 +16,7 @@
 #include "s3c6410.dtsi"
 
 / {
-	model = "SAMSUNG SMDK6410 board based on S3C6410";
+	model = "Samsung SMDK6410 board based on S3C6410";
 	compatible = "samsung,mini6410", "samsung,s3c6410";
 
 	memory@50000000 {
