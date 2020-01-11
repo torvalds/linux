@@ -150,6 +150,47 @@ static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
 	return ret;
 }
 
+/* Get DMA memory resources */
+static int sec_alloc_civ_resource(struct device *dev, struct sec_alg_res *res)
+{
+	int i;
+
+	res->c_ivin = dma_alloc_coherent(dev, SEC_TOTAL_IV_SZ,
+					 &res->c_ivin_dma, GFP_KERNEL);
+	if (!res->c_ivin)
+		return -ENOMEM;
+
+	for (i = 1; i < QM_Q_DEPTH; i++) {
+		res[i].c_ivin_dma = res->c_ivin_dma + i * SEC_IV_SIZE;
+		res[i].c_ivin = res->c_ivin + i * SEC_IV_SIZE;
+	}
+
+	return 0;
+}
+
+static void sec_free_civ_resource(struct device *dev, struct sec_alg_res *res)
+{
+	if (res->c_ivin)
+		dma_free_coherent(dev, SEC_TOTAL_IV_SZ,
+				  res->c_ivin, res->c_ivin_dma);
+}
+
+static int sec_alg_resource_alloc(struct sec_ctx *ctx,
+				  struct sec_qp_ctx *qp_ctx)
+{
+	struct device *dev = SEC_CTX_DEV(ctx);
+
+	return sec_alloc_civ_resource(dev, qp_ctx->res);
+}
+
+static void sec_alg_resource_free(struct sec_ctx *ctx,
+				  struct sec_qp_ctx *qp_ctx)
+{
+	struct device *dev = SEC_CTX_DEV(ctx);
+
+	sec_free_civ_resource(dev, qp_ctx->res);
+}
+
 static int sec_create_qp_ctx(struct hisi_qm *qm, struct sec_ctx *ctx,
 			     int qp_ctx_id, int alg_type)
 {
@@ -173,15 +214,11 @@ static int sec_create_qp_ctx(struct hisi_qm *qm, struct sec_ctx *ctx,
 	atomic_set(&qp_ctx->pending_reqs, 0);
 	idr_init(&qp_ctx->req_idr);
 
-	qp_ctx->req_list = kcalloc(QM_Q_DEPTH, sizeof(void *), GFP_ATOMIC);
-	if (!qp_ctx->req_list)
-		goto err_destroy_idr;
-
 	qp_ctx->c_in_pool = hisi_acc_create_sgl_pool(dev, QM_Q_DEPTH,
 						     SEC_SGL_SGE_NR);
 	if (IS_ERR(qp_ctx->c_in_pool)) {
 		dev_err(dev, "fail to create sgl pool for input!\n");
-		goto err_free_req_list;
+		goto err_destroy_idr;
 	}
 
 	qp_ctx->c_out_pool = hisi_acc_create_sgl_pool(dev, QM_Q_DEPTH,
@@ -191,7 +228,7 @@ static int sec_create_qp_ctx(struct hisi_qm *qm, struct sec_ctx *ctx,
 		goto err_free_c_in_pool;
 	}
 
-	ret = ctx->req_op->resource_alloc(ctx, qp_ctx);
+	ret = sec_alg_resource_alloc(ctx, qp_ctx);
 	if (ret)
 		goto err_free_c_out_pool;
 
@@ -202,13 +239,11 @@ static int sec_create_qp_ctx(struct hisi_qm *qm, struct sec_ctx *ctx,
 	return 0;
 
 err_queue_free:
-	ctx->req_op->resource_free(ctx, qp_ctx);
+	sec_alg_resource_free(ctx, qp_ctx);
 err_free_c_out_pool:
 	hisi_acc_free_sgl_pool(dev, qp_ctx->c_out_pool);
 err_free_c_in_pool:
 	hisi_acc_free_sgl_pool(dev, qp_ctx->c_in_pool);
-err_free_req_list:
-	kfree(qp_ctx->req_list);
 err_destroy_idr:
 	idr_destroy(&qp_ctx->req_idr);
 	hisi_qm_release_qp(qp);
@@ -222,13 +257,12 @@ static void sec_release_qp_ctx(struct sec_ctx *ctx,
 	struct device *dev = SEC_CTX_DEV(ctx);
 
 	hisi_qm_stop_qp(qp_ctx->qp);
-	ctx->req_op->resource_free(ctx, qp_ctx);
+	sec_alg_resource_free(ctx, qp_ctx);
 
 	hisi_acc_free_sgl_pool(dev, qp_ctx->c_out_pool);
 	hisi_acc_free_sgl_pool(dev, qp_ctx->c_in_pool);
 
 	idr_destroy(&qp_ctx->req_idr);
-	kfree(qp_ctx->req_list);
 	hisi_qm_release_qp(qp_ctx->qp);
 }
 
@@ -420,60 +454,6 @@ GEN_SEC_SETKEY_FUNC(3des_cbc, SEC_CALG_3DES, SEC_CMODE_CBC)
 GEN_SEC_SETKEY_FUNC(sm4_xts, SEC_CALG_SM4, SEC_CMODE_XTS)
 GEN_SEC_SETKEY_FUNC(sm4_cbc, SEC_CALG_SM4, SEC_CMODE_CBC)
 
-static int sec_skcipher_get_res(struct sec_ctx *ctx,
-				struct sec_req *req)
-{
-	struct sec_qp_ctx *qp_ctx = req->qp_ctx;
-	struct sec_alg_res *c_res = qp_ctx->alg_meta_data;
-	struct sec_cipher_req *c_req = &req->c_req;
-	int req_id = req->req_id;
-
-	c_req->c_ivin = c_res[req_id].c_ivin;
-	c_req->c_ivin_dma = c_res[req_id].c_ivin_dma;
-
-	return 0;
-}
-
-static int sec_skcipher_resource_alloc(struct sec_ctx *ctx,
-				       struct sec_qp_ctx *qp_ctx)
-{
-	struct device *dev = SEC_CTX_DEV(ctx);
-	struct sec_alg_res *res;
-	int i;
-
-	res = kcalloc(QM_Q_DEPTH, sizeof(*res), GFP_KERNEL);
-	if (!res)
-		return -ENOMEM;
-
-	res->c_ivin = dma_alloc_coherent(dev, SEC_TOTAL_IV_SZ,
-					   &res->c_ivin_dma, GFP_KERNEL);
-	if (!res->c_ivin) {
-		kfree(res);
-		return -ENOMEM;
-	}
-
-	for (i = 1; i < QM_Q_DEPTH; i++) {
-		res[i].c_ivin_dma = res->c_ivin_dma + i * SEC_IV_SIZE;
-		res[i].c_ivin = res->c_ivin + i * SEC_IV_SIZE;
-	}
-	qp_ctx->alg_meta_data = res;
-
-	return 0;
-}
-
-static void sec_skcipher_resource_free(struct sec_ctx *ctx,
-				      struct sec_qp_ctx *qp_ctx)
-{
-	struct sec_alg_res *res = qp_ctx->alg_meta_data;
-	struct device *dev = SEC_CTX_DEV(ctx);
-
-	if (!res)
-		return;
-
-	dma_free_coherent(dev, SEC_TOTAL_IV_SZ, res->c_ivin, res->c_ivin_dma);
-	kfree(res);
-}
-
 static int sec_cipher_map(struct device *dev, struct sec_req *req,
 			  struct scatterlist *src, struct scatterlist *dst)
 {
@@ -564,10 +544,11 @@ static void sec_request_untransfer(struct sec_ctx *ctx, struct sec_req *req)
 static void sec_skcipher_copy_iv(struct sec_ctx *ctx, struct sec_req *req)
 {
 	struct skcipher_request *sk_req = req->c_req.sk_req;
+	u8 *c_ivin = req->qp_ctx->res[req->req_id].c_ivin;
 	struct sec_cipher_req *c_req = &req->c_req;
 
 	c_req->c_len = sk_req->cryptlen;
-	memcpy(c_req->c_ivin, sk_req->iv, ctx->c_ctx.ivsize);
+	memcpy(c_ivin, sk_req->iv, ctx->c_ctx.ivsize);
 }
 
 static int sec_skcipher_bd_fill(struct sec_ctx *ctx, struct sec_req *req)
@@ -575,14 +556,15 @@ static int sec_skcipher_bd_fill(struct sec_ctx *ctx, struct sec_req *req)
 	struct sec_cipher_ctx *c_ctx = &ctx->c_ctx;
 	struct sec_cipher_req *c_req = &req->c_req;
 	struct sec_sqe *sec_sqe = &req->sec_sqe;
-	u8 de = 0;
 	u8 scene, sa_type, da_type;
 	u8 bd_type, cipher;
+	u8 de = 0;
 
 	memset(sec_sqe, 0, sizeof(struct sec_sqe));
 
 	sec_sqe->type2.c_key_addr = cpu_to_le64(c_ctx->c_key_dma);
-	sec_sqe->type2.c_ivin_addr = cpu_to_le64(c_req->c_ivin_dma);
+	sec_sqe->type2.c_ivin_addr =
+		cpu_to_le64(req->qp_ctx->res[req->req_id].c_ivin_dma);
 	sec_sqe->type2.data_src_addr = cpu_to_le64(c_req->c_in_dma);
 	sec_sqe->type2.data_dst_addr = cpu_to_le64(c_req->c_out_dma);
 
@@ -664,7 +646,7 @@ static void sec_request_uninit(struct sec_ctx *ctx, struct sec_req *req)
 static int sec_request_init(struct sec_ctx *ctx, struct sec_req *req)
 {
 	struct sec_qp_ctx *qp_ctx;
-	int queue_id, ret;
+	int queue_id;
 
 	/* To load balance */
 	queue_id = sec_alloc_queue_id(ctx, req);
@@ -681,14 +663,7 @@ static int sec_request_init(struct sec_ctx *ctx, struct sec_req *req)
 	else
 		req->fake_busy = false;
 
-	ret = ctx->req_op->get_res(ctx, req);
-	if (ret) {
-		atomic_dec(&qp_ctx->pending_reqs);
-		sec_request_uninit(ctx, req);
-		dev_err(SEC_CTX_DEV(ctx), "get resources failed!\n");
-	}
-
-	return ret;
+	return 0;
 }
 
 static int sec_process(struct sec_ctx *ctx, struct sec_req *req)
@@ -718,7 +693,8 @@ static int sec_process(struct sec_ctx *ctx, struct sec_req *req)
 err_send_req:
 	/* As failing, restore the IV from user */
 	if (ctx->c_ctx.c_mode == SEC_CMODE_CBC && !req->c_req.encrypt)
-		memcpy(req->c_req.sk_req->iv, req->c_req.c_ivin,
+		memcpy(req->c_req.sk_req->iv,
+		       req->qp_ctx->res[req->req_id].c_ivin,
 		       ctx->c_ctx.ivsize);
 
 	sec_request_untransfer(ctx, req);
@@ -729,9 +705,6 @@ err_uninit_req:
 }
 
 static const struct sec_req_op sec_skcipher_req_ops = {
-	.get_res	= sec_skcipher_get_res,
-	.resource_alloc	= sec_skcipher_resource_alloc,
-	.resource_free	= sec_skcipher_resource_free,
 	.buf_map	= sec_skcipher_sgl_map,
 	.buf_unmap	= sec_skcipher_sgl_unmap,
 	.do_transfer	= sec_skcipher_copy_iv,

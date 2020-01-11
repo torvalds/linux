@@ -21,8 +21,6 @@ struct sec_cipher_req {
 	dma_addr_t c_in_dma;
 	struct hisi_acc_hw_sgl *c_out;
 	dma_addr_t c_out_dma;
-	u8 *c_ivin;
-	dma_addr_t c_ivin_dma;
 	struct skcipher_request *sk_req;
 	u32 c_len;
 	bool encrypt;
@@ -45,9 +43,6 @@ struct sec_req {
 
 /**
  * struct sec_req_op - Operations for SEC request
- * @get_res: Get resources for TFM on the SEC device
- * @resource_alloc: Allocate resources for queue context on the SEC device
- * @resource_free: Free resources for queue context on the SEC device
  * @buf_map: DMA map the SGL buffers of the request
  * @buf_unmap: DMA unmap the SGL buffers of the request
  * @bd_fill: Fill the SEC queue BD
@@ -56,9 +51,6 @@ struct sec_req {
  * @process: Main processing logic of Skcipher
  */
 struct sec_req_op {
-	int (*get_res)(struct sec_ctx *ctx, struct sec_req *req);
-	int (*resource_alloc)(struct sec_ctx *ctx, struct sec_qp_ctx *qp_ctx);
-	void (*resource_free)(struct sec_ctx *ctx, struct sec_qp_ctx *qp_ctx);
 	int (*buf_map)(struct sec_ctx *ctx, struct sec_req *req);
 	void (*buf_unmap)(struct sec_ctx *ctx, struct sec_req *req);
 	void (*do_transfer)(struct sec_ctx *ctx, struct sec_req *req);
@@ -83,9 +75,9 @@ struct sec_cipher_ctx {
 /* SEC queue context which defines queue's relatives */
 struct sec_qp_ctx {
 	struct hisi_qp *qp;
-	struct sec_req **req_list;
+	struct sec_req *req_list[QM_Q_DEPTH];
 	struct idr req_idr;
-	void *alg_meta_data;
+	struct sec_alg_res res[QM_Q_DEPTH];
 	struct sec_ctx *ctx;
 	struct mutex req_lock;
 	struct hisi_acc_sgl_pool *c_in_pool;
