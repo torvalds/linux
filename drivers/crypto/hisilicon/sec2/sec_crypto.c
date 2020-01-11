@@ -104,6 +104,7 @@ static void sec_req_cb(struct hisi_qp *qp, void *resp)
 	struct sec_ctx *ctx;
 	struct sec_req *req;
 	u16 done, flag;
+	int err = 0;
 	u8 type;
 
 	type = bd->type_cipher_auth & SEC_TYPE_MASK;
@@ -119,16 +120,18 @@ static void sec_req_cb(struct hisi_qp *qp, void *resp)
 	flag = (le16_to_cpu(bd->type2.done_flag) &
 		SEC_FLAG_MASK) >> SEC_FLAG_OFFSET;
 	if (req->err_type || done != SEC_SQE_DONE ||
-	    flag != SEC_SQE_CFLAG)
+	    flag != SEC_SQE_CFLAG) {
 		dev_err(SEC_CTX_DEV(ctx),
 			"err_type[%d],done[%d],flag[%d]\n",
 			req->err_type, done, flag);
+		err = -EIO;
+	}
 
 	atomic64_inc(&ctx->sec->debug.dfx.recv_cnt);
 
 	ctx->req_op->buf_unmap(ctx, req);
 
-	ctx->req_op->callback(ctx, req);
+	ctx->req_op->callback(ctx, req, err);
 }
 
 static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
@@ -618,7 +621,8 @@ static void sec_update_iv(struct sec_req *req)
 		dev_err(SEC_CTX_DEV(req->ctx), "copy output iv error!\n");
 }
 
-static void sec_skcipher_callback(struct sec_ctx *ctx, struct sec_req *req)
+static void sec_skcipher_callback(struct sec_ctx *ctx, struct sec_req *req,
+				  int err)
 {
 	struct skcipher_request *sk_req = req->c_req.sk_req;
 	struct sec_qp_ctx *qp_ctx = req->qp_ctx;
@@ -627,13 +631,13 @@ static void sec_skcipher_callback(struct sec_ctx *ctx, struct sec_req *req)
 	sec_free_req_id(req);
 
 	/* IV output at encrypto of CBC mode */
-	if (ctx->c_ctx.c_mode == SEC_CMODE_CBC && req->c_req.encrypt)
+	if (!err && ctx->c_ctx.c_mode == SEC_CMODE_CBC && req->c_req.encrypt)
 		sec_update_iv(req);
 
 	if (req->fake_busy)
 		sk_req->base.complete(&sk_req->base, -EINPROGRESS);
 
-	sk_req->base.complete(&sk_req->base, req->err_type);
+	sk_req->base.complete(&sk_req->base, err);
 }
 
 static void sec_request_uninit(struct sec_ctx *ctx, struct sec_req *req)
