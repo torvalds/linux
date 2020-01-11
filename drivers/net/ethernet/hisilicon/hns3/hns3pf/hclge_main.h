@@ -720,6 +720,7 @@ struct hclge_dev {
 	unsigned long reset_request;	/* reset has been requested */
 	unsigned long reset_pending;	/* client rst is pending to be served */
 	struct hclge_rst_stats rst_stats;
+	struct semaphore reset_sem;	/* protect reset process */
 	u32 fw_version;
 	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
 	u16 num_tqps;			/* Num task queue pairs of this PF */
