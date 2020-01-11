@@ -1210,10 +1210,7 @@ EXPORT_SYMBOL(follow_up);
  */
 static int follow_automount(struct path *path, struct nameidata *nd)
 {
-	struct vfsmount *mnt;
-
-	if (!path->dentry->d_op || !path->dentry->d_op->d_automount)
-		return -EREMOTE;
+	struct dentry *dentry = path->dentry;
 
 	/* We don't want to mount if someone's just doing a stat -
 	 * unless they're stat'ing a directory and appended a '/' to
@@ -1228,33 +1225,14 @@ static int follow_automount(struct path *path, struct nameidata *nd)
 	 */
 	if (!(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY |
 			   LOOKUP_OPEN | LOOKUP_CREATE | LOOKUP_AUTOMOUNT)) &&
-	    path->dentry->d_inode)
+	    dentry->d_inode)
 		return -EISDIR;
 
 	nd->total_link_count++;
 	if (nd->total_link_count >= 40)
 		return -ELOOP;
 
-	mnt = path->dentry->d_op->d_automount(path);
-	if (IS_ERR(mnt)) {
-		/*
-		 * The filesystem is allowed to return -EISDIR here to indicate
-		 * it doesn't want to automount.  For instance, autofs would do
-		 * this so that its userspace daemon can mount on this dentry.
-		 *
-		 * However, we can only permit this if it's a terminal point in
-		 * the path being looked up; if it wasn't then the remainder of
-		 * the path is inaccessible and we should say so.
-		 */
-		if (PTR_ERR(mnt) == -EISDIR && (nd->flags & LOOKUP_PARENT))
-			return -EREMOTE;
-		return PTR_ERR(mnt);
-	}
-
-	if (!mnt)
-		return 0;
-
-	return finish_automount(mnt, path);
+	return finish_automount(dentry->d_op->d_automount(path), path);
 }
 
 /*

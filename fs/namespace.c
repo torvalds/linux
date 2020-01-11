@@ -2824,9 +2824,16 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 int finish_automount(struct vfsmount *m, struct path *path)
 {
 	struct dentry *dentry = path->dentry;
-	struct mount *mnt = real_mount(m);
 	struct mountpoint *mp;
+	struct mount *mnt;
 	int err;
+
+	if (!m)
+		return 0;
+	if (IS_ERR(m))
+		return PTR_ERR(m);
+
+	mnt = real_mount(m);
 	/* The new mount record should have at least 2 refs to prevent it being
 	 * expired before we get a chance to add it
 	 */
