@@ -69,7 +69,7 @@ static int sec_alloc_req_id(struct sec_req *req, struct sec_qp_ctx *qp_ctx)
 	req_id = idr_alloc_cyclic(&qp_ctx->req_idr, NULL,
 				  0, QM_Q_DEPTH, GFP_ATOMIC);
 	mutex_unlock(&qp_ctx->req_lock);
-	if (req_id < 0) {
+	if (unlikely(req_id < 0)) {
 		dev_err(SEC_CTX_DEV(req->ctx), "alloc req id fail!\n");
 		return req_id;
 	}
@@ -84,7 +84,7 @@ static void sec_free_req_id(struct sec_req *req)
 	struct sec_qp_ctx *qp_ctx = req->qp_ctx;
 	int req_id = req->req_id;
 
-	if (req_id < 0 || req_id >= QM_Q_DEPTH) {
+	if (unlikely(req_id < 0 || req_id >= QM_Q_DEPTH)) {
 		dev_err(SEC_CTX_DEV(req->ctx), "free request id invalid!\n");
 		return;
 	}
@@ -108,7 +108,7 @@ static void sec_req_cb(struct hisi_qp *qp, void *resp)
 	u8 type;
 
 	type = bd->type_cipher_auth & SEC_TYPE_MASK;
-	if (type != SEC_BD_TYPE2) {
+	if (unlikely(type != SEC_BD_TYPE2)) {
 		pr_err("err bd type [%d]\n", type);
 		return;
 	}
@@ -144,7 +144,7 @@ static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
 	mutex_unlock(&qp_ctx->req_lock);
 	atomic64_inc(&ctx->sec->debug.dfx.send_cnt);
 
-	if (ret == -EBUSY)
+	if (unlikely(ret == -EBUSY))
 		return -ENOBUFS;
 
 	if (!ret) {
@@ -526,13 +526,13 @@ static int sec_request_transfer(struct sec_ctx *ctx, struct sec_req *req)
 	int ret;
 
 	ret = ctx->req_op->buf_map(ctx, req);
-	if (ret)
+	if (unlikely(ret))
 		return ret;
 
 	ctx->req_op->do_transfer(ctx, req);
 
 	ret = ctx->req_op->bd_fill(ctx, req);
-	if (ret)
+	if (unlikely(ret))
 		goto unmap_req_buf;
 
 	return ret;
@@ -617,7 +617,7 @@ static void sec_update_iv(struct sec_req *req)
 
 	sz = sg_pcopy_to_buffer(sgl, sg_nents(sgl), sk_req->iv,
 				iv_size, sk_req->cryptlen - iv_size);
-	if (sz != iv_size)
+	if (unlikely(sz != iv_size))
 		dev_err(SEC_CTX_DEV(req->ctx), "copy output iv error!\n");
 }
 
@@ -659,7 +659,7 @@ static int sec_request_init(struct sec_ctx *ctx, struct sec_req *req)
 	qp_ctx = &ctx->qp_ctx[queue_id];
 
 	req->req_id = sec_alloc_req_id(req, qp_ctx);
-	if (req->req_id < 0) {
+	if (unlikely(req->req_id < 0)) {
 		sec_free_queue_id(ctx, req);
 		return req->req_id;
 	}
@@ -677,11 +677,11 @@ static int sec_process(struct sec_ctx *ctx, struct sec_req *req)
 	int ret;
 
 	ret = sec_request_init(ctx, req);
-	if (ret)
+	if (unlikely(ret))
 		return ret;
 
 	ret = sec_request_transfer(ctx, req);
-	if (ret)
+	if (unlikely(ret))
 		goto err_uninit_req;
 
 	/* Output IV as decrypto */
@@ -689,7 +689,7 @@ static int sec_process(struct sec_ctx *ctx, struct sec_req *req)
 		sec_update_iv(req);
 
 	ret = ctx->req_op->bd_send(ctx, req);
-	if (ret != -EBUSY && ret != -EINPROGRESS) {
+	if (unlikely(ret != -EBUSY && ret != -EINPROGRESS)) {
 		dev_err_ratelimited(SEC_CTX_DEV(ctx), "send sec request failed!\n");
 		goto err_send_req;
 	}
@@ -740,19 +740,19 @@ static int sec_skcipher_param_check(struct sec_ctx *ctx, struct sec_req *sreq)
 	struct device *dev = SEC_CTX_DEV(ctx);
 	u8 c_alg = ctx->c_ctx.c_alg;
 
-	if (!sk_req->src || !sk_req->dst) {
+	if (unlikely(!sk_req->src || !sk_req->dst)) {
 		dev_err(dev, "skcipher input param error!\n");
 		return -EINVAL;
 	}
 	sreq->c_req.c_len = sk_req->cryptlen;
 	if (c_alg == SEC_CALG_3DES) {
-		if (sk_req->cryptlen & (DES3_EDE_BLOCK_SIZE - 1)) {
+		if (unlikely(sk_req->cryptlen & (DES3_EDE_BLOCK_SIZE - 1))) {
 			dev_err(dev, "skcipher 3des input length error!\n");
 			return -EINVAL;
 		}
 		return 0;
 	} else if (c_alg == SEC_CALG_AES || c_alg == SEC_CALG_SM4) {
-		if (sk_req->cryptlen & (AES_BLOCK_SIZE - 1)) {
+		if (unlikely(sk_req->cryptlen & (AES_BLOCK_SIZE - 1))) {
 			dev_err(dev, "skcipher aes input length error!\n");
 			return -EINVAL;
 		}
