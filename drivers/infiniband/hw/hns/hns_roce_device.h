@@ -898,6 +898,12 @@ struct hns_roce_caps {
 	u32		tpq_buf_pg_sz;
 	u32		chunk_sz;	/* chunk size in non multihop mode */
 	u64		flags;
+	u16		default_ceq_max_cnt;
+	u16		default_ceq_period;
+	u16		default_aeq_max_cnt;
+	u16		default_aeq_period;
+	u16		default_aeq_arm_st;
+	u16		default_ceq_arm_st;
 };
 
 struct hns_roce_work {
