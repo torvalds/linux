@@ -210,7 +210,7 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	props->max_pkeys = 1;
 	props->local_ca_ack_delay = hr_dev->caps.local_ca_ack_delay;
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
-		props->max_srq = hr_dev->caps.max_srqs;
+		props->max_srq = hr_dev->caps.num_srqs;
 		props->max_srq_wr = hr_dev->caps.max_srq_wrs;
 		props->max_srq_sge = hr_dev->caps.max_srq_sges;
 	}
