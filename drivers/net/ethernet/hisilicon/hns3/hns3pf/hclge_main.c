@@ -3562,23 +3562,6 @@ static void hclge_clear_reset_cause(struct hclge_dev *hdev)
 	hclge_enable_vector(&hdev->misc_vector, true);
 }
 
-static int hclge_reset_prepare_down(struct hclge_dev *hdev)
-{
-	int ret = 0;
-
-	switch (hdev->reset_type) {
-	case HNAE3_FUNC_RESET:
-		/* fall through */
-	case HNAE3_FLR_RESET:
-		ret = hclge_set_all_vf_rst(hdev, true);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
 static void hclge_reset_handshake(struct hclge_dev *hdev, bool enable)
 {
 	u32 reg_val;
@@ -3592,6 +3575,19 @@ static void hclge_reset_handshake(struct hclge_dev *hdev, bool enable)
 	hclge_write_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG, reg_val);
 }
 
+static int hclge_func_reset_notify_vf(struct hclge_dev *hdev)
+{
+	int ret;
+
+	ret = hclge_set_all_vf_rst(hdev, true);
+	if (ret)
+		return ret;
+
+	hclge_func_reset_sync_vf(hdev);
+
+	return 0;
+}
+
 static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 {
 	u32 reg_val;
@@ -3599,7 +3595,9 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 
 	switch (hdev->reset_type) {
 	case HNAE3_FUNC_RESET:
-		hclge_func_reset_sync_vf(hdev);
+		ret = hclge_func_reset_notify_vf(hdev);
+		if (ret)
+			return ret;
 
 		ret = hclge_func_reset_cmd(hdev, 0);
 		if (ret) {
@@ -3617,7 +3615,9 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		hdev->rst_stats.pf_rst_cnt++;
 		break;
 	case HNAE3_FLR_RESET:
-		hclge_func_reset_sync_vf(hdev);
+		ret = hclge_func_reset_notify_vf(hdev);
+		if (ret)
+			return ret;
 		break;
 	case HNAE3_IMP_RESET:
 		hclge_handle_imp_error(hdev);
@@ -3758,10 +3758,6 @@ static int hclge_reset_prepare(struct hclge_dev *hdev)
 	hdev->rst_stats.reset_cnt++;
 	/* perform reset of the stack & ae device for a client */
 	ret = hclge_notify_roce_client(hdev, HNAE3_DOWN_CLIENT);
-	if (ret)
-		return ret;
-
-	ret = hclge_reset_prepare_down(hdev);
 	if (ret)
 		return ret;
 
