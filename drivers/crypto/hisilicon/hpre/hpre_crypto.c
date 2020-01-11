@@ -827,17 +827,17 @@ static int hpre_rsa_set_d(struct hpre_ctx *ctx, const char *value,
 	return 0;
 }
 
-static int hpre_crt_para_get(char *para, const char *raw,
-			     unsigned int raw_sz, unsigned int para_size)
+static int hpre_crt_para_get(char *para, size_t para_sz,
+			     const char *raw, size_t raw_sz)
 {
 	const char *ptr = raw;
 	size_t len = raw_sz;
 
 	hpre_rsa_drop_leading_zeros(&ptr, &len);
-	if (!len || len > para_size)
+	if (!len || len > para_sz)
 		return -EINVAL;
 
-	memcpy(para + para_size - len, ptr, len);
+	memcpy(para + para_sz - len, ptr, len);
 
 	return 0;
 }
@@ -855,32 +855,32 @@ static int hpre_rsa_setkey_crt(struct hpre_ctx *ctx, struct rsa_key *rsa_key)
 	if (!ctx->rsa.crt_prikey)
 		return -ENOMEM;
 
-	ret = hpre_crt_para_get(ctx->rsa.crt_prikey, rsa_key->dq,
-				rsa_key->dq_sz, hlf_ksz);
+	ret = hpre_crt_para_get(ctx->rsa.crt_prikey, hlf_ksz,
+				rsa_key->dq, rsa_key->dq_sz);
 	if (ret)
 		goto free_key;
 
 	offset = hlf_ksz;
-	ret = hpre_crt_para_get(ctx->rsa.crt_prikey + offset, rsa_key->dp,
-				rsa_key->dp_sz, hlf_ksz);
+	ret = hpre_crt_para_get(ctx->rsa.crt_prikey + offset, hlf_ksz,
+				rsa_key->dp, rsa_key->dp_sz);
 	if (ret)
 		goto free_key;
 
 	offset = hlf_ksz * HPRE_CRT_Q;
-	ret = hpre_crt_para_get(ctx->rsa.crt_prikey + offset,
-				rsa_key->q, rsa_key->q_sz, hlf_ksz);
+	ret = hpre_crt_para_get(ctx->rsa.crt_prikey + offset, hlf_ksz,
+				rsa_key->q, rsa_key->q_sz);
 	if (ret)
 		goto free_key;
 
 	offset = hlf_ksz * HPRE_CRT_P;
-	ret = hpre_crt_para_get(ctx->rsa.crt_prikey + offset,
-				rsa_key->p, rsa_key->p_sz, hlf_ksz);
+	ret = hpre_crt_para_get(ctx->rsa.crt_prikey + offset, hlf_ksz,
+				rsa_key->p, rsa_key->p_sz);
 	if (ret)
 		goto free_key;
 
 	offset = hlf_ksz * HPRE_CRT_INV;
-	ret = hpre_crt_para_get(ctx->rsa.crt_prikey + offset,
-				rsa_key->qinv, rsa_key->qinv_sz, hlf_ksz);
+	ret = hpre_crt_para_get(ctx->rsa.crt_prikey + offset, hlf_ksz,
+				rsa_key->qinv, rsa_key->qinv_sz);
 	if (ret)
 		goto free_key;
 
