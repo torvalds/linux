@@ -9,8 +9,8 @@
 #include "../qm.h"
 #include "sec_crypto.h"
 
-/* Cipher resource per hardware SEC queue */
-struct sec_cipher_res {
+/* Algorithm resource per hardware SEC queue */
+struct sec_alg_res {
 	u8 *c_ivin;
 	dma_addr_t c_ivin_dma;
 };
