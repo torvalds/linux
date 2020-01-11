@@ -270,4 +270,6 @@ config HOTPLUG_CPU
 	  Say N if you want to disable CPU hotplug.
 endmenu
 
+source "arch/csky/Kconfig.platforms"
+
 source "kernel/Kconfig.hz"
