@@ -608,13 +608,13 @@ static const struct file_operations sec_dbg_fops = {
 	.write = sec_debug_write,
 };
 
-static int debugfs_atomic64_t_get(void *data, u64 *val)
+static int sec_debugfs_atomic64_get(void *data, u64 *val)
 {
-        *val = atomic64_read((atomic64_t *)data);
-        return 0;
+	*val = atomic64_read((atomic64_t *)data);
+	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(fops_atomic64_t_ro, debugfs_atomic64_t_get, NULL,
-                        "%lld\n");
+DEFINE_DEBUGFS_ATTRIBUTE(sec_atomic64_ops, sec_debugfs_atomic64_get,
+			 NULL, "%lld\n");
 
 static int sec_core_debug_init(struct sec_dev *sec)
 {
@@ -636,11 +636,11 @@ static int sec_core_debug_init(struct sec_dev *sec)
 
 	debugfs_create_regset32("regs", 0444, tmp_d, regset);
 
-	debugfs_create_file("send_cnt", 0444, tmp_d, &dfx->send_cnt,
-			    &fops_atomic64_t_ro);
+	debugfs_create_file("send_cnt", 0444, tmp_d,
+			    &dfx->send_cnt, &sec_atomic64_ops);
 
-	debugfs_create_file("recv_cnt", 0444, tmp_d, &dfx->recv_cnt,
-			    &fops_atomic64_t_ro);
+	debugfs_create_file("recv_cnt", 0444, tmp_d,
+			    &dfx->recv_cnt, &sec_atomic64_ops);
 
 	return 0;
 }

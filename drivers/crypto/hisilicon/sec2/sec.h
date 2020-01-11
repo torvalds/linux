@@ -40,7 +40,7 @@ struct sec_req {
 	int req_id;
 
 	/* Status of the SEC request */
-	atomic_t fake_busy;
+	bool fake_busy;
 };
 
 /**
