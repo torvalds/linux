@@ -5,7 +5,10 @@
 
 #include "i915_drv.h"
 #include "intel_guc_ct.h"
+#include "gt/intel_gt.h"
 
+#define CT_ERROR(_ct, _fmt, ...) \
+	DRM_DEV_ERROR(ct_to_dev(_ct), "CT: " _fmt, ##__VA_ARGS__)
 #ifdef CONFIG_DRM_I915_DEBUG_GUC
 #define CT_DEBUG_DRIVER(...)	DRM_DEBUG_DRIVER(__VA_ARGS__)
 #else
@@ -46,6 +49,21 @@ void intel_guc_ct_init_early(struct intel_guc_ct *ct)
 static inline struct intel_guc *ct_to_guc(struct intel_guc_ct *ct)
 {
 	return container_of(ct, struct intel_guc, ct);
+}
+
+static inline struct intel_gt *ct_to_gt(struct intel_guc_ct *ct)
+{
+	return guc_to_gt(ct_to_guc(ct));
+}
+
+static inline struct drm_i915_private *ct_to_i915(struct intel_guc_ct *ct)
+{
+	return ct_to_gt(ct)->i915;
+}
+
+static inline struct device *ct_to_dev(struct intel_guc_ct *ct)
+{
+	return ct_to_i915(ct)->drm.dev;
 }
 
 static inline const char *guc_ct_buffer_type_to_str(u32 type)
@@ -157,8 +175,8 @@ int intel_guc_ct_init(struct intel_guc_ct *ct)
 	 */
 
 	err = intel_guc_allocate_and_map_vma(guc, PAGE_SIZE, &ct->vma, &blob);
-	if (err) {
-		DRM_ERROR("CT: channel allocation failed; err=%d\n", err);
+	if (unlikely(err)) {
+		CT_ERROR(ct, "Failed to allocate CT channel (err=%d)\n", err);
 		return err;
 	}
 
@@ -240,7 +258,7 @@ err_deregister:
 	guc_action_deregister_ct_buffer(guc,
 					INTEL_GUC_CT_BUFFER_TYPE_RECV);
 err_out:
-	DRM_ERROR("CT: can't open channel; err=%d\n", err);
+	CT_ERROR(ct, "Failed to open open CT channel (err=%d)\n", err);
 	return err;
 }
 
@@ -526,8 +544,8 @@ int intel_guc_ct_send(struct intel_guc_ct *ct, const u32 *action, u32 len,
 
 	ret = ct_send(ct, action, len, response_buf, response_buf_size, &status);
 	if (unlikely(ret < 0)) {
-		DRM_ERROR("CT: send action %#X failed; err=%d status=%#X\n",
-			  action[0], ret, status);
+		CT_ERROR(ct, "Sending action %#x failed (err=%d status=%#X)\n",
+			 action[0], ret, status);
 	} else if (unlikely(ret)) {
 		CT_DEBUG_DRIVER("CT: send action %#x returned %d (%#x)\n",
 				action[0], ret, ret);
@@ -639,7 +657,7 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 
 	/* Response payload shall at least include fence and status */
 	if (unlikely(len < 2)) {
-		DRM_ERROR("CT: corrupted response %*ph\n", msgsize, msg);
+		CT_ERROR(ct, "Corrupted response %*ph\n", msgsize, msg);
 		return -EPROTO;
 	}
 
@@ -649,7 +667,7 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 
 	/* Format of the status follows RESPONSE message */
 	if (unlikely(!INTEL_GUC_MSG_IS_RESPONSE(status))) {
-		DRM_ERROR("CT: corrupted response %*ph\n", msgsize, msg);
+		CT_ERROR(ct, "Corrupted response %*ph\n", msgsize, msg);
 		return -EPROTO;
 	}
 
@@ -663,8 +681,8 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 			continue;
 		}
 		if (unlikely(datalen > req->response_len)) {
-			DRM_ERROR("CT: response %u too long %*ph\n",
-				  req->fence, msgsize, msg);
+			CT_ERROR(ct, "Response for %u is too long %*ph\n",
+				 req->fence, msgsize, msg);
 			datalen = 0;
 		}
 		if (datalen)
@@ -677,7 +695,7 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 	spin_unlock(&ct->requests.lock);
 
 	if (!found)
-		DRM_ERROR("CT: unsolicited response %*ph\n", msgsize, msg);
+		CT_ERROR(ct, "Unsolicited response %*ph\n", msgsize, msg);
 	return 0;
 }
 
@@ -698,8 +716,8 @@ static void ct_process_request(struct intel_guc_ct *ct,
 
 	default:
 fail_unexpected:
-		DRM_ERROR("CT: unexpected request %x %*ph\n",
-			  action, 4 * len, payload);
+		CT_ERROR(ct, "Unexpected request %x %*ph\n",
+			 action, 4 * len, payload);
 		break;
 	}
 }
@@ -775,7 +793,7 @@ static int ct_handle_request(struct intel_guc_ct *ct, const u32 *msg)
 
 	request = kmalloc(sizeof(*request) + msgsize, GFP_ATOMIC);
 	if (unlikely(!request)) {
-		DRM_ERROR("CT: dropping request %*ph\n", msgsize, msg);
+		CT_ERROR(ct, "Dropping request %*ph\n", msgsize, msg);
 		return 0; /* XXX: -ENOMEM ? */
 	}
 	memcpy(request->msg, msg, msgsize);
@@ -815,7 +833,7 @@ void intel_guc_ct_event_handler(struct intel_guc_ct *ct)
 	} while (!err);
 
 	if (GEM_WARN_ON(err == -EPROTO)) {
-		DRM_ERROR("CT: corrupted message detected!\n");
+		CT_ERROR(ct, "Corrupted message: %#x\n", msg[0]);
 		ctb->desc->is_in_error = 1;
 	}
 }
