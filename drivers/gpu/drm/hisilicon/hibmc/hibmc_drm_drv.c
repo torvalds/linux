@@ -95,7 +95,7 @@ static int hibmc_kms_init(struct hibmc_drm_private *priv)
 
 	priv->dev->mode_config.fb_base = priv->fb_base;
 	priv->dev->mode_config.preferred_depth = 24;
-	priv->dev->mode_config.prefer_shadow = 0;
+	priv->dev->mode_config.prefer_shadow = 1;
 
 	priv->dev->mode_config.funcs = (void *)&hibmc_mode_funcs;
 
