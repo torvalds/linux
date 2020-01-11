@@ -3520,8 +3520,8 @@ static int ath11k_mac_copy_he_cap(struct ath11k *ar,
 static void ath11k_mac_setup_he_cap(struct ath11k *ar,
 				    struct ath11k_pdev_cap *cap)
 {
-	struct ieee80211_supported_band *band = NULL;
-	int count = 0;
+	struct ieee80211_supported_band *band;
+	int count;
 
 	if (cap->supported_bands & WMI_HOST_WLAN_2G_CAP) {
 		count = ath11k_mac_copy_he_cap(ar, cap,
@@ -3529,6 +3529,7 @@ static void ath11k_mac_setup_he_cap(struct ath11k *ar,
 					       NL80211_BAND_2GHZ);
 		band = &ar->mac.sbands[NL80211_BAND_2GHZ];
 		band->iftype_data = ar->mac.iftype[NL80211_BAND_2GHZ];
+		band->n_iftype_data = count;
 	}
 
 	if (cap->supported_bands & WMI_HOST_WLAN_5G_CAP) {
@@ -3537,9 +3538,8 @@ static void ath11k_mac_setup_he_cap(struct ath11k *ar,
 					       NL80211_BAND_5GHZ);
 		band = &ar->mac.sbands[NL80211_BAND_5GHZ];
 		band->iftype_data = ar->mac.iftype[NL80211_BAND_5GHZ];
+		band->n_iftype_data = count;
 	}
-
-	band->n_iftype_data = count;
 }
 
 static int __ath11k_set_antenna(struct ath11k *ar, u32 tx_ant, u32 rx_ant)
