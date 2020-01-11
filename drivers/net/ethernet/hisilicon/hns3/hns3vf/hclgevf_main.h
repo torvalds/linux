@@ -253,6 +253,7 @@ struct hclgevf_dev {
 	unsigned long reset_state;	/* requested, pending */
 	struct hclgevf_rst_stats rst_stats;
 	u32 reset_attempts;
+	struct semaphore reset_sem;	/* protect reset process */
 
 	u32 fw_version;
 	u16 num_tqps;		/* num task queue pairs of this PF */

@@ -167,11 +167,6 @@ enum hnae3_reset_type {
 	HNAE3_MAX_RESET,
 };
 
-enum hnae3_flr_state {
-	HNAE3_FLR_DOWN,
-	HNAE3_FLR_DONE,
-};
-
 enum hnae3_port_base_vlan_state {
 	HNAE3_PORT_BASE_VLAN_DISABLE,
 	HNAE3_PORT_BASE_VLAN_ENABLE,
