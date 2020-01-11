@@ -49,7 +49,7 @@ struct intel_guc_ct {
 	struct intel_guc_ct_buffer ctbs[2];
 
 	struct {
-		u32 next_fence; /* fence to be used with next request to send */
+		u32 last_fence; /* last fence used to send request */
 
 		spinlock_t lock; /* protects pending requests list */
 		struct list_head pending; /* requests waiting for response */

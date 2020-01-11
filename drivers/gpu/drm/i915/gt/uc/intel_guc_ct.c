@@ -290,7 +290,7 @@ void intel_guc_ct_disable(struct intel_guc_ct *ct)
 static u32 ct_get_next_fence(struct intel_guc_ct *ct)
 {
 	/* For now it's trivial */
-	return ++ct->requests.next_fence;
+	return ++ct->requests.last_fence;
 }
 
 /**
