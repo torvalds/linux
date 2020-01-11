@@ -13,6 +13,8 @@
 struct sec_alg_res {
 	u8 *c_ivin;
 	dma_addr_t c_ivin_dma;
+	u8 *out_mac;
+	dma_addr_t out_mac_dma;
 };
 
 /* Cipher request of SEC private */
@@ -26,14 +28,21 @@ struct sec_cipher_req {
 	bool encrypt;
 };
 
+struct sec_aead_req {
+	u8 *out_mac;
+	dma_addr_t out_mac_dma;
+	struct aead_request *aead_req;
+};
+
 /* SEC request of Crypto */
 struct sec_req {
 	struct sec_sqe sec_sqe;
 	struct sec_ctx *ctx;
 	struct sec_qp_ctx *qp_ctx;
 
-	/* Cipher supported only at present */
 	struct sec_cipher_req c_req;
+	struct sec_aead_req aead_req;
+
 	int err_type;
 	int req_id;
 
@@ -58,6 +67,16 @@ struct sec_req_op {
 	int (*bd_send)(struct sec_ctx *ctx, struct sec_req *req);
 	void (*callback)(struct sec_ctx *ctx, struct sec_req *req, int err);
 	int (*process)(struct sec_ctx *ctx, struct sec_req *req);
+};
+
+/* SEC auth context */
+struct sec_auth_ctx {
+	dma_addr_t a_key_dma;
+	u8 *a_key;
+	u8 a_key_len;
+	u8 mac_len;
+	u8 a_alg;
+	struct crypto_shash *hash_tfm;
 };
 
 /* SEC cipher context which cipher's relatives */
@@ -85,6 +104,11 @@ struct sec_qp_ctx {
 	atomic_t pending_reqs;
 };
 
+enum sec_alg_type {
+	SEC_SKCIPHER,
+	SEC_AEAD
+};
+
 /* SEC Crypto TFM context which defines queue and cipher .etc relatives */
 struct sec_ctx {
 	struct sec_qp_ctx *qp_ctx;
@@ -102,7 +126,10 @@ struct sec_ctx {
 
 	 /* Currrent cyclic index to select a queue for decipher */
 	atomic_t dec_qcyclic;
+
+	enum sec_alg_type alg_type;
 	struct sec_cipher_ctx c_ctx;
+	struct sec_auth_ctx a_ctx;
 };
 
 enum sec_endian {

@@ -14,6 +14,18 @@ enum sec_calg {
 	SEC_CALG_SM4  = 0x3,
 };
 
+enum sec_hash_alg {
+	SEC_A_HMAC_SHA1   = 0x10,
+	SEC_A_HMAC_SHA256 = 0x11,
+	SEC_A_HMAC_SHA512 = 0x15,
+};
+
+enum sec_mac_len {
+	SEC_HMAC_SHA1_MAC   = 20,
+	SEC_HMAC_SHA256_MAC = 32,
+	SEC_HMAC_SHA512_MAC = 64,
+};
+
 enum sec_cmode {
 	SEC_CMODE_ECB    = 0x0,
 	SEC_CMODE_CBC    = 0x1,
@@ -32,6 +44,12 @@ enum sec_ckey_type {
 enum sec_bd_type {
 	SEC_BD_TYPE1 = 0x1,
 	SEC_BD_TYPE2 = 0x2,
+};
+
+enum sec_auth {
+	SEC_NO_AUTH = 0x0,
+	SEC_AUTH_TYPE1 = 0x1,
+	SEC_AUTH_TYPE2 = 0x2,
 };
 
 enum sec_cipher_dir {
