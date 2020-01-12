@@ -41,13 +41,6 @@ struct zorro_dev {
 
 
     /*
-     *  Zorro bus
-     */
-
-extern struct bus_type zorro_bus_type;
-
-
-    /*
      *  Zorro device drivers
      */
 
