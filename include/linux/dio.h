@@ -247,10 +247,6 @@ extern int dio_create_sysfs_dev_files(struct dio_dev *);
 /* New-style probing */
 extern int dio_register_driver(struct dio_driver *);
 extern void dio_unregister_driver(struct dio_driver *);
-static inline struct dio_driver *dio_dev_driver(const struct dio_dev *d)
-{
-    return d->driver;
-}
 
 #define dio_resource_start(d) ((d)->resource.start)
 #define dio_resource_end(d)   ((d)->resource.end)
