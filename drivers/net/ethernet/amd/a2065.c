@@ -547,11 +547,10 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 	if (!lance_tx_buffs_avail(lp))
 		goto out_free;
 
-#ifdef DEBUG
 	/* dump the packet */
-	print_hex_dump(KERN_DEBUG, "skb->data: ", DUMP_PREFIX_NONE,
-		       16, 1, skb->data, 64, true);
-#endif
+	print_hex_dump_debug("skb->data: ", DUMP_PREFIX_NONE, 16, 1, skb->data,
+			     64, true);
+
 	entry = lp->tx_new & lp->tx_ring_mod_mask;
 	ib->btx_ring[entry].length = (-skblen) | 0xf000;
 	ib->btx_ring[entry].misc = 0;
