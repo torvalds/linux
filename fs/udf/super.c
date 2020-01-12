@@ -1063,7 +1063,8 @@ static int check_partition_desc(struct super_block *sb,
 		goto force_ro;
 
 	if (map->s_partition_type == UDF_VIRTUAL_MAP15 ||
-	    map->s_partition_type == UDF_VIRTUAL_MAP20)
+	    map->s_partition_type == UDF_VIRTUAL_MAP20 ||
+	    map->s_partition_type == UDF_METADATA_MAP25)
 		goto force_ro;
 
 	return 0;
