@@ -70,10 +70,6 @@ struct zorro_driver {
 /* New-style probing */
 extern int zorro_register_driver(struct zorro_driver *);
 extern void zorro_unregister_driver(struct zorro_driver *);
-static inline struct zorro_driver *zorro_dev_driver(const struct zorro_dev *z)
-{
-    return z->driver;
-}
 
 
 extern unsigned int zorro_num_autocon;	/* # of autoconfig devices found */
