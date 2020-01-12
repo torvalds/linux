@@ -538,14 +538,14 @@ config HID_LOGITECH
 	Support for Logitech devices that are not fully compliant with HID standard.
 
 config HID_LOGITECH_DJ
-	tristate "Logitech Unifying receivers full support"
+	tristate "Logitech receivers full support"
 	depends on USB_HID
 	depends on HIDRAW
 	depends on HID_LOGITECH
 	select HID_LOGITECH_HIDPP
 	---help---
-	Say Y if you want support for Logitech Unifying receivers and devices.
-	Unifying receivers are capable of pairing up to 6 Logitech compliant
+	Say Y if you want support for Logitech receivers and devices.
+	Logitech receivers are capable of pairing multiple Logitech compliant
 	devices to the same receiver. Without this driver it will be handled by
 	generic USB_HID driver and all incoming events will be multiplexed
 	into a single mouse and a single keyboard device.
