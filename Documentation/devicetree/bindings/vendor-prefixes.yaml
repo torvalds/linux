@@ -545,6 +545,8 @@ patternProperties:
     description: Logic PD, Inc.
   "^longcheer,.*":
     description: Longcheer Technology (Shanghai) Co., Ltd.
+  "^loongson,.*":
+    description: Loongson Technology Corporation Limited
   "^lsi,.*":
     description: LSI Corp. (LSI Logic)
   "^lwn,.*":
