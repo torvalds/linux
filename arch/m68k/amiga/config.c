@@ -278,10 +278,10 @@ static void __init amiga_identify(void)
 			case 0x08:
 				AMIGAHW_SET(LISA);
 				break;
+			default:
+				AMIGAHW_SET(DENISE);
+				break;
 			}
-			break;
-		default:
-			AMIGAHW_SET(DENISE);
 			break;
 		}
 		switch ((amiga_custom.vposr>>8) & 0x7f) {
