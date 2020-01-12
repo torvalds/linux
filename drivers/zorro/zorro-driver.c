@@ -119,9 +119,9 @@ EXPORT_SYMBOL(zorro_unregister_driver);
      *  @ids: array of Zorro device id structures to search in
      *  @dev: the Zorro device structure to match against
      *
-     *  Used by a driver to check whether a Zorro device present in the
-     *  system is in its list of supported devices.Returns the matching
-     *  zorro_device_id structure or %NULL if there is no match.
+     *  Used by the driver core to check whether a Zorro device present in the
+     *  system is in a driver's list of supported devices.  Returns 1 if
+     *  supported, and 0 if there is no match.
      */
 
 static int zorro_bus_match(struct device *dev, struct device_driver *drv)
