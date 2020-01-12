@@ -33,9 +33,10 @@
 #include <linux/ptp_classify.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <mach/ixp46x_ts.h>
 #include <linux/soc/ixp4xx/npe.h>
 #include <linux/soc/ixp4xx/qmgr.h>
+
+#include "ixp46x_ts.h"
 
 #define DEBUG_DESC		0
 #define DEBUG_RX		0
