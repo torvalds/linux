@@ -95,8 +95,8 @@ struct regid {
 } __packed;
 
 /* Flags (ECMA 167r3 1/7.4.1) */
-#define ENTITYID_FLAGS_DIRTY		0x00
-#define ENTITYID_FLAGS_PROTECTED	0x01
+#define ENTITYID_FLAGS_DIRTY		0x01
+#define ENTITYID_FLAGS_PROTECTED	0x02
 
 /* Volume Structure Descriptor (ECMA 167r3 2/9.1) */
 #define VSD_STD_ID_LEN			5

@@ -773,7 +773,7 @@ static int udf_verify_domain_identifier(struct super_block *sb,
 		udf_warn(sb, "Not OSTA UDF compliant %s descriptor.\n", dname);
 		goto force_ro;
 	}
-	if (ident->flags & (1 << ENTITYID_FLAGS_DIRTY)) {
+	if (ident->flags & ENTITYID_FLAGS_DIRTY) {
 		udf_warn(sb, "Possibly not OSTA UDF compliant %s descriptor.\n",
 			 dname);
 		goto force_ro;
