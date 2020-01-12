@@ -54,9 +54,6 @@
 #define SUN50I_H6_THS_DATA_IRQ_STS(x)		BIT(x)
 
 /* millidegree celsius */
-#define THS_EFUSE_CP_FT_MASK			0x3000
-#define THS_EFUSE_CP_FT_BIT			12
-#define THS_CALIBRATION_IN_FT			1
 
 struct tsensor {
 	struct ths_device		*tmdev;
@@ -88,7 +85,6 @@ struct ths_device {
 	struct clk				*bus_clk;
 	struct clk                              *mod_clk;
 	struct tsensor				sensor[MAX_SENSOR_NUM];
-	u32					cp_ft_flag;
 };
 
 /* Temp Unit: millidegree Celsius */
@@ -244,8 +240,6 @@ static int sun50i_h6_ths_calibrate(struct ths_device *tmdev,
 	 * register values and this will become a calibration offset.
 	 */
 	ft_temp = (caldata[0] & FT_TEMP_MASK) * 100;
-	tmdev->cp_ft_flag = (caldata[0] & THS_EFUSE_CP_FT_MASK)
-		>> THS_EFUSE_CP_FT_BIT;
 
 	for (i = 0; i < tmdev->chip->sensor_num; i++) {
 		int sensor_reg = caldata[i + 1];
