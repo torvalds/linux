@@ -118,10 +118,6 @@ struct lance_private {
 	int auto_select;	      /* cable-selection by carrier */
 	unsigned short busmaster_regval;
 
-#ifdef CONFIG_SUNLANCE
-	struct Linux_SBus_DMA *ledma; /* if set this points to ledma and arch=4m */
-	int burst_sizes;	      /* ledma SBus burst sizes */
-#endif
 	struct timer_list         multicast_timer;
 	struct net_device	  *dev;
 };
