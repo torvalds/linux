@@ -2807,7 +2807,7 @@
 			};
 		};
 
-		gpu@5000000 {
+		gpu: gpu@5000000 {
 			compatible = "qcom,adreno-630.2", "qcom,adreno";
 			#stream-id-cells = <16>;
 
@@ -2826,10 +2826,6 @@
 			operating-points-v2 = <&gpu_opp_table>;
 
 			qcom,gmu = <&gmu>;
-
-			zap_shader: zap-shader {
-				memory-region = <&gpu_mem>;
-			};
 
 			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";
