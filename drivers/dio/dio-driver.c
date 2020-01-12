@@ -25,7 +25,7 @@
  *  dio_device_id structure or %NULL if there is no match.
  */
 
-const struct dio_device_id *
+static const struct dio_device_id *
 dio_match_device(const struct dio_device_id *ids,
 		   const struct dio_dev *d)
 {
@@ -137,7 +137,6 @@ static int __init dio_driver_init(void)
 
 postcore_initcall(dio_driver_init);
 
-EXPORT_SYMBOL(dio_match_device);
 EXPORT_SYMBOL(dio_register_driver);
 EXPORT_SYMBOL(dio_unregister_driver);
 EXPORT_SYMBOL(dio_bus_type);
