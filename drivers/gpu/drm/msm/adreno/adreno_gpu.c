@@ -79,9 +79,21 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
 		ret = request_firmware_direct(&fw, fwname, gpu->dev->dev);
 		if (ret)
 			fw = ERR_PTR(ret);
-	} else {
+	} else if (fwname) {
 		/* Request the MDT file from the default location: */
 		fw = adreno_request_fw(to_adreno_gpu(gpu), fwname);
+	} else {
+		/*
+		 * For new targets, we require the firmware-name property,
+		 * if a zap-shader is required, rather than falling back
+		 * to a firmware name specified in gpulist.
+		 *
+		 * Because the firmware is signed with a (potentially)
+		 * device specific key, having the name come from gpulist
+		 * was a bad idea, and is only provided for backwards
+		 * compatibility for older targets.
+		 */
+		return -ENODEV;
 	}
 
 	if (IS_ERR(fw)) {
@@ -168,14 +180,6 @@ int adreno_zap_shader_load(struct msm_gpu *gpu, u32 pasid)
 	if (!qcom_scm_is_available()) {
 		DRM_DEV_ERROR(&pdev->dev, "SCM is not available\n");
 		return -EPROBE_DEFER;
-	}
-
-	/* Each GPU has a target specific zap shader firmware name to use */
-	if (!adreno_gpu->info->zapfw) {
-		zap_available = false;
-		DRM_DEV_ERROR(&pdev->dev,
-			"Zap shader firmware file not specified for this target\n");
-		return -ENODEV;
 	}
 
 	return zap_shader_load_mdt(gpu, adreno_gpu->info->zapfw, pasid);
