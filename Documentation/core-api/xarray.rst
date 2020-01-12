@@ -82,10 +82,10 @@ at that index is ``NULL``, you can use xa_insert() which
 returns ``-EBUSY`` if the entry is not empty.
 
 You can copy entries out of the XArray into a plain array by calling
-xa_extract().  Or you can iterate over the present entries in
-the XArray by calling xa_for_each().  You may prefer to use
-xa_find() or xa_find_after() to move to the next present
-entry in the XArray.
+xa_extract().  Or you can iterate over the present entries in the XArray
+by calling xa_for_each(), xa_for_each_start() or xa_for_each_range().
+You may prefer to use xa_find() or xa_find_after() to move to the next
+present entry in the XArray.
 
 Calling xa_store_range() stores the same entry in a range
 of indices.  If you do this, some of the other operations will behave
@@ -193,6 +193,8 @@ No lock needed:
 Takes RCU read lock:
  * xa_load()
  * xa_for_each()
+ * xa_for_each_start()
+ * xa_for_each_range()
  * xa_find()
  * xa_find_after()
  * xa_extract()
