@@ -13,8 +13,10 @@ $(obj)/sha256.o: $(srctree)/lib/sha256.c FORCE
 $(obj)/mem.o: $(srctree)/arch/s390/lib/mem.S FORCE
 	$(call if_changed_rule,as_o_S)
 
-$(obj)/string.o: $(srctree)/arch/s390/lib/string.c FORCE
-	$(call if_changed_rule,cc_o_c)
+KCOV_INSTRUMENT := n
+GCOV_PROFILE := n
+UBSAN_SANITIZE := n
+KASAN_SANITIZE := n
 
 LDFLAGS_purgatory.ro := -e purgatory_start -r --no-undefined -nostdlib
 LDFLAGS_purgatory.ro += -z nodefaultlib

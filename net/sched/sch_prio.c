@@ -314,8 +314,14 @@ static int prio_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	bool any_qdisc_is_offloaded;
 	int err;
 
-	if (new == NULL)
-		new = &noop_qdisc;
+	if (!new) {
+		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
+					TC_H_MAKE(sch->handle, arg), extack);
+		if (!new)
+			new = &noop_qdisc;
+		else
+			qdisc_hash_add(new, true);
+	}
 
 	*old = qdisc_replace(sch, new, &q->queues[band]);
 

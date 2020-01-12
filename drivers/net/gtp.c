@@ -818,7 +818,7 @@ static struct sock *gtp_encap_enable_socket(int fd, int type,
 	lock_sock(sock->sk);
 	if (sock->sk->sk_user_data) {
 		sk = ERR_PTR(-EBUSY);
-		goto out_sock;
+		goto out_rel_sock;
 	}
 
 	sk = sock->sk;
@@ -831,8 +831,9 @@ static struct sock *gtp_encap_enable_socket(int fd, int type,
 
 	setup_udp_tunnel_sock(sock_net(sock->sk), sock, &tuncfg);
 
-out_sock:
+out_rel_sock:
 	release_sock(sock->sk);
+out_sock:
 	sockfd_put(sock);
 	return sk;
 }
