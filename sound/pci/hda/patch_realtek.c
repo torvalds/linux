@@ -3601,8 +3601,8 @@ static void alc5505_dsp_init(struct hda_codec *codec)
 }
 
 #ifdef HALT_REALTEK_ALC5505
-#define alc5505_dsp_suspend(codec)	/* NOP */
-#define alc5505_dsp_resume(codec)	/* NOP */
+#define alc5505_dsp_suspend(codec)	do { } while (0) /* NOP */
+#define alc5505_dsp_resume(codec)	do { } while (0) /* NOP */
 #else
 #define alc5505_dsp_suspend(codec)	alc5505_dsp_halt(codec)
 #define alc5505_dsp_resume(codec)	alc5505_dsp_back_from_halt(codec)

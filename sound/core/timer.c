@@ -2216,7 +2216,7 @@ static ssize_t snd_timer_user_read(struct file *file, char __user *buffer,
 			tread32 = (struct snd_timer_tread32) {
 				.event = tread->event,
 				.tstamp_sec = tread->tstamp_sec,
-				.tstamp_sec = tread->tstamp_nsec,
+				.tstamp_nsec = tread->tstamp_nsec,
 				.val = tread->val,
 			};
 
