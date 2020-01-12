@@ -133,12 +133,7 @@ static int zorro_bus_match(struct device *dev, struct device_driver *drv)
 	if (!ids)
 		return 0;
 
-	while (ids->id) {
-		if (ids->id == ZORRO_WILDCARD || ids->id == z->id)
-			return 1;
-		ids++;
-	}
-	return 0;
+	return !!zorro_match_device(ids, z);
 }
 
 static int zorro_uevent(struct device *dev, struct kobj_uevent_env *env)
