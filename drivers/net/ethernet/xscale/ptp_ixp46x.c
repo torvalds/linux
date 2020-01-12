@@ -15,7 +15,8 @@
 #include <linux/module.h>
 
 #include <linux/ptp_clock_kernel.h>
-#include <mach/ixp46x_ts.h>
+
+#include "ixp46x_ts.h"
 
 #define DRIVER		"ptp_ixp46x"
 #define N_EXT_TS	2
