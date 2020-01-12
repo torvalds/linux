@@ -28,7 +28,7 @@
      *  zorro_device_id structure or %NULL if there is no match.
      */
 
-const struct zorro_device_id *
+static const struct zorro_device_id *
 zorro_match_device(const struct zorro_device_id *ids,
 		   const struct zorro_dev *z)
 {
@@ -39,7 +39,6 @@ zorro_match_device(const struct zorro_device_id *ids,
 	}
 	return NULL;
 }
-EXPORT_SYMBOL(zorro_match_device);
 
 
 static int zorro_device_probe(struct device *dev)
