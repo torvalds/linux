@@ -87,6 +87,7 @@ enum {
 enum {
 	MLX5_GENERAL_OBJ_TYPES_CAP_SW_ICM = (1ULL << MLX5_OBJ_TYPE_SW_ICM),
 	MLX5_GENERAL_OBJ_TYPES_CAP_GENEVE_TLV_OPT = (1ULL << 11),
+	MLX5_GENERAL_OBJ_TYPES_CAP_VIRTIO_NET_Q = (1ULL << 13),
 };
 
 enum {
@@ -951,6 +952,19 @@ struct mlx5_ifc_device_event_cap_bits {
 	u8         user_affiliated_events[4][0x40];
 
 	u8         user_unaffiliated_events[4][0x40];
+};
+
+struct mlx5_ifc_device_virtio_emulation_cap_bits {
+	u8         reserved_at_0[0x20];
+
+	u8         reserved_at_20[0x13];
+	u8         log_doorbell_stride[0x5];
+	u8         reserved_at_38[0x3];
+	u8         log_doorbell_bar_size[0x5];
+
+	u8         doorbell_bar_offset[0x40];
+
+	u8         reserved_at_80[0x780];
 };
 
 enum {
@@ -2751,6 +2765,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_fpga_cap_bits fpga_cap;
 	struct mlx5_ifc_tls_cap_bits tls_cap;
 	struct mlx5_ifc_device_mem_cap_bits device_mem_cap;
+	struct mlx5_ifc_device_virtio_emulation_cap_bits virtio_emulation_cap;
 	u8         reserved_at_0[0x8000];
 };
 
