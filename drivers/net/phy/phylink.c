@@ -726,6 +726,7 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 {
 	struct phylink_link_state config;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
+	char *irq_str;
 	int ret;
 
 	/*
@@ -761,9 +762,11 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 	phy->phylink = pl;
 	phy->phy_link_change = phylink_phy_change;
 
+	irq_str = phy_attached_info_irq(phy);
 	phylink_info(pl,
-		     "PHY [%s] driver [%s]\n", dev_name(&phy->mdio.dev),
-		     phy->drv->name);
+		     "PHY [%s] driver [%s] (irq=%s)\n",
+		     dev_name(&phy->mdio.dev), phy->drv->name, irq_str);
+	kfree(irq_str);
 
 	mutex_lock(&phy->lock);
 	mutex_lock(&pl->state_mutex);
