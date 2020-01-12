@@ -57,6 +57,9 @@ void hantro_postproc_enable(struct hantro_ctx *ctx)
 	u32 src_pp_fmt, dst_pp_fmt;
 	dma_addr_t dst_dma;
 
+	if (!vpu->variant->postproc_regs)
+		return;
+
 	/* Turn on pipeline mode. Must be done first. */
 	HANTRO_PP_REG_WRITE_S(vpu, pipeline_en, 0x1);
 
@@ -137,6 +140,9 @@ int hantro_postproc_alloc(struct hantro_ctx *ctx)
 void hantro_postproc_disable(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
+
+	if (!vpu->variant->postproc_regs)
+		return;
 
 	HANTRO_PP_REG_WRITE_S(vpu, pipeline_en, 0x0);
 }
