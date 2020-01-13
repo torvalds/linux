@@ -4029,6 +4029,9 @@ static void igc_watchdog_task(struct work_struct *work)
 		}
 	}
 	if (link) {
+		/* Cancel scheduled suspend requests. */
+		pm_runtime_resume(netdev->dev.parent);
+
 		if (!netif_carrier_ok(netdev)) {
 			u32 ctrl;
 
@@ -4114,6 +4117,8 @@ no_wait:
 					return;
 				}
 			}
+			pm_schedule_suspend(netdev->dev.parent,
+					    MSEC_PER_SEC * 5);
 
 		/* also check for alternate media here */
 		} else if (!netif_carrier_ok(netdev) &&
@@ -4337,6 +4342,7 @@ request_done:
 static int __igc_open(struct net_device *netdev, bool resuming)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
 	struct igc_hw *hw = &adapter->hw;
 	int err = 0;
 	int i = 0;
@@ -4347,6 +4353,9 @@ static int __igc_open(struct net_device *netdev, bool resuming)
 		WARN_ON(resuming);
 		return -EBUSY;
 	}
+
+	if (!resuming)
+		pm_runtime_get_sync(&pdev->dev);
 
 	netif_carrier_off(netdev);
 
@@ -4386,6 +4395,9 @@ static int __igc_open(struct net_device *netdev, bool resuming)
 	rd32(IGC_ICR);
 	igc_irq_enable(adapter);
 
+	if (!resuming)
+		pm_runtime_put(&pdev->dev);
+
 	netif_tx_start_all_queues(netdev);
 
 	/* start the watchdog. */
@@ -4404,6 +4416,8 @@ err_setup_rx:
 	igc_free_all_tx_resources(adapter);
 err_setup_tx:
 	igc_reset(adapter);
+	if (!resuming)
+		pm_runtime_put(&pdev->dev);
 
 	return err;
 }
@@ -4428,8 +4442,12 @@ static int igc_open(struct net_device *netdev)
 static int __igc_close(struct net_device *netdev, bool suspending)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
 
 	WARN_ON(test_bit(__IGC_RESETTING, &adapter->state));
+
+	if (!suspending)
+		pm_runtime_get_sync(&pdev->dev);
 
 	igc_down(adapter);
 
@@ -4439,6 +4457,9 @@ static int __igc_close(struct net_device *netdev, bool suspending)
 
 	igc_free_all_tx_resources(adapter);
 	igc_free_all_rx_resources(adapter);
+
+	if (!suspending)
+		pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 }
@@ -4792,6 +4813,10 @@ static int igc_probe(struct pci_dev *pdev,
 	pcie_print_link_status(pdev);
 	netdev_info(netdev, "MAC: %pM\n", netdev->dev_addr);
 
+	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NEVER_SKIP);
+
+	pm_runtime_put_noidle(&pdev->dev);
+
 	return 0;
 
 err_register:
@@ -4825,6 +4850,8 @@ static void igc_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	pm_runtime_get_noresume(&pdev->dev);
 
 	igc_ptp_stop(adapter);
 
