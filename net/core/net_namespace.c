@@ -211,7 +211,7 @@ static int net_eq_idr(int id, void *net, void *peer)
 	return 0;
 }
 
-/* Should be called with nsid_lock held. */
+/* Must be called from RCU-critical section or with nsid_lock held */
 static int __peernet2id(const struct net *net, struct net *peer)
 {
 	int id = idr_for_each(&net->netns_ids, net_eq_idr, peer);
@@ -272,9 +272,10 @@ int peernet2id(struct net *net, struct net *peer)
 {
 	int id;
 
-	spin_lock_bh(&net->nsid_lock);
+	rcu_read_lock();
 	id = __peernet2id(net, peer);
-	spin_unlock_bh(&net->nsid_lock);
+	rcu_read_unlock();
+
 	return id;
 }
 EXPORT_SYMBOL(peernet2id);
@@ -941,6 +942,7 @@ struct rtnl_net_dump_cb {
 	int s_idx;
 };
 
+/* Runs in RCU-critical section. */
 static int rtnl_net_dumpid_one(int id, void *peer, void *data)
 {
 	struct rtnl_net_dump_cb *net_cb = (struct rtnl_net_dump_cb *)data;
@@ -1025,19 +1027,9 @@ static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 			goto end;
 	}
 
-	spin_lock_bh(&net_cb.tgt_net->nsid_lock);
-	if (net_cb.fillargs.add_ref &&
-	    !net_eq(net_cb.ref_net, net_cb.tgt_net) &&
-	    !spin_trylock_bh(&net_cb.ref_net->nsid_lock)) {
-		spin_unlock_bh(&net_cb.tgt_net->nsid_lock);
-		err = -EAGAIN;
-		goto end;
-	}
+	rcu_read_lock();
 	idr_for_each(&net_cb.tgt_net->netns_ids, rtnl_net_dumpid_one, &net_cb);
-	if (net_cb.fillargs.add_ref &&
-	    !net_eq(net_cb.ref_net, net_cb.tgt_net))
-		spin_unlock_bh(&net_cb.ref_net->nsid_lock);
-	spin_unlock_bh(&net_cb.tgt_net->nsid_lock);
+	rcu_read_unlock();
 
 	cb->args[0] = net_cb.idx;
 end:
