@@ -8,23 +8,6 @@
 #include <linux/tracepoint.h>
 #include <linux/workqueue.h>
 
-DECLARE_EVENT_CLASS(workqueue_work,
-
-	TP_PROTO(struct work_struct *work),
-
-	TP_ARGS(work),
-
-	TP_STRUCT__entry(
-		__field( void *,	work	)
-	),
-
-	TP_fast_assign(
-		__entry->work		= work;
-	),
-
-	TP_printk("work struct %p", __entry->work)
-);
-
 struct pool_workqueue;
 
 /**
@@ -73,11 +56,21 @@ TRACE_EVENT(workqueue_queue_work,
  * which happens immediately after queueing unless @max_active limit
  * is reached.
  */
-DEFINE_EVENT(workqueue_work, workqueue_activate_work,
+TRACE_EVENT(workqueue_activate_work,
 
 	TP_PROTO(struct work_struct *work),
 
-	TP_ARGS(work)
+	TP_ARGS(work),
+
+	TP_STRUCT__entry(
+		__field( void *,	work	)
+	),
+
+	TP_fast_assign(
+		__entry->work		= work;
+	),
+
+	TP_printk("work struct %p", __entry->work)
 );
 
 /**
