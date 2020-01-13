@@ -180,6 +180,7 @@ Hardware Monitoring Kernel Drivers
    wm831x
    wm8350
    xgene-hwmon
+   xdpe12284
    zl6100
 
 .. only::  subproject and html
