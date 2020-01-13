@@ -115,7 +115,7 @@ static int pmbus_identify(struct i2c_client *client,
 	}
 
 	if (pmbus_check_byte_register(client, 0, PMBUS_VOUT_MODE)) {
-		int vout_mode;
+		int vout_mode, i;
 
 		vout_mode = pmbus_read_byte_data(client, 0, PMBUS_VOUT_MODE);
 		if (vout_mode >= 0 && vout_mode != 0xff) {
@@ -124,7 +124,8 @@ static int pmbus_identify(struct i2c_client *client,
 				break;
 			case 1:
 				info->format[PSC_VOLTAGE_OUT] = vid;
-				info->vrm_version = vr11;
+				for (i = 0; i < info->pages; i++)
+					info->vrm_version[i] = vr11;
 				break;
 			case 2:
 				info->format[PSC_VOLTAGE_OUT] = direct;

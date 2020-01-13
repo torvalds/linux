@@ -696,7 +696,7 @@ static long pmbus_reg2data_vid(struct pmbus_data *data,
 	long val = sensor->data;
 	long rv = 0;
 
-	switch (data->info->vrm_version) {
+	switch (data->info->vrm_version[sensor->page]) {
 	case vr11:
 		if (val >= 0x02 && val <= 0xb2)
 			rv = DIV_ROUND_CLOSEST(160000 - (val - 2) * 625, 100);
