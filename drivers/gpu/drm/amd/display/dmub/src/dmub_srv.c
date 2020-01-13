@@ -312,6 +312,9 @@ enum dmub_status dmub_srv_is_hw_init(struct dmub_srv *dmub, bool *is_hw_init)
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
 
+	if (!dmub->hw_init)
+		return DMUB_STATUS_OK;
+
 	if (dmub->hw_funcs.is_hw_init)
 		*is_hw_init = dmub->hw_funcs.is_hw_init(dmub);
 
