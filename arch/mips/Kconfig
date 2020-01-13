@@ -1436,10 +1436,14 @@ config CPU_LOONGSON64
 	bool "Loongson 64-bit CPU"
 	depends on SYS_HAS_CPU_LOONGSON64
 	select ARCH_HAS_PHYS_TO_DMA
+	select CPU_MIPSR2
+	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
 	select CPU_SUPPORTS_MSA
+	select CPU_DIEI_BROKEN if !LOONGSON3_ENHANCEMENT
+	select CPU_MIPSR2_IRQ_VI
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
 	select MIPS_ASID_BITS_VARIABLE
@@ -1457,8 +1461,6 @@ config CPU_LOONGSON64
 config LOONGSON3_ENHANCEMENT
 	bool "New Loongson-3 CPU Enhancements"
 	default n
-	select CPU_MIPSR2
-	select CPU_HAS_PREFETCH
 	depends on CPU_LOONGSON64
 	help
 	  New Loongson-3 cores (since Loongson-3A R2, as opposed to Loongson-3A
