@@ -45,6 +45,7 @@ struct snd_oxfw {
 
 	bool wrong_dbs;
 	bool has_output;
+	bool has_input;
 	u8 *tx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
 	u8 *rx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
 	bool assumed;
