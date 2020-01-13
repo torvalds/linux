@@ -251,8 +251,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 
 		/*
 		 * Directly request the irq here instead of passing
-		 * a flow-handler to gpiochip_set_chained_irqchip,
-		 * because the irq is shared.
+		 * a flow-handler because the irq is shared.
 		 */
 		ret = devm_request_irq(dev, irq, iproc_gpio_irq_handler,
 				       IRQF_SHARED, chip->gc.label, &chip->gc);
