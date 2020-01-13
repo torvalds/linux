@@ -735,45 +735,57 @@ int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 	/* use oPCR[0] if exists */
 	if (plugs[1] > 0) {
 		err = fill_stream_formats(oxfw, AVC_GENERAL_PLUG_DIR_OUT, 0);
-		if (err < 0)
-			goto end;
+		if (err < 0) {
+			if (err != -ENXIO)
+				return err;
 
-		for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
-			format = oxfw->tx_stream_formats[i];
-			if (format == NULL)
-				continue;
-			err = snd_oxfw_stream_parse_format(format, &formation);
-			if (err < 0)
-				continue;
+			// The oPCR is not available for isoc communication.
+			err = 0;
+		} else {
+			for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+				format = oxfw->tx_stream_formats[i];
+				if (format == NULL)
+					continue;
+				err = snd_oxfw_stream_parse_format(format,
+								   &formation);
+				if (err < 0)
+					continue;
 
-			/* Add one MIDI port. */
-			if (formation.midi > 0)
-				oxfw->midi_input_ports = 1;
+				/* Add one MIDI port. */
+				if (formation.midi > 0)
+					oxfw->midi_input_ports = 1;
+			}
+
+			oxfw->has_output = true;
 		}
-
-		oxfw->has_output = true;
 	}
 
 	/* use iPCR[0] if exists */
 	if (plugs[0] > 0) {
 		err = fill_stream_formats(oxfw, AVC_GENERAL_PLUG_DIR_IN, 0);
-		if (err < 0)
-			goto end;
+		if (err < 0) {
+			if (err != -ENXIO)
+				return err;
 
-		for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
-			format = oxfw->rx_stream_formats[i];
-			if (format == NULL)
-				continue;
-			err = snd_oxfw_stream_parse_format(format, &formation);
-			if (err < 0)
-				continue;
+			// The iPCR is not available for isoc communication.
+			err = 0;
+		} else {
+			for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+				format = oxfw->rx_stream_formats[i];
+				if (format == NULL)
+					continue;
+				err = snd_oxfw_stream_parse_format(format,
+								   &formation);
+				if (err < 0)
+					continue;
 
-			/* Add one MIDI port. */
-			if (formation.midi > 0)
-				oxfw->midi_output_ports = 1;
+				/* Add one MIDI port. */
+				if (formation.midi > 0)
+					oxfw->midi_output_ports = 1;
+			}
+
+			oxfw->has_input = true;
 		}
-
-		oxfw->has_input = true;
 	}
 end:
 	return err;
