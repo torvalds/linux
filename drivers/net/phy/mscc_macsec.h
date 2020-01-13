@@ -83,6 +83,7 @@ enum mscc_macsec_validate_levels {
 #define MSCC_MS_STATUS_CONTEXT_CTRL	0x3d02
 #define MSCC_MS_INTR_CTRL_STATUS	0x3d04
 #define MSCC_MS_BLOCK_CTX_UPDATE	0x3d0c
+#define MSCC_MS_AIC_CTRL		0x3e02
 
 /* MACSEC_ENA_CFG */
 #define MSCC_MS_ENA_CFG_CLK_ENA				BIT(0)
@@ -260,5 +261,6 @@ enum mscc_macsec_validate_levels {
 #define MSCC_MS_INTR_CTRL_STATUS_INTR_CLR_STATUS_M	GENMASK(15, 0)
 #define MSCC_MS_INTR_CTRL_STATUS_INTR_ENABLE(x)		((x) << 16)
 #define MSCC_MS_INTR_CTRL_STATUS_INTR_ENABLE_M		GENMASK(31, 16)
+#define MACSEC_INTR_CTRL_STATUS_ROLLOVER		BIT(5)
 
 #endif

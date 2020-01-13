@@ -80,7 +80,7 @@ enum rgmii_rx_clock_delay {
 #define MSCC_PHY_EXT_PHY_CNTL_2		  24
 
 #define MII_VSC85XX_INT_MASK		  25
-#define MII_VSC85XX_INT_MASK_MASK	  0xa000
+#define MII_VSC85XX_INT_MASK_MASK	  0xa020
 #define MII_VSC85XX_INT_MASK_WOL	  0x0040
 #define MII_VSC85XX_INT_STATUS		  26
 
@@ -206,6 +206,9 @@ enum macsec_bank {
 #define MSCC_PHY_WOL_MAC_CONTROL	  27
 #define SECURE_ON_ENABLE		  0x8000
 #define SECURE_ON_PASSWD_LEN_4		  0x4000
+
+#define MSCC_PHY_EXTENDED_INT		  28
+#define MSCC_PHY_EXTENDED_INT_MS_EGR	  BIT(9)
 
 /* Extended Page 3 Registers */
 #define MSCC_PHY_SERDES_TX_VALID_CNT	  21
@@ -2831,6 +2834,43 @@ err:
 	return ret;
 }
 
+static int vsc8584_handle_interrupt(struct phy_device *phydev)
+{
+#if IS_ENABLED(CONFIG_MACSEC)
+	struct vsc8531_private *priv = phydev->priv;
+	struct macsec_flow *flow, *tmp;
+	u32 cause, rec;
+
+	/* Check MACsec PN rollover */
+	cause = vsc8584_macsec_phy_read(phydev, MACSEC_EGR,
+					MSCC_MS_INTR_CTRL_STATUS);
+	cause &= MSCC_MS_INTR_CTRL_STATUS_INTR_CLR_STATUS_M;
+	if (!(cause & MACSEC_INTR_CTRL_STATUS_ROLLOVER))
+		goto skip_rollover;
+
+	rec = 6 + priv->secy->key_len / sizeof(u32);
+	list_for_each_entry_safe(flow, tmp, &priv->macsec_flows, list) {
+		u32 val;
+
+		if (flow->bank != MACSEC_EGR || !flow->has_transformation)
+			continue;
+
+		val = vsc8584_macsec_phy_read(phydev, MACSEC_EGR,
+					      MSCC_MS_XFORM_REC(flow->index, rec));
+		if (val == 0xffffffff) {
+			vsc8584_macsec_flow_disable(phydev, flow);
+			macsec_pn_wrapped(priv->secy, flow->tx_sa);
+			break;
+		}
+	}
+
+skip_rollover:
+#endif
+
+	phy_mac_interrupt(phydev);
+	return 0;
+}
+
 static int vsc85xx_config_init(struct phy_device *phydev)
 {
 	int rc, i, phy_id;
@@ -3274,6 +3314,20 @@ static int vsc85xx_config_intr(struct phy_device *phydev)
 	int rc;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+#if IS_ENABLED(CONFIG_MACSEC)
+		phy_write(phydev, MSCC_EXT_PAGE_ACCESS,
+			  MSCC_PHY_PAGE_EXTENDED_2);
+		phy_write(phydev, MSCC_PHY_EXTENDED_INT,
+			  MSCC_PHY_EXTENDED_INT_MS_EGR);
+		phy_write(phydev, MSCC_EXT_PAGE_ACCESS,
+			  MSCC_PHY_PAGE_STANDARD);
+
+		vsc8584_macsec_phy_write(phydev, MACSEC_EGR,
+					 MSCC_MS_AIC_CTRL, 0xf);
+		vsc8584_macsec_phy_write(phydev, MACSEC_EGR,
+			MSCC_MS_INTR_CTRL_STATUS,
+			MSCC_MS_INTR_CTRL_STATUS_INTR_ENABLE(MACSEC_INTR_CTRL_STATUS_ROLLOVER));
+#endif
 		rc = phy_write(phydev, MII_VSC85XX_INT_MASK,
 			       MII_VSC85XX_INT_MASK_MASK);
 	} else {
@@ -3623,6 +3677,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.config_aneg    = &vsc85xx_config_aneg,
 	.aneg_done	= &genphy_aneg_done,
 	.read_status	= &vsc85xx_read_status,
+	.handle_interrupt = &vsc8584_handle_interrupt,
 	.ack_interrupt  = &vsc85xx_ack_interrupt,
 	.config_intr    = &vsc85xx_config_intr,
 	.did_interrupt  = &vsc8584_did_interrupt,
@@ -3675,6 +3730,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.config_aneg    = &vsc85xx_config_aneg,
 	.aneg_done	= &genphy_aneg_done,
 	.read_status	= &vsc85xx_read_status,
+	.handle_interrupt = &vsc8584_handle_interrupt,
 	.ack_interrupt  = &vsc85xx_ack_interrupt,
 	.config_intr    = &vsc85xx_config_intr,
 	.did_interrupt  = &vsc8584_did_interrupt,
@@ -3699,6 +3755,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.config_aneg    = &vsc85xx_config_aneg,
 	.aneg_done	= &genphy_aneg_done,
 	.read_status	= &vsc85xx_read_status,
+	.handle_interrupt = &vsc8584_handle_interrupt,
 	.ack_interrupt  = &vsc85xx_ack_interrupt,
 	.config_intr    = &vsc85xx_config_intr,
 	.did_interrupt  = &vsc8584_did_interrupt,
@@ -3723,6 +3780,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.config_aneg    = &vsc85xx_config_aneg,
 	.aneg_done	= &genphy_aneg_done,
 	.read_status	= &vsc85xx_read_status,
+	.handle_interrupt = &vsc8584_handle_interrupt,
 	.ack_interrupt  = &vsc85xx_ack_interrupt,
 	.config_intr    = &vsc85xx_config_intr,
 	.did_interrupt  = &vsc8584_did_interrupt,
