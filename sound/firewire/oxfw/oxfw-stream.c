@@ -772,6 +772,8 @@ int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 			if (formation.midi > 0)
 				oxfw->midi_output_ports = 1;
 		}
+
+		oxfw->has_input = true;
 	}
 end:
 	return err;
