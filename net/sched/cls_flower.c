@@ -2773,6 +2773,17 @@ static void fl_bind_class(void *fh, u32 classid, unsigned long cl)
 		f->res.class = cl;
 }
 
+static bool fl_delete_empty(struct tcf_proto *tp)
+{
+	struct cls_fl_head *head = fl_head_dereference(tp);
+
+	spin_lock(&tp->lock);
+	tp->deleting = idr_is_empty(&head->handle_idr);
+	spin_unlock(&tp->lock);
+
+	return tp->deleting;
+}
+
 static struct tcf_proto_ops cls_fl_ops __read_mostly = {
 	.kind		= "flower",
 	.classify	= fl_classify,
@@ -2782,6 +2793,7 @@ static struct tcf_proto_ops cls_fl_ops __read_mostly = {
 	.put		= fl_put,
 	.change		= fl_change,
 	.delete		= fl_delete,
+	.delete_empty	= fl_delete_empty,
 	.walk		= fl_walk,
 	.reoffload	= fl_reoffload,
 	.hw_add		= fl_hw_add,

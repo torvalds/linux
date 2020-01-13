@@ -93,7 +93,6 @@
 #include <linux/rodata_test.h>
 #include <linux/jump_label.h>
 #include <linux/mem_encrypt.h>
-#include <linux/file.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -1158,26 +1157,13 @@ static int __ref kernel_init(void *unused)
 
 void console_on_rootfs(void)
 {
-	struct file *file;
-	unsigned int i;
+	/* Open the /dev/console as stdin, this should never fail */
+	if (ksys_open((const char __user *) "/dev/console", O_RDWR, 0) < 0)
+		pr_err("Warning: unable to open an initial console.\n");
 
-	/* Open /dev/console in kernelspace, this should never fail */
-	file = filp_open("/dev/console", O_RDWR, 0);
-	if (IS_ERR(file))
-		goto err_out;
-
-	/* create stdin/stdout/stderr, this should never fail */
-	for (i = 0; i < 3; i++) {
-		if (f_dupfd(i, file, 0) != i)
-			goto err_out;
-	}
-
-	return;
-
-err_out:
-	/* no panic -- this might not be fatal */
-	pr_err("Warning: unable to open an initial console.\n");
-	return;
+	/* create stdout/stderr */
+	(void) ksys_dup(0);
+	(void) ksys_dup(0);
 }
 
 static noinline void __init kernel_init_freeable(void)
