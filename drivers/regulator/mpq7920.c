@@ -274,8 +274,8 @@ static inline int mpq7920_regulator_register(
 
 		info->rdev[i] = devm_regulator_register(info->dev, rdesc,
 					 config);
-		if (IS_ERR(info->rdev))
-			return PTR_ERR(info->rdev);
+		if (IS_ERR(info->rdev[i]))
+			return PTR_ERR(info->rdev[i]);
 	}
 
 	return 0;
