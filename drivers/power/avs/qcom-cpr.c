@@ -1547,8 +1547,6 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 		goto unlock;
 	}
 
-	dev_dbg(drv->dev, "number of OPPs: %d\n", drv->num_corners);
-
 	drv->corners = devm_kcalloc(drv->dev, drv->num_corners,
 				    sizeof(*drv->corners),
 				    GFP_KERNEL);
@@ -1585,6 +1583,9 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 		regmap_update_bits(drv->tcsr, acc_desc->enable_reg,
 				   acc_desc->enable_mask,
 				   acc_desc->enable_mask);
+
+	dev_info(drv->dev, "driver initialized with %u OPPs\n",
+		 drv->num_corners);
 
 unlock:
 	mutex_unlock(&drv->lock);
