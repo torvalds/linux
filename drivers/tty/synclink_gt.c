@@ -2098,7 +2098,7 @@ static void isr_rxdata(struct slgt_info *info)
 		if (desc_complete(info->rbufs[i])) {
 			/* all buffers full */
 			rx_stop(info);
-			info->rx_restart = 1;
+			info->rx_restart = true;
 			continue;
 		}
 		info->rbufs[i].buf[count++] = (unsigned char)reg;
