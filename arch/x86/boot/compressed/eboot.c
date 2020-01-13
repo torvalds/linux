@@ -118,7 +118,6 @@ static void setup_efi_pci(struct boot_params *params)
 	void **pci_handle = NULL;
 	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
 	unsigned long size = 0;
-	unsigned long nr_pci;
 	struct setup_data *data;
 	efi_handle_t h;
 	int i;
@@ -245,7 +244,6 @@ setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
 	u32 width, height;
 	void **uga_handle = NULL;
 	efi_uga_draw_protocol_t *uga = NULL, *first_uga;
-	unsigned long nr_ugas;
 	efi_handle_t handle;
 	int i;
 
