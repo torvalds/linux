@@ -3408,10 +3408,6 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (r)
 		goto out_flags_changed;
 
-	dm_pool_register_pre_commit_callback(pt->pool->pmd,
-					     metadata_pre_commit_callback,
-					     pt);
-
 	pt->callbacks.congested_fn = pool_is_congested;
 	dm_table_add_target_callbacks(ti->table, &pt->callbacks);
 
@@ -3573,6 +3569,9 @@ static int pool_preresume(struct dm_target *ti)
 	r = bind_control_target(pool, ti);
 	if (r)
 		return r;
+
+	dm_pool_register_pre_commit_callback(pool->pmd,
+					     metadata_pre_commit_callback, pt);
 
 	r = maybe_resize_data_dev(ti, &need_commit1);
 	if (r)
