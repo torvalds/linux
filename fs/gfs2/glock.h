@@ -306,4 +306,7 @@ static inline void glock_clear_object(struct gfs2_glock *gl, void *object)
 	spin_unlock(&gl->gl_lockref.lock);
 }
 
+extern void gfs2_inode_remember_delete(struct gfs2_glock *gl, u64 generation);
+extern bool gfs2_inode_already_deleted(struct gfs2_glock *gl, u64 generation);
+
 #endif /* __GLOCK_DOT_H__ */

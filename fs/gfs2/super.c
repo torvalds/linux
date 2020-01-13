@@ -1315,6 +1315,8 @@ static void gfs2_evict_inode(struct inode *inode)
 		goto out;
 	}
 
+	if (gfs2_inode_already_deleted(ip->i_gl, ip->i_no_formal_ino))
+		goto out_truncate;
 	error = gfs2_check_blk_type(sdp, ip->i_no_addr, GFS2_BLKST_UNLINKED);
 	if (error)
 		goto out_truncate;
@@ -1368,6 +1370,7 @@ alloc_failed:
 	   that subsequent inode creates don't see an old gl_object. */
 	glock_clear_object(ip->i_gl, ip);
 	error = gfs2_dinode_dealloc(ip);
+	gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
 	goto out_unlock;
 
 out_truncate:
