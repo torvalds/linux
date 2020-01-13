@@ -646,6 +646,6 @@ asmlinkage void __sched arm64_preempt_schedule_irq(void)
 	 * Only allow a task to be preempted once cpufeatures have been
 	 * enabled.
 	 */
-	if (static_branch_likely(&arm64_const_caps_ready))
+	if (system_capabilities_finalized())
 		preempt_schedule_irq();
 }

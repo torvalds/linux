@@ -547,7 +547,7 @@ static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 	 * wrong, and hyp will crash and burn when it uses any
 	 * cpus_have_const_cap() wrapper.
 	 */
-	BUG_ON(!static_branch_likely(&arm64_const_caps_ready));
+	BUG_ON(!system_capabilities_finalized());
 	__kvm_call_hyp((void *)pgd_ptr, hyp_stack_ptr, vector_ptr, tpidr_el2);
 
 	/*
