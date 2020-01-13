@@ -49,13 +49,7 @@ void uverbs_uobject_get(struct ib_uobject *uobject)
 
 static void uverbs_uobject_free(struct kref *ref)
 {
-	struct ib_uobject *uobj =
-		container_of(ref, struct ib_uobject, ref);
-
-	if (uobj->uapi_object->type_class->needs_kfree_rcu)
-		kfree_rcu(uobj, rcu);
-	else
-		kfree(uobj);
+	kfree_rcu(container_of(ref, struct ib_uobject, ref), rcu);
 }
 
 void uverbs_uobject_put(struct ib_uobject *uobject)
@@ -744,20 +738,6 @@ const struct uverbs_obj_type_class uverbs_idr_class = {
 	.lookup_put = lookup_put_idr_uobject,
 	.destroy_hw = destroy_hw_idr_uobject,
 	.remove_handle = remove_handle_idr_uobject,
-	/*
-	 * When we destroy an object, we first just lock it for WRITE and
-	 * actually DESTROY it in the finalize stage. So, the problematic
-	 * scenario is when we just started the finalize stage of the
-	 * destruction (nothing was executed yet). Now, the other thread
-	 * fetched the object for READ access, but it didn't lock it yet.
-	 * The DESTROY thread continues and starts destroying the object.
-	 * When the other thread continue - without the RCU, it would
-	 * access freed memory. However, the rcu_read_lock delays the free
-	 * until the rcu_read_lock of the READ operation quits. Since the
-	 * exclusive lock of the object is still taken by the DESTROY flow, the
-	 * READ operation will get -EBUSY and it'll just bail out.
-	 */
-	.needs_kfree_rcu = true,
 };
 EXPORT_SYMBOL(uverbs_idr_class);
 
@@ -920,7 +900,6 @@ const struct uverbs_obj_type_class uverbs_fd_class = {
 	.lookup_put = lookup_put_fd_uobject,
 	.destroy_hw = destroy_hw_fd_uobject,
 	.remove_handle = remove_handle_fd_uobject,
-	.needs_kfree_rcu = false,
 };
 EXPORT_SYMBOL(uverbs_fd_class);
 
