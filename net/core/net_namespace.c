@@ -211,16 +211,10 @@ static int net_eq_idr(int id, void *net, void *peer)
 	return 0;
 }
 
-/* Should be called with nsid_lock held. If a new id is assigned, the bool alloc
- * is set to true, thus the caller knows that the new id must be notified via
- * rtnl.
- */
-static int __peernet2id_alloc(struct net *net, struct net *peer, bool *alloc)
+/* Should be called with nsid_lock held. */
+static int __peernet2id(const struct net *net, struct net *peer)
 {
 	int id = idr_for_each(&net->netns_ids, net_eq_idr, peer);
-	bool alloc_it = *alloc;
-
-	*alloc = false;
 
 	/* Magic value for id 0. */
 	if (id == NET_ID_ZERO)
@@ -228,21 +222,7 @@ static int __peernet2id_alloc(struct net *net, struct net *peer, bool *alloc)
 	if (id > 0)
 		return id;
 
-	if (alloc_it) {
-		id = alloc_netid(net, peer, -1);
-		*alloc = true;
-		return id >= 0 ? id : NETNSA_NSID_NOT_ASSIGNED;
-	}
-
 	return NETNSA_NSID_NOT_ASSIGNED;
-}
-
-/* should be called with nsid_lock held */
-static int __peernet2id(struct net *net, struct net *peer)
-{
-	bool no = false;
-
-	return __peernet2id_alloc(net, peer, &no);
 }
 
 static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
@@ -252,26 +232,37 @@ static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
  */
 int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 {
-	bool alloc = false, alive = false;
 	int id;
 
 	if (refcount_read(&net->count) == 0)
 		return NETNSA_NSID_NOT_ASSIGNED;
+
 	spin_lock_bh(&net->nsid_lock);
-	/*
-	 * When peer is obtained from RCU lists, we may race with
+	id = __peernet2id(net, peer);
+	if (id >= 0) {
+		spin_unlock_bh(&net->nsid_lock);
+		return id;
+	}
+
+	/* When peer is obtained from RCU lists, we may race with
 	 * its cleanup. Check whether it's alive, and this guarantees
 	 * we never hash a peer back to net->netns_ids, after it has
 	 * just been idr_remove()'d from there in cleanup_net().
 	 */
-	if (maybe_get_net(peer))
-		alive = alloc = true;
-	id = __peernet2id_alloc(net, peer, &alloc);
+	if (!maybe_get_net(peer)) {
+		spin_unlock_bh(&net->nsid_lock);
+		return NETNSA_NSID_NOT_ASSIGNED;
+	}
+
+	id = alloc_netid(net, peer, -1);
 	spin_unlock_bh(&net->nsid_lock);
-	if (alloc && id >= 0)
-		rtnl_net_notifyid(net, RTM_NEWNSID, id, 0, NULL, gfp);
-	if (alive)
-		put_net(peer);
+
+	put_net(peer);
+	if (id < 0)
+		return NETNSA_NSID_NOT_ASSIGNED;
+
+	rtnl_net_notifyid(net, RTM_NEWNSID, id, 0, NULL, gfp);
+
 	return id;
 }
 EXPORT_SYMBOL_GPL(peernet2id_alloc);
