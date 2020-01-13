@@ -60,6 +60,7 @@ lack of a better place.
    volatile-considered-harmful
    botching-up-ioctls
    clang-format
+   ../riscv/patch-acceptance
 
 .. only::  subproject and html
 

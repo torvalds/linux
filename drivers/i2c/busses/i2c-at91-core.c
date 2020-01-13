@@ -174,7 +174,7 @@ static struct at91_twi_pdata sama5d2_config = {
 
 static struct at91_twi_pdata sam9x60_config = {
 	.clk_max_div = 7,
-	.clk_offset = 4,
+	.clk_offset = 3,
 	.has_unre_flag = true,
 	.has_alt_cmd = true,
 	.has_hold_field = true,

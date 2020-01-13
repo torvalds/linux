@@ -251,11 +251,11 @@ selectively from different subsystems.
 .. code-block:: c
 
     struct kcov_remote_arg {
-	unsigned	trace_mode;
-	unsigned	area_size;
-	unsigned	num_handles;
-	uint64_t	common_handle;
-	uint64_t	handles[0];
+	__u32		trace_mode;
+	__u32		area_size;
+	__u32		num_handles;
+	__aligned_u64	common_handle;
+	__aligned_u64	handles[0];
     };
 
     #define KCOV_INIT_TRACE			_IOR('c', 1, unsigned long)

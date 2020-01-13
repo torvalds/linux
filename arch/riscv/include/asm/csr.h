@@ -116,9 +116,9 @@
 # define SR_PIE		SR_MPIE
 # define SR_PP		SR_MPP
 
-# define IRQ_SOFT	IRQ_M_SOFT
-# define IRQ_TIMER	IRQ_M_TIMER
-# define IRQ_EXT	IRQ_M_EXT
+# define RV_IRQ_SOFT		IRQ_M_SOFT
+# define RV_IRQ_TIMER	IRQ_M_TIMER
+# define RV_IRQ_EXT		IRQ_M_EXT
 #else /* CONFIG_RISCV_M_MODE */
 # define CSR_STATUS	CSR_SSTATUS
 # define CSR_IE		CSR_SIE
@@ -133,15 +133,15 @@
 # define SR_PIE		SR_SPIE
 # define SR_PP		SR_SPP
 
-# define IRQ_SOFT	IRQ_S_SOFT
-# define IRQ_TIMER	IRQ_S_TIMER
-# define IRQ_EXT	IRQ_S_EXT
+# define RV_IRQ_SOFT		IRQ_S_SOFT
+# define RV_IRQ_TIMER	IRQ_S_TIMER
+# define RV_IRQ_EXT		IRQ_S_EXT
 #endif /* CONFIG_RISCV_M_MODE */
 
 /* IE/IP (Supervisor/Machine Interrupt Enable/Pending) flags */
-#define IE_SIE		(_AC(0x1, UL) << IRQ_SOFT)
-#define IE_TIE		(_AC(0x1, UL) << IRQ_TIMER)
-#define IE_EIE		(_AC(0x1, UL) << IRQ_EXT)
+#define IE_SIE		(_AC(0x1, UL) << RV_IRQ_SOFT)
+#define IE_TIE		(_AC(0x1, UL) << RV_IRQ_TIMER)
+#define IE_EIE		(_AC(0x1, UL) << RV_IRQ_EXT)
 
 #ifndef __ASSEMBLY__
 

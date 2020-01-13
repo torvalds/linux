@@ -26,8 +26,6 @@
 
 #define __VDSO_USE_SYSCALL		ULLONG_MAX
 
-#ifdef CONFIG_MIPS_CLOCK_VSYSCALL
-
 static __always_inline long gettimeofday_fallback(
 				struct __kernel_old_timeval *_tv,
 				struct timezone *_tz)
@@ -47,17 +45,6 @@ static __always_inline long gettimeofday_fallback(
 
 	return error ? -ret : ret;
 }
-
-#else
-
-static __always_inline long gettimeofday_fallback(
-				struct __kernel_old_timeval *_tv,
-				struct timezone *_tz)
-{
-	return -1;
-}
-
-#endif
 
 static __always_inline long clock_gettime_fallback(
 					clockid_t _clkid,

@@ -348,7 +348,7 @@ static void dr_ste_replace(struct mlx5dr_ste *dst, struct mlx5dr_ste *src)
 	if (dst->next_htbl)
 		dst->next_htbl->pointing_ste = dst;
 
-	refcount_set(&dst->refcount, refcount_read(&src->refcount));
+	dst->refcount = src->refcount;
 
 	INIT_LIST_HEAD(&dst->rule_list);
 	list_splice_tail_init(&src->rule_list, &dst->rule_list);
@@ -565,7 +565,7 @@ bool mlx5dr_ste_is_not_valid_entry(u8 *p_hw_ste)
 
 bool mlx5dr_ste_not_used_ste(struct mlx5dr_ste *ste)
 {
-	return !refcount_read(&ste->refcount);
+	return !ste->refcount;
 }
 
 /* Init one ste as a pattern for ste data array */
@@ -689,14 +689,14 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	htbl->ste_arr = chunk->ste_arr;
 	htbl->hw_ste_arr = chunk->hw_ste_arr;
 	htbl->miss_list = chunk->miss_list;
-	refcount_set(&htbl->refcount, 0);
+	htbl->refcount = 0;
 
 	for (i = 0; i < chunk->num_of_entries; i++) {
 		struct mlx5dr_ste *ste = &htbl->ste_arr[i];
 
 		ste->hw_ste = htbl->hw_ste_arr + i * DR_STE_SIZE_REDUCED;
 		ste->htbl = htbl;
-		refcount_set(&ste->refcount, 0);
+		ste->refcount = 0;
 		INIT_LIST_HEAD(&ste->miss_list_node);
 		INIT_LIST_HEAD(&htbl->miss_list[i]);
 		INIT_LIST_HEAD(&ste->rule_list);
@@ -713,7 +713,7 @@ out_free_htbl:
 
 int mlx5dr_ste_htbl_free(struct mlx5dr_ste_htbl *htbl)
 {
-	if (refcount_read(&htbl->refcount))
+	if (htbl->refcount)
 		return -EBUSY;
 
 	mlx5dr_icm_free_chunk(htbl->chunk);
