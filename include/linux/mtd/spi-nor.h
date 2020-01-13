@@ -225,14 +225,6 @@ static inline u8 spi_nor_get_protocol_width(enum spi_nor_protocol proto)
 	return spi_nor_get_protocol_data_nbits(proto);
 }
 
-enum spi_nor_ops {
-	SPI_NOR_OPS_READ = 0,
-	SPI_NOR_OPS_WRITE,
-	SPI_NOR_OPS_ERASE,
-	SPI_NOR_OPS_LOCK,
-	SPI_NOR_OPS_UNLOCK,
-};
-
 enum spi_nor_option_flags {
 	SNOR_F_USE_FSR		= BIT(0),
 	SNOR_F_HAS_SR_TB	= BIT(1),
@@ -485,8 +477,8 @@ struct spi_nor;
  *			opcode via write_reg().
  */
 struct spi_nor_controller_ops {
-	int (*prepare)(struct spi_nor *nor, enum spi_nor_ops ops);
-	void (*unprepare)(struct spi_nor *nor, enum spi_nor_ops ops);
+	int (*prepare)(struct spi_nor *nor);
+	void (*unprepare)(struct spi_nor *nor);
 	int (*read_reg)(struct spi_nor *nor, u8 opcode, u8 *buf, size_t len);
 	int (*write_reg)(struct spi_nor *nor, u8 opcode, const u8 *buf,
 			 size_t len);
