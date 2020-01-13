@@ -605,6 +605,12 @@ struct drm_dp_mst_topology_mgr {
 	 * &drm_dp_sideband_msg_tx.state once they are queued
 	 */
 	struct mutex qlock;
+
+	/**
+	 * @is_waiting_for_dwn_reply: indicate whether is waiting for down reply
+	 */
+	bool is_waiting_for_dwn_reply;
+
 	/**
 	 * @tx_msg_downq: List of pending down replies.
 	 */
