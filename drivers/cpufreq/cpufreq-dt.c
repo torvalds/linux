@@ -358,6 +358,9 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 
 #ifdef CONFIG_ARCH_ROCKCHIP
 	rockchip_cpufreq_suspend(policy);
+	rockchip_system_monitor_unregister(priv->mdev_info);
+	kfree(priv->mdevp);
+	priv->mdevp = NULL;
 #endif
 	dev_pm_opp_free_cpufreq_table(priv->cpu_dev, &policy->freq_table);
 	if (priv->have_static_opps)
@@ -366,8 +369,6 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 		dev_pm_opp_put_regulators(priv->opp_table);
 #ifdef CONFIG_ARCH_ROCKCHIP
 	rockchip_cpufreq_put_opp_info(priv->cpu_dev);
-	rockchip_system_monitor_unregister(priv->mdev_info);
-	kfree(priv->mdevp);
 #endif
 	clk_put(policy->clk);
 	kfree(priv);
