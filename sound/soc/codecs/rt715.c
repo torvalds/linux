@@ -203,7 +203,6 @@ static int rt715_set_amp_gain_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -6525, 75, 0);
 static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -1725, 75, 0);
 static const DECLARE_TLV_DB_SCALE(mic_vol_tlv, 0, 1000, 0);
 
@@ -366,7 +365,7 @@ static const char * const adc_22_23_mux_text[] = {
 	"DMIC4",
 };
 
-/**
+/*
  * Due to mux design for nid 24 (MUX_IN3)/25 (MUX_IN4), connection index 0 and
  * 1 will be connected to the same dmic source, therefore we skip index 1 to
  * avoid misunderstanding on usage of dapm routing.
@@ -404,6 +403,7 @@ static SOC_ENUM_SINGLE_DECL(
 static SOC_VALUE_ENUM_SINGLE_DECL(rt715_adc24_enum,
 	RT715_MUX_IN3, 0, 0xf,
 	adc_24_mux_text, rt715_adc_24_25_values);
+
 static SOC_VALUE_ENUM_SINGLE_DECL(rt715_adc25_enum,
 	RT715_MUX_IN4, 0, 0xf,
 	adc_25_mux_text, rt715_adc_24_25_values);
