@@ -8,6 +8,8 @@
 #ifndef _MSCC_OCELOT_MACSEC_H_
 #define _MSCC_OCELOT_MACSEC_H_
 
+#define MSCC_MS_MAX_FLOWS		16
+
 #define CONTROL_TYPE_EGRESS		0x6
 #define CONTROL_TYPE_INGRESS		0xf
 #define CONTROL_IV0			BIT(5)
@@ -59,6 +61,8 @@ enum mscc_macsec_validate_levels {
 #define MSCC_MS_XFORM_REC(x, y)		(((x) << 5) + (y))
 #define MSCC_MS_ENA_CFG			0x800
 #define MSCC_MS_FC_CFG			0x804
+#define MSCC_MS_SAM_MAC_SA_MATCH_LO(x)	(0x1000 + ((x) << 4))
+#define MSCC_MS_SAM_MAC_SA_MATCH_HI(x)	(0x1001 + ((x) << 4))
 #define MSCC_MS_SAM_MISC_MATCH(x)	(0x1004 + ((x) << 4))
 #define MSCC_MS_SAM_MATCH_SCI_LO(x)	(0x1005 + ((x) << 4))
 #define MSCC_MS_SAM_MATCH_SCI_HI(x)	(0x1006 + ((x) << 4))
