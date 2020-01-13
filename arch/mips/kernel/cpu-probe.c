@@ -102,7 +102,12 @@ static void cpu_set_fpu_2008(struct cpuinfo_mips *c)
 		if (fir & MIPS_FPIR_HAS2008) {
 			fcsr = read_32bit_cp1_register(CP1_STATUS);
 
-			fcsr0 = fcsr & ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
+			/*
+			 * MAC2008 toolchain never landed in real world, so we're only
+			 * testing wether it can be disabled and don't try to enabled
+			 * it.
+			 */
+			fcsr0 = fcsr & ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008 | FPU_CSR_MAC2008);
 			write_32bit_cp1_register(CP1_STATUS, fcsr0);
 			fcsr0 = read_32bit_cp1_register(CP1_STATUS);
 
@@ -111,6 +116,15 @@ static void cpu_set_fpu_2008(struct cpuinfo_mips *c)
 			fcsr1 = read_32bit_cp1_register(CP1_STATUS);
 
 			write_32bit_cp1_register(CP1_STATUS, fcsr);
+
+			if (c->isa_level & (MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2)) {
+				/*
+				 * The bit for MAC2008 might be reused by R6 in future,
+				 * so we only test for R2-R5.
+				 */
+				if (fcsr0 & FPU_CSR_MAC2008)
+					c->options |= MIPS_CPU_MAC_2008_ONLY;
+			}
 
 			if (!(fcsr0 & FPU_CSR_NAN2008))
 				c->options |= MIPS_CPU_NAN_LEGACY;
