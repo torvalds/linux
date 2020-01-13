@@ -820,10 +820,12 @@ static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
 		cp_ready);
 
 	/* TODO */
-	if (cp_state)
+	if (cp_state) {
 		;
-	if (cp_ready)
+	}
+	if (cp_ready) {
 		;
+	}
 }
 
 
