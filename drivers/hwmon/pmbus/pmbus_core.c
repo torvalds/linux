@@ -709,6 +709,14 @@ static long pmbus_reg2data_vid(struct pmbus_data *data,
 		if (val >= 0x01)
 			rv = 500 + (val - 1) * 10;
 		break;
+	case imvp9:
+		if (val >= 0x01)
+			rv = 200 + (val - 1) * 10;
+		break;
+	case amd625mv:
+		if (val >= 0x0 && val <= 0xd8)
+			rv = DIV_ROUND_CLOSEST(155000 - val * 625, 100);
+		break;
 	}
 	return rv;
 }
