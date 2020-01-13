@@ -174,4 +174,25 @@ struct macsec_secy {
 	struct macsec_rx_sc __rcu *rx_sc;
 };
 
+/**
+ * struct macsec_context - MACsec context for hardware offloading
+ */
+struct macsec_context {
+	struct phy_device *phydev;
+	enum macsec_offload offload;
+
+	struct macsec_secy *secy;
+	struct macsec_rx_sc *rx_sc;
+	struct {
+		unsigned char assoc_num;
+		u8 key[MACSEC_KEYID_LEN];
+		union {
+			struct macsec_rx_sa *rx_sa;
+			struct macsec_tx_sa *tx_sa;
+		};
+	} sa;
+
+	u8 prepare:1;
+};
+
 #endif /* _NET_MACSEC_H_ */
