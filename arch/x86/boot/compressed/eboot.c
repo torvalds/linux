@@ -21,16 +21,18 @@
 #include "eboot.h"
 
 static efi_system_table_t *sys_table;
-static bool efi_is64 = IS_ENABLED(CONFIG_X86_64);
+extern const bool efi_is64;
 
 __pure efi_system_table_t *efi_system_table(void)
 {
 	return sys_table;
 }
 
-__pure bool efi_is_64bit(void)
+__attribute_const__ bool efi_is_64bit(void)
 {
-	return efi_is64;
+	if (IS_ENABLED(CONFIG_EFI_MIXED))
+		return efi_is64;
+	return IS_ENABLED(CONFIG_X64_64);
 }
 
 static efi_status_t
@@ -710,8 +712,7 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
  */
 struct boot_params *efi_main(efi_handle_t handle,
 			     efi_system_table_t *sys_table_arg,
-			     struct boot_params *boot_params,
-			     bool is64)
+			     struct boot_params *boot_params)
 {
 	struct desc_ptr *gdt = NULL;
 	struct setup_header *hdr = &boot_params->hdr;
@@ -720,9 +721,6 @@ struct boot_params *efi_main(efi_handle_t handle,
 	unsigned long cmdline_paddr;
 
 	sys_table = sys_table_arg;
-
-	if (IS_ENABLED(CONFIG_EFI_MIXED))
-		efi_is64 = is64;
 
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)

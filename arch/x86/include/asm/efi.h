@@ -221,7 +221,7 @@ efi_status_t efi_set_virtual_address_map(unsigned long memory_map_size,
 
 /* arch specific definitions used by the stub code */
 
-__pure bool efi_is_64bit(void);
+__attribute_const__ bool efi_is_64bit(void);
 
 static inline bool efi_is_native(void)
 {
