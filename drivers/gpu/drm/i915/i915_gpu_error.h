@@ -212,7 +212,7 @@ __printf(2, 3)
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
 
 struct i915_gpu_coredump *i915_gpu_coredump(struct drm_i915_private *i915);
-void i915_capture_error_state(struct drm_i915_private *dev_priv);
+void i915_capture_error_state(struct drm_i915_private *i915);
 
 struct i915_gpu_coredump *
 i915_gpu_coredump_alloc(struct drm_i915_private *i915, gfp_t gfp);
@@ -264,9 +264,7 @@ void i915_disable_error_state(struct drm_i915_private *i915, int err);
 
 #else
 
-static inline void i915_capture_error_state(struct drm_i915_private *dev_priv,
-					    u32 engine_mask,
-					    const char *error_msg)
+static inline void i915_capture_error_state(struct drm_i915_private *i915)
 {
 }
 
