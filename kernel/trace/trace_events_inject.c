@@ -195,7 +195,7 @@ static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
 	unsigned long irq_flags;
 	void *entry = NULL;
 	int entry_size;
-	u64 val;
+	u64 val = 0;
 	int len;
 
 	entry = trace_alloc_entry(call, &entry_size);
