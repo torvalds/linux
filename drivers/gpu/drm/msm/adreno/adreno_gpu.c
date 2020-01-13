@@ -67,7 +67,7 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
 	 *
 	 * If the firmware-name property is found, we bypass the
 	 * adreno_request_fw() mechanism, because we don't need to handle
-	 * the /lib/firmware/qcom/* vs /lib/firmware/* case.
+	 * the /lib/firmware/qcom/... vs /lib/firmware/... case.
 	 *
 	 * If the firmware-name property is not found, for backwards
 	 * compatibility we fall back to the fwname from the gpulist
