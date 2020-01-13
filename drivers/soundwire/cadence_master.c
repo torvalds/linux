@@ -989,8 +989,6 @@ int sdw_cdns_pdi_init(struct sdw_cdns *cdns,
 	ret = cdns_allocate_pdi(cdns, &stream->out,
 				stream->num_out, offset);
 
-	offset += stream->num_out;
-
 	if (ret)
 		return ret;
 
