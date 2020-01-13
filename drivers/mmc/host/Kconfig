@@ -990,6 +990,7 @@ config MMC_SDHCI_BRCMSTB
 	tristate "Broadcom SDIO/SD/MMC support"
 	depends on ARCH_BRCMSTB || BMIPS_GENERIC
 	depends on MMC_SDHCI_PLTFM
+	select MMC_CQHCI
 	default y
 	help
 	  This selects support for the SDIO/SD/MMC Host Controller on
