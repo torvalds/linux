@@ -940,30 +940,43 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 
 }
 
-static void calculate_integer_scaling(struct pipe_ctx *pipe_ctx)
+/*
+ * When handling 270 rotation in mixed SLS mode, we have
+ * stream->timing.h_border_left that is non zero.  If we are doing
+ * pipe-splitting, this h_border_left value gets added to recout.x and when it
+ * calls calculate_inits_and_adj_vp() and
+ * adjust_vp_and_init_for_seamless_clip(), it can cause viewport.height for a
+ * pipe to be incorrect.
+ *
+ * To fix this, instead of using stream->timing.h_border_left, we can use
+ * stream->dst.x to represent the border instead.  So we will set h_border_left
+ * to 0 and shift the appropriate amount in stream->dst.x.  We will then
+ * perform all calculations in resource_build_scaling_params() based on this
+ * and then restore the h_border_left and stream->dst.x to their original
+ * values.
+ *
+ * shift_border_left_to_dst() will shift the amount of h_border_left to
+ * stream->dst.x and set h_border_left to 0.  restore_border_left_from_dst()
+ * will restore h_border_left and stream->dst.x back to their original values
+ * We also need to make sure pipe_ctx->plane_res.scl_data.h_active uses the
+ * original h_border_left value in its calculation.
+ */
+int shift_border_left_to_dst(struct pipe_ctx *pipe_ctx)
 {
-	unsigned int integer_multiple = 1;
+	int store_h_border_left = pipe_ctx->stream->timing.h_border_left;
 
-	if (pipe_ctx->plane_state->scaling_quality.integer_scaling) {
-		// calculate maximum # of replication of src onto addressable
-		integer_multiple = min(
-				pipe_ctx->stream->timing.h_addressable / pipe_ctx->stream->src.width,
-				pipe_ctx->stream->timing.v_addressable  / pipe_ctx->stream->src.height);
-
-		//scale dst
-		pipe_ctx->stream->dst.width  = integer_multiple * pipe_ctx->stream->src.width;
-		pipe_ctx->stream->dst.height = integer_multiple * pipe_ctx->stream->src.height;
-
-		//center dst onto addressable
-		pipe_ctx->stream->dst.x = (pipe_ctx->stream->timing.h_addressable - pipe_ctx->stream->dst.width)/2;
-		pipe_ctx->stream->dst.y = (pipe_ctx->stream->timing.v_addressable - pipe_ctx->stream->dst.height)/2;
-
-		//We are guaranteed that we are scaling in integer ratio
-		pipe_ctx->plane_state->scaling_quality.v_taps = 1;
-		pipe_ctx->plane_state->scaling_quality.h_taps = 1;
-		pipe_ctx->plane_state->scaling_quality.v_taps_c = 1;
-		pipe_ctx->plane_state->scaling_quality.h_taps_c = 1;
+	if (store_h_border_left) {
+		pipe_ctx->stream->timing.h_border_left = 0;
+		pipe_ctx->stream->dst.x += store_h_border_left;
 	}
+	return store_h_border_left;
+}
+
+void restore_border_left_from_dst(struct pipe_ctx *pipe_ctx,
+                                  int store_h_border_left)
+{
+	pipe_ctx->stream->dst.x -= store_h_border_left;
+	pipe_ctx->stream->timing.h_border_left = store_h_border_left;
 }
 
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
@@ -971,6 +984,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	bool res = false;
+	int store_h_border_left = shift_border_left_to_dst(pipe_ctx);
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 	/* Important: scaling ratio calculation requires pixel format,
 	 * lb depth calculation requires recout and taps require scaling ratios.
@@ -979,14 +993,18 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
 			pipe_ctx->plane_state->format);
 
-	calculate_integer_scaling(pipe_ctx);
-
 	calculate_scaling_ratios(pipe_ctx);
 
 	calculate_viewport(pipe_ctx);
 
-	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 || pipe_ctx->plane_res.scl_data.viewport.width < 16)
+	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 ||
+		pipe_ctx->plane_res.scl_data.viewport.width < 16) {
+		if (store_h_border_left) {
+			restore_border_left_from_dst(pipe_ctx,
+				store_h_border_left);
+		}
 		return false;
+	}
 
 	calculate_recout(pipe_ctx);
 
@@ -999,8 +1017,10 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.recout.x += timing->h_border_left;
 	pipe_ctx->plane_res.scl_data.recout.y += timing->v_border_top;
 
-	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
-	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
+	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable +
+		store_h_border_left + timing->h_border_right;
+	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable +
+		timing->v_border_top + timing->v_border_bottom;
 
 	/* Taps calculations */
 	if (pipe_ctx->plane_res.xfm != NULL)
@@ -1046,6 +1066,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 				plane_state->dst_rect.width,
 				plane_state->dst_rect.x,
 				plane_state->dst_rect.y);
+
+	if (store_h_border_left)
+		restore_border_left_from_dst(pipe_ctx, store_h_border_left);
 
 	return res;
 }
@@ -1894,8 +1917,26 @@ static int acquire_resource_from_hw_enabled_state(
 		pipe_ctx->plane_res.dpp = pool->dpps[tg_inst];
 		pipe_ctx->stream_res.opp = pool->opps[tg_inst];
 
-		if (pool->dpps[tg_inst])
+		if (pool->dpps[tg_inst]) {
 			pipe_ctx->plane_res.mpcc_inst = pool->dpps[tg_inst]->inst;
+
+			// Read DPP->MPCC->OPP Pipe from HW State
+			if (pool->mpc->funcs->read_mpcc_state) {
+				struct mpcc_state s = {0};
+
+				pool->mpc->funcs->read_mpcc_state(pool->mpc, pipe_ctx->plane_res.mpcc_inst, &s);
+
+				if (s.dpp_id < MAX_MPCC)
+					pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].dpp_id = s.dpp_id;
+
+				if (s.bot_mpcc_id < MAX_MPCC)
+					pool->mpc->mpcc_array[pipe_ctx->plane_res.mpcc_inst].mpcc_bot =
+							&pool->mpc->mpcc_array[s.bot_mpcc_id];
+
+				if (s.opp_id < MAX_OPP)
+					pipe_ctx->stream_res.opp->mpc_tree_params.opp_id = s.opp_id;
+			}
+		}
 		pipe_ctx->pipe_idx = tg_inst;
 
 		pipe_ctx->stream = stream;
@@ -2281,7 +2322,7 @@ static void set_avi_info_frame(
 		if (color_space == COLOR_SPACE_SRGB ||
 			color_space == COLOR_SPACE_2020_RGB_FULLRANGE) {
 			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
-			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_FULL_RANGE;
+			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 		} else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
 					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE) {
 			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
@@ -2811,3 +2852,51 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 		return -1;
 	}
 }
+static unsigned int get_max_audio_sample_rate(struct audio_mode *modes)
+{
+	if (modes) {
+		if (modes->sample_rates.rate.RATE_192)
+			return 192000;
+		if (modes->sample_rates.rate.RATE_176_4)
+			return 176400;
+		if (modes->sample_rates.rate.RATE_96)
+			return 96000;
+		if (modes->sample_rates.rate.RATE_88_2)
+			return 88200;
+		if (modes->sample_rates.rate.RATE_48)
+			return 48000;
+		if (modes->sample_rates.rate.RATE_44_1)
+			return 44100;
+		if (modes->sample_rates.rate.RATE_32)
+			return 32000;
+	}
+	/*original logic when no audio info*/
+	return 441000;
+}
+
+void get_audio_check(struct audio_info *aud_modes,
+	struct audio_check *audio_chk)
+{
+	unsigned int i;
+	unsigned int max_sample_rate = 0;
+
+	if (aud_modes) {
+		audio_chk->audio_packet_type = 0x2;/*audio sample packet AP = .25 for layout0, 1 for layout1*/
+
+		audio_chk->max_audiosample_rate = 0;
+		for (i = 0; i < aud_modes->mode_count; i++) {
+			max_sample_rate = get_max_audio_sample_rate(&aud_modes->modes[i]);
+			if (audio_chk->max_audiosample_rate < max_sample_rate)
+				audio_chk->max_audiosample_rate = max_sample_rate;
+			/*dts takes the same as type 2: AP = 0.25*/
+		}
+		/*check which one take more bandwidth*/
+		if (audio_chk->max_audiosample_rate > 192000)
+			audio_chk->audio_packet_type = 0x9;/*AP =1*/
+		audio_chk->acat = 0;/*not support*/
+	}
+}
+
+
+
+

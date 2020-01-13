@@ -128,45 +128,53 @@ static void mmhub_v9_4_init_system_aperture_regs(struct amdgpu_device *adev,
 			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
 			    adev->gmc.agp_start >> 24);
 
-	/* Program the system aperture low logical page number. */
-	WREG32_SOC15_OFFSET(MMHUB, 0,
-			    mmVMSHAREDVC0_MC_VM_SYSTEM_APERTURE_LOW_ADDR,
-			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
-			    min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
-	WREG32_SOC15_OFFSET(MMHUB, 0,
-			    mmVMSHAREDVC0_MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
-			    max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
+	if (!amdgpu_sriov_vf(adev)) {
+		/* Program the system aperture low logical page number. */
+		WREG32_SOC15_OFFSET(
+			MMHUB, 0, mmVMSHAREDVC0_MC_VM_SYSTEM_APERTURE_LOW_ADDR,
+			hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
+			min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
+		WREG32_SOC15_OFFSET(
+			MMHUB, 0, mmVMSHAREDVC0_MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+			hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
+			max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
-	/* Set default page address. */
-	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start +
-		adev->vm_manager.vram_base_offset;
-	WREG32_SOC15_OFFSET(MMHUB, 0,
+		/* Set default page address. */
+		value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start +
+			adev->vm_manager.vram_base_offset;
+		WREG32_SOC15_OFFSET(
+			MMHUB, 0,
 			mmVMSHAREDPF0_MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
 			hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
 			(u32)(value >> 12));
-	WREG32_SOC15_OFFSET(MMHUB, 0,
+		WREG32_SOC15_OFFSET(
+			MMHUB, 0,
 			mmVMSHAREDPF0_MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
 			hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
 			(u32)(value >> 44));
 
-	/* Program "protection fault". */
-	WREG32_SOC15_OFFSET(MMHUB, 0,
-			    mmVML2PF0_VM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32,
-			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
-			    (u32)(adev->dummy_page_addr >> 12));
-	WREG32_SOC15_OFFSET(MMHUB, 0,
-			    mmVML2PF0_VM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32,
-			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
-			    (u32)((u64)adev->dummy_page_addr >> 44));
+		/* Program "protection fault". */
+		WREG32_SOC15_OFFSET(
+			MMHUB, 0,
+			mmVML2PF0_VM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32,
+			hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
+			(u32)(adev->dummy_page_addr >> 12));
+		WREG32_SOC15_OFFSET(
+			MMHUB, 0,
+			mmVML2PF0_VM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32,
+			hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
+			(u32)((u64)adev->dummy_page_addr >> 44));
 
-	tmp = RREG32_SOC15_OFFSET(MMHUB, 0,
-				  mmVML2PF0_VM_L2_PROTECTION_FAULT_CNTL2,
-				  hubid * MMHUB_INSTANCE_REGISTER_OFFSET);
-	tmp = REG_SET_FIELD(tmp, VML2PF0_VM_L2_PROTECTION_FAULT_CNTL2,
-			    ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY, 1);
-	WREG32_SOC15_OFFSET(MMHUB, 0, mmVML2PF0_VM_L2_PROTECTION_FAULT_CNTL2,
-			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET, tmp);
+		tmp = RREG32_SOC15_OFFSET(
+			MMHUB, 0, mmVML2PF0_VM_L2_PROTECTION_FAULT_CNTL2,
+			hubid * MMHUB_INSTANCE_REGISTER_OFFSET);
+		tmp = REG_SET_FIELD(tmp, VML2PF0_VM_L2_PROTECTION_FAULT_CNTL2,
+				    ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY, 1);
+		WREG32_SOC15_OFFSET(MMHUB, 0,
+				    mmVML2PF0_VM_L2_PROTECTION_FAULT_CNTL2,
+				    hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
+				    tmp);
+	}
 }
 
 static void mmhub_v9_4_init_tlb_regs(struct amdgpu_device *adev, int hubid)
@@ -368,30 +376,16 @@ int mmhub_v9_4_gart_enable(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < MMHUB_NUM_INSTANCES; i++) {
-		if (amdgpu_sriov_vf(adev)) {
-			/*
-			 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase
-			 * they are VF copy registers so vbios post doesn't
-			 * program them, for SRIOV driver need to program them
-			 */
-			WREG32_SOC15_OFFSET(MMHUB, 0,
-				     mmVMSHAREDVC0_MC_VM_FB_LOCATION_BASE,
-				     i * MMHUB_INSTANCE_REGISTER_OFFSET,
-				     adev->gmc.vram_start >> 24);
-			WREG32_SOC15_OFFSET(MMHUB, 0,
-				     mmVMSHAREDVC0_MC_VM_FB_LOCATION_TOP,
-				     i * MMHUB_INSTANCE_REGISTER_OFFSET,
-				     adev->gmc.vram_end >> 24);
-		}
-
 		/* GART Enable. */
 		mmhub_v9_4_init_gart_aperture_regs(adev, i);
 		mmhub_v9_4_init_system_aperture_regs(adev, i);
 		mmhub_v9_4_init_tlb_regs(adev, i);
-		mmhub_v9_4_init_cache_regs(adev, i);
+		if (!amdgpu_sriov_vf(adev))
+			mmhub_v9_4_init_cache_regs(adev, i);
 
 		mmhub_v9_4_enable_system_domain(adev, i);
-		mmhub_v9_4_disable_identity_aperture(adev, i);
+		if (!amdgpu_sriov_vf(adev))
+			mmhub_v9_4_disable_identity_aperture(adev, i);
 		mmhub_v9_4_setup_vmid_config(adev, i);
 		mmhub_v9_4_program_invalidation(adev, i);
 	}

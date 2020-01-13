@@ -1,5 +1,6 @@
 /*
 * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2019 Raptor Engineering, LLC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -62,6 +63,8 @@
 
 #include "dcn20/dcn20_dwb.h"
 #include "dcn20/dcn20_mmhubbub.h"
+#include "dpcs/dpcs_2_1_0_offset.h"
+#include "dpcs/dpcs_2_1_0_sh_mask.h"
 
 #include "renoir_ip_offset.h"
 #include "dcn/dcn_2_1_0_offset.h"
@@ -993,7 +996,8 @@ static void patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_s
 {
 	int i;
 
-	kernel_fpu_begin();
+	DC_FP_START();
+
 	if (dc->bb_overrides.sr_exit_time_ns) {
 		for (i = 0; i < WM_SET_COUNT; i++) {
 			  dc->clk_mgr->bw_params->wm_table.entries[i].sr_exit_time_us =
@@ -1019,7 +1023,7 @@ static void patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_s
 		}
 	}
 
-	kernel_fpu_end();
+	DC_FP_END();
 }
 
 void dcn21_calculate_wm(
@@ -1319,12 +1323,6 @@ struct display_stream_compressor *dcn21_dsc_create(
 
 static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
-	/*
-	TODO: Fix this function to calcualte correct values.
-	There are known issues with this function currently
-	that will need to be investigated. Use hardcoded known good values for now.
-
-
 	struct dcn21_resource_pool *pool = TO_DCN21_RES_POOL(dc->res_pool);
 	struct clk_limit_table *clk_table = &bw_params->clk_table;
 	int i;
@@ -1339,11 +1337,10 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 		dcn2_1_soc.clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
 		dcn2_1_soc.clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
 		dcn2_1_soc.clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-		dcn2_1_soc.clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 16 / 1000;
+		dcn2_1_soc.clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2;
 	}
-	dcn2_1_soc.clock_limits[i] = dcn2_1_soc.clock_limits[i - i];
+	dcn2_1_soc.clock_limits[i] = dcn2_1_soc.clock_limits[i - 1];
 	dcn2_1_soc.num_states = i;
-	*/
 }
 
 /* Temporary Place holder until we can get them from fuse */
@@ -1497,8 +1494,9 @@ static const struct encoder_feature_support link_enc_feature = {
 
 #define link_regs(id, phyid)\
 [id] = {\
-	LE_DCN10_REG_LIST(id), \
+	LE_DCN2_REG_LIST(id), \
 	UNIPHY_DCN2_REG_LIST(phyid), \
+	DPCS_DCN21_REG_LIST(id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
 }
 
@@ -1537,11 +1535,13 @@ static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
 };
 
 static const struct dcn10_link_enc_shift le_shift = {
-	LINK_ENCODER_MASK_SH_LIST_DCN20(__SHIFT)
+	LINK_ENCODER_MASK_SH_LIST_DCN20(__SHIFT),\
+	DPCS_DCN21_MASK_SH_LIST(__SHIFT)
 };
 
 static const struct dcn10_link_enc_mask le_mask = {
-	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK)
+	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK),\
+	DPCS_DCN21_MASK_SH_LIST(_MASK)
 };
 
 static int map_transmitter_id_to_phy_instance(
@@ -1776,41 +1776,41 @@ static bool dcn21_resource_construct(
 		if ((pipe_fuses & (1 << i)) != 0)
 			continue;
 
-		pool->base.hubps[i] = dcn21_hubp_create(ctx, i);
-		if (pool->base.hubps[i] == NULL) {
+		pool->base.hubps[j] = dcn21_hubp_create(ctx, i);
+		if (pool->base.hubps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create memory input!\n");
 			goto create_fail;
 		}
 
-		pool->base.ipps[i] = dcn21_ipp_create(ctx, i);
-		if (pool->base.ipps[i] == NULL) {
+		pool->base.ipps[j] = dcn21_ipp_create(ctx, i);
+		if (pool->base.ipps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create input pixel processor!\n");
 			goto create_fail;
 		}
 
-		pool->base.dpps[i] = dcn21_dpp_create(ctx, i);
-		if (pool->base.dpps[i] == NULL) {
+		pool->base.dpps[j] = dcn21_dpp_create(ctx, i);
+		if (pool->base.dpps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create dpps!\n");
 			goto create_fail;
 		}
 
-		pool->base.opps[i] = dcn21_opp_create(ctx, i);
-		if (pool->base.opps[i] == NULL) {
+		pool->base.opps[j] = dcn21_opp_create(ctx, i);
+		if (pool->base.opps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create output pixel processor!\n");
 			goto create_fail;
 		}
 
-		pool->base.timing_generators[i] = dcn21_timing_generator_create(
+		pool->base.timing_generators[j] = dcn21_timing_generator_create(
 				ctx, i);
-		if (pool->base.timing_generators[i] == NULL) {
+		if (pool->base.timing_generators[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error("DC: failed to create tg!\n");
 			goto create_fail;

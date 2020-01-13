@@ -133,6 +133,13 @@ struct amdgpu_display_manager {
 	struct dmub_srv *dmub_srv;
 
 	/**
+	 * @dmub_fb_info:
+	 *
+	 * Framebuffer regions for the DMUB.
+	 */
+	struct dmub_srv_fb_info *dmub_fb_info;
+
+	/**
 	 * @dmub_fw:
 	 *
 	 * DMUB firmware, required on hardware that has DMUB support.

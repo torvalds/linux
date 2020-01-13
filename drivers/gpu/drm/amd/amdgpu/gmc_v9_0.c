@@ -207,6 +207,11 @@ static int gmc_v9_0_ecc_interrupt_state(struct amdgpu_device *adev,
 {
 	u32 bits, i, tmp, reg;
 
+	/* Devices newer then VEGA10/12 shall have these programming
+	     sequences performed by PSP BL */
+	if (adev->asic_type >= CHIP_VEGA20)
+		return 0;
+
 	bits = 0x7f;
 
 	switch (state) {
@@ -393,8 +398,10 @@ static void gmc_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->gmc.vm_fault.num_types = 1;
 	adev->gmc.vm_fault.funcs = &gmc_v9_0_irq_funcs;
 
-	adev->gmc.ecc_irq.num_types = 1;
-	adev->gmc.ecc_irq.funcs = &gmc_v9_0_ecc_funcs;
+	if (!amdgpu_sriov_vf(adev)) {
+		adev->gmc.ecc_irq.num_types = 1;
+		adev->gmc.ecc_irq.funcs = &gmc_v9_0_ecc_funcs;
+	}
 }
 
 static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid,
@@ -790,36 +797,6 @@ static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 	}
 }
 
-static int gmc_v9_0_allocate_vm_inv_eng(struct amdgpu_device *adev)
-{
-	struct amdgpu_ring *ring;
-	unsigned vm_inv_engs[AMDGPU_MAX_VMHUBS] =
-		{GFXHUB_FREE_VM_INV_ENGS_BITMAP, MMHUB_FREE_VM_INV_ENGS_BITMAP,
-		GFXHUB_FREE_VM_INV_ENGS_BITMAP};
-	unsigned i;
-	unsigned vmhub, inv_eng;
-
-	for (i = 0; i < adev->num_rings; ++i) {
-		ring = adev->rings[i];
-		vmhub = ring->funcs->vmhub;
-
-		inv_eng = ffs(vm_inv_engs[vmhub]);
-		if (!inv_eng) {
-			dev_err(adev->dev, "no VM inv eng for ring %s\n",
-				ring->name);
-			return -EINVAL;
-		}
-
-		ring->vm_inv_eng = inv_eng - 1;
-		vm_inv_engs[vmhub] &= ~(1 << ring->vm_inv_eng);
-
-		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
-			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
-	}
-
-	return 0;
-}
-
 static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -828,7 +805,7 @@ static int gmc_v9_0_late_init(void *handle)
 	if (!gmc_v9_0_keep_stolen_memory(adev))
 		amdgpu_bo_late_init(adev);
 
-	r = gmc_v9_0_allocate_vm_inv_eng(adev);
+	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
 	if (r)
 		return r;
 	/* Check if ecc is available */
@@ -1112,11 +1089,13 @@ static int gmc_v9_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	/* interrupt sent to DF. */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DF, 0,
-			&adev->gmc.ecc_irq);
-	if (r)
-		return r;
+	if (!amdgpu_sriov_vf(adev)) {
+		/* interrupt sent to DF. */
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DF, 0,
+				      &adev->gmc.ecc_irq);
+		if (r)
+			return r;
+	}
 
 	/* Set the internal MC address mask
 	 * This is the max address of the GPU's
@@ -1302,12 +1281,13 @@ static int gmc_v9_0_hw_init(void *handle)
 	else
 		value = true;
 
-	gfxhub_v1_0_set_fault_enable_default(adev, value);
-	if (adev->asic_type == CHIP_ARCTURUS)
-		mmhub_v9_4_set_fault_enable_default(adev, value);
-	else
-		mmhub_v1_0_set_fault_enable_default(adev, value);
-
+	if (!amdgpu_sriov_vf(adev)) {
+		gfxhub_v1_0_set_fault_enable_default(adev, value);
+		if (adev->asic_type == CHIP_ARCTURUS)
+			mmhub_v9_4_set_fault_enable_default(adev, value);
+		else
+			mmhub_v1_0_set_fault_enable_default(adev, value);
+	}
 	for (i = 0; i < adev->num_vmhubs; ++i)
 		gmc_v9_0_flush_gpu_tlb(adev, 0, i, 0);
 

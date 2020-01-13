@@ -183,10 +183,10 @@ void dcn20_enable_power_gating_plane(
 	struct dce_hwseq *hws,
 	bool enable)
 {
-	bool force_on = 1; /* disable power gating */
+	bool force_on = true; /* disable power gating */
 
 	if (enable)
-		force_on = 0;
+		force_on = false;
 
 	/* DCHUBP0/1/2/3/4/5 */
 	REG_UPDATE(DOMAIN0_PG_CONFIG, DOMAIN0_POWER_FORCEON, force_on);
@@ -1305,6 +1305,7 @@ static void dcn20_update_dchubp_dpp(
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
+	bool viewport_changed = false;
 
 	if (pipe_ctx->update_flags.bits.dppclk)
 		dpp->funcs->dpp_dppclk_control(dpp, false, true);
@@ -1355,9 +1356,9 @@ static void dcn20_update_dchubp_dpp(
 			|| plane_state->update_flags.bits.global_alpha_change
 			|| plane_state->update_flags.bits.per_pixel_alpha_change) {
 		// MPCC inst is equal to pipe index in practice
-		int mpcc_inst = pipe_ctx->pipe_idx;
+		int mpcc_inst = hubp->inst;
 		int opp_inst;
-		int opp_count = dc->res_pool->res_cap->num_opp;
+		int opp_count = dc->res_pool->pipe_count;
 
 		for (opp_inst = 0; opp_inst < opp_count; opp_inst++) {
 			if (dc->res_pool->opps[opp_inst]->mpcc_disconnect_pending[mpcc_inst]) {
@@ -1383,15 +1384,18 @@ static void dcn20_update_dchubp_dpp(
 
 	if (pipe_ctx->update_flags.bits.viewport ||
 			(context == dc->current_state && plane_state->update_flags.bits.scaling_change) ||
-			(context == dc->current_state && pipe_ctx->stream->update_flags.bits.scaling))
+			(context == dc->current_state && pipe_ctx->stream->update_flags.bits.scaling)) {
+
 		hubp->funcs->mem_program_viewport(
 			hubp,
 			&pipe_ctx->plane_res.scl_data.viewport,
-			&pipe_ctx->plane_res.scl_data.viewport_c,
-			plane_state->rotation);
+			&pipe_ctx->plane_res.scl_data.viewport_c);
+		viewport_changed = true;
+	}
 
 	/* Any updates are handled in dc interface, just need to apply existing for plane enable */
-	if ((pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed)
+	if ((pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed ||
+			pipe_ctx->update_flags.bits.scaler || pipe_ctx->update_flags.bits.viewport)
 			&& pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
 		dc->hwss.set_cursor_position(pipe_ctx);
 		dc->hwss.set_cursor_attribute(pipe_ctx);
@@ -1441,8 +1445,13 @@ static void dcn20_update_dchubp_dpp(
 		hubp->power_gated = false;
 	}
 
+	if (hubp->funcs->apply_PLAT_54186_wa && viewport_changed)
+		hubp->funcs->apply_PLAT_54186_wa(hubp, &plane_state->address);
+
 	if (pipe_ctx->update_flags.bits.enable || plane_state->update_flags.bits.addr_update)
 		hws->funcs.update_plane_addr(dc, pipe_ctx);
+
+
 
 	if (pipe_ctx->update_flags.bits.enable)
 		hubp->funcs->set_blank(hubp, false);
@@ -1731,7 +1740,6 @@ bool dcn20_update_bandwidth(
 
 void dcn20_enable_writeback(
 		struct dc *dc,
-		const struct dc_stream_status *stream_status,
 		struct dc_writeback_info *wb_info,
 		struct dc_state *context)
 {
@@ -1745,8 +1753,7 @@ void dcn20_enable_writeback(
 	mcif_wb = dc->res_pool->mcif_wb[wb_info->dwb_pipe_inst];
 
 	/* set the OPTC source mux */
-	ASSERT(stream_status->primary_otg_inst < MAX_PIPES);
-	optc = dc->res_pool->timing_generators[stream_status->primary_otg_inst];
+	optc = dc->res_pool->timing_generators[dwb->otg_inst];
 	optc->funcs->set_dwb_source(optc, wb_info->dwb_pipe_inst);
 	/* set MCIF_WB buffer and arbitration configuration */
 	mcif_wb->funcs->config_mcif_buf(mcif_wb, &wb_info->mcif_buf_params, wb_info->dwb_params.dest_height);
@@ -1995,6 +2002,7 @@ static void dcn20_reset_back_end_for_pipe(
 		struct dc_state *context)
 {
 	int i;
+	struct dc_link *link;
 	DC_LOGGER_INIT(dc->ctx->logger);
 	if (pipe_ctx->stream_res.stream_enc == NULL) {
 		pipe_ctx->stream = NULL;
@@ -2002,8 +2010,14 @@ static void dcn20_reset_back_end_for_pipe(
 	}
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		/* DPMS may already disable */
-		if (!pipe_ctx->stream->dpms_off)
+		link = pipe_ctx->stream->link;
+		/* DPMS may already disable or */
+		/* dpms_off status is incorrect due to fastboot
+		 * feature. When system resume from S4 with second
+		 * screen only, the dpms_off would be true but
+		 * VBIOS lit up eDP, so check link status too.
+		 */
+		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
 			core_link_disable_stream(pipe_ctx);
 		else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);

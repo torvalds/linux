@@ -159,9 +159,10 @@ int lima_sched_context_init(struct lima_sched_pipe *pipe,
 			    struct lima_sched_context *context,
 			    atomic_t *guilty)
 {
-	struct drm_sched_rq *rq = pipe->base.sched_rq + DRM_SCHED_PRIORITY_NORMAL;
+	struct drm_gpu_scheduler *sched = &pipe->base;
 
-	return drm_sched_entity_init(&context->base, &rq, 1, guilty);
+	return drm_sched_entity_init(&context->base, DRM_SCHED_PRIORITY_NORMAL,
+				     &sched, 1, guilty);
 }
 
 void lima_sched_context_fini(struct lima_sched_pipe *pipe,

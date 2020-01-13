@@ -1,5 +1,6 @@
 /*
 * Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2019 Raptor Engineering, LLC
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -65,6 +66,8 @@
 
 #include "dcn/dcn_2_0_0_offset.h"
 #include "dcn/dcn_2_0_0_sh_mask.h"
+#include "dpcs/dpcs_2_0_0_offset.h"
+#include "dpcs/dpcs_2_0_0_sh_mask.h"
 
 #include "nbio/nbio_2_3_offset.h"
 
@@ -548,6 +551,7 @@ static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
 [id] = {\
 	LE_DCN10_REG_LIST(id), \
 	UNIPHY_DCN2_REG_LIST(phyid), \
+	DPCS_DCN2_REG_LIST(id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
 }
 
@@ -561,11 +565,13 @@ static const struct dcn10_link_enc_registers link_enc_regs[] = {
 };
 
 static const struct dcn10_link_enc_shift le_shift = {
-	LINK_ENCODER_MASK_SH_LIST_DCN20(__SHIFT)
+	LINK_ENCODER_MASK_SH_LIST_DCN20(__SHIFT),\
+	DPCS_DCN2_MASK_SH_LIST(__SHIFT)
 };
 
 static const struct dcn10_link_enc_mask le_mask = {
-	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK)
+	LINK_ENCODER_MASK_SH_LIST_DCN20(_MASK),\
+	DPCS_DCN2_MASK_SH_LIST(_MASK)
 };
 
 #define ipp_regs(id)\
@@ -2886,12 +2892,19 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 	bool voltage_supported = false;
 	bool full_pstate_supported = false;
 	bool dummy_pstate_supported = false;
-	double p_state_latency_us = context->bw_ctx.dml.soc.dram_clock_change_latency_us;
-	context->bw_ctx.dml.soc.disable_dram_clock_change_vactive_support = dc->debug.disable_dram_clock_change_vactive_support;
+	double p_state_latency_us;
 
-	if (fast_validate)
-		return dcn20_validate_bandwidth_internal(dc, context, true);
+	DC_FP_START();
+	p_state_latency_us = context->bw_ctx.dml.soc.dram_clock_change_latency_us;
+	context->bw_ctx.dml.soc.disable_dram_clock_change_vactive_support =
+		dc->debug.disable_dram_clock_change_vactive_support;
 
+	if (fast_validate) {
+		voltage_supported = dcn20_validate_bandwidth_internal(dc, context, true);
+
+		DC_FP_END();
+		return voltage_supported;
+	}
 
 	// Best case, we support full UCLK switch latency
 	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
@@ -2920,6 +2933,7 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 restore_dml_state:
 	context->bw_ctx.dml.soc.dram_clock_change_latency_us = p_state_latency_us;
 
+	DC_FP_END();
 	return voltage_supported;
 }
 
@@ -3211,7 +3225,6 @@ void dcn20_update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_s
 
 void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb)
 {
-	kernel_fpu_begin();
 	if ((int)(bb->sr_exit_time_us * 1000) != dc->bb_overrides.sr_exit_time_ns
 			&& dc->bb_overrides.sr_exit_time_ns) {
 		bb->sr_exit_time_us = dc->bb_overrides.sr_exit_time_ns / 1000.0;
@@ -3235,7 +3248,6 @@ void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st
 		bb->dram_clock_change_latency_us =
 				dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
 	}
-	kernel_fpu_end();
 }
 
 static struct _vcs_dpi_soc_bounding_box_st *get_asic_rev_soc_bb(
@@ -3440,6 +3452,8 @@ static bool dcn20_resource_construct(
 			get_asic_rev_ip_params(ctx->asic_id.hw_internal_rev);
 	enum dml_project dml_project_version =
 			get_dml_project_version(ctx->asic_id.hw_internal_rev);
+
+	DC_FP_START();
 
 	ctx->dc_bios->regs = &bios_regs;
 	pool->base.funcs = &dcn20_res_pool_funcs;
@@ -3738,10 +3752,12 @@ static bool dcn20_resource_construct(
 		pool->base.oem_device = NULL;
 	}
 
+	DC_FP_END();
 	return true;
 
 create_fail:
 
+	DC_FP_END();
 	dcn20_resource_destruct(pool);
 
 	return false;

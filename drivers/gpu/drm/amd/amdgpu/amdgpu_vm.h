@@ -327,8 +327,8 @@ struct amdgpu_vm_manager {
 	u64					vram_base_offset;
 	/* vm pte handling */
 	const struct amdgpu_vm_pte_funcs	*vm_pte_funcs;
-	struct drm_sched_rq			*vm_pte_rqs[AMDGPU_MAX_RINGS];
-	unsigned				vm_pte_num_rqs;
+	struct drm_gpu_scheduler		*vm_pte_scheds[AMDGPU_MAX_RINGS];
+	unsigned				vm_pte_num_scheds;
 	struct amdgpu_ring			*page_fault;
 
 	/* partial resident texture handling */

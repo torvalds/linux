@@ -564,22 +564,11 @@ static int gmc_v10_0_early_init(void *handle)
 static int gmc_v10_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	unsigned vm_inv_eng[AMDGPU_MAX_VMHUBS] = { 4, 4 };
-	unsigned i;
+	int r;
 
-	for(i = 0; i < adev->num_rings; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		unsigned vmhub = ring->funcs->vmhub;
-
-		ring->vm_inv_eng = vm_inv_eng[vmhub]++;
-		dev_info(adev->dev, "ring %u(%s) uses VM inv eng %u on hub %u\n",
-			 ring->idx, ring->name, ring->vm_inv_eng,
-			 ring->funcs->vmhub);
-	}
-
-	/* Engine 17 is used for GART flushes */
-	for(i = 0; i < AMDGPU_MAX_VMHUBS; ++i)
-		BUG_ON(vm_inv_eng[i] > 17);
+	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
+	if (r)
+		return r;
 
 	return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 }

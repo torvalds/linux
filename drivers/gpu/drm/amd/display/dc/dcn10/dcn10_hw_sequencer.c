@@ -479,10 +479,10 @@ void dcn10_enable_power_gating_plane(
 	struct dce_hwseq *hws,
 	bool enable)
 {
-	bool force_on = 1; /* disable power gating */
+	bool force_on = true; /* disable power gating */
 
 	if (enable)
-		force_on = 0;
+		force_on = false;
 
 	/* DCHUBP0/1/2/3 */
 	REG_UPDATE(DOMAIN0_PG_CONFIG, DOMAIN0_POWER_FORCEON, force_on);
@@ -860,6 +860,7 @@ static void dcn10_reset_back_end_for_pipe(
 		struct dc_state *context)
 {
 	int i;
+	struct dc_link *link;
 	DC_LOGGER_INIT(dc->ctx->logger);
 	if (pipe_ctx->stream_res.stream_enc == NULL) {
 		pipe_ctx->stream = NULL;
@@ -867,8 +868,14 @@ static void dcn10_reset_back_end_for_pipe(
 	}
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		/* DPMS may already disable */
-		if (!pipe_ctx->stream->dpms_off)
+		link = pipe_ctx->stream->link;
+		/* DPMS may already disable or */
+		/* dpms_off status is incorrect due to fastboot
+		 * feature. When system resume from S4 with second
+		 * screen only, the dpms_off would be true but
+		 * VBIOS lit up eDP, so check link status too.
+		 */
+		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
 			core_link_disable_stream(pipe_ctx);
 		else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);
@@ -1156,7 +1163,8 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+	/* num_opp will be equal to number of mpcc */
+	for (i = 0; i < dc->res_pool->res_cap->num_opp; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		/* Cannot reset the MPC mux if seamless boot */
@@ -2291,8 +2299,7 @@ static void dcn10_update_dchubp_dpp(
 		hubp->funcs->mem_program_viewport(
 			hubp,
 			&pipe_ctx->plane_res.scl_data.viewport,
-			&pipe_ctx->plane_res.scl_data.viewport_c,
-			plane_state->rotation);
+			&pipe_ctx->plane_res.scl_data.viewport_c);
 	}
 
 	if (pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
@@ -2909,6 +2916,8 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.rotation = pipe_ctx->plane_state->rotation,
 		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
+	bool pipe_split_on = (pipe_ctx->top_pipe != NULL) ||
+		(pipe_ctx->bottom_pipe != NULL);
 
 	int x_plane = pipe_ctx->plane_state->dst_rect.x;
 	int y_plane = pipe_ctx->plane_state->dst_rect.y;
@@ -2941,6 +2950,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	// Swap axis and mirror horizontally
 	if (param.rotation == ROTATION_ANGLE_90) {
 		uint32_t temp_x = pos_cpy.x;
+
 		pos_cpy.x = pipe_ctx->plane_res.scl_data.viewport.width -
 				(pos_cpy.y - pipe_ctx->plane_res.scl_data.viewport.x) + pipe_ctx->plane_res.scl_data.viewport.x;
 		pos_cpy.y = temp_x;
@@ -2948,26 +2958,44 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	// Swap axis and mirror vertically
 	else if (param.rotation == ROTATION_ANGLE_270) {
 		uint32_t temp_y = pos_cpy.y;
-		if (pos_cpy.x >  pipe_ctx->plane_res.scl_data.viewport.height) {
-			pos_cpy.x = pos_cpy.x - pipe_ctx->plane_res.scl_data.viewport.height;
-			pos_cpy.y = pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.x;
-		} else {
-			pos_cpy.y = 2 * pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.x;
-		}
+		int viewport_height =
+			pipe_ctx->plane_res.scl_data.viewport.height;
+
+		if (pipe_split_on) {
+			if (pos_cpy.x > viewport_height) {
+				pos_cpy.x = pos_cpy.x - viewport_height;
+				pos_cpy.y = viewport_height - pos_cpy.x;
+			} else {
+				pos_cpy.y = 2 * viewport_height - pos_cpy.x;
+			}
+		} else
+			pos_cpy.y = viewport_height - pos_cpy.x;
 		pos_cpy.x = temp_y;
 	}
 	// Mirror horizontally and vertically
 	else if (param.rotation == ROTATION_ANGLE_180) {
-		if (pos_cpy.x >= pipe_ctx->plane_res.scl_data.viewport.width + pipe_ctx->plane_res.scl_data.viewport.x) {
-			pos_cpy.x = 2 * pipe_ctx->plane_res.scl_data.viewport.width
-					- pos_cpy.x + 2 * pipe_ctx->plane_res.scl_data.viewport.x;
-		} else {
-			uint32_t temp_x = pos_cpy.x;
-			pos_cpy.x = 2 * pipe_ctx->plane_res.scl_data.viewport.x - pos_cpy.x;
-			if (temp_x >= pipe_ctx->plane_res.scl_data.viewport.x + (int)hubp->curs_attr.width
-					|| pos_cpy.x <= (int)hubp->curs_attr.width + pipe_ctx->plane_state->src_rect.x) {
-				pos_cpy.x = temp_x + pipe_ctx->plane_res.scl_data.viewport.width;
+		int viewport_width =
+			pipe_ctx->plane_res.scl_data.viewport.width;
+		int viewport_x =
+			pipe_ctx->plane_res.scl_data.viewport.x;
+
+		if (pipe_split_on) {
+			if (pos_cpy.x >= viewport_width + viewport_x) {
+				pos_cpy.x = 2 * viewport_width
+						- pos_cpy.x + 2 * viewport_x;
+			} else {
+				uint32_t temp_x = pos_cpy.x;
+
+				pos_cpy.x = 2 * viewport_x - pos_cpy.x;
+				if (temp_x >= viewport_x +
+					(int)hubp->curs_attr.width || pos_cpy.x
+					<= (int)hubp->curs_attr.width +
+					pipe_ctx->plane_state->src_rect.x) {
+					pos_cpy.x = temp_x + viewport_width;
+				}
 			}
+		} else {
+			pos_cpy.x = viewport_width - pos_cpy.x + 2 * viewport_x;
 		}
 		pos_cpy.y = pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.y;
 	}

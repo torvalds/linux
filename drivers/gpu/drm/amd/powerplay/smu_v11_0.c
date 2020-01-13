@@ -450,8 +450,10 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 
 	kfree(smu_table->tables);
 	kfree(smu_table->metrics_table);
+	kfree(smu_table->watermarks_table);
 	smu_table->tables = NULL;
 	smu_table->metrics_table = NULL;
+	smu_table->watermarks_table = NULL;
 	smu_table->metrics_time = 0;
 
 	ret = smu_v11_0_fini_dpm_context(smu);
@@ -774,6 +776,24 @@ int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 	return smu_v11_0_set_deep_sleep_dcefclk(smu, table_context->boot_values.dcefclk / 100);
 }
 
+int smu_v11_0_set_driver_table_location(struct smu_context *smu)
+{
+	struct smu_table *driver_table = &smu->smu_table.driver_table;
+	int ret = 0;
+
+	if (driver_table->mc_address) {
+		ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetDriverDramAddrHigh,
+				upper_32_bits(driver_table->mc_address));
+		if (!ret)
+			ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetDriverDramAddrLow,
+				lower_32_bits(driver_table->mc_address));
+	}
+
+	return ret;
+}
+
 int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 {
 	int ret = 0;
@@ -835,27 +855,33 @@ int smu_v11_0_get_enabled_mask(struct smu_context *smu,
 				      uint32_t *feature_mask, uint32_t num)
 {
 	uint32_t feature_mask_high = 0, feature_mask_low = 0;
+	struct smu_feature *feature = &smu->smu_feature;
 	int ret = 0;
 
 	if (!feature_mask || num < 2)
 		return -EINVAL;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh);
-	if (ret)
-		return ret;
-	ret = smu_read_smc_arg(smu, &feature_mask_high);
-	if (ret)
-		return ret;
+	if (bitmap_empty(feature->enabled, feature->feature_num)) {
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh);
+		if (ret)
+			return ret;
+		ret = smu_read_smc_arg(smu, &feature_mask_high);
+		if (ret)
+			return ret;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow);
-	if (ret)
-		return ret;
-	ret = smu_read_smc_arg(smu, &feature_mask_low);
-	if (ret)
-		return ret;
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow);
+		if (ret)
+			return ret;
+		ret = smu_read_smc_arg(smu, &feature_mask_low);
+		if (ret)
+			return ret;
 
-	feature_mask[0] = feature_mask_low;
-	feature_mask[1] = feature_mask_high;
+		feature_mask[0] = feature_mask_low;
+		feature_mask[1] = feature_mask_high;
+	} else {
+		bitmap_copy((unsigned long *)feature_mask, feature->enabled,
+			     feature->feature_num);
+	}
 
 	return ret;
 }
@@ -867,21 +893,24 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 	uint32_t feature_mask[2];
 	int ret = 0;
 
-	if (smu->pm_enabled) {
-		ret = smu_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
-					     SMU_MSG_DisableAllSmuFeatures));
-		if (ret)
-			return ret;
-	}
-
-	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	ret = smu_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
+				     SMU_MSG_DisableAllSmuFeatures));
 	if (ret)
 		return ret;
 
-	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
-		    feature->feature_num);
-	bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
-		    feature->feature_num);
+	if (en) {
+		ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+		if (ret)
+			return ret;
+
+		bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
+			    feature->feature_num);
+		bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
+			    feature->feature_num);
+	} else {
+		bitmap_zero(feature->enabled, feature->feature_num);
+		bitmap_zero(feature->supported, feature->feature_num);
+	}
 
 	return ret;
 }
@@ -1860,3 +1889,42 @@ int smu_v11_0_set_default_od_settings(struct smu_context *smu, bool initialize, 
 	}
 	return ret;
 }
+
+int smu_v11_0_set_performance_level(struct smu_context *smu,
+				    enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+	uint32_t sclk_mask, mclk_mask, soc_mask;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_HIGH:
+		ret = smu_force_dpm_limit_value(smu, true);
+		break;
+	case AMD_DPM_FORCED_LEVEL_LOW:
+		ret = smu_force_dpm_limit_value(smu, false);
+		break;
+	case AMD_DPM_FORCED_LEVEL_AUTO:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		ret = smu_unforce_dpm_levels(smu);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		ret = smu_get_profiling_clk_mask(smu, level,
+						 &sclk_mask,
+						 &mclk_mask,
+						 &soc_mask);
+		if (ret)
+			return ret;
+		smu_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask, false);
+		smu_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask, false);
+		smu_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask, false);
+		break;
+	case AMD_DPM_FORCED_LEVEL_MANUAL:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
+	default:
+		break;
+	}
+	return ret;
+}
+

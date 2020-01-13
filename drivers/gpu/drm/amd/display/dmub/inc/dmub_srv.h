@@ -67,7 +67,6 @@
 #include "dmub_types.h"
 #include "dmub_cmd.h"
 #include "dmub_rb.h"
-#include "dmub_fw_state.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -76,7 +75,7 @@ extern "C" {
 /* Forward declarations */
 struct dmub_srv;
 struct dmub_cmd_header;
-struct dmcu;
+struct dmub_srv_common_regs;
 
 /* enum dmub_status - return code for dmcub functions */
 enum dmub_status {
@@ -145,11 +144,13 @@ struct dmub_fb {
  * @inst_const_size: size of the fw inst const section
  * @bss_data_size: size of the fw bss data section
  * @vbios_size: size of the vbios data
+ * @fw_bss_data: raw firmware bss data section
  */
 struct dmub_srv_region_params {
 	uint32_t inst_const_size;
 	uint32_t bss_data_size;
 	uint32_t vbios_size;
+	const uint8_t *fw_bss_data;
 };
 
 /**
@@ -307,6 +308,8 @@ struct dmub_srv {
 	volatile const struct dmub_fw_state *fw_state;
 
 	/* private: internal use only */
+	const struct dmub_srv_common_regs *regs;
+
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;
 	struct dmub_rb inbox1_rb;

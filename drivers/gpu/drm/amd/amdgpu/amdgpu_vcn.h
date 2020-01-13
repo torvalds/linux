@@ -31,6 +31,7 @@
 #define AMDGPU_VCN_MAX_ENC_RINGS	3
 
 #define AMDGPU_MAX_VCN_INSTANCES	2
+#define AMDGPU_MAX_VCN_ENC_RINGS  AMDGPU_VCN_MAX_ENC_RINGS * AMDGPU_MAX_VCN_INSTANCES
 
 #define AMDGPU_VCN_HARVEST_VCN0 (1 << 0)
 #define AMDGPU_VCN_HARVEST_VCN1 (1 << 1)
@@ -55,6 +56,9 @@
 #define VCN_AON_SOC_ADDRESS_2_0 	0x1f800
 #define VCN_VID_IP_ADDRESS_2_0		0x0
 #define VCN_AON_IP_ADDRESS_2_0		0x30000
+
+/* 1 second timeout */
+#define VCN_IDLE_TIMEOUT	msecs_to_jiffies(1000)
 
 #define RREG32_SOC15_DPG_MODE(ip, inst, reg, mask, sram_sel) 				\
 	({	WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask); 			\
@@ -186,8 +190,12 @@ struct amdgpu_vcn {
 	uint32_t		*dpg_sram_curr_addr;
 
 	uint8_t	num_vcn_inst;
-	struct amdgpu_vcn_inst	inst[AMDGPU_MAX_VCN_INSTANCES];
-	struct amdgpu_vcn_reg	internal;
+	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
+	struct amdgpu_vcn_reg	 internal;
+	struct drm_gpu_scheduler *vcn_enc_sched[AMDGPU_MAX_VCN_ENC_RINGS];
+	struct drm_gpu_scheduler *vcn_dec_sched[AMDGPU_MAX_VCN_INSTANCES];
+	uint32_t		 num_vcn_enc_sched;
+	uint32_t		 num_vcn_dec_sched;
 
 	unsigned	harvest_config;
 	int (*pause_dpg_mode)(struct amdgpu_device *adev,

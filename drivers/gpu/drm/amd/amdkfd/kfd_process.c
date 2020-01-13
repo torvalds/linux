@@ -324,6 +324,8 @@ struct kfd_process *kfd_create_process(struct file *filep)
 					(int)process->lead_thread->pid);
 	}
 out:
+	if (!IS_ERR(process))
+		kref_get(&process->ref);
 	mutex_unlock(&kfd_processes_mutex);
 
 	return process;

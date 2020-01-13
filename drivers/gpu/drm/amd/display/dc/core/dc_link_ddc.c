@@ -590,7 +590,7 @@ bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
 		struct aux_payload *payload)
 {
 	uint32_t retrieved = 0;
-	bool ret = 0;
+	bool ret = false;
 
 	if (!ddc)
 		return false;

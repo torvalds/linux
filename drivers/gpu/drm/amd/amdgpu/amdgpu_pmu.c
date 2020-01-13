@@ -107,7 +107,7 @@ static void amdgpu_perf_read(struct perf_event *event)
 		default:
 			count = 0;
 			break;
-		};
+		}
 	} while (local64_cmpxchg(&hwc->prev_count, prev, count) != prev);
 
 	local64_add(count - prev, &event->count);
@@ -130,7 +130,7 @@ static void amdgpu_perf_stop(struct perf_event *event, int flags)
 		break;
 	default:
 		break;
-	};
+	}
 
 	WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
 	hwc->state |= PERF_HES_STOPPED;
@@ -160,7 +160,7 @@ static int amdgpu_perf_add(struct perf_event *event, int flags)
 		break;
 	default:
 		return 0;
-	};
+	}
 
 	if (retval)
 		return retval;
@@ -188,7 +188,7 @@ static void amdgpu_perf_del(struct perf_event *event, int flags)
 		break;
 	default:
 		break;
-	};
+	}
 
 	perf_event_update_userpage(event);
 }

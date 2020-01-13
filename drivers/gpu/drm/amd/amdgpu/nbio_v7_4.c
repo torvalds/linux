@@ -339,7 +339,7 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 		/* ras_controller_int is dedicated for nbif ras error,
 		 * not the global interrupt for sync flood
 		 */
-		amdgpu_ras_reset_gpu(adev, true);
+		amdgpu_ras_reset_gpu(adev);
 	}
 }
 
@@ -456,10 +456,8 @@ static int nbio_v7_4_init_ras_controller_interrupt (struct amdgpu_device *adev)
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_BIF,
 			      NBIF_7_4__SRCID__RAS_CONTROLLER_INTERRUPT,
 			      &adev->nbio.ras_controller_irq);
-	if (r)
-		return r;
 
-	return 0;
+	return r;
 }
 
 static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *adev)
@@ -476,10 +474,8 @@ static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *a
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_BIF,
 			      NBIF_7_4__SRCID__ERREVENT_ATHUB_INTERRUPT,
 			      &adev->nbio.ras_err_event_athub_irq);
-	if (r)
-		return r;
 
-	return 0;
+	return r;
 }
 
 #define smnPARITY_ERROR_STATUS_UNCORR_GRP2	0x13a20030

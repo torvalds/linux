@@ -4121,11 +4121,11 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 	for (i = 0; i <= mode_lib->vba.soc.num_states; i++) {
 		for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
-			locals->RequiresDSC[i][k] = 0;
+			locals->RequiresDSC[i][k] = false;
 			locals->RequiresFEC[i][k] = 0;
 			if (mode_lib->vba.BlendingAndTiming[k] == k) {
 				if (mode_lib->vba.Output[k] == dm_hdmi) {
-					locals->RequiresDSC[i][k] = 0;
+					locals->RequiresDSC[i][k] = false;
 					locals->RequiresFEC[i][k] = 0;
 					locals->OutputBppPerState[i][k] = TruncToValidBPP(
 							dml_min(600.0, mode_lib->vba.PHYCLKPerState[i]) / mode_lib->vba.PixelClockBackEnd[k] * 24,
@@ -5204,7 +5204,7 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			mode_lib->vba.ODMCombineEnabled[k] =
 					locals->ODMCombineEnablePerState[mode_lib->vba.VoltageLevel][k];
 		} else {
-			mode_lib->vba.ODMCombineEnabled[k] = 0;
+			mode_lib->vba.ODMCombineEnabled[k] = false;
 		}
 		mode_lib->vba.DSCEnabled[k] =
 				locals->RequiresDSC[mode_lib->vba.VoltageLevel][k];

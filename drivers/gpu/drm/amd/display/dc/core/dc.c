@@ -66,6 +66,9 @@
 
 #include "dce/dce_i2c.h"
 
+#define CTX \
+	dc->ctx
+
 #define DC_LOGGER \
 	dc->ctx->logger
 
@@ -579,6 +582,40 @@ static void dc_destruct(struct dc *dc)
 
 }
 
+static bool dc_construct_ctx(struct dc *dc,
+		const struct dc_init_data *init_params)
+{
+	struct dc_context *dc_ctx;
+	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
+
+	dc_ctx = kzalloc(sizeof(*dc_ctx), GFP_KERNEL);
+	if (!dc_ctx)
+		return false;
+
+	dc_ctx->cgs_device = init_params->cgs_device;
+	dc_ctx->driver_context = init_params->driver;
+	dc_ctx->dc = dc;
+	dc_ctx->asic_id = init_params->asic_id;
+	dc_ctx->dc_sink_id_count = 0;
+	dc_ctx->dc_stream_id_count = 0;
+	dc_ctx->dce_environment = init_params->dce_environment;
+
+	/* Create logger */
+
+	dc_version = resource_parse_asic_id(init_params->asic_id);
+	dc_ctx->dce_version = dc_version;
+
+	dc_ctx->perf_trace = dc_perf_trace_create();
+	if (!dc_ctx->perf_trace) {
+		ASSERT_CRITICAL(false);
+		return false;
+	}
+
+	dc->ctx = dc_ctx;
+
+	return true;
+}
+
 static bool dc_construct(struct dc *dc,
 		const struct dc_init_data *init_params)
 {
@@ -590,7 +627,6 @@ static bool dc_construct(struct dc *dc,
 	struct dcn_ip_params *dcn_ip;
 #endif
 
-	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
 	dc->config = init_params->flags;
 
 	// Allocate memory for the vm_helper
@@ -636,26 +672,12 @@ static bool dc_construct(struct dc *dc,
 	dc->soc_bounding_box = init_params->soc_bounding_box;
 #endif
 
-	dc_ctx = kzalloc(sizeof(*dc_ctx), GFP_KERNEL);
-	if (!dc_ctx) {
+	if (!dc_construct_ctx(dc, init_params)) {
 		dm_error("%s: failed to create ctx\n", __func__);
 		goto fail;
 	}
 
-	dc_ctx->cgs_device = init_params->cgs_device;
-	dc_ctx->driver_context = init_params->driver;
-	dc_ctx->dc = dc;
-	dc_ctx->asic_id = init_params->asic_id;
-	dc_ctx->dc_sink_id_count = 0;
-	dc_ctx->dc_stream_id_count = 0;
-	dc->ctx = dc_ctx;
-
-	/* Create logger */
-
-	dc_ctx->dce_environment = init_params->dce_environment;
-
-	dc_version = resource_parse_asic_id(init_params->asic_id);
-	dc_ctx->dce_version = dc_version;
+        dc_ctx = dc->ctx;
 
 	/* Resource should construct all asic specific resources.
 	 * This should be the only place where we need to parse the asic id
@@ -670,7 +692,7 @@ static bool dc_construct(struct dc *dc,
 		bp_init_data.bios = init_params->asic_id.atombios_base_address;
 
 		dc_ctx->dc_bios = dal_bios_parser_create(
-				&bp_init_data, dc_version);
+				&bp_init_data, dc_ctx->dce_version);
 
 		if (!dc_ctx->dc_bios) {
 			ASSERT_CRITICAL(false);
@@ -678,17 +700,13 @@ static bool dc_construct(struct dc *dc,
 		}
 
 		dc_ctx->created_bios = true;
-		}
-
-	dc_ctx->perf_trace = dc_perf_trace_create();
-	if (!dc_ctx->perf_trace) {
-		ASSERT_CRITICAL(false);
-		goto fail;
 	}
+
+
 
 	/* Create GPIO service */
 	dc_ctx->gpio_service = dal_gpio_service_create(
-			dc_version,
+			dc_ctx->dce_version,
 			dc_ctx->dce_environment,
 			dc_ctx);
 
@@ -697,7 +715,7 @@ static bool dc_construct(struct dc *dc,
 		goto fail;
 	}
 
-	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_version);
+	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_ctx->dce_version);
 	if (!dc->res_pool)
 		goto fail;
 
@@ -728,8 +746,6 @@ static bool dc_construct(struct dc *dc,
 	return true;
 
 fail:
-
-	dc_destruct(dc);
 	return false;
 }
 
@@ -783,6 +799,33 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 	dc_release_state(current_ctx);
 }
 
+static void wait_for_no_pipes_pending(struct dc *dc, struct dc_state *context)
+{
+	int i;
+	int count = 0;
+	struct pipe_ctx *pipe;
+	PERF_TRACE();
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->plane_state)
+			continue;
+
+		/* Timeout 100 ms */
+		while (count < 100000) {
+			/* Must set to false to start with, due to OR in update function */
+			pipe->plane_state->status.is_flip_pending = false;
+			dc->hwss.update_pending_status(pipe);
+			if (!pipe->plane_state->status.is_flip_pending)
+				break;
+			udelay(1);
+			count++;
+		}
+		ASSERT(!pipe->plane_state->status.is_flip_pending);
+	}
+	PERF_TRACE();
+}
+
 /*******************************************************************************
  * Public functions
  ******************************************************************************/
@@ -795,27 +838,37 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	if (NULL == dc)
 		goto alloc_fail;
 
-	if (false == dc_construct(dc, init_params))
-		goto construct_fail;
+	if (init_params->dce_environment == DCE_ENV_VIRTUAL_HW) {
+		if (false == dc_construct_ctx(dc, init_params)) {
+			dc_destruct(dc);
+			goto construct_fail;
+		}
+	} else {
+		if (false == dc_construct(dc, init_params)) {
+			dc_destruct(dc);
+			goto construct_fail;
+		}
 
-	full_pipe_count = dc->res_pool->pipe_count;
-	if (dc->res_pool->underlay_pipe_index != NO_UNDERLAY_PIPE)
-		full_pipe_count--;
-	dc->caps.max_streams = min(
-			full_pipe_count,
-			dc->res_pool->stream_enc_count);
+		full_pipe_count = dc->res_pool->pipe_count;
+		if (dc->res_pool->underlay_pipe_index != NO_UNDERLAY_PIPE)
+			full_pipe_count--;
+		dc->caps.max_streams = min(
+				full_pipe_count,
+				dc->res_pool->stream_enc_count);
 
-	dc->caps.max_links = dc->link_count;
-	dc->caps.max_audios = dc->res_pool->audio_count;
-	dc->caps.linear_pitch_alignment = 64;
+		dc->optimize_seamless_boot_streams = 0;
+		dc->caps.max_links = dc->link_count;
+		dc->caps.max_audios = dc->res_pool->audio_count;
+		dc->caps.linear_pitch_alignment = 64;
 
-	dc->caps.max_dp_protocol_version = DP_VERSION_1_4;
+		dc->caps.max_dp_protocol_version = DP_VERSION_1_4;
+
+		if (dc->res_pool->dmcu != NULL)
+			dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
+	}
 
 	/* Populate versioning information */
 	dc->versions.dc_ver = DC_VER;
-
-	if (dc->res_pool->dmcu != NULL)
-		dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
 
 	dc->build_id = DC_BUILD_ID;
 
@@ -834,7 +887,8 @@ alloc_fail:
 
 void dc_hardware_init(struct dc *dc)
 {
-	dc->hwss.init_hw(dc);
+	if (dc->ctx->dce_environment != DCE_ENV_VIRTUAL_HW)
+		dc->hwss.init_hw(dc);
 }
 
 void dc_init_callbacks(struct dc *dc,
@@ -1148,10 +1202,10 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	for (i = 0; i < context->stream_count; i++) {
 		if (context->streams[i]->apply_seamless_boot_optimization)
-			dc->optimize_seamless_boot = true;
+			dc->optimize_seamless_boot_streams++;
 	}
 
-	if (!dc->optimize_seamless_boot)
+	if (dc->optimize_seamless_boot_streams == 0)
 		dc->hwss.prepare_bandwidth(dc, context);
 
 	/* re-program planes for existing stream, in case we need to
@@ -1224,9 +1278,12 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
-	if (!dc->optimize_seamless_boot)
-			/* pplib is notified if disp_num changed */
-			dc->hwss.optimize_bandwidth(dc, context);
+	if (dc->optimize_seamless_boot_streams == 0) {
+		/* Must wait for no flips to be pending before doing optimize bw */
+		wait_for_no_pipes_pending(dc, context);
+		/* pplib is notified if disp_num changed */
+		dc->hwss.optimize_bandwidth(dc, context);
+	}
 
 	for (i = 0; i < context->stream_count; i++)
 		context->streams[i]->mode_changed = false;
@@ -1267,7 +1324,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	int i;
 	struct dc_state *context = dc->current_state;
 
-	if (!dc->optimized_required || dc->optimize_seamless_boot)
+	if (!dc->optimized_required || dc->optimize_seamless_boot_streams > 0)
 		return true;
 
 	post_surface_trace(dc);
@@ -1543,7 +1600,7 @@ static enum surface_update_type get_scaling_info_update_type(
 
 		update_flags->bits.scaling_change = 1;
 		if (u->scaling_info->src_rect.width > u->surface->src_rect.width
-				&& u->scaling_info->src_rect.height > u->surface->src_rect.height)
+				|| u->scaling_info->src_rect.height > u->surface->src_rect.height)
 			/* Making src rect bigger requires a bandwidth change */
 			update_flags->bits.clock_change = 1;
 	}
@@ -1557,11 +1614,11 @@ static enum surface_update_type get_scaling_info_update_type(
 		update_flags->bits.position_change = 1;
 
 	if (update_flags->bits.clock_change
-			|| update_flags->bits.bandwidth_change)
+			|| update_flags->bits.bandwidth_change
+			|| update_flags->bits.scaling_change)
 		return UPDATE_TYPE_FULL;
 
-	if (update_flags->bits.scaling_change
-			|| update_flags->bits.position_change)
+	if (update_flags->bits.position_change)
 		return UPDATE_TYPE_MED;
 
 	return UPDATE_TYPE_FAST;
@@ -2051,7 +2108,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 					dc->hwss.optimize_bandwidth(dc, dc->current_state);
 				} else {
-					if (!dc->optimize_seamless_boot)
+					if (dc->optimize_seamless_boot_streams == 0)
 						dc->hwss.prepare_bandwidth(dc, dc->current_state);
 
 					core_link_enable_stream(dc->current_state, pipe_ctx);
@@ -2092,7 +2149,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
 
-	if (dc->optimize_seamless_boot && surface_count > 0) {
+	if (dc->optimize_seamless_boot_streams > 0 && surface_count > 0) {
 		/* Optimize seamless boot flag keeps clocks and watermarks high until
 		 * first flip. After first flip, optimization is required to lower
 		 * bandwidth. Important to note that it is expected UEFI will
@@ -2101,12 +2158,14 @@ static void commit_planes_for_stream(struct dc *dc,
 		 */
 		if (stream->apply_seamless_boot_optimization) {
 			stream->apply_seamless_boot_optimization = false;
-			dc->optimize_seamless_boot = false;
-			dc->optimized_required = true;
+			dc->optimize_seamless_boot_streams--;
+
+			if (dc->optimize_seamless_boot_streams == 0)
+				dc->optimized_required = true;
 		}
 	}
 
-	if (update_type == UPDATE_TYPE_FULL && !dc->optimize_seamless_boot) {
+	if (update_type == UPDATE_TYPE_FULL && dc->optimize_seamless_boot_streams == 0) {
 		dc->hwss.prepare_bandwidth(dc, context);
 		context_clock_trace(dc, context);
 	}

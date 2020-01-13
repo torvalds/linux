@@ -104,6 +104,7 @@ struct device_queue_manager_ops {
 	int	(*initialize)(struct device_queue_manager *dqm);
 	int	(*start)(struct device_queue_manager *dqm);
 	int	(*stop)(struct device_queue_manager *dqm);
+	void	(*pre_reset)(struct device_queue_manager *dqm);
 	void	(*uninitialize)(struct device_queue_manager *dqm);
 	int	(*create_kernel_queue)(struct device_queue_manager *dqm,
 					struct kernel_queue *kq,
@@ -190,7 +191,6 @@ struct device_queue_manager {
 	/* the pasid mapping for each kfd vmid */
 	uint16_t		vmid_pasid[VMID_NUM];
 	uint64_t		pipelines_addr;
-	struct kfd_mem_obj	*pipeline_mem;
 	uint64_t		fence_gpu_addr;
 	unsigned int		*fence_addr;
 	struct kfd_mem_obj	*fence_mem;
@@ -199,6 +199,7 @@ struct device_queue_manager {
 
 	/* hw exception  */
 	bool			is_hws_hang;
+	bool			is_resetting;
 	struct work_struct	hw_exception_work;
 	struct kfd_mem_obj	hiq_sdma_mqd;
 	bool			sched_running;

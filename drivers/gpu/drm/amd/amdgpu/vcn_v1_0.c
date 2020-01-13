@@ -25,6 +25,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_vcn.h"
+#include "amdgpu_pm.h"
 #include "soc15.h"
 #include "soc15d.h"
 #include "soc15_common.h"
@@ -50,6 +51,8 @@ static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev);
 static int vcn_v1_0_set_powergating_state(void *handle, enum amd_powergating_state state);
 static int vcn_v1_0_pause_dpg_mode(struct amdgpu_device *adev,
 				struct dpg_pause_state *new_state);
+
+static void vcn_v1_0_idle_work_handler(struct work_struct *work);
 
 /**
  * vcn_v1_0_early_init - set function pointers
@@ -104,6 +107,9 @@ static int vcn_v1_0_sw_init(void *handle)
 	r = amdgpu_vcn_sw_init(adev);
 	if (r)
 		return r;
+
+	/* Override the work func */
+	adev->vcn.idle_work.work.func = vcn_v1_0_idle_work_handler;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		const struct common_firmware_header *hdr;
@@ -1758,6 +1764,86 @@ static int vcn_v1_0_set_powergating_state(void *handle,
 	return ret;
 }
 
+static void vcn_v1_0_idle_work_handler(struct work_struct *work)
+{
+	struct amdgpu_device *adev =
+		container_of(work, struct amdgpu_device, vcn.idle_work.work);
+	unsigned int fences = 0, i;
+
+	for (i = 0; i < adev->vcn.num_enc_rings; ++i)
+		fences += amdgpu_fence_count_emitted(&adev->vcn.inst->ring_enc[i]);
+
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
+		struct dpg_pause_state new_state;
+
+		if (fences)
+			new_state.fw_based = VCN_DPG_STATE__PAUSE;
+		else
+			new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
+
+		if (amdgpu_fence_count_emitted(&adev->jpeg.inst->ring_dec))
+			new_state.jpeg = VCN_DPG_STATE__PAUSE;
+		else
+			new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
+
+		adev->vcn.pause_dpg_mode(adev, &new_state);
+	}
+
+	fences += amdgpu_fence_count_emitted(&adev->jpeg.inst->ring_dec);
+	fences += amdgpu_fence_count_emitted(&adev->vcn.inst->ring_dec);
+
+	if (fences == 0) {
+		amdgpu_gfx_off_ctrl(adev, true);
+		if (adev->pm.dpm_enabled)
+			amdgpu_dpm_enable_uvd(adev, false);
+		else
+			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
+			       AMD_PG_STATE_GATE);
+	} else {
+		schedule_delayed_work(&adev->vcn.idle_work, VCN_IDLE_TIMEOUT);
+	}
+}
+
+void vcn_v1_0_ring_begin_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
+
+	if (set_clocks) {
+		amdgpu_gfx_off_ctrl(adev, false);
+		if (adev->pm.dpm_enabled)
+			amdgpu_dpm_enable_uvd(adev, true);
+		else
+			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
+			       AMD_PG_STATE_UNGATE);
+	}
+
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
+		struct dpg_pause_state new_state;
+		unsigned int fences = 0, i;
+
+		for (i = 0; i < adev->vcn.num_enc_rings; ++i)
+			fences += amdgpu_fence_count_emitted(&adev->vcn.inst->ring_enc[i]);
+
+		if (fences)
+			new_state.fw_based = VCN_DPG_STATE__PAUSE;
+		else
+			new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
+
+		if (amdgpu_fence_count_emitted(&adev->jpeg.inst->ring_dec))
+			new_state.jpeg = VCN_DPG_STATE__PAUSE;
+		else
+			new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
+
+		if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
+			new_state.fw_based = VCN_DPG_STATE__PAUSE;
+		else if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
+			new_state.jpeg = VCN_DPG_STATE__PAUSE;
+
+		adev->vcn.pause_dpg_mode(adev, &new_state);
+	}
+}
+
 static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.name = "vcn_v1_0",
 	.early_init = vcn_v1_0_early_init,
@@ -1804,7 +1890,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.insert_start = vcn_v1_0_dec_ring_insert_start,
 	.insert_end = vcn_v1_0_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
-	.begin_use = amdgpu_vcn_ring_begin_use,
+	.begin_use = vcn_v1_0_ring_begin_use,
 	.end_use = amdgpu_vcn_ring_end_use,
 	.emit_wreg = vcn_v1_0_dec_ring_emit_wreg,
 	.emit_reg_wait = vcn_v1_0_dec_ring_emit_reg_wait,
@@ -1836,7 +1922,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_enc_ring_vm_funcs = {
 	.insert_nop = amdgpu_ring_insert_nop,
 	.insert_end = vcn_v1_0_enc_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
-	.begin_use = amdgpu_vcn_ring_begin_use,
+	.begin_use = vcn_v1_0_ring_begin_use,
 	.end_use = amdgpu_vcn_ring_end_use,
 	.emit_wreg = vcn_v1_0_enc_ring_emit_wreg,
 	.emit_reg_wait = vcn_v1_0_enc_ring_emit_reg_wait,

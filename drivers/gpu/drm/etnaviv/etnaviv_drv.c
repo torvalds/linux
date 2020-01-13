@@ -65,12 +65,13 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 
 	for (i = 0; i < ETNA_MAX_PIPES; i++) {
 		struct etnaviv_gpu *gpu = priv->gpu[i];
-		struct drm_sched_rq *rq;
+		struct drm_gpu_scheduler *sched;
 
 		if (gpu) {
-			rq = &gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+			sched = &gpu->sched;
 			drm_sched_entity_init(&ctx->sched_entity[i],
-					      &rq, 1, NULL);
+					      DRM_SCHED_PRIORITY_NORMAL, &sched,
+					      1, NULL);
 			}
 	}
 

@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.62"
+#define DC_VER "3.2.64"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -367,6 +367,7 @@ struct dc_debug_options {
 	bool disable_hubp_power_gate;
 	bool disable_dsc_power_gate;
 	int dsc_min_slice_height_override;
+	int dsc_bpp_increment_div;
 	bool native422_support;
 	bool disable_pplib_wm_range;
 	enum wm_report_mode pplib_wm_report_mode;
@@ -513,7 +514,7 @@ struct dc {
 	bool optimized_required;
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
-	bool optimize_seamless_boot;
+	int optimize_seamless_boot_streams;
 
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
