@@ -1554,8 +1554,10 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	void *kvaddr;
 
 	crtc = crtc ? crtc : plane->state->crtc;
-	if (!crtc || !fb)
+	if (!crtc || !fb) {
+		plane->state->visible = false;
 		return 0;
+	}
 
 	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
 	if (WARN_ON(!crtc_state))
