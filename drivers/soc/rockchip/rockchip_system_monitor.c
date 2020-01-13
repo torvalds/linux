@@ -670,11 +670,23 @@ static int monitor_device_parse_dt(struct device *dev,
 	return ret;
 }
 
+int rockchip_monitor_opp_set_rate(struct monitor_dev_info *info,
+				  unsigned long target_freq)
+{
+	int ret = 0;
+
+	mutex_lock(&info->volt_adjust_mutex);
+	ret = dev_pm_opp_set_rate(info->dev, target_freq);
+	mutex_unlock(&info->volt_adjust_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(rockchip_monitor_opp_set_rate);
+
 int rockchip_monitor_cpu_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low)
 {
 	struct device *dev = info->dev;
-	struct cpufreq_policy *policy;
 	unsigned int cpu = cpumask_any(&info->devp->allowed_cpus);
 
 	if (info->low_limit) {
@@ -685,13 +697,9 @@ int rockchip_monitor_cpu_low_temp_adjust(struct monitor_dev_info *info,
 		cpufreq_update_policy(cpu);
 	}
 
-	policy = cpufreq_cpu_get(cpu);
-	if (!policy)
-		return -ENODEV;
-	down_write(&policy->rwsem);
+	mutex_lock(&info->volt_adjust_mutex);
 	dev_pm_opp_check_rate_volt(dev, false);
-	up_write(&policy->rwsem);
-	cpufreq_cpu_put(policy);
+	mutex_unlock(&info->volt_adjust_mutex);
 
 	return 0;
 }
@@ -1062,6 +1070,7 @@ rockchip_system_monitor_register(struct device *dev,
 	}
 
 	rockchip_system_monitor_wide_temp_init(info);
+	mutex_init(&info->volt_adjust_mutex);
 
 	down_write(&mdev_list_sem);
 	list_add(&info->node, &monitor_dev_list);

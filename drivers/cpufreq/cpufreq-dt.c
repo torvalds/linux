@@ -55,7 +55,15 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 	unsigned long freq = policy->freq_table[index].frequency;
 	int ret;
 
+#ifdef CONFIG_ROCKCHIP_SYSTEM_MONITOR
+	if (priv->mdev_info)
+		ret = rockchip_monitor_opp_set_rate(priv->mdev_info,
+						    freq * 1000);
+	else
+		ret = dev_pm_opp_set_rate(priv->cpu_dev, freq * 1000);
+#else
 	ret = dev_pm_opp_set_rate(priv->cpu_dev, freq * 1000);
+#endif
 
 	if (!ret) {
 		arch_set_freq_scale(policy->related_cpus, freq,
