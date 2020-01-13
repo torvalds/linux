@@ -27,12 +27,9 @@ SYM_FUNC_START(__efi64_thunk)
 	push	%rbp
 	push	%rbx
 
-	subq	$8, %rsp
-	leaq	1f(%rip), %rax
-	movl	%eax, 4(%rsp)
-	leaq	efi_gdt64(%rip), %rax
-	movl	%eax, (%rsp)
-	movl	%eax, 2(%rax)		/* Fixup the gdt base address */
+	leaq	1f(%rip), %rbp
+	leaq	efi_gdt64(%rip), %rbx
+	movl	%ebx, 2(%rbx)		/* Fixup the gdt base address */
 
 	movl	%ds, %eax
 	push	%rax
@@ -48,12 +45,10 @@ SYM_FUNC_START(__efi64_thunk)
 	movl	%esi, 0x0(%rsp)
 	movl	%edx, 0x4(%rsp)
 	movl	%ecx, 0x8(%rsp)
-	movq	%r8, %rsi
-	movl	%esi, 0xc(%rsp)
-	movq	%r9, %rsi
-	movl	%esi,  0x10(%rsp)
+	movl	%r8d, 0xc(%rsp)
+	movl	%r9d, 0x10(%rsp)
 
-	sgdt	save_gdt(%rip)
+	sgdt	0x14(%rsp)
 
 	/*
 	 * Switch to gdt with 32-bit segments. This is the firmware GDT
@@ -68,10 +63,9 @@ SYM_FUNC_START(__efi64_thunk)
 	pushq	%rax
 	lretq
 
-1:	addq	$32, %rsp
+1:	lgdt	0x14(%rsp)
+	addq	$32, %rsp
 	movq	%rdi, %rax
-
-	lgdt	save_gdt(%rip)
 
 	pop	%rbx
 	movl	%ebx, %ss
@@ -83,15 +77,9 @@ SYM_FUNC_START(__efi64_thunk)
 	/*
 	 * Convert 32-bit status code into 64-bit.
 	 */
-	test	%rax, %rax
-	jz	1f
-	movl	%eax, %ecx
-	andl	$0x0fffffff, %ecx
-	andl	$0xf0000000, %eax
-	shl	$32, %rax
-	or	%rcx, %rax
-1:
-	addq	$8, %rsp
+	roll	$1, %eax
+	rorq	$1, %rax
+
 	pop	%rbx
 	pop	%rbp
 	ret
@@ -135,9 +123,7 @@ SYM_FUNC_START_LOCAL(efi_enter32)
 	 */
 	cli
 
-	movl	56(%esp), %eax
-	movl	%eax, 2(%eax)
-	lgdtl	(%eax)
+	lgdtl	(%ebx)
 
 	movl	%cr4, %eax
 	btsl	$(X86_CR4_PAE_BIT), %eax
@@ -154,9 +140,8 @@ SYM_FUNC_START_LOCAL(efi_enter32)
 	xorl	%eax, %eax
 	lldt	%ax
 
-	movl	60(%esp), %eax
 	pushl	$__KERNEL_CS
-	pushl	%eax
+	pushl	%ebp
 
 	/* Enable paging */
 	movl	%cr0, %eax
@@ -171,11 +156,6 @@ SYM_DATA_START(efi32_boot_gdt)
 	.word	0
 	.quad	0
 SYM_DATA_END(efi32_boot_gdt)
-
-SYM_DATA_START_LOCAL(save_gdt)
-	.word	0
-	.quad	0
-SYM_DATA_END(save_gdt)
 
 SYM_DATA_START(efi_gdt64)
 	.word	efi_gdt64_end - efi_gdt64
