@@ -1211,36 +1211,8 @@ config I2C_PARPORT
 	  An adapter type parameter is now mandatory.  Please read the file
 	  Documentation/i2c/busses/i2c-parport.rst for details.
 
-	  Another driver exists, named i2c-parport-light, which doesn't depend
-	  on the parport driver.  This is meant for embedded systems. Don't say
-	  Y here if you intend to say Y or M there.
-
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-parport.
-
-config I2C_PARPORT_LIGHT
-	tristate "Parallel port adapter (light)"
-	select I2C_ALGOBIT
-	select I2C_SMBUS
-	help
-	  This supports parallel port I2C adapters such as the ones made by
-	  Philips or Velleman, Analog Devices evaluation boards, and more.
-	  Basically any adapter using the parallel port as an I2C bus with
-	  no extra chipset is supported by this driver, or could be.
-
-	  This driver is a light version of i2c-parport.  It doesn't depend
-	  on the parport driver, and uses direct I/O access instead.  This
-	  might be preferred on embedded systems where wasting memory for
-	  the clean but heavy parport handling is not an option.  The
-	  drawback is a reduced portability and the impossibility to
-	  daisy-chain other parallel port devices.
-
-	  Don't say Y here if you said Y or M to i2c-parport.  Saying M to
-	  both is possible but both modules should not be loaded at the same
-	  time.
-
-	  This support is also available as a module.  If so, the module
-	  will be called i2c-parport-light.
 
 config I2C_ROBOTFUZZ_OSIF
 	tristate "RobotFuzz Open Source InterFace USB adapter"
