@@ -454,22 +454,30 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 	return val;
 }
 
+static u8 psr_compute_idle_frames(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	int idle_frames;
+
+	/* Let's use 6 as the minimum to cover all known cases including the
+	 * off-by-one issue that HW has in some cases.
+	 */
+	idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
+	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
+
+	if (WARN_ON(idle_frames > 0xf))
+		idle_frames = 0xf;
+
+	return idle_frames;
+}
+
 static void hsw_activate_psr1(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 max_sleep_time = 0x1f;
 	u32 val = EDP_PSR_ENABLE;
 
-	/* Let's use 6 as the minimum to cover all known cases including the
-	 * off-by-one issue that HW has in some cases.
-	 */
-	int idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
-
-	/* sink_sync_latency of 8 means source has to wait for more than 8
-	 * frames, we'll go with 9 frames for now
-	 */
-	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
-	val |= idle_frames << EDP_PSR_IDLE_FRAME_SHIFT;
+	val |= psr_compute_idle_frames(intel_dp) << EDP_PSR_IDLE_FRAME_SHIFT;
 
 	val |= max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT;
 	if (IS_HASWELL(dev_priv))
@@ -493,13 +501,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 val;
 
-	/* Let's use 6 as the minimum to cover all known cases including the
-	 * off-by-one issue that HW has in some cases.
-	 */
-	int idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
-
-	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
-	val = idle_frames << EDP_PSR2_IDLE_FRAME_SHIFT;
+	val = psr_compute_idle_frames(intel_dp) << EDP_PSR2_IDLE_FRAME_SHIFT;
 
 	val |= EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
@@ -566,16 +568,10 @@ static void tgl_psr2_enable_dc3co(struct drm_i915_private *dev_priv)
 
 static void tgl_psr2_disable_dc3co(struct drm_i915_private *dev_priv)
 {
-	int idle_frames;
+	struct intel_dp *intel_dp = dev_priv->psr.dp;
 
 	intel_display_power_set_target_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
-	/*
-	 * Restore PSR2 idle frame let's use 6 as the minimum to cover all known
-	 * cases including the off-by-one issue that HW has in some cases.
-	 */
-	idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
-	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
-	psr2_program_idle_frames(dev_priv, idle_frames);
+	psr2_program_idle_frames(dev_priv, psr_compute_idle_frames(intel_dp));
 }
 
 static void tgl_dc5_idle_thread(struct work_struct *work)
