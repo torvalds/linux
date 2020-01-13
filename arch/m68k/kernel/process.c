@@ -108,16 +108,28 @@ void flush_thread(void)
  * on top of pt_regs, which means that sys_clone() arguments would be
  * buried.  We could, of course, copy them, but it's too costly for no
  * good reason - generic clone() would have to copy them *again* for
- * do_fork() anyway.  So in this case it's actually better to pass pt_regs *
- * and extract arguments for do_fork() from there.  Eventually we might
- * go for calling do_fork() directly from the wrapper, but only after we
- * are finished with do_fork() prototype conversion.
+ * _do_fork() anyway.  So in this case it's actually better to pass pt_regs *
+ * and extract arguments for _do_fork() from there.  Eventually we might
+ * go for calling _do_fork() directly from the wrapper, but only after we
+ * are finished with _do_fork() prototype conversion.
  */
 asmlinkage int m68k_clone(struct pt_regs *regs)
 {
 	/* regs will be equal to current_pt_regs() */
-	return do_fork(regs->d1, regs->d2, 0,
-		       (int __user *)regs->d3, (int __user *)regs->d4);
+	struct kernel_clone_args args = {
+		.flags		= regs->d1 & ~CSIGNAL,
+		.pidfd		= (int __user *)regs->d3,
+		.child_tid	= (int __user *)regs->d4,
+		.parent_tid	= (int __user *)regs->d3,
+		.exit_signal	= regs->d1 & CSIGNAL,
+		.stack		= regs->d2,
+		.tls		= regs->d5,
+	};
+
+	if (!legacy_clone_args_valid(&args))
+		return -EINVAL;
+
+	return _do_fork(&args);
 }
 
 /*
@@ -130,8 +142,9 @@ asmlinkage int m68k_clone3(struct pt_regs *regs)
 	return sys_clone3((struct clone_args __user *)regs->d1, regs->d2);
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-		 unsigned long arg, struct task_struct *p)
+int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
+		    unsigned long arg, struct task_struct *p,
+		    unsigned long tls)
 {
 	struct fork_frame {
 		struct switch_stack sw;
@@ -166,7 +179,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.usp = usp ?: rdusp();
 
 	if (clone_flags & CLONE_SETTLS)
-		task_thread_info(p)->tp_value = frame->regs.d5;
+		task_thread_info(p)->tp_value = tls;
 
 #ifdef CONFIG_FPU
 	if (!FPU_IS_EMU) {
