@@ -225,7 +225,7 @@ static const struct ad_sigma_delta_info ad7124_sigma_delta_info = {
 	.addr_shift = 0,
 	.read_mask = BIT(6),
 	.data_reg = AD7124_DATA,
-	.irq_flags = IRQF_TRIGGER_LOW,
+	.irq_flags = IRQF_TRIGGER_FALLING,
 };
 
 static int ad7124_set_channel_odr(struct ad7124_state *st,
