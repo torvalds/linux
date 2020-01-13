@@ -249,16 +249,6 @@ static const struct snd_pcm_hw_constraint_list constraints_rates = {
 	.mask = 0,
 };
 
-static const unsigned int channels[] = {
-	DUAL_CHANNEL,
-};
-
-static const struct snd_pcm_hw_constraint_list constraints_channels = {
-	.count = ARRAY_SIZE(channels),
-	.list = channels,
-	.mask = 0,
-};
-
 static unsigned int channels_quad[] = {
 	QUAD_CHANNEL,
 };
