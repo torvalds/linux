@@ -10,7 +10,7 @@ CFLAGS := -g -Wall
 
 # Try to detect best kernel BTF source
 KERNEL_REL := $(shell uname -r)
-ifneq ("$(wildcard /sys/kenerl/btf/vmlinux)","")
+ifneq ("$(wildcard /sys/kernel/btf/vmlinux)","")
 VMLINUX_BTF := /sys/kernel/btf/vmlinux
 else ifneq ("$(wildcard /boot/vmlinux-$(KERNEL_REL))","")
 VMLINUX_BTF := /boot/vmlinux-$(KERNEL_REL)

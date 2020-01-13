@@ -73,7 +73,7 @@ TEST_PROGS_EXTENDED := with_addr.sh \
 # Compile but not part of 'make run_tests'
 TEST_GEN_PROGS_EXTENDED = test_sock_addr test_skb_cgroup_id_user \
 	flow_dissector_load test_flow_dissector test_tcp_check_syncookie_user \
-	test_lirc_mode2_user xdping test_cpp
+	test_lirc_mode2_user xdping test_cpp runqslower
 
 TEST_CUSTOM_PROGS = urandom_read
 
@@ -123,6 +123,11 @@ $(OUTPUT)/urandom_read: urandom_read.c
 $(OUTPUT)/test_stub.o: test_stub.c
 	$(call msg,CC,,$@)
 	$(CC) -c $(CFLAGS) -o $@ $<
+
+.PHONY: $(OUTPUT)/runqslower
+$(OUTPUT)/runqslower: force
+	$(Q)$(MAKE) $(submake_extras) -C $(TOOLSDIR)/bpf/runqslower	      \
+		    OUTPUT=$(CURDIR)/tools/
 
 BPFOBJ := $(OUTPUT)/libbpf.a
 
