@@ -891,6 +891,7 @@ static int snd_hda_codec_device_init(struct hda_bus *bus, struct snd_card *card,
 /**
  * snd_hda_codec_new - create a HDA codec
  * @bus: the bus to assign
+ * @card: card for this codec
  * @codec_addr: the codec address
  * @codecp: the pointer to store the generated codec
  *

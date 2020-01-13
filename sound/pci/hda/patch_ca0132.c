@@ -1923,6 +1923,7 @@ static int dspio_send_scp_message(struct hda_codec *codec,
  * Prepare and send the SCP message to DSP
  * @codec: the HDA codec
  * @mod_id: ID of the DSP module to send the command
+ * @src_id: ID of the source
  * @req: ID of request to send to the DSP module
  * @dir: SET or GET
  * @data: pointer to the data to send with the request, request specific

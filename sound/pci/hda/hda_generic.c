@@ -4042,6 +4042,11 @@ static void call_ledtrig_micmute(struct hda_codec *codec)
  *
  * Note that this fixup has to be called after other fixup that sets
  * cap_sync_hook.  Otherwise the chaining wouldn't work.
+ *
+ * @codec: the HDA codec
+ * @fix: fixup pointer
+ * @action: only supports HDA_FIXUP_ACT_PROBE value
+ *
  */
 void snd_hda_gen_fixup_micmute_led(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
