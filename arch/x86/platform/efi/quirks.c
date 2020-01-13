@@ -384,10 +384,10 @@ static void __init efi_unmap_pages(efi_memory_desc_t *md)
 
 	/*
 	 * To Do: Remove this check after adding functionality to unmap EFI boot
-	 * services code/data regions from direct mapping area because
-	 * "efi=old_map" maps EFI regions in swapper_pg_dir.
+	 * services code/data regions from direct mapping area because the UV1
+	 * memory map maps EFI regions in swapper_pg_dir.
 	 */
-	if (efi_enabled(EFI_OLD_MEMMAP))
+	if (efi_have_uv1_memmap())
 		return;
 
 	/*
@@ -558,7 +558,7 @@ out:
 	return ret;
 }
 
-static const struct dmi_system_id sgi_uv1_dmi[] = {
+static const struct dmi_system_id sgi_uv1_dmi[] __initconst = {
 	{ NULL, "SGI UV1",
 		{	DMI_MATCH(DMI_PRODUCT_NAME,	"Stoutland Platform"),
 			DMI_MATCH(DMI_PRODUCT_VERSION,	"1.0"),
@@ -581,8 +581,15 @@ void __init efi_apply_memmap_quirks(void)
 	}
 
 	/* UV2+ BIOS has a fix for this issue.  UV1 still needs the quirk. */
-	if (dmi_check_system(sgi_uv1_dmi))
-		set_bit(EFI_OLD_MEMMAP, &efi.flags);
+	if (dmi_check_system(sgi_uv1_dmi)) {
+		if (IS_ENABLED(CONFIG_X86_UV)) {
+			set_bit(EFI_UV1_MEMMAP, &efi.flags);
+		} else {
+			pr_warn("EFI runtime disabled, needs CONFIG_X86_UV=y on UV1\n");
+			clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+			efi_memmap_unmap();
+		}
+	}
 }
 
 /*
@@ -720,7 +727,7 @@ void efi_recover_from_page_fault(unsigned long phys_addr)
 	/*
 	 * Make sure that an efi runtime service caused the page fault.
 	 * "efi_mm" cannot be used to check if the page fault had occurred
-	 * in the firmware context because efi=old_map doesn't use efi_pgd.
+	 * in the firmware context because the UV1 memmap doesn't use efi_pgd.
 	 */
 	if (efi_rts_work.efi_rts_id == EFI_NONE)
 		return;

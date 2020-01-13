@@ -1168,8 +1168,7 @@
 				  "nosoftreserve", "disable_early_pci_dma",
 				  "no_disable_early_pci_dma" }
 			old_map [X86-64]: switch to the old ioremap-based EFI
-			runtime services mapping. 32-bit still uses this one by
-			default.
+			runtime services mapping. [Needs CONFIG_X86_UV=y]
 			nochunk: disable reading files in "chunks" in the EFI
 			boot stub, as chunking can cause problems with some
 			firmware implementations.

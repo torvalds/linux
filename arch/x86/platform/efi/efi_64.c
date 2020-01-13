@@ -57,134 +57,6 @@ static u64 efi_va = EFI_VA_START;
 
 struct efi_scratch efi_scratch;
 
-static void __init early_code_mapping_set_exec(int executable)
-{
-	efi_memory_desc_t *md;
-
-	if (!(__supported_pte_mask & _PAGE_NX))
-		return;
-
-	/* Make EFI service code area executable */
-	for_each_efi_memory_desc(md) {
-		if (md->type == EFI_RUNTIME_SERVICES_CODE ||
-		    md->type == EFI_BOOT_SERVICES_CODE)
-			efi_set_executable(md, executable);
-	}
-}
-
-static void __init efi_old_memmap_phys_epilog(pgd_t *save_pgd);
-
-static pgd_t * __init efi_old_memmap_phys_prolog(void)
-{
-	unsigned long vaddr, addr_pgd, addr_p4d, addr_pud;
-	pgd_t *save_pgd, *pgd_k, *pgd_efi;
-	p4d_t *p4d, *p4d_k, *p4d_efi;
-	pud_t *pud;
-
-	int pgd;
-	int n_pgds, i, j;
-
-	early_code_mapping_set_exec(1);
-
-	n_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT), PGDIR_SIZE);
-	save_pgd = kmalloc_array(n_pgds, sizeof(*save_pgd), GFP_KERNEL);
-	if (!save_pgd)
-		return NULL;
-
-	/*
-	 * Build 1:1 identity mapping for efi=old_map usage. Note that
-	 * PAGE_OFFSET is PGDIR_SIZE aligned when KASLR is disabled, while
-	 * it is PUD_SIZE ALIGNED with KASLR enabled. So for a given physical
-	 * address X, the pud_index(X) != pud_index(__va(X)), we can only copy
-	 * PUD entry of __va(X) to fill in pud entry of X to build 1:1 mapping.
-	 * This means here we can only reuse the PMD tables of the direct mapping.
-	 */
-	for (pgd = 0; pgd < n_pgds; pgd++) {
-		addr_pgd = (unsigned long)(pgd * PGDIR_SIZE);
-		vaddr = (unsigned long)__va(pgd * PGDIR_SIZE);
-		pgd_efi = pgd_offset_k(addr_pgd);
-		save_pgd[pgd] = *pgd_efi;
-
-		p4d = p4d_alloc(&init_mm, pgd_efi, addr_pgd);
-		if (!p4d) {
-			pr_err("Failed to allocate p4d table!\n");
-			goto out;
-		}
-
-		for (i = 0; i < PTRS_PER_P4D; i++) {
-			addr_p4d = addr_pgd + i * P4D_SIZE;
-			p4d_efi = p4d + p4d_index(addr_p4d);
-
-			pud = pud_alloc(&init_mm, p4d_efi, addr_p4d);
-			if (!pud) {
-				pr_err("Failed to allocate pud table!\n");
-				goto out;
-			}
-
-			for (j = 0; j < PTRS_PER_PUD; j++) {
-				addr_pud = addr_p4d + j * PUD_SIZE;
-
-				if (addr_pud > (max_pfn << PAGE_SHIFT))
-					break;
-
-				vaddr = (unsigned long)__va(addr_pud);
-
-				pgd_k = pgd_offset_k(vaddr);
-				p4d_k = p4d_offset(pgd_k, vaddr);
-				pud[j] = *pud_offset(p4d_k, vaddr);
-			}
-		}
-		pgd_offset_k(pgd * PGDIR_SIZE)->pgd &= ~_PAGE_NX;
-	}
-
-	__flush_tlb_all();
-	return save_pgd;
-out:
-	efi_old_memmap_phys_epilog(save_pgd);
-	return NULL;
-}
-
-static void __init efi_old_memmap_phys_epilog(pgd_t *save_pgd)
-{
-	/*
-	 * After the lock is released, the original page table is restored.
-	 */
-	int pgd_idx, i;
-	int nr_pgds;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-
-	nr_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT) , PGDIR_SIZE);
-
-	for (pgd_idx = 0; pgd_idx < nr_pgds; pgd_idx++) {
-		pgd = pgd_offset_k(pgd_idx * PGDIR_SIZE);
-		set_pgd(pgd_offset_k(pgd_idx * PGDIR_SIZE), save_pgd[pgd_idx]);
-
-		if (!pgd_present(*pgd))
-			continue;
-
-		for (i = 0; i < PTRS_PER_P4D; i++) {
-			p4d = p4d_offset(pgd,
-					 pgd_idx * PGDIR_SIZE + i * P4D_SIZE);
-
-			if (!p4d_present(*p4d))
-				continue;
-
-			pud = (pud_t *)p4d_page_vaddr(*p4d);
-			pud_free(&init_mm, pud);
-		}
-
-		p4d = (p4d_t *)pgd_page_vaddr(*pgd);
-		p4d_free(&init_mm, p4d);
-	}
-
-	kfree(save_pgd);
-
-	__flush_tlb_all();
-	early_code_mapping_set_exec(0);
-}
-
 EXPORT_SYMBOL_GPL(efi_mm);
 
 /*
@@ -203,7 +75,7 @@ int __init efi_alloc_page_tables(void)
 	pud_t *pud;
 	gfp_t gfp_mask;
 
-	if (efi_enabled(EFI_OLD_MEMMAP))
+	if (efi_have_uv1_memmap())
 		return 0;
 
 	gfp_mask = GFP_KERNEL | __GFP_ZERO;
@@ -244,7 +116,7 @@ void efi_sync_low_kernel_mappings(void)
 	pud_t *pud_k, *pud_efi;
 	pgd_t *efi_pgd = efi_mm.pgd;
 
-	if (efi_enabled(EFI_OLD_MEMMAP))
+	if (efi_have_uv1_memmap())
 		return;
 
 	/*
@@ -338,7 +210,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	unsigned npages;
 	pgd_t *pgd = efi_mm.pgd;
 
-	if (efi_enabled(EFI_OLD_MEMMAP))
+	if (efi_have_uv1_memmap())
 		return 0;
 
 	/*
@@ -439,7 +311,7 @@ void __init efi_map_region(efi_memory_desc_t *md)
 	unsigned long size = md->num_pages << PAGE_SHIFT;
 	u64 pa = md->phys_addr;
 
-	if (efi_enabled(EFI_OLD_MEMMAP))
+	if (efi_have_uv1_memmap())
 		return old_map_region(md);
 
 	/*
@@ -496,26 +368,6 @@ void __init efi_map_region_fixed(efi_memory_desc_t *md)
 	__map_region(md, md->virt_addr);
 }
 
-void __iomem *__init efi_ioremap(unsigned long phys_addr, unsigned long size,
-				 u32 type, u64 attribute)
-{
-	unsigned long last_map_pfn;
-
-	if (type == EFI_MEMORY_MAPPED_IO)
-		return ioremap(phys_addr, size);
-
-	last_map_pfn = init_memory_mapping(phys_addr, phys_addr + size);
-	if ((last_map_pfn << PAGE_SHIFT) < phys_addr + size) {
-		unsigned long top = last_map_pfn << PAGE_SHIFT;
-		efi_ioremap(top, size - (top - phys_addr), type, attribute);
-	}
-
-	if (!(attribute & EFI_MEMORY_WB))
-		efi_memory_uc((u64)(unsigned long)__va(phys_addr), size);
-
-	return (void __iomem *)__va(phys_addr);
-}
-
 void __init parse_efi_setup(u64 phys_addr, u32 data_len)
 {
 	efi_setup = phys_addr + sizeof(struct setup_data);
@@ -564,7 +416,7 @@ void __init efi_runtime_update_mappings(void)
 {
 	efi_memory_desc_t *md;
 
-	if (efi_enabled(EFI_OLD_MEMMAP)) {
+	if (efi_have_uv1_memmap()) {
 		if (__supported_pte_mask & _PAGE_NX)
 			runtime_code_page_mkexec();
 		return;
@@ -618,7 +470,7 @@ void __init efi_runtime_update_mappings(void)
 void __init efi_dump_pagetable(void)
 {
 #ifdef CONFIG_EFI_PGT_DUMP
-	if (efi_enabled(EFI_OLD_MEMMAP))
+	if (efi_have_uv1_memmap())
 		ptdump_walk_pgd_level(NULL, swapper_pg_dir);
 	else
 		ptdump_walk_pgd_level(NULL, efi_mm.pgd);
@@ -1045,8 +897,8 @@ efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 							 descriptor_version,
 							 virtual_map);
 
-	if (efi_enabled(EFI_OLD_MEMMAP)) {
-		save_pgd = efi_old_memmap_phys_prolog();
+	if (efi_have_uv1_memmap()) {
+		save_pgd = efi_uv1_memmap_phys_prolog();
 		if (!save_pgd)
 			return EFI_ABORTED;
 	} else {
@@ -1065,7 +917,7 @@ efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 	kernel_fpu_end();
 
 	if (save_pgd)
-		efi_old_memmap_phys_epilog(save_pgd);
+		efi_uv1_memmap_phys_epilog(save_pgd);
 	else
 		efi_switch_mm(efi_scratch.prev_mm);
 

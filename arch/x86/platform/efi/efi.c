@@ -497,6 +497,8 @@ void __init efi_init(void)
 		efi_print_memmap();
 }
 
+#if defined(CONFIG_X86_32) || defined(CONFIG_X86_UV)
+
 void __init efi_set_executable(efi_memory_desc_t *md, bool executable)
 {
 	u64 addr, npages;
@@ -560,6 +562,8 @@ void __init old_map_region(efi_memory_desc_t *md)
 		pr_err("ioremap of 0x%llX failed!\n",
 		       (unsigned long long)md->phys_addr);
 }
+
+#endif
 
 /* Merge contiguous regions of the same type and attribute */
 static void __init efi_merge_regions(void)
@@ -659,7 +663,7 @@ static inline void *efi_map_next_entry_reverse(void *entry)
  */
 static void *efi_map_next_entry(void *entry)
 {
-	if (!efi_enabled(EFI_OLD_MEMMAP) && efi_enabled(EFI_64BIT)) {
+	if (!efi_have_uv1_memmap() && efi_enabled(EFI_64BIT)) {
 		/*
 		 * Starting in UEFI v2.5 the EFI_PROPERTIES_TABLE
 		 * config table feature requires us to map all entries
@@ -791,11 +795,11 @@ static void __init kexec_enter_virtual_mode(void)
 
 	/*
 	 * We don't do virtual mode, since we don't do runtime services, on
-	 * non-native EFI. With efi=old_map, we don't do runtime services in
+	 * non-native EFI. With the UV1 memmap, we don't do runtime services in
 	 * kexec kernel because in the initial boot something else might
 	 * have been mapped at these virtual addresses.
 	 */
-	if (efi_is_mixed() || efi_enabled(EFI_OLD_MEMMAP)) {
+	if (efi_is_mixed() || efi_have_uv1_memmap()) {
 		efi_memmap_unmap();
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 		return;
@@ -861,9 +865,9 @@ static void __init kexec_enter_virtual_mode(void)
  *
  * The old method which used to update that memory descriptor with the
  * virtual address obtained from ioremap() is still supported when the
- * kernel is booted with efi=old_map on its command line. Same old
- * method enabled the runtime services to be called without having to
- * thunk back into physical mode for every invocation.
+ * kernel is booted on SG1 UV1 hardware. Same old method enabled the
+ * runtime services to be called without having to thunk back into
+ * physical mode for every invocation.
  *
  * The new method does a pagetable switch in a preemption-safe manner
  * so that we're in a different address space when calling a runtime
@@ -975,20 +979,6 @@ void __init efi_enter_virtual_mode(void)
 
 	efi_dump_pagetable();
 }
-
-static int __init arch_parse_efi_cmdline(char *str)
-{
-	if (!str) {
-		pr_warn("need at least one option\n");
-		return -EINVAL;
-	}
-
-	if (parse_option_str(str, "old_map"))
-		set_bit(EFI_OLD_MEMMAP, &efi.flags);
-
-	return 0;
-}
-early_param("efi", arch_parse_efi_cmdline);
 
 bool efi_is_table_address(unsigned long phys_addr)
 {

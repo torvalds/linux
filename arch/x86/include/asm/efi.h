@@ -20,13 +20,16 @@
  * This is the main reason why we're doing stable VA mappings for RT
  * services.
  *
- * This flag is used in conjunction with a chicken bit called
- * "efi=old_map" which can be used as a fallback to the old runtime
- * services mapping method in case there's some b0rkage with a
- * particular EFI implementation (haha, it is hard to hold up the
- * sarcasm here...).
+ * SGI UV1 machines are known to be incompatible with this scheme, so we
+ * provide an opt-out for these machines via a DMI quirk that sets the
+ * attribute below.
  */
-#define EFI_OLD_MEMMAP		EFI_ARCH_1
+#define EFI_UV1_MEMMAP         EFI_ARCH_1
+
+static inline bool efi_have_uv1_memmap(void)
+{
+	return IS_ENABLED(CONFIG_X86_UV) && efi_enabled(EFI_UV1_MEMMAP);
+}
 
 #define EFI32_LOADER_SIGNATURE	"EL32"
 #define EFI64_LOADER_SIGNATURE	"EL64"
@@ -119,7 +122,7 @@ struct efi_scratch {
 	kernel_fpu_begin();						\
 	firmware_restrict_branch_speculation_start();			\
 									\
-	if (!efi_enabled(EFI_OLD_MEMMAP))				\
+	if (!efi_have_uv1_memmap())					\
 		efi_switch_mm(&efi_mm);					\
 })
 
@@ -128,7 +131,7 @@ struct efi_scratch {
 
 #define arch_efi_call_virt_teardown()					\
 ({									\
-	if (!efi_enabled(EFI_OLD_MEMMAP))				\
+	if (!efi_have_uv1_memmap())					\
 		efi_switch_mm(efi_scratch.prev_mm);			\
 									\
 	firmware_restrict_branch_speculation_end();			\
@@ -172,6 +175,8 @@ extern void efi_delete_dummy_variable(void);
 extern void efi_switch_mm(struct mm_struct *mm);
 extern void efi_recover_from_page_fault(unsigned long phys_addr);
 extern void efi_free_boot_services(void);
+extern pgd_t * __init efi_uv1_memmap_phys_prolog(void);
+extern void __init efi_uv1_memmap_phys_epilog(pgd_t *save_pgd);
 
 struct efi_setup_data {
 	u64 fw_vendor;
@@ -203,10 +208,7 @@ static inline bool efi_runtime_supported(void)
 	if (IS_ENABLED(CONFIG_X86_64) == efi_enabled(EFI_64BIT))
 		return true;
 
-	if (IS_ENABLED(CONFIG_EFI_MIXED) && !efi_enabled(EFI_OLD_MEMMAP))
-		return true;
-
-	return false;
+	return IS_ENABLED(CONFIG_EFI_MIXED);
 }
 
 extern void parse_efi_setup(u64 phys_addr, u32 data_len);
