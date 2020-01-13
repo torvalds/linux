@@ -31,10 +31,6 @@
 #define ARC_REG_SCRATCH_DATA0	0x46c
 #endif
 
-#if defined(CONFIG_ISA_ARCV2) || !defined(CONFIG_SMP)
-#define	ARC_USE_SCRATCH_REG
-#endif
-
 /* Bits in MMU PID register */
 #define __TLB_ENABLE		(1 << 31)
 #define __PROG_ENABLE		(1 << 30)
