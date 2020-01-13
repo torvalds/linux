@@ -85,6 +85,7 @@ static int tps53679_probe(struct i2c_client *client,
 
 static const struct i2c_device_id tps53679_id[] = {
 	{"tps53679", 0},
+	{"tps53688", 0},
 	{}
 };
 
@@ -92,6 +93,7 @@ MODULE_DEVICE_TABLE(i2c, tps53679_id);
 
 static const struct of_device_id __maybe_unused tps53679_of_match[] = {
 	{.compatible = "ti,tps53679"},
+	{.compatible = "ti,tps53688"},
 	{}
 };
 MODULE_DEVICE_TABLE(of, tps53679_of_match);
