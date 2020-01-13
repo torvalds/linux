@@ -1658,8 +1658,10 @@ static int omap_dma_probe(struct platform_device *pdev)
 	if (conf) {
 		od->cfg = conf;
 		od->plat = dev_get_platdata(&pdev->dev);
-		if (!od->plat)
-			dev_warn(&pdev->dev, "no sdma auxdata needed?\n");
+		if (!od->plat) {
+			dev_err(&pdev->dev, "omap_system_dma_plat_info is missing");
+			return -ENODEV;
+		}
 	} else {
 		od->cfg = &default_cfg;
 
