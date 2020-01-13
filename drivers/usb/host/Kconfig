@@ -42,6 +42,15 @@ config USB_XHCI_PCI
 	depends on USB_PCI
 	default y
 
+config USB_XHCI_PCI_RENESAS
+	tristate "Renesas USB XHCI Driver"
+	depends on USB_XHCI_PCI
+	---help---
+	  Say 'Y' to enable the support for renesas USB XHCI Driver if
+	  you have such a device. These devices need additional firmware,
+	  make sure that is available.
+	  If unsure, say 'N'.
+
 config USB_XHCI_PLATFORM
 	tristate "Generic xHCI driver for a platform device"
 	select USB_XHCI_RCAR if ARCH_RENESAS
