@@ -59,17 +59,11 @@ static int mdiobus_register_gpiod(struct mdio_device *mdiodev)
 
 static int mdiobus_register_reset(struct mdio_device *mdiodev)
 {
-	struct reset_control *reset = NULL;
+	struct reset_control *reset;
 
-	if (mdiodev->dev.of_node)
-		reset = of_reset_control_get_exclusive(mdiodev->dev.of_node,
-						       "phy");
-	if (IS_ERR(reset)) {
-		if (PTR_ERR(reset) == -ENOENT || PTR_ERR(reset) == -ENOTSUPP)
-			reset = NULL;
-		else
-			return PTR_ERR(reset);
-	}
+	reset = reset_control_get_optional_exclusive(&mdiodev->dev, "phy");
+	if (IS_ERR(reset))
+		return PTR_ERR(reset);
 
 	mdiodev->reset_ctrl = reset;
 
