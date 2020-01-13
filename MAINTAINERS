@@ -5357,6 +5357,12 @@ S:	Maintained
 F:	drivers/gpu/drm/tiny/st7735r.c
 F:	Documentation/devicetree/bindings/display/sitronix,st7735r.txt
 
+DRM DRIVER FOR SONY ACX424AKP PANELS
+M:	Linus Walleij <linus.walleij@linaro.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-sony-acx424akp.c
+
 DRM DRIVER FOR ST-ERICSSON MCDE
 M:	Linus Walleij <linus.walleij@linaro.org>
 T:	git git://anongit.freedesktop.org/drm/drm-misc

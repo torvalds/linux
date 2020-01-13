@@ -68,8 +68,6 @@ struct lima_sched_pipe {
 	void (*task_fini)(struct lima_sched_pipe *pipe);
 	void (*task_error)(struct lima_sched_pipe *pipe);
 	void (*task_mmu_error)(struct lima_sched_pipe *pipe);
-
-	struct work_struct error_work;
 };
 
 int lima_sched_task_init(struct lima_sched_task *task,

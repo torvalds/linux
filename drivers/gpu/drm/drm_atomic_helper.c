@@ -437,12 +437,12 @@ mode_fixup(struct drm_atomic_state *state)
 		funcs = encoder->helper_private;
 
 		bridge = drm_bridge_chain_get_first_bridge(encoder);
-		ret = drm_atomic_bridge_chain_check(bridge,
-						    new_crtc_state,
-						    new_conn_state);
-		if (ret) {
-			DRM_DEBUG_ATOMIC("Bridge atomic check failed\n");
-			return ret;
+		ret = drm_bridge_chain_mode_fixup(bridge,
+					&new_crtc_state->mode,
+					&new_crtc_state->adjusted_mode);
+		if (!ret) {
+			DRM_DEBUG_ATOMIC("Bridge fixup failed\n");
+			return -EINVAL;
 		}
 
 		if (funcs && funcs->atomic_check) {
@@ -726,26 +726,6 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 		if (funcs->atomic_check)
 			ret = funcs->atomic_check(connector, state);
-		if (ret)
-			return ret;
-	}
-
-	/*
-	 * Iterate over all connectors again, and add all affected bridges to
-	 * the state.
-	 */
-	for_each_oldnew_connector_in_state(state, connector,
-					   old_connector_state,
-					   new_connector_state, i) {
-		struct drm_encoder *encoder;
-
-		encoder = old_connector_state->best_encoder;
-		ret = drm_atomic_add_encoder_bridges(state, encoder);
-		if (ret)
-			return ret;
-
-		encoder = new_connector_state->best_encoder;
-		ret = drm_atomic_add_encoder_bridges(state, encoder);
 		if (ret)
 			return ret;
 	}

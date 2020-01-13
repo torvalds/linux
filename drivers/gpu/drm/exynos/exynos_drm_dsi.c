@@ -1378,6 +1378,7 @@ static void exynos_dsi_unregister_te_irq(struct exynos_dsi *dsi)
 static void exynos_dsi_enable(struct drm_encoder *encoder)
 {
 	struct exynos_dsi *dsi = encoder_to_dsi(encoder);
+	struct drm_bridge *iter;
 	int ret;
 
 	if (dsi->state & DSIM_STATE_ENABLED)
@@ -1391,7 +1392,11 @@ static void exynos_dsi_enable(struct drm_encoder *encoder)
 		if (ret < 0)
 			goto err_put_sync;
 	} else {
-		drm_bridge_chain_pre_enable(dsi->out_bridge);
+		list_for_each_entry_reverse(iter, &dsi->bridge_chain,
+					    chain_node) {
+			if (iter->funcs->pre_enable)
+				iter->funcs->pre_enable(iter);
+		}
 	}
 
 	exynos_dsi_set_display_mode(dsi);
@@ -1402,7 +1407,10 @@ static void exynos_dsi_enable(struct drm_encoder *encoder)
 		if (ret < 0)
 			goto err_display_disable;
 	} else {
-		drm_bridge_chain_enable(dsi->out_bridge);
+		list_for_each_entry(iter, &dsi->bridge_chain, chain_node) {
+			if (iter->funcs->enable)
+				iter->funcs->enable(iter);
+		}
 	}
 
 	dsi->state |= DSIM_STATE_VIDOUT_AVAILABLE;
@@ -1420,6 +1428,7 @@ err_put_sync:
 static void exynos_dsi_disable(struct drm_encoder *encoder)
 {
 	struct exynos_dsi *dsi = encoder_to_dsi(encoder);
+	struct drm_bridge *iter;
 
 	if (!(dsi->state & DSIM_STATE_ENABLED))
 		return;
@@ -1427,10 +1436,20 @@ static void exynos_dsi_disable(struct drm_encoder *encoder)
 	dsi->state &= ~DSIM_STATE_VIDOUT_AVAILABLE;
 
 	drm_panel_disable(dsi->panel);
-	drm_bridge_chain_disable(dsi->out_bridge);
+
+	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
+		if (iter->funcs->disable)
+			iter->funcs->disable(iter);
+	}
+
 	exynos_dsi_set_display_enable(dsi, false);
 	drm_panel_unprepare(dsi->panel);
-	drm_bridge_chain_post_disable(dsi->out_bridge);
+
+	list_for_each_entry(iter, &dsi->bridge_chain, chain_node) {
+		if (iter->funcs->post_disable)
+			iter->funcs->post_disable(iter);
+	}
+
 	dsi->state &= ~DSIM_STATE_ENABLED;
 	pm_runtime_put_sync(dsi->dev);
 }
@@ -1523,7 +1542,7 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 	if (out_bridge) {
 		drm_bridge_attach(encoder, out_bridge, NULL);
 		dsi->out_bridge = out_bridge;
-		list_splice(&encoder->bridge_chain, &dsi->bridge_chain);
+		list_splice_init(&encoder->bridge_chain, &dsi->bridge_chain);
 	} else {
 		int ret = exynos_dsi_create_connector(encoder);
 
