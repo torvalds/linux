@@ -341,6 +341,9 @@ static int kabylake_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 			kabylake_ssp1_map,
 			ARRAY_SIZE(kabylake_ssp1_map));
 
+	if (ret)
+		return ret;
+
 	/*
 	 * Headset buttons map to the google Reference headset.
 	 * These can be configured by userspace.
