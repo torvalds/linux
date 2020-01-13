@@ -1299,8 +1299,11 @@ static void gfs2_evict_inode(struct inode *inode)
 	if (test_bit(GIF_ALLOC_FAILED, &ip->i_flags)) {
 		BUG_ON(!gfs2_glock_is_locked_by_me(ip->i_gl));
 		gfs2_holder_mark_uninitialized(&gh);
-		goto alloc_failed;
+		goto out_delete;
 	}
+
+	if (test_bit(GIF_DEFERRED_DELETE, &ip->i_flags))
+		goto out;
 
 	/* Deletes should never happen under memory pressure anymore.  */
 	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC))
@@ -1333,7 +1336,7 @@ static void gfs2_evict_inode(struct inode *inode)
 	if (inode->i_nlink)
 		goto out_truncate;
 
-alloc_failed:
+out_delete:
 	if (gfs2_holder_initialized(&ip->i_iopen_gh) &&
 	    test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;

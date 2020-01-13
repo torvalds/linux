@@ -774,6 +774,42 @@ bool gfs2_inode_already_deleted(struct gfs2_glock *gl, u64 generation)
 	return generation <= be64_to_cpu(ri->ri_generation_deleted);
 }
 
+static bool gfs2_try_evict(struct gfs2_glock *gl)
+{
+	struct gfs2_inode *ip;
+	bool evicted = false;
+
+	/*
+	 * If there is contention on the iopen glock and we have an inode, try
+	 * to grab and release the inode so that it can be evicted.  This will
+	 * allow the remote node to go ahead and delete the inode without us
+	 * having to do it, which will avoid rgrp glock thrashing.
+	 *
+	 * The remote node is likely still holding the corresponding inode
+	 * glock, so it will run before we get to verify that the delete has
+	 * happened below.
+	 */
+	spin_lock(&gl->gl_lockref.lock);
+	ip = gl->gl_object;
+	if (ip && !igrab(&ip->i_inode))
+		ip = NULL;
+	spin_unlock(&gl->gl_lockref.lock);
+	if (ip) {
+		set_bit(GIF_DEFERRED_DELETE, &ip->i_flags);
+		d_prune_aliases(&ip->i_inode);
+		iput(&ip->i_inode);
+
+		/* If the inode was evicted, gl->gl_object will now be NULL. */
+		spin_lock(&gl->gl_lockref.lock);
+		ip = gl->gl_object;
+		if (ip)
+			clear_bit(GIF_DEFERRED_DELETE, &ip->i_flags);
+		spin_unlock(&gl->gl_lockref.lock);
+		evicted = !ip;
+	}
+	return evicted;
+}
+
 static void delete_work_func(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -791,6 +827,21 @@ static void delete_work_func(struct work_struct *work)
 	   iopen callback is too late after the fact. Ignore it. */
 	if (test_bit(GLF_INODE_CREATING, &gl->gl_flags))
 		goto out;
+
+	if (test_bit(GLF_DEMOTE, &gl->gl_flags)) {
+		/*
+		 * If we can evict the inode, give the remote node trying to
+		 * delete the inode some time before verifying that the delete
+		 * has happened.  Otherwise, if we cause contention on the inode glock
+		 * immediately, the remote node will think that we still have
+		 * the inode in use, and so it will give up waiting.
+		 */
+		if (gfs2_try_evict(gl)) {
+			if (gfs2_queue_delete_work(gl, 5 * HZ))
+				return;
+			goto out;
+		}
+	}
 
 	inode = gfs2_lookup_by_inum(sdp, no_addr, NULL, GFS2_BLKST_UNLINKED);
 	if (!IS_ERR_OR_NULL(inode)) {
