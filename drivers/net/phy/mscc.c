@@ -18,6 +18,10 @@
 #include <linux/netdevice.h>
 #include <dt-bindings/net/mscc-phy-vsc8531.h>
 
+#include "mscc_macsec.h"
+#include "mscc_mac.h"
+#include "mscc_fc_buffer.h"
+
 enum rgmii_rx_clock_delay {
 	RGMII_RX_CLK_DELAY_0_2_NS = 0,
 	RGMII_RX_CLK_DELAY_0_8_NS = 1,
@@ -121,6 +125,26 @@ enum rgmii_rx_clock_delay {
 #define PHY_S6G_PLL_FSM_CTRL_DATA_POS	  8
 #define PHY_S6G_PLL_FSM_ENA_POS		  7
 
+#define MSCC_EXT_PAGE_MACSEC_17		  17
+#define MSCC_EXT_PAGE_MACSEC_18		  18
+
+#define MSCC_EXT_PAGE_MACSEC_19		  19
+#define MSCC_PHY_MACSEC_19_REG_ADDR(x)	  (x)
+#define MSCC_PHY_MACSEC_19_TARGET(x)	  ((x) << 12)
+#define MSCC_PHY_MACSEC_19_READ		  BIT(14)
+#define MSCC_PHY_MACSEC_19_CMD		  BIT(15)
+
+#define MSCC_EXT_PAGE_MACSEC_20		  20
+#define MSCC_PHY_MACSEC_20_TARGET(x)	  (x)
+enum macsec_bank {
+	FC_BUFFER   = 0x04,
+	HOST_MAC    = 0x05,
+	LINE_MAC    = 0x06,
+	IP_1588     = 0x0e,
+	MACSEC_INGR = 0x38,
+	MACSEC_EGR  = 0x3c,
+};
+
 #define MSCC_EXT_PAGE_ACCESS		  31
 #define MSCC_PHY_PAGE_STANDARD		  0x0000 /* Standard registers */
 #define MSCC_PHY_PAGE_EXTENDED		  0x0001 /* Extended registers */
@@ -128,6 +152,7 @@ enum rgmii_rx_clock_delay {
 #define MSCC_PHY_PAGE_EXTENDED_3	  0x0003 /* Extended reg - page 3 */
 #define MSCC_PHY_PAGE_EXTENDED_4	  0x0004 /* Extended reg - page 4 */
 #define MSCC_PHY_PAGE_CSR_CNTL		  MSCC_PHY_PAGE_EXTENDED_4
+#define MSCC_PHY_PAGE_MACSEC		  MSCC_PHY_PAGE_EXTENDED_4
 /* Extended reg - GPIO; this is a bank of registers that are shared for all PHYs
  * in the same package.
  */
@@ -1584,6 +1609,350 @@ out:
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_MACSEC)
+static u32 vsc8584_macsec_phy_read(struct phy_device *phydev,
+				   enum macsec_bank bank, u32 reg)
+{
+	u32 val, val_l = 0, val_h = 0;
+	unsigned long deadline;
+	int rc;
+
+	rc = phy_select_page(phydev, MSCC_PHY_PAGE_MACSEC);
+	if (rc < 0)
+		goto failed;
+
+	__phy_write(phydev, MSCC_EXT_PAGE_MACSEC_20,
+		    MSCC_PHY_MACSEC_20_TARGET(bank >> 2));
+
+	if (bank >> 2 == 0x1)
+		/* non-MACsec access */
+		bank &= 0x3;
+	else
+		bank = 0;
+
+	__phy_write(phydev, MSCC_EXT_PAGE_MACSEC_19,
+		    MSCC_PHY_MACSEC_19_CMD | MSCC_PHY_MACSEC_19_READ |
+		    MSCC_PHY_MACSEC_19_REG_ADDR(reg) |
+		    MSCC_PHY_MACSEC_19_TARGET(bank));
+
+	deadline = jiffies + msecs_to_jiffies(PROC_CMD_NCOMPLETED_TIMEOUT_MS);
+	do {
+		val = __phy_read(phydev, MSCC_EXT_PAGE_MACSEC_19);
+	} while (time_before(jiffies, deadline) && !(val & MSCC_PHY_MACSEC_19_CMD));
+
+	val_l = __phy_read(phydev, MSCC_EXT_PAGE_MACSEC_17);
+	val_h = __phy_read(phydev, MSCC_EXT_PAGE_MACSEC_18);
+
+failed:
+	phy_restore_page(phydev, rc, rc);
+
+	return (val_h << 16) | val_l;
+}
+
+static void vsc8584_macsec_phy_write(struct phy_device *phydev,
+				     enum macsec_bank bank, u32 reg, u32 val)
+{
+	unsigned long deadline;
+	int rc;
+
+	rc = phy_select_page(phydev, MSCC_PHY_PAGE_MACSEC);
+	if (rc < 0)
+		goto failed;
+
+	__phy_write(phydev, MSCC_EXT_PAGE_MACSEC_20,
+		    MSCC_PHY_MACSEC_20_TARGET(bank >> 2));
+
+	if ((bank >> 2 == 0x1) || (bank >> 2 == 0x3))
+		bank &= 0x3;
+	else
+		/* MACsec access */
+		bank = 0;
+
+	__phy_write(phydev, MSCC_EXT_PAGE_MACSEC_17, (u16)val);
+	__phy_write(phydev, MSCC_EXT_PAGE_MACSEC_18, (u16)(val >> 16));
+
+	__phy_write(phydev, MSCC_EXT_PAGE_MACSEC_19,
+		    MSCC_PHY_MACSEC_19_CMD | MSCC_PHY_MACSEC_19_REG_ADDR(reg) |
+		    MSCC_PHY_MACSEC_19_TARGET(bank));
+
+	deadline = jiffies + msecs_to_jiffies(PROC_CMD_NCOMPLETED_TIMEOUT_MS);
+	do {
+		val = __phy_read(phydev, MSCC_EXT_PAGE_MACSEC_19);
+	} while (time_before(jiffies, deadline) && !(val & MSCC_PHY_MACSEC_19_CMD));
+
+failed:
+	phy_restore_page(phydev, rc, rc);
+}
+
+static void vsc8584_macsec_classification(struct phy_device *phydev,
+					  enum macsec_bank bank)
+{
+	/* enable VLAN tag parsing */
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_SAM_CP_TAG,
+				 MSCC_MS_SAM_CP_TAG_PARSE_STAG |
+				 MSCC_MS_SAM_CP_TAG_PARSE_QTAG |
+				 MSCC_MS_SAM_CP_TAG_PARSE_QINQ);
+}
+
+static void vsc8584_macsec_flow_default_action(struct phy_device *phydev,
+					       enum macsec_bank bank,
+					       bool block)
+{
+	u32 port = (bank == MACSEC_INGR) ?
+		    MSCC_MS_PORT_UNCONTROLLED : MSCC_MS_PORT_COMMON;
+	u32 action = MSCC_MS_FLOW_BYPASS;
+
+	if (block)
+		action = MSCC_MS_FLOW_DROP;
+
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_SAM_NM_FLOW_NCP,
+				 /* MACsec untagged */
+				 MSCC_MS_SAM_NM_FLOW_NCP_UNTAGGED_FLOW_TYPE(action) |
+				 MSCC_MS_SAM_NM_FLOW_NCP_UNTAGGED_DROP_ACTION(MSCC_MS_ACTION_DROP) |
+				 MSCC_MS_SAM_NM_FLOW_NCP_UNTAGGED_DEST_PORT(port) |
+				 /* MACsec tagged */
+				 MSCC_MS_SAM_NM_FLOW_NCP_TAGGED_FLOW_TYPE(action) |
+				 MSCC_MS_SAM_NM_FLOW_NCP_TAGGED_DROP_ACTION(MSCC_MS_ACTION_DROP) |
+				 MSCC_MS_SAM_NM_FLOW_NCP_TAGGED_DEST_PORT(port) |
+				 /* Bad tag */
+				 MSCC_MS_SAM_NM_FLOW_NCP_BADTAG_FLOW_TYPE(action) |
+				 MSCC_MS_SAM_NM_FLOW_NCP_BADTAG_DROP_ACTION(MSCC_MS_ACTION_DROP) |
+				 MSCC_MS_SAM_NM_FLOW_NCP_BADTAG_DEST_PORT(port) |
+				 /* Kay tag */
+				 MSCC_MS_SAM_NM_FLOW_NCP_KAY_FLOW_TYPE(action) |
+				 MSCC_MS_SAM_NM_FLOW_NCP_KAY_DROP_ACTION(MSCC_MS_ACTION_DROP) |
+				 MSCC_MS_SAM_NM_FLOW_NCP_KAY_DEST_PORT(port));
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_SAM_NM_FLOW_CP,
+				 /* MACsec untagged */
+				 MSCC_MS_SAM_NM_FLOW_NCP_UNTAGGED_FLOW_TYPE(action) |
+				 MSCC_MS_SAM_NM_FLOW_CP_UNTAGGED_DROP_ACTION(MSCC_MS_ACTION_DROP) |
+				 MSCC_MS_SAM_NM_FLOW_CP_UNTAGGED_DEST_PORT(port) |
+				 /* MACsec tagged */
+				 MSCC_MS_SAM_NM_FLOW_NCP_TAGGED_FLOW_TYPE(action) |
+				 MSCC_MS_SAM_NM_FLOW_CP_TAGGED_DROP_ACTION(MSCC_MS_ACTION_DROP) |
+				 MSCC_MS_SAM_NM_FLOW_CP_TAGGED_DEST_PORT(port) |
+				 /* Bad tag */
+				 MSCC_MS_SAM_NM_FLOW_NCP_BADTAG_FLOW_TYPE(action) |
+				 MSCC_MS_SAM_NM_FLOW_CP_BADTAG_DROP_ACTION(MSCC_MS_ACTION_DROP) |
+				 MSCC_MS_SAM_NM_FLOW_CP_BADTAG_DEST_PORT(port) |
+				 /* Kay tag */
+				 MSCC_MS_SAM_NM_FLOW_NCP_KAY_FLOW_TYPE(action) |
+				 MSCC_MS_SAM_NM_FLOW_CP_KAY_DROP_ACTION(MSCC_MS_ACTION_DROP) |
+				 MSCC_MS_SAM_NM_FLOW_CP_KAY_DEST_PORT(port));
+}
+
+static void vsc8584_macsec_integrity_checks(struct phy_device *phydev,
+					    enum macsec_bank bank)
+{
+	u32 val;
+
+	if (bank != MACSEC_INGR)
+		return;
+
+	/* Set default rules to pass unmatched frames */
+	val = vsc8584_macsec_phy_read(phydev, bank,
+				      MSCC_MS_PARAMS2_IG_CC_CONTROL);
+	val |= MSCC_MS_PARAMS2_IG_CC_CONTROL_NON_MATCH_CTRL_ACT |
+	       MSCC_MS_PARAMS2_IG_CC_CONTROL_NON_MATCH_ACT;
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_PARAMS2_IG_CC_CONTROL,
+				 val);
+
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_PARAMS2_IG_CP_TAG,
+				 MSCC_MS_PARAMS2_IG_CP_TAG_PARSE_STAG |
+				 MSCC_MS_PARAMS2_IG_CP_TAG_PARSE_QTAG |
+				 MSCC_MS_PARAMS2_IG_CP_TAG_PARSE_QINQ);
+}
+
+static void vsc8584_macsec_block_init(struct phy_device *phydev,
+				      enum macsec_bank bank)
+{
+	u32 val;
+	int i;
+
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_ENA_CFG,
+				 MSCC_MS_ENA_CFG_SW_RST |
+				 MSCC_MS_ENA_CFG_MACSEC_BYPASS_ENA);
+
+	/* Set the MACsec block out of s/w reset and enable clocks */
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_ENA_CFG,
+				 MSCC_MS_ENA_CFG_CLK_ENA);
+
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_STATUS_CONTEXT_CTRL,
+				 bank == MACSEC_INGR ? 0xe5880214 : 0xe5880218);
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_MISC_CONTROL,
+				 MSCC_MS_MISC_CONTROL_MC_LATENCY_FIX(bank == MACSEC_INGR ? 57 : 40) |
+				 MSCC_MS_MISC_CONTROL_XFORM_REC_SIZE(bank == MACSEC_INGR ? 1 : 2));
+
+	/* Clear the counters */
+	val = vsc8584_macsec_phy_read(phydev, bank, MSCC_MS_COUNT_CONTROL);
+	val |= MSCC_MS_COUNT_CONTROL_AUTO_CNTR_RESET;
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_COUNT_CONTROL, val);
+
+	/* Enable octet increment mode */
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_PP_CTRL,
+				 MSCC_MS_PP_CTRL_MACSEC_OCTET_INCR_MODE);
+
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_BLOCK_CTX_UPDATE, 0x3);
+
+	val = vsc8584_macsec_phy_read(phydev, bank, MSCC_MS_COUNT_CONTROL);
+	val |= MSCC_MS_COUNT_CONTROL_RESET_ALL;
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_COUNT_CONTROL, val);
+
+	/* Set the MTU */
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_NON_VLAN_MTU_CHECK,
+				 MSCC_MS_NON_VLAN_MTU_CHECK_NV_MTU_COMPARE(32761) |
+				 MSCC_MS_NON_VLAN_MTU_CHECK_NV_MTU_COMP_DROP);
+
+	for (i = 0; i < 8; i++)
+		vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_VLAN_MTU_CHECK(i),
+					 MSCC_MS_VLAN_MTU_CHECK_MTU_COMPARE(32761) |
+					 MSCC_MS_VLAN_MTU_CHECK_MTU_COMP_DROP);
+
+	if (bank == MACSEC_EGR) {
+		val = vsc8584_macsec_phy_read(phydev, bank, MSCC_MS_INTR_CTRL_STATUS);
+		val &= ~MSCC_MS_INTR_CTRL_STATUS_INTR_ENABLE_M;
+		vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_INTR_CTRL_STATUS, val);
+
+		vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_FC_CFG,
+					 MSCC_MS_FC_CFG_FCBUF_ENA |
+					 MSCC_MS_FC_CFG_LOW_THRESH(0x1) |
+					 MSCC_MS_FC_CFG_HIGH_THRESH(0x4) |
+					 MSCC_MS_FC_CFG_LOW_BYTES_VAL(0x4) |
+					 MSCC_MS_FC_CFG_HIGH_BYTES_VAL(0x6));
+	}
+
+	vsc8584_macsec_classification(phydev, bank);
+	vsc8584_macsec_flow_default_action(phydev, bank, false);
+	vsc8584_macsec_integrity_checks(phydev, bank);
+
+	/* Enable the MACsec block */
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_ENA_CFG,
+				 MSCC_MS_ENA_CFG_CLK_ENA |
+				 MSCC_MS_ENA_CFG_MACSEC_ENA |
+				 MSCC_MS_ENA_CFG_MACSEC_SPEED_MODE(0x5));
+}
+
+static void vsc8584_macsec_mac_init(struct phy_device *phydev,
+				    enum macsec_bank bank)
+{
+	u32 val;
+	int i;
+
+	/* Clear host & line stats */
+	for (i = 0; i < 36; i++)
+		vsc8584_macsec_phy_write(phydev, bank, 0x1c + i, 0);
+
+	val = vsc8584_macsec_phy_read(phydev, bank,
+				      MSCC_MAC_PAUSE_CFG_TX_FRAME_CTRL);
+	val &= ~MSCC_MAC_PAUSE_CFG_TX_FRAME_CTRL_PAUSE_MODE_M;
+	val |= MSCC_MAC_PAUSE_CFG_TX_FRAME_CTRL_PAUSE_MODE(2) |
+	       MSCC_MAC_PAUSE_CFG_TX_FRAME_CTRL_PAUSE_VALUE(0xffff);
+	vsc8584_macsec_phy_write(phydev, bank,
+				 MSCC_MAC_PAUSE_CFG_TX_FRAME_CTRL, val);
+
+	val = vsc8584_macsec_phy_read(phydev, bank,
+				      MSCC_MAC_PAUSE_CFG_TX_FRAME_CTRL_2);
+	val |= 0xffff;
+	vsc8584_macsec_phy_write(phydev, bank,
+				 MSCC_MAC_PAUSE_CFG_TX_FRAME_CTRL_2, val);
+
+	val = vsc8584_macsec_phy_read(phydev, bank,
+				      MSCC_MAC_PAUSE_CFG_RX_FRAME_CTRL);
+	if (bank == HOST_MAC)
+		val |= MSCC_MAC_PAUSE_CFG_RX_FRAME_CTRL_PAUSE_TIMER_ENA |
+		       MSCC_MAC_PAUSE_CFG_RX_FRAME_CTRL_PAUSE_FRAME_DROP_ENA;
+	else
+		val |= MSCC_MAC_PAUSE_CFG_RX_FRAME_CTRL_PAUSE_REACT_ENA |
+		       MSCC_MAC_PAUSE_CFG_RX_FRAME_CTRL_PAUSE_FRAME_DROP_ENA |
+		       MSCC_MAC_PAUSE_CFG_RX_FRAME_CTRL_PAUSE_MODE |
+		       MSCC_MAC_PAUSE_CFG_RX_FRAME_CTRL_EARLY_PAUSE_DETECT_ENA;
+	vsc8584_macsec_phy_write(phydev, bank,
+				 MSCC_MAC_PAUSE_CFG_RX_FRAME_CTRL, val);
+
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MAC_CFG_PKTINF_CFG,
+				 MSCC_MAC_CFG_PKTINF_CFG_STRIP_FCS_ENA |
+				 MSCC_MAC_CFG_PKTINF_CFG_INSERT_FCS_ENA |
+				 MSCC_MAC_CFG_PKTINF_CFG_LPI_RELAY_ENA |
+				 MSCC_MAC_CFG_PKTINF_CFG_STRIP_PREAMBLE_ENA |
+				 MSCC_MAC_CFG_PKTINF_CFG_INSERT_PREAMBLE_ENA |
+				 (bank == HOST_MAC ?
+				  MSCC_MAC_CFG_PKTINF_CFG_ENABLE_TX_PADDING : 0));
+
+	val = vsc8584_macsec_phy_read(phydev, bank, MSCC_MAC_CFG_MODE_CFG);
+	val &= ~MSCC_MAC_CFG_MODE_CFG_DISABLE_DIC;
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MAC_CFG_MODE_CFG, val);
+
+	val = vsc8584_macsec_phy_read(phydev, bank, MSCC_MAC_CFG_MAXLEN_CFG);
+	val &= ~MSCC_MAC_CFG_MAXLEN_CFG_MAX_LEN_M;
+	val |= MSCC_MAC_CFG_MAXLEN_CFG_MAX_LEN(10240);
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MAC_CFG_MAXLEN_CFG, val);
+
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MAC_CFG_ADV_CHK_CFG,
+				 MSCC_MAC_CFG_ADV_CHK_CFG_SFD_CHK_ENA |
+				 MSCC_MAC_CFG_ADV_CHK_CFG_PRM_CHK_ENA |
+				 MSCC_MAC_CFG_ADV_CHK_CFG_OOR_ERR_ENA |
+				 MSCC_MAC_CFG_ADV_CHK_CFG_INR_ERR_ENA);
+
+	val = vsc8584_macsec_phy_read(phydev, bank, MSCC_MAC_CFG_LFS_CFG);
+	val &= ~MSCC_MAC_CFG_LFS_CFG_LFS_MODE_ENA;
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MAC_CFG_LFS_CFG, val);
+
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MAC_CFG_ENA_CFG,
+				 MSCC_MAC_CFG_ENA_CFG_RX_CLK_ENA |
+				 MSCC_MAC_CFG_ENA_CFG_TX_CLK_ENA |
+				 MSCC_MAC_CFG_ENA_CFG_RX_ENA |
+				 MSCC_MAC_CFG_ENA_CFG_TX_ENA);
+}
+
+/* Must be called with mdio_lock taken */
+static int vsc8584_macsec_init(struct phy_device *phydev)
+{
+	u32 val;
+
+	vsc8584_macsec_block_init(phydev, MACSEC_INGR);
+	vsc8584_macsec_block_init(phydev, MACSEC_EGR);
+	vsc8584_macsec_mac_init(phydev, HOST_MAC);
+	vsc8584_macsec_mac_init(phydev, LINE_MAC);
+
+	vsc8584_macsec_phy_write(phydev, FC_BUFFER,
+				 MSCC_FCBUF_FC_READ_THRESH_CFG,
+				 MSCC_FCBUF_FC_READ_THRESH_CFG_TX_THRESH(4) |
+				 MSCC_FCBUF_FC_READ_THRESH_CFG_RX_THRESH(5));
+
+	val = vsc8584_macsec_phy_read(phydev, FC_BUFFER, MSCC_FCBUF_MODE_CFG);
+	val |= MSCC_FCBUF_MODE_CFG_PAUSE_GEN_ENA |
+	       MSCC_FCBUF_MODE_CFG_RX_PPM_RATE_ADAPT_ENA |
+	       MSCC_FCBUF_MODE_CFG_TX_PPM_RATE_ADAPT_ENA;
+	vsc8584_macsec_phy_write(phydev, FC_BUFFER, MSCC_FCBUF_MODE_CFG, val);
+
+	vsc8584_macsec_phy_write(phydev, FC_BUFFER, MSCC_FCBUF_PPM_RATE_ADAPT_THRESH_CFG,
+				 MSCC_FCBUF_PPM_RATE_ADAPT_THRESH_CFG_TX_THRESH(8) |
+				 MSCC_FCBUF_PPM_RATE_ADAPT_THRESH_CFG_TX_OFFSET(9));
+
+	val = vsc8584_macsec_phy_read(phydev, FC_BUFFER,
+				      MSCC_FCBUF_TX_DATA_QUEUE_CFG);
+	val &= ~(MSCC_FCBUF_TX_DATA_QUEUE_CFG_START_M |
+		 MSCC_FCBUF_TX_DATA_QUEUE_CFG_END_M);
+	val |= MSCC_FCBUF_TX_DATA_QUEUE_CFG_START(0) |
+		MSCC_FCBUF_TX_DATA_QUEUE_CFG_END(5119);
+	vsc8584_macsec_phy_write(phydev, FC_BUFFER,
+				 MSCC_FCBUF_TX_DATA_QUEUE_CFG, val);
+
+	val = vsc8584_macsec_phy_read(phydev, FC_BUFFER, MSCC_FCBUF_ENA_CFG);
+	val |= MSCC_FCBUF_ENA_CFG_TX_ENA | MSCC_FCBUF_ENA_CFG_RX_ENA;
+	vsc8584_macsec_phy_write(phydev, FC_BUFFER, MSCC_FCBUF_ENA_CFG, val);
+
+	val = vsc8584_macsec_phy_read(phydev, IP_1588,
+				      MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL);
+	val &= ~MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE_M;
+	val |= MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL_PROTOCOL_MODE(4);
+	vsc8584_macsec_phy_write(phydev, IP_1588,
+				 MSCC_PROC_0_IP_1588_TOP_CFG_STAT_MODE_CTL, val);
+
+	return 0;
+}
+#endif /* CONFIG_MACSEC */
+
 /* Check if one PHY has already done the init of the parts common to all PHYs
  * in the Quad PHY package.
  */
@@ -1732,6 +2101,19 @@ static int vsc8584_config_init(struct phy_device *phydev)
 		goto err;
 
 	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+
+#if IS_ENABLED(CONFIG_MACSEC)
+	/* MACsec */
+	switch (phydev->phy_id & phydev->drv->phy_id_mask) {
+	case PHY_ID_VSC856X:
+	case PHY_ID_VSC8575:
+	case PHY_ID_VSC8582:
+	case PHY_ID_VSC8584:
+		ret = vsc8584_macsec_init(phydev);
+		if (ret)
+			goto err;
+	}
+#endif
 
 	phy_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
 
