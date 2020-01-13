@@ -838,12 +838,12 @@ static int nf_flow_table_block_setup(struct nf_flowtable *flowtable,
 	return err;
 }
 
-int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
-				struct net_device *dev,
-				enum flow_block_command cmd)
+static int nf_flow_table_offload_cmd(struct flow_block_offload *bo,
+				     struct nf_flowtable *flowtable,
+				     struct net_device *dev,
+				     enum flow_block_command cmd,
+				     struct netlink_ext_ack *extack)
 {
-	struct netlink_ext_ack extack = {};
-	struct flow_block_offload bo = {};
 	int err;
 
 	if (!nf_flowtable_hw_offload(flowtable))
@@ -852,14 +852,30 @@ int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
 	if (!dev->netdev_ops->ndo_setup_tc)
 		return -EOPNOTSUPP;
 
-	bo.net		= dev_net(dev);
-	bo.block	= &flowtable->flow_block;
-	bo.command	= cmd;
-	bo.binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
-	bo.extack	= &extack;
-	INIT_LIST_HEAD(&bo.cb_list);
+	memset(bo, 0, sizeof(*bo));
+	bo->net		= dev_net(dev);
+	bo->block	= &flowtable->flow_block;
+	bo->command	= cmd;
+	bo->binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
+	bo->extack	= extack;
+	INIT_LIST_HEAD(&bo->cb_list);
 
-	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_FT, &bo);
+	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_FT, bo);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
+				struct net_device *dev,
+				enum flow_block_command cmd)
+{
+	struct netlink_ext_ack extack = {};
+	struct flow_block_offload bo;
+	int err;
+
+	err = nf_flow_table_offload_cmd(&bo, flowtable, dev, cmd, &extack);
 	if (err < 0)
 		return err;
 
