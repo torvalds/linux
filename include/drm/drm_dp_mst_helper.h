@@ -156,6 +156,8 @@ struct drm_dp_mst_port {
 	 * audio-capable.
 	 */
 	bool has_audio;
+
+	bool fec_capable;
 };
 
 /**
@@ -383,6 +385,7 @@ struct drm_dp_port_number_req {
 
 struct drm_dp_enum_path_resources_ack_reply {
 	u8 port_number;
+	bool fec_capable;
 	u16 full_payload_bw_number;
 	u16 avail_payload_bw_number;
 };
@@ -499,6 +502,8 @@ struct drm_dp_payload {
 struct drm_dp_vcpi_allocation {
 	struct drm_dp_mst_port *port;
 	int vcpi;
+	int pbn;
+	bool dsc_enabled;
 	struct list_head next;
 };
 
@@ -727,8 +732,7 @@ bool drm_dp_mst_port_has_audio(struct drm_dp_mst_topology_mgr *mgr,
 struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
 
-int drm_dp_calc_pbn_mode(int clock, int bpp);
-
+int drm_dp_calc_pbn_mode(int clock, int bpp, bool dsc);
 
 bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 			      struct drm_dp_mst_port *port, int pbn, int slots);
@@ -777,7 +781,15 @@ struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_a
 int __must_check
 drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 			      struct drm_dp_mst_topology_mgr *mgr,
-			      struct drm_dp_mst_port *port, int pbn);
+			      struct drm_dp_mst_port *port, int pbn,
+			      int pbn_div);
+int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
+				 struct drm_dp_mst_port *port,
+				 int pbn, int pbn_div,
+				 bool enable);
+int __must_check
+drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state,
+				  struct drm_dp_mst_topology_mgr *mgr);
 int __must_check
 drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 				 struct drm_dp_mst_topology_mgr *mgr,
@@ -788,6 +800,8 @@ int __must_check drm_dp_mst_atomic_check(struct drm_atomic_state *state);
 
 void drm_dp_mst_get_port_malloc(struct drm_dp_mst_port *port);
 void drm_dp_mst_put_port_malloc(struct drm_dp_mst_port *port);
+
+struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port);
 
 extern const struct drm_private_state_funcs drm_dp_mst_topology_state_funcs;
 

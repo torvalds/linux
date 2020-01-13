@@ -1569,7 +1569,7 @@ static void release_dsc(struct resource_context *res_ctx,
 
 
 
-static enum dc_status add_dsc_to_stream_resource(struct dc *dc,
+enum dc_status dcn20_add_dsc_to_stream_resource(struct dc *dc,
 		struct dc_state *dc_ctx,
 		struct dc_stream_state *dc_stream)
 {
@@ -1582,6 +1582,9 @@ static enum dc_status add_dsc_to_stream_resource(struct dc *dc,
 		struct pipe_ctx *pipe_ctx = &dc_ctx->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->stream != dc_stream)
+			continue;
+
+		if (pipe_ctx->stream_res.dsc)
 			continue;
 
 		acquire_dsc(&dc_ctx->res_ctx, pool, &pipe_ctx->stream_res.dsc, i);
@@ -1632,7 +1635,7 @@ enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, 
 
 	/* Get a DSC if required and available */
 	if (result == DC_OK && dc_stream->timing.flags.DSC)
-		result = add_dsc_to_stream_resource(dc, new_ctx, dc_stream);
+		result = dcn20_add_dsc_to_stream_resource(dc, new_ctx, dc_stream);
 
 	if (result == DC_OK)
 		result = dcn20_build_mapped_resource(dc, new_ctx, dc_stream);

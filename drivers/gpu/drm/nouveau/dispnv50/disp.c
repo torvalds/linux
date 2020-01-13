@@ -806,11 +806,11 @@ nv50_msto_atomic_check(struct drm_encoder *encoder,
 		 * topology
 		 */
 		asyh->or.bpc = min(connector->display_info.bpc, 8U);
-		asyh->dp.pbn = drm_dp_calc_pbn_mode(clock, asyh->or.bpc * 3);
+		asyh->dp.pbn = drm_dp_calc_pbn_mode(clock, asyh->or.bpc * 3, false);
 	}
 
 	slots = drm_dp_atomic_find_vcpi_slots(state, &mstm->mgr, mstc->port,
-					      asyh->dp.pbn);
+					      asyh->dp.pbn, 0);
 	if (slots < 0)
 		return slots;
 

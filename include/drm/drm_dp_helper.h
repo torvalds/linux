@@ -1465,6 +1465,7 @@ int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6]);
 void drm_dp_downstream_debug(struct seq_file *m, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			     const u8 port_cap[4], struct drm_dp_aux *aux);
 
+void drm_dp_remote_aux_init(struct drm_dp_aux *aux);
 void drm_dp_aux_init(struct drm_dp_aux *aux);
 int drm_dp_aux_register(struct drm_dp_aux *aux);
 void drm_dp_aux_unregister(struct drm_dp_aux *aux);
@@ -1522,6 +1523,13 @@ enum drm_dp_quirk {
 	 * The driver should ignore SINK_COUNT during detection.
 	 */
 	DP_DPCD_QUIRK_NO_SINK_COUNT,
+	/**
+	 * @DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD:
+	 *
+	 * The device supports MST DSC despite not supporting Virtual DPCD.
+	 * The DSC caps can be read from the physical aux instead.
+	 */
+	DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD,
 };
 
 /**

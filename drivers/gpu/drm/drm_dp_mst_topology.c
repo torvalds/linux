@@ -853,6 +853,7 @@ static bool drm_dp_sideband_parse_enum_path_resources_ack(struct drm_dp_sideband
 {
 	int idx = 1;
 	repmsg->u.path_resources.port_number = (raw->msg[idx] >> 4) & 0xf;
+	repmsg->u.path_resources.fec_capable = raw->msg[idx] & 0x1;
 	idx++;
 	if (idx > raw->curlen)
 		goto fail_len;
@@ -2174,6 +2175,7 @@ drm_dp_mst_topology_unlink_port(struct drm_dp_mst_topology_mgr *mgr,
 				struct drm_dp_mst_port *port)
 {
 	mutex_lock(&mgr->lock);
+	port->parent->num_ports--;
 	list_del(&port->next);
 	mutex_unlock(&mgr->lock);
 	drm_dp_mst_topology_put_port(port);
@@ -2197,6 +2199,9 @@ drm_dp_mst_add_port(struct drm_device *dev,
 	port->aux.name = "DPMST";
 	port->aux.dev = dev->dev;
 	port->aux.is_remote = true;
+
+	/* initialize the MST downstream port's AUX crc work queue */
+	drm_dp_remote_aux_init(&port->aux);
 
 	/*
 	 * Make sure the memory allocation for our parent branch stays
@@ -2273,6 +2278,7 @@ drm_dp_mst_handle_link_address_port(struct drm_dp_mst_branch *mstb,
 		mutex_lock(&mgr->lock);
 		drm_dp_mst_topology_get_port(port);
 		list_add(&port->next, &mstb->ports);
+		mstb->num_ports++;
 		mutex_unlock(&mgr->lock);
 	}
 
@@ -2951,6 +2957,7 @@ drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 				      path_res->avail_payload_bw_number);
 			port->available_pbn =
 				path_res->avail_payload_bw_number;
+			port->fec_capable = path_res->fec_capable;
 		}
 	}
 
@@ -4089,6 +4096,7 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
  * @mgr: MST topology manager for the port
  * @port: port to find vcpi slots for
  * @pbn: bandwidth required for the mode in PBN
+ * @pbn_div: divider for DSC mode that takes FEC into account
  *
  * Allocates VCPI slots to @port, replacing any previous VCPI allocations it
  * may have had. Any atomic drivers which support MST must call this function
@@ -4115,11 +4123,12 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
  */
 int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 				  struct drm_dp_mst_topology_mgr *mgr,
-				  struct drm_dp_mst_port *port, int pbn)
+				  struct drm_dp_mst_port *port, int pbn,
+				  int pbn_div)
 {
 	struct drm_dp_mst_topology_state *topology_state;
 	struct drm_dp_vcpi_allocation *pos, *vcpi = NULL;
-	int prev_slots, req_slots;
+	int prev_slots, prev_bw, req_slots;
 
 	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
 	if (IS_ERR(topology_state))
@@ -4130,6 +4139,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 		if (pos->port == port) {
 			vcpi = pos;
 			prev_slots = vcpi->vcpi;
+			prev_bw = vcpi->pbn;
 
 			/*
 			 * This should never happen, unless the driver tries
@@ -4145,14 +4155,22 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 			break;
 		}
 	}
-	if (!vcpi)
+	if (!vcpi) {
 		prev_slots = 0;
+		prev_bw = 0;
+	}
 
-	req_slots = DIV_ROUND_UP(pbn, mgr->pbn_div);
+	if (pbn_div <= 0)
+		pbn_div = mgr->pbn_div;
+
+	req_slots = DIV_ROUND_UP(pbn, pbn_div);
 
 	DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] [MST PORT:%p] VCPI %d -> %d\n",
 			 port->connector->base.id, port->connector->name,
 			 port, prev_slots, req_slots);
+	DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] [MST PORT:%p] PBN %d -> %d\n",
+			 port->connector->base.id, port->connector->name,
+			 port, prev_bw, pbn);
 
 	/* Add the new allocation to the state */
 	if (!vcpi) {
@@ -4165,6 +4183,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 		list_add(&vcpi->next, &topology_state->vcpis);
 	}
 	vcpi->vcpi = req_slots;
+	vcpi->pbn = pbn;
 
 	return req_slots;
 }
@@ -4415,10 +4434,11 @@ EXPORT_SYMBOL(drm_dp_check_act_status);
  * drm_dp_calc_pbn_mode() - Calculate the PBN for a mode.
  * @clock: dot clock for the mode
  * @bpp: bpp for the mode.
+ * @dsc: DSC mode. If true, bpp has units of 1/16 of a bit per pixel
  *
  * This uses the formula in the spec to calculate the PBN value for a mode.
  */
-int drm_dp_calc_pbn_mode(int clock, int bpp)
+int drm_dp_calc_pbn_mode(int clock, int bpp, bool dsc)
 {
 	/*
 	 * margin 5300ppm + 300ppm ~ 0.6% as per spec, factor is 1.006
@@ -4429,7 +4449,16 @@ int drm_dp_calc_pbn_mode(int clock, int bpp)
 	 * peak_kbps *= (1006/1000)
 	 * peak_kbps *= (64/54)
 	 * peak_kbps *= 8    convert to bytes
+	 *
+	 * If the bpp is in units of 1/16, further divide by 16. Put this
+	 * factor in the numerator rather than the denominator to avoid
+	 * integer overflow
 	 */
+
+	if (dsc)
+		return DIV_ROUND_UP_ULL(mul_u32_u32(clock * (bpp / 16), 64 * 1006),
+					8 * 54 * 1000 * 1000);
+
 	return DIV_ROUND_UP_ULL(mul_u32_u32(clock * bpp, 64 * 1006),
 				8 * 54 * 1000 * 1000);
 }
@@ -4731,9 +4760,61 @@ static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
 	kfree(mst_state);
 }
 
+static bool drm_dp_mst_port_downstream_of_branch(struct drm_dp_mst_port *port,
+						 struct drm_dp_mst_branch *branch)
+{
+	while (port->parent) {
+		if (port->parent == branch)
+			return true;
+
+		if (port->parent->port_parent)
+			port = port->parent->port_parent;
+		else
+			break;
+	}
+	return false;
+}
+
+static inline
+int drm_dp_mst_atomic_check_bw_limit(struct drm_dp_mst_branch *branch,
+				     struct drm_dp_mst_topology_state *mst_state)
+{
+	struct drm_dp_mst_port *port;
+	struct drm_dp_vcpi_allocation *vcpi;
+	int pbn_limit = 0, pbn_used = 0;
+
+	list_for_each_entry(port, &branch->ports, next) {
+		if (port->mstb)
+			if (drm_dp_mst_atomic_check_bw_limit(port->mstb, mst_state))
+				return -ENOSPC;
+
+		if (port->available_pbn > 0)
+			pbn_limit = port->available_pbn;
+	}
+	DRM_DEBUG_ATOMIC("[MST BRANCH:%p] branch has %d PBN available\n",
+			 branch, pbn_limit);
+
+	list_for_each_entry(vcpi, &mst_state->vcpis, next) {
+		if (!vcpi->pbn)
+			continue;
+
+		if (drm_dp_mst_port_downstream_of_branch(vcpi->port, branch))
+			pbn_used += vcpi->pbn;
+	}
+	DRM_DEBUG_ATOMIC("[MST BRANCH:%p] branch used %d PBN\n",
+			 branch, pbn_used);
+
+	if (pbn_used > pbn_limit) {
+		DRM_DEBUG_ATOMIC("[MST BRANCH:%p] No available bandwidth\n",
+				 branch);
+		return -ENOSPC;
+	}
+	return 0;
+}
+
 static inline int
-drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
-				       struct drm_dp_mst_topology_state *mst_state)
+drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
+					 struct drm_dp_mst_topology_state *mst_state)
 {
 	struct drm_dp_vcpi_allocation *vcpi;
 	int avail_slots = 63, payload_count = 0;
@@ -4771,6 +4852,128 @@ drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
 }
 
 /**
+ * drm_dp_mst_add_affected_dsc_crtcs
+ * @state: Pointer to the new struct drm_dp_mst_topology_state
+ * @mgr: MST topology manager
+ *
+ * Whenever there is a change in mst topology
+ * DSC configuration would have to be recalculated
+ * therefore we need to trigger modeset on all affected
+ * CRTCs in that topology
+ *
+ * See also:
+ * drm_dp_mst_atomic_enable_dsc()
+ */
+int drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state, struct drm_dp_mst_topology_mgr *mgr)
+{
+	struct drm_dp_mst_topology_state *mst_state;
+	struct drm_dp_vcpi_allocation *pos;
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+
+	mst_state = drm_atomic_get_mst_topology_state(state, mgr);
+
+	if (IS_ERR(mst_state))
+		return -EINVAL;
+
+	list_for_each_entry(pos, &mst_state->vcpis, next) {
+
+		connector = pos->port->connector;
+
+		if (!connector)
+			return -EINVAL;
+
+		conn_state = drm_atomic_get_connector_state(state, connector);
+
+		if (IS_ERR(conn_state))
+			return PTR_ERR(conn_state);
+
+		crtc = conn_state->crtc;
+
+		if (WARN_ON(!crtc))
+			return -EINVAL;
+
+		if (!drm_dp_mst_dsc_aux_for_port(pos->port))
+			continue;
+
+		crtc_state = drm_atomic_get_crtc_state(mst_state->base.state, crtc);
+
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		DRM_DEBUG_ATOMIC("[MST MGR:%p] Setting mode_changed flag on CRTC %p\n",
+				 mgr, crtc);
+
+		crtc_state->mode_changed = true;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_mst_add_affected_dsc_crtcs);
+
+/**
+ * drm_dp_mst_atomic_enable_dsc - Set DSC Enable Flag to On/Off
+ * @state: Pointer to the new drm_atomic_state
+ * @port: Pointer to the affected MST Port
+ * @pbn: Newly recalculated bw required for link with DSC enabled
+ * @pbn_div: Divider to calculate correct number of pbn per slot
+ * @enable: Boolean flag to enable or disable DSC on the port
+ *
+ * This function enables DSC on the given Port
+ * by recalculating its vcpi from pbn provided
+ * and sets dsc_enable flag to keep track of which
+ * ports have DSC enabled
+ *
+ */
+int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
+				 struct drm_dp_mst_port *port,
+				 int pbn, int pbn_div,
+				 bool enable)
+{
+	struct drm_dp_mst_topology_state *mst_state;
+	struct drm_dp_vcpi_allocation *pos;
+	bool found = false;
+	int vcpi = 0;
+
+	mst_state = drm_atomic_get_mst_topology_state(state, port->mgr);
+
+	if (IS_ERR(mst_state))
+		return PTR_ERR(mst_state);
+
+	list_for_each_entry(pos, &mst_state->vcpis, next) {
+		if (pos->port == port) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		DRM_DEBUG_ATOMIC("[MST PORT:%p] Couldn't find VCPI allocation in mst state %p\n",
+				 port, mst_state);
+		return -EINVAL;
+	}
+
+	if (pos->dsc_enabled == enable) {
+		DRM_DEBUG_ATOMIC("[MST PORT:%p] DSC flag is already set to %d, returning %d VCPI slots\n",
+				 port, enable, pos->vcpi);
+		vcpi = pos->vcpi;
+	}
+
+	if (enable) {
+		vcpi = drm_dp_atomic_find_vcpi_slots(state, port->mgr, port, pbn, pbn_div);
+		DRM_DEBUG_ATOMIC("[MST PORT:%p] Enabling DSC flag, reallocating %d VCPI slots on the port\n",
+				 port, vcpi);
+		if (vcpi < 0)
+			return -EINVAL;
+	}
+
+	pos->dsc_enabled = enable;
+
+	return vcpi;
+}
+EXPORT_SYMBOL(drm_dp_mst_atomic_enable_dsc);
+/**
  * drm_dp_mst_atomic_check - Check that the new state of an MST topology in an
  * atomic update is valid
  * @state: Pointer to the new &struct drm_dp_mst_topology_state
@@ -4798,7 +5001,10 @@ int drm_dp_mst_atomic_check(struct drm_atomic_state *state)
 	int i, ret = 0;
 
 	for_each_new_mst_mgr_in_state(state, mgr, mst_state, i) {
-		ret = drm_dp_mst_atomic_check_topology_state(mgr, mst_state);
+		ret = drm_dp_mst_atomic_check_vcpi_alloc_limit(mgr, mst_state);
+		if (ret)
+			break;
+		ret = drm_dp_mst_atomic_check_bw_limit(mgr->mst_primary, mst_state);
 		if (ret)
 			break;
 	}
@@ -5062,3 +5268,173 @@ static void drm_dp_mst_unregister_i2c_bus(struct drm_dp_aux *aux)
 {
 	i2c_del_adapter(&aux->ddc);
 }
+
+/**
+ * drm_dp_mst_is_virtual_dpcd() - Is the given port a virtual DP Peer Device
+ * @port: The port to check
+ *
+ * A single physical MST hub object can be represented in the topology
+ * by multiple branches, with virtual ports between those branches.
+ *
+ * As of DP1.4, An MST hub with internal (virtual) ports must expose
+ * certain DPCD registers over those ports. See sections 2.6.1.1.1
+ * and 2.6.1.1.2 of Display Port specification v1.4 for details.
+ *
+ * May acquire mgr->lock
+ *
+ * Returns:
+ * true if the port is a virtual DP peer device, false otherwise
+ */
+static bool drm_dp_mst_is_virtual_dpcd(struct drm_dp_mst_port *port)
+{
+	struct drm_dp_mst_port *downstream_port;
+
+	if (!port || port->dpcd_rev < DP_DPCD_REV_14)
+		return false;
+
+	/* Virtual DP Sink (Internal Display Panel) */
+	if (port->port_num >= 8)
+		return true;
+
+	/* DP-to-HDMI Protocol Converter */
+	if (port->pdt == DP_PEER_DEVICE_DP_LEGACY_CONV &&
+	    !port->mcs &&
+	    port->ldps)
+		return true;
+
+	/* DP-to-DP */
+	mutex_lock(&port->mgr->lock);
+	if (port->pdt == DP_PEER_DEVICE_MST_BRANCHING &&
+	    port->mstb &&
+	    port->mstb->num_ports == 2) {
+		list_for_each_entry(downstream_port, &port->mstb->ports, next) {
+			if (downstream_port->pdt == DP_PEER_DEVICE_SST_SINK &&
+			    !downstream_port->input) {
+				mutex_unlock(&port->mgr->lock);
+				return true;
+			}
+		}
+	}
+	mutex_unlock(&port->mgr->lock);
+
+	return false;
+}
+
+/**
+ * drm_dp_mst_dsc_aux_for_port() - Find the correct aux for DSC
+ * @port: The port to check. A leaf of the MST tree with an attached display.
+ *
+ * Depending on the situation, DSC may be enabled via the endpoint aux,
+ * the immediately upstream aux, or the connector's physical aux.
+ *
+ * This is both the correct aux to read DSC_CAPABILITY and the
+ * correct aux to write DSC_ENABLED.
+ *
+ * This operation can be expensive (up to four aux reads), so
+ * the caller should cache the return.
+ *
+ * Returns:
+ * NULL if DSC cannot be enabled on this port, otherwise the aux device
+ */
+struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
+{
+	struct drm_dp_mst_port *immediate_upstream_port;
+	struct drm_dp_mst_port *fec_port;
+	struct drm_dp_desc desc = { 0 };
+	u8 endpoint_fec;
+	u8 endpoint_dsc;
+
+	if (!port)
+		return NULL;
+
+	if (port->parent->port_parent)
+		immediate_upstream_port = port->parent->port_parent;
+	else
+		immediate_upstream_port = NULL;
+
+	fec_port = immediate_upstream_port;
+	while (fec_port) {
+		/*
+		 * Each physical link (i.e. not a virtual port) between the
+		 * output and the primary device must support FEC
+		 */
+		if (!drm_dp_mst_is_virtual_dpcd(fec_port) &&
+		    !fec_port->fec_capable)
+			return NULL;
+
+		fec_port = fec_port->parent->port_parent;
+	}
+
+	/* DP-to-DP peer device */
+	if (drm_dp_mst_is_virtual_dpcd(immediate_upstream_port)) {
+		u8 upstream_dsc;
+
+		if (drm_dp_dpcd_read(&port->aux,
+				     DP_DSC_SUPPORT, &endpoint_dsc, 1) != 1)
+			return NULL;
+		if (drm_dp_dpcd_read(&port->aux,
+				     DP_FEC_CAPABILITY, &endpoint_fec, 1) != 1)
+			return NULL;
+		if (drm_dp_dpcd_read(&immediate_upstream_port->aux,
+				     DP_DSC_SUPPORT, &upstream_dsc, 1) != 1)
+			return NULL;
+
+		/* Enpoint decompression with DP-to-DP peer device */
+		if ((endpoint_dsc & DP_DSC_DECOMPRESSION_IS_SUPPORTED) &&
+		    (endpoint_fec & DP_FEC_CAPABLE) &&
+		    (upstream_dsc & 0x2) /* DSC passthrough */)
+			return &port->aux;
+
+		/* Virtual DPCD decompression with DP-to-DP peer device */
+		return &immediate_upstream_port->aux;
+	}
+
+	/* Virtual DPCD decompression with DP-to-HDMI or Virtual DP Sink */
+	if (drm_dp_mst_is_virtual_dpcd(port))
+		return &port->aux;
+
+	/*
+	 * Synaptics quirk
+	 * Applies to ports for which:
+	 * - Physical aux has Synaptics OUI
+	 * - DPv1.4 or higher
+	 * - Port is on primary branch device
+	 * - Not a VGA adapter (DP_DWN_STRM_PORT_TYPE_ANALOG)
+	 */
+	if (drm_dp_read_desc(port->mgr->aux, &desc, true))
+		return NULL;
+
+	if (drm_dp_has_quirk(&desc, DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) &&
+	    port->mgr->dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14 &&
+	    port->parent == port->mgr->mst_primary) {
+		u8 downstreamport;
+
+		if (drm_dp_dpcd_read(&port->aux, DP_DOWNSTREAMPORT_PRESENT,
+				     &downstreamport, 1) < 0)
+			return NULL;
+
+		if ((downstreamport & DP_DWN_STRM_PORT_PRESENT) &&
+		   ((downstreamport & DP_DWN_STRM_PORT_TYPE_MASK)
+		     != DP_DWN_STRM_PORT_TYPE_ANALOG))
+			return port->mgr->aux;
+	}
+
+	/*
+	 * The check below verifies if the MST sink
+	 * connected to the GPU is capable of DSC -
+	 * therefore the endpoint needs to be
+	 * both DSC and FEC capable.
+	 */
+	if (drm_dp_dpcd_read(&port->aux,
+	   DP_DSC_SUPPORT, &endpoint_dsc, 1) != 1)
+		return NULL;
+	if (drm_dp_dpcd_read(&port->aux,
+	   DP_FEC_CAPABILITY, &endpoint_fec, 1) != 1)
+		return NULL;
+	if ((endpoint_dsc & DP_DSC_DECOMPRESSION_IS_SUPPORTED) &&
+	   (endpoint_fec & DP_FEC_CAPABLE))
+		return &port->aux;
+
+	return NULL;
+}
+EXPORT_SYMBOL(drm_dp_mst_dsc_aux_for_port);
