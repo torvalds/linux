@@ -688,7 +688,8 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	priv->vref = devm_regulator_get(&pdev->dev, "vref");
 	if (IS_ERR(priv->vref)) {
 		ret = PTR_ERR(priv->vref);
-		dev_err(&pdev->dev, "vref get failed, %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "vref get failed, %d\n", ret);
 		return ret;
 	}
 
@@ -696,7 +697,8 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->aclk)) {
 		ret = PTR_ERR(priv->aclk);
 		if (ret != -ENOENT) {
-			dev_err(&pdev->dev, "Can't get 'adc' clock\n");
+			if (ret != -EPROBE_DEFER)
+				dev_err(&pdev->dev, "Can't get 'adc' clock\n");
 			return ret;
 		}
 		priv->aclk = NULL;
@@ -706,7 +708,8 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->bclk)) {
 		ret = PTR_ERR(priv->bclk);
 		if (ret != -ENOENT) {
-			dev_err(&pdev->dev, "Can't get 'bus' clock\n");
+			if (ret != -EPROBE_DEFER)
+				dev_err(&pdev->dev, "Can't get 'bus' clock\n");
 			return ret;
 		}
 		priv->bclk = NULL;
