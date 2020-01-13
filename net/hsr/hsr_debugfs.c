@@ -20,6 +20,8 @@
 #include "hsr_main.h"
 #include "hsr_framereg.h"
 
+static struct dentry *hsr_debugfs_root_dir;
+
 static void print_mac_address(struct seq_file *sfp, unsigned char *mac)
 {
 	seq_printf(sfp, "%02x:%02x:%02x:%02x:%02x:%02x:",
@@ -63,8 +65,20 @@ hsr_node_table_open(struct inode *inode, struct file *filp)
 	return single_open(filp, hsr_node_table_show, inode->i_private);
 }
 
+void hsr_debugfs_rename(struct net_device *dev)
+{
+	struct hsr_priv *priv = netdev_priv(dev);
+	struct dentry *d;
+
+	d = debugfs_rename(hsr_debugfs_root_dir, priv->node_tbl_root,
+			   hsr_debugfs_root_dir, dev->name);
+	if (IS_ERR(d))
+		netdev_warn(dev, "failed to rename\n");
+	else
+		priv->node_tbl_root = d;
+}
+
 static const struct file_operations hsr_fops = {
-	.owner	= THIS_MODULE,
 	.open	= hsr_node_table_open,
 	.read	= seq_read,
 	.llseek = seq_lseek,
@@ -78,15 +92,14 @@ static const struct file_operations hsr_fops = {
  * When debugfs is configured this routine sets up the node_table file per
  * hsr device for dumping the node_table entries
  */
-int hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
+void hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 {
-	int rc = -1;
 	struct dentry *de = NULL;
 
-	de = debugfs_create_dir(hsr_dev->name, NULL);
-	if (!de) {
-		pr_err("Cannot create hsr debugfs root\n");
-		return rc;
+	de = debugfs_create_dir(hsr_dev->name, hsr_debugfs_root_dir);
+	if (IS_ERR(de)) {
+		pr_err("Cannot create hsr debugfs directory\n");
+		return;
 	}
 
 	priv->node_tbl_root = de;
@@ -94,13 +107,13 @@ int hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 	de = debugfs_create_file("node_table", S_IFREG | 0444,
 				 priv->node_tbl_root, priv,
 				 &hsr_fops);
-	if (!de) {
-		pr_err("Cannot create hsr node_table directory\n");
-		return rc;
+	if (IS_ERR(de)) {
+		pr_err("Cannot create hsr node_table file\n");
+		debugfs_remove(priv->node_tbl_root);
+		priv->node_tbl_root = NULL;
+		return;
 	}
 	priv->node_tbl_file = de;
-
-	return 0;
 }
 
 /* hsr_debugfs_term - Tear down debugfs intrastructure
@@ -116,4 +129,19 @@ hsr_debugfs_term(struct hsr_priv *priv)
 	priv->node_tbl_file = NULL;
 	debugfs_remove(priv->node_tbl_root);
 	priv->node_tbl_root = NULL;
+}
+
+void hsr_debugfs_create_root(void)
+{
+	hsr_debugfs_root_dir = debugfs_create_dir("hsr", NULL);
+	if (IS_ERR(hsr_debugfs_root_dir)) {
+		pr_err("Cannot create hsr debugfs root directory\n");
+		hsr_debugfs_root_dir = NULL;
+	}
+}
+
+void hsr_debugfs_remove_root(void)
+{
+	/* debugfs_remove() internally checks NULL and ERROR */
+	debugfs_remove(hsr_debugfs_root_dir);
 }

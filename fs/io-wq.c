@@ -92,7 +92,6 @@ struct io_wqe {
 	struct io_wqe_acct acct[2];
 
 	struct hlist_nulls_head free_list;
-	struct hlist_nulls_head busy_list;
 	struct list_head all_list;
 
 	struct io_wq *wq;
@@ -327,7 +326,6 @@ static void __io_worker_busy(struct io_wqe *wqe, struct io_worker *worker,
 	if (worker->flags & IO_WORKER_F_FREE) {
 		worker->flags &= ~IO_WORKER_F_FREE;
 		hlist_nulls_del_init_rcu(&worker->nulls_node);
-		hlist_nulls_add_head_rcu(&worker->nulls_node, &wqe->busy_list);
 	}
 
 	/*
@@ -365,7 +363,6 @@ static bool __io_worker_idle(struct io_wqe *wqe, struct io_worker *worker)
 {
 	if (!(worker->flags & IO_WORKER_F_FREE)) {
 		worker->flags |= IO_WORKER_F_FREE;
-		hlist_nulls_del_init_rcu(&worker->nulls_node);
 		hlist_nulls_add_head_rcu(&worker->nulls_node, &wqe->free_list);
 	}
 
@@ -431,6 +428,8 @@ next:
 		/* flush any pending signals before assigning new work */
 		if (signal_pending(current))
 			flush_signals(current);
+
+		cond_resched();
 
 		spin_lock_irq(&worker->lock);
 		worker->cur_work = work;
@@ -798,10 +797,6 @@ void io_wq_cancel_all(struct io_wq *wq)
 
 	set_bit(IO_WQ_BIT_CANCEL, &wq->state);
 
-	/*
-	 * Browse both lists, as there's a gap between handing work off
-	 * to a worker and the worker putting itself on the busy_list
-	 */
 	rcu_read_lock();
 	for_each_node(node) {
 		struct io_wqe *wqe = wq->wqes[node];
@@ -1049,7 +1044,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 		spin_lock_init(&wqe->lock);
 		INIT_WQ_LIST(&wqe->work_list);
 		INIT_HLIST_NULLS_HEAD(&wqe->free_list, 0);
-		INIT_HLIST_NULLS_HEAD(&wqe->busy_list, 1);
 		INIT_LIST_HEAD(&wqe->all_list);
 	}
 

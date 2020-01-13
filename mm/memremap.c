@@ -120,7 +120,7 @@ void memunmap_pages(struct dev_pagemap *pgmap)
 
 	mem_hotplug_begin();
 	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
-		__remove_pages(page_zone(first_page), PHYS_PFN(res->start),
+		__remove_pages(PHYS_PFN(res->start),
 			       PHYS_PFN(resource_size(res)), NULL);
 	} else {
 		arch_remove_memory(nid, res->start, resource_size(res),

@@ -5385,7 +5385,6 @@ static const struct file_operations lpfc_debugfs_ras_log = {
 	.read =         lpfc_debugfs_read,
 	.release =      lpfc_debugfs_ras_log_release,
 };
-#endif
 
 #undef lpfc_debugfs_op_dumpHBASlim
 static const struct file_operations lpfc_debugfs_op_dumpHBASlim = {
@@ -5557,7 +5556,7 @@ static const struct file_operations lpfc_idiag_op_extAcc = {
 	.write =        lpfc_idiag_extacc_write,
 	.release =      lpfc_idiag_cmd_release,
 };
-
+#endif
 
 /* lpfc_idiag_mbxacc_dump_bsg_mbox - idiag debugfs dump bsg mailbox command
  * @phba: Pointer to HBA context object.
