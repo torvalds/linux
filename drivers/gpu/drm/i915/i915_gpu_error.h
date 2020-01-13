@@ -309,8 +309,9 @@ i915_vma_capture_prepare(struct intel_gt_coredump *gt)
 	return NULL;
 }
 
-void i915_vma_capture_finish(struct intel_gt_coredump *gt,
-			     struct i915_vma_compress *compress)
+static inline void
+i915_vma_capture_finish(struct intel_gt_coredump *gt,
+			struct i915_vma_compress *compress)
 {
 }
 
