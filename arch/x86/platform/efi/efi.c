@@ -304,10 +304,16 @@ static void __init efi_clean_memmap(void)
 	}
 
 	if (n_removal > 0) {
-		u64 size = efi.memmap.nr_map - n_removal;
+		struct efi_memory_map_data data = {
+			.phys_map = efi.memmap.phys_map,
+			.desc_version = efi.memmap.desc_version,
+			.desc_size = efi.memmap.desc_size,
+			.size = data.desc_size * (efi.memmap.nr_map - n_removal),
+			.flags = 0,
+		};
 
 		pr_warn("Removing %d invalid memory map entries.\n", n_removal);
-		efi_memmap_install(efi.memmap.phys_map, size);
+		efi_memmap_install(&data);
 	}
 }
 

@@ -32,6 +32,7 @@ static phys_addr_t __init __efi_memmap_alloc_late(unsigned long size)
 /**
  * efi_memmap_alloc - Allocate memory for the EFI memory map
  * @num_entries: Number of entries in the allocated map.
+ * @data: efi memmap installation parameters
  *
  * Depending on whether mm_init() has already been invoked or not,
  * either memblock or "normal" page allocation is used.
@@ -39,14 +40,29 @@ static phys_addr_t __init __efi_memmap_alloc_late(unsigned long size)
  * Returns the physical address of the allocated memory map on
  * success, zero on failure.
  */
-phys_addr_t __init efi_memmap_alloc(unsigned int num_entries)
+int __init efi_memmap_alloc(unsigned int num_entries,
+		struct efi_memory_map_data *data)
 {
-	unsigned long size = num_entries * efi.memmap.desc_size;
+	/* Expect allocation parameters are zero initialized */
+	WARN_ON(data->phys_map || data->size);
 
-	if (slab_is_available())
-		return __efi_memmap_alloc_late(size);
+	data->size = num_entries * efi.memmap.desc_size;
+	data->desc_version = efi.memmap.desc_version;
+	data->desc_size = efi.memmap.desc_size;
+	data->flags &= ~(EFI_MEMMAP_SLAB | EFI_MEMMAP_MEMBLOCK);
+	data->flags |= efi.memmap.flags & EFI_MEMMAP_LATE;
 
-	return __efi_memmap_alloc_early(size);
+	if (slab_is_available()) {
+		data->flags |= EFI_MEMMAP_SLAB;
+		data->phys_map = __efi_memmap_alloc_late(data->size);
+	} else {
+		data->flags |= EFI_MEMMAP_MEMBLOCK;
+		data->phys_map = __efi_memmap_alloc_early(data->size);
+	}
+
+	if (!data->phys_map)
+		return -ENOMEM;
+	return 0;
 }
 
 /**
@@ -64,8 +80,7 @@ phys_addr_t __init efi_memmap_alloc(unsigned int num_entries)
  *
  * Returns zero on success, a negative error code on failure.
  */
-static int __init
-__efi_memmap_init(struct efi_memory_map_data *data)
+static int __init __efi_memmap_init(struct efi_memory_map_data *data)
 {
 	struct efi_memory_map map;
 	phys_addr_t phys_map;
@@ -184,8 +199,7 @@ int __init efi_memmap_init_late(phys_addr_t addr, unsigned long size)
 
 /**
  * efi_memmap_install - Install a new EFI memory map in efi.memmap
- * @addr: Physical address of the memory map
- * @nr_map: Number of entries in the memory map
+ * @ctx: map allocation parameters (address, size, flags)
  *
  * Unlike efi_memmap_init_*(), this function does not allow the caller
  * to switch from early to late mappings. It simply uses the existing
@@ -193,20 +207,11 @@ int __init efi_memmap_init_late(phys_addr_t addr, unsigned long size)
  *
  * Returns zero on success, a negative error code on failure.
  */
-int __init efi_memmap_install(phys_addr_t addr, unsigned int nr_map)
+int __init efi_memmap_install(struct efi_memory_map_data *data)
 {
-	struct efi_memory_map_data data;
-	unsigned long flags;
-
 	efi_memmap_unmap();
 
-	data.phys_map = addr;
-	data.size = efi.memmap.desc_size * nr_map;
-	data.desc_version = efi.memmap.desc_version;
-	data.desc_size = efi.memmap.desc_size;
-	data.flags = efi.memmap.flags & EFI_MEMMAP_LATE;
-
-	return __efi_memmap_init(&data);
+	return __efi_memmap_init(data);
 }
 
 /**

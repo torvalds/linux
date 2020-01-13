@@ -36,9 +36,9 @@ static int __init cmp_fake_mem(const void *x1, const void *x2)
 
 void __init efi_fake_memmap(void)
 {
+	struct efi_memory_map_data data = { 0 };
 	int new_nr_map = efi.memmap.nr_map;
 	efi_memory_desc_t *md;
-	phys_addr_t new_memmap_phy;
 	void *new_memmap;
 	int i;
 
@@ -55,15 +55,13 @@ void __init efi_fake_memmap(void)
 	}
 
 	/* allocate memory for new EFI memmap */
-	new_memmap_phy = efi_memmap_alloc(new_nr_map);
-	if (!new_memmap_phy)
+	if (efi_memmap_alloc(new_nr_map, &data) != 0)
 		return;
 
 	/* create new EFI memmap */
-	new_memmap = early_memremap(new_memmap_phy,
-				    efi.memmap.desc_size * new_nr_map);
+	new_memmap = early_memremap(data.phys_map, data.size);
 	if (!new_memmap) {
-		memblock_free(new_memmap_phy, efi.memmap.desc_size * new_nr_map);
+		memblock_free(data.phys_map, data.size);
 		return;
 	}
 
@@ -71,9 +69,9 @@ void __init efi_fake_memmap(void)
 		efi_memmap_insert(&efi.memmap, new_memmap, &efi_fake_mems[i]);
 
 	/* swap into new EFI memmap */
-	early_memunmap(new_memmap, efi.memmap.desc_size * new_nr_map);
+	early_memunmap(new_memmap, data.size);
 
-	efi_memmap_install(new_memmap_phy, new_nr_map);
+	efi_memmap_install(&data);
 
 	/* print new EFI memmap */
 	efi_print_memmap();
