@@ -161,6 +161,15 @@ err_clk:
 	return res;
 }
 
+static void sdhci_brcmstb_shutdown(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = sdhci_pltfm_unregister(pdev);
+	if (ret)
+		dev_err(&pdev->dev, "failed to shutdown\n");
+}
+
 MODULE_DEVICE_TABLE(of, sdhci_brcm_of_match);
 
 static struct platform_driver sdhci_brcmstb_driver = {
@@ -171,6 +180,7 @@ static struct platform_driver sdhci_brcmstb_driver = {
 	},
 	.probe		= sdhci_brcmstb_probe,
 	.remove		= sdhci_pltfm_unregister,
+	.shutdown	= sdhci_brcmstb_shutdown,
 };
 
 module_platform_driver(sdhci_brcmstb_driver);
