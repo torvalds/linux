@@ -1202,14 +1202,8 @@ config I2C_PARPORT
 	  This supports parallel port I2C adapters such as the ones made by
 	  Philips or Velleman, Analog Devices evaluation boards, and more.
 	  Basically any adapter using the parallel port as an I2C bus with
-	  no extra chipset is supported by this driver, or could be.
-
-	  This driver is a replacement for (and was inspired by) an older
-	  driver named i2c-philips-par.  The new driver supports more devices,
-	  and makes it easier to add support for new devices.
-
-	  An adapter type parameter is now mandatory.  Please read the file
-	  Documentation/i2c/busses/i2c-parport.rst for details.
+	  no extra chipset is supported by this driver, or could be. Please
+	  read the file Documentation/i2c/busses/i2c-parport.rst for details.
 
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-parport.
