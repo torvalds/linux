@@ -513,7 +513,7 @@ int snd_oxfw_stream_parse_format(u8 *format,
 	 *  Level 1:	AM824 Compound  (0x40)
 	 */
 	if ((format[0] != 0x90) || (format[1] != 0x40))
-		return -ENOSYS;
+		return -ENXIO;
 
 	/* check the sampling rate */
 	for (i = 0; i < ARRAY_SIZE(avc_stream_rate_table); i++) {
@@ -521,7 +521,7 @@ int snd_oxfw_stream_parse_format(u8 *format,
 			break;
 	}
 	if (i == ARRAY_SIZE(avc_stream_rate_table))
-		return -ENOSYS;
+		return -ENXIO;
 
 	formation->rate = oxfw_rate_table[i];
 
@@ -565,13 +565,13 @@ int snd_oxfw_stream_parse_format(u8 *format,
 		/* Don't care */
 		case 0xff:
 		default:
-			return -ENOSYS;	/* not supported */
+			return -ENXIO;	/* not supported */
 		}
 	}
 
 	if (formation->pcm  > AM824_MAX_CHANNELS_FOR_PCM ||
 	    formation->midi > AM824_MAX_CHANNELS_FOR_MIDI)
-		return -ENOSYS;
+		return -ENXIO;
 
 	return 0;
 }
@@ -656,7 +656,7 @@ static int fill_stream_formats(struct snd_oxfw *oxfw,
 	/* get first entry */
 	len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
 	err = avc_stream_get_format_list(oxfw->unit, dir, 0, buf, &len, 0);
-	if (err == -ENOSYS) {
+	if (err == -ENXIO) {
 		/* LIST subfunction is not implemented */
 		len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
 		err = assume_stream_formats(oxfw, dir, pid, buf, &len,
@@ -728,7 +728,7 @@ int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 			err);
 		goto end;
 	} else if ((plugs[0] == 0) && (plugs[1] == 0)) {
-		err = -ENOSYS;
+		err = -ENXIO;
 		goto end;
 	}
 
