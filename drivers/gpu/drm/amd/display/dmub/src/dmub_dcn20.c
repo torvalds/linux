@@ -80,6 +80,8 @@ void dmub_dcn20_reset(struct dmub_srv *dmub)
 	REG_UPDATE(DMCUB_CNTL, DMCUB_SOFT_RESET, 1);
 	REG_UPDATE(DMCUB_CNTL, DMCUB_ENABLE, 0);
 	REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 1);
+	REG_WRITE(DMCUB_INBOX1_RPTR, 0);
+	REG_WRITE(DMCUB_INBOX1_WPTR, 0);
 }
 
 void dmub_dcn20_reset_release(struct dmub_srv *dmub)
@@ -190,8 +192,6 @@ void dmub_dcn20_setup_mailbox(struct dmub_srv *dmub,
 
 	REG_WRITE(DMCUB_INBOX1_BASE_ADDRESS, 0x80000000);
 	REG_WRITE(DMCUB_INBOX1_SIZE, inbox1->top - inbox1->base);
-	REG_WRITE(DMCUB_INBOX1_RPTR, 0);
-	REG_WRITE(DMCUB_INBOX1_WPTR, 0);
 }
 
 uint32_t dmub_dcn20_get_inbox1_rptr(struct dmub_srv *dmub)
