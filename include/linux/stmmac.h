@@ -139,6 +139,7 @@ struct stmmac_txq_cfg {
 	u32 low_credit;
 	bool use_prio;
 	u32 prio;
+	int tbs_en;
 };
 
 struct plat_stmmacenet_data {

@@ -39,13 +39,18 @@ struct stmmac_tx_info {
 	bool is_jumbo;
 };
 
+#define STMMAC_TBS_AVAIL	BIT(0)
+#define STMMAC_TBS_EN		BIT(1)
+
 /* Frequently used values are kept adjacent for cache effect */
 struct stmmac_tx_queue {
 	u32 tx_count_frames;
+	int tbs;
 	struct timer_list txtimer;
 	u32 queue_index;
 	struct stmmac_priv *priv_data;
 	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
+	struct dma_edesc *dma_entx;
 	struct dma_desc *dma_tx;
 	struct sk_buff **tx_skbuff;
 	struct stmmac_tx_info *tx_skbuff_dma;
