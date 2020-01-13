@@ -57,6 +57,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 	codec->addr = addr;
 	codec->type = HDA_DEV_CORE;
 	mutex_init(&codec->widget_lock);
+	mutex_init(&codec->regmap_lock);
 	pm_runtime_set_active(&codec->dev);
 	pm_runtime_get_noresume(&codec->dev);
 	atomic_set(&codec->in_pm, 0);
