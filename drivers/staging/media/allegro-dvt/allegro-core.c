@@ -2270,14 +2270,11 @@ static int allegro_open(struct file *file)
 	struct allegro_channel *channel = NULL;
 	struct v4l2_ctrl_handler *handler;
 	u64 mask;
+	int ret;
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (!channel)
 		return -ENOMEM;
-
-	v4l2_fh_init(&channel->fh, vdev);
-	file->private_data = &channel->fh;
-	v4l2_fh_add(&channel->fh);
 
 	init_completion(&channel->completion);
 
@@ -2328,6 +2325,11 @@ static int allegro_open(struct file *file)
 			V4L2_CID_MIN_BUFFERS_FOR_OUTPUT,
 			1, 32,
 			1, 1);
+	if (handler->error != 0) {
+		ret = handler->error;
+		goto error;
+	}
+
 	channel->fh.ctrl_handler = handler;
 
 	channel->mcu_channel_id = -1;
@@ -2341,7 +2343,21 @@ static int allegro_open(struct file *file)
 	channel->fh.m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, channel,
 						allegro_queue_init);
 
+	if (IS_ERR(channel->fh.m2m_ctx)) {
+		ret = PTR_ERR(channel->fh.m2m_ctx);
+		goto error;
+	}
+
+	v4l2_fh_init(&channel->fh, vdev);
+	file->private_data = &channel->fh;
+	v4l2_fh_add(&channel->fh);
+
 	return 0;
+
+error:
+	v4l2_ctrl_handler_free(handler);
+	kfree(channel);
+	return ret;
 }
 
 static int allegro_release(struct file *file)
