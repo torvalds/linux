@@ -1,6 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 ALL_TESTS="loopback_test"
 NUM_NETIFS=2
 source tc_common.sh
@@ -72,6 +75,11 @@ setup_prepare()
 
 	h1_create
 	h2_create
+
+	if ethtool -k $h1 | grep loopback | grep -q fixed; then
+		log_test "SKIP: dev $h1 does not support loopback feature"
+		exit $ksft_skip
+	fi
 }
 
 cleanup()
