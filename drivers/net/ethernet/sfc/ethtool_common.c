@@ -147,9 +147,9 @@ void efx_ethtool_get_pauseparam(struct net_device *net_dev,
  *
  * Fill in an individual self-test entry.
  */
-void efx_fill_test(unsigned int test_index, u8 *strings, u64 *data,
-		   int *test, const char *unit_format, int unit_id,
-		   const char *test_format, const char *test_id)
+static void efx_fill_test(unsigned int test_index, u8 *strings, u64 *data,
+			  int *test, const char *unit_format, int unit_id,
+			  const char *test_format, const char *test_id)
 {
 	char unit_str[ETH_GSTRING_LEN], test_str[ETH_GSTRING_LEN];
 
@@ -189,10 +189,11 @@ void efx_fill_test(unsigned int test_index, u8 *strings, u64 *data,
  * Fill in a block of loopback self-test entries.  Return new test
  * index.
  */
-int efx_fill_loopback_test(struct efx_nic *efx,
-			   struct efx_loopback_self_tests *lb_tests,
-			   enum efx_loopback_mode mode,
-			   unsigned int test_index, u8 *strings, u64 *data)
+static int efx_fill_loopback_test(struct efx_nic *efx,
+				  struct efx_loopback_self_tests *lb_tests,
+				  enum efx_loopback_mode mode,
+				  unsigned int test_index,
+				  u8 *strings, u64 *data)
 {
 	struct efx_channel *channel =
 		efx_get_channel(efx, efx->tx_channel_offset);
@@ -293,7 +294,7 @@ int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	return n;
 }
 
-size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 *strings)
+static size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 *strings)
 {
 	size_t n_stats = 0;
 	struct efx_channel *channel;
