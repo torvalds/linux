@@ -219,4 +219,6 @@ struct macsec_ops {
 	int (*mdo_del_txsa)(struct macsec_context *ctx);
 };
 
+void macsec_pn_wrapped(struct macsec_secy *secy, struct macsec_tx_sa *tx_sa);
+
 #endif /* _NET_MACSEC_H_ */

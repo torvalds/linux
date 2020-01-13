@@ -424,6 +424,23 @@ static struct macsec_eth_header *macsec_ethhdr(struct sk_buff *skb)
 	return (struct macsec_eth_header *)skb_mac_header(skb);
 }
 
+static void __macsec_pn_wrapped(struct macsec_secy *secy,
+				struct macsec_tx_sa *tx_sa)
+{
+	pr_debug("PN wrapped, transitioning to !oper\n");
+	tx_sa->active = false;
+	if (secy->protect_frames)
+		secy->operational = false;
+}
+
+void macsec_pn_wrapped(struct macsec_secy *secy, struct macsec_tx_sa *tx_sa)
+{
+	spin_lock_bh(&tx_sa->lock);
+	__macsec_pn_wrapped(secy, tx_sa);
+	spin_unlock_bh(&tx_sa->lock);
+}
+EXPORT_SYMBOL_GPL(macsec_pn_wrapped);
+
 static u32 tx_sa_update_pn(struct macsec_tx_sa *tx_sa, struct macsec_secy *secy)
 {
 	u32 pn;
@@ -432,12 +449,8 @@ static u32 tx_sa_update_pn(struct macsec_tx_sa *tx_sa, struct macsec_secy *secy)
 	pn = tx_sa->next_pn;
 
 	tx_sa->next_pn++;
-	if (tx_sa->next_pn == 0) {
-		pr_debug("PN wrapped, transitioning to !oper\n");
-		tx_sa->active = false;
-		if (secy->protect_frames)
-			secy->operational = false;
-	}
+	if (tx_sa->next_pn == 0)
+		__macsec_pn_wrapped(secy, tx_sa);
 	spin_unlock_bh(&tx_sa->lock);
 
 	return pn;
