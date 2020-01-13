@@ -908,7 +908,7 @@ u64 efi_mem_attributes(unsigned long phys_addr)
  *
  * Search in the EFI memory map for the region covering @phys_addr.
  * Returns the EFI memory type if the region was found in the memory
- * map, EFI_RESERVED_TYPE (zero) otherwise.
+ * map, -EINVAL otherwise.
  */
 int efi_mem_type(unsigned long phys_addr)
 {
