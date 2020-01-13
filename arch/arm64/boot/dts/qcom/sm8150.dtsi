@@ -519,8 +519,8 @@
 			clock-names = "xo";
 
 			power-domains = <&aoss_qmp AOSS_QMP_LS_SLPI>,
-					<&rpmhpd SM8150_LCX>,
-					<&rpmhpd SM8150_LMX>;
+					<&rpmhpd 3>,
+					<&rpmhpd 2>;
 			power-domain-names = "load_state", "lcx", "lmx";
 
 			memory-region = <&slpi_mem>;
@@ -570,8 +570,8 @@
 			clock-names = "xo";
 
 			power-domains = <&aoss_qmp AOSS_QMP_LS_MODEM>,
-					<&rpmhpd SM8150_CX>,
-					<&rpmhpd SM8150_MSS>;
+					<&rpmhpd 7>,
+					<&rpmhpd 0>;
 			power-domain-names = "load_state", "cx", "mss";
 
 			memory-region = <&mpss_mem>;
@@ -603,7 +603,7 @@
 			clock-names = "xo";
 
 			power-domains = <&aoss_qmp AOSS_QMP_LS_CDSP>,
-					<&rpmhpd SM8150_CX>;
+					<&rpmhpd 7>;
 			power-domain-names = "load_state", "cx";
 
 			memory-region = <&cdsp_mem>;
@@ -666,7 +666,7 @@
 			clock-names = "xo";
 
 			power-domains = <&aoss_qmp AOSS_QMP_LS_LPASS>,
-					<&rpmhpd SM8150_CX>;
+					<&rpmhpd 7>;
 			power-domain-names = "load_state", "cx";
 
 			memory-region = <&adsp_mem>;
