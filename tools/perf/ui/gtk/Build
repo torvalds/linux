@@ -1,4 +1,4 @@
-CFLAGS_gtk += -fPIC $(GTK_CFLAGS)
+CFLAGS_gtk += -fPIC $(GTK_CFLAGS) -Wno-deprecated-declarations
 
 gtk-y += browser.o
 gtk-y += hists.o
