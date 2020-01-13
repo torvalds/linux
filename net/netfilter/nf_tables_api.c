@@ -485,23 +485,21 @@ __nf_tables_chain_type_lookup(const struct nlattr *nla, u8 family)
 }
 
 /*
- * Loading a module requires dropping mutex that guards the
- * transaction.
- * We first need to abort any pending transactions as once
- * mutex is unlocked a different client could start a new
- * transaction.  It must not see any 'future generation'
- * changes * as these changes will never happen.
+ * Loading a module requires dropping mutex that guards the transaction.
+ * A different client might race to start a new transaction meanwhile. Zap the
+ * list of pending transaction and then restore it once the mutex is grabbed
+ * again. Users of this function return EAGAIN which implicitly triggers the
+ * transaction abort path to clean up the list of pending transactions.
  */
 #ifdef CONFIG_MODULES
-static int __nf_tables_abort(struct net *net);
-
 static void nft_request_module(struct net *net, const char *fmt, ...)
 {
 	char module_name[MODULE_NAME_LEN];
+	LIST_HEAD(commit_list);
 	va_list args;
 	int ret;
 
-	__nf_tables_abort(net);
+	list_splice_init(&net->nft.commit_list, &commit_list);
 
 	va_start(args, fmt);
 	ret = vsnprintf(module_name, MODULE_NAME_LEN, fmt, args);
@@ -512,6 +510,9 @@ static void nft_request_module(struct net *net, const char *fmt, ...)
 	mutex_unlock(&net->nft.commit_mutex);
 	request_module("%s", module_name);
 	mutex_lock(&net->nft.commit_mutex);
+
+	WARN_ON_ONCE(!list_empty(&net->nft.commit_list));
+	list_splice(&commit_list, &net->nft.commit_list);
 }
 #endif
 
