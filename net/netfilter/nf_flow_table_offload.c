@@ -592,23 +592,25 @@ static void nf_flow_offload_init(struct flow_cls_offload *cls_flow,
 	cls_flow->cookie = (unsigned long)tuple;
 }
 
-static int flow_offload_tuple_add(struct flow_offload_work *offload,
-				  struct nf_flow_rule *flow_rule,
-				  enum flow_offload_tuple_dir dir)
+static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
+				 struct flow_offload *flow,
+				 struct nf_flow_rule *flow_rule,
+				 enum flow_offload_tuple_dir dir,
+				 int priority, int cmd,
+				 struct list_head *block_cb_list)
 {
-	struct nf_flowtable *flowtable = offload->flowtable;
 	struct flow_cls_offload cls_flow = {};
 	struct flow_block_cb *block_cb;
 	struct netlink_ext_ack extack;
 	__be16 proto = ETH_P_ALL;
 	int err, i = 0;
 
-	nf_flow_offload_init(&cls_flow, proto, offload->priority,
-			     FLOW_CLS_REPLACE,
-			     &offload->flow->tuplehash[dir].tuple, &extack);
-	cls_flow.rule = flow_rule->rule;
+	nf_flow_offload_init(&cls_flow, proto, priority, cmd,
+			     &flow->tuplehash[dir].tuple, &extack);
+	if (cmd == FLOW_CLS_REPLACE)
+		cls_flow.rule = flow_rule->rule;
 
-	list_for_each_entry(block_cb, &flowtable->flow_block.cb_list, list) {
+	list_for_each_entry(block_cb, block_cb_list, list) {
 		err = block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow,
 				   block_cb->cb_priv);
 		if (err < 0)
@@ -620,23 +622,22 @@ static int flow_offload_tuple_add(struct flow_offload_work *offload,
 	return i;
 }
 
+static int flow_offload_tuple_add(struct flow_offload_work *offload,
+				  struct nf_flow_rule *flow_rule,
+				  enum flow_offload_tuple_dir dir)
+{
+	return nf_flow_offload_tuple(offload->flowtable, offload->flow,
+				     flow_rule, dir, offload->priority,
+				     FLOW_CLS_REPLACE,
+				     &offload->flowtable->flow_block.cb_list);
+}
+
 static void flow_offload_tuple_del(struct flow_offload_work *offload,
 				   enum flow_offload_tuple_dir dir)
 {
-	struct nf_flowtable *flowtable = offload->flowtable;
-	struct flow_cls_offload cls_flow = {};
-	struct flow_block_cb *block_cb;
-	struct netlink_ext_ack extack;
-	__be16 proto = ETH_P_ALL;
-
-	nf_flow_offload_init(&cls_flow, proto, offload->priority,
-			     FLOW_CLS_DESTROY,
-			     &offload->flow->tuplehash[dir].tuple, &extack);
-
-	list_for_each_entry(block_cb, &flowtable->flow_block.cb_list, list)
-		block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow, block_cb->cb_priv);
-
-	set_bit(NF_FLOW_HW_DEAD, &offload->flow->flags);
+	nf_flow_offload_tuple(offload->flowtable, offload->flow, NULL, dir,
+			      offload->priority, FLOW_CLS_DESTROY,
+			      &offload->flowtable->flow_block.cb_list);
 }
 
 static int flow_offload_rule_add(struct flow_offload_work *offload,
