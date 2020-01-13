@@ -37,6 +37,8 @@ properties:
       - auo,b116xa01
         # BOE NV140FHM-N49 14.0" FHD a-Si FT panel
       - boe,nv140fhmn49
+        # Frida FRD350H54004 3.5" QVGA TFT LCD panel
+      - frida,frd350h54004
         # GiantPlus GPM940B0 3.0" QVGA TFT LCD panel
       - giantplus,gpm940b0
         # Satoz SAT050AT40H12R2 5.0" WVGA TFT LCD panel
