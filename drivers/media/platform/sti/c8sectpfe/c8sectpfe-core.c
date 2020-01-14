@@ -1034,9 +1034,8 @@ static void load_imem_segment(struct c8sectpfei *fei, Elf32_Phdr *phdr,
 
 	dev_dbg(fei->dev,
 		"Loading IMEM segment %d 0x%08x\n\t (0x%x bytes) -> 0x%p (0x%x bytes)\n",
-seg_num,
-		phdr->p_paddr, phdr->p_filesz,
-		dest, phdr->p_memsz + phdr->p_memsz / 3);
+		seg_num, phdr->p_paddr, phdr->p_filesz, dest,
+		phdr->p_memsz + phdr->p_memsz / 3);
 
 	for (i = 0; i < phdr->p_filesz; i++) {
 
