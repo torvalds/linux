@@ -20,21 +20,51 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+#include <core/falcon.h>
+#include <core/firmware.h>
+#include <subdev/acr.h>
+#include <subdev/top.h>
 
 static int
-gv100_gsp_nofw(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
+nvkm_gsp_oneinit(struct nvkm_subdev *subdev)
 {
-	return 0;
+	struct nvkm_gsp *gsp = nvkm_gsp(subdev);
+
+	gsp->addr = nvkm_top_addr(subdev->device, subdev->index);
+	if (!gsp->addr)
+		return -EINVAL;
+
+	return nvkm_falcon_v1_new(subdev, "GSP", gsp->addr, &gsp->falcon);
 }
 
-struct nvkm_gsp_fwif
-gv100_gsp[] = {
-	{ -1, gv100_gsp_nofw },
-	{}
+static void *
+nvkm_gsp_dtor(struct nvkm_subdev *subdev)
+{
+	struct nvkm_gsp *gsp = nvkm_gsp(subdev);
+	nvkm_falcon_del(&gsp->falcon);
+	return gsp;
+}
+
+static const struct nvkm_subdev_func
+nvkm_gsp = {
+	.dtor = nvkm_gsp_dtor,
+	.oneinit = nvkm_gsp_oneinit,
 };
 
 int
-gv100_gsp_new(struct nvkm_device *device, int index, struct nvkm_gsp **pgsp)
+nvkm_gsp_new_(const struct nvkm_gsp_fwif *fwif, struct nvkm_device *device,
+	      int index, struct nvkm_gsp **pgsp)
 {
-	return nvkm_gsp_new_(gv100_gsp, device, index, pgsp);
+	struct nvkm_gsp *gsp;
+
+	if (!(gsp = *pgsp = kzalloc(sizeof(*gsp), GFP_KERNEL)))
+		return -ENOMEM;
+
+	nvkm_subdev_ctor(&nvkm_gsp, device, index, &gsp->subdev);
+
+	fwif = nvkm_firmware_load(&gsp->subdev, fwif, "Gsp", gsp);
+	if (IS_ERR(fwif))
+		return PTR_ERR(fwif);
+
+	return 0;
 }
