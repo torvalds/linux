@@ -268,10 +268,6 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		resv = vm->root.base.bo->tbo.base.resv;
 	}
 
-	if (flags & AMDGPU_GEM_CREATE_ENCRYPTED) {
-		/* XXX: pad out alignment to meet TMZ requirements */
-	}
-
 	r = amdgpu_gem_object_create(adev, size, args->in.alignment,
 				     (u32)(0xffffffff & args->in.domains),
 				     flags, ttm_bo_type_device, resv, &gobj);
