@@ -217,7 +217,7 @@ typedef struct xfs_dir2_sf_entry {
 	 * A 64-bit or 32-bit inode number follows here, at a variable offset
 	 * after the name.
 	 */
-} xfs_dir2_sf_entry_t;
+} __packed xfs_dir2_sf_entry_t;
 
 static inline int xfs_dir2_sf_hdr_size(int i8count)
 {
