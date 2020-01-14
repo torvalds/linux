@@ -22,13 +22,12 @@
  */
 #include "qmgr.h"
 
-static int
+static void
 msg_queue_open(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue)
 {
 	struct nvkm_falcon *falcon = priv->falcon;
 	mutex_lock(&queue->mutex);
 	queue->position = nvkm_falcon_rd32(falcon, queue->tail_reg);
-	return 0;
 }
 
 static void
@@ -91,11 +90,7 @@ msg_queue_read(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	int ret;
 
-	ret = msg_queue_open(priv, queue);
-	if (ret) {
-		nvkm_error(subdev, "fail to open queue %d\n", queue->index);
-		return ret;
-	}
+	msg_queue_open(priv, queue);
 
 	if (msg_queue_empty(priv, queue)) {
 		ret = 0;
