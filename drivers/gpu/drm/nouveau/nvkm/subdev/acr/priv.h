@@ -17,4 +17,10 @@ struct nvkm_acr_func {
 
 int nvkm_acr_new_(const struct nvkm_acr_fwif *, struct nvkm_device *, int,
 		  struct nvkm_acr **);
+
+struct nvkm_acr_lsfw *nvkm_acr_lsfw_add(const struct nvkm_acr_lsf_func *,
+					struct nvkm_acr *, struct nvkm_falcon *,
+					enum nvkm_acr_lsf_id);
+void nvkm_acr_lsfw_del(struct nvkm_acr_lsfw *);
+void nvkm_acr_lsfw_del_all(struct nvkm_acr *);
 #endif

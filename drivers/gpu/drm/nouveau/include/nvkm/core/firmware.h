@@ -11,6 +11,12 @@ int nvkm_firmware_get(const struct nvkm_subdev *, const char *fwname,
 		      const struct firmware **);
 void nvkm_firmware_put(const struct firmware *);
 
+int nvkm_firmware_load_blob(const struct nvkm_subdev *subdev, const char *path,
+			    const char *name, int ver, struct nvkm_blob *);
+int nvkm_firmware_load_name(const struct nvkm_subdev *subdev, const char *path,
+			    const char *name, int ver,
+			    const struct firmware **);
+
 #define nvkm_firmware_load(s,l,o,p...) ({                                      \
 	struct nvkm_subdev *_s = (s);                                          \
 	const char *_opts = (o);                                               \

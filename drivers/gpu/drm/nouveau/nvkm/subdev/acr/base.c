@@ -27,6 +27,9 @@ static void *
 nvkm_acr_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_acr *acr = nvkm_acr(subdev);
+
+	nvkm_acr_lsfw_del_all(acr);
+
 	return acr;
 }
 
@@ -44,6 +47,7 @@ nvkm_acr_new_(const struct nvkm_acr_fwif *fwif, struct nvkm_device *device,
 	if (!(acr = *pacr = kzalloc(sizeof(*acr), GFP_KERNEL)))
 		return -ENOMEM;
 	nvkm_subdev_ctor(&nvkm_acr, device, index, &acr->subdev);
+	INIT_LIST_HEAD(&acr->lsfw);
 
 	fwif = nvkm_firmware_load(&acr->subdev, fwif, "Acr", acr);
 	if (IS_ERR(fwif))

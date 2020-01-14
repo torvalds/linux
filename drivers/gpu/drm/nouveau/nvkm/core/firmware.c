@@ -22,6 +22,40 @@
 #include <core/device.h>
 #include <core/firmware.h>
 
+int
+nvkm_firmware_load_name(const struct nvkm_subdev *subdev, const char *base,
+			const char *name, int ver, const struct firmware **pfw)
+{
+	char path[64];
+	int ret;
+
+	snprintf(path, sizeof(path), "%s%s", base, name);
+	ret = nvkm_firmware_get_version(subdev, path, ver, ver, pfw);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int
+nvkm_firmware_load_blob(const struct nvkm_subdev *subdev, const char *base,
+			const char *name, int ver, struct nvkm_blob *blob)
+{
+	const struct firmware *fw;
+	int ret;
+
+	ret = nvkm_firmware_load_name(subdev, base, name, ver, &fw);
+	if (ret == 0) {
+		blob->data = kmemdup(fw->data, fw->size, GFP_KERNEL);
+		blob->size = fw->size;
+		nvkm_firmware_put(fw);
+		if (!blob->data)
+			return -ENOMEM;
+	}
+
+	return ret;
+}
+
 /**
  * nvkm_firmware_get - load firmware from the official nvidia/chip/ directory
  * @subdev	subdevice that will use that firmware
