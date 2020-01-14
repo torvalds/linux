@@ -243,6 +243,7 @@ gt215_pmu_init(struct nvkm_pmu *pmu)
 
 const struct nvkm_falcon_func
 gt215_pmu_flcn = {
+	.debug = 0xc08,
 	.fbif = 0xe00,
 	.load_imem = nvkm_falcon_v1_load_imem,
 	.load_dmem = nvkm_falcon_v1_load_dmem,

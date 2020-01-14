@@ -138,8 +138,8 @@ nvkm_falcon_clear_interrupt(struct nvkm_falcon *falcon, u32 mask)
 static int
 nvkm_falcon_oneinit(struct nvkm_falcon *falcon)
 {
+	const struct nvkm_falcon_func *func = falcon->func;
 	const struct nvkm_subdev *subdev = falcon->owner;
-	u32 debug_reg;
 	u32 reg;
 
 	if (!falcon->addr) {
@@ -158,31 +158,8 @@ nvkm_falcon_oneinit(struct nvkm_falcon *falcon)
 	falcon->code.limit = (reg & 0x1ff) << 8;
 	falcon->data.limit = (reg & 0x3fe00) >> 1;
 
-	switch (subdev->index) {
-	case NVKM_ENGINE_GR:
-		debug_reg = 0x0;
-		break;
-	case NVKM_SUBDEV_PMU:
-		debug_reg = 0xc08;
-		break;
-	case NVKM_ENGINE_NVDEC0:
-		debug_reg = 0xd00;
-		break;
-	case NVKM_ENGINE_SEC2:
-		debug_reg = 0x408;
-		break;
-	case NVKM_SUBDEV_GSP:
-		debug_reg = 0x0; /*XXX*/
-		break;
-	default:
-		nvkm_warn(subdev, "unsupported falcon %s!\n",
-			  nvkm_subdev_name[subdev->index]);
-		debug_reg = 0;
-		break;
-	}
-
-	if (debug_reg) {
-		u32 val = nvkm_falcon_rd32(falcon, debug_reg);
+	if (func->debug) {
+		u32 val = nvkm_falcon_rd32(falcon, func->debug);
 		falcon->debug = (val >> 20) & 0x1;
 	}
 

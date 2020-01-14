@@ -88,6 +88,7 @@ gp102_sec2_flcn_bind_context(struct nvkm_falcon *falcon,
 
 static const struct nvkm_falcon_func
 gp102_sec2_flcn = {
+	.debug = 0x408,
 	.fbif = 0x600,
 	.load_imem = nvkm_falcon_v1_load_imem,
 	.load_dmem = nvkm_falcon_v1_load_dmem,
