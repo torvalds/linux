@@ -23,6 +23,7 @@
 
 #include "msgqueue.h"
 #include <engine/falcon.h>
+#include <engine/sec2.h>
 #include <subdev/secboot.h>
 
 /*
@@ -48,9 +49,7 @@ static struct nvkm_msgqueue_queue *
 msgqueue_0148cdec_cmd_queue(struct nvkm_msgqueue *queue,
 			    enum msgqueue_msg_priority priority)
 {
-	struct msgqueue_0148cdec *priv = msgqueue_0148cdec(queue);
-
-	return &priv->queue[MSGQUEUE_0148CDEC_COMMAND_QUEUE];
+	return queue->falcon->owner->device->sec2->cmdq;
 }
 
 static void
@@ -107,6 +106,7 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 	} *init = (void *)hdr;
 	const struct nvkm_falcon_func *func = _queue->falcon->func;
 	const struct nvkm_subdev *subdev = _queue->falcon->owner;
+	struct nvkm_sec2 *sec2 = subdev->device->sec2;
 	int i;
 
 	if (init->base.hdr.unit_id != MSGQUEUE_0148CDEC_UNIT_INIT) {
@@ -135,10 +135,10 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 			queue->tail_reg = func->msgq.tail + queue->index *
 					  func->msgq.stride;
 		} else {
-			queue->head_reg = func->cmdq.head + queue->index *
-					  func->cmdq.stride;
-			queue->tail_reg = func->cmdq.tail + queue->index *
-					  func->cmdq.stride;
+			nvkm_falcon_cmdq_init(sec2->cmdq,
+					      init->queue_info[i].index,
+					      init->queue_info[i].offset,
+					      init->queue_info[i].size);
 		}
 
 		nvkm_debug(subdev,

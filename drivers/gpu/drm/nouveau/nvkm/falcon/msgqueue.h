@@ -133,6 +133,7 @@ struct nvkm_msgqueue_func {
  */
 struct nvkm_msgqueue_queue {
 	struct nvkm_falcon_qmgr *qmgr;
+	const char *name;
 	struct mutex mutex;
 	u32 index;
 	u32 offset;

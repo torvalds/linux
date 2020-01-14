@@ -22,14 +22,11 @@
  */
 #include "msgqueue.h"
 #include <engine/falcon.h>
+#include <subdev/pmu.h>
 #include <subdev/secboot.h>
 
 /* Queues identifiers */
 enum {
-	/* High Priority Command Queue for Host -> PMU communication */
-	MSGQUEUE_0137C63D_COMMAND_QUEUE_HPQ = 0,
-	/* Low Priority Command Queue for Host -> PMU communication */
-	MSGQUEUE_0137C63D_COMMAND_QUEUE_LPQ = 1,
 	/* Message queue for PMU -> Host communication */
 	MSGQUEUE_0137C63D_MESSAGE_QUEUE = 4,
 	MSGQUEUE_0137C63D_NUM_QUEUES = 5,
@@ -61,9 +58,9 @@ msgqueue_0137c63d_cmd_queue(struct nvkm_msgqueue *queue,
 
 	switch (priority) {
 	case MSGQUEUE_MSG_PRIORITY_HIGH:
-		return &priv->queue[MSGQUEUE_0137C63D_COMMAND_QUEUE_HPQ];
+		return subdev->device->pmu->hpq;
 	case MSGQUEUE_MSG_PRIORITY_LOW:
-		return &priv->queue[MSGQUEUE_0137C63D_COMMAND_QUEUE_LPQ];
+		return subdev->device->pmu->lpq;
 	default:
 		nvkm_error(subdev, "invalid command queue!\n");
 		return ERR_PTR(-EINVAL);
@@ -138,6 +135,7 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 	} *init = (void *)hdr;
 	const struct nvkm_falcon_func *func = _queue->falcon->func;
 	const struct nvkm_subdev *subdev = _queue->falcon->owner;
+	struct nvkm_pmu *pmu = subdev->device->pmu;
 	int i;
 
 	if (init->base.hdr.unit_id != MSGQUEUE_0137C63D_UNIT_INIT) {
@@ -159,12 +157,7 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 		queue->offset = init->queue_info[i].offset;
 		queue->size = init->queue_info[i].size;
 
-		if (i != MSGQUEUE_0137C63D_MESSAGE_QUEUE) {
-			queue->head_reg = func->cmdq.head + queue->index *
-					  func->cmdq.stride;
-			queue->tail_reg = func->cmdq.tail + queue->index *
-					  func->cmdq.stride;
-		} else {
+		if (i == MSGQUEUE_0137C63D_MESSAGE_QUEUE) {
 			queue->head_reg = func->msgq.head;
 			queue->tail_reg = func->msgq.tail;
 		}
@@ -173,6 +166,13 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 			   "queue %d: index %d, offset 0x%08x, size 0x%08x\n",
 			   i, queue->index, queue->offset, queue->size);
 	}
+
+	nvkm_falcon_cmdq_init(pmu->hpq, init->queue_info[0].index,
+					init->queue_info[0].offset,
+					init->queue_info[0].size);
+	nvkm_falcon_cmdq_init(pmu->lpq, init->queue_info[1].index,
+					init->queue_info[1].offset,
+					init->queue_info[1].size);
 
 	/* Complete initialization by initializing WPR region */
 	return acr_init_wpr(&priv->base);

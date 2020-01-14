@@ -183,3 +183,48 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 
 	return ret;
 }
+
+void
+nvkm_falcon_cmdq_fini(struct nvkm_falcon_cmdq *cmdq)
+{
+}
+
+void
+nvkm_falcon_cmdq_init(struct nvkm_falcon_cmdq *cmdq,
+		      u32 index, u32 offset, u32 size)
+{
+	const struct nvkm_falcon_func *func = cmdq->qmgr->falcon->func;
+
+	cmdq->head_reg = func->cmdq.head + index * func->cmdq.stride;
+	cmdq->tail_reg = func->cmdq.tail + index * func->cmdq.stride;
+	cmdq->offset = offset;
+	cmdq->size = size;
+
+	FLCNQ_DBG(cmdq, "initialised @ index %d offset 0x%08x size 0x%08x",
+		  index, cmdq->offset, cmdq->size);
+}
+
+void
+nvkm_falcon_cmdq_del(struct nvkm_falcon_cmdq **pcmdq)
+{
+	struct nvkm_falcon_cmdq *cmdq = *pcmdq;
+	if (cmdq) {
+		kfree(*pcmdq);
+		*pcmdq = NULL;
+	}
+}
+
+int
+nvkm_falcon_cmdq_new(struct nvkm_falcon_qmgr *qmgr, const char *name,
+		     struct nvkm_falcon_cmdq **pcmdq)
+{
+	struct nvkm_falcon_cmdq *cmdq = *pcmdq;
+
+	if (!(cmdq = *pcmdq = kzalloc(sizeof(*cmdq), GFP_KERNEL)))
+		return -ENOMEM;
+
+	cmdq->qmgr = qmgr;
+	cmdq->name = name;
+	mutex_init(&cmdq->mutex);
+	return 0;
+}
