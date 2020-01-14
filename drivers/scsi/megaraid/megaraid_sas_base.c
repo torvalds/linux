@@ -1099,7 +1099,7 @@ megasas_issue_polled(struct megasas_instance *instance, struct megasas_cmd *cmd)
 	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
 		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
 			__func__, __LINE__);
-		return DCMD_NOT_FIRED;
+		return DCMD_INIT;
 	}
 
 	instance->instancet->issue_dcmd(instance, cmd);
@@ -1123,19 +1123,19 @@ megasas_issue_blocked_cmd(struct megasas_instance *instance,
 			  struct megasas_cmd *cmd, int timeout)
 {
 	int ret = 0;
-	cmd->cmd_status_drv = MFI_STAT_INVALID_STATUS;
+	cmd->cmd_status_drv = DCMD_INIT;
 
 	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
 		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
 			__func__, __LINE__);
-		return DCMD_NOT_FIRED;
+		return DCMD_INIT;
 	}
 
 	instance->instancet->issue_dcmd(instance, cmd);
 
 	if (timeout) {
 		ret = wait_event_timeout(instance->int_cmd_wait_q,
-				cmd->cmd_status_drv != MFI_STAT_INVALID_STATUS, timeout * HZ);
+		cmd->cmd_status_drv != DCMD_INIT, timeout * HZ);
 		if (!ret) {
 			dev_err(&instance->pdev->dev,
 				"DCMD(opcode: 0x%x) is timed out, func:%s\n",
@@ -1144,10 +1144,9 @@ megasas_issue_blocked_cmd(struct megasas_instance *instance,
 		}
 	} else
 		wait_event(instance->int_cmd_wait_q,
-				cmd->cmd_status_drv != MFI_STAT_INVALID_STATUS);
+				cmd->cmd_status_drv != DCMD_INIT);
 
-	return (cmd->cmd_status_drv == MFI_STAT_OK) ?
-		DCMD_SUCCESS : DCMD_FAILED;
+	return cmd->cmd_status_drv;
 }
 
 /**
@@ -1190,19 +1189,19 @@ megasas_issue_blocked_abort_cmd(struct megasas_instance *instance,
 		cpu_to_le32(upper_32_bits(cmd_to_abort->frame_phys_addr));
 
 	cmd->sync_cmd = 1;
-	cmd->cmd_status_drv = MFI_STAT_INVALID_STATUS;
+	cmd->cmd_status_drv = DCMD_INIT;
 
 	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR) {
 		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
 			__func__, __LINE__);
-		return DCMD_NOT_FIRED;
+		return DCMD_INIT;
 	}
 
 	instance->instancet->issue_dcmd(instance, cmd);
 
 	if (timeout) {
 		ret = wait_event_timeout(instance->abort_cmd_wait_q,
-				cmd->cmd_status_drv != MFI_STAT_INVALID_STATUS, timeout * HZ);
+		cmd->cmd_status_drv != DCMD_INIT, timeout * HZ);
 		if (!ret) {
 			opcode = cmd_to_abort->frame->dcmd.opcode;
 			dev_err(&instance->pdev->dev,
@@ -1212,13 +1211,12 @@ megasas_issue_blocked_abort_cmd(struct megasas_instance *instance,
 		}
 	} else
 		wait_event(instance->abort_cmd_wait_q,
-				cmd->cmd_status_drv != MFI_STAT_INVALID_STATUS);
+		cmd->cmd_status_drv != DCMD_INIT);
 
 	cmd->sync_cmd = 0;
 
 	megasas_return_cmd(instance, cmd);
-	return (cmd->cmd_status_drv == MFI_STAT_OK) ?
-		DCMD_SUCCESS : DCMD_FAILED;
+	return cmd->cmd_status_drv;
 }
 
 /**
@@ -2736,7 +2734,7 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 						"reset queue\n",
 						reset_cmd);
 
-				reset_cmd->cmd_status_drv = MFI_STAT_INVALID_STATUS;
+				reset_cmd->cmd_status_drv = DCMD_INIT;
 				instance->instancet->fire_cmd(instance,
 						reset_cmd->frame_phys_addr,
 						0, instance->reg_set);
@@ -3441,7 +3439,11 @@ static void
 megasas_complete_int_cmd(struct megasas_instance *instance,
 			 struct megasas_cmd *cmd)
 {
-	cmd->cmd_status_drv = cmd->frame->io.cmd_status;
+	if (cmd->cmd_status_drv == DCMD_INIT)
+		cmd->cmd_status_drv =
+		(cmd->frame->io.cmd_status == MFI_STAT_OK) ?
+		DCMD_SUCCESS : DCMD_FAILED;
+
 	wake_up(&instance->int_cmd_wait_q);
 }
 
@@ -3460,7 +3462,7 @@ megasas_complete_abort(struct megasas_instance *instance,
 {
 	if (cmd->sync_cmd) {
 		cmd->sync_cmd = 0;
-		cmd->cmd_status_drv = 0;
+		cmd->cmd_status_drv = DCMD_SUCCESS;
 		wake_up(&instance->abort_cmd_wait_q);
 	}
 }
@@ -3736,7 +3738,7 @@ megasas_issue_pending_cmds_again(struct megasas_instance *instance)
 			dev_notice(&instance->pdev->dev, "%p synchronous cmd"
 						"on the internal reset queue,"
 						"issue it again.\n", cmd);
-			cmd->cmd_status_drv = MFI_STAT_INVALID_STATUS;
+			cmd->cmd_status_drv = DCMD_INIT;
 			instance->instancet->fire_cmd(instance,
 							cmd->frame_phys_addr,
 							0, instance->reg_set);
@@ -8072,6 +8074,7 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	dma_addr_t sense_handle;
 	unsigned long *sense_ptr;
 	u32 opcode = 0;
+	int ret = DCMD_SUCCESS;
 
 	memset(kbuff_arr, 0, sizeof(kbuff_arr));
 
@@ -8212,13 +8215,18 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	 * cmd to the SCSI mid-layer
 	 */
 	cmd->sync_cmd = 1;
-	if (megasas_issue_blocked_cmd(instance, cmd, 0) == DCMD_NOT_FIRED) {
+
+	ret = megasas_issue_blocked_cmd(instance, cmd, 0);
+	switch (ret) {
+	case DCMD_INIT:
+	case DCMD_BUSY:
 		cmd->sync_cmd = 0;
 		dev_err(&instance->pdev->dev,
 			"return -EBUSY from %s %d cmd 0x%x opcode 0x%x cmd->cmd_status_drv 0x%x\n",
-			__func__, __LINE__, cmd->frame->hdr.cmd, opcode,
-			cmd->cmd_status_drv);
-		return -EBUSY;
+			 __func__, __LINE__, cmd->frame->hdr.cmd, opcode,
+			 cmd->cmd_status_drv);
+			error = -EBUSY;
+			goto out;
 	}
 
 	cmd->sync_cmd = 0;

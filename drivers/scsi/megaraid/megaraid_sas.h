@@ -2640,10 +2640,11 @@ enum MEGASAS_OCR_CAUSE {
 };
 
 enum DCMD_RETURN_STATUS {
-	DCMD_SUCCESS		= 0,
-	DCMD_TIMEOUT		= 1,
-	DCMD_FAILED		= 2,
-	DCMD_NOT_FIRED		= 3,
+	DCMD_SUCCESS    = 0x00,
+	DCMD_TIMEOUT    = 0x01,
+	DCMD_FAILED     = 0x02,
+	DCMD_BUSY       = 0x03,
+	DCMD_INIT       = 0xff,
 };
 
 u8
