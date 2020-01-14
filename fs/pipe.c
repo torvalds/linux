@@ -24,6 +24,7 @@
 #include <linux/syscalls.h>
 #include <linux/fcntl.h>
 #include <linux/memcontrol.h>
+#include <linux/watch_queue.h>
 
 #include <linux/uaccess.h>
 #include <asm/ioctls.h>
@@ -459,6 +460,13 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 	}
 
+#ifdef CONFIG_WATCH_QUEUE
+	if (pipe->watch_queue) {
+		ret = -EXDEV;
+		goto out;
+	}
+#endif
+
 	/*
 	 * Only wake up if the pipe started out empty, since
 	 * otherwise there should be no readers waiting.
@@ -628,22 +636,37 @@ static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int count, head, tail, mask;
 
 	switch (cmd) {
-		case FIONREAD:
-			__pipe_lock(pipe);
-			count = 0;
-			head = pipe->head;
-			tail = pipe->tail;
-			mask = pipe->ring_size - 1;
+	case FIONREAD:
+		__pipe_lock(pipe);
+		count = 0;
+		head = pipe->head;
+		tail = pipe->tail;
+		mask = pipe->ring_size - 1;
 
-			while (tail != head) {
-				count += pipe->bufs[tail & mask].len;
-				tail++;
-			}
-			__pipe_unlock(pipe);
+		while (tail != head) {
+			count += pipe->bufs[tail & mask].len;
+			tail++;
+		}
+		__pipe_unlock(pipe);
 
-			return put_user(count, (int __user *)arg);
-		default:
-			return -ENOIOCTLCMD;
+		return put_user(count, (int __user *)arg);
+
+#ifdef CONFIG_WATCH_QUEUE
+	case IOC_WATCH_QUEUE_SET_SIZE: {
+		int ret;
+		__pipe_lock(pipe);
+		ret = watch_queue_set_size(pipe, arg);
+		__pipe_unlock(pipe);
+		return ret;
+	}
+
+	case IOC_WATCH_QUEUE_SET_FILTER:
+		return watch_queue_set_filter(
+			pipe, (struct watch_notification_filter __user *)arg);
+#endif
+
+	default:
+		return -ENOIOCTLCMD;
 	}
 }
 
@@ -754,27 +777,27 @@ pipe_fasync(int fd, struct file *filp, int on)
 	return retval;
 }
 
-static unsigned long account_pipe_buffers(struct user_struct *user,
-                                 unsigned long old, unsigned long new)
+unsigned long account_pipe_buffers(struct user_struct *user,
+				   unsigned long old, unsigned long new)
 {
 	return atomic_long_add_return(new - old, &user->pipe_bufs);
 }
 
-static bool too_many_pipe_buffers_soft(unsigned long user_bufs)
+bool too_many_pipe_buffers_soft(unsigned long user_bufs)
 {
 	unsigned long soft_limit = READ_ONCE(pipe_user_pages_soft);
 
 	return soft_limit && user_bufs > soft_limit;
 }
 
-static bool too_many_pipe_buffers_hard(unsigned long user_bufs)
+bool too_many_pipe_buffers_hard(unsigned long user_bufs)
 {
 	unsigned long hard_limit = READ_ONCE(pipe_user_pages_hard);
 
 	return hard_limit && user_bufs > hard_limit;
 }
 
-static bool is_unprivileged_user(void)
+bool pipe_is_unprivileged_user(void)
 {
 	return !capable(CAP_SYS_RESOURCE) && !capable(CAP_SYS_ADMIN);
 }
@@ -796,12 +819,12 @@ struct pipe_inode_info *alloc_pipe_info(void)
 
 	user_bufs = account_pipe_buffers(user, 0, pipe_bufs);
 
-	if (too_many_pipe_buffers_soft(user_bufs) && is_unprivileged_user()) {
+	if (too_many_pipe_buffers_soft(user_bufs) && pipe_is_unprivileged_user()) {
 		user_bufs = account_pipe_buffers(user, pipe_bufs, 1);
 		pipe_bufs = 1;
 	}
 
-	if (too_many_pipe_buffers_hard(user_bufs) && is_unprivileged_user())
+	if (too_many_pipe_buffers_hard(user_bufs) && pipe_is_unprivileged_user())
 		goto out_revert_acct;
 
 	pipe->bufs = kcalloc(pipe_bufs, sizeof(struct pipe_buffer),
@@ -813,6 +836,7 @@ struct pipe_inode_info *alloc_pipe_info(void)
 		pipe->r_counter = pipe->w_counter = 1;
 		pipe->max_usage = pipe_bufs;
 		pipe->ring_size = pipe_bufs;
+		pipe->nr_accounted = pipe_bufs;
 		pipe->user = user;
 		mutex_init(&pipe->mutex);
 		return pipe;
@@ -830,7 +854,14 @@ void free_pipe_info(struct pipe_inode_info *pipe)
 {
 	int i;
 
-	(void) account_pipe_buffers(pipe->user, pipe->ring_size, 0);
+#ifdef CONFIG_WATCH_QUEUE
+	if (pipe->watch_queue) {
+		watch_queue_clear(pipe->watch_queue);
+		put_watch_queue(pipe->watch_queue);
+	}
+#endif
+
+	(void) account_pipe_buffers(pipe->user, pipe->nr_accounted, 0);
 	free_uid(pipe->user);
 	for (i = 0; i < pipe->ring_size; i++) {
 		struct pipe_buffer *buf = pipe->bufs + i;
@@ -906,6 +937,17 @@ int create_pipe_files(struct file **res, int flags)
 	if (!inode)
 		return -ENFILE;
 
+	if (flags & O_NOTIFICATION_PIPE) {
+#ifdef CONFIG_WATCH_QUEUE
+		if (watch_queue_init(inode->i_pipe) < 0) {
+			iput(inode);
+			return -ENOMEM;
+		}
+#else
+		return -ENOPKG;
+#endif
+	}
+
 	f = alloc_file_pseudo(inode, pipe_mnt, "",
 				O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT)),
 				&pipefifo_fops);
@@ -936,7 +978,7 @@ static int __do_pipe_flags(int *fd, struct file **files, int flags)
 	int error;
 	int fdw, fdr;
 
-	if (flags & ~(O_CLOEXEC | O_NONBLOCK | O_DIRECT))
+	if (flags & ~(O_CLOEXEC | O_NONBLOCK | O_DIRECT | O_NOTIFICATION_PIPE))
 		return -EINVAL;
 
 	error = create_pipe_files(files, flags);
@@ -1184,42 +1226,12 @@ unsigned int round_pipe_size(unsigned long size)
 }
 
 /*
- * Allocate a new array of pipe buffers and copy the info over. Returns the
- * pipe size if successful, or return -ERROR on error.
+ * Resize the pipe ring to a number of slots.
  */
-static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
+int pipe_resize_ring(struct pipe_inode_info *pipe, unsigned int nr_slots)
 {
 	struct pipe_buffer *bufs;
-	unsigned int size, nr_slots, head, tail, mask, n;
-	unsigned long user_bufs;
-	long ret = 0;
-
-	size = round_pipe_size(arg);
-	nr_slots = size >> PAGE_SHIFT;
-
-	if (!nr_slots)
-		return -EINVAL;
-
-	/*
-	 * If trying to increase the pipe capacity, check that an
-	 * unprivileged user is not trying to exceed various limits
-	 * (soft limit check here, hard limit check just below).
-	 * Decreasing the pipe capacity is always permitted, even
-	 * if the user is currently over a limit.
-	 */
-	if (nr_slots > pipe->ring_size &&
-			size > pipe_max_size && !capable(CAP_SYS_RESOURCE))
-		return -EPERM;
-
-	user_bufs = account_pipe_buffers(pipe->user, pipe->ring_size, nr_slots);
-
-	if (nr_slots > pipe->ring_size &&
-			(too_many_pipe_buffers_hard(user_bufs) ||
-			 too_many_pipe_buffers_soft(user_bufs)) &&
-			is_unprivileged_user()) {
-		ret = -EPERM;
-		goto out_revert_acct;
-	}
+	unsigned int head, tail, mask, n;
 
 	/*
 	 * We can shrink the pipe, if arg is greater than the ring occupancy.
@@ -1231,17 +1243,13 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	head = pipe->head;
 	tail = pipe->tail;
 	n = pipe_occupancy(pipe->head, pipe->tail);
-	if (nr_slots < n) {
-		ret = -EBUSY;
-		goto out_revert_acct;
-	}
+	if (nr_slots < n)
+		return -EBUSY;
 
 	bufs = kcalloc(nr_slots, sizeof(*bufs),
 		       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
-	if (unlikely(!bufs)) {
-		ret = -ENOMEM;
-		goto out_revert_acct;
-	}
+	if (unlikely(!bufs))
+		return -ENOMEM;
 
 	/*
 	 * The pipe array wraps around, so just start the new one at zero
@@ -1269,16 +1277,68 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	kfree(pipe->bufs);
 	pipe->bufs = bufs;
 	pipe->ring_size = nr_slots;
-	pipe->max_usage = nr_slots;
+	if (pipe->max_usage > nr_slots)
+		pipe->max_usage = nr_slots;
 	pipe->tail = tail;
 	pipe->head = head;
 
 	/* This might have made more room for writers */
 	wake_up_interruptible(&pipe->wr_wait);
+	return 0;
+}
+
+/*
+ * Allocate a new array of pipe buffers and copy the info over. Returns the
+ * pipe size if successful, or return -ERROR on error.
+ */
+static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
+{
+	unsigned long user_bufs;
+	unsigned int nr_slots, size;
+	long ret = 0;
+
+#ifdef CONFIG_WATCH_QUEUE
+	if (pipe->watch_queue)
+		return -EBUSY;
+#endif
+
+	size = round_pipe_size(arg);
+	nr_slots = size >> PAGE_SHIFT;
+
+	if (!nr_slots)
+		return -EINVAL;
+
+	/*
+	 * If trying to increase the pipe capacity, check that an
+	 * unprivileged user is not trying to exceed various limits
+	 * (soft limit check here, hard limit check just below).
+	 * Decreasing the pipe capacity is always permitted, even
+	 * if the user is currently over a limit.
+	 */
+	if (nr_slots > pipe->max_usage &&
+			size > pipe_max_size && !capable(CAP_SYS_RESOURCE))
+		return -EPERM;
+
+	user_bufs = account_pipe_buffers(pipe->user, pipe->nr_accounted, nr_slots);
+
+	if (nr_slots > pipe->max_usage &&
+			(too_many_pipe_buffers_hard(user_bufs) ||
+			 too_many_pipe_buffers_soft(user_bufs)) &&
+			pipe_is_unprivileged_user()) {
+		ret = -EPERM;
+		goto out_revert_acct;
+	}
+
+	ret = pipe_resize_ring(pipe, nr_slots);
+	if (ret < 0)
+		goto out_revert_acct;
+
+	pipe->max_usage = nr_slots;
+	pipe->nr_accounted = nr_slots;
 	return pipe->max_usage * PAGE_SIZE;
 
 out_revert_acct:
-	(void) account_pipe_buffers(pipe->user, nr_slots, pipe->ring_size);
+	(void) account_pipe_buffers(pipe->user, nr_slots, pipe->nr_accounted);
 	return ret;
 }
 
@@ -1287,9 +1347,17 @@ out_revert_acct:
  * location, so checking ->i_pipe is not enough to verify that this is a
  * pipe.
  */
-struct pipe_inode_info *get_pipe_info(struct file *file)
+struct pipe_inode_info *get_pipe_info(struct file *file, bool for_splice)
 {
-	return file->f_op == &pipefifo_fops ? file->private_data : NULL;
+	struct pipe_inode_info *pipe = file->private_data;
+
+	if (file->f_op != &pipefifo_fops || !pipe)
+		return NULL;
+#ifdef CONFIG_WATCH_QUEUE
+	if (for_splice && pipe->watch_queue)
+		return NULL;
+#endif
+	return pipe;
 }
 
 long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -1297,7 +1365,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct pipe_inode_info *pipe;
 	long ret;
 
-	pipe = get_pipe_info(file);
+	pipe = get_pipe_info(file, false);
 	if (!pipe)
 		return -EBADF;
 
