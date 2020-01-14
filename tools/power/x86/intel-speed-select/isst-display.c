@@ -418,6 +418,17 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 			snprintf(value, sizeof(value), "unsupported");
 		format_and_print(outf, base_level + 4, header, value);
 
+		snprintf(header, sizeof(header),
+			 "speed-select-core-power");
+		if (ctdp_level->sst_cp_support) {
+			if (ctdp_level->sst_cp_enabled)
+				snprintf(value, sizeof(value), "enabled");
+			else
+				snprintf(value, sizeof(value), "disabled");
+		} else
+			snprintf(value, sizeof(value), "unsupported");
+		format_and_print(outf, base_level + 4, header, value);
+
 		if (is_clx_n_platform()) {
 			if (ctdp_level->pbf_support)
 				_isst_pbf_display_information(cpu, outf,
