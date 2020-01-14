@@ -1221,22 +1221,25 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			new_fa->tb_id = tb->tb_id;
 			new_fa->fa_default = -1;
 
+			hlist_replace_rcu(&fa->fa_list, &new_fa->fa_list);
+
 			if (fib_find_alias(&l->leaf, fa->fa_slen, 0, 0,
-					   tb->tb_id, true) == fa) {
+					   tb->tb_id, true) == new_fa) {
 				enum fib_event_type fib_event;
 
 				fib_event = FIB_EVENT_ENTRY_REPLACE;
 				err = call_fib_entry_notifiers(net, fib_event,
 							       key, plen,
 							       new_fa, extack);
-				if (err)
+				if (err) {
+					hlist_replace_rcu(&new_fa->fa_list,
+							  &fa->fa_list);
 					goto out_free_new_fa;
+				}
 			}
 
 			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
 				  tb->tb_id, &cfg->fc_nlinfo, nlflags);
-
-			hlist_replace_rcu(&fa->fa_list, &new_fa->fa_list);
 
 			alias_free_mem_rcu(fa);
 
