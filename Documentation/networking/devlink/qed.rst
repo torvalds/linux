@@ -22,5 +22,5 @@ The ``qed`` driver implements the following driver-specific parameters.
    * - ``iwarp_cmt``
      - Boolean
      - runtime
-     - Enable iWARP functionality for 100g devices. Notee that this impacts
-       L2 performance, and is therefor not enabled by default.
+     - Enable iWARP functionality for 100g devices. Note that this impacts
+       L2 performance, and is therefore not enabled by default.
