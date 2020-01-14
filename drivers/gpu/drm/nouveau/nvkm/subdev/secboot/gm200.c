@@ -197,9 +197,6 @@ gm200_secboot_new(struct nvkm_device *device, int index,
 }
 
 
-MODULE_FIRMWARE("nvidia/gm200/acr/bl.bin");
-MODULE_FIRMWARE("nvidia/gm200/acr/ucode_load.bin");
-MODULE_FIRMWARE("nvidia/gm200/acr/ucode_unload.bin");
 MODULE_FIRMWARE("nvidia/gm200/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/gm200/gr/fecs_inst.bin");
 MODULE_FIRMWARE("nvidia/gm200/gr/fecs_data.bin");
@@ -213,9 +210,6 @@ MODULE_FIRMWARE("nvidia/gm200/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/gm200/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm200/gr/sw_method_init.bin");
 
-MODULE_FIRMWARE("nvidia/gm204/acr/bl.bin");
-MODULE_FIRMWARE("nvidia/gm204/acr/ucode_load.bin");
-MODULE_FIRMWARE("nvidia/gm204/acr/ucode_unload.bin");
 MODULE_FIRMWARE("nvidia/gm204/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/gm204/gr/fecs_inst.bin");
 MODULE_FIRMWARE("nvidia/gm204/gr/fecs_data.bin");
@@ -229,9 +223,6 @@ MODULE_FIRMWARE("nvidia/gm204/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/gm204/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm204/gr/sw_method_init.bin");
 
-MODULE_FIRMWARE("nvidia/gm206/acr/bl.bin");
-MODULE_FIRMWARE("nvidia/gm206/acr/ucode_load.bin");
-MODULE_FIRMWARE("nvidia/gm206/acr/ucode_unload.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/fecs_inst.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/fecs_data.bin");
@@ -245,9 +236,6 @@ MODULE_FIRMWARE("nvidia/gm206/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/sw_method_init.bin");
 
-MODULE_FIRMWARE("nvidia/gp100/acr/bl.bin");
-MODULE_FIRMWARE("nvidia/gp100/acr/ucode_load.bin");
-MODULE_FIRMWARE("nvidia/gp100/acr/ucode_unload.bin");
 MODULE_FIRMWARE("nvidia/gp100/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/gp100/gr/fecs_inst.bin");
 MODULE_FIRMWARE("nvidia/gp100/gr/fecs_data.bin");

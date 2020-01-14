@@ -150,8 +150,6 @@ gm20b_secboot_new(struct nvkm_device *device, int index,
 }
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
-MODULE_FIRMWARE("nvidia/gm20b/acr/bl.bin");
-MODULE_FIRMWARE("nvidia/gm20b/acr/ucode_load.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_inst.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_data.bin");

@@ -73,8 +73,6 @@ gp10b_secboot_new(struct nvkm_device *device, int index,
 }
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC)
-MODULE_FIRMWARE("nvidia/gp10b/acr/bl.bin");
-MODULE_FIRMWARE("nvidia/gp10b/acr/ucode_load.bin");
 MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_inst.bin");
 MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_data.bin");

@@ -45,10 +45,6 @@ gp108_secboot_new(struct nvkm_device *device, int index,
 	return nvkm_secboot_ctor(&gp102_secboot, acr, device, index, &gsb->base);
 }
 
-MODULE_FIRMWARE("nvidia/gp108/acr/bl.bin");
-MODULE_FIRMWARE("nvidia/gp108/acr/unload_bl.bin");
-MODULE_FIRMWARE("nvidia/gp108/acr/ucode_load.bin");
-MODULE_FIRMWARE("nvidia/gp108/acr/ucode_unload.bin");
 MODULE_FIRMWARE("nvidia/gp108/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/gp108/gr/fecs_inst.bin");
 MODULE_FIRMWARE("nvidia/gp108/gr/fecs_data.bin");
@@ -66,10 +62,6 @@ MODULE_FIRMWARE("nvidia/gp108/sec2/desc.bin");
 MODULE_FIRMWARE("nvidia/gp108/sec2/image.bin");
 MODULE_FIRMWARE("nvidia/gp108/sec2/sig.bin");
 
-MODULE_FIRMWARE("nvidia/gv100/acr/bl.bin");
-MODULE_FIRMWARE("nvidia/gv100/acr/unload_bl.bin");
-MODULE_FIRMWARE("nvidia/gv100/acr/ucode_load.bin");
-MODULE_FIRMWARE("nvidia/gv100/acr/ucode_unload.bin");
 MODULE_FIRMWARE("nvidia/gv100/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/gv100/gr/fecs_inst.bin");
 MODULE_FIRMWARE("nvidia/gv100/gr/fecs_data.bin");
