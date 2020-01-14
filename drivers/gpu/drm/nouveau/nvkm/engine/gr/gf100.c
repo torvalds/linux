@@ -2055,86 +2055,8 @@ gf100_gr_ = {
 };
 
 int
-gf100_gr_ctor_fw_legacy(struct gf100_gr *gr, const char *fwname,
-			struct nvkm_blob *fuc, int ret)
-{
-	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	const struct firmware *fw;
-	char f[32];
-
-	/* see if this firmware has a legacy path */
-	if (!strcmp(fwname, "fecs_inst"))
-		fwname = "fuc409c";
-	else if (!strcmp(fwname, "fecs_data"))
-		fwname = "fuc409d";
-	else if (!strcmp(fwname, "gpccs_inst"))
-		fwname = "fuc41ac";
-	else if (!strcmp(fwname, "gpccs_data"))
-		fwname = "fuc41ad";
-	else {
-		/* nope, let's just return the error we got */
-		nvkm_error(subdev, "failed to load %s\n", fwname);
-		return ret;
-	}
-
-	/* yes, try to load from the legacy path */
-	nvkm_debug(subdev, "%s: falling back to legacy path\n", fwname);
-
-	snprintf(f, sizeof(f), "nouveau/nv%02x_%s", device->chipset, fwname);
-	ret = request_firmware(&fw, f, device->dev);
-	if (ret) {
-		snprintf(f, sizeof(f), "nouveau/%s", fwname);
-		ret = request_firmware(&fw, f, device->dev);
-		if (ret) {
-			nvkm_error(subdev, "failed to load %s\n", fwname);
-			return ret;
-		}
-	}
-
-	fuc->size = fw->size;
-	fuc->data = kmemdup(fw->data, fuc->size, GFP_KERNEL);
-	release_firmware(fw);
-	return (fuc->data != NULL) ? 0 : -ENOMEM;
-}
-
-int
-gf100_gr_ctor_fw(struct gf100_gr *gr, const char *fwname,
-		 struct nvkm_blob *fuc)
-{
-	const struct firmware *fw;
-	int ret;
-
-	ret = nvkm_firmware_get(&gr->base.engine.subdev, fwname, &fw);
-	if (ret) {
-		ret = gf100_gr_ctor_fw_legacy(gr, fwname, fuc, ret);
-		if (ret)
-			return -ENODEV;
-		return 0;
-	}
-
-	fuc->size = fw->size;
-	fuc->data = kmemdup(fw->data, fuc->size, GFP_KERNEL);
-	nvkm_firmware_put(fw);
-	return (fuc->data != NULL) ? 0 : -ENOMEM;
-}
-
-int
-gf100_gr_ctor(const struct gf100_gr_func *func, struct nvkm_device *device,
-	      int index, struct gf100_gr *gr)
-{
-	gr->func = func;
-	gr->firmware = nvkm_boolopt(device->cfgopt, "NvGrUseFW",
-				    func->fecs.ucode == NULL);
-
-	return nvkm_gr_ctor(&gf100_gr_, device, index,
-			    gr->firmware || func->fecs.ucode != NULL,
-			    &gr->base);
-}
-
-int
-gf100_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_gr **pgr)
+gf100_gr_new_(const struct gf100_gr_fwif *fwif,
+	      struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
 	struct gf100_gr *gr;
 	int ret;
@@ -2143,18 +2065,15 @@ gf100_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 		return -ENOMEM;
 	*pgr = &gr->base;
 
-	ret = gf100_gr_ctor(func, device, index, gr);
+	ret = nvkm_gr_ctor(&gf100_gr_, device, index, true, &gr->base);
 	if (ret)
 		return ret;
 
-	if (gr->firmware) {
-		if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fecs.inst) ||
-		    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fecs.data) ||
-		    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->gpccs.inst) ||
-		    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->gpccs.data))
-			return -ENODEV;
-	}
+	fwif = nvkm_firmware_load(&gr->base.engine.subdev, fwif, "Gr", gr);
+	if (IS_ERR(fwif))
+		return -ENODEV;
 
+	gr->func = fwif->func;
 	return 0;
 }
 
@@ -2458,7 +2377,66 @@ gf100_gr = {
 };
 
 int
+gf100_gr_nofw(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+{
+	gr->firmware = false;
+	return 0;
+}
+
+static int
+gf100_gr_load_fw(struct gf100_gr *gr, const char *name,
+		 struct nvkm_blob *blob)
+{
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	const struct firmware *fw;
+	char f[32];
+	int ret;
+
+	snprintf(f, sizeof(f), "nouveau/nv%02x_%s", device->chipset, name);
+	ret = request_firmware(&fw, f, device->dev);
+	if (ret) {
+		snprintf(f, sizeof(f), "nouveau/%s", name);
+		ret = request_firmware(&fw, f, device->dev);
+		if (ret) {
+			nvkm_error(subdev, "failed to load %s\n", name);
+			return ret;
+		}
+	}
+
+	blob->size = fw->size;
+	blob->data = kmemdup(fw->data, blob->size, GFP_KERNEL);
+	release_firmware(fw);
+	return (blob->data != NULL) ? 0 : -ENOMEM;
+}
+
+int
+gf100_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	if (!nvkm_boolopt(device->cfgopt, "NvGrUseFW", false))
+		return -EINVAL;
+
+	if (gf100_gr_load_fw(gr, "fuc409c", &gr->fecs.inst) ||
+	    gf100_gr_load_fw(gr, "fuc409d", &gr->fecs.data) ||
+	    gf100_gr_load_fw(gr, "fuc41ac", &gr->gpccs.inst) ||
+	    gf100_gr_load_fw(gr, "fuc41ad", &gr->gpccs.data))
+		return -ENOENT;
+
+	gr->firmware = true;
+	return 0;
+}
+
+static const struct gf100_gr_fwif
+gf100_gr_fwif[] = {
+	{ -1, gf100_gr_load, &gf100_gr },
+	{ -1, gf100_gr_nofw, &gf100_gr },
+	{}
+};
+
+int
 gf100_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gf100_gr_new_(&gf100_gr, device, index, pgr);
+	return gf100_gr_new_(gf100_gr_fwif, device, index, pgr);
 }

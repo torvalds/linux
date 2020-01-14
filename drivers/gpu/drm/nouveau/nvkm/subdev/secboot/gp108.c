@@ -45,35 +45,11 @@ gp108_secboot_new(struct nvkm_device *device, int index,
 	return nvkm_secboot_ctor(&gp102_secboot, acr, device, index, &gsb->base);
 }
 
-MODULE_FIRMWARE("nvidia/gp108/gr/fecs_bl.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/fecs_inst.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/fecs_data.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/fecs_sig.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/gpccs_bl.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/gpccs_inst.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/gpccs_data.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/gpccs_sig.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/sw_nonctx.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/sw_bundle_init.bin");
-MODULE_FIRMWARE("nvidia/gp108/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/gp108/nvdec/scrubber.bin");
 MODULE_FIRMWARE("nvidia/gp108/sec2/desc.bin");
 MODULE_FIRMWARE("nvidia/gp108/sec2/image.bin");
 MODULE_FIRMWARE("nvidia/gp108/sec2/sig.bin");
 
-MODULE_FIRMWARE("nvidia/gv100/gr/fecs_bl.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/fecs_inst.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/fecs_data.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/fecs_sig.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/gpccs_bl.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/gpccs_inst.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/gpccs_data.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/gpccs_sig.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/sw_nonctx.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/sw_bundle_init.bin");
-MODULE_FIRMWARE("nvidia/gv100/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/gv100/nvdec/scrubber.bin");
 MODULE_FIRMWARE("nvidia/gv100/sec2/desc.bin");
 MODULE_FIRMWARE("nvidia/gv100/sec2/image.bin");

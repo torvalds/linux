@@ -136,12 +136,6 @@ struct gf100_gr {
 	u32 size_pm;
 };
 
-int gf100_gr_ctor(const struct gf100_gr_func *, struct nvkm_device *,
-		  int, struct gf100_gr *);
-int gf100_gr_new_(const struct gf100_gr_func *, struct nvkm_device *,
-		  int, struct nvkm_gr **);
-void *gf100_gr_dtor(struct nvkm_gr *);
-
 int gf100_gr_fecs_bind_pointer(struct gf100_gr *, u32 inst);
 
 struct gf100_gr_func_zbc {
@@ -247,8 +241,6 @@ extern const struct gf100_gr_func_zbc gp102_gr_zbc;
 
 extern const struct gf100_gr_func gp107_gr;
 
-int gk20a_gr_load_sw(struct gf100_gr *, const char *path, int ver);
-
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 #include <core/object.h>
 
@@ -269,8 +261,6 @@ struct gf100_gr_chan {
 
 void gf100_gr_ctxctl_debug(struct gf100_gr *);
 
-int  gf100_gr_ctor_fw(struct gf100_gr *, const char *,
-		      struct nvkm_blob *);
 u64  gf100_gr_units(struct nvkm_gr *);
 void gf100_gr_zbc_init(struct gf100_gr *);
 
@@ -308,9 +298,6 @@ void gf100_gr_mmio(struct gf100_gr *, const struct gf100_gr_pack *);
 void gf100_gr_icmd(struct gf100_gr *, const struct gf100_gr_pack *);
 void gf100_gr_mthd(struct gf100_gr *, const struct gf100_gr_pack *);
 int  gf100_gr_init_ctxctl(struct gf100_gr *);
-
-int gm200_gr_new_(const struct gf100_gr_func *, struct nvkm_device *, int,
-		  struct nvkm_gr **);
 
 /* register init value lists */
 
@@ -394,4 +381,29 @@ extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
 void gm107_gr_init_bios(struct gf100_gr *);
 
 void gm200_gr_init_gpc_mmu(struct gf100_gr *);
+
+struct gf100_gr_fwif {
+	int version;
+	int (*load)(struct gf100_gr *, int ver, const struct gf100_gr_fwif *);
+	const struct gf100_gr_func *func;
+	const struct nvkm_acr_lsf_func *fecs;
+	const struct nvkm_acr_lsf_func *gpccs;
+};
+
+int gf100_gr_load(struct gf100_gr *, int, const struct gf100_gr_fwif *);
+int gf100_gr_nofw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
+
+int gk20a_gr_load_sw(struct gf100_gr *, const char *path, int ver);
+
+int gm200_gr_load(struct gf100_gr *, int, const struct gf100_gr_fwif *);
+extern const struct nvkm_acr_lsf_func gm200_gr_gpccs_acr;
+extern const struct nvkm_acr_lsf_func gm200_gr_fecs_acr;
+
+extern const struct nvkm_acr_lsf_func gm20b_gr_fecs_acr;
+
+extern const struct nvkm_acr_lsf_func gp108_gr_gpccs_acr;
+extern const struct nvkm_acr_lsf_func gp108_gr_fecs_acr;
+
+int gf100_gr_new_(const struct gf100_gr_fwif *, struct nvkm_device *, int,
+		  struct nvkm_gr **);
 #endif

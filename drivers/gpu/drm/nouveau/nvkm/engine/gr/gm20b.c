@@ -22,9 +22,15 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
+#include <core/firmware.h>
+#include <subdev/acr.h>
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+
+const struct nvkm_acr_lsf_func
+gm20b_gr_fecs_acr = {
+};
 
 static void
 gm20b_gr_init_gpc_mmu(struct gf100_gr *gr)
@@ -85,8 +91,51 @@ gm20b_gr = {
 	}
 };
 
+static int
+gm20b_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+{
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	int ret;
+
+	ret = nvkm_acr_lsfw_load_bl_inst_data_sig(subdev, gr->fecs.falcon,
+						  NVKM_ACR_LSF_FECS,
+						  "gr/fecs_", ver, fwif->fecs);
+	if (ret)
+		return ret;
+
+
+	if (nvkm_firmware_load_blob(subdev, "gr/", "gpccs_inst", ver,
+				    &gr->gpccs.inst) ||
+	    nvkm_firmware_load_blob(subdev, "gr/", "gpccs_data", ver,
+				    &gr->gpccs.data))
+		return -ENOENT;
+
+	gr->firmware = true;
+
+	return gk20a_gr_load_sw(gr, "gr/", ver);
+}
+
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
+MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_bl.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_inst.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_data.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/fecs_sig.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/gpccs_inst.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/gpccs_data.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/sw_ctx.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/sw_bundle_init.bin");
+MODULE_FIRMWARE("nvidia/gm20b/gr/sw_method_init.bin");
+#endif
+
+static const struct gf100_gr_fwif
+gm20b_gr_fwif[] = {
+	{ 0, gm20b_gr_load, &gm20b_gr, &gm20b_gr_fecs_acr },
+	{}
+};
+
 int
 gm20b_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gm200_gr_new_(&gm20b_gr, device, index, pgr);
+	return gf100_gr_new_(gm20b_gr_fwif, device, index, pgr);
 }

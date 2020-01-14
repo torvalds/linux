@@ -319,29 +319,34 @@ gk20a_gr_load_sw(struct gf100_gr *gr, const char *path, int ver)
 	return 0;
 }
 
+static int
+gk20a_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+{
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+
+	if (nvkm_firmware_load_blob(subdev, "", "fecs_inst", ver,
+				    &gr->fecs.inst) ||
+	    nvkm_firmware_load_blob(subdev, "", "fecs_data", ver,
+				    &gr->fecs.data) ||
+	    nvkm_firmware_load_blob(subdev, "", "gpccs_inst", ver,
+				    &gr->gpccs.inst) ||
+	    nvkm_firmware_load_blob(subdev, "", "gpccs_data", ver,
+				    &gr->gpccs.data))
+		return -ENOENT;
+
+	gr->firmware = true;
+
+	return gk20a_gr_load_sw(gr, "", ver);
+}
+
+static const struct gf100_gr_fwif
+gk20a_gr_fwif[] = {
+	{ -1, gk20a_gr_load, &gk20a_gr },
+	{}
+};
+
 int
 gk20a_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	struct gf100_gr *gr;
-	int ret;
-
-	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
-		return -ENOMEM;
-	*pgr = &gr->base;
-
-	ret = gf100_gr_ctor(&gk20a_gr, device, index, gr);
-	if (ret)
-		return ret;
-
-	if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fecs.inst) ||
-	    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fecs.data) ||
-	    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->gpccs.inst) ||
-	    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->gpccs.data))
-		return -ENODEV;
-
-	ret = gk20a_gr_load_sw(gr, "", 0);
-	if (ret)
-		return -ENODEV;
-
-	return 0;
+	return gf100_gr_new_(gk20a_gr_fwif, device, index, pgr);
 }

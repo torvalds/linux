@@ -71,18 +71,3 @@ gp10b_secboot_new(struct nvkm_device *device, int index,
 
 	return 0;
 }
-
-#if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC)
-MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_bl.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_inst.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_data.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/fecs_sig.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/gpccs_bl.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/gpccs_inst.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/gpccs_data.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/gpccs_sig.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/sw_nonctx.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/sw_bundle_init.bin");
-MODULE_FIRMWARE("nvidia/gp10b/gr/sw_method_init.bin");
-#endif

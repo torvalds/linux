@@ -24,6 +24,8 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
+#include <core/firmware.h>
+#include <subdev/acr.h>
 #include <subdev/secboot.h>
 
 #include <nvif/class.h>
@@ -31,6 +33,14 @@
 /*******************************************************************************
  * PGRAPH engine/subdev functions
  ******************************************************************************/
+
+const struct nvkm_acr_lsf_func
+gm200_gr_gpccs_acr = {
+};
+
+const struct nvkm_acr_lsf_func
+gm200_gr_fecs_acr = {
+};
 
 int
 gm200_gr_rops(struct gf100_gr *gr)
@@ -124,42 +134,6 @@ gm200_gr_oneinit_tiles(struct gf100_gr *gr)
 	}
 }
 
-int
-gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_gr **pgr)
-{
-	struct gf100_gr *gr;
-	int ret;
-
-	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
-		return -ENOMEM;
-	*pgr = &gr->base;
-
-	ret = gf100_gr_ctor(func, device, index, gr);
-	if (ret)
-		return ret;
-
-	/* Load firmwares for non-secure falcons */
-	if (!nvkm_secboot_is_managed(device->secboot,
-				     NVKM_SECBOOT_FALCON_FECS)) {
-		if ((ret = gf100_gr_ctor_fw(gr, "gr/fecs_inst", &gr->fecs.inst)) ||
-		    (ret = gf100_gr_ctor_fw(gr, "gr/fecs_data", &gr->fecs.data)))
-			return ret;
-	}
-	if (!nvkm_secboot_is_managed(device->secboot,
-				     NVKM_SECBOOT_FALCON_GPCCS)) {
-		if ((ret = gf100_gr_ctor_fw(gr, "gr/gpccs_inst", &gr->gpccs.inst)) ||
-		    (ret = gf100_gr_ctor_fw(gr, "gr/gpccs_data", &gr->gpccs.data)))
-			return ret;
-	}
-
-	ret = gk20a_gr_load_sw(gr, "gr/", 0);
-	if (ret)
-		return -ENODEV;
-
-	return 0;
-}
-
 static const struct gf100_gr_func
 gm200_gr = {
 	.oneinit_tiles = gm200_gr_oneinit_tiles,
@@ -196,7 +170,77 @@ gm200_gr = {
 };
 
 int
+gm200_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+{
+	int ret;
+
+	ret = nvkm_acr_lsfw_load_bl_inst_data_sig(&gr->base.engine.subdev,
+						  gr->fecs.falcon,
+						  NVKM_ACR_LSF_FECS,
+						  "gr/fecs_", ver, fwif->fecs);
+	if (ret)
+		return ret;
+
+	ret = nvkm_acr_lsfw_load_bl_inst_data_sig(&gr->base.engine.subdev,
+						  gr->gpccs.falcon,
+						  NVKM_ACR_LSF_GPCCS,
+						  "gr/gpccs_", ver,
+						  fwif->gpccs);
+	if (ret)
+		return ret;
+
+	gr->firmware = true;
+
+	return gk20a_gr_load_sw(gr, "gr/", ver);
+}
+
+MODULE_FIRMWARE("nvidia/gm200/gr/fecs_bl.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/fecs_inst.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/fecs_data.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/fecs_sig.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/gpccs_bl.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/gpccs_inst.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/gpccs_data.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/gpccs_sig.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/sw_ctx.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/sw_bundle_init.bin");
+MODULE_FIRMWARE("nvidia/gm200/gr/sw_method_init.bin");
+
+MODULE_FIRMWARE("nvidia/gm204/gr/fecs_bl.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/fecs_inst.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/fecs_data.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/fecs_sig.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/gpccs_bl.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/gpccs_inst.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/gpccs_data.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/gpccs_sig.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/sw_ctx.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/sw_bundle_init.bin");
+MODULE_FIRMWARE("nvidia/gm204/gr/sw_method_init.bin");
+
+MODULE_FIRMWARE("nvidia/gm206/gr/fecs_bl.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/fecs_inst.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/fecs_data.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/fecs_sig.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/gpccs_bl.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/gpccs_inst.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/gpccs_data.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/gpccs_sig.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/sw_ctx.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/sw_bundle_init.bin");
+MODULE_FIRMWARE("nvidia/gm206/gr/sw_method_init.bin");
+
+static const struct gf100_gr_fwif
+gm200_gr_fwif[] = {
+	{ 0, gm200_gr_load, &gm200_gr, &gm200_gr_fecs_acr, &gm200_gr_gpccs_acr },
+	{}
+};
+
+int
 gm200_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gm200_gr_new_(&gm200_gr, device, index, pgr);
+	return gf100_gr_new_(gm200_gr_fwif, device, index, pgr);
 }
