@@ -8408,7 +8408,6 @@ bool amdgpu_dm_psr_enable(struct dc_stream_state *stream)
 	/* Calculate number of static frames before generating interrupt to
 	 * enter PSR.
 	 */
-	unsigned int frame_time_microsec = 1000000 / vsync_rate_hz;
 	// Init fail safe of 2 frames static
 	unsigned int num_frames_static = 2;
 
@@ -8423,8 +8422,10 @@ bool amdgpu_dm_psr_enable(struct dc_stream_state *stream)
 	 * Calculate number of frames such that at least 30 ms of time has
 	 * passed.
 	 */
-	if (vsync_rate_hz != 0)
+	if (vsync_rate_hz != 0) {
+		unsigned int frame_time_microsec = 1000000 / vsync_rate_hz;
 		num_frames_static = (30000 / frame_time_microsec) + 1;
+	}
 
 	params.triggers.cursor_update = true;
 	params.triggers.overlay_update = true;
