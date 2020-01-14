@@ -120,7 +120,6 @@ acr_r370_ls_sec2_func_0 = {
 const struct acr_r352_ls_func
 acr_r370_ls_sec2_func = {
 	.load = acr_ls_ucode_load_sec2,
-	.post_run = acr_ls_sec2_post_run,
 	.version_max = 0,
 	.version = {
 		&acr_r370_ls_sec2_func_0,

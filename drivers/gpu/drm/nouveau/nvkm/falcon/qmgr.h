@@ -2,7 +2,6 @@
 #ifndef __NVKM_FALCON_QMGR_H__
 #define __NVKM_FALCON_QMGR_H__
 #include <core/falcon.h>
-#include "msgqueue.h"
 
 #define HDR_SIZE sizeof(struct nv_falcon_msg)
 #define QUEUE_ALIGNMENT 4

@@ -24,7 +24,6 @@
 #include "priv.h"
 
 #include <core/firmware.h>
-#include <core/msgqueue.h>
 #include <subdev/timer.h>
 
 bool
@@ -144,7 +143,6 @@ static void *
 nvkm_pmu_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
-	nvkm_msgqueue_del(&pmu->queue);
 	nvkm_falcon_msgq_del(&pmu->msgq);
 	nvkm_falcon_cmdq_del(&pmu->lpq);
 	nvkm_falcon_cmdq_del(&pmu->hpq);

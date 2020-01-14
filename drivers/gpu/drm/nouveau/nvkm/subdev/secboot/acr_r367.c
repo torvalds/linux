@@ -385,7 +385,6 @@ acr_r367_fixup_hs_desc(struct acr_r352 *acr, struct nvkm_secboot *sb,
 static const struct acr_r352_ls_func
 acr_r367_ls_sec2_func = {
 	.load = acr_ls_ucode_load_sec2,
-	.post_run = acr_ls_sec2_post_run,
 	.version_max = 1,
 	.version = {
 		&acr_r361_ls_sec2_func_0,

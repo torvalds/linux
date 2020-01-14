@@ -64,8 +64,19 @@ gp102_sec2_acr_bootstrap_falcon(struct nvkm_falcon *falcon,
 				     msecs_to_jiffies(1000));
 }
 
+static int
+gp102_sec2_acr_boot(struct nvkm_falcon *falcon)
+{
+	struct nv_sec2_args args = {};
+	nvkm_falcon_load_dmem(falcon, &args,
+			      falcon->func->emem_addr, sizeof(args), 0);
+	nvkm_falcon_start(falcon);
+	return 0;
+}
+
 static const struct nvkm_acr_lsf_func
 gp102_sec2_acr_0 = {
+	.boot = gp102_sec2_acr_boot,
 	.bootstrap_falcon = gp102_sec2_acr_bootstrap_falcon,
 };
 
@@ -210,6 +221,7 @@ MODULE_FIRMWARE("nvidia/gp107/sec2/sig.bin");
 
 const struct nvkm_acr_lsf_func
 gp102_sec2_acr_1 = {
+	.boot = gp102_sec2_acr_boot,
 	.bootstrap_falcon = gp102_sec2_acr_bootstrap_falcon,
 };
 

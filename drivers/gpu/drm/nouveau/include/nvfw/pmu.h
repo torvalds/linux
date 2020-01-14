@@ -1,6 +1,26 @@
 #ifndef __NVFW_PMU_H__
 #define __NVFW_PMU_H__
 
+struct nv_pmu_args {
+	u32 reserved;
+	u32 freq_hz;
+	u32 trace_size;
+	u32 trace_dma_base;
+	u16 trace_dma_base1;
+	u8 trace_dma_offset;
+	u32 trace_dma_idx;
+	bool secure_mode;
+	bool raise_priv_sec;
+	struct {
+		u32 dma_base;
+		u16 dma_base1;
+		u8 dma_offset;
+		u16 fb_size;
+		u8 dma_idx;
+	} gc6_ctx;
+	u8 pad;
+};
+
 #define NV_PMU_UNIT_INIT                                                   0x07
 #define NV_PMU_UNIT_ACR                                                    0x0a
 

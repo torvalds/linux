@@ -62,6 +62,27 @@ nvkm_acr_bootstrap_falcons(struct nvkm_device *device, unsigned long mask)
 	return 0;
 }
 
+int
+nvkm_acr_boot_ls_falcons(struct nvkm_device *device)
+{
+	struct nvkm_acr *acr = device->acr;
+	struct nvkm_acr_lsf *lsf;
+	int ret;
+
+	if (!acr)
+		return -ENOSYS;
+
+	list_for_each_entry(lsf, &acr->lsf, head) {
+		if (lsf->func->boot) {
+			ret = lsf->func->boot(lsf->falcon);
+			if (ret)
+				break;
+		}
+	}
+
+	return ret;
+}
+
 static void
 nvkm_acr_cleanup(struct nvkm_acr *acr)
 {

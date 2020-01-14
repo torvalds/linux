@@ -900,12 +900,12 @@ acr_r352_wpr_is_set(const struct acr_r352 *acr, const struct nvkm_secboot *sb)
 		wpr_hi > wpr_range_lo && wpr_hi <= wpr_range_hi);
 }
 
+int nvkm_acr_boot_ls_falcons(struct nvkm_device *);
+
 static int
 acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 {
 	const struct nvkm_subdev *subdev = &sb->subdev;
-	unsigned long managed_falcons = acr->base.managed_falcons;
-	int falcon_id;
 	int ret;
 
 	if (sb->wpr_set)
@@ -934,19 +934,7 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		return -EINVAL;
 	}
 
-	/* Run LS firmwares post_run hooks */
-	for_each_set_bit(falcon_id, &managed_falcons, NVKM_SECBOOT_FALCON_END) {
-		const struct acr_r352_ls_func *func =
-						  acr->func->ls_func[falcon_id];
-
-		if (func->post_run) {
-			ret = func->post_run(&acr->base, sb);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return 0;
+	return nvkm_acr_boot_ls_falcons(subdev->device);
 }
 
 /**
@@ -1168,7 +1156,6 @@ acr_r352_ls_pmu_func_0 = {
 static const struct acr_r352_ls_func
 acr_r352_ls_pmu_func = {
 	.load = acr_ls_ucode_load_pmu,
-	.post_run = acr_ls_pmu_post_run,
 	.version_max = 0,
 	.version = {
 		&acr_r352_ls_pmu_func_0,

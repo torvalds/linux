@@ -22,17 +22,7 @@
 
 #ifndef __NVKM_CORE_MSGQUEUE_H
 #define __NVKM_CORE_MSGQUEUE_H
-#include <subdev/secboot.h>
-struct nvkm_msgqueue;
 
 /* Hopefully we will never have firmware arguments larger than that... */
 #define NVKM_MSGQUEUE_CMDLINE_SIZE 0x100
-
-int nvkm_msgqueue_new(u32, struct nvkm_falcon *, const struct nvkm_secboot *,
-		      struct nvkm_msgqueue **);
-void nvkm_msgqueue_del(struct nvkm_msgqueue **);
-
-/* useful if we run a NVIDIA-signed firmware */
-void nvkm_msgqueue_write_cmdline(struct nvkm_msgqueue *, void *);
-
 #endif

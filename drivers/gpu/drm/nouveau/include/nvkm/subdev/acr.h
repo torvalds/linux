@@ -74,6 +74,7 @@ struct nvkm_acr_lsfw {
 };
 
 struct nvkm_acr_lsf_func {
+	int (*boot)(struct nvkm_falcon *);
 	int (*bootstrap_falcon)(struct nvkm_falcon *, enum nvkm_acr_lsf_id);
 	int (*bootstrap_multiple_falcons)(struct nvkm_falcon *, u32 mask);
 };

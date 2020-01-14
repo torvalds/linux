@@ -1,6 +1,14 @@
 #ifndef __NVFW_SEC2_H__
 #define __NVFW_SEC2_H__
 
+struct nv_sec2_args {
+	u32 freq_hz;
+	u32 falc_trace_size;
+	u32 falc_trace_dma_base;
+	u32 falc_trace_dma_idx;
+	bool secure_mode;
+};
+
 #define NV_SEC2_UNIT_INIT                                                  0x01
 #define NV_SEC2_UNIT_ACR                                                   0x08
 

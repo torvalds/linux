@@ -75,61 +75,15 @@ acr_ls_ucode_load_msgqueue(const struct nvkm_subdev *subdev, const char *name,
 	return ver;
 }
 
-static int
-acr_ls_msgqueue_post_run(struct nvkm_msgqueue *queue,
-			 struct nvkm_falcon *falcon, u32 addr_args)
-{
-	struct nvkm_device *device = falcon->owner->device;
-	u8 buf[NVKM_MSGQUEUE_CMDLINE_SIZE];
-
-	memset(buf, 0, sizeof(buf));
-	nvkm_msgqueue_write_cmdline(queue, buf);
-	nvkm_falcon_load_dmem(falcon, buf, addr_args, sizeof(buf), 0);
-
-	/* Enable interrupts */
-	nvkm_falcon_wr32(falcon, 0x10, 0xff);
-	nvkm_mc_intr_mask(device, falcon->owner->index, true);
-
-	/* Start LS firmware on boot falcon */
-	nvkm_falcon_start(falcon);
-
-	return 0;
-}
-
 int
 acr_ls_ucode_load_pmu(const struct nvkm_secboot *sb, int maxver,
 		      struct ls_ucode_img *img)
 {
-	struct nvkm_pmu *pmu = sb->subdev.device->pmu;
 	int ret;
 
 	ret = acr_ls_ucode_load_msgqueue(&sb->subdev, "pmu", maxver, img);
 	if (ret)
 		return ret;
-
-	/* Allocate the PMU queue corresponding to the FW version */
-	ret = nvkm_msgqueue_new(img->ucode_desc.app_version, &pmu->falcon,
-				sb, &pmu->queue);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-int
-acr_ls_pmu_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
-{
-	struct nvkm_device *device = sb->subdev.device;
-	struct nvkm_pmu *pmu = device->pmu;
-	u32 addr_args = pmu->falcon.data.limit - NVKM_MSGQUEUE_CMDLINE_SIZE;
-	int ret;
-
-	ret = acr_ls_msgqueue_post_run(pmu->queue, &pmu->falcon, addr_args);
-	if (ret)
-		return ret;
-
-	nvkm_debug(&sb->subdev, "%s started\n",
-		   nvkm_secboot_falcon_name[acr->boot_falcon]);
 
 	return 0;
 }
@@ -138,38 +92,11 @@ int
 acr_ls_ucode_load_sec2(const struct nvkm_secboot *sb, int maxver,
 		       struct ls_ucode_img *img)
 {
-	struct nvkm_sec2 *sec = sb->subdev.device->sec2;
-	int ver, ret;
+	int ver;
 
 	ver = acr_ls_ucode_load_msgqueue(&sb->subdev, "sec2", maxver, img);
 	if (ver < 0)
 		return ver;
 
-	/* Allocate the PMU queue corresponding to the FW version */
-	ret = nvkm_msgqueue_new(img->ucode_desc.app_version, &sec->falcon,
-				sb, &sec->queue);
-	if (ret)
-		return ret;
-
 	return ver;
-}
-
-int
-acr_ls_sec2_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
-{
-	const struct nvkm_subdev *subdev = &sb->subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_sec2 *sec = device->sec2;
-	/* on SEC arguments are always at the beginning of EMEM */
-	const u32 addr_args = 0x01000000;
-	int ret;
-
-	ret = acr_ls_msgqueue_post_run(sec->queue, &sec->falcon, addr_args);
-	if (ret)
-		return ret;
-
-	nvkm_debug(&sb->subdev, "%s started\n",
-		   nvkm_secboot_falcon_name[acr->boot_falcon]);
-
-	return 0;
 }

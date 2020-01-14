@@ -63,7 +63,6 @@ acr_r375_ls_pmu_func_0 = {
 const struct acr_r352_ls_func
 acr_r375_ls_pmu_func = {
 	.load = acr_ls_ucode_load_pmu,
-	.post_run = acr_ls_pmu_post_run,
 	.version_max = 0,
 	.version = {
 		&acr_r375_ls_pmu_func_0,

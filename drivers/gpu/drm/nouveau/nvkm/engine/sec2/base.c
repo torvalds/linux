@@ -22,7 +22,6 @@
 #include "priv.h"
 
 #include <core/firmware.h>
-#include <core/msgqueue.h>
 #include <subdev/top.h>
 
 static void
@@ -70,7 +69,6 @@ static void *
 nvkm_sec2_dtor(struct nvkm_engine *engine)
 {
 	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
-	nvkm_msgqueue_del(&sec2->queue);
 	nvkm_falcon_msgq_del(&sec2->msgq);
 	nvkm_falcon_cmdq_del(&sec2->cmdq);
 	nvkm_falcon_qmgr_del(&sec2->qmgr);

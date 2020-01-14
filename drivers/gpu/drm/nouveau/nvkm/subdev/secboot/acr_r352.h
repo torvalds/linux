@@ -65,12 +65,10 @@ struct acr_r352_lsf_func {
  * struct acr_r352_ls_func - manages a single LS falcon
  *
  * @load: load the external firmware into a ls_ucode_img
- * @post_run: hook called right after the ACR is executed
  */
 struct acr_r352_ls_func {
 	int (*load)(const struct nvkm_secboot *, int maxver,
 		    struct ls_ucode_img *);
-	int (*post_run)(const struct nvkm_acr *, const struct nvkm_secboot *);
 	int version_max;
 	const struct acr_r352_lsf_func *version[];
 };

@@ -56,8 +56,19 @@ gm20b_pmu_acr_bootstrap_falcon(struct nvkm_falcon *falcon,
 	return ret;
 }
 
+int
+gm20b_pmu_acr_boot(struct nvkm_falcon *falcon)
+{
+	struct nv_pmu_args args = { .secure_mode = true };
+	const u32 addr_args = falcon->data.limit - NVKM_MSGQUEUE_CMDLINE_SIZE; /*XXX*/
+	nvkm_falcon_load_dmem(falcon, &args, addr_args, sizeof(args), 0);
+	nvkm_falcon_start(falcon);
+	return 0;
+}
+
 static const struct nvkm_acr_lsf_func
 gm20b_pmu_acr = {
+	.boot = gm20b_pmu_acr_boot,
 	.bootstrap_falcon = gm20b_pmu_acr_bootstrap_falcon,
 };
 
