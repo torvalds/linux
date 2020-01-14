@@ -2050,6 +2050,12 @@ static int gpiochip_hierarchy_irq_domain_alloc(struct irq_domain *d,
 	chip_info(gc, "alloc_irqs_parent for %d parent hwirq %d\n",
 		  irq, parent_hwirq);
 	ret = irq_domain_alloc_irqs_parent(d, irq, 1, parent_arg);
+	/*
+	 * If the parent irqdomain is msi, the interrupts have already
+	 * been allocated, so the EEXIST is good.
+	 */
+	if (irq_domain_is_msi(d->parent) && (ret == -EEXIST))
+		ret = 0;
 	if (ret)
 		chip_err(gc,
 			 "failed to allocate parent hwirq %d for hwirq %lu\n",
