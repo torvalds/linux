@@ -201,7 +201,7 @@ DECLARE_EVENT_CLASS(nfsd_file_class,
 	TP_fast_assign(
 		__entry->nf_hashval = nf->nf_hashval;
 		__entry->nf_inode = nf->nf_inode;
-		__entry->nf_ref = atomic_read(&nf->nf_ref);
+		__entry->nf_ref = refcount_read(&nf->nf_ref);
 		__entry->nf_flags = nf->nf_flags;
 		__entry->nf_may = nf->nf_may;
 		__entry->nf_file = nf->nf_file;
@@ -250,7 +250,7 @@ TRACE_EVENT(nfsd_file_acquire,
 		__entry->hash = hash;
 		__entry->inode = inode;
 		__entry->may_flags = may_flags;
-		__entry->nf_ref = nf ? atomic_read(&nf->nf_ref) : 0;
+		__entry->nf_ref = nf ? refcount_read(&nf->nf_ref) : 0;
 		__entry->nf_flags = nf ? nf->nf_flags : 0;
 		__entry->nf_may = nf ? nf->nf_may : 0;
 		__entry->nf_file = nf ? nf->nf_file : NULL;
