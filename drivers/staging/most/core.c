@@ -2,7 +2,7 @@
 /*
  * core.c - Implementation of core module of MOST Linux driver stack
  *
- * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2020 Microchip Technology Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
