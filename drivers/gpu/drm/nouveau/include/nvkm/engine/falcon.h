@@ -30,7 +30,6 @@ struct nvkm_falcon {
 	u8 version;
 	u8 secret;
 	bool debug;
-	bool has_emem;
 
 	struct nvkm_memory *core;
 	bool external;
@@ -84,6 +83,7 @@ struct nvkm_falcon_func {
 	void (*load_imem)(struct nvkm_falcon *, void *, u32, u32, u16, u8, bool);
 	void (*load_dmem)(struct nvkm_falcon *, void *, u32, u32, u8);
 	void (*read_dmem)(struct nvkm_falcon *, u32, u32, u8, void *);
+	u32 emem_addr;
 	void (*bind_context)(struct nvkm_falcon *, struct nvkm_memory *);
 	int (*wait_for_halt)(struct nvkm_falcon *, u32);
 	int (*clear_interrupt)(struct nvkm_falcon *, u32);

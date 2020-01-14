@@ -89,18 +89,17 @@ nvkm_falcon_v1_load_emem(struct nvkm_falcon *falcon, void *data, u32 start,
 	}
 }
 
-static const u32 EMEM_START_ADDR = 0x1000000;
-
 void
 nvkm_falcon_v1_load_dmem(struct nvkm_falcon *falcon, void *data, u32 start,
 			 u32 size, u8 port)
 {
+	const struct nvkm_falcon_func *func = falcon->func;
 	u8 rem = size % 4;
 	int i;
 
-	if (start >= EMEM_START_ADDR && falcon->has_emem)
+	if (func->emem_addr && start >= func->emem_addr)
 		return nvkm_falcon_v1_load_emem(falcon, data,
-						start - EMEM_START_ADDR, size,
+						start - func->emem_addr, size,
 						port);
 
 	size -= rem;
@@ -152,11 +151,12 @@ void
 nvkm_falcon_v1_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size,
 			 u8 port, void *data)
 {
+	const struct nvkm_falcon_func *func = falcon->func;
 	u8 rem = size % 4;
 	int i;
 
-	if (start >= EMEM_START_ADDR && falcon->has_emem)
-		return nvkm_falcon_v1_read_emem(falcon, start - EMEM_START_ADDR,
+	if (func->emem_addr && start >= func->emem_addr)
+		return nvkm_falcon_v1_read_emem(falcon, start - func->emem_addr,
 						size, port, data);
 
 	size -= rem;

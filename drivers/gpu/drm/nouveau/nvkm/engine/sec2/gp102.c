@@ -92,6 +92,7 @@ gp102_sec2_flcn = {
 	.load_imem = nvkm_falcon_v1_load_imem,
 	.load_dmem = nvkm_falcon_v1_load_dmem,
 	.read_dmem = nvkm_falcon_v1_read_dmem,
+	.emem_addr = 0x01000000,
 	.bind_context = gp102_sec2_flcn_bind_context,
 	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
 	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,

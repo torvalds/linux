@@ -170,7 +170,6 @@ nvkm_falcon_oneinit(struct nvkm_falcon *falcon)
 		break;
 	case NVKM_ENGINE_SEC2:
 		debug_reg = 0x408;
-		falcon->has_emem = true;
 		break;
 	case NVKM_SUBDEV_GSP:
 		debug_reg = 0x0; /*XXX*/
