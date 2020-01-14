@@ -206,10 +206,8 @@ static ssize_t amdgpu_set_dpm_state(struct device *dev,
 		state = POWER_STATE_TYPE_BALANCED;
 	else if (strncmp("performance", buf, strlen("performance")) == 0)
 		state = POWER_STATE_TYPE_PERFORMANCE;
-	else {
-		count = -EINVAL;
-		goto fail;
-	}
+	else
+		return -EINVAL;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0)
@@ -231,8 +229,6 @@ static ssize_t amdgpu_set_dpm_state(struct device *dev,
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
-
-fail:
 	return count;
 }
 
@@ -399,8 +395,11 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 
 	if (is_support_sw_smu(adev)) {
 		ret = smu_force_performance_level(&adev->smu, level);
-		if (ret)
-			count = -EINVAL;
+		if (ret) {
+			pm_runtime_mark_last_busy(ddev->dev);
+			pm_runtime_put_autosuspend(ddev->dev);
+			return -EINVAL;
+		}
 	} else if (adev->powerplay.pp_funcs->force_performance_level) {
 		mutex_lock(&adev->pm.mutex);
 		if (adev->pm.dpm.thermal_active) {
@@ -410,10 +409,14 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 			return -EINVAL;
 		}
 		ret = amdgpu_dpm_force_performance_level(adev, level);
-		if (ret)
-			count = -EINVAL;
-		else
+		if (ret) {
+			mutex_unlock(&adev->pm.mutex);
+			pm_runtime_mark_last_busy(ddev->dev);
+			pm_runtime_put_autosuspend(ddev->dev);
+			return -EINVAL;
+		} else {
 			adev->pm.dpm.forced_level = level;
+		}
 		mutex_unlock(&adev->pm.mutex);
 	}
 	pm_runtime_mark_last_busy(ddev->dev);
@@ -890,12 +893,18 @@ static ssize_t amdgpu_set_pp_feature_status(struct device *dev,
 
 	if (is_support_sw_smu(adev)) {
 		ret = smu_sys_set_pp_feature_mask(&adev->smu, featuremask);
-		if (ret)
-			count = -EINVAL;
+		if (ret) {
+			pm_runtime_mark_last_busy(ddev->dev);
+			pm_runtime_put_autosuspend(ddev->dev);
+			return -EINVAL;
+		}
 	} else if (adev->powerplay.pp_funcs->set_ppfeature_status) {
 		ret = amdgpu_dpm_set_ppfeature_status(adev, featuremask);
-		if (ret)
-			count = -EINVAL;
+		if (ret) {
+			pm_runtime_mark_last_busy(ddev->dev);
+			pm_runtime_put_autosuspend(ddev->dev);
+			return -EINVAL;
+		}
 	}
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
