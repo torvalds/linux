@@ -34,7 +34,6 @@ static int __init kasan_init_shadow_page_tables(unsigned long k_start, unsigned 
 {
 	pmd_t *pmd;
 	unsigned long k_cur, k_next;
-	pgprot_t prot = slab_is_available() ? kasan_prot_ro() : PAGE_KERNEL;
 
 	pmd = pmd_offset(pud_offset(pgd_offset_k(k_start), k_start), k_start);
 
@@ -45,14 +44,11 @@ static int __init kasan_init_shadow_page_tables(unsigned long k_start, unsigned 
 		if ((void *)pmd_page_vaddr(*pmd) != kasan_early_shadow_pte)
 			continue;
 
-		if (slab_is_available())
-			new = pte_alloc_one_kernel(&init_mm);
-		else
-			new = memblock_alloc(PTE_FRAG_SIZE, PTE_FRAG_SIZE);
+		new = memblock_alloc(PTE_FRAG_SIZE, PTE_FRAG_SIZE);
 
 		if (!new)
 			return -ENOMEM;
-		kasan_populate_pte(new, prot);
+		kasan_populate_pte(new, PAGE_KERNEL);
 
 		smp_wmb(); /* See comment in __pte_alloc */
 
@@ -63,19 +59,8 @@ static int __init kasan_init_shadow_page_tables(unsigned long k_start, unsigned 
 			new = NULL;
 		}
 		spin_unlock(&init_mm.page_table_lock);
-
-		if (new && slab_is_available())
-			pte_free_kernel(&init_mm, new);
 	}
 	return 0;
-}
-
-static void __init *kasan_get_one_page(void)
-{
-	if (slab_is_available())
-		return (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-
-	return memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 }
 
 static int __init kasan_init_region(void *start, size_t size)
@@ -84,18 +69,17 @@ static int __init kasan_init_region(void *start, size_t size)
 	unsigned long k_end = (unsigned long)kasan_mem_to_shadow(start + size);
 	unsigned long k_cur;
 	int ret;
-	void *block = NULL;
+	void *block;
 
 	ret = kasan_init_shadow_page_tables(k_start, k_end);
 	if (ret)
 		return ret;
 
-	if (!slab_is_available())
-		block = memblock_alloc(k_end - k_start, PAGE_SIZE);
+	block = memblock_alloc(k_end - k_start, PAGE_SIZE);
 
 	for (k_cur = k_start & PAGE_MASK; k_cur < k_end; k_cur += PAGE_SIZE) {
 		pmd_t *pmd = pmd_offset(pud_offset(pgd_offset_k(k_cur), k_cur), k_cur);
-		void *va = block ? block + k_cur - k_start : kasan_get_one_page();
+		void *va = block + k_cur - k_start;
 		pte_t pte = pfn_pte(PHYS_PFN(__pa(va)), PAGE_KERNEL);
 
 		if (!va)
