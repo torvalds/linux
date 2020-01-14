@@ -58,7 +58,7 @@ nvkm_acr_hsfw_load_image(struct nvkm_acr *acr, const char *name, int ver,
 	u32 loc, sig;
 	int ret;
 
-	ret = nvkm_firmware_get_version(subdev, name, ver, ver, &fw);
+	ret = nvkm_firmware_get(subdev, name, ver, &fw);
 	if (ret < 0)
 		return ret;
 
@@ -136,7 +136,7 @@ nvkm_acr_hsfw_load_bl(struct nvkm_acr *acr, const char *name, int ver,
 	u8 *data;
 	int ret;
 
-	ret = nvkm_firmware_get_version(subdev, name, ver, ver, &fw);
+	ret = nvkm_firmware_get(subdev, name, ver, &fw);
 	if (ret)
 		return ret;
 

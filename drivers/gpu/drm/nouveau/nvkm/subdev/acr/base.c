@@ -357,8 +357,7 @@ nvkm_acr_ctor_wpr(struct nvkm_acr *acr, int ver)
 	struct nvkm_device *device = subdev->device;
 	int ret;
 
-	ret = nvkm_firmware_get_version(subdev, "acr/wpr", ver, ver,
-					&acr->wpr_fw);
+	ret = nvkm_firmware_get(subdev, "acr/wpr", ver, &acr->wpr_fw);
 	if (ret < 0)
 		return ret;
 
