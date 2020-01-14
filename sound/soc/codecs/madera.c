@@ -575,6 +575,7 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	usleep_range(2000, 3000); /* wait for wseq to complete */
 
 	/* change demux setting */
+	ret = 0;
 	if (madera->out_clamp[0])
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
