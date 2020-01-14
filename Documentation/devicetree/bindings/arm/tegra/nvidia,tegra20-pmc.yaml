@@ -44,6 +44,8 @@ properties:
     const: 1
     description:
       Tegra PMC has clk_out_1, clk_out_2, and clk_out_3.
+      PMC also has blink control which allows 32Khz clock output to
+      Tegra blink pad.
       Consumer of PMC clock should specify the desired clock by having
       the clock ID in its "clocks" phandle cell with pmc clock provider.
       See include/dt-bindings/soc/tegra-pmc.h for the list of Tegra PMC
