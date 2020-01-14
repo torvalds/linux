@@ -435,7 +435,6 @@ static int grgpio_probe(struct platform_device *ofdev)
 static int grgpio_remove(struct platform_device *ofdev)
 {
 	struct grgpio_priv *priv = platform_get_drvdata(ofdev);
-	unsigned long flags;
 	int i;
 	int ret = 0;
 
