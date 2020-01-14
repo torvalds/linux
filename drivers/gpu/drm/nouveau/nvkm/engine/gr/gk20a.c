@@ -333,10 +333,10 @@ gk20a_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 	if (ret)
 		return ret;
 
-	if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fuc409c) ||
-	    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fuc409d) ||
-	    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->fuc41ac) ||
-	    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->fuc41ad))
+	if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fecs.inst) ||
+	    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fecs.data) ||
+	    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->gpccs.inst) ||
+	    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->gpccs.data))
 		return -ENODEV;
 
 	ret = gk20a_gr_load_sw(gr, "", 0);

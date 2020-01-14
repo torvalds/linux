@@ -79,18 +79,19 @@ struct gf100_gr {
 
 	struct {
 		struct nvkm_falcon *falcon;
+		struct nvkm_blob inst;
+		struct nvkm_blob data;
+
 		struct mutex mutex;
 		u32 disable;
 	} fecs;
 
 	struct {
 		struct nvkm_falcon *falcon;
+		struct nvkm_blob inst;
+		struct nvkm_blob data;
 	} gpccs;
 
-	struct nvkm_blob fuc409c;
-	struct nvkm_blob fuc409d;
-	struct nvkm_blob fuc41ac;
-	struct nvkm_blob fuc41ad;
 	bool firmware;
 
 	/*

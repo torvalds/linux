@@ -1701,12 +1701,14 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_FECS))
 		secboot_mask |= BIT(NVKM_SECBOOT_FALCON_FECS);
 	else
-		gf100_gr_init_fw(gr->fecs.falcon, &gr->fuc409c, &gr->fuc409d);
+		gf100_gr_init_fw(gr->fecs.falcon, &gr->fecs.inst,
+						  &gr->fecs.data);
 
 	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_GPCCS))
 		secboot_mask |= BIT(NVKM_SECBOOT_FALCON_GPCCS);
 	else
-		gf100_gr_init_fw(gr->gpccs.falcon, &gr->fuc41ac, &gr->fuc41ad);
+		gf100_gr_init_fw(gr->gpccs.falcon, &gr->gpccs.inst,
+						   &gr->gpccs.data);
 
 	if (secboot_mask != 0) {
 		int ret = nvkm_secboot_reset(sb, secboot_mask);
@@ -2023,10 +2025,10 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	nvkm_falcon_del(&gr->gpccs.falcon);
 	nvkm_falcon_del(&gr->fecs.falcon);
 
-	nvkm_blob_dtor(&gr->fuc409c);
-	nvkm_blob_dtor(&gr->fuc409d);
-	nvkm_blob_dtor(&gr->fuc41ac);
-	nvkm_blob_dtor(&gr->fuc41ad);
+	nvkm_blob_dtor(&gr->fecs.inst);
+	nvkm_blob_dtor(&gr->fecs.data);
+	nvkm_blob_dtor(&gr->gpccs.inst);
+	nvkm_blob_dtor(&gr->gpccs.data);
 
 	vfree(gr->bundle);
 	vfree(gr->method);
@@ -2146,10 +2148,10 @@ gf100_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 		return ret;
 
 	if (gr->firmware) {
-		if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fuc409c) ||
-		    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fuc409d) ||
-		    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->fuc41ac) ||
-		    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->fuc41ad))
+		if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fecs.inst) ||
+		    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fecs.data) ||
+		    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->gpccs.inst) ||
+		    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->gpccs.data))
 			return -ENODEV;
 	}
 

@@ -142,14 +142,14 @@ gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 	/* Load firmwares for non-secure falcons */
 	if (!nvkm_secboot_is_managed(device->secboot,
 				     NVKM_SECBOOT_FALCON_FECS)) {
-		if ((ret = gf100_gr_ctor_fw(gr, "gr/fecs_inst", &gr->fuc409c)) ||
-		    (ret = gf100_gr_ctor_fw(gr, "gr/fecs_data", &gr->fuc409d)))
+		if ((ret = gf100_gr_ctor_fw(gr, "gr/fecs_inst", &gr->fecs.inst)) ||
+		    (ret = gf100_gr_ctor_fw(gr, "gr/fecs_data", &gr->fecs.data)))
 			return ret;
 	}
 	if (!nvkm_secboot_is_managed(device->secboot,
 				     NVKM_SECBOOT_FALCON_GPCCS)) {
-		if ((ret = gf100_gr_ctor_fw(gr, "gr/gpccs_inst", &gr->fuc41ac)) ||
-		    (ret = gf100_gr_ctor_fw(gr, "gr/gpccs_data", &gr->fuc41ad)))
+		if ((ret = gf100_gr_ctor_fw(gr, "gr/gpccs_inst", &gr->gpccs.inst)) ||
+		    (ret = gf100_gr_ctor_fw(gr, "gr/gpccs_data", &gr->gpccs.data)))
 			return ret;
 	}
 
