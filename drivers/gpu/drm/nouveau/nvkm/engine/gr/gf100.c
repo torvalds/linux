@@ -1636,7 +1636,7 @@ gf100_gr_intr(struct nvkm_gr *base)
 
 static void
 gf100_gr_init_fw(struct nvkm_falcon *falcon,
-		 struct gf100_gr_fuc *code, struct gf100_gr_fuc *data)
+		 struct nvkm_blob *code, struct nvkm_blob *data)
 {
 	nvkm_falcon_load_dmem(falcon, data->data, 0x0, data->size, 0);
 	nvkm_falcon_load_imem(falcon, code->data, 0x0, code->size, 0, 0, false);
@@ -2013,13 +2013,6 @@ gf100_gr_fini_(struct nvkm_gr *base, bool suspend)
 	return 0;
 }
 
-void
-gf100_gr_dtor_fw(struct gf100_gr_fuc *fuc)
-{
-	kfree(fuc->data);
-	fuc->data = NULL;
-}
-
 static void
 gf100_gr_dtor_init(struct gf100_gr_pack *pack)
 {
@@ -2036,10 +2029,10 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	nvkm_falcon_del(&gr->gpccs.falcon);
 	nvkm_falcon_del(&gr->fecs.falcon);
 
-	gf100_gr_dtor_fw(&gr->fuc409c);
-	gf100_gr_dtor_fw(&gr->fuc409d);
-	gf100_gr_dtor_fw(&gr->fuc41ac);
-	gf100_gr_dtor_fw(&gr->fuc41ad);
+	nvkm_blob_dtor(&gr->fuc409c);
+	nvkm_blob_dtor(&gr->fuc409d);
+	nvkm_blob_dtor(&gr->fuc41ac);
+	nvkm_blob_dtor(&gr->fuc41ad);
 
 	gf100_gr_dtor_init(gr->fuc_bundle);
 	gf100_gr_dtor_init(gr->fuc_method);
@@ -2067,7 +2060,7 @@ gf100_gr_ = {
 
 int
 gf100_gr_ctor_fw_legacy(struct gf100_gr *gr, const char *fwname,
-			struct gf100_gr_fuc *fuc, int ret)
+			struct nvkm_blob *fuc, int ret)
 {
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
@@ -2111,7 +2104,7 @@ gf100_gr_ctor_fw_legacy(struct gf100_gr *gr, const char *fwname,
 
 int
 gf100_gr_ctor_fw(struct gf100_gr *gr, const char *fwname,
-		 struct gf100_gr_fuc *fuc)
+		 struct nvkm_blob *fuc)
 {
 	const struct firmware *fw;
 	int ret;

@@ -36,7 +36,7 @@ int
 gk20a_gr_av_to_init(struct gf100_gr *gr, const char *fw_name,
 		    struct gf100_gr_pack **ppack)
 {
-	struct gf100_gr_fuc fuc;
+	struct nvkm_blob fuc;
 	struct gf100_gr_init *init;
 	struct gf100_gr_pack *pack;
 	int nent;
@@ -70,7 +70,7 @@ gk20a_gr_av_to_init(struct gf100_gr *gr, const char *fw_name,
 	*ppack = pack;
 
 end:
-	gf100_gr_dtor_fw(&fuc);
+	nvkm_blob_dtor(&fuc);
 	return ret;
 }
 
@@ -85,7 +85,7 @@ int
 gk20a_gr_aiv_to_init(struct gf100_gr *gr, const char *fw_name,
 		     struct gf100_gr_pack **ppack)
 {
-	struct gf100_gr_fuc fuc;
+	struct nvkm_blob fuc;
 	struct gf100_gr_init *init;
 	struct gf100_gr_pack *pack;
 	int nent;
@@ -119,7 +119,7 @@ gk20a_gr_aiv_to_init(struct gf100_gr *gr, const char *fw_name,
 	*ppack = pack;
 
 end:
-	gf100_gr_dtor_fw(&fuc);
+	nvkm_blob_dtor(&fuc);
 	return ret;
 }
 
@@ -127,7 +127,7 @@ int
 gk20a_gr_av_to_method(struct gf100_gr *gr, const char *fw_name,
 		      struct gf100_gr_pack **ppack)
 {
-	struct gf100_gr_fuc fuc;
+	struct nvkm_blob fuc;
 	struct gf100_gr_init *init;
 	struct gf100_gr_pack *pack;
 	/* We don't suppose we will initialize more than 16 classes here... */
@@ -179,7 +179,7 @@ gk20a_gr_av_to_method(struct gf100_gr *gr, const char *fw_name,
 	*ppack = pack;
 
 end:
-	gf100_gr_dtor_fw(&fuc);
+	nvkm_blob_dtor(&fuc);
 	return ret;
 }
 

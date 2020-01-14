@@ -55,11 +55,6 @@ struct gf100_gr_mmio {
 	int buffer;
 };
 
-struct gf100_gr_fuc {
-	u32 *data;
-	u32  size;
-};
-
 struct gf100_gr_zbc_color {
 	u32 format;
 	u32 ds[4];
@@ -92,10 +87,10 @@ struct gf100_gr {
 		struct nvkm_falcon *falcon;
 	} gpccs;
 
-	struct gf100_gr_fuc fuc409c;
-	struct gf100_gr_fuc fuc409d;
-	struct gf100_gr_fuc fuc41ac;
-	struct gf100_gr_fuc fuc41ad;
+	struct nvkm_blob fuc409c;
+	struct nvkm_blob fuc409d;
+	struct nvkm_blob fuc41ac;
+	struct nvkm_blob fuc41ad;
 	bool firmware;
 
 	/*
@@ -269,9 +264,8 @@ struct gf100_gr_chan {
 
 void gf100_gr_ctxctl_debug(struct gf100_gr *);
 
-void gf100_gr_dtor_fw(struct gf100_gr_fuc *);
 int  gf100_gr_ctor_fw(struct gf100_gr *, const char *,
-		      struct gf100_gr_fuc *);
+		      struct nvkm_blob *);
 u64  gf100_gr_units(struct nvkm_gr *);
 void gf100_gr_zbc_init(struct gf100_gr *);
 
@@ -294,8 +288,8 @@ struct gf100_gr_pack {
 		  for (init = pack->init; init && init->count; init++)
 
 struct gf100_gr_ucode {
-	struct gf100_gr_fuc code;
-	struct gf100_gr_fuc data;
+	struct nvkm_blob code;
+	struct nvkm_blob data;
 };
 
 extern struct gf100_gr_ucode gf100_gr_fecs_ucode;
