@@ -73,7 +73,7 @@ TEST_PROGS_EXTENDED := with_addr.sh \
 # Compile but not part of 'make run_tests'
 TEST_GEN_PROGS_EXTENDED = test_sock_addr test_skb_cgroup_id_user \
 	flow_dissector_load test_flow_dissector test_tcp_check_syncookie_user \
-	test_lirc_mode2_user xdping test_cpp
+	test_lirc_mode2_user xdping test_cpp runqslower
 
 TEST_CUSTOM_PROGS = urandom_read
 
@@ -87,14 +87,15 @@ Q =
 msg =
 else
 Q = @
-msg = @$(info $(1)$(if $(2), [$(2)]) $(notdir $(3)))$(if $(4), $(4))
+msg = @printf '  %-8s%s %s%s\n' "$(1)" "$(if $(2), [$(2)])" "$(notdir $(3))" "$(if $(4), $(4))";
 MAKEFLAGS += --no-print-directory
+submake_extras := feature_display=0
 endif
 
 # override lib.mk's default rules
 OVERRIDE_TARGETS := 1
 override define CLEAN
-	$(call msg,    CLEAN)
+	$(call msg,CLEAN)
 	$(RM) -r $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES) $(EXTRA_CLEAN)
 	$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/ clean
 endef
@@ -112,16 +113,21 @@ $(notdir $(TEST_GEN_PROGS)						\
 	 $(TEST_CUSTOM_PROGS)): %: $(OUTPUT)/% ;
 
 $(OUTPUT)/%:%.c
-	$(call msg,     BINARY,,$@)
+	$(call msg,BINARY,,$@)
 	$(LINK.c) $^ $(LDLIBS) -o $@
 
 $(OUTPUT)/urandom_read: urandom_read.c
-	$(call msg,     BINARY,,$@)
+	$(call msg,BINARY,,$@)
 	$(CC) -o $@ $< -Wl,--build-id
 
 $(OUTPUT)/test_stub.o: test_stub.c
-	$(call msg,         CC,,$@)
+	$(call msg,CC,,$@)
 	$(CC) -c $(CFLAGS) -o $@ $<
+
+.PHONY: $(OUTPUT)/runqslower
+$(OUTPUT)/runqslower: force
+	$(Q)$(MAKE) $(submake_extras) -C $(TOOLSDIR)/bpf/runqslower	      \
+		    OUTPUT=$(CURDIR)/tools/
 
 BPFOBJ := $(OUTPUT)/libbpf.a
 
@@ -146,18 +152,20 @@ $(OUTPUT)/test_sysctl: cgroup_helpers.c
 # force a rebuild of BPFOBJ when its dependencies are updated
 force:
 
-DEFAULT_BPFTOOL := $(OUTPUT)/tools/usr/local/sbin/bpftool
+DEFAULT_BPFTOOL := $(OUTPUT)/tools/sbin/bpftool
 BPFTOOL ?= $(DEFAULT_BPFTOOL)
 
 $(DEFAULT_BPFTOOL): force
-	$(Q)$(MAKE) -C $(BPFTOOLDIR) DESTDIR=$(OUTPUT)/tools install
+	$(Q)$(MAKE) $(submake_extras)  -C $(BPFTOOLDIR)			      \
+		    prefix= DESTDIR=$(OUTPUT)/tools/ install
 
 $(BPFOBJ): force
-	$(Q)$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/
+	$(Q)$(MAKE) $(submake_extras) -C $(BPFDIR) OUTPUT=$(OUTPUT)/
 
 BPF_HELPERS := $(OUTPUT)/bpf_helper_defs.h $(wildcard $(BPFDIR)/bpf_*.h)
 $(OUTPUT)/bpf_helper_defs.h: $(BPFOBJ)
-	$(Q)$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/ $(OUTPUT)/bpf_helper_defs.h
+	$(Q)$(MAKE) $(submake_extras) -C $(BPFDIR)			      \
+		    OUTPUT=$(OUTPUT)/ $(OUTPUT)/bpf_helper_defs.h
 
 # Get Clang's default includes on this system, as opposed to those seen by
 # '-target bpf'. This fixes "missing" files on some architectures/distros,
@@ -194,28 +202,28 @@ $(OUTPUT)/flow_dissector_load.o: flow_dissector_load.h
 # $3 - CFLAGS
 # $4 - LDFLAGS
 define CLANG_BPF_BUILD_RULE
-	$(call msg,  CLANG-LLC,$(TRUNNER_BINARY),$2)
+	$(call msg,CLNG-LLC,$(TRUNNER_BINARY),$2)
 	($(CLANG) $3 -O2 -target bpf -emit-llvm				\
 		-c $1 -o - || echo "BPF obj compilation failed") | 	\
 	$(LLC) -mattr=dwarfris -march=bpf -mcpu=probe $4 -filetype=obj -o $2
 endef
 # Similar to CLANG_BPF_BUILD_RULE, but with disabled alu32
 define CLANG_NOALU32_BPF_BUILD_RULE
-	$(call msg,  CLANG-LLC,$(TRUNNER_BINARY),$2)
+	$(call msg,CLNG-LLC,$(TRUNNER_BINARY),$2)
 	($(CLANG) $3 -O2 -target bpf -emit-llvm				\
 		-c $1 -o - || echo "BPF obj compilation failed") | 	\
 	$(LLC) -march=bpf -mcpu=v2 $4 -filetype=obj -o $2
 endef
 # Similar to CLANG_BPF_BUILD_RULE, but using native Clang and bpf LLC
 define CLANG_NATIVE_BPF_BUILD_RULE
-	$(call msg,  CLANG-BPF,$(TRUNNER_BINARY),$2)
+	$(call msg,CLNG-BPF,$(TRUNNER_BINARY),$2)
 	($(CLANG) $3 -O2 -emit-llvm					\
 		-c $1 -o - || echo "BPF obj compilation failed") | 	\
 	$(LLC) -march=bpf -mcpu=probe $4 -filetype=obj -o $2
 endef
 # Build BPF object using GCC
 define GCC_BPF_BUILD_RULE
-	$(call msg,    GCC-BPF,$(TRUNNER_BINARY),$2)
+	$(call msg,GCC-BPF,$(TRUNNER_BINARY),$2)
 	$(BPF_GCC) $3 $4 -O2 -c $1 -o $2
 endef
 
@@ -256,7 +264,7 @@ define DEFINE_TEST_RUNNER_RULES
 ifeq ($($(TRUNNER_OUTPUT)-dir),)
 $(TRUNNER_OUTPUT)-dir := y
 $(TRUNNER_OUTPUT):
-	$$(call msg,      MKDIR,,$$@)
+	$$(call msg,MKDIR,,$$@)
 	mkdir -p $$@
 endif
 
@@ -275,7 +283,7 @@ $(TRUNNER_BPF_OBJS): $(TRUNNER_OUTPUT)/%.o:				\
 $(TRUNNER_BPF_SKELS): $(TRUNNER_OUTPUT)/%.skel.h:			\
 		      $(TRUNNER_OUTPUT)/%.o				\
 		      | $(BPFTOOL) $(TRUNNER_OUTPUT)
-	$$(call msg,   GEN-SKEL,$(TRUNNER_BINARY),$$@)
+	$$(call msg,GEN-SKEL,$(TRUNNER_BINARY),$$@)
 	$$(BPFTOOL) gen skeleton $$< > $$@
 endif
 
@@ -283,7 +291,7 @@ endif
 ifeq ($($(TRUNNER_TESTS_DIR)-tests-hdr),)
 $(TRUNNER_TESTS_DIR)-tests-hdr := y
 $(TRUNNER_TESTS_HDR): $(TRUNNER_TESTS_DIR)/*.c
-	$$(call msg,   TEST-HDR,$(TRUNNER_BINARY),$$@)
+	$$(call msg,TEST-HDR,$(TRUNNER_BINARY),$$@)
 	$$(shell ( cd $(TRUNNER_TESTS_DIR);				\
 		  echo '/* Generated header, do not edit */';		\
 		  ls *.c 2> /dev/null |					\
@@ -299,7 +307,7 @@ $(TRUNNER_TEST_OBJS): $(TRUNNER_OUTPUT)/%.test.o:			\
 		      $(TRUNNER_BPF_OBJS)				\
 		      $(TRUNNER_BPF_SKELS)				\
 		      $$(BPFOBJ) | $(TRUNNER_OUTPUT)
-	$$(call msg,   TEST-OBJ,$(TRUNNER_BINARY),$$@)
+	$$(call msg,TEST-OBJ,$(TRUNNER_BINARY),$$@)
 	cd $$(@D) && $$(CC) $$(CFLAGS) -c $(CURDIR)/$$< $$(LDLIBS) -o $$(@F)
 
 $(TRUNNER_EXTRA_OBJS): $(TRUNNER_OUTPUT)/%.o:				\
@@ -307,20 +315,20 @@ $(TRUNNER_EXTRA_OBJS): $(TRUNNER_OUTPUT)/%.o:				\
 		       $(TRUNNER_EXTRA_HDRS)				\
 		       $(TRUNNER_TESTS_HDR)				\
 		       $$(BPFOBJ) | $(TRUNNER_OUTPUT)
-	$$(call msg,  EXTRA-OBJ,$(TRUNNER_BINARY),$$@)
+	$$(call msg,EXT-OBJ,$(TRUNNER_BINARY),$$@)
 	$$(CC) $$(CFLAGS) -c $$< $$(LDLIBS) -o $$@
 
 # only copy extra resources if in flavored build
 $(TRUNNER_BINARY)-extras: $(TRUNNER_EXTRA_FILES) | $(TRUNNER_OUTPUT)
 ifneq ($2,)
-	$$(call msg,  EXTRAS-CP,$(TRUNNER_BINARY),$(TRUNNER_EXTRA_FILES))
+	$$(call msg,EXT-COPY,$(TRUNNER_BINARY),$(TRUNNER_EXTRA_FILES))
 	cp -a $$^ $(TRUNNER_OUTPUT)/
 endif
 
 $(OUTPUT)/$(TRUNNER_BINARY): $(TRUNNER_TEST_OBJS)			\
 			     $(TRUNNER_EXTRA_OBJS) $$(BPFOBJ)		\
 			     | $(TRUNNER_BINARY)-extras
-	$$(call msg,     BINARY,,$$@)
+	$$(call msg,BINARY,,$$@)
 	$$(CC) $$(CFLAGS) $$(filter %.a %.o,$$^) $$(LDLIBS) -o $$@
 
 endef
@@ -372,12 +380,12 @@ verifier/tests.h: verifier/*.c
 		  echo '#endif' \
 		) > verifier/tests.h)
 $(OUTPUT)/test_verifier: test_verifier.c verifier/tests.h $(BPFOBJ) | $(OUTPUT)
-	$(call msg,     BINARY,,$@)
+	$(call msg,BINARY,,$@)
 	$(CC) $(CFLAGS) $(filter %.a %.o %.c,$^) $(LDLIBS) -o $@
 
 # Make sure we are able to include and link libbpf against c++.
 $(OUTPUT)/test_cpp: test_cpp.cpp $(OUTPUT)/test_core_extern.skel.h $(BPFOBJ)
-	$(call msg,        CXX,,$@)
+	$(call msg,CXX,,$@)
 	$(CXX) $(CFLAGS) $^ $(LDLIBS) -o $@
 
 EXTRA_CLEAN := $(TEST_CUSTOM_PROGS)					\

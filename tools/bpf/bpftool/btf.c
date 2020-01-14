@@ -370,6 +370,10 @@ static int dump_btf_c(const struct btf *btf,
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 
+	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
+	printf("#pragma clang attribute push (__attribute__((preserve_access_index)), apply_to = record)\n");
+	printf("#endif\n\n");
+
 	if (root_type_cnt) {
 		for (i = 0; i < root_type_cnt; i++) {
 			err = btf_dump__dump_type(d, root_type_ids[i]);
@@ -385,6 +389,10 @@ static int dump_btf_c(const struct btf *btf,
 				goto done;
 		}
 	}
+
+	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
+	printf("#pragma clang attribute pop\n");
+	printf("#endif\n");
 
 done:
 	btf_dump__free(d);
