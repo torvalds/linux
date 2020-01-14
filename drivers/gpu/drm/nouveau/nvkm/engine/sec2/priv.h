@@ -11,6 +11,7 @@ struct nvkm_sec2_func {
 };
 
 void gp102_sec2_intr(struct nvkm_sec2 *);
+int gp102_sec2_initmsg(struct nvkm_sec2 *);
 
 struct nvkm_sec2_fwif {
 	int version;

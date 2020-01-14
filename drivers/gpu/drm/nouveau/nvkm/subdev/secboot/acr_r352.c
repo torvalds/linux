@@ -900,8 +900,6 @@ acr_r352_wpr_is_set(const struct acr_r352 *acr, const struct nvkm_secboot *sb)
 		wpr_hi > wpr_range_lo && wpr_hi <= wpr_range_hi);
 }
 
-int nvkm_acr_boot_ls_falcons(struct nvkm_device *);
-
 static int
 acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 {
@@ -934,7 +932,7 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		return -EINVAL;
 	}
 
-	return nvkm_acr_boot_ls_falcons(subdev->device);
+	return 0;
 }
 
 /**

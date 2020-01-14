@@ -27,8 +27,14 @@
 
 #include <nvif/class.h>
 
+#include <nvfw/flcn.h>
+
 static const struct nvkm_acr_lsf_func
 gp10b_gr_gpccs_acr = {
+	.flags = NVKM_ACR_LSF_FORCE_PRIV_LOAD,
+	.bld_size = sizeof(struct flcn_bl_dmem_desc),
+	.bld_write = gm20b_gr_acr_bld_write,
+	.bld_patch = gm20b_gr_acr_bld_patch,
 };
 
 static const struct gf100_gr_func

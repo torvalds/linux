@@ -3,7 +3,7 @@
 #define __NVKM_ACR_H__
 #define nvkm_acr(p) container_of((p), struct nvkm_acr, subdev)
 #include <core/subdev.h>
-struct nvkm_falcon;
+#include <core/falcon.h>
 
 enum nvkm_acr_lsf_id {
 	NVKM_ACR_LSF_PMU = 0,
@@ -36,9 +36,25 @@ struct nvkm_acr {
 	const struct nvkm_acr_func *func;
 	struct nvkm_subdev subdev;
 
+	struct list_head hsfw, hsf;
 	struct list_head lsfw, lsf;
+
+	struct nvkm_memory *wpr;
+	u64 wpr_start;
+	u64 wpr_end;
+	u64 shadow_start;
+
+	struct nvkm_memory *inst;
+	struct nvkm_vmm *vmm;
+
+	bool done;
+
+	const struct firmware *wpr_fw;
+	bool wpr_comp;
+	u64 wpr_prev;
 };
 
+bool nvkm_acr_managed_falcon(struct nvkm_device *, enum nvkm_acr_lsf_id);
 int nvkm_acr_bootstrap_falcons(struct nvkm_device *, unsigned long mask);
 
 int gm200_acr_new(struct nvkm_device *, int, struct nvkm_acr **);
@@ -71,9 +87,24 @@ struct nvkm_acr_lsfw {
 
 	u32 ucode_size;
 	u32 data_size;
+
+	struct {
+		u32 lsb;
+		u32 img;
+		u32 bld;
+	} offset;
+	u32 bl_data_size;
 };
 
 struct nvkm_acr_lsf_func {
+/* The (currently) map directly to LSB header flags. */
+#define NVKM_ACR_LSF_LOAD_CODE_AT_0                                  0x00000001
+#define NVKM_ACR_LSF_DMACTL_REQ_CTX                                  0x00000004
+#define NVKM_ACR_LSF_FORCE_PRIV_LOAD                                 0x00000008
+	u32 flags;
+	u32 bld_size;
+	void (*bld_write)(struct nvkm_acr *, u32 bld, struct nvkm_acr_lsfw *);
+	void (*bld_patch)(struct nvkm_acr *, u32 bld, s64 adjust);
 	int (*boot)(struct nvkm_falcon *);
 	int (*bootstrap_falcon)(struct nvkm_falcon *, enum nvkm_acr_lsf_id);
 	int (*bootstrap_multiple_falcons)(struct nvkm_falcon *, u32 mask);

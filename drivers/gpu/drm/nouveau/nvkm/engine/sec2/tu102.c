@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+#include <subdev/acr.h>
 
 static const struct nvkm_falcon_func
 tu102_sec2_flcn = {
@@ -43,7 +44,9 @@ tu102_sec2_flcn = {
 static const struct nvkm_sec2_func
 tu102_sec2 = {
 	.flcn = &tu102_sec2_flcn,
+	.unit_acr = 0x07,
 	.intr = gp102_sec2_intr,
+	.initmsg = gp102_sec2_initmsg,
 };
 
 static int
@@ -55,6 +58,7 @@ tu102_sec2_nofw(struct nvkm_sec2 *sec2, int ver,
 
 static const struct nvkm_sec2_fwif
 tu102_sec2_fwif[] = {
+	{  0, gp102_sec2_load, &tu102_sec2, &gp102_sec2_acr_1 },
 	{ -1, tu102_sec2_nofw, &tu102_sec2 }
 };
 

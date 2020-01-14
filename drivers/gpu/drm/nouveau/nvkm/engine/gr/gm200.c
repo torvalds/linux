@@ -28,18 +28,58 @@
 #include <subdev/acr.h>
 #include <subdev/secboot.h>
 
+#include <nvfw/flcn.h>
+
 #include <nvif/class.h>
 
 /*******************************************************************************
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static void
+gm200_gr_acr_bld_patch(struct nvkm_acr *acr, u32 bld, s64 adjust)
+{
+	struct flcn_bl_dmem_desc_v1 hdr;
+	nvkm_robj(acr->wpr, bld, &hdr, sizeof(hdr));
+	hdr.code_dma_base = hdr.code_dma_base + adjust;
+	hdr.data_dma_base = hdr.data_dma_base + adjust;
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+	flcn_bl_dmem_desc_v1_dump(&acr->subdev, &hdr);
+}
+
+static void
+gm200_gr_acr_bld_write(struct nvkm_acr *acr, u32 bld,
+		       struct nvkm_acr_lsfw *lsfw)
+{
+	const u64 base = lsfw->offset.img + lsfw->app_start_offset;
+	const u64 code = base + lsfw->app_resident_code_offset;
+	const u64 data = base + lsfw->app_resident_data_offset;
+	const struct flcn_bl_dmem_desc_v1 hdr = {
+		.ctx_dma = FALCON_DMAIDX_UCODE,
+		.code_dma_base = code,
+		.non_sec_code_off = lsfw->app_resident_code_offset,
+		.non_sec_code_size = lsfw->app_resident_code_size,
+		.code_entry_point = lsfw->app_imem_entry,
+		.data_dma_base = data,
+		.data_size = lsfw->app_resident_data_size,
+	};
+
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+}
+
 const struct nvkm_acr_lsf_func
 gm200_gr_gpccs_acr = {
+	.flags = NVKM_ACR_LSF_FORCE_PRIV_LOAD,
+	.bld_size = sizeof(struct flcn_bl_dmem_desc_v1),
+	.bld_write = gm200_gr_acr_bld_write,
+	.bld_patch = gm200_gr_acr_bld_patch,
 };
 
 const struct nvkm_acr_lsf_func
 gm200_gr_fecs_acr = {
+	.bld_size = sizeof(struct flcn_bl_dmem_desc_v1),
+	.bld_write = gm200_gr_acr_bld_write,
+	.bld_patch = gm200_gr_acr_bld_patch,
 };
 
 int

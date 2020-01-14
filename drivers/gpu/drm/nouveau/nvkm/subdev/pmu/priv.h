@@ -5,6 +5,7 @@
 #include <subdev/pmu.h>
 #include <subdev/pmu/fuc/os.h>
 enum nvkm_acr_lsf_id;
+struct nvkm_acr_lsfw;
 
 struct nvkm_pmu_func {
 	const struct nvkm_falcon_func *flcn;
@@ -43,6 +44,9 @@ void gf100_pmu_reset(struct nvkm_pmu *);
 
 void gk110_pmu_pgob(struct nvkm_pmu *, bool);
 
+void gm20b_pmu_acr_bld_patch(struct nvkm_acr *, u32, s64);
+void gm20b_pmu_acr_bld_write(struct nvkm_acr *, u32, struct nvkm_acr_lsfw *);
+int gm20b_pmu_acr_boot(struct nvkm_falcon *);
 int gm20b_pmu_acr_bootstrap_falcon(struct nvkm_falcon *, enum nvkm_acr_lsf_id);
 void gm20b_pmu_recv(struct nvkm_pmu *);
 int gm20b_pmu_initmsg(struct nvkm_pmu *);

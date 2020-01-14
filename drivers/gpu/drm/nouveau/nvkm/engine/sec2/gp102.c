@@ -21,9 +21,11 @@
  */
 #include "priv.h"
 
+#include <core/memory.h>
 #include <subdev/acr.h>
 #include <subdev/timer.h>
 
+#include <nvfw/flcn.h>
 #include <nvfw/sec2.h>
 
 static int
@@ -74,8 +76,44 @@ gp102_sec2_acr_boot(struct nvkm_falcon *falcon)
 	return 0;
 }
 
+static void
+gp102_sec2_acr_bld_patch(struct nvkm_acr *acr, u32 bld, s64 adjust)
+{
+	struct loader_config_v1 hdr;
+	nvkm_robj(acr->wpr, bld, &hdr, sizeof(hdr));
+	hdr.code_dma_base = hdr.code_dma_base + adjust;
+	hdr.data_dma_base = hdr.data_dma_base + adjust;
+	hdr.overlay_dma_base = hdr.overlay_dma_base + adjust;
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+	loader_config_v1_dump(&acr->subdev, &hdr);
+}
+
+static void
+gp102_sec2_acr_bld_write(struct nvkm_acr *acr, u32 bld,
+			 struct nvkm_acr_lsfw *lsfw)
+{
+	const struct loader_config_v1 hdr = {
+		.dma_idx = FALCON_SEC2_DMAIDX_UCODE,
+		.code_dma_base = lsfw->offset.img + lsfw->app_start_offset,
+		.code_size_total = lsfw->app_size,
+		.code_size_to_load = lsfw->app_resident_code_size,
+		.code_entry_point = lsfw->app_imem_entry,
+		.data_dma_base = lsfw->offset.img + lsfw->app_start_offset +
+				 lsfw->app_resident_data_offset,
+		.data_size = lsfw->app_resident_data_size,
+		.overlay_dma_base = lsfw->offset.img + lsfw->app_start_offset,
+		.argc = 1,
+		.argv = lsfw->falcon->func->emem_addr,
+	};
+
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+}
+
 static const struct nvkm_acr_lsf_func
 gp102_sec2_acr_0 = {
+	.bld_size = sizeof(struct loader_config_v1),
+	.bld_write = gp102_sec2_acr_bld_write,
+	.bld_patch = gp102_sec2_acr_bld_patch,
 	.boot = gp102_sec2_acr_boot,
 	.bootstrap_falcon = gp102_sec2_acr_bootstrap_falcon,
 };
@@ -219,8 +257,42 @@ MODULE_FIRMWARE("nvidia/gp107/sec2/desc.bin");
 MODULE_FIRMWARE("nvidia/gp107/sec2/image.bin");
 MODULE_FIRMWARE("nvidia/gp107/sec2/sig.bin");
 
+static void
+gp102_sec2_acr_bld_patch_1(struct nvkm_acr *acr, u32 bld, s64 adjust)
+{
+	struct flcn_bl_dmem_desc_v2 hdr;
+	nvkm_robj(acr->wpr, bld, &hdr, sizeof(hdr));
+	hdr.code_dma_base = hdr.code_dma_base + adjust;
+	hdr.data_dma_base = hdr.data_dma_base + adjust;
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+	flcn_bl_dmem_desc_v2_dump(&acr->subdev, &hdr);
+}
+
+static void
+gp102_sec2_acr_bld_write_1(struct nvkm_acr *acr, u32 bld,
+			   struct nvkm_acr_lsfw *lsfw)
+{
+	const struct flcn_bl_dmem_desc_v2 hdr = {
+		.ctx_dma = FALCON_SEC2_DMAIDX_UCODE,
+		.code_dma_base = lsfw->offset.img + lsfw->app_start_offset,
+		.non_sec_code_off = lsfw->app_resident_code_offset,
+		.non_sec_code_size = lsfw->app_resident_code_size,
+		.code_entry_point = lsfw->app_imem_entry,
+		.data_dma_base = lsfw->offset.img + lsfw->app_start_offset +
+				 lsfw->app_resident_data_offset,
+		.data_size = lsfw->app_resident_data_size,
+		.argc = 1,
+		.argv = lsfw->falcon->func->emem_addr,
+	};
+
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+}
+
 const struct nvkm_acr_lsf_func
 gp102_sec2_acr_1 = {
+	.bld_size = sizeof(struct flcn_bl_dmem_desc_v2),
+	.bld_write = gp102_sec2_acr_bld_write_1,
+	.bld_patch = gp102_sec2_acr_bld_patch_1,
 	.boot = gp102_sec2_acr_boot,
 	.bootstrap_falcon = gp102_sec2_acr_bootstrap_falcon,
 };

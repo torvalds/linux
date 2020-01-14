@@ -21,9 +21,10 @@
  */
 #include "priv.h"
 
-#include <core/msgqueue.h>
+#include <core/memory.h>
 #include <subdev/acr.h>
 
+#include <nvfw/flcn.h>
 #include <nvfw/pmu.h>
 
 static int
@@ -60,14 +61,65 @@ int
 gm20b_pmu_acr_boot(struct nvkm_falcon *falcon)
 {
 	struct nv_pmu_args args = { .secure_mode = true };
-	const u32 addr_args = falcon->data.limit - NVKM_MSGQUEUE_CMDLINE_SIZE; /*XXX*/
+	const u32 addr_args = falcon->data.limit - sizeof(struct nv_pmu_args);
 	nvkm_falcon_load_dmem(falcon, &args, addr_args, sizeof(args), 0);
 	nvkm_falcon_start(falcon);
 	return 0;
 }
 
+void
+gm20b_pmu_acr_bld_patch(struct nvkm_acr *acr, u32 bld, s64 adjust)
+{
+	struct loader_config hdr;
+	u64 addr;
+
+	nvkm_robj(acr->wpr, bld, &hdr, sizeof(hdr));
+	addr = ((u64)hdr.code_dma_base1 << 40 | hdr.code_dma_base << 8);
+	hdr.code_dma_base  = lower_32_bits((addr + adjust) >> 8);
+	hdr.code_dma_base1 = upper_32_bits((addr + adjust) >> 8);
+	addr = ((u64)hdr.data_dma_base1 << 40 | hdr.data_dma_base << 8);
+	hdr.data_dma_base  = lower_32_bits((addr + adjust) >> 8);
+	hdr.data_dma_base1 = upper_32_bits((addr + adjust) >> 8);
+	addr = ((u64)hdr.overlay_dma_base1 << 40 | hdr.overlay_dma_base << 8);
+	hdr.overlay_dma_base  = lower_32_bits((addr + adjust) << 8);
+	hdr.overlay_dma_base1 = upper_32_bits((addr + adjust) << 8);
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+
+	loader_config_dump(&acr->subdev, &hdr);
+}
+
+void
+gm20b_pmu_acr_bld_write(struct nvkm_acr *acr, u32 bld,
+			struct nvkm_acr_lsfw *lsfw)
+{
+	const u64 base = lsfw->offset.img + lsfw->app_start_offset;
+	const u64 code = (base + lsfw->app_resident_code_offset) >> 8;
+	const u64 data = (base + lsfw->app_resident_data_offset) >> 8;
+	const struct loader_config hdr = {
+		.dma_idx = FALCON_DMAIDX_UCODE,
+		.code_dma_base = lower_32_bits(code),
+		.code_size_total = lsfw->app_size,
+		.code_size_to_load = lsfw->app_resident_code_size,
+		.code_entry_point = lsfw->app_imem_entry,
+		.data_dma_base = lower_32_bits(data),
+		.data_size = lsfw->app_resident_data_size,
+		.overlay_dma_base = lower_32_bits(code),
+		.argc = 1,
+		.argv = lsfw->falcon->data.limit - sizeof(struct nv_pmu_args),
+		.code_dma_base1 = upper_32_bits(code),
+		.data_dma_base1 = upper_32_bits(data),
+		.overlay_dma_base1 = upper_32_bits(code),
+	};
+
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+}
+
 static const struct nvkm_acr_lsf_func
 gm20b_pmu_acr = {
+	.flags = NVKM_ACR_LSF_DMACTL_REQ_CTX,
+	.bld_size = sizeof(struct loader_config),
+	.bld_write = gm20b_pmu_acr_bld_write,
+	.bld_patch = gm20b_pmu_acr_bld_patch,
 	.boot = gm20b_pmu_acr_boot,
 	.bootstrap_falcon = gm20b_pmu_acr_bootstrap_falcon,
 };

@@ -31,6 +31,8 @@
 #include <subdev/mmu.h>
 #include <engine/falcon.h>
 
+struct nvkm_acr_lsfw;
+
 #define GPC_MAX 32
 #define TPC_MAX_PER_GPC 8
 #define TPC_MAX (GPC_MAX * TPC_MAX_PER_GPC)
@@ -400,6 +402,8 @@ extern const struct nvkm_acr_lsf_func gm200_gr_gpccs_acr;
 extern const struct nvkm_acr_lsf_func gm200_gr_fecs_acr;
 
 extern const struct nvkm_acr_lsf_func gm20b_gr_fecs_acr;
+void gm20b_gr_acr_bld_write(struct nvkm_acr *, u32, struct nvkm_acr_lsfw *);
+void gm20b_gr_acr_bld_patch(struct nvkm_acr *, u32, s64);
 
 extern const struct nvkm_acr_lsf_func gp108_gr_gpccs_acr;
 extern const struct nvkm_acr_lsf_func gp108_gr_fecs_acr;

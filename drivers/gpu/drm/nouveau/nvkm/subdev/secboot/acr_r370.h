@@ -22,7 +22,6 @@
 
 #ifndef __NVKM_SECBOOT_ACR_R370_H__
 #define __NVKM_SECBOOT_ACR_R370_H__
-
 #include "priv.h"
 struct hsf_load_header;
 

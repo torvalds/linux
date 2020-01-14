@@ -26,10 +26,55 @@
 #include <subdev/acr.h>
 #include <subdev/timer.h>
 
+#include <nvfw/flcn.h>
+
 #include <nvif/class.h>
+
+void
+gm20b_gr_acr_bld_patch(struct nvkm_acr *acr, u32 bld, s64 adjust)
+{
+	struct flcn_bl_dmem_desc hdr;
+	u64 addr;
+
+	nvkm_robj(acr->wpr, bld, &hdr, sizeof(hdr));
+	addr = ((u64)hdr.code_dma_base1 << 40 | hdr.code_dma_base << 8);
+	hdr.code_dma_base  = lower_32_bits((addr + adjust) >> 8);
+	hdr.code_dma_base1 = upper_32_bits((addr + adjust) >> 8);
+	addr = ((u64)hdr.data_dma_base1 << 40 | hdr.data_dma_base << 8);
+	hdr.data_dma_base  = lower_32_bits((addr + adjust) >> 8);
+	hdr.data_dma_base1 = upper_32_bits((addr + adjust) >> 8);
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+
+	flcn_bl_dmem_desc_dump(&acr->subdev, &hdr);
+}
+
+void
+gm20b_gr_acr_bld_write(struct nvkm_acr *acr, u32 bld,
+		       struct nvkm_acr_lsfw *lsfw)
+{
+	const u64 base = lsfw->offset.img + lsfw->app_start_offset;
+	const u64 code = (base + lsfw->app_resident_code_offset) >> 8;
+	const u64 data = (base + lsfw->app_resident_data_offset) >> 8;
+	const struct flcn_bl_dmem_desc hdr = {
+		.ctx_dma = FALCON_DMAIDX_UCODE,
+		.code_dma_base = lower_32_bits(code),
+		.non_sec_code_off = lsfw->app_resident_code_offset,
+		.non_sec_code_size = lsfw->app_resident_code_size,
+		.code_entry_point = lsfw->app_imem_entry,
+		.data_dma_base = lower_32_bits(data),
+		.data_size = lsfw->app_resident_data_size,
+		.code_dma_base1 = upper_32_bits(code),
+		.data_dma_base1 = upper_32_bits(data),
+	};
+
+	nvkm_wobj(acr->wpr, bld, &hdr, sizeof(hdr));
+}
 
 const struct nvkm_acr_lsf_func
 gm20b_gr_fecs_acr = {
+	.bld_size = sizeof(struct flcn_bl_dmem_desc),
+	.bld_write = gm20b_gr_acr_bld_write,
+	.bld_patch = gm20b_gr_acr_bld_patch,
 };
 
 static void

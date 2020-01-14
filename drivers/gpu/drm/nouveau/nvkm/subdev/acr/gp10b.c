@@ -26,8 +26,22 @@ MODULE_FIRMWARE("nvidia/gp10b/acr/bl.bin");
 MODULE_FIRMWARE("nvidia/gp10b/acr/ucode_load.bin");
 #endif
 
+static const struct nvkm_acr_hsf_fwif
+gp10b_acr_load_fwif[] = {
+	{ 0, nvkm_acr_hsfw_load, &gm20b_acr_load_0 },
+	{}
+};
+
 static const struct nvkm_acr_func
 gp10b_acr = {
+	.load = gp10b_acr_load_fwif,
+	.wpr_parse = gm200_acr_wpr_parse,
+	.wpr_layout = gm200_acr_wpr_layout,
+	.wpr_alloc = gm20b_acr_wpr_alloc,
+	.wpr_build = gm200_acr_wpr_build,
+	.wpr_patch = gm200_acr_wpr_patch,
+	.wpr_check = gm200_acr_wpr_check,
+	.init = gm200_acr_init,
 };
 
 static const struct nvkm_acr_fwif

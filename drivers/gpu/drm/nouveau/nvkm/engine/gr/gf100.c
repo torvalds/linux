@@ -26,9 +26,9 @@
 #include "fuc/os.h"
 
 #include <core/client.h>
-#include <core/option.h>
 #include <core/firmware.h>
-#include <subdev/secboot.h>
+#include <core/option.h>
+#include <subdev/acr.h>
 #include <subdev/fb.h>
 #include <subdev/mc.h>
 #include <subdev/pmu.h>
@@ -1690,28 +1690,30 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 {
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_secboot *sb = device->secboot;
-	u32 secboot_mask = 0;
+	u32 lsf_mask = 0;
 	int ret;
 
 	/* load fuc microcode */
 	nvkm_mc_unk260(device, 0);
 
 	/* securely-managed falcons must be reset using secure boot */
-	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_FECS))
-		secboot_mask |= BIT(NVKM_SECBOOT_FALCON_FECS);
-	else
+
+	if (!nvkm_acr_managed_falcon(device, NVKM_ACR_LSF_FECS)) {
 		gf100_gr_init_fw(&gr->fecs.falcon, &gr->fecs.inst,
 						   &gr->fecs.data);
+	} else {
+		lsf_mask |= BIT(NVKM_ACR_LSF_FECS);
+	}
 
-	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_GPCCS))
-		secboot_mask |= BIT(NVKM_SECBOOT_FALCON_GPCCS);
-	else
+	if (!nvkm_acr_managed_falcon(device, NVKM_ACR_LSF_GPCCS)) {
 		gf100_gr_init_fw(&gr->gpccs.falcon, &gr->gpccs.inst,
 						    &gr->gpccs.data);
+	} else {
+		lsf_mask |= BIT(NVKM_ACR_LSF_GPCCS);
+	}
 
-	if (secboot_mask != 0) {
-		int ret = nvkm_secboot_reset(sb, secboot_mask);
+	if (lsf_mask) {
+		ret = nvkm_acr_bootstrap_falcons(device, lsf_mask);
 		if (ret)
 			return ret;
 	}

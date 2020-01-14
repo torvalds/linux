@@ -23,6 +23,7 @@
 
 #include <subdev/acr.h>
 
+#include <nvfw/flcn.h>
 #include <nvfw/pmu.h>
 
 static int
@@ -58,6 +59,11 @@ gp10b_pmu_acr_bootstrap_multiple_falcons(struct nvkm_falcon *falcon, u32 mask)
 
 static const struct nvkm_acr_lsf_func
 gp10b_pmu_acr = {
+	.flags = NVKM_ACR_LSF_DMACTL_REQ_CTX,
+	.bld_size = sizeof(struct loader_config),
+	.bld_write = gm20b_pmu_acr_bld_write,
+	.bld_patch = gm20b_pmu_acr_bld_patch,
+	.boot = gm20b_pmu_acr_boot,
 	.bootstrap_falcon = gm20b_pmu_acr_bootstrap_falcon,
 	.bootstrap_multiple_falcons = gp10b_pmu_acr_bootstrap_multiple_falcons,
 };
