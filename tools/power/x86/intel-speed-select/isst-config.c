@@ -1638,7 +1638,7 @@ static void set_fact_enable(int arg)
 			if (ret)
 				goto error_disp;
 		}
-		isst_display_result(i, outf, "turbo-freq --auto", "enable", 0);
+		isst_display_result(-1, outf, "turbo-freq --auto", "enable", 0);
 	}
 
 	return;
