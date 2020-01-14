@@ -9,7 +9,6 @@ struct nvkm_sec2 {
 	const struct nvkm_sec2_func *func;
 	struct nvkm_engine engine;
 	struct nvkm_falcon falcon;
-	u32 addr;
 
 	struct nvkm_msgqueue *queue;
 	struct work_struct work;
