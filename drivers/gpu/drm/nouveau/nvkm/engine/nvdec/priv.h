@@ -4,6 +4,7 @@
 #include <engine/nvdec.h>
 
 struct nvkm_nvdec_func {
+	const struct nvkm_falcon_func *flcn;
 };
 
 struct nvkm_nvdec_fwif {
