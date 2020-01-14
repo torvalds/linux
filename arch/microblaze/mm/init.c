@@ -347,6 +347,8 @@ asmlinkage void __init mmu_init(void)
 	 * inside 768MB limit */
 	memblock_set_current_limit(memory_start + lowmem_size - 1);
 
+	parse_early_param();
+
 	/* CMA initialization */
 	dma_contiguous_reserve(memory_start + lowmem_size - 1);
 }

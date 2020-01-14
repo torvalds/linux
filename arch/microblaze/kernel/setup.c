@@ -54,7 +54,6 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = boot_command_line;
 
 	setup_memory();
-	parse_early_param();
 
 	console_verbose();
 
