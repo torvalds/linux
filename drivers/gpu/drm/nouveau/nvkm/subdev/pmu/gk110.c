@@ -84,6 +84,7 @@ gk110_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 
 static const struct nvkm_pmu_func
 gk110_pmu = {
+	.flcn = &gt215_pmu_flcn,
 	.code.data = gk110_pmu_code,
 	.code.size = sizeof(gk110_pmu_code),
 	.data.data = gk110_pmu_data,

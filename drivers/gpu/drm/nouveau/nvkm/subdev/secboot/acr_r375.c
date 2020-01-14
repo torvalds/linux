@@ -40,7 +40,7 @@ acr_r375_generate_pmu_bl_desc(const struct nvkm_acr *acr,
 	base = wpr_addr + img->ucode_off + pdesc->app_start_offset;
 	addr_code = base + pdesc->app_resident_code_offset;
 	addr_data = base + pdesc->app_resident_data_offset;
-	addr_args = pmu->falcon->data.limit;
+	addr_args = pmu->falcon.data.limit;
 	addr_args -= NVKM_MSGQUEUE_CMDLINE_SIZE;
 
 	desc->ctx_dma = FALCON_DMAIDX_UCODE;

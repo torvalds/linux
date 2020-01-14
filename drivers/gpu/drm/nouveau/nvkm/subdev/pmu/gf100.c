@@ -42,6 +42,7 @@ gf100_pmu_enabled(struct nvkm_pmu *pmu)
 
 static const struct nvkm_pmu_func
 gf100_pmu = {
+	.flcn = &gt215_pmu_flcn,
 	.code.data = gf100_pmu_code,
 	.code.size = sizeof(gf100_pmu_code),
 	.data.data = gf100_pmu_data,

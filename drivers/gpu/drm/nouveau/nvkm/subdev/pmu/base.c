@@ -134,19 +134,12 @@ nvkm_pmu_init(struct nvkm_subdev *subdev)
 	return ret;
 }
 
-static int
-nvkm_pmu_oneinit(struct nvkm_subdev *subdev)
-{
-	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
-	return nvkm_falcon_v1_new(&pmu->subdev, "PMU", 0x10a000, &pmu->falcon);
-}
-
 static void *
 nvkm_pmu_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
 	nvkm_msgqueue_del(&pmu->queue);
-	nvkm_falcon_del(&pmu->falcon);
+	nvkm_falcon_dtor(&pmu->falcon);
 	return nvkm_pmu(subdev);
 }
 
@@ -154,7 +147,6 @@ static const struct nvkm_subdev_func
 nvkm_pmu = {
 	.dtor = nvkm_pmu_dtor,
 	.preinit = nvkm_pmu_preinit,
-	.oneinit = nvkm_pmu_oneinit,
 	.init = nvkm_pmu_init,
 	.fini = nvkm_pmu_fini,
 	.intr = nvkm_pmu_intr,
@@ -174,7 +166,10 @@ nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
 		return PTR_ERR(fwif);
 
 	pmu->func = fwif->func;
-	return 0;
+
+	return nvkm_falcon_ctor(pmu->func->flcn, &pmu->subdev,
+				nvkm_subdev_name[pmu->subdev.index], 0x10a000,
+				&pmu->falcon);
 }
 
 int

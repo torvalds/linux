@@ -110,7 +110,7 @@ acr_ls_ucode_load_pmu(const struct nvkm_secboot *sb, int maxver,
 		return ret;
 
 	/* Allocate the PMU queue corresponding to the FW version */
-	ret = nvkm_msgqueue_new(img->ucode_desc.app_version, pmu->falcon,
+	ret = nvkm_msgqueue_new(img->ucode_desc.app_version, &pmu->falcon,
 				sb, &pmu->queue);
 	if (ret)
 		return ret;
@@ -123,10 +123,10 @@ acr_ls_pmu_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 {
 	struct nvkm_device *device = sb->subdev.device;
 	struct nvkm_pmu *pmu = device->pmu;
-	u32 addr_args = pmu->falcon->data.limit - NVKM_MSGQUEUE_CMDLINE_SIZE;
+	u32 addr_args = pmu->falcon.data.limit - NVKM_MSGQUEUE_CMDLINE_SIZE;
 	int ret;
 
-	ret = acr_ls_msgqueue_post_run(pmu->queue, pmu->falcon, addr_args);
+	ret = acr_ls_msgqueue_post_run(pmu->queue, &pmu->falcon, addr_args);
 	if (ret)
 		return ret;
 

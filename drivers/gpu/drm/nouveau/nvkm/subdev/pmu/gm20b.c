@@ -41,6 +41,7 @@ gm20b_pmu_recv(struct nvkm_pmu *pmu)
 
 static const struct nvkm_pmu_func
 gm20b_pmu = {
+	.flcn = &gt215_pmu_flcn,
 	.enabled = gf100_pmu_enabled,
 	.intr = gt215_pmu_intr,
 	.recv = gm20b_pmu_recv,
@@ -55,7 +56,7 @@ MODULE_FIRMWARE("nvidia/gm20b/pmu/sig.bin");
 int
 gm20b_pmu_load(struct nvkm_pmu *pmu, int ver, const struct nvkm_pmu_fwif *fwif)
 {
-	return nvkm_acr_lsfw_load_sig_image_desc(&pmu->subdev, pmu->falcon,
+	return nvkm_acr_lsfw_load_sig_image_desc(&pmu->subdev, &pmu->falcon,
 						 NVKM_ACR_LSF_PMU, "pmu/",
 						 ver, fwif->acr);
 }

@@ -28,6 +28,7 @@
 
 static const struct nvkm_pmu_func
 gm107_pmu = {
+	.flcn = &gt215_pmu_flcn,
 	.code.data = gm107_pmu_code,
 	.code.size = sizeof(gm107_pmu_code),
 	.data.data = gm107_pmu_data,

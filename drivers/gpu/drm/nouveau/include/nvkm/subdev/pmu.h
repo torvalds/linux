@@ -2,12 +2,12 @@
 #ifndef __NVKM_PMU_H__
 #define __NVKM_PMU_H__
 #include <core/subdev.h>
-#include <engine/falcon.h>
+#include <core/falcon.h>
 
 struct nvkm_pmu {
 	const struct nvkm_pmu_func *func;
 	struct nvkm_subdev subdev;
-	struct nvkm_falcon *falcon;
+	struct nvkm_falcon falcon;
 	struct nvkm_msgqueue *queue;
 
 	struct {

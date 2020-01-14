@@ -6,6 +6,8 @@
 #include <subdev/pmu/fuc/os.h>
 
 struct nvkm_pmu_func {
+	const struct nvkm_falcon_func *flcn;
+
 	struct {
 		u32 *data;
 		u32  size;
@@ -27,6 +29,7 @@ struct nvkm_pmu_func {
 	void (*pgob)(struct nvkm_pmu *, bool);
 };
 
+extern const struct nvkm_falcon_func gt215_pmu_flcn;
 int gt215_pmu_init(struct nvkm_pmu *);
 void gt215_pmu_fini(struct nvkm_pmu *);
 void gt215_pmu_intr(struct nvkm_pmu *);
