@@ -339,7 +339,7 @@ static void release_engine(
 	bool safe_to_reset;
 
 	/* Restore original HW engine speed */
-	REG_WRITE(SPEED, dce_i2c_hw->original_speed);
+	set_speed(dce_i2c_hw, dce_i2c_hw->default_speed);
 
 	/* Reset HW engine */
 	{
@@ -371,7 +371,6 @@ struct dce_i2c_hw *acquire_i2c_hw_engine(
 {
 	uint32_t counter = 0;
 	enum gpio_result result;
-	uint32_t current_speed;
 	struct dce_i2c_hw *dce_i2c_hw = NULL;
 
 	if (!ddc)
@@ -408,11 +407,6 @@ struct dce_i2c_hw *acquire_i2c_hw_engine(
 		return NULL;
 
 	dce_i2c_hw->ddc = ddc;
-
-	current_speed = REG_READ(SPEED);
-
-	if (current_speed)
-		dce_i2c_hw->original_speed = current_speed;
 
 	if (!setup_engine(dce_i2c_hw)) {
 		release_engine(dce_i2c_hw);
@@ -613,7 +607,6 @@ void dce_i2c_hw_construct(
 	dce_i2c_hw->buffer_used_bytes = 0;
 	dce_i2c_hw->transaction_count = 0;
 	dce_i2c_hw->engine_keep_power_up_count = 1;
-	dce_i2c_hw->original_speed = DEFAULT_I2C_HW_SPEED;
 	dce_i2c_hw->default_speed = DEFAULT_I2C_HW_SPEED;
 	dce_i2c_hw->send_reset_length = 0;
 	dce_i2c_hw->setup_limit = I2C_SETUP_TIME_LIMIT_DCE;
