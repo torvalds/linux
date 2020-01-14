@@ -2700,6 +2700,17 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 		goto out_err;
 	}
 
+	/* We put this priority last, knowing that nothing will get here
+	 * unless explicitly forwarded to. This is possible because the
+	 * slow path tables have catch all rules and nothing gets passed
+	 * those tables.
+	 */
+	maj_prio = fs_create_prio(&steering->fdb_root_ns->ns, FDB_PER_VPORT, 1);
+	if (IS_ERR(maj_prio)) {
+		err = PTR_ERR(maj_prio);
+		goto out_err;
+	}
+
 	set_prio_attrs(steering->fdb_root_ns);
 	return 0;
 

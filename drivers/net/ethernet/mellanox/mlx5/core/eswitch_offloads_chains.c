@@ -21,8 +21,6 @@
 #define fdb_ignore_flow_level_supported(esw) \
 	(MLX5_CAP_ESW_FLOWTABLE_FDB((esw)->dev, ignore_flow_level))
 
-#define ESW_OFFLOADS_NUM_GROUPS  4
-
 /* Firmware currently has 4 pool of 4 sizes that it supports (ESW_POOLS),
  * and a virtual memory region of 16M (ESW_SIZE), this region is duplicated
  * for each flow table pool. We can allocate up to 16M of each pool,
@@ -704,12 +702,9 @@ mlx5_esw_chains_open(struct mlx5_eswitch *esw)
 
 	/* Open level 1 for split rules now if prios isn't supported  */
 	if (!mlx5_esw_chains_prios_supported(esw)) {
-		ft = mlx5_esw_chains_get_table(esw, 0, 1, 1);
-
-		if (IS_ERR(ft)) {
-			err = PTR_ERR(ft);
+		err = mlx5_esw_vport_tbl_get(esw);
+		if (err)
 			goto level_1_err;
-		}
 	}
 
 	return 0;
@@ -725,7 +720,7 @@ static void
 mlx5_esw_chains_close(struct mlx5_eswitch *esw)
 {
 	if (!mlx5_esw_chains_prios_supported(esw))
-		mlx5_esw_chains_put_table(esw, 0, 1, 1);
+		mlx5_esw_vport_tbl_put(esw);
 	mlx5_esw_chains_put_table(esw, 0, 1, 0);
 	mlx5_esw_chains_put_table(esw, mlx5_esw_chains_get_ft_chain(esw), 1, 0);
 }

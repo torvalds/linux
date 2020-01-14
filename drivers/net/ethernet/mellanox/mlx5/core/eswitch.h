@@ -49,6 +49,7 @@
 
 /* The index of the last real chain (FT) + 1 as chain zero is valid as well */
 #define FDB_NUM_CHAINS (FDB_FT_CHAIN + 1)
+#define ESW_OFFLOADS_NUM_GROUPS  4
 
 #define FDB_TC_MAX_PRIO 16
 #define FDB_TC_LEVELS_PER_PRIO 2
@@ -183,6 +184,12 @@ struct mlx5_eswitch_fdb {
 			int vlan_push_pop_refcount;
 
 			struct mlx5_esw_chains_priv *esw_chains_priv;
+			struct {
+				DECLARE_HASHTABLE(table, 8);
+				/* Protects vports.table */
+				struct mutex lock;
+			} vports;
+
 		} offloads;
 	};
 	u32 flags;
@@ -622,6 +629,9 @@ esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
 void
 esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
 				      struct mlx5_vport *vport);
+
+int mlx5_esw_vport_tbl_get(struct mlx5_eswitch *esw);
+void mlx5_esw_vport_tbl_put(struct mlx5_eswitch *esw);
 
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
