@@ -21,7 +21,7 @@
 /*  Initialize GPIO setting registers */
 static void dm_InitGPIOSetting(struct adapter *Adapter)
 {
-	u8	tmp1byte;
+	u8 tmp1byte;
 
 	tmp1byte = usb_read8(Adapter, REG_GPIO_MUXCFG);
 	tmp1byte &= (GPIOSEL_GPIO | ~GPIOSEL_ENBT);
@@ -35,7 +35,7 @@ static void dm_InitGPIOSetting(struct adapter *Adapter)
 static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 {
 	struct hal_data_8188e *hal_data = Adapter->HalData;
-	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
+	struct dm_priv *pdmpriv = &hal_data->dmpriv;
 	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
 
 	/*  Init Value */
@@ -59,38 +59,38 @@ static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 	dm_odm->BbSwingIdxOfdmCurrent = 12;
 	dm_odm->BbSwingFlagOfdm = false;
 
-	pdmpriv->InitODMFlag =	ODM_RF_CALIBRATION |
-				ODM_RF_TX_PWR_TRACK;
+	pdmpriv->InitODMFlag = ODM_RF_CALIBRATION |
+			       ODM_RF_TX_PWR_TRACK;
 
 	dm_odm->SupportAbility = pdmpriv->InitODMFlag;
 }
 
 static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 {
-	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
-	struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
+	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
+	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct hal_data_8188e *hal_data = Adapter->HalData;
 	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;
-	struct dm_priv	*pdmpriv = &hal_data->dmpriv;
+	struct dm_priv *pdmpriv = &hal_data->dmpriv;
 	int i;
 
-	pdmpriv->InitODMFlag =	ODM_BB_DIG |
-				ODM_BB_RA_MASK |
-				ODM_BB_DYNAMIC_TXPWR |
-				ODM_BB_FA_CNT |
-				ODM_BB_RSSI_MONITOR |
-				ODM_BB_CCK_PD |
-				ODM_BB_PWR_SAVE |
-				ODM_MAC_EDCA_TURBO |
-				ODM_RF_CALIBRATION |
-				ODM_RF_TX_PWR_TRACK;
+	pdmpriv->InitODMFlag = ODM_BB_DIG |
+			       ODM_BB_RA_MASK |
+			       ODM_BB_DYNAMIC_TXPWR |
+			       ODM_BB_FA_CNT |
+			       ODM_BB_RSSI_MONITOR |
+			       ODM_BB_CCK_PD |
+			       ODM_BB_PWR_SAVE |
+			       ODM_MAC_EDCA_TURBO |
+			       ODM_RF_CALIBRATION |
+			       ODM_RF_TX_PWR_TRACK;
 	if (hal_data->AntDivCfg)
 		pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV;
 
 	if (Adapter->registrypriv.mp_mode == 1) {
-		pdmpriv->InitODMFlag =	ODM_RF_CALIBRATION |
-					ODM_RF_TX_PWR_TRACK;
+		pdmpriv->InitODMFlag = ODM_RF_CALIBRATION |
+				       ODM_RF_TX_PWR_TRACK;
 	}
 
 	dm_odm->SupportAbility = pdmpriv->InitODMFlag;
@@ -123,7 +123,7 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 
 void rtl8188e_InitHalDm(struct adapter *Adapter)
 {
-	struct dm_priv	*pdmpriv = &Adapter->HalData->dmpriv;
+	struct dm_priv *pdmpriv = &Adapter->HalData->dmpriv;
 	struct odm_dm_struct *dm_odm = &Adapter->HalData->odmpriv;
 
 	dm_InitGPIOSetting(Adapter);
@@ -167,7 +167,7 @@ skip_dm:
 
 void rtw_hal_dm_init(struct adapter *Adapter)
 {
-	struct dm_priv	*pdmpriv = &Adapter->HalData->dmpriv;
+	struct dm_priv *pdmpriv = &Adapter->HalData->dmpriv;
 	struct odm_dm_struct *podmpriv = &Adapter->HalData->odmpriv;
 
 	memset(pdmpriv, 0, sizeof(struct dm_priv));
@@ -185,7 +185,7 @@ void rtw_hal_antdiv_rssi_compared(struct adapter *Adapter,
 		/* select optimum_antenna for before linked => For antenna
 		 * diversity
 		 */
-		if (dst->Rssi >=  src->Rssi) {/* keep org parameter */
+		if (dst->Rssi >= src->Rssi) {/* keep org parameter */
 			src->Rssi = dst->Rssi;
 			src->PhyInfo.Optimum_antenna =
 				dst->PhyInfo.Optimum_antenna;
