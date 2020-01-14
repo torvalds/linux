@@ -27,6 +27,7 @@ struct nvkm_pmu_func {
 	int (*send)(struct nvkm_pmu *, u32 reply[2], u32 process,
 		    u32 message, u32 data0, u32 data1);
 	void (*recv)(struct nvkm_pmu *);
+	int (*initmsg)(struct nvkm_pmu *);
 	void (*pgob)(struct nvkm_pmu *, bool);
 };
 
@@ -44,6 +45,7 @@ void gk110_pmu_pgob(struct nvkm_pmu *, bool);
 
 int gm20b_pmu_acr_bootstrap_falcon(struct nvkm_falcon *, enum nvkm_acr_lsf_id);
 void gm20b_pmu_recv(struct nvkm_pmu *);
+int gm20b_pmu_initmsg(struct nvkm_pmu *);
 
 struct nvkm_pmu_fwif {
 	int version;

@@ -13,6 +13,7 @@ struct nvkm_pmu {
 	struct nvkm_falcon_cmdq *hpq;
 	struct nvkm_falcon_cmdq *lpq;
 	struct nvkm_falcon_msgq *msgq;
+	bool initmsg_received;
 	struct nvkm_msgqueue *queue;
 
 	struct completion wpr_ready;

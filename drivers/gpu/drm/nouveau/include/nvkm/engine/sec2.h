@@ -14,7 +14,9 @@ struct nvkm_sec2 {
 	struct nvkm_falcon_cmdq *cmdq;
 	struct nvkm_falcon_msgq *msgq;
 	struct nvkm_msgqueue *queue;
+
 	struct work_struct work;
+	bool initmsg_received;
 };
 
 int gp102_sec2_new(struct nvkm_device *, int, struct nvkm_sec2 **);

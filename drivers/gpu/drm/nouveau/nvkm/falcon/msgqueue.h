@@ -52,31 +52,6 @@
  *
  */
 
-/**
- * struct nvkm_msgqueue_hdr - header for all commands/messages
- * @unit_id:	id of firmware using receiving the command/sending the message
- * @size:	total size of command/message
- * @ctrl_flags:	type of command/message
- * @seq_id:	used to match a message from its corresponding command
- */
-struct nvkm_msgqueue_hdr {
-	u8 unit_id;
-	u8 size;
-	u8 ctrl_flags;
-	u8 seq_id;
-};
-
-/**
- * struct nvkm_msgqueue_msg - base message.
- *
- * This is just a header and a message (or command) type. Useful when
- * building command-specific structures.
- */
-struct nvkm_msgqueue_msg {
-	struct nvkm_msgqueue_hdr hdr;
-	u8 msg_type;
-};
-
 struct nvkm_msgqueue;
 
 /**
@@ -87,7 +62,6 @@ struct nvkm_msgqueue;
  */
 struct nvkm_msgqueue_init_func {
 	void (*gen_cmdline)(struct nvkm_msgqueue *, void *);
-	int (*init_callback)(struct nvkm_msgqueue *, struct nvkm_msgqueue_hdr *);
 };
 
 struct nvkm_msgqueue_func {
@@ -136,7 +110,6 @@ struct nvkm_msgqueue {
 	struct nvkm_falcon *falcon;
 	const struct nvkm_msgqueue_func *func;
 	u32 fw_version;
-	bool init_msg_received;
 };
 
 void nvkm_msgqueue_ctor(const struct nvkm_msgqueue_func *, struct nvkm_falcon *,

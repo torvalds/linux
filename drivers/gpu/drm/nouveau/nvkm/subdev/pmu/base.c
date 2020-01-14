@@ -91,6 +91,7 @@ nvkm_pmu_fini(struct nvkm_subdev *subdev, bool suspend)
 
 	nvkm_falcon_cmdq_fini(pmu->lpq);
 	nvkm_falcon_cmdq_fini(pmu->hpq);
+	pmu->initmsg_received = false;
 	return 0;
 }
 

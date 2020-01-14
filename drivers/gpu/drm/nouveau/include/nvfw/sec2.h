@@ -1,7 +1,29 @@
 #ifndef __NVFW_SEC2_H__
 #define __NVFW_SEC2_H__
 
+#define NV_SEC2_UNIT_INIT                                                  0x01
 #define NV_SEC2_UNIT_ACR                                                   0x08
+
+struct nv_sec2_init_msg {
+	struct nv_falcon_msg hdr;
+#define NV_SEC2_INIT_MSG_INIT                                              0x00
+	u8 msg_type;
+
+	u8 num_queues;
+	u16 os_debug_entry_point;
+
+	struct {
+		u32 offset;
+		u16 size;
+		u8 index;
+#define NV_SEC2_INIT_MSG_QUEUE_ID_CMDQ                                     0x00
+#define NV_SEC2_INIT_MSG_QUEUE_ID_MSGQ                                     0x01
+		u8 id;
+	} queue_info[2];
+
+	u32 sw_managed_area_offset;
+	u16 sw_managed_area_size;
+};
 
 struct nv_sec2_acr_cmd {
 	struct nv_falcon_cmd hdr;

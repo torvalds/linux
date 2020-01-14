@@ -69,6 +69,37 @@ gp102_sec2_acr_0 = {
 	.bootstrap_falcon = gp102_sec2_acr_bootstrap_falcon,
 };
 
+int
+gp102_sec2_initmsg(struct nvkm_sec2 *sec2)
+{
+	struct nv_sec2_init_msg msg;
+	int ret, i;
+
+	ret = nvkm_falcon_msgq_recv_initmsg(sec2->msgq, &msg, sizeof(msg));
+	if (ret)
+		return ret;
+
+	if (msg.hdr.unit_id != NV_SEC2_UNIT_INIT ||
+	    msg.msg_type != NV_SEC2_INIT_MSG_INIT)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(msg.queue_info); i++) {
+		if (msg.queue_info[i].id == NV_SEC2_INIT_MSG_QUEUE_ID_MSGQ) {
+			nvkm_falcon_msgq_init(sec2->msgq,
+					      msg.queue_info[i].index,
+					      msg.queue_info[i].offset,
+					      msg.queue_info[i].size);
+		} else {
+			nvkm_falcon_cmdq_init(sec2->cmdq,
+					      msg.queue_info[i].index,
+					      msg.queue_info[i].offset,
+					      msg.queue_info[i].size);
+		}
+	}
+
+	return 0;
+}
+
 void
 gp102_sec2_intr(struct nvkm_sec2 *sec2)
 {
@@ -161,6 +192,7 @@ gp102_sec2 = {
 	.flcn = &gp102_sec2_flcn,
 	.unit_acr = NV_SEC2_UNIT_ACR,
 	.intr = gp102_sec2_intr,
+	.initmsg = gp102_sec2_initmsg,
 };
 
 MODULE_FIRMWARE("nvidia/gp102/sec2/desc.bin");

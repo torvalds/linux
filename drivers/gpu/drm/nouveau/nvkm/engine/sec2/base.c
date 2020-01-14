@@ -30,6 +30,17 @@ nvkm_sec2_recv(struct work_struct *work)
 {
 	struct nvkm_sec2 *sec2 = container_of(work, typeof(*sec2), work);
 
+	if (!sec2->initmsg_received) {
+		int ret = sec2->func->initmsg(sec2);
+		if (ret) {
+			nvkm_error(&sec2->engine.subdev,
+				   "error parsing init message: %d\n", ret);
+			return;
+		}
+
+		sec2->initmsg_received = true;
+	}
+
 	if (!sec2->queue) {
 		nvkm_warn(&sec2->engine.subdev,
 			  "recv function called while no firmware set!\n");
@@ -50,8 +61,14 @@ static int
 nvkm_sec2_fini(struct nvkm_engine *engine, bool suspend)
 {
 	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
+
 	flush_work(&sec2->work);
-	nvkm_falcon_cmdq_fini(sec2->cmdq);
+
+	if (suspend) {
+		nvkm_falcon_cmdq_fini(sec2->cmdq);
+		sec2->initmsg_received = false;
+	}
+
 	return 0;
 }
 

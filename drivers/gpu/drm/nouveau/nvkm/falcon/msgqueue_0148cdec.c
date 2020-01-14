@@ -31,12 +31,6 @@
  * message queue, and uses a different command line and init message.
  */
 
-enum {
-	MSGQUEUE_0148CDEC_COMMAND_QUEUE = 0,
-	MSGQUEUE_0148CDEC_MESSAGE_QUEUE = 1,
-	MSGQUEUE_0148CDEC_NUM_QUEUES,
-};
-
 struct msgqueue_0148cdec {
 	struct nvkm_msgqueue base;
 };
@@ -49,13 +43,6 @@ msgqueue_0148cdec_process_msgs(struct nvkm_msgqueue *queue)
 	nvkm_msgqueue_process_msgs(queue, queue->falcon->owner->device->sec2->msgq);
 }
 
-
-/* Init unit */
-#define MSGQUEUE_0148CDEC_UNIT_INIT 0x01
-
-enum {
-	INIT_MSG_INIT = 0x0,
-};
 
 static void
 init_gen_cmdline(struct nvkm_msgqueue *queue, void *buf)
@@ -71,62 +58,9 @@ init_gen_cmdline(struct nvkm_msgqueue *queue, void *buf)
 	args->secure_mode = false;
 }
 
-static int
-init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
-{
-	struct {
-		struct nvkm_msgqueue_msg base;
-
-		u8 num_queues;
-		u16 os_debug_entry_point;
-
-		struct {
-			u32 offset;
-			u16 size;
-			u8 index;
-			u8 id;
-		} queue_info[MSGQUEUE_0148CDEC_NUM_QUEUES];
-
-		u16 sw_managed_area_offset;
-		u16 sw_managed_area_size;
-	} *init = (void *)hdr;
-	const struct nvkm_subdev *subdev = _queue->falcon->owner;
-	struct nvkm_sec2 *sec2 = subdev->device->sec2;
-	int i;
-
-	if (init->base.hdr.unit_id != MSGQUEUE_0148CDEC_UNIT_INIT) {
-		nvkm_error(subdev, "expected message from init unit\n");
-		return -EINVAL;
-	}
-
-	if (init->base.msg_type != INIT_MSG_INIT) {
-		nvkm_error(subdev, "expected SEC init msg\n");
-		return -EINVAL;
-	}
-
-	for (i = 0; i < MSGQUEUE_0148CDEC_NUM_QUEUES; i++) {
-		u8 id = init->queue_info[i].id;
-
-		if (id == MSGQUEUE_0148CDEC_MESSAGE_QUEUE) {
-			nvkm_falcon_msgq_init(sec2->msgq,
-					      init->queue_info[i].index,
-					      init->queue_info[i].offset,
-					      init->queue_info[i].size);
-		} else {
-			nvkm_falcon_cmdq_init(sec2->cmdq,
-					      init->queue_info[i].index,
-					      init->queue_info[i].offset,
-					      init->queue_info[i].size);
-		}
-	}
-
-	return 0;
-}
-
 static const struct nvkm_msgqueue_init_func
 msgqueue_0148cdec_init_func = {
 	.gen_cmdline = init_gen_cmdline,
-	.init_callback = init_callback,
 };
 
 

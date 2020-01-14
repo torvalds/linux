@@ -25,11 +25,6 @@
 #include <subdev/pmu.h>
 #include <subdev/secboot.h>
 
-/* Queues identifiers */
-enum {
-	MSGQUEUE_0137C63D_NUM_QUEUES = 5,
-};
-
 struct msgqueue_0137c63d {
 	struct nvkm_msgqueue base;
 };
@@ -52,12 +47,6 @@ msgqueue_0137c63d_process_msgs(struct nvkm_msgqueue *queue)
 }
 
 /* Init unit */
-#define MSGQUEUE_0137C63D_UNIT_INIT 0x07
-
-enum {
-	INIT_MSG_INIT = 0x0,
-};
-
 static void
 init_gen_cmdline(struct nvkm_msgqueue *queue, void *buf)
 {
@@ -84,117 +73,10 @@ init_gen_cmdline(struct nvkm_msgqueue *queue, void *buf)
 	args->secure_mode = 1;
 }
 
-/* forward declaration */
-static int acr_init_wpr(struct nvkm_msgqueue *queue);
-
-static int
-init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
-{
-	struct msgqueue_0137c63d *priv = msgqueue_0137c63d(_queue);
-	struct {
-		struct nvkm_msgqueue_msg base;
-
-		u8 pad;
-		u16 os_debug_entry_point;
-
-		struct {
-			u16 size;
-			u16 offset;
-			u8 index;
-			u8 pad;
-		} queue_info[MSGQUEUE_0137C63D_NUM_QUEUES];
-
-		u16 sw_managed_area_offset;
-		u16 sw_managed_area_size;
-	} *init = (void *)hdr;
-	const struct nvkm_subdev *subdev = _queue->falcon->owner;
-	struct nvkm_pmu *pmu = subdev->device->pmu;
-
-	if (init->base.hdr.unit_id != MSGQUEUE_0137C63D_UNIT_INIT) {
-		nvkm_error(subdev, "expected message from init unit\n");
-		return -EINVAL;
-	}
-
-	if (init->base.msg_type != INIT_MSG_INIT) {
-		nvkm_error(subdev, "expected PMU init msg\n");
-		return -EINVAL;
-	}
-
-	nvkm_falcon_cmdq_init(pmu->hpq, init->queue_info[0].index,
-					init->queue_info[0].offset,
-					init->queue_info[0].size);
-	nvkm_falcon_cmdq_init(pmu->lpq, init->queue_info[1].index,
-					init->queue_info[1].offset,
-					init->queue_info[1].size);
-	nvkm_falcon_msgq_init(pmu->msgq, init->queue_info[4].index,
-					 init->queue_info[4].offset,
-					 init->queue_info[4].size);
-
-	/* Complete initialization by initializing WPR region */
-	return acr_init_wpr(&priv->base);
-}
-
 static const struct nvkm_msgqueue_init_func
 msgqueue_0137c63d_init_func = {
 	.gen_cmdline = init_gen_cmdline,
-	.init_callback = init_callback,
 };
-
-
-
-/* ACR unit */
-#define MSGQUEUE_0137C63D_UNIT_ACR 0x0a
-
-enum {
-	ACR_CMD_INIT_WPR_REGION = 0x00,
-};
-
-static int
-acr_init_wpr_callback(void *priv, struct nv_falcon_msg *hdr)
-{
-	struct nvkm_pmu *pmu = priv;
-	struct nvkm_subdev *subdev = &pmu->subdev;
-	struct {
-		struct nv_falcon_msg base;
-		u8 msg_type;
-		u32 error_code;
-	} *msg = (void *)hdr;
-
-	if (msg->error_code) {
-		nvkm_error(subdev, "ACR WPR init failure: %d\n",
-			   msg->error_code);
-		return -EINVAL;
-	}
-
-	nvkm_debug(subdev, "ACR WPR init complete\n");
-	complete_all(&pmu->wpr_ready);
-	return 0;
-}
-
-static int
-acr_init_wpr(struct nvkm_msgqueue *queue)
-{
-	struct nvkm_pmu *pmu = queue->falcon->owner->device->pmu;
-	/*
-	 * region_id:	region ID in WPR region
-	 * wpr_offset:	offset in WPR region
-	 */
-	struct {
-		struct nv_falcon_cmd hdr;
-		u8 cmd_type;
-		u32 region_id;
-		u32 wpr_offset;
-	} cmd;
-	memset(&cmd, 0, sizeof(cmd));
-
-	cmd.hdr.unit_id = MSGQUEUE_0137C63D_UNIT_ACR;
-	cmd.hdr.size = sizeof(cmd);
-	cmd.cmd_type = ACR_CMD_INIT_WPR_REGION;
-	cmd.region_id = 0x01;
-	cmd.wpr_offset = 0x00;
-	return nvkm_falcon_cmdq_send(pmu->hpq, &cmd.hdr, acr_init_wpr_callback,
-				     pmu, 0);
-}
 
 static void
 msgqueue_0137c63d_dtor(struct nvkm_msgqueue *queue)

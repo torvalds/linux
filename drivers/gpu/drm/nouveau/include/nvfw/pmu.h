@@ -1,7 +1,27 @@
 #ifndef __NVFW_PMU_H__
 #define __NVFW_PMU_H__
 
+#define NV_PMU_UNIT_INIT                                                   0x07
 #define NV_PMU_UNIT_ACR                                                    0x0a
+
+struct nv_pmu_init_msg {
+	struct nv_falcon_msg hdr;
+#define NV_PMU_INIT_MSG_INIT                                               0x00
+	u8 msg_type;
+
+	u8 pad;
+	u16 os_debug_entry_point;
+
+	struct {
+		u16 size;
+		u16 offset;
+		u8 index;
+		u8 pad;
+	} queue_info[5];
+
+	u16 sw_managed_area_offset;
+	u16 sw_managed_area_size;
+};
 
 struct nv_pmu_acr_cmd {
 	struct nv_falcon_cmd hdr;
@@ -14,6 +34,17 @@ struct nv_pmu_acr_cmd {
 struct nv_pmu_acr_msg {
 	struct nv_falcon_cmd hdr;
 	u8 msg_type;
+};
+
+struct nv_pmu_acr_init_wpr_region_cmd {
+	struct nv_pmu_acr_cmd cmd;
+	u32 region_id;
+	u32 wpr_offset;
+};
+
+struct nv_pmu_acr_init_wpr_region_msg {
+	struct nv_pmu_acr_msg msg;
+	u32 error_code;
 };
 
 struct nv_pmu_acr_bootstrap_falcon_cmd {

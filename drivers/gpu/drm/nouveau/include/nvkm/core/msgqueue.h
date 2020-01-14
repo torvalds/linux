@@ -32,7 +32,6 @@ int nvkm_msgqueue_new(u32, struct nvkm_falcon *, const struct nvkm_secboot *,
 		      struct nvkm_msgqueue **);
 void nvkm_msgqueue_del(struct nvkm_msgqueue **);
 void nvkm_msgqueue_recv(struct nvkm_msgqueue *);
-int nvkm_msgqueue_reinit(struct nvkm_msgqueue *);
 
 /* useful if we run a NVIDIA-signed firmware */
 void nvkm_msgqueue_write_cmdline(struct nvkm_msgqueue *, void *);

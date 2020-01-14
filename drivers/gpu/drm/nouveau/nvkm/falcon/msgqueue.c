@@ -90,17 +90,6 @@ nvkm_msgqueue_recv(struct nvkm_msgqueue *queue)
 	queue->func->recv(queue);
 }
 
-int
-nvkm_msgqueue_reinit(struct nvkm_msgqueue *queue)
-{
-	/* firmware not set yet... */
-	if (!queue)
-		return 0;
-
-	queue->init_msg_received = false;
-	return 0;
-}
-
 void
 nvkm_msgqueue_ctor(const struct nvkm_msgqueue_func *func,
 		   struct nvkm_falcon *falcon,

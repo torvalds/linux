@@ -61,9 +61,80 @@ gm20b_pmu_acr = {
 	.bootstrap_falcon = gm20b_pmu_acr_bootstrap_falcon,
 };
 
+static int
+gm20b_pmu_acr_init_wpr_callback(void *priv, struct nv_falcon_msg *hdr)
+{
+	struct nv_pmu_acr_init_wpr_region_msg *msg =
+		container_of(hdr, typeof(*msg), msg.hdr);
+	struct nvkm_pmu *pmu = priv;
+	struct nvkm_subdev *subdev = &pmu->subdev;
+
+	if (msg->error_code) {
+		nvkm_error(subdev, "ACR WPR init failure: %d\n",
+			   msg->error_code);
+		return -EINVAL;
+	}
+
+	nvkm_debug(subdev, "ACR WPR init complete\n");
+	complete_all(&pmu->wpr_ready);
+	return 0;
+}
+
+static int
+gm20b_pmu_acr_init_wpr(struct nvkm_pmu *pmu)
+{
+	struct nv_pmu_acr_init_wpr_region_cmd cmd = {
+		.cmd.hdr.unit_id = NV_PMU_UNIT_ACR,
+		.cmd.hdr.size = sizeof(cmd),
+		.cmd.cmd_type = NV_PMU_ACR_CMD_INIT_WPR_REGION,
+		.region_id = 1,
+		.wpr_offset = 0,
+	};
+
+	return nvkm_falcon_cmdq_send(pmu->hpq, &cmd.cmd.hdr,
+				     gm20b_pmu_acr_init_wpr_callback, pmu, 0);
+}
+
+int
+gm20b_pmu_initmsg(struct nvkm_pmu *pmu)
+{
+	struct nv_pmu_init_msg msg;
+	int ret;
+
+	ret = nvkm_falcon_msgq_recv_initmsg(pmu->msgq, &msg, sizeof(msg));
+	if (ret)
+		return ret;
+
+	if (msg.hdr.unit_id != NV_PMU_UNIT_INIT ||
+	    msg.msg_type != NV_PMU_INIT_MSG_INIT)
+		return -EINVAL;
+
+	nvkm_falcon_cmdq_init(pmu->hpq, msg.queue_info[0].index,
+					msg.queue_info[0].offset,
+					msg.queue_info[0].size);
+	nvkm_falcon_cmdq_init(pmu->lpq, msg.queue_info[1].index,
+					msg.queue_info[1].offset,
+					msg.queue_info[1].size);
+	nvkm_falcon_msgq_init(pmu->msgq, msg.queue_info[4].index,
+					 msg.queue_info[4].offset,
+					 msg.queue_info[4].size);
+	return gm20b_pmu_acr_init_wpr(pmu);
+}
+
 void
 gm20b_pmu_recv(struct nvkm_pmu *pmu)
 {
+	if (!pmu->initmsg_received) {
+		int ret = pmu->func->initmsg(pmu);
+		if (ret) {
+			nvkm_error(&pmu->subdev,
+				   "error parsing init message: %d\n", ret);
+			return;
+		}
+
+		pmu->initmsg_received = true;
+	}
+
 	if (!pmu->queue) {
 		nvkm_warn(&pmu->subdev,
 			  "recv function called while no firmware set!\n");
@@ -79,6 +150,7 @@ gm20b_pmu = {
 	.enabled = gf100_pmu_enabled,
 	.intr = gt215_pmu_intr,
 	.recv = gm20b_pmu_recv,
+	.initmsg = gm20b_pmu_initmsg,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)

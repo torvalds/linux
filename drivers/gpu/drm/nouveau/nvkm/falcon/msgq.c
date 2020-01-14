@@ -136,40 +136,27 @@ msgqueue_msg_handle(struct nvkm_falcon_msgq *msgq, struct nv_falcon_msg *hdr)
 	return 0;
 }
 
-static int
-msgqueue_handle_init_msg(struct nvkm_msgqueue *priv)
+int
+nvkm_falcon_msgq_recv_initmsg(struct nvkm_falcon_msgq *msgq,
+			      void *data, u32 size)
 {
-	struct nvkm_falcon *falcon = priv->falcon;
-	const struct nvkm_subdev *subdev = falcon->owner;
-	const u32 tail_reg = falcon->func->msgq.tail;
-	u8 msg_buffer[MSG_BUF_SIZE];
-	struct nvkm_msgqueue_hdr *hdr = (void *)msg_buffer;
-	u32 tail;
+	struct nvkm_falcon *falcon = msgq->qmgr->falcon;
+	struct nv_falcon_msg *hdr = data;
 	int ret;
 
-	/*
-	 * Read the message - queues are not initialized yet so we cannot rely
-	 * on msg_queue_read()
-	 */
-	tail = nvkm_falcon_rd32(falcon, tail_reg);
-	nvkm_falcon_read_dmem(falcon, tail, HDR_SIZE, 0, hdr);
+	msgq->head_reg = falcon->func->msgq.head;
+	msgq->tail_reg = falcon->func->msgq.tail;
+	msgq->offset = nvkm_falcon_rd32(falcon, falcon->func->msgq.tail);
 
-	if (hdr->size > MSG_BUF_SIZE) {
-		nvkm_error(subdev, "message too big (%d bytes)\n", hdr->size);
-		return -ENOSPC;
+	msg_queue_open(msgq);
+	ret = msg_queue_pop(msgq, data, size);
+	if (ret == 0 && hdr->size != size) {
+		FLCN_ERR(falcon, "unexpected init message size %d vs %d",
+			 hdr->size, size);
+		ret = -EINVAL;
 	}
-
-	nvkm_falcon_read_dmem(falcon, tail + HDR_SIZE, hdr->size - HDR_SIZE, 0,
-			      (hdr + 1));
-
-	tail += ALIGN(hdr->size, QUEUE_ALIGNMENT);
-	nvkm_falcon_wr32(falcon, tail_reg, tail);
-
-	ret = priv->func->init_func->init_callback(priv, hdr);
-	if (ret)
-		return ret;
-
-	return 0;
+	msg_queue_close(msgq, ret == 0);
+	return ret;
 }
 
 void
@@ -182,17 +169,9 @@ nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *priv,
 	 */
 	u8 msg_buffer[MSG_BUF_SIZE];
 	struct nv_falcon_msg *hdr = (void *)msg_buffer;
-	int ret;
 
-	/* the first message we receive must be the init message */
-	if ((!priv->init_msg_received)) {
-		ret = msgqueue_handle_init_msg(priv);
-		if (!ret)
-			priv->init_msg_received = true;
-	} else {
-		while (msg_queue_read(queue, hdr) > 0)
-			msgqueue_msg_handle(queue, hdr);
-	}
+	while (msg_queue_read(queue, hdr) > 0)
+		msgqueue_msg_handle(queue, hdr);
 }
 
 void

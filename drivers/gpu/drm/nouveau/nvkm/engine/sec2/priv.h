@@ -7,6 +7,7 @@ struct nvkm_sec2_func {
 	const struct nvkm_falcon_func *flcn;
 	u8 unit_acr;
 	void (*intr)(struct nvkm_sec2 *);
+	int (*initmsg)(struct nvkm_sec2 *);
 };
 
 void gp102_sec2_intr(struct nvkm_sec2 *);

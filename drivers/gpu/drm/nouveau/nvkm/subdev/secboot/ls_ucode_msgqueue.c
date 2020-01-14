@@ -85,8 +85,6 @@ acr_ls_msgqueue_post_run(struct nvkm_msgqueue *queue,
 	memset(buf, 0, sizeof(buf));
 	nvkm_msgqueue_write_cmdline(queue, buf);
 	nvkm_falcon_load_dmem(falcon, buf, addr_args, sizeof(buf), 0);
-	/* rearm the queue so it will wait for the init message */
-	nvkm_msgqueue_reinit(queue);
 
 	/* Enable interrupts */
 	nvkm_falcon_wr32(falcon, 0x10, 0xff);

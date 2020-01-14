@@ -68,6 +68,7 @@ gp10b_pmu = {
 	.enabled = gf100_pmu_enabled,
 	.intr = gt215_pmu_intr,
 	.recv = gm20b_pmu_recv,
+	.initmsg = gm20b_pmu_initmsg,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
