@@ -84,7 +84,7 @@ void update_vsyscall(struct timekeeper *tk)
 	struct vdso_timestamp *vdso_ts;
 	u64 nsec;
 
-	if (__arch_update_vdso_data()) {
+	if (!__arch_update_vdso_data()) {
 		/*
 		 * Some architectures might want to skip the update of the
 		 * data page.
