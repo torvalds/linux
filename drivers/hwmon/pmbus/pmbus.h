@@ -418,7 +418,8 @@ struct pmbus_driver_info {
 	 * the standard register.
 	 */
 	int (*read_byte_data)(struct i2c_client *client, int page, int reg);
-	int (*read_word_data)(struct i2c_client *client, int page, int reg);
+	int (*read_word_data)(struct i2c_client *client, int page, int phase,
+			      int reg);
 	int (*write_word_data)(struct i2c_client *client, int page, int reg,
 			       u16 word);
 	int (*write_byte)(struct i2c_client *client, int page, u8 value);
@@ -457,9 +458,11 @@ extern const struct regulator_ops pmbus_regulator_ops;
 /* Function declarations */
 
 void pmbus_clear_cache(struct i2c_client *client);
-int pmbus_set_page(struct i2c_client *client, int page);
-int pmbus_read_word_data(struct i2c_client *client, int page, u8 reg);
-int pmbus_write_word_data(struct i2c_client *client, int page, u8 reg, u16 word);
+int pmbus_set_page(struct i2c_client *client, int page, int phase);
+int pmbus_read_word_data(struct i2c_client *client, int page, int phase,
+			 u8 reg);
+int pmbus_write_word_data(struct i2c_client *client, int page, u8 reg,
+			  u16 word);
 int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg);
 int pmbus_write_byte(struct i2c_client *client, int page, u8 value);
 int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg,

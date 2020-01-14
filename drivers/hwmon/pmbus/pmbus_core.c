@@ -146,7 +146,7 @@ void pmbus_clear_cache(struct i2c_client *client)
 }
 EXPORT_SYMBOL_GPL(pmbus_clear_cache);
 
-int pmbus_set_page(struct i2c_client *client, int page)
+int pmbus_set_page(struct i2c_client *client, int page, int phase)
 {
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	int rv;
@@ -177,7 +177,7 @@ int pmbus_write_byte(struct i2c_client *client, int page, u8 value)
 {
 	int rv;
 
-	rv = pmbus_set_page(client, page);
+	rv = pmbus_set_page(client, page, 0xff);
 	if (rv < 0)
 		return rv;
 
@@ -208,7 +208,7 @@ int pmbus_write_word_data(struct i2c_client *client, int page, u8 reg,
 {
 	int rv;
 
-	rv = pmbus_set_page(client, page);
+	rv = pmbus_set_page(client, page, 0xff);
 	if (rv < 0)
 		return rv;
 
@@ -286,11 +286,11 @@ int pmbus_update_fan(struct i2c_client *client, int page, int id,
 }
 EXPORT_SYMBOL_GPL(pmbus_update_fan);
 
-int pmbus_read_word_data(struct i2c_client *client, int page, u8 reg)
+int pmbus_read_word_data(struct i2c_client *client, int page, int phase, u8 reg)
 {
 	int rv;
 
-	rv = pmbus_set_page(client, page);
+	rv = pmbus_set_page(client, page, phase);
 	if (rv < 0)
 		return rv;
 
@@ -320,14 +320,15 @@ static int pmbus_read_virt_reg(struct i2c_client *client, int page, int reg)
  * _pmbus_read_word_data() is similar to pmbus_read_word_data(), but checks if
  * a device specific mapping function exists and calls it if necessary.
  */
-static int _pmbus_read_word_data(struct i2c_client *client, int page, int reg)
+static int _pmbus_read_word_data(struct i2c_client *client, int page,
+				 int phase, int reg)
 {
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	const struct pmbus_driver_info *info = data->info;
 	int status;
 
 	if (info->read_word_data) {
-		status = info->read_word_data(client, page, reg);
+		status = info->read_word_data(client, page, phase, reg);
 		if (status != -ENODATA)
 			return status;
 	}
@@ -335,14 +336,20 @@ static int _pmbus_read_word_data(struct i2c_client *client, int page, int reg)
 	if (reg >= PMBUS_VIRT_BASE)
 		return pmbus_read_virt_reg(client, page, reg);
 
-	return pmbus_read_word_data(client, page, reg);
+	return pmbus_read_word_data(client, page, phase, reg);
+}
+
+/* Same as above, but without phase parameter, for use in check functions */
+static int __pmbus_read_word_data(struct i2c_client *client, int page, int reg)
+{
+	return _pmbus_read_word_data(client, page, 0xff, reg);
 }
 
 int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg)
 {
 	int rv;
 
-	rv = pmbus_set_page(client, page);
+	rv = pmbus_set_page(client, page, 0xff);
 	if (rv < 0)
 		return rv;
 
@@ -354,7 +361,7 @@ int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg, u8 value)
 {
 	int rv;
 
-	rv = pmbus_set_page(client, page);
+	rv = pmbus_set_page(client, page, 0xff);
 	if (rv < 0)
 		return rv;
 
@@ -440,7 +447,7 @@ static int pmbus_get_fan_rate(struct i2c_client *client, int page, int id,
 
 	have_rpm = !!(config & pmbus_fan_rpm_mask[id]);
 	if (want_rpm == have_rpm)
-		return pmbus_read_word_data(client, page,
+		return pmbus_read_word_data(client, page, 0xff,
 					    pmbus_fan_command_registers[id]);
 
 	/* Can't sensibly map between RPM and PWM, just return zero */
@@ -530,7 +537,7 @@ EXPORT_SYMBOL_GPL(pmbus_check_byte_register);
 
 bool pmbus_check_word_register(struct i2c_client *client, int page, int reg)
 {
-	return pmbus_check_register(client, _pmbus_read_word_data, page, reg);
+	return pmbus_check_register(client, __pmbus_read_word_data, page, reg);
 }
 EXPORT_SYMBOL_GPL(pmbus_check_word_register);
 
@@ -595,6 +602,7 @@ static struct pmbus_data *pmbus_update_device(struct device *dev)
 				sensor->data
 				    = _pmbus_read_word_data(client,
 							    sensor->page,
+							    0xff,
 							    sensor->reg);
 		}
 		pmbus_clear_faults(client);
@@ -1964,7 +1972,7 @@ static ssize_t pmbus_show_samples(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct pmbus_samples_reg *reg = to_samples_reg(devattr);
 
-	val = _pmbus_read_word_data(client, reg->page, reg->attr->reg);
+	val = _pmbus_read_word_data(client, reg->page, 0xff, reg->attr->reg);
 	if (val < 0)
 		return val;
 
@@ -2120,7 +2128,7 @@ static int pmbus_read_status_byte(struct i2c_client *client, int page)
 
 static int pmbus_read_status_word(struct i2c_client *client, int page)
 {
-	return _pmbus_read_word_data(client, page, PMBUS_STATUS_WORD);
+	return _pmbus_read_word_data(client, page, 0xff, PMBUS_STATUS_WORD);
 }
 
 static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,

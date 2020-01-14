@@ -21,37 +21,42 @@
 #define IR35221_MFR_IOUT_VALLEY		0xcb
 #define IR35221_MFR_TEMP_VALLEY		0xcc
 
-static int ir35221_read_word_data(struct i2c_client *client, int page, int reg)
+static int ir35221_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	int ret;
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_VIN_MAX:
-		ret = pmbus_read_word_data(client, page, IR35221_MFR_VIN_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   IR35221_MFR_VIN_PEAK);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MAX:
-		ret = pmbus_read_word_data(client, page, IR35221_MFR_VOUT_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   IR35221_MFR_VOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MAX:
-		ret = pmbus_read_word_data(client, page, IR35221_MFR_IOUT_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   IR35221_MFR_IOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_TEMP_MAX:
-		ret = pmbus_read_word_data(client, page, IR35221_MFR_TEMP_PEAK);
+		ret = pmbus_read_word_data(client, page, phase,
+					   IR35221_MFR_TEMP_PEAK);
 		break;
 	case PMBUS_VIRT_READ_VIN_MIN:
-		ret = pmbus_read_word_data(client, page,
+		ret = pmbus_read_word_data(client, page, phase,
 					   IR35221_MFR_VIN_VALLEY);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MIN:
-		ret = pmbus_read_word_data(client, page,
+		ret = pmbus_read_word_data(client, page, phase,
 					   IR35221_MFR_VOUT_VALLEY);
 		break;
 	case PMBUS_VIRT_READ_IOUT_MIN:
-		ret = pmbus_read_word_data(client, page,
+		ret = pmbus_read_word_data(client, page, phase,
 					   IR35221_MFR_IOUT_VALLEY);
 		break;
 	case PMBUS_VIRT_READ_TEMP_MIN:
-		ret = pmbus_read_word_data(client, page,
+		ret = pmbus_read_word_data(client, page, phase,
 					   IR35221_MFR_TEMP_VALLEY);
 		break;
 	default:

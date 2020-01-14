@@ -173,7 +173,8 @@ static int ltc_wait_ready(struct i2c_client *client)
 	return -ETIMEDOUT;
 }
 
-static int ltc_read_word_data(struct i2c_client *client, int page, int reg)
+static int ltc_read_word_data(struct i2c_client *client, int page, int phase,
+			      int reg)
 {
 	int ret;
 
@@ -181,7 +182,7 @@ static int ltc_read_word_data(struct i2c_client *client, int page, int reg)
 	if (ret < 0)
 		return ret;
 
-	return pmbus_read_word_data(client, page, reg);
+	return pmbus_read_word_data(client, page, 0xff, reg);
 }
 
 static int ltc_read_byte_data(struct i2c_client *client, int page, int reg)
@@ -224,7 +225,7 @@ static int ltc_get_max(struct ltc2978_data *data, struct i2c_client *client,
 {
 	int ret;
 
-	ret = ltc_read_word_data(client, page, reg);
+	ret = ltc_read_word_data(client, page, 0xff, reg);
 	if (ret >= 0) {
 		if (lin11_to_val(ret) > lin11_to_val(*pmax))
 			*pmax = ret;
@@ -238,7 +239,7 @@ static int ltc_get_min(struct ltc2978_data *data, struct i2c_client *client,
 {
 	int ret;
 
-	ret = ltc_read_word_data(client, page, reg);
+	ret = ltc_read_word_data(client, page, 0xff, reg);
 	if (ret >= 0) {
 		if (lin11_to_val(ret) < lin11_to_val(*pmin))
 			*pmin = ret;
@@ -260,7 +261,8 @@ static int ltc2978_read_word_data_common(struct i2c_client *client, int page,
 				  &data->vin_max);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MAX:
-		ret = ltc_read_word_data(client, page, LTC2978_MFR_VOUT_PEAK);
+		ret = ltc_read_word_data(client, page, 0xff,
+					 LTC2978_MFR_VOUT_PEAK);
 		if (ret >= 0) {
 			/*
 			 * VOUT is 16 bit unsigned with fixed exponent,
@@ -291,7 +293,8 @@ static int ltc2978_read_word_data_common(struct i2c_client *client, int page,
 	return ret;
 }
 
-static int ltc2978_read_word_data(struct i2c_client *client, int page, int reg)
+static int ltc2978_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	struct ltc2978_data *data = to_ltc2978_data(info);
@@ -303,7 +306,8 @@ static int ltc2978_read_word_data(struct i2c_client *client, int page, int reg)
 				  &data->vin_min);
 		break;
 	case PMBUS_VIRT_READ_VOUT_MIN:
-		ret = ltc_read_word_data(client, page, LTC2978_MFR_VOUT_MIN);
+		ret = ltc_read_word_data(client, page, phase,
+					 LTC2978_MFR_VOUT_MIN);
 		if (ret >= 0) {
 			/*
 			 * VOUT_MIN is known to not be supported on some lots
@@ -336,7 +340,8 @@ static int ltc2978_read_word_data(struct i2c_client *client, int page, int reg)
 	return ret;
 }
 
-static int ltc2974_read_word_data(struct i2c_client *client, int page, int reg)
+static int ltc2974_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	struct ltc2978_data *data = to_ltc2978_data(info);
@@ -355,13 +360,14 @@ static int ltc2974_read_word_data(struct i2c_client *client, int page, int reg)
 		ret = 0;
 		break;
 	default:
-		ret = ltc2978_read_word_data(client, page, reg);
+		ret = ltc2978_read_word_data(client, page, phase, reg);
 		break;
 	}
 	return ret;
 }
 
-static int ltc2975_read_word_data(struct i2c_client *client, int page, int reg)
+static int ltc2975_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	struct ltc2978_data *data = to_ltc2978_data(info);
@@ -389,13 +395,14 @@ static int ltc2975_read_word_data(struct i2c_client *client, int page, int reg)
 		ret = 0;
 		break;
 	default:
-		ret = ltc2978_read_word_data(client, page, reg);
+		ret = ltc2978_read_word_data(client, page, phase, reg);
 		break;
 	}
 	return ret;
 }
 
-static int ltc3880_read_word_data(struct i2c_client *client, int page, int reg)
+static int ltc3880_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	struct ltc2978_data *data = to_ltc2978_data(info);
@@ -427,7 +434,8 @@ static int ltc3880_read_word_data(struct i2c_client *client, int page, int reg)
 	return ret;
 }
 
-static int ltc3883_read_word_data(struct i2c_client *client, int page, int reg)
+static int ltc3883_read_word_data(struct i2c_client *client, int page,
+				  int phase, int reg)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	struct ltc2978_data *data = to_ltc2978_data(info);
@@ -442,7 +450,7 @@ static int ltc3883_read_word_data(struct i2c_client *client, int page, int reg)
 		ret = 0;
 		break;
 	default:
-		ret = ltc3880_read_word_data(client, page, reg);
+		ret = ltc3880_read_word_data(client, page, phase, reg);
 		break;
 	}
 	return ret;

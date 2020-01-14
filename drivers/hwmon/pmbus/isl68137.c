@@ -49,7 +49,8 @@ static ssize_t isl68137_avs_enable_store_page(struct i2c_client *client,
 	 * enabling AVS control is the workaround.
 	 */
 	if (op_val == ISL68137_VOUT_AVS) {
-		rc = pmbus_read_word_data(client, page, PMBUS_VOUT_COMMAND);
+		rc = pmbus_read_word_data(client, page, 0xff,
+					  PMBUS_VOUT_COMMAND);
 		if (rc < 0)
 			return rc;
 
