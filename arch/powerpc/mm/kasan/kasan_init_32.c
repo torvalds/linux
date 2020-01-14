@@ -34,17 +34,17 @@ static int __init kasan_init_shadow_page_tables(unsigned long k_start, unsigned 
 {
 	pmd_t *pmd;
 	unsigned long k_cur, k_next;
+	pte_t *new = NULL;
 
 	pmd = pmd_offset(pud_offset(pgd_offset_k(k_start), k_start), k_start);
 
 	for (k_cur = k_start; k_cur != k_end; k_cur = k_next, pmd++) {
-		pte_t *new;
-
 		k_next = pgd_addr_end(k_cur, k_end);
 		if ((void *)pmd_page_vaddr(*pmd) != kasan_early_shadow_pte)
 			continue;
 
-		new = memblock_alloc(PTE_FRAG_SIZE, PTE_FRAG_SIZE);
+		if (!new)
+			new = memblock_alloc(PTE_FRAG_SIZE, PTE_FRAG_SIZE);
 
 		if (!new)
 			return -ENOMEM;
