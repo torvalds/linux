@@ -93,6 +93,12 @@ struct nvkm_falcon_func {
 	int (*enable)(struct nvkm_falcon *falcon);
 	void (*disable)(struct nvkm_falcon *falcon);
 
+	struct {
+		u32 head;
+		u32 tail;
+		u32 stride;
+	} cmdq, msgq;
+
 	struct nvkm_sclass sclass[];
 };
 

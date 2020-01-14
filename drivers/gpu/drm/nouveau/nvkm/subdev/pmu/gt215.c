@@ -255,6 +255,8 @@ gt215_pmu_flcn = {
 	.start = nvkm_falcon_v1_start,
 	.enable = nvkm_falcon_v1_enable,
 	.disable = nvkm_falcon_v1_disable,
+	.cmdq = { 0x4a0, 0x4b0, 4 },
+	.msgq = { 0x4c8, 0x4cc, 0 },
 };
 
 static const struct nvkm_pmu_func

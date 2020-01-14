@@ -384,26 +384,9 @@ msgqueue_handle_init_msg(struct nvkm_msgqueue *priv,
 {
 	struct nvkm_falcon *falcon = priv->falcon;
 	const struct nvkm_subdev *subdev = falcon->owner;
+	const u32 tail_reg = falcon->func->msgq.tail;
 	u32 tail;
-	u32 tail_reg;
 	int ret;
-
-	/*
-	 * Of course the message queue registers vary depending on the falcon
-	 * used...
-	 */
-	switch (falcon->owner->index) {
-	case NVKM_SUBDEV_PMU:
-		tail_reg = 0x4cc;
-		break;
-	case NVKM_ENGINE_SEC2:
-		tail_reg = 0xa34;
-		break;
-	default:
-		nvkm_error(subdev, "falcon %s unsupported for msgqueue!\n",
-			   nvkm_subdev_name[falcon->owner->index]);
-		return -EINVAL;
-	}
 
 	/*
 	 * Read the message - queues are not initialized yet so we cannot rely

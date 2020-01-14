@@ -105,6 +105,7 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 		u16 sw_managed_area_offset;
 		u16 sw_managed_area_size;
 	} *init = (void *)hdr;
+	const struct nvkm_falcon_func *func = _queue->falcon->func;
 	const struct nvkm_subdev *subdev = _queue->falcon->owner;
 	int i;
 
@@ -129,11 +130,15 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 		queue->size = init->queue_info[i].size;
 
 		if (id == MSGQUEUE_0148CDEC_MESSAGE_QUEUE) {
-			queue->head_reg = 0xa30 + (queue->index * 8);
-			queue->tail_reg = 0xa34 + (queue->index * 8);
+			queue->head_reg = func->msgq.head + queue->index *
+					  func->msgq.stride;
+			queue->tail_reg = func->msgq.tail + queue->index *
+					  func->msgq.stride;
 		} else {
-			queue->head_reg = 0xa00 + (queue->index * 8);
-			queue->tail_reg = 0xa04 + (queue->index * 8);
+			queue->head_reg = func->cmdq.head + queue->index *
+					  func->cmdq.stride;
+			queue->tail_reg = func->cmdq.tail + queue->index *
+					  func->cmdq.stride;
 		}
 
 		nvkm_debug(subdev,

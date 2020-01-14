@@ -101,6 +101,8 @@ gp102_sec2_flcn = {
 	.start = nvkm_falcon_v1_start,
 	.enable = nvkm_falcon_v1_enable,
 	.disable = nvkm_falcon_v1_disable,
+	.cmdq = { 0xa00, 0xa04, 8 },
+	.msgq = { 0xa30, 0xa34, 8 },
 };
 
 const struct nvkm_sec2_func

@@ -36,6 +36,8 @@ tu102_sec2_flcn = {
 	.start = nvkm_falcon_v1_start,
 	.enable = nvkm_falcon_v1_enable,
 	.disable = nvkm_falcon_v1_disable,
+	.cmdq = { 0xc00, 0xc04, 8 },
+	.msgq = { 0xc80, 0xc84, 8 },
 };
 
 static const struct nvkm_sec2_func
