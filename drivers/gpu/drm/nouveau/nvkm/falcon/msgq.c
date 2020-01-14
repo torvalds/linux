@@ -23,18 +23,16 @@
 #include "qmgr.h"
 
 static void
-msg_queue_open(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue)
+msg_queue_open(struct nvkm_msgqueue_queue *queue)
 {
-	struct nvkm_falcon *falcon = priv->falcon;
 	mutex_lock(&queue->mutex);
-	queue->position = nvkm_falcon_rd32(falcon, queue->tail_reg);
+	queue->position = nvkm_falcon_rd32(queue->qmgr->falcon, queue->tail_reg);
 }
 
 static void
-msg_queue_close(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
-		bool commit)
+msg_queue_close(struct nvkm_msgqueue_queue *queue, bool commit)
 {
-	struct nvkm_falcon *falcon = priv->falcon;
+	struct nvkm_falcon *falcon = queue->qmgr->falcon;
 
 	if (commit)
 		nvkm_falcon_wr32(falcon, queue->tail_reg, queue->position);
@@ -43,19 +41,17 @@ msg_queue_close(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 }
 
 static bool
-msg_queue_empty(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue)
+msg_queue_empty(struct nvkm_msgqueue_queue *queue)
 {
-	struct nvkm_falcon *falcon = priv->falcon;
-	u32 head = nvkm_falcon_rd32(falcon, queue->head_reg);
-	u32 tail = nvkm_falcon_rd32(falcon, queue->tail_reg);
+	u32 head = nvkm_falcon_rd32(queue->qmgr->falcon, queue->head_reg);
+	u32 tail = nvkm_falcon_rd32(queue->qmgr->falcon, queue->tail_reg);
 	return head == tail;
 }
 
 static int
-msg_queue_pop(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
-	      void *data, u32 size)
+msg_queue_pop(struct nvkm_msgqueue_queue *queue, void *data, u32 size)
 {
-	struct nvkm_falcon *falcon = priv->falcon;
+	struct nvkm_falcon *falcon = queue->qmgr->falcon;
 	u32 head, tail, available;
 
 	head = nvkm_falcon_rd32(falcon, queue->head_reg);
@@ -72,23 +68,22 @@ msg_queue_pop(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 		return -EINVAL;
 	}
 
-	nvkm_falcon_read_dmem(priv->falcon, tail, size, 0, data);
+	nvkm_falcon_read_dmem(falcon, tail, size, 0, data);
 	queue->position += ALIGN(size, QUEUE_ALIGNMENT);
 	return 0;
 }
 
 static int
-msg_queue_read(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
-	       struct nv_falcon_msg *hdr)
+msg_queue_read(struct nvkm_msgqueue_queue *queue, struct nv_falcon_msg *hdr)
 {
 	int ret = 0;
 
-	msg_queue_open(priv, queue);
+	msg_queue_open(queue);
 
-	if (msg_queue_empty(priv, queue))
+	if (msg_queue_empty(queue))
 		goto close;
 
-	ret = msg_queue_pop(priv, queue, hdr, HDR_SIZE);
+	ret = msg_queue_pop(queue, hdr, HDR_SIZE);
 	if (ret) {
 		FLCNQ_ERR(queue, "failed to read message header");
 		goto close;
@@ -103,7 +98,7 @@ msg_queue_read(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	if (hdr->size > HDR_SIZE) {
 		u32 read_size = hdr->size - HDR_SIZE;
 
-		ret = msg_queue_pop(priv, queue, (hdr + 1), read_size);
+		ret = msg_queue_pop(queue, (hdr + 1), read_size);
 		if (ret) {
 			FLCNQ_ERR(queue, "failed to read message data");
 			goto close;
@@ -112,14 +107,12 @@ msg_queue_read(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 
 	ret = 1;
 close:
-	msg_queue_close(priv, queue, (ret >= 0));
+	msg_queue_close(queue, (ret >= 0));
 	return ret;
 }
 
 static int
-msgqueue_msg_handle(struct nvkm_msgqueue *priv,
-		    struct nvkm_falcon_msgq *msgq,
-		    struct nv_falcon_msg *hdr)
+msgqueue_msg_handle(struct nvkm_falcon_msgq *msgq, struct nv_falcon_msg *hdr)
 {
 	struct nvkm_falcon_qmgr_seq *seq;
 
@@ -197,8 +190,8 @@ nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *priv,
 		if (!ret)
 			priv->init_msg_received = true;
 	} else {
-		while (msg_queue_read(priv, queue, hdr) > 0)
-			msgqueue_msg_handle(priv, queue, hdr);
+		while (msg_queue_read(queue, hdr) > 0)
+			msgqueue_msg_handle(queue, hdr);
 	}
 }
 
