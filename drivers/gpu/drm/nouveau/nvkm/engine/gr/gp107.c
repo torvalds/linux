@@ -26,7 +26,7 @@
 
 #include <nvif/class.h>
 
-static const struct gf100_gr_func
+const struct gf100_gr_func
 gp107_gr = {
 	.oneinit_tiles = gm200_gr_oneinit_tiles,
 	.oneinit_sm_id = gm200_gr_oneinit_sm_id,

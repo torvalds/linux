@@ -245,6 +245,8 @@ void gp100_gr_zbc_clear_depth(struct gf100_gr *, int);
 void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 extern const struct gf100_gr_func_zbc gp102_gr_zbc;
 
+extern const struct gf100_gr_func gp107_gr;
+
 int gk20a_gr_load_sw(struct gf100_gr *, const char *path, int ver);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
