@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
-#ifndef __NVKM_FALCON_H__
-#define __NVKM_FALCON_H__
+#ifndef __NVKM_FLCNEN_H__
+#define __NVKM_FLCNEN_H__
 #define nvkm_falcon(p) container_of((p), struct nvkm_falcon, engine)
 #include <core/engine.h>
 struct nvkm_fifo_chan;
@@ -124,5 +124,4 @@ int nvkm_falcon_clear_interrupt(struct nvkm_falcon *, u32);
 int nvkm_falcon_enable(struct nvkm_falcon *);
 void nvkm_falcon_disable(struct nvkm_falcon *);
 int nvkm_falcon_reset(struct nvkm_falcon *);
-
 #endif

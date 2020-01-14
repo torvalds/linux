@@ -226,6 +226,11 @@ nvkm_falcon_get(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 }
 
 void
+nvkm_falcon_dtor(struct nvkm_falcon *falcon)
+{
+}
+
+int
 nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 		 struct nvkm_subdev *subdev, const char *name, u32 addr,
 		 struct nvkm_falcon *falcon)
@@ -236,12 +241,14 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 	falcon->addr = addr;
 	mutex_init(&falcon->mutex);
 	mutex_init(&falcon->dmem_mutex);
+	return 0;
 }
 
 void
 nvkm_falcon_del(struct nvkm_falcon **pfalcon)
 {
 	if (*pfalcon) {
+		nvkm_falcon_dtor(*pfalcon);
 		kfree(*pfalcon);
 		*pfalcon = NULL;
 	}

@@ -25,7 +25,7 @@
 #include <core/memory.h>
 #include <subdev/timer.h>
 
-static void
+void
 nvkm_falcon_v1_load_imem(struct nvkm_falcon *falcon, void *data, u32 start,
 			 u32 size, u16 tag, u8 port, bool secure)
 {
@@ -91,9 +91,9 @@ nvkm_falcon_v1_load_emem(struct nvkm_falcon *falcon, void *data, u32 start,
 
 static const u32 EMEM_START_ADDR = 0x1000000;
 
-static void
+void
 nvkm_falcon_v1_load_dmem(struct nvkm_falcon *falcon, void *data, u32 start,
-		      u32 size, u8 port)
+			 u32 size, u8 port)
 {
 	u8 rem = size % 4;
 	int i;
@@ -148,7 +148,7 @@ nvkm_falcon_v1_read_emem(struct nvkm_falcon *falcon, u32 start, u32 size,
 	}
 }
 
-static void
+void
 nvkm_falcon_v1_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size,
 			 u8 port, void *data)
 {
@@ -179,7 +179,7 @@ nvkm_falcon_v1_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size,
 	}
 }
 
-static void
+void
 nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_memory *ctx)
 {
 	struct nvkm_device *device = falcon->owner->device;
@@ -271,13 +271,13 @@ nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_memory *ctx)
 	}
 }
 
-static void
+void
 nvkm_falcon_v1_set_start_addr(struct nvkm_falcon *falcon, u32 start_addr)
 {
 	nvkm_falcon_wr32(falcon, 0x104, start_addr);
 }
 
-static void
+void
 nvkm_falcon_v1_start(struct nvkm_falcon *falcon)
 {
 	u32 reg = nvkm_falcon_rd32(falcon, 0x100);
@@ -288,7 +288,7 @@ nvkm_falcon_v1_start(struct nvkm_falcon *falcon)
 		nvkm_falcon_wr32(falcon, 0x100, 0x2);
 }
 
-static int
+int
 nvkm_falcon_v1_wait_for_halt(struct nvkm_falcon *falcon, u32 ms)
 {
 	struct nvkm_device *device = falcon->owner->device;
@@ -301,7 +301,7 @@ nvkm_falcon_v1_wait_for_halt(struct nvkm_falcon *falcon, u32 ms)
 	return 0;
 }
 
-static int
+int
 nvkm_falcon_v1_clear_interrupt(struct nvkm_falcon *falcon, u32 mask)
 {
 	struct nvkm_device *device = falcon->owner->device;
@@ -330,7 +330,7 @@ falcon_v1_wait_idle(struct nvkm_falcon *falcon)
 	return 0;
 }
 
-static int
+int
 nvkm_falcon_v1_enable(struct nvkm_falcon *falcon)
 {
 	struct nvkm_device *device = falcon->owner->device;
@@ -352,7 +352,7 @@ nvkm_falcon_v1_enable(struct nvkm_falcon *falcon)
 	return 0;
 }
 
-static void
+void
 nvkm_falcon_v1_disable(struct nvkm_falcon *falcon)
 {
 	/* disable IRQs and wait for any previous code to complete */
