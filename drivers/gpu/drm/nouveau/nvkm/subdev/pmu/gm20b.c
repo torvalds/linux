@@ -20,11 +20,45 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+
 #include <core/msgqueue.h>
 #include <subdev/acr.h>
 
+#include <nvfw/pmu.h>
+
+static int
+gm20b_pmu_acr_bootstrap_falcon_cb(void *priv, struct nv_falcon_msg *hdr)
+{
+	struct nv_pmu_acr_bootstrap_falcon_msg *msg =
+		container_of(hdr, typeof(*msg), msg.hdr);
+	return msg->falcon_id;
+}
+
+int
+gm20b_pmu_acr_bootstrap_falcon(struct nvkm_falcon *falcon,
+			       enum nvkm_acr_lsf_id id)
+{
+	struct nvkm_pmu *pmu = container_of(falcon, typeof(*pmu), falcon);
+	struct nv_pmu_acr_bootstrap_falcon_cmd cmd = {
+		.cmd.hdr.unit_id = NV_PMU_UNIT_ACR,
+		.cmd.hdr.size = sizeof(cmd),
+		.cmd.cmd_type = NV_PMU_ACR_CMD_BOOTSTRAP_FALCON,
+		.flags = NV_PMU_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_YES,
+		.falcon_id = id,
+	};
+	int ret;
+
+	ret = nvkm_falcon_cmdq_send(pmu->hpq, &cmd.cmd.hdr,
+				    gm20b_pmu_acr_bootstrap_falcon_cb,
+				    &pmu->subdev, msecs_to_jiffies(1000));
+	if (ret >= 0 && ret != cmd.falcon_id)
+		ret = -EIO;
+	return ret;
+}
+
 static const struct nvkm_acr_lsf_func
 gm20b_pmu_acr = {
+	.bootstrap_falcon = gm20b_pmu_acr_bootstrap_falcon,
 };
 
 void

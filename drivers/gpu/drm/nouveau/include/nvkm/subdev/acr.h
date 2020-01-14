@@ -13,14 +13,33 @@ enum nvkm_acr_lsf_id {
 	NVKM_ACR_LSF_NVDEC = 4,
 	NVKM_ACR_LSF_SEC2 = 7,
 	NVKM_ACR_LSF_MINION = 10,
+	NVKM_ACR_LSF_NUM
 };
+
+static inline const char *
+nvkm_acr_lsf_id(enum nvkm_acr_lsf_id id)
+{
+	switch (id) {
+	case NVKM_ACR_LSF_PMU    : return "pmu";
+	case NVKM_ACR_LSF_GSPLITE: return "gsplite";
+	case NVKM_ACR_LSF_FECS   : return "fecs";
+	case NVKM_ACR_LSF_GPCCS  : return "gpccs";
+	case NVKM_ACR_LSF_NVDEC  : return "nvdec";
+	case NVKM_ACR_LSF_SEC2   : return "sec2";
+	case NVKM_ACR_LSF_MINION : return "minion";
+	default:
+		return "unknown";
+	}
+}
 
 struct nvkm_acr {
 	const struct nvkm_acr_func *func;
 	struct nvkm_subdev subdev;
 
-	struct list_head lsfw;
+	struct list_head lsfw, lsf;
 };
+
+int nvkm_acr_bootstrap_falcons(struct nvkm_device *, unsigned long mask);
 
 int gm200_acr_new(struct nvkm_device *, int, struct nvkm_acr **);
 int gm20b_acr_new(struct nvkm_device *, int, struct nvkm_acr **);
@@ -55,6 +74,8 @@ struct nvkm_acr_lsfw {
 };
 
 struct nvkm_acr_lsf_func {
+	int (*bootstrap_falcon)(struct nvkm_falcon *, enum nvkm_acr_lsf_id);
+	int (*bootstrap_multiple_falcons)(struct nvkm_falcon *, u32 mask);
 };
 
 int

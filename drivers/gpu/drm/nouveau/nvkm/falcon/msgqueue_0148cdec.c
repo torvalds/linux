@@ -130,81 +130,6 @@ msgqueue_0148cdec_init_func = {
 };
 
 
-
-/* ACR unit */
-#define MSGQUEUE_0148CDEC_UNIT_ACR 0x08
-
-enum {
-	ACR_CMD_BOOTSTRAP_FALCON = 0x00,
-};
-
-static int
-acr_boot_falcon_callback(void *priv, struct nv_falcon_msg *hdr)
-{
-	struct acr_bootstrap_falcon_msg {
-		struct nv_falcon_msg base;
-		u8 msg_type;
-		u32 error_code;
-		u32 falcon_id;
-	} *msg = (void *)hdr;
-	const struct nvkm_subdev *subdev = priv;
-	u32 falcon_id = msg->falcon_id;
-
-	if (msg->error_code) {
-		nvkm_error(subdev, "in bootstrap falcon callback:\n");
-		nvkm_error(subdev, "expected error code 0x%x\n",
-			   msg->error_code);
-		return -EINVAL;
-	}
-
-	if (falcon_id >= NVKM_SECBOOT_FALCON_END) {
-		nvkm_error(subdev, "in bootstrap falcon callback:\n");
-		nvkm_error(subdev, "invalid falcon ID 0x%x\n", falcon_id);
-		return -EINVAL;
-	}
-
-	nvkm_debug(subdev, "%s booted\n", nvkm_secboot_falcon_name[falcon_id]);
-	return 0;
-}
-
-enum {
-	ACR_CMD_BOOTSTRAP_FALCON_FLAGS_RESET_YES = 0,
-	ACR_CMD_BOOTSTRAP_FALCON_FLAGS_RESET_NO = 1,
-};
-
-static int
-acr_boot_falcon(struct nvkm_msgqueue *priv, enum nvkm_secboot_falcon falcon)
-{
-	struct nvkm_sec2 *sec2 = priv->falcon->owner->device->sec2;
-	/*
-	 * flags      - Flag specifying RESET or no RESET.
-	 * falcon id  - Falcon id specifying falcon to bootstrap.
-	 */
-	struct {
-		struct nv_falcon_cmd hdr;
-		u8 cmd_type;
-		u32 flags;
-		u32 falcon_id;
-	} cmd;
-
-	memset(&cmd, 0, sizeof(cmd));
-
-	cmd.hdr.unit_id = MSGQUEUE_0148CDEC_UNIT_ACR;
-	cmd.hdr.size = sizeof(cmd);
-	cmd.cmd_type = ACR_CMD_BOOTSTRAP_FALCON;
-	cmd.flags = ACR_CMD_BOOTSTRAP_FALCON_FLAGS_RESET_YES;
-	cmd.falcon_id = falcon;
-	return nvkm_falcon_cmdq_send(sec2->cmdq, &cmd.hdr,
-				     acr_boot_falcon_callback,
-				     &sec2->engine.subdev,
-				     msecs_to_jiffies(1000));
-}
-
-const struct nvkm_msgqueue_acr_func
-msgqueue_0148cdec_acr_func = {
-	.boot_falcon = acr_boot_falcon,
-};
-
 static void
 msgqueue_0148cdec_dtor(struct nvkm_msgqueue *queue)
 {
@@ -214,7 +139,6 @@ msgqueue_0148cdec_dtor(struct nvkm_msgqueue *queue)
 const struct nvkm_msgqueue_func
 msgqueue_0148cdec_func = {
 	.init_func = &msgqueue_0148cdec_init_func,
-	.acr_func = &msgqueue_0148cdec_acr_func,
 	.recv = msgqueue_0148cdec_process_msgs,
 	.dtor = msgqueue_0148cdec_dtor,
 };

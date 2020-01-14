@@ -20,11 +20,53 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+
 #include <subdev/acr.h>
 #include <subdev/timer.h>
 
+#include <nvfw/sec2.h>
+
+static int
+gp102_sec2_acr_bootstrap_falcon_callback(void *priv, struct nv_falcon_msg *hdr)
+{
+	struct nv_sec2_acr_bootstrap_falcon_msg *msg =
+		container_of(hdr, typeof(*msg), msg.hdr);
+	struct nvkm_subdev *subdev = priv;
+	const char *name = nvkm_acr_lsf_id(msg->falcon_id);
+
+	if (msg->error_code) {
+		nvkm_error(subdev, "ACR_BOOTSTRAP_FALCON failed for "
+				   "falcon %d [%s]: %08x\n",
+			   msg->falcon_id, name, msg->error_code);
+		return -EINVAL;
+	}
+
+	nvkm_debug(subdev, "%s booted\n", name);
+	return 0;
+}
+
+static int
+gp102_sec2_acr_bootstrap_falcon(struct nvkm_falcon *falcon,
+			        enum nvkm_acr_lsf_id id)
+{
+	struct nvkm_sec2 *sec2 = container_of(falcon, typeof(*sec2), falcon);
+	struct nv_sec2_acr_bootstrap_falcon_cmd cmd = {
+		.cmd.hdr.unit_id = sec2->func->unit_acr,
+		.cmd.hdr.size = sizeof(cmd),
+		.cmd.cmd_type = NV_SEC2_ACR_CMD_BOOTSTRAP_FALCON,
+		.flags = NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_YES,
+		.falcon_id = id,
+	};
+
+	return nvkm_falcon_cmdq_send(sec2->cmdq, &cmd.cmd.hdr,
+				     gp102_sec2_acr_bootstrap_falcon_callback,
+				     &sec2->engine.subdev,
+				     msecs_to_jiffies(1000));
+}
+
 static const struct nvkm_acr_lsf_func
 gp102_sec2_acr_0 = {
+	.bootstrap_falcon = gp102_sec2_acr_bootstrap_falcon,
 };
 
 void
@@ -117,6 +159,7 @@ gp102_sec2_flcn = {
 const struct nvkm_sec2_func
 gp102_sec2 = {
 	.flcn = &gp102_sec2_flcn,
+	.unit_acr = NV_SEC2_UNIT_ACR,
 	.intr = gp102_sec2_intr,
 };
 
@@ -135,6 +178,7 @@ MODULE_FIRMWARE("nvidia/gp107/sec2/sig.bin");
 
 const struct nvkm_acr_lsf_func
 gp102_sec2_acr_1 = {
+	.bootstrap_falcon = gp102_sec2_acr_bootstrap_falcon,
 };
 
 int

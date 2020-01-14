@@ -23,19 +23,90 @@
 
 #include <core/firmware.h>
 
+static struct nvkm_acr_lsf *
+nvkm_acr_falcon(struct nvkm_device *device)
+{
+	struct nvkm_acr *acr = device->acr;
+	struct nvkm_acr_lsf *lsf;
+
+	if (acr) {
+		list_for_each_entry(lsf, &acr->lsf, head) {
+			if (lsf->func->bootstrap_falcon)
+				return lsf;
+		}
+	}
+
+	return NULL;
+}
+
+int
+nvkm_acr_bootstrap_falcons(struct nvkm_device *device, unsigned long mask)
+{
+	struct nvkm_acr_lsf *acrflcn = nvkm_acr_falcon(device);
+	unsigned long id;
+
+	if (!acrflcn)
+		return -ENOSYS;
+
+	if (acrflcn->func->bootstrap_multiple_falcons) {
+		return acrflcn->func->
+			bootstrap_multiple_falcons(acrflcn->falcon, mask);
+	}
+
+	for_each_set_bit(id, &mask, NVKM_ACR_LSF_NUM) {
+		int ret = acrflcn->func->bootstrap_falcon(acrflcn->falcon, id);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void
+nvkm_acr_cleanup(struct nvkm_acr *acr)
+{
+	nvkm_acr_lsfw_del_all(acr);
+}
+
+static int
+nvkm_acr_oneinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_acr *acr = nvkm_acr(subdev);
+	struct nvkm_acr_lsfw *lsfw;
+	struct nvkm_acr_lsf *lsf;
+
+	list_for_each_entry(lsfw, &acr->lsfw, head) {
+		if (!(lsf = kmalloc(sizeof(*lsf), GFP_KERNEL)))
+			return -ENOMEM;
+		lsf->func = lsfw->func;
+		lsf->falcon = lsfw->falcon;
+		lsf->id = lsfw->id;
+		list_add_tail(&lsf->head, &acr->lsf);
+	}
+
+	nvkm_acr_cleanup(acr);
+	return 0;
+}
+
 static void *
 nvkm_acr_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_acr *acr = nvkm_acr(subdev);
+	struct nvkm_acr_lsf *lsf, *lst;
 
-	nvkm_acr_lsfw_del_all(acr);
+	list_for_each_entry_safe(lsf, lst, &acr->lsf, head) {
+		list_del(&lsf->head);
+		kfree(lsf);
+	}
 
+	nvkm_acr_cleanup(acr);
 	return acr;
 }
 
 static const struct nvkm_subdev_func
 nvkm_acr = {
 	.dtor = nvkm_acr_dtor,
+	.oneinit = nvkm_acr_oneinit,
 };
 
 int
@@ -48,6 +119,7 @@ nvkm_acr_new_(const struct nvkm_acr_fwif *fwif, struct nvkm_device *device,
 		return -ENOMEM;
 	nvkm_subdev_ctor(&nvkm_acr, device, index, &acr->subdev);
 	INIT_LIST_HEAD(&acr->lsfw);
+	INIT_LIST_HEAD(&acr->lsf);
 
 	fwif = nvkm_firmware_load(&acr->subdev, fwif, "Acr", acr);
 	if (IS_ERR(fwif))

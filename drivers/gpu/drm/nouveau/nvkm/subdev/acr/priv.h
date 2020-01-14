@@ -18,6 +18,13 @@ struct nvkm_acr_func {
 int nvkm_acr_new_(const struct nvkm_acr_fwif *, struct nvkm_device *, int,
 		  struct nvkm_acr **);
 
+struct nvkm_acr_lsf {
+	const struct nvkm_acr_lsf_func *func;
+	struct nvkm_falcon *falcon;
+	enum nvkm_acr_lsf_id id;
+	struct list_head head;
+};
+
 struct nvkm_acr_lsfw *nvkm_acr_lsfw_add(const struct nvkm_acr_lsf_func *,
 					struct nvkm_acr *, struct nvkm_falcon *,
 					enum nvkm_acr_lsf_id);

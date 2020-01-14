@@ -20,10 +20,46 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+
 #include <subdev/acr.h>
+
+#include <nvfw/pmu.h>
+
+static int
+gp10b_pmu_acr_bootstrap_multiple_falcons_cb(void *priv,
+					    struct nv_falcon_msg *hdr)
+{
+	struct nv_pmu_acr_bootstrap_multiple_falcons_msg *msg =
+		container_of(hdr, typeof(*msg), msg.hdr);
+	return msg->falcon_mask;
+}
+static int
+gp10b_pmu_acr_bootstrap_multiple_falcons(struct nvkm_falcon *falcon, u32 mask)
+{
+	struct nvkm_pmu *pmu = container_of(falcon, typeof(*pmu), falcon);
+	struct nv_pmu_acr_bootstrap_multiple_falcons_cmd cmd = {
+		.cmd.hdr.unit_id = NV_PMU_UNIT_ACR,
+		.cmd.hdr.size = sizeof(cmd),
+		.cmd.cmd_type = NV_PMU_ACR_CMD_BOOTSTRAP_MULTIPLE_FALCONS,
+		.flags = NV_PMU_ACR_BOOTSTRAP_MULTIPLE_FALCONS_FLAGS_RESET_YES,
+		.falcon_mask = mask,
+		.wpr_lo = 0, /*XXX*/
+		.wpr_hi = 0, /*XXX*/
+	};
+	int ret;
+
+	ret = nvkm_falcon_cmdq_send(pmu->hpq, &cmd.cmd.hdr,
+				    gp10b_pmu_acr_bootstrap_multiple_falcons_cb,
+				    &pmu->subdev, msecs_to_jiffies(1000));
+	if (ret >= 0 && ret != cmd.falcon_mask)
+		ret = -EIO;
+	return ret;
+}
 
 static const struct nvkm_acr_lsf_func
 gp10b_pmu_acr = {
+	.bootstrap_falcon = gm20b_pmu_acr_bootstrap_falcon,
+	.bootstrap_multiple_falcons = gp10b_pmu_acr_bootstrap_multiple_falcons,
 };
 
 static const struct nvkm_pmu_func

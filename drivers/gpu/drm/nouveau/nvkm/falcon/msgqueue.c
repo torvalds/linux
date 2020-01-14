@@ -36,34 +36,6 @@ nvkm_msgqueue_write_cmdline(struct nvkm_msgqueue *queue, void *buf)
 }
 
 int
-nvkm_msgqueue_acr_boot_falcons(struct nvkm_msgqueue *queue,
-			       unsigned long falcon_mask)
-{
-	unsigned long falcon;
-
-	if (!queue || !queue->func->acr_func)
-		return -ENODEV;
-
-	/* Does the firmware support booting multiple falcons? */
-	if (queue->func->acr_func->boot_multiple_falcons)
-		return queue->func->acr_func->boot_multiple_falcons(queue,
-								   falcon_mask);
-
-	/* Else boot all requested falcons individually */
-	if (!queue->func->acr_func->boot_falcon)
-		return -ENODEV;
-
-	for_each_set_bit(falcon, &falcon_mask, NVKM_SECBOOT_FALCON_END) {
-		int ret = queue->func->acr_func->boot_falcon(queue, falcon);
-
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-int
 nvkm_msgqueue_new(u32 version, struct nvkm_falcon *falcon,
 		  const struct nvkm_secboot *sb, struct nvkm_msgqueue **queue)
 {

@@ -991,12 +991,13 @@ end:
  * load the HS firmware and run it, so once the falcon stops all the managed
  * falcons should have their LS firmware loaded and be ready to run.
  */
+int nvkm_acr_bootstrap_falcons(struct nvkm_device *, unsigned long);
+
 static int
 acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	       unsigned long falcon_mask)
 {
 	struct acr_r352 *acr = acr_r352(_acr);
-	struct nvkm_msgqueue *queue;
 	int falcon;
 	bool wpr_already_set = sb->wpr_set;
 	int ret;
@@ -1016,22 +1017,12 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 			return ret;
 	}
 
-	switch (_acr->boot_falcon) {
-	case NVKM_SECBOOT_FALCON_PMU:
-		queue = sb->subdev.device->pmu->queue;
-		break;
-	case NVKM_SECBOOT_FALCON_SEC2:
-		queue = sb->subdev.device->sec2->queue;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	/* Otherwise just ask the LS firmware to reset the falcon */
 	for_each_set_bit(falcon, &falcon_mask, NVKM_SECBOOT_FALCON_END)
 		nvkm_debug(&sb->subdev, "resetting %s falcon\n",
 			   nvkm_secboot_falcon_name[falcon]);
-	ret = nvkm_msgqueue_acr_boot_falcons(queue, falcon_mask);
+
+	ret = nvkm_acr_bootstrap_falcons(sb->subdev.device, falcon_mask);
 	if (ret) {
 		nvkm_error(&sb->subdev, "error during falcon reset: %d\n", ret);
 		return ret;
