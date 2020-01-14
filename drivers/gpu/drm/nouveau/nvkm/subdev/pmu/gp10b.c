@@ -20,30 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
-#include <core/msgqueue.h>
-#include <engine/falcon.h>
-
-void
-gm20b_pmu_recv(struct nvkm_pmu *pmu)
-{
-	if (!pmu->queue) {
-		nvkm_warn(&pmu->subdev,
-			  "recv function called while no firmware set!\n");
-		return;
-	}
-
-	nvkm_msgqueue_recv(pmu->queue);
-}
 
 static const struct nvkm_pmu_func
-gm20b_pmu = {
+gp10b_pmu = {
 	.enabled = gf100_pmu_enabled,
 	.intr = gt215_pmu_intr,
 	.recv = gm20b_pmu_recv,
 };
 
 int
-gm20b_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+gp10b_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gm20b_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(&gp10b_pmu, device, index, ppmu);
 }

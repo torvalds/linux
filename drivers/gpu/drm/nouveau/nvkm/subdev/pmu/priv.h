@@ -42,4 +42,6 @@ bool gf100_pmu_enabled(struct nvkm_pmu *);
 void gf100_pmu_reset(struct nvkm_pmu *);
 
 void gk110_pmu_pgob(struct nvkm_pmu *, bool);
+
+void gm20b_pmu_recv(struct nvkm_pmu *);
 #endif
