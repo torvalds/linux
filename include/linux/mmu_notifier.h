@@ -237,7 +237,7 @@ struct mmu_notifier {
  *              was required but mmu_notifier_range_blockable(range) is false.
  */
 struct mmu_interval_notifier_ops {
-	bool (*invalidate)(struct mmu_interval_notifier *mni,
+	bool (*invalidate)(struct mmu_interval_notifier *interval_sub,
 			   const struct mmu_notifier_range *range,
 			   unsigned long cur_seq);
 };
@@ -292,20 +292,21 @@ extern int __mmu_notifier_register(struct mmu_notifier *subscription,
 extern void mmu_notifier_unregister(struct mmu_notifier *subscription,
 				    struct mm_struct *mm);
 
-unsigned long mmu_interval_read_begin(struct mmu_interval_notifier *mni);
-int mmu_interval_notifier_insert(struct mmu_interval_notifier *mni,
+unsigned long
+mmu_interval_read_begin(struct mmu_interval_notifier *interval_sub);
+int mmu_interval_notifier_insert(struct mmu_interval_notifier *interval_sub,
 				 struct mm_struct *mm, unsigned long start,
 				 unsigned long length,
 				 const struct mmu_interval_notifier_ops *ops);
 int mmu_interval_notifier_insert_locked(
-	struct mmu_interval_notifier *mni, struct mm_struct *mm,
+	struct mmu_interval_notifier *interval_sub, struct mm_struct *mm,
 	unsigned long start, unsigned long length,
 	const struct mmu_interval_notifier_ops *ops);
-void mmu_interval_notifier_remove(struct mmu_interval_notifier *mni);
+void mmu_interval_notifier_remove(struct mmu_interval_notifier *interval_sub);
 
 /**
  * mmu_interval_set_seq - Save the invalidation sequence
- * @mni - The mni passed to invalidate
+ * @interval_sub - The subscription passed to invalidate
  * @cur_seq - The cur_seq passed to the invalidate() callback
  *
  * This must be called unconditionally from the invalidate callback of a
@@ -316,15 +317,16 @@ void mmu_interval_notifier_remove(struct mmu_interval_notifier *mni);
  * If the caller does not call mmu_interval_read_begin() or
  * mmu_interval_read_retry() then this call is not required.
  */
-static inline void mmu_interval_set_seq(struct mmu_interval_notifier *mni,
-					unsigned long cur_seq)
+static inline void
+mmu_interval_set_seq(struct mmu_interval_notifier *interval_sub,
+		     unsigned long cur_seq)
 {
-	WRITE_ONCE(mni->invalidate_seq, cur_seq);
+	WRITE_ONCE(interval_sub->invalidate_seq, cur_seq);
 }
 
 /**
  * mmu_interval_read_retry - End a read side critical section against a VA range
- * mni: The range
+ * interval_sub: The subscription
  * seq: The return of the paired mmu_interval_read_begin()
  *
  * This MUST be called under a user provided lock that is also held
@@ -336,15 +338,16 @@ static inline void mmu_interval_set_seq(struct mmu_interval_notifier *mni,
  * Returns true if an invalidation collided with this critical section, and
  * the caller should retry.
  */
-static inline bool mmu_interval_read_retry(struct mmu_interval_notifier *mni,
-					   unsigned long seq)
+static inline bool
+mmu_interval_read_retry(struct mmu_interval_notifier *interval_sub,
+			unsigned long seq)
 {
-	return mni->invalidate_seq != seq;
+	return interval_sub->invalidate_seq != seq;
 }
 
 /**
  * mmu_interval_check_retry - Test if a collision has occurred
- * mni: The range
+ * interval_sub: The subscription
  * seq: The return of the matching mmu_interval_read_begin()
  *
  * This can be used in the critical section between mmu_interval_read_begin()
@@ -359,11 +362,12 @@ static inline bool mmu_interval_read_retry(struct mmu_interval_notifier *mni,
  * This call can be used as part of loops and other expensive operations to
  * expedite a retry.
  */
-static inline bool mmu_interval_check_retry(struct mmu_interval_notifier *mni,
-					    unsigned long seq)
+static inline bool
+mmu_interval_check_retry(struct mmu_interval_notifier *interval_sub,
+			 unsigned long seq)
 {
 	/* Pairs with the WRITE_ONCE in mmu_interval_set_seq() */
-	return READ_ONCE(mni->invalidate_seq) != seq;
+	return READ_ONCE(interval_sub->invalidate_seq) != seq;
 }
 
 extern void __mmu_notifier_subscriptions_destroy(struct mm_struct *mm);
