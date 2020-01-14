@@ -2691,7 +2691,6 @@ nvkm_device_subdev(struct nvkm_device *device, int index)
 	_(MXM     , device->mxm     ,  device->mxm);
 	_(PCI     , device->pci     , &device->pci->subdev);
 	_(PMU     , device->pmu     , &device->pmu->subdev);
-	_(SECBOOT , device->secboot , &device->secboot->subdev);
 	_(THERM   , device->therm   , &device->therm->subdev);
 	_(TIMER   , device->timer   , &device->timer->subdev);
 	_(TOP     , device->top     , &device->top->subdev);
@@ -3198,7 +3197,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		_(NVKM_SUBDEV_MXM     ,      mxm);
 		_(NVKM_SUBDEV_PCI     ,      pci);
 		_(NVKM_SUBDEV_PMU     ,      pmu);
-		_(NVKM_SUBDEV_SECBOOT ,  secboot);
 		_(NVKM_SUBDEV_THERM   ,    therm);
 		_(NVKM_SUBDEV_TIMER   ,    timer);
 		_(NVKM_SUBDEV_TOP     ,      top);

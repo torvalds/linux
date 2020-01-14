@@ -28,7 +28,6 @@
 #include <subdev/timer.h>
 #include <subdev/top.h>
 #include <subdev/volt.h>
-#include <subdev/secboot.h>
 
 #include <engine/bsp.h>
 #include <engine/ce.h>
