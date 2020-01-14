@@ -52,9 +52,9 @@ enum drm_sched_priority {
  * @list: used to append this struct to the list of entities in the
  *        runqueue.
  * @rq: runqueue on which this entity is currently scheduled.
- * @rq_list: a list of run queues on which jobs from this entity can
- *           be scheduled
- * @num_rq_list: number of run queues in the rq_list
+ * @sched_list: a list of drm_gpu_schedulers on which jobs from this entity can
+ *              be scheduled
+ * @num_sched_list: number of drm_gpu_schedulers in the sched_list.
  * @rq_lock: lock to modify the runqueue to which this entity belongs.
  * @job_queue: the list of jobs of this entity.
  * @fence_seq: a linearly increasing seqno incremented with each
@@ -81,8 +81,8 @@ enum drm_sched_priority {
 struct drm_sched_entity {
 	struct list_head		list;
 	struct drm_sched_rq		*rq;
-	unsigned int                    num_sched_list;
 	struct drm_gpu_scheduler        **sched_list;
+	unsigned int                    num_sched_list;
 	enum drm_sched_priority         priority;
 	spinlock_t			rq_lock;
 
@@ -315,7 +315,7 @@ void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 int drm_sched_entity_init(struct drm_sched_entity *entity,
 			  enum drm_sched_priority priority,
 			  struct drm_gpu_scheduler **sched_list,
-			  unsigned int num_rq_list,
+			  unsigned int num_sched_list,
 			  atomic_t *guilty);
 long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout);
 void drm_sched_entity_fini(struct drm_sched_entity *entity);
