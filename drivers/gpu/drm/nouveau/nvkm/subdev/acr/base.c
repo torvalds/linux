@@ -215,6 +215,12 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 	u32 wpr_size = 0;
 	int ret, i;
 
+	if (list_empty(&acr->hsfw)) {
+		nvkm_debug(subdev, "No HSFW(s)\n");
+		nvkm_acr_cleanup(acr);
+		return 0;
+	}
+
 	/* Determine layout/size of WPR image up-front, as we need to know
 	 * it to allocate memory before we begin constructing it.
 	 */

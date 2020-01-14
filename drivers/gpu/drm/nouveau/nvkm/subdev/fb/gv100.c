@@ -48,3 +48,6 @@ gv100_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
 }
 
 MODULE_FIRMWARE("nvidia/gv100/nvdec/scrubber.bin");
+MODULE_FIRMWARE("nvidia/tu102/nvdec/scrubber.bin");
+MODULE_FIRMWARE("nvidia/tu104/nvdec/scrubber.bin");
+MODULE_FIRMWARE("nvidia/tu106/nvdec/scrubber.bin");
