@@ -51,8 +51,10 @@ static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 
 	dm_odm->AntDivType = hal_data->TRxAntDivType;
 
-	/*  Tx power tracking BB swing table. */
-	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
+	/* Tx power tracking BB swing table.
+	 * The base index =
+	 * 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB
+	 */
 	dm_odm->BbSwingIdxOfdm = 12; /*  Set defalut value as index 12. */
 	dm_odm->BbSwingIdxOfdmCurrent = 12;
 	dm_odm->BbSwingFlagOfdm = false;
@@ -106,14 +108,17 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 	dm_odm->pbPowerSaving = (bool *)&pwrctrlpriv->bpower_saving;
 	dm_odm->AntDivType = hal_data->TRxAntDivType;
 
-	/*  Tx power tracking BB swing table. */
-	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
+	/* Tx power tracking BB swing table.
+	 * The base index =
+	 * 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB
+	 */
 	dm_odm->BbSwingIdxOfdm = 12; /*  Set defalut value as index 12. */
 	dm_odm->BbSwingIdxOfdmCurrent = 12;
 	dm_odm->BbSwingFlagOfdm = false;
 
 	for (i = 0; i < NUM_STA; i++)
-		ODM_CmnInfoPtrArrayHook(dm_odm, ODM_CMNINFO_STA_STATUS, i, NULL);
+		ODM_CmnInfoPtrArrayHook(dm_odm, ODM_CMNINFO_STA_STATUS, i,
+					NULL);
 }
 
 void rtl8188e_InitHalDm(struct adapter *Adapter)
@@ -172,13 +177,18 @@ void rtw_hal_dm_init(struct adapter *Adapter)
 
 /*  Add new function to reset the state of antenna diversity before link. */
 /*  Compare RSSI for deciding antenna */
-void rtw_hal_antdiv_rssi_compared(struct adapter *Adapter, struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src)
+void rtw_hal_antdiv_rssi_compared(struct adapter *Adapter,
+				  struct wlan_bssid_ex *dst,
+				  struct wlan_bssid_ex *src)
 {
 	if (Adapter->HalData->AntDivCfg != 0) {
-		/* select optimum_antenna for before linked =>For antenna diversity */
+		/* select optimum_antenna for before linked => For antenna
+		 * diversity
+		 */
 		if (dst->Rssi >=  src->Rssi) {/* keep org parameter */
 			src->Rssi = dst->Rssi;
-			src->PhyInfo.Optimum_antenna = dst->PhyInfo.Optimum_antenna;
+			src->PhyInfo.Optimum_antenna =
+				dst->PhyInfo.Optimum_antenna;
 		}
 	}
 }
