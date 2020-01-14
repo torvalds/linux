@@ -1505,3 +1505,151 @@ void br_vlan_port_event(struct net_bridge_port *p, unsigned long event)
 		break;
 	}
 }
+
+static bool br_vlan_fill_vids(struct sk_buff *skb, u16 vid, u16 flags)
+{
+	struct bridge_vlan_info info;
+	struct nlattr *nest;
+
+	nest = nla_nest_start(skb, BRIDGE_VLANDB_ENTRY);
+	if (!nest)
+		return false;
+
+	memset(&info, 0, sizeof(info));
+	info.vid = vid;
+	if (flags & BRIDGE_VLAN_INFO_UNTAGGED)
+		info.flags |= BRIDGE_VLAN_INFO_UNTAGGED;
+	if (flags & BRIDGE_VLAN_INFO_PVID)
+		info.flags |= BRIDGE_VLAN_INFO_PVID;
+
+	if (nla_put(skb, BRIDGE_VLANDB_ENTRY_INFO, sizeof(info), &info))
+		goto out_err;
+
+	nla_nest_end(skb, nest);
+
+	return true;
+
+out_err:
+	nla_nest_cancel(skb, nest);
+	return false;
+}
+
+static int br_vlan_dump_dev(const struct net_device *dev,
+			    struct sk_buff *skb,
+			    struct netlink_callback *cb)
+{
+	struct net_bridge_vlan_group *vg;
+	int idx = 0, s_idx = cb->args[1];
+	struct nlmsghdr *nlh = NULL;
+	struct net_bridge_vlan *v;
+	struct net_bridge_port *p;
+	struct br_vlan_msg *bvm;
+	struct net_bridge *br;
+	int err = 0;
+	u16 pvid;
+
+	if (!netif_is_bridge_master(dev) && !netif_is_bridge_port(dev))
+		return -EINVAL;
+
+	if (netif_is_bridge_master(dev)) {
+		br = netdev_priv(dev);
+		vg = br_vlan_group_rcu(br);
+		p = NULL;
+	} else {
+		p = br_port_get_rcu(dev);
+		if (WARN_ON(!p))
+			return -EINVAL;
+		vg = nbp_vlan_group_rcu(p);
+		br = p->br;
+	}
+
+	if (!vg)
+		return 0;
+
+	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			RTM_NEWVLAN, sizeof(*bvm), NLM_F_MULTI);
+	if (!nlh)
+		return -EMSGSIZE;
+	bvm = nlmsg_data(nlh);
+	memset(bvm, 0, sizeof(*bvm));
+	bvm->family = PF_BRIDGE;
+	bvm->ifindex = dev->ifindex;
+	pvid = br_get_pvid(vg);
+
+	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
+		if (!br_vlan_should_use(v))
+			continue;
+		if (idx < s_idx)
+			goto skip;
+		if (!br_vlan_fill_vids(skb, v->vid, br_vlan_flags(v, pvid))) {
+			err = -EMSGSIZE;
+			break;
+		}
+skip:
+		idx++;
+	}
+	if (err)
+		cb->args[1] = idx;
+	else
+		cb->args[1] = 0;
+	nlmsg_end(skb, nlh);
+
+	return err;
+}
+
+static int br_vlan_rtm_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	int idx = 0, err = 0, s_idx = cb->args[0];
+	struct net *net = sock_net(skb->sk);
+	struct br_vlan_msg *bvm;
+	struct net_device *dev;
+
+	err = nlmsg_parse(cb->nlh, sizeof(*bvm), NULL, 0, NULL, cb->extack);
+	if (err < 0)
+		return err;
+
+	bvm = nlmsg_data(cb->nlh);
+
+	rcu_read_lock();
+	if (bvm->ifindex) {
+		dev = dev_get_by_index_rcu(net, bvm->ifindex);
+		if (!dev) {
+			err = -ENODEV;
+			goto out_err;
+		}
+		err = br_vlan_dump_dev(dev, skb, cb);
+		if (err && err != -EMSGSIZE)
+			goto out_err;
+	} else {
+		for_each_netdev_rcu(net, dev) {
+			if (idx < s_idx)
+				goto skip;
+
+			err = br_vlan_dump_dev(dev, skb, cb);
+			if (err == -EMSGSIZE)
+				break;
+skip:
+			idx++;
+		}
+	}
+	cb->args[0] = idx;
+	rcu_read_unlock();
+
+	return skb->len;
+
+out_err:
+	rcu_read_unlock();
+
+	return err;
+}
+
+void br_vlan_rtnl_init(void)
+{
+	rtnl_register_module(THIS_MODULE, PF_BRIDGE, RTM_GETVLAN, NULL,
+			     br_vlan_rtm_dump, 0);
+}
+
+void br_vlan_rtnl_uninit(void)
+{
+	rtnl_unregister(PF_BRIDGE, RTM_GETVLAN);
+}

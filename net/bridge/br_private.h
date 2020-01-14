@@ -958,6 +958,8 @@ void br_vlan_get_stats(const struct net_bridge_vlan *v,
 void br_vlan_port_event(struct net_bridge_port *p, unsigned long event);
 int br_vlan_bridge_event(struct net_device *dev, unsigned long event,
 			 void *ptr);
+void br_vlan_rtnl_init(void);
+void br_vlan_rtnl_uninit(void);
 
 static inline struct net_bridge_vlan_group *br_vlan_group(
 					const struct net_bridge *br)
@@ -1009,6 +1011,10 @@ static inline u16 br_get_pvid(const struct net_bridge_vlan_group *vg)
 	return vg->pvid;
 }
 
+static inline u16 br_vlan_flags(const struct net_bridge_vlan *v, u16 pvid)
+{
+	return v->vid == pvid ? v->flags | BRIDGE_VLAN_INFO_PVID : v->flags;
+}
 #else
 static inline bool br_allowed_ingress(const struct net_bridge *br,
 				      struct net_bridge_vlan_group *vg,
@@ -1151,6 +1157,14 @@ static inline int br_vlan_bridge_event(struct net_device *dev,
 				       unsigned long event, void *ptr)
 {
 	return 0;
+}
+
+static inline void br_vlan_rtnl_init(void)
+{
+}
+
+static inline void br_vlan_rtnl_uninit(void)
+{
 }
 #endif
 
