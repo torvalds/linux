@@ -521,11 +521,56 @@ static const struct venus_resources sdm845_res_v2 = {
 	.fwname = "qcom/venus-5.2/venus.mdt",
 };
 
+static const struct freq_tbl sc7180_freq_table[] = {
+	{  0, 500000000 },
+	{  0, 434000000 },
+	{  0, 340000000 },
+	{  0, 270000000 },
+	{  0, 150000000 },
+};
+
+static const struct bw_tbl sc7180_bw_table_enc[] = {
+	{  972000,  750000, 0, 0, 0 },	/* 3840x2160@30 */
+	{  489600,  451000, 0, 0, 0 },	/* 1920x1080@60 */
+	{  244800,  234000, 0, 0, 0 },	/* 1920x1080@30 */
+};
+
+static const struct bw_tbl sc7180_bw_table_dec[] = {
+	{ 1036800, 1386000, 0, 1875000, 0 },	/* 4096x2160@30 */
+	{  489600,  865000, 0, 1146000, 0 },	/* 1920x1080@60 */
+	{  244800,  530000, 0,  583000, 0 },	/* 1920x1080@30 */
+};
+
+static const struct venus_resources sc7180_res = {
+	.freq_tbl = sc7180_freq_table,
+	.freq_tbl_size = ARRAY_SIZE(sc7180_freq_table),
+	.bw_tbl_enc = sc7180_bw_table_enc,
+	.bw_tbl_enc_size = ARRAY_SIZE(sc7180_bw_table_enc),
+	.bw_tbl_dec = sc7180_bw_table_dec,
+	.bw_tbl_dec_size = ARRAY_SIZE(sc7180_bw_table_dec),
+	.codec_freq_data = sdm845_codec_freq_data,
+	.codec_freq_data_size = ARRAY_SIZE(sdm845_codec_freq_data),
+	.clks = {"core", "iface", "bus" },
+	.clks_num = 3,
+	.vcodec0_clks = { "vcodec0_core", "vcodec0_bus" },
+	.vcodec_clks_num = 2,
+	.vcodec_pmdomains = { "venus", "vcodec0" },
+	.vcodec_pmdomains_num = 2,
+	.vcodec_num = 1,
+	.hfi_version = HFI_VERSION_4XX,
+	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_size = 0,
+	.vmem_addr = 0,
+	.dma_mask = 0xe0000000 - 1,
+	.fwname = "qcom/venus-5.4/venus.mdt",
+};
+
 static const struct of_device_id venus_dt_match[] = {
 	{ .compatible = "qcom,msm8916-venus", .data = &msm8916_res, },
 	{ .compatible = "qcom,msm8996-venus", .data = &msm8996_res, },
 	{ .compatible = "qcom,sdm845-venus", .data = &sdm845_res, },
 	{ .compatible = "qcom,sdm845-venus-v2", .data = &sdm845_res_v2, },
+	{ .compatible = "qcom,sc7180-venus", .data = &sc7180_res, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, venus_dt_match);
