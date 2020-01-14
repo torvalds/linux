@@ -56,7 +56,6 @@ msg_queue_pop(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	      void *data, u32 size)
 {
 	struct nvkm_falcon *falcon = priv->falcon;
-	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	u32 head, tail, available;
 
 	head = nvkm_falcon_rd32(falcon, queue->head_reg);
@@ -68,7 +67,8 @@ msg_queue_pop(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 
 	available = head - tail;
 	if (size > available) {
-		nvkm_warn(subdev, "message data smaller than read request\n");
+		FLCNQ_ERR(queue, "requested %d bytes, but only %d available",
+			  size, available);
 		return -EINVAL;
 	}
 
@@ -81,7 +81,6 @@ static int
 msg_queue_read(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	       struct nv_falcon_msg *hdr)
 {
-	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	int ret = 0;
 
 	msg_queue_open(priv, queue);
@@ -91,12 +90,12 @@ msg_queue_read(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 
 	ret = msg_queue_pop(priv, queue, hdr, HDR_SIZE);
 	if (ret) {
-		nvkm_error(subdev, "failed to read message header: %d\n", ret);
+		FLCNQ_ERR(queue, "failed to read message header");
 		goto close;
 	}
 
 	if (hdr->size > MSG_BUF_SIZE) {
-		nvkm_error(subdev, "message too big (%d bytes)\n", hdr->size);
+		FLCNQ_ERR(queue, "message too big, %d bytes", hdr->size);
 		ret = -ENOSPC;
 		goto close;
 	}
@@ -106,7 +105,7 @@ msg_queue_read(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 
 		ret = msg_queue_pop(priv, queue, (hdr + 1), read_size);
 		if (ret) {
-			nvkm_error(subdev, "failed to read message: %d\n", ret);
+			FLCNQ_ERR(queue, "failed to read message data");
 			goto close;
 		}
 	}
@@ -122,12 +121,11 @@ msgqueue_msg_handle(struct nvkm_msgqueue *priv,
 		    struct nvkm_falcon_msgq *msgq,
 		    struct nv_falcon_msg *hdr)
 {
-	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	struct nvkm_falcon_qmgr_seq *seq;
 
 	seq = &msgq->qmgr->seq.id[hdr->seq_id];
 	if (seq->state != SEQ_STATE_USED && seq->state != SEQ_STATE_CANCELLED) {
-		nvkm_error(subdev, "msg for unknown sequence %d", seq->id);
+		FLCNQ_ERR(msgq, "message for unknown sequence %08x", seq->id);
 		return -EINVAL;
 	}
 
