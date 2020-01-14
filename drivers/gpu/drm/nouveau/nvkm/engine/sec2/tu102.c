@@ -19,15 +19,29 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #include "priv.h"
 
+static const struct nvkm_sec2_func
+tu102_sec2 = {
+};
+
+static int
+tu102_sec2_nofw(struct nvkm_sec2 *sec2, int ver,
+		const struct nvkm_sec2_fwif *fwif)
+{
+	return 0;
+}
+
+static const struct nvkm_sec2_fwif
+tu102_sec2_fwif[] = {
+	{ -1, tu102_sec2_nofw, &tu102_sec2 }
+};
+
 int
-tu102_sec2_new(struct nvkm_device *device, int index,
-	       struct nvkm_sec2 **psec2)
+tu102_sec2_new(struct nvkm_device *device, int index, struct nvkm_sec2 **psec2)
 {
 	/* TOP info wasn't updated on Turing to reflect the PRI
 	 * address change for some reason.  We override it here.
 	 */
-	return nvkm_sec2_new_(device, index, 0x840000, psec2);
+	return nvkm_sec2_new_(tu102_sec2_fwif, device, index, 0x840000, psec2);
 }

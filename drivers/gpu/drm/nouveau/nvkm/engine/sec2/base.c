@@ -21,18 +21,10 @@
  */
 #include "priv.h"
 
+#include <core/firmware.h>
 #include <core/msgqueue.h>
 #include <subdev/top.h>
 #include <engine/falcon.h>
-
-static void *
-nvkm_sec2_dtor(struct nvkm_engine *engine)
-{
-	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
-	nvkm_msgqueue_del(&sec2->queue);
-	nvkm_falcon_del(&sec2->falcon);
-	return sec2;
-}
 
 static void
 nvkm_sec2_intr(struct nvkm_engine *engine)
@@ -94,6 +86,15 @@ nvkm_sec2_fini(struct nvkm_engine *engine, bool suspend)
 	return 0;
 }
 
+static void *
+nvkm_sec2_dtor(struct nvkm_engine *engine)
+{
+	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
+	nvkm_msgqueue_del(&sec2->queue);
+	nvkm_falcon_del(&sec2->falcon);
+	return sec2;
+}
+
 static const struct nvkm_engine_func
 nvkm_sec2 = {
 	.dtor = nvkm_sec2_dtor,
@@ -103,15 +104,26 @@ nvkm_sec2 = {
 };
 
 int
-nvkm_sec2_new_(struct nvkm_device *device, int index, u32 addr,
-	       struct nvkm_sec2 **psec2)
+nvkm_sec2_new_(const struct nvkm_sec2_fwif *fwif, struct nvkm_device *device,
+	       int index, u32 addr, struct nvkm_sec2 **psec2)
 {
 	struct nvkm_sec2 *sec2;
+	int ret;
 
 	if (!(sec2 = *psec2 = kzalloc(sizeof(*sec2), GFP_KERNEL)))
 		return -ENOMEM;
 	sec2->addr = addr;
-	INIT_WORK(&sec2->work, nvkm_sec2_recv);
 
-	return nvkm_engine_ctor(&nvkm_sec2, device, index, true, &sec2->engine);
+	ret = nvkm_engine_ctor(&nvkm_sec2, device, index, true, &sec2->engine);
+	if (ret)
+		return ret;
+
+	fwif = nvkm_firmware_load(&sec2->engine.subdev, fwif, "Sec2", sec2);
+	if (IS_ERR(fwif))
+		return PTR_ERR(fwif);
+
+	sec2->func = fwif->func;
+
+	INIT_WORK(&sec2->work, nvkm_sec2_recv);
+	return 0;
 };

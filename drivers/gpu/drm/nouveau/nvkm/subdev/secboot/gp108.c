@@ -46,11 +46,4 @@ gp108_secboot_new(struct nvkm_device *device, int index,
 }
 
 MODULE_FIRMWARE("nvidia/gp108/nvdec/scrubber.bin");
-MODULE_FIRMWARE("nvidia/gp108/sec2/desc.bin");
-MODULE_FIRMWARE("nvidia/gp108/sec2/image.bin");
-MODULE_FIRMWARE("nvidia/gp108/sec2/sig.bin");
-
 MODULE_FIRMWARE("nvidia/gv100/nvdec/scrubber.bin");
-MODULE_FIRMWARE("nvidia/gv100/sec2/desc.bin");
-MODULE_FIRMWARE("nvidia/gv100/sec2/image.bin");
-MODULE_FIRMWARE("nvidia/gv100/sec2/sig.bin");

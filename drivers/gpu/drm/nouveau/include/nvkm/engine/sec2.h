@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_SEC2_H__
 #define __NVKM_SEC2_H__
+#define nvkm_sec2(p) container_of((p), struct nvkm_sec2, engine)
 #include <core/engine.h>
 
 struct nvkm_sec2 {
+	const struct nvkm_sec2_func *func;
 	struct nvkm_engine engine;
 	u32 addr;
 
