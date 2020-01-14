@@ -87,6 +87,8 @@ nvkm_pmu_fini(struct nvkm_subdev *subdev, bool suspend)
 
 	flush_work(&pmu->recv.work);
 
+	reinit_completion(&pmu->wpr_ready);
+
 	nvkm_falcon_cmdq_fini(pmu->lpq);
 	nvkm_falcon_cmdq_fini(pmu->hpq);
 	return 0;
@@ -188,6 +190,7 @@ nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
 	    (ret = nvkm_falcon_msgq_new(pmu->qmgr, "msgq", &pmu->msgq)))
 		return ret;
 
+	init_completion(&pmu->wpr_ready);
 	return 0;
 }
 

@@ -127,8 +127,6 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 		}
 	}
 
-	complete_all(&_queue->init_done);
-
 	return 0;
 }
 

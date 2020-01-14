@@ -126,8 +126,6 @@ nvkm_msgqueue_reinit(struct nvkm_msgqueue *queue)
 		return 0;
 
 	queue->init_msg_received = false;
-	reinit_completion(&queue->init_done);
-
 	return 0;
 }
 
@@ -138,8 +136,4 @@ nvkm_msgqueue_ctor(const struct nvkm_msgqueue_func *func,
 {
 	queue->func = func;
 	queue->falcon = falcon;
-
-	init_completion(&queue->init_done);
-
-
 }

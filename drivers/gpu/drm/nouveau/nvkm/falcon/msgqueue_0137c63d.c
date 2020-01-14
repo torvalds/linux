@@ -187,7 +187,7 @@ acr_init_wpr_callback(void *priv, struct nv_falcon_msg *hdr)
 	}
 
 	nvkm_debug(subdev, "ACR WPR init complete\n");
-	complete_all(&queue->init_done);
+	complete_all(&subdev->device->pmu->wpr_ready);
 	return 0;
 }
 
@@ -246,6 +246,7 @@ enum {
 static int
 acr_boot_falcon(struct nvkm_msgqueue *priv, enum nvkm_secboot_falcon falcon)
 {
+	struct nvkm_pmu *pmu = priv->falcon->owner->device->pmu;
 	DECLARE_COMPLETION_ONSTACK(completed);
 	/*
 	 * flags      - Flag specifying RESET or no RESET.
@@ -257,6 +258,12 @@ acr_boot_falcon(struct nvkm_msgqueue *priv, enum nvkm_secboot_falcon falcon)
 		u32 flags;
 		u32 falcon_id;
 	} cmd;
+
+	if (!wait_for_completion_timeout(&pmu->wpr_ready,
+					 msecs_to_jiffies(1000))) {
+		nvkm_error(&pmu->subdev, "timeout waiting for WPR init\n");
+		return -ETIMEDOUT;
+	}
 
 	memset(&cmd, 0, sizeof(cmd));
 
@@ -301,6 +308,7 @@ acr_boot_multiple_falcons_callback(void *_priv, struct nv_falcon_msg *hdr)
 static int
 acr_boot_multiple_falcons(struct nvkm_msgqueue *priv, unsigned long falcon_mask)
 {
+	struct nvkm_pmu *pmu = priv->falcon->owner->device->pmu;
 	DECLARE_COMPLETION_ONSTACK(completed);
 	/*
 	 * flags      - Flag specifying RESET or no RESET.
@@ -316,6 +324,12 @@ acr_boot_multiple_falcons(struct nvkm_msgqueue *priv, unsigned long falcon_mask)
 		u32 wpr_hi;
 	} cmd;
 	struct msgqueue_0137bca5 *queue = msgqueue_0137bca5(priv);
+
+	if (!wait_for_completion_timeout(&pmu->wpr_ready,
+					 msecs_to_jiffies(1000))) {
+		nvkm_error(&pmu->subdev, "timeout waiting for WPR init\n");
+		return -ETIMEDOUT;
+	}
 
 	memset(&cmd, 0, sizeof(cmd));
 

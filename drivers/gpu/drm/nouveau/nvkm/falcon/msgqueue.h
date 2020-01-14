@@ -140,6 +140,8 @@ struct nvkm_msgqueue_queue {
 
 	u32 head_reg;
 	u32 tail_reg;
+
+	struct completion ready;
 };
 
 /**
@@ -148,14 +150,12 @@ struct nvkm_msgqueue_queue {
  * @falcon:	falcon to be managed
  * @func:	implementation of the firmware to use
  * @init_msg_received:	whether the init message has already been received
- * @init_done:	whether all init is complete and commands can be processed
   */
 struct nvkm_msgqueue {
 	struct nvkm_falcon *falcon;
 	const struct nvkm_msgqueue_func *func;
 	u32 fw_version;
 	bool init_msg_received;
-	struct completion init_done;
 };
 
 void nvkm_msgqueue_ctor(const struct nvkm_msgqueue_func *, struct nvkm_falcon *,

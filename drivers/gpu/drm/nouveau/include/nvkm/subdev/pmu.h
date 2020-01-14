@@ -15,6 +15,8 @@ struct nvkm_pmu {
 	struct nvkm_falcon_msgq *msgq;
 	struct nvkm_msgqueue *queue;
 
+	struct completion wpr_ready;
+
 	struct {
 		u32 base;
 		u32 size;

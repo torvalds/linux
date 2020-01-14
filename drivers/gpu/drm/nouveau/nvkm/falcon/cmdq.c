@@ -156,13 +156,15 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 	struct nvkm_msgqueue_queue *queue;
 	int ret;
 
-	if (wait_init && !wait_for_completion_timeout(&priv->init_done,
-					 msecs_to_jiffies(1000)))
-		return -ETIMEDOUT;
-
 	queue = priv->func->cmd_queue(priv, prio);
 	if (IS_ERR(queue))
 		return PTR_ERR(queue);
+
+	if (!wait_for_completion_timeout(&queue->ready,
+					 msecs_to_jiffies(1000))) {
+		FLCNQ_ERR(queue, "timeout waiting for queue ready");
+		return -ETIMEDOUT;
+	}
 
 	seq = nvkm_falcon_qmgr_seq_acquire(queue->qmgr);
 	if (IS_ERR(seq))
@@ -197,6 +199,7 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 void
 nvkm_falcon_cmdq_fini(struct nvkm_falcon_cmdq *cmdq)
 {
+	reinit_completion(&cmdq->ready);
 }
 
 void
@@ -209,6 +212,7 @@ nvkm_falcon_cmdq_init(struct nvkm_falcon_cmdq *cmdq,
 	cmdq->tail_reg = func->cmdq.tail + index * func->cmdq.stride;
 	cmdq->offset = offset;
 	cmdq->size = size;
+	complete_all(&cmdq->ready);
 
 	FLCNQ_DBG(cmdq, "initialised @ index %d offset 0x%08x size 0x%08x",
 		  index, cmdq->offset, cmdq->size);
@@ -236,5 +240,6 @@ nvkm_falcon_cmdq_new(struct nvkm_falcon_qmgr *qmgr, const char *name,
 	cmdq->qmgr = qmgr;
 	cmdq->name = name;
 	mutex_init(&cmdq->mutex);
+	init_completion(&cmdq->ready);
 	return 0;
 }
