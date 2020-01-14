@@ -16,6 +16,9 @@ struct fib_alias {
 	u8			fa_slen;
 	u32			tb_id;
 	s16			fa_default;
+	u8			offload:1,
+				trap:1,
+				unused:6;
 	struct rcu_head		rcu;
 };
 
