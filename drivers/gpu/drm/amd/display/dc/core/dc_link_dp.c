@@ -1892,6 +1892,16 @@ bool dp_verify_link_cap(
 	/* disable PHY done possible by BIOS, will be done by driver itself */
 	dp_disable_link_phy(link, link->connector_signal);
 
+	dp_cs_id = get_clock_source_id(link);
+
+	/* link training starts with the maximum common settings
+	 * supported by both sink and ASIC.
+	 */
+	initial_link_settings = get_common_supported_link_settings(
+			*known_limit_link_setting,
+			max_link_cap);
+	cur_link_setting = initial_link_settings;
+
 	/* Temporary Renoir-specific workaround for SWDEV-215184;
 	 * PHY will sometimes be in bad state on hotplugging display from certain USB-C dongle,
 	 * so add extra cycle of enabling and disabling the PHY before first link training.
@@ -1902,15 +1912,6 @@ bool dp_verify_link_cap(
 		dp_disable_link_phy(link, link->connector_signal);
 	}
 
-	dp_cs_id = get_clock_source_id(link);
-
-	/* link training starts with the maximum common settings
-	 * supported by both sink and ASIC.
-	 */
-	initial_link_settings = get_common_supported_link_settings(
-			*known_limit_link_setting,
-			max_link_cap);
-	cur_link_setting = initial_link_settings;
 	do {
 		skip_video_pattern = true;
 
