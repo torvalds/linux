@@ -1391,7 +1391,10 @@ struct f2fs_sb_info {
 	struct f2fs_mount_info mount_opt;	/* mount options */
 
 	/* for cleaning operations */
-	struct mutex gc_mutex;			/* mutex for GC */
+	struct rw_semaphore gc_lock;		/*
+						 * semaphore for GC, avoid
+						 * race between GC and GC or CP
+						 */
 	struct f2fs_gc_kthread	*gc_thread;	/* GC thread */
 	unsigned int cur_victim_sec;		/* current victim section num */
 	unsigned int gc_mode;			/* current GC state */
