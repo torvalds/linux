@@ -859,7 +859,7 @@ static const struct kiq_pm4_funcs gfx_v9_0_kiq_pm4_funcs = {
 	.map_queues_size = 7,
 	.unmap_queues_size = 6,
 	.query_status_size = 7,
-	.invalidate_tlbs_size = 12,
+	.invalidate_tlbs_size = 2,
 };
 
 static void gfx_v9_0_set_kiq_pm4_funcs(struct amdgpu_device *adev)

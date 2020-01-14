@@ -578,7 +578,8 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 
 	if (ring->sched.ready) {
 		spin_lock(&adev->gfx.kiq.ring_lock);
-		amdgpu_ring_alloc(ring, kiq->pmf->invalidate_tlbs_size);
+		/* 2 dwords flush + 8 dwords fence */
+		amdgpu_ring_alloc(ring, kiq->pmf->invalidate_tlbs_size + 8);
 		kiq->pmf->kiq_invalidate_tlbs(ring,
 					pasid, flush_type, all_hub);
 		amdgpu_fence_emit_polling(ring, &seq);
