@@ -43,13 +43,6 @@ struct msgqueue_0148cdec {
 #define msgqueue_0148cdec(q) \
 	container_of(q, struct msgqueue_0148cdec, base)
 
-static struct nvkm_msgqueue_queue *
-msgqueue_0148cdec_cmd_queue(struct nvkm_msgqueue *queue,
-			    enum msgqueue_msg_priority priority)
-{
-	return queue->falcon->owner->device->sec2->cmdq;
-}
-
 static void
 msgqueue_0148cdec_process_msgs(struct nvkm_msgqueue *queue)
 {
@@ -146,16 +139,15 @@ enum {
 };
 
 static int
-acr_boot_falcon_callback(void *_priv, struct nv_falcon_msg *hdr)
+acr_boot_falcon_callback(void *priv, struct nv_falcon_msg *hdr)
 {
-	struct nvkm_msgqueue *priv = _priv;
 	struct acr_bootstrap_falcon_msg {
 		struct nv_falcon_msg base;
 		u8 msg_type;
 		u32 error_code;
 		u32 falcon_id;
 	} *msg = (void *)hdr;
-	const struct nvkm_subdev *subdev = priv->falcon->owner;
+	const struct nvkm_subdev *subdev = priv;
 	u32 falcon_id = msg->falcon_id;
 
 	if (msg->error_code) {
@@ -183,13 +175,13 @@ enum {
 static int
 acr_boot_falcon(struct nvkm_msgqueue *priv, enum nvkm_secboot_falcon falcon)
 {
-	DECLARE_COMPLETION_ONSTACK(completed);
+	struct nvkm_sec2 *sec2 = priv->falcon->owner->device->sec2;
 	/*
 	 * flags      - Flag specifying RESET or no RESET.
 	 * falcon id  - Falcon id specifying falcon to bootstrap.
 	 */
 	struct {
-		struct nvkm_msgqueue_hdr hdr;
+		struct nv_falcon_cmd hdr;
 		u8 cmd_type;
 		u32 flags;
 		u32 falcon_id;
@@ -202,8 +194,10 @@ acr_boot_falcon(struct nvkm_msgqueue *priv, enum nvkm_secboot_falcon falcon)
 	cmd.cmd_type = ACR_CMD_BOOTSTRAP_FALCON;
 	cmd.flags = ACR_CMD_BOOTSTRAP_FALCON_FLAGS_RESET_YES;
 	cmd.falcon_id = falcon;
-	return nvkm_msgqueue_post(priv, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
-				  acr_boot_falcon_callback, &completed, true);
+	return nvkm_falcon_cmdq_send(sec2->cmdq, &cmd.hdr,
+				     acr_boot_falcon_callback,
+				     &sec2->engine.subdev,
+				     msecs_to_jiffies(1000));
 }
 
 const struct nvkm_msgqueue_acr_func
@@ -221,7 +215,6 @@ const struct nvkm_msgqueue_func
 msgqueue_0148cdec_func = {
 	.init_func = &msgqueue_0148cdec_init_func,
 	.acr_func = &msgqueue_0148cdec_acr_func,
-	.cmd_queue = msgqueue_0148cdec_cmd_queue,
 	.recv = msgqueue_0148cdec_process_msgs,
 	.dtor = msgqueue_0148cdec_dtor,
 };

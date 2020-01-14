@@ -52,11 +52,6 @@
  *
  */
 
-enum msgqueue_msg_priority {
-	MSGQUEUE_MSG_PRIORITY_HIGH,
-	MSGQUEUE_MSG_PRIORITY_LOW,
-};
-
 /**
  * struct nvkm_msgqueue_hdr - header for all commands/messages
  * @unit_id:	id of firmware using receiving the command/sending the message
@@ -110,8 +105,6 @@ struct nvkm_msgqueue_func {
 	const struct nvkm_msgqueue_init_func *init_func;
 	const struct nvkm_msgqueue_acr_func *acr_func;
 	void (*dtor)(struct nvkm_msgqueue *);
-	struct nvkm_msgqueue_queue *(*cmd_queue)(struct nvkm_msgqueue *,
-						 enum msgqueue_msg_priority);
 	void (*recv)(struct nvkm_msgqueue *queue);
 };
 
@@ -160,9 +153,6 @@ struct nvkm_msgqueue {
 
 void nvkm_msgqueue_ctor(const struct nvkm_msgqueue_func *, struct nvkm_falcon *,
 			struct nvkm_msgqueue *);
-int nvkm_msgqueue_post(struct nvkm_msgqueue *, enum msgqueue_msg_priority,
-		       struct nvkm_msgqueue_hdr *, nvkm_falcon_qmgr_callback,
-		       struct completion *, bool);
 void nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *,
 				struct nvkm_msgqueue_queue *);
 

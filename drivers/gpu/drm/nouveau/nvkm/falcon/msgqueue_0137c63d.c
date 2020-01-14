@@ -45,24 +45,6 @@ struct msgqueue_0137bca5 {
 	container_of(container_of(q, struct msgqueue_0137c63d, base), \
 		     struct msgqueue_0137bca5, base);
 
-static struct nvkm_msgqueue_queue *
-msgqueue_0137c63d_cmd_queue(struct nvkm_msgqueue *queue,
-			    enum msgqueue_msg_priority priority)
-{
-	struct msgqueue_0137c63d *priv = msgqueue_0137c63d(queue);
-	const struct nvkm_subdev *subdev = priv->base.falcon->owner;
-
-	switch (priority) {
-	case MSGQUEUE_MSG_PRIORITY_HIGH:
-		return subdev->device->pmu->hpq;
-	case MSGQUEUE_MSG_PRIORITY_LOW:
-		return subdev->device->pmu->lpq;
-	default:
-		nvkm_error(subdev, "invalid command queue!\n");
-		return ERR_PTR(-EINVAL);
-	}
-}
-
 static void
 msgqueue_0137c63d_process_msgs(struct nvkm_msgqueue *queue)
 {
@@ -172,13 +154,13 @@ enum {
 static int
 acr_init_wpr_callback(void *priv, struct nv_falcon_msg *hdr)
 {
-	struct nvkm_msgqueue *queue = priv;
+	struct nvkm_pmu *pmu = priv;
+	struct nvkm_subdev *subdev = &pmu->subdev;
 	struct {
 		struct nv_falcon_msg base;
 		u8 msg_type;
 		u32 error_code;
 	} *msg = (void *)hdr;
-	const struct nvkm_subdev *subdev = queue->falcon->owner;
 
 	if (msg->error_code) {
 		nvkm_error(subdev, "ACR WPR init failure: %d\n",
@@ -187,19 +169,20 @@ acr_init_wpr_callback(void *priv, struct nv_falcon_msg *hdr)
 	}
 
 	nvkm_debug(subdev, "ACR WPR init complete\n");
-	complete_all(&subdev->device->pmu->wpr_ready);
+	complete_all(&pmu->wpr_ready);
 	return 0;
 }
 
 static int
 acr_init_wpr(struct nvkm_msgqueue *queue)
 {
+	struct nvkm_pmu *pmu = queue->falcon->owner->device->pmu;
 	/*
 	 * region_id:	region ID in WPR region
 	 * wpr_offset:	offset in WPR region
 	 */
 	struct {
-		struct nvkm_msgqueue_hdr hdr;
+		struct nv_falcon_cmd hdr;
 		u8 cmd_type;
 		u32 region_id;
 		u32 wpr_offset;
@@ -211,21 +194,20 @@ acr_init_wpr(struct nvkm_msgqueue *queue)
 	cmd.cmd_type = ACR_CMD_INIT_WPR_REGION;
 	cmd.region_id = 0x01;
 	cmd.wpr_offset = 0x00;
-	return nvkm_msgqueue_post(queue, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
-				  acr_init_wpr_callback, NULL, false);
+	return nvkm_falcon_cmdq_send(pmu->hpq, &cmd.hdr, acr_init_wpr_callback,
+				     pmu, 0);
 }
 
 
 static int
-acr_boot_falcon_callback(void *_priv, struct nv_falcon_msg *hdr)
+acr_boot_falcon_callback(void *priv, struct nv_falcon_msg *hdr)
 {
-	struct nvkm_msgqueue *priv = _priv;
 	struct acr_bootstrap_falcon_msg {
 		struct nv_falcon_msg base;
 		u8 msg_type;
 		u32 falcon_id;
 	} *msg = (void *)hdr;
-	const struct nvkm_subdev *subdev = priv->falcon->owner;
+	struct nvkm_subdev *subdev = priv;
 	u32 falcon_id = msg->falcon_id;
 
 	if (falcon_id >= NVKM_SECBOOT_FALCON_END) {
@@ -247,13 +229,12 @@ static int
 acr_boot_falcon(struct nvkm_msgqueue *priv, enum nvkm_secboot_falcon falcon)
 {
 	struct nvkm_pmu *pmu = priv->falcon->owner->device->pmu;
-	DECLARE_COMPLETION_ONSTACK(completed);
 	/*
 	 * flags      - Flag specifying RESET or no RESET.
 	 * falcon id  - Falcon id specifying falcon to bootstrap.
 	 */
 	struct {
-		struct nvkm_msgqueue_hdr hdr;
+		struct nv_falcon_cmd hdr;
 		u8 cmd_type;
 		u32 flags;
 		u32 falcon_id;
@@ -272,20 +253,20 @@ acr_boot_falcon(struct nvkm_msgqueue *priv, enum nvkm_secboot_falcon falcon)
 	cmd.cmd_type = ACR_CMD_BOOTSTRAP_FALCON;
 	cmd.flags = ACR_CMD_BOOTSTRAP_FALCON_FLAGS_RESET_YES;
 	cmd.falcon_id = falcon;
-	return nvkm_msgqueue_post(priv, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
-				  acr_boot_falcon_callback, &completed, true);
+	return nvkm_falcon_cmdq_send(pmu->hpq, &cmd.hdr,
+				     acr_boot_falcon_callback, &pmu->subdev,
+				     msecs_to_jiffies(1000));
 }
 
 static int
-acr_boot_multiple_falcons_callback(void *_priv, struct nv_falcon_msg *hdr)
+acr_boot_multiple_falcons_callback(void *priv, struct nv_falcon_msg *hdr)
 {
-	struct nvkm_msgqueue *priv = _priv;
 	struct acr_bootstrap_falcon_msg {
 		struct nv_falcon_msg base;
 		u8 msg_type;
 		u32 falcon_mask;
 	} *msg = (void *)hdr;
-	const struct nvkm_subdev *subdev = priv->falcon->owner;
+	const struct nvkm_subdev *subdev = priv;
 	unsigned long falcon_mask = msg->falcon_mask;
 	u32 falcon_id, falcon_treated = 0;
 
@@ -309,13 +290,12 @@ static int
 acr_boot_multiple_falcons(struct nvkm_msgqueue *priv, unsigned long falcon_mask)
 {
 	struct nvkm_pmu *pmu = priv->falcon->owner->device->pmu;
-	DECLARE_COMPLETION_ONSTACK(completed);
 	/*
 	 * flags      - Flag specifying RESET or no RESET.
 	 * falcon id  - Falcon id specifying falcon to bootstrap.
 	 */
 	struct {
-		struct nvkm_msgqueue_hdr hdr;
+		struct nv_falcon_cmd hdr;
 		u8 cmd_type;
 		u32 flags;
 		u32 falcon_mask;
@@ -340,9 +320,9 @@ acr_boot_multiple_falcons(struct nvkm_msgqueue *priv, unsigned long falcon_mask)
 	cmd.falcon_mask = falcon_mask;
 	cmd.wpr_lo = lower_32_bits(queue->wpr_addr);
 	cmd.wpr_hi = upper_32_bits(queue->wpr_addr);
-	return nvkm_msgqueue_post(priv, MSGQUEUE_MSG_PRIORITY_HIGH, &cmd.hdr,
-				  acr_boot_multiple_falcons_callback,
-				  &completed, true);
+	return nvkm_falcon_cmdq_send(pmu->hpq, &cmd.hdr,
+				     acr_boot_multiple_falcons_callback,
+				     &pmu->subdev, msecs_to_jiffies(1000));
 }
 
 static const struct nvkm_msgqueue_acr_func
@@ -366,7 +346,6 @@ static const struct nvkm_msgqueue_func
 msgqueue_0137c63d_func = {
 	.init_func = &msgqueue_0137c63d_init_func,
 	.acr_func = &msgqueue_0137c63d_acr_func,
-	.cmd_queue = msgqueue_0137c63d_cmd_queue,
 	.recv = msgqueue_0137c63d_process_msgs,
 	.dtor = msgqueue_0137c63d_dtor,
 };
@@ -392,7 +371,6 @@ static const struct nvkm_msgqueue_func
 msgqueue_0137bca5_func = {
 	.init_func = &msgqueue_0137c63d_init_func,
 	.acr_func = &msgqueue_0137bca5_acr_func,
-	.cmd_queue = msgqueue_0137c63d_cmd_queue,
 	.recv = msgqueue_0137c63d_process_msgs,
 	.dtor = msgqueue_0137c63d_dtor,
 };

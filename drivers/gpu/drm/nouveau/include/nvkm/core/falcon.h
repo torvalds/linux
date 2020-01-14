@@ -45,6 +45,8 @@ struct nv_falcon_msg {
 	u8 seq_id;
 };
 
+#define nv_falcon_cmd nv_falcon_msg
+
 struct nvkm_falcon_qmgr;
 int nvkm_falcon_qmgr_new(struct nvkm_falcon *, struct nvkm_falcon_qmgr **);
 void nvkm_falcon_qmgr_del(struct nvkm_falcon_qmgr **);
@@ -59,6 +61,9 @@ void nvkm_falcon_cmdq_del(struct nvkm_falcon_cmdq **);
 void nvkm_falcon_cmdq_init(struct nvkm_falcon_cmdq *,
 			   u32 index, u32 offset, u32 size);
 void nvkm_falcon_cmdq_fini(struct nvkm_falcon_cmdq *);
+int nvkm_falcon_cmdq_send(struct nvkm_falcon_cmdq *, struct nv_falcon_cmd *,
+			  nvkm_falcon_qmgr_callback, void *priv,
+			  unsigned long timeout_jiffies);
 
 struct nvkm_falcon_msgq;
 int nvkm_falcon_msgq_new(struct nvkm_falcon_qmgr *, const char *name,

@@ -61,7 +61,7 @@ cmd_queue_push(struct nvkm_msgqueue_queue *queue, void *data, u32 size)
 static void
 cmd_queue_rewind(struct nvkm_msgqueue_queue *queue)
 {
-	struct nvkm_msgqueue_hdr cmd;
+	struct nv_falcon_cmd cmd;
 
 	cmd.unit_id = MSGQUEUE_UNIT_REWIND;
 	cmd.size = sizeof(cmd);
@@ -100,7 +100,7 @@ cmd_queue_close(struct nvkm_msgqueue_queue *queue)
 }
 
 static int
-cmd_write(struct nvkm_msgqueue_queue *queue, struct nvkm_msgqueue_hdr *cmd)
+cmd_write(struct nvkm_msgqueue_queue *queue, struct nv_falcon_cmd *cmd)
 {
 	static unsigned timeout = 2000;
 	unsigned long end_jiffies = jiffies + msecs_to_jiffies(timeout);
@@ -124,17 +124,13 @@ cmd_write(struct nvkm_msgqueue_queue *queue, struct nvkm_msgqueue_hdr *cmd)
 #define CMD_FLAGS_INTR BIT(1)
 
 int
-nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
-		   struct nvkm_msgqueue_hdr *cmd, nvkm_falcon_qmgr_callback cb,
-		   struct completion *completion, bool wait_init)
+nvkm_falcon_cmdq_send(struct nvkm_falcon_cmdq *queue,
+		      struct nv_falcon_cmd *cmd,
+		      nvkm_falcon_qmgr_callback cb, void *priv,
+		      unsigned long timeout)
 {
 	struct nvkm_falcon_qmgr_seq *seq;
-	struct nvkm_msgqueue_queue *queue;
 	int ret;
-
-	queue = priv->func->cmd_queue(priv, prio);
-	if (IS_ERR(queue))
-		return PTR_ERR(queue);
 
 	if (!wait_for_completion_timeout(&queue->ready,
 					 msecs_to_jiffies(1000))) {
@@ -150,7 +146,7 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 	cmd->ctrl_flags = CMD_FLAGS_STATUS | CMD_FLAGS_INTR;
 
 	seq->state = SEQ_STATE_USED;
-	seq->async = !completion;
+	seq->async = !timeout;
 	seq->callback = cb;
 	seq->priv = priv;
 
@@ -162,8 +158,7 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 	}
 
 	if (!seq->async) {
-		if (!wait_for_completion_timeout(&seq->done,
-						 msecs_to_jiffies(1000))) {
+		if (!wait_for_completion_timeout(&seq->done, timeout)) {
 			FLCNQ_ERR(queue, "timeout waiting for reply");
 			return -ETIMEDOUT;
 		}
