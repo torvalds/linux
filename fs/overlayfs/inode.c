@@ -121,13 +121,12 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 		 */
 		stat->dev = dentry->d_sb->s_dev;
 		stat->ino = dentry->d_inode->i_ino;
-	} else if (fsid) {
+	} else {
 		/*
 		 * For non-samefs setup, if we cannot map all layers st_ino
 		 * to a unified address space, we need to make sure that st_dev
-		 * is unique per lower fs. Upper layer uses real st_dev and
-		 * lower layers use the unique anonymous bdev assigned to the
-		 * lower fs.
+		 * is unique per underlying fs, so we use the unique anonymous
+		 * bdev assigned to the underlying fs.
 		 */
 		stat->dev = OVL_FS(dentry->d_sb)->fs[fsid].pseudo_dev;
 	}
@@ -143,7 +142,6 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 	struct path realpath;
 	const struct cred *old_cred;
 	bool is_dir = S_ISDIR(dentry->d_inode->i_mode);
-	bool samefs = ovl_same_fs(dentry->d_sb);
 	int fsid = 0;
 	int err;
 	bool metacopy_blocks = false;
@@ -198,13 +196,7 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 			    (!ovl_verify_lower(dentry->d_sb) &&
 			     (is_dir || lowerstat.nlink == 1))) {
 				fsid = ovl_layer_lower(dentry)->fsid;
-				/*
-				 * Cannot use origin st_dev;st_ino because
-				 * origin inode content may differ from overlay
-				 * inode content.
-				 */
-				if (samefs || fsid)
-					stat->ino = lowerstat.ino;
+				stat->ino = lowerstat.ino;
 			}
 
 			/*

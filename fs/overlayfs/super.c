@@ -229,8 +229,7 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 		mntput(ofs->layers[i].mnt);
 	}
 	kfree(ofs->layers);
-	/* fs[0].pseudo_dev is either null or real upper st_dev */
-	for (i = 1; i < ofs->numfs; i++)
+	for (i = 0; i < ofs->numfs; i++)
 		free_anon_bdev(ofs->fs[i].pseudo_dev);
 	kfree(ofs->fs);
 
@@ -1341,13 +1340,19 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	ofs->numlayer = 1;
 
 	/*
-	 * All lower layers that share the same fs as upper layer, use the real
-	 * upper st_dev.
+	 * All lower layers that share the same fs as upper layer, use the same
+	 * pseudo_dev as upper layer.  Allocate fs[0].pseudo_dev even for lower
+	 * only overlay to simplify ovl_fs_free().
 	 * is_lower will be set if upper fs is shared with a lower layer.
 	 */
+	err = get_anon_bdev(&ofs->fs[0].pseudo_dev);
+	if (err) {
+		pr_err("failed to get anonymous bdev for upper fs\n");
+		goto out;
+	}
+
 	if (ofs->upper_mnt) {
 		ofs->fs[0].sb = ofs->upper_mnt->mnt_sb;
-		ofs->fs[0].pseudo_dev = ofs->upper_mnt->mnt_sb->s_dev;
 		ofs->fs[0].is_lower = false;
 	}
 
