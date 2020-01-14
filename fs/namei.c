@@ -2333,21 +2333,26 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 	return s;
 }
 
-static const char *trailing_symlink(struct nameidata *nd)
+static inline const char *lookup_last(struct nameidata *nd)
 {
-	const char *s = get_link(nd);
-	nd->flags |= LOOKUP_PARENT;
-	nd->stack[0].name = NULL;
-	return s ? s : "";
-}
-
-static inline int lookup_last(struct nameidata *nd)
-{
+	int err;
 	if (nd->last_type == LAST_NORM && nd->last.name[nd->last.len])
 		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 
 	nd->flags &= ~LOOKUP_PARENT;
-	return walk_component(nd, 0);
+	err = walk_component(nd, 0);
+	if (unlikely(err)) {
+		const char *s;
+		if (err < 0)
+			return PTR_ERR(err);
+		s = get_link(nd);
+		if (s) {
+			nd->flags |= LOOKUP_PARENT;
+			nd->stack[0].name = NULL;
+			return s;
+		}
+	}
+	return NULL;
 }
 
 static int handle_lookup_down(struct nameidata *nd)
@@ -2370,10 +2375,9 @@ static int path_lookupat(struct nameidata *nd, unsigned flags, struct path *path
 			s = ERR_PTR(err);
 	}
 
-	while (!(err = link_path_walk(s, nd))
-		&& ((err = lookup_last(nd)) > 0)) {
-		s = trailing_symlink(nd);
-	}
+	while (!(err = link_path_walk(s, nd)) &&
+	       (s = lookup_last(nd)) != NULL)
+		;
 	if (!err)
 		err = complete_walk(nd);
 
@@ -3183,7 +3187,7 @@ out_dput:
 /*
  * Handle the last step of open()
  */
-static int do_last(struct nameidata *nd,
+static const char *do_last(struct nameidata *nd,
 		   struct file *file, const struct open_flags *op)
 {
 	struct dentry *dir = nd->path.dentry;
@@ -3206,7 +3210,7 @@ static int do_last(struct nameidata *nd,
 			put_link(nd);
 		error = handle_dots(nd, nd->last_type);
 		if (unlikely(error))
-			return error;
+			return ERR_PTR(error);
 		goto finish_open;
 	}
 
@@ -3216,7 +3220,7 @@ static int do_last(struct nameidata *nd,
 		/* we _can_ be in RCU mode here */
 		dentry = lookup_fast(nd, &inode, &seq);
 		if (IS_ERR(dentry))
-			return PTR_ERR(dentry);
+			return ERR_CAST(dentry);
 		if (likely(dentry))
 			goto finish_lookup;
 
@@ -3231,12 +3235,12 @@ static int do_last(struct nameidata *nd,
 		 */
 		error = complete_walk(nd);
 		if (error)
-			return error;
+			return ERR_PTR(error);
 
 		audit_inode(nd->name, dir, AUDIT_INODE_PARENT);
 		/* trailing slashes? */
 		if (unlikely(nd->last.name[nd->last.len]))
-			return -EISDIR;
+			return ERR_PTR(-EISDIR);
 	}
 
 	if (open_flag & (O_CREAT | O_TRUNC | O_WRONLY | O_RDWR)) {
@@ -3298,18 +3302,28 @@ finish_lookup:
 	if (nd->depth)
 		put_link(nd);
 	error = step_into(nd, 0, dentry, inode, seq);
-	if (unlikely(error))
-		return error;
+	if (unlikely(error)) {
+		const char *s;
+		if (error < 0)
+			return ERR_PTR(error);
+		s = get_link(nd);
+		if (s) {
+			nd->flags |= LOOKUP_PARENT;
+			nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
+			nd->stack[0].name = NULL;
+			return s;
+		}
+	}
 
 	if (unlikely((open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT))) {
 		audit_inode(nd->name, nd->path.dentry, 0);
-		return -EEXIST;
+		return ERR_PTR(-EEXIST);
 	}
 finish_open:
 	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
 	error = complete_walk(nd);
 	if (error)
-		return error;
+		return ERR_PTR(error);
 	audit_inode(nd->name, nd->path.dentry, 0);
 	if (open_flag & O_CREAT) {
 		error = -EISDIR;
@@ -3351,7 +3365,7 @@ out:
 	}
 	if (got_write)
 		mnt_drop_write(nd->path.mnt);
-	return error;
+	return ERR_PTR(error);
 }
 
 struct dentry *vfs_tmpfile(struct dentry *dentry, umode_t mode, int open_flag)
@@ -3454,10 +3468,8 @@ static struct file *path_openat(struct nameidata *nd,
 	} else {
 		const char *s = path_init(nd, flags);
 		while (!(error = link_path_walk(s, nd)) &&
-			(error = do_last(nd, file, op)) > 0) {
-			nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
-			s = trailing_symlink(nd);
-		}
+		       (s = do_last(nd, file, op)) != NULL)
+			;
 		terminate_walk(nd);
 	}
 	if (likely(!error)) {
