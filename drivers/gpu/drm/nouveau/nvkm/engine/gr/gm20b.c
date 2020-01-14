@@ -97,7 +97,7 @@ gm20b_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	int ret;
 
-	ret = nvkm_acr_lsfw_load_bl_inst_data_sig(subdev, gr->fecs.falcon,
+	ret = nvkm_acr_lsfw_load_bl_inst_data_sig(subdev, &gr->fecs.falcon,
 						  NVKM_ACR_LSF_FECS,
 						  "gr/fecs_", ver, fwif->fecs);
 	if (ret)

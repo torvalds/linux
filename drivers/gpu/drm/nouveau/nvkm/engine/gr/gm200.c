@@ -175,14 +175,14 @@ gm200_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
 	int ret;
 
 	ret = nvkm_acr_lsfw_load_bl_inst_data_sig(&gr->base.engine.subdev,
-						  gr->fecs.falcon,
+						  &gr->fecs.falcon,
 						  NVKM_ACR_LSF_FECS,
 						  "gr/fecs_", ver, fwif->fecs);
 	if (ret)
 		return ret;
 
 	ret = nvkm_acr_lsfw_load_bl_inst_data_sig(&gr->base.engine.subdev,
-						  gr->gpccs.falcon,
+						  &gr->gpccs.falcon,
 						  NVKM_ACR_LSF_GPCCS,
 						  "gr/gpccs_", ver,
 						  fwif->gpccs);

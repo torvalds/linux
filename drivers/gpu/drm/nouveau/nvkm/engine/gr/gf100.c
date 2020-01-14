@@ -1701,14 +1701,14 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_FECS))
 		secboot_mask |= BIT(NVKM_SECBOOT_FALCON_FECS);
 	else
-		gf100_gr_init_fw(gr->fecs.falcon, &gr->fecs.inst,
-						  &gr->fecs.data);
+		gf100_gr_init_fw(&gr->fecs.falcon, &gr->fecs.inst,
+						   &gr->fecs.data);
 
 	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_GPCCS))
 		secboot_mask |= BIT(NVKM_SECBOOT_FALCON_GPCCS);
 	else
-		gf100_gr_init_fw(gr->gpccs.falcon, &gr->gpccs.inst,
-						   &gr->gpccs.data);
+		gf100_gr_init_fw(&gr->gpccs.falcon, &gr->gpccs.inst,
+						    &gr->gpccs.data);
 
 	if (secboot_mask != 0) {
 		int ret = nvkm_secboot_reset(sb, secboot_mask);
@@ -1723,8 +1723,8 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x41a10c, 0x00000000);
 	nvkm_wr32(device, 0x40910c, 0x00000000);
 
-	nvkm_falcon_start(gr->gpccs.falcon);
-	nvkm_falcon_start(gr->fecs.falcon);
+	nvkm_falcon_start(&gr->gpccs.falcon);
+	nvkm_falcon_start(&gr->fecs.falcon);
 
 	if (nvkm_msec(device, 2000,
 		if (nvkm_rd32(device, 0x409800) & 0x00000001)
@@ -1786,18 +1786,18 @@ gf100_gr_init_ctxctl_int(struct gf100_gr *gr)
 
 	/* load HUB microcode */
 	nvkm_mc_unk260(device, 0);
-	nvkm_falcon_load_dmem(gr->fecs.falcon,
+	nvkm_falcon_load_dmem(&gr->fecs.falcon,
 			      gr->func->fecs.ucode->data.data, 0x0,
 			      gr->func->fecs.ucode->data.size, 0);
-	nvkm_falcon_load_imem(gr->fecs.falcon,
+	nvkm_falcon_load_imem(&gr->fecs.falcon,
 			      gr->func->fecs.ucode->code.data, 0x0,
 			      gr->func->fecs.ucode->code.size, 0, 0, false);
 
 	/* load GPC microcode */
-	nvkm_falcon_load_dmem(gr->gpccs.falcon,
+	nvkm_falcon_load_dmem(&gr->gpccs.falcon,
 			      gr->func->gpccs.ucode->data.data, 0x0,
 			      gr->func->gpccs.ucode->data.size, 0);
-	nvkm_falcon_load_imem(gr->gpccs.falcon,
+	nvkm_falcon_load_imem(&gr->gpccs.falcon,
 			      gr->func->gpccs.ucode->code.data, 0x0,
 			      gr->func->gpccs.ucode->code.size, 0, 0, false);
 	nvkm_mc_unk260(device, 1);
@@ -1943,17 +1943,6 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int i, j;
-	int ret;
-
-	ret = nvkm_falcon_v1_new(subdev, "FECS", 0x409000, &gr->fecs.falcon);
-	if (ret)
-		return ret;
-
-	mutex_init(&gr->fecs.mutex);
-
-	ret = nvkm_falcon_v1_new(subdev, "GPCCS", 0x41a000, &gr->gpccs.falcon);
-	if (ret)
-		return ret;
 
 	nvkm_pmu_pgob(device->pmu, false);
 
@@ -1994,11 +1983,11 @@ gf100_gr_init_(struct nvkm_gr *base)
 
 	nvkm_pmu_pgob(gr->base.engine.subdev.device->pmu, false);
 
-	ret = nvkm_falcon_get(gr->fecs.falcon, subdev);
+	ret = nvkm_falcon_get(&gr->fecs.falcon, subdev);
 	if (ret)
 		return ret;
 
-	ret = nvkm_falcon_get(gr->gpccs.falcon, subdev);
+	ret = nvkm_falcon_get(&gr->gpccs.falcon, subdev);
 	if (ret)
 		return ret;
 
@@ -2006,12 +1995,12 @@ gf100_gr_init_(struct nvkm_gr *base)
 }
 
 static int
-gf100_gr_fini_(struct nvkm_gr *base, bool suspend)
+gf100_gr_fini(struct nvkm_gr *base, bool suspend)
 {
 	struct gf100_gr *gr = gf100_gr(base);
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
-	nvkm_falcon_put(gr->gpccs.falcon, subdev);
-	nvkm_falcon_put(gr->fecs.falcon, subdev);
+	nvkm_falcon_put(&gr->gpccs.falcon, subdev);
+	nvkm_falcon_put(&gr->fecs.falcon, subdev);
 	return 0;
 }
 
@@ -2022,8 +2011,8 @@ gf100_gr_dtor(struct nvkm_gr *base)
 
 	kfree(gr->data);
 
-	nvkm_falcon_del(&gr->gpccs.falcon);
-	nvkm_falcon_del(&gr->fecs.falcon);
+	nvkm_falcon_dtor(&gr->gpccs.falcon);
+	nvkm_falcon_dtor(&gr->fecs.falcon);
 
 	nvkm_blob_dtor(&gr->fecs.inst);
 	nvkm_blob_dtor(&gr->fecs.data);
@@ -2043,7 +2032,7 @@ gf100_gr_ = {
 	.dtor = gf100_gr_dtor,
 	.oneinit = gf100_gr_oneinit,
 	.init = gf100_gr_init_,
-	.fini = gf100_gr_fini_,
+	.fini = gf100_gr_fini,
 	.intr = gf100_gr_intr,
 	.units = gf100_gr_units,
 	.chan_new = gf100_gr_chan_new,
@@ -2052,6 +2041,20 @@ gf100_gr_ = {
 	.ctxsw.pause = gf100_gr_fecs_stop_ctxsw,
 	.ctxsw.resume = gf100_gr_fecs_start_ctxsw,
 	.ctxsw.inst = gf100_gr_ctxsw_inst,
+};
+
+static const struct nvkm_falcon_func
+gf100_gr_flcn = {
+	.load_imem = nvkm_falcon_v1_load_imem,
+	.load_dmem = nvkm_falcon_v1_load_dmem,
+	.read_dmem = nvkm_falcon_v1_read_dmem,
+	.bind_context = nvkm_falcon_v1_bind_context,
+	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
+	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
+	.set_start_addr = nvkm_falcon_v1_set_start_addr,
+	.start = nvkm_falcon_v1_start,
+	.enable = nvkm_falcon_v1_enable,
+	.disable = nvkm_falcon_v1_disable,
 };
 
 int
@@ -2074,6 +2077,19 @@ gf100_gr_new_(const struct gf100_gr_fwif *fwif,
 		return -ENODEV;
 
 	gr->func = fwif->func;
+
+	ret = nvkm_falcon_ctor(&gf100_gr_flcn, &gr->base.engine.subdev,
+			       "fecs", 0x409000, &gr->fecs.falcon);
+	if (ret)
+		return ret;
+
+	mutex_init(&gr->fecs.mutex);
+
+	ret = nvkm_falcon_ctor(&gf100_gr_flcn, &gr->base.engine.subdev,
+			       "gpccs", 0x41a000, &gr->gpccs.falcon);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 

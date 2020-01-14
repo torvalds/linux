@@ -78,7 +78,7 @@ struct gf100_gr {
 	struct nvkm_gr base;
 
 	struct {
-		struct nvkm_falcon *falcon;
+		struct nvkm_falcon falcon;
 		struct nvkm_blob inst;
 		struct nvkm_blob data;
 
@@ -87,7 +87,7 @@ struct gf100_gr {
 	} fecs;
 
 	struct {
-		struct nvkm_falcon *falcon;
+		struct nvkm_falcon falcon;
 		struct nvkm_blob inst;
 		struct nvkm_blob data;
 	} gpccs;
