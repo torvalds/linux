@@ -35,6 +35,9 @@
 
 #define MADERA_32KZ_MCLK2	1
 
+#define MADERA_RESET_MIN_US	2000
+#define MADERA_RESET_MAX_US	3000
+
 static const char * const madera_core_supplies[] = {
 	"AVDD",
 	"DBVDD1",
@@ -256,16 +259,13 @@ static int madera_soft_reset(struct madera *madera)
 	}
 
 	/* Allow time for internal clocks to startup after reset */
-	usleep_range(1000, 2000);
+	usleep_range(MADERA_RESET_MIN_US, MADERA_RESET_MAX_US);
 
 	return 0;
 }
 
 static void madera_enable_hard_reset(struct madera *madera)
 {
-	if (!madera->pdata.reset)
-		return;
-
 	/*
 	 * There are many existing out-of-tree users of these codecs that we
 	 * can't break so preserve the expected behaviour of setting the line
@@ -276,11 +276,9 @@ static void madera_enable_hard_reset(struct madera *madera)
 
 static void madera_disable_hard_reset(struct madera *madera)
 {
-	if (!madera->pdata.reset)
-		return;
-
 	gpiod_set_raw_value_cansleep(madera->pdata.reset, 1);
-	usleep_range(1000, 2000);
+
+	usleep_range(MADERA_RESET_MIN_US, MADERA_RESET_MAX_US);
 }
 
 static int __maybe_unused madera_runtime_resume(struct device *dev)
@@ -298,6 +296,8 @@ static int __maybe_unused madera_runtime_resume(struct device *dev)
 
 	regcache_cache_only(madera->regmap, false);
 	regcache_cache_only(madera->regmap_32bit, false);
+
+	usleep_range(MADERA_RESET_MIN_US, MADERA_RESET_MAX_US);
 
 	ret = madera_wait_for_boot(madera);
 	if (ret)
