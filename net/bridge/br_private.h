@@ -554,6 +554,18 @@ static inline bool br_vlan_valid_range(const struct bridge_vlan_info *cur,
 	return true;
 }
 
+static inline int br_afspec_cmd_to_rtm(int cmd)
+{
+	switch (cmd) {
+	case RTM_SETLINK:
+		return RTM_NEWVLAN;
+	case RTM_DELLINK:
+		return RTM_DELVLAN;
+	}
+
+	return 0;
+}
+
 static inline int br_opt_get(const struct net_bridge *br,
 			     enum net_bridge_opts opt)
 {

@@ -257,6 +257,10 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags,
 					  &changed, extack);
 			if (err)
 				goto out_filt;
+
+			if (changed)
+				br_vlan_notify(br, NULL, v->vid, 0,
+					       RTM_NEWVLAN);
 		}
 
 		masterv = br_vlan_get_master(br, v->vid, extack);
@@ -380,13 +384,31 @@ static void __vlan_group_free(struct net_bridge_vlan_group *vg)
 	kfree(vg);
 }
 
-static void __vlan_flush(struct net_bridge_vlan_group *vg)
+static void __vlan_flush(const struct net_bridge *br,
+			 const struct net_bridge_port *p,
+			 struct net_bridge_vlan_group *vg)
 {
 	struct net_bridge_vlan *vlan, *tmp;
+	u16 v_start = 0, v_end = 0;
 
 	__vlan_delete_pvid(vg, vg->pvid);
-	list_for_each_entry_safe(vlan, tmp, &vg->vlan_list, vlist)
+	list_for_each_entry_safe(vlan, tmp, &vg->vlan_list, vlist) {
+		/* take care of disjoint ranges */
+		if (!v_start) {
+			v_start = vlan->vid;
+		} else if (vlan->vid - v_end != 1) {
+			/* found range end, notify and start next one */
+			br_vlan_notify(br, p, v_start, v_end, RTM_DELVLAN);
+			v_start = vlan->vid;
+		}
+		v_end = vlan->vid;
+
 		__vlan_del(vlan);
+	}
+
+	/* notify about the last/whole vlan range */
+	if (v_start)
+		br_vlan_notify(br, p, v_start, v_end, RTM_DELVLAN);
 }
 
 struct sk_buff *br_handle_vlan(struct net_bridge *br,
@@ -716,7 +738,7 @@ void br_vlan_flush(struct net_bridge *br)
 	ASSERT_RTNL();
 
 	vg = br_vlan_group(br);
-	__vlan_flush(vg);
+	__vlan_flush(br, NULL, vg);
 	RCU_INIT_POINTER(br->vlgrp, NULL);
 	synchronize_rcu();
 	__vlan_group_free(vg);
@@ -925,12 +947,15 @@ static void br_vlan_disable_default_pvid(struct net_bridge *br)
 	/* Disable default_pvid on all ports where it is still
 	 * configured.
 	 */
-	if (vlan_default_pvid(br_vlan_group(br), pvid))
-		br_vlan_delete(br, pvid);
+	if (vlan_default_pvid(br_vlan_group(br), pvid)) {
+		if (!br_vlan_delete(br, pvid))
+			br_vlan_notify(br, NULL, pvid, 0, RTM_DELVLAN);
+	}
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if (vlan_default_pvid(nbp_vlan_group(p), pvid))
-			nbp_vlan_delete(p, pvid);
+		if (vlan_default_pvid(nbp_vlan_group(p), pvid) &&
+		    !nbp_vlan_delete(p, pvid))
+			br_vlan_notify(br, p, pvid, 0, RTM_DELVLAN);
 	}
 
 	br->default_pvid = 0;
@@ -972,7 +997,10 @@ int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
 				  &vlchange, extack);
 		if (err)
 			goto out;
-		br_vlan_delete(br, old_pvid);
+
+		if (br_vlan_delete(br, old_pvid))
+			br_vlan_notify(br, NULL, old_pvid, 0, RTM_DELVLAN);
+		br_vlan_notify(br, NULL, pvid, 0, RTM_NEWVLAN);
 		set_bit(0, changed);
 	}
 
@@ -992,7 +1020,9 @@ int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
 				   &vlchange, extack);
 		if (err)
 			goto err_port;
-		nbp_vlan_delete(p, old_pvid);
+		if (nbp_vlan_delete(p, old_pvid))
+			br_vlan_notify(br, p, old_pvid, 0, RTM_DELVLAN);
+		br_vlan_notify(p->br, p, pvid, 0, RTM_NEWVLAN);
 		set_bit(p->port_no, changed);
 	}
 
@@ -1007,22 +1037,28 @@ err_port:
 		if (!test_bit(p->port_no, changed))
 			continue;
 
-		if (old_pvid)
+		if (old_pvid) {
 			nbp_vlan_add(p, old_pvid,
 				     BRIDGE_VLAN_INFO_PVID |
 				     BRIDGE_VLAN_INFO_UNTAGGED,
 				     &vlchange, NULL);
+			br_vlan_notify(p->br, p, old_pvid, 0, RTM_NEWVLAN);
+		}
 		nbp_vlan_delete(p, pvid);
+		br_vlan_notify(br, p, pvid, 0, RTM_DELVLAN);
 	}
 
 	if (test_bit(0, changed)) {
-		if (old_pvid)
+		if (old_pvid) {
 			br_vlan_add(br, old_pvid,
 				    BRIDGE_VLAN_INFO_PVID |
 				    BRIDGE_VLAN_INFO_UNTAGGED |
 				    BRIDGE_VLAN_INFO_BRENTRY,
 				    &vlchange, NULL);
+			br_vlan_notify(br, NULL, old_pvid, 0, RTM_NEWVLAN);
+		}
 		br_vlan_delete(br, pvid);
+		br_vlan_notify(br, NULL, pvid, 0, RTM_DELVLAN);
 	}
 	goto out;
 }
@@ -1115,6 +1151,7 @@ int nbp_vlan_init(struct net_bridge_port *p, struct netlink_ext_ack *extack)
 				   &changed, extack);
 		if (ret)
 			goto err_vlan_add;
+		br_vlan_notify(p->br, p, p->br->default_pvid, 0, RTM_NEWVLAN);
 	}
 out:
 	return ret;
@@ -1196,7 +1233,7 @@ void nbp_vlan_flush(struct net_bridge_port *port)
 	ASSERT_RTNL();
 
 	vg = nbp_vlan_group(port);
-	__vlan_flush(vg);
+	__vlan_flush(port->br, port, vg);
 	RCU_INIT_POINTER(port->vlgrp, NULL);
 	synchronize_rcu();
 	__vlan_group_free(vg);
@@ -1462,8 +1499,8 @@ int br_vlan_bridge_event(struct net_device *dev, unsigned long event, void *ptr)
 {
 	struct netdev_notifier_changeupper_info *info;
 	struct net_bridge *br = netdev_priv(dev);
-	bool changed;
-	int ret = 0;
+	int vlcmd = 0, ret = 0;
+	bool changed = false;
 
 	switch (event) {
 	case NETDEV_REGISTER:
@@ -1471,9 +1508,11 @@ int br_vlan_bridge_event(struct net_device *dev, unsigned long event, void *ptr)
 				  BRIDGE_VLAN_INFO_PVID |
 				  BRIDGE_VLAN_INFO_UNTAGGED |
 				  BRIDGE_VLAN_INFO_BRENTRY, &changed, NULL);
+		vlcmd = RTM_NEWVLAN;
 		break;
 	case NETDEV_UNREGISTER:
-		br_vlan_delete(br, br->default_pvid);
+		changed = !br_vlan_delete(br, br->default_pvid);
+		vlcmd = RTM_DELVLAN;
 		break;
 	case NETDEV_CHANGEUPPER:
 		info = ptr;
@@ -1487,6 +1526,8 @@ int br_vlan_bridge_event(struct net_device *dev, unsigned long event, void *ptr)
 		br_vlan_link_state_change(dev, br);
 		break;
 	}
+	if (changed)
+		br_vlan_notify(br, NULL, br->default_pvid, 0, vlcmd);
 
 	return ret;
 }
