@@ -1258,6 +1258,50 @@ static void gfs2_glock_put_eventually(struct gfs2_glock *gl)
 		gfs2_glock_put(gl);
 }
 
+static bool gfs2_upgrade_iopen_glock(struct inode *inode)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct gfs2_holder *gh = &ip->i_iopen_gh;
+	long timeout = 5 * HZ;
+	int error;
+
+	gh->gh_flags |= GL_NOCACHE;
+	gfs2_glock_dq_wait(gh);
+
+	/*
+	 * If there are no other lock holders, we'll get the lock immediately.
+	 * Otherwise, the other nodes holding the lock will be notified about
+	 * our locking request.  If they don't have the inode open, they'll
+	 * evict the cached inode and release the lock.  As a last resort,
+	 * we'll eventually time out.
+	 *
+	 * Note that we're passing the LM_FLAG_TRY_1CB flag to the first
+	 * locking request as an optimization to notify lock holders as soon as
+	 * possible.  Without that flag, they'd be notified implicitly by the
+	 * second locking request.
+	 */
+
+	gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, gh);
+	error = gfs2_glock_nq(gh);
+	if (error != GLR_TRYFAILED)
+		return !error;
+
+	gfs2_holder_reinit(LM_ST_EXCLUSIVE, GL_ASYNC | GL_NOCACHE, gh);
+	error = gfs2_glock_nq(gh);
+	if (error)
+		return false;
+
+	timeout = wait_event_interruptible_timeout(sdp->sd_async_glock_wait,
+		!test_bit(HIF_WAIT, &gh->gh_iflags),
+		timeout);
+	if (!test_bit(HIF_HOLDER, &gh->gh_iflags)) {
+		gfs2_glock_dq(gh);
+		return false;
+	}
+	return true;
+}
+
 /**
  * gfs2_evict_inode - Remove an inode from cache
  * @inode: The inode to evict
@@ -1339,13 +1383,10 @@ static void gfs2_evict_inode(struct inode *inode)
 out_delete:
 	if (gfs2_holder_initialized(&ip->i_iopen_gh) &&
 	    test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
-		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-		gfs2_glock_dq_wait(&ip->i_iopen_gh);
-		gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE,
-				   &ip->i_iopen_gh);
-		error = gfs2_glock_nq(&ip->i_iopen_gh);
-		if (error)
+		if (!gfs2_upgrade_iopen_glock(inode)) {
+			gfs2_holder_uninit(&ip->i_iopen_gh);
 			goto out_truncate;
+		}
 	}
 
 	if (S_ISDIR(inode->i_mode) &&
