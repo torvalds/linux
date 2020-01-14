@@ -81,15 +81,6 @@ static int ipq4019_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ipq4019_regulator_remove(struct platform_device *pdev)
-{
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
-
-	regulator_unregister(rdev);
-
-	return 0;
-}
-
 static const struct of_device_id regulator_ipq4019_of_match[] = {
 	{ .compatible = "qcom,vqmmc-ipq4019-regulator", },
 	{},
@@ -97,7 +88,6 @@ static const struct of_device_id regulator_ipq4019_of_match[] = {
 
 static struct platform_driver ipq4019_regulator_driver = {
 	.probe = ipq4019_regulator_probe,
-	.remove = ipq4019_regulator_remove,
 	.driver = {
 		.name = "vqmmc-ipq4019-regulator",
 		.owner = THIS_MODULE,
