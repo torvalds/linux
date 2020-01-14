@@ -623,6 +623,15 @@ static inline bool ieee80211_is_qos_nullfunc(__le16 fc)
 }
 
 /**
+ * ieee80211_is_any_nullfunc - check if frame is regular or QoS nullfunc frame
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_any_nullfunc(__le16 fc)
+{
+	return (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc));
+}
+
+/**
  * ieee80211_is_bufferable_mmpdu - check if frame is bufferable MMPDU
  * @fc: frame control field in little-endian byteorder
  */
