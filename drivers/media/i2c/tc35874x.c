@@ -1742,8 +1742,27 @@ static const struct v4l2_subdev_ops tc35874x_ops = {
 };
 
 /* --------------- CUSTOM CTRLS --------------- */
+static int tc35874x_get_custom_ctrl(struct v4l2_ctrl *ctrl)
+{
+	int ret = -EINVAL;
+	struct tc35874x_state *state = container_of(ctrl->handler,
+			struct tc35874x_state, hdl);
+	struct v4l2_subdev *sd = &state->sd;
+
+	if (ctrl->id == TC35874X_CID_AUDIO_SAMPLING_RATE) {
+		ret = get_audio_sampling_rate(sd);
+		*ctrl->p_new.p_s32 = ret;
+	}
+
+	return ret;
+}
+
+static const struct v4l2_ctrl_ops tc35874x_custom_ctrl_ops = {
+	.g_volatile_ctrl = tc35874x_get_custom_ctrl,
+};
 
 static const struct v4l2_ctrl_config tc35874x_ctrl_audio_sampling_rate = {
+	.ops = &tc35874x_custom_ctrl_ops,
 	.id = TC35874X_CID_AUDIO_SAMPLING_RATE,
 	.name = "Audio sampling rate",
 	.type = V4L2_CTRL_TYPE_INTEGER,
@@ -1969,6 +1988,9 @@ static int tc35874x_probe(struct i2c_client *client,
 	/* custom controls */
 	state->audio_sampling_rate_ctrl = v4l2_ctrl_new_custom(&state->hdl,
 			&tc35874x_ctrl_audio_sampling_rate, NULL);
+	if (state->audio_sampling_rate_ctrl)
+		state->audio_sampling_rate_ctrl->flags |=
+			V4L2_CTRL_FLAG_VOLATILE;
 
 	state->audio_present_ctrl = v4l2_ctrl_new_custom(&state->hdl,
 			&tc35874x_ctrl_audio_present, NULL);
