@@ -3235,20 +3235,6 @@ mlxsw_sp_nexthop_fib_entries_update(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-static void
-mlxsw_sp_fib_entry_offload_refresh(struct mlxsw_sp_fib_entry *fib_entry,
-				   enum mlxsw_reg_ralue_op op, int err);
-
-static void
-mlxsw_sp_nexthop_fib_entries_refresh(struct mlxsw_sp_nexthop_group *nh_grp)
-{
-	enum mlxsw_reg_ralue_op op = MLXSW_REG_RALUE_OP_WRITE_WRITE;
-	struct mlxsw_sp_fib_entry *fib_entry;
-
-	list_for_each_entry(fib_entry, &nh_grp->fib_list, nexthop_group_node)
-		mlxsw_sp_fib_entry_offload_refresh(fib_entry, op, 0);
-}
-
 static void mlxsw_sp_adj_grp_size_round_up(u16 *p_adj_grp_size)
 {
 	/* Valid sizes for an adjacency group are:
@@ -3352,6 +3338,73 @@ mlxsw_sp_nexthop_group_rebalance(struct mlxsw_sp_nexthop_group *nh_grp)
 	}
 }
 
+static struct mlxsw_sp_nexthop *
+mlxsw_sp_rt6_nexthop(struct mlxsw_sp_nexthop_group *nh_grp,
+		     const struct mlxsw_sp_rt6 *mlxsw_sp_rt6);
+
+static void
+mlxsw_sp_nexthop4_group_offload_refresh(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_nexthop_group *nh_grp)
+{
+	int i;
+
+	for (i = 0; i < nh_grp->count; i++) {
+		struct mlxsw_sp_nexthop *nh = &nh_grp->nexthops[i];
+
+		if (nh->offloaded)
+			nh->key.fib_nh->fib_nh_flags |= RTNH_F_OFFLOAD;
+		else
+			nh->key.fib_nh->fib_nh_flags &= ~RTNH_F_OFFLOAD;
+	}
+}
+
+static void
+__mlxsw_sp_nexthop6_group_offload_refresh(struct mlxsw_sp_nexthop_group *nh_grp,
+					  struct mlxsw_sp_fib6_entry *fib6_entry)
+{
+	struct mlxsw_sp_rt6 *mlxsw_sp_rt6;
+
+	list_for_each_entry(mlxsw_sp_rt6, &fib6_entry->rt6_list, list) {
+		struct fib6_nh *fib6_nh = mlxsw_sp_rt6->rt->fib6_nh;
+		struct mlxsw_sp_nexthop *nh;
+
+		nh = mlxsw_sp_rt6_nexthop(nh_grp, mlxsw_sp_rt6);
+		if (nh && nh->offloaded)
+			fib6_nh->fib_nh_flags |= RTNH_F_OFFLOAD;
+		else
+			fib6_nh->fib_nh_flags &= ~RTNH_F_OFFLOAD;
+	}
+}
+
+static void
+mlxsw_sp_nexthop6_group_offload_refresh(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_nexthop_group *nh_grp)
+{
+	struct mlxsw_sp_fib6_entry *fib6_entry;
+
+	/* Unfortunately, in IPv6 the route and the nexthop are described by
+	 * the same struct, so we need to iterate over all the routes using the
+	 * nexthop group and set / clear the offload indication for them.
+	 */
+	list_for_each_entry(fib6_entry, &nh_grp->fib_list,
+			    common.nexthop_group_node)
+		__mlxsw_sp_nexthop6_group_offload_refresh(nh_grp, fib6_entry);
+}
+
+static void
+mlxsw_sp_nexthop_group_offload_refresh(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_nexthop_group *nh_grp)
+{
+	switch (mlxsw_sp_nexthop_group_type(nh_grp)) {
+	case AF_INET:
+		mlxsw_sp_nexthop4_group_offload_refresh(mlxsw_sp, nh_grp);
+		break;
+	case AF_INET6:
+		mlxsw_sp_nexthop6_group_offload_refresh(mlxsw_sp, nh_grp);
+		break;
+	}
+}
+
 static void
 mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_nexthop_group *nh_grp)
@@ -3425,6 +3478,8 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 		goto set_trap;
 	}
 
+	mlxsw_sp_nexthop_group_offload_refresh(mlxsw_sp, nh_grp);
+
 	if (!old_adj_index_valid) {
 		/* The trap was set for fib entries, so we have to call
 		 * fib entry update to unset it and use adjacency index.
@@ -3446,9 +3501,6 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 		goto set_trap;
 	}
 
-	/* Offload state within the group changed, so update the flags. */
-	mlxsw_sp_nexthop_fib_entries_refresh(nh_grp);
-
 	return;
 
 set_trap:
@@ -3461,6 +3513,7 @@ set_trap:
 	err = mlxsw_sp_nexthop_fib_entries_update(mlxsw_sp, nh_grp);
 	if (err)
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to set traps for fib entries.\n");
+	mlxsw_sp_nexthop_group_offload_refresh(mlxsw_sp, nh_grp);
 	if (old_adj_index_valid)
 		mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
 				   nh_grp->ecmp_size, nh_grp->adj_index);
@@ -5112,6 +5165,11 @@ static int mlxsw_sp_nexthop6_group_get(struct mlxsw_sp *mlxsw_sp,
 	list_add_tail(&fib6_entry->common.nexthop_group_node,
 		      &nh_grp->fib_list);
 	fib6_entry->common.nh_group = nh_grp;
+
+	/* The route and the nexthop are described by the same struct, so we
+	 * need to the update the nexthop offload indication for the new route.
+	 */
+	__mlxsw_sp_nexthop6_group_offload_refresh(nh_grp, fib6_entry);
 
 	return 0;
 }
