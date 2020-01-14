@@ -70,35 +70,6 @@ struct nvkm_msgqueue_func {
 };
 
 /**
- * struct nvkm_msgqueue_queue - information about a command or message queue
- *
- * The number of queues is firmware-dependent. All queues must have their
- * information filled by the init message handler.
- *
- * @mutex_lock:	to be acquired when the queue is being used
- * @index:	physical queue index
- * @offset:	DMEM offset where this queue begins
- * @size:	size allocated to this queue in DMEM (in bytes)
- * @position:	current write position
- * @head_reg:	address of the HEAD register for this queue
- * @tail_reg:	address of the TAIL register for this queue
- */
-struct nvkm_msgqueue_queue {
-	struct nvkm_falcon_qmgr *qmgr;
-	const char *name;
-	struct mutex mutex;
-	u32 index;
-	u32 offset;
-	u32 size;
-	u32 position;
-
-	u32 head_reg;
-	u32 tail_reg;
-
-	struct completion ready;
-};
-
-/**
  * struct nvkm_msgqueue - manage a command/message based FW on a falcon
  *
  * @falcon:	falcon to be managed

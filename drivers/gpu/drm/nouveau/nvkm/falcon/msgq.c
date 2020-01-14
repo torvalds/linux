@@ -23,74 +23,74 @@
 #include "qmgr.h"
 
 static void
-msg_queue_open(struct nvkm_msgqueue_queue *queue)
+nvkm_falcon_msgq_open(struct nvkm_falcon_msgq *msgq)
 {
-	mutex_lock(&queue->mutex);
-	queue->position = nvkm_falcon_rd32(queue->qmgr->falcon, queue->tail_reg);
+	mutex_lock(&msgq->mutex);
+	msgq->position = nvkm_falcon_rd32(msgq->qmgr->falcon, msgq->tail_reg);
 }
 
 static void
-msg_queue_close(struct nvkm_msgqueue_queue *queue, bool commit)
+nvkm_falcon_msgq_close(struct nvkm_falcon_msgq *msgq, bool commit)
 {
-	struct nvkm_falcon *falcon = queue->qmgr->falcon;
+	struct nvkm_falcon *falcon = msgq->qmgr->falcon;
 
 	if (commit)
-		nvkm_falcon_wr32(falcon, queue->tail_reg, queue->position);
+		nvkm_falcon_wr32(falcon, msgq->tail_reg, msgq->position);
 
-	mutex_unlock(&queue->mutex);
+	mutex_unlock(&msgq->mutex);
 }
 
 static bool
-msg_queue_empty(struct nvkm_msgqueue_queue *queue)
+nvkm_falcon_msgq_empty(struct nvkm_falcon_msgq *msgq)
 {
-	u32 head = nvkm_falcon_rd32(queue->qmgr->falcon, queue->head_reg);
-	u32 tail = nvkm_falcon_rd32(queue->qmgr->falcon, queue->tail_reg);
+	u32 head = nvkm_falcon_rd32(msgq->qmgr->falcon, msgq->head_reg);
+	u32 tail = nvkm_falcon_rd32(msgq->qmgr->falcon, msgq->tail_reg);
 	return head == tail;
 }
 
 static int
-msg_queue_pop(struct nvkm_msgqueue_queue *queue, void *data, u32 size)
+nvkm_falcon_msgq_pop(struct nvkm_falcon_msgq *msgq, void *data, u32 size)
 {
-	struct nvkm_falcon *falcon = queue->qmgr->falcon;
+	struct nvkm_falcon *falcon = msgq->qmgr->falcon;
 	u32 head, tail, available;
 
-	head = nvkm_falcon_rd32(falcon, queue->head_reg);
+	head = nvkm_falcon_rd32(falcon, msgq->head_reg);
 	/* has the buffer looped? */
-	if (head < queue->position)
-		queue->position = queue->offset;
+	if (head < msgq->position)
+		msgq->position = msgq->offset;
 
-	tail = queue->position;
+	tail = msgq->position;
 
 	available = head - tail;
 	if (size > available) {
-		FLCNQ_ERR(queue, "requested %d bytes, but only %d available",
+		FLCNQ_ERR(msgq, "requested %d bytes, but only %d available",
 			  size, available);
 		return -EINVAL;
 	}
 
 	nvkm_falcon_read_dmem(falcon, tail, size, 0, data);
-	queue->position += ALIGN(size, QUEUE_ALIGNMENT);
+	msgq->position += ALIGN(size, QUEUE_ALIGNMENT);
 	return 0;
 }
 
 static int
-msg_queue_read(struct nvkm_msgqueue_queue *queue, struct nv_falcon_msg *hdr)
+nvkm_falcon_msgq_read(struct nvkm_falcon_msgq *msgq, struct nv_falcon_msg *hdr)
 {
 	int ret = 0;
 
-	msg_queue_open(queue);
+	nvkm_falcon_msgq_open(msgq);
 
-	if (msg_queue_empty(queue))
+	if (nvkm_falcon_msgq_empty(msgq))
 		goto close;
 
-	ret = msg_queue_pop(queue, hdr, HDR_SIZE);
+	ret = nvkm_falcon_msgq_pop(msgq, hdr, HDR_SIZE);
 	if (ret) {
-		FLCNQ_ERR(queue, "failed to read message header");
+		FLCNQ_ERR(msgq, "failed to read message header");
 		goto close;
 	}
 
 	if (hdr->size > MSG_BUF_SIZE) {
-		FLCNQ_ERR(queue, "message too big, %d bytes", hdr->size);
+		FLCNQ_ERR(msgq, "message too big, %d bytes", hdr->size);
 		ret = -ENOSPC;
 		goto close;
 	}
@@ -98,21 +98,21 @@ msg_queue_read(struct nvkm_msgqueue_queue *queue, struct nv_falcon_msg *hdr)
 	if (hdr->size > HDR_SIZE) {
 		u32 read_size = hdr->size - HDR_SIZE;
 
-		ret = msg_queue_pop(queue, (hdr + 1), read_size);
+		ret = nvkm_falcon_msgq_pop(msgq, (hdr + 1), read_size);
 		if (ret) {
-			FLCNQ_ERR(queue, "failed to read message data");
+			FLCNQ_ERR(msgq, "failed to read message data");
 			goto close;
 		}
 	}
 
 	ret = 1;
 close:
-	msg_queue_close(queue, (ret >= 0));
+	nvkm_falcon_msgq_close(msgq, (ret >= 0));
 	return ret;
 }
 
 static int
-msgqueue_msg_handle(struct nvkm_falcon_msgq *msgq, struct nv_falcon_msg *hdr)
+nvkm_falcon_msgq_exec(struct nvkm_falcon_msgq *msgq, struct nv_falcon_msg *hdr)
 {
 	struct nvkm_falcon_qmgr_seq *seq;
 
@@ -136,6 +136,20 @@ msgqueue_msg_handle(struct nvkm_falcon_msgq *msgq, struct nv_falcon_msg *hdr)
 	return 0;
 }
 
+void
+nvkm_falcon_msgq_recv(struct nvkm_falcon_msgq *msgq)
+{
+	/*
+	 * We are invoked from a worker thread, so normally we have plenty of
+	 * stack space to work with.
+	 */
+	u8 msg_buffer[MSG_BUF_SIZE];
+	struct nv_falcon_msg *hdr = (void *)msg_buffer;
+
+	while (nvkm_falcon_msgq_read(msgq, hdr) > 0)
+		nvkm_falcon_msgq_exec(msgq, hdr);
+}
+
 int
 nvkm_falcon_msgq_recv_initmsg(struct nvkm_falcon_msgq *msgq,
 			      void *data, u32 size)
@@ -148,29 +162,15 @@ nvkm_falcon_msgq_recv_initmsg(struct nvkm_falcon_msgq *msgq,
 	msgq->tail_reg = falcon->func->msgq.tail;
 	msgq->offset = nvkm_falcon_rd32(falcon, falcon->func->msgq.tail);
 
-	msg_queue_open(msgq);
-	ret = msg_queue_pop(msgq, data, size);
+	nvkm_falcon_msgq_open(msgq);
+	ret = nvkm_falcon_msgq_pop(msgq, data, size);
 	if (ret == 0 && hdr->size != size) {
 		FLCN_ERR(falcon, "unexpected init message size %d vs %d",
 			 hdr->size, size);
 		ret = -EINVAL;
 	}
-	msg_queue_close(msgq, ret == 0);
+	nvkm_falcon_msgq_close(msgq, ret == 0);
 	return ret;
-}
-
-void
-nvkm_falcon_msgq_recv(struct nvkm_falcon_msgq *queue)
-{
-	/*
-	 * We are invoked from a worker thread, so normally we have plenty of
-	 * stack space to work with.
-	 */
-	u8 msg_buffer[MSG_BUF_SIZE];
-	struct nv_falcon_msg *hdr = (void *)msg_buffer;
-
-	while (msg_queue_read(queue, hdr) > 0)
-		msgqueue_msg_handle(queue, hdr);
 }
 
 void

@@ -57,6 +57,32 @@ nvkm_falcon_qmgr_seq_acquire(struct nvkm_falcon_qmgr *);
 void nvkm_falcon_qmgr_seq_release(struct nvkm_falcon_qmgr *,
 				  struct nvkm_falcon_qmgr_seq *);
 
+struct nvkm_falcon_cmdq {
+	struct nvkm_falcon_qmgr *qmgr;
+	const char *name;
+	struct mutex mutex;
+	struct completion ready;
+
+	u32 head_reg;
+	u32 tail_reg;
+	u32 offset;
+	u32 size;
+
+	u32 position;
+};
+
+struct nvkm_falcon_msgq {
+	struct nvkm_falcon_qmgr *qmgr;
+	const char *name;
+	struct mutex mutex;
+
+	u32 head_reg;
+	u32 tail_reg;
+	u32 offset;
+
+	u32 position;
+};
+
 #define FLCNQ_PRINTK(t,q,f,a...)                                               \
        FLCN_PRINTK(t, (q)->qmgr->falcon, "%s: "f, (q)->name, ##a)
 #define FLCNQ_DBG(q,f,a...) FLCNQ_PRINTK(debug, (q), f, ##a)
