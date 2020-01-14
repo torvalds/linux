@@ -5576,6 +5576,13 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 		expires -= jiffies;
 	}
 
+	if (!dst) {
+		if (rt->offload)
+			rtm->rtm_flags |= RTM_F_OFFLOAD;
+		if (rt->trap)
+			rtm->rtm_flags |= RTM_F_TRAP;
+	}
+
 	if (rtnl_put_cacheinfo(skb, dst, 0, expires, dst ? dst->error : 0) < 0)
 		goto nla_put_failure;
 
