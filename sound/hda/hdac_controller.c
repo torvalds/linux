@@ -561,7 +561,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_stop_chip);
  * snd_hdac_bus_handle_stream_irq - interrupt handler for streams
  * @bus: HD-audio core bus
  * @status: INTSTS register value
- * @ask: callback to be called for woken streams
+ * @ack: callback to be called for woken streams
  *
  * Returns the bits of handled streams, or zero if no stream is handled.
  */

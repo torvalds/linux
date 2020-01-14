@@ -22,6 +22,7 @@ static const struct hdac_bus_ops default_ops = {
 /**
  * snd_hdac_bus_init - initialize a HD-audio bas bus
  * @bus: the pointer to bus object
+ * @dev: device pointer
  * @ops: bus verb operators
  *
  * Returns 0 if successful, or a negative error code.
@@ -64,6 +65,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_exit);
 /**
  * snd_hdac_bus_exec_verb - execute a HD-audio verb on the given bus
  * @bus: bus object
+ * @addr: the HDAC device address
  * @cmd: HD-audio encoded verb
  * @res: pointer to store the response, NULL if performing asynchronously
  *
@@ -84,6 +86,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_exec_verb);
 /**
  * snd_hdac_bus_exec_verb_unlocked - unlocked version
  * @bus: bus object
+ * @addr: the HDAC device address
  * @cmd: HD-audio encoded verb
  * @res: pointer to store the response, NULL if performing asynchronously
  *
