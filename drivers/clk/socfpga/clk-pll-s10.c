@@ -110,19 +110,20 @@ static struct clk_ops clk_boot_ops = {
 	.prepare = clk_pll_prepare,
 };
 
-struct clk *s10_register_pll(const char *name, const char * const *parent_names,
-				    u8 num_parents, unsigned long flags,
-				    void __iomem *reg, unsigned long offset)
+struct clk *s10_register_pll(const struct stratix10_pll_clock *clks,
+			     void __iomem *reg)
 {
 	struct clk *clk;
 	struct socfpga_pll *pll_clk;
 	struct clk_init_data init;
+	const char *name = clks->name;
+	const char * const *parent_names = clks->parent_names;
 
 	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
 	if (WARN_ON(!pll_clk))
 		return NULL;
 
-	pll_clk->hw.reg = reg + offset;
+	pll_clk->hw.reg = reg + clks->offset;
 
 	if (streq(name, SOCFPGA_BOOT_CLK))
 		init.ops = &clk_boot_ops;
@@ -130,9 +131,9 @@ struct clk *s10_register_pll(const char *name, const char * const *parent_names,
 		init.ops = &clk_pll_ops;
 
 	init.name = name;
-	init.flags = flags;
+	init.flags = clks->flags;
 
-	init.num_parents = num_parents;
+	init.num_parents = clks->num_parents;
 	init.parent_names = parent_names;
 	pll_clk->hw.hw.init = &init;
 
