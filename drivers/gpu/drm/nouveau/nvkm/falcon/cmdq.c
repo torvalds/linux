@@ -97,14 +97,9 @@ cmd_queue_open(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 }
 
 static void
-cmd_queue_close(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
-		bool commit)
+cmd_queue_close(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue)
 {
-	struct nvkm_falcon *falcon = priv->falcon;
-
-	if (commit)
-		nvkm_falcon_wr32(falcon, queue->head_reg, queue->position);
-
+	nvkm_falcon_wr32(queue->qmgr->falcon, queue->head_reg, queue->position);
 	mutex_unlock(&queue->mutex);
 }
 
@@ -116,7 +111,6 @@ cmd_write(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *cmd,
 	static unsigned timeout = 2000;
 	unsigned long end_jiffies = jiffies + msecs_to_jiffies(timeout);
 	int ret = -EAGAIN;
-	bool commit = true;
 
 	while (ret == -EAGAIN && time_before(jiffies, end_jiffies))
 		ret = cmd_queue_open(priv, queue, cmd->size);
@@ -126,7 +120,7 @@ cmd_write(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *cmd,
 	}
 
 	cmd_queue_push(priv, queue, cmd, cmd->size);
-	cmd_queue_close(priv, queue, commit);
+	cmd_queue_close(priv, queue);
 	return ret;
 }
 
