@@ -229,7 +229,7 @@ gk20a_gr_init(struct gf100_gr *gr)
 	/* Clear SCC RAM */
 	nvkm_wr32(device, 0x40802c, 0x1);
 
-	gf100_gr_mmio(gr, gr->fuc_sw_nonctx);
+	gf100_gr_mmio(gr, gr->sw_nonctx);
 
 	ret = gk20a_gr_wait_mem_scrubbing(gr);
 	if (ret)
@@ -310,10 +310,10 @@ gk20a_gr = {
 int
 gk20a_gr_load_sw(struct gf100_gr *gr, const char *path, int ver)
 {
-	if (gk20a_gr_av_to_init(gr, path, "sw_nonctx", ver, &gr->fuc_sw_nonctx) ||
-	    gk20a_gr_aiv_to_init(gr, path, "sw_ctx", ver, &gr->fuc_sw_ctx) ||
-	    gk20a_gr_av_to_init(gr, path, "sw_bundle_init", ver, &gr->fuc_bundle) ||
-	    gk20a_gr_av_to_method(gr, path, "sw_method_init", ver, &gr->fuc_method))
+	if (gk20a_gr_av_to_init(gr, path, "sw_nonctx", ver, &gr->sw_nonctx) ||
+	    gk20a_gr_aiv_to_init(gr, path, "sw_ctx", ver, &gr->sw_ctx) ||
+	    gk20a_gr_av_to_init(gr, path, "sw_bundle_init", ver, &gr->bundle) ||
+	    gk20a_gr_av_to_method(gr, path, "sw_method_init", ver, &gr->method))
 		return -ENOENT;
 
 	return 0;

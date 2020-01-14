@@ -2013,12 +2013,6 @@ gf100_gr_fini_(struct nvkm_gr *base, bool suspend)
 	return 0;
 }
 
-static void
-gf100_gr_dtor_init(struct gf100_gr_pack *pack)
-{
-	vfree(pack);
-}
-
 void *
 gf100_gr_dtor(struct nvkm_gr *base)
 {
@@ -2034,10 +2028,10 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	nvkm_blob_dtor(&gr->fuc41ac);
 	nvkm_blob_dtor(&gr->fuc41ad);
 
-	gf100_gr_dtor_init(gr->fuc_bundle);
-	gf100_gr_dtor_init(gr->fuc_method);
-	gf100_gr_dtor_init(gr->fuc_sw_ctx);
-	gf100_gr_dtor_init(gr->fuc_sw_nonctx);
+	vfree(gr->bundle);
+	vfree(gr->method);
+	vfree(gr->sw_ctx);
+	vfree(gr->sw_nonctx);
 
 	return gr;
 }
@@ -2303,8 +2297,8 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	gr->func->init_gpc_mmu(gr);
 
-	if (gr->fuc_sw_nonctx)
-		gf100_gr_mmio(gr, gr->fuc_sw_nonctx);
+	if (gr->sw_nonctx)
+		gf100_gr_mmio(gr, gr->sw_nonctx);
 	else
 		gf100_gr_mmio(gr, gr->func->mmio);
 

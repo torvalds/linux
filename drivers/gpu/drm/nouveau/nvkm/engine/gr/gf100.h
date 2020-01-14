@@ -97,10 +97,10 @@ struct gf100_gr {
 	 * Used if the register packs are loaded from NVIDIA fw instead of
 	 * using hardcoded arrays. To be allocated with vzalloc().
 	 */
-	struct gf100_gr_pack *fuc_sw_nonctx;
-	struct gf100_gr_pack *fuc_sw_ctx;
-	struct gf100_gr_pack *fuc_bundle;
-	struct gf100_gr_pack *fuc_method;
+	struct gf100_gr_pack *sw_nonctx;
+	struct gf100_gr_pack *sw_ctx;
+	struct gf100_gr_pack *bundle;
+	struct gf100_gr_pack *method;
 
 	struct gf100_gr_zbc_color zbc_color[NVKM_LTC_MAX_ZBC_CNT];
 	struct gf100_gr_zbc_depth zbc_depth[NVKM_LTC_MAX_ZBC_CNT];

@@ -1368,7 +1368,7 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	nvkm_mc_unk260(device, 0);
 
-	if (!gr->fuc_sw_ctx) {
+	if (!gr->sw_ctx) {
 		gf100_gr_mmio(gr, grctx->hub);
 		gf100_gr_mmio(gr, grctx->gpc_0);
 		gf100_gr_mmio(gr, grctx->zcull);
@@ -1376,7 +1376,7 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 		gf100_gr_mmio(gr, grctx->tpc);
 		gf100_gr_mmio(gr, grctx->ppc);
 	} else {
-		gf100_gr_mmio(gr, gr->fuc_sw_ctx);
+		gf100_gr_mmio(gr, gr->sw_ctx);
 	}
 
 	gf100_gr_wait_idle(gr);
@@ -1395,8 +1395,8 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_gr_wait_idle(gr);
 
 	if (grctx->r400088) grctx->r400088(gr, false);
-	if (gr->fuc_bundle)
-		gf100_gr_icmd(gr, gr->fuc_bundle);
+	if (gr->bundle)
+		gf100_gr_icmd(gr, gr->bundle);
 	else
 		gf100_gr_icmd(gr, grctx->icmd);
 	if (grctx->sw_veid_bundle_init)
@@ -1405,8 +1405,8 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	nvkm_wr32(device, 0x404154, idle_timeout);
 
-	if (gr->fuc_method)
-		gf100_gr_mthd(gr, gr->fuc_method);
+	if (gr->method)
+		gf100_gr_mthd(gr, gr->method);
 	else
 		gf100_gr_mthd(gr, grctx->mthd);
 	nvkm_mc_unk260(device, 1);
