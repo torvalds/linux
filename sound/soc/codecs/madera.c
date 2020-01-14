@@ -1162,7 +1162,9 @@ static const struct snd_soc_dapm_route madera_mono_routes[] = {
 	{ "OUT6R", NULL, "OUT6L" },
 };
 
-int madera_init_outputs(struct snd_soc_component *component, int n_mono_routes)
+int madera_init_outputs(struct snd_soc_component *component,
+			const struct snd_soc_dapm_route *routes,
+			int n_mono_routes, int n_real)
 {
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_component_get_dapm(component);
@@ -1179,15 +1181,20 @@ int madera_init_outputs(struct snd_soc_component *component, int n_mono_routes)
 		n_mono_routes = MADERA_MAX_OUTPUT;
 	}
 
+	if (!routes)
+		routes = madera_mono_routes;
+
 	for (i = 0; i < n_mono_routes; i++) {
 		/* Default is 0 so noop with defaults */
 		if (pdata->out_mono[i]) {
 			val = MADERA_OUT1_MONO;
-			snd_soc_dapm_add_routes(dapm,
-						&madera_mono_routes[i], 1);
+			snd_soc_dapm_add_routes(dapm, &routes[i], 1);
 		} else {
 			val = 0;
 		}
+
+		if (i >= n_real)
+			continue;
 
 		regmap_update_bits(madera->regmap,
 				   MADERA_OUTPUT_PATH_CONFIG_1L + (i * 8),
