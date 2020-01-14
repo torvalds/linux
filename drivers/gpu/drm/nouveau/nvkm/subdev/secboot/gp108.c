@@ -44,6 +44,3 @@ gp108_secboot_new(struct nvkm_device *device, int index,
 
 	return nvkm_secboot_ctor(&gp102_secboot, acr, device, index, &gsb->base);
 }
-
-MODULE_FIRMWARE("nvidia/gp108/nvdec/scrubber.bin");
-MODULE_FIRMWARE("nvidia/gv100/nvdec/scrubber.bin");

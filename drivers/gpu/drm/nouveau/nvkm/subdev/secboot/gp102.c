@@ -23,122 +23,12 @@
 #include "acr.h"
 #include "gm200.h"
 
-#include "ls_ucode.h"
-#include "hs_ucode.h"
-#include <subdev/mc.h>
-#include <subdev/timer.h>
-#include <engine/falcon.h>
-#include <engine/nvdec.h>
-
-static bool
-gp102_secboot_scrub_required(struct nvkm_secboot *sb)
-{
-	struct nvkm_subdev *subdev = &sb->subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 reg;
-
-	nvkm_wr32(device, 0x100cd0, 0x2);
-	reg = nvkm_rd32(device, 0x100cd0);
-
-	return (reg & BIT(4));
-}
-
-static int
-gp102_run_secure_scrub(struct nvkm_secboot *sb)
-{
-	struct nvkm_subdev *subdev = &sb->subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_engine *engine;
-	struct nvkm_falcon *falcon;
-	void *scrub_image;
-	struct fw_bin_header *hsbin_hdr;
-	struct hsf_fw_header *fw_hdr;
-	struct hsf_load_header *lhdr;
-	void *scrub_data;
-	int ret;
-
-	nvkm_debug(subdev, "running VPR scrubber binary on NVDEC...\n");
-
-	engine = nvkm_engine_ref(&device->nvdec[0]->engine);
-	if (IS_ERR(engine))
-		return PTR_ERR(engine);
-	falcon = &device->nvdec[0]->falcon;
-
-	nvkm_falcon_get(falcon, &sb->subdev);
-
-	scrub_image = hs_ucode_load_blob(subdev, falcon, "nvdec/scrubber");
-	if (IS_ERR(scrub_image))
-		return PTR_ERR(scrub_image);
-
-	nvkm_falcon_reset(falcon);
-	nvkm_falcon_bind_context(falcon, NULL);
-
-	hsbin_hdr = scrub_image;
-	fw_hdr = scrub_image + hsbin_hdr->header_offset;
-	lhdr = scrub_image + fw_hdr->hdr_offset;
-	scrub_data = scrub_image + hsbin_hdr->data_offset;
-
-	nvkm_falcon_load_imem(falcon, scrub_data, lhdr->non_sec_code_off,
-			      lhdr->non_sec_code_size,
-			      lhdr->non_sec_code_off >> 8, 0, false);
-	nvkm_falcon_load_imem(falcon, scrub_data + lhdr->apps[0],
-			      ALIGN(lhdr->apps[0], 0x100),
-			      lhdr->apps[1],
-			      lhdr->apps[0] >> 8, 0, true);
-	nvkm_falcon_load_dmem(falcon, scrub_data + lhdr->data_dma_base, 0,
-			      lhdr->data_size, 0);
-
-	kfree(scrub_image);
-
-	nvkm_falcon_set_start_addr(falcon, 0x0);
-	nvkm_falcon_start(falcon);
-
-	ret = nvkm_falcon_wait_for_halt(falcon, 500);
-	if (ret < 0) {
-		nvkm_error(subdev, "failed to run VPR scrubber binary!\n");
-		ret = -ETIMEDOUT;
-		goto end;
-	}
-
-	/* put nvdec in clean state - without reset it will remain in HS mode */
-	nvkm_falcon_reset(falcon);
-
-	if (gp102_secboot_scrub_required(sb)) {
-		nvkm_error(subdev, "VPR scrubber binary failed!\n");
-		ret = -EINVAL;
-		goto end;
-	}
-
-	nvkm_debug(subdev, "VPR scrub successfully completed\n");
-
-end:
-	nvkm_falcon_put(falcon, &sb->subdev);
-	nvkm_engine_unref(&engine);
-	return ret;
-}
-
-static int
-gp102_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,
-		       struct nvkm_falcon *falcon)
-{
-	int ret;
-
-	/* make sure the VPR region is unlocked */
-	if (gp102_secboot_scrub_required(sb)) {
-		ret = gp102_run_secure_scrub(sb);
-		if (ret)
-			return ret;
-	}
-
-	return gm200_secboot_run_blob(sb, blob, falcon);
-}
-
 const struct nvkm_secboot_func
 gp102_secboot = {
 	.dtor = gm200_secboot_dtor,
 	.oneinit = gm200_secboot_oneinit,
 	.fini = gm200_secboot_fini,
-	.run_blob = gp102_secboot_run_blob,
+	.run_blob = gm200_secboot_run_blob,
 };
 
 int
@@ -169,8 +59,3 @@ gp102_secboot_new(struct nvkm_device *device, int index,
 
 	return 0;
 }
-
-MODULE_FIRMWARE("nvidia/gp102/nvdec/scrubber.bin");
-MODULE_FIRMWARE("nvidia/gp104/nvdec/scrubber.bin");
-MODULE_FIRMWARE("nvidia/gp106/nvdec/scrubber.bin");
-MODULE_FIRMWARE("nvidia/gp107/nvdec/scrubber.bin");

@@ -1,3 +1,4 @@
 # SPDX-License-Identifier: MIT
 nvkm-y += nvkm/nvfw/fw.o
+nvkm-y += nvkm/nvfw/hs.o
 nvkm-y += nvkm/nvfw/ls.o
