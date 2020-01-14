@@ -603,13 +603,25 @@ static int sdw_notify_config(struct sdw_master_runtime *m_rt)
  * and Slave(s)
  *
  * @bus: SDW bus instance
+ * @prepare: true if sdw_program_params() is called by _prepare.
  */
-static int sdw_program_params(struct sdw_bus *bus)
+static int sdw_program_params(struct sdw_bus *bus, bool prepare)
 {
 	struct sdw_master_runtime *m_rt;
 	int ret = 0;
 
 	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+
+		/*
+		 * this loop walks through all master runtimes for a
+		 * bus, but the ports can only be configured while
+		 * explicitly preparing a stream or handling an
+		 * already-prepared stream otherwise.
+		 */
+		if (!prepare &&
+		    m_rt->stream->state == SDW_STREAM_CONFIGURED)
+			continue;
+
 		ret = sdw_program_port_params(m_rt);
 		if (ret < 0) {
 			dev_err(bus->dev,
@@ -1502,7 +1514,7 @@ static int _sdw_prepare_stream(struct sdw_stream_runtime *stream,
 
 program_params:
 		/* Program params */
-		ret = sdw_program_params(bus);
+		ret = sdw_program_params(bus, true);
 		if (ret < 0) {
 			dev_err(bus->dev, "Program params failed: %d\n", ret);
 			goto restore_params;
@@ -1602,7 +1614,7 @@ static int _sdw_enable_stream(struct sdw_stream_runtime *stream)
 		bus = m_rt->bus;
 
 		/* Program params */
-		ret = sdw_program_params(bus);
+		ret = sdw_program_params(bus, false);
 		if (ret < 0) {
 			dev_err(bus->dev, "Program params failed: %d\n", ret);
 			return ret;
@@ -1687,7 +1699,7 @@ static int _sdw_disable_stream(struct sdw_stream_runtime *stream)
 		struct sdw_bus *bus = m_rt->bus;
 
 		/* Program params */
-		ret = sdw_program_params(bus);
+		ret = sdw_program_params(bus, false);
 		if (ret < 0) {
 			dev_err(bus->dev, "Program params failed: %d\n", ret);
 			return ret;
@@ -1769,7 +1781,7 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 			m_rt->ch_count * m_rt->stream->params.bps;
 
 		/* Program params */
-		ret = sdw_program_params(bus);
+		ret = sdw_program_params(bus, false);
 		if (ret < 0) {
 			dev_err(bus->dev, "Program params failed: %d\n", ret);
 			return ret;
