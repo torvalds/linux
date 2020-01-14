@@ -5,7 +5,10 @@
 
 struct nvkm_sec2_func {
 	const struct nvkm_falcon_func *flcn;
+	void (*intr)(struct nvkm_sec2 *);
 };
+
+void gp102_sec2_intr(struct nvkm_sec2 *);
 
 struct nvkm_sec2_fwif {
 	int version;

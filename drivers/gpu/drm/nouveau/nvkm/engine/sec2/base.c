@@ -26,27 +26,6 @@
 #include <subdev/top.h>
 
 static void
-nvkm_sec2_intr(struct nvkm_engine *engine)
-{
-	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
-	struct nvkm_subdev *subdev = &sec2->engine.subdev;
-	struct nvkm_falcon *falcon = &sec2->falcon;
-	u32 disp = nvkm_falcon_rd32(falcon, 0x01c);
-	u32 intr = nvkm_falcon_rd32(falcon, 0x008) & disp & ~(disp >> 16);
-
-	if (intr & 0x00000040) {
-		schedule_work(&sec2->work);
-		nvkm_falcon_wr32(falcon, 0x004, 0x00000040);
-		intr &= ~0x00000040;
-	}
-
-	if (intr) {
-		nvkm_error(subdev, "unhandled intr %08x\n", intr);
-		nvkm_falcon_wr32(falcon, 0x004, intr);
-	}
-}
-
-static void
 nvkm_sec2_recv(struct work_struct *work)
 {
 	struct nvkm_sec2 *sec2 = container_of(work, typeof(*sec2), work);
@@ -58,6 +37,13 @@ nvkm_sec2_recv(struct work_struct *work)
 	}
 
 	nvkm_msgqueue_recv(sec2->queue);
+}
+
+static void
+nvkm_sec2_intr(struct nvkm_engine *engine)
+{
+	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
+	sec2->func->intr(sec2);
 }
 
 static int

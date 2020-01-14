@@ -38,6 +38,7 @@ tu102_sec2_flcn = {
 static const struct nvkm_sec2_func
 tu102_sec2 = {
 	.flcn = &tu102_sec2_flcn,
+	.intr = gp102_sec2_intr,
 };
 
 static int

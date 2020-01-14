@@ -26,6 +26,25 @@ static const struct nvkm_acr_lsf_func
 gp102_sec2_acr_0 = {
 };
 
+void
+gp102_sec2_intr(struct nvkm_sec2 *sec2)
+{
+	struct nvkm_subdev *subdev = &sec2->engine.subdev;
+	struct nvkm_falcon *falcon = &sec2->falcon;
+	u32 disp = nvkm_falcon_rd32(falcon, 0x01c);
+	u32 intr = nvkm_falcon_rd32(falcon, 0x008) & disp & ~(disp >> 16);
+
+	if (intr & 0x00000040) {
+		schedule_work(&sec2->work);
+		nvkm_falcon_wr32(falcon, 0x004, 0x00000040);
+		intr &= ~0x00000040;
+	}
+
+	if (intr) {
+		nvkm_error(subdev, "unhandled intr %08x\n", intr);
+		nvkm_falcon_wr32(falcon, 0x004, intr);
+	}
+}
 
 static const struct nvkm_falcon_func
 gp102_sec2_flcn = {
@@ -44,6 +63,7 @@ gp102_sec2_flcn = {
 const struct nvkm_sec2_func
 gp102_sec2 = {
 	.flcn = &gp102_sec2_flcn,
+	.intr = gp102_sec2_intr,
 };
 
 MODULE_FIRMWARE("nvidia/gp102/sec2/desc.bin");
