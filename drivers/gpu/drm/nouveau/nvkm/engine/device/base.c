@@ -2579,6 +2579,7 @@ nv166_chipset = {
 static const struct nvkm_device_chip
 nv167_chipset = {
 	.name = "TU117",
+	.acr = tu102_acr_new,
 	.bar = tu102_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2615,6 +2616,7 @@ nv167_chipset = {
 static const struct nvkm_device_chip
 nv168_chipset = {
 	.name = "TU116",
+	.acr = tu102_acr_new,
 	.bar = tu102_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
