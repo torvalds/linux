@@ -176,6 +176,9 @@ struct key {
 		struct list_head graveyard_link;
 		struct rb_node	serial_node;
 	};
+#ifdef CONFIG_KEY_NOTIFICATIONS
+	struct watch_list	*watchers;	/* Entities watching this key for changes */
+#endif
 	struct rw_semaphore	sem;		/* change vs change sem */
 	struct key_user		*user;		/* owner of this key */
 	void			*security;	/* security data for this key */
