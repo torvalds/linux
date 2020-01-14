@@ -12,7 +12,7 @@
 #include <asm/code-patching.h>
 #include <mm/mmu_decl.h>
 
-static pgprot_t kasan_prot_ro(void)
+static pgprot_t __init kasan_prot_ro(void)
 {
 	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
 		return PAGE_READONLY;
@@ -20,7 +20,7 @@ static pgprot_t kasan_prot_ro(void)
 	return PAGE_KERNEL_RO;
 }
 
-static void kasan_populate_pte(pte_t *ptep, pgprot_t prot)
+static void __init kasan_populate_pte(pte_t *ptep, pgprot_t prot)
 {
 	unsigned long va = (unsigned long)kasan_early_shadow_page;
 	phys_addr_t pa = __pa(kasan_early_shadow_page);
@@ -30,7 +30,7 @@ static void kasan_populate_pte(pte_t *ptep, pgprot_t prot)
 		__set_pte_at(&init_mm, va, ptep, pfn_pte(PHYS_PFN(pa), prot), 0);
 }
 
-static int __ref kasan_init_shadow_page_tables(unsigned long k_start, unsigned long k_end)
+static int __init kasan_init_shadow_page_tables(unsigned long k_start, unsigned long k_end)
 {
 	pmd_t *pmd;
 	unsigned long k_cur, k_next;
@@ -70,7 +70,7 @@ static int __ref kasan_init_shadow_page_tables(unsigned long k_start, unsigned l
 	return 0;
 }
 
-static void __ref *kasan_get_one_page(void)
+static void __init *kasan_get_one_page(void)
 {
 	if (slab_is_available())
 		return (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
@@ -78,7 +78,7 @@ static void __ref *kasan_get_one_page(void)
 	return memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 }
 
-static int __ref kasan_init_region(void *start, size_t size)
+static int __init kasan_init_region(void *start, size_t size)
 {
 	unsigned long k_start = (unsigned long)kasan_mem_to_shadow(start);
 	unsigned long k_end = (unsigned long)kasan_mem_to_shadow(start + size);
@@ -195,27 +195,6 @@ void __init kasan_late_init(void)
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC))
 		kasan_unmap_early_shadow_vmalloc();
 }
-
-#if defined(CONFIG_MODULES) && !defined(CONFIG_KASAN_VMALLOC)
-void *module_alloc(unsigned long size)
-{
-	void *base;
-
-	base = __vmalloc_node_range(size, MODULE_ALIGN, VMALLOC_START, VMALLOC_END,
-				    GFP_KERNEL, PAGE_KERNEL_EXEC, VM_FLUSH_RESET_PERMS,
-				    NUMA_NO_NODE, __builtin_return_address(0));
-
-	if (!base)
-		return NULL;
-
-	if (!kasan_init_region(base, size))
-		return base;
-
-	vfree(base);
-
-	return NULL;
-}
-#endif
 
 #ifdef CONFIG_PPC_BOOK3S_32
 u8 __initdata early_hash[256 << 10] __aligned(256 << 10) = {0};
