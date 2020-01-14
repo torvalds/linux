@@ -1987,6 +1987,7 @@ nv117_chipset = {
 	.dma = gf119_dma_new,
 	.fifo = gm107_fifo_new,
 	.gr = gm107_gr_new,
+	.nvdec[0] = gm107_nvdec_new,
 	.sw = gf100_sw_new,
 };
 
@@ -2057,6 +2058,7 @@ nv120_chipset = {
 	.dma = gf119_dma_new,
 	.fifo = gm200_fifo_new,
 	.gr = gm200_gr_new,
+	.nvdec[0] = gm107_nvdec_new,
 	.sw = gf100_sw_new,
 };
 
@@ -2093,6 +2095,7 @@ nv124_chipset = {
 	.dma = gf119_dma_new,
 	.fifo = gm200_fifo_new,
 	.gr = gm200_gr_new,
+	.nvdec[0] = gm107_nvdec_new,
 	.sw = gf100_sw_new,
 };
 
@@ -2129,6 +2132,7 @@ nv126_chipset = {
 	.dma = gf119_dma_new,
 	.fifo = gm200_fifo_new,
 	.gr = gm200_gr_new,
+	.nvdec[0] = gm107_nvdec_new,
 	.sw = gf100_sw_new,
 };
 
@@ -2192,6 +2196,7 @@ nv130_chipset = {
 	.disp = gp100_disp_new,
 	.fifo = gp100_fifo_new,
 	.gr = gp100_gr_new,
+	.nvdec[0] = gm107_nvdec_new,
 	.sw = gf100_sw_new,
 };
 
@@ -2514,6 +2519,7 @@ nv164_chipset = {
 	.dma = gv100_dma_new,
 	.fifo = tu102_fifo_new,
 	.nvdec[0] = gm107_nvdec_new,
+	.nvdec[1] = gm107_nvdec_new,
 	.sec2 = tu102_sec2_new,
 };
 
@@ -2549,6 +2555,8 @@ nv166_chipset = {
 	.dma = gv100_dma_new,
 	.fifo = tu102_fifo_new,
 	.nvdec[0] = gm107_nvdec_new,
+	.nvdec[1] = gm107_nvdec_new,
+	.nvdec[2] = gm107_nvdec_new,
 	.sec2 = tu102_sec2_new,
 };
 
