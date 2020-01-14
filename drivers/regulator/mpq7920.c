@@ -260,8 +260,7 @@ static void mpq7920_parse_dt(struct device *dev,
 	of_node_put(np);
 }
 
-static int mpq7920_i2c_probe(struct i2c_client *client,
-				    const struct i2c_device_id *id)
+static int mpq7920_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct mpq7920_regulator_info *info;
@@ -321,7 +320,7 @@ static struct i2c_driver mpq7920_regulator_driver = {
 		.name = "mpq7920",
 		.of_match_table = of_match_ptr(mpq7920_of_match),
 	},
-	.probe = mpq7920_i2c_probe,
+	.probe_new = mpq7920_i2c_probe,
 	.id_table = mpq7920_id,
 };
 module_i2c_driver(mpq7920_regulator_driver);
