@@ -153,11 +153,9 @@ gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 			return ret;
 	}
 
-	if ((ret = gk20a_gr_av_to_init(gr, "gr/sw_nonctx", &gr->fuc_sw_nonctx)) ||
-	    (ret = gk20a_gr_aiv_to_init(gr, "gr/sw_ctx", &gr->fuc_sw_ctx)) ||
-	    (ret = gk20a_gr_av_to_init(gr, "gr/sw_bundle_init", &gr->fuc_bundle)) ||
-	    (ret = gk20a_gr_av_to_method(gr, "gr/sw_method_init", &gr->fuc_method)))
-		return ret;
+	ret = gk20a_gr_load_sw(gr, "gr/", 0);
+	if (ret)
+		return -ENODEV;
 
 	return 0;
 }

@@ -244,6 +244,8 @@ void gp100_gr_zbc_clear_depth(struct gf100_gr *, int);
 void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 extern const struct gf100_gr_func_zbc gp102_gr_zbc;
 
+int gk20a_gr_load_sw(struct gf100_gr *, const char *path, int ver);
+
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 #include <core/object.h>
 
@@ -303,14 +305,6 @@ void gf100_gr_mmio(struct gf100_gr *, const struct gf100_gr_pack *);
 void gf100_gr_icmd(struct gf100_gr *, const struct gf100_gr_pack *);
 void gf100_gr_mthd(struct gf100_gr *, const struct gf100_gr_pack *);
 int  gf100_gr_init_ctxctl(struct gf100_gr *);
-
-/* external bundles loading functions */
-int gk20a_gr_av_to_init(struct gf100_gr *, const char *,
-			struct gf100_gr_pack **);
-int gk20a_gr_aiv_to_init(struct gf100_gr *, const char *,
-			 struct gf100_gr_pack **);
-int gk20a_gr_av_to_method(struct gf100_gr *, const char *,
-			  struct gf100_gr_pack **);
 
 int gm200_gr_new_(const struct gf100_gr_func *, struct nvkm_device *, int,
 		  struct nvkm_gr **);
