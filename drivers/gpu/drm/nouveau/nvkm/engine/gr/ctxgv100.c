@@ -25,7 +25,7 @@
  * PGRAPH context implementation
  ******************************************************************************/
 
-static const struct gf100_gr_init
+const struct gf100_gr_init
 gv100_grctx_init_sw_veid_bundle_init_0[] = {
 	{ 0x00001000, 64, 0x00100000, 0x00000008 },
 	{ 0x00000941, 64, 0x00100000, 0x00000000 },
@@ -58,7 +58,7 @@ gv100_grctx_pack_sw_veid_bundle_init[] = {
 	{}
 };
 
-static void
+void
 gv100_grctx_generate_attrib(struct gf100_grctx *info)
 {
 	struct gf100_gr *gr = info->gr;
@@ -109,7 +109,7 @@ gv100_grctx_generate_attrib(struct gf100_grctx *info)
 	mmio_wr32(info, 0x41befc, 0x00000100);
 }
 
-static void
+void
 gv100_grctx_generate_rop_mapping(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -146,7 +146,7 @@ gv100_grctx_generate_rop_mapping(struct gf100_gr *gr)
 				     gr->screen_tile_row_offset);
 }
 
-static void
+void
 gv100_grctx_generate_r400088(struct gf100_gr *gr, bool on)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -162,7 +162,7 @@ gv100_grctx_generate_sm_id(struct gf100_gr *gr, int gpc, int tpc, int sm)
 	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), sm);
 }
 
-static void
+void
 gv100_grctx_generate_unkn(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -173,7 +173,7 @@ gv100_grctx_generate_unkn(struct gf100_gr *gr)
 	nvkm_mask(device, 0x419c00, 0x00000008, 0x00000008);
 }
 
-static void
+void
 gv100_grctx_unkn88c(struct gf100_gr *gr, bool on)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;

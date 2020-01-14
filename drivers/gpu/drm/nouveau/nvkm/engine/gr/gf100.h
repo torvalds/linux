@@ -162,6 +162,7 @@ struct gf100_gr_func {
 	void (*init_rop_active_fbps)(struct gf100_gr *);
 	void (*init_bios_2)(struct gf100_gr *);
 	void (*init_swdx_pes_mask)(struct gf100_gr *);
+	void (*init_fs)(struct gf100_gr *);
 	void (*init_fecs_exceptions)(struct gf100_gr *);
 	void (*init_ds_hww_esr_2)(struct gf100_gr *);
 	void (*init_40601c)(struct gf100_gr *);
@@ -242,6 +243,11 @@ void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 extern const struct gf100_gr_func_zbc gp102_gr_zbc;
 
 extern const struct gf100_gr_func gp107_gr;
+
+void gv100_gr_init_419bd8(struct gf100_gr *);
+void gv100_gr_init_504430(struct gf100_gr *, int, int);
+void gv100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
+void gv100_gr_trap_mp(struct gf100_gr *, int, int);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 #include <core/object.h>

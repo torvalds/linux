@@ -45,7 +45,7 @@ gv100_gr_trap_sm(struct gf100_gr *gr, int gpc, int tpc, int sm)
 	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x734 + sm * 0x80), gerr);
 }
 
-static void
+void
 gv100_gr_trap_mp(struct gf100_gr *gr, int gpc, int tpc)
 {
 	gv100_gr_trap_sm(gr, gpc, tpc, 0);
@@ -59,7 +59,7 @@ gv100_gr_init_4188a4(struct gf100_gr *gr)
 	nvkm_mask(device, 0x4188a4, 0x03000000, 0x03000000);
 }
 
-static void
+void
 gv100_gr_init_shader_exceptions(struct gf100_gr *gr, int gpc, int tpc)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -71,14 +71,14 @@ gv100_gr_init_shader_exceptions(struct gf100_gr *gr, int gpc, int tpc)
 	}
 }
 
-static void
+void
 gv100_gr_init_504430(struct gf100_gr *gr, int gpc, int tpc)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x430), 0x403f0000);
 }
 
-static void
+void
 gv100_gr_init_419bd8(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;

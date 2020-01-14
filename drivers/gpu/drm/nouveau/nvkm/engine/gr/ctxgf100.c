@@ -1334,7 +1334,8 @@ gf100_grctx_generate_floorsweep(struct gf100_gr *gr)
 	}
 
 	gf100_gr_init_num_tpc_per_gpc(gr, false, true);
-	gf100_gr_init_num_tpc_per_gpc(gr, true, false);
+	if (!func->skip_pd_num_tpc_per_gpc)
+		gf100_gr_init_num_tpc_per_gpc(gr, true, false);
 
 	if (func->r4060a8)
 		func->r4060a8(gr);
@@ -1425,6 +1426,8 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 		grctx->r419a3c(gr);
 	if (grctx->r408840)
 		grctx->r408840(gr);
+	if (grctx->r419c0c)
+		grctx->r419c0c(gr);
 }
 
 #define CB_RESERVED 0x80000

@@ -2262,6 +2262,8 @@ gf100_gr_init(struct gf100_gr *gr)
 		gr->func->init_bios_2(gr);
 	if (gr->func->init_swdx_pes_mask)
 		gr->func->init_swdx_pes_mask(gr);
+	if (gr->func->init_fs)
+		gr->func->init_fs(gr);
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
 
