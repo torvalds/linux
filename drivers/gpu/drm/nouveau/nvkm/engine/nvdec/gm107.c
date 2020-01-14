@@ -23,6 +23,7 @@
 
 static const struct nvkm_falcon_func
 gm107_nvdec_flcn = {
+	.fbif = 0x600,
 	.load_imem = nvkm_falcon_v1_load_imem,
 	.load_dmem = nvkm_falcon_v1_load_dmem,
 	.read_dmem = nvkm_falcon_v1_read_dmem,

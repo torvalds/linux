@@ -78,6 +78,9 @@ struct nvkm_falcon_func {
 	} data;
 	void (*init)(struct nvkm_falcon *);
 	void (*intr)(struct nvkm_falcon *, struct nvkm_fifo_chan *);
+
+	u32 fbif;
+
 	void (*load_imem)(struct nvkm_falcon *, void *, u32, u32, u16, u8, bool);
 	void (*load_dmem)(struct nvkm_falcon *, void *, u32, u32, u8);
 	void (*read_dmem)(struct nvkm_falcon *, u32, u32, u8, void *);

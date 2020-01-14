@@ -183,27 +183,13 @@ void
 nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_memory *ctx)
 {
 	struct nvkm_device *device = falcon->owner->device;
+	const u32 fbif = falcon->func->fbif;
 	u32 inst_loc;
-	u32 fbif;
 
 	/* disable instance block binding */
 	if (ctx == NULL) {
 		nvkm_falcon_wr32(falcon, 0x10c, 0x0);
 		return;
-	}
-
-	switch (falcon->owner->index) {
-	case NVKM_ENGINE_NVENC0:
-	case NVKM_ENGINE_NVENC1:
-	case NVKM_ENGINE_NVENC2:
-		fbif = 0x800;
-		break;
-	case NVKM_SUBDEV_PMU:
-		fbif = 0xe00;
-		break;
-	default:
-		fbif = 0x600;
-		break;
 	}
 
 	nvkm_falcon_wr32(falcon, 0x10c, 0x1);
