@@ -11,5 +11,5 @@ struct nvkm_nvdec {
 	struct nvkm_falcon falcon;
 };
 
-int gp102_nvdec_new(struct nvkm_device *, int, struct nvkm_nvdec **);
+int gm107_nvdec_new(struct nvkm_device *, int, struct nvkm_nvdec **);
 #endif

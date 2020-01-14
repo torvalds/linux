@@ -22,7 +22,7 @@
 #include "priv.h"
 
 static const struct nvkm_falcon_func
-gp102_nvdec_flcn = {
+gm107_nvdec_flcn = {
 	.load_imem = nvkm_falcon_v1_load_imem,
 	.load_dmem = nvkm_falcon_v1_load_dmem,
 	.read_dmem = nvkm_falcon_v1_read_dmem,
@@ -36,26 +36,26 @@ gp102_nvdec_flcn = {
 };
 
 static const struct nvkm_nvdec_func
-gp102_nvdec = {
-	.flcn = &gp102_nvdec_flcn,
+gm107_nvdec = {
+	.flcn = &gm107_nvdec_flcn,
 };
 
 static int
-gp102_nvdec_nofw(struct nvkm_nvdec *nvdec, int ver,
+gm107_nvdec_nofw(struct nvkm_nvdec *nvdec, int ver,
 		 const struct nvkm_nvdec_fwif *fwif)
 {
 	return 0;
 }
 
 static const struct nvkm_nvdec_fwif
-gp102_nvdec_fwif[] = {
-	{ -1, gp102_nvdec_nofw, &gp102_nvdec },
+gm107_nvdec_fwif[] = {
+	{ -1, gm107_nvdec_nofw, &gm107_nvdec },
 	{}
 };
 
 int
-gp102_nvdec_new(struct nvkm_device *device, int index,
+gm107_nvdec_new(struct nvkm_device *device, int index,
 		struct nvkm_nvdec **pnvdec)
 {
-	return nvkm_nvdec_new_(gp102_nvdec_fwif, device, index, pnvdec);
+	return nvkm_nvdec_new_(gm107_nvdec_fwif, device, index, pnvdec);
 }
