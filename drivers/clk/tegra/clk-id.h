@@ -44,8 +44,6 @@ enum clk_id {
 	tegra_clk_clk72Mhz,
 	tegra_clk_clk72Mhz_8,
 	tegra_clk_clk_m,
-	tegra_clk_clk_m_div2,
-	tegra_clk_clk_m_div4,
 	tegra_clk_osc,
 	tegra_clk_osc_div2,
 	tegra_clk_osc_div4,
