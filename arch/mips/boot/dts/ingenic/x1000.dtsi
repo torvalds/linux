@@ -155,6 +155,51 @@
 		};
 	};
 
+	i2c0: i2c-controller@10050000 {
+		compatible = "ingenic,x1000-i2c";
+		reg = <0x10050000 0x1000>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <60>;
+
+		clocks = <&cgu X1000_CLK_I2C0>;
+
+		status = "disabled";
+	};
+
+	i2c1: i2c-controller@10051000 {
+		compatible = "ingenic,x1000-i2c";
+		reg = <0x10051000 0x1000>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <59>;
+
+		clocks = <&cgu X1000_CLK_I2C1>;
+
+		status = "disabled";
+	};
+
+	i2c2: i2c-controller@10052000 {
+		compatible = "ingenic,x1000-i2c";
+		reg = <0x10052000 0x1000>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <58>;
+
+		clocks = <&cgu X1000_CLK_I2C2>;
+
+		status = "disabled";
+	};
+
 	uart0: serial@10030000 {
 		compatible = "ingenic,x1000-uart";
 		reg = <0x10030000 0x100>;
