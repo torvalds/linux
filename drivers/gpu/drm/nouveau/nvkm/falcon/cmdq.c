@@ -77,13 +77,12 @@ cmd_queue_open(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	       u32 size)
 {
 	struct nvkm_falcon *falcon = priv->falcon;
-	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	bool rewind = false;
 
 	mutex_lock(&queue->mutex);
 
 	if (!cmd_queue_has_room(priv, queue, size, &rewind)) {
-		nvkm_error(subdev, "queue full\n");
+		FLCNQ_DBG(queue, "queue full");
 		mutex_unlock(&queue->mutex);
 		return -EAGAIN;
 	}
@@ -107,7 +106,6 @@ static int
 cmd_write(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *cmd,
 	  struct nvkm_msgqueue_queue *queue)
 {
-	const struct nvkm_subdev *subdev = priv->falcon->owner;
 	static unsigned timeout = 2000;
 	unsigned long end_jiffies = jiffies + msecs_to_jiffies(timeout);
 	int ret = -EAGAIN;
@@ -115,7 +113,7 @@ cmd_write(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *cmd,
 	while (ret == -EAGAIN && time_before(jiffies, end_jiffies))
 		ret = cmd_queue_open(priv, queue, cmd->size);
 	if (ret) {
-		nvkm_error(subdev, "pmu_queue_open_write failed\n");
+		FLCNQ_ERR(queue, "timeout waiting for queue space");
 		return ret;
 	}
 
@@ -169,8 +167,10 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 
 	if (!seq->async) {
 		if (!wait_for_completion_timeout(&seq->done,
-						 msecs_to_jiffies(1000)))
+						 msecs_to_jiffies(1000))) {
+			FLCNQ_ERR(queue, "timeout waiting for reply");
 			return -ETIMEDOUT;
+		}
 		ret = seq->result;
 		nvkm_falcon_qmgr_seq_release(queue->qmgr, seq);
 	}
