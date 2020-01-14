@@ -786,11 +786,15 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 		if (should_disable && old_stream) {
 			dc_rem_all_planes_for_stream(dc, old_stream, dangling_context);
 			disable_all_writeback_pipes_for_stream(dc, old_stream, dangling_context);
-			if (dc->hwss.apply_ctx_for_surface)
+			if (dc->hwss.apply_ctx_for_surface) {
 				dc->hwss.apply_ctx_for_surface(dc, old_stream, 0, dangling_context);
+				dc->hwss.post_unlock_program_front_end(dc, dangling_context);
+			}
+			if (dc->hwss.program_front_end_for_ctx) {
+				dc->hwss.program_front_end_for_ctx(dc, dangling_context);
+				dc->hwss.post_unlock_program_front_end(dc, dangling_context);
+			}
 		}
-		if (dc->hwss.program_front_end_for_ctx)
-			dc->hwss.program_front_end_for_ctx(dc, dangling_context);
 	}
 
 	current_ctx = dc->current_state;
@@ -1219,6 +1223,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 				dc, context->streams[i],
 				context->stream_status[i].plane_count,
 				context); /* use new pipe config in new context */
+			dc->hwss.post_unlock_program_front_end(dc, context);
 		}
 
 	/* Program hardware */
@@ -1238,19 +1243,24 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	}
 
 	/* Program all planes within new context*/
-	if (dc->hwss.program_front_end_for_ctx)
+	if (dc->hwss.program_front_end_for_ctx) {
 		dc->hwss.program_front_end_for_ctx(dc, context);
+		dc->hwss.post_unlock_program_front_end(dc, context);
+	}
+
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_link *link = context->streams[i]->link;
 
 		if (!context->streams[i]->mode_changed)
 			continue;
 
-		if (dc->hwss.apply_ctx_for_surface)
+		if (dc->hwss.apply_ctx_for_surface) {
 			dc->hwss.apply_ctx_for_surface(
 					dc, context->streams[i],
 					context->stream_status[i].plane_count,
 					context);
+			dc->hwss.post_unlock_program_front_end(dc, context);
+		}
 
 		/*
 		 * enable stereo
@@ -2183,6 +2193,7 @@ static void commit_planes_for_stream(struct dc *dc,
 		if (dc->hwss.program_front_end_for_ctx)
 			dc->hwss.program_front_end_for_ctx(dc, context);
 
+		dc->hwss.post_unlock_program_front_end(dc, context);
 		return;
 	}
 
@@ -2314,6 +2325,9 @@ static void commit_planes_for_stream(struct dc *dc,
 
 		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
 	}
+
+	if (update_type != UPDATE_TYPE_FAST)
+		dc->hwss.post_unlock_program_front_end(dc, context);
 
 	// Fire manual trigger only when bottom plane is flipped
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {

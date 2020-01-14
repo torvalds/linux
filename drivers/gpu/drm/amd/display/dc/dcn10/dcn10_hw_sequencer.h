@@ -75,6 +75,9 @@ void dcn10_apply_ctx_for_surface(
 		const struct dc_stream_state *stream,
 		int num_planes,
 		struct dc_state *context);
+void dcn10_post_unlock_program_front_end(
+		struct dc *dc,
+		struct dc_state *context);
 void dcn10_hubp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int hubp_inst,

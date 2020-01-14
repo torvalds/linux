@@ -66,6 +66,8 @@ struct hw_sequencer_funcs {
 			int num_planes, struct dc_state *context);
 	void (*program_front_end_for_ctx)(struct dc *dc,
 			struct dc_state *context);
+	void (*post_unlock_program_front_end)(struct dc *dc,
+			struct dc_state *context);
 	void (*update_plane_addr)(const struct dc *dc,
 			struct pipe_ctx *pipe_ctx);
 	void (*update_dchub)(struct dce_hwseq *hws,

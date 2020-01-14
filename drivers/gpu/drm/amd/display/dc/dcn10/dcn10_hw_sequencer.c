@@ -2512,7 +2512,6 @@ void dcn10_apply_ctx_for_surface(
 	int i;
 	struct timing_generator *tg;
 	uint32_t underflow_check_delay_us;
-	bool removed_pipe[4] = { false };
 	bool interdependent_update = false;
 	struct pipe_ctx *top_pipe_to_program =
 			dcn10_find_top_pipe_for_stream(dc, context, stream);
@@ -2552,6 +2551,9 @@ void dcn10_apply_ctx_for_surface(
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[i];
+
+		pipe_ctx->update_flags.raw = 0;
+
 		/*
 		 * Powergate reused pipes that are not powergated
 		 * fairly hacky right now, using opp_id as indicator
@@ -2571,7 +2573,7 @@ void dcn10_apply_ctx_for_surface(
 		    old_pipe_ctx->stream_res.tg == tg) {
 
 			hws->funcs.plane_atomic_disconnect(dc, old_pipe_ctx);
-			removed_pipe[i] = true;
+			pipe_ctx->update_flags.bits.disable = 1;
 
 			DC_LOG_DC("Reset mpcc for pipe %d\n",
 					old_pipe_ctx->pipe_idx);
@@ -2602,16 +2604,41 @@ void dcn10_apply_ctx_for_surface(
 		dcn10_lock_all_pipes(dc, context, false);
 	else
 		dcn10_pipe_control_lock(dc, top_pipe_to_program, false);
+}
 
-	if (num_planes == 0)
-		false_optc_underflow_wa(dc, stream, tg);
+void dcn10_post_unlock_program_front_end(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	int i, j;
+
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->top_pipe &&
+			!pipe_ctx->prev_odm_pipe &&
+			pipe_ctx->stream) {
+			struct dc_stream_status *stream_status = NULL;
+			struct timing_generator *tg = pipe_ctx->stream_res.tg;
+
+			for (j = 0; j < context->stream_count; j++) {
+				if (pipe_ctx->stream == context->streams[j])
+					stream_status = &context->stream_status[j];
+			}
+
+			if (context->stream_status[i].plane_count == 0)
+				false_optc_underflow_wa(dc, pipe_ctx->stream, tg);
+		}
+	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (removed_pipe[i])
+		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable)
 			dc->hwss.disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (removed_pipe[i]) {
+		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable) {
 			dc->hwss.optimize_bandwidth(dc, context);
 			break;
 		}
