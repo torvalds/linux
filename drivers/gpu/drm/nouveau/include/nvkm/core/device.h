@@ -23,6 +23,7 @@ enum nvkm_devidx {
 	NVKM_SUBDEV_MMU,
 	NVKM_SUBDEV_BAR,
 	NVKM_SUBDEV_FAULT,
+	NVKM_SUBDEV_ACR,
 	NVKM_SUBDEV_PMU,
 	NVKM_SUBDEV_VOLT,
 	NVKM_SUBDEV_ICCSENSE,
@@ -129,6 +130,7 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
+	struct nvkm_acr *acr;
 	struct nvkm_bar *bar;
 	struct nvkm_bios *bios;
 	struct nvkm_bus *bus;
@@ -202,6 +204,7 @@ struct nvkm_device_quirk {
 struct nvkm_device_chip {
 	const char *name;
 
+	int (*acr     )(struct nvkm_device *, int idx, struct nvkm_acr **);
 	int (*bar     )(struct nvkm_device *, int idx, struct nvkm_bar **);
 	int (*bios    )(struct nvkm_device *, int idx, struct nvkm_bios **);
 	int (*bus     )(struct nvkm_device *, int idx, struct nvkm_bus **);

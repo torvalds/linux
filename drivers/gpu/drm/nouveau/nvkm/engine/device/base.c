@@ -2638,6 +2638,7 @@ nvkm_device_subdev(struct nvkm_device *device, int index)
 
 	switch (index) {
 #define _(n,p,m) case NVKM_SUBDEV_##n: if (p) return (m); break
+	_(ACR     , device->acr     , &device->acr->subdev);
 	_(BAR     , device->bar     , &device->bar->subdev);
 	_(VBIOS   , device->bios    , &device->bios->subdev);
 	_(BUS     , device->bus     , &device->bus->subdev);
@@ -3144,6 +3145,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	}                                                                      \
 	break
 		switch (i) {
+		_(NVKM_SUBDEV_ACR     ,      acr);
 		_(NVKM_SUBDEV_BAR     ,      bar);
 		_(NVKM_SUBDEV_VBIOS   ,     bios);
 		_(NVKM_SUBDEV_BUS     ,      bus);
