@@ -6643,6 +6643,10 @@ static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* Wa_1407352427:icl,ehl */
 	intel_uncore_rmw(&dev_priv->uncore, UNSLICE_UNIT_LEVEL_CLKGATE2,
 			 0, PSDUNIT_CLKGATE_DIS);
+
+	/*Wa_14010594013:icl, ehl */
+	intel_uncore_rmw(&dev_priv->uncore, GEN8_CHICKEN_DCPR_1,
+			 0, CNL_DELAY_PMRSP);
 }
 
 static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
