@@ -155,8 +155,7 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch,
 		return qdisc_drop(skb, sch, to_free);
 
 	nb = 0;
-	while (segs) {
-		nskb = segs->next;
+	skb_list_walk_safe(segs, segs, nskb) {
 		skb_mark_not_on_list(segs);
 		qdisc_skb_cb(segs)->pkt_len = segs->len;
 		len += segs->len;
@@ -167,7 +166,6 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch,
 		} else {
 			nb++;
 		}
-		segs = nskb;
 	}
 	sch->q.qlen += nb;
 	if (nb > 1)
