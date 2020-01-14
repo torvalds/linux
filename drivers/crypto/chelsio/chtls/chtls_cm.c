@@ -1829,6 +1829,20 @@ static void send_defer_abort_rpl(struct chtls_dev *cdev, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
+/*
+ * Add an skb to the deferred skb queue for processing from process context.
+ */
+static void t4_defer_reply(struct sk_buff *skb, struct chtls_dev *cdev,
+			   defer_handler_t handler)
+{
+	DEFERRED_SKB_CB(skb)->handler = handler;
+	spin_lock_bh(&cdev->deferq.lock);
+	__skb_queue_tail(&cdev->deferq, skb);
+	if (skb_queue_len(&cdev->deferq) == 1)
+		schedule_work(&cdev->deferq_task);
+	spin_unlock_bh(&cdev->deferq.lock);
+}
+
 static void send_abort_rpl(struct sock *sk, struct sk_buff *skb,
 			   struct chtls_dev *cdev, int status, int queue)
 {
@@ -1843,7 +1857,7 @@ static void send_abort_rpl(struct sock *sk, struct sk_buff *skb,
 
 	if (!reply_skb) {
 		req->status = (queue << 1);
-		send_defer_abort_rpl(cdev, skb);
+		t4_defer_reply(skb, cdev, send_defer_abort_rpl);
 		return;
 	}
 
@@ -1860,20 +1874,6 @@ static void send_abort_rpl(struct sock *sk, struct sk_buff *skb,
 		}
 	}
 	cxgb4_ofld_send(cdev->lldi->ports[0], reply_skb);
-}
-
-/*
- * Add an skb to the deferred skb queue for processing from process context.
- */
-static void t4_defer_reply(struct sk_buff *skb, struct chtls_dev *cdev,
-			   defer_handler_t handler)
-{
-	DEFERRED_SKB_CB(skb)->handler = handler;
-	spin_lock_bh(&cdev->deferq.lock);
-	__skb_queue_tail(&cdev->deferq, skb);
-	if (skb_queue_len(&cdev->deferq) == 1)
-		schedule_work(&cdev->deferq_task);
-	spin_unlock_bh(&cdev->deferq.lock);
 }
 
 static void chtls_send_abort_rpl(struct sock *sk, struct sk_buff *skb,
