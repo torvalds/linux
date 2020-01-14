@@ -86,12 +86,12 @@
 #define PVR_LINUX_PHYSMEM_MAX_ALLOC_ORDER_NUM  2
 #define PVR_LINUX_KMALLOC_ALLOCATION_THRESHOLD  16384
 #define SUPPORT_KERNEL_SRVINIT 
-#define SUPPORT_NATIVE_FENCE_SYNC 
+#define SUPPORT_NATIVE_FENCE_SYNC
 #define PVR_DRM_NAME "pvr"
 #define DEVICE_MEMSETCPY_ALIGN_IN_BYTES 16
 #define ANDROID 
 #define SUPPORT_ION 
-#define PVR_ANDROID_ION_HEADER "../drivers/staging/android/ion/ion.h"
-#define PVR_ANDROID_ION_PRIV_HEADER "../drivers/staging/android/ion/ion_priv.h"
+#define PVR_ANDROID_ION_HEADER "../drivers/staging/android/ion_legency/ion.h"
+#define PVR_ANDROID_ION_PRIV_HEADER "../drivers/staging/android/ion_legency/ion_priv.h"
 #define PVR_ANDROID_ION_USE_SG_LENGTH 
 #define PVR_ANDROID_SYNC_HEADER "../drivers/staging/android/sync.h"

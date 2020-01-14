@@ -45,7 +45,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0))
 #include <linux/sw_sync.h>
 #else
-#include <../drivers/staging/android/sw_sync.h>
+//Warning
+//#include <../drivers/staging/android/sw_sync.h>
 #endif
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -285,7 +286,7 @@ static INLINE void CacheOpStatExecLogHeader(IMG_CHAR szBuffer[PVR_MAX_DEBUG_MESS
 
 static INLINE void CacheOpStatExecLogWrite(DLLIST_NODE *psNode)
 {
-	CACHEOP_WORK_ITEM *psCacheOpWorkItem;
+	CACHEOP_WORK_ITEM *psCacheOpWorkItem = NULL;
 	IMG_UINT64 ui64ExecuteTime;
 	IMG_UINT64 ui64QueuedTime;
 	IMG_INT32 i32WriteOffset;
@@ -591,7 +592,7 @@ static INLINE void CacheOpCPURangeBased(PVRSRV_DEVICE_NODE *psDevNode,
 	IMG_CPU_PHYADDR sCpuPhyAddrEnd;
 	IMG_CPU_PHYADDR sCpuPhyAddrStart;
 	IMG_DEVMEM_SIZE_T uiRelFlushSize;
-	IMG_DEVMEM_OFFSET_T uiRelFlushOffset;
+	IMG_DEVMEM_OFFSET_T uiRelFlushOffset = 0;
 	IMG_DEVMEM_SIZE_T uiNextPgAlignedOffset;
 
 	/* These quantities allows us to perform cache operations
@@ -599,7 +600,6 @@ static INLINE void CacheOpCPURangeBased(PVRSRV_DEVICE_NODE *psDevNode,
 	   perform more than is necessary */
 	PVR_ASSERT(uiPgAlignedOffset < uiCLAlignedEndOffset);
 	uiRelFlushSize = (IMG_DEVMEM_SIZE_T)guiOSPageSize;
-	uiRelFlushOffset = 0;
 
 	if (uiCLAlignedStartOffset > uiPgAlignedOffset)
 	{
@@ -1705,7 +1705,13 @@ PVRSRV_ERROR CacheOpSetTimeline (IMG_INT32 i32Timeline)
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	sw_sync_timeline_inc(psFile->private_data, 1);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+    sw_sync_timeline_inc(psFile->private_data, 1);
+#else
+	//Warning
+    //if (0 != sw_sync_ioctl_inc(psFile->private_data, count))
+    //    printk("PVR SW_SYNC_IOC_INC failed \n");
+#endif
 	fput(psFile);
 
 	eError = PVRSRV_OK;
@@ -1985,6 +1991,12 @@ PVRSRV_ERROR CacheOpExec (PMR *psPMR,
 	}
 
 	eError = CacheOpRangeBased(psPMR, uiOffset, uiSize, uiCacheOp, &bUsedGlobalFlush);
+	if (eError != PVRSRV_OK) {
+		PVR_DPF((CACHEOP_DPFL,
+				"%s: CacheOpRangeBased failed (%u)",
+				__FUNCTION__, eError));
+	}
+
 #if	defined(CACHEOP_DEBUG)
 	sCacheOpWorkItem.bUMF = IMG_FALSE;
 	sCacheOpWorkItem.bRBF = !bUsedGlobalFlush;

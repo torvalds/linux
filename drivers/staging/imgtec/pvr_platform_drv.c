@@ -103,67 +103,54 @@ MODULE_PARM_DESC(num_devices,
 
 static int pvr_devices_register(void)
 {
-#if defined(MODULE) && !defined(PVR_LDM_PLATFORM_PRE_REGISTERED)
-	struct platform_device_info pvr_dev_info = {
-		.name = SYS_RGX_DEV_NAME,
-		.id = -2,
-#if defined(NO_HARDWARE)
-		/* Not all cores have 40 bit physical support, but this
-		 * will work unless > 32 bit address is returned on those cores.
-		 * In the future this will be fixed more correctly.
-		 */
-		.dma_mask = DMA_BIT_MASK(40),
-#else
-		.dma_mask = DMA_BIT_MASK(32),
-#endif
-	};
-	unsigned int i;
-
-	BUG_ON(pvr_num_devices == 0 || pvr_num_devices > MAX_DEVICES);
-
-	pvr_devices = kmalloc_array(pvr_num_devices, sizeof(*pvr_devices),
-				    GFP_KERNEL);
-	if (!pvr_devices)
-		return -ENOMEM;
-
-	for (i = 0; i < pvr_num_devices; i++) {
-		pvr_devices[i] = platform_device_register_full(&pvr_dev_info);
-		if (IS_ERR(pvr_devices[i])) {
-			DRM_ERROR("unable to register device %u (err=%ld)\n",
-				  i, PTR_ERR(pvr_devices[i]));
-			pvr_devices[i] = NULL;
-			return -ENODEV;
-		}
-	}
-#endif /* defined(MODULE) && !defined(PVR_LDM_PLATFORM_PRE_REGISTERED) */
-
 	return 0;
 }
 
 static void pvr_devices_unregister(void)
 {
-#if defined(MODULE) && !defined(PVR_LDM_PLATFORM_PRE_REGISTERED)
-	unsigned int i;
-
-	BUG_ON(!pvr_devices);
-
-	for (i = 0; i < pvr_num_devices && pvr_devices[i]; i++)
-		platform_device_unregister(pvr_devices[i]);
-
-	kfree(pvr_devices);
-	pvr_devices = NULL;
-#endif /* defined(MODULE) && !defined(PVR_LDM_PLATFORM_PRE_REGISTERED) */
 }
 
 static int pvr_probe(struct platform_device *pdev)
 {
+	struct drm_device *ddev;
+	int ret;
+
 	DRM_DEBUG_DRIVER("device %p\n", &pdev->dev);
 
-        //zxl:print gpu version on boot time
-        printk("PVR_K: sys.gpvr.version=%s\n",RKVERSION);
+	ddev = drm_dev_alloc(&pvr_drm_platform_driver, &pdev->dev);
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
+
+	//zxl:print gpu version on boot time
+	printk("PVR_K: sys.gpvr.version=%s\n", RKVERSION);
+
 	gpsPVRLDMDev = pdev;
 
-	return drm_platform_init(&pvr_drm_platform_driver, pdev);
+	/*
+	 * The load callback, called from drm_dev_register, is deprecated,
+	 * because of potential race conditions. Calling the function here,
+	 * before calling drm_dev_register, avoids those potential races.
+	 */
+	BUG_ON(pvr_drm_platform_driver.load != NULL);
+	ret = pvr_drm_load(ddev, 0);
+	if (ret)
+		goto err_drm_dev_unref;
+
+	ret = drm_dev_register(ddev, 0);
+	if (ret)
+		goto err_drm_dev_unload;
+
+	return 0;
+
+err_drm_dev_unload:
+	pvr_drm_unload(ddev);
+err_drm_dev_unref:
+	drm_dev_unref(ddev);
+	return  ret;
+
+    //gpsPVRLDMDev = pdev;
+
+    //return drm_platform_init(&pvr_drm_platform_driver, pdev);
 }
 
 static int pvr_remove(struct platform_device *pdev)
@@ -172,8 +159,19 @@ static int pvr_remove(struct platform_device *pdev)
 
 	DRM_DEBUG_DRIVER("device %p\n", &pdev->dev);
 
-	drm_put_dev(ddev);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
+	drm_dev_unregister(ddev);
 
+	/* The unload callback, called from drm_dev_unregister, is
+	 * deprecated. Call the unload function directly.
+	 */
+	BUG_ON(pvr_drm_platform_driver.unload != NULL);
+	pvr_drm_unload(ddev);
+
+	drm_dev_put(ddev);
+#else
+	drm_put_dev(ddev);
+#endif
 	return 0;
 }
 

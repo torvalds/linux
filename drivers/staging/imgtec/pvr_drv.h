@@ -55,6 +55,9 @@ struct vm_area_struct;
 extern const struct dev_pm_ops pvr_pm_ops;
 extern const struct drm_driver pvr_drm_generic_driver;
 
+int pvr_drm_load(struct drm_device *ddev, unsigned long flags);
+void pvr_drm_unload(struct drm_device *ddev);
+
 #if defined(PDUMP)
 int dbgdrv_init(void);
 void dbgdrv_cleanup(void);

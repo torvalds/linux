@@ -1276,7 +1276,7 @@ void RGXHWPerfHostDeInit(void)
 	if (gpsRgxDevInfo && gpsRgxDevInfo->hLockHWPerfHostStream)
 	{
 		OSLockDestroy(gpsRgxDevInfo->hLockHWPerfHostStream);
-		gpsRgxDevInfo->hLockHWPerfHostStream = IMG_FALSE;
+		gpsRgxDevInfo->hLockHWPerfHostStream = NULL;
 	}
 
 	/* Clear global RGX device reference */

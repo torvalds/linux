@@ -43,6 +43,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef PVRSRV_CLEANUP_H
 #define PVRSRV_CLEANUP_H
 
+#include "dllist.h"
+
 typedef PVRSRV_ERROR (*CLEANUP_THREAD_FN)(void *pvParam);
 
 /* typical number of times a caller should want the work to be retried in case

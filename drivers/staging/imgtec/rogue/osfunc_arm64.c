@@ -107,7 +107,7 @@ PVRSRV_ERROR OSCPUOperation(PVRSRV_CACHE_OP uiCacheOp)
 			PVR_DPF((PVR_DBG_ERROR,
 					"%s: Global cache operation type %d is invalid",
 					__FUNCTION__, uiCacheOp));
-			eError = PVRSRV_ERROR_INVALID_PARAMS;
+			//eError = PVRSRV_ERROR_INVALID_PARAMS;
 			PVR_ASSERT(0);
 			break;
 	}
@@ -121,13 +121,13 @@ void OSFlushCPUCacheRangeKM(PVRSRV_DEVICE_NODE *psDevNode,
 							IMG_CPU_PHYADDR sCPUPhysStart,
 							IMG_CPU_PHYADDR sCPUPhysEnd)
 {
-	struct dma_map_ops *dma_ops = get_dma_ops(psDevNode->psDevConfig->pvOSDevice);
+	const struct dma_map_ops *dma_ops = get_dma_ops(psDevNode->psDevConfig->pvOSDevice);
 
 	PVR_UNREFERENCED_PARAMETER(pvVirtStart);
 	PVR_UNREFERENCED_PARAMETER(pvVirtEnd);
 
-	dma_ops->sync_single_for_device(NULL, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_TO_DEVICE);
-	dma_ops->sync_single_for_cpu(NULL, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_FROM_DEVICE);
+	dma_ops->sync_single_for_device(psDevNode->psDevConfig->pvOSDevice, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_TO_DEVICE);
+	dma_ops->sync_single_for_cpu(psDevNode->psDevConfig->pvOSDevice, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_FROM_DEVICE);
 }
 
 void OSCleanCPUCacheRangeKM(PVRSRV_DEVICE_NODE *psDevNode,
@@ -136,12 +136,12 @@ void OSCleanCPUCacheRangeKM(PVRSRV_DEVICE_NODE *psDevNode,
 							IMG_CPU_PHYADDR sCPUPhysStart,
 							IMG_CPU_PHYADDR sCPUPhysEnd)
 {
-	struct dma_map_ops *dma_ops = get_dma_ops(psDevNode->psDevConfig->pvOSDevice);
+	const struct dma_map_ops *dma_ops = get_dma_ops(psDevNode->psDevConfig->pvOSDevice);
 
 	PVR_UNREFERENCED_PARAMETER(pvVirtStart);
 	PVR_UNREFERENCED_PARAMETER(pvVirtEnd);
 
-	dma_ops->sync_single_for_device(NULL, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_TO_DEVICE);
+	dma_ops->sync_single_for_device(psDevNode->psDevConfig->pvOSDevice, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_TO_DEVICE);
 }
 
 void OSInvalidateCPUCacheRangeKM(PVRSRV_DEVICE_NODE *psDevNode,
@@ -150,12 +150,12 @@ void OSInvalidateCPUCacheRangeKM(PVRSRV_DEVICE_NODE *psDevNode,
 								 IMG_CPU_PHYADDR sCPUPhysStart,
 								 IMG_CPU_PHYADDR sCPUPhysEnd)
 {
-	struct dma_map_ops *dma_ops = get_dma_ops(psDevNode->psDevConfig->pvOSDevice);
+	const struct dma_map_ops *dma_ops = get_dma_ops(psDevNode->psDevConfig->pvOSDevice);
 
 	PVR_UNREFERENCED_PARAMETER(pvVirtStart);
 	PVR_UNREFERENCED_PARAMETER(pvVirtEnd);
 
-	dma_ops->sync_single_for_cpu(NULL, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_FROM_DEVICE);
+	dma_ops->sync_single_for_cpu(psDevNode->psDevConfig->pvOSDevice, sCPUPhysStart.uiAddr, sCPUPhysEnd.uiAddr - sCPUPhysStart.uiAddr, DMA_FROM_DEVICE);
 }
 
 PVRSRV_CACHE_OP_ADDR_TYPE OSCPUCacheOpAddressType(PVRSRV_CACHE_OP uiCacheOp)

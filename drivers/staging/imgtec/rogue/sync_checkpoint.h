@@ -44,6 +44,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _SYNC_CHECKPOINT_
 #define _SYNC_CHECKPOINT_
 
+#include "psync_checkpoint.h"
+#include "psync_checkpoint_context.h"
 #include "img_types.h"
 #include "pvrsrv_error.h"
 #include "pvrsrv_sync_km.h"
@@ -52,13 +54,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvr_debug.h"
 
 #include "device_connection.h"
-
-typedef struct _PVRSRV_DEVICE_NODE_ PVRSRV_DEVICE_NODE;
-
-typedef struct _SYNC_CHECKPOINT_CONTEXT *PSYNC_CHECKPOINT_CONTEXT;
-
-typedef struct _SYNC_CHECKPOINT *PSYNC_CHECKPOINT;
-
 
 /*************************************************************************/ /*!
 @Function       SyncCheckpointContextCreate

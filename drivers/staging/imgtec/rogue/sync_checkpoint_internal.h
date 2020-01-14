@@ -45,6 +45,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __SYNC_CHECKPOINT__
 #define __SYNC_CHECKPOINT__
 
+#include "pvrsrv_device_node.h"
+#include "psync_checkpoint.h"
+#include "psync_checkpoint_context.h"
 #include "img_types.h"
 #include "sync_checkpoint_internal_fw.h"
 #include "sync_checkpoint.h"
@@ -53,8 +56,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "lock.h"
 #include "devicemem.h"
 
-typedef struct _PVRSRV_DEVICE_NODE_ PVRSRV_DEVICE_NODE;
-
 #if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING)
 struct SYNC_CHECKPOINT_RECORD;
 #endif
@@ -62,61 +63,8 @@ struct SYNC_CHECKPOINT_RECORD;
 /*
 	Private structures
 */
-#define SYNC_CHECKPOINT_NAME_SIZE	SYNC_CHECKPOINT_MAX_CLASS_NAME_LEN
-
-typedef struct _SYNC_CHECKPOINT_CONTEXT_
-{
-	PVRSRV_DEVICE_NODE     *psDevNode;
-	IMG_CHAR               azName[SYNC_CHECKPOINT_NAME_SIZE];     /*!< Name of the RA */
-	RA_ARENA               *psSubAllocRA;                         /*!< RA context */
-	IMG_CHAR               azSpanName[SYNC_CHECKPOINT_NAME_SIZE]; /*!< Name of the span RA */
-	RA_ARENA               *psSpanRA;                             /*!< RA used for span management of SubAllocRA */
-	ATOMIC_T               hRefCount;                             /*!< Ref count for this context */
-	ATOMIC_T               hCheckpointCount;                      /*!< Checkpoint count for this context */
-	POS_LOCK               hCheckpointListLock;                   /*!< Checkpoint list lock */
-	DLLIST_NODE            sCheckpointList;                       /*!< List of checkpoints created on this context */
-	IMG_HANDLE             hCheckpointNotify;                     /*!< Handle for debug notifier callback */
-#if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING)
-	POS_LOCK               hCheckpointRecordLock;
-	DLLIST_NODE            sCheckpointRecordList;
-	struct SYNC_CHECKPOINT_RECORD *apsCheckpointRecordsFreed[PVRSRV_FULL_SYNC_TRACKING_HISTORY_LEN];
-	IMG_UINT32             uiCheckpointRecordFreeIdx;
-	IMG_HANDLE             hCheckpointRecordNotify;
-#endif
-} _SYNC_CHECKPOINT_CONTEXT;
-
-typedef struct _SYNC_CHECKPOINT_BLOCK_
-{
-	ATOMIC_T                  hRefCount;                  /*!< Ref count for this sync block */
-	_SYNC_CHECKPOINT_CONTEXT  *psContext;                 /*!< Our copy of the services connection */
-	PVRSRV_DEVICE_NODE        *psDevNode;
-	IMG_UINT32                ui32SyncBlockSize;          /*!< Size of the sync checkpoint block */
-	IMG_UINT32                ui32FirmwareAddr;           /*!< Firmware address */
-	DEVMEM_MEMDESC            *hMemDesc;                  /*!< DevMem allocation for block */
-	volatile IMG_UINT32       *pui32LinAddr;              /*!< Server-code CPU mapping */
-	IMG_UINT64                uiSpanBase;                 /*!< Base of this import (FW DevMem) in the span RA */
-	DLLIST_NODE               sListNode;                  /*!< List node for the sync chkpt block list */
-} SYNC_CHECKPOINT_BLOCK;
 
 typedef struct SYNC_CHECKPOINT_RECORD* PSYNC_CHECKPOINT_RECORD_HANDLE;
-
-typedef struct _SYNC_CHECKPOINT_
-{
-	/* A sync checkpoint is assigned a unique ID, to avoid any confusion should
-	 * the same memory be re-used later for a different checkpoint
-	 */
-	IMG_UINT32                      ui32UID;                /*!< Unique ID assigned to sync checkpoint (to distinguish checkpoints if memory is re-used)*/
-	ATOMIC_T                        hRefCount;              /*!< Ref count for this sync */
-	ATOMIC_T                        hEnqueuedCCBCount;      /*!< Num times sync has been put in CCBs */
-	SYNC_CHECKPOINT_BLOCK           *psSyncCheckpointBlock; /*!< Synchronisation block this checkpoint is allocated on */
-	IMG_UINT64                      uiSpanAddr;             /*!< Span address of the sync */
-	volatile _SYNC_CHECKPOINT_FW_OBJ *psSyncCheckpointFwObj; /*!< CPU view of the data held in the sync block */
-	IMG_CHAR                        azName[SYNC_CHECKPOINT_NAME_SIZE]; /*!< Name of the checkpoint */
-#if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING)
-	PSYNC_CHECKPOINT_RECORD_HANDLE  hRecord;                /*!< Sync record handle */
-#endif
-	DLLIST_NODE                     sListNode;              /*!< List node for the sync chkpt list */
-} _SYNC_CHECKPOINT;
 
 /*************************************************************************/ /*!
 @Function       SyncCheckpointGetFirmwareAddr

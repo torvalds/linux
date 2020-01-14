@@ -57,6 +57,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define _SRVSRV_PMR_H_
 
 /* include/ */
+#include "pvrsrv_device_node.h"
 #include "img_types.h"
 #include "pdumpdefs.h"
 #include "pvrsrv_error.h"
@@ -69,6 +70,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* services/server/include/ */
 #include "pmr_impl.h"
 #include "physheap.h"
+#include "connection_data.h"
 
 #define PMR_MAX_TRANSLATION_STACK_ALLOC				(32)
 
@@ -95,9 +97,6 @@ struct _PMR_MAPPING_TABLE_
 typedef struct _PMR_EXPORT_ PMR_EXPORT;
 
 typedef struct _PMR_PAGELIST_ PMR_PAGELIST;
-
-typedef struct _CONNECTION_DATA_ CONNECTION_DATA;
-typedef struct _PVRSRV_DEVICE_NODE_ PVRSRV_DEVICE_NODE;
 
 /*
  * PMRCreatePMR

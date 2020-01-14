@@ -150,6 +150,8 @@ ccflags-$(CONFIG_POWERVR_ROGUE_PDUMP) += -DPDUMP=1
 # Android native synchronisation
 pvrsrvkm-$(CONFIG_SYNC) += ../pvr_sync.o
 
+pvrsrvkm-$(CONFIG_SYNC_FILE) += ../pvr_sync_file.o
+
 # Generated bridge code
 pvrsrvkm-y += generated/mm_bridge/server_mm_bridge.o
 pvrsrvkm-y += generated/mm_bridge/client_mm_direct_bridge.o

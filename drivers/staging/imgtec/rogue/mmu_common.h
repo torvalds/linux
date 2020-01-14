@@ -79,7 +79,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 /* services/server/include/ */
-#include "pmr.h"
+// #include "pmr.h"
+#include "pdump.h"
+#include "pmr_impl.h"
+#include "pvrsrv_memallocflags.h"
+#include "powervr/mem_types.h"
+#include "pdumpdefs.h"
+
 
 /* include/ */
 #include "img_types.h"

@@ -43,13 +43,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef POWER_H
 #define POWER_H
 
+#include "device.h"
 #include "img_defs.h"
 #include "img_types.h"
 #include "pvrsrv_device.h"
 #include "pvrsrv_error.h"
 #include "servicesext.h"
-
-typedef struct _PVRSRV_DEVICE_NODE_ PVRSRV_DEVICE_NODE;
 
 #if !defined(SUPPORT_KERNEL_SRVINIT)
 typedef enum _PVRSRV_INIT_SERVER_STATE_
@@ -75,8 +74,6 @@ PVRSRVSetInitServerState(PVRSRV_INIT_SERVER_STATE eInitServerState,
  *****************************************************************************
  *	Power management
  *****************************************************************************/
-
-typedef struct _PVRSRV_POWER_DEV_TAG_ PVRSRV_POWER_DEV;
 
 typedef IMG_BOOL (*PFN_SYS_DEV_IS_DEFAULT_STATE_OFF)(PVRSRV_POWER_DEV *psPowerDevice);
 

@@ -80,24 +80,6 @@ struct _SYNC_PRIMITIVE_BLOCK_
 	PRGXFWIF_UFO_ADDR		uiFWAddr;	/*!< The firmware address of the sync prim block */
 };
 
-struct _SERVER_SYNC_PRIMITIVE_
-{
-	PVRSRV_DEVICE_NODE		*psDevNode;
-	PVRSRV_CLIENT_SYNC_PRIM *psSync;
-	IMG_UINT32				ui32NextOp;
-	IMG_UINT32				ui32RefCount;
-	IMG_UINT32				ui32UID;
-	IMG_UINT32				ui32LastSyncRequesterID;
-	DLLIST_NODE				sNode;
-	/* PDump only data */
-	IMG_BOOL				bSWOperation;
-	IMG_BOOL				bSWOpStartedInCaptRange;
-	IMG_UINT32				ui32LastHWUpdate;
-	IMG_BOOL				bPDumped;
-	POS_LOCK				hLock;
-	IMG_CHAR				szClassName[SYNC_MAX_CLASS_NAME_LEN];
-};
-
 struct _SERVER_SYNC_EXPORT_
 {
 	SERVER_SYNC_PRIMITIVE *psSync;

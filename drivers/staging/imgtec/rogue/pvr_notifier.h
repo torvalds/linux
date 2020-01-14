@@ -52,7 +52,10 @@ Command Complete Notifier Interface
 */ /***************************************************************************/
 
 typedef IMG_HANDLE PVRSRV_CMDCOMP_HANDLE;
+#ifndef _CMDCOMPNOTIFY_PFN_
 typedef void (*PFN_CMDCOMP_NOTIFY)(PVRSRV_CMDCOMP_HANDLE hCmdCompHandle);
+#define _CMDCOMPNOTIFY_PFN_
+#endif
 
 /**************************************************************************/ /*!
 @Function       PVRSRVCmdCompleteInit
@@ -147,12 +150,19 @@ Debug Notifier Interface
 struct _PVRSRV_DEVICE_NODE_;
 
 typedef IMG_HANDLE PVRSRV_DBGREQ_HANDLE;
+#ifndef _DUMPDEBUG_PRINTF_FUNC_
 typedef void (DUMPDEBUG_PRINTF_FUNC)(void *pvDumpDebugFile,
 					const IMG_CHAR *pszFormat, ...);
+#define _DUMPDEBUG_PRINTF_FUNC_
+#endif
+
+#ifndef _PFN_DBGREQ_NOTIFY_
 typedef void (*PFN_DBGREQ_NOTIFY)(PVRSRV_DBGREQ_HANDLE hDebugRequestHandle,
 					IMG_UINT32 ui32VerbLevel,
 					DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 					void *pvDumpDebugFile);
+#define _PFN_DBGREQ_NOTIFY_
+#endif
 
 
 /**************************************************************************/ /*!

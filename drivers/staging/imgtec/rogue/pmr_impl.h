@@ -48,6 +48,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define _SRVSRV_PMR_IMPL_H_
 
 /* include/ */
+#include "powervr/mem_types.h"
+#include "pvrsrv_memallocflags.h"
 #include "img_types.h"
 #include "pvrsrv_error.h"
 

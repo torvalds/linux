@@ -50,7 +50,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_device.h"
 #include "pvrsrv_error.h"
 
-typedef IMG_BOOL (*PFN_LISR)(void *pvData);
+typedef IMG_BOOL (*SYS_PFN_LISR)(void *pvData);
 
 /**************************************************************************/ /*!
 @Function       SysDevInit
@@ -107,7 +107,7 @@ PVRSRV_ERROR SysDebugInfo(PVRSRV_DEVICE_CONFIG *psDevConfig,
 PVRSRV_ERROR SysInstallDeviceLISR(IMG_HANDLE hSysData,
 								  IMG_UINT32 ui32IRQ,
 								  const IMG_CHAR *pszName,
-								  PFN_LISR pfnLISR,
+								  SYS_PFN_LISR pfnLISR,
 								  void *pvData,
 								  IMG_HANDLE *phLISRData);
 

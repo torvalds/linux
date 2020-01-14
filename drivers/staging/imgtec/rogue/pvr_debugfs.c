@@ -68,39 +68,6 @@ static struct mutex gDebugFSLock;
  Statistic entry read functions
 */ /**************************************************************************/
 
-#if defined(PVRSRV_ENABLE_MEMTRACK_STATS_FILE)
-typedef struct _PVR_DEBUGFS_RAW_DRIVER_STAT_
-{
-	OS_STATS_PRINT_FUNC *pfStatsPrint;
-	PVR_DEBUGFS_ENTRY_DATA *pvDebugFsEntry;
-} PVR_DEBUGFS_RAW_DRIVER_STAT;
-#endif
-
-typedef struct _PVR_DEBUGFS_DRIVER_STAT_
-{
-	void				 *pvData;
-	OS_STATS_PRINT_FUNC  *pfnStatsPrint;
-	PVRSRV_INC_STAT_MEM_REFCOUNT_FUNC	*pfnIncStatMemRefCount;
-	PVRSRV_DEC_STAT_MEM_REFCOUNT_FUNC	*pfnDecStatMemRefCount;
-	IMG_UINT32				ui32RefCount;
-	PVR_DEBUGFS_ENTRY_DATA	*pvDebugFSEntry;
-} PVR_DEBUGFS_DRIVER_STAT;
-
-typedef struct _PVR_DEBUGFS_DIR_DATA_
-{
-	struct dentry *psDir;
-	PVR_DEBUGFS_DIR_DATA *psParentDir;
-	IMG_UINT32	ui32RefCount;
-} PVR_DEBUGFS_DIR_DATA;
-
-typedef struct _PVR_DEBUGFS_ENTRY_DATA_
-{
-	struct dentry *psEntry;
-	PVR_DEBUGFS_DIR_DATA *psParentDir;
-	IMG_UINT32	ui32RefCount;
-	PVR_DEBUGFS_DRIVER_STAT *psStatData;
-} PVR_DEBUGFS_ENTRY_DATA;
-
 typedef struct _PVR_DEBUGFS_PRIV_DATA_
 {
 	const struct seq_operations *psReadOps;

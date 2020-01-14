@@ -44,8 +44,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _SYNC_SERVER_INTERNAL_H_
 #define _SYNC_SERVER_INTERNAL_H_
 
+#include "server_sync_primitive.h"
 #include "img_types.h"
-
-typedef struct _SERVER_SYNC_PRIMITIVE_ SERVER_SYNC_PRIMITIVE;
 
 #endif	/*_SYNC_SERVER_INTERNAL_H_ */

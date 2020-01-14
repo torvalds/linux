@@ -42,7 +42,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __PVR_UACCESS_H__
 #define __PVR_UACCESS_H__
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static inline unsigned long pvr_copy_to_user(void __user *pvTo, const void *pvFrom, unsigned long ulBytes)
 {

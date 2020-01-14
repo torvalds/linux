@@ -46,7 +46,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    being otherwise cluttered by the contents of the latter */
 
 #ifndef _SRVKM_RGXMIPSMMUINIT_H_
-#define _SRVKM_RGXMMIPSMUINIT_H_
+#define _SRVKM_RGXMIPSMMUINIT_H_
 
 #include "device.h"
 #include "img_types.h"

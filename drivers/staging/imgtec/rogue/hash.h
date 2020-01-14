@@ -45,10 +45,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define _HASH_H_
 
 /* include5/ */
+#include "pvrsrv_error.h"
 #include "img_types.h"
 
 /* services/client/include/ or services/server/include/ */
-#include "osfunc.h"
+// #include "osfunc.h"
 
 #if defined (__cplusplus)
 extern "C" {

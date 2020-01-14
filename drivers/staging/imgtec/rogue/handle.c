@@ -53,6 +53,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <stddef.h>
 
+#include "osfunc.h"
 #include "handle.h"
 #include "handle_impl.h"
 #include "allocmem.h"

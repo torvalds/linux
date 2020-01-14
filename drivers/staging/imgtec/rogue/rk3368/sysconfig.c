@@ -249,7 +249,7 @@ void SysDevDeInit(PVRSRV_DEVICE_CONFIG *psDevConfig)
 PVRSRV_ERROR SysInstallDeviceLISR(IMG_HANDLE hSysData,
 								  IMG_UINT32 ui32IRQ,
 								  const IMG_CHAR *pszName,
-								  PFN_LISR pfnLISR,
+								  SYS_PFN_LISR pfnLISR,
 								  void *pvData,
 								  IMG_HANDLE *phLISRData)
 {

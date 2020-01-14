@@ -62,7 +62,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 		rem = do_div(t, USEC_PER_SEC); \
 	})
 
-void trace_fence_update_enabled_callback(void);
+int trace_fence_update_enabled_callback(void);
 void trace_fence_update_disabled_callback(void);
 
 TRACE_EVENT_FN(rogue_fence_update,
@@ -105,7 +105,7 @@ TRACE_EVENT_FN(rogue_fence_update,
 	trace_fence_update_disabled_callback
 );
 
-void trace_fence_check_enabled_callback(void);
+int trace_fence_check_enabled_callback(void);
 void trace_fence_check_disabled_callback(void);
 
 TRACE_EVENT_FN(rogue_fence_check,

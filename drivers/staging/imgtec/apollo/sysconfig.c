@@ -701,7 +701,7 @@ typedef struct
 	struct device *psDev;
 	int iInterruptID;
 	void *pvData;
-	PFN_LISR pfnLISR;
+	SYS_PFN_LISR pfnLISR;
 } LISR_DATA;
 
 static void ApolloInterruptHandler(void* pvData)
@@ -713,7 +713,7 @@ static void ApolloInterruptHandler(void* pvData)
 PVRSRV_ERROR SysInstallDeviceLISR(IMG_HANDLE hSysData,
 				  IMG_UINT32 ui32IRQ,
 				  const IMG_CHAR *pszName,
-				  PFN_LISR pfnLISR,
+				  SYS_PFN_LISR pfnLISR,
 				  void *pvData,
 				  IMG_HANDLE *phLISRData)
 {

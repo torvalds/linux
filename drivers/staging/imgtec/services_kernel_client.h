@@ -91,7 +91,10 @@ struct SYNC_PRIM_CONTEXT;
 
 /* pvr_notifier.h */
 
+#ifndef _CMDCOMPNOTIFY_PFN_
 typedef void (*PFN_CMDCOMP_NOTIFY)(void *hCmdCompHandle);
+#define _CMDCOMPNOTIFY_PFN_
+#endif
 enum PVRSRV_ERROR PVRSRVRegisterCmdCompleteNotify(void **phNotify,
 	PFN_CMDCOMP_NOTIFY pfnCmdCompleteNotify, void *hPrivData);
 enum PVRSRV_ERROR PVRSRVUnregisterCmdCompleteNotify(void *hNotify);
@@ -111,13 +114,20 @@ void PVRSRVCheckStatus(void *hCmdCompCallerHandle);
 #define DEBUG_REQUEST_VERBOSITY_HIGH   2
 #define DEBUG_REQUEST_VERBOSITY_MAX    DEBUG_REQUEST_VERBOSITY_HIGH
 
+#ifndef _DUMPDEBUG_PRINTF_FUNC_
 typedef void (DUMPDEBUG_PRINTF_FUNC)(void *pvDumpDebugFile,
 	const char *fmt, ...) __printf(2, 3);
+#define _DUMPDEBUG_PRINTF_FUNC_
+#endif
 
+#ifndef _PFN_DBGREQ_NOTIFY_
 typedef void (*PFN_DBGREQ_NOTIFY) (void *hDebugRequestHandle,
 	__u32 ui32VerbLevel,
 	DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 	void *pvDumpDebugFile);
+#define _PFN_DBGREQ_NOTIFY_
+#endif
+
 enum PVRSRV_ERROR PVRSRVRegisterDbgRequestNotify(void **phNotify,
 	struct _PVRSRV_DEVICE_NODE_ *psDevNode,
 	PFN_DBGREQ_NOTIFY pfnDbgRequestNotify,

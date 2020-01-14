@@ -60,6 +60,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/capability.h>
 #include <asm/uaccess.h>
 #include <linux/spinlock.h>
+
+#include <linux/sched/clock.h>
+
+
 #if defined(PVR_LINUX_MISR_USING_WORKQUEUE) || \
 	defined(PVR_LINUX_MISR_USING_PRIVATE_WORKQUEUE) || \
 	defined(PVR_LINUX_TIMERS_USING_WORKQUEUES) || \
@@ -68,7 +72,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/workqueue.h>
 #endif
 #include <linux/kthread.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0))
 #include <linux/pfn_t.h>
 #include <linux/pfn.h>
@@ -172,10 +176,10 @@ PVRSRV_ERROR OSPhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
 void OSPhyContigPagesFree(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle)
 {
 	struct page *psPage = (struct page*) psMemHandle->u.pvHandle;
-	IMG_UINT32	uiSize, uiPageCount=0;
+	//IMG_UINT32 uiPageCount=0;
 
-	uiPageCount = (1 << psMemHandle->ui32Order);
-	uiSize = (uiPageCount * PAGE_SIZE);
+	//uiPageCount = (1 << psMemHandle->ui32Order);
+	//uiSize = (uiPageCount * PAGE_SIZE);
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
@@ -489,7 +493,12 @@ static inline IMG_UINT64 KClockns64(void)
 {
 	ktime_t sTime = ktime_get();
 
+//ktime_t in 4.19 is defined s64, on 4.4 is defined union ktime.
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 	return sTime.tv64;
+#else
+	return sTime;
+#endif
 }
 
 PVRSRV_ERROR OSClockMonotonicns64(IMG_UINT64 *pui64Time)
@@ -1230,12 +1239,18 @@ IMG_HANDLE OSAddTimer(PFN_TIMER_FUNC pfnTimerFunc, void *pvData, IMG_UINT32 ui32
 	psTimerCBData->ui32Delay = ((HZ * ui32MsTimeout) < 1000)
 								?	1
 								:	((HZ * ui32MsTimeout) / 1000);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 	/* initialise object */
 	init_timer(&psTimerCBData->sTimer);
 
 	/* setup timer object */
 	psTimerCBData->sTimer.function = (void *)OSTimerCallbackWrapper;
 	psTimerCBData->sTimer.data = (uintptr_t)psTimerCBData;
+
+#else
+	timer_setup(&psTimerCBData->sTimer, (void *)OSTimerCallbackWrapper, 0);
+#endif
 
 	return (IMG_HANDLE)(uintptr_t)(ui32i + 1);
 }
@@ -1498,19 +1513,19 @@ PVRSRV_ERROR OSCopyFromUser(void *pvProcess,
 
 IMG_BOOL OSAccessOK(IMG_VERIFY_TEST eVerification, void *pvUserPtr, size_t ui32Bytes)
 {
-	IMG_INT linuxType;
+	//IMG_INT linuxType;
 
 	if (eVerification == PVR_VERIFY_READ)
 	{
-		linuxType = VERIFY_READ;
+		//linuxType = VERIFY_READ;
 	}
 	else
 	{
 		PVR_ASSERT(eVerification == PVR_VERIFY_WRITE);
-		linuxType = VERIFY_WRITE;
+		//linuxType = VERIFY_WRITE;
 	}
 
-	return access_ok(linuxType, pvUserPtr, ui32Bytes);
+	return access_ok(NULL, pvUserPtr, ui32Bytes);
 }
 
 IMG_UINT64 OSDivide64r64(IMG_UINT64 ui64Divident, IMG_UINT32 ui32Divisor, IMG_UINT32 *pui32Remainder)
@@ -1759,7 +1774,7 @@ PVRSRV_ERROR OSChangeSparseMemCPUAddrMap(void **psPageArray,
 			 */
 #endif
 		}
-		eError = PVRSRV_OK;
+		//eError = PVRSRV_OK;
 	}
 
 	if ((psVMA->vm_flags & VM_MIXEDMAP) || bIsLMA)

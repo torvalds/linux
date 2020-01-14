@@ -117,6 +117,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * no parent.
  */
 
+#include "lock_types.h"
 #include "img_types.h"
 #include "hash.h"
 

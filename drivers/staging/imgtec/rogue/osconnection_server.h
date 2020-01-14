@@ -44,7 +44,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _OSCONNECTION_SERVER_H_
 #define _OSCONNECTION_SERVER_H_
 
-#include "handle.h"
+// #include "handle.h"
+#include "pvrsrv_device_node.h"
 
 
 #if defined(__linux__) || defined(__QNXNTO__) || defined(INTEGRITY_OS)

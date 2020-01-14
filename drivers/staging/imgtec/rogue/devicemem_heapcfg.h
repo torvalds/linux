@@ -48,13 +48,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "img_types.h"
 #include "pvrsrv_error.h"
+#include "connection_data.h"
 
 
 
 /* FIXME: Find a better way of defining _PVRSRV_DEVICE_NODE_ */
 struct _PVRSRV_DEVICE_NODE_;
-/* FIXME: Find a better way of defining _CONNECTION_DATA_ */
-struct _CONNECTION_DATA_;
 
 
 /*

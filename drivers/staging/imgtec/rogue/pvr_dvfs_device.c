@@ -70,8 +70,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "pvrsrv_device.h"
 #include "syscommon.h"
-#include "rgxdevice.h"
 #include "rgxinit.h"
+#include "rgxdevice.h"
 #include "pvr_dvfs_device.h"
 #include "power.h"
 
@@ -247,7 +247,7 @@ static int GetOPPValues(struct device *dev,
 #if defined(CHROMIUMOS_WORKAROUNDS_KERNEL318)
 	unsigned long *freq_table;
 #else
-	unsigned int *freq_table;
+	unsigned long *freq_table;
 #endif
 
 	/* Start RCU read-side critical section to access device opp_list. */
@@ -478,7 +478,6 @@ PVRSRV_ERROR InitDVFS(PVRSRV_DEVICE_NODE *psDeviceNode)
 	if (eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"PVRSRVInit: Failed to suspend DVFS"));
-		eError = eError;
 		goto err_exit;
 	}
 
