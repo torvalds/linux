@@ -139,6 +139,7 @@ nvkm_pmu_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
 	nvkm_msgqueue_del(&pmu->queue);
+	nvkm_falcon_qmgr_del(&pmu->qmgr);
 	nvkm_falcon_dtor(&pmu->falcon);
 	return nvkm_pmu(subdev);
 }
@@ -156,6 +157,8 @@ int
 nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
 	      int index, struct nvkm_pmu *pmu)
 {
+	int ret;
+
 	nvkm_subdev_ctor(&nvkm_pmu, device, index, &pmu->subdev);
 
 	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
@@ -167,9 +170,16 @@ nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
 
 	pmu->func = fwif->func;
 
-	return nvkm_falcon_ctor(pmu->func->flcn, &pmu->subdev,
-				nvkm_subdev_name[pmu->subdev.index], 0x10a000,
-				&pmu->falcon);
+	ret = nvkm_falcon_ctor(pmu->func->flcn, &pmu->subdev,
+			       nvkm_subdev_name[pmu->subdev.index], 0x10a000,
+			       &pmu->falcon);
+	if (ret)
+		return ret;
+
+	if ((ret = nvkm_falcon_qmgr_new(&pmu->falcon, &pmu->qmgr)))
+		return ret;
+
+	return 0;
 }
 
 int

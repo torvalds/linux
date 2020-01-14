@@ -10,6 +10,7 @@ struct nvkm_sec2 {
 	struct nvkm_engine engine;
 	struct nvkm_falcon falcon;
 
+	struct nvkm_falcon_qmgr *qmgr;
 	struct nvkm_msgqueue *queue;
 	struct work_struct work;
 };

@@ -29,4 +29,8 @@ int gp102_sec2_flcn_enable(struct nvkm_falcon *);
 } while(0)
 #define FLCN_DBG(f,fmt,a...) FLCN_PRINTK(debug, (f), fmt, ##a)
 #define FLCN_ERR(f,fmt,a...) FLCN_PRINTK(error, (f), fmt, ##a)
+
+struct nvkm_falcon_qmgr;
+int nvkm_falcon_qmgr_new(struct nvkm_falcon *, struct nvkm_falcon_qmgr **);
+void nvkm_falcon_qmgr_del(struct nvkm_falcon_qmgr **);
 #endif

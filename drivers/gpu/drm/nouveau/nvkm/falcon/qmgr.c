@@ -54,3 +54,26 @@ msgqueue_seq_release(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_seq *seq)
 	seq->completion = NULL;
 	clear_bit(seq->id, priv->seq_tbl);
 }
+
+void
+nvkm_falcon_qmgr_del(struct nvkm_falcon_qmgr **pqmgr)
+{
+	struct nvkm_falcon_qmgr *qmgr = *pqmgr;
+	if (qmgr) {
+		kfree(*pqmgr);
+		*pqmgr = NULL;
+	}
+}
+
+int
+nvkm_falcon_qmgr_new(struct nvkm_falcon *falcon,
+		     struct nvkm_falcon_qmgr **pqmgr)
+{
+	struct nvkm_falcon_qmgr *qmgr;
+
+	if (!(qmgr = *pqmgr = kzalloc(sizeof(*qmgr), GFP_KERNEL)))
+		return -ENOMEM;
+
+	qmgr->falcon = falcon;
+	return 0;
+}

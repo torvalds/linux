@@ -132,6 +132,7 @@ struct nvkm_msgqueue_func {
  * @tail_reg:	address of the TAIL register for this queue
  */
 struct nvkm_msgqueue_queue {
+	struct nvkm_falcon_qmgr *qmgr;
 	struct mutex mutex;
 	u32 index;
 	u32 offset;

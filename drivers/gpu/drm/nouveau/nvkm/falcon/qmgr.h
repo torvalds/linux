@@ -9,6 +9,10 @@
 /* max size of the messages we can receive */
 #define MSG_BUF_SIZE 128
 
+struct nvkm_falcon_qmgr {
+	struct nvkm_falcon *falcon;
+};
+
 struct nvkm_msgqueue_seq *msgqueue_seq_acquire(struct nvkm_msgqueue *);
 void msgqueue_seq_release(struct nvkm_msgqueue *, struct nvkm_msgqueue_seq *);
 #endif
